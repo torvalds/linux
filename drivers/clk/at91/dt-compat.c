@@ -154,7 +154,8 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		     id == GCK_ID_CLASSD))
 			pll_audio = true;
 
-		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock, name,
+		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock,
+						 &dt_pcr_layout, name,
 						 parent_names, num_parents,
 						 id, pll_audio, &range);
 		if (IS_ERR(hw))
