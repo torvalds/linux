@@ -167,7 +167,7 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 			   unsigned long parent_rate)
 {
 	struct ccu_nkmp *nkmp = hw_to_ccu_nkmp(hw);
-	u32 n_mask, k_mask, m_mask, p_mask;
+	u32 n_mask = 0, k_mask = 0, m_mask = 0, p_mask = 0;
 	struct _ccu_nkmp _nkmp;
 	unsigned long flags;
 	u32 reg;
@@ -186,10 +186,18 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	ccu_nkmp_find_best(parent_rate, rate, &_nkmp);
 
-	n_mask = GENMASK(nkmp->n.width + nkmp->n.shift - 1, nkmp->n.shift);
-	k_mask = GENMASK(nkmp->k.width + nkmp->k.shift - 1, nkmp->k.shift);
-	m_mask = GENMASK(nkmp->m.width + nkmp->m.shift - 1, nkmp->m.shift);
-	p_mask = GENMASK(nkmp->p.width + nkmp->p.shift - 1, nkmp->p.shift);
+	if (nkmp->n.width)
+		n_mask = GENMASK(nkmp->n.width + nkmp->n.shift - 1,
+				 nkmp->n.shift);
+	if (nkmp->k.width)
+		k_mask = GENMASK(nkmp->k.width + nkmp->k.shift - 1,
+				 nkmp->k.shift);
+	if (nkmp->m.width)
+		m_mask = GENMASK(nkmp->m.width + nkmp->m.shift - 1,
+				 nkmp->m.shift);
+	if (nkmp->p.width)
+		p_mask = GENMASK(nkmp->p.width + nkmp->p.shift - 1,
+				 nkmp->p.shift);
 
 	spin_lock_irqsave(nkmp->common.lock, flags);
 
