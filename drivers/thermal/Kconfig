@@ -148,7 +148,7 @@ config THERMAL_GOV_POWER_ALLOCATOR
 	  allocating and limiting power to devices.
 
 config CPU_THERMAL
-	bool "generic cpu cooling support"
+	bool "Generic cpu cooling support"
 	depends on CPU_FREQ
 	depends on THERMAL_OF
 	help
