@@ -82,13 +82,13 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return ENABLE_TIME_USEC * val;
 }
 
-static struct regulator_ops lm363x_boost_voltage_table_ops = {
+static const struct regulator_ops lm363x_boost_voltage_table_ops = {
 	.list_voltage     = regulator_list_voltage_linear,
 	.set_voltage_sel  = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel  = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops lm363x_regulator_voltage_table_ops = {
+static const struct regulator_ops lm363x_regulator_voltage_table_ops = {
 	.list_voltage     = regulator_list_voltage_linear,
 	.set_voltage_sel  = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel  = regulator_get_voltage_sel_regmap,
