@@ -949,12 +949,12 @@ static void append_filter_err(struct trace_array *tr,
 	if (pe->lasterr > 0) {
 		trace_seq_printf(s, "\n%*s", pos, "^");
 		trace_seq_printf(s, "\nparse_error: %s\n", err_text[pe->lasterr]);
-		tracing_log_err("event filter parse error",
+		tracing_log_err(tr, "event filter parse error",
 				filter->filter_string, err_text,
 				pe->lasterr, pe->lasterr_pos);
 	} else {
 		trace_seq_printf(s, "\nError: (%d)\n", pe->lasterr);
-		tracing_log_err("event filter parse error",
+		tracing_log_err(tr, "event filter parse error",
 				filter->filter_string, err_text,
 				FILT_ERR_ERRNO, 0);
 	}

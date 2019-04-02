@@ -621,7 +621,8 @@ static void last_cmd_set(struct trace_event_file *file, char *str)
 
 static void hist_err(struct trace_array *tr, u8 err_type, u8 err_pos)
 {
-	tracing_log_err(last_cmd_loc, last_cmd, err_text, err_type, err_pos);
+	tracing_log_err(tr, last_cmd_loc, last_cmd, err_text,
+			err_type, err_pos);
 }
 
 static void hist_err_clear(void)

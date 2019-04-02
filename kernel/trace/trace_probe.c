@@ -186,7 +186,7 @@ void __trace_probe_log_err(int offset, int err_type)
 	}
 	*(p - 1) = '\0';
 
-	tracing_log_err(trace_probe_log.subsystem, command,
+	tracing_log_err(NULL, trace_probe_log.subsystem, command,
 			trace_probe_err_text, err_type, pos + offset);
 
 	kfree(command);

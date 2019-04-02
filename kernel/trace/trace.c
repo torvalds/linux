@@ -6897,25 +6897,22 @@ struct tracing_log_err {
 	char			cmd[MAX_FILTER_STR_VAL]; /* what caused err */
 };
 
-static LIST_HEAD(tracing_err_log);
 static DEFINE_MUTEX(tracing_err_log_lock);
 
-static unsigned int n_tracing_err_log_entries;
-
-struct tracing_log_err *get_tracing_log_err(void)
+struct tracing_log_err *get_tracing_log_err(struct trace_array *tr)
 {
 	struct tracing_log_err *err;
 
-	if (n_tracing_err_log_entries < TRACING_LOG_ERRS_MAX) {
+	if (tr->n_err_log_entries < TRACING_LOG_ERRS_MAX) {
 		err = kzalloc(sizeof(*err), GFP_KERNEL);
 		if (!err)
 			err = ERR_PTR(-ENOMEM);
-		n_tracing_err_log_entries++;
+		tr->n_err_log_entries++;
 
 		return err;
 	}
 
-	err = list_first_entry(&tracing_err_log, struct tracing_log_err, list);
+	err = list_first_entry(&tr->err_log, struct tracing_log_err, list);
 	list_del(&err->list);
 
 	return err;
@@ -6949,6 +6946,7 @@ unsigned int err_pos(char *cmd, const char *str)
 
 /**
  * tracing_log_err - write an error to the tracing error log
+ * @tr: The associated trace array for the error (NULL for top level array)
  * @loc: A string describing where the error occurred
  * @cmd: The tracing command that caused the error
  * @errs: The array of loc-specific static error strings
@@ -6973,13 +6971,17 @@ unsigned int err_pos(char *cmd, const char *str)
  * existing callers for examples of how static strings are typically
  * defined for use with tracing_log_err().
  */
-void tracing_log_err(const char *loc, const char *cmd,
+void tracing_log_err(struct trace_array *tr,
+		     const char *loc, const char *cmd,
 		     const char **errs, u8 type, u8 pos)
 {
 	struct tracing_log_err *err;
 
+	if (!tr)
+		tr = &global_trace;
+
 	mutex_lock(&tracing_err_log_lock);
-	err = get_tracing_log_err();
+	err = get_tracing_log_err(tr);
 	if (PTR_ERR(err) == -ENOMEM) {
 		mutex_unlock(&tracing_err_log_lock);
 		return;
@@ -6993,34 +6995,38 @@ void tracing_log_err(const char *loc, const char *cmd,
 	err->info.pos = pos;
 	err->info.ts = local_clock();
 
-	list_add_tail(&err->list, &tracing_err_log);
+	list_add_tail(&err->list, &tr->err_log);
 	mutex_unlock(&tracing_err_log_lock);
 }
 
-static void clear_tracing_err_log(void)
+static void clear_tracing_err_log(struct trace_array *tr)
 {
 	struct tracing_log_err *err, *next;
 
 	mutex_lock(&tracing_err_log_lock);
-	list_for_each_entry_safe(err, next, &tracing_err_log, list) {
+	list_for_each_entry_safe(err, next, &tr->err_log, list) {
 		list_del(&err->list);
 		kfree(err);
 	}
 
-	n_tracing_err_log_entries = 0;
+	tr->n_err_log_entries = 0;
 	mutex_unlock(&tracing_err_log_lock);
 }
 
 static void *tracing_err_log_seq_start(struct seq_file *m, loff_t *pos)
 {
+	struct trace_array *tr = m->private;
+
 	mutex_lock(&tracing_err_log_lock);
 
-	return seq_list_start(&tracing_err_log, *pos);
+	return seq_list_start(&tr->err_log, *pos);
 }
 
 static void *tracing_err_log_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	return seq_list_next(v, &tracing_err_log, pos);
+	struct trace_array *tr = m->private;
+
+	return seq_list_next(v, &tr->err_log, pos);
 }
 
 static void tracing_err_log_seq_stop(struct seq_file *m, void *v)
@@ -7067,15 +7073,25 @@ static const struct seq_operations tracing_err_log_seq_ops = {
 
 static int tracing_err_log_open(struct inode *inode, struct file *file)
 {
+	struct trace_array *tr = inode->i_private;
 	int ret = 0;
+
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
 
 	/* If this file was opened for write, then erase contents */
 	if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC))
-		clear_tracing_err_log();
+		clear_tracing_err_log(tr);
 
-	if (file->f_mode & FMODE_READ)
+	if (file->f_mode & FMODE_READ) {
 		ret = seq_open(file, &tracing_err_log_seq_ops);
-
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			m->private = tr;
+		} else {
+			trace_array_put(tr);
+		}
+	}
 	return ret;
 }
 
@@ -7091,6 +7107,7 @@ static const struct file_operations tracing_err_log_fops = {
 	.write		= tracing_err_log_write,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
+	.release	= tracing_release_generic_tr,
 };
 
 static int tracing_buffers_open(struct inode *inode, struct file *filp)
@@ -8293,6 +8310,7 @@ struct trace_array *trace_array_create(const char *name)
 	INIT_LIST_HEAD(&tr->systems);
 	INIT_LIST_HEAD(&tr->events);
 	INIT_LIST_HEAD(&tr->hist_vars);
+	INIT_LIST_HEAD(&tr->err_log);
 
 	if (allocate_trace_buffers(tr, trace_buf_size) < 0)
 		goto out_free_tr;
@@ -9087,6 +9105,7 @@ __init static int tracer_alloc_buffers(void)
 	INIT_LIST_HEAD(&global_trace.systems);
 	INIT_LIST_HEAD(&global_trace.events);
 	INIT_LIST_HEAD(&global_trace.hist_vars);
+	INIT_LIST_HEAD(&global_trace.err_log);
 	list_add(&global_trace.list, &ftrace_trace_arrays);
 
 	apply_trace_boot_options();

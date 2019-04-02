@@ -293,11 +293,13 @@ struct trace_array {
 	int			nr_topts;
 	bool			clear_trace;
 	int			buffer_percent;
+	unsigned int		n_err_log_entries;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
 	unsigned int		flags;
 	raw_spinlock_t		start_lock;
+	struct list_head	err_log;
 	struct dentry		*dir;
 	struct dentry		*options;
 	struct dentry		*percpu_dir;
@@ -1886,7 +1888,8 @@ extern ssize_t trace_parse_run_command(struct file *file,
 		int (*createfn)(int, char**));
 
 extern unsigned int err_pos(char *cmd, const char *str);
-extern void tracing_log_err(const char *loc, const char *cmd,
+extern void tracing_log_err(struct trace_array *tr,
+			    const char *loc, const char *cmd,
 			    const char **errs, u8 type, u8 pos);
 
 /*
