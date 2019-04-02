@@ -870,10 +870,11 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 
 	intel_device_info_subplatform_init(dev_priv);
 
+	intel_uncore_init_early(&dev_priv->uncore);
+
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	mutex_init(&dev_priv->backlight_lock);
-	spin_lock_init(&dev_priv->uncore.lock);
 
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->av_mutex);

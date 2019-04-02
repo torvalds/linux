@@ -178,6 +178,7 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 }
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
+void intel_uncore_init_early(struct intel_uncore *uncore);
 int intel_uncore_init(struct intel_uncore *uncore);
 void intel_uncore_prune(struct intel_uncore *uncore);
 bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore);

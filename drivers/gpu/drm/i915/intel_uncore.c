@@ -1524,6 +1524,10 @@ static void uncore_mmio_cleanup(struct intel_uncore *uncore)
 	pci_iounmap(pdev, uncore->regs);
 }
 
+void intel_uncore_init_early(struct intel_uncore *uncore)
+{
+	spin_lock_init(&uncore->lock);
+}
 
 int intel_uncore_init(struct intel_uncore *uncore)
 {
