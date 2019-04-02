@@ -665,7 +665,6 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 
 	hsdma = devm_kzalloc(&pdev->dev, sizeof(*hsdma), GFP_KERNEL);
 	if (!hsdma) {
-		dev_err(&pdev->dev, "alloc dma device failed\n");
 		return -EINVAL;
 	}
 
