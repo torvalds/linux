@@ -132,6 +132,8 @@ struct sh_msiof_spi_priv {
 #define CTR_TFSE	BIT(14)   /* Transmit Frame Sync Signal Output Enable */
 #define CTR_TXE		BIT(9)    /* Transmit Enable */
 #define CTR_RXE		BIT(8)    /* Receive Enable */
+#define CTR_TXRST	BIT(1)    /* Transmit Reset */
+#define CTR_RXRST	BIT(0)    /* Receive Reset */
 
 /* FCTR */
 #define FCTR_TFWM_MASK	GENMASK(31, 29) /* Transmit FIFO Watermark */
@@ -239,6 +241,19 @@ static irqreturn_t sh_msiof_spi_irq(int irq, void *data)
 	complete(&p->done);
 
 	return IRQ_HANDLED;
+}
+
+static void sh_msiof_spi_reset_regs(struct sh_msiof_spi_priv *p)
+{
+	u32 mask = CTR_TXRST | CTR_RXRST;
+	u32 data;
+
+	data = sh_msiof_read(p, CTR);
+	data |= mask;
+	sh_msiof_write(p, CTR, data);
+
+	readl_poll_timeout_atomic(p->mapbase + CTR, data, !(data & mask), 1,
+				  100);
 }
 
 static const u32 sh_msiof_spi_div_array[] = {
@@ -919,6 +934,9 @@ static int sh_msiof_transfer_one(struct spi_controller *ctlr,
 	int n;
 	bool swab;
 	int ret;
+
+	/* reset registers */
+	sh_msiof_spi_reset_regs(p);
 
 	/* setup clocks (clock already enabled in chipselect()) */
 	if (!spi_controller_is_slave(p->ctlr))
