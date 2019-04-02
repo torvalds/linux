@@ -1498,7 +1498,7 @@ found:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, nh, err);
+			trace_fib_table_lookup(tb->tb_id, flp, &nh->nh_common, err);
 
 			return err;
 		}
