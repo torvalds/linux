@@ -7409,9 +7409,7 @@ static int vmx_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 	}
 
 	if (vmx->nested.smm.guest_mode) {
-		vcpu->arch.hflags &= ~HF_SMM_MASK;
 		ret = nested_vmx_enter_non_root_mode(vcpu, false);
-		vcpu->arch.hflags |= HF_SMM_MASK;
 		if (ret)
 			return ret;
 

@@ -2571,6 +2571,12 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	if (ret != X86EMUL_CONTINUE)
 		return X86EMUL_UNHANDLEABLE;
 
+	if ((ctxt->ops->get_hflags(ctxt) & X86EMUL_SMM_INSIDE_NMI_MASK) == 0)
+		ctxt->ops->set_nmi_mask(ctxt, false);
+
+	ctxt->ops->set_hflags(ctxt, ctxt->ops->get_hflags(ctxt) &
+		~(X86EMUL_SMM_INSIDE_NMI_MASK | X86EMUL_SMM_MASK));
+
 	/*
 	 * Get back to real mode, to prepare a safe state in which to load
 	 * CR0/CR3/CR4/EFER.  It's all a bit more complicated if the vCPU
@@ -2623,12 +2629,6 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 		/* FIXME: should triple fault */
 		return X86EMUL_UNHANDLEABLE;
 	}
-
-	if ((ctxt->ops->get_hflags(ctxt) & X86EMUL_SMM_INSIDE_NMI_MASK) == 0)
-		ctxt->ops->set_nmi_mask(ctxt, false);
-
-	ctxt->ops->set_hflags(ctxt, ctxt->ops->get_hflags(ctxt) &
-		~(X86EMUL_SMM_INSIDE_NMI_MASK | X86EMUL_SMM_MASK));
 
 	ctxt->ops->post_leave_smm(ctxt);
 

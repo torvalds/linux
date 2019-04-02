@@ -6239,21 +6239,17 @@ static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 	struct page *page;
 	u64 guest;
 	u64 vmcb;
-	int ret;
 
 	guest = GET_SMSTATE(u64, smstate, 0x7ed8);
 	vmcb = GET_SMSTATE(u64, smstate, 0x7ee0);
 
 	if (guest) {
-		vcpu->arch.hflags &= ~HF_SMM_MASK;
 		nested_vmcb = nested_svm_map(svm, vmcb, &page);
-		if (nested_vmcb)
-			enter_svm_guest_mode(svm, vmcb, nested_vmcb, page);
-		else
-			ret = 1;
-		vcpu->arch.hflags |= HF_SMM_MASK;
+		if (!nested_vmcb)
+			return 1;
+		enter_svm_guest_mode(svm, vmcb, nested_vmcb, page);
 	}
-	return ret;
+	return 0;
 }
 
 static int enable_smi_window(struct kvm_vcpu *vcpu)
