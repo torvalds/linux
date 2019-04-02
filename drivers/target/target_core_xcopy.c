@@ -389,7 +389,6 @@ out:
  */
 
 struct xcopy_pt_cmd {
-	bool remote_port;
 	struct se_cmd se_cmd;
 	struct completion xpt_passthrough_sem;
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
@@ -520,9 +519,7 @@ static void target_xcopy_setup_pt_port(
 		 * when CDB is received on local source port, and READs blocks to
 		 * WRITE on remote destination port.
 		 */
-		if (remote_port) {
-			xpt_cmd->remote_port = remote_port;
-		} else {
+		if (!remote_port) {
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
 
@@ -539,9 +536,7 @@ static void target_xcopy_setup_pt_port(
 		 * blocks from the remote source port to WRITE on local
 		 * destination port.
 		 */
-		if (remote_port) {
-			xpt_cmd->remote_port = remote_port;
-		} else {
+		if (!remote_port) {
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
 
