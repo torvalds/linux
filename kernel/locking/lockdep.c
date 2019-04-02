@@ -516,11 +516,11 @@ static char get_usage_char(struct lock_class *class, enum lock_usage_bit bit)
 {
 	char c = '.';
 
-	if (class->usage_mask & lock_flag(bit + 2))
+	if (class->usage_mask & lock_flag(bit + LOCK_USAGE_DIR_MASK))
 		c = '+';
 	if (class->usage_mask & lock_flag(bit)) {
 		c = '-';
-		if (class->usage_mask & lock_flag(bit + 2))
+		if (class->usage_mask & lock_flag(bit + LOCK_USAGE_DIR_MASK))
 			c = '?';
 	}
 
@@ -1971,7 +1971,10 @@ static const char *state_rnames[] = {
 
 static inline const char *state_name(enum lock_usage_bit bit)
 {
-	return (bit & LOCK_USAGE_READ_MASK) ? state_rnames[bit >> 2] : state_names[bit >> 2];
+	if (bit & LOCK_USAGE_READ_MASK)
+		return state_rnames[bit >> LOCK_USAGE_DIR_MASK];
+	else
+		return state_names[bit >> LOCK_USAGE_DIR_MASK];
 }
 
 static int exclusive_bit(int new_bit)
@@ -3017,7 +3020,7 @@ static int (*state_verbose_f[])(struct lock_class *class) = {
 static inline int state_verbose(enum lock_usage_bit bit,
 				struct lock_class *class)
 {
-	return state_verbose_f[bit >> 2](class);
+	return state_verbose_f[bit >> LOCK_USAGE_DIR_MASK](class);
 }
 
 typedef int (*check_usage_f)(struct task_struct *, struct held_lock *,
