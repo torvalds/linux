@@ -270,8 +270,8 @@ struct acc_desc {
 	unsigned int	enable_reg;
 	u32		enable_mask;
 
-	struct reg_sequence	*settings;
-	struct reg_sequence	*override_settings;
+	struct reg_default	*settings;
+	struct reg_default	*override_settings;
 	int			num_regs_per_fuse;
 
 	struct qfprom_offset	override;
@@ -284,7 +284,7 @@ struct fuse_corner {
 	int uV;
 	int quot;
 	int step_quot;
-	const struct reg_sequence *accs;
+	const struct reg_default *accs;
 	int num_accs;
 	int vdd_mx_req;
 	unsigned long max_freq;
@@ -1102,7 +1102,7 @@ static void cpr_fuse_corner_init(struct cpr_drv *drv,
 	int uV, diff;
 	u32 min_uV;
 	u8 expected;
-	const struct reg_sequence *accs;
+	const struct reg_default *accs;
 
 	redun = &acc_desc->override;
 	expected = acc_desc->override_value;
@@ -1786,12 +1786,12 @@ static const struct cpr_desc msm8916_desc = {
 };
 
 static const struct acc_desc msm8916_acc_desc = {
-	.settings = (struct reg_sequence[]){
+	.settings = (struct reg_default[]){
 		{ 0xf000, 0 },
 		{ 0xf000, 0x100 },
 		{ 0xf000, 0x101 }
 	},
-	.override_settings = (struct reg_sequence[]){
+	.override_settings = (struct reg_default[]){
 		{ 0xf000, 0 },
 		{ 0xf000, 0x100 },
 		{ 0xf000, 0x100 }
