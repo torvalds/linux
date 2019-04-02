@@ -6742,8 +6742,10 @@ qla2x00_timer(struct timer_list *t)
 	 * FC-NVME
 	 * see if the active AEN count has changed from what was last reported.
 	 */
-	if (!vha->vp_idx && (atomic_read(&ha->nvme_active_aen_cnt) !=
-	    ha->nvme_last_rptd_aen) && ha->zio_mode == QLA_ZIO_MODE_6) {
+	if (!vha->vp_idx &&
+	    (atomic_read(&ha->nvme_active_aen_cnt) != ha->nvme_last_rptd_aen) &&
+	    ha->zio_mode == QLA_ZIO_MODE_6 &&
+	    !ha->flags.host_shutting_down) {
 		ql_log(ql_log_info, vha, 0x3002,
 		    "nvme: Sched: Set ZIO exchange threshold to %d.\n",
 		    ha->nvme_last_rptd_aen);
