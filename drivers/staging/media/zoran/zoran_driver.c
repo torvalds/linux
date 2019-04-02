@@ -226,10 +226,6 @@ static int v4l_fbuffer_alloc(struct zoran_fh *fh)
 		mem = kmalloc(fh->buffers.buffer_size,
 			      GFP_KERNEL | __GFP_NOWARN);
 		if (!mem) {
-			dprintk(1,
-				KERN_ERR
-				"%s: %s - kmalloc for V4L buf %d failed\n",
-				ZR_DEVNAME(zr), __func__, i);
 			v4l_fbuffer_free(fh);
 			return -ENOBUFS;
 		}
