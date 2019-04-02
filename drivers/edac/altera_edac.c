@@ -9,6 +9,7 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/edac.h>
+#include <linux/firmware/intel/stratix10-smc.h>
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
