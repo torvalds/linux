@@ -2372,8 +2372,10 @@
 			This parameter controls the MDS mitigation. The
 			options are:
 
-			full    - Enable MDS mitigation on vulnerable CPUs
-			off     - Unconditionally disable MDS mitigation
+			full       - Enable MDS mitigation on vulnerable CPUs
+			full,nosmt - Enable MDS mitigation and disable
+				     SMT on vulnerable CPUs
+			off        - Unconditionally disable MDS mitigation
 
 			Not specifying this option is equivalent to
 			mds=full.

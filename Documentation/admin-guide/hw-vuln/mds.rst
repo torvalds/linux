@@ -260,6 +260,9 @@ time with the option "mds=". The valid arguments for this option are:
 
 		It does not automatically disable SMT.
 
+  full,nosmt	The same as mds=full, with SMT disabled on vulnerable
+		CPUs.  This is the complete mitigation.
+
   off		Disables MDS mitigations completely.
 
   ============  =============================================================
