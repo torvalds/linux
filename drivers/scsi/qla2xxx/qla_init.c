@@ -3234,6 +3234,7 @@ allocate:
 			    "Unable to allocate (%d KB) for firmware dump.\n",
 			    dump_size / 1024);
 		} else {
+			mutex_lock(&ha->optrom_mutex);
 			if (ha->fw_dumped) {
 				memcpy(fw_dump, ha->fw_dump, ha->fw_dump_len);
 				vfree(ha->fw_dump);
@@ -3253,8 +3254,10 @@ allocate:
 				    "Allocated (%d KB) for firmware dump.\n",
 				    dump_size / 1024);
 
-				if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
+				if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+					mutex_unlock(&ha->optrom_mutex);
 					return;
+				}
 
 				ha->fw_dump->signature[0] = 'Q';
 				ha->fw_dump->signature[1] = 'L';
@@ -3277,6 +3280,7 @@ allocate:
 					htonl(offsetof
 					    (struct qla2xxx_fw_dump, isp));
 			}
+			mutex_unlock(&ha->optrom_mutex);
 		}
 	}
 }
