@@ -462,16 +462,7 @@ static int adv7511_irq_process(struct adv7511 *adv7511, bool process_hpd)
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Don't clear HPD flag right now, let it be cleared later in
-	 * adv7511_detect(). If we don't do this, adv7511_detect
-	 * (i.e. the connector's detect op) doesn't realize that we need to
-	 * re-enable the display.
-	 *
-	 * Problem with this fix: Can not clearing this flag before returning
-	 * IRQ_HANDLED cause spurious interrupts?
-	 */
-	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0 & ~ADV7511_INT0_HPD);
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
 	if (process_hpd && irq0 & ADV7511_INT0_HPD && adv7511->bridge.encoder)
