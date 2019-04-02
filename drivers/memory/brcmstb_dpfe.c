@@ -131,14 +131,6 @@ enum dpfe_commands {
 	DPFE_CMD_MAX /* Last entry */
 };
 
-struct dpfe_msg {
-	u32 header;
-	u32 command;
-	u32 arg_count;
-	u32 arg0;
-	u32 chksum; /* This is the sum of all other entries. */
-};
-
 /*
  * Format of the binary firmware file:
  *
@@ -585,7 +577,7 @@ static ssize_t show_refresh(struct device *dev,
 		return ret;
 
 	mr4 = (readl_relaxed(info + DRAM_INFO_MR4) >> DRAM_INFO_MR4_SHIFT) &
-	      DRAM_INFO_MR4_MASK;
+	       DRAM_INFO_MR4_MASK;
 
 	refresh = (mr4 >> DRAM_MR4_REFRESH) & DRAM_MR4_REFRESH_MASK;
 	sr_abort = (mr4 >> DRAM_MR4_SR_ABORT) & DRAM_MR4_SR_ABORT_MASK;
@@ -612,7 +604,6 @@ static ssize_t store_refresh(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	priv = dev_get_drvdata(dev);
-
 	ret = __send_command(priv, DPFE_CMD_GET_REFRESH, response);
 	if (ret)
 		return ret;
@@ -627,7 +618,7 @@ static ssize_t store_refresh(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t show_vendor(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
+			   char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
 	struct private_data *priv;
