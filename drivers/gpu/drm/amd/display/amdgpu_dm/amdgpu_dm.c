@@ -5205,22 +5205,25 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			continue;
 		}
 
+		abo = gem_to_amdgpu_bo(fb->obj[0]);
+
+		/* Wait for all fences on this FB */
+		r = reservation_object_wait_timeout_rcu(abo->tbo.resv, true,
+							false,
+							MAX_SCHEDULE_TIMEOUT);
+		WARN_ON(r < 0);
+
 		/*
 		 * TODO This might fail and hence better not used, wait
 		 * explicitly on fences instead
 		 * and in general should be called for
 		 * blocking commit to as per framework helpers
 		 */
-		abo = gem_to_amdgpu_bo(fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r != 0)) {
 			DRM_ERROR("failed to reserve buffer before flip\n");
 			WARN_ON(1);
 		}
-
-		/* Wait for all fences on this FB */
-		WARN_ON(reservation_object_wait_timeout_rcu(abo->tbo.resv, true, false,
-									    MAX_SCHEDULE_TIMEOUT) < 0);
 
 		amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 
