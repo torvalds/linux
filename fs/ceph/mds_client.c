@@ -2384,8 +2384,7 @@ static void complete_request(struct ceph_mds_client *mdsc,
 {
 	if (req->r_callback)
 		req->r_callback(mdsc, req);
-	else
-		complete_all(&req->r_completion);
+	complete_all(&req->r_completion);
 }
 
 /*
