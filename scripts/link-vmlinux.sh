@@ -35,7 +35,7 @@ set -e
 info()
 {
 	if [ "${quiet}" != "silent_" ]; then
-		printf "  %-7s %s\n" ${1} ${2}
+		printf "  %-7s %s\n" "${1}" "${2}"
 	fi
 }
 
@@ -91,6 +91,20 @@ vmlinux_link()
 	fi
 }
 
+# generate .BTF typeinfo from DWARF debuginfo
+gen_btf()
+{
+	local pahole_ver;
+
+	pahole_ver=$(${PAHOLE} --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/')
+	if [ "${pahole_ver}" -lt "113" ]; then
+		info "BTF" "${1}: pahole version $(${PAHOLE} --version) is too old, need at least v1.13"
+		exit 0
+	fi
+
+	info "BTF" ${1}
+	LLVM_OBJCOPY=${OBJCOPY} ${PAHOLE} -J ${1}
+}
 
 # Create ${2} .o file with all symbols from the ${1} object file
 kallsyms()
@@ -247,6 +261,10 @@ fi
 
 info LD vmlinux
 vmlinux_link "${kallsymso}" vmlinux
+
+if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
+	gen_btf vmlinux
+fi
 
 if [ -n "${CONFIG_BUILDTIME_EXTABLE_SORT}" ]; then
 	info SORTEX vmlinux
