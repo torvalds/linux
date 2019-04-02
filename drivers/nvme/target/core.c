@@ -494,11 +494,12 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	int ret;
 
 	mutex_lock(&subsys->lock);
-	ret = -EMFILE;
-	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
-		goto out_unlock;
 	ret = 0;
 	if (ns->enabled)
+		goto out_unlock;
+
+	ret = -EMFILE;
+	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
 		goto out_unlock;
 
 	ret = nvmet_bdev_ns_enable(ns);
