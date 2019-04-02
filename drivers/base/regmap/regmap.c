@@ -1493,11 +1493,10 @@ static int _regmap_raw_write_impl(struct regmap *map, unsigned int reg,
 	WARN_ON(!map->bus);
 
 	/* Check for unwritable registers before we start */
-	if (map->writeable_reg)
-		for (i = 0; i < val_len / map->format.val_bytes; i++)
-			if (!map->writeable_reg(map->dev,
-					       reg + regmap_get_offset(map, i)))
-				return -EINVAL;
+	for (i = 0; i < val_len / map->format.val_bytes; i++)
+		if (!regmap_writeable(map,
+				     reg + regmap_get_offset(map, i)))
+			return -EINVAL;
 
 	if (!map->cache_bypass && map->format.parse_val) {
 		unsigned int ival;
