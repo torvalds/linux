@@ -63,7 +63,7 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	size_t ret;
 
-	pm_runtime_get_sync(mmu->dev);
+//	pm_runtime_get_sync(mmu->dev);
 	ret = iommu_map_sg(iommu->domain, iova, sgt->sgl, sgt->nents, prot);
 //	pm_runtime_put_sync(mmu->dev);
 	WARN_ON(!ret);
@@ -77,7 +77,7 @@ static int msm_iommu_unmap(struct msm_mmu *mmu, uint64_t iova, unsigned len)
 
 	pm_runtime_get_sync(mmu->dev);
 	iommu_unmap(iommu->domain, iova, len);
-//	pm_runtime_put_sync(mmu->dev);
+	pm_runtime_put_sync(mmu->dev);
 
 	return 0;
 }
