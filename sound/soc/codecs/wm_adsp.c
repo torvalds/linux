@@ -3587,7 +3587,8 @@ int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		wm_adsp_buffer_clear(compr->buf);
+		if (wm_adsp_compr_attached(compr))
+			wm_adsp_buffer_clear(compr->buf);
 		break;
 	default:
 		ret = -EINVAL;
