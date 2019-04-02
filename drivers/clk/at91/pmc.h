@@ -38,6 +38,7 @@ struct clk_range {
 #define CLK_RANGE(MIN, MAX) {.min = MIN, .max = MAX,}
 
 struct clk_master_layout {
+	u32 offset;
 	u32 mask;
 	u8 pres_shift;
 };
