@@ -1683,59 +1683,63 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			void *cb_priv, struct netlink_ext_ack *extack)
 {
-	struct cls_fl_head *head = fl_head_dereference(tp);
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
-	struct fl_flow_mask *mask;
+	unsigned long handle = 0;
 	struct cls_fl_filter *f;
 	int err;
 
-	list_for_each_entry(mask, &head->masks, list) {
-		list_for_each_entry(f, &mask->filters, list) {
-			if (tc_skip_hw(f->flags))
-				continue;
+	while ((f = fl_get_next_filter(tp, &handle))) {
+		if (tc_skip_hw(f->flags))
+			goto next_flow;
 
-			cls_flower.rule =
-				flow_rule_alloc(tcf_exts_num_actions(&f->exts));
-			if (!cls_flower.rule)
-				return -ENOMEM;
-
-			tc_cls_common_offload_init(&cls_flower.common, tp,
-						   f->flags, extack);
-			cls_flower.command = add ?
-				TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
-			cls_flower.cookie = (unsigned long)f;
-			cls_flower.rule->match.dissector = &mask->dissector;
-			cls_flower.rule->match.mask = &mask->key;
-			cls_flower.rule->match.key = &f->mkey;
-
-			err = tc_setup_flow_action(&cls_flower.rule->action,
-						   &f->exts);
-			if (err) {
-				kfree(cls_flower.rule);
-				if (tc_skip_sw(f->flags)) {
-					NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
-					return err;
-				}
-				continue;
-			}
-
-			cls_flower.classid = f->res.classid;
-
-			err = cb(TC_SETUP_CLSFLOWER, &cls_flower, cb_priv);
-			kfree(cls_flower.rule);
-
-			if (err) {
-				if (add && tc_skip_sw(f->flags))
-					return err;
-				continue;
-			}
-
-			spin_lock(&tp->lock);
-			tc_cls_offload_cnt_update(block, &f->in_hw_count,
-						  &f->flags, add);
-			spin_unlock(&tp->lock);
+		cls_flower.rule =
+			flow_rule_alloc(tcf_exts_num_actions(&f->exts));
+		if (!cls_flower.rule) {
+			__fl_put(f);
+			return -ENOMEM;
 		}
+
+		tc_cls_common_offload_init(&cls_flower.common, tp, f->flags,
+					   extack);
+		cls_flower.command = add ?
+			TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
+		cls_flower.cookie = (unsigned long)f;
+		cls_flower.rule->match.dissector = &f->mask->dissector;
+		cls_flower.rule->match.mask = &f->mask->key;
+		cls_flower.rule->match.key = &f->mkey;
+
+		err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
+		if (err) {
+			kfree(cls_flower.rule);
+			if (tc_skip_sw(f->flags)) {
+				NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+				__fl_put(f);
+				return err;
+			}
+			goto next_flow;
+		}
+
+		cls_flower.classid = f->res.classid;
+
+		err = cb(TC_SETUP_CLSFLOWER, &cls_flower, cb_priv);
+		kfree(cls_flower.rule);
+
+		if (err) {
+			if (add && tc_skip_sw(f->flags)) {
+				__fl_put(f);
+				return err;
+			}
+			goto next_flow;
+		}
+
+		spin_lock(&tp->lock);
+		tc_cls_offload_cnt_update(block, &f->in_hw_count, &f->flags,
+					  add);
+		spin_unlock(&tp->lock);
+next_flow:
+		handle++;
+		__fl_put(f);
 	}
 
 	return 0;
