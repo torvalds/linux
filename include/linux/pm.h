@@ -265,7 +265,7 @@ typedef struct pm_message {
  * @resume_noirq(), @thaw_noirq(), and @restore_noirq(), do not cause the PM
  * core to abort the resume transition during which they are returned.  The
  * error codes returned in those cases are only printed to the system logs for
- * debugging purposes.  Still, it is recommended that drivers only return error
+ * deging purposes.  Still, it is recommended that drivers only return error
  * codes from their resume methods in case of an unrecoverable failure (i.e.
  * when the device being handled refuses to resume and becomes unusable) to
  * allow the PM core to be modified in the future, so that it can avoid

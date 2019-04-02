@@ -72,7 +72,7 @@ static int pcsp_treble_put(struct snd_kcontrol *kcontrol,
 	int treble = ucontrol->value.enumerated.item[0];
 	if (treble != chip->treble) {
 		chip->treble = treble;
-#if PCSP_DEBUG
+#if PCSP_DE
 		printk(KERN_INFO "PCSP: rate set to %li\n", PCSP_RATE());
 #endif
 		changed = 1;

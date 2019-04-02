@@ -17,7 +17,7 @@ echo "		-v|--verbose Increase verbosity of test messages"
 echo "		-vv        Alias of -v -v (Show all results in stdout)"
 echo "		-vvv       Alias of -v -v -v (Show all commands immediately)"
 echo "		--fail-unsupported Treat UNSUPPORTED as a failure"
-echo "		-d|--debug Debug mode (trace all shell commands)"
+echo "		-d|--de De mode (trace all shell commands)"
 echo "		-l|--logdir <dir> Save logs on the <dir>"
 echo "		            If <dir> is -, all logs output in console only"
 exit $1
@@ -75,8 +75,8 @@ parse_opts() { # opts
       VERBOSE=-1
       shift 1
     ;;
-    --debug|-d)
-      DEBUG=1
+    --de|-d)
+      DE=1
       shift 1
     ;;
     --stop-fail)
@@ -116,11 +116,11 @@ parse_opts() { # opts
 }
 
 # Parameters
-DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
-if [ -z "$DEBUGFS_DIR" ]; then
+DEFS_DIR=`grep defs /proc/mounts | cut -f2 -d' ' | head -1`
+if [ -z "$DEFS_DIR" ]; then
     TRACING_DIR=`grep tracefs /proc/mounts | cut -f2 -d' ' | head -1`
 else
-    TRACING_DIR=$DEBUGFS_DIR/tracing
+    TRACING_DIR=$DEFS_DIR/tracing
 fi
 
 TOP_DIR=`absdir $0`
@@ -128,14 +128,14 @@ TEST_DIR=$TOP_DIR/test.d
 TEST_CASES=`find_testcases $TEST_DIR`
 LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`/
 KEEP_LOG=0
-DEBUG=0
+DE=0
 VERBOSE=0
 UNSUPPORTED_RESULT=0
 STOP_FAILURE=0
 # Parse command-line options
 parse_opts $*
 
-[ $DEBUG -ne 0 ] && set -x
+[ $DE -ne 0 ] && set -x
 
 # Verify parameters
 if [ -z "$TRACING_DIR" -o ! -d "$TRACING_DIR" ]; then
@@ -229,12 +229,12 @@ eval_result() { # sigval
     $FAIL)
       prlog "	[${color_red}FAIL${color_reset}]"
       FAILED_CASES="$FAILED_CASES $CASENO"
-      return 1 # this is a bug.
+      return 1 # this is a .
     ;;
     $UNRESOLVED)
       prlog "	[${color_blue}UNRESOLVED${color_reset}]"
       UNRESOLVED_CASES="$UNRESOLVED_CASES $CASENO"
-      return 1 # this is a kind of bug.. something happened.
+      return 1 # this is a kind of .. something happened.
     ;;
     $UNTESTED)
       prlog "	[${color_blue}UNTESTED${color_reset}]"
@@ -254,7 +254,7 @@ eval_result() { # sigval
     *)
       prlog "	[${color_blue}UNDEFINED${color_reset}]"
       UNDEFINED_CASES="$UNDEFINED_CASES $CASENO"
-      return 1 # this must be a test bug
+      return 1 # this must be a test 
     ;;
   esac
 }
@@ -377,7 +377,7 @@ prlog "# of unresolved: " `echo $UNRESOLVED_CASES | wc -w`
 prlog "# of untested: " `echo $UNTESTED_CASES | wc -w`
 prlog "# of unsupported: " `echo $UNSUPPORTED_CASES | wc -w`
 prlog "# of xfailed: " `echo $XFAILED_CASES | wc -w`
-prlog "# of undefined(test bug): " `echo $UNDEFINED_CASES | wc -w`
+prlog "# of undefined(test ): " `echo $UNDEFINED_CASES | wc -w`
 
 # if no error, return 0
 exit $TOTAL_RESULT

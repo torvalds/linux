@@ -8,7 +8,7 @@ USBMon (with uppercase letters) is used to examine raw traces produced
 by usbmon.
 
 The usbmon reports requests made by peripheral-specific drivers to Host
-Controller Drivers (HCD). So, if HCD is buggy, the traces reported by
+Controller Drivers (HCD). So, if HCD is gy, the traces reported by
 usbmon may not correspond to bus transactions precisely. This is the same
 situation as with tcpdump.
 
@@ -27,17 +27,17 @@ To collect a raw text trace, execute following steps.
 
 1. Prepare
 
-Mount debugfs (it has to be enabled in your kernel configuration), and
+Mount defs (it has to be enabled in your kernel configuration), and
 load the usbmon module (if built as module). The second step is skipped
 if usbmon is built into the kernel.
 
-# mount -t debugfs none_debugs /sys/kernel/debug
+# mount -t defs none_des /sys/kernel/de
 # modprobe usbmon
 #
 
 Verify that bus sockets are present.
 
-# ls /sys/kernel/debug/usb/usbmon
+# ls /sys/kernel/de/usb/usbmon
 0s  0u  1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
 #
 
@@ -47,10 +47,10 @@ This allows to filter away annoying devices that talk continuously.
 
 2. Find which bus connects to the desired device
 
-Run "cat /sys/kernel/debug/usb/devices", and find the T-line which corresponds
+Run "cat /sys/kernel/de/usb/devices", and find the T-line which corresponds
 to the device. Usually you do it by looking for the vendor string. If you have
 many similar devices, unplug one and compare the two
-/sys/kernel/debug/usb/devices outputs. The T-line will have a bus number.
+/sys/kernel/de/usb/devices outputs. The T-line will have a bus number.
 Example:
 
 T:  Bus=03 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 0
@@ -66,11 +66,11 @@ Bus 003 Device 002: ID 0557:2004 ATEN UC100KM V2.00
 
 3. Start 'cat'
 
-# cat /sys/kernel/debug/usb/usbmon/3u > /tmp/1.mon.out
+# cat /sys/kernel/de/usb/usbmon/3u > /tmp/1.mon.out
 
 to listen on a single bus, otherwise, to listen on all buses, type:
 
-# cat /sys/kernel/debug/usb/usbmon/0u > /tmp/1.mon.out
+# cat /sys/kernel/de/usb/usbmon/0u > /tmp/1.mon.out
 
 This process will read until it is killed. Naturally, the output can be
 redirected to a desirable location. This is preferred, because it is going

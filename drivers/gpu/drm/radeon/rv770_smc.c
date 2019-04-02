@@ -581,7 +581,7 @@ int rv770_load_smc_ucode(struct radeon_device *rdev,
 		break;
 	default:
 		DRM_ERROR("unknown asic in smc ucode loader\n");
-		BUG();
+		();
 	}
 
 	/* load the ucode */

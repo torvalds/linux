@@ -62,7 +62,7 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/crypto.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -215,7 +215,7 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 
 	switch (ctx->enctype) {
 	default:
-		BUG();
+		();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 	case ENCTYPE_ARCFOUR_HMAC:

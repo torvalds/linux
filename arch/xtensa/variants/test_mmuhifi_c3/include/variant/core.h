@@ -30,7 +30,7 @@
 #define XCHAL_NUM_AREGS			32	/* num of physical addr regs */
 #define XCHAL_NUM_AREGS_LOG2		5	/* log2(XCHAL_NUM_AREGS) */
 #define XCHAL_MAX_INSTRUCTION_SIZE	8	/* max instr bytes (3..8) */
-#define XCHAL_HAVE_DEBUG		1	/* debug option */
+#define XCHAL_HAVE_DE		1	/* de option */
 #define XCHAL_HAVE_DENSITY		1	/* 16-bit instructions */
 #define XCHAL_HAVE_LOOPS		1	/* zero-overhead loops */
 #define XCHAL_HAVE_NSA			1	/* NSA/NSAU instructions */
@@ -237,8 +237,8 @@
 #define XCHAL_INT9_LEVEL		1
 #define XCHAL_INT10_LEVEL		1
 #define XCHAL_INT11_LEVEL		1
-#define XCHAL_DEBUGLEVEL		2	/* debug interrupt level */
-#define XCHAL_HAVE_DEBUG_EXTERN_INT	1	/* OCD external db interrupt */
+#define XCHAL_DELEVEL		2	/* de interrupt level */
+#define XCHAL_HAVE_DE_EXTERN_INT	1	/* OCD external db interrupt */
 
 /*  Type of each interrupt:  */
 #define XCHAL_INT0_TYPE 	XTHAL_INTTYPE_EXTERN_LEVEL
@@ -339,16 +339,16 @@
 #define XCHAL_INTLEVEL2_VECOFS		0x00000280
 #define XCHAL_INTLEVEL2_VECTOR_VADDR	0xD0000280
 #define XCHAL_INTLEVEL2_VECTOR_PADDR	0x00000280
-#define XCHAL_DEBUG_VECOFS		XCHAL_INTLEVEL2_VECOFS
-#define XCHAL_DEBUG_VECTOR_VADDR	XCHAL_INTLEVEL2_VECTOR_VADDR
-#define XCHAL_DEBUG_VECTOR_PADDR	XCHAL_INTLEVEL2_VECTOR_PADDR
+#define XCHAL_DE_VECOFS		XCHAL_INTLEVEL2_VECOFS
+#define XCHAL_DE_VECTOR_VADDR	XCHAL_INTLEVEL2_VECTOR_VADDR
+#define XCHAL_DE_VECTOR_PADDR	XCHAL_INTLEVEL2_VECTOR_PADDR
 
 
 /*----------------------------------------------------------------------
-				DEBUG
+				DE
   ----------------------------------------------------------------------*/
 
-#define XCHAL_HAVE_OCD			1	/* OnChipDebug option */
+#define XCHAL_HAVE_OCD			1	/* OnChipDe option */
 #define XCHAL_NUM_IBREAK		0	/* number of IBREAKn regs */
 #define XCHAL_NUM_DBREAK		0	/* number of DBREAKn regs */
 #define XCHAL_HAVE_OCD_DIR_ARRAY	0	/* faster OCD option */

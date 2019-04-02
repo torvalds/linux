@@ -30,11 +30,11 @@ MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
 MODULE_LICENSE("GPL");
 
-static bool debug;
+static bool de;
 
-module_param(debug, bool, 0644);
+module_param(de, bool, 0644);
 
-MODULE_PARM_DESC(debug, "Debugging messages, 0=Off (default), 1=On");
+MODULE_PARM_DESC(de, "Deging messages, 0=Off (default), 1=On");
 
 
 struct cs53l32a_state {
@@ -163,7 +163,7 @@ static int cs53l32a_probe(struct i2c_client *client,
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(sd, i);
 
-		v4l2_dbg(1, debug, sd, "Read Reg %d %02x\n", i, v);
+		v4l2_dbg(1, de, sd, "Read Reg %d %02x\n", i, v);
 	}
 
 	v4l2_ctrl_handler_init(&state->hdl, 2);
@@ -194,7 +194,7 @@ static int cs53l32a_probe(struct i2c_client *client,
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(sd, i);
 
-		v4l2_dbg(1, debug, sd, "Read Reg %d %02x\n", i, v);
+		v4l2_dbg(1, de, sd, "Read Reg %d %02x\n", i, v);
 	}
 	return 0;
 }

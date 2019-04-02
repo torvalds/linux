@@ -3,7 +3,7 @@
  *                   Clemens Ladisch <clemens@ladisch.de>
  *  Routines for control of EMU10K1 chips
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:

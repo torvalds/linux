@@ -45,7 +45,7 @@
 #define OPMODE_AUTOSELECT  2   /* use autodetect & autoselect (>= msp34xxG)   */
 
 /* module parameters */
-extern int msp_debug;
+extern int msp_de;
 extern bool msp_once;
 extern bool msp_amsound;
 extern int msp_standard;

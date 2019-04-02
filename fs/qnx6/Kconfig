@@ -15,11 +15,11 @@ config QNX6FS_FS
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
 
-config QNX6FS_DEBUG
-	bool "QNX6 debugging information"
+config QNX6FS_DE
+	bool "QNX6 deging information"
 	depends on QNX6FS_FS
 	help
-	  Turns on extended debugging output.
+	  Turns on extended deging output.
 
 	  If you are not a developer working on the QNX6FS, you probably don't
 	  want this:

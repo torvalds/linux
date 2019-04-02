@@ -360,7 +360,7 @@ static inline void verify_out_len(struct mic_info *mic,
 	struct mic_copy_desc *copy)
 {
 	if (copy->out_len != sum_iovec_len(copy)) {
-		mpsslog("%s %s %d BUG copy->out_len 0x%x len 0x%zx\n",
+		mpsslog("%s %s %d  copy->out_len 0x%x len 0x%zx\n",
 			mic->name, __func__, __LINE__,
 			copy->out_len, sum_iovec_len(copy));
 		assert(copy->out_len == sum_iovec_len(copy));
@@ -524,7 +524,7 @@ spin_for_descriptors(struct mic_info *mic, struct mic_vring *vr)
 	__u16 avail_idx = read_avail_idx(vr);
 
 	while (avail_idx == le16toh(READ_ONCE(vr->vr.avail->idx))) {
-#ifdef DEBUG
+#ifdef DE
 		mpsslog("%s %s waiting for desc avail %d info_avail %d\n",
 			mic->name, __func__,
 			le16toh(vr->vr.avail->idx), vr->info->avail_idx);
@@ -616,13 +616,13 @@ virtio_net(void *arg)
 				/* Disable checksums on the card since we are on
 				   a reliable PCIe link */
 				hdr->flags |= VIRTIO_NET_HDR_F_DATA_VALID;
-#ifdef DEBUG
+#ifdef DE
 				mpsslog("%s %s %d hdr->flags 0x%x ", mic->name,
 					__func__, __LINE__, hdr->flags);
 				mpsslog("copy.out_len %d hdr->gso_type 0x%x\n",
 					copy.out_len, hdr->gso_type);
 #endif
-#ifdef DEBUG
+#ifdef DE
 				disp_iovec(mic, copy, __func__, __LINE__);
 				mpsslog("%s %s %d read from tap 0x%lx\n",
 					mic->name, __func__, __LINE__,
@@ -642,7 +642,7 @@ virtio_net(void *arg)
 				}
 				if (!err)
 					verify_out_len(mic, &copy);
-#ifdef DEBUG
+#ifdef DE
 				disp_iovec(mic, copy, __func__, __LINE__);
 				mpsslog("%s %s %d wrote to net 0x%lx\n",
 					mic->name, __func__, __LINE__,
@@ -675,7 +675,7 @@ virtio_net(void *arg)
 					mic->mic_net.virtio_net_fd, &rx_vr,
 					&copy);
 				if (!err) {
-#ifdef DEBUG
+#ifdef DE
 					struct virtio_net_hdr *hdr
 						= (struct virtio_net_hdr *)
 							vnet_hdr[1];
@@ -691,7 +691,7 @@ virtio_net(void *arg)
 					iov1[1].iov_len = copy.out_len -
 						sizeof(struct virtio_net_hdr);
 					verify_out_len(mic, &copy);
-#ifdef DEBUG
+#ifdef DE
 					disp_iovec(mic, copy, __func__,
 						   __LINE__);
 					mpsslog("%s %s %d ",
@@ -708,7 +708,7 @@ virtio_net(void *arg)
 						mpsslog("read_len 0x%zx\n",
 							sum_iovec_len(&copy));
 					} else {
-#ifdef DEBUG
+#ifdef DE
 						disp_iovec(mic, &copy, __func__,
 							   __LINE__);
 						mpsslog("%s %s %d ",
@@ -824,7 +824,7 @@ virtio_console(void *arg)
 			copy.iov = iov0;
 			len = readv(pty_fd, copy.iov, copy.iovcnt);
 			if (len > 0) {
-#ifdef DEBUG
+#ifdef DE
 				disp_iovec(mic, copy, __func__, __LINE__);
 				mpsslog("%s %s %d read from tap 0x%lx\n",
 					mic->name, __func__, __LINE__,
@@ -844,7 +844,7 @@ virtio_console(void *arg)
 				}
 				if (!err)
 					verify_out_len(mic, &copy);
-#ifdef DEBUG
+#ifdef DE
 				disp_iovec(mic, copy, __func__, __LINE__);
 				mpsslog("%s %s %d wrote to net 0x%lx\n",
 					mic->name, __func__, __LINE__,
@@ -876,7 +876,7 @@ virtio_console(void *arg)
 					/* Set the correct output iov_len */
 					iov1->iov_len = copy.out_len;
 					verify_out_len(mic, &copy);
-#ifdef DEBUG
+#ifdef DE
 					disp_iovec(mic, copy, __func__,
 						   __LINE__);
 					mpsslog("%s %s %d ",
@@ -893,7 +893,7 @@ virtio_console(void *arg)
 						mpsslog("read_len 0x%zx\n",
 							sum_iovec_len(&copy));
 					} else {
-#ifdef DEBUG
+#ifdef DE
 						disp_iovec(mic, copy, __func__,
 							   __LINE__);
 						mpsslog("%s %s %d ",
@@ -1215,7 +1215,7 @@ virtio_block(void *arg)
 			}
 
 			if (!(block_poll.revents & POLLIN)) {
-#ifdef DEBUG
+#ifdef DE
 				mpsslog("%s %d: block_poll.revents=0x%x\n",
 					__func__, __LINE__, block_poll.revents);
 #endif
@@ -1232,7 +1232,7 @@ virtio_block(void *arg)
 				desc_idx = le16toh(
 					vring.vr.avail->ring[avail_idx]);
 				desc = &vring.vr.desc[desc_idx];
-#ifdef DEBUG
+#ifdef DE
 				mpsslog("%s() %d: avail_idx=%d ",
 					__func__, __LINE__,
 					vring.info->avail_idx);
@@ -1300,7 +1300,7 @@ virtio_block(void *arg)
 				ret = write_status(
 					mic->mic_virtblk.virtio_block_fd,
 					&status);
-#ifdef DEBUG
+#ifdef DE
 				mpsslog("%s() %d: write status=%d on desc=%p\n",
 					__func__, __LINE__,
 					status, desc);
@@ -1355,7 +1355,7 @@ get_mic_shutdown_status(struct mic_info *mic, char *shutdown_status)
 		return MIC_POWER_OFF;
 	if (!strcmp(shutdown_status, "restart"))
 		return MIC_RESTART;
-	mpsslog("%s: BUG invalid status %s\n", mic->name, shutdown_status);
+	mpsslog("%s:  invalid status %s\n", mic->name, shutdown_status);
 	/* Invalid state */
 	assert(0);
 };
@@ -1385,7 +1385,7 @@ static int get_mic_state(struct mic_info *mic)
 	} else if (!strcmp(state, "resetting")) {
 		mic_state = MIC_RESETTING;
 	} else {
-		mpsslog("%s: BUG invalid state %s\n", mic->name, state);
+		mpsslog("%s:  invalid state %s\n", mic->name, state);
 		assert(0);
 	}
 

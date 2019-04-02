@@ -198,13 +198,13 @@ config LDM_PARTITION
 
 	  If unsure, say N.
 
-config LDM_DEBUG
+config LDM_DE
 	bool "Windows LDM extra logging"
 	depends on LDM_PARTITION
 	help
 	  Say Y here if you would like LDM to log verbosely.  This could be
 	  helpful if the driver doesn't work as expected and you'd like to
-	  report a bug.
+	  report a .
 
 	  If unsure, say N.
 

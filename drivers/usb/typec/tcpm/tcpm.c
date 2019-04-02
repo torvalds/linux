@@ -6,7 +6,7 @@
  */
 
 #include <linux/completion.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -59,7 +59,7 @@
 	S(SNK_READY),				\
 						\
 	S(ACC_UNATTACHED),			\
-	S(DEBUG_ACC_ATTACHED),			\
+	S(DE_ACC_ATTACHED),			\
 	S(AUDIO_ACC_ATTACHED),			\
 	S(AUDIO_ACC_DEBOUNCE),			\
 						\
@@ -321,7 +321,7 @@ struct tcpm_port {
 	/* port belongs to a self powered device */
 	bool self_powered;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dentry;
 	struct mutex logbuffer_lock;	/* log buffer access lock */
 	int logbuffer_head;
@@ -354,7 +354,7 @@ struct pd_rx_event {
 	 (tcpm_cc_is_source((port)->cc2) && \
 	  !tcpm_cc_is_source((port)->cc1)))
 
-#define tcpm_port_is_debug(port) \
+#define tcpm_port_is_de(port) \
 	(tcpm_cc_is_source((port)->cc1) && tcpm_cc_is_source((port)->cc2))
 
 #define tcpm_port_is_audio(port) \
@@ -408,7 +408,7 @@ static bool tcpm_port_is_disconnected(struct tcpm_port *port)
  * Logging
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static bool tcpm_log_full(struct tcpm_port *port)
 {
@@ -551,7 +551,7 @@ static void tcpm_log_source_caps(struct tcpm_port *port)
 	}
 }
 
-static int tcpm_debug_show(struct seq_file *s, void *v)
+static int tcpm_de_show(struct seq_file *s, void *v)
 {
 	struct tcpm_port *port = (struct tcpm_port *)s->private;
 	int tail;
@@ -568,25 +568,25 @@ static int tcpm_debug_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(tcpm_debug);
+DEFINE_SHOW_ATTRIBUTE(tcpm_de);
 
 static struct dentry *rootdir;
 
-static void tcpm_debugfs_init(struct tcpm_port *port)
+static void tcpm_defs_init(struct tcpm_port *port)
 {
 	mutex_init(&port->logbuffer_lock);
-	/* /sys/kernel/debug/tcpm/usbcX */
+	/* /sys/kernel/de/tcpm/usbcX */
 	if (!rootdir)
-		rootdir = debugfs_create_dir("tcpm", NULL);
+		rootdir = defs_create_dir("tcpm", NULL);
 
-	port->dentry = debugfs_create_file(dev_name(port->dev),
+	port->dentry = defs_create_file(dev_name(port->dev),
 					   S_IFREG | 0444, rootdir,
-					   port, &tcpm_debug_fops);
+					   port, &tcpm_de_fops);
 }
 
-static void tcpm_debugfs_exit(struct tcpm_port *port)
+static void tcpm_defs_exit(struct tcpm_port *port)
 {
-	debugfs_remove(port->dentry);
+	defs_remove(port->dentry);
 }
 
 #else
@@ -596,8 +596,8 @@ static void tcpm_log(const struct tcpm_port *port, const char *fmt, ...) { }
 __printf(2, 3)
 static void tcpm_log_force(struct tcpm_port *port, const char *fmt, ...) { }
 static void tcpm_log_source_caps(struct tcpm_port *port) { }
-static void tcpm_debugfs_init(const struct tcpm_port *port) { }
-static void tcpm_debugfs_exit(const struct tcpm_port *port) { }
+static void tcpm_defs_init(const struct tcpm_port *port) { }
+static void tcpm_defs_exit(const struct tcpm_port *port) { }
 
 #endif
 
@@ -2588,8 +2588,8 @@ static void tcpm_typec_connect(struct tcpm_port *port)
 		/* Make sure we don't report stale identity information */
 		memset(&port->partner_ident, 0, sizeof(port->partner_ident));
 		port->partner_desc.usb_pd = port->pd_capable;
-		if (tcpm_port_is_debug(port))
-			port->partner_desc.accessory = TYPEC_ACCESSORY_DEBUG;
+		if (tcpm_port_is_de(port))
+			port->partner_desc.accessory = TYPEC_ACCESSORY_DE;
 		else if (tcpm_port_is_audio(port))
 			port->partner_desc.accessory = TYPEC_ACCESSORY_AUDIO;
 		else
@@ -2863,8 +2863,8 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, SNK_UNATTACHED, PD_T_DRP_SNK);
 		break;
 	case SRC_ATTACH_WAIT:
-		if (tcpm_port_is_debug(port))
-			tcpm_set_state(port, DEBUG_ACC_ATTACHED,
+		if (tcpm_port_is_de(port))
+			tcpm_set_state(port, DE_ACC_ATTACHED,
 				       PD_T_CC_DEBOUNCE);
 		else if (tcpm_port_is_audio(port))
 			tcpm_set_state(port, AUDIO_ACC_ATTACHED,
@@ -3259,7 +3259,7 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_acc_detach(port);
 		tcpm_set_state(port, SRC_UNATTACHED, 0);
 		break;
-	case DEBUG_ACC_ATTACHED:
+	case DE_ACC_ATTACHED:
 	case AUDIO_ACC_ATTACHED:
 		ret = tcpm_acc_attach(port);
 		if (ret < 0)
@@ -3622,7 +3622,7 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 
 	switch (port->state) {
 	case DRP_TOGGLING:
-		if (tcpm_port_is_debug(port) || tcpm_port_is_audio(port) ||
+		if (tcpm_port_is_de(port) || tcpm_port_is_audio(port) ||
 		    tcpm_port_is_source(port))
 			tcpm_set_state(port, SRC_ATTACH_WAIT, 0);
 		else if (tcpm_port_is_sink(port))
@@ -3630,7 +3630,7 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 		break;
 	case SRC_UNATTACHED:
 	case ACC_UNATTACHED:
-		if (tcpm_port_is_debug(port) || tcpm_port_is_audio(port) ||
+		if (tcpm_port_is_de(port) || tcpm_port_is_audio(port) ||
 		    tcpm_port_is_source(port))
 			tcpm_set_state(port, SRC_ATTACH_WAIT, 0);
 		break;
@@ -3694,7 +3694,7 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 			tcpm_set_state(port, AUDIO_ACC_ATTACHED, 0);
 		break;
 
-	case DEBUG_ACC_ATTACHED:
+	case DE_ACC_ATTACHED:
 		if (cc1 == TYPEC_CC_OPEN || cc2 == TYPEC_CC_OPEN)
 			tcpm_set_state(port, ACC_UNATTACHED, 0);
 		break;
@@ -4743,7 +4743,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	init_completion(&port->tx_complete);
 	init_completion(&port->swap_complete);
 	init_completion(&port->pps_complete);
-	tcpm_debugfs_init(port);
+	tcpm_defs_init(port);
 
 	err = tcpm_fw_get_caps(port, tcpc->fwnode);
 	if ((err < 0) && tcpc->config)
@@ -4817,7 +4817,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 out_role_sw_put:
 	usb_role_switch_put(port->role_sw);
 out_destroy_wq:
-	tcpm_debugfs_exit(port);
+	tcpm_defs_exit(port);
 	destroy_workqueue(port->wq);
 	return ERR_PTR(err);
 }
@@ -4832,7 +4832,7 @@ void tcpm_unregister_port(struct tcpm_port *port)
 		typec_unregister_altmode(port->port_altmode[i]);
 	typec_unregister_port(port->typec_port);
 	usb_role_switch_put(port->role_sw);
-	tcpm_debugfs_exit(port);
+	tcpm_defs_exit(port);
 	destroy_workqueue(port->wq);
 }
 EXPORT_SYMBOL_GPL(tcpm_unregister_port);

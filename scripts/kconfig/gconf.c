@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <time.h>
 
-//#define DEBUG
+//#define DE
 
 enum {
 	SINGLE_VIEW, SPLIT_VIEW, FULL_VIEW
@@ -74,8 +74,8 @@ static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row);
 static gchar **fill_row(struct menu *menu);
 static void conf_changed(void);
 
-/* Helping/Debugging Functions */
-#ifdef DEBUG
+/* Helping/Deging Functions */
+#ifdef DE
 static const char *dbg_sym_flags(int val)
 {
 	static char buf[256];
@@ -652,7 +652,7 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	    "are interested in, you can still view the help of a grayed-out\n"
 	    "option.\n"
 	    "\n"
-	    "Toggling Show Debug Info under the Options menu will show \n"
+	    "Toggling Show De Info under the Options menu will show \n"
 	    "the dependencies, which you can then match by examining other options.";
 
 	dialog = gtk_message_dialog_new(GTK_WINDOW(main_wnd),
@@ -886,7 +886,7 @@ on_treeview2_button_press_event(GtkWidget * widget,
 	struct menu *menu;
 	gint col;
 
-#if GTK_CHECK_VERSION(2,1,4) // bug in ctree with earlier version of GTK
+#if GTK_CHECK_VERSION(2,1,4) //  in ctree with earlier version of GTK
 	gint tx = (gint) event->x;
 	gint ty = (gint) event->y;
 	gint cx, cy;
@@ -1270,7 +1270,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		else
 			menu2 = NULL;	// force adding of a first child
 
-#ifdef DEBUG
+#ifdef DE
 		printf("%*c%s | %s\n", indent, ' ',
 		       menu1 ? menu_get_prompt(menu1) : "nil",
 		       menu2 ? menu_get_prompt(menu2) : "nil");
@@ -1362,7 +1362,7 @@ static void display_tree(struct menu *menu)
 		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
 		    (opt_mode == OPT_ALL    && menu_get_prompt(child)))
 			place_node(child, fill_row(child));
-#ifdef DEBUG
+#ifdef DE
 		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));
 		printf("%s", child->flags & MENU_ROOT ? "rootmenu | " : "");
 		printf("%s", prop_get_type_name(ptype));

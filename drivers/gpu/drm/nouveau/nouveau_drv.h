@@ -23,7 +23,7 @@
  *        and to control the warp error enable mask (OpenGL requires out of
  *        bounds access to local memory to be silently ignored / return 0).
  * 1.1.2:
- *      - fixes multiple bugs in flip completion events and timestamping
+ *      - fixes multiple s in flip completion events and timestamping
  * 1.2.0:
  * 	- object api exposed to userspace
  * 	- fermi,kepler,maxwell zbc
@@ -201,7 +201,7 @@ struct nouveau_drm {
 
 	/* power management */
 	struct nouveau_hwmon *hwmon;
-	struct nouveau_debugfs *debugfs;
+	struct nouveau_defs *defs;
 
 	/* led management */
 	struct nouveau_led *led;
@@ -250,12 +250,12 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 #define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
 #define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
 
-#define NV_DEBUG(drm,f,a...) do {                                              \
-	if (unlikely(drm_debug & DRM_UT_DRIVER))                               \
+#define NV_DE(drm,f,a...) do {                                              \
+	if (unlikely(drm_de & DRM_UT_DRIVER))                               \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
 #define NV_ATOMIC(drm,f,a...) do {                                             \
-	if (unlikely(drm_debug & DRM_UT_ATOMIC))                               \
+	if (unlikely(drm_de & DRM_UT_ATOMIC))                               \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
 

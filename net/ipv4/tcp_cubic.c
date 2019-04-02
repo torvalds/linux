@@ -468,7 +468,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 
 static int __init cubictcp_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
 
 	/* Precompute a bunch of the scaling factors that are used per-packet
 	 * based on SRTT of 100ms

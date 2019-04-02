@@ -239,11 +239,11 @@ void dm_region_hash_destroy(struct dm_region_hash *rh)
 	unsigned h;
 	struct dm_region *reg, *nreg;
 
-	BUG_ON(!list_empty(&rh->quiesced_regions));
+	_ON(!list_empty(&rh->quiesced_regions));
 	for (h = 0; h < rh->nr_buckets; h++) {
 		list_for_each_entry_safe(reg, nreg, rh->buckets + h,
 					 hash_list) {
-			BUG_ON(atomic_read(&reg->pending));
+			_ON(atomic_read(&reg->pending));
 			mempool_free(reg, &rh->region_pool);
 		}
 	}
@@ -416,8 +416,8 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	read_unlock(&rh->hash_lock);
 
 	/* region hash entry should exist because write was in-flight */
-	BUG_ON(!reg);
-	BUG_ON(!list_empty(&reg->list));
+	_ON(!reg);
+	_ON(!list_empty(&reg->list));
 
 	spin_lock_irqsave(&rh->region_lock, flags);
 	/*
@@ -429,7 +429,7 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	 */
 	recovering = (reg->state == DM_RH_RECOVERING);
 	reg->state = DM_RH_NOSYNC;
-	BUG_ON(!list_empty(&reg->list));
+	_ON(!list_empty(&reg->list));
 	spin_unlock_irqrestore(&rh->region_lock, flags);
 
 	if (recovering)

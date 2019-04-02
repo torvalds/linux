@@ -45,7 +45,7 @@
 #define tprintf(x...) do { if (g && g->p.show_details >= 0) printf(x); } while (0)
 
 /*
- * Debug printf:
+ * De printf:
  */
 #undef dprintf
 #define dprintf(x...) do { if (g && g->p.show_details >= 1) printf(x); } while (0)
@@ -264,7 +264,7 @@ static cpu_set_t bind_to_cpu(int target_cpu)
 	int ret;
 
 	ret = sched_getaffinity(0, sizeof(orig_mask), &orig_mask);
-	BUG_ON(ret);
+	_ON(ret);
 
 	CPU_ZERO(&mask);
 
@@ -274,12 +274,12 @@ static cpu_set_t bind_to_cpu(int target_cpu)
 		for (cpu = 0; cpu < g->p.nr_cpus; cpu++)
 			CPU_SET(cpu, &mask);
 	} else {
-		BUG_ON(target_cpu < 0 || target_cpu >= g->p.nr_cpus);
+		_ON(target_cpu < 0 || target_cpu >= g->p.nr_cpus);
 		CPU_SET(target_cpu, &mask);
 	}
 
 	ret = sched_setaffinity(0, sizeof(mask), &mask);
-	BUG_ON(ret);
+	_ON(ret);
 
 	return orig_mask;
 }
@@ -291,11 +291,11 @@ static cpu_set_t bind_to_node(int target_node)
 	int cpu;
 	int ret;
 
-	BUG_ON(cpus_per_node * nr_numa_nodes() != g->p.nr_cpus);
-	BUG_ON(!cpus_per_node);
+	_ON(cpus_per_node * nr_numa_nodes() != g->p.nr_cpus);
+	_ON(!cpus_per_node);
 
 	ret = sched_getaffinity(0, sizeof(orig_mask), &orig_mask);
-	BUG_ON(ret);
+	_ON(ret);
 
 	CPU_ZERO(&mask);
 
@@ -306,14 +306,14 @@ static cpu_set_t bind_to_node(int target_node)
 		int cpu_start = (target_node + 0) * cpus_per_node;
 		int cpu_stop  = (target_node + 1) * cpus_per_node;
 
-		BUG_ON(cpu_stop > g->p.nr_cpus);
+		_ON(cpu_stop > g->p.nr_cpus);
 
 		for (cpu = cpu_start; cpu < cpu_stop; cpu++)
 			CPU_SET(cpu, &mask);
 	}
 
 	ret = sched_setaffinity(0, sizeof(mask), &mask);
-	BUG_ON(ret);
+	_ON(ret);
 
 	return orig_mask;
 }
@@ -323,7 +323,7 @@ static void bind_to_cpumask(cpu_set_t mask)
 	int ret;
 
 	ret = sched_setaffinity(0, sizeof(mask), &mask);
-	BUG_ON(ret);
+	_ON(ret);
 }
 
 static void mempol_restore(void)
@@ -332,7 +332,7 @@ static void mempol_restore(void)
 
 	ret = set_mempolicy(MPOL_DEFAULT, NULL, g->p.nr_nodes-1);
 
-	BUG_ON(ret);
+	_ON(ret);
 }
 
 static void bind_to_memnode(int node)
@@ -343,13 +343,13 @@ static void bind_to_memnode(int node)
 	if (node == NUMA_NO_NODE)
 		return;
 
-	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask)*8);
+	_ON(g->p.nr_nodes > (int)sizeof(nodemask)*8);
 	nodemask = 1L << node;
 
 	ret = set_mempolicy(MPOL_BIND, &nodemask, sizeof(nodemask)*8);
 	dprintf("binding to node %d, mask: %016lx => %d\n", node, nodemask, ret);
 
-	BUG_ON(ret);
+	_ON(ret);
 }
 
 #define HPSIZE (2*1024*1024)
@@ -382,7 +382,7 @@ static u8 *alloc_data(ssize_t bytes0, int map_flags,
 	bytes = bytes0 + HPSIZE;
 
 	buf = (void *)mmap(0, bytes, PROT_READ|PROT_WRITE, MAP_ANON|map_flags, -1, 0);
-	BUG_ON(buf == (void *)-1);
+	_ON(buf == (void *)-1);
 
 	if (map_flags == MAP_PRIVATE) {
 		if (thp > 0) {
@@ -435,7 +435,7 @@ static void free_data(void *data, ssize_t bytes)
 		return;
 
 	ret = munmap(data, bytes);
-	BUG_ON(ret);
+	_ON(ret);
 }
 
 /*
@@ -498,7 +498,7 @@ static int parse_setup_cpu_list(void)
 	str0 = str = strdup(g->p.cpu_list_str);
 	t = 0;
 
-	BUG_ON(!str);
+	_ON(!str);
 
 	tprintf("# binding tasks to CPUs:\n");
 	tprintf("#  ");
@@ -530,7 +530,7 @@ static int parse_setup_cpu_list(void)
 		tok_step = strstr(tok, "#");
 		if (tok_step) {
 			step = atol(tok_step + 1);
-			BUG_ON(step <= 0 || step >= g->p.nr_cpus);
+			_ON(step <= 0 || step >= g->p.nr_cpus);
 		}
 
 		/*
@@ -542,7 +542,7 @@ static int parse_setup_cpu_list(void)
 		tok_len = strstr(tok, "_");
 		if (tok_len) {
 			bind_len = atol(tok_len + 1);
-			BUG_ON(bind_len <= 0 || bind_len > g->p.nr_cpus);
+			_ON(bind_len <= 0 || bind_len > g->p.nr_cpus);
 		}
 
 		/* Multiplicator shortcut, "0x8" is a shortcut for: "0,0,0,0,0,0,0,0" */
@@ -550,7 +550,7 @@ static int parse_setup_cpu_list(void)
 		tok_mul = strstr(tok, "x");
 		if (tok_mul) {
 			mul = atol(tok_mul + 1);
-			BUG_ON(mul <= 0);
+			_ON(mul <= 0);
 		}
 
 		dprintf("CPUs: %d_%d-%d#%dx%d\n", bind_cpu_0, bind_len, bind_cpu_1, step, mul);
@@ -560,8 +560,8 @@ static int parse_setup_cpu_list(void)
 			return -1;
 		}
 
-		BUG_ON(bind_cpu_0 < 0 || bind_cpu_1 < 0);
-		BUG_ON(bind_cpu_0 > bind_cpu_1);
+		_ON(bind_cpu_0 < 0 || bind_cpu_1 < 0);
+		_ON(bind_cpu_0 > bind_cpu_1);
 
 		for (bind_cpu = bind_cpu_0; bind_cpu <= bind_cpu_1; bind_cpu += step) {
 			int i;
@@ -585,7 +585,7 @@ static int parse_setup_cpu_list(void)
 
 				CPU_ZERO(&td->bind_cpumask);
 				for (cpu = bind_cpu; cpu < bind_cpu+bind_len; cpu++) {
-					BUG_ON(cpu < 0 || cpu >= g->p.nr_cpus);
+					_ON(cpu < 0 || cpu >= g->p.nr_cpus);
 					CPU_SET(cpu, &td->bind_cpumask);
 				}
 				t++;
@@ -635,7 +635,7 @@ static int parse_setup_node_list(void)
 	str0 = str = strdup(g->p.node_list_str);
 	t = 0;
 
-	BUG_ON(!str);
+	_ON(!str);
 
 	tprintf("# binding tasks to NODEs:\n");
 	tprintf("# ");
@@ -666,7 +666,7 @@ static int parse_setup_node_list(void)
 		tok_step = strstr(tok, "#");
 		if (tok_step) {
 			step = atol(tok_step + 1);
-			BUG_ON(step <= 0 || step >= g->p.nr_nodes);
+			_ON(step <= 0 || step >= g->p.nr_nodes);
 		}
 
 		/* Multiplicator shortcut, "0x8" is a shortcut for: "0,0,0,0,0,0,0,0" */
@@ -674,7 +674,7 @@ static int parse_setup_node_list(void)
 		tok_mul = strstr(tok, "x");
 		if (tok_mul) {
 			mul = atol(tok_mul + 1);
-			BUG_ON(mul <= 0);
+			_ON(mul <= 0);
 		}
 
 		dprintf("NODEs: %d-%d #%d\n", bind_node_0, bind_node_1, step);
@@ -684,8 +684,8 @@ static int parse_setup_node_list(void)
 			return -1;
 		}
 
-		BUG_ON(bind_node_0 < 0 || bind_node_1 < 0);
-		BUG_ON(bind_node_0 > bind_node_1);
+		_ON(bind_node_0 < 0 || bind_node_1 < 0);
+		_ON(bind_node_0 > bind_node_1);
 
 		for (bind_node = bind_node_0; bind_node <= bind_node_1; bind_node += step) {
 			int i;
@@ -769,8 +769,8 @@ static u64 do_work(u8 *__data, long bytes, int nr, int nr_max, int loop, u64 val
 	long off;
 	long i;
 
-	BUG_ON(!data && words);
-	BUG_ON(data && !words);
+	_ON(!data && words);
+	_ON(data && !words);
 
 	if (!data)
 		return val;
@@ -1013,9 +1013,9 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 		nr_max = max(nr, nr_max);
 		sum += nr;
 	}
-	BUG_ON(nr_min > nr_max);
+	_ON(nr_min > nr_max);
 
-	BUG_ON(sum > g->p.nr_tasks);
+	_ON(sum > g->p.nr_tasks);
 
 	if (0 && (sum < g->p.nr_tasks))
 		return;
@@ -1320,12 +1320,12 @@ static void worker_process(int process_nr)
 		td->process_lock = &process_lock;
 
 		ret = pthread_create(pthreads + t, NULL, worker_thread, td);
-		BUG_ON(ret);
+		_ON(ret);
 	}
 
 	for (t = 0; t < g->p.nr_threads; t++) {
                 ret = pthread_join(pthreads[t], NULL);
-		BUG_ON(ret);
+		_ON(ret);
 	}
 
 	free_data(process_data, g->p.bytes_process);
@@ -1392,7 +1392,7 @@ static int init(void)
 	g->p.nr_nodes = numa_max_node() + 1;
 
 	/* char array in count_process_nodes(): */
-	BUG_ON(g->p.nr_nodes > MAX_NR_NODES || g->p.nr_nodes < 0);
+	_ON(g->p.nr_nodes > MAX_NR_NODES || g->p.nr_nodes < 0);
 
 	if (g->p.show_quiet && !g->p.show_details)
 		g->p.show_details = -1;
@@ -1403,27 +1403,27 @@ static int init(void)
 
 	if (g->p.mb_global_str) {
 		g->p.mb_global = atof(g->p.mb_global_str);
-		BUG_ON(g->p.mb_global < 0);
+		_ON(g->p.mb_global < 0);
 	}
 
 	if (g->p.mb_proc_str) {
 		g->p.mb_proc = atof(g->p.mb_proc_str);
-		BUG_ON(g->p.mb_proc < 0);
+		_ON(g->p.mb_proc < 0);
 	}
 
 	if (g->p.mb_proc_locked_str) {
 		g->p.mb_proc_locked = atof(g->p.mb_proc_locked_str);
-		BUG_ON(g->p.mb_proc_locked < 0);
-		BUG_ON(g->p.mb_proc_locked > g->p.mb_proc);
+		_ON(g->p.mb_proc_locked < 0);
+		_ON(g->p.mb_proc_locked > g->p.mb_proc);
 	}
 
 	if (g->p.mb_thread_str) {
 		g->p.mb_thread = atof(g->p.mb_thread_str);
-		BUG_ON(g->p.mb_thread < 0);
+		_ON(g->p.mb_thread < 0);
 	}
 
-	BUG_ON(g->p.nr_threads <= 0);
-	BUG_ON(g->p.nr_proc <= 0);
+	_ON(g->p.nr_threads <= 0);
+	_ON(g->p.nr_proc <= 0);
 
 	g->p.nr_tasks = g->p.nr_proc*g->p.nr_threads;
 
@@ -1511,7 +1511,7 @@ static int __bench_numa(const char *name)
 		pid = fork();
 		dprintf(" # process %2d: PID %d\n", i, pid);
 
-		BUG_ON(pid < 0);
+		_ON(pid < 0);
 		if (!pid) {
 			/* Child process: */
 			worker_process(i);
@@ -1525,7 +1525,7 @@ static int __bench_numa(const char *name)
 	while (g->nr_tasks_started != g->p.nr_tasks)
 		usleep(USEC_PER_MSEC);
 
-	BUG_ON(g->nr_tasks_started != g->p.nr_tasks);
+	_ON(g->nr_tasks_started != g->p.nr_tasks);
 
 	if (g->p.serialize_startup) {
 		double startup_sec;
@@ -1560,8 +1560,8 @@ static int __bench_numa(const char *name)
 
 	for (i = 0; i < g->p.nr_proc; i++) {
 		wpid = waitpid(pids[i], &wait_stat, 0);
-		BUG_ON(wpid < 0);
-		BUG_ON(!WIFEXITED(wait_stat));
+		_ON(wpid < 0);
+		_ON(!WIFEXITED(wait_stat));
 
 	}
 
@@ -1578,7 +1578,7 @@ static int __bench_numa(const char *name)
 	gettimeofday(&stop, NULL);
 	timersub(&stop, &start, &diff);
 
-	BUG_ON(bench_format != BENCH_FORMAT_DEFAULT);
+	_ON(bench_format != BENCH_FORMAT_DEFAULT);
 
 	tprintf("\n ###\n");
 	tprintf("\n");
@@ -1661,7 +1661,7 @@ static int command_size(const char **argv)
 		argv++;
 	}
 
-	BUG_ON(size >= MAX_ARGS);
+	_ON(size >= MAX_ARGS);
 
 	return size;
 }
@@ -1807,7 +1807,7 @@ static int bench_all(void)
 	int i;
 
 	ret = system("echo ' #'; echo ' # Running test on: '$(uname -a); echo ' #'");
-	BUG_ON(ret < 0);
+	_ON(ret < 0);
 
 	for (i = 0; i < nr; i++) {
 		run_bench_numa(tests[i][0], tests[i] + 1);

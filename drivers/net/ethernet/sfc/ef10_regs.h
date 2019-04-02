@@ -402,7 +402,7 @@
 #define ERF_DZ_TX_DESC_WPTR_DWORD_LBN	(ERF_DZ_TX_DESC_WPTR_LBN - 2 * 32)
 #define ERF_DZ_TX_DESC_WPTR_DWORD_WIDTH	ERF_DZ_TX_DESC_WPTR_WIDTH
 
-/* The workaround for bug 35388 requires multiplexing writes through
+/* The workaround for  35388 requires multiplexing writes through
  * the TX_DESC_UPD_DWORD address.
  * TX_DESC_UPD: 0ppppppppppp               (bit 11 lost)
  * EVQ_RPTR:    1000hhhhhhhh, 1001llllllll (split into high and low bits)

@@ -12,7 +12,7 @@
  *
  * Fixes:
  *		Alan Cox	: Turned on udp checksums. I don't want to
- *				  chase 'memory corruption' bugs that aren't!
+ *				  chase 'memory corruption' s that aren't!
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 #define _UDP_H
 
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <net/inet_sock.h>
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -194,7 +194,7 @@ static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline int udp_lib_hash(struct sock *sk)
 {
-	BUG();
+	();
 	return 0;
 }
 

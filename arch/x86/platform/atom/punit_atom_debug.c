@@ -1,5 +1,5 @@
 /*
- * Intel SOC Punit device state debug driver
+ * Intel SOC Punit device state de driver
  * Punit controls power management for North Complex devices (Graphics
  * blocks, Image Signal Processing, video processing, display, DSP etc.)
  *
@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
 #include <asm/cpu_device_id.h>
@@ -117,16 +117,16 @@ static int punit_dbgfs_register(struct punit_device *punit_device)
 {
 	struct dentry *dev_state;
 
-	punit_dbg_file = debugfs_create_dir("punit_atom", NULL);
+	punit_dbg_file = defs_create_dir("punit_atom", NULL);
 	if (!punit_dbg_file)
 		return -ENXIO;
 
-	dev_state = debugfs_create_file("dev_power_state", 0444,
+	dev_state = defs_create_file("dev_power_state", 0444,
 					punit_dbg_file, punit_device,
 					&punit_dev_state_fops);
 	if (!dev_state) {
 		pr_err("punit_dev_state register failed\n");
-		debugfs_remove(punit_dbg_file);
+		defs_remove(punit_dbg_file);
 		return -ENXIO;
 	}
 
@@ -135,7 +135,7 @@ static int punit_dbgfs_register(struct punit_device *punit_device)
 
 static void punit_dbgfs_unregister(void)
 {
-	debugfs_remove_recursive(punit_dbg_file);
+	defs_remove_recursive(punit_dbg_file);
 }
 
 #define ICPU(model, drv_data) \
@@ -151,7 +151,7 @@ static const struct x86_cpu_id intel_punit_cpu_ids[] = {
 
 MODULE_DEVICE_TABLE(x86cpu, intel_punit_cpu_ids);
 
-static int __init punit_atom_debug_init(void)
+static int __init punit_atom_de_init(void)
 {
 	const struct x86_cpu_id *id;
 	int ret;
@@ -167,15 +167,15 @@ static int __init punit_atom_debug_init(void)
 	return 0;
 }
 
-static void __exit punit_atom_debug_exit(void)
+static void __exit punit_atom_de_exit(void)
 {
 	punit_dbgfs_unregister();
 }
 
-module_init(punit_atom_debug_init);
-module_exit(punit_atom_debug_exit);
+module_init(punit_atom_de_init);
+module_exit(punit_atom_de_exit);
 
 MODULE_AUTHOR("Kumar P, Mahesh <mahesh.kumar.p@intel.com>");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
-MODULE_DESCRIPTION("Driver for Punit devices states debugging");
+MODULE_DESCRIPTION("Driver for Punit devices states deging");
 MODULE_LICENSE("GPL v2");

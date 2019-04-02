@@ -806,10 +806,10 @@ int octeon_init_consoles(struct octeon_device *oct);
  *
  * @param oct:          which octeon to add to
  * @param console_num:  which console
- * @param dbg_enb:      ptr to debug enablement string, one of:
- *                    * NULL for no debug output (i.e. disabled)
- *                    * empty string enables debug output (via default method)
- *                    * specific string to enable debug console output
+ * @param dbg_enb:      ptr to de enablement string, one of:
+ *                    * NULL for no de output (i.e. disabled)
+ *                    * empty string enables de output (via default method)
+ *                    * specific string to enable de console output
  *
  * @return Zero on success, negative on failure.
  */

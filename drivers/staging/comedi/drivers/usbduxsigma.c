@@ -28,7 +28,7 @@
  *   0.2: all basic functions implemented, digital I/O only for one port
  *   0.3: proper vendor ID and driver name
  *   0.4: fixed D/A voltage range
- *   0.5: various bug fixes, health check at startup
+ *   0.5: various  fixes, health check at startup
  *   0.6: corrected wrong input range
  *   0.7: rewrite code that urb->interval is always 1
  */
@@ -103,11 +103,11 @@
 #define NUMOFOUTBUFFERSFULL    5
 
 /* Number of in-URBs which receive the data: min=5 */
-/* must have more buffers due to buggy USB ctr */
+/* must have more buffers due to gy USB ctr */
 #define NUMOFINBUFFERSHIGH     10
 
 /* Number of out-URBs which send the data: min=5 */
-/* must have more buffers due to buggy USB ctr */
+/* must have more buffers due to gy USB ctr */
 #define NUMOFOUTBUFFERSHIGH    10
 
 /* number of retries to get the right dux command */
@@ -241,7 +241,7 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
-					"buggy USB host controller or bug in IRQ handler\n");
+					"gy USB host controller or  in IRQ handler\n");
 			async->events |= COMEDI_CB_ERROR;
 		}
 	}
@@ -380,7 +380,7 @@ static void usbduxsigma_ao_handle_urb(struct comedi_device *dev,
 				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
-					"buggy USB host controller or bug in IRQ handler\n");
+					"gy USB host controller or  in IRQ handler\n");
 			async->events |= COMEDI_CB_ERROR;
 		}
 	}
@@ -1050,7 +1050,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 		dev_err(dev->class_dev, "urb resubmit failed (%d)\n", ret);
 		if (ret == -EL2NSYNC)
 			dev_err(dev->class_dev,
-				"buggy USB host controller or bug in IRQ handler\n");
+				"gy USB host controller or  in IRQ handler\n");
 		usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 	}
 }

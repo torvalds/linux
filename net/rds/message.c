@@ -50,7 +50,7 @@ static unsigned int	rds_exthdr_size[__RDS_EXTHDR_MAX] = {
 
 void rds_message_addref(struct rds_message *rm)
 {
-	rdsdebug("addref rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
+	rdsde("addref rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
 	refcount_inc(&rm->m_refcount);
 }
 EXPORT_SYMBOL_GPL(rds_message_addref);
@@ -172,11 +172,11 @@ static void rds_message_purge(struct rds_message *rm)
 
 void rds_message_put(struct rds_message *rm)
 {
-	rdsdebug("put rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
+	rdsde("put rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
 	WARN(!refcount_read(&rm->m_refcount), "danger refcount zero on %p\n", rm);
 	if (refcount_dec_and_test(&rm->m_refcount)) {
-		BUG_ON(!list_empty(&rm->m_sock_item));
-		BUG_ON(!list_empty(&rm->m_conn_item));
+		_ON(!list_empty(&rm->m_sock_item));
+		_ON(!list_empty(&rm->m_conn_item));
 		rds_message_purge(rm);
 
 		kfree(rm);

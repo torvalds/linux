@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dwarf-regs.c : Mapping of DWARF debug register numbers into register names.
+ * dwarf-regs.c : Mapping of DWARF de register numbers into register names.
  *
  * Written by: Masami Hiramatsu <mhiramat@kernel.org>
  */
 
 #include <util.h>
-#include <debug.h>
+#include <de.h>
 #include <dwarf-regs.h>
 #include <elf.h>
 #include <linux/kernel.h>

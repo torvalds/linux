@@ -72,7 +72,7 @@ void drm_dsc_pps_infoframe_pack(struct drm_dsc_pps_infoframe *pps_sdp,
 	int i;
 
 	/* Protect against someone accidently changing struct size */
-	BUILD_BUG_ON(sizeof(pps_sdp->pps_payload) !=
+	BUILD__ON(sizeof(pps_sdp->pps_payload) !=
 		     DP_SDP_PPS_HEADER_PAYLOAD_BYTES_MINUS_1 + 1);
 
 	memset(&pps_sdp->pps_payload, 0, sizeof(pps_sdp->pps_payload));

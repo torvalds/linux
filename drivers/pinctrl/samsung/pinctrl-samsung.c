@@ -279,7 +279,7 @@ static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /* Forward declaration which can be used by samsung_pin_dbg_show */
 static int samsung_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 					unsigned long *config);
@@ -312,7 +312,7 @@ static const struct pinctrl_ops samsung_pctrl_ops = {
 	.get_group_pins		= samsung_get_group_pins,
 	.dt_node_to_map		= samsung_dt_node_to_map,
 	.dt_free_map		= samsung_dt_free_map,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_dbg_show		= samsung_pin_dbg_show,
 #endif
 };
@@ -1163,12 +1163,12 @@ static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
 			/* Some banks have two config registers */
 			bank->pm_save[PINCFG_TYPE_NUM] =
 				readl(reg + offs[PINCFG_TYPE_FUNC] + 4);
-			pr_debug("Save %s @ %p (con %#010x %08x)\n",
+			pr_de("Save %s @ %p (con %#010x %08x)\n",
 				 bank->name, reg,
 				 bank->pm_save[PINCFG_TYPE_FUNC],
 				 bank->pm_save[PINCFG_TYPE_NUM]);
 		} else {
-			pr_debug("Save %s @ %p (con %#010x)\n", bank->name,
+			pr_de("Save %s @ %p (con %#010x)\n", bank->name,
 				 reg, bank->pm_save[PINCFG_TYPE_FUNC]);
 		}
 	}
@@ -1210,7 +1210,7 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 
 		if (widths[PINCFG_TYPE_FUNC] * bank->nr_pins > 32) {
 			/* Some banks have two config registers */
-			pr_debug("%s @ %p (con %#010x %08x => %#010x %08x)\n",
+			pr_de("%s @ %p (con %#010x %08x => %#010x %08x)\n",
 				 bank->name, reg,
 				 readl(reg + offs[PINCFG_TYPE_FUNC]),
 				 readl(reg + offs[PINCFG_TYPE_FUNC] + 4),
@@ -1219,7 +1219,7 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 			writel(bank->pm_save[PINCFG_TYPE_NUM],
 			       reg + offs[PINCFG_TYPE_FUNC] + 4);
 		} else {
-			pr_debug("%s @ %p (con %#010x => %#010x)\n", bank->name,
+			pr_de("%s @ %p (con %#010x => %#010x)\n", bank->name,
 				 reg, readl(reg + offs[PINCFG_TYPE_FUNC]),
 				 bank->pm_save[PINCFG_TYPE_FUNC]);
 		}

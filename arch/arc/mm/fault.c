@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/perf_event.h>
 #include <linux/mm_types.h>
 #include <asm/pgalloc.h>
@@ -189,7 +189,7 @@ good_area:
 		goto do_sigbus;
 
 	/* no man's land */
-	BUG();
+	();
 
 	/*
 	 * Something tried to access memory that isn't in our memory map..

@@ -103,7 +103,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	    value_size < 8 || value_size % 8)
 		return ERR_PTR(-EINVAL);
 
-	BUILD_BUG_ON(sizeof(struct bpf_stack_build_id) % sizeof(u64));
+	BUILD__ON(sizeof(struct bpf_stack_build_id) % sizeof(u64));
 	if (attr->map_flags & BPF_F_STACK_BUILD_ID) {
 		if (value_size % sizeof(struct bpf_stack_build_id) ||
 		    value_size / sizeof(struct bpf_stack_build_id)

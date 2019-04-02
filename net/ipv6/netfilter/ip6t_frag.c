@@ -27,10 +27,10 @@ static inline bool
 id_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
 	bool r;
-	pr_debug("id_match:%c 0x%x <= 0x%x <= 0x%x\n", invert ? '!' : ' ',
+	pr_de("id_match:%c 0x%x <= 0x%x <= 0x%x\n", invert ? '!' : ' ',
 		 min, id, max);
 	r = (id >= min && id <= max) ^ invert;
-	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
+	pr_de(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
@@ -56,33 +56,33 @@ frag_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	}
 
-	pr_debug("INFO %04X ", fh->frag_off);
-	pr_debug("OFFSET %04X ", ntohs(fh->frag_off) & ~0x7);
-	pr_debug("RES %02X %04X", fh->reserved, ntohs(fh->frag_off) & 0x6);
-	pr_debug("MF %04X ", fh->frag_off & htons(IP6_MF));
-	pr_debug("ID %u %08X\n", ntohl(fh->identification),
+	pr_de("INFO %04X ", fh->frag_off);
+	pr_de("OFFSET %04X ", ntohs(fh->frag_off) & ~0x7);
+	pr_de("RES %02X %04X", fh->reserved, ntohs(fh->frag_off) & 0x6);
+	pr_de("MF %04X ", fh->frag_off & htons(IP6_MF));
+	pr_de("ID %u %08X\n", ntohl(fh->identification),
 		 ntohl(fh->identification));
 
-	pr_debug("IPv6 FRAG id %02X ",
+	pr_de("IPv6 FRAG id %02X ",
 		 id_match(fraginfo->ids[0], fraginfo->ids[1],
 			  ntohl(fh->identification),
 			  !!(fraginfo->invflags & IP6T_FRAG_INV_IDS)));
-	pr_debug("res %02X %02X%04X %02X ",
+	pr_de("res %02X %02X%04X %02X ",
 		 fraginfo->flags & IP6T_FRAG_RES, fh->reserved,
 		 ntohs(fh->frag_off) & 0x6,
 		 !((fraginfo->flags & IP6T_FRAG_RES) &&
 		   (fh->reserved || (ntohs(fh->frag_off) & 0x06))));
-	pr_debug("first %02X %02X %02X ",
+	pr_de("first %02X %02X %02X ",
 		 fraginfo->flags & IP6T_FRAG_FST,
 		 ntohs(fh->frag_off) & ~0x7,
 		 !((fraginfo->flags & IP6T_FRAG_FST) &&
 		   (ntohs(fh->frag_off) & ~0x7)));
-	pr_debug("mf %02X %02X %02X ",
+	pr_de("mf %02X %02X %02X ",
 		 fraginfo->flags & IP6T_FRAG_MF,
 		 ntohs(fh->frag_off) & IP6_MF,
 		 !((fraginfo->flags & IP6T_FRAG_MF) &&
 		   !((ntohs(fh->frag_off) & IP6_MF))));
-	pr_debug("last %02X %02X %02X\n",
+	pr_de("last %02X %02X %02X\n",
 		 fraginfo->flags & IP6T_FRAG_NMF,
 		 ntohs(fh->frag_off) & IP6_MF,
 		 !((fraginfo->flags & IP6T_FRAG_NMF) &&
@@ -107,7 +107,7 @@ static int frag_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_frag *fraginfo = par->matchinfo;
 
 	if (fraginfo->invflags & ~IP6T_FRAG_INV_MASK) {
-		pr_debug("unknown flags %X\n", fraginfo->invflags);
+		pr_de("unknown flags %X\n", fraginfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

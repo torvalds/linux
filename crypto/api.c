@@ -101,7 +101,7 @@ static void crypto_larval_destroy(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval = (void *)alg;
 
-	BUG_ON(!crypto_is_larval(alg));
+	_ON(!crypto_is_larval(alg));
 	if (larval->adult)
 		crypto_mod_put(larval->adult);
 	kfree(larval);
@@ -312,7 +312,7 @@ static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 		break;
 	}
 
-	BUG();
+	();
 	return -EINVAL;
 }
 
@@ -335,7 +335,7 @@ static unsigned int crypto_ctxsize(struct crypto_alg *alg, u32 type, u32 mask)
 
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	default:
-		BUG();
+		();
 
 	case CRYPTO_ALG_TYPE_CIPHER:
 		len += crypto_cipher_ctxsize(alg);

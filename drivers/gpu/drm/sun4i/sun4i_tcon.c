@@ -181,7 +181,7 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 		channel = 1;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+		DRM_DE_DRIVER("Unknown encoder type, doing nothing...\n");
 		return;
 	}
 
@@ -202,7 +202,7 @@ void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable)
 {
 	u32 mask, val = 0;
 
-	DRM_DEBUG_DRIVER("%sabling VBLANK interrupt\n", enable ? "En" : "Dis");
+	DRM_DE_DRIVER("%sabling VBLANK interrupt\n", enable ? "En" : "Dis");
 
 	mask = SUN4I_TCON_GINT0_VBLANK_ENABLE(0) |
 		SUN4I_TCON_GINT0_VBLANK_ENABLE(1) |
@@ -244,7 +244,7 @@ void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 	if (tcon->quirks->set_mux)
 		ret = tcon->quirks->set_mux(tcon, encoder);
 
-	DRM_DEBUG_DRIVER("Muxing encoder %s to CRTC %s: %d\n",
+	DRM_DE_DRIVER("Muxing encoder %s to CRTC %s: %d\n",
 			 encoder->name, encoder->crtc->name, ret);
 }
 
@@ -261,7 +261,7 @@ static int sun4i_tcon_get_clk_delay(const struct drm_display_mode *mode,
 
 	delay = min(delay, 30);
 
-	DRM_DEBUG_DRIVER("TCON %d clock delay %u\n", channel, delay);
+	DRM_DE_DRIVER("TCON %d clock delay %u\n", channel, delay);
 
 	return delay;
 }
@@ -428,7 +428,7 @@ static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
 	 * but it really is the back porch + hsync
 	 */
 	bp = mode->crtc_htotal - mode->crtc_hsync_start;
-	DRM_DEBUG_DRIVER("Setting horizontal total %d, backporch %d\n",
+	DRM_DE_DRIVER("Setting horizontal total %d, backporch %d\n",
 			 mode->crtc_htotal, bp);
 
 	/* Set horizontal display timings */
@@ -441,7 +441,7 @@ static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
 	 * but it really is the back porch + hsync
 	 */
 	bp = mode->crtc_vtotal - mode->crtc_vsync_start;
-	DRM_DEBUG_DRIVER("Setting vertical total %d, backporch %d\n",
+	DRM_DE_DRIVER("Setting vertical total %d, backporch %d\n",
 			 mode->crtc_vtotal, bp);
 
 	/* Set vertical display timings */
@@ -507,7 +507,7 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 	 * but it really is the back porch + hsync
 	 */
 	bp = mode->crtc_htotal - mode->crtc_hsync_start;
-	DRM_DEBUG_DRIVER("Setting horizontal total %d, backporch %d\n",
+	DRM_DE_DRIVER("Setting horizontal total %d, backporch %d\n",
 			 mode->crtc_htotal, bp);
 
 	/* Set horizontal display timings */
@@ -520,7 +520,7 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 	 * but it really is the back porch + hsync
 	 */
 	bp = mode->crtc_vtotal - mode->crtc_vsync_start;
-	DRM_DEBUG_DRIVER("Setting vertical total %d, backporch %d\n",
+	DRM_DE_DRIVER("Setting vertical total %d, backporch %d\n",
 			 mode->crtc_vtotal, bp);
 
 	/* Set vertical display timings */
@@ -531,7 +531,7 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 	/* Set Hsync and Vsync length */
 	hsync = mode->crtc_hsync_end - mode->crtc_hsync_start;
 	vsync = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	DRM_DEBUG_DRIVER("Setting HSYNC %d, VSYNC %d\n", hsync, vsync);
+	DRM_DE_DRIVER("Setting HSYNC %d, VSYNC %d\n", hsync, vsync);
 	regmap_write(tcon->regs, SUN4I_TCON0_BASIC3_REG,
 		     SUN4I_TCON0_BASIC3_V_SYNC(vsync) |
 		     SUN4I_TCON0_BASIC3_H_SYNC(hsync));
@@ -626,14 +626,14 @@ static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 
 	/* Set horizontal display timings */
 	bp = mode->crtc_htotal - mode->crtc_hsync_start;
-	DRM_DEBUG_DRIVER("Setting horizontal total %d, backporch %d\n",
+	DRM_DE_DRIVER("Setting horizontal total %d, backporch %d\n",
 			 mode->htotal, bp);
 	regmap_write(tcon->regs, SUN4I_TCON1_BASIC3_REG,
 		     SUN4I_TCON1_BASIC3_H_TOTAL(mode->crtc_htotal) |
 		     SUN4I_TCON1_BASIC3_H_BACKPORCH(bp));
 
 	bp = mode->crtc_vtotal - mode->crtc_vsync_start;
-	DRM_DEBUG_DRIVER("Setting vertical total %d, backporch %d\n",
+	DRM_DE_DRIVER("Setting vertical total %d, backporch %d\n",
 			 mode->crtc_vtotal, bp);
 
 	/*
@@ -661,7 +661,7 @@ static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	/* Set Hsync and Vsync length */
 	hsync = mode->crtc_hsync_end - mode->crtc_hsync_start;
 	vsync = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	DRM_DEBUG_DRIVER("Setting HSYNC %d, VSYNC %d\n", hsync, vsync);
+	DRM_DE_DRIVER("Setting HSYNC %d, VSYNC %d\n", hsync, vsync);
 	regmap_write(tcon->regs, SUN4I_TCON1_BASIC5_REG,
 		     SUN4I_TCON1_BASIC5_V_SYNC(vsync) |
 		     SUN4I_TCON1_BASIC5_H_SYNC(hsync));
@@ -694,7 +694,7 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 		sun4i_tcon_set_mux(tcon, 1, encoder);
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unknown encoder type, doing nothing...\n");
+		DRM_DE_DRIVER("Unknown encoder type, doing nothing...\n");
 	}
 }
 EXPORT_SYMBOL(sun4i_tcon_mode_set);

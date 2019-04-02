@@ -209,7 +209,7 @@ static int adb_scan_bus(void)
 		adb_request(&req, NULL, ADBREQ_SYNC | ADBREQ_REPLY, 1,
 			    (i << 4) | 0xf);
 		adb_handler[i].handler_id = req.reply[2];
-		printk(KERN_DEBUG "adb device [%d]: %d 0x%X\n", i,
+		printk(KERN_DE "adb device [%d]: %d 0x%X\n", i,
 		       adb_handler[i].original_address,
 		       adb_handler[i].handler_id);
 		devmask |= 1 << i;
@@ -224,9 +224,9 @@ static int adb_scan_bus(void)
 static int
 adb_probe_task(void *x)
 {
-	pr_debug("adb: starting probe task...\n");
+	pr_de("adb: starting probe task...\n");
 	do_adb_reset_bus();
-	pr_debug("adb: finished probe task...\n");
+	pr_de("adb: finished probe task...\n");
 
 	up(&adb_probe_mutex);
 
@@ -580,7 +580,7 @@ adb_try_handler_change(int address, int new_id)
 	ret = try_handler_change(address, new_id);
 	mutex_unlock(&adb_handler_mutex);
 	if (ret)
-		pr_debug("adb handler change: [%d] 0x%X\n", address, new_id);
+		pr_de("adb handler change: [%d] 0x%X\n", address, new_id);
 	return ret;
 }
 EXPORT_SYMBOL(adb_try_handler_change);

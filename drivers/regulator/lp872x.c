@@ -94,7 +94,7 @@
 #define LP8720_DEFAULT_DVS		0
 #define LP8725_DEFAULT_DVS		BIT(2)
 
-/* dump registers in regmap-debugfs */
+/* dump registers in regmap-defs */
 #define MAX_REGISTERS			0x0F
 
 enum lp872x_id {

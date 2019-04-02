@@ -14,7 +14,7 @@
 #include "util/intlist.h"
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/tool.h"
 #include "util/stat.h"
 #include "util/top.h"
@@ -222,7 +222,7 @@ static struct kvm_event *find_create_kvm_event(struct perf_kvm_stat *kvm,
 	struct kvm_event *event;
 	struct list_head *head;
 
-	BUG_ON(key->key == INVALID_KEY);
+	_ON(key->key == INVALID_KEY);
 
 	head = &kvm->kvm_events_cache[kvm_events_hash_fn(key->key)];
 	list_for_each_entry(event, head, hash_entry) {
@@ -374,7 +374,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 
 	/* seems to happen once in a while during live mode */
 	if (sample->time < time_begin) {
-		pr_debug("End time before begin time; skipping event.\n");
+		pr_de("End time before begin time; skipping event.\n");
 		return true;
 	}
 
@@ -685,7 +685,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
+		pr_de("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
@@ -887,7 +887,7 @@ static int perf_kvm__handle_timerfd(struct perf_kvm_stat *kvm)
 	}
 
 	if (c != 1)
-		pr_debug("Missed timer beats: %" PRIu64 "\n", c-1);
+		pr_de("Missed timer beats: %" PRIu64 "\n", c-1);
 
 	/* update display */
 	sort_result(kvm);
@@ -1523,7 +1523,7 @@ static int __cmd_record(const char *file_name, int argc, const char **argv)
 	for (j = 1; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	BUG_ON(i != rec_argc);
+	_ON(i != rec_argc);
 
 	return cmd_record(i, rec_argv);
 }
@@ -1541,7 +1541,7 @@ static int __cmd_report(const char *file_name, int argc, const char **argv)
 	for (j = 1; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	BUG_ON(i != rec_argc);
+	_ON(i != rec_argc);
 
 	return cmd_report(i, rec_argv);
 }
@@ -1560,7 +1560,7 @@ __cmd_buildid_list(const char *file_name, int argc, const char **argv)
 	for (j = 1; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	BUG_ON(i != rec_argc);
+	_ON(i != rec_argc);
 
 	return cmd_buildid_list(i, rec_argv);
 }

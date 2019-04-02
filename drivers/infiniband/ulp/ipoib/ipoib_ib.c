@@ -44,12 +44,12 @@
 
 #include "ipoib.h"
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG_DATA
-static int data_debug_level;
+#ifdef CONFIG_INFINIBAND_IPOIB_DE_DATA
+static int data_de_level;
 
-module_param(data_debug_level, int, 0644);
-MODULE_PARM_DESC(data_debug_level,
-		 "Enable data path debug tracing if > 0");
+module_param(data_de_level, int, 0644);
+MODULE_PARM_DESC(data_de_level,
+		 "Enable data path de tracing if > 0");
 #endif
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,

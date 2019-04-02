@@ -1,7 +1,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DPRINTK(fmt, ...)				\
-	pr_debug("(%s:%d) " fmt "\n",			\
+	pr_de("(%s:%d) " fmt "\n",			\
 		 __func__, __LINE__, ##__VA_ARGS__)
 
 #include <linux/kernel.h>
@@ -58,7 +58,7 @@ static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type,
 
 	/* ignore console/0 */
 	if (!strncmp(type, "console", 7) && !strncmp(name, "0", 1)) {
-		DPRINTK("Ignoring buggy device entry console/0");
+		DPRINTK("Ignoring gy device entry console/0");
 		return 0;
 	}
 
@@ -337,7 +337,7 @@ static void xenbus_reset_backend_state_changed(struct xenbus_watch *w,
 	if (xenbus_scanf(XBT_NIL, path, "", "%i",
 			 &backend_state) != 1)
 		backend_state = XenbusStateUnknown;
-	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
+	printk(KERN_DE "XENBUS: backend %s %s\n",
 	       path, xenbus_strstate(backend_state));
 	wake_up(&backend_state_wq);
 }
@@ -360,7 +360,7 @@ static void xenbus_reset_frontend(char *fe, char *be, int be_state)
 {
 	struct xenbus_watch be_watch;
 
-	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
+	printk(KERN_DE "XENBUS: backend %s %s\n",
 			be, xenbus_strstate(be_state));
 
 	memset(&be_watch, 0, sizeof(be_watch));
@@ -412,7 +412,7 @@ static void xenbus_check_frontend(char *class, char *dev)
 	switch (fe_state) {
 	case XenbusStateConnected:
 	case XenbusStateClosed:
-		printk(KERN_DEBUG "XENBUS: frontend %s %s\n",
+		printk(KERN_DE "XENBUS: frontend %s %s\n",
 				frontend, xenbus_strstate(fe_state));
 		backend = xenbus_read(XBT_NIL, frontend, "backend", NULL);
 		if (!backend || IS_ERR(backend))

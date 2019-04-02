@@ -2403,7 +2403,7 @@ static unsigned int xgbe_set_nonprio_fifos(unsigned int fifo_size,
 {
 	unsigned int i;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(XGMAC_FIFO_MIN_ALLOC);
+	BUILD__ON_NOT_POWER_OF_2(XGMAC_FIFO_MIN_ALLOC);
 
 	if (queue_count <= IEEE_8021QAZ_MAX_TCS)
 		return fifo_size;

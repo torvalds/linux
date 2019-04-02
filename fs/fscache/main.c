@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL CACHE
+#define FSCACHE_DE_LEVEL CACHE
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -35,11 +35,11 @@ module_param_named(defer_create, fscache_defer_create, uint,
 MODULE_PARM_DESC(fscache_defer_create,
 		 "Defer cookie creation to background thread");
 
-unsigned fscache_debug;
-module_param_named(debug, fscache_debug, uint,
+unsigned fscache_de;
+module_param_named(de, fscache_de, uint,
 		   S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(fscache_debug,
-		 "FS-Cache debugging mask");
+MODULE_PARM_DESC(fscache_de,
+		 "FS-Cache deging mask");
 
 struct kobject *fscache_root;
 struct workqueue_struct *fscache_object_wq;

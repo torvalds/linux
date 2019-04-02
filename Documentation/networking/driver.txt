@@ -21,7 +21,7 @@ Transmit path guidelines:
 		if (TX_BUFFS_AVAIL(dp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 			netif_stop_queue(dev);
 			unlock_tx(dp);
-			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
+			printk(KERN_ERR PFX "%s: ! Tx Ring full when queue awake!\n",
 			       dev->name);
 			return NETDEV_TX_BUSY;
 		}

@@ -76,7 +76,7 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pmd)
 		return NULL;
 
-	VM_BUG_ON(pmd_trans_huge(*pmd));
+	VM__ON(pmd_trans_huge(*pmd));
 
 	return pmd;
 }
@@ -224,7 +224,7 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 	pmd = *old_pmd;
 	pmd_clear(old_pmd);
 
-	VM_BUG_ON(!pmd_none(*new_pmd));
+	VM__ON(!pmd_none(*new_pmd));
 
 	/* Set the new pmd */
 	set_pmd_at(mm, new_addr, new_pmd, pmd);

@@ -1472,7 +1472,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 }
 
 static void
-gf100_gr_ctxctl_debug_unit(struct gf100_gr *gr, u32 base)
+gf100_gr_ctxctl_de_unit(struct gf100_gr *gr, u32 base)
 {
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -1491,15 +1491,15 @@ gf100_gr_ctxctl_debug_unit(struct gf100_gr *gr, u32 base)
 }
 
 void
-gf100_gr_ctxctl_debug(struct gf100_gr *gr)
+gf100_gr_ctxctl_de(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 gpcnr = nvkm_rd32(device, 0x409604) & 0xffff;
 	u32 gpc;
 
-	gf100_gr_ctxctl_debug_unit(gr, 0x409000);
+	gf100_gr_ctxctl_de_unit(gr, 0x409000);
 	for (gpc = 0; gpc < gpcnr; gpc++)
-		gf100_gr_ctxctl_debug_unit(gr, 0x502000 + (gpc * 0x8000));
+		gf100_gr_ctxctl_de_unit(gr, 0x502000 + (gpc * 0x8000));
 }
 
 static void
@@ -1530,14 +1530,14 @@ gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 
 	if (!gr->firmware && (stat & 0x00080000)) {
 		nvkm_error(subdev, "FECS watchdog timeout\n");
-		gf100_gr_ctxctl_debug(gr);
+		gf100_gr_ctxctl_de(gr);
 		nvkm_wr32(device, 0x409c20, 0x00080000);
 		stat &= ~0x00080000;
 	}
 
 	if (stat) {
 		nvkm_error(subdev, "FECS %08x\n", stat);
-		gf100_gr_ctxctl_debug(gr);
+		gf100_gr_ctxctl_de(gr);
 		nvkm_wr32(device, 0x409c20, stat);
 	}
 }
@@ -1814,7 +1814,7 @@ gf100_gr_init_ctxctl_int(struct gf100_gr *gr)
 		if (nvkm_rd32(device, 0x409800) & 0x80000000)
 			break;
 	) < 0) {
-		gf100_gr_ctxctl_debug(gr);
+		gf100_gr_ctxctl_de(gr);
 		return -EBUSY;
 	}
 
@@ -2092,7 +2092,7 @@ gf100_gr_ctor_fw_legacy(struct gf100_gr *gr, const char *fwname,
 	}
 
 	/* yes, try to load from the legacy path */
-	nvkm_debug(subdev, "%s: falling back to legacy path\n", fwname);
+	nvkm_de(subdev, "%s: falling back to legacy path\n", fwname);
 
 	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, fwname);
 	ret = request_firmware(&fw, f, device->dev);

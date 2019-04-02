@@ -273,7 +273,7 @@ The following sysctls are available for the XFS filesystem:
 		XFS_ERRLEVEL_HIGH:      5
 
   fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 256)
-	Causes certain error conditions to call BUG(). Value is a bitmask;
+	Causes certain error conditions to call (). Value is a bitmask;
 	OR together the tags which represent errors which should cause panics:
 
 		XFS_NO_PTAG                     0
@@ -287,7 +287,7 @@ The following sysctls are available for the XFS filesystem:
 		XFS_PTAG_FSBLOCK_ZERO           0x00000080
 		XFS_PTAG_VERIFIER_ERROR         0x00000100
 
-	This option is intended for debugging only.
+	This option is intended for deging only.
 
   fs.xfs.irix_symlink_mode	(Min: 0  Default: 0  Max: 1)
 	Controls whether symlinks are created with mode 0777 (default)

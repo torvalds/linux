@@ -13,7 +13,7 @@
  * With AGGRESSIVE_TEST defined, the capacity of index/leaf blocks
  * becomes very small, so index split, in-depth growing and
  * other hard changes happen much more often.
- * This is for debug purposes only.
+ * This is for de purposes only.
  */
 #define AGGRESSIVE_TEST_
 
@@ -193,7 +193,7 @@ static inline unsigned short ext_depth(struct inode *inode)
 static inline void ext4_ext_mark_unwritten(struct ext4_extent *ext)
 {
 	/* We can not have an unwritten extent of zero length! */
-	BUG_ON((le16_to_cpu(ext->ee_len) & ~EXT_INIT_MAX_LEN) == 0);
+	_ON((le16_to_cpu(ext->ee_len) & ~EXT_INIT_MAX_LEN) == 0);
 	ext->ee_len |= cpu_to_le16(EXT_INIT_MAX_LEN);
 }
 

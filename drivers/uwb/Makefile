@@ -23,7 +23,7 @@ uwb-objs :=		\
 	reset.o		\
 	rsv.o		\
 	scan.o		\
-	uwb-debug.o	\
+	uwb-de.o	\
 	uwbd.o
 
 umc-objs :=		\

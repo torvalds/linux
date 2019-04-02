@@ -35,7 +35,7 @@ asm volatile("mcr p14, "#op1", %0, "#crn", "#crm", "#op2 : : "r" (val));\
 })
 
 /*
- * Debug Registers
+ * De Registers
  *
  * Available only in DBGv7
  * DBGECR, DBGDSCCR, DBGDSMCR, DBGDRCR

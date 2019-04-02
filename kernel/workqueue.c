@@ -38,7 +38,7 @@
 #include <linux/hardirq.h>
 #include <linux/mempolicy.h>
 #include <linux/freezer.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/lockdep.h>
 #include <linux/idr.h>
 #include <linux/jhash.h>
@@ -316,12 +316,12 @@ static DEFINE_PER_CPU(int, wq_rr_cpu_last);
  * following always forces round-robin CPU selection on unbound work items
  * to uncover usages which depend on it.
  */
-#ifdef CONFIG_DEBUG_WQ_FORCE_RR_CPU
-static bool wq_debug_force_rr_cpu = true;
+#ifdef CONFIG_DE_WQ_FORCE_RR_CPU
+static bool wq_de_force_rr_cpu = true;
 #else
-static bool wq_debug_force_rr_cpu = false;
+static bool wq_de_force_rr_cpu = false;
 #endif
-module_param_named(debug_force_rr_cpu, wq_debug_force_rr_cpu, bool, 0644);
+module_param_named(de_force_rr_cpu, wq_de_force_rr_cpu, bool, 0644);
 
 /* the per-cpu worker pools */
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS], cpu_worker_pools);
@@ -428,11 +428,11 @@ static void workqueue_sysfs_unregister(struct workqueue_struct *wq);
 		if (({ assert_rcu_or_wq_mutex(wq); false; })) { }	\
 		else
 
-#ifdef CONFIG_DEBUG_OBJECTS_WORK
+#ifdef CONFIG_DE_OBJECTS_WORK
 
-static struct debug_obj_descr work_debug_descr;
+static struct de_obj_descr work_de_descr;
 
-static void *work_debug_hint(void *addr)
+static void *work_de_hint(void *addr)
 {
 	return ((struct work_struct *) addr)->func;
 }
@@ -448,14 +448,14 @@ static bool work_is_static_object(void *addr)
  * fixup_init is called when:
  * - an active object is initialized
  */
-static bool work_fixup_init(void *addr, enum debug_obj_state state)
+static bool work_fixup_init(void *addr, enum de_obj_state state)
 {
 	struct work_struct *work = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		cancel_work_sync(work);
-		debug_object_init(work, &work_debug_descr);
+		de_object_init(work, &work_de_descr);
 		return true;
 	default:
 		return false;
@@ -466,63 +466,63 @@ static bool work_fixup_init(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static bool work_fixup_free(void *addr, enum debug_obj_state state)
+static bool work_fixup_free(void *addr, enum de_obj_state state)
 {
 	struct work_struct *work = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		cancel_work_sync(work);
-		debug_object_free(work, &work_debug_descr);
+		de_object_free(work, &work_de_descr);
 		return true;
 	default:
 		return false;
 	}
 }
 
-static struct debug_obj_descr work_debug_descr = {
+static struct de_obj_descr work_de_descr = {
 	.name		= "work_struct",
-	.debug_hint	= work_debug_hint,
+	.de_hint	= work_de_hint,
 	.is_static_object = work_is_static_object,
 	.fixup_init	= work_fixup_init,
 	.fixup_free	= work_fixup_free,
 };
 
-static inline void debug_work_activate(struct work_struct *work)
+static inline void de_work_activate(struct work_struct *work)
 {
-	debug_object_activate(work, &work_debug_descr);
+	de_object_activate(work, &work_de_descr);
 }
 
-static inline void debug_work_deactivate(struct work_struct *work)
+static inline void de_work_deactivate(struct work_struct *work)
 {
-	debug_object_deactivate(work, &work_debug_descr);
+	de_object_deactivate(work, &work_de_descr);
 }
 
 void __init_work(struct work_struct *work, int onstack)
 {
 	if (onstack)
-		debug_object_init_on_stack(work, &work_debug_descr);
+		de_object_init_on_stack(work, &work_de_descr);
 	else
-		debug_object_init(work, &work_debug_descr);
+		de_object_init(work, &work_de_descr);
 }
 EXPORT_SYMBOL_GPL(__init_work);
 
 void destroy_work_on_stack(struct work_struct *work)
 {
-	debug_object_free(work, &work_debug_descr);
+	de_object_free(work, &work_de_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_work_on_stack);
 
 void destroy_delayed_work_on_stack(struct delayed_work *work)
 {
 	destroy_timer_on_stack(&work->timer);
-	debug_object_free(&work->work, &work_debug_descr);
+	de_object_free(&work->work, &work_de_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_delayed_work_on_stack);
 
 #else
-static inline void debug_work_activate(struct work_struct *work) { }
-static inline void debug_work_deactivate(struct work_struct *work) { }
+static inline void de_work_activate(struct work_struct *work) { }
+static inline void de_work_deactivate(struct work_struct *work) { }
 #endif
 
 /**
@@ -1279,7 +1279,7 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 	 */
 	pwq = get_work_pwq(work);
 	if (pwq && pwq->pool == pool) {
-		debug_work_deactivate(work);
+		de_work_deactivate(work);
 
 		/*
 		 * A delayed work item cannot be grabbed directly because
@@ -1369,7 +1369,7 @@ static int wq_select_unbound_cpu(int cpu)
 	static bool printed_dbg_warning;
 	int new_cpu;
 
-	if (likely(!wq_debug_force_rr_cpu)) {
+	if (likely(!wq_de_force_rr_cpu)) {
 		if (cpumask_test_cpu(cpu, wq_unbound_cpumask))
 			return cpu;
 	} else if (!printed_dbg_warning) {
@@ -1409,7 +1409,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	 */
 	lockdep_assert_irqs_disabled();
 
-	debug_work_activate(work);
+	de_work_activate(work);
 
 	/* if draining, only works from the same workqueue are allowed */
 	if (unlikely(wq->flags & __WQ_DRAINING) &&
@@ -2197,7 +2197,7 @@ __acquires(&pool->lock)
 	}
 
 	/* claim and dequeue */
-	debug_work_deactivate(work);
+	de_work_deactivate(work);
 	hash_add(pool->busy_hash, &worker->hentry, (unsigned long)work);
 	worker->current_work = work;
 	worker->current_func = work->func;
@@ -2205,7 +2205,7 @@ __acquires(&pool->lock)
 	work_color = get_work_color(work);
 
 	/*
-	 * Record wq name for cmdline and debug reporting, may get
+	 * Record wq name for cmdline and de reporting, may get
 	 * overridden through set_worker_desc().
 	 */
 	strscpy(worker->desc, pwq->wq->name, WORKER_DESC_LEN);
@@ -2276,11 +2276,11 @@ __acquires(&pool->lock)
 	lock_map_release(&pwq->wq->lockdep_map);
 
 	if (unlikely(in_atomic() || lockdep_depth(current) > 0)) {
-		pr_err("BUG: workqueue leaked lock or atomic: %s/0x%08x/%d\n"
+		pr_err(": workqueue leaked lock or atomic: %s/0x%08x/%d\n"
 		       "     last function: %pf\n",
 		       current->comm, preempt_count(), task_pid_nr(current),
 		       worker->current_func);
-		debug_show_held_locks(current);
+		de_show_held_locks(current);
 		dump_stack();
 	}
 
@@ -2649,7 +2649,7 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 	unsigned int linked = 0;
 
 	/*
-	 * debugobject calls are safe here even with pool->lock locked
+	 * deobject calls are safe here even with pool->lock locked
 	 * as we know for sure that this will not trigger any of the
 	 * checks and call back into the fixup functions where we
 	 * might deadlock.
@@ -2676,7 +2676,7 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 		__set_bit(WORK_STRUCT_LINKED_BIT, bits);
 	}
 
-	debug_work_activate(&barr->work);
+	de_work_activate(&barr->work);
 	insert_work(pwq, &barr->work, head,
 		    work_color_to_flags(WORK_NO_COLOR) | linked);
 }
@@ -3729,7 +3729,7 @@ static void pwq_adjust_max_active(struct pool_workqueue *pwq)
 static void init_pwq(struct pool_workqueue *pwq, struct workqueue_struct *wq,
 		     struct worker_pool *pool)
 {
-	BUG_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
+	_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
 
 	memset(pwq, 0, sizeof(*pwq));
 
@@ -4455,7 +4455,7 @@ bool current_is_workqueue_rescuer(void)
  *
  * Test whether @wq's cpu workqueue for @cpu is congested.  There is
  * no synchronization around this function and the test result is
- * unreliable and only useful as advisory hints or for debugging.
+ * unreliable and only useful as advisory hints or for deging.
  *
  * If @cpu is WORK_CPU_UNBOUND, the test is performed on the local CPU.
  * Note that both per-cpu and unbound workqueues may be associated with
@@ -4494,7 +4494,7 @@ EXPORT_SYMBOL_GPL(workqueue_congested);
  *
  * Test whether @work is currently pending or running.  There is no
  * synchronization around this function and the test result is
- * unreliable and only useful as advisory hints or for debugging.
+ * unreliable and only useful as advisory hints or for deging.
  *
  * Return:
  * OR'd bitmask of WORK_BUSY_* bits.
@@ -4529,7 +4529,7 @@ EXPORT_SYMBOL_GPL(work_busy);
  *
  * This function can be called by a running work function to describe what
  * the work item is about.  If the worker task gets dumped, this
- * information will be printed out together to help debugging.  The
+ * information will be printed out together to help deging.  The
  * description can be at most WORKER_DESC_LEN including the trailing '\0'.
  */
 void set_worker_desc(const char *fmt, ...)
@@ -5655,9 +5655,9 @@ static void workqueue_sysfs_unregister(struct workqueue_struct *wq)	{ }
 /*
  * Workqueue watchdog.
  *
- * Stall may be caused by various bugs - missing WQ_MEM_RECLAIM, illegal
+ * Stall may be caused by various s - missing WQ_MEM_RECLAIM, illegal
  * flush dependency, a concurrency managed work item which stays RUNNING
- * indefinitely.  Workqueue stalls can be very difficult to debug as the
+ * indefinitely.  Workqueue stalls can be very difficult to de as the
  * usual warning mechanisms don't trigger and internal workqueue state is
  * largely opaque.
  *
@@ -5724,7 +5724,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		/* did we stall? */
 		if (time_after(jiffies, ts + thresh)) {
 			lockup_detected = true;
-			pr_emerg("BUG: workqueue lockup - pool");
+			pr_emerg(": workqueue lockup - pool");
 			pr_cont_pool_info(pool);
 			pr_cont(" stuck for %us!\n",
 				jiffies_to_msecs(jiffies - pool_ts) / 1000);
@@ -5812,7 +5812,7 @@ static void __init wq_numa_init(void)
 	}
 
 	wq_update_unbound_numa_attrs_buf = alloc_workqueue_attrs(GFP_KERNEL);
-	BUG_ON(!wq_update_unbound_numa_attrs_buf);
+	_ON(!wq_update_unbound_numa_attrs_buf);
 
 	/*
 	 * We want masks of possible CPUs of each node which isn't readily
@@ -5820,10 +5820,10 @@ static void __init wq_numa_init(void)
 	 * fully initialized by now.
 	 */
 	tbl = kcalloc(nr_node_ids, sizeof(tbl[0]), GFP_KERNEL);
-	BUG_ON(!tbl);
+	_ON(!tbl);
 
 	for_each_node(node)
-		BUG_ON(!zalloc_cpumask_var_node(&tbl[node], GFP_KERNEL,
+		_ON(!zalloc_cpumask_var_node(&tbl[node], GFP_KERNEL,
 				node_online(node) ? node : NUMA_NO_NODE));
 
 	for_each_possible_cpu(cpu) {
@@ -5858,7 +5858,7 @@ int __init workqueue_init_early(void)
 
 	WARN_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
 
-	BUG_ON(!alloc_cpumask_var(&wq_unbound_cpumask, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&wq_unbound_cpumask, GFP_KERNEL));
 	cpumask_copy(wq_unbound_cpumask, housekeeping_cpumask(hk_flags));
 
 	pwq_cache = KMEM_CACHE(pool_workqueue, SLAB_PANIC);
@@ -5869,7 +5869,7 @@ int __init workqueue_init_early(void)
 
 		i = 0;
 		for_each_cpu_worker_pool(pool, cpu) {
-			BUG_ON(init_worker_pool(pool));
+			_ON(init_worker_pool(pool));
 			pool->cpu = cpu;
 			cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
 			pool->attrs->nice = std_nice[i++];
@@ -5877,7 +5877,7 @@ int __init workqueue_init_early(void)
 
 			/* alloc pool ID */
 			mutex_lock(&wq_pool_mutex);
-			BUG_ON(worker_pool_assign_id(pool));
+			_ON(worker_pool_assign_id(pool));
 			mutex_unlock(&wq_pool_mutex);
 		}
 	}
@@ -5886,7 +5886,7 @@ int __init workqueue_init_early(void)
 	for (i = 0; i < NR_STD_WORKER_POOLS; i++) {
 		struct workqueue_attrs *attrs;
 
-		BUG_ON(!(attrs = alloc_workqueue_attrs(GFP_KERNEL)));
+		_ON(!(attrs = alloc_workqueue_attrs(GFP_KERNEL)));
 		attrs->nice = std_nice[i];
 		unbound_std_wq_attrs[i] = attrs;
 
@@ -5895,7 +5895,7 @@ int __init workqueue_init_early(void)
 		 * guaranteed by max_active which is enforced by pwqs.
 		 * Turn off NUMA so that dfl_pwq is used for all nodes.
 		 */
-		BUG_ON(!(attrs = alloc_workqueue_attrs(GFP_KERNEL)));
+		_ON(!(attrs = alloc_workqueue_attrs(GFP_KERNEL)));
 		attrs->nice = std_nice[i];
 		attrs->no_numa = true;
 		ordered_wq_attrs[i] = attrs;
@@ -5913,7 +5913,7 @@ int __init workqueue_init_early(void)
 	system_freezable_power_efficient_wq = alloc_workqueue("events_freezable_power_efficient",
 					      WQ_FREEZABLE | WQ_POWER_EFFICIENT,
 					      0);
-	BUG_ON(!system_wq || !system_highpri_wq || !system_long_wq ||
+	_ON(!system_wq || !system_highpri_wq || !system_long_wq ||
 	       !system_unbound_wq || !system_freezable_wq ||
 	       !system_power_efficient_wq ||
 	       !system_freezable_power_efficient_wq);
@@ -5968,12 +5968,12 @@ int __init workqueue_init(void)
 	for_each_online_cpu(cpu) {
 		for_each_cpu_worker_pool(pool, cpu) {
 			pool->flags &= ~POOL_DISASSOCIATED;
-			BUG_ON(!create_worker(pool));
+			_ON(!create_worker(pool));
 		}
 	}
 
 	hash_for_each(unbound_pool_hash, bkt, pool, hash_node)
-		BUG_ON(!create_worker(pool));
+		_ON(!create_worker(pool));
 
 	wq_online = true;
 	wq_watchdog_init();

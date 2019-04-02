@@ -264,7 +264,7 @@ capabilities. Added support for string controls.
 
 :revision: 0.25 / 2009-01-18 (*hv*)
 
-Added pixel formats VYUY, NV16 and NV61, and changed the debug ioctls
+Added pixel formats VYUY, NV16 and NV61, and changed the de ioctls
 VIDIOC_DBG_G/S_REGISTER and VIDIOC_DBG_G_CHIP_IDENT. Added camera
 controls V4L2_CID_ZOOM_ABSOLUTE, V4L2_CID_ZOOM_RELATIVE,
 V4L2_CID_ZOOM_CONTINUOUS and V4L2_CID_PRIVACY.

@@ -47,9 +47,9 @@
 #define DEFAULT_BPP	4
 
 /*
- * define this to debug the video mode selection
+ * define this to de the video mode selection
  */
-#undef DEBUG_MODE_SELECTION
+#undef DE_MODE_SELECTION
 
 /*
  * Translation from RISC OS monitor types to actual
@@ -223,27 +223,27 @@ static void acornfb_set_timing(struct fb_info *info)
 
 	vidc_writel(VIDC20_DCTL | dat_ctl);
 
-#ifdef DEBUG_MODE_SELECTION
-	printk(KERN_DEBUG "VIDC registers for %dx%dx%d:\n", var->xres,
+#ifdef DE_MODE_SELECTION
+	printk(KERN_DE "VIDC registers for %dx%dx%d:\n", var->xres,
 	       var->yres, var->bits_per_pixel);
-	printk(KERN_DEBUG " H-cycle          : %d\n", vidc.h_cycle);
-	printk(KERN_DEBUG " H-sync-width     : %d\n", vidc.h_sync_width);
-	printk(KERN_DEBUG " H-border-start   : %d\n", vidc.h_border_start);
-	printk(KERN_DEBUG " H-display-start  : %d\n", vidc.h_display_start);
-	printk(KERN_DEBUG " H-display-end    : %d\n", vidc.h_display_end);
-	printk(KERN_DEBUG " H-border-end     : %d\n", vidc.h_border_end);
-	printk(KERN_DEBUG " H-interlace      : %d\n", vidc.h_interlace);
-	printk(KERN_DEBUG " V-cycle          : %d\n", vidc.v_cycle);
-	printk(KERN_DEBUG " V-sync-width     : %d\n", vidc.v_sync_width);
-	printk(KERN_DEBUG " V-border-start   : %d\n", vidc.v_border_start);
-	printk(KERN_DEBUG " V-display-start  : %d\n", vidc.v_display_start);
-	printk(KERN_DEBUG " V-display-end    : %d\n", vidc.v_display_end);
-	printk(KERN_DEBUG " V-border-end     : %d\n", vidc.v_border_end);
-	printk(KERN_DEBUG " Ext Ctrl  (C)    : 0x%08X\n", ext_ctl);
-	printk(KERN_DEBUG " PLL Ctrl  (D)    : 0x%08X\n", vidc.pll_ctl);
-	printk(KERN_DEBUG " Ctrl      (E)    : 0x%08X\n", vidc.control);
-	printk(KERN_DEBUG " Data Ctrl (F)    : 0x%08X\n", dat_ctl);
-	printk(KERN_DEBUG " Fsize            : 0x%08X\n", fsize);
+	printk(KERN_DE " H-cycle          : %d\n", vidc.h_cycle);
+	printk(KERN_DE " H-sync-width     : %d\n", vidc.h_sync_width);
+	printk(KERN_DE " H-border-start   : %d\n", vidc.h_border_start);
+	printk(KERN_DE " H-display-start  : %d\n", vidc.h_display_start);
+	printk(KERN_DE " H-display-end    : %d\n", vidc.h_display_end);
+	printk(KERN_DE " H-border-end     : %d\n", vidc.h_border_end);
+	printk(KERN_DE " H-interlace      : %d\n", vidc.h_interlace);
+	printk(KERN_DE " V-cycle          : %d\n", vidc.v_cycle);
+	printk(KERN_DE " V-sync-width     : %d\n", vidc.v_sync_width);
+	printk(KERN_DE " V-border-start   : %d\n", vidc.v_border_start);
+	printk(KERN_DE " V-display-start  : %d\n", vidc.v_display_start);
+	printk(KERN_DE " V-display-end    : %d\n", vidc.v_display_end);
+	printk(KERN_DE " V-border-end     : %d\n", vidc.v_border_end);
+	printk(KERN_DE " Ext Ctrl  (C)    : 0x%08X\n", ext_ctl);
+	printk(KERN_DE " PLL Ctrl  (D)    : 0x%08X\n", vidc.pll_ctl);
+	printk(KERN_DE " Ctrl      (E)    : 0x%08X\n", vidc.control);
+	printk(KERN_DE " Data Ctrl (F)    : 0x%08X\n", dat_ctl);
+	printk(KERN_DE " Fsize            : 0x%08X\n", fsize);
 #endif
 }
 
@@ -551,7 +551,7 @@ static int acornfb_set_par(struct fb_info *info)
 		break;
 #endif
 	default:
-		BUG();
+		();
 	}
 
 	info->fix.line_length	= (info->var.xres * info->var.bits_per_pixel) / 8;

@@ -105,7 +105,7 @@ enum kgd_engine_type {
  * schedule the user mode queues and kernel queues such as HIQ and DIQ.
  * the HIQ queue is used as a special queue that dispatches the configuration
  * to the cp and the user mode queues list that are currently running.
- * the DIQ queue is a debugging queue that dispatches debugging commands to the
+ * the DIQ queue is a deging queue that dispatches deging commands to the
  * firmware.
  * in this scheduling mode user mode queues over subscription feature is
  * enabled.
@@ -115,7 +115,7 @@ enum kgd_engine_type {
  *
  * @KFD_SCHED_POLICY_NO_HWS: no H/W scheduling policy is a mode which directly
  * set the command processor registers and sets the queues "manually". This
- * mode is used *ONLY* for debugging proposes.
+ * mode is used *ONLY* for deging proposes.
  *
  */
 enum kfd_sched_policy {

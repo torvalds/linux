@@ -359,7 +359,7 @@ void uwb_rc_pal_init(struct uwb_rc *rc);
 extern ssize_t uwb_mac_frame_hdr_print(char *, size_t,
 				       const struct uwb_mac_frame_hdr *);
 
-/* -- Debug interface */
+/* -- De interface */
 void uwb_dbg_init(void);
 void uwb_dbg_exit(void);
 void uwb_dbg_add_rc(struct uwb_rc *rc);

@@ -1218,7 +1218,7 @@ static void __exit ip22zilog_exit(void)
 module_init(ip22zilog_init);
 module_exit(ip22zilog_exit);
 
-/* David wrote it but I'm to blame for the bugs ...  */
+/* David wrote it but I'm to blame for the s ...  */
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("SGI Zilog serial port driver");
 MODULE_LICENSE("GPL");

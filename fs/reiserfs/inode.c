@@ -255,8 +255,8 @@ static int restart_transaction(struct reiserfs_transaction_handle *th,
 	struct super_block *s = th->t_super;
 	int err;
 
-	BUG_ON(!th->t_trans_id);
-	BUG_ON(!th->t_refcount);
+	_ON(!th->t_trans_id);
+	_ON(!th->t_refcount);
 
 	pathrelse(path);
 
@@ -403,7 +403,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	memset(p, 0, inode->i_sb->s_blocksize);
 	do {
 		if (!is_direct_le_ih(ih)) {
-			BUG();
+			();
 		}
 		/*
 		 * make sure we don't read more bytes than actually exist in
@@ -642,7 +642,7 @@ static inline int _allocate_block(struct reiserfs_transaction_handle *th,
 				  b_blocknr_t * allocated_block_nr,
 				  struct treepath *path, int flags)
 {
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 #ifdef REISERFS_PREALLOCATE
 	if (!(flags & GET_BLOCK_NO_IMUX)) {
@@ -915,7 +915,7 @@ research:
 				 * ugly, but we can only end the transaction if
 				 * we aren't nested
 				 */
-				BUG_ON(!th->t_refcount);
+				_ON(!th->t_refcount);
 				if (th->t_refcount == 1) {
 					retval =
 					    reiserfs_end_persistent_transaction
@@ -1280,7 +1280,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		blocks = _ROUND_UP(blocks, inode->i_sb->s_blocksize >> 9);
 
 		/*
-		 * there was a bug in <=3.5.23 when i_blocks could take
+		 * there was a  in <=3.5.23 when i_blocks could take
 		 * negative values. Starting from 3.5.17 this value could
 		 * even be stored in stat data. For such files we set
 		 * i_blocks based on file size. Just 2 notes: this can be
@@ -1296,7 +1296,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		    sd_v1_first_direct_byte(sd);
 
 		/*
-		 * an early bug in the quota code can give us an odd
+		 * an early  in the quota code can give us an odd
 		 * number for the block count.  This is incorrect, fix it here.
 		 */
 		if (inode->i_blocks & 1) {
@@ -1454,7 +1454,7 @@ void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
 	struct item_head *ih, tmp_ih;
 	int retval;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	/* key type is unimportant */
 	make_cpu_key(&key, inode, SD_OFFSET, TYPE_STAT_DATA, 3);
@@ -1583,7 +1583,7 @@ void reiserfs_read_locked_inode(struct inode *inode,
 	 * It is possible that knfsd is trying to access inode of a file
 	 * that is being removed from the disk by some other thread. As we
 	 * update sd on unlink all that is required is to check for nlink
-	 * here. This bug was first found by Sizif when debugging
+	 * here. This  was first found by Sizif when deging
 	 * SquidNG/Butterfly, forgotten, and found again after Philippe
 	 * Gramoulle <philippe.gramoulle@mmania.com> reproduced it.
 
@@ -1694,7 +1694,7 @@ struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 {
 	/*
 	 * fhtype happens to reflect the number of u32s encoded.
-	 * due to a bug in earlier code, fhtype might indicate there
+	 * due to a  in earlier code, fhtype might indicate there
 	 * are more u32s then actually fitted.
 	 * so if fhtype seems to be more than len, reduce fhtype.
 	 * Valid types are:
@@ -1812,7 +1812,7 @@ static int reiserfs_new_directory(struct reiserfs_transaction_handle *th,
 	struct cpu_key key;
 	int retval;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	_make_cpu_key(&key, KEY_FORMAT_3_5, le32_to_cpu(ih->ih_key.k_dir_id),
 		      le32_to_cpu(ih->ih_key.k_objectid), DOT_OFFSET,
@@ -1874,7 +1874,7 @@ static int reiserfs_new_symlink(struct reiserfs_transaction_handle *th,
 	struct cpu_key key;
 	int retval;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	_make_cpu_key(&key, KEY_FORMAT_3_5,
 		      le32_to_cpu(ih->ih_key.k_dir_id),
@@ -1941,7 +1941,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	int err;
 	int depth;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	depth = reiserfs_write_unlock_nested(sb);
 	err = dquot_alloc_inode(inode);
@@ -2651,7 +2651,7 @@ static int reiserfs_write_full_page(struct page *page,
 		if (error)
 			goto fail;
 	}
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 	unlock_page(page);
 
@@ -2716,7 +2716,7 @@ fail:
 		bh = bh->b_this_page;
 	} while (bh != head);
 	SetPageError(page);
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 	unlock_page(page);
 	do {
@@ -2781,8 +2781,8 @@ static int reiserfs_write_begin(struct file *file,
 		struct reiserfs_transaction_handle *th;
 		th = (struct reiserfs_transaction_handle *)current->
 		    journal_info;
-		BUG_ON(!th->t_refcount);
-		BUG_ON(!th->t_trans_id);
+		_ON(!th->t_refcount);
+		_ON(!th->t_trans_id);
 		old_ref = th->t_refcount;
 		th->t_refcount++;
 	}
@@ -2840,8 +2840,8 @@ int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len)
 		struct reiserfs_transaction_handle *th;
 		th = (struct reiserfs_transaction_handle *)current->
 		    journal_info;
-		BUG_ON(!th->t_refcount);
-		BUG_ON(!th->t_trans_id);
+		_ON(!th->t_refcount);
+		_ON(!th->t_trans_id);
 		old_ref = th->t_refcount;
 		th->t_refcount++;
 	}
@@ -3157,7 +3157,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
 	int partial_page = (offset || length < PAGE_SIZE);
 	int ret = 1;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (!partial_page)
 		ClearPageChecked(page);
@@ -3194,7 +3194,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
 	 */
 	if (!partial_page && ret) {
 		ret = try_to_release_page(page, 0);
-		/* maybe should BUG_ON(!ret); - neilb */
+		/* maybe should _ON(!ret); - neilb */
 	}
 out:
 	return;

@@ -37,7 +37,7 @@
 #include <asm/octeon/cvmx-spinlock.h>
 #include <asm/octeon/cvmx-bootmem.h>
 
-/*#define DEBUG */
+/*#define DE */
 
 
 static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
@@ -233,7 +233,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 	uint64_t new_ent_addr = 0;
 	uint64_t desired_min_addr;
 
-#ifdef DEBUG
+#ifdef DE
 	cvmx_dprintf("cvmx_bootmem_phy_alloc: req_size: 0x%llx, "
 		     "min_addr: 0x%llx, max_addr: 0x%llx, align: 0x%llx\n",
 		     (unsigned long long)req_size,
@@ -440,7 +440,7 @@ int __cvmx_bootmem_phy_free(uint64_t phy_addr, uint64_t size, uint32_t flags)
 	uint64_t prev_addr = 0; /* zero is invalid */
 	int retval = 0;
 
-#ifdef DEBUG
+#ifdef DE
 	cvmx_dprintf("__cvmx_bootmem_phy_free addr: 0x%llx, size: 0x%llx\n",
 		     (unsigned long long)phy_addr, (unsigned long long)size);
 #endif
@@ -576,7 +576,7 @@ static struct cvmx_bootmem_named_block_desc *
 	unsigned int i;
 	struct cvmx_bootmem_named_block_desc *named_block_array_ptr;
 
-#ifdef DEBUG
+#ifdef DE
 	cvmx_dprintf("cvmx_bootmem_phy_named_block_find: %s\n", name);
 #endif
 	/*
@@ -590,7 +590,7 @@ static struct cvmx_bootmem_named_block_desc *
 	named_block_array_ptr = (struct cvmx_bootmem_named_block_desc *)
 	    cvmx_phys_to_ptr(cvmx_bootmem_desc->named_block_array_addr);
 
-#ifdef DEBUG
+#ifdef DE
 	cvmx_dprintf
 	    ("cvmx_bootmem_phy_named_block_find: named_block_array_ptr: %p\n",
 	     named_block_array_ptr);
@@ -685,7 +685,7 @@ static int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 			     cvmx_bootmem_desc);
 		return 0;
 	}
-#ifdef DEBUG
+#ifdef DE
 	cvmx_dprintf("cvmx_bootmem_phy_named_block_free: %s\n", name);
 #endif
 
@@ -699,7 +699,7 @@ static int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 	    cvmx_bootmem_phy_named_block_find(name,
 					      CVMX_BOOTMEM_FLAG_NO_LOCKING);
 	if (named_block_ptr) {
-#ifdef DEBUG
+#ifdef DE
 		cvmx_dprintf("cvmx_bootmem_phy_named_block_free: "
 			     "%s, base: 0x%llx, size: 0x%llx\n",
 			     name,
@@ -731,7 +731,7 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 	int64_t addr_allocated;
 	struct cvmx_bootmem_named_block_desc *named_block_desc_ptr;
 
-#ifdef DEBUG
+#ifdef DE
 	cvmx_dprintf("cvmx_bootmem_phy_named_block_alloc: size: 0x%llx, min: "
 		     "0x%llx, max: 0x%llx, align: 0x%llx, name: %s\n",
 		     (unsigned long long)size,

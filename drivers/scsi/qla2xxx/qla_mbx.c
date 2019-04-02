@@ -191,7 +191,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	}
 
 
-	/* Save mailbox command for debug */
+	/* Save mailbox command for de */
 	ha->mcp = mcp;
 
 	ql_dbg(ql_dbg_mbx, vha, 0x1006,
@@ -4336,7 +4336,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 		mcp->in_mb |= MBX_1;
 	if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		mcp->out_mb |= MBX_15;
-		/* debug q create issue in SR-IOV */
+		/* de q create issue in SR-IOV */
 		mcp->in_mb |= MBX_9 | MBX_8 | MBX_7;
 	}
 
@@ -4407,7 +4407,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	} else if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		mcp->out_mb |= MBX_15|MBX_12|MBX_11|MBX_10;
 		mcp->in_mb |= MBX_1;
-		/* debug q create issue in SR-IOV */
+		/* de q create issue in SR-IOV */
 		mcp->in_mb |= MBX_9 | MBX_8 | MBX_7;
 	}
 

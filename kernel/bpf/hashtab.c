@@ -247,9 +247,9 @@ static int htab_map_alloc_check(union bpf_attr *attr)
 	bool zero_seed = (attr->map_flags & BPF_F_ZERO_SEED);
 	int numa_node = bpf_map_attr_numa_node(attr);
 
-	BUILD_BUG_ON(offsetof(struct htab_elem, htab) !=
+	BUILD__ON(offsetof(struct htab_elem, htab) !=
 		     offsetof(struct htab_elem, hash_node.pprev));
-	BUILD_BUG_ON(offsetof(struct htab_elem, fnode.next) !=
+	BUILD__ON(offsetof(struct htab_elem, fnode.next) !=
 		     offsetof(struct htab_elem, hash_node.pprev));
 
 	if (lru && !capable(CAP_SYS_ADMIN))
@@ -517,7 +517,7 @@ static u32 htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	struct bpf_insn *insn = insn_buf;
 	const int ret = BPF_REG_0;
 
-	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+	BUILD__ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
 	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
@@ -546,7 +546,7 @@ static u32 htab_lru_map_gen_lookup(struct bpf_map *map,
 	const int ret = BPF_REG_0;
 	const int ref_reg = BPF_REG_1;
 
-	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+	BUILD__ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
 	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 4);
@@ -1482,7 +1482,7 @@ static u32 htab_of_map_gen_lookup(struct bpf_map *map,
 	struct bpf_insn *insn = insn_buf;
 	const int ret = BPF_REG_0;
 
-	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+	BUILD__ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
 	*insn++ = BPF_EMIT_CALL(BPF_CAST_CALL(__htab_map_lookup_elem));
 	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 2);

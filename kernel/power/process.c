@@ -7,13 +7,13 @@
  */
 
 
-#undef DEBUG
+#undef DE
 
 #include <linux/interrupt.h>
 #include <linux/oom.h>
 #include <linux/suspend.h>
 #include <linux/module.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/syscalls.h>
 #include <linux/freezer.h>
@@ -96,7 +96,7 @@ static int try_to_freeze_tasks(bool user_only)
 		if (wq_busy)
 			show_workqueue_state();
 
-		if (!wakeup || pm_debug_messages_on) {
+		if (!wakeup || pm_de_messages_on) {
 			read_lock(&tasklist_lock);
 			for_each_process_thread(g, p) {
 				if (p != current && !freezer_should_skip(p)
@@ -143,7 +143,7 @@ int freeze_processes(void)
 		pr_cont("done.");
 	}
 	pr_cont("\n");
-	BUG_ON(in_atomic());
+	_ON(in_atomic());
 
 	/*
 	 * Now that the whole userspace is frozen we need to disbale
@@ -179,7 +179,7 @@ int freeze_kernel_threads(void)
 		pr_cont("done.");
 
 	pr_cont("\n");
-	BUG_ON(in_atomic());
+	_ON(in_atomic());
 
 	if (error)
 		thaw_kernel_threads();

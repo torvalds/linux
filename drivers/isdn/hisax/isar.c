@@ -55,8 +55,8 @@ sendmsg(struct IsdnCardState *cs, u_char his, u_char creg, u_char len,
 	if (!waitforHIA(cs, 4000))
 		return (0);
 #if DUMP_MBOXFRAME
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "sendmsg(%02x,%02x,%d)", his, creg, len);
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "sendmsg(%02x,%02x,%d)", his, creg, len);
 #endif
 	cs->BC_Write_Reg(cs, 0, ISAR_CTRL_H, creg);
 	cs->BC_Write_Reg(cs, 0, ISAR_CTRL_L, len);
@@ -66,7 +66,7 @@ sendmsg(struct IsdnCardState *cs, u_char his, u_char creg, u_char len,
 		for (i = 1; i < len; i++)
 			cs->BC_Write_Reg(cs, 2, ISAR_MBOX, msg[i]);
 #if DUMP_MBOXFRAME > 1
-		if (cs->debug & L1_DEB_HSCX_FIFO) {
+		if (cs->de & L1_DEB_HSCX_FIFO) {
 			char tmp[256], *t;
 
 			i = len;
@@ -74,7 +74,7 @@ sendmsg(struct IsdnCardState *cs, u_char his, u_char creg, u_char len,
 				t = tmp;
 				t += sprintf(t, "sendmbox cnt %d", len);
 				QuickHex(t, &msg[len-i], (i > 64) ? 64 : i);
-				debugl1(cs, "%s", tmp);
+				del1(cs, "%s", tmp);
 				i -= 64;
 			}
 		}
@@ -97,7 +97,7 @@ rcv_mbox(struct IsdnCardState *cs, struct isar_reg *ireg, u_char *msg)
 		for (i = 1; i < ireg->clsb; i++)
 			msg[i] = cs->BC_Read_Reg(cs, 2, ISAR_MBOX);
 #if DUMP_MBOXFRAME > 1
-		if (cs->debug & L1_DEB_HSCX_FIFO) {
+		if (cs->de & L1_DEB_HSCX_FIFO) {
 			char tmp[256], *t;
 
 			i = ireg->clsb;
@@ -105,7 +105,7 @@ rcv_mbox(struct IsdnCardState *cs, struct isar_reg *ireg, u_char *msg)
 				t = tmp;
 				t += sprintf(t, "rcv_mbox cnt %d", ireg->clsb);
 				QuickHex(t, &msg[ireg->clsb - i], (i > 64) ? 64 : i);
-				debugl1(cs, "%s", tmp);
+				del1(cs, "%s", tmp);
 				i -= 64;
 			}
 		}
@@ -122,8 +122,8 @@ get_irq_infos(struct IsdnCardState *cs, struct isar_reg *ireg)
 	ireg->cmsb = cs->BC_Read_Reg(cs, 1, ISAR_CTRL_H);
 	ireg->clsb = cs->BC_Read_Reg(cs, 1, ISAR_CTRL_L);
 #if DUMP_MBOXFRAME
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "irq_stat(%02x,%02x,%d)", ireg->iis, ireg->cmsb,
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "irq_stat(%02x,%02x,%d)", ireg->iis, ireg->cmsb,
 			ireg->clsb);
 #endif
 }
@@ -157,14 +157,14 @@ ISARVersion(struct IsdnCardState *cs, char *s)
 	u_char tmp[64];
 	u_char len;
 	u_long flags;
-	int debug;
+	int de;
 
 	cs->cardmsg(cs, CARD_RESET,  NULL);
 	spin_lock_irqsave(&cs->lock, flags);
 	/* disable ISAR IRQ */
 	cs->BC_Write_Reg(cs, 0, ISAR_IRQBIT, 0);
-	debug = cs->debug;
-	cs->debug &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
+	de = cs->de;
+	cs->de &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
 	if (!sendmsg(cs, ISAR_HIS_VNR, 0, 3, msg)) {
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return (-1);
@@ -173,7 +173,7 @@ ISARVersion(struct IsdnCardState *cs, char *s)
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return (-2);
 	}
-	cs->debug = debug;
+	cs->de = de;
 	if (cs->bcs[0].hw.isar.reg->iis == ISAR_IIS_VNR) {
 		if (len == 1) {
 			ver = tmp[0] & 0xf;
@@ -189,7 +189,7 @@ ISARVersion(struct IsdnCardState *cs, char *s)
 static int
 isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 {
-	int cfu_ret, ret, size, cnt, debug;
+	int cfu_ret, ret, size, cnt, de;
 	u_char len, nom, noc;
 	u_short sadr, left, *sp;
 	u_char __user *p = buf;
@@ -207,9 +207,9 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 		printk(KERN_ERR"isar_load_firmware wrong isar version %d\n", ret);
 		return (1);
 	}
-	debug = cs->debug;
+	de = cs->de;
 #if DBG_LOADFIRM < 2
-	cs->debug &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
+	cs->de &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
 #endif
 
 	cfu_ret = copy_from_user(&size, p, sizeof(int));
@@ -218,7 +218,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 		return -EFAULT;
 	}
 	p += sizeof(int);
-	printk(KERN_DEBUG"isar_load_firmware size: %d\n", size);
+	printk(KERN_DE"isar_load_firmware size: %d\n", size);
 	cnt = 0;
 	/* disable ISAR IRQ */
 	cs->BC_Write_Reg(cs, 0, ISAR_IRQBIT, 0);
@@ -250,7 +250,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 #endif /* __BIG_ENDIAN */
 		cnt += BLK_HEAD_SIZE;
 		p += BLK_HEAD_SIZE;
-		printk(KERN_DEBUG"isar firmware block (%#x,%5d,%#x)\n",
+		printk(KERN_DE"isar firmware block (%#x,%5d,%#x)\n",
 		       blk_head.sadr, blk_head.len, blk_head.d_key & 0xff);
 		sadr = blk_head.sadr;
 		left = blk_head.len;
@@ -289,7 +289,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 			nom += 3;
 			sp = (u_short *)tmpmsg;
 #if DBG_LOADFIRM
-			printk(KERN_DEBUG"isar: load %3d words at %04x left %d\n",
+			printk(KERN_DE"isar: load %3d words at %04x left %d\n",
 			       noc, sadr, left);
 #endif
 			sadr += noc;
@@ -320,7 +320,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 			}
 			spin_unlock_irqrestore(&cs->lock, flags);
 		}
-		printk(KERN_DEBUG"isar firmware block %5d words loaded\n",
+		printk(KERN_DE"isar firmware block %5d words loaded\n",
 		       blk_head.len);
 	}
 	/* 10ms delay */
@@ -344,7 +344,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 		       ireg->iis, ireg->cmsb, len);
 		ret = 1; goto reterr_unlock;
 	} else
-		printk(KERN_DEBUG"isar start dsp success\n");
+		printk(KERN_DE"isar start dsp success\n");
 	/* NORMAL mode entered */
 	/* Enable IRQs of ISAR */
 	cs->BC_Write_Reg(cs, 0, ISAR_IRQBIT, ISAR_IRQSTA);
@@ -358,7 +358,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 		printk(KERN_ERR"isar no general status event received\n");
 		ret = 1; goto reterror;
 	} else {
-		printk(KERN_DEBUG"isar general status event %x\n",
+		printk(KERN_DE"isar general status event %x\n",
 		       ireg->bstat);
 	}
 	/* 10ms delay */
@@ -384,9 +384,9 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 	}
 	if ((ireg->cmsb == ISAR_CTRL_STST) && (ireg->clsb == 1)
 	    && (ireg->par[0] == 0)) {
-		printk(KERN_DEBUG"isar selftest OK\n");
+		printk(KERN_DE"isar selftest OK\n");
 	} else {
-		printk(KERN_DEBUG"isar selftest not OK %x/%x/%x\n",
+		printk(KERN_DE"isar selftest not OK %x/%x/%x\n",
 		       ireg->cmsb, ireg->clsb, ireg->par[0]);
 		ret = 1; goto reterror;
 	}
@@ -408,7 +408,7 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 		ret = 1; goto reterror;
 	} else {
 		if ((ireg->cmsb == ISAR_CTRL_SWVER) && (ireg->clsb == 1))
-			printk(KERN_DEBUG"isar software version %#x\n",
+			printk(KERN_DE"isar software version %#x\n",
 			       ireg->par[0]);
 		else {
 			printk(KERN_ERR"isar wrong swver response (%x,%x) cnt(%d)\n",
@@ -417,14 +417,14 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 		}
 	}
 	spin_lock_irqsave(&cs->lock, flags);
-	cs->debug = debug;
+	cs->de = de;
 	isar_setup(cs);
 
 	ret = 0;
 reterr_unlock:
 	spin_unlock_irqrestore(&cs->lock, flags);
 reterror:
-	cs->debug = debug;
+	cs->de = de;
 	if (ret)
 		/* disable ISAR IRQ */
 		cs->BC_Write_Reg(cs, 0, ISAR_IRQBIT, 0);
@@ -495,13 +495,13 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 	struct isar_reg *ireg = bcs->hw.isar.reg;
 
 	if (!ireg->clsb) {
-		debugl1(cs, "isar zero len frame");
+		del1(cs, "isar zero len frame");
 		cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 		return;
 	}
 	switch (bcs->mode) {
 	case L1_MODE_NULL:
-		debugl1(cs, "isar mode 0 spurious IIS_RDATA %x/%x/%x",
+		del1(cs, "isar mode 0 spurious IIS_RDATA %x/%x/%x",
 			ireg->iis, ireg->cmsb, ireg->clsb);
 		printk(KERN_WARNING"isar mode 0 spurious IIS_RDATA %x/%x/%x\n",
 		       ireg->iis, ireg->cmsb, ireg->clsb);
@@ -520,13 +520,13 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 		break;
 	case L1_MODE_HDLC:
 		if ((bcs->hw.isar.rcvidx + ireg->clsb) > HSCX_BUFMAX) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_rcv_frame: incoming packet too large");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_rcv_frame: incoming packet too large");
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 			bcs->hw.isar.rcvidx = 0;
 		} else if (ireg->cmsb & HDLC_ERROR) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar frame error %x len %d",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar frame error %x len %d",
 					ireg->cmsb, ireg->clsb);
 #ifdef ERROR_STATISTIC
 			if (ireg->cmsb & HDLC_ERR_RER)
@@ -544,8 +544,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 			rcv_mbox(cs, ireg, ptr);
 			if (ireg->cmsb & HDLC_FED) {
 				if (bcs->hw.isar.rcvidx < 3) { /* last 2 bytes are the FCS */
-					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "isar frame to short %d",
+					if (cs->de & L1_DEB_WARN)
+						del1(cs, "isar frame to short %d",
 							bcs->hw.isar.rcvidx);
 				} else if (!(skb = dev_alloc_skb(bcs->hw.isar.rcvidx - 2))) {
 					printk(KERN_WARNING "ISAR: receive out of memory\n");
@@ -561,8 +561,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 		break;
 	case L1_MODE_FAX:
 		if (bcs->hw.isar.state != STFAX_ACTIV) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_rcv_frame: not ACTIV");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_rcv_frame: not ACTIV");
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 			bcs->hw.isar.rcvidx = 0;
 			break;
@@ -571,8 +571,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 			rcv_mbox(cs, ireg, bcs->hw.isar.rcvbuf);
 			bcs->hw.isar.rcvidx = ireg->clsb +
 				dle_count(bcs->hw.isar.rcvbuf, ireg->clsb);
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "isar_rcv_frame: raw(%d) dle(%d)",
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "isar_rcv_frame: raw(%d) dle(%d)",
 					ireg->clsb, bcs->hw.isar.rcvidx);
 			if ((skb = dev_alloc_skb(bcs->hw.isar.rcvidx))) {
 				insert_dle((u_char *)skb_put(skb, bcs->hw.isar.rcvidx),
@@ -580,8 +580,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 				skb_queue_tail(&bcs->rqueue, skb);
 				schedule_event(bcs, B_RCVBUFREADY);
 				if (ireg->cmsb & SART_NMD) { /* ABORT */
-					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "isar_rcv_frame: no more data");
+					if (cs->de & L1_DEB_WARN)
+						del1(cs, "isar_rcv_frame: no more data");
 					bcs->hw.isar.rcvidx = 0;
 					send_DLE_ETX(bcs);
 					sendmsg(cs, SET_DPS(bcs->hw.isar.dpath) |
@@ -596,8 +596,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 			break;
 		}
 		if (bcs->hw.isar.cmd != PCTRL_CMD_FRH) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_rcv_frame: unknown fax mode %x",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_rcv_frame: unknown fax mode %x",
 					bcs->hw.isar.cmd);
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 			bcs->hw.isar.rcvidx = 0;
@@ -605,13 +605,13 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 		}
 		/* PCTRL_CMD_FRH */
 		if ((bcs->hw.isar.rcvidx + ireg->clsb) > HSCX_BUFMAX) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_rcv_frame: incoming packet too large");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_rcv_frame: incoming packet too large");
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 			bcs->hw.isar.rcvidx = 0;
 		} else if (ireg->cmsb & HDLC_ERROR) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar frame error %x len %d",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar frame error %x len %d",
 					ireg->cmsb, ireg->clsb);
 			bcs->hw.isar.rcvidx = 0;
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
@@ -626,8 +626,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 				int len = bcs->hw.isar.rcvidx +
 					dle_count(bcs->hw.isar.rcvbuf, bcs->hw.isar.rcvidx);
 				if (bcs->hw.isar.rcvidx < 3) { /* last 2 bytes are the FCS */
-					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "isar frame to short %d",
+					if (cs->de & L1_DEB_WARN)
+						del1(cs, "isar frame to short %d",
 							bcs->hw.isar.rcvidx);
 					printk(KERN_WARNING "ISAR: frame to short %d\n",
 					       bcs->hw.isar.rcvidx);
@@ -647,8 +647,8 @@ isar_rcv_frame(struct IsdnCardState *cs, struct BCState *bcs)
 			}
 		}
 		if (ireg->cmsb & SART_NMD) { /* ABORT */
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_rcv_frame: no more data");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_rcv_frame: no more data");
 			bcs->hw.isar.rcvidx = 0;
 			sendmsg(cs, SET_DPS(bcs->hw.isar.dpath) |
 				ISAR_HIS_PUMPCTRL, PCTRL_CMD_ESC, 0, NULL);
@@ -674,8 +674,8 @@ isar_fill_fifo(struct BCState *bcs)
 	u_char msb;
 	u_char *ptr;
 
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "isar_fill_fifo");
+	if ((cs->de & L1_DEB_HSCX) && !(cs->de & L1_DEB_HSCX_FIFO))
+		del1(cs, "isar_fill_fifo");
 	if (!bcs->tx_skb)
 		return;
 	if (bcs->tx_skb->len <= 0)
@@ -721,8 +721,8 @@ isar_fill_fifo(struct BCState *bcs)
 		break;
 	case L1_MODE_FAX:
 		if (bcs->hw.isar.state != STFAX_ACTIV) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_fill_fifo: not ACTIV");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_fill_fifo: not ACTIV");
 		} else if (bcs->hw.isar.cmd == PCTRL_CMD_FTH) {
 			sendmsg(cs, SET_DPS(bcs->hw.isar.dpath) | ISAR_HIS_SDATA,
 				msb, count, ptr);
@@ -730,13 +730,13 @@ isar_fill_fifo(struct BCState *bcs)
 			sendmsg(cs, SET_DPS(bcs->hw.isar.dpath) | ISAR_HIS_SDATA,
 				0, count, ptr);
 		} else {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "isar_fill_fifo: not FTH/FTM");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "isar_fill_fifo: not FTH/FTM");
 		}
 		break;
 	default:
-		if (cs->debug)
-			debugl1(cs, "isar_fill_fifo mode(%x) error", bcs->mode);
+		if (cs->de)
+			del1(cs, "isar_fill_fifo mode(%x) error", bcs->mode);
 		printk(KERN_ERR"isar_fill_fifo mode(%x) error\n", bcs->mode);
 		break;
 	}
@@ -848,8 +848,8 @@ isar_pump_status_rsp(struct BCState *bcs, struct isar_reg *ireg) {
 	if (!test_and_clear_bit(ISAR_RATE_REQ, &bcs->hw.isar.reg->Flags))
 		return;
 	if (ril > 14) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "wrong pstrsp ril=%d", ril);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "wrong pstrsp ril=%d", ril);
 		ril = 15;
 	}
 	switch (ireg->par[1]) {
@@ -889,8 +889,8 @@ isar_pump_status_rsp(struct BCState *bcs, struct isar_reg *ireg) {
 	}
 	sprintf(bcs->hw.isar.conmsg, "%s %s", dmril[ril], dmrim[rim]);
 	bcs->conmsg = bcs->hw.isar.conmsg;
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "pump strsp %s", bcs->conmsg);
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "pump strsp %s", bcs->conmsg);
 }
 
 static void
@@ -900,65 +900,65 @@ isar_pump_statev_modem(struct BCState *bcs, u_char devt) {
 
 	switch (devt) {
 	case PSEV_10MS_TIMER:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev TIMER");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev TIMER");
 		break;
 	case PSEV_CON_ON:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev CONNECT");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev CONNECT");
 		l1_msg_b(bcs->st, PH_ACTIVATE | REQUEST, NULL);
 		break;
 	case PSEV_CON_OFF:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev NO CONNECT");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev NO CONNECT");
 		sendmsg(cs, dps | ISAR_HIS_PSTREQ, 0, 0, NULL);
 		l1_msg_b(bcs->st, PH_DEACTIVATE | REQUEST, NULL);
 		break;
 	case PSEV_V24_OFF:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev V24 OFF");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev V24 OFF");
 		break;
 	case PSEV_CTS_ON:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev CTS ON");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev CTS ON");
 		break;
 	case PSEV_CTS_OFF:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev CTS OFF");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev CTS OFF");
 		break;
 	case PSEV_DCD_ON:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev CARRIER ON");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev CARRIER ON");
 		test_and_set_bit(ISAR_RATE_REQ, &bcs->hw.isar.reg->Flags);
 		sendmsg(cs, dps | ISAR_HIS_PSTREQ, 0, 0, NULL);
 		break;
 	case PSEV_DCD_OFF:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev CARRIER OFF");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev CARRIER OFF");
 		break;
 	case PSEV_DSR_ON:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev DSR ON");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev DSR ON");
 		break;
 	case PSEV_DSR_OFF:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev DSR_OFF");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev DSR_OFF");
 		break;
 	case PSEV_REM_RET:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev REMOTE RETRAIN");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev REMOTE RETRAIN");
 		break;
 	case PSEV_REM_REN:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev REMOTE RENEGOTIATE");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev REMOTE RENEGOTIATE");
 		break;
 	case PSEV_GSTN_CLR:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev GSTN CLEAR");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev GSTN CLEAR");
 		break;
 	default:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "unknown pump stev %x", devt);
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "unknown pump stev %x", devt);
 		break;
 	}
 }
@@ -969,8 +969,8 @@ ll_deliver_faxstat(struct BCState *bcs, u_char status)
 	isdn_ctrl ic;
 	struct Channel *chanp = (struct Channel *) bcs->st->lli.userdata;
 
-	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs, "HL->LL FAXIND %x", status);
+	if (bcs->cs->de & L1_DEB_HSCX)
+		del1(bcs->cs, "HL->LL FAXIND %x", status);
 	ic.driver = bcs->cs->myid;
 	ic.command = ISDN_STAT_FAXIND;
 	ic.arg = chanp->chan;
@@ -986,12 +986,12 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 
 	switch (devt) {
 	case PSEV_10MS_TIMER:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev TIMER");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev TIMER");
 		break;
 	case PSEV_RSP_READY:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev RSP_READY");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev RSP_READY");
 		bcs->hw.isar.state = STFAX_READY;
 		l1_msg_b(bcs->st, PH_ACTIVATE | REQUEST, NULL);
 		if (test_bit(BC_FLG_ORIG, &bcs->Flag)) {
@@ -1002,56 +1002,56 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 		break;
 	case PSEV_LINE_TX_H:
 		if (bcs->hw.isar.state == STFAX_LINE) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev LINE_TX_H");
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "pump stev LINE_TX_H");
 			bcs->hw.isar.state = STFAX_CONT;
 			sendmsg(cs, dps | ISAR_HIS_PUMPCTRL, PCTRL_CMD_CONT, 0, NULL);
 		} else {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "pump stev LINE_TX_H wrong st %x",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "pump stev LINE_TX_H wrong st %x",
 					bcs->hw.isar.state);
 		}
 		break;
 	case PSEV_LINE_RX_H:
 		if (bcs->hw.isar.state == STFAX_LINE) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev LINE_RX_H");
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "pump stev LINE_RX_H");
 			bcs->hw.isar.state = STFAX_CONT;
 			sendmsg(cs, dps | ISAR_HIS_PUMPCTRL, PCTRL_CMD_CONT, 0, NULL);
 		} else {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "pump stev LINE_RX_H wrong st %x",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "pump stev LINE_RX_H wrong st %x",
 					bcs->hw.isar.state);
 		}
 		break;
 	case PSEV_LINE_TX_B:
 		if (bcs->hw.isar.state == STFAX_LINE) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev LINE_TX_B");
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "pump stev LINE_TX_B");
 			bcs->hw.isar.state = STFAX_CONT;
 			sendmsg(cs, dps | ISAR_HIS_PUMPCTRL, PCTRL_CMD_CONT, 0, NULL);
 		} else {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "pump stev LINE_TX_B wrong st %x",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "pump stev LINE_TX_B wrong st %x",
 					bcs->hw.isar.state);
 		}
 		break;
 	case PSEV_LINE_RX_B:
 		if (bcs->hw.isar.state == STFAX_LINE) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev LINE_RX_B");
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "pump stev LINE_RX_B");
 			bcs->hw.isar.state = STFAX_CONT;
 			sendmsg(cs, dps | ISAR_HIS_PUMPCTRL, PCTRL_CMD_CONT, 0, NULL);
 		} else {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "pump stev LINE_RX_B wrong st %x",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "pump stev LINE_RX_B wrong st %x",
 					bcs->hw.isar.state);
 		}
 		break;
 	case PSEV_RSP_CONN:
 		if (bcs->hw.isar.state == STFAX_CONT) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev RSP_CONN");
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "pump stev RSP_CONN");
 			bcs->hw.isar.state = STFAX_ACTIV;
 			test_and_set_bit(ISAR_RATE_REQ, &bcs->hw.isar.reg->Flags);
 			sendmsg(cs, dps | ISAR_HIS_PSTREQ, 0, 0, NULL);
@@ -1069,18 +1069,18 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 				schedule_event(bcs, B_LL_CONNECT);
 			}
 		} else {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "pump stev RSP_CONN wrong st %x",
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "pump stev RSP_CONN wrong st %x",
 					bcs->hw.isar.state);
 		}
 		break;
 	case PSEV_FLAGS_DET:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev FLAGS_DET");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev FLAGS_DET");
 		break;
 	case PSEV_RSP_DISC:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev RSP_DISC");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev RSP_DISC");
 		if (bcs->hw.isar.state == STFAX_ESCAPE) {
 			p1 = 5;
 			switch (bcs->hw.isar.newcmd) {
@@ -1110,8 +1110,8 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 				bcs->hw.isar.try_mod = 3;
 				break;
 			default:
-				if (cs->debug & L1_DEB_HSCX)
-					debugl1(cs, "RSP_DISC unknown newcmd %x", bcs->hw.isar.newcmd);
+				if (cs->de & L1_DEB_HSCX)
+					del1(cs, "RSP_DISC unknown newcmd %x", bcs->hw.isar.newcmd);
 				break;
 			}
 		} else if (bcs->hw.isar.state == STFAX_ACTIV) {
@@ -1130,8 +1130,8 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 		}
 		break;
 	case PSEV_RSP_SILDET:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev RSP_SILDET");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev RSP_SILDET");
 		if (bcs->hw.isar.state == STFAX_SILDET) {
 			p1 = bcs->hw.isar.mod = bcs->hw.isar.newmod;
 			bcs->hw.isar.newmod = 0;
@@ -1144,13 +1144,13 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 		}
 		break;
 	case PSEV_RSP_SILOFF:
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev RSP_SILOFF");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev RSP_SILOFF");
 		break;
 	case PSEV_RSP_FCERR:
 		if (bcs->hw.isar.state == STFAX_LINE) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "pump stev RSP_FCERR try %d",
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "pump stev RSP_FCERR try %d",
 					bcs->hw.isar.try_mod);
 			if (bcs->hw.isar.try_mod--) {
 				sendmsg(cs, dps | ISAR_HIS_PUMPCTRL,
@@ -1159,8 +1159,8 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 				break;
 			}
 		}
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "pump stev RSP_FCERR");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "pump stev RSP_FCERR");
 		bcs->hw.isar.state = STFAX_ESCAPE;
 		sendmsg(cs, dps | ISAR_HIS_PUMPCTRL, PCTRL_CMD_ESC, 0, NULL);
 		ll_deliver_faxstat(bcs, ISDN_FAX_CLASS1_FCERROR);
@@ -1184,7 +1184,7 @@ isar_int_main(struct IsdnCardState *cs)
 		if ((bcs = sel_bcs_isar(cs, ireg->iis >> 6))) {
 			isar_rcv_frame(cs, bcs);
 		} else {
-			debugl1(cs, "isar spurious IIS_RDATA %x/%x/%x",
+			del1(cs, "isar spurious IIS_RDATA %x/%x/%x",
 				ireg->iis, ireg->cmsb, ireg->clsb);
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 		}
@@ -1203,8 +1203,8 @@ isar_int_main(struct IsdnCardState *cs)
 				bcs->err_rdo++;
 		}
 #endif
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "Buffer STEV dpath%d msb(%x)",
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "Buffer STEV dpath%d msb(%x)",
 				ireg->iis >> 6, ireg->cmsb);
 		cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 		break;
@@ -1216,15 +1216,15 @@ isar_int_main(struct IsdnCardState *cs)
 			} else if (bcs->mode == L1_MODE_FAX) {
 				isar_pump_statev_fax(bcs, ireg->cmsb);
 			} else if (ireg->cmsb == PSEV_10MS_TIMER) {
-				if (cs->debug & L1_DEB_HSCX)
-					debugl1(cs, "pump stev TIMER");
+				if (cs->de & L1_DEB_HSCX)
+					del1(cs, "pump stev TIMER");
 			} else {
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "isar IIS_PSTEV pmode %d stat %x",
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "isar IIS_PSTEV pmode %d stat %x",
 						bcs->mode, ireg->cmsb);
 			}
 		} else {
-			debugl1(cs, "isar spurious IIS_PSTEV %x/%x/%x",
+			del1(cs, "isar spurious IIS_PSTEV %x/%x/%x",
 				ireg->iis, ireg->cmsb, ireg->clsb);
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 		}
@@ -1234,7 +1234,7 @@ isar_int_main(struct IsdnCardState *cs)
 			rcv_mbox(cs, ireg, (u_char *)ireg->par);
 			isar_pump_status_rsp(bcs, ireg);
 		} else {
-			debugl1(cs, "isar spurious IIS_PSTRSP %x/%x/%x",
+			del1(cs, "isar spurious IIS_PSTRSP %x/%x/%x",
 				ireg->iis, ireg->cmsb, ireg->clsb);
 			cs->BC_Write_Reg(cs, 1, ISAR_IIA, 0);
 		}
@@ -1243,26 +1243,26 @@ isar_int_main(struct IsdnCardState *cs)
 	case ISAR_IIS_BSTRSP:
 	case ISAR_IIS_IOM2RSP:
 		rcv_mbox(cs, ireg, (u_char *)ireg->par);
-		if ((cs->debug & (L1_DEB_HSCX | L1_DEB_HSCX_FIFO))
+		if ((cs->de & (L1_DEB_HSCX | L1_DEB_HSCX_FIFO))
 		    == L1_DEB_HSCX) {
 			u_char *tp = debbuf;
 
 			tp += sprintf(debbuf, "msg iis(%x) msb(%x)",
 				      ireg->iis, ireg->cmsb);
 			QuickHex(tp, (u_char *)ireg->par, ireg->clsb);
-			debugl1(cs, "%s", debbuf);
+			del1(cs, "%s", debbuf);
 		}
 		break;
 	case ISAR_IIS_INVMSG:
 		rcv_mbox(cs, ireg, debbuf);
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "invalid msg his:%x",
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "invalid msg his:%x",
 				ireg->cmsb);
 		break;
 	default:
 		rcv_mbox(cs, ireg, debbuf);
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "unhandled msg iis(%x) ctrl(%x/%x)",
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "unhandled msg iis(%x) ctrl(%x/%x)",
 				ireg->iis, ireg->cmsb, ireg->clsb);
 		break;
 	}
@@ -1271,8 +1271,8 @@ isar_int_main(struct IsdnCardState *cs)
 static void
 ftimer_handler(struct timer_list *t) {
 	struct BCState *bcs = from_timer(bcs, t, hw.isar.ftimer);
-	if (bcs->cs->debug)
-		debugl1(bcs->cs, "ftimer flags %04lx",
+	if (bcs->cs->de)
+		del1(bcs->cs, "ftimer flags %04lx",
 			bcs->Flag);
 	test_and_clear_bit(BC_FLG_FTI_RUN, &bcs->Flag);
 	if (test_and_clear_bit(BC_FLG_LL_CONN, &bcs->Flag)) {
@@ -1432,14 +1432,14 @@ modeisar(struct BCState *bcs, int mode, int bc)
 				bcs->hw.isar.dpath = 1;
 			else {
 				printk(KERN_WARNING"isar modeisar analog functions only with DP1\n");
-				debugl1(cs, "isar modeisar analog functions only with DP1");
+				del1(cs, "isar modeisar analog functions only with DP1");
 				return (1);
 			}
 			break;
 		}
 	}
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "isar dp%d mode %d->%d ichan %d",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "isar dp%d mode %d->%d ichan %d",
 			bcs->hw.isar.dpath, bcs->mode, mode, bc);
 	bcs->mode = mode;
 	setup_pump(bcs);
@@ -1606,8 +1606,8 @@ isar_l2l1(struct PStack *st, int pr, void *arg)
 		} else {
 			bcs->tx_skb = skb;
 			test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
-			if (bcs->cs->debug & L1_DEB_HSCX)
-				debugl1(bcs->cs, "DRQ set BC_FLG_BUSY");
+			if (bcs->cs->de & L1_DEB_HSCX)
+				del1(bcs->cs, "DRQ set BC_FLG_BUSY");
 			bcs->hw.isar.txcnt = 0;
 			bcs->cs->BC_Send_Data(bcs);
 		}
@@ -1619,8 +1619,8 @@ isar_l2l1(struct PStack *st, int pr, void *arg)
 			printk(KERN_WARNING "isar_l2l1: this shouldn't happen\n");
 		} else {
 			test_and_set_bit(BC_FLG_BUSY, &bcs->Flag);
-			if (bcs->cs->debug & L1_DEB_HSCX)
-				debugl1(bcs->cs, "PUI set BC_FLG_BUSY");
+			if (bcs->cs->de & L1_DEB_HSCX)
+				del1(bcs->cs, "PUI set BC_FLG_BUSY");
 			bcs->tx_skb = skb;
 			bcs->hw.isar.txcnt = 0;
 			bcs->cs->BC_Send_Data(bcs);
@@ -1680,8 +1680,8 @@ isar_l2l1(struct PStack *st, int pr, void *arg)
 		}
 		test_and_clear_bit(BC_FLG_ACTIV, &bcs->Flag);
 		test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
-		if (bcs->cs->debug & L1_DEB_HSCX)
-			debugl1(bcs->cs, "PDAC clear BC_FLG_BUSY");
+		if (bcs->cs->de & L1_DEB_HSCX)
+			del1(bcs->cs, "PDAC clear BC_FLG_BUSY");
 		modeisar(bcs, 0, st->l1.bc);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		st->l1.l1l2(st, PH_DEACTIVATE | CONFIRM, NULL);
@@ -1702,8 +1702,8 @@ close_isarstate(struct BCState *bcs)
 			dev_kfree_skb_any(bcs->tx_skb);
 			bcs->tx_skb = NULL;
 			test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
-			if (bcs->cs->debug & L1_DEB_HSCX)
-				debugl1(bcs->cs, "closeisar clear BC_FLG_BUSY");
+			if (bcs->cs->de & L1_DEB_HSCX)
+				del1(bcs->cs, "closeisar clear BC_FLG_BUSY");
 		}
 	}
 	del_timer(&bcs->hw.isar.ftimer);
@@ -1723,8 +1723,8 @@ open_isarstate(struct IsdnCardState *cs, struct BCState *bcs)
 	}
 	bcs->tx_skb = NULL;
 	test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "openisar clear BC_FLG_BUSY");
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "openisar clear BC_FLG_BUSY");
 	bcs->event = 0;
 	bcs->hw.isar.rcvidx = 0;
 	bcs->tx_cnt = 0;
@@ -1751,13 +1751,13 @@ isar_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 	int features, i;
 	struct BCState *bcs;
 
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "isar_auxcmd cmd/ch %x/%ld", ic->command, ic->arg);
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "isar_auxcmd cmd/ch %x/%ld", ic->command, ic->arg);
 	switch (ic->command) {
 	case (ISDN_CMD_FAXCMD):
 		bcs = cs->channel[ic->arg].bcs;
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "isar_auxcmd cmd/subcmd %d/%d",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "isar_auxcmd cmd/subcmd %d/%d",
 				ic->parm.aux.cmd, ic->parm.aux.subcmd);
 		switch (ic->parm.aux.cmd) {
 		case ISDN_FAX_CLASS1_CTRL:
@@ -1778,8 +1778,8 @@ isar_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 				cs->iif.statcallb(ic);
 				return (0);
 			} else if (ic->parm.aux.subcmd == AT_EQ_VALUE) {
-				if (cs->debug & L1_DEB_HSCX)
-					debugl1(cs, "isar_auxcmd %s=%d",
+				if (cs->de & L1_DEB_HSCX)
+					del1(cs, "isar_auxcmd %s=%d",
 						FC1_CMD[ic->parm.aux.cmd], ic->parm.aux.para[0]);
 				if (bcs->hw.isar.state == STFAX_READY) {
 					if (!ic->parm.aux.para[0]) {
@@ -1796,13 +1796,13 @@ isar_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 						add_timer(&bcs->hw.isar.ftimer);
 						return (0);
 					} else {
-						if (cs->debug)
-							debugl1(cs, "isar FTS=%d and FTI busy",
+						if (cs->de)
+							del1(cs, "isar FTS=%d and FTI busy",
 								ic->parm.aux.para[0]);
 					}
 				} else {
-					if (cs->debug)
-						debugl1(cs, "isar FTS=%d and isar.state not ready(%x)",
+					if (cs->de)
+						del1(cs, "isar FTS=%d and isar.state not ready(%x)",
 							ic->parm.aux.para[0], bcs->hw.isar.state);
 				}
 				ic->command = ISDN_STAT_FAXIND;
@@ -1833,8 +1833,8 @@ isar_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 				cs->iif.statcallb(ic);
 				return (0);
 			} else if (ic->parm.aux.subcmd == AT_EQ_VALUE) {
-				if (cs->debug & L1_DEB_HSCX)
-					debugl1(cs, "isar_auxcmd %s=%d",
+				if (cs->de & L1_DEB_HSCX)
+					del1(cs, "isar_auxcmd %s=%d",
 						FC1_CMD[ic->parm.aux.cmd], ic->parm.aux.para[0]);
 				for (i = 0; i < FAXMODCNT; i++)
 					if (faxmodulation[i] == ic->parm.aux.para[0])
@@ -1869,26 +1869,26 @@ isar_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic) {
 			break;
 		case 20:
 			features = *(unsigned int *) ic->parm.num;
-			printk(KERN_DEBUG "HiSax: max modulation old(%04x) new(%04x)\n",
+			printk(KERN_DE "HiSax: max modulation old(%04x) new(%04x)\n",
 			       modmask, features);
 			modmask = features;
 			break;
 		case 21:
 			features = *(unsigned int *) ic->parm.num;
-			printk(KERN_DEBUG "HiSax: FRM extra delay old(%d) new(%d) ms\n",
+			printk(KERN_DE "HiSax: FRM extra delay old(%d) new(%d) ms\n",
 			       frm_extra_delay, features);
 			if (features >= 0)
 				frm_extra_delay = features;
 			break;
 		case 22:
 			features = *(unsigned int *) ic->parm.num;
-			printk(KERN_DEBUG "HiSax: TOA old(%d) new(%d) db\n",
+			printk(KERN_DE "HiSax: TOA old(%d) new(%d) db\n",
 			       para_TOA, features);
 			if (features >= 0 && features < 32)
 				para_TOA = features;
 			break;
 		default:
-			printk(KERN_DEBUG "HiSax: invalid ioctl %d\n",
+			printk(KERN_DE "HiSax: invalid ioctl %d\n",
 			       (int) ic->arg);
 			return (-EINVAL);
 		}

@@ -105,7 +105,7 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
 		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
 
-		rmi_dbg(RMI_DEBUG_2D_SENSOR, &sensor->input->dev,
+		rmi_dbg(RMI_DE_2D_SENSOR, &sensor->input->dev,
 			"%s: obj[%d]: type: 0x%02x X: %d Y: %d Z: %d WX: %d WY: %d\n",
 			__func__, slot, obj->type, obj->x, obj->y, obj->z,
 			obj->wx, obj->wy);

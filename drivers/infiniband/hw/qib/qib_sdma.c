@@ -197,7 +197,7 @@ static void sdma_set_state(struct qib_pportdata *ppd,
 	struct sdma_set_state_action *action = ss->set_state_action;
 	unsigned op = 0;
 
-	/* debugging bookkeeping */
+	/* deging bookkeeping */
 	ss->previous_state = ss->current_state;
 	ss->previous_op = ss->current_op;
 

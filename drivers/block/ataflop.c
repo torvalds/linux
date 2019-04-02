@@ -77,7 +77,7 @@
 
 #define	FD_MAX_UNITS 2
 
-#undef DEBUG
+#undef DE
 
 static DEFINE_MUTEX(ataflop_mutex);
 static struct request *fd_request;
@@ -407,7 +407,7 @@ static int Probing = 0;
 static int NeedSeek = 0;
 
 
-#ifdef DEBUG
+#ifdef DE
 #define DPRINT(a)	printk a
 #else
 #define DPRINT(a)

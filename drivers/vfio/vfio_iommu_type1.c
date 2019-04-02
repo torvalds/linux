@@ -944,7 +944,7 @@ again:
 			struct vfio_iommu_type1_dma_unmap nb_unmap;
 
 			if (dma_last == dma) {
-				BUG_ON(++retries > 10);
+				_ON(++retries > 10);
 			} else {
 				dma_last = dma;
 				retries = 0;

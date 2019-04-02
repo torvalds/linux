@@ -38,7 +38,7 @@
 	 A3XX_INT0_CACHE_FLUSH_TS |        \
 	 A3XX_INT0_UCHE_OOB_ACCESS)
 
-extern bool hang_debug;
+extern bool hang_de;
 
 static void a3xx_dump(struct msm_gpu *gpu);
 static bool a3xx_idle(struct msm_gpu *gpu);
@@ -161,7 +161,7 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_A3XX_VBIF_CLKON, 0x00000001);
 
 	} else {
-		BUG();
+		();
 	}
 
 	/* Make all blocks contribute to the GPU BUSY perf counter: */
@@ -261,9 +261,9 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 	len = adreno_gpu->fw[ADRENO_FW_PM4]->size / 4;
 	DBG("loading PM4 ucode version: %x", ptr[1]);
 
-	gpu_write(gpu, REG_AXXX_CP_DEBUG,
-			AXXX_CP_DEBUG_DYNAMIC_CLK_DISABLE |
-			AXXX_CP_DEBUG_MIU_128BIT_WRITE_ENABLE);
+	gpu_write(gpu, REG_AXXX_CP_DE,
+			AXXX_CP_DE_DYNAMIC_CLK_DISABLE |
+			AXXX_CP_DE_MIU_128BIT_WRITE_ENABLE);
 	gpu_write(gpu, REG_AXXX_CP_ME_RAM_WADDR, 0);
 	for (i = 1; i < len; i++)
 		gpu_write(gpu, REG_AXXX_CP_ME_RAM_DATA, ptr[i]);
@@ -311,7 +311,7 @@ static void a3xx_recover(struct msm_gpu *gpu)
 	}
 
 	/* dump registers before resetting gpu, if enabled: */
-	if (hang_debug)
+	if (hang_de)
 		a3xx_dump(gpu);
 
 	gpu_write(gpu, REG_A3XX_RBBM_SW_RESET_CMD, 1);
@@ -456,7 +456,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = adreno_active_ring,
 		.irq = a3xx_irq,
 		.destroy = a3xx_destroy,
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = adreno_show,
 #endif
 		.gpu_state_get = a3xx_gpu_state_get,

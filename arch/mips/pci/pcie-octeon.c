@@ -624,7 +624,7 @@ static int __cvmx_pcie_rc_initialize_link_gen1(int pcie_port)
 	cvmx_write_csr(CVMX_PESCX_CTL_STATUS(pcie_port), pescx_ctl_status.u64);
 
 	/*
-	 * CN52XX pass 1.0: Due to a bug in 2nd order CDR, it needs to
+	 * CN52XX pass 1.0: Due to a  in 2nd order CDR, it needs to
 	 * be disabled.
 	 */
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_0))
@@ -748,7 +748,7 @@ retry:
 	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_EBH5200) {
 		/*
 		 * The EBH5200 board swapped the PCIe reset lines on
-		 * the board. As a workaround for this bug, we bring
+		 * the board. As a workaround for this , we bring
 		 * both PCIe ports out of reset at the same time
 		 * instead of on separate calls. So for port 0, we
 		 * bring both out of reset and do nothing on port 1
@@ -956,7 +956,7 @@ retry:
 	 * Setup BAR2 attributes
 	 *
 	 * Relaxed Ordering (NPEI_CTL_PORTn[PTLP_RO,CTLP_RO, WAIT_COM])
-	 * - PTLP_RO,CTLP_RO should normally be set (except for debug).
+	 * - PTLP_RO,CTLP_RO should normally be set (except for de).
 	 * - WAIT_COM=0 will likely work for all applications.
 	 *
 	 * Load completion relaxed ordering (NPEI_CTL_PORTn[WAITL_COM]).
@@ -1020,7 +1020,7 @@ retry:
 		}
 
 		/*
-		 * Read the IN_FIF_P_COUNT from the debug
+		 * Read the IN_FIF_P_COUNT from the de
 		 * select. IN_FIF_P_COUNT can be unstable sometimes so
 		 * read it twice with a write between the reads.  This
 		 * way we can tell the value is good as it will
@@ -1040,7 +1040,7 @@ retry:
 		/* Update in_fif_p_count for it's offset with respect to out_p_count */
 		in_fif_p_count = (in_fif_p_count + in_p_offset) & 0xff;
 
-		/* Read the OUT_P_COUNT from the debug select */
+		/* Read the OUT_P_COUNT from the de select */
 		cvmx_write_csr(CVMX_PEXP_NPEI_DBG_SELECT, (pcie_port) ? 0xd00f : 0xc80f);
 		cvmx_read_csr(CVMX_PEXP_NPEI_DBG_SELECT);
 		dbg_data.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_DBG_DATA);
@@ -1385,7 +1385,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	/*
 	 * Setup BAR2 attributes
 	 * Relaxed Ordering (NPEI_CTL_PORTn[PTLP_RO,CTLP_RO, WAIT_COM])
-	 * - PTLP_RO,CTLP_RO should normally be set (except for debug).
+	 * - PTLP_RO,CTLP_RO should normally be set (except for de).
 	 * - WAIT_COM=0 will likely work for all applications.
 	 * Load completion relaxed ordering (NPEI_CTL_PORTn[WAITL_COM])
 	 */
@@ -1547,7 +1547,7 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 	u32 cfg_retry_cnt = 0;
 
 	cvmmemctl_save.u64 = 0;
-	BUG_ON(pcie_port >= ARRAY_SIZE(enable_pcie_bus_num_war));
+	_ON(pcie_port >= ARRAY_SIZE(enable_pcie_bus_num_war));
 	/*
 	 * For the top level bus make sure our hardware bus number
 	 * matches the software one
@@ -1664,7 +1664,7 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 	if ((OCTEON_IS_MODEL(OCTEON_CN63XX)) && (enable_pcie_14459_war))
 		cfg_retry_cnt = disable_cfg_read_retry();
 
-	pr_debug("pcie_cfg_rd port=%d b=%d devfn=0x%03x reg=0x%03x"
+	pr_de("pcie_cfg_rd port=%d b=%d devfn=0x%03x reg=0x%03x"
 		 " size=%d ", pcie_port, bus_number, devfn, reg, size);
 	do {
 		switch (size) {
@@ -1699,7 +1699,7 @@ static int octeon_pcie_read_config(unsigned int pcie_port, struct pci_bus *bus,
 
 	if ((OCTEON_IS_MODEL(OCTEON_CN63XX)) && (enable_pcie_14459_war))
 		set_cfg_read_retry(cfg_retry_cnt);
-	pr_debug("val=%08x  : tries=%02d\n", *val, retry_cnt);
+	pr_de("val=%08x  : tries=%02d\n", *val, retry_cnt);
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1) ||
 	    OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_1))
 		write_c0_cvmmemctl(cvmmemctl_save.u64);
@@ -1733,12 +1733,12 @@ static int octeon_pcie_write_config(unsigned int pcie_port, struct pci_bus *bus,
 {
 	int bus_number = bus->number;
 
-	BUG_ON(pcie_port >= ARRAY_SIZE(enable_pcie_bus_num_war));
+	_ON(pcie_port >= ARRAY_SIZE(enable_pcie_bus_num_war));
 
 	if ((bus->parent == NULL) && (enable_pcie_bus_num_war[pcie_port]))
 		bus_number = 0;
 
-	pr_debug("pcie_cfg_wr port=%d b=%d devfn=0x%03x"
+	pr_de("pcie_cfg_wr port=%d b=%d devfn=0x%03x"
 		 " reg=0x%03x size=%d val=%08x\n", pcie_port, bus_number, devfn,
 		 reg, size, val);
 

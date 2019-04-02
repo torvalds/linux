@@ -56,8 +56,8 @@ static const struct super_operations xfs_super_operations;
 struct bio_set xfs_ioend_bioset;
 
 static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
-#ifdef DEBUG
-static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
+#ifdef DE
+static struct xfs_kobj xfs_dbg_kobj;	/* global de sysfs attrs */
 #endif
 
 /*
@@ -931,11 +931,11 @@ STATIC struct inode *
 xfs_fs_alloc_inode(
 	struct super_block	*sb)
 {
-	BUG();
+	();
 	return NULL;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void
 xfs_check_delalloc(
 	struct xfs_inode	*ip,
@@ -1638,7 +1638,7 @@ xfs_fs_fill_super(
 	sb->s_op = &xfs_super_operations;
 
 	/*
-	 * Delay mount work if the debug hook is set. This is debug
+	 * Delay mount work if the de hook is set. This is de
 	 * instrumention to coordinate simulation of xfs mount failures with
 	 * VFS superblock operations
 	 */
@@ -1745,7 +1745,7 @@ xfs_fs_fill_super(
 		}
 
 		if (xfs_globals.always_cow) {
-			xfs_info(mp, "using DEBUG-only always_cow mode.");
+			xfs_info(mp, "using DE-only always_cow mode.");
 			mp->m_always_cow = true;
 		}
 	}
@@ -2145,9 +2145,9 @@ init_xfs_fs(void)
 	if (error)
 		goto out_free_stats;
 
-#ifdef DEBUG
+#ifdef DE
 	xfs_dbg_kobj.kobject.kset = xfs_kset;
-	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "debug");
+	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "de");
 	if (error)
 		goto out_remove_stats_kobj;
 #endif
@@ -2164,7 +2164,7 @@ init_xfs_fs(void)
  out_qm_exit:
 	xfs_qm_exit();
  out_remove_dbg_kobj:
-#ifdef DEBUG
+#ifdef DE
 	xfs_sysfs_del(&xfs_dbg_kobj);
  out_remove_stats_kobj:
 #endif
@@ -2194,7 +2194,7 @@ exit_xfs_fs(void)
 {
 	xfs_qm_exit();
 	unregister_filesystem(&xfs_fs_type);
-#ifdef DEBUG
+#ifdef DE
 	xfs_sysfs_del(&xfs_dbg_kobj);
 #endif
 	xfs_sysfs_del(&xfsstats.xs_kobj);

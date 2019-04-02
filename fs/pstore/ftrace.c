@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/ftrace.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/cache.h>
 #include <asm/barrier.h>
@@ -125,13 +125,13 @@ void pstore_register_ftrace(void)
 	if (!psinfo->write)
 		return;
 
-	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);
+	pstore_ftrace_dir = defs_create_dir("pstore", NULL);
 	if (!pstore_ftrace_dir) {
 		pr_err("%s: unable to create pstore directory\n", __func__);
 		return;
 	}
 
-	file = debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir,
+	file = defs_create_file("record_ftrace", 0600, pstore_ftrace_dir,
 				   NULL, &pstore_knob_fops);
 	if (!file) {
 		pr_err("%s: unable to create record_ftrace file\n", __func__);
@@ -140,7 +140,7 @@ void pstore_register_ftrace(void)
 
 	return;
 err_file:
-	debugfs_remove(pstore_ftrace_dir);
+	defs_remove(pstore_ftrace_dir);
 }
 
 void pstore_unregister_ftrace(void)
@@ -152,5 +152,5 @@ void pstore_unregister_ftrace(void)
 	}
 	mutex_unlock(&pstore_ftrace_lock);
 
-	debugfs_remove_recursive(pstore_ftrace_dir);
+	defs_remove_recursive(pstore_ftrace_dir);
 }

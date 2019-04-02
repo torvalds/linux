@@ -66,7 +66,7 @@ else
 	nclosecalls10=`awk -v nclosecalls=$nclosecalls -v dur=$dur 'BEGIN { print int(nclosecalls * 36000 / dur) }' < /dev/null`
 	if test $nclosecalls10 -gt 5 -a $nclosecalls -gt 1
 	then
-		print_bug $nclosecalls "Reader Batch close calls in" $(($dur/60)) minute run: $i
+		print_ $nclosecalls "Reader Batch close calls in" $(($dur/60)) minute run: $i
 	else
 		print_warning $nclosecalls "Reader Batch close calls in" $(($dur/60)) minute run: $i
 	fi

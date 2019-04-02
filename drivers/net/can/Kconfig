@@ -166,11 +166,11 @@ source "drivers/net/can/usb/Kconfig"
 
 endif
 
-config CAN_DEBUG_DEVICES
-	bool "CAN devices debugging messages"
+config CAN_DE_DEVICES
+	bool "CAN devices deging messages"
 	---help---
 	  Say Y here if you want the CAN device drivers to produce a bunch of
-	  debug messages to the system log.  Select this if you are having
+	  de messages to the system log.  Select this if you are having
 	  a problem with CAN support and want to see more of what is going
 	  on.
 

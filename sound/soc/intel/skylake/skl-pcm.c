@@ -1404,8 +1404,8 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 	if (bus->ppcap) {
 		skl->component = component;
 
-		/* init debugfs */
-		skl->debugfs = skl_debugfs_init(skl);
+		/* init defs */
+		skl->defs = skl_defs_init(skl);
 
 		ret = skl_tplg_init(component, bus);
 		if (ret < 0) {

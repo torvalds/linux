@@ -108,7 +108,7 @@ retry:
 			goto retry;
 		} else
 			panic("DART: TLB did not flush after waiting a long "
-			      "time. Buggy U3 ?");
+			      "time. gy U3 ?");
 	}
 
 	spin_unlock_irqrestore(&invalidate_lock, flags);
@@ -140,7 +140,7 @@ wait_more:
 			goto wait_more;
 		} else
 			panic("DART: TLB did not flush after waiting a long "
-			      "time. Buggy U4 ?");
+			      "time. gy U4 ?");
 	}
 
 	spin_unlock_irqrestore(&invalidate_lock, flags);
@@ -226,7 +226,7 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 	long orig_npages = npages;
 
 	/* We don't worry about flushing the TLB cache. The only drawback of
-	 * not doing it is that we won't catch buggy device drivers doing
+	 * not doing it is that we won't catch gy device drivers doing
 	 * bad DMAs, but then no 32-bit architecture ever does either.
 	 */
 

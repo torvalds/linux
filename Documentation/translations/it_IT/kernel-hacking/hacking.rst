@@ -241,7 +241,7 @@ Da tener presente che alcune funzioni potrebbero dormire implicitamente:
 le più comuni sono quelle per l'accesso allo spazio utente (\*_user) e
 quelle per l'allocazione della memoria senza l'opzione ``GFP_ATOMIC``
 
-Dovreste sempre compilare il kernel con l'opzione ``CONFIG_DEBUG_ATOMIC_SLEEP``
+Dovreste sempre compilare il kernel con l'opzione ``CONFIG_DE_ATOMIC_SLEEP``
 attiva, questa vi avviserà se infrangete una di queste regole.
 Se **infrangete** le regole, allora potreste bloccare il vostro scatolotto.
 
@@ -256,7 +256,7 @@ Alcune delle procedure più comuni
 Definita in ``include/linux/printk.h``
 
 :c:func:`printk()` fornisce messaggi alla console, dmesg, e al demone syslog.
-Essa è utile per il debugging o per la notifica di errori; può essere
+Essa è utile per il deging o per la notifica di errori; può essere
 utilizzata anche all'interno del contesto d'interruzione, ma usatela con
 cautela: una macchina che ha la propria console inondata da messaggi diventa
 inutilizzabile. La funzione utilizza un formato stringa quasi compatibile con

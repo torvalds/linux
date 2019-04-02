@@ -218,7 +218,7 @@ int ipu_irq_map(unsigned int source)
 			raw_spin_unlock_irqrestore(&bank_lock, lock_flags);
 
 			ret = irq_map[i].irq;
-			pr_debug("IPU: mapped source %u to IRQ %u\n",
+			pr_de("IPU: mapped source %u to IRQ %u\n",
 				 source, ret);
 			break;
 		}
@@ -248,7 +248,7 @@ int ipu_irq_unmap(unsigned int source)
 		if (irq_map[i].source == source) {
 			unsigned long lock_flags;
 
-			pr_debug("IPU: unmapped source %u from IRQ %u\n",
+			pr_de("IPU: unmapped source %u from IRQ %u\n",
 				 source, irq_map[i].irq);
 
 			raw_spin_lock_irqsave(&bank_lock, lock_flags);

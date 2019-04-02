@@ -269,9 +269,9 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	bm = adj->crtc_vsync_start - adj->crtc_vdisplay;
 	tm = adj->crtc_vtotal - adj->crtc_vsync_end;
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s] mode " DRM_MODE_FMT "\n",
+	DRM_DE_KMS("[CRTC:%d:%s] mode " DRM_MODE_FMT "\n",
 		      crtc->base.id, crtc->name, DRM_MODE_ARG(adj));
-	DRM_DEBUG_KMS("lm %d rm %d tm %d bm %d\n", lm, rm, tm, bm);
+	DRM_DE_KMS("lm %d rm %d tm %d bm %d\n", lm, rm, tm, bm);
 
 	/* Now compute the divider for real */
 	dcrtc->variant->compute_clock(dcrtc, adj, &sclk);
@@ -350,7 +350,7 @@ static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	DRM_DE_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	dcrtc->regs_idx = 0;
 	dcrtc->regs = dcrtc->atomic_regs;
@@ -361,7 +361,7 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	DRM_DE_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	armada_reg_queue_end(dcrtc->regs, dcrtc->regs_idx);
 
@@ -388,7 +388,7 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_pending_vblank_event *event;
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	DRM_DE_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	drm_crtc_vblank_off(crtc);
 	armada_drm_crtc_update(dcrtc, false);
@@ -420,7 +420,7 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	DRM_DE_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	if (!old_state->active) {
 		/*

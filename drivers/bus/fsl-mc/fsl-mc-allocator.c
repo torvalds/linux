@@ -181,7 +181,7 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
 	int error = -EINVAL;
 
-	BUILD_BUG_ON(ARRAY_SIZE(fsl_mc_pool_type_strings) !=
+	BUILD__ON(ARRAY_SIZE(fsl_mc_pool_type_strings) !=
 		     FSL_MC_NUM_POOL_TYPES);
 
 	*new_resource = NULL;

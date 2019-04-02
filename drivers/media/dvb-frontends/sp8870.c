@@ -51,10 +51,10 @@ struct sp8870_state {
 	u8 initialised:1;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "sp8870: " args); \
+		if (de) printk(KERN_DE "sp8870: " args); \
 	} while (0)
 
 /* firmware size for sp8870 */
@@ -456,9 +456,9 @@ static int sp8870_read_uncorrected_blocks (struct dvb_frontend* fe, u32* ublocks
 /* maximum checks for data valid signal */
 #define MAXCHECKS 100
 
-/* only for debugging: counter for detected lockups */
+/* only for deging: counter for detected lockups */
 static int lockups;
-/* only for debugging: counter for channel switches */
+/* only for deging: counter for channel switches */
 static int switches;
 
 static int sp8870_set_frontend(struct dvb_frontend *fe)
@@ -505,7 +505,7 @@ static int sp8870_set_frontend(struct dvb_frontend *fe)
 		return -EIO;
 	}
 
-	if (debug) {
+	if (de) {
 		if (valid) {
 			if (trials > 1) {
 				printk("%s: firmware lockup!!!\n", __func__);
@@ -612,8 +612,8 @@ static const struct dvb_frontend_ops sp8870_ops = {
 	.read_ucblocks = sp8870_read_uncorrected_blocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Spase SP8870 DVB-T Demodulator driver");
 MODULE_AUTHOR("Juergen Peitz");

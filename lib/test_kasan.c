@@ -549,7 +549,7 @@ static noinline void __init kmem_cache_invalid_free(void)
 
 	/*
 	 * Properly free the object to prevent the "Objects remaining in
-	 * test_cache on __kmem_cache_shutdown" BUG failure.
+	 * test_cache on __kmem_cache_shutdown"  failure.
 	 */
 	kmem_cache_free(cache, p);
 

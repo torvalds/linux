@@ -149,7 +149,7 @@
 
 #define SUN6I_DSI_CMD_RX_REG(n)		(0x240 + (n) * 0x04)
 
-#define SUN6I_DSI_DEBUG_DATA_REG	0x2f8
+#define SUN6I_DSI_DE_DATA_REG	0x2f8
 
 #define SUN6I_DSI_CMD_TX_REG(n)		(0x300 + (n) * 0x04)
 
@@ -621,7 +621,7 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
 	u16 delay;
 
-	DRM_DEBUG_DRIVER("Enabling DSI output\n");
+	DRM_DE_DRIVER("Enabling DSI output\n");
 
 	pm_runtime_get_sync(dsi->dev);
 
@@ -676,7 +676,7 @@ static void sun6i_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct sun6i_dsi *dsi = encoder_to_sun6i_dsi(encoder);
 
-	DRM_DEBUG_DRIVER("Disabling DSI output\n");
+	DRM_DE_DRIVER("Disabling DSI output\n");
 
 	if (!IS_ERR(dsi->panel)) {
 		drm_panel_disable(dsi->panel);
@@ -1091,7 +1091,7 @@ static int __maybe_unused sun6i_dsi_runtime_resume(struct device *dev)
 	if (dsi->device)
 		sun6i_dsi_inst_init(dsi, dsi->device);
 
-	regmap_write(dsi->regs, SUN6I_DSI_DEBUG_DATA_REG, 0xff);
+	regmap_write(dsi->regs, SUN6I_DSI_DE_DATA_REG, 0xff);
 
 	return 0;
 }

@@ -344,7 +344,7 @@ be guaranteed that no other entity can be accessing the object::
 
 	static void obj_destroy(struct obj *obj)
 	{
-		BUG_ON(obj->active);
+		_ON(obj->active);
 		kfree(obj);
 	}
 
@@ -388,7 +388,7 @@ be guaranteed that no other entity can be accessing the object::
 .. note::
 
 	This is a simplification of the ARP queue management in the generic
-	neighbour discover code of the networking.  Olaf Kirch found a bug wrt.
+	neighbour discover code of the networking.  Olaf Kirch found a  wrt.
 	memory barriers in kfree_skb() that exposed the atomic_t memory barrier
 	requirements quite clearly.
 
@@ -412,7 +412,7 @@ sequence looks like this::
 	atomic_dec_and_test()
 	... refcount drops to 0 ...
 	obj_destroy()
-	BUG() triggers since obj->active
+	() triggers since obj->active
 	still seen as one
 					obj->active update visibility occurs
 

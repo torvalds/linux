@@ -47,7 +47,7 @@
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/numa.h>
 #include <asm/set_memory.h>
 #include <asm/init.h>
@@ -118,7 +118,7 @@ static void sync_global_pgds_l5(unsigned long start, unsigned long end)
 			spin_lock(pgt_lock);
 
 			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
-				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+				_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
 
 			if (pgd_none(*pgd))
 				set_pgd(pgd, *pgd_ref);
@@ -142,7 +142,7 @@ static void sync_global_pgds_l4(unsigned long start, unsigned long end)
 		 * With folded p4d, pgd_none() is always false, we need to
 		 * handle synchonization on p4d level.
 		 */
-		MAYBE_BUILD_BUG_ON(pgd_none(*pgd_ref));
+		MAYBE_BUILD__ON(pgd_none(*pgd_ref));
 		p4d_ref = p4d_offset(pgd_ref, addr);
 
 		if (p4d_none(*p4d_ref))
@@ -161,7 +161,7 @@ static void sync_global_pgds_l4(unsigned long start, unsigned long end)
 			spin_lock(pgt_lock);
 
 			if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
-				BUG_ON(p4d_page_vaddr(*p4d)
+				_ON(p4d_page_vaddr(*p4d)
 				       != p4d_page_vaddr(*p4d_ref));
 
 			if (p4d_none(*p4d))
@@ -203,7 +203,7 @@ static __ref void *spp_getpage(void)
 			after_bootmem ? "after bootmem" : "");
 	}
 
-	pr_debug("spp_getpage %p\n", ptr);
+	pr_de("spp_getpage %p\n", ptr);
 
 	return ptr;
 }
@@ -214,7 +214,7 @@ static p4d_t *fill_p4d(pgd_t *pgd, unsigned long vaddr)
 		p4d_t *p4d = (p4d_t *)spp_getpage();
 		pgd_populate(&init_mm, pgd, p4d);
 		if (p4d != p4d_offset(pgd, 0))
-			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
+			printk(KERN_ERR "PAGETABLE  #00! %p <-> %p\n",
 			       p4d, p4d_offset(pgd, 0));
 	}
 	return p4d_offset(pgd, vaddr);
@@ -226,7 +226,7 @@ static pud_t *fill_pud(p4d_t *p4d, unsigned long vaddr)
 		pud_t *pud = (pud_t *)spp_getpage();
 		p4d_populate(&init_mm, p4d, pud);
 		if (pud != pud_offset(p4d, 0))
-			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
+			printk(KERN_ERR "PAGETABLE  #01! %p <-> %p\n",
 			       pud, pud_offset(p4d, 0));
 	}
 	return pud_offset(p4d, vaddr);
@@ -238,7 +238,7 @@ static pmd_t *fill_pmd(pud_t *pud, unsigned long vaddr)
 		pmd_t *pmd = (pmd_t *) spp_getpage();
 		pud_populate(&init_mm, pud, pmd);
 		if (pmd != pmd_offset(pud, 0))
-			printk(KERN_ERR "PAGETABLE BUG #02! %p <-> %p\n",
+			printk(KERN_ERR "PAGETABLE  #02! %p <-> %p\n",
 			       pmd, pmd_offset(pud, 0));
 	}
 	return pmd_offset(pud, vaddr);
@@ -250,7 +250,7 @@ static pte_t *fill_pte(pmd_t *pmd, unsigned long vaddr)
 		pte_t *pte = (pte_t *) spp_getpage();
 		pmd_populate_kernel(&init_mm, pmd, pte);
 		if (pte != pte_offset_kernel(pmd, 0))
-			printk(KERN_ERR "PAGETABLE BUG #03!\n");
+			printk(KERN_ERR "PAGETABLE  #03!\n");
 	}
 	return pte_offset_kernel(pmd, vaddr);
 }
@@ -289,7 +289,7 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	pgd_t *pgd;
 	p4d_t *p4d_page;
 
-	pr_debug("set_pte_vaddr %lx to %lx\n", vaddr, native_pte_val(pteval));
+	pr_de("set_pte_vaddr %lx to %lx\n", vaddr, native_pte_val(pteval));
 
 	pgd = pgd_offset_k(vaddr);
 	if (pgd_none(*pgd)) {
@@ -336,7 +336,7 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 
 	pgprot_val(prot) = pgprot_val(PAGE_KERNEL_LARGE) |
 		pgprot_val(pgprot_4k_2_large(cachemode2pgprot(cache)));
-	BUG_ON((phys & ~PMD_MASK) || (size & ~PMD_MASK));
+	_ON((phys & ~PMD_MASK) || (size & ~PMD_MASK));
 	for (; size; phys += PMD_SIZE, size -= PMD_SIZE) {
 		pgd = pgd_offset_k((unsigned long)__va(phys));
 		if (pgd_none(*pgd)) {
@@ -357,7 +357,7 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 						_PAGE_USER));
 		}
 		pmd = pmd_offset(pud, phys);
-		BUG_ON(!pmd_none(*pmd));
+		_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd(phys | pgprot_val(prot)));
 	}
 }
@@ -1084,7 +1084,7 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
 		if (!p4d_present(*p4d))
 			continue;
 
-		BUILD_BUG_ON(p4d_large(*p4d));
+		BUILD__ON(p4d_large(*p4d));
 
 		pud_base = pud_offset(p4d, 0);
 		remove_pud_table(pud_base, addr, next, altmap, direct);
@@ -1211,7 +1211,7 @@ void set_kernel_text_rw(void)
 	if (!kernel_set_to_readonly)
 		return;
 
-	pr_debug("Set kernel text: %lx - %lx for read write\n",
+	pr_de("Set kernel text: %lx - %lx for read write\n",
 		 start, end);
 
 	/*
@@ -1230,7 +1230,7 @@ void set_kernel_text_ro(void)
 	if (!kernel_set_to_readonly)
 		return;
 
-	pr_debug("Set kernel text: %lx - %lx for read only\n",
+	pr_de("Set kernel text: %lx - %lx for read only\n",
 		 start, end);
 
 	/*
@@ -1269,7 +1269,7 @@ void mark_rodata_ro(void)
 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
 
-#ifdef CONFIG_CPA_DEBUG
+#ifdef CONFIG_CPA_DE
 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
 
@@ -1280,7 +1280,7 @@ void mark_rodata_ro(void)
 	free_kernel_image_pages((void *)text_end, (void *)rodata_start);
 	free_kernel_image_pages((void *)rodata_end, (void *)_sdata);
 
-	debug_checkwx();
+	de_checkwx();
 }
 
 int kern_addr_valid(unsigned long addr)
@@ -1434,7 +1434,7 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
 				/* check to see if we have contiguous blocks */
 				if (p_end != p || node_start != node) {
 					if (p_start)
-						pr_debug(" [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+						pr_de(" [%lx-%lx] PMD -> [%p-%p] on node %d\n",
 						       addr_start, addr_end-1, p_start, p_end-1, node_start);
 					addr_start = addr;
 					node_start = node;
@@ -1545,7 +1545,7 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 void __meminit vmemmap_populate_print_last(void)
 {
 	if (p_start) {
-		pr_debug(" [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+		pr_de(" [%lx-%lx] PMD -> [%p-%p] on node %d\n",
 			addr_start, addr_end-1, p_start, p_end-1, node_start);
 		p_start = NULL;
 		p_end = NULL;

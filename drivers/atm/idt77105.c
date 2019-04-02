@@ -21,10 +21,10 @@
 
 #include "idt77105.h"
 
-#undef GENERAL_DEBUG
+#undef GENERAL_DE
 
-#ifdef GENERAL_DEBUG
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
+#ifdef GENERAL_DE
+#define DPRINTK(format,args...) printk(KERN_DE format,##args)
 #else
 #define DPRINTK(format,args...)
 #endif
@@ -246,7 +246,7 @@ static void idt77105_int(struct atm_dev *dev)
 	    printk(KERN_NOTICE "%s(itf %d): receive FIFO overrun\n",
                 dev->type,dev->number);
         }
-#ifdef GENERAL_DEBUG
+#ifdef GENERAL_DE
         if (istat & (IDT77105_ISTAT_HECERR | IDT77105_ISTAT_SCR |
                      IDT77105_ISTAT_RSE)) {
             /* normally don't care - just report in stats */

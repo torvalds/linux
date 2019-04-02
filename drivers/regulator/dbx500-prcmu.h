@@ -37,22 +37,22 @@ void power_state_active_enable(void);
 int power_state_active_disable(void);
 
 
-#ifdef CONFIG_REGULATOR_DEBUG
-int ux500_regulator_debug_init(struct platform_device *pdev,
+#ifdef CONFIG_REGULATOR_DE
+int ux500_regulator_de_init(struct platform_device *pdev,
 			       struct dbx500_regulator_info *regulator_info,
 			       int num_regulators);
 
-int ux500_regulator_debug_exit(void);
+int ux500_regulator_de_exit(void);
 #else
 
-static inline int ux500_regulator_debug_init(struct platform_device *pdev,
+static inline int ux500_regulator_de_init(struct platform_device *pdev,
 			     struct dbx500_regulator_info *regulator_info,
 			     int num_regulators)
 {
 	return 0;
 }
 
-static inline int ux500_regulator_debug_exit(void)
+static inline int ux500_regulator_de_exit(void)
 {
 	return 0;
 }

@@ -1829,7 +1829,7 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 		else
 			data[i] = *(u32 *)p;
 	}
-/* BUG_ON(i != E1000_STATS_LEN); */
+/* _ON(i != E1000_STATS_LEN); */
 }
 
 static void e1000_get_strings(struct net_device *netdev, u32 stringset,
@@ -1848,7 +1848,7 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		/* BUG_ON(p - data != E1000_STATS_LEN * ETH_GSTRING_LEN); */
+		/* _ON(p - data != E1000_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	}
 }

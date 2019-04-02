@@ -160,7 +160,7 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 	 */
 	if (unlikely(rs->interval_us < tcp_min_rtt(tp))) {
 		if (!rs->is_retrans)
-			pr_debug("tcp rate: %ld %d %u %u %u\n",
+			pr_de("tcp rate: %ld %d %u %u %u\n",
 				 rs->interval_us, rs->delivered,
 				 inet_csk(sk)->icsk_ca_state,
 				 tp->rx_opt.sack_ok, tcp_min_rtt(tp));

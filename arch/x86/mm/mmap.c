@@ -250,7 +250,7 @@ int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
  */
 bool pfn_modify_allowed(unsigned long pfn, pgprot_t prot)
 {
-	if (!boot_cpu_has_bug(X86_BUG_L1TF))
+	if (!boot_cpu_has_(X86__L1TF))
 		return true;
 	if (!__pte_needs_invert(pgprot_val(prot)))
 		return true;

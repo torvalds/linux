@@ -301,7 +301,7 @@ static int read_edid(u8 *buf, int len)
 	mutex_lock(&hdmi.lock);
 
 	r = hdmi_runtime_get();
-	BUG_ON(r);
+	_ON(r);
 
 	r = hdmi4_read_edid(&hdmi.core,  buf, len);
 
@@ -738,7 +738,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
+	dss_defs_create_file("hdmi", hdmi_dump_regs);
 
 	return 0;
 err:

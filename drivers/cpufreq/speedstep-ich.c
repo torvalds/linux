@@ -80,7 +80,7 @@ static int speedstep_find_register(void)
 		return -ENODEV;
 	}
 
-	pr_debug("pmbase is 0x%x\n", pmbase);
+	pr_de("pmbase is 0x%x\n", pmbase);
 	return 0;
 }
 
@@ -106,13 +106,13 @@ static void speedstep_set_state(unsigned int state)
 	/* read state */
 	value = inb(pmbase + 0x50);
 
-	pr_debug("read at pmbase 0x%x + 0x50 returned 0x%x\n", pmbase, value);
+	pr_de("read at pmbase 0x%x + 0x50 returned 0x%x\n", pmbase, value);
 
 	/* write new state */
 	value &= 0xFE;
 	value |= state;
 
-	pr_debug("writing 0x%x to pmbase 0x%x + 0x50\n", value, pmbase);
+	pr_de("writing 0x%x to pmbase 0x%x + 0x50\n", value, pmbase);
 
 	/* Disable bus master arbitration */
 	pm2_blk = inb(pmbase + 0x20);
@@ -132,10 +132,10 @@ static void speedstep_set_state(unsigned int state)
 	/* Enable IRQs */
 	local_irq_restore(flags);
 
-	pr_debug("read at pmbase 0x%x + 0x50 returned 0x%x\n", pmbase, value);
+	pr_de("read at pmbase 0x%x + 0x50 returned 0x%x\n", pmbase, value);
 
 	if (state == (value & 0x1))
-		pr_debug("change to %u MHz succeeded\n",
+		pr_de("change to %u MHz succeeded\n",
 			speedstep_get_frequency(speedstep_processor) / 1000);
 	else
 		pr_err("change failed - I/O error\n");
@@ -165,7 +165,7 @@ static int speedstep_activate(void)
 	pci_read_config_word(speedstep_chipset_dev, 0x00A0, &value);
 	if (!(value & 0x08)) {
 		value |= 0x08;
-		pr_debug("activating SpeedStep (TM) registers\n");
+		pr_de("activating SpeedStep (TM) registers\n");
 		pci_write_config_word(speedstep_chipset_dev, 0x00A0, value);
 	}
 
@@ -218,7 +218,7 @@ static unsigned int speedstep_detect_chipset(void)
 			return 2; /* 2-M */
 
 		if (hostbridge->revision < 5) {
-			pr_debug("hostbridge does not support speedstep\n");
+			pr_de("hostbridge does not support speedstep\n");
 			speedstep_chipset_dev = NULL;
 			pci_dev_put(hostbridge);
 			return 0;
@@ -243,9 +243,9 @@ static unsigned int speedstep_get(unsigned int cpu)
 	unsigned int speed;
 
 	/* You're supposed to ensure CPU is online. */
-	BUG_ON(smp_call_function_single(cpu, get_freq_data, &speed, 1));
+	_ON(smp_call_function_single(cpu, get_freq_data, &speed, 1));
 
-	pr_debug("detected %u kHz as current frequency\n", speed);
+	pr_de("detected %u kHz as current frequency\n", speed);
 	return speed;
 }
 
@@ -344,14 +344,14 @@ static int __init speedstep_init(void)
 	/* detect processor */
 	speedstep_processor = speedstep_detect_processor();
 	if (!speedstep_processor) {
-		pr_debug("Intel(R) SpeedStep(TM) capable processor "
+		pr_de("Intel(R) SpeedStep(TM) capable processor "
 				"not found\n");
 		return -ENODEV;
 	}
 
 	/* detect chipset */
 	if (!speedstep_detect_chipset()) {
-		pr_debug("Intel(R) SpeedStep(TM) for this chipset not "
+		pr_de("Intel(R) SpeedStep(TM) for this chipset not "
 				"(yet) available.\n");
 		return -ENODEV;
 	}

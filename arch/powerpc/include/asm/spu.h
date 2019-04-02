@@ -705,7 +705,7 @@ struct spu_priv1 {
 #define SPU_ERR_ILLEGAL_CHANNEL		(1ull << 1ul)
 	u8  pad_0x1020_0x1028[0x1028 - 0x1020];			/* 0x1020 */
 
-	/* SPU Debug-Trace Bus (DTB) Selection Registers */
+	/* SPU De-Trace Bus (DTB) Selection Registers */
 	u64 spu_trig0_sel;					/* 0x1028 */
 	u64 spu_trig1_sel;					/* 0x1030 */
 	u64 spu_trig2_sel;					/* 0x1038 */

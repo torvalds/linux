@@ -249,7 +249,7 @@ static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
 /*
  * Note: an earlier, non-public version of this driver used USB_RECIP_ENDPOINT
  * here by mistake which is very likely to have corrupted the firmware EEPROM
- * on two separate SUR40 devices. Thanks to Alan Stern who spotted this bug.
+ * on two separate SUR40 devices. Thanks to Alan Stern who spotted this .
  * Should you ever run into a similar problem, the background story to this
  * incident and instructions on how to fix the corrupted EEPROM are available
  * at https://floe.butterbrot.org/matrix/hacking/surface/brick.html

@@ -132,7 +132,7 @@ static int gmc_v7_0_init_microcode(struct amdgpu_device *adev)
 	char fw_name[30];
 	int err;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
@@ -148,7 +148,7 @@ static int gmc_v7_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 		return 0;
-	default: BUG();
+	default: ();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
@@ -190,9 +190,9 @@ static int gmc_v7_0_mc_load_microcode(struct amdgpu_device *adev)
 	amdgpu_ucode_print_mc_hdr(&hdr->header);
 
 	adev->gmc.fw_version = le32_to_cpu(hdr->header.ucode_version);
-	regs_size = le32_to_cpu(hdr->io_debug_size_bytes) / (4 * 2);
+	regs_size = le32_to_cpu(hdr->io_de_size_bytes) / (4 * 2);
 	io_mc_regs = (const __le32 *)
-		(adev->gmc.fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
+		(adev->gmc.fw->data + le32_to_cpu(hdr->io_de_array_offset_bytes));
 	ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
 	fw_data = (const __le32 *)
 		(adev->gmc.fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
@@ -206,8 +206,8 @@ static int gmc_v7_0_mc_load_microcode(struct amdgpu_device *adev)
 
 		/* load mc io regs */
 		for (i = 0; i < regs_size; i++) {
-			WREG32(mmMC_SEQ_IO_DEBUG_INDEX, le32_to_cpup(io_mc_regs++));
-			WREG32(mmMC_SEQ_IO_DEBUG_DATA, le32_to_cpup(io_mc_regs++));
+			WREG32(mmMC_SEQ_IO_DE_INDEX, le32_to_cpup(io_mc_regs++));
+			WREG32(mmMC_SEQ_IO_DE_DATA, le32_to_cpup(io_mc_regs++));
 		}
 		/* load the MC ucode */
 		for (i = 0; i < ucode_size; i++)
@@ -503,7 +503,7 @@ static uint64_t gmc_v7_0_get_vm_pte_flags(struct amdgpu_device *adev,
 static void gmc_v7_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
-	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
+	_ON(*addr & 0xFFFFFF0000000FFFULL);
 }
 
 /**

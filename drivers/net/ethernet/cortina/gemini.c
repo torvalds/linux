@@ -47,9 +47,9 @@
 #define DRV_VERSION		"1.0"
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 #define HSIZE_8			0x00
 #define HSIZE_16		0x01
@@ -1436,7 +1436,7 @@ static unsigned int gmac_rx(struct net_device *netdev, unsigned int budget)
 
 		if (!mapping) {
 			netdev_err(netdev,
-				   "rxq[%u]: HW BUG: zero DMA desc\n", r);
+				   "rxq[%u]: HW : zero DMA desc\n", r);
 			goto err_drop;
 		}
 
@@ -1684,7 +1684,7 @@ static irqreturn_t gmac_irq(int irq, void *data)
 
 	if (val & (GMAC0_IRQ0_2 << (netdev->dev_id * 2))) {
 		/* Oh, crap */
-		netdev_err(netdev, "hw failure/sw bug\n");
+		netdev_err(netdev, "hw failure/sw \n");
 		gmac_dump_dma_state(netdev);
 
 		/* don't know how to recover, just reduce losses */
@@ -2401,7 +2401,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	port->id = id;
 	port->geth = geth;
 	port->dev = dev;
-	port->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	port->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	/* DMA memory */
 	dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);

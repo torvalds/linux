@@ -41,7 +41,7 @@ static struct tau_temp
 
 struct timer_list tau_timer;
 
-#undef DEBUG
+#undef DE
 
 /* TODO: put these in a /proc interface, with some sanity checks, and maybe
  * dynamic adjustment to minimize # of interrupts */
@@ -77,7 +77,7 @@ static void TAUupdate(int cpu)
 {
 	unsigned thrm;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("TAUupdate ");
 #endif
 
@@ -90,7 +90,7 @@ static void TAUupdate(int cpu)
 				tau[cpu].high -= (step_size - window_expand);
 			}
 			tau[cpu].grew = 1;
-#ifdef DEBUG
+#ifdef DE
 			printk("low threshold crossed ");
 #endif
 		}
@@ -102,13 +102,13 @@ static void TAUupdate(int cpu)
 				tau[cpu].high += step_size;
 			}
 			tau[cpu].grew = 1;
-#ifdef DEBUG
+#ifdef DE
 			printk("high threshold crossed ");
 #endif
 		}
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	printk("grew = %d\n", tau[cpu].grew);
 #endif
 
@@ -161,7 +161,7 @@ static void tau_timeout(void * info)
 			tau[cpu].high -= shrink;
 		} else { /* size must have been min_window + 1 */
 			tau[cpu].low += 1;
-#if 1 /* debug */
+#if 1 /* de */
 			if ((tau[cpu].high - tau[cpu].low) != min_window){
 				printk(KERN_ERR "temp.c: line %d, logic error\n", __LINE__);
 			}

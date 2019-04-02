@@ -24,16 +24,16 @@
 
 #include "proto.h"
 
-#define DEBUG	DBG_MEM
-#undef DEBUG
+#define DE	DBG_MEM
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 enum {
 	DBG_MEM		= (1<<0),
 	DBG_BPT		= (1<<1),
 	DBG_MEM_ALL	= (1<<2)
 };
-#define DBG(fac,args)	{if ((fac) & DEBUG) printk args;}
+#define DBG(fac,args)	{if ((fac) & DE) printk args;}
 #else
 #define DBG(fac,args)
 #endif

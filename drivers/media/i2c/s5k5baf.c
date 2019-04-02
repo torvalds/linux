@@ -32,8 +32,8 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-fwnode.h>
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 #define S5K5BAF_DRIVER_NAME		"s5k5baf"
 #define S5K5BAF_DEFAULT_MCLK_FREQ	24000000U
@@ -439,7 +439,7 @@ static u16 s5k5baf_i2c_read(struct s5k5baf *state, u16 addr)
 	ret = i2c_transfer(c->adapter, msg, 2);
 	res = be16_to_cpu(r);
 
-	v4l2_dbg(3, debug, c, "i2c_read: 0x%04x : 0x%04x\n", addr, res);
+	v4l2_dbg(3, de, c, "i2c_read: 0x%04x : 0x%04x\n", addr, res);
 
 	if (ret != 2) {
 		v4l2_err(c, "i2c_read: error during transfer (%d)\n", ret);
@@ -458,7 +458,7 @@ static void s5k5baf_i2c_write(struct s5k5baf *state, u16 addr, u16 val)
 		return;
 
 	ret = i2c_master_send(c, buf, 4);
-	v4l2_dbg(3, debug, c, "i2c_write: 0x%04x : 0x%04x\n", addr, val);
+	v4l2_dbg(3, de, c, "i2c_write: 0x%04x : 0x%04x\n", addr, val);
 
 	if (ret != 4) {
 		v4l2_err(c, "i2c_write: error during transfer (%d)\n", ret);
@@ -488,7 +488,7 @@ static void s5k5baf_write_arr_seq(struct s5k5baf *state, u16 addr,
 	if (state->error)
 		return;
 
-	v4l2_dbg(3, debug, c, "i2c_write_seq(count=%d): %*ph\n", count,
+	v4l2_dbg(3, de, c, "i2c_write_seq(count=%d): %*ph\n", count,
 		 min(2 * count, 64), seq);
 
 	buf[0] = cpu_to_be16(REG_CMD_BUF);
@@ -968,7 +968,7 @@ static int s5k5baf_power_on(struct s5k5baf *state)
 	if (ret < 0)
 		goto err_reg_dis;
 
-	v4l2_dbg(1, debug, &state->sd, "clock frequency: %ld\n",
+	v4l2_dbg(1, de, &state->sd, "clock frequency: %ld\n",
 		 clk_get_rate(state->clock));
 
 	s5k5baf_gpio_deassert(state, STBY);
@@ -1554,7 +1554,7 @@ static int s5k5baf_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct s5k5baf *state = to_s5k5baf(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "ctrl: %s, value: %d\n", ctrl->name, ctrl->val);
+	v4l2_dbg(1, de, sd, "ctrl: %s, value: %d\n", ctrl->name, ctrl->val);
 
 	mutex_lock(&state->lock);
 

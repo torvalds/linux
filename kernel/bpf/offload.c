@@ -15,7 +15,7 @@
 
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kdev_t.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>

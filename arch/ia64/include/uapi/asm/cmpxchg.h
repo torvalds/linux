@@ -133,22 +133,22 @@ extern long ia64_cmpxchg_called_with_bad_pointer(void);
 #define cmpxchg_local		cmpxchg
 #define cmpxchg64_local		cmpxchg64
 
-#ifdef CONFIG_IA64_DEBUG_CMPXCHG
-# define CMPXCHG_BUGCHECK_DECL	int _cmpxchg_bugcheck_count = 128;
-# define CMPXCHG_BUGCHECK(v)						\
+#ifdef CONFIG_IA64_DE_CMPXCHG
+# define CMPXCHG_CHECK_DECL	int _cmpxchg_check_count = 128;
+# define CMPXCHG_CHECK(v)						\
 do {									\
-	if (_cmpxchg_bugcheck_count-- <= 0) {				\
+	if (_cmpxchg_check_count-- <= 0) {				\
 		void *ip;						\
 		extern int printk(const char *fmt, ...);		\
 		ip = (void *) ia64_getreg(_IA64_REG_IP);		\
-		printk("CMPXCHG_BUGCHECK: stuck at %p on word %p\n", ip, (v));\
+		printk("CMPXCHG_CHECK: stuck at %p on word %p\n", ip, (v));\
 		break;							\
 	}								\
 } while (0)
-#else /* !CONFIG_IA64_DEBUG_CMPXCHG */
-# define CMPXCHG_BUGCHECK_DECL
-# define CMPXCHG_BUGCHECK(v)
-#endif /* !CONFIG_IA64_DEBUG_CMPXCHG */
+#else /* !CONFIG_IA64_DE_CMPXCHG */
+# define CMPXCHG_CHECK_DECL
+# define CMPXCHG_CHECK(v)
+#endif /* !CONFIG_IA64_DE_CMPXCHG */
 
 #endif /* !__ASSEMBLY__ */
 

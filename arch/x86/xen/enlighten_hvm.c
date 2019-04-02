@@ -36,7 +36,7 @@ void xen_hvm_init_shared_info(void)
 	xatp.space = XENMAPSPACE_shared_info;
 	xatp.gpfn = shared_info_pfn;
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
-		BUG();
+		();
 }
 
 static void __init reserve_shared_info(void)

@@ -202,7 +202,7 @@ void nf_logger_put(int pf, enum nf_log_type type)
 		return;
 	}
 
-	BUG_ON(loggers[pf][type] == NULL);
+	_ON(loggers[pf][type] == NULL);
 
 	rcu_read_lock();
 	logger = rcu_dereference(loggers[pf][type]);

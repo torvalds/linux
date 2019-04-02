@@ -134,7 +134,7 @@ gk104_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 	} else
 		mode = "PWM";
 
-	nvkm_debug(&volt->base.subdev, "Using %s mode\n", mode);
+	nvkm_de(&volt->base.subdev, "Using %s mode\n", mode);
 
 	return 0;
 }

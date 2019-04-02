@@ -65,10 +65,10 @@ void snd_seq_fifo_delete(struct snd_seq_fifo **fifo)
 {
 	struct snd_seq_fifo *f;
 
-	if (snd_BUG_ON(!fifo))
+	if (snd__ON(!fifo))
 		return;
 	f = *fifo;
-	if (snd_BUG_ON(!f))
+	if (snd__ON(!f))
 		return;
 	*fifo = NULL;
 
@@ -121,7 +121,7 @@ int snd_seq_fifo_event_in(struct snd_seq_fifo *f,
 	unsigned long flags;
 	int err;
 
-	if (snd_BUG_ON(!f))
+	if (snd__ON(!f))
 		return -EINVAL;
 
 	snd_use_lock_use(&f->use_lock);
@@ -181,7 +181,7 @@ int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
 	unsigned long flags;
 	wait_queue_entry_t wait;
 
-	if (snd_BUG_ON(!f))
+	if (snd__ON(!f))
 		return -EINVAL;
 
 	*cellp = NULL;
@@ -243,7 +243,7 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	struct snd_seq_pool *newpool, *oldpool;
 	struct snd_seq_event_cell *cell, *next, *oldhead;
 
-	if (snd_BUG_ON(!f || !f->pool))
+	if (snd__ON(!f || !f->pool))
 		return -EINVAL;
 
 	/* allocate new pool */

@@ -185,9 +185,9 @@ struct sec_queue_ring_cmd {
 	void (*callback)(struct sec_bd_info *resp, void *ctx);
 };
 
-struct sec_debug_bd_info;
+struct sec_de_bd_info;
 struct sec_queue_ring_db {
-	struct sec_debug_bd_info *vaddr;
+	struct sec_de_bd_info *vaddr;
 	dma_addr_t paddr;
 };
 

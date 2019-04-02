@@ -335,7 +335,7 @@ void dcn10_log_hw_state(struct dc *dc,
 				s.v_total,
 				s.underflow_occurred_status);
 
-		// Clear underflow for debug purposes
+		// Clear underflow for de purposes
 		// We want to keep underflow sticky bit on for the longevity tests outside of test environment.
 		// This function is called only from Windows or Diags test environment, hence it's safe to clear
 		// it from here without affecting the original intent.
@@ -421,7 +421,7 @@ static void dpp_pg_control(
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 
-	if (hws->ctx->dc->debug.disable_dpp_power_gate)
+	if (hws->ctx->dc->de.disable_dpp_power_gate)
 		return;
 	if (REG(DOMAIN1_PG_CONFIG) == 0)
 		return;
@@ -460,7 +460,7 @@ static void dpp_pg_control(
 				1, 1000);
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 }
@@ -473,7 +473,7 @@ static void hubp_pg_control(
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 
-	if (hws->ctx->dc->debug.disable_hubp_power_gate)
+	if (hws->ctx->dc->de.disable_hubp_power_gate)
 		return;
 	if (REG(DOMAIN0_PG_CONFIG) == 0)
 		return;
@@ -512,7 +512,7 @@ static void hubp_pg_control(
 				1, 1000);
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 }
@@ -529,7 +529,7 @@ static void power_on_plane(
 		hubp_pg_control(hws, plane_id, true);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
-		DC_LOG_DEBUG(
+		DC_LOG_DE(
 				"Un-gated front end for pipe %d\n", plane_id);
 	}
 }
@@ -560,7 +560,7 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 	struct hubp *hubp = dc->res_pool->hubps[0];
 	int i;
 
-	if (dc->debug.disable_stutter)
+	if (dc->de.disable_stutter)
 		return;
 
 	if (!hws->wa.DEGVIDCN10_253)
@@ -655,7 +655,7 @@ static enum dc_status dcn10_enable_stream_timing(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
 			&pipe_ctx->pll_settings)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return DC_ERROR_UNEXPECTED;
 	}
 	pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
@@ -699,7 +699,7 @@ static enum dc_status dcn10_enable_stream_timing(
 
 	/* VTG is  within DCHUB command block. DCFCLK is always on */
 	if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(pipe_ctx->stream_res.tg)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -754,7 +754,7 @@ static void reset_back_end_for_pipe(
 		return;
 
 	pipe_ctx->stream = NULL;
-	DC_LOG_DEBUG("Reset back end for pipe %d, tg:%d\n",
+	DC_LOG_DE("Reset back end for pipe %d, tg:%d\n",
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
 
@@ -764,7 +764,7 @@ static bool dcn10_hw_wa_force_recovery(struct dc *dc)
 	unsigned int i;
 	bool need_recover = true;
 
-	if (!dc->debug.recovery_enabled)
+	if (!dc->de.recovery_enabled)
 		return false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -850,11 +850,11 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 		if (should_log_hw_state) {
 			dcn10_log_hw_state(dc, NULL);
 		}
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {
 		/*check again*/
 			if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub))
-				BREAK_TO_DEBUGGER();
+				BREAK_TO_DEGER();
 		}
 	}
 }
@@ -885,7 +885,7 @@ void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (hubp->funcs->hubp_disconnect)
 		hubp->funcs->hubp_disconnect(hubp);
 
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
@@ -903,7 +903,7 @@ static void plane_atomic_power_down(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
-		DC_LOG_DEBUG(
+		DC_LOG_DE(
 				"Power gated front end %d\n", pipe_ctx->pipe_idx);
 	}
 }
@@ -1055,7 +1055,7 @@ static void dcn10_init_hw(struct dc *dc)
 		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
 		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
-		if (!dc->debug.disable_clock_gate) {
+		if (!dc->de.disable_clock_gate) {
 			/* enable all DCN clock gating */
 			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
 
@@ -1125,7 +1125,7 @@ static void dcn10_init_hw(struct dc *dc)
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
-	if (!dc->debug.disable_clock_gate) {
+	if (!dc->de.disable_clock_gate) {
 		/* enable all DCN clock gating */
 		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
 
@@ -1242,7 +1242,7 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction &&
-		!dpp_base->ctx->dc->debug.always_use_regamma
+		!dpp_base->ctx->dc->de.always_use_regamma
 		&& !plane_state->gamma_correction->is_identity
 			&& dce_use_lut(plane_state->format))
 		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
@@ -1324,7 +1324,7 @@ static void dcn10_pipe_control_lock(
 	if (pipe->top_pipe)
 		return;
 
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
 	if (lock)
@@ -1332,7 +1332,7 @@ static void dcn10_pipe_control_lock(
 	else
 		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
 
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
@@ -1640,7 +1640,7 @@ static void dcn10_enable_plane(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 
-	if (dc->debug.sanity_checks) {
+	if (dc->de.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
 
@@ -1697,7 +1697,7 @@ static void dcn10_enable_plane(
 	if (dc->config.gpu_vm_support)
 		dcn10_program_pte_vm(hws, pipe_ctx->plane_res.hubp);
 
-	if (dc->debug.sanity_checks) {
+	if (dc->de.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
 }
@@ -1781,7 +1781,7 @@ bool is_rgb_cspace(enum dc_color_space output_color_space)
 		return false;
 	default:
 		/* Add a case to switch */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 }
@@ -1949,10 +1949,10 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
+	if (dc->de.visual_confirm == VISUAL_CONFIRM_HDR) {
 		dcn10_get_hdr_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
-	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
+	} else if (dc->de.visual_confirm == VISUAL_CONFIRM_SURFACE) {
 		dcn10_get_surface_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
 	} else {
@@ -1984,7 +1984,7 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	/*
 	 * TODO: remove hack
-	 * Note: currently there is a bug in init_hw such that
+	 * Note: currently there is a  in init_hw such that
 	 * on resume from hibernate, BIOS sets up MPCC0, and
 	 * we do mpcc_remove but the mpcc cannot go to idle
 	 * after remove. This cause us to pick mpcc1 here,
@@ -2004,7 +2004,7 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (new_mpcc != NULL)
 		mpc->funcs->remove_mpcc(mpc, mpc_tree_params, new_mpcc);
 	else
-		if (dc->debug.sanity_checks)
+		if (dc->de.sanity_checks)
 			mpc->funcs->assert_mpcc_idle_before_connect(
 					dc->res_pool->mpc, mpcc_id);
 
@@ -2420,7 +2420,7 @@ static void dcn10_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
@@ -2439,10 +2439,10 @@ static void dcn10_prepare_bandwidth(
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
-	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+	if (dc->de.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
 
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
@@ -2450,7 +2450,7 @@ static void dcn10_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
@@ -2469,10 +2469,10 @@ static void dcn10_optimize_bandwidth(
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
-	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
+	if (dc->de.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
 
-	if (dc->debug.sanity_checks)
+	if (dc->de.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
@@ -2607,7 +2607,7 @@ static void dcn10_wait_for_mpcc_disconnect(
 {
 	int mpcc_inst;
 
-	if (dc->debug.sanity_checks) {
+	if (dc->de.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
 
@@ -2622,12 +2622,12 @@ static void dcn10_wait_for_mpcc_disconnect(
 			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
 			hubp->funcs->set_blank(hubp, true);
 			/*DC_LOG_ERROR(dc->ctx->logger,
-					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
+					"[de_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
 					i);*/
 		}
 	}
 
-	if (dc->debug.sanity_checks) {
+	if (dc->de.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
 
@@ -2744,7 +2744,7 @@ static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 /**
 * apply_front_porch_workaround  TODO FPGA still need?
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a  that has existed since R5xx and has not been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void apply_front_porch_workaround(

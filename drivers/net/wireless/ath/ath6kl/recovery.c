@@ -16,7 +16,7 @@
 
 #include "core.h"
 #include "cfg80211.h"
-#include "debug.h"
+#include "de.h"
 
 static void ath6kl_recovery_work(struct work_struct *work)
 {

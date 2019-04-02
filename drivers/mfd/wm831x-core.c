@@ -552,8 +552,8 @@ static int wm831x_write(struct wm831x *wm831x, unsigned short reg,
 	u16 *buf = src;
 	int i, ret;
 
-	BUG_ON(bytes % 2);
-	BUG_ON(bytes <= 0);
+	_ON(bytes % 2);
+	_ON(bytes <= 0);
 
 	for (i = 0; i < bytes / 2; i++) {
 		if (wm831x_reg_locked(wm831x, reg))
@@ -1834,8 +1834,8 @@ int wm831x_device_init(struct wm831x *wm831x, int irq)
 		break;
 
 	default:
-		/* If this happens the bus probe function is buggy */
-		BUG();
+		/* If this happens the bus probe function is gy */
+		();
 	}
 
 	if (ret != 0) {

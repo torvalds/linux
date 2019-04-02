@@ -54,7 +54,7 @@
 
 /* card parameters */
 static int ivtvfb_card_id = -1;
-static int ivtvfb_debug = 0;
+static int ivtvfb_de = 0;
 static bool ivtvfb_force_pat = IS_ENABLED(CONFIG_VIDEO_FB_IVTV_FORCE_PAT);
 static bool osd_laced;
 static int osd_depth;
@@ -64,7 +64,7 @@ static int osd_yres;
 static int osd_xres;
 
 module_param(ivtvfb_card_id, int, 0444);
-module_param_named(debug,ivtvfb_debug, int, 0644);
+module_param_named(de,ivtvfb_de, int, 0644);
 module_param_named(force_pat, ivtvfb_force_pat, bool, 0644);
 module_param(osd_laced, bool, 0444);
 module_param(osd_depth, int, 0444);
@@ -77,9 +77,9 @@ MODULE_PARM_DESC(ivtvfb_card_id,
 		 "Only use framebuffer of the specified ivtv card (0-31)\n"
 		 "\t\t\tdefault -1: initialize all available framebuffers");
 
-MODULE_PARM_DESC(debug,
-		 "Debug level (bitmask). Default: errors only\n"
-		 "\t\t\t(debug = 3 gives full debugging)");
+MODULE_PARM_DESC(de,
+		 "De level (bitmask). Default: errors only\n"
+		 "\t\t\t(de = 3 gives full deging)");
 
 MODULE_PARM_DESC(force_pat,
 		 "Force initialization on x86 PAT-enabled systems (bool).\n");
@@ -123,13 +123,13 @@ MODULE_LICENSE("GPL");
 #define IVTVFB_DBGFLG_WARN  (1 << 0)
 #define IVTVFB_DBGFLG_INFO  (1 << 1)
 
-#define IVTVFB_DEBUG(x, type, fmt, args...) \
+#define IVTVFB_DE(x, type, fmt, args...) \
 	do { \
-		if ((x) & ivtvfb_debug) \
+		if ((x) & ivtvfb_de) \
 			printk(KERN_INFO "ivtvfb%d " type ": " fmt, itv->instance , ## args); \
 	} while (0)
-#define IVTVFB_DEBUG_WARN(fmt, args...)  IVTVFB_DEBUG(IVTVFB_DBGFLG_WARN, "warning", fmt , ## args)
-#define IVTVFB_DEBUG_INFO(fmt, args...)  IVTVFB_DEBUG(IVTVFB_DBGFLG_INFO, "info", fmt , ## args)
+#define IVTVFB_DE_WARN(fmt, args...)  IVTVFB_DE(IVTVFB_DBGFLG_WARN, "warning", fmt , ## args)
+#define IVTVFB_DE_INFO(fmt, args...)  IVTVFB_DE(IVTVFB_DBGFLG_INFO, "info", fmt , ## args)
 
 /* Standard kernel messages */
 #define IVTVFB_ERR(fmt, args...)   printk(KERN_ERR  "ivtvfb%d: " fmt, itv->instance , ## args)
@@ -256,13 +256,13 @@ static int ivtvfb_set_display_window(struct ivtv *itv, struct v4l2_rect *ivtv_wi
 
 	/* Ensure we don't exceed display limits */
 	if (ivtv_window->top + ivtv_window->height > osd_height_limit) {
-		IVTVFB_DEBUG_WARN("ivtv_ioctl_fb_set_display_window - Invalid height setting (%d, %d)\n",
+		IVTVFB_DE_WARN("ivtv_ioctl_fb_set_display_window - Invalid height setting (%d, %d)\n",
 			ivtv_window->top, ivtv_window->height);
 		ivtv_window->top = osd_height_limit - ivtv_window->height;
 	}
 
 	if (ivtv_window->left + ivtv_window->width > IVTV_OSD_MAX_WIDTH) {
-		IVTVFB_DEBUG_WARN("ivtv_ioctl_fb_set_display_window - Invalid width setting (%d, %d)\n",
+		IVTVFB_DE_WARN("ivtv_ioctl_fb_set_display_window - Invalid width setting (%d, %d)\n",
 			ivtv_window->left, ivtv_window->width);
 		ivtv_window->left = IVTV_OSD_MAX_WIDTH - ivtv_window->width;
 	}
@@ -300,7 +300,7 @@ static int ivtvfb_prep_dec_dma_to_device(struct ivtv *itv,
 		return -EIO;
 	}
 
-	IVTVFB_DEBUG_INFO("ivtvfb_prep_dec_dma_to_device, %d bytes, %d pages\n",
+	IVTVFB_DE_INFO("ivtvfb_prep_dec_dma_to_device, %d bytes, %d pages\n",
 		       size_in_bytes, itv->udma.page_count);
 
 	ivtv_udma_prepare(itv);
@@ -323,7 +323,7 @@ static int ivtvfb_prep_dec_dma_to_device(struct ivtv *itv,
 	ivtv_udma_unmap(itv);
 	mutex_unlock(&itv->udma.lock);
 	if (got_sig) {
-		IVTV_DEBUG_INFO("User stopped OSD\n");
+		IVTV_DE_INFO("User stopped OSD\n");
 		return -EINTR;
 	}
 
@@ -338,7 +338,7 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 
 	/* Nothing to do */
 	if (count == 0) {
-		IVTVFB_DEBUG_WARN("ivtvfb_prep_frame: Nothing to do. count = 0\n");
+		IVTVFB_DE_WARN("ivtvfb_prep_frame: Nothing to do. count = 0\n");
 		return -EINVAL;
 	}
 
@@ -364,7 +364,7 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	if (!access_ok(source + dest_offset, count)) {
 		IVTVFB_WARN("Invalid userspace pointer %p\n", source);
 
-		IVTVFB_DEBUG_WARN("access_ok() failed for offset 0x%08lx source %p count %d\n",
+		IVTVFB_DE_WARN("access_ok() failed for offset 0x%08lx source %p count %d\n",
 				  dest_offset, source, count);
 		return -EINVAL;
 	}
@@ -493,7 +493,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 		case IVTVFB_IOC_DMA_FRAME: {
 			struct ivtvfb_dma_frame args;
 
-			IVTVFB_DEBUG_INFO("IVTVFB_IOC_DMA_FRAME\n");
+			IVTVFB_DE_INFO("IVTVFB_IOC_DMA_FRAME\n");
 			if (copy_from_user(&args, (void __user *)arg, sizeof(args)))
 				return -EFAULT;
 
@@ -501,7 +501,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 		}
 
 		default:
-			IVTVFB_DEBUG_INFO("Unknown ioctl %08x\n", cmd);
+			IVTVFB_DE_INFO("Unknown ioctl %08x\n", cmd);
 			return -EINVAL;
 	}
 	return 0;
@@ -516,7 +516,7 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	struct v4l2_rect ivtv_window;
 	int osd_mode = -1;
 
-	IVTVFB_DEBUG_INFO("ivtvfb_set_var\n");
+	IVTVFB_DE_INFO("ivtvfb_set_var\n");
 
 	/* Select color space */
 	if (var->nonstd) /* YUV */
@@ -544,11 +544,11 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 				osd_mode = IVTV_OSD_BPP_16_565;
 				break;
 			default:
-				IVTVFB_DEBUG_WARN("ivtvfb_set_var - Invalid bpp\n");
+				IVTVFB_DE_WARN("ivtvfb_set_var - Invalid bpp\n");
 			}
 			break;
 		default:
-			IVTVFB_DEBUG_WARN("ivtvfb_set_var - Invalid bpp\n");
+			IVTVFB_DE_WARN("ivtvfb_set_var - Invalid bpp\n");
 	}
 
 	/* Set video mode. Although rare, the display can become scrambled even
@@ -570,7 +570,7 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 			ivtv_vapi(itv, CX2341X_OSD_SET_FLICKER_STATE, 1, 0);
 			break;
 		default:
-			IVTVFB_DEBUG_WARN("ivtvfb_set_var - Invalid video mode\n");
+			IVTVFB_DE_WARN("ivtvfb_set_var - Invalid video mode\n");
 	}
 
 	/* Read the current osd info */
@@ -608,17 +608,17 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	/* Keep a copy of these settings */
 	memcpy(&oi->fbvar_cur, var, sizeof(oi->fbvar_cur));
 
-	IVTVFB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
+	IVTVFB_DE_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
 		      var->xres_virtual, var->yres_virtual,
 		      var->bits_per_pixel);
 
-	IVTVFB_DEBUG_INFO("Display position: %d, %d\n",
+	IVTVFB_DE_INFO("Display position: %d, %d\n",
 		      var->left_margin, var->upper_margin);
 
-	IVTVFB_DEBUG_INFO("Display filter: %s\n",
+	IVTVFB_DE_INFO("Display filter: %s\n",
 			(var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED ? "on" : "off");
-	IVTVFB_DEBUG_INFO("Color space: %s\n", var->nonstd ? "YUV" : "RGB");
+	IVTVFB_DE_INFO("Color space: %s\n", var->nonstd ? "YUV" : "RGB");
 
 	return 0;
 }
@@ -627,7 +627,7 @@ static int ivtvfb_get_fix(struct ivtv *itv, struct fb_fix_screeninfo *fix)
 {
 	struct osd_info *oi = itv->osd_info;
 
-	IVTVFB_DEBUG_INFO("ivtvfb_get_fix\n");
+	IVTVFB_DE_INFO("ivtvfb_get_fix\n");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 	strscpy(fix->id, "cx23415 TV out", sizeof(fix->id));
 	fix->smem_start = oi->video_pbase;
@@ -651,7 +651,7 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	int osd_height_limit;
 	u32 pixclock, hlimit, vlimit;
 
-	IVTVFB_DEBUG_INFO("ivtvfb_check_var\n");
+	IVTVFB_DE_INFO("ivtvfb_check_var\n");
 
 	/* Set base references for mode calcs. */
 	if (itv->is_out_50hz) {
@@ -713,13 +713,13 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 		}
 	}
 	else {
-		IVTVFB_DEBUG_WARN("Invalid colour mode: %d\n", var->bits_per_pixel);
+		IVTVFB_DE_WARN("Invalid colour mode: %d\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 
 	/* Check the resolution */
 	if (var->xres > IVTV_OSD_MAX_WIDTH || var->yres > osd_height_limit) {
-		IVTVFB_DEBUG_WARN("Invalid resolution: %dx%d\n",
+		IVTVFB_DE_WARN("Invalid resolution: %dx%d\n",
 				var->xres, var->yres);
 		return -EINVAL;
 	}
@@ -729,7 +729,7 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	    var->xres_virtual * var->yres_virtual * (var->bits_per_pixel / 8) > oi->video_buffer_size ||
 	    var->xres_virtual < var->xres ||
 	    var->yres_virtual < var->yres) {
-		IVTVFB_DEBUG_WARN("Invalid virtual resolution: %dx%d\n",
+		IVTVFB_DE_WARN("Invalid virtual resolution: %dx%d\n",
 			var->xres_virtual, var->yres_virtual);
 		return -EINVAL;
 	}
@@ -738,43 +738,43 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	if (var->bits_per_pixel == 8) {
 		/* Width must be a multiple of 4 */
 		if (var->xres & 3) {
-			IVTVFB_DEBUG_WARN("Invalid resolution for 8bpp: %d\n", var->xres);
+			IVTVFB_DE_WARN("Invalid resolution for 8bpp: %d\n", var->xres);
 			return -EINVAL;
 		}
 		if (var->xres_virtual & 3) {
-			IVTVFB_DEBUG_WARN("Invalid virtual resolution for 8bpp: %d)\n", var->xres_virtual);
+			IVTVFB_DE_WARN("Invalid virtual resolution for 8bpp: %d)\n", var->xres_virtual);
 			return -EINVAL;
 		}
 	}
 	else if (var->bits_per_pixel == 16) {
 		/* Width must be a multiple of 2 */
 		if (var->xres & 1) {
-			IVTVFB_DEBUG_WARN("Invalid resolution for 16bpp: %d\n", var->xres);
+			IVTVFB_DE_WARN("Invalid resolution for 16bpp: %d\n", var->xres);
 			return -EINVAL;
 		}
 		if (var->xres_virtual & 1) {
-			IVTVFB_DEBUG_WARN("Invalid virtual resolution for 16bpp: %d)\n", var->xres_virtual);
+			IVTVFB_DE_WARN("Invalid virtual resolution for 16bpp: %d)\n", var->xres_virtual);
 			return -EINVAL;
 		}
 	}
 
 	/* Now check the offsets */
 	if (var->xoffset >= var->xres_virtual || var->yoffset >= var->yres_virtual) {
-		IVTVFB_DEBUG_WARN("Invalid offset: %d (%d) %d (%d)\n",
+		IVTVFB_DE_WARN("Invalid offset: %d (%d) %d (%d)\n",
 			var->xoffset, var->xres_virtual, var->yoffset, var->yres_virtual);
 		return -EINVAL;
 	}
 
 	/* Check pixel format */
 	if (var->nonstd > 1) {
-		IVTVFB_DEBUG_WARN("Invalid nonstd % d\n", var->nonstd);
+		IVTVFB_DE_WARN("Invalid nonstd % d\n", var->nonstd);
 		return -EINVAL;
 	}
 
 	/* Check video mode */
 	if (((var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED) &&
 		((var->vmode & FB_VMODE_MASK) != FB_VMODE_INTERLACED)) {
-		IVTVFB_DEBUG_WARN("Invalid video mode: %d\n", var->vmode & FB_VMODE_MASK);
+		IVTVFB_DE_WARN("Invalid video mode: %d\n", var->vmode & FB_VMODE_MASK);
 		return -EINVAL;
 	}
 
@@ -808,24 +808,24 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	itv->osd_rect.width = var->xres;
 	itv->osd_rect.height = var->yres;
 
-	IVTVFB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
+	IVTVFB_DE_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
 		      var->xres_virtual, var->yres_virtual,
 		      var->bits_per_pixel);
 
-	IVTVFB_DEBUG_INFO("Display position: %d, %d\n",
+	IVTVFB_DE_INFO("Display position: %d, %d\n",
 		      var->left_margin, var->upper_margin);
 
-	IVTVFB_DEBUG_INFO("Display filter: %s\n",
+	IVTVFB_DE_INFO("Display filter: %s\n",
 			(var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED ? "on" : "off");
-	IVTVFB_DEBUG_INFO("Color space: %s\n", var->nonstd ? "YUV" : "RGB");
+	IVTVFB_DE_INFO("Color space: %s\n", var->nonstd ? "YUV" : "RGB");
 	return 0;
 }
 
 static int ivtvfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct ivtv *itv = (struct ivtv *) info->par;
-	IVTVFB_DEBUG_INFO("ivtvfb_check_var\n");
+	IVTVFB_DE_INFO("ivtvfb_check_var\n");
 	return _ivtvfb_check_var(var, itv);
 }
 
@@ -857,7 +857,7 @@ static int ivtvfb_set_par(struct fb_info *info)
 	int rc = 0;
 	struct ivtv *itv = (struct ivtv *) info->par;
 
-	IVTVFB_DEBUG_INFO("ivtvfb_set_par\n");
+	IVTVFB_DE_INFO("ivtvfb_set_par\n");
 
 	rc = ivtvfb_set_var(itv, &info->var);
 	ivtvfb_pan_display(&info->var, info);
@@ -916,7 +916,7 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 {
 	struct ivtv *itv = (struct ivtv *)info->par;
 
-	IVTVFB_DEBUG_INFO("Set blanking mode : %d\n", blank_mode);
+	IVTVFB_DE_INFO("Set blanking mode : %d\n", blank_mode);
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 1);

@@ -67,11 +67,11 @@ static void mantis_uart_read(struct mantis_pci *mantis)
 	int i, scancode = 0, err = 0;
 
 	/* get data */
-	dprintk(MANTIS_DEBUG, 1, "UART Reading ...");
+	dprintk(MANTIS_DE, 1, "UART Reading ...");
 	for (i = 0; i < (config->bytes + 1); i++) {
 		int data = mmread(MANTIS_UART_RXD);
 
-		dprintk(MANTIS_DEBUG, 0, " <%02x>", data);
+		dprintk(MANTIS_DE, 0, " <%02x>", data);
 
 		scancode = (scancode << 8) | (data & 0x3f);
 		err |= data;
@@ -82,7 +82,7 @@ static void mantis_uart_read(struct mantis_pci *mantis)
 		if (data & (1 << 6))
 			dprintk(MANTIS_ERROR, 1, "UART parity error");
 	}
-	dprintk(MANTIS_DEBUG, 0, "\n");
+	dprintk(MANTIS_DE, 0, "\n");
 
 	if ((err & 0xC0) == 0)
 		mantis_input_process(mantis, scancode);
@@ -182,7 +182,7 @@ int mantis_uart_init(struct mantis_pci *mantis)
 	mantis_unmask_ints(mantis, MANTIS_INT_IRQ1);
 
 	schedule_work(&mantis->uart_work);
-	dprintk(MANTIS_DEBUG, 1, "UART successfully initialized");
+	dprintk(MANTIS_DE, 1, "UART successfully initialized");
 
 	return 0;
 }

@@ -357,7 +357,7 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
 
 	if (!ddc) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return present;
 	}
 
@@ -644,7 +644,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		return false;
 
 	if (false == dc_link_detect_sink(link, &new_connection_type)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -836,7 +836,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			sink_caps.transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX &&
 			reason != DETECT_REASON_HPDRX) {
 			/*
-			 * TODO debug why Dell 2413 doesn't like
+			 * TODO de why Dell 2413 doesn't like
 			 *  two link trainings
 			 */
 
@@ -976,7 +976,7 @@ static enum hpd_source_id get_hpd_line(
 			hpd_id = HPD_SOURCEID6;
 		break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		break;
 		}
 
@@ -1020,7 +1020,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 			channel = CHANNEL_ID_I2C_PAD;
 			break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			break;
 		}
 	}
@@ -2630,7 +2630,7 @@ void core_link_enable_stream(
 			 */
 			if (status != DC_FAIL_DP_LINK_TRAINING ||
 					pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-				BREAK_TO_DEBUGGER();
+				BREAK_TO_DEGER();
 				return;
 			}
 		}

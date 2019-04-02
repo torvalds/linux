@@ -15,7 +15,7 @@
 #include <fcntl.h>
 #include <poll.h>
 
-#include "debug.h"
+#include "de.h"
 #include <subcmd/parse-options.h>
 #include <api/fs/tracing_path.h>
 #include "evlist.h"
@@ -76,7 +76,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	file = get_tracing_file(name);
 	if (!file) {
-		pr_debug("cannot get tracing file: %s\n", name);
+		pr_de("cannot get tracing file: %s\n", name);
 		return -1;
 	}
 
@@ -87,7 +87,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	fd = open(file, flags);
 	if (fd < 0) {
-		pr_debug("cannot open tracing file: %s: %s\n",
+		pr_de("cannot open tracing file: %s: %s\n",
 			 name, str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out;
 	}
@@ -104,7 +104,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 	if (write(fd, val_copy, size + 1) == size + 1)
 		ret = 0;
 	else
-		pr_debug("write '%s' to tracing/%s failed: %s\n",
+		pr_de("write '%s' to tracing/%s failed: %s\n",
 			 val, name, str_error_r(errno, errbuf, sizeof(errbuf)));
 
 	free(val_copy);
@@ -179,7 +179,7 @@ static int set_tracing_cpumask(struct cpu_map *cpumap)
 
 	cpumask = malloc(mask_size);
 	if (cpumask == NULL) {
-		pr_debug("failed to allocate cpu mask\n");
+		pr_de("failed to allocate cpu mask\n");
 		return -1;
 	}
 

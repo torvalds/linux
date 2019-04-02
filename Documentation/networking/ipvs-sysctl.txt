@@ -69,7 +69,7 @@ cache_bypass - BOOLEAN
         address is not local (iph->daddr is RTN_UNICAST). It is mostly
         used in transparent web cache cluster.
 
-debug_level - INTEGER
+de_level - INTEGER
 	0          - transmission error messages (default)
 	1          - non-fatal error messages
 	2          - configuration
@@ -84,10 +84,10 @@ debug_level - INTEGER
 	11         - IPVS packet handling (ip_vs_in/ip_vs_out)
 	12 or more - packet traversal
 
-	Only available when IPVS is compiled with CONFIG_IP_VS_DEBUG enabled.
+	Only available when IPVS is compiled with CONFIG_IP_VS_DE enabled.
 
-	Higher debugging levels include the messages for lower debugging
-	levels, so setting debug level 2, includes level 0, 1 and 2
+	Higher deging levels include the messages for lower deging
+	levels, so setting de level 2, includes level 0, 1 and 2
 	messages. Thus, logging becomes more and more verbose the higher
 	the level.
 

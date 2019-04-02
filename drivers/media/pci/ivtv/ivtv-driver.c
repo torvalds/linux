@@ -134,9 +134,9 @@ static int ivtv_yuv_mode;
 static int ivtv_yuv_threshold = -1;
 static int ivtv_pci_latency = 1;
 
-int ivtv_debug;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-int ivtv_fw_debug;
+int ivtv_de;
+#ifdef CONFIG_VIDEO_ADV_DE
+int ivtv_fw_de;
 #endif
 
 static int tunertype = -1;
@@ -148,9 +148,9 @@ module_param_array(cardtype, int, &cardtype_c, 0644);
 module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
 module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
-module_param_named(debug,ivtv_debug, int, 0644);
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-module_param_named(fw_debug, ivtv_fw_debug, int, 0644);
+module_param_named(de,ivtv_de, int, 0644);
+#ifdef CONFIG_VIDEO_ADV_DE
+module_param_named(fw_de, ivtv_fw_de, int, 0644);
 #endif
 module_param(ivtv_pci_latency, int, 0644);
 module_param(ivtv_yuv_mode, int, 0644);
@@ -215,8 +215,8 @@ MODULE_PARM_DESC(tunertype,
 		"\t\t\t 0 = tuner for PAL-B/G/H/D/K/I, SECAM-B/G/H/D/K/L/Lc\n"
 		"\t\t\t 1 = tuner for NTSC-M/J/K, PAL-M/N/Nc\n"
 		"\t\t\t-1 = Autodetect (default)\n");
-MODULE_PARM_DESC(debug,
-		 "Debug level (bitmask). Default: 0\n"
+MODULE_PARM_DESC(de,
+		 "De level (bitmask). Default: 0\n"
 		 "\t\t\t   1/0x0001: warning\n"
 		 "\t\t\t   2/0x0002: info\n"
 		 "\t\t\t   4/0x0004: mailbox\n"
@@ -228,9 +228,9 @@ MODULE_PARM_DESC(debug,
 		 "\t\t\t 256/0x0100: yuv\n"
 		 "\t\t\t 512/0x0200: i2c\n"
 		 "\t\t\t1024/0x0400: high volume\n");
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-MODULE_PARM_DESC(fw_debug,
-		 "Enable code for debugging firmware problems.  Default: 0\n");
+#ifdef CONFIG_VIDEO_ADV_DE
+MODULE_PARM_DESC(fw_de,
+		 "Enable code for deging firmware problems.  Default: 0\n");
 #endif
 MODULE_PARM_DESC(ivtv_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
@@ -383,20 +383,20 @@ static void ivtv_iounmap(struct ivtv *itv)
 
 	/* Release registers memory */
 	if (itv->reg_mem != NULL) {
-		IVTV_DEBUG_INFO("releasing reg_mem\n");
+		IVTV_DE_INFO("releasing reg_mem\n");
 		iounmap(itv->reg_mem);
 		itv->reg_mem = NULL;
 	}
 	/* Release io memory */
 	if (itv->has_cx23415 && itv->dec_mem != NULL) {
-		IVTV_DEBUG_INFO("releasing dec_mem\n");
+		IVTV_DE_INFO("releasing dec_mem\n");
 		iounmap(itv->dec_mem);
 	}
 	itv->dec_mem = NULL;
 
 	/* Release io memory */
 	if (itv->enc_mem != NULL) {
-		IVTV_DEBUG_INFO("releasing enc_mem\n");
+		IVTV_DE_INFO("releasing enc_mem\n");
 		iounmap(itv->enc_mem);
 		itv->enc_mem = NULL;
 	}
@@ -532,13 +532,13 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 
 	/* autodetect tuner standard */
 	if (tv.tuner_formats & V4L2_STD_PAL) {
-		IVTV_DEBUG_INFO("PAL tuner detected\n");
+		IVTV_DE_INFO("PAL tuner detected\n");
 		itv->std |= V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 	} else if (tv.tuner_formats & V4L2_STD_NTSC) {
-		IVTV_DEBUG_INFO("NTSC tuner detected\n");
+		IVTV_DE_INFO("NTSC tuner detected\n");
 		itv->std |= V4L2_STD_NTSC_M;
 	} else if (tv.tuner_formats & V4L2_STD_SECAM) {
-		IVTV_DEBUG_INFO("SECAM tuner detected\n");
+		IVTV_DE_INFO("SECAM tuner detected\n");
 		itv->std |= V4L2_STD_SECAM_L;
 	} else {
 		IVTV_INFO("No tuner detected, default to NTSC-M\n");
@@ -837,7 +837,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	u16 cmd;
 	unsigned char pci_latency;
 
-	IVTV_DEBUG_INFO("Enabling pci device\n");
+	IVTV_DE_INFO("Enabling pci device\n");
 
 	if (pci_enable_device(pdev)) {
 		IVTV_ERR("Can't enable device!\n");
@@ -871,7 +871,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	/* Check for bus mastering */
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 	if (!(cmd & PCI_COMMAND_MASTER)) {
-		IVTV_DEBUG_INFO("Attempting to enable Bus Mastering\n");
+		IVTV_DE_INFO("Attempting to enable Bus Mastering\n");
 		pci_set_master(pdev);
 		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 		if (!(cmd & PCI_COMMAND_MASTER)) {
@@ -879,7 +879,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 			return -ENXIO;
 		}
 	}
-	IVTV_DEBUG_INFO("Bus Mastering Enabled.\n");
+	IVTV_DE_INFO("Bus Mastering Enabled.\n");
 
 	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 
@@ -895,7 +895,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	   these problems. */
 	pci_write_config_dword(pdev, 0x40, 0xffff);
 
-	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, irq: %d, latency: %d, memory: 0x%llx\n",
+	IVTV_DE_INFO("%d (rev %d) at %02x:%02x.%x, irq: %d, latency: %d, memory: 0x%llx\n",
 		   pdev->device, pdev->revision, pdev->bus->number,
 		   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 		   pdev->irq, pci_latency, (u64)itv->base_addr);
@@ -1030,7 +1030,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	itv->cxhdl.priv = itv;
 	itv->cxhdl.func = ivtv_api_func;
 
-	IVTV_DEBUG_INFO("base addr: 0x%llx\n", (u64)itv->base_addr);
+	IVTV_DE_INFO("base addr: 0x%llx\n", (u64)itv->base_addr);
 
 	/* PCI Device Setup */
 	retval = ivtv_setup_pci(itv, pdev, pci_id);
@@ -1040,7 +1040,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		goto free_mem;
 
 	/* map io memory */
-	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+	IVTV_DE_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)itv->base_addr + IVTV_ENCODER_OFFSET, IVTV_ENCODER_SIZE);
 	itv->enc_mem = ioremap_nocache(itv->base_addr + IVTV_ENCODER_OFFSET,
 				       IVTV_ENCODER_SIZE);
@@ -1054,7 +1054,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	}
 
 	if (itv->has_cx23415) {
-		IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+		IVTV_DE_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 				(u64)itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
 		itv->dec_mem = ioremap_nocache(itv->base_addr + IVTV_DECODER_OFFSET,
 				IVTV_DECODER_SIZE);
@@ -1072,7 +1072,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	}
 
 	/* map registers memory */
-	IVTV_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+	IVTV_DE_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	itv->reg_mem =
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
@@ -1090,7 +1090,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		goto free_io;
 
 	/* active i2c  */
-	IVTV_DEBUG_INFO("activating i2c...\n");
+	IVTV_DE_INFO("activating i2c...\n");
 	if (init_ivtv_i2c(itv)) {
 		IVTV_ERR("Could not initialize i2c\n");
 		goto free_io;
@@ -1328,7 +1328,7 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	}
 
 	/* Try and get firmware versions */
-	IVTV_DEBUG_INFO("Getting firmware version..\n");
+	IVTV_DE_INFO("Getting firmware version..\n");
 	ivtv_firmware_versions(itv);
 
 	if (itv->card->hw_all & IVTV_HW_CX25840)
@@ -1395,18 +1395,18 @@ static void ivtv_remove(struct pci_dev *pdev)
 	struct ivtv *itv = to_ivtv(v4l2_dev);
 	int i;
 
-	IVTV_DEBUG_INFO("Removing card\n");
+	IVTV_DE_INFO("Removing card\n");
 
 	flush_request_modules(itv);
 
 	if (test_bit(IVTV_F_I_INITED, &itv->i_flags)) {
 		/* Stop all captures */
-		IVTV_DEBUG_INFO("Stopping all streams\n");
+		IVTV_DE_INFO("Stopping all streams\n");
 		if (atomic_read(&itv->capturing) > 0)
 			ivtv_stop_all_captures(itv);
 
 		/* Stop all decoding */
-		IVTV_DEBUG_INFO("Stopping decoding\n");
+		IVTV_DE_INFO("Stopping decoding\n");
 
 		/* Turn off the TV-out */
 		if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
@@ -1476,9 +1476,9 @@ static int __init module_start(void)
 		return -1;
 	}
 
-	if (ivtv_debug < 0 || ivtv_debug > 2047) {
-		ivtv_debug = 0;
-		pr_info("Debug value must be >= 0 and <= 2047\n");
+	if (ivtv_de < 0 || ivtv_de > 2047) {
+		ivtv_de = 0;
+		pr_info("De value must be >= 0 and <= 2047\n");
 	}
 
 	if (pci_register_driver(&ivtv_pci_driver)) {
@@ -1501,9 +1501,9 @@ EXPORT_SYMBOL(ivtv_api);
 EXPORT_SYMBOL(ivtv_vapi);
 EXPORT_SYMBOL(ivtv_vapi_result);
 EXPORT_SYMBOL(ivtv_clear_irq_mask);
-EXPORT_SYMBOL(ivtv_debug);
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-EXPORT_SYMBOL(ivtv_fw_debug);
+EXPORT_SYMBOL(ivtv_de);
+#ifdef CONFIG_VIDEO_ADV_DE
+EXPORT_SYMBOL(ivtv_fw_de);
 #endif
 EXPORT_SYMBOL(ivtv_reset_ir_gpio);
 EXPORT_SYMBOL(ivtv_udma_setup);

@@ -252,7 +252,7 @@ MODULE_PARM_DESC(txselect,
 #define kr_gpio_out KREG_IDX(GPIOOut)
 #define kr_gpio_status KREG_IDX(GPIOStatus)
 #define kr_hwdiagctrl KREG_IDX(HwDiagCtrl)
-#define kr_debugportval KREG_IDX(DebugPortValueReg)
+#define kr_deportval KREG_IDX(DePortValueReg)
 #define kr_fmask KREG_IDX(feature_mask)
 #define kr_act_fmask KREG_IDX(active_feature_mask)
 #define kr_hwerrclear KREG_IDX(HwErrClear)
@@ -1910,7 +1910,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 			 * up, but the IB link changes state at the "wrong"
 			 * time. The IB logic then complains that the packet
 			 * isn't valid.  We don't want to confuse people, so
-			 * we just don't print them, except at debug
+			 * we just don't print them, except at de
 			 */
 			err_decode(msg, sizeof(ppd->cpspec->epmsgbuf),
 				   (errs & QIB_E_P_LINK_PKTERRS),
@@ -1926,7 +1926,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		 * up, but the IB link changes state at the "wrong" time.
 		 * The IB logic then complains that the packet isn't
 		 * valid.  We don't want to confuse people, so we just
-		 * don't print them, except at debug
+		 * don't print them, except at de
 		 */
 		err_decode(msg, sizeof(ppd->cpspec->epmsgbuf), errs,
 			   qib_7322p_error_msgs);
@@ -4193,7 +4193,7 @@ static int qib_7322_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		 * Update our housekeeping variables, and set IBC max
 		 * size, same as init code; max IBC is max we allow in
 		 * buffer, less the qword pbc, plus 1 for ICRC, in dwords
-		 * Set even if it's unchanged, print debug message only
+		 * Set even if it's unchanged, print de message only
 		 * on changes.
 		 */
 		val = (ppd->ibmaxlen >> 2) + 1;
@@ -6187,7 +6187,7 @@ static int qib_late_7322_initreg(struct qib_devdata *dd)
 
 	n = dd->piobcnt2k + dd->piobcnt4k + NUM_VL15_BUFS;
 	qib_7322_txchk_change(dd, 0, n, TXCHK_CHG_TYPE_KERN, NULL);
-	/* driver sends get pkey, lid, etc. checking also, to catch bugs */
+	/* driver sends get pkey, lid, etc. checking also, to catch s */
 	qib_7322_txchk_change(dd, 0, n, TXCHK_CHG_TYPE_ENAB1, NULL);
 
 	qib_register_observer(dd, &sendctrl_0_observer);

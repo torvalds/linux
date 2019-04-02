@@ -51,8 +51,8 @@
 	pr_warn("%s-%d: %16s (port %d): WARNING: " format, __func__, __LINE__,\
 	(group)->name, group->demux->port, ## arg)
 
-#define mcg_debug_group(group, format, arg...) \
-	pr_debug("%s-%d: %16s (port %d): WARNING: " format, __func__, __LINE__,\
+#define mcg_de_group(group, format, arg...) \
+	pr_de("%s-%d: %16s (port %d): WARNING: " format, __func__, __LINE__,\
 		 (group)->name, (group)->demux->port, ## arg)
 
 #define mcg_error_group(group, format, arg...) \
@@ -562,7 +562,7 @@ static void mlx4_ib_mcg_timeout_handler(struct work_struct *work)
 			}
 			mutex_lock(&group->lock);
 		} else
-			mcg_warn_group(group, "DRIVER BUG\n");
+			mcg_warn_group(group, "DRIVER \n");
 	} else if (group->state == MCAST_LEAVE_SENT) {
 		if (group->rec.scope_join_state & 0xf)
 			group->rec.scope_join_state &= 0xf0;
@@ -963,7 +963,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 		mutex_lock(&group->lock);
 		if (group->func[slave].num_pend_reqs > MAX_PEND_REQS_PER_FUNC) {
 			mutex_unlock(&group->lock);
-			mcg_debug_group(group, "Port %d, Func %d has too many pending requests (%d), dropping\n",
+			mcg_de_group(group, "Port %d, Func %d has too many pending requests (%d), dropping\n",
 					port, slave, MAX_PEND_REQS_PER_FUNC);
 			release_group(group, 0);
 			kfree(req);
@@ -1102,7 +1102,7 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	while ((p = rb_first(&ctx->mcg_table)) != NULL) {
 		group = rb_entry(p, struct mcast_group, node);
 		if (atomic_read(&group->refcount))
-			mcg_debug_group(group, "group refcount %d!!! (pointer %p)\n",
+			mcg_de_group(group, "group refcount %d!!! (pointer %p)\n",
 					atomic_read(&group->refcount), group);
 
 		force_clean_group(group);
@@ -1188,7 +1188,7 @@ static void clear_pending_reqs(struct mcast_group *group, int vf)
 	}
 
 	if (!pend && (!list_empty(&group->func[vf].pending) || group->func[vf].num_pend_reqs)) {
-		mcg_warn_group(group, "DRIVER BUG: list_empty %d, num_pend_reqs %d\n",
+		mcg_warn_group(group, "DRIVER : list_empty %d, num_pend_reqs %d\n",
 			       list_empty(&group->func[vf].pending), group->func[vf].num_pend_reqs);
 	}
 }

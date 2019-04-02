@@ -25,7 +25,7 @@
 #define _LINUX_NTFS_SYSCTL_H
 
 
-#if defined(DEBUG) && defined(CONFIG_SYSCTL)
+#if defined(DE) && defined(CONFIG_SYSCTL)
 
 extern int ntfs_sysctl(int add);
 
@@ -37,5 +37,5 @@ static inline int ntfs_sysctl(int add)
 	return 0;
 }
 
-#endif /* DEBUG && CONFIG_SYSCTL */
+#endif /* DE && CONFIG_SYSCTL */
 #endif /* _LINUX_NTFS_SYSCTL_H */

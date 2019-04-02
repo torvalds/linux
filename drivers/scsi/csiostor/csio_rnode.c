@@ -879,7 +879,7 @@ csio_rnode_fwevt_handler(struct csio_rnode *rn, uint8_t fwevt)
 	}
 	CSIO_INC_STATS(rn, n_evt_fw[fwevt]);
 
-	/* Track previous & current events for debugging */
+	/* Track previous & current events for deging */
 	rn->prev_evt = rn->cur_evt;
 	rn->cur_evt = fwevt;
 

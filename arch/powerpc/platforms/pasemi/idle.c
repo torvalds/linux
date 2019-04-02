@@ -18,7 +18,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/string.h>

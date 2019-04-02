@@ -306,7 +306,7 @@ static int psci_dt_cpu_init_idle(struct device_node *cpu_node, int cpu)
 		}
 
 		of_node_put(state_node);
-		pr_debug("psci-power-state %#x index %d\n", state, i);
+		pr_de("psci-power-state %#x index %d\n", state, i);
 		if (!psci_power_state_is_valid(state)) {
 			pr_warn("Invalid PSCI power state %#x\n", state);
 			ret = -EINVAL;

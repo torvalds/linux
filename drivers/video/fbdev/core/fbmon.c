@@ -39,9 +39,9 @@
  * EDID parser
  */
 
-#undef DEBUG  /* define this for verbose EDID parsing output */
+#undef DE  /* define this for verbose EDID parsing output */
 
-#ifdef DEBUG
+#ifdef DE
 #define DPRINTK(fmt, args...) printk(fmt,## args)
 #else
 #define DPRINTK(fmt, args...)
@@ -982,7 +982,7 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 		return;
 
 	/*
-	 * Workaround for buggy EDIDs that sets that the first
+	 * Workaround for gy EDIDs that sets that the first
 	 * detailed timing is preferred but has not detailed
 	 * timing specified
 	 */
@@ -1026,12 +1026,12 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 
 	while (pos < edid[2]) {
 		u8 len = edid[pos] & 0x1f, type = (edid[pos] >> 5) & 7;
-		pr_debug("Data block %u of %u bytes\n", type, len);
+		pr_de("Data block %u of %u bytes\n", type, len);
 		if (type == 2) {
 			for (i = pos; i < pos + len; i++) {
 				u8 idx = edid[pos + i] & 0x7f;
 				svd[svd_n++] = idx;
-				pr_debug("N%sative mode #%d\n",
+				pr_de("N%sative mode #%d\n",
 					 edid[pos + i] & 0x80 ? "" : "on-n", idx);
 			}
 		} else if (type == 3 && len >= 3) {
@@ -1070,7 +1070,7 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 		get_detailed_timing(edid + edt[i - specs->modedb_len], &m[i]);
 		if (i == specs->modedb_len)
 			m[i].flag |= FB_MODE_IS_FIRST;
-		pr_debug("Adding %ux%u@%u\n", m[i].xres, m[i].yres, m[i].refresh);
+		pr_de("Adding %ux%u@%u\n", m[i].xres, m[i].yres, m[i].refresh);
 	}
 
 	for (i = specs->modedb_len + num; i < specs->modedb_len + num + svd_n; i++) {
@@ -1081,7 +1081,7 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 			pr_warn("Unimplemented SVD code %d\n", idx);
 		} else {
 			memcpy(&m[i], cea_modes + idx, sizeof(m[i]));
-			pr_debug("Adding SVD #%d: %ux%u@%u\n", idx,
+			pr_de("Adding SVD #%d: %ux%u@%u\n", idx,
 				 m[i].xres, m[i].yres, m[i].refresh);
 		}
 	}
@@ -1451,7 +1451,7 @@ EXPORT_SYMBOL_GPL(fb_videomode_from_videomode);
 #ifdef CONFIG_OF
 static inline void dump_fb_videomode(const struct fb_videomode *m)
 {
-	pr_debug("fb_videomode = %ux%u@%uHz (%ukHz) %u %u %u %u %u %u %u %u %u\n",
+	pr_de("fb_videomode = %ux%u@%uHz (%ukHz) %u %u %u %u %u %u %u %u %u\n",
 		 m->xres, m->yres, m->refresh, m->pixclock, m->left_margin,
 		 m->right_margin, m->upper_margin, m->lower_margin,
 		 m->hsync_len, m->vsync_len, m->sync, m->vmode, m->flag);
@@ -1482,7 +1482,7 @@ int of_get_fb_videomode(struct device_node *np, struct fb_videomode *fb,
 	if (ret)
 		return ret;
 
-	pr_debug("%pOF: got %dx%d display mode\n",
+	pr_de("%pOF: got %dx%d display mode\n",
 		np, vm.hactive, vm.vactive);
 	dump_fb_videomode(fb);
 

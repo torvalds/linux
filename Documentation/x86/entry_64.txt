@@ -85,7 +85,7 @@ entry interrupting kernel mode execution, then we know that the GS
 base has already been switched. If it says that we interrupted
 user-space execution then we must do the SWAPGS.
 
-But if we are in an NMI/MCE/DEBUG/whatever super-atomic entry context,
+But if we are in an NMI/MCE/DE/whatever super-atomic entry context,
 which might have triggered right after a normal entry wrote CS to the
 stack but before we executed SWAPGS, then the only safe way to check
 for GS is the slower method: the RDMSR.

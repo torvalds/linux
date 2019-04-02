@@ -10084,11 +10084,11 @@
 #define   SCU_RAM_COMMAND_CMD_STD_QAM_IRQ_MONITOR                           0x83
 #define   SCU_RAM_COMMAND_CMD_STD_QAM_TSK_ENABLE                            0x84
 #define   SCU_RAM_COMMAND_CMD_STD_QAM_FSM_SET_STATE                         0x85
-#define   SCU_RAM_COMMAND_CMD_DEBUG_GET_IRQ_REGS                            0x80
-#define   SCU_RAM_COMMAND_CMD_DEBUG_HTOL                                    0x81
-#define   SCU_RAM_COMMAND_CMD_DEBUG_GET_STACK_POINTER                       0x82
-#define   SCU_RAM_COMMAND_CMD_DEBUG_START_STACK_CHECK                       0x83
-#define   SCU_RAM_COMMAND_CMD_DEBUG_STOP_STACK_CHECK                        0x84
+#define   SCU_RAM_COMMAND_CMD_DE_GET_IRQ_REGS                            0x80
+#define   SCU_RAM_COMMAND_CMD_DE_HTOL                                    0x81
+#define   SCU_RAM_COMMAND_CMD_DE_GET_STACK_POINTER                       0x82
+#define   SCU_RAM_COMMAND_CMD_DE_START_STACK_CHECK                       0x83
+#define   SCU_RAM_COMMAND_CMD_DE_STOP_STACK_CHECK                        0x84
 #define   SCU_RAM_COMMAND_CMD_ADMIN_NOP                                     0xFF
 #define   SCU_RAM_COMMAND_CMD_ADMIN_GET_VERSION                             0xFE
 #define   SCU_RAM_COMMAND_CMD_ADMIN_GET_JTAG_VERSION                        0xFD

@@ -27,7 +27,7 @@ struct uvc_descriptor_header;
 struct uvc_device;
 
 /* ------------------------------------------------------------------------
- * Debugging, printing and logging
+ * Deging, printing and logging
  */
 
 #define UVC_TRACE_PROBE				(1 << 0)
@@ -49,7 +49,7 @@ extern unsigned int uvc_gadget_trace_param;
 #define uvc_trace(flag, msg...) \
 	do { \
 		if (uvc_gadget_trace_param & flag) \
-			printk(KERN_DEBUG "uvcvideo: " msg); \
+			printk(KERN_DE "uvcvideo: " msg); \
 	} while (0)
 
 #define uvcg_dbg(f, fmt, args...) \

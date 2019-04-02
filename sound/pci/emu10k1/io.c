@@ -3,7 +3,7 @@
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -71,7 +71,7 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 	unsigned long flags;
 	unsigned int mask;
 
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return;
 	mask = emu->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK;
 	regptr = ((reg << 16) & mask) | (chn & PTR_CHANNELNUM_MASK);

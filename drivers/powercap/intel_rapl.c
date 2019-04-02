@@ -427,7 +427,7 @@ static int contraint_to_pl(struct rapl_domain *rd, int cid)
 
 	for (i = 0, j = 0; i < NR_POWER_LIMITS; i++) {
 		if ((rd->rpl[i].name) && j++ == cid) {
-			pr_debug("%s: index %d\n", __func__, i);
+			pr_de("%s: index %d\n", __func__, i);
 			return i;
 		}
 	}
@@ -823,7 +823,7 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 	}
 
 	if (rdmsrl_safe_on_cpu(cpu, msr, &value)) {
-		pr_debug("failed to read msr 0x%x on cpu %d\n", msr, cpu);
+		pr_de("failed to read msr 0x%x on cpu %d\n", msr, cpu);
 		return -EIO;
 	}
 
@@ -925,7 +925,7 @@ static int rapl_check_unit_core(struct rapl_package *rp, int cpu)
 	value = (msr_val & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
 	rp->time_unit = 1000000 / (1 << value);
 
-	pr_debug("Core CPU package %d energy=%dpJ, time=%dus, power=%duW\n",
+	pr_de("Core CPU package %d energy=%dpJ, time=%dus, power=%duW\n",
 		rp->id, rp->energy_unit, rp->time_unit, rp->power_unit);
 
 	return 0;
@@ -950,7 +950,7 @@ static int rapl_check_unit_atom(struct rapl_package *rp, int cpu)
 	value = (msr_val & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
 	rp->time_unit = 1000000 / (1 << value);
 
-	pr_debug("Atom package %d energy=%dpJ, time=%dus, power=%duW\n",
+	pr_de("Atom package %d energy=%dpJ, time=%dus, power=%duW\n",
 		rp->id, rp->energy_unit, rp->time_unit, rp->power_unit);
 
 	return 0;
@@ -1180,7 +1180,7 @@ static void rapl_update_domain_data(struct rapl_package *rp)
 	u64 val;
 
 	for (dmn = 0; dmn < rp->nr_domains; dmn++) {
-		pr_debug("update package %d domain %s data\n", rp->id,
+		pr_de("update package %d domain %s data\n", rp->id,
 			 rp->domains[dmn].name);
 		/* exclude non-raw primitives */
 		for (prim = 0; prim < NR_RAW_PRIMITIVES; prim++) {
@@ -1216,7 +1216,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
 		if (rd->id == RAPL_DOMAIN_PACKAGE) {
 			nr_pl = find_nr_power_limit(rd);
-			pr_debug("register socket %d package domain %s\n",
+			pr_de("register socket %d package domain %s\n",
 				rp->id, rd->name);
 			memset(dev_name, 0, sizeof(dev_name));
 			snprintf(dev_name, sizeof(dev_name), "%s-%d",
@@ -1228,7 +1228,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 							nr_pl,
 							&constraint_ops);
 			if (IS_ERR(power_zone)) {
-				pr_debug("failed to register package, %d\n",
+				pr_de("failed to register package, %d\n",
 					rp->id);
 				return PTR_ERR(power_zone);
 			}
@@ -1255,7 +1255,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 						&constraint_ops);
 
 		if (IS_ERR(power_zone)) {
-			pr_debug("failed to register power_zone, %d:%s:%s\n",
+			pr_de("failed to register power_zone, %d:%s:%s\n",
 				rp->id, rd->name, dev_name);
 			ret = PTR_ERR(power_zone);
 			goto err_cleanup;
@@ -1269,7 +1269,7 @@ err_cleanup:
 	 * failed after the first domain setup.
 	 */
 	while (--rd >= rp->domains) {
-		pr_debug("unregister package %d domain %s\n", rp->id, rd->name);
+		pr_de("unregister package %d domain %s\n", rp->id, rd->name);
 		powercap_unregister_zone(control_type, &rd->power_zone);
 	}
 
@@ -1321,7 +1321,7 @@ static int __init rapl_register_powercap(void)
 {
 	control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);
 	if (IS_ERR(control_type)) {
-		pr_debug("failed to register powercap control_type.\n");
+		pr_de("failed to register powercap control_type.\n");
 		return PTR_ERR(control_type);
 	}
 	return 0;
@@ -1409,10 +1409,10 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map,	RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {
-		pr_debug("no valid rapl domains found in package %d\n", rp->id);
+		pr_de("no valid rapl domains found in package %d\n", rp->id);
 		return -ENODEV;
 	}
-	pr_debug("found %d domains on package %d\n", rp->nr_domains, rp->id);
+	pr_de("found %d domains on package %d\n", rp->nr_domains, rp->id);
 
 	rp->domains = kcalloc(rp->nr_domains + 1, sizeof(struct rapl_domain),
 			GFP_KERNEL);
@@ -1445,7 +1445,7 @@ static void rapl_remove_package(struct rapl_package *rp)
 			rd_package = rd;
 			continue;
 		}
-		pr_debug("remove package, undo power limit on %d: %s\n",
+		pr_de("remove package, undo power limit on %d: %s\n",
 			 rp->id, rd->name);
 		powercap_unregister_zone(control_type, &rd->power_zone);
 	}

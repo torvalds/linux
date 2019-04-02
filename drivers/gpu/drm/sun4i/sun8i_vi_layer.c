@@ -30,7 +30,7 @@ static void sun8i_vi_layer_enable(struct sun8i_mixer *mixer, int channel,
 	bld_base = sun8i_blender_base(mixer);
 	ch_base = sun8i_channel_base(mixer, channel);
 
-	DRM_DEBUG_DRIVER("%sabling VI channel %d overlay %d\n",
+	DRM_DE_DRIVER("%sabling VI channel %d overlay %d\n",
 			 enable ? "En" : "Dis", channel, overlay);
 
 	if (enable)
@@ -82,7 +82,7 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	u32 hphase, vphase;
 	bool subsampled;
 
-	DRM_DEBUG_DRIVER("Updating VI channel %d overlay %d\n",
+	DRM_DE_DRIVER("Updating VI channel %d overlay %d\n",
 			 channel, overlay);
 
 	bld_base = sun8i_blender_base(mixer);
@@ -119,10 +119,10 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	outsize = SUN8I_MIXER_SIZE(dst_w, dst_h);
 
 	/* Set height and width */
-	DRM_DEBUG_DRIVER("Layer source offset X: %d Y: %d\n",
+	DRM_DE_DRIVER("Layer source offset X: %d Y: %d\n",
 			 (state->src.x1 >> 16) & ~(format->hsub - 1),
 			 (state->src.y1 >> 16) & ~(format->vsub - 1));
-	DRM_DEBUG_DRIVER("Layer source size W: %d H: %d\n", src_w, src_h);
+	DRM_DE_DRIVER("Layer source size W: %d H: %d\n", src_w, src_h);
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_CHAN_VI_LAYER_SIZE(ch_base, overlay),
 		     insize);
@@ -139,7 +139,7 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	if (insize != outsize || subsampled || hphase || vphase) {
 		u32 hscale, vscale;
 
-		DRM_DEBUG_DRIVER("HW scaling is enabled\n");
+		DRM_DE_DRIVER("HW scaling is enabled\n");
 
 		hscale = state->src_w / state->crtc_w;
 		vscale = state->src_h / state->crtc_h;
@@ -149,14 +149,14 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 				      format);
 		sun8i_vi_scaler_enable(mixer, channel, true);
 	} else {
-		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
+		DRM_DE_DRIVER("HW scaling is not needed\n");
 		sun8i_vi_scaler_enable(mixer, channel, false);
 	}
 
 	/* Set base coordinates */
-	DRM_DEBUG_DRIVER("Layer destination coordinates X: %d Y: %d\n",
+	DRM_DE_DRIVER("Layer destination coordinates X: %d Y: %d\n",
 			 state->dst.x1, state->dst.y1);
-	DRM_DEBUG_DRIVER("Layer destination size W: %d H: %d\n", dst_w, dst_h);
+	DRM_DE_DRIVER("Layer destination size W: %d H: %d\n", dst_w, dst_h);
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_COORD(bld_base, zpos),
 		     SUN8I_MIXER_COORD(state->dst.x1, state->dst.y1));
@@ -178,7 +178,7 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 
 	fmt_info = sun8i_mixer_format_info(state->fb->format->format);
 	if (!fmt_info) {
-		DRM_DEBUG_DRIVER("Invalid format\n");
+		DRM_DE_DRIVER("Invalid format\n");
 		return -EINVAL;
 	}
 
@@ -236,7 +236,7 @@ static int sun8i_vi_layer_update_buffer(struct sun8i_mixer *mixer, int channel,
 		/* Get the physical address of the buffer in memory */
 		gem = drm_fb_cma_get_gem_obj(fb, i);
 
-		DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
+		DRM_DE_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
 		/* Compute the start of the displayed memory */
 		paddr = gem->paddr + fb->offsets[i];
@@ -254,14 +254,14 @@ static int sun8i_vi_layer_update_buffer(struct sun8i_mixer *mixer, int channel,
 		paddr += dy * fb->pitches[i];
 
 		/* Set the line width */
-		DRM_DEBUG_DRIVER("Layer %d. line width: %d bytes\n",
+		DRM_DE_DRIVER("Layer %d. line width: %d bytes\n",
 				 i + 1, fb->pitches[i]);
 		regmap_write(mixer->engine.regs,
 			     SUN8I_MIXER_CHAN_VI_LAYER_PITCH(ch_base,
 							     overlay, i),
 			     fb->pitches[i]);
 
-		DRM_DEBUG_DRIVER("Setting %d. buffer address to %pad\n",
+		DRM_DE_DRIVER("Setting %d. buffer address to %pad\n",
 				 i + 1, &paddr);
 
 		regmap_write(mixer->engine.regs,

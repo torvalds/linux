@@ -125,7 +125,7 @@ static unsigned long xen_p2m_last_pfn;
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
-	BUG_ON(pfn >= MAX_P2M_PFN);
+	_ON(pfn >= MAX_P2M_PFN);
 	return pfn / (P2M_MID_PER_PAGE * P2M_PER_PAGE);
 }
 
@@ -247,7 +247,7 @@ void __ref xen_build_mfn_list_list(void)
 		mid_mfn_p = p2m_top_mfn_p[topidx];
 		ptep = lookup_address((unsigned long)(xen_p2m_addr + pfn),
 				      &level);
-		BUG_ON(!ptep || level != PG_LEVEL_4K);
+		_ON(!ptep || level != PG_LEVEL_4K);
 		mfn = pte_mfn(*ptep);
 		ptep = (pte_t *)((unsigned long)ptep & ~(PAGE_SIZE - 1));
 
@@ -256,8 +256,8 @@ void __ref xen_build_mfn_list_list(void)
 		 * since all could have changed over a migrate.
 		 */
 		if (ptep == p2m_missing_pte || ptep == p2m_identity_pte) {
-			BUG_ON(mididx);
-			BUG_ON(mid_mfn_p != p2m_mid_missing_mfn);
+			_ON(mididx);
+			_ON(mid_mfn_p != p2m_mid_missing_mfn);
 			p2m_top_mfn[topidx] = virt_to_mfn(p2m_mid_missing_mfn);
 			pfn += (P2M_MID_PER_PAGE - 1) * P2M_PER_PAGE;
 			continue;
@@ -277,7 +277,7 @@ void __ref xen_build_mfn_list_list(void)
 
 void xen_setup_mfn_list_list(void)
 {
-	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+	_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	if (xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
 		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
@@ -449,7 +449,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 	}
 
 	ptep = lookup_address((unsigned long)(xen_p2m_addr + pfn), &level);
-	BUG_ON(!ptep || level != PG_LEVEL_4K);
+	_ON(!ptep || level != PG_LEVEL_4K);
 
 	/*
 	 * The INVALID_P2M_ENTRY is filled in both p2m_*identity
@@ -497,7 +497,7 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
 		paravirt_alloc_pte(&init_mm, __pa(pte_newpg[i]) >> PAGE_SHIFT);
 
 		pmdp = lookup_pmd_address(vaddr);
-		BUG_ON(!pmdp);
+		_ON(!pmdp);
 
 		spin_lock_irqsave(&p2m_update_lock, flags);
 
@@ -543,7 +543,7 @@ int xen_alloc_p2m_entry(unsigned long pfn)
 	unsigned long p2m_pfn;
 
 	ptep = lookup_address(addr, &level);
-	BUG_ON(!ptep || level != PG_LEVEL_4K);
+	_ON(!ptep || level != PG_LEVEL_4K);
 	pte_pg = (pte_t *)((unsigned long)ptep & ~(PAGE_SIZE - 1));
 
 	if (pte_pg == p2m_missing_pte || pte_pg == p2m_identity_pte) {
@@ -558,7 +558,7 @@ int xen_alloc_p2m_entry(unsigned long pfn)
 		top_mfn_p = &p2m_top_mfn[topidx];
 		mid_mfn = READ_ONCE(p2m_top_mfn_p[topidx]);
 
-		BUG_ON(virt_to_mfn(mid_mfn) != *top_mfn_p);
+		_ON(virt_to_mfn(mid_mfn) != *top_mfn_p);
 
 		if (mid_mfn == p2m_mid_missing_mfn) {
 			/* Separately check the mid mfn level */
@@ -657,7 +657,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	unsigned int level;
 
 	if (unlikely(pfn >= xen_p2m_size)) {
-		BUG_ON(mfn != INVALID_P2M_ENTRY);
+		_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
 	}
 
@@ -669,7 +669,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 		return true;
 
 	ptep = lookup_address((unsigned long)(xen_p2m_addr + pfn), &level);
-	BUG_ON(!ptep || level != PG_LEVEL_4K);
+	_ON(!ptep || level != PG_LEVEL_4K);
 
 	if (pte_pfn(*ptep) == PFN_DOWN(__pa(p2m_missing)))
 		return mfn == INVALID_P2M_ENTRY;
@@ -769,9 +769,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
 
-#ifdef CONFIG_XEN_DEBUG_FS
-#include <linux/debugfs.h>
-#include "debugfs.h"
+#ifdef CONFIG_XEN_DE_FS
+#include <linux/defs.h>
+#include "defs.h"
 static int p2m_dump_show(struct seq_file *m, void *v)
 {
 	static const char * const type_name[] = {
@@ -811,19 +811,19 @@ static const struct file_operations p2m_dump_fops = {
 	.release	= single_release,
 };
 
-static struct dentry *d_mmu_debug;
+static struct dentry *d_mmu_de;
 
-static int __init xen_p2m_debugfs(void)
+static int __init xen_p2m_defs(void)
 {
-	struct dentry *d_xen = xen_init_debugfs();
+	struct dentry *d_xen = xen_init_defs();
 
 	if (d_xen == NULL)
 		return -ENOMEM;
 
-	d_mmu_debug = debugfs_create_dir("mmu", d_xen);
+	d_mmu_de = defs_create_dir("mmu", d_xen);
 
-	debugfs_create_file("p2m", 0600, d_mmu_debug, NULL, &p2m_dump_fops);
+	defs_create_file("p2m", 0600, d_mmu_de, NULL, &p2m_dump_fops);
 	return 0;
 }
-fs_initcall(xen_p2m_debugfs);
-#endif /* CONFIG_XEN_DEBUG_FS */
+fs_initcall(xen_p2m_defs);
+#endif /* CONFIG_XEN_DE_FS */

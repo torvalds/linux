@@ -5,14 +5,14 @@ Kernel Self-Protection
 Kernel self-protection is the design and implementation of systems and
 structures within the Linux kernel to protect against security flaws in
 the kernel itself. This covers a wide range of issues, including removing
-entire classes of bugs, blocking security flaw exploitation methods,
+entire classes of s, blocking security flaw exploitation methods,
 and actively detecting attack attempts. Not all topics are explored in
 this document, but it should serve as a reasonable starting point and
 answer any frequently asked questions. (Patches welcome, of course!)
 
 In the worst-case scenario, we assume an unprivileged local attacker
 has arbitrary read and write access to the kernel's memory. In many
-cases, bugs being exploited will not provide this level of access,
+cases, s being exploited will not provide this level of access,
 but with systems in place that defend against the worst case we'll
 cover the more limited cases as well. A higher bar, and one that should
 still be kept in mind, is protecting the kernel against a _privileged_
@@ -22,7 +22,7 @@ kernel modules.)
 
 The goals for successful self-protection systems would be that they
 are effective, on by default, require no opt-in by developers, have no
-performance impact, do not impede kernel debugging, and have tests. It
+performance impact, do not impede kernel deging, and have tests. It
 is uncommon that all these goals can be met, but it is worth explicitly
 mentioning them, since these aspects need to be explored, dealt with,
 and/or accepted.
@@ -112,7 +112,7 @@ The "seccomp" system provides an opt-in feature made available to
 userspace, which provides a way to reduce the number of kernel entry
 points available to a running process. This limits the breadth of kernel
 code that can be reached, possibly reducing the availability of a given
-bug to an attack.
+ to an attack.
 
 An area of improvement would be creating viable ways to keep access to
 things like compat, user namespaces, BPF creation, and perf limited only
@@ -162,7 +162,7 @@ the function returns. Other defenses include things like shadow stacks.
 Stack depth overflow
 --------------------
 
-A less well understood attack is using a bug that triggers the
+A less well understood attack is using a  that triggers the
 kernel to consume stack memory with deep function calls or large stack
 allocations. With this attack it is possible to write beyond the end of
 the kernel's preallocated stack space and into sensitive structures. Two
@@ -183,13 +183,13 @@ Counter integrity
 Many places in the kernel use atomic counters to track object references
 or perform similar lifetime management. When these counters can be made
 to wrap (over or under) this traditionally exposes a use-after-free
-flaw. By trapping atomic wrapping, this class of bug vanishes.
+flaw. By trapping atomic wrapping, this class of  vanishes.
 
 Size calculation overflow detection
 -----------------------------------
 
 Similar to counter overflow, integer overflows (usually size calculations)
-need to be detected at runtime to kill this class of bug, which
+need to be detected at runtime to kill this class of , which
 traditionally leads to being able to write past the end of kernel buffers.
 
 
@@ -311,7 +311,7 @@ exposures, heap content exposures, and use-after-free attacks.
 Destination tracking
 --------------------
 
-To help kill classes of bugs that result in kernel addresses being
+To help kill classes of s that result in kernel addresses being
 written to userspace, the destination of writes needs to be tracked. If
 the buffer is destined for userspace (e.g. seq_file backed ``/proc`` files),
 it should automatically censor sensitive values.

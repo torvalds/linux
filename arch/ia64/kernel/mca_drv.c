@@ -165,7 +165,7 @@ mca_handler_bh(unsigned long paddr, void *iip, unsigned long ipsr)
 	spin_lock(&mca_bh_lock);
 	switch (mca_page_isolate(paddr)) {
 	case ISOLATE_OK:
-		printk(KERN_DEBUG "Page isolation: ( %lx ) success.\n", paddr);
+		printk(KERN_DE "Page isolation: ( %lx ) success.\n", paddr);
 		break;
 	case ISOLATE_NG:
 		printk(KERN_CRIT "Page isolation: ( %lx ) failure.\n", paddr);
@@ -628,7 +628,7 @@ recover_from_tlb_check(peidx_table_t *peidx)
 
 	/*
 	 * Look for signature of a duplicate TLB DTC entry, which is
-	 * a SW bug and always fatal.
+	 * a SW  and always fatal.
 	 */
 	if (ptci->op == PAL_TLB_CHECK_OP_PURGE
 	    && !(ptci->itr || ptci->dtc || ptci->itc))

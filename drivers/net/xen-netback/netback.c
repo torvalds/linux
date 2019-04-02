@@ -279,7 +279,7 @@ static int xenvif_count_requests(struct xenvif_queue *queue,
 		 * first->size overflowed and following slots will
 		 * appear to be larger than the frame.
 		 *
-		 * This cannot be fatal error as there are buggy
+		 * This cannot be fatal error as there are gy
 		 * frontends that do this.
 		 *
 		 * Consume all slots and drop the packet.
@@ -414,7 +414,7 @@ static inline void xenvif_grant_handle_set(struct xenvif_queue *queue,
 		netdev_err(queue->vif->dev,
 			   "Trying to overwrite active handle! pending_idx: 0x%x\n",
 			   pending_idx);
-		BUG();
+		();
 	}
 	queue->grant_tx_handle[pending_idx] = handle;
 }
@@ -427,7 +427,7 @@ static inline void xenvif_grant_handle_reset(struct xenvif_queue *queue,
 		netdev_err(queue->vif->dev,
 			   "Trying to unmap invalid handle! pending_idx: 0x%x\n",
 			   pending_idx);
-		BUG();
+		();
 	}
 	queue->grant_tx_handle[pending_idx] = NETBACK_INVALID_HANDLE;
 }
@@ -662,7 +662,7 @@ static int checksum_setup(struct xenvif_queue *queue, struct sk_buff *skb)
 {
 	bool recalculate_partial_csum = false;
 
-	/* A GSO SKB must be CHECKSUM_PARTIAL. However some buggy
+	/* A GSO SKB must be CHECKSUM_PARTIAL. However some gy
 	 * peers can fail to set NETRXF_csum_blank when sending a GSO
 	 * frame. In this case force the SKB to CHECKSUM_PARTIAL and
 	 * recalculate the partial checksum.
@@ -921,7 +921,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 		nskb = NULL;
 		if (skb_shinfo(skb)->nr_frags > MAX_SKB_FRAGS) {
 			frag_overflow = skb_shinfo(skb)->nr_frags - MAX_SKB_FRAGS;
-			BUG_ON(frag_overflow > MAX_SKB_FRAGS);
+			_ON(frag_overflow > MAX_SKB_FRAGS);
 			skb_shinfo(skb)->nr_frags = MAX_SKB_FRAGS;
 			nskb = xenvif_alloc_skb(0);
 			if (unlikely(nskb == NULL)) {
@@ -1049,7 +1049,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		struct page *page;
 		unsigned int len;
 
-		BUG_ON(i >= MAX_SKB_FRAGS);
+		_ON(i >= MAX_SKB_FRAGS);
 		page = alloc_page(GFP_ATOMIC);
 		if (!page) {
 			int j;
@@ -1064,7 +1064,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		else
 			len = skb->len - offset;
 		if (skb_copy_bits(skb, offset, page_address(page), len))
-			BUG();
+			();
 
 		offset += len;
 		frags[i].page.p = page;
@@ -1228,7 +1228,7 @@ void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success)
 	do {
 		u16 pending_idx = ubuf->desc;
 		ubuf = (struct ubuf_info *) ubuf->ctx;
-		BUG_ON(queue->dealloc_prod - queue->dealloc_cons >=
+		_ON(queue->dealloc_prod - queue->dealloc_cons >=
 			MAX_PENDING_REQS);
 		index = pending_index(queue->dealloc_prod);
 		queue->dealloc_ring[index] = pending_idx;
@@ -1267,7 +1267,7 @@ static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
 		smp_rmb();
 
 		while (dc != dp) {
-			BUG_ON(gop - queue->tx_unmap_ops >= MAX_PENDING_REQS);
+			_ON(gop - queue->tx_unmap_ops >= MAX_PENDING_REQS);
 			pending_idx =
 				queue->dealloc_ring[pending_index(dc++)];
 
@@ -1304,7 +1304,7 @@ static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
 						   gop[i].handle,
 						   gop[i].status);
 			}
-			BUG();
+			();
 		}
 	}
 
@@ -1334,7 +1334,7 @@ int xenvif_tx_action(struct xenvif_queue *queue, int budget)
 				      NULL,
 				      queue->pages_to_map,
 				      nr_mops);
-		BUG_ON(ret);
+		_ON(ret);
 	}
 
 	work_done = xenvif_tx_submit(queue);
@@ -1417,7 +1417,7 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 			   tx_unmap_op.host_addr,
 			   tx_unmap_op.handle,
 			   tx_unmap_op.status);
-		BUG();
+		();
 	}
 }
 
@@ -1651,12 +1651,12 @@ static int __init netback_init(void)
 	if (rc)
 		goto failed_init;
 
-#ifdef CONFIG_DEBUG_FS
-	xen_netback_dbg_root = debugfs_create_dir("xen-netback", NULL);
+#ifdef CONFIG_DE_FS
+	xen_netback_dbg_root = defs_create_dir("xen-netback", NULL);
 	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
-		pr_warn("Init of debugfs returned %ld!\n",
+		pr_warn("Init of defs returned %ld!\n",
 			PTR_ERR(xen_netback_dbg_root));
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 	return 0;
 
@@ -1668,9 +1668,9 @@ module_init(netback_init);
 
 static void __exit netback_fini(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(xen_netback_dbg_root);
-#endif /* CONFIG_DEBUG_FS */
+#ifdef CONFIG_DE_FS
+	defs_remove_recursive(xen_netback_dbg_root);
+#endif /* CONFIG_DE_FS */
 	xenvif_xenbus_fini();
 }
 module_exit(netback_fini);

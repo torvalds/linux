@@ -1,9 +1,9 @@
 /*
- * APEI Error Record Serialization Table debug support
+ * APEI Error Record Serialization Table de support
  *
  * ERST is a way provided by APEI to save and retrieve hardware error
  * information to and from a persistent store. This file provide the
- * debugging/testing support for ERST kernel support and firmware
+ * deging/testing support for ERST kernel support and firmware
  * implementation.
  *
  * Copyright 2010 Intel Corp.
@@ -235,5 +235,5 @@ module_init(erst_dbg_init);
 module_exit(erst_dbg_exit);
 
 MODULE_AUTHOR("Huang Ying");
-MODULE_DESCRIPTION("APEI Error Record Serialization Table debug support");
+MODULE_DESCRIPTION("APEI Error Record Serialization Table de support");
 MODULE_LICENSE("GPL");

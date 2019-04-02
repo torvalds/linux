@@ -24,7 +24,7 @@ MODULE_AUTHOR("Brian Bonnlander");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-#ifdef GRIP_DEBUG
+#ifdef GRIP_DE
 #define dbg(format, arg...) printk(KERN_ERR __FILE__ ": " format "\n" , ## arg)
 #else
 #define dbg(format, arg...) do {} while (0)

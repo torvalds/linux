@@ -72,10 +72,10 @@ static void *iwl_mvm_skb_get_hdr(struct sk_buff *skb)
 	u8 *data = skb->data;
 
 	/* Alignment concerns */
-	BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_he) % 4);
-	BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_he_mu) % 4);
-	BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_lsig) % 4);
-	BUILD_BUG_ON(sizeof(struct ieee80211_vendor_radiotap) % 4);
+	BUILD__ON(sizeof(struct ieee80211_radiotap_he) % 4);
+	BUILD__ON(sizeof(struct ieee80211_radiotap_he_mu) % 4);
+	BUILD__ON(sizeof(struct ieee80211_radiotap_lsig) % 4);
+	BUILD__ON(sizeof(struct ieee80211_vendor_radiotap) % 4);
 
 	if (rx_status->flag & RX_FLAG_RADIOTAP_HE)
 		data += sizeof(struct ieee80211_radiotap_he);
@@ -229,7 +229,7 @@ static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
 		return;
 
 	/* ensure alignment */
-	BUILD_BUG_ON((size + 2) % 4);
+	BUILD__ON((size + 2) % 4);
 
 	radiotap = skb_put(skb, size + 2);
 	radiotap->align = 1;
@@ -276,7 +276,7 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 	energy_b = energy_b ? -energy_b : S8_MIN;
 	max_energy = max(energy_a, energy_b);
 
-	IWL_DEBUG_STATS(mvm, "energy In A %d B %d, and max %d\n",
+	IWL_DE_STATS(mvm, "energy In A %d B %d, and max %d\n",
 			energy_a, energy_b, max_energy);
 
 	rx_status->signal = max_energy;
@@ -316,7 +316,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	switch (status & IWL_RX_MPDU_STATUS_SEC_MASK) {
 	case IWL_RX_MPDU_STATUS_SEC_CCM:
 	case IWL_RX_MPDU_STATUS_SEC_GCM:
-		BUILD_BUG_ON(IEEE80211_CCMP_PN_LEN != IEEE80211_GCMP_PN_LEN);
+		BUILD__ON(IEEE80211_CCMP_PN_LEN != IEEE80211_GCMP_PN_LEN);
 		/* alg is CCM: check MIC only */
 		if (!(status & IWL_RX_MPDU_STATUS_MIC_OK))
 			return -1;
@@ -594,7 +594,7 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 		/* SN is set to the last expired frame + 1 */
-		IWL_DEBUG_HT(buf->mvm,
+		IWL_DE_HT(buf->mvm,
 			     "Releasing expired frames for sta %u, sn %d\n",
 			     sta_id, sn);
 		iwl_mvm_event_frame_timeout_callback(buf->mvm, mvmsta->vif,
@@ -739,7 +739,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	baid_data = rcu_dereference(mvm->baid_map[baid]);
 	if (!baid_data) {
-		IWL_DEBUG_RX(mvm,
+		IWL_DE_RX(mvm,
 			     "Got valid BAID but no baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
 			      baid, reorder);
 		return false;
@@ -881,7 +881,7 @@ static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm,
 
 	data = rcu_dereference(mvm->baid_map[baid]);
 	if (!data) {
-		IWL_DEBUG_RX(mvm,
+		IWL_DE_RX(mvm,
 			     "Got valid BAID but no baid allocated, bypass the re-ordering buffer. Baid %d reorder 0x%x\n",
 			      baid, reorder_data);
 		goto out;
@@ -1032,9 +1032,9 @@ iwl_mvm_decode_he_phy_ru_alloc(struct iwl_mvm_rx_phy_data *phy_data,
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_SEC);
 
 #define CHECK_BW(bw) \
-	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_ ## bw ## MHZ != \
+	BUILD__ON(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_ ## bw ## MHZ != \
 		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS); \
-	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_ ## bw ## MHZ != \
+	BUILD__ON(IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_ ## bw ## MHZ != \
 		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS)
 	CHECK_BW(20);
 	CHECK_BW(40);
@@ -1273,7 +1273,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
 
 #define CHECK_TYPE(F)							\
-	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_DATA1_FORMAT_ ## F !=	\
+	BUILD__ON(IEEE80211_RADIOTAP_HE_DATA1_FORMAT_ ## F !=	\
 		     (RATE_MCS_HE_TYPE_ ## F >> RATE_MCS_HE_TYPE_POS))
 
 	CHECK_TYPE(SU);
@@ -1468,7 +1468,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	 */
 	if (!(desc->status & cpu_to_le16(IWL_RX_MPDU_STATUS_CRC_OK)) ||
 	    !(desc->status & cpu_to_le16(IWL_RX_MPDU_STATUS_OVERRUN_OK))) {
-		IWL_DEBUG_RX(mvm, "Bad CRC or FIFO: 0x%08X.\n",
+		IWL_DE_RX(mvm, "Bad CRC or FIFO: 0x%08X.\n",
 			     le16_to_cpu(desc->status));
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
@@ -1822,7 +1822,7 @@ void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	int baid = release->baid;
 
-	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
+	IWL_DE_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
 		     release->baid, le16_to_cpu(release->nssn));
 
 	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID))

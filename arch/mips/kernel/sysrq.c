@@ -12,7 +12,7 @@
 
 #include <asm/cpu-features.h>
 #include <asm/mipsregs.h>
-#include <asm/tlbdebug.h>
+#include <asm/tlbde.h>
 
 /*
  * Dump TLB entries on all CPUs.

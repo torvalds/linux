@@ -147,7 +147,7 @@ terminate_voice(struct snd_emux_voice *vp)
 {
 	struct snd_emu10k1 *hw;
 	
-	if (snd_BUG_ON(!vp))
+	if (snd__ON(!vp))
 		return;
 	hw = vp->hw;
 	snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, 0x807f | DCYSUSV_CHANNELENABLE_MASK);
@@ -328,7 +328,7 @@ start_voice(struct snd_emux_voice *vp)
 	
 	hw = vp->hw;
 	ch = vp->ch;
-	if (snd_BUG_ON(ch < 0))
+	if (snd__ON(ch < 0))
 		return -EINVAL;
 	chan = vp->chan;
 

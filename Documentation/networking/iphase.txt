@@ -104,14 +104,14 @@ Installation
                transmit and receive buffers is less than or equal to the
                total adapter packet memory.   
 
-5.2 Turn on ia debug trace
+5.2 Turn on ia de trace
 
-    When the ia driver is built with the CONFIG_ATM_IA_DEBUG flag, the driver 
-    can provide more debug trace if needed. There is a bit mask variable, 
-    IADebugFlag, which controls the output of the traces. You can find the bit 
-    map of the IADebugFlag in iphase.h. 
-    The debug trace can be turn on through the insmod command line option, for 
-    example, "insmod iphase.o IADebugFlag=0xffffffff" can turn on all the debug 
+    When the ia driver is built with the CONFIG_ATM_IA_DE flag, the driver 
+    can provide more de trace if needed. There is a bit mask variable, 
+    IADeFlag, which controls the output of the traces. You can find the bit 
+    map of the IADeFlag in iphase.h. 
+    The de trace can be turn on through the insmod command line option, for 
+    example, "insmod iphase.o IADeFlag=0xffffffff" can turn on all the de 
     traces together with loading the driver.
 
 6. Ia Driver Test Using ttcp_atm and PVC

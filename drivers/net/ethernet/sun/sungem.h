@@ -31,7 +31,7 @@
 #define GREG_CFG_RXDMALIM	0x000007c0	/* RX DMA grant limit		*/
 #define GREG_CFG_RONPAULBIT	0x00000800	/* Use mem read multiple for PCI read
 						 * after infinite burst (Apple) */
-#define GREG_CFG_ENBUG2FIX	0x00001000	/* Fix Rx hang after overflow */
+#define GREG_CFG_EN2FIX	0x00001000	/* Fix Rx hang after overflow */
 
 /* Global Interrupt Status Register.
  *
@@ -167,7 +167,7 @@
  * zero.  As a result, the TX descriptor table must be 2K aligned.
  */
 
-/* The rest of the TXDMA_* registers are for diagnostics and debug, I will document
+/* The rest of the TXDMA_* registers are for diagnostics and de, I will document
  * them later. -DaveM
  */
 
@@ -293,7 +293,7 @@
  * thresholds.
  */
 
-/* The rest of the RXDMA_* registers are for diagnostics and debug, I will document
+/* The rest of the RXDMA_* registers are for diagnostics and de, I will document
  * them later. -DaveM
  */
 
@@ -772,7 +772,7 @@
 #define PCS_SCTRL_TXZ	0x0000c000	/* PLL input to Serialink	*/
 #define PCS_SCTRL_TXP	0x00030000	/* PLL input to Serialink	*/
 
-/* Shared Output Select Register.  For test and debug, allows multiplexing
+/* Shared Output Select Register.  For test and de, allows multiplexing
  * test outputs into the PROM address pins.  Set to zero for normal
  * operation.
  */

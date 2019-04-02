@@ -13,9 +13,9 @@
 #include "tuner-i2c.h"
 #include "tuner-simple.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 #define TUNER_SIMPLE_MAX 64
 static unsigned int simple_devcount;
@@ -1114,7 +1114,7 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 		tuner_info("type set to %d (%s)\n",
 			   priv->type, priv->tun->name);
 
-	if ((debug) || ((atv_input[priv->nr] > 0) ||
+	if ((de) || ((atv_input[priv->nr] > 0) ||
 			(dtv_input[priv->nr] > 0))) {
 		if (0 == atv_input[priv->nr])
 			tuner_info("tuner %d atv rf input will be autoselected\n",

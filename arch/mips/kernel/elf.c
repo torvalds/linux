@@ -300,7 +300,7 @@ void mips_set_personality_fp(struct arch_elf_state *state)
 		set_thread_fp_mode(0, 0);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -324,7 +324,7 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 			t->thread.fpu.fcr31 |= FPU_CSR_ABS2008;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

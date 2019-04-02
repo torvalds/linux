@@ -13,9 +13,9 @@
 extern const u8 acpi_gbl_resource_aml_sizes[];
 extern const u8 acpi_gbl_resource_aml_serial_bus_sizes[];
 
-/* Strings used by the disassembler and debugger resource dump routines */
+/* Strings used by the disassembler and deger resource dump routines */
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined (ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined (ACPI_DISASSEMBLER) || defined (ACPI_DEGER)
 
 extern const char *acpi_gbl_bm_decode[];
 extern const char *acpi_gbl_config_decode[];
@@ -200,7 +200,7 @@ acpi_status acpi_ut_init_globals(void);
 
 const char *acpi_ut_get_mutex_name(u32 mutex_id);
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
@@ -272,7 +272,7 @@ acpi_status
 acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action);
 
 /*
- * utdebug - Debug interfaces
+ * utde - De interfaces
  */
 void acpi_ut_init_stack_ptr_trace(void);
 
@@ -327,7 +327,7 @@ acpi_ut_str_exit(u32 line_number,
 		 const char *module_name, u32 component_id, const char *string);
 
 void
-acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
+acpi_ut_de_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
 
 void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 offset);
 
@@ -556,7 +556,7 @@ u32 acpi_ut_dword_byte_swap(u32 value);
 
 void acpi_ut_set_integer_width(u8 revision);
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 void
 acpi_ut_display_init_pathname(u8 type,
 			      struct acpi_namespace_node *obj_handle,
@@ -606,7 +606,7 @@ void ut_convert_backslashes(char *pathname);
 
 void acpi_ut_repair_name(char *name);
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
+#if defined (ACPI_DEGER) || defined (ACPI_APPLICATION) || defined (ACPI_DE_OUTPUT)
 u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
 
 void acpi_ut_safe_strncpy(char *dest, char *source, acpi_size dest_size);

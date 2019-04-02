@@ -25,7 +25,7 @@
 #include <linux/pm_runtime.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "cmd.h"
 #include "scan.h"
 #include "acx.h"
@@ -44,7 +44,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	dwork = to_delayed_work(work);
 	wl = container_of(dwork, struct wl1271, scan_complete_work);
 
-	wl1271_debug(DEBUG_SCAN, "Scanning complete");
+	wl1271_de(DE_SCAN, "Scanning complete");
 
 	mutex_lock(&wl->mutex);
 
@@ -234,11 +234,11 @@ wlcore_scan_get_channels(struct wl1271 *wl,
 				 * the passive channel list
 				 */
 				(*n_pactive_ch)++;
-				wl1271_debug(DEBUG_SCAN, "n_pactive_ch = %d",
+				wl1271_de(DE_SCAN, "n_pactive_ch = %d",
 					     *n_pactive_ch);
 			}
 
-			wl1271_debug(DEBUG_SCAN, "freq %d, ch. %d, flags 0x%x, power %d, min/max_dwell %d/%d%s%s",
+			wl1271_de(DE_SCAN, "freq %d, ch. %d, flags 0x%x, power %d, min/max_dwell %d/%d%s%s",
 				     req_channels[i]->center_freq,
 				     req_channels[i]->hw_value,
 				     req_channels[i]->flags,
@@ -331,11 +331,11 @@ wlcore_set_scan_chan_params(struct wl1271 *wl,
 
 	cfg->passive_active = n_pactive_ch;
 
-	wl1271_debug(DEBUG_SCAN, "    2.4GHz: active %d passive %d",
+	wl1271_de(DE_SCAN, "    2.4GHz: active %d passive %d",
 		     cfg->active[0], cfg->passive[0]);
-	wl1271_debug(DEBUG_SCAN, "    5GHz: active %d passive %d",
+	wl1271_de(DE_SCAN, "    5GHz: active %d passive %d",
 		     cfg->active[1], cfg->passive[1]);
-	wl1271_debug(DEBUG_SCAN, "    DFS: %d", cfg->dfs);
+	wl1271_de(DE_SCAN, "    DFS: %d", cfg->dfs);
 
 	return  cfg->passive[0] || cfg->active[0] ||
 		cfg->passive[1] || cfg->active[1] || cfg->dfs ||
@@ -353,7 +353,7 @@ int wlcore_scan(struct wl1271 *wl, struct ieee80211_vif *vif,
 	 * cfg80211 should guarantee that we don't get more channels
 	 * than what we have registered.
 	 */
-	BUG_ON(req->n_channels > WL1271_MAX_CHANNELS);
+	_ON(req->n_channels > WL1271_MAX_CHANNELS);
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE)
 		return -EBUSY;
@@ -391,7 +391,7 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 	struct cfg80211_ssid *ssids = req->ssids;
 	int ret = 0, type, i, j, n_match_ssids = 0;
 
-	wl1271_debug((DEBUG_CMD | DEBUG_SCAN), "cmd sched scan ssid list");
+	wl1271_de((DE_CMD | DE_SCAN), "cmd sched scan ssid list");
 
 	/* count the match sets that contain SSIDs */
 	for (i = 0; i < req->n_match_sets; i++)
@@ -487,7 +487,7 @@ EXPORT_SYMBOL_GPL(wlcore_scan_sched_scan_ssid_list);
 
 void wlcore_scan_sched_scan_results(struct wl1271 *wl)
 {
-	wl1271_debug(DEBUG_SCAN, "got periodic scan results");
+	wl1271_de(DE_SCAN, "got periodic scan results");
 
 	ieee80211_sched_scan_results(wl->hw);
 }

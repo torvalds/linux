@@ -89,7 +89,7 @@ GigaSet 307x Device Driver
 
 	Module	 	Parameter  Meaning
 
-	gigaset	 	debug	   debug level (see section 3.2.)
+	gigaset	 	de	   de level (see section 3.2.)
 
 			startmode  initial operation mode (see section 2.5.):
 	bas_gigaset )		   1=ISDN4linux/CAPI (default), 0=Unimodem
@@ -216,7 +216,7 @@ GigaSet 307x Device Driver
      /etc/modprobe.d/gigaset.conf.
 
      Unimodem mode is needed for making some devices [e.g. SX100] work which
-     do not support the regular Gigaset command set. If debug output (see
+     do not support the regular Gigaset command set. If de output (see
      section 3.2.) shows something like this when dialing:
          CMD Received: ERROR
          Available Params: 0
@@ -334,34 +334,34 @@ GigaSet 307x Device Driver
 
 3.2. Telling the driver to provide more information
      ----------------------------------------------
-     Building the driver with the "Gigaset debugging" kernel configuration
-     option (CONFIG_GIGASET_DEBUG) gives it the ability to produce additional
-     information useful for debugging.
+     Building the driver with the "Gigaset deging" kernel configuration
+     option (CONFIG_GIGASET_DE) gives it the ability to produce additional
+     information useful for deging.
 
-     You can control the amount of debugging information the driver produces by
-     writing an appropriate value to /sys/module/gigaset/parameters/debug, e.g.
-        echo 0 > /sys/module/gigaset/parameters/debug
-     switches off debugging output completely,
-        echo 0x302020 > /sys/module/gigaset/parameters/debug
-     enables a reasonable set of debugging output messages. These values are
-     bit patterns where every bit controls a certain type of debugging output.
-     See the constants DEBUG_* in the source file gigaset.h for details.
+     You can control the amount of deging information the driver produces by
+     writing an appropriate value to /sys/module/gigaset/parameters/de, e.g.
+        echo 0 > /sys/module/gigaset/parameters/de
+     switches off deging output completely,
+        echo 0x302020 > /sys/module/gigaset/parameters/de
+     enables a reasonable set of deging output messages. These values are
+     bit patterns where every bit controls a certain type of deging output.
+     See the constants DE_* in the source file gigaset.h for details.
 
-     The initial value can be set using the debug parameter when loading the
+     The initial value can be set using the de parameter when loading the
      module "gigaset", e.g. by adding a line
-        options gigaset debug=0
+        options gigaset de=0
      to your module configuration file, eg. /etc/modprobe.d/gigaset.conf
 
-     Generated debugging information can be found
+     Generated deging information can be found
      - as output of the command
          dmesg
      - in system log files written by your syslog daemon, usually
        in /var/log/, e.g. /var/log/messages.
 
-3.3. Reporting problems and bugs
+3.3. Reporting problems and s
      ---------------------------
      If you can't solve problems with the driver on your own, feel free to
-     use one of the forums, bug trackers, or mailing lists on
+     use one of the forums,  trackers, or mailing lists on
          https://sourceforge.net/projects/gigaset307x
      or write an electronic mail to the maintainers.
 
@@ -374,7 +374,7 @@ GigaSet 307x Device Driver
        if any)
      - output of "lsusb -v" (if using an USB device)
      - error messages
-     - relevant system log messages (it would help if you activate debug
+     - relevant system log messages (it would help if you activate de
        output as described in 3.2.)
 
      For help with general configuration problems not specific to our driver,

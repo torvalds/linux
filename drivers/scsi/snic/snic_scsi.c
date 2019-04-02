@@ -131,7 +131,7 @@ snic_release_req_buf(struct snic *snic,
 	struct snic_host_req *req = rqi_to_req(rqi);
 
 	/* Freeing cmd without marking completion, not okay */
-	SNIC_BUG_ON(!((CMD_STATE(sc) == SNIC_IOREQ_COMPLETE) ||
+	SNIC__ON(!((CMD_STATE(sc) == SNIC_IOREQ_COMPLETE) ||
 		      (CMD_STATE(sc) == SNIC_IOREQ_ABTS_COMPLETE) ||
 		      (CMD_FLAGS(sc) & SNIC_DEV_RST_NOTSUP) ||
 		      (CMD_FLAGS(sc) & SNIC_IO_INTERNAL_TERM_ISSUED) ||
@@ -385,7 +385,7 @@ snic_proc_tmreq_pending_state(struct snic *snic,
 	else if (state == SNIC_IOREQ_LR_PENDING)
 		CMD_FLAGS(sc) |= SNIC_DEV_RST_PENDING;
 	else
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 
 	switch (cmpl_status) {
 	case SNIC_STAT_IO_SUCCESS:
@@ -397,7 +397,7 @@ snic_proc_tmreq_pending_state(struct snic *snic,
 		break;
 
 	default:
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 	}
 }
 
@@ -604,7 +604,7 @@ snic_icmnd_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 		return;
 	}
 
-	SNIC_BUG_ON(rqi != (struct snic_req_info *)ctx);
+	SNIC__ON(rqi != (struct snic_req_info *)ctx);
 	WARN_ON_ONCE(req);
 	if (!rqi) {
 		atomic64_inc(&snic->s_stats.io.req_null);
@@ -904,7 +904,7 @@ snic_process_itmf_cmpl(struct snic *snic,
 			      cmnd_id,
 			      CMD_FLAGS(sc));
 		ret = -1;
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 
 		break;
 	}
@@ -950,7 +950,7 @@ snic_itmf_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 		SNIC_HOST_ERR(snic->shost,
 			      "Itmf_cmpl: Tag 0x%x out of Range,HdrStat %s\n",
 			      cmnd_id, snic_io_status_to_str(hdr_stat));
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 
 		return;
 	}
@@ -1036,7 +1036,7 @@ snic_hba_reset_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 		SNIC_HOST_ERR(snic->shost,
 			      "reset_cmpl: Tag 0x%x out of Range,HdrStat %s\n",
 			      cmnd_id, snic_io_status_to_str(hdr_stat));
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 
 		return 1;
 	}
@@ -1091,7 +1091,7 @@ ioctl_hba_rst:
 	/* scsi cleanup */
 	snic_hba_reset_scsi_cleanup(snic, sc);
 
-	SNIC_BUG_ON(snic_get_state(snic) != SNIC_OFFLINE &&
+	SNIC__ON(snic_get_state(snic) != SNIC_OFFLINE &&
 		    snic_get_state(snic) != SNIC_FWRESET);
 
 	/* Careful locking between snic_lock and io lock */
@@ -1185,7 +1185,7 @@ snic_aen_handler(struct snic *snic, struct snic_fw_req *fwreq)
 
 	default:
 		SNIC_HOST_INFO(snic->shost, "aen:Unknown Event Recvd.\n");
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 		break;
 	}
 
@@ -1211,7 +1211,7 @@ snic_io_cmpl_handler(struct vnic_dev *vdev,
 		(fwreq->hdr.type <= SNIC_RSP_BOOT_LUNS_CMPL))
 		atomic64_dec(&snic->s_stats.fw.actv_reqs);
 
-	SNIC_BUG_ON((fwreq->hdr.type > SNIC_RSP_BOOT_LUNS_CMPL) &&
+	SNIC__ON((fwreq->hdr.type > SNIC_RSP_BOOT_LUNS_CMPL) &&
 		    (fwreq->hdr.type < SNIC_MSG_ASYNC_EVNOTIFY));
 
 	/* Check for snic subsys errors */
@@ -1257,7 +1257,7 @@ snic_io_cmpl_handler(struct vnic_dev *vdev,
 		break;
 
 	default:
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 		SNIC_SCSI_DBG(snic->shost,
 			      "Unknown Firmware completion request type %d\n",
 			      fwreq->hdr.type);
@@ -1315,8 +1315,8 @@ snic_queue_itmf_req(struct snic *snic,
 	int tm_tag = snic_cmd_tag(sc) | rqi->tm_tag;
 	int ret = 0;
 
-	SNIC_BUG_ON(!rqi);
-	SNIC_BUG_ON(!rqi->tm_tag);
+	SNIC__ON(!rqi);
+	SNIC__ON(!rqi->tm_tag);
 
 	/* fill in lun info */
 	int_to_scsilun(sc->device->lun, &lun);
@@ -1336,7 +1336,7 @@ snic_queue_itmf_req(struct snic *snic,
 	 * In case of multiple aborts on same cmd,
 	 * use try_wait_for_completion and completion_done() to check
 	 * whether it queues aborts even after completion of abort issued
-	 * prior.SNIC_BUG_ON(completion_done(&rqi->done));
+	 * prior.SNIC__ON(completion_done(&rqi->done));
 	 */
 
 	ret = snic_queue_wq_desc(snic, tmreq, sizeof(*tmreq));
@@ -1560,7 +1560,7 @@ snic_send_abort_and_wait(struct snic *snic, struct scsi_cmnd *sc)
 		ret = 0;
 		goto abts_pending;
 	}
-	SNIC_BUG_ON(!rqi->abts_done);
+	SNIC__ON(!rqi->abts_done);
 
 	/* Save Command State, should be restored on failed to Queue. */
 	sv_state = CMD_STATE(sc);
@@ -1783,7 +1783,7 @@ snic_dr_clean_single_req(struct snic *snic,
 	 */
 
 	CMD_STATE(sc) = SNIC_IOREQ_ABTS_PENDING;
-	SNIC_BUG_ON(rqi->abts_done);
+	SNIC__ON(rqi->abts_done);
 
 	if (CMD_FLAGS(sc) & SNIC_DEVICE_RESET) {
 		rqi->tm_tag = SNIC_TAG_DEV_RST;
@@ -2056,7 +2056,7 @@ snic_send_dr_and_wait(struct snic *snic, struct scsi_cmnd *sc)
 	SNIC_SCSI_DBG(snic->shost, "dr: TAG = %x\n", tag);
 
 	rqi->dr_done = &tm_done;
-	SNIC_BUG_ON(!rqi->dr_done);
+	SNIC__ON(!rqi->dr_done);
 
 	spin_unlock_irqrestore(io_lock, flags);
 	/*
@@ -2256,7 +2256,7 @@ snic_issue_hba_reset(struct snic *snic, struct scsi_cmnd *sc)
 
 	io_lock = snic_io_lock_hash(snic, sc);
 	spin_lock_irqsave(io_lock, flags);
-	SNIC_BUG_ON(CMD_SP(sc) != NULL);
+	SNIC__ON(CMD_SP(sc) != NULL);
 	CMD_STATE(sc) = SNIC_IOREQ_PENDING;
 	CMD_SP(sc) = (char *) rqi;
 	CMD_FLAGS(sc) |= SNIC_IO_INITIALIZED;
@@ -2577,7 +2577,7 @@ snic_internal_abort_io(struct snic *snic, struct scsi_cmnd *sc, int tmf)
 
 	SNIC_SCSI_DBG(snic->shost, "internal_abts: Issuing abts tag %x\n",
 		      snic_cmd_tag(sc));
-	SNIC_BUG_ON(rqi->abts_done);
+	SNIC__ON(rqi->abts_done);
 	spin_unlock_irqrestore(io_lock, flags);
 
 	ret = snic_queue_abort_req(snic, rqi, sc, tmf);

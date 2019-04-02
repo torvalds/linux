@@ -137,7 +137,7 @@ static void flip_worker(struct work_struct *w)
 /**
  * drm_flip_work_init - initialize flip-work
  * @work: the flip-work to initialize
- * @name: debug name
+ * @name: de name
  * @func: the callback work function
  *
  * Initializes/allocates resources for the flip-work

@@ -87,7 +87,7 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
-	DRM_DEBUG_DRIVER("Committing plane changes\n");
+	DRM_DE_DRIVER("Committing plane changes\n");
 
 	sunxi_engine_commit(scrtc->engine);
 
@@ -109,7 +109,7 @@ static void sun4i_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
-	DRM_DEBUG_DRIVER("Disabling the CRTC\n");
+	DRM_DE_DRIVER("Disabling the CRTC\n");
 
 	drm_crtc_vblank_off(crtc);
 
@@ -130,7 +130,7 @@ static void sun4i_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
-	DRM_DEBUG_DRIVER("Enabling the CRTC\n");
+	DRM_DE_DRIVER("Enabling the CRTC\n");
 
 	sun4i_tcon_set_status(scrtc->tcon, encoder, true);
 
@@ -159,7 +159,7 @@ static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
-	DRM_DEBUG_DRIVER("Enabling VBLANK on crtc %p\n", crtc);
+	DRM_DE_DRIVER("Enabling VBLANK on crtc %p\n", crtc);
 
 	sun4i_tcon_enable_vblank(scrtc->tcon, true);
 
@@ -170,7 +170,7 @@ static void sun4i_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
-	DRM_DEBUG_DRIVER("Disabling VBLANK on crtc %p\n", crtc);
+	DRM_DE_DRIVER("Disabling VBLANK on crtc %p\n", crtc);
 
 	sun4i_tcon_enable_vblank(scrtc->tcon, false);
 }

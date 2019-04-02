@@ -766,7 +766,7 @@ void rtl8822be_tx_fill_desc(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 	}
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 
-	/* debug purpose: used to check tx desc is correct or not */
+	/* de purpose: used to check tx desc is correct or not */
 	/*rtlpriv->halmac.ops->halmac_chk_txdesc(rtlpriv, pdesc,
 	 *			skb->len + USB_HWDESC_HEADER_LEN);
 	 */

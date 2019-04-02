@@ -2,7 +2,7 @@
 /*
  * Author(s)......: Horst  Hummel    <Horst.Hummel@de.ibm.com>
  *		    Holger Smolinski <Holger.Smolinski@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 2000, 2001
  *
  */
@@ -1312,7 +1312,7 @@ dasd_3990_erp_EOC(struct dasd_ccw_req * default_erp, char *sense)
 	dev_err(&device->cdev->dev,
 		"The cylinder data for accessing the DASD is inconsistent\n");
 
-	/* implement action 7 - BUG */
+	/* implement action 7 -  */
 	return dasd_3990_erp_cleanup(default_erp, DASD_CQR_FAILED);
 
 }				/* end dasd_3990_erp_EOC */
@@ -1896,7 +1896,7 @@ dasd_3990_erp_compound_retry(struct dasd_ccw_req * erp, char *sense)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	erp->function = dasd_3990_erp_compound_retry;
@@ -2131,7 +2131,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 		switch (sense[25]) {
 
 		case 0x00:	/* success - use default ERP for retries */
-			DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+			DBF_DEV_EVENT(DBF_DE, device, "%s",
 				    "ERP called for successful request"
 				    " - just retry");
 			break;
@@ -2733,7 +2733,7 @@ dasd_3990_erp_handle_match_erp(struct dasd_ccw_req *erp_head,
 
 		} else {
 			/* simple retry	  */
-			DBF_DEV_EVENT(DBF_DEBUG, device,
+			DBF_DEV_EVENT(DBF_DE, device,
 				    "%i retries left for erp %p",
 				    erp->retries, erp);
 
@@ -2794,7 +2794,7 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	    (scsw_dstat(&cqr->irb.scsw) ==
 	     (DEV_STAT_CHN_END | DEV_STAT_DEV_END))) {
 
-		DBF_DEV_EVENT(DBF_DEBUG, device,
+		DBF_DEV_EVENT(DBF_DE, device,
 			    "ERP called for successful request %p"
 			    " - NO ERP necessary", cqr);
 

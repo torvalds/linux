@@ -1162,7 +1162,7 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	rc = -EIO;
 	if (generic->error_block_length <
 	    sizeof(struct acpi_hest_generic_status)) {
-		pr_warning(FW_BUG GHES_PFX "Invalid error block length: %u for generic hardware error source: %d\n",
+		pr_warning(FW_ GHES_PFX "Invalid error block length: %u for generic hardware error source: %d\n",
 			   generic->error_block_length,
 			   generic->header.source_id);
 		goto err;
@@ -1218,7 +1218,7 @@ static int ghes_probe(struct platform_device *ghes_dev)
 			goto err;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	platform_set_drvdata(ghes_dev, ghes);
@@ -1281,7 +1281,7 @@ static int ghes_remove(struct platform_device *ghes_dev)
 			return rc;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

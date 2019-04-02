@@ -254,8 +254,8 @@ extern struct qmi_elem_info wlfw_pin_connect_result_ind_msg_v01_ei[];
 
 struct wlfw_wlan_mode_req_msg_v01 {
 	enum wlfw_driver_mode_enum_v01 mode;
-	u8 hw_debug_valid;
-	u8 hw_debug;
+	u8 hw_de_valid;
+	u8 hw_de;
 };
 
 #define WLFW_WLAN_MODE_REQ_MSG_V01_MAX_MSG_LEN 11

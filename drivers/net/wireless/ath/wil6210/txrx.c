@@ -125,7 +125,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct wil_ring *vring)
 
 	wil_dbg_misc(wil, "vring_alloc:\n");
 
-	BUILD_BUG_ON(sizeof(vring->va[0]) != 32);
+	BUILD__ON(sizeof(vring->va[0]) != 32);
 
 	vring->swhead = 0;
 	vring->swtail = 0;
@@ -467,7 +467,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	int i;
 	struct wil_net_stats *stats;
 
-	BUILD_BUG_ON(sizeof(struct skb_rx_info) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct skb_rx_info) > sizeof(skb->cb));
 
 again:
 	if (unlikely(wil_ring_is_empty(vring)))

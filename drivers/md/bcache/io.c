@@ -8,7 +8,7 @@
 
 #include "bcache.h"
 #include "bset.h"
-#include "debug.h"
+#include "de.h"
 
 #include <linux/blkdev.h>
 

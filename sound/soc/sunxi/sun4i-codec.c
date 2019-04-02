@@ -83,7 +83,7 @@
 #define SUN4I_CODEC_DAC_ACTL_PA_MUTE			(6)
 #define SUN4I_CODEC_DAC_ACTL_PA_VOL			(0)
 #define SUN4I_CODEC_DAC_TUNE			(0x14)
-#define SUN4I_CODEC_DAC_DEBUG			(0x18)
+#define SUN4I_CODEC_DAC_DE			(0x18)
 
 /* Codec ADC digital controls and FIFO registers */
 #define SUN4I_CODEC_ADC_FIFOC			(0x1c)
@@ -112,7 +112,7 @@
 #define SUN4I_CODEC_ADC_ACTL_LNPREG			(13)
 #define SUN4I_CODEC_ADC_ACTL_PA_EN			(4)
 #define SUN4I_CODEC_ADC_ACTL_DDE			(3)
-#define SUN4I_CODEC_ADC_DEBUG			(0x2c)
+#define SUN4I_CODEC_ADC_DE			(0x2c)
 
 /* FIFO counters */
 #define SUN4I_CODEC_DAC_TXCNT			(0x30)

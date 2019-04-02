@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Common code for low-level network console, dump, and debugger code
+ * Common code for low-level network console, dump, and deger code
  *
  * Derived from netconsole, kgdb-over-ethernet, and netdump patches
  */

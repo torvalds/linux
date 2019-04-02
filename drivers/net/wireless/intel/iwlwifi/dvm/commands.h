@@ -114,7 +114,7 @@ enum {
 	/* Power Management */
 	POWER_TABLE_CMD = 0x77,
 	PM_SLEEP_NOTIFICATION = 0x7A,
-	PM_DEBUG_STATISTIC_NOTIFIC = 0x7B,
+	PM_DE_STATISTIC_NOTIFIC = 0x7B,
 
 	/* Scan commands and notifications */
 	REPLY_SCAN_CMD = 0x80,
@@ -377,7 +377,7 @@ struct iwl_tx_ant_config_cmd {
  * See comments documenting "BSM" (bootstrap state machine).
  *
  * This response includes two pointers to structures within the device's
- * data SRAM (access via HBUS_TARG_MEM_* regs) that are useful for debugging:
+ * data SRAM (access via HBUS_TARG_MEM_* regs) that are useful for deging:
  *
  * 1)  log_event_table_ptr indicates base of the event log.  This traces
  *     a 256-entry history of uCode execution within a circular buffer.
@@ -2143,7 +2143,7 @@ struct iwl_spectrum_notification {
 struct iwl_powertable_cmd {
 	__le16 flags;
 	u8 keep_alive_seconds;
-	u8 debug_flags;
+	u8 de_flags;
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
@@ -3277,7 +3277,7 @@ struct iwl_led_cmd {
 #define COEX_CU_ASSOC_ACTIVE_LEVEL_RP         4
 #define COEX_CU_RF_ON_RP                      6
 #define COEX_CU_RF_OFF_RP                     4
-#define COEX_CU_STAND_ALONE_DEBUG_RP          6
+#define COEX_CU_STAND_ALONE_DE_RP          6
 #define COEX_CU_IPAN_ASSOC_LEVEL_RP           4
 #define COEX_CU_RSRVD1_RP                     4
 #define COEX_CU_RSRVD2_RP                     4
@@ -3294,7 +3294,7 @@ struct iwl_led_cmd {
 #define COEX_CU_ASSOC_ACTIVE_LEVEL_WP         3
 #define COEX_CU_RF_ON_WP                      3
 #define COEX_CU_RF_OFF_WP                     3
-#define COEX_CU_STAND_ALONE_DEBUG_WP          6
+#define COEX_CU_STAND_ALONE_DE_WP          6
 #define COEX_CU_IPAN_ASSOC_LEVEL_WP           3
 #define COEX_CU_RSRVD1_WP                     3
 #define COEX_CU_RSRVD2_WP                     3
@@ -3328,7 +3328,7 @@ struct iwl_led_cmd {
 #define COEX_ASSOC_ACTIVE_LEVEL_FLAGS               0
 #define COEX_RF_ON_FLAGS                            0
 #define COEX_RF_OFF_FLAGS                           0
-#define COEX_STAND_ALONE_DEBUG_FLAGS		\
+#define COEX_STAND_ALONE_DE_FLAGS		\
 	(COEX_EVT_FLAG_MEDIUM_FREE_NTFY_FLG |	\
 	 COEX_EVT_FLAG_MEDIUM_ACTV_NTFY_FLG)
 #define COEX_IPAN_ASSOC_LEVEL_FLAGS		\
@@ -3365,7 +3365,7 @@ enum {
 	/* RF ON/OFF */
 	COEX_RF_ON			= 10,
 	COEX_RF_OFF			= 11,
-	COEX_STAND_ALONE_DEBUG		= 12,
+	COEX_STAND_ALONE_DE		= 12,
 	/* IPAN */
 	COEX_IPAN_ASSOC_LEVEL		= 13,
 	/* reserved */

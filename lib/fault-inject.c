@@ -155,31 +155,31 @@ fail:
 }
 EXPORT_SYMBOL_GPL(should_fail);
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 
-static int debugfs_ul_set(void *data, u64 val)
+static int defs_ul_set(void *data, u64 val)
 {
 	*(unsigned long *)data = val;
 	return 0;
 }
 
-static int debugfs_ul_get(void *data, u64 *val)
+static int defs_ul_get(void *data, u64 *val)
 {
 	*val = *(unsigned long *)data;
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_ul, debugfs_ul_get, debugfs_ul_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(fops_ul, defs_ul_get, defs_ul_set, "%llu\n");
 
-static struct dentry *debugfs_create_ul(const char *name, umode_t mode,
+static struct dentry *defs_create_ul(const char *name, umode_t mode,
 				struct dentry *parent, unsigned long *value)
 {
-	return debugfs_create_file(name, mode, parent, value, &fops_ul);
+	return defs_create_file(name, mode, parent, value, &fops_ul);
 }
 
 #ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 
-static int debugfs_stacktrace_depth_set(void *data, u64 val)
+static int defs_stacktrace_depth_set(void *data, u64 val)
 {
 	*(unsigned long *)data =
 		min_t(unsigned long, val, MAX_STACK_TRACE_DEPTH);
@@ -187,61 +187,61 @@ static int debugfs_stacktrace_depth_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_stacktrace_depth, debugfs_ul_get,
-			debugfs_stacktrace_depth_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(fops_stacktrace_depth, defs_ul_get,
+			defs_stacktrace_depth_set, "%llu\n");
 
-static struct dentry *debugfs_create_stacktrace_depth(
+static struct dentry *defs_create_stacktrace_depth(
 	const char *name, umode_t mode,
 	struct dentry *parent, unsigned long *value)
 {
-	return debugfs_create_file(name, mode, parent, value,
+	return defs_create_file(name, mode, parent, value,
 				   &fops_stacktrace_depth);
 }
 
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
-struct dentry *fault_create_debugfs_attr(const char *name,
+struct dentry *fault_create_defs_attr(const char *name,
 			struct dentry *parent, struct fault_attr *attr)
 {
 	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 
-	dir = debugfs_create_dir(name, parent);
+	dir = defs_create_dir(name, parent);
 	if (!dir)
 		return ERR_PTR(-ENOMEM);
 
-	if (!debugfs_create_ul("probability", mode, dir, &attr->probability))
+	if (!defs_create_ul("probability", mode, dir, &attr->probability))
 		goto fail;
-	if (!debugfs_create_ul("interval", mode, dir, &attr->interval))
+	if (!defs_create_ul("interval", mode, dir, &attr->interval))
 		goto fail;
-	if (!debugfs_create_atomic_t("times", mode, dir, &attr->times))
+	if (!defs_create_atomic_t("times", mode, dir, &attr->times))
 		goto fail;
-	if (!debugfs_create_atomic_t("space", mode, dir, &attr->space))
+	if (!defs_create_atomic_t("space", mode, dir, &attr->space))
 		goto fail;
-	if (!debugfs_create_ul("verbose", mode, dir, &attr->verbose))
+	if (!defs_create_ul("verbose", mode, dir, &attr->verbose))
 		goto fail;
-	if (!debugfs_create_u32("verbose_ratelimit_interval_ms", mode, dir,
+	if (!defs_create_u32("verbose_ratelimit_interval_ms", mode, dir,
 				&attr->ratelimit_state.interval))
 		goto fail;
-	if (!debugfs_create_u32("verbose_ratelimit_burst", mode, dir,
+	if (!defs_create_u32("verbose_ratelimit_burst", mode, dir,
 				&attr->ratelimit_state.burst))
 		goto fail;
-	if (!debugfs_create_bool("task-filter", mode, dir, &attr->task_filter))
+	if (!defs_create_bool("task-filter", mode, dir, &attr->task_filter))
 		goto fail;
 
 #ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
 
-	if (!debugfs_create_stacktrace_depth("stacktrace-depth", mode, dir,
+	if (!defs_create_stacktrace_depth("stacktrace-depth", mode, dir,
 				&attr->stacktrace_depth))
 		goto fail;
-	if (!debugfs_create_ul("require-start", mode, dir,
+	if (!defs_create_ul("require-start", mode, dir,
 				&attr->require_start))
 		goto fail;
-	if (!debugfs_create_ul("require-end", mode, dir, &attr->require_end))
+	if (!defs_create_ul("require-end", mode, dir, &attr->require_end))
 		goto fail;
-	if (!debugfs_create_ul("reject-start", mode, dir, &attr->reject_start))
+	if (!defs_create_ul("reject-start", mode, dir, &attr->reject_start))
 		goto fail;
-	if (!debugfs_create_ul("reject-end", mode, dir, &attr->reject_end))
+	if (!defs_create_ul("reject-end", mode, dir, &attr->reject_end))
 		goto fail;
 
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
@@ -249,10 +249,10 @@ struct dentry *fault_create_debugfs_attr(const char *name,
 	attr->dname = dget(dir);
 	return dir;
 fail:
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 
 	return ERR_PTR(-ENOMEM);
 }
-EXPORT_SYMBOL_GPL(fault_create_debugfs_attr);
+EXPORT_SYMBOL_GPL(fault_create_defs_attr);
 
-#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+#endif /* CONFIG_FAULT_INJECTION_DE_FS */

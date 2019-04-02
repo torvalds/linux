@@ -356,7 +356,7 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 			reg &= ~EXTIRQ_CFG_BOTHEDGE(irq);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	bcm_perf_writel(reg, regaddr);
@@ -515,7 +515,7 @@ static void bcm63xx_init_irq(void)
 		ext_irq_cfg_reg2 = PERF_EXTIRQ_CFG_REG2_6368;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (irq_bits == 32) {

@@ -41,7 +41,7 @@
 #include "qed_int.h"
 
 /**
- * @brief qed_init_dp - initialize the debug level
+ * @brief qed_init_dp - initialize the de level
  *
  * @param cdev
  * @param dp_module

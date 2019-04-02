@@ -600,7 +600,7 @@ int __hp_sdc_enqueue_transaction(hp_sdc_transaction *this)
 	int i;
 
 	if (this == NULL) {
-		BUG();
+		();
 		return -EINVAL;
 	}
 

@@ -1667,7 +1667,7 @@ static int get_dev_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int set_chip_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	int phy_debug_mode;
+	int phy_de_mode;
 	int retval;
 	u16 reg;
 
@@ -1677,10 +1677,10 @@ static int set_chip_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		return TRANSPORT_FAILED;
 	}
 
-	phy_debug_mode = (int)(srb->cmnd[3]);
+	phy_de_mode = (int)(srb->cmnd[3]);
 
-	if (phy_debug_mode) {
-		chip->phy_debug_mode = 1;
+	if (phy_de_mode) {
+		chip->phy_de_mode = 1;
 		retval = rtsx_write_register(chip, CDRESUMECTL, 0x77, 0);
 		if (retval != STATUS_SUCCESS)
 			return TRANSPORT_FAILED;
@@ -1696,7 +1696,7 @@ static int set_chip_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		if (retval != STATUS_SUCCESS)
 			return TRANSPORT_FAILED;
 	} else {
-		chip->phy_debug_mode = 0;
+		chip->phy_de_mode = 0;
 		retval = rtsx_write_register(chip, CDRESUMECTL, 0x77, 0x77);
 		if (retval != STATUS_SUCCESS)
 			return TRANSPORT_FAILED;

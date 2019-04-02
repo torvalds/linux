@@ -25,7 +25,7 @@ static s8 fix_rssi_inv_only(u8 rssi_val)
 	return (s8) rssi_val;
 }
 
-static void ath_debug_send_fft_sample(struct ath_spec_scan_priv *spec_priv,
+static void ath_de_send_fft_sample(struct ath_spec_scan_priv *spec_priv,
 				      struct fft_sample_tlv *fft_sample_tlv)
 {
 	int length;
@@ -226,7 +226,7 @@ ath_cmn_process_ht20_fft(struct ath_rx_status *rs,
 
 	tlv = (struct fft_sample_tlv *)&fft_sample_20;
 
-	ath_debug_send_fft_sample(spec_priv, tlv);
+	ath_de_send_fft_sample(spec_priv, tlv);
 
 	return 0;
 }
@@ -403,7 +403,7 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 
 	tlv = (struct fft_sample_tlv *)&fft_sample_40;
 
-	ath_debug_send_fft_sample(spec_priv, tlv);
+	ath_de_send_fft_sample(spec_priv, tlv);
 
 	return 0;
 }
@@ -1037,7 +1037,7 @@ static struct dentry *create_buf_file_handler(const char *filename,
 {
 	struct dentry *buf_file;
 
-	buf_file = debugfs_create_file(filename, mode, parent, buf,
+	buf_file = defs_create_file(filename, mode, parent, buf,
 				       &relay_file_operations);
 	if (IS_ERR(buf_file))
 		return NULL;
@@ -1048,7 +1048,7 @@ static struct dentry *create_buf_file_handler(const char *filename,
 
 static int remove_buf_file_handler(struct dentry *dentry)
 {
-	debugfs_remove(dentry);
+	defs_remove(dentry);
 
 	return 0;
 }
@@ -1059,47 +1059,47 @@ static struct rchan_callbacks rfs_spec_scan_cb = {
 };
 
 /*********************/
-/* Debug Init/Deinit */
+/* De Init/Deinit */
 /*********************/
 
-void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
+void ath9k_cmn_spectral_deinit_de(struct ath_spec_scan_priv *spec_priv)
 {
 	if (spec_priv->rfs_chan_spec_scan) {
 		relay_close(spec_priv->rfs_chan_spec_scan);
 		spec_priv->rfs_chan_spec_scan = NULL;
 	}
 }
-EXPORT_SYMBOL(ath9k_cmn_spectral_deinit_debug);
+EXPORT_SYMBOL(ath9k_cmn_spectral_deinit_de);
 
-void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv,
-				   struct dentry *debugfs_phy)
+void ath9k_cmn_spectral_init_de(struct ath_spec_scan_priv *spec_priv,
+				   struct dentry *defs_phy)
 {
 	spec_priv->rfs_chan_spec_scan = relay_open("spectral_scan",
-					    debugfs_phy,
+					    defs_phy,
 					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);
 	if (!spec_priv->rfs_chan_spec_scan)
 		return;
 
-	debugfs_create_file("spectral_scan_ctl",
+	defs_create_file("spectral_scan_ctl",
 			    0600,
-			    debugfs_phy, spec_priv,
+			    defs_phy, spec_priv,
 			    &fops_spec_scan_ctl);
-	debugfs_create_file("spectral_short_repeat",
+	defs_create_file("spectral_short_repeat",
 			    0600,
-			    debugfs_phy, spec_priv,
+			    defs_phy, spec_priv,
 			    &fops_spectral_short_repeat);
-	debugfs_create_file("spectral_count",
+	defs_create_file("spectral_count",
 			    0600,
-			    debugfs_phy, spec_priv,
+			    defs_phy, spec_priv,
 			    &fops_spectral_count);
-	debugfs_create_file("spectral_period",
+	defs_create_file("spectral_period",
 			    0600,
-			    debugfs_phy, spec_priv,
+			    defs_phy, spec_priv,
 			    &fops_spectral_period);
-	debugfs_create_file("spectral_fft_period",
+	defs_create_file("spectral_fft_period",
 			    0600,
-			    debugfs_phy, spec_priv,
+			    defs_phy, spec_priv,
 			    &fops_spectral_fft_period);
 }
-EXPORT_SYMBOL(ath9k_cmn_spectral_init_debug);
+EXPORT_SYMBOL(ath9k_cmn_spectral_init_de);

@@ -108,7 +108,7 @@ enum {
 	L2TP_ATTR_VLAN_ID,		/* u16 (not used) */
 	L2TP_ATTR_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_PEER_COOKIE,		/* 0, 4 or 8 bytes */
-	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags */
+	L2TP_ATTR_DE,		/* u32, enum l2tp_de_flags */
 	L2TP_ATTR_RECV_SEQ,		/* u8 */
 	L2TP_ATTR_SEND_SEQ,		/* u8 */
 	L2TP_ATTR_LNS_MODE,		/* u8 */
@@ -177,15 +177,15 @@ enum l2tp_seqmode {
 };
 
 /**
- * enum l2tp_debug_flags - debug message categories for L2TP tunnels/sessions
+ * enum l2tp_de_flags - de message categories for L2TP tunnels/sessions
  *
- * @L2TP_MSG_DEBUG: verbose debug (if compiled in)
+ * @L2TP_MSG_DE: verbose de (if compiled in)
  * @L2TP_MSG_CONTROL: userspace - kernel interface
  * @L2TP_MSG_SEQ: sequence numbers
  * @L2TP_MSG_DATA: data packets
  */
-enum l2tp_debug_flags {
-	L2TP_MSG_DEBUG		= (1 << 0),
+enum l2tp_de_flags {
+	L2TP_MSG_DE		= (1 << 0),
 	L2TP_MSG_CONTROL	= (1 << 1),
 	L2TP_MSG_SEQ		= (1 << 2),
 	L2TP_MSG_DATA		= (1 << 3),

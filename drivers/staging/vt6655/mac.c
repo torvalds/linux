@@ -351,7 +351,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x10)\n");
+		pr_de(" DBG_PORT80(0x10)\n");
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -359,7 +359,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x11)\n");
+		pr_de(" DBG_PORT80(0x11)\n");
 		return false;
 	}
 
@@ -371,7 +371,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x12)\n");
+		pr_de(" DBG_PORT80(0x12)\n");
 		return false;
 	}
 	return true;
@@ -406,7 +406,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x20)\n");
+		pr_de(" DBG_PORT80(0x20)\n");
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -414,7 +414,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x21)\n");
+		pr_de(" DBG_PORT80(0x21)\n");
 		return false;
 	}
 
@@ -427,7 +427,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x24)\n");
+		pr_de(" DBG_PORT80(0x24)\n");
 		return false;
 	}
 	return true;
@@ -453,12 +453,12 @@ bool MACbSafeStop(struct vnt_private *priv)
 	MACvRegBitsOff(io_base, MAC_REG_TCR, TCR_AUTOBCNTX);
 
 	if (!MACbSafeRxOff(priv)) {
-		pr_debug(" MACbSafeRxOff == false)\n");
+		pr_de(" MACbSafeRxOff == false)\n");
 		MACbSafeSoftwareReset(priv);
 		return false;
 	}
 	if (!MACbSafeTxOff(priv)) {
-		pr_debug(" MACbSafeTxOff == false)\n");
+		pr_de(" MACbSafeTxOff == false)\n");
 		MACbSafeSoftwareReset(priv);
 		return false;
 	}
@@ -662,7 +662,7 @@ void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT)
-		pr_debug(" DBG_PORT80(0x26)\n");
+		pr_de(" DBG_PORT80(0x26)\n");
 	iowrite32(curr_desc_addr, io_base + MAC_REG_AC0DMAPTR);
 	if (org_dma_ctl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_AC0DMACTL);
@@ -766,7 +766,7 @@ bool MACbPSWakeup(struct vnt_private *priv)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x33)\n");
+		pr_de(" DBG_PORT80(0x33)\n");
 		return false;
 	}
 	return true;
@@ -800,7 +800,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	if (byLocalID <= 1)
 		return;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	offset = MISCFIFO_KEYETRY0;
 	offset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
@@ -808,7 +808,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	data |= wKeyCtl;
 	data <<= 16;
 	data |= MAKEWORD(*(pbyAddr + 4), *(pbyAddr + 5));
-	pr_debug("1. offset: %d, Data: %X, KeyCtl:%X\n",
+	pr_de("1. offset: %d, Data: %X, KeyCtl:%X\n",
 		 offset, data, wKeyCtl);
 
 	iowrite16(offset, io_base + MAC_REG_MISCFFNDEX);
@@ -824,7 +824,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	data |= *(pbyAddr + 1);
 	data <<= 8;
 	data |= *pbyAddr;
-	pr_debug("2. offset: %d, Data: %X\n", offset, data);
+	pr_de("2. offset: %d, Data: %X\n", offset, data);
 
 	iowrite16(offset, io_base + MAC_REG_MISCFFNDEX);
 	iowrite32(data, io_base + MAC_REG_MISCFFDATA);
@@ -834,7 +834,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	offset += (uKeyIdx * 4);
 	for (ii = 0; ii < 4; ii++) {
 		/* always push 128 bits */
-		pr_debug("3.(%d) offset: %d, Data: %X\n",
+		pr_de("3.(%d) offset: %d, Data: %X\n",
 			 ii, offset + ii, *pdwKey);
 		iowrite16(offset + ii, io_base + MAC_REG_MISCFFNDEX);
 		iowrite32(*pdwKey++, io_base + MAC_REG_MISCFFDATA);

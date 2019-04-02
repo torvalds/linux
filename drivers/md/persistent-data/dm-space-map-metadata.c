@@ -222,7 +222,7 @@ static int apply_bops(struct sm_metadata *smm)
 
 		r = brb_peek(&smm->uncommitted, &bop);
 		if (r) {
-			DMERR("bug in bop ring buffer");
+			DMERR(" in bop ring buffer");
 			break;
 		}
 

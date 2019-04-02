@@ -40,7 +40,7 @@
  * UBIFS on-flash format version. This version is increased when the on-flash
  * format is changing. If this happens, UBIFS is will support older versions as
  * well. But older UBIFS code will not support newer formats. Format changes
- * will be rare and only when absolutely necessary, e.g. to fix a bug or to add
+ * will be rare and only when absolutely necessary, e.g. to fix a  or to add
  * a new feature.
  *
  * UBIFS went into mainline kernel with format version 4. The older formats

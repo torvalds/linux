@@ -1,7 +1,7 @@
 Module Parameters in fmc.ko
 ***************************
 
-The core driver receives two module parameters, meant to help debugging
+The core driver receives two module parameters, meant to help deging
 client modules. Both parameters can be modified by writing to
 /sys/module/fmc/parameters/, because they are used when client drivers
 are devices are registered, not when fmc.ko is loaded.

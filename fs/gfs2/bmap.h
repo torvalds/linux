@@ -36,7 +36,7 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	unsigned int tmp;
 
-	BUG_ON(gfs2_is_dir(ip));
+	_ON(gfs2_is_dir(ip));
 	*data_blocks = (len >> sdp->sd_sb.sb_bsize_shift) + 3;
 	*ind_blocks = 3 * (sdp->sd_max_height - 1);
 

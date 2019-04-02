@@ -310,26 +310,26 @@ static bool should_fail_futex(bool fshared)
 	return should_fail(&fail_futex.attr, 1);
 }
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 
-static int __init fail_futex_debugfs(void)
+static int __init fail_futex_defs(void)
 {
 	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 
-	dir = fault_create_debugfs_attr("fail_futex", NULL,
+	dir = fault_create_defs_attr("fail_futex", NULL,
 					&fail_futex.attr);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	debugfs_create_bool("ignore-private", mode, dir,
+	defs_create_bool("ignore-private", mode, dir,
 			    &fail_futex.ignore_private);
 	return 0;
 }
 
-late_initcall(fail_futex_debugfs);
+late_initcall(fail_futex_defs);
 
-#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+#endif /* CONFIG_FAULT_INJECTION_DE_FS */
 
 #else
 static inline bool should_fail_futex(bool fshared)
@@ -676,7 +676,7 @@ again:
 		 * pinning the inode in place so i_lock was unnecessary. The
 		 * only way for this check to fail is if the inode was
 		 * truncated in parallel which is almost certainly an
-		 * application bug. In such a case, just retry.
+		 * application . In such a case, just retry.
 		 *
 		 * We are not calling into get_futex_key_refs() in file-backed
 		 * cases, therefore a successful atomic_inc return below will
@@ -2316,7 +2316,7 @@ retry:
 		}
 		__unqueue_futex(q);
 
-		BUG_ON(q->pi_state);
+		_ON(q->pi_state);
 
 		spin_unlock(lock_ptr);
 		ret = 1;
@@ -2336,7 +2336,7 @@ static void unqueue_me_pi(struct futex_q *q)
 {
 	__unqueue_futex(q);
 
-	BUG_ON(!q->pi_state);
+	_ON(!q->pi_state);
 	put_pi_state(q->pi_state);
 	q->pi_state = NULL;
 
@@ -2402,7 +2402,7 @@ retry:
 		 * Since we just failed the trylock; there must be an owner.
 		 */
 		newowner = rt_mutex_owner(&pi_state->pi_mutex);
-		BUG_ON(!newowner);
+		_ON(!newowner);
 	} else {
 		WARN_ON_ONCE(argowner != current);
 		if (oldowner == current) {
@@ -2854,7 +2854,7 @@ retry_private:
 	 * hold it while doing rt_mutex_start_proxy(), because then it will
 	 * include hb->lock in the blocking chain, even through we'll not in
 	 * fact hold it while blocking. This will lead it to report -EDEADLK
-	 * and BUG when futex_unlock_pi() interleaves with this.
+	 * and  when futex_unlock_pi() interleaves with this.
 	 *
 	 * Therefore acquire wait_lock while holding hb->lock, but drop the
 	 * latter before calling __rt_mutex_start_proxy_lock(). This
@@ -3291,7 +3291,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 		if (ret && !rt_mutex_cleanup_proxy_lock(pi_mutex, &rt_waiter))
 			ret = 0;
 
-		debug_rt_mutex_free_waiter(&rt_waiter);
+		de_rt_mutex_free_waiter(&rt_waiter);
 		/*
 		 * Fixup the pi_state owner and possibly acquire the lock if we
 		 * haven't already.

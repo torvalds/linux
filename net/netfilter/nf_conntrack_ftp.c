@@ -141,12 +141,12 @@ static int try_number(const char *data, size_t dlen, u_int32_t array[],
 			if ((*data == term || !term) && i == array_size - 1)
 				return len;
 
-			pr_debug("Char %u (got %u nums) `%u' unexpected\n",
+			pr_de("Char %u (got %u nums) `%u' unexpected\n",
 				 len, i, *data);
 			return 0;
 		}
 	}
-	pr_debug("Failed to fill %u numbers separated by %c\n",
+	pr_de("Failed to fill %u numbers separated by %c\n",
 		 array_size, sep);
 	return 0;
 }
@@ -209,13 +209,13 @@ static int get_port(const char *data, int start, size_t dlen, char delim,
 			if (tmp_port == 0)
 				break;
 			*port = htons(tmp_port);
-			pr_debug("get_port: return %d\n", tmp_port);
+			pr_de("get_port: return %d\n", tmp_port);
 			return i + 1;
 		}
 		else if (data[i] >= '0' && data[i] <= '9')
 			tmp_port = tmp_port*10 + data[i] - '0';
 		else { /* Some other crap */
-			pr_debug("get_port: invalid char.\n");
+			pr_de("get_port: invalid char.\n");
 			break;
 		}
 	}
@@ -232,22 +232,22 @@ static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
 	/* First character is delimiter, then "1" for IPv4 or "2" for IPv6,
 	   then delimiter again. */
 	if (dlen <= 3) {
-		pr_debug("EPRT: too short\n");
+		pr_de("EPRT: too short\n");
 		return 0;
 	}
 	delim = data[0];
 	if (isdigit(delim) || delim < 33 || delim > 126 || data[2] != delim) {
-		pr_debug("try_eprt: invalid delimiter.\n");
+		pr_de("try_eprt: invalid delimiter.\n");
 		return 0;
 	}
 
 	if ((cmd->l3num == PF_INET && data[1] != '1') ||
 	    (cmd->l3num == PF_INET6 && data[1] != '2')) {
-		pr_debug("EPRT: invalid protocol number.\n");
+		pr_de("EPRT: invalid protocol number.\n");
 		return 0;
 	}
 
-	pr_debug("EPRT: Got %c%c%c\n", delim, data[1], delim);
+	pr_de("EPRT: Got %c%c%c\n", delim, data[1], delim);
 
 	if (data[1] == '1') {
 		u_int32_t array[4];
@@ -265,7 +265,7 @@ static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
 
 	if (length == 0)
 		return 0;
-	pr_debug("EPRT: Got IP address!\n");
+	pr_de("EPRT: Got IP address!\n");
 	/* Start offset includes initial "|1|", and trailing delimiter */
 	return get_port(data, 3 + length + 1, dlen, delim, &cmd->u.tcp.port);
 }
@@ -300,7 +300,7 @@ static int find_pattern(const char *data, size_t dlen,
 {
 	size_t i = plen;
 
-	pr_debug("find_pattern `%s': dlen = %zu\n", pattern, dlen);
+	pr_de("find_pattern `%s': dlen = %zu\n", pattern, dlen);
 
 	if (dlen <= plen) {
 		/* Short packet: try for partial? */
@@ -312,7 +312,7 @@ static int find_pattern(const char *data, size_t dlen,
 	if (strncasecmp(data, pattern, plen) != 0)
 		return 0;
 
-	pr_debug("Pattern matches!\n");
+	pr_de("Pattern matches!\n");
 	/* Now we've found the constant string, try to skip
 	   to the 'skip' character */
 	if (skip) {
@@ -323,14 +323,14 @@ static int find_pattern(const char *data, size_t dlen,
 		i++;
 	}
 
-	pr_debug("Skipped up to `%c'!\n", skip);
+	pr_de("Skipped up to `%c'!\n", skip);
 
 	*numoff = i;
 	*numlen = getnum(data + i, dlen - i, cmd, term, numoff);
 	if (!*numlen)
 		return -1;
 
-	pr_debug("Match succeeded!\n");
+	pr_de("Match succeeded!\n");
 	return 1;
 }
 
@@ -395,7 +395,7 @@ static int help(struct sk_buff *skb,
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED &&
 	    ctinfo != IP_CT_ESTABLISHED_REPLY) {
-		pr_debug("ftp: Conntrackinfo = %u\n", ctinfo);
+		pr_de("ftp: Conntrackinfo = %u\n", ctinfo);
 		return NF_ACCEPT;
 	}
 
@@ -406,7 +406,7 @@ static int help(struct sk_buff *skb,
 	dataoff = protoff + th->doff * 4;
 	/* No data? */
 	if (dataoff >= skb->len) {
-		pr_debug("ftp: dataoff(%u) >= skblen(%u)\n", dataoff,
+		pr_de("ftp: dataoff(%u) >= skblen(%u)\n", dataoff,
 			 skb->len);
 		return NF_ACCEPT;
 	}
@@ -414,7 +414,7 @@ static int help(struct sk_buff *skb,
 
 	spin_lock_bh(&nf_ftp_lock);
 	fb_ptr = skb_header_pointer(skb, dataoff, datalen, ftp_buffer);
-	BUG_ON(fb_ptr == NULL);
+	_ON(fb_ptr == NULL);
 
 	ends_in_nl = (fb_ptr[datalen - 1] == '\n');
 	seq = ntohl(th->seq) + datalen;
@@ -428,7 +428,7 @@ static int help(struct sk_buff *skb,
 		}
 
 		/* Now if this ends in \n, update ftp info. */
-		pr_debug("nf_conntrack_ftp: wrong seq pos %s(%u) or %s(%u)\n",
+		pr_de("nf_conntrack_ftp: wrong seq pos %s(%u) or %s(%u)\n",
 			 ct_ftp_info->seq_aft_nl_num[dir] > 0 ? "" : "(UNSET)",
 			 ct_ftp_info->seq_aft_nl[dir][0],
 			 ct_ftp_info->seq_aft_nl_num[dir] > 1 ? "" : "(UNSET)",
@@ -469,7 +469,7 @@ skip_nl_seq:
 		goto out_update_nl;
 	}
 
-	pr_debug("conntrack_ftp: match `%.*s' (%u bytes at %u)\n",
+	pr_de("conntrack_ftp: match `%.*s' (%u bytes at %u)\n",
 		 matchlen, fb_ptr + matchoff,
 		 matchlen, ntohl(th->seq) + matchoff);
 
@@ -494,11 +494,11 @@ skip_nl_seq:
 		   different IP address.  Simply don't record it for
 		   NAT. */
 		if (cmd.l3num == PF_INET) {
-			pr_debug("NOT RECORDING: %pI4 != %pI4\n",
+			pr_de("NOT RECORDING: %pI4 != %pI4\n",
 				 &cmd.u3.ip,
 				 &ct->tuplehash[dir].tuple.src.u3.ip);
 		} else {
-			pr_debug("NOT RECORDING: %pI6 != %pI6\n",
+			pr_de("NOT RECORDING: %pI6 != %pI6\n",
 				 cmd.u3.ip6,
 				 ct->tuplehash[dir].tuple.src.u3.ip6);
 		}
@@ -576,7 +576,7 @@ static int __init nf_conntrack_ftp_init(void)
 {
 	int i, ret = 0;
 
-	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_ftp_master));
+	NF_CT_HELPER_BUILD__ON(sizeof(struct nf_ct_ftp_master));
 
 	ftp_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!ftp_buffer)

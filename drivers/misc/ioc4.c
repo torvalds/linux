@@ -208,7 +208,7 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 		u64 ns = period;
 
 		do_div(ns, IOC4_EXTINT_COUNT_DIVISOR);
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "IOC4 %s: PCI clock is %llu ns.\n",
 		       pci_name(idd->idd_pdev), (unsigned long long)ns);
 	}

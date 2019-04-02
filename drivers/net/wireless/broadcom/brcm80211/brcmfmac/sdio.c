@@ -31,7 +31,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/bcma/bcma.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/vmalloc.h>
 #include <asm/unaligned.h>
 #include <defs.h>
@@ -54,7 +54,7 @@
 #define CY_4373_F2_WATERMARK    0x40
 #define CY_43012_F2_WATERMARK    0x60
 
-#ifdef DEBUG
+#ifdef DE
 
 #define BRCMF_TRAP_INFO_SIZE	80
 
@@ -101,11 +101,11 @@ struct rte_console {
 	char cbuf[CBUF_LEN];
 };
 
-#endif				/* DEBUG */
+#endif				/* DE */
 #include <chipcommon.h>
 
 #include "bus.h"
-#include "debug.h"
+#include "de.h"
 #include "tracepoint.h"
 
 #define TXQLEN		2048	/* bulk tx queue length */
@@ -333,7 +333,7 @@ static uint prio2prec(u32 prio)
 	       (prio^2) : prio;
 }
 
-#ifdef DEBUG
+#ifdef DE
 /* Device console log buffer state */
 struct brcmf_console {
 	uint count;		/* Poll interval msec counter */
@@ -366,7 +366,7 @@ struct brcmf_trap_info {
 	__le32		r14;	/* lr */
 	__le32		pc;	/* r15 */
 };
-#endif				/* DEBUG */
+#endif				/* DE */
 
 struct sdpcm_shared {
 	u32 flags;
@@ -488,11 +488,11 @@ struct brcmf_sdio {
 	uint pollrate;		/* Ticks between device polls */
 	uint polltick;		/* Tick counter */
 
-#ifdef DEBUG
+#ifdef DE
 	uint console_interval;
 	struct brcmf_console console;	/* Console output polling support */
 	uint console_addr;	/* Console address from shared struct */
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	uint clkstate;		/* State of sd and backplane clock(s) */
 	s32 idletime;		/* Control for activity timeout */
@@ -538,9 +538,9 @@ struct brcmf_sdio {
 #define CLK_PENDING	2
 #define CLK_AVAIL	3
 
-#ifdef DEBUG
+#ifdef DE
 static int qcount[NUMPRIO];
-#endif				/* DEBUG */
+#endif				/* DE */
 
 #define DEFAULT_SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
@@ -829,12 +829,12 @@ static int brcmf_sdio_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 		bus->clkstate = CLK_AVAIL;
 		brcmf_dbg(SDIO, "CLKCTL: turned ON\n");
 
-#if defined(DEBUG)
+#if defined(DE)
 		if (!bus->alp_only) {
 			if (SBSDIO_ALPONLY(clkctl))
 				brcmf_err("HT Clock should be on\n");
 		}
-#endif				/* defined (DEBUG) */
+#endif				/* defined (DE) */
 
 	} else {
 		clkreq = 0;
@@ -877,9 +877,9 @@ static int brcmf_sdio_sdclk(struct brcmf_sdio *bus, bool on)
 /* Transition SD and backplane clock readiness */
 static int brcmf_sdio_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 {
-#ifdef DEBUG
+#ifdef DE
 	uint oldstate = bus->clkstate;
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	brcmf_dbg(SDIO, "Enter\n");
 
@@ -915,9 +915,9 @@ static int brcmf_sdio_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 		brcmf_sdio_sdclk(bus, false);
 		break;
 	}
-#ifdef DEBUG
+#ifdef DE
 	brcmf_dbg(SDIO, "%d -> %d\n", oldstate, bus->clkstate);
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	return 0;
 }
@@ -978,7 +978,7 @@ done:
 
 }
 
-#ifdef DEBUG
+#ifdef DE
 static inline bool brcmf_sdio_valid_shared_address(u32 addr)
 {
 	return !(addr == 0 || ((~addr >> 16) & 0xffff) == (addr & 0xffff));
@@ -1064,7 +1064,7 @@ static void brcmf_sdio_get_console_addr(struct brcmf_sdio *bus)
 static void brcmf_sdio_get_console_addr(struct brcmf_sdio *bus)
 {
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 {
@@ -1300,7 +1300,7 @@ static void brcmf_sdio_free_glom(struct brcmf_sdio *bus)
 #define SDPCM_EVENT_CHANNEL		1	/* Asyc Event Indication */
 #define SDPCM_DATA_CHANNEL		2	/* Data Xmit/Recv */
 #define SDPCM_GLOM_CHANNEL		3	/* Coalesced packets */
-#define SDPCM_TEST_CHANNEL		15	/* Test/debug packets */
+#define SDPCM_TEST_CHANNEL		15	/* Test/de packets */
 #define SDPCM_GLOMDESC(p)		(((u8 *)p)[1] & 0x80)
 #define SDPCM_NEXTLEN_MASK		0x00ff0000
 #define SDPCM_NEXTLEN_SHIFT		16
@@ -2556,11 +2556,11 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	if (!bus->sr_enabled && bus->clkstate == CLK_PENDING) {
 		u8 clkctl, devctl = 0;
 
-#ifdef DEBUG
+#ifdef DE
 		/* Check for inconsistent device control */
 		devctl = brcmf_sdiod_readb(bus->sdiodev, SBSDIO_DEVICE_CTL,
 					   &err);
-#endif				/* DEBUG */
+#endif				/* DE */
 
 		/* Read CSR, if clock on switch to AVAIL, else ignore */
 		clkctl = brcmf_sdiod_readb(bus->sdiodev,
@@ -2790,7 +2790,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	}
 	spin_unlock_bh(&bus->txq_lock);
 
-#ifdef DEBUG
+#ifdef DE
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])
 		qcount[prec] = pktq_plen(&bus->txq, prec);
 #endif
@@ -2799,7 +2799,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	return ret;
 }
 
-#ifdef DEBUG
+#ifdef DE
 #define CONSOLE_LINE_MAX	192
 
 static int brcmf_sdio_readconsole(struct brcmf_sdio *bus)
@@ -2870,14 +2870,14 @@ static int brcmf_sdio_readconsole(struct brcmf_sdio *bus)
 			if (line[n - 1] == '\r')
 				n--;
 			line[n] = 0;
-			pr_debug("CONSOLE: %s\n", line);
+			pr_de("CONSOLE: %s\n", line);
 		}
 	}
 break2:
 
 	return 0;
 }
-#endif				/* DEBUG */
+#endif				/* DE */
 
 static int
 brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
@@ -2925,7 +2925,7 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	return ret;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static int brcmf_sdio_dump_console(struct seq_file *seq, struct brcmf_sdio *bus,
 				   struct sdpcm_shared *sh)
 {
@@ -3015,7 +3015,7 @@ static int brcmf_sdio_trap_info(struct seq_file *seq, struct brcmf_sdio *bus,
 			   le32_to_cpu(tr.r4), le32_to_cpu(tr.r5),
 			   le32_to_cpu(tr.r6), le32_to_cpu(tr.r7));
 	else
-		pr_debug("dongle trap info: type 0x%x @ epc 0x%08x\n"
+		pr_de("dongle trap info: type 0x%x @ epc 0x%08x\n"
 			 "  cpsr 0x%08x spsr 0x%08x sp 0x%08x\n"
 			 "  lr   0x%08x pc   0x%08x offset 0x%x\n"
 			 "  r0   0x%08x r1   0x%08x r2 0x%08x r3 0x%08x\n"
@@ -3120,7 +3120,7 @@ static int brcmf_sdio_forensic_read(struct seq_file *seq, void *data)
 	return brcmf_sdio_died_dump(seq, bus);
 }
 
-static int brcmf_debugfs_sdio_count_read(struct seq_file *seq, void *data)
+static int brcmf_defs_sdio_count_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
@@ -3159,23 +3159,23 @@ static int brcmf_debugfs_sdio_count_read(struct seq_file *seq, void *data)
 	return 0;
 }
 
-static void brcmf_sdio_debugfs_create(struct device *dev)
+static void brcmf_sdio_defs_create(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
-	struct dentry *dentry = brcmf_debugfs_get_devdir(drvr);
+	struct dentry *dentry = brcmf_defs_get_devdir(drvr);
 
 	if (IS_ERR_OR_NULL(dentry))
 		return;
 
 	bus->console_interval = BRCMF_CONSOLE;
 
-	brcmf_debugfs_add_entry(drvr, "forensics", brcmf_sdio_forensic_read);
-	brcmf_debugfs_add_entry(drvr, "counters",
-				brcmf_debugfs_sdio_count_read);
-	debugfs_create_u32("console_interval", 0644, dentry,
+	brcmf_defs_add_entry(drvr, "forensics", brcmf_sdio_forensic_read);
+	brcmf_defs_add_entry(drvr, "counters",
+				brcmf_defs_sdio_count_read);
+	defs_create_u32("console_interval", 0644, dentry,
 			   &bus->console_interval);
 }
 #else
@@ -3184,10 +3184,10 @@ static int brcmf_sdio_checkdied(struct brcmf_sdio *bus)
 	return 0;
 }
 
-static void brcmf_sdio_debugfs_create(struct device *dev)
+static void brcmf_sdio_defs_create(struct device *dev)
 {
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static int
 brcmf_sdio_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
@@ -3239,7 +3239,7 @@ brcmf_sdio_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 	return rxlen ? (int)rxlen : -ETIMEDOUT;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static bool
 brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
 			u8 *ram_data, uint ram_sz)
@@ -3284,14 +3284,14 @@ brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
 
 	return ret;
 }
-#else	/* DEBUG */
+#else	/* DE */
 static bool
 brcmf_sdio_verifymemory(struct brcmf_sdio_dev *sdiodev, u32 ram_addr,
 			u8 *ram_data, uint ram_sz)
 {
 	return true;
 }
-#endif	/* DEBUG */
+#endif	/* DE */
 
 static int brcmf_sdio_download_code_file(struct brcmf_sdio *bus,
 					 const struct firmware *fw)
@@ -3657,7 +3657,7 @@ static void brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 		/* Update interrupt tracking */
 		bus->sdcnt.lastintrs = bus->sdcnt.intrcount;
 	}
-#ifdef DEBUG
+#ifdef DE
 	/* Poll for console output periodically */
 	if (bus->sdiodev->state == BRCMF_SDIOD_DATA && BRCMF_FWCON_ON() &&
 	    bus->console_interval != 0) {
@@ -3673,7 +3673,7 @@ static void brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 			sdio_release_host(bus->sdiodev->func1);
 		}
 	}
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	/* On idle timeout clear activity flag and/or turn off clock */
 	if (!bus->dpc_triggered) {
@@ -3903,7 +3903,7 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	sdiodev = bus->sdiodev;
 	sdio_claim_host(sdiodev->func1);
 
-	pr_debug("F1 signature read @0x18000000=0x%4x\n",
+	pr_de("F1 signature read @0x18000000=0x%4x\n",
 		 brcmf_sdiod_readl(sdiodev, SI_ENUM_BASE, NULL));
 
 	/*
@@ -4105,7 +4105,7 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.get_ramsize = brcmf_sdio_bus_get_ramsize,
 	.get_memdump = brcmf_sdio_bus_get_memdump,
 	.get_fwname = brcmf_sdio_get_fwname,
-	.debugfs_create = brcmf_sdio_debugfs_create
+	.defs_create = brcmf_sdio_defs_create
 };
 
 #define BRCMF_SDIO_FW_CODE	0

@@ -6,7 +6,7 @@
  *
  * Author: Alexander Popov <alex.popov@linux.com>
  *
- * STACKLEAK reduces the information which kernel stack leak bugs can
+ * STACKLEAK reduces the information which kernel stack leak s can
  * reveal and blocks some uninitialized stack variable attacks.
  */
 
@@ -123,7 +123,7 @@ void __used notrace stackleak_track_stack(void)
 	 * STACKLEAK_SEARCH_DEPTH makes the poison search in
 	 * stackleak_erase() unreliable. Let's prevent that.
 	 */
-	BUILD_BUG_ON(CONFIG_STACKLEAK_TRACK_MIN_SIZE > STACKLEAK_SEARCH_DEPTH);
+	BUILD__ON(CONFIG_STACKLEAK_TRACK_MIN_SIZE > STACKLEAK_SEARCH_DEPTH);
 
 	if (sp < current->lowest_stack &&
 	    sp >= (unsigned long)task_stack_page(current) +

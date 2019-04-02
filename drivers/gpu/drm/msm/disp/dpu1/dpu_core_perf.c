@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/sort.h>
@@ -62,7 +62,7 @@ static bool _dpu_core_video_mode_intf_connected(struct drm_crtc *crtc)
 	drm_for_each_crtc(tmp_crtc, crtc->dev) {
 		if ((dpu_crtc_get_intf_mode(tmp_crtc) == INTF_MODE_VIDEO) &&
 				tmp_crtc->enabled) {
-			DPU_DEBUG("video interface connected crtc:%d\n",
+			DPU_DE("video interface connected crtc:%d\n",
 				tmp_crtc->base.id);
 			return true;
 		}
@@ -108,7 +108,7 @@ static void _dpu_core_perf_calc_crtc(struct dpu_kms *kms,
 		perf->core_clk_rate = kms->perf.fix_core_clk_rate;
 	}
 
-	DPU_DEBUG(
+	DPU_DE(
 		"crtc=%d clk_rate=%llu core_ib=%llu core_ab=%llu llcc_ib=%llu llcc_ab=%llu mem_ib=%llu mem_ab=%llu\n",
 			crtc->base.id, perf->core_clk_rate,
 			perf->max_per_pipe_ib[DPU_CORE_PERF_DATA_BUS_ID_MNOC],
@@ -164,7 +164,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 				struct dpu_crtc_state *tmp_cstate =
 					to_dpu_crtc_state(tmp_crtc->state);
 
-				DPU_DEBUG("crtc:%d bw:%llu ctrl:%d\n",
+				DPU_DE("crtc:%d bw:%llu ctrl:%d\n",
 					tmp_crtc->base.id,
 					tmp_cstate->new_perf.bw_ctl[i],
 					tmp_cstate->bw_control);
@@ -180,7 +180,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 
 		/* convert bandwidth to kb */
 		bw = DIV_ROUND_UP_ULL(bw_sum_of_intfs, 1000);
-		DPU_DEBUG("calculated bandwidth=%uk\n", bw);
+		DPU_DE("calculated bandwidth=%uk\n", bw);
 
 		is_video_mode = dpu_crtc_get_intf_mode(crtc) == INTF_MODE_VIDEO;
 		threshold = (is_video_mode ||
@@ -188,10 +188,10 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 			kms->catalog->perf.max_bw_low :
 			kms->catalog->perf.max_bw_high;
 
-		DPU_DEBUG("final threshold bw limit = %d\n", threshold);
+		DPU_DE("final threshold bw limit = %d\n", threshold);
 
 		if (!dpu_cstate->bw_control) {
-			DPU_DEBUG("bypass bandwidth check\n");
+			DPU_DE("bypass bandwidth check\n");
 		} else if (!threshold) {
 			DPU_ERROR("no bandwidth limits specified\n");
 			return -E2BIG;
@@ -225,7 +225,7 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 				max(perf.max_per_pipe_ib[bus_id],
 				dpu_cstate->new_perf.max_per_pipe_ib[bus_id]);
 
-			DPU_DEBUG("crtc=%d bus_id=%d bw=%llu\n",
+			DPU_DE("crtc=%d bus_id=%d bw=%llu\n",
 				tmp_crtc->base.id, bus_id,
 				dpu_cstate->new_perf.bw_ctl[bus_id]);
 		}
@@ -282,7 +282,7 @@ void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 	/* Release the bandwidth */
 	if (kms->perf.enable_bw_release) {
 		trace_dpu_cmd_release_bw(crtc->base.id);
-		DPU_DEBUG("Release BW crtc=%d\n", crtc->base.id);
+		DPU_DE("Release BW crtc=%d\n", crtc->base.id);
 		for (i = 0; i < DPU_CORE_PERF_DATA_BUS_ID_MAX; i++) {
 			dpu_crtc->cur_perf.bw_ctl[i] = 0;
 			_dpu_core_perf_crtc_update_bus(kms, crtc, i);
@@ -320,7 +320,7 @@ static u64 _dpu_core_perf_get_core_clk_rate(struct dpu_kms *kms)
 	if (kms->perf.perf_tune.mode == DPU_PERF_MODE_FIXED)
 		clk_rate = kms->perf.fix_core_clk_rate;
 
-	DPU_DEBUG("clk:%llu\n", clk_rate);
+	DPU_DE("clk:%llu\n", clk_rate);
 
 	return clk_rate;
 }
@@ -353,7 +353,7 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 	dpu_crtc = to_dpu_crtc(crtc);
 	dpu_cstate = to_dpu_crtc_state(crtc->state);
 
-	DPU_DEBUG("crtc:%d stop_req:%d core_clk:%llu\n",
+	DPU_DE("crtc:%d stop_req:%d core_clk:%llu\n",
 			crtc->base.id, stop_req, kms->perf.core_clk_rate);
 
 	old = &dpu_crtc->cur_perf;
@@ -376,7 +376,7 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 						old->bw_ctl[i]) ||
 				  (new->max_per_pipe_ib[i] <
 						old->max_per_pipe_ib[i])))) {
-				DPU_DEBUG(
+				DPU_DE(
 					"crtc=%d p=%d new_bw=%llu,old_bw=%llu\n",
 					crtc->base.id, params_changed,
 					new->bw_ctl[i], old->bw_ctl[i]);
@@ -395,7 +395,7 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 			update_clk = 1;
 		}
 	} else {
-		DPU_DEBUG("crtc=%d disable\n", crtc->base.id);
+		DPU_DE("crtc=%d disable\n", crtc->base.id);
 		memset(old, 0, sizeof(*old));
 		memset(new, 0, sizeof(*new));
 		update_bus = ~0;
@@ -436,12 +436,12 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 		}
 
 		kms->perf.core_clk_rate = clk_rate;
-		DPU_DEBUG("update clk rate = %lld HZ\n", clk_rate);
+		DPU_DE("update clk rate = %lld HZ\n", clk_rate);
 	}
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static ssize_t _dpu_core_perf_mode_write(struct file *file,
 		    const char __user *user_buf, size_t count, loff_t *ppos)
@@ -499,39 +499,39 @@ static const struct file_operations dpu_core_perf_mode_fops = {
 	.write = _dpu_core_perf_mode_write,
 };
 
-int dpu_core_perf_debugfs_init(struct dpu_kms *dpu_kms, struct dentry *parent)
+int dpu_core_perf_defs_init(struct dpu_kms *dpu_kms, struct dentry *parent)
 {
 	struct dpu_core_perf *perf = &dpu_kms->perf;
 	struct dpu_mdss_cfg *catalog = perf->catalog;
 	struct dentry *entry;
 
-	entry = debugfs_create_dir("core_perf", parent);
+	entry = defs_create_dir("core_perf", parent);
 	if (IS_ERR_OR_NULL(entry))
 		return -EINVAL;
 
-	debugfs_create_u64("max_core_clk_rate", 0600, entry,
+	defs_create_u64("max_core_clk_rate", 0600, entry,
 			&perf->max_core_clk_rate);
-	debugfs_create_u64("core_clk_rate", 0600, entry,
+	defs_create_u64("core_clk_rate", 0600, entry,
 			&perf->core_clk_rate);
-	debugfs_create_u32("enable_bw_release", 0600, entry,
+	defs_create_u32("enable_bw_release", 0600, entry,
 			(u32 *)&perf->enable_bw_release);
-	debugfs_create_u32("threshold_low", 0600, entry,
+	defs_create_u32("threshold_low", 0600, entry,
 			(u32 *)&catalog->perf.max_bw_low);
-	debugfs_create_u32("threshold_high", 0600, entry,
+	defs_create_u32("threshold_high", 0600, entry,
 			(u32 *)&catalog->perf.max_bw_high);
-	debugfs_create_u32("min_core_ib", 0600, entry,
+	defs_create_u32("min_core_ib", 0600, entry,
 			(u32 *)&catalog->perf.min_core_ib);
-	debugfs_create_u32("min_llcc_ib", 0600, entry,
+	defs_create_u32("min_llcc_ib", 0600, entry,
 			(u32 *)&catalog->perf.min_llcc_ib);
-	debugfs_create_u32("min_dram_ib", 0600, entry,
+	defs_create_u32("min_dram_ib", 0600, entry,
 			(u32 *)&catalog->perf.min_dram_ib);
-	debugfs_create_file("perf_mode", 0600, entry,
+	defs_create_file("perf_mode", 0600, entry,
 			(u32 *)perf, &dpu_core_perf_mode_fops);
-	debugfs_create_u64("fix_core_clk_rate", 0600, entry,
+	defs_create_u64("fix_core_clk_rate", 0600, entry,
 			&perf->fix_core_clk_rate);
-	debugfs_create_u64("fix_core_ib_vote", 0600, entry,
+	defs_create_u64("fix_core_ib_vote", 0600, entry,
 			&perf->fix_core_ib_vote);
-	debugfs_create_u64("fix_core_ab_vote", 0600, entry,
+	defs_create_u64("fix_core_ab_vote", 0600, entry,
 			&perf->fix_core_ab_vote);
 
 	return 0;
@@ -562,7 +562,7 @@ int dpu_core_perf_init(struct dpu_core_perf *perf,
 
 	perf->max_core_clk_rate = core_clk->max_rate;
 	if (!perf->max_core_clk_rate) {
-		DPU_DEBUG("optional max core clk rate, use default\n");
+		DPU_DE("optional max core clk rate, use default\n");
 		perf->max_core_clk_rate = DPU_PERF_DEFAULT_MAX_CORE_CLK_RATE;
 	}
 

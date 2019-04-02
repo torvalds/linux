@@ -616,7 +616,7 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	unsigned int irq;
 	int ino;
 
-	BUG_ON(tlb_type == hypervisor);
+	_ON(tlb_type == hypervisor);
 
 	ino = (upa_readq(imap) & (IMAP_IGN | IMAP_INO)) + inofixup;
 	bucket = &ivector_table[ino];
@@ -739,7 +739,7 @@ static void sysino_set_bucket(unsigned int irq)
 	unsigned long sysino;
 
 	sysino = sun4v_devino_to_sysino(ihd->dev_handle, ihd->dev_ino);
-	BUG_ON(sysino >= nr_ivec);
+	_ON(sysino >= nr_ivec);
 	bucket = &ivector_table[sysino];
 	bucket_set_irq(__pa(bucket), irq);
 }
@@ -1036,7 +1036,7 @@ static void __init init_cpu_send_mondo_info(struct trap_per_cpu *tb)
 	unsigned long page;
 	void *mondo, *p;
 
-	BUILD_BUG_ON((NR_CPUS * sizeof(u16)) > PAGE_SIZE);
+	BUILD__ON((NR_CPUS * sizeof(u16)) > PAGE_SIZE);
 
 	/* Make sure mondo block is 64byte aligned */
 	p = kzalloc(127, GFP_KERNEL);

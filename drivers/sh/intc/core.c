@@ -109,7 +109,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	if (!data[primary])
 		primary ^= 1;
 
-	BUG_ON(!data[primary]); /* must have primary masking method */
+	_ON(!data[primary]); /* must have primary masking method */
 
 	irq_data = irq_get_irq_data(irq);
 
@@ -303,7 +303,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	if (desc->force_enable)
 		intc_enable_disable_enum(desc, d, desc->force_enable, 0);
 
-	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
+	_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
 	intc_irq_domain_init(d, hw);
 

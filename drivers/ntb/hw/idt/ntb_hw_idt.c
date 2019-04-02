@@ -54,7 +54,7 @@
 #include <linux/aer.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/ntb.h>
@@ -269,7 +269,7 @@ static const struct idt_ntb_part partdata_tbl[IDT_MAX_NR_PARTS] = {
 };
 
 /*
- * DebugFS directory to place the driver debug file
+ * DeFS directory to place the driver de file
  */
 static struct dentry *dbgfs_topdir;
 
@@ -300,7 +300,7 @@ static void idt_nt_write(struct idt_ntb_dev *ndev,
 			 const unsigned int reg, const u32 data)
 {
 	/*
-	 * It's obvious bug to request a register exceeding the maximum possible
+	 * It's obvious  to request a register exceeding the maximum possible
 	 * value as well as to have it unaligned.
 	 */
 	if (WARN_ON(reg > IDT_REG_PCI_MAX || !IS_ALIGNED(reg, IDT_REG_ALIGN)))
@@ -322,7 +322,7 @@ static void idt_nt_write(struct idt_ntb_dev *ndev,
 static u32 idt_nt_read(struct idt_ntb_dev *ndev, const unsigned int reg)
 {
 	/*
-	 * It's obvious bug to request a register exceeding the maximum possible
+	 * It's obvious  to request a register exceeding the maximum possible
 	 * value as well as to have it unaligned.
 	 */
 	if (WARN_ON(reg > IDT_REG_PCI_MAX || !IS_ALIGNED(reg, IDT_REG_ALIGN)))
@@ -346,7 +346,7 @@ static void idt_sw_write(struct idt_ntb_dev *ndev,
 	unsigned long irqflags;
 
 	/*
-	 * It's obvious bug to request a register exceeding the maximum possible
+	 * It's obvious  to request a register exceeding the maximum possible
 	 * value as well as to have it unaligned.
 	 */
 	if (WARN_ON(reg > IDT_REG_SW_MAX || !IS_ALIGNED(reg, IDT_REG_ALIGN)))
@@ -379,7 +379,7 @@ static u32 idt_sw_read(struct idt_ntb_dev *ndev, const unsigned int reg)
 	u32 data;
 
 	/*
-	 * It's obvious bug to request a register exceeding the maximum possible
+	 * It's obvious  to request a register exceeding the maximum possible
 	 * value as well as to have it unaligned.
 	 */
 	if (WARN_ON(reg > IDT_REG_SW_MAX || !IS_ALIGNED(reg, IDT_REG_ALIGN)))
@@ -1083,7 +1083,7 @@ static struct idt_mw_cfg *idt_scan_mws(struct idt_ntb_dev *ndev, int port,
 		/* Save configurations of all available memory windows */
 		for (widx = 0; widx < en_cnt; widx++, (*mw_cnt)++) {
 			/*
-			 * IDT can expose a limited number of MWs, so it's bug
+			 * IDT can expose a limited number of MWs, so it's 
 			 * to have more than the driver expects
 			 */
 			if (*mw_cnt >= IDT_MAX_NR_MWS)
@@ -2315,7 +2315,7 @@ static void idt_unregister_device(struct idt_ntb_dev *ndev)
 }
 
 /*=============================================================================
- *                        10. DebugFS node initialization
+ *                        10. DeFS node initialization
  *=============================================================================
  */
 
@@ -2323,7 +2323,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 				   size_t count, loff_t *offp);
 
 /*
- * Driver DebugFS info file operations
+ * Driver DeFS info file operations
  */
 static const struct file_operations idt_dbgfs_info_ops = {
 	.owner = THIS_MODULE,
@@ -2332,7 +2332,7 @@ static const struct file_operations idt_dbgfs_info_ops = {
 };
 
 /*
- * idt_dbgfs_info_read() - DebugFS read info node callback
+ * idt_dbgfs_info_read() - DeFS read info node callback
  * @file:	File node descriptor.
  * @ubuf:	User-space buffer to put data to
  * @count:	Size of the buffer
@@ -2506,7 +2506,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 }
 
 /*
- * idt_init_dbgfs() - initialize DebugFS node
+ * idt_init_dbgfs() - initialize DeFS node
  * @ndev:	IDT NTB hardware driver descriptor
  *
  * Return: zero on success, otherwise a negative error number.
@@ -2517,35 +2517,35 @@ static int idt_init_dbgfs(struct idt_ntb_dev *ndev)
 
 	/* If the top directory is not created then do nothing */
 	if (IS_ERR_OR_NULL(dbgfs_topdir)) {
-		dev_info(&ndev->ntb.pdev->dev, "Top DebugFS directory absent");
+		dev_info(&ndev->ntb.pdev->dev, "Top DeFS directory absent");
 		return PTR_ERR(dbgfs_topdir);
 	}
 
 	/* Create the info file node */
 	snprintf(devname, 64, "info:%s", pci_name(ndev->ntb.pdev));
-	ndev->dbgfs_info = debugfs_create_file(devname, 0400, dbgfs_topdir,
+	ndev->dbgfs_info = defs_create_file(devname, 0400, dbgfs_topdir,
 		ndev, &idt_dbgfs_info_ops);
 	if (IS_ERR(ndev->dbgfs_info)) {
-		dev_dbg(&ndev->ntb.pdev->dev, "Failed to create DebugFS node");
+		dev_dbg(&ndev->ntb.pdev->dev, "Failed to create DeFS node");
 		return PTR_ERR(ndev->dbgfs_info);
 	}
 
-	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DebugFS node created");
+	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DeFS node created");
 
 	return 0;
 }
 
 /*
- * idt_deinit_dbgfs() - deinitialize DebugFS node
+ * idt_deinit_dbgfs() - deinitialize DeFS node
  * @ndev:	IDT NTB hardware driver descriptor
  *
- * Just discard the info node from DebugFS
+ * Just discard the info node from DeFS
  */
 static void idt_deinit_dbgfs(struct idt_ntb_dev *ndev)
 {
-	debugfs_remove(ndev->dbgfs_info);
+	defs_remove(ndev->dbgfs_info);
 
-	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DebugFS node discarded");
+	dev_dbg(&ndev->ntb.pdev->dev, "NTB device DeFS node discarded");
 }
 
 /*=============================================================================
@@ -2804,7 +2804,7 @@ static int idt_pci_probe(struct pci_dev *pdev,
 	if (ret != 0)
 		goto err_deinit_isr;
 
-	/* Initialize DebugFS info node */
+	/* Initialize DeFS info node */
 	(void)idt_init_dbgfs(ndev);
 
 	/* IDT PCIe-switch NTB driver is finally initialized */
@@ -2830,7 +2830,7 @@ static void idt_pci_remove(struct pci_dev *pdev)
 {
 	struct idt_ntb_dev *ndev = pci_get_drvdata(pdev);
 
-	/* Deinit the DebugFS node */
+	/* Deinit the DeFS node */
 	idt_deinit_dbgfs(ndev);
 
 	/* Unregister NTB device */
@@ -2917,9 +2917,9 @@ static int __init idt_pci_driver_init(void)
 {
 	pr_info("%s %s\n", NTB_DESC, NTB_VER);
 
-	/* Create the top DebugFS directory if the FS is initialized */
-	if (debugfs_initialized())
-		dbgfs_topdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	/* Create the top DeFS directory if the FS is initialized */
+	if (defs_initialized())
+		dbgfs_topdir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	/* Register the NTB hardware driver to handle the PCI device */
 	return pci_register_driver(&idt_pci_driver);
@@ -2931,8 +2931,8 @@ static void __exit idt_pci_driver_exit(void)
 	/* Unregister the NTB hardware driver */
 	pci_unregister_driver(&idt_pci_driver);
 
-	/* Discard the top DebugFS directory */
-	debugfs_remove_recursive(dbgfs_topdir);
+	/* Discard the top DeFS directory */
+	defs_remove_recursive(dbgfs_topdir);
 }
 module_exit(idt_pci_driver_exit);
 

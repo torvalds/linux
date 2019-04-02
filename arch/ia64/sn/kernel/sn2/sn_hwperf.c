@@ -137,7 +137,7 @@ static int sn_hwperf_geoid_to_cnode(char *location)
 static int sn_hwperf_obj_to_cnode(struct sn_hwperf_object_info * obj)
 {
 	if (!SN_HWPERF_IS_NODE(obj) && !SN_HWPERF_IS_IONODE(obj))
-		BUG();
+		();
 	if (SN_HWPERF_FOREIGN(obj))
 		return -1;
 	return sn_hwperf_geoid_to_cnode(obj->location);
@@ -275,7 +275,7 @@ static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objb
 
 	/* get it's interconnect topology */
 	sz = op->ports * sizeof(struct sn_hwperf_port_info);
-	BUG_ON(sz > sizeof(ptdata));
+	_ON(sz > sizeof(ptdata));
 	e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
 			      SN_HWPERF_ENUM_PORTS, nodeobj->id, sz,
 			      (u64)&ptdata, 0, 0, NULL);
@@ -309,7 +309,7 @@ static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objb
 	if (router && (!found_cpu || !found_mem)) {
 		/* search for a node connected to the same router */
 		sz = router->ports * sizeof(struct sn_hwperf_port_info);
-		BUG_ON(sz > sizeof(ptdata));
+		_ON(sz > sizeof(ptdata));
 		e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
 				      SN_HWPERF_ENUM_PORTS, router->id, sz,
 				      (u64)&ptdata, 0, 0, NULL);
@@ -407,7 +407,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 		if (ia64_sn_get_sn_info(0,
 			&shubtype, &nasid_mask, &nasid_shift, &system_size,
 			&sharing_size, &partid, &coher, &region_size))
-			BUG();
+			();
 		for (nasid_msb=63; nasid_msb > 0; nasid_msb--) {
 			if (((u64)nasid_mask << nasid_shift) & (1ULL << nasid_msb))
 				break;

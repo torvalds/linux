@@ -129,7 +129,7 @@ static unsigned int __init _intc_prio_data(struct intc_desc *desc,
 				fn = REG_FN_MODIFY_BASE;
 				mode = MODE_PRIO_REG;
 				if (!pr->set_reg)
-					BUG();
+					();
 				reg_e = pr->set_reg;
 				reg_d = pr->set_reg;
 			}
@@ -137,7 +137,7 @@ static unsigned int __init _intc_prio_data(struct intc_desc *desc,
 			fn += (pr->reg_width >> 3) - 1;
 			n = *fld_idx + 1;
 
-			BUG_ON(n * pr->field_width > pr->reg_width);
+			_ON(n * pr->field_width > pr->reg_width);
 
 			bit = pr->reg_width - (n * pr->field_width);
 
@@ -271,7 +271,7 @@ intc_get_sense_handle(struct intc_desc *desc, struct intc_desc_int *d,
 			fn = REG_FN_MODIFY_BASE;
 			fn += (sr->reg_width >> 3) - 1;
 
-			BUG_ON((j + 1) * sr->field_width > sr->reg_width);
+			_ON((j + 1) * sr->field_width > sr->reg_width);
 
 			bit = sr->reg_width - ((j + 1) * sr->field_width);
 

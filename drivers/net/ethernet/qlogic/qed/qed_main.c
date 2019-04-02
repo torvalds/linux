@@ -61,7 +61,7 @@
 #include "qed_reg_addr.h"
 #include "qed_hw.h"
 #include "qed_selftest.h"
-#include "qed_debug.h"
+#include "qed_de.h"
 
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
@@ -1682,7 +1682,7 @@ static void qed_fill_link_capability(struct qed_hwfn *hwfn,
 		break;
 	case MEDIA_UNSPECIFIED:
 	case MEDIA_NOT_PRESENT:
-		DP_VERBOSE(hwfn->cdev, QED_MSG_DEBUG,
+		DP_VERBOSE(hwfn->cdev, QED_MSG_DE,
 			   "Unknown media and transceiver type;\n");
 		break;
 	}

@@ -142,7 +142,7 @@ KMail 1.13.5 (KDE 4.5.4), KMail will apply word wrapping when sending
 the email if the lines wrap in the composer window. Having word wrapping
 disabled in the Options menu isn't enough. Thus, if your patch has very
 long lines, you must make the composer window very wide before sending
-the email. See: https://bugs.kde.org/show_bug.cgi?id=174034
+the email. See: https://s.kde.org/show_.cgi?id=174034
 
 You can safely GPG sign attachments, but inlined text is preferred for
 patches so do not GPG sign them.  Signing patches that have been inserted
@@ -158,7 +158,7 @@ contains the patch from the message list pane, right click and select
 :menuselection:`save as`.  You can use the whole email unmodified as a patch
 if it was properly composed.  There is no option currently to save the email
 when you are actually viewing it in its own window -- there has been a request
-filed at kmail's bugzilla and hopefully this will be addressed.  Emails are
+filed at kmail's zilla and hopefully this will be addressed.  Emails are
 saved as read-write for user only so you will have to chmod them to make them
 group and world readable if you copy them elsewhere.
 
@@ -200,7 +200,7 @@ if you want to include the patch inline.
 You can also generate patches with ``git format-patch`` and then use Mutt
 to send them::
 
-    $ mutt -H 0001-some-bug-fix.patch
+    $ mutt -H 0001-some--fix.patch
 
 Config options:
 

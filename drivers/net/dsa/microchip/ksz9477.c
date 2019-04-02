@@ -1282,7 +1282,7 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 			/* Read from XMII register to determine host port
 			 * interface.  If set specifically in device tree
-			 * note the difference to help debugging.
+			 * note the difference to help deging.
 			 */
 			interface = ksz9477_get_interface(dev, i);
 			if (!dev->interface)

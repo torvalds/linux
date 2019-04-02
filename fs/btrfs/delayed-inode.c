@@ -80,7 +80,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 	if (node) {
 		if (btrfs_inode->delayed_node) {
 			refcount_inc(&node->refs);	/* can be accessed */
-			BUG_ON(btrfs_inode->delayed_node != node);
+			_ON(btrfs_inode->delayed_node != node);
 			spin_unlock(&root->inode_lock);
 			return node;
 		}
@@ -410,7 +410,7 @@ static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
 	else if (action == BTRFS_DELAYED_DELETION_ITEM)
 		root = &delayed_node->del_root;
 	else
-		BUG();
+		();
 	p = &root->rb_root.rb_node;
 	node = &ins->rb_node;
 
@@ -476,8 +476,8 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 
 	delayed_root = delayed_item->delayed_node->root->fs_info->delayed_root;
 
-	BUG_ON(!delayed_root);
-	BUG_ON(delayed_item->ins_or_del != BTRFS_DELAYED_DELETION_ITEM &&
+	_ON(!delayed_root);
+	_ON(delayed_item->ins_or_del != BTRFS_DELAYED_DELETION_ITEM &&
 	       delayed_item->ins_or_del != BTRFS_DELAYED_INSERTION_ITEM);
 
 	if (delayed_item->ins_or_del == BTRFS_DELAYED_INSERTION_ITEM)
@@ -705,7 +705,7 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 	int i;
 	int ret = 0;
 
-	BUG_ON(!path->nodes[0]);
+	_ON(!path->nodes[0]);
 
 	leaf = path->nodes[0];
 	free_space = btrfs_leaf_free_space(fs_info, leaf);
@@ -876,7 +876,7 @@ static int btrfs_batch_delete_items(struct btrfs_trans_handle *trans,
 	int nitems, i, last_item;
 	int ret = 0;
 
-	BUG_ON(!path->nodes[0]);
+	_ON(!path->nodes[0]);
 
 	leaf = path->nodes[0];
 
@@ -978,7 +978,7 @@ static void btrfs_release_delayed_inode(struct btrfs_delayed_node *delayed_node)
 
 	if (delayed_node &&
 	    test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
-		BUG_ON(!delayed_node->root);
+		_ON(!delayed_node->root);
 		clear_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 		delayed_node->count--;
 
@@ -1455,7 +1455,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	 * we have reserved enough space when we start a new transaction,
 	 * so reserving metadata failure is impossible
 	 */
-	BUG_ON(ret);
+	_ON(ret);
 
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
@@ -1464,7 +1464,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 			  "err add delayed dir index item(name: %.*s) into the insertion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
 			  name_len, name, delayed_node->root->root_key.objectid,
 			  delayed_node->inode_id, ret);
-		BUG();
+		();
 	}
 	mutex_unlock(&delayed_node->mutex);
 
@@ -1526,7 +1526,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	 * we have reserved enough space when we start a new transaction,
 	 * so reserving metadata failure is impossible.
 	 */
-	BUG_ON(ret);
+	_ON(ret);
 
 	mutex_lock(&node->mutex);
 	ret = __btrfs_add_delayed_deletion_item(node, item);
@@ -1535,7 +1535,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 			  "err add delayed dir index item(index: %llu) into the deletion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
 			  index, node->root->root_key.objectid,
 			  node->inode_id, ret);
-		BUG();
+		();
 	}
 	mutex_unlock(&node->mutex);
 end:

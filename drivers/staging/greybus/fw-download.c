@@ -308,7 +308,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 
 	/*
 	 * Firmware download must finish within a limited time interval. If it
-	 * doesn't, then we might have a buggy Module on the other side. Abort
+	 * doesn't, then we might have a gy Module on the other side. Abort
 	 * download.
 	 */
 	ret = exceeds_release_timeout(fw_req);

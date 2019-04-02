@@ -62,7 +62,7 @@ u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 	}
 
 	pltsec->plt_count++;
-	BUG_ON(pltsec->plt_count * PLT_ENT_SIZE > pltsec->plt->sh_size);
+	_ON(pltsec->plt_count * PLT_ENT_SIZE > pltsec->plt->sh_size);
 
 	if (!idx)
 		/* Populate a new set of entries */
@@ -115,7 +115,7 @@ static bool is_zero_addend_relocation(Elf32_Addr base, const Elf32_Rel *rel)
 	case R_ARM_JUMP24:
 		return (__mem_to_opcode_arm(*tval) & 0xffffff) == 0xfffffe;
 	}
-	BUG();
+	();
 }
 
 static bool duplicate_rel(Elf32_Addr base, const Elf32_Rel *rel, int num)
@@ -255,7 +255,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 					       sizeof(struct plt_entries));
 	mod->arch.init.plt_count = 0;
 
-	pr_debug("%s: plt=%x, init.plt=%x\n", __func__,
+	pr_de("%s: plt=%x, init.plt=%x\n", __func__,
 		 mod->arch.core.plt->sh_size, mod->arch.init.plt->sh_size);
 	return 0;
 }

@@ -234,8 +234,8 @@ done
 # Test with cpu notifier error injection
 #
 
-DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/cpu
+DEFS=`mount -t defs | head -1 | awk '{ print $3 }'`
+NOTIFIER_ERR_INJECT_DIR=$DEFS/notifier-error-inject/cpu
 
 prerequisite_extra()
 {
@@ -244,8 +244,8 @@ prerequisite_extra()
 	/sbin/modprobe -q -r cpu-notifier-error-inject
 	/sbin/modprobe -q cpu-notifier-error-inject priority=$priority
 
-	if [ ! -d "$DEBUGFS" ]; then
-		echo $msg debugfs is not mounted >&2
+	if [ ! -d "$DEFS" ]; then
+		echo $msg defs is not mounted >&2
 		exit $ksft_skip
 	fi
 

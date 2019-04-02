@@ -64,14 +64,14 @@ int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
 void __ptrace_link(struct task_struct *child, struct task_struct *new_parent,
 		   const struct cred *ptracer_cred)
 {
-	BUG_ON(!list_empty(&child->ptrace_entry));
+	_ON(!list_empty(&child->ptrace_entry));
 	list_add(&child->ptrace_entry, &new_parent->ptraced);
 	child->parent = new_parent;
 	child->ptracer_cred = get_cred(ptracer_cred);
 }
 
 /*
- * ptrace a task: make the debugger its new parent and
+ * ptrace a task: make the deger its new parent and
  * move it to the ptrace list.
  *
  * Must be called with the tasklist lock write-held.
@@ -114,7 +114,7 @@ static void ptrace_link(struct task_struct *child, struct task_struct *new_paren
 void __ptrace_unlink(struct task_struct *child)
 {
 	const struct cred *old_cred;
-	BUG_ON(!child->ptrace);
+	_ON(!child->ptrace);
 
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 

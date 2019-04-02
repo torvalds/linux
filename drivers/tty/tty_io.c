@@ -108,11 +108,11 @@
 #include <linux/kmod.h>
 #include <linux/nsproxy.h>
 
-#undef TTY_DEBUG_HANGUP
-#ifdef TTY_DEBUG_HANGUP
-# define tty_debug_hangup(tty, f, args...)	tty_debug(tty, f, ##args)
+#undef TTY_DE_HANGUP
+#ifdef TTY_DE_HANGUP
+# define tty_de_hangup(tty, f, args...)	tty_de(tty, f, ##args)
 #else
-# define tty_debug_hangup(tty, f, args...)	do { } while (0)
+# define tty_de_hangup(tty, f, args...)	do { } while (0)
 #endif
 
 #define TTY_PARANOIA_CHECK 1
@@ -676,7 +676,7 @@ static void do_tty_hangup(struct work_struct *work)
 
 void tty_hangup(struct tty_struct *tty)
 {
-	tty_debug_hangup(tty, "hangup\n");
+	tty_de_hangup(tty, "hangup\n");
 	schedule_work(&tty->hangup_work);
 }
 
@@ -693,7 +693,7 @@ EXPORT_SYMBOL(tty_hangup);
 
 void tty_vhangup(struct tty_struct *tty)
 {
-	tty_debug_hangup(tty, "vhangup\n");
+	tty_de_hangup(tty, "vhangup\n");
 	__tty_hangup(tty, 0);
 }
 
@@ -730,7 +730,7 @@ void tty_vhangup_self(void)
 
 void tty_vhangup_session(struct tty_struct *tty)
 {
-	tty_debug_hangup(tty, "session hangup\n");
+	tty_de_hangup(tty, "session hangup\n");
 	__tty_hangup(tty, 1);
 }
 
@@ -1033,7 +1033,7 @@ static ssize_t tty_write(struct file *file, const char __user *buf,
 		return -EIO;
 	if (!tty || !tty->ops->write ||	tty_io_error(tty))
 			return -EIO;
-	/* Short term debug to catch buggy drivers */
+	/* Short term de to catch gy drivers */
 	if (tty->ops->write_room == NULL)
 		tty_err(tty, "missing write_room method\n");
 	ld = tty_ldisc_ref_wait(tty);
@@ -1534,7 +1534,7 @@ static int tty_release_checks(struct tty_struct *tty, int idx)
 {
 #ifdef TTY_PARANOIA_CHECK
 	if (idx < 0 || idx >= tty->driver->num) {
-		tty_debug(tty, "bad idx %d\n", idx);
+		tty_de(tty, "bad idx %d\n", idx);
 		return -1;
 	}
 
@@ -1543,7 +1543,7 @@ static int tty_release_checks(struct tty_struct *tty, int idx)
 		return 0;
 
 	if (tty != tty->driver->ttys[idx]) {
-		tty_debug(tty, "bad driver table[%d] = %p\n",
+		tty_de(tty, "bad driver table[%d] = %p\n",
 			  idx, tty->driver->ttys[idx]);
 		return -1;
 	}
@@ -1551,12 +1551,12 @@ static int tty_release_checks(struct tty_struct *tty, int idx)
 		struct tty_struct *o_tty = tty->link;
 
 		if (o_tty != tty->driver->other->ttys[idx]) {
-			tty_debug(tty, "bad other table[%d] = %p\n",
+			tty_de(tty, "bad other table[%d] = %p\n",
 				  idx, tty->driver->other->ttys[idx]);
 			return -1;
 		}
 		if (o_tty->link != tty) {
-			tty_debug(tty, "bad link = %p\n", o_tty->link);
+			tty_de(tty, "bad link = %p\n", o_tty->link);
 			return -1;
 		}
 	}
@@ -1582,7 +1582,7 @@ void tty_kclose(struct tty_struct *tty)
 	/* Wait for pending work before tty destruction commmences */
 	tty_flush_works(tty);
 
-	tty_debug_hangup(tty, "freeing structure\n");
+	tty_de_hangup(tty, "freeing structure\n");
 	/*
 	 * The release_tty function takes care of the details of clearing
 	 * the slots and preserving the termios structure. The tty_unlock_pair
@@ -1614,7 +1614,7 @@ void tty_release_struct(struct tty_struct *tty, int idx)
 	/* Wait for pending work before tty destruction commmences */
 	tty_flush_works(tty);
 
-	tty_debug_hangup(tty, "freeing structure\n");
+	tty_de_hangup(tty, "freeing structure\n");
 	/*
 	 * The release_tty function takes care of the details of clearing
 	 * the slots and preserving the termios structure. The tty_unlock_pair
@@ -1673,7 +1673,7 @@ int tty_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	tty_debug_hangup(tty, "releasing (count=%d)\n", tty->count);
+	tty_de_hangup(tty, "releasing (count=%d)\n", tty->count);
 
 	if (tty->ops->close)
 		tty->ops->close(tty, filp);
@@ -1780,7 +1780,7 @@ int tty_release(struct inode *inode, struct file *filp)
 	if (!final)
 		return 0;
 
-	tty_debug_hangup(tty, "final close\n");
+	tty_de_hangup(tty, "final close\n");
 
 	tty_release_struct(tty, idx);
 	return 0;
@@ -2041,7 +2041,7 @@ retry_open:
 	tty_add_file(tty, filp);
 
 	check_tty_count(tty, __func__);
-	tty_debug_hangup(tty, "opening (count=%d)\n", tty->count);
+	tty_de_hangup(tty, "opening (count=%d)\n", tty->count);
 
 	if (tty->ops->open)
 		retval = tty->ops->open(tty, filp);
@@ -2050,7 +2050,7 @@ retry_open:
 	filp->f_flags = saved_flags;
 
 	if (retval) {
-		tty_debug_hangup(tty, "open error %d, releasing\n", retval);
+		tty_de_hangup(tty, "open error %d, releasing\n", retval);
 
 		tty_unlock(tty); /* need to call tty_release without BTM */
 		tty_release(inode, filp);
@@ -2879,7 +2879,7 @@ static int this_tty(const void *t, struct file *file, unsigned fd)
  * it doesn't catch files in flight. We may send the descriptor to ourselves
  * via AF_UNIX socket, close it and later fetch from socket. FIXME.
  *
- * Nasty bug: do_SAK is being called in interrupt context.  This can
+ * Nasty : do_SAK is being called in interrupt context.  This can
  * deadlock.  We punt it up to process context.  AKPM - 16Mar2001
  */
 void __do_SAK(struct tty_struct *tty)

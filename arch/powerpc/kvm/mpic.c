@@ -247,12 +247,12 @@ static void mpic_irq_raise(struct openpic *opp, struct irq_dest *dst,
 	};
 
 	if (!dst->vcpu) {
-		pr_debug("%s: destination cpu %d does not exist\n",
+		pr_de("%s: destination cpu %d does not exist\n",
 			 __func__, (int)(dst - &opp->dst[0]));
 		return;
 	}
 
-	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->arch.irq_cpu_id,
+	pr_de("%s: cpu %d output %d\n", __func__, dst->vcpu->arch.irq_cpu_id,
 		output);
 
 	if (output != ILR_INTTGT_INT)	/* TODO */
@@ -265,12 +265,12 @@ static void mpic_irq_lower(struct openpic *opp, struct irq_dest *dst,
 			   int output)
 {
 	if (!dst->vcpu) {
-		pr_debug("%s: destination cpu %d does not exist\n",
+		pr_de("%s: destination cpu %d does not exist\n",
 			 __func__, (int)(dst - &opp->dst[0]));
 		return;
 	}
 
-	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->arch.irq_cpu_id,
+	pr_de("%s: cpu %d output %d\n", __func__, dst->vcpu->arch.irq_cpu_id,
 		output);
 
 	if (output != ILR_INTTGT_INT)	/* TODO */
@@ -300,7 +300,7 @@ static void IRQ_check(struct openpic *opp, struct irq_queue *q)
 		if (irq == opp->max_irq)
 			break;
 
-		pr_debug("IRQ_check: irq %d set ivpr_pr=%d pr=%d\n",
+		pr_de("IRQ_check: irq %d set ivpr_pr=%d pr=%d\n",
 			irq, IVPR_PRIORITY(opp->src[irq].ivpr), priority);
 
 		if (IVPR_PRIORITY(opp->src[irq].ivpr) > priority) {
@@ -331,11 +331,11 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 	dst = &opp->dst[n_CPU];
 	src = &opp->src[n_IRQ];
 
-	pr_debug("%s: IRQ %d active %d was %d\n",
+	pr_de("%s: IRQ %d active %d was %d\n",
 		__func__, n_IRQ, active, was_active);
 
 	if (src->output != ILR_INTTGT_INT) {
-		pr_debug("%s: output %d irq %d active %d was %d count %d\n",
+		pr_de("%s: output %d irq %d active %d was %d count %d\n",
 			__func__, src->output, n_IRQ, active, was_active,
 			dst->outputs_active[src->output]);
 
@@ -346,14 +346,14 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 		if (active) {
 			if (!was_active &&
 			    dst->outputs_active[src->output]++ == 0) {
-				pr_debug("%s: Raise OpenPIC output %d cpu %d irq %d\n",
+				pr_de("%s: Raise OpenPIC output %d cpu %d irq %d\n",
 					__func__, src->output, n_CPU, n_IRQ);
 				mpic_irq_raise(opp, dst, src->output);
 			}
 		} else {
 			if (was_active &&
 			    --dst->outputs_active[src->output] == 0) {
-				pr_debug("%s: Lower OpenPIC output %d cpu %d irq %d\n",
+				pr_de("%s: Lower OpenPIC output %d cpu %d irq %d\n",
 					__func__, src->output, n_CPU, n_IRQ);
 				mpic_irq_lower(opp, dst, src->output);
 			}
@@ -375,7 +375,7 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 	IRQ_check(opp, &dst->raised);
 
 	if (active && priority <= dst->ctpr) {
-		pr_debug("%s: IRQ %d priority %d too low for ctpr %d on CPU %d\n",
+		pr_de("%s: IRQ %d priority %d too low for ctpr %d on CPU %d\n",
 			__func__, n_IRQ, priority, dst->ctpr, n_CPU);
 		active = 0;
 	}
@@ -383,10 +383,10 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 	if (active) {
 		if (IRQ_get_next(opp, &dst->servicing) >= 0 &&
 		    priority <= dst->servicing.priority) {
-			pr_debug("%s: IRQ %d is hidden by servicing IRQ %d on CPU %d\n",
+			pr_de("%s: IRQ %d is hidden by servicing IRQ %d on CPU %d\n",
 				__func__, n_IRQ, dst->servicing.next, n_CPU);
 		} else {
-			pr_debug("%s: Raise OpenPIC INT output cpu %d irq %d/%d\n",
+			pr_de("%s: Raise OpenPIC INT output cpu %d irq %d/%d\n",
 				__func__, n_CPU, n_IRQ, dst->raised.next);
 			mpic_irq_raise(opp, dst, ILR_INTTGT_INT);
 		}
@@ -394,13 +394,13 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 		IRQ_get_next(opp, &dst->servicing);
 		if (dst->raised.priority > dst->ctpr &&
 		    dst->raised.priority > dst->servicing.priority) {
-			pr_debug("%s: IRQ %d inactive, IRQ %d prio %d above %d/%d, CPU %d\n",
+			pr_de("%s: IRQ %d inactive, IRQ %d prio %d above %d/%d, CPU %d\n",
 				__func__, n_IRQ, dst->raised.next,
 				dst->raised.priority, dst->ctpr,
 				dst->servicing.priority, n_CPU);
 			/* IRQ line stays asserted */
 		} else {
-			pr_debug("%s: IRQ %d inactive, current prio %d/%d, CPU %d\n",
+			pr_de("%s: IRQ %d inactive, current prio %d/%d, CPU %d\n",
 				__func__, n_IRQ, dst->ctpr,
 				dst->servicing.priority, n_CPU);
 			mpic_irq_lower(opp, dst, ILR_INTTGT_INT);
@@ -420,7 +420,7 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 
 	if ((src->ivpr & IVPR_MASK_MASK) && !src->nomask) {
 		/* Interrupt source is disabled */
-		pr_debug("%s: IRQ %d is disabled\n", __func__, n_IRQ);
+		pr_de("%s: IRQ %d is disabled\n", __func__, n_IRQ);
 		active = false;
 	}
 
@@ -431,7 +431,7 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 	 * ctpr may have changed and we need to withdraw the interrupt.
 	 */
 	if (!active && !was_active) {
-		pr_debug("%s: IRQ %d is already inactive\n", __func__, n_IRQ);
+		pr_de("%s: IRQ %d is already inactive\n", __func__, n_IRQ);
 		return;
 	}
 
@@ -442,7 +442,7 @@ static void openpic_update_irq(struct openpic *opp, int n_IRQ)
 
 	if (src->destmask == 0) {
 		/* No target */
-		pr_debug("%s: IRQ %d has no target\n", __func__, n_IRQ);
+		pr_de("%s: IRQ %d has no target\n", __func__, n_IRQ);
 		return;
 	}
 
@@ -484,7 +484,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 	}
 
 	src = &opp->src[n_IRQ];
-	pr_debug("openpic: set irq %d = %d ivpr=0x%08x\n",
+	pr_de("openpic: set irq %d = %d ivpr=0x%08x\n",
 		n_IRQ, level, src->ivpr);
 	if (src->level) {
 		/* level-sensitive irq */
@@ -593,12 +593,12 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 	}
 
 	src->idr = val & mask;
-	pr_debug("Set IDR %d to 0x%08x\n", n_IRQ, src->idr);
+	pr_de("Set IDR %d to 0x%08x\n", n_IRQ, src->idr);
 
 	if (opp->flags & OPENPIC_FLAG_IDR_CRIT) {
 		if (src->idr & crit_mask) {
 			if (src->idr & normal_mask) {
-				pr_debug("%s: IRQ configured for multiple output types, using critical\n",
+				pr_de("%s: IRQ configured for multiple output types, using critical\n",
 					__func__);
 			}
 
@@ -629,7 +629,7 @@ static inline void write_IRQreg_ilr(struct openpic *opp, int n_IRQ,
 		struct irq_source *src = &opp->src[n_IRQ];
 
 		src->output = val & ILR_INTTGT_MASK;
-		pr_debug("Set ILR %d to 0x%08x, output %d\n", n_IRQ, src->idr,
+		pr_de("Set ILR %d to 0x%08x, output %d\n", n_IRQ, src->idr,
 			src->output);
 
 		/* TODO: on MPIC v4.0 only, set nomask for non-INT */
@@ -671,7 +671,7 @@ static inline void write_IRQreg_ivpr(struct openpic *opp, int n_IRQ,
 	}
 
 	openpic_update_irq(opp, n_IRQ);
-	pr_debug("Set IVPR %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
+	pr_de("Set IVPR %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
 		opp->src[n_IRQ].ivpr);
 }
 
@@ -691,7 +691,7 @@ static int openpic_gbl_write(void *opaque, gpa_t addr, u32 val)
 	struct openpic *opp = opaque;
 	int err = 0;
 
-	pr_debug("%s: addr %#llx <= %08x\n", __func__, addr, val);
+	pr_de("%s: addr %#llx <= %08x\n", __func__, addr, val);
 	if (addr & 0xF)
 		return 0;
 
@@ -748,7 +748,7 @@ static int openpic_gbl_read(void *opaque, gpa_t addr, u32 *ptr)
 	u32 retval;
 	int err = 0;
 
-	pr_debug("%s: addr %#llx\n", __func__, addr);
+	pr_de("%s: addr %#llx\n", __func__, addr);
 	retval = 0xFFFFFFFF;
 	if (addr & 0xF)
 		goto out;
@@ -799,7 +799,7 @@ static int openpic_gbl_read(void *opaque, gpa_t addr, u32 *ptr)
 	}
 
 out:
-	pr_debug("%s: => 0x%08x\n", __func__, retval);
+	pr_de("%s: => 0x%08x\n", __func__, retval);
 	*ptr = retval;
 	return err;
 }
@@ -811,7 +811,7 @@ static int openpic_tmr_write(void *opaque, gpa_t addr, u32 val)
 
 	addr += 0x10f0;
 
-	pr_debug("%s: addr %#llx <= %08x\n", __func__, addr, val);
+	pr_de("%s: addr %#llx <= %08x\n", __func__, addr, val);
 	if (addr & 0xF)
 		return 0;
 
@@ -852,7 +852,7 @@ static int openpic_tmr_read(void *opaque, gpa_t addr, u32 *ptr)
 	uint32_t retval = -1;
 	int idx;
 
-	pr_debug("%s: addr %#llx\n", __func__, addr);
+	pr_de("%s: addr %#llx\n", __func__, addr);
 	if (addr & 0xF)
 		goto out;
 
@@ -879,7 +879,7 @@ static int openpic_tmr_read(void *opaque, gpa_t addr, u32 *ptr)
 	}
 
 out:
-	pr_debug("%s: => 0x%08x\n", __func__, retval);
+	pr_de("%s: => 0x%08x\n", __func__, retval);
 	*ptr = retval;
 	return 0;
 }
@@ -889,7 +889,7 @@ static int openpic_src_write(void *opaque, gpa_t addr, u32 val)
 	struct openpic *opp = opaque;
 	int idx;
 
-	pr_debug("%s: addr %#llx <= %08x\n", __func__, addr, val);
+	pr_de("%s: addr %#llx <= %08x\n", __func__, addr, val);
 
 	addr = addr & 0xffff;
 	idx = addr >> 5;
@@ -915,7 +915,7 @@ static int openpic_src_read(void *opaque, gpa_t addr, u32 *ptr)
 	uint32_t retval;
 	int idx;
 
-	pr_debug("%s: addr %#llx\n", __func__, addr);
+	pr_de("%s: addr %#llx\n", __func__, addr);
 	retval = 0xFFFFFFFF;
 
 	addr = addr & 0xffff;
@@ -933,7 +933,7 @@ static int openpic_src_read(void *opaque, gpa_t addr, u32 *ptr)
 		break;
 	}
 
-	pr_debug("%s: => 0x%08x\n", __func__, retval);
+	pr_de("%s: => 0x%08x\n", __func__, retval);
 	*ptr = retval;
 	return 0;
 }
@@ -944,7 +944,7 @@ static int openpic_msi_write(void *opaque, gpa_t addr, u32 val)
 	int idx = opp->irq_msi;
 	int srs, ibs;
 
-	pr_debug("%s: addr %#llx <= 0x%08x\n", __func__, addr, val);
+	pr_de("%s: addr %#llx <= 0x%08x\n", __func__, addr, val);
 	if (addr & 0xF)
 		return 0;
 
@@ -970,7 +970,7 @@ static int openpic_msi_read(void *opaque, gpa_t addr, u32 *ptr)
 	uint32_t r = 0;
 	int i, srs;
 
-	pr_debug("%s: addr %#llx\n", __func__, addr);
+	pr_de("%s: addr %#llx\n", __func__, addr);
 	if (addr & 0xF)
 		return -ENXIO;
 
@@ -996,7 +996,7 @@ static int openpic_msi_read(void *opaque, gpa_t addr, u32 *ptr)
 		break;
 	}
 
-	pr_debug("%s: => 0x%08x\n", __func__, r);
+	pr_de("%s: => 0x%08x\n", __func__, r);
 	*ptr = r;
 	return 0;
 }
@@ -1005,7 +1005,7 @@ static int openpic_summary_read(void *opaque, gpa_t addr, u32 *ptr)
 {
 	uint32_t r = 0;
 
-	pr_debug("%s: addr %#llx\n", __func__, addr);
+	pr_de("%s: addr %#llx\n", __func__, addr);
 
 	/* TODO: EISR/EIMR */
 
@@ -1015,7 +1015,7 @@ static int openpic_summary_read(void *opaque, gpa_t addr, u32 *ptr)
 
 static int openpic_summary_write(void *opaque, gpa_t addr, u32 val)
 {
-	pr_debug("%s: addr %#llx <= 0x%08x\n", __func__, addr, val);
+	pr_de("%s: addr %#llx <= 0x%08x\n", __func__, addr, val);
 
 	/* TODO: EISR/EIMR */
 	return 0;
@@ -1029,7 +1029,7 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 	struct irq_dest *dst;
 	int s_IRQ, n_IRQ;
 
-	pr_debug("%s: cpu %d addr %#llx <= 0x%08x\n", __func__, idx,
+	pr_de("%s: cpu %d addr %#llx <= 0x%08x\n", __func__, idx,
 		addr, val);
 
 	if (idx < 0)
@@ -1054,16 +1054,16 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 	case 0x80:		/* CTPR */
 		dst->ctpr = val & 0x0000000F;
 
-		pr_debug("%s: set CPU %d ctpr to %d, raised %d servicing %d\n",
+		pr_de("%s: set CPU %d ctpr to %d, raised %d servicing %d\n",
 			__func__, idx, dst->ctpr, dst->raised.priority,
 			dst->servicing.priority);
 
 		if (dst->raised.priority <= dst->ctpr) {
-			pr_debug("%s: Lower OpenPIC INT output cpu %d due to ctpr\n",
+			pr_de("%s: Lower OpenPIC INT output cpu %d due to ctpr\n",
 				__func__, idx);
 			mpic_irq_lower(opp, dst, ILR_INTTGT_INT);
 		} else if (dst->raised.priority > dst->servicing.priority) {
-			pr_debug("%s: Raise OpenPIC INT output cpu %d irq %d\n",
+			pr_de("%s: Raise OpenPIC INT output cpu %d irq %d\n",
 				__func__, idx, dst->raised.next);
 			mpic_irq_raise(opp, dst, ILR_INTTGT_INT);
 		}
@@ -1078,11 +1078,11 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 	case 0xB0: {		/* EOI */
 		int notify_eoi;
 
-		pr_debug("EOI\n");
+		pr_de("EOI\n");
 		s_IRQ = IRQ_get_next(opp, &dst->servicing);
 
 		if (s_IRQ < 0) {
-			pr_debug("%s: EOI with no interrupt in service\n",
+			pr_de("%s: EOI with no interrupt in service\n",
 				__func__);
 			break;
 		}
@@ -1098,7 +1098,7 @@ static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		if (n_IRQ != -1 &&
 		    (s_IRQ == -1 ||
 		     IVPR_PRIORITY(src->ivpr) > dst->servicing.priority)) {
-			pr_debug("Raise OpenPIC INT output cpu %d irq %d\n",
+			pr_de("Raise OpenPIC INT output cpu %d irq %d\n",
 				idx, n_IRQ);
 			mpic_irq_raise(opp, dst, ILR_INTTGT_INT);
 		}
@@ -1130,11 +1130,11 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	struct irq_source *src;
 	int retval, irq;
 
-	pr_debug("Lower OpenPIC INT output\n");
+	pr_de("Lower OpenPIC INT output\n");
 	mpic_irq_lower(opp, dst, ILR_INTTGT_INT);
 
 	irq = IRQ_get_next(opp, &dst->raised);
-	pr_debug("IACK: irq=%d\n", irq);
+	pr_de("IACK: irq=%d\n", irq);
 
 	if (irq == -1)
 		/* No more interrupt pending */
@@ -1195,7 +1195,7 @@ static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
 	struct irq_dest *dst;
 	uint32_t retval;
 
-	pr_debug("%s: cpu %d addr %#llx\n", __func__, idx, addr);
+	pr_de("%s: cpu %d addr %#llx\n", __func__, idx, addr);
 	retval = 0xFFFFFFFF;
 
 	if (idx < 0)
@@ -1222,7 +1222,7 @@ static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
 	default:
 		break;
 	}
-	pr_debug("%s: => 0x%08x\n", __func__, retval);
+	pr_de("%s: => 0x%08x\n", __func__, retval);
 
 out:
 	*ptr = retval;
@@ -1317,7 +1317,7 @@ static void fsl_common_init(struct openpic *opp)
 	opp->irq_tim0 = virq;
 	virq += MAX_TMR;
 
-	BUG_ON(virq > MAX_IRQ);
+	_ON(virq > MAX_IRQ);
 
 	opp->irq_msi = 224;
 
@@ -1381,7 +1381,7 @@ static int kvm_mpic_read(struct kvm_vcpu *vcpu,
 	} u;
 
 	if (addr & (len - 1)) {
-		pr_debug("%s: bad alignment %llx/%d\n",
+		pr_de("%s: bad alignment %llx/%d\n",
 			 __func__, addr, len);
 		return -EINVAL;
 	}
@@ -1397,14 +1397,14 @@ static int kvm_mpic_read(struct kvm_vcpu *vcpu,
 	 */
 	if (len == 4) {
 		*(u32 *)ptr = u.val;
-		pr_debug("%s: addr %llx ret %d len 4 val %x\n",
+		pr_de("%s: addr %llx ret %d len 4 val %x\n",
 			 __func__, addr, ret, u.val);
 	} else if (len == 1) {
 		*(u8 *)ptr = u.bytes[addr & 3];
-		pr_debug("%s: addr %llx ret %d len 1 val %x\n",
+		pr_de("%s: addr %llx ret %d len 1 val %x\n",
 			 __func__, addr, ret, u.bytes[addr & 3]);
 	} else {
-		pr_debug("%s: bad length %d\n", __func__, len);
+		pr_de("%s: bad length %d\n", __func__, len);
 		return -EINVAL;
 	}
 
@@ -1419,11 +1419,11 @@ static int kvm_mpic_write(struct kvm_vcpu *vcpu,
 	int ret;
 
 	if (len != 4) {
-		pr_debug("%s: bad length %d\n", __func__, len);
+		pr_de("%s: bad length %d\n", __func__, len);
 		return -EOPNOTSUPP;
 	}
 	if (addr & 3) {
-		pr_debug("%s: bad alignment %llx/%d\n", __func__, addr, len);
+		pr_de("%s: bad alignment %llx/%d\n", __func__, addr, len);
 		return -EOPNOTSUPP;
 	}
 
@@ -1432,7 +1432,7 @@ static int kvm_mpic_write(struct kvm_vcpu *vcpu,
 				      *(const u32 *)ptr);
 	spin_unlock_irq(&opp->lock);
 
-	pr_debug("%s: addr %llx ret %d val %x\n",
+	pr_de("%s: addr %llx ret %d val %x\n",
 		 __func__, addr, ret, *(const u32 *)ptr);
 
 	return ret;
@@ -1465,7 +1465,7 @@ static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
 		return -EFAULT;
 
 	if (base & 0x3ffff) {
-		pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx not aligned\n",
+		pr_de("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx not aligned\n",
 			 __func__, base);
 		return -EINVAL;
 	}
@@ -1478,7 +1478,7 @@ static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
 	unmap_mmio(opp);
 	opp->reg_base = base;
 
-	pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx\n",
+	pr_de("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx\n",
 		 __func__, base);
 
 	if (base == 0)
@@ -1510,7 +1510,7 @@ static int access_reg(struct openpic *opp, gpa_t addr, u32 *val, int type)
 
 	spin_unlock_irq(&opp->lock);
 
-	pr_debug("%s: type %d addr %llx val %x\n", __func__, type, addr, *val);
+	pr_de("%s: type %d addr %llx val %x\n", __func__, type, addr, *val);
 
 	return ret;
 }
@@ -1777,7 +1777,7 @@ out:
  */
 void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu)
 {
-	BUG_ON(!opp->dst[vcpu->arch.irq_cpu_id].vcpu);
+	_ON(!opp->dst[vcpu->arch.irq_cpu_id].vcpu);
 
 	opp->dst[vcpu->arch.irq_cpu_id].vcpu = NULL;
 }

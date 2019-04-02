@@ -554,7 +554,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 
 	d = find_dev_rcv_lists(net, dev);
 	if (!d) {
-		pr_err("BUG: receive list not found for "
+		pr_err(": receive list not found for "
 		       "dev %s, id %03X, mask %03X\n",
 		       DNAME(dev), can_id, mask);
 		goto out;
@@ -575,12 +575,12 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	}
 
 	/*
-	 * Check for bugs in CAN protocol implementations using af_can.c:
+	 * Check for s in CAN protocol implementations using af_can.c:
 	 * 'r' will be NULL if no matching list item was found for removal.
 	 */
 
 	if (!r) {
-		WARN(1, "BUG: receive list entry not found for dev %s, "
+		WARN(1, ": receive list entry not found for dev %s, "
 		     "id %03X, mask %03X\n", DNAME(dev), can_id, mask);
 		goto out;
 	}
@@ -804,7 +804,7 @@ void can_proto_unregister(const struct can_proto *cp)
 	int proto = cp->protocol;
 
 	mutex_lock(&proto_tab_lock);
-	BUG_ON(rcu_access_pointer(proto_tab[proto]) != cp);
+	_ON(rcu_access_pointer(proto_tab[proto]) != cp);
 	RCU_INIT_POINTER(proto_tab[proto], NULL);
 	mutex_unlock(&proto_tab_lock);
 
@@ -834,7 +834,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 		d = kzalloc(sizeof(*d), GFP_KERNEL);
 		if (!d)
 			return NOTIFY_DONE;
-		BUG_ON(dev->ml_priv);
+		_ON(dev->ml_priv);
 		dev->ml_priv = d;
 
 		break;
@@ -914,7 +914,7 @@ static void can_pernet_exit(struct net *net)
 		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
 			struct can_dev_rcv_lists *d = dev->ml_priv;
 
-			BUG_ON(d->entries);
+			_ON(d->entries);
 			kfree(d);
 			dev->ml_priv = NULL;
 		}
@@ -959,7 +959,7 @@ static struct pernet_operations can_pernet_ops __read_mostly = {
 static __init int can_init(void)
 {
 	/* check for correct padding to be able to use the structs similarly */
-	BUILD_BUG_ON(offsetof(struct can_frame, can_dlc) !=
+	BUILD__ON(offsetof(struct can_frame, can_dlc) !=
 		     offsetof(struct canfd_frame, len) ||
 		     offsetof(struct can_frame, data) !=
 		     offsetof(struct canfd_frame, data));

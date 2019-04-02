@@ -143,7 +143,7 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 	rc = copro_handle_mm_fault(fault->pe_data.mm, fault->dar, fault->dsisr,
 				&flt);
 	if (rc) {
-		pr_debug("copro_handle_mm_fault failed: %d\n", rc);
+		pr_de("copro_handle_mm_fault failed: %d\n", rc);
 		if (fault->pe_data.xsl_err_cb) {
 			fault->pe_data.xsl_err_cb(
 				fault->pe_data.xsl_err_data,
@@ -222,7 +222,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 		 * scenario
 		 */
 		rcu_read_unlock();
-		pr_debug("Unknown mm context for xsl interrupt\n");
+		pr_de("Unknown mm context for xsl interrupt\n");
 		ack_irq(spa, ADDRESS_ERROR);
 		return IRQ_HANDLED;
 	}
@@ -343,7 +343,7 @@ static int alloc_spa(struct pci_dev *dev, struct link *link)
 		kfree(spa);
 		return -ENOMEM;
 	}
-	pr_debug("Allocated SPA for %x:%x:%x at %p\n", link->domain, link->bus,
+	pr_de("Allocated SPA for %x:%x:%x at %p\n", link->domain, link->bus,
 		link->dev, spa->spa_mem);
 
 	link->spa = spa;
@@ -354,7 +354,7 @@ static void free_spa(struct link *link)
 {
 	struct spa *spa = link->spa;
 
-	pr_debug("Freeing SPA for %x:%x:%x\n", link->domain, link->bus,
+	pr_de("Freeing SPA for %x:%x:%x\n", link->domain, link->bus,
 		link->dev);
 
 	if (spa && spa->spa_mem) {
@@ -494,7 +494,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	int pe_handle, rc = 0;
 	struct pe_data *pe_data;
 
-	BUILD_BUG_ON(sizeof(struct ocxl_process_element) != 128);
+	BUILD__ON(sizeof(struct ocxl_process_element) != 128);
 	if (pasid > SPA_PASID_MAX)
 		return -EINVAL;
 

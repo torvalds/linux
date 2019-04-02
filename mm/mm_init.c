@@ -1,5 +1,5 @@
 /*
- * mm_init.c - Memory initialisation verification and debugging
+ * mm_init.c - Memory initialisation verification and deging
  *
  * Copyright 2008 IBM Corporation, 2008
  * Author Mel Gorman <mel@csn.ul.ie>
@@ -14,7 +14,7 @@
 #include <linux/sched.h>
 #include "internal.h"
 
-#ifdef CONFIG_DEBUG_MEMORY_INIT
+#ifdef CONFIG_DE_MEMORY_INIT
 int __meminitdata mminit_loglevel;
 
 #ifndef SECTIONS_SHIFT
@@ -36,7 +36,7 @@ void __init mminit_verify_zonelist(void)
 		struct zonelist *zonelist;
 		int i, listid, zoneid;
 
-		BUG_ON(MAX_ZONELISTS > 2);
+		_ON(MAX_ZONELISTS > 2);
 		for (i = 0; i < MAX_ZONELISTS * MAX_NR_ZONES; i++) {
 
 			/* Identify the zone and nodelist */
@@ -48,7 +48,7 @@ void __init mminit_verify_zonelist(void)
 				continue;
 
 			/* Print information about the zonelist */
-			printk(KERN_DEBUG "mminit::zonelist %s %d:%s = ",
+			printk(KERN_DE "mminit::zonelist %s %d:%s = ",
 				listid > 0 ? "thisnode" : "general", nid,
 				zone->name);
 
@@ -104,15 +104,15 @@ void __init mminit_verify_pageflags_layout(void)
 
 	if (SECTIONS_WIDTH) {
 		shift -= SECTIONS_WIDTH;
-		BUG_ON(shift != SECTIONS_PGSHIFT);
+		_ON(shift != SECTIONS_PGSHIFT);
 	}
 	if (NODES_WIDTH) {
 		shift -= NODES_WIDTH;
-		BUG_ON(shift != NODES_PGSHIFT);
+		_ON(shift != NODES_PGSHIFT);
 	}
 	if (ZONES_WIDTH) {
 		shift -= ZONES_WIDTH;
-		BUG_ON(shift != ZONES_PGSHIFT);
+		_ON(shift != ZONES_PGSHIFT);
 	}
 
 	/* Check for bitmask overlaps */
@@ -122,7 +122,7 @@ void __init mminit_verify_pageflags_layout(void)
 	add_mask = (ZONES_MASK << ZONES_PGSHIFT) +
 			(NODES_MASK << NODES_PGSHIFT) +
 			(SECTIONS_MASK << SECTIONS_PGSHIFT);
-	BUG_ON(or_mask != add_mask);
+	_ON(or_mask != add_mask);
 }
 
 static __init int set_mminit_loglevel(char *str)
@@ -131,7 +131,7 @@ static __init int set_mminit_loglevel(char *str)
 	return 0;
 }
 early_param("mminit_loglevel", set_mminit_loglevel);
-#endif /* CONFIG_DEBUG_MEMORY_INIT */
+#endif /* CONFIG_DE_MEMORY_INIT */
 
 struct kobject *mm_kobj;
 EXPORT_SYMBOL_GPL(mm_kobj);

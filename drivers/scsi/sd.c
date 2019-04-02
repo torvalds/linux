@@ -97,7 +97,7 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_MOD);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_ZBC);
 
-#if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
+#if !defined(CONFIG_DE_BLOCK_EXT_DEVT)
 #define SD_MINORS	16
 #else
 #define SD_MINORS	0
@@ -613,7 +613,7 @@ static int sd_major(int major_idx)
 	case 8 ... 15:
 		return SCSI_DISK8_MAJOR + major_idx - 8;
 	default:
-		BUG();
+		();
 		return 0;	/* shut up gcc */
 	}
 }
@@ -1023,7 +1023,7 @@ static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	if (sdkp->device->no_write_same)
 		return BLK_STS_TARGET;
 
-	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
+	_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
 
 	rq->timeout = SD_WRITE_SAME_TIMEOUT;
 
@@ -1193,9 +1193,9 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 	 * Some SD card readers can't handle accesses which touch the
 	 * last one or two logical blocks. Split accesses as needed.
 	 */
-	threshold = sdkp->capacity - SD_LAST_BUGGY_SECTORS;
+	threshold = sdkp->capacity - SD_LAST_GY_SECTORS;
 
-	if (unlikely(sdp->last_sector_bug && lba + nr_blocks > threshold)) {
+	if (unlikely(sdp->last_sector_ && lba + nr_blocks > threshold)) {
 		if (lba < threshold) {
 			/* Access up to the threshold but not beyond */
 			nr_blocks = threshold - lba;
@@ -2418,7 +2418,7 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	lba = get_unaligned_be32(&buffer[0]);
 
 	if (sdp->no_read_capacity_16 && (lba == 0xffffffff)) {
-		/* Some buggy (usb cardreader) devices return an lba of
+		/* Some gy (usb cardreader) devices return an lba of
 		   0xffffffff when the want to report a size of 0 (with
 		   which they really mean no media is present) */
 		sdkp->capacity = 0;
@@ -2648,7 +2648,7 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, unsigned char *buffer)
 		if (sdkp->first_scan || old_wp != sdkp->write_prot) {
 			sd_printk(KERN_NOTICE, sdkp, "Write Protect is %s\n",
 				  sdkp->write_prot ? "on" : "off");
-			sd_printk(KERN_DEBUG, sdkp, "Mode Sense: %4ph\n", buffer);
+			sd_printk(KERN_DE, sdkp, "Mode Sense: %4ph\n", buffer);
 		}
 	}
 }

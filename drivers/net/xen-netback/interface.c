@@ -182,7 +182,7 @@ xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 index;
 	struct xenvif_rx_cb *cb;
 
-	BUG_ON(skb->dev != dev);
+	_ON(skb->dev != dev);
 
 	/* Drop the packet if queues are not set up.
 	 * This handler should be called inside an RCU read section
@@ -635,9 +635,9 @@ int xenvif_connect_data(struct xenvif_queue *queue,
 	struct task_struct *task;
 	int err = -ENOMEM;
 
-	BUG_ON(queue->tx_irq);
-	BUG_ON(queue->task);
-	BUG_ON(queue->dealloc_task);
+	_ON(queue->tx_irq);
+	_ON(queue->task);
+	_ON(queue->dealloc_task);
 
 	err = xenvif_map_frontend_data_rings(queue, tx_ring_ref,
 					     rx_ring_ref);

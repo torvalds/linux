@@ -57,16 +57,16 @@ Thanks go to the following people for patches and contributions:
   Wolfram Joost <dbox2@frokaschwei.de>
   and all the other dbox2 people
 
-  - for many bugfixes in the generic DVB Core, frontend drivers and
+  - for many fixes in the generic DVB Core, frontend drivers and
     their work on the dbox2 port of the DVB driver
 
 - Oliver Endriss <o.endriss@gmx.de>
 
-  - for many bugfixes
+  - for many fixes
 
 - Andrew de Quincey <adq_dvb@lidskialf.net>
 
-  - for the tda1004x frontend driver, and various bugfixes
+  - for the tda1004x frontend driver, and various fixes
 
 - Peter Schildmann <peter.schildmann@web.de>
 
@@ -107,7 +107,7 @@ Thanks go to the following people for patches and contributions:
 
 - Wilson Michaels <wilsonmichaels@earthlink.net>
 
-  - for the lgdt330x frontend driver, and various bugfixes
+  - for the lgdt330x frontend driver, and various fixes
 
 - Michael Krufky <mkrufky@linuxtv.org>
 

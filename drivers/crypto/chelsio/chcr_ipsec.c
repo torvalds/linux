@@ -205,55 +205,55 @@ static int chcr_xfrm_add_state(struct xfrm_state *x)
 	int res = 0;
 
 	if (x->props.aalgo != SADB_AALG_NONE) {
-		pr_debug("CHCR: Cannot offload authenticated xfrm states\n");
+		pr_de("CHCR: Cannot offload authenticated xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.calgo != SADB_X_CALG_NONE) {
-		pr_debug("CHCR: Cannot offload compressed xfrm states\n");
+		pr_de("CHCR: Cannot offload compressed xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.family != AF_INET &&
 	    x->props.family != AF_INET6) {
-		pr_debug("CHCR: Only IPv4/6 xfrm state offloaded\n");
+		pr_de("CHCR: Only IPv4/6 xfrm state offloaded\n");
 		return -EINVAL;
 	}
 	if (x->props.mode != XFRM_MODE_TRANSPORT &&
 	    x->props.mode != XFRM_MODE_TUNNEL) {
-		pr_debug("CHCR: Only transport and tunnel xfrm offload\n");
+		pr_de("CHCR: Only transport and tunnel xfrm offload\n");
 		return -EINVAL;
 	}
 	if (x->id.proto != IPPROTO_ESP) {
-		pr_debug("CHCR: Only ESP xfrm state offloaded\n");
+		pr_de("CHCR: Only ESP xfrm state offloaded\n");
 		return -EINVAL;
 	}
 	if (x->encap) {
-		pr_debug("CHCR: Encapsulated xfrm state not offloaded\n");
+		pr_de("CHCR: Encapsulated xfrm state not offloaded\n");
 		return -EINVAL;
 	}
 	if (!x->aead) {
-		pr_debug("CHCR: Cannot offload xfrm states without aead\n");
+		pr_de("CHCR: Cannot offload xfrm states without aead\n");
 		return -EINVAL;
 	}
 	if (x->aead->alg_icv_len != 128 &&
 	    x->aead->alg_icv_len != 96) {
-		pr_debug("CHCR: Cannot offload xfrm states with AEAD ICV length other than 96b & 128b\n");
+		pr_de("CHCR: Cannot offload xfrm states with AEAD ICV length other than 96b & 128b\n");
 	return -EINVAL;
 	}
 	if ((x->aead->alg_key_len != 128 + 32) &&
 	    (x->aead->alg_key_len != 256 + 32)) {
-		pr_debug("CHCR: Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
+		pr_de("CHCR: Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
 		return -EINVAL;
 	}
 	if (x->tfcpad) {
-		pr_debug("CHCR: Cannot offload xfrm states with tfc padding\n");
+		pr_de("CHCR: Cannot offload xfrm states with tfc padding\n");
 		return -EINVAL;
 	}
 	if (!x->geniv) {
-		pr_debug("CHCR: Cannot offload xfrm states without geniv\n");
+		pr_de("CHCR: Cannot offload xfrm states without geniv\n");
 		return -EINVAL;
 	}
 	if (strcmp(x->geniv, "seqiv")) {
-		pr_debug("CHCR: Cannot offload xfrm states with geniv other than seqiv\n");
+		pr_de("CHCR: Cannot offload xfrm states with geniv other than seqiv\n");
 		return -EINVAL;
 	}
 

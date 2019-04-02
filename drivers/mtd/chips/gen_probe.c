@@ -70,7 +70,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	   interleave and device type, etc. */
 	if (!genprobe_new_chip(map, cp, &cfi)) {
 		/* The probe didn't like it */
-		pr_debug("%s: Found no %s device at location zero\n",
+		pr_de("%s: Found no %s device at location zero\n",
 			 cp->name, map->name);
 		return NULL;
 	}
@@ -96,7 +96,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	} else if (cfi_interleave_is_8(&cfi)) {
 		cfi.chipshift += 3;
 	} else {
-		BUG();
+		();
 	}
 
 	cfi.numchips = 1;

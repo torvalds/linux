@@ -361,7 +361,7 @@ struct fman_fpm_regs {
 	u32 fm_ip_rev_1;	/* FM IP Block Revision 1 0xc4 */
 	u32 fm_ip_rev_2;	/* FM IP Block Revision 2 0xc8 */
 	u32 fm_rstc;		/* FM Reset Command 0xcc */
-	u32 fm_cld;		/* FM Classifier Debug 0xd0 */
+	u32 fm_cld;		/* FM Classifier De 0xd0 */
 	u32 fm_npi;		/* FM Normal Pending Interrupts 0xd4 */
 	u32 fmfp_exte;		/* FPM External Requests Enable 0xd8 */
 	u32 fmfp_ee;		/* FPM Event&Mask 0xdc */
@@ -397,11 +397,11 @@ struct fman_bmi_regs {
 	u32 res002c[5];		/* 0x2c - 0x3f */
 	u32 fmbm_arb[8];	/* BMI Arbitration 0x40 - 0x5f */
 	u32 res0060[12];	/* 0x60 - 0x8f */
-	u32 fmbm_dtc[3];	/* Debug Trap Counter 0x90 - 0x9b */
+	u32 fmbm_dtc[3];	/* De Trap Counter 0x90 - 0x9b */
 	u32 res009c;		/* 0x9c */
-	u32 fmbm_dcv[3][4];	/* Debug Compare val 0xa0-0xcf */
-	u32 fmbm_dcm[3][4];	/* Debug Compare Mask 0xd0-0xff */
-	u32 fmbm_gde;		/* BMI Global Debug Enable 0x100 */
+	u32 fmbm_dcv[3][4];	/* De Compare val 0xa0-0xcf */
+	u32 fmbm_dcm[3][4];	/* De Compare Mask 0xd0-0xff */
+	u32 fmbm_gde;		/* BMI Global De Enable 0x100 */
 	u32 fmbm_pp[63];	/* BMI Port Parameters 0x104 - 0x1ff */
 	u32 res0200;		/* 0x200 */
 	u32 fmbm_pfs[63];	/* BMI Port FIFO Size 0x204 - 0x2ff */
@@ -436,17 +436,17 @@ struct fman_qmi_regs {
 	u32 fmqm_difdcc;	/* Dequeue Invalid FD Command Counter 0x74 */
 	u32 fmqm_da1v;		/* Dequeue A1 Valid Counter 0x78 */
 	u32 res007c;		/* 0x7c */
-	u32 fmqm_dtc;		/* 0x80 Debug Trap Counter 0x80 */
+	u32 fmqm_dtc;		/* 0x80 De Trap Counter 0x80 */
 	u32 fmqm_efddd;		/* 0x84 Enqueue Frame desc Dynamic dbg 0x84 */
 	u32 res0088[2];		/* 0x88 - 0x8f */
 	struct {
 		u32 fmqm_dtcfg1;	/* 0x90 dbg trap cfg 1 Register 0x00 */
-		u32 fmqm_dtval1;	/* Debug Trap Value 1 Register 0x04 */
-		u32 fmqm_dtm1;		/* Debug Trap Mask 1 Register 0x08 */
-		u32 fmqm_dtc1;		/* Debug Trap Counter 1 Register 0x0c */
+		u32 fmqm_dtval1;	/* De Trap Value 1 Register 0x04 */
+		u32 fmqm_dtm1;		/* De Trap Mask 1 Register 0x08 */
+		u32 fmqm_dtc1;		/* De Trap Counter 1 Register 0x0c */
 		u32 fmqm_dtcfg2;	/* dbg Trap cfg 2 Register 0x10 */
-		u32 fmqm_dtval2;	/* Debug Trap Value 2 Register 0x14 */
-		u32 fmqm_dtm2;		/* Debug Trap Mask 2 Register 0x18 */
+		u32 fmqm_dtval2;	/* De Trap Value 2 Register 0x14 */
+		u32 fmqm_dtm2;		/* De Trap Mask 2 Register 0x18 */
 		u32 res001c;		/* 0x1c */
 	} dbg_traps[3];			/* 0x90 - 0xef */
 	u8 res00f0[0x400 - 0xf0];	/* 0xf0 - 0x3ff */
@@ -465,7 +465,7 @@ struct fman_dma_regs {
 	u32 fmdmrd;	/* FM DMA bus internal ram data register 0x24 */
 	u32 fmdmwcr;	/* FM DMA CAM watchdog counter value 0x28 */
 	u32 fmdmebcr;	/* FM DMA CAM base in MURAM register 0x2c */
-	u32 fmdmccqdr;	/* FM DMA CAM and CMD Queue Debug reg 0x30 */
+	u32 fmdmccqdr;	/* FM DMA CAM and CMD Queue De reg 0x30 */
 	u32 fmdmccqvr1;	/* FM DMA CAM and CMD Queue Value reg #1 0x34 */
 	u32 fmdmccqvr2;	/* FM DMA CAM and CMD Queue Value reg #2 0x38 */
 	u32 fmdmcqvr3;	/* FM DMA CMD Queue Value register #3 0x3c */
@@ -474,7 +474,7 @@ struct fman_dma_regs {
 	u32 fmdmsefrc;	/* FM DMA Semaphore Entry Full Reject Cntr 0x48 */
 	u32 fmdmsqfrc;	/* FM DMA Semaphore Queue Full Reject Cntr 0x4c */
 	u32 fmdmssrc;	/* FM DMA Semaphore SYNC Reject Counter 0x50 */
-	u32 fmdmdcr;	/* FM DMA Debug Counter 0x54 */
+	u32 fmdmdcr;	/* FM DMA De Counter 0x54 */
 	u32 fmdmemsr;	/* FM DMA Emergency Smoother Register 0x58 */
 	u32 res005c;	/* 0x5c */
 	u32 fmdmplr[FMAN_LIODN_TBL / 2];	/* DMA LIODN regs 0x60-0xdf */
@@ -2923,7 +2923,7 @@ static int __init fman_load(void)
 {
 	int err;
 
-	pr_debug("FSL DPAA FMan driver\n");
+	pr_de("FSL DPAA FMan driver\n");
 
 	err = platform_driver_register(&fman_driver);
 	if (err < 0)

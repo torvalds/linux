@@ -22,14 +22,14 @@
  * NOTE that this solution won't work on an SMP system, so explcitly
  * forbid it here.
  */
-#define swp_is_buggy
+#define swp_is_gy
 #endif
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
 {
 	extern void __bad_xchg(volatile void *, int);
 	unsigned long ret;
-#ifdef swp_is_buggy
+#ifdef swp_is_gy
 	unsigned long flags;
 #endif
 #if __LINUX_ARM_ARCH__ >= 6
@@ -72,7 +72,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
 		break;
-#elif defined(swp_is_buggy)
+#elif defined(swp_is_gy)
 #ifdef CONFIG_SMP
 #error SMP is not supported on this platform
 #endif

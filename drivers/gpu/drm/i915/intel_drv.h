@@ -83,7 +83,7 @@ struct drm_printer;
 #define wait_for(COND, MS)		_wait_for((COND), (MS) * 1000, 10, 1000)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
-#if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
+#if defined(CONFIG_DRM_I915_DE) && defined(CONFIG_PREEMPT_COUNT)
 # define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) WARN_ON_ONCE((ATOMIC) && !in_atomic())
 #else
 # define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) do { } while (0)
@@ -129,7 +129,7 @@ struct drm_printer;
 #define wait_for_us(COND, US) \
 ({ \
 	int ret__; \
-	BUILD_BUG_ON(!__builtin_constant_p(US)); \
+	BUILD__ON(!__builtin_constant_p(US)); \
 	if ((US) > 10) \
 		ret__ = _wait_for((COND), (US), 10, 10); \
 	else \
@@ -139,8 +139,8 @@ struct drm_printer;
 
 #define wait_for_atomic_us(COND, US) \
 ({ \
-	BUILD_BUG_ON(!__builtin_constant_p(US)); \
-	BUILD_BUG_ON((US) > 50000); \
+	BUILD__ON(!__builtin_constant_p(US)); \
+	BUILD__ON((US) > 50000); \
 	_wait_for_atomic((COND), (US), 1); \
 })
 
@@ -1013,7 +1013,7 @@ struct intel_crtc {
 		ktime_t start_vbl_time;
 		int min_vbl, max_vbl;
 		int scanline_start;
-	} debug;
+	} de;
 
 	/* scalers available on this crtc */
 	int num_scalers;
@@ -1285,7 +1285,7 @@ vlv_dport_to_channel(struct intel_digital_port *dport)
 	case PORT_C:
 		return DPIO_CH1;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1299,7 +1299,7 @@ vlv_dport_to_phy(struct intel_digital_port *dport)
 	case PORT_D:
 		return DPIO_PHY1;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1313,7 +1313,7 @@ vlv_pipe_to_channel(enum pipe pipe)
 	case PIPE_B:
 		return DPIO_CH1;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -2078,7 +2078,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *crtc_state);
 void intel_psr_disable(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *old_crtc_state);
-int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
+int intel_psr_set_defs_mode(struct drm_i915_private *dev_priv,
 			       struct drm_modeset_acquire_ctx *ctx,
 			       u64 value);
 void intel_psr_invalidate(struct drm_i915_private *dev_priv,
@@ -2090,7 +2090,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 void intel_psr_init(struct drm_i915_private *dev_priv);
 void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state);
-void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug);
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 de);
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 void intel_psr_short_pulse(struct intel_dp *intel_dp);
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
@@ -2139,7 +2139,7 @@ intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 				   enum intel_display_power_domain domain);
 void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
 				       enum intel_display_power_domain domain);
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain,
 			     intel_wakeref_t wakeref);
@@ -2219,13 +2219,13 @@ intel_wakeref_t intel_runtime_pm_get_noresume(struct drm_i915_private *i915);
 	     intel_runtime_pm_put((i915), (wf)), (wf) = 0)
 
 void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915);
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref);
 #else
 #define intel_runtime_pm_put(i915, wref) intel_runtime_pm_put_unchecked(i915)
 #endif
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
 				    struct drm_printer *p);
 #else
@@ -2411,7 +2411,7 @@ void lspcon_ycbcr420_config(struct drm_connector *connector,
 			    struct intel_crtc_state *crtc_state);
 
 /* intel_pipe_crc.c */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name);
 int intel_crtc_verify_crc_source(struct drm_crtc *crtc,
 				 const char *source_name, size_t *values_cnt);

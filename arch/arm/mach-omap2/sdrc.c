@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -124,7 +124,7 @@ void __init omap2_set_globals_sdrc(void __iomem *sdrc, void __iomem *sms)
  *  Support for 2 chip selects timings
  *
  * Turn on smart idle modes for SDRAM scheduler and controller.
- * Program a known-good configuration for the SDRC to deal with buggy
+ * Program a known-good configuration for the SDRC to deal with gy
  * bootloaders.
  */
 void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,

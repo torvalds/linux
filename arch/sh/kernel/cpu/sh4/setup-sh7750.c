@@ -343,7 +343,7 @@ void __init plat_irq_setup(void)
 void __init plat_irq_setup_pins(int mode)
 {
 #if defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7091)
-	BUG(); /* impossible to mask interrupts on SH7750 and SH7091 */
+	(); /* impossible to mask interrupts on SH7750 and SH7091 */
 	return;
 #endif
 
@@ -353,6 +353,6 @@ void __init plat_irq_setup_pins(int mode)
 		register_intc_controller(&intc_desc_irlm);
 		break;
 	default:
-		BUG();
+		();
 	}
 }

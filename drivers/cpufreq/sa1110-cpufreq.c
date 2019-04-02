@@ -30,7 +30,7 @@
 #include <mach/generic.h>
 #include <mach/hardware.h>
 
-#undef DEBUG
+#undef DE
 
 struct sdram_params {
 	const char name[20];
@@ -188,8 +188,8 @@ sdram_calculate_timing(struct sdram_info *sd, u_int cpu_khz,
 	set_mdcas(sd->mdcas, sd_khz >= 62000,
 		ns_to_cycles(sdram->trcd, mem_khz));
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "MDCNFG: %08x MDREFR: %08x MDCAS0: %08x MDCAS1: %08x MDCAS2: %08x\n",
+#ifdef DE
+	printk(KERN_DE "MDCNFG: %08x MDREFR: %08x MDCAS0: %08x MDCAS1: %08x MDCAS2: %08x\n",
 		sd->mdcnfg, sd->mdrefr, sd->mdcas[0], sd->mdcas[1],
 		sd->mdcas[2]);
 #endif
@@ -218,9 +218,9 @@ sdram_update_refresh(u_int cpu_khz, struct sdram_params *sdram)
 	u_int ns_row = (sdram->refresh * 1000) >> sdram->rows;
 	u_int dri = ns_to_cycles(ns_row, cpu_khz / 2) / 32;
 
-#ifdef DEBUG
+#ifdef DE
 	mdelay(250);
-	printk(KERN_DEBUG "new dri value = %d\n", dri);
+	printk(KERN_DE "new dri value = %d\n", dri);
 #endif
 
 	sdram_set_refresh(dri);
@@ -358,7 +358,7 @@ static int __init sa1110_clk_init(void)
 
 	sdram = sa1110_find_sdram(name);
 	if (sdram) {
-		printk(KERN_DEBUG "SDRAM: tck: %d trcd: %d trp: %d"
+		printk(KERN_DE "SDRAM: tck: %d trcd: %d trp: %d"
 			" twr: %d refresh: %d cas_latency: %d\n",
 			sdram->tck, sdram->trcd, sdram->trp,
 			sdram->twr, sdram->refresh, sdram->cas_latency);

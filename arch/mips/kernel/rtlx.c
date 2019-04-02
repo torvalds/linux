@@ -96,12 +96,12 @@ int rtlx_open(int index, int can_sleep)
 	int ret = 0;
 
 	if (index >= RTLX_CHANNELS) {
-		pr_debug("rtlx_open index out of range\n");
+		pr_de("rtlx_open index out of range\n");
 		return -ENOSYS;
 	}
 
 	if (atomic_inc_return(&channel_wqs[index].in_open) > 1) {
-		pr_debug("rtlx_open channel %d already opened\n", index);
+		pr_de("rtlx_open channel %d already opened\n", index);
 		ret = -EBUSY;
 		goto out_fail;
 	}
@@ -116,7 +116,7 @@ int rtlx_open(int index, int can_sleep)
 				if (ret)
 					goto out_fail;
 			} else {
-				pr_debug("No SP program loaded, and device opened with O_NONBLOCK\n");
+				pr_de("No SP program loaded, and device opened with O_NONBLOCK\n");
 				ret = -ENOSYS;
 				goto out_fail;
 			}

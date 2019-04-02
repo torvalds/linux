@@ -24,9 +24,9 @@
 #include <asm/mach/pci.h>
 #include <asm/hardware/iop3xx.h>
 
-// #define DEBUG
+// #define DE
 
-#ifdef DEBUG
+#ifdef DE
 #define  DBG(x...) printk(x)
 #else
 #define  DBG(x...) do { } while (0)
@@ -321,7 +321,7 @@ int iop3xx_get_init_atu(void) {
 		return IOP3XX_INIT_ATU_DISABLE;
 }
 
-static void __init iop3xx_atu_debug(void)
+static void __init iop3xx_atu_de(void)
 {
 	DBG("PCI: Intel IOP3xx PCI init.\n");
 	DBG("PCI: Outbound memory window 0: PCI 0x%08x%08x\n",
@@ -355,7 +355,7 @@ void __init iop3xx_pci_preinit_cond(void)
 	if (iop3xx_get_init_atu() == IOP3XX_INIT_ATU_ENABLE) {
 		iop3xx_atu_disable();
 		iop3xx_atu_setup();
-		iop3xx_atu_debug();
+		iop3xx_atu_de();
 	}
 }
 
@@ -365,7 +365,7 @@ void __init iop3xx_pci_preinit(void)
 
 	iop3xx_atu_disable();
 	iop3xx_atu_setup();
-	iop3xx_atu_debug();
+	iop3xx_atu_de();
 }
 
 /* allow init_atu to be user overridden */
@@ -387,7 +387,7 @@ static int __init iop3xx_init_atu_setup(char *str)
 			case '=':
 				break;
 			default:
-				printk(KERN_DEBUG "\"%s\" malformed at "
+				printk(KERN_DE "\"%s\" malformed at "
 					    "character: \'%c\'",
 					    __func__,
 					    *str);

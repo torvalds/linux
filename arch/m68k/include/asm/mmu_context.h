@@ -121,20 +121,20 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	}
 
 	if (!mm)
-		goto bug;
+		goto ;
 
 	pgd = pgd_offset(mm, mmuar);
 	if (pgd_none(*pgd))
-		goto bug;
+		goto ;
 
 	pmd = pmd_offset(pgd, mmuar);
 	if (pmd_none(*pmd))
-		goto bug;
+		goto ;
 
 	pte = (mmuar >= PAGE_OFFSET) ? pte_offset_kernel(pmd, mmuar)
 				     : pte_offset_map(pmd, mmuar);
 	if (pte_none(*pte) || !pte_present(*pte))
-		goto bug;
+		goto ;
 
 	set_pte(pte, pte_mkyoung(*pte));
 	asid = mm->context & 0xff;
@@ -152,7 +152,7 @@ static inline void load_ksp_mmu(struct task_struct *task)
 
 	goto end;
 
-bug:
+:
 	pr_info("ksp load failed: mm=0x%p ksp=0x08%lx\n", mm, mmuar);
 end:
 	local_irq_restore(flags);

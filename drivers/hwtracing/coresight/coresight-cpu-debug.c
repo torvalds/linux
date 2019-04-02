@@ -7,7 +7,7 @@
 #include <linux/amba/bus.h>
 #include <linux/coresight.h>
 #include <linux/cpu.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -79,10 +79,10 @@
 #define EDDEVID_IMPL_EDPCSR_EDCIDSR	(0x2)
 #define EDDEVID_IMPL_FULL		(0x3)
 
-#define DEBUG_WAIT_SLEEP		1000
-#define DEBUG_WAIT_TIMEOUT		32000
+#define DE_WAIT_SLEEP		1000
+#define DE_WAIT_TIMEOUT		32000
 
-struct debug_drvdata {
+struct de_drvdata {
 	void __iomem	*base;
 	struct device	*dev;
 	int		cpu;
@@ -99,18 +99,18 @@ struct debug_drvdata {
 	u32		edcidsr;
 };
 
-static DEFINE_MUTEX(debug_lock);
-static DEFINE_PER_CPU(struct debug_drvdata *, debug_drvdata);
-static int debug_count;
-static struct dentry *debug_debugfs_dir;
+static DEFINE_MUTEX(de_lock);
+static DEFINE_PER_CPU(struct de_drvdata *, de_drvdata);
+static int de_count;
+static struct dentry *de_defs_dir;
 
-static bool debug_enable;
-module_param_named(enable, debug_enable, bool, 0600);
-MODULE_PARM_DESC(enable, "Control to enable coresight CPU debug functionality");
+static bool de_enable;
+module_param_named(enable, de_enable, bool, 0600);
+MODULE_PARM_DESC(enable, "Control to enable coresight CPU de functionality");
 
-static void debug_os_unlock(struct debug_drvdata *drvdata)
+static void de_os_unlock(struct de_drvdata *drvdata)
 {
-	/* Unlocks the debug registers */
+	/* Unlocks the de registers */
 	writel_relaxed(0x0, drvdata->base + EDOSLAR);
 
 	/* Make sure the registers are unlocked before accessing */
@@ -118,9 +118,9 @@ static void debug_os_unlock(struct debug_drvdata *drvdata)
 }
 
 /*
- * According to ARM DDI 0487A.k, before access external debug
+ * According to ARM DDI 0487A.k, before access external de
  * registers should firstly check the access permission; if any
- * below condition has been met then cannot access debug
+ * below condition has been met then cannot access de
  * registers to avoid lockup issue:
  *
  * - CPU power domain is powered off;
@@ -128,7 +128,7 @@ static void debug_os_unlock(struct debug_drvdata *drvdata)
  *
  * By checking EDPRSR can get to know if meet these conditions.
  */
-static bool debug_access_permitted(struct debug_drvdata *drvdata)
+static bool de_access_permitted(struct de_drvdata *drvdata)
 {
 	/* CPU is powered off */
 	if (!(drvdata->edprsr & EDPRSR_PU))
@@ -141,7 +141,7 @@ static bool debug_access_permitted(struct debug_drvdata *drvdata)
 	return true;
 }
 
-static void debug_force_cpu_powered_up(struct debug_drvdata *drvdata)
+static void de_force_cpu_powered_up(struct de_drvdata *drvdata)
 {
 	u32 edprcr;
 
@@ -160,7 +160,7 @@ try_again:
 	/* Wait for CPU to be powered up (timeout~=32ms) */
 	if (readx_poll_timeout_atomic(readl_relaxed, drvdata->base + EDPRSR,
 			drvdata->edprsr, (drvdata->edprsr & EDPRSR_PU),
-			DEBUG_WAIT_SLEEP, DEBUG_WAIT_TIMEOUT)) {
+			DE_WAIT_SLEEP, DE_WAIT_TIMEOUT)) {
 		/*
 		 * Unfortunately the CPU cannot be powered up, so return
 		 * back and later has no permission to access other
@@ -187,14 +187,14 @@ try_again:
 		goto try_again;
 }
 
-static void debug_read_regs(struct debug_drvdata *drvdata)
+static void de_read_regs(struct de_drvdata *drvdata)
 {
 	u32 save_edprcr;
 
 	CS_UNLOCK(drvdata->base);
 
 	/* Unlock os lock */
-	debug_os_unlock(drvdata);
+	de_os_unlock(drvdata);
 
 	/* Save EDPRCR register */
 	save_edprcr = readl_relaxed(drvdata->base + EDPRCR);
@@ -203,16 +203,16 @@ static void debug_read_regs(struct debug_drvdata *drvdata)
 	 * Ensure CPU power domain is enabled to let registers
 	 * are accessiable.
 	 */
-	debug_force_cpu_powered_up(drvdata);
+	de_force_cpu_powered_up(drvdata);
 
-	if (!debug_access_permitted(drvdata))
+	if (!de_access_permitted(drvdata))
 		goto out;
 
 	drvdata->edpcsr = readl_relaxed(drvdata->base + EDPCSR);
 
 	/*
 	 * As described in ARM DDI 0487A.k, if the processing
-	 * element (PE) is in debug state, or sample-based
+	 * element (PE) is in de state, or sample-based
 	 * profiling is prohibited, EDPCSR reads as 0xFFFFFFFF;
 	 * EDCIDSR, EDVIDSR and EDPCSR_HI registers also become
 	 * UNKNOWN state. So directly bail out for this case.
@@ -242,13 +242,13 @@ out:
 }
 
 #ifdef CONFIG_64BIT
-static unsigned long debug_adjust_pc(struct debug_drvdata *drvdata)
+static unsigned long de_adjust_pc(struct de_drvdata *drvdata)
 {
 	return (unsigned long)drvdata->edpcsr_hi << 32 |
 	       (unsigned long)drvdata->edpcsr;
 }
 #else
-static unsigned long debug_adjust_pc(struct debug_drvdata *drvdata)
+static unsigned long de_adjust_pc(struct de_drvdata *drvdata)
 {
 	unsigned long arm_inst_offset = 0, thumb_inst_offset = 0;
 	unsigned long pc;
@@ -282,7 +282,7 @@ static unsigned long debug_adjust_pc(struct debug_drvdata *drvdata)
 }
 #endif
 
-static void debug_dump_regs(struct debug_drvdata *drvdata)
+static void de_dump_regs(struct de_drvdata *drvdata)
 {
 	struct device *dev = drvdata->dev;
 	unsigned long pc;
@@ -292,17 +292,17 @@ static void debug_dump_regs(struct debug_drvdata *drvdata)
 		  drvdata->edprsr & EDPRSR_PU ? "On" : "Off",
 		  drvdata->edprsr & EDPRSR_DLK ? "Lock" : "Unlock");
 
-	if (!debug_access_permitted(drvdata)) {
-		dev_emerg(dev, "No permission to access debug registers!\n");
+	if (!de_access_permitted(drvdata)) {
+		dev_emerg(dev, "No permission to access de registers!\n");
 		return;
 	}
 
 	if (drvdata->edpcsr == EDPCSR_PROHIBITED) {
-		dev_emerg(dev, "CPU is in Debug state or profiling is prohibited!\n");
+		dev_emerg(dev, "CPU is in De state or profiling is prohibited!\n");
 		return;
 	}
 
-	pc = debug_adjust_pc(drvdata);
+	pc = de_adjust_pc(drvdata);
 	dev_emerg(dev, " EDPCSR:  %pS\n", (void *)pc);
 
 	if (drvdata->edcidsr_present)
@@ -320,9 +320,9 @@ static void debug_dump_regs(struct debug_drvdata *drvdata)
 			  drvdata->edvidsr & (u32)EDVIDSR_VMID);
 }
 
-static void debug_init_arch_data(void *info)
+static void de_init_arch_data(void *info)
 {
-	struct debug_drvdata *drvdata = info;
+	struct de_drvdata *drvdata = info;
 	u32 mode, pcsr_offset;
 	u32 eddevid, eddevid1;
 
@@ -354,7 +354,7 @@ static void debug_init_arch_data(void *info)
 		/*
 		 * In ARM DDI 0487A.k, the EDDEVID1.PCSROffset is used to
 		 * define if has the offset for PC sampling value; if read
-		 * back EDDEVID1.PCSROffset == 0x2, then this means the debug
+		 * back EDDEVID1.PCSROffset == 0x2, then this means the de
 		 * module does not sample the instruction set state when
 		 * armv8 CPU in AArch32 state.
 		 */
@@ -373,54 +373,54 @@ static void debug_init_arch_data(void *info)
 /*
  * Dump out information on panic.
  */
-static int debug_notifier_call(struct notifier_block *self,
+static int de_notifier_call(struct notifier_block *self,
 			       unsigned long v, void *p)
 {
 	int cpu;
-	struct debug_drvdata *drvdata;
+	struct de_drvdata *drvdata;
 
-	mutex_lock(&debug_lock);
+	mutex_lock(&de_lock);
 
 	/* Bail out if the functionality is disabled */
-	if (!debug_enable)
+	if (!de_enable)
 		goto skip_dump;
 
-	pr_emerg("ARM external debug module:\n");
+	pr_emerg("ARM external de module:\n");
 
 	for_each_possible_cpu(cpu) {
-		drvdata = per_cpu(debug_drvdata, cpu);
+		drvdata = per_cpu(de_drvdata, cpu);
 		if (!drvdata)
 			continue;
 
 		dev_emerg(drvdata->dev, "CPU[%d]:\n", drvdata->cpu);
 
-		debug_read_regs(drvdata);
-		debug_dump_regs(drvdata);
+		de_read_regs(drvdata);
+		de_dump_regs(drvdata);
 	}
 
 skip_dump:
-	mutex_unlock(&debug_lock);
+	mutex_unlock(&de_lock);
 	return 0;
 }
 
-static struct notifier_block debug_notifier = {
-	.notifier_call = debug_notifier_call,
+static struct notifier_block de_notifier = {
+	.notifier_call = de_notifier_call,
 };
 
-static int debug_enable_func(void)
+static int de_enable_func(void)
 {
-	struct debug_drvdata *drvdata;
+	struct de_drvdata *drvdata;
 	int cpu, ret = 0;
 	cpumask_t mask;
 
 	/*
-	 * Use cpumask to track which debug power domains have
+	 * Use cpumask to track which de power domains have
 	 * been powered on and use it to handle failure case.
 	 */
 	cpumask_clear(&mask);
 
 	for_each_possible_cpu(cpu) {
-		drvdata = per_cpu(debug_drvdata, cpu);
+		drvdata = per_cpu(de_drvdata, cpu);
 		if (!drvdata)
 			continue;
 
@@ -439,25 +439,25 @@ err:
 	 * all the other CPUs that have been enabled before that.
 	 */
 	for_each_cpu(cpu, &mask) {
-		drvdata = per_cpu(debug_drvdata, cpu);
+		drvdata = per_cpu(de_drvdata, cpu);
 		pm_runtime_put_noidle(drvdata->dev);
 	}
 
 	return ret;
 }
 
-static int debug_disable_func(void)
+static int de_disable_func(void)
 {
-	struct debug_drvdata *drvdata;
+	struct de_drvdata *drvdata;
 	int cpu, ret, err = 0;
 
 	/*
-	 * Disable debug power domains, records the error and keep
+	 * Disable de power domains, records the error and keep
 	 * circling through all other CPUs when an error has been
 	 * encountered.
 	 */
 	for_each_possible_cpu(cpu) {
-		drvdata = per_cpu(debug_drvdata, cpu);
+		drvdata = per_cpu(de_drvdata, cpu);
 		if (!drvdata)
 			continue;
 
@@ -469,7 +469,7 @@ static int debug_disable_func(void)
 	return err;
 }
 
-static ssize_t debug_func_knob_write(struct file *f,
+static ssize_t de_func_knob_write(struct file *f,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	u8 val;
@@ -479,64 +479,64 @@ static ssize_t debug_func_knob_write(struct file *f,
 	if (ret)
 		return ret;
 
-	mutex_lock(&debug_lock);
+	mutex_lock(&de_lock);
 
-	if (val == debug_enable)
+	if (val == de_enable)
 		goto out;
 
 	if (val)
-		ret = debug_enable_func();
+		ret = de_enable_func();
 	else
-		ret = debug_disable_func();
+		ret = de_disable_func();
 
 	if (ret) {
-		pr_err("%s: unable to %s debug function: %d\n",
+		pr_err("%s: unable to %s de function: %d\n",
 		       __func__, val ? "enable" : "disable", ret);
 		goto err;
 	}
 
-	debug_enable = val;
+	de_enable = val;
 out:
 	ret = count;
 err:
-	mutex_unlock(&debug_lock);
+	mutex_unlock(&de_lock);
 	return ret;
 }
 
-static ssize_t debug_func_knob_read(struct file *f,
+static ssize_t de_func_knob_read(struct file *f,
 		char __user *ubuf, size_t count, loff_t *ppos)
 {
 	ssize_t ret;
 	char buf[3];
 
-	mutex_lock(&debug_lock);
-	snprintf(buf, sizeof(buf), "%d\n", debug_enable);
-	mutex_unlock(&debug_lock);
+	mutex_lock(&de_lock);
+	snprintf(buf, sizeof(buf), "%d\n", de_enable);
+	mutex_unlock(&de_lock);
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, buf, sizeof(buf));
 	return ret;
 }
 
-static const struct file_operations debug_func_knob_fops = {
+static const struct file_operations de_func_knob_fops = {
 	.open	= simple_open,
-	.read	= debug_func_knob_read,
-	.write	= debug_func_knob_write,
+	.read	= de_func_knob_read,
+	.write	= de_func_knob_write,
 };
 
-static int debug_func_init(void)
+static int de_func_init(void)
 {
 	struct dentry *file;
 	int ret;
 
-	/* Create debugfs node */
-	debug_debugfs_dir = debugfs_create_dir("coresight_cpu_debug", NULL);
-	if (!debug_debugfs_dir) {
-		pr_err("%s: unable to create debugfs directory\n", __func__);
+	/* Create defs node */
+	de_defs_dir = defs_create_dir("coresight_cpu_de", NULL);
+	if (!de_defs_dir) {
+		pr_err("%s: unable to create defs directory\n", __func__);
 		return -ENOMEM;
 	}
 
-	file = debugfs_create_file("enable", 0644, debug_debugfs_dir, NULL,
-				   &debug_func_knob_fops);
+	file = defs_create_file("enable", 0644, de_defs_dir, NULL,
+				   &de_func_knob_fops);
 	if (!file) {
 		pr_err("%s: unable to create enable knob file\n", __func__);
 		ret = -ENOMEM;
@@ -545,7 +545,7 @@ static int debug_func_init(void)
 
 	/* Register function to be called for panic */
 	ret = atomic_notifier_chain_register(&panic_notifier_list,
-					     &debug_notifier);
+					     &de_notifier);
 	if (ret) {
 		pr_err("%s: unable to register notifier: %d\n",
 		       __func__, ret);
@@ -555,22 +555,22 @@ static int debug_func_init(void)
 	return 0;
 
 err:
-	debugfs_remove_recursive(debug_debugfs_dir);
+	defs_remove_recursive(de_defs_dir);
 	return ret;
 }
 
-static void debug_func_exit(void)
+static void de_func_exit(void)
 {
 	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &debug_notifier);
-	debugfs_remove_recursive(debug_debugfs_dir);
+					 &de_notifier);
+	defs_remove_recursive(de_defs_dir);
 }
 
-static int debug_probe(struct amba_device *adev, const struct amba_id *id)
+static int de_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	void __iomem *base;
 	struct device *dev = &adev->dev;
-	struct debug_drvdata *drvdata;
+	struct de_drvdata *drvdata;
 	struct resource *res = &adev->res;
 	struct device_node *np = adev->dev.of_node;
 	int ret;
@@ -580,7 +580,7 @@ static int debug_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	drvdata->cpu = np ? of_coresight_get_cpu(np) : 0;
-	if (per_cpu(debug_drvdata, drvdata->cpu)) {
+	if (per_cpu(de_drvdata, drvdata->cpu)) {
 		dev_err(dev, "CPU%d drvdata has already been initialized\n",
 			drvdata->cpu);
 		return -EBUSY;
@@ -597,13 +597,13 @@ static int debug_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->base = base;
 
 	get_online_cpus();
-	per_cpu(debug_drvdata, drvdata->cpu) = drvdata;
-	ret = smp_call_function_single(drvdata->cpu, debug_init_arch_data,
+	per_cpu(de_drvdata, drvdata->cpu) = drvdata;
+	ret = smp_call_function_single(drvdata->cpu, de_init_arch_data,
 				       drvdata, 1);
 	put_online_cpus();
 
 	if (ret) {
-		dev_err(dev, "CPU%d debug arch init failed\n", drvdata->cpu);
+		dev_err(dev, "CPU%d de arch init failed\n", drvdata->cpu);
 		goto err;
 	}
 
@@ -614,79 +614,79 @@ static int debug_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err;
 	}
 
-	if (!debug_count++) {
-		ret = debug_func_init();
+	if (!de_count++) {
+		ret = de_func_init();
 		if (ret)
 			goto err_func_init;
 	}
 
-	mutex_lock(&debug_lock);
-	/* Turn off debug power domain if debugging is disabled */
-	if (!debug_enable)
+	mutex_lock(&de_lock);
+	/* Turn off de power domain if deging is disabled */
+	if (!de_enable)
 		pm_runtime_put(dev);
-	mutex_unlock(&debug_lock);
+	mutex_unlock(&de_lock);
 
-	dev_info(dev, "Coresight debug-CPU%d initialized\n", drvdata->cpu);
+	dev_info(dev, "Coresight de-CPU%d initialized\n", drvdata->cpu);
 	return 0;
 
 err_func_init:
-	debug_count--;
+	de_count--;
 err:
-	per_cpu(debug_drvdata, drvdata->cpu) = NULL;
+	per_cpu(de_drvdata, drvdata->cpu) = NULL;
 	return ret;
 }
 
-static int debug_remove(struct amba_device *adev)
+static int de_remove(struct amba_device *adev)
 {
 	struct device *dev = &adev->dev;
-	struct debug_drvdata *drvdata = amba_get_drvdata(adev);
+	struct de_drvdata *drvdata = amba_get_drvdata(adev);
 
-	per_cpu(debug_drvdata, drvdata->cpu) = NULL;
+	per_cpu(de_drvdata, drvdata->cpu) = NULL;
 
-	mutex_lock(&debug_lock);
-	/* Turn off debug power domain before rmmod the module */
-	if (debug_enable)
+	mutex_lock(&de_lock);
+	/* Turn off de power domain before rmmod the module */
+	if (de_enable)
 		pm_runtime_put(dev);
-	mutex_unlock(&debug_lock);
+	mutex_unlock(&de_lock);
 
-	if (!--debug_count)
-		debug_func_exit();
+	if (!--de_count)
+		de_func_exit();
 
 	return 0;
 }
 
-static const struct amba_id debug_ids[] = {
-	{       /* Debug for Cortex-A53 */
+static const struct amba_id de_ids[] = {
+	{       /* De for Cortex-A53 */
 		.id	= 0x000bbd03,
 		.mask	= 0x000fffff,
 	},
-	{       /* Debug for Cortex-A57 */
+	{       /* De for Cortex-A57 */
 		.id	= 0x000bbd07,
 		.mask	= 0x000fffff,
 	},
-	{       /* Debug for Cortex-A72 */
+	{       /* De for Cortex-A72 */
 		.id	= 0x000bbd08,
 		.mask	= 0x000fffff,
 	},
-	{       /* Debug for Cortex-A73 */
+	{       /* De for Cortex-A73 */
 		.id	= 0x000bbd09,
 		.mask	= 0x000fffff,
 	},
 	{ 0, 0 },
 };
 
-static struct amba_driver debug_driver = {
+static struct amba_driver de_driver = {
 	.drv = {
-		.name   = "coresight-cpu-debug",
+		.name   = "coresight-cpu-de",
 		.suppress_bind_attrs = true,
 	},
-	.probe		= debug_probe,
-	.remove		= debug_remove,
-	.id_table	= debug_ids,
+	.probe		= de_probe,
+	.remove		= de_remove,
+	.id_table	= de_ids,
 };
 
-module_amba_driver(debug_driver);
+module_amba_driver(de_driver);
 
 MODULE_AUTHOR("Leo Yan <leo.yan@linaro.org>");
-MODULE_DESCRIPTION("ARM Coresight CPU Debug Driver");
+MODULE_DESCRIPTION("ARM Coresight CPU De Driver");
 MODULE_LICENSE("GPL");

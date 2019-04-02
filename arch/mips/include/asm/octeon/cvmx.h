@@ -73,11 +73,11 @@ enum cvmx_mips_space {
 #include <asm/octeon/cvmx-bootmem.h>
 #include <asm/octeon/cvmx-l2c.h>
 
-#ifndef CVMX_ENABLE_DEBUG_PRINTS
-#define CVMX_ENABLE_DEBUG_PRINTS 1
+#ifndef CVMX_ENABLE_DE_PRINTS
+#define CVMX_ENABLE_DE_PRINTS 1
 #endif
 
-#if CVMX_ENABLE_DEBUG_PRINTS
+#if CVMX_ENABLE_DE_PRINTS
 #define cvmx_dprintf	    printk
 #else
 #define cvmx_dprintf(...)   {}

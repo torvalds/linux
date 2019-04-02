@@ -1035,7 +1035,7 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 
 	/* step 12: Restore GSM - Read Address Parity Check */
 	regVal = pm8001_cr32(pm8001_ha, 2, GSM_READ_ADDR_PARITY_CHECK);
-	/* just for debugging */
+	/* just for deging */
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("GSM 0x700038 - Read Address Parity Check Enable"
 		" = 0x%x\n", regVal));
@@ -1348,7 +1348,7 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 			pm8001_printk("No free mpi buffer\n"));
 		return -ENOMEM;
 	}
-	BUG_ON(!payload);
+	_ON(!payload);
 	/*Copy to the payload*/
 	memcpy(pMessage, payload, (pm8001_ha->iomb_size -
 				sizeof(struct mpi_msg_hdr)));

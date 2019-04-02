@@ -949,7 +949,7 @@ static const struct counter_desc pport_pfc_stall_stats_desc[] = {
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS		ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
 #define NUM_PPORT_PFC_STALL_COUNTERS(priv)	(ARRAY_SIZE(pport_pfc_stall_stats_desc) * \
 						 MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) * \
-						 MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
+						 MLX5_CAP_DE((priv)->mdev, stall_detect))
 
 static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 {

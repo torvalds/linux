@@ -94,7 +94,7 @@ struct msm_gem_object {
 	struct drm_mm_node *vram_node;
 	struct mutex lock; /* Protects resources associated with bo */
 
-	char name[32]; /* Identifier to print for the debugfs files */
+	char name[32]; /* Identifier to print for the defs files */
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 

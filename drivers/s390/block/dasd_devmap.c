@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999,2001
  *
  * Device mapping and dasd= parameter parsing functions. All devmap
@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <linux/uaccess.h>
 #include <asm/ipl.h>
 
@@ -482,7 +482,7 @@ dasd_forget_ranges(void)
 	spin_lock(&dasd_devmap_lock);
 	for (i = 0; i < 256; i++) {
 		list_for_each_entry_safe(devmap, n, &dasd_hashlists[i], list) {
-			BUG_ON(devmap->device != NULL);
+			_ON(devmap->device != NULL);
 			list_del(&devmap->list);
 			kfree(devmap);
 		}
@@ -597,7 +597,7 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* First remove device pointer from devmap. */
 	devmap = dasd_find_busid(dev_name(&device->cdev->dev));
-	BUG_ON(IS_ERR(devmap));
+	_ON(IS_ERR(devmap));
 	spin_lock(&dasd_devmap_lock);
 	if (devmap->device != device) {
 		spin_unlock(&dasd_devmap_lock);

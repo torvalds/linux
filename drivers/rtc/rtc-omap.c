@@ -572,7 +572,7 @@ static const struct pinconf_generic_params rtc_params[] = {
 	{"ti,active-high", PIN_CONFIG_ACTIVE_HIGH, 0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item rtc_conf_items[ARRAY_SIZE(rtc_params)] = {
 	PCONFDUMP(PIN_CONFIG_ACTIVE_HIGH, "input active high", NULL, false),
 };
@@ -662,7 +662,7 @@ static struct pinctrl_desc rtc_pinctrl_desc = {
 	.confops = &rtc_pinconf_ops,
 	.custom_params = rtc_params,
 	.num_custom_params = ARRAY_SIZE(rtc_params),
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.custom_conf_items = rtc_conf_items,
 #endif
 	.owner = THIS_MODULE,

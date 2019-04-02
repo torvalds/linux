@@ -126,11 +126,11 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 
 void __aa_loaddata_update(struct aa_loaddata *data, long revision)
 {
-	AA_BUG(!data);
-	AA_BUG(!data->ns);
-	AA_BUG(!data->dents[AAFS_LOADDATA_REVISION]);
-	AA_BUG(!mutex_is_locked(&data->ns->lock));
-	AA_BUG(data->revision > revision);
+	AA_(!data);
+	AA_(!data->ns);
+	AA_(!data->dents[AAFS_LOADDATA_REVISION]);
+	AA_(!mutex_is_locked(&data->ns->lock));
+	AA_(data->revision > revision);
 
 	data->revision = revision;
 	d_inode(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
@@ -704,7 +704,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	/* disconnected attachment string is optional */
 	(void) unpack_str(e, &profile->disconnected, "disconnected");
 
-	/* per profile debug flags (complain, audit) */
+	/* per profile de flags (complain, audit) */
 	if (!unpack_nameX(e, AA_STRUCT, "flags")) {
 		info = "profile missing flags";
 		goto fail;

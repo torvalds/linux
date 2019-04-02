@@ -36,7 +36,7 @@ void __init qemu_e500_pic_init(void)
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	mpic_init(mpic);
 }
 

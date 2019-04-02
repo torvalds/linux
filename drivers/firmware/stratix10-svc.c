@@ -165,7 +165,7 @@ static void *svc_pa_to_va(unsigned long addr)
 {
 	struct stratix10_svc_data_mem *pmem;
 
-	pr_debug("claim back P-addr=0x%016x\n", (unsigned int)addr);
+	pr_de("claim back P-addr=0x%016x\n", (unsigned int)addr);
 	list_for_each_entry(pmem, &svc_data_mem, node)
 		if (pmem->paddr == addr)
 			return pmem->vaddr;
@@ -193,7 +193,7 @@ static void svc_thread_cmd_data_claim(struct stratix10_svc_controller *ctrl,
 	reinit_completion(&ctrl->complete_status);
 	timeout = msecs_to_jiffies(FPGA_CONFIG_DATA_CLAIM_TIMEOUT_MS);
 
-	pr_debug("%s: claim back the submitted buffer\n", __func__);
+	pr_de("%s: claim back the submitted buffer\n", __func__);
 	do {
 		ctrl->invoke_fn(INTEL_SIP_SMC_FPGA_CONFIG_COMPLETED_WRITE,
 				0, 0, 0, 0, 0, 0, 0, &res);
@@ -212,7 +212,7 @@ static void svc_thread_cmd_data_claim(struct stratix10_svc_controller *ctrl,
 			p_data->chan->scl->receive_cb(p_data->chan->scl,
 						      cb_data);
 		} else {
-			pr_debug("%s: secure world busy, polling again\n",
+			pr_de("%s: secure world busy, polling again\n",
 				 __func__);
 		}
 	} while (res.a0 == INTEL_SIP_SMC_STATUS_OK ||
@@ -241,7 +241,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 	cb_data->kaddr3 = NULL;
 	cb_data->status = BIT(SVC_STATUS_RECONFIG_ERROR);
 
-	pr_debug("%s: polling config status\n", __func__);
+	pr_de("%s: polling config status\n", __func__);
 
 	count_in_sec = FPGA_CONFIG_STATUS_TIMEOUT_SEC;
 	while (count_in_sec) {
@@ -303,7 +303,7 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		break;
 	}
 
-	pr_debug("%s: call receive_cb\n", __func__);
+	pr_de("%s: call receive_cb\n", __func__);
 	p_data->chan->scl->receive_cb(p_data->chan->scl, cb_data);
 }
 
@@ -342,7 +342,7 @@ static int svc_normal_to_secure_thread(void *data)
 	a1 = 0;
 	a2 = 0;
 
-	pr_debug("smc_hvc_shm_thread is running\n");
+	pr_de("smc_hvc_shm_thread is running\n");
 
 	while (!kthread_should_stop()) {
 		ret_fifo = kfifo_out_spinlocked(&ctrl->svc_fifo,
@@ -352,7 +352,7 @@ static int svc_normal_to_secure_thread(void *data)
 		if (!ret_fifo)
 			continue;
 
-		pr_debug("get from FIFO pa=0x%016x, command=%u, size=%u\n",
+		pr_de("get from FIFO pa=0x%016x, command=%u, size=%u\n",
 			 (unsigned int)pdata->paddr, pdata->command,
 			 (unsigned int)pdata->size);
 
@@ -362,7 +362,7 @@ static int svc_normal_to_secure_thread(void *data)
 			continue;
 		case COMMAND_RECONFIG:
 			a0 = INTEL_SIP_SMC_FPGA_CONFIG_START;
-			pr_debug("conf_type=%u\n", (unsigned int)pdata->flag);
+			pr_de("conf_type=%u\n", (unsigned int)pdata->flag);
 			a1 = pdata->flag;
 			a2 = 0;
 			break;
@@ -390,17 +390,17 @@ static int svc_normal_to_secure_thread(void *data)
 			pr_warn("it shouldn't happen\n");
 			break;
 		}
-		pr_debug("%s: before SMC call -- a0=0x%016x a1=0x%016x",
+		pr_de("%s: before SMC call -- a0=0x%016x a1=0x%016x",
 			 __func__, (unsigned int)a0, (unsigned int)a1);
-		pr_debug(" a2=0x%016x\n", (unsigned int)a2);
+		pr_de(" a2=0x%016x\n", (unsigned int)a2);
 
 		ctrl->invoke_fn(a0, a1, a2, 0, 0, 0, 0, 0, &res);
 
-		pr_debug("%s: after SMC call -- res.a0=0x%016x",
+		pr_de("%s: after SMC call -- res.a0=0x%016x",
 			 __func__, (unsigned int)res.a0);
-		pr_debug(" res.a1=0x%016x, res.a2=0x%016x",
+		pr_de(" res.a1=0x%016x, res.a2=0x%016x",
 			 (unsigned int)res.a1, (unsigned int)res.a2);
-		pr_debug(" res.a3=0x%016x\n", (unsigned int)res.a3);
+		pr_de(" res.a3=0x%016x\n", (unsigned int)res.a3);
 
 		if (pdata->command == COMMAND_RSU_STATUS) {
 			if (res.a0 == INTEL_SIP_SMC_RSU_ERROR)
@@ -435,7 +435,7 @@ static int svc_normal_to_secure_thread(void *data)
 			}
 			break;
 		case INTEL_SIP_SMC_FPGA_CONFIG_STATUS_REJECTED:
-			pr_debug("%s: STATUS_REJECTED\n", __func__);
+			pr_de("%s: STATUS_REJECTED\n", __func__);
 			break;
 		case INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR:
 			pr_err("%s: STATUS_ERROR\n", __func__);
@@ -776,7 +776,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 		wake_up_process(chan->ctrl->task);
 	}
 
-	pr_debug("%s: sent P-va=%p, P-com=%x, P-size=%u\n", __func__,
+	pr_de("%s: sent P-va=%p, P-com=%x, P-size=%u\n", __func__,
 		 p_msg->payload, p_msg->command,
 		 (unsigned int)p_msg->payload_length);
 
@@ -801,7 +801,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 	p_data->arg[2] = p_msg->arg[2];
 	p_data->size = p_msg->payload_length;
 	p_data->chan = chan;
-	pr_debug("%s: put to FIFO pa=0x%016x, cmd=%x, size=%u\n", __func__,
+	pr_de("%s: put to FIFO pa=0x%016x, cmd=%x, size=%u\n", __func__,
 	       (unsigned int)p_data->paddr, p_data->command,
 	       (unsigned int)p_data->size);
 	ret = kfifo_in_spinlocked(&chan->ctrl->svc_fifo, p_data,
@@ -829,7 +829,7 @@ void stratix10_svc_done(struct stratix10_svc_chan *chan)
 {
 	/* stop thread when thread is running AND only one active client */
 	if (chan->ctrl->task && chan->ctrl->num_active_client <= 1) {
-		pr_debug("svc_smc_hvc_shm_thread is stopped\n");
+		pr_de("svc_smc_hvc_shm_thread is stopped\n");
 		kthread_stop(chan->ctrl->task);
 		chan->ctrl->task = NULL;
 	}
@@ -870,7 +870,7 @@ void *stratix10_svc_allocate_memory(struct stratix10_svc_chan *chan,
 	pmem->paddr = pa;
 	pmem->size = s;
 	list_add_tail(&pmem->node, &svc_data_mem);
-	pr_debug("%s: va=%p, pa=0x%016x\n", __func__,
+	pr_de("%s: va=%p, pa=0x%016x\n", __func__,
 		 pmem->vaddr, (unsigned int)pmem->paddr);
 
 	return (void *)va;

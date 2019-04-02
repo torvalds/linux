@@ -3,7 +3,7 @@
 // Copyright (c) 2013 Samsung Electronics Co., Ltd
 //		http://www.samsung.com
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>

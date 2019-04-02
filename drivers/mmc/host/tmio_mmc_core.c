@@ -259,7 +259,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 	case MMC_RSP_R2:   c |= RESP_R2;   break;
 	case MMC_RSP_R3:   c |= RESP_R3;   break;
 	default:
-		pr_debug("Unknown response type %d\n", mmc_resp_type(cmd));
+		pr_de("Unknown response type %d\n", mmc_resp_type(cmd));
 		return -EINVAL;
 	}
 
@@ -377,7 +377,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 		pr_err("PIO IRQ in DMA mode!\n");
 		return;
 	} else if (!data) {
-		pr_debug("Spurious PIO IRQ\n");
+		pr_de("Spurious PIO IRQ\n");
 		return;
 	}
 
@@ -388,7 +388,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 	if (count > data->blksz)
 		count = data->blksz;
 
-	pr_debug("count: %08x offset: %08x flags %08x\n",
+	pr_de("count: %08x offset: %08x flags %08x\n",
 		 count, host->sg_off, data->flags);
 
 	/* Transfer the data */
@@ -433,7 +433,7 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 	else
 		data->bytes_xfered = 0;
 
-	pr_debug("Completed data request\n");
+	pr_de("Completed data request\n");
 
 	/*
 	 * FIXME: other drivers allow an optional stop command of any given type
@@ -525,7 +525,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 	spin_lock(&host->lock);
 
 	if (!host->cmd) {
-		pr_debug("Spurious CMD irq\n");
+		pr_de("Spurious CMD irq\n");
 		goto out;
 	}
 
@@ -683,7 +683,7 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 {
 	struct tmio_mmc_data *pdata = host->pdata;
 
-	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
+	pr_de("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
 
 	/* Some hardware cannot perform 2 byte requests in 4/8 bit mode */
@@ -797,7 +797,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->mrq) {
-		pr_debug("request not null\n");
+		pr_de("request not null\n");
 		if (IS_ERR(host->mrq)) {
 			spin_unlock_irqrestore(&host->lock, flags);
 			mrq->cmd->error = -EAGAIN;

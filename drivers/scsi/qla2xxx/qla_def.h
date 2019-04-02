@@ -4470,7 +4470,7 @@ struct qla2_sgx {
 	uint32_t		num_bytes;
 	uint32_t		tot_partial;
 
-	/* for debugging */
+	/* for deging */
 	uint32_t		num_sg;
 	srb_t			*sp;
 };

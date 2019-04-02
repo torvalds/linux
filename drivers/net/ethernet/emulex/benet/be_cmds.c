@@ -457,13 +457,13 @@ static void be_async_dbg_evt_process(struct be_adapter *adapter,
 			ASYNC_EVENT_TYPE_MASK;
 
 	switch (event_type) {
-	case ASYNC_DEBUG_EVENT_TYPE_QNQ:
+	case ASYNC_DE_EVENT_TYPE_QNQ:
 		if (evt->valid)
 			adapter->qnq_vid = le16_to_cpu(evt->vlan_tag);
 		adapter->flags |= BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 	break;
 	default:
-		dev_warn(&adapter->pdev->dev, "Unknown debug event 0x%x!\n",
+		dev_warn(&adapter->pdev->dev, "Unknown de event 0x%x!\n",
 			 event_type);
 	break;
 	}
@@ -1490,7 +1490,7 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 		opcode = OPCODE_COMMON_MCC_DESTROY;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, subsys, opcode, sizeof(*req), wrb,

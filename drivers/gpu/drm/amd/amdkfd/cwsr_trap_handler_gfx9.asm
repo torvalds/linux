@@ -43,7 +43,7 @@
 ** #9. Update: 1. Fix scc restore failed issue, restore wave_status at last
 **	       2. optimize s_buffer save by burst 16sgprs...
 ** #10. Update 1. Optimize restore sgpr by busrt 16 sgprs.
-** #11. Update 1. Add 2 more timestamp for debug version
+** #11. Update 1. Add 2 more timestamp for de version
 ** #12. Update 1. Add VGPR SR using DWx4, some case improve and some case drop performance
 ** #13. Integ  1. Always use MUBUF for PV trap shader...
 ** #14. Update 1. s_buffer_store soft clause...
@@ -60,8 +60,8 @@ var G8SR_WDMEM_SGPR_OFFSET  = 128  // in bytes
 
 // Keep definition same as the app shader, These 2 time stamps are part of the app shader... Should before any Save and after restore.
 
-var G8SR_DEBUG_TIMESTAMP = 0
-var G8SR_DEBUG_TS_SAVE_D_OFFSET = 40*4	// ts_save_d timestamp offset relative to SGPR_SR_memory_offset
+var G8SR_DE_TIMESTAMP = 0
+var G8SR_DE_TS_SAVE_D_OFFSET = 40*4	// ts_save_d timestamp offset relative to SGPR_SR_memory_offset
 var s_g8sr_ts_save_s	= s[34:35]   // save start
 var s_g8sr_ts_sq_save_msg  = s[36:37]	// The save shader send SAVEWAVE msg to spi
 var s_g8sr_ts_spi_wrexec   = s[38:39]	// the SPI write the sr address to SQ
@@ -93,7 +93,7 @@ var SIM_RUN_HACK		    =	0		    //any hack that needs to be made to run this code
 var SGPR_SAVE_USE_SQC		    =	1		    //use SQC D$ to do the write
 var USE_MTBUF_INSTEAD_OF_MUBUF	    =	0		    //because TC EMU currently asserts on 0 of // overload DFMT field to carry 4 more bits of stride for MUBUF opcodes
 var SWIZZLE_EN			    =	0		    //whether we use swizzled buffer addressing
-var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
+var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store  causing incorrect stores under concurrency
 
 /**************************************************************************/
 /*			variables					  */
@@ -136,7 +136,7 @@ var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK_NEG	= 0x00007FFF	//FIXME
 var SQ_BUF_RSRC_WORD1_ATC_SHIFT	    =	24
 var SQ_BUF_RSRC_WORD3_MTYPE_SHIFT   =	27
 
-var TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT	=   26			// bits [31:26] unused by SPI debug data
+var TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT	=   26			// bits [31:26] unused by SPI de data
 var TTMP11_SAVE_RCNT_FIRST_REPLAY_MASK	=   0xFC000000
 
 /*	Save	    */
@@ -274,7 +274,7 @@ L_NOT_ALREADY_HALTED:
     s_or_b32        s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
 
     // If the PC points to S_ENDPGM then context save will fail if STATUS.HALT is set.
-    // Rewind the PC to prevent this from occurring. The debugger compensates for this.
+    // Rewind the PC to prevent this from occurring. The deger compensates for this.
     s_sub_u32       ttmp0, ttmp0, 0x8
     s_subb_u32      ttmp1, ttmp1, 0x0
 
@@ -291,7 +291,7 @@ L_FETCH_2ND_TRAP:
     s_setreg_b32    hwreg(HW_REG_IB_STS), ttmp2
 
     // Read second-level TBA/TMA from first-level TMA and jump if available.
-    // ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized debug data)
+    // ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized de data)
     // ttmp12 holds SQ_WAVE_STATUS
     s_getreg_b32    ttmp4, hwreg(HW_REG_SQ_SHADER_TMA_LO)
     s_getreg_b32    ttmp5, hwreg(HW_REG_SQ_SHADER_TMA_HI)
@@ -333,7 +333,7 @@ end
 
 L_SAVE:
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
 	s_memrealtime	s_g8sr_ts_save_s
 	s_waitcnt lgkmcnt(0)	     //FIXME, will cause xnack??
 end
@@ -359,7 +359,7 @@ end
     s_mov_b32	    s_save_exec_hi, exec_hi
     s_mov_b64	    exec,   0x0								    //clear EXEC to get ready to receive
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
 	s_memrealtime  s_g8sr_ts_sq_save_msg
 	s_waitcnt lgkmcnt(0)
 end
@@ -383,7 +383,7 @@ end
 	s_cbranch_execz L_SLEEP
     end
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
 	s_memrealtime  s_g8sr_ts_spi_wrexec
 	s_waitcnt lgkmcnt(0)
 end
@@ -405,7 +405,7 @@ end
     else
     end
 
-    // Save trap temporaries 6-11, 13-15 initialized by SPI debug dispatch logic
+    // Save trap temporaries 6-11, 13-15 initialized by SPI de dispatch logic
     // ttmp SR memory offset : size(VGPR)+size(SGPR)+0x40
     get_vgpr_size_bytes(s_save_ttmps_lo)
     get_sgpr_size_bytes(s_save_ttmps_hi)
@@ -802,11 +802,11 @@ L_SAVE_VGPR_END:
     end
 
 // Save Done timestamp
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
 	s_memrealtime	s_g8sr_ts_save_d
 	// SGPR SR memory offset : size(VGPR)
 	get_vgpr_size_bytes(s_save_mem_offset)
-	s_add_u32 s_save_mem_offset, s_save_mem_offset, G8SR_DEBUG_TS_SAVE_D_OFFSET
+	s_add_u32 s_save_mem_offset, s_save_mem_offset, G8SR_DE_TS_SAVE_D_OFFSET
 	s_waitcnt lgkmcnt(0)	     //FIXME, will cause xnack??
 	// Need reset rsrc2??
 	s_mov_b32 m0, s_save_mem_offset
@@ -836,7 +836,7 @@ L_RESTORE:
     else
     end
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
 	s_memrealtime	s_g8sr_ts_restore_s
 	s_waitcnt lgkmcnt(0)	     //FIXME, will cause xnack??
 	// tma_lo/hi are sgpr 110, 111, which will not used for 112 SGPR allocated case...
@@ -1040,7 +1040,7 @@ end
   L_RESTORE_HWREG:
 
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
       s_mov_b32 s_g8sr_ts_restore_s[0], s_restore_pc_lo
       s_mov_b32 s_g8sr_ts_restore_s[1], s_restore_pc_hi
 end
@@ -1093,7 +1093,7 @@ end
     //s_setreg_b32  hwreg(HW_REG_TRAPSTS),  s_restore_trapsts	   //don't overwrite SAVECTX bit as it may be set through external SAVECTX during restore
     s_setreg_b32    hwreg(HW_REG_MODE),	    s_restore_mode
 
-    // Restore trap temporaries 6-11, 13-15 initialized by SPI debug dispatch logic
+    // Restore trap temporaries 6-11, 13-15 initialized by SPI de dispatch logic
     // ttmp SR memory offset : size(VGPR)+size(SGPR)+0x40
     get_vgpr_size_bytes(s_restore_ttmps_lo)
     get_sgpr_size_bytes(s_restore_ttmps_hi)
@@ -1128,7 +1128,7 @@ end
 
     s_barrier							//barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME not performance-optimal at this time
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
     s_memrealtime s_g8sr_ts_restore_d
     s_waitcnt lgkmcnt(0)
 end

@@ -619,7 +619,7 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 	else
 		dev_info(&priv->udev->dev, "Serial not available.\n");
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
+	if (rtl8xxxu_de & RTL8XXXU_DE_EFUSE) {
 		unsigned char *raw = priv->efuse_wifi.raw;
 
 		dev_info(&priv->udev->dev,
@@ -946,7 +946,7 @@ static int rtl8192eu_rx_iqk_path_b(struct rtl8xxxu_priv *priv)
 	} else {
 		/*
 		 * PA/PAD controlled by 0x0
-		 * Vendor driver restores RF_A here which I believe is a bug
+		 * Vendor driver restores RF_A here which I believe is a 
 		 */
 		rtl8xxxu_write32(priv, REG_FPGA0_IQK, 0x00000000);
 		rtl8xxxu_write_rfreg(priv, RF_B, RF6052_REG_UNKNOWN_DF, 0x180);

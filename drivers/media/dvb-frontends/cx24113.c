@@ -25,15 +25,15 @@
 #include <media/dvb_frontend.h>
 #include "cx24113.h"
 
-static int debug;
+static int de;
 
 #define cx_info(args...) do { printk(KERN_INFO "CX24113: " args); } while (0)
 #define cx_err(args...)  do { printk(KERN_ERR  "CX24113: " args); } while (0)
 
 #define dprintk(args...) \
 	do { \
-		if (debug) { \
-			printk(KERN_DEBUG "CX24113: %s: ", __func__); \
+		if (de) { \
+			printk(KERN_DE "CX24113: %s: ", __func__); \
 			printk(args); \
 		} \
 	} while (0)
@@ -104,7 +104,7 @@ static int cx24113_writereg(struct cx24113_state *state, int reg, int data)
 		.flags = 0, .buf = buf, .len = 2 };
 	int err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk(KERN_DEBUG "%s: writereg error(err == %i, reg == 0x%02x, data == 0x%02x)\n",
+		printk(KERN_DE "%s: writereg error(err == %i, reg == 0x%02x, data == 0x%02x)\n",
 		       __func__, err, reg, data);
 		return err;
 	}
@@ -126,7 +126,7 @@ static int cx24113_readreg(struct cx24113_state *state, u8 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_DEBUG "%s: reg=0x%x (error=%d)\n",
+		printk(KERN_DE "%s: reg=0x%x (error=%d)\n",
 			__func__, reg, ret);
 		return ret;
 	}
@@ -602,8 +602,8 @@ error:
 }
 EXPORT_SYMBOL(cx24113_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activates frontend deging (default:0)");
 
 MODULE_AUTHOR("Patrick Boettcher <pb@linuxtv.org>");
 MODULE_DESCRIPTION("DVB Frontend module for Conexant CX24113/CX24128hardware");

@@ -40,7 +40,7 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	struct venc_vpu_inst *vpu =
 		(struct venc_vpu_inst *)(unsigned long)msg->venc_inst;
 
-	mtk_vcodec_debug(vpu, "msg_id %x inst %p status %d",
+	mtk_vcodec_de(vpu, "msg_id %x inst %p status %d",
 			 msg->msg_id, vpu, msg->status);
 
 	switch (msg->msg_id) {
@@ -62,7 +62,7 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	vpu->signaled = 1;
 	vpu->failure = (msg->status != VENC_IPI_MSG_STATUS_OK);
 
-	mtk_vcodec_debug_leave(vpu);
+	mtk_vcodec_de_leave(vpu);
 }
 
 static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
@@ -70,7 +70,7 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 {
 	int status;
 
-	mtk_vcodec_debug_enter(vpu);
+	mtk_vcodec_de_enter(vpu);
 
 	if (!vpu->dev) {
 		mtk_vcodec_err(vpu, "inst dev is NULL");
@@ -86,7 +86,7 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 	if (vpu->failure)
 		return -EINVAL;
 
-	mtk_vcodec_debug_leave(vpu);
+	mtk_vcodec_de_leave(vpu);
 
 	return 0;
 }
@@ -96,7 +96,7 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	int status;
 	struct venc_ap_ipi_msg_init out;
 
-	mtk_vcodec_debug_enter(vpu);
+	mtk_vcodec_de_enter(vpu);
 
 	init_waitqueue_head(&vpu->wq_hd);
 	vpu->signaled = 0;
@@ -117,7 +117,7 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 		return -EINVAL;
 	}
 
-	mtk_vcodec_debug_leave(vpu);
+	mtk_vcodec_de_leave(vpu);
 
 	return 0;
 }
@@ -128,7 +128,7 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 {
 	struct venc_ap_ipi_msg_set_param out;
 
-	mtk_vcodec_debug(vpu, "id %d ->", id);
+	mtk_vcodec_de(vpu, "id %d ->", id);
 
 	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_SET_PARAM;
@@ -170,7 +170,7 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 		return -EINVAL;
 	}
 
-	mtk_vcodec_debug(vpu, "id %d <-", id);
+	mtk_vcodec_de(vpu, "id %d <-", id);
 
 	return 0;
 }
@@ -182,7 +182,7 @@ int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 {
 	struct venc_ap_ipi_msg_enc out;
 
-	mtk_vcodec_debug(vpu, "bs_mode %d ->", bs_mode);
+	mtk_vcodec_de(vpu, "bs_mode %d ->", bs_mode);
 
 	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_ENCODE;
@@ -210,7 +210,7 @@ int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 		return -EINVAL;
 	}
 
-	mtk_vcodec_debug(vpu, "bs_mode %d state %d size %d key_frm %d <-",
+	mtk_vcodec_de(vpu, "bs_mode %d state %d size %d key_frm %d <-",
 			 bs_mode, vpu->state, vpu->bs_size, vpu->is_key_frm);
 
 	return 0;
@@ -220,7 +220,7 @@ int vpu_enc_deinit(struct venc_vpu_inst *vpu)
 {
 	struct venc_ap_ipi_msg_deinit out;
 
-	mtk_vcodec_debug_enter(vpu);
+	mtk_vcodec_de_enter(vpu);
 
 	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_DEINIT;
@@ -230,7 +230,7 @@ int vpu_enc_deinit(struct venc_vpu_inst *vpu)
 		return -EINVAL;
 	}
 
-	mtk_vcodec_debug_leave(vpu);
+	mtk_vcodec_de_leave(vpu);
 
 	return 0;
 }

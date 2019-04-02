@@ -147,7 +147,7 @@ static void sclp_sd_receiver(struct evbuf_header *evbuf_hdr)
 	struct sclp_sd_listener *listener;
 	int found = 0;
 
-	pr_debug("received event (id=0x%08x)\n", evbuf->id);
+	pr_de("received event (id=0x%08x)\n", evbuf->id);
 	spin_lock(&sclp_sd_queue_lock);
 	list_for_each_entry(listener, &sclp_sd_queue, list) {
 		if (listener->id != evbuf->id)
@@ -161,7 +161,7 @@ static void sclp_sd_receiver(struct evbuf_header *evbuf_hdr)
 	spin_unlock(&sclp_sd_queue_lock);
 
 	if (!found)
-		pr_debug("unsolicited event (id=0x%08x)\n", evbuf->id);
+		pr_de("unsolicited event (id=0x%08x)\n", evbuf->id);
 }
 
 static struct sclp_register sclp_sd_register = {
@@ -212,15 +212,15 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 		evbuf->dsize = *dsize_ptr;
 
 	/* Perform command */
-	pr_debug("request (eq=%d, di=%d, id=0x%08x)\n", eq, di, listener.id);
+	pr_de("request (eq=%d, di=%d, id=0x%08x)\n", eq, di, listener.id);
 	rc = sclp_sync_request(SCLP_CMDW_WRITE_EVENT_DATA, sccb);
-	pr_debug("request done (rc=%d)\n", rc);
+	pr_de("request done (rc=%d)\n", rc);
 	if (rc)
 		goto out;
 
 	/* Evaluate response */
 	if (sccb->hdr.response_code == 0x73f0) {
-		pr_debug("event not supported\n");
+		pr_de("event not supported\n");
 		rc = -EIO;
 		goto out_remove;
 	}
@@ -240,7 +240,7 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 			*dsize_ptr = evbuf->dsize;
 		if (esize_ptr)
 			*esize_ptr = evbuf->esize;
-		pr_debug("success (dsize=%u, esize=%u)\n", evbuf->dsize,
+		pr_de("success (dsize=%u, esize=%u)\n", evbuf->dsize,
 			 evbuf->esize);
 		break;
 	case 3:

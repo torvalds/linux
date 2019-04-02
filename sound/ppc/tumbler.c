@@ -40,10 +40,10 @@
 #include "pmac.h"
 #include "tumbler_volume.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
-#define DBG(fmt...) printk(KERN_DEBUG fmt)
+#ifdef DE
+#define DBG(fmt...) printk(KERN_DE fmt)
 #else
 #define DBG(fmt...)
 #endif
@@ -978,7 +978,7 @@ static void device_change_handler(struct work_struct *work)
 		return;
 
 	mix = chip->mixer_data;
-	if (snd_BUG_ON(!mix))
+	if (snd__ON(!mix))
 		return;
 
 	headphone = tumbler_detect_headphone(chip);
@@ -1034,7 +1034,7 @@ static void tumbler_update_automute(struct snd_pmac *chip, int do_notify)
 	if (chip->auto_mute) {
 		struct pmac_tumbler *mix;
 		mix = chip->mixer_data;
-		if (snd_BUG_ON(!mix))
+		if (snd__ON(!mix))
 			return;
 		mix->auto_mute_notify = do_notify;
 		schedule_work(&device_change);

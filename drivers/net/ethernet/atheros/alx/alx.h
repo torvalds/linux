@@ -87,7 +87,7 @@ struct alx_tx_queue {
 #define ALX_DEFAULT_TX_WORK 128
 
 enum alx_device_quirks {
-	ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG = BIT(0),
+	ALX_DEV_QUIRK_MSI_INTX_DISABLE_ = BIT(0),
 };
 
 struct alx_napi {

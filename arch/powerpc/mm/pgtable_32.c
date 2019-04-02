@@ -220,7 +220,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 		/* The PTE should never be already set nor present in the
 		 * hash table
 		 */
-		BUG_ON((pte_present(*pg) | pte_hashpte(*pg)) && pgprot_val(prot));
+		_ON((pte_present(*pg) | pte_hashpte(*pg)) && pgprot_val(prot));
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT, prot));
 	}
 	smp_wmb();
@@ -310,7 +310,7 @@ static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
 	pmd_t *kpmd;
 	unsigned long address;
 
-	BUG_ON(PageHighMem(page));
+	_ON(PageHighMem(page));
 	address = (unsigned long)page_address(page);
 
 	if (v_block_mapped(address))
@@ -326,7 +326,7 @@ static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
 /*
  * Change the page attributes of an page in the linear mapping.
  *
- * THIS DOES NOTHING WITH BAT MAPPINGS, DEBUG USE ONLY
+ * THIS DOES NOTHING WITH BAT MAPPINGS, DE USE ONLY
  */
 static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
@@ -387,7 +387,7 @@ void mark_rodata_ro(void)
 }
 #endif
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
@@ -395,4 +395,4 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 
 	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
 }
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */

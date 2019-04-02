@@ -446,7 +446,7 @@ struct ecc_settings {
 	} flags;
 };
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 extern const struct attribute_group amd64_edac_dbg_group;
 #endif
 

@@ -26,9 +26,9 @@
 #include <linux/i2c-mux.h>
 
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set de level (info=1, reg=2 (or-able))");
 
 /*
  * Older drivers treated QAM64 and QAM256 the same; that is the HW always
@@ -45,19 +45,19 @@ MODULE_PARM_DESC(forced_manual, "if set, QAM64 and QAM256 will only lock to modu
 #define DBG_REG  2
 #define DBG_DUMP 4 /* FGR - comment out to remove dump code */
 
-#define lg_debug(fmt, arg...) \
-	printk(KERN_DEBUG pr_fmt(fmt), ## arg)
+#define lg_de(fmt, arg...) \
+	printk(KERN_DE pr_fmt(fmt), ## arg)
 
 #define dbg_info(fmt, arg...)					\
 	do {							\
-		if (debug & DBG_INFO)				\
-			lg_debug(fmt, ## arg);			\
+		if (de & DBG_INFO)				\
+			lg_de(fmt, ## arg);			\
 	} while (0)
 
 #define dbg_reg(fmt, arg...)					\
 	do {							\
-		if (debug & DBG_REG)				\
-			lg_debug(fmt, ## arg);			\
+		if (de & DBG_REG)				\
+			lg_de(fmt, ## arg);			\
 	} while (0)
 
 #define lg_chkerr(ret)							\
@@ -2135,22 +2135,22 @@ static void lgdt3306a_DumpAllRegs(struct lgdt3306a_state *state)
 static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 {
 	int i;
-	int sav_debug = debug;
+	int sav_de = de;
 
-	if ((debug & DBG_DUMP) == 0)
+	if ((de & DBG_DUMP) == 0)
 		return;
-	debug &= ~DBG_REG; /* suppress DBG_REG during reg dump */
+	de &= ~DBG_REG; /* suppress DBG_REG during reg dump */
 
-	lg_debug("\n");
+	lg_de("\n");
 
 	for (i = 0; i < numDumpRegs; i++) {
 		lgdt3306a_read_reg(state, regtab[i], &regval1[i]);
 		if (regval1[i] != regval2[i]) {
-			lg_debug(" %04X = %02X\n", regtab[i], regval1[i]);
+			lg_de(" %04X = %02X\n", regtab[i], regval1[i]);
 			regval2[i] = regval1[i];
 		}
 	}
-	debug = sav_debug;
+	de = sav_de;
 }
 #endif /* DBG_DUMP */
 

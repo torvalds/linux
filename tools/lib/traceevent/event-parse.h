@@ -32,8 +32,8 @@
 #define __maybe_unused __attribute__((unused))
 #endif
 
-#ifndef DEBUG_RECORD
-#define DEBUG_RECORD 0
+#ifndef DE_RECORD
+#define DE_RECORD 0
 #endif
 
 struct tep_record {
@@ -47,7 +47,7 @@ struct tep_record {
 	int			ref_count;
 	int			locked;		/* Do not free, even if ref_count is zero */
 	void			*priv;
-#if DEBUG_RECORD
+#if DE_RECORD
 	struct tep_record	*prev;
 	struct tep_record	*next;
 	long			alloc_addr;
@@ -580,7 +580,7 @@ int tep_peek_char(void);
 const char *tep_get_input_buf(void);
 unsigned long long tep_get_input_buf_ptr(void);
 
-/* for debugging */
+/* for deging */
 void tep_print_funcs(struct tep_handle *pevent);
 void tep_print_printk(struct tep_handle *pevent);
 

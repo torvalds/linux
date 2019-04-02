@@ -344,7 +344,7 @@ static int tpm_crb_smc_start(struct device *dev, unsigned long func_id)
 	arm_smccc_smc(func_id, 0, 0, 0, 0, 0, 0, 0, &res);
 	if (res.a0 != 0) {
 		dev_err(dev,
-			FW_BUG "tpm_crb_smc_start() returns res.a0 = 0x%lx\n",
+			FW_ "tpm_crb_smc_start() returns res.a0 = 0x%lx\n",
 			res.a0);
 		return -EIO;
 	}
@@ -354,7 +354,7 @@ static int tpm_crb_smc_start(struct device *dev, unsigned long func_id)
 #else
 static int tpm_crb_smc_start(struct device *dev, unsigned long func_id)
 {
-	dev_err(dev, FW_BUG "tpm_crb: incorrect start method\n");
+	dev_err(dev, FW_ "tpm_crb: incorrect start method\n");
 	return -EINVAL;
 }
 #endif
@@ -485,7 +485,7 @@ static u64 crb_fixup_cmd_size(struct device *dev, struct resource *io_res,
 		return size;
 
 	dev_err(dev,
-		FW_BUG "ACPI region does not cover the entire command/response buffer. %pr vs %llx %llx\n",
+		FW_ "ACPI region does not cover the entire command/response buffer. %pr vs %llx %llx\n",
 		io_res, start, size);
 
 	return io_res->end - start + 1;
@@ -513,7 +513,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	acpi_dev_free_resource_list(&resources);
 
 	if (resource_type(&io_res) != IORESOURCE_MEM) {
-		dev_err(dev, FW_BUG "TPM2 ACPI table does not define a memory resource\n");
+		dev_err(dev, FW_ "TPM2 ACPI table does not define a memory resource\n");
 		return -EINVAL;
 	}
 
@@ -531,7 +531,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		    sizeof(*priv->regs_h))
 			priv->regs_h = priv->iobase;
 		else
-			dev_warn(dev, FW_BUG "Bad ACPI memory layout");
+			dev_warn(dev, FW_ "Bad ACPI memory layout");
 	}
 
 	ret = __crb_request_locality(dev, priv, 0);
@@ -546,7 +546,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	}
 
 	/*
-	 * PTT HW bug w/a: wake up the device to access
+	 * PTT HW  w/a: wake up the device to access
 	 * possibly not retained registers.
 	 */
 	ret = __crb_cmd_ready(dev, priv);
@@ -583,7 +583,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 * buffer sizes must be identical.
 	 */
 	if (cmd_size != rsp_size) {
-		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
+		dev_err(dev, FW_ "overlapping command and response buffer sizes are not identical");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -617,7 +617,7 @@ static int crb_acpi_add(struct acpi_device *device)
 	status = acpi_get_table(ACPI_SIG_TPM2, 1,
 				(struct acpi_table_header **) &buf);
 	if (ACPI_FAILURE(status) || buf->header.length < sizeof(*buf)) {
-		dev_err(dev, FW_BUG "failed to get TPM2 ACPI table\n");
+		dev_err(dev, FW_ "failed to get TPM2 ACPI table\n");
 		return -EINVAL;
 	}
 
@@ -633,7 +633,7 @@ static int crb_acpi_add(struct acpi_device *device)
 	if (sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC) {
 		if (buf->header.length < (sizeof(*buf) + sizeof(*crb_smc))) {
 			dev_err(dev,
-				FW_BUG "TPM2 ACPI table has wrong size %u for start method type %d\n",
+				FW_ "TPM2 ACPI table has wrong size %u for start method type %d\n",
 				buf->header.length,
 				ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC);
 			return -EINVAL;

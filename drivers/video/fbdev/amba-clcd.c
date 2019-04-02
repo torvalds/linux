@@ -337,7 +337,7 @@ static int clcdfb_set_par(struct fb_info *info)
 
 	clcdfb_enable(fb, regs.cntl);
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_INFO
 	       "CLCD: Registers set to\n"
 	       "  %08x %08x %08x %08x\n"

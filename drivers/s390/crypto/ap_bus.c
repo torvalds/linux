@@ -33,11 +33,11 @@
 #include <asm/facility.h>
 #include <linux/crypto.h>
 #include <linux/mod_devicetable.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ctype.h>
 
 #include "ap_bus.h"
-#include "ap_debug.h"
+#include "ap_de.h"
 
 /*
  * Module parameters; note though this file itself isn't modular.
@@ -75,9 +75,9 @@ static struct ap_config_info *ap_configuration;
 static bool initialised;
 
 /*
- * AP bus related debug feature things.
+ * AP bus related de feature things.
  */
-debug_info_t *ap_dbf_info;
+de_info_t *ap_dbf_info;
 
 /*
  * Workqueue timer for bus rescan.
@@ -326,7 +326,7 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 	case AP_RESPONSE_BUSY:
 		return -EBUSY;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -590,7 +590,7 @@ static int ap_dev_resume(struct device *dev)
 
 static void ap_bus_suspend(void)
 {
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
+	AP_DBF(DBF_DE, "%s running\n", __func__);
 
 	ap_suspend_flag = 1;
 	/*
@@ -627,7 +627,7 @@ static void ap_bus_resume(void)
 {
 	int rc;
 
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
+	AP_DBF(DBF_DE, "%s running\n", __func__);
 
 	/* remove all queue devices */
 	bus_for_each_dev(&ap_bus_type, NULL, NULL,
@@ -700,7 +700,7 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 		drvres = to_ap_drv(dev->driver)->flags
 			& AP_DRIVER_FLAG_DEFAULT;
 		if (!!devres != !!drvres) {
-			AP_DBF(DBF_DEBUG, "reprobing queue=%02x.%04x\n",
+			AP_DBF(DBF_DE, "reprobing queue=%02x.%04x\n",
 			       card, queue);
 			rc = device_reprobe(dev);
 		}
@@ -1022,7 +1022,7 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	ap_domain_index = domain;
 	spin_unlock_bh(&ap_domain_lock);
 
-	AP_DBF(DBF_DEBUG, "stored new default domain=%d\n", domain);
+	AP_DBF(DBF_DE, "stored new default domain=%d\n", domain);
 
 	return count;
 }
@@ -1288,7 +1288,7 @@ static void ap_select_domain(void)
 	}
 	if (best_domain >= 0) {
 		ap_domain_index = best_domain;
-		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
+		AP_DBF(DBF_DE, "new ap_domain_index=%d\n", ap_domain_index);
 	}
 	spin_unlock_bh(&ap_domain_lock);
 }
@@ -1464,7 +1464,7 @@ static void _ap_scan_bus_adapter(int id)
 			}
 			if (borked) {
 				/* Remove broken device */
-				AP_DBF(DBF_DEBUG,
+				AP_DBF(DBF_DE,
 				       "removing broken queue=%02x.%04x\n",
 				       id, dom);
 				device_unregister(dev);
@@ -1524,7 +1524,7 @@ static void ap_scan_bus(struct work_struct *unused)
 {
 	int id;
 
-	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
+	AP_DBF(DBF_DE, "%s running\n", __func__);
 
 	ap_query_configuration(ap_configuration);
 	ap_select_domain();
@@ -1557,12 +1557,12 @@ static void ap_config_timeout(struct timer_list *unused)
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
-static int __init ap_debug_init(void)
+static int __init ap_de_init(void)
 {
-	ap_dbf_info = debug_register("ap", 1, 1,
+	ap_dbf_info = de_register("ap", 1, 1,
 				     DBF_MAX_SPRINTF_ARGS * sizeof(long));
-	debug_register_view(ap_dbf_info, &debug_sprintf_view);
-	debug_set_level(ap_dbf_info, DBF_ERR);
+	de_register_view(ap_dbf_info, &de_sprintf_view);
+	de_set_level(ap_dbf_info, DBF_ERR);
 
 	return 0;
 }
@@ -1599,7 +1599,7 @@ static int __init ap_module_init(void)
 	int max_domain_id;
 	int rc, i;
 
-	rc = ap_debug_init();
+	rc = ap_de_init();
 	if (rc)
 		return rc;
 

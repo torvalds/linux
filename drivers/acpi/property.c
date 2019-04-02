@@ -104,7 +104,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 	}
 
 	kfree(dn);
-	acpi_handle_debug(handle, "Invalid properties/subnodes data, skipping\n");
+	acpi_handle_de(handle, "Invalid properties/subnodes data, skipping\n");
 	return false;
 }
 
@@ -413,7 +413,7 @@ void acpi_init_properties(struct acpi_device *adev)
 		adev->data.pointer = buf.pointer;
 
 	if (!adev->data.pointer) {
-		acpi_handle_debug(adev->handle, "Invalid _DSD data, skipping\n");
+		acpi_handle_de(adev->handle, "Invalid _DSD data, skipping\n");
 		ACPI_FREE(buf.pointer);
 	}
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * debugfs attributes for Wilco EC
+ * defs attributes for Wilco EC
  *
  * Copyright 2019 Google LLC
  *
- * There is only one attribute used for debugging, called raw.
+ * There is only one attribute used for deging, called raw.
  * You can write a hexadecimal sentence to raw, and that series of bytes
  * will be sent to the EC. Then, you can read the bytes of response
  * by reading from raw.
@@ -32,25 +32,25 @@
  */
 
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/platform_device.h>
 
-#define DRV_NAME "wilco-ec-debugfs"
+#define DRV_NAME "wilco-ec-defs"
 
 /* The 256 raw bytes will take up more space when represented as a hex string */
 #define FORMATTED_BUFFER_SIZE (EC_MAILBOX_DATA_SIZE_EXTENDED * 4)
 
-struct wilco_ec_debugfs {
+struct wilco_ec_defs {
 	struct wilco_ec_device *ec;
 	struct dentry *dir;
 	size_t response_size;
 	u8 raw_data[EC_MAILBOX_DATA_SIZE_EXTENDED];
 	u8 formatted_data[FORMATTED_BUFFER_SIZE];
 };
-static struct wilco_ec_debugfs *debug_info;
+static struct wilco_ec_defs *de_info;
 
 /**
  * parse_hex_sentence() - Convert a ascii hex representation into byte array.
@@ -119,7 +119,7 @@ static int parse_hex_sentence(const char *in, int isize, u8 *out, int osize)
 static ssize_t raw_write(struct file *file, const char __user *user_buf,
 			 size_t count, loff_t *ppos)
 {
-	char *buf = debug_info->formatted_data;
+	char *buf = de_info->formatted_data;
 	struct wilco_ec_message msg;
 	u8 request_data[TYPE_AND_DATA_SIZE];
 	ssize_t kcount;
@@ -141,14 +141,14 @@ static ssize_t raw_write(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	/* Clear response data buffer */
-	memset(debug_info->raw_data, '\0', EC_MAILBOX_DATA_SIZE_EXTENDED);
+	memset(de_info->raw_data, '\0', EC_MAILBOX_DATA_SIZE_EXTENDED);
 
 	msg.type = request_data[0] << 8 | request_data[1];
 	msg.flags = WILCO_EC_FLAG_RAW;
 	msg.command = request_data[2];
 	msg.request_data = ret > 3 ? request_data + 3 : 0;
 	msg.request_size = ret - 3;
-	msg.response_data = debug_info->raw_data;
+	msg.response_data = de_info->raw_data;
 	msg.response_size = EC_MAILBOX_DATA_SIZE;
 
 	/* Telemetry commands use extended response data */
@@ -157,10 +157,10 @@ static ssize_t raw_write(struct file *file, const char __user *user_buf,
 		msg.response_size = EC_MAILBOX_DATA_SIZE_EXTENDED;
 	}
 
-	ret = wilco_ec_mailbox(debug_info->ec, &msg);
+	ret = wilco_ec_mailbox(de_info->ec, &msg);
 	if (ret < 0)
 		return ret;
-	debug_info->response_size = ret;
+	de_info->response_size = ret;
 
 	return count;
 }
@@ -170,17 +170,17 @@ static ssize_t raw_read(struct file *file, char __user *user_buf, size_t count,
 {
 	int fmt_len = 0;
 
-	if (debug_info->response_size) {
-		fmt_len = hex_dump_to_buffer(debug_info->raw_data,
-					     debug_info->response_size,
-					     16, 1, debug_info->formatted_data,
+	if (de_info->response_size) {
+		fmt_len = hex_dump_to_buffer(de_info->raw_data,
+					     de_info->response_size,
+					     16, 1, de_info->formatted_data,
 					     FORMATTED_BUFFER_SIZE, true);
 		/* Only return response the first time it is read */
-		debug_info->response_size = 0;
+		de_info->response_size = 0;
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos,
-				       debug_info->formatted_data, fmt_len);
+				       de_info->formatted_data, fmt_len);
 }
 
 static const struct file_operations fops_raw = {
@@ -191,48 +191,48 @@ static const struct file_operations fops_raw = {
 };
 
 /**
- * wilco_ec_debugfs_probe() - Create the debugfs node
+ * wilco_ec_defs_probe() - Create the defs node
  * @pdev: The platform device, probably created in core.c
  *
- * Try to create a debugfs node. If it fails, then we don't want to change
- * behavior at all, this is for debugging after all. Just fail silently.
+ * Try to create a defs node. If it fails, then we don't want to change
+ * behavior at all, this is for deging after all. Just fail silently.
  *
  * Return: 0 always.
  */
-static int wilco_ec_debugfs_probe(struct platform_device *pdev)
+static int wilco_ec_defs_probe(struct platform_device *pdev)
 {
 	struct wilco_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 
-	debug_info = devm_kzalloc(&pdev->dev, sizeof(*debug_info), GFP_KERNEL);
-	if (!debug_info)
+	de_info = devm_kzalloc(&pdev->dev, sizeof(*de_info), GFP_KERNEL);
+	if (!de_info)
 		return 0;
-	debug_info->ec = ec;
-	debug_info->dir = debugfs_create_dir("wilco_ec", NULL);
-	if (!debug_info->dir)
+	de_info->ec = ec;
+	de_info->dir = defs_create_dir("wilco_ec", NULL);
+	if (!de_info->dir)
 		return 0;
-	debugfs_create_file("raw", 0644, debug_info->dir, NULL, &fops_raw);
+	defs_create_file("raw", 0644, de_info->dir, NULL, &fops_raw);
 
 	return 0;
 }
 
-static int wilco_ec_debugfs_remove(struct platform_device *pdev)
+static int wilco_ec_defs_remove(struct platform_device *pdev)
 {
-	debugfs_remove_recursive(debug_info->dir);
+	defs_remove_recursive(de_info->dir);
 
 	return 0;
 }
 
-static struct platform_driver wilco_ec_debugfs_driver = {
+static struct platform_driver wilco_ec_defs_driver = {
 	.driver = {
 		.name = DRV_NAME,
 	},
-	.probe = wilco_ec_debugfs_probe,
-	.remove = wilco_ec_debugfs_remove,
+	.probe = wilco_ec_defs_probe,
+	.remove = wilco_ec_defs_remove,
 };
 
-module_platform_driver(wilco_ec_debugfs_driver);
+module_platform_driver(wilco_ec_defs_driver);
 
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Wilco EC debugfs driver");
+MODULE_DESCRIPTION("Wilco EC defs driver");

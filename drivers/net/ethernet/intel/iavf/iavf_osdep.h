@@ -44,8 +44,8 @@ struct iavf_virt_mem {
 #define iavf_allocate_virt_mem(h, m, s) iavf_allocate_virt_mem_d(h, m, s)
 #define iavf_free_virt_mem(h, m) iavf_free_virt_mem_d(h, m)
 
-#define iavf_debug(h, m, s, ...)  iavf_debug_d(h, m, s, ##__VA_ARGS__)
-extern void iavf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
+#define iavf_de(h, m, s, ...)  iavf_de_d(h, m, s, ##__VA_ARGS__)
+extern void iavf_de_d(void *hw, u32 mask, char *fmt_str, ...)
 	__attribute__ ((format(gnu_printf, 3, 4)));
 
 typedef enum iavf_status_code iavf_status;

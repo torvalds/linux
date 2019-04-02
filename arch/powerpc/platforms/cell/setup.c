@@ -12,7 +12,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -59,7 +59,7 @@
 #include "pervasive.h"
 #include "ras.h"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -113,7 +113,7 @@ static void cell_fixup_pcie_rootcomplex(struct pci_dev *dev)
 		dev->resource[i].flags = 0;
 	}
 
-	printk(KERN_DEBUG "PCI: Hiding resources on Axon PCIE RC %s\n",
+	printk(KERN_DE "PCI: Hiding resources on Axon PCIE RC %s\n",
 	       pci_name(dev));
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, cell_fixup_pcie_rootcomplex);

@@ -1,40 +1,40 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
-  Generic support for BUG()
+  Generic support for ()
 
   This respects the following config options:
 
-  CONFIG_BUG - emit BUG traps.  Nothing happens without this.
-  CONFIG_GENERIC_BUG - enable this code.
-  CONFIG_GENERIC_BUG_RELATIVE_POINTERS - use 32-bit pointers relative to
-	the containing struct bug_entry for bug_addr and file.
-  CONFIG_DEBUG_BUGVERBOSE - emit full file+line information for each BUG
+  CONFIG_ - emit  traps.  Nothing happens without this.
+  CONFIG_GENERIC_ - enable this code.
+  CONFIG_GENERIC__RELATIVE_POINTERS - use 32-bit pointers relative to
+	the containing struct _entry for _addr and file.
+  CONFIG_DE_VERBOSE - emit full file+line information for each 
 
-  CONFIG_BUG and CONFIG_DEBUG_BUGVERBOSE are potentially user-settable
+  CONFIG_ and CONFIG_DE_VERBOSE are potentially user-settable
   (though they're generally always on).
 
-  CONFIG_GENERIC_BUG is set by each architecture using this code.
+  CONFIG_GENERIC_ is set by each architecture using this code.
 
   To use this, your architecture must:
 
   1. Set up the config options:
-     - Enable CONFIG_GENERIC_BUG if CONFIG_BUG
+     - Enable CONFIG_GENERIC_ if CONFIG_
 
-  2. Implement BUG (and optionally BUG_ON, WARN, WARN_ON)
-     - Define HAVE_ARCH_BUG
-     - Implement BUG() to generate a faulting instruction
-     - NOTE: struct bug_entry does not have "file" or "line" entries
-       when CONFIG_DEBUG_BUGVERBOSE is not enabled, so you must generate
+  2. Implement  (and optionally _ON, WARN, WARN_ON)
+     - Define HAVE_ARCH_
+     - Implement () to generate a faulting instruction
+     - NOTE: struct _entry does not have "file" or "line" entries
+       when CONFIG_DE_VERBOSE is not enabled, so you must generate
        the values accordingly.
 
   3. Implement the trap
      - In the illegal instruction trap handler (typically), verify
-       that the fault was in kernel mode, and call report_bug()
-     - report_bug() will return whether it was a false alarm, a warning,
-       or an actual bug.
-     - You must implement the is_valid_bugaddr(bugaddr) callback which
+       that the fault was in kernel mode, and call report_()
+     - report_() will return whether it was a false alarm, a warning,
+       or an actual .
+     - You must implement the is_valid_addr(addr) callback which
        returns true if the eip is a real kernel address, and it points
-       to the expected BUG trap instruction.
+       to the expected  trap instruction.
 
     Jeremy Fitzhardinge <jeremy@goop.org> 2006
  */
@@ -44,47 +44,47 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/sched.h>
 #include <linux/rculist.h>
 
-extern struct bug_entry __start___bug_table[], __stop___bug_table[];
+extern struct _entry __start____table[], __stop____table[];
 
-static inline unsigned long bug_addr(const struct bug_entry *bug)
+static inline unsigned long _addr(const struct _entry *)
 {
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	return bug->bug_addr;
+#ifndef CONFIG_GENERIC__RELATIVE_POINTERS
+	return ->_addr;
 #else
-	return (unsigned long)bug + bug->bug_addr_disp;
+	return (unsigned long) + ->_addr_disp;
 #endif
 }
 
 #ifdef CONFIG_MODULES
 /* Updates are protected by module mutex */
-static LIST_HEAD(module_bug_list);
+static LIST_HEAD(module__list);
 
-static struct bug_entry *module_find_bug(unsigned long bugaddr)
+static struct _entry *module_find_(unsigned long addr)
 {
 	struct module *mod;
-	struct bug_entry *bug = NULL;
+	struct _entry * = NULL;
 
 	rcu_read_lock_sched();
-	list_for_each_entry_rcu(mod, &module_bug_list, bug_list) {
+	list_for_each_entry_rcu(mod, &module__list, _list) {
 		unsigned i;
 
-		bug = mod->bug_table;
-		for (i = 0; i < mod->num_bugs; ++i, ++bug)
-			if (bugaddr == bug_addr(bug))
+		 = mod->_table;
+		for (i = 0; i < mod->num_s; ++i, ++)
+			if (addr == _addr())
 				goto out;
 	}
-	bug = NULL;
+	 = NULL;
 out:
 	rcu_read_unlock_sched();
 
-	return bug;
+	return ;
 }
 
-void module_bug_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+void module__finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 			 struct module *mod)
 {
 	char *secstrings;
@@ -92,132 +92,132 @@ void module_bug_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 
 	lockdep_assert_held(&module_mutex);
 
-	mod->bug_table = NULL;
-	mod->num_bugs = 0;
+	mod->_table = NULL;
+	mod->num_s = 0;
 
-	/* Find the __bug_table section, if present */
+	/* Find the ___table section, if present */
 	secstrings = (char *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 	for (i = 1; i < hdr->e_shnum; i++) {
-		if (strcmp(secstrings+sechdrs[i].sh_name, "__bug_table"))
+		if (strcmp(secstrings+sechdrs[i].sh_name, "___table"))
 			continue;
-		mod->bug_table = (void *) sechdrs[i].sh_addr;
-		mod->num_bugs = sechdrs[i].sh_size / sizeof(struct bug_entry);
+		mod->_table = (void *) sechdrs[i].sh_addr;
+		mod->num_s = sechdrs[i].sh_size / sizeof(struct _entry);
 		break;
 	}
 
 	/*
 	 * Strictly speaking this should have a spinlock to protect against
-	 * traversals, but since we only traverse on BUG()s, a spinlock
+	 * traversals, but since we only traverse on ()s, a spinlock
 	 * could potentially lead to deadlock and thus be counter-productive.
-	 * Thus, this uses RCU to safely manipulate the bug list, since BUG
+	 * Thus, this uses RCU to safely manipulate the  list, since 
 	 * must run in non-interruptive state.
 	 */
-	list_add_rcu(&mod->bug_list, &module_bug_list);
+	list_add_rcu(&mod->_list, &module__list);
 }
 
-void module_bug_cleanup(struct module *mod)
+void module__cleanup(struct module *mod)
 {
 	lockdep_assert_held(&module_mutex);
-	list_del_rcu(&mod->bug_list);
+	list_del_rcu(&mod->_list);
 }
 
 #else
 
-static inline struct bug_entry *module_find_bug(unsigned long bugaddr)
+static inline struct _entry *module_find_(unsigned long addr)
 {
 	return NULL;
 }
 #endif
 
-struct bug_entry *find_bug(unsigned long bugaddr)
+struct _entry *find_(unsigned long addr)
 {
-	struct bug_entry *bug;
+	struct _entry *;
 
-	for (bug = __start___bug_table; bug < __stop___bug_table; ++bug)
-		if (bugaddr == bug_addr(bug))
-			return bug;
+	for ( = __start____table;  < __stop____table; ++)
+		if (addr == _addr())
+			return ;
 
-	return module_find_bug(bugaddr);
+	return module_find_(addr);
 }
 
-enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
+enum _trap_type report_(unsigned long addr, struct pt_regs *regs)
 {
-	struct bug_entry *bug;
+	struct _entry *;
 	const char *file;
 	unsigned line, warning, once, done;
 
-	if (!is_valid_bugaddr(bugaddr))
-		return BUG_TRAP_TYPE_NONE;
+	if (!is_valid_addr(addr))
+		return _TRAP_TYPE_NONE;
 
-	bug = find_bug(bugaddr);
-	if (!bug)
-		return BUG_TRAP_TYPE_NONE;
+	 = find_(addr);
+	if (!)
+		return _TRAP_TYPE_NONE;
 
 	file = NULL;
 	line = 0;
 	warning = 0;
 
-	if (bug) {
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-		file = bug->file;
+	if () {
+#ifdef CONFIG_DE_VERBOSE
+#ifndef CONFIG_GENERIC__RELATIVE_POINTERS
+		file = ->file;
 #else
-		file = (const char *)bug + bug->file_disp;
+		file = (const char *) + ->file_disp;
 #endif
-		line = bug->line;
+		line = ->line;
 #endif
-		warning = (bug->flags & BUGFLAG_WARNING) != 0;
-		once = (bug->flags & BUGFLAG_ONCE) != 0;
-		done = (bug->flags & BUGFLAG_DONE) != 0;
+		warning = (->flags & FLAG_WARNING) != 0;
+		once = (->flags & FLAG_ONCE) != 0;
+		done = (->flags & FLAG_DONE) != 0;
 
 		if (warning && once) {
 			if (done)
-				return BUG_TRAP_TYPE_WARN;
+				return _TRAP_TYPE_WARN;
 
 			/*
 			 * Since this is the only store, concurrency is not an issue.
 			 */
-			bug->flags |= BUGFLAG_DONE;
+			->flags |= FLAG_DONE;
 		}
 	}
 
 	if (warning) {
-		/* this is a WARN_ON rather than BUG/BUG_ON */
-		__warn(file, line, (void *)bugaddr, BUG_GET_TAINT(bug), regs,
+		/* this is a WARN_ON rather than /_ON */
+		__warn(file, line, (void *)addr, _GET_TAINT(), regs,
 		       NULL);
-		return BUG_TRAP_TYPE_WARN;
+		return _TRAP_TYPE_WARN;
 	}
 
 	printk(KERN_DEFAULT CUT_HERE);
 
 	if (file)
-		pr_crit("kernel BUG at %s:%u!\n", file, line);
+		pr_crit("kernel  at %s:%u!\n", file, line);
 	else
-		pr_crit("Kernel BUG at %pB [verbose debug info unavailable]\n",
-			(void *)bugaddr);
+		pr_crit("Kernel  at %pB [verbose de info unavailable]\n",
+			(void *)addr);
 
-	return BUG_TRAP_TYPE_BUG;
+	return _TRAP_TYPE_;
 }
 
-static void clear_once_table(struct bug_entry *start, struct bug_entry *end)
+static void clear_once_table(struct _entry *start, struct _entry *end)
 {
-	struct bug_entry *bug;
+	struct _entry *;
 
-	for (bug = start; bug < end; bug++)
-		bug->flags &= ~BUGFLAG_DONE;
+	for ( = start;  < end; ++)
+		->flags &= ~FLAG_DONE;
 }
 
-void generic_bug_clear_once(void)
+void generic__clear_once(void)
 {
 #ifdef CONFIG_MODULES
 	struct module *mod;
 
 	rcu_read_lock_sched();
-	list_for_each_entry_rcu(mod, &module_bug_list, bug_list)
-		clear_once_table(mod->bug_table,
-				 mod->bug_table + mod->num_bugs);
+	list_for_each_entry_rcu(mod, &module__list, _list)
+		clear_once_table(mod->_table,
+				 mod->_table + mod->num_s);
 	rcu_read_unlock_sched();
 #endif
 
-	clear_once_table(__start___bug_table, __stop___bug_table);
+	clear_once_table(__start____table, __stop____table);
 }

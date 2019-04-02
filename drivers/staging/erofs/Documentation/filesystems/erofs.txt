@@ -45,7 +45,7 @@ The following git tree provides the file system user-space tools under
 development (ex, formatting tool mkfs.erofs):
 >> git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git
 
-Bugs and patches are welcome, please kindly help us and send to the following
+s and patches are welcome, please kindly help us and send to the following
 linux-erofs mailing list:
 >> linux-erofs mailing list   <linux-erofs@lists.ozlabs.org>
 

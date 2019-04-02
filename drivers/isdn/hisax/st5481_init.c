@@ -21,7 +21,7 @@
  * avoid copy to isoc buffer?
  * improve usb delay?
  * merge l1 state machines?
- * clean up debug
+ * clean up de
  */
 
 #include <linux/module.h>
@@ -40,11 +40,11 @@ module_param(protocol, int, 0);
 static int number_of_leds = 2;       /* 2 LEDs on the adpater default */
 module_param(number_of_leds, int, 0);
 
-#ifdef CONFIG_HISAX_DEBUG
-static int debug = 0;
-module_param(debug, int, 0);
+#ifdef CONFIG_HISAX_DE
+static int de = 0;
+module_param(de, int, 0);
 #endif
-int st5481_debug;
+int st5481_de;
 
 /* ======================================================================
  * registration/deregistration with the USB layer
@@ -189,8 +189,8 @@ static int __init st5481_usb_init(void)
 {
 	int retval;
 
-#ifdef CONFIG_HISAX_DEBUG
-	st5481_debug = debug;
+#ifdef CONFIG_HISAX_DE
+	st5481_de = de;
 #endif
 
 	printk(KERN_INFO "hisax_st5481: ST5481 USB ISDN driver $Revision: 2.4.2.3 $\n");

@@ -809,7 +809,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 		struct slave *old_active = rtnl_dereference(bond->curr_active_slave);
 		struct slave *new_active = bond_slave_get_rtnl(slave_dev);
 
-		BUG_ON(!new_active);
+		_ON(!new_active);
 
 		if (new_active == old_active) {
 			/* do nothing */

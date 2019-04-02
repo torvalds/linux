@@ -10,7 +10,7 @@
 #define FW_8192C_PAGE_SIZE			4096
 #define FW_8192C_POLLING_DELAY			5
 
-#define USE_OLD_WOWLAN_DEBUG_FW			0
+#define USE_OLD_WOWLAN_DE_FW			0
 
 #define H2C_PWEMODE_LENGTH			7
 

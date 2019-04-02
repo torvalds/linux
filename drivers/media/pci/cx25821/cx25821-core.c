@@ -29,9 +29,9 @@ MODULE_DESCRIPTION("Driver for Athena cards");
 MODULE_AUTHOR("Shu Lin - Hiep Huynh");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
 static unsigned int card[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
 module_param_array(card, int, NULL, 0444);
@@ -453,7 +453,7 @@ int cx25821_sram_channel_setup(struct cx25821_dev *dev,
 	if (lines > 4)
 		lines = 4;
 
-	BUG_ON(lines < 2);
+	_ON(lines < 2);
 
 	cx_write(8 + 0, RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
 	cx_write(8 + 4, 8);
@@ -521,7 +521,7 @@ int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 	if (lines > 3)
 		lines = 3;	/* for AUDIO */
 
-	BUG_ON(lines < 2);
+	_ON(lines < 2);
 
 	cx_write(8 + 0, RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
 	cx_write(8 + 4, 8);
@@ -1106,7 +1106,7 @@ int cx25821_risc_buffer(struct pci_dev *pci, struct cx25821_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 3) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 3) * sizeof(*risc->cpu) > risc->size);
 
 	return 0;
 }
@@ -1201,14 +1201,14 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 EXPORT_SYMBOL(cx25821_risc_databuffer_audio);
 
 void cx25821_free_buffer(struct cx25821_dev *dev, struct cx25821_buffer *buf)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (WARN_ON(buf->risc.size == 0))
 		return;
 	pci_free_consistent(dev->pci,
@@ -1251,7 +1251,7 @@ void cx25821_print_irqbits(char *name, char *tag, char **strings,
 {
 	unsigned int i;
 
-	printk(KERN_DEBUG pr_fmt("%s: %s [0x%x]"), name, tag, bits);
+	printk(KERN_DE pr_fmt("%s: %s [0x%x]"), name, tag, bits);
 
 	for (i = 0; i < len; i++) {
 		if (!(bits & (1 << i)))

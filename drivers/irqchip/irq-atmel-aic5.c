@@ -259,7 +259,7 @@ static void __init aic5_hw_init(struct irq_domain *domain)
 	 */
 	irq_reg_writel(gc, 0xffffffff, AT91_AIC5_SPU);
 
-	/* No debugging in AIC: Debug (Protect) Control Register */
+	/* No deging in AIC: De (Protect) Control Register */
 	irq_reg_writel(gc, 0, AT91_AIC5_DCR);
 
 	/* Disable and clear all interrupts initially */

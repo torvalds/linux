@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#undef DEBUG
+#undef DE
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
@@ -82,12 +82,12 @@ bool gntdev_account_mapped_pages(int count)
 static void gntdev_print_maps(struct gntdev_priv *priv,
 			      char *text, int text_index)
 {
-#ifdef DEBUG
+#ifdef DE
 	struct gntdev_grant_map *map;
 
-	pr_debug("%s: maps list (priv %p)\n", __func__, priv);
+	pr_de("%s: maps list (priv %p)\n", __func__, priv);
 	list_for_each_entry(map, &priv->maps, next)
-		pr_debug("  index %2d, count %2d %s\n",
+		pr_de("  index %2d, count %2d %s\n",
 		       map->index, map->count,
 		       map->index == text_index && text ? text : "");
 #endif
@@ -272,7 +272,7 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 	int flags = map->flags | GNTMAP_application_map | GNTMAP_contains_pte;
 	u64 pte_maddr;
 
-	BUG_ON(pgnr >= map->count);
+	_ON(pgnr >= map->count);
 	pte_maddr = arbitrary_virt_to_machine(pte).maddr;
 
 	/*
@@ -327,7 +327,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 		for (i = 0; i < map->count; i++) {
 			unsigned long address = (unsigned long)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
-			BUG_ON(PageHighMem(map->pages[i]));
+			_ON(PageHighMem(map->pages[i]));
 
 			gnttab_set_map_op(&map->kmap_ops[i], address,
 				map->flags | GNTMAP_host_map,
@@ -338,7 +338,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 		}
 	}
 
-	pr_debug("map %d+%d\n", map->index, map->count);
+	pr_de("map %d+%d\n", map->index, map->count);
 	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
 			map->pages, map->count);
 	if (err)
@@ -393,7 +393,7 @@ static int __unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 	for (i = 0; i < pages; i++) {
 		if (map->unmap_ops[offset+i].status)
 			err = -EINVAL;
-		pr_debug("unmap handle=%d st=%d\n",
+		pr_de("unmap handle=%d st=%d\n",
 			map->unmap_ops[offset+i].handle,
 			map->unmap_ops[offset+i].status);
 		map->unmap_ops[offset+i].handle = -1;
@@ -406,7 +406,7 @@ static int unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 {
 	int range, err = 0;
 
-	pr_debug("unmap %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
+	pr_de("unmap %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
 
 	/* It is possible the requested range will have a "hole" where we
 	 * already unmapped some of the grants. Only unmap valid ranges.
@@ -436,7 +436,7 @@ static void gntdev_vma_open(struct vm_area_struct *vma)
 {
 	struct gntdev_grant_map *map = vma->vm_private_data;
 
-	pr_debug("gntdev_vma_open %p\n", vma);
+	pr_de("gntdev_vma_open %p\n", vma);
 	refcount_inc(&map->users);
 }
 
@@ -446,7 +446,7 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	struct file *file = vma->vm_file;
 	struct gntdev_priv *priv = file->private_data;
 
-	pr_debug("gntdev_vma_close %p\n", vma);
+	pr_de("gntdev_vma_close %p\n", vma);
 	if (use_ptemod) {
 		/* It is possible that an mmu notifier could be running
 		 * concurrently, so take priv->lock to ensure that the vma won't
@@ -507,7 +507,7 @@ static int unmap_if_in_range(struct gntdev_grant_map *map,
 
 	mstart = max(start, map->vma->vm_start);
 	mend   = min(end,   map->vma->vm_end);
-	pr_debug("map %d+%d (%lx %lx), range %lx %lx, mrange %lx %lx\n",
+	pr_de("map %d+%d (%lx %lx), range %lx %lx, mrange %lx %lx\n",
 			map->index, map->count,
 			map->vma->vm_start, map->vma->vm_end,
 			start, end, mstart, mend);
@@ -561,7 +561,7 @@ static void mn_release(struct mmu_notifier *mn,
 	list_for_each_entry(map, &priv->maps, next) {
 		if (!map->vma)
 			continue;
-		pr_debug("map %d+%d (%lx %lx)\n",
+		pr_de("map %d+%d (%lx %lx)\n",
 				map->index, map->count,
 				map->vma->vm_start, map->vma->vm_end);
 		err = unmap_grant_pages(map, /* offset */ 0, map->count);
@@ -570,7 +570,7 @@ static void mn_release(struct mmu_notifier *mn,
 	list_for_each_entry(map, &priv->freeable_maps, next) {
 		if (!map->vma)
 			continue;
-		pr_debug("map %d+%d (%lx %lx)\n",
+		pr_de("map %d+%d (%lx %lx)\n",
 				map->index, map->count,
 				map->vma->vm_start, map->vma->vm_end);
 		err = unmap_grant_pages(map, /* offset */ 0, map->count);
@@ -636,7 +636,7 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 	 */
 	of_dma_configure(priv->dma_dev, NULL, true);
 #endif
-	pr_debug("priv %p\n", priv);
+	pr_de("priv %p\n", priv);
 
 	return 0;
 }
@@ -646,7 +646,7 @@ static int gntdev_release(struct inode *inode, struct file *flip)
 	struct gntdev_priv *priv = flip->private_data;
 	struct gntdev_grant_map *map;
 
-	pr_debug("priv %p\n", priv);
+	pr_de("priv %p\n", priv);
 
 	mutex_lock(&priv->lock);
 	while (!list_empty(&priv->maps)) {
@@ -678,7 +678,7 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
-	pr_debug("priv %p, add %d\n", priv, op.count);
+	pr_de("priv %p, add %d\n", priv, op.count);
 	if (unlikely(op.count <= 0))
 		return -EINVAL;
 
@@ -688,7 +688,7 @@ static long gntdev_ioctl_map_grant_ref(struct gntdev_priv *priv,
 		return err;
 
 	if (unlikely(gntdev_account_mapped_pages(op.count))) {
-		pr_debug("can't map: over limit\n");
+		pr_de("can't map: over limit\n");
 		gntdev_put_map(NULL, map);
 		return err;
 	}
@@ -719,7 +719,7 @@ static long gntdev_ioctl_unmap_grant_ref(struct gntdev_priv *priv,
 
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
-	pr_debug("priv %p, del %d+%d\n", priv, (int)op.index, (int)op.count);
+	pr_de("priv %p, del %d+%d\n", priv, (int)op.index, (int)op.count);
 
 	mutex_lock(&priv->lock);
 	map = gntdev_find_map_index(priv, op.index >> PAGE_SHIFT, op.count);
@@ -745,7 +745,7 @@ static long gntdev_ioctl_get_offset_for_vaddr(struct gntdev_priv *priv,
 
 	if (copy_from_user(&op, u, sizeof(op)) != 0)
 		return -EFAULT;
-	pr_debug("priv %p, offset for vaddr %lx\n", priv, (unsigned long)op.vaddr);
+	pr_de("priv %p, offset for vaddr %lx\n", priv, (unsigned long)op.vaddr);
 
 	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, op.vaddr);
@@ -1071,7 +1071,7 @@ static long gntdev_ioctl(struct file *flip,
 #endif
 
 	default:
-		pr_debug("priv %p, unknown cmd %x\n", priv, cmd);
+		pr_de("priv %p, unknown cmd %x\n", priv, cmd);
 		return -ENOIOCTLCMD;
 	}
 
@@ -1089,7 +1089,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
-	pr_debug("map %d+%d at %lx (pgoff %lx)\n",
+	pr_de("map %d+%d at %lx (pgoff %lx)\n",
 			index, count, vma->vm_start, vma->vm_pgoff);
 
 	mutex_lock(&priv->lock);

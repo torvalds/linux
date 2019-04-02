@@ -83,7 +83,7 @@
 
 
 #define D_SUBMODULE control
-#include "debug-levels.h"
+#include "de-levels.h"
 
 static int i2400m_idle_mode_disabled;/* 0 (idle mode enabled) by default */
 module_param_named(idle_mode_disabled, i2400m_idle_mode_disabled, int, 0644);
@@ -185,14 +185,14 @@ const struct i2400m_tlv_hdr *i2400m_tlv_buffer_walk(
 	offset = (void *) tlv_pos - (void *) tlv_buf;
 	avail_size = buf_size - offset;
 	if (avail_size < sizeof(*tlv_pos)) {
-		dev_err(dev, "HW BUG? tlv_buf %p [%zu bytes], tlv @%zu: "
+		dev_err(dev, "HW ? tlv_buf %p [%zu bytes], tlv @%zu: "
 			"short header\n", tlv_buf, buf_size, offset);
 		goto error_short_header;
 	}
 	type = le16_to_cpu(tlv_pos->type);
 	length = le16_to_cpu(tlv_pos->length);
 	if (avail_size < sizeof(*tlv_pos) + length) {
-		dev_err(dev, "HW BUG? tlv_buf %p [%zu bytes], "
+		dev_err(dev, "HW ? tlv_buf %p [%zu bytes], "
 			"tlv type 0x%04x @%zu: "
 			"short data (%zu bytes vs %zu needed)\n",
 			tlv_buf, buf_size, type, offset, avail_size,
@@ -359,7 +359,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 
 	default:
 		/* Huh? just in case, shut it down */
-		dev_err(dev, "HW BUG? unknown state %u: shutting down\n",
+		dev_err(dev, "HW ? unknown state %u: shutting down\n",
 			i2400m_state);
 		i2400m_reset(i2400m, I2400M_RT_WARM);
 		break;
@@ -410,7 +410,7 @@ void i2400m_report_tlv_media_status(struct i2400m *i2400m,
 		netif_carrier_on(net_dev);
 		break;
 	default:
-		dev_err(dev, "HW BUG? unknown media status %u\n",
+		dev_err(dev, "HW ? unknown media status %u\n",
 			status);
 	}
 	d_fnend(3, dev, "(i2400m %p ms %p [%u]) = void\n",
@@ -799,12 +799,12 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 			  ack_l3l4_hdr, ack_len, GFP_KERNEL);
 	result = i2400m_msg_size_check(i2400m, ack_l3l4_hdr, ack_len);
 	if (result < 0) {
-		dev_err(dev, "HW BUG? reply to message 0x%04x: %d\n",
+		dev_err(dev, "HW ? reply to message 0x%04x: %d\n",
 			msg_type, result);
 		goto error_bad_ack_len;
 	}
 	if (msg_type != le16_to_cpu(ack_l3l4_hdr->type)) {
-		dev_err(dev, "HW BUG? bad reply 0x%04x to message 0x%04x\n",
+		dev_err(dev, "HW ? bad reply 0x%04x to message 0x%04x\n",
 			le16_to_cpu(ack_l3l4_hdr->type), msg_type);
 		result = -EIO;
 		goto error_bad_ack_type;

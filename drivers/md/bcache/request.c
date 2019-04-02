@@ -9,7 +9,7 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "request.h"
 #include "writeback.h"
 
@@ -88,7 +88,7 @@ static void bch_data_insert_keys(struct closure *cl)
 	}
 
 	if (journal_ref)
-		atomic_dec_bug(journal_ref);
+		atomic_dec_(journal_ref);
 
 	if (!op->insert_data_done) {
 		continue_at(cl, bch_data_insert_start, op->wq);
@@ -122,7 +122,7 @@ static void bch_data_invalidate(struct closure *cl)
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 	struct bio *bio = op->bio;
 
-	pr_debug("invalidating %i sectors from %llu",
+	pr_de("invalidating %i sectors from %llu",
 		 bio_sectors(bio), (uint64_t) bio->bi_iter.bi_sector);
 
 	while (bio_sectors(bio)) {
@@ -265,7 +265,7 @@ static void bch_data_insert_start(struct closure *cl)
 	return;
 err:
 	/* bch_alloc_sectors() blocks if s->writeback = true */
-	BUG_ON(op->writeback);
+	_ON(op->writeback);
 
 	/*
 	 * But if it's not a writeback write we'd rather just bail out if
@@ -401,7 +401,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	if (bio->bi_iter.bi_sector & (c->sb.block_size - 1) ||
 	    bio_sectors(bio) & (c->sb.block_size - 1)) {
-		pr_debug("skipping unaligned io");
+		pr_de("skipping unaligned io");
 		goto skip;
 	}
 
@@ -536,7 +536,7 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 			return ret;
 
 		/* if this was a complete miss we shouldn't get here */
-		BUG_ON(bio_sectors <= sectors);
+		_ON(bio_sectors <= sectors);
 	}
 
 	if (!KEY_SIZE(k))
@@ -605,7 +605,7 @@ static void cache_lookup(struct closure *cl)
 	 * before we submit s->bio.bio
 	 */
 	if (ret < 0) {
-		BUG_ON(ret == -EINTR);
+		_ON(ret == -EINTR);
 		if (s->d && s->d->c &&
 				!UUID_FLASH_ONLY(&s->d->c->uuids[s->d->id])) {
 			dc = container_of(s->d, struct cached_dev, disk);
@@ -712,7 +712,7 @@ static void search_free(struct closure *cl)
 		bio_put(s->iop.bio);
 
 	bio_complete(s);
-	closure_debug_destroy(cl);
+	closure_de_destroy(cl);
 	mempool_free(s, &s->d->c->search);
 }
 
@@ -837,7 +837,7 @@ static void cached_dev_read_done(struct closure *cl)
 
 	if (s->iop.bio &&
 	    !test_bit(CACHE_SET_STOPPING, &s->iop.c->flags)) {
-		BUG_ON(!s->iop.replace);
+		_ON(!s->iop.replace);
 		closure_call(&s->iop.cl, bch_data_insert, NULL, cl);
 	}
 

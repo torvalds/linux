@@ -30,7 +30,7 @@
 /*
  * We map an entire MiB with the System Configuration Registers in even
  * though only 64KiB is needed. This makes it easier for use with the
- * head debug code as the initial MMU setup only deals in L1 sections.
+ * head de code as the initial MMU setup only deals in L1 sections.
  */
 #define KS8695_IO_PA		0x03F00000
 #define KS8695_IO_VA		IOMEM(0xF0000000)

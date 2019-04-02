@@ -186,7 +186,7 @@ static inline void hash_del_rcu(struct hlist_node *node)
  * @key: the key of the objects to iterate over
  *
  * This is the same as hash_for_each_possible_rcu() except that it does
- * not do any RCU debugging or tracing.
+ * not do any RCU deging or tracing.
  */
 #define hash_for_each_possible_rcu_notrace(name, obj, member, key) \
 	hlist_for_each_entry_rcu_notrace(obj, \

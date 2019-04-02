@@ -9,7 +9,7 @@
 
 #include <asm/page.h>
 #include <asm/schid.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include "chsc.h"
 
 #define QDIO_BUSY_BIT_PATIENCE		(100 << 12)	/* 100 microseconds */
@@ -263,7 +263,7 @@ struct qdio_q {
 	/* upper-layer program handler */
 	qdio_handler_t (*handler);
 
-	struct dentry *debugfs_q;
+	struct dentry *defs_q;
 	struct qdio_irq *irq_ptr;
 	struct sl *sl;
 	/*
@@ -277,8 +277,8 @@ struct qdio_irq {
 	struct qib qib;
 	u32 *dsci;		/* address of device state change indicator */
 	struct ccw_device *cdev;
-	struct dentry *debugfs_dev;
-	struct dentry *debugfs_perf;
+	struct dentry *defs_dev;
+	struct dentry *defs_perf;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;
@@ -306,7 +306,7 @@ struct qdio_irq {
 	struct qdio_q *input_qs[QDIO_MAX_QUEUES_PER_IRQ];
 	struct qdio_q *output_qs[QDIO_MAX_QUEUES_PER_IRQ];
 
-	debug_info_t *debug_area;
+	de_info_t *de_area;
 	struct mutex setup_mutex;
 	struct qdio_dev_perf_stat perf_stat;
 };
@@ -414,6 +414,6 @@ int qdio_enable_async_operation(struct qdio_output_q *q);
 void qdio_disable_async_operation(struct qdio_output_q *q);
 struct qaob *qdio_allocate_aob(void);
 
-int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
+int de_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 			unsigned char *state);
 #endif /* _CIO_QDIO_H */

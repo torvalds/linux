@@ -16,4 +16,4 @@ omapdss-$(CONFIG_FB_OMAP2_DSS_HDMI_COMMON) += hdmi_common.o hdmi_wp.o hdmi_pll.o
 	hdmi_phy.o
 omapdss-$(CONFIG_FB_OMAP4_DSS_HDMI) += hdmi4.o hdmi4_core.o
 omapdss-$(CONFIG_FB_OMAP5_DSS_HDMI) += hdmi5.o hdmi5_core.o
-ccflags-$(CONFIG_FB_OMAP2_DSS_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_FB_OMAP2_DSS_DE) += -DDE

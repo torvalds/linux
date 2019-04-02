@@ -18,7 +18,7 @@
 #define HTC_OPS_H
 
 #include "htc.h"
-#include "debug.h"
+#include "de.h"
 
 static inline void *ath6kl_htc_create(struct ath6kl *ar)
 {

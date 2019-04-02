@@ -10,7 +10,7 @@
  *  Copyright (C) 2008  Magnus Damm
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

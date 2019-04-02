@@ -389,7 +389,7 @@ static const struct mfd_cell cros_usbpd_charger_cells[] = {
 };
 
 static const struct mfd_cell cros_ec_platform_cells[] = {
-	{ .name = "cros-ec-debugfs" },
+	{ .name = "cros-ec-defs" },
 	{ .name = "cros-ec-lightbar" },
 	{ .name = "cros-ec-sysfs" },
 };

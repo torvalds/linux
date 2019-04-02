@@ -760,7 +760,7 @@
 #define ALX_MII_DBG_ADDR				0x1D
 #define ALX_MII_DBG_DATA				0x1E
 
-/***************************** debug port *************************************/
+/***************************** de port *************************************/
 
 #define ALX_MIIDBG_ANACTRL				0x00
 #define ALX_ANACTRL_DEF					0x02EF

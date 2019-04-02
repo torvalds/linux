@@ -43,7 +43,7 @@
 
 #include <net/mac80211.h>
 
-#include "rt2x00debug.h"
+#include "rt2x00de.h"
 #include "rt2x00dump.h"
 #include "rt2x00leds.h"
 #include "rt2x00reg.h"
@@ -55,12 +55,12 @@
 #define DRV_VERSION	"2.3.0"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
-/* Debug definitions.
- * Debug output has to be enabled during compile time.
+/* De definitions.
+ * De output has to be enabled during compile time.
  */
-#ifdef CONFIG_RT2X00_DEBUG
-#define DEBUG
-#endif /* CONFIG_RT2X00_DEBUG */
+#ifdef CONFIG_RT2X00_DE
+#define DE
+#endif /* CONFIG_RT2X00_DE */
 
 /* Utility printing macros
  * rt2x00_probe_err is for messages when rt2x00_dev is uninitialized
@@ -78,9 +78,9 @@
 	wiphy_info((dev)->hw->wiphy, "%s: Info - " fmt,			\
 		   __func__, ##__VA_ARGS__)
 
-/* Various debug levels */
+/* Various de levels */
 #define rt2x00_dbg(dev, fmt, ...)					\
-	wiphy_dbg((dev)->hw->wiphy, "%s: Debug - " fmt,			\
+	wiphy_dbg((dev)->hw->wiphy, "%s: De - " fmt,			\
 		  __func__, ##__VA_ARGS__)
 #define rt2x00_eeprom_dbg(dev, fmt, ...)				\
 	wiphy_dbg((dev)->hw->wiphy, "%s: EEPROM recovery - " fmt,	\
@@ -647,9 +647,9 @@ struct rt2x00_ops {
 	const struct rt2x00lib_ops *lib;
 	const void *drv;
 	const struct ieee80211_ops *hw;
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	const struct rt2x00debug *debugfs;
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#ifdef CONFIG_RT2X00_LIB_DEFS
+	const struct rt2x00de *defs;
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 };
 
 /*
@@ -764,12 +764,12 @@ struct rt2x00_dev {
 	int curr_freq;
 
 	/*
-	 * If enabled, the debugfs interface structures
-	 * required for deregistration of debugfs.
+	 * If enabled, the defs interface structures
+	 * required for deregistration of defs.
 	 */
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	struct rt2x00debug_intf *debugfs_intf;
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#ifdef CONFIG_RT2X00_LIB_DEFS
+	struct rt2x00de_intf *defs_intf;
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 
 	/*
 	 * LED structure for changing the LED status
@@ -1055,14 +1055,14 @@ struct rt2x00_bar_list_entry {
 static inline u32 rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
 				 const unsigned int word)
 {
-	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
+	_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
 	return rt2x00dev->rf[word - 1];
 }
 
 static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
 				   const unsigned int word, u32 data)
 {
-	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
+	_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
 	rt2x00dev->rf[word - 1] = data;
 }
 
@@ -1394,24 +1394,24 @@ void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev);
 void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop);
 
 /*
- * Debugfs handlers.
+ * Defs handlers.
  */
 /**
- * rt2x00debug_dump_frame - Dump a frame to userspace through debugfs.
+ * rt2x00de_dump_frame - Dump a frame to userspace through defs.
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @type: The type of frame that is being dumped.
  * @entry: The queue entry containing the frame to be dumped.
  */
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+#ifdef CONFIG_RT2X00_LIB_DEFS
+void rt2x00de_dump_frame(struct rt2x00_dev *rt2x00dev,
 			    enum rt2x00_dump_type type, struct queue_entry *entry);
 #else
-static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+static inline void rt2x00de_dump_frame(struct rt2x00_dev *rt2x00dev,
 					  enum rt2x00_dump_type type,
 					  struct queue_entry *entry)
 {
 }
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 
 /*
  * Utility functions.

@@ -224,7 +224,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	if (ret < 0)
 		return ERR_PTR(-EINVAL);
 
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s TPGT: %hu"
+	pr_de("LIO_Target_ConfigFS: REGISTER -> %s TPGT: %hu"
 		" PORTAL: %s\n",
 		config_item_name(&se_tpg->se_tpg_wwn->wwn_group.cg_item),
 		tpg->tpgt, name);
@@ -247,7 +247,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 		iscsit_put_tpg(tpg);
 		return ERR_CAST(tpg_np);
 	}
-	pr_debug("LIO_Target_ConfigFS: addnptotpg done!\n");
+	pr_de("LIO_Target_ConfigFS: addnptotpg done!\n");
 
 	iscsit_put_tpg(tpg);
 	return &tpg_np->se_tpg_np;
@@ -268,7 +268,7 @@ static void lio_target_call_delnpfromtpg(
 		return;
 
 	se_tpg = &tpg->tpg_se_tpg;
-	pr_debug("LIO_Target_ConfigFS: DEREGISTER -> %s TPGT: %hu"
+	pr_de("LIO_Target_ConfigFS: DEREGISTER -> %s TPGT: %hu"
 		" PORTAL: %pISpc\n", config_item_name(&se_tpg->se_tpg_wwn->wwn_group.cg_item),
 		tpg->tpgt, &tpg_np->tpg_np->np_sockaddr);
 
@@ -276,7 +276,7 @@ static void lio_target_call_delnpfromtpg(
 	if (ret < 0)
 		goto out;
 
-	pr_debug("LIO_Target_ConfigFS: delnpfromtpg done!\n");
+	pr_de("LIO_Target_ConfigFS: delnpfromtpg done!\n");
 out:
 	iscsit_put_tpg(tpg);
 }
@@ -668,7 +668,7 @@ static ssize_t lio_target_nacl_cmdsn_depth_store(struct config_item *item,
 
 	ret = core_tpg_set_initiator_node_queue_depth(se_nacl, cmdsn_depth);
 
-	pr_debug("LIO_Target_ConfigFS: %s/%s Set CmdSN Window: %u for"
+	pr_de("LIO_Target_ConfigFS: %s/%s Set CmdSN Window: %u for"
 		"InitiatorName: %s\n", config_item_name(wwn_ci),
 		config_item_name(tpg_ci), cmdsn_depth,
 		config_item_name(acl_ci));
@@ -1127,8 +1127,8 @@ static struct se_portal_group *lio_target_tiqn_addtpg(struct se_wwn *wwn,
 	if (ret != 0)
 		goto out;
 
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> Allocated TPG: %s\n",
+	pr_de("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
+	pr_de("LIO_Target_ConfigFS: REGISTER -> Allocated TPG: %s\n",
 			name);
 	return &tpg->tpg_se_tpg;
 out:
@@ -1148,7 +1148,7 @@ static void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
 	/*
 	 * iscsit_tpg_del_portal_group() assumes force=1
 	 */
-	pr_debug("LIO_Target_ConfigFS: DEREGISTER -> Releasing TPG\n");
+	pr_de("LIO_Target_ConfigFS: DEREGISTER -> Releasing TPG\n");
 	iscsit_tpg_del_portal_group(tiqn, tpg, 1);
 }
 
@@ -1180,8 +1180,8 @@ static struct se_wwn *lio_target_call_coreaddtiqn(
 	if (IS_ERR(tiqn))
 		return ERR_CAST(tiqn);
 
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> Allocated Node:"
+	pr_de("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
+	pr_de("LIO_Target_ConfigFS: REGISTER -> Allocated Node:"
 			" %s\n", name);
 	return &tiqn->tiqn_wwn;
 }
@@ -1221,7 +1221,7 @@ static void lio_target_call_coredeltiqn(
 {
 	struct iscsi_tiqn *tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);
 
-	pr_debug("LIO_Target_ConfigFS: DEREGISTER -> %s\n",
+	pr_de("LIO_Target_ConfigFS: DEREGISTER -> %s\n",
 			tiqn->tiqn);
 	iscsit_del_tiqn(tiqn);
 }
@@ -1307,7 +1307,7 @@ static ssize_t iscsi_disc_enforce_discovery_auth_store(struct config_item *item,
 
 		discovery_tpg->tpg_attrib.authentication = 1;
 		iscsit_global->discovery_acl.node_auth.enforce_discovery_auth = 1;
-		pr_debug("LIO-CORE[0] Successfully enabled"
+		pr_de("LIO-CORE[0] Successfully enabled"
 			" authentication enforcement for iSCSI"
 			" Discovery TPG\n");
 	} else {
@@ -1319,7 +1319,7 @@ static ssize_t iscsi_disc_enforce_discovery_auth_store(struct config_item *item,
 
 		discovery_tpg->tpg_attrib.authentication = 0;
 		iscsit_global->discovery_acl.node_auth.enforce_discovery_auth = 0;
-		pr_debug("LIO-CORE[0] Successfully disabled"
+		pr_de("LIO-CORE[0] Successfully disabled"
 			" authentication enforcement for iSCSI"
 			" Discovery TPG\n");
 	}
@@ -1526,7 +1526,7 @@ static void lio_release_cmd(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
-	pr_debug("Entering lio_release_cmd for se_cmd: %p\n", se_cmd);
+	pr_de("Entering lio_release_cmd for se_cmd: %p\n", se_cmd);
 	iscsit_release_cmd(cmd);
 }
 

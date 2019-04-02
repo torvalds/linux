@@ -9,5 +9,5 @@ ib_ipoib-y					:= ipoib_main.o \
 						   ipoib_ethtool.o \
 						   ipoib_netlink.o
 ib_ipoib-$(CONFIG_INFINIBAND_IPOIB_CM)		+= ipoib_cm.o
-ib_ipoib-$(CONFIG_INFINIBAND_IPOIB_DEBUG)	+= ipoib_fs.o
+ib_ipoib-$(CONFIG_INFINIBAND_IPOIB_DE)	+= ipoib_fs.o
 

@@ -832,7 +832,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 			const struct v4l2_dbg_register *reg)
 {
@@ -908,7 +908,7 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.set_register = sd_dbg_s_register,
 #endif
 #if IS_ENABLED(CONFIG_INPUT)

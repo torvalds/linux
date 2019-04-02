@@ -31,10 +31,10 @@
 
 #define DRIVER_NAME "rockchip-vpu"
 
-int rockchip_vpu_debug;
-module_param_named(debug, rockchip_vpu_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "Debug level - higher value produces more verbose messages");
+int rockchip_vpu_de;
+module_param_named(de, rockchip_vpu_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "De level - higher value produces more verbose messages");
 
 static void rockchip_vpu_job_finish(struct rockchip_vpu_dev *vpu,
 				    struct rockchip_vpu_ctx *ctx,
@@ -198,7 +198,7 @@ static int rockchip_vpu_s_ctrl(struct v4l2_ctrl *ctrl)
 	ctx = container_of(ctrl->handler,
 			   struct rockchip_vpu_ctx, ctrl_handler);
 
-	vpu_debug(1, "s_ctrl: id = %d, val = %d\n", ctrl->id, ctrl->val);
+	vpu_de(1, "s_ctrl: id = %d, val = %d\n", ctrl->id, ctrl->val);
 
 	switch (ctrl->id) {
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:

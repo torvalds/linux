@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /**
- * xhci-dbgcap.h - xHCI debug capability support
+ * xhci-dbgcap.h - xHCI de capability support
  *
  * Copyright (C) 2017 Intel Corporation
  *
@@ -23,7 +23,7 @@ struct dbc_regs {
 	__le32	status;
 	__le32	portsc;		/* Port status and control */
 	__le32	__reserved_1;	/* 2b~28 reserved bits */
-	__le64	dccp;		/* Debug Capability Context Pointer */
+	__le64	dccp;		/* De Capability Context Pointer */
 	__le32	devinfo1;	/* Device Descriptor Info Register 1 */
 	__le32	devinfo2;	/* Device Descriptor Info Register 2 */
 };
@@ -49,7 +49,7 @@ struct dbc_info_context {
 #define DBC_MAX_PACKET			1024
 #define DBC_MAX_STRING_LENGTH		64
 #define DBC_STRING_MANUFACTURER		"Linux Foundation"
-#define DBC_STRING_PRODUCT		"Linux USB Debug Target"
+#define DBC_STRING_PRODUCT		"Linux USB De Target"
 #define DBC_STRING_SERIAL		"0001"
 #define	DBC_CONTEXT_SIZE		64
 
@@ -70,7 +70,7 @@ struct dbc_str_descs {
 	char	serial[DBC_MAX_STRING_LENGTH];
 };
 
-#define DBC_PROTOCOL			1	/* GNU Remote Debug Command */
+#define DBC_PROTOCOL			1	/* GNU Remote De Command */
 #define DBC_VENDOR_ID			0x1d6b	/* Linux Foundation 0x1d6b */
 #define DBC_PRODUCT_ID			0x0010	/* device 0010 */
 #define DBC_DEVICE_REV			0x0010	/* 0.10 */

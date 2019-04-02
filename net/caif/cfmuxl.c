@@ -186,7 +186,7 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 	up = get_up(muxl, id);
 
 	if (up == NULL) {
-		pr_debug("Received data on unknown link ID = %d (0x%x)"
+		pr_de("Received data on unknown link ID = %d (0x%x)"
 			" up == NULL", id, id);
 		cfpkt_destroy(pkt);
 		/*
@@ -215,13 +215,13 @@ static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	u8 linkid;
 	struct cflayer *dn;
 	struct caif_payload_info *info = cfpkt_info(pkt);
-	BUG_ON(!info);
+	_ON(!info);
 
 	rcu_read_lock();
 
 	dn = get_dn(muxl, info->dev_info);
 	if (dn == NULL) {
-		pr_debug("Send data on unknown phy ID = %d (0x%x)\n",
+		pr_de("Send data on unknown phy ID = %d (0x%x)\n",
 			info->dev_info->id, info->dev_info->id);
 		rcu_read_unlock();
 		cfpkt_destroy(pkt);

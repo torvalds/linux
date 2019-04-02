@@ -46,9 +46,9 @@ static int vflip = -1;
 module_param(vflip, int, 0444);
 MODULE_PARM_DESC(vflip, "Vertical image flip. Defaults to 0");
 
-static int debug;
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Debug v4l ioctls. Defaults to 0");
+static int de;
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "De v4l ioctls. Defaults to 0");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jaime Velasco Juan <jsagarribay@gmail.com> and Nicolas VIVIEN");
@@ -76,7 +76,7 @@ MODULE_DEVICE_TABLE(usb, stkwebcam_table);
  * module options were given a default value of 1 (the correct value for
  * upside down mounted models)
  *
- * 3) Years later I got a bug report from a user with a laptop with stkwebcam,
+ * 3) Years later I got a  report from a user with a laptop with stkwebcam,
  * where the module was actually mounted the right way up, and thus showed
  * upside down under Linux. So now I was facing the choice of 2 options:
  *
@@ -700,7 +700,7 @@ static ssize_t stk_read(struct file *fp, char __user *buf,
 	spin_lock_irqsave(&dev->spinlock, flags);
 	if (list_empty(&dev->sio_full)) {
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		pr_err("BUG: No siobufs ready\n");
+		pr_err(": No siobufs ready\n");
 		return 0;
 	}
 	sbuf = list_first_entry(&dev->sio_full, struct stk_sio_buffer, list);

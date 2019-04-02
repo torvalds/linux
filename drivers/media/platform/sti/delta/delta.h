@@ -423,7 +423,7 @@ struct delta_dev;
  * @dts:		FIFO of decoding timestamp.
  *			output frames are timestamped with incoming access
  *			unit timestamps using this fifo.
- * @name:		string naming this instance (debug purpose)
+ * @name:		string naming this instance (de purpose)
  * @run_work:		decoding work
  * @lock:		lock for decoding work serialization
  * @aborting:		true if current job aborted
@@ -483,7 +483,7 @@ struct delta_ctx {
  * @nb_of_pixelformats:	number of supported umcompressed video formats
  * @streamformats:	supported compressed video formats
  * @nb_of_streamformats:number of supported compressed video formats
- * @instance_id:	rolling counter identifying an instance (debug purpose)
+ * @instance_id:	rolling counter identifying an instance (de purpose)
  * @work_queue:		decoding job work queue
  * @rpmsg_driver:	rpmsg IPC driver
  * @rpmsg_device:	rpmsg IPC device

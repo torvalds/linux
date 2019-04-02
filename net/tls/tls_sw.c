@@ -108,7 +108,7 @@ static int __skb_nsg(struct sk_buff *skb, int offset, int len,
                         start = end;
                 }
         }
-        BUG_ON(len);
+        _ON(len);
         return elt;
 }
 

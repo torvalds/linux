@@ -3,7 +3,7 @@
 #define _LINUX_VIRTIO_CONFIG_H
 
 #include <linux/err.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/virtio.h>
 #include <linux/virtio_byteorder.h>
 #include <uapi/linux/virtio_config.h>
@@ -47,7 +47,7 @@ struct irq_affinity;
  *	vqs: on success, includes new virtqueues
  *	callbacks: array of callbacks, for each virtqueue
  *		include a NULL entry for vqs that do not need a callback
- *	names: array of virtqueue names (mainly for debugging)
+ *	names: array of virtqueue names (mainly for deging)
  *		include a NULL entry for vqs unused by driver
  *	Returns 0 on success or error status
  * @del_vqs: free virtqueues found by find_vqs().
@@ -106,9 +106,9 @@ static inline bool __virtio_test_bit(const struct virtio_device *vdev,
 {
 	/* Did you forget to fix assumptions on max features? */
 	if (__builtin_constant_p(fbit))
-		BUILD_BUG_ON(fbit >= 64);
+		BUILD__ON(fbit >= 64);
 	else
-		BUG_ON(fbit >= 64);
+		_ON(fbit >= 64);
 
 	return vdev->features & BIT_ULL(fbit);
 }
@@ -123,9 +123,9 @@ static inline void __virtio_set_bit(struct virtio_device *vdev,
 {
 	/* Did you forget to fix assumptions on max features? */
 	if (__builtin_constant_p(fbit))
-		BUILD_BUG_ON(fbit >= 64);
+		BUILD__ON(fbit >= 64);
 	else
-		BUG_ON(fbit >= 64);
+		_ON(fbit >= 64);
 
 	vdev->features |= BIT_ULL(fbit);
 }
@@ -140,9 +140,9 @@ static inline void __virtio_clear_bit(struct virtio_device *vdev,
 {
 	/* Did you forget to fix assumptions on max features? */
 	if (__builtin_constant_p(fbit))
-		BUILD_BUG_ON(fbit >= 64);
+		BUILD__ON(fbit >= 64);
 	else
-		BUG_ON(fbit >= 64);
+		_ON(fbit >= 64);
 
 	vdev->features &= ~BIT_ULL(fbit);
 }
@@ -220,7 +220,7 @@ void virtio_device_ready(struct virtio_device *dev)
 {
 	unsigned status = dev->config->get_status(dev);
 
-	BUG_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
+	_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
 	dev->config->set_status(dev, status | VIRTIO_CONFIG_S_DRIVER_OK);
 }
 
@@ -313,7 +313,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 						offsetof(structname, member)); \
 			break;						\
 		default:						\
-			BUG();						\
+			();						\
 		}							\
 	} while(0)
 
@@ -323,7 +323,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 		might_sleep();						\
 		/* Must match the member's type, and be integer */	\
 		if (!typecheck(typeof((((structname*)0)->member)), *(ptr))) \
-			BUG_ON((*ptr) == 1);				\
+			_ON((*ptr) == 1);				\
 									\
 		switch (sizeof(*ptr)) {					\
 		case 1:							\
@@ -347,7 +347,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 					*(ptr));			\
 			break;						\
 		default:						\
-			BUG();						\
+			();						\
 		}							\
 	} while(0)
 

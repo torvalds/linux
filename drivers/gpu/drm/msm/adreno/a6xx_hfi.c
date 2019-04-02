@@ -36,11 +36,11 @@ static int a6xx_hfi_queue_read(struct a6xx_hfi_queue *queue, u32 *data,
 	 * and is programmed to not send us a larger response than we expect
 	 * then we can also assume that if the header size is unexpectedly large
 	 * that it is due to memory corruption and/or hardware failure. In this
-	 * case the only reasonable course of action is to BUG() to help harden
+	 * case the only reasonable course of action is to () to help harden
 	 * the failure.
 	 */
 
-	BUG_ON(HFI_HEADER_SIZE(hdr) > dwords);
+	_ON(HFI_HEADER_SIZE(hdr) > dwords);
 
 	for (i = 0; i < HFI_HEADER_SIZE(hdr); i++) {
 		data[i] = queue->data[index];
@@ -175,8 +175,8 @@ static int a6xx_hfi_send_gmu_init(struct a6xx_gmu *gmu, int boot_state)
 {
 	struct a6xx_hfi_msg_gmu_init_cmd msg = { 0 };
 
-	msg.dbg_buffer_addr = (u32) gmu->debug->iova;
-	msg.dbg_buffer_size = (u32) gmu->debug->size;
+	msg.dbg_buffer_addr = (u32) gmu->de->iova;
+	msg.dbg_buffer_size = (u32) gmu->de->size;
 	msg.boot_state = boot_state;
 
 	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_INIT, &msg, sizeof(msg),

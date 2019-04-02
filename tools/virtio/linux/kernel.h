@@ -12,7 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/printk.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <errno.h>
 #include <unistd.h>
 #include <asm/barrier.h>
@@ -119,10 +119,10 @@ static inline void free_page(unsigned long addr)
 # endif
 
 #define pr_err(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
-#ifdef DEBUG
-#define pr_debug(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
+#ifdef DE
+#define pr_de(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 #else
-#define pr_debug(format, ...) do {} while (0)
+#define pr_de(format, ...) do {} while (0)
 #endif
 #define dev_err(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)
 #define dev_warn(dev, format, ...) fprintf (stderr, format, ## __VA_ARGS__)

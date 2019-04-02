@@ -290,7 +290,7 @@ static int read_edid(struct omap_hdmi *hdmi, u8 *buf, int len)
 	mutex_lock(&hdmi->lock);
 
 	r = hdmi_runtime_get(hdmi);
-	BUG_ON(r);
+	_ON(r);
 
 	idlemode = REG_GET(hdmi->wp.base, HDMI_WP_SYSCONFIG, 3, 2);
 	/* No-idle mode */
@@ -644,7 +644,7 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 		goto err_pll_uninit;
 	}
 
-	hdmi->debugfs = dss_debugfs_create_file(dss, "hdmi", hdmi_dump_regs,
+	hdmi->defs = dss_defs_create_file(dss, "hdmi", hdmi_dump_regs,
 						hdmi);
 
 	return 0;
@@ -658,7 +658,7 @@ static void hdmi5_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
 
-	dss_debugfs_remove_file(hdmi->debugfs);
+	dss_defs_remove_file(hdmi->defs);
 
 	if (hdmi->audio_pdev)
 		platform_device_unregister(hdmi->audio_pdev);

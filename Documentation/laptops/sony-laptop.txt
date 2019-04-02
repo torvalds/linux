@@ -14,7 +14,7 @@ Some models report hotkeys through the SNC or SPIC devices, such events are
 reported both through the ACPI subsystem as acpi events and through the INPUT
 subsystem. See the logs of /proc/bus/input/devices to find out what those
 events are and which input devices are created by the driver.
-Additionally, loading the driver with the debug option will report all events
+Additionally, loading the driver with the de option will report all events
 in the kernel log.
 
 The "scancodes" passed to the input system (that can be remapped with udev)
@@ -50,7 +50,7 @@ The files are:
 	cdpower			power on/off the internal CD drive
 	audiopower		power on/off the internal sound card
 	lanpower		power on/off the internal ethernet card
-				(only in debug mode)
+				(only in de mode)
 	bluetoothpower		power on/off the internal bluetooth device
 	fanspeed		get/set the fan speed
 
@@ -86,7 +86,7 @@ Development:
 If you want to help with the development of this driver (and
 you are not afraid of any side effects doing strange things with
 your ACPI BIOS could have on your laptop), load the driver and
-pass the option 'debug=1'.
+pass the option 'de=1'.
 
 REPEAT: DON'T DO THIS IF YOU DON'T LIKE RISKY BUSINESS.
 
@@ -127,7 +127,7 @@ I will not disavow all knowledge of your actions :)
 See also http://www.linux.it/~malattia/wiki/index.php/Sony_drivers for other
 useful info.
 
-Bugs/Limitations:
+s/Limitations:
 -----------------
 
 * This driver is not based on official documentation from Sony

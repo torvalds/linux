@@ -264,14 +264,14 @@ object_repaired:
 			    return_object->common.reference_count;
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+		ACPI_DE_PRINT((ACPI_DB_REPAIR,
 				  "%s: Converted %s to expected %s at Package index %u\n",
 				  info->full_pathname,
 				  acpi_ut_get_object_type_name(return_object),
 				  acpi_ut_get_object_type_name(new_object),
 				  package_index));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+		ACPI_DE_PRINT((ACPI_DB_REPAIR,
 				  "%s: Converted %s to expected %s\n",
 				  info->full_pathname,
 				  acpi_ut_get_object_type_name(return_object),
@@ -407,7 +407,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 	new_object->common.reference_count =
 	    info->parent_package->common.reference_count;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+	ACPI_DE_PRINT((ACPI_DB_REPAIR,
 			  "%s: Converted NULL package element to expected %s at index %u\n",
 			  info->full_pathname,
 			  acpi_ut_get_object_type_name(new_object),
@@ -492,7 +492,7 @@ acpi_ns_remove_null_elements(struct acpi_evaluate_info *info,
 	/* Update parent package if any null elements were removed */
 
 	if (new_count < count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+		ACPI_DE_PRINT((ACPI_DB_REPAIR,
 				  "%s: Found and removed %u NULL elements\n",
 				  info->full_pathname, (count - new_count)));
 
@@ -547,7 +547,7 @@ acpi_ns_wrap_with_package(struct acpi_evaluate_info *info,
 
 	pkg_obj_desc->package.elements[0] = original_object;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+	ACPI_DE_PRINT((ACPI_DB_REPAIR,
 			  "%s: Wrapped %s with expected Package object\n",
 			  info->full_pathname,
 			  acpi_ut_get_object_type_name(original_object)));

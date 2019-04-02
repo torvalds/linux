@@ -15,7 +15,7 @@
 #include "acdispat.h"
 #include "acinterp.h"
 #include "acnamesp.h"
-#include "acdebug.h"
+#include "acde.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dswexec")
@@ -139,12 +139,12 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 cleanup:
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Completed a predicate eval=%X Op=%p\n",
 			  walk_state->control_state->common.value,
 			  walk_state->op));
 
-	/* Break to debugger to display result */
+	/* Break to deger to display result */
 
 	acpi_db_display_result_object(local_obj_desc, walk_state);
 
@@ -200,7 +200,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 		    acpi_ps_get_opcode_info(op->common.aml_opcode);
 
 		if (acpi_ns_opens_scope(walk_state->op_info->object_type)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 					  "(%s) Popping scope for Op %p\n",
 					  acpi_ut_get_type_name(walk_state->
 								op_info->
@@ -230,7 +230,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	if ((walk_state->control_state) &&
 	    (walk_state->control_state->common.state ==
 	     ACPI_CONTROL_CONDITIONAL_EXECUTING)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Exec predicate Op=%p State=%p\n",
 				  op, walk_state));
 
@@ -351,7 +351,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	walk_state->return_desc = NULL;
 	walk_state->result_obj = NULL;
 
-	/* Call debugger for single step support (DEBUG build only) */
+	/* Call deger for single step support (DE build only) */
 
 	status = acpi_db_single_step(walk_state, op, op_class);
 	if (ACPI_FAILURE(status)) {
@@ -464,7 +464,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			    ((op->asl.parent->asl.aml_opcode == AML_PACKAGE_OP)
 			     || (op->asl.parent->asl.aml_opcode ==
 				 AML_VARIABLE_PACKAGE_OP))) {
-				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 						  "Method Reference in a Package, Op=%p\n",
 						  op));
 
@@ -475,7 +475,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				return_ACPI_STATUS(AE_OK);
 			}
 
-			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 					  "Method invocation, Op=%p\n", op));
 
 			/*
@@ -526,7 +526,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 		case AML_TYPE_CREATE_FIELD:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "Executing CreateField Buffer/Index Op=%p\n",
 					  op));
 
@@ -541,7 +541,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 		case AML_TYPE_CREATE_OBJECT:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "Executing CreateObject (Buffer/Package) Op=%p Child=%p ParentOpcode=%4.4X\n",
 					  op, op->named.value.arg,
 					  op->common.parent->common.
@@ -608,7 +608,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			}
 
 			if (op->common.aml_opcode == AML_REGION_OP) {
-				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				ACPI_DE_PRINT((ACPI_DB_EXEC,
 						  "Executing OpRegion Address/Length Op=%p\n",
 						  op));
 
@@ -619,7 +619,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 					break;
 				}
 			} else if (op->common.aml_opcode == AML_DATA_REGION_OP) {
-				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				ACPI_DE_PRINT((ACPI_DB_EXEC,
 						  "Executing DataTableRegion Strings Op=%p\n",
 						  op));
 
@@ -630,7 +630,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 					break;
 				}
 			} else if (op->common.aml_opcode == AML_BANK_FIELD_OP) {
-				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				ACPI_DE_PRINT((ACPI_DB_EXEC,
 						  "Executing BankField Op=%p\n",
 						  op));
 
@@ -651,7 +651,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 		case AML_TYPE_BOGUS:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 					  "Internal opcode=%X type Op=%p\n",
 					  walk_state->opcode, op));
 			break;
@@ -694,7 +694,7 @@ cleanup:
 
 	if (walk_state->result_obj) {
 
-		/* Break to debugger to display result */
+		/* Break to deger to display result */
 
 		acpi_db_display_result_object(walk_state->result_obj,
 					      walk_state);

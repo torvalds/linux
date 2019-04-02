@@ -6,7 +6,7 @@
 
 #include <linux/export.h>
 #include <linux/bitmap.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/iommu-helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/hash.h>
@@ -64,7 +64,7 @@ void iommu_tbl_pool_init(struct iommu_map_table *iommu,
 		iommu->nr_pools = IOMMU_NR_POOLS;
 	else
 		iommu->nr_pools = npools;
-	BUG_ON(npools > IOMMU_NR_POOLS);
+	_ON(npools > IOMMU_NR_POOLS);
 
 	iommu->table_shift = table_shift;
 	iommu->lazy_flush = lazy_flush;
@@ -237,7 +237,7 @@ static struct iommu_pool *get_pool(struct iommu_map_table *tbl,
 	} else {
 		unsigned int pool_nr = entry / tbl->poolsize;
 
-		BUG_ON(pool_nr >= tbl->nr_pools);
+		_ON(pool_nr >= tbl->nr_pools);
 		p = &tbl->pools[pool_nr];
 	}
 	return p;

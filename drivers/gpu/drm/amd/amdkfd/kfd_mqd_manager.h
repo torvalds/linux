@@ -93,8 +93,8 @@ struct mqd_manager {
 				  u32 *ctl_stack_used_size,
 				  u32 *save_area_used_size);
 
-#if defined(CONFIG_DEBUG_FS)
-	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
+#if defined(CONFIG_DE_FS)
+	int	(*defs_show_mqd)(struct seq_file *m, void *data);
 #endif
 
 	struct mutex	mqd_mutex;

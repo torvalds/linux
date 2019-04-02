@@ -202,7 +202,7 @@ static int get_ranges(unsigned char *pst)
 		vid = *pst++;
 		powernow_table[j].driver_data |= (vid << 8); /* upper 8 bits */
 
-		pr_debug("   FID: 0x%x (%d.%dx [%dMHz])  "
+		pr_de("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
 			 fid_codes[fid] % 10, speed/1000, vid,
 			 mobile_vid_table[vid]/1000,
@@ -355,7 +355,7 @@ static int powernow_acpi_init(void)
 		unsigned int speed, speed_mhz;
 
 		pc.val = (unsigned long) state->control;
-		pr_debug("acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
+		pr_de("acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
 			 i,
 			 (u32) state->core_frequency,
 			 (u32) state->power,
@@ -389,7 +389,7 @@ static int powernow_acpi_init(void)
 				invalidate_entry(i);
 		}
 
-		pr_debug("   FID: 0x%x (%d.%dx [%dMHz])  "
+		pr_de("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
 			 fid_codes[fid] % 10, speed_mhz, vid,
 			 mobile_vid_table[vid]/1000,
@@ -397,7 +397,7 @@ static int powernow_acpi_init(void)
 
 		if (state->core_frequency != speed_mhz) {
 			state->core_frequency = speed_mhz;
-			pr_debug("   Corrected ACPI frequency to %d\n",
+			pr_de("   Corrected ACPI frequency to %d\n",
 				speed_mhz);
 		}
 
@@ -439,8 +439,8 @@ static int powernow_acpi_init(void)
 
 static void print_pst_entry(struct pst_s *pst, unsigned int j)
 {
-	pr_debug("PST:%d (@%p)\n", j, pst);
-	pr_debug(" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
+	pr_de("PST:%d (@%p)\n", j, pst);
+	pr_de(" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
 		pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 }
 
@@ -460,19 +460,19 @@ static int powernow_decode_bios(int maxfid, int startvid)
 		p = phys_to_virt(i);
 
 		if (memcmp(p, "AMDK7PNOW!",  10) == 0) {
-			pr_debug("Found PSB header at %p\n", p);
+			pr_de("Found PSB header at %p\n", p);
 			psb = (struct psb_s *) p;
-			pr_debug("Table version: 0x%x\n", psb->tableversion);
+			pr_de("Table version: 0x%x\n", psb->tableversion);
 			if (psb->tableversion != 0x12) {
 				pr_info("Sorry, only v1.2 tables supported right now\n");
 				return -ENODEV;
 			}
 
-			pr_debug("Flags: 0x%x\n", psb->flags);
+			pr_de("Flags: 0x%x\n", psb->flags);
 			if ((psb->flags & 1) == 0)
-				pr_debug("Mobile voltage regulator\n");
+				pr_de("Mobile voltage regulator\n");
 			else
-				pr_debug("Desktop voltage regulator\n");
+				pr_de("Desktop voltage regulator\n");
 
 			latency = psb->settlingtime;
 			if (latency < 100) {
@@ -480,9 +480,9 @@ static int powernow_decode_bios(int maxfid, int startvid)
 					latency);
 				latency = 100;
 			}
-			pr_debug("Settling Time: %d microseconds.\n",
+			pr_de("Settling Time: %d microseconds.\n",
 					psb->settlingtime);
-			pr_debug("Has %d PST tables. (Only dumping ones "
+			pr_de("Has %d PST tables. (Only dumping ones "
 					"relevant to this CPU).\n",
 					psb->numpst);
 
@@ -607,7 +607,7 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 		pr_warn("can not determine bus frequency\n");
 		return -EINVAL;
 	}
-	pr_debug("FSB: %3dMHz\n", fsb/1000);
+	pr_de("FSB: %3dMHz\n", fsb/1000);
 
 	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
 		pr_info("PSB/PST known to be broken - trying ACPI instead\n");

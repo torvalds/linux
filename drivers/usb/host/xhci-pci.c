@@ -69,7 +69,7 @@ static const struct xhci_driver_overrides xhci_pci_overrides __initconst = {
 static int xhci_pci_reinit(struct xhci_hcd *xhci, struct pci_dev *pdev)
 {
 	/*
-	 * TODO: Implement finding debug ports later.
+	 * TODO: Implement finding de ports later.
 	 * TODO: see if there are any quirks that need to be added to handle
 	 * new extended capabilities.
 	 */
@@ -234,7 +234,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_VIA)
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
 
-	/* See https://bugzilla.kernel.org/show_bug.cgi?id=79511 */
+	/* See https://zilla.kernel.org/show_.cgi?id=79511 */
 	if (pdev->vendor == PCI_VENDOR_ID_VIA &&
 			pdev->device == 0x3432)
 		xhci->quirks |= XHCI_BROKEN_STREAMS;
@@ -302,7 +302,7 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 
 	xhci_dbg(xhci, "Got SBRN %u\n", (unsigned int) xhci->sbrn);
 
-	/* Find any debug ports */
+	/* Find any de ports */
 	return xhci_pci_reinit(xhci, pdev);
 }
 

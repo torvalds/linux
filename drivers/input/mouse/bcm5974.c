@@ -171,11 +171,11 @@ MODULE_DESCRIPTION("Apple USB BCM5974 multitouch driver");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, format, a...)\
-	{ if (debug >= level) printk(KERN_DEBUG format, ##a); }
+	{ if (de >= level) printk(KERN_DE format, ##a); }
 
-static int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activate debugging output");
+static int de = 1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activate deging output");
 
 /* button data structure */
 struct bt_data {

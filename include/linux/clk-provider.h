@@ -196,8 +196,8 @@ struct clk_duty {
  *		Please consider other ways of solving initialization problems
  *		before using this callback, as its use is discouraged.
  *
- * @debug_init:	Set up type-specific debugfs entries for this clock.  This
- *		is called once, after the debugfs directory entry for this
+ * @de_init:	Set up type-specific defs entries for this clock.  This
+ *		is called once, after the defs directory entry for this
  *		clock has been created.  The dentry pointer representing that
  *		directory is provided as an argument.  Called with
  *		prepare_lock held.  Returns 0 on success, -EERROR otherwise.
@@ -247,7 +247,7 @@ struct clk_ops {
 	int		(*set_duty_cycle)(struct clk_hw *hw,
 					  struct clk_duty *duty);
 	void		(*init)(struct clk_hw *hw);
-	void		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
+	void		(*de_init)(struct clk_hw *hw, struct dentry *dentry);
 };
 
 /**

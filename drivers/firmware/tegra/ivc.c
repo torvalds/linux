@@ -569,11 +569,11 @@ EXPORT_SYMBOL(tegra_ivc_total_queue_size);
 static int tegra_ivc_check_params(unsigned long rx, unsigned long tx,
 				  unsigned int num_frames, size_t frame_size)
 {
-	BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct tegra_ivc_header, tx.count),
+	BUILD__ON(!IS_ALIGNED(offsetof(struct tegra_ivc_header, tx.count),
 				 TEGRA_IVC_ALIGN));
-	BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct tegra_ivc_header, rx.count),
+	BUILD__ON(!IS_ALIGNED(offsetof(struct tegra_ivc_header, rx.count),
 				 TEGRA_IVC_ALIGN));
-	BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct tegra_ivc_header),
+	BUILD__ON(!IS_ALIGNED(sizeof(struct tegra_ivc_header),
 				 TEGRA_IVC_ALIGN));
 
 	if ((uint64_t)num_frames * (uint64_t)frame_size >= 0x100000000UL) {

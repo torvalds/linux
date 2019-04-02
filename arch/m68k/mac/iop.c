@@ -33,8 +33,8 @@
  *		  IOP. The trick now is figuring out the message formats.
  * 990611 (jmt) - More cleanups. Fixed problem where unclaimed messages on a
  *		  receive channel were never properly acknowledged. Bracketed
- *		  the remaining debug printk's with #ifdef's and disabled
- *		  debugging. I can now type on the console.
+ *		  the remaining de printk's with #ifdef's and disabled
+ *		  deging. I can now type on the console.
  * 990612 (jmt) - Copyright notice added. Reworked the way replies are handled.
  *		  It turns out that replies are placed back in the send buffer
  *		  for that channel; messages on the receive channels are always
@@ -115,14 +115,14 @@
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
 
-#ifdef DEBUG
-#define iop_pr_debug(fmt, ...) \
-	printk(KERN_DEBUG "%s: " fmt, __func__, ##__VA_ARGS__)
+#ifdef DE
+#define iop_pr_de(fmt, ...) \
+	printk(KERN_DE "%s: " fmt, __func__, ##__VA_ARGS__)
 #define iop_pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
 #else
-#define iop_pr_debug(fmt, ...) \
-	no_printk(KERN_DEBUG "%s: " fmt, __func__, ##__VA_ARGS__)
+#define iop_pr_de(fmt, ...) \
+	no_printk(KERN_DE "%s: " fmt, __func__, ##__VA_ARGS__)
 #define iop_pr_cont(fmt, ...) \
 	no_printk(KERN_CONT fmt, ##__VA_ARGS__)
 #endif
@@ -273,10 +273,10 @@ void __init iop_init(void)
 	int i;
 
 	if (iop_scc_present) {
-		pr_debug("SCC IOP detected at %p\n", iop_base[IOP_NUM_SCC]);
+		pr_de("SCC IOP detected at %p\n", iop_base[IOP_NUM_SCC]);
 	}
 	if (iop_ism_present) {
-		pr_debug("ISM IOP detected at %p\n", iop_base[IOP_NUM_ISM]);
+		pr_de("ISM IOP detected at %p\n", iop_base[IOP_NUM_ISM]);
 		iop_start(iop_base[IOP_NUM_ISM]);
 		iop_alive(iop_base[IOP_NUM_ISM]); /* clears the alive flag */
 	}
@@ -354,7 +354,7 @@ void iop_complete_message(struct iop_msg *msg)
 	int chan = msg->channel;
 	int i,offset;
 
-	iop_pr_debug("msg %p iop_num %d channel %d\n", msg, msg->iop_num,
+	iop_pr_de("msg %p iop_num %d channel %d\n", msg, msg->iop_num,
 	             msg->channel);
 
 	offset = IOP_ADDR_RECV_MSG + (msg->channel * IOP_MSG_LEN);
@@ -401,7 +401,7 @@ static void iop_handle_send(uint iop_num, uint chan)
 	struct iop_msg *msg;
 	int i,offset;
 
-	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
+	iop_pr_de("iop_num %d chan %d\n", iop_num, chan);
 
 	iop_writeb(iop, IOP_ADDR_SEND_STATE + chan, IOP_MSG_IDLE);
 
@@ -430,7 +430,7 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	int i,offset;
 	struct iop_msg *msg;
 
-	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
+	iop_pr_de("iop_num %d chan %d\n", iop_num, chan);
 
 	msg = iop_get_unused_msg();
 	msg->iop_num = iop_num;
@@ -452,9 +452,9 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	if (msg->handler) {
 		(*msg->handler)(msg);
 	} else {
-		iop_pr_debug("unclaimed message on iop_num %d chan %d\n",
+		iop_pr_de("unclaimed message on iop_num %d chan %d\n",
 		             iop_num, chan);
-		iop_pr_debug("%*ph\n", IOP_MSG_LEN, msg->message);
+		iop_pr_de("%*ph\n", IOP_MSG_LEN, msg->message);
 		iop_complete_message(msg);
 	}
 }
@@ -567,13 +567,13 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id)
 	volatile struct mac_iop *iop = iop_base[iop_num];
 	int i,state;
 
-	iop_pr_debug("status %02X\n", iop->status_ctrl);
+	iop_pr_de("status %02X\n", iop->status_ctrl);
 
 	/* INT0 indicates a state change on an outgoing message channel */
 
 	if (iop->status_ctrl & IOP_INT0) {
 		iop->status_ctrl = IOP_INT0 | IOP_RUN | IOP_AUTOINC;
-		iop_pr_debug("new status %02X, send states", iop->status_ctrl);
+		iop_pr_de("new status %02X, send states", iop->status_ctrl);
 		for (i = 0 ; i < NUM_IOP_CHAN  ; i++) {
 			state = iop_readb(iop, IOP_ADDR_SEND_STATE + i);
 			iop_pr_cont(" %02X", state);
@@ -586,7 +586,7 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id)
 
 	if (iop->status_ctrl & IOP_INT1) {	/* INT1 for incoming msgs */
 		iop->status_ctrl = IOP_INT1 | IOP_RUN | IOP_AUTOINC;
-		iop_pr_debug("new status %02X, recv states", iop->status_ctrl);
+		iop_pr_de("new status %02X, recv states", iop->status_ctrl);
 		for (i = 0 ; i < NUM_IOP_CHAN ; i++) {
 			state = iop_readb(iop, IOP_ADDR_RECV_STATE + i);
 			iop_pr_cont(" %02X", state);

@@ -95,7 +95,7 @@ static irqreturn_t touchit213_interrupt(struct serio *serio,
 	case 0:
 		if ((touchit213->data[0] & T213_FORMAT_STATUS_MASK) !=
 				T213_FORMAT_STATUS_BYTE) {
-			pr_debug("unsynchronized data: 0x%02x\n", data);
+			pr_de("unsynchronized data: 0x%02x\n", data);
 			touchit213->idx = 0;
 		}
 		break;

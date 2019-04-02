@@ -29,10 +29,10 @@ struct Fsm {
 struct FsmInst {
 	struct Fsm *fsm;
 	int state;
-	int debug;
+	int de;
 	void *userdata;
 	int userint;
-	void (*printdebug) (struct FsmInst *, char *, ...);
+	void (*printde) (struct FsmInst *, char *, ...);
 };
 
 struct FsmNode {

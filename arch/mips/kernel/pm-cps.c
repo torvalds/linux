@@ -453,7 +453,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 				UASM_i_LA(&p, t1, (long)addr_cpc_cl_vp_stop());
 				uasm_i_sw(&p, t0, 0, t1);
 			} else {
-				BUG();
+				();
 			}
 			uasm_build_label(&l, p, lbl_secondary_hang);
 			uasm_il_b(&p, &r, lbl_secondary_hang);
@@ -514,7 +514,7 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			cpc_cmd = CPC_Cx_CMD_PWRDOWN;
 			break;
 		default:
-			BUG();
+			();
 			goto out_err;
 		}
 
@@ -621,9 +621,9 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 
 gen_done:
 	/* Ensure the code didn't exceed the resources allocated for it */
-	BUG_ON((p - buf) > max_instrs);
-	BUG_ON((l - labels) > ARRAY_SIZE(labels));
-	BUG_ON((r - relocs) > ARRAY_SIZE(relocs));
+	_ON((p - buf) > max_instrs);
+	_ON((l - labels) > ARRAY_SIZE(labels));
+	_ON((r - relocs) > ARRAY_SIZE(relocs));
 
 	/* Patch branch offsets */
 	uasm_resolve_relocs(relocs, labels);
@@ -683,7 +683,7 @@ static int cps_pm_power_notifier(struct notifier_block *this,
 		 * If we're attempting to suspend the system and power down all
 		 * of the cores, the JTAG detect bit indicates that the CPC will
 		 * instead put the cores into clock-off state. In this state
-		 * a connected debugger can cause the CPU to attempt
+		 * a connected deger can cause the CPU to attempt
 		 * interactions with the powered down system. At best this will
 		 * fail. At worst, it can hang the NoC, requiring a hard reset.
 		 * To avoid this, just block system suspend if a JTAG probe

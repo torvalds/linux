@@ -4,8 +4,8 @@
 #include "util.h"
 #include "../perf.h"
 #include "cloexec.h"
-#include "asm/bug.h"
-#include "debug.h"
+#include "asm/.h"
+#include "de.h"
 #include <unistd.h>
 #include <asm/unistd.h>
 #include <sys/syscall.h>

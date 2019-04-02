@@ -1144,7 +1144,7 @@ static int pll_factors(unsigned int source, unsigned int target,
 	unsigned long long Kpart;
 	unsigned int K, Ndiv, Nmod;
 
-	pr_debug("WM8960 PLL: setting %dHz->%dHz\n", source, target);
+	pr_de("WM8960 PLL: setting %dHz->%dHz\n", source, target);
 
 	/* Scale up target to PLL operating frequency */
 	target *= 4;
@@ -1179,7 +1179,7 @@ static int pll_factors(unsigned int source, unsigned int target,
 
 	pll_div->k = K;
 
-	pr_debug("WM8960 PLL: N=%x K=%x pre_div=%d\n",
+	pr_de("WM8960 PLL: N=%x K=%x pre_div=%d\n",
 		 pll_div->n, pll_div->k, pll_div->pre_div);
 
 	return 0;

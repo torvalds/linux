@@ -189,7 +189,7 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 	struct snd_card *card = chip->card;
 	struct snd_vxpocket *vxp = to_vxpocket(chip);
 
-	snd_printdd(KERN_DEBUG "vxpocket assign resources: port = 0x%x, irq = %d\n", port, irq);
+	snd_printdd(KERN_DE "vxpocket assign resources: port = 0x%x, irq = %d\n", port, irq);
 	vxp->port = port;
 
 	sprintf(card->shortname, "Digigram %s", card->driver);
@@ -214,7 +214,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 	struct vx_core *chip = link->priv;
 	int ret;
 
-	snd_printdd(KERN_DEBUG "vxpocket_config called\n");
+	snd_printdd(KERN_DE "vxpocket_config called\n");
 
 	/* redefine hardware record according to the VERSION1 string */
 	if (!strcmp(link->prod_id[1], "VX-POCKET")) {
@@ -262,9 +262,9 @@ static int vxp_suspend(struct pcmcia_device *link)
 {
 	struct vx_core *chip = link->priv;
 
-	snd_printdd(KERN_DEBUG "SUSPEND\n");
+	snd_printdd(KERN_DE "SUSPEND\n");
 	if (chip) {
-		snd_printdd(KERN_DEBUG "snd_vx_suspend calling\n");
+		snd_printdd(KERN_DE "snd_vx_suspend calling\n");
 		snd_vx_suspend(chip);
 	}
 
@@ -275,15 +275,15 @@ static int vxp_resume(struct pcmcia_device *link)
 {
 	struct vx_core *chip = link->priv;
 
-	snd_printdd(KERN_DEBUG "RESUME\n");
+	snd_printdd(KERN_DE "RESUME\n");
 	if (pcmcia_dev_present(link)) {
 		//struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 		if (chip) {
-			snd_printdd(KERN_DEBUG "calling snd_vx_resume\n");
+			snd_printdd(KERN_DE "calling snd_vx_resume\n");
 			snd_vx_resume(chip);
 		}
 	}
-	snd_printdd(KERN_DEBUG "resume done!\n");
+	snd_printdd(KERN_DE "resume done!\n");
 
 	return 0;
 }

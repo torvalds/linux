@@ -32,8 +32,8 @@ enum {
 	WORK_STRUCT_DELAYED_BIT	= 1,	/* work item is delayed */
 	WORK_STRUCT_PWQ_BIT	= 2,	/* data points to pwq */
 	WORK_STRUCT_LINKED_BIT	= 3,	/* next work is linked to this one */
-#ifdef CONFIG_DEBUG_OBJECTS_WORK
-	WORK_STRUCT_STATIC_BIT	= 4,	/* static initializer (debugobjects) */
+#ifdef CONFIG_DE_OBJECTS_WORK
+	WORK_STRUCT_STATIC_BIT	= 4,	/* static initializer (deobjects) */
 	WORK_STRUCT_COLOR_SHIFT	= 5,	/* color for workqueue flushing */
 #else
 	WORK_STRUCT_COLOR_SHIFT	= 4,	/* color for workqueue flushing */
@@ -45,7 +45,7 @@ enum {
 	WORK_STRUCT_DELAYED	= 1 << WORK_STRUCT_DELAYED_BIT,
 	WORK_STRUCT_PWQ		= 1 << WORK_STRUCT_PWQ_BIT,
 	WORK_STRUCT_LINKED	= 1 << WORK_STRUCT_LINKED_BIT,
-#ifdef CONFIG_DEBUG_OBJECTS_WORK
+#ifdef CONFIG_DE_OBJECTS_WORK
 	WORK_STRUCT_STATIC	= 1 << WORK_STRUCT_STATIC_BIT,
 #else
 	WORK_STRUCT_STATIC	= 0,
@@ -62,7 +62,7 @@ enum {
 	WORK_CPU_UNBOUND	= NR_CPUS,
 
 	/*
-	 * Reserve 7 bits off of pwq pointer w/ debugobjects turned off.
+	 * Reserve 7 bits off of pwq pointer w/ deobjects turned off.
 	 * This makes pwqs aligned to 256 bytes and allows 15 workqueue
 	 * flush colors.
 	 */
@@ -203,7 +203,7 @@ struct execute_work {
 #define DECLARE_DEFERRABLE_WORK(n, f)					\
 	struct delayed_work n = __DELAYED_WORK_INITIALIZER(n, f, TIMER_DEFERRABLE)
 
-#ifdef CONFIG_DEBUG_OBJECTS_WORK
+#ifdef CONFIG_DE_OBJECTS_WORK
 extern void __init_work(struct work_struct *work, int onstack);
 extern void destroy_work_on_stack(struct work_struct *work);
 extern void destroy_delayed_work_on_stack(struct delayed_work *work);

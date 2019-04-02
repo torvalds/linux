@@ -29,13 +29,13 @@ MODULE_DESCRIPTION("Mem to mem device framework for videobuf");
 MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
 
-static bool debug;
-module_param(debug, bool, 0644);
+static bool de;
+module_param(de, bool, 0644);
 
 #define dprintk(fmt, arg...)						\
 	do {								\
-		if (debug)						\
-			printk(KERN_DEBUG "%s: " fmt, __func__, ## arg);\
+		if (de)						\
+			printk(KERN_DE "%s: " fmt, __func__, ## arg);\
 	} while (0)
 
 

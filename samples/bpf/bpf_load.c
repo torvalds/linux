@@ -27,7 +27,7 @@
 #include "bpf_load.h"
 #include "perf-sys.h"
 
-#define DEBUGFS "/sys/kernel/debug/tracing/"
+#define DEFS "/sys/kernel/de/tracing/"
 
 static char license[128];
 static int kern_version;
@@ -65,7 +65,7 @@ static int write_kprobe_events(const char *val)
 	else
 		flags = O_WRONLY | O_APPEND;
 
-	fd = open("/sys/kernel/debug/tracing/kprobe_events", flags);
+	fd = open("/sys/kernel/de/tracing/kprobe_events", flags);
 
 	ret = write(fd, val, strlen(val));
 	close(fd);
@@ -204,7 +204,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 			}
 		}
 
-		strcpy(buf, DEBUGFS);
+		strcpy(buf, DEFS);
 		strcat(buf, "events/kprobes/");
 		strcat(buf, event_prefix);
 		strcat(buf, event);
@@ -216,7 +216,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 			printf("event name cannot be empty\n");
 			return -1;
 		}
-		strcpy(buf, DEBUGFS);
+		strcpy(buf, DEFS);
 		strcat(buf, "events/");
 		strcat(buf, event);
 		strcat(buf, "/id");
@@ -544,7 +544,7 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
 			continue;
 
-		if (0) /* helpful for llvm debugging */
+		if (0) /* helpful for llvm deging */
 			printf("section %d:%s data %p size %zd link %d flags %d\n",
 			       i, shname, data->d_buf, data->d_size,
 			       shdr.sh_link, (int) shdr.sh_flags);
@@ -670,7 +670,7 @@ void read_trace_pipe(void)
 {
 	int trace_fd;
 
-	trace_fd = open(DEBUGFS "trace_pipe", O_RDONLY, 0);
+	trace_fd = open(DEFS "trace_pipe", O_RDONLY, 0);
 	if (trace_fd < 0)
 		return;
 

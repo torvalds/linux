@@ -132,8 +132,8 @@ static int g2_xfer_dma(struct dma_channel *chan)
 
 	g2_enable_dma(chan);
 
-	/* debug cruft */
-	pr_debug("count, sar, dar, mode, ctrl, chan, xfer: %ld, 0x%08lx, "
+	/* de cruft */
+	pr_de("count, sar, dar, mode, ctrl, chan, xfer: %ld, 0x%08lx, "
 		 "0x%08lx, %ld, %ld, %ld, %ld\n",
 		 g2_dma->channel[chan_nr].size,
 		 g2_dma->channel[chan_nr].root_addr,

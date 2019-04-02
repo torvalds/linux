@@ -651,8 +651,8 @@ void
 dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	       spinlock_t *lock, u64 context, u64 seqno)
 {
-	BUG_ON(!lock);
-	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
+	_ON(!lock);
+	_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
 
 	kref_init(&fence->refcount);
 	fence->ops = ops;

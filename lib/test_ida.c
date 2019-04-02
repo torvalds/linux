@@ -15,7 +15,7 @@ static unsigned int tests_passed;
 #ifdef __KERNEL__
 void ida_dump(struct ida *ida) { }
 #endif
-#define IDA_BUG_ON(ida, x) do {						\
+#define IDA__ON(ida, x) do {						\
 	tests_run++;							\
 	if (x) {							\
 		ida_dump(ida);						\
@@ -33,42 +33,42 @@ static void ida_check_alloc(struct ida *ida)
 	int i, id;
 
 	for (i = 0; i < 10000; i++)
-		IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
+		IDA__ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
 
 	ida_free(ida, 20);
 	ida_free(ida, 21);
 	for (i = 0; i < 3; i++) {
 		id = ida_alloc(ida, GFP_KERNEL);
-		IDA_BUG_ON(ida, id < 0);
+		IDA__ON(ida, id < 0);
 		if (i == 2)
-			IDA_BUG_ON(ida, id != 10000);
+			IDA__ON(ida, id != 10000);
 	}
 
 	for (i = 0; i < 5000; i++)
 		ida_free(ida, i);
 
-	IDA_BUG_ON(ida, ida_alloc_min(ida, 5000, GFP_KERNEL) != 10001);
+	IDA__ON(ida, ida_alloc_min(ida, 5000, GFP_KERNEL) != 10001);
 	ida_destroy(ida);
 
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 }
 
 /* Destroy an IDA with a single entry at @base */
 static void ida_check_destroy_1(struct ida *ida, unsigned int base)
 {
-	IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) != base);
-	IDA_BUG_ON(ida, ida_is_empty(ida));
+	IDA__ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) != base);
+	IDA__ON(ida, ida_is_empty(ida));
 	ida_destroy(ida);
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 }
 
 /* Check that ida_destroy and ida_is_empty work */
 static void ida_check_destroy(struct ida *ida)
 {
 	/* Destroy an already-empty IDA */
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 	ida_destroy(ida);
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 
 	ida_check_destroy_1(ida, 0);
 	ida_check_destroy_1(ida, 1);
@@ -86,17 +86,17 @@ static void ida_check_leaf(struct ida *ida, unsigned int base)
 	unsigned long i;
 
 	for (i = 0; i < IDA_BITMAP_BITS; i++) {
-		IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
+		IDA__ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
 				base + i);
 	}
 
 	ida_destroy(ida);
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 
-	IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != 0);
-	IDA_BUG_ON(ida, ida_is_empty(ida));
+	IDA__ON(ida, ida_alloc(ida, GFP_KERNEL) != 0);
+	IDA__ON(ida, ida_is_empty(ida));
 	ida_free(ida, 0);
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 }
 
 /*
@@ -111,13 +111,13 @@ static void ida_check_max(struct ida *ida)
 	for (j = 1; j < 65537; j *= 2) {
 		unsigned long base = (1UL << 31) - j;
 		for (i = 0; i < j; i++) {
-			IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
+			IDA__ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
 					base + i);
 		}
-		IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
+		IDA__ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
 				-ENOSPC);
 		ida_destroy(ida);
-		IDA_BUG_ON(ida, !ida_is_empty(ida));
+		IDA__ON(ida, !ida_is_empty(ida));
 	}
 }
 
@@ -129,32 +129,32 @@ static void ida_check_conv(struct ida *ida)
 	unsigned long i;
 
 	for (i = 0; i < IDA_BITMAP_BITS * 2; i += IDA_BITMAP_BITS) {
-		IDA_BUG_ON(ida, ida_alloc_min(ida, i + 1, GFP_KERNEL) != i + 1);
-		IDA_BUG_ON(ida, ida_alloc_min(ida, i + BITS_PER_LONG,
+		IDA__ON(ida, ida_alloc_min(ida, i + 1, GFP_KERNEL) != i + 1);
+		IDA__ON(ida, ida_alloc_min(ida, i + BITS_PER_LONG,
 					GFP_KERNEL) != i + BITS_PER_LONG);
 		ida_free(ida, i + 1);
 		ida_free(ida, i + BITS_PER_LONG);
-		IDA_BUG_ON(ida, !ida_is_empty(ida));
+		IDA__ON(ida, !ida_is_empty(ida));
 	}
 
 	for (i = 0; i < IDA_BITMAP_BITS * 2; i++)
-		IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
+		IDA__ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
 	for (i = IDA_BITMAP_BITS * 2; i > 0; i--)
 		ida_free(ida, i - 1);
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 
 	for (i = 0; i < IDA_BITMAP_BITS + BITS_PER_LONG - 4; i++)
-		IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
+		IDA__ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
 	for (i = IDA_BITMAP_BITS + BITS_PER_LONG - 4; i > 0; i--)
 		ida_free(ida, i - 1);
-	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	IDA__ON(ida, !ida_is_empty(ida));
 }
 
 static DEFINE_IDA(ida);
 
 static int ida_checks(void)
 {
-	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
+	IDA__ON(&ida, !ida_is_empty(&ida));
 	ida_check_alloc(&ida);
 	ida_check_destroy(&ida);
 	ida_check_leaf(&ida, 0);

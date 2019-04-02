@@ -16,22 +16,22 @@
  *
  * Multicalls are flushed whenever any of the buffers get full, or
  * when explicitly requested.  There's no way to get per-multicall
- * return results back.  It will BUG if any of the multicalls fail.
+ * return results back.  It will  if any of the multicalls fail.
  *
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <asm/xen/hypercall.h>
 
 #include "multicalls.h"
-#include "debugfs.h"
+#include "defs.h"
 
 #define MC_BATCH	32
 
-#define MC_DEBUG	0
+#define MC_DE	0
 
 #define MC_ARGS		(MC_BATCH * 16)
 
@@ -39,8 +39,8 @@
 struct mc_buffer {
 	unsigned mcidx, argidx, cbidx;
 	struct multicall_entry entries[MC_BATCH];
-#if MC_DEBUG
-	struct multicall_entry debug[MC_BATCH];
+#if MC_DE
+	struct multicall_entry de[MC_BATCH];
 	void *caller[MC_BATCH];
 #endif
 	unsigned char args[MC_ARGS];
@@ -61,7 +61,7 @@ void xen_mc_flush(void)
 	unsigned long flags;
 	int i;
 
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	/* Disable interrupts in case someone comes in and queues
 	   something in the middle */
@@ -69,15 +69,15 @@ void xen_mc_flush(void)
 
 	trace_xen_mc_flush(b->mcidx, b->argidx, b->cbidx);
 
-#if MC_DEBUG
-	memcpy(b->debug, b->entries,
+#if MC_DE
+	memcpy(b->de, b->entries,
 	       b->mcidx * sizeof(struct multicall_entry));
 #endif
 
 	switch (b->mcidx) {
 	case 0:
 		/* no-op */
-		BUG_ON(b->argidx != 0);
+		_ON(b->argidx != 0);
 		break;
 
 	case 1:
@@ -93,7 +93,7 @@ void xen_mc_flush(void)
 
 	default:
 		if (HYPERVISOR_multicall(b->entries, b->mcidx) != 0)
-			BUG();
+			();
 		for (i = 0; i < b->mcidx; i++)
 			if (b->entries[i].result < 0)
 				ret++;
@@ -104,11 +104,11 @@ void xen_mc_flush(void)
 		       ret, b->mcidx, smp_processor_id());
 		for (i = 0; i < b->mcidx; i++) {
 			if (b->entries[i].result < 0) {
-#if MC_DEBUG
+#if MC_DE
 				pr_err("  call %2d: op=%lu arg=[%lx] result=%ld\t%pF\n",
 				       i + 1,
-				       b->debug[i].op,
-				       b->debug[i].args[0],
+				       b->de[i].op,
+				       b->de[i].args[0],
 				       b->entries[i].result,
 				       b->caller[i]);
 #else
@@ -143,8 +143,8 @@ struct multicall_space __xen_mc_entry(size_t args)
 
 	trace_xen_mc_entry_alloc(args);
 
-	BUG_ON(preemptible());
-	BUG_ON(b->argidx >= MC_ARGS);
+	_ON(preemptible());
+	_ON(b->argidx >= MC_ARGS);
 
 	if (unlikely(b->mcidx == MC_BATCH ||
 		     (argidx + args) >= MC_ARGS)) {
@@ -155,14 +155,14 @@ struct multicall_space __xen_mc_entry(size_t args)
 	}
 
 	ret.mc = &b->entries[b->mcidx];
-#if MC_DEBUG
+#if MC_DE
 	b->caller[b->mcidx] = __builtin_return_address(0);
 #endif
 	b->mcidx++;
 	ret.args = &b->args[argidx];
 	b->argidx = argidx + args;
 
-	BUG_ON(b->argidx >= MC_ARGS);
+	_ON(b->argidx >= MC_ARGS);
 	return ret;
 }
 
@@ -171,8 +171,8 @@ struct multicall_space xen_mc_extend_args(unsigned long op, size_t size)
 	struct mc_buffer *b = this_cpu_ptr(&mc_buffer);
 	struct multicall_space ret = { NULL, NULL };
 
-	BUG_ON(preemptible());
-	BUG_ON(b->argidx >= MC_ARGS);
+	_ON(preemptible());
+	_ON(b->argidx >= MC_ARGS);
 
 	if (unlikely(b->mcidx == 0 ||
 		     b->entries[b->mcidx - 1].op != op)) {
@@ -189,7 +189,7 @@ struct multicall_space xen_mc_extend_args(unsigned long op, size_t size)
 	ret.args = &b->args[b->argidx];
 	b->argidx += size;
 
-	BUG_ON(b->argidx >= MC_ARGS);
+	_ON(b->argidx >= MC_ARGS);
 
 	trace_xen_mc_extend_args(op, size, XEN_MC_XE_OK);
 out:

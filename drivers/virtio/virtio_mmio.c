@@ -186,7 +186,7 @@ static void vm_get(struct virtio_device *vdev, unsigned offset,
 		memcpy(buf + sizeof l, &l, sizeof l);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -229,7 +229,7 @@ static void vm_set(struct virtio_device *vdev, unsigned offset,
 		writel(le32_to_cpu(l), base + offset + sizeof l);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -255,7 +255,7 @@ static void vm_set_status(struct virtio_device *vdev, u8 status)
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 
 	/* We should never be setting status to 0. */
-	BUG_ON(status == 0);
+	_ON(status == 0);
 
 	writel(status, vm_dev->base + VIRTIO_MMIO_STATUS);
 }
@@ -406,7 +406,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 		 */
 		if (q_pfn >> 32) {
 			dev_err(&vdev->dev,
-				"platform bug: legacy virtio-mmio must not be used with RAM above 0x%llxGB\n",
+				"platform : legacy virtio-mmio must not be used with RAM above 0x%llxGB\n",
 				0x1ULL << (32 + PAGE_SHIFT - 30));
 			err = -E2BIG;
 			goto error_bad_pfn;

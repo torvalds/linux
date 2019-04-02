@@ -51,10 +51,10 @@
 #define MVS_ID_NOT_MAPPED	0x7f
 #define WIDE_PORT_MAX_PHY		4
 #define mv_printk(fmt, arg ...)	\
-	printk(KERN_DEBUG"%s %d:" fmt, __FILE__, __LINE__, ## arg)
-#ifdef MV_DEBUG
+	printk(KERN_DE"%s %d:" fmt, __FILE__, __LINE__, ## arg)
+#ifdef MV_DE
 #define mv_dprintk(format, arg...)	\
-	printk(KERN_DEBUG"%s %d:" format, __FILE__, __LINE__, ## arg)
+	printk(KERN_DE"%s %d:" format, __FILE__, __LINE__, ## arg)
 #else
 #define mv_dprintk(format, arg...)
 #endif

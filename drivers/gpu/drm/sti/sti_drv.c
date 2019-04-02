@@ -7,7 +7,7 @@
 #include <drm/drmP.h>
 
 #include <linux/component.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -98,24 +98,24 @@ static int sti_drm_dbg_init(struct drm_minor *minor)
 	struct dentry *dentry;
 	int ret;
 
-	ret = drm_debugfs_create_files(sti_drm_dbg_list,
+	ret = drm_defs_create_files(sti_drm_dbg_list,
 				       ARRAY_SIZE(sti_drm_dbg_list),
-				       minor->debugfs_root, minor);
+				       minor->defs_root, minor);
 	if (ret)
 		goto err;
 
-	dentry = debugfs_create_file("fps_show", S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
+	dentry = defs_create_file("fps_show", S_IRUGO | S_IWUSR,
+				     minor->defs_root, minor->dev,
 				     &sti_drm_fps_fops);
 	if (!dentry) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
+	DRM_INFO("%s: defs installed\n", DRIVER_NAME);
 	return 0;
 err:
-	DRM_ERROR("%s: cannot install debugfs\n", DRIVER_NAME);
+	DRM_ERROR("%s: cannot install defs\n", DRIVER_NAME);
 	return ret;
 }
 
@@ -166,7 +166,7 @@ static struct drm_driver sti_driver = {
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 
-	.debugfs_init = sti_drm_dbg_init,
+	.defs_init = sti_drm_dbg_init,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

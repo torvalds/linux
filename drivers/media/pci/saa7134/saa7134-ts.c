@@ -27,13 +27,13 @@
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int ts_debug;
-module_param(ts_debug, int, 0644);
-MODULE_PARM_DESC(ts_debug,"enable debug messages [ts]");
+static unsigned int ts_de;
+module_param(ts_de, int, 0644);
+MODULE_PARM_DESC(ts_de,"enable de messages [ts]");
 
 #define ts_dbg(fmt, arg...) do { \
-	if (ts_debug) \
-		printk(KERN_DEBUG pr_fmt("ts: " fmt), ## arg); \
+	if (ts_de) \
+		printk(KERN_DE pr_fmt("ts: " fmt), ## arg); \
 	} while (0)
 
 /* ------------------------------------------------------------------ */

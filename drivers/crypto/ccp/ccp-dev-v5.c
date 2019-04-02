@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/kthread.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
@@ -820,7 +820,7 @@ static int ccp5_init(struct ccp_device *ccp)
 		mutex_init(&cmd_q->q_mutex);
 
 		/* Page alignment satisfies our needs for N <= 128 */
-		BUILD_BUG_ON(COMMANDS_PER_QUEUE > 128);
+		BUILD__ON(COMMANDS_PER_QUEUE > 128);
 		cmd_q->qsize = Q_SIZE(Q_DESC_SIZE);
 		cmd_q->qbase = dma_alloc_coherent(dev, cmd_q->qsize,
 						  &cmd_q->qbase_dma,
@@ -973,8 +973,8 @@ static int ccp5_init(struct ccp_device *ccp)
 	if (ret)
 		goto e_hwrng;
 
-	/* Set up debugfs entries */
-	ccp5_debugfs_setup(ccp);
+	/* Set up defs entries */
+	ccp5_defs_setup(ccp);
 
 	return 0;
 
@@ -1013,10 +1013,10 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	ccp_del_device(ccp);
 
 	/* We're in the process of tearing down the entire driver;
-	 * when all the devices are gone clean up debugfs
+	 * when all the devices are gone clean up defs
 	 */
 	if (ccp_present())
-		ccp5_debugfs_destroy();
+		ccp5_defs_destroy();
 
 	/* Disable and clear interrupts */
 	ccp5_disable_queue_interrupts(ccp);

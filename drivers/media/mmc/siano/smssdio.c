@@ -188,7 +188,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 		buffer = cb->p + (hdr->msg_length - size);
 		size = ALIGN(size, SMSSDIO_BLOCK_SIZE);
 
-		BUG_ON(smsdev->func->cur_blksize != SMSSDIO_BLOCK_SIZE);
+		_ON(smsdev->func->cur_blksize != SMSSDIO_BLOCK_SIZE);
 
 		/*
 		 * First attempt to transfer all of it in one go...

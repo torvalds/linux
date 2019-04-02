@@ -73,7 +73,7 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 		struct vm_area_struct *vma = current->vmacache.vmas[idx];
 
 		if (vma) {
-#ifdef CONFIG_DEBUG_VM_VMACACHE
+#ifdef CONFIG_DE_VM_VMACACHE
 			if (WARN_ON_ONCE(vma->vm_mm != mm))
 				break;
 #endif

@@ -195,7 +195,7 @@
  */
 
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 /* #define DUMP_MSGS */
 
 #include <linux/blkdev.h>
@@ -1693,7 +1693,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	if (cmnd_size != common->cmnd_size) {
 
 		/*
-		 * Special case workaround: There are plenty of buggy SCSI
+		 * Special case workaround: There are plenty of gy SCSI
 		 * implementations. Many have issues with cbw->Length
 		 * field passing a wrong command size. For those cases we
 		 * always try to work around the problem by using the length
@@ -1706,7 +1706,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 		 * be 6 as well.
 		 */
 		if (cmnd_size <= common->cmnd_size) {
-			DBG(common, "%s is buggy! Expected length %d "
+			DBG(common, "%s is gy! Expected length %d "
 			    "but we got %d\n", name,
 			    cmnd_size, common->cmnd_size);
 			cmnd_size = common->cmnd_size;
@@ -3263,7 +3263,7 @@ static ssize_t fsg_opts_stall_store(struct config_item *item, const char *page,
 
 CONFIGFS_ATTR(fsg_opts_, stall);
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 static ssize_t fsg_opts_num_buffers_show(struct config_item *item, char *page)
 {
 	struct fsg_opts *opts = to_fsg_opts(item);
@@ -3307,7 +3307,7 @@ CONFIGFS_ATTR(fsg_opts_, num_buffers);
 
 static struct configfs_attribute *fsg_attrs[] = {
 	&fsg_opts_attr_stall,
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 	&fsg_opts_attr_num_buffers,
 #endif
 	NULL,

@@ -74,7 +74,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 		/* First trap event */
 		if (trap_event == 0) {
 			/* Do nothing. Since it is returning from this trap
-			 * event that endianness is flipped by the bug, so just
+			 * event that endianness is flipped by the , so just
 			 * let the process return from the signal handler and
 			 * check on the second trap event if endianness is
 			 * flipped or not.
@@ -100,7 +100,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 			 * Either way, it's now possible to check the MSR LE bit
 			 * once in the trap handler to verify if endianness was
 			 * flipped or not after the return from the second trap
-			 * event. If endianness is flipped, the bug is present.
+			 * event. If endianness is flipped, the  is present.
 			 * Finally, getting a trap in TM mode or not is just
 			 * worth noting because it affects the math to determine
 			 * the offset added to the NIP on return: the NIP for a
@@ -143,7 +143,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 		/* Second trap event */
 		else if (trap_event == 1) {
 			/*
-			 * Do nothing. If bug is present on return from this
+			 * Do nothing. If  is present on return from this
 			 * second trap event endianness will flip back "automat-
 			 * ically" to BE, otherwise thread endianness will
 			 * continue to be LE, just as it was set above.
@@ -156,7 +156,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 			 * ond trap event instruction (4) (trap) was executed
 			 * as LE, generating a third trap event. In that case
 			 * endianness is still LE as set on return from the
-			 * first trap event, hence no bug. Otherwise, bug
+			 * first trap event, hence no . Otherwise, 
 			 * flipped back to BE on return from the second trap
 			 * event and instruction (4) was executed as 'tdi' (so
 			 * basically a 'nop') and branch to 'failure' in
@@ -213,7 +213,7 @@ void *ping(void *not_used)
 		" trap           ;" /* (2) trap    [NA]                    */
 		".long 0x1D05007C;" /* (3) tbegin. [OP]                    */
 		".long 0x0800E07F;" /* (4) trap    [OP]; nop   [NA]        */
-		" b %l[failure]  ;" /* (5) b [NA]; MSR.LE flipped (bug)    */
+		" b %l[failure]  ;" /* (5) b [NA]; MSR.LE flipped ()    */
 		" b %l[success]  ;" /* (6) b [NA]; MSR.LE did not flip (ok)*/
 
 		: : : : failure, success);

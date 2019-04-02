@@ -27,7 +27,7 @@ int send_fault_sig(struct pt_regs *regs)
 	signo = current->thread.signo;
 	si_code = current->thread.code;
 	addr = (void __user *)current->thread.faddr;
-	pr_debug("send_fault_sig: %p,%d,%d\n", addr, signo, si_code);
+	pr_de("send_fault_sig: %p,%d,%d\n", addr, signo, si_code);
 
 	if (user_mode(regs)) {
 		force_sig_fault(signo, si_code, addr, current);
@@ -73,7 +73,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	vm_fault_t fault;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
-	pr_debug("do page fault:\nregs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld, %p\n",
+	pr_de("do page fault:\nregs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld, %p\n",
 		regs->sr, regs->pc, address, error_code, mm ? mm->pgd : NULL);
 
 	/*
@@ -98,7 +98,7 @@ retry:
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto map_err;
 	if (user_mode(regs)) {
-		/* Accessing the stack below usp is always a bug.  The
+		/* Accessing the stack below usp is always a .  The
 		   "+ 256" is there due to some instructions doing
 		   pre-decrement on the stack and that doesn't show up
 		   until later.  */
@@ -113,7 +113,7 @@ retry:
  * we can handle it..
  */
 good_area:
-	pr_debug("do_page_fault: good_area\n");
+	pr_de("do_page_fault: good_area\n");
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
 			/* fall through */
@@ -136,7 +136,7 @@ good_area:
 	 */
 
 	fault = handle_mm_fault(vma, address, flags);
-	pr_debug("handle_mm_fault returns %x\n", fault);
+	pr_de("handle_mm_fault returns %x\n", fault);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
 		return 0;
@@ -148,7 +148,7 @@ good_area:
 			goto map_err;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto bus_err;
-		BUG();
+		();
 	}
 
 	/*

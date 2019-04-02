@@ -408,7 +408,7 @@ static int pll_factors(struct _pll_div *pll_div, unsigned int target,
 	unsigned int K, Ndiv, Nmod;
 	int i;
 
-	pr_debug("wm8580: PLL %uHz->%uHz\n", source, target);
+	pr_de("wm8580: PLL %uHz->%uHz\n", source, target);
 
 	/* Scale the output frequency up; the PLL should run in the
 	 * region of 90-100MHz.
@@ -454,7 +454,7 @@ static int pll_factors(struct _pll_div *pll_div, unsigned int target,
 
 	pll_div->k = K;
 
-	pr_debug("PLL %x.%x prescale %d freqmode %d postscale %d\n",
+	pr_de("PLL %x.%x prescale %d freqmode %d postscale %d\n",
 		 pll_div->n, pll_div->k, pll_div->prescale, pll_div->freqmode,
 		 pll_div->postscale);
 

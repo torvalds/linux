@@ -199,8 +199,8 @@ static int __init nmdk_timer_init(void __iomem *base, int irq,
 
 	mtu_base = base;
 
-	BUG_ON(clk_prepare_enable(pclk));
-	BUG_ON(clk_prepare_enable(clk));
+	_ON(clk_prepare_enable(pclk));
+	_ON(clk_prepare_enable(clk));
 
 	/*
 	 * Tick rate is 2.4MHz for Nomadik and 2.4Mhz, 100MHz or 133 MHz

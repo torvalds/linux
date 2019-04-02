@@ -18,8 +18,8 @@ struct coh901318_pool {
 	struct dma_pool *dmapool;
 	struct device *dev;
 
-#ifdef CONFIG_DEBUG_FS
-	int debugfs_pool_counter;
+#ifdef CONFIG_DE_FS
+	int defs_pool_counter;
 #endif
 };
 

@@ -16,7 +16,7 @@
 #ifndef _NSP32_H
 #define _NSP32_H
 
-//#define NSP32_DEBUG 9
+//#define NSP32_DE 9
 
 /*
  * VENDOR/DEVICE ID

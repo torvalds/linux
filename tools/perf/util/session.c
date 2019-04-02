@@ -21,7 +21,7 @@
 #include "util.h"
 #include "cpumap.h"
 #include "perf_regs.h"
-#include "asm/bug.h"
+#include "asm/.h"
 #include "auxtrace.h"
 #include "thread.h"
 #include "thread-stack.h"
@@ -437,7 +437,7 @@ static void swap_sample_id_all(union perf_event *event, void *data)
 	void *end = (void *) event + event->header.size;
 	int size = end - data;
 
-	BUG_ON(size % sizeof(u64));
+	_ON(size % sizeof(u64));
 	mem_bswap_64(data, size);
 }
 
@@ -2238,7 +2238,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 	size_t nr = 0, i = 0, sz, max_nr, n;
 	int err;
 
-	pr_debug2("Synthesizing id index\n");
+	pr_de2("Synthesizing id index\n");
 
 	max_nr = (UINT16_MAX - sizeof(struct id_index_event)) /
 		 sizeof(struct id_index_entry);

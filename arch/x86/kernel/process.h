@@ -30,7 +30,7 @@ static inline void switch_to_extra(struct task_struct *prev,
 	}
 
 	/*
-	 * __switch_to_xtra() handles debug registers, i/o bitmaps,
+	 * __switch_to_xtra() handles de registers, i/o bitmaps,
 	 * speculation mitigations etc.
 	 */
 	if (unlikely(next_tif & _TIF_WORK_CTXSW_NEXT ||

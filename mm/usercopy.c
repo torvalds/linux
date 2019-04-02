@@ -96,10 +96,10 @@ void __noreturn usercopy_abort(const char *name, const char *detail,
 
 	/*
 	 * For greater effect, it would be nice to do do_group_exit(),
-	 * but BUG() actually hooks all the lock-breaking and per-arch
+	 * but () actually hooks all the lock-breaking and per-arch
 	 * Oops code, so that is used here instead.
 	 */
-	BUG();
+	();
 }
 
 /* Returns true if any portion of [ptr,ptr+n) over laps with [low,high). */

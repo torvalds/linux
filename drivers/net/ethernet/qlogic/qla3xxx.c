@@ -57,9 +57,9 @@ static const u32 default_msg
     = NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
     | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
 
-static int debug = -1;		/* defaults above */
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;		/* defaults above */
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static int msi;
 module_param(msi, int, 0);
@@ -151,7 +151,7 @@ static int ql_wait_for_drvr_lock(struct ql3_adapter *qdev)
 				QL_DRVR_SEM_MASK,
 				(QL_RESOURCE_BITS_BASE_CODE | (qdev->mac_index)
 				 * 2) << 1)) {
-			netdev_printk(KERN_DEBUG, qdev->ndev,
+			netdev_printk(KERN_DE, qdev->ndev,
 				      "driver lock acquired\n");
 			return 1;
 		}
@@ -1311,12 +1311,12 @@ static int ql_this_adapter_controls_port(struct ql3_adapter *qdev)
 
 	temp = ql_read_page0_reg(qdev, &port_regs->portStatus);
 	if (temp & bitToCheck) {
-		netif_printk(qdev, link, KERN_DEBUG, qdev->ndev,
+		netif_printk(qdev, link, KERN_DE, qdev->ndev,
 			     "not link master\n");
 		return 0;
 	}
 
-	netif_printk(qdev, link, KERN_DEBUG, qdev->ndev, "link master\n");
+	netif_printk(qdev, link, KERN_DE, qdev->ndev, "link master\n");
 	return 1;
 }
 
@@ -1465,7 +1465,7 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 	if (!ql_auto_neg_error(qdev)) {
 		if (test_bit(QL_LINK_MASTER, &qdev->flags)) {
 			/* configure the MAC */
-			netif_printk(qdev, link, KERN_DEBUG, qdev->ndev,
+			netif_printk(qdev, link, KERN_DE, qdev->ndev,
 				     "Configuring link\n");
 			ql_mac_cfg_soft_reset(qdev, 1);
 			ql_mac_cfg_gig(qdev,
@@ -1481,7 +1481,7 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 			ql_mac_cfg_soft_reset(qdev, 0);
 
 			/* enable the MAC */
-			netif_printk(qdev, link, KERN_DEBUG, qdev->ndev,
+			netif_printk(qdev, link, KERN_DE, qdev->ndev,
 				     "Enabling mac\n");
 			ql_mac_enable(qdev, 1);
 		}
@@ -1497,7 +1497,7 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 	} else {	/* Remote error detected */
 
 		if (test_bit(QL_LINK_MASTER, &qdev->flags)) {
-			netif_printk(qdev, link, KERN_DEBUG, qdev->ndev,
+			netif_printk(qdev, link, KERN_DE, qdev->ndev,
 				     "Remote error detected. Calling ql_port_start()\n");
 			/*
 			 * ql_port_start() is shared code and needs
@@ -1794,7 +1794,7 @@ static int ql_populate_free_queue(struct ql3_adapter *qdev)
 				netdev_alloc_skb(qdev->ndev,
 						 qdev->lrg_buffer_len);
 			if (unlikely(!lrg_buf_cb->skb)) {
-				netdev_printk(KERN_DEBUG, qdev->ndev,
+				netdev_printk(KERN_DE, qdev->ndev,
 					      "Failed netdev_alloc_skb()\n");
 				break;
 			} else {
@@ -2506,7 +2506,7 @@ static netdev_tx_t ql3xxx_send(struct sk_buff *skb,
 			    &port_regs->CommonRegs.reqQProducerIndex,
 			    qdev->req_producer_index);
 
-	netif_printk(qdev, tx_queued, KERN_DEBUG, ndev,
+	netif_printk(qdev, tx_queued, KERN_DE, ndev,
 		     "tx queued, slot %d, len %d\n",
 		     qdev->req_producer_index, skb->len);
 
@@ -3273,13 +3273,13 @@ static int ql_adapter_reset(struct ql3_adapter *qdev)
 	/*
 	 * Issue soft reset to chip.
 	 */
-	netdev_printk(KERN_DEBUG, qdev->ndev, "Issue soft reset to chip\n");
+	netdev_printk(KERN_DE, qdev->ndev, "Issue soft reset to chip\n");
 	ql_write_common_reg(qdev,
 			    &port_regs->CommonRegs.ispControlStatus,
 			    ((ISP_CONTROL_SR << 16) | ISP_CONTROL_SR));
 
 	/* Wait 3 seconds for reset to complete. */
-	netdev_printk(KERN_DEBUG, qdev->ndev,
+	netdev_printk(KERN_DE, qdev->ndev,
 		      "Wait 10 milliseconds for reset to complete\n");
 
 	/* Wait until the firmware tells us the Soft Reset is done */
@@ -3301,7 +3301,7 @@ static int ql_adapter_reset(struct ql3_adapter *qdev)
 	value =
 	    ql_read_common_reg(qdev, &port_regs->CommonRegs.ispControlStatus);
 	if (value & ISP_CONTROL_RI) {
-		netdev_printk(KERN_DEBUG, qdev->ndev,
+		netdev_printk(KERN_DE, qdev->ndev,
 			      "clearing RI after reset\n");
 		ql_write_common_reg(qdev,
 				    &port_regs->CommonRegs.
@@ -3376,7 +3376,7 @@ static void ql_set_mac_info(struct ql3_adapter *qdev)
 	case ISP_CONTROL_FN0_SCSI:
 	case ISP_CONTROL_FN1_SCSI:
 	default:
-		netdev_printk(KERN_DEBUG, qdev->ndev,
+		netdev_printk(KERN_DE, qdev->ndev,
 			      "Invalid function number, ispControlStatus = 0x%x\n",
 			      value);
 		break;
@@ -3640,7 +3640,7 @@ static void ql_reset_work(struct work_struct *work)
 			int j;
 			tx_cb = &qdev->tx_buf[i];
 			if (tx_cb->skb) {
-				netdev_printk(KERN_DEBUG, ndev,
+				netdev_printk(KERN_DE, ndev,
 					      "Freeing lost SKB\n");
 				pci_unmap_single(qdev->pdev,
 					 dma_unmap_addr(&tx_cb->map[0],
@@ -3676,13 +3676,13 @@ static void ql_reset_work(struct work_struct *work)
 
 						   ispControlStatus);
 			if ((value & ISP_CONTROL_SR) == 0) {
-				netdev_printk(KERN_DEBUG, ndev,
+				netdev_printk(KERN_DE, ndev,
 					      "reset completed\n");
 				break;
 			}
 
 			if (value & ISP_CONTROL_RI) {
-				netdev_printk(KERN_DEBUG, ndev,
+				netdev_printk(KERN_DE, ndev,
 					      "clearing NRI after reset\n");
 				ql_write_common_reg(qdev,
 						    &port_regs->
@@ -3817,7 +3817,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	if (msi)
 		qdev->msi = 1;
 
-	qdev->msg_enable = netif_msg_init(debug, default_msg);
+	qdev->msg_enable = netif_msg_init(de, default_msg);
 
 	if (pci_using_dac)
 		ndev->features |= NETIF_F_HIGHDMA;

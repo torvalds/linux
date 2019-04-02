@@ -331,10 +331,10 @@ char *capi_cmd2str(u8 Command, u8 Subcommand)
 	CAPI 2.0 standard.
 
 
-7. Debugging
+7. Deging
 
 The module kernelcapi has a module parameter showcapimsgs controlling some
-debugging output produced by the module. It can only be set when the module is
+deging output produced by the module. It can only be set when the module is
 loaded, via a parameter "showcapimsgs=<n>" to the modprobe command, either on
 the command line or in the configuration file.
 

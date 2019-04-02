@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 #include <string.h>
 #include <fcntl.h>
-#include "mpx-debug.h"
+#include "mpx-de.h"
 #include "mpx-mm.h"
 #include "mpx-hw.h"
 
@@ -274,7 +274,7 @@ int dump_table(unsigned long table_vaddr, unsigned long base_controlled_vaddr,
 			do_abort = 1;
 			mpx_dig_abort();
 		}
-		if (DEBUG_LEVEL < 4)
+		if (DE_LEVEL < 4)
 			continue;
 
 		printf("table entry[%lx]: ", offset_inside_bt);

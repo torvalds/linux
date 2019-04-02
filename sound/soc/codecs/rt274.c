@@ -372,7 +372,7 @@ static int rt274_jack_detect(struct rt274_priv *rt274, bool *hp, bool *mic)
 
 	*mic = buf & 0x80000000;
 
-	pr_debug("*hp = %d *mic = %d\n", *hp, *mic);
+	pr_de("*hp = %d *mic = %d\n", *hp, *mic);
 
 	return 0;
 }

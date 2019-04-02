@@ -615,7 +615,7 @@ static void sil_thaw(struct ata_port *ap)
  *	list, and apply the fixups to only the specific
  *	devices/hosts/firmwares that need it.
  *
- *	20040111 - Seagate drives affected by the Mod15Write bug are blacklisted
+ *	20040111 - Seagate drives affected by the Mod15Write  are blacklisted
  *	The Maxtor quirk is in the blacklist, but I'm keeping the original
  *	pessimistic fix for the following reasons...
  *	- There seems to be less info on it, only one device gleaned off the

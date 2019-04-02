@@ -137,7 +137,7 @@ This tells the DMA-mapping subsystem to suppress allocation failure reports
 (similarly to __GFP_NOWARN).
 
 On some architectures allocation failures are reported with error messages
-to the system logs.  Although this can help to identify and debug problems,
+to the system logs.  Although this can help to identify and de problems,
 drivers which handle failures (eg, retry later) have no problems with them,
 and can actually flood the system logs with error messages that aren't any
 problem at all, depending on the implementation of the retry mechanism.

@@ -31,16 +31,16 @@
 #define ROCKET_DISABLE_SIMUSAGE
 
 #undef ROCKET_SOFT_FLOW
-#undef ROCKET_DEBUG_OPEN
-#undef ROCKET_DEBUG_INTR
-#undef ROCKET_DEBUG_WRITE
-#undef ROCKET_DEBUG_FLOW
-#undef ROCKET_DEBUG_THROTTLE
-#undef ROCKET_DEBUG_WAIT_UNTIL_SENT
-#undef ROCKET_DEBUG_RECEIVE
-#undef ROCKET_DEBUG_HANGUP
+#undef ROCKET_DE_OPEN
+#undef ROCKET_DE_INTR
+#undef ROCKET_DE_WRITE
+#undef ROCKET_DE_FLOW
+#undef ROCKET_DE_THROTTLE
+#undef ROCKET_DE_WAIT_UNTIL_SENT
+#undef ROCKET_DE_RECEIVE
+#undef ROCKET_DE_HANGUP
 #undef REV_PCI_ORDER
-#undef ROCKET_DEBUG_IO
+#undef ROCKET_DE_IO
 
 #define POLL_PERIOD (HZ/100)	/*  Polling period .01 seconds (10ms) */
 
@@ -306,7 +306,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 	unsigned char *cbuf;
 
 	ToRecv = sGetRxCnt(cp);
-#ifdef ROCKET_DEBUG_INTR
+#ifdef ROCKET_DE_INTR
 	printk(KERN_INFO "rp_do_receive(%d)...\n", ToRecv);
 #endif
 	if (ToRecv == 0)
@@ -319,7 +319,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 	 */
 	if (ChanStatus & (RXFOVERFL | RXBREAK | RXFRAME | RXPARITY)) {
 		if (!(ChanStatus & STATMODE)) {
-#ifdef ROCKET_DEBUG_RECEIVE
+#ifdef ROCKET_DE_RECEIVE
 			printk(KERN_INFO "Entering STATMODE...\n");
 #endif
 			ChanStatus |= STATMODE;
@@ -333,7 +333,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 	 * the status.  Update error counters depending on status
 	 */
 	if (ChanStatus & STATMODE) {
-#ifdef ROCKET_DEBUG_RECEIVE
+#ifdef ROCKET_DE_RECEIVE
 		printk(KERN_INFO "Ignore %x, read %x...\n",
 			info->ignore_status_mask, info->read_status_mask);
 #endif
@@ -341,7 +341,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 			char flag;
 
 			CharNStat = sInW(sGetTxRxDataIO(cp));
-#ifdef ROCKET_DEBUG_RECEIVE
+#ifdef ROCKET_DE_RECEIVE
 			printk(KERN_INFO "%x...\n", CharNStat);
 #endif
 			if (CharNStat & STMBREAKH)
@@ -371,7 +371,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 		 * status mode back off
 		 */
 		if (sGetRxCnt(cp) == 0) {
-#ifdef ROCKET_DEBUG_RECEIVE
+#ifdef ROCKET_DE_RECEIVE
 			printk(KERN_INFO "Status mode off.\n");
 #endif
 			sDisRxStatusMode(cp);
@@ -384,7 +384,7 @@ static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
 		 */
 		space = tty_prepare_flip_string(&info->port, &cbuf, ToRecv);
 		if (space < ToRecv) {
-#ifdef ROCKET_DEBUG_RECEIVE
+#ifdef ROCKET_DE_RECEIVE
 			printk(KERN_INFO "rp_do_receive:insufficient space ToRecv=%d space=%d\n", ToRecv, space);
 #endif
 			if (space <= 0)
@@ -414,8 +414,8 @@ static void rp_do_transmit(struct r_port *info)
 	struct tty_struct *tty;
 	unsigned long flags;
 
-#ifdef ROCKET_DEBUG_INTR
-	printk(KERN_DEBUG "%s\n", __func__);
+#ifdef ROCKET_DE_INTR
+	printk(KERN_DE "%s\n", __func__);
 #endif
 	if (!info)
 		return;
@@ -445,7 +445,7 @@ static void rp_do_transmit(struct r_port *info)
 		info->xmit_tail &= XMIT_BUF_SIZE - 1;
 		info->xmit_cnt -= c;
 		info->xmit_fifo_room -= c;
-#ifdef ROCKET_DEBUG_INTR
+#ifdef ROCKET_DE_INTR
 		printk(KERN_INFO "tx %d chars...\n", c);
 #endif
 	}
@@ -463,8 +463,8 @@ static void rp_do_transmit(struct r_port *info)
 	spin_unlock_irqrestore(&info->slock, flags);
 	tty_kref_put(tty);
 
-#ifdef ROCKET_DEBUG_INTR
-	printk(KERN_DEBUG "(%d,%d,%d,%d)...\n", info->xmit_cnt, info->xmit_head,
+#ifdef ROCKET_DE_INTR
+	printk(KERN_DE "(%d,%d,%d,%d)...\n", info->xmit_cnt, info->xmit_head,
 	       info->xmit_tail, info->xmit_fifo_room);
 #endif
 }
@@ -491,7 +491,7 @@ static void rp_handle_port(struct r_port *info)
 	cp = &info->channel;
 
 	IntMask = sGetChanIntID(cp) & info->intmask;
-#ifdef ROCKET_DEBUG_INTR
+#ifdef ROCKET_DE_INTR
 	printk(KERN_INFO "rp_interrupt %02x...\n", IntMask);
 #endif
 	ChanStatus = sGetChanStatus(cp);
@@ -499,12 +499,12 @@ static void rp_handle_port(struct r_port *info)
 		rp_do_receive(info, cp, ChanStatus);
 	}
 	if (IntMask & DELTA_CD) {	/* CD change  */
-#if (defined(ROCKET_DEBUG_OPEN) || defined(ROCKET_DEBUG_INTR) || defined(ROCKET_DEBUG_HANGUP))
+#if (defined(ROCKET_DE_OPEN) || defined(ROCKET_DE_INTR) || defined(ROCKET_DE_HANGUP))
 		printk(KERN_INFO "ttyR%d CD now %s...\n", info->line,
 		       (ChanStatus & CD_ACT) ? "on" : "off");
 #endif
 		if (!(ChanStatus & CD_ACT) && info->cd_status) {
-#ifdef ROCKET_DEBUG_HANGUP
+#ifdef ROCKET_DE_HANGUP
 			printk(KERN_INFO "CD drop, calling hangup.\n");
 #endif
 			tty_port_tty_hangup(&info->port, false);
@@ -512,7 +512,7 @@ static void rp_handle_port(struct r_port *info)
 		info->cd_status = (ChanStatus & CD_ACT) ? 1 : 0;
 		wake_up_interruptible(&info->port.open_wait);
 	}
-#ifdef ROCKET_DEBUG_INTR
+#ifdef ROCKET_DE_INTR
 	if (IntMask & DELTA_CTS) {	/* CTS change */
 		printk(KERN_INFO "CTS change...\n");
 	}
@@ -896,12 +896,12 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	if (port->count++ == 0) {
 		atomic_inc(&rp_num_ports_open);
 
-#ifdef ROCKET_DEBUG_OPEN
+#ifdef ROCKET_DE_OPEN
 		printk(KERN_INFO "rocket mod++ = %d...\n",
 				atomic_read(&rp_num_ports_open));
 #endif
 	}
-#ifdef ROCKET_DEBUG_OPEN
+#ifdef ROCKET_DE_OPEN
 	printk(KERN_INFO "rp_open ttyR%d, count=%d\n", info->line, info->port.count);
 #endif
 
@@ -945,7 +945,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 
 	retval = tty_port_block_til_ready(port, tty, filp);
 	if (retval) {
-#ifdef ROCKET_DEBUG_OPEN
+#ifdef ROCKET_DE_OPEN
 		printk(KERN_INFO "rp_open returning after block_til_ready with %d\n", retval);
 #endif
 		return retval;
@@ -966,7 +966,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	if (rocket_paranoia_check(info, "rp_close"))
 		return;
 
-#ifdef ROCKET_DEBUG_OPEN
+#ifdef ROCKET_DE_OPEN
 	printk(KERN_INFO "rp_close ttyR%d, count = %d\n", info->line, info->port.count);
 #endif
 
@@ -1027,7 +1027,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 
 	atomic_dec(&rp_num_ports_open);
 
-#ifdef ROCKET_DEBUG_OPEN
+#ifdef ROCKET_DE_OPEN
 	printk(KERN_INFO "rocket mod-- = %d...\n",
 			atomic_read(&rp_num_ports_open));
 	printk(KERN_INFO "rp_close ttyR%d complete shutdown\n", info->line);
@@ -1327,7 +1327,7 @@ static void rp_throttle(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 
-#ifdef ROCKET_DEBUG_THROTTLE
+#ifdef ROCKET_DE_THROTTLE
 	printk(KERN_INFO "throttle %s ....\n", tty->name);
 #endif
 
@@ -1343,7 +1343,7 @@ static void rp_throttle(struct tty_struct *tty)
 static void rp_unthrottle(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
-#ifdef ROCKET_DEBUG_THROTTLE
+#ifdef ROCKET_DE_THROTTLE
 	printk(KERN_INFO "unthrottle %s ....\n", tty->name);
 #endif
 
@@ -1368,7 +1368,7 @@ static void rp_stop(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 
-#ifdef ROCKET_DEBUG_FLOW
+#ifdef ROCKET_DE_FLOW
 	printk(KERN_INFO "stop %s: %d %d....\n", tty->name,
 	       info->xmit_cnt, info->xmit_fifo_room);
 #endif
@@ -1384,7 +1384,7 @@ static void rp_start(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 
-#ifdef ROCKET_DEBUG_FLOW
+#ifdef ROCKET_DE_FLOW
 	printk(KERN_INFO "start %s: %d %d....\n", tty->name,
 	       info->xmit_cnt, info->xmit_fifo_room);
 #endif
@@ -1414,7 +1414,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 	cp = &info->channel;
 
 	orig_jiffies = jiffies;
-#ifdef ROCKET_DEBUG_WAIT_UNTIL_SENT
+#ifdef ROCKET_DE_WAIT_UNTIL_SENT
 	printk(KERN_INFO "In %s(%d) (jiff=%lu)...\n", __func__, timeout,
 	       jiffies);
 	printk(KERN_INFO "cps=%d...\n", info->cps);
@@ -1437,7 +1437,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 		}
 		if (check_time == 0)
 			check_time = 1;
-#ifdef ROCKET_DEBUG_WAIT_UNTIL_SENT
+#ifdef ROCKET_DE_WAIT_UNTIL_SENT
 		printk(KERN_INFO "txcnt = %d (jiff=%lu,check=%d)...\n", txcnt,
 				jiffies, check_time);
 #endif
@@ -1446,7 +1446,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	__set_current_state(TASK_RUNNING);
-#ifdef ROCKET_DEBUG_WAIT_UNTIL_SENT
+#ifdef ROCKET_DE_WAIT_UNTIL_SENT
 	printk(KERN_INFO "txcnt = %d (jiff=%lu)...done\n", txcnt, jiffies);
 #endif
 }
@@ -1463,7 +1463,7 @@ static void rp_hangup(struct tty_struct *tty)
 	if (rocket_paranoia_check(info, "rp_hangup"))
 		return;
 
-#if (defined(ROCKET_DEBUG_OPEN) || defined(ROCKET_DEBUG_HANGUP))
+#if (defined(ROCKET_DE_OPEN) || defined(ROCKET_DE_HANGUP))
 	printk(KERN_INFO "rp_hangup of ttyR%d...\n", info->line);
 #endif
 	rp_flush_buffer(tty);
@@ -1509,7 +1509,7 @@ static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 	 */
 	mutex_lock(&info->write_mtx);
 
-#ifdef ROCKET_DEBUG_WRITE
+#ifdef ROCKET_DE_WRITE
 	printk(KERN_INFO "rp_put_char %c...\n", ch);
 #endif
 
@@ -1555,7 +1555,7 @@ static int rp_write(struct tty_struct *tty,
 	if (mutex_lock_interruptible(&info->write_mtx))
 		return -ERESTARTSYS;
 
-#ifdef ROCKET_DEBUG_WRITE
+#ifdef ROCKET_DE_WRITE
 	printk(KERN_INFO "rp_write %d chars...\n", count);
 #endif
 	cp = &info->channel;
@@ -1645,7 +1645,7 @@ static int rp_write_room(struct tty_struct *tty)
 	ret = XMIT_BUF_SIZE - info->xmit_cnt - 1;
 	if (ret < 0)
 		ret = 0;
-#ifdef ROCKET_DEBUG_WRITE
+#ifdef ROCKET_DE_WRITE
 	printk(KERN_INFO "rp_write_room returns %d...\n", ret);
 #endif
 	return ret;
@@ -1662,7 +1662,7 @@ static int rp_chars_in_buffer(struct tty_struct *tty)
 	if (rocket_paranoia_check(info, "rp_chars_in_buffer"))
 		return 0;
 
-#ifdef ROCKET_DEBUG_WRITE
+#ifdef ROCKET_DE_WRITE
 	printk(KERN_INFO "rp_chars_in_buffer returns %d...\n", info->xmit_cnt);
 #endif
 	return info->xmit_cnt;
@@ -2401,7 +2401,7 @@ static int __init rp_init(void)
 		goto err_controller;
 	}
 
-#ifdef ROCKET_DEBUG_OPEN
+#ifdef ROCKET_DE_OPEN
 	printk(KERN_INFO "RocketPort driver is major %d\n", rocket_driver.major);
 #endif
 

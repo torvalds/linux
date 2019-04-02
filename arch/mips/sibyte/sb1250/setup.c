@@ -219,7 +219,7 @@ void __init sb1250_setup(void)
 #endif
 #ifdef CONFIG_CPU_HAS_PREFETCH
 		printk("@@@@ Prefetches may be enabled in this kernel, "
-			    "but are buggy on this board.  @@@@\n");
+			    "but are gy on this board.  @@@@\n");
 		bad_config = 1;
 #endif
 		break;

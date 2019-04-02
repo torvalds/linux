@@ -5,7 +5,7 @@
 #define __NFP_ASM_H__ 1
 
 #include <linux/bitfield.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/types.h>
 
 #define REG_NONE	0

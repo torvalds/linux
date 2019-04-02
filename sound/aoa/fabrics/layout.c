@@ -1044,12 +1044,12 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	case 51: /* PowerBook5,4 */
 	case 58: /* Mac Mini */
 		ldev->gpio.methods = ftr_gpio_methods;
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "snd-aoa-fabric-layout: Using direct GPIOs\n");
 		break;
 	default:
 		ldev->gpio.methods = pmf_gpio_methods;
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "snd-aoa-fabric-layout: Using PMF GPIOs\n");
 	}
 	ldev->selfptr_headphone.ptr = ldev;

@@ -307,7 +307,7 @@ static int st21nfca_hci_ready(struct nfc_hci_dev *hdev)
 		return -EINVAL;
 	}
 
-	print_hex_dump(KERN_DEBUG, "FULL VERSION SOFTWARE INFO: ",
+	print_hex_dump(KERN_DE, "FULL VERSION SOFTWARE INFO: ",
 		       DUMP_PREFIX_NONE, 16, 1,
 		       skb->data, FULL_VERSION_LEN, false);
 
@@ -847,7 +847,7 @@ static void st21nfca_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 	u8 gate = hdev->pipes[pipe].gate;
 
-	pr_debug("cmd: %x\n", cmd);
+	pr_de("cmd: %x\n", cmd);
 
 	switch (cmd) {
 	case NFC_HCI_ANY_OPEN_PIPE:
@@ -870,7 +870,7 @@ static int st21nfca_admin_event_received(struct nfc_hci_dev *hdev, u8 event,
 {
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
-	pr_debug("admin event: %x\n", event);
+	pr_de("admin event: %x\n", event);
 
 	switch (event) {
 	case ST21NFCA_EVT_HOT_PLUG:
@@ -904,7 +904,7 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 	u8 gate = hdev->pipes[pipe].gate;
 	u8 host = hdev->pipes[pipe].dest_host;
 
-	pr_debug("hci event: %d gate: %x\n", event, gate);
+	pr_de("hci event: %d gate: %x\n", event, gate);
 
 	switch (gate) {
 	case NFC_HCI_ADMIN_GATE:

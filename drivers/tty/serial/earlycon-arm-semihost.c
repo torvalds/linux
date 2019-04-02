@@ -19,7 +19,7 @@
 #endif
 
 /*
- * Semihosting-based debug console
+ * Semihosting-based de console
  */
 static void smh_putc(struct uart_port *port, int c)
 {

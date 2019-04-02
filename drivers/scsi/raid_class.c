@@ -80,7 +80,7 @@ static int raid_setup(struct transport_container *tc, struct device *dev,
 {
 	struct raid_data *rd;
 
-	BUG_ON(dev_get_drvdata(cdev));
+	_ON(dev_get_drvdata(cdev));
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
@@ -280,7 +280,7 @@ raid_class_attach(struct raid_function_template *ft)
 	i->attrs[count++] = &dev_attr_state;
 
 	i->attrs[count] = NULL;
-	BUG_ON(count > RAID_NUM_ATTRS);
+	_ON(count > RAID_NUM_ATTRS);
 
 	return &i->r;
 }
@@ -291,7 +291,7 @@ raid_class_release(struct raid_template *r)
 {
 	struct raid_internal *i = to_raid_internal(r);
 
-	BUG_ON(attribute_container_unregister(&i->r.raid_attrs.ac));
+	_ON(attribute_container_unregister(&i->r.raid_attrs.ac));
 
 	kfree(i);
 }

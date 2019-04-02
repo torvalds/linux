@@ -226,7 +226,7 @@ static const struct i2c_algo_bit_data cx18_i2c_algo_template = {
 int init_cx18_i2c(struct cx18 *cx)
 {
 	int i, err;
-	CX18_DEBUG_I2C("i2c init\n");
+	CX18_DE_I2C("i2c init\n");
 
 	for (i = 0; i < 2; i++) {
 		/* Setup algorithm for adapter */
@@ -297,7 +297,7 @@ int init_cx18_i2c(struct cx18 *cx)
 void exit_cx18_i2c(struct cx18 *cx)
 {
 	int i;
-	CX18_DEBUG_I2C("i2c exit\n");
+	CX18_DE_I2C("i2c exit\n");
 	cx18_write_reg(cx, cx18_read_reg(cx, CX18_REG_I2C_1_WR) | 4,
 							CX18_REG_I2C_1_WR);
 	cx18_write_reg(cx, cx18_read_reg(cx, CX18_REG_I2C_2_WR) | 4,

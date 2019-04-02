@@ -50,7 +50,7 @@ static void usb_urb_complete(struct urb *urb)
 				urb->iso_frame_desc[i].status = 0;
 				urb->iso_frame_desc[i].actual_length = 0;
 			}
-			debug_dump(b,20,deb_uxfer);
+			de_dump(b,20,deb_uxfer);
 			break;
 		case PIPE_BULK:
 			if (urb->actual_length > 0)

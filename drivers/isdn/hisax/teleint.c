@@ -136,8 +136,8 @@ ReadHFC(struct IsdnCardState *cs, int data, u_char reg)
 		cs->hw.hfc.cip = reg;
 		byteout(cs->hw.hfc.addr | 1, reg);
 		ret = bytein(cs->hw.hfc.addr);
-		if (cs->debug & L1_DEB_HSCX_FIFO && (data != 2))
-			debugl1(cs, "hfc RD %02x %02x", reg, ret);
+		if (cs->de & L1_DEB_HSCX_FIFO && (data != 2))
+			del1(cs, "hfc RD %02x %02x", reg, ret);
 	} else
 		ret = bytein(cs->hw.hfc.addr | 1);
 	return (ret);
@@ -150,8 +150,8 @@ WriteHFC(struct IsdnCardState *cs, int data, u_char reg, u_char value)
 	cs->hw.hfc.cip = reg;
 	if (data)
 		byteout(cs->hw.hfc.addr, value);
-	if (cs->debug & L1_DEB_HSCX_FIFO && (data != 2))
-		debugl1(cs, "hfc W%c %02x %02x", data ? 'D' : 'C', reg, value);
+	if (cs->de & L1_DEB_HSCX_FIFO && (data != 2))
+		del1(cs, "hfc W%c %02x %02x", data ? 'D' : 'C', reg, value);
 }
 
 static irqreturn_t
@@ -168,8 +168,8 @@ Start_ISAC:
 		isac_interrupt(cs, val);
 	val = readreg(cs->hw.hfc.addr | 1, cs->hw.hfc.addr, ISAC_ISTA);
 	if (val) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	writereg(cs->hw.hfc.addr | 1, cs->hw.hfc.addr, ISAC_MASK, 0xFF);

@@ -38,13 +38,13 @@ if grep -q CC < $F
 then
 	:
 else
-	print_bug $title no build
+	print_ $title no build
 	exit 1
 fi
 
 if grep -q "error:" < $F
 then
-	print_bug $title build errors:
+	print_ $title build errors:
 	grep "error:" < $F
 	exit 2
 fi

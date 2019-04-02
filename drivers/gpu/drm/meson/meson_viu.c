@@ -296,7 +296,7 @@ static void meson_viu_load_matrix(struct meson_drm *priv)
 				 true);
 }
 
-/* VIU OSD1 Reset as workaround for GXL+ Alpha OSD Bug */
+/* VIU OSD1 Reset as workaround for GXL+ Alpha OSD  */
 void meson_viu_osd1_reset(struct meson_drm *priv)
 {
 	uint32_t osd1_fifo_ctrl_stat, osd1_ctrl_stat2;

@@ -137,24 +137,24 @@ void	mptsas_schedule_target_reset(void *ioc);
 static void mptsas_print_phy_data(MPT_ADAPTER *ioc,
 					MPI_SAS_IO_UNIT0_PHY_DATA *phy_data)
 {
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "---- IO UNIT PAGE 0 ------------\n", ioc->name));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Handle=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Handle=0x%X\n",
 	    ioc->name, le16_to_cpu(phy_data->AttachedDeviceHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Controller Handle=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Controller Handle=0x%X\n",
 	    ioc->name, le16_to_cpu(phy_data->ControllerDevHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Port=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Port=0x%X\n",
 	    ioc->name, phy_data->Port));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Port Flags=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Port Flags=0x%X\n",
 	    ioc->name, phy_data->PortFlags));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "PHY Flags=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "PHY Flags=0x%X\n",
 	    ioc->name, phy_data->PhyFlags));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Negotiated Link Rate=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Negotiated Link Rate=0x%X\n",
 	    ioc->name, phy_data->NegotiatedLinkRate));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "Controller PHY Device Info=0x%X\n", ioc->name,
 	    le32_to_cpu(phy_data->ControllerPhyDeviceInfo)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "DiscoveryStatus=0x%X\n\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "DiscoveryStatus=0x%X\n\n",
 	    ioc->name, le32_to_cpu(phy_data->DiscoveryStatus)));
 }
 
@@ -164,39 +164,39 @@ static void mptsas_print_phy_pg0(MPT_ADAPTER *ioc, SasPhyPage0_t *pg0)
 
 	memcpy(&sas_address, &pg0->SASAddress, sizeof(__le64));
 
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "---- SAS PHY PAGE 0 ------------\n", ioc->name));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "Attached Device Handle=0x%X\n", ioc->name,
 	    le16_to_cpu(pg0->AttachedDevHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "SAS Address=0x%llX\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "SAS Address=0x%llX\n",
 	    ioc->name, (unsigned long long)le64_to_cpu(sas_address)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "Attached PHY Identifier=0x%X\n", ioc->name,
 	    pg0->AttachedPhyIdentifier));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Attached Device Info=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Attached Device Info=0x%X\n",
 	    ioc->name, le32_to_cpu(pg0->AttachedDeviceInfo)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Programmed Link Rate=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Programmed Link Rate=0x%X\n",
 	    ioc->name,  pg0->ProgrammedLinkRate));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Change Count=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Change Count=0x%X\n",
 	    ioc->name, pg0->ChangeCount));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "PHY Info=0x%X\n\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "PHY Info=0x%X\n\n",
 	    ioc->name, le32_to_cpu(pg0->PhyInfo)));
 }
 
 static void mptsas_print_phy_pg1(MPT_ADAPTER *ioc, SasPhyPage1_t *pg1)
 {
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "---- SAS PHY PAGE 1 ------------\n", ioc->name));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Invalid Dword Count=0x%x\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Invalid Dword Count=0x%x\n",
 	    ioc->name,  pg1->InvalidDwordCount));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "Running Disparity Error Count=0x%x\n", ioc->name,
 	    pg1->RunningDisparityErrorCount));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "Loss Dword Synch Count=0x%x\n", ioc->name,
 	    pg1->LossDwordSynchCount));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "PHY Reset Problem Count=0x%x\n\n", ioc->name,
 	    pg1->PhyResetProblemCount));
 }
@@ -207,51 +207,51 @@ static void mptsas_print_device_pg0(MPT_ADAPTER *ioc, SasDevicePage0_t *pg0)
 
 	memcpy(&sas_address, &pg0->SASAddress, sizeof(__le64));
 
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "---- SAS DEVICE PAGE 0 ---------\n", ioc->name));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Handle=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Handle=0x%X\n",
 	    ioc->name, le16_to_cpu(pg0->DevHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Parent Handle=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Parent Handle=0x%X\n",
 	    ioc->name, le16_to_cpu(pg0->ParentDevHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Enclosure Handle=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Enclosure Handle=0x%X\n",
 	    ioc->name, le16_to_cpu(pg0->EnclosureHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Slot=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Slot=0x%X\n",
 	    ioc->name, le16_to_cpu(pg0->Slot)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "SAS Address=0x%llX\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "SAS Address=0x%llX\n",
 	    ioc->name, (unsigned long long)le64_to_cpu(sas_address)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Target ID=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Target ID=0x%X\n",
 	    ioc->name, pg0->TargetID));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Bus=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Bus=0x%X\n",
 	    ioc->name, pg0->Bus));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Parent Phy Num=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Parent Phy Num=0x%X\n",
 	    ioc->name, pg0->PhyNum));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Access Status=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Access Status=0x%X\n",
 	    ioc->name, le16_to_cpu(pg0->AccessStatus)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Device Info=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Device Info=0x%X\n",
 	    ioc->name, le32_to_cpu(pg0->DeviceInfo)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Flags=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Flags=0x%X\n",
 	    ioc->name, le16_to_cpu(pg0->Flags)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Physical Port=0x%X\n\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Physical Port=0x%X\n\n",
 	    ioc->name, pg0->PhysicalPort));
 }
 
 static void mptsas_print_expander_pg1(MPT_ADAPTER *ioc, SasExpanderPage1_t *pg1)
 {
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "---- SAS EXPANDER PAGE 1 ------------\n", ioc->name));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Physical Port=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Physical Port=0x%X\n",
 	    ioc->name, pg1->PhysicalPort));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "PHY Identifier=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "PHY Identifier=0x%X\n",
 	    ioc->name, pg1->PhyIdentifier));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Negotiated Link Rate=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Negotiated Link Rate=0x%X\n",
 	    ioc->name, pg1->NegotiatedLinkRate));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Programmed Link Rate=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Programmed Link Rate=0x%X\n",
 	    ioc->name, pg1->ProgrammedLinkRate));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Hardware Link Rate=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Hardware Link Rate=0x%X\n",
 	    ioc->name, pg1->HwLinkRate));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Owner Device Handle=0x%X\n",
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT "Owner Device Handle=0x%X\n",
 	    ioc->name, le16_to_cpu(pg1->OwnerDevHandle)));
-	dsasprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dsasprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "Attached Device Handle=0x%X\n\n", ioc->name,
 	    le16_to_cpu(pg1->AttachedDevHandle)));
 }
@@ -290,7 +290,7 @@ mptsas_add_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	list_add_tail(&fw_event->list, &ioc->fw_event_list);
 	INIT_DELAYED_WORK(&fw_event->work, mptsas_firmware_event_work);
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: add (fw_event=0x%p)"
+	devtprintk(ioc, printk(MYIOC_s_DE_FMT "%s: add (fw_event=0x%p)"
 		"on cpuid %d\n", ioc->name, __func__,
 		fw_event, smp_processor_id()));
 	queue_delayed_work_on(smp_processor_id(), ioc->fw_event_q,
@@ -305,7 +305,7 @@ mptsas_requeue_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 {
 	unsigned long flags;
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: reschedule task "
+	devtprintk(ioc, printk(MYIOC_s_DE_FMT "%s: reschedule task "
 	    "(fw_event=0x%p)on cpuid %d\n", ioc->name, __func__,
 		fw_event, smp_processor_id()));
 	fw_event->retries++;
@@ -321,7 +321,7 @@ mptsas_free_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: kfree (fw_event=0x%p)\n",
+	devtprintk(ioc, printk(MYIOC_s_DE_FMT "%s: kfree (fw_event=0x%p)\n",
 	    ioc->name, __func__, fw_event));
 	list_del(&fw_event->list);
 	kfree(fw_event);
@@ -341,7 +341,7 @@ mptsas_cleanup_fw_event_q(MPT_ADAPTER *ioc)
 	if (!list_empty(&hd->target_reset_list)) {
 		list_for_each_entry_safe(target_reset_list, n,
 		    &hd->target_reset_list, list) {
-			dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+			dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 			    "%s: removing target reset for id=%d\n",
 			    ioc->name, __func__,
 			   target_reset_list->sas_event_data.TargetID));
@@ -460,7 +460,7 @@ mptsas_port_delete(MPT_ADAPTER *ioc, struct mptsas_portinfo_details * port_detai
 	port_info = port_details->port_info;
 	phy_info = port_info->phy_info;
 
-	dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: [%p]: num_phys=%02d "
+	dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "%s: [%p]: num_phys=%02d "
 	    "bitmask=0x%016llX\n", ioc->name, __func__, port_details,
 	    port_details->num_phys, (unsigned long long)
 	    port_details->phy_bitmask));
@@ -489,14 +489,14 @@ mptsas_set_rphy(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info, struct sas_rp
 {
 	if (phy_info->port_details) {
 		phy_info->port_details->rphy = rphy;
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "sas_rphy_add: rphy=%p\n",
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "sas_rphy_add: rphy=%p\n",
 		    ioc->name, rphy));
 	}
 
 	if (rphy) {
-		dsaswideprintk(ioc, dev_printk(KERN_DEBUG,
+		dsaswideprintk(ioc, dev_printk(KERN_DE,
 		    &rphy->dev, MYIOC_s_FMT "add:", ioc->name));
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "rphy=%p release=%p\n",
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "rphy=%p release=%p\n",
 		    ioc->name, rphy, rphy->dev.release));
 	}
 }
@@ -517,9 +517,9 @@ mptsas_set_port(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info, struct sas_po
 		phy_info->port_details->port = port;
 
 	if (port) {
-		dsaswideprintk(ioc, dev_printk(KERN_DEBUG,
+		dsaswideprintk(ioc, dev_printk(KERN_DE,
 		    &port->dev, MYIOC_s_FMT "add:", ioc->name));
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "port=%p release=%p\n",
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "port=%p release=%p\n",
 		    ioc->name, port, port->dev.release));
 	}
 }
@@ -850,14 +850,14 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		 * Removing a phy from a port, letting the last
 		 * phy be removed by firmware events.
 		 */
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: [%p]: deleting phy = %d\n",
 		    ioc->name, __func__, port_details, i));
 		port_details->num_phys--;
 		port_details->phy_bitmask &= ~ (1 << phy_info->phy_id);
 		memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
 		if (phy_info->phy) {
-			devtprintk(ioc, dev_printk(KERN_DEBUG,
+			devtprintk(ioc, dev_printk(KERN_DE,
 				&phy_info->phy->dev, MYIOC_s_FMT
 				"delete phy %d, phy-obj (0x%p)\n", ioc->name,
 				phy_info->phy_id, phy_info->phy));
@@ -872,7 +872,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 	phy_info = port_info->phy_info;
 	for (i = 0 ; i < port_info->num_phys ; i++, phy_info++) {
 		sas_address = phy_info->attached.sas_address;
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "phy_id=%d sas_address=0x%018llX\n",
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "phy_id=%d sas_address=0x%018llX\n",
 		    ioc->name, i, (unsigned long long)sas_address));
 		if (!sas_address)
 			continue;
@@ -891,7 +891,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 				port_details->phy_bitmask |=
 				    (1 << phy_info->phy_id);
 			phy_info->sas_port_add_phy=1;
-			dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "\t\tForming port\n\t\t"
+			dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "\t\tForming port\n\t\t"
 			    "phy_id=%d sas_address=0x%018llX\n",
 			    ioc->name, i, (unsigned long long)sas_address));
 			phy_info->port_details = port_details;
@@ -908,7 +908,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 				continue;
 			if (phy_info_cmp->port_details == port_details )
 				continue;
-			dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+			dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT
 			    "\t\tphy_id=%d sas_address=0x%018llX\n",
 			    ioc->name, j, (unsigned long long)
 			    phy_info_cmp->attached.sas_address));
@@ -942,12 +942,12 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		port_details = port_info->phy_info[i].port_details;
 		if (!port_details)
 			continue;
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: [%p]: phy_id=%02d num_phys=%02d "
 		    "bitmask=0x%016llX\n", ioc->name, __func__,
 		    port_details, i, port_details->num_phys,
 		    (unsigned long long)port_details->phy_bitmask));
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "\t\tport = %p rphy=%p\n",
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT "\t\tport = %p rphy=%p\n",
 		    ioc->name, port_details->port, port_details->rphy));
 	}
 	dsaswideprintk(ioc, printk("\n"));
@@ -1053,7 +1053,7 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 		goto out_fail;
 	}
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt request (mf=%p)\n",
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT "TaskMgmt request (mf=%p)\n",
 		ioc->name, mf));
 
 	/* Format the Request
@@ -1068,7 +1068,7 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 
 	DBG_DUMP_TM_REQUEST_FRAME(ioc, (u32 *)mf);
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 	   "TaskMgmt type=%d (sas device delete) fw_channel = %d fw_id = %d)\n",
 	   ioc->name, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET, channel, id));
 
@@ -1198,14 +1198,14 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	struct mptsas_target_reset_event	*target_reset_list;
 	SCSITaskMgmtReply_t *pScsiTmReply;
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt completed: "
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT "TaskMgmt completed: "
 	    "(mf = %p, mr = %p)\n", ioc->name, mf, mr));
 
 	pScsiTmReply = (SCSITaskMgmtReply_t *)mr;
 	if (!pScsiTmReply)
 		return 0;
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "\tTaskMgmt completed: fw_channel = %d, fw_id = %d,\n"
 	    "\ttask_type = 0x%02X, iocstatus = 0x%04X "
 	    "loginfo = 0x%08X,\n\tresponse_code = 0x%02X, "
@@ -1244,7 +1244,7 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	target_reset_list = list_entry(head->next,
 	    struct mptsas_target_reset_event, list);
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "TaskMgmt: completed (%d seconds)\n",
 	    ioc->name, jiffies_to_msecs(jiffies -
 	    target_reset_list->time_count)/1000));
@@ -1299,16 +1299,16 @@ mptsas_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 	switch (reset_phase) {
 	case MPT_IOC_SETUP_RESET:
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: MPT_IOC_SETUP_RESET\n", ioc->name, __func__));
 		mptsas_fw_event_off(ioc);
 		break;
 	case MPT_IOC_PRE_RESET:
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: MPT_IOC_PRE_RESET\n", ioc->name, __func__));
 		break;
 	case MPT_IOC_POST_RESET:
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: MPT_IOC_POST_RESET\n", ioc->name, __func__));
 		if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_PENDING) {
 			ioc->sas_mgmt.status |= MPT_MGMT_STATUS_DID_IOCRESET;
@@ -1536,7 +1536,7 @@ mptsas_del_end_device(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info)
 	    MPI_SAS_DEVICE_INFO_SATA_DEVICE)
 		ds = "sata";
 
-	dev_printk(KERN_DEBUG, &rphy->dev, MYIOC_s_FMT
+	dev_printk(KERN_DE, &rphy->dev, MYIOC_s_FMT
 	    "removing %s device: fw_channel %d, fw_id %d, phy %d,"
 	    "sas_addr 0x%llx\n", ioc->name, ds, phy_info->attached.channel,
 	    phy_info->attached.id, phy_info->attached.phy_id,
@@ -1557,14 +1557,14 @@ mptsas_del_end_device(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info)
 		if (phy_info_parent->attached.sas_address !=
 		    sas_address)
 			continue;
-		dev_printk(KERN_DEBUG, &phy_info_parent->phy->dev,
+		dev_printk(KERN_DE, &phy_info_parent->phy->dev,
 		    MYIOC_s_FMT "delete phy %d, phy-obj (0x%p)\n",
 		    ioc->name, phy_info_parent->phy_id,
 		    phy_info_parent->phy);
 		sas_port_delete_phy(port, phy_info_parent->phy);
 	}
 
-	dev_printk(KERN_DEBUG, &port->dev, MYIOC_s_FMT
+	dev_printk(KERN_DE, &port->dev, MYIOC_s_FMT
 	    "delete port %d, sas_addr (0x%llx)\n", ioc->name,
 	     port->port_identifier, (unsigned long long)sas_address);
 	sas_port_delete(port);
@@ -1623,12 +1623,12 @@ mptsas_firmware_event_work(struct work_struct *work)
 	/* special rescan topology handling */
 	if (fw_event->event == -1) {
 		if (ioc->in_rescan) {
-			devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+			devtprintk(ioc, printk(MYIOC_s_DE_FMT
 				"%s: rescan ignored as it is in progress\n",
 				ioc->name, __func__));
 			return;
 		}
-		devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: rescan after "
+		devtprintk(ioc, printk(MYIOC_s_DE_FMT "%s: rescan after "
 		    "reset\n", ioc->name, __func__));
 		ioc->in_rescan = 1;
 		mptsas_not_responding_devices(ioc);
@@ -1645,7 +1645,7 @@ mptsas_firmware_event_work(struct work_struct *work)
 		return;
 	}
 
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: fw_event=(0x%p), "
+	devtprintk(ioc, printk(MYIOC_s_DE_FMT "%s: fw_event=(0x%p), "
 	    "event = (0x%02x)\n", ioc->name, __func__, fw_event,
 	    (fw_event->event & 0xFF)));
 
@@ -1911,7 +1911,7 @@ mptsas_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 	if (ioc->sas_discovery_quiesce_io)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	if (ioc->debug_level & MPT_DEBUG_SCSI)
+	if (ioc->de_level & MPT_DE_SCSI)
 		scsi_print_command(SCpnt);
 
 	return mptscsih_qcmd(SCpnt);
@@ -3170,18 +3170,18 @@ static int mptsas_probe_one_phy(struct device *dev,
 				goto out;
 			}
 			mptsas_set_port(ioc, phy_info, port);
-			devtprintk(ioc, dev_printk(KERN_DEBUG, &port->dev,
+			devtprintk(ioc, dev_printk(KERN_DE, &port->dev,
 			    MYIOC_s_FMT "add port %d, sas_addr (0x%llx)\n",
 			    ioc->name, port->port_identifier,
 			    (unsigned long long)phy_info->
 			    attached.sas_address));
 		}
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dsaswideprintk(ioc, printk(MYIOC_s_DE_FMT
 			"sas_port_add_phy: phy_id=%d\n",
 			ioc->name, phy_info->phy_id));
 		sas_port_add_phy(port, phy_info->phy);
 		phy_info->sas_port_add_phy = 0;
-		devtprintk(ioc, dev_printk(KERN_DEBUG, &phy_info->phy->dev,
+		devtprintk(ioc, dev_printk(KERN_DE, &phy_info->phy->dev,
 		    MYIOC_s_FMT "add phy %d, phy-obj (0x%p)\n", ioc->name,
 		     phy_info->phy_id, phy_info->phy));
 	}
@@ -3418,13 +3418,13 @@ mptsas_expander_event_add(MPT_ADAPTER *ioc,
 
 	port_info = kzalloc(sizeof(struct mptsas_portinfo), GFP_KERNEL);
 	if (!port_info)
-		BUG();
+		();
 	port_info->num_phys = (expander_data->NumPhys) ?
 	    expander_data->NumPhys : 1;
 	port_info->phy_info = kcalloc(port_info->num_phys,
 	    sizeof(struct mptsas_phyinfo), GFP_KERNEL);
 	if (!port_info->phy_info)
-		BUG();
+		();
 	memcpy(&sas_address, &expander_data->SASAddress, sizeof(__le64));
 	for (i = 0; i < port_info->num_phys; i++) {
 		port_info->phy_info[i].portinfo = port_info;
@@ -3560,13 +3560,13 @@ static void mptsas_expander_delete(MPT_ADAPTER *ioc,
 			port = mptsas_get_port(phy_info);
 			port_details = phy_info->port_details;
 		}
-		dev_printk(KERN_DEBUG, &phy_info->phy->dev,
+		dev_printk(KERN_DE, &phy_info->phy->dev,
 		    MYIOC_s_FMT "delete phy %d, phy-obj (0x%p)\n", ioc->name,
 		    phy_info->phy_id, phy_info->phy);
 		sas_port_delete_phy(port, phy_info->phy);
 	}
 	if (port) {
-		dev_printk(KERN_DEBUG, &port->dev,
+		dev_printk(KERN_DE, &port->dev,
 		    MYIOC_s_FMT "delete port %d, sas_addr (0x%llx)\n",
 		    ioc->name, port->port_identifier,
 		    (unsigned long long)expander_sas_address);
@@ -3735,7 +3735,7 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 				u8	channel, id;
 				id = phy_info->attached.id;
 				channel = phy_info->attached.channel;
-				devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+				devtprintk(ioc, printk(MYIOC_s_DE_FMT
 				"Link down for fw_id %d:fw_channel %d\n",
 				    ioc->name, phy_info->attached.id,
 				    phy_info->attached.channel));
@@ -3753,7 +3753,7 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 						vdevice->vtarget->channel ==
 						channel)
 						devtprintk(ioc,
-						printk(MYIOC_s_DEBUG_FMT
+						printk(MYIOC_s_DE_FMT
 						"SDEV OUTSTANDING CMDS"
 						"%d\n", ioc->name,
 						atomic_read(&sdev->device_busy)));
@@ -3783,7 +3783,7 @@ mptsas_not_responding_devices(MPT_ADAPTER *ioc)
 
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	if (ioc->ioc_reset_in_progress) {
-		dfailprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dfailprintk(ioc, printk(MYIOC_s_DE_FMT
 		   "%s: exiting due to a parallel reset \n", ioc->name,
 		    __func__));
 		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
@@ -3813,7 +3813,7 @@ retry_page:
 				spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 				if (ioc->ioc_reset_in_progress) {
 					dfailprintk(ioc,
-					printk(MYIOC_s_DEBUG_FMT
+					printk(MYIOC_s_DE_FMT
 					"%s: exiting due to reset\n",
 					ioc->name, __func__));
 					spin_unlock_irqrestore
@@ -3831,7 +3831,7 @@ retry_page:
 					retry_count++;
 					goto retry_page;
 				} else {
-					devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+					devtprintk(ioc, printk(MYIOC_s_DE_FMT
 					"%s: Config page retry exceeded retry "
 					"count deleting device 0x%llx\n",
 					ioc->name, __func__,
@@ -4094,7 +4094,7 @@ mptsas_handle_queue_full_event(struct fw_event_work *fw_event)
 					"Tagged Command Queueing is being "
 					"disabled\n");
 				else if (depth == 0)
-					sdev_printk(KERN_DEBUG, sdev,
+					sdev_printk(KERN_DE, sdev,
 					"Queue depth not changed yet\n");
 			}
 		}
@@ -4318,7 +4318,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 		for (i = 0; i < ioc->raid_data.pIocPg2->NumActiveVolumes; i++) {
 			if (ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID ==
 			    hot_plug_info->id) {
-				printk(MYIOC_s_WARN_FMT "firmware bug: unable "
+				printk(MYIOC_s_WARN_FMT "firmware : unable "
 				    "to add hidden disk - target_id matches "
 				    "volume_id\n", ioc->name);
 				mptsas_free_fw_event(ioc, fw_event);
@@ -4349,7 +4349,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 		phy_info = mptsas_refreshing_device_handles(ioc, &sas_device);
 		/* Device hot plug */
 		if (!phy_info) {
-			devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+			devtprintk(ioc, printk(MYIOC_s_DE_FMT
 				"%s %d HOT PLUG: "
 				"parent handle of device %x\n", ioc->name,
 				__func__, __LINE__, sas_device.handle_parent));
@@ -4660,7 +4660,7 @@ mptsas_send_raid_event(struct fw_event_work *fw_event)
 			vdevice = sdev->hostdata;
 	}
 
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Entering %s: "
+	devtprintk(ioc, printk(MYIOC_s_DE_FMT "Entering %s: "
 	    "ReasonCode=%02x\n", ioc->name, __func__,
 	    raid_event_data->ReasonCode));
 
@@ -4774,7 +4774,7 @@ mptsas_issue_tm(MPT_ADAPTER *ioc, u8 type, u8 channel, u8 id, u64 lun,
 		goto out;
 	}
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt request: mr = %p, "
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT "TaskMgmt request: mr = %p, "
 	    "task_type = 0x%02X,\n\t timeout = %ld, fw_channel = %d, "
 	    "fw_id = %d, lun = %lld,\n\t task_context = 0x%x\n", ioc->name, mf,
 	     type, timeout, channel, id, (unsigned long long)lun,
@@ -4814,7 +4814,7 @@ mptsas_issue_tm(MPT_ADAPTER *ioc, u8 type, u8 channel, u8 id, u64 lun,
 
 	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_RF_VALID)) {
 		retval = -1; /* return failure */
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "TaskMgmt request: failed with no reply\n", ioc->name));
 		goto out;
 	}
@@ -4846,7 +4846,7 @@ mptsas_broadcast_primitive_work(struct fw_event_work *fw_event)
 	u32			 termination_count;
 	u32			 query_count;
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "%s - enter\n", ioc->name, __func__));
 
 	mutex_lock(&ioc->taskmgmt_cmds.mutex);
@@ -4903,7 +4903,7 @@ mptsas_broadcast_primitive_work(struct fw_event_work *fw_event)
 	}
 
  out:
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "%s - exit, query_count = %d termination_count = %d\n",
 	    ioc->name, __func__, query_count, termination_count));
 
@@ -4941,7 +4941,7 @@ mptsas_send_ir2_event(struct fw_event_work *fw_event)
 	ir2_data = (MPI_EVENT_DATA_IR2 *)fw_event->event_data;
 	reasonCode = ir2_data->ReasonCode;
 
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Entering %s: "
+	devtprintk(ioc, printk(MYIOC_s_DE_FMT "Entering %s: "
 	    "ReasonCode=%02x\n", ioc->name, __func__, reasonCode));
 
 	memset(&hot_plug_info, 0, sizeof(struct mptsas_hotplug_event));
@@ -5022,18 +5022,18 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 
 			vtarget = mptsas_find_vtarget(ioc, channel, id);
 			if (vtarget) {
-				devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+				devtprintk(ioc, printk(MYIOC_s_DE_FMT
 				    "LogInfo (0x%x) available for "
 				   "INTERNAL_DEVICE_RESET"
 				   "fw_id %d fw_channel %d\n", ioc->name,
 				   le32_to_cpu(reply->IOCLogInfo),
 				   id, channel));
 				if (vtarget->raidVolume) {
-					devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+					devtprintk(ioc, printk(MYIOC_s_DE_FMT
 					"Skipping Raid Volume for inDMD\n",
 					ioc->name));
 				} else {
-					devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+					devtprintk(ioc, printk(MYIOC_s_DE_FMT
 					"Setting device flag inDMD\n",
 					ioc->name));
 					vtarget->inDMD = 1;
@@ -5238,7 +5238,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (numSGE < sh->sg_tablesize) {
 		/* Reset this value */
-		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dprintk(ioc, printk(MYIOC_s_DE_FMT
 		  "Resetting sg_tablesize to %d from %d\n",
 		  ioc->name, numSGE, sh->sg_tablesize));
 		sh->sg_tablesize = numSGE;
@@ -5253,7 +5253,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				mpt_loadtime_max_sectors);
 		}
 		mpt_loadtime_max_sectors &=  0xFFFFFFFE;
-		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dprintk(ioc, printk(MYIOC_s_DE_FMT
 			"Resetting max sector to %d from %d\n",
 		  ioc->name, mpt_loadtime_max_sectors, sh->max_sectors));
 		sh->max_sectors = mpt_loadtime_max_sectors;
@@ -5273,7 +5273,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	spin_lock_init(&ioc->scsi_lookup_lock);
 
-	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ScsiLookup @ %p\n",
+	dprintk(ioc, printk(MYIOC_s_DE_FMT "ScsiLookup @ %p\n",
 		 ioc->name, ioc->ScsiLookup));
 
 	ioc->sas_data.ptClear = mpt_pt_clear;

@@ -51,8 +51,8 @@
 #include <linux/etherdevice.h>
 #include <linux/gsmmux.h>
 
-static int debug;
-module_param(debug, int, 0600);
+static int de;
+module_param(de, int, 0600);
 
 /* Defaults: these are from the specification */
 
@@ -60,8 +60,8 @@ module_param(debug, int, 0600);
 #define T2	34		/* 333mS */
 #define N2	3		/* Retry 3 times */
 
-/* Use long timers for testing at low speed with debug on */
-#ifdef DEBUG_TIMING
+/* Use long timers for testing at low speed with de on */
+#ifdef DE_TIMING
 #define T1	100
 #define T2	200
 #endif
@@ -433,7 +433,7 @@ static u8 gsm_encode_modem(const struct gsm_dlci *dlci)
 }
 
 /**
- *	gsm_print_packet	-	display a frame for debug
+ *	gsm_print_packet	-	display a frame for de
  *	@hdr: header to print before decode
  *	@addr: address EA from the frame
  *	@cr: C/R bit from the frame
@@ -441,14 +441,14 @@ static u8 gsm_encode_modem(const struct gsm_dlci *dlci)
  *	@data: following data bytes
  *	@dlen: length of data
  *
- *	Displays a packet in human readable format for debugging purposes. The
+ *	Displays a packet in human readable format for deging purposes. The
  *	style is based on amateur radio LAP-B dump display.
  */
 
 static void gsm_print_packet(const char *hdr, int addr, int cr,
 					u8 control, const u8 *data, int dlen)
 {
-	if (!(debug & 1))
+	if (!(de & 1))
 		return;
 
 	pr_info("%s %d) %c: ", hdr, addr, "RC"[cr]);
@@ -501,7 +501,7 @@ static void gsm_print_packet(const char *hdr, int addr, int cr,
 		while (dlen--) {
 			if (ct % 8 == 0) {
 				pr_cont("\n");
-				pr_debug("    ");
+				pr_de("    ");
 			}
 			pr_cont("%02X ", *data++);
 			ct++;
@@ -687,7 +687,7 @@ static void gsm_data_kick(struct gsm_mux *gsm)
 			len = msg->len + 2;
 		}
 
-		if (debug & 4)
+		if (de & 4)
 			print_hex_dump_bytes("gsm_data_kick: ",
 					     DUMP_PREFIX_OFFSET,
 					     gsm->txframe, len);
@@ -1419,8 +1419,8 @@ static int gsm_control_wait(struct gsm_mux *gsm, struct gsm_control *control)
 static void gsm_dlci_close(struct gsm_dlci *dlci)
 {
 	del_timer(&dlci->t1);
-	if (debug & 8)
-		pr_debug("DLCI %d goes closed.\n", dlci->addr);
+	if (de & 8)
+		pr_de("DLCI %d goes closed.\n", dlci->addr);
 	dlci->state = DLCI_CLOSED;
 	if (dlci->addr != 0) {
 		tty_port_tty_hangup(&dlci->port, false);
@@ -1446,8 +1446,8 @@ static void gsm_dlci_open(struct gsm_dlci *dlci)
 	del_timer(&dlci->t1);
 	/* This will let a tty open continue */
 	dlci->state = DLCI_OPEN;
-	if (debug & 8)
-		pr_debug("DLCI %d goes open.\n", dlci->addr);
+	if (de & 8)
+		pr_de("DLCI %d goes open.\n", dlci->addr);
 	wake_up(&dlci->gsm->event);
 }
 
@@ -1478,7 +1478,7 @@ static void gsm_dlci_t1(struct timer_list *t)
 			gsm_command(dlci->gsm, dlci->addr, SABM|PF);
 			mod_timer(&dlci->t1, jiffies + gsm->t1 * HZ / 100);
 		} else if (!dlci->addr && gsm->control == (DM | PF)) {
-			if (debug & 8)
+			if (de & 8)
 				pr_info("DLCI %d opening in ADM mode.\n",
 					dlci->addr);
 			dlci->mode = DLCI_MODE_ADM;
@@ -1561,8 +1561,8 @@ static void gsm_dlci_data(struct gsm_dlci *dlci, const u8 *data, int clen)
 	unsigned int modem = 0;
 	int len = clen;
 
-	if (debug & 16)
-		pr_debug("%d bytes for tty\n", len);
+	if (de & 16)
+		pr_de("%d bytes for tty\n", len);
 	switch (dlci->adaption)  {
 	/* Unsupported types */
 	case 4:		/* Packetised interruptible data */
@@ -1758,8 +1758,8 @@ static void gsm_queue(struct gsm_mux *gsm)
 	}
 	if (gsm->fcs != GOOD_FCS) {
 		gsm->bad_fcs++;
-		if (debug & 4)
-			pr_debug("BAD FCS %02x\n", gsm->fcs);
+		if (de & 4)
+			pr_de("BAD FCS %02x\n", gsm->fcs);
 		return;
 	}
 	address = gsm->address >> 1;
@@ -2226,7 +2226,7 @@ static void gsm_copy_config_values(struct gsm_mux *gsm,
 		c->i = 1;
 	else
 		c->i = 2;
-	pr_debug("Ftype %d i %d\n", gsm->ftype, c->i);
+	pr_de("Ftype %d i %d\n", gsm->ftype, c->i);
 	c->mru = gsm->mru;
 	c->mtu = gsm->mtu;
 	c->k = 0;
@@ -2332,7 +2332,7 @@ static int gsmld_output(struct gsm_mux *gsm, u8 *data, int len)
 		set_bit(TTY_DO_WRITE_WAKEUP, &gsm->tty->flags);
 		return -ENOSPC;
 	}
-	if (debug & 4)
+	if (de & 4)
 		print_hex_dump_bytes("gsmld_output: ", DUMP_PREFIX_OFFSET,
 				     data, len);
 	gsm->tty->ops->write(gsm->tty, data, len);
@@ -2399,7 +2399,7 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	int i;
 	char flags = TTY_NORMAL;
 
-	if (debug & 4)
+	if (de & 4)
 		print_hex_dump_bytes("gsmld_receive: ", DUMP_PREFIX_OFFSET,
 				     cp, count);
 
@@ -2625,7 +2625,7 @@ static int gsmld_ioctl(struct tty_struct *tty, struct file *file,
 
 static int gsm_mux_net_open(struct net_device *net)
 {
-	pr_debug("%s called\n", __func__);
+	pr_de("%s called\n", __func__);
 	netif_start_queue(net);
 	return 0;
 }
@@ -2754,7 +2754,7 @@ static void gsm_destroy_network(struct gsm_dlci *dlci)
 {
 	struct gsm_mux_net *mux_net;
 
-	pr_debug("destroy network interface");
+	pr_de("destroy network interface");
 	if (!dlci->net)
 		return;
 	mux_net = netdev_priv(dlci->net);
@@ -2783,7 +2783,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	if (nc->adaption != 3 && nc->adaption != 4)
 		return -EPROTONOSUPPORT;
 
-	pr_debug("create network interface");
+	pr_de("create network interface");
 
 	netname = "gsm%d";
 	if (nc->if_name[0] != '\0')
@@ -2809,7 +2809,7 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 	dlci->data = gsm_mux_rx_netchar;
 	dlci->net = net;
 
-	pr_debug("register netdev");
+	pr_de("register netdev");
 	retval = register_netdev(net);
 	if (retval) {
 		pr_err("network register fail %d\n", retval);
@@ -2869,7 +2869,7 @@ static int gsm_carrier_raised(struct tty_port *port)
 	/* Not yet open so no carrier info */
 	if (dlci->state != DLCI_OPEN)
 		return 0;
-	if (debug & 2)
+	if (de & 2)
 		return 1;
 
 	/*
@@ -3242,7 +3242,7 @@ static int __init gsm_init(void)
 		pr_err("gsm_init: tty registration failed.\n");
 		return -EBUSY;
 	}
-	pr_debug("gsm_init: loaded as %d,%d.\n",
+	pr_de("gsm_init: loaded as %d,%d.\n",
 			gsm_tty_driver->major, gsm_tty_driver->minor_start);
 	return 0;
 }

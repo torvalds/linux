@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/export.h>
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(down_write_trylock);
 void up_read(struct rw_semaphore *sem)
 {
 	rwsem_release(&sem->dep_map, 1, _RET_IP_);
-	DEBUG_RWSEMS_WARN_ON(!((unsigned long)sem->owner & RWSEM_READER_OWNED));
+	DE_RWSEMS_WARN_ON(!((unsigned long)sem->owner & RWSEM_READER_OWNED));
 
 	rwsem_clear_reader_owned(sem);
 	__up_read(sem);
@@ -131,7 +131,7 @@ EXPORT_SYMBOL(up_read);
 void up_write(struct rw_semaphore *sem)
 {
 	rwsem_release(&sem->dep_map, 1, _RET_IP_);
-	DEBUG_RWSEMS_WARN_ON(sem->owner != current);
+	DE_RWSEMS_WARN_ON(sem->owner != current);
 
 	rwsem_clear_owner(sem);
 	__up_write(sem);
@@ -145,7 +145,7 @@ EXPORT_SYMBOL(up_write);
 void downgrade_write(struct rw_semaphore *sem)
 {
 	lock_downgrade(&sem->dep_map, _RET_IP_);
-	DEBUG_RWSEMS_WARN_ON(sem->owner != current);
+	DE_RWSEMS_WARN_ON(sem->owner != current);
 
 	rwsem_set_reader_owned(sem);
 	__downgrade_write(sem);
@@ -153,7 +153,7 @@ void downgrade_write(struct rw_semaphore *sem)
 
 EXPORT_SYMBOL(downgrade_write);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 
 void down_read_nested(struct rw_semaphore *sem, int subclass)
 {
@@ -216,7 +216,7 @@ EXPORT_SYMBOL(down_write_killable_nested);
 
 void up_read_non_owner(struct rw_semaphore *sem)
 {
-	DEBUG_RWSEMS_WARN_ON(!((unsigned long)sem->owner & RWSEM_READER_OWNED));
+	DE_RWSEMS_WARN_ON(!((unsigned long)sem->owner & RWSEM_READER_OWNED));
 	__up_read(sem);
 }
 

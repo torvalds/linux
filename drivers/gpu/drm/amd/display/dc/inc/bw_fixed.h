@@ -70,7 +70,7 @@ static inline struct bw_fixed bw_int_to_fixed(int64_t value)
 {
 	if (__builtin_constant_p(value)) {
 		struct bw_fixed res;
-		BUILD_BUG_ON(value > BW_FIXED_MAX_I32 || value < BW_FIXED_MIN_I32);
+		BUILD__ON(value > BW_FIXED_MAX_I32 || value < BW_FIXED_MIN_I32);
 		res.value = value << BW_FIXED_BITS_PER_FRACTIONAL_PART;
 		return res;
 	} else

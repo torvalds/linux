@@ -187,7 +187,7 @@ static irqreturn_t uniphier_fi2c_interrupt(int irq, void *dev_id)
 		priv->error = -ENXIO;
 		if (priv->flags & UNIPHIER_FI2C_RD) {
 			/*
-			 * work around a hardware bug:
+			 * work around a hardware :
 			 * The receive-completed interrupt is never set even if
 			 * STOP condition is detected after the address phase
 			 * of read transaction fails to get ACK.

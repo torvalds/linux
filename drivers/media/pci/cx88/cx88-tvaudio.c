@@ -47,9 +47,9 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 
-static unsigned int audio_debug;
-module_param(audio_debug, int, 0644);
-MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
+static unsigned int audio_de;
+module_param(audio_de, int, 0644);
+MODULE_PARM_DESC(audio_de, "enable de messages [audio]");
 
 static unsigned int always_analog;
 module_param(always_analog, int, 0644);
@@ -61,8 +61,8 @@ MODULE_PARM_DESC(radio_deemphasis,
 		 "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
 
 #define dprintk(fmt, arg...) do {				\
-	if (audio_debug)						\
-		printk(KERN_DEBUG pr_fmt("%s: tvaudio:" fmt),		\
+	if (audio_de)						\
+		printk(KERN_DE pr_fmt("%s: tvaudio:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 /* ----------------------------------------------------------- */

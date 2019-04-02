@@ -49,7 +49,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 	for (i = 0; i < fb->format->num_planes; i++) {
 		obj = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!obj) {
-			DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+			DRM_DE_KMS("Failed to lookup GEM object\n");
 			fb->obj[i] = NULL;
 
 			return -ENOENT;
@@ -59,7 +59,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 		kfb->aligned_h = fb->height / (i ? fb->format->vsub : 1);
 
 		if (fb->pitches[i] % mdev->chip.bus_width) {
-			DRM_DEBUG_KMS("Pitch[%d]: 0x%x doesn't align to 0x%x\n",
+			DRM_DE_KMS("Pitch[%d]: 0x%x doesn't align to 0x%x\n",
 				      i, fb->pitches[i], mdev->chip.bus_width);
 			drm_gem_object_put_unlocked(obj);
 			fb->obj[i] = NULL;
@@ -74,7 +74,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 			    + fb->offsets[i];
 
 		if (obj->size < min_size) {
-			DRM_DEBUG_KMS("Fail to check none afbc fb size.\n");
+			DRM_DE_KMS("Fail to check none afbc fb size.\n");
 			drm_gem_object_put_unlocked(obj);
 			fb->obj[i] = NULL;
 
@@ -86,7 +86,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 
 	if (fb->format->num_planes == 3) {
 		if (fb->pitches[1] != fb->pitches[2]) {
-			DRM_DEBUG_KMS("The pitch[1] and [2] are not same\n");
+			DRM_DE_KMS("The pitch[1] and [2] are not same\n");
 			return -EINVAL;
 		}
 	}
@@ -110,7 +110,7 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 						  mode_cmd->pixel_format,
 						  mode_cmd->modifier[0]);
 	if (!kfb->format_caps) {
-		DRM_DEBUG_KMS("FMT %x is not supported.\n",
+		DRM_DE_KMS("FMT %x is not supported.\n",
 			      mode_cmd->pixel_format);
 		kfree(kfb);
 		return ERR_PTR(-EINVAL);
@@ -124,7 +124,7 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 
 	ret = drm_framebuffer_init(dev, &kfb->base, &komeda_fb_funcs);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("failed to initialize fb\n");
+		DRM_DE_KMS("failed to initialize fb\n");
 
 		goto err_cleanup;
 	}
@@ -147,7 +147,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 	u32 plane_x, plane_y, cpp, pitch, offset;
 
 	if (plane >= fb->format->num_planes) {
-		DRM_DEBUG_KMS("Out of max plane num.\n");
+		DRM_DE_KMS("Out of max plane num.\n");
 		return -EINVAL;
 	}
 

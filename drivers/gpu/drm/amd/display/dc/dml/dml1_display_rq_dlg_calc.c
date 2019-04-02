@@ -316,12 +316,12 @@ static void handle_det_buf_split(
 			swath_bytes_c = full_swath_bytes_packed_c;
 		}
 
-		/* Bug workaround, luma and chroma req size needs to be the same. (see: DEGVIDCN10-137)
+		/*  workaround, luma and chroma req size needs to be the same. (see: DEGVIDCN10-137)
 		 * TODO: Remove after rtl fix
 		 */
 		if (req128_l == 1) {
 			req128_c = 1;
-			DTRACE("DLG: %s: bug workaround DEGVIDCN10-137", __func__);
+			DTRACE("DLG: %s:  workaround DEGVIDCN10-137", __func__);
 		}
 
 		/* Note: assumption, the config that pass in will fit into

@@ -227,7 +227,7 @@ static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 	/* ASSERT:  channel is idle */
 	if (atc_chan_is_enabled(atchan)) {
 		dev_err(chan2dev(&atchan->chan_common),
-			"BUG: Attempted to start non-idle channel\n");
+			": Attempted to start non-idle channel\n");
 		dev_err(chan2dev(&atchan->chan_common),
 			"  channel: s0x%x d0x%x ctrl0x%x:0x%x l0x%x\n",
 			channel_readl(atchan, SADDR),
@@ -1568,7 +1568,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		 * We need controller-specific data to set up slave
 		 * transfers.
 		 */
-		BUG_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_common.dev);
+		_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_common.dev);
 
 		/* if cfg configuration specified take it instead of default */
 		if (atslave->cfg)
@@ -1622,9 +1622,9 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 		atchan->descs_allocated);
 
 	/* ASSERT:  channel is idle */
-	BUG_ON(!list_empty(&atchan->active_list));
-	BUG_ON(!list_empty(&atchan->queue));
-	BUG_ON(atc_chan_is_enabled(atchan));
+	_ON(!list_empty(&atchan->active_list));
+	_ON(!list_empty(&atchan->queue));
+	_ON(atc_chan_is_enabled(atchan));
 
 	list_for_each_entry_safe(desc, _desc, &atchan->free_list, desc_node) {
 		dev_vdbg(chan2dev(chan), "  freeing descriptor %p\n", desc);

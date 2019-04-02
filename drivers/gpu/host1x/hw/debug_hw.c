@@ -16,11 +16,11 @@
  */
 
 #include "../dev.h"
-#include "../debug.h"
+#include "../de.h"
 #include "../cdma.h"
 #include "../channel.h"
 
-#define HOST1X_DEBUG_MAX_PAGE_OFFSET 102400
+#define HOST1X_DE_MAX_PAGE_OFFSET 102400
 
 enum {
 	HOST1X_OPCODE_SETCLASS	= 0x00,
@@ -58,91 +58,91 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 	case HOST1X_OPCODE_SETCLASS:
 		mask = val & 0x3f;
 		if (mask) {
-			host1x_debug_cont(o, "SETCL(class=%03x, offset=%03x, mask=%02x, [",
+			host1x_de_cont(o, "SETCL(class=%03x, offset=%03x, mask=%02x, [",
 					    val >> 6 & 0x3ff,
 					    val >> 16 & 0xfff, mask);
 			return hweight8(mask);
 		}
 
-		host1x_debug_cont(o, "SETCL(class=%03x)\n", val >> 6 & 0x3ff);
+		host1x_de_cont(o, "SETCL(class=%03x)\n", val >> 6 & 0x3ff);
 		return 0;
 
 	case HOST1X_OPCODE_INCR:
 		num = val & 0xffff;
-		host1x_debug_cont(o, "INCR(offset=%03x, [",
+		host1x_de_cont(o, "INCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
 		if (!num)
-			host1x_debug_cont(o, "])\n");
+			host1x_de_cont(o, "])\n");
 
 		return num;
 
 	case HOST1X_OPCODE_NONINCR:
 		num = val & 0xffff;
-		host1x_debug_cont(o, "NONINCR(offset=%03x, [",
+		host1x_de_cont(o, "NONINCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
 		if (!num)
-			host1x_debug_cont(o, "])\n");
+			host1x_de_cont(o, "])\n");
 
 		return num;
 
 	case HOST1X_OPCODE_MASK:
 		mask = val & 0xffff;
-		host1x_debug_cont(o, "MASK(offset=%03x, mask=%03x, [",
+		host1x_de_cont(o, "MASK(offset=%03x, mask=%03x, [",
 				    val >> 16 & 0xfff, mask);
 		if (!mask)
-			host1x_debug_cont(o, "])\n");
+			host1x_de_cont(o, "])\n");
 
 		return hweight16(mask);
 
 	case HOST1X_OPCODE_IMM:
-		host1x_debug_cont(o, "IMM(offset=%03x, data=%03x)\n",
+		host1x_de_cont(o, "IMM(offset=%03x, data=%03x)\n",
 				    val >> 16 & 0xfff, val & 0xffff);
 		return 0;
 
 	case HOST1X_OPCODE_RESTART:
-		host1x_debug_cont(o, "RESTART(offset=%08x)\n", val << 4);
+		host1x_de_cont(o, "RESTART(offset=%08x)\n", val << 4);
 		return 0;
 
 	case HOST1X_OPCODE_GATHER:
-		host1x_debug_cont(o, "GATHER(offset=%03x, insert=%d, type=%d, count=%04x, addr=[",
+		host1x_de_cont(o, "GATHER(offset=%03x, insert=%d, type=%d, count=%04x, addr=[",
 				    val >> 16 & 0xfff, val >> 15 & 0x1,
 				    val >> 14 & 0x1, val & 0x3fff);
 		return 1;
 
 #if HOST1X_HW >= 6
 	case HOST1X_OPCODE_SETSTRMID:
-		host1x_debug_cont(o, "SETSTRMID(offset=%06x)\n",
+		host1x_de_cont(o, "SETSTRMID(offset=%06x)\n",
 				  val & 0x3fffff);
 		return 0;
 
 	case HOST1X_OPCODE_SETAPPID:
-		host1x_debug_cont(o, "SETAPPID(appid=%02x)\n", val & 0xff);
+		host1x_de_cont(o, "SETAPPID(appid=%02x)\n", val & 0xff);
 		return 0;
 
 	case HOST1X_OPCODE_SETPYLD:
 		*payload = val & 0xffff;
-		host1x_debug_cont(o, "SETPYLD(data=%04x)\n", *payload);
+		host1x_de_cont(o, "SETPYLD(data=%04x)\n", *payload);
 		return 0;
 
 	case HOST1X_OPCODE_INCR_W:
 	case HOST1X_OPCODE_NONINCR_W:
-		host1x_debug_cont(o, "%s(offset=%06x, ",
+		host1x_de_cont(o, "%s(offset=%06x, ",
 				  opcode == HOST1X_OPCODE_INCR_W ?
 					"INCR_W" : "NONINCR_W",
 				  val & 0x3fffff);
 		if (*payload == 0) {
-			host1x_debug_cont(o, "[])\n");
+			host1x_de_cont(o, "[])\n");
 			return 0;
 		} else if (*payload == INVALID_PAYLOAD) {
-			host1x_debug_cont(o, "unknown)\n");
+			host1x_de_cont(o, "unknown)\n");
 			return 0;
 		} else {
-			host1x_debug_cont(o, "[");
+			host1x_de_cont(o, "[");
 			return *payload;
 		}
 
 	case HOST1X_OPCODE_GATHER_W:
-		host1x_debug_cont(o, "GATHER_W(count=%04x, addr=[",
+		host1x_de_cont(o, "GATHER_W(count=%04x, addr=[",
 				  val & 0x3fff);
 		return 2;
 #endif
@@ -150,17 +150,17 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 	case HOST1X_OPCODE_EXTEND:
 		subop = val >> 24 & 0xf;
 		if (subop == HOST1X_OPCODE_EXTEND_ACQUIRE_MLOCK)
-			host1x_debug_cont(o, "ACQUIRE_MLOCK(index=%d)\n",
+			host1x_de_cont(o, "ACQUIRE_MLOCK(index=%d)\n",
 					    val & 0xff);
 		else if (subop == HOST1X_OPCODE_EXTEND_RELEASE_MLOCK)
-			host1x_debug_cont(o, "RELEASE_MLOCK(index=%d)\n",
+			host1x_de_cont(o, "RELEASE_MLOCK(index=%d)\n",
 					    val & 0xff);
 		else
-			host1x_debug_cont(o, "EXTEND_UNKNOWN(%08x)\n", val);
+			host1x_de_cont(o, "EXTEND_UNKNOWN(%08x)\n", val);
 		return 0;
 
 	default:
-		host1x_debug_cont(o, "UNKNOWN\n");
+		host1x_de_cont(o, "UNKNOWN\n");
 		return 0;
 	}
 }
@@ -179,8 +179,8 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 	 * page - in these cases the offset will get an invalid number and
 	 * we just have to bail out.
 	 */
-	if (offset > HOST1X_DEBUG_MAX_PAGE_OFFSET) {
-		host1x_debug_output(o, "[address mismatch]\n");
+	if (offset > HOST1X_DE_MAX_PAGE_OFFSET) {
+		host1x_de_output(o, "[address mismatch]\n");
 		return;
 	}
 
@@ -189,10 +189,10 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 		u32 val = *(map_addr + offset / 4 + i);
 
 		if (!data_count) {
-			host1x_debug_output(o, "%08x: %08x: ", addr, val);
+			host1x_de_output(o, "%08x: %08x: ", addr, val);
 			data_count = show_channel_command(o, val, &payload);
 		} else {
-			host1x_debug_cont(o, "%08x%s", val,
+			host1x_de_cont(o, "%08x%s", val,
 					    data_count > 1 ? ", " : "])\n");
 			data_count--;
 		}
@@ -206,7 +206,7 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 	list_for_each_entry(job, &cdma->sync_queue, list) {
 		unsigned int i;
 
-		host1x_debug_output(o, "\n%p: JOB, syncpt_id=%d, syncpt_val=%d, first_get=%08x, timeout=%d num_slots=%d, num_handles=%d\n",
+		host1x_de_output(o, "\n%p: JOB, syncpt_id=%d, syncpt_val=%d, first_get=%08x, timeout=%d num_slots=%d, num_handles=%d\n",
 				    job, job->syncpt_id, job->syncpt_end,
 				    job->first_get, job->timeout,
 				    job->num_slots, job->num_unpins);
@@ -221,11 +221,11 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				mapped = host1x_bo_mmap(g->bo);
 
 			if (!mapped) {
-				host1x_debug_output(o, "[could not mmap]\n");
+				host1x_de_output(o, "[could not mmap]\n");
 				continue;
 			}
 
-			host1x_debug_output(o, "    GATHER at %pad+%#x, %d words\n",
+			host1x_de_output(o, "    GATHER at %pad+%#x, %d words\n",
 					    &g->base, g->offset, g->words);
 
 			show_gather(o, g->base + g->offset, g->words, cdma,
@@ -238,13 +238,13 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 }
 
 #if HOST1X_HW >= 6
-#include "debug_hw_1x06.c"
+#include "de_hw_1x06.c"
 #else
-#include "debug_hw_1x01.c"
+#include "de_hw_1x01.c"
 #endif
 
-static const struct host1x_debug_ops host1x_debug_ops = {
-	.show_channel_cdma = host1x_debug_show_channel_cdma,
-	.show_channel_fifo = host1x_debug_show_channel_fifo,
-	.show_mlocks = host1x_debug_show_mlocks,
+static const struct host1x_de_ops host1x_de_ops = {
+	.show_channel_cdma = host1x_de_show_channel_cdma,
+	.show_channel_fifo = host1x_de_show_channel_fifo,
+	.show_mlocks = host1x_de_show_mlocks,
 };

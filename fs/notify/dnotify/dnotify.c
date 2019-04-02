@@ -129,7 +129,7 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 						    struct dnotify_mark,
 						    fsn_mark);
 
-	BUG_ON(dn_mark->dn);
+	_ON(dn_mark->dn);
 
 	kmem_cache_free(dnotify_mark_cache, dn_mark);
 }

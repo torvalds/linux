@@ -30,14 +30,14 @@
 static int kgdb_nmi_knock = 1;
 module_param_named(knock, kgdb_nmi_knock, int, 0600);
 MODULE_PARM_DESC(knock, "if set to 1 (default), the special '$3#33' command " \
-			"must be used to enter the debugger; when set to 0, " \
-			"hitting return key is enough to enter the debugger; " \
-			"when set to -1, the debugger is entered immediately " \
+			"must be used to enter the deger; when set to 0, " \
+			"hitting return key is enough to enter the deger; " \
+			"when set to -1, the deger is entered immediately " \
 			"upon NMI");
 
 static char *kgdb_nmi_magic = "$3#33";
 module_param_named(magic, kgdb_nmi_magic, charp, 0600);
-MODULE_PARM_DESC(magic, "magic sequence to enter NMI debugger (default $3#33)");
+MODULE_PARM_DESC(magic, "magic sequence to enter NMI deger (default $3#33)");
 
 static atomic_t kgdb_nmi_num_readers = ATOMIC_INIT(0);
 
@@ -81,7 +81,7 @@ static struct console kgdb_nmi_console = {
 };
 
 /*
- * This is usually the maximum rate on debug ports. We make fifo large enough
+ * This is usually the maximum rate on de ports. We make fifo large enough
  * to make copy-pasting to the terminal usable.
  */
 #define KGDB_NMI_BAUD		115200
@@ -145,7 +145,7 @@ static int kgdb_nmi_poll_one_knock(void)
 		return 0;
 	}
 
-	kdb_printf("\r%s %s to enter the debugger> %*s",
+	kdb_printf("\r%s %s to enter the deger> %*s",
 		   kgdb_nmi_knock ? "Type" : "Hit",
 		   kgdb_nmi_knock ? magic  : "<return>", (int)m, "");
 	while (m--)
@@ -154,7 +154,7 @@ static int kgdb_nmi_poll_one_knock(void)
 }
 
 /**
- * kgdb_nmi_poll_knock - Check if it is time to enter the debugger
+ * kgdb_nmi_poll_knock - Check if it is time to enter the deger
  *
  * "Serial ports are often noisy, especially when muxed over another port (we
  * often use serial over the headset connector). Noise on the async command
@@ -162,10 +162,10 @@ static int kgdb_nmi_poll_one_knock(void)
  * execution noise would be catastrophic." -- Colin Cross
  *
  * So, this function implements KGDB/KDB knocking on the serial line: we won't
- * enter the debugger until we receive a known magic phrase (which is actually
+ * enter the deger until we receive a known magic phrase (which is actually
  * "$3#33", known as "escape to KDB" command. There is also a relaxed variant
  * of knocking, i.e. just pressing the return key is enough to enter the
- * debugger. And if knocking is disabled, the function always returns 1.
+ * deger. And if knocking is disabled, the function always returns 1.
  */
 bool kgdb_nmi_poll_knock(void)
 {

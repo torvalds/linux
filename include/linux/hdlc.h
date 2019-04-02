@@ -74,7 +74,7 @@ static inline struct hdlc_device* dev_to_hdlc(struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-static __inline__ void debug_frame(const struct sk_buff *skb)
+static __inline__ void de_frame(const struct sk_buff *skb)
 {
 	int i;
 

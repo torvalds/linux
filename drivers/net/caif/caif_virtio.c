@@ -9,7 +9,7 @@
 #include <linux/if_arp.h>
 #include <linux/virtio.h>
 #include <linux/vringh.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/spinlock.h>
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
@@ -50,7 +50,7 @@ struct cfv_napi_context {
 	unsigned short head;
 };
 
-/* struct cfv_stats - statistics for debugfs
+/* struct cfv_stats - statistics for defs
  * @rx_napi_complete:	Number of NAPI completions (RX)
  * @rx_napi_resched:	Number of calls where the full quota was used (RX)
  * @rx_nomem:		Number of SKB alloc failures (RX)
@@ -96,7 +96,7 @@ struct cfv_stats {
  * @reserved_mem: Pointer to memory reserve allocated from genpool
  * @reserved_size: Size of memory reserve allocated from genpool
  * @stats:       Statistics exposed in sysfs
- * @debugfs:    Debugfs dentry for statistic counters
+ * @defs:    Defs dentry for statistic counters
  */
 struct cfv_info {
 	struct caif_dev_common cfdev;
@@ -123,7 +123,7 @@ struct cfv_info {
 	unsigned long reserved_mem;
 	size_t reserved_size;
 	struct cfv_stats stats;
-	struct dentry *debugfs;
+	struct dentry *defs;
 };
 
 /* struct buf_info - maintains transmit buffer data handle
@@ -162,7 +162,7 @@ static void cfv_release_used_buf(struct virtqueue *vq_tx)
 	struct cfv_info *cfv = vq_tx->vdev->priv;
 	unsigned long flags;
 
-	BUG_ON(vq_tx != cfv->vq_tx);
+	_ON(vq_tx != cfv->vq_tx);
 
 	for (;;) {
 		unsigned int len;
@@ -620,30 +620,30 @@ static void cfv_netdev_setup(struct net_device *netdev)
 	netdev->needs_free_netdev = true;
 }
 
-/* Create debugfs counters for the device */
-static inline void debugfs_init(struct cfv_info *cfv)
+/* Create defs counters for the device */
+static inline void defs_init(struct cfv_info *cfv)
 {
-	cfv->debugfs =
-		debugfs_create_dir(netdev_name(cfv->ndev), NULL);
+	cfv->defs =
+		defs_create_dir(netdev_name(cfv->ndev), NULL);
 
-	if (IS_ERR(cfv->debugfs))
+	if (IS_ERR(cfv->defs))
 		return;
 
-	debugfs_create_u32("rx-napi-complete", 0400, cfv->debugfs,
+	defs_create_u32("rx-napi-complete", 0400, cfv->defs,
 			   &cfv->stats.rx_napi_complete);
-	debugfs_create_u32("rx-napi-resched", 0400, cfv->debugfs,
+	defs_create_u32("rx-napi-resched", 0400, cfv->defs,
 			   &cfv->stats.rx_napi_resched);
-	debugfs_create_u32("rx-nomem", 0400, cfv->debugfs,
+	defs_create_u32("rx-nomem", 0400, cfv->defs,
 			   &cfv->stats.rx_nomem);
-	debugfs_create_u32("rx-kicks", 0400, cfv->debugfs,
+	defs_create_u32("rx-kicks", 0400, cfv->defs,
 			   &cfv->stats.rx_kicks);
-	debugfs_create_u32("tx-full-ring", 0400, cfv->debugfs,
+	defs_create_u32("tx-full-ring", 0400, cfv->defs,
 			   &cfv->stats.tx_full_ring);
-	debugfs_create_u32("tx-no-mem", 0400, cfv->debugfs,
+	defs_create_u32("tx-no-mem", 0400, cfv->defs,
 			   &cfv->stats.tx_no_mem);
-	debugfs_create_u32("tx-kicks", 0400, cfv->debugfs,
+	defs_create_u32("tx-kicks", 0400, cfv->defs,
 			   &cfv->stats.tx_kicks);
-	debugfs_create_u32("tx-flow-on", 0400, cfv->debugfs,
+	defs_create_u32("tx-flow-on", 0400, cfv->defs,
 			   &cfv->stats.tx_flow_on);
 }
 
@@ -734,7 +734,7 @@ static int cfv_probe(struct virtio_device *vdev)
 		goto err;
 	}
 
-	debugfs_init(cfv);
+	defs_init(cfv);
 
 	return 0;
 err:
@@ -757,7 +757,7 @@ static void cfv_remove(struct virtio_device *vdev)
 	rtnl_unlock();
 
 	tasklet_kill(&cfv->tx_release_tasklet);
-	debugfs_remove_recursive(cfv->debugfs);
+	defs_remove_recursive(cfv->defs);
 
 	vringh_kiov_cleanup(&cfv->ctx.riov);
 	vdev->config->reset(vdev);

@@ -27,10 +27,10 @@
  *  Function definitions
  */
 
-#define K_DEBUG(f, m, args...) do { if(f & m) printk(KERN_DEBUG args); } while(0)
-#define DEBUG(f, args...) K_DEBUG(f, pc_debug, args)
+#define K_DE(f, m, args...) do { if(f & m) printk(KERN_DE args); } while(0)
+#define DE(f, args...) K_DE(f, pc_de, args)
 
-extern int pc_debug;
+extern int pc_de;
 #define init_wds 0	/* help compiler optimize away dead code */
 
 
@@ -38,7 +38,7 @@ extern int pc_debug;
 #define PCIDEVICE_LATENCY_TIMER_MIN		0x40
 #define PCIDEVICE_LATENCY_TIMER_VAL		0x50
 
-/* Debugging verbose definitions */
+/* Deging verbose definitions */
 #define SHOW_NOTHING                            0x00	/* overrules everything */
 #define SHOW_ANYTHING                           0xFF
 #define SHOW_ERROR_MESSAGES                     0x01

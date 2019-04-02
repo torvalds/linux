@@ -142,7 +142,7 @@ extern int send_sigterm;
  * This kernel module is used to simulate large bar machine on non-large bar
  * enabled machines.
  */
-extern int debug_largebar;
+extern int de_largebar;
 
 /*
  * Ignore CRAT table during KFD initialization, can be used to work around
@@ -257,7 +257,7 @@ struct kfd_dev {
 	 */
 	bool interrupts_active;
 
-	/* Debug manager */
+	/* De manager */
 	struct kfd_dbgmgr           *dbgmgr;
 
 	/* Firmware versions */
@@ -499,7 +499,7 @@ struct qcm_process_device {
 
 	unsigned int queue_count;
 	unsigned int vmid;
-	bool is_debug;
+	bool is_de;
 	unsigned int evicted; /* eviction counter, 0=active */
 
 	/* This flag tells if we should reset all wavefronts on
@@ -975,26 +975,26 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 
 bool kfd_is_locked(void);
 
-/* Debugfs */
-#if defined(CONFIG_DEBUG_FS)
+/* Defs */
+#if defined(CONFIG_DE_FS)
 
-void kfd_debugfs_init(void);
-void kfd_debugfs_fini(void);
-int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data);
-int pqm_debugfs_mqds(struct seq_file *m, void *data);
-int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data);
-int dqm_debugfs_hqds(struct seq_file *m, void *data);
-int kfd_debugfs_rls_by_device(struct seq_file *m, void *data);
-int pm_debugfs_runlist(struct seq_file *m, void *data);
+void kfd_defs_init(void);
+void kfd_defs_fini(void);
+int kfd_defs_mqds_by_process(struct seq_file *m, void *data);
+int pqm_defs_mqds(struct seq_file *m, void *data);
+int kfd_defs_hqds_by_device(struct seq_file *m, void *data);
+int dqm_defs_hqds(struct seq_file *m, void *data);
+int kfd_defs_rls_by_device(struct seq_file *m, void *data);
+int pm_defs_runlist(struct seq_file *m, void *data);
 
-int kfd_debugfs_hang_hws(struct kfd_dev *dev);
-int pm_debugfs_hang_hws(struct packet_manager *pm);
-int dqm_debugfs_execute_queues(struct device_queue_manager *dqm);
+int kfd_defs_hang_hws(struct kfd_dev *dev);
+int pm_defs_hang_hws(struct packet_manager *pm);
+int dqm_defs_execute_queues(struct device_queue_manager *dqm);
 
 #else
 
-static inline void kfd_debugfs_init(void) {}
-static inline void kfd_debugfs_fini(void) {}
+static inline void kfd_defs_init(void) {}
+static inline void kfd_defs_fini(void) {}
 
 #endif
 

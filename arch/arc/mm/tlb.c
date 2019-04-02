@@ -44,7 +44,7 @@
  *  -In TLB Flush routines, interrupt disabling moved UP to retrieve ASID
  *       in interrupt-safe region.
  *
- * Vineetg: April 23rd Bug #93131
+ * Vineetg: April 23rd  #93131
  *    Problem: tlb_flush_kernel_range() doesn't do anything if the range to
  *              flush is more than the size of TLB itself.
  *
@@ -52,7 +52,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm_types.h>
 
 #include <asm/arcregs.h>
@@ -169,7 +169,7 @@ static void utlb_invalidate(void)
 
 #if (CONFIG_ARC_MMU_VER == 2)
 	/* MMU v2 introduced the uTLB Flush command.
-	 * There was however an obscure hardware bug, where uTLB flush would
+	 * There was however an obscure hardware , where uTLB flush would
 	 * fail when a prior probe for J-TLB (both totally unrelated) would
 	 * return lkup err - because the entry didn't exist in MMU.
 	 * The Workround was to set Index reg with some valid value, prior to
@@ -529,7 +529,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	 *
 	 * Removing the assumption involves
 	 * -Using vma->mm->context{ASID,SASID}, as opposed to MMU reg.
-	 * -Fix the TLB paranoid debug code to not trigger false negatives.
+	 * -Fix the TLB paranoid de code to not trigger false negatives.
 	 * -More importantly it makes this handler inconsistent with fast-path
 	 *  TLB Refill handler which always deals with "current"
 	 *
@@ -541,8 +541,8 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	 *     move_page_tables() tries to undo that TLB entry.
 	 *     Thus not creating TLB entry is not any worse.
 	 *
-	 *  2. ptrace(POKETEXT) causes a CoW - debugger(current) inserting a
-	 *     breakpoint in debugged task. Not creating a TLB now is not
+	 *  2. ptrace(POKETEXT) causes a CoW - deger(current) inserting a
+	 *     breakpoint in deged task. Not creating a TLB now is not
 	 *     performance critical.
 	 *
 	 * Both the cases above are not good enough for code churn.
@@ -829,13 +829,13 @@ void arc_mmu_init(void)
 	/*
 	 * Can't be done in processor.h due to header include depenedencies
 	 */
-	BUILD_BUG_ON(!IS_ALIGNED((CONFIG_ARC_KVADDR_SIZE << 20), PMD_SIZE));
+	BUILD__ON(!IS_ALIGNED((CONFIG_ARC_KVADDR_SIZE << 20), PMD_SIZE));
 
 	/*
 	 * stack top size sanity check,
 	 * Can't be done in processor.h due to header include depenedencies
 	 */
-	BUILD_BUG_ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
+	BUILD__ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
 
 	/*
 	 * Ensure that MMU features assumed by kernel exist in hardware.
@@ -898,12 +898,12 @@ void arc_mmu_init(void)
 #define SET_WAY_TO_IDX(mmu, set, way)  ((set) * mmu->ways + (way))
 
 /* Handling of Duplicate PD (TLB entry) in MMU.
- * -Could be due to buggy customer tapeouts or obscure kernel bugs
+ * -Could be due to gy customer tapeouts or obscure kernel s
  * -MMU complaints not at the time of duplicate PD installation, but at the
  *      time of lookup matching multiple ways.
  * -Ideally these should never happen - but if they do - workaround by deleting
  *      the duplicate one.
- * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
+ * -Knob to be verbose abt it.(TODO: hook them up to defs)
  */
 volatile int dup_pd_silent; /* Be slient abt it or complain (default) */
 

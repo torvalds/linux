@@ -22,11 +22,11 @@ config MACH_U300
 	bool "U300"
 	default y
 
-config U300_DEBUG
+config U300_DE
 	depends on ARCH_U300
-	bool "Debug support for U300"
+	bool "De support for U300"
 	depends on PM
 	help
-		Debug support for U300 in sysfs, procfs etc.
+		De support for U300 in sysfs, procfs etc.
 
 endif

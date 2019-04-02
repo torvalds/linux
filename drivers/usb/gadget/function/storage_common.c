@@ -14,7 +14,7 @@
  */
 
 /*
- * When USB_GADGET_DEBUG_FILES is defined the module param num_buffers
+ * When USB_GADGET_DE_FILES is defined the module param num_buffers
  * sets the number of pipeline buffers (length of the fsg_buffhd array).
  * The valid range of num_buffers is: num >= 2 && num <= 4.
  */

@@ -211,7 +211,7 @@ enum dp_alt_mode {
  *
  * This struct should stay very simple
  *  No dependencies at all (no includes)
- *  No debug messages or asserts
+ *  No de messages or asserts
  *  No #ifndef and preprocessor directives
  *  No grow in space (no more data member)
  *****************************************************************************

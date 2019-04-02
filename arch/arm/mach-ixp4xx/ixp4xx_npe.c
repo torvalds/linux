@@ -22,8 +22,8 @@
 #include <linux/module.h>
 #include <mach/npe.h>
 
-#define DEBUG_MSG			0
-#define DEBUG_FW			0
+#define DE_MSG			0
+#define DE_FW			0
 
 #define NPE_COUNT			3
 #define MAX_RETRIES			1000	/* microseconds */
@@ -78,7 +78,7 @@
 #define ECS_PRI_2_CTXT_REG_0		0x08 /* Priority 2 Executing Context */
 #define ECS_PRI_2_CTXT_REG_1		0x09 /*		Stack level */
 #define ECS_PRI_2_CTXT_REG_2		0x0A
-#define ECS_DBG_CTXT_REG_0		0x0C /* Debug Executing Context */
+#define ECS_DBG_CTXT_REG_0		0x0C /* De Executing Context */
 #define ECS_DBG_CTXT_REG_1		0x0D /*		Stack level */
 #define ECS_DBG_CTXT_REG_2		0x0E
 #define ECS_INSTRUCT_REG		0x11 /* NPE Instruction Register */
@@ -91,8 +91,8 @@
 #define ECS_REG_1_CCTXT_MASK		0x000F0000 /* all levels */
 #define ECS_REG_1_SELCTXT_BITS		0
 #define ECS_REG_1_SELCTXT_MASK		0x0000000F /* all levels */
-#define ECS_DBG_REG_2_IF		0x00100000 /* debug level */
-#define ECS_DBG_REG_2_IE		0x00080000 /* debug level */
+#define ECS_DBG_REG_2_IF		0x00100000 /* de level */
+#define ECS_DBG_REG_2_IE		0x00080000 /* de level */
 
 /* NPE watchpoint_fifo register bit */
 #define WFIFO_VALID			0x80000000
@@ -125,11 +125,11 @@ const char *npe_names[] = { NPE_A_FIRMWARE, NPE_B_FIRMWARE, NPE_C_FIRMWARE };
 #define print_npe(pri, npe, fmt, ...)					\
 	printk(pri "%s: " fmt, npe_name(npe), ## __VA_ARGS__)
 
-#if DEBUG_MSG
-#define debug_msg(npe, fmt, ...)					\
-	print_npe(KERN_DEBUG, npe, fmt, ## __VA_ARGS__)
+#if DE_MSG
+#define de_msg(npe, fmt, ...)					\
+	print_npe(KERN_DE, npe, fmt, ## __VA_ARGS__)
 #else
-#define debug_msg(npe, fmt, ...)
+#define de_msg(npe, fmt, ...)
 #endif
 
 static struct {
@@ -213,20 +213,20 @@ static void npe_stop(struct npe *npe)
 	__raw_writel(CMD_NPE_CLR_PIPE, &npe->regs->exec_status_cmd); /*FIXME?*/
 }
 
-static int __must_check npe_debug_instr(struct npe *npe, u32 instr, u32 ctx,
+static int __must_check npe_de_instr(struct npe *npe, u32 instr, u32 ctx,
 					u32 ldur)
 {
 	u32 wc;
 	int i;
 
-	/* set the Active bit, and the LDUR, in the debug level */
+	/* set the Active bit, and the LDUR, in the de level */
 	npe_cmd_write(npe, ECS_DBG_CTXT_REG_0, CMD_WR_ECS_REG,
 		      ECS_REG_0_ACTIVE | (ldur << ECS_REG_0_LDUR_BITS));
 
-	/* set CCTXT at ECS DEBUG L3 to specify in which context to execute
-	   the instruction, and set SELCTXT at ECS DEBUG Level to specify
+	/* set CCTXT at ECS DE L3 to specify in which context to execute
+	   the instruction, and set SELCTXT at ECS DE Level to specify
 	   which context store to access.
-	   Debug ECS Level Reg 1 has form 0x000n000n, where n = context number
+	   De ECS Level Reg 1 has form 0x000n000n, where n = context number
 	*/
 	npe_cmd_write(npe, ECS_DBG_CTXT_REG_1, CMD_WR_ECS_REG,
 		      (ctx << ECS_REG_1_CCTXT_BITS) |
@@ -252,7 +252,7 @@ static int __must_check npe_debug_instr(struct npe *npe, u32 instr, u32 ctx,
 		udelay(1);
 	}
 
-	print_npe(KERN_ERR, npe, "reset: npe_debug_instr(): timeout\n");
+	print_npe(KERN_ERR, npe, "reset: npe_de_instr(): timeout\n");
 	return -ETIMEDOUT;
 }
 
@@ -264,7 +264,7 @@ static int __must_check npe_logical_reg_write8(struct npe *npe, u32 addr,
 		addr << 9 |		/* base Operand */
 		(val & 0x1F) << 4 |	/* lower 5 bits to immediate data */
 		(val & ~0x1F) << (18 - 5);/* higher 3 bits to CoProc instr. */
-	return npe_debug_instr(npe, instr, ctx, 1); /* execute it */
+	return npe_de_instr(npe, instr, ctx, 1); /* execute it */
 }
 
 static int __must_check npe_logical_reg_write16(struct npe *npe, u32 addr,
@@ -275,7 +275,7 @@ static int __must_check npe_logical_reg_write16(struct npe *npe, u32 addr,
 		addr << 9 |		/* base Operand */
 		(val & 0x1F) << 4 |	/* lower 5 bits to immediate data */
 		(val & ~0x1F) << (18 - 5);/* higher 11 bits to CoProc instr. */
-	return npe_debug_instr(npe, instr, ctx, 1); /* execute it */
+	return npe_de_instr(npe, instr, ctx, 1); /* execute it */
 }
 
 static int __must_check npe_logical_reg_write32(struct npe *npe, u32 addr,
@@ -298,7 +298,7 @@ static int npe_reset(struct npe *npe)
 	/* disable parity interrupt */
 	__raw_writel(ctl & 0x3F00FFFF, &npe->regs->messaging_control);
 
-	/* pre exec - debug instruction */
+	/* pre exec - de instruction */
 	/* turn off the halt bit by clearing Execution Count register. */
 	exec_count = __raw_readl(&npe->regs->exec_count);
 	__raw_writel(0, &npe->regs->exec_count);
@@ -313,19 +313,19 @@ static int npe_reset(struct npe *npe)
 		;
 	while (__raw_readl(&npe->regs->messaging_status) & MSGSTAT_OFNE)
 		/* read from the outFIFO until empty */
-		print_npe(KERN_DEBUG, npe, "npe_reset: read FIFO = 0x%X\n",
+		print_npe(KERN_DE, npe, "npe_reset: read FIFO = 0x%X\n",
 			  __raw_readl(&npe->regs->in_out_fifo));
 
 	while (__raw_readl(&npe->regs->messaging_status) & MSGSTAT_IFNE)
 		/* step execution of the NPE intruction to read inFIFO using
-		   the Debug Executing Context stack */
-		if (npe_debug_instr(npe, INSTR_RD_FIFO, 0, 0))
+		   the De Executing Context stack */
+		if (npe_de_instr(npe, INSTR_RD_FIFO, 0, 0))
 			return -ETIMEDOUT;
 
 	/* reset the mailbox reg from the XScale side */
 	__raw_writel(RESET_MBOX_STAT, &npe->regs->mailbox_status);
 	/* from NPE side */
-	if (npe_debug_instr(npe, INSTR_RESET_MBOX, 0, 0))
+	if (npe_de_instr(npe, INSTR_RESET_MBOX, 0, 0))
 		return -ETIMEDOUT;
 
 	/* Reset the physical registers in the NPE register file */
@@ -362,7 +362,7 @@ static int npe_reset(struct npe *npe)
 	}
 
 	/* post exec */
-	/* clear active bit in debug level */
+	/* clear active bit in de level */
 	npe_cmd_write(npe, ECS_DBG_CTXT_REG_0, CMD_WR_ECS_REG, 0);
 	/* clear the pipeline */
 	__raw_writel(CMD_NPE_CLR_PIPE, &npe->regs->exec_status_cmd);
@@ -414,18 +414,18 @@ int npe_send_message(struct npe *npe, const void *msg, const char *what)
 	const u32 *send = msg;
 	int cycles = 0;
 
-	debug_msg(npe, "Trying to send message %s [%08X:%08X]\n",
+	de_msg(npe, "Trying to send message %s [%08X:%08X]\n",
 		  what, send[0], send[1]);
 
 	if (__raw_readl(&npe->regs->messaging_status) & MSGSTAT_IFNE) {
-		debug_msg(npe, "NPE input FIFO not empty\n");
+		de_msg(npe, "NPE input FIFO not empty\n");
 		return -EIO;
 	}
 
 	__raw_writel(send[0], &npe->regs->in_out_fifo);
 
 	if (!(__raw_readl(&npe->regs->messaging_status) & MSGSTAT_IFNF)) {
-		debug_msg(npe, "NPE input FIFO full\n");
+		de_msg(npe, "NPE input FIFO full\n");
 		return -EIO;
 	}
 
@@ -438,12 +438,12 @@ int npe_send_message(struct npe *npe, const void *msg, const char *what)
 	}
 
 	if (cycles == MAX_RETRIES) {
-		debug_msg(npe, "Timeout sending message\n");
+		de_msg(npe, "Timeout sending message\n");
 		return -ETIMEDOUT;
 	}
 
-#if DEBUG_MSG > 1
-	debug_msg(npe, "Sending a message took %i cycles\n", cycles);
+#if DE_MSG > 1
+	de_msg(npe, "Sending a message took %i cycles\n", cycles);
 #endif
 	return 0;
 }
@@ -453,7 +453,7 @@ int npe_recv_message(struct npe *npe, void *msg, const char *what)
 	u32 *recv = msg;
 	int cycles = 0, cnt = 0;
 
-	debug_msg(npe, "Trying to receive message %s\n", what);
+	de_msg(npe, "Trying to receive message %s\n", what);
 
 	while (cycles < MAX_RETRIES) {
 		if (__raw_readl(&npe->regs->messaging_status) & MSGSTAT_OFNE) {
@@ -468,20 +468,20 @@ int npe_recv_message(struct npe *npe, void *msg, const char *what)
 
 	switch(cnt) {
 	case 1:
-		debug_msg(npe, "Received [%08X]\n", recv[0]);
+		de_msg(npe, "Received [%08X]\n", recv[0]);
 		break;
 	case 2:
-		debug_msg(npe, "Received [%08X:%08X]\n", recv[0], recv[1]);
+		de_msg(npe, "Received [%08X:%08X]\n", recv[0], recv[1]);
 		break;
 	}
 
 	if (cycles == MAX_RETRIES) {
-		debug_msg(npe, "Timeout waiting for message\n");
+		de_msg(npe, "Timeout waiting for message\n");
 		return -ETIMEDOUT;
 	}
 
-#if DEBUG_MSG > 1
-	debug_msg(npe, "Receiving a message took %i cycles\n", cycles);
+#if DE_MSG > 1
+	de_msg(npe, "Receiving a message took %i cycles\n", cycles);
 #endif
 	return 0;
 }
@@ -497,7 +497,7 @@ int npe_send_recv_message(struct npe *npe, void *msg, const char *what)
 		return result;
 
 	if ((recv[0] != send[0]) || (recv[1] != send[1])) {
-		debug_msg(npe, "Message %s: unexpected message received\n",
+		de_msg(npe, "Message %s: unexpected message received\n",
 			  what);
 		return -EIO;
 	}
@@ -543,8 +543,8 @@ int npe_load_firmware(struct npe *npe, const char *name, struct device *dev)
 	}
 	image = (struct dl_image*)fw_entry->data;
 
-#if DEBUG_FW
-	print_npe(KERN_DEBUG, npe, "firmware: %08X %08X %08X (0x%X bytes)\n",
+#if DE_FW
+	print_npe(KERN_DE, npe, "firmware: %08X %08X %08X (0x%X bytes)\n",
 		  image->magic, image->id, image->size, image->size * 4);
 #endif
 
@@ -611,8 +611,8 @@ int npe_load_firmware(struct npe *npe, const char *name, struct device *dev)
 		goto err;
 	}
 
-#if DEBUG_FW
-	print_npe(KERN_DEBUG, npe, "%i firmware blocks found\n", blocks);
+#if DE_FW
+	print_npe(KERN_DE, npe, "%i firmware blocks found\n", blocks);
 #endif
 
 	table_end = blocks * sizeof(struct dl_block) / 4 + 1 /* EOF marker */;

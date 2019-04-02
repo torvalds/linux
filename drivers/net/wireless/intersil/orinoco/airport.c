@@ -41,7 +41,7 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 	unsigned long flags;
 	int err;
 
-	printk(KERN_DEBUG "%s: Airport entering sleep mode\n", dev->name);
+	printk(KERN_DE "%s: Airport entering sleep mode\n", dev->name);
 
 	err = orinoco_lock(priv, &flags);
 	if (err) {
@@ -69,7 +69,7 @@ airport_resume(struct macio_dev *mdev)
 	unsigned long flags;
 	int err;
 
-	printk(KERN_DEBUG "%s: Airport waking up\n", dev->name);
+	printk(KERN_DE "%s: Airport waking up\n", dev->name);
 
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
 			  macio_get_of_node(mdev), 0, 1);
@@ -180,7 +180,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Setup interrupts & base address */
 	card->irq = macio_irq(mdev, 0);
 	phys_addr = macio_resource_start(mdev, 0);  /* Physical address */
-	printk(KERN_DEBUG PFX "Physical address %lx\n", phys_addr);
+	printk(KERN_DE PFX "Physical address %lx\n", phys_addr);
 	card->vaddr = ioremap(phys_addr, AIRPORT_IO_LEN);
 	if (!card->vaddr) {
 		printk(KERN_ERR PFX "ioremap() failed\n");
@@ -252,7 +252,7 @@ static struct macio_driver airport_driver = {
 static int __init
 init_airport(void)
 {
-	printk(KERN_DEBUG "%s\n", version);
+	printk(KERN_DE "%s\n", version);
 
 	return macio_register_driver(&airport_driver);
 }

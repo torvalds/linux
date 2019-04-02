@@ -142,7 +142,7 @@ struct r3964_block_header
 #define R3964_CHECKSUM 0x0020
 #define R3964_ERROR  0x003f
 #define R3964_BCC   0x4000
-#define R3964_DEBUG 0x8000
+#define R3964_DE 0x8000
 
 
 struct r3964_info {

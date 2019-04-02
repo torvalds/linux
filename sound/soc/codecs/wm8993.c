@@ -404,7 +404,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 		}
 	}
 
-	pr_debug("Fref=%u Fout=%u\n", Fref, Fout);
+	pr_de("Fref=%u Fout=%u\n", Fref, Fout);
 
 	/* Apply the division for our remaining calculations */
 	Fref /= div;
@@ -423,7 +423,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	}
 	fll_div->fll_outdiv = div;
 
-	pr_debug("Fvco=%dHz\n", target);
+	pr_de("Fvco=%dHz\n", target);
 
 	/* Find an appropriate FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
@@ -443,7 +443,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	fll_div->n = Ndiv;
 	Nmod = target % Fref;
-	pr_debug("Nmod=%d\n", Nmod);
+	pr_de("Nmod=%d\n", Nmod);
 
 	/* Calculate fractional part - scale up so we can round. */
 	Kpart = FIXED_FLL_SIZE * (long long)Nmod;
@@ -458,7 +458,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	/* Move down to proper range now rounding is done */
 	fll_div->k = K / 10;
 
-	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
+	pr_de("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
 		 fll_div->n, fll_div->k,
 		 fll_div->fll_fratio, fll_div->fll_outdiv,
 		 fll_div->fll_clk_ref_div);

@@ -161,7 +161,7 @@ void cpufreq_stats_free_table(struct cpufreq_policy *policy)
 	if (!stats)
 		return;
 
-	pr_debug("%s: Free stats table\n", __func__);
+	pr_de("%s: Free stats table\n", __func__);
 
 	sysfs_remove_group(&policy->kobj, &stats_attr_group);
 	kfree(stats->time_in_state);
@@ -231,7 +231,7 @@ void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 	int old_index, new_index;
 
 	if (!stats) {
-		pr_debug("%s: No stats found\n", __func__);
+		pr_de("%s: No stats found\n", __func__);
 		return;
 	}
 

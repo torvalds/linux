@@ -25,7 +25,7 @@ but many were tested to run with just one specific version of Windows.
 So even though the BIOS may use _OSI to query what version of Windows is running,
 only a single path through the BIOS has actually been tested.
 Experience shows that taking untested paths through the BIOS
-exposes Linux to an entire category of BIOS bugs.
+exposes Linux to an entire category of BIOS s.
 For this reason, Linux _OSI defaults must continue to claim compatibility
 with all versions of Windows.
 
@@ -43,7 +43,7 @@ Here the BIOS should ask exactly what it wants to know:
 _OSI("Linux-OEM-my_interface_name")
 where 'OEM' is needed if this is an OEM-specific hook,
 and 'my_interface_name' describes the hook, which could be a
-quirk, a bug, or a bug-fix.
+quirk, a , or a -fix.
 
 In addition, the OEM should send a patch to upstream Linux
 via the linux-acpi@vger.kernel.org mailing list.  When that patch
@@ -76,7 +76,7 @@ Windows NT: "Microsoft Windows NT"
 
 The idea was on a platform tasked with running multiple OS's,
 the BIOS could use _OS to enable devices that an OS
-might support, or enable quirks or bug workarounds
+might support, or enable quirks or  workarounds
 necessary to make the platform compatible with that pre-existing OS.
 
 But _OS had fundamental problems.  First, the BIOS needed to know the name
@@ -132,7 +132,7 @@ _OSI("Linux") led to some BIOS' malfunctioning due to BIOS writer's
 using it in untested BIOS flows.  But some OEM's used _OSI("Linux")
 in tested flows to support real Linux features.  In 2009, Linux
 removed _OSI("Linux"), and added a cmdline parameter to restore it
-for legacy systems still needed it.  Further a BIOS_BUG warning prints
+for legacy systems still needed it.  Further a BIOS_ warning prints
 for all BIOS's that invoke it.
 
 No BIOS should use _OSI("Linux").

@@ -262,9 +262,9 @@ struct sge {
 	unsigned int	intrtimer_nres;	/* no-resource interrupt timer */
 	unsigned int    fixed_intrtimer;/* non-adaptive interrupt timer */
 	struct timer_list tx_reclaim_timer; /* reclaims TX buffers */
-	struct timer_list espibug_timer;
-	unsigned long	espibug_timeout;
-	struct sk_buff	*espibug_skb[MAX_NPORTS];
+	struct timer_list espi_timer;
+	unsigned long	espi_timeout;
+	struct sk_buff	*espi_skb[MAX_NPORTS];
 	u32		sge_control;	/* shadow value of sge control reg */
 	struct sge_intr_counts stats;
 	struct sge_port_stats __percpu *port_stats[MAX_NPORTS];
@@ -301,7 +301,7 @@ unsigned int t1_sched_update_parms(struct sge *sge, unsigned int port,
 	struct sched_port *p = &s->p[port];
 	unsigned int max_avail_segs;
 
-	pr_debug("%s mtu=%d speed=%d\n", __func__, mtu, speed);
+	pr_de("%s mtu=%d speed=%d\n", __func__, mtu, speed);
 	if (speed)
 		p->speed = speed;
 	if (mtu)
@@ -326,7 +326,7 @@ unsigned int t1_sched_update_parms(struct sge *sge, unsigned int port,
 		max_avail_segs = max(1U, 9000 / (p->mtu - 40));
 	}
 
-	pr_debug("t1_sched_update_parms: mtu %u speed %u max_avail %u "
+	pr_de("t1_sched_update_parms: mtu %u speed %u max_avail %u "
 		 "max_avail_segs %u drain_bits_per_1024ns %u\n", p->mtu,
 		 p->speed, s->max_avail, max_avail_segs,
 		 p->drain_bits_per_1024ns);
@@ -377,7 +377,7 @@ static int tx_sched_init(struct sge *sge)
 	if (!s)
 		return -ENOMEM;
 
-	pr_debug("tx_sched_init\n");
+	pr_de("tx_sched_init\n");
 	tasklet_init(&s->sched_tsk, restart_sched, (unsigned long) sge);
 	sge->tx_sched = s;
 
@@ -403,7 +403,7 @@ static inline int sched_update_avail(struct sge *sge)
 
 	delta_time_ns = ktime_to_ns(ktime_sub(now, s->last_updated));
 
-	pr_debug("sched_update_avail delta=%lld\n", delta_time_ns);
+	pr_de("sched_update_avail delta=%lld\n", delta_time_ns);
 	if (delta_time_ns < 15000)
 		return 0;
 
@@ -435,7 +435,7 @@ static struct sk_buff *sched_skb(struct sge *sge, struct sk_buff *skb,
 	struct sk_buff_head *skbq;
 	unsigned int i, len, update = 1;
 
-	pr_debug("sched_skb %p\n", skb);
+	pr_de("sched_skb %p\n", skb);
 	if (!skb) {
 		if (!s->num)
 			return NULL;
@@ -484,7 +484,7 @@ out:
 			writel(F_CMDQ0_ENABLE, sge->adapter->regs + A_SG_DOORBELL);
 		}
 	}
-	pr_debug("sched_skb ret %p\n", skb);
+	pr_de("sched_skb ret %p\n", skb);
 
 	return skb;
 }
@@ -1141,7 +1141,7 @@ static inline void write_tx_desc(struct cmdQ_e *e, dma_addr_t mapping,
 				 unsigned int len, unsigned int gen,
 				 unsigned int eop)
 {
-	BUG_ON(len > SGE_TX_DESC_MAX_PLEN);
+	_ON(len > SGE_TX_DESC_MAX_PLEN);
 
 	e->addr_lo = (u32)mapping;
 	e->addr_hi = (u64)mapping >> 32;
@@ -1290,7 +1290,7 @@ static inline void reclaim_completed_tx(struct sge *sge, struct cmdQ *q)
 	unsigned int reclaim = q->processed - q->cleaned;
 
 	if (reclaim) {
-		pr_debug("reclaim_completed_tx processed:%d cleaned:%d\n",
+		pr_de("reclaim_completed_tx processed:%d cleaned:%d\n",
 			 q->processed, q->cleaned);
 		free_cmdQ_buffers(sge, q, reclaim);
 		q->cleaned += reclaim;
@@ -1313,7 +1313,7 @@ static void restart_sched(unsigned long arg)
 	reclaim_completed_tx(sge, q);
 
 	credits = q->size - q->in_use;
-	pr_debug("restart_sched credits=%d\n", credits);
+	pr_de("restart_sched credits=%d\n", credits);
 	while ((skb = sched_skb(sge, NULL, credits)) != NULL) {
 		unsigned int genbit, pidx, count;
 	        count = 1 + skb_shinfo(skb)->nr_frags;
@@ -1495,7 +1495,7 @@ static int process_responses(struct adapter *adapter, int budget)
 		if (likely(e->DataValid)) {
 			struct freelQ *fl = &sge->freelQ[e->FreelistQid];
 
-			BUG_ON(!e->Sop || !e->Eop);
+			_ON(!e->Sop || !e->Eop);
 			if (unlikely(e->Offload))
 				unexpected_offload(adapter, fl);
 			else
@@ -1505,7 +1505,7 @@ static int process_responses(struct adapter *adapter, int budget)
 
 			/*
 			 * Note: this depends on each packet consuming a
-			 * single free-list buffer; cf. the BUG above.
+			 * single free-list buffer; cf. the  above.
 			 */
 			if (++fl->cidx == fl->size)
 				fl->cidx = 0;
@@ -1836,10 +1836,10 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Hmmm, assuming to catch the gratious arp... and we'll use
 		 * it to flush out stuck espi packets...
 		 */
-		if ((unlikely(!adapter->sge->espibug_skb[dev->if_port]))) {
+		if ((unlikely(!adapter->sge->espi_skb[dev->if_port]))) {
 			if (skb->protocol == htons(ETH_P_ARP) &&
 			    arp_hdr(skb)->ar_op == htons(ARPOP_REQUEST)) {
-				adapter->sge->espibug_skb[dev->if_port] = skb;
+				adapter->sge->espi_skb[dev->if_port] = skb;
 				/* We want to re-use this skb later. We
 				 * simply bump the reference count and it
 				 * will not be freed...
@@ -1946,14 +1946,14 @@ void t1_sge_stop(struct sge *sge)
 	readl(sge->adapter->regs + A_SG_CONTROL); /* flush */
 
 	if (is_T2(sge->adapter))
-		del_timer_sync(&sge->espibug_timer);
+		del_timer_sync(&sge->espi_timer);
 
 	del_timer_sync(&sge->tx_reclaim_timer);
 	if (sge->tx_sched)
 		tx_sched_stop(sge);
 
 	for (i = 0; i < MAX_NPORTS; i++)
-		kfree_skb(sge->espibug_skb[i]);
+		kfree_skb(sge->espi_skb[i]);
 }
 
 /*
@@ -1971,15 +1971,15 @@ void t1_sge_start(struct sge *sge)
 	mod_timer(&sge->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
 
 	if (is_T2(sge->adapter))
-		mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
+		mod_timer(&sge->espi_timer, jiffies + sge->espi_timeout);
 }
 
 /*
  * Callback for the T2 ESPI 'stuck packet feature' workaorund
  */
-static void espibug_workaround_t204(struct timer_list *t)
+static void espi_workaround_t204(struct timer_list *t)
 {
-	struct sge *sge = from_timer(sge, t, espibug_timer);
+	struct sge *sge = from_timer(sge, t, espi_timer);
 	struct adapter *adapter = sge->adapter;
 	unsigned int nports = adapter->params.nports;
 	u32 seop[MAX_NPORTS];
@@ -1991,7 +1991,7 @@ static void espibug_workaround_t204(struct timer_list *t)
 			return;
 
 		for (i = 0; i < nports; i++) {
-			struct sk_buff *skb = sge->espibug_skb[i];
+			struct sk_buff *skb = sge->espi_skb[i];
 
 			if (!netif_running(adapter->port[i].dev) ||
 			    netif_queue_stopped(adapter->port[i].dev) ||
@@ -2017,16 +2017,16 @@ static void espibug_workaround_t204(struct timer_list *t)
 			t1_sge_tx(skb, adapter, 0, adapter->port[i].dev);
 		}
 	}
-	mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
+	mod_timer(&sge->espi_timer, jiffies + sge->espi_timeout);
 }
 
-static void espibug_workaround(struct timer_list *t)
+static void espi_workaround(struct timer_list *t)
 {
-	struct sge *sge = from_timer(sge, t, espibug_timer);
+	struct sge *sge = from_timer(sge, t, espi_timer);
 	struct adapter *adapter = sge->adapter;
 
 	if (netif_running(adapter->port[0].dev)) {
-	        struct sk_buff *skb = sge->espibug_skb[0];
+	        struct sk_buff *skb = sge->espi_skb[0];
 	        u32 seop = t1_espi_get_mon(adapter, 0x930, 0);
 
 	        if ((seop & 0xfff0fff) == 0xfff && skb) {
@@ -2049,7 +2049,7 @@ static void espibug_workaround(struct timer_list *t)
 	                t1_sge_tx(skb, adapter, 0, adapter->port[0].dev);
 	        }
 	}
-	mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
+	mod_timer(&sge->espi_timer, jiffies + sge->espi_timeout);
 }
 
 /*
@@ -2077,17 +2077,17 @@ struct sge *t1_sge_create(struct adapter *adapter, struct sge_params *p)
 	timer_setup(&sge->tx_reclaim_timer, sge_tx_reclaim_cb, 0);
 
 	if (is_T2(sge->adapter)) {
-		timer_setup(&sge->espibug_timer,
-			    adapter->params.nports > 1 ? espibug_workaround_t204 : espibug_workaround,
+		timer_setup(&sge->espi_timer,
+			    adapter->params.nports > 1 ? espi_workaround_t204 : espi_workaround,
 			    0);
 
 		if (adapter->params.nports > 1)
 			tx_sched_init(sge);
 
-		sge->espibug_timeout = 1;
+		sge->espi_timeout = 1;
 		/* for T204, every 10ms */
 		if (adapter->params.nports > 1)
-			sge->espibug_timeout = HZ/100;
+			sge->espi_timeout = HZ/100;
 	}
 
 

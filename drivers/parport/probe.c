@@ -177,7 +177,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		 * just return constant nibble forever. This catches
 		 * also those cases. */
 		if (idlens[0] == 0 || idlens[0] > 0xFFF) {
-			printk (KERN_DEBUG "%s: reported broken Device ID"
+			printk (KERN_DE "%s: reported broken Device ID"
 				" length of %#zX bytes\n",
 				port->name, idlens[0]);
 			return -EIO;
@@ -185,7 +185,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		numidlens = 2;
 	}
 
-	/* Try to respect the given ID length despite all the bugs in
+	/* Try to respect the given ID length despite all the s in
 	 * the ID length. Read according to shortest possible ID
 	 * first. */
 	for (current_idlen = 0; current_idlen < numidlens; ++current_idlen) {
@@ -201,7 +201,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 
 		if (port->physport->ieee1284.phase != IEEE1284_PH_HBUSY_DAVAIL) {
 			if (belen != len) {
-				printk (KERN_DEBUG "%s: Device ID was %zd bytes"
+				printk (KERN_DE "%s: Device ID was %zd bytes"
 					" while device told it would be %d"
 					" bytes\n",
 					port->name, len, belen);
@@ -214,7 +214,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		 * the first 256 bytes or so that we must have read so
 		 * far. */
 		if (buffer[len-1] == ';') {
- 			printk (KERN_DEBUG "%s: Device ID reading stopped"
+ 			printk (KERN_DE "%s: Device ID reading stopped"
 				" before device told data not available. "
 				"Current idlen %u of %u, len bytes %02X %02X\n",
 				port->name, current_idlen, numidlens,

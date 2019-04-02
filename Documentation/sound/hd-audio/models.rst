@@ -119,7 +119,7 @@ lenovo-eapd
 sony-hweq
     H/W EQ COEF setup for Sony laptops
 pcm44k
-    Fixed PCM 44kHz constraints (for buggy devices)
+    Fixed PCM 44kHz constraints (for gy devices)
 lifebook
     Dock pin fixups for Fujitsu Lifebook
 lifebook-extmic

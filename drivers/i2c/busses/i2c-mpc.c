@@ -401,7 +401,7 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 
 	divider = fsl_get_sys_freq() / clock / prescaler;
 
-	pr_debug("I2C: src_clock=%d clock=%d divider=%d\n",
+	pr_de("I2C: src_clock=%d clock=%d divider=%d\n",
 		 fsl_get_sys_freq(), clock, divider);
 
 	/*
@@ -669,7 +669,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 	if (!i2c)
 		return -ENOMEM;
 
-	i2c->dev = &op->dev; /* for debug and error output */
+	i2c->dev = &op->dev; /* for de and error output */
 
 	init_waitqueue_head(&i2c->queue);
 

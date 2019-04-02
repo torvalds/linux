@@ -128,7 +128,7 @@ void remove_ima_buffer(void *fdt, int chosen_node)
 
 	ret = delete_fdt_mem_rsv(fdt, addr, size);
 	if (!ret)
-		pr_debug("Removed old IMA buffer reservation.\n");
+		pr_de("Removed old IMA buffer reservation.\n");
 }
 
 #ifdef CONFIG_IMA_KEXEC
@@ -215,7 +215,7 @@ int setup_ima_buffer(const struct kimage *image, void *fdt, int chosen_node)
 	if (ret)
 		return -EINVAL;
 
-	pr_debug("IMA buffer at 0x%llx, size = 0x%zx\n",
+	pr_de("IMA buffer at 0x%llx, size = 0x%zx\n",
 		 image->arch.ima_buffer_addr, image->arch.ima_buffer_size);
 
 	return 0;

@@ -26,7 +26,7 @@
 /* RISC-V shim does not initialize PCI bus */
 #define pcibios_assign_all_busses() 1
 
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 
 #ifdef CONFIG_PCI
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)

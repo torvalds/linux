@@ -194,8 +194,8 @@ struct tdls_peer_info {
 	u8 peer_addr[ETH_ALEN];
 };
 
-struct mwifiex_debug_info {
-	unsigned int debug_mask;
+struct mwifiex_de_info {
+	unsigned int de_mask;
 	u32 int_counter;
 	u32 packets_out[MAX_NUM_TID];
 	u32 tx_buf_size;

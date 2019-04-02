@@ -245,7 +245,7 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma,
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pr_debug("cpage[%08llx,%08lx]\n",
+	pr_de("cpage[%08llx,%08lx]\n",
 		 cpu_context(smp_processor_id(), mm), addr);
 
 	/* No ASID => no such page in the cache.  */
@@ -276,13 +276,13 @@ static void r3k_flush_data_cache_page(unsigned long addr)
 
 static void r3k_flush_kernel_vmap_range(unsigned long vaddr, int size)
 {
-	BUG();
+	();
 }
 
 static void r3k_dma_cache_wback_inv(unsigned long start, unsigned long size)
 {
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	_ON(size == 0);
 
 	iob();
 	r3k_flush_dcache_range(start, start + size);

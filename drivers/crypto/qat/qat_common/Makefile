@@ -16,6 +16,6 @@ intel_qat-objs := adf_cfg.o \
 	qat_uclo.o \
 	qat_hal.o
 
-intel_qat-$(CONFIG_DEBUG_FS) += adf_transport_debug.o
+intel_qat-$(CONFIG_DE_FS) += adf_transport_de.o
 intel_qat-$(CONFIG_PCI_IOV) += adf_sriov.o adf_pf2vf_msg.o \
 			       adf_vf2pf_msg.o adf_vf_isr.o

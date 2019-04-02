@@ -50,7 +50,7 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 	u32 hash;
 
 	if (!p_drv->probe || !p_drv->remove)
-		printk(KERN_DEBUG "pcmcia: %s lacks a requisite callback "
+		printk(KERN_DE "pcmcia: %s lacks a requisite callback "
 		       "function\n", p_drv->name);
 
 	while (did && did->match_flags) {
@@ -62,11 +62,11 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 			if (hash == did->prod_id_hash[i])
 				continue;
 
-			printk(KERN_DEBUG "pcmcia: %s: invalid hash for "
+			printk(KERN_DE "pcmcia: %s: invalid hash for "
 			       "product string \"%s\": is 0x%x, should "
 			       "be 0x%x\n", p_drv->name, did->prod_id[i],
 			       did->prod_id_hash[i], hash);
-			printk(KERN_DEBUG "pcmcia: see "
+			printk(KERN_DE "pcmcia: see "
 				"Documentation/pcmcia/devicetable.txt for "
 				"details\n");
 		}
@@ -185,7 +185,7 @@ int pcmcia_register_driver(struct pcmcia_driver *driver)
 	mutex_init(&driver->dynids.lock);
 	INIT_LIST_HEAD(&driver->dynids.list);
 
-	pr_debug("registering driver %s\n", driver->name);
+	pr_de("registering driver %s\n", driver->name);
 
 	error = driver_register(&driver->drv);
 	if (error < 0)
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(pcmcia_register_driver);
  */
 void pcmcia_unregister_driver(struct pcmcia_driver *driver)
 {
-	pr_debug("unregistering driver %s\n", driver->name);
+	pr_de("unregistering driver %s\n", driver->name);
 	pcmcia_remove_newid_file(driver);
 	driver_unregister(&driver->drv);
 	pcmcia_free_dynids(driver);
@@ -233,7 +233,7 @@ static void pcmcia_put_dev(struct pcmcia_device *p_dev)
 static void pcmcia_release_function(struct kref *ref)
 {
 	struct config_t *c = container_of(ref, struct config_t, ref);
-	pr_debug("releasing config_t\n");
+	pr_de("releasing config_t\n");
 	kfree(c);
 }
 
@@ -494,7 +494,7 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 	if (!s)
 		return NULL;
 
-	pr_debug("adding device to %d, function %d\n", s->sock, function);
+	pr_de("adding device to %d, function %d\n", s->sock, function);
 
 	p_dev = kzalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
 	if (!p_dev)

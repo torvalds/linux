@@ -252,7 +252,7 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -283,7 +283,7 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 	} *cmd;
 	struct vmw_fence_obj *fence;
 
-	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
+	_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -460,7 +460,7 @@ static int vmw_dx_shader_bind(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_shader_unscrub(res);
 	mutex_unlock(&dev_priv->binding_mutex);
@@ -526,7 +526,7 @@ static int vmw_dx_shader_unbind(struct vmw_resource *res,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
+	_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	ret = vmw_dx_shader_scrub(res);

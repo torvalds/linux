@@ -65,14 +65,14 @@ static int __ocfs2_node_num_to_slot(struct ocfs2_slot_info *si,
 static void ocfs2_invalidate_slot(struct ocfs2_slot_info *si,
 				  int slot_num)
 {
-	BUG_ON((slot_num < 0) || (slot_num >= si->si_num_slots));
+	_ON((slot_num < 0) || (slot_num >= si->si_num_slots));
 	si->si_slots[slot_num].sl_valid = 0;
 }
 
 static void ocfs2_set_slot(struct ocfs2_slot_info *si,
 			   int slot_num, unsigned int node_num)
 {
-	BUG_ON((slot_num < 0) || (slot_num >= si->si_num_slots));
+	_ON((slot_num < 0) || (slot_num >= si->si_num_slots));
 
 	si->si_slots[slot_num].sl_valid = 1;
 	si->si_slots[slot_num].sl_node_num = node_num;
@@ -139,8 +139,8 @@ int ocfs2_refresh_slot_info(struct ocfs2_super *osb)
 	if (si == NULL)
 		return 0;
 
-	BUG_ON(si->si_blocks == 0);
-	BUG_ON(si->si_bh == NULL);
+	_ON(si->si_blocks == 0);
+	_ON(si->si_bh == NULL);
 
 	trace_ocfs2_refresh_slot_info(si->si_blocks);
 
@@ -170,7 +170,7 @@ static void ocfs2_update_disk_slot_extended(struct ocfs2_slot_info *si,
 	int slotno = slot_num % si->si_slots_per_block;
 	struct ocfs2_slot_map_extended *se;
 
-	BUG_ON(blkind >= si->si_blocks);
+	_ON(blkind >= si->si_blocks);
 
 	se = (struct ocfs2_slot_map_extended *)si->si_bh[blkind]->b_data;
 	se->se_slots[slotno].es_valid = si->si_slots[slot_num].sl_valid;
@@ -305,8 +305,8 @@ int ocfs2_slot_to_node_num_locked(struct ocfs2_super *osb, int slot_num,
 
 	assert_spin_locked(&osb->osb_lock);
 
-	BUG_ON(slot_num < 0);
-	BUG_ON(slot_num >= osb->max_slots);
+	_ON(slot_num < 0);
+	_ON(slot_num >= osb->max_slots);
 
 	if (!si->si_slots[slot_num].sl_valid)
 		return -ENOENT;
@@ -364,7 +364,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 		goto bail;
 
 	blocks = ocfs2_blocks_for_bytes(si->si_inode->i_sb, bytes);
-	BUG_ON(blocks > UINT_MAX);
+	_ON(blocks > UINT_MAX);
 	si->si_blocks = blocks;
 	if (!si->si_blocks)
 		goto bail;
@@ -377,7 +377,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 		si->si_slots_per_block = osb->sb->s_blocksize / sizeof(__le16);
 
 	/* The size checks above should ensure this */
-	BUG_ON((osb->max_slots / si->si_slots_per_block) > blocks);
+	_ON((osb->max_slots / si->si_slots_per_block) > blocks);
 
 	trace_ocfs2_map_slot_buffers(bytes, si->si_blocks);
 

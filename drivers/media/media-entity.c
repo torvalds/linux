@@ -92,17 +92,17 @@ void media_entity_enum_cleanup(struct media_entity_enum *ent_enum)
 EXPORT_SYMBOL_GPL(media_entity_enum_cleanup);
 
 /**
- *  dev_dbg_obj - Prints in debug mode a change on some object
+ *  dev_dbg_obj - Prints in de mode a change on some object
  *
  * @event_name:	Name of the event to report. Could be __func__
  * @gobj:	Pointer to the object
  *
- * Enabled only if DEBUG or CONFIG_DYNAMIC_DEBUG. Otherwise, it
+ * Enabled only if DE or CONFIG_DYNAMIC_DE. Otherwise, it
  * won't produce any code.
  */
 static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 {
-#if defined(DEBUG) || defined (CONFIG_DYNAMIC_DEBUG)
+#if defined(DE) || defined (CONFIG_DYNAMIC_DE)
 	switch (media_type(gobj)) {
 	case MEDIA_GRAPH_ENTITY:
 		dev_dbg(gobj->mdev->dev,
@@ -155,7 +155,7 @@ void media_gobj_create(struct media_device *mdev,
 			   enum media_gobj_type type,
 			   struct media_gobj *gobj)
 {
-	BUG_ON(!mdev);
+	_ON(!mdev);
 
 	gobj->mdev = mdev;
 
@@ -695,9 +695,9 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	struct media_link *link;
 	struct media_link *backlink;
 
-	BUG_ON(source == NULL || sink == NULL);
-	BUG_ON(source_pad >= source->num_pads);
-	BUG_ON(sink_pad >= sink->num_pads);
+	_ON(source == NULL || sink == NULL);
+	_ON(source_pad >= source->num_pads);
+	_ON(sink_pad >= sink->num_pads);
 
 	link = media_add_link(&source->links);
 	if (link == NULL)

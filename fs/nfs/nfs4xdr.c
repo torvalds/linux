@@ -74,8 +74,8 @@ static void encode_layoutget(struct xdr_stream *xdr,
 static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 			     struct nfs4_layoutget_res *res);
 
-/* NFSv4 COMPOUND tags are only wanted for debugging purposes */
-#ifdef DEBUG
+/* NFSv4 COMPOUND tags are only wanted for deging purposes */
+#ifdef DE
 #define NFS4_MAXTAGLEN		20
 #else
 #define NFS4_MAXTAGLEN		0
@@ -950,7 +950,7 @@ struct compound_hdr {
 static __be32 *reserve_space(struct xdr_stream *xdr, size_t nbytes)
 {
 	__be32 *p = xdr_reserve_space(xdr, nbytes);
-	BUG_ON(!p);
+	_ON(!p);
 	return p;
 }
 
@@ -1473,7 +1473,7 @@ static inline void encode_delegation_type(struct xdr_stream *xdr, fmode_t delega
 		*p = cpu_to_be32(NFS4_OPEN_DELEGATE_WRITE);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1544,7 +1544,7 @@ static void encode_open(struct xdr_stream *xdr, const struct nfs_openargs *arg, 
 		encode_claim_delegate_cur_fh(xdr, &arg->u.delegation);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -3629,7 +3629,7 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 		status = decode_opaque_inline(xdr, &component->len, &component->data);
 		if (unlikely(status != 0))
 			goto out_eio;
-		ifdebug (XDR)
+		ifde (XDR)
 			pr_cont("%s%.*s ",
 				(path->ncomponents != n ? "/ " : ""),
 				component->len, component->data);

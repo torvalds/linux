@@ -507,11 +507,11 @@ static int msm_hdmi_hdcp_auth_prepare(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 	hdmi_write(hdmi, REG_HDMI_HDCP_ENTROPY_CTRL1, 0xF00DFACE);
 
 	/* Disable the RngCipher state */
-	reg_val = hdmi_read(hdmi, REG_HDMI_HDCP_DEBUG_CTRL);
-	reg_val &= ~HDMI_HDCP_DEBUG_CTRL_RNG_CIPHER;
-	hdmi_write(hdmi, REG_HDMI_HDCP_DEBUG_CTRL, reg_val);
-	DBG("HDCP_DEBUG_CTRL=0x%08x",
-		hdmi_read(hdmi, REG_HDMI_HDCP_DEBUG_CTRL));
+	reg_val = hdmi_read(hdmi, REG_HDMI_HDCP_DE_CTRL);
+	reg_val &= ~HDMI_HDCP_DE_CTRL_RNG_CIPHER;
+	hdmi_write(hdmi, REG_HDMI_HDCP_DE_CTRL, reg_val);
+	DBG("HDCP_DE_CTRL=0x%08x",
+		hdmi_read(hdmi, REG_HDMI_HDCP_DE_CTRL));
 
 	/*
 	 * Ensure that all register writes are completed before

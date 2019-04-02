@@ -43,7 +43,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
 
 	/* Ensure we explode rather than put an invalid low mapping of
 	   a high mapping page into the gtt */
-	BUG_ON(pfn & ~(0xFFFFFFFF >> PAGE_SHIFT));
+	_ON(pfn & ~(0xFFFFFFFF >> PAGE_SHIFT));
 
 	if (type & PSB_MMU_CACHED_MEMORY)
 		mask |= PSB_PTE_CACHED;
@@ -449,7 +449,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
 
 	/*
-	 *	The video mmu has a hw bug when accessing 0x0D0000000.
+	 *	The video mmu has a hw  when accessing 0x0D0000000.
 	 *	Make gatt start at 0x0e000,0000. This doesn't actually
 	 *	matter for us but may do if the video acceleration ever
 	 *	gets opened up.
@@ -584,7 +584,7 @@ int psb_gtt_restore(struct drm_device *dev)
 		total++;
 	}
 	mutex_unlock(&dev_priv->gtt_mutex);
-	DRM_DEBUG_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
+	DRM_DE_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
 			 total, (size / 1024));
 
 	return 0;

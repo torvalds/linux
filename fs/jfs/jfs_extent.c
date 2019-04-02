@@ -23,7 +23,7 @@
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
 #include "jfs_extent.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  * forward references

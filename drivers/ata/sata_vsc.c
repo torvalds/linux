@@ -395,7 +395,7 @@ static int vsc_sata_init_one(struct pci_dev *pdev,
 		return rc;
 
 	/*
-	 * Due to a bug in the chip, the default cache line size can't be
+	 * Due to a  in the chip, the default cache line size can't be
 	 * used (unless the default is non-zero).
 	 */
 	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &cls);

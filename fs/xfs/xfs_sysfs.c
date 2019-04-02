@@ -88,11 +88,11 @@ struct kobj_type xfs_mp_ktype = {
 	.default_attrs = xfs_mp_attrs,
 };
 
-#ifdef DEBUG
-/* debug */
+#ifdef DE
+/* de */
 
 STATIC ssize_t
-bug_on_assert_store(
+_on_assert_store(
 	struct kobject		*kobject,
 	const char		*buf,
 	size_t			count)
@@ -105,9 +105,9 @@ bug_on_assert_store(
 		return ret;
 
 	if (val == 1)
-		xfs_globals.bug_on_assert = true;
+		xfs_globals._on_assert = true;
 	else if (val == 0)
-		xfs_globals.bug_on_assert = false;
+		xfs_globals._on_assert = false;
 	else
 		return -EINVAL;
 
@@ -115,13 +115,13 @@ bug_on_assert_store(
 }
 
 STATIC ssize_t
-bug_on_assert_show(
+_on_assert_show(
 	struct kobject		*kobject,
 	char			*buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.bug_on_assert ? 1 : 0);
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals._on_assert ? 1 : 0);
 }
-XFS_SYSFS_ATTR_RW(bug_on_assert);
+XFS_SYSFS_ATTR_RW(_on_assert);
 
 STATIC ssize_t
 log_recovery_delay_store(
@@ -207,7 +207,7 @@ always_cow_show(
 XFS_SYSFS_ATTR_RW(always_cow);
 
 static struct attribute *xfs_dbg_attrs[] = {
-	ATTR_LIST(bug_on_assert),
+	ATTR_LIST(_on_assert),
 	ATTR_LIST(log_recovery_delay),
 	ATTR_LIST(mount_delay),
 	ATTR_LIST(always_cow),
@@ -220,7 +220,7 @@ struct kobj_type xfs_dbg_ktype = {
 	.default_attrs = xfs_dbg_attrs,
 };
 
-#endif /* DEBUG */
+#endif /* DE */
 
 /* stats */
 

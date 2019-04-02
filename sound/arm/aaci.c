@@ -667,7 +667,7 @@ static void aaci_pcm_capture_start(struct aaci_runtime *aacirun)
 
 	aaci_chan_wait_ready(aacirun, SR_RXB);
 
-#ifdef DEBUG
+#ifdef DE
 	/* RX Timeout value: bits 28:17 in RXCR */
 	aacirun->cr |= 0xf << 17;
 #endif

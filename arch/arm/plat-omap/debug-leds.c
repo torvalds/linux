@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/plat-omap/debug-leds.c
+ * linux/arch/arm/plat-omap/de-leds.c
  *
  * Copyright 2011 by Bryan Wu <bryan.wu@canonical.com>
  * Copyright 2003 by Texas Instruments Incorporated
@@ -19,9 +19,9 @@
 
 #include <asm/mach-types.h>
 
-/* Many OMAP development platforms reuse the same "debug board"; these
+/* Many OMAP development platforms reuse the same "de board"; these
  * platforms include H2, H3, H4, and Perseus2.  There are 16 LEDs on the
- * debug board (all green), accessed through FPGA registers.
+ * de board (all green), accessed through FPGA registers.
  */
 
 /* NOTE:  most boards don't have a static mapping for the FPGA ... */

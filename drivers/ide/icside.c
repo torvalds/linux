@@ -301,7 +301,7 @@ static void icside_dma_start(ide_drive_t *drive)
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
 	/* We can not enable DMA on both channels simultaneously. */
-	BUG_ON(dma_channel_active(ec->dma));
+	_ON(dma_channel_active(ec->dma));
 	enable_dma(ec->dma);
 }
 
@@ -320,7 +320,7 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	/*
 	 * We can not enable DMA on both channels.
 	 */
-	BUG_ON(dma_channel_active(ec->dma));
+	_ON(dma_channel_active(ec->dma));
 
 	/*
 	 * Ensure that we have the right interrupt routed.

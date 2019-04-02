@@ -15,8 +15,8 @@
  * - When using custom_read_reg32/custom_write_reg32 only perform the
  * necessary logical operations on the register value in between these
  * two calls. All other logic should be performed before the first call.
-  * - There is a bug on the R10000 chips which has a workaround. If you
- * are affected by this bug, make sure to define the symbol 'R10000_LLSC_WAR'
+  * - There is a  on the R10000 chips which has a workaround. If you
+ * are affected by this , make sure to define the symbol 'R10000_LLSC_WAR'
  * to be non-zero.  If you are using this header from within linux, you may
  * include <asm/war.h> before including this file to have this defined
  * appropriately for you.

@@ -38,8 +38,8 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB_DEBUG_ON)
-#define DMAPOOL_DEBUG 1
+#if defined(CONFIG_DE_SLAB) || defined(CONFIG_SLUB_DE_ON)
+#define DMAPOOL_DE 1
 #endif
 
 struct dma_pool {		/* the pool */
@@ -231,7 +231,7 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
 	page->vaddr = dma_alloc_coherent(pool->dev, pool->allocation,
 					 &page->dma, mem_flags);
 	if (page->vaddr) {
-#ifdef	DMAPOOL_DEBUG
+#ifdef	DMAPOOL_DE
 		memset(page->vaddr, POOL_POISON_FREED, pool->allocation);
 #endif
 		pool_initialise_page(pool, page);
@@ -253,7 +253,7 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
 {
 	dma_addr_t dma = page->dma;
 
-#ifdef	DMAPOOL_DEBUG
+#ifdef	DMAPOOL_DE
 	memset(page->vaddr, POOL_POISON_FREED, pool->allocation);
 #endif
 	dma_free_coherent(pool->dev, pool->allocation, page->vaddr, dma);
@@ -351,7 +351,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 	page->offset = *(int *)(page->vaddr + offset);
 	retval = offset + page->vaddr;
 	*handle = offset + page->dma;
-#ifdef	DMAPOOL_DEBUG
+#ifdef	DMAPOOL_DE
 	{
 		int i;
 		u8 *data = retval;
@@ -431,7 +431,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 	}
 
 	offset = vaddr - page->vaddr;
-#ifdef	DMAPOOL_DEBUG
+#ifdef	DMAPOOL_DE
 	if ((dma - page->dma) != offset) {
 		spin_unlock_irqrestore(&pool->lock, flags);
 		if (pool->dev)

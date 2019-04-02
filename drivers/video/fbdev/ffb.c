@@ -479,7 +479,7 @@ static void ffb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	unsigned long flags;
 	u32 fg;
 
-	BUG_ON(rect->rop != ROP_COPY && rect->rop != ROP_XOR);
+	_ON(rect->rop != ROP_COPY && rect->rop != ROP_XOR);
 
 	fg = ((u32 *)info->pseudo_palette)[rect->color];
 

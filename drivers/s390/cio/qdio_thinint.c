@@ -11,7 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/rculist.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/qdio.h>
 #include <asm/airq.h>
 #include <asm/isc.h>
@@ -19,7 +19,7 @@
 #include "cio.h"
 #include "ioasm.h"
 #include "qdio.h"
-#include "qdio_debug.h"
+#include "qdio_de.h"
 
 /*
  * Restriction: only 63 iqdio subchannels would have its own indicator,

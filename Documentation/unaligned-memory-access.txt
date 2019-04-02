@@ -66,7 +66,7 @@ here; a summary of the common scenarios is presented below:
    unaligned access to be corrected.
  - Some architectures are not capable of unaligned memory access, but will
    silently perform a different memory access to the one that was requested,
-   resulting in a subtle code bug that is hard to detect!
+   resulting in a subtle code  that is hard to detect!
 
 It should be obvious from the above that if your code causes unaligned
 memory accesses to happen, your code will not work correctly on certain

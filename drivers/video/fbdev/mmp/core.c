@@ -54,7 +54,7 @@ static int path_check_status(struct mmp_path *path)
 static int path_get_modelist(struct mmp_path *path,
 		struct mmp_mode **modelist)
 {
-	BUG_ON(!path || !modelist);
+	_ON(!path || !modelist);
 
 	if (path->panel && path->panel->get_modelist)
 		return path->panel->get_modelist(path->panel, modelist);

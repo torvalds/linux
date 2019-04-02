@@ -249,7 +249,7 @@ static void  fb_set_logo_truepalette(struct fb_info *info,
 	 * We have to create a temporary palette since console palette is only
 	 * 16 colors long.
 	 */
-	/* Bug: Doesn't obey msb_right ... (who needs that?) */
+	/* : Doesn't obey msb_right ... (who needs that?) */
 	redmask   = mask[info->var.red.length   < 8 ? info->var.red.length   : 8];
 	greenmask = mask[info->var.green.length < 8 ? info->var.green.length : 8];
 	bluemask  = mask[info->var.blue.length  < 8 ? info->var.blue.length  : 8];
@@ -1608,7 +1608,7 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 		struct aperture *h = &hwa->ranges[i];
 		for (j = 0; j < gena->count; ++j) {
 			struct aperture *g = &gena->ranges[j];
-			printk(KERN_DEBUG "checking generic (%llx %llx) vs hw (%llx %llx)\n",
+			printk(KERN_DE "checking generic (%llx %llx) vs hw (%llx %llx)\n",
 				(unsigned long long)g->base,
 				(unsigned long long)g->size,
 				(unsigned long long)h->base,
@@ -1655,7 +1655,7 @@ static int do_remove_conflicting_framebuffers(struct apertures_struct *a,
 static bool lockless_register_fb;
 module_param_named_unsafe(lockless_register_fb, lockless_register_fb, bool, 0400);
 MODULE_PARM_DESC(lockless_register_fb,
-	"Lockless framebuffer registration for debugging [default=off]");
+	"Lockless framebuffer registration for deging [default=off]");
 
 static int do_register_framebuffer(struct fb_info *fb_info)
 {

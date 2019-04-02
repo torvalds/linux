@@ -386,7 +386,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			continue;
 		}
 
-		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+		VM__ON_PAGE(PageTransCompound(page), page);
 
 		if (PageSwapCache(page) || PageDirty(page)) {
 			if (!trylock_page(page))

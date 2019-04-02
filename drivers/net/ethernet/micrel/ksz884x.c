@@ -1217,10 +1217,10 @@ struct ksz_port_info {
 
 #define MAX_TX_HELD_SIZE		52000
 
-/* Hardware features and bug fixes. */
+/* Hardware features and  fixes. */
 #define LINK_INT_WORKING		(1 << 0)
-#define SMALL_PACKET_TX_BUG		(1 << 1)
-#define HALF_DUPLEX_SIGNAL_BUG		(1 << 2)
+#define SMALL_PACKET_TX_		(1 << 1)
+#define HALF_DUPLEX_SIGNAL_		(1 << 2)
 #define RX_HUGE_FRAME			(1 << 4)
 #define STP_SUPPORT			(1 << 8)
 
@@ -3263,7 +3263,7 @@ static void determine_flow_ctrl(struct ksz_hw *hw, struct ksz_port *port,
 static inline void port_cfg_change(struct ksz_hw *hw, struct ksz_port *port,
 	struct ksz_port_info *info, u16 link_status)
 {
-	if ((hw->features & HALF_DUPLEX_SIGNAL_BUG) &&
+	if ((hw->features & HALF_DUPLEX_SIGNAL_) &&
 			!(hw->overrides & PAUSE_FLOW_CTRL)) {
 		u32 cfg = hw->tx_cfg;
 
@@ -3732,11 +3732,11 @@ static int hw_init(struct ksz_hw *hw)
 	else
 		return 0;
 
-	/* Setup hardware features or bug workarounds. */
+	/* Setup hardware features or  workarounds. */
 	if (revision <= 1) {
-		hw->features |= SMALL_PACKET_TX_BUG;
+		hw->features |= SMALL_PACKET_TX_;
 		if (1 == rc)
-			hw->features |= HALF_DUPLEX_SIGNAL_BUG;
+			hw->features |= HALF_DUPLEX_SIGNAL_;
 	}
 	return rc;
 }
@@ -4841,7 +4841,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 	int num = 1;
 	int rc = 0;
 
-	if (hw->features & SMALL_PACKET_TX_BUG) {
+	if (hw->features & SMALL_PACKET_TX_) {
 		struct sk_buff *org_skb = skb;
 
 		if (skb->len <= 48) {
@@ -6215,12 +6215,12 @@ static int netdev_set_wol(struct net_device *dev,
 }
 
 /**
- * netdev_get_msglevel - get debug message level
+ * netdev_get_msglevel - get de message level
  * @dev:	Network device.
  *
- * This function returns current debug message level.
+ * This function returns current de message level.
  *
- * Return current debug message flags.
+ * Return current de message flags.
  */
 static u32 netdev_get_msglevel(struct net_device *dev)
 {
@@ -6230,11 +6230,11 @@ static u32 netdev_get_msglevel(struct net_device *dev)
 }
 
 /**
- * netdev_set_msglevel - set debug message level
+ * netdev_set_msglevel - set de message level
  * @dev:	Network device.
- * @value:	Debug message flags.
+ * @value:	De message flags.
  *
- * This procedure sets debug message level.
+ * This procedure sets de message level.
  */
 static void netdev_set_msglevel(struct net_device *dev, u32 value)
 {

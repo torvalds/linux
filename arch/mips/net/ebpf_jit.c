@@ -285,7 +285,7 @@ static int gen_int_prologue(struct jit_ctx *ctx)
 	if (ctx->flags & EBPF_SAVE_S4)
 		stack_adjust += 8;
 
-	BUILD_BUG_ON(MAX_BPF_STACK & 7);
+	BUILD__ON(MAX_BPF_STACK & 7);
 	locals_size = (ctx->flags & EBPF_SEEN_FP) ? MAX_BPF_STACK : 0;
 
 	stack_adjust += locals_size;
@@ -1208,7 +1208,7 @@ jeq_common:
 
 	case BPF_JMP | BPF_JA:
 		/*
-		 * Prefer relative branch for easier debugging, but
+		 * Prefer relative branch for easier deging, but
 		 * fall back if needed.
 		 */
 		b_off = b_imm(this_idx + insn->off + 1, ctx);
@@ -1707,7 +1707,7 @@ static void jit_fill_hole(void *area, unsigned int size)
 
 	/* We are guaranteed to have aligned memory. */
 	for (p = area; size >= sizeof(u32); size -= sizeof(u32))
-		uasm_i_break(&p, BRK_BUG); /* Increments p */
+		uasm_i_break(&p, BRK_); /* Increments p */
 }
 
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)

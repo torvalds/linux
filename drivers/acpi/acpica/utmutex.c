@@ -197,11 +197,11 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 
 	this_thread_id = acpi_os_get_thread_id();
 
-#ifdef ACPI_MUTEX_DEBUG
+#ifdef ACPI_MUTEX_DE
 	{
 		u32 i;
 		/*
-		 * Mutex debug code, for internal debugging only.
+		 * Mutex de code, for internal deging only.
 		 *
 		 * Deadlock prevention. Check if this thread owns any mutexes of value
 		 * greater than or equal to this one. If so, the thread has violated
@@ -232,7 +232,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 	}
 #endif
 
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+	ACPI_DE_PRINT((ACPI_DB_MUTEX,
 			  "Thread %u attempting to acquire Mutex [%s]\n",
 			  (u32)this_thread_id,
 			  acpi_ut_get_mutex_name(mutex_id)));
@@ -241,7 +241,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 	    acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
 				  ACPI_WAIT_FOREVER);
 	if (ACPI_SUCCESS(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+		ACPI_DE_PRINT((ACPI_DB_MUTEX,
 				  "Thread %u acquired Mutex [%s]\n",
 				  (u32)this_thread_id,
 				  acpi_ut_get_mutex_name(mutex_id)));
@@ -274,7 +274,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 {
 	ACPI_FUNCTION_NAME(ut_release_mutex);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Thread %u releasing Mutex [%s]\n",
+	ACPI_DE_PRINT((ACPI_DB_MUTEX, "Thread %u releasing Mutex [%s]\n",
 			  (u32)acpi_os_get_thread_id(),
 			  acpi_ut_get_mutex_name(mutex_id)));
 
@@ -292,11 +292,11 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 
 		return (AE_NOT_ACQUIRED);
 	}
-#ifdef ACPI_MUTEX_DEBUG
+#ifdef ACPI_MUTEX_DE
 	{
 		u32 i;
 		/*
-		 * Mutex debug code, for internal debugging only.
+		 * Mutex de code, for internal deging only.
 		 *
 		 * Deadlock prevention. Check if this thread owns any mutexes of value
 		 * greater than this one. If so, the thread has violated the mutex

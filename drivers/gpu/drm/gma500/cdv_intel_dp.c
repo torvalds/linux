@@ -182,7 +182,7 @@ i2c_algo_dp_aux_xfer(struct i2c_adapter *adapter,
 	if (ret >= 0)
 		ret = num;
 	i2c_algo_dp_aux_stop(adapter, reading);
-	DRM_DEBUG_KMS("dp_aux_xfer return %d\n", ret);
+	DRM_DE_KMS("dp_aux_xfer return %d\n", ret);
 	return ret;
 }
 
@@ -382,10 +382,10 @@ static void cdv_intel_edp_panel_vdd_on(struct gma_encoder *intel_encoder)
 	u32 pp;
 
 	if (intel_dp->panel_on) {
-		DRM_DEBUG_KMS("Skip VDD on because of panel on\n");
+		DRM_DE_KMS("Skip VDD on because of panel on\n");
 		return;
 	}	
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	pp = REG_READ(PP_CONTROL);
 
@@ -400,7 +400,7 @@ static void cdv_intel_edp_panel_vdd_off(struct gma_encoder *intel_encoder)
 	struct drm_device *dev = intel_encoder->base.dev;
 	u32 pp;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	pp = REG_READ(PP_CONTROL);
 
 	pp &= ~EDP_FORCE_VDD;
@@ -419,7 +419,7 @@ static bool cdv_intel_edp_panel_on(struct gma_encoder *intel_encoder)
 	if (intel_dp->panel_on)
 		return true;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	pp = REG_READ(PP_CONTROL);
 	pp &= ~PANEL_UNLOCK_MASK;
 
@@ -428,7 +428,7 @@ static bool cdv_intel_edp_panel_on(struct gma_encoder *intel_encoder)
 	REG_READ(PP_CONTROL);
 
 	if (wait_for(((REG_READ(PP_STATUS) & idle_on_mask) == idle_on_mask), 1000)) {
-		DRM_DEBUG_KMS("Error in Powering up eDP panel, status %x\n", REG_READ(PP_STATUS));
+		DRM_DE_KMS("Error in Powering up eDP panel, status %x\n", REG_READ(PP_STATUS));
 		intel_dp->panel_on = false;
 	} else
 		intel_dp->panel_on = true;	
@@ -443,7 +443,7 @@ static void cdv_intel_edp_panel_off (struct gma_encoder *intel_encoder)
 	u32 pp, idle_off_mask = PP_ON ;
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	pp = REG_READ(PP_CONTROL);
 
@@ -459,14 +459,14 @@ static void cdv_intel_edp_panel_off (struct gma_encoder *intel_encoder)
 	pp &= ~EDP_BLC_ENABLE;
 	REG_WRITE(PP_CONTROL, pp);
 	REG_READ(PP_CONTROL);
-	DRM_DEBUG_KMS("PP_STATUS %x\n", REG_READ(PP_STATUS));
+	DRM_DE_KMS("PP_STATUS %x\n", REG_READ(PP_STATUS));
 
 	if (wait_for((REG_READ(PP_STATUS) & idle_off_mask) == 0, 1000)) {
-		DRM_DEBUG_KMS("Error in turning off Panel\n");	
+		DRM_DE_KMS("Error in turning off Panel\n");	
 	}
 
 	msleep(intel_dp->panel_power_cycle_delay);
-	DRM_DEBUG_KMS("Over\n");
+	DRM_DE_KMS("Over\n");
 }
 
 static void cdv_intel_edp_backlight_on (struct gma_encoder *intel_encoder)
@@ -474,7 +474,7 @@ static void cdv_intel_edp_backlight_on (struct gma_encoder *intel_encoder)
 	struct drm_device *dev = intel_encoder->base.dev;
 	u32 pp;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	/*
 	 * If we enable the backlight right away following a panel power
 	 * on, we may see slight flicker as the panel syncs with the eDP
@@ -495,7 +495,7 @@ static void cdv_intel_edp_backlight_off (struct gma_encoder *intel_encoder)
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	u32 pp;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	gma_backlight_disable(dev);
 	msleep(10);
 	pp = REG_READ(PP_CONTROL);
@@ -648,7 +648,7 @@ cdv_intel_dp_aux_ch(struct gma_encoder *encoder,
 	/* Timeouts occur when the device isn't connected, so they're
 	 * "normal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
-		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
+		DRM_DE_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		return -ETIMEDOUT;
 	}
 
@@ -797,7 +797,7 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				      msg, msg_bytes,
 				      reply, reply_bytes);
 		if (ret < 0) {
-			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
+			DRM_DE_KMS("aux_ch failed %d\n", ret);
 			return ret;
 		}
 
@@ -808,7 +808,7 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			 */
 			break;
 		case DP_AUX_NATIVE_REPLY_NACK:
-			DRM_DEBUG_KMS("aux_ch native nack\n");
+			DRM_DE_KMS("aux_ch native nack\n");
 			return -EREMOTEIO;
 		case DP_AUX_NATIVE_REPLY_DEFER:
 			udelay(100);
@@ -826,10 +826,10 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			}
 			return reply_bytes - 1;
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("aux_i2c nack\n");
+			DRM_DE_KMS("aux_i2c nack\n");
 			return -EREMOTEIO;
 		case DP_AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG_KMS("aux_i2c defer\n");
+			DRM_DE_KMS("aux_i2c defer\n");
 			udelay(100);
 			break;
 		default:
@@ -849,7 +849,7 @@ cdv_intel_dp_i2c_init(struct gma_connector *connector,
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
 
-	DRM_DEBUG_KMS("i2c_init %s\n", name);
+	DRM_DE_KMS("i2c_init %s\n", name);
 
 	intel_dp->algo.running = false;
 	intel_dp->algo.address = 0;
@@ -918,7 +918,7 @@ cdv_intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mo
 				intel_dp->link_bw = bws[clock];
 				intel_dp->lane_count = lane_count;
 				adjusted_mode->clock = cdv_intel_dp_link_clock(intel_dp->link_bw);
-				DRM_DEBUG_KMS("Display port link bw %02x lane "
+				DRM_DE_KMS("Display port link bw %02x lane "
 						"count %d clock %d\n",
 				       intel_dp->link_bw, intel_dp->lane_count,
 				       adjusted_mode->clock);
@@ -931,7 +931,7 @@ cdv_intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mo
 		intel_dp->lane_count = max_lane_count;
 		intel_dp->link_bw = bws[max_clock];
 		adjusted_mode->clock = cdv_intel_dp_link_clock(intel_dp->link_bw);
-		DRM_DEBUG_KMS("Force picking display port link bw %02x lane "
+		DRM_DE_KMS("Force picking display port link bw %02x lane "
 			      "count %d clock %d\n",
 			      intel_dp->link_bw, intel_dp->lane_count,
 			      adjusted_mode->clock);
@@ -1086,7 +1086,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 		intel_dp->DP |= DP_PIPEB_SELECT;
 
 	REG_WRITE(intel_dp->output_reg, (intel_dp->DP | DP_PORT_EN));
-	DRM_DEBUG_KMS("DP expected reg is %x\n", intel_dp->DP);
+	DRM_DE_KMS("DP expected reg is %x\n", intel_dp->DP);
 	if (is_edp(intel_encoder)) {
 		uint32_t pfit_control;
 		cdv_intel_edp_panel_on(intel_encoder);
@@ -1118,7 +1118,7 @@ static void cdv_intel_dp_sink_dpms(struct gma_encoder *encoder, int mode)
 		ret = cdv_intel_dp_aux_native_write_1(encoder, DP_SET_POWER,
 						  DP_SET_POWER_D3);
 		if (ret != 1)
-			DRM_DEBUG_DRIVER("failed to write sink power state\n");
+			DRM_DE_DRIVER("failed to write sink power state\n");
 	} else {
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
@@ -1398,7 +1398,7 @@ cdv_intel_dp_set_link_train(struct gma_encoder *encoder,
 				    dp_train_pat);
 
 	if (ret != 1) {
-		DRM_DEBUG_KMS("Failure in setting link pattern %x\n",
+		DRM_DE_KMS("Failure in setting link pattern %x\n",
 				dp_train_pat);
 		return false;
 	}
@@ -1421,7 +1421,7 @@ cdv_intel_dplink_set_level(struct gma_encoder *encoder,
 					intel_dp->lane_count);
 
 	if (ret != intel_dp->lane_count) {
-		DRM_DEBUG_KMS("Failure in setting level %d, lane_cnt= %d\n",
+		DRM_DE_KMS("Failure in setting level %d, lane_cnt= %d\n",
 				intel_dp->train_set[0], intel_dp->lane_count);
 		return false;
 	}
@@ -1450,7 +1450,7 @@ cdv_intel_dp_set_vswing_premph(struct gma_encoder *encoder, uint8_t signal_level
 #ifdef CDV_FAST_LINK_TRAIN
 	return;
 #endif
-	DRM_DEBUG_KMS("Test2\n");
+	DRM_DE_KMS("Test2\n");
 	//return ;
 	cdv_sb_reset(dev);
 	/* ;Swing voltage programming
@@ -1516,7 +1516,7 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 	REG_READ(intel_dp->output_reg);
 	gma_wait_for_vblank(dev);
 
-	DRM_DEBUG_KMS("Link config\n");
+	DRM_DE_KMS("Link config\n");
 	/* Write the link configuration data */
 	cdv_intel_dp_aux_native_write(encoder, DP_LINK_BW_SET,
 				  intel_dp->link_configuration,
@@ -1527,19 +1527,19 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 	tries = 0;
 	clock_recovery = false;
 
-	DRM_DEBUG_KMS("Start train\n");
+	DRM_DE_KMS("Start train\n");
 		reg = DP | DP_LINK_TRAIN_PAT_1;
 
 
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
-		DRM_DEBUG_KMS("DP Link Train Set %x, Link_config %x, %x\n",
+		DRM_DE_KMS("DP Link Train Set %x, Link_config %x, %x\n",
 				intel_dp->train_set[0],
 				intel_dp->link_configuration[0],
 				intel_dp->link_configuration[1]);
 
 		if (!cdv_intel_dp_set_link_train(encoder, reg, DP_TRAINING_PATTERN_1)) {
-			DRM_DEBUG_KMS("Failure in aux-transfer setting pattern 1\n");
+			DRM_DE_KMS("Failure in aux-transfer setting pattern 1\n");
 		}
 		cdv_intel_dp_set_vswing_premph(encoder, intel_dp->train_set[0]);
 		/* Set training pattern 1 */
@@ -1550,12 +1550,12 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 		if (!cdv_intel_dp_get_link_status(encoder))
 			break;
 
-		DRM_DEBUG_KMS("DP Link status %x, %x, %x, %x, %x, %x\n",
+		DRM_DE_KMS("DP Link status %x, %x, %x, %x, %x, %x\n",
 				intel_dp->link_status[0], intel_dp->link_status[1], intel_dp->link_status[2],
 				intel_dp->link_status[3], intel_dp->link_status[4], intel_dp->link_status[5]);
 
 		if (cdv_intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
-			DRM_DEBUG_KMS("PT1 train is done\n");
+			DRM_DE_KMS("PT1 train is done\n");
 			clock_recovery = true;
 			break;
 		}
@@ -1582,7 +1582,7 @@ cdv_intel_dp_start_link_train(struct gma_encoder *encoder)
 	}
 
 	if (!clock_recovery) {
-		DRM_DEBUG_KMS("failure in DP patter 1 training, train set %x\n", intel_dp->train_set[0]);
+		DRM_DE_KMS("failure in DP patter 1 training, train set %x\n", intel_dp->train_set[0]);
 	}
 	
 	intel_dp->DP = DP;
@@ -1603,12 +1603,12 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 	cr_tries = 0;
 	channel_eq = false;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 		reg = DP | DP_LINK_TRAIN_PAT_2;
 
 	for (;;) {
 
-		DRM_DEBUG_KMS("DP Link Train Set %x, Link_config %x, %x\n",
+		DRM_DE_KMS("DP Link Train Set %x, Link_config %x, %x\n",
 				intel_dp->train_set[0],
 				intel_dp->link_configuration[0],
 				intel_dp->link_configuration[1]);
@@ -1616,7 +1616,7 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 
 		if (!cdv_intel_dp_set_link_train(encoder, reg,
 					     DP_TRAINING_PATTERN_2)) {
-			DRM_DEBUG_KMS("Failure in aux-transfer setting pattern 2\n");
+			DRM_DE_KMS("Failure in aux-transfer setting pattern 2\n");
 		}
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
 
@@ -1634,7 +1634,7 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 		if (!cdv_intel_dp_get_link_status(encoder))
 			break;
 
-		DRM_DEBUG_KMS("DP Link status %x, %x, %x, %x, %x, %x\n",
+		DRM_DE_KMS("DP Link status %x, %x, %x, %x, %x, %x\n",
 				intel_dp->link_status[0], intel_dp->link_status[1], intel_dp->link_status[2],
 				intel_dp->link_status[3], intel_dp->link_status[4], intel_dp->link_status[5]);
 
@@ -1646,7 +1646,7 @@ cdv_intel_dp_complete_link_train(struct gma_encoder *encoder)
 		}
 
 		if (cdv_intel_channel_eq_ok(encoder)) {
-			DRM_DEBUG_KMS("PT2 train is done\n");
+			DRM_DE_KMS("PT2 train is done\n");
 			channel_eq = true;
 			break;
 		}
@@ -1684,7 +1684,7 @@ cdv_intel_dp_link_down(struct gma_encoder *encoder)
 	if ((REG_READ(intel_dp->output_reg) & DP_PORT_EN) == 0)
 		return;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 
 	{
@@ -1712,7 +1712,7 @@ static enum drm_connector_status cdv_dp_detect(struct gma_encoder *encoder)
 			status = connector_status_connected;
 	}
 	if (status == connector_status_connected)
-		DRM_DEBUG_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
+		DRM_DE_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
 			intel_dp->dpcd[0], intel_dp->dpcd[1],
 			intel_dp->dpcd[2], intel_dp->dpcd[3]);
 	return status;
@@ -2096,7 +2096,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
                 cur.t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
                                PANEL_POWER_CYCLE_DELAY_SHIFT);
 
-                DRM_DEBUG_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
+                DRM_DE_KMS("cur t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
                               cur.t1_t3, cur.t8, cur.t9, cur.t10, cur.t11_t12);
 
 
@@ -2106,11 +2106,11 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
                 intel_dp->panel_power_down_delay = cur.t10 / 10;
                 intel_dp->panel_power_cycle_delay = (cur.t11_t12 - 1) * 100;
 
-                DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
+                DRM_DE_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
                               intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
                               intel_dp->panel_power_cycle_delay);
 
-                DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
+                DRM_DE_KMS("backlight on delay %d, off delay %d\n",
                               intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
 
 
@@ -2126,7 +2126,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 			cdv_intel_dp_destroy(connector);
 			goto err_priv;
 		} else {
-        		DRM_DEBUG_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
+        		DRM_DE_KMS("DPCD: Rev=%x LN_Rate=%x LN_CNT=%x LN_DOWNSP=%x\n",
 				intel_dp->dpcd[0], intel_dp->dpcd[1], 
 				intel_dp->dpcd[2], intel_dp->dpcd[3]);
 			

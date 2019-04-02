@@ -46,7 +46,7 @@
  * @hw_ops: the hardware bus ops for this device.
  * @dev: underlying device.
  * @index: unique position on the cosm bus
- * @dbg_dir: debug fs directory
+ * @dbg_dir: de fs directory
  * @newepd: new endpoint from scif accept to be assigned to this cdev
  * @epd: SCIF endpoint for this cdev
  * @heartbeat_watchdog_enable: if heartbeat watchdog is enabled for this cdev

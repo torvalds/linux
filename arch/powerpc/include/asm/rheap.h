@@ -76,7 +76,7 @@ extern unsigned long rh_alloc_fixed(rh_info_t * info, unsigned long start, int s
 /* Free the allocated area */
 extern int rh_free(rh_info_t * info, unsigned long start);
 
-/* Get stats for debugging purposes */
+/* Get stats for deging purposes */
 extern int rh_get_stats(rh_info_t * info, int what, int max_stats,
 			rh_stats_t * stats);
 

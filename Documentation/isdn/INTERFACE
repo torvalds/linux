@@ -152,7 +152,7 @@ Description of the Interface between Linklevel and Hardwarelevel
     This field has to be preset by the HL-driver. The given function will be
     called to perform write-requests on /dev/isdnctrl (i.e. sending commands
     to the card) The data-format is hardware-specific. This function is
-    intended for debugging only. It is not necessary for normal operation
+    intended for deging only. It is not necessary for normal operation
     and never will be called by the tty-emulation- or network-code. If
     this function is not supported, the driver has to set NULL here.
 
@@ -176,7 +176,7 @@ Description of the Interface between Linklevel and Hardwarelevel
     This field has to be preset by the HL-driver. The given function will be
     called to perform read-requests on /dev/isdnctrl (i.e. reading replies
     from the card) The data-format is hardware-specific. This function is
-    intended for debugging only. It is not necessary for normal operation
+    intended for deging only. It is not necessary for normal operation
     and never will be called by the tty-emulation- or network-code. If
     this function is not supported, the driver has to set NULL here.
 
@@ -488,7 +488,7 @@ Description of the Interface between Linklevel and Hardwarelevel
   ISDN_STAT_AVAIL:
 
     With this call, the HL-driver signals the availability of new data
-    for readstat(). Used only for debugging-purposes, see description
+    for readstat(). Used only for deging-purposes, see description
     of readstat().
 
     Parameter:

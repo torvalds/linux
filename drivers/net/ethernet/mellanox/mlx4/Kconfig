@@ -28,14 +28,14 @@ config MLX4_CORE
 	depends on PCI
 	default n
 
-config MLX4_DEBUG
-	bool "Verbose debugging output" if (MLX4_CORE && EXPERT)
+config MLX4_DE
+	bool "Verbose deging output" if (MLX4_CORE && EXPERT)
 	depends on MLX4_CORE
 	default y
 	---help---
-	  This option causes debugging code to be compiled into the
+	  This option causes deging code to be compiled into the
 	  mlx4_core driver.  The output can be turned on via the
-	  debug_level module parameter (which can also be set after
+	  de_level module parameter (which can also be set after
 	  the driver is loaded through sysfs).
 
 config MLX4_CORE_GEN2

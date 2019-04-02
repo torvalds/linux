@@ -194,7 +194,7 @@
  *       that without breaking the ABI on 32bit systems
  */
 #define UBI_IOCVOLUP _IOW(UBI_VOL_IOC_MAGIC, 0, __s64)
-/* LEB erasure command, used for debugging, disabled by default */
+/* LEB erasure command, used for deging, disabled by default */
 #define UBI_IOCEBER _IOW(UBI_VOL_IOC_MAGIC, 1, __s32)
 /* Atomic LEB change command */
 #define UBI_IOCEBCH _IOW(UBI_VOL_IOC_MAGIC, 2, __s32)

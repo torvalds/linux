@@ -24,15 +24,15 @@
 #include <media/dvb_frontend.h>
 #include "zl10039.h"
 
-static int debug;
+static int de;
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG args); \
+		if (de) \
+			printk(KERN_DE args); \
 	} while (0)
 
 enum zl10039_model_id {
@@ -134,7 +134,7 @@ static inline int zl10039_writereg(struct zl10039_state *state,
 				const enum zl10039_reg_addr reg,
 				const u8 val)
 {
-	const u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	const u8 tmp = val; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 	return zl10039_write(state, reg, &tmp, 1);
 }
@@ -307,8 +307,8 @@ error:
 }
 EXPORT_SYMBOL(zl10039_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 MODULE_DESCRIPTION("Zarlink ZL10039 DVB-S tuner driver");
 MODULE_AUTHOR("Jan D. Louw <jd.louw@mweb.co.za>");
 MODULE_LICENSE("GPL");

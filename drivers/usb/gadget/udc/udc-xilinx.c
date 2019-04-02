@@ -751,7 +751,7 @@ static int xudc_ep_set_halt(struct usb_ep *_ep, int value)
 	u32 epcfgreg;
 
 	if (!_ep || (!ep->desc && ep->epnumber)) {
-		pr_debug("%s: bad ep or descriptor\n", __func__);
+		pr_de("%s: bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
 	udc = ep->udc;
@@ -894,7 +894,7 @@ static int xudc_ep_enable(struct usb_ep *_ep,
 	int ret;
 
 	if (!_ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
-		pr_debug("%s: bad ep or descriptor\n", __func__);
+		pr_de("%s: bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
 
@@ -927,7 +927,7 @@ static int xudc_ep_disable(struct usb_ep *_ep)
 	struct xusb_udc *udc;
 
 	if (!_ep) {
-		pr_debug("%s: invalid ep\n", __func__);
+		pr_de("%s: invalid ep\n", __func__);
 		return -EINVAL;
 	}
 

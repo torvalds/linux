@@ -4,16 +4,16 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_DEBUG_C_
+#define _RTW_DE_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 
-u32 GlobalDebugLevel = _drv_err_;
+u32 GlobalDeLevel = _drv_err_;
 
-#ifdef DEBUG_RTL871X
+#ifdef DE_RTL871X
 
-	u64 GlobalDebugComponents = \
+	u64 GlobalDeComponents = \
 			_module_rtl871x_xmit_c_ |
 			_module_xmit_osdep_c_ |
 			_module_rtl871x_recv_c_ |
@@ -44,7 +44,7 @@ u32 GlobalDebugLevel = _drv_err_;
 			_module_mp_ |
 			_module_efuse_;
 
-#endif /* DEBUG_RTL871X */
+#endif /* DE_RTL871X */
 
 #include <rtw_version.h>
 
@@ -55,7 +55,7 @@ void dump_drv_version(void *sel)
 
 void dump_log_level(void *sel)
 {
-	DBG_871X_SEL_NL(sel, "log_level:%d\n", GlobalDebugLevel);
+	DBG_871X_SEL_NL(sel, "log_level:%d\n", GlobalDeLevel);
 }
 
 void sd_f0_reg_dump(void *sel, struct adapter *adapter)
@@ -132,7 +132,7 @@ void rf_reg_dump(void *sel, struct adapter *adapter)
 	}
 }
 
-#ifdef PROC_DEBUG
+#ifdef PROC_DE
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
 	struct net_device *dev = data;
@@ -630,7 +630,7 @@ int proc_get_suspend_resume_info(struct seq_file *m, void *v)
 	struct net_device *dev = m->private;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct dvobj_priv *dvobj = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &dvobj->drv_dbg;
+	struct de_priv *pdbgpriv = &dvobj->drv_dbg;
 
 	DBG_871X_SEL_NL(m, "dbg_sdio_alloc_irq_cnt =%d\n", pdbgpriv->dbg_sdio_alloc_irq_cnt);
 	DBG_871X_SEL_NL(m, "dbg_sdio_free_irq_cnt =%d\n", pdbgpriv->dbg_sdio_free_irq_cnt);
@@ -949,7 +949,7 @@ int proc_get_hw_status(struct seq_file *m, void *v)
 	struct net_device *dev = m->private;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct dvobj_priv *dvobj = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &dvobj->drv_dbg;
+	struct de_priv *pdbgpriv = &dvobj->drv_dbg;
 
 	DBG_871X_SEL_NL(m, "RX FIFO full count: last_time =%lld, current_time =%lld, differential =%lld\n"
 	, pdbgpriv->dbg_rx_fifo_last_overflow, pdbgpriv->dbg_rx_fifo_curr_overflow, pdbgpriv->dbg_rx_fifo_diff_overflow);

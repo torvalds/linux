@@ -122,7 +122,7 @@ static int uninorth_configure(void)
 			| current_size->size_value);
 
 	/* HACK ALERT
-	 * UniNorth seem to be buggy enough not to handle properly when
+	 * UniNorth seem to be gy enough not to handle properly when
 	 * the AGP aperture isn't mapped at bus physical address 0
 	 */
 	agp_bridge->gart_bus_addr = 0;
@@ -307,7 +307,7 @@ static int agp_uninorth_suspend(struct pci_dev *pdev)
 			continue;
 		/* Only deal with devices on the same bus here, no Mac has a P2P
 		 * bridge on the AGP port, and mucking around the entire PCI
-		 * tree is source of problems on some machines because of a bug
+		 * tree is source of problems on some machines because of a 
 		 * in some versions of pci_find_capability() when hitting a dead
 		 * device
 		 */

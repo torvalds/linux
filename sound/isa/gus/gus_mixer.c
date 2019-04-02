@@ -158,10 +158,10 @@ int snd_gf1_new_mixer(struct snd_gus_card * gus)
 	unsigned int idx, max;
 	int err;
 
-	if (snd_BUG_ON(!gus))
+	if (snd__ON(!gus))
 		return -EINVAL;
 	card = gus->card;
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -EINVAL;
 
 	if (gus->ics_flag)

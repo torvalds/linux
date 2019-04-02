@@ -48,11 +48,11 @@
 	leds {
 		compatible = "gpio-leds";
 		heartbeat {
-			label = "debug::sleep";
+			label = "de::sleep";
 			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* 162 */
 			linux,default-trigger = "default-on";
 			pinctrl-names = "default";
-			pinctrl-0 = <&debug_leds>;
+			pinctrl-0 = <&de_leds>;
 		};
 	};
 
@@ -264,7 +264,7 @@
 		>;
 	};
 
-	debug_leds: pinmux_debug_led_pins {
+	de_leds: pinmux_de_led_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2198, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_clkx.gpio_162 */
 		>;
@@ -811,7 +811,7 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
-	/* For debugging, it is often good idea to remove this GPIO.
+	/* For deging, it is often good idea to remove this GPIO.
 	   It means you can remove back cover (to reboot by removing
 	   battery) and still use the MMC card. */
 	cd-gpios = <&gpio6 0 GPIO_ACTIVE_LOW>; /* 160 */

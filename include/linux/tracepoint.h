@@ -347,7 +347,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * useful to users.
  *
  * With tracepoint_string(), the string will be registered to the tracing
- * system and exported to userspace via the debugfs/tracing/printk_formats
+ * system and exported to userspace via the defs/tracing/printk_formats
  * file that maps the string address to the string text. This way userspace
  * tools that read the binary buffers have a way to map the pointers to
  * the ASCII strings they represent.
@@ -452,7 +452,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  *	* This is how the trace record is structured and will
  *	* be saved into the ring buffer. These are the fields
  *	* that will be exposed to user-space in
- *	* /sys/kernel/debug/tracing/events/<*>/format.
+ *	* /sys/kernel/de/tracing/events/<*>/format.
  *	*
  *	* The declared 'local variable' is called '__entry'
  *	*
@@ -512,7 +512,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * tracepoint callback (this is used by programmatic plugins and
  * can also by used by generic instrumentation like SystemTap), and
  * it is also used to expose a structured trace record in
- * /sys/kernel/debug/tracing/events/.
+ * /sys/kernel/de/tracing/events/.
  *
  * A set of (un)registration functions can be passed to the variant
  * TRACE_EVENT_FN to perform any (un)registration work.

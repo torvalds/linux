@@ -299,7 +299,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 		wqe_size = rcv_wqe_size(qp->rq.max_sge);
 
-		pr_debug("qp#%d max_wr = %d, max_sge = %d, wqe_size = %d\n",
+		pr_de("qp#%d max_wr = %d, max_sge = %d, wqe_size = %d\n",
 			 qp_num(qp), qp->rq.max_wr, qp->rq.max_sge, wqe_size);
 
 		qp->rq.queue = rxe_queue_init(rxe,
@@ -469,7 +469,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 		enum ib_mtu mtu = attr->path_mtu;
 
 		if (mtu > max_mtu) {
-			pr_debug("invalid mtu (%d) > (%d)\n",
+			pr_de("invalid mtu (%d) > (%d)\n",
 				 ib_mtu_enum_to_int(mtu),
 				 ib_mtu_enum_to_int(max_mtu));
 			goto err1;
@@ -663,27 +663,27 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_RETRY_CNT) {
 		qp->attr.retry_cnt = attr->retry_cnt;
 		qp->comp.retry_cnt = attr->retry_cnt;
-		pr_debug("qp#%d set retry count = %d\n", qp_num(qp),
+		pr_de("qp#%d set retry count = %d\n", qp_num(qp),
 			 attr->retry_cnt);
 	}
 
 	if (mask & IB_QP_RNR_RETRY) {
 		qp->attr.rnr_retry = attr->rnr_retry;
 		qp->comp.rnr_retry = attr->rnr_retry;
-		pr_debug("qp#%d set rnr retry count = %d\n", qp_num(qp),
+		pr_de("qp#%d set rnr retry count = %d\n", qp_num(qp),
 			 attr->rnr_retry);
 	}
 
 	if (mask & IB_QP_RQ_PSN) {
 		qp->attr.rq_psn = (attr->rq_psn & BTH_PSN_MASK);
 		qp->resp.psn = qp->attr.rq_psn;
-		pr_debug("qp#%d set resp psn = 0x%x\n", qp_num(qp),
+		pr_de("qp#%d set resp psn = 0x%x\n", qp_num(qp),
 			 qp->resp.psn);
 	}
 
 	if (mask & IB_QP_MIN_RNR_TIMER) {
 		qp->attr.min_rnr_timer = attr->min_rnr_timer;
-		pr_debug("qp#%d set min rnr timer = 0x%x\n", qp_num(qp),
+		pr_de("qp#%d set min rnr timer = 0x%x\n", qp_num(qp),
 			 attr->min_rnr_timer);
 	}
 
@@ -691,7 +691,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.sq_psn = (attr->sq_psn & BTH_PSN_MASK);
 		qp->req.psn = qp->attr.sq_psn;
 		qp->comp.psn = qp->attr.sq_psn;
-		pr_debug("qp#%d set req psn = 0x%x\n", qp_num(qp), qp->req.psn);
+		pr_de("qp#%d set req psn = 0x%x\n", qp_num(qp), qp->req.psn);
 	}
 
 	if (mask & IB_QP_PATH_MIG_STATE)
@@ -705,28 +705,28 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 
 		switch (attr->qp_state) {
 		case IB_QPS_RESET:
-			pr_debug("qp#%d state -> RESET\n", qp_num(qp));
+			pr_de("qp#%d state -> RESET\n", qp_num(qp));
 			rxe_qp_reset(qp);
 			break;
 
 		case IB_QPS_INIT:
-			pr_debug("qp#%d state -> INIT\n", qp_num(qp));
+			pr_de("qp#%d state -> INIT\n", qp_num(qp));
 			qp->req.state = QP_STATE_INIT;
 			qp->resp.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
-			pr_debug("qp#%d state -> RTR\n", qp_num(qp));
+			pr_de("qp#%d state -> RTR\n", qp_num(qp));
 			qp->resp.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_RTS:
-			pr_debug("qp#%d state -> RTS\n", qp_num(qp));
+			pr_de("qp#%d state -> RTS\n", qp_num(qp));
 			qp->req.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_SQD:
-			pr_debug("qp#%d state -> SQD\n", qp_num(qp));
+			pr_de("qp#%d state -> SQD\n", qp_num(qp));
 			rxe_qp_drain(qp);
 			break;
 
@@ -736,7 +736,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 			break;
 
 		case IB_QPS_ERR:
-			pr_debug("qp#%d state -> ERR\n", qp_num(qp));
+			pr_de("qp#%d state -> ERR\n", qp_num(qp));
 			rxe_qp_error(qp);
 			break;
 		}
@@ -776,7 +776,7 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 		attr->sq_draining = 0;
 	}
 
-	pr_debug("attr->sq_draining = %d\n", attr->sq_draining);
+	pr_de("attr->sq_draining = %d\n", attr->sq_draining);
 
 	return 0;
 }

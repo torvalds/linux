@@ -178,7 +178,7 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_page_pool)
 		goto fail_mempool;
 
-	gfs2_register_debugfs();
+	gfs2_register_defs();
 
 	pr_info("GFS2 installed\n");
 
@@ -228,7 +228,7 @@ static void __exit exit_gfs2_fs(void)
 {
 	unregister_shrinker(&gfs2_qd_shrinker);
 	gfs2_glock_exit();
-	gfs2_unregister_debugfs();
+	gfs2_unregister_defs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 	destroy_workqueue(gfs_recovery_wq);

@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io.h>
 
 #include <asm/div64.h>
@@ -299,7 +299,7 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 	    (val & OMAP3430_PRM_POLCTRL_OFFMODE_POL)) {
 		val |= OMAP3430_PRM_POLCTRL_CLKREQ_POL;
 		val &= ~OMAP3430_PRM_POLCTRL_OFFMODE_POL;
-		pr_debug("PM: fixing sys_clkreq and sys_off_mode polarity to 0x%x\n",
+		pr_de("PM: fixing sys_clkreq and sys_off_mode polarity to 0x%x\n",
 			 val);
 		voltdm->write(val, OMAP3_PRM_POLCTRL_OFFSET);
 	}
@@ -318,7 +318,7 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 	val = voltdm->read(OMAP3_PRM_VOLTCTRL_OFFSET);
 	if (!(val & OMAP3430_PRM_VOLTCTRL_SEL_OFF)) {
 		val |= OMAP3430_PRM_VOLTCTRL_SEL_OFF;
-		pr_debug("PM: setting voltctrl sys_off_mode signaling to 0x%x\n",
+		pr_de("PM: setting voltctrl sys_off_mode signaling to 0x%x\n",
 			 val);
 		voltdm->write(val, OMAP3_PRM_VOLTCTRL_OFFSET);
 	}
@@ -391,7 +391,7 @@ static void omap3_set_off_timings(struct voltagedomain *voltdm)
 
 	omap_pm_get_oscillator(&tstart, &tshut);
 	if (tstart == ULONG_MAX) {
-		pr_debug("PM: oscillator start-up time not initialized, using 10ms\n");
+		pr_de("PM: oscillator start-up time not initialized, using 10ms\n");
 		clksetup = omap_usec_to_32k(10000);
 	} else {
 		clksetup = omap_usec_to_32k(tstart);

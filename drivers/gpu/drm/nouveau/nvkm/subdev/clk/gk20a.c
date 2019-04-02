@@ -132,7 +132,7 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate,
 	low_pl = max(low_pl, clk->params->min_pl);
 	low_pl = clk->div_to_pl(low_pl);
 
-	nvkm_debug(subdev, "low_PL %d(div%d), high_PL %d(div%d)", low_pl,
+	nvkm_de(subdev, "low_PL %d(div%d), high_PL %d(div%d)", low_pl,
 		   clk->pl_to_div(low_pl), high_pl, clk->pl_to_div(high_pl));
 
 	/* Select lowest possible VCO */
@@ -190,7 +190,7 @@ found_match:
 	WARN_ON(best_delta == ~0);
 
 	if (best_delta != 0)
-		nvkm_debug(subdev,
+		nvkm_de(subdev,
 			   "no best match for target @ %dMHz on gpc_pll",
 			   target_clk_f / KHZ);
 
@@ -200,7 +200,7 @@ found_match:
 
 	target_freq = gk20a_pllg_calc_rate(clk, pll);
 
-	nvkm_debug(subdev,
+	nvkm_de(subdev,
 		   "actual target freq %d KHz, M %d, N %d, PL %d(div%d)\n",
 		   target_freq / KHZ, pll->m, pll->n, pll->pl,
 		   clk->pl_to_div(pll->pl));
@@ -238,9 +238,9 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 		  BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT));
 
 	/* wait for ramping to complete */
-	if (nvkm_wait_usec(device, 500, GPC_BCAST_NDIV_SLOWDOWN_DEBUG,
-		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK,
-		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK) < 0)
+	if (nvkm_wait_usec(device, 500, GPC_BCAST_NDIV_SLOWDOWN_DE,
+		GPC_BCAST_NDIV_SLOWDOWN_DE_PLL_DYNRAMP_DONE_SYNCED_MASK,
+		GPC_BCAST_NDIV_SLOWDOWN_DE_PLL_DYNRAMP_DONE_SYNCED_MASK) < 0)
 		ret = -ETIMEDOUT;
 
 	/* exit slowdown mode */
@@ -632,7 +632,7 @@ gk20a_clk_ctor(struct nvkm_device *device, int index,
 	if (ret)
 		return ret;
 
-	nvkm_debug(&clk->base.subdev, "parent clock rate: %d Khz\n",
+	nvkm_de(&clk->base.subdev, "parent clock rate: %d Khz\n",
 		   clk->parent_rate / KHZ);
 
 	return 0;

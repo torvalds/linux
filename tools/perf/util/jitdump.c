@@ -16,7 +16,7 @@
 
 #include "util.h"
 #include "event.h"
-#include "debug.h"
+#include "de.h"
 #include "evlist.h"
 #include "symbol.h"
 #include <elf.h>
@@ -41,19 +41,19 @@ struct jit_buf_desc {
 	FILE             *in;
 	bool		 needs_bswap; /* handles cross-endianness */
 	bool		 use_arch_timestamp;
-	void		 *debug_data;
+	void		 *de_data;
 	void		 *unwinding_data;
 	uint64_t	 unwinding_size;
 	uint64_t	 unwinding_mapped_size;
 	uint64_t         eh_frame_hdr_size;
-	size_t		 nr_debug_entries;
+	size_t		 nr_de_entries;
 	uint32_t         code_load_count;
 	u64		 bytes_written;
 	struct rb_root   code_root;
 	char		 dir[PATH_MAX];
 };
 
-struct debug_line_info {
+struct de_line_info {
 	unsigned long vma;
 	unsigned int lineno;
 	/* The filename format is unspecified, absolute path, relative etc. */
@@ -76,8 +76,8 @@ jit_emit_elf(char *filename,
 	     uint64_t code_addr,
 	     const void *code,
 	     int csize,
-	     void *debug,
-	     int nr_debug_entries,
+	     void *de,
+	     int nr_de_entries,
 	     void *unwinding,
 	     uint32_t unwinding_header_size,
 	     uint32_t unwinding_size)
@@ -93,7 +93,7 @@ jit_emit_elf(char *filename,
 		return -1;
 	}
 
-	ret = jit_write_elf(fd, code_addr, sym, (const void *)code, csize, debug, nr_debug_entries,
+	ret = jit_write_elf(fd, code_addr, sym, (const void *)code, csize, de, nr_de_entries,
 			    unwinding, unwinding_header_size, unwinding_size);
 
         close(fd);
@@ -177,7 +177,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	jd->use_arch_timestamp = header.flags & JITDUMP_FLAGS_ARCH_TIMESTAMP;
 
 	if (verbose > 2)
-		pr_debug("version=%u\nhdr.size=%u\nts=0x%llx\npid=%d\nelf_mach=%d\nuse_arch_timestamp=%d\n",
+		pr_de("version=%u\nhdr.size=%u\nts=0x%llx\npid=%d\nelf_mach=%d\nuse_arch_timestamp=%d\n",
 			header.version,
 			header.total_size,
 			(unsigned long long)header.timestamp,
@@ -302,7 +302,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 	jr = (union jr_entry *)jd->buf;
 
 	switch(id) {
-	case JIT_CODE_DEBUG_INFO:
+	case JIT_CODE_DE_INFO:
 		if (jd->needs_bswap) {
 			uint64_t n;
 			jr->info.code_addr = bswap_64(jr->info.code_addr);
@@ -427,13 +427,13 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	size = PERF_ALIGN(size, sizeof(u64));
 	uaddr = (uintptr_t)code;
-	ret = jit_emit_elf(filename, sym, addr, (const void *)uaddr, csize, jd->debug_data, jd->nr_debug_entries,
+	ret = jit_emit_elf(filename, sym, addr, (const void *)uaddr, csize, jd->de_data, jd->nr_de_entries,
 			   jd->unwinding_data, jd->eh_frame_hdr_size, jd->unwinding_size);
 
-	if (jd->debug_data && jd->nr_debug_entries) {
-		free(jd->debug_data);
-		jd->debug_data = NULL;
-		jd->nr_debug_entries = 0;
+	if (jd->de_data && jd->nr_de_entries) {
+		free(jd->de_data);
+		jd->de_data = NULL;
+		jd->nr_de_entries = 0;
 	}
 
 	if (jd->unwinding_data && jd->eh_frame_hdr_size) {
@@ -590,7 +590,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	return ret;
 }
 
-static int jit_repipe_debug_info(struct jit_buf_desc *jd, union jr_entry *jr)
+static int jit_repipe_de_info(struct jit_buf_desc *jd, union jr_entry *jr)
 {
 	void *data;
 	size_t sz;
@@ -605,13 +605,13 @@ static int jit_repipe_debug_info(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	memcpy(data, &jr->info.entries, sz);
 
-	jd->debug_data       = data;
+	jd->de_data       = data;
 
 	/*
 	 * we must use nr_entry instead of size here because
 	 * we cannot distinguish actual entry from padding otherwise
 	 */
-	jd->nr_debug_entries = jr->info.nr_entry;
+	jd->nr_de_entries = jr->info.nr_entry;
 
 	return 0;
 }
@@ -655,8 +655,8 @@ jit_process_dump(struct jit_buf_desc *jd)
 		case JIT_CODE_MOVE:
 			ret = jit_repipe_code_move(jd, jr);
 			break;
-		case JIT_CODE_DEBUG_INFO:
-			ret = jit_repipe_debug_info(jd, jr);
+		case JIT_CODE_DE_INFO:
+			ret = jit_repipe_de_info(jd, jr);
 			break;
 		case JIT_CODE_UNWINDING_INFO:
 			ret = jit_repipe_unwinding_info(jd, jr);

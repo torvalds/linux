@@ -93,7 +93,7 @@ static inline void __init show_version (void) {
   original Horizon and 25Mb/s operation.
   
   There are two revisions of the Horizon ASIC: the original and the
-  Ultra. Details of hardware bugs are in section III.
+  Ultra. Details of hardware s are in section III.
   
   The ASIC version can be distinguished by chip markings but is NOT
   indicated by the PCI revision (all adapters seem to have PCI rev 1).
@@ -289,7 +289,7 @@ static inline void __init show_version (void) {
   RX open...
   RX close...
   
-  III Hardware Bugs
+  III Hardware s
   
   0. Byte vs Word addressing of adapter RAM.
   
@@ -338,7 +338,7 @@ static inline void __init show_version (void) {
   
   . Allow users to specify buffer allocation split for TX and RX.
   
-  . Deal once and for all with buggy VC close.
+  . Deal once and for all with gy VC close.
   
   . Handle interrupted and/or non-blocking operations.
   
@@ -359,7 +359,7 @@ static inline void __init show_version (void) {
 
 static void do_housekeeping (struct timer_list *t);
 
-static unsigned short debug = 0;
+static unsigned short de = 0;
 static unsigned short vpi_bits = 0;
 static int max_tx_size = 9000;
 static int max_rx_size = 9000;
@@ -462,7 +462,7 @@ static inline void update_tx_channel_config (hrz_dev * dev, short chan, u8 mode,
 /********** dump functions **********/
 
 static inline void dump_skb (char * prefix, unsigned int vc, struct sk_buff * skb) {
-#ifdef DEBUG_HORIZON
+#ifdef DE_HORIZON
   unsigned int i;
   unsigned char * data = skb->data;
   PRINTDB (DBG_DATA, "%s(%u) ", prefix, vc);
@@ -478,7 +478,7 @@ static inline void dump_skb (char * prefix, unsigned int vc, struct sk_buff * sk
 }
 
 static inline void dump_regs (hrz_dev * dev) {
-#ifdef DEBUG_HORIZON
+#ifdef DE_HORIZON
   PRINTD (DBG_REGS, "CONTROL 0: %#x", rd_regl (dev, CONTROL_0_REG));
   PRINTD (DBG_REGS, "RX CONFIG: %#x", rd_regw (dev, RX_CONFIG_OFF));
   PRINTD (DBG_REGS, "TX CONFIG: %#x", rd_regw (dev, TX_CONFIG_OFF));
@@ -492,7 +492,7 @@ static inline void dump_regs (hrz_dev * dev) {
 }
 
 static inline void dump_framer (hrz_dev * dev) {
-#ifdef DEBUG_HORIZON
+#ifdef DE_HORIZON
   unsigned int i;
   PRINTDB (DBG_REGS, "framer registers:");
   for (i = 0; i < 0x10; ++i)
@@ -1375,7 +1375,7 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
     // In the interests of fairness, the handlers below are
     // called in sequence and without immediate return to the head of
     // the while loop. This is only of issue for slow hosts (or when
-    // debugging messages are on). Really slow hosts may find a fast
+    // deging messages are on). Really slow hosts may find a fast
     // sender keeps them permanently in the IRQ handler. :(
     
     // (only an issue for slow hosts) RX completion goes before
@@ -1615,7 +1615,7 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
   }
 #endif
   
-#ifdef DEBUG_HORIZON
+#ifdef DE_HORIZON
   /* wey-hey! */
   if (channel == 1023) {
     unsigned int i;
@@ -1624,7 +1624,7 @@ static int hrz_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
     if (*s++ == 'D') {
 	for (i = 0; i < 4; ++i)
 		d = (d << 4) | hex_to_bin(*s++);
-      PRINTK (KERN_INFO, "debug bitmap is now %hx", debug = d);
+      PRINTK (KERN_INFO, "de bitmap is now %hx", de = d);
     }
   }
 #endif
@@ -2780,7 +2780,7 @@ static int hrz_probe(struct pci_dev *pci_dev,
 	} else {
 		dev->tx_avail = ((25600000/8)*26)/(27*53);
 		dev->rx_avail = ((25600000/8)*26)/(27*53);
-		PRINTD(DBG_WARN, "Buggy ASIC: no TX bus-mastering.");
+		PRINTD(DBG_WARN, "gy ASIC: no TX bus-mastering.");
 	}
 
 	// rate changes spinlock
@@ -2831,11 +2831,11 @@ static void hrz_remove_one(struct pci_dev *pci_dev)
 }
 
 static void __init hrz_check_args (void) {
-#ifdef DEBUG_HORIZON
-  PRINTK (KERN_NOTICE, "debug bitmap is %hx", debug &= DBG_MASK);
+#ifdef DE_HORIZON
+  PRINTK (KERN_NOTICE, "de bitmap is %hx", de &= DBG_MASK);
 #else
-  if (debug)
-    PRINTK (KERN_NOTICE, "no debug support in this image");
+  if (de)
+    PRINTK (KERN_NOTICE, "no de support in this image");
 #endif
   
   if (vpi_bits > HRZ_MAX_VPI)
@@ -2856,12 +2856,12 @@ static void __init hrz_check_args (void) {
 MODULE_AUTHOR(maintainer_string);
 MODULE_DESCRIPTION(description_string);
 MODULE_LICENSE("GPL");
-module_param(debug, ushort, 0644);
+module_param(de, ushort, 0644);
 module_param(vpi_bits, ushort, 0);
 module_param(max_tx_size, int, 0);
 module_param(max_rx_size, int, 0);
 module_param(pci_lat, byte, 0);
-MODULE_PARM_DESC(debug, "debug bitmap, see .h file");
+MODULE_PARM_DESC(de, "de bitmap, see .h file");
 MODULE_PARM_DESC(vpi_bits, "number of bits (0..4) to allocate to VPIs");
 MODULE_PARM_DESC(max_tx_size, "maximum size of TX AAL5 frames");
 MODULE_PARM_DESC(max_rx_size, "maximum size of RX AAL5 frames");
@@ -2885,7 +2885,7 @@ static struct pci_driver hrz_driver = {
 /********** module entry **********/
 
 static int __init hrz_module_init (void) {
-  BUILD_BUG_ON(sizeof(struct MEMMAP) != 128*1024/4);
+  BUILD__ON(sizeof(struct MEMMAP) != 128*1024/4);
   
   show_version();
   

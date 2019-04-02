@@ -22,9 +22,9 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_if.h>
 
-extern uint qedf_debug;
+extern uint qedf_de;
 
-/* Debug print level definitions */
+/* De print level definitions */
 #define QEDF_LOG_DEFAULT	0x1		/* Set default logging mask */
 #define QEDF_LOG_INFO		0x2		/*
 						 * Informational logs,
@@ -41,7 +41,7 @@ extern uint qedf_debug;
 #define QEDF_LOG_IO		0x400		/* scsi cmd, completion */
 #define QEDF_LOG_MQ		0x800		/* Multi Queue logs */
 #define QEDF_LOG_BSG		0x1000		/* BSG logs */
-#define QEDF_LOG_DEBUGFS	0x2000		/* debugFS logs */
+#define QEDF_LOG_DEFS	0x2000		/* deFS logs */
 #define QEDF_LOG_LPORT		0x4000		/* lport logs */
 #define QEDF_LOG_ELS		0x8000		/* ELS logs */
 #define QEDF_LOG_NPIV		0x10000		/* NPIV logs */
@@ -63,11 +63,11 @@ extern uint qedf_debug;
 #define QEDF_LOG_NOTICE	0x40000000	/* Notice logs */
 #define QEDF_LOG_WARN		0x80000000	/* Warning logs */
 
-/* Debug context structure */
+/* De context structure */
 struct qedf_dbg_ctx {
 	unsigned int host_no;
 	struct pci_dev *pdev;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *bdf_dentry;
 #endif
 };
@@ -116,16 +116,16 @@ extern int qedf_create_sysfs_attr(struct Scsi_Host *shost,
 extern void qedf_remove_sysfs_attr(struct Scsi_Host *shost,
 				    struct sysfs_bin_attrs *iter);
 
-struct qedf_debugfs_ops {
+struct qedf_defs_ops {
 	char *name;
 	struct qedf_list_of_funcs *qedf_funcs;
 };
 
-extern const struct qedf_debugfs_ops qedf_debugfs_ops[];
+extern const struct qedf_defs_ops qedf_defs_ops[];
 extern const struct file_operations qedf_dbg_fops[];
 
-#ifdef CONFIG_DEBUG_FS
-/* DebugFS related code */
+#ifdef CONFIG_DE_FS
+/* DeFS related code */
 struct qedf_list_of_funcs {
 	char *oper_str;
 	ssize_t (*oper_func)(struct qedf_dbg_ctx *qedf);
@@ -139,7 +139,7 @@ struct qedf_list_of_funcs {
 	.write  = drv##_dbg_##ops##_cmd_write \
 }
 
-/* Used for debugfs sequential files */
+/* Used for defs sequential files */
 #define qedf_dbg_fileops_seq(drv, ops) \
 { \
 	.owner = THIS_MODULE, \
@@ -150,11 +150,11 @@ struct qedf_list_of_funcs {
 }
 
 extern void qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
-				const struct qedf_debugfs_ops *dops,
+				const struct qedf_defs_ops *dops,
 				const struct file_operations *fops);
 extern void qedf_dbg_host_exit(struct qedf_dbg_ctx *qedf);
 extern void qedf_dbg_init(char *drv_name);
 extern void qedf_dbg_exit(void);
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 #endif /* _QEDF_DBG_H_ */

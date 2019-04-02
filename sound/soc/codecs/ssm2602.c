@@ -9,7 +9,7 @@
 // Modified:
 //               Copyright 2008 Analog Devices Inc.
 //
-// Bugs:         Enter bugs at http://blackfin.uclinux.org/
+// s:         Enter s at http://blackfin.uclinux.org/
 
 #include <linux/delay.h>
 #include <linux/module.h>

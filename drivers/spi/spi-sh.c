@@ -67,7 +67,7 @@
 #define SPI_SH_SEND_TIMEOUT	(3 * HZ)
 #define SPI_SH_RECEIVE_TIMEOUT	(HZ >> 3)
 
-#undef DEBUG
+#undef DE
 
 struct spi_sh_data {
 	void __iomem *addr;
@@ -279,7 +279,7 @@ static void spi_sh_work(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	pr_debug("%s: enter\n", __func__);
+	pr_de("%s: enter\n", __func__);
 
 	spin_lock_irqsave(&ss->lock, flags);
 	while (!list_empty(&ss->queue)) {
@@ -288,9 +288,9 @@ static void spi_sh_work(struct work_struct *work)
 
 		spin_unlock_irqrestore(&ss->lock, flags);
 		list_for_each_entry(t, &mesg->transfers, transfer_list) {
-			pr_debug("tx_buf = %p, rx_buf = %p\n",
+			pr_de("tx_buf = %p, rx_buf = %p\n",
 					t->tx_buf, t->rx_buf);
-			pr_debug("len = %d, delay_usecs = %d\n",
+			pr_de("len = %d, delay_usecs = %d\n",
 					t->len, t->delay_usecs);
 
 			if (t->tx_buf) {
@@ -340,7 +340,7 @@ static int spi_sh_setup(struct spi_device *spi)
 {
 	struct spi_sh_data *ss = spi_master_get_devdata(spi->master);
 
-	pr_debug("%s: enter\n", __func__);
+	pr_de("%s: enter\n", __func__);
 
 	spi_sh_write(ss, 0xfe, SPI_SH_CR1);	/* SPI sycle stop */
 	spi_sh_write(ss, 0x00, SPI_SH_CR1);	/* CR1 init */
@@ -360,8 +360,8 @@ static int spi_sh_transfer(struct spi_device *spi, struct spi_message *mesg)
 	struct spi_sh_data *ss = spi_master_get_devdata(spi->master);
 	unsigned long flags;
 
-	pr_debug("%s: enter\n", __func__);
-	pr_debug("\tmode = %02x\n", spi->mode);
+	pr_de("%s: enter\n", __func__);
+	pr_de("\tmode = %02x\n", spi->mode);
 
 	spin_lock_irqsave(&ss->lock, flags);
 
@@ -382,7 +382,7 @@ static void spi_sh_cleanup(struct spi_device *spi)
 {
 	struct spi_sh_data *ss = spi_master_get_devdata(spi->master);
 
-	pr_debug("%s: enter\n", __func__);
+	pr_de("%s: enter\n", __func__);
 
 	spi_sh_clear_bit(ss, SPI_SH_SSA | SPI_SH_SSDB | SPI_SH_SSD,
 			 SPI_SH_CR1);

@@ -139,7 +139,7 @@
 #define RESET_VENCT			136
 #define RESET_VDAC_4			137
 #define RESET_RTC			138
-#define RESET_A5_DEBUG			139
+#define RESET_A5_DE			139
 #define RESET_VDI6			140
 #define RESET_VENCL			141
 /*					142-159	*/

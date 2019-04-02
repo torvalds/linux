@@ -116,7 +116,7 @@
 /*
  * Writeback and invalidate the primary cache dcache before DMA.
  *
- * R4600 v2.0 bug: "The CACHE instructions Hit_Writeback_Inv_D,
+ * R4600 v2.0 : "The CACHE instructions Hit_Writeback_Inv_D,
  * Hit_Writeback_D, Hit_Invalidate_D and Create_Dirty_Exclusive_D will only
  * operate correctly if the internal data cache refill buffer is empty.	 These
  * CACHE instructions should be separated from any potential data cache miss
@@ -209,7 +209,7 @@
 #endif
 
 /*
- * The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
+ * The RM7000 processors and the E9000 cores have a  (though PMC-Sierra
  * opposes it being called that) where invalid instructions in the same
  * I-cache line worth of instructions being fetched may case spurious
  * exceptions.
@@ -219,7 +219,7 @@
 #endif
 
 /*
- * On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
+ * On the R10000 up to version 2.6 (not sure about 2.7) there is a  that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
 #ifndef R10000_LLSC_WAR

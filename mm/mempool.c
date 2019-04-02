@@ -7,7 +7,7 @@
  *  extreme VM load.
  *
  *  started by Ingo Molnar, Copyright (C) 2001
- *  debugging by David Rientjes, Copyright (C) 2015
+ *  deging by David Rientjes, Copyright (C) 2015
  */
 
 #include <linux/mm.h>
@@ -21,7 +21,7 @@
 #include <linux/writeback.h>
 #include "slab.h"
 
-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB_DEBUG_ON)
+#if defined(CONFIG_DE_SLAB) || defined(CONFIG_SLUB_DE_ON)
 static void poison_error(mempool_t *pool, void *element, size_t size,
 			 size_t byte)
 {
@@ -30,7 +30,7 @@ static void poison_error(mempool_t *pool, void *element, size_t size,
 	const int end = min_t(int, byte + (BITS_PER_LONG / 8), size);
 	int i;
 
-	pr_err("BUG: mempool element poison mismatch\n");
+	pr_err(": mempool element poison mismatch\n");
 	pr_err("Mempool %p size %zu\n", pool, size);
 	pr_err(" nr=%d @ %p: %s0x", nr, element, start > 0 ? "... " : "");
 	for (i = start; i < end; i++)
@@ -94,14 +94,14 @@ static void poison_element(mempool_t *pool, void *element)
 		kunmap_atomic(addr);
 	}
 }
-#else /* CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON */
+#else /* CONFIG_DE_SLAB || CONFIG_SLUB_DE_ON */
 static inline void check_element(mempool_t *pool, void *element)
 {
 }
 static inline void poison_element(mempool_t *pool, void *element)
 {
 }
-#endif /* CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON */
+#endif /* CONFIG_DE_SLAB || CONFIG_SLUB_DE_ON */
 
 static __always_inline void kasan_poison_element(mempool_t *pool, void *element)
 {
@@ -121,7 +121,7 @@ static void kasan_unpoison_element(mempool_t *pool, void *element)
 
 static __always_inline void add_element(mempool_t *pool, void *element)
 {
-	BUG_ON(pool->curr_nr >= pool->min_nr);
+	_ON(pool->curr_nr >= pool->min_nr);
 	poison_element(pool, element);
 	kasan_poison_element(pool, element);
 	pool->elements[pool->curr_nr++] = element;
@@ -131,7 +131,7 @@ static void *remove_element(mempool_t *pool)
 {
 	void *element = pool->elements[--pool->curr_nr];
 
-	BUG_ON(pool->curr_nr < 0);
+	_ON(pool->curr_nr < 0);
 	kasan_unpoison_element(pool, element);
 	check_element(pool, element);
 	return element;
@@ -302,7 +302,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
 	void **new_elements;
 	unsigned long flags;
 
-	BUG_ON(new_min_nr <= 0);
+	_ON(new_min_nr <= 0);
 	might_sleep();
 
 	spin_lock_irqsave(&pool->lock, flags);
@@ -402,7 +402,7 @@ repeat_alloc:
 		smp_wmb();
 		/*
 		 * Update the allocation stack trace as this is more useful
-		 * for debugging.
+		 * for deging.
 		 */
 		kmemleak_update_trace(element);
 		return element;
@@ -509,7 +509,7 @@ EXPORT_SYMBOL(mempool_free);
 void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
 {
 	struct kmem_cache *mem = pool_data;
-	VM_BUG_ON(mem->ctor);
+	VM__ON(mem->ctor);
 	return kmem_cache_alloc(mem, gfp_mask);
 }
 EXPORT_SYMBOL(mempool_alloc_slab);

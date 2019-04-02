@@ -349,28 +349,28 @@ static __always_inline bool is_stable_node_dup(struct stable_node *dup)
 static inline void stable_node_chain_add_dup(struct stable_node *dup,
 					     struct stable_node *chain)
 {
-	VM_BUG_ON(is_stable_node_dup(dup));
+	VM__ON(is_stable_node_dup(dup));
 	dup->head = STABLE_NODE_DUP_HEAD;
-	VM_BUG_ON(!is_stable_node_chain(chain));
+	VM__ON(!is_stable_node_chain(chain));
 	hlist_add_head(&dup->hlist_dup, &chain->hlist);
 	ksm_stable_node_dups++;
 }
 
 static inline void __stable_node_dup_del(struct stable_node *dup)
 {
-	VM_BUG_ON(!is_stable_node_dup(dup));
+	VM__ON(!is_stable_node_dup(dup));
 	hlist_del(&dup->hlist_dup);
 	ksm_stable_node_dups--;
 }
 
 static inline void stable_node_dup_del(struct stable_node *dup)
 {
-	VM_BUG_ON(is_stable_node_chain(dup));
+	VM__ON(is_stable_node_chain(dup));
 	if (is_stable_node_dup(dup))
 		__stable_node_dup_del(dup);
 	else
 		rb_erase(&dup->node, root_stable_tree + NUMA(dup->nid));
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	dup->head = NULL;
 #endif
 }
@@ -389,7 +389,7 @@ static inline struct rmap_item *alloc_rmap_item(void)
 static inline void free_rmap_item(struct rmap_item *rmap_item)
 {
 	ksm_rmap_items--;
-	rmap_item->mm = NULL;	/* debug safety */
+	rmap_item->mm = NULL;	/* de safety */
 	kmem_cache_free(rmap_item_cache, rmap_item);
 }
 
@@ -405,7 +405,7 @@ static inline struct stable_node *alloc_stable_node(void)
 
 static inline void free_stable_node(struct stable_node *stable_node)
 {
-	VM_BUG_ON(stable_node->rmap_hlist_len &&
+	VM__ON(stable_node->rmap_hlist_len &&
 		  !is_stable_node_chain(stable_node));
 	kmem_cache_free(stable_node_cache, stable_node);
 }
@@ -592,13 +592,13 @@ static struct stable_node *alloc_stable_node_chain(struct stable_node *dup,
 						   struct rb_root *root)
 {
 	struct stable_node *chain = alloc_stable_node();
-	VM_BUG_ON(is_stable_node_chain(dup));
+	VM__ON(is_stable_node_chain(dup));
 	if (likely(chain)) {
 		INIT_HLIST_HEAD(&chain->hlist);
 		chain->chain_prune_time = jiffies;
 		chain->rmap_hlist_len = STABLE_NODE_CHAIN;
-#if defined (CONFIG_DEBUG_VM) && defined(CONFIG_NUMA)
-		chain->nid = NUMA_NO_NODE; /* debug */
+#if defined (CONFIG_DE_VM) && defined(CONFIG_NUMA)
+		chain->nid = NUMA_NO_NODE; /* de */
 #endif
 		ksm_stable_node_chains++;
 
@@ -634,14 +634,14 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 	struct rmap_item *rmap_item;
 
 	/* check it's not STABLE_NODE_CHAIN or negative */
-	BUG_ON(stable_node->rmap_hlist_len < 0);
+	_ON(stable_node->rmap_hlist_len < 0);
 
 	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
 		if (rmap_item->hlist.next)
 			ksm_pages_sharing--;
 		else
 			ksm_pages_shared--;
-		VM_BUG_ON(stable_node->rmap_hlist_len <= 0);
+		VM__ON(stable_node->rmap_hlist_len <= 0);
 		stable_node->rmap_hlist_len--;
 		put_anon_vma(rmap_item->anon_vma);
 		rmap_item->address &= PAGE_MASK;
@@ -656,8 +656,8 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 	 * don't break STABLE_NODE_DUP_HEAD. Only recent gcc can handle it.
 	 */
 #if defined(GCC_VERSION) && GCC_VERSION >= 40903
-	BUILD_BUG_ON(STABLE_NODE_DUP_HEAD <= &migrate_nodes);
-	BUILD_BUG_ON(STABLE_NODE_DUP_HEAD >= &migrate_nodes + 1);
+	BUILD__ON(STABLE_NODE_DUP_HEAD <= &migrate_nodes);
+	BUILD__ON(STABLE_NODE_DUP_HEAD >= &migrate_nodes + 1);
 #endif
 
 	if (stable_node->head == &migrate_nodes)
@@ -790,7 +790,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 			ksm_pages_sharing--;
 		else
 			ksm_pages_shared--;
-		VM_BUG_ON(stable_node->rmap_hlist_len <= 0);
+		VM__ON(stable_node->rmap_hlist_len <= 0);
 		stable_node->rmap_hlist_len--;
 
 		put_anon_vma(rmap_item->anon_vma);
@@ -806,7 +806,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		 * than left over from before.
 		 */
 		age = (unsigned char)(ksm_scan.seqnr - rmap_item->address);
-		BUG_ON(age > 1);
+		_ON(age > 1);
 		if (!age)
 			rb_erase(&rmap_item->node,
 				 root_unstable_tree + NUMA(rmap_item->nid));
@@ -918,7 +918,7 @@ static int remove_stable_node_chain(struct stable_node *stable_node,
 	struct hlist_node *hlist_safe;
 
 	if (!is_stable_node_chain(stable_node)) {
-		VM_BUG_ON(is_stable_node_dup(stable_node));
+		VM__ON(is_stable_node_dup(stable_node));
 		if (remove_stable_node(stable_node))
 			return true;
 		else
@@ -927,11 +927,11 @@ static int remove_stable_node_chain(struct stable_node *stable_node,
 
 	hlist_for_each_entry_safe(dup, hlist_safe,
 				  &stable_node->hlist, hlist_dup) {
-		VM_BUG_ON(!is_stable_node_dup(dup));
+		VM__ON(!is_stable_node_dup(dup));
 		if (remove_stable_node(dup))
 			return true;
 	}
-	BUG_ON(!hlist_empty(&stable_node->hlist));
+	_ON(!hlist_empty(&stable_node->hlist));
 	free_stable_node_chain(stable_node, root);
 	return false;
 }
@@ -1064,7 +1064,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 	if (pvmw.address == -EFAULT)
 		goto out;
 
-	BUG_ON(PageTransCompound(page));
+	_ON(PageTransCompound(page));
 
 	mmu_notifier_range_init(&range, mm, pvmw.address,
 				pvmw.address + PAGE_SIZE);
@@ -1177,7 +1177,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		/*
 		 * We're replacing an anonymous page with a zero page, which is
 		 * not anonymous. We need to do proper accounting otherwise we
-		 * will get wrong values in /proc, and a BUG message in dmesg
+		 * will get wrong values in /proc, and a  message in dmesg
 		 * when tearing down the mm.
 		 */
 		dec_mm_counter(mm, MM_ANONPAGES);
@@ -1351,7 +1351,7 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
 static __always_inline
 bool __is_page_sharing_candidate(struct stable_node *stable_node, int offset)
 {
-	VM_BUG_ON(stable_node->rmap_hlist_len < 0);
+	VM__ON(stable_node->rmap_hlist_len < 0);
 	/*
 	 * Check that at least one mapping still exists, otherwise
 	 * there's no much point to merge and share with this
@@ -1432,11 +1432,11 @@ static struct page *stable_node_dup(struct stable_node **_stable_node_dup,
 		if (prune_stale_stable_nodes && nr == 1) {
 			/*
 			 * If there's not just one entry it would
-			 * corrupt memory, better BUG_ON. In KSM
+			 * corrupt memory, better _ON. In KSM
 			 * context with no lock held it's not even
 			 * fatal.
 			 */
-			BUG_ON(stable_node->hlist.first->next);
+			_ON(stable_node->hlist.first->next);
 
 			/*
 			 * There's just one entry and it is below the
@@ -1552,7 +1552,7 @@ static __always_inline struct page *chain(struct stable_node **s_n_d,
 
 	tree_page = __stable_node_chain(s_n_d, &s_n, root, false);
 	/* not pruning dups so s_n cannot have changed */
-	VM_BUG_ON(s_n != old_stable_node);
+	VM__ON(s_n != old_stable_node);
 	return tree_page;
 }
 
@@ -1631,7 +1631,7 @@ again:
 			tree_page = get_ksm_page(stable_node_any,
 						 GET_KSM_PAGE_NOLOCK);
 		}
-		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+		VM__ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_page) {
 			/*
 			 * If we walked over a stale stable_node,
@@ -1655,7 +1655,7 @@ again:
 			new = &parent->rb_right;
 		else {
 			if (page_node) {
-				VM_BUG_ON(page_node->head != &migrate_nodes);
+				VM__ON(page_node->head != &migrate_nodes);
 				/*
 				 * Test if the migrated page should be merged
 				 * into a stable node dup. If the mapcount is
@@ -1736,11 +1736,11 @@ replace:
 	 * stable_node_dup is the dup to replace.
 	 */
 	if (stable_node_dup == stable_node) {
-		VM_BUG_ON(is_stable_node_chain(stable_node_dup));
-		VM_BUG_ON(is_stable_node_dup(stable_node_dup));
+		VM__ON(is_stable_node_chain(stable_node_dup));
+		VM__ON(is_stable_node_dup(stable_node_dup));
 		/* there is no chain */
 		if (page_node) {
-			VM_BUG_ON(page_node->head != &migrate_nodes);
+			VM__ON(page_node->head != &migrate_nodes);
 			list_del(&page_node->list);
 			DO_NUMA(page_node->nid = nid);
 			rb_replace_node(&stable_node_dup->node,
@@ -1755,10 +1755,10 @@ replace:
 			page = NULL;
 		}
 	} else {
-		VM_BUG_ON(!is_stable_node_chain(stable_node));
+		VM__ON(!is_stable_node_chain(stable_node));
 		__stable_node_dup_del(stable_node_dup);
 		if (page_node) {
-			VM_BUG_ON(page_node->head != &migrate_nodes);
+			VM__ON(page_node->head != &migrate_nodes);
 			list_del(&page_node->list);
 			DO_NUMA(page_node->nid = nid);
 			stable_node_chain_add_dup(page_node, stable_node);
@@ -1787,8 +1787,8 @@ chain_append:
 	 * stable_node_dup is the dup to replace.
 	 */
 	if (stable_node_dup == stable_node) {
-		VM_BUG_ON(is_stable_node_chain(stable_node_dup));
-		VM_BUG_ON(is_stable_node_dup(stable_node_dup));
+		VM__ON(is_stable_node_chain(stable_node_dup));
+		VM__ON(is_stable_node_dup(stable_node_dup));
 		/* chain is missing so create it */
 		stable_node = alloc_stable_node_chain(stable_node_dup,
 						      root);
@@ -1801,9 +1801,9 @@ chain_append:
 	 * of the current nid for this page
 	 * content.
 	 */
-	VM_BUG_ON(!is_stable_node_chain(stable_node));
-	VM_BUG_ON(!is_stable_node_dup(stable_node_dup));
-	VM_BUG_ON(page_node->head != &migrate_nodes);
+	VM__ON(!is_stable_node_chain(stable_node));
+	VM__ON(!is_stable_node_dup(stable_node_dup));
+	VM__ON(page_node->head != &migrate_nodes);
 	list_del(&page_node->list);
 	DO_NUMA(page_node->nid = nid);
 	stable_node_chain_add_dup(page_node, stable_node);
@@ -1866,7 +1866,7 @@ again:
 			tree_page = get_ksm_page(stable_node_any,
 						 GET_KSM_PAGE_NOLOCK);
 		}
-		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+		VM__ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_page) {
 			/*
 			 * If we walked over a stale stable_node,
@@ -2022,7 +2022,7 @@ static void stable_tree_append(struct rmap_item *rmap_item,
 	 * for the first time (and not when decreasing rmap_hlist_len)
 	 * would be sign of memory corruption in the stable_node.
 	 */
-	BUG_ON(stable_node->rmap_hlist_len < 0);
+	_ON(stable_node->rmap_hlist_len < 0);
 
 	stable_node->rmap_hlist_len++;
 	if (!max_page_sharing_bypass)
@@ -2610,13 +2610,13 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
 	struct rmap_item *rmap_item;
 	int search_new_forks = 0;
 
-	VM_BUG_ON_PAGE(!PageKsm(page), page);
+	VM__ON_PAGE(!PageKsm(page), page);
 
 	/*
 	 * Rely on the page lock to protect against concurrent modifications
 	 * to that page's node of the stable tree.
 	 */
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	stable_node = page_stable_node(page);
 	if (!stable_node)
@@ -2672,7 +2672,7 @@ bool reuse_ksm_page(struct page *page,
 		    struct vm_area_struct *vma,
 		    unsigned long address)
 {
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	if (WARN_ON(is_zero_pfn(page_to_pfn(page))) ||
 			WARN_ON(!page_mapped(page)) ||
 			WARN_ON(!PageLocked(page))) {
@@ -2698,13 +2698,13 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 {
 	struct stable_node *stable_node;
 
-	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-	VM_BUG_ON_PAGE(newpage->mapping != oldpage->mapping, newpage);
+	VM__ON_PAGE(!PageLocked(oldpage), oldpage);
+	VM__ON_PAGE(!PageLocked(newpage), newpage);
+	VM__ON_PAGE(newpage->mapping != oldpage->mapping, newpage);
 
 	stable_node = page_stable_node(newpage);
 	if (stable_node) {
-		VM_BUG_ON_PAGE(stable_node->kpfn != page_to_pfn(oldpage), oldpage);
+		VM__ON_PAGE(stable_node->kpfn != page_to_pfn(oldpage), oldpage);
 		stable_node->kpfn = page_to_pfn(newpage);
 		/*
 		 * newpage->mapping was set in advance; now we need smp_wmb()
@@ -2754,14 +2754,14 @@ static bool stable_node_chain_remove_range(struct stable_node *stable_node,
 	struct hlist_node *hlist_safe;
 
 	if (!is_stable_node_chain(stable_node)) {
-		VM_BUG_ON(is_stable_node_dup(stable_node));
+		VM__ON(is_stable_node_dup(stable_node));
 		return stable_node_dup_remove_range(stable_node, start_pfn,
 						    end_pfn);
 	}
 
 	hlist_for_each_entry_safe(dup, hlist_safe,
 				  &stable_node->hlist, hlist_dup) {
-		VM_BUG_ON(!is_stable_node_dup(dup));
+		VM__ON(!is_stable_node_dup(dup));
 		stable_node_dup_remove_range(dup, start_pfn, end_pfn);
 	}
 	if (hlist_empty(&stable_node->hlist)) {

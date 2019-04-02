@@ -60,7 +60,7 @@ The record header is specified in order as follows:
 The following record types are defined:
  * Value 0 : JIT_CODE_LOAD      : record describing a jitted function
  * Value 1 : JIT_CODE_MOVE      : record describing an already jitted function which is moved
- * Value 2 : JIT_CODE_DEBUG_INFO: record describing the debug information for a jitted function
+ * Value 2 : JIT_CODE_DE_INFO: record describing the de information for a jitted function
  * Value 3 : JIT_CODE_CLOSE     : record marking the end of the jit runtime (optional)
  * Value 4 : JIT_CODE_UNWINDING_INFO: record describing a function unwinding information
 
@@ -112,28 +112,28 @@ The JIT_CODE_MOVE record cannot come before the JIT_CODE_LOAD record for the sam
 The code size of the function cannot change.
 
 
-VII/ JIT_DEBUG_INFO record
+VII/ JIT_DE_INFO record
 
 The record type is optional.
 
-The record contains source lines debug information, i.e., a way to map a code address back to a source line. This information may be used by the performance tool.
+The record contains source lines de information, i.e., a way to map a code address back to a source line. This information may be used by the performance tool.
 
 The record has the following fields following the fixed-size record header in order:
-  * uint64_t code_addr: address of function for which the debug information is generated
-  * uint64_t nr_entry : number of debug entries for the function
-  * debug_entry[n]: array of nr_entry debug entries for the function
+  * uint64_t code_addr: address of function for which the de information is generated
+  * uint64_t nr_entry : number of de entries for the function
+  * de_entry[n]: array of nr_entry de entries for the function
 
-The debug_entry describes the source line information. It is defined as follows in order:
-* uint64_t code_addr: address of function for which the debug information is generated
+The de_entry describes the source line information. It is defined as follows in order:
+* uint64_t code_addr: address of function for which the de information is generated
 * uint32_t line     : source file line number (starting at 1)
 * uint32_t discrim  : column discriminator, 0 is default
 * char name[n]      : source file name in ASCII, including null termination
 
-The debug_entry entries are saved in sequence but given that they have variable sizes due to the file name string, they cannot be indexed directly.
-They need to be walked sequentially. The next debug_entry is found at sizeof(debug_entry) + strlen(name) + 1.
+The de_entry entries are saved in sequence but given that they have variable sizes due to the file name string, they cannot be indexed directly.
+They need to be walked sequentially. The next de_entry is found at sizeof(de_entry) + strlen(name) + 1.
 
 IMPORTANT:
-  The JIT_CODE_DEBUG for a given function must always be generated BEFORE the JIT_CODE_LOAD for the function. This facilitates greatly the parser for the jitdump file.
+  The JIT_CODE_DE for a given function must always be generated BEFORE the JIT_CODE_LOAD for the function. This facilitates greatly the parser for the jitdump file.
 
 
 VIII/ JIT_CODE_CLOSE record

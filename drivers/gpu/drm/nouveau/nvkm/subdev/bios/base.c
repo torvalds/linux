@@ -172,7 +172,7 @@ nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 	bios->bmp_offset = nvbios_findstr(bios->data, bios->size,
 					  "\xff\x7f""NV\0", 5);
 	if (bios->bmp_offset) {
-		nvkm_debug(&bios->subdev, "BMP version %x.%x\n",
+		nvkm_de(&bios->subdev, "BMP version %x.%x\n",
 			   bmp_version(bios) >> 8,
 			   bmp_version(bios) & 0xff);
 	}
@@ -180,7 +180,7 @@ nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 	bios->bit_offset = nvbios_findstr(bios->data, bios->size,
 					  "\xff\xb8""BIT", 5);
 	if (bios->bit_offset)
-		nvkm_debug(&bios->subdev, "BIT signature found\n");
+		nvkm_de(&bios->subdev, "BIT signature found\n");
 
 	/* determine the vbios version number */
 	if (!bit_entry(bios, 'i', &bit_i) && bit_i.length >= 4) {

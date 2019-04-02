@@ -24,7 +24,7 @@
 #include "util/cgroup.h"
 #include "util/color.h"
 #include "util/config.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/env.h"
 #include "util/event.h"
 #include "util/evlist.h"
@@ -2631,7 +2631,7 @@ static int trace__add_syscall_newtp(struct trace *trace)
 		/*
 		 * We're interested only in the user space callchain
 		 * leading to the syscall, allow overriding that for
-		 * debugging reasons using --kernel_syscall_callchains
+		 * deging reasons using --kernel_syscall_callchains
 		 */
 		sys_exit->attr.exclude_callchain_kernel = 1;
 	}
@@ -2992,7 +2992,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 			goto out_errno;
 
 		if (trace->syscalls.events.sys_exit) {
-			pr_debug("event qualifier tracepoint filter: %s\n",
+			pr_de("event qualifier tracepoint filter: %s\n",
 				 trace->syscalls.events.sys_exit->filter);
 		}
 	}
@@ -3758,7 +3758,7 @@ int cmd_trace(int argc, const char **argv)
 	OPT_BOOLEAN(0, "sort-events", &trace.sort_events,
 			"Sort batch of events before processing, use if getting out of order events"),
 	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
-			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
+			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for deging"),
 	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_CALLBACK('G', "cgroup", &trace, "name", "monitor event in cgroup name only",

@@ -161,7 +161,7 @@ EXPORT_SYMBOL(irq_poll_disable);
  **/
 void irq_poll_enable(struct irq_poll *iop)
 {
-	BUG_ON(!test_bit(IRQ_POLL_F_SCHED, &iop->state));
+	_ON(!test_bit(IRQ_POLL_F_SCHED, &iop->state));
 	smp_mb__before_atomic();
 	clear_bit_unlock(IRQ_POLL_F_SCHED, &iop->state);
 }

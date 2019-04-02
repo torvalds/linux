@@ -54,7 +54,7 @@ static int info_level;
 #define dprintk(level, fmt, arg...)					\
 	do {								\
 		if (level <= info_level)				\
-			printk(KERN_DEBUG "viu: " fmt , ## arg);	\
+			printk(KERN_DE "viu: " fmt , ## arg);	\
 	} while (0)
 
 /*
@@ -386,7 +386,7 @@ static void free_buffer(struct videobuf_queue *vq, struct viu_buf *buf)
 	struct videobuf_buffer *vb = &buf->vb;
 	void *vaddr = NULL;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	videobuf_waiton(vq, &buf->vb, 0, 0);
 
@@ -456,7 +456,7 @@ static int buffer_prepare(struct videobuf_queue *vq,
 	struct viu_buf *buf = container_of(vb, struct viu_buf, vb);
 	int rc;
 
-	BUG_ON(fh->fmt == NULL);
+	_ON(fh->fmt == NULL);
 
 	if (fh->width  < 48 || fh->width  > norm_maxw() ||
 	    fh->height < 32 || fh->height > norm_maxh())

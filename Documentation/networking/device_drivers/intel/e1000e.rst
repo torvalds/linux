@@ -242,12 +242,12 @@ via setting the parameter to zero. Once the NVM has been locked (via the
 parameter at 1 when the driver loads) it cannot be unlocked except via power
 cycle.
 
-Debug
+De
 -----
 :Valid Range: 0-16 (0=none,...,16=all)
 :Default Value: 0
 
-This parameter adjusts the level of debug messages displayed in the system logs.
+This parameter adjusts the level of de messages displayed in the system logs.
 
 
 Additional Features and Configurations

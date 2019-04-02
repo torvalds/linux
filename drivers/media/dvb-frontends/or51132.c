@@ -42,10 +42,10 @@
 #include <media/dvb_frontend.h>
 #include "or51132.h"
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "or51132: " args); \
+		if (de) printk(KERN_DE "or51132: " args); \
 	} while (0)
 
 
@@ -608,8 +608,8 @@ static const struct dvb_frontend_ops or51132_ops = {
 	.read_ucblocks = or51132_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("OR51132 ATSC [pcHDTV HD-3000] (8VSB & ITU J83 AnnexB FEC QAM64/256) Demodulator Driver");
 MODULE_AUTHOR("Kirk Lapray");

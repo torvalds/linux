@@ -106,9 +106,9 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 /**
  * ixgb_init_module - Driver Registration Routine
@@ -404,7 +404,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	adapter->hw.hw_addr = pci_ioremap_bar(pdev, BAR_0);
 	if (!adapter->hw.hw_addr) {
@@ -848,7 +848,7 @@ ixgb_configure_rx(struct ixgb_adapter *adapter)
 
 	/* due to the hardware errata with RXDCTL, we are unable to use any of
 	 * the performance enhancing features of it without causing other
-	 * subtle bugs, some of the bugs could include receive length
+	 * subtle s, some of the s could include receive length
 	 * corruption at high data rates (WTHRESH > 0) and/or receive
 	 * descriptor ring irregularites (particularly in hardware cache) */
 	IXGB_WRITE_REG(hw, RXDCTL, 0);
@@ -1992,7 +1992,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 
 			/* All receives must fit into a single buffer */
 
-			pr_debug("Receive packet consumed multiple buffers length<%x>\n",
+			pr_de("Receive packet consumed multiple buffers length<%x>\n",
 				 length);
 
 			dev_kfree_skb_irq(skb);

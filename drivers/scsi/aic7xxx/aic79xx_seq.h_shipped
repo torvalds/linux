@@ -840,7 +840,7 @@ static ahd_patch_func_t ahd_patch23_func;
 static int
 ahd_patch23_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) != 0);
+	return ((ahd->s & AHD_PKT_BITBUCKET_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch22_func;
@@ -848,7 +848,7 @@ static ahd_patch_func_t ahd_patch22_func;
 static int
 ahd_patch22_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) == 0);
+	return ((ahd->s & AHD_PKT_BITBUCKET_) == 0);
 }
 
 static ahd_patch_func_t ahd_patch21_func;
@@ -872,7 +872,7 @@ static ahd_patch_func_t ahd_patch19_func;
 static int
 ahd_patch19_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0);
+	return ((ahd->s & AHD_AUTOFLUSH_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch18_func;
@@ -912,7 +912,7 @@ static ahd_patch_func_t ahd_patch14_func;
 static int
 ahd_patch14_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_REG_SLOW_SETTLE_BUG) != 0);
+	return ((ahd->s & AHD_REG_SLOW_SETTLE_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch13_func;
@@ -928,7 +928,7 @@ static ahd_patch_func_t ahd_patch12_func;
 static int
 ahd_patch12_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_EARLY_REQ_BUG) != 0);
+	return ((ahd->s & AHD_EARLY_REQ_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch11_func;
@@ -936,7 +936,7 @@ static ahd_patch_func_t ahd_patch11_func;
 static int
 ahd_patch11_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_BUSFREEREV_BUG) == 0);
+	return ((ahd->s & AHD_BUSFREEREV_) == 0);
 }
 
 static ahd_patch_func_t ahd_patch10_func;
@@ -944,7 +944,7 @@ static ahd_patch_func_t ahd_patch10_func;
 static int
 ahd_patch10_func(struct ahd_softc *ahd)
 {
-	return ((ahd->flags & AHD_SEQUENCER_DEBUG) != 0);
+	return ((ahd->flags & AHD_SEQUENCER_DE) != 0);
 }
 
 static ahd_patch_func_t ahd_patch9_func;
@@ -960,7 +960,7 @@ static ahd_patch_func_t ahd_patch8_func;
 static int
 ahd_patch8_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_LQO_ATNO_BUG) != 0);
+	return ((ahd->s & AHD_LQO_ATNO_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch7_func;
@@ -968,7 +968,7 @@ static ahd_patch_func_t ahd_patch7_func;
 static int
 ahd_patch7_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0);
+	return ((ahd->s & AHD_BUSFREEREV_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch6_func;
@@ -976,7 +976,7 @@ static ahd_patch_func_t ahd_patch6_func;
 static int
 ahd_patch6_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_NONPACKFIFO_BUG) != 0);
+	return ((ahd->s & AHD_NONPACKFIFO_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch5_func;
@@ -984,7 +984,7 @@ static ahd_patch_func_t ahd_patch5_func;
 static int
 ahd_patch5_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_SENT_SCB_UPDATE_BUG) != 0);
+	return ((ahd->s & AHD_SENT_SCB_UPDATE_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch4_func;
@@ -992,7 +992,7 @@ static ahd_patch_func_t ahd_patch4_func;
 static int
 ahd_patch4_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_PKT_LUN_BUG) != 0);
+	return ((ahd->s & AHD_PKT_LUN_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch3_func;
@@ -1000,7 +1000,7 @@ static ahd_patch_func_t ahd_patch3_func;
 static int
 ahd_patch3_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_FAINT_LED_BUG) != 0);
+	return ((ahd->s & AHD_FAINT_LED_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch2_func;
@@ -1008,7 +1008,7 @@ static ahd_patch_func_t ahd_patch2_func;
 static int
 ahd_patch2_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_SET_MODE_BUG) != 0);
+	return ((ahd->s & AHD_SET_MODE_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch1_func;
@@ -1016,7 +1016,7 @@ static ahd_patch_func_t ahd_patch1_func;
 static int
 ahd_patch1_func(struct ahd_softc *ahd)
 {
-	return ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0);
+	return ((ahd->s & AHD_INTCOLLISION_) != 0);
 }
 
 static ahd_patch_func_t ahd_patch0_func;

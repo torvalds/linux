@@ -16,7 +16,7 @@
 
 #include <linux/clk.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_debugfs.h>
+#include <drm/drm_defs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -118,7 +118,7 @@ static int arcpgu_unload(struct drm_device *drm)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int arcpgu_show_pxlclock(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -132,14 +132,14 @@ static int arcpgu_show_pxlclock(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static struct drm_info_list arcpgu_debugfs_list[] = {
+static struct drm_info_list arcpgu_defs_list[] = {
 	{ "clocks", arcpgu_show_pxlclock, 0 },
 };
 
-static int arcpgu_debugfs_init(struct drm_minor *minor)
+static int arcpgu_defs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(arcpgu_debugfs_list,
-		ARRAY_SIZE(arcpgu_debugfs_list), minor->debugfs_root, minor);
+	return drm_defs_create_files(arcpgu_defs_list,
+		ARRAY_SIZE(arcpgu_defs_list), minor->defs_root, minor);
 }
 #endif
 
@@ -166,8 +166,8 @@ static struct drm_driver arcpgu_drm_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init = arcpgu_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init = arcpgu_defs_init,
 #endif
 };
 

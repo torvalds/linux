@@ -625,7 +625,7 @@ static int safexcel_skcipher_send(struct crypto_async_request *async, int ring,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
 
-	BUG_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
+	_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
 
 	if (sreq->needs_inv)
 		ret = safexcel_cipher_send_inv(async, ring, commands, results);
@@ -646,7 +646,7 @@ static int safexcel_aead_send(struct crypto_async_request *async, int ring,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
 
-	BUG_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
+	_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
 
 	if (sreq->needs_inv)
 		ret = safexcel_cipher_send_inv(async, ring, commands, results);

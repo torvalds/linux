@@ -33,7 +33,7 @@
  */
 
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/string_helpers.h>
 #include <linux/sort.h>
 #include <linux/ctype.h>
@@ -42,7 +42,7 @@
 #include "t4_regs.h"
 #include "t4_values.h"
 #include "t4fw_api.h"
-#include "cxgb4_debugfs.h"
+#include "cxgb4_defs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
 #include "cudbg_if.h"
@@ -809,7 +809,7 @@ static ssize_t pm_stats_clear(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations pm_stats_debugfs_fops = {
+static const struct file_operations pm_stats_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = pm_stats_open,
 	.read    = seq_read,
@@ -950,7 +950,7 @@ static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
 	[FW_DEVLOG_LEVEL_NOTICE]	= "NOTICE",
 	[FW_DEVLOG_LEVEL_INFO]		= "INFO",
-	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
+	[FW_DEVLOG_LEVEL_DE]		= "DE"
 };
 
 static const char * const devlog_facility_strings[] = {
@@ -1314,7 +1314,7 @@ static ssize_t mbox_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations mbox_debugfs_fops = {
+static const struct file_operations mbox_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = mbox_open,
 	.read    = seq_read,
@@ -1607,7 +1607,7 @@ out:
 	return count;
 }
 
-static const struct file_operations mps_trc_debugfs_fops = {
+static const struct file_operations mps_trc_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = mps_trc_open,
 	.read    = seq_read,
@@ -1655,7 +1655,7 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t count,
 	return count;
 }
 
-static const struct file_operations flash_debugfs_fops = {
+static const struct file_operations flash_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = mem_open,
 	.read    = flash_read,
@@ -1935,7 +1935,7 @@ static int mps_tcam_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static const struct file_operations mps_tcam_debugfs_fops = {
+static const struct file_operations mps_tcam_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = mps_tcam_open,
 	.read    = seq_read,
@@ -2012,7 +2012,7 @@ static int rss_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static const struct file_operations rss_debugfs_fops = {
+static const struct file_operations rss_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rss_open,
 	.read    = seq_read,
@@ -2231,7 +2231,7 @@ static ssize_t rss_key_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations rss_key_debugfs_fops = {
+static const struct file_operations rss_key_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rss_key_open,
 	.read    = seq_read,
@@ -2315,7 +2315,7 @@ static int rss_pf_config_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations rss_pf_config_debugfs_fops = {
+static const struct file_operations rss_pf_config_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rss_pf_config_open,
 	.read    = seq_read,
@@ -2378,7 +2378,7 @@ static int rss_vf_config_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations rss_vf_config_debugfs_fops = {
+static const struct file_operations rss_vf_config_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rss_vf_config_open,
 	.read    = seq_read,
@@ -2567,7 +2567,7 @@ static int dcb_info_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static const struct file_operations dcb_info_debugfs_fops = {
+static const struct file_operations dcb_info_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = dcb_info_open,
 	.read    = seq_read,
@@ -2620,7 +2620,7 @@ static inline struct port_info *ethqset2pinfo(struct adapter *adap, int qset)
 	}
 
 	/* should never happen! */
-	BUG();
+	();
 	return NULL;
 }
 
@@ -3049,7 +3049,7 @@ static int sge_qinfo_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static const struct file_operations sge_qinfo_debugfs_fops = {
+static const struct file_operations sge_qinfo_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = sge_qinfo_open,
 	.read    = seq_read,
@@ -3109,7 +3109,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	*ppos = pos + count;
 	return count;
 }
-static const struct file_operations mem_debugfs_fops = {
+static const struct file_operations mem_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = simple_open,
 	.read    = mem_read,
@@ -3195,11 +3195,11 @@ static int tid_info_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(tid_info);
 
-static void add_debugfs_mem(struct adapter *adap, const char *name,
+static void add_defs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
 {
-	debugfs_create_file_size(name, 0400, adap->debugfs_root,
-				 (void *)adap + idx, &mem_debugfs_fops,
+	defs_create_file_size(name, 0400, adap->defs_root,
+				 (void *)adap + idx, &mem_defs_fops,
 				 size_mb << 20);
 }
 
@@ -3509,29 +3509,29 @@ static int tp_stats_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(tp_stats);
 
-/* Add an array of Debug FS files.
+/* Add an array of De FS files.
  */
-void add_debugfs_files(struct adapter *adap,
-		       struct t4_debugfs_entry *files,
+void add_defs_files(struct adapter *adap,
+		       struct t4_defs_entry *files,
 		       unsigned int nfiles)
 {
 	int i;
 
-	/* debugfs support is best effort */
+	/* defs support is best effort */
 	for (i = 0; i < nfiles; i++)
-		debugfs_create_file(files[i].name, files[i].mode,
-				    adap->debugfs_root,
+		defs_create_file(files[i].name, files[i].mode,
+				    adap->defs_root,
 				    (void *)adap + files[i].data,
 				    files[i].ops);
 }
 
-int t4_setup_debugfs(struct adapter *adap)
+int t4_setup_defs(struct adapter *adap)
 {
 	int i;
 	u32 size = 0;
 	struct dentry *de;
 
-	static struct t4_debugfs_entry t4_debugfs_files[] = {
+	static struct t4_defs_entry t4_defs_files[] = {
 		{ "cim_la", &cim_la_fops, 0400, 0 },
 		{ "cim_pif_la", &cim_pif_la_fops, 0400, 0 },
 		{ "cim_ma_la", &cim_ma_la_fops, 0400, 0 },
@@ -3539,30 +3539,30 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "clk", &clk_fops, 0400, 0 },
 		{ "devlog", &devlog_fops, 0400, 0 },
 		{ "mboxlog", &mboxlog_fops, 0400, 0 },
-		{ "mbox0", &mbox_debugfs_fops, 0600, 0 },
-		{ "mbox1", &mbox_debugfs_fops, 0600, 1 },
-		{ "mbox2", &mbox_debugfs_fops, 0600, 2 },
-		{ "mbox3", &mbox_debugfs_fops, 0600, 3 },
-		{ "mbox4", &mbox_debugfs_fops, 0600, 4 },
-		{ "mbox5", &mbox_debugfs_fops, 0600, 5 },
-		{ "mbox6", &mbox_debugfs_fops, 0600, 6 },
-		{ "mbox7", &mbox_debugfs_fops, 0600, 7 },
-		{ "trace0", &mps_trc_debugfs_fops, 0600, 0 },
-		{ "trace1", &mps_trc_debugfs_fops, 0600, 1 },
-		{ "trace2", &mps_trc_debugfs_fops, 0600, 2 },
-		{ "trace3", &mps_trc_debugfs_fops, 0600, 3 },
+		{ "mbox0", &mbox_defs_fops, 0600, 0 },
+		{ "mbox1", &mbox_defs_fops, 0600, 1 },
+		{ "mbox2", &mbox_defs_fops, 0600, 2 },
+		{ "mbox3", &mbox_defs_fops, 0600, 3 },
+		{ "mbox4", &mbox_defs_fops, 0600, 4 },
+		{ "mbox5", &mbox_defs_fops, 0600, 5 },
+		{ "mbox6", &mbox_defs_fops, 0600, 6 },
+		{ "mbox7", &mbox_defs_fops, 0600, 7 },
+		{ "trace0", &mps_trc_defs_fops, 0600, 0 },
+		{ "trace1", &mps_trc_defs_fops, 0600, 1 },
+		{ "trace2", &mps_trc_defs_fops, 0600, 2 },
+		{ "trace3", &mps_trc_defs_fops, 0600, 3 },
 		{ "l2t", &t4_l2t_fops, 0400, 0},
-		{ "mps_tcam", &mps_tcam_debugfs_fops, 0400, 0 },
-		{ "rss", &rss_debugfs_fops, 0400, 0 },
+		{ "mps_tcam", &mps_tcam_defs_fops, 0400, 0 },
+		{ "rss", &rss_defs_fops, 0400, 0 },
 		{ "rss_config", &rss_config_fops, 0400, 0 },
-		{ "rss_key", &rss_key_debugfs_fops, 0400, 0 },
-		{ "rss_pf_config", &rss_pf_config_debugfs_fops, 0400, 0 },
-		{ "rss_vf_config", &rss_vf_config_debugfs_fops, 0400, 0 },
+		{ "rss_key", &rss_key_defs_fops, 0400, 0 },
+		{ "rss_pf_config", &rss_pf_config_defs_fops, 0400, 0 },
+		{ "rss_vf_config", &rss_vf_config_defs_fops, 0400, 0 },
 		{ "resources", &resources_fops, 0400, 0 },
 #ifdef CONFIG_CHELSIO_T4_DCB
-		{ "dcb_info", &dcb_info_debugfs_fops, 0400, 0 },
+		{ "dcb_info", &dcb_info_defs_fops, 0400, 0 },
 #endif
-		{ "sge_qinfo", &sge_qinfo_debugfs_fops, 0400, 0 },
+		{ "sge_qinfo", &sge_qinfo_defs_fops, 0400, 0 },
 		{ "ibq_tp0",  &cim_ibq_fops, 0400, 0 },
 		{ "ibq_tp1",  &cim_ibq_fops, 0400, 1 },
 		{ "ibq_ulp",  &cim_ibq_fops, 0400, 2 },
@@ -3578,7 +3578,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "tp_la", &tp_la_fops, 0400, 0 },
 		{ "ulprx_la", &ulprx_la_fops, 0400, 0 },
 		{ "sensors", &sensors_fops, 0400, 0 },
-		{ "pm_stats", &pm_stats_debugfs_fops, 0400, 0 },
+		{ "pm_stats", &pm_stats_defs_fops, 0400, 0 },
 		{ "tx_rate", &tx_rate_fops, 0400, 0 },
 		{ "cctrl", &cctrl_tbl_fops, 0400, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
@@ -3591,61 +3591,61 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "tp_stats", &tp_stats_fops, 0400, 0 },
 	};
 
-	/* Debug FS nodes common to all T5 and later adapters.
+	/* De FS nodes common to all T5 and later adapters.
 	 */
-	static struct t4_debugfs_entry t5_debugfs_files[] = {
+	static struct t4_defs_entry t5_defs_files[] = {
 		{ "obq_sge_rx_q0", &cim_obq_fops, 0400, 6 },
 		{ "obq_sge_rx_q1", &cim_obq_fops, 0400, 7 },
 	};
 
-	add_debugfs_files(adap,
-			  t4_debugfs_files,
-			  ARRAY_SIZE(t4_debugfs_files));
+	add_defs_files(adap,
+			  t4_defs_files,
+			  ARRAY_SIZE(t4_defs_files));
 	if (!is_t4(adap->params.chip))
-		add_debugfs_files(adap,
-				  t5_debugfs_files,
-				  ARRAY_SIZE(t5_debugfs_files));
+		add_defs_files(adap,
+				  t5_defs_files,
+				  ARRAY_SIZE(t5_defs_files));
 
 	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
 	if (i & EDRAM0_ENABLE_F) {
 		size = t4_read_reg(adap, MA_EDRAM0_BAR_A);
-		add_debugfs_mem(adap, "edc0", MEM_EDC0, EDRAM0_SIZE_G(size));
+		add_defs_mem(adap, "edc0", MEM_EDC0, EDRAM0_SIZE_G(size));
 	}
 	if (i & EDRAM1_ENABLE_F) {
 		size = t4_read_reg(adap, MA_EDRAM1_BAR_A);
-		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM1_SIZE_G(size));
+		add_defs_mem(adap, "edc1", MEM_EDC1, EDRAM1_SIZE_G(size));
 	}
 	if (is_t5(adap->params.chip)) {
 		if (i & EXT_MEM0_ENABLE_F) {
 			size = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
-			add_debugfs_mem(adap, "mc0", MEM_MC0,
+			add_defs_mem(adap, "mc0", MEM_MC0,
 					EXT_MEM0_SIZE_G(size));
 		}
 		if (i & EXT_MEM1_ENABLE_F) {
 			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
-			add_debugfs_mem(adap, "mc1", MEM_MC1,
+			add_defs_mem(adap, "mc1", MEM_MC1,
 					EXT_MEM1_SIZE_G(size));
 		}
 	} else {
 		if (i & EXT_MEM_ENABLE_F) {
 			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
-			add_debugfs_mem(adap, "mc", MEM_MC,
+			add_defs_mem(adap, "mc", MEM_MC,
 					EXT_MEM_SIZE_G(size));
 		}
 
 		if (i & HMA_MUX_F) {
 			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
-			add_debugfs_mem(adap, "hma", MEM_HMA,
+			add_defs_mem(adap, "hma", MEM_HMA,
 					EXT_MEM1_SIZE_G(size));
 		}
 	}
 
-	de = debugfs_create_file_size("flash", 0400, adap->debugfs_root, adap,
-				      &flash_debugfs_fops, adap->params.sf_size);
-	debugfs_create_bool("use_backdoor", 0600,
-			    adap->debugfs_root, &adap->use_bd);
-	debugfs_create_bool("trace_rss", 0600,
-			    adap->debugfs_root, &adap->trace_rss);
+	de = defs_create_file_size("flash", 0400, adap->defs_root, adap,
+				      &flash_defs_fops, adap->params.sf_size);
+	defs_create_bool("use_backdoor", 0600,
+			    adap->defs_root, &adap->use_bd);
+	defs_create_bool("trace_rss", 0600,
+			    adap->defs_root, &adap->trace_rss);
 
 	return 0;
 }

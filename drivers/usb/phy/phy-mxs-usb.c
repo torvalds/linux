@@ -26,8 +26,8 @@
 #define HW_USBPHY_CTRL_SET			0x34
 #define HW_USBPHY_CTRL_CLR			0x38
 
-#define HW_USBPHY_DEBUG_SET			0x54
-#define HW_USBPHY_DEBUG_CLR			0x58
+#define HW_USBPHY_DE_SET			0x54
+#define HW_USBPHY_DE_CLR			0x58
 
 #define HW_USBPHY_IP				0x90
 #define HW_USBPHY_IP_SET			0x94
@@ -54,7 +54,7 @@
 
 #define BM_USBPHY_IP_FIX                       (BIT(17) | BIT(18))
 
-#define BM_USBPHY_DEBUG_CLKGATE			BIT(30)
+#define BM_USBPHY_DE_CLKGATE			BIT(30)
 
 /* Anatop Registers */
 #define ANADIG_ANA_MISC0			0x150
@@ -122,7 +122,7 @@
 #define MXS_PHY_SENDING_SOF_TOO_FAST		BIT(2)
 
 /*
- * IC has bug fixes logic, they include
+ * IC has  fixes logic, they include
  * MXS_PHY_ABNORMAL_IN_SUSPEND and MXS_PHY_SENDING_SOF_TOO_FAST
  * which are described at above flags, the RTL will handle it
  * according to different versions.
@@ -284,8 +284,8 @@ static void __mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool disconnect)
 	u32 reg;
 
 	if (disconnect)
-		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
-			base + HW_USBPHY_DEBUG_CLR);
+		writel_relaxed(BM_USBPHY_DE_CLKGATE,
+			base + HW_USBPHY_DE_CLR);
 
 	if (mxs_phy->port_id == 0) {
 		reg = disconnect ? ANADIG_USB1_LOOPBACK_SET
@@ -302,8 +302,8 @@ static void __mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool disconnect)
 	}
 
 	if (!disconnect)
-		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
-			base + HW_USBPHY_DEBUG_SET);
+		writel_relaxed(BM_USBPHY_DE_CLKGATE,
+			base + HW_USBPHY_DE_SET);
 
 	/* Delay some time, and let Linestate be SE0 for controller */
 	if (disconnect)
@@ -612,8 +612,8 @@ static enum usb_charger_type mxs_phy_charger_detect(struct usb_phy *phy)
 
 	if (chgr_type != SDP_TYPE) {
 		/* Pull up DP via test */
-		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
-				base + HW_USBPHY_DEBUG_CLR);
+		writel_relaxed(BM_USBPHY_DE_CLKGATE,
+				base + HW_USBPHY_DE_CLR);
 		regmap_write(regmap, ANADIG_USB1_LOOPBACK_SET,
 				ANADIG_USB1_LOOPBACK_UTMI_TESTSTART);
 
@@ -622,8 +622,8 @@ static enum usb_charger_type mxs_phy_charger_detect(struct usb_phy *phy)
 		/* Stop the test */
 		regmap_write(regmap, ANADIG_USB1_LOOPBACK_CLR,
 				ANADIG_USB1_LOOPBACK_UTMI_TESTSTART);
-		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
-				base + HW_USBPHY_DEBUG_SET);
+		writel_relaxed(BM_USBPHY_DE_CLKGATE,
+				base + HW_USBPHY_DE_SET);
 	}
 
 	return chgr_type;

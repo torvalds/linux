@@ -91,8 +91,8 @@ lock the page to ensure serial behavior.
 Cleancache Performance Metrics
 ==============================
 
-If properly configured, monitoring of cleancache is done via debugfs in
-the `/sys/kernel/debug/cleancache` directory.  The effectiveness of cleancache
+If properly configured, monitoring of cleancache is done via defs in
+the `/sys/kernel/de/cleancache` directory.  The effectiveness of cleancache
 can be measured (across all filesystems) with:
 
 ``succ_gets``

@@ -23,15 +23,15 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DEBUG_VARIABLE debug
+#define DE_VARIABLE de
 
 #include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "debug verbosity");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "de verbosity");
 
 /* global variables */
 static int hexium_num;

@@ -28,7 +28,7 @@ void __init c293_pcie_pic_init(void)
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 	  MPIC_SINGLE_DEST_CPU, 0, 256, " OpenPIC  ");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	mpic_init(mpic);
 }

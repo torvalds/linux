@@ -149,23 +149,23 @@ config ARM_S3C24XX_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_S3C24XX_CPUFREQ_DEBUG
-	bool "Debug CPUfreq Samsung driver core"
+config ARM_S3C24XX_CPUFREQ_DE
+	bool "De CPUfreq Samsung driver core"
 	depends on ARM_S3C24XX_CPUFREQ
 	help
 	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
 
-config ARM_S3C24XX_CPUFREQ_IODEBUG
-	bool "Debug CPUfreq Samsung driver IO timing"
+config ARM_S3C24XX_CPUFREQ_IODE
+	bool "De CPUfreq Samsung driver IO timing"
 	depends on ARM_S3C24XX_CPUFREQ
 	help
 	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
 
-config ARM_S3C24XX_CPUFREQ_DEBUGFS
-	bool "Export debugfs for CPUFreq"
-	depends on ARM_S3C24XX_CPUFREQ && DEBUG_FS
+config ARM_S3C24XX_CPUFREQ_DEFS
+	bool "Export defs for CPUFreq"
+	depends on ARM_S3C24XX_CPUFREQ && DE_FS
 	help
-	  Export status information via debugfs.
+	  Export status information via defs.
 
 config ARM_S3C2410_CPUFREQ
 	bool

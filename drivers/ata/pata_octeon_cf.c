@@ -150,7 +150,7 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 		div = 8;
 	T = (int)((1000000000000LL * div) / octeon_get_io_clock_rate());
 
-	BUG_ON(ata_timing_compute(dev, dev->pio_mode, &timing, T, T));
+	_ON(ata_timing_compute(dev, dev->pio_mode, &timing, T, T));
 
 	t2 = timing.active;
 	if (t2)
@@ -273,9 +273,9 @@ static void octeon_cf_set_dmamode(struct ata_port *ap, struct ata_device *dev)
 	dma_tim.s.we_n = ns_to_tim_reg(tim_mult, oe_n);
 	dma_tim.s.we_a = ns_to_tim_reg(tim_mult, oe_a);
 
-	pr_debug("ns to ticks (mult %d) of %d is: %d\n", tim_mult, 60,
+	pr_de("ns to ticks (mult %d) of %d is: %d\n", tim_mult, 60,
 		 ns_to_tim_reg(tim_mult, 60));
-	pr_debug("oe_n: %d, oe_a: %d, dmack_s: %d, dmack_h: %d, dmarq: %d, pause: %d\n",
+	pr_de("oe_n: %d, oe_a: %d, dmack_s: %d, dmack_h: %d, dmarq: %d, pause: %d\n",
 		 dma_tim.s.oe_n, dma_tim.s.oe_a, dma_tim.s.dmack_s,
 		 dma_tim.s.dmack_h, dma_tim.s.dmarq, dma_tim.s.pause);
 
@@ -567,7 +567,7 @@ static void octeon_cf_dma_start(struct ata_queued_cmd *qc)
 
 	/* Get the scatter list entry we need to DMA into */
 	sg = qc->cursg;
-	BUG_ON(!sg);
+	_ON(!sg);
 
 	/*
 	 * Clear the DMA complete status.
@@ -808,7 +808,7 @@ static unsigned int octeon_cf_qc_issue(struct ata_queued_cmd *qc)
 
 	case ATAPI_PROT_DMA:
 		dev_err(ap->dev, "Error, ATAPI not supported\n");
-		BUG();
+		();
 
 	default:
 		return ata_sff_qc_issue(qc);

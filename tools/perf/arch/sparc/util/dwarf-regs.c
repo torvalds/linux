@@ -1,5 +1,5 @@
 /*
- * Mapping of DWARF debug register numbers into register names.
+ * Mapping of DWARF de register numbers into register names.
  *
  * Copyright (C) 2010 David S. Miller <davem@davemloft.net>
  *

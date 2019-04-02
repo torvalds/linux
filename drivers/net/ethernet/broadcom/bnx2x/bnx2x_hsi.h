@@ -1424,7 +1424,7 @@ struct drv_func_mb {
 	/*
 	 * Indicate to the firmware not to go into the
 	 * OS-absent when it is not getting driver pulse.
-	 * This is used for debugging as well for PXE(MBA).
+	 * This is used for deging as well for PXE(MBA).
 	 */
 
 	u32 mcp_pulse_mb;
@@ -2154,7 +2154,7 @@ struct shmem2_region {
 	/*
 	 * The other shmemX_base_addr holds the other path's shmem address
 	 * required for example in case of common phy init, or for path1 to know
-	 * the address of mcp debug trace which is located in offset from shmem
+	 * the address of mcp de trace which is located in offset from shmem
 	 * of path0
 	 */
 	u32 other_shmem_base_addr;			/* 0x0034 */
@@ -2175,7 +2175,7 @@ struct shmem2_region {
 	#define SHMEM_LLDP_DCBX_STAT_NONE               0x00000000
 
 	/*
-	 * edebug_driver_if field is used to transfer messages between edebug
+	 * ede_driver_if field is used to transfer messages between ede
 	 * app to the driver through shmem2.
 	 *
 	 * message format:
@@ -2183,10 +2183,10 @@ struct shmem2_region {
 	 * bits 3-5 -  op code / is_ack?
 	 * bits 6-63 - data
 	 */
-	u32 edebug_driver_if[2];			/* 0x0068 */
-	#define EDEBUG_DRIVER_IF_OP_CODE_GET_PHYS_ADDR  1
-	#define EDEBUG_DRIVER_IF_OP_CODE_GET_BUS_ADDR   2
-	#define EDEBUG_DRIVER_IF_OP_CODE_DISABLE_STAT   3
+	u32 ede_driver_if[2];			/* 0x0068 */
+	#define EDE_DRIVER_IF_OP_CODE_GET_PHYS_ADDR  1
+	#define EDE_DRIVER_IF_OP_CODE_GET_BUS_ADDR   2
+	#define EDE_DRIVER_IF_OP_CODE_DISABLE_STAT   3
 
 	u32 nvm_retain_bitmap_addr;			/* 0x0070 */
 
@@ -2670,7 +2670,7 @@ struct bmac2_stats {
 
 struct mstat_stats {
 	struct {
-		/* OTE MSTAT on E3 has a bug where this register's contents are
+		/* OTE MSTAT on E3 has a  where this register's contents are
 		 * actually tx_gtxpok + tx_gtxpf + (possibly)tx_gtxpp
 		 */
 		u32 tx_gtxpok_lo;

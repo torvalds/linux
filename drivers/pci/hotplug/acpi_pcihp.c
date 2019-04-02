@@ -21,7 +21,7 @@
 
 #define MY_NAME	"acpi_pcihp"
 
-#define dbg(fmt, arg...) do { if (debug_acpi) printk(KERN_DEBUG "%s: %s: " fmt, MY_NAME, __func__, ## arg); } while (0)
+#define dbg(fmt, arg...) do { if (de_acpi) printk(KERN_DE "%s: %s: " fmt, MY_NAME, __func__, ## arg); } while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
@@ -29,7 +29,7 @@
 #define	METHOD_NAME__SUN	"_SUN"
 #define	METHOD_NAME_OSHP	"OSHP"
 
-static bool debug_acpi;
+static bool de_acpi;
 
 /* acpi_run_oshp - get control of hotplug from the firmware
  *
@@ -52,7 +52,7 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 			dbg("%s:%s OSHP not found\n",
 			    __func__, (char *)string.pointer);
 	else
-		pr_debug("%s:%s OSHP passes\n", __func__,
+		pr_de("%s:%s OSHP passes\n", __func__,
 			(char *)string.pointer);
 
 	kfree(string.pointer);
@@ -208,5 +208,5 @@ int acpi_pci_detect_ejectable(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_pci_detect_ejectable);
 
-module_param(debug_acpi, bool, 0644);
-MODULE_PARM_DESC(debug_acpi, "Debugging mode for ACPI enabled or not");
+module_param(de_acpi, bool, 0644);
+MODULE_PARM_DESC(de_acpi, "Deging mode for ACPI enabled or not");

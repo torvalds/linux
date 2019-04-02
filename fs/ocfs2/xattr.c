@@ -242,7 +242,7 @@ static int namevalue_size_xe(struct ocfs2_xattr_entry *xe)
 {
 	u64 value_len = le64_to_cpu(xe->xe_value_size);
 
-	BUG_ON((value_len > OCFS2_XATTR_INLINE_SIZE) &&
+	_ON((value_len > OCFS2_XATTR_INLINE_SIZE) &&
 	       ocfs2_xattr_is_local(xe));
 	return namevalue_size(xe->xe_name_len, value_len);
 }
@@ -332,7 +332,7 @@ static struct ocfs2_xattr_bucket *ocfs2_xattr_bucket_new(struct inode *inode)
 	struct ocfs2_xattr_bucket *bucket;
 	int blks = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 
-	BUG_ON(blks > OCFS2_XATTR_MAX_BLOCKS_PER_BUCKET);
+	_ON(blks > OCFS2_XATTR_MAX_BLOCKS_PER_BUCKET);
 
 	bucket = kzalloc(sizeof(struct ocfs2_xattr_bucket), GFP_NOFS);
 	if (bucket) {
@@ -465,8 +465,8 @@ static void ocfs2_xattr_bucket_copy_data(struct ocfs2_xattr_bucket *dest,
 	int i;
 	int blocksize = src->bu_inode->i_sb->s_blocksize;
 
-	BUG_ON(dest->bu_blocks != src->bu_blocks);
-	BUG_ON(dest->bu_inode != src->bu_inode);
+	_ON(dest->bu_blocks != src->bu_blocks);
+	_ON(dest->bu_inode != src->bu_inode);
 
 	for (i = 0; i < src->bu_blocks; i++) {
 		memcpy(bucket_block(dest, i), bucket_block(src, i),
@@ -483,7 +483,7 @@ static int ocfs2_validate_xattr_block(struct super_block *sb,
 
 	trace_ocfs2_validate_xattr_block((unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
@@ -754,7 +754,7 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 			 * We can only fail in case the alloc file doesn't give
 			 * up enough clusters.
 			 */
-			BUG_ON(why == RESTART_META);
+			_ON(why == RESTART_META);
 
 			credits = ocfs2_calc_extend_credits(inode->i_sb,
 							    &vb->vb_xv->xr_list);
@@ -1368,7 +1368,7 @@ static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 	unsigned int ext_flags;
 	struct ocfs2_xattr_value_root *xv = vb->vb_xv;
 
-	BUG_ON(clusters > le32_to_cpu(xv->xr_clusters));
+	_ON(clusters > le32_to_cpu(xv->xr_clusters));
 
 	while (cpos < clusters) {
 		ret = ocfs2_xattr_get_clusters(inode, cpos, &p_cluster,
@@ -1379,7 +1379,7 @@ static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 			goto out;
 		}
 
-		BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
+		_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
 
 		blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cluster);
 
@@ -1461,7 +1461,7 @@ static void ocfs2_xa_journal_dirty(handle_t *handle, struct ocfs2_xa_loc *loc)
 /* Give a pointer into the storage for the given offset */
 static void *ocfs2_xa_offset_pointer(struct ocfs2_xa_loc *loc, int offset)
 {
-	BUG_ON(offset >= loc->xl_size);
+	_ON(offset >= loc->xl_size);
 	return loc->xl_ops->xlo_offset_pointer(loc, offset);
 }
 
@@ -1537,8 +1537,8 @@ static void ocfs2_xa_fill_value_buf(struct ocfs2_xa_loc *loc,
 	int name_size = OCFS2_XATTR_SIZE(loc->xl_entry->xe_name_len);
 
 	/* Value bufs are for value trees */
-	BUG_ON(ocfs2_xattr_is_local(loc->xl_entry));
-	BUG_ON(namevalue_size_xe(loc->xl_entry) !=
+	_ON(ocfs2_xattr_is_local(loc->xl_entry));
+	_ON(namevalue_size_xe(loc->xl_entry) !=
 	       (name_size + OCFS2_XATTR_ROOT_SIZE));
 
 	loc->xl_ops->xlo_fill_value_buf(loc, vb);
@@ -1788,7 +1788,7 @@ static int ocfs2_xa_bucket_check_space(struct ocfs2_xa_loc *loc,
 		else
 			needed_space -= sizeof(struct ocfs2_xattr_entry);
 	}
-	BUG_ON(needed_space < 0);
+	_ON(needed_space < 0);
 
 	if (free_start < size) {
 		if (needed_space)
@@ -1876,10 +1876,10 @@ static void ocfs2_xa_bucket_fill_value_buf(struct ocfs2_xa_loc *loc,
 	int block_offset = nameval_offset >> sb->s_blocksize_bits;
 
 	/* Values are not allowed to straddle block boundaries */
-	BUG_ON(block_offset !=
+	_ON(block_offset !=
 	       ((nameval_offset + size - 1) >> sb->s_blocksize_bits));
 	/* We expect the bucket to be filled in */
-	BUG_ON(!bucket->bu_bhs[block_offset]);
+	_ON(!bucket->bu_bhs[block_offset]);
 
 	vb->vb_access = ocfs2_journal_access;
 	vb->vb_bh = bucket->bu_bhs[block_offset];
@@ -2078,7 +2078,7 @@ static int ocfs2_xa_reuse_entry(struct ocfs2_xa_loc *loc,
 	int xe_local = ocfs2_xattr_is_local(loc->xl_entry);
 	int xi_local = xi->xi_value_len <= OCFS2_XATTR_INLINE_SIZE;
 
-	BUG_ON(OCFS2_XATTR_SIZE(loc->xl_entry->xe_name_len) !=
+	_ON(OCFS2_XATTR_SIZE(loc->xl_entry->xe_name_len) !=
 	       name_size);
 
 	nameval_buf = ocfs2_xa_offset_pointer(loc,
@@ -2188,7 +2188,7 @@ alloc_value:
 			 * size.
 			 */
 			if (loc->xl_entry) {
-				BUG_ON(!orig_value_size);
+				_ON(!orig_value_size);
 				loc->xl_entry->xe_value_size = orig_value_size;
 			}
 			mlog_errno(rc);
@@ -2279,7 +2279,7 @@ static void ocfs2_init_dinode_xa_loc(struct ocfs2_xa_loc *loc,
 {
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 
-	BUG_ON(!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_XATTR_FL));
+	_ON(!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_XATTR_FL));
 
 	loc->xl_inode = inode;
 	loc->xl_ops = &ocfs2_xa_block_loc_ops;
@@ -2299,7 +2299,7 @@ static void ocfs2_init_xattr_block_xa_loc(struct ocfs2_xa_loc *loc,
 	struct ocfs2_xattr_block *xb =
 		(struct ocfs2_xattr_block *)bh->b_data;
 
-	BUG_ON(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED);
+	_ON(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED);
 
 	loc->xl_inode = inode;
 	loc->xl_ops = &ocfs2_xa_block_loc_ops;
@@ -3032,7 +3032,7 @@ static int ocfs2_xattr_can_be_in_inode(struct inode *inode,
 	if (free < 0)
 		return 0;
 
-	BUG_ON(!xs->not_found);
+	_ON(!xs->not_found);
 
 	if (free >= (sizeof(struct ocfs2_xattr_entry) + namevalue_size_xi(xi)))
 		return 1;
@@ -3961,7 +3961,7 @@ static int ocfs2_xattr_index_block_find(struct inode *inode,
 		goto out;
 	}
 
-	BUG_ON(p_blkno == 0 || num_clusters == 0 || first_hash > name_hash);
+	_ON(p_blkno == 0 || num_clusters == 0 || first_hash > name_hash);
 
 	trace_ocfs2_xattr_index_block_find_rec(OCFS2_I(inode)->ip_blkno,
 					name, name_index, first_hash,
@@ -4298,8 +4298,8 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 	trace_ocfs2_xattr_create_index_block_begin(
 				(unsigned long long)xb_bh->b_blocknr);
 
-	BUG_ON(xb_flags & OCFS2_XATTR_INDEXED);
-	BUG_ON(!xs->bucket);
+	_ON(xb_flags & OCFS2_XATTR_INDEXED);
+	_ON(!xs->bucket);
 
 	/*
 	 * XXX:
@@ -4468,13 +4468,13 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 			xe->xe_name_offset = cpu_to_le16(end - len);
 		}
 
-		mlog_bug_on_msg(end < offset + len, "Defrag check failed for "
+		mlog__on_msg(end < offset + len, "Defrag check failed for "
 				"bucket %llu\n", (unsigned long long)blkno);
 
 		end -= len;
 	}
 
-	mlog_bug_on_msg(xh_free_start > end, "Defrag check failed for "
+	mlog__on_msg(xh_free_start > end, "Defrag check failed for "
 			"bucket %llu\n", (unsigned long long)blkno);
 
 	if (xh_free_start == end)
@@ -4532,8 +4532,8 @@ static int ocfs2_mv_xattr_bucket_cross_cluster(struct inode *inode,
 	u64 last_cluster_blkno = bucket_blkno(first) +
 		((num_clusters - 1) * ocfs2_clusters_to_blocks(sb, 1));
 
-	BUG_ON(le16_to_cpu(bucket_xh(first)->xh_num_buckets) < num_buckets);
-	BUG_ON(OCFS2_XATTR_BUCKET_SIZE == OCFS2_SB(sb)->s_clustersize);
+	_ON(le16_to_cpu(bucket_xh(first)->xh_num_buckets) < num_buckets);
+	_ON(OCFS2_XATTR_BUCKET_SIZE == OCFS2_SB(sb)->s_clustersize);
 
 	trace_ocfs2_mv_xattr_bucket_cross_cluster(
 				(unsigned long long)last_cluster_blkno,
@@ -4819,7 +4819,7 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 	int ret;
 	struct ocfs2_xattr_bucket *s_bucket = NULL, *t_bucket = NULL;
 
-	BUG_ON(s_blkno == t_blkno);
+	_ON(s_blkno == t_blkno);
 
 	trace_ocfs2_cp_xattr_bucket((unsigned long long)s_blkno,
 				    (unsigned long long)t_blkno,
@@ -4898,7 +4898,7 @@ static int ocfs2_mv_xattr_buckets(struct inode *inode, handle_t *handle,
 	trace_ocfs2_mv_xattr_buckets((unsigned long long)last_blk,
 				     (unsigned long long)to_blk);
 
-	BUG_ON(start_bucket >= num_buckets);
+	_ON(start_bucket >= num_buckets);
 	if (start_bucket) {
 		num_buckets -= start_bucket;
 		last_blk += (start_bucket * blks_per_bucket);
@@ -4996,7 +4996,7 @@ static int ocfs2_divide_xattr_cluster(struct inode *inode,
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	int ret, credits = 2 * blk_per_bucket;
 
-	BUG_ON(OCFS2_XATTR_BUCKET_SIZE < OCFS2_SB(inode->i_sb)->s_clustersize);
+	_ON(OCFS2_XATTR_BUCKET_SIZE < OCFS2_SB(inode->i_sb)->s_clustersize);
 
 	ret = ocfs2_extend_trans(handle, credits);
 	if (ret) {
@@ -5143,7 +5143,7 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 		goto leave;
 	}
 
-	BUG_ON(num_bits > clusters_to_add);
+	_ON(num_bits > clusters_to_add);
 
 	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
 	trace_ocfs2_add_new_xattr_cluster((unsigned long long)block, num_bits);
@@ -5218,7 +5218,7 @@ static int ocfs2_extend_xattr_bucket(struct inode *inode,
 					num_clusters, new_bucket);
 
 	/* The extent must have room for an additional bucket */
-	BUG_ON(new_bucket >=
+	_ON(new_bucket >=
 	       (num_clusters * ocfs2_xattr_buckets_per_cluster(osb)));
 
 	/* end_blk points to the last existing bucket */
@@ -5379,7 +5379,7 @@ static int ocfs2_xattr_bucket_value_truncate(struct inode *inode,
 
 	xe = &xh->xh_entries[xe_off];
 
-	BUG_ON(!xe || ocfs2_xattr_is_local(xe));
+	_ON(!xe || ocfs2_xattr_is_local(xe));
 
 	offset = le16_to_cpu(xe->xe_name_offset) +
 		 OCFS2_XATTR_SIZE(xe->xe_name_len);
@@ -5387,10 +5387,10 @@ static int ocfs2_xattr_bucket_value_truncate(struct inode *inode,
 	value_blk = offset / blocksize;
 
 	/* We don't allow ocfs2_xattr_value to be stored in different block. */
-	BUG_ON(value_blk != (offset + OCFS2_XATTR_ROOT_SIZE - 1) / blocksize);
+	_ON(value_blk != (offset + OCFS2_XATTR_ROOT_SIZE - 1) / blocksize);
 
 	vb.vb_bh = bucket->bu_bhs[value_blk];
-	BUG_ON(!vb.vb_bh);
+	_ON(!vb.vb_bh);
 
 	vb.vb_xv = (struct ocfs2_xattr_value_root *)
 		(vb.vb_bh->b_data + offset % blocksize);
@@ -5924,7 +5924,7 @@ static int ocfs2_xattr_value_attach_refcount(struct inode *inode,
 		if ((ext_flags & OCFS2_EXT_REFCOUNTED))
 			continue;
 
-		BUG_ON(!p_cluster);
+		_ON(!p_cluster);
 
 		ret = ocfs2_add_refcount_flag(inode, value_et,
 					      ref_ci, ref_root_bh,
@@ -6439,7 +6439,7 @@ static int ocfs2_reflink_xattr_header(handle_t *handle,
 				goto out;
 			}
 
-			BUG_ON(!p_cluster);
+			_ON(!p_cluster);
 
 			if (xv->xr_list.l_tree_depth) {
 				ret = ocfs2_insert_extent(handle,

@@ -56,7 +56,7 @@
 /* WDTIM_CTRL bit definitions */
 #define COUNT_ENAB     1
 #define RESET_COUNT    (1 << 1)
-#define DEBUG_EN       (1 << 2)
+#define DE_EN       (1 << 2)
 
 /* WDTIM_MCTRL bit definitions */
 #define MR0_INT        1
@@ -102,8 +102,8 @@ static int pnx4008_wdt_start(struct watchdog_device *wdd)
 	/* the longest pulse period 65541/(13*10^6) seconds ~ 5 ms. */
 	writel(0xFFFF, WDTIM_PULSE(wdt_base));
 	writel(wdd->timeout * WDOG_COUNTER_RATE, WDTIM_MATCH0(wdt_base));
-	/*enable counter, stop when debugger active */
-	writel(COUNT_ENAB | DEBUG_EN, WDTIM_CTRL(wdt_base));
+	/*enable counter, stop when deger active */
+	writel(COUNT_ENAB | DE_EN, WDTIM_CTRL(wdt_base));
 
 	spin_unlock(&io_lock);
 	return 0;

@@ -40,7 +40,7 @@
 		power-isa-atb;		// Alternate Time Base
 		power-isa-cs;		// Cache Specification
 		power-isa-ds;		// Decorated Storage
-		power-isa-e.ed;		// Embedded.Enhanced Debug
+		power-isa-e.ed;		// Embedded.Enhanced De
 		power-isa-e.pd;		// Embedded.External PID
 		power-isa-e.hv;		// Embedded.Hypervisor
 		power-isa-e.le;		// Embedded.Little-Endian

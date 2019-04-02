@@ -76,8 +76,8 @@ struct pinctrl_gpio_range {
  * @get_group_name: return the group name of the pin group
  * @get_group_pins: return an array of pins corresponding to a certain
  *	group selector @pins, and the size of the array in @num_pins
- * @pin_dbg_show: optional debugfs display hook that will provide per-device
- *	info for a certain pin in debugfs
+ * @pin_dbg_show: optional defs display hook that will provide per-device
+ *	info for a certain pin in defs
  * @dt_node_to_map: parse a device tree "pin configuration node", and create
  *	mapping table entries for it. These are returned through the @map and
  *	@num_maps output parameters. This function is optional, and may be
@@ -123,7 +123,7 @@ struct pinctrl_ops {
  *	from the hardware description
  * @custom_params: List of driver_specific custom parameters to be parsed from
  *	the hardware description
- * @custom_conf_items: Information how to print @params in debugfs, must be
+ * @custom_conf_items: Information how to print @params in defs, must be
  *	the same size as the @custom_params, i.e. @num_custom_params
  */
 struct pinctrl_desc {

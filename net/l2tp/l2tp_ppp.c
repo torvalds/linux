@@ -169,7 +169,7 @@ static inline struct l2tp_session *pppol2tp_sock_to_session(struct sock *sk)
 		goto out;
 	}
 
-	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
+	_ON(session->magic != L2TP_SESSION_MAGIC);
 
 out:
 	return session;
@@ -424,7 +424,7 @@ static void pppol2tp_session_destruct(struct sock *sk)
 
 	if (session) {
 		sk->sk_user_data = NULL;
-		BUG_ON(session->magic != L2TP_SESSION_MAGIC);
+		_ON(session->magic != L2TP_SESSION_MAGIC);
 		l2tp_session_dec_refcount(session);
 	}
 }
@@ -552,7 +552,7 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 	struct pppol2tp_session *ps;
 
 	session->recv_skb = pppol2tp_recv;
-	if (IS_ENABLED(CONFIG_L2TP_DEBUGFS))
+	if (IS_ENABLED(CONFIG_L2TP_DEFS))
 		session->show = pppol2tp_show;
 
 	ps = l2tp_session_priv(session);
@@ -711,7 +711,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		if (tunnel == NULL) {
 			struct l2tp_tunnel_cfg tcfg = {
 				.encap = L2TP_ENCAPTYPE_UDP,
-				.debug = 0,
+				.de = 0,
 			};
 
 			/* Prevent l2tp_tunnel_register() from trying to set up
@@ -1159,10 +1159,10 @@ static int pppol2tp_tunnel_setsockopt(struct sock *sk,
 	int err = 0;
 
 	switch (optname) {
-	case PPPOL2TP_SO_DEBUG:
-		tunnel->debug = val;
-		l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: set debug=%x\n",
-			  tunnel->name, tunnel->debug);
+	case PPPOL2TP_SO_DE:
+		tunnel->de = val;
+		l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: set de=%x\n",
+			  tunnel->name, tunnel->de);
 		break;
 
 	default:
@@ -1222,10 +1222,10 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 			  session->name, session->lns_mode);
 		break;
 
-	case PPPOL2TP_SO_DEBUG:
-		session->debug = val;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set debug=%x\n",
-			  session->name, session->debug);
+	case PPPOL2TP_SO_DE:
+		session->de = val;
+		l2tp_info(session, L2TP_MSG_CONTROL, "%s: set de=%x\n",
+			  session->name, session->de);
 		break;
 
 	case PPPOL2TP_SO_REORDERTO:
@@ -1300,10 +1300,10 @@ static int pppol2tp_tunnel_getsockopt(struct sock *sk,
 	int err = 0;
 
 	switch (optname) {
-	case PPPOL2TP_SO_DEBUG:
-		*val = tunnel->debug;
-		l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: get debug=%x\n",
-			  tunnel->name, tunnel->debug);
+	case PPPOL2TP_SO_DE:
+		*val = tunnel->de;
+		l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: get de=%x\n",
+			  tunnel->name, tunnel->de);
 		break;
 
 	default:
@@ -1341,9 +1341,9 @@ static int pppol2tp_session_getsockopt(struct sock *sk,
 			  "%s: get lns_mode=%d\n", session->name, *val);
 		break;
 
-	case PPPOL2TP_SO_DEBUG:
-		*val = session->debug;
-		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get debug=%d\n",
+	case PPPOL2TP_SO_DE:
+		*val = session->de;
+		l2tp_info(session, L2TP_MSG_CONTROL, "%s: get de=%d\n",
 			  session->name, *val);
 		break;
 
@@ -1424,7 +1424,7 @@ end:
 }
 
 /*****************************************************************************
- * /proc filesystem for debug
+ * /proc filesystem for de
  * Since the original pppol2tp driver provided /proc/net/pppol2tp for
  * L2TPv2, we dump only L2TPv2 tunnels and sessions here.
  *****************************************************************************/
@@ -1483,7 +1483,7 @@ static void *pppol2tp_seq_start(struct seq_file *m, loff_t *offs)
 	if (!pos)
 		goto out;
 
-	BUG_ON(m->private == NULL);
+	_ON(m->private == NULL);
 	pd = m->private;
 	net = seq_file_net(m);
 
@@ -1535,7 +1535,7 @@ static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
 		   (tunnel == tunnel->sock->sk_user_data) ? 'Y' : 'N',
 		   refcount_read(&tunnel->ref_count) - 1);
 	seq_printf(m, " %08x %ld/%ld/%ld %ld/%ld/%ld\n",
-		   tunnel->debug,
+		   tunnel->de,
 		   atomic_long_read(&tunnel->stats.tx_packets),
 		   atomic_long_read(&tunnel->stats.tx_bytes),
 		   atomic_long_read(&tunnel->stats.tx_errors),
@@ -1581,7 +1581,7 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",
-		   session->debug,
+		   session->de,
 		   jiffies_to_msecs(session->reorder_timeout));
 	seq_printf(m, "   %hu/%hu %ld/%ld/%ld %ld/%ld/%ld\n",
 		   session->nr, session->ns,
@@ -1608,10 +1608,10 @@ static int pppol2tp_seq_show(struct seq_file *m, void *v)
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(m, "PPPoL2TP driver info, " PPPOL2TP_DRV_VERSION "\n");
 		seq_puts(m, "TUNNEL name, user-data-ok session-count\n");
-		seq_puts(m, " debug tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
+		seq_puts(m, " de tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
 		seq_puts(m, "  SESSION name, addr/port src-tid/sid "
 			 "dest-tid/sid state user-data-ok\n");
-		seq_puts(m, "   mtu/mru/rcvseq/sendseq/lns debug reorderto\n");
+		seq_puts(m, "   mtu/mru/rcvseq/sendseq/lns de reorderto\n");
 		seq_puts(m, "   nr/ns tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
 		goto out;
 	}

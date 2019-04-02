@@ -79,7 +79,7 @@ static void usage(void)
 	fprintf(stderr, "  -d: print delayacct stats\n");
 	fprintf(stderr, "  -i: print IO accounting (works only with -p)\n");
 	fprintf(stderr, "  -l: listen forever\n");
-	fprintf(stderr, "  -v: debug on\n");
+	fprintf(stderr, "  -v: de on\n");
 	fprintf(stderr, "  -C: container path\n");
 }
 
@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
 			forking = 1;
 			break;
 		case 'v':
-			printf("debug on\n");
+			printf("de on\n");
 			dbg = 1;
 			break;
 		case 'l':

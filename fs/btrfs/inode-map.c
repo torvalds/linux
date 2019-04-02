@@ -251,7 +251,7 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 		}
 
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
-		BUG_ON(info->bitmap); /* Logic error */
+		_ON(info->bitmap); /* Logic error */
 
 		if (info->offset > root->ino_cache_progress)
 			count = 0;
@@ -434,7 +434,7 @@ again:
 	}
 
 	if (IS_ERR(inode)) {
-		BUG_ON(retry); /* Logic error */
+		_ON(retry); /* Logic error */
 		retry = true;
 
 		ret = create_free_ino_inode(root, trans, path);
@@ -524,7 +524,7 @@ int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid)
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto error;
-	BUG_ON(ret == 0); /* Corruption */
+	_ON(ret == 0); /* Corruption */
 	if (path->slots[0] > 0) {
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];

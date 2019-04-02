@@ -7,6 +7,6 @@ config MEDIA_CEC_RC
 
 config CEC_PIN_ERROR_INJ
 	bool "Enable CEC error injection support"
-	depends on CEC_PIN && DEBUG_FS
+	depends on CEC_PIN && DE_FS
 	---help---
-	  This option enables CEC error injection using debugfs.
+	  This option enables CEC error injection using defs.

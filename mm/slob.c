@@ -327,7 +327,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
 		set_slob_page_free(sp, slob_list);
 		b = slob_page_alloc(sp, size, align);
-		BUG_ON(!b);
+		_ON(!b);
 		spin_unlock_irqrestore(&slob_lock, flags);
 	}
 	if (unlikely(gfp & __GFP_ZERO))
@@ -348,7 +348,7 @@ static void slob_free(void *block, int size)
 
 	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return;
-	BUG_ON(!size);
+	_ON(!size);
 
 	sp = virt_to_page(block);
 	units = SLOB_UNITS(size);
@@ -510,7 +510,7 @@ size_t ksize(const void *block)
 	int align;
 	unsigned int *m;
 
-	BUG_ON(!block);
+	_ON(!block);
 	if (unlikely(block == ZERO_SIZE_PTR))
 		return 0;
 

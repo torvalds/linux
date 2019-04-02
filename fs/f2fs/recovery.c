@@ -545,8 +545,8 @@ retry_dn:
 	if (err)
 		goto err;
 
-	f2fs_bug_on(sbi, ni.ino != ino_of_node(page));
-	f2fs_bug_on(sbi, ofs_of_node(dn.node_page) != ofs_of_node(page));
+	f2fs__on(sbi, ni.ino != ino_of_node(page));
+	f2fs__on(sbi, ofs_of_node(dn.node_page) != ofs_of_node(page));
 
 	for (; start < end; start++, dn.ofs_in_node++) {
 		block_t src, dest;
@@ -588,7 +588,7 @@ retry_dn:
 				       IS_ENABLED(CONFIG_F2FS_FAULT_INJECTION))
 					err = f2fs_reserve_new_block(&dn);
 				/* We should not get -ENOSPC */
-				f2fs_bug_on(sbi, err);
+				f2fs__on(sbi, err);
 				if (err)
 					goto err;
 			}
@@ -748,7 +748,7 @@ int f2fs_recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only)
 	/* step #2: recover data */
 	err = recover_data(sbi, &inode_list, &tmp_inode_list, &dir_list);
 	if (!err)
-		f2fs_bug_on(sbi, !list_empty(&inode_list));
+		f2fs__on(sbi, !list_empty(&inode_list));
 	else {
 		/* restore s_flags to let iput() trash data */
 		sbi->sb->s_flags = s_flags;

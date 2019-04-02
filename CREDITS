@@ -128,8 +128,8 @@ W: http://www.kernel.org/pub/linux/kernel/people/andrea/
 P: 1024D/68B9CB43 13D9 8355 295F 4823 7C49  C012 DFA1 686E 68B9 CB43
 P: 1024R/CB4660B9 CC A0 71 81 F4 A0 63 AC  C0 4B 81 1D 8C 15 C8 E5
 D: Parport hacker
-D: Implemented a workaround for some interrupt buggy printers
-D: Author of pscan that helps to fix lp/parport bugs
+D: Implemented a workaround for some interrupt gy printers
+D: Author of pscan that helps to fix lp/parport s
 D: Author of lil (Linux Interrupt Latency benchmark)
 D: Fixed the shm swap deallocation at swapoff time (try_to_unuse message)
 D: VM hacker
@@ -242,7 +242,7 @@ P: 1024/FA6F16D1 96 D1 1A CF 5F CA 69 EC  F9 4F 36 1F 6D 60 7B DA
 D: Maintainer of the System V file system.
 D: System V fs update for 2.1.x dcache.
 D: Forward ported a couple of SCSI drivers.
-D: Various bugfixes.
+D: Various fixes.
 S: ul. Koscielna 12a
 S: 62-300 Wrzesnia
 S: Poland
@@ -258,7 +258,7 @@ S: England
 N: Paul Barton-Davis
 E: pbd@op.net
 D: Driver for WaveFront soundcards (Turtle Beach Maui, Tropez, Tropez+)
-D: Various bugfixes and changes to sound drivers
+D: Various fixes and changes to sound drivers
 S: USA 
 
 N: Carlos Henrique Bauer
@@ -343,11 +343,11 @@ W: http://johannes.sipsolutions.net/
 P: 4096R/7BF9099A C0EB C440 F6DA 091C 884D  8532 E0F3 73F3 7BF9 099A
 D: powerpc & 802.11 hacker
 
-N: Stephen R. van den Berg (AKA BuGless)
+N: Stephen R. van den Berg (AKA less)
 E: berg@pool.informatik.rwth-aachen.de
 D: General kernel, gcc, and libc hacker
 D: Specialisation: tweaking, ensuring portability, tweaking, cleaning,
-D: tweaking and occasionally debugging :-)
+D: tweaking and occasionally deging :-)
 S: Bouwensstraat 22
 S: 6369 BG Simpelveld
 S: The Netherlands
@@ -520,7 +520,7 @@ N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
 P: 1024D/725B37C6  190F 3E77 9C89 3B6D BECD  46EE 67C3 0308 725B 37C6
-D: parts of CPUFreq code, ACPI bugfixes, PCMCIA rewrite, cpufrequtils
+D: parts of CPUFreq code, ACPI fixes, PCMCIA rewrite, cpufrequtils
 S: Tuebingen, Germany
 
 N: Andries Brouwer
@@ -696,7 +696,7 @@ E: jjciarla@raiz.uncu.edu.ar
 E: jjo@mendoza.gov.ar
 D: Network driver alias support
 D: IP masq hashing and app modules
-D: IP masq 2.1 features and bugs
+D: IP masq 2.1 features and s
 S: Las Cuevas 2385 - Bo Guemes
 S: Las Heras, Mendoza CP 5539
 S: Argentina
@@ -726,7 +726,7 @@ E: kees@ubuntu.com
 E: keescook@chromium.org
 W: http://outflux.net/blog/
 P: 4096R/DC6DC026 A5C3 F68F 229D D60F 723E  6E13 8972 F4DF DC6D C026
-D: Various security things, bug fixes, and documentation.
+D: Various security things,  fixes, and documentation.
 S: (ask for current address)
 S: Portland, Oregon
 S: USA
@@ -807,7 +807,7 @@ E: jdassen@wi.LeidenUniv.nl
 W: http://www.wi.leidenuniv.nl/~jdassen/
 P: 1024/672D05C1 DD 60 32 60 F7 90 64 80  E7 6F D4 E4 F8 C9 4A 58
 D: Debian GNU/Linux: www.debian.org maintainer, FAQ co-maintainer,
-D: packages testing, nit-picking & fixing. Enjoying BugFree (TM) kernels.
+D: packages testing, nit-picking & fixing. Enjoying Free (TM) kernels.
 S: Zuidsingel 10A
 S: 2312 SB  Leiden
 S: The Netherlands
@@ -967,7 +967,7 @@ S: USA
 
 N: Bruno Ducrot
 E: ducrot@poupinou.org
-D: CPUFreq and ACPI bugfixes.
+D: CPUFreq and ACPI fixes.
 S: Mougin, France
 
 N: Don Dugger
@@ -1191,7 +1191,7 @@ E: dfrasnel@alphalinux.org
 W: http://www.alphalinux.org/
 P: 1024/3EF87611 B9 F1 44 50 D3 E8 C2 80  DA E5 55 AA 56 7C 42 DA
 D: DEC Alpha hacker 
-D: Miscellaneous bug squisher
+D: Miscellaneous  squisher
 
 N: Jim Freeman
 E: jfree@sovereign.org
@@ -1560,7 +1560,7 @@ S: United Kingdom
 N: Jauder Ho
 E: jauderho@carumba.com
 W: http://www.carumba.com/
-D: bug toaster (A1 sauce makes all the difference)
+D:  toaster (A1 sauce makes all the difference)
 D: Random linux hacker
 
 N: James Hogan
@@ -2003,7 +2003,7 @@ E: jikos@jikos.cz
 E: jkosina@suse.cz
 D: Generic HID layer - original code split, fixes
 D: Various ACPI fixes, keeping correct battery state through suspend
-D: various lockdep annotations, autofs and other random bugfixes
+D: various lockdep annotations, autofs and other random fixes
 S: Prague, Czech Republic
 
 N: Gene Kozin
@@ -2042,12 +2042,12 @@ D: USB Bluetooth driver, USB Skeleton driver
 D: bits and pieces of USB core code.
 D: PCI Hotplug core, PCI Hotplug Compaq driver modifications
 D: portions of the Linux Security Module (LSM) framework
-D: parts of the driver core, debugfs.
+D: parts of the driver core, defs.
 
 N: Russell Kroll
 E: rkroll@exploits.org
 W: http://www.exploits.org/
-D: V4L radio cards: radio-aztech (new), others (bugfixes/features)
+D: V4L radio cards: radio-aztech (new), others (fixes/features)
 D: Loopback block device: dynamic sizing ("max_loop" as module)
 S: Post Office Box 691886
 S: San Antonio, Texas 78269-1886
@@ -2268,7 +2268,7 @@ S: USA
 N: Robert M. Love
 E: rml@tech9.net
 E: rml@novell.com
-D: misc. kernel hacking and debugging
+D: misc. kernel hacking and deging
 S: Cambridge, MA 02139
 S: USA
 
@@ -2324,7 +2324,7 @@ D: Initial implementation of VC's, pty's and select()
 N: Pavel Machek
 E: pavel@ucw.cz
 P: 4096R/92DFCE96 4FA7 9EEF FCD4 C44F C585  B8C7 C060 2241 92DF CE96
-D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd,
+D: Softcursor for vga, hypertech cdrom support, vcsa fix, nbd,
 D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
 D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
 D: Altera SoCFPGA and Nokia N900 support.
@@ -2460,7 +2460,7 @@ S: New Zealand
 N: Patrick McHardy
 E: kaber@trash.net
 P: 1024D/12155E80 B128 7DE6 FF0A C2B2 48BE  AB4C C9D4 964E 1215 5E80
-D: netfilter: endless number of bugfixes
+D: netfilter: endless number of fixes
 D: netfilter: CLASSIFY target
 D: netfilter: addrtype match
 D: tc: HFSC scheduler
@@ -2485,7 +2485,7 @@ S: USA
 N: Bradley McLean
 E: brad@bradpc.gaylord.com
 D: Device driver hacker
-D: General kernel debugger
+D: General kernel deger
 S: 249 Nichols Avenue
 S: Syracuse, New York 13206
 S: USA
@@ -2552,7 +2552,7 @@ D: MMP support
 
 N: Pauline Middelink
 E: middelin@polyware.nl
-D: General low-level bug fixes, /proc fixes, identd support
+D: General low-level  fixes, /proc fixes, identd support
 D: Author of IP masquerading
 D: Zoran ZR36120 Video For Linux driver
 S: Boterkorfhoek 34
@@ -2634,7 +2634,7 @@ S: Germany
 
 N: Thomas Molina
 E: tmolina@cablespeed.com
-D: bug fixes, documentation, minor hackery
+D:  fixes, documentation, minor hackery
 
 N: Paul Moore
 E: paul@paul-moore.com
@@ -2692,7 +2692,7 @@ N: Zwane Mwaikambo
 E: zwanem@gmail.com
 D: Various driver hacking
 D: Lowlevel x86 kernel hacking
-D: General debugging
+D: General deging
 S: (ask for current address)
 S: Tanzania
 
@@ -2751,7 +2751,7 @@ S: USA
 N: Dave Neuer
 E: dave.neuer@pobox.com
 D: Helped implement support for Compaq's H31xx series iPAQs
-D: Other mostly minor tweaks & bugfixes
+D: Other mostly minor tweaks & fixes
 
 N: Michael Neuffer
 E: mike@i-Connect.Net
@@ -2905,7 +2905,7 @@ D: WiMedia Link Protocol bits and pieces
 N: Gordon Peters
 E: GordPeters@smarttech.com
 D: Isochronous receive for IEEE 1394 driver (OHCI module).
-D: Bugfixes for the aforementioned.
+D: fixes for the aforementioned.
 S: Calgary, Alberta
 S: Canada
 
@@ -2949,7 +2949,7 @@ E: petzke@teltarif.de
 W: http://www.teltarif.de/
 P: 1024/B42868C1 D9 59 B9 98 BB 93 05 38  2E 3E 31 79 C3 65 5D E1
 D: Driver for Laser Magnetic Storage CD-ROM
-D: Some kernel bug fixes
+D: Some kernel  fixes
 D: Port of the database Postgres
 D: Book: "Linux verstehen und anwenden" (Hanser-Verlag)
 S: Triftstra=DFe 55
@@ -2981,7 +2981,7 @@ S: Paimpont, France
 
 N: Pete Popov
 E: pete_popov@yahoo.com
-D: Linux/MIPS AMD/Alchemy Port and mips hacking and debugging
+D: Linux/MIPS AMD/Alchemy Port and mips hacking and deging
 S: San Jose, CA 95134
 S: USA
 
@@ -3131,7 +3131,7 @@ S: USA
 N: Pekka Riikonen
 E: priikone@poseidon.pspt.fi
 E: priikone@ssh.com
-D: Random kernel hacking and bug fixes
+D: Random kernel hacking and  fixes
 D: International kernel patch project
 S: Kasarmikatu 11 A4
 S: 70110 Kuopio
@@ -3228,7 +3228,7 @@ D: the gpm mouse server and kernel support for it
 
 N: Philipp Rumpf
 E: prumpf@tux.org
-D: random bugfixes
+D: random fixes
 S: Drausnickstrasse 29
 S: 91052 Erlangen
 S: Germany
@@ -3320,9 +3320,9 @@ S: Portland, OR
 
 N: Eric Schenk
 E: Eric.Schenk@dna.lth.se
-D: Random kernel debugging.
+D: Random kernel deging.
 D: SYSV Semaphore code rewrite.
-D: Network layer debugging.
+D: Network layer deging.
 D: Dial on demand facility (diald).
 S: Dag Hammerskjolds v. 3E
 S: S-226 64 LUND
@@ -3384,7 +3384,7 @@ S: Russia
 N: Simon Shapiro
 E: shimon@i-Connect.Net
 W: http://www.-i-Connect.Net/~shimon
-D: SCSI debugging
+D: SCSI deging
 D: Maintainer of the Debian Kernel packages
 S: 14355 SW Allen Blvd., Suite #140
 S: Beaverton, Oregon 97008
@@ -3441,7 +3441,7 @@ D: AVR32 architecture port to Linux and maintainer.
 
 N: Rick Sladkey
 E: jrs@world.std.com
-D: utility hacker: Emacs, NFS server, mount, kmem-ps, UPS debugger, strace, GDB
+D: utility hacker: Emacs, NFS server, mount, kmem-ps, UPS deger, strace, GDB
 D: library hacker: RPC, profil(3), realpath(3), regexp.h
 D: kernel hacker: unnamed block devs, NFS client, fast select, precision timer
 S: 24 Avon Place
@@ -3527,7 +3527,7 @@ W: http://www.image.dk/~storner/
 W: http://www.sslug.dk/
 D: Configure script: Invented tristate for module-configuration
 D: vfat/msdos integration, kerneld docs, Linux promotion
-D: Miscellaneous bug-fixes
+D: Miscellaneous -fixes
 S: Chr. Winthersvej 1 B, st.th.
 S: DK-1860 Frederiksberg C
 S: Denmark
@@ -3645,7 +3645,7 @@ N: Josh Triplett
 E: josh@joshtriplett.org
 P: 4096R/8AFF873D 758E 5042 E397 4BA3 3A9C  1E67 0ED9 A3DF 8AFF 873D
 D: RCU and rcutorture
-D: lock annotations, finding and fixing lock bugs
+D: lock annotations, finding and fixing lock s
 D: kernel tinification
 
 N: Winfried Trümper
@@ -3782,7 +3782,7 @@ S: USA
 N: Thibaut Varène
 E: hacks+kernel@slashdirt.org
 W: http://hacks.slashdirt.org/
-D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
+D: PA-RISC port minion, PDC and GSCPS2 drivers, delocks and other bits
 D: Some ARM at91rm9200 bits, S1D13XXX FB driver, random patches here and there
 D: AD1889 sound driver
 S: France
@@ -3925,7 +3925,7 @@ S: Clemson SC 29634 USA
 N: Greg Wettstein
 E: greg@wind.rmcc.com
 D: Filesystem valid flag for MINIX filesystem.
-D: Minor kernel debugging.
+D: Minor kernel deging.
 D: Development and maintenance of sysklogd.
 D: Monitoring of development kernels for long-term stability.
 D: Early implementations of Linux in a commercial environment.
@@ -3940,8 +3940,8 @@ N: Steven Whitehouse
 E: steve@chygwyn.com
 W: http://www.chygwyn.com/~steve
 D: Linux DECnet project
-D: Minor debugging of other networking protocols.
-D: Misc bug fixes and GFS2 filesystem development
+D: Minor deging of other networking protocols.
+D: Misc  fixes and GFS2 filesystem development
 
 N: Hans-Joachim Widmaier
 E: hjw@zvw.de
@@ -3969,7 +3969,7 @@ D: PPC port hacking.
 
 N: G\"unter Windau
 E: gunter@mbfys.kun.nl
-D: Some bug fixes in the polling printer driver (lp.c)
+D: Some  fixes in the polling printer driver (lp.c)
 S: University of Nijmegen
 S: Geert-Grooteplein Noord 21
 S: 6525 EZ Nijmegen
@@ -3978,7 +3978,7 @@ S: The Netherlands
 N: Ulrich Windl
 E: Ulrich.Windl@rz.uni-regensburg.de
 P: 1024/E843660D CF D7 43 A1 5A 49 14 25  7C 04 A0 6E 4C 3A AC 6D
-D: Supports NTP on Linux.  Added PPS code.  Fixed bugs in adjtimex().
+D: Supports NTP on Linux.  Added PPS code.  Fixed s in adjtimex().
 S: Alte Regensburger Str. 11a
 S: 93149 Nittenau
 S: Germany
@@ -4000,7 +4000,7 @@ D: Original kernel README (for version 0.97)
 D: Linux News (electronic magazine, now dead), founder and former editor
 D: Meta-FAQ, originator, former maintainer
 D: INFO-SHEET, former maintainer
-D: Author of the longest-living linux bug
+D: Author of the longest-living linux 
 
 N: Jonathan Woithe
 E: jwoithe@just42.net

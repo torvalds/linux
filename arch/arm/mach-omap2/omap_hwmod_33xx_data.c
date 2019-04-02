@@ -189,31 +189,31 @@ static struct omap_hwmod am33xx_ocpwp_hwmod = {
 #endif
 
 /*
- * 'debugss' class
- * debug sub system
+ * 'dess' class
+ * de sub system
  */
-static struct omap_hwmod_opt_clk debugss_opt_clks[] = {
+static struct omap_hwmod_opt_clk dess_opt_clks[] = {
 	{ .role = "dbg_sysclk", .clk = "dbg_sysclk_ck" },
 	{ .role = "dbg_clka", .clk = "dbg_clka_ck" },
 };
 
-static struct omap_hwmod_class am33xx_debugss_hwmod_class = {
-	.name		= "debugss",
+static struct omap_hwmod_class am33xx_dess_hwmod_class = {
+	.name		= "dess",
 };
 
-static struct omap_hwmod am33xx_debugss_hwmod = {
-	.name		= "debugss",
-	.class		= &am33xx_debugss_hwmod_class,
+static struct omap_hwmod am33xx_dess_hwmod = {
+	.name		= "dess",
+	.class		= &am33xx_dess_hwmod_class,
 	.clkdm_name	= "l3_aon_clkdm",
 	.main_clk	= "trace_clk_div_ck",
 	.prcm		= {
 		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_WKUP_DEBUGSS_CLKCTRL_OFFSET,
+			.clkctrl_offs	= AM33XX_CM_WKUP_DESS_CLKCTRL_OFFSET,
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.opt_clks	= debugss_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(debugss_opt_clks),
+	.opt_clks	= dess_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dess_opt_clks),
 };
 
 static struct omap_hwmod am33xx_control_hwmod = {
@@ -356,10 +356,10 @@ static struct omap_hwmod_ocp_if am33xx_l4_hs__pruss = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_main -> debugss */
-static struct omap_hwmod_ocp_if am33xx_l3_main__debugss = {
+/* l3_main -> dess */
+static struct omap_hwmod_ocp_if am33xx_l3_main__dess = {
 	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_debugss_hwmod,
+	.slave		= &am33xx_dess_hwmod,
 	.clk		= "dpll_core_m4_ck",
 	.user		= OCP_USER_MPU,
 };
@@ -474,7 +474,7 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_pruss__l3_main,
 	&am33xx_wkup_m3__l4_wkup,
 	&am33xx_gfx__l3_main,
-	&am33xx_l3_main__debugss,
+	&am33xx_l3_main__dess,
 	&am33xx_l4_wkup__wkup_m3,
 	&am33xx_l4_wkup__control,
 	&am33xx_l4_wkup__smartreflex0,

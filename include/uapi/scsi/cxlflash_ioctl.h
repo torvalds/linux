@@ -244,12 +244,12 @@ struct ht_cxlflash_lun_provision {
 	__u64 reserved[8];	    /* Reserved for future use */
 };
 
-#define	HT_CXLFLASH_AFU_DEBUG_MAX_DATA_LEN		262144	/* 256K */
-#define HT_CXLFLASH_AFU_DEBUG_SUBCMD_LEN		12
-struct ht_cxlflash_afu_debug {
+#define	HT_CXLFLASH_AFU_DE_MAX_DATA_LEN		262144	/* 256K */
+#define HT_CXLFLASH_AFU_DE_SUBCMD_LEN		12
+struct ht_cxlflash_afu_de {
 	struct ht_cxlflash_hdr hdr; /* Common fields */
 	__u8 reserved8[4];	    /* Reserved for future use */
-	__u8 afu_subcmd[HT_CXLFLASH_AFU_DEBUG_SUBCMD_LEN]; /* AFU subcommand,
+	__u8 afu_subcmd[HT_CXLFLASH_AFU_DE_SUBCMD_LEN]; /* AFU subcommand,
 							    * (pass through)
 							    */
 	__u64 data_ea;		    /* Data buffer effective address */
@@ -260,7 +260,7 @@ struct ht_cxlflash_afu_debug {
 
 union cxlflash_ht_ioctls {
 	struct ht_cxlflash_lun_provision lun_provision;
-	struct ht_cxlflash_afu_debug afu_debug;
+	struct ht_cxlflash_afu_de afu_de;
 };
 
 #define MAX_HT_CXLFLASH_IOCTL_SZ	(sizeof(union cxlflash_ht_ioctls))
@@ -270,7 +270,7 @@ union cxlflash_ht_ioctls {
  * region (0xBF) and grow downwards.
  */
 #define HT_CXLFLASH_LUN_PROVISION CXL_IOWR(0xBF, ht_cxlflash_lun_provision)
-#define HT_CXLFLASH_AFU_DEBUG	  CXL_IOWR(0xBE, ht_cxlflash_afu_debug)
+#define HT_CXLFLASH_AFU_DE	  CXL_IOWR(0xBE, ht_cxlflash_afu_de)
 
 
 #endif /* ifndef _CXLFLASH_IOCTL_H */

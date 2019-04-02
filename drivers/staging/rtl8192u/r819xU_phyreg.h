@@ -48,7 +48,7 @@
 #define rCCK0_CCA					0xa08
 #define rCCK0_TxFilter1				0xa20
 #define rCCK0_TxFilter2				0xa24
-#define rCCK0_DebugPort				0xa28  /* debug port and Tx filter3 */
+#define rCCK0_DePort				0xa28  /* de port and Tx filter3 */
 
 /* page c */
 #define rOFDM0_TRxPathEnable		0xc04

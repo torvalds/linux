@@ -29,11 +29,11 @@
 
 #include "common.h"
 
-static void skb_debug(const struct sk_buff *skb)
+static void skb_de(const struct sk_buff *skb)
 {
-#ifdef SKB_DEBUG
+#ifdef SKB_DE
 #define NUM2PRINT 50
-	print_hex_dump(KERN_DEBUG, "br2684: skb: ", DUMP_OFFSET,
+	print_hex_dump(KERN_DE, "br2684: skb: ", DUMP_OFFSET,
 		       16, 1, skb->data, min(NUM2PRINT, skb->len), true);
 #endif
 }
@@ -153,7 +153,7 @@ static int atm_dev_event(struct notifier_block *this, unsigned long event,
 	struct atm_vcc *atm_vcc;
 	unsigned long flags;
 
-	pr_debug("event=%ld dev=%p\n", event, atm_dev);
+	pr_de("event=%ld dev=%p\n", event, atm_dev);
 
 	read_lock_irqsave(&devs_lock, flags);
 	list_for_each(lh, &br2684_devs) {
@@ -185,7 +185,7 @@ static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	struct br2684_vcc *brvcc = BR2684_VCC(vcc);
 
-	pr_debug("(vcc %p ; net_dev %p )\n", vcc, brvcc->device);
+	pr_de("(vcc %p ; net_dev %p )\n", vcc, brvcc->device);
 	brvcc->old_pop(vcc, skb);
 
 	/* If the queue space just went up from zero, wake */
@@ -248,10 +248,10 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 			memset(skb->data, 0, 2);
 		}
 	}
-	skb_debug(skb);
+	skb_de(skb);
 
 	ATM_SKB(skb)->vcc = atmvcc = brvcc->atmvcc;
-	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, atmvcc, atmvcc->dev);
+	pr_de("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, atmvcc, atmvcc->dev);
 	atm_account_tx(atmvcc, skb);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
@@ -295,11 +295,11 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 	struct atm_vcc *atmvcc;
 	netdev_tx_t ret = NETDEV_TX_OK;
 
-	pr_debug("skb_dst(skb)=%p\n", skb_dst(skb));
+	pr_de("skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
-		pr_debug("no vcc attached to dev %s\n", dev->name);
+		pr_de("no vcc attached to dev %s\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.tx_carrier_errors++;
 		/* netif_stop_queue(dev); */
@@ -407,7 +407,7 @@ packet_fails_filter(__be16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
 
 static void br2684_close_vcc(struct br2684_vcc *brvcc)
 {
-	pr_debug("removing VCC %p from dev %p\n", brvcc, brvcc->device);
+	pr_de("removing VCC %p from dev %p\n", brvcc, brvcc->device);
 	write_lock_irq(&devs_lock);
 	list_del(&brvcc->brvccs);
 	write_unlock_irq(&devs_lock);
@@ -425,7 +425,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	struct net_device *net_dev = brvcc->device;
 	struct br2684_dev *brdev = BRPRIV(net_dev);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	if (unlikely(skb == NULL)) {
 		/* skb==NULL means VCC is being destroyed */
@@ -440,9 +440,9 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 		return;
 	}
 
-	skb_debug(skb);
+	skb_de(skb);
 	atm_return(atmvcc, skb->truesize);
-	pr_debug("skb from brdev %p\n", brdev);
+	pr_de("skb from brdev %p\n", brdev);
 	if (brvcc->encaps == e_llc) {
 
 		if (skb->len > 7 && skb->data[7] == 0x01)
@@ -503,8 +503,8 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 #endif /* CONFIG_ATM_BR2684_IPFILTER */
 	skb->dev = net_dev;
 	ATM_SKB(skb)->vcc = atmvcc;	/* needed ? */
-	pr_debug("received packet's protocol: %x\n", ntohs(skb->protocol));
-	skb_debug(skb);
+	pr_de("received packet's protocol: %x\n", ntohs(skb->protocol));
+	skb_de(skb);
 	/* sigh, interface is down? */
 	if (unlikely(!(net_dev->flags & IFF_UP)))
 		goto dropped;
@@ -573,7 +573,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		err = -EINVAL;
 		goto error;
 	}
-	pr_debug("vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps, brvcc);
+	pr_de("vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps, brvcc);
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
 		if (esi[0] | esi[1] | esi[2] | esi[3] | esi[4] | esi[5])
@@ -665,7 +665,7 @@ static int br2684_create(void __user *arg)
 	struct atm_newif_br2684 ni;
 	enum br2684_payload payload;
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	if (copy_from_user(&ni, arg, sizeof ni))
 		return -EFAULT;
@@ -688,7 +688,7 @@ static int br2684_create(void __user *arg)
 
 	brdev = BRPRIV(netdev);
 
-	pr_debug("registered netdev %s\n", netdev->name);
+	pr_de("registered netdev %s\n", netdev->name);
 	/* open, stop, do_ioctl ? */
 	err = register_netdev(netdev);
 	if (err < 0) {

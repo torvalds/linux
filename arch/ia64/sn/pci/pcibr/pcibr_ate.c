@@ -165,7 +165,7 @@ void pcibr_ate_free(struct pcibus_info *pcibus_info, int index)
 	unsigned long flags;
 
 	if (pcibr_invalidate_ate) {
-		/* For debugging purposes, clear the valid bit in the ATE */
+		/* For deging purposes, clear the valid bit in the ATE */
 		ate = *pcibr_ate_addr(pcibus_info, index);
 		count = pcibus_info->pbi_int_ate_resource.ate[index];
 		ate_write(pcibus_info, index, count, (ate & ~PCI32_ATE_V));

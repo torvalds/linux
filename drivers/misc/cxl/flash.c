@@ -396,7 +396,7 @@ static int device_open(struct inode *inode, struct file *file)
 
 	pr_devel("in %s\n", __func__);
 
-	BUG_ON(sizeof(struct ai_header) != CXL_AI_HEADER_SIZE);
+	_ON(sizeof(struct ai_header) != CXL_AI_HEADER_SIZE);
 
 	/* Allows one process to open the device by using a semaphore */
 	if (down_interruptible(&sem) != 0)

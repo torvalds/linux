@@ -145,7 +145,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	spin_lock_bh(&irc_buffer_lock);
 	ib_ptr = skb_header_pointer(skb, dataoff, skb->len - dataoff,
 				    irc_buffer);
-	BUG_ON(ib_ptr == NULL);
+	_ON(ib_ptr == NULL);
 
 	data = ib_ptr;
 	data_limit = ib_ptr + skb->len - dataoff;
@@ -161,7 +161,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 		/* we have at least (19+MINMATCHLEN)-5 bytes valid data left */
 
 		iph = ip_hdr(skb);
-		pr_debug("DCC found in master %pI4:%u %pI4:%u\n",
+		pr_de("DCC found in master %pI4:%u %pI4:%u\n",
 			 &iph->saddr, ntohs(th->source),
 			 &iph->daddr, ntohs(th->dest));
 
@@ -171,18 +171,18 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 				continue;
 			}
 			data += strlen(dccprotos[i]);
-			pr_debug("DCC %s detected\n", dccprotos[i]);
+			pr_de("DCC %s detected\n", dccprotos[i]);
 
 			/* we have at least
 			 * (19+MINMATCHLEN)-5-dccprotos[i].matchlen bytes valid
 			 * data left (== 14/13 bytes) */
 			if (parse_dcc(data, data_limit, &dcc_ip,
 				       &dcc_port, &addr_beg_p, &addr_end_p)) {
-				pr_debug("unable to parse dcc command\n");
+				pr_de("unable to parse dcc command\n");
 				continue;
 			}
 
-			pr_debug("DCC bound ip/port: %pI4:%u\n",
+			pr_de("DCC bound ip/port: %pI4:%u\n",
 				 &dcc_ip, dcc_port);
 
 			/* dcc_ip can be the internal OR external (NAT'ed) IP */

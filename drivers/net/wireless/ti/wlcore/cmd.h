@@ -135,7 +135,7 @@ enum wl1271_commands {
 	CMD_AP_DISCOVERY	= 22,
 	CMD_STOP_AP_DISCOVERY	= 23,
 	CMD_HEALTH_CHECK	= 24,
-	CMD_DEBUG		= 25,
+	CMD_DE		= 25,
 	CMD_TRIGGER_SCAN_TO	= 26,
 	CMD_CONNECTION_SCAN_CFG	= 27,
 	CMD_CONNECTION_SCAN_SSID_CFG	= 28,
@@ -178,7 +178,7 @@ enum wl1271_commands {
 	CMD_CAC_START			= 64,
 	CMD_CAC_STOP			= 65,
 	CMD_DFS_MASTER_RESTART		= 66,
-	CMD_DFS_RADAR_DETECTION_DEBUG	= 67,
+	CMD_DFS_RADAR_DETECTION_DE	= 67,
 
 	MAX_COMMAND_ID = 0xFFFF,
 };
@@ -635,7 +635,7 @@ enum wl12xx_fwlogger_timestamp {
 };
 
 /*
- * Logs can be routed to the debug pinouts (where available), to the host bus
+ * Logs can be routed to the de pinouts (where available), to the host bus
  * (SDIO/SPI), or dropped
  */
 enum wl12xx_fwlogger_output {
@@ -654,7 +654,7 @@ struct wl12xx_cmd_regdomain_dfs_config {
 } __packed;
 
 enum wlcore_generic_cfg_feature {
-	WLCORE_CFG_FEATURE_RADAR_DEBUG = 2,
+	WLCORE_CFG_FEATURE_RADAR_DE = 2,
 };
 
 struct wlcore_cmd_generic_cfg {

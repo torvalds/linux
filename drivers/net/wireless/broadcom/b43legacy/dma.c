@@ -30,7 +30,7 @@
 #include "b43legacy.h"
 #include "dma.h"
 #include "main.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "xmit.h"
 
 #include <linux/dma-mapping.h>
@@ -148,14 +148,14 @@ static inline int prev_slot(struct b43legacy_dmaring *ring, int slot)
 	return slot - 1;
 }
 
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 static void update_max_used_slots(struct b43legacy_dmaring *ring,
 				  int current_used_slots)
 {
 	if (current_used_slots <= ring->max_used_slots)
 		return;
 	ring->max_used_slots = current_used_slots;
-	if (b43legacy_debug(ring->dev, B43legacy_DBG_DMAVERBOSE))
+	if (b43legacy_de(ring->dev, B43legacy_DBG_DMAVERBOSE))
 		b43legacydbg(ring->dev->wl,
 		       "max_used_slots increased to %d on %s ring %d\n",
 		       ring->max_used_slots,
@@ -167,7 +167,7 @@ static inline
 void update_max_used_slots(struct b43legacy_dmaring *ring,
 			   int current_used_slots)
 { }
-#endif /* DEBUG */
+#endif /* DE */
 
 /* Request a slot for usage. */
 static inline
@@ -722,7 +722,7 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 		} else
 			B43legacy_WARN_ON(1);
 	}
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 	ring->last_injected_overflow = jiffies;
 #endif
 
@@ -1110,8 +1110,8 @@ out_unmap_hdr:
 static inline
 int should_inject_overflow(struct b43legacy_dmaring *ring)
 {
-#ifdef CONFIG_B43LEGACY_DEBUG
-	if (unlikely(b43legacy_debug(ring->dev,
+#ifdef CONFIG_B43LEGACY_DE
+	if (unlikely(b43legacy_de(ring->dev,
 				     B43legacy_DBG_DMAOVERFLOW))) {
 		/* Check if we should inject another ringbuffer overflow
 		 * to test handling of this situation in the stack. */
@@ -1126,7 +1126,7 @@ int should_inject_overflow(struct b43legacy_dmaring *ring)
 			return 1;
 		}
 	}
-#endif /* CONFIG_B43LEGACY_DEBUG */
+#endif /* CONFIG_B43LEGACY_DE */
 	return 0;
 }
 
@@ -1140,11 +1140,11 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 	B43legacy_WARN_ON(!ring->tx);
 
 	if (unlikely(ring->stopped)) {
-		/* We get here only because of a bug in mac80211.
+		/* We get here only because of a  in mac80211.
 		 * Because of a race, one packet may be queued after
 		 * the queue is stopped, thus we got called when we shouldn't.
 		 * For now, just refuse the transmit. */
-		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
+		if (b43legacy_de(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacyerr(dev->wl, "Packet after queue stopped\n");
 		return -ENOSPC;
 	}
@@ -1176,7 +1176,7 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		ieee80211_stop_queue(dev->wl->hw, skb_mapping);
 		dev->wl->tx_queue_stopped[skb_mapping] = 1;
 		ring->stopped = true;
-		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
+		if (b43legacy_de(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacydbg(dev->wl, "Stopped TX ring %d\n",
 			       ring->index);
 	}
@@ -1204,7 +1204,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	if (firstused < 0)
 		firstused = ring->nr_slots + firstused;
 	if (unlikely(slot != firstused)) {
-		/* This possibly is a firmware bug and will result in
+		/* This possibly is a firmware  and will result in
 		 * malfunction, memory leaks and/or stall of DMA functionality.
 		 */
 		b43legacydbg(dev->wl, "Out of order TX status report on DMA "
@@ -1227,7 +1227,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 
 		if (meta->is_last_fragment) {
 			struct ieee80211_tx_info *info;
-			BUG_ON(!meta->skb);
+			_ON(!meta->skb);
 			info = IEEE80211_SKB_CB(meta->skb);
 
 			/* preserve the confiured retry limit before clearing the status
@@ -1294,7 +1294,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 		/* If the driver queue is running wake the corresponding
 		 * mac80211 queue. */
 		ieee80211_wake_queue(dev->wl->hw, ring->queue_prio);
-		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
+		if (b43legacy_de(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacydbg(dev->wl, "Woke up TX ring %d\n",
 				     ring->index);
 	}

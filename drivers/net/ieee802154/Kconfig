@@ -32,12 +32,12 @@ config IEEE802154_AT86RF230
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'at86rf230'.
 
-config IEEE802154_AT86RF230_DEBUGFS
+config IEEE802154_AT86RF230_DEFS
 	depends on IEEE802154_AT86RF230
-	bool "AT86RF230 debugfs interface"
-	depends on DEBUG_FS
+	bool "AT86RF230 defs interface"
+	depends on DE_FS
 	---help---
-	  This option compiles debugfs code for the at86rf230 driver.
+	  This option compiles defs code for the at86rf230 driver.
 
 config IEEE802154_MRF24J40
 	tristate "Microchip MRF24J40 transceiver driver"
@@ -95,13 +95,13 @@ config IEEE802154_CA8210
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'ca8210'.
 
-config IEEE802154_CA8210_DEBUGFS
-	bool "CA8210 debugfs interface"
+config IEEE802154_CA8210_DEFS
+	bool "CA8210 defs interface"
 	depends on IEEE802154_CA8210
-	depends on DEBUG_FS
+	depends on DE_FS
 	---help---
-	  This option compiles debugfs code for the ca8210 driver. This
-	  exposes a debugfs node for each CA8210 instance which allows
+	  This option compiles defs code for the ca8210 driver. This
+	  exposes a defs node for each CA8210 instance which allows
 	  direct use of the Cascoda API, exposing the 802.15.4 MAC
 	  management entities.
 

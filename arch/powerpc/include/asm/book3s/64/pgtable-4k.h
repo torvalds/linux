@@ -65,7 +65,7 @@ static inline int get_hugepd_cache_index(int index)
 	case H_16G_CACHE_INDEX:
 		return HTLB_16G_INDEX;
 	default:
-		BUG();
+		();
 	}
 	/* should not reach */
 }

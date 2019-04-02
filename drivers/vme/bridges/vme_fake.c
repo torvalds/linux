@@ -1,7 +1,7 @@
 /*
  * Fake VME bridge support.
  *
- * This drive provides a fake VME bridge chip, this enables debugging of the
+ * This drive provides a fake VME bridge chip, this enables deging of the
  * VME framework in the absence of a VME system.
  *
  * This driver has to do a number of things in software that would be driven
@@ -1251,7 +1251,7 @@ static void __exit fake_exit(void)
 
 	bridge = fake_bridge->driver_priv;
 
-	pr_debug("Driver is being unloaded.\n");
+	pr_de("Driver is being unloaded.\n");
 
 	/*
 	 *  Shutdown all inbound and outbound windows.

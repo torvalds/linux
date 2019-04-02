@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Renesas Electronics Corp.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/sys_soc.h>
 

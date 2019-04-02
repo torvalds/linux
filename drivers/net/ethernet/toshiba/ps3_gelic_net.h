@@ -358,7 +358,7 @@ static inline void *port_priv(struct gelic_port *port)
 	return port->priv;
 }
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_PS3GELIC
+#ifdef CONFIG_PPC_EARLY_DE_PS3GELIC
 void udbg_shutdown_ps3gelic(void);
 #else
 static inline void udbg_shutdown_ps3gelic(void) {}

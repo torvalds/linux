@@ -34,12 +34,12 @@ config SCSI_MVSAS
 		This driver supports Marvell's SAS/SATA 3Gb/s PCI-E 88SE64XX and 6Gb/s
 		PCI-E 88SE94XX chip based host adapters.
 
-config SCSI_MVSAS_DEBUG
-	bool "Compile in debug mode"
+config SCSI_MVSAS_DE
+	bool "Compile in de mode"
 	default y
 	depends on SCSI_MVSAS
 	help
-		Compiles the 88SE64XX/88SE94XX driver in debug mode.  In debug mode,
+		Compiles the 88SE64XX/88SE94XX driver in de mode.  In de mode,
 		the driver prints some messages to the console.
 config SCSI_MVSAS_TASKLET
 	bool "Support for interrupt tasklet"

@@ -81,7 +81,7 @@ module_param_named(msg_enable, ne_msg_enable, uint, 0444);
 MODULE_PARM_DESC(io, "I/O base address(es),required");
 MODULE_PARM_DESC(irq, "IRQ number(s)");
 MODULE_PARM_DESC(bad, "Accept card(s) with bad signatures");
-MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+MODULE_PARM_DESC(msg_enable, "De message level (see linux/netdevice.h for bitmap)");
 MODULE_DESCRIPTION("NE1000/NE2000 ISA/PnP Ethernet driver");
 MODULE_LICENSE("GPL");
 #endif /* MODULE */
@@ -89,8 +89,8 @@ MODULE_LICENSE("GPL");
 /* Do we perform extra sanity checks on stuff ? */
 /* #define NE_SANITY_CHECK */
 
-/* Do we implement the read before write bugfix ? */
-/* #define NE_RW_BUGFIX */
+/* Do we implement the read before write fix ? */
+/* #define NE_RW_FIX */
 
 /* Do we have a non std. amount of memory? (in units of 256 byte pages) */
 /* #define PACKETBUF_MEMSIZE	0x40 */
@@ -710,8 +710,8 @@ static void ne_block_output(struct net_device *dev, int count,
 retry:
 #endif
 
-#ifdef NE8390_RW_BUGFIX
-	/* Handle the read-before-write bug the same way as the
+#ifdef NE8390_RW_FIX
+	/* Handle the read-before-write  the same way as the
 	   Crynwr packet driver -- the NatSemi method doesn't work.
 	   Actually this doesn't always work either, but if you have
 	   problems with your NEx000 this is better than nothing! */

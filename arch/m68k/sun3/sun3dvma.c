@@ -19,7 +19,7 @@
 #include <asm/pgtable.h>
 #include <asm/dvma.h>
 
-#undef DVMA_DEBUG
+#undef DVMA_DE
 
 #ifdef CONFIG_SUN3X
 extern void dvma_unmap_iommu(unsigned long baddr, int len);
@@ -50,7 +50,7 @@ static struct list_head hole_list;
 static struct list_head hole_cache;
 static struct hole initholes[64];
 
-#ifdef DVMA_DEBUG
+#ifdef DVMA_DE
 
 static unsigned long dvma_allocs;
 static unsigned long dvma_frees;
@@ -101,7 +101,7 @@ static void print_holes(struct list_head *holes)
 
 	pr_info("end of hole listing...\n");
 }
-#endif /* DVMA_DEBUG */
+#endif /* DVMA_DE */
 
 static inline int refill(void)
 {
@@ -138,7 +138,7 @@ static inline struct hole *rmcache(void)
 	if(list_empty(&hole_cache)) {
 		if(!refill()) {
 			pr_crit("out of dvma hole cache!\n");
-			BUG();
+			();
 		}
 	}
 
@@ -156,12 +156,12 @@ static inline unsigned long get_baddr(int len, unsigned long align)
 	struct hole *hole;
 
 	if(list_empty(&hole_list)) {
-#ifdef DVMA_DEBUG
+#ifdef DVMA_DE
 		pr_crit("out of dvma holes! (printing hole cache)\n");
 		print_holes(&hole_cache);
 		print_use();
 #endif
-		BUG();
+		();
 	}
 
 	list_for_each(cur, &hole_list) {
@@ -178,7 +178,7 @@ static inline unsigned long get_baddr(int len, unsigned long align)
 			hole->end -= newlen;
 			hole->size -= newlen;
 			dvma_entry_use(hole->end) = newlen;
-#ifdef DVMA_DEBUG
+#ifdef DVMA_DE
 			dvma_allocs++;
 			dvma_alloc_bytes += newlen;
 #endif
@@ -186,7 +186,7 @@ static inline unsigned long get_baddr(int len, unsigned long align)
 		} else if(hole->size == newlen) {
 			list_move(&(hole->list), &hole_cache);
 			dvma_entry_use(hole->start) = newlen;
-#ifdef DVMA_DEBUG
+#ifdef DVMA_DE
 			dvma_allocs++;
 			dvma_alloc_bytes += newlen;
 #endif
@@ -196,7 +196,7 @@ static inline unsigned long get_baddr(int len, unsigned long align)
 	}
 
 	pr_crit("unable to find dvma hole!\n");
-	BUG();
+	();
 	return 0;
 }
 
@@ -214,7 +214,7 @@ static inline int free_baddr(unsigned long baddr)
 	baddr &= DVMA_PAGE_MASK;
 	dvma_unmap_iommu(baddr, len);
 
-#ifdef DVMA_DEBUG
+#ifdef DVMA_DE
 	dvma_frees++;
 	dvma_free_bytes += len;
 #endif
@@ -296,7 +296,7 @@ unsigned long dvma_map_align(unsigned long kaddr, int len, int align)
 		return 0;
 	}
 
-	pr_debug("dvma_map request %08x bytes from %08lx\n", len, kaddr);
+	pr_de("dvma_map request %08x bytes from %08lx\n", len, kaddr);
 	off = kaddr & ~DVMA_PAGE_MASK;
 	kaddr &= PAGE_MASK;
 	len += off;
@@ -315,7 +315,7 @@ unsigned long dvma_map_align(unsigned long kaddr, int len, int align)
 
 	pr_crit("dvma_map failed kaddr %lx baddr %lx len %x\n", kaddr, baddr,
 	len);
-	BUG();
+	();
 	return 0;
 }
 EXPORT_SYMBOL(dvma_map_align);
@@ -345,7 +345,7 @@ void *dvma_malloc_align(unsigned long len, unsigned long align)
 	if(!len)
 		return NULL;
 
-	pr_debug("dvma_malloc request %lx bytes\n", len);
+	pr_de("dvma_malloc request %lx bytes\n", len);
 	len = ((len + (DVMA_PAGE_SIZE-1)) & DVMA_PAGE_MASK);
 
         if((kaddr = __get_free_pages(GFP_ATOMIC, get_order(len))) == 0)
@@ -364,7 +364,7 @@ void *dvma_malloc_align(unsigned long len, unsigned long align)
 		return NULL;
 	}
 
-	pr_debug("mapped %08lx bytes %08lx kern -> %08lx bus\n", len, kaddr,
+	pr_de("mapped %08lx bytes %08lx kern -> %08lx bus\n", len, kaddr,
 		 baddr);
 
 	return (void *)vaddr;

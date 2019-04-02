@@ -82,7 +82,7 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 		return filelayout_get_dense_offset(flseg, offset);
 	}
 
-	BUG();
+	();
 }
 
 static void filelayout_reset_write(struct nfs_pgio_header *hdr)
@@ -727,7 +727,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 		if (unlikely(!p))
 			goto out_err;
 		memcpy(fl->fh_array[i]->data, p, fl->fh_array[i]->size);
-		dprintk("DEBUG: %s: fh len %d\n", __func__,
+		dprintk("DE: %s: fh len %d\n", __func__,
 			fl->fh_array[i]->size);
 	}
 

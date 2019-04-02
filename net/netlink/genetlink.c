@@ -203,16 +203,16 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 	/* special-case our own group and hacks */
 	if (family == &genl_ctrl) {
 		first_id = GENL_ID_CTRL;
-		BUG_ON(n_groups != 1);
+		_ON(n_groups != 1);
 	} else if (strcmp(family->name, "NET_DM") == 0) {
 		first_id = 1;
-		BUG_ON(n_groups != 1);
+		_ON(n_groups != 1);
 	} else if (family->id == GENL_ID_VFS_DQUOT) {
 		first_id = GENL_ID_VFS_DQUOT;
-		BUG_ON(n_groups != 1);
+		_ON(n_groups != 1);
 	} else if (family->id == GENL_ID_PMCRAID) {
 		first_id = GENL_ID_PMCRAID;
-		BUG_ON(n_groups != 1);
+		_ON(n_groups != 1);
 	} else {
 		groups_allocated = true;
 		err = genl_allocate_reserve_groups(n_groups, &first_id);
@@ -912,7 +912,7 @@ static int genl_ctrl_event(int event, const struct genl_family *family,
 		break;
 	case CTRL_CMD_NEWMCAST_GRP:
 	case CTRL_CMD_DELMCAST_GRP:
-		BUG_ON(!grp);
+		_ON(!grp);
 		msg = ctrl_build_mcgrp_msg(family, grp, grp_id, 0, 0, event);
 		break;
 	default:

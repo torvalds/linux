@@ -164,21 +164,21 @@ config BLK_WBT_MQ
 	Multiqueue currently doesn't have support for IO scheduling,
 	enabling this option is recommended.
 
-config BLK_DEBUG_FS
-	bool "Block layer debugging information in debugfs"
+config BLK_DE_FS
+	bool "Block layer deging information in defs"
 	default y
-	depends on DEBUG_FS
+	depends on DE_FS
 	---help---
-	Include block layer debugging information in debugfs. This information
+	Include block layer deging information in defs. This information
 	is mostly useful for kernel developers, but it doesn't incur any cost
 	at runtime.
 
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
 
-config BLK_DEBUG_FS_ZONED
+config BLK_DE_FS_ZONED
        bool
-       default BLK_DEBUG_FS && BLK_DEV_ZONED
+       default BLK_DE_FS && BLK_DEV_ZONED
 
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"

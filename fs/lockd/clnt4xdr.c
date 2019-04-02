@@ -203,7 +203,7 @@ static void encode_nlm4_stat(struct xdr_stream *xdr,
 {
 	__be32 *p;
 
-	BUG_ON(be32_to_cpu(stat) > NLM_FAILED);
+	_ON(be32_to_cpu(stat) > NLM_FAILED);
 	p = xdr_reserve_space(xdr, 4);
 	*p = stat;
 }

@@ -37,7 +37,7 @@ typedef void *(*unittest_fptr)(void);
 		       ##__VA_ARGS__); \
 	} else { \
 		++unittest_results.passed; \
-		pr_debug("pass %s():%i " fmt, __func__, __LINE__, \
+		pr_de("pass %s():%i " fmt, __func__, __LINE__, \
 			 ##__VA_ARGS__); \
 	} \
 	failed; \

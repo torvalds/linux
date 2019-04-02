@@ -32,7 +32,7 @@
 #include <linux/time64.h>
 
 #include "../../perf.h"
-#include "../debug.h"
+#include "../de.h"
 #include "../callchain.h"
 #include "../evsel.h"
 #include "../util.h"
@@ -1288,7 +1288,7 @@ process_stat(struct perf_evsel *counter, int cpu, int thread, u64 tstamp,
 
 	handler = get_handler(handler_name);
 	if (!handler) {
-		pr_debug("can't find python handler %s\n", handler_name);
+		pr_de("can't find python handler %s\n", handler_name);
 		return;
 	}
 
@@ -1342,7 +1342,7 @@ static void python_process_stat_interval(u64 tstamp)
 
 	handler = get_handler(handler_name);
 	if (!handler) {
-		pr_debug("can't find python handler %s\n", handler_name);
+		pr_de("can't find python handler %s\n", handler_name);
 		return;
 	}
 

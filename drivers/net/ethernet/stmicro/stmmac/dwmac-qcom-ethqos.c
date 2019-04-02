@@ -16,8 +16,8 @@
 #define SDC4_STATUS			0x14
 #define SDCC_USR_CTL			0x18
 #define RGMII_IO_MACRO_CONFIG2		0x1C
-#define RGMII_IO_MACRO_DEBUG1		0x20
-#define EMAC_SYSTEM_LOW_POWER_DEBUG	0x28
+#define RGMII_IO_MACRO_DE1		0x20
+#define EMAC_SYSTEM_LOW_POWER_DE	0x28
 
 /* RGMII_IO_MACRO_CONFIG fields */
 #define RGMII_CONFIG_FUNC_CLK_EN		BIT(30)
@@ -125,10 +125,10 @@ static void rgmii_dump(struct qcom_ethqos *ethqos)
 		rgmii_readl(ethqos, SDCC_USR_CTL));
 	dev_dbg(&ethqos->pdev->dev, "RGMII_IO_MACRO_CONFIG2: %x\n",
 		rgmii_readl(ethqos, RGMII_IO_MACRO_CONFIG2));
-	dev_dbg(&ethqos->pdev->dev, "RGMII_IO_MACRO_DEBUG1: %x\n",
-		rgmii_readl(ethqos, RGMII_IO_MACRO_DEBUG1));
-	dev_dbg(&ethqos->pdev->dev, "EMAC_SYSTEM_LOW_POWER_DEBUG: %x\n",
-		rgmii_readl(ethqos, EMAC_SYSTEM_LOW_POWER_DEBUG));
+	dev_dbg(&ethqos->pdev->dev, "RGMII_IO_MACRO_DE1: %x\n",
+		rgmii_readl(ethqos, RGMII_IO_MACRO_DE1));
+	dev_dbg(&ethqos->pdev->dev, "EMAC_SYSTEM_LOW_POWER_DE: %x\n",
+		rgmii_readl(ethqos, EMAC_SYSTEM_LOW_POWER_DE));
 }
 
 /* Clock rates */

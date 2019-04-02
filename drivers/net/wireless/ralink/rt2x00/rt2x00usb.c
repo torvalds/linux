@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "rt2x00.h"
 #include "rt2x00usb.h"
@@ -79,7 +79,7 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 {
 	int status;
 
-	BUG_ON(!mutex_is_locked(&rt2x00dev->csr_mutex));
+	_ON(!mutex_is_locked(&rt2x00dev->csr_mutex));
 
 	/*
 	 * Check for Cache availability.

@@ -209,7 +209,7 @@ TRACE_EVENT(fjes_hw_unregister_buff_addr_err,
 	TP_printk("%s", __get_str(err))
 );
 
-TRACE_EVENT(fjes_hw_start_debug_req,
+TRACE_EVENT(fjes_hw_start_de_req,
 	TP_PROTO(union fjes_device_command_req *req_buf),
 	TP_ARGS(req_buf),
 	TP_STRUCT__entry(
@@ -226,7 +226,7 @@ TRACE_EVENT(fjes_hw_start_debug_req,
 		  __entry->length, __entry->mode, &__entry->buffer)
 );
 
-TRACE_EVENT(fjes_hw_start_debug,
+TRACE_EVENT(fjes_hw_start_de,
 	TP_PROTO(union fjes_device_command_res *res_buf),
 	TP_ARGS(res_buf),
 	TP_STRUCT__entry(
@@ -240,7 +240,7 @@ TRACE_EVENT(fjes_hw_start_debug,
 	TP_printk("res_buf=[length=%d, code=%d]", __entry->length, __entry->code)
 );
 
-TRACE_EVENT(fjes_hw_start_debug_err,
+TRACE_EVENT(fjes_hw_start_de_err,
 	TP_PROTO(char *err),
 	TP_ARGS(err),
 	TP_STRUCT__entry(
@@ -252,7 +252,7 @@ TRACE_EVENT(fjes_hw_start_debug_err,
 	TP_printk("%s", __get_str(err))
 );
 
-TRACE_EVENT(fjes_hw_stop_debug,
+TRACE_EVENT(fjes_hw_stop_de,
 	TP_PROTO(union fjes_device_command_res *res_buf),
 	TP_ARGS(res_buf),
 	TP_STRUCT__entry(
@@ -266,7 +266,7 @@ TRACE_EVENT(fjes_hw_stop_debug,
 	TP_printk("res_buf=[length=%d, code=%d]", __entry->length, __entry->code)
 );
 
-TRACE_EVENT(fjes_hw_stop_debug_err,
+TRACE_EVENT(fjes_hw_stop_de_err,
 	TP_PROTO(char *err),
 	TP_ARGS(err),
 	TP_STRUCT__entry(

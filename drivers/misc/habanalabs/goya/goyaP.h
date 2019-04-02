@@ -170,9 +170,9 @@ struct goya_device {
 	u32		hw_cap_initialized;
 };
 
-int goya_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus,
+int goya_defs_i2c_read(struct hl_device *hdev, u8 i2c_bus,
 			u8 i2c_addr, u8 i2c_reg, u32 *val);
-int goya_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus,
+int goya_defs_i2c_write(struct hl_device *hdev, u8 i2c_bus,
 			u8 i2c_addr, u8 i2c_reg, u32 val);
 int goya_test_cpu_queue(struct hl_device *hdev);
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
@@ -184,7 +184,7 @@ long goya_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
 void goya_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
-void goya_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state);
+void goya_defs_led_set(struct hl_device *hdev, u8 led, u8 state);
 void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void goya_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);

@@ -19,7 +19,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 #include "blk-mq-tag.h"
 #include "blk-mq-sched.h"
 
@@ -299,7 +299,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd)
 	 */
 
 	if (reads) {
-		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[READ]));
+		_ON(RB_EMPTY_ROOT(&dd->sort_list[READ]));
 
 		if (deadline_fifo_request(dd, WRITE) &&
 		    (dd->starved++ >= dd->writes_starved))
@@ -316,7 +316,7 @@ static struct request *__dd_dispatch_request(struct deadline_data *dd)
 
 	if (writes) {
 dispatch_writes:
-		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[WRITE]));
+		_ON(RB_EMPTY_ROOT(&dd->sort_list[WRITE]));
 
 		dd->starved = 0;
 
@@ -403,8 +403,8 @@ static void dd_exit_queue(struct elevator_queue *e)
 {
 	struct deadline_data *dd = e->elevator_data;
 
-	BUG_ON(!list_empty(&dd->fifo_list[READ]));
-	BUG_ON(!list_empty(&dd->fifo_list[WRITE]));
+	_ON(!list_empty(&dd->fifo_list[READ]));
+	_ON(!list_empty(&dd->fifo_list[WRITE]));
 
 	kfree(dd);
 }
@@ -457,7 +457,7 @@ static int dd_request_merge(struct request_queue *q, struct request **rq,
 
 	__rq = elv_rb_find(&dd->sort_list[bio_data_dir(bio)], sector);
 	if (__rq) {
-		BUG_ON(sector != blk_rq_pos(__rq));
+		_ON(sector != blk_rq_pos(__rq));
 
 		if (elv_bio_merge_ok(__rq, bio)) {
 			*rq = __rq;
@@ -651,8 +651,8 @@ static struct elv_fs_entry deadline_attrs[] = {
 	__ATTR_NULL
 };
 
-#ifdef CONFIG_BLK_DEBUG_FS
-#define DEADLINE_DEBUGFS_DDIR_ATTRS(ddir, name)				\
+#ifdef CONFIG_BLK_DE_FS
+#define DEADLINE_DEFS_DDIR_ATTRS(ddir, name)				\
 static void *deadline_##name##_fifo_start(struct seq_file *m,		\
 					  loff_t *pos)			\
 	__acquires(&dd->lock)						\
@@ -686,7 +686,7 @@ static const struct seq_operations deadline_##name##_fifo_seq_ops = {	\
 	.start	= deadline_##name##_fifo_start,				\
 	.next	= deadline_##name##_fifo_next,				\
 	.stop	= deadline_##name##_fifo_stop,				\
-	.show	= blk_mq_debugfs_rq_show,				\
+	.show	= blk_mq_defs_rq_show,				\
 };									\
 									\
 static int deadline_##name##_next_rq_show(void *data,			\
@@ -697,12 +697,12 @@ static int deadline_##name##_next_rq_show(void *data,			\
 	struct request *rq = dd->next_rq[ddir];				\
 									\
 	if (rq)								\
-		__blk_mq_debugfs_rq_show(m, rq);			\
+		__blk_mq_defs_rq_show(m, rq);			\
 	return 0;							\
 }
-DEADLINE_DEBUGFS_DDIR_ATTRS(READ, read)
-DEADLINE_DEBUGFS_DDIR_ATTRS(WRITE, write)
-#undef DEADLINE_DEBUGFS_DDIR_ATTRS
+DEADLINE_DEFS_DDIR_ATTRS(READ, read)
+DEADLINE_DEFS_DDIR_ATTRS(WRITE, write)
+#undef DEADLINE_DEFS_DDIR_ATTRS
 
 static int deadline_batching_show(void *data, struct seq_file *m)
 {
@@ -753,13 +753,13 @@ static const struct seq_operations deadline_dispatch_seq_ops = {
 	.start	= deadline_dispatch_start,
 	.next	= deadline_dispatch_next,
 	.stop	= deadline_dispatch_stop,
-	.show	= blk_mq_debugfs_rq_show,
+	.show	= blk_mq_defs_rq_show,
 };
 
 #define DEADLINE_QUEUE_DDIR_ATTRS(name)						\
 	{#name "_fifo_list", 0400, .seq_ops = &deadline_##name##_fifo_seq_ops},	\
 	{#name "_next_rq", 0400, deadline_##name##_next_rq_show}
-static const struct blk_mq_debugfs_attr deadline_queue_debugfs_attrs[] = {
+static const struct blk_mq_defs_attr deadline_queue_defs_attrs[] = {
 	DEADLINE_QUEUE_DDIR_ATTRS(read),
 	DEADLINE_QUEUE_DDIR_ATTRS(write),
 	{"batching", 0400, deadline_batching_show},
@@ -787,8 +787,8 @@ static struct elevator_type mq_deadline = {
 		.exit_sched		= dd_exit_queue,
 	},
 
-#ifdef CONFIG_BLK_DEBUG_FS
-	.queue_debugfs_attrs = deadline_queue_debugfs_attrs,
+#ifdef CONFIG_BLK_DE_FS
+	.queue_defs_attrs = deadline_queue_defs_attrs,
 #endif
 	.elevator_attrs = deadline_attrs,
 	.elevator_name = "mq-deadline",

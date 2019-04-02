@@ -31,9 +31,9 @@ MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision ov7670 sensors");
 MODULE_LICENSE("GPL");
 
-static bool debug;
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static bool de;
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 /*
  * The 7670 sits on i2c with ID 0x42
@@ -159,7 +159,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define REG_GFIX	0x69	/* Fix gain control */
 
-#define REG_DBLV	0x6b	/* PLL control an debugging */
+#define REG_DBLV	0x6b	/* PLL control an deging */
 #define   DBLV_BYPASS	  0x0a	  /* Bypass PLL */
 #define   DBLV_X4	  0x4a	  /* clock x4 */
 #define   DBLV_X6	  0x8a	  /* clock x6 */
@@ -1599,7 +1599,7 @@ static const struct v4l2_ctrl_ops ov7670_ctrl_ops = {
 	.g_volatile_ctrl = ov7670_g_volatile_ctrl,
 };
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ov7670_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	unsigned char val = 0;
@@ -1707,7 +1707,7 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = ov7670_g_register,
 	.s_register = ov7670_s_register,
 #endif
@@ -1886,7 +1886,7 @@ static int ov7670_probe(struct i2c_client *client,
 	/* Make sure it's an ov7670 */
 	ret = ov7670_detect(sd);
 	if (ret) {
-		v4l_dbg(1, debug, client,
+		v4l_dbg(1, de, client,
 			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
 			client->addr << 1, client->adapter->name);
 		goto power_off;

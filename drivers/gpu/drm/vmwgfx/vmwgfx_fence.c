@@ -328,7 +328,7 @@ void vmw_fence_manager_takedown(struct vmw_fence_manager *fman)
 		list_empty(&fman->cleanup_list);
 	spin_unlock(&fman->lock);
 
-	BUG_ON(!lists_empty);
+	_ON(!lists_empty);
 	kfree(fman);
 }
 
@@ -743,7 +743,7 @@ void vmw_fence_fifo_down(struct vmw_fence_manager *fman)
 			vmw_fences_perform_actions(fman, &action_list);
 		}
 
-		BUG_ON(!list_empty(&fence->head));
+		_ON(!list_empty(&fence->head));
 		dma_fence_put(&fence->base);
 		spin_lock(&fman->lock);
 	}
@@ -1154,7 +1154,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	BUG_ON(fence == NULL);
+	_ON(fence == NULL);
 
 	ret = vmw_event_fence_action_create(file_priv, fence,
 					    arg->flags,

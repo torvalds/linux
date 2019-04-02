@@ -181,7 +181,7 @@ struct keyspan_usa28_globalStatusMessage
 		resetStatusCount;	// as in request
 };
 
-struct keyspan_usa28_globalDebugMessage
+struct keyspan_usa28_globalDeMessage
 {
 	u8	port,				// 2
 		n,					// typically a count/status byte

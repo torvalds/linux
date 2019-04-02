@@ -675,7 +675,7 @@ static void mic_dma_dev_unreg(struct mic_dma_device *mic_dma_dev)
 	mic_dma_uninit(mic_dma_dev);
 }
 
-/* DEBUGFS CODE */
+/* DEFS CODE */
 static int mic_dma_reg_show(struct seq_file *s, void *pos)
 {
 	struct mic_dma_device *mic_dma_dev = s->private;
@@ -709,7 +709,7 @@ static int mic_dma_reg_show(struct seq_file *s, void *pos)
 
 DEFINE_SHOW_ATTRIBUTE(mic_dma_reg);
 
-/* Debugfs parent dir */
+/* Defs parent dir */
 static struct dentry *mic_dma_dbg;
 
 static int mic_dma_driver_probe(struct mbus_device *mbdev)
@@ -726,10 +726,10 @@ static int mic_dma_driver_probe(struct mbus_device *mbdev)
 	dev_set_drvdata(&mbdev->dev, mic_dma_dev);
 
 	if (mic_dma_dbg) {
-		mic_dma_dev->dbg_dir = debugfs_create_dir(dev_name(&mbdev->dev),
+		mic_dma_dev->dbg_dir = defs_create_dir(dev_name(&mbdev->dev),
 							  mic_dma_dbg);
 		if (mic_dma_dev->dbg_dir)
-			debugfs_create_file("mic_dma_reg", 0444,
+			defs_create_file("mic_dma_reg", 0444,
 					    mic_dma_dev->dbg_dir, mic_dma_dev,
 					    &mic_dma_reg_fops);
 	}
@@ -741,7 +741,7 @@ static void mic_dma_driver_remove(struct mbus_device *mbdev)
 	struct mic_dma_device *mic_dma_dev;
 
 	mic_dma_dev = dev_get_drvdata(&mbdev->dev);
-	debugfs_remove_recursive(mic_dma_dev->dbg_dir);
+	defs_remove_recursive(mic_dma_dev->dbg_dir);
 	mic_dma_dev_unreg(mic_dma_dev);
 }
 
@@ -764,13 +764,13 @@ static int __init mic_x100_dma_init(void)
 	int rc = mbus_register_driver(&mic_dma_driver);
 	if (rc)
 		return rc;
-	mic_dma_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	mic_dma_dbg = defs_create_dir(KBUILD_MODNAME, NULL);
 	return 0;
 }
 
 static void __exit mic_x100_dma_exit(void)
 {
-	debugfs_remove_recursive(mic_dma_dbg);
+	defs_remove_recursive(mic_dma_dbg);
 	mbus_unregister_driver(&mic_dma_driver);
 }
 

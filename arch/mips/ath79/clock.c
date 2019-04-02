@@ -46,7 +46,7 @@ static const char * const clk_names[ATH79_CLK_END] = {
 
 static const char * __init ath79_clk_name(int type)
 {
-	BUG_ON(type >= ARRAY_SIZE(clk_names) || !clk_names[type]);
+	_ON(type >= ARRAY_SIZE(clk_names) || !clk_names[type]);
 	return clk_names[type];
 }
 

@@ -71,7 +71,7 @@ void tsc_verify_tsc_adjust(bool resume)
 	wrmsrl(MSR_IA32_TSC_ADJUST, adj->adjusted);
 
 	if (!adj->warned || resume) {
-		pr_warn(FW_BUG "TSC ADJUST differs: CPU%u %lld --> %lld. Restoring\n",
+		pr_warn(FW_ "TSC ADJUST differs: CPU%u %lld --> %lld. Restoring\n",
 			smp_processor_id(), adj->adjusted, curval);
 		adj->warned = true;
 	}
@@ -98,7 +98,7 @@ static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
 	 */
 	if (bootcpu && bootval != 0) {
 		if (likely(!tsc_async_resets)) {
-			pr_warn(FW_BUG "TSC ADJUST: CPU%u: %lld force to 0\n",
+			pr_warn(FW_ "TSC ADJUST: CPU%u: %lld force to 0\n",
 				cpu, bootval);
 			wrmsrl(MSR_IA32_TSC_ADJUST, 0);
 			bootval = 0;
@@ -179,7 +179,7 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	 * package.
 	 */
 	if (bootval != ref->bootval)
-		printk_once(FW_BUG "TSC ADJUST differs within socket(s), fixing all errors\n");
+		printk_once(FW_ "TSC ADJUST differs within socket(s), fixing all errors\n");
 
 	/*
 	 * The TSC_ADJUST values in a package must be the same. If the boot
@@ -209,7 +209,7 @@ static atomic_t test_runs;
 
 /*
  * We use a raw spinlock in this exceptional case, because
- * we want to have the fastest, inlined, non-debug version
+ * we want to have the fastest, inlined, non-de version
  * of a critical section, to be able to prove TSC time-warps:
  */
 static arch_spinlock_t sync_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -357,7 +357,7 @@ retry:
 	if (!nr_warps) {
 		atomic_set(&test_runs, 0);
 
-		pr_debug("TSC synchronization [CPU#%d -> CPU#%d]: passed\n",
+		pr_de("TSC synchronization [CPU#%d -> CPU#%d]: passed\n",
 			smp_processor_id(), cpu);
 
 	} else if (atomic_dec_and_test(&test_runs) || random_warps) {

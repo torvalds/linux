@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * USB Debug cable driver
+ * USB De cable driver
  *
  * Copyright (C) 2006 Greg Kroah-Hartman <greg@kroah.com>
  */
@@ -12,9 +12,9 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#define USB_DEBUG_MAX_PACKET_SIZE	8
-#define USB_DEBUG_BRK_SIZE		8
-static const char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
+#define USB_DE_MAX_PACKET_SIZE	8
+#define USB_DE_BRK_SIZE		8
+static const char USB_DE_BRK[USB_DE_BRK_SIZE] = {
 	0x00,
 	0xff,
 	0x01,
@@ -47,21 +47,21 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
 /* This HW really does not support a serial break, so one will be
  * emulated when ever the break state is set to true.
  */
-static void usb_debug_break_ctl(struct tty_struct *tty, int break_state)
+static void usb_de_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	if (!break_state)
 		return;
-	usb_serial_generic_write(tty, port, USB_DEBUG_BRK, USB_DEBUG_BRK_SIZE);
+	usb_serial_generic_write(tty, port, USB_DE_BRK, USB_DE_BRK_SIZE);
 }
 
-static void usb_debug_process_read_urb(struct urb *urb)
+static void usb_de_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 
-	if (urb->actual_length == USB_DEBUG_BRK_SIZE &&
-		memcmp(urb->transfer_buffer, USB_DEBUG_BRK,
-						USB_DEBUG_BRK_SIZE) == 0) {
+	if (urb->actual_length == USB_DE_BRK_SIZE &&
+		memcmp(urb->transfer_buffer, USB_DE_BRK,
+						USB_DE_BRK_SIZE) == 0) {
 		usb_serial_handle_break(port);
 		return;
 	}
@@ -69,16 +69,16 @@ static void usb_debug_process_read_urb(struct urb *urb)
 	usb_serial_generic_process_read_urb(urb);
 }
 
-static struct usb_serial_driver debug_device = {
+static struct usb_serial_driver de_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"debug",
+		.name =		"de",
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
-	.bulk_out_size =	USB_DEBUG_MAX_PACKET_SIZE,
-	.break_ctl =		usb_debug_break_ctl,
-	.process_read_urb =	usb_debug_process_read_urb,
+	.bulk_out_size =	USB_DE_MAX_PACKET_SIZE,
+	.break_ctl =		usb_de_break_ctl,
+	.process_read_urb =	usb_de_process_read_urb,
 };
 
 static struct usb_serial_driver dbc_device = {
@@ -88,12 +88,12 @@ static struct usb_serial_driver dbc_device = {
 	},
 	.id_table =		dbc_id_table,
 	.num_ports =		1,
-	.break_ctl =		usb_debug_break_ctl,
-	.process_read_urb =	usb_debug_process_read_urb,
+	.break_ctl =		usb_de_break_ctl,
+	.process_read_urb =	usb_de_process_read_urb,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
-	&debug_device, &dbc_device, NULL
+	&de_device, &dbc_device, NULL
 };
 
 module_usb_serial_driver(serial_drivers, id_table_combined);

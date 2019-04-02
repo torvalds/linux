@@ -703,7 +703,7 @@ static void hv_bring_pgs_online(struct hv_hotadd_state *has,
 {
 	int i;
 
-	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
+	pr_de("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
 	for (i = 0; i < size; i++)
 		hv_page_online_one(has, pfn_to_page(start_pfn + i));
 }
@@ -866,7 +866,7 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 	unsigned long old_covered_state;
 	unsigned long res = 0, flags;
 
-	pr_debug("Hot adding %lu pages starting at pfn 0x%lx.\n", pg_count,
+	pr_de("Hot adding %lu pages starting at pfn 0x%lx.\n", pg_count,
 		pg_start);
 
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
@@ -1318,7 +1318,7 @@ static void balloon_up(struct work_struct *dummy)
 		}
 
 		if (num_ballooned == 0 || num_ballooned == num_pages) {
-			pr_debug("Ballooned %u out of %u requested pages.\n",
+			pr_de("Ballooned %u out of %u requested pages.\n",
 				num_pages, dm_device.balloon_wrk.num_pages);
 
 			bl_resp->more_pages = 0;
@@ -1375,7 +1375,7 @@ static void balloon_down(struct hv_dynmem_device *dm,
 		complete(&dm_device.config_event);
 	}
 
-	pr_debug("Freed %u ballooned pages.\n",
+	pr_de("Freed %u ballooned pages.\n",
 		prev_pages_ballooned - dm->num_pages_ballooned);
 
 	if (req->more_pages == 1)

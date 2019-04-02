@@ -73,7 +73,7 @@
 #include "via-pmu-event.h"
 
 /* Some compile options */
-#undef DEBUG_SLEEP
+#undef DE_SLEEP
 
 /* Misc minor number allocated for /dev/pmu */
 #define PMU_MINOR		154
@@ -230,7 +230,7 @@ extern void low_sleep_handler(void);
 extern void enable_kernel_altivec(void);
 extern void enable_kernel_fp(void);
 
-#ifdef DEBUG_SLEEP
+#ifdef DE_SLEEP
 int pmu_polled_request(struct adb_request *req);
 void pmu_blink(int n);
 #endif
@@ -1619,7 +1619,7 @@ via_pmu_interrupt(int irq, void *arg)
 			break;
 		handled = 1;
 		if (++nloop > 1000) {
-			printk(KERN_DEBUG "PMU: stuck in intr loop, "
+			printk(KERN_DE "PMU: stuck in intr loop, "
 			       "intr=%x, ier=%x pmu_state=%d\n",
 			       intr, in_8(&via1[IER]), pmu_state);
 			break;
@@ -2505,7 +2505,7 @@ static int pmu_device_init(void)
 device_initcall(pmu_device_init);
 
 
-#ifdef DEBUG_SLEEP
+#ifdef DE_SLEEP
 static inline void 
 polled_handshake(void)
 {
@@ -2609,7 +2609,7 @@ void pmu_blink(int n)
 	}
 	mdelay(50);
 }
-#endif /* DEBUG_SLEEP */
+#endif /* DE_SLEEP */
 
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
 int pmu_sys_suspended;

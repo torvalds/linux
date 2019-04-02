@@ -1,5 +1,5 @@
 /**
- * Marvell Bluetooth driver: debugfs related functions
+ * Marvell Bluetooth driver: defs related functions
  *
  * Copyright (C) 2009, Marvell International Ltd.
  *
@@ -18,7 +18,7 @@
  * this warranty disclaimer.
  **/
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -26,7 +26,7 @@
 
 #include "btmrvl_drv.h"
 
-struct btmrvl_debugfs_data {
+struct btmrvl_defs_data {
 	struct dentry *config_dir;
 	struct dentry *status_dir;
 };
@@ -149,58 +149,58 @@ static const struct file_operations btmrvl_hscmd_fops = {
 	.llseek = default_llseek,
 };
 
-void btmrvl_debugfs_init(struct hci_dev *hdev)
+void btmrvl_defs_init(struct hci_dev *hdev)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
-	struct btmrvl_debugfs_data *dbg;
+	struct btmrvl_defs_data *dbg;
 
-	if (!hdev->debugfs)
+	if (!hdev->defs)
 		return;
 
 	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
-	priv->debugfs_data = dbg;
+	priv->defs_data = dbg;
 
 	if (!dbg) {
-		BT_ERR("Can not allocate memory for btmrvl_debugfs_data.");
+		BT_ERR("Can not allocate memory for btmrvl_defs_data.");
 		return;
 	}
 
-	dbg->config_dir = debugfs_create_dir("config", hdev->debugfs);
+	dbg->config_dir = defs_create_dir("config", hdev->defs);
 
-	debugfs_create_u8("psmode", 0644, dbg->config_dir,
+	defs_create_u8("psmode", 0644, dbg->config_dir,
 			  &priv->btmrvl_dev.psmode);
-	debugfs_create_file("pscmd", 0644, dbg->config_dir,
+	defs_create_file("pscmd", 0644, dbg->config_dir,
 			    priv, &btmrvl_pscmd_fops);
-	debugfs_create_x16("gpiogap", 0644, dbg->config_dir,
+	defs_create_x16("gpiogap", 0644, dbg->config_dir,
 			   &priv->btmrvl_dev.gpio_gap);
-	debugfs_create_u8("hsmode", 0644, dbg->config_dir,
+	defs_create_u8("hsmode", 0644, dbg->config_dir,
 			  &priv->btmrvl_dev.hsmode);
-	debugfs_create_file("hscmd", 0644, dbg->config_dir,
+	defs_create_file("hscmd", 0644, dbg->config_dir,
 			    priv, &btmrvl_hscmd_fops);
-	debugfs_create_file("hscfgcmd", 0644, dbg->config_dir,
+	defs_create_file("hscfgcmd", 0644, dbg->config_dir,
 			    priv, &btmrvl_hscfgcmd_fops);
 
-	dbg->status_dir = debugfs_create_dir("status", hdev->debugfs);
-	debugfs_create_u8("curpsmode", 0444, dbg->status_dir,
+	dbg->status_dir = defs_create_dir("status", hdev->defs);
+	defs_create_u8("curpsmode", 0444, dbg->status_dir,
 			  &priv->adapter->psmode);
-	debugfs_create_u8("psstate", 0444, dbg->status_dir,
+	defs_create_u8("psstate", 0444, dbg->status_dir,
 			  &priv->adapter->ps_state);
-	debugfs_create_u8("hsstate", 0444, dbg->status_dir,
+	defs_create_u8("hsstate", 0444, dbg->status_dir,
 			  &priv->adapter->hs_state);
-	debugfs_create_u8("txdnldready", 0444, dbg->status_dir,
+	defs_create_u8("txdnldready", 0444, dbg->status_dir,
 			  &priv->btmrvl_dev.tx_dnld_rdy);
 }
 
-void btmrvl_debugfs_remove(struct hci_dev *hdev)
+void btmrvl_defs_remove(struct hci_dev *hdev)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
-	struct btmrvl_debugfs_data *dbg = priv->debugfs_data;
+	struct btmrvl_defs_data *dbg = priv->defs_data;
 
 	if (!dbg)
 		return;
 
-	debugfs_remove_recursive(dbg->config_dir);
-	debugfs_remove_recursive(dbg->status_dir);
+	defs_remove_recursive(dbg->config_dir);
+	defs_remove_recursive(dbg->status_dir);
 
 	kfree(dbg);
 }

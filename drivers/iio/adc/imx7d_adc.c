@@ -413,7 +413,7 @@ static int imx7d_adc_reg_access(struct iio_dev *indio_dev,
 
 static const struct iio_info imx7d_adc_iio_info = {
 	.read_raw = &imx7d_adc_read_raw,
-	.debugfs_reg_access = &imx7d_adc_reg_access,
+	.defs_reg_access = &imx7d_adc_reg_access,
 };
 
 static const struct of_device_id imx7d_adc_match[] = {

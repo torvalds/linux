@@ -777,7 +777,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 		i++;
 	}
 
-	pr_debug("PM: supports warm boot:%d, method:%d, wboffs:%x\n",
+	pr_de("PM: supports warm boot:%d, method:%d, wboffs:%x\n",
 		ctrl.support_warm_boot, ctrl.s3entry_method,
 		ctrl.warm_boot_offset);
 

@@ -443,7 +443,7 @@ static int get_dent_type(int mode)
 	case S_IFSOCK:
 		return UBIFS_ITYPE_SOCK;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }

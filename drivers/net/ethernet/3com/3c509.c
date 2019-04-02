@@ -26,7 +26,7 @@
 
 
 	FIXES:
-		Alan Cox:       Removed the 'Unexpected interrupt' bug.
+		Alan Cox:       Removed the 'Unexpected interrupt' .
 		Michael Meskes:	Upgraded to Donald Becker's version 1.07.
 		Alan Cox:	Increased the eeprom delay. Regardless of
 				what the docs say some people definitely
@@ -94,10 +94,10 @@
 
 static char version[] = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
 
-#ifdef EL3_DEBUG
-static int el3_debug = EL3_DEBUG;
+#ifdef EL3_DE
+static int el3_de = EL3_DE;
 #else
-static int el3_debug = 2;
+static int el3_de = 2;
 #endif
 
 /* Used to do a global count of all the cards in the system.  Must be
@@ -176,7 +176,7 @@ static int current_tag;
 static struct net_device *el3_devs[EL3_MAX_CARDS];
 
 /* Parameters that may be passed into the module. */
-static int debug = -1;
+static int de = -1;
 static int irq[] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 10;
@@ -253,8 +253,8 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 			struct el3_private *lp = netdev_priv(el3_devs[i]);
 			if (lp->type == EL3_PNP &&
 			    ether_addr_equal((u8 *)phys_addr, el3_devs[i]->dev_addr)) {
-				if (el3_debug > 3)
-					pr_debug("3c509 with address %02x %02x %02x %02x %02x %02x was found by ISAPnP\n",
+				if (el3_de > 3)
+					pr_de("3c509 with address %02x %02x %02x %02x %02x %02x was found by ISAPnP\n",
 						phys_addr[0] & 0xff, phys_addr[0] >> 8,
 						phys_addr[1] & 0xff, phys_addr[1] >> 8,
 						phys_addr[2] & 0xff, phys_addr[2] >> 8);
@@ -547,7 +547,7 @@ static int el3_common_init(struct net_device *dev)
 	       dev->name, dev->base_addr, if_names[(dev->if_port & 0x03)],
 	       dev->dev_addr, dev->irq);
 
-	if (el3_debug > 0)
+	if (el3_de > 0)
 		pr_info("%s", version);
 	return 0;
 
@@ -653,8 +653,8 @@ static ushort id_read_eeprom(int index)
 	for (bit = 15; bit >= 0; bit--)
 		word = (word << 1) + (inb(id_port) & 0x01);
 
-	if (el3_debug > 3)
-		pr_debug("  3c509 EEPROM word %d %#4.4x.\n", index, word);
+	if (el3_de > 3)
+		pr_de("  3c509 EEPROM word %d %#4.4x.\n", index, word);
 
 	return word;
 }
@@ -675,14 +675,14 @@ el3_open(struct net_device *dev)
 		return i;
 
 	EL3WINDOW(0);
-	if (el3_debug > 3)
-		pr_debug("%s: Opening, IRQ %d	 status@%x %4.4x.\n", dev->name,
+	if (el3_de > 3)
+		pr_de("%s: Opening, IRQ %d	 status@%x %4.4x.\n", dev->name,
 			   dev->irq, ioaddr + EL3_STATUS, inw(ioaddr + EL3_STATUS));
 
 	el3_up(dev);
 
-	if (el3_debug > 3)
-		pr_debug("%s: Opened 3c509  IRQ %d  status %4.4x.\n",
+	if (el3_de > 3)
+		pr_de("%s: Opened 3c509  IRQ %d  status %4.4x.\n",
 			   dev->name, dev->irq, inw(ioaddr + EL3_STATUS));
 
 	return 0;
@@ -717,8 +717,8 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += skb->len;
 
-	if (el3_debug > 4) {
-		pr_debug("%s: el3_start_xmit(length = %u) called, status %4.4x.\n",
+	if (el3_de > 4) {
+		pr_de("%s: el3_start_xmit(length = %u) called, status %4.4x.\n",
 			   dev->name, skb->len, inw(ioaddr + EL3_STATUS));
 	}
 	/*
@@ -779,9 +779,9 @@ el3_interrupt(int irq, void *dev_id)
 
 	ioaddr = dev->base_addr;
 
-	if (el3_debug > 4) {
+	if (el3_de > 4) {
 		status = inw(ioaddr + EL3_STATUS);
-		pr_debug("%s: interrupt, status %4.4x.\n", dev->name, status);
+		pr_de("%s: interrupt, status %4.4x.\n", dev->name, status);
 	}
 
 	while ((status = inw(ioaddr + EL3_STATUS)) &
@@ -791,8 +791,8 @@ el3_interrupt(int irq, void *dev_id)
 			el3_rx(dev);
 
 		if (status & TxAvailable) {
-			if (el3_debug > 5)
-				pr_debug("	TX room bit was handled.\n");
+			if (el3_de > 5)
+				pr_de("	TX room bit was handled.\n");
 			/* There's room in the FIFO for a full-sized packet. */
 			outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
 			netif_wake_queue (dev);
@@ -840,8 +840,8 @@ el3_interrupt(int irq, void *dev_id)
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD); /* Ack IRQ */
 	}
 
-	if (el3_debug > 4) {
-		pr_debug("%s: exiting interrupt, status %4.4x.\n", dev->name,
+	if (el3_de > 4) {
+		pr_de("%s: exiting interrupt, status %4.4x.\n", dev->name,
 			   inw(ioaddr + EL3_STATUS));
 	}
 	spin_unlock(&lp->lock);
@@ -888,8 +888,8 @@ static void update_stats(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 
-	if (el3_debug > 5)
-		pr_debug("   Updating the statistics.\n");
+	if (el3_de > 5)
+		pr_de("   Updating the statistics.\n");
 	/* Turn off statistics updates while reading. */
 	outw(StatsDisable, ioaddr + EL3_CMD);
 	/* Switch to the stats window, and read everything. */
@@ -917,8 +917,8 @@ el3_rx(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	short rx_status;
 
-	if (el3_debug > 5)
-		pr_debug("   In rx_packet(), status %4.4x, rx_status %4.4x.\n",
+	if (el3_de > 5)
+		pr_de("   In rx_packet(), status %4.4x, rx_status %4.4x.\n",
 			   inw(ioaddr+EL3_STATUS), inw(ioaddr+RX_STATUS));
 	while ((rx_status = inw(ioaddr + RX_STATUS)) > 0) {
 		if (rx_status & 0x4000) { /* Error, update stats. */
@@ -939,8 +939,8 @@ el3_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			skb = netdev_alloc_skb(dev, pkt_len + 5);
-			if (el3_debug > 4)
-				pr_debug("Receiving packet size %d status %4.4x.\n",
+			if (el3_de > 4)
+				pr_de("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
 			if (skb != NULL) {
 				skb_reserve(skb, 2);     /* Align IP on 16 byte */
@@ -958,13 +958,13 @@ el3_rx(struct net_device *dev)
 			}
 			outw(RxDiscard, ioaddr + EL3_CMD);
 			dev->stats.rx_dropped++;
-			if (el3_debug)
-				pr_debug("%s: Couldn't allocate a sk_buff of size %d.\n",
+			if (el3_de)
+				pr_de("%s: Couldn't allocate a sk_buff of size %d.\n",
 					   dev->name, pkt_len);
 		}
 		inw(ioaddr + EL3_STATUS); 				/* Delay. */
 		while (inw(ioaddr + EL3_STATUS) & 0x1000)
-			pr_debug("	Waiting for 3c509 to discard packet, status %x.\n",
+			pr_de("	Waiting for 3c509 to discard packet, status %x.\n",
 				   inw(ioaddr + EL3_STATUS) );
 	}
 
@@ -982,11 +982,11 @@ set_multicast_list(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	int mc_count = netdev_mc_count(dev);
 
-	if (el3_debug > 1) {
+	if (el3_de > 1) {
 		static int old;
 		if (old != mc_count) {
 			old = mc_count;
-			pr_debug("%s: Setting Rx mode to %d addresses.\n",
+			pr_de("%s: Setting Rx mode to %d addresses.\n",
 				 dev->name, mc_count);
 		}
 	}
@@ -1009,8 +1009,8 @@ el3_close(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	struct el3_private *lp = netdev_priv(dev);
 
-	if (el3_debug > 2)
-		pr_debug("%s: Shutting down ethercard.\n", dev->name);
+	if (el3_de > 2)
+		pr_de("%s: Shutting down ethercard.\n", dev->name);
 
 	el3_down(dev);
 
@@ -1182,12 +1182,12 @@ static u32 el3_get_link(struct net_device *dev)
 
 static u32 el3_get_msglevel(struct net_device *dev)
 {
-	return el3_debug;
+	return el3_de;
 }
 
 static void el3_set_msglevel(struct net_device *dev, u32 v)
 {
-	el3_debug = v;
+	el3_de = v;
 }
 
 static const struct ethtool_ops ethtool_ops = {
@@ -1282,8 +1282,8 @@ el3_up(struct net_device *dev)
 
 		outw(net_diag, ioaddr + WN4_NETDIAG);
 		pr_cont(" if_port: %d, sw_info: %4.4x\n", dev->if_port, sw_info);
-		if (el3_debug > 3)
-			pr_debug("%s: 3c5x9 net diag word is now: %4.4x.\n", dev->name, net_diag);
+		if (el3_de > 3)
+			pr_de("%s: 3c5x9 net diag word is now: %4.4x.\n", dev->name, net_diag);
 		/* Enable link beat and jabber check. */
 		outw(inw(ioaddr + WN4_MEDIA) | MEDIA_TP, ioaddr + WN4_MEDIA);
 	}
@@ -1370,10 +1370,10 @@ el3_resume(struct device *pdev)
 
 #endif /* CONFIG_PM */
 
-module_param(debug,int, 0);
+module_param(de,int, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
 module_param(max_interrupt_work, int, 0);
-MODULE_PARM_DESC(debug, "debug level (0-6)");
+MODULE_PARM_DESC(de, "de level (0-6)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");
 MODULE_PARM_DESC(max_interrupt_work, "maximum events handled per interrupt");
 #ifdef CONFIG_PNP
@@ -1387,8 +1387,8 @@ static int __init el3_init_module(void)
 {
 	int ret = 0;
 
-	if (debug >= 0)
-		el3_debug = debug;
+	if (de >= 0)
+		el3_de = de;
 
 #ifdef CONFIG_PNP
 	if (!nopnp) {

@@ -267,7 +267,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret < 0) {
-			pr_debug("fsl-pq-mdio: no address range in node %pOF\n",
+			pr_de("fsl-pq-mdio: no address range in node %pOF\n",
 				 np);
 			continue;
 		}
@@ -280,7 +280,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		if (!iprop) {
 			iprop = of_get_property(np, "device-id", NULL);
 			if (!iprop) {
-				pr_debug("fsl-pq-mdio: no UCC ID in node %pOF\n",
+				pr_de("fsl-pq-mdio: no UCC ID in node %pOF\n",
 					 np);
 				continue;
 			}
@@ -293,12 +293,12 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 		 * numbered from 1, not 0.
 		 */
 		if (ucc_set_qe_mux_mii_mng(id - 1) < 0) {
-			pr_debug("fsl-pq-mdio: invalid UCC ID in node %pOF\n",
+			pr_de("fsl-pq-mdio: invalid UCC ID in node %pOF\n",
 				 np);
 			continue;
 		}
 
-		pr_debug("fsl-pq-mdio: setting node UCC%u to MII master\n", id);
+		pr_de("fsl-pq-mdio: setting node UCC%u to MII master\n", id);
 		found_mii_master = true;
 	}
 }
@@ -395,7 +395,7 @@ static void set_tbipa(const u32 tbipa_val, struct platform_device *pdev,
 		/*
 		 * Add consistency check to make sure TBI is contained within
 		 * the mapped range (not because we would get a segfault,
-		 * rather to catch bugs in computing TBI address). Print error
+		 * rather to catch s in computing TBI address). Print error
 		 * message but continue anyway.
 		 */
 		if ((void *)tbipa > reg_map + resource_size(reg_res) - 4)

@@ -28,7 +28,7 @@
 
 /* compilation time flags */
 
-/* define this to make the driver freeze on error to allow getting debug info
+/* define this to make the driver freeze on error to allow getting de info
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
@@ -63,7 +63,7 @@ enum bnx2x_int_mode {
 	BNX2X_INT_MODE_MSI
 };
 
-/* error/debug prints */
+/* error/de prints */
 
 #define DRV_MODULE_NAME		"bnx2x"
 
@@ -81,7 +81,7 @@ enum bnx2x_int_mode {
 #define BNX2X_MSG_ETHTOOL		0x4000000
 #define BNX2X_MSG_DCB			0x8000000
 
-/* regular debug print */
+/* regular de print */
 #define DP_INNER(fmt, ...)					\
 	pr_notice("[%s:%d(%s)]" fmt,				\
 		  __func__, __LINE__,				\
@@ -106,7 +106,7 @@ do {								\
 		pr_cont(fmt, ##__VA_ARGS__);			\
 } while (0)
 
-/* errors debug print */
+/* errors de print */
 #define BNX2X_DBG_ERR(fmt, ...)					\
 do {								\
 	if (unlikely(netif_msg_probe(bp)))			\
@@ -2324,7 +2324,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 				 AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR |\
 				 AEU_INPUTS_ATTN_BITS_NIG_PARITY_ERROR |\
 			     AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR |\
-				 AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR | \
+				 AEU_INPUTS_ATTN_BITS_DE_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_UCM_PARITY_ERROR |\
 				 AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR | \

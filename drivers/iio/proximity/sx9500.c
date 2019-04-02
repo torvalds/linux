@@ -869,7 +869,7 @@ static const struct acpi_gpio_params interrupt_gpios = { 2, 0, false };
 static const struct acpi_gpio_mapping acpi_sx9500_gpios[] = {
 	{ "reset-gpios", &reset_gpios, 1 },
 	/*
-	 * Some platforms have a bug in ACPI GPIO description making IRQ
+	 * Some platforms have a  in ACPI GPIO description making IRQ
 	 * GPIO to be output only. Ask the GPIO core to ignore this limit.
 	 */
 	{ "interrupt-gpios", &interrupt_gpios, 1, ACPI_GPIO_QUIRK_NO_IO_RESTRICTION },

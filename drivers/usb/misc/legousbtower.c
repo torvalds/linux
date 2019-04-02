@@ -54,7 +54,7 @@
  *   - log major, minor instead of possibly confusing device filename
  *   - whitespace cleanup
  * 2004-03-12 - 0.9 Juergen Stuber <starblue@users.sourceforge.net>
- *   - normalize whitespace in debug messages
+ *   - normalize whitespace in de messages
  *   - take care about endianness in control message responses
  * 2004-03-13 - 0.91 Juergen Stuber <starblue@users.sourceforge.net>
  *   - make default intervals longer to accommodate current EHCI driver
@@ -274,9 +274,9 @@ static struct usb_driver tower_driver = {
 
 
 /**
- *	lego_usb_tower_debug_data
+ *	lego_usb_tower_de_data
  */
-static inline void lego_usb_tower_debug_data(struct device *dev,
+static inline void lego_usb_tower_de_data(struct device *dev,
 					     const char *function, int size,
 					     const unsigned char *data)
 {
@@ -724,7 +724,7 @@ static void tower_interrupt_in_callback (struct urb *urb)
 	int retval;
 	unsigned long flags;
 
-	lego_usb_tower_debug_data(&dev->udev->dev, __func__,
+	lego_usb_tower_de_data(&dev->udev->dev, __func__,
 				  urb->actual_length, urb->transfer_buffer);
 
 	if (status) {
@@ -781,7 +781,7 @@ static void tower_interrupt_out_callback (struct urb *urb)
 	struct lego_usb_tower *dev = urb->context;
 	int status = urb->status;
 
-	lego_usb_tower_debug_data(&dev->udev->dev, __func__,
+	lego_usb_tower_de_data(&dev->udev->dev, __func__,
 				  urb->actual_length, urb->transfer_buffer);
 
 	/* sync/async unlink faults aren't errors */

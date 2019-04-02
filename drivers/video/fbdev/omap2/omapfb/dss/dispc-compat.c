@@ -241,7 +241,7 @@ static void print_irq_status(u32 status)
 
 #define PIS(x) (status & DISPC_IRQ_##x) ? (#x " ") : ""
 
-	pr_debug("DISPC IRQ: 0x%x: %s%s%s%s%s%s%s%s%s\n",
+	pr_de("DISPC IRQ: 0x%x: %s%s%s%s%s%s%s%s%s\n",
 		status,
 		PIS(OCP_ERR),
 		PIS(GFX_FIFO_UNDERFLOW),
@@ -419,7 +419,7 @@ int dss_dispc_initialize_irq(void)
 #ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock_init(&dispc_compat.irq_stats_lock);
 	dispc_compat.irq_stats.last_reset = jiffies;
-	dss_debugfs_create_file("dispc_irq", dispc_dump_irqs);
+	dss_defs_create_file("dispc_irq", dispc_dump_irqs);
 #endif
 
 	spin_lock_init(&dispc_compat.irq_lock);

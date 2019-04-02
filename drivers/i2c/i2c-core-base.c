@@ -1454,7 +1454,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	found = idr_find(&i2c_adapter_idr, adap->nr);
 	mutex_unlock(&core_lock);
 	if (found != adap) {
-		pr_debug("attempting to delete unregistered adapter [%s]\n", adap->name);
+		pr_de("attempting to delete unregistered adapter [%s]\n", adap->name);
 		return;
 	}
 
@@ -1502,7 +1502,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	 * FIXME: This is old code and should ideally be replaced by an
 	 * alternative which results in decoupling the lifetime of the struct
 	 * device from the i2c_adapter, like spi or netdev do. Any solution
-	 * should be thoroughly tested with DEBUG_KOBJECT_RELEASE enabled!
+	 * should be thoroughly tested with DE_KOBJECT_RELEASE enabled!
 	 */
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
@@ -1619,7 +1619,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
-	pr_debug("driver [%s] registered\n", driver->driver.name);
+	pr_de("driver [%s] registered\n", driver->driver.name);
 
 	/* Walk the adapters that are already present */
 	i2c_for_each_dev(driver, __process_new_driver);
@@ -1645,7 +1645,7 @@ void i2c_del_driver(struct i2c_driver *driver)
 	i2c_for_each_dev(driver, __process_removed_driver);
 
 	driver_unregister(&driver->driver);
-	pr_debug("driver [%s] unregistered\n", driver->driver.name);
+	pr_de("driver [%s] unregistered\n", driver->driver.name);
 }
 EXPORT_SYMBOL(i2c_del_driver);
 
@@ -1857,7 +1857,7 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
  *
  * Returns negative errno, else the number of messages executed.
  *
- * Adapter lock must be held when calling this function. No debug logging
+ * Adapter lock must be held when calling this function. No de logging
  * takes place. adap->algo->master_xfer existence isn't checked.
  */
 int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
@@ -2033,7 +2033,7 @@ EXPORT_SYMBOL_GPL(i2c_get_device_id);
 /*
  * Legacy default probe function, mostly relevant for SMBus. The default
  * probe method is a quick write, but it is known to corrupt the 24RF08
- * EEPROMs due to a state machine bug, and could also irreversibly
+ * EEPROMs due to a state machine , and could also irreversibly
  * write-protect some EEPROMs, so for address ranges 0x30-0x37 and 0x50-0x5f,
  * we use a short byte read instead. Also, some bus drivers don't implement
  * quick write, so we fallback to a byte read in that case too.
@@ -2271,7 +2271,7 @@ u8 *i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold)
 {
 	/* also skip 0-length msgs for bogus thresholds of 0 */
 	if (!threshold)
-		pr_debug("DMA buffer for addr=0x%02x with length 0 is bogus\n",
+		pr_de("DMA buffer for addr=0x%02x with length 0 is bogus\n",
 			 msg->addr);
 	if (msg->len < threshold || msg->len == 0)
 		return NULL;
@@ -2279,7 +2279,7 @@ u8 *i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold)
 	if (msg->flags & I2C_M_DMA_SAFE)
 		return msg->buf;
 
-	pr_debug("using bounce buffer for addr=0x%02x, len=%d\n",
+	pr_de("using bounce buffer for addr=0x%02x, len=%d\n",
 		 msg->addr, msg->len);
 
 	if (msg->flags & I2C_M_RD)

@@ -474,7 +474,7 @@ static int get_latency(unsigned int cpu, unsigned int human)
 	return 0;
 }
 
-static void debug_output_one(unsigned int cpu)
+static void de_output_one(unsigned int cpu)
 {
 	struct cpufreq_frequencies *freqs;
 
@@ -505,7 +505,7 @@ static void debug_output_one(unsigned int cpu)
 }
 
 static struct option info_opts[] = {
-	{"debug",	 no_argument,		 NULL,	 'e'},
+	{"de",	 no_argument,		 NULL,	 'e'},
 	{"boost",	 no_argument,		 NULL,	 'b'},
 	{"freq",	 no_argument,		 NULL,	 'f'},
 	{"hwfreq",	 no_argument,		 NULL,	 'w'},
@@ -630,7 +630,7 @@ int cmd_freq_info(int argc, char **argv)
 			get_boost_mode(cpu);
 			break;
 		case 'e':
-			debug_output_one(cpu);
+			de_output_one(cpu);
 			break;
 		case 'a':
 			ret = get_affected_cpus(cpu);

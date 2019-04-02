@@ -262,7 +262,7 @@ static void vx2_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	int offset = pipe->hw_ptr;
 	u32 *addr = (u32 *)(runtime->dma_area + offset);
 
-	if (snd_BUG_ON(count % 4))
+	if (snd__ON(count % 4))
 		return;
 
 	vx2_setup_pseudo_dma(chip, 1);
@@ -301,7 +301,7 @@ static void vx2_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	u32 *addr = (u32 *)(runtime->dma_area + offset);
 	unsigned long port = vx2_reg_addr(chip, VX_DMA);
 
-	if (snd_BUG_ON(count % 4))
+	if (snd__ON(count % 4))
 		return;
 
 	vx2_setup_pseudo_dma(chip, 0);
@@ -396,7 +396,7 @@ static int vx2_load_xilinx_binary(struct vx_core *chip, const struct firmware *x
 
 	msleep(200);
 
-	/* test after loading (is buggy with VX222) */
+	/* test after loading (is gy with VX222) */
 	if (chip->type != VX_TYPE_BOARD) {
 		/* Test if load successful: test bit 8 of register GPIOC (VX222: use CNTRL) ! */
 		i = vx_inl(chip, GPIOC);
@@ -433,7 +433,7 @@ static int vx2_load_dsp(struct vx_core *vx, int index, const struct firmware *ds
 		/* DSP image */
 		return snd_vx_dsp_load(vx, dsp);
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 }
@@ -687,7 +687,7 @@ static void vx2_write_akm(struct vx_core *chip, int reg, unsigned int data)
 	   a look up table, as there is no linear matching between the driver codec values
 	   and the real dBu value
 	*/
-	if (snd_BUG_ON(data >= sizeof(vx2_akm_gains_lut)))
+	if (snd__ON(data >= sizeof(vx2_akm_gains_lut)))
 		return;
 
 	switch (reg) {
@@ -698,7 +698,7 @@ static void vx2_write_akm(struct vx_core *chip, int reg, unsigned int data)
 		val = AKM_CODEC_RIGHT_LEVEL_CMD;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return;
 	}
 	val |= vx2_akm_gains_lut[data];
@@ -836,7 +836,7 @@ static void vx2_set_input_level(struct snd_vx222 *chip)
 		preamp++;	/* raise pre ampli + 18dB */
 		miclevel -= (18 * 2);   /* lower level 18 dB (*2 because of 0.5 dB steps !) */
         }
-	if (snd_BUG_ON(preamp >= 4))
+	if (snd__ON(preamp >= 4))
 		return;
 
 	/* set pre-amp level */

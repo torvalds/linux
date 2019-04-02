@@ -89,7 +89,7 @@ void smt_init_evc(struct s_smc *smc)
 			evc->evc_code = init->code ;
 			evc->evc_para = init->para ;
 			evc->evc_index = init->index + index ;
-#ifndef	DEBUG
+#ifndef	DE
 			evc->evc_multiple = &fail_safe ;
 			evc->evc_cond_state = &fail_safe ;
 #endif
@@ -138,7 +138,7 @@ void smt_init_evc(struct s_smc *smc)
 			&smc->mib.p[i].fddiPORTMultiple_P ;
 		offset++ ;
 	}
-#ifdef	DEBUG
+#ifdef	DE
 	for (i = 0, evc = smc->evcs ; i < MAX_EVCS ; i++, evc++) {
 		if (SMT_IS_CONDITION(evc->evc_code)) {
 			if (!evc->evc_cond_state) {
@@ -415,7 +415,7 @@ static void smt_send_srf(struct s_smc *smc)
 	DB_SMT("SRF: sending SRF at %p, len %d", smt, mb->sm_len);
 	DB_SMT("SRF: state SR%d Threshold %lu",
 	       smc->srf.sr_state, smc->srf.SRThreshold / TICKS_PER_SECOND);
-#ifdef	DEBUG
+#ifdef	DE
 	dump_smt(smc,smt,"SRF Send") ;
 #endif
 	smt_send_frame(smc,mb,FC_SMT_INFO,0) ;

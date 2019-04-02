@@ -9,7 +9,7 @@
  * Copyright (C) 2015 Renesas Electronics Corp.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -720,7 +720,7 @@ int __init rcar_gen3_cpg_init(const struct rcar_gen3_cpg_pll_config *config,
 	attr = soc_device_match(cpg_quirks_match);
 	if (attr)
 		cpg_quirks = (uintptr_t)attr->data;
-	pr_debug("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
+	pr_de("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
 
 	spin_lock_init(&cpg_lock);
 

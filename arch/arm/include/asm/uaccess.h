@@ -50,7 +50,7 @@ static inline void uaccess_restore(unsigned int flags)
 
 /*
  * These two are intentionally not defined anywhere - if the kernel
- * code generates any references to them, that's a bug.
+ * code generates any references to them, that's a .
  */
 extern int __get_user_bad(void);
 extern int __put_user_bad(void);
@@ -129,7 +129,7 @@ static inline void __user *__uaccess_mask_range_ptr(const void __user *ptr,
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
  * which read from user space (*get_*) need to take care not to leak
- * kernel data even if the calling code is buggy and fails to check
+ * kernel data even if the calling code is gy and fails to check
  * the return value.  This means zeroing out the destination variable
  * or buffer on error.  Normally this is done out of line by the
  * fixup code, but there are a few places where it intrudes on the

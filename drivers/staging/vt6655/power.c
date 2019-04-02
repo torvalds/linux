@@ -87,7 +87,7 @@ PSvEnablePowerSaving(
 	priv->bEnablePSMode = true;
 
 	priv->bPWBitOn = true;
-	pr_debug("PS:Power Saving Mode Enable...\n");
+	pr_de("PS:Power Saving Mode Enable...\n");
 }
 
 /*

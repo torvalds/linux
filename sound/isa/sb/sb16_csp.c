@@ -199,7 +199,7 @@ static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned i
 	struct snd_sb_csp_start start_info;
 	int err;
 
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -EINVAL;
 
 	if (snd_sb_csp_check_version(p))
@@ -662,7 +662,7 @@ static int snd_sb_csp_load(struct snd_sb_csp * p, const unsigned char *buf, int 
 		/*
 		 * Read mixer register SB_DSP4_DMASETUP after loading 'main' code.
 		 * Start CSP chip if no 16bit DMA channel is set - some kind
-		 * of autorun or perhaps a bugfix?
+		 * of autorun or perhaps a fix?
 		 */
 		spin_lock(&p->chip->mixer_lock);
 		status = snd_sbmixer_read(p->chip, SB_DSP4_DMASETUP);
@@ -710,7 +710,7 @@ static int snd_sb_csp_firmware_load(struct snd_sb_csp *p, int index, int flags)
 	};
 	const struct firmware *program;
 
-	BUILD_BUG_ON(ARRAY_SIZE(names) != CSP_PROGRAM_COUNT);
+	BUILD__ON(ARRAY_SIZE(names) != CSP_PROGRAM_COUNT);
 	program = p->csp_programs[index];
 	if (!program) {
 		int err = request_firmware(&program, names[index],
@@ -1050,7 +1050,7 @@ static int snd_sb_qsound_build(struct snd_sb_csp * p)
 	struct snd_card *card;
 	int err;
 
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -EINVAL;
 
 	card = p->chip->card;
@@ -1076,7 +1076,7 @@ static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 	struct snd_card *card;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return;
 
 	card = p->chip->card;	

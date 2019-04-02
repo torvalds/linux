@@ -56,7 +56,7 @@ il4965_verify_inst_sparse(struct il_priv *il, __le32 * image, u32 len)
 
 	for (i = 0; i < len; i += 100, image += 100 / sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
+		/* NOTE: Use the deless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
 		il_wr(il, HBUS_TARG_MEM_RADDR, i + IL4965_RTC_INST_LOWER_BOUND);
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
@@ -90,7 +90,7 @@ il4965_verify_inst_full(struct il_priv *il, __le32 * image, u32 len)
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
+		/* NOTE: Use the deless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {

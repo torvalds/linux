@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "mvpp2.h"
 #include "mvpp2_prs.h"
@@ -483,7 +483,7 @@ static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
 	struct mvpp2_dbgfs_port_flow_entry *port_entry;
 	struct dentry *port_dir;
 
-	port_dir = debugfs_create_dir(port->dev->name, parent);
+	port_dir = defs_create_dir(port->dev->name, parent);
 	if (IS_ERR(port_dir))
 		return PTR_ERR(port_dir);
 
@@ -495,10 +495,10 @@ static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
 	port_entry->port = port;
 	port_entry->dbg_fe = entry;
 
-	debugfs_create_file("hash_opts", 0444, port_dir, port_entry,
+	defs_create_file("hash_opts", 0444, port_dir, port_entry,
 			    &mvpp2_dbgfs_port_flow_hash_opt_fops);
 
-	debugfs_create_file("engine", 0444, port_dir, port_entry,
+	defs_create_file("engine", 0444, port_dir, port_entry,
 			    &mvpp2_dbgfs_port_flow_engine_fops);
 
 	return 0;
@@ -514,7 +514,7 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 
 	sprintf(flow_entry_name, "%02d", flow);
 
-	flow_entry_dir = debugfs_create_dir(flow_entry_name, parent);
+	flow_entry_dir = defs_create_dir(flow_entry_name, parent);
 	if (!flow_entry_dir)
 		return -ENOMEM;
 
@@ -526,16 +526,16 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 	entry->flow = flow;
 	entry->priv = priv;
 
-	debugfs_create_file("flow_hits", 0444, flow_entry_dir, entry,
+	defs_create_file("flow_hits", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_flt_hits_fops);
 
-	debugfs_create_file("dec_hits", 0444, flow_entry_dir, entry,
+	defs_create_file("dec_hits", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_dec_hits_fops);
 
-	debugfs_create_file("type", 0444, flow_entry_dir, entry,
+	defs_create_file("type", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_type_fops);
 
-	debugfs_create_file("id", 0444, flow_entry_dir, entry,
+	defs_create_file("id", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_id_fops);
 
 	/* Create entry for each port */
@@ -553,7 +553,7 @@ static int mvpp2_dbgfs_flow_init(struct dentry *parent, struct mvpp2 *priv)
 	struct dentry *flow_dir;
 	int i, ret;
 
-	flow_dir = debugfs_create_dir("flows", parent);
+	flow_dir = defs_create_dir("flows", parent);
 	if (!flow_dir)
 		return -ENOMEM;
 
@@ -578,7 +578,7 @@ static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 
 	sprintf(prs_entry_name, "%03d", tid);
 
-	prs_entry_dir = debugfs_create_dir(prs_entry_name, parent);
+	prs_entry_dir = defs_create_dir(prs_entry_name, parent);
 	if (!prs_entry_dir)
 		return -ENOMEM;
 
@@ -591,22 +591,22 @@ static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 	entry->priv = priv;
 
 	/* Create each attr */
-	debugfs_create_file("sram", 0444, prs_entry_dir, entry,
+	defs_create_file("sram", 0444, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_sram_fops);
 
-	debugfs_create_file("valid", 0644, prs_entry_dir, entry,
+	defs_create_file("valid", 0644, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_valid_fops);
 
-	debugfs_create_file("lookup_id", 0644, prs_entry_dir, entry,
+	defs_create_file("lookup_id", 0644, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_lu_fops);
 
-	debugfs_create_file("ai", 0644, prs_entry_dir, entry,
+	defs_create_file("ai", 0644, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_ai_fops);
 
-	debugfs_create_file("header_data", 0644, prs_entry_dir, entry,
+	defs_create_file("header_data", 0644, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_hdata_fops);
 
-	debugfs_create_file("hits", 0444, prs_entry_dir, entry,
+	defs_create_file("hits", 0444, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_hits_fops);
 
 	return 0;
@@ -617,7 +617,7 @@ static int mvpp2_dbgfs_prs_init(struct dentry *parent, struct mvpp2 *priv)
 	struct dentry *prs_dir;
 	int i, ret;
 
-	prs_dir = debugfs_create_dir("parser", parent);
+	prs_dir = defs_create_dir("parser", parent);
 	if (!prs_dir)
 		return -ENOMEM;
 
@@ -635,26 +635,26 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 {
 	struct dentry *port_dir;
 
-	port_dir = debugfs_create_dir(port->dev->name, parent);
+	port_dir = defs_create_dir(port->dev->name, parent);
 	if (IS_ERR(port_dir))
 		return PTR_ERR(port_dir);
 
-	debugfs_create_file("parser_entries", 0444, port_dir, port,
+	defs_create_file("parser_entries", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_parser_fops);
 
-	debugfs_create_file("mac_filter", 0444, port_dir, port,
+	defs_create_file("mac_filter", 0444, port_dir, port,
 			    &mvpp2_dbgfs_filter_fops);
 
-	debugfs_create_file("vid_filter", 0444, port_dir, port,
+	defs_create_file("vid_filter", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_vid_fops);
 
-	debugfs_create_file("c2_hits", 0444, port_dir, port,
+	defs_create_file("c2_hits", 0444, port_dir, port,
 			    &mvpp2_dbgfs_flow_c2_hits_fops);
 
-	debugfs_create_file("default_rxq", 0444, port_dir, port,
+	defs_create_file("default_rxq", 0444, port_dir, port,
 			    &mvpp2_dbgfs_flow_c2_rxq_fops);
 
-	debugfs_create_file("rss_enable", 0444, port_dir, port,
+	defs_create_file("rss_enable", 0444, port_dir, port,
 			    &mvpp2_dbgfs_flow_c2_enable_fops);
 
 	return 0;
@@ -662,7 +662,7 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 
 void mvpp2_dbgfs_cleanup(struct mvpp2 *priv)
 {
-	debugfs_remove_recursive(priv->dbgfs_dir);
+	defs_remove_recursive(priv->dbgfs_dir);
 }
 
 void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
@@ -670,14 +670,14 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
 	struct dentry *mvpp2_dir, *mvpp2_root;
 	int ret, i;
 
-	mvpp2_root = debugfs_lookup(MVPP2_DRIVER_NAME, NULL);
+	mvpp2_root = defs_lookup(MVPP2_DRIVER_NAME, NULL);
 	if (!mvpp2_root) {
-		mvpp2_root = debugfs_create_dir(MVPP2_DRIVER_NAME, NULL);
+		mvpp2_root = defs_create_dir(MVPP2_DRIVER_NAME, NULL);
 		if (IS_ERR(mvpp2_root))
 			return;
 	}
 
-	mvpp2_dir = debugfs_create_dir(name, mvpp2_root);
+	mvpp2_dir = defs_create_dir(name, mvpp2_root);
 	if (IS_ERR(mvpp2_dir))
 		return;
 

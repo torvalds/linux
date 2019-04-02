@@ -168,7 +168,7 @@ static int tda18250_init(struct dvb_frontend *fe)
 		{ R4B_XTALOSC1, 0x30 },
 		{ R59_AGC2_UP2, 0x05 },
 		{ R5B_AGC_AUTO, 0x07 },
-		{ R5C_AGC_DEBUG, 0x00 },
+		{ R5C_AGC_DE, 0x00 },
 	};
 
 	/* crystal related regs depend on frequency */

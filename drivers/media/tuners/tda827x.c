@@ -22,13 +22,13 @@
 
 #include "tda827x.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 #define dprintk(args...) \
 	do {					    \
-		if (debug) printk(KERN_DEBUG "tda827x: " args); \
+		if (de) printk(KERN_DE "tda827x: " args); \
 	} while (0)
 
 struct tda827x_priv {

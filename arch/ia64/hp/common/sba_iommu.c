@@ -83,25 +83,25 @@ extern int swiotlb_late_init_with_default_size (size_t size);
 ** particularly aggressive, this option will keep the entire pdir valid such
 ** that prefetching will hit a valid address.  This could severely impact
 ** error containment, and is therefore off by default.  The page that is
-** used for spill-over is poisoned, so that should help debugging somewhat.
+** used for spill-over is poisoned, so that should help deging somewhat.
 */
 #undef FULL_VALID_PDIR
 
 #define ENABLE_MARK_CLEAN
 
 /*
-** The number of debug flags is a clue - this code is fragile.  NOTE: since
+** The number of de flags is a clue - this code is fragile.  NOTE: since
 ** tightening the use of res_lock the resource bitmap and actual pdir are no
 ** longer guaranteed to stay in sync.  The sanity checking code isn't going to
 ** like that.
 */
-#undef DEBUG_SBA_INIT
-#undef DEBUG_SBA_RUN
-#undef DEBUG_SBA_RUN_SG
-#undef DEBUG_SBA_RESOURCE
+#undef DE_SBA_INIT
+#undef DE_SBA_RUN
+#undef DE_SBA_RUN_SG
+#undef DE_SBA_RESOURCE
 #undef ASSERT_PDIR_SANITY
-#undef DEBUG_LARGE_SG_ENTRIES
-#undef DEBUG_BYPASS
+#undef DE_LARGE_SG_ENTRIES
+#undef DE_BYPASS
 
 #if defined(FULL_VALID_PDIR) && defined(ASSERT_PDIR_SANITY)
 #error FULL_VALID_PDIR and ASSERT_PDIR_SANITY are mutually exclusive
@@ -110,32 +110,32 @@ extern int swiotlb_late_init_with_default_size (size_t size);
 #define SBA_INLINE	__inline__
 /* #define SBA_INLINE */
 
-#ifdef DEBUG_SBA_INIT
+#ifdef DE_SBA_INIT
 #define DBG_INIT(x...)	printk(x)
 #else
 #define DBG_INIT(x...)
 #endif
 
-#ifdef DEBUG_SBA_RUN
+#ifdef DE_SBA_RUN
 #define DBG_RUN(x...)	printk(x)
 #else
 #define DBG_RUN(x...)
 #endif
 
-#ifdef DEBUG_SBA_RUN_SG
+#ifdef DE_SBA_RUN_SG
 #define DBG_RUN_SG(x...)	printk(x)
 #else
 #define DBG_RUN_SG(x...)
 #endif
 
 
-#ifdef DEBUG_SBA_RESOURCE
+#ifdef DE_SBA_RESOURCE
 #define DBG_RES(x...)	printk(x)
 #else
 #define DBG_RES(x...)
 #endif
 
-#ifdef DEBUG_BYPASS
+#ifdef DE_BYPASS
 #define DBG_BYPASS(x...)	printk(x)
 #else
 #define DBG_BYPASS(x...)
@@ -282,10 +282,10 @@ static u64 prefetch_spill_page;
 #define READ_REG(addr)       __raw_readq(addr)
 #define WRITE_REG(val, addr) __raw_writeq(val, addr)
 
-#ifdef DEBUG_SBA_INIT
+#ifdef DE_SBA_INIT
 
 /**
- * sba_dump_tlb - debugging only - print IOMMU operating parameters
+ * sba_dump_tlb - deging only - print IOMMU operating parameters
  * @hpa: base address of the IOMMU
  *
  * Print the size/location of the IO MMU PDIR.
@@ -306,7 +306,7 @@ sba_dump_tlb(char *hpa)
 #ifdef ASSERT_PDIR_SANITY
 
 /**
- * sba_dump_pdir_entry - debugging only - print one IOMMU PDIR entry
+ * sba_dump_pdir_entry - deging only - print one IOMMU PDIR entry
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @msg: text to print ont the output line.
  * @pide: pdir index.
@@ -321,24 +321,24 @@ sba_dump_pdir_entry(struct ioc *ioc, char *msg, uint pide)
 	unsigned long *rptr = (unsigned long *) &ioc->res_map[(pide >>3) & -sizeof(unsigned long)];
 	uint rcnt;
 
-	printk(KERN_DEBUG "SBA: %s rp %p bit %d rval 0x%lx\n",
+	printk(KERN_DE "SBA: %s rp %p bit %d rval 0x%lx\n",
 		 msg, rptr, pide & (BITS_PER_LONG - 1), *rptr);
 
 	rcnt = 0;
 	while (rcnt < BITS_PER_LONG) {
-		printk(KERN_DEBUG "%s %2d %p %016Lx\n",
+		printk(KERN_DE "%s %2d %p %016Lx\n",
 		       (rcnt == (pide & (BITS_PER_LONG - 1)))
 		       ? "    -->" : "       ",
 		       rcnt, ptr, (unsigned long long) *ptr );
 		rcnt++;
 		ptr++;
 	}
-	printk(KERN_DEBUG "%s", msg);
+	printk(KERN_DE "%s", msg);
 }
 
 
 /**
- * sba_check_pdir - debugging only - consistency checker
+ * sba_check_pdir - deging only - consistency checker
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @msg: text to print ont the output line.
  *
@@ -384,7 +384,7 @@ sba_check_pdir(struct ioc *ioc, char *msg)
 
 
 /**
- * sba_dump_sg - debugging only - print Scatter-Gather list
+ * sba_dump_sg - deging only - print Scatter-Gather list
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @startsg: head of the SG list
  * @nents: number of entries in SG list
@@ -395,7 +395,7 @@ static void
 sba_dump_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 {
 	while (nents-- > 0) {
-		printk(KERN_DEBUG " %d : DMA %08lx/%05x CPU %p\n", nents,
+		printk(KERN_DE " %d : DMA %08lx/%05x CPU %p\n", nents,
 		       startsg->dma_address, startsg->dma_length,
 		       sba_sg_address(startsg));
 		startsg = sg_next(startsg);
@@ -496,7 +496,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 	boundary_size = (unsigned long long)dma_get_seg_boundary(dev) + 1;
 	boundary_size = ALIGN(boundary_size, 1ULL << iovp_shift) >> iovp_shift;
 
-	BUG_ON(ioc->ibase & ~iovp_mask);
+	_ON(ioc->ibase & ~iovp_mask);
 	shift = ioc->ibase >> iovp_shift;
 
 	spin_lock_irqsave(&ioc->res_lock, flags);
@@ -870,7 +870,7 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 #ifndef FULL_VALID_PDIR
 		/*
 		** clear I/O PDIR entry "valid" bit
-		** Do NOT clear the rest - save it for debugging.
+		** Do NOT clear the rest - save it for deging.
 		** We should only clear bits that have previously
 		** been enabled.
 		*/
@@ -1187,7 +1187,7 @@ static void sba_free_coherent(struct device *dev, size_t size, void *vaddr,
 */
 #define PIDE_FLAG 0x1UL
 
-#ifdef DEBUG_LARGE_SG_ENTRIES
+#ifdef DE_LARGE_SG_ENTRIES
 int dump_run_sg = 0;
 #endif
 
@@ -1217,7 +1217,7 @@ sba_fill_pdir(
 		int     cnt = startsg->dma_length;
 		startsg->dma_length = 0;
 
-#ifdef DEBUG_LARGE_SG_ENTRIES
+#ifdef DE_LARGE_SG_ENTRIES
 		if (dump_run_sg)
 			printk(" %2d : %08lx/%05x %p\n",
 				nents, startsg->dma_address, cnt,
@@ -1267,7 +1267,7 @@ sba_fill_pdir(
 	/* force pdir update */
 	wmb();
 
-#ifdef DEBUG_LARGE_SG_ENTRIES
+#ifdef DE_LARGE_SG_ENTRIES
 	dump_run_sg = 0;
 #endif
 	return(n_mappings);
@@ -1367,7 +1367,7 @@ sba_coalesce_chunks(struct ioc *ioc, struct device *dev,
 				continue;
 			}
 
-#ifdef DEBUG_LARGE_SG_ENTRIES
+#ifdef DE_LARGE_SG_ENTRIES
 			dump_run_sg = (vcontig_len > iovp_size);
 #endif
 

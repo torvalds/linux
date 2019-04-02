@@ -707,7 +707,7 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 		ret = PTR_ERR(pdata->refclk);
 		if (ret == -EPROBE_DEFER)
 			return ret;
-		DRM_DEBUG_KMS("refclk not found\n");
+		DRM_DE_KMS("refclk not found\n");
 		pdata->refclk = NULL;
 	}
 

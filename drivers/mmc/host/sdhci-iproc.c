@@ -44,7 +44,7 @@ static inline u32 sdhci_iproc_readl(struct sdhci_host *host, int reg)
 {
 	u32 val = readl(host->ioaddr + reg);
 
-	pr_debug("%s: readl [0x%02x] 0x%08x\n",
+	pr_de("%s: readl [0x%02x] 0x%08x\n",
 		 mmc_hostname(host->mmc), reg, val);
 	return val;
 }
@@ -79,7 +79,7 @@ static u8 sdhci_iproc_readb(struct sdhci_host *host, int reg)
 
 static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
 {
-	pr_debug("%s: writel [0x%02x] 0x%08x\n",
+	pr_de("%s: writel [0x%02x] 0x%08x\n",
 		 mmc_hostname(host->mmc), reg, val);
 
 	writel(val, host->ioaddr + reg);
@@ -94,7 +94,7 @@ static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
 }
 
 /*
- * The Arasan has a bugette whereby it may lose the content of successive
+ * The Arasan has a ette whereby it may lose the content of successive
  * writes to the same register that are within two SD-card clock cycles of
  * each other (a clock domain crossing problem). The data
  * register does not have this problem, which is just as well - otherwise we'd

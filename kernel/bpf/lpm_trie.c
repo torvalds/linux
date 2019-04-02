@@ -171,8 +171,8 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 	u32 limit = min(node->prefixlen, key->prefixlen);
 	u32 prefixlen = 0, i = 0;
 
-	BUILD_BUG_ON(offsetof(struct lpm_trie_node, data) % sizeof(u32));
-	BUILD_BUG_ON(offsetof(struct bpf_lpm_trie_key, data) % sizeof(u32));
+	BUILD__ON(offsetof(struct lpm_trie_node, data) % sizeof(u32));
+	BUILD__ON(offsetof(struct bpf_lpm_trie_key, data) % sizeof(u32));
 
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && defined(CONFIG_64BIT)
 

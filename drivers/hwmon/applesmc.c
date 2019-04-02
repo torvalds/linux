@@ -145,7 +145,7 @@ static struct applesmc_registers {
 	.mutex = __MUTEX_INITIALIZER(smcreg.mutex),
 };
 
-static const int debug;
+static const int de;
 static struct platform_device *pdev;
 static s16 rest_x;
 static s16 rest_y;
@@ -946,7 +946,7 @@ static void applesmc_brightness_set(struct led_classdev *led_cdev,
 	backlight_state[0] = value;
 	ret = queue_work(applesmc_led_wq, &backlight_work);
 
-	if (debug && (!ret))
+	if (de && (!ret))
 		dev_dbg(led_cdev->dev, "work was already on the queue.\n");
 }
 

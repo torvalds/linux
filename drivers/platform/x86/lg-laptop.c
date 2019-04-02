@@ -201,7 +201,7 @@ static void wmi_notify(u32 value, void *context)
 	acpi_status status;
 	long data = (long)context;
 
-	pr_debug("event guid %li\n", data);
+	pr_de("event guid %li\n", data);
 	status = wmi_get_event_data(value, &response);
 	if (ACPI_FAILURE(status)) {
 		pr_err("Bad event status 0x%x\n", status);
@@ -222,7 +222,7 @@ static void wmi_notify(u32 value, void *context)
 			sparse_keymap_report_entry(wmi_input_dev, key, 1, true);
 	}
 
-	pr_debug("Type: %i    Eventcode: 0x%llx\n", obj->type,
+	pr_de("Type: %i    Eventcode: 0x%llx\n", obj->type,
 		 obj->integer.value);
 	kfree(response.pointer);
 }
@@ -263,7 +263,7 @@ static void acpi_notify(struct acpi_device *device, u32 event)
 {
 	struct key_entry *key;
 
-	acpi_handle_debug(device->handle, "notify: %d\n", event);
+	acpi_handle_de(device->handle, "notify: %d\n", event);
 	if (inited & INIT_SPARSE_KEYMAP) {
 		key = sparse_keymap_entry_from_scancode(wmi_input_dev, 0x80);
 		if (key && key->type == KE_KEY)
@@ -684,7 +684,7 @@ static int __init acpi_init(void)
 
 	result = acpi_bus_register_driver(&acpi_driver);
 	if (result < 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error registering driver\n"));
+		ACPI_DE_PRINT((ACPI_DB_ERROR, "Error registering driver\n"));
 		return -ENODEV;
 	}
 

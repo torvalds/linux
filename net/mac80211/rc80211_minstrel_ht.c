@@ -8,7 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/random.h>
 #include <linux/moduleparam.h>
 #include <linux/ieee80211.h>
@@ -589,7 +589,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	/* try to sample all available rates during each interval */
 	mi->sample_count *= 8;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	/* use fixed index if set */
 	if (mp->fixed_rate_idx != -1) {
 		for (i = 0; i < 4; i++)
@@ -1074,7 +1074,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	info->flags |= mi->tx_flags;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	if (mp->fixed_rate_idx != -1)
 		return;
 #endif
@@ -1169,7 +1169,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	if (!sta->ht_cap.ht_supported)
 		goto use_legacy;
 
-	BUILD_BUG_ON(ARRAY_SIZE(minstrel_mcs_groups) != MINSTREL_GROUPS_NB);
+	BUILD__ON(ARRAY_SIZE(minstrel_mcs_groups) != MINSTREL_GROUPS_NB);
 
 	if (vht_cap->vht_supported)
 		use_vht = vht_cap->vht_mcs.tx_mcs_map != cpu_to_le16(~0);
@@ -1400,7 +1400,7 @@ minstrel_ht_init_cck_rates(struct minstrel_priv *mp)
 }
 
 static void *
-minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *defsdir)
 {
 	struct minstrel_priv *mp;
 
@@ -1435,9 +1435,9 @@ minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	mp->hw = hw;
 	mp->update_interval = 100;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	mp->fixed_rate_idx = (u32) -1;
-	debugfs_create_u32("fixed_rate_idx", S_IRUGO | S_IWUGO, debugfsdir,
+	defs_create_u32("fixed_rate_idx", S_IRUGO | S_IWUGO, defsdir,
 			   &mp->fixed_rate_idx);
 #endif
 
@@ -1482,8 +1482,8 @@ static const struct rate_control_ops mac80211_minstrel_ht = {
 	.free_sta = minstrel_ht_free_sta,
 	.alloc = minstrel_ht_alloc,
 	.free = minstrel_ht_free,
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = minstrel_ht_add_sta_debugfs,
+#ifdef CONFIG_MAC80211_DEFS
+	.add_sta_defs = minstrel_ht_add_sta_defs,
 #endif
 	.get_expected_throughput = minstrel_ht_get_expected_throughput,
 };

@@ -979,7 +979,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 *
 	 * The nature of this problem means we can't simply check the ISR
 	 * bit and return the vblank start value; nor can we use the scanline
-	 * debug register in the transcoder as it appears to have the same
+	 * de register in the transcoder as it appears to have the same
 	 * problem.  We may need to extend this to include other platforms,
 	 * but so far testing only shows the problem on HSW.
 	 */
@@ -1019,7 +1019,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		mode->private_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	if (WARN_ON(!mode->crtc_clock)) {
-		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
+		DRM_DE_DRIVER("trying to get scanoutpos for disabled "
 				 "pipe %c\n", pipe_name(pipe));
 		return false;
 	}
@@ -1295,7 +1295,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	new_delay = clamp_t(int, new_delay, min, max);
 
 	if (intel_set_rps(dev_priv, new_delay)) {
-		DRM_DEBUG_DRIVER("Failed to set new GPU frequency\n");
+		DRM_DE_DRIVER("Failed to set new GPU frequency\n");
 		rps->last_adj = 0;
 	}
 
@@ -1371,7 +1371,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 		kobject_uevent_env(&dev_priv->drm.primary->kdev->kobj,
 				   KOBJ_CHANGE, parity_event);
 
-		DRM_DEBUG("Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
+		DRM_DE("Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
 			  slice, row, bank, subbank);
 
 		kfree(parity_event[4]);
@@ -1433,7 +1433,7 @@ static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
 		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT))
-		DRM_DEBUG("Command parser error, gt_iir 0x%08x\n", gt_iir);
+		DRM_DE("Command parser error, gt_iir 0x%08x\n", gt_iir);
 
 	if (gt_iir & GT_PARITY_ERROR(dev_priv))
 		ivybridge_parity_error_irq_handler(dev_priv, gt_iir);
@@ -1669,7 +1669,7 @@ static void intel_get_hpd_pins(struct drm_i915_private *dev_priv,
 			*long_mask |= BIT(pin);
 	}
 
-	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x, long 0x%08x\n",
+	DRM_DE_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x, long 0x%08x\n",
 			 hotplug_trigger, dig_hotplug_reg, *pin_mask, *long_mask);
 
 }
@@ -1684,7 +1684,7 @@ static void dp_aux_irq_handler(struct drm_i915_private *dev_priv)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 					 enum pipe pipe,
 					 u32 crc0, u32 crc1,
@@ -1699,7 +1699,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 	/*
 	 * For some not yet identified reason, the first CRC is
 	 * bonkers. So let's just wait for the next vblank and read
-	 * out the buggy result.
+	 * out the gy result.
 	 *
 	 * On GEN8+ sometimes the second CRC is bonkers as well, so
 	 * don't trust that one either.
@@ -1797,7 +1797,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 			intel_engine_breadcrumbs_irq(dev_priv->engine[VECS]);
 
 		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
+			DRM_DE("Command parser error, pm_iir 0x%08x\n", pm_iir);
 	}
 }
 
@@ -2253,7 +2253,7 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
 			       SDE_AUDIO_POWER_SHIFT);
-		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
+		DRM_DE_DRIVER("PCH audio power change on port %d\n",
 				 port_name(port));
 	}
 
@@ -2264,25 +2264,25 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		gmbus_irq_handler(dev_priv);
 
 	if (pch_iir & SDE_AUDIO_HDCP_MASK)
-		DRM_DEBUG_DRIVER("PCH HDCP audio interrupt\n");
+		DRM_DE_DRIVER("PCH HDCP audio interrupt\n");
 
 	if (pch_iir & SDE_AUDIO_TRANS_MASK)
-		DRM_DEBUG_DRIVER("PCH transcoder audio interrupt\n");
+		DRM_DE_DRIVER("PCH transcoder audio interrupt\n");
 
 	if (pch_iir & SDE_POISON)
 		DRM_ERROR("PCH poison interrupt\n");
 
 	if (pch_iir & SDE_FDI_MASK)
 		for_each_pipe(dev_priv, pipe)
-			DRM_DEBUG_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
+			DRM_DE_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
 					 pipe_name(pipe),
 					 I915_READ(FDI_RX_IIR(pipe)));
 
 	if (pch_iir & (SDE_TRANSB_CRC_DONE | SDE_TRANSA_CRC_DONE))
-		DRM_DEBUG_DRIVER("PCH transcoder CRC done interrupt\n");
+		DRM_DE_DRIVER("PCH transcoder CRC done interrupt\n");
 
 	if (pch_iir & (SDE_TRANSB_CRC_ERR | SDE_TRANSA_CRC_ERR))
-		DRM_DEBUG_DRIVER("PCH transcoder CRC error interrupt\n");
+		DRM_DE_DRIVER("PCH transcoder CRC error interrupt\n");
 
 	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
 		intel_pch_fifo_underrun_irq_handler(dev_priv, PIPE_A);
@@ -2339,7 +2339,7 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
 			       SDE_AUDIO_POWER_SHIFT_CPT);
-		DRM_DEBUG_DRIVER("PCH audio power change on port %c\n",
+		DRM_DE_DRIVER("PCH audio power change on port %c\n",
 				 port_name(port));
 	}
 
@@ -2350,14 +2350,14 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		gmbus_irq_handler(dev_priv);
 
 	if (pch_iir & SDE_AUDIO_CP_REQ_CPT)
-		DRM_DEBUG_DRIVER("Audio CP request interrupt\n");
+		DRM_DE_DRIVER("Audio CP request interrupt\n");
 
 	if (pch_iir & SDE_AUDIO_CP_CHG_CPT)
-		DRM_DEBUG_DRIVER("Audio CP change interrupt\n");
+		DRM_DE_DRIVER("Audio CP change interrupt\n");
 
 	if (pch_iir & SDE_FDI_MASK_CPT)
 		for_each_pipe(dev_priv, pipe)
-			DRM_DEBUG_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
+			DRM_DE_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
 					 pipe_name(pipe),
 					 I915_READ(FDI_RX_IIR(pipe)));
 
@@ -2829,7 +2829,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			 * Like on previous PCH there seems to be something
 			 * fishy going on with forwarding PCH interrupts.
 			 */
-			DRM_DEBUG_DRIVER("The master control interrupt lied (SDE)!\n");
+			DRM_DE_DRIVER("The master control interrupt lied (SDE)!\n");
 		}
 	}
 
@@ -3676,7 +3676,7 @@ static void __bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
 		   PORTB_HOTPLUG_ENABLE |
 		   PORTC_HOTPLUG_ENABLE;
 
-	DRM_DEBUG_KMS("Invert bit setting: hp_ctl:%x hp_port:%x\n",
+	DRM_DE_KMS("Invert bit setting: hp_ctl:%x hp_port:%x\n",
 		      hotplug, enabled_irqs);
 	hotplug &= ~BXT_DDI_HPD_INVERT_MASK;
 
@@ -3799,7 +3799,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	if (IS_HASWELL(dev_priv)) {
 		gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
-		intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
+		intel_psr_irq_control(dev_priv, dev_priv->psr.de);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 
@@ -3942,7 +3942,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
 	gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
-	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
+	intel_psr_irq_control(dev_priv, dev_priv->psr.de);
 
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;
@@ -3993,7 +3993,7 @@ static void gen11_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	const u32 irqs = GT_RENDER_USER_INTERRUPT | GT_CONTEXT_SWITCH_INTERRUPT;
 
-	BUILD_BUG_ON(irqs & 0xffff0000);
+	BUILD__ON(irqs & 0xffff0000);
 
 	/* Enable RCS, BCS, VCS and VECS class interrupts. */
 	I915_WRITE(GEN11_RENDER_COPY_INTR_ENABLE, irqs << 16 | irqs);
@@ -4142,10 +4142,10 @@ static void i8xx_error_irq_ack(struct drm_i915_private *dev_priv,
 static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
 				   u16 eir, u16 eir_stuck)
 {
-	DRM_DEBUG("Master Error: EIR 0x%04x\n", eir);
+	DRM_DE("Master Error: EIR 0x%04x\n", eir);
 
 	if (eir_stuck)
-		DRM_DEBUG_DRIVER("EIR stuck: 0x%04x, masked\n", eir_stuck);
+		DRM_DE_DRIVER("EIR stuck: 0x%04x, masked\n", eir_stuck);
 }
 
 static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
@@ -4179,10 +4179,10 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
 				   u32 eir, u32 eir_stuck)
 {
-	DRM_DEBUG("Master Error, EIR 0x%08x\n", eir);
+	DRM_DE("Master Error, EIR 0x%08x\n", eir);
 
 	if (eir_stuck)
-		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masked\n", eir_stuck);
+		DRM_DE_DRIVER("EIR stuck: 0x%08x, masked\n", eir_stuck);
 }
 
 static irqreturn_t i8xx_irq_handler(int irq, void *arg)
@@ -4426,7 +4426,7 @@ static void i915_hpd_irq_setup(struct drm_i915_private *dev_priv)
 		hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 	hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 
-	/* Ignore TV since it's buggy */
+	/* Ignore TV since it's gy */
 	i915_hotplug_interrupt_update_locked(dev_priv,
 					     HOTPLUG_INT_EN_MASK |
 					     CRT_HOTPLUG_VOLTAGE_COMPARE_MASK |

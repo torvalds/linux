@@ -453,7 +453,7 @@ static struct kobj_map *bdev_map;
  */
 static int blk_mangle_minor(int minor)
 {
-#ifdef CONFIG_DEBUG_BLOCK_EXT_DEVT
+#ifdef CONFIG_DE_BLOCK_EXT_DEVT
 	int i;
 
 	for (i = 0; i < MINORBITS / 2; i++) {

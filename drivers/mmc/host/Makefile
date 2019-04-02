@@ -98,8 +98,8 @@ obj-$(CONFIG_MMC_SDHCI_OMAP)		+= sdhci-omap.o
 obj-$(CONFIG_MMC_SDHCI_SPRD)		+= sdhci-sprd.o
 obj-$(CONFIG_MMC_CQHCI)			+= cqhci.o
 
-ifeq ($(CONFIG_CB710_DEBUG),y)
-	CFLAGS-cb710-mmc	+= -DDEBUG
+ifeq ($(CONFIG_CB710_DE),y)
+	CFLAGS-cb710-mmc	+= -DDE
 endif
 
 obj-$(CONFIG_MMC_SDHCI_XENON)	+= sdhci-xenon-driver.o

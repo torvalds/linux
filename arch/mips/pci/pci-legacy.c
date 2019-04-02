@@ -8,7 +8,7 @@
  * Copyright (C) 2011 Wind River Systems,
  *   written by Ralf Baechle (ralf@linux-mips.org)
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>

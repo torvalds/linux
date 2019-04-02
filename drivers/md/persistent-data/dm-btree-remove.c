@@ -60,8 +60,8 @@ static void node_shift(struct btree_node *n, int shift)
 
 	if (shift < 0) {
 		shift = -shift;
-		BUG_ON(shift > nr_entries);
-		BUG_ON((void *) key_ptr(n, shift) >= value_ptr(n, shift));
+		_ON(shift > nr_entries);
+		_ON((void *) key_ptr(n, shift) >= value_ptr(n, shift));
 		memmove(key_ptr(n, 0),
 			key_ptr(n, shift),
 			(nr_entries - shift) * sizeof(__le64));
@@ -69,7 +69,7 @@ static void node_shift(struct btree_node *n, int shift)
 			value_ptr(n, shift),
 			(nr_entries - shift) * value_size);
 	} else {
-		BUG_ON(nr_entries + shift > le32_to_cpu(n->header.max_entries));
+		_ON(nr_entries + shift > le32_to_cpu(n->header.max_entries));
 		memmove(key_ptr(n, shift),
 			key_ptr(n, 0),
 			nr_entries * sizeof(__le64));
@@ -83,11 +83,11 @@ static void node_copy(struct btree_node *left, struct btree_node *right, int shi
 {
 	uint32_t nr_left = le32_to_cpu(left->header.nr_entries);
 	uint32_t value_size = le32_to_cpu(left->header.value_size);
-	BUG_ON(value_size != le32_to_cpu(right->header.value_size));
+	_ON(value_size != le32_to_cpu(right->header.value_size));
 
 	if (shift < 0) {
 		shift = -shift;
-		BUG_ON(nr_left + shift > le32_to_cpu(left->header.max_entries));
+		_ON(nr_left + shift > le32_to_cpu(left->header.max_entries));
 		memcpy(key_ptr(left, nr_left),
 		       key_ptr(right, 0),
 		       shift * sizeof(__le64));
@@ -95,7 +95,7 @@ static void node_copy(struct btree_node *left, struct btree_node *right, int shi
 		       value_ptr(right, 0),
 		       shift * value_size);
 	} else {
-		BUG_ON(shift > le32_to_cpu(right->header.max_entries));
+		_ON(shift > le32_to_cpu(right->header.max_entries));
 		memcpy(key_ptr(right, 0),
 		       key_ptr(left, nr_left - shift),
 		       shift * sizeof(__le64));
@@ -113,7 +113,7 @@ static void delete_at(struct btree_node *n, unsigned index)
 	unsigned nr_entries = le32_to_cpu(n->header.nr_entries);
 	unsigned nr_to_copy = nr_entries - (index + 1);
 	uint32_t value_size = le32_to_cpu(n->header.value_size);
-	BUG_ON(index >= nr_entries);
+	_ON(index >= nr_entries);
 
 	if (nr_to_copy) {
 		memmove(key_ptr(n, index),
@@ -177,9 +177,9 @@ static void shift(struct btree_node *left, struct btree_node *right, int count)
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
 	uint32_t r_max_entries = le32_to_cpu(right->header.max_entries);
 
-	BUG_ON(max_entries != r_max_entries);
-	BUG_ON(nr_left - count > max_entries);
-	BUG_ON(nr_right + count > max_entries);
+	_ON(max_entries != r_max_entries);
+	_ON(nr_left - count > max_entries);
+	_ON(nr_right + count > max_entries);
 
 	if (!count)
 		return;
@@ -268,13 +268,13 @@ static void delete_center_node(struct dm_btree_info *info, struct btree_node *pa
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
 	unsigned shift = min(max_entries - nr_left, nr_center);
 
-	BUG_ON(nr_left + shift > max_entries);
+	_ON(nr_left + shift > max_entries);
 	node_copy(left, center, -shift);
 	left->header.nr_entries = cpu_to_le32(nr_left + shift);
 
 	if (shift != nr_center) {
 		shift = nr_center - shift;
-		BUG_ON((nr_right + shift) > max_entries);
+		_ON((nr_right + shift) > max_entries);
 		node_shift(right, shift);
 		node_copy(center, right, shift);
 		right->header.nr_entries = cpu_to_le32(nr_right + shift);
@@ -303,8 +303,8 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 	unsigned remainder = (target_right * 3) != total;
 	unsigned target_left = target_right + remainder;
 
-	BUG_ON(target_left > max_entries);
-	BUG_ON(target_right > max_entries);
+	_ON(target_left > max_entries);
+	_ON(target_right > max_entries);
 
 	if (nr_left < nr_right) {
 		s = nr_left - target_left;
@@ -351,8 +351,8 @@ static void __rebalance3(struct dm_btree_info *info, struct btree_node *parent,
 
 	unsigned threshold = merge_threshold(left) * 4 + 1;
 
-	BUG_ON(left->header.max_entries != center->header.max_entries);
-	BUG_ON(center->header.max_entries != right->header.max_entries);
+	_ON(left->header.max_entries != center->header.max_entries);
+	_ON(center->header.max_entries != right->header.max_entries);
 
 	if ((nr_left + nr_center + nr_right) < threshold)
 		delete_center_node(info, parent, l, c, r, left, center, right,
@@ -534,7 +534,7 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 			continue;
 		}
 
-		BUG_ON(index < 0 || index >= le32_to_cpu(n->header.nr_entries));
+		_ON(index < 0 || index >= le32_to_cpu(n->header.nr_entries));
 
 		if (info->value_type.dec)
 			info->value_type.dec(info->value_type.context,

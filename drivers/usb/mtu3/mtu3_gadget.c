@@ -158,12 +158,12 @@ static int mtu3_gadget_ep_enable(struct usb_ep *ep,
 	int ret = -EINVAL;
 
 	if (!ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
-		pr_debug("%s invalid parameters\n", __func__);
+		pr_de("%s invalid parameters\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!desc->wMaxPacketSize) {
-		pr_debug("%s missing wMaxPacketSize\n", __func__);
+		pr_de("%s missing wMaxPacketSize\n", __func__);
 		return -EINVAL;
 	}
 	mep = to_mtu3_ep(ep);

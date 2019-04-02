@@ -110,8 +110,8 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 					fs64_to_cpu(sbi, sb2->sb_serial)) {
 		/* superblock #1 active */
 		qnx6_mmi_copy_sb(qsb, sb1);
-#ifdef CONFIG_QNX6FS_DEBUG
-		qnx6_superblock_debug(qsb, s);
+#ifdef CONFIG_QNX6FS_DE
+		qnx6_superblock_de(qsb, s);
 #endif
 		memcpy(bh1->b_data, qsb, sizeof(struct qnx6_super_block));
 
@@ -122,8 +122,8 @@ struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s, int silent)
 	} else {
 		/* superblock #2 active */
 		qnx6_mmi_copy_sb(qsb, sb2);
-#ifdef CONFIG_QNX6FS_DEBUG
-		qnx6_superblock_debug(qsb, s);
+#ifdef CONFIG_QNX6FS_DE
+		qnx6_superblock_de(qsb, s);
 #endif
 		memcpy(bh2->b_data, qsb, sizeof(struct qnx6_super_block));
 

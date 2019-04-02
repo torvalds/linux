@@ -53,7 +53,7 @@ static snd_pcm_sframes_t route_transfer(struct snd_pcm_plugin *plugin,
 	struct snd_pcm_plugin_channel *dvp;
 	snd_pcm_format_t format;
 
-	if (snd_BUG_ON(!plugin || !src_channels || !dst_channels))
+	if (snd__ON(!plugin || !src_channels || !dst_channels))
 		return -ENXIO;
 	if (frames == 0)
 		return 0;
@@ -90,12 +90,12 @@ int snd_pcm_plugin_build_route(struct snd_pcm_substream *plug,
 	struct snd_pcm_plugin *plugin;
 	int err;
 
-	if (snd_BUG_ON(!r_plugin))
+	if (snd__ON(!r_plugin))
 		return -ENXIO;
 	*r_plugin = NULL;
-	if (snd_BUG_ON(src_format->rate != dst_format->rate))
+	if (snd__ON(src_format->rate != dst_format->rate))
 		return -ENXIO;
-	if (snd_BUG_ON(src_format->format != dst_format->format))
+	if (snd__ON(src_format->format != dst_format->format))
 		return -ENXIO;
 
 	err = snd_pcm_plugin_build(plug, "route conversion",

@@ -9,7 +9,7 @@
 #include <linux/sizes.h>
 #include <linux/usb.h>
 #include <linux/kfifo.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list.h>
 #include <asm/unaligned.h>
 
@@ -780,7 +780,7 @@ static void es2_destroy(struct es2_ap_dev *es2)
 	struct urb *urb;
 	int i;
 
-	debugfs_remove(es2->apb_log_enable_dentry);
+	defs_remove(es2->apb_log_enable_dentry);
 	usb_log_disable(es2);
 
 	/* Tear down everything! */
@@ -1152,8 +1152,8 @@ static void usb_log_enable(struct es2_ap_dev *es2)
 	if (IS_ERR(es2->apb_log_task))
 		return;
 	/* XXX We will need to rename this per APB */
-	es2->apb_log_dentry = debugfs_create_file("apb_log", 0444,
-						  gb_debugfs_get(), es2,
+	es2->apb_log_dentry = defs_create_file("apb_log", 0444,
+						  gb_defs_get(), es2,
 						  &apb_log_fops);
 }
 
@@ -1162,7 +1162,7 @@ static void usb_log_disable(struct es2_ap_dev *es2)
 	if (IS_ERR_OR_NULL(es2->apb_log_task))
 		return;
 
-	debugfs_remove(es2->apb_log_dentry);
+	defs_remove(es2->apb_log_dentry);
 	es2->apb_log_dentry = NULL;
 
 	kthread_stop(es2->apb_log_task);
@@ -1408,9 +1408,9 @@ static int ap_probe(struct usb_interface *interface,
 	}
 
 	/* XXX We will need to rename this per APB */
-	es2->apb_log_enable_dentry = debugfs_create_file("apb_log_enable",
+	es2->apb_log_enable_dentry = defs_create_file("apb_log_enable",
 							 0644,
-							 gb_debugfs_get(), es2,
+							 gb_defs_get(), es2,
 							 &apb_log_enable_fops);
 
 	INIT_LIST_HEAD(&es2->arpcs);

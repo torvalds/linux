@@ -87,7 +87,7 @@ struct sm501_devdata {
 
 #define MHZ (1000 * 1000)
 
-#ifdef DEBUG
+#ifdef DE
 static const unsigned int div_tab[] = {
 	[0]		= 1,
 	[1]		= 2,
@@ -740,7 +740,7 @@ static int sm501_register_device(struct sm501_devdata *sm,
 	int ret;
 
 	for (ptr = 0; ptr < pdev->num_resources; ptr++) {
-		printk(KERN_DEBUG "%s[%d] %pR\n",
+		printk(KERN_DE "%s[%d] %pR\n",
 		       pdev->name, ptr, &pdev->resource[ptr]);
 	}
 
@@ -1203,7 +1203,7 @@ static int sm501_register_gpio_i2c(struct sm501_devdata *sm,
 
 /* sm501_dbg_regs
  *
- * Debug attribute to attach to parent device to show core registers
+ * De attribute to attach to parent device to show core registers
 */
 
 static ssize_t sm501_dbg_regs(struct device *dev,
@@ -1341,7 +1341,7 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	ret = device_create_file(sm->dev, &dev_attr_dbg_regs);
 	if (ret)
-		dev_err(sm->dev, "failed to create debug regs file\n");
+		dev_err(sm->dev, "failed to create de regs file\n");
 
 	sm501_dump_clk(sm);
 

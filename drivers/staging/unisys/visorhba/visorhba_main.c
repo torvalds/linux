@@ -4,7 +4,7 @@
  * All rights reserved.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kthread.h>
 #include <linux/idr.h>
 #include <linux/module.h>
@@ -23,7 +23,7 @@
 #define MAX_PENDING_REQUESTS (MIN_NUMSIGNALS * 2)
 #define VISORHBA_ERROR_COUNT 30
 
-static struct dentry *visorhba_debugfs_dir;
+static struct dentry *visorhba_defs_dir;
 
 /* GUIDS for HBA channel type supported by this driver */
 static struct visor_channeltype_descriptor visorhba_channel_types[] = {
@@ -88,8 +88,8 @@ struct visorhba_devdata {
 	 */
 	struct idr idr;
 
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_info;
+	struct dentry *defs_dir;
+	struct dentry *defs_info;
 };
 
 struct visorhba_devices_open {
@@ -648,15 +648,15 @@ static struct scsi_host_template visorhba_driver_template = {
 };
 
 /*
- * info_debugfs_show - Debugfs interface to dump visorhba states
+ * info_defs_show - Defs interface to dump visorhba states
  * @seq: The sequence file to write information to
  * @v:   Unused, but needed for use with seq file single_open invocation
  *
- * Presents a file in the debugfs tree named: /visorhba/vbus<x>:dev<y>/info.
+ * Presents a file in the defs tree named: /visorhba/vbus<x>:dev<y>/info.
  *
  * Return: SUCCESS
  */
-static int info_debugfs_show(struct seq_file *seq, void *v)
+static int info_defs_show(struct seq_file *seq, void *v)
 {
 	struct visorhba_devdata *devdata = seq->private;
 
@@ -680,7 +680,7 @@ static int info_debugfs_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(info_debugfs);
+DEFINE_SHOW_ATTRIBUTE(info_defs);
 
 /*
  * complete_taskmgmt_command - Complete task management
@@ -706,7 +706,7 @@ static void complete_taskmgmt_command(struct idr *idrtable,
 	/* copy the result of the taskmgmt and
 	 * wake up the error handler that is waiting for this
 	 */
-	pr_debug("visorhba: notifying initiator with result=0x%x\n", result);
+	pr_de("visorhba: notifying initiator with result=0x%x\n", result);
 	*scsi_result_ptr = result;
 	wake_up_all(wq);
 }
@@ -1081,19 +1081,19 @@ static int visorhba_probe(struct visor_device *dev)
 	devdata->dev = dev;
 	dev_set_drvdata(&dev->device, devdata);
 
-	devdata->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
-						  visorhba_debugfs_dir);
-	if (!devdata->debugfs_dir) {
+	devdata->defs_dir = defs_create_dir(dev_name(&dev->device),
+						  visorhba_defs_dir);
+	if (!devdata->defs_dir) {
 		err = -ENOMEM;
 		goto err_scsi_remove_host;
 	}
-	devdata->debugfs_info =
-		debugfs_create_file("info", 0440,
-				    devdata->debugfs_dir, devdata,
-				    &info_debugfs_fops);
-	if (!devdata->debugfs_info) {
+	devdata->defs_info =
+		defs_create_file("info", 0440,
+				    devdata->defs_dir, devdata,
+				    &info_defs_fops);
+	if (!devdata->defs_info) {
 		err = -ENOMEM;
-		goto err_debugfs_dir;
+		goto err_defs_dir;
 	}
 
 	init_waitqueue_head(&devdata->rsp_queue);
@@ -1106,11 +1106,11 @@ static int visorhba_probe(struct visor_device *dev)
 				  channel_header.features);
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
 	if (err)
-		goto err_debugfs_info;
+		goto err_defs_info;
 	features |= VISOR_CHANNEL_IS_POLLING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err)
-		goto err_debugfs_info;
+		goto err_defs_info;
 
 	idr_init(&devdata->idr);
 
@@ -1122,11 +1122,11 @@ static int visorhba_probe(struct visor_device *dev)
 
 	return 0;
 
-err_debugfs_info:
-	debugfs_remove(devdata->debugfs_info);
+err_defs_info:
+	defs_remove(devdata->defs_info);
 
-err_debugfs_dir:
-	debugfs_remove_recursive(devdata->debugfs_dir);
+err_defs_dir:
+	defs_remove_recursive(devdata->defs_dir);
 
 err_scsi_remove_host:
 	scsi_remove_host(scsihost);
@@ -1158,8 +1158,8 @@ static void visorhba_remove(struct visor_device *dev)
 	idr_destroy(&devdata->idr);
 
 	dev_set_drvdata(&dev->device, NULL);
-	debugfs_remove(devdata->debugfs_info);
-	debugfs_remove_recursive(devdata->debugfs_dir);
+	defs_remove(devdata->defs_info);
+	defs_remove_recursive(devdata->defs_dir);
 }
 
 /* This is used to tell the visorbus driver which types of visor devices
@@ -1189,18 +1189,18 @@ static int visorhba_init(void)
 {
 	int rc = -ENOMEM;
 
-	visorhba_debugfs_dir = debugfs_create_dir("visorhba", NULL);
-	if (!visorhba_debugfs_dir)
+	visorhba_defs_dir = defs_create_dir("visorhba", NULL);
+	if (!visorhba_defs_dir)
 		return -ENOMEM;
 
 	rc = visorbus_register_visor_driver(&visorhba_driver);
 	if (rc)
-		goto cleanup_debugfs;
+		goto cleanup_defs;
 
 	return 0;
 
-cleanup_debugfs:
-	debugfs_remove_recursive(visorhba_debugfs_dir);
+cleanup_defs:
+	defs_remove_recursive(visorhba_defs_dir);
 
 	return rc;
 }
@@ -1213,7 +1213,7 @@ cleanup_debugfs:
 static void visorhba_exit(void)
 {
 	visorbus_unregister_visor_driver(&visorhba_driver);
-	debugfs_remove_recursive(visorhba_debugfs_dir);
+	defs_remove_recursive(visorhba_defs_dir);
 }
 
 module_init(visorhba_init);

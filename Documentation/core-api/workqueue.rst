@@ -352,7 +352,7 @@ Guidelines
   level of locality in wq operations and work item execution.
 
 
-Debugging
+Deging
 =========
 
 Because the work functions are executed by generic worker threads
@@ -374,8 +374,8 @@ of possible problems:
 
 The first one can be tracked using tracing: ::
 
-	$ echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
-	$ cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+	$ echo workqueue:workqueue_queue_work > /sys/kernel/de/tracing/set_event
+	$ cat /sys/kernel/de/tracing/trace_pipe > out.txt
 	(wait a few secs)
 	^C
 

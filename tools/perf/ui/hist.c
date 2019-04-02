@@ -610,10 +610,10 @@ static void fmt_free(struct perf_hpp_fmt *fmt)
 {
 	/*
 	 * At this point fmt should be completely
-	 * unhooked, if not it's a bug.
+	 * unhooked, if not it's a .
 	 */
-	BUG_ON(!list_empty(&fmt->list));
-	BUG_ON(!list_empty(&fmt->sort_list));
+	_ON(!list_empty(&fmt->list));
+	_ON(!list_empty(&fmt->sort_list));
 
 	if (fmt->free)
 		fmt->free(fmt);
@@ -696,7 +696,7 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 	if (perf_hpp__is_dynamic_entry(fmt))
 		return;
 
-	BUG_ON(fmt->idx >= PERF_HPP__MAX_INDEX);
+	_ON(fmt->idx >= PERF_HPP__MAX_INDEX);
 
 	switch (fmt->idx) {
 	case PERF_HPP__OVERHEAD:

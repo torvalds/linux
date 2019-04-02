@@ -146,7 +146,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	 */
 	hl_device_set_frequency(hdev, PLL_HIGH);
 
-	hl_debugfs_add_file(hpriv);
+	hl_defs_add_file(hpriv);
 
 	return 0;
 
@@ -289,7 +289,7 @@ static int hl_pmops_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct hl_device *hdev = pci_get_drvdata(pdev);
 
-	pr_debug("Going to suspend PCI device\n");
+	pr_de("Going to suspend PCI device\n");
 
 	if (!hdev) {
 		pr_err("device pointer is NULL in suspend\n");
@@ -304,7 +304,7 @@ static int hl_pmops_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct hl_device *hdev = pci_get_drvdata(pdev);
 
-	pr_debug("Going to resume PCI device\n");
+	pr_de("Going to resume PCI device\n");
 
 	if (!hdev) {
 		pr_err("device pointer is NULL in resume\n");
@@ -415,20 +415,20 @@ static int __init hl_init(void)
 		goto remove_major;
 	}
 
-	hl_debugfs_init();
+	hl_defs_init();
 
 	rc = pci_register_driver(&hl_pci_driver);
 	if (rc) {
 		pr_err("failed to register pci device\n");
-		goto remove_debugfs;
+		goto remove_defs;
 	}
 
-	pr_debug("driver loaded\n");
+	pr_de("driver loaded\n");
 
 	return 0;
 
-remove_debugfs:
-	hl_debugfs_fini();
+remove_defs:
+	hl_defs_fini();
 	class_destroy(hl_class);
 remove_major:
 	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
@@ -443,18 +443,18 @@ static void __exit hl_exit(void)
 	pci_unregister_driver(&hl_pci_driver);
 
 	/*
-	 * Removing debugfs must be after all devices or simulator devices
-	 * have been removed because otherwise we get a bug in the
-	 * debugfs module for referencing NULL objects
+	 * Removing defs must be after all devices or simulator devices
+	 * have been removed because otherwise we get a  in the
+	 * defs module for referencing NULL objects
 	 */
-	hl_debugfs_fini();
+	hl_defs_fini();
 
 	class_destroy(hl_class);
 	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
 
 	idr_destroy(&hl_devs_idr);
 
-	pr_debug("driver removed\n");
+	pr_de("driver removed\n");
 }
 
 module_init(hl_init);

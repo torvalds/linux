@@ -127,7 +127,7 @@ void ieee802154_free_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
 
-	BUG_ON(!list_empty(&local->interfaces));
+	_ON(!list_empty(&local->interfaces));
 
 	mutex_destroy(&local->iflist_mtx);
 

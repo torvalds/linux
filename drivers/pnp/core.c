@@ -227,7 +227,7 @@ int pnp_add_device(struct pnp_dev *dev)
 	for (id = dev->id; id; id = id->next)
 		len += scnprintf(buf + len, sizeof(buf) - len, " %s", id->id);
 
-	dev_printk(KERN_DEBUG, &dev->dev, "%s device, IDs%s (%s)\n",
+	dev_printk(KERN_DE, &dev->dev, "%s device, IDs%s (%s)\n",
 		   dev->protocol->name, buf,
 		   dev->active ? "active" : "disabled");
 	return 0;
@@ -246,8 +246,8 @@ static int __init pnp_init(void)
 
 subsys_initcall(pnp_init);
 
-int pnp_debug;
+int pnp_de;
 
-#if defined(CONFIG_PNP_DEBUG_MESSAGES)
-module_param_named(debug, pnp_debug, int, 0644);
+#if defined(CONFIG_PNP_DE_MESSAGES)
+module_param_named(de, pnp_de, int, 0644);
 #endif

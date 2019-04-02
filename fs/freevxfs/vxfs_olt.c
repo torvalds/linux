@@ -42,21 +42,21 @@
 static inline void
 vxfs_get_fshead(struct vxfs_oltfshead *fshp, struct vxfs_sb_info *infp)
 {
-	BUG_ON(infp->vsi_fshino);
+	_ON(infp->vsi_fshino);
 	infp->vsi_fshino = fs32_to_cpu(infp, fshp->olt_fsino[0]);
 }
 
 static inline void
 vxfs_get_ilist(struct vxfs_oltilist *ilistp, struct vxfs_sb_info *infp)
 {
-	BUG_ON(infp->vsi_iext);
+	_ON(infp->vsi_iext);
 	infp->vsi_iext = fs32_to_cpu(infp, ilistp->olt_iext[0]);
 }
 
 static inline u_long
 vxfs_oblock(struct super_block *sbp, daddr_t block, u_long bsize)
 {
-	BUG_ON(sbp->s_blocksize % bsize);
+	_ON(sbp->s_blocksize % bsize);
 	return (block * (sbp->s_blocksize / bsize));
 }
 

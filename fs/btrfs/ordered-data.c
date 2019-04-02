@@ -222,7 +222,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	root->nr_ordered_extents++;
 	if (root->nr_ordered_extents == 1) {
 		spin_lock(&fs_info->ordered_root_lock);
-		BUG_ON(!list_empty(&root->ordered_root));
+		_ON(!list_empty(&root->ordered_root));
 		list_add_tail(&root->ordered_root, &fs_info->ordered_roots);
 		spin_unlock(&fs_info->ordered_root_lock);
 	}
@@ -486,7 +486,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 
 	if (!root->nr_ordered_extents) {
 		spin_lock(&fs_info->ordered_root_lock);
-		BUG_ON(list_empty(&root->ordered_root));
+		_ON(list_empty(&root->ordered_root));
 		list_del_init(&root->ordered_root);
 		spin_unlock(&fs_info->ordered_root_lock);
 	}
@@ -581,7 +581,7 @@ u64 btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 		root = list_first_entry(&splice, struct btrfs_root,
 					ordered_root);
 		root = btrfs_grab_fs_root(root);
-		BUG_ON(!root);
+		_ON(!root);
 		list_move_tail(&root->ordered_root,
 			       &fs_info->ordered_roots);
 		spin_unlock(&fs_info->ordered_root_lock);
@@ -860,7 +860,7 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 		if (prev) {
 			test = rb_entry(prev, struct btrfs_ordered_extent,
 					rb_node);
-			BUG_ON(offset_in_entry(test, offset));
+			_ON(offset_in_entry(test, offset));
 		}
 		node = prev;
 	}

@@ -3,7 +3,7 @@
 
 #include "fm10k.h"
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 static struct dentry *dbg_root;
@@ -140,11 +140,11 @@ static const struct file_operations fm10k_dbg_desc_fops = {
 };
 
 /**
- * fm10k_dbg_q_vector_init - setup debugfs for the q_vectors
+ * fm10k_dbg_q_vector_init - setup defs for the q_vectors
  * @q_vector: q_vector to allocate directories for
  *
  * A folder is created for each q_vector found. In each q_vector
- * folder, a debugfs file is created for each tx and rx ring
+ * folder, a defs file is created for each tx and rx ring
  * allocated to the q_vector.
  **/
 void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
@@ -159,7 +159,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 	/* Generate a folder for each q_vector */
 	snprintf(name, sizeof(name), "q_vector.%03d", q_vector->v_idx);
 
-	q_vector->dbg_q_vector = debugfs_create_dir(name, interface->dbg_intfc);
+	q_vector->dbg_q_vector = defs_create_dir(name, interface->dbg_intfc);
 	if (!q_vector->dbg_q_vector)
 		return;
 
@@ -169,7 +169,7 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 
 		snprintf(name, sizeof(name), "tx_ring.%03d", ring->queue_index);
 
-		debugfs_create_file(name, 0600,
+		defs_create_file(name, 0600,
 				    q_vector->dbg_q_vector, ring,
 				    &fm10k_dbg_desc_fops);
 	}
@@ -180,14 +180,14 @@ void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector)
 
 		snprintf(name, sizeof(name), "rx_ring.%03d", ring->queue_index);
 
-		debugfs_create_file(name, 0600,
+		defs_create_file(name, 0600,
 				    q_vector->dbg_q_vector, ring,
 				    &fm10k_dbg_desc_fops);
 	}
 }
 
 /**
- * fm10k_dbg_free_q_vector_dir - setup debugfs for the q_vectors
+ * fm10k_dbg_free_q_vector_dir - setup defs for the q_vectors
  * @q_vector: q_vector to allocate directories for
  **/
 void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector)
@@ -195,12 +195,12 @@ void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector)
 	struct fm10k_intfc *interface = q_vector->interface;
 
 	if (interface->dbg_intfc)
-		debugfs_remove_recursive(q_vector->dbg_q_vector);
+		defs_remove_recursive(q_vector->dbg_q_vector);
 	q_vector->dbg_q_vector = NULL;
 }
 
 /**
- * fm10k_dbg_intfc_init - setup the debugfs directory for the intferface
+ * fm10k_dbg_intfc_init - setup the defs directory for the intferface
  * @interface: the interface that is starting up
  **/
 
@@ -209,33 +209,33 @@ void fm10k_dbg_intfc_init(struct fm10k_intfc *interface)
 	const char *name = pci_name(interface->pdev);
 
 	if (dbg_root)
-		interface->dbg_intfc = debugfs_create_dir(name, dbg_root);
+		interface->dbg_intfc = defs_create_dir(name, dbg_root);
 }
 
 /**
- * fm10k_dbg_intfc_exit - clean out the interface's debugfs entries
+ * fm10k_dbg_intfc_exit - clean out the interface's defs entries
  * @interface: the interface that is stopping
  **/
 void fm10k_dbg_intfc_exit(struct fm10k_intfc *interface)
 {
 	if (dbg_root)
-		debugfs_remove_recursive(interface->dbg_intfc);
+		defs_remove_recursive(interface->dbg_intfc);
 	interface->dbg_intfc = NULL;
 }
 
 /**
- * fm10k_dbg_init - start up debugfs for the driver
+ * fm10k_dbg_init - start up defs for the driver
  **/
 void fm10k_dbg_init(void)
 {
-	dbg_root = debugfs_create_dir(fm10k_driver_name, NULL);
+	dbg_root = defs_create_dir(fm10k_driver_name, NULL);
 }
 
 /**
- * fm10k_dbg_exit - clean out the driver's debugfs entries
+ * fm10k_dbg_exit - clean out the driver's defs entries
  **/
 void fm10k_dbg_exit(void)
 {
-	debugfs_remove_recursive(dbg_root);
+	defs_remove_recursive(dbg_root);
 	dbg_root = NULL;
 }

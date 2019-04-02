@@ -212,7 +212,7 @@ static int fotg210_ep_disable(struct usb_ep *_ep)
 	struct fotg210_request *req;
 	unsigned long flags;
 
-	BUG_ON(!_ep);
+	_ON(!_ep);
 
 	ep = container_of(_ep, struct fotg210_ep, ep);
 

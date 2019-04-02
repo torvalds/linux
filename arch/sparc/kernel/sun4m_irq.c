@@ -11,7 +11,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 
 #include <asm/timer.h>
 #include <asm/traps.h>

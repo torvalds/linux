@@ -684,7 +684,7 @@ static struct kvmppc_bat *kvmppc_find_bat(struct kvm_vcpu *vcpu, int sprn)
 		bat = &vcpu_book3s->dbat[4 + ((sprn - SPRN_DBAT4U) / 2)];
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return bat;

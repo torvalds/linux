@@ -118,10 +118,10 @@ struct ep93xx_fbi {
 	unsigned int			pseudo_palette[256];
 };
 
-static int check_screenpage_bug = 1;
-module_param(check_screenpage_bug, int, 0644);
-MODULE_PARM_DESC(check_screenpage_bug,
-		 "Check for bit 27 screen page bug. Default = 1");
+static int check_screenpage_ = 1;
+module_param(check_screenpage_, int, 0644);
+MODULE_PARM_DESC(check_screenpage_,
+		 "Check for bit 27 screen page . Default = 1");
 
 static inline unsigned int ep93xxfb_readl(struct ep93xx_fbi *fbi,
 					  unsigned int off)
@@ -432,15 +432,15 @@ static int ep93xxfb_alloc_videomem(struct fb_info *info)
 		return -ENOMEM;
 
 	/*
-	 * There is a bug in the ep93xx framebuffer which causes problems
+	 * There is a  in the ep93xx framebuffer which causes problems
 	 * if bit 27 of the physical address is set.
 	 * See: http://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
 	 * There does not seem to be any official errata for this, but I
 	 * have confirmed the problem exists on my hardware (ep9315) at
 	 * least.
 	 */
-	if (check_screenpage_bug && phys_addr & (1 << 27)) {
-		dev_err(info->dev, "ep93xx framebuffer bug. phys addr (0x%x) "
+	if (check_screenpage_ && phys_addr & (1 << 27)) {
+		dev_err(info->dev, "ep93xx framebuffer . phys addr (0x%x) "
 			"has bit 27 set: cannot init framebuffer\n",
 			phys_addr);
 

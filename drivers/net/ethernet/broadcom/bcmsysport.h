@@ -355,7 +355,7 @@ struct bcm_rsb {
 #define  RDMA_TP_OUT_SEL		(1 << 0)
 #define  RDMA_MEM_SEL			(1 << 1)
 
-#define RDMA_DEBUG			0x1048
+#define RDMA_DE			0x1048
 
 /* Transmit DMA offset and defines */
 #define TDMA_NUM_RINGS			32	/* rings = queues */
@@ -514,7 +514,7 @@ struct bcm_rsb {
 #define  TDMA_TP_OUT_SEL		(1 << 0)
 #define  TDMA_MEM_TM			(1 << 1)
 
-#define TDMA_DEBUG			0x64c
+#define TDMA_DE			0x64c
 
 /* Transmit/Receive descriptor */
 struct dma_desc {

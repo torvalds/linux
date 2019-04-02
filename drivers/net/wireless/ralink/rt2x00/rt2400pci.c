@@ -166,13 +166,13 @@ static void rt2400pci_eepromregister_write(struct eeprom_93cx6 *eeprom)
 	rt2x00mmio_register_write(rt2x00dev, CSR21, reg);
 }
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-static const struct rt2x00debug rt2400pci_rt2x00debug = {
+#ifdef CONFIG_RT2X00_LIB_DEFS
+static const struct rt2x00de rt2400pci_rt2x00de = {
 	.owner	= THIS_MODULE,
 	.csr	= {
 		.read		= rt2x00mmio_register_read,
 		.write		= rt2x00mmio_register_write,
-		.flags		= RT2X00DEBUGFS_OFFSET,
+		.flags		= RT2X00DEFS_OFFSET,
 		.word_base	= CSR_REG_BASE,
 		.word_size	= sizeof(u32),
 		.word_count	= CSR_REG_SIZE / sizeof(u32),
@@ -199,7 +199,7 @@ static const struct rt2x00debug rt2400pci_rt2x00debug = {
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
 };
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 
 static int rt2400pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -408,7 +408,7 @@ static void rt2400pci_config_ant(struct rt2x00_dev *rt2x00dev,
 	 * We should never come here because rt2x00lib is supposed
 	 * to catch this and send us the correct antenna explicitely.
 	 */
-	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
+	_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
 	       ant->tx == ANTENNA_SW_DIVERSITY);
 
 	r4 = rt2400pci_bbp_read(rt2x00dev, 4);
@@ -1201,9 +1201,9 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	rt2400pci_write_tx_desc(entry, txdesc);
 
 	/*
-	 * Dump beacon to userspace through debugfs.
+	 * Dump beacon to userspace through defs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
+	rt2x00de_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
 out:
 	/*
 	 * Enable beaconing again.
@@ -1799,7 +1799,7 @@ static void rt2400pci_queue_init(struct data_queue *queue)
 		break;
 
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -1813,9 +1813,9 @@ static const struct rt2x00_ops rt2400pci_ops = {
 	.queue_init		= rt2400pci_queue_init,
 	.lib			= &rt2400pci_rt2x00_ops,
 	.hw			= &rt2400pci_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs		= &rt2400pci_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#ifdef CONFIG_RT2X00_LIB_DEFS
+	.defs		= &rt2400pci_rt2x00de,
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 };
 
 /*

@@ -789,7 +789,7 @@ dma_addr_t scif_off_to_dma_addr(struct scif_window *window, s64 off,
 		start += (window->num_pages[i] << PAGE_SHIFT);
 	}
 	dev_err(scif_info.mdev.this_device,
-		"%s %d BUG. Addr not found? window %p off 0x%llx\n",
+		"%s %d . Addr not found? window %p off 0x%llx\n",
 		__func__, __LINE__, window, off);
 	return SCIF_RMA_ERROR_CODE;
 }

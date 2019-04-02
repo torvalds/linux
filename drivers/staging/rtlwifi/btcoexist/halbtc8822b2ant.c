@@ -884,7 +884,7 @@ static void halbtc8822b2ant_enable_gnt_to_gpio(struct btc_coexist *btcoexist,
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], enable_gnt_to_gpio!!\n");
 
-		/* enable GNT_WL, GNT_BT to GPIO for debug */
+		/* enable GNT_WL, GNT_BT to GPIO for de */
 		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x73, 0x8, 0x1);
 
 		/* store original value */
@@ -3962,7 +3962,7 @@ void ex_btc8822b2ant_power_on_setting(struct btc_coexist *btcoexist)
 	else if (btcoexist->chip_interface == BTC_INTF_SDIO)
 		btcoexist->btc_write_local_reg_1byte(btcoexist, 0x60, u8tmp);
 
-	/* enable GNT_WL/GNT_BT debug signal to GPIO14/15 */
+	/* enable GNT_WL/GNT_BT de signal to GPIO14/15 */
 	halbtc8822b2ant_enable_gnt_to_gpio(btcoexist, true);
 
 	RT_TRACE(

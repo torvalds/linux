@@ -123,7 +123,7 @@ struct vfpf_acquire_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	struct vf_pf_vfdev_info {
-		/* the following fields are for debug purposes */
+		/* the following fields are for de purposes */
 		u8  vf_id;		/* ME register value */
 		u8  vf_os;		/* e.g. Linux, W2K8 */
 #define VF_OS_SUBVERSION_MASK	(0x1f)
@@ -352,7 +352,7 @@ struct vfpf_tpa_tlv {
 /* close VF (disable VF) */
 struct vfpf_close_tlv {
 	struct vfpf_first_tlv   first_tlv;
-	u16			vf_id;  /* for debug */
+	u16			vf_id;  /* for de */
 	u8 padding[2];
 };
 

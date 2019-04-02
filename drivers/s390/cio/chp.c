@@ -6,7 +6,7 @@
  *		 Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
@@ -24,7 +24,7 @@
 #include "cio.h"
 #include "css.h"
 #include "ioasm.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "chp.h"
 
 #define to_channelpath(device) container_of(device, struct channel_path, dev)

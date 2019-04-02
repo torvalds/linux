@@ -22,7 +22,7 @@
 #include <linux/rfkill.h>
 
 /*
- * These values were obtained from disassembling and debugging the
+ * These values were obtained from disassembling and deging the
  * PM.exe program installed in the Fujitsu-Siemens AMILO A1655G
  */
 #define A1655_WIFI_COMMAND	0x10C5

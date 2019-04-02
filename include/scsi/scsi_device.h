@@ -187,8 +187,8 @@ struct scsi_device {
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
-	unsigned last_sector_bug:1;	/* do not use multisector accesses on
-					   SD_LAST_BUGGY_SECTORS */
+	unsigned last_sector_:1;	/* do not use multisector accesses on
+					   SD_LAST_GY_SECTORS */
 	unsigned no_read_disc_info:1;	/* Avoid READ_DISC_INFO cmds */
 	unsigned no_read_capacity_16:1; /* Avoid READ_CAPACITY_16 cmds */
 	unsigned try_rc_10_first:1;	/* Try READ_CAPACACITY_10 first */
@@ -437,7 +437,7 @@ extern int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 #define scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,	\
 		     sshdr, timeout, retries, flags, rq_flags, resid)	\
 ({									\
-	BUILD_BUG_ON((sense) != NULL &&					\
+	BUILD__ON((sense) != NULL &&					\
 		     sizeof(sense) != SCSI_SENSE_BUFFERSIZE);		\
 	__scsi_execute(sdev, cmd, data_direction, buffer, bufflen,	\
 		       sense, sshdr, timeout, retries, flags, rq_flags,	\

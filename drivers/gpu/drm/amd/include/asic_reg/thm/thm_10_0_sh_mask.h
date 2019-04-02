@@ -398,25 +398,25 @@
 #define THM_TMON0_CTRL__BGADJ_MODE__SHIFT                                                                     0x9
 #define THM_TMON0_CTRL__TMON_PAUSE__SHIFT                                                                     0xa
 #define THM_TMON0_CTRL__INT_MEAS_EN__SHIFT                                                                    0xb
-#define THM_TMON0_CTRL__DEBUG_MODE__SHIFT                                                                     0xc
+#define THM_TMON0_CTRL__DE_MODE__SHIFT                                                                     0xc
 #define THM_TMON0_CTRL__EN_CFG_SERDES__SHIFT                                                                  0xd
 #define THM_TMON0_CTRL__POWER_DOWN_MASK                                                                       0x00000001L
 #define THM_TMON0_CTRL__BGADJ_MASK                                                                            0x000001FEL
 #define THM_TMON0_CTRL__BGADJ_MODE_MASK                                                                       0x00000200L
 #define THM_TMON0_CTRL__TMON_PAUSE_MASK                                                                       0x00000400L
 #define THM_TMON0_CTRL__INT_MEAS_EN_MASK                                                                      0x00000800L
-#define THM_TMON0_CTRL__DEBUG_MODE_MASK                                                                       0x00001000L
+#define THM_TMON0_CTRL__DE_MODE_MASK                                                                       0x00001000L
 #define THM_TMON0_CTRL__EN_CFG_SERDES_MASK                                                                    0x00002000L
 //THM_TMON0_CTRL2
 #define THM_TMON0_CTRL2__RDIL_PRESENT__SHIFT                                                                  0x0
 #define THM_TMON0_CTRL2__RDIR_PRESENT__SHIFT                                                                  0x10
 #define THM_TMON0_CTRL2__RDIL_PRESENT_MASK                                                                    0x0000FFFFL
 #define THM_TMON0_CTRL2__RDIR_PRESENT_MASK                                                                    0xFFFF0000L
-//THM_TMON0_DEBUG
-#define THM_TMON0_DEBUG__DEBUG_RDI__SHIFT                                                                     0x0
-#define THM_TMON0_DEBUG__DEBUG_Z__SHIFT                                                                       0x5
-#define THM_TMON0_DEBUG__DEBUG_RDI_MASK                                                                       0x0000001FL
-#define THM_TMON0_DEBUG__DEBUG_Z_MASK                                                                         0x0000FFE0L
+//THM_TMON0_DE
+#define THM_TMON0_DE__DE_RDI__SHIFT                                                                     0x0
+#define THM_TMON0_DE__DE_Z__SHIFT                                                                       0x5
+#define THM_TMON0_DE__DE_RDI_MASK                                                                       0x0000001FL
+#define THM_TMON0_DE__DE_Z_MASK                                                                         0x0000FFE0L
 //THM_DIE1_TEMP
 #define THM_DIE1_TEMP__TEMP__SHIFT                                                                            0x0
 #define THM_DIE1_TEMP__VALID__SHIFT                                                                           0xb

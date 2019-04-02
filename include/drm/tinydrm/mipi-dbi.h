@@ -102,10 +102,10 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 	mipi_dbi_command_buf(mipi, cmd, d, ARRAY_SIZE(d)); \
 })
 
-#ifdef CONFIG_DEBUG_FS
-int mipi_dbi_debugfs_init(struct drm_minor *minor);
+#ifdef CONFIG_DE_FS
+int mipi_dbi_defs_init(struct drm_minor *minor);
 #else
-#define mipi_dbi_debugfs_init		NULL
+#define mipi_dbi_defs_init		NULL
 #endif
 
 #endif /* __LINUX_MIPI_DBI_H */

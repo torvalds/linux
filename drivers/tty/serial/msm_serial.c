@@ -1626,7 +1626,7 @@ static void msm_console_write(struct console *co, const char *s,
 	struct uart_port *port;
 	struct msm_port *msm_port;
 
-	BUG_ON(co->index < 0 || co->index >= UART_NR);
+	_ON(co->index < 0 || co->index >= UART_NR);
 
 	port = msm_get_port_from_line(co->index);
 	msm_port = UART_TO_MSM(port);

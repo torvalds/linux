@@ -18,7 +18,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -37,8 +37,8 @@ static void __iomem *audmux_base;
 #define IMX_AUDMUX_V2_PTCR(x)		((x) * 8)
 #define IMX_AUDMUX_V2_PDCR(x)		((x) * 8 + 4)
 
-#ifdef CONFIG_DEBUG_FS
-static struct dentry *audmux_debugfs_root;
+#ifdef CONFIG_DE_FS
+static struct dentry *audmux_defs_root;
 
 /* There is an annoying discontinuity in the SSI numbering with regard
  * to the Linux number of the devices */
@@ -139,42 +139,42 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-static const struct file_operations audmux_debugfs_fops = {
+static const struct file_operations audmux_defs_fops = {
 	.open = simple_open,
 	.read = audmux_read_file,
 	.llseek = default_llseek,
 };
 
-static void audmux_debugfs_init(void)
+static void audmux_defs_init(void)
 {
 	uintptr_t i;
 	char buf[20];
 
-	audmux_debugfs_root = debugfs_create_dir("audmux", NULL);
-	if (!audmux_debugfs_root) {
-		pr_warning("Failed to create AUDMUX debugfs root\n");
+	audmux_defs_root = defs_create_dir("audmux", NULL);
+	if (!audmux_defs_root) {
+		pr_warning("Failed to create AUDMUX defs root\n");
 		return;
 	}
 
 	for (i = 0; i < MX31_AUDMUX_PORT7_SSI_PINS_7 + 1; i++) {
 		snprintf(buf, sizeof(buf), "ssi%lu", i);
-		if (!debugfs_create_file(buf, 0444, audmux_debugfs_root,
-					 (void *)i, &audmux_debugfs_fops))
-			pr_warning("Failed to create AUDMUX port %lu debugfs file\n",
+		if (!defs_create_file(buf, 0444, audmux_defs_root,
+					 (void *)i, &audmux_defs_fops))
+			pr_warning("Failed to create AUDMUX port %lu defs file\n",
 				   i);
 	}
 }
 
-static void audmux_debugfs_remove(void)
+static void audmux_defs_remove(void)
 {
-	debugfs_remove_recursive(audmux_debugfs_root);
+	defs_remove_recursive(audmux_defs_root);
 }
 #else
-static inline void audmux_debugfs_init(void)
+static inline void audmux_defs_init(void)
 {
 }
 
-static inline void audmux_debugfs_remove(void)
+static inline void audmux_defs_remove(void)
 {
 }
 #endif
@@ -334,7 +334,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		pdev->id_entry = of_id->data;
 	audmux_type = pdev->id_entry->driver_data;
 	if (audmux_type == IMX31_AUDMUX)
-		audmux_debugfs_init();
+		audmux_defs_init();
 
 	if (of_id)
 		imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
@@ -345,7 +345,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 static int imx_audmux_remove(struct platform_device *pdev)
 {
 	if (audmux_type == IMX31_AUDMUX)
-		audmux_debugfs_remove();
+		audmux_defs_remove();
 
 	return 0;
 }

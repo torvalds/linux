@@ -167,7 +167,7 @@ struct nv50_disp_chan_mthd {
 	} data[];
 };
 
-void nv50_disp_chan_mthd(struct nv50_disp_chan *, int debug);
+void nv50_disp_chan_mthd(struct nv50_disp_chan *, int de);
 
 extern const struct nv50_disp_mthd_list nv50_disp_core_mthd_base;
 extern const struct nv50_disp_mthd_list nv50_disp_core_mthd_sor;

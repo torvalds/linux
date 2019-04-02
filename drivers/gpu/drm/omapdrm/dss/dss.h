@@ -26,7 +26,7 @@
 #include "omapdss.h"
 
 struct dispc_device;
-struct dss_debugfs_entry;
+struct dss_defs_entry;
 struct platform_device;
 struct seq_file;
 
@@ -44,7 +44,7 @@ struct seq_file;
 #endif
 
 #define DSSDBG(format, ...) \
-	pr_debug(format, ## __VA_ARGS__)
+	pr_de(format, ## __VA_ARGS__)
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSERR(format, ...) \
@@ -259,9 +259,9 @@ struct dss_device {
 
 	struct {
 		struct dentry *root;
-		struct dss_debugfs_entry *clk;
-		struct dss_debugfs_entry *dss;
-	} debugfs;
+		struct dss_defs_entry *clk;
+		struct dss_defs_entry *dss;
+	} defs;
 
 	struct dss_pll *plls[4];
 	struct dss_pll	*video1_pll;
@@ -290,25 +290,25 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 }
 
 /* DSS */
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-struct dss_debugfs_entry *
-dss_debugfs_create_file(struct dss_device *dss, const char *name,
+#if defined(CONFIG_OMAP2_DSS_DEFS)
+struct dss_defs_entry *
+dss_defs_create_file(struct dss_device *dss, const char *name,
 			int (*show_fn)(struct seq_file *s, void *data),
 			void *data);
-void dss_debugfs_remove_file(struct dss_debugfs_entry *entry);
+void dss_defs_remove_file(struct dss_defs_entry *entry);
 #else
-static inline struct dss_debugfs_entry *
-dss_debugfs_create_file(struct dss_device *dss, const char *name,
+static inline struct dss_defs_entry *
+dss_defs_create_file(struct dss_device *dss, const char *name,
 			int (*show_fn)(struct seq_file *s, void *data),
 			void *data)
 {
 	return NULL;
 }
 
-static inline void dss_debugfs_remove_file(struct dss_debugfs_entry *entry)
+static inline void dss_defs_remove_file(struct dss_defs_entry *entry)
 {
 }
-#endif /* CONFIG_OMAP2_DSS_DEBUGFS */
+#endif /* CONFIG_OMAP2_DSS_DEFS */
 
 struct dss_device *dss_get_device(struct device *dev);
 

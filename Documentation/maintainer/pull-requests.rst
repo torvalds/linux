@@ -67,7 +67,7 @@ As said by Linus::
 	that you don't maintain, explain _why_. I will see it in the
 	diffstat anyway, and if you didn't mention it, I'll just be extra
 	suspicious.  And when you send me new stuff after the merge window
-	(or even bug-fixes, but ones that look scary), explain not just
+	(or even -fixes, but ones that look scary), explain not just
 	what they do and why they do it, but explain the _timing_. What
 	happened that this didn't go through the merge window..
 

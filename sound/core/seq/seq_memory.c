@@ -187,10 +187,10 @@ void snd_seq_cell_free(struct snd_seq_event_cell * cell)
 	unsigned long flags;
 	struct snd_seq_pool *pool;
 
-	if (snd_BUG_ON(!cell))
+	if (snd__ON(!cell))
 		return;
 	pool = cell->pool;
-	if (snd_BUG_ON(!pool))
+	if (snd__ON(!pool))
 		return;
 
 	spin_lock_irqsave(&pool->lock, flags);
@@ -236,7 +236,7 @@ static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 	init_waitqueue_entry(&wait, current);
 	spin_lock_irqsave(&pool->lock, flags);
 	if (pool->ptr == NULL) {	/* not initialized */
-		pr_debug("ALSA: seq: pool is not initialized\n");
+		pr_de("ALSA: seq: pool is not initialized\n");
 		err = -EINVAL;
 		goto __error;
 	}
@@ -386,7 +386,7 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	struct snd_seq_event_cell *cellptr;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!pool))
+	if (snd__ON(!pool))
 		return -EINVAL;
 
 	cellptr = vmalloc(array_size(sizeof(struct snd_seq_event_cell),
@@ -425,7 +425,7 @@ void snd_seq_pool_mark_closing(struct snd_seq_pool *pool)
 {
 	unsigned long flags;
 
-	if (snd_BUG_ON(!pool))
+	if (snd__ON(!pool))
 		return;
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->closing = 1;
@@ -438,7 +438,7 @@ int snd_seq_pool_done(struct snd_seq_pool *pool)
 	unsigned long flags;
 	struct snd_seq_event_cell *ptr;
 
-	if (snd_BUG_ON(!pool))
+	if (snd__ON(!pool))
 		return -EINVAL;
 
 	/* wait for closing all threads */

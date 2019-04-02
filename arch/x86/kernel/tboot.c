@@ -31,7 +31,7 @@
 #include <linux/pfn.h>
 #include <linux/mm.h>
 #include <linux/tboot.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <asm/realmode.h>
 #include <asm/processor.h>
@@ -91,11 +91,11 @@ void __init tboot_probe(void)
 
 	pr_info("found shared page at phys addr 0x%llx:\n",
 		boot_params.tboot_addr);
-	pr_debug("version: %d\n", tboot->version);
-	pr_debug("log_addr: 0x%08x\n", tboot->log_addr);
-	pr_debug("shutdown_entry: 0x%x\n", tboot->shutdown_entry);
-	pr_debug("tboot_base: 0x%08x\n", tboot->tboot_base);
-	pr_debug("tboot_size: 0x%x\n", tboot->tboot_size);
+	pr_de("version: %d\n", tboot->version);
+	pr_de("log_addr: 0x%08x\n", tboot->log_addr);
+	pr_de("shutdown_entry: 0x%x\n", tboot->shutdown_entry);
+	pr_de("tboot_base: 0x%08x\n", tboot->tboot_base);
+	pr_de("tboot_size: 0x%x\n", tboot->tboot_size);
 }
 
 static pgd_t *tboot_pg_dir;
@@ -222,7 +222,7 @@ static int tboot_setup_sleep(void)
 static int tboot_setup_sleep(void)
 {
 	/* S3 shutdown requested, but S3 not supported by the kernel... */
-	BUG();
+	();
 	return -1;
 }
 
@@ -348,7 +348,7 @@ static int tboot_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #define TBOOT_LOG_UUID	{ 0x26, 0x25, 0x19, 0xc0, 0x30, 0x6b, 0xb4, 0x4d, \
 			  0x4c, 0x84, 0xa3, 0xe9, 0x53, 0xb8, 0x81, 0x74 }
@@ -413,7 +413,7 @@ static const struct file_operations tboot_log_fops = {
 	.llseek	= default_llseek,
 };
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static __init int tboot_late_init(void)
 {
@@ -425,9 +425,9 @@ static __init int tboot_late_init(void)
 	atomic_set(&ap_wfs_count, 0);
 	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "x86/tboot:dying", NULL,
 			  tboot_dying_cpu);
-#ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("tboot_log", S_IRUSR,
-			arch_debugfs_dir, NULL, &tboot_log_fops);
+#ifdef CONFIG_DE_FS
+	defs_create_file("tboot_log", S_IRUSR,
+			arch_defs_dir, NULL, &tboot_log_fops);
 #endif
 
 	acpi_os_set_prepare_sleep(&tboot_sleep);

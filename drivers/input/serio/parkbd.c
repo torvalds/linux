@@ -183,7 +183,7 @@ static struct serio *parkbd_allocate_serio(void)
 static void parkbd_attach(struct parport *pp)
 {
 	if (pp->number != parkbd_pp_no) {
-		pr_debug("Not using parport%d.\n", pp->number);
+		pr_de("Not using parport%d.\n", pp->number);
 		return;
 	}
 

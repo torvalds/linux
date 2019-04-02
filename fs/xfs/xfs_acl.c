@@ -129,7 +129,7 @@ xfs_get_acl(struct inode *inode, int type)
 		ea_name = SGI_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	/*

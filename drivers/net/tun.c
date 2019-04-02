@@ -84,24 +84,24 @@
 static void tun_default_link_ksettings(struct net_device *dev,
 				       struct ethtool_link_ksettings *cmd);
 
-/* Uncomment to enable debugging */
-/* #define TUN_DEBUG 1 */
+/* Uncomment to enable deging */
+/* #define TUN_DE 1 */
 
-#ifdef TUN_DEBUG
-static int debug;
+#ifdef TUN_DE
+static int de;
 
-#define tun_debug(level, tun, fmt, args...)			\
+#define tun_de(level, tun, fmt, args...)			\
 do {								\
-	if (tun->debug)						\
+	if (tun->de)						\
 		netdev_printk(level, tun->dev, fmt, ##args);	\
 } while (0)
 #define DBG1(level, fmt, args...)				\
 do {								\
-	if (debug == 2)						\
+	if (de == 2)						\
 		printk(level fmt, ##args);			\
 } while (0)
 #else
-#define tun_debug(level, tun, fmt, args...)			\
+#define tun_de(level, tun, fmt, args...)			\
 do {								\
 	if (0)							\
 		netdev_printk(level, tun->dev, fmt, ##args);	\
@@ -235,8 +235,8 @@ struct tun_struct {
 	struct sock_fprog	fprog;
 	/* protected by rtnl lock */
 	bool			filter_attached;
-#ifdef TUN_DEBUG
-	int debug;
+#ifdef TUN_DE
+	int de;
 #endif
 	spinlock_t lock;
 	struct hlist_head flows[TUN_NUM_FLOW_ENTRIES];
@@ -433,7 +433,7 @@ static struct tun_flow_entry *tun_flow_create(struct tun_struct *tun,
 	struct tun_flow_entry *e = kmalloc(sizeof(*e), GFP_ATOMIC);
 
 	if (e) {
-		tun_debug(KERN_INFO, tun, "create flow: hash %u index %u\n",
+		tun_de(KERN_INFO, tun, "create flow: hash %u index %u\n",
 			  rxhash, queue_index);
 		e->updated = jiffies;
 		e->rxhash = rxhash;
@@ -448,7 +448,7 @@ static struct tun_flow_entry *tun_flow_create(struct tun_struct *tun,
 
 static void tun_flow_delete(struct tun_struct *tun, struct tun_flow_entry *e)
 {
-	tun_debug(KERN_INFO, tun, "delete flow: hash %u index %u\n",
+	tun_de(KERN_INFO, tun, "delete flow: hash %u index %u\n",
 		  e->rxhash, e->queue_index);
 	hlist_del_rcu(&e->hash_link);
 	kfree_rcu(e, rcu);
@@ -495,7 +495,7 @@ static void tun_flow_cleanup(struct timer_list *t)
 	unsigned long count = 0;
 	int i;
 
-	tun_debug(KERN_INFO, tun, "tun_flow_cleanup\n");
+	tun_de(KERN_INFO, tun, "tun_flow_cleanup\n");
 
 	spin_lock(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
@@ -694,7 +694,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 
 	if (tun && !tfile->detached) {
 		u16 index = tfile->queue_index;
-		BUG_ON(index >= tun->numqueues);
+		_ON(index >= tun->numqueues);
 
 		rcu_assign_pointer(tun->tfiles[index],
 				   tun->tfiles[tun->numqueues - 1]);
@@ -755,7 +755,7 @@ static void tun_detach_all(struct net_device *dev)
 
 	for (i = 0; i < n; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
-		BUG_ON(!tfile);
+		_ON(!tfile);
 		tun_napi_disable(tfile);
 		tfile->socket.sk->sk_shutdown = RCV_SHUTDOWN;
 		tfile->socket.sk->sk_data_ready(tfile->socket.sk);
@@ -767,7 +767,7 @@ static void tun_detach_all(struct net_device *dev)
 		tfile->socket.sk->sk_data_ready(tfile->socket.sk);
 		RCU_INIT_POINTER(tfile->tun, NULL);
 	}
-	BUG_ON(tun->numqueues != 0);
+	_ON(tun->numqueues != 0);
 
 	synchronize_net();
 	for (i = 0; i < n; i++) {
@@ -784,7 +784,7 @@ static void tun_detach_all(struct net_device *dev)
 		xdp_rxq_info_unreg(&tfile->xdp_rxq);
 		sock_put(&tfile->sk);
 	}
-	BUG_ON(tun->numdisabled != 0);
+	_ON(tun->numdisabled != 0);
 
 	if (tun->flags & IFF_PERSIST)
 		module_put(THIS_MODULE);
@@ -1088,9 +1088,9 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!rcu_dereference(tun->steering_prog))
 		tun_automq_xmit(tun, skb);
 
-	tun_debug(KERN_INFO, tun, "tun_net_xmit %d\n", skb->len);
+	tun_de(KERN_INFO, tun, "tun_net_xmit %d\n", skb->len);
 
-	BUG_ON(!tfile);
+	_ON(!tfile);
 
 	/* Drop if the filter does not like it.
 	 * This is a noop if the filter is disabled.
@@ -1444,7 +1444,7 @@ static __poll_t tun_chr_poll(struct file *file, poll_table *wait)
 
 	sk = tfile->socket.sk;
 
-	tun_debug(KERN_INFO, tun, "tun_chr_poll\n");
+	tun_de(KERN_INFO, tun, "tun_chr_poll\n");
 
 	poll_wait(file, sk_sleep(sk), wait);
 
@@ -2208,7 +2208,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 	ssize_t ret;
 	int err;
 
-	tun_debug(KERN_INFO, tun, "tun_do_read\n");
+	tun_de(KERN_INFO, tun, "tun_do_read\n");
 
 	if (!iov_iter_count(to)) {
 		tun_ptr_free(ptr);
@@ -2294,7 +2294,7 @@ static void tun_free_netdev(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
-	BUG_ON(!(list_empty(&tun->disabled)));
+	_ON(!(list_empty(&tun->disabled)));
 	free_percpu(tun->pcpu_stats);
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
@@ -2330,8 +2330,8 @@ static int tun_validate(struct nlattr *tb[], struct nlattr *data[],
 
 static size_t tun_get_size(const struct net_device *dev)
 {
-	BUILD_BUG_ON(sizeof(u32) != sizeof(uid_t));
-	BUILD_BUG_ON(sizeof(u32) != sizeof(gid_t));
+	BUILD__ON(sizeof(u32) != sizeof(uid_t));
+	BUILD__ON(sizeof(u32) != sizeof(gid_t));
 
 	return nla_total_size(sizeof(uid_t)) + /* OWNER */
 	       nla_total_size(sizeof(gid_t)) + /* GROUP */
@@ -2847,7 +2847,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	netif_carrier_on(tun->dev);
 
-	tun_debug(KERN_INFO, tun, "tun_set_iff\n");
+	tun_de(KERN_INFO, tun, "tun_set_iff\n");
 
 	/* Make sure persistent devices do not get stuck in
 	 * xoff state.
@@ -2876,7 +2876,7 @@ err_free_dev:
 static void tun_get_iff(struct net *net, struct tun_struct *tun,
 		       struct ifreq *ifr)
 {
-	tun_debug(KERN_INFO, tun, "tun_get_iff\n");
+	tun_de(KERN_INFO, tun, "tun_get_iff\n");
 
 	strcpy(ifr->ifr_name, tun->dev->name);
 
@@ -3101,7 +3101,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	if (!tun)
 		goto unlock;
 
-	tun_debug(KERN_INFO, tun, "tun_chr_ioctl cmd %u\n", cmd);
+	tun_de(KERN_INFO, tun, "tun_chr_ioctl cmd %u\n", cmd);
 
 	ret = 0;
 	switch (cmd) {
@@ -3121,7 +3121,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		/* Disable/Enable checksum */
 
 		/* [unimplemented] */
-		tun_debug(KERN_INFO, tun, "ignored: set checksum %s\n",
+		tun_de(KERN_INFO, tun, "ignored: set checksum %s\n",
 			  arg ? "disabled" : "enabled");
 		break;
 
@@ -3140,7 +3140,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			do_notify = true;
 		}
 
-		tun_debug(KERN_INFO, tun, "persist %s\n",
+		tun_de(KERN_INFO, tun, "persist %s\n",
 			  arg ? "enabled" : "disabled");
 		break;
 
@@ -3153,7 +3153,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		}
 		tun->owner = owner;
 		do_notify = true;
-		tun_debug(KERN_INFO, tun, "owner set to %u\n",
+		tun_de(KERN_INFO, tun, "owner set to %u\n",
 			  from_kuid(&init_user_ns, tun->owner));
 		break;
 
@@ -3166,27 +3166,27 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		}
 		tun->group = group;
 		do_notify = true;
-		tun_debug(KERN_INFO, tun, "group set to %u\n",
+		tun_de(KERN_INFO, tun, "group set to %u\n",
 			  from_kgid(&init_user_ns, tun->group));
 		break;
 
 	case TUNSETLINK:
 		/* Only allow setting the type when the interface is down */
 		if (tun->dev->flags & IFF_UP) {
-			tun_debug(KERN_INFO, tun,
+			tun_de(KERN_INFO, tun,
 				  "Linktype set failed because interface is up\n");
 			ret = -EBUSY;
 		} else {
 			tun->dev->type = (int) arg;
-			tun_debug(KERN_INFO, tun, "linktype set to %d\n",
+			tun_de(KERN_INFO, tun, "linktype set to %d\n",
 				  tun->dev->type);
 			ret = 0;
 		}
 		break;
 
-#ifdef TUN_DEBUG
-	case TUNSETDEBUG:
-		tun->debug = arg;
+#ifdef TUN_DE
+	case TUNSETDE:
+		tun->de = arg;
 		break;
 #endif
 	case TUNSETOFFLOAD:
@@ -3211,7 +3211,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 
 	case SIOCSIFHWADDR:
 		/* Set hw address */
-		tun_debug(KERN_DEBUG, tun, "set hw address: %pM\n",
+		tun_de(KERN_DE, tun, "set hw address: %pM\n",
 			  ifr.ifr_hwaddr.sa_data);
 
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr, NULL);
@@ -3543,9 +3543,9 @@ static void tun_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 
 static u32 tun_get_msglevel(struct net_device *dev)
 {
-#ifdef TUN_DEBUG
+#ifdef TUN_DE
 	struct tun_struct *tun = netdev_priv(dev);
-	return tun->debug;
+	return tun->de;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -3553,9 +3553,9 @@ static u32 tun_get_msglevel(struct net_device *dev)
 
 static void tun_set_msglevel(struct net_device *dev, u32 value)
 {
-#ifdef TUN_DEBUG
+#ifdef TUN_DE
 	struct tun_struct *tun = netdev_priv(dev);
-	tun->debug = value;
+	tun->de = value;
 #endif
 }
 

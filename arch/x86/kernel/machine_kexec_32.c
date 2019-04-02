@@ -24,7 +24,7 @@
 #include <asm/cpufeature.h>
 #include <asm/desc.h>
 #include <asm/set_memory.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 
 static void set_gdt(void *newgdt, __u16 limit)
 {

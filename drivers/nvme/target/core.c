@@ -332,7 +332,7 @@ static void nvmet_keep_alive_timer(struct work_struct *work)
 
 	ctrl->cmd_seen = false;
 	if (cmd_seen) {
-		pr_debug("ctrl %d reschedule traffic based keep-alive timer\n",
+		pr_de("ctrl %d reschedule traffic based keep-alive timer\n",
 			ctrl->cntlid);
 		schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
 		return;
@@ -346,7 +346,7 @@ static void nvmet_keep_alive_timer(struct work_struct *work)
 
 static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
 {
-	pr_debug("ctrl %d start keep-alive timer for %d secs\n",
+	pr_de("ctrl %d start keep-alive timer for %d secs\n",
 		ctrl->cntlid, ctrl->kato);
 
 	INIT_DELAYED_WORK(&ctrl->ka_work, nvmet_keep_alive_timer);
@@ -355,7 +355,7 @@ static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
 
 static void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
 {
-	pr_debug("ctrl %d stop keep-alive\n", ctrl->cntlid);
+	pr_de("ctrl %d stop keep-alive\n", ctrl->cntlid);
 
 	cancel_delayed_work_sync(&ctrl->ka_work);
 }
@@ -532,7 +532,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 		struct nvmet_ns *old;
 
 		list_for_each_entry_rcu(old, &subsys->namespaces, dev_link) {
-			BUG_ON(ns->nsid == old->nsid);
+			_ON(ns->nsid == old->nsid);
 			if (ns->nsid < old->nsid)
 				break;
 		}
@@ -1463,8 +1463,8 @@ static void __exit nvmet_exit(void)
 	ida_destroy(&cntlid_ida);
 	destroy_workqueue(buffered_io_wq);
 
-	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_entry) != 1024);
-	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_hdr) != 1024);
+	BUILD__ON(sizeof(struct nvmf_disc_rsp_page_entry) != 1024);
+	BUILD__ON(sizeof(struct nvmf_disc_rsp_page_hdr) != 1024);
 }
 
 module_init(nvmet_init);

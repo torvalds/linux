@@ -100,7 +100,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define BSD_CURRENT_VERSION	1
 
-#define DEBUG 1
+#define DE 1
 
 /*
  * A dictionary for doing BSD compress.
@@ -118,7 +118,7 @@ struct bsd_db {
 	unsigned char  hshift;		/* used in hash function */
 	unsigned char  n_bits;		/* current bits/code */
 	unsigned char  maxbits;		/* maximum bits/code */
-	unsigned char  debug;		/* non-zero if debug desired */
+	unsigned char  de;		/* non-zero if de desired */
 	unsigned char  unit;		/* ppp unit number */
 	u16 seqno;			/* sequence # of next packet */
 	unsigned int   mru;		/* size of receive (decompress) bufr */
@@ -376,7 +376,7 @@ static void *bsd_alloc(struct isdn_ppp_comp_data *data)
 /*
  * Initialize the database.
  */
-static int bsd_init(void *state, struct isdn_ppp_comp_data *data, int unit, int debug)
+static int bsd_init(void *state, struct isdn_ppp_comp_data *data, int unit, int de)
 {
 	struct bsd_db *db = state;
 	int indx;
@@ -410,7 +410,7 @@ static int bsd_init(void *state, struct isdn_ppp_comp_data *data, int unit, int 
 	db->unit = unit;
 	db->mru  = 0;
 
-	db->debug = 1;
+	db->de = 1;
 
 	bsd_reset(db, 0, 0, NULL, 0, NULL);
 
@@ -424,11 +424,11 @@ static int bsd_init(void *state, struct isdn_ppp_comp_data *data, int unit, int 
 #define dict_ptrx(p, idx) &(p->dict[idx])
 #define lens_ptrx(p, idx) &(p->lens[idx])
 
-#ifdef DEBUG
+#ifdef DE
 static unsigned short *lens_ptr(struct bsd_db *db, int idx)
 {
 	if ((unsigned int) idx > (unsigned int) db->maxmaxcode) {
-		printk(KERN_DEBUG "<9>ppp: lens_ptr(%d) > max\n", idx);
+		printk(KERN_DE "<9>ppp: lens_ptr(%d) > max\n", idx);
 		idx = 0;
 	}
 	return lens_ptrx(db, idx);
@@ -437,7 +437,7 @@ static unsigned short *lens_ptr(struct bsd_db *db, int idx)
 static struct bsd_dict *dict_ptr(struct bsd_db *db, int idx)
 {
 	if ((unsigned int) idx >= (unsigned int) db->hsize) {
-		printk(KERN_DEBUG "<9>ppp: dict_ptr(%d) > max\n", idx);
+		printk(KERN_DE "<9>ppp: dict_ptr(%d) > max\n", idx);
 		idx = 0;
 	}
 	return dict_ptrx(db, idx);
@@ -484,7 +484,7 @@ static int bsd_compress(void *state, struct sk_buff *skb_in, struct sk_buff *skb
 	 * just return without compressing the packet.  If it is,
 	 * the protocol becomes the first byte to compress.
 	 */
-	printk(KERN_DEBUG "bsd_compress called with %x\n", proto);
+	printk(KERN_DE "bsd_compress called with %x\n", proto);
 
 	ent = proto;
 	if (proto < 0x21 || proto > 0xf9 || !(proto & 0x1))
@@ -666,7 +666,7 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 	n_bits   = db->n_bits;
 	tgtbitno = 32 - n_bits;	/* bitno when we have a code */
 
-	printk(KERN_DEBUG "bsd_decompress called\n");
+	printk(KERN_DE "bsd_decompress called\n");
 
 	if (!skb_in || !skb_out) {
 		printk(KERN_ERR "bsd_decompress called with NULL parameter\n");
@@ -689,8 +689,8 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 	 * the value we're expecting.
 	 */
 	if (seq != db->seqno) {
-		if (db->debug) {
-			printk(KERN_DEBUG "bsd_decomp%d: bad sequence # %d, expected %d\n",
+		if (db->de) {
+			printk(KERN_DE "bsd_decomp%d: bad sequence # %d, expected %d\n",
 			       db->unit, seq, db->seqno - 1);
 		}
 		return DECOMP_ERROR;
@@ -738,9 +738,9 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 
 		if (incode == CLEAR) {
 			if (ilen > 0) {
-				if (db->debug)
-					printk(KERN_DEBUG "bsd_decomp%d: bad CLEAR\n", db->unit);
-				return DECOMP_FATALERROR;	/* probably a bug */
+				if (db->de)
+					printk(KERN_DE "bsd_decomp%d: bad CLEAR\n", db->unit);
+				return DECOMP_FATALERROR;	/* probably a  */
 			}
 			bsd_clear(db);
 			break;
@@ -748,13 +748,13 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 
 		if ((incode > max_ent + 2) || (incode > db->maxmaxcode)
 		    || (incode > max_ent && oldcode == CLEAR)) {
-			if (db->debug) {
-				printk(KERN_DEBUG "bsd_decomp%d: bad code 0x%x oldcode=0x%x ",
+			if (db->de) {
+				printk(KERN_DE "bsd_decomp%d: bad code 0x%x oldcode=0x%x ",
 				       db->unit, incode, oldcode);
-				printk(KERN_DEBUG "max_ent=0x%x skb->Len=%d seqno=%d\n",
+				printk(KERN_DE "max_ent=0x%x skb->Len=%d seqno=%d\n",
 				       max_ent, skb_out->len, db->seqno);
 			}
-			return DECOMP_FATALERROR;	/* probably a bug */
+			return DECOMP_FATALERROR;	/* probably a  */
 		}
 
 		/* Special case for KwKwK string. */
@@ -768,10 +768,10 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 
 		codelen = *(lens_ptr(db, finchar));
 		if (skb_tailroom(skb_out) < codelen + extra) {
-			if (db->debug) {
-				printk(KERN_DEBUG "bsd_decomp%d: ran out of mru\n", db->unit);
-#ifdef DEBUG
-				printk(KERN_DEBUG "  len=%d, finchar=0x%x, codelen=%d,skblen=%d\n",
+			if (db->de) {
+				printk(KERN_DE "bsd_decomp%d: ran out of mru\n", db->unit);
+#ifdef DE
+				printk(KERN_DE "  len=%d, finchar=0x%x, codelen=%d,skblen=%d\n",
 				       ilen, finchar, codelen, skb_out->len);
 #endif
 			}
@@ -789,7 +789,7 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 
 			dictp = dict_ptr(db, dictp2->cptr);
 
-#ifdef DEBUG
+#ifdef DE
 			if (--codelen <= 0 || dictp->codem1 != finchar - 1) {
 				if (codelen <= 0) {
 					printk(KERN_ERR "bsd_decomp%d: fell off end of chain ", db->unit);
@@ -812,7 +812,7 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 		}
 		*--p = finchar;
 
-#ifdef DEBUG
+#ifdef DE
 		if (--codelen != 0)
 			printk(KERN_ERR "bsd_decomp%d: short by %d after code 0x%x, max_ent=0x%x\n", db->unit, codelen, incode, max_ent);
 #endif
@@ -885,8 +885,8 @@ static int bsd_decompress(void *state, struct sk_buff *skb_in, struct sk_buff *s
 	db->uncomp_bytes += skb_out->len;
 
 	if (bsd_check(db)) {
-		if (db->debug)
-			printk(KERN_DEBUG "bsd_decomp%d: peer should have cleared dictionary on %d\n",
+		if (db->de)
+			printk(KERN_DE "bsd_decomp%d: peer should have cleared dictionary on %d\n",
 			       db->unit, db->seqno - 1);
 	}
 	return skb_out->len;

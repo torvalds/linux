@@ -33,7 +33,7 @@
 
 
 /* Global variables */
-int cpqhp_debug;
+int cpqhp_de;
 int cpqhp_legacy_mode;
 struct controller *cpqhp_ctrl_list;	/* = NULL */
 struct pci_func *cpqhp_slot_list[256];
@@ -44,7 +44,7 @@ static void __iomem *smbios_table;
 static void __iomem *smbios_start;
 static void __iomem *cpqhp_rom_start;
 static bool power_mode;
-static bool debug;
+static bool de;
 static int initialized;
 
 #define DRIVER_VERSION	"0.9.8"
@@ -58,8 +58,8 @@ MODULE_LICENSE("GPL");
 module_param(power_mode, bool, 0644);
 MODULE_PARM_DESC(power_mode, "Power mode enabled or not");
 
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "Deging mode enabled or not");
 
 #define CPQHPC_MODULE_MINOR 208
 
@@ -156,7 +156,7 @@ static int init_cpqhp_routing_table(void)
 	return 0;
 }
 
-/* nice debugging output */
+/* nice deging output */
 static void pci_print_IRQ_route(void)
 {
 	int len;
@@ -278,7 +278,7 @@ static int ctrl_slot_cleanup(struct controller *ctrl)
 		old_slot = next_slot;
 	}
 
-	cpqhp_remove_debugfs_files(ctrl);
+	cpqhp_remove_defs_files(ctrl);
 
 	/* Free IRQ associated with hot plug device */
 	free_irq(ctrl->interrupt, ctrl);
@@ -692,7 +692,7 @@ static int one_time_init(void)
 	if (retval)
 		goto error;
 
-	if (cpqhp_debug)
+	if (cpqhp_de)
 		pci_print_IRQ_route();
 
 	dbg("Initialize + Start the notification mechanism\n");
@@ -1224,7 +1224,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Done with exclusive hardware access */
 	mutex_unlock(&ctrl->crit_sect);
 
-	cpqhp_create_debugfs_files(ctrl);
+	cpqhp_create_defs_files(ctrl);
 
 	return 0;
 
@@ -1384,10 +1384,10 @@ static int __init cpqhpc_init(void)
 {
 	int result;
 
-	cpqhp_debug = debug;
+	cpqhp_de = de;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-	cpqhp_initialize_debugfs();
+	cpqhp_initialize_defs();
 	result = pci_register_driver(&cpqhpc_driver);
 	dbg("pci_register_driver = %d\n", result);
 	return result;
@@ -1400,7 +1400,7 @@ static void __exit cpqhpc_cleanup(void)
 
 	dbg("pci_unregister_driver\n");
 	pci_unregister_driver(&cpqhpc_driver);
-	cpqhp_shutdown_debugfs();
+	cpqhp_shutdown_defs();
 }
 
 module_init(cpqhpc_init);

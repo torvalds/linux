@@ -158,7 +158,7 @@ drivers/scsi/scsi_proc.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The functions in this file provide an interface between the PROC file
-system and the SCSI device drivers It is mainly used for debugging,
+system and the SCSI device drivers It is mainly used for deging,
 statistics and to pass information directly to the lowlevel driver. I.E.
 plumbing to manage /proc/scsi/\*
 
@@ -316,10 +316,10 @@ In SCSI language a bus capable of carrying SCSI commands is called a
 "transport", and a controller connecting to such a bus is called a "host
 bus adapter" (HBA).
 
-Debug transport
+De transport
 ~~~~~~~~~~~~~~~
 
-The file drivers/scsi/scsi_debug.c simulates a host adapter with a
+The file drivers/scsi/scsi_de.c simulates a host adapter with a
 variable number of disks (or disk like devices) attached, sharing a
 common amount of RAM. Does a lot of checking to make sure that we are
 not getting blocks mixed up, and panics the kernel if anything out of
@@ -328,7 +328,7 @@ the ordinary is seen.
 To be more realistic, the simulated devices have the transport
 attributes of SAS disks.
 
-For documentation see http://sg.danny.cz/sg/sdebug26.html
+For documentation see http://sg.danny.cz/sg/sde26.html
 
 todo
 ~~~~

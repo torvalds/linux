@@ -91,7 +91,7 @@
 
 #define PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x00000016
 
-#define VM_EXIT_SAVE_DEBUG_CONTROLS             0x00000004
+#define VM_EXIT_SAVE_DE_CONTROLS             0x00000004
 #define VM_EXIT_HOST_ADDR_SPACE_SIZE            0x00000200
 #define VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL      0x00001000
 #define VM_EXIT_ACK_INTR_ON_EXIT                0x00008000
@@ -106,7 +106,7 @@
 
 #define VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR	0x00036dff
 
-#define VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000004
+#define VM_ENTRY_LOAD_DE_CONTROLS            0x00000004
 #define VM_ENTRY_IA32E_MODE                     0x00000200
 #define VM_ENTRY_SMM                            0x00000400
 #define VM_ENTRY_DEACT_DUAL_MONITOR             0x00000800
@@ -229,8 +229,8 @@ enum vmcs_field {
 	GUEST_PHYSICAL_ADDRESS_HIGH     = 0x00002401,
 	VMCS_LINK_POINTER               = 0x00002800,
 	VMCS_LINK_POINTER_HIGH          = 0x00002801,
-	GUEST_IA32_DEBUGCTL             = 0x00002802,
-	GUEST_IA32_DEBUGCTL_HIGH        = 0x00002803,
+	GUEST_IA32_DECTL             = 0x00002802,
+	GUEST_IA32_DECTL_HIGH        = 0x00002803,
 	GUEST_IA32_PAT			= 0x00002804,
 	GUEST_IA32_PAT_HIGH		= 0x00002805,
 	GUEST_IA32_EFER			= 0x00002806,
@@ -410,13 +410,13 @@ enum vmcs_field {
 #define REG_R15                        (15 << 8)
 
 /*
- * Exit Qualifications for MOV for Debug Register Access
+ * Exit Qualifications for MOV for De Register Access
  */
-#define DEBUG_REG_ACCESS_NUM            0x7     /* 2:0, number of debug reg. */
-#define DEBUG_REG_ACCESS_TYPE           0x10    /* 4, direction of access */
+#define DE_REG_ACCESS_NUM            0x7     /* 2:0, number of de reg. */
+#define DE_REG_ACCESS_TYPE           0x10    /* 4, direction of access */
 #define TYPE_MOV_TO_DR                  (0 << 4)
 #define TYPE_MOV_FROM_DR                (1 << 4)
-#define DEBUG_REG_ACCESS_REG(eq)        (((eq) >> 8) & 0xf) /* 11:8, general purpose reg. */
+#define DE_REG_ACCESS_REG(eq)        (((eq) >> 8) & 0xf) /* 11:8, general purpose reg. */
 
 
 /*

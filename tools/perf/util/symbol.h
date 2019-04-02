@@ -203,7 +203,7 @@ int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
 					 u64 start, u64 size));
-int filename__read_debuglink(const char *filename, char *debuglink,
+int filename__read_delink(const char *filename, char *delink,
 			     size_t size);
 
 struct perf_env;

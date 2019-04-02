@@ -215,7 +215,7 @@ struct rt2x00_field32 {
  * does not exceed the given typelimit.
  */
 #define FIELD_CHECK(__mask, __type)			\
-	BUILD_BUG_ON(!(__mask) ||			\
+	BUILD__ON(!(__mask) ||			\
 		     !is_valid_mask(__mask) ||		\
 		     (__mask) != (__type)(__mask))	\
 

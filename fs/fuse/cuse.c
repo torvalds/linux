@@ -421,7 +421,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	struct cuse_init_in *arg;
 	void *outarg;
 
-	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
+	BUILD__ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
 	req = fuse_get_req_for_background(fc, 1);
 	if (IS_ERR(req)) {

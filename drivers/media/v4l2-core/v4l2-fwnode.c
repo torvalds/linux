@@ -163,7 +163,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		}
 
 		if (use_default_lane_mapping)
-			pr_debug("using default lane mapping\n");
+			pr_de("using default lane mapping\n");
 	}
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
@@ -187,7 +187,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		lanes_used |= BIT(array[i]);
 
 		if (have_data_lanes)
-			pr_debug("lane %u position %u\n", i, array[i]);
+			pr_de("lane %u position %u\n", i, array[i]);
 	}
 
 	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
@@ -204,7 +204,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
 		clock_lane = v;
-		pr_debug("clock lane position %u\n", v);
+		pr_de("clock lane position %u\n", v);
 		have_clk_lane = true;
 	}
 
@@ -217,7 +217,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 	if (fwnode_property_present(fwnode, "clock-noncontinuous")) {
 		flags |= V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
-		pr_debug("non-continuous clock\n");
+		pr_de("non-continuous clock\n");
 	} else {
 		flags |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	}
@@ -247,11 +247,11 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 			for (i = 0; i < 1 + num_data_lanes; i++) {
 				bus->lane_polarities[i] = array[i];
-				pr_debug("lane %u polarity %sinverted",
+				pr_de("lane %u polarity %sinverted",
 					 i, array[i] ? "" : "not ");
 			}
 		} else {
-			pr_debug("no lane polarities defined, assuming not inverted\n");
+			pr_de("no lane polarities defined, assuming not inverted\n");
 		}
 	}
 
@@ -282,7 +282,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_HSYNC_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_HSYNC_ACTIVE_HIGH :
 			V4L2_MBUS_HSYNC_ACTIVE_LOW;
-		pr_debug("hsync-active %s\n", v ? "high" : "low");
+		pr_de("hsync-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "vsync-active", &v)) {
@@ -290,7 +290,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_VSYNC_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_VSYNC_ACTIVE_HIGH :
 			V4L2_MBUS_VSYNC_ACTIVE_LOW;
-		pr_debug("vsync-active %s\n", v ? "high" : "low");
+		pr_de("vsync-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "field-even-active", &v)) {
@@ -298,7 +298,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_FIELD_EVEN_LOW);
 		flags |= v ? V4L2_MBUS_FIELD_EVEN_HIGH :
 			V4L2_MBUS_FIELD_EVEN_LOW;
-		pr_debug("field-even-active %s\n", v ? "high" : "low");
+		pr_de("field-even-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "pclk-sample", &v)) {
@@ -306,7 +306,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_PCLK_SAMPLE_FALLING);
 		flags |= v ? V4L2_MBUS_PCLK_SAMPLE_RISING :
 			V4L2_MBUS_PCLK_SAMPLE_FALLING;
-		pr_debug("pclk-sample %s\n", v ? "high" : "low");
+		pr_de("pclk-sample %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-active", &v)) {
@@ -314,11 +314,11 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_DATA_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ACTIVE_HIGH :
 			V4L2_MBUS_DATA_ACTIVE_LOW;
-		pr_debug("data-active %s\n", v ? "high" : "low");
+		pr_de("data-active %s\n", v ? "high" : "low");
 	}
 
 	if (fwnode_property_present(fwnode, "slave-mode")) {
-		pr_debug("slave mode\n");
+		pr_de("slave mode\n");
 		flags &= ~V4L2_MBUS_MASTER;
 		flags |= V4L2_MBUS_SLAVE;
 	} else {
@@ -328,12 +328,12 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 
 	if (!fwnode_property_read_u32(fwnode, "bus-width", &v)) {
 		bus->bus_width = v;
-		pr_debug("bus-width %u\n", v);
+		pr_de("bus-width %u\n", v);
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-shift", &v)) {
 		bus->data_shift = v;
-		pr_debug("data-shift %u\n", v);
+		pr_de("data-shift %u\n", v);
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "sync-on-green-active", &v)) {
@@ -341,7 +341,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH :
 			V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW;
-		pr_debug("sync-on-green-active %s\n", v ? "high" : "low");
+		pr_de("sync-on-green-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-enable-active", &v)) {
@@ -349,7 +349,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 			   V4L2_MBUS_DATA_ENABLE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ENABLE_HIGH :
 			V4L2_MBUS_DATA_ENABLE_LOW;
-		pr_debug("data-enable-active %s\n", v ? "high" : "low");
+		pr_de("data-enable-active %s\n", v ? "high" : "low");
 	}
 
 	switch (bus_type) {
@@ -381,22 +381,22 @@ v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
 
 	if (!fwnode_property_read_u32(fwnode, "clock-inv", &v)) {
 		bus->clock_inv = v;
-		pr_debug("clock-inv %u\n", v);
+		pr_de("clock-inv %u\n", v);
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "strobe", &v)) {
 		bus->strobe = v;
-		pr_debug("strobe %u\n", v);
+		pr_de("strobe %u\n", v);
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-lanes", &v)) {
 		bus->data_lane = v;
-		pr_debug("data-lanes %u\n", v);
+		pr_de("data-lanes %u\n", v);
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
 		bus->clock_lane = v;
-		pr_debug("clock-lanes %u\n", v);
+		pr_de("clock-lanes %u\n", v);
 	}
 
 	if (bus_type == V4L2_MBUS_CCP2)
@@ -418,7 +418,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		       sizeof(*vep) - offsetof(typeof(*vep), bus));
 	}
 
-	pr_debug("===== begin V4L2 endpoint properties\n");
+	pr_de("===== begin V4L2 endpoint properties\n");
 
 	/*
 	 * Zero the fwnode graph endpoint memory in case we don't end up parsing
@@ -427,7 +427,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	memset(&vep->base, 0, sizeof(vep->base));
 
 	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
-	pr_debug("fwnode video bus type %s (%u), mbus type %s (%u)\n",
+	pr_de("fwnode video bus type %s (%u), mbus type %s (%u)\n",
 		 v4l2_fwnode_bus_type_to_string(bus_type), bus_type,
 		 v4l2_fwnode_mbus_type_to_string(vep->bus_type),
 		 vep->bus_type);
@@ -436,7 +436,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	if (vep->bus_type != V4L2_MBUS_UNKNOWN) {
 		if (mbus_type != V4L2_MBUS_UNKNOWN &&
 		    vep->bus_type != mbus_type) {
-			pr_debug("expecting bus type %s\n",
+			pr_de("expecting bus type %s\n",
 				 v4l2_fwnode_mbus_type_to_string(vep->bus_type));
 			return -ENXIO;
 		}
@@ -455,7 +455,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 			v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep,
 								V4L2_MBUS_UNKNOWN);
 
-		pr_debug("assuming media bus type %s (%u)\n",
+		pr_de("assuming media bus type %s (%u)\n",
 			 v4l2_fwnode_mbus_type_to_string(vep->bus_type),
 			 vep->bus_type);
 
@@ -496,7 +496,7 @@ int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 	ret = __v4l2_fwnode_endpoint_parse(fwnode, vep);
 
-	pr_debug("===== end V4L2 endpoint properties\n");
+	pr_de("===== end V4L2 endpoint properties\n");
 
 	return ret;
 }
@@ -547,7 +547,7 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 				vep->link_frequencies[i]);
 	}
 
-	pr_debug("===== end V4L2 endpoint properties\n");
+	pr_de("===== end V4L2 endpoint properties\n");
 
 	return 0;
 }

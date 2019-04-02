@@ -79,7 +79,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 		 * can occur if we send the scan abort before we
 		 * the microcode has notified us that a scan is
 		 * completed. */
-		IWL_DEBUG_SCAN(priv, "SCAN_ABORT ret %d.\n",
+		IWL_DE_SCAN(priv, "SCAN_ABORT ret %d.\n",
 			       le32_to_cpu(*status));
 		ret = -EIO;
 	}
@@ -96,7 +96,7 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 
 	/* check if scan was requested from mac80211 */
 	if (priv->scan_request) {
-		IWL_DEBUG_SCAN(priv, "Complete scan in mac80211\n");
+		IWL_DE_SCAN(priv, "Complete scan in mac80211\n");
 		ieee80211_scan_completed(priv->hw, &info);
 	}
 
@@ -114,16 +114,16 @@ static void iwl_process_scan_complete(struct iwl_priv *priv)
 	if (!test_and_clear_bit(STATUS_SCAN_COMPLETE, &priv->status))
 		return;
 
-	IWL_DEBUG_SCAN(priv, "Completed scan.\n");
+	IWL_DE_SCAN(priv, "Completed scan.\n");
 
 	cancel_delayed_work(&priv->scan_check);
 
 	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->status);
 	if (aborted)
-		IWL_DEBUG_SCAN(priv, "Aborted scan completed.\n");
+		IWL_DE_SCAN(priv, "Aborted scan completed.\n");
 
 	if (!test_and_clear_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan already completed.\n");
+		IWL_DE_SCAN(priv, "Scan already completed.\n");
 		goto out_settings;
 	}
 
@@ -138,7 +138,7 @@ static void iwl_process_scan_complete(struct iwl_priv *priv)
 		err = iwl_scan_initiate(priv, priv->scan_vif, IWL_SCAN_NORMAL,
 					priv->scan_request->channels[0]->band);
 		if (err) {
-			IWL_DEBUG_SCAN(priv,
+			IWL_DE_SCAN(priv,
 				"failed to initiate pending scan: %d\n", err);
 			aborted = true;
 			goto out_complete;
@@ -163,11 +163,11 @@ void iwl_force_scan_end(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Forcing scan end while not scanning\n");
+		IWL_DE_SCAN(priv, "Forcing scan end while not scanning\n");
 		return;
 	}
 
-	IWL_DEBUG_SCAN(priv, "Forcing scan end\n");
+	IWL_DE_SCAN(priv, "Forcing scan end\n");
 	clear_bit(STATUS_SCANNING, &priv->status);
 	clear_bit(STATUS_SCAN_HW, &priv->status);
 	clear_bit(STATUS_SCAN_ABORTING, &priv->status);
@@ -182,21 +182,21 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	if (!test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Not performing scan to abort\n");
+		IWL_DE_SCAN(priv, "Not performing scan to abort\n");
 		return;
 	}
 
 	if (test_and_set_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan abort in progress\n");
+		IWL_DE_SCAN(priv, "Scan abort in progress\n");
 		return;
 	}
 
 	ret = iwl_send_scan_abort(priv);
 	if (ret) {
-		IWL_DEBUG_SCAN(priv, "Send scan abort failed %d\n", ret);
+		IWL_DE_SCAN(priv, "Send scan abort failed %d\n", ret);
 		iwl_force_scan_end(priv);
 	} else
-		IWL_DEBUG_SCAN(priv, "Successfully send scan abort\n");
+		IWL_DE_SCAN(priv, "Successfully send scan abort\n");
 }
 
 /**
@@ -204,7 +204,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
  */
 int iwl_scan_cancel(struct iwl_priv *priv)
 {
-	IWL_DEBUG_SCAN(priv, "Queuing abort scan\n");
+	IWL_DE_SCAN(priv, "Queuing abort scan\n");
 	queue_work(priv->workqueue, &priv->abort_scan);
 	return 0;
 }
@@ -220,7 +220,7 @@ void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 
 	lockdep_assert_held(&priv->mutex);
 
-	IWL_DEBUG_SCAN(priv, "Scan cancel timeout\n");
+	IWL_DE_SCAN(priv, "Scan cancel timeout\n");
 
 	iwl_do_scan_abort(priv);
 
@@ -250,11 +250,11 @@ void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
 			      struct iwl_rx_cmd_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scanreq_notification *notif = (void *)pkt->data;
 
-	IWL_DEBUG_SCAN(priv, "Scan request status = 0x%x\n", notif->status);
+	IWL_DE_SCAN(priv, "Scan request status = 0x%x\n", notif->status);
 #endif
 }
 
@@ -266,7 +266,7 @@ static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
 	struct iwl_scanstart_notification *notif = (void *)pkt->data;
 
 	priv->scan_start_tsf = le32_to_cpu(notif->tsf_low);
-	IWL_DEBUG_SCAN(priv, "Scan start: "
+	IWL_DE_SCAN(priv, "Scan start: "
 		       "%d [802.11%s] "
 		       "(TSF: 0x%08X:%08X) - %d (beacon timer %u)\n",
 		       notif->channel,
@@ -280,11 +280,11 @@ static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
 static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 				      struct iwl_rx_cmd_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scanresults_notification *notif = (void *)pkt->data;
 
-	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
+	IWL_DE_SCAN(priv, "Scan ch.res: "
 		       "%d [802.11%s] "
 		       "probe status: %u:%u "
 		       "(TSF: 0x%08X:%08X) - %d "
@@ -306,12 +306,12 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->data;
 
-	IWL_DEBUG_SCAN(priv, "Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
+	IWL_DE_SCAN(priv, "Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
 		       scan_notif->scanned_channels,
 		       scan_notif->tsf_low,
 		       scan_notif->tsf_high, scan_notif->status);
 
-	IWL_DEBUG_SCAN(priv, "Scan on %sGHz took %dms\n",
+	IWL_DE_SCAN(priv, "Scan on %sGHz took %dms\n",
 		       (priv->scan_band == NL80211_BAND_2GHZ) ? "2.4" : "5.2",
 		       jiffies_to_msecs(jiffies - priv->scan_start));
 
@@ -379,7 +379,7 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 	int n_active = 0;
 	u16 limit;
 
-	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+	BUILD__ON(NUM_IWL_RXON_CTX != 2);
 
 	/*
 	 * If we're associated, we clamp the dwell time 98%
@@ -558,7 +558,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		else
 			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
 
-		IWL_DEBUG_SCAN(priv, "Scanning ch=%d prob=0x%X [%s %d]\n",
+		IWL_DE_SCAN(priv, "Scanning ch=%d prob=0x%X [%s %d]\n",
 			       channel, le32_to_cpu(scan_ch->type),
 			       (scan_ch->type & SCAN_CHANNEL_TYPE_ACTIVE) ?
 				"ACTIVE" : "PASSIVE",
@@ -569,7 +569,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		added++;
 	}
 
-	IWL_DEBUG_SCAN(priv, "total channels to scan %d\n", added);
+	IWL_DE_SCAN(priv, "total channels to scan %d\n", added);
 	return added;
 }
 
@@ -664,7 +664,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (!priv->scan_cmd) {
 		priv->scan_cmd = kmalloc(scan_cmd_size, GFP_KERNEL);
 		if (!priv->scan_cmd) {
-			IWL_DEBUG_SCAN(priv,
+			IWL_DE_SCAN(priv,
 				       "fail to allocate memory for scan\n");
 			return -ENOMEM;
 		}
@@ -681,7 +681,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
 
-		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
+		IWL_DE_INFO(priv, "Scanning while associated...\n");
 		switch (priv->scan_type) {
 		case IWL_SCAN_RADIO_RESET:
 			interval = 0;
@@ -700,13 +700,13 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		scan_suspend_time = (extra |
 		    ((suspend_time % interval) * 1024));
 		scan->suspend_time = cpu_to_le32(scan_suspend_time);
-		IWL_DEBUG_SCAN(priv, "suspend_time 0x%X beacon interval %d\n",
+		IWL_DE_SCAN(priv, "suspend_time 0x%X beacon interval %d\n",
 			       scan_suspend_time, interval);
 	}
 
 	switch (priv->scan_type) {
 	case IWL_SCAN_RADIO_RESET:
-		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
+		IWL_DE_SCAN(priv, "Start internal passive scan.\n");
 		/*
 		 * Override quiet time as firmware checks that active
 		 * dwell is >= quiet; since we use passive scan it'll
@@ -717,7 +717,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	case IWL_SCAN_NORMAL:
 		if (priv->scan_request->n_ssids) {
 			int i, p = 0;
-			IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
+			IWL_DE_SCAN(priv, "Kicking off active scan\n");
 			/*
 			 * The highest priority SSID is inserted to the
 			 * probe request template.
@@ -741,7 +741,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			}
 			is_active = true;
 		} else
-			IWL_DEBUG_SCAN(priv, "Start passive scan.\n");
+			IWL_DE_SCAN(priv, "Start passive scan.\n");
 		break;
 	}
 
@@ -834,7 +834,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		if (!active_chains)
 			active_chains = rx_ant;
 
-		IWL_DEBUG_SCAN(priv, "chain_noise_data.active_chains: %u\n",
+		IWL_DE_SCAN(priv, "chain_noise_data.active_chains: %u\n",
 				priv->chain_noise_data.active_chains);
 
 		rx_ant = first_antenna(active_chains);
@@ -872,7 +872,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 					scan_cmd_size - sizeof(*scan));
 		break;
 	default:
-		BUG();
+		();
 	}
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
@@ -894,7 +894,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	}
 
 	if (scan->channel_count == 0) {
-		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
+		IWL_DE_SCAN(priv, "channel count %d\n", scan->channel_count);
 		return -EIO;
 	}
 
@@ -948,17 +948,17 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	}
 
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-		IWL_DEBUG_SCAN(priv,
+		IWL_DE_SCAN(priv,
 			"Multiple concurrent scan requests in parallel.\n");
 		return -EBUSY;
 	}
 
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan request while abort pending.\n");
+		IWL_DE_SCAN(priv, "Scan request while abort pending.\n");
 		return -EBUSY;
 	}
 
-	IWL_DEBUG_SCAN(priv, "Starting %sscan...\n",
+	IWL_DE_SCAN(priv, "Starting %sscan...\n",
 			scan_type == IWL_SCAN_NORMAL ? "" :
 			"internal short ");
 
@@ -995,22 +995,22 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, start_internal_scan);
 
-	IWL_DEBUG_SCAN(priv, "Start internal scan\n");
+	IWL_DE_SCAN(priv, "Start internal scan\n");
 
 	mutex_lock(&priv->mutex);
 
 	if (priv->scan_type == IWL_SCAN_RADIO_RESET) {
-		IWL_DEBUG_SCAN(priv, "Internal scan already in progress\n");
+		IWL_DE_SCAN(priv, "Internal scan already in progress\n");
 		goto unlock;
 	}
 
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
+		IWL_DE_SCAN(priv, "Scan already in progress.\n");
 		goto unlock;
 	}
 
 	if (iwl_scan_initiate(priv, NULL, IWL_SCAN_RADIO_RESET, priv->band))
-		IWL_DEBUG_SCAN(priv, "failed to start internal short scan\n");
+		IWL_DE_SCAN(priv, "failed to start internal short scan\n");
  unlock:
 	mutex_unlock(&priv->mutex);
 }
@@ -1020,7 +1020,7 @@ static void iwl_bg_scan_check(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, scan_check.work);
 
-	IWL_DEBUG_SCAN(priv, "Scan check work\n");
+	IWL_DE_SCAN(priv, "Scan check work\n");
 
 	/* Since we are here firmware does not finish scan and
 	 * most likely is in bad shape, so we don't bother to
@@ -1034,7 +1034,7 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
-	IWL_DEBUG_SCAN(priv, "Abort scan work\n");
+	IWL_DE_SCAN(priv, "Abort scan work\n");
 
 	/* We keep scan_check work queued in case when firmware will not
 	 * report back scan completed notification */

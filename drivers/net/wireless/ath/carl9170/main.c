@@ -298,9 +298,9 @@ static void carl9170_zap_queues(struct ar9170 *ar)
 		spin_unlock_bh(&ar->tx_status[i].lock);
 	}
 
-	BUILD_BUG_ON(CARL9170_NUM_TX_LIMIT_SOFT < 1);
-	BUILD_BUG_ON(CARL9170_NUM_TX_LIMIT_HARD < CARL9170_NUM_TX_LIMIT_SOFT);
-	BUILD_BUG_ON(CARL9170_NUM_TX_LIMIT_HARD >= CARL9170_BAW_BITS);
+	BUILD__ON(CARL9170_NUM_TX_LIMIT_SOFT < 1);
+	BUILD__ON(CARL9170_NUM_TX_LIMIT_HARD < CARL9170_NUM_TX_LIMIT_SOFT);
+	BUILD__ON(CARL9170_NUM_TX_LIMIT_HARD >= CARL9170_BAW_BITS);
 
 	/* reinitialize queues statistics */
 	memset(&ar->tx_stats, 0, sizeof(ar->tx_stats));
@@ -683,7 +683,7 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 		goto unlock;
 	}
 
-	BUG_ON(ar->vif_priv[vif_id].id != vif_id);
+	_ON(ar->vif_priv[vif_id].id != vif_id);
 
 	vif_priv->active = true;
 	vif_priv->id = vif_id;
@@ -1558,7 +1558,7 @@ static int carl9170_rng_get(struct ar9170 *ar)
 	unsigned int i, off = 0, transfer, count;
 	int err;
 
-	BUILD_BUG_ON(RB > CARL9170_MAX_CMD_PAYLOAD_LEN);
+	BUILD__ON(RB > CARL9170_MAX_CMD_PAYLOAD_LEN);
 
 	if (!IS_ACCEPTING_CMD(ar) || !ar->rng.initialized)
 		return -EAGAIN;
@@ -1891,12 +1891,12 @@ static int carl9170_read_eeprom(struct ar9170 *ar)
 	__le32 offsets[RW];
 	int i, j, err;
 
-	BUILD_BUG_ON(sizeof(ar->eeprom) & 3);
+	BUILD__ON(sizeof(ar->eeprom) & 3);
 
-	BUILD_BUG_ON(RB > CARL9170_MAX_CMD_LEN - 4);
+	BUILD__ON(RB > CARL9170_MAX_CMD_LEN - 4);
 #ifndef __CHECKER__
 	/* don't want to handle trailing remains */
-	BUILD_BUG_ON(sizeof(ar->eeprom) % RB);
+	BUILD__ON(sizeof(ar->eeprom) % RB);
 #endif
 
 	for (i = 0; i < sizeof(ar->eeprom) / RB; i++) {
@@ -2029,9 +2029,9 @@ int carl9170_register(struct ar9170 *ar)
 	if (!ath_is_world_regd(regulatory))
 		regulatory_hint(ar->hw->wiphy, regulatory->alpha2);
 
-#ifdef CONFIG_CARL9170_DEBUGFS
-	carl9170_debugfs_register(ar);
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#ifdef CONFIG_CARL9170_DEFS
+	carl9170_defs_register(ar);
+#endif /* CONFIG_CARL9170_DEFS */
 
 	err = carl9170_led_init(ar);
 	if (err)
@@ -2076,9 +2076,9 @@ void carl9170_unregister(struct ar9170 *ar)
 	carl9170_led_unregister(ar);
 #endif /* CONFIG_CARL9170_LEDS */
 
-#ifdef CONFIG_CARL9170_DEBUGFS
-	carl9170_debugfs_unregister(ar);
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#ifdef CONFIG_CARL9170_DEFS
+	carl9170_defs_unregister(ar);
+#endif /* CONFIG_CARL9170_DEFS */
 
 #ifdef CONFIG_CARL9170_WPC
 	if (ar->wps.pbc) {

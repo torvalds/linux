@@ -179,7 +179,7 @@ acpi_status acpi_read_bit_register(u32 register_id, u32 *return_value)
 	value = ((register_value & bit_reg_info->access_bit_mask)
 		 >> bit_reg_info->bit_position);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+	ACPI_DE_PRINT((ACPI_DB_IO,
 			  "BitReg %X, ParentReg %X, Actual %8.8X, ReturnValue %8.8X\n",
 			  register_id, bit_reg_info->parent_register,
 			  register_value, value));
@@ -281,7 +281,7 @@ acpi_status acpi_write_bit_register(u32 register_id, u32 value)
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+	ACPI_DE_PRINT((ACPI_DB_IO,
 			  "BitReg %X, ParentReg %X, Value %8.8X, Actual %8.8X\n",
 			  register_id, bit_reg_info->parent_register, value,
 			  register_value));

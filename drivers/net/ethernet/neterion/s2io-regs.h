@@ -461,12 +461,12 @@ struct XENA_dev_config {
 #define	TX_PA_CFG_IGNORE_L2_ERR			   s2BIT(6)
 #define RX_PA_CFG_STRIP_VLAN_TAG		s2BIT(15)
 
-/* Recent add, used only debug purposes. */
+/* Recent add, used only de purposes. */
 	u64 pcc_enable;
 
 	u8 unused9[0x700 - 0x178];
 
-	u64 txdma_debug_ctrl;
+	u64 txdma_de_ctrl;
 
 	u8 unused10[0x1800 - 0x1708];
 
@@ -630,7 +630,7 @@ struct XENA_dev_config {
 
 	u8 unused12[0x700 - 0x1F0];
 
-	u64 rxdma_debug_ctrl;
+	u64 rxdma_de_ctrl;
 
 	u8 unused13[0x2000 - 0x1f08];
 
@@ -818,7 +818,7 @@ struct XENA_dev_config {
 
 	u8 unused16[0x700 - 0x220];
 
-	u64 mac_debug_ctrl;
+	u64 mac_de_ctrl;
 #define MAC_DBG_ACTIVITY_VALUE		   0x411040400000000ULL
 
 	u8 unused17[0x2800 - 0x2708];
@@ -900,7 +900,7 @@ struct XENA_dev_config {
 	u64 mc_rldram_mrs_herc;
 
 	u8 unused25[0x700 - 0x668];
-	u64 mc_debug_ctrl;
+	u64 mc_de_ctrl;
 
 	u8 unused26[0x3000 - 0x2f08];
 

@@ -39,7 +39,7 @@
  *   mvebu_mbus_add_window_remap_by_id() and
  *   mvebu_mbus_del_window().
  *
- * - Provides a debugfs interface in /sys/kernel/debug/mvebu-mbus/ to
+ * - Provides a defs interface in /sys/kernel/de/mvebu-mbus/ to
  *   see the list of CPU -> SDRAM windows and their configuration
  *   (file 'sdram') and the list of CPU -> devices windows and their
  *   configuration (file 'devices').
@@ -55,7 +55,7 @@
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/log2.h>
 #include <linux/memblock.h>
 #include <linux/syscore_ops.h>
@@ -137,9 +137,9 @@ struct mvebu_mbus_state {
 	void __iomem *sdramwins_base;
 	void __iomem *mbusbridge_base;
 	phys_addr_t sdramwins_phys_base;
-	struct dentry *debugfs_root;
-	struct dentry *debugfs_sdram;
-	struct dentry *debugfs_devs;
+	struct dentry *defs_root;
+	struct dentry *defs_sdram;
+	struct dentry *defs_devs;
 	struct resource pcie_mem_aperture;
 	struct resource pcie_io_aperture;
 	const struct mvebu_mbus_soc_data *soc;
@@ -404,11 +404,11 @@ static int mvebu_mbus_alloc_window(struct mvebu_mbus_state *mbus,
 }
 
 /*
- * Debugfs debugging
+ * Defs deging
  */
 
 /* Common function used for Dove, Kirkwood, Armada 370/XP and Orion 5x */
-static int mvebu_sdram_debug_show_orion(struct mvebu_mbus_state *mbus,
+static int mvebu_sdram_de_show_orion(struct mvebu_mbus_state *mbus,
 					struct seq_file *seq, void *v)
 {
 	int i;
@@ -438,7 +438,7 @@ static int mvebu_sdram_debug_show_orion(struct mvebu_mbus_state *mbus,
 }
 
 /* Special function for Dove */
-static int mvebu_sdram_debug_show_dove(struct mvebu_mbus_state *mbus,
+static int mvebu_sdram_de_show_dove(struct mvebu_mbus_state *mbus,
 				       struct seq_file *seq, void *v)
 {
 	int i;
@@ -464,25 +464,25 @@ static int mvebu_sdram_debug_show_dove(struct mvebu_mbus_state *mbus,
 	return 0;
 }
 
-static int mvebu_sdram_debug_show(struct seq_file *seq, void *v)
+static int mvebu_sdram_de_show(struct seq_file *seq, void *v)
 {
 	struct mvebu_mbus_state *mbus = &mbus_state;
 	return mbus->soc->show_cpu_target(mbus, seq, v);
 }
 
-static int mvebu_sdram_debug_open(struct inode *inode, struct file *file)
+static int mvebu_sdram_de_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, mvebu_sdram_debug_show, inode->i_private);
+	return single_open(file, mvebu_sdram_de_show, inode->i_private);
 }
 
-static const struct file_operations mvebu_sdram_debug_fops = {
-	.open = mvebu_sdram_debug_open,
+static const struct file_operations mvebu_sdram_de_fops = {
+	.open = mvebu_sdram_de_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static int mvebu_devs_debug_show(struct seq_file *seq, void *v)
+static int mvebu_devs_de_show(struct seq_file *seq, void *v)
 {
 	struct mvebu_mbus_state *mbus = &mbus_state;
 	int win;
@@ -520,13 +520,13 @@ static int mvebu_devs_debug_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int mvebu_devs_debug_open(struct inode *inode, struct file *file)
+static int mvebu_devs_de_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, mvebu_devs_debug_show, inode->i_private);
+	return single_open(file, mvebu_devs_de_show, inode->i_private);
 }
 
-static const struct file_operations mvebu_devs_debug_fops = {
-	.open = mvebu_devs_debug_open,
+static const struct file_operations mvebu_devs_de_fops = {
+	.open = mvebu_devs_de_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -807,7 +807,7 @@ static const struct mvebu_mbus_soc_data armada_370_mbus_data = {
 	.win_cfg_offset      = armada_370_xp_mbus_win_cfg_offset,
 	.win_remap_offset    = generic_mbus_win_remap_8_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
+	.show_cpu_target     = mvebu_sdram_de_show_orion,
 	.save_cpu_target     = mvebu_mbus_default_save_cpu_target,
 };
 
@@ -817,7 +817,7 @@ static const struct mvebu_mbus_soc_data armada_xp_mbus_data = {
 	.win_cfg_offset      = armada_370_xp_mbus_win_cfg_offset,
 	.win_remap_offset    = armada_xp_mbus_win_remap_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
+	.show_cpu_target     = mvebu_sdram_de_show_orion,
 	.save_cpu_target     = mvebu_mbus_default_save_cpu_target,
 };
 
@@ -827,7 +827,7 @@ static const struct mvebu_mbus_soc_data kirkwood_mbus_data = {
 	.save_cpu_target     = mvebu_mbus_default_save_cpu_target,
 	.win_remap_offset    = generic_mbus_win_remap_4_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
+	.show_cpu_target     = mvebu_sdram_de_show_orion,
 };
 
 static const struct mvebu_mbus_soc_data dove_mbus_data = {
@@ -836,7 +836,7 @@ static const struct mvebu_mbus_soc_data dove_mbus_data = {
 	.save_cpu_target     = mvebu_mbus_dove_save_cpu_target,
 	.win_remap_offset    = generic_mbus_win_remap_4_offset,
 	.setup_cpu_target    = mvebu_mbus_dove_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_dove,
+	.show_cpu_target     = mvebu_sdram_de_show_dove,
 };
 
 /*
@@ -849,7 +849,7 @@ static const struct mvebu_mbus_soc_data orion5x_4win_mbus_data = {
 	.save_cpu_target     = mvebu_mbus_default_save_cpu_target,
 	.win_remap_offset    = generic_mbus_win_remap_4_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
+	.show_cpu_target     = mvebu_sdram_de_show_orion,
 };
 
 static const struct mvebu_mbus_soc_data orion5x_2win_mbus_data = {
@@ -858,7 +858,7 @@ static const struct mvebu_mbus_soc_data orion5x_2win_mbus_data = {
 	.save_cpu_target     = mvebu_mbus_default_save_cpu_target,
 	.win_remap_offset    = generic_mbus_win_remap_2_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
+	.show_cpu_target     = mvebu_sdram_de_show_orion,
 };
 
 static const struct mvebu_mbus_soc_data mv78xx0_mbus_data = {
@@ -867,7 +867,7 @@ static const struct mvebu_mbus_soc_data mv78xx0_mbus_data = {
 	.save_cpu_target     = mvebu_mbus_default_save_cpu_target,
 	.win_remap_offset    = generic_mbus_win_remap_8_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
+	.show_cpu_target     = mvebu_sdram_de_show_orion,
 };
 
 static const struct of_device_id of_mvebu_mbus_ids[] = {
@@ -1000,31 +1000,31 @@ int mvebu_mbus_get_io_win_info(phys_addr_t phyaddr, u32 *size, u8 *target,
 }
 EXPORT_SYMBOL_GPL(mvebu_mbus_get_io_win_info);
 
-static __init int mvebu_mbus_debugfs_init(void)
+static __init int mvebu_mbus_defs_init(void)
 {
 	struct mvebu_mbus_state *s = &mbus_state;
 
 	/*
 	 * If no base has been initialized, doesn't make sense to
-	 * register the debugfs entries. We may be on a multiplatform
+	 * register the defs entries. We may be on a multiplatform
 	 * kernel that isn't running a Marvell EBU SoC.
 	 */
 	if (!s->mbuswins_base)
 		return 0;
 
-	s->debugfs_root = debugfs_create_dir("mvebu-mbus", NULL);
-	if (s->debugfs_root) {
-		s->debugfs_sdram = debugfs_create_file("sdram", S_IRUGO,
-						       s->debugfs_root, NULL,
-						       &mvebu_sdram_debug_fops);
-		s->debugfs_devs = debugfs_create_file("devices", S_IRUGO,
-						      s->debugfs_root, NULL,
-						      &mvebu_devs_debug_fops);
+	s->defs_root = defs_create_dir("mvebu-mbus", NULL);
+	if (s->defs_root) {
+		s->defs_sdram = defs_create_file("sdram", S_IRUGO,
+						       s->defs_root, NULL,
+						       &mvebu_sdram_de_fops);
+		s->defs_devs = defs_create_file("devices", S_IRUGO,
+						      s->defs_root, NULL,
+						      &mvebu_devs_de_fops);
 	}
 
 	return 0;
 }
-fs_initcall(mvebu_mbus_debugfs_init);
+fs_initcall(mvebu_mbus_defs_init);
 
 static int mvebu_mbus_suspend(void)
 {

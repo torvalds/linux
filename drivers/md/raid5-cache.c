@@ -462,7 +462,7 @@ void r5c_make_stripe_write_out(struct stripe_head *sh)
 	struct r5conf *conf = sh->raid_conf;
 	struct r5l_log *log = conf->log;
 
-	BUG_ON(!r5c_is_writeback(log));
+	_ON(!r5c_is_writeback(log));
 
 	WARN_ON(!test_bit(STRIPE_R5C_CACHING, &sh->state));
 	clear_bit(STRIPE_R5C_CACHING, &sh->state);
@@ -505,7 +505,7 @@ static void r5c_finish_cache_stripe(struct stripe_head *sh)
 	struct r5l_log *log = sh->raid_conf->log;
 
 	if (log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH) {
-		BUG_ON(test_bit(STRIPE_R5C_CACHING, &sh->state));
+		_ON(test_bit(STRIPE_R5C_CACHING, &sh->state));
 		/*
 		 * Set R5_InJournal for parity dev[pd_idx]. This means
 		 * all data AND parity in the journal. For RAID 6, it is
@@ -857,7 +857,7 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
 	struct r5l_io_unit *io = log->current_io;
 
 	if (io->need_split_bio) {
-		BUG_ON(io->split_bio);
+		_ON(io->split_bio);
 		io->split_bio = io->current_bio;
 		io->current_bio = r5l_bio_alloc(log);
 		bio_chain(io->current_bio, io->split_bio);
@@ -865,7 +865,7 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
 	}
 
 	if (!bio_add_page(io->current_bio, page, PAGE_SIZE, 0))
-		BUG();
+		();
 
 	r5_reserve_log_entry(log, io);
 }
@@ -966,7 +966,7 @@ static int r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 					0, false);
 		r5l_append_payload_page(log, sh->dev[sh->pd_idx].page);
 	} else  /* Just writing data, not parity, in caching phase */
-		BUG_ON(parity_pages != 0);
+		_ON(parity_pages != 0);
 
 	list_add_tail(&sh->log_list, &io->stripe_list);
 	atomic_inc(&io->pending_stripe);
@@ -976,7 +976,7 @@ static int r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 		return 0;
 
 	if (sh->log_start == MaxSector) {
-		BUG_ON(!list_empty(&sh->r5c));
+		_ON(!list_empty(&sh->r5c));
 		sh->log_start = io->log_start;
 		spin_lock_irq(&log->stripe_in_journal_lock);
 		list_add_tail(&sh->r5c,
@@ -1078,7 +1078,7 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 			reserve = 0;
 		} else if (!r5l_has_free_space(log, reserve)) {
 			if (sh->log_start == log->last_checkpoint)
-				BUG();
+				();
 			else
 				r5l_add_no_space_stripe(log, sh);
 		} else {
@@ -1374,15 +1374,15 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
  */
 static void r5c_flush_stripe(struct r5conf *conf, struct stripe_head *sh)
 {
-	BUG_ON(list_empty(&sh->lru));
-	BUG_ON(!test_bit(STRIPE_R5C_CACHING, &sh->state));
-	BUG_ON(test_bit(STRIPE_HANDLE, &sh->state));
+	_ON(list_empty(&sh->lru));
+	_ON(!test_bit(STRIPE_R5C_CACHING, &sh->state));
+	_ON(test_bit(STRIPE_HANDLE, &sh->state));
 
 	/*
 	 * The stripe is not ON_RELEASE_LIST, so it is safe to call
 	 * raid5_release_stripe() while holding conf->device_lock
 	 */
-	BUG_ON(test_bit(STRIPE_ON_RELEASE_LIST, &sh->state));
+	_ON(test_bit(STRIPE_ON_RELEASE_LIST, &sh->state));
 	lockdep_assert_held(&conf->device_lock);
 
 	list_del_init(&sh->lru);
@@ -1729,7 +1729,7 @@ static int r5l_recovery_read_page(struct r5l_log *log,
 			return ret;
 	}
 
-	BUG_ON(offset < ctx->pool_offset ||
+	_ON(offset < ctx->pool_offset ||
 	       offset >= ctx->pool_offset + ctx->valid_pages * BLOCK_SECTORS);
 
 	memcpy(page_address(page),
@@ -2165,7 +2165,7 @@ r5c_recovery_analyze_meta_block(struct r5l_log *log,
 			}
 			if (!sh) {
 				int new_size = conf->min_nr_stripes * 2;
-				pr_debug("md/raid:%s: Increasing stripe cache size to %d to recovery data on journal.\n",
+				pr_de("md/raid:%s: Increasing stripe cache size to %d to recovery data on journal.\n",
 					mdname(mddev),
 					new_size);
 				ret = raid5_set_cache_size(mddev, new_size);
@@ -2597,7 +2597,7 @@ int r5c_journal_mode_set(struct mddev *mddev, int mode)
 	conf->log->r5c_journal_mode = mode;
 	mddev_resume(mddev);
 
-	pr_debug("md/raid:%s: setting r5c cache mode to %d: %s\n",
+	pr_de("md/raid:%s: setting r5c cache mode to %d: %s\n",
 		 mdname(mddev), mode, r5c_journal_mode_str[mode]);
 	return 0;
 }
@@ -2654,7 +2654,7 @@ int r5c_try_caching_write(struct r5conf *conf,
 	int ret;
 	uintptr_t refcount;
 
-	BUG_ON(!r5c_is_writeback(log));
+	_ON(!r5c_is_writeback(log));
 
 	if (!test_bit(STRIPE_R5C_CACHING, &sh->state)) {
 		/*
@@ -2862,7 +2862,7 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 		spin_lock(&log->tree_lock);
 		pslot = radix_tree_lookup_slot(&log->big_stripe_tree,
 					       tree_index);
-		BUG_ON(pslot == NULL);
+		_ON(pslot == NULL);
 		refcount = (uintptr_t)radix_tree_deref_slot_protected(
 			pslot, &log->tree_lock) >>
 			R5C_RADIX_COUNT_SHIFT;
@@ -2876,13 +2876,13 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 	}
 
 	if (test_and_clear_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state)) {
-		BUG_ON(atomic_read(&conf->r5c_cached_partial_stripes) == 0);
+		_ON(atomic_read(&conf->r5c_cached_partial_stripes) == 0);
 		atomic_dec(&conf->r5c_flushing_partial_stripes);
 		atomic_dec(&conf->r5c_cached_partial_stripes);
 	}
 
 	if (test_and_clear_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
-		BUG_ON(atomic_read(&conf->r5c_cached_full_stripes) == 0);
+		_ON(atomic_read(&conf->r5c_cached_full_stripes) == 0);
 		atomic_dec(&conf->r5c_flushing_full_stripes);
 		atomic_dec(&conf->r5c_cached_full_stripes);
 	}
@@ -2901,7 +2901,7 @@ int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)
 	int i;
 	int ret = 0;
 
-	BUG_ON(!log);
+	_ON(!log);
 
 	for (i = 0; i < sh->disks; i++) {
 		void *addr;
@@ -2932,7 +2932,7 @@ int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)
 		r5l_add_no_space_stripe(log, sh);
 	else if (!r5l_has_free_space(log, reserve)) {
 		if (sh->log_start == log->last_checkpoint)
-			BUG();
+			();
 		else
 			r5l_add_no_space_stripe(log, sh);
 	} else {
@@ -3077,7 +3077,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	char b[BDEVNAME_SIZE];
 	int ret;
 
-	pr_debug("md/raid:%s: using device %s as journal\n",
+	pr_de("md/raid:%s: using device %s as journal\n",
 		 mdname(conf->mddev), bdevname(rdev->bdev, b));
 
 	if (PAGE_SIZE != 4096)

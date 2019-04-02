@@ -37,9 +37,9 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-fwnode.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de level (0-2)");
 
 MODULE_DESCRIPTION("Analog Devices ADV7604 video decoder driver");
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
@@ -494,7 +494,7 @@ static inline int edid_write_block(struct v4l2_subdev *sd,
 	int i = 0;
 	int len = 0;
 
-	v4l2_dbg(2, debug, sd, "%s: write EDID block (%d byte)\n",
+	v4l2_dbg(2, de, sd, "%s: write EDID block (%d byte)\n",
 				__func__, total_len);
 
 	while (!err && i < total_len) {
@@ -527,7 +527,7 @@ static void adv76xx_delayed_work_enable_hotplug(struct work_struct *work)
 						delayed_work_enable_hotplug);
 	struct v4l2_subdev *sd = &state->sd;
 
-	v4l2_dbg(2, debug, sd, "%s: enable hotplug\n", __func__);
+	v4l2_dbg(2, de, sd, "%s: enable hotplug\n", __func__);
 
 	adv76xx_set_hpd(state, state->edid.present);
 }
@@ -604,7 +604,7 @@ static inline int vdp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 #define ADV76XX_REG(page, offset)	(((page) << 8) | (offset))
 #define ADV76XX_REG_SEQ_TERM		0xffff
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int adv76xx_read_reg(struct v4l2_subdev *sd, unsigned int reg)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -820,7 +820,7 @@ adv76xx_get_dv_timings_cap(struct v4l2_subdev *sd, int pad)
 
 /* ----------------------------------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static void adv76xx_inv_register(struct v4l2_subdev *sd)
 {
 	v4l2_info(sd, "0x000-0x0ff: IO Map\n");
@@ -934,7 +934,7 @@ static int configure_predefined_video_timings(struct v4l2_subdev *sd,
 	struct adv76xx_state *state = to_state(sd);
 	int err;
 
-	v4l2_dbg(1, debug, sd, "%s", __func__);
+	v4l2_dbg(1, de, sd, "%s", __func__);
 
 	if (adv76xx_has_afe(state)) {
 		/* reset to default values */
@@ -967,7 +967,7 @@ static int configure_predefined_video_timings(struct v4l2_subdev *sd,
 			err = find_and_set_predefined_video_timings(sd,
 					0x06, adv76xx_prim_mode_hdmi_gr, timings);
 	} else {
-		v4l2_dbg(2, debug, sd, "%s: Unknown port %d selected\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown port %d selected\n",
 				__func__, state->selected_input);
 		err = -1;
 	}
@@ -993,7 +993,7 @@ static void configure_custom_video_timings(struct v4l2_subdev *sd,
 		width & 0xff
 	};
 
-	v4l2_dbg(2, debug, sd, "%s\n", __func__);
+	v4l2_dbg(2, de, sd, "%s\n", __func__);
 
 	if (is_analog_input(sd)) {
 		/* auto graphics */
@@ -1026,7 +1026,7 @@ static void configure_custom_video_timings(struct v4l2_subdev *sd,
 		io_write(sd, 0x00, 0x02); /* video std */
 		io_write(sd, 0x01, 0x06); /* prim mode */
 	} else {
-		v4l2_dbg(2, debug, sd, "%s: Unknown port %d selected\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown port %d selected\n",
 				__func__, state->selected_input);
 	}
 
@@ -1047,7 +1047,7 @@ static void adv76xx_set_offset(struct v4l2_subdev *sd, bool auto_offset, u16 off
 		offset_c = 0x3ff;
 	}
 
-	v4l2_dbg(2, debug, sd, "%s: %s offset: a = 0x%x, b = 0x%x, c = 0x%x\n",
+	v4l2_dbg(2, de, sd, "%s: %s offset: a = 0x%x, b = 0x%x, c = 0x%x\n",
 			__func__, auto_offset ? "Auto" : "Manual",
 			offset_a, offset_b, offset_c);
 
@@ -1077,7 +1077,7 @@ static void adv76xx_set_gain(struct v4l2_subdev *sd, bool auto_gain, u16 gain_a,
 		gain_c = 0x100;
 	}
 
-	v4l2_dbg(2, debug, sd, "%s: %s gain: a = 0x%x, b = 0x%x, c = 0x%x\n",
+	v4l2_dbg(2, de, sd, "%s: %s gain: a = 0x%x, b = 0x%x, c = 0x%x\n",
 			__func__, auto_gain ? "Auto" : "Manual",
 			gain_a, gain_b, gain_c);
 
@@ -1102,7 +1102,7 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 	if (hdmi_signal && (io_read(sd, 0x60) & 1))
 		y = infoframe_read(sd, 0x01) >> 5;
 
-	v4l2_dbg(2, debug, sd, "%s: RGB quantization range: %d, RGB out: %d, HDMI: %d\n",
+	v4l2_dbg(2, de, sd, "%s: RGB quantization range: %d, RGB out: %d, HDMI: %d\n",
 			__func__, state->rgb_quantization_range,
 			rgb_output, hdmi_signal);
 
@@ -1345,7 +1345,7 @@ static int adv76xx_g_input_status(struct v4l2_subdev *sd, u32 *status)
 		*status |= is_digital_input(sd) ?
 			   V4L2_IN_ST_NO_SYNC : V4L2_IN_ST_NO_H_LOCK;
 
-	v4l2_dbg(1, debug, sd, "%s: status = 0x%x\n", __func__, *status);
+	v4l2_dbg(1, de, sd, "%s: status = 0x%x\n", __func__, *status);
 
 	return 0;
 }
@@ -1399,7 +1399,7 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 			false, state->aspect_ratio, timings))
 		return 0;
 
-	v4l2_dbg(2, debug, sd,
+	v4l2_dbg(2, de, sd,
 		"%s: No format candidate found for lcvs = %d, lcf=%d, bl = %d, %chsync, %cvsync\n",
 		__func__, stdi->lcvs, stdi->lcf, stdi->bl,
 		stdi->hs_pol, stdi->vs_pol);
@@ -1414,7 +1414,7 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 	u8 polarity;
 
 	if (no_lock_stdi(sd) || no_lock_sspd(sd)) {
-		v4l2_dbg(2, debug, sd, "%s: STDI and/or SSPD not locked\n", __func__);
+		v4l2_dbg(2, de, sd, "%s: STDI and/or SSPD not locked\n", __func__);
 		return -1;
 	}
 
@@ -1443,18 +1443,18 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 	}
 
 	if (no_lock_stdi(sd) || no_lock_sspd(sd)) {
-		v4l2_dbg(2, debug, sd,
+		v4l2_dbg(2, de, sd,
 			"%s: signal lost during readout of STDI/SSPD\n", __func__);
 		return -1;
 	}
 
 	if (stdi->lcf < 239 || stdi->bl < 8 || stdi->bl == 0x3fff) {
-		v4l2_dbg(2, debug, sd, "%s: invalid signal\n", __func__);
+		v4l2_dbg(2, de, sd, "%s: invalid signal\n", __func__);
 		memset(stdi, 0, sizeof(struct stdi_readback));
 		return -1;
 	}
 
-	v4l2_dbg(2, debug, sd,
+	v4l2_dbg(2, de, sd,
 		"%s: lcf (frame height - 1) = %d, bl = %d, lcvs (vsync) = %d, %chsync, %cvsync, %s\n",
 		__func__, stdi->lcf, stdi->bl, stdi->lcvs,
 		stdi->hs_pol, stdi->vs_pol,
@@ -1548,13 +1548,13 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 
 	if (no_signal(sd)) {
 		state->restart_stdi_once = true;
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: no valid signal\n", __func__);
 		return -ENOLINK;
 	}
 
 	/* read STDI */
 	if (read_stdi(sd, &stdi)) {
-		v4l2_dbg(1, debug, sd, "%s: STDI/SSPD not locked\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: STDI/SSPD not locked\n", __func__);
 		return -ENOLINK;
 	}
 	bt->interlaced = stdi.interlaced ?
@@ -1609,11 +1609,11 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 		if (!stdi2dv_timings(sd, &stdi, timings))
 			goto found;
 		stdi.lcvs += 1;
-		v4l2_dbg(1, debug, sd, "%s: lcvs + 1 = %d\n", __func__, stdi.lcvs);
+		v4l2_dbg(1, de, sd, "%s: lcvs + 1 = %d\n", __func__, stdi.lcvs);
 		if (!stdi2dv_timings(sd, &stdi, timings))
 			goto found;
 		stdi.lcvs -= 2;
-		v4l2_dbg(1, debug, sd, "%s: lcvs - 1 = %d\n", __func__, stdi.lcvs);
+		v4l2_dbg(1, de, sd, "%s: lcvs - 1 = %d\n", __func__, stdi.lcvs);
 		if (stdi2dv_timings(sd, &stdi, timings)) {
 			/*
 			 * The STDI block may measure wrong values, especially
@@ -1625,7 +1625,7 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 			 * restart.
 			 */
 			if (state->restart_stdi_once) {
-				v4l2_dbg(1, debug, sd, "%s: restart STDI\n", __func__);
+				v4l2_dbg(1, de, sd, "%s: restart STDI\n", __func__);
 				/* TODO restart STDI for Sync Channel 2 */
 				/* enter one-shot mode */
 				cp_write_clr_set(sd, 0x86, 0x06, 0x00);
@@ -1636,7 +1636,7 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 				state->restart_stdi_once = false;
 				return -ENOLINK;
 			}
-			v4l2_dbg(1, debug, sd, "%s: format not supported\n", __func__);
+			v4l2_dbg(1, de, sd, "%s: format not supported\n", __func__);
 			return -ERANGE;
 		}
 		state->restart_stdi_once = true;
@@ -1644,19 +1644,19 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 found:
 
 	if (no_signal(sd)) {
-		v4l2_dbg(1, debug, sd, "%s: signal lost during readout\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: signal lost during readout\n", __func__);
 		memset(timings, 0, sizeof(struct v4l2_dv_timings));
 		return -ENOLINK;
 	}
 
 	if ((is_analog_input(sd) && bt->pixelclock > 170000000) ||
 			(is_digital_input(sd) && bt->pixelclock > 225000000)) {
-		v4l2_dbg(1, debug, sd, "%s: pixelclock out of range %d\n",
+		v4l2_dbg(1, de, sd, "%s: pixelclock out of range %d\n",
 				__func__, (u32)bt->pixelclock);
 		return -ERANGE;
 	}
 
-	if (debug > 1)
+	if (de > 1)
 		v4l2_print_dv_timings(sd->name, "adv76xx_query_dv_timings: ",
 				      timings, true);
 
@@ -1674,7 +1674,7 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
-		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: no change\n", __func__);
 		return 0;
 	}
 
@@ -1700,7 +1700,7 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 
 	set_rgb_quantization_range(sd);
 
-	if (debug > 1)
+	if (de > 1)
 		v4l2_print_dv_timings(sd->name, "adv76xx_s_dv_timings: ",
 				      timings, true);
 	return 0;
@@ -1737,7 +1737,7 @@ static void enable_input(struct v4l2_subdev *sd)
 		io_write(sd, 0x15, 0xa0);   /* Disable Tristate of Pins */
 		hdmi_write_clr_set(sd, 0x1a, 0x10, 0x00); /* Unmute audio */
 	} else {
-		v4l2_dbg(2, debug, sd, "%s: Unknown port %d selected\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown port %d selected\n",
 				__func__, state->selected_input);
 	}
 }
@@ -1778,7 +1778,7 @@ static void select_input(struct v4l2_subdev *sd)
 		cp_write(sd, 0xc3, 0x39); /* CP coast control. Graphics mode */
 		cp_write(sd, 0x40, 0x80); /* CP core pre-gain control. Graphics mode */
 	} else {
-		v4l2_dbg(2, debug, sd, "%s: Unknown port %d selected\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown port %d selected\n",
 				__func__, state->selected_input);
 	}
 }
@@ -1788,7 +1788,7 @@ static int adv76xx_s_routing(struct v4l2_subdev *sd,
 {
 	struct adv76xx_state *state = to_state(sd);
 
-	v4l2_dbg(2, debug, sd, "%s: input %d, selected input %d",
+	v4l2_dbg(2, de, sd, "%s: input %d, selected input %d",
 			__func__, input, state->selected_input);
 
 	if (input == state->selected_input)
@@ -1967,12 +1967,12 @@ static void adv76xx_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 	struct adv76xx_state *state = to_state(sd);
 
 	if ((cec_read(sd, 0x11) & 0x01) == 0) {
-		v4l2_dbg(1, debug, sd, "%s: tx raw: tx disabled\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: tx raw: tx disabled\n", __func__);
 		return;
 	}
 
 	if (tx_raw_status & 0x02) {
-		v4l2_dbg(1, debug, sd, "%s: tx raw: arbitration lost\n",
+		v4l2_dbg(1, de, sd, "%s: tx raw: arbitration lost\n",
 			 __func__);
 		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_ARB_LOST,
 				  1, 0, 0, 0);
@@ -1983,7 +1983,7 @@ static void adv76xx_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 		u8 nack_cnt;
 		u8 low_drive_cnt;
 
-		v4l2_dbg(1, debug, sd, "%s: tx raw: retry failed\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: tx raw: retry failed\n", __func__);
 		/*
 		 * We set this status bit since this hardware performs
 		 * retransmissions.
@@ -2000,7 +2000,7 @@ static void adv76xx_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 		return;
 	}
 	if (tx_raw_status & 0x01) {
-		v4l2_dbg(1, debug, sd, "%s: tx raw: ready ok\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: tx raw: ready ok\n", __func__);
 		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_OK, 0, 0, 0, 0);
 		return;
 	}
@@ -2017,7 +2017,7 @@ static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 	if (!cec_irq)
 		return;
 
-	v4l2_dbg(1, debug, sd, "%s: cec: irq 0x%x\n", __func__, cec_irq);
+	v4l2_dbg(1, de, sd, "%s: cec: irq 0x%x\n", __func__, cec_irq);
 	adv76xx_cec_tx_raw_status(sd, cec_irq);
 	if (cec_irq & 0x08) {
 		struct cec_msg msg;
@@ -2192,7 +2192,7 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	if (irq_reg_0x6b)
 		io_write(sd, 0x6c, irq_reg_0x6b);
 
-	v4l2_dbg(2, debug, sd, "%s: ", __func__);
+	v4l2_dbg(2, de, sd, "%s: ", __func__);
 
 	/* format change */
 	fmt_change = irq_reg_0x43 & 0x98;
@@ -2201,7 +2201,7 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			   : 0;
 
 	if (fmt_change || fmt_change_digital) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"%s: fmt_change = 0x%x, fmt_change_digital = 0x%x\n",
 			__func__, fmt_change, fmt_change_digital);
 
@@ -2212,7 +2212,7 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	}
 	/* HDMI/DVI mode */
 	if (irq_reg_0x6b & 0x01) {
-		v4l2_dbg(1, debug, sd, "%s: irq %s mode\n", __func__,
+		v4l2_dbg(1, de, sd, "%s: irq %s mode\n", __func__,
 			(io_read(sd, 0x6a) & 0x01) ? "HDMI" : "DVI");
 		set_rgb_quantization_range(sd);
 		if (handled)
@@ -2227,7 +2227,7 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	/* tx 5v detect */
 	tx_5v = irq_reg_0x70 & info->cable_det_mask;
 	if (tx_5v) {
-		v4l2_dbg(1, debug, sd, "%s: tx_5v: 0x%x\n", __func__, tx_5v);
+		v4l2_dbg(1, de, sd, "%s: tx_5v: 0x%x\n", __func__, tx_5v);
 		adv76xx_s_detect_tx_5v_ctrl(sd);
 		if (handled)
 			*handled = true;
@@ -2313,7 +2313,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 			cec_phys_addr_invalidate(state->cec_adap);
 		}
 
-		v4l2_dbg(2, debug, sd, "%s: clear EDID pad %d, edid.present = 0x%x\n",
+		v4l2_dbg(2, de, sd, "%s: clear EDID pad %d, edid.present = 0x%x\n",
 				__func__, edid->pad, state->edid.present);
 		return 0;
 	}
@@ -2326,7 +2326,7 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	if (err)
 		return err;
 
-	v4l2_dbg(2, debug, sd, "%s: write EDID pad %d, edid.present = 0x%x\n",
+	v4l2_dbg(2, de, sd, "%s: write EDID pad %d, edid.present = 0x%x\n",
 			__func__, edid->pad, state->edid.present);
 
 	/* Disable hotplug and I2C access to EDID RAM from DDC port */
@@ -2675,7 +2675,7 @@ static const struct v4l2_subdev_core_ops adv76xx_core_ops = {
 	.interrupt_service_routine = adv76xx_isr,
 	.subscribe_event = adv76xx_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = adv76xx_g_register,
 	.s_register = adv76xx_s_register,
 #endif
@@ -3354,7 +3354,7 @@ static int adv76xx_probe(struct i2c_client *client,
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
-	v4l_dbg(1, debug, client, "detecting adv76xx client on address 0x%x\n",
+	v4l_dbg(1, de, client, "detecting adv76xx client on address 0x%x\n",
 			client->addr << 1);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);

@@ -38,7 +38,7 @@ int hva_hw_runtime_suspend(struct device *dev);
 int hva_hw_runtime_resume(struct device *dev);
 int hva_hw_execute_task(struct hva_ctx *ctx, enum hva_hw_cmd_type cmd,
 			struct hva_buffer *task);
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 void hva_hw_dump_regs(struct hva_dev *hva, struct seq_file *s);
 #endif
 

@@ -66,7 +66,7 @@ struct mic_device {
  * struct mic_driver - MIC card driver information.
  *
  * @name: Name for MIC driver.
- * @dbg_dir: debugfs directory of this MIC device.
+ * @dbg_dir: defs directory of this MIC device.
  * @dev: The device backing this MIC.
  * @dp: The pointer to the virtio device page.
  * @mdev: MIC device information for the host.
@@ -142,8 +142,8 @@ void mic_hw_intr_init(struct mic_driver *mdrv);
 void __iomem *
 mic_card_map(struct mic_device *mdev, dma_addr_t addr, size_t size);
 void mic_card_unmap(struct mic_device *mdev, void __iomem *addr);
-void __init mic_create_card_debug_dir(struct mic_driver *mdrv);
-void mic_delete_card_debug_dir(struct mic_driver *mdrv);
-void __init mic_init_card_debugfs(void);
-void mic_exit_card_debugfs(void);
+void __init mic_create_card_de_dir(struct mic_driver *mdrv);
+void mic_delete_card_de_dir(struct mic_driver *mdrv);
+void __init mic_init_card_defs(void);
+void mic_exit_card_defs(void);
 #endif

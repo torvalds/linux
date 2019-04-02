@@ -12,7 +12,7 @@
  * Changes:
  *     Wensong Zhang            :     changed the ip_vs_wlc_schedule to return dest
  *     Wensong Zhang            :     changed to use the inactconns in scheduling
- *     Wensong Zhang            :     changed some comestics things for debugging
+ *     Wensong Zhang            :     changed some comestics things for deging
  *     Wensong Zhang            :     changed for the d-linked destination list
  *     Wensong Zhang            :     added the ip_vs_wlc_update_svc
  *     Wensong Zhang            :     added any dest with weight=0 is quiesced

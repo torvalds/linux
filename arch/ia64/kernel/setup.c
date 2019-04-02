@@ -379,7 +379,7 @@ reserve_memory (void)
 	n++;
 
 	num_rsvd_regions = n;
-	BUG_ON(IA64_MAX_RSVD_REGIONS + 1 < n);
+	_ON(IA64_MAX_RSVD_REGIONS + 1 < n);
 
 	sort_regions(rsvd_region, num_rsvd_regions);
 	num_rsvd_regions = merge_regions(rsvd_region, num_rsvd_regions);
@@ -450,7 +450,7 @@ io_port_init (void)
 }
 
 /**
- * early_console_setup - setup debugging console
+ * early_console_setup - setup deging console
  *
  * Consoles started here require little enough setup that we can start using
  * them very early in the boot process, either right after the machine
@@ -996,7 +996,7 @@ cpu_init (void)
 					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
+	_ON(current->mm);
 
 	ia64_mmu_init(ia64_imva(cpu_data));
 	ia64_mca_cpu_init(ia64_imva(cpu_data));
@@ -1050,7 +1050,7 @@ cpu_init (void)
 }
 
 void __init
-check_bugs (void)
+check_s (void)
 {
 	ia64_patch_mckinley_e9((unsigned long) __start___mckinley_e9_bundles,
 			       (unsigned long) __end___mckinley_e9_bundles);

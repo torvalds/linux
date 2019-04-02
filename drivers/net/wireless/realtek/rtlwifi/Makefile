@@ -4,7 +4,7 @@ rtlwifi-objs	:=		\
 		base.o		\
 		cam.o		\
 		core.o		\
-		debug.o		\
+		de.o		\
 		efuse.o		\
 		ps.o		\
 		rc.o		\

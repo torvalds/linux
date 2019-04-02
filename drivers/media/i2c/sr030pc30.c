@@ -26,8 +26,8 @@
 #include <media/v4l2-ctrls.h>
 #include <media/i2c/sr030pc30.h>
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 #define MODULE_NAME	"SR030PC30"
 
@@ -425,7 +425,7 @@ static int sr030pc30_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev *sd = &info->sd;
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: ctrl_id: %d, value: %d\n",
+	v4l2_dbg(1, de, sd, "%s: ctrl_id: %d, value: %d\n",
 			 __func__, ctrl->id, ctrl->val);
 
 	switch (ctrl->id) {
@@ -575,7 +575,7 @@ static int sr030pc30_base_config(struct v4l2_subdev *sd)
 	expmin = EXPOS_MIN_MS * info->pdata->clk_rate / (8 * 1000);
 	expmax = EXPOS_MAX_MS * info->pdata->clk_rate / (8 * 1000);
 
-	v4l2_dbg(1, debug, sd, "%s: expmin= %lx, expmax= %lx", __func__,
+	v4l2_dbg(1, de, sd, "%s: expmin= %lx, expmax= %lx", __func__,
 		 expmin, expmax);
 
 	/* Setting up manual exposure time range */

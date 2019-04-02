@@ -21,7 +21,7 @@
  *
  */
 /*
- * dc_debug.c
+ * dc_de.c
  *
  *  Created on: Nov 3, 2016
  *      Author: yonsun
@@ -41,17 +41,17 @@
 
 
 #define SURFACE_TRACE(...) do {\
-		if (dc->debug.surface_trace) \
+		if (dc->de.surface_trace) \
 			DC_LOG_IF_TRACE(__VA_ARGS__); \
 } while (0)
 
 #define TIMING_TRACE(...) do {\
-	if (dc->debug.timing_trace) \
+	if (dc->de.timing_trace) \
 		DC_LOG_SYNC(__VA_ARGS__); \
 } while (0)
 
 #define CLOCK_TRACE(...) do {\
-	if (dc->debug.clock_trace) \
+	if (dc->de.clock_trace) \
 		DC_LOG_BANDWIDTH_CALCS(__VA_ARGS__); \
 } while (0)
 

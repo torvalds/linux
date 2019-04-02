@@ -18,7 +18,7 @@
  * Status: works
  *
  * Thanks go to Fredrik Lingvall for much testing and perseverance in
- * helping to debug daqcard-1200 support.
+ * helping to de daqcard-1200 support.
  *
  * The 1200 series boards have onboard calibration dacs for correcting
  * analog input/output offsets and gains. The proper settings for these

@@ -127,14 +127,14 @@ bool is_ppc64le(void)
 	return strcmp(uts.machine, "ppc64le") == 0;
 }
 
-int read_debugfs_file(char *debugfs_file, int *result)
+int read_defs_file(char *defs_file, int *result)
 {
 	int rc = -1, fd;
 	char path[PATH_MAX];
 	char value[16];
 
-	strcpy(path, "/sys/kernel/debug/");
-	strncat(path, debugfs_file, PATH_MAX - strlen(path) - 1);
+	strcpy(path, "/sys/kernel/de/");
+	strncat(path, defs_file, PATH_MAX - strlen(path) - 1);
 
 	if ((fd = open(path, O_RDONLY)) < 0)
 		return rc;
@@ -149,14 +149,14 @@ int read_debugfs_file(char *debugfs_file, int *result)
 	return 0;
 }
 
-int write_debugfs_file(char *debugfs_file, int result)
+int write_defs_file(char *defs_file, int result)
 {
 	int rc = -1, fd;
 	char path[PATH_MAX];
 	char value[16];
 
-	strcpy(path, "/sys/kernel/debug/");
-	strncat(path, debugfs_file, PATH_MAX - strlen(path) - 1);
+	strcpy(path, "/sys/kernel/de/");
+	strncat(path, defs_file, PATH_MAX - strlen(path) - 1);
 
 	if ((fd = open(path, O_WRONLY)) < 0)
 		return rc;

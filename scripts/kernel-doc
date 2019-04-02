@@ -305,7 +305,7 @@ my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
 # CAVEAT EMPTOR!  Some of the others I localised may not want to be, which
-# could cause "use of undefined value" or other bugs.
+# could cause "use of undefined value" or other s.
 my ($function, %function_table, %parametertypes, $declaration_purpose);
 my $declaration_start_line;
 my ($type, $declaration_name, $return_type);
@@ -539,7 +539,7 @@ sub output_highlight {
     my $contents = join "\n",@_;
     my $line;
 
-#   DEBUG
+#   DE
 #   if (!defined $contents) {
 #	use Carp;
 #	confess "output_highlight got called with no args?\n";

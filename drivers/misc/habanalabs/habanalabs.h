@@ -243,7 +243,7 @@ struct hl_cb_mgr {
  * @refcount: reference counter for usage of the CB.
  * @hdev: pointer to device this CB belongs to.
  * @lock: spinlock to protect mmap/cs flows.
- * @debugfs_list: node in debugfs list of command buffers.
+ * @defs_list: node in defs list of command buffers.
  * @pool_list: node in pool list of command buffers.
  * @kernel_address: Holds the CB's kernel virtual address.
  * @bus_address: Holds the CB's DMA address.
@@ -259,7 +259,7 @@ struct hl_cb {
 	struct kref		refcount;
 	struct hl_device	*hdev;
 	spinlock_t		lock;
-	struct list_head	debugfs_list;
+	struct list_head	defs_list;
 	struct list_head	pool_list;
 	u64			kernel_address;
 	dma_addr_t		bus_address;
@@ -459,8 +459,8 @@ enum hl_pll_frequency {
  * @update_eq_ci: update event queue CI.
  * @context_switch: called upon ASID context switch.
  * @restore_phase_topology: clear all SOBs amd MONs.
- * @debugfs_read32: debug interface for reading u32 from DRAM/SRAM.
- * @debugfs_write32: debug interface for writing u32 to DRAM/SRAM.
+ * @defs_read32: de interface for reading u32 from DRAM/SRAM.
+ * @defs_write32: de interface for writing u32 to DRAM/SRAM.
  * @add_device_attr: add ASIC specific device attributes.
  * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
  * @set_pll_profile: change PLL profile (manual/automatic).
@@ -528,8 +528,8 @@ struct hl_asic_funcs {
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
 	int (*context_switch)(struct hl_device *hdev, u32 asid);
 	void (*restore_phase_topology)(struct hl_device *hdev);
-	int (*debugfs_read32)(struct hl_device *hdev, u64 addr, u32 *val);
-	int (*debugfs_write32)(struct hl_device *hdev, u64 addr, u32 val);
+	int (*defs_read32)(struct hl_device *hdev, u64 addr, u32 *val);
+	int (*defs_write32)(struct hl_device *hdev, u64 addr, u32 val);
 	void (*add_device_attr)(struct hl_device *hdev,
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
@@ -593,7 +593,7 @@ struct hl_va_range {
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
  *            MMU hash or walking the PGT requires talking this lock
- * @debugfs_list: node in debugfs list of contexts.
+ * @defs_list: node in defs list of contexts.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
@@ -620,7 +620,7 @@ struct hl_ctx {
 	struct hl_va_range	dram_va_range;
 	struct mutex		mem_hash_lock;
 	struct mutex		mmu_lock;
-	struct list_head	debugfs_list;
+	struct list_head	defs_list;
 	u64			cs_sequence;
 	u64			*dram_default_hops;
 	spinlock_t		cs_lock;
@@ -653,7 +653,7 @@ struct hl_ctx_mgr {
  * @vec: pointer to the frame vector.
  * @sgt: pointer to the scatter-gather table that holds the pages.
  * @dir: for DMA unmapping, the direction must be supplied, so save it.
- * @debugfs_list: node in debugfs list of command submissions.
+ * @defs_list: node in defs list of command submissions.
  * @addr: user-space virtual pointer to the start of the memory area.
  * @size: size of the memory area to pin & map.
  * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
@@ -664,7 +664,7 @@ struct hl_userptr {
 	struct frame_vector	*vec;
 	struct sg_table		*sgt;
 	enum dma_data_direction dir;
-	struct list_head	debugfs_list;
+	struct list_head	defs_list;
 	u64			addr;
 	u32			size;
 	u8			dma_mapped;
@@ -680,7 +680,7 @@ struct hl_userptr {
  * @fence: pointer to the fence object of this CS.
  * @work_tdr: delayed work node for TDR.
  * @mirror_node : node in device mirror list of command submissions.
- * @debugfs_list: node in debugfs list of command submissions.
+ * @defs_list: node in defs list of command submissions.
  * @sequence: the sequence number of this CS.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
@@ -698,7 +698,7 @@ struct hl_cs {
 	struct dma_fence	*fence;
 	struct delayed_work	work_tdr;
 	struct list_head	mirror_node;
-	struct list_head	debugfs_list;
+	struct list_head	defs_list;
 	u64			sequence;
 	u8			submitted;
 	u8			completed;
@@ -717,7 +717,7 @@ struct hl_cs {
  * @finish_work: workqueue object to run when job is completed.
  * @userptr_list: linked-list of userptr mappings that belong to this job and
  *			wait for completion.
- * @debugfs_list: node in debugfs list of command submission jobs.
+ * @defs_list: node in defs list of command submission jobs.
  * @id: the id of this job inside a CS.
  * @hw_queue_id: the id of the H/W queue this job is submitted to.
  * @user_cb_size: the actual size of the CB we got from the user.
@@ -731,7 +731,7 @@ struct hl_cs_job {
 	struct hl_cb		*patched_cb;
 	struct work_struct	finish_work;
 	struct list_head	userptr_list;
-	struct list_head	debugfs_list;
+	struct list_head	defs_list;
 	u32			id;
 	u32			hw_queue_id;
 	u32			user_cb_size;
@@ -862,7 +862,7 @@ struct hl_vm {
  * @ctx: current executing context.
  * @ctx_mgr: context manager to handle multiple context for this FD.
  * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
- * @debugfs_list: list of relevant ASIC debugfs.
+ * @defs_list: list of relevant ASIC defs.
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
  */
@@ -873,18 +873,18 @@ struct hl_fpriv {
 	struct hl_ctx		*ctx; /* TODO: remove for multiple ctx */
 	struct hl_ctx_mgr	ctx_mgr;
 	struct hl_cb_mgr	cb_mgr;
-	struct list_head	debugfs_list;
+	struct list_head	defs_list;
 	struct kref		refcount;
 	struct mutex		restore_phase_mutex;
 };
 
 
 /*
- * DebugFS
+ * DeFS
  */
 
 /**
- * struct hl_info_list - debugfs file ops.
+ * struct hl_info_list - defs file ops.
  * @name: file name.
  * @show: function to output information.
  * @write: function to write to the file.
@@ -897,23 +897,23 @@ struct hl_info_list {
 };
 
 /**
- * struct hl_debugfs_entry - debugfs dentry wrapper.
- * @dent: base debugfs entry structure.
+ * struct hl_defs_entry - defs dentry wrapper.
+ * @dent: base defs entry structure.
  * @info_ent: dentry realted ops.
- * @dev_entry: ASIC specific debugfs manager.
+ * @dev_entry: ASIC specific defs manager.
  */
-struct hl_debugfs_entry {
+struct hl_defs_entry {
 	struct dentry			*dent;
 	const struct hl_info_list	*info_ent;
 	struct hl_dbg_device_entry	*dev_entry;
 };
 
 /**
- * struct hl_dbg_device_entry - ASIC specific debugfs manager.
+ * struct hl_dbg_device_entry - ASIC specific defs manager.
  * @root: root dentry.
  * @hdev: habanalabs device structure.
- * @entry_arr: array of available hl_debugfs_entry.
- * @file_list: list of available debugfs files.
+ * @entry_arr: array of available hl_defs_entry.
+ * @file_list: list of available defs files.
  * @file_mutex: protects file_list.
  * @cb_list: list of available CBs.
  * @cb_spinlock: protects cb_list.
@@ -928,14 +928,14 @@ struct hl_debugfs_entry {
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
  * @mmu_asid: ASID to use while translating in mmu_show.
- * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
- * @i2c_bus: generic u8 debugfs file for address value to use in i2c_data_read.
- * @i2c_bus: generic u8 debugfs file for register value to use in i2c_data_read.
+ * @i2c_bus: generic u8 defs file for bus value to use in i2c_data_read.
+ * @i2c_bus: generic u8 defs file for address value to use in i2c_data_read.
+ * @i2c_bus: generic u8 defs file for register value to use in i2c_data_read.
  */
 struct hl_dbg_device_entry {
 	struct dentry			*root;
 	struct hl_device		*hdev;
-	struct hl_debugfs_entry		*entry_arr;
+	struct hl_defs_entry		*entry_arr;
 	struct list_head		file_list;
 	struct mutex			file_mutex;
 	struct list_head		cb_list;
@@ -1051,7 +1051,7 @@ struct hl_device_reset_work {
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
- * @hl_debugfs: device's debugfs manager.
+ * @hl_defs: device's defs manager.
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
@@ -1121,7 +1121,7 @@ struct hl_device {
 	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;
 
-	struct hl_dbg_device_entry	hl_debugfs;
+	struct hl_dbg_device_entry	hl_defs;
 
 	struct list_head		cb_pool;
 	spinlock_t			cb_pool_lock;
@@ -1363,94 +1363,94 @@ void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 u64 hl_get_max_power(struct hl_device *hdev);
 void hl_set_max_power(struct hl_device *hdev, u64 value);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-void hl_debugfs_init(void);
-void hl_debugfs_fini(void);
-void hl_debugfs_add_device(struct hl_device *hdev);
-void hl_debugfs_remove_device(struct hl_device *hdev);
-void hl_debugfs_add_file(struct hl_fpriv *hpriv);
-void hl_debugfs_remove_file(struct hl_fpriv *hpriv);
-void hl_debugfs_add_cb(struct hl_cb *cb);
-void hl_debugfs_remove_cb(struct hl_cb *cb);
-void hl_debugfs_add_cs(struct hl_cs *cs);
-void hl_debugfs_remove_cs(struct hl_cs *cs);
-void hl_debugfs_add_job(struct hl_device *hdev, struct hl_cs_job *job);
-void hl_debugfs_remove_job(struct hl_device *hdev, struct hl_cs_job *job);
-void hl_debugfs_add_userptr(struct hl_device *hdev, struct hl_userptr *userptr);
-void hl_debugfs_remove_userptr(struct hl_device *hdev,
+void hl_defs_init(void);
+void hl_defs_fini(void);
+void hl_defs_add_device(struct hl_device *hdev);
+void hl_defs_remove_device(struct hl_device *hdev);
+void hl_defs_add_file(struct hl_fpriv *hpriv);
+void hl_defs_remove_file(struct hl_fpriv *hpriv);
+void hl_defs_add_cb(struct hl_cb *cb);
+void hl_defs_remove_cb(struct hl_cb *cb);
+void hl_defs_add_cs(struct hl_cs *cs);
+void hl_defs_remove_cs(struct hl_cs *cs);
+void hl_defs_add_job(struct hl_device *hdev, struct hl_cs_job *job);
+void hl_defs_remove_job(struct hl_device *hdev, struct hl_cs_job *job);
+void hl_defs_add_userptr(struct hl_device *hdev, struct hl_userptr *userptr);
+void hl_defs_remove_userptr(struct hl_device *hdev,
 				struct hl_userptr *userptr);
-void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
-void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
+void hl_defs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
+void hl_defs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
 
 #else
 
-static inline void __init hl_debugfs_init(void)
+static inline void __init hl_defs_init(void)
 {
 }
 
-static inline void hl_debugfs_fini(void)
+static inline void hl_defs_fini(void)
 {
 }
 
-static inline void hl_debugfs_add_device(struct hl_device *hdev)
+static inline void hl_defs_add_device(struct hl_device *hdev)
 {
 }
 
-static inline void hl_debugfs_remove_device(struct hl_device *hdev)
+static inline void hl_defs_remove_device(struct hl_device *hdev)
 {
 }
 
-static inline void hl_debugfs_add_file(struct hl_fpriv *hpriv)
+static inline void hl_defs_add_file(struct hl_fpriv *hpriv)
 {
 }
 
-static inline void hl_debugfs_remove_file(struct hl_fpriv *hpriv)
+static inline void hl_defs_remove_file(struct hl_fpriv *hpriv)
 {
 }
 
-static inline void hl_debugfs_add_cb(struct hl_cb *cb)
+static inline void hl_defs_add_cb(struct hl_cb *cb)
 {
 }
 
-static inline void hl_debugfs_remove_cb(struct hl_cb *cb)
+static inline void hl_defs_remove_cb(struct hl_cb *cb)
 {
 }
 
-static inline void hl_debugfs_add_cs(struct hl_cs *cs)
+static inline void hl_defs_add_cs(struct hl_cs *cs)
 {
 }
 
-static inline void hl_debugfs_remove_cs(struct hl_cs *cs)
+static inline void hl_defs_remove_cs(struct hl_cs *cs)
 {
 }
 
-static inline void hl_debugfs_add_job(struct hl_device *hdev,
+static inline void hl_defs_add_job(struct hl_device *hdev,
 					struct hl_cs_job *job)
 {
 }
 
-static inline void hl_debugfs_remove_job(struct hl_device *hdev,
+static inline void hl_defs_remove_job(struct hl_device *hdev,
 					struct hl_cs_job *job)
 {
 }
 
-static inline void hl_debugfs_add_userptr(struct hl_device *hdev,
+static inline void hl_defs_add_userptr(struct hl_device *hdev,
 					struct hl_userptr *userptr)
 {
 }
 
-static inline void hl_debugfs_remove_userptr(struct hl_device *hdev,
+static inline void hl_defs_remove_userptr(struct hl_device *hdev,
 					struct hl_userptr *userptr)
 {
 }
 
-static inline void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev,
+static inline void hl_defs_add_ctx_mem_hash(struct hl_device *hdev,
 					struct hl_ctx *ctx)
 {
 }
 
-static inline void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev,
+static inline void hl_defs_remove_ctx_mem_hash(struct hl_device *hdev,
 					struct hl_ctx *ctx)
 {
 }

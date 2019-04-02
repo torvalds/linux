@@ -32,7 +32,7 @@
 
 #include "netns.h"
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_BIND
 #endif
 
@@ -783,7 +783,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		map->r_addr = NULL;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	child = rpcb_call_async(rpcb_clnt, map, proc);

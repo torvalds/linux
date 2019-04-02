@@ -100,7 +100,7 @@ static const struct tty_operations nfcon_tty_ops = {
 
 #ifndef MODULE
 
-static int __init nf_debug_setup(char *arg)
+static int __init nf_de_setup(char *arg)
 {
 	if (strcmp(arg, "nfcon"))
 		return 0;
@@ -114,7 +114,7 @@ static int __init nf_debug_setup(char *arg)
 	return 0;
 }
 
-early_param("debug", nf_debug_setup);
+early_param("de", nf_de_setup);
 
 #endif /* !MODULE */
 

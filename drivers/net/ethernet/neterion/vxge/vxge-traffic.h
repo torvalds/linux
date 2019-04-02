@@ -2073,7 +2073,7 @@ struct __vxge_hw_ring_rxd_priv {
 	dma_addr_t	dma_addr;
 	struct pci_dev *dma_handle;
 	ptrdiff_t	dma_offset;
-#ifdef VXGE_DEBUG_ASSERT
+#ifdef VXGE_DE_ASSERT
 	struct vxge_hw_mempool_dma	*dma_object;
 #endif
 };

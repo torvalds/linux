@@ -28,7 +28,7 @@ static void * __init init_pmd(unsigned long vaddr, unsigned long n_pages)
 
 	n_pages = ALIGN(n_pages, PTRS_PER_PTE);
 
-	pr_debug("%s: vaddr: 0x%08lx, n_pages: %ld\n",
+	pr_de("%s: vaddr: 0x%08lx, n_pages: %ld\n",
 		 __func__, vaddr, n_pages);
 
 	pte = memblock_alloc_low(n_pages * sizeof(pte_t), PAGE_SIZE);
@@ -42,10 +42,10 @@ static void * __init init_pmd(unsigned long vaddr, unsigned long n_pages)
 	for (i = 0; i < n_pages; i += PTRS_PER_PTE, ++pmd) {
 		pte_t *cur_pte = pte + i;
 
-		BUG_ON(!pmd_none(*pmd));
+		_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd(((unsigned long)cur_pte) & PAGE_MASK));
-		BUG_ON(cur_pte != pte_offset_kernel(pmd, 0));
-		pr_debug("%s: pmd: 0x%p, pte: 0x%p\n",
+		_ON(cur_pte != pte_offset_kernel(pmd, 0));
+		pr_de("%s: pmd: 0x%p, pte: 0x%p\n",
 			 __func__, pmd, cur_pte);
 	}
 	return pte;

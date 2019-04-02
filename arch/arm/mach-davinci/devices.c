@@ -41,11 +41,11 @@ void davinci_map_sysmod(void)
 	davinci_sysmod_base = ioremap_nocache(DAVINCI_SYSTEM_MODULE_BASE,
 					      0x800);
 	/*
-	 * Throw a bug since a lot of board initialization code depends
+	 * Throw a  since a lot of board initialization code depends
 	 * on system module availability. ioremap() failing this early
 	 * need careful looking into anyway.
 	 */
-	BUG_ON(!davinci_sysmod_base);
+	_ON(!davinci_sysmod_base);
 }
 
 static struct resource i2c_resources[] = {

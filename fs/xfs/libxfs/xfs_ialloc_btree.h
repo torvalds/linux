@@ -53,12 +53,12 @@ extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
 /* ir_holemask to inode allocation bitmap conversion */
 uint64_t xfs_inobt_irec_to_allocmask(struct xfs_inobt_rec_incore *);
 
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 int xfs_inobt_rec_check_count(struct xfs_mount *,
 			      struct xfs_inobt_rec_incore *);
 #else
 #define xfs_inobt_rec_check_count(mp, rec)	0
-#endif	/* DEBUG */
+#endif	/* DE */
 
 int xfs_finobt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
 		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);

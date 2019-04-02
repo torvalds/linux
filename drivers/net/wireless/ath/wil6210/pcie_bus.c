@@ -190,7 +190,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 {
 	struct pci_dev *pdev = wil->pdev;
 	int rc;
-	/* on platforms with buggy ACPI, pdev->msi_enabled may be set to
+	/* on platforms with gy ACPI, pdev->msi_enabled may be set to
 	 * allow pci_enable_device to work. This indicates INTx was not routed
 	 * and only MSI should be used
 	 */
@@ -446,7 +446,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		 */
 		wil_err(wil, "register_pm_notifier failed: %d\n", rc);
 
-	wil6210_debugfs_init(wil);
+	wil6210_defs_init(wil);
 
 	wil_pm_runtime_allow(wil);
 
@@ -481,7 +481,7 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 
 	wil_pm_runtime_forbid(wil);
 
-	wil6210_debugfs_remove(wil);
+	wil6210_defs_remove(wil);
 	rtnl_lock();
 	wil_p2p_wdev_free(wil);
 	wil_remove_all_additional_vifs(wil);

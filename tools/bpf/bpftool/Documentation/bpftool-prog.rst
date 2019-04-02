@@ -132,7 +132,7 @@ DESCRIPTION
 		  Dump the trace pipe of the system to the console (stdout).
 		  Hit <Ctrl+C> to stop printing. BPF programs can write to this
 		  trace pipe at runtime with the **bpf_trace_printk()** helper.
-		  This should be used only for debugging purposes. For
+		  This should be used only for deging purposes. For
 		  streaming data from BPF programs to user space, one can use
 		  perf events (see also **bpftool-map**\ (8)).
 

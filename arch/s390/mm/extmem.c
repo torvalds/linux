@@ -3,7 +3,7 @@
  * Author(s)......: Carsten Otte <cotte@de.ibm.com>
  * 		    Rob M van der Heij <rvdheij@nl.ibm.com>
  * 		    Steven Shultz <shultzss@us.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 2002, 2004
  */
 
@@ -112,7 +112,7 @@ segment_by_name (char *name)
 	struct list_head *l;
 	struct dcss_segment *tmp, *retval = NULL;
 
-	BUG_ON(!mutex_is_locked(&dcss_lock));
+	_ON(!mutex_is_locked(&dcss_lock));
 	dcss_mkname (name, dcss_name);
 	list_for_each (l, &dcss_list) {
 		tmp = list_entry (l, struct dcss_segment, list);
@@ -272,7 +272,7 @@ segment_overlaps_others (struct dcss_segment *seg)
 	struct list_head *l;
 	struct dcss_segment *tmp;
 
-	BUG_ON(!mutex_is_locked(&dcss_lock));
+	_ON(!mutex_is_locked(&dcss_lock));
 	list_for_each(l, &dcss_list) {
 		tmp = list_entry(l, struct dcss_segment, list);
 		if ((tmp->start_addr >> 20) > (seg->end >> 20))

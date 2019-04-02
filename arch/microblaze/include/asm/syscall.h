@@ -53,7 +53,7 @@ static inline microblaze_reg_t microblaze_get_syscall_arg(struct pt_regs *regs,
 	case 1: return regs->r6;
 	case 0: return regs->r5;
 	default:
-		BUG();
+		();
 	}
 	return ~0;
 }
@@ -76,7 +76,7 @@ static inline void microblaze_set_syscall_arg(struct pt_regs *regs,
 	case 0:
 		regs->r5 = val;
 	default:
-		BUG();
+		();
 	}
 }
 

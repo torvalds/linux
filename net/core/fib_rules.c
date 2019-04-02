@@ -1148,7 +1148,7 @@ static void notify_rule_change(int event, struct fib_rule *rule,
 
 	err = fib_nl_fill_rule(skb, rule, pid, nlh->nlmsg_seq, event, 0, ops);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in fib_rule_nlmsg_size() */
+		/* -EMSGSIZE implies  in fib_rule_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

@@ -29,8 +29,8 @@
 
 #define dbg(format, arg...)					\
 	do {							\
-		if (debug)					\
-			printk(KERN_DEBUG "%s: " format "\n",	\
+		if (de)					\
+			printk(KERN_DE "%s: " format "\n",	\
 				MY_NAME, ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME, ## arg)
@@ -38,7 +38,7 @@
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME, ## arg)
 
 /* local variables */
-static bool debug;
+static bool de;
 static bool poll;
 static struct cpci_hp_controller_ops zt5550_hpc_ops;
 static struct cpci_hp_controller zt5550_hpc;
@@ -303,7 +303,7 @@ module_exit(zt5550_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "Deging mode enabled or not");
 module_param(poll, bool, 0644);
 MODULE_PARM_DESC(poll, "#ENUM polling mode enabled or not");

@@ -129,7 +129,7 @@ void aa_audit_msg(int type, struct common_audit_data *sa,
 int aa_audit(int type, struct aa_profile *profile, struct common_audit_data *sa,
 	     void (*cb) (struct audit_buffer *, void *))
 {
-	AA_BUG(!profile);
+	AA_(!profile);
 
 	if (type == AUDIT_APPARMOR_AUTO) {
 		if (likely(!aad(sa)->error)) {

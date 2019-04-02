@@ -601,7 +601,7 @@ static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 	int i;
 
 	i = next_free - 1;
-	BUG_ON(i < 0);
+	_ON(i < 0);
 
 	/* We may be deleting metadata blocks, so metadata alloc dinode +
 	   one desc. block for each possible delete. */

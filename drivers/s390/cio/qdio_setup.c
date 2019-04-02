@@ -16,7 +16,7 @@
 #include "ioasm.h"
 #include "chsc.h"
 #include "qdio.h"
-#include "qdio_debug.h"
+#include "qdio_de.h"
 
 #define QBUFF_PER_PAGE (PAGE_SIZE / sizeof(struct qdio_buffer))
 
@@ -462,7 +462,7 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
 
-	irq_ptr->debugfs_dev = irq_ptr->debugfs_perf = NULL;
+	irq_ptr->defs_dev = irq_ptr->defs_perf = NULL;
 	irq_ptr->sch_token = irq_ptr->state = irq_ptr->perf_stat_enabled = 0;
 
 	/* wipes qib.ac, required by ar7063 */

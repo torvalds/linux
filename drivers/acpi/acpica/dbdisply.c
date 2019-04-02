@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbdisply - debug display commands
+ * Module Name: dbdisply - de display commands
  *
  ******************************************************************************/
 
@@ -13,9 +13,9 @@
 #include "acparser.h"
 #include "acinterp.h"
 #include "acevents.h"
-#include "acdebug.h"
+#include "acde.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbdisply")
 
 /* Local prototypes */
@@ -114,7 +114,7 @@ static void acpi_db_dump_parser_descriptor(union acpi_parse_object *op)
 	acpi_os_printf("Parser Op Descriptor:\n");
 	acpi_os_printf("%20.20s : %4.4X\n", "Opcode", op->common.aml_opcode);
 
-	ACPI_DEBUG_ONLY_MEMBERS(acpi_os_printf("%20.20s : %s\n", "Opcode Name",
+	ACPI_DE_ONLY_MEMBERS(acpi_os_printf("%20.20s : %s\n", "Opcode Name",
 					       info->name));
 
 	acpi_os_printf("%20.20s : %p\n", "Value/ArgList", op->common.value.arg);
@@ -208,7 +208,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 				return;
 			}
 
-			acpi_ut_debug_dump_buffer(obj_ptr,
+			acpi_ut_de_dump_buffer(obj_ptr,
 						  sizeof(union
 							 acpi_operand_object),
 						  display, ACPI_UINT32_MAX);
@@ -227,7 +227,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 				return;
 			}
 
-			acpi_ut_debug_dump_buffer(obj_ptr,
+			acpi_ut_de_dump_buffer(obj_ptr,
 						  sizeof(union
 							 acpi_parse_object),
 						  display, ACPI_UINT32_MAX);
@@ -250,7 +250,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 
 			/* Just dump some memory */
 
-			acpi_ut_debug_dump_buffer(obj_ptr, size, display,
+			acpi_ut_de_dump_buffer(obj_ptr, size, display,
 						  ACPI_UINT32_MAX);
 			break;
 		}
@@ -283,7 +283,7 @@ dump_node:
 		return;
 	}
 
-	acpi_ut_debug_dump_buffer((void *)node,
+	acpi_ut_de_dump_buffer((void *)node,
 				  sizeof(struct acpi_namespace_node), display,
 				  ACPI_UINT32_MAX);
 	acpi_ex_dump_namespace_node(node, 1);
@@ -317,13 +317,13 @@ dump_node:
 			}
 
 			acpi_os_printf("\n");
-			acpi_ut_debug_dump_buffer((void *)obj_desc,
+			acpi_ut_de_dump_buffer((void *)obj_desc,
 						  sizeof(struct
 							 acpi_namespace_node),
 						  display, ACPI_UINT32_MAX);
 		} else {
 			acpi_os_printf("\n");
-			acpi_ut_debug_dump_buffer((void *)obj_desc,
+			acpi_ut_de_dump_buffer((void *)obj_desc,
 						  sizeof(union
 							 acpi_operand_object),
 						  display, ACPI_UINT32_MAX);

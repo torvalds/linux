@@ -26,7 +26,7 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
-	printk(KERN_DEBUG "%s: RX signal=%d noise=%d rate=%d len=%d "
+	printk(KERN_DE "%s: RX signal=%d noise=%d rate=%d len=%d "
 	       "jiffies=%ld\n",
 	       name, rx_stats->signal, rx_stats->noise, rx_stats->rate,
 	       skb->len, jiffies);
@@ -35,7 +35,7 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 		return;
 
 	fc = le16_to_cpu(hdr->frame_control);
-	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
+	printk(KERN_DE "   FC=0x%04x (type=%d:%d)%s%s",
 	       fc, (fc & IEEE80211_FCTL_FTYPE) >> 2,
 	       (fc & IEEE80211_FCTL_STYPE) >> 4,
 	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
@@ -49,7 +49,7 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 	printk(" dur=0x%04x seq=0x%04x\n", le16_to_cpu(hdr->duration_id),
 	       le16_to_cpu(hdr->seq_ctrl));
 
-	printk(KERN_DEBUG "   A1=%pM", hdr->addr1);
+	printk(KERN_DE "   A1=%pM", hdr->addr1);
 	printk(" A2=%pM", hdr->addr2);
 	printk(" A3=%pM", hdr->addr3);
 	if (skb->len >= 30)
@@ -93,7 +93,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 	fc = le16_to_cpu(fhdr->frame_control);
 
 	if (type == PRISM2_RX_MGMT && (fc & IEEE80211_FCTL_VERS)) {
-		printk(KERN_DEBUG "%s: dropped management frame with header "
+		printk(KERN_DE "%s: dropped management frame with header "
 		       "version %d\n", dev->name, fc & IEEE80211_FCTL_VERS);
 		dev_kfree_skb_any(skb);
 		return 0;
@@ -116,7 +116,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 		if (pskb_expand_head(skb, head_need > 0 ? head_need : 0,
 				     tail_need > 0 ? tail_need : 0,
 				     GFP_ATOMIC)) {
-			printk(KERN_DEBUG "%s: prism2_rx_80211 failed to "
+			printk(KERN_DE "%s: prism2_rx_80211 failed to "
 			       "reallocate skb buffer\n", dev->name);
 			dev_kfree_skb_any(skb);
 			return 0;
@@ -228,7 +228,7 @@ prism2_frag_cache_find(local_info_t *local, unsigned int seq,
 		entry = &local->frag_cache[i];
 		if (entry->skb != NULL &&
 		    time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
-			printk(KERN_DEBUG "%s: expiring fragment cache entry "
+			printk(KERN_DE "%s: expiring fragment cache entry "
 			       "seq=%u last_frag=%u\n",
 			       local->dev->name, entry->seq, entry->last_frag);
 			dev_kfree_skb(entry->skb);
@@ -312,7 +312,7 @@ static int prism2_frag_cache_invalidate(local_info_t *local,
 	entry = prism2_frag_cache_find(local, seq, -1, hdr->addr2, hdr->addr1);
 
 	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: could not invalidate fragment cache "
+		printk(KERN_DE "%s: could not invalidate fragment cache "
 		       "entry (seq=%u)\n",
 		       local->dev->name, seq);
 		return -1;
@@ -499,7 +499,7 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 	if (local->iw_mode == IW_MODE_MASTER) {
 		if (type != IEEE80211_FTYPE_MGMT &&
 		    type != IEEE80211_FTYPE_CTL) {
-			printk(KERN_DEBUG "%s: unknown management frame "
+			printk(KERN_DE "%s: unknown management frame "
 			       "(type=0x%02x, stype=0x%02x) dropped\n",
 			       skb->dev->name, type >> 2, stype >> 4);
 			return -1;
@@ -520,7 +520,7 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 		 */
 		return -1;
 	} else {
-		printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: dropped unhandled"
+		printk(KERN_DE "%s: hostap_rx_frame_mgmt: dropped unhandled"
 		       " management frame in non-Host AP mode (type=%d:%d)\n",
 		       skb->dev->name, type >> 2, stype >> 4);
 		return -1;
@@ -567,7 +567,7 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr, u16 fc,
 	     hdr->addr1[2] != 0xff || hdr->addr1[3] != 0xff ||
 	     hdr->addr1[4] != 0xff || hdr->addr1[5] != 0xff)) {
 		/* RA (or BSSID) is not ours - drop */
-		PDEBUG(DEBUG_EXTRA2, "%s: received WDS frame with "
+		PDE(DE_EXTRA2, "%s: received WDS frame with "
 		       "not own or broadcast %s=%pM\n",
 		       local->dev->name,
 		       fc & IEEE80211_FCTL_FROMDS ? "RA" : "BSSID",
@@ -583,7 +583,7 @@ hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr, u16 fc,
 	     memcmp(hdr->addr2, local->bssid, ETH_ALEN) != 0)) {
 		/* require that WDS link has been registered with TA or the
 		 * frame is from current AP when using 'AP client mode' */
-		PDEBUG(DEBUG_EXTRA, "%s: received WDS[4 addr] frame "
+		PDE(DE_EXTRA, "%s: received WDS[4 addr] frame "
 		       "from unknown TA=%pM\n",
 		       local->dev->name, hdr->addr2);
 		if (local->ap && local->ap->autom_ap_wds)
@@ -661,7 +661,7 @@ hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 	if (local->tkip_countermeasures &&
 	    strcmp(crypt->ops->name, "TKIP") == 0) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			printk(KERN_DE "%s: TKIP countermeasures: dropped "
 			       "received packet from %pM\n",
 			       local->dev->name, hdr->addr2);
 		}
@@ -672,7 +672,7 @@ hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 	res = crypt->ops->decrypt_mpdu(skb, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_DEBUG "%s: decryption failed (SA=%pM) res=%d\n",
+		printk(KERN_DE "%s: decryption failed (SA=%pM) res=%d\n",
 		       local->dev->name, hdr->addr2, res);
 		local->comm_tallies.rx_discards_wep_undecryptable++;
 		return -1;
@@ -700,7 +700,7 @@ hostap_rx_frame_decrypt_msdu(local_info_t *local, struct sk_buff *skb,
 	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
+		printk(KERN_DE "%s: MSDU decryption/MIC verification failed"
 		       " (SA=%pM keyidx=%d)\n",
 		       local->dev->name, hdr->addr2, keyidx);
 		return -1;
@@ -807,7 +807,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			 * frames from other than current BSS, so just drop the
 			 * frames silently instead of filling system log with
 			 * these reports. */
-			printk(KERN_DEBUG "%s: WEP decryption failed (not set)"
+			printk(KERN_DE "%s: WEP decryption failed (not set)"
 			       " (SA=%pM)\n",
 			       local->dev->name, hdr->addr2);
 #endif
@@ -822,7 +822,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		    fc & IEEE80211_FCTL_PROTECTED && local->host_decrypt &&
 		    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		{
-			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
+			printk(KERN_DE "%s: failed to decrypt mgmt::auth "
 			       "from %pM\n", dev->name, hdr->addr2);
 			/* TODO: could inform hostapd about this so that it
 			 * could send auth failure report */
@@ -900,7 +900,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	    stype != IEEE80211_STYPE_DATA_CFPOLL &&
 	    stype != IEEE80211_STYPE_DATA_CFACKPOLL) {
 		if (stype != IEEE80211_STYPE_NULLFUNC)
-			printk(KERN_DEBUG "%s: RX: dropped data frame "
+			printk(KERN_DE "%s: RX: dropped data frame "
 			       "with no data (type=0x%02x, subtype=0x%02x)\n",
 			       dev->name, type >> 2, stype >> 4);
 		goto rx_dropped;
@@ -921,7 +921,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		struct sk_buff *frag_skb =
 			prism2_frag_cache_get(local, hdr);
 		if (!frag_skb) {
-			printk(KERN_DEBUG "%s: Rx cannot get skb from "
+			printk(KERN_DE "%s: Rx cannot get skb from "
 			       "fragment cache (morefrag=%d seq=%u frag=%u)\n",
 			       dev->name, (fc & IEEE80211_FCTL_MOREFRAGS) != 0,
 			       (sc & IEEE80211_SCTL_SEQ) >> 4, frag);
@@ -982,10 +982,10 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		    hostap_is_eapol_frame(local, skb)) {
 			/* pass unencrypted EAPOL frames even if encryption is
 			 * configured */
-			PDEBUG(DEBUG_EXTRA2, "%s: RX: IEEE 802.1X - passing "
+			PDE(DE_EXTRA2, "%s: RX: IEEE 802.1X - passing "
 			       "unencrypted EAPOL frame\n", local->dev->name);
 		} else {
-			printk(KERN_DEBUG "%s: encryption configured, but RX "
+			printk(KERN_DE "%s: encryption configured, but RX "
 			       "frame not encrypted (SA=%pM)\n",
 			       local->dev->name, hdr->addr2);
 			goto rx_dropped;
@@ -995,7 +995,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (local->drop_unencrypted && !(fc & IEEE80211_FCTL_PROTECTED) &&
 	    !hostap_is_eapol_frame(local, skb)) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: dropped unencrypted RX data "
+			printk(KERN_DE "%s: dropped unencrypted RX data "
 			       "frame from %pM (drop_unencrypted=1)\n",
 			       dev->name, hdr->addr2);
 		}
@@ -1011,7 +1011,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	 * the received frame. */
 	if (local->ieee_802_1x && local->iw_mode == IW_MODE_MASTER) {
 		if (ethertype == ETH_P_PAE) {
-			PDEBUG(DEBUG_EXTRA2, "%s: RX: IEEE 802.1X frame\n",
+			PDE(DE_EXTRA2, "%s: RX: IEEE 802.1X frame\n",
 			       dev->name);
 			if (local->hostapd && local->apdev) {
 				/* Send IEEE 802.1X frames to the user
@@ -1023,7 +1023,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 				goto rx_exit;
 			}
 		} else if (!frame_authorized) {
-			printk(KERN_DEBUG "%s: dropped frame from "
+			printk(KERN_DE "%s: dropped frame from "
 			       "unauthorized port (IEEE 802.1X): "
 			       "ethertype=0x%04x\n",
 			       dev->name, ethertype);
@@ -1073,7 +1073,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			local->ap->bridged_multicast++;
 			skb2 = skb_clone(skb, GFP_ATOMIC);
 			if (skb2 == NULL)
-				printk(KERN_DEBUG "%s: skb_clone failed for "
+				printk(KERN_DE "%s: skb_clone failed for "
 				       "multicast frame\n", dev->name);
 		} else if (hostap_is_sta_authorized(local->ap, dst)) {
 			/* send frame directly to the associated STA using

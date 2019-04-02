@@ -26,10 +26,10 @@
 struct cachefiles_cache;
 struct cachefiles_object;
 
-extern unsigned cachefiles_debug;
-#define CACHEFILES_DEBUG_KENTER	1
-#define CACHEFILES_DEBUG_KLEAVE	2
-#define CACHEFILES_DEBUG_KDEBUG	4
+extern unsigned cachefiles_de;
+#define CACHEFILES_DE_KENTER	1
+#define CACHEFILES_DE_KLEAVE	2
+#define CACHEFILES_DE_KDE	4
 
 #define cachefiles_gfp (__GFP_RECLAIM | __GFP_NORETRY | __GFP_NOMEMALLOC)
 
@@ -278,54 +278,54 @@ do {									\
 
 
 /*
- * debug tracing
+ * de tracing
  */
 #define dbgprintk(FMT, ...) \
-	printk(KERN_DEBUG "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
+	printk(KERN_DE "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
 
 #define kenter(FMT, ...) dbgprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define kdebug(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
+#define kde(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
 
 
-#if defined(__KDEBUG)
+#if defined(__KDE)
 #define _enter(FMT, ...) kenter(FMT, ##__VA_ARGS__)
 #define _leave(FMT, ...) kleave(FMT, ##__VA_ARGS__)
-#define _debug(FMT, ...) kdebug(FMT, ##__VA_ARGS__)
+#define _de(FMT, ...) kde(FMT, ##__VA_ARGS__)
 
-#elif defined(CONFIG_CACHEFILES_DEBUG)
+#elif defined(CONFIG_CACHEFILES_DE)
 #define _enter(FMT, ...)				\
 do {							\
-	if (cachefiles_debug & CACHEFILES_DEBUG_KENTER)	\
+	if (cachefiles_de & CACHEFILES_DE_KENTER)	\
 		kenter(FMT, ##__VA_ARGS__);		\
 } while (0)
 
 #define _leave(FMT, ...)				\
 do {							\
-	if (cachefiles_debug & CACHEFILES_DEBUG_KLEAVE)	\
+	if (cachefiles_de & CACHEFILES_DE_KLEAVE)	\
 		kleave(FMT, ##__VA_ARGS__);		\
 } while (0)
 
-#define _debug(FMT, ...)				\
+#define _de(FMT, ...)				\
 do {							\
-	if (cachefiles_debug & CACHEFILES_DEBUG_KDEBUG)	\
-		kdebug(FMT, ##__VA_ARGS__);		\
+	if (cachefiles_de & CACHEFILES_DE_KDE)	\
+		kde(FMT, ##__VA_ARGS__);		\
 } while (0)
 
 #else
 #define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define _de(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
-#if 1 /* defined(__KDEBUGALL) */
+#if 1 /* defined(__KDEALL) */
 
 #define ASSERT(X)							\
 do {									\
 	if (unlikely(!(X))) {						\
 		pr_err("\n");						\
 		pr_err("Assertion failed\n");		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -336,7 +336,7 @@ do {									\
 		pr_err("Assertion failed\n");		\
 		pr_err("%lx " #OP " %lx is false\n",			\
 		       (unsigned long)(X), (unsigned long)(Y));		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -345,7 +345,7 @@ do {									\
 	if (unlikely((C) && !(X))) {					\
 		pr_err("\n");						\
 		pr_err("Assertion failed\n");		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -356,7 +356,7 @@ do {									\
 		pr_err("Assertion failed\n");		\
 		pr_err("%lx " #OP " %lx is false\n",			\
 		       (unsigned long)(X), (unsigned long)(Y));		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 

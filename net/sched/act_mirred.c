@@ -47,7 +47,7 @@ static bool tcf_mirred_act_wants_ingress(int action)
 	case TCA_INGRESS_MIRROR:
 		return true;
 	default:
-		BUG();
+		();
 	}
 }
 

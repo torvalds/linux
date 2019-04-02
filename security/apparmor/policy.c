@@ -115,16 +115,16 @@ static void __add_profile(struct list_head *list, struct aa_profile *profile)
 {
 	struct aa_label *l;
 
-	AA_BUG(!list);
-	AA_BUG(!profile);
-	AA_BUG(!profile->ns);
-	AA_BUG(!mutex_is_locked(&profile->ns->lock));
+	AA_(!list);
+	AA_(!profile);
+	AA_(!profile->ns);
+	AA_(!mutex_is_locked(&profile->ns->lock));
 
 	list_add_rcu(&profile->base.list, list);
 	/* get list reference */
 	aa_get_profile(profile);
 	l = aa_label_insert(&profile->ns->labels, &profile->label);
-	AA_BUG(l != &profile->label);
+	AA_(l != &profile->label);
 	aa_put_label(l);
 }
 
@@ -142,9 +142,9 @@ static void __add_profile(struct list_head *list, struct aa_profile *profile)
  */
 static void __list_remove_profile(struct aa_profile *profile)
 {
-	AA_BUG(!profile);
-	AA_BUG(!profile->ns);
-	AA_BUG(!mutex_is_locked(&profile->ns->lock));
+	AA_(!profile);
+	AA_(!profile->ns);
+	AA_(!mutex_is_locked(&profile->ns->lock));
 
 	list_del_rcu(&profile->base.list);
 	aa_put_profile(profile);
@@ -158,9 +158,9 @@ static void __list_remove_profile(struct aa_profile *profile)
  */
 static void __remove_profile(struct aa_profile *profile)
 {
-	AA_BUG(!profile);
-	AA_BUG(!profile->ns);
-	AA_BUG(!mutex_is_locked(&profile->ns->lock));
+	AA_(!profile);
+	AA_(!profile->ns);
+	AA_(!mutex_is_locked(&profile->ns->lock));
 
 	/* release any children lists first */
 	__aa_profile_list_release(&profile->base.profiles);
@@ -212,7 +212,7 @@ void aa_free_profile(struct aa_profile *profile)
 	struct rhashtable *rht;
 	int i;
 
-	AA_DEBUG("%s(%p)\n", __func__, profile);
+	AA_DE("%s(%p)\n", __func__, profile);
 
 	if (!profile)
 		return;
@@ -511,7 +511,7 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
 	const char *bname;
 	char *name = NULL;
 
-	AA_BUG(!parent);
+	AA_(!parent);
 
 	if (base) {
 		name = kmalloc(strlen(parent->base.hname) + 8 + strlen(base),
@@ -669,8 +669,8 @@ bool policy_admin_capable(struct aa_ns *ns)
 	struct user_namespace *user_ns = current_user_ns();
 	bool capable = ns_capable(user_ns, CAP_MAC_ADMIN);
 
-	AA_DEBUG("cap_mac_admin? %d\n", capable);
-	AA_DEBUG("policy locked? %d\n", aa_g_lock_policy);
+	AA_DE("cap_mac_admin? %d\n", capable);
+	AA_DE("policy locked? %d\n", aa_g_lock_policy);
 
 	return policy_view_capable(ns) && capable && !aa_g_lock_policy;
 }

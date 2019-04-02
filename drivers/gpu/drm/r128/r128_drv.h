@@ -494,7 +494,7 @@ do {									\
 } while (0)
 
 /* You can set this to zero if you want.  If the card locks up, you'll
- * need to keep this set.  It works around a bug in early revs of the
+ * need to keep this set.  It works around a  in early revs of the
  * Rage 128 chipset, where the CCE would read 32 dwords past the end of
  * the ring buffer before wrapping around.
  */

@@ -807,7 +807,7 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 	struct aa_label *label;
 	int error = 0;
 
-	AA_BUG(in_interrupt());
+	AA_(in_interrupt());
 
 	label = begin_current_label_crit_section();
 	if (!(kern || unconfined(label)))
@@ -860,10 +860,10 @@ static int apparmor_socket_post_create(struct socket *sock, int family,
 static int apparmor_socket_bind(struct socket *sock,
 				struct sockaddr *address, int addrlen)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(!address);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(!address);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 bind_perm(sock, address, addrlen),
@@ -876,10 +876,10 @@ static int apparmor_socket_bind(struct socket *sock,
 static int apparmor_socket_connect(struct socket *sock,
 				   struct sockaddr *address, int addrlen)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(!address);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(!address);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 connect_perm(sock, address, addrlen),
@@ -891,9 +891,9 @@ static int apparmor_socket_connect(struct socket *sock,
  */
 static int apparmor_socket_listen(struct socket *sock, int backlog)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 listen_perm(sock, backlog),
@@ -908,10 +908,10 @@ static int apparmor_socket_listen(struct socket *sock, int backlog)
  */
 static int apparmor_socket_accept(struct socket *sock, struct socket *newsock)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(!newsock);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(!newsock);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 accept_perm(sock, newsock),
@@ -921,10 +921,10 @@ static int apparmor_socket_accept(struct socket *sock, struct socket *newsock)
 static int aa_sock_msg_perm(const char *op, u32 request, struct socket *sock,
 			    struct msghdr *msg, int size)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(!msg);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(!msg);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 msg_perm(op, request, sock, msg, size),
@@ -952,9 +952,9 @@ static int apparmor_socket_recvmsg(struct socket *sock,
 /* revaliation, get/set attr, shutdown */
 static int aa_sock_perm(const char *op, u32 request, struct socket *sock)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 sock_perm(op, request, sock),
@@ -981,9 +981,9 @@ static int apparmor_socket_getpeername(struct socket *sock)
 static int aa_sock_opt_perm(const char *op, u32 request, struct socket *sock,
 			    int level, int optname)
 {
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
-	AA_BUG(in_interrupt());
+	AA_(!sock);
+	AA_(!sock->sk);
+	AA_(in_interrupt());
 
 	return af_select(sock->sk->sk_family,
 			 opt_perm(op, request, sock, level, optname),
@@ -1296,9 +1296,9 @@ bool aa_g_hash_policy = IS_ENABLED(CONFIG_SECURITY_APPARMOR_HASH_DEFAULT);
 module_param_named(hash_policy, aa_g_hash_policy, aabool, S_IRUSR | S_IWUSR);
 #endif
 
-/* Debug mode */
-bool aa_g_debug = IS_ENABLED(CONFIG_SECURITY_APPARMOR_DEBUG_MESSAGES);
-module_param_named(debug, aa_g_debug, aabool, S_IRUSR | S_IWUSR);
+/* De mode */
+bool aa_g_de = IS_ENABLED(CONFIG_SECURITY_APPARMOR_DE_MESSAGES);
+module_param_named(de, aa_g_de, aabool, S_IRUSR | S_IWUSR);
 
 /* Audit mode */
 enum audit_mode aa_g_audit;

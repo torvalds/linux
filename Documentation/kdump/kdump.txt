@@ -50,8 +50,8 @@ when using the elfcorehdr=[size[KMG]@]offset[KMG] syntax.
 With the dump-capture kernel, you can access the memory image through
 /proc/vmcore. This exports the dump as an ELF-format file that you can
 write out using file copy commands such as cp or scp. Further, you can
-use analysis tools such as the GNU Debugger (GDB) and the Crash tool to
-debug the dump file. This method ensures that the dump pages are correctly
+use analysis tools such as the GNU Deger (GDB) and the Crash tool to
+de the dump file. This method ensures that the dump pages are correctly
 ordered.
 
 
@@ -142,12 +142,12 @@ System kernel config options
 
    grep 'CONFIG_SYSFS' .config
 
-3) Enable "Compile the kernel with debug info" in "Kernel hacking."
+3) Enable "Compile the kernel with de info" in "Kernel hacking."
 
-   CONFIG_DEBUG_INFO=Y
+   CONFIG_DE_INFO=Y
 
-   This causes the kernel to be built with debug symbols. The dump
-   analysis tools require a vmlinux with debug symbols in order to read
+   This causes the kernel to be built with de symbols. The dump
+   analysis tools require a vmlinux with de symbols in order to read
    and analyze a dump file.
 
 Dump-capture kernel config options (Arch Independent)
@@ -475,7 +475,7 @@ Analysis
 Before analyzing the dump image, you should reboot into a stable kernel.
 
 You can do limited analysis using GDB on the dump file copied out of
-/proc/vmcore. Use the debug vmlinux built with -g and run the following
+/proc/vmcore. Use the de vmlinux built with -g and run the following
 command:
 
    gdb vmlinux <dump-file>

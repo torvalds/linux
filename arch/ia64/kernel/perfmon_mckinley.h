@@ -90,9 +90,9 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 	is_loaded = ctx->ctx_state == PFM_CTX_LOADED || ctx->ctx_state == PFM_CTX_MASKED;
 
 	/*
-	 * we must clear the debug registers if pmc13 has a value which enable
+	 * we must clear the de registers if pmc13 has a value which enable
 	 * memory pipeline event constraints. In this case we need to clear the
-	 * the debug registers if they have not yet been accessed. This is required
+	 * the de registers if they have not yet been accessed. This is required
 	 * to avoid picking stale state.
 	 * PMC13 is "active" if:
 	 * 	one of the pmc13.cfg_dbrpXX field is different from 0x3
@@ -106,29 +106,29 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 
 		DPRINT(("pmc[%d]=0x%lx has active pmc13 settings, clearing dbr\n", cnum, *val));
 
-		/* don't mix debug with perfmon */
+		/* don't mix de with perfmon */
 		if (task && (task->thread.flags & IA64_THREAD_DBG_VALID) != 0) return -EINVAL;
 
 		/*
-		 * a count of 0 will mark the debug registers as in use and also
+		 * a count of 0 will mark the de registers as in use and also
 		 * ensure that they are properly cleared.
 		 */
 		ret = pfm_write_ibr_dbr(PFM_DATA_RR, ctx, NULL, 0, regs);
 		if (ret) return ret;
 	}
 	/*
-	 * we must clear the (instruction) debug registers if any pmc14.ibrpX bit is enabled
+	 * we must clear the (instruction) de registers if any pmc14.ibrpX bit is enabled
 	 * before they are (fl_using_dbreg==0) to avoid picking up stale information.
 	 */
 	if (cnum == 14 && is_loaded && ((*val & 0x2222UL) != 0x2222UL) && ctx->ctx_fl_using_dbreg == 0) {
 
 		DPRINT(("pmc[%d]=0x%lx has active pmc14 settings, clearing ibr\n", cnum, *val));
 
-		/* don't mix debug with perfmon */
+		/* don't mix de with perfmon */
 		if (task && (task->thread.flags & IA64_THREAD_DBG_VALID) != 0) return -EINVAL;
 
 		/*
-		 * a count of 0 will mark the debug registers as in use and also
+		 * a count of 0 will mark the de registers as in use and also
 		 * ensure that they are properly cleared.
 		 */
 		ret = pfm_write_ibr_dbr(PFM_CODE_RR, ctx, NULL, 0, regs);
@@ -164,7 +164,7 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 		   && ((((val14>>1) & 0x3) == 0x2 || ((val14>>1) & 0x3) == 0x0)
 		       ||(((val14>>4) & 0x3) == 0x2 || ((val14>>4) & 0x3) == 0x0));
 
-		if (ret) DPRINT((KERN_DEBUG "perfmon: failure check_case1\n"));
+		if (ret) DPRINT((KERN_DE "perfmon: failure check_case1\n"));
 	}
 
 	return ret ? -EINVAL : 0;
@@ -182,7 +182,7 @@ static pmu_config_t pmu_conf_mck={
 	.pmc_desc      = pfm_mck_pmc_desc,
 	.num_ibrs       = 8,
 	.num_dbrs       = 8,
-	.use_rr_dbregs = 1 /* debug register are use for range restrictions */
+	.use_rr_dbregs = 1 /* de register are use for range restrictions */
 };
 
 

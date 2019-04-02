@@ -244,7 +244,7 @@ static inline int vfp_single_type(struct vfp_single *s)
 	return type;
 }
 
-#ifndef DEBUG
+#ifndef DE
 #define vfp_single_normaliseround(sd,vsd,fpscr,except,func) __vfp_single_normaliseround(sd,vsd,fpscr,except)
 u32 __vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions);
 #else

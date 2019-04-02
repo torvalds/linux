@@ -42,7 +42,7 @@
 #include "sunrpc.h"
 #include "netns.h"
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_CALL
 #endif
 
@@ -302,7 +302,7 @@ static int rpc_client_register(struct rpc_clnt *clnt,
 	struct super_block *pipefs_sb;
 	int err;
 
-	rpc_clnt_debugfs_register(clnt);
+	rpc_clnt_defs_register(clnt);
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (pipefs_sb) {
@@ -330,7 +330,7 @@ err_auth:
 out:
 	if (pipefs_sb)
 		rpc_put_sb_net(net);
-	rpc_clnt_debugfs_unregister(clnt);
+	rpc_clnt_defs_unregister(clnt);
 	return err;
 }
 
@@ -721,7 +721,7 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 
 	rpc_unregister_client(clnt);
 	__rpc_clnt_remove_pipedir(clnt);
-	rpc_clnt_debugfs_unregister(clnt);
+	rpc_clnt_defs_unregister(clnt);
 
 	/*
 	 * A new transport was created.  "clnt" therefore
@@ -874,7 +874,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 			rcu_dereference(clnt->cl_xprt)->servername);
 	if (clnt->cl_parent != clnt)
 		parent = clnt->cl_parent;
-	rpc_clnt_debugfs_unregister(clnt);
+	rpc_clnt_defs_unregister(clnt);
 	rpc_clnt_remove_pipedir(clnt);
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
@@ -1717,9 +1717,9 @@ call_allocate(struct rpc_task *task)
 	}
 
 	if (proc->p_proc != 0) {
-		BUG_ON(proc->p_arglen == 0);
+		_ON(proc->p_arglen == 0);
 		if (proc->p_decode != NULL)
-			BUG_ON(proc->p_replen == 0);
+			_ON(proc->p_replen == 0);
 	}
 
 	/*
@@ -2890,7 +2890,7 @@ bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_has_addr);
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 static void rpc_show_header(void)
 {
 	printk(KERN_INFO "-pid- flgs status -client- --rqstp- "

@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/numa.h>
 
 #define EDAC_DEVICE_NAME_LEN	31
@@ -664,7 +664,7 @@ struct mem_ctl_info {
 	/* the internal state of this controller instance */
 	int op_state;
 
-	struct dentry *debugfs;
+	struct dentry *defs;
 	u8 fake_inject_layer[EDAC_MAX_LAYERS];
 	bool fake_inject_ue;
 	u16 fake_inject_count;

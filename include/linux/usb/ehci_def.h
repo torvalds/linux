@@ -38,7 +38,7 @@ struct ehci_caps {
 #define HC_VERSION(ehci, p)	(0xffff&((p) >> /* bits 31:16 / offset 02h */ \
 				(ehci_big_endian_capbase(ehci) ? 0 : 16)))
 	u32		hcs_params;     /* HCSPARAMS - offset 0x4 */
-#define HCS_DEBUG_PORT(p)	(((p)>>20)&0xf)	/* bits 23:20, debug port? */
+#define HCS_DE_PORT(p)	(((p)>>20)&0xf)	/* bits 23:20, de port? */
 #define HCS_INDICATOR(p)	((p)&(1 << 16))	/* true: has port indicators */
 #define HCS_N_CC(p)		(((p)>>12)&0xf)	/* bits 15:12, #companion HCs */
 #define HCS_N_PCC(p)		(((p)>>8)&0xf)	/* bits 11:8, ports per CC */

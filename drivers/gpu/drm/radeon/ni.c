@@ -680,8 +680,8 @@ int ni_mc_load_microcode(struct radeon_device *rdev)
 
 		/* load mc io regs */
 		for (i = 0; i < regs_size; i++) {
-			WREG32(MC_SEQ_IO_DEBUG_INDEX, io_mc_regs[(i << 1)]);
-			WREG32(MC_SEQ_IO_DEBUG_DATA, io_mc_regs[(i << 1) + 1]);
+			WREG32(MC_SEQ_IO_DE_INDEX, io_mc_regs[(i << 1)]);
+			WREG32(MC_SEQ_IO_DE_DATA, io_mc_regs[(i << 1) + 1]);
 		}
 		/* load the MC ucode */
 		fw_data = (const __be32 *)rdev->mc_fw->data;
@@ -716,7 +716,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 	char fw_name[30];
 	int err;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (rdev->family) {
 	case CHIP_BARTS:
@@ -764,7 +764,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = ARUBA_RLC_UCODE_SIZE * 4;
 		mc_req_size = 0;
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	DRM_INFO("Loading %s Microcode\n", chip_name);
@@ -890,7 +890,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	u32 gb_addr_config = 0;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 cgts_tcc_disable;
-	u32 sx_debug_1;
+	u32 sx_de_1;
 	u32 smx_dc_ctl0;
 	u32 cgts_sm_ctrl_reg;
 	u32 hdp_host_path_cntl;
@@ -1168,9 +1168,9 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	/* set HW defaults for 3D engine */
 	WREG32(CP_MEQ_THRESHOLDS, MEQ1_START(0x30) | MEQ2_START(0x60));
 
-	sx_debug_1 = RREG32(SX_DEBUG_1);
-	sx_debug_1 |= ENABLE_NEW_SMX_ADDRESS;
-	WREG32(SX_DEBUG_1, sx_debug_1);
+	sx_de_1 = RREG32(SX_DE_1);
+	sx_de_1 |= ENABLE_NEW_SMX_ADDRESS;
+	WREG32(SX_DE_1, sx_de_1);
 
 	smx_dc_ctl0 = RREG32(SMX_DC_CTL0);
 	smx_dc_ctl0 &= ~NUMBER_OF_SETS(0x1ff);
@@ -1676,7 +1676,7 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
 
-	WREG32(CP_DEBUG, (1 << 27));
+	WREG32(CP_DE, (1 << 27));
 
 	/* set the wb address whether it's enabled or not */
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
@@ -1811,7 +1811,7 @@ u32 cayman_gpu_check_soft_reset(struct radeon_device *rdev)
 
 	/* Skip MC reset as it's mostly likely not hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
-		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		DRM_DE("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
 	}
 

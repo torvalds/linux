@@ -7,7 +7,7 @@
 
 #include <linux/memblock.h>
 #include <linux/kasan.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -199,7 +199,7 @@ static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
 	if (!pgtable_l5_enabled())
 		return (p4d_t *)pgd;
 
-	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
+	p4d = __pa_node(pgd_val(*pgd)) & PTE_PFN_MASK;
 	p4d += __START_KERNEL_map - phys_base;
 	return (p4d_t *)p4d + p4d_index(addr);
 }
@@ -214,7 +214,7 @@ static void __init kasan_early_p4d_populate(pgd_t *pgd,
 
 	if (pgd_none(*pgd)) {
 		pgd_entry = __pgd(_KERNPG_TABLE |
-					__pa_nodebug(kasan_early_shadow_p4d));
+					__pa_node(kasan_early_shadow_p4d));
 		set_pgd(pgd, pgd_entry);
 	}
 
@@ -226,7 +226,7 @@ static void __init kasan_early_p4d_populate(pgd_t *pgd,
 			continue;
 
 		p4d_entry = __p4d(_KERNPG_TABLE |
-					__pa_nodebug(kasan_early_shadow_pud));
+					__pa_node(kasan_early_shadow_pud));
 		set_p4d(p4d, p4d_entry);
 	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
 }
@@ -265,11 +265,11 @@ static struct notifier_block kasan_die_notifier = {
 void __init kasan_early_init(void)
 {
 	int i;
-	pteval_t pte_val = __pa_nodebug(kasan_early_shadow_page) |
+	pteval_t pte_val = __pa_node(kasan_early_shadow_page) |
 				__PAGE_KERNEL | _PAGE_ENC;
-	pmdval_t pmd_val = __pa_nodebug(kasan_early_shadow_pte) | _KERNPG_TABLE;
-	pudval_t pud_val = __pa_nodebug(kasan_early_shadow_pmd) | _KERNPG_TABLE;
-	p4dval_t p4d_val = __pa_nodebug(kasan_early_shadow_pud) | _KERNPG_TABLE;
+	pmdval_t pmd_val = __pa_node(kasan_early_shadow_pte) | _KERNPG_TABLE;
+	pudval_t pud_val = __pa_node(kasan_early_shadow_pmd) | _KERNPG_TABLE;
+	p4dval_t p4d_val = __pa_node(kasan_early_shadow_pud) | _KERNPG_TABLE;
 
 	/* Mask out unsupported __PAGE_KERNEL bits: */
 	pte_val &= __default_kernel_pte_mask;

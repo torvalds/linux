@@ -71,10 +71,10 @@ config RTC_SYSTOHC_DEVICE
 	  one can sleep when setting time, because it runs in the workqueue
 	  context.
 
-config RTC_DEBUG
-	bool "RTC debug support"
+config RTC_DE
+	bool "RTC de support"
 	help
-	  Say yes here to enable debugging support in the RTC framework
+	  Say yes here to enable deging support in the RTC framework
 	  and individual RTC drivers.
 
 config RTC_NVMEM
@@ -260,7 +260,7 @@ config RTC_DRV_DS1307_CENTURY
 	depends on RTC_DRV_DS1307
 	default n
 	help
-	  The DS1307 driver suffered from a bug where it was enabling the
+	  The DS1307 driver suffered from a  where it was enabling the
 	  century bit inconditionnally but never used it when reading the time.
 	  It made the driver unable to support dates beyond 2099.
 	  Setting this option will add proper support for the century bit but if

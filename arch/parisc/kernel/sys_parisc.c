@@ -196,7 +196,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))
 		goto found_addr;
-	VM_BUG_ON(addr != -ENOMEM);
+	VM__ON(addr != -ENOMEM);
 
 	/*
 	 * A failed mmap() very likely causes application failure,

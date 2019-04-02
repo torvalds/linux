@@ -13,7 +13,7 @@
  * a segmentation fault. This happens for COUNT_MAX times.
  *
  * This test never fails (as returning EXIT_FAILURE). It either succeeds,
- * or crash the kernel (on a buggy kernel).
+ * or crash the kernel (on a gy kernel).
  */
 
 #define _GNU_SOURCE
@@ -91,7 +91,7 @@ void usr_signal_handler(int signo, siginfo_t *si, void *uc)
 	}
 
 	/*
-	 * If the change above does not hit the bug, it will cause a
+	 * If the change above does not hit the , it will cause a
 	 * segmentation fault, since the ck structures are NULL.
 	 */
 }

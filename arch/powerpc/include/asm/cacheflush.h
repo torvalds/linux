@@ -53,7 +53,7 @@ extern void __flush_dcache_icache_phys(unsigned long physaddr);
 #else
 static inline void __flush_dcache_icache_phys(unsigned long physaddr)
 {
-	BUG();
+	();
 }
 #endif
 

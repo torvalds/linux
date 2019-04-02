@@ -38,9 +38,9 @@
 
 */
 
-#undef DEBUG_CHECK_RANGE
-#undef DEBUG_ADDRESSES
-#undef DEBUG_LAST_STEPS
+#undef DE_CHECK_RANGE
+#undef DE_ADDRESSES
+#undef DE_LAST_STEPS
 
 extern unsigned long switch_to_osf_pal(unsigned long nr,
 	struct pcb_struct * pcb_va, struct pcb_struct * pcb_pa,
@@ -79,7 +79,7 @@ check_range(unsigned long vstart, unsigned long vend,
 {
 	unsigned long vaddr, kaddr;
 
-#ifdef DEBUG_CHECK_RANGE
+#ifdef DE_CHECK_RANGE
 	srm_printk("check_range: V[0x%lx:0x%lx] K[0x%lx:0x%lx]\n",
 		   vstart, vend, kstart, kend);
 #endif
@@ -89,7 +89,7 @@ check_range(unsigned long vstart, unsigned long vend,
 		kaddr = (find_pa(vaddr) | PAGE_OFFSET);
 		if (kaddr >= kstart && kaddr <= kend)
 		{
-#ifdef DEBUG_CHECK_RANGE
+#ifdef DE_CHECK_RANGE
 			srm_printk("OVERLAP: vaddr 0x%lx kaddr 0x%lx"
 				   " [0x%lx:0x%lx]\n",
 				   vaddr, kaddr, kstart, kend);
@@ -316,7 +316,7 @@ start_kernel(void)
 	}
 	envval[nbytes] = '\0';
 
-#ifdef DEBUG_ADDRESSES
+#ifdef DE_ADDRESSES
 	srm_printk("START_ADDR 0x%lx\n", START_ADDR);
 	srm_printk("KERNEL_ORIGIN 0x%lx\n", KERNEL_ORIGIN);
 	srm_printk("KERNEL_SIZE 0x%x\n", KERNEL_SIZE);
@@ -362,7 +362,7 @@ start_kernel(void)
 	if (check_range(V_DATA_START, V_DATA_END,
 			K_KERNEL_IMAGE_START, K_COPY_IMAGE_END))
 	{
-#ifdef DEBUG_ADDRESSES
+#ifdef DE_ADDRESSES
 		srm_printk("OVERLAP: cannot decompress in place\n");
 #endif
 		uncompressed_image_start = K_COPY_IMAGE_START;
@@ -394,7 +394,7 @@ start_kernel(void)
 
 	srm_printk("Starting to load the kernel with args '%s'\n", envval);
 
-#ifdef DEBUG_ADDRESSES
+#ifdef DE_ADDRESSES
 	srm_printk("Decompressing the kernel...\n"
 		   "...from 0x%lx to 0x%lx size 0x%x\n",
 		   V_DATA_START,
@@ -412,7 +412,7 @@ start_kernel(void)
 #ifdef INITRD_IMAGE_SIZE
 
 	/* First, we always move the INITRD image, if present. */
-#ifdef DEBUG_ADDRESSES
+#ifdef DE_ADDRESSES
 	srm_printk("Moving the INITRD image...\n"
 		   " from 0x%lx to 0x%lx size 0x%x\n",
 		   V_INITRD_START,
@@ -428,7 +428,7 @@ start_kernel(void)
 	   final destination.
 	 */
 	if (must_move) {
-#ifdef DEBUG_ADDRESSES
+#ifdef DE_ADDRESSES
 		srm_printk("Moving the uncompressed kernel...\n"
 			   "...from 0x%lx to 0x%lx size 0x%x\n",
 			   uncompressed_image_start,
@@ -446,7 +446,7 @@ start_kernel(void)
 	}
 	
 	/* Clear the zero page, then move the argument list in. */
-#ifdef DEBUG_LAST_STEPS
+#ifdef DE_LAST_STEPS
 	srm_printk("Preparing ZERO_PGE...\n");
 #endif
 	memset((char*)ZERO_PGE, 0, PAGE_SIZE);
@@ -454,7 +454,7 @@ start_kernel(void)
 
 #ifdef INITRD_IMAGE_SIZE
 
-#ifdef DEBUG_LAST_STEPS
+#ifdef DE_LAST_STEPS
 	srm_printk("Preparing INITRD info...\n");
 #endif
 	/* Finally, set the INITRD paramenters for the kernel. */
@@ -463,7 +463,7 @@ start_kernel(void)
 
 #endif /* INITRD_IMAGE_SIZE */
 
-#ifdef DEBUG_LAST_STEPS
+#ifdef DE_LAST_STEPS
 	srm_printk("Doing 'runkernel()'...\n");
 #endif
 	runkernel();

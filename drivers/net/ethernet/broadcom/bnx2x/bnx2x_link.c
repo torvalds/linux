@@ -444,7 +444,7 @@ static void bnx2x_ets_e2e3a0_disabled(struct link_params *params)
 
 	DP(NETIF_MSG_LINK, "ETS E2E3 disabled configuration\n");
 
-	/* mapping between entry  priority to client number (0,1,2 -debug and
+	/* mapping between entry  priority to client number (0,1,2 -de and
 	 * management clients, 3 - COS0 client, 4 - COS client)(HIGHEST)
 	 * 3bits client num.
 	 *   PRI4    |    PRI3    |    PRI2    |    PRI1    |    PRI0
@@ -453,11 +453,11 @@ static void bnx2x_ets_e2e3a0_disabled(struct link_params *params)
 
 	REG_WR(bp, NIG_REG_P0_TX_ARB_PRIORITY_CLIENT, 0x4688);
 	/* Bitmap of 5bits length. Each bit specifies whether the entry behaves
-	 * as strict.  Bits 0,1,2 - debug and management entries, 3 -
+	 * as strict.  Bits 0,1,2 - de and management entries, 3 -
 	 * COS0 entry, 4 - COS1 entry.
-	 * COS1 | COS0 | DEBUG1 | DEBUG0 | MGMT
+	 * COS1 | COS0 | DE1 | DE0 | MGMT
 	 * bit4   bit3	  bit2   bit1	  bit0
-	 * MCP and debug are strict
+	 * MCP and de are strict
 	 */
 
 	REG_WR(bp, NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT, 0x7);
@@ -572,7 +572,7 @@ static void bnx2x_ets_e3b0_nig_disabled(const struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	const u8 port = params->port;
 	const u32 min_w_val = bnx2x_ets_get_min_w_val_nig(vars);
-	/* Mapping between entry  priority to client number (0,1,2 -debug and
+	/* Mapping between entry  priority to client number (0,1,2 -de and
 	 * management clients, 3 - COS0 client, 4 - COS1, ... 8 -
 	 * COS5)(HIGHEST) 4bits client num.TODO_ETS - Should be done by
 	 * reset value or init tool
@@ -604,11 +604,11 @@ static void bnx2x_ets_e3b0_nig_disabled(const struct link_params *params,
 	}
 
 	/* Bitmap of 5bits length. Each bit specifies whether the entry behaves
-	 * as strict.  Bits 0,1,2 - debug and management entries, 3 -
+	 * as strict.  Bits 0,1,2 - de and management entries, 3 -
 	 * COS0 entry, 4 - COS1 entry.
-	 * COS1 | COS0 | DEBUG1 | DEBUG0 | MGMT
+	 * COS1 | COS0 | DE1 | DE0 | MGMT
 	 * bit4   bit3	  bit2   bit1	  bit0
-	 * MCP and debug are strict
+	 * MCP and de are strict
 	 */
 	if (port)
 		REG_WR(bp, NIG_REG_P1_TX_ARB_CLIENT_IS_STRICT, 0x3f);
@@ -620,8 +620,8 @@ static void bnx2x_ets_e3b0_nig_disabled(const struct link_params *params,
 
 	/* Please notice the register address are note continuous and a
 	 * for here is note appropriate.In 2 port mode port0 only COS0-5
-	 * can be used. DEBUG1,DEBUG1,MGMT are never used for WFQ* In 4
-	 * port mode port1 only COS0-2 can be used. DEBUG1,DEBUG1,MGMT
+	 * can be used. DE1,DE1,MGMT are never used for WFQ* In 4
+	 * port mode port1 only COS0-2 can be used. DE1,DE1,MGMT
 	 * are never used for WFQ
 	 */
 	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_0 :
@@ -1256,11 +1256,11 @@ static void bnx2x_ets_bw_limit_common(const struct link_params *params)
 	/* Defines the number of consecutive slots for the strict priority */
 	REG_WR(bp, PBF_REG_NUM_STRICT_ARB_SLOTS, 0);
 	/* Bitmap of 5bits length. Each bit specifies whether the entry behaves
-	 * as strict.  Bits 0,1,2 - debug and management entries, 3 - COS0
+	 * as strict.  Bits 0,1,2 - de and management entries, 3 - COS0
 	 * entry, 4 - COS1 entry.
-	 * COS1 | COS0 | DEBUG21 | DEBUG0 | MGMT
+	 * COS1 | COS0 | DE21 | DE0 | MGMT
 	 * bit4   bit3	  bit2     bit1	   bit0
-	 * MCP and debug are strict
+	 * MCP and de are strict
 	 */
 	REG_WR(bp, NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT, 0x7);
 
@@ -1311,11 +1311,11 @@ int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
 
 	DP(NETIF_MSG_LINK, "ETS enabled strict configuration\n");
 	/* Bitmap of 5bits length. Each bit specifies whether the entry behaves
-	 * as strict.  Bits 0,1,2 - debug and management entries,
+	 * as strict.  Bits 0,1,2 - de and management entries,
 	 * 3 - COS0 entry, 4 - COS1 entry.
-	 *  COS1 | COS0 | DEBUG21 | DEBUG0 | MGMT
+	 *  COS1 | COS0 | DE21 | DE0 | MGMT
 	 *  bit4   bit3	  bit2      bit1     bit0
-	 * MCP and debug are strict
+	 * MCP and de are strict
 	 */
 	REG_WR(bp, NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT, 0x1F);
 	/* For strict priority entries defines the number of consecutive slots
@@ -1330,7 +1330,7 @@ int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
 	/* Defines the number of consecutive slots for the strict priority */
 	REG_WR(bp, PBF_REG_HIGH_PRIORITY_COS_NUM, strict_cos);
 
-	/* Mapping between entry  priority to client number (0,1,2 -debug and
+	/* Mapping between entry  priority to client number (0,1,2 -de and
 	 * management clients, 3 - COS0 client, 4 - COS client)(HIGHEST)
 	 * 3bits client num.
 	 *   PRI4    |    PRI3    |    PRI2    |    PRI1    |    PRI0
@@ -2488,7 +2488,7 @@ static int bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
 	}
 	crd = REG_RD(bp, PBF_REG_P0_CREDIT + port*8);
 	if (init_crd != crd) {
-		DP(NETIF_MSG_LINK, "BUG! init_crd 0x%x != crd 0x%x\n",
+		DP(NETIF_MSG_LINK, "! init_crd 0x%x != crd 0x%x\n",
 			  init_crd, crd);
 		return -EINVAL;
 	}
@@ -4924,7 +4924,7 @@ static int bnx2x_reset_unicore(struct link_params *params,
 	netdev_err(bp->dev,  "Warning: PHY was not initialized,"
 			      " Port %d\n",
 			 params->port);
-	DP(NETIF_MSG_LINK, "BUG! XGXS is still in reset!\n");
+	DP(NETIF_MSG_LINK, "! XGXS is still in reset!\n");
 	return -EINVAL;
 
 }

@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 
 #include <linux/hid.h>
-#include <linux/hid-debug.h>
+#include <linux/hid-de.h>
 
 #include "hid-ids.h"
 

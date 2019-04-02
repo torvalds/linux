@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * xhci-debugfs.c - xHCI debugfs interface
+ * xhci-defs.c - xHCI defs interface
  *
  * Copyright (C) 2017 Intel Corporation
  *
@@ -11,9 +11,9 @@
 #include <linux/uaccess.h>
 
 #include "xhci.h"
-#include "xhci-debugfs.h"
+#include "xhci-defs.h"
 
-static const struct debugfs_reg32 xhci_cap_regs[] = {
+static const struct defs_reg32 xhci_cap_regs[] = {
 	dump_register(CAPLENGTH),
 	dump_register(HCSPARAMS1),
 	dump_register(HCSPARAMS2),
@@ -24,7 +24,7 @@ static const struct debugfs_reg32 xhci_cap_regs[] = {
 	dump_register(HCCPARAMS2),
 };
 
-static const struct debugfs_reg32 xhci_op_regs[] = {
+static const struct defs_reg32 xhci_op_regs[] = {
 	dump_register(USBCMD),
 	dump_register(USBSTS),
 	dump_register(PAGESIZE),
@@ -35,7 +35,7 @@ static const struct debugfs_reg32 xhci_op_regs[] = {
 	dump_register(CONFIG),
 };
 
-static const struct debugfs_reg32 xhci_runtime_regs[] = {
+static const struct defs_reg32 xhci_runtime_regs[] = {
 	dump_register(MFINDEX),
 	dump_register(IR0_IMAN),
 	dump_register(IR0_IMOD),
@@ -46,12 +46,12 @@ static const struct debugfs_reg32 xhci_runtime_regs[] = {
 	dump_register(IR0_ERDP_HIGH),
 };
 
-static const struct debugfs_reg32 xhci_extcap_legsup[] = {
+static const struct defs_reg32 xhci_extcap_legsup[] = {
 	dump_register(EXTCAP_USBLEGSUP),
 	dump_register(EXTCAP_USBLEGCTLSTS),
 };
 
-static const struct debugfs_reg32 xhci_extcap_protocol[] = {
+static const struct defs_reg32 xhci_extcap_protocol[] = {
 	dump_register(EXTCAP_REVISION),
 	dump_register(EXTCAP_NAME),
 	dump_register(EXTCAP_PORTINFO),
@@ -64,7 +64,7 @@ static const struct debugfs_reg32 xhci_extcap_protocol[] = {
 	dump_register(EXTCAP_MANTISSA6),
 };
 
-static const struct debugfs_reg32 xhci_extcap_dbc[] = {
+static const struct defs_reg32 xhci_extcap_dbc[] = {
 	dump_register(EXTCAP_DBC_CAPABILITY),
 	dump_register(EXTCAP_DBC_DOORBELL),
 	dump_register(EXTCAP_DBC_ERSTSIZE),
@@ -81,9 +81,9 @@ static const struct debugfs_reg32 xhci_extcap_dbc[] = {
 	dump_register(EXTCAP_DBC_DEVINFO2),
 };
 
-static struct dentry *xhci_debugfs_root;
+static struct dentry *xhci_defs_root;
 
-static struct xhci_regset *xhci_debugfs_alloc_regset(struct xhci_hcd *xhci)
+static struct xhci_regset *xhci_defs_alloc_regset(struct xhci_hcd *xhci)
 {
 	struct xhci_regset	*regset;
 
@@ -101,7 +101,7 @@ static struct xhci_regset *xhci_debugfs_alloc_regset(struct xhci_hcd *xhci)
 	return regset;
 }
 
-static void xhci_debugfs_free_regset(struct xhci_regset *regset)
+static void xhci_defs_free_regset(struct xhci_regset *regset)
 {
 	if (!regset)
 		return;
@@ -110,17 +110,17 @@ static void xhci_debugfs_free_regset(struct xhci_regset *regset)
 	kfree(regset);
 }
 
-static void xhci_debugfs_regset(struct xhci_hcd *xhci, u32 base,
-				const struct debugfs_reg32 *regs,
+static void xhci_defs_regset(struct xhci_hcd *xhci, u32 base,
+				const struct defs_reg32 *regs,
 				size_t nregs, struct dentry *parent,
 				const char *fmt, ...)
 {
 	struct xhci_regset	*rgs;
 	va_list			args;
-	struct debugfs_regset32	*regset;
+	struct defs_regset32	*regset;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 
-	rgs = xhci_debugfs_alloc_regset(xhci);
+	rgs = xhci_defs_alloc_regset(xhci);
 	if (!rgs)
 		return;
 
@@ -133,11 +133,11 @@ static void xhci_debugfs_regset(struct xhci_hcd *xhci, u32 base,
 	regset->nregs = nregs;
 	regset->base = hcd->regs + base;
 
-	debugfs_create_regset32((const char *)rgs->name, 0444, parent, regset);
+	defs_create_regset32((const char *)rgs->name, 0444, parent, regset);
 }
 
-static void xhci_debugfs_extcap_regset(struct xhci_hcd *xhci, int cap_id,
-				       const struct debugfs_reg32 *regs,
+static void xhci_defs_extcap_regset(struct xhci_hcd *xhci, int cap_id,
+				       const struct defs_reg32 *regs,
 				       size_t n, const char *cap_name)
 {
 	u32			offset;
@@ -152,8 +152,8 @@ static void xhci_debugfs_extcap_regset(struct xhci_hcd *xhci, int cap_id,
 			nregs = min(4 + psic, n);
 		}
 
-		xhci_debugfs_regset(xhci, offset, regs, nregs,
-				    xhci->debugfs_root, "%s:%02d",
+		xhci_defs_regset(xhci, offset, regs, nregs,
+				    xhci->defs_root, "%s:%02d",
 				    cap_name, index);
 		offset = xhci_find_next_ext_cap(base, offset, cap_id);
 		index++;
@@ -395,7 +395,7 @@ static const struct file_operations port_fops = {
 	.release		= single_release,
 };
 
-static void xhci_debugfs_create_files(struct xhci_hcd *xhci,
+static void xhci_defs_create_files(struct xhci_hcd *xhci,
 				      struct xhci_file_map *files,
 				      size_t nentries, void *data,
 				      struct dentry *parent,
@@ -404,41 +404,41 @@ static void xhci_debugfs_create_files(struct xhci_hcd *xhci,
 	int			i;
 
 	for (i = 0; i < nentries; i++)
-		debugfs_create_file(files[i].name, 0444, parent, data, fops);
+		defs_create_file(files[i].name, 0444, parent, data, fops);
 }
 
-static struct dentry *xhci_debugfs_create_ring_dir(struct xhci_hcd *xhci,
+static struct dentry *xhci_defs_create_ring_dir(struct xhci_hcd *xhci,
 						   struct xhci_ring **ring,
 						   const char *name,
 						   struct dentry *parent)
 {
 	struct dentry		*dir;
 
-	dir = debugfs_create_dir(name, parent);
-	xhci_debugfs_create_files(xhci, ring_files, ARRAY_SIZE(ring_files),
+	dir = defs_create_dir(name, parent);
+	xhci_defs_create_files(xhci, ring_files, ARRAY_SIZE(ring_files),
 				  ring, dir, &xhci_ring_fops);
 
 	return dir;
 }
 
-static void xhci_debugfs_create_context_files(struct xhci_hcd *xhci,
+static void xhci_defs_create_context_files(struct xhci_hcd *xhci,
 					      struct dentry *parent,
 					      int slot_id)
 {
 	struct xhci_virt_device	*dev = xhci->devs[slot_id];
 
-	xhci_debugfs_create_files(xhci, context_files,
+	xhci_defs_create_files(xhci, context_files,
 				  ARRAY_SIZE(context_files),
-				  dev->debugfs_private,
+				  dev->defs_private,
 				  parent, &xhci_context_fops);
 }
 
-void xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
+void xhci_defs_create_endpoint(struct xhci_hcd *xhci,
 				  struct xhci_virt_device *dev,
 				  int ep_index)
 {
 	struct xhci_ep_priv	*epriv;
-	struct xhci_slot_priv	*spriv = dev->debugfs_private;
+	struct xhci_slot_priv	*spriv = dev->defs_private;
 
 	if (spriv->eps[ep_index])
 		return;
@@ -448,30 +448,30 @@ void xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
 		return;
 
 	snprintf(epriv->name, sizeof(epriv->name), "ep%02d", ep_index);
-	epriv->root = xhci_debugfs_create_ring_dir(xhci,
+	epriv->root = xhci_defs_create_ring_dir(xhci,
 						   &dev->eps[ep_index].ring,
 						   epriv->name,
 						   spriv->root);
 	spriv->eps[ep_index] = epriv;
 }
 
-void xhci_debugfs_remove_endpoint(struct xhci_hcd *xhci,
+void xhci_defs_remove_endpoint(struct xhci_hcd *xhci,
 				  struct xhci_virt_device *dev,
 				  int ep_index)
 {
 	struct xhci_ep_priv	*epriv;
-	struct xhci_slot_priv	*spriv = dev->debugfs_private;
+	struct xhci_slot_priv	*spriv = dev->defs_private;
 
 	if (!spriv || !spriv->eps[ep_index])
 		return;
 
 	epriv = spriv->eps[ep_index];
-	debugfs_remove_recursive(epriv->root);
+	defs_remove_recursive(epriv->root);
 	spriv->eps[ep_index] = NULL;
 	kfree(epriv);
 }
 
-void xhci_debugfs_create_slot(struct xhci_hcd *xhci, int slot_id)
+void xhci_defs_create_slot(struct xhci_hcd *xhci, int slot_id)
 {
 	struct xhci_slot_priv	*priv;
 	struct xhci_virt_device	*dev = xhci->devs[slot_id];
@@ -481,37 +481,37 @@ void xhci_debugfs_create_slot(struct xhci_hcd *xhci, int slot_id)
 		return;
 
 	snprintf(priv->name, sizeof(priv->name), "%02d", slot_id);
-	priv->root = debugfs_create_dir(priv->name, xhci->debugfs_slots);
+	priv->root = defs_create_dir(priv->name, xhci->defs_slots);
 	priv->dev = dev;
-	dev->debugfs_private = priv;
+	dev->defs_private = priv;
 
-	xhci_debugfs_create_ring_dir(xhci, &dev->eps[0].ring,
+	xhci_defs_create_ring_dir(xhci, &dev->eps[0].ring,
 				     "ep00", priv->root);
 
-	xhci_debugfs_create_context_files(xhci, priv->root, slot_id);
+	xhci_defs_create_context_files(xhci, priv->root, slot_id);
 }
 
-void xhci_debugfs_remove_slot(struct xhci_hcd *xhci, int slot_id)
+void xhci_defs_remove_slot(struct xhci_hcd *xhci, int slot_id)
 {
 	int			i;
 	struct xhci_slot_priv	*priv;
 	struct xhci_virt_device	*dev = xhci->devs[slot_id];
 
-	if (!dev || !dev->debugfs_private)
+	if (!dev || !dev->defs_private)
 		return;
 
-	priv = dev->debugfs_private;
+	priv = dev->defs_private;
 
-	debugfs_remove_recursive(priv->root);
+	defs_remove_recursive(priv->root);
 
 	for (i = 0; i < 31; i++)
 		kfree(priv->eps[i]);
 
 	kfree(priv);
-	dev->debugfs_private = NULL;
+	dev->defs_private = NULL;
 }
 
-static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
+static void xhci_defs_create_ports(struct xhci_hcd *xhci,
 				      struct dentry *parent)
 {
 	unsigned int		num_ports;
@@ -521,88 +521,88 @@ static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
 
 	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
-	parent = debugfs_create_dir("ports", parent);
+	parent = defs_create_dir("ports", parent);
 
 	while (num_ports--) {
 		scnprintf(port_name, sizeof(port_name), "port%02d",
 			  num_ports + 1);
-		dir = debugfs_create_dir(port_name, parent);
+		dir = defs_create_dir(port_name, parent);
 		port = &xhci->hw_ports[num_ports];
-		debugfs_create_file("portsc", 0644, dir, port, &port_fops);
+		defs_create_file("portsc", 0644, dir, port, &port_fops);
 	}
 }
 
-void xhci_debugfs_init(struct xhci_hcd *xhci)
+void xhci_defs_init(struct xhci_hcd *xhci)
 {
 	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
 
-	xhci->debugfs_root = debugfs_create_dir(dev_name(dev),
-						xhci_debugfs_root);
+	xhci->defs_root = defs_create_dir(dev_name(dev),
+						xhci_defs_root);
 
 	INIT_LIST_HEAD(&xhci->regset_list);
 
-	xhci_debugfs_regset(xhci,
+	xhci_defs_regset(xhci,
 			    0,
 			    xhci_cap_regs, ARRAY_SIZE(xhci_cap_regs),
-			    xhci->debugfs_root, "reg-cap");
+			    xhci->defs_root, "reg-cap");
 
-	xhci_debugfs_regset(xhci,
+	xhci_defs_regset(xhci,
 			    HC_LENGTH(readl(&xhci->cap_regs->hc_capbase)),
 			    xhci_op_regs, ARRAY_SIZE(xhci_op_regs),
-			    xhci->debugfs_root, "reg-op");
+			    xhci->defs_root, "reg-op");
 
-	xhci_debugfs_regset(xhci,
+	xhci_defs_regset(xhci,
 			    readl(&xhci->cap_regs->run_regs_off) & RTSOFF_MASK,
 			    xhci_runtime_regs, ARRAY_SIZE(xhci_runtime_regs),
-			    xhci->debugfs_root, "reg-runtime");
+			    xhci->defs_root, "reg-runtime");
 
-	xhci_debugfs_extcap_regset(xhci, XHCI_EXT_CAPS_LEGACY,
+	xhci_defs_extcap_regset(xhci, XHCI_EXT_CAPS_LEGACY,
 				   xhci_extcap_legsup,
 				   ARRAY_SIZE(xhci_extcap_legsup),
 				   "reg-ext-legsup");
 
-	xhci_debugfs_extcap_regset(xhci, XHCI_EXT_CAPS_PROTOCOL,
+	xhci_defs_extcap_regset(xhci, XHCI_EXT_CAPS_PROTOCOL,
 				   xhci_extcap_protocol,
 				   ARRAY_SIZE(xhci_extcap_protocol),
 				   "reg-ext-protocol");
 
-	xhci_debugfs_extcap_regset(xhci, XHCI_EXT_CAPS_DEBUG,
+	xhci_defs_extcap_regset(xhci, XHCI_EXT_CAPS_DE,
 				   xhci_extcap_dbc,
 				   ARRAY_SIZE(xhci_extcap_dbc),
 				   "reg-ext-dbc");
 
-	xhci_debugfs_create_ring_dir(xhci, &xhci->cmd_ring,
+	xhci_defs_create_ring_dir(xhci, &xhci->cmd_ring,
 				     "command-ring",
-				     xhci->debugfs_root);
+				     xhci->defs_root);
 
-	xhci_debugfs_create_ring_dir(xhci, &xhci->event_ring,
+	xhci_defs_create_ring_dir(xhci, &xhci->event_ring,
 				     "event-ring",
-				     xhci->debugfs_root);
+				     xhci->defs_root);
 
-	xhci->debugfs_slots = debugfs_create_dir("devices", xhci->debugfs_root);
+	xhci->defs_slots = defs_create_dir("devices", xhci->defs_root);
 
-	xhci_debugfs_create_ports(xhci, xhci->debugfs_root);
+	xhci_defs_create_ports(xhci, xhci->defs_root);
 }
 
-void xhci_debugfs_exit(struct xhci_hcd *xhci)
+void xhci_defs_exit(struct xhci_hcd *xhci)
 {
 	struct xhci_regset	*rgs, *tmp;
 
-	debugfs_remove_recursive(xhci->debugfs_root);
-	xhci->debugfs_root = NULL;
-	xhci->debugfs_slots = NULL;
+	defs_remove_recursive(xhci->defs_root);
+	xhci->defs_root = NULL;
+	xhci->defs_slots = NULL;
 
 	list_for_each_entry_safe(rgs, tmp, &xhci->regset_list, list)
-		xhci_debugfs_free_regset(rgs);
+		xhci_defs_free_regset(rgs);
 }
 
-void __init xhci_debugfs_create_root(void)
+void __init xhci_defs_create_root(void)
 {
-	xhci_debugfs_root = debugfs_create_dir("xhci", usb_debug_root);
+	xhci_defs_root = defs_create_dir("xhci", usb_de_root);
 }
 
-void __exit xhci_debugfs_remove_root(void)
+void __exit xhci_defs_remove_root(void)
 {
-	debugfs_remove_recursive(xhci_debugfs_root);
-	xhci_debugfs_root = NULL;
+	defs_remove_recursive(xhci_defs_root);
+	xhci_defs_root = NULL;
 }

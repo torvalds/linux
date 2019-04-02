@@ -79,7 +79,7 @@ MODULE_LICENSE("GPL");
 module_param_named(msg_enable, ne2k_msg_enable, uint, 0444);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
-MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+MODULE_PARM_DESC(msg_enable, "De message level (see linux/netdevice.h for bitmap)");
 MODULE_PARM_DESC(options, "Bit 5: full duplex");
 MODULE_PARM_DESC(full_duplex, "full duplex setting(s) (1)");
 
@@ -88,8 +88,8 @@ MODULE_PARM_DESC(full_duplex, "full duplex setting(s) (1)");
 /* Use 32 bit data-movement operations instead of 16 bit. */
 #define USE_LONGIO
 
-/* Do we implement the read before write bugfix ? */
-/* #define NE_RW_BUGFIX */
+/* Do we implement the read before write fix ? */
+/* #define NE_RW_FIX */
 
 /* Flags.  We rename an existing ei_status field to store flags! */
 /* Thus only the low 8 bits are usable for non-init-time flags. */
@@ -586,8 +586,8 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 	/* We should already be in page 0, but to be safe... */
 	outb(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
 
-#ifdef NE8390_RW_BUGFIX
-	/* Handle the read-before-write bug the same way as the
+#ifdef NE8390_RW_FIX
+	/* Handle the read-before-write  the same way as the
 	   Crynwr packet driver -- the NatSemi method doesn't work.
 	   Actually this doesn't always work either, but if you have
 	   problems with your NEx000 this is better than nothing! */
@@ -669,7 +669,7 @@ static void ne2k_pci_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 	unregister_netdev(dev);
 	release_region(dev->base_addr, NE_IO_EXTENT);
 	free_netdev(dev);

@@ -255,7 +255,7 @@ static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
 #define efx_writeo_page(efx, value, reg, page)				\
 	_efx_writeo_page(efx, value,					\
 			 reg +						\
-			 BUILD_BUG_ON_ZERO((reg) != 0x830 && (reg) != 0xa10), \
+			 BUILD__ON_ZERO((reg) != 0x830 && (reg) != 0xa10), \
 			 page)
 
 /* Write a page-mapped 32-bit CSR (EVQ_RPTR, EVQ_TMR (EF10), or the
@@ -270,7 +270,7 @@ _efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
 #define efx_writed_page(efx, value, reg, page)				\
 	_efx_writed_page(efx, value,					\
 			 reg +						\
-			 BUILD_BUG_ON_ZERO((reg) != 0x400 &&		\
+			 BUILD__ON_ZERO((reg) != 0x400 &&		\
 					   (reg) != 0x420 &&		\
 					   (reg) != 0x830 &&		\
 					   (reg) != 0x83c &&		\
@@ -278,7 +278,7 @@ _efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
 					   (reg) != 0xa1c),		\
 			 page)
 
-/* Write TIMER_COMMAND.  This is a page-mapped 32-bit CSR, but a bug
+/* Write TIMER_COMMAND.  This is a page-mapped 32-bit CSR, but a 
  * in the BIU means that writes to TIMER_COMMAND[0] invalidate the
  * collector register.
  */
@@ -299,7 +299,7 @@ static inline void _efx_writed_page_locked(struct efx_nic *efx,
 }
 #define efx_writed_page_locked(efx, value, reg, page)			\
 	_efx_writed_page_locked(efx, value,				\
-				reg + BUILD_BUG_ON_ZERO((reg) != 0x420), \
+				reg + BUILD__ON_ZERO((reg) != 0x420), \
 				page)
 
 #endif /* EFX_IO_H */

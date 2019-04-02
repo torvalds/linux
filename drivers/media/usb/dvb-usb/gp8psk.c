@@ -17,11 +17,11 @@
 #include "gp8psk.h"
 #include "gp8psk-fe.h"
 
-/* debug */
+/* de */
 static char bcm4500_firmware[] = "dvb-usb-gp8psk-02.fw";
-int dvb_usb_gp8psk_debug;
-module_param_named(debug,dvb_usb_gp8psk_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DEBUG_STATUS);
+int dvb_usb_gp8psk_de;
+module_param_named(de,dvb_usb_gp8psk_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -61,7 +61,7 @@ static int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
 	}
 
 	deb_xfer("in: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
-	debug_dump(b,blen,deb_xfer);
+	de_dump(b,blen,deb_xfer);
 
 	mutex_unlock(&d->usb_mutex);
 
@@ -75,7 +75,7 @@ static int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 	int ret;
 
 	deb_xfer("out: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
-	debug_dump(b,blen,deb_xfer);
+	de_dump(b,blen,deb_xfer);
 
 	if (blen > sizeof(st->data))
 		return -EIO;

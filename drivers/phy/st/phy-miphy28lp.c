@@ -73,9 +73,9 @@
 #define MIPHY_CTRL_TEST_3		0x23
 #define MIPHY_CTRL_TEST_4		0x24
 #define MIPHY_FEEDBACK_TEST		0x25
-#define MIPHY_DEBUG_BUS			0x26
-#define MIPHY_DEBUG_STATUS_MSB		0x27
-#define MIPHY_DEBUG_STATUS_LSB		0x28
+#define MIPHY_DE_BUS			0x26
+#define MIPHY_DE_STATUS_MSB		0x27
+#define MIPHY_DE_STATUS_LSB		0x28
 #define MIPHY_PWR_RAIL_1		0x29
 #define MIPHY_PWR_RAIL_2		0x2a
 #define MIPHY_SYNCHAR_CONTROL		0x30
@@ -557,7 +557,7 @@ static inline void miphy28_usb3_miphy_reset(struct miphy28lp_phy *miphy_phy)
 	writeb_relaxed(0x00, base + MIPHY_TST_BIAS_BOOST_2);
 	writeb_relaxed(0x00, base + MIPHY_CONF);
 	writeb_relaxed(SET_NEW_CHANGE, base + MIPHY_PLL_SBR_1);
-	writeb_relaxed(0xa5, base + MIPHY_DEBUG_BUS);
+	writeb_relaxed(0xa5, base + MIPHY_DE_BUS);
 	writeb_relaxed(0x00, base + MIPHY_CONF);
 }
 

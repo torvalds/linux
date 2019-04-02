@@ -60,7 +60,7 @@
 #include "iwl-drv.h"
 #include "runtime.h"
 #include "dbg.h"
-#include "debugfs.h"
+#include "defs.h"
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 			const struct iwl_fw *fw,

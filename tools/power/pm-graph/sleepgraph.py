@@ -32,8 +32,8 @@
 #	 viewed in firefox or chrome.
 #
 #	 The following kernel build options are required:
-#		 CONFIG_PM_DEBUG=y
-#		 CONFIG_PM_SLEEP_DEBUG=y
+#		 CONFIG_PM_DE=y
+#		 CONFIG_PM_SLEEP_DE=y
 #		 CONFIG_FTRACE=y
 #		 CONFIG_FUNCTION_TRACER=y
 #		 CONFIG_FUNCTION_GRAPH_TRACER=y
@@ -43,7 +43,7 @@
 #	 For kernel versions older than 3.15:
 #	 The following additional kernel parameters are required:
 #		 (e.g. in file /etc/default/grub)
-#		 GRUB_CMDLINE_LINUX_DEFAULT="... initcall_debug log_buf_len=16M ..."
+#		 GRUB_CMDLINE_LINUX_DEFAULT="... initcall_de log_buf_len=16M ..."
 #
 
 # ----------------- LIBRARIES --------------------
@@ -101,10 +101,10 @@ class SystemValues:
 	cgexp = False
 	testdir = ''
 	outdir = ''
-	tpath = '/sys/kernel/debug/tracing/'
+	tpath = '/sys/kernel/de/tracing/'
 	fpdtpath = '/sys/firmware/acpi/tables/FPDT'
-	epath = '/sys/kernel/debug/tracing/events/power/'
-	pmdpath = '/sys/power/pm_debug_messages'
+	epath = '/sys/kernel/de/tracing/events/power/'
+	pmdpath = '/sys/power/pm_de_messages'
 	traceevents = [
 		'suspend_resume',
 		'device_pm_callback_end',
@@ -150,7 +150,7 @@ class SystemValues:
 	devprops = dict()
 	predelay = 0
 	postdelay = 0
-	pmdebug = ''
+	pmde = ''
 	tracefuncs = {
 		'sys_sync': {},
 		'ksys_sync': {},
@@ -651,8 +651,8 @@ class SystemValues:
 			self.fsetVal('0', 'events/kprobes/enable')
 			self.fsetVal('', 'kprobe_events')
 			self.fsetVal('1024', 'buffer_size_kb')
-		if self.pmdebug:
-			self.setVal(self.pmdebug, self.pmdpath)
+		if self.pmde:
+			self.setVal(self.pmde, self.pmdpath)
 	def setupAllKprobes(self):
 		for name in self.tracefuncs:
 			self.defaultKprobe(name, self.tracefuncs[name])
@@ -675,11 +675,11 @@ class SystemValues:
 		# turn trace off
 		self.fsetVal('0', 'tracing_on')
 		self.cleanupFtrace()
-		# pm debug messages
+		# pm de messages
 		pv = self.getVal(self.pmdpath)
 		if pv != '1':
 			self.setVal('1', self.pmdpath)
-			self.pmdebug = pv
+			self.pmde = pv
 		# set the trace clock to global
 		self.fsetVal('global', 'trace_clock')
 		self.fsetVal('nop', 'current_tracer')
@@ -804,8 +804,8 @@ class SystemValues:
 		for v in ['fwsuspend', 'fwresume']:
 			if v in testdata:
 				fp.write('%s%s: %.3f\n' % (v, n, testdata[v] / 1000000.0))
-		if 'bugurl' in testdata:
-			fp.write('url%s: %s\n' % (n, testdata['bugurl']))
+		if 'url' in testdata:
+			fp.write('url%s: %s\n' % (n, testdata['url']))
 		fp.close()
 		self.sudoUserchown(self.result)
 	def configFile(self, file):
@@ -853,7 +853,7 @@ class DevProps:
 		self.xtrainfo = ''
 	def out(self, dev):
 		return '%s,%s,%d;' % (dev, self.altname, self.async)
-	def debug(self, dev):
+	def de(self, dev):
 		pprint('%s:\n\taltname = %s\n\t  async = %s' % (dev, self.altname, self.async))
 	def altName(self, dev):
 		if not self.altname or self.altname == dev:
@@ -918,8 +918,8 @@ class Data:
 	}
 	errlist = {
 		'HWERROR' : '.*\[ *Hardware Error *\].*',
-		'FWBUG'   : '.*\[ *Firmware Bug *\].*',
-		'BUG'     : '.*BUG.*',
+		'FW'   : '.*\[ *Firmware  *\].*',
+		''     : '.*.*',
 		'ERROR'   : '.*ERROR.*',
 		'WARNING' : '.*WARNING.*',
 		'IRQ'     : '.*genirq: .*',
@@ -1591,13 +1591,13 @@ class Data:
 		# set resume complete to end at end marker
 		if 'resume_complete' in dm:
 			dm['resume_complete']['end'] = time
-	def debugPrint(self):
+	def dePrint(self):
 		for p in self.sortedPhases():
 			list = self.dmesg[p]['list']
 			for devname in list:
 				dev = list[devname]
 				if 'ftrace' in dev:
-					dev['ftrace'].debugPrint(' [%s]' % devname)
+					dev['ftrace'].dePrint(' [%s]' % devname)
 
 # Class: DevFunction
 # Description:
@@ -1743,7 +1743,7 @@ class FTraceLine:
 		return self.fcall and self.freturn
 	def getDepth(self, str):
 		return len(str)/2
-	def debugPrint(self, info=''):
+	def dePrint(self, info=''):
 		if self.isLeaf():
 			pprint(' -- %12.6f (depth=%02d): %s(); (%.3f us) %s' % (self.time, \
 				self.depth, self.name, self.length*1000000, info))
@@ -1896,7 +1896,7 @@ class FTraceCallGraph:
 			for i in info:
 				t, obj = i
 				if obj:
-					obj.debugPrint(t)
+					obj.dePrint(t)
 		# process the call and set the new depth
 		skipadd = False
 		md = self.sv.max_graph_depth
@@ -1997,7 +1997,7 @@ class FTraceCallGraph:
 		cnt = 0
 		last = 0
 		for l in self.list:
-			# ftrace bug: reported duration is not reliable
+			# ftrace : reported duration is not reliable
 			# check each leaf and clip it at max possible length
 			if last and last.isLeaf():
 				if last.length > l.time - last.time:
@@ -2009,7 +2009,7 @@ class FTraceCallGraph:
 				if(l.depth not in stack):
 					if self.sv.verbose:
 						pprint('Post Process Error: Depth missing')
-						l.debugPrint()
+						l.dePrint()
 					return False
 				# calculate call length from call/return lines
 				cl = stack[l.depth]
@@ -2083,7 +2083,7 @@ class FTraceCallGraph:
 		if out:
 			phase, myname = out
 			data.dmesg[phase]['list'][myname]['ftrace'] = self
-	def debugPrint(self, info=''):
+	def dePrint(self, info=''):
 		pprint('%s pid=%d [%f - %f] %.3f us' % \
 			(self.name, self.pid, self.start, self.end,
 			(self.end - self.start)*1000000))
@@ -5406,7 +5406,7 @@ def processData(live=False):
 		data.printDetails()
 	if sysvals.cgdump:
 		for data in testruns:
-			data.debugPrint()
+			data.dePrint()
 		sys.exit(0)
 	if len(testruns) < 1:
 		pprint('ERROR: Not enough test data to build a timeline')
@@ -5866,7 +5866,7 @@ def printHelp():
 	'   -mindev ms   Discard all device blocks shorter than ms milliseconds (e.g. 0.001 for us)\n'\
 	'   -multi n d   Execute <n> consecutive tests at <d> seconds intervals. The outputs will\n'\
 	'                be created in a new subdirectory with a summary page.\n'\
-	'  [debug]\n'\
+	'  [de]\n'\
 	'   -f           Use ftrace to create device callgraphs (default: disabled)\n'\
 	'   -maxdepth N  limit the callgraph data to N call levels (default: 0=all)\n'\
 	'   -expandcg    pre-expand the callgraph data in the html output (default: disabled)\n'\

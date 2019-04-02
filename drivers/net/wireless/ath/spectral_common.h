@@ -25,7 +25,7 @@
  */
 #define SPECTRAL_ATH10K_MAX_NUM_BINS		256
 
-/* FFT sample format given to userspace via debugfs.
+/* FFT sample format given to userspace via defs.
  *
  * Please keep the type/length at the front position and change
  * other fields after adding another sample type

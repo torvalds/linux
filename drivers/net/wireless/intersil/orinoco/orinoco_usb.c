@@ -97,7 +97,7 @@ static struct ez_usb_fw firmware = {
 	.code = NULL,
 };
 
-/* Debugging macros */
+/* Deging macros */
 #undef err
 #define err(format, arg...) \
 	do { printk(KERN_ERR PFX format "\n", ## arg); } while (0)
@@ -299,8 +299,8 @@ static void ezusb_request_context_put(struct request_context *ctx)
 		return;
 
 	WARN_ON(!ctx->done.done);
-	BUG_ON(ctx->outurb->status == -EINPROGRESS);
-	BUG_ON(timer_pending(&ctx->timer));
+	_ON(ctx->outurb->status == -EINPROGRESS);
+	_ON(timer_pending(&ctx->timer));
 	usb_free_urb(ctx->outurb);
 	kfree(ctx->buf);
 	kfree(ctx);
@@ -727,7 +727,7 @@ static int ezusb_fill_req(struct ezusb_packet *req, u16 length, u16 rid,
 {
 	int total_size = sizeof(*req) + length;
 
-	BUG_ON(total_size > BULK_BUF_SIZE);
+	_ON(total_size > BULK_BUF_SIZE);
 
 	req->magic = cpu_to_le16(EZUSB_MAGIC);
 	req->req_reply_count = reply_count;
@@ -870,7 +870,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	int retval = 0;
 	enum ezusb_state state;
 
-	BUG_ON(in_irq());
+	_ON(in_irq());
 
 	if (!upriv->udev) {
 		retval = -ENODEV;
@@ -1173,7 +1173,7 @@ static int ezusb_program(struct hermes *hw, const char *buf,
 	ch_addr = addr;
 
 	while (ch_addr < (addr + len)) {
-		pr_debug("Programming subblock of length %d "
+		pr_de("Programming subblock of length %d "
 			 "to address 0x%08x. Data @ %p\n",
 			 ch_len, ch_addr, &buf[ch_addr - addr]);
 
@@ -1210,7 +1210,7 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (netif_queue_stopped(dev)) {
-		printk(KERN_DEBUG "%s: Tx while transmitter busy!\n",
+		printk(KERN_DE "%s: Tx while transmitter busy!\n",
 		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
@@ -1360,8 +1360,8 @@ static int ezusb_init(struct hermes *hw)
 	struct ezusb_priv *upriv = hw->priv;
 	int retval;
 
-	BUG_ON(in_interrupt());
-	BUG_ON(!upriv);
+	_ON(in_interrupt());
+	_ON(!upriv);
 
 	upriv->reply_count = 0;
 	/* Write the MAGIC number on the simulated registers to keep
@@ -1458,8 +1458,8 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	struct list_head *tmp_item;
 	unsigned long flags;
 
-	BUG_ON(in_interrupt());
-	BUG_ON(!upriv);
+	_ON(in_interrupt());
+	_ON(!upriv);
 
 	mutex_lock(&upriv->mtx);
 

@@ -731,7 +731,7 @@ out:
 static void
 unregister_memory(struct memory_block *memory)
 {
-	BUG_ON(memory->dev.bus != &memory_subsys);
+	_ON(memory->dev.bus != &memory_subsys);
 
 	/* drop the ref. we got in remove_memory_section() */
 	put_device(&memory->dev);

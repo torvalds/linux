@@ -165,7 +165,7 @@ static struct atmel_sha_drv atmel_sha = {
 	.lock = __SPIN_LOCK_UNLOCKED(atmel_sha.lock),
 };
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 static const char *atmel_sha_reg_name(u32 offset, char *tmp, size_t sz, bool wr)
 {
 	switch (offset) {
@@ -247,20 +247,20 @@ static const char *atmel_sha_reg_name(u32 offset, char *tmp, size_t sz, bool wr)
 	return tmp;
 }
 
-#endif /* VERBOSE_DEBUG */
+#endif /* VERBOSE_DE */
 
 static inline u32 atmel_sha_read(struct atmel_sha_dev *dd, u32 offset)
 {
 	u32 value = readl_relaxed(dd->io_base + offset);
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	if (dd->flags & SHA_FLAGS_DUMP_REG) {
 		char tmp[16];
 
 		dev_vdbg(dd->dev, "read 0x%08x from %s\n", value,
 			 atmel_sha_reg_name(offset, tmp, sizeof(tmp), false));
 	}
-#endif /* VERBOSE_DEBUG */
+#endif /* VERBOSE_DE */
 
 	return value;
 }
@@ -268,14 +268,14 @@ static inline u32 atmel_sha_read(struct atmel_sha_dev *dd, u32 offset)
 static inline void atmel_sha_write(struct atmel_sha_dev *dd,
 					u32 offset, u32 value)
 {
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	if (dd->flags & SHA_FLAGS_DUMP_REG) {
 		char tmp[16];
 
 		dev_vdbg(dd->dev, "write 0x%08x into %s\n", value,
 			 atmel_sha_reg_name(offset, tmp, sizeof(tmp), true));
 	}
-#endif /* VERBOSE_DEBUG */
+#endif /* VERBOSE_DE */
 
 	writel_relaxed(value, dd->io_base + offset);
 }

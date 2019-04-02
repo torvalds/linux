@@ -129,7 +129,7 @@ static DEFINE_SPINLOCK(xpnet_broadcast_lock);
  */
 #define XPNET_PARTID_OCTET	2
 
-/* Define the XPNET debug device structures to be used with dev_dbg() et al */
+/* Define the XPNET de device structures to be used with dev_dbg() et al */
 
 struct device_driver xpnet_dbg_name = {
 	.name = "xpnet"
@@ -258,12 +258,12 @@ static void
 xpnet_connection_activity(enum xp_retval reason, short partid, int channel,
 			  void *data, void *key)
 {
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
-	DBUG_ON(channel != XPC_NET_CHANNEL);
+	D_ON(partid < 0 || partid >= xp_max_npartitions);
+	D_ON(channel != XPC_NET_CHANNEL);
 
 	switch (reason) {
 	case xpMsgReceived:	/* message received */
-		DBUG_ON(data == NULL);
+		D_ON(data == NULL);
 
 		xpnet_receive(partid, channel, (struct xpnet_message *)data);
 		break;
@@ -344,7 +344,7 @@ xpnet_send_completed(enum xp_retval reason, short partid, int channel,
 {
 	struct xpnet_pending_msg *queued_msg = (struct xpnet_pending_msg *)__qm;
 
-	DBUG_ON(queued_msg == NULL);
+	D_ON(queued_msg == NULL);
 
 	dev_dbg(xpnet, "message to %d notified with reason %d\n",
 		partid, reason);

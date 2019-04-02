@@ -43,12 +43,12 @@
 #include <mach/pxa2xx-regs.h>
 #include <mach/smemc.h>
 
-#ifdef DEBUG
-static unsigned int freq_debug;
-module_param(freq_debug, uint, 0);
-MODULE_PARM_DESC(freq_debug, "Set the debug messages to on=1/off=0");
+#ifdef DE
+static unsigned int freq_de;
+module_param(freq_de, uint, 0);
+MODULE_PARM_DESC(freq_de, "Set the de messages to on=1/off=0");
 #else
-#define freq_debug  0
+#define freq_de  0
 #endif
 
 static struct regulator *vcc_core;
@@ -177,7 +177,7 @@ static void find_freq_tables(struct cpufreq_frequency_table **freq_table,
 		*pxa_freqs = pxa27x_freqs;
 		*freq_table = pxa27x_freq_table;
 	} else {
-		BUG();
+		();
 	}
 }
 
@@ -212,8 +212,8 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 
 	new_freq_cpu = pxa_freq_settings[idx].khz;
 
-	if (freq_debug)
-		pr_debug("Changing CPU frequency from %d Mhz to %d Mhz\n",
+	if (freq_de)
+		pr_de("Changing CPU frequency from %d Mhz to %d Mhz\n",
 			 policy->cur / 1000,  new_freq_cpu / 1000);
 
 	if (vcc_core && new_freq_cpu > policy->cur) {
@@ -230,7 +230,7 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 	 * only power savings will suffer from this.
 	 *
 	 * Note: if the voltage change fails, and a return value is returned, a
-	 * bug is triggered (seems a deadlock). Should anybody find out where,
+	 *  is triggered (seems a deadlock). Should anybody find out where,
 	 * the "return 0" should become a "return ret".
 	 */
 	if (vcc_core && new_freq_cpu < policy->cur)

@@ -46,8 +46,8 @@ module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir, "Disable IR support");
 
 #define dprintk(level, fmt, arg...)	do {				\
-	if (cx88_core_debug >= level)					\
-		printk(KERN_DEBUG pr_fmt("%s: core:" fmt),		\
+	if (cx88_core_de >= level)					\
+		printk(KERN_DE pr_fmt("%s: core:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 
@@ -90,7 +90,7 @@ static const struct cx88_board cx88_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0xff00,  // internal decoder
 		}, {
-			.type   = CX88_VMUX_DEBUG,
+			.type   = CX88_VMUX_DE,
 			.vmux   = 0,
 			.gpio0  = 0xff01,  // mono from tuner chip
 		}, {
@@ -466,7 +466,7 @@ static const struct cx88_board cx88_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0x07f8,
 		}, {
-			.type   = CX88_VMUX_DEBUG,
+			.type   = CX88_VMUX_DE,
 			.vmux   = 0,
 			.gpio0  = 0x07f9,  // mono from tuner chip
 		}, {
@@ -650,7 +650,7 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio0  = 0xed1a,
 			.gpio2  = 0x00ff,
 		}, {
-			.type   = CX88_VMUX_DEBUG,
+			.type   = CX88_VMUX_DE,
 			.vmux   = 0,
 			.gpio0  = 0xff01,
 		}, {
@@ -1501,7 +1501,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.input          = { {
-			.type   = CX88_VMUX_DEBUG,
+			.type   = CX88_VMUX_DE,
 			.vmux   = 3,
 			.gpio0  = 0x04ff,
 		}, {
@@ -1723,7 +1723,7 @@ static const struct cx88_board cx88_boards[] = {
 			 * the TV mux entry is first, you get audio
 			 * from the tuner on boot for a little while.
 			 */
-			.type   = CX88_VMUX_DEBUG,
+			.type   = CX88_VMUX_DE,
 			.vmux   = 3,
 			.gpio0 = 0x00ff,
 			.gpio1 = 0xf39d,

@@ -153,23 +153,23 @@ filesystem read-only or read-write. The default is read-only, except
 for ramdisks, which default to read-write.
 
 
-2.3) debug
+2.3) de
 ----------
 
-Syntax: debug
+Syntax: de
 
 This raises the kernel log level to 10 (the default is 7). This is the
 same level as set by the "dmesg" command, just that the maximum level
 selectable by dmesg is 8.
 
 
-2.4) debug=
+2.4) de=
 -----------
 
-Syntax: debug=<device>
+Syntax: de=<device>
 
 This option causes certain kernel messages be printed to the selected
-debugging device. This can aid debugging the kernel, since the
+deging device. This can aid deging the kernel, since the
 messages can be captured and analyzed on some other machine. Which
 devices are possible depends on the machine type. There are no checks
 for the validity of the device name. If the device isn't implemented,
@@ -180,7 +180,7 @@ memory faults or bad kernel traps, and kernel panics. To be exact: all
 messages of level 0 (panic messages) and all messages printed while
 the log level is 8 or more (their level doesn't matter). Before stack
 dumps, the kernel sets the log level to 10 automatically. A level of
-at least 8 can also be set by the "debug" command line option (see
+at least 8 can also be set by the "de" command line option (see
 2.3) and at run time with "dmesg -n 8".
 
 Devices possible for Amiga:
@@ -810,13 +810,13 @@ Syntax: disconnect:x
 x = 1 does 'adaptive' disconnects, which is the default and generally
 the best choice.
 
-5.3.4) debug
+5.3.4) de
 ------------
 
-Syntax: debug:x
+Syntax: de:x
 
-  If `DEBUGGING_ON' is defined, x is a bit mask that causes various
-types of debug output to printed - see the DB_xxx defines in
+  If `DEGING_ON' is defined, x is a bit mask that causes various
+types of de output to printed - see the DB_xxx defines in
 wd33c93.h.
 
 5.3.5) clock

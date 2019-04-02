@@ -731,7 +731,7 @@ The ``s_default_mount_opts`` field is any combination of the following:
    * - Value
      - Description
    * - 0x0001
-     - Print debugging info upon (re)mount. (EXT4\_DEFM\_DEBUG)
+     - Print deging info upon (re)mount. (EXT4\_DEFM\_DE)
    * - 0x0002
      - New files take the gid of the containing directory (instead of the fsgid
        of the current process). (EXT4\_DEFM\_BSDGROUPS)

@@ -23,7 +23,7 @@
 #include "channel.h"
 #include "main.h"
 #include "stf.h"
-#include "debug.h"
+#include "de.h"
 
 #define MIN_SPATIAL_EXPANSION	0
 #define MAX_SPATIAL_EXPANSION	1

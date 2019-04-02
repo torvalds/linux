@@ -365,7 +365,7 @@ int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
 	voltage_ranges = of_get_property(np, "voltage-ranges", &num_ranges);
 	num_ranges = num_ranges / sizeof(*voltage_ranges) / 2;
 	if (!voltage_ranges) {
-		pr_debug("%pOF: voltage-ranges unspecified\n", np);
+		pr_de("%pOF: voltage-ranges unspecified\n", np);
 		return 0;
 	}
 	if (!num_ranges) {
@@ -480,8 +480,8 @@ int mmc_add_host(struct mmc_host *host)
 
 	led_trigger_register_simple(dev_name(&host->class_dev), &host->led);
 
-#ifdef CONFIG_DEBUG_FS
-	mmc_add_host_debugfs(host);
+#ifdef CONFIG_DE_FS
+	mmc_add_host_defs(host);
 #endif
 
 	mmc_start_host(host);
@@ -505,8 +505,8 @@ void mmc_remove_host(struct mmc_host *host)
 	mmc_unregister_pm_notifier(host);
 	mmc_stop_host(host);
 
-#ifdef CONFIG_DEBUG_FS
-	mmc_remove_host_debugfs(host);
+#ifdef CONFIG_DE_FS
+	mmc_remove_host_defs(host);
 #endif
 
 	device_del(&host->class_dev);

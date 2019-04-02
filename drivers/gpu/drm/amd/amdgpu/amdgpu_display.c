@@ -113,7 +113,7 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 
-	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
+	DRM_DE_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
 					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 
 }
@@ -221,7 +221,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	/* we borrow the event spin lock for protecting flip_wrok */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_NONE) {
-		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
+		DRM_DE_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
 		goto pflip_cleanup;
@@ -231,7 +231,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	amdgpu_crtc->pflip_works = work;
 
 
-	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
+	DRM_DE_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
 					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 	/* update crtc fb */
 	crtc->primary->fb = fb;
@@ -402,7 +402,7 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+				DRM_INFO("  DDC: no ddc bus - possible BIOS  - please report to xorg-driver-ati@lists.x.org\n");
 		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -541,7 +541,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
 	if (obj->import_attach) {
-		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		DRM_DE_KMS("Cannot create framebuffer from imported dma_buf\n");
 		return ERR_PTR(-EINVAL);
 	}
 

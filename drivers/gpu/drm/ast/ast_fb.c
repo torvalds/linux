@@ -159,8 +159,8 @@ static struct fb_ops astfb_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
+	.fb_de_enter = drm_fb_helper_de_enter,
+	.fb_de_leave = drm_fb_helper_de_leave,
 };
 
 static int astfb_create_object(struct ast_fbdev *afbdev,
@@ -244,7 +244,7 @@ static int astfb_create(struct drm_fb_helper *helper,
 
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
-	DRM_DEBUG_KMS("allocated %dx%d\n",
+	DRM_DE_KMS("allocated %dx%d\n",
 		      fb->width, fb->height);
 
 	return 0;

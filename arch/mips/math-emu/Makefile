@@ -16,4 +16,4 @@ lib-y	+= ieee754d.o \
 	   dp_tlong.o dp_flong.o dp_sqrt.o \
 	   sp_tlong.o sp_flong.o sp_sqrt.o
 
-obj-$(CONFIG_DEBUG_FS) += me-debugfs.o
+obj-$(CONFIG_DE_FS) += me-defs.o

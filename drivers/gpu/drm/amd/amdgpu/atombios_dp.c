@@ -94,14 +94,14 @@ static int amdgpu_atombios_dp_process_aux_ch(struct amdgpu_i2c_chan *chan,
 
 	/* flags not zero */
 	if (args.v2.ucReplyStatus == 2) {
-		DRM_DEBUG_KMS("dp_aux_ch flags not zero\n");
+		DRM_DE_KMS("dp_aux_ch flags not zero\n");
 		r = -EIO;
 		goto done;
 	}
 
 	/* error */
 	if (args.v2.ucReplyStatus == 3) {
-		DRM_DEBUG_KMS("dp_aux_ch error\n");
+		DRM_DE_KMS("dp_aux_ch error\n");
 		r = -EIO;
 		goto done;
 	}
@@ -215,7 +215,7 @@ static void amdgpu_atombios_dp_get_adjust_train(const u8 link_status[DP_LINK_STA
 		u8 this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
 		u8 this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
 
-		DRM_DEBUG_KMS("requested signal parameters: lane %d voltage %s pre_emph %s\n",
+		DRM_DE_KMS("requested signal parameters: lane %d voltage %s pre_emph %s\n",
 			  lane,
 			  voltage_names[this_v >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
 			  pre_emph_names[this_p >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
@@ -232,7 +232,7 @@ static void amdgpu_atombios_dp_get_adjust_train(const u8 link_status[DP_LINK_STA
 	if (p >= DP_PRE_EMPHASIS_MAX)
 		p |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
-	DRM_DEBUG_KMS("using signal parameters: voltage %s pre_emph %s\n",
+	DRM_DE_KMS("using signal parameters: voltage %s pre_emph %s\n",
 		  voltage_names[(v & DP_TRAIN_VOLTAGE_SWING_MASK) >> DP_TRAIN_VOLTAGE_SWING_SHIFT],
 		  pre_emph_names[(p & DP_TRAIN_PRE_EMPHASIS_MASK) >> DP_TRAIN_PRE_EMPHASIS_SHIFT]);
 
@@ -326,11 +326,11 @@ static void amdgpu_atombios_dp_probe_oui(struct amdgpu_connector *amdgpu_connect
 		return;
 
 	if (drm_dp_dpcd_read(&amdgpu_connector->ddc_bus->aux, DP_SINK_OUI, buf, 3) == 3)
-		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
+		DRM_DE_KMS("Sink OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 
 	if (drm_dp_dpcd_read(&amdgpu_connector->ddc_bus->aux, DP_BRANCH_OUI, buf, 3) == 3)
-		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
+		DRM_DE_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 }
 
@@ -345,7 +345,7 @@ int amdgpu_atombios_dp_get_dpcd(struct amdgpu_connector *amdgpu_connector)
 	if (ret == DP_DPCD_SIZE) {
 		memcpy(dig_connector->dpcd, msg, DP_DPCD_SIZE);
 
-		DRM_DEBUG_KMS("DPCD: %*ph\n", (int)sizeof(dig_connector->dpcd),
+		DRM_DE_KMS("DPCD: %*ph\n", (int)sizeof(dig_connector->dpcd),
 			      dig_connector->dpcd);
 
 		amdgpu_atombios_dp_probe_oui(amdgpu_connector);
@@ -646,7 +646,7 @@ amdgpu_atombios_dp_link_train_cr(struct amdgpu_atombios_dp_link_train_info *dp_i
 		DRM_ERROR("clock recovery failed\n");
 		return -1;
 	} else {
-		DRM_DEBUG_KMS("clock recovery at voltage %d pre-emphasis %d\n",
+		DRM_DE_KMS("clock recovery at voltage %d pre-emphasis %d\n",
 			  dp_info->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
 			  (dp_info->train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK) >>
 			  DP_TRAIN_PRE_EMPHASIS_SHIFT);
@@ -699,7 +699,7 @@ amdgpu_atombios_dp_link_train_ce(struct amdgpu_atombios_dp_link_train_info *dp_i
 		DRM_ERROR("channel eq failed\n");
 		return -1;
 	} else {
-		DRM_DEBUG_KMS("channel eq at voltage %d pre-emphasis %d\n",
+		DRM_DE_KMS("channel eq at voltage %d pre-emphasis %d\n",
 			  dp_info->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK,
 			  (dp_info->train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT);

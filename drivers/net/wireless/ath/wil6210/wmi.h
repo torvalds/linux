@@ -150,8 +150,8 @@ enum wmi_command_id {
 	WMI_DEEP_ECHO_CMDID				= 0x804,
 	WMI_CONFIG_MAC_CMDID				= 0x805,
 	/* deprecated */
-	WMI_CONFIG_PHY_DEBUG_CMDID			= 0x806,
-	WMI_ADD_DEBUG_TX_PCKT_CMDID			= 0x808,
+	WMI_CONFIG_PHY_DE_CMDID			= 0x806,
+	WMI_ADD_DE_TX_PCKT_CMDID			= 0x808,
 	WMI_PHY_GET_STATISTICS_CMDID			= 0x809,
 	/* deprecated */
 	WMI_FS_TUNE_CMDID				= 0x80A,
@@ -1558,7 +1558,7 @@ enum wmi_tof_channel_info_report_type {
 	WMI_TOF_CHANNEL_INFO_TYPE_CIR			= 0x1,
 	WMI_TOF_CHANNEL_INFO_TYPE_RSSI			= 0x2,
 	WMI_TOF_CHANNEL_INFO_TYPE_SNR			= 0x4,
-	WMI_TOF_CHANNEL_INFO_TYPE_DEBUG_DATA		= 0x8,
+	WMI_TOF_CHANNEL_INFO_TYPE_DE_DATA		= 0x8,
 	WMI_TOF_CHANNEL_INFO_TYPE_VENDOR_SPECIFIC	= 0x10,
 };
 
@@ -2865,7 +2865,7 @@ struct wmi_rs_cfg {
 	/* MCS1 stop threshold [0-100] */
 	u8 mcs1_fail_th;
 	u8 max_back_failure_th;
-	/* Debug feature for disabling internal RS trigger (which is
+	/* De feature for disabling internal RS trigger (which is
 	 * currently triggered by BF Done)
 	 */
 	u8 dbg_disable_internal_trigger;
@@ -2891,7 +2891,7 @@ struct wmi_rs_cfg_ex_common {
 	/* MCS1 stop threshold [0-100] */
 	u8 mcs1_fail_th;
 	u8 max_back_failure_th;
-	/* Debug feature for disabling internal RS trigger (which is
+	/* De feature for disabling internal RS trigger (which is
 	 * currently triggered by BF Done)
 	 */
 	u8 dbg_disable_internal_trigger;
@@ -3364,9 +3364,9 @@ enum wmi_ps_deep_sleep_clk_level {
 /* Response by the FW to a D3 entry request */
 enum wmi_ps_d3_resp_policy {
 	WMI_PS_D3_RESP_POLICY_DEFAULT	= 0x00,
-	/* debug -D3 req is always denied */
+	/* de -D3 req is always denied */
 	WMI_PS_D3_RESP_POLICY_DENIED	= 0x01,
-	/* debug -D3 req is always approved */
+	/* de -D3 req is always approved */
 	WMI_PS_D3_RESP_POLICY_APPROVED	= 0x02,
 };
 
@@ -3549,7 +3549,7 @@ enum wmi_tof_channel_info_type {
 	WMI_TOF_CHANNEL_INFO_CIR		= 0x04,
 	WMI_TOF_CHANNEL_INFO_RSSI		= 0x05,
 	WMI_TOF_CHANNEL_INFO_SNR		= 0x06,
-	WMI_TOF_CHANNEL_INFO_DEBUG		= 0x07,
+	WMI_TOF_CHANNEL_INFO_DE		= 0x07,
 };
 
 /* WMI_TOF_CHANNEL_INFO_EVENTID */

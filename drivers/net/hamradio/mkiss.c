@@ -278,7 +278,7 @@ static void ax_bump(struct mkiss *ax)
 			ax->rcount -= 2;
 
 			/*
-			 * dl9sau bugfix: the trailling two bytes flexnet crc
+			 * dl9sau fix: the trailling two bytes flexnet crc
 			 * will not be passed to the kernel. thus we have to
 			 * correct the kissparm signature, because it indicates
 			 * a crc but there's none
@@ -372,7 +372,7 @@ static void ax_changedmtu(struct mkiss *ax)
 
 	/*
 	 * allow for arrival of larger UDP packets, even if we say not to
-	 * also fixes a bug in which SunOS sends 512-byte packets even with
+	 * also fixes a  in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
 	if (len < 576 * 2)
@@ -451,7 +451,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 	if ((*p & 0x0f) != 0) {
 		/* Configuration Command (kissparms(1).
 		 * Protocol spec says: never append CRC.
-		 * This fixes a very old bug in the linux
+		 * This fixes a very old  in the linux
 		 * kiss driver. -- dl9sau */
 		switch (*p & 0xff) {
 		case 0x85:
@@ -592,7 +592,7 @@ static int ax_open(struct net_device *dev)
 
 	/*
 	 * allow for arrival of larger UDP packets, even if we say not to
-	 * also fixes a bug in which SunOS sends 512-byte packets even with
+	 * also fixes a  in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
 	if (len < 576 * 2)

@@ -30,12 +30,12 @@
 			printk(KERN_ERR					\
 				"magic mismatch: %x (expected %x)\n",	\
 					is, should);			\
-			BUG();						\
+			();						\
 		}							\
 	} while (0)
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux buffers");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
@@ -43,8 +43,8 @@ MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
-		if (debug >= level)					\
-			printk(KERN_DEBUG "vbuf: " fmt, ## arg);	\
+		if (de >= level)					\
+			printk(KERN_DE "vbuf: " fmt, ## arg);	\
 	} while (0)
 
 /* --------------------------------------------------------------------- */
@@ -58,11 +58,11 @@ struct videobuf_buffer *videobuf_alloc_vb(struct videobuf_queue *q)
 {
 	struct videobuf_buffer *vb;
 
-	BUG_ON(q->msize < sizeof(*vb));
+	_ON(q->msize < sizeof(*vb));
 
 	if (!q->int_ops || !q->int_ops->alloc_vb) {
 		printk(KERN_ERR "No specific ops defined!\n");
-		BUG();
+		();
 	}
 
 	vb = q->int_ops->alloc_vb(q->msize);
@@ -153,7 +153,7 @@ void videobuf_queue_core_init(struct videobuf_queue *q,
 			 struct videobuf_qtype_ops *int_ops,
 			 struct mutex *ext_lock)
 {
-	BUG_ON(!q);
+	_ON(!q);
 	memset(q, 0, sizeof(*q));
 	q->irqlock   = irqlock;
 	q->ext_lock  = ext_lock;
@@ -166,16 +166,16 @@ void videobuf_queue_core_init(struct videobuf_queue *q,
 	q->int_ops   = int_ops;
 
 	/* All buffer operations are mandatory */
-	BUG_ON(!q->ops->buf_setup);
-	BUG_ON(!q->ops->buf_prepare);
-	BUG_ON(!q->ops->buf_queue);
-	BUG_ON(!q->ops->buf_release);
+	_ON(!q->ops->buf_setup);
+	_ON(!q->ops->buf_prepare);
+	_ON(!q->ops->buf_queue);
+	_ON(!q->ops->buf_release);
 
 	/* Lock is mandatory for queue_cancel to work */
-	BUG_ON(!irqlock);
+	_ON(!irqlock);
 
 	/* Having implementations for abstract methods are mandatory */
-	BUG_ON(!q->int_ops);
+	_ON(!q->int_ops);
 
 	mutex_init(&q->vb_lock);
 	init_waitqueue_head(&q->wait);
@@ -301,7 +301,7 @@ enum v4l2_field videobuf_next_field(struct videobuf_queue *q)
 {
 	enum v4l2_field field = q->field;
 
-	BUG_ON(V4L2_FIELD_ANY == field);
+	_ON(V4L2_FIELD_ANY == field);
 
 	if (V4L2_FIELD_ALTERNATE == field) {
 		if (V4L2_FIELD_TOP == q->last) {
@@ -1178,7 +1178,7 @@ int videobuf_mmap_mapper(struct videobuf_queue *q, struct vm_area_struct *vma)
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
 	if (!(vma->vm_flags & VM_WRITE) || !(vma->vm_flags & VM_SHARED)) {
-		dprintk(1, "mmap appl bug: PROT_WRITE and MAP_SHARED are required\n");
+		dprintk(1, "mmap appl : PROT_WRITE and MAP_SHARED are required\n");
 		return -EINVAL;
 	}
 

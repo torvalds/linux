@@ -79,7 +79,7 @@ nvkm_falcon_intr(struct nvkm_engine *engine)
 	}
 
 	if (intr & 0x00000010) {
-		nvkm_debug(subdev, "ucode halted\n");
+		nvkm_de(subdev, "ucode halted\n");
 		nvkm_wr32(device, base + 0x004, 0x00000010);
 		intr &= ~0x00000010;
 	}
@@ -149,10 +149,10 @@ nvkm_falcon_oneinit(struct nvkm_engine *engine)
 	falcon->code.limit = (caps & 0x000001ff) << 8;
 	falcon->data.limit = (caps & 0x0003fe00) >> 1;
 
-	nvkm_debug(subdev, "falcon version: %d\n", falcon->version);
-	nvkm_debug(subdev, "secret level: %d\n", falcon->secret);
-	nvkm_debug(subdev, "code limit: %d\n", falcon->code.limit);
-	nvkm_debug(subdev, "data limit: %d\n", falcon->data.limit);
+	nvkm_de(subdev, "falcon version: %d\n", falcon->version);
+	nvkm_de(subdev, "secret level: %d\n", falcon->secret);
+	nvkm_de(subdev, "code limit: %d\n", falcon->code.limit);
+	nvkm_de(subdev, "data limit: %d\n", falcon->data.limit);
 	return 0;
 }
 
@@ -240,7 +240,7 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 			return -ENOMEM;
 	}
 
-	nvkm_debug(subdev, "firmware: %s (%s)\n", name, falcon->data.data ?
+	nvkm_de(subdev, "firmware: %s (%s)\n", name, falcon->data.data ?
 		   "static code/data segments" : "self-bootstrapping");
 
 	/* ensure any "self-bootstrapping" firmware image is in vram */

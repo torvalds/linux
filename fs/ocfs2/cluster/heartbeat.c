@@ -33,7 +33,7 @@
 #include <linux/random.h>
 #include <linux/crc32.h>
 #include <linux/time.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <linux/ktime.h>
@@ -84,32 +84,32 @@ static unsigned long o2hb_failed_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
 #define O2HB_DB_TYPE_REGION_NUMBER	5
 #define O2HB_DB_TYPE_REGION_ELAPSED_TIME	6
 #define O2HB_DB_TYPE_REGION_PINNED	7
-struct o2hb_debug_buf {
+struct o2hb_de_buf {
 	int db_type;
 	int db_size;
 	int db_len;
 	void *db_data;
 };
 
-static struct o2hb_debug_buf *o2hb_db_livenodes;
-static struct o2hb_debug_buf *o2hb_db_liveregions;
-static struct o2hb_debug_buf *o2hb_db_quorumregions;
-static struct o2hb_debug_buf *o2hb_db_failedregions;
+static struct o2hb_de_buf *o2hb_db_livenodes;
+static struct o2hb_de_buf *o2hb_db_liveregions;
+static struct o2hb_de_buf *o2hb_db_quorumregions;
+static struct o2hb_de_buf *o2hb_db_failedregions;
 
-#define O2HB_DEBUG_DIR			"o2hb"
-#define O2HB_DEBUG_LIVENODES		"livenodes"
-#define O2HB_DEBUG_LIVEREGIONS		"live_regions"
-#define O2HB_DEBUG_QUORUMREGIONS	"quorum_regions"
-#define O2HB_DEBUG_FAILEDREGIONS	"failed_regions"
-#define O2HB_DEBUG_REGION_NUMBER	"num"
-#define O2HB_DEBUG_REGION_ELAPSED_TIME	"elapsed_time_in_ms"
-#define O2HB_DEBUG_REGION_PINNED	"pinned"
+#define O2HB_DE_DIR			"o2hb"
+#define O2HB_DE_LIVENODES		"livenodes"
+#define O2HB_DE_LIVEREGIONS		"live_regions"
+#define O2HB_DE_QUORUMREGIONS	"quorum_regions"
+#define O2HB_DE_FAILEDREGIONS	"failed_regions"
+#define O2HB_DE_REGION_NUMBER	"num"
+#define O2HB_DE_REGION_ELAPSED_TIME	"elapsed_time_in_ms"
+#define O2HB_DE_REGION_PINNED	"pinned"
 
-static struct dentry *o2hb_debug_dir;
-static struct dentry *o2hb_debug_livenodes;
-static struct dentry *o2hb_debug_liveregions;
-static struct dentry *o2hb_debug_quorumregions;
-static struct dentry *o2hb_debug_failedregions;
+static struct dentry *o2hb_de_dir;
+static struct dentry *o2hb_de_livenodes;
+static struct dentry *o2hb_de_liveregions;
+static struct dentry *o2hb_de_quorumregions;
+static struct dentry *o2hb_de_failedregions;
 
 static LIST_HEAD(o2hb_all_regions);
 
@@ -242,15 +242,15 @@ struct o2hb_region {
 	unsigned long		hr_live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned int		hr_region_num;
 
-	struct dentry		*hr_debug_dir;
-	struct dentry		*hr_debug_livenodes;
-	struct dentry		*hr_debug_regnum;
-	struct dentry		*hr_debug_elapsed_time;
-	struct dentry		*hr_debug_pinned;
-	struct o2hb_debug_buf	*hr_db_livenodes;
-	struct o2hb_debug_buf	*hr_db_regnum;
-	struct o2hb_debug_buf	*hr_db_elapsed_time;
-	struct o2hb_debug_buf	*hr_db_pinned;
+	struct dentry		*hr_de_dir;
+	struct dentry		*hr_de_livenodes;
+	struct dentry		*hr_de_regnum;
+	struct dentry		*hr_de_elapsed_time;
+	struct dentry		*hr_de_pinned;
+	struct o2hb_de_buf	*hr_db_livenodes;
+	struct o2hb_de_buf	*hr_db_regnum;
+	struct o2hb_de_buf	*hr_db_elapsed_time;
+	struct o2hb_de_buf	*hr_db_pinned;
 
 	/* let the person setting up hb wait for it to return until it
 	 * has reached a 'steady' state.  This will be fixed when we have
@@ -499,7 +499,7 @@ static inline void o2hb_bio_wait_dec(struct o2hb_bio_wait_ctxt *wc,
 	 * good news is that the fast path only completes one at a time */
 	while(num--) {
 		if (atomic_dec_and_test(&wc->wc_num_reqs)) {
-			BUG_ON(num > 0);
+			_ON(num > 0);
 			complete(&wc->wc_io_complete);
 		}
 	}
@@ -800,7 +800,7 @@ static void o2hb_run_event_list(struct o2hb_node_event *queued_event)
 		/* We should *never* have gotten on to the list with a
 		 * bad type... This isn't something that we should try
 		 * to recover from. */
-		BUG_ON(IS_ERR(hbcall));
+		_ON(IS_ERR(hbcall));
 
 		o2hb_fire_callbacks(hbcall, event->hn_node, event->hn_node_num);
 
@@ -818,7 +818,7 @@ static void o2hb_queue_node_event(struct o2hb_node_event *event,
 {
 	assert_spin_locked(&o2hb_live_lock);
 
-	BUG_ON((!node) && (type != O2HB_NODE_DOWN_CB));
+	_ON((!node) && (type != O2HB_NODE_DOWN_CB));
 
 	event->hn_event_type = type;
 	event->hn_node = node;
@@ -1294,10 +1294,10 @@ static int o2hb_thread(void *data)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int o2hb_debug_open(struct inode *inode, struct file *file)
+#ifdef CONFIG_DE_FS
+static int o2hb_de_open(struct inode *inode, struct file *file)
 {
-	struct o2hb_debug_buf *db = inode->i_private;
+	struct o2hb_de_buf *db = inode->i_private;
 	struct o2hb_region *reg;
 	unsigned long map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long lts;
@@ -1306,7 +1306,7 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 	int out = 0;
 
 	/* max_nodes should be the largest bitmap we pass here */
-	BUG_ON(sizeof(map) < db->db_size);
+	_ON(sizeof(map) < db->db_size);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -1368,56 +1368,56 @@ bail:
 	return -ENOMEM;
 }
 
-static int o2hb_debug_release(struct inode *inode, struct file *file)
+static int o2hb_de_release(struct inode *inode, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
 }
 
-static ssize_t o2hb_debug_read(struct file *file, char __user *buf,
+static ssize_t o2hb_de_read(struct file *file, char __user *buf,
 				 size_t nbytes, loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, nbytes, ppos, file->private_data,
 				       i_size_read(file->f_mapping->host));
 }
 #else
-static int o2hb_debug_open(struct inode *inode, struct file *file)
+static int o2hb_de_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
-static int o2hb_debug_release(struct inode *inode, struct file *file)
+static int o2hb_de_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
-static ssize_t o2hb_debug_read(struct file *file, char __user *buf,
+static ssize_t o2hb_de_read(struct file *file, char __user *buf,
 			       size_t nbytes, loff_t *ppos)
 {
 	return 0;
 }
-#endif  /* CONFIG_DEBUG_FS */
+#endif  /* CONFIG_DE_FS */
 
-static const struct file_operations o2hb_debug_fops = {
-	.open =		o2hb_debug_open,
-	.release =	o2hb_debug_release,
-	.read =		o2hb_debug_read,
+static const struct file_operations o2hb_de_fops = {
+	.open =		o2hb_de_open,
+	.release =	o2hb_de_release,
+	.read =		o2hb_de_read,
 	.llseek =	generic_file_llseek,
 };
 
 void o2hb_exit(void)
 {
-	debugfs_remove(o2hb_debug_failedregions);
-	debugfs_remove(o2hb_debug_quorumregions);
-	debugfs_remove(o2hb_debug_liveregions);
-	debugfs_remove(o2hb_debug_livenodes);
-	debugfs_remove(o2hb_debug_dir);
+	defs_remove(o2hb_de_failedregions);
+	defs_remove(o2hb_de_quorumregions);
+	defs_remove(o2hb_de_liveregions);
+	defs_remove(o2hb_de_livenodes);
+	defs_remove(o2hb_de_dir);
 	kfree(o2hb_db_livenodes);
 	kfree(o2hb_db_liveregions);
 	kfree(o2hb_db_quorumregions);
 	kfree(o2hb_db_failedregions);
 }
 
-static struct dentry *o2hb_debug_create(const char *name, struct dentry *dir,
-					struct o2hb_debug_buf **db, int db_len,
+static struct dentry *o2hb_de_create(const char *name, struct dentry *dir,
+					struct o2hb_de_buf **db, int db_len,
 					int type, int size, int len, void *data)
 {
 	*db = kmalloc(db_len, GFP_KERNEL);
@@ -1429,70 +1429,70 @@ static struct dentry *o2hb_debug_create(const char *name, struct dentry *dir,
 	(*db)->db_len = len;
 	(*db)->db_data = data;
 
-	return debugfs_create_file(name, S_IFREG|S_IRUSR, dir, *db,
-				   &o2hb_debug_fops);
+	return defs_create_file(name, S_IFREG|S_IRUSR, dir, *db,
+				   &o2hb_de_fops);
 }
 
-static int o2hb_debug_init(void)
+static int o2hb_de_init(void)
 {
 	int ret = -ENOMEM;
 
-	o2hb_debug_dir = debugfs_create_dir(O2HB_DEBUG_DIR, NULL);
-	if (!o2hb_debug_dir) {
+	o2hb_de_dir = defs_create_dir(O2HB_DE_DIR, NULL);
+	if (!o2hb_de_dir) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	o2hb_debug_livenodes = o2hb_debug_create(O2HB_DEBUG_LIVENODES,
-						 o2hb_debug_dir,
+	o2hb_de_livenodes = o2hb_de_create(O2HB_DE_LIVENODES,
+						 o2hb_de_dir,
 						 &o2hb_db_livenodes,
 						 sizeof(*o2hb_db_livenodes),
 						 O2HB_DB_TYPE_LIVENODES,
 						 sizeof(o2hb_live_node_bitmap),
 						 O2NM_MAX_NODES,
 						 o2hb_live_node_bitmap);
-	if (!o2hb_debug_livenodes) {
+	if (!o2hb_de_livenodes) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	o2hb_debug_liveregions = o2hb_debug_create(O2HB_DEBUG_LIVEREGIONS,
-						   o2hb_debug_dir,
+	o2hb_de_liveregions = o2hb_de_create(O2HB_DE_LIVEREGIONS,
+						   o2hb_de_dir,
 						   &o2hb_db_liveregions,
 						   sizeof(*o2hb_db_liveregions),
 						   O2HB_DB_TYPE_LIVEREGIONS,
 						   sizeof(o2hb_live_region_bitmap),
 						   O2NM_MAX_REGIONS,
 						   o2hb_live_region_bitmap);
-	if (!o2hb_debug_liveregions) {
+	if (!o2hb_de_liveregions) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	o2hb_debug_quorumregions =
-			o2hb_debug_create(O2HB_DEBUG_QUORUMREGIONS,
-					  o2hb_debug_dir,
+	o2hb_de_quorumregions =
+			o2hb_de_create(O2HB_DE_QUORUMREGIONS,
+					  o2hb_de_dir,
 					  &o2hb_db_quorumregions,
 					  sizeof(*o2hb_db_quorumregions),
 					  O2HB_DB_TYPE_QUORUMREGIONS,
 					  sizeof(o2hb_quorum_region_bitmap),
 					  O2NM_MAX_REGIONS,
 					  o2hb_quorum_region_bitmap);
-	if (!o2hb_debug_quorumregions) {
+	if (!o2hb_de_quorumregions) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	o2hb_debug_failedregions =
-			o2hb_debug_create(O2HB_DEBUG_FAILEDREGIONS,
-					  o2hb_debug_dir,
+	o2hb_de_failedregions =
+			o2hb_de_create(O2HB_DE_FAILEDREGIONS,
+					  o2hb_de_dir,
 					  &o2hb_db_failedregions,
 					  sizeof(*o2hb_db_failedregions),
 					  O2HB_DB_TYPE_FAILEDREGIONS,
 					  sizeof(o2hb_failed_region_bitmap),
 					  O2NM_MAX_REGIONS,
 					  o2hb_failed_region_bitmap);
-	if (!o2hb_debug_failedregions) {
+	if (!o2hb_de_failedregions) {
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -1525,14 +1525,14 @@ int o2hb_init(void)
 
 	o2hb_dependent_users = 0;
 
-	return o2hb_debug_init();
+	return o2hb_de_init();
 }
 
 /* if we're already in a callback then we're already serialized by the sem */
 static void o2hb_fill_node_map_from_callback(unsigned long *map,
 					     unsigned bytes)
 {
-	BUG_ON(bytes < (BITS_TO_LONGS(O2NM_MAX_NODES) * sizeof(unsigned long)));
+	_ON(bytes < (BITS_TO_LONGS(O2NM_MAX_NODES) * sizeof(unsigned long)));
 
 	memcpy(map, &o2hb_live_node_bitmap, bytes);
 }
@@ -1589,11 +1589,11 @@ static void o2hb_region_release(struct config_item *item)
 
 	kfree(reg->hr_slots);
 
-	debugfs_remove(reg->hr_debug_livenodes);
-	debugfs_remove(reg->hr_debug_regnum);
-	debugfs_remove(reg->hr_debug_elapsed_time);
-	debugfs_remove(reg->hr_debug_pinned);
-	debugfs_remove(reg->hr_debug_dir);
+	defs_remove(reg->hr_de_livenodes);
+	defs_remove(reg->hr_de_regnum);
+	defs_remove(reg->hr_de_elapsed_time);
+	defs_remove(reg->hr_de_pinned);
+	defs_remove(reg->hr_de_dir);
 	kfree(reg->hr_db_livenodes);
 	kfree(reg->hr_db_regnum);
 	kfree(reg->hr_db_elapsed_time);
@@ -1786,7 +1786,7 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 		for (j = 0;
 		     (j < spp) && ((j + last_slot) < reg->hr_blocks);
 		     j++) {
-			BUG_ON((j + last_slot) >= reg->hr_blocks);
+			_ON((j + last_slot) >= reg->hr_blocks);
 
 			slot = &reg->hr_slots[j + last_slot];
 			slot->ds_raw_block =
@@ -2052,62 +2052,62 @@ static struct o2hb_heartbeat_group *to_o2hb_heartbeat_group(struct config_group 
 		: NULL;
 }
 
-static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
+static int o2hb_de_region_init(struct o2hb_region *reg, struct dentry *dir)
 {
 	int ret = -ENOMEM;
 
-	reg->hr_debug_dir =
-		debugfs_create_dir(config_item_name(&reg->hr_item), dir);
-	if (!reg->hr_debug_dir) {
+	reg->hr_de_dir =
+		defs_create_dir(config_item_name(&reg->hr_item), dir);
+	if (!reg->hr_de_dir) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	reg->hr_debug_livenodes =
-			o2hb_debug_create(O2HB_DEBUG_LIVENODES,
-					  reg->hr_debug_dir,
+	reg->hr_de_livenodes =
+			o2hb_de_create(O2HB_DE_LIVENODES,
+					  reg->hr_de_dir,
 					  &(reg->hr_db_livenodes),
 					  sizeof(*(reg->hr_db_livenodes)),
 					  O2HB_DB_TYPE_REGION_LIVENODES,
 					  sizeof(reg->hr_live_node_bitmap),
 					  O2NM_MAX_NODES, reg);
-	if (!reg->hr_debug_livenodes) {
+	if (!reg->hr_de_livenodes) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	reg->hr_debug_regnum =
-			o2hb_debug_create(O2HB_DEBUG_REGION_NUMBER,
-					  reg->hr_debug_dir,
+	reg->hr_de_regnum =
+			o2hb_de_create(O2HB_DE_REGION_NUMBER,
+					  reg->hr_de_dir,
 					  &(reg->hr_db_regnum),
 					  sizeof(*(reg->hr_db_regnum)),
 					  O2HB_DB_TYPE_REGION_NUMBER,
 					  0, O2NM_MAX_NODES, reg);
-	if (!reg->hr_debug_regnum) {
+	if (!reg->hr_de_regnum) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	reg->hr_debug_elapsed_time =
-			o2hb_debug_create(O2HB_DEBUG_REGION_ELAPSED_TIME,
-					  reg->hr_debug_dir,
+	reg->hr_de_elapsed_time =
+			o2hb_de_create(O2HB_DE_REGION_ELAPSED_TIME,
+					  reg->hr_de_dir,
 					  &(reg->hr_db_elapsed_time),
 					  sizeof(*(reg->hr_db_elapsed_time)),
 					  O2HB_DB_TYPE_REGION_ELAPSED_TIME,
 					  0, 0, reg);
-	if (!reg->hr_debug_elapsed_time) {
+	if (!reg->hr_de_elapsed_time) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	reg->hr_debug_pinned =
-			o2hb_debug_create(O2HB_DEBUG_REGION_PINNED,
-					  reg->hr_debug_dir,
+	reg->hr_de_pinned =
+			o2hb_de_create(O2HB_DE_REGION_PINNED,
+					  reg->hr_de_dir,
 					  &(reg->hr_db_pinned),
 					  sizeof(*(reg->hr_db_pinned)),
 					  O2HB_DB_TYPE_REGION_PINNED,
 					  0, 0, reg);
-	if (!reg->hr_debug_pinned) {
+	if (!reg->hr_de_pinned) {
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -2170,7 +2170,7 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	if (ret)
 		goto unregister_handler;
 
-	ret = o2hb_debug_region_init(reg, o2hb_debug_dir);
+	ret = o2hb_de_region_init(reg, o2hb_de_dir);
 	if (ret) {
 		config_item_put(&reg->hr_item);
 		goto unregister_handler;
@@ -2522,8 +2522,8 @@ int o2hb_register_callback(const char *region_uuid,
 	struct o2hb_callback *hbcall;
 	int ret;
 
-	BUG_ON(hc->hc_magic != O2HB_CB_MAGIC);
-	BUG_ON(!list_empty(&hc->hc_item));
+	_ON(hc->hc_magic != O2HB_CB_MAGIC);
+	_ON(!list_empty(&hc->hc_item));
 
 	hbcall = hbcall_from_type(hc->hc_type);
 	if (IS_ERR(hbcall)) {
@@ -2562,7 +2562,7 @@ EXPORT_SYMBOL_GPL(o2hb_register_callback);
 void o2hb_unregister_callback(const char *region_uuid,
 			      struct o2hb_callback_func *hc)
 {
-	BUG_ON(hc->hc_magic != O2HB_CB_MAGIC);
+	_ON(hc->hc_magic != O2HB_CB_MAGIC);
 
 	mlog(ML_CLUSTER, "on behalf of %p for funcs %p\n",
 	     __builtin_return_address(0), hc);

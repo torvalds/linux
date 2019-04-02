@@ -89,8 +89,8 @@ MODULE_AUTHOR("Jan-Benedict Glaw <jbglaw@lug-owl.de>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-#undef VSXXXAA_DEBUG
-#ifdef VSXXXAA_DEBUG
+#undef VSXXXAA_DE
+#ifdef VSXXXAA_DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...) do {} while (0)

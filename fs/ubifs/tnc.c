@@ -3422,7 +3422,7 @@ int ubifs_tnc_has_node(struct ubifs_info *c, union ubifs_key *key, int level,
 			/* The index node was found and it was clean */
 			err = 1;
 		else
-			BUG_ON(err != 0);
+			_ON(err != 0);
 	} else
 		err = is_leaf_node_in_tnc(c, key, lnum, offs);
 

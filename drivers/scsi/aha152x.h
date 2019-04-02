@@ -295,22 +295,22 @@ typedef union {
 
 #define SETRATE(RATE)		SETPORT(SCSIRATE,(RATE) & 0x7f)
 
-#if defined(AHA152X_DEBUG)
+#if defined(AHA152X_DE)
 enum {
-  debug_procinfo  = 0x0001,
-  debug_queue     = 0x0002,
-  debug_locking   = 0x0004,
-  debug_intr      = 0x0008,
-  debug_selection = 0x0010,
-  debug_msgo      = 0x0020,
-  debug_msgi      = 0x0040,
-  debug_status    = 0x0080,
-  debug_cmd       = 0x0100,
-  debug_datai     = 0x0200,
-  debug_datao     = 0x0400,
-  debug_eh	  = 0x0800,
-  debug_done      = 0x1000,
-  debug_phases    = 0x2000,
+  de_procinfo  = 0x0001,
+  de_queue     = 0x0002,
+  de_locking   = 0x0004,
+  de_intr      = 0x0008,
+  de_selection = 0x0010,
+  de_msgo      = 0x0020,
+  de_msgi      = 0x0040,
+  de_status    = 0x0080,
+  de_cmd       = 0x0100,
+  de_datai     = 0x0200,
+  de_datao     = 0x0400,
+  de_eh	  = 0x0800,
+  de_done      = 0x1000,
+  de_phases    = 0x2000,
 };
 #endif
 
@@ -325,8 +325,8 @@ struct aha152x_setup {
 	int delay;
 	int ext_trans;
 	int tc1550;
-#if defined(AHA152X_DEBUG)
-	int debug;
+#if defined(AHA152X_DE)
+	int de;
 #endif
 	char *conf;
 };

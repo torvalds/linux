@@ -91,7 +91,7 @@
 /* The following bit defines are presented in the
  * order taken from the Exynos4412 reference manual.
  *
- * During experiments with the hardware and debugging
+ * During experiments with the hardware and deging
  * it was determined that the hardware behaves contrary
  * to the manual.
  *

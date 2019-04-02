@@ -116,7 +116,7 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 		} else {
 			/* this is somewhat paranoid */
 			dev_err(line6pcm->line6->ifcdev,
-				"driver bug: len = %d\n", len);
+				"driver : len = %d\n", len);
 		}
 	} else {
 		/* copy single chunk */
@@ -177,13 +177,13 @@ static void audio_in_callback(struct urb *urb)
 
 		if (fsize > line6pcm->max_packet_size_in) {
 			dev_err(line6pcm->line6->ifcdev,
-				"driver and/or device bug: packet too large (%d > %d)\n",
+				"driver and/or device : packet too large (%d > %d)\n",
 				fsize, line6pcm->max_packet_size_in);
 		}
 
 		length += fsize;
 
-		BUILD_BUG_ON_MSG(LINE6_ISO_PACKETS != 1,
+		BUILD__ON_MSG(LINE6_ISO_PACKETS != 1,
 			"The following code assumes LINE6_ISO_PACKETS == 1");
 		/* TODO:
 		 * Also, if iso_buffers != 2, the prev frame is almost random at

@@ -37,7 +37,7 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 	       (skb = skb_dequeue(&local->skb_queue_unreliable))) {
 		ieee80211_free_txskb(hw, skb);
 		tmp--;
-		I802_DEBUG_INC(local->tx_status_drop);
+		I802_DE_INC(local->tx_status_drop);
 	}
 	tasklet_schedule(&local->tasklet);
 }
@@ -851,13 +851,13 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	if ((info->flags & IEEE80211_TX_STAT_ACK) ||
 	    (info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED)) {
 		if (ieee80211_is_first_frag(hdr->seq_ctrl)) {
-			I802_DEBUG_INC(local->dot11TransmittedFrameCount);
+			I802_DE_INC(local->dot11TransmittedFrameCount);
 			if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
-				I802_DEBUG_INC(local->dot11MulticastTransmittedFrameCount);
+				I802_DE_INC(local->dot11MulticastTransmittedFrameCount);
 			if (retry_count > 0)
-				I802_DEBUG_INC(local->dot11RetryCount);
+				I802_DE_INC(local->dot11RetryCount);
 			if (retry_count > 1)
-				I802_DEBUG_INC(local->dot11MultipleRetryCount);
+				I802_DE_INC(local->dot11MultipleRetryCount);
 		}
 
 		/* This counter shall be incremented for an acknowledged MPDU
@@ -867,10 +867,10 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 		if (!is_multicast_ether_addr(hdr->addr1) ||
 		    ieee80211_is_data(fc) ||
 		    ieee80211_is_mgmt(fc))
-			I802_DEBUG_INC(local->dot11TransmittedFragmentCount);
+			I802_DE_INC(local->dot11TransmittedFragmentCount);
 	} else {
 		if (ieee80211_is_first_frag(hdr->seq_ctrl))
-			I802_DEBUG_INC(local->dot11FailedCount);
+			I802_DE_INC(local->dot11FailedCount);
 	}
 
 	if (ieee80211_is_nullfunc(fc) && ieee80211_has_pm(fc) &&
@@ -987,15 +987,15 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	}
 
 	if (acked || noack_success) {
-		I802_DEBUG_INC(local->dot11TransmittedFrameCount);
+		I802_DE_INC(local->dot11TransmittedFrameCount);
 		if (!pubsta)
-			I802_DEBUG_INC(local->dot11MulticastTransmittedFrameCount);
+			I802_DE_INC(local->dot11MulticastTransmittedFrameCount);
 		if (retry_count > 0)
-			I802_DEBUG_INC(local->dot11RetryCount);
+			I802_DE_INC(local->dot11RetryCount);
 		if (retry_count > 1)
-			I802_DEBUG_INC(local->dot11MultipleRetryCount);
+			I802_DE_INC(local->dot11MultipleRetryCount);
 	} else {
-		I802_DEBUG_INC(local->dot11FailedCount);
+		I802_DE_INC(local->dot11FailedCount);
 	}
 }
 EXPORT_SYMBOL(ieee80211_tx_status_ext);

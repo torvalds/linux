@@ -24,7 +24,7 @@
 #include <linux/usb.h>
 #include <net/mac80211.h>
 #include <linux/completion.h>
-#include "debug.h"
+#include "de.h"
 
 #define	MASKBYTE0				0xff
 #define	MASKBYTE1				0xff00
@@ -2321,12 +2321,12 @@ struct rtl_intf_ops {
 
 struct rtl_mod_params {
 	/* default: 0,0 */
-	u64 debug_mask;
+	u64 de_mask;
 	/* default: 0 = using hardware encryption */
 	bool sw_crypto;
 
 	/* default: 0 = DBG_EMERG (0)*/
-	int debug_level;
+	int de_level;
 
 	/* default: 1 = using no linked power save */
 	bool inactiveps;
@@ -2452,10 +2452,10 @@ struct rtl_works {
 	struct work_struct fill_h2c_cmd;
 };
 
-struct rtl_debug {
-	/* add for debug */
-	struct dentry *debugfs_dir;
-	char debugfs_name[20];
+struct rtl_de {
+	/* add for de */
+	struct dentry *defs_dir;
+	char defs_name[20];
 
 	char *msg_buf;
 };
@@ -2820,8 +2820,8 @@ struct rtl_phydm_ops {
 	u32  (*phydm_query_counter)(struct rtl_priv *rtlpriv,
 				    const char *info_type);
 
-	/* debug */
-	bool (*phydm_debug_cmd)(struct rtl_priv *rtlpriv, char *in, u32 in_len,
+	/* de */
+	bool (*phydm_de_cmd)(struct rtl_priv *rtlpriv, char *in, u32 in_len,
 				char *out, u32 out_len);
 
 };
@@ -2831,7 +2831,7 @@ struct rtl_phydm {
 	void *internal;	/* internal context of phydm, i.e. PHY_DM_STRUCT */
 
 	u8 adaptivity_en;
-	/* debug */
+	/* de */
 	u16 forced_data_rate;
 	u8 forced_igi_lb;
 	u8 antenna_test;
@@ -2897,7 +2897,7 @@ struct rtl_priv {
 	struct list_head entry_list;
 	/* c2hcmd list for kthread level access */
 	struct list_head c2hcmd_list;
-	struct rtl_debug dbg;
+	struct rtl_de dbg;
 	int max_fw_size;
 
 	/*hal_cfg : for diff cards

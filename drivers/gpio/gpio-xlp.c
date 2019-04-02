@@ -226,7 +226,7 @@ static int xlp_gpio_dir_output(struct gpio_chip *gc, unsigned gpio, int state)
 {
 	struct xlp_gpio_priv *priv = gpiochip_get_data(gc);
 
-	BUG_ON(gpio >= gc->ngpio);
+	_ON(gpio >= gc->ngpio);
 	xlp_gpio_set_reg(priv->gpio_out_en, gpio, 0x1);
 
 	return 0;
@@ -236,7 +236,7 @@ static int xlp_gpio_dir_input(struct gpio_chip *gc, unsigned gpio)
 {
 	struct xlp_gpio_priv *priv = gpiochip_get_data(gc);
 
-	BUG_ON(gpio >= gc->ngpio);
+	_ON(gpio >= gc->ngpio);
 	xlp_gpio_set_reg(priv->gpio_out_en, gpio, 0x0);
 
 	return 0;
@@ -246,7 +246,7 @@ static int xlp_gpio_get(struct gpio_chip *gc, unsigned gpio)
 {
 	struct xlp_gpio_priv *priv = gpiochip_get_data(gc);
 
-	BUG_ON(gpio >= gc->ngpio);
+	_ON(gpio >= gc->ngpio);
 	return xlp_gpio_get_reg(priv->gpio_paddrv, gpio);
 }
 
@@ -254,7 +254,7 @@ static void xlp_gpio_set(struct gpio_chip *gc, unsigned gpio, int state)
 {
 	struct xlp_gpio_priv *priv = gpiochip_get_data(gc);
 
-	BUG_ON(gpio >= gc->ngpio);
+	_ON(gpio >= gc->ngpio);
 	xlp_gpio_set_reg(priv->gpio_paddrv, gpio, state);
 }
 

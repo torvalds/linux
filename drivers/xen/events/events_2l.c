@@ -89,7 +89,7 @@ static void evtchn_2l_unmask(unsigned port)
 	unsigned int cpu = get_cpu();
 	int do_hypercall = 0, evtchn_pending = 0;
 
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	if (unlikely((cpu != cpu_from_evtchn(port))))
 		do_hypercall = 1;
@@ -262,17 +262,17 @@ static void evtchn_2l_handle_events(unsigned cpu)
 	}
 }
 
-irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
+irqreturn_t xen_de_interrupt(int irq, void *dev_id)
 {
 	struct shared_info *sh = HYPERVISOR_shared_info;
 	int cpu = smp_processor_id();
 	xen_ulong_t *cpu_evtchn = per_cpu(cpu_evtchn_mask, cpu);
 	int i;
 	unsigned long flags;
-	static DEFINE_SPINLOCK(debug_lock);
+	static DEFINE_SPINLOCK(de_lock);
 	struct vcpu_info *v;
 
-	spin_lock_irqsave(&debug_lock, flags);
+	spin_lock_irqsave(&de_lock, flags);
 
 	printk("\nvcpu %d\n  ", cpu);
 
@@ -341,7 +341,7 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 		}
 	}
 
-	spin_unlock_irqrestore(&debug_lock, flags);
+	spin_unlock_irqrestore(&de_lock, flags);
 
 	return IRQ_HANDLED;
 }

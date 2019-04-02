@@ -47,7 +47,7 @@ trivial patch so apply some common sense.
 	patch. It avoids people being missed off by mistake and makes
 	it easier to know who wants adding and who doesn't.
 
-	PLEASE document known bugs. If it doesn't work for everything
+	PLEASE document known s. If it doesn't work for everything
 	or does something very odd once a month document it.
 
 	PLEASE remember that submissions must be made under the terms
@@ -64,12 +64,12 @@ trivial patch so apply some common sense.
 	please Cc: security@kernel.org, especially if the maintainer
 	does not respond. Please keep in mind that the security team is
 	a small set of people who can be efficient only when working on
-	verified bugs. Please only Cc: this list when you have identified
-	that the bug would present a short-term risk to other users if it
+	verified s. Please only Cc: this list when you have identified
+	that the  would present a short-term risk to other users if it
 	were publicly disclosed. For example, reports of address leaks do
 	not represent an immediate threat and are better handled publicly,
 	and ideally, should come with a patch proposal. Please do not send
-	automated reports to this list either. Such bugs will be handled
+	automated reports to this list either. Such s will be handled
 	better and faster in the usual public places.
 
 8.	Happy hacking.
@@ -82,8 +82,8 @@ Descriptions of section entries:
 	   These reviewers should be CCed on patches.
 	L: Mailing list that is relevant to this area
 	W: Web-page with status/info
-	B: URI for where to file bugs. A web-page with detailed bug
-	   filing info, a direct bug tracker link, or a mailto: URI.
+	B: URI for where to file s. A web-page with detailed 
+	   filing info, a direct  tracker link, or a mailto: URI.
 	C: URI for chat protocol, server and channel where developers
 	   usually hang out, for example irc://server/channel.
 	Q: Patchwork web based patch tracking system site
@@ -313,7 +313,7 @@ L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -346,8 +346,8 @@ W:	https://acpica.org/
 W:	https://github.com/acpica/acpica/
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
-B:	https://bugzilla.kernel.org
-B:	https://bugs.acpica.org
+B:	https://zilla.kernel.org
+B:	https://s.acpica.org
 S:	Supported
 F:	drivers/acpi/acpica/
 F:	include/acpi/
@@ -357,7 +357,7 @@ ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/acpi/fan.c
 
@@ -384,7 +384,7 @@ R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-acpi@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/acpi/pmic/
 
@@ -392,7 +392,7 @@ ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/acpi/*thermal*
 
@@ -400,7 +400,7 @@ ACPI VIDEO DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/acpi/acpi_video.c
 
@@ -1186,7 +1186,7 @@ S:	Maintained
 F:	arch/arm/lib/floppydma.S
 F:	arch/arm/include/asm/floppy.h
 
-ARM PMU PROFILING AND DEBUGGING
+ARM PMU PROFILING AND DEGING
 M:	Will Deacon <will.deacon@arm.com>
 M:	Mark Rutland <mark.rutland@arm.com>
 S:	Maintained
@@ -1494,9 +1494,9 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/hwtracing/coresight/*
 F:	Documentation/trace/coresight.txt
-F:	Documentation/trace/coresight-cpu-debug.txt
+F:	Documentation/trace/coresight-cpu-de.txt
 F:	Documentation/devicetree/bindings/arm/coresight.txt
-F:	Documentation/devicetree/bindings/arm/coresight-cpu-debug.txt
+F:	Documentation/devicetree/bindings/arm/coresight-cpu-de.txt
 F:	Documentation/ABI/testing/sysfs-bus-coresight-devices-*
 F:	tools/perf/arch/arm/util/pmu.c
 F:	tools/perf/arch/arm/util/auxtrace.c
@@ -1840,7 +1840,7 @@ F:	arch/arm/boot/dts/at91*.dts
 F:	arch/arm/boot/dts/at91*.dtsi
 F:	arch/arm/boot/dts/sama*.dts
 F:	arch/arm/boot/dts/sama*.dtsi
-F:	arch/arm/include/debug/at91.S
+F:	arch/arm/include/de/at91.S
 F:	drivers/memory/atmel*
 F:	drivers/watchdog/sama5d4_wdt.c
 X:	drivers/input/touchscreen/atmel_mxt_ts.c
@@ -2176,7 +2176,7 @@ F:	arch/arm/boot/dts/r8a*
 F:	arch/arm/boot/dts/r9a*
 F:	arch/arm/boot/dts/sh*
 F:	arch/arm/configs/shmobile_defconfig
-F:	arch/arm/include/debug/renesas-scif.S
+F:	arch/arm/include/de/renesas-scif.S
 F:	arch/arm/mach-shmobile/
 F:	Documentation/devicetree/bindings/arm/renesas.yaml
 F:	drivers/soc/renesas/
@@ -3615,7 +3615,7 @@ F:	include/media/cec-notifier.h
 F:	include/uapi/linux/cec.h
 F:	include/uapi/linux/cec-funcs.h
 F:	Documentation/devicetree/bindings/media/cec.txt
-F:	Documentation/ABI/testing/debugfs-cec-error-inj
+F:	Documentation/ABI/testing/defs-cec-error-inj
 
 CEC GPIO DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
@@ -4065,7 +4065,7 @@ L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vireshk/pm.git (For ARM Updates)
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 F:	Documentation/admin-guide/pm/cpufreq.rst
 F:	Documentation/admin-guide/pm/intel_pstate.rst
 F:	Documentation/cpu-freq/
@@ -4122,7 +4122,7 @@ M:	Daniel Lezcano <daniel.lezcano@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 F:	Documentation/admin-guide/pm/cpuidle.rst
 F:	Documentation/driver-api/pm/cpuidle.rst
 F:	drivers/cpuidle/*
@@ -4855,16 +4855,16 @@ F:	drivers/block/drbd/
 F:	lib/lru_cache.c
 F:	Documentation/blockdev/drbd/
 
-DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
+DRIVER CORE, KOBJECTS, DEFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 R:	"Rafael J. Wysocki" <rafael@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
 S:	Supported
 F:	Documentation/kobject.txt
 F:	drivers/base/
-F:	fs/debugfs/
+F:	fs/defs/
 F:	fs/sysfs/
-F:	include/linux/debugfs.h
+F:	include/linux/defs.h
 F:	include/linux/kobj*
 F:	lib/kobj*
 
@@ -5069,7 +5069,7 @@ M:	David Airlie <airlied@linux.ie>
 M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm
-B:	https://bugs.freedesktop.org/
+B:	https://s.freedesktop.org/
 C:	irc://chat.freenode.net/dri-devel
 S:	Maintained
 F:	drivers/gpu/drm/
@@ -5461,11 +5461,11 @@ S:	Maintained
 F:	drivers/media/usb/dvb-usb-v2/dvb_usb*
 F:	drivers/media/usb/dvb-usb-v2/usb_urb.c
 
-DYNAMIC DEBUG
+DYNAMIC DE
 M:	Jason Baron <jbaron@akamai.com>
 S:	Maintained
-F:	lib/dynamic_debug.c
-F:	include/linux/dynamic_debug.h
+F:	lib/dynamic_de.c
+F:	include/linux/dynamic_de.h
 
 DYNAMIC INTERRUPT MODERATION
 M:	Tal Gilboa <talgi@mellanox.com>
@@ -6237,7 +6237,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/freescale/enetc/enetc_ptp.c
 F:	drivers/ptp/ptp_qoriq.c
-F:	drivers/ptp/ptp_qoriq_debugfs.c
+F:	drivers/ptp/ptp_qoriq_defs.c
 F:	include/linux/fsl/ptp_qoriq.h
 F:	Documentation/devicetree/bindings/ptp/ptp-qoriq.txt
 
@@ -6438,7 +6438,7 @@ S:	Maintained
 F:	kernel/gcov/
 F:	Documentation/dev-tools/gcov.rst
 
-GDB KERNEL DEBUGGING HELPER SCRIPTS
+GDB KERNEL DEGING HELPER SCRIPTS
 M:	Jan Kiszka <jan.kiszka@siemens.com>
 M:	Kieran Bingham <kbingham@kernel.org>
 S:	Supported
@@ -6799,7 +6799,7 @@ S:	Supported
 F:	drivers/misc/habanalabs/
 F:	include/uapi/misc/habanalabs.h
 F:	Documentation/ABI/testing/sysfs-driver-habanalabs
-F:	Documentation/ABI/testing/debugfs-driver-habanalabs
+F:	Documentation/ABI/testing/defs-driver-habanalabs
 
 HACKRF MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
@@ -6916,7 +6916,7 @@ HIBERNATION (aka Software Suspend, aka swsusp)
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	arch/x86/power/
 F:	drivers/base/power/
@@ -7370,7 +7370,7 @@ F:	drivers/crypto/nx/nx-aes*
 F:	drivers/crypto/nx/nx-sha*
 F:	drivers/crypto/nx/nx.*
 F:	drivers/crypto/nx/nx_csbcpb.h
-F:	drivers/crypto/nx/nx_debugfs.h
+F:	drivers/crypto/nx/nx_defs.h
 
 IBM Power Linux RAID adapter
 M:	Brian King <brking@us.ibm.com>
@@ -7745,7 +7745,7 @@ M:	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
 M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
 L:	intel-gfx@lists.freedesktop.org
 W:	https://01.org/linuxgraphics/
-B:	https://01.org/linuxgraphics/documentation/how-report-bugs
+B:	https://01.org/linuxgraphics/documentation/how-report-s
 C:	irc://chat.freenode.net/intel-gfx
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
 T:	git git://anongit.freedesktop.org/drm-intel
@@ -7830,7 +7830,7 @@ M:	Jacob Pan <jacob.jun.pan@linux.intel.com>
 M:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/idle/intel_idle.c
 
@@ -8599,11 +8599,11 @@ F:	include/uapi/linux/keyctl.h
 F:	include/keys/
 F:	security/keys/
 
-KGDB / KDB /debug_core
+KGDB / KDB /de_core
 M:	Jason Wessel <jason.wessel@windriver.com>
 M:	Daniel Thompson <daniel.thompson@linaro.org>
 W:	http://kgdb.wiki.kernel.org/
-L:	kgdb-bugreport@lists.sourceforge.net
+L:	kgdb-report@lists.sourceforge.net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwessel/kgdb.git
 S:	Maintained
 F:	Documentation/dev-tools/kgdb.rst
@@ -8611,7 +8611,7 @@ F:	drivers/misc/kgdbts.c
 F:	drivers/tty/serial/kgdboc.c
 F:	include/linux/kdb.h
 F:	include/linux/kgdb.h
-F:	kernel/debug/
+F:	kernel/de/
 
 KMEMLEAK
 M:	Catalin Marinas <catalin.marinas@arm.com>
@@ -11789,7 +11789,7 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/muxes/i2c-mux-pca9541.c
 
-PCDP - PRIMARY CONSOLE AND DEBUG PORT
+PCDP - PRIMARY CONSOLE AND DE PORT
 M:	Khalid Aziz <khalid@gonehiking.org>
 S:	Maintained
 F:	drivers/firmware/pcdp.*
@@ -12400,7 +12400,7 @@ POWER MANAGEMENT CORE
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	drivers/base/power/
 F:	include/linux/pm.h
@@ -14875,7 +14875,7 @@ M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Len Brown <len.brown@intel.com>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 S:	Supported
 F:	Documentation/power/
 F:	arch/x86/kernel/acpi/
@@ -15841,7 +15841,7 @@ F:	include/linux/tc.h
 TURBOSTAT UTILITY
 M:	"Len Brown" <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
-B:	https://bugzilla.kernel.org
+B:	https://zilla.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-pm/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git turbostat
 S:	Supported
@@ -16787,7 +16787,7 @@ L:	wimax@linuxwimax.org (subscribers-only)
 S:	Supported
 W:	http://linuxwimax.org
 F:	Documentation/wimax/README.wimax
-F:	include/linux/wimax/debug.h
+F:	include/linux/wimax/de.h
 F:	include/net/wimax.h
 F:	include/uapi/linux/wimax.h
 F:	net/wimax/

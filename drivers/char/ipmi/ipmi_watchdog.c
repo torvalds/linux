@@ -22,7 +22,7 @@
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 #include <linux/completion.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/rwsem.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
@@ -47,7 +47,7 @@
  * architecture supports this, we can figure out a good generic
  * mechanism for it at that time.
  */
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/nmi.h>
 #define HAVE_DIE_NMI
 #endif

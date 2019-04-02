@@ -40,8 +40,8 @@ PLEASE NOTE: 	There is a limitation in Android shell.
 
 === Trouble shooting ===
 
-There are debugfs parameters provided for serial communication.
-/sys/kernel/debug/caif_serial/<tty-name>/
+There are defs parameters provided for serial communication.
+/sys/kernel/de/caif_serial/<tty-name>/
 
 * ser_state:   Prints the bit-mask status where
   - 0x02 means SENDING, this is a transient state.
@@ -59,7 +59,7 @@ There are debugfs parameters provided for serial communication.
 
 * last_tx_msg: Binary blob Prints the last transmitted frame.
 	This can be printed with
-	$od --format=x1 /sys/kernel/debug/caif_serial/<tty>/last_rx_msg.
+	$od --format=x1 /sys/kernel/de/caif_serial/<tty>/last_rx_msg.
 	The first two tx messages sent look like this. Note: The initial
 	byte 02 is start of frame extension (STX) used for re-syncing
 	upon errors.
@@ -89,7 +89,7 @@ There are debugfs parameters provided for serial communication.
 	The RX messages for LinkSetup look almost identical but they have the
 	bit 0x20 set in the command bit, and Channel Setup has added one byte
 	before Checksum containing Channel ID.
-	NOTE: Several CAIF Messages might be concatenated. The maximum debug
+	NOTE: Several CAIF Messages might be concatenated. The maximum de
 	buffer size is 128 bytes.
 
 == Error Scenarios:
@@ -101,7 +101,7 @@ There are debugfs parameters provided for serial communication.
   The host is not able to send the message from UART, the tty has not been
   able to complete the transmit operation.
 
-- if /sys/kernel/debug/caif_serial/<tty>/tty_status is non-zero there
+- if /sys/kernel/de/caif_serial/<tty>/tty_status is non-zero there
   might be problems transmitting over UART.
   E.g. host and modem wiring is not correct you will typically see
   tty_status = 0x10 (hw_stopped) and ser_state = 0x10 (FLOW_OFF_SENT).

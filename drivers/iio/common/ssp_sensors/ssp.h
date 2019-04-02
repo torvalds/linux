@@ -157,7 +157,7 @@ struct ssp_sensorhub_info {
  * @work_firmware:	firmware upgrade work queue
  * @work_refresh:	refresh work queue for reset request from MCU
  * @shut_down:		shut down flag
- * @mcu_dump_mode:	mcu dump mode for debug
+ * @mcu_dump_mode:	mcu dump mode for de
  * @time_syncing:	time syncing indication flag
  * @timestamp:		previous time in ns calculated for time syncing
  * @check_status:	status table for each sensor

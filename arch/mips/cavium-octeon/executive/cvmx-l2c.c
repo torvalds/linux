@@ -27,7 +27,7 @@
 
 /*
  * Implementation of the Level 2 Cache (L2C) control,
- * measurement, and debugging facilities.
+ * measurement, and deging facilities.
  */
 
 #include <linux/compiler.h>
@@ -366,7 +366,7 @@ int cvmx_l2c_lock_line(uint64_t addr)
 
 		addr &= ~CVMX_CACHE_LINE_MASK;
 
-		/* Set this core as debug core */
+		/* Set this core as de core */
 		l2cdbg.s.ppnum = cvmx_get_core_num();
 		CVMX_SYNC;
 		cvmx_write_csr(CVMX_L2C_DBG, l2cdbg.u64);
@@ -398,7 +398,7 @@ int cvmx_l2c_lock_line(uint64_t addr)
 		/* Make sure it gets there */
 		cvmx_read_csr(CVMX_L2C_LCKBASE);
 
-		/* Stop being debug core */
+		/* Stop being de core */
 		cvmx_write_csr(CVMX_L2C_DBG, 0);
 		cvmx_read_csr(CVMX_L2C_DBG);
 
@@ -578,7 +578,7 @@ union __cvmx_l2c_tag {
 /**
  * @INTERNAL
  * Function to read a L2C tag.  This code make the current core
- * the 'debug core' for the L2.  This code must only be executed by
+ * the 'de core' for the L2.  This code must only be executed by
  * 1 core at a time.
  *
  * @assoc:  Association (way) of the tag to dump
@@ -591,38 +591,38 @@ union __cvmx_l2c_tag {
 static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 {
 
-	uint64_t debug_tag_addr = CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS, (index << 7) + 96);
+	uint64_t de_tag_addr = CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS, (index << 7) + 96);
 	uint64_t core = cvmx_get_core_num();
 	union __cvmx_l2c_tag tag_val;
 	uint64_t dbg_addr = CVMX_L2C_DBG;
 	unsigned long flags;
-	union cvmx_l2c_dbg debug_val;
+	union cvmx_l2c_dbg de_val;
 
-	debug_val.u64 = 0;
+	de_val.u64 = 0;
 	/*
 	 * For low core count parts, the core number is always small
 	 * enough to stay in the correct field and not set any
 	 * reserved bits.
 	 */
-	debug_val.s.ppnum = core;
-	debug_val.s.l2t = 1;
-	debug_val.s.set = assoc;
+	de_val.s.ppnum = core;
+	de_val.s.l2t = 1;
+	de_val.s.set = assoc;
 
 	local_irq_save(flags);
 	/*
 	 * Make sure core is quiet (no prefetches, etc.) before
-	 * entering debug mode.
+	 * entering de mode.
 	 */
 	CVMX_SYNC;
-	/* Flush L1 to make sure debug load misses L1 */
+	/* Flush L1 to make sure de load misses L1 */
 	CVMX_DCACHE_INVALIDATE;
 
 	/*
-	 * The following must be done in assembly as when in debug
-	 * mode all data loads from L2 return special debug data, not
+	 * The following must be done in assembly as when in de
+	 * mode all data loads from L2 return special de data, not
 	 * normal memory contents.  Also, interrupts must be disabled,
-	 * since if an interrupt occurs while in debug mode the ISR
-	 * will get debug data from all its memory * reads instead of
+	 * since if an interrupt occurs while in de mode the ISR
+	 * will get de data from all its memory * reads instead of
 	 * the contents of memory.
 	 */
 
@@ -630,15 +630,15 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 		".set push\n\t"
 		".set mips64\n\t"
 		".set noreorder\n\t"
-		"sd    %[dbg_val], 0(%[dbg_addr])\n\t"	 /* Enter debug mode, wait for store */
+		"sd    %[dbg_val], 0(%[dbg_addr])\n\t"	 /* Enter de mode, wait for store */
 		"ld    $0, 0(%[dbg_addr])\n\t"
 		"ld    %[tag_val], 0(%[tag_addr])\n\t"	 /* Read L2C tag data */
-		"sd    $0, 0(%[dbg_addr])\n\t"		/* Exit debug mode, wait for store */
+		"sd    $0, 0(%[dbg_addr])\n\t"		/* Exit de mode, wait for store */
 		"ld    $0, 0(%[dbg_addr])\n\t"
-		"cache 9, 0($0)\n\t"		 /* Invalidate dcache to discard debug data */
+		"cache 9, 0($0)\n\t"		 /* Invalidate dcache to discard de data */
 		".set pop"
 		: [tag_val] "=r" (tag_val)
-		: [dbg_addr] "r" (dbg_addr), [dbg_val] "r" (debug_val), [tag_addr] "r" (debug_tag_addr)
+		: [dbg_addr] "r" (dbg_addr), [dbg_val] "r" (de_val), [tag_addr] "r" (de_tag_addr)
 		: "memory");
 
 	local_irq_restore(flags);
@@ -860,7 +860,7 @@ int cvmx_l2c_get_num_assoc(void)
 /**
  * Flush a line from the L2 cache
  * This should only be called from one core at a time, as this routine
- * sets the core to the 'debug' core in order to flush the line.
+ * sets the core to the 'de' core in order to flush the line.
  *
  * @assoc:  Association (or way) to flush
  * @index:  Index to flush
@@ -901,8 +901,8 @@ void cvmx_l2c_flush_line(uint32_t assoc, uint32_t index)
 		l2cdbg.s.set = assoc;
 		cvmx_spinlock_lock(&cvmx_l2c_spinlock);
 		/*
-		 * Enter debug mode, and make sure all other writes
-		 * complete before we enter debug mode
+		 * Enter de mode, and make sure all other writes
+		 * complete before we enter de mode
 		 */
 		CVMX_SYNC;
 		cvmx_write_csr(CVMX_L2C_DBG, l2cdbg.u64);
@@ -911,7 +911,7 @@ void cvmx_l2c_flush_line(uint32_t assoc, uint32_t index)
 		CVMX_PREPARE_FOR_STORE(CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS,
 						    index * CVMX_CACHE_LINE_SIZE),
 				       0);
-		/* Exit debug mode */
+		/* Exit de mode */
 		CVMX_SYNC;
 		cvmx_write_csr(CVMX_L2C_DBG, 0);
 		cvmx_read_csr(CVMX_L2C_DBG);

@@ -41,7 +41,7 @@
  * Additional return values when invoking new vm86()
  */
 #define VM86_PICRETURN	4	/* return due to pending PIC request */
-#define VM86_TRAP	6	/* return due to DOS-debugger request */
+#define VM86_TRAP	6	/* return due to DOS-deger request */
 
 /*
  * function codes when invoking new vm86()
@@ -110,11 +110,11 @@ struct vm86_struct {
 
 struct vm86plus_info_struct {
 	unsigned long force_return_for_pic:1;
-	unsigned long vm86dbg_active:1;       /* for debugger */
-	unsigned long vm86dbg_TFpendig:1;     /* for debugger */
+	unsigned long vm86dbg_active:1;       /* for deger */
+	unsigned long vm86dbg_TFpendig:1;     /* for deger */
 	unsigned long unused:28;
 	unsigned long is_vm86pus:1;	      /* for vm86 internal use */
-	unsigned char vm86dbg_intxxtab[32];   /* for debugger */
+	unsigned char vm86dbg_intxxtab[32];   /* for deger */
 };
 struct vm86plus_struct {
 	struct vm86_regs regs;

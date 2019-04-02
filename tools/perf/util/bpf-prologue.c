@@ -9,7 +9,7 @@
 
 #include <bpf/libbpf.h>
 #include "perf.h"
-#include "debug.h"
+#include "de.h"
 #include "bpf-loader.h"
 #include "bpf-prologue.h"
 #include "probe-finder.h"
@@ -249,7 +249,7 @@ gen_prologue_slowpath(struct bpf_insn_pos *pos,
 		struct probe_trace_arg_ref *ref = NULL;
 		int stack_offset = (i + 1) * -8;
 
-		pr_debug("prologue: fetch arg %d, base reg is %s\n",
+		pr_de("prologue: fetch arg %d, base reg is %s\n",
 			 i, reg);
 
 		/* value of base register is stored into ARG3 */
@@ -277,7 +277,7 @@ gen_prologue_slowpath(struct bpf_insn_pos *pos,
 
 		ref = arg->ref;
 		while (ref) {
-			pr_debug("prologue: arg %d: offset %ld\n",
+			pr_de("prologue: arg %d: offset %ld\n",
 				 i, ref->offset);
 			err = gen_read_mem(pos, BPF_REG_3, BPF_REG_7,
 					   ref->offset);
@@ -302,7 +302,7 @@ gen_prologue_slowpath(struct bpf_insn_pos *pos,
 	for (i = 0; i < nargs; i++) {
 		int insn_sz = (args[i].ref) ? argtype_to_ldx_size(args[i].type) : BPF_DW;
 
-		pr_debug("prologue: load arg %d, insn_sz is %s\n",
+		pr_de("prologue: load arg %d, insn_sz is %s\n",
 			 i, insn_sz_to_str(insn_sz));
 		ins(BPF_LDX_MEM(insn_sz, BPF_PROLOGUE_START_ARG_REG + i,
 				BPF_REG_FP, -BPF_REG_SIZE * (i + 1)), pos);
@@ -427,16 +427,16 @@ int bpf__gen_prologue(struct probe_trace_arg *args, int nargs,
 			ref = ref->next;
 		}
 	}
-	pr_debug("prologue: pass validation\n");
+	pr_de("prologue: pass validation\n");
 
 	if (fastpath) {
 		/* If all variables are registers... */
-		pr_debug("prologue: fast path\n");
+		pr_de("prologue: fast path\n");
 		err = gen_prologue_fastpath(&pos, args, nargs);
 		if (err)
 			goto errout;
 	} else {
-		pr_debug("prologue: slow path\n");
+		pr_de("prologue: slow path\n");
 
 		/* Initialization: move ctx to a callee saved register. */
 		ins(BPF_MOV64_REG(BPF_REG_CTX, BPF_REG_ARG1), &pos);

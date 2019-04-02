@@ -1095,7 +1095,7 @@ config ARM_DMA_MEM_BUFFERABLE
 	  buffers) you likely want this enabled, while those that
 	  didn't need it until now also won't need it in the future.
 
-	  You are recommended say 'Y' here and debug any affected drivers.
+	  You are recommended say 'Y' here and de any affected drivers.
 
 config ARM_HEAVY_MB
 	bool
@@ -1106,7 +1106,7 @@ config ARCH_SUPPORTS_BIG_ENDIAN
 	  This option specifies the architecture can support big endian
 	  operation.
 
-config DEBUG_ALIGN_RODATA
+config DE_ALIGN_RODATA
 	bool "Make rodata strictly non-executable"
 	depends on STRICT_KERNEL_RWX
 	default y

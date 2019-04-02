@@ -18,13 +18,13 @@
  * option) any later version.
  */
 
-#ifdef CONFIG_SATA_DWC_DEBUG
-#define DEBUG
+#ifdef CONFIG_SATA_DWC_DE
+#define DE
 #endif
 
-#ifdef CONFIG_SATA_DWC_VDEBUG
-#define VERBOSE_DEBUG
-#define DEBUG_NCQ
+#ifdef CONFIG_SATA_DWC_VDE
+#define VERBOSE_DE
+#define DE_NCQ
 #endif
 
 #include <linux/kernel.h>
@@ -757,7 +757,7 @@ static void sata_dwc_dma_xfer_complete(struct ata_port *ap, u32 check_status)
 		return;
 	}
 
-#ifdef DEBUG_NCQ
+#ifdef DE_NCQ
 	if (tag > 0) {
 		dev_info(ap->dev,
 			 "%s tag=%u cmd=0x%02x dma dir=%s proto=%s dmacr=0x%08x\n",
@@ -1078,7 +1078,7 @@ static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 
-#ifdef DEBUG_NCQ
+#ifdef DE_NCQ
 	if (qc->hw_tag > 0 || ap->link.sactive > 1)
 		dev_info(ap->dev,
 			 "%s ap id=%d cmd(0x%02x)=%s qc tag=%d prot=%s ap active_tag=0x%08x ap sactive=0x%08x\n",

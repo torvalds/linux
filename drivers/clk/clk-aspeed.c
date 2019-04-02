@@ -602,7 +602,7 @@ static void __init aspeed_ast2400_cc(struct regmap *map)
 		hpll = hpll_rates[0][rate];
 	}
 	hw = clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, clkin);
-	pr_debug("clkin @%u MHz\n", clkin / 1000000);
+	pr_de("clkin @%u MHz\n", clkin / 1000000);
 
 	/*
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,
@@ -655,7 +655,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 	else
 		freq = 24000000;
 	hw = clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, freq);
-	pr_debug("clkin @%u MHz\n", freq / 1000000);
+	pr_de("clkin @%u MHz\n", freq / 1000000);
 
 	/*
 	 * High-speed PLL clock derived from the crystal. This the CPU clock,

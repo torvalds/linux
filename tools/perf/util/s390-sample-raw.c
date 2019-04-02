@@ -21,7 +21,7 @@
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
 
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 #include "auxtrace.h"
 #include "session.h"

@@ -170,7 +170,7 @@ __xfs_dir3_data_check(
 		 * It's a real entry.  Validate the fields.
 		 * If this is a block directory then make sure it's
 		 * in the leaf section of the block.
-		 * The linear search is crude but this is DEBUG code.
+		 * The linear search is crude but this is DE code.
 		 */
 		dep = (xfs_dir2_data_entry_t *)p;
 		if (dep->namelen == 0)
@@ -227,7 +227,7 @@ __xfs_dir3_data_check(
 	return NULL;
 }
 
-#ifdef DEBUG
+#ifdef DE
 void
 xfs_dir3_data_check(
 	struct xfs_inode	*dp,
@@ -734,7 +734,7 @@ xfs_dir2_data_log_header(
 	struct xfs_da_args	*args,
 	struct xfs_buf		*bp)
 {
-#ifdef DEBUG
+#ifdef DE
 	struct xfs_dir2_data_hdr *hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||

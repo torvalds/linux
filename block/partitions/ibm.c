@@ -2,7 +2,7 @@
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *                  Volker Sameske <sameske@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2012
  */
 

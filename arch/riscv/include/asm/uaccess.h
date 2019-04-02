@@ -225,7 +225,7 @@ do {								\
 		__get_user_8((x), __gu_ptr, __gu_err);	\
 		break;						\
 	default:						\
-		BUILD_BUG();					\
+		BUILD_();					\
 	}							\
 	__gu_err;						\
 })
@@ -354,7 +354,7 @@ do {								\
 		__put_user_8((x), __gu_ptr, __pu_err);	\
 		break;						\
 	default:						\
-		BUILD_BUG();					\
+		BUILD_();					\
 	}							\
 	__pu_err;						\
 })
@@ -486,7 +486,7 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
 			  [efault] "i" (-EFAULT));		\
 		break;						\
 	default:						\
-		BUILD_BUG();					\
+		BUILD_();					\
 	}							\
 	__disable_user_access();				\
 	(err) = __err;						\

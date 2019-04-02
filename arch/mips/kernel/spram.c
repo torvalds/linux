@@ -134,7 +134,7 @@ static void probe_spram(char *type,
 	for (i = 0; i < 8; i++) {
 		tag0 = read(offset);
 		tag1 = read(offset+SPRAM_TAG_STRIDE);
-		pr_debug("DBG %s%d: tag0=%08x tag1=%08x\n",
+		pr_de("DBG %s%d: tag0=%08x tag1=%08x\n",
 			 type, i, tag0, tag1);
 
 		size = tag1 & SPRAM_TAG1_SIZE_MASK;

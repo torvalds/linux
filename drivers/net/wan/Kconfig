@@ -317,7 +317,7 @@ config DSCC4_PCI_RST
 	bool "Hard reset support"
 	depends on DSCC4
 	help
-	  Various DSCC4 bugs forbid any reliable software reset of the ASIC.
+	  Various DSCC4 s forbid any reliable software reset of the ASIC.
 	  As a replacement, some vendors provide a way to assert the PCI #RST
 	  pin of DSCC4 through the GPIO port of the card. If you choose Y,
 	  the driver will make use of this feature before module removal

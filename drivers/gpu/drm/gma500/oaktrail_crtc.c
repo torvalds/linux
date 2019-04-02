@@ -125,7 +125,7 @@ static void mrst_lvds_clock(int refclk, struct gma_clock_t *clock)
 
 static void mrst_print_pll(struct gma_clock_t *clock)
 {
-	DRM_DEBUG_DRIVER("dotclock=%d,  m=%d, m1=%d, m2=%d, n=%d, p1=%d, p2=%d\n",
+	DRM_DE_DRIVER("dotclock=%d,  m=%d, m1=%d, m2=%d, n=%d, p1=%d, p2=%d\n",
 			 clock->dot, clock->m, clock->m1, clock->m2, clock->n,
 			 clock->p1, clock->p2);
 }

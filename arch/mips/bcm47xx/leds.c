@@ -783,7 +783,7 @@ void __init bcm47xx_leds_register(void)
 		break;
 
 	default:
-		pr_debug("No LEDs configuration found for this device\n");
+		pr_de("No LEDs configuration found for this device\n");
 		return;
 	}
 

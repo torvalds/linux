@@ -78,7 +78,7 @@ static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
 	int ret;
 	unsigned char i2c_data[6];
 
-	BUG_ON(len > 5);
+	_ON(len > 5);
 
 	i2c_data[0] = reg;
 	memcpy(i2c_data + 1, value, len);

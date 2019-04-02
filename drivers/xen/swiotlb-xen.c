@@ -27,7 +27,7 @@
  * and vice-versa. The MFN are the "real" frame numbers. Furthermore
  * memory is not contiguous. Xen hypervisor stitches memory for guests
  * from different pools, which means there is no guarantee that PFN==MFN
- * and PFN+1==MFN+1. Lastly with Xen 4.0, pages (in debug mode) are
+ * and PFN+1==MFN+1. Lastly with Xen 4.0, pages (in de mode) are
  * allocated in descending order (high to low), meaning the guest might
  * never get any MFN's under the 4GB mark.
  *
@@ -382,7 +382,7 @@ static dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	phys_addr_t map, phys = page_to_phys(page) + offset;
 	dma_addr_t dev_addr = xen_phys_to_bus(phys);
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 	/*
 	 * If the address happens to be in the device's DMA window,
 	 * we can safely return the device addr and not worry about bounce
@@ -439,7 +439,7 @@ static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
 {
 	phys_addr_t paddr = xen_bus_to_phys(dev_addr);
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 
 	xen_dma_unmap_page(hwdev, dev_addr, size, dir, attrs);
 
@@ -472,7 +472,7 @@ xen_swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 {
 	phys_addr_t paddr = xen_bus_to_phys(dev_addr);
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 
 	if (target == SYNC_FOR_CPU)
 		xen_dma_sync_single_for_cpu(hwdev, dev_addr, size, dir);
@@ -511,7 +511,7 @@ xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 	struct scatterlist *sg;
 	int i;
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 
 	for_each_sg(sgl, sg, nelems, i)
 		xen_unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir, attrs);
@@ -542,7 +542,7 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 	struct scatterlist *sg;
 	int i;
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 
 	for_each_sg(sgl, sg, nelems, i) {
 		phys_addr_t paddr = sg_phys(sg);
@@ -671,10 +671,10 @@ xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 	/*
 	 * This check verifies that the page belongs to the current domain and
 	 * is not one mapped from another domain.
-	 * This check is for debug only, and should not go to production build
+	 * This check is for de only, and should not go to production build
 	 */
 		unsigned long bfn = PHYS_PFN(dma_to_phys(dev, handle));
-		BUG_ON (!page_is_ram(bfn));
+		_ON (!page_is_ram(bfn));
 #endif
 		return xen_get_dma_ops(dev)->get_sgtable(dev, sgt, cpu_addr,
 							   handle, size, attrs);

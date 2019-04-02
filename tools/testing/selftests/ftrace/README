@@ -1,7 +1,7 @@
 Linux Ftrace Testcases
 
 This is a collection of testcases for ftrace tracing feature in the Linux
-kernel. Since ftrace exports interfaces via the debugfs, we just need
+kernel. Since ftrace exports interfaces via the defs, we just need
 shell scripts for testing. Feel free to add new test cases.
 
 Running the ftrace testcases
@@ -26,7 +26,7 @@ Contributing new testcases
 Copy test.d/template to your testcase (whose filename must have *.tc
 extension) and rewrite the test description line.
 
- * The working directory of the script is <debugfs>/tracing/.
+ * The working directory of the script is <defs>/tracing/.
 
  * Take care with side effects as the tests are run with root privilege.
 

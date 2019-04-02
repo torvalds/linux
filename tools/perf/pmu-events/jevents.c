@@ -324,7 +324,7 @@ static int print_events_table_entry(void *data, char *name, char *event,
 	char *topic = pd->topic;
 
 	/*
-	 * TODO: Remove formatting chars after debugging to reduce
+	 * TODO: Remove formatting chars after deging to reduce
 	 *	 string lengths.
 	 */
 	fprintf(outfp, "{\n");
@@ -952,7 +952,7 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 	} else
 		bname = (char *) fpath + ftwbuf->base;
 
-	pr_debug("%s %d %7jd %-20s %s\n",
+	pr_de("%s %d %7jd %-20s %s\n",
 		 is_file ? "f" : is_dir ? "d" : "x",
 		 level, sb->st_size, bname, fpath);
 

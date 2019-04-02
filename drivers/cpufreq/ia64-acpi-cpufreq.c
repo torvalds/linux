@@ -48,12 +48,12 @@ processor_set_pstate (
 {
 	s64 retval;
 
-	pr_debug("processor_set_pstate\n");
+	pr_de("processor_set_pstate\n");
 
 	retval = ia64_pal_set_pstate((u64)value);
 
 	if (retval) {
-		pr_debug("Failed to set freq to 0x%x, with error 0x%lx\n",
+		pr_de("Failed to set freq to 0x%x, with error 0x%lx\n",
 		        value, retval);
 		return -ENODEV;
 	}
@@ -68,14 +68,14 @@ processor_get_pstate (
 	u64	pstate_index = 0;
 	s64 	retval;
 
-	pr_debug("processor_get_pstate\n");
+	pr_de("processor_get_pstate\n");
 
 	retval = ia64_pal_get_pstate(&pstate_index,
 	                             PAL_GET_PSTATE_TYPE_INSTANT);
 	*value = (u32) pstate_index;
 
 	if (retval)
-		pr_debug("Failed to get current freq with "
+		pr_de("Failed to get current freq with "
 			"error 0x%lx, idx 0x%x\n", retval, *value);
 
 	return (int)retval;
@@ -90,7 +90,7 @@ extract_clock (
 {
 	unsigned long i;
 
-	pr_debug("extract_clock\n");
+	pr_de("extract_clock\n");
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		if (value == data->acpi_data.states[i].status)
@@ -110,7 +110,7 @@ processor_get_freq (
 	u32			value;
 	int			ret;
 
-	pr_debug("processor_get_freq\n");
+	pr_de("processor_get_freq\n");
 	if (smp_processor_id() != cpu)
 		return -EAGAIN;
 
@@ -134,21 +134,21 @@ processor_set_freq (
 	int			ret, state = req->state;
 	u32			value;
 
-	pr_debug("processor_set_freq\n");
+	pr_de("processor_set_freq\n");
 	if (smp_processor_id() != cpu)
 		return -EAGAIN;
 
 	if (state == data->acpi_data.state) {
 		if (unlikely(data->resume)) {
-			pr_debug("Called after resume, resetting to P%d\n", state);
+			pr_de("Called after resume, resetting to P%d\n", state);
 			data->resume = 0;
 		} else {
-			pr_debug("Already at target state (P%d)\n", state);
+			pr_de("Already at target state (P%d)\n", state);
 			return 0;
 		}
 	}
 
-	pr_debug("Transitioning from P%d to P%d\n",
+	pr_de("Transitioning from P%d to P%d\n",
 		data->acpi_data.state, state);
 
 	/*
@@ -157,7 +157,7 @@ processor_set_freq (
 	 */
 	value = (u32) data->acpi_data.states[state].control;
 
-	pr_debug("Transitioning to state: 0x%08x\n", value);
+	pr_de("Transitioning to state: 0x%08x\n", value);
 
 	ret = processor_set_pstate(value);
 	if (ret) {
@@ -207,7 +207,7 @@ acpi_cpufreq_cpu_init (
 	unsigned int		result = 0;
 	struct cpufreq_frequency_table *freq_table;
 
-	pr_debug("acpi_cpufreq_cpu_init\n");
+	pr_de("acpi_cpufreq_cpu_init\n");
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -222,7 +222,7 @@ acpi_cpufreq_cpu_init (
 
 	/* capability check */
 	if (data->acpi_data.state_count <= 1) {
-		pr_debug("No P-States\n");
+		pr_de("No P-States\n");
 		result = -ENODEV;
 		goto err_unreg;
 	}
@@ -231,7 +231,7 @@ acpi_cpufreq_cpu_init (
 					ACPI_ADR_SPACE_FIXED_HARDWARE) ||
 	    (data->acpi_data.status_register.space_id !=
 					ACPI_ADR_SPACE_FIXED_HARDWARE)) {
-		pr_debug("Unsupported address space [%d, %d]\n",
+		pr_de("Unsupported address space [%d, %d]\n",
 			(u32) (data->acpi_data.control_register.space_id),
 			(u32) (data->acpi_data.status_register.space_id));
 		result = -ENODEV;
@@ -276,7 +276,7 @@ acpi_cpufreq_cpu_init (
 	pr_info("CPU%u - ACPI performance management activated\n", cpu);
 
 	for (i = 0; i < data->acpi_data.state_count; i++)
-		pr_debug("     %cP%d: %d MHz, %d mW, %d uS, %d uS, 0x%x 0x%x\n",
+		pr_de("     %cP%d: %d MHz, %d mW, %d uS, %d uS, 0x%x 0x%x\n",
 			(i == data->acpi_data.state?'*':' '), i,
 			(u32) data->acpi_data.states[i].core_frequency,
 			(u32) data->acpi_data.states[i].power,
@@ -307,7 +307,7 @@ acpi_cpufreq_cpu_exit (
 {
 	struct cpufreq_acpi_io *data = acpi_io_data[policy->cpu];
 
-	pr_debug("acpi_cpufreq_cpu_exit\n");
+	pr_de("acpi_cpufreq_cpu_exit\n");
 
 	if (data) {
 		acpi_io_data[policy->cpu] = NULL;
@@ -334,7 +334,7 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 static int __init
 acpi_cpufreq_init (void)
 {
-	pr_debug("acpi_cpufreq_init\n");
+	pr_de("acpi_cpufreq_init\n");
 
  	return cpufreq_register_driver(&acpi_cpufreq_driver);
 }
@@ -343,7 +343,7 @@ acpi_cpufreq_init (void)
 static void __exit
 acpi_cpufreq_exit (void)
 {
-	pr_debug("acpi_cpufreq_exit\n");
+	pr_de("acpi_cpufreq_exit\n");
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 }

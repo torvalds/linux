@@ -308,8 +308,8 @@ typedef ioc4_intr_func_f *ioc4_intr_func_t;
 
 static unsigned int Num_of_ioc4_cards;
 
-/* defining this will get you LOTS of great debug info */
-//#define DEBUG_INTERRUPTS
+/* defining this will get you LOTS of great de info */
+//#define DE_INTERRUPTS
 #define DPRINT_CONFIG(_x...)	;
 //#define DPRINT_CONFIG(_x...)	printk _x
 
@@ -792,7 +792,7 @@ pending_intrs(struct ioc4_soft *soft, int type)
 	unsigned long flag;
 	uint32_t intrs = 0;
 
-	BUG_ON(!((type == IOC4_SIO_INTR_TYPE)
+	_ON(!((type == IOC4_SIO_INTR_TYPE)
 	       || (type == IOC4_OTHER_INTR_TYPE)));
 
 	spin_lock_irqsave(&soft->is_ir_lock, flag);
@@ -968,11 +968,11 @@ intr_connect(struct ioc4_soft *soft, int type,
 	int i;
 	struct ioc4_intr_info *intr_ptr;
 
-	BUG_ON(!((type == IOC4_SIO_INTR_TYPE)
+	_ON(!((type == IOC4_SIO_INTR_TYPE)
 	       || (type == IOC4_OTHER_INTR_TYPE)));
 
 	i = atomic_inc_return(&soft-> is_intr_type[type].is_num_intrs) - 1;
-	BUG_ON(!(i < MAX_IOC4_INTR_ENTS || (printk("i %d\n", i), 0)));
+	_ON(!(i < MAX_IOC4_INTR_ENTS || (printk("i %d\n", i), 0)));
 
 	/* Save off the lower level interrupt handler */
 	intr_ptr = &soft->is_intr_type[type].is_intr_info[i];
@@ -1019,7 +1019,7 @@ static irqreturn_t ioc4_intr(int irq, void *arg)
 			}
 		}
 	}
-#ifdef DEBUG_INTERRUPTS
+#ifdef DE_INTERRUPTS
 	{
 		struct ioc4_misc_regs __iomem *mem = soft->is_ioc4_misc_addr;
 		unsigned long flag;
@@ -1069,8 +1069,8 @@ static inline int ioc4_attach_local(struct ioc4_driver_data *idd)
 				ioc4_revid, ioc4_revid_min);
 		return -EPERM;
 	}
-	BUG_ON(ioc4_misc == NULL);
-	BUG_ON(ioc4_serial == NULL);
+	_ON(ioc4_misc == NULL);
+	_ON(ioc4_serial == NULL);
 
 	/* Create port structures for each port */
 	for (port_number = 0; port_number < IOC4_NUM_SERIAL_PORTS;
@@ -1150,7 +1150,7 @@ static inline int ioc4_attach_local(struct ioc4_driver_data *idd)
 					&port->ip_dma_ringbuf);
 
 			}
-			BUG_ON(!((((int64_t)port->ip_dma_ringbuf) &
+			_ON(!((((int64_t)port->ip_dma_ringbuf) &
 				(TOTAL_RING_BUF_SIZE - 1)) == 0));
 			DPRINT_CONFIG(("%s : ip_cpu_ringbuf 0x%p "
 						"ip_dma_ringbuf 0x%p\n",
@@ -1409,7 +1409,7 @@ static inline int do_write(struct ioc4_port *port, char *buf, int len)
 	struct ring_entry *entry;
 	struct hooks *hooks = port->ip_hooks;
 
-	BUG_ON(!(len >= 0));
+	_ON(!(len >= 0));
 
 	prod_ptr = port->ip_tx_prod;
 	cons_ptr = readl(&port->ip_serial_regs->stcir) & PROD_CONS_MASK;
@@ -1511,7 +1511,7 @@ static int set_notification(struct ioc4_port *port, int mask, int set_on)
 	struct hooks *hooks = port->ip_hooks;
 	uint32_t intrbits, sscrbits;
 
-	BUG_ON(!mask);
+	_ON(!mask);
 
 	intrbits = sscrbits = 0;
 
@@ -2003,7 +2003,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 				 */
 				if (!(port->ip_notify
 						& (N_DATA_READY | N_DDCD))) {
-					BUG_ON(!(port->ip_sscr
+					_ON(!(port->ip_sscr
 							& IOC4_SSCR_DMA_EN));
 					port->ip_sscr &= ~IOC4_SSCR_DMA_EN;
 					writel(port->ip_sscr,
@@ -2077,8 +2077,8 @@ static inline int do_read(struct uart_port *the_port, unsigned char *buf,
 	char *sc;
 	int loop_counter;
 
-	BUG_ON(!(len >= 0));
-	BUG_ON(!port);
+	_ON(!(len >= 0));
+	_ON(!port);
 	hooks = port->ip_hooks;
 
 	/* There is a nasty timing issue in the IOC4. When the rx_timer

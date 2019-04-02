@@ -224,7 +224,7 @@ idtg2_em_init(struct rio_dev *rdev)
 	 * All standard EM configuration should be performed at upper level.
 	 */
 
-	pr_debug("RIO: %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
+	pr_de("RIO: %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
 
 	/* Set Port-Write info CSR: PRIO=3 and CRF=1 */
 	rio_write_config_32(rdev, IDT_PW_INFO_CSR, 0x0000e000);
@@ -336,7 +336,7 @@ idtg2_em_handler(struct rio_dev *rdev, u8 portnum)
 			rio_read_config_32(rdev,
 					IDT_ISLTL_ADDRESS_CAP, &regval);
 
-			pr_debug("RIO: %s Implementation Specific LTL errors" \
+			pr_de("RIO: %s Implementation Specific LTL errors" \
 				 " 0x%x @(0x%x)\n",
 				 rio_name(rdev), em_ltlerrdet, regval);
 
@@ -357,7 +357,7 @@ idtg2_em_handler(struct rio_dev *rdev, u8 portnum)
 			rio_read_config_32(rdev,
 					IDT_PORT_ISERR_DET(portnum), &regval);
 
-			pr_debug("RIO: %s Implementation Specific Port" \
+			pr_de("RIO: %s Implementation Specific Port" \
 				 " errors 0x%x\n", rio_name(rdev), regval);
 
 			/* Clear all implementation specific events */
@@ -419,7 +419,7 @@ static struct rio_switch_ops idtg2_switch_ops = {
 
 static int idtg2_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 
 	spin_lock(&rdev->rswitch->lock);
 
@@ -446,7 +446,7 @@ static int idtg2_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 
 static void idtg2_remove(struct rio_dev *rdev)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 	spin_lock(&rdev->rswitch->lock);
 	if (rdev->rswitch->ops != &idtg2_switch_ops) {
 		spin_unlock(&rdev->rswitch->lock);
@@ -481,9 +481,9 @@ static int __init idtg2_init(void)
 
 static void __exit idtg2_exit(void)
 {
-	pr_debug("RIO: %s\n", __func__);
+	pr_de("RIO: %s\n", __func__);
 	rio_unregister_driver(&idtg2_driver);
-	pr_debug("RIO: %s done\n", __func__);
+	pr_de("RIO: %s done\n", __func__);
 }
 
 device_initcall(idtg2_init);

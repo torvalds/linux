@@ -132,9 +132,9 @@ extern int shmem_mfill_zeropage_pte(struct mm_struct *dst_mm,
 				    unsigned long dst_addr);
 #else
 #define shmem_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
-			       src_addr, pagep)        ({ BUG(); 0; })
+			       src_addr, pagep)        ({ (); 0; })
 #define shmem_mfill_zeropage_pte(dst_mm, dst_pmd, dst_vma, \
-				 dst_addr)      ({ BUG(); 0; })
+				 dst_addr)      ({ (); 0; })
 #endif
 
 #endif

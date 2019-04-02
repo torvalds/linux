@@ -26,7 +26,7 @@
 #include "stf.h"
 #include "channel.h"
 #include "mac80211_if.h"
-#include "debug.h"
+#include "de.h"
 
 /* QDB() macro takes a dB value and converts to a quarter dB value */
 #define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)

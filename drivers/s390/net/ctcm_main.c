@@ -16,9 +16,9 @@
  *		Peter Tiedemann (ptiedem@de.ibm.com)
  */
 
-#undef DEBUG
-#undef DEBUGDATA
-#undef DEBUGCCW
+#undef DE
+#undef DEDATA
+#undef DECCW
 
 #define KMSG_COMPONENT "ctcm"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
@@ -308,7 +308,7 @@ static long ctcm_check_irb_error(struct ccw_device *cdev, struct irb *irb)
  */
 static void ccw_unit_check(struct channel *ch, __u8 sense)
 {
-	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
+	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DE,
 			"%s(%s): %02x",
 				CTCM_FUNTAIL, ch->id, sense);
 
@@ -561,7 +561,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		skb_queue_tail(&ch->io_queue, skb);
 		ccw_idx = 3;
 	}
-	if (do_debug_ccw)
+	if (do_de_ccw)
 		ctcmpc_dumpit((char *)&ch->ccw[ccw_idx],
 					sizeof(struct ccw1) * 3);
 	ch->retry = 0;
@@ -674,7 +674,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	unsigned long hi;
 	unsigned long saveflags = 0;	/* avoids compiler warning */
 
-	CTCM_PR_DEBUG("Enter %s: %s, cp=%i ch=0x%p id=%s state=%s\n",
+	CTCM_PR_DE("Enter %s: %s, cp=%i ch=0x%p id=%s state=%s\n",
 			__func__, dev->name, smp_processor_id(), ch,
 					ch->id, fsm_getstate_str(ch->fsm));
 
@@ -700,7 +700,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		memcpy(skb_push(skb, PDU_HEADER_LENGTH), p_header,
 		       PDU_HEADER_LENGTH);
 
-		CTCM_PR_DEBUG("%s(%s): Put on collect_q - skb len: %04x \n"
+		CTCM_PR_DE("%s(%s): Put on collect_q - skb len: %04x \n"
 				"pdu header and data for up to 32 bytes:\n",
 				__func__, dev->name, skb->len);
 		CTCM_D3_DUMP((char *)skb->data, min_t(int, 32, skb->len));
@@ -827,7 +827,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	fsm_newstate(ch->fsm, CTC_STATE_TX);
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 
-	if (do_debug_ccw)
+	if (do_de_ccw)
 		ctcmpc_dumpit((char *)&ch->ccw[ccw_idx],
 					sizeof(struct ccw1) * 3);
 
@@ -860,7 +860,7 @@ nomem_exit:
 	dev_kfree_skb_any(skb);
 	fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
 done:
-	CTCM_PR_DEBUG("Exit %s(%s)\n", __func__, dev->name);
+	CTCM_PR_DE("Exit %s(%s)\n", __func__, dev->name);
 	return rc;
 }
 
@@ -1010,7 +1010,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 	ctcm_clear_busy(dev);
 done:
-	if (do_debug)
+	if (do_de)
 		MPC_DBF_DEV_NAME(TRACE, dev, "exit");
 
 	return NETDEV_TX_OK;	/* handle freeing of skb here */
@@ -1205,7 +1205,7 @@ static void ctcm_irq_handler(struct ccw_device *cdev,
 	int cstat;
 	int dstat;
 
-	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
+	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DE,
 		"Enter %s(%s)", CTCM_FUNTAIL, dev_name(&cdev->dev));
 
 	if (ctcm_check_irb_error(cdev, irb))

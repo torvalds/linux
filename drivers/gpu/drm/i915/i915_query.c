@@ -23,7 +23,7 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 	if (sseu->max_slices == 0)
 		return -ENODEV;
 
-	BUILD_BUG_ON(sizeof(u8) != sizeof(sseu->slice_mask));
+	BUILD__ON(sizeof(u8) != sizeof(sseu->slice_mask));
 
 	slice_length = sizeof(sseu->slice_mask);
 	subslice_length = sseu->max_slices *

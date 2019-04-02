@@ -66,7 +66,7 @@ static struct spi_board_info spi_bus[] = {
 
 static void r2d_chip_select(struct sh_spi_info *spi, int cs, int state)
 {
-	BUG_ON(cs != 0);  /* Single Epson RTC-9701JE attached on CS0 */
+	_ON(cs != 0);  /* Single Epson RTC-9701JE attached on CS0 */
 	__raw_writew(state == BITBANG_CS_ACTIVE, PA_RTCCE);
 }
 

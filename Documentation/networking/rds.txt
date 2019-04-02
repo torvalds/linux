@@ -242,7 +242,7 @@ RDS Protocol
 
       Applications are expected to be reasonably tuned such that this
       situation very rarely occurs.  An application encountering this
-      "back-pressure" is considered a bug.
+      "back-pressure" is considered a .
 
       This is implemented by having each node maintain bitmaps which
       indicate which ports on bound addresses are congested.  As the

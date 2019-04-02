@@ -2077,7 +2077,7 @@ static int page_writeback_cpu_online(unsigned int cpu)
  */
 void __init page_writeback_init(void)
 {
-	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
+	_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
 
 	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "mm/writeback:online",
 			  page_writeback_cpu_online, NULL);
@@ -2227,7 +2227,7 @@ continue_unlock:
 					goto continue_unlock;
 			}
 
-			BUG_ON(PageWriteback(page));
+			_ON(PageWriteback(page));
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
@@ -2369,7 +2369,7 @@ int write_one_page(struct page *page)
 		.nr_to_write = 1,
 	};
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	wait_on_page_writeback(page);
 
@@ -2471,7 +2471,7 @@ int __set_page_dirty_nobuffers(struct page *page)
 		}
 
 		xa_lock_irqsave(&mapping->i_pages, flags);
-		BUG_ON(page_mapping(page) != mapping);
+		_ON(page_mapping(page) != mapping);
 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
 		account_page_dirtied(page, mapping);
 		__xa_set_mark(&mapping->i_pages, page_index(page),
@@ -2651,7 +2651,7 @@ int clear_page_dirty_for_io(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 	int ret = 0;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		struct inode *inode = mapping->host;

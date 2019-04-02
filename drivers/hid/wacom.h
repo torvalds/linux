@@ -55,7 +55,7 @@
  *    v1.30.1 (pi) - Added Graphire3 support
  *	v1.40 (pc) - Add support for several new devices, fix eraser reporting, ...
  *	v1.43 (pc) - Added support for Cintiq 21UX
- *		   - Fixed a Graphire bug
+ *		   - Fixed a Graphire 
  *		   - Merged wacom_intuos3_irq into wacom_intuos_irq
  *	v1.44 (pc) - Added support for Graphire4, Cintiq 710, Intuos3 6x11, etc.
  *		   - Report Device IDs
@@ -68,7 +68,7 @@
  *      v1.47 (pc) - Added support for Bamboo
  *      v1.48 (pc) - Added support for Bamboo1, BambooFun, and Cintiq 12WX
  *      v1.49 (pc) - Added support for USB Tablet PC (0x90, 0x93, and 0x9A)
- *      v1.50 (pc) - Fixed a TabletPC touch bug in 2.6.28
+ *      v1.50 (pc) - Fixed a TabletPC touch  in 2.6.28
  *      v1.51 (pc) - Added support for Intuos4
  *      v1.52 (pc) - Query Wacom data upon system resume
  *                 - add defines for features->type

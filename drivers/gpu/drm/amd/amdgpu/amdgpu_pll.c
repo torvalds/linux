@@ -245,7 +245,7 @@ void amdgpu_pll_compute(struct amdgpu_pll *pll,
 	*ref_div_p = ref_div;
 	*post_div_p = post_div;
 
-	DRM_DEBUG_KMS("%d - %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+	DRM_DE_KMS("%d - %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
 		      freq, *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p,
 		      ref_div, post_div);
 }

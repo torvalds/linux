@@ -33,7 +33,7 @@ static u64 read_rtc(void)
 	u64 tb_val;
 
 	result = lv1_get_rtc(&rtc_val, &tb_val);
-	BUG_ON(result);
+	_ON(result);
 
 	return rtc_val;
 }

@@ -70,7 +70,7 @@ define cmd_vdso_install
 	  first=`echo $$buildid | cut -b-2`; \
 	  last=`echo $$buildid | cut -b3-`; \
 	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
-	  ln -sf "../../vdso.so" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
+	  ln -sf "../../vdso.so" "$(MODLIB)/vdso/.build-id/$$first/$$last.de"; \
 	fi
 endef
 

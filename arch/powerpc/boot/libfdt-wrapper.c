@@ -27,14 +27,14 @@
 #include <libfdt.h>
 #include "ops.h"
 
-#define DEBUG	0
+#define DE	0
 #define BAD_ERROR(err)	(((err) < 0) \
 			 && ((err) != -FDT_ERR_NOTFOUND) \
 			 && ((err) != -FDT_ERR_EXISTS))
 
 #define check_err(err) \
 	({ \
-		if (BAD_ERROR(err) || ((err < 0) && DEBUG)) \
+		if (BAD_ERROR(err) || ((err < 0) && DE)) \
 			printf("%s():%d  %s\n\r", __func__, __LINE__, \
 			       fdt_strerror(err)); \
 		if (BAD_ERROR(err)) \

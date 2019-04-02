@@ -214,7 +214,7 @@ reservation_object_trylock(struct reservation_object *obj)
 static inline void
 reservation_object_unlock(struct reservation_object *obj)
 {
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	/* Test shared fence slot reservation */
 	if (obj->fence)
 		obj->fence->shared_max = obj->fence->shared_count;

@@ -168,14 +168,14 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 	 * that neither MSI nor MSI-X can work fine.
 	 * This is a workaround to allow MSI-X to function
 	 * properly. It only works for MSI-X, we prevent
-	 * MSI on buggy chips in fsl_setup_msi_irqs().
+	 * MSI on gy chips in fsl_setup_msi_irqs().
 	 */
 	if (msi_data->feature & MSI_HW_ERRATA_ENDIAN)
 		msg->data = __swab32(hwirq);
 	else
 		msg->data = hwirq;
 
-	pr_debug("%s: allocated srs: %d, ibs: %d\n", __func__,
+	pr_de("%s: allocated srs: %d, ibs: %d\n", __func__,
 		 (hwirq >> msi_data->srs_shift) & MSI_SRS_MASK,
 		 (hwirq >> msi_data->ibs_shift) & MSI_IBS_MASK);
 }
@@ -337,7 +337,7 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 		if (msi->cascade_array[i]) {
 			virq = msi->cascade_array[i]->virq;
 
-			BUG_ON(!virq);
+			_ON(!virq);
 
 			free_irq(virq, msi->cascade_array[i]);
 			kfree(msi->cascade_array[i]);
@@ -415,7 +415,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		return -EINVAL;
 	features = match->data;
 
-	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
+	printk(KERN_DE "Setting up Freescale MSI support\n");
 
 	msi = kzalloc(sizeof(struct fsl_msi), GFP_KERNEL);
 	if (!msi) {

@@ -89,7 +89,7 @@ cpu_die(void)
 	local_irq_disable();
 	cpu_halt();
 	/* Should never be here */
-	BUG();
+	();
 	for (;;);
 }
 

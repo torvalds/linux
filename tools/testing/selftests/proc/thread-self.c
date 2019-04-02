@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 // Test that /proc/thread-self gives correct TGID/PID.
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <sched.h>
 #include <stdio.h>

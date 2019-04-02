@@ -228,7 +228,7 @@ u32 au1xxx_ddma_add_device(dbdev_tab_t *dev)
 		ret = p->dev_id;
 		new_id++;
 #if 0
-		printk(KERN_DEBUG "add_device: id:%x flags:%x padd:%x\n",
+		printk(KERN_DE "add_device: id:%x flags:%x padd:%x\n",
 				  p->dev_id, p->dev_flags, p->dev_physaddr);
 #endif
 	}
@@ -555,7 +555,7 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 		dest0 = dtp->dev_physaddr;
 
 #if 0
-		printk(KERN_DEBUG "did:%x sid:%x cmd0:%x cmd1:%x source0:%x "
+		printk(KERN_DE "did:%x sid:%x cmd0:%x cmd1:%x source0:%x "
 				  "source1:%x dest0:%x dest1:%x\n",
 				  dtp->dev_id, stp->dev_id, cmd0, cmd1, src0,
 				  src1, dest0, dest1);
@@ -680,7 +680,7 @@ u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 	dp->dscr_dest0 = buf & ~0UL;
 	dp->dscr_cmd1 = nbytes;
 #if 0
-	printk(KERN_DEBUG "cmd0:%x cmd1:%x source0:%x source1:%x dest0:%x dest1:%x\n",
+	printk(KERN_DE "cmd0:%x cmd1:%x source0:%x source1:%x dest0:%x dest1:%x\n",
 			  dp->dscr_cmd0, dp->dscr_cmd1, dp->dscr_source0,
 			  dp->dscr_source1, dp->dscr_dest0, dp->dscr_dest1);
 #endif
@@ -899,17 +899,17 @@ void au1xxx_dbdma_dump(u32 chanid)
 	dtp = ctp->chan_dest;
 	cp = ctp->chan_ptr;
 
-	printk(KERN_DEBUG "Chan %x, stp %x (dev %d)  dtp %x (dev %d)\n",
+	printk(KERN_DE "Chan %x, stp %x (dev %d)  dtp %x (dev %d)\n",
 			  (u32)ctp, (u32)stp, stp - dbdev_tab, (u32)dtp,
 			  dtp - dbdev_tab);
-	printk(KERN_DEBUG "desc base %x, get %x, put %x, cur %x\n",
+	printk(KERN_DE "desc base %x, get %x, put %x, cur %x\n",
 			  (u32)(ctp->chan_desc_base), (u32)(ctp->get_ptr),
 			  (u32)(ctp->put_ptr), (u32)(ctp->cur_ptr));
 
-	printk(KERN_DEBUG "dbdma chan %x\n", (u32)cp);
-	printk(KERN_DEBUG "cfg %08x, desptr %08x, statptr %08x\n",
+	printk(KERN_DE "dbdma chan %x\n", (u32)cp);
+	printk(KERN_DE "cfg %08x, desptr %08x, statptr %08x\n",
 			  cp->ddma_cfg, cp->ddma_desptr, cp->ddma_statptr);
-	printk(KERN_DEBUG "dbell %08x, irq %08x, stat %08x, bytecnt %08x\n",
+	printk(KERN_DE "dbell %08x, irq %08x, stat %08x, bytecnt %08x\n",
 			  cp->ddma_dbell, cp->ddma_irq, cp->ddma_stat,
 			  cp->ddma_bytecnt);
 
@@ -917,12 +917,12 @@ void au1xxx_dbdma_dump(u32 chanid)
 	dp = ctp->chan_desc_base;
 
 	do {
-		printk(KERN_DEBUG "Dp[%d]= %08x, cmd0 %08x, cmd1 %08x\n",
+		printk(KERN_DE "Dp[%d]= %08x, cmd0 %08x, cmd1 %08x\n",
 				  i++, (u32)dp, dp->dscr_cmd0, dp->dscr_cmd1);
-		printk(KERN_DEBUG "src0 %08x, src1 %08x, dest0 %08x, dest1 %08x\n",
+		printk(KERN_DE "src0 %08x, src1 %08x, dest0 %08x, dest1 %08x\n",
 				  dp->dscr_source0, dp->dscr_source1,
 				  dp->dscr_dest0, dp->dscr_dest1);
-		printk(KERN_DEBUG "stat %08x, nxtptr %08x\n",
+		printk(KERN_DE "stat %08x, nxtptr %08x\n",
 				  dp->dscr_stat, dp->dscr_nxtptr);
 		dp = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 	} while (dp != ctp->chan_desc_base);

@@ -164,7 +164,7 @@ xp_restrict_memprotect_sn2(unsigned long phys_addr, unsigned long size)
 enum xp_retval
 xp_init_sn2(void)
 {
-	BUG_ON(!is_shub());
+	_ON(!is_shub());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_SN2;
 	xp_partition_id = sn_partition_id;
@@ -183,7 +183,7 @@ xp_init_sn2(void)
 void
 xp_exit_sn2(void)
 {
-	BUG_ON(!is_shub());
+	_ON(!is_shub());
 
 	xp_unregister_nofault_code_sn2();
 }

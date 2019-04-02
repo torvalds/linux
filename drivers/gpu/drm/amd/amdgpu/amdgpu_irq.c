@@ -260,7 +260,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	}
 	adev->ddev->max_vblank_count = 0x00ffffff;
 
-	DRM_DEBUG("amdgpu: irq initialized.\n");
+	DRM_DE("amdgpu: irq initialized.\n");
 	return 0;
 }
 
@@ -389,16 +389,16 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	src_id = entry.src_id;
 
 	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX) {
-		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);
+		DRM_DE("Invalid client_id in IV: %d\n", client_id);
 
 	} else	if (src_id >= AMDGPU_MAX_IRQ_SRC_ID) {
-		DRM_DEBUG("Invalid src_id in IV: %d\n", src_id);
+		DRM_DE("Invalid src_id in IV: %d\n", src_id);
 
 	} else if (adev->irq.virq[src_id]) {
 		generic_handle_irq(irq_find_mapping(adev->irq.domain, src_id));
 
 	} else if (!adev->irq.client[client_id].sources) {
-		DRM_DEBUG("Unregistered interrupt client_id: %d src_id: %d\n",
+		DRM_DE("Unregistered interrupt client_id: %d src_id: %d\n",
 			  client_id, src_id);
 
 	} else if ((src = adev->irq.client[client_id].sources[src_id])) {
@@ -409,7 +409,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 			handled = true;
 
 	} else {
-		DRM_DEBUG("Unhandled interrupt src_id: %d\n", src_id);
+		DRM_DE("Unhandled interrupt src_id: %d\n", src_id);
 	}
 
 	/* Send it to amdkfd as well if it isn't already handled */

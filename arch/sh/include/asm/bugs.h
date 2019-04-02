@@ -1,23 +1,23 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_SH_BUGS_H
-#define __ASM_SH_BUGS_H
+#ifndef __ASM_SH_S_H
+#define __ASM_SH_S_H
 
 /*
- * This is included by init/main.c to check for architecture-dependent bugs.
+ * This is included by init/main.c to check for architecture-dependent s.
  *
  * Needs:
- *	void check_bugs(void);
+ *	void check_s(void);
  */
 
 /*
- * I don't know of any Super-H bugs yet.
+ * I don't know of any Super-H s yet.
  */
 
 #include <asm/processor.h>
 
 extern void select_idle_routine(void);
 
-static void __init check_bugs(void)
+static void __init check_s(void)
 {
 	extern unsigned long loops_per_jiffy;
 	char *p = &init_utsname()->machine[2]; /* "sh" */
@@ -75,4 +75,4 @@ static void __init check_bugs(void)
 #endif
 	*p = '\0';
 }
-#endif /* __ASM_SH_BUGS_H */
+#endif /* __ASM_SH_S_H */

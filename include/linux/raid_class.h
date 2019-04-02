@@ -58,7 +58,7 @@ raid_set_##attr(struct raid_template *r, struct device *dev, type value) {    \
 	struct device *device =						      \
 		attribute_container_find_class_device(&r->raid_attrs.ac, dev);\
 	struct raid_data *rd;						      \
-	BUG_ON(!device);						      \
+	_ON(!device);						      \
 	rd = dev_get_drvdata(device);					      \
 	rd->attr = value;						      \
 }									      \
@@ -67,7 +67,7 @@ raid_get_##attr(struct raid_template *r, struct device *dev) {		      \
 	struct device *device =						      \
 		attribute_container_find_class_device(&r->raid_attrs.ac, dev);\
 	struct raid_data *rd;						      \
-	BUG_ON(!device);						      \
+	_ON(!device);						      \
 	rd = dev_get_drvdata(device);					      \
 	return rd->attr;						      \
 }

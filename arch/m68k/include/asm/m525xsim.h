@@ -221,7 +221,7 @@
 #ifdef CONFIG_M5249C3
 /*
  *	The M5249C3 board needs a little help getting all its SIM devices
- *	initialized at kernel start time. dBUG doesn't set much up, so
+ *	initialized at kernel start time. d doesn't set much up, so
  *	we need to do it manually.
  */
 .macro m5249c3_setup

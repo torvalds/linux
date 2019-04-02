@@ -85,20 +85,20 @@ static LIST_HEAD(Cards);
 static DEFINE_RWLOCK(card_lock); /* protect Cards */
 
 static int w6692_cnt;
-static int debug;
+static int de;
 static u32 led;
 static u32 pots;
 
 static void
-_set_debug(struct w6692_hw *card)
+_set_de(struct w6692_hw *card)
 {
-	card->dch.debug = debug;
-	card->bc[0].bch.debug = debug;
-	card->bc[1].bch.debug = debug;
+	card->dch.de = de;
+	card->bc[0].bch.de = de;
+	card->bc[1].bch.de = de;
 }
 
 static int
-set_debug(const char *val, const struct kernel_param *kp)
+set_de(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct w6692_hw *card;
@@ -107,7 +107,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 	if (!ret) {
 		read_lock(&card_lock);
 		list_for_each_entry(card, &Cards, list)
-			_set_debug(card);
+			_set_de(card);
 		read_unlock(&card_lock);
 	}
 	return ret;
@@ -116,8 +116,8 @@ set_debug(const char *val, const struct kernel_param *kp)
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(W6692_REV);
-module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "W6692 debug mask");
+module_param_call(de, set_de, param_get_uint, &de, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "W6692 de mask");
 module_param(led, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(led, "W6692 LED support bitmask (one bit per card)");
 module_param(pots, uint, S_IRUGO | S_IWUSR);
@@ -188,7 +188,7 @@ w6692_led_handler(struct w6692_hw *card, int on)
 static void
 ph_command(struct w6692_hw *card, u8 cmd)
 {
-	pr_debug("%s: ph_command %x\n", card->name, cmd);
+	pr_de("%s: ph_command %x\n", card->name, cmd);
 	WriteW6692(card, W_CIX, cmd);
 }
 
@@ -244,11 +244,11 @@ W6692_ph_bh(struct dchannel *dch)
 		l1_event(dch->l1, INFO4_P10);
 		break;
 	default:
-		pr_debug("%s: TE unknown state %02x dch state %02x\n",
+		pr_de("%s: TE unknown state %02x dch state %02x\n",
 			 card->name, card->state, dch->state);
 		break;
 	}
-	pr_debug("%s: TE newstate %02x\n", card->name, dch->state);
+	pr_de("%s: TE newstate %02x\n", card->name, dch->state);
 }
 
 static void
@@ -257,7 +257,7 @@ W6692_empty_Dfifo(struct w6692_hw *card, int count)
 	struct dchannel *dch = &card->dch;
 	u8 *ptr;
 
-	pr_debug("%s: empty_Dfifo %d\n", card->name, count);
+	pr_de("%s: empty_Dfifo %d\n", card->name, count);
 	if (!dch->rx_skb) {
 		dch->rx_skb = mI_alloc_skb(card->dch.maxlen, GFP_ATOMIC);
 		if (!dch->rx_skb) {
@@ -267,7 +267,7 @@ W6692_empty_Dfifo(struct w6692_hw *card, int count)
 		}
 	}
 	if ((dch->rx_skb->len + count) >= dch->maxlen) {
-		pr_debug("%s: empty_Dfifo overrun %d\n", card->name,
+		pr_de("%s: empty_Dfifo overrun %d\n", card->name,
 			 dch->rx_skb->len + count);
 		WriteW6692(card, W_D_CMDR, W_D_CMDR_RACK);
 		return;
@@ -275,7 +275,7 @@ W6692_empty_Dfifo(struct w6692_hw *card, int count)
 	ptr = skb_put(dch->rx_skb, count);
 	insb(card->addr + W_D_RFIFO, ptr, count);
 	WriteW6692(card, W_D_CMDR, W_D_CMDR_RACK);
-	if (debug & DEBUG_HW_DFIFO) {
+	if (de & DE_HW_DFIFO) {
 		snprintf(card->log, 63, "D-recv %s %d ",
 			 card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, ptr, count);
@@ -290,7 +290,7 @@ W6692_fill_Dfifo(struct w6692_hw *card)
 	u8 *ptr;
 	u8 cmd = W_D_CMDR_XMS;
 
-	pr_debug("%s: fill_Dfifo\n", card->name);
+	pr_de("%s: fill_Dfifo\n", card->name);
 	if (!dch->tx_skb)
 		return;
 	count = dch->tx_skb->len - dch->tx_idx;
@@ -305,12 +305,12 @@ W6692_fill_Dfifo(struct w6692_hw *card)
 	outsb(card->addr + W_D_XFIFO, ptr, count);
 	WriteW6692(card, W_D_CMDR, cmd);
 	if (test_and_set_bit(FLG_BUSY_TIMER, &dch->Flags)) {
-		pr_debug("%s: fill_Dfifo dbusytimer running\n", card->name);
+		pr_de("%s: fill_Dfifo dbusytimer running\n", card->name);
 		del_timer(&dch->timer);
 	}
 	dch->timer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ) / 1000);
 	add_timer(&dch->timer);
-	if (debug & DEBUG_HW_DFIFO) {
+	if (de & DE_HW_DFIFO) {
 		snprintf(card->log, 63, "D-send %s %d ",
 			 card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, ptr, count);
@@ -352,19 +352,19 @@ handle_rxD(struct w6692_hw *card) {
 	stat = ReadW6692(card, W_D_RSTA);
 	if (stat & (W_D_RSTA_RDOV | W_D_RSTA_CRCE | W_D_RSTA_RMB)) {
 		if (stat & W_D_RSTA_RDOV) {
-			pr_debug("%s: D-channel RDOV\n", card->name);
+			pr_de("%s: D-channel RDOV\n", card->name);
 #ifdef ERROR_STATISTIC
 			card->dch.err_rx++;
 #endif
 		}
 		if (stat & W_D_RSTA_CRCE) {
-			pr_debug("%s: D-channel CRC error\n", card->name);
+			pr_de("%s: D-channel CRC error\n", card->name);
 #ifdef ERROR_STATISTIC
 			card->dch.err_crc++;
 #endif
 		}
 		if (stat & W_D_RSTA_RMB) {
-			pr_debug("%s: D-channel ABORT\n", card->name);
+			pr_de("%s: D-channel ABORT\n", card->name);
 #ifdef ERROR_STATISTIC
 			card->dch.err_rx++;
 #endif
@@ -404,32 +404,32 @@ handle_statusD(struct w6692_hw *card)
 
 	exval = ReadW6692(card, W_D_EXIR);
 
-	pr_debug("%s: D_EXIR %02x\n", card->name, exval);
+	pr_de("%s: D_EXIR %02x\n", card->name, exval);
 	if (exval & (W_D_EXI_XDUN | W_D_EXI_XCOL)) {
 		/* Transmit underrun/collision */
-		pr_debug("%s: D-channel underrun/collision\n", card->name);
+		pr_de("%s: D-channel underrun/collision\n", card->name);
 #ifdef ERROR_STATISTIC
 		dch->err_tx++;
 #endif
 		d_retransmit(card);
 	}
 	if (exval & W_D_EXI_RDOV) {	/* RDOV */
-		pr_debug("%s: D-channel RDOV\n", card->name);
+		pr_de("%s: D-channel RDOV\n", card->name);
 		WriteW6692(card, W_D_CMDR, W_D_CMDR_RRST);
 	}
 	if (exval & W_D_EXI_TIN2)	/* TIN2 - never */
-		pr_debug("%s: spurious TIN2 interrupt\n", card->name);
+		pr_de("%s: spurious TIN2 interrupt\n", card->name);
 	if (exval & W_D_EXI_MOC) {	/* MOC - not supported */
 		v1 = ReadW6692(card, W_MOSR);
-		pr_debug("%s: spurious MOC interrupt MOSR %02x\n",
+		pr_de("%s: spurious MOC interrupt MOSR %02x\n",
 			 card->name, v1);
 	}
 	if (exval & W_D_EXI_ISC) {	/* ISC - Level1 change */
 		cir = ReadW6692(card, W_CIR);
-		pr_debug("%s: ISC CIR %02X\n", card->name, cir);
+		pr_de("%s: ISC CIR %02X\n", card->name, cir);
 		if (cir & W_CIR_ICC) {
 			v1 = cir & W_CIR_COD_MASK;
-			pr_debug("%s: ph_state_change %x -> %x\n", card->name,
+			pr_de("%s: ph_state_change %x -> %x\n", card->name,
 				 dch->state, v1);
 			card->state = v1;
 			if (card->fmask & led) {
@@ -447,13 +447,13 @@ handle_statusD(struct w6692_hw *card)
 		}
 		if (cir & W_CIR_SCC) {
 			v1 = ReadW6692(card, W_SQR);
-			pr_debug("%s: SCC SQR %02X\n", card->name, v1);
+			pr_de("%s: SCC SQR %02X\n", card->name, v1);
 		}
 	}
 	if (exval & W_D_EXI_WEXP)
-		pr_debug("%s: spurious WEXP interrupt!\n", card->name);
+		pr_de("%s: spurious WEXP interrupt!\n", card->name);
 	if (exval & W_D_EXI_TEXP)
-		pr_debug("%s: spurious TEXP interrupt!\n", card->name);
+		pr_de("%s: spurious TEXP interrupt!\n", card->name);
 }
 
 static void
@@ -463,9 +463,9 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 	u8 *ptr;
 	int maxlen;
 
-	pr_debug("%s: empty_Bfifo %d\n", card->name, count);
+	pr_de("%s: empty_Bfifo %d\n", card->name, count);
 	if (unlikely(wch->bch.state == ISDN_P_NONE)) {
-		pr_debug("%s: empty_Bfifo ISDN_P_NONE\n", card->name);
+		pr_de("%s: empty_Bfifo ISDN_P_NONE\n", card->name);
 		WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
 		if (wch->bch.rx_skb)
 			skb_trim(wch->bch.rx_skb, 0);
@@ -488,7 +488,7 @@ W6692_empty_Bfifo(struct w6692_ch *wch, int count)
 	ptr = skb_put(wch->bch.rx_skb, count);
 	insb(wch->addr + W_B_RFIFO, ptr, count);
 	WriteW6692B(wch, W_B_CMDR, W_B_CMDR_RACK | W_B_CMDR_RACT);
-	if (debug & DEBUG_HW_DFIFO) {
+	if (de & DE_HW_DFIFO) {
 		snprintf(card->log, 63, "B%1d-recv %s %d ",
 			 wch->bch.nr, card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, ptr, count);
@@ -502,7 +502,7 @@ W6692_fill_Bfifo(struct w6692_ch *wch)
 	int count, fillempty = 0;
 	u8 *ptr, cmd = W_B_CMDR_RACT | W_B_CMDR_XMS;
 
-	pr_debug("%s: fill Bfifo\n", card->name);
+	pr_de("%s: fill Bfifo\n", card->name);
 	if (!wch->bch.tx_skb) {
 		if (!test_bit(FLG_TX_EMPTY, &wch->bch.Flags))
 			return;
@@ -520,7 +520,7 @@ W6692_fill_Bfifo(struct w6692_ch *wch)
 	else if (test_bit(FLG_HDLC, &wch->bch.Flags))
 		cmd |= W_B_CMDR_XME;
 
-	pr_debug("%s: fill Bfifo%d/%d\n", card->name,
+	pr_de("%s: fill Bfifo%d/%d\n", card->name,
 		 count, wch->bch.tx_idx);
 	wch->bch.tx_idx += count;
 	if (fillempty) {
@@ -532,7 +532,7 @@ W6692_fill_Bfifo(struct w6692_ch *wch)
 		outsb(wch->addr + W_B_XFIFO, ptr, count);
 	}
 	WriteW6692B(wch, W_B_CMDR, cmd);
-	if ((debug & DEBUG_HW_BFIFO) && !fillempty) {
+	if ((de & DE_HW_BFIFO) && !fillempty) {
 		snprintf(card->log, 63, "B%1d-send %s %d ",
 			 wch->bch.nr, card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, ptr, count);
@@ -604,7 +604,7 @@ w6692_mode(struct w6692_ch *wch, u32 pr)
 	struct w6692_hw	*card;
 
 	card = wch->bch.hw;
-	pr_debug("%s: B%d protocol %x-->%x\n", card->name,
+	pr_de("%s: B%d protocol %x-->%x\n", card->name,
 		 wch->bch.nr, wch->bch.state, pr);
 	switch (pr) {
 	case ISDN_P_NONE:
@@ -668,13 +668,13 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 	u8		stat, star = 0;
 
 	stat = ReadW6692B(wch, W_B_EXIR);
-	pr_debug("%s: B%d EXIR %02x\n", card->name, wch->bch.nr, stat);
+	pr_de("%s: B%d EXIR %02x\n", card->name, wch->bch.nr, stat);
 	if (stat & W_B_EXI_RME) {
 		star = ReadW6692B(wch, W_B_STAR);
 		if (star & (W_B_STAR_RDOV | W_B_STAR_CRCE | W_B_STAR_RMB)) {
 			if ((star & W_B_STAR_RDOV) &&
 			    test_bit(FLG_ACTIVE, &wch->bch.Flags)) {
-				pr_debug("%s: B%d RDOV proto=%x\n", card->name,
+				pr_de("%s: B%d RDOV proto=%x\n", card->name,
 					 wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 				wch->bch.err_rdo++;
@@ -682,14 +682,14 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 			}
 			if (test_bit(FLG_HDLC, &wch->bch.Flags)) {
 				if (star & W_B_STAR_CRCE) {
-					pr_debug("%s: B%d CRC error\n",
+					pr_de("%s: B%d CRC error\n",
 						 card->name, wch->bch.nr);
 #ifdef ERROR_STATISTIC
 					wch->bch.err_crc++;
 #endif
 				}
 				if (star & W_B_STAR_RMB) {
-					pr_debug("%s: B%d message abort\n",
+					pr_de("%s: B%d message abort\n",
 						 card->name, wch->bch.nr);
 #ifdef ERROR_STATISTIC
 					wch->bch.err_inv++;
@@ -713,7 +713,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 		if (!(stat & W_B_EXI_RME))
 			star = ReadW6692B(wch, W_B_STAR);
 		if (star & W_B_STAR_RDOV) {
-			pr_debug("%s: B%d RDOV proto=%x\n", card->name,
+			pr_de("%s: B%d RDOV proto=%x\n", card->name,
 				 wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 			wch->bch.err_rdo++;
@@ -729,7 +729,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 	if (stat & W_B_EXI_RDOV) {
 		/* only if it is not handled yet */
 		if (!(star & W_B_STAR_RDOV)) {
-			pr_debug("%s: B%d RDOV IRQ proto=%x\n", card->name,
+			pr_de("%s: B%d RDOV IRQ proto=%x\n", card->name,
 				 wch->bch.nr, wch->bch.state);
 #ifdef ERROR_STATISTIC
 			wch->bch.err_rdo++;
@@ -741,7 +741,7 @@ W6692B_interrupt(struct w6692_hw *card, int ch)
 	if (stat & W_B_EXI_XFR) {
 		if (!(stat & (W_B_EXI_RME | W_B_EXI_RMR))) {
 			star = ReadW6692B(wch, W_B_STAR);
-			pr_debug("%s: B%d star %02x\n", card->name,
+			pr_de("%s: B%d star %02x\n", card->name,
 				 wch->bch.nr, star);
 		}
 		if (star & W_B_STAR_XDOW) {
@@ -793,7 +793,7 @@ w6692_irq(int intno, void *dev_id)
 		return IRQ_NONE;
 	}
 	card->irqcnt++;
-	pr_debug("%s: ista %02x\n", card->name, ista);
+	pr_de("%s: ista %02x\n", card->name, ista);
 	ista &= ~card->imask;
 	if (ista & W_INT_B1_EXI)
 		W6692B_interrupt(card, 0);
@@ -808,7 +808,7 @@ w6692_irq(int intno, void *dev_id)
 	if (ista & W_INT_D_EXI)
 		handle_statusD(card);
 	if (ista & (W_INT_XINT0 | W_INT_XINT1)) /* XINT0/1 - never */
-		pr_debug("%s: W6692 spurious XINT!\n", card->name);
+		pr_de("%s: W6692 spurious XINT!\n", card->name);
 /* End IRQ Handler */
 	spin_unlock(&card->lock);
 	return IRQ_HANDLED;
@@ -826,7 +826,7 @@ dbusy_timer_handler(struct timer_list *t)
 		spin_lock_irqsave(&card->lock, flags);
 		rbch = ReadW6692(card, W_D_RBCH);
 		star = ReadW6692(card, W_D_STAR);
-		pr_debug("%s: D-Channel Busy RBCH %02x STAR %02x\n",
+		pr_de("%s: D-Channel Busy RBCH %02x STAR %02x\n",
 			 card->name, rbch, star);
 		if (star & W_D_STAR_XBZ)	/* D-Channel Busy */
 			test_and_set_bit(FLG_L1_BUSY, &dch->Flags);
@@ -893,7 +893,7 @@ static void initW6692(struct w6692_hw *card)
 			WriteW6692(card, W_XADDR, card->xaddr);
 			WriteW6692(card, W_XDATA, card->xdata);
 			val = ReadW6692(card, W_XADDR);
-			if (debug & DEBUG_HW)
+			if (de & DE_HW)
 				pr_notice("%s: W_XADDR=%02x\n",
 					  card->name, val);
 		}
@@ -929,7 +929,7 @@ init_card(struct w6692_hw *card)
 		spin_unlock_irqrestore(&card->lock, flags);
 		/* Timeout 10ms */
 		msleep_interruptible(10);
-		if (debug & DEBUG_HW)
+		if (de & DE_HW)
 			pr_notice("%s: IRQ %d count %d\n", card->name,
 				  card->irq, card->irqcnt);
 		if (!card->irqcnt) {
@@ -1045,7 +1045,7 @@ w6692_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	int ret = -EINVAL;
 	u_long flags;
 
-	pr_debug("%s: %s cmd:%x %p\n", card->name, __func__, cmd, arg);
+	pr_de("%s: %s cmd:%x %p\n", card->name, __func__, cmd, arg);
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
@@ -1113,7 +1113,7 @@ w6692_l1callback(struct dchannel *dch, u32 cmd)
 	struct w6692_hw *card = container_of(dch, struct w6692_hw, dch);
 	u_long flags;
 
-	pr_debug("%s: cmd(%x) state(%02x)\n", card->name, cmd, card->state);
+	pr_de("%s: cmd(%x) state(%02x)\n", card->name, cmd, card->state);
 	switch (cmd) {
 	case INFO3_P8:
 		spin_lock_irqsave(&card->lock, flags);
@@ -1163,7 +1163,7 @@ w6692_l1callback(struct dchannel *dch, u32 cmd)
 			    GFP_ATOMIC);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n", card->name,
+		pr_de("%s: %s unknown command %x\n", card->name,
 			 __func__, cmd);
 		return -1;
 	}
@@ -1173,7 +1173,7 @@ w6692_l1callback(struct dchannel *dch, u32 cmd)
 static int
 open_dchannel(struct w6692_hw *card, struct channel_req *rq, void *caller)
 {
-	pr_debug("%s: %s dev(%d) open from %p\n", card->name, __func__,
+	pr_de("%s: %s dev(%d) open from %p\n", card->name, __func__,
 		 card->dch.dev.id, caller);
 	if (rq->protocol != ISDN_P_TE_S0)
 		return -EINVAL;
@@ -1197,7 +1197,7 @@ w6692_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	struct channel_req *rq;
 	int err = 0;
 
-	pr_debug("%s: DCTRL: %x %p\n", card->name, cmd, arg);
+	pr_de("%s: DCTRL: %x %p\n", card->name, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		rq = arg;
@@ -1211,7 +1211,7 @@ w6692_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 			pr_info("%s: cannot get module\n", card->name);
 		break;
 	case CLOSE_CHANNEL:
-		pr_debug("%s: dev(%d) close from %p\n", card->name,
+		pr_de("%s: dev(%d) close from %p\n", card->name,
 			 dch->dev.id, __builtin_return_address(0));
 		module_put(THIS_MODULE);
 		break;
@@ -1219,7 +1219,7 @@ w6692_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(card, arg);
 		break;
 	default:
-		pr_debug("%s: unknown DCTRL command %x\n", card->name, cmd);
+		pr_de("%s: unknown DCTRL command %x\n", card->name, cmd);
 		return -EINVAL;
 	}
 	return err;
@@ -1239,19 +1239,19 @@ setup_w6692(struct w6692_hw *card)
 	card->bc[0].addr = card->addr;
 	card->bc[1].addr = card->addr + 0x40;
 	val = ReadW6692(card, W_ISTA);
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s ISTA=%02x\n", card->name, val);
 	val = ReadW6692(card, W_IMASK);
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s IMASK=%02x\n", card->name, val);
 	val = ReadW6692(card, W_D_EXIR);
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s D_EXIR=%02x\n", card->name, val);
 	val = ReadW6692(card, W_D_EXIM);
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s D_EXIM=%02x\n", card->name, val);
 	val = ReadW6692(card, W_D_RSTA);
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s D_RSTA=%02x\n", card->name, val);
 	return 0;
 }
@@ -1296,7 +1296,7 @@ setup_instance(struct w6692_hw *card)
 	list_add_tail(&card->list, &Cards);
 	write_unlock_irqrestore(&card_lock, flags);
 	card->fmask = (1 << w6692_cnt);
-	_set_debug(card);
+	_set_de(card);
 	spin_lock_init(&card->lock);
 	mISDN_initdchannel(&card->dch, MAX_DFRAME_LEN_L1, W6692_ph_bh);
 	card->dch.dev.Dprotocols = (1 << ISDN_P_TE_S0);
@@ -1390,7 +1390,7 @@ w6692_remove_pci(struct pci_dev *pdev)
 	if (card)
 		release_card(card);
 	else
-		if (debug)
+		if (de)
 			pr_notice("%s: drvdata already removed\n", __func__);
 }
 

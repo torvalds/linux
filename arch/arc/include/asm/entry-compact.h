@@ -12,7 +12,7 @@
  *  e.g. L2 IRQ interrupted a L1 ISR which had not yet completed
  *  it's prologue including stack switching from user mode
  *
- * Vineetg: Aug 28th 2008: Bug #94984
+ * Vineetg: Aug 28th 2008:  #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
  *   Normally CPU does this automatically, however when doing FAKE rtie,
  *   we also need to explicitly do this. The problem in macros
@@ -73,7 +73,7 @@
 	brlo sp, VMALLOC_START, 88f
 
 	/* TODO: vineetg:
-	 * We need to be a bit more cautious here. What if a kernel bug in
+	 * We need to be a bit more cautious here. What if a kernel  in
 	 * L1 ISR, caused SP to go whaco (some small value which looks like
 	 * USER stk) and then we take L2 ISR.
 	 * Above brlo alone would treat it as a valid L1-L2 scenario

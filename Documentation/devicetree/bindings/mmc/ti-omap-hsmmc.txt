@@ -113,7 +113,7 @@ In summary:
 3. specify the gpio irq used for detecting sdio irq in suspend
 
 If configuration is incomplete, a warning message is emitted "falling back to
-polling". Also check the "sdio irq mode" in /sys/kernel/debug/mmc0/regs. Mind
+polling". Also check the "sdio irq mode" in /sys/kernel/de/mmc0/regs. Mind
 not every application needs SDIO irq, e.g. MMC cards.
 
 	mmc1: mmc@48060100 {

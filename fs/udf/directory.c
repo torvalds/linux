@@ -163,7 +163,7 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 	int padlen;
 
 	if ((!buffer) || (!offset)) {
-		udf_debug("invalidparms, buffer=%p, offset=%p\n",
+		udf_de("invalidparms, buffer=%p, offset=%p\n",
 			  buffer, offset);
 		return NULL;
 	}
@@ -174,9 +174,9 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 		ptr += *offset;
 	fi = (struct fileIdentDesc *)ptr;
 	if (fi->descTag.tagIdent != cpu_to_le16(TAG_IDENT_FID)) {
-		udf_debug("0x%x != TAG_IDENT_FID\n",
+		udf_de("0x%x != TAG_IDENT_FID\n",
 			  le16_to_cpu(fi->descTag.tagIdent));
-		udf_debug("offset: %d sizeof: %lu bufsize: %d\n",
+		udf_de("offset: %d sizeof: %lu bufsize: %d\n",
 			  *offset, (unsigned long)sizeof(struct fileIdentDesc),
 			  bufsize);
 		return NULL;

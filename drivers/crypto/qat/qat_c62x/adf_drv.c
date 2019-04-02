@@ -112,7 +112,7 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		accel_dev->hw_device = NULL;
 	}
 	adf_cfg_dev_remove(accel_dev);
-	debugfs_remove(accel_dev->debugfs_dir);
+	defs_remove(accel_dev->defs_dir);
 	adf_devmgr_rm_dev(accel_dev, NULL);
 }
 
@@ -186,13 +186,13 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 
-	/* Create dev top level debugfs entry */
+	/* Create dev top level defs entry */
 	snprintf(name, sizeof(name), "%s%s_%02x:%02d.%d",
 		 ADF_DEVICE_NAME_PREFIX, hw_data->dev_class->name,
 		 pdev->bus->number, PCI_SLOT(pdev->devfn),
 		 PCI_FUNC(pdev->devfn));
 
-	accel_dev->debugfs_dir = debugfs_create_dir(name, NULL);
+	accel_dev->defs_dir = defs_create_dir(name, NULL);
 
 	/* Create device configuration table */
 	ret = adf_cfg_dev_add(accel_dev);

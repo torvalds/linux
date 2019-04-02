@@ -6,7 +6,7 @@ TODO:
 	- teach visorbus to handle virtual interrupts triggered by s-Par
 	  back-end, and call function driver's channel_interrupt() function
 	  when they occur
-	- enhance debugfs interfaces (e.g., per device, etc.)
+	- enhance defs interfaces (e.g., per device, etc.)
 	- upgrade/remove deprecated workqueue operations
 	- move individual drivers into proper driver subsystems
 

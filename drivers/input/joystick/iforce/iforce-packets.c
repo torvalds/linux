@@ -265,7 +265,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 			return -1;
 		}
 #else
-		printk(KERN_DEBUG "iforce_get_id_packet: iforce->bus = USB!\n");
+		printk(KERN_DE "iforce_get_id_packet: iforce->bus = USB!\n");
 #endif
 		}
 		break;

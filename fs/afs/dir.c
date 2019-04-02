@@ -48,7 +48,7 @@ static void afs_dir_invalidatepage(struct page *page, unsigned int offset,
 
 static int afs_dir_set_page_dirty(struct page *page)
 {
-	BUG(); /* This should never happen. */
+	(); /* This should never happen. */
 }
 
 const struct file_operations afs_dir_file_operations = {
@@ -166,8 +166,8 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 {
 	_enter("{%lu}", inode->i_ino);
 
-	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
-	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
+	BUILD__ON(sizeof(union afs_xdr_dir_block) != 2048);
+	BUILD__ON(sizeof(union afs_xdr_dirent) != 32);
 
 	if (test_bit(AFS_VNODE_DELETED, &AFS_FS_I(inode)->flags))
 		return -ENOENT;
@@ -236,7 +236,7 @@ retry:
 		n = find_get_pages_contig(dvnode->vfs_inode.i_mapping, i,
 					  req->nr_pages - i,
 					  req->pages + i);
-		_debug("find %u at %u/%u", n, i, req->nr_pages);
+		_de("find %u at %u/%u", n, i, req->nr_pages);
 		if (n == 0) {
 			gfp_t gfp = dvnode->vfs_inode.i_mapping->gfp_mask;
 
@@ -342,7 +342,7 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 		/* skip entries marked unused in the bitmap */
 		if (!(block->hdr.bitmap[offset / 8] &
 		      (1 << (offset % 8)))) {
-			_debug("ENT[%zu.%u]: unused",
+			_de("ENT[%zu.%u]: unused",
 			       blkoff / sizeof(union afs_xdr_dir_block), offset);
 			if (offset >= curr)
 				ctx->pos = blkoff +
@@ -356,7 +356,7 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 			       sizeof(*block) -
 			       offset * sizeof(union afs_xdr_dirent));
 
-		_debug("ENT[%zu.%u]: %s %zu \"%s\"",
+		_de("ENT[%zu.%u]: %s %zu \"%s\"",
 		       blkoff / sizeof(union afs_xdr_dir_block), offset,
 		       (offset < curr ? "skip" : "fill"),
 		       nlen, dire->u.name);
@@ -364,7 +364,7 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 		/* work out where the next possible entry is */
 		for (tmp = nlen; tmp > 15; tmp -= sizeof(union afs_xdr_dirent)) {
 			if (next >= AFS_DIR_SLOTS_PER_BLOCK) {
-				_debug("ENT[%zu.%u]:"
+				_de("ENT[%zu.%u]:"
 				       " %u travelled beyond end dir block"
 				       " (len %u/%zu)",
 				       blkoff / sizeof(union afs_xdr_dir_block),
@@ -373,14 +373,14 @@ static int afs_dir_iterate_block(struct afs_vnode *dvnode,
 			}
 			if (!(block->hdr.bitmap[next / 8] &
 			      (1 << (next % 8)))) {
-				_debug("ENT[%zu.%u]:"
+				_de("ENT[%zu.%u]:"
 				       " %u unmarked extension (len %u/%zu)",
 				       blkoff / sizeof(union afs_xdr_dir_block),
 				       offset, next, tmp, nlen);
 				return afs_bad(dvnode, afs_file_error_dir_unmarked_ext);
 			}
 
-			_debug("ENT[%zu.%u]: ext %u/%zu",
+			_de("ENT[%zu.%u]: ext %u/%zu",
 			       blkoff / sizeof(union afs_xdr_dir_block),
 			       next, tmp, nlen);
 			next++;
@@ -504,8 +504,8 @@ static int afs_lookup_one_filldir(struct dir_context *ctx, const char *name,
 	       (unsigned long long) ino, dtype);
 
 	/* insanity checks first */
-	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
-	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
+	BUILD__ON(sizeof(union afs_xdr_dir_block) != 2048);
+	BUILD__ON(sizeof(union afs_xdr_dirent) != 32);
 
 	if (cookie->name.len != nlen ||
 	    memcmp(cookie->name.name, name, nlen) != 0) {
@@ -573,8 +573,8 @@ static int afs_lookup_filldir(struct dir_context *ctx, const char *name,
 	       (unsigned long long) ino, dtype);
 
 	/* insanity checks first */
-	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
-	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
+	BUILD__ON(sizeof(union afs_xdr_dir_block) != 2048);
+	BUILD__ON(sizeof(union afs_xdr_dirent) != 32);
 
 	if (cookie->found) {
 		if (cookie->nr_fids < 50) {
@@ -929,7 +929,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	afs_validate(dir, key);
 
 	if (test_bit(AFS_VNODE_DELETED, &dir->flags)) {
-		_debug("%pd: parent dir deleted", dentry);
+		_de("%pd: parent dir deleted", dentry);
 		goto out_bad_parent;
 	}
 
@@ -947,7 +947,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (de_version - dir_version >= 0)
 		goto out_valid;
 
-	_debug("dir modified");
+	_de("dir modified");
 	afs_stat_v(dir, n_reval);
 
 	/* search the directory for this vnode */
@@ -969,7 +969,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		/* if the vnode ID has changed, then the dirent points to a
 		 * different file */
 		if (fid.vnode != vnode->fid.vnode) {
-			_debug("%pd: dirent changed [%llu != %llu]",
+			_de("%pd: dirent changed [%llu != %llu]",
 			       dentry, fid.vnode,
 			       vnode->fid.vnode);
 			goto not_found;
@@ -979,7 +979,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		 * been deleted and replaced, and the original vnode ID has
 		 * been reused */
 		if (fid.unique != vnode->fid.unique) {
-			_debug("%pd: file deleted (uq %u -> %u I:%u)",
+			_de("%pd: file deleted (uq %u -> %u I:%u)",
 			       dentry, fid.unique,
 			       vnode->fid.unique,
 			       vnode->vfs_inode.i_generation);
@@ -992,13 +992,13 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	case -ENOENT:
 		/* the filename is unknown */
-		_debug("%pd: dirent not found", dentry);
+		_de("%pd: dirent not found", dentry);
 		if (d_really_is_positive(dentry))
 			goto not_found;
 		goto out_valid;
 
 	default:
-		_debug("failed to iterate dir %pd: %d",
+		_de("failed to iterate dir %pd: %d",
 		       parent, ret);
 		goto out_bad_parent;
 	}
@@ -1017,7 +1017,7 @@ not_found:
 	spin_unlock(&dentry->d_lock);
 
 out_bad_parent:
-	_debug("dropping dentry %pd2", dentry);
+	_de("dropping dentry %pd2", dentry);
 	dput(parent);
 out_bad:
 	key_put(key);
@@ -1256,13 +1256,13 @@ static int afs_dir_remove_link(struct dentry *dentry, struct key *key,
 			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 
 			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
-				kdebug("AFS_VNODE_DELETED");
+				kde("AFS_VNODE_DELETED");
 
 			ret = afs_validate(vnode, key);
 			if (ret == -ESTALE)
 				ret = 0;
 		}
-		_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
+		_de("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
 	}
 
 	return ret;
@@ -1655,7 +1655,7 @@ static void afs_dir_invalidatepage(struct page *page, unsigned int offset,
 
 	_enter("{%lu},%u,%u", page->index, offset, length);
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	/* The directory will need reloading. */
 	if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &dvnode->flags))

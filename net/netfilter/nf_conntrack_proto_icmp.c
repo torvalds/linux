@@ -90,7 +90,7 @@ int nf_conntrack_icmp_packet(struct nf_conn *ct,
 	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new) ||
 	    !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
-		pr_debug("icmp: can't create new conn with type %u\n",
+		pr_de("icmp: can't create new conn with type %u\n",
 			 ct->tuplehash[0].tuple.dst.u.icmp.type);
 		nf_ct_dump_tuple_ip(&ct->tuplehash[0].tuple);
 		return -NF_ACCEPT;
@@ -122,14 +122,14 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 			       skb_network_offset(skb) + ip_hdrlen(skb)
 						       + sizeof(struct icmphdr),
 			       PF_INET, state->net, &origtuple)) {
-		pr_debug("icmp_error_message: failed to get tuple\n");
+		pr_de("icmp_error_message: failed to get tuple\n");
 		return -NF_ACCEPT;
 	}
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
 	if (!nf_ct_invert_tuple(&innertuple, &origtuple)) {
-		pr_debug("icmp_error_message: no match\n");
+		pr_de("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
 
@@ -137,7 +137,7 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 
 	h = nf_conntrack_find_get(state->net, zone, &innertuple);
 	if (!h) {
-		pr_debug("icmp_error_message: no match\n");
+		pr_de("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
 

@@ -13,10 +13,10 @@
  *
  * Notes:
  * Version 0.99 is the first release of this driver and there are
- * certainly a few bugs.
+ * certainly a few s.
  *
  * Please don't report any malfunction to me without sending
- * (compressed) debug-logs.
+ * (compressed) de-logs.
  * It would be nearly impossible to retrace it.
  *
  * Log D-channel-processing as follows:
@@ -30,7 +30,7 @@
  *    if you chose an other value for id, you need to modify the
  *    code below, too.
  *
- * 2. set debug-level
+ * 2. set de-level
  *
  *    hisaxctrl gerdes 1 0x3ff
  *    hisaxctrl gerdes 11 0x4f
@@ -128,8 +128,8 @@ ReadWordAmd7930(struct IsdnCardState *cs, BYTE reg)
 static void
 Amd7930_ph_command(struct IsdnCardState *cs, u_char command, char *s)
 {
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "AMD7930: %s: ph_command 0x%02X", s, command);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "AMD7930: %s: ph_command 0x%02X", s, command);
 
 	cs->dc.amd7930.lmr1 = command;
 	wByteAMD(cs, 0xA3, command);
@@ -171,8 +171,8 @@ Amd7930_new_ph(struct IsdnCardState *cs)
 	u_char index = stateHelper[cs->dc.amd7930.old_state] * 8 + stateHelper[cs->dc.amd7930.ph_state] - 1;
 	u_char message = i430States[index];
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "AMD7930: new_ph %d, old_ph %d, message %d, index %d",
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "AMD7930: new_ph %d, old_ph %d, message %d, index %d",
 			cs->dc.amd7930.ph_state, cs->dc.amd7930.old_state, message & 0x0f, index);
 
 	cs->dc.amd7930.old_state = cs->dc.amd7930.ph_state;
@@ -240,8 +240,8 @@ Amd7930_bh(struct work_struct *work)
 	struct PStack *stptr;
 
 	if (test_and_clear_bit(D_CLEARBUSY, &cs->event)) {
-		if (cs->debug)
-			debugl1(cs, "Amd7930: bh, D-Channel Busy cleared");
+		if (cs->de)
+			del1(cs, "Amd7930: bh, D-Channel Busy cleared");
 		stptr = cs->stlist;
 		while (stptr != NULL) {
 			stptr->l1.l1l2(stptr, PH_PAUSE | CONFIRM, NULL);
@@ -249,20 +249,20 @@ Amd7930_bh(struct work_struct *work)
 		}
 	}
 	if (test_and_clear_bit(D_L1STATECHANGE, &cs->event)) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "AMD7930: bh, D_L1STATECHANGE");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "AMD7930: bh, D_L1STATECHANGE");
 		Amd7930_new_ph(cs);
 	}
 
 	if (test_and_clear_bit(D_RCVBUFREADY, &cs->event)) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "AMD7930: bh, D_RCVBUFREADY");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "AMD7930: bh, D_RCVBUFREADY");
 		DChannel_proc_rcv(cs);
 	}
 
 	if (test_and_clear_bit(D_XMTBUFREADY, &cs->event)) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "AMD7930: bh, D_XMTBUFREADY");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "AMD7930: bh, D_XMTBUFREADY");
 		DChannel_proc_xmt(cs);
 	}
 }
@@ -276,8 +276,8 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 	struct sk_buff *skb;
 
 
-	if ((cs->debug & L1_DEB_ISAC) && !(cs->debug & L1_DEB_ISAC_FIFO))
-		debugl1(cs, "Amd7930: empty_Dfifo");
+	if ((cs->de & L1_DEB_ISAC) && !(cs->de & L1_DEB_ISAC_FIFO))
+		del1(cs, "Amd7930: empty_Dfifo");
 
 
 	ptr = cs->rcvbuf + cs->rcvidx;
@@ -308,13 +308,13 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 					if (!(skb = alloc_skb(cs->rcvidx, GFP_ATOMIC)))
 						printk(KERN_WARNING "HiSax: Amd7930: empty_Dfifo, D receive out of memory!\n");
 					else {
-						/* Debugging */
-						if (cs->debug & L1_DEB_ISAC_FIFO) {
+						/* Deging */
+						if (cs->de & L1_DEB_ISAC_FIFO) {
 							char *t = cs->dlog;
 
 							t += sprintf(t, "Amd7930: empty_Dfifo cnt: %d |", cs->rcvidx);
 							QuickHex(t, cs->rcvbuf, cs->rcvidx);
-							debugl1(cs, "%s", cs->dlog);
+							del1(cs, "%s", cs->dlog);
 						}
 						/* moves received data in sk-buffer */
 						skb_put_data(skb, cs->rcvbuf,
@@ -332,8 +332,8 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 	}
 	/* Packet to long, overflow */
 	if (cs->rcvidx >= MAX_DFRAME_LEN_L1) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "AMD7930: empty_Dfifo L2-Framelength overrun");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "AMD7930: empty_Dfifo L2-Framelength overrun");
 		cs->rcvidx = 0;
 		return;
 	}
@@ -350,8 +350,8 @@ Amd7930_fill_Dfifo(struct IsdnCardState *cs)
 	BYTE txstat, dmr3;
 	BYTE *ptr, *deb_ptr;
 
-	if ((cs->debug & L1_DEB_ISAC) && !(cs->debug & L1_DEB_ISAC_FIFO))
-		debugl1(cs, "Amd7930: fill_Dfifo");
+	if ((cs->de & L1_DEB_ISAC) && !(cs->de & L1_DEB_ISAC_FIFO))
+		del1(cs, "Amd7930: fill_Dfifo");
 
 	if ((!cs->tx_skb) || (cs->tx_skb->len <= 0))
 		return;
@@ -384,8 +384,8 @@ Amd7930_fill_Dfifo(struct IsdnCardState *cs)
 	dtcrr = rWordAMD(cs, 0x85); // DTCR
 	dmr3  = rByteAMD(cs, 0x8E);
 
-	if (cs->debug & L1_DEB_ISAC) {
-		debugl1(cs, "Amd7930: fill_Dfifo, DMR3: 0x%02X, DTCR read: 0x%04X write: 0x%02X 0x%02X", dmr3, dtcrr, LOBYTE(dtcrw), HIBYTE(dtcrw));
+	if (cs->de & L1_DEB_ISAC) {
+		del1(cs, "Amd7930: fill_Dfifo, DMR3: 0x%02X, DTCR read: 0x%04X write: 0x%02X 0x%02X", dmr3, dtcrr, LOBYTE(dtcrw), HIBYTE(dtcrw));
 	}
 
 	/* writeing of dtcrw starts transmit */
@@ -395,18 +395,18 @@ Amd7930_fill_Dfifo(struct IsdnCardState *cs)
 	}
 
 	if (test_and_set_bit(FLG_DBUSY_TIMER, &cs->HW_Flags)) {
-		debugl1(cs, "Amd7930: fill_Dfifo dbusytimer running");
+		del1(cs, "Amd7930: fill_Dfifo dbusytimer running");
 		del_timer(&cs->dbusytimer);
 	}
 	cs->dbusytimer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ) / 1000);
 	add_timer(&cs->dbusytimer);
 
-	if (cs->debug & L1_DEB_ISAC_FIFO) {
+	if (cs->de & L1_DEB_ISAC_FIFO) {
 		char *t = cs->dlog;
 
 		t += sprintf(t, "Amd7930: fill_Dfifo cnt: %d |", count);
 		QuickHex(t, deb_ptr, count);
-		debugl1(cs, "%s", cs->dlog);
+		del1(cs, "%s", cs->dlog);
 	}
 	/* AMD interrupts on */
 	AmdIrqOn(cs);
@@ -426,14 +426,14 @@ void Amd7930_interrupt(struct IsdnCardState *cs, BYTE irflags)
 		dsr2 = rByteAMD(cs, 0x07);
 		lsr  = rByteAMD(cs, 0xA1);
 
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "Amd7930: interrupt: flags: 0x%02X, DSR1: 0x%02X, DSR2: 0x%02X, LSR: 0x%02X, DER=0x%04X", irflags, dsr1, dsr2, lsr, der);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "Amd7930: interrupt: flags: 0x%02X, DSR1: 0x%02X, DSR2: 0x%02X, LSR: 0x%02X, DER=0x%04X", irflags, dsr1, dsr2, lsr, der);
 
 		/* D error -> read DER and DSR2 bit 2 */
 		if (der || (dsr2 & 4)) {
 
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "Amd7930: interrupt: D error DER=0x%04X", der);
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "Amd7930: interrupt: D error DER=0x%04X", der);
 
 			/* RX, TX abort if collision detected */
 			if (der & 2) {
@@ -451,7 +451,7 @@ void Amd7930_interrupt(struct IsdnCardState *cs, BYTE irflags)
 					Amd7930_fill_Dfifo(cs);
 				} else {
 					printk(KERN_WARNING "HiSax: Amd7930 D-Collision, no skb\n");
-					debugl1(cs, "Amd7930: interrupt: D-Collision, no skb");
+					del1(cs, "Amd7930: interrupt: D-Collision, no skb");
 				}
 			}
 			/* remove damaged data from fifo */
@@ -472,8 +472,8 @@ void Amd7930_interrupt(struct IsdnCardState *cs, BYTE irflags)
 
 		/* D TX FIFO empty -> fill */
 		if (irflags & 1) {
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "Amd7930: interrupt: clear Timer and fill D-TX-FIFO if data");
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "Amd7930: interrupt: clear Timer and fill D-TX-FIFO if data");
 
 			/* AMD interrupts off */
 			AmdIrqOff(cs);
@@ -493,16 +493,16 @@ void Amd7930_interrupt(struct IsdnCardState *cs, BYTE irflags)
 
 		/* D RX FIFO full or tiny packet in Fifo -> empty */
 		if ((irflags & 2) || (dsr1 & 2)) {
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "Amd7930: interrupt: empty D-FIFO");
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "Amd7930: interrupt: empty D-FIFO");
 			Amd7930_empty_Dfifo(cs, 0);
 		}
 
 
 		/* D-Frame transmit complete */
 		if (dsr1 & 64) {
-			if (cs->debug & L1_DEB_ISAC) {
-				debugl1(cs, "Amd7930: interrupt: transmit packet ready");
+			if (cs->de & L1_DEB_ISAC) {
+				del1(cs, "Amd7930: interrupt: transmit packet ready");
 			}
 			/* AMD interrupts off */
 			AmdIrqOff(cs);
@@ -513,16 +513,16 @@ void Amd7930_interrupt(struct IsdnCardState *cs, BYTE irflags)
 				schedule_event(cs, D_CLEARBUSY);
 
 			if (cs->tx_skb) {
-				if (cs->debug & L1_DEB_ISAC)
-					debugl1(cs, "Amd7930: interrupt: TX-Packet ready, freeing skb");
+				if (cs->de & L1_DEB_ISAC)
+					del1(cs, "Amd7930: interrupt: TX-Packet ready, freeing skb");
 				dev_kfree_skb_irq(cs->tx_skb);
 				cs->tx_cnt = 0;
 				cs->dc.amd7930.tx_xmtlen = 0;
 				cs->tx_skb = NULL;
 			}
 			if ((cs->tx_skb = skb_dequeue(&cs->sq))) {
-				if (cs->debug & L1_DEB_ISAC)
-					debugl1(cs, "Amd7930: interrupt: TX-Packet ready, next packet dequeued");
+				if (cs->de & L1_DEB_ISAC)
+					del1(cs, "Amd7930: interrupt: TX-Packet ready, next packet dequeued");
 				cs->tx_cnt = 0;
 				cs->dc.amd7930.tx_xmtlen = 0;
 				Amd7930_fill_Dfifo(cs);
@@ -538,8 +538,8 @@ void Amd7930_interrupt(struct IsdnCardState *cs, BYTE irflags)
 			/* AMD interrupts off */
 			AmdIrqOff(cs);
 
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "Amd: interrupt: LSR=0x%02X, LIU is in state %d", lsr, ((lsr & 0x7) + 2));
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "Amd: interrupt: LSR=0x%02X, LIU is in state %d", lsr, ((lsr & 0x7) + 2));
 
 			cs->dc.amd7930.ph_state = (lsr & 0x7) + 2;
 
@@ -561,28 +561,28 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 	struct sk_buff *skb = arg;
 	u_long flags;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "Amd7930: l1hw called, pr: 0x%04X", pr);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "Amd7930: l1hw called, pr: 0x%04X", pr);
 
 	switch (pr) {
 	case (PH_DATA | REQUEST):
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 0);
 		spin_lock_irqsave(&cs->lock, flags);
 		if (cs->tx_skb) {
 			skb_queue_tail(&cs->sq, skb);
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "Amd7930: l1hw: PH_DATA Queued", 0);
 #endif
 		} else {
 			cs->tx_skb = skb;
 			cs->tx_cnt = 0;
 			cs->dc.amd7930.tx_xmtlen = 0;
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "Amd7930: l1hw: PH_DATA", 0);
 #endif
 			Amd7930_fill_Dfifo(cs);
@@ -592,30 +592,30 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 	case (PH_PULL | INDICATION):
 		spin_lock_irqsave(&cs->lock, flags);
 		if (cs->tx_skb) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "Amd7930: l1hw: l2l1 tx_skb exist this shouldn't happen");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "Amd7930: l1hw: l2l1 tx_skb exist this shouldn't happen");
 			skb_queue_tail(&cs->sq, skb);
 			spin_unlock_irqrestore(&cs->lock, flags);
 			break;
 		}
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 0);
 		cs->tx_skb = skb;
 		cs->tx_cnt = 0;
 		cs->dc.amd7930.tx_xmtlen = 0;
-#ifdef L2FRAME_DEBUG		/* psa */
-		if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+		if (cs->de & L1_DEB_LAPD)
 			Logl2Frame(cs, skb, "Amd7930: l1hw: PH_DATA_PULLED", 0);
 #endif
 		Amd7930_fill_Dfifo(cs);
 		spin_unlock_irqrestore(&cs->lock, flags);
 		break;
 	case (PH_PULL | REQUEST):
-#ifdef L2FRAME_DEBUG		/* psa */
-		if (cs->debug & L1_DEB_LAPD)
-			debugl1(cs, "Amd7930: l1hw: -> PH_REQUEST_PULL, skb: %s", (cs->tx_skb) ? "yes" : "no");
+#ifdef L2FRAME_DE		/* psa */
+		if (cs->de & L1_DEB_LAPD)
+			del1(cs, "Amd7930: l1hw: -> PH_REQUEST_PULL, skb: %s", (cs->tx_skb) ? "yes" : "no");
 #endif
 		if (!cs->tx_skb) {
 			test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
@@ -660,8 +660,8 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 			schedule_event(cs, D_CLEARBUSY);
 		break;
 	default:
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "Amd7930: l1hw: unknown %04x", pr);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "Amd7930: l1hw: unknown %04x", pr);
 		break;
 	}
 }
@@ -670,8 +670,8 @@ static void
 setstack_Amd7930(struct PStack *st, struct IsdnCardState *cs)
 {
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "Amd7930: setstack called");
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "Amd7930: setstack called");
 
 	st->l1.l1hw = Amd7930_l1hw;
 }
@@ -679,8 +679,8 @@ setstack_Amd7930(struct PStack *st, struct IsdnCardState *cs)
 
 static void
 DC_Close_Amd7930(struct IsdnCardState *cs) {
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "Amd7930: DC_Close called");
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "Amd7930: DC_Close called");
 }
 
 
@@ -694,8 +694,8 @@ dbusy_timer_handler(struct timer_list *t)
 	BYTE dsr1, dsr2;
 
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "Amd7930: dbusy_timer expired!");
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "Amd7930: dbusy_timer expired!");
 
 	if (test_bit(FLG_DBUSY_TIMER, &cs->HW_Flags)) {
 		spin_lock_irqsave(&cs->lock, flags);
@@ -706,8 +706,8 @@ dbusy_timer_handler(struct timer_list *t)
 		dsr2 = rByteAMD(cs, 0x07);
 		der  = rWordAMD(cs, 0x03);
 
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "Amd7930: dbusy_timer_handler: DSR1=0x%02X, DSR2=0x%02X, DER=0x%04X, cs->tx_skb->len=%u, tx_stat=%u, dtcr=%u, cs->tx_cnt=%u", dsr1, dsr2, der, cs->tx_skb->len, cs->dc.amd7930.tx_xmtlen, dtcr, cs->tx_cnt);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "Amd7930: dbusy_timer_handler: DSR1=0x%02X, DSR2=0x%02X, DER=0x%04X, cs->tx_skb->len=%u, tx_stat=%u, dtcr=%u, cs->tx_cnt=%u", dsr1, dsr2, der, cs->tx_skb->len, cs->dc.amd7930.tx_xmtlen, dtcr, cs->tx_cnt);
 
 		if ((cs->dc.amd7930.tx_xmtlen - dtcr) < cs->tx_cnt) {	/* D-Channel Busy */
 			test_and_set_bit(FLG_L1_DBUSY, &cs->HW_Flags);
@@ -728,7 +728,7 @@ dbusy_timer_handler(struct timer_list *t)
 				cs->dc.amd7930.tx_xmtlen = 0;
 			} else {
 				printk(KERN_WARNING "HiSax: Amd7930: D-Channel Busy no skb\n");
-				debugl1(cs, "Amd7930: D-Channel Busy no skb");
+				del1(cs, "Amd7930: D-Channel Busy no skb");
 
 			}
 			/* Transmitter reset, abort transmit */
@@ -737,8 +737,8 @@ dbusy_timer_handler(struct timer_list *t)
 			spin_unlock_irqrestore(&cs->lock, flags);
 			cs->irq_func(cs->irq, cs);
 
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "Amd7930: dbusy_timer_handler: Transmitter reset");
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "Amd7930: dbusy_timer_handler: Transmitter reset");
 		}
 	}
 }
@@ -750,8 +750,8 @@ void Amd7930_init(struct IsdnCardState *cs)
 	WORD *ptr;
 	BYTE cmd, cnt;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "Amd7930: initamd called");
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "Amd7930: initamd called");
 
 	cs->dc.amd7930.tx_xmtlen = 0;
 	cs->dc.amd7930.old_state = 0;

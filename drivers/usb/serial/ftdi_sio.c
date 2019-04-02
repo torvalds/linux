@@ -821,7 +821,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_OCD_H_PID, 1) },
 	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_TINY_PID, 1) },
 	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_TINY_H_PID, 1) },
-	{ USB_DEVICE(FIC_VID, FIC_NEO1973_DEBUG_PID),
+	{ USB_DEVICE(FIC_VID, FIC_NEO1973_DE_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_OOCDLINK_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
@@ -1583,7 +1583,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		} else  if (inter == 3) {
 			priv->interface = INTERFACE_D;
 		}
-		/* BM-type devices have a bug where bcdDevice gets set
+		/* BM-type devices have a  where bcdDevice gets set
 		 * to 0x200 when iSerialNumber is 0.  */
 		if (version < 0x500) {
 			dev_dbg(&port->dev,
@@ -1598,7 +1598,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		/* Assume it's an FT8U232AM (or FT8U245AM) */
 		priv->chip_type = FT8U232AM;
 		/*
-		 * It might be a BM type because of the iSerialNumber bug.
+		 * It might be a BM type because of the iSerialNumber .
 		 * If iSerialNumber==0 and the latency timer is readable,
 		 * assume it is BM type.
 		 */
@@ -2274,7 +2274,7 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 
 /*
  * First port on JTAG adaptors such as Olimex arm-usb-ocd or the FIC/OpenMoko
- * Neo1973 Debug Board is reserved for JTAG interface and can be accessed from
+ * Neo1973 De Board is reserved for JTAG interface and can be accessed from
  * userspace using openocd.
  */
 static int ftdi_jtag_probe(struct usb_serial *serial)

@@ -28,16 +28,16 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD];
 int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
 
 void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user);
+void ptdump_walk_pgd_level_defs(struct seq_file *m, pgd_t *pgd, bool user);
 void ptdump_walk_pgd_level_checkwx(void);
 void ptdump_walk_user_pgd_level_checkwx(void);
 
-#ifdef CONFIG_DEBUG_WX
-#define debug_checkwx()		ptdump_walk_pgd_level_checkwx()
-#define debug_checkwx_user()	ptdump_walk_user_pgd_level_checkwx()
+#ifdef CONFIG_DE_WX
+#define de_checkwx()		ptdump_walk_pgd_level_checkwx()
+#define de_checkwx_user()	ptdump_walk_user_pgd_level_checkwx()
 #else
-#define debug_checkwx()		do { } while (0)
-#define debug_checkwx_user()	do { } while (0)
+#define de_checkwx()		do { } while (0)
+#define de_checkwx_user()	do { } while (0)
 #endif
 
 /*
@@ -532,8 +532,8 @@ static inline pgprotval_t check_pgprot(pgprot_t pgprot)
 {
 	pgprotval_t massaged_val = massage_pgprot(pgprot);
 
-	/* mmdebug.h can not be included here because of dependencies */
-#ifdef CONFIG_DEBUG_VM
+	/* mmde.h can not be included here because of dependencies */
+#ifdef CONFIG_DE_VM
 	WARN_ONCE(pgprot_val(pgprot) != massaged_val,
 		  "attempted to set unsupported pgprot: %016llx "
 		  "bits: %016llx supported: %016llx\n",
@@ -695,7 +695,7 @@ static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 
 #ifndef __ASSEMBLY__
 #include <linux/mm_types.h>
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/log2.h>
 #include <asm/fixmap.h>
 
@@ -1434,7 +1434,7 @@ extern bool pfn_modify_allowed(unsigned long pfn, pgprot_t prot);
 
 static inline bool arch_has_pfn_modify_check(void)
 {
-	return boot_cpu_has_bug(X86_BUG_L1TF);
+	return boot_cpu_has_(X86__L1TF);
 }
 
 #include <asm-generic/pgtable.h>

@@ -115,7 +115,7 @@ static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
 	bool is_report;
 	struct input_event *ev;
 
-	BUG_ON(type == EV_SYN);
+	_ON(type == EV_SYN);
 
 	head = client->tail;
 	client->packet_head = client->tail;

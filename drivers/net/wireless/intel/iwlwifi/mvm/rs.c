@@ -37,7 +37,7 @@
 #include "sta.h"
 #include "iwl-op-mode.h"
 #include "mvm.h"
-#include "debugfs.h"
+#include "defs.h"
 
 #define IWL_RATE_MAX_WINDOW		62	/* # tx in history window */
 
@@ -578,7 +578,7 @@ static char *rs_pretty_rate(const struct rs_rate *rate)
 static inline void rs_dump_rate(struct iwl_mvm *mvm, const struct rs_rate *rate,
 				const char *prefix)
 {
-	IWL_DEBUG_RATE(mvm,
+	IWL_DE_RATE(mvm,
 		       "%s: %s BW: %d SGI: %d LDPC: %d STBC: %d\n",
 		       prefix, rs_pretty_rate(rate), rate->bw,
 		       rate->sgi, rate->ldpc, rate->stbc);
@@ -598,7 +598,7 @@ static void rs_rate_scale_clear_tbl_windows(struct iwl_mvm *mvm,
 {
 	int i;
 
-	IWL_DEBUG_RATE(mvm, "Clearing up window stats\n");
+	IWL_DE_RATE(mvm, "Clearing up window stats\n");
 	for (i = 0; i < IWL_RATE_COUNT; i++)
 		rs_rate_scale_clear_window(&tbl->win[i]);
 
@@ -617,7 +617,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 {
 	int ret = -EAGAIN;
 
-	IWL_DEBUG_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
+	IWL_DE_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
 		     sta->addr, tid);
 
 	/* start BA session until the peer sends del BA */
@@ -658,7 +658,7 @@ static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	    tid_data->state == IWL_AGG_OFF &&
 	    (lq_sta->tx_agg_tid_en & BIT(tid)) &&
 	    tid_data->tx_count_last >= IWL_MVM_RS_AGG_START_THRESHOLD) {
-		IWL_DEBUG_RATE(mvm, "try to aggregate tid %d\n", tid);
+		IWL_DE_RATE(mvm, "try to aggregate tid %d\n", tid);
 		if (rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta) == 0)
 			tid_data->state = IWL_AGG_QUEUED;
 	}
@@ -1227,10 +1227,10 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
-		IWL_DEBUG_RATE(mvm, "Station rate scaling not created yet.\n");
+		IWL_DE_RATE(mvm, "Station rate scaling not created yet.\n");
 		return;
 	} else if (!lq_sta->pers.drv) {
-		IWL_DEBUG_RATE(mvm, "Rate scaling not initialized yet.\n");
+		IWL_DE_RATE(mvm, "Rate scaling not initialized yet.\n");
 		return;
 	}
 
@@ -1245,8 +1245,8 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		return;
 	}
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	/* Disable last tx check if we are debugging with fixed rate but
+#ifdef CONFIG_MAC80211_DEFS
+	/* Disable last tx check if we are deging with fixed rate but
 	 * update tx stats */
 	if (lq_sta->pers.dbg_fixed_rate) {
 		int index = tx_resp_rate.index;
@@ -1270,7 +1270,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		lq_sta->pers.tx_stats[column][index].total += attempts;
 		lq_sta->pers.tx_stats[column][index].success += success;
 
-		IWL_DEBUG_RATE(mvm, "Fixed rate 0x%x success %d attempts %d\n",
+		IWL_DE_RATE(mvm, "Fixed rate 0x%x success %d attempts %d\n",
 			       tx_resp_hwrate, success, attempts);
 		return;
 	}
@@ -1279,7 +1279,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx +
 				       (IWL_MVM_RS_IDLE_TIMEOUT * HZ)))) {
-		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
+		IWL_DE_RATE(mvm, "Tx idle for too long. reinit rs\n");
 		iwl_mvm_rs_rate_init(mvm, sta, info->band, true);
 		return;
 	}
@@ -1301,7 +1301,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	/* Here we actually compare this rate to the latest LQ command */
 	if (lq_color != LQ_FLAG_COLOR_GET(table->flags)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "tx resp color 0x%x does not match 0x%x\n",
 			       lq_color, LQ_FLAG_COLOR_GET(table->flags));
 
@@ -1313,7 +1313,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		lq_sta->missed_rate_counter++;
 		if (lq_sta->missed_rate_counter > IWL_MVM_RS_MISSED_RATE_MAX) {
 			lq_sta->missed_rate_counter = 0;
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Too many rates mismatch. Send sync LQ. rs_state %d\n",
 				       lq_sta->rs_state);
 			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
@@ -1333,7 +1333,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 
 	if (WARN_ON_ONCE(!rs_rate_column_match(&lq_rate, &curr_tbl->rate))) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Neither active nor search matches tx rate\n");
 		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		rs_dump_rate(mvm, &tmp_tbl->rate, "ACTIVE");
@@ -1434,7 +1434,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 	/* The last TX rate is cached in lq_sta; it's set in if/else above */
 	lq_sta->last_rate_n_flags = lq_hwrate;
-	IWL_DEBUG_RATE(mvm, "reduced txpower: %d\n", reduced_txp);
+	IWL_DE_RATE(mvm, "reduced txpower: %d\n", reduced_txp);
 done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta->supp_rates[info->band])
@@ -1476,7 +1476,7 @@ static void rs_drv_mac80211_tx_status(void *mvm_r,
 static void rs_set_stay_in_table(struct iwl_mvm *mvm, u8 is_legacy,
 				 struct iwl_lq_sta *lq_sta)
 {
-	IWL_DEBUG_RATE(mvm, "Moving to RS_STATE_STAY_IN_COLUMN\n");
+	IWL_DE_RATE(mvm, "Moving to RS_STATE_STAY_IN_COLUMN\n");
 	lq_sta->rs_state = RS_STATE_STAY_IN_COLUMN;
 	if (is_legacy) {
 		lq_sta->table_count_limit = IWL_MVM_RS_LEGACY_TABLE_COUNT;
@@ -1611,12 +1611,12 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 
 	if (success_ratio >= RS_PERCENT(IWL_MVM_RS_SR_NO_DECREASE)) {
 		target_tpt = 100 * expected_current_tpt;
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "SR %d high. Find rate exceeding EXPECTED_CURRENT %d\n",
 			       success_ratio, target_tpt);
 	} else {
 		target_tpt = lq_sta->last_tpt;
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "SR %d not that good. Find rate exceeding ACTUAL_TPT %d\n",
 			       success_ratio, target_tpt);
 	}
@@ -1633,7 +1633,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 		rate_idx = (high_low >> 8) & 0xff;
 	}
 
-	IWL_DEBUG_RATE(mvm, "Best rate found %d target_tp %d expected_new %d\n",
+	IWL_DE_RATE(mvm, "Best rate found %d target_tp %d expected_new %d\n",
 		       rate_idx, target_tpt,
 		       rate_idx != IWL_RATE_INVALID ?
 		       100 * tpt_tbl[rate_idx] : IWL_INVALID_VALUE);
@@ -1715,7 +1715,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 		    (lq_sta->total_success > lq_sta->max_success_limit) ||
 		    ((!lq_sta->search_better_tbl) &&
 		     (lq_sta->flush_timer) && (flush_interval_passed))) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "LQ: stay is expired %d %d %d\n",
 				     lq_sta->total_failed,
 				     lq_sta->total_success,
@@ -1723,7 +1723,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 
 			/* Allow search for new mode */
 			lq_sta->rs_state = RS_STATE_SEARCH_CYCLE_STARTED;
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Moving to RS_STATE_SEARCH_CYCLE_STARTED\n");
 			lq_sta->total_failed = 0;
 			lq_sta->total_success = 0;
@@ -1742,7 +1742,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 			    lq_sta->table_count_limit) {
 				lq_sta->table_count = 0;
 
-				IWL_DEBUG_RATE(mvm,
+				IWL_DE_RATE(mvm,
 					       "LQ: stay in table clear win\n");
 				rs_rate_scale_clear_tbl_windows(mvm, tbl);
 			}
@@ -1825,7 +1825,7 @@ static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
 	    (scale_action == RS_ACTION_DOWNSCALE)) {
 		tbl->rate.bw = RATE_MCS_CHAN_WIDTH_20;
 		tbl->rate.index = IWL_RATE_MCS_4_INDEX;
-		IWL_DEBUG_RATE(mvm, "Switch 80Mhz SISO MCS0 -> 20Mhz MCS4\n");
+		IWL_DE_RATE(mvm, "Switch 80Mhz SISO MCS0 -> 20Mhz MCS4\n");
 		goto tweaked;
 	}
 
@@ -1841,7 +1841,7 @@ static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
 	      (scale_action == RS_ACTION_UPSCALE)))) {
 		tbl->rate.bw = RATE_MCS_CHAN_WIDTH_80;
 		tbl->rate.index = IWL_RATE_MCS_1_INDEX;
-		IWL_DEBUG_RATE(mvm, "Switch 20Mhz SISO MCS5 -> 80Mhz MCS1\n");
+		IWL_DE_RATE(mvm, "Switch 20Mhz SISO MCS5 -> 80Mhz MCS1\n");
 		goto tweaked;
 	}
 
@@ -1874,7 +1874,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 			continue;
 
 		if (lq_sta->visited_columns & BIT(next_col_id)) {
-			IWL_DEBUG_RATE(mvm, "Skip already visited column %d\n",
+			IWL_DE_RATE(mvm, "Skip already visited column %d\n",
 				       next_col_id);
 			continue;
 		}
@@ -1882,7 +1882,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 		next_col = &rs_tx_columns[next_col_id];
 
 		if (!rs_is_valid_ant(valid_ants, next_col->ant)) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Skip column %d as ANT config isn't supported by chip. valid_ants 0x%x column ant 0x%x\n",
 				       next_col_id, valid_ants, next_col->ant);
 			continue;
@@ -1896,7 +1896,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 		}
 
 		if (j != MAX_COLUMN_CHECKS) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Skip column %d: not allowed (check %d failed)\n",
 				       next_col_id, j);
 
@@ -1911,7 +1911,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 
 		max_rate = rs_get_max_allowed_rate(lq_sta, next_col);
 		if (max_rate == IWL_RATE_INVALID) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Skip column %d: no rate is allowed in this column\n",
 				       next_col_id);
 			continue;
@@ -1919,13 +1919,13 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 
 		max_expected_tpt = expected_tpt_tbl[max_rate];
 		if (tpt >= max_expected_tpt) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Skip column %d: can't beat current TPT. Max expected %d current %d\n",
 				       next_col_id, max_expected_tpt, tpt);
 			continue;
 		}
 
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Found potential column %d. Max expected %d current %d\n",
 			       next_col_id, max_expected_tpt, tpt);
 		break;
@@ -1994,7 +1994,7 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 
 		if ((rate_idx == IWL_RATE_INVALID) ||
 		    !(BIT(rate_idx) & rate_mask)) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "can not switch with index %d"
 				       " rate mask %lx\n",
 				       rate_idx, rate_mask);
@@ -2005,7 +2005,7 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 		rate->index = rate_idx;
 	}
 
-	IWL_DEBUG_RATE(mvm, "Switched to column %d: Index %d\n",
+	IWL_DE_RATE(mvm, "Switched to column %d: Index %d\n",
 		       col_id, rate->index);
 
 	return 0;
@@ -2025,7 +2025,7 @@ static enum rs_action rs_get_rate_action(struct iwl_mvm *mvm,
 
 	if ((sr <= RS_PERCENT(IWL_MVM_RS_SR_FORCE_DECREASE)) ||
 	    (current_tpt == 0)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Decrease rate because of low SR\n");
 		return RS_ACTION_DOWNSCALE;
 	}
@@ -2033,7 +2033,7 @@ static enum rs_action rs_get_rate_action(struct iwl_mvm *mvm,
 	if ((low_tpt == IWL_INVALID_VALUE) &&
 	    (high_tpt == IWL_INVALID_VALUE) &&
 	    (high != IWL_RATE_INVALID)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "No data about high/low rates. Increase rate\n");
 		return RS_ACTION_UPSCALE;
 	}
@@ -2042,14 +2042,14 @@ static enum rs_action rs_get_rate_action(struct iwl_mvm *mvm,
 	    (high != IWL_RATE_INVALID) &&
 	    (low_tpt != IWL_INVALID_VALUE) &&
 	    (low_tpt < current_tpt)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "No data about high rate and low rate is worse. Increase rate\n");
 		return RS_ACTION_UPSCALE;
 	}
 
 	if ((high_tpt != IWL_INVALID_VALUE) &&
 	    (high_tpt > current_tpt)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Higher rate is better. Increate rate\n");
 		return RS_ACTION_UPSCALE;
 	}
@@ -2058,14 +2058,14 @@ static enum rs_action rs_get_rate_action(struct iwl_mvm *mvm,
 	    (high_tpt != IWL_INVALID_VALUE) &&
 	    (low_tpt < current_tpt) &&
 	    (high_tpt < current_tpt)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Both high and low are worse. Maintain rate\n");
 		return RS_ACTION_STAY;
 	}
 
 	if ((low_tpt != IWL_INVALID_VALUE) &&
 	    (low_tpt > current_tpt)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Lower rate is better\n");
 		action = RS_ACTION_DOWNSCALE;
 		goto out;
@@ -2073,26 +2073,26 @@ static enum rs_action rs_get_rate_action(struct iwl_mvm *mvm,
 
 	if ((low_tpt == IWL_INVALID_VALUE) &&
 	    (low != IWL_RATE_INVALID)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "No data about lower rate\n");
 		action = RS_ACTION_DOWNSCALE;
 		goto out;
 	}
 
-	IWL_DEBUG_RATE(mvm, "Maintain rate\n");
+	IWL_DE_RATE(mvm, "Maintain rate\n");
 
 out:
 	if ((action == RS_ACTION_DOWNSCALE) && (low != IWL_RATE_INVALID)) {
 		if (sr >= RS_PERCENT(IWL_MVM_RS_SR_NO_DECREASE)) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "SR is above NO DECREASE. Avoid downscale\n");
 			action = RS_ACTION_STAY;
 		} else if (current_tpt > (100 * tbl->expected_tpt[low])) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "Current TPT is higher than max expected in low rate. Avoid downscale\n");
 			action = RS_ACTION_STAY;
 		} else {
-			IWL_DEBUG_RATE(mvm, "Decrease rate\n");
+			IWL_DE_RATE(mvm, "Decrease rate\n");
 		}
 	}
 
@@ -2134,7 +2134,7 @@ static bool rs_tpc_allowed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	bool sta_ps_disabled = (vif->type == NL80211_IFTYPE_STATION &&
 				!vif->bss_conf.ps);
 
-	IWL_DEBUG_RATE(mvm, "cam: %d sta_ps_disabled %d\n",
+	IWL_DE_RATE(mvm, "cam: %d sta_ps_disabled %d\n",
 		       cam, sta_ps_disabled);
 	/*
 	 * allow tpc only if power management is enabled, or bt coex
@@ -2144,7 +2144,7 @@ static bool rs_tpc_allowed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	    !iwl_mvm_bt_coex_is_tpc_allowed(mvm, band))
 		return false;
 
-	IWL_DEBUG_RATE(mvm, "check rate, table type: %d\n", rate->type);
+	IWL_DE_RATE(mvm, "check rate, table type: %d\n", rate->type);
 	if (is_legacy(rate))
 		return index == IWL_RATE_54M_INDEX;
 	if (is_ht(rate))
@@ -2172,14 +2172,14 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 {
 	/* stay until we have valid tpt */
 	if (current_tpt == IWL_INVALID_VALUE) {
-		IWL_DEBUG_RATE(mvm, "no current tpt. stay.\n");
+		IWL_DE_RATE(mvm, "no current tpt. stay.\n");
 		return TPC_ACTION_STAY;
 	}
 
 	/* Too many failures, increase txp */
 	if (sr <= RS_PERCENT(IWL_MVM_RS_TPC_SR_FORCE_INCREASE) ||
 	    current_tpt == 0) {
-		IWL_DEBUG_RATE(mvm, "increase txp because of weak SR\n");
+		IWL_DE_RATE(mvm, "increase txp because of weak SR\n");
 		return TPC_ACTION_NO_RESTIRCTION;
 	}
 
@@ -2189,13 +2189,13 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 		if (weak_tpt == IWL_INVALID_VALUE &&
 		    (strong_tpt == IWL_INVALID_VALUE ||
 		     current_tpt >= strong_tpt)) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "no weak txp measurement. decrease txp\n");
 			return TPC_ACTION_DECREASE;
 		}
 
 		if (weak_tpt > current_tpt) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "lower txp has better tpt. decrease txp\n");
 			return TPC_ACTION_DECREASE;
 		}
@@ -2207,7 +2207,7 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 		if (weak_tpt == IWL_INVALID_VALUE &&
 		    strong_tpt != IWL_INVALID_VALUE &&
 		    current_tpt < strong_tpt) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "higher txp has better tpt. increase txp\n");
 			return TPC_ACTION_INCREASE;
 		}
@@ -2215,13 +2215,13 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 		if (weak_tpt < current_tpt &&
 		    (strong_tpt == IWL_INVALID_VALUE ||
 		     strong_tpt > current_tpt)) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "lower txp has worse tpt. increase txp\n");
 			return TPC_ACTION_INCREASE;
 		}
 	}
 
-	IWL_DEBUG_RATE(mvm, "no need to increase or decrease txp - stay\n");
+	IWL_DE_RATE(mvm, "no need to increase or decrease txp - stay\n");
 	return TPC_ACTION_STAY;
 }
 
@@ -2243,9 +2243,9 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 	int weak, strong;
 	int weak_tpt = IWL_INVALID_VALUE, strong_tpt = IWL_INVALID_VALUE;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	if (lq_sta->pers.dbg_fixed_txp_reduction <= TPC_MAX_REDUCTION) {
-		IWL_DEBUG_RATE(mvm, "fixed tpc: %d\n",
+		IWL_DE_RATE(mvm, "fixed tpc: %d\n",
 			       lq_sta->pers.dbg_fixed_txp_reduction);
 		lq_sta->lq.reduced_tpc = lq_sta->pers.dbg_fixed_txp_reduction;
 		return cur != lq_sta->pers.dbg_fixed_txp_reduction;
@@ -2261,7 +2261,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 	rcu_read_unlock();
 
 	if (!rs_tpc_allowed(mvm, vif, rate, band)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "tpc is not allowed. remove txp restrictions\n");
 		lq_sta->lq.reduced_tpc = TPC_NO_REDUCTION;
 		return cur != TPC_NO_REDUCTION;
@@ -2278,7 +2278,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 	if (strong != TPC_INVALID)
 		strong_tpt = window[strong].average_tpt;
 
-	IWL_DEBUG_RATE(mvm,
+	IWL_DE_RATE(mvm,
 		       "(TPC: %d): cur_tpt %d SR %d weak %d strong %d weak_tpt %d strong_tpt %d\n",
 		       cur, current_tpt, sr, weak, strong,
 		       weak_tpt, strong_tpt);
@@ -2288,12 +2288,12 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 
 	/* override actions if we are on the edge */
 	if (weak == TPC_INVALID && action == TPC_ACTION_DECREASE) {
-		IWL_DEBUG_RATE(mvm, "already in lowest txp, stay\n");
+		IWL_DE_RATE(mvm, "already in lowest txp, stay\n");
 		action = TPC_ACTION_STAY;
 	} else if (strong == TPC_INVALID &&
 		   (action == TPC_ACTION_INCREASE ||
 		    action == TPC_ACTION_NO_RESTIRCTION)) {
-		IWL_DEBUG_RATE(mvm, "already in highest txp, stay\n");
+		IWL_DE_RATE(mvm, "already in highest txp, stay\n");
 		action = TPC_ACTION_STAY;
 	}
 
@@ -2358,7 +2358,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	rate = &tbl->rate;
 
 	if (prev_agg != lq_sta->is_agg) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Aggregation changed: prev %d current %d. Update expected TPT table\n",
 			       prev_agg, lq_sta->is_agg);
 		rs_set_expected_tpt_table(lq_sta, tbl);
@@ -2402,7 +2402,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	fail_count = window->counter - window->success_counter;
 	if ((fail_count < IWL_MVM_RS_RATE_MIN_FAILURE_TH) &&
 	    (window->success_counter < IWL_MVM_RS_RATE_MIN_SUCCESS_TH)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "%s: Test Window: succ %d total %d\n",
 			       rs_pretty_rate(rate),
 			       window->success_counter, window->counter);
@@ -2423,7 +2423,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		 * no need to send new link quality command, since we're
 		 * continuing to use the setup that we've been trying. */
 		if (window->average_tpt > lq_sta->last_tpt) {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "SWITCHING TO NEW TABLE SR: %d "
 				       "cur-tpt %d old-tpt %d\n",
 				       window->success_ratio,
@@ -2435,7 +2435,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			current_tpt = window->average_tpt;
 		/* Else poor success; go back to mode in "active" table */
 		} else {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "GOING BACK TO THE OLD TABLE: SR %d "
 				       "cur-tpt %d old-tpt %d\n",
 				       window->success_ratio,
@@ -2481,7 +2481,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	if (high != IWL_RATE_INVALID)
 		high_tpt = tbl->win[high].average_tpt;
 
-	IWL_DEBUG_RATE(mvm,
+	IWL_DE_RATE(mvm,
 		       "%s: cur_tpt %d SR %d low %d high %d low_tpt %d high_tpt %d\n",
 		       rs_pretty_rate(rate), current_tpt, sr,
 		       low, high, low_tpt, high_tpt);
@@ -2492,7 +2492,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	/* Force a search in case BT doesn't like us being in MIMO */
 	if (is_mimo(rate) &&
 	    !iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta)) {
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "BT Coex forbids MIMO. Search for new config\n");
 		rs_stay_in_table(lq_sta, true);
 		goto lq_update;
@@ -2505,7 +2505,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			update_lq = 1;
 			index = low;
 		} else {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "At the bottom rate. Can't decrease\n");
 		}
 
@@ -2516,7 +2516,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			update_lq = 1;
 			index = high;
 		} else {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "At the top rate. Can't increase\n");
 		}
 
@@ -2556,7 +2556,7 @@ lq_update:
 		/* Save current throughput to compare with "search" throughput*/
 		lq_sta->last_tpt = current_tpt;
 
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Start Search: update_lq %d done_search %d rs_state %d win->counter %d\n",
 			       update_lq, done_search, lq_sta->rs_state,
 			       window->counter);
@@ -2568,7 +2568,7 @@ lq_update:
 			if (!ret)
 				lq_sta->search_better_tbl = 1;
 		} else {
-			IWL_DEBUG_RATE(mvm,
+			IWL_DE_RATE(mvm,
 				       "No more columns to explore in search cycle. Go to RS_STATE_SEARCH_CYCLE_ENDED\n");
 			lq_sta->rs_state = RS_STATE_SEARCH_CYCLE_ENDED;
 		}
@@ -2777,7 +2777,7 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 		}
 	}
 
-	IWL_DEBUG_RATE(mvm, "Best ANT: %s Best RSSI: %d\n",
+	IWL_DE_RATE(mvm, "Best ANT: %s Best RSSI: %d\n",
 		       rs_pretty_ant(best_ant), best_rssi);
 
 	if (best_ant != ANT_A && best_ant != ANT_B)
@@ -2805,7 +2805,7 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 	if (!IWL_MVM_RS_RSSI_BASED_INIT_RATE)
 		goto out;
 
-	/* Start from a higher rate if the corresponding debug capability
+	/* Start from a higher rate if the corresponding de capability
 	 * is enabled. The rate is chosen according to AP capabilities.
 	 * In case of VHT/HT when the rssi is low fallback to the case of
 	 * legacy rates.
@@ -2992,10 +2992,10 @@ static void *rs_drv_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 	struct iwl_mvm *mvm  = IWL_OP_MODE_GET_MVM(op_mode);
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 
-	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
+	IWL_DE_RATE(mvm, "create station rate scale window\n");
 
 	lq_sta->pers.drv = mvm;
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	lq_sta->pers.dbg_fixed_rate = 0;
 	lq_sta->pers.dbg_fixed_txp_reduction = TPC_INVALID;
 	lq_sta->pers.ss_force = RS_SS_FORCE_NONE;
@@ -3120,7 +3120,7 @@ static void rs_vht_init(struct iwl_mvm *mvm,
 	lq_sta->is_vht = true;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm)
 {
 	spin_lock_bh(&mvm->drv_stats_lock);
@@ -3216,7 +3216,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	lq_sta->flush_timer = 0;
 	lq_sta->last_tx = jiffies;
 
-	IWL_DEBUG_RATE(mvm,
+	IWL_DE_RATE(mvm,
 		       "LQ: *** rate scale station global init for station %d ***\n",
 		       mvmsta->sta_id);
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
@@ -3247,14 +3247,14 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	lq_sta->max_mimo2_rate_idx =
 		rs_get_max_rate_from_mask(lq_sta->active_mimo2_rate);
 
-	IWL_DEBUG_RATE(mvm,
+	IWL_DE_RATE(mvm,
 		       "LEGACY=%lX SISO=%lX MIMO2=%lX VHT=%d LDPC=%d STBC=%d BFER=%d\n",
 		       lq_sta->active_legacy_rate,
 		       lq_sta->active_siso_rate,
 		       lq_sta->active_mimo2_rate,
 		       lq_sta->is_vht, lq_sta->ldpc, lq_sta->stbc_capable,
 		       lq_sta->bfer_capable);
-	IWL_DEBUG_RATE(mvm, "MAX RATE: LEGACY=%d SISO=%d MIMO2=%d\n",
+	IWL_DE_RATE(mvm, "MAX RATE: LEGACY=%d SISO=%d MIMO2=%d\n",
 		       lq_sta->max_legacy_rate_idx,
 		       lq_sta->max_siso_rate_idx,
 		       lq_sta->max_mimo2_rate_idx);
@@ -3267,7 +3267,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
 	lq_sta->is_agg = 0;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
 	rs_initialize_lq(mvm, sta, lq_sta, band, update);
@@ -3293,7 +3293,7 @@ static void rs_drv_rate_update(void *mvm_r,
 	iwl_mvm_rs_rate_init(mvm, sta, sband->band, true);
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 static void rs_build_rates_table_from_fixed(struct iwl_mvm *mvm,
 					    struct iwl_lq_cmd *lq_cmd,
 					    enum nl80211_band band,
@@ -3329,7 +3329,7 @@ static void rs_build_rates_table_from_fixed(struct iwl_mvm *mvm,
 		lq_cmd->agg_frame_cnt_limit =
 			LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
 }
-#endif /* CONFIG_MAC80211_DEBUGFS */
+#endif /* CONFIG_MAC80211_DEFS */
 
 static void rs_fill_rates_for_column(struct iwl_mvm *mvm,
 				     struct iwl_lq_sta *lq_sta,
@@ -3535,7 +3535,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
 		goto out;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	/* Check if forcing the decision is configured.
 	 * Note that SISO is forced by not allowing STBC or BFER
 	 */
@@ -3545,7 +3545,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 		ss_params |= (LQ_SS_BFER_ALLOWED | LQ_SS_FORCE);
 
 	if (lq_sta->pers.ss_force != RS_SS_FORCE_NONE) {
-		IWL_DEBUG_RATE(mvm, "Forcing single stream Tx decision %d\n",
+		IWL_DE_RATE(mvm, "Forcing single stream Tx decision %d\n",
 			       lq_sta->pers.ss_force);
 		goto out;
 	}
@@ -3567,13 +3567,13 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 	 * ieee80211_tx_status wouldn't run concurrently for a single HW.
 	 */
 	if (!bfer_mvmsta) {
-		IWL_DEBUG_RATE(mvm, "No sta with BFER allowed found. Allow\n");
+		IWL_DE_RATE(mvm, "No sta with BFER allowed found. Allow\n");
 
 		ss_params |= LQ_SS_BFER_ALLOWED;
 		goto out;
 	}
 
-	IWL_DEBUG_RATE(mvm, "Found existing sta %d with BFER activated\n",
+	IWL_DE_RATE(mvm, "Found existing sta %d with BFER activated\n",
 		       bfer_mvmsta->sta_id);
 
 	/* Disallow BFER on another STA if active and we're a higher priority */
@@ -3587,7 +3587,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 		iwl_mvm_send_lq_cmd(mvm, bfersta_lq_cmd, false);
 
 		ss_params |= LQ_SS_BFER_ALLOWED;
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "Lower priority BFER sta found (%d). Switch BFER\n",
 			       bfer_mvmsta->sta_id);
 	}
@@ -3608,7 +3608,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 	lq_cmd->agg_time_limit =
 		cpu_to_le16(IWL_MVM_RS_AGG_TIME_LIMIT);
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	if (lq_sta->pers.dbg_fixed_rate) {
 		rs_build_rates_table_from_fixed(mvm, lq_cmd,
 						lq_sta->band,
@@ -3648,7 +3648,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 			cpu_to_le16(iwl_mvm_coex_agg_time_limit(mvm, sta));
 }
 
-static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *defsdir)
 {
 	return hw->priv;
 }
@@ -3664,11 +3664,11 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta)
 	struct iwl_op_mode *op_mode __maybe_unused = mvm_r;
 	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
 
-	IWL_DEBUG_RATE(mvm, "enter\n");
-	IWL_DEBUG_RATE(mvm, "leave\n");
+	IWL_DE_RATE(mvm, "enter\n");
+	IWL_DE_RATE(mvm, "leave\n");
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {
 
@@ -3734,7 +3734,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 
 /**
  * Program the device to use fixed rate for frame transmit
- * This is for debugging/testing only
+ * This is for deging/testing only
  * once the device start use fixed rate, we need to reload the module
  * to being back the normal operation.
  */
@@ -3745,7 +3745,7 @@ static void rs_program_fix_rate(struct iwl_mvm *mvm,
 	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 
-	IWL_DEBUG_RATE(mvm, "sta_id %d rate 0x%X\n",
+	IWL_DE_RATE(mvm, "sta_id %d rate 0x%X\n",
 		       lq_sta->lq.sta_id, lq_sta->pers.dbg_fixed_rate);
 
 	if (lq_sta->pers.dbg_fixed_rate) {
@@ -4075,17 +4075,17 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 	return ret ?: count;
 }
 
-#define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
-	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_lq_sta)
-#define MVM_DEBUGFS_ADD_FILE_RS(name, parent, mode) do {		\
-		if (!debugfs_create_file(#name, mode, parent, lq_sta,	\
+#define MVM_DEFS_READ_WRITE_FILE_OPS(name, bufsz) \
+	_MVM_DEFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_lq_sta)
+#define MVM_DEFS_ADD_FILE_RS(name, parent, mode) do {		\
+		if (!defs_create_file(#name, mode, parent, lq_sta,	\
 					 &iwl_dbgfs_##name##_ops))	\
 			goto err;					\
 	} while (0)
 
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(ss_force, 32);
+MVM_DEFS_READ_WRITE_FILE_OPS(ss_force, 32);
 
-static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
+static void rs_drv_add_sta_defs(void *mvm, void *priv_sta,
 				   struct dentry *dir)
 {
 	struct iwl_lq_sta *lq_sta = priv_sta;
@@ -4096,24 +4096,24 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 	if (!mvmsta->vif)
 		return;
 
-	debugfs_create_file("rate_scale_table", 0600, dir,
+	defs_create_file("rate_scale_table", 0600, dir,
 			    lq_sta, &rs_sta_dbgfs_scale_table_ops);
-	debugfs_create_file("rate_stats_table", 0400, dir,
+	defs_create_file("rate_stats_table", 0400, dir,
 			    lq_sta, &rs_sta_dbgfs_stats_table_ops);
-	debugfs_create_file("drv_tx_stats", 0600, dir,
+	defs_create_file("drv_tx_stats", 0600, dir,
 			    lq_sta, &rs_sta_dbgfs_drv_tx_stats_ops);
-	debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
+	defs_create_u8("tx_agg_tid_enable", 0600, dir,
 			  &lq_sta->tx_agg_tid_en);
-	debugfs_create_u8("reduced_tpc", 0600, dir,
+	defs_create_u8("reduced_tpc", 0600, dir,
 			  &lq_sta->pers.dbg_fixed_txp_reduction);
 
-	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, 0600);
+	MVM_DEFS_ADD_FILE_RS(ss_force, dir, 0600);
 	return;
 err:
-	IWL_ERR((struct iwl_mvm *)mvm, "Can't create debugfs entity\n");
+	IWL_ERR((struct iwl_mvm *)mvm, "Can't create defs entity\n");
 }
 
-void rs_remove_sta_debugfs(void *mvm, void *mvm_sta)
+void rs_remove_sta_defs(void *mvm, void *mvm_sta)
 {
 }
 #endif
@@ -4141,9 +4141,9 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 	.alloc_sta = rs_drv_alloc_sta,
 	.free_sta = rs_free_sta,
 	.rate_update = rs_drv_rate_update,
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = rs_drv_add_sta_debugfs,
-	.remove_sta_debugfs = rs_remove_sta_debugfs,
+#ifdef CONFIG_MAC80211_DEFS
+	.add_sta_defs = rs_drv_add_sta_defs,
+	.remove_sta_defs = rs_remove_sta_defs,
 #endif
 	.capa = RATE_CTRL_CAPA_VHT_EXT_NSS_BW,
 };

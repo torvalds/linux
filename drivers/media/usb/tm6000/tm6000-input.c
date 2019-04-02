@@ -25,9 +25,9 @@
 #include "tm6000.h"
 #include "tm6000-regs.h"
 
-static unsigned int ir_debug;
-module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug, "debug message level");
+static unsigned int ir_de;
+module_param(ir_de, int, 0644);
+MODULE_PARM_DESC(ir_de, "de message level");
 
 static unsigned int enable_ir = 1;
 module_param(enable_ir, int, 0644);
@@ -43,8 +43,8 @@ MODULE_PARM_DESC(ir_clock_mhz, "ir clock, in MHz");
 #undef dprintk
 
 #define dprintk(level, fmt, arg...) do {\
-	if (ir_debug >= level) \
-		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
+	if (ir_de >= level) \
+		printk(KERN_DE "%s/ir: " fmt, ir->name , ## arg); \
 	} while (0)
 
 struct tm6000_ir_poll_result {
@@ -205,8 +205,8 @@ static void tm6000_ir_urb_received(struct urb *urb)
 	}
 	buf = urb->transfer_buffer;
 
-	if (ir_debug)
-		print_hex_dump(KERN_DEBUG, "tm6000: IR data: ",
+	if (ir_de)
+		print_hex_dump(KERN_DE, "tm6000: IR data: ",
 			       DUMP_PREFIX_OFFSET,16, 1,
 			       buf, urb->actual_length, false);
 

@@ -1041,7 +1041,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
 	if (status != LINK_TRAINING_SUCCESS)
-		link->ctx->dc->debug_data.ltFailCount++;
+		link->ctx->dc->de_data.ltFailCount++;
 
 	return status;
 }
@@ -1230,7 +1230,7 @@ bool dp_verify_link_cap(
 	enum link_training_result status;
 	union hpd_irq_data irq_data;
 
-	if (link->dc->debug.skip_detection_link_training) {
+	if (link->dc->de.skip_detection_link_training) {
 		link->verified_link_cap = *known_limit_link_setting;
 		return true;
 	}
@@ -1697,7 +1697,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 		}
 	}
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	ASSERT(link->verified_link_cap.lane_count != LANE_COUNT_UNKNOWN);
 
 	*link_setting = link->verified_link_cap;
@@ -1804,7 +1804,7 @@ static void dp_test_send_link_training(struct dc_link *link)
 }
 
 /* TODO Raven hbr2 compliance eye output is unstable
- * (toggling on and off) with debugger break
+ * (toggling on and off) with deger break
  * This caueses intermittent PHY automation failure
  * Need to look into the root cause */
 static void dp_test_send_phy_test_pattern(struct dc_link *link)

@@ -20,7 +20,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/uio.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/scatterlist.h>
 #include <linux/bitmap.h>
 #include <linux/types.h>
@@ -566,7 +566,7 @@ static inline void txd_unlock(struct dma_async_tx_descriptor *txd)
 }
 static inline void txd_chain(struct dma_async_tx_descriptor *txd, struct dma_async_tx_descriptor *next)
 {
-	BUG();
+	();
 }
 static inline void txd_clear_parent(struct dma_async_tx_descriptor *txd)
 {
@@ -1126,7 +1126,7 @@ static inline int dma_maxpq(struct dma_device *dma, enum dma_ctrl_flags flags)
 		return dma_dev_to_maxpq(dma) - 1;
 	else if (dmaf_continue(flags))
 		return dma_dev_to_maxpq(dma) - 3;
-	BUG();
+	();
 }
 
 static inline size_t dmaengine_get_icg(bool inc, bool sgl, size_t icg,

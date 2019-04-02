@@ -96,7 +96,7 @@
  * <1 2 n>	external irq2, n is sense	 n=2: edge falling,
  * <1 3 n>	external irq3, n is sense	 n=3: level low)
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -179,7 +179,7 @@ static int mpc52xx_extirq_set_type(struct irq_data *d, unsigned int flow_type)
 	int l2irq = irqd_to_hwirq(d) & MPC52xx_IRQ_L2_MASK;
 	void *handler = handle_level_irq;
 
-	pr_debug("%s: irq=%x. l2=%d flow_type=%d\n", __func__,
+	pr_de("%s: irq=%x. l2=%d flow_type=%d\n", __func__,
 		(int) irqd_to_hwirq(d), l2irq, flow_type);
 
 	switch (flow_type) {
@@ -327,7 +327,7 @@ static int mpc52xx_irqhost_xlate(struct irq_domain *h, struct device_node *ct,
 	if (mpc52xx_is_extirq(intrvect_l1, intrvect_l2))
 		*out_flags = mpc52xx_map_senses[intrvect_type];
 
-	pr_debug("return %x, l1=%d, l2=%d\n", intrvect_linux, intrvect_l1,
+	pr_de("return %x, l1=%d, l2=%d\n", intrvect_linux, intrvect_l1,
 		 intrvect_l2);
 	return 0;
 }
@@ -362,7 +362,7 @@ static int mpc52xx_irqhost_map(struct irq_domain *h, unsigned int virq,
 			hndlr = handle_level_irq;
 
 		irq_set_chip_and_handler(virq, &mpc52xx_extirq_irqchip, hndlr);
-		pr_debug("%s: External IRQ%i virq=%x, hw=%x. type=%x\n",
+		pr_de("%s: External IRQ%i virq=%x, hw=%x. type=%x\n",
 			 __func__, l2irq, virq, (int)irq, type);
 		return 0;
 	}
@@ -380,7 +380,7 @@ static int mpc52xx_irqhost_map(struct irq_domain *h, unsigned int virq,
 	}
 
 	irq_set_chip_and_handler(virq, irqchip, handle_level_irq);
-	pr_debug("%s: virq=%x, l1=%i, l2=%i\n", __func__, virq, l1irq, l2irq);
+	pr_de("%s: virq=%x, l1=%i, l2=%i\n", __func__, virq, l1irq, l2irq);
 
 	return 0;
 }
@@ -419,7 +419,7 @@ void __init mpc52xx_init_irq(void)
 		panic(__FILE__	": find_and_map failed on 'mpc5200-bestcomm'. "
 				"Check node !");
 
-	pr_debug("MPC5200 IRQ controller mapped to 0x%p\n", intr);
+	pr_de("MPC5200 IRQ controller mapped to 0x%p\n", intr);
 
 	/* Disable all interrupt sources. */
 	out_be32(&sdma->IntPend, 0xffffffff);	/* 1 means clear pending */

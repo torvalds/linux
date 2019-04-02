@@ -65,7 +65,7 @@ static unsigned char phantom_devices[PHANTOM_MAX_MINORS];
 
 static int phantom_status(struct phantom_device *dev, unsigned long newstat)
 {
-	pr_debug("phantom_status %lx %lx\n", dev->status, newstat);
+	pr_de("phantom_status %lx %lx\n", dev->status, newstat);
 
 	if (!(dev->status & PHB_RUNNING) && (newstat & PHB_RUNNING)) {
 		atomic_set(&dev->counter, 0);
@@ -112,7 +112,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 			return -ENODEV;
 		}
 
-		pr_debug("phantom: writing %x to %u\n", r.value, r.reg);
+		pr_de("phantom: writing %x to %u\n", r.value, r.reg);
 
 		/* preserve amp bit (don't allow to change it when in NOT_OH) */
 		if (r.reg == PHN_CONTROL && (dev->status & PHB_NOT_OH)) {
@@ -133,7 +133,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		if (copy_from_user(&rs, argp, sizeof(rs)))
 			return -EFAULT;
 
-		pr_debug("phantom: SRS %u regs %x\n", rs.count, rs.mask);
+		pr_de("phantom: SRS %u regs %x\n", rs.count, rs.mask);
 		spin_lock_irqsave(&dev->regs_lock, flags);
 		if (dev->status & PHB_NOT_OH)
 			memcpy(&dev->oregs, &rs, sizeof(rs));
@@ -168,7 +168,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 
 		m = min(rs.count, 8U);
 
-		pr_debug("phantom: GRS %u regs %x\n", rs.count, rs.mask);
+		pr_de("phantom: GRS %u regs %x\n", rs.count, rs.mask);
 		spin_lock_irqsave(&dev->regs_lock, flags);
 		for (i = 0; i < m; i++)
 			if (rs.mask & BIT(i))
@@ -261,7 +261,7 @@ static __poll_t phantom_poll(struct file *file, poll_table *wait)
 	struct phantom_device *dev = file->private_data;
 	__poll_t mask = 0;
 
-	pr_debug("phantom_poll: %d\n", atomic_read(&dev->counter));
+	pr_de("phantom_poll: %d\n", atomic_read(&dev->counter));
 	poll_wait(file, &dev->wait, wait);
 
 	if (!(dev->status & PHB_RUNNING))
@@ -269,7 +269,7 @@ static __poll_t phantom_poll(struct file *file, poll_table *wait)
 	else if (atomic_read(&dev->counter))
 		mask = EPOLLIN | EPOLLRDNORM;
 
-	pr_debug("phantom_poll end: %x/%d\n", mask, atomic_read(&dev->counter));
+	pr_de("phantom_poll end: %x/%d\n", mask, atomic_read(&dev->counter));
 
 	return mask;
 }
@@ -559,7 +559,7 @@ static void __exit phantom_exit(void)
 	class_remove_file(phantom_class, &class_attr_version.attr);
 	class_destroy(phantom_class);
 
-	pr_debug("phantom: module successfully removed\n");
+	pr_de("phantom: module successfully removed\n");
 }
 
 module_init(phantom_init);

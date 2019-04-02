@@ -190,7 +190,7 @@ static const struct pci_device_id ismt_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, ismt_ids);
 
-/* Bus speed control bits for slow debuggers - refer to the docs for usage */
+/* Bus speed control bits for slow degers - refer to the docs for usage */
 static unsigned int bus_speed;
 module_param(bus_speed, uint, S_IRUGO);
 MODULE_PARM_DESC(bus_speed, "Bus Speed in kHz (0 = BIOS default)");
@@ -214,7 +214,7 @@ static void __ismt_desc_dump(struct device *dev, const struct ismt_desc *desc)
 	dev_dbg(dev, "\tdptr_high= 0x%08X\n", desc->dptr_high);
 }
 /**
- * ismt_desc_dump() - dump the contents of a descriptor for debug purposes
+ * ismt_desc_dump() - dump the contents of a descriptor for de purposes
  * @priv: iSMT private data
  */
 static void ismt_desc_dump(struct ismt_priv *priv)
@@ -709,7 +709,7 @@ static void ismt_hw_init(struct ismt_priv *priv)
 		priv->smba + ISMT_MSTR_MDS);
 
 	/*
-	 * Set the SMBus speed (could use this for slow HW debuggers)
+	 * Set the SMBus speed (could use this for slow HW degers)
 	 */
 
 	val = readl(priv->smba + ISMT_SPGT);

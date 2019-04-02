@@ -738,14 +738,14 @@ struct scsi_transport_template *ata_attach_transport(void)
 	SETUP_PORT_ATTRIBUTE(nr_pmp_links);
 	SETUP_PORT_ATTRIBUTE(idle_irq);
 	SETUP_PORT_ATTRIBUTE(port_no);
-	BUG_ON(count > ATA_PORT_ATTRS);
+	_ON(count > ATA_PORT_ATTRS);
 	i->port_attrs[count] = NULL;
 
 	count = 0;
 	SETUP_LINK_ATTRIBUTE(hw_sata_spd_limit);
 	SETUP_LINK_ATTRIBUTE(sata_spd_limit);
 	SETUP_LINK_ATTRIBUTE(sata_spd);
-	BUG_ON(count > ATA_LINK_ATTRS);
+	_ON(count > ATA_LINK_ATTRS);
 	i->link_attrs[count] = NULL;
 
 	count = 0;
@@ -758,7 +758,7 @@ struct scsi_transport_template *ata_attach_transport(void)
 	SETUP_DEV_ATTRIBUTE(id);
 	SETUP_DEV_ATTRIBUTE(gscr);
 	SETUP_DEV_ATTRIBUTE(trim);
-	BUG_ON(count > ATA_DEV_ATTRS);
+	_ON(count > ATA_DEV_ATTRS);
 	i->dev_attrs[count] = NULL;
 
 	return &i->t;

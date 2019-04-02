@@ -12,8 +12,8 @@
  * by the corresponding zylonite_pxa3xx_init()
  */
 extern int gpio_eth_irq;
-extern int gpio_debug_led1;
-extern int gpio_debug_led2;
+extern int gpio_de_led1;
+extern int gpio_de_led2;
 
 extern int wm9713_irq;
 

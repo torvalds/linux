@@ -31,7 +31,7 @@ static u32 inactive_delay = 100;
 
 static void gpio_poweroff_do_poweroff(void)
 {
-	BUG_ON(!reset_gpio);
+	_ON(!reset_gpio);
 
 	/* drive it active, also inactive->active edge */
 	gpiod_direction_output(reset_gpio, 1);

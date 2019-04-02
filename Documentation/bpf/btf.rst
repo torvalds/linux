@@ -5,12 +5,12 @@ BPF Type Format (BTF)
 1. Introduction
 ***************
 
-BTF (BPF Type Format) is the metadata format which encodes the debug info
+BTF (BPF Type Format) is the metadata format which encodes the de info
 related to BPF program/map. The name BTF was used initially to describe data
 types. The BTF was later extended to include function info for defined
 subroutines, and line info for source/line information.
 
-The debug info is used for map pretty print, function signature, etc. The
+The de info is used for map pretty print, function signature, etc. The
 function signature enables better bpf program/function kernel symbol. The line
 info helps generate source annotated translated byte code, jited code and
 verifier log.
@@ -24,7 +24,7 @@ verifies the BTF info before using it. The ELF file format is a user space
 contract between ELF file and libbpf loader.
 
 The type and string sections are part of the BTF kernel API, describing the
-debug info (mostly types related) referenced by the bpf program. These two
+de info (mostly types related) referenced by the bpf program. These two
 sections are discussed in details in :ref:`BTF_Type_String`.
 
 .. _BTF_Type_String:
@@ -83,7 +83,7 @@ sequentially and type id is assigned to each recognized type starting from id
     #define BTF_KIND_FUNC           12      /* Function     */
     #define BTF_KIND_FUNC_PROTO     13      /* Function Proto       */
 
-Note that the type section encodes debug info, not just pure types.
+Note that the type section encodes de info, not just pure types.
 ``BTF_KIND_FUNC`` is not a type, and it represents a defined subprogram.
 
 Each type contains the following common data::
@@ -712,7 +712,7 @@ information.::
 5.3 Verifier Log
 ================
 
-The following is an example of how line_info can help debugging verification
+The following is an example of how line_info can help deging verification
 failure.::
 
        /* The code at tools/testing/selftests/bpf/test_xdp_noinline.c

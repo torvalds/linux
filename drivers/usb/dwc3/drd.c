@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
-#include "debug.h"
+#include "de.h"
 #include "core.h"
 #include "gadget.h"
 
@@ -338,7 +338,7 @@ void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
 	if (dwc->dr_mode != USB_DR_MODE_OTG)
 		return;
 
-	/* don't do anything if debug user changed role to not OTG */
+	/* don't do anything if de user changed role to not OTG */
 	if (dwc->current_dr_role != DWC3_GCTL_PRTCAP_OTG)
 		return;
 
@@ -540,7 +540,7 @@ void dwc3_drd_exit(struct dwc3 *dwc)
 
 	cancel_work_sync(&dwc->drd_work);
 
-	/* debug user might have changed role, clean based on current role */
+	/* de user might have changed role, clean based on current role */
 	switch (dwc->current_dr_role) {
 	case DWC3_GCTL_PRTCAP_HOST:
 		dwc3_host_exit(dwc);

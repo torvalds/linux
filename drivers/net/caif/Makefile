@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-$(CONFIG_CAIF_DEBUG) := -DDEBUG
+ccflags-$(CONFIG_CAIF_DE) := -DDE
 
 # Serial interface
 obj-$(CONFIG_CAIF_TTY) += caif_serial.o

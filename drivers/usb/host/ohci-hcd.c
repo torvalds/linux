@@ -39,7 +39,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -480,7 +480,7 @@ static int ohci_init (struct ohci_hcd *ohci)
 			msleep (10);
 			if (--temp == 0) {
 				ohci_err (ohci, "USB HC takeover failed!"
-					"  (BIOS/SMM bug)\n");
+					"  (BIOS/SMM )\n");
 				return -EBUSY;
 			}
 		}
@@ -513,7 +513,7 @@ static int ohci_init (struct ohci_hcd *ohci)
 	if ((ret = ohci_mem_init (ohci)) < 0)
 		ohci_stop (hcd);
 	else {
-		create_debug_files (ohci);
+		create_de_files (ohci);
 	}
 
 	return ret;
@@ -601,7 +601,7 @@ retry:
 	 * (SiS, OPTi ...), so reset again instead.  SiS doesn't need
 	 * this if we write fmInterval after we're OPERATIONAL.
 	 * Unclear about ALi, ServerWorks, and others ... this could
-	 * easily be a longstanding bug in chip init on Linux.
+	 * easily be a longstanding  in chip init on Linux.
 	 */
 	if (ohci->flags & OHCI_QUIRK_INITRESET) {
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
@@ -886,7 +886,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	if (ints & OHCI_INTR_UE) {
 		// e.g. due to PCI Master/Target Abort
 		if (quirk_nec(ohci)) {
-			/* Workaround for a silicon bug in some NEC chips used
+			/* Workaround for a silicon  in some NEC chips used
 			 * in Apple's PowerBooks. Adapted from Darwin code.
 			 */
 			ohci_err (ohci, "OHCI Unrecoverable Error, scheduling NEC chip restart\n");
@@ -987,7 +987,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	if (quirk_amdiso(ohci))
 		usb_amd_dev_put();
 
-	remove_debug_files (ohci);
+	remove_de_files (ohci);
 	ohci_mem_cleanup (ohci);
 	if (ohci->hcca) {
 		dma_free_coherent (hcd->self.controller,
@@ -1253,11 +1253,11 @@ static int __init ohci_hcd_mod_init(void)
 		return -ENODEV;
 
 	printk(KERN_INFO "%s: " DRIVER_DESC "\n", hcd_name);
-	pr_debug ("%s: block sizes: ed %zd td %zd\n", hcd_name,
+	pr_de ("%s: block sizes: ed %zd td %zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
 	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 
-	ohci_debug_root = debugfs_create_dir("ohci", usb_debug_root);
+	ohci_de_root = defs_create_dir("ohci", usb_de_root);
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
@@ -1312,8 +1312,8 @@ static int __init ohci_hcd_mod_init(void)
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
-	debugfs_remove(ohci_debug_root);
-	ohci_debug_root = NULL;
+	defs_remove(ohci_de_root);
+	ohci_de_root = NULL;
 
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;
@@ -1337,7 +1337,7 @@ static void __exit ohci_hcd_mod_exit(void)
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
-	debugfs_remove(ohci_debug_root);
+	defs_remove(ohci_de_root);
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(ohci_hcd_mod_exit);

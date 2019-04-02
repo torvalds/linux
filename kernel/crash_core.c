@@ -236,7 +236,7 @@ static int __init __parse_crashkernel(char *cmdline,
 	char	*first_colon, *first_space;
 	char	*ck_cmdline;
 
-	BUG_ON(!crash_size || !crash_base);
+	_ON(!crash_size || !crash_base);
 	*crash_size = 0;
 	*crash_base = 0;
 

@@ -4,7 +4,7 @@
 
 #include <linux/tracepoint.h>
 #include <asm/sie.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/dis.h>
 
 #undef TRACE_SYSTEM

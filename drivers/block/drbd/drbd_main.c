@@ -59,7 +59,7 @@
 #include "drbd_protocol.h"
 #include "drbd_req.h" /* only for _req_mod in tl_release and tl_clear */
 #include "drbd_vli.h"
-#include "drbd_debugfs.h"
+#include "drbd_defs.h"
 
 static DEFINE_MUTEX(drbd_main_mutex);
 static int drbd_open(struct block_device *bdev, fmode_t mode);
@@ -570,12 +570,12 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
 unsigned int drbd_header_size(struct drbd_connection *connection)
 {
 	if (connection->agreed_pro_version >= 100) {
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header100), 8));
+		BUILD__ON(!IS_ALIGNED(sizeof(struct p_header100), 8));
 		return sizeof(struct p_header100);
 	} else {
-		BUILD_BUG_ON(sizeof(struct p_header80) !=
+		BUILD__ON(sizeof(struct p_header80) !=
 			     sizeof(struct p_header95));
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(struct p_header80), 8));
+		BUILD__ON(!IS_ALIGNED(sizeof(struct p_header80), 8));
 		return sizeof(struct p_header80);
 	}
 }
@@ -1101,7 +1101,7 @@ void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_state_rv r
 
 static void dcbp_set_code(struct p_compressed_bm *p, enum drbd_bitmap_code code)
 {
-	BUG_ON(code & ~0xf);
+	_ON(code & ~0xf);
 	p->encoding = (p->encoding & ~0xf) | code;
 }
 
@@ -1112,7 +1112,7 @@ static void dcbp_set_start(struct p_compressed_bm *p, int set)
 
 static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
 {
-	BUG_ON(n & ~0x7);
+	_ON(n & ~0x7);
 	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
 }
 
@@ -1560,7 +1560,7 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
 	/* e.g. XFS meta- & log-data is in slab pages, which have a
 	 * page_count of 0 and/or have PageSlab() set.
 	 * we cannot use send_page for those, as that does get_page();
-	 * put_page(); and would cause either a VM_BUG directly, or
+	 * put_page(); and would cause either a VM_ directly, or
 	 * __page_cache_release a page that would actually still be referenced
 	 * by someone, leading to some obscure delayed Oops somewhere else. */
 	if (drbd_disable_sendpage || (page_count(page) < 1) || PageSlab(page))
@@ -2377,10 +2377,10 @@ void drbd_free_resource(struct drbd_resource *resource)
 
 	for_each_connection_safe(connection, tmp, resource) {
 		list_del(&connection->connections);
-		drbd_debugfs_connection_cleanup(connection);
+		drbd_defs_connection_cleanup(connection);
 		kref_put(&connection->kref, drbd_destroy_connection);
 	}
-	drbd_debugfs_resource_cleanup(resource);
+	drbd_defs_resource_cleanup(resource);
 	kref_put(&resource->kref, drbd_destroy_resource);
 }
 
@@ -2415,7 +2415,7 @@ static void drbd_cleanup(void)
 		drbd_free_resource(resource);
 	}
 
-	drbd_debugfs_cleanup();
+	drbd_defs_cleanup();
 
 	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");
@@ -2666,7 +2666,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	mutex_init(&resource->conf_update);
 	mutex_init(&resource->adm_mutex);
 	spin_lock_init(&resource->req_lock);
-	drbd_debugfs_resource_add(resource);
+	drbd_defs_resource_add(resource);
 	return resource;
 
 fail_free_name:
@@ -2735,7 +2735,7 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 
 	kref_get(&resource->kref);
 	list_add_tail_rcu(&connection->connections, &resource->connections);
-	drbd_debugfs_connection_add(connection);
+	drbd_defs_connection_add(connection);
 	return connection;
 
 fail_resource:
@@ -2907,8 +2907,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	}
 	/* move to create_peer_device() */
 	for_each_peer_device(peer_device, device)
-		drbd_debugfs_peer_device_add(peer_device);
-	drbd_debugfs_device_add(device);
+		drbd_defs_peer_device_add(peer_device);
+	drbd_defs_device_add(device);
 	return NO_ERROR;
 
 out_idr_remove_vol:
@@ -2949,8 +2949,8 @@ void drbd_delete_device(struct drbd_device *device)
 
 	/* move to free_peer_device() */
 	for_each_peer_device(peer_device, device)
-		drbd_debugfs_peer_device_cleanup(peer_device);
-	drbd_debugfs_device_cleanup(device);
+		drbd_defs_peer_device_cleanup(peer_device);
+	drbd_defs_device_cleanup(device);
 	for_each_connection(connection, resource) {
 		idr_remove(&connection->peer_devices, device->vnr);
 		kref_put(&device->kref, drbd_destroy_device);
@@ -3021,8 +3021,8 @@ static int __init drbd_init(void)
 	spin_lock_init(&retry.lock);
 	INIT_LIST_HEAD(&retry.writes);
 
-	if (drbd_debugfs_init())
-		pr_notice("failed to initialize debugfs -- will not be available\n");
+	if (drbd_defs_init())
+		pr_notice("failed to initialize defs -- will not be available\n");
 
 	pr_info("initialized. "
 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",
@@ -3048,7 +3048,7 @@ static void drbd_free_one_sock(struct drbd_socket *ds)
 	ds->socket = NULL;
 	mutex_unlock(&ds->mutex);
 	if (s) {
-		/* so debugfs does not need to mutex_lock() */
+		/* so defs does not need to mutex_lock() */
 		synchronize_rcu();
 		kernel_sock_shutdown(s, SHUT_RDWR);
 		sock_release(s);
@@ -3153,8 +3153,8 @@ void drbd_md_sync(struct drbd_device *device)
 	struct meta_data_on_disk *buffer;
 
 	/* Don't accidentally change the DRBD meta data layout. */
-	BUILD_BUG_ON(UI_SIZE != 4);
-	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
+	BUILD__ON(UI_SIZE != 4);
+	BUILD__ON(sizeof(struct meta_data_on_disk) != 4096);
 
 	del_timer(&device->md_sync_timer);
 	/* timer may be rearmed by drbd_md_mark_dirty() now. */
@@ -3426,7 +3426,7 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
  * the meta-data super block. This function sets MD_DIRTY, and starts a
  * timer that ensures that within five seconds you have to call drbd_md_sync().
  */
-#ifdef DEBUG
+#ifdef DE
 void drbd_md_mark_dirty_(struct drbd_device *device, unsigned int line, const char *func)
 {
 	if (!test_and_set_bit(MD_DIRTY, &device->flags)) {

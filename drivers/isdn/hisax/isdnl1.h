@@ -22,7 +22,7 @@
 #define B_ACKPENDING	2
 
 __printf(2, 3)
-void debugl1(struct IsdnCardState *cs, char *fmt, ...);
+void del1(struct IsdnCardState *cs, char *fmt, ...);
 void DChannel_proc_xmt(struct IsdnCardState *cs);
 void DChannel_proc_rcv(struct IsdnCardState *cs);
 void l1_msg(struct IsdnCardState *cs, int pr, void *arg);

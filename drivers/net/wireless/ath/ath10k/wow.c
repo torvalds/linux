@@ -9,7 +9,7 @@
 #include <net/mac80211.h>
 #include "hif.h"
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "wmi.h"
 #include "wmi-ops.h"
 

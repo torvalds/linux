@@ -17,9 +17,9 @@
 
 #define EDAC_VERSION "Ver: 3.0.0"
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 
-static int edac_set_debug_level(const char *buf,
+static int edac_set_de_level(const char *buf,
 				const struct kernel_param *kp)
 {
 	unsigned long val;
@@ -36,12 +36,12 @@ static int edac_set_debug_level(const char *buf,
 }
 
 /* Values of 0 to 4 will generate output */
-int edac_debug_level = 2;
-EXPORT_SYMBOL_GPL(edac_debug_level);
+int edac_de_level = 2;
+EXPORT_SYMBOL_GPL(edac_de_level);
 
-module_param_call(edac_debug_level, edac_set_debug_level, param_get_int,
-		  &edac_debug_level, 0644);
-MODULE_PARM_DESC(edac_debug_level, "EDAC debug level: [0-4], default: 2");
+module_param_call(edac_de_level, edac_set_de_level, param_get_int,
+		  &edac_de_level, 0644);
+MODULE_PARM_DESC(edac_de_level, "EDAC de level: [0-4], default: 2");
 #endif
 
 /*
@@ -122,7 +122,7 @@ static int __init edac_init(void)
 	if (err)
 		goto err_sysfs;
 
-	edac_debugfs_init();
+	edac_defs_init();
 
 	err = edac_workqueue_setup();
 	if (err) {
@@ -133,7 +133,7 @@ static int __init edac_init(void)
 	return 0;
 
 err_wq:
-	edac_debugfs_exit();
+	edac_defs_exit();
 	edac_mc_sysfs_exit();
 
 err_sysfs:
@@ -153,7 +153,7 @@ static void __exit edac_exit(void)
 	/* tear down the various subsystems */
 	edac_workqueue_teardown();
 	edac_mc_sysfs_exit();
-	edac_debugfs_exit();
+	edac_defs_exit();
 	edac_subsys_exit();
 }
 

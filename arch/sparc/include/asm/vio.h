@@ -418,9 +418,9 @@ struct vio_driver_state {
 #define VIO_DR_STATE_TXREQ	0x10
 #define VIO_DR_STATE_RXREQ	0x20
 
-	u8			debug;
-#define VIO_DEBUG_HS		0x01
-#define VIO_DEBUG_DATA		0x02
+	u8			de;
+#define VIO_DE_HS		0x01
+#define VIO_DE_DATA		0x02
 
 	void			*desc_buf;
 	unsigned int		desc_buf_len;
@@ -469,7 +469,7 @@ static inline bool vio_version_after_eq(struct vio_driver_state *vio,
 }
 
 #define viodbg(TYPE, f, a...) \
-do {	if (vio->debug & VIO_DEBUG_##TYPE) \
+do {	if (vio->de & VIO_DE_##TYPE) \
 		printk(KERN_INFO "vio: ID[%lu] " f, \
 		       vio->vdev->channel_id, ## a); \
 } while (0)

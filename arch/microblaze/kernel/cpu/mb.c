@@ -15,7 +15,7 @@
 #include <linux/cpu.h>
 #include <linux/initrd.h>
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/cpuinfo.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -119,8 +119,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m,
-		   "HW-Debug:\t%s\n",
-		   cpuinfo.hw_debug ? "yes" : "no");
+		   "HW-De:\t%s\n",
+		   cpuinfo.hw_de ? "yes" : "no");
 
 	seq_printf(m,
 		   "PVR-USR1:\t%02x\n"

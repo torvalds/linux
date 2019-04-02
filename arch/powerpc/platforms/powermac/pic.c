@@ -331,7 +331,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 		/* Check ordering of master & slave */
 		if (of_device_is_compatible(master, "gatwick")) {
 			struct device_node *tmp;
-			BUG_ON(slave == NULL);
+			_ON(slave == NULL);
 			tmp = master;
 			master = slave;
 			slave = tmp;
@@ -341,18 +341,18 @@ static void __init pmac_pic_probe_oldstyle(void)
 		if (slave)
 			max_irqs = 128;
 	}
-	BUG_ON(master == NULL);
+	_ON(master == NULL);
 
 	/*
 	 * Allocate an irq host
 	 */
 	pmac_pic_host = irq_domain_add_linear(master, max_irqs,
 					      &pmac_pic_host_ops, NULL);
-	BUG_ON(pmac_pic_host == NULL);
+	_ON(pmac_pic_host == NULL);
 	irq_set_default_host(pmac_pic_host);
 
 	/* Get addresses of first controller if we have a node for it */
-	BUG_ON(of_address_to_resource(master, 0, &r));
+	_ON(of_address_to_resource(master, 0, &r));
 
 	/* Map interrupts of primary controller */
 	addr = (u8 __iomem *) ioremap(r.start, 0x40);
@@ -513,7 +513,7 @@ static int __init pmac_pic_probe_mpic(void)
 
 	/* Setup master */
 	mpic1 = pmac_setup_one_mpic(master, 1);
-	BUG_ON(mpic1 == NULL);
+	_ON(mpic1 == NULL);
 
 	/* Install NMI if any */
 	pmac_pic_setup_mpic_nmi(mpic1);

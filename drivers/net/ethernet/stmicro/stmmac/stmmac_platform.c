@@ -484,7 +484,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	if (of_device_is_compatible(np, "snps,dwmac-3.610") ||
 		of_device_is_compatible(np, "snps,dwmac-3.710")) {
 		plat->enh_desc = 1;
-		plat->bugged_jumbo = 1;
+		plat->ged_jumbo = 1;
 		plat->force_sf_dma_mode = 1;
 	}
 

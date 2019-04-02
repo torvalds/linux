@@ -87,8 +87,8 @@ static void doc200x_hwcontrol(struct nand_chip *this, int cmd,
 			      unsigned int bitmask);
 static void doc200x_select_chip(struct nand_chip *this, int chip);
 
-static int debug = 0;
-module_param(debug, int, 0);
+static int de = 0;
+module_param(de, int, 0);
 
 static int try_dword = 1;
 module_param(try_dword, int, 0);
@@ -239,7 +239,7 @@ static int _DoC_WaitReady(struct doc_priv *doc)
 	void __iomem *docptr = doc->virtadr;
 	unsigned long timeo = jiffies + (HZ * 10);
 
-	if (debug)
+	if (de)
 		printk("_DoC_WaitReady...\n");
 	/* Out-of-line routine to wait for chip response */
 	if (DoC_is_MillenniumPlus(doc)) {
@@ -285,7 +285,7 @@ static inline int DoC_WaitReady(struct doc_priv *doc)
 		DoC_Delay(doc, 2);
 	}
 
-	if (debug)
+	if (de)
 		printk("DoC_WaitReady OK\n");
 	return ret;
 }
@@ -295,7 +295,7 @@ static void doc2000_write_byte(struct nand_chip *this, u_char datum)
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 
-	if (debug)
+	if (de)
 		printk("write_byte %02x\n", datum);
 	WriteDOC(datum, docptr, CDSNSlowIO);
 	WriteDOC(datum, docptr, 2k_CDSN_IO);
@@ -310,7 +310,7 @@ static u_char doc2000_read_byte(struct nand_chip *this)
 	ReadDOC(docptr, CDSNSlowIO);
 	DoC_Delay(doc, 2);
 	ret = ReadDOC(docptr, 2k_CDSN_IO);
-	if (debug)
+	if (de)
 		printk("read_byte returns %02x\n", ret);
 	return ret;
 }
@@ -321,14 +321,14 @@ static void doc2000_writebuf(struct nand_chip *this, const u_char *buf,
 	struct doc_priv *doc = nand_get_controller_data(this);
 	void __iomem *docptr = doc->virtadr;
 	int i;
-	if (debug)
+	if (de)
 		printk("writebuf of %d bytes: ", len);
 	for (i = 0; i < len; i++) {
 		WriteDOC_(buf[i], docptr, DoC_2k_CDSN_IO + i);
-		if (debug && i < 16)
+		if (de && i < 16)
 			printk("%02x ", buf[i]);
 	}
-	if (debug)
+	if (de)
 		printk("\n");
 }
 
@@ -338,7 +338,7 @@ static void doc2000_readbuf(struct nand_chip *this, u_char *buf, int len)
 	void __iomem *docptr = doc->virtadr;
 	int i;
 
-	if (debug)
+	if (de)
 		printk("readbuf of %d bytes: ", len);
 
 	for (i = 0; i < len; i++)
@@ -351,7 +351,7 @@ static void doc2000_readbuf_dword(struct nand_chip *this, u_char *buf, int len)
 	void __iomem *docptr = doc->virtadr;
 	int i;
 
-	if (debug)
+	if (de)
 		printk("readbuf_dword of %d bytes: ", len);
 
 	if (unlikely((((unsigned long)buf) | len) & 3)) {
@@ -430,7 +430,7 @@ static void __init doc2000_count_chips(struct mtd_info *mtd)
 			break;
 	}
 	doc->chips_per_floor = i;
-	pr_debug("Detected %d chips per floor.\n", i);
+	pr_de("Detected %d chips per floor.\n", i);
 }
 
 static int doc200x_wait(struct nand_chip *this)
@@ -507,7 +507,7 @@ static u_char doc2001plus_read_byte(struct nand_chip *this)
 	ReadDOC(docptr, Mplus_ReadPipeInit);
 	ReadDOC(docptr, Mplus_ReadPipeInit);
 	ret = ReadDOC(docptr, Mplus_LastDataRead);
-	if (debug)
+	if (de)
 		printk("read_byte returns %02x\n", ret);
 	return ret;
 }
@@ -518,14 +518,14 @@ static void doc2001plus_writebuf(struct nand_chip *this, const u_char *buf, int 
 	void __iomem *docptr = doc->virtadr;
 	int i;
 
-	if (debug)
+	if (de)
 		printk("writebuf of %d bytes: ", len);
 	for (i = 0; i < len; i++) {
 		WriteDOC_(buf[i], docptr, DoC_Mil_CDSN_IO + i);
-		if (debug && i < 16)
+		if (de && i < 16)
 			printk("%02x ", buf[i]);
 	}
-	if (debug)
+	if (de)
 		printk("\n");
 }
 
@@ -535,7 +535,7 @@ static void doc2001plus_readbuf(struct nand_chip *this, u_char *buf, int len)
 	void __iomem *docptr = doc->virtadr;
 	int i;
 
-	if (debug)
+	if (de)
 		printk("readbuf of %d bytes: ", len);
 
 	/* Start read pipeline */
@@ -544,18 +544,18 @@ static void doc2001plus_readbuf(struct nand_chip *this, u_char *buf, int len)
 
 	for (i = 0; i < len - 2; i++) {
 		buf[i] = ReadDOC(docptr, Mil_CDSN_IO);
-		if (debug && i < 16)
+		if (de && i < 16)
 			printk("%02x ", buf[i]);
 	}
 
 	/* Terminate read pipeline */
 	buf[len - 2] = ReadDOC(docptr, Mplus_LastDataRead);
-	if (debug && i < 16)
+	if (de && i < 16)
 		printk("%02x ", buf[len - 2]);
 	buf[len - 1] = ReadDOC(docptr, Mplus_LastDataRead);
-	if (debug && i < 16)
+	if (de && i < 16)
 		printk("%02x ", buf[len - 1]);
-	if (debug)
+	if (de)
 		printk("\n");
 }
 
@@ -565,7 +565,7 @@ static void doc2001plus_select_chip(struct nand_chip *this, int chip)
 	void __iomem *docptr = doc->virtadr;
 	int floor = 0;
 
-	if (debug)
+	if (de)
 		printk("select chip (%d)\n", chip);
 
 	if (chip == -1) {
@@ -591,7 +591,7 @@ static void doc200x_select_chip(struct nand_chip *this, int chip)
 	void __iomem *docptr = doc->virtadr;
 	int floor = 0;
 
-	if (debug)
+	if (de)
 		printk("select chip (%d)\n", chip);
 
 	if (chip == -1)
@@ -623,7 +623,7 @@ static void doc200x_hwcontrol(struct nand_chip *this, int cmd,
 	if (ctrl & NAND_CTRL_CHANGE) {
 		doc->CDSNControl &= ~CDSN_CTRL_MSK;
 		doc->CDSNControl |= ctrl & CDSN_CTRL_MSK;
-		if (debug)
+		if (de)
 			printk("hwcontrol(%d): %02x\n", cmd, doc->CDSNControl);
 		WriteDOC(doc->CDSNControl, docptr, CDSNControl);
 		/* 11.4.3 -- 4 NOPs after CSDNControl write */
@@ -752,24 +752,24 @@ static int doc200x_dev_ready(struct nand_chip *this)
 		/* 11.4.2 -- must NOP four times before checking FR/B# */
 		DoC_Delay(doc, 4);
 		if ((ReadDOC(docptr, Mplus_FlashControl) & CDSN_CTRL_FR_B_MASK) != CDSN_CTRL_FR_B_MASK) {
-			if (debug)
+			if (de)
 				printk("not ready\n");
 			return 0;
 		}
-		if (debug)
+		if (de)
 			printk("was ready\n");
 		return 1;
 	} else {
 		/* 11.4.2 -- must NOP four times before checking FR/B# */
 		DoC_Delay(doc, 4);
 		if (!(ReadDOC(docptr, CDSNControl) & CDSN_CTRL_FR_B)) {
-			if (debug)
+			if (de)
 				printk("not ready\n");
 			return 0;
 		}
 		/* 11.4.2 -- Must NOP twice if it's ready */
 		DoC_Delay(doc, 2);
-		if (debug)
+		if (de)
 			printk("was ready\n");
 		return 1;
 	}
@@ -1526,7 +1526,7 @@ static int __init doc_probe(unsigned long physadr)
 		}
 		newval = ~newval;
 		if (oldval == newval) {
-			pr_debug("Found alias of DOC at 0x%lx to 0x%lx\n",
+			pr_de("Found alias of DOC at 0x%lx to 0x%lx\n",
 				 doc->physadr, physadr);
 			goto notfound;
 		}

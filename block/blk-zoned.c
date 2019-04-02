@@ -170,7 +170,7 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 	/*
 	 * A block device that advertized itself as zoned must have a
 	 * report_zones method. If it does not have one defined, the device
-	 * driver has a bug. So warn about that.
+	 * driver has a . So warn about that.
 	 */
 	if (WARN_ON_ONCE(!bdev->bd_disk->fops->report_zones))
 		return -EOPNOTSUPP;

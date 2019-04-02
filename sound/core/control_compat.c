@@ -450,7 +450,7 @@ static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, uns
 	int err;
 
 	ctl = file->private_data;
-	if (snd_BUG_ON(!ctl || !ctl->card))
+	if (snd__ON(!ctl || !ctl->card))
 		return -ENXIO;
 
 	switch (cmd) {

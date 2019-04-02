@@ -27,9 +27,9 @@
 
 #include "stk1160.h"
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
 static inline void print_err_status(struct stk1160 *dev,
 				     int packet, int status)
@@ -159,7 +159,7 @@ void stk1160_copy_video(struct stk1160 *dev, u8 *src, int len)
 	if (lencopy == 0 || remain == 0)
 		return;
 
-	/* Let the bug hunt begin! sanity checks! */
+	/* Let the  hunt begin! sanity checks! */
 	if (lencopy < 0) {
 		stk1160_dbg("copy skipped: negative lencopy\n");
 		return;
@@ -343,7 +343,7 @@ void stk1160_cancel_isoc(struct stk1160 *dev)
 
 	/*
 	 * This check is not necessary, but we add it
-	 * to avoid a spurious debug message
+	 * to avoid a spurious de message
 	 */
 	if (!num_bufs)
 		return;

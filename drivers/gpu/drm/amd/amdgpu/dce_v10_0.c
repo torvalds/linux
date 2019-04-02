@@ -119,7 +119,7 @@ static const struct {
 static const u32 golden_settings_tonga_a11[] =
 {
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x1f311fff, 0x12300000,
 	mmHDMI_CONTROL, 0x31000111, 0x00000011,
 };
@@ -133,7 +133,7 @@ static const u32 tonga_mgcg_cgcg_init[] =
 static const u32 golden_settings_fiji_a10[] =
 {
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x1f311fff, 0x12300000,
 	mmHDMI_CONTROL, 0x31000111, 0x00000011,
 };
@@ -335,7 +335,7 @@ static void dce_v10_0_hpd_init(struct amdgpu_device *adev)
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 			/* don't try to enable hpd on eDP or LVDS avoid breaking the
 			 * aux dp channel on imac and help (but not completely fix)
-			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * https://zilla.redhat.com/show_.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
 			tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
@@ -603,7 +603,7 @@ static u32 dce_v10_0_line_buffer_adjust(struct amdgpu_device *adev,
 			mem_cfg = 0;
 			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		} else {
-			DRM_DEBUG_KMS("Mode too big for LB!\n");
+			DRM_DE_KMS("Mode too big for LB!\n");
 			mem_cfg = 0;
 			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		}
@@ -1064,7 +1064,7 @@ static void dce_v10_0_program_watermarks(struct amdgpu_device *adev,
 		    !dce_v10_0_average_bandwidth_vs_available_bandwidth(&wm_high) ||
 		    !dce_v10_0_check_latency_hiding(&wm_high) ||
 		    (adev->mode_info.disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority to high\n");
+			DRM_DE_KMS("force priority to high\n");
 		}
 
 		/* watermark for low clocks */
@@ -1103,7 +1103,7 @@ static void dce_v10_0_program_watermarks(struct amdgpu_device *adev,
 		    !dce_v10_0_average_bandwidth_vs_available_bandwidth(&wm_low) ||
 		    !dce_v10_0_check_latency_hiding(&wm_low) ||
 		    (adev->mode_info.disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority to high\n");
+			DRM_DE_KMS("force priority to high\n");
 		}
 		lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
@@ -1349,7 +1349,7 @@ static void dce_v10_0_audio_write_sad_regs(struct drm_encoder *encoder)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
 		return;
 	}
-	BUG_ON(!sads);
+	_ON(!sads);
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 tmp = 0;
@@ -1588,19 +1588,19 @@ static void dce_v10_0_afmt_setmode(struct drm_encoder *encoder,
 	default:
 		tmp = REG_SET_FIELD(tmp, HDMI_CONTROL, HDMI_DEEP_COLOR_ENABLE, 0);
 		tmp = REG_SET_FIELD(tmp, HDMI_CONTROL, HDMI_DEEP_COLOR_DEPTH, 0);
-		DRM_DEBUG("%s: Disabling hdmi deep color for %d bpc.\n",
+		DRM_DE("%s: Disabling hdmi deep color for %d bpc.\n",
 			  connector->name, bpc);
 		break;
 	case 10:
 		tmp = REG_SET_FIELD(tmp, HDMI_CONTROL, HDMI_DEEP_COLOR_ENABLE, 1);
 		tmp = REG_SET_FIELD(tmp, HDMI_CONTROL, HDMI_DEEP_COLOR_DEPTH, 1);
-		DRM_DEBUG("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
+		DRM_DE("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
 			  connector->name);
 		break;
 	case 12:
 		tmp = REG_SET_FIELD(tmp, HDMI_CONTROL, HDMI_DEEP_COLOR_ENABLE, 1);
 		tmp = REG_SET_FIELD(tmp, HDMI_CONTROL, HDMI_DEEP_COLOR_DEPTH, 2);
-		DRM_DEBUG("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
+		DRM_DE("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
 			  connector->name);
 		break;
 	}
@@ -1744,7 +1744,7 @@ static void dce_v10_0_afmt_enable(struct drm_encoder *encoder, bool enable)
 
 	dig->afmt->enabled = enable;
 
-	DRM_DEBUG("%sabling AFMT interface @ 0x%04X for encoder 0x%x\n",
+	DRM_DE("%sabling AFMT interface @ 0x%04X for encoder 0x%x\n",
 		  enable ? "En" : "Dis", dig->afmt->offset, amdgpu_encoder->encoder_id);
 }
 
@@ -1840,7 +1840,7 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DE_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -2022,7 +2022,7 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmGRPH_LUT_10BIT_BYPASS + amdgpu_crtc->crtc_offset, tmp);
 
 	if (bypass_lut)
-		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+		DRM_DE_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
 
 	WREG32(mmGRPH_SURFACE_OFFSET_X + amdgpu_crtc->crtc_offset, 0);
 	WREG32(mmGRPH_SURFACE_OFFSET_Y + amdgpu_crtc->crtc_offset, 0);
@@ -2091,7 +2091,7 @@ static void dce_v10_0_crtc_load_lut(struct drm_crtc *crtc)
 	int i;
 	u32 tmp;
 
-	DRM_DEBUG_KMS("%d\n", amdgpu_crtc->crtc_id);
+	DRM_DE_KMS("%d\n", amdgpu_crtc->crtc_id);
 
 	tmp = RREG32(mmINPUT_CSC_CONTROL + amdgpu_crtc->crtc_offset);
 	tmp = REG_SET_FIELD(tmp, INPUT_CSC_CONTROL, INPUT_CSC_GRPH_MODE, 0);
@@ -2313,7 +2313,7 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 	/* avivo cursor are offset into the total surface */
 	x += crtc->x;
 	y += crtc->y;
-	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+	DRM_DE("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
 
 	if (x < 0) {
 		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
@@ -2949,7 +2949,7 @@ static void dce_v10_0_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev
 	u32 lb_interrupt_mask;
 
 	if (crtc >= adev->mode_info.num_crtc) {
-		DRM_DEBUG("invalid crtc %d\n", crtc);
+		DRM_DE("invalid crtc %d\n", crtc);
 		return;
 	}
 
@@ -2978,7 +2978,7 @@ static void dce_v10_0_set_crtc_vline_interrupt_state(struct amdgpu_device *adev,
 	u32 lb_interrupt_mask;
 
 	if (crtc >= adev->mode_info.num_crtc) {
-		DRM_DEBUG("invalid crtc %d\n", crtc);
+		DRM_DE("invalid crtc %d\n", crtc);
 		return;
 	}
 
@@ -3008,7 +3008,7 @@ static int dce_v10_0_set_hpd_irq_state(struct amdgpu_device *adev,
 	u32 tmp;
 
 	if (hpd >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("invalid hdp %d\n", hpd);
+		DRM_DE("invalid hdp %d\n", hpd);
 		return 0;
 	}
 
@@ -3130,7 +3130,7 @@ static int dce_v10_0_pageflip_irq(struct amdgpu_device *adev,
 	spin_lock_irqsave(&adev->ddev->event_lock, flags);
 	works = amdgpu_crtc->pflip_works;
 	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
-		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
+		DRM_DE_DRIVER("amdgpu_crtc->pflip_status = %d != "
 						 "AMDGPU_FLIP_SUBMITTED(%d)\n",
 						 amdgpu_crtc->pflip_status,
 						 AMDGPU_FLIP_SUBMITTED);
@@ -3160,7 +3160,7 @@ static void dce_v10_0_hpd_int_ack(struct amdgpu_device *adev,
 	u32 tmp;
 
 	if (hpd >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("invalid hdp %d\n", hpd);
+		DRM_DE("invalid hdp %d\n", hpd);
 		return;
 	}
 
@@ -3175,7 +3175,7 @@ static void dce_v10_0_crtc_vblank_int_ack(struct amdgpu_device *adev,
 	u32 tmp;
 
 	if (crtc >= adev->mode_info.num_crtc) {
-		DRM_DEBUG("invalid crtc %d\n", crtc);
+		DRM_DE("invalid crtc %d\n", crtc);
 		return;
 	}
 
@@ -3190,7 +3190,7 @@ static void dce_v10_0_crtc_vline_int_ack(struct amdgpu_device *adev,
 	u32 tmp;
 
 	if (crtc >= adev->mode_info.num_crtc) {
-		DRM_DEBUG("invalid crtc %d\n", crtc);
+		DRM_DE("invalid crtc %d\n", crtc);
 		return;
 	}
 
@@ -3212,25 +3212,25 @@ static int dce_v10_0_crtc_irq(struct amdgpu_device *adev,
 		if (disp_int & interrupt_status_offsets[crtc].vblank)
 			dce_v10_0_crtc_vblank_int_ack(adev, crtc);
 		else
-			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+			DRM_DE("IH: IH event w/o asserted irq bit?\n");
 
 		if (amdgpu_irq_enabled(adev, source, irq_type)) {
 			drm_handle_vblank(adev->ddev, crtc);
 		}
-		DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
+		DRM_DE("IH: D%d vblank\n", crtc + 1);
 
 		break;
 	case 1: /* vline */
 		if (disp_int & interrupt_status_offsets[crtc].vline)
 			dce_v10_0_crtc_vline_int_ack(adev, crtc);
 		else
-			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+			DRM_DE("IH: IH event w/o asserted irq bit?\n");
 
-		DRM_DEBUG("IH: D%d vline\n", crtc + 1);
+		DRM_DE("IH: D%d vline\n", crtc + 1);
 
 		break;
 	default:
-		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data[0]);
+		DRM_DE("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data[0]);
 		break;
 	}
 
@@ -3245,7 +3245,7 @@ static int dce_v10_0_hpd_irq(struct amdgpu_device *adev,
 	unsigned hpd;
 
 	if (entry->src_data[0] >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data[0]);
+		DRM_DE("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data[0]);
 		return 0;
 	}
 
@@ -3256,7 +3256,7 @@ static int dce_v10_0_hpd_irq(struct amdgpu_device *adev,
 	if (disp_int & mask) {
 		dce_v10_0_hpd_int_ack(adev, hpd);
 		schedule_work(&adev->hotplug_work);
-		DRM_DEBUG("IH: HPD%d\n", hpd + 1);
+		DRM_DE("IH: HPD%d\n", hpd + 1);
 	}
 
 	return 0;

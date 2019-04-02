@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
-""" This utility can be used to debug and tune the performance of the
+""" This utility can be used to de and tune the performance of the
 intel_pstate driver. This utility can be used in two ways:
 - If there is Linux trace file with pstate_sample events enabled, then
 this utility can parse the trace file and generate performance plots.
@@ -377,7 +377,7 @@ def clear_trace_file():
     """ Clear trace file """
 
     try:
-        f_handle = open('/sys/kernel/debug/tracing/trace', 'w')
+        f_handle = open('/sys/kernel/de/tracing/trace', 'w')
         f_handle.close()
     except:
         print('IO error clearing trace file ')
@@ -387,7 +387,7 @@ def enable_trace():
     """ Enable trace """
 
     try:
-       open('/sys/kernel/debug/tracing/events/power/pstate_sample/enable'
+       open('/sys/kernel/de/tracing/events/power/pstate_sample/enable'
                  , 'w').write("1")
     except:
         print('IO error enabling trace ')
@@ -397,7 +397,7 @@ def disable_trace():
     """ Disable trace """
 
     try:
-       open('/sys/kernel/debug/tracing/events/power/pstate_sample/enable'
+       open('/sys/kernel/de/tracing/events/power/pstate_sample/enable'
                  , 'w').write("0")
     except:
         print('IO error disabling trace ')
@@ -407,7 +407,7 @@ def set_trace_buffer_size():
     """ Set trace buffer size """
 
     try:
-       with open('/sys/kernel/debug/tracing/buffer_size_kb', 'w') as fp:
+       with open('/sys/kernel/de/tracing/buffer_size_kb', 'w') as fp:
           fp.write(memory)
     except:
        print('IO error setting trace buffer size ')
@@ -417,7 +417,7 @@ def free_trace_buffer():
     """ Free the trace buffer memory """
 
     try:
-       open('/sys/kernel/debug/tracing/buffer_size_kb'
+       open('/sys/kernel/de/tracing/buffer_size_kb'
                  , 'w').write("1")
     except:
         print('IO error freeing trace buffer ')
@@ -573,7 +573,7 @@ print(cur_version)
 cleanup_data_files()
 
 if interval:
-    filename = "/sys/kernel/debug/tracing/trace"
+    filename = "/sys/kernel/de/tracing/trace"
     clear_trace_file()
     set_trace_buffer_size()
     enable_trace()

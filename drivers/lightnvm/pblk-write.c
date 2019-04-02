@@ -40,7 +40,7 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 			/* Release flags on context. Protect from writes */
 			smp_store_release(&w_ctx->flags, flags);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 			atomic_dec(&rwb->inflight_flush_point);
 #endif
 		}
@@ -53,7 +53,7 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 		pblk_bio_free_pages(pblk, rqd->bio, c_ctx->nr_valid,
 							c_ctx->nr_padded);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(rqd->nr_ppas, &pblk->sync_writes);
 #endif
 
@@ -80,7 +80,7 @@ static void pblk_complete_write(struct pblk *pblk, struct nvm_rq *rqd,
 	unsigned long flags;
 	unsigned long pos;
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_sub(c_ctx->nr_valid, &pblk->inflight_writes);
 #endif
 	pblk_up_rq(pblk, c_ctx->lun_bitmap);
@@ -200,7 +200,7 @@ static void pblk_queue_resubmit(struct pblk *pblk, struct pblk_c_ctx *c_ctx)
 	list_add_tail(&r_ctx->list, &pblk->resubmit_list);
 	spin_unlock(&pblk->resubmit_lock);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(c_ctx->nr_valid, &pblk->recov_writes);
 #endif
 }
@@ -259,7 +259,7 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 	} else {
 		if (trace_pblk_chunk_state_enabled())
 			pblk_check_chunk_state_update(pblk, rqd);
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 		WARN_ONCE(rqd->bio->bi_status, "pblk: corrupted write error\n");
 #endif
 	}
@@ -351,7 +351,7 @@ static int pblk_calc_secs_to_sync(struct pblk *pblk, unsigned int secs_avail,
 
 	secs_to_sync = pblk_calc_secs(pblk, secs_avail, secs_to_flush, true);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	if ((!secs_to_sync && secs_to_flush)
 			|| (secs_to_sync < 0)
 			|| (secs_to_sync > secs_avail && !secs_to_flush)) {
@@ -641,7 +641,7 @@ static int pblk_submit_write(struct pblk *pblk, int *secs_left)
 	if (pblk_submit_io_set(pblk, rqd))
 		goto fail_free_bio;
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(secs_to_sync, &pblk->sub_writes);
 #endif
 

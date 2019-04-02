@@ -59,7 +59,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 	 */
 	max_size = rdev->mc.gtt_size - rdev->gart_pin_size;
 	if (size > max_size) {
-		DRM_DEBUG("Allocation size %ldMb bigger than %ldMb limit\n",
+		DRM_DE("Allocation size %ldMb bigger than %ldMb limit\n",
 			  size >> 20, max_size >> 20);
 		return -ENOMEM;
 	}
@@ -497,7 +497,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	struct radeon_bo *robj;
 	int r = 0;
 
-	DRM_DEBUG("%d \n", args->handle);
+	DRM_DE("%d \n", args->handle);
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
@@ -515,7 +515,7 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	struct radeon_bo *rbo;
 	int r = 0;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
@@ -769,8 +769,8 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS)
-static int radeon_debugfs_gem_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int radeon_defs_gem_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -805,15 +805,15 @@ static int radeon_debugfs_gem_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list radeon_debugfs_gem_list[] = {
-	{"radeon_gem_info", &radeon_debugfs_gem_info, 0, NULL},
+static struct drm_info_list radeon_defs_gem_list[] = {
+	{"radeon_gem_info", &radeon_defs_gem_info, 0, NULL},
 };
 #endif
 
-int radeon_gem_debugfs_init(struct radeon_device *rdev)
+int radeon_gem_defs_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_gem_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, radeon_defs_gem_list, 1);
 #endif
 	return 0;
 }

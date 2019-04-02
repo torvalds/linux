@@ -1157,7 +1157,7 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 			struct pipe_inode_info *pipe,
 			size_t count)
 {
-	BUG_ON(direction != READ);
+	_ON(direction != READ);
 	WARN_ON(pipe->nrbufs == pipe->buffers);
 	i->type = ITER_PIPE | READ;
 	i->pipe = pipe;
@@ -1179,7 +1179,7 @@ EXPORT_SYMBOL(iov_iter_pipe);
  */
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count)
 {
-	BUG_ON(direction != READ);
+	_ON(direction != READ);
 	i->type = ITER_DISCARD | READ;
 	i->count = count;
 	i->iov_offset = 0;

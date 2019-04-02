@@ -9,7 +9,7 @@ obj-y    := bindec.o binstr.o decbin.o do_func.o gen_except.o get_op.o \
 	    smovecr.o srem_mod.o scale.o \
 	    ssin.o ssinh.o stan.o stanh.o sto_res.o stwotox.o tbldo.o util.o \
 	    x_bsun.o x_fline.o x_operr.o x_ovfl.o x_snan.o x_store.o \
-	    x_unfl.o x_unimp.o x_unsupp.o bugfix.o skeleton.o
+	    x_unfl.o x_unimp.o x_unsupp.o fix.o skeleton.o
 
 EXTRA_LDFLAGS := -x
 

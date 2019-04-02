@@ -642,7 +642,7 @@ union cvmx_usbcx_grstctl {
 	 *	Indicates that the AHB Master State Machine is in the IDLE
 	 *	condition.
 	 * @dmareq: DMA Request Signal (DMAReq)
-	 *	Indicates that the DMA request is in progress. Used for debug.
+	 *	Indicates that the DMA request is in progress. Used for de.
 	 * @txfnum: TxFIFO Number (TxFNum)
 	 *	This is the FIFO number that must be flushed using the TxFIFO
 	 *	Flush bit. This field must not be changed until the core clears
@@ -1521,7 +1521,7 @@ union cvmx_usbcx_hptxsts {
 	 * @ptxqtop: Top of the Periodic Transmit Request Queue (PTxQTop)
 	 *	This indicates the entry in the Periodic Tx Request Queue that
 	 *	is currently being processes by the MAC.
-	 *	This register is used for debugging.
+	 *	This register is used for deging.
 	 *	* Bit [31]: Odd/Even (micro)frame
 	 *	- 1'b0: send in even (micro)frame
 	 *	- 1'b1: send in odd (micro)frame

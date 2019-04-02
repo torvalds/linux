@@ -49,7 +49,7 @@
  * How to use this tool, by example.
  *
  * Assuming $DBG_DIR is something like:
- * '/sys/kernel/debug/ntb_perf/0000:00:03.0'
+ * '/sys/kernel/de/ntb_perf/0000:00:03.0'
  * Suppose aside from local device there is at least one remote device
  * connected to NTB with index 0.
  *-----------------------------------------------------------------------------
@@ -80,7 +80,7 @@
 #include <linux/delay.h>
 #include <linux/sizes.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/random.h>
 #include <linux/ntb.h>
 
@@ -1138,7 +1138,7 @@ static void perf_clear_threads(struct perf_ctx *perf)
 }
 
 /*==============================================================================
- *                               DebugFS nodes
+ *                               DeFS nodes
  *==============================================================================
  */
 
@@ -1314,32 +1314,32 @@ static void perf_setup_dbgfs(struct perf_ctx *perf)
 {
 	struct pci_dev *pdev = perf->ntb->pdev;
 
-	perf->dbgfs_dir = debugfs_create_dir(pci_name(pdev), perf_dbgfs_topdir);
+	perf->dbgfs_dir = defs_create_dir(pci_name(pdev), perf_dbgfs_topdir);
 	if (!perf->dbgfs_dir) {
-		dev_warn(&perf->ntb->dev, "DebugFS unsupported\n");
+		dev_warn(&perf->ntb->dev, "DeFS unsupported\n");
 		return;
 	}
 
-	debugfs_create_file("info", 0600, perf->dbgfs_dir, perf,
+	defs_create_file("info", 0600, perf->dbgfs_dir, perf,
 			    &perf_dbgfs_info);
 
-	debugfs_create_file("run", 0600, perf->dbgfs_dir, perf,
+	defs_create_file("run", 0600, perf->dbgfs_dir, perf,
 			    &perf_dbgfs_run);
 
-	debugfs_create_file("threads_count", 0600, perf->dbgfs_dir, perf,
+	defs_create_file("threads_count", 0600, perf->dbgfs_dir, perf,
 			    &perf_dbgfs_tcnt);
 
 	/* They are made read-only for test exec safety and integrity */
-	debugfs_create_u8("chunk_order", 0500, perf->dbgfs_dir, &chunk_order);
+	defs_create_u8("chunk_order", 0500, perf->dbgfs_dir, &chunk_order);
 
-	debugfs_create_u8("total_order", 0500, perf->dbgfs_dir, &total_order);
+	defs_create_u8("total_order", 0500, perf->dbgfs_dir, &total_order);
 
-	debugfs_create_bool("use_dma", 0500, perf->dbgfs_dir, &use_dma);
+	defs_create_bool("use_dma", 0500, perf->dbgfs_dir, &use_dma);
 }
 
 static void perf_clear_dbgfs(struct perf_ctx *perf)
 {
-	debugfs_remove_recursive(perf->dbgfs_dir);
+	defs_remove_recursive(perf->dbgfs_dir);
 }
 
 /*==============================================================================
@@ -1492,12 +1492,12 @@ static int __init perf_init(void)
 	if (!perf_wq)
 		return -ENOMEM;
 
-	if (debugfs_initialized())
-		perf_dbgfs_topdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized())
+		perf_dbgfs_topdir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	ret = ntb_register_client(&perf_client);
 	if (ret) {
-		debugfs_remove_recursive(perf_dbgfs_topdir);
+		defs_remove_recursive(perf_dbgfs_topdir);
 		destroy_workqueue(perf_wq);
 	}
 
@@ -1508,7 +1508,7 @@ module_init(perf_init);
 static void __exit perf_exit(void)
 {
 	ntb_unregister_client(&perf_client);
-	debugfs_remove_recursive(perf_dbgfs_topdir);
+	defs_remove_recursive(perf_dbgfs_topdir);
 	destroy_workqueue(perf_wq);
 }
 module_exit(perf_exit);

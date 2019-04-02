@@ -3670,8 +3670,8 @@ static bool si_is_special_1gb_platform(struct amdgpu_device *adev)
 	is_special = (MC_SEQ_MISC0_REV_ID_VALUE == ((tmp & MC_SEQ_MISC0_REV_ID_MASK) >> MC_SEQ_MISC0_REV_ID_SHIFT))
 		& (MC_SEQ_MISC0_VEN_ID_VALUE == ((tmp & MC_SEQ_MISC0_VEN_ID_MASK) >> MC_SEQ_MISC0_VEN_ID_SHIFT));
 
-	WREG32(MC_SEQ_IO_DEBUG_INDEX, 0xb);
-	width = ((RREG32(MC_SEQ_IO_DEBUG_DATA) >> 1) & 1) ? 16 : 32;
+	WREG32(MC_SEQ_IO_DE_INDEX, 0xb);
+	width = ((RREG32(MC_SEQ_IO_DE_DATA) >> 1) & 1) ? 16 : 32;
 
 	tmp = RREG32(MC_ARB_RAMCFG);
 	row = ((tmp & NOOFROWS_MASK) >> NOOFROWS_SHIFT) + 10;
@@ -6403,7 +6403,7 @@ static int si_thermal_enable_alert(struct amdgpu_device *adev,
 		WREG32(CG_THERMAL_INT, thermal_int);
 		result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
 		if (result != PPSMC_Result_OK) {
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
+			DRM_DE_KMS("Could not enable thermal interrupts.\n");
 			return -EINVAL;
 		}
 	} else {
@@ -7478,7 +7478,7 @@ static void si_dpm_fini(struct amdgpu_device *adev)
 	amdgpu_free_extended_power_table(adev);
 }
 
-static void si_dpm_debugfs_print_current_performance_level(void *handle,
+static void si_dpm_defs_print_current_performance_level(void *handle,
 						    struct seq_file *m)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -7559,12 +7559,12 @@ static int si_dpm_process_interrupt(struct amdgpu_device *adev,
 
 	switch (entry->src_id) {
 	case 230: /* thermal low to high */
-		DRM_DEBUG("IH: thermal low to high\n");
+		DRM_DE("IH: thermal low to high\n");
 		adev->pm.dpm.thermal.high_to_low = false;
 		queue_thermal = true;
 		break;
 	case 231: /* thermal high to low */
-		DRM_DEBUG("IH: thermal high to low\n");
+		DRM_DE("IH: thermal high to low\n");
 		adev->pm.dpm.thermal.high_to_low = true;
 		queue_thermal = true;
 		break;
@@ -7610,7 +7610,7 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 	char fw_name[30];
 	int err;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	switch (adev->asic_type) {
 	case CHIP_TAHITI:
 		chip_name = "tahiti";
@@ -7664,7 +7664,7 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 		else
 			chip_name = "hainan";
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_smc.bin", chip_name);
@@ -8055,7 +8055,7 @@ static const struct amd_pm_funcs si_dpm_funcs = {
 	.get_sclk = &si_dpm_get_sclk,
 	.get_mclk = &si_dpm_get_mclk,
 	.print_power_state = &si_dpm_print_power_state,
-	.debugfs_print_current_performance_level = &si_dpm_debugfs_print_current_performance_level,
+	.defs_print_current_performance_level = &si_dpm_defs_print_current_performance_level,
 	.force_performance_level = &si_dpm_force_performance_level,
 	.vblank_too_short = &si_dpm_vblank_too_short,
 	.set_fan_control_mode = &si_dpm_set_fan_control_mode,

@@ -33,8 +33,8 @@
 #endif /* CONFIG_ISDN_DIVERSION */
 #include "isdn_v110.h"
 
-/* Debugflags */
-#undef ISDN_DEBUG_STATCALLB
+/* Deflags */
+#undef ISDN_DE_STATCALLB
 
 MODULE_DESCRIPTION("ISDN4Linux: link layer");
 MODULE_AUTHOR("Fritz Elfert");
@@ -108,13 +108,13 @@ isdn_unlock_drivers(void)
 	}
 }
 
-#if defined(ISDN_DEBUG_NET_DUMP) || defined(ISDN_DEBUG_MODEM_DUMP)
+#if defined(ISDN_DE_NET_DUMP) || defined(ISDN_DE_MODEM_DUMP)
 void
 isdn_dumppkt(char *s, u_char *p, int len, int dumplen)
 {
 	int dumpc;
 
-	printk(KERN_DEBUG "%s(%d) ", s, len);
+	printk(KERN_DE "%s(%d) ", s, len);
 	for (dumpc = 0; (dumpc < dumplen) && (len); len--, dumpc++)
 		printk(" %02x", *p++);
 	printk("\n");
@@ -451,8 +451,8 @@ isdn_status_callback(isdn_ctrl *c)
 	case ISDN_STAT_ICALL:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "ICALL (net): %d %ld %s\n", di, c->arg, c->parm.num);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "ICALL (net): %d %ld %s\n", di, c->arg, c->parm.num);
 #endif
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED) {
 			cmd.driver = di;
@@ -522,16 +522,16 @@ isdn_status_callback(isdn_ctrl *c)
 			retval = 3;
 			break;
 		}
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "ICALL: ret=%d\n", retval);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "ICALL: ret=%d\n", retval);
 #endif
 		return retval;
 		break;
 	case ISDN_STAT_CINF:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "CINF: %ld %s\n", c->arg, c->parm.num);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "CINF: %ld %s\n", c->arg, c->parm.num);
 #endif
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED)
 			return 0;
@@ -540,8 +540,8 @@ isdn_status_callback(isdn_ctrl *c)
 		isdn_tty_stat_callback(i, c);
 		break;
 	case ISDN_STAT_CAUSE:
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "CAUSE: %ld %s\n", c->arg, c->parm.num);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "CAUSE: %ld %s\n", c->arg, c->parm.num);
 #endif
 		printk(KERN_INFO "isdn: %s,ch%ld cause: %s\n",
 		       dev->drvid[di], c->arg, c->parm.num);
@@ -552,8 +552,8 @@ isdn_status_callback(isdn_ctrl *c)
 #endif /* CONFIG_ISDN_DIVERSION */
 		break;
 	case ISDN_STAT_DISPLAY:
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "DISPLAY: %ld %s\n", c->arg, c->parm.display);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "DISPLAY: %ld %s\n", c->arg, c->parm.display);
 #endif
 		isdn_tty_stat_callback(i, c);
 #ifdef CONFIG_ISDN_DIVERSION
@@ -564,8 +564,8 @@ isdn_status_callback(isdn_ctrl *c)
 	case ISDN_STAT_DCONN:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "DCONN: %ld\n", c->arg);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "DCONN: %ld\n", c->arg);
 #endif
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED)
 			return 0;
@@ -585,8 +585,8 @@ isdn_status_callback(isdn_ctrl *c)
 	case ISDN_STAT_DHUP:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "DHUP: %ld\n", c->arg);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "DHUP: %ld\n", c->arg);
 #endif
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED)
 			return 0;
@@ -607,8 +607,8 @@ isdn_status_callback(isdn_ctrl *c)
 	case ISDN_STAT_BCONN:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "BCONN: %ld\n", c->arg);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "BCONN: %ld\n", c->arg);
 #endif
 		/* Signal B-channel-connect to network-devices */
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED)
@@ -624,8 +624,8 @@ isdn_status_callback(isdn_ctrl *c)
 	case ISDN_STAT_BHUP:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "BHUP: %ld\n", c->arg);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "BHUP: %ld\n", c->arg);
 #endif
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED)
 			return 0;
@@ -643,8 +643,8 @@ isdn_status_callback(isdn_ctrl *c)
 	case ISDN_STAT_NODCH:
 		if (i < 0)
 			return -1;
-#ifdef ISDN_DEBUG_STATCALLB
-		printk(KERN_DEBUG "NODCH: %ld\n", c->arg);
+#ifdef ISDN_DE_STATCALLB
+		printk(KERN_DE "NODCH: %ld\n", c->arg);
 #endif
 		if (dev->global_flags & ISDN_GLOBAL_STOPPED)
 			return 0;
@@ -756,7 +756,7 @@ isdn_getnum(char **p)
  * Be aware that this is not an atomic operation when sleep != 0, even though
  * interrupts are turned off! Well, like that we are currently only called
  * on behalf of a read system call on raw device files (which are documented
- * to be dangerous and for debugging purpose only). The inode semaphore
+ * to be dangerous and for deging purpose only). The inode semaphore
  * takes care that this is not called for the same minor device number while
  * we are sleeping, but access is not serialized against simultaneous read()
  * from the corresponding ttyI device. Can other ugly events, like changes
@@ -869,7 +869,7 @@ isdn_readbchan(int di, int channel, u_char *buf, u_char *fp, int len, wait_queue
  * Be aware that this is not an atomic operation when sleep != 0, even though
  * interrupts are turned off! Well, like that we are currently only called
  * on behalf of a read system call on raw device files (which are documented
- * to be dangerous and for debugging purpose only). The inode semaphore
+ * to be dangerous and for deging purpose only). The inode semaphore
  * takes care that this is not called for the same minor device number while
  * we are sleeping, but access is not serialized against simultaneous read()
  * from the corresponding ttyI device. Can other ugly events, like changes
@@ -2012,7 +2012,7 @@ isdn_writebuf_skb_stub(int drvidx, int chan, int ack, struct sk_buff *skb)
 			struct sk_buff *skb_tmp;
 
 			skb_tmp = skb_realloc_headroom(skb, hl);
-			printk(KERN_DEBUG "isdn_writebuf_skb_stub: reallocating headroom%s\n", skb_tmp ? "" : " failed");
+			printk(KERN_DE "isdn_writebuf_skb_stub: reallocating headroom%s\n", skb_tmp ? "" : " failed");
 			if (!skb_tmp) return -ENOMEM; /* 0 better? */
 			ret = dev->drv[drvidx]->interface->writebuf_skb(drvidx, chan, ack, skb_tmp);
 			if (ret > 0) {

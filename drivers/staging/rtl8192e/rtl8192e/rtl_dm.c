@@ -1066,7 +1066,7 @@ static void _rtl92e_dm_cck_tx_power_adjust_tssi(struct net_device *dev,
 		TempVal = (u32)(dm_cck_tx_bb_gain[attenuation][6] +
 			  (dm_cck_tx_bb_gain[attenuation][7] << 8));
 
-		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl92e_set_bb_reg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 	} else {
 		TempVal = (u32)((dm_cck_tx_bb_gain_ch14[attenuation][0]) +
 			  (dm_cck_tx_bb_gain_ch14[attenuation][1] << 8));
@@ -1080,7 +1080,7 @@ static void _rtl92e_dm_cck_tx_power_adjust_tssi(struct net_device *dev,
 		TempVal = (u32)((dm_cck_tx_bb_gain_ch14[attenuation][6]) +
 			  (dm_cck_tx_bb_gain_ch14[attenuation][7] << 8));
 
-		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl92e_set_bb_reg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 	}
 }
 
@@ -1109,9 +1109,9 @@ static void _rtl92e_dm_cck_tx_power_adjust_thermal_meter(struct net_device *dev,
 		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
 			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][7] << 8);
 
-		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl92e_set_bb_reg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING,
-			 "CCK not chnl 14, reg 0x%x = 0x%x\n", rCCK0_DebugPort,
+			 "CCK not chnl 14, reg 0x%x = 0x%x\n", rCCK0_DePort,
 			 TempVal);
 	} else {
 		TempVal = CCKSwingTable_Ch14[priv->CCK_index][0] +
@@ -1130,9 +1130,9 @@ static void _rtl92e_dm_cck_tx_power_adjust_thermal_meter(struct net_device *dev,
 		TempVal = CCKSwingTable_Ch14[priv->CCK_index][6] +
 			  (CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
 
-		rtl92e_set_bb_reg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl92e_set_bb_reg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
-			rCCK0_DebugPort, TempVal);
+			rCCK0_DePort, TempVal);
 	}
 }
 

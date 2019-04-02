@@ -103,7 +103,7 @@ static void idletimer_tg_expired(struct timer_list *t)
 {
 	struct idletimer_tg *timer = from_timer(timer, t, timer);
 
-	pr_debug("timer %s expired\n", timer->attr.attr.name);
+	pr_de("timer %s expired\n", timer->attr.attr.name);
 
 	schedule_work(&timer->work);
 }
@@ -149,7 +149,7 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 
 	ret = sysfs_create_file(idletimer_tg_kobj, &info->timer->attr.attr);
 	if (ret < 0) {
-		pr_debug("couldn't add file to sysfs");
+		pr_de("couldn't add file to sysfs");
 		goto out_free_attr;
 	}
 
@@ -181,7 +181,7 @@ static unsigned int idletimer_tg_target(struct sk_buff *skb,
 {
 	const struct idletimer_tg_info *info = par->targinfo;
 
-	pr_debug("resetting timer %s, timeout period %u\n",
+	pr_de("resetting timer %s, timeout period %u\n",
 		 info->label, info->timeout);
 
 	mod_timer(&info->timer->timer,
@@ -195,20 +195,20 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 	struct idletimer_tg_info *info = par->targinfo;
 	int ret;
 
-	pr_debug("checkentry targinfo%s\n", info->label);
+	pr_de("checkentry targinfo%s\n", info->label);
 
 	if (info->timeout == 0) {
-		pr_debug("timeout value is zero\n");
+		pr_de("timeout value is zero\n");
 		return -EINVAL;
 	}
 	if (info->timeout >= INT_MAX / 1000) {
-		pr_debug("timeout value is too big\n");
+		pr_de("timeout value is too big\n");
 		return -EINVAL;
 	}
 	if (info->label[0] == '\0' ||
 	    strnlen(info->label,
 		    MAX_IDLETIMER_LABEL_SIZE) == MAX_IDLETIMER_LABEL_SIZE) {
-		pr_debug("label is empty or not nul-terminated\n");
+		pr_de("label is empty or not nul-terminated\n");
 		return -EINVAL;
 	}
 
@@ -220,12 +220,12 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 		mod_timer(&info->timer->timer,
 			  msecs_to_jiffies(info->timeout * 1000) + jiffies);
 
-		pr_debug("increased refcnt of timer %s to %u\n",
+		pr_de("increased refcnt of timer %s to %u\n",
 			 info->label, info->timer->refcnt);
 	} else {
 		ret = idletimer_tg_create(info);
 		if (ret < 0) {
-			pr_debug("failed to create timer\n");
+			pr_de("failed to create timer\n");
 			mutex_unlock(&list_mutex);
 			return ret;
 		}
@@ -239,12 +239,12 @@ static void idletimer_tg_destroy(const struct xt_tgdtor_param *par)
 {
 	const struct idletimer_tg_info *info = par->targinfo;
 
-	pr_debug("destroy targinfo %s\n", info->label);
+	pr_de("destroy targinfo %s\n", info->label);
 
 	mutex_lock(&list_mutex);
 
 	if (--info->timer->refcnt == 0) {
-		pr_debug("deleting timer %s\n", info->label);
+		pr_de("deleting timer %s\n", info->label);
 
 		list_del(&info->timer->entry);
 		del_timer_sync(&info->timer->timer);
@@ -253,7 +253,7 @@ static void idletimer_tg_destroy(const struct xt_tgdtor_param *par)
 		kfree(info->timer->attr.attr.name);
 		kfree(info->timer);
 	} else {
-		pr_debug("decreased refcnt of timer %s to %u\n",
+		pr_de("decreased refcnt of timer %s to %u\n",
 			 info->label, info->timer->refcnt);
 	}
 
@@ -282,7 +282,7 @@ static int __init idletimer_tg_init(void)
 	idletimer_tg_class = class_create(THIS_MODULE, "xt_idletimer");
 	err = PTR_ERR(idletimer_tg_class);
 	if (IS_ERR(idletimer_tg_class)) {
-		pr_debug("couldn't register device class\n");
+		pr_de("couldn't register device class\n");
 		goto out;
 	}
 
@@ -290,7 +290,7 @@ static int __init idletimer_tg_init(void)
 					    MKDEV(0, 0), NULL, "timers");
 	err = PTR_ERR(idletimer_tg_device);
 	if (IS_ERR(idletimer_tg_device)) {
-		pr_debug("couldn't register system device\n");
+		pr_de("couldn't register system device\n");
 		goto out_class;
 	}
 
@@ -298,7 +298,7 @@ static int __init idletimer_tg_init(void)
 
 	err =  xt_register_target(&idletimer_tg);
 	if (err < 0) {
-		pr_debug("couldn't register xt target\n");
+		pr_de("couldn't register xt target\n");
 		goto out_dev;
 	}
 

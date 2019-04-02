@@ -88,8 +88,8 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 {
 	int ret;
 
-	BUG_ON(!hwlock);
-	BUG_ON(!flags && mode == HWLOCK_IRQSTATE);
+	_ON(!hwlock);
+	_ON(!flags && mode == HWLOCK_IRQSTATE);
 
 	/*
 	 * This spin_lock{_irq, _irqsave} serves three purposes:
@@ -235,7 +235,7 @@ EXPORT_SYMBOL_GPL(__hwspin_lock_timeout);
  *
  * This function will unlock a specific hwspinlock, enable preemption and
  * (possibly) enable interrupts or restore their previous state.
- * @hwlock must be already locked before calling this function: it is a bug
+ * @hwlock must be already locked before calling this function: it is a 
  * to call unlock on a @hwlock that is already unlocked.
  *
  * The user decides whether local interrupts should be enabled or not, and
@@ -248,8 +248,8 @@ EXPORT_SYMBOL_GPL(__hwspin_lock_timeout);
  */
 void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 {
-	BUG_ON(!hwlock);
-	BUG_ON(!flags && mode == HWLOCK_IRQSTATE);
+	_ON(!hwlock);
+	_ON(!flags && mode == HWLOCK_IRQSTATE);
 
 	/*
 	 * We must make sure that memory operations (both reads and writes),

@@ -985,7 +985,7 @@ struct xgbe_hw_features {
 	unsigned int dcb;		/* DCB Feature */
 	unsigned int sph;		/* Split Header Feature */
 	unsigned int tso;		/* TCP Segmentation Offload */
-	unsigned int dma_debug;		/* DMA Debug Registers */
+	unsigned int dma_de;		/* DMA De Registers */
 	unsigned int rss;		/* Receive Side Scaling */
 	unsigned int tc_cnt;		/* Number of Traffic Classes */
 	unsigned int hash_table_size;	/* Hash Table Size */
@@ -1282,19 +1282,19 @@ struct xgbe_prv_data {
 	struct tasklet_struct tasklet_i2c;
 	struct tasklet_struct tasklet_an;
 
-	struct dentry *xgbe_debugfs;
+	struct dentry *xgbe_defs;
 
-	unsigned int debugfs_xgmac_reg;
+	unsigned int defs_xgmac_reg;
 
-	unsigned int debugfs_xpcs_mmd;
-	unsigned int debugfs_xpcs_reg;
+	unsigned int defs_xpcs_mmd;
+	unsigned int defs_xpcs_reg;
 
-	unsigned int debugfs_xprop_reg;
+	unsigned int defs_xprop_reg;
 
-	unsigned int debugfs_xi2c_reg;
+	unsigned int defs_xi2c_reg;
 
-	bool debugfs_an_cdr_workaround;
-	bool debugfs_an_cdr_track_early;
+	bool defs_an_cdr_workaround;
+	bool defs_an_cdr_track_early;
 };
 
 /* Function prototypes*/
@@ -1342,30 +1342,30 @@ void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
 void xgbe_restart_dev(struct xgbe_prv_data *pdata);
 void xgbe_full_restart_dev(struct xgbe_prv_data *pdata);
 
-#ifdef CONFIG_DEBUG_FS
-void xgbe_debugfs_init(struct xgbe_prv_data *);
-void xgbe_debugfs_exit(struct xgbe_prv_data *);
-void xgbe_debugfs_rename(struct xgbe_prv_data *pdata);
+#ifdef CONFIG_DE_FS
+void xgbe_defs_init(struct xgbe_prv_data *);
+void xgbe_defs_exit(struct xgbe_prv_data *);
+void xgbe_defs_rename(struct xgbe_prv_data *pdata);
 #else
-static inline void xgbe_debugfs_init(struct xgbe_prv_data *pdata) {}
-static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
-static inline void xgbe_debugfs_rename(struct xgbe_prv_data *pdata) {}
-#endif /* CONFIG_DEBUG_FS */
+static inline void xgbe_defs_init(struct xgbe_prv_data *pdata) {}
+static inline void xgbe_defs_exit(struct xgbe_prv_data *pdata) {}
+static inline void xgbe_defs_rename(struct xgbe_prv_data *pdata) {}
+#endif /* CONFIG_DE_FS */
 
 /* NOTE: Uncomment for function trace log messages in KERNEL LOG */
 #if 0
-#define YDEBUG
-#define YDEBUG_MDIO
+#define YDE
+#define YDE_MDIO
 #endif
 
-/* For debug prints */
-#ifdef YDEBUG
+/* For de prints */
+#ifdef YDE
 #define DBGPR(x...) pr_alert(x)
 #else
 #define DBGPR(x...) do { } while (0)
 #endif
 
-#ifdef YDEBUG_MDIO
+#ifdef YDE_MDIO
 #define DBGPR_MDIO(x...) pr_alert(x)
 #else
 #define DBGPR_MDIO(x...) do { } while (0)

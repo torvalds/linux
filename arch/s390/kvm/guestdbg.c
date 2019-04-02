@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * kvm guest debug support
+ * kvm guest de support
  *
  * Copyright IBM Corp. 2014
  *
@@ -201,7 +201,7 @@ static int __import_wp_info(struct kvm_vcpu *vcpu,
 #define MAX_BP_COUNT 50
 
 int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
-			    struct kvm_guest_debug *dbg)
+			    struct kvm_guest_de *dbg)
 {
 	int ret = 0, nr_wp = 0, nr_bp = 0, i;
 	struct kvm_hw_breakpoint *bp_data = NULL;
@@ -368,10 +368,10 @@ static struct kvm_hw_wp_info_arch *any_wp_changed(struct kvm_vcpu *vcpu)
 	return NULL;
 }
 
-void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu)
+void kvm_s390_prepare_de_exit(struct kvm_vcpu *vcpu)
 {
-	vcpu->run->exit_reason = KVM_EXIT_DEBUG;
-	vcpu->guest_debug &= ~KVM_GUESTDBG_EXIT_PENDING;
+	vcpu->run->exit_reason = KVM_EXIT_DE;
+	vcpu->guest_de &= ~KVM_GUESTDBG_EXIT_PENDING;
 }
 
 #define PER_CODE_MASK		(PER_EVENT_MASK >> 24)
@@ -385,10 +385,10 @@ void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu)
 #define per_write_wp_event(code) \
 			(code & (PER_CODE_STORE | PER_CODE_STORE_REAL))
 
-static int debug_exit_required(struct kvm_vcpu *vcpu, u8 perc,
+static int de_exit_required(struct kvm_vcpu *vcpu, u8 perc,
 			       unsigned long peraddr)
 {
-	struct kvm_debug_exit_arch *debug_exit = &vcpu->run->debug.arch;
+	struct kvm_de_exit_arch *de_exit = &vcpu->run->de.arch;
 	struct kvm_hw_wp_info_arch *wp_info = NULL;
 	struct kvm_hw_bp_info_arch *bp_info = NULL;
 	unsigned long addr = vcpu->arch.sie_block->gpsw.addr;
@@ -398,8 +398,8 @@ static int debug_exit_required(struct kvm_vcpu *vcpu, u8 perc,
 		    vcpu->arch.guestdbg.nr_hw_wp > 0) {
 			wp_info = any_wp_changed(vcpu);
 			if (wp_info) {
-				debug_exit->addr = wp_info->addr;
-				debug_exit->type = KVM_HW_WP_WRITE;
+				de_exit->addr = wp_info->addr;
+				de_exit->type = KVM_HW_WP_WRITE;
 				goto exit_required;
 			}
 		}
@@ -408,23 +408,23 @@ static int debug_exit_required(struct kvm_vcpu *vcpu, u8 perc,
 			bp_info = find_hw_bp(vcpu, addr);
 			/* remove duplicate events if PC==PER address */
 			if (bp_info && (addr != peraddr)) {
-				debug_exit->addr = addr;
-				debug_exit->type = KVM_HW_BP;
+				de_exit->addr = addr;
+				de_exit->type = KVM_HW_BP;
 				vcpu->arch.guestdbg.last_bp = addr;
 				goto exit_required;
 			}
 			/* breakpoint missed */
 			bp_info = find_hw_bp(vcpu, peraddr);
 			if (bp_info && vcpu->arch.guestdbg.last_bp != peraddr) {
-				debug_exit->addr = peraddr;
-				debug_exit->type = KVM_HW_BP;
+				de_exit->addr = peraddr;
+				de_exit->type = KVM_HW_BP;
 				goto exit_required;
 			}
 		}
 	}
 	if (guestdbg_sstep_enabled(vcpu) && per_bp_event(perc)) {
-		debug_exit->addr = addr;
-		debug_exit->type = KVM_SINGLESTEP;
+		de_exit->addr = addr;
+		de_exit->type = KVM_SINGLESTEP;
 		goto exit_required;
 	}
 
@@ -515,8 +515,8 @@ int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu)
 	if (!guestdbg_enabled(vcpu))
 		return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 
-	if (debug_exit_required(vcpu, pgm_info.per_code, pgm_info.per_address))
-		vcpu->guest_debug |= KVM_GUESTDBG_EXIT_PENDING;
+	if (de_exit_required(vcpu, pgm_info.per_code, pgm_info.per_address))
+		vcpu->guest_de |= KVM_GUESTDBG_EXIT_PENDING;
 
 	if (!guest_per_enabled(vcpu) ||
 	    !(vcpu->arch.sie_block->gcr[9] & PER_EVENT_IFETCH))
@@ -587,9 +587,9 @@ int kvm_s390_handle_per_event(struct kvm_vcpu *vcpu)
 {
 	int rc, new_as;
 
-	if (debug_exit_required(vcpu, vcpu->arch.sie_block->perc,
+	if (de_exit_required(vcpu, vcpu->arch.sie_block->perc,
 				vcpu->arch.sie_block->peraddr))
-		vcpu->guest_debug |= KVM_GUESTDBG_EXIT_PENDING;
+		vcpu->guest_de |= KVM_GUESTDBG_EXIT_PENDING;
 
 	rc = filter_guest_per_event(vcpu);
 	if (rc)

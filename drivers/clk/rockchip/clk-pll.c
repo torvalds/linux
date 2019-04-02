@@ -195,7 +195,7 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 	int cur_parent;
 	int ret;
 
-	pr_debug("%s: rate settings for %lu fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
+	pr_de("%s: rate settings for %lu fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
 		__func__, rate->rate, rate->fbdiv, rate->postdiv1, rate->refdiv,
 		rate->postdiv2, rate->dsmpd, rate->frac);
 
@@ -249,7 +249,7 @@ static int rockchip_rk3036_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
 
-	pr_debug("%s: changing %s to %lu with a parent rate of %lu\n",
+	pr_de("%s: changing %s to %lu with a parent rate of %lu\n",
 		 __func__, __clk_get_name(hw->clk), drate, prate);
 
 	/* Get required rate settings from table */
@@ -310,12 +310,12 @@ static void rockchip_rk3036_pll_init(struct clk_hw *hw)
 
 	rockchip_rk3036_pll_get_params(pll, &cur);
 
-	pr_debug("%s: pll %s@%lu: Hz\n", __func__, __clk_get_name(hw->clk),
+	pr_de("%s: pll %s@%lu: Hz\n", __func__, __clk_get_name(hw->clk),
 		 drate);
-	pr_debug("old - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
+	pr_de("old - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
 		 cur.fbdiv, cur.postdiv1, cur.refdiv, cur.postdiv2,
 		 cur.dsmpd, cur.frac);
-	pr_debug("new - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
+	pr_de("new - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
 		 rate->fbdiv, rate->postdiv1, rate->refdiv, rate->postdiv2,
 		 rate->dsmpd, rate->frac);
 
@@ -331,7 +331,7 @@ static void rockchip_rk3036_pll_init(struct clk_hw *hw)
 			return;
 		}
 
-		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
+		pr_de("%s: pll %s: rate params do not match rate table, adjusting\n",
 			 __func__, __clk_get_name(hw->clk));
 		rockchip_rk3036_pll_set_params(pll, rate);
 	}
@@ -403,7 +403,7 @@ static unsigned long rockchip_rk3066_pll_recalc_rate(struct clk_hw *hw,
 
 	pllcon = readl_relaxed(pll->reg_base + RK3066_PLLCON(3));
 	if (pllcon & RK3066_PLLCON3_BYPASS) {
-		pr_debug("%s: pll %s is bypassed\n", __func__,
+		pr_de("%s: pll %s is bypassed\n", __func__,
 			clk_hw_get_name(hw));
 		return prate;
 	}
@@ -427,7 +427,7 @@ static int rockchip_rk3066_pll_set_params(struct rockchip_clk_pll *pll,
 	int cur_parent;
 	int ret;
 
-	pr_debug("%s: rate settings for %lu (nr, no, nf): (%d, %d, %d)\n",
+	pr_de("%s: rate settings for %lu (nr, no, nf): (%d, %d, %d)\n",
 		 __func__, rate->rate, rate->nr, rate->no, rate->nf);
 
 	rockchip_rk3066_pll_get_params(pll, &cur);
@@ -482,7 +482,7 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
 
-	pr_debug("%s: changing %s to %lu with a parent rate of %lu\n",
+	pr_de("%s: changing %s to %lu with a parent rate of %lu\n",
 		 __func__, clk_hw_get_name(hw), drate, prate);
 
 	/* Get required rate settings from table */
@@ -543,12 +543,12 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 
 	rockchip_rk3066_pll_get_params(pll, &cur);
 
-	pr_debug("%s: pll %s@%lu: nr (%d:%d); no (%d:%d); nf(%d:%d), nb(%d:%d)\n",
+	pr_de("%s: pll %s@%lu: nr (%d:%d); no (%d:%d); nf(%d:%d), nb(%d:%d)\n",
 		 __func__, clk_hw_get_name(hw), drate, rate->nr, cur.nr,
 		 rate->no, cur.no, rate->nf, cur.nf, rate->nb, cur.nb);
 	if (rate->nr != cur.nr || rate->no != cur.no || rate->nf != cur.nf
 						     || rate->nb != cur.nb) {
-		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
+		pr_de("%s: pll %s: rate params do not match rate table, adjusting\n",
 			 __func__, clk_hw_get_name(hw));
 		rockchip_rk3066_pll_set_params(pll, rate);
 	}
@@ -672,7 +672,7 @@ static int rockchip_rk3399_pll_set_params(struct rockchip_clk_pll *pll,
 	int cur_parent;
 	int ret;
 
-	pr_debug("%s: rate settings for %lu fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
+	pr_de("%s: rate settings for %lu fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
 		__func__, rate->rate, rate->fbdiv, rate->postdiv1, rate->refdiv,
 		rate->postdiv2, rate->dsmpd, rate->frac);
 
@@ -728,7 +728,7 @@ static int rockchip_rk3399_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
 
-	pr_debug("%s: changing %s to %lu with a parent rate of %lu\n",
+	pr_de("%s: changing %s to %lu with a parent rate of %lu\n",
 		 __func__, __clk_get_name(hw->clk), drate, prate);
 
 	/* Get required rate settings from table */
@@ -789,12 +789,12 @@ static void rockchip_rk3399_pll_init(struct clk_hw *hw)
 
 	rockchip_rk3399_pll_get_params(pll, &cur);
 
-	pr_debug("%s: pll %s@%lu: Hz\n", __func__, __clk_get_name(hw->clk),
+	pr_de("%s: pll %s@%lu: Hz\n", __func__, __clk_get_name(hw->clk),
 		 drate);
-	pr_debug("old - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
+	pr_de("old - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
 		 cur.fbdiv, cur.postdiv1, cur.refdiv, cur.postdiv2,
 		 cur.dsmpd, cur.frac);
-	pr_debug("new - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
+	pr_de("new - fbdiv: %d, postdiv1: %d, refdiv: %d, postdiv2: %d, dsmpd: %d, frac: %d\n",
 		 rate->fbdiv, rate->postdiv1, rate->refdiv, rate->postdiv2,
 		 rate->dsmpd, rate->frac);
 
@@ -810,7 +810,7 @@ static void rockchip_rk3399_pll_init(struct clk_hw *hw)
 			return;
 		}
 
-		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
+		pr_de("%s: pll %s: rate params do not match rate table, adjusting\n",
 			 __func__, __clk_get_name(hw->clk));
 		rockchip_rk3399_pll_set_params(pll, rate);
 	}

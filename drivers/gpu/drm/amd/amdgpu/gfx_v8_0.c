@@ -193,7 +193,7 @@ static const u32 golden_settings_tonga_a11[] =
 {
 	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00007208,
 	mmCB_HW_CONTROL_3, 0x00000040, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmGB_GPU_ID, 0x0000000f, 0x00000000,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_FIFO_DEPTH_CNTL, 0x000003ff, 0x000000fc,
@@ -206,7 +206,7 @@ static const u32 golden_settings_tonga_a11[] =
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000002fb,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x0000543b,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0xa9210876,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 };
 
 static const u32 tonga_golden_common_all[] =
@@ -305,7 +305,7 @@ static const u32 golden_settings_vegam_a11[] =
 	mmCB_HW_CONTROL, 0x0001f3cf, 0x00007208,
 	mmCB_HW_CONTROL_2, 0x0f000000, 0x0d000000,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
 	mmPA_SC_RASTER_CONFIG, 0x3f3fffff, 0x3a00161a,
@@ -318,7 +318,7 @@ static const u32 golden_settings_vegam_a11[] =
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f7,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x32761054,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 };
 
 static const u32 vegam_golden_common_all[] =
@@ -336,7 +336,7 @@ static const u32 golden_settings_polaris11_a11[] =
 	mmCB_HW_CONTROL, 0x0000f3cf, 0x00007208,
 	mmCB_HW_CONTROL_2, 0x0f000000, 0x0f000000,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
 	mmPA_SC_RASTER_CONFIG, 0x3f3fffff, 0x16000012,
@@ -349,7 +349,7 @@ static const u32 golden_settings_polaris11_a11[] =
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f3,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00003210,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 };
 
 static const u32 polaris11_golden_common_all[] =
@@ -368,7 +368,7 @@ static const u32 golden_settings_polaris10_a11[] =
 	mmCB_HW_CONTROL, 0x0001f3cf, 0x00007208,
 	mmCB_HW_CONTROL_2, 0x0f000000, 0x0f000000,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
 	mmPA_SC_RASTER_CONFIG, 0x3f3fffff, 0x16000012,
@@ -380,7 +380,7 @@ static const u32 golden_settings_polaris10_a11[] =
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f7,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 };
 
 static const u32 polaris10_golden_common_all[] =
@@ -412,7 +412,7 @@ static const u32 fiji_golden_common_all[] =
 static const u32 golden_settings_fiji_a10[] =
 {
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
 	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
@@ -421,7 +421,7 @@ static const u32 golden_settings_fiji_a10[] =
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
 	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000ff,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 };
 
 static const u32 fiji_mgcg_cgcg_init[] =
@@ -466,8 +466,8 @@ static const u32 fiji_mgcg_cgcg_init[] =
 static const u32 golden_settings_iceland_a11[] =
 {
 	mmCB_HW_CONTROL_3, 0x00000040, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
-	mmDB_DEBUG3, 0xc0000000, 0xc0000000,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
+	mmDB_DE3, 0xc0000000, 0xc0000000,
 	mmGB_GPU_ID, 0x0000000f, 0x00000000,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
@@ -566,7 +566,7 @@ static const u32 iceland_mgcg_cgcg_init[] =
 static const u32 cz_golden_settings_a11[] =
 {
 	mmCB_HW_CONTROL_3, 0x00000040, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmGB_GPU_ID, 0x0000000f, 0x00000000,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x00000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
@@ -672,7 +672,7 @@ static const u32 cz_mgcg_cgcg_init[] =
 
 static const u32 stoney_golden_settings_a11[] =
 {
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmGB_GPU_ID, 0x0000000f, 0x00000000,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
@@ -953,7 +953,7 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	const struct rlc_firmware_header_v2_0 *rlc_hdr;
 	unsigned int *tmp = NULL, i;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
@@ -984,7 +984,7 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "vegam";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
@@ -3883,7 +3883,7 @@ static void gfx_v8_0_parse_ind_reg_list(int *register_list_format,
 			new_entry = false;
 			ind_start_offsets[*offset_count] = ind_offset;
 			*offset_count = *offset_count + 1;
-			BUG_ON(*offset_count >= max_offset);
+			_ON(*offset_count >= max_offset);
 		}
 
 		if (register_list_format[ind_offset] == 0xFFFFFFFF) {
@@ -3907,7 +3907,7 @@ static void gfx_v8_0_parse_ind_reg_list(int *register_list_format,
 				register_list_format[ind_offset];
 			indices = *indices_count;
 			*indices_count = *indices_count + 1;
-			BUG_ON(*indices_count >= max_indices);
+			_ON(*indices_count >= max_indices);
 		}
 
 		register_list_format[ind_offset] = indices;
@@ -4879,7 +4879,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 	gfx_v8_0_kcq_disable(adev);
 
 	if (amdgpu_sriov_vf(adev)) {
-		pr_debug("For SRIOV client, shouldn't do anything.\n");
+		pr_de("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
 	amdgpu_gfx_rlc_enter_safe_mode(adev);
@@ -5022,10 +5022,10 @@ static int gfx_v8_0_soft_reset(void *handle)
 	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	if (grbm_soft_reset || srbm_soft_reset) {
-		tmp = RREG32(mmGMCON_DEBUG);
-		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_STALL, 1);
-		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_CLEAR, 1);
-		WREG32(mmGMCON_DEBUG, tmp);
+		tmp = RREG32(mmGMCON_DE);
+		tmp = REG_SET_FIELD(tmp, GMCON_DE, GFX_STALL, 1);
+		tmp = REG_SET_FIELD(tmp, GMCON_DE, GFX_CLEAR, 1);
+		WREG32(mmGMCON_DE, tmp);
 		udelay(50);
 	}
 
@@ -5058,10 +5058,10 @@ static int gfx_v8_0_soft_reset(void *handle)
 	}
 
 	if (grbm_soft_reset || srbm_soft_reset) {
-		tmp = RREG32(mmGMCON_DEBUG);
-		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_STALL, 0);
-		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_CLEAR, 0);
-		WREG32(mmGMCON_DEBUG, tmp);
+		tmp = RREG32(mmGMCON_DE);
+		tmp = REG_SET_FIELD(tmp, GMCON_DE, GFX_STALL, 0);
+		tmp = REG_SET_FIELD(tmp, GMCON_DE, GFX_CLEAR, 0);
+		WREG32(mmGMCON_DE, tmp);
 	}
 
 	/* Wait a little for things to settle down */
@@ -6089,7 +6089,7 @@ static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 	 * different wave IDs than the GDS expects. This situation happens
 	 * randomly when at least 5 compute pipes use GDS ordered append.
 	 * The wave IDs generated by ME are also wrong after suspend/resume.
-	 * Those are probably bugs somewhere else in the kernel driver.
+	 * Those are probably s somewhere else in the kernel driver.
 	 *
 	 * Writing GDS_COMPUTE_MAX_WAVE_ID resets wave ID counters in ME and
 	 * GDS to 0 for this ring (me/pipe).
@@ -6311,7 +6311,7 @@ static void gfx_v8_0_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 					 u64 seq, unsigned int flags)
 {
 	/* we only allocate 32bit for each seq wb address */
-	BUG_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
+	_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
 
 	/* write fence seq to the "addr" */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
@@ -6388,8 +6388,8 @@ static void gfx_v8_0_ring_emit_patch_cond_exec(struct amdgpu_ring *ring, unsigne
 {
 	unsigned cur;
 
-	BUG_ON(offset > ring->buf_mask);
-	BUG_ON(ring->ring[offset] != 0x55aa55aa);
+	_ON(offset > ring->buf_mask);
+	_ON(ring->ring[offset] != 0x55aa55aa);
 
 	cur = (ring->wptr & ring->buf_mask) - 1;
 	if (likely(cur > offset))
@@ -6484,11 +6484,11 @@ static void gfx_v8_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev,
 			mec_int_cntl_reg = mmCP_ME1_PIPE3_INT_CNTL;
 			break;
 		default:
-			DRM_DEBUG("invalid pipe %d\n", pipe);
+			DRM_DE("invalid pipe %d\n", pipe);
 			return;
 		}
 	} else {
-		DRM_DEBUG("invalid me %d\n", me);
+		DRM_DE("invalid me %d\n", me);
 		return;
 	}
 
@@ -6648,7 +6648,7 @@ static int gfx_v8_0_eop_irq(struct amdgpu_device *adev,
 	u8 me_id, pipe_id, queue_id;
 	struct amdgpu_ring *ring;
 
-	DRM_DEBUG("IH: CP EOP\n");
+	DRM_DE("IH: CP EOP\n");
 	me_id = (entry->ring_id & 0x0c) >> 2;
 	pipe_id = (entry->ring_id & 0x03) >> 0;
 	queue_id = (entry->ring_id & 0x70) >> 4;

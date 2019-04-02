@@ -617,8 +617,8 @@ struct omap_hwmod am33xx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &am33xx_gpmc_hwmod_class,
 	.clkdm_name	= "l3s_clkdm",
-	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
+	/* Skip reset for CONFIG_OMAP_GPMC_DE for bootloader timings */
+	.flags		= DE_OMAP_GPMC_HWMOD_FLAGS,
 	.main_clk	= "l3s_gclk",
 	.prcm		= {
 		.omap4	= {
@@ -1153,7 +1153,7 @@ struct omap_hwmod am33xx_uart1_hwmod = {
 	.name		= "uart1",
 	.class		= &uart_class,
 	.clkdm_name	= "l4_wkup_clkdm",
-	.flags		= DEBUG_AM33XXUART1_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
+	.flags		= DE_AM33XXUART1_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.main_clk	= "dpll_per_m2_div4_wkupdm_ck",
 	.prcm		= {
 		.omap4	= {

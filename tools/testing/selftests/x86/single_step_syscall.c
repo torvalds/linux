@@ -162,7 +162,7 @@ int main()
 	 * kernel has to do something clever to avoid losing track of
 	 * the TF bit.
 	 *
-	 * Needless to say, we've had bugs in this area.
+	 * Needless to say, we've had s in this area.
 	 */
 	syscall(SYS_getpid);  /* Force symbol binding without TF set. */
 	printf("[RUN]\tSet TF and check a fast syscall\n");

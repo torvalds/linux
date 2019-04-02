@@ -6,11 +6,11 @@ config COMEDI
 
 if COMEDI
 
-config COMEDI_DEBUG
-	bool "Comedi debugging"
+config COMEDI_DE
+	bool "Comedi deging"
 	---help---
 	  This is an option for use by developers; most people should
-	  say N here. This enables comedi core and driver debugging.
+	  say N here. This enables comedi core and driver deging.
 
 config COMEDI_DEFAULT_BUF_SIZE_KB
 	int "Comedi default initial asynchronous buffer size in KiB"

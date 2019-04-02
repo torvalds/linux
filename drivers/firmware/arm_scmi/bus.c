@@ -107,7 +107,7 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 
 	retval = driver_register(&driver->driver);
 	if (!retval)
-		pr_debug("registered new scmi driver %s\n", driver->name);
+		pr_de("registered new scmi driver %s\n", driver->name);
 
 	return retval;
 }

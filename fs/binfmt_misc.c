@@ -28,10 +28,10 @@
 
 #include "internal.h"
 
-#ifdef DEBUG
-# define USE_DEBUG 1
+#ifdef DE
+# define USE_DE 1
 #else
-# define USE_DEBUG 0
+# define USE_DE 0
 #endif
 
 enum {
@@ -281,17 +281,17 @@ static char *check_special_flags(char *sfs, Node *e)
 	while (cont) {
 		switch (*p) {
 		case 'P':
-			pr_debug("register: flag: P (preserve argv0)\n");
+			pr_de("register: flag: P (preserve argv0)\n");
 			p++;
 			e->flags |= MISC_FMT_PRESERVE_ARGV0;
 			break;
 		case 'O':
-			pr_debug("register: flag: O (open binary)\n");
+			pr_de("register: flag: O (open binary)\n");
 			p++;
 			e->flags |= MISC_FMT_OPEN_BINARY;
 			break;
 		case 'C':
-			pr_debug("register: flag: C (preserve creds)\n");
+			pr_de("register: flag: C (preserve creds)\n");
 			p++;
 			/* this flags also implies the
 			   open-binary flag */
@@ -299,7 +299,7 @@ static char *check_special_flags(char *sfs, Node *e)
 					MISC_FMT_OPEN_BINARY);
 			break;
 		case 'F':
-			pr_debug("register: flag: F: open interpreter file now\n");
+			pr_de("register: flag: F: open interpreter file now\n");
 			p++;
 			e->flags |= MISC_FMT_OPEN_FILE;
 			break;
@@ -323,7 +323,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 	char *buf, *p;
 	char del;
 
-	pr_debug("register: received %zu bytes\n", count);
+	pr_de("register: received %zu bytes\n", count);
 
 	/* some sanity checks */
 	err = -EINVAL;
@@ -344,7 +344,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 	del = *p++;	/* delimeter */
 
-	pr_debug("register: delim: %#x {%c}\n", del, del);
+	pr_de("register: delim: %#x {%c}\n", del, del);
 
 	/* Pad the buffer with the delim to simplify parsing below. */
 	memset(buf + count, del, 8);
@@ -361,16 +361,16 @@ static Node *create_entry(const char __user *buffer, size_t count)
 	    strchr(e->name, '/'))
 		goto einval;
 
-	pr_debug("register: name: {%s}\n", e->name);
+	pr_de("register: name: {%s}\n", e->name);
 
 	/* Parse the 'type' field. */
 	switch (*p++) {
 	case 'E':
-		pr_debug("register: type: E (extension)\n");
+		pr_de("register: type: E (extension)\n");
 		e->flags = 1 << Enabled;
 		break;
 	case 'M':
-		pr_debug("register: type: M (magic)\n");
+		pr_de("register: type: M (magic)\n");
 		e->flags = (1 << Enabled) | (1 << Magic);
 		break;
 	default:
@@ -396,7 +396,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 		p = s;
 		if (*p++)
 			goto einval;
-		pr_debug("register: offset: %#x\n", e->offset);
+		pr_de("register: offset: %#x\n", e->offset);
 
 		/* Parse the 'magic' field. */
 		e->magic = p;
@@ -405,7 +405,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 			goto einval;
 		if (!e->magic[0])
 			goto einval;
-		if (USE_DEBUG)
+		if (USE_DE)
 			print_hex_dump_bytes(
 				KBUILD_MODNAME ": register: magic[raw]: ",
 				DUMP_PREFIX_NONE, e->magic, p - e->magic);
@@ -417,8 +417,8 @@ static Node *create_entry(const char __user *buffer, size_t count)
 			goto einval;
 		if (!e->mask[0]) {
 			e->mask = NULL;
-			pr_debug("register:  mask[raw]: none\n");
-		} else if (USE_DEBUG)
+			pr_de("register:  mask[raw]: none\n");
+		} else if (USE_DE)
 			print_hex_dump_bytes(
 				KBUILD_MODNAME ": register:  mask[raw]: ",
 				DUMP_PREFIX_NONE, e->mask, p - e->mask);
@@ -436,8 +436,8 @@ static Node *create_entry(const char __user *buffer, size_t count)
 		if (e->size > BINPRM_BUF_SIZE ||
 		    BINPRM_BUF_SIZE - e->size < e->offset)
 			goto einval;
-		pr_debug("register: magic/mask length: %i\n", e->size);
-		if (USE_DEBUG) {
+		pr_de("register: magic/mask length: %i\n", e->size);
+		if (USE_DE) {
 			print_hex_dump_bytes(
 				KBUILD_MODNAME ": register: magic[decoded]: ",
 				DUMP_PREFIX_NONE, e->magic, e->size);
@@ -478,7 +478,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 		*p++ = '\0';
 		if (!e->magic[0] || strchr(e->magic, '/'))
 			goto einval;
-		pr_debug("register: extension: {%s}\n", e->magic);
+		pr_de("register: extension: {%s}\n", e->magic);
 
 		/* Skip the 'mask' field. */
 		p = strchr(p, del);
@@ -495,7 +495,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 	*p++ = '\0';
 	if (!e->interpreter[0])
 		goto einval;
-	pr_debug("register: interpreter: {%s}\n", e->interpreter);
+	pr_de("register: interpreter: {%s}\n", e->interpreter);
 
 	/* Parse the 'flags' field. */
 	p = check_special_flags(p, e);

@@ -90,7 +90,7 @@ void i915_sched_node_fini(struct drm_i915_private *i915,
 {
 	struct i915_dependency *dep, *tmp;
 
-	GEM_BUG_ON(!list_empty(&node->link));
+	GEM__ON(!list_empty(&node->link));
 
 	spin_lock(&schedule_lock);
 
@@ -101,8 +101,8 @@ void i915_sched_node_fini(struct drm_i915_private *i915,
 	 * so we may be called out-of-order.
 	 */
 	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
-		GEM_BUG_ON(!node_signaled(dep->signaler));
-		GEM_BUG_ON(!list_empty(&dep->dfs_link));
+		GEM__ON(!node_signaled(dep->signaler));
+		GEM__ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->wait_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
@@ -111,8 +111,8 @@ void i915_sched_node_fini(struct drm_i915_private *i915,
 
 	/* Remove ourselves from everyone who depends upon us */
 	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
-		GEM_BUG_ON(dep->signaler != node);
-		GEM_BUG_ON(!list_empty(&dep->dfs_link));
+		GEM__ON(dep->signaler != node);
+		GEM__ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->signal_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
@@ -132,25 +132,25 @@ static void assert_priolists(struct intel_engine_execlists * const execlists)
 	struct rb_node *rb;
 	long last_prio, i;
 
-	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+	if (!IS_ENABLED(CONFIG_DRM_I915_DE_GEM))
 		return;
 
-	GEM_BUG_ON(rb_first_cached(&execlists->queue) !=
+	GEM__ON(rb_first_cached(&execlists->queue) !=
 		   rb_first(&execlists->queue.rb_root));
 
 	last_prio = (INT_MAX >> I915_USER_PRIORITY_SHIFT) + 1;
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
 		const struct i915_priolist *p = to_priolist(rb);
 
-		GEM_BUG_ON(p->priority >= last_prio);
+		GEM__ON(p->priority >= last_prio);
 		last_prio = p->priority;
 
-		GEM_BUG_ON(!p->used);
+		GEM__ON(!p->used);
 		for (i = 0; i < ARRAY_SIZE(p->requests); i++) {
 			if (list_empty(&p->requests[i]))
 				continue;
 
-			GEM_BUG_ON(!(p->used & BIT(i)));
+			GEM__ON(!(p->used & BIT(i)));
 		}
 	}
 }
@@ -234,7 +234,7 @@ sched_lock_engine(const struct i915_sched_node *node,
 {
 	struct intel_engine_cs *engine = node_to_request(node)->engine;
 
-	GEM_BUG_ON(!locked);
+	GEM__ON(!locked);
 
 	if (engine != locked) {
 		spin_unlock(&locked->timeline.lock);
@@ -269,7 +269,7 @@ static void __i915_schedule(struct i915_request *rq,
 
 	/* Needed in order to use the temporary link inside i915_dependency */
 	lockdep_assert_held(&schedule_lock);
-	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
+	GEM__ON(prio == I915_PRIORITY_INVALID);
 
 	if (i915_request_completed(rq))
 		return;
@@ -308,12 +308,12 @@ static void __i915_schedule(struct i915_request *rq,
 		 * engines.
 		 */
 		list_for_each_entry(p, &node->signalers_list, signal_link) {
-			GEM_BUG_ON(p == dep); /* no cycles! */
+			GEM__ON(p == dep); /* no cycles! */
 
 			if (node_signaled(p->signaler))
 				continue;
 
-			GEM_BUG_ON(p->signaler->attr.priority < node->attr.priority);
+			GEM__ON(p->signaler->attr.priority < node->attr.priority);
 			if (prio > READ_ONCE(p->signaler->attr.priority))
 				list_move_tail(&p->dfs_link, &dfs);
 		}
@@ -326,7 +326,7 @@ static void __i915_schedule(struct i915_request *rq,
 	 * acquiring the engine locks.
 	 */
 	if (rq->sched.attr.priority == I915_PRIORITY_INVALID) {
-		GEM_BUG_ON(!list_empty(&rq->sched.link));
+		GEM__ON(!list_empty(&rq->sched.link));
 		rq->sched.attr = *attr;
 
 		if (stack.dfs_link.next == stack.dfs_link.prev)
@@ -402,7 +402,7 @@ void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
 {
 	struct i915_sched_attr attr;
 
-	GEM_BUG_ON(bump & ~I915_PRIORITY_MASK);
+	GEM__ON(bump & ~I915_PRIORITY_MASK);
 
 	if (READ_ONCE(rq->sched.attr.priority) == I915_PRIORITY_INVALID)
 		return;

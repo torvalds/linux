@@ -75,7 +75,7 @@ retry:
 				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
 				goto retry;
 			}
-			DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
+			DRM_DE("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
 				  size, initial_domain, alignment, r);
 		}
 		return r;
@@ -456,7 +456,7 @@ int amdgpu_gem_metadata_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_bo *robj;
 	int r = -1;
 
-	DRM_DEBUG("%d \n", args->handle);
+	DRM_DE("%d \n", args->handle);
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
@@ -660,7 +660,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
-	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_debug)
+	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_de)
 		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
 					args->operation);
 
@@ -770,14 +770,14 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-#define amdgpu_debugfs_gem_bo_print_flag(m, bo, flag)	\
+#define amdgpu_defs_gem_bo_print_flag(m, bo, flag)	\
 	if (bo->flags & (AMDGPU_GEM_CREATE_ ## flag)) {	\
 		seq_printf((m), " " #flag);		\
 	}
 
-static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
+static int amdgpu_defs_gem_bo_info(int id, void *ptr, void *data)
 {
 	struct drm_gem_object *gobj = ptr;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
@@ -817,21 +817,21 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	else if (dma_buf)
 		seq_printf(m, " exported as %p", dma_buf);
 
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, CPU_ACCESS_REQUIRED);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, NO_CPU_ACCESS);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, CPU_GTT_USWC);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, VRAM_CLEARED);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, SHADOW);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, VRAM_CONTIGUOUS);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, VM_ALWAYS_VALID);
-	amdgpu_debugfs_gem_bo_print_flag(m, bo, EXPLICIT_SYNC);
+	amdgpu_defs_gem_bo_print_flag(m, bo, CPU_ACCESS_REQUIRED);
+	amdgpu_defs_gem_bo_print_flag(m, bo, NO_CPU_ACCESS);
+	amdgpu_defs_gem_bo_print_flag(m, bo, CPU_GTT_USWC);
+	amdgpu_defs_gem_bo_print_flag(m, bo, VRAM_CLEARED);
+	amdgpu_defs_gem_bo_print_flag(m, bo, SHADOW);
+	amdgpu_defs_gem_bo_print_flag(m, bo, VRAM_CONTIGUOUS);
+	amdgpu_defs_gem_bo_print_flag(m, bo, VM_ALWAYS_VALID);
+	amdgpu_defs_gem_bo_print_flag(m, bo, EXPLICIT_SYNC);
 
 	seq_printf(m, "\n");
 
 	return 0;
 }
 
-static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
+static int amdgpu_defs_gem_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -858,7 +858,7 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 		rcu_read_unlock();
 
 		spin_lock(&file->table_lock);
-		idr_for_each(&file->object_idr, amdgpu_debugfs_gem_bo_info, m);
+		idr_for_each(&file->object_idr, amdgpu_defs_gem_bo_info, m);
 		spin_unlock(&file->table_lock);
 	}
 
@@ -866,15 +866,15 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_debugfs_gem_list[] = {
-	{"amdgpu_gem_info", &amdgpu_debugfs_gem_info, 0, NULL},
+static const struct drm_info_list amdgpu_defs_gem_list[] = {
+	{"amdgpu_gem_info", &amdgpu_defs_gem_info, 0, NULL},
 };
 #endif
 
-int amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
+int amdgpu_defs_gem_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_gem_list, 1);
+#if defined(CONFIG_DE_FS)
+	return amdgpu_defs_add_files(adev, amdgpu_defs_gem_list, 1);
 #endif
 	return 0;
 }

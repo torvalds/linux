@@ -36,7 +36,7 @@ int base_cpu;
 /* Affected cpus chosen by -c/--cpu param */
 struct bitmask *cpus_chosen;
 
-#ifdef DEBUG
+#ifdef DE
 int be_verbose;
 #endif
 
@@ -64,8 +64,8 @@ static void print_help(void)
 {
 	unsigned int i;
 
-#ifdef DEBUG
-	printf(_("Usage:\tcpupower [-d|--debug] [-c|--cpu cpulist ] <command> [<args>]\n"));
+#ifdef DE
+	printf(_("Usage:\tcpupower [-d|--de] [-c|--cpu cpulist ] <command> [<args>]\n"));
 #else
 	printf(_("Usage:\tcpupower [-c|--cpu cpulist ] <command> [<args>]\n"));
 #endif
@@ -115,7 +115,7 @@ static int cmd_help(int argc, const char **argv)
 static void print_version(void)
 {
 	printf(PACKAGE " " VERSION "\n");
-	printf(_("Report errors and bugs to %s, please.\n"), PACKAGE_BUGREPORT);
+	printf(_("Report errors and s to %s, please.\n"), PACKAGE_REPORT);
 }
 
 static void handle_options(int *argc, const char ***argv)
@@ -154,8 +154,8 @@ static void handle_options(int *argc, const char ***argv)
 			!strcmp(param, "--version")) {
 			print_version();
 			exit(EXIT_SUCCESS);
-#ifdef DEBUG
-		} else if (!strcmp(param, "-d") || !strcmp(param, "--debug")) {
+#ifdef DE
+		} else if (!strcmp(param, "-d") || !strcmp(param, "--de")) {
 			be_verbose = 1;
 			new_argc++;
 			continue;

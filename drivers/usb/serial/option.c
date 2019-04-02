@@ -21,7 +21,7 @@
   which the GSM interface sits), made by Option Inc.
 
   Some of the "one port" devices actually exhibit multiple USB instances
-  on the USB bus. This is not a bug, these ports are used for different
+  on the USB bus. This is not a , these ports are used for different
   device features.
 */
 

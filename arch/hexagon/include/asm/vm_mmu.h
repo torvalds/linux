@@ -79,7 +79,7 @@
 
 /*
  * This can be overridden, but we're defaulting to the most aggressive
- * cache policy, the better to find bugs sooner.
+ * cache policy, the better to find s sooner.
  */
 
 #define	CACHE_DEFAULT	__HEXAGON_C_WB_L2

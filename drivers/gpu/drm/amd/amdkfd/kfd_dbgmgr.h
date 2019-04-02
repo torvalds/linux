@@ -33,7 +33,7 @@ enum HSA_DBG_WAVEOP {
 	HSA_DBG_WAVEOP_HALT = 1,   /* Halts a wavefront */
 	HSA_DBG_WAVEOP_RESUME = 2, /* Resumes a wavefront */
 	HSA_DBG_WAVEOP_KILL = 3,   /* Kills a wavefront */
-	HSA_DBG_WAVEOP_DEBUG = 4,  /* Causes wavefront to enter dbg mode */
+	HSA_DBG_WAVEOP_DE = 4,  /* Causes wavefront to enter dbg mode */
 	HSA_DBG_WAVEOP_TRAP = 5,   /* Causes wavefront to take a trap */
 	HSA_DBG_NUM_WAVEOP = 5,
 	HSA_DBG_MAX_WAVEOP = 0xFFFFFFFF
@@ -129,7 +129,7 @@ enum HSA_EVENTTYPE {
 						 */
 	HSA_EVENTTYPE_HW_EXCEPTION = 3,	/* GPU shader exception event */
 	HSA_EVENTTYPE_SYSTEM_EVENT = 4,	/* GPU SYSCALL with parameter info */
-	HSA_EVENTTYPE_DEBUG_EVENT = 5,	/* GPU signal for debugging */
+	HSA_EVENTTYPE_DE_EVENT = 5,	/* GPU signal for deging */
 	HSA_EVENTTYPE_PROFILE_EVENT = 6,/* GPU signal for profiling */
 	HSA_EVENTTYPE_QUEUE_EVENT = 7,	/* GPU signal queue idle state
 					 * (EOP pm4)
@@ -261,7 +261,7 @@ struct kfd_dbgdev {
 	/* a pointer to the pqm of the calling process */
 	struct process_queue_manager *pqm;
 
-	/* type of debug device ( DIQ, non DIQ, etc. ) */
+	/* type of de device ( DIQ, non DIQ, etc. ) */
 	enum DBGDEV_TYPE type;
 
 	/* virtualized function pointers to device dbg */
@@ -280,7 +280,7 @@ struct kfd_dbgmgr {
 	struct kfd_dbgdev *dbgdev;
 };
 
-/* prototypes for debug manager functions */
+/* prototypes for de manager functions */
 struct mutex *kfd_get_dbgmgr_mutex(void);
 void kfd_dbgmgr_destroy(struct kfd_dbgmgr *pmgr);
 bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev);

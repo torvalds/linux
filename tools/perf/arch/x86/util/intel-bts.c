@@ -25,7 +25,7 @@
 #include "../../util/session.h"
 #include "../../util/util.h"
 #include "../../util/pmu.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/tsc.h"
 #include "../../util/auxtrace.h"
 #include "../../util/intel-bts.h"
@@ -181,7 +181,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 			pr_err("Failed to calculate default snapshot size and/or AUX area tracing mmap pages\n");
 			return -EINVAL;
 		}
-		pr_debug2("Intel BTS snapshot size: %zu\n",
+		pr_de2("Intel BTS snapshot size: %zu\n",
 			  opts->auxtrace_snapshot_size);
 	}
 
@@ -370,7 +370,7 @@ static int intel_bts_find_snapshot(struct auxtrace_record *itr, int idx,
 	bool wrapped;
 	int err;
 
-	pr_debug3("%s: mmap index %d old head %zu new head %zu\n",
+	pr_de3("%s: mmap index %d old head %zu new head %zu\n",
 		  __func__, idx, (size_t)*old, (size_t)*head);
 
 	if (idx >= btsr->snapshot_ref_cnt) {
@@ -403,7 +403,7 @@ static int intel_bts_find_snapshot(struct auxtrace_record *itr, int idx,
 			*head += mm->len;
 	}
 
-	pr_debug3("%s: wrap-around %sdetected, adjusted old head %zu adjusted new head %zu\n",
+	pr_de3("%s: wrap-around %sdetected, adjusted old head %zu adjusted new head %zu\n",
 		  __func__, wrapped ? "" : "not ", (size_t)*old, (size_t)*head);
 
 	return 0;

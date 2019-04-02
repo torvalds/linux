@@ -108,13 +108,13 @@ MODULE_DESCRIPTION(LANAME);
 #define MPT_LAN_RESOURCE_FLAG_RETURN_PEND_TRANSMITS    0x02
 
 /*****************************************************************************/
-#ifdef MPT_LAN_IO_DEBUG
+#ifdef MPT_LAN_IO_DE
 #define dioprintk(x)  printk x
 #else
 #define dioprintk(x)
 #endif
 
-#ifdef MPT_LAN_DEBUG
+#ifdef MPT_LAN_DE
 #define dlprintk(x)  printk x
 #else
 #define dlprintk(x)

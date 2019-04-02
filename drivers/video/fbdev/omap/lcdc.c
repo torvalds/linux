@@ -105,7 +105,7 @@ static void set_load_mode(enum lcdc_load_mode mode)
 	case OMAP_LCDC_LOAD_PALETTE_AND_FRAME:
 		break;
 	default:
-		BUG();
+		();
 	}
 	omap_writel(l, OMAP_LCDC_CONTROL);
 }
@@ -203,14 +203,14 @@ static void setup_lcd_dma(void)
 	case 180:
 	case 270:
 		if (cpu_is_omap15xx()) {
-			BUG();
+			();
 		}
 		esize = 2;
 		xelem = lcdc.yres * lcdc.bpp / 16;
 		yelem = lcdc.xres;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 #ifdef VERBOSE
@@ -356,7 +356,7 @@ static int omap_lcdc_setup_plane(int plane, int channel_out,
 		 * bpp12: code 0x4000 size 32
 		 */
 		dev_dbg(lcdc.fbdev->dev, "invalid color mode %d\n", color_mode);
-		BUG();
+		();
 		return -1;
 	}
 
@@ -586,7 +586,7 @@ static void omap_lcdc_get_caps(int plane, struct omapfb_caps *caps)
 
 int omap_lcdc_set_dma_callback(void (*callback)(void *data), void *data)
 {
-	BUG_ON(callback == NULL);
+	_ON(callback == NULL);
 
 	if (lcdc.dma_callback)
 		return -EBUSY;

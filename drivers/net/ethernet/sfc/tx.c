@@ -213,8 +213,8 @@ static void efx_memcpy_toio_aligned(struct efx_nic *efx, u8 __iomem **piobuf,
 
 	if (len) {
 		data += block_len;
-		BUG_ON(copy_buf->used);
-		BUG_ON(len > sizeof(copy_buf->buf));
+		_ON(copy_buf->used);
+		_ON(len > sizeof(copy_buf->buf));
 		memcpy(copy_buf->buf, data, len);
 		copy_buf->used = len;
 	}
@@ -313,7 +313,7 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
 		 * We can do this because we know the skb_shared_info struct is
 		 * after the source, and the destination buffer is big enough.
 		 */
-		BUILD_BUG_ON(L1_CACHE_BYTES >
+		BUILD__ON(L1_CACHE_BYTES >
 			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
 		__iowrite64_copy(tx_queue->piobuf, skb->data,
 				 ALIGN(skb->len, L1_CACHE_BYTES) >> 3);

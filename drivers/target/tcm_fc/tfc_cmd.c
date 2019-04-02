@@ -39,7 +39,7 @@
 #include "tcm_fc.h"
 
 /*
- * Dump cmd state for debugging.
+ * Dump cmd state for deging.
  */
 static void _ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 {
@@ -50,15 +50,15 @@ static void _ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	int count;
 
 	se_cmd = &cmd->se_cmd;
-	pr_debug("%s: cmd %p sess %p seq %p se_cmd %p\n",
+	pr_de("%s: cmd %p sess %p seq %p se_cmd %p\n",
 		caller, cmd, cmd->sess, cmd->seq, se_cmd);
 
-	pr_debug("%s: cmd %p data_nents %u len %u se_cmd_flags <0x%x>\n",
+	pr_de("%s: cmd %p data_nents %u len %u se_cmd_flags <0x%x>\n",
 		caller, cmd, se_cmd->t_data_nents,
 	       se_cmd->data_length, se_cmd->se_cmd_flags);
 
 	for_each_sg(se_cmd->t_data_sg, sg, se_cmd->t_data_nents, count)
-		pr_debug("%s: cmd %p sg %p page %p "
+		pr_de("%s: cmd %p sg %p page %p "
 			"len 0x%x off 0x%x\n",
 			caller, cmd, sg,
 			sg_page(sg), sg->length, sg->offset);
@@ -66,7 +66,7 @@ static void _ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	sp = cmd->seq;
 	if (sp) {
 		ep = fc_seq_exch(sp);
-		pr_debug("%s: cmd %p sid %x did %x "
+		pr_de("%s: cmd %p sid %x did %x "
 			"ox_id %x rx_id %x seq_id %x e_stat %x\n",
 			caller, cmd, ep->sid, ep->did, ep->oxid, ep->rxid,
 			sp->id, ep->esb_stat);
@@ -75,7 +75,7 @@ static void _ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 
 void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 {
-	if (unlikely(ft_debug_logging))
+	if (unlikely(ft_de_logging))
 		_ft_dump_cmd(cmd, caller);
 }
 
@@ -266,7 +266,7 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	case FC_RCTL_DD_SOL_CTL:	/* transfer ready */
 	case FC_RCTL_DD_DATA_DESC:	/* transfer ready */
 	default:
-		pr_debug("%s: unhandled frame r_ctl %x\n",
+		pr_de("%s: unhandled frame r_ctl %x\n",
 		       __func__, fh->fh_r_ctl);
 		ft_invl_hw_context(cmd);
 		fc_frame_free(fp);
@@ -292,7 +292,7 @@ static void ft_send_resp_status(struct fc_lport *lport,
 	struct fcp_resp_rsp_info *info;
 
 	fh = fc_frame_header_get(rx_fp);
-	pr_debug("FCP error response: did %x oxid %x status %x code %x\n",
+	pr_de("FCP error response: did %x oxid %x status %x code %x\n",
 		  ntoh24(fh->fh_s_id), ntohs(fh->fh_ox_id), status, code);
 	len = sizeof(*fcp);
 	if (status == SAM_STAT_GOOD)
@@ -374,7 +374,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		 * FCP4r01 indicates having a combination of
 		 * tm_flags set is invalid.
 		 */
-		pr_debug("invalid FCP tm_flags %x\n", fcp->fc_tm_flags);
+		pr_de("invalid FCP tm_flags %x\n", fcp->fc_tm_flags);
 		ft_send_resp_code_and_free(cmd, FCP_CMND_FIELDS_INVALID);
 		return;
 	}
@@ -414,7 +414,7 @@ void ft_queue_tm_resp(struct se_cmd *se_cmd)
 		code = FCP_TMF_FAILED;
 		break;
 	}
-	pr_debug("tmr fn %d resp %d fcp code %d\n",
+	pr_de("tmr fn %d resp %d fcp code %d\n",
 		  tmr->function, tmr->response, code);
 	ft_send_resp_code(cmd, code);
 	/*
@@ -464,7 +464,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	return;
 
 busy:
-	pr_debug("cmd or seq allocation failure - sending BUSY\n");
+	pr_de("cmd or seq allocation failure - sending BUSY\n");
 	ft_send_resp_status(lport, fp, SAM_STAT_BUSY, 0);
 	fc_frame_free(fp);
 	ft_sess_put(sess);		/* undo get from lookup */
@@ -489,7 +489,7 @@ void ft_recv_req(struct ft_sess *sess, struct fc_frame *fp)
 	case FC_RCTL_DD_DATA_DESC:	/* transfer ready */
 	case FC_RCTL_ELS4_REQ:		/* SRR, perhaps */
 	default:
-		pr_debug("%s: unhandled frame r_ctl %x\n",
+		pr_de("%s: unhandled frame r_ctl %x\n",
 		       __func__, fh->fh_r_ctl);
 		fc_frame_free(fp);
 		ft_sess_put(sess);	/* undo get from lookup */
@@ -566,7 +566,7 @@ static void ft_send_work(struct work_struct *work)
 			      TARGET_SCF_ACK_KREF | TARGET_SCF_USE_CPUID))
 		goto err;
 
-	pr_debug("r_ctl %x target_submit_cmd %p\n", fh->fh_r_ctl, cmd);
+	pr_de("r_ctl %x target_submit_cmd %p\n", fh->fh_r_ctl, cmd);
 	return;
 
 err:

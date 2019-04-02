@@ -30,10 +30,10 @@ struct dentry *qnx6_lookup(struct inode *dir, struct dentry *dentry,
 		foundinode = qnx6_iget(dir->i_sb, ino);
 		qnx6_put_page(page);
 		if (IS_ERR(foundinode))
-			pr_debug("lookup->iget ->  error %ld\n",
+			pr_de("lookup->iget ->  error %ld\n",
 				 PTR_ERR(foundinode));
 	} else {
-		pr_debug("%s(): not found %s\n", __func__, name);
+		pr_de("%s(): not found %s\n", __func__, name);
 	}
 	return d_splice_alias(foundinode, dentry);
 }

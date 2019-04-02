@@ -146,7 +146,7 @@ static const struct pinconf_generic_params pm8xxx_mpp_bindings[] = {
 	{"qcom,paired",		PM8XXX_CONFIG_PAIRED,		0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item pm8xxx_conf_items[] = {
 	PCONFDUMP(PM8XXX_CONFIG_AMUX, "analog mux", NULL, true),
 	PCONFDUMP(PM8XXX_CONFIG_ALEVEL, "analog level", NULL, true),
@@ -544,7 +544,7 @@ static int pm8xxx_mpp_to_irq(struct gpio_chip *chip, unsigned offset)
 	return pin->irq;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/seq_file.h>
 
 static void pm8xxx_mpp_dbg_show_one(struct seq_file *s,
@@ -817,7 +817,7 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 
 	pctrl->desc.num_custom_params = ARRAY_SIZE(pm8xxx_mpp_bindings);
 	pctrl->desc.custom_params = pm8xxx_mpp_bindings;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	pctrl->desc.custom_conf_items = pm8xxx_conf_items;
 #endif
 

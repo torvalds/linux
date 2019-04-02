@@ -266,7 +266,7 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	else
 		return NULL;
 
-	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
+	de_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
 	return cpu_addr;
 }
 EXPORT_SYMBOL(dma_alloc_attrs);
@@ -281,7 +281,7 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	/*
 	 * On non-coherent platforms which implement DMA-coherent buffers via
 	 * non-cacheable remaps, ops->free() may call vunmap(). Thus getting
-	 * this far in IRQ context is a) at risk of a BUG_ON() or trying to
+	 * this far in IRQ context is a) at risk of a _ON() or trying to
 	 * sleep on some machines, and b) an indication that the driver is
 	 * probably misusing the coherent API anyway.
 	 */
@@ -290,7 +290,7 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	if (!cpu_addr)
 		return;
 
-	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
+	de_dma_free_coherent(dev, size, cpu_addr, dma_handle);
 	if (dma_is_direct(ops))
 		dma_direct_free(dev, size, cpu_addr, dma_handle, attrs);
 	else if (ops->free)
@@ -352,7 +352,7 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 
 	if (dma_is_direct(ops))
 		arch_dma_cache_sync(dev, vaddr, size, dir);

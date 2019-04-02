@@ -83,9 +83,9 @@
 static struct superio_device sio_dev;
 
 
-#undef DEBUG_SUPERIO_INIT
+#undef DE_SUPERIO_INIT
 
-#ifdef DEBUG_SUPERIO_INIT
+#ifdef DE_SUPERIO_INIT
 #define DBG_INIT(x...)  printk(x)
 #else
 #define DBG_INIT(x...)
@@ -160,8 +160,8 @@ superio_init(struct pci_dev *pcidev)
 	if (sio->suckyio_irq_enabled)
 		return;
 
-	BUG_ON(!pdev);
-	BUG_ON(!sio->usb_pdev);
+	_ON(!pdev);
+	_ON(!sio->usb_pdev);
 
 	/* use the IRQ iosapic found for USB INT D... */
 	pdev->irq = sio->usb_pdev->irq;
@@ -202,13 +202,13 @@ superio_init(struct pci_dev *pcidev)
 
 	pci_set_master (pdev);
 	ret = pci_enable_device(pdev);
-	BUG_ON(ret < 0);	/* not too much we can do about this... */
+	_ON(ret < 0);	/* not too much we can do about this... */
 
 	/*
 	 * Next project is programming the onboard interrupt controllers.
 	 * PDC hasn't done this for us, since it's using polled I/O.
 	 *
-	 * XXX Use dword writes to avoid bugs in Elroy or Suckyio Config
+	 * XXX Use dword writes to avoid s in Elroy or Suckyio Config
 	 *     space access.  PCI is by nature a 32-bit bus and config
 	 *     space can be sensitive to that.
 	 */
@@ -278,7 +278,7 @@ superio_init(struct pci_dev *pcidev)
 			SUPERIO, (void *)sio)) {
 
 		printk(KERN_ERR PFX "could not get irq\n");
-		BUG();
+		();
 		return;
 	}
 
@@ -293,7 +293,7 @@ static void superio_mask_irq(struct irq_data *d)
 
 	if ((irq < 1) || (irq == 2) || (irq > 7)) {
 		printk(KERN_ERR PFX "Illegal irq number.\n");
-		BUG();
+		();
 		return;
 	}
 
@@ -311,7 +311,7 @@ static void superio_unmask_irq(struct irq_data *d)
 
 	if ((irq < 1) || (irq == 2) || (irq > 7)) {
 		printk(KERN_ERR PFX "Illegal irq number (%d).\n", irq);
-		BUG();
+		();
 		return;
 	}
 
@@ -327,7 +327,7 @@ static struct irq_chip superio_interrupt_type = {
 	.irq_mask	=	superio_mask_irq,
 };
 
-#ifdef DEBUG_SUPERIO_INIT
+#ifdef DE_SUPERIO_INIT
 static unsigned short expected_device[3] = {
 	PCI_DEVICE_ID_NS_87415,
 	PCI_DEVICE_ID_NS_87560_LIO,
@@ -339,16 +339,16 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 {
 	int local_irq, i;
 
-#ifdef DEBUG_SUPERIO_INIT
+#ifdef DE_SUPERIO_INIT
 	int fn;
 	fn = PCI_FUNC(pcidev->devfn);
 
 	/* Verify the function number matches the expected device id. */
 	if (expected_device[fn] != pcidev->device) {
-		BUG();
+		();
 		return -1;
 	}
-	printk(KERN_DEBUG "superio_fixup_irq(%s) ven 0x%x dev 0x%x from %ps\n",
+	printk(KERN_DE "superio_fixup_irq(%s) ven 0x%x dev 0x%x from %ps\n",
 		pci_name(pcidev),
 		pcidev->vendor, pcidev->device,
 		__builtin_return_address(0));
@@ -378,7 +378,7 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 		break;
 	default:
 		local_irq = -1;
-		BUG();
+		();
 		break;
 	}
 
@@ -463,7 +463,7 @@ superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		dev->subsystem_vendor, dev->subsystem_device,
 		dev->class);
 
-	BUG_ON(!sio->suckyio_irq_enabled);	/* Enabled by PCI_FIXUP_FINAL */
+	_ON(!sio->suckyio_irq_enabled);	/* Enabled by PCI_FIXUP_FINAL */
 
 	if (dev->device == PCI_DEVICE_ID_NS_87560_LIO) {	/* Function 1 */
 		superio_parport_init();

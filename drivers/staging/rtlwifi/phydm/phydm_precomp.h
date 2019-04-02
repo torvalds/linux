@@ -26,7 +26,7 @@
 
 #include "phydm.h"
 #include "phydm_hwconfig.h"
-#include "phydm_debug.h"
+#include "phydm_de.h"
 #include "phydm_regdefine11ac.h"
 #include "phydm_regdefine11n.h"
 #include "phydm_interface.h"

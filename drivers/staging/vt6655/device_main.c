@@ -181,11 +181,11 @@ device_set_options(struct vnt_private *priv)
 	priv->bUpdateBBVGA = true;
 	priv->byPreambleType = 0;
 
-	pr_debug(" byShortRetryLimit= %d\n", (int)priv->byShortRetryLimit);
-	pr_debug(" byLongRetryLimit= %d\n", (int)priv->byLongRetryLimit);
-	pr_debug(" byPreambleType= %d\n", (int)priv->byPreambleType);
-	pr_debug(" byShortPreamble= %d\n", (int)priv->byShortPreamble);
-	pr_debug(" byBBType= %d\n", (int)priv->byBBType);
+	pr_de(" byShortRetryLimit= %d\n", (int)priv->byShortRetryLimit);
+	pr_de(" byLongRetryLimit= %d\n", (int)priv->byLongRetryLimit);
+	pr_de(" byPreambleType= %d\n", (int)priv->byPreambleType);
+	pr_de(" byShortPreamble= %d\n", (int)priv->byShortPreamble);
+	pr_de(" byBBType= %d\n", (int)priv->byBBType);
 }
 
 /*
@@ -287,7 +287,7 @@ static void device_init_registers(struct vnt_private *priv)
 	if (!priv->bZoneRegExist)
 		priv->byZoneType = priv->abyEEPROM[EEP_OFS_ZONETYPE];
 
-	pr_debug("priv->byZoneType = %x\n", priv->byZoneType);
+	pr_de("priv->byZoneType = %x\n", priv->byZoneType);
 
 	/* Init RF module */
 	RFbInit(priv);
@@ -392,7 +392,7 @@ static void device_init_registers(struct vnt_private *priv)
 
 	/* get Permanent network address */
 	SROMvReadEtherAddress(priv->PortOffset, priv->abyCurrentNetAddr);
-	pr_debug("Network address = %pM\n", priv->abyCurrentNetAddr);
+	pr_de("Network address = %pM\n", priv->abyCurrentNetAddr);
 
 	/* reset Tx pointer */
 	CARDvSafeResetRx(priv);
@@ -911,19 +911,19 @@ static int device_tx_srv(struct vnt_private *priv, unsigned int idx)
 			if ((desc->td_info->flags & TD_FLAGS_NETIF_SKB) != 0) {
 				if (!(byTsr1 & TSR1_TERR)) {
 					if (byTsr0 != 0) {
-						pr_debug(" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X]\n",
+						pr_de(" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X]\n",
 							 (int)idx, byTsr1,
 							 byTsr0);
 					}
 				} else {
-					pr_debug(" Tx[%d] dropped & tsr1[%02X] tsr0[%02X]\n",
+					pr_de(" Tx[%d] dropped & tsr1[%02X] tsr0[%02X]\n",
 						 (int)idx, byTsr1, byTsr0);
 				}
 			}
 
 			if (byTsr1 & TSR1_TERR) {
 				if ((desc->td_info->flags & TD_FLAGS_PRIV_SKB) != 0) {
-					pr_debug(" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X]\n",
+					pr_de(" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X]\n",
 						 (int)idx, byTsr1, byTsr0);
 				}
 			}
@@ -1029,7 +1029,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 		return;
 
 	if (isr == 0xffffffff) {
-		pr_debug("isr = 0xffff\n");
+		pr_de("isr = 0xffff\n");
 		return;
 	}
 
@@ -1053,7 +1053,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 		MACvWriteISR(priv->PortOffset, isr);
 
 		if (isr & ISR_FETALERR) {
-			pr_debug(" ISR_FETALERR\n");
+			pr_de(" ISR_FETALERR\n");
 			VNSvOutPortB(priv->PortOffset + MAC_REG_SOFTPWRCTL, 0);
 			VNSvOutPortW(priv->PortOffset +
 				     MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPECTI);

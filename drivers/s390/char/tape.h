@@ -14,7 +14,7 @@
 #define _TAPE_H
 
 #include <asm/ccwdev.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/idals.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,29 +25,29 @@
 struct gendisk;
 
 /*
- * Define DBF_LIKE_HELL for lots of messages in the debug feature.
+ * Define DBF_LIKE_HELL for lots of messages in the de feature.
  */
 #define DBF_LIKE_HELL
 #ifdef  DBF_LIKE_HELL
 #define DBF_LH(level, str, ...) \
 do { \
-	debug_sprintf_event(TAPE_DBF_AREA, level, str, ## __VA_ARGS__); \
+	de_sprintf_event(TAPE_DBF_AREA, level, str, ## __VA_ARGS__); \
 } while (0)
 #else
 #define DBF_LH(level, str, ...) do {} while(0)
 #endif
 
 /*
- * macros s390 debug feature (dbf)
+ * macros s390 de feature (dbf)
  */
 #define DBF_EVENT(d_level, d_str...) \
 do { \
-	debug_sprintf_event(TAPE_DBF_AREA, d_level, d_str); \
+	de_sprintf_event(TAPE_DBF_AREA, d_level, d_str); \
 } while (0)
 
 #define DBF_EXCEPTION(d_level, d_str...) \
 do { \
-	debug_sprintf_exception(TAPE_DBF_AREA, d_level, d_str); \
+	de_sprintf_exception(TAPE_DBF_AREA, d_level, d_str); \
 } while (0)
 
 #define TAPE_VERSION_MAJOR 2
@@ -299,8 +299,8 @@ extern void tape_dump_sense_dbf(struct tape_device *, struct tape_request *,
 /* functions for handling the status of a device */
 extern void tape_med_state_set(struct tape_device *, enum tape_medium_state);
 
-/* The debug area */
-extern debug_info_t *TAPE_DBF_AREA;
+/* The de area */
+extern de_info_t *TAPE_DBF_AREA;
 
 /* functions for building ccws */
 static inline struct ccw1 *

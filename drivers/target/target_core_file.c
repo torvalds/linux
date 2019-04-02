@@ -60,10 +60,10 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	hba->hba_ptr = fd_host;
 
-	pr_debug("CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
+	pr_de("CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
 		" Target Core Stack %s\n", hba->hba_id, FD_VERSION,
 		TARGET_CORE_VERSION);
-	pr_debug("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic\n",
+	pr_de("CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic\n",
 		hba->hba_id, fd_host->fd_host_id);
 
 	return 0;
@@ -73,7 +73,7 @@ static void fd_detach_hba(struct se_hba *hba)
 {
 	struct fd_host *fd_host = hba->hba_ptr;
 
-	pr_debug("CORE_HBA[%d] - Detached FILEIO HBA: %u from Generic"
+	pr_de("CORE_HBA[%d] - Detached FILEIO HBA: %u from Generic"
 		" Target Core\n", hba->hba_id, fd_host->fd_host_id);
 
 	kfree(fd_host);
@@ -93,7 +93,7 @@ static struct se_device *fd_alloc_device(struct se_hba *hba, const char *name)
 
 	fd_dev->fd_host = fd_host;
 
-	pr_debug("FILEIO: Allocated fd_dev for %p\n", name);
+	pr_de("FILEIO: Allocated fd_dev for %p\n", name);
 
 	return &fd_dev->dev;
 }
@@ -127,7 +127,7 @@ static int fd_configure_device(struct se_device *dev)
 	 * to write-out the entire device cache.
 	 */
 	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
-		pr_debug("FILEIO: Disabling O_DSYNC, using buffered FILEIO\n");
+		pr_de("FILEIO: Disabling O_DSYNC, using buffered FILEIO\n");
 		flags &= ~O_DSYNC;
 	}
 
@@ -157,13 +157,13 @@ static int fd_configure_device(struct se_device *dev)
 		dev_size = (i_size_read(file->f_mapping->host) -
 				       fd_dev->fd_block_size);
 
-		pr_debug("FILEIO: Using size: %llu bytes from struct"
+		pr_de("FILEIO: Using size: %llu bytes from struct"
 			" block_device blocks: %llu logical_block_size: %d\n",
 			dev_size, div_u64(dev_size, fd_dev->fd_block_size),
 			fd_dev->fd_block_size);
 
 		if (target_configure_unmap_from_queue(&dev->dev_attrib, q))
-			pr_debug("IFILE: BLOCK Discard support available,"
+			pr_de("IFILE: BLOCK Discard support available,"
 				 " disabled by default\n");
 		/*
 		 * Enable write same emulation for IBLOCK and use 0xFFFF as
@@ -206,7 +206,7 @@ static int fd_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_queue_depth = FD_MAX_DEVICE_QUEUE_DEPTH;
 
 	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
-		pr_debug("FILEIO: Forcing setting of emulate_write_cache=1"
+		pr_de("FILEIO: Forcing setting of emulate_write_cache=1"
 			" with FDBD_HAS_BUFFERED_IO_WCE\n");
 		dev->dev_attrib.emulate_write_cache = 1;
 	}
@@ -214,7 +214,7 @@ static int fd_configure_device(struct se_device *dev)
 	fd_dev->fd_dev_id = fd_host->fd_host_dev_id_count++;
 	fd_dev->fd_queue_depth = dev->queue_depth;
 
-	pr_debug("CORE_FILE[%u] - Added TCM FILEIO Device ID: %u at %s,"
+	pr_de("CORE_FILE[%u] - Added TCM FILEIO Device ID: %u at %s,"
 		" %llu total bytes\n", fd_host->fd_host_id, fd_dev->fd_dev_id,
 			fd_dev->fd_dev_name, fd_dev->fd_dev_size);
 
@@ -750,7 +750,7 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 				ret = -EINVAL;
 				break;
 			}
-			pr_debug("FILEIO: Referencing Path: %s\n",
+			pr_de("FILEIO: Referencing Path: %s\n",
 					fd_dev->fd_dev_name);
 			fd_dev->fbd_flags |= FBDF_HAS_PATH;
 			break;
@@ -767,7 +767,7 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 						" fd_dev_size=\n");
 				goto out;
 			}
-			pr_debug("FILEIO: Referencing Size: %llu"
+			pr_de("FILEIO: Referencing Size: %llu"
 					" bytes\n", fd_dev->fd_dev_size);
 			fd_dev->fbd_flags |= FBDF_HAS_SIZE;
 			break;
@@ -781,7 +781,7 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 				goto out;
 			}
 
-			pr_debug("FILEIO: Using buffered I/O"
+			pr_de("FILEIO: Using buffered I/O"
 				" operations for struct fd_dev\n");
 
 			fd_dev->fbd_flags |= FDBD_HAS_BUFFERED_IO_WCE;
@@ -796,7 +796,7 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 				goto out;
 			}
 
-			pr_debug("FILEIO: Using async I/O"
+			pr_de("FILEIO: Using async I/O"
 				" operations for struct fd_dev\n");
 
 			fd_dev->fbd_flags |= FDBD_HAS_ASYNC_IO;
@@ -899,7 +899,7 @@ static int fd_format_prot(struct se_device *dev)
 		return -ENOMEM;
 	}
 
-	pr_debug("Using FILEIO prot_length: %llu\n",
+	pr_de("Using FILEIO prot_length: %llu\n",
 		 (unsigned long long)(dev->transport->get_blocks(dev) + 1) *
 					dev->prot_length);
 

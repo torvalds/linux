@@ -182,7 +182,7 @@ typedef u32 acpi_physical_address;
 /*
  * It is reported that, after some calculations, the physical addresses can
  * wrap over the 32-bit boundary on 32-bit PAE environment.
- * https://bugzilla.kernel.org/show_bug.cgi?id=87971
+ * https://zilla.kernel.org/show_.cgi?id=87971
  */
 typedef u64 acpi_io_address;
 typedef u64 acpi_physical_address;
@@ -309,11 +309,11 @@ typedef u64 acpi_physical_address;
 #endif
 
 /*
- * Compiler/Clibrary-dependent debug initialization. Used for ACPICA
+ * Compiler/Clibrary-dependent de initialization. Used for ACPICA
  * utilities only.
  */
-#ifndef ACPI_DEBUG_INITIALIZE
-#define ACPI_DEBUG_INITIALIZE()
+#ifndef ACPI_DE_INITIALIZE
+#define ACPI_DE_INITIALIZE()
 #endif
 
 /*******************************************************************************
@@ -649,7 +649,7 @@ typedef u32 acpi_object_type;
 #define ACPI_TYPE_THERMAL               0x0D	/* Name, multiple Node */
 #define ACPI_TYPE_BUFFER_FIELD          0x0E
 #define ACPI_TYPE_DDB_HANDLE            0x0F
-#define ACPI_TYPE_DEBUG_OBJECT          0x10
+#define ACPI_TYPE_DE_OBJECT          0x10
 
 #define ACPI_TYPE_EXTERNAL_MAX          0x10
 #define ACPI_NUM_TYPES                  (ACPI_TYPE_EXTERNAL_MAX + 1)
@@ -665,7 +665,7 @@ typedef u32 acpi_object_type;
 #define ACPI_TYPE_LOCAL_REGION_FIELD    0x11
 #define ACPI_TYPE_LOCAL_BANK_FIELD      0x12
 #define ACPI_TYPE_LOCAL_INDEX_FIELD     0x13
-#define ACPI_TYPE_LOCAL_REFERENCE       0x14	/* Arg#, Local#, Name, Debug, ref_of, Index */
+#define ACPI_TYPE_LOCAL_REFERENCE       0x14	/* Arg#, Local#, Name, De, ref_of, Index */
 #define ACPI_TYPE_LOCAL_ALIAS           0x15
 #define ACPI_TYPE_LOCAL_METHOD_ALIAS    0x16
 #define ACPI_TYPE_LOCAL_NOTIFY          0x17
@@ -1003,8 +1003,8 @@ struct acpi_system_info {
 	u32 timer_resolution;
 	u32 reserved1;
 	u32 reserved2;
-	u32 debug_level;
-	u32 debug_layer;
+	u32 de_level;
+	u32 de_layer;
 };
 
 /*
@@ -1219,7 +1219,7 @@ struct acpi_memory_list {
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
-	/* Statistics for debug memory tracking only */
+	/* Statistics for de memory tracking only */
 
 	u32 total_allocated;
 	u32 total_freed;

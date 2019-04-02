@@ -28,8 +28,8 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 				u16  buff_size,
 				struct i40e_asq_cmd_details *cmd_details);
 
-/* debug function for adminq */
-void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
+/* de function for adminq */
+void i40e_de_aq(struct i40e_hw *hw, enum i40e_de_mask mask,
 		   void *desc, void *buffer, u16 buf_len);
 
 void i40e_idle_aq(struct i40e_hw *hw);
@@ -65,13 +65,13 @@ i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 				u32 *fw_build,
 				u16 *api_major_version, u16 *api_minor_version,
 				struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,
+i40e_status i40e_aq_de_write_register(struct i40e_hw *hw,
 					u32 reg_addr, u64 reg_val,
 					struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
+i40e_status i40e_aq_de_read_register(struct i40e_hw *hw,
 				u32  reg_addr, u64 *reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
+i40e_status i40e_aq_set_phy_de(struct i40e_hw *hw, u8 cmd_flags,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_default_vsi(struct i40e_hw *hw, u16 vsi_id,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -378,7 +378,7 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 				u16 vsi_seid, u16 queue, bool is_add,
 				struct i40e_control_filter_stats *stats,
 				struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
+i40e_status i40e_aq_de_dump(struct i40e_hw *hw, u8 cluster_id,
 			       u8 table_id, u32 start_index, u16 buff_size,
 			       void *buff, u16 *ret_buff_size,
 			       u8 *ret_next_table, u32 *ret_next_index,

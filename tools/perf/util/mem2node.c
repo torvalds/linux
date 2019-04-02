@@ -96,7 +96,7 @@ int mem2node__init(struct mem2node *map, struct perf_env *env)
 		entries = tmp_entries;
 
 	for (i = 0; i < j; i++) {
-		pr_debug("mem2node %03" PRIu64 " [0x%016" PRIx64 "-0x%016" PRIx64 "]\n",
+		pr_de("mem2node %03" PRIu64 " [0x%016" PRIx64 "-0x%016" PRIx64 "]\n",
 			 entries[i].node, entries[i].start, entries[i].end);
 
 		phys_entry__insert(&entries[i], &map->root);

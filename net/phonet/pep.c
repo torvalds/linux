@@ -241,7 +241,7 @@ static void pipe_grant_credits(struct sock *sk, gfp_t priority)
 {
 	struct pep_sock *pn = pep_sk(sk);
 
-	BUG_ON(sk->sk_state != TCP_ESTABLISHED);
+	_ON(sk->sk_state != TCP_ESTABLISHED);
 
 	switch (pn->rx_fc) {
 	case PN_LEGACY_FLOW_CONTROL: /* TODO */
@@ -350,7 +350,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff_head *queue;
 	int err = 0;
 
-	BUG_ON(sk->sk_state == TCP_CLOSE_WAIT);
+	_ON(sk->sk_state == TCP_CLOSE_WAIT);
 
 	switch (hdr->message_id) {
 	case PNS_PEP_CONNECT_REQ:
@@ -1165,7 +1165,7 @@ disabled:
 			goto out;
 		}
 	}
-	BUG_ON(sk->sk_state != TCP_ESTABLISHED);
+	_ON(sk->sk_state != TCP_ESTABLISHED);
 
 	/* Wait until flow control allows TX */
 	done = atomic_read(&pn->tx_credits);

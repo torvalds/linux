@@ -2981,7 +2981,7 @@ static void v4l2_ctrl_request_queue(struct media_request_object *obj)
 	/*
 	 * Note: prev_hdl and hdl must contain the same list of control
 	 * references, so if any differences are detected then that is a
-	 * driver bug and the WARN_ON is triggered.
+	 * driver  and the WARN_ON is triggered.
 	 */
 	mutex_lock(prev_hdl->lock);
 	ref_ctrl_prev = list_first_entry(&prev_hdl->ctrl_refs,
@@ -3103,8 +3103,8 @@ static int v4l2_ctrl_request_bind(struct media_request *req,
    member appeared after error_idx).
 
    It is all fairly theoretical, though. In practice all you can do is to
-   bail out. If error_idx == count, then it is an application bug. If
-   error_idx < count then it is only an application bug if the error code was
+   bail out. If error_idx == count, then it is an application . If
+   error_idx < count then it is only an application  if the error code was
    EBUSY. That usually means that something started streaming just when you
    tried to set the controls. In all other cases it is a driver/hardware
    problem and all you can do is to retry or bail out.
@@ -3439,7 +3439,7 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_ext_control c;
 
-	/* It's a driver bug if this happens. */
+	/* It's a driver  if this happens. */
 	WARN_ON(!ctrl->is_int);
 	c.value = 0;
 	get_ctrl(ctrl, &c);
@@ -3451,7 +3451,7 @@ s64 v4l2_ctrl_g_ctrl_int64(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_ext_control c;
 
-	/* It's a driver bug if this happens. */
+	/* It's a driver  if this happens. */
 	WARN_ON(ctrl->is_ptr || ctrl->type != V4L2_CTRL_TYPE_INTEGER64);
 	c.value64 = 0;
 	get_ctrl(ctrl, &c);
@@ -3814,7 +3814,7 @@ int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 {
 	lockdep_assert_held(ctrl->handler->lock);
 
-	/* It's a driver bug if this happens. */
+	/* It's a driver  if this happens. */
 	WARN_ON(!ctrl->is_int);
 	ctrl->val = val;
 	return set_ctrl(NULL, ctrl, 0);
@@ -3825,7 +3825,7 @@ int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
 {
 	lockdep_assert_held(ctrl->handler->lock);
 
-	/* It's a driver bug if this happens. */
+	/* It's a driver  if this happens. */
 	WARN_ON(ctrl->is_ptr || ctrl->type != V4L2_CTRL_TYPE_INTEGER64);
 	*ctrl->p_new.p_s64 = val;
 	return set_ctrl(NULL, ctrl, 0);
@@ -3836,7 +3836,7 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 {
 	lockdep_assert_held(ctrl->handler->lock);
 
-	/* It's a driver bug if this happens. */
+	/* It's a driver  if this happens. */
 	WARN_ON(ctrl->type != V4L2_CTRL_TYPE_STRING);
 	strscpy(ctrl->p_new.p_char, s, ctrl->maximum + 1);
 	return set_ctrl(NULL, ctrl, 0);

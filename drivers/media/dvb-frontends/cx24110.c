@@ -44,10 +44,10 @@ struct cx24110_state {
 	u32 lastesn0;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "cx24110: " args); \
+		if (de) printk(KERN_DE "cx24110: " args); \
 	} while (0)
 
 static struct {u8 reg; u8 data;} cx24110_regdata[]=
@@ -246,7 +246,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 	static const u32 bands[]={5000000UL,15000000UL,90999000UL/2};
 	int i;
 
-	dprintk("cx24110 debug: entering %s(%d)\n",__func__,srate);
+	dprintk("cx24110 de: entering %s(%d)\n",__func__,srate);
 	if (srate>90999000UL/2)
 		srate=90999000UL/2;
 	if (srate<500000)
@@ -275,7 +275,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 		cx24110_writereg(state,0x06,0x78);
 		fclk=90999000UL;
 	}
-	dprintk("cx24110 debug: fclk %d Hz\n",fclk);
+	dprintk("cx24110 de: fclk %d Hz\n",fclk);
 	/* we need to divide two integers with approx. 27 bits in 32 bit
 	   arithmetic giving a 25 bit result */
 	/* the maximum dividend is 90999000/2, 0x02b6446c, this number is
@@ -659,8 +659,8 @@ static const struct dvb_frontend_ops cx24110_ops = {
 	.diseqc_send_burst = cx24110_diseqc_send_burst,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Conexant CX24110 DVB-S Demodulator driver");
 MODULE_AUTHOR("Peter Hettkamp");

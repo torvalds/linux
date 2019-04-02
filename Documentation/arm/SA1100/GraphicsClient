@@ -31,7 +31,7 @@ as outlined below.  In any case, if you're planning on deploying
 something en masse, you should probably get the newer board.
 
 If using Angel on the older boards, here is a typical angel.opt option file
-if the kernel is loaded through the Angel Debug Monitor:
+if the kernel is loaded through the Angel De Monitor:
 
 ----- begin angelboot.opt -----
 base 0xc0200000

@@ -217,7 +217,7 @@ static void dpp1_cm_program_color_matrix(
 	struct color_matrices_reg gam_regs;
 
 	if (regval == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -225,11 +225,11 @@ static void dpp1_cm_program_color_matrix(
 	 * currently.  select the alternate set to double buffer
 	 * the CSC update so CSC is updated on frame boundary
 	 */
-	REG_SET(CM_TEST_DEBUG_INDEX, 0,
-			CM_TEST_DEBUG_INDEX, 9);
+	REG_SET(CM_TEST_DE_INDEX, 0,
+			CM_TEST_DE_INDEX, 9);
 
-	REG_GET(CM_TEST_DEBUG_DATA,
-			CM_TEST_DEBUG_DATA_ID9_OCSC_MODE, &cur_mode);
+	REG_GET(CM_TEST_DE_DATA,
+			CM_TEST_DE_DATA_ID9_OCSC_MODE, &cur_mode);
 
 	if (cur_mode != 4)
 		ocsc_mode = 4;
@@ -273,7 +273,7 @@ void dpp1_cm_set_output_csc_default(
 
 	regval = find_color_matrix(colorspace, &arr_size);
 	if (regval == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -469,7 +469,7 @@ void dpp1_program_input_csc(
 			}
 
 		if (regval == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return;
 		}
 	} else {
@@ -480,11 +480,11 @@ void dpp1_program_input_csc(
 	 * currently.  select the alternate set to double buffer
 	 * the CSC update so CSC is updated on frame boundary
 	 */
-	REG_SET(CM_TEST_DEBUG_INDEX, 0,
-			CM_TEST_DEBUG_INDEX, 9);
+	REG_SET(CM_TEST_DE_INDEX, 0,
+			CM_TEST_DE_INDEX, 9);
 
-	REG_GET(CM_TEST_DEBUG_DATA,
-			CM_TEST_DEBUG_DATA_ID9_ICSC_MODE, &cur_select);
+	REG_GET(CM_TEST_DE_DATA,
+			CM_TEST_DE_DATA_ID9_ICSC_MODE, &cur_select);
 
 	if (cur_select != INPUT_CSC_SELECT_ICSC)
 		select = INPUT_CSC_SELECT_ICSC;
@@ -634,7 +634,7 @@ void dpp1_set_degamma(
 		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 2);
 			break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 }

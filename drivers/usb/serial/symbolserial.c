@@ -56,7 +56,7 @@ static void symbol_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
+	usb_serial_de_data(&port->dev, __func__, urb->actual_length, data);
 
 	/*
 	 * Data from the device comes with a 1 byte header:

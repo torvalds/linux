@@ -136,9 +136,9 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 	init_rwsem(&dev_cfg_data->lock);
 	accel_dev->cfg = dev_cfg_data;
 
-	/* accel_dev->debugfs_dir should always be non-NULL here */
-	dev_cfg_data->debug = debugfs_create_file("dev_cfg", S_IRUSR,
-						  accel_dev->debugfs_dir,
+	/* accel_dev->defs_dir should always be non-NULL here */
+	dev_cfg_data->de = defs_create_file("dev_cfg", S_IRUSR,
+						  accel_dev->defs_dir,
 						  dev_cfg_data,
 						  &qat_dev_cfg_fops);
 	return 0;
@@ -177,7 +177,7 @@ void adf_cfg_dev_remove(struct adf_accel_dev *accel_dev)
 	down_write(&dev_cfg_data->lock);
 	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
 	up_write(&dev_cfg_data->lock);
-	debugfs_remove(dev_cfg_data->debug);
+	defs_remove(dev_cfg_data->de);
 	kfree(dev_cfg_data);
 	accel_dev->cfg = NULL;
 }

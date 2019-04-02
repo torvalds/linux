@@ -151,6 +151,6 @@
 #define IWL_MVM_ENABLE_EBS			1
 #define IWL_MVM_FTM_INITIATOR_ALGO		IWL_TOF_ALGO_TYPE_MAX_LIKE
 #define IWL_MVM_FTM_INITIATOR_DYNACK		true
-#define IWL_MVM_D3_DEBUG			false
+#define IWL_MVM_D3_DE			false
 
 #endif /* __MVM_CONSTANTS_H */

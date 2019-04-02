@@ -144,7 +144,7 @@ int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 	char src[ECRYPTFS_MAX_IV_BYTES + 16];
 
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "root iv:\n");
+		ecryptfs_printk(KERN_DE, "root iv:\n");
 		ecryptfs_dump_hex(crypt_stat->root_iv, crypt_stat->iv_bytes);
 	}
 	/* TODO: It is probably secure to just cast the least
@@ -155,7 +155,7 @@ int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 	memset((src + crypt_stat->iv_bytes), 0, 16);
 	snprintf((src + crypt_stat->iv_bytes), 16, "%lld", offset);
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "source:\n");
+		ecryptfs_printk(KERN_DE, "source:\n");
 		ecryptfs_dump_hex(src, (crypt_stat->iv_bytes + 16));
 	}
 	rc = ecryptfs_calculate_md5(dst, crypt_stat, src,
@@ -167,7 +167,7 @@ int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 	}
 	memcpy(iv, dst, crypt_stat->iv_bytes);
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "derived iv:\n");
+		ecryptfs_printk(KERN_DE, "derived iv:\n");
 		ecryptfs_dump_hex(iv, crypt_stat->iv_bytes);
 	}
 out:
@@ -325,10 +325,10 @@ static int crypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 	struct extent_crypt_result ecr;
 	int rc = 0;
 
-	BUG_ON(!crypt_stat || !crypt_stat->tfm
+	_ON(!crypt_stat || !crypt_stat->tfm
 	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED));
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Key size [%zd]; key:\n",
+		ecryptfs_printk(KERN_DE, "Key size [%zd]; key:\n",
 				crypt_stat->key_size);
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
@@ -474,7 +474,7 @@ int ecryptfs_encrypt_page(struct page *page)
 	ecryptfs_inode = page->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
-	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
+	_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 	enc_extent_page = alloc_page(GFP_USER);
 	if (!enc_extent_page) {
 		rc = -ENOMEM;
@@ -542,7 +542,7 @@ int ecryptfs_decrypt_page(struct page *page)
 	ecryptfs_inode = page->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
-	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
+	_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 
 	lower_offset = lower_offset_for_page(crypt_stat, page);
 	page_virt = kmap(page);
@@ -587,7 +587,7 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat)
 	char *full_alg_name;
 	int rc = -EINVAL;
 
-	ecryptfs_printk(KERN_DEBUG,
+	ecryptfs_printk(KERN_DE,
 			"Initializing cipher [%s]; strlen = [%d]; "
 			"key_size_bits = [%zd]\n",
 			crypt_stat->cipher, (int)strlen(crypt_stat->cipher),
@@ -665,8 +665,8 @@ int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat)
 	int rc = 0;
 	char dst[MD5_DIGEST_SIZE];
 
-	BUG_ON(crypt_stat->iv_bytes > MD5_DIGEST_SIZE);
-	BUG_ON(crypt_stat->iv_bytes <= 0);
+	_ON(crypt_stat->iv_bytes > MD5_DIGEST_SIZE);
+	_ON(crypt_stat->iv_bytes <= 0);
 	if (!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING, "Session key not valid; "
@@ -695,7 +695,7 @@ static void ecryptfs_generate_new_key(struct ecryptfs_crypt_stat *crypt_stat)
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	ecryptfs_compute_root_iv(crypt_stat);
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Generated new session key:\n");
+		ecryptfs_printk(KERN_DE, "Generated new session key:\n");
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
 	}
@@ -849,10 +849,10 @@ static int ecryptfs_validate_marker(char *data)
 	m_2 = get_unaligned_be32(data + 4);
 	if ((m_1 ^ MAGIC_ECRYPTFS_MARKER) == m_2)
 		return 0;
-	ecryptfs_printk(KERN_DEBUG, "m_1 = [0x%.8x]; m_2 = [0x%.8x]; "
+	ecryptfs_printk(KERN_DE, "m_1 = [0x%.8x]; m_2 = [0x%.8x]; "
 			"MAGIC_ECRYPTFS_MARKER = [0x%.8x]\n", m_1, m_2,
 			MAGIC_ECRYPTFS_MARKER);
-	ecryptfs_printk(KERN_DEBUG, "(m_1 ^ MAGIC_ECRYPTFS_MARKER) = "
+	ecryptfs_printk(KERN_DE, "(m_1 ^ MAGIC_ECRYPTFS_MARKER) = "
 			"[0x%.8x]\n", (m_1 ^ MAGIC_ECRYPTFS_MARKER));
 	return -EINVAL;
 }
@@ -1432,7 +1432,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 		memset(page_virt, 0, PAGE_SIZE);
 		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
 		if (rc) {
-			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
+			printk(KERN_DE "Valid eCryptfs headers not found in "
 			       "file header region or xattr region, inode %lu\n",
 				ecryptfs_inode->i_ino);
 			rc = -EINVAL;
@@ -1442,7 +1442,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 						ecryptfs_dentry,
 						ECRYPTFS_DONT_VALIDATE_HEADER_SIZE);
 		if (rc) {
-			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
+			printk(KERN_DE "Valid eCryptfs headers not found in "
 			       "file xattr region either, inode %lu\n",
 				ecryptfs_inode->i_ino);
 			rc = -EINVAL;
@@ -1548,7 +1548,7 @@ static int ecryptfs_copy_filename(char **copied_name, size_t *copied_name_size,
 	memcpy((void *)(*copied_name), (void *)name, name_size);
 	(*copied_name)[(name_size)] = '\0';	/* Only for convenience
 						 * in printing out the
-						 * string in debug
+						 * string in de
 						 * messages */
 	(*copied_name_size) = name_size;
 out:
@@ -1646,7 +1646,7 @@ ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 	struct ecryptfs_key_tfm *tmp_tfm;
 	int rc = 0;
 
-	BUG_ON(!mutex_is_locked(&key_tfm_list_mutex));
+	_ON(!mutex_is_locked(&key_tfm_list_mutex));
 
 	tmp_tfm = kmem_cache_alloc(ecryptfs_key_tfm_cache, GFP_KERNEL);
 	if (key_tfm)
@@ -1691,7 +1691,7 @@ int ecryptfs_tfm_exists(char *cipher_name, struct ecryptfs_key_tfm **key_tfm)
 {
 	struct ecryptfs_key_tfm *tmp_key_tfm;
 
-	BUG_ON(!mutex_is_locked(&key_tfm_list_mutex));
+	_ON(!mutex_is_locked(&key_tfm_list_mutex));
 
 	list_for_each_entry(tmp_key_tfm, &key_tfm_list, key_tfm_list) {
 		if (strcmp(tmp_key_tfm->cipher_name, cipher_name) == 0) {
@@ -2066,7 +2066,7 @@ int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
 						  decoded_name,
 						  decoded_name_size);
 		if (rc) {
-			ecryptfs_printk(KERN_DEBUG,
+			ecryptfs_printk(KERN_DE,
 					"%s: Could not parse tag 70 packet from filename\n",
 					__func__);
 			goto out_free;

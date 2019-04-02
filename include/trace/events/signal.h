@@ -89,7 +89,7 @@ TRACE_EVENT(signal_generate,
  * and it will be handled by 'ka'. ka->sa.sa_handler can be SIG_IGN or
  * SIG_DFL.
  * Note that some signals reported by signal_generate tracepoint can be
- * lost, ignored or modified (by debugger) before hitting this tracepoint.
+ * lost, ignored or modified (by deger) before hitting this tracepoint.
  * This means, this can show which signals are actually delivered, but
  * matching generated signals and delivered signals may not be correct.
  */

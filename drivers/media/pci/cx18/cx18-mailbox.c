@@ -43,7 +43,7 @@ struct cx18_api_info {
 static const struct cx18_api_info api_info[] = {
 	/* MPEG encoder API */
 	API_ENTRY(CPU, CX18_CPU_SET_CHANNEL_TYPE,		0),
-	API_ENTRY(CPU, CX18_EPU_DEBUG,				0),
+	API_ENTRY(CPU, CX18_EPU_DE,				0),
 	API_ENTRY(CPU, CX18_CREATE_TASK,			0),
 	API_ENTRY(CPU, CX18_DESTROY_TASK,			0),
 	API_ENTRY(CPU, CX18_CPU_CAPTURE_START,                  API_SLOW),
@@ -83,7 +83,7 @@ static const struct cx18_api_info api_info[] = {
 	API_ENTRY(APU, CX18_APU_START,				0),
 	API_ENTRY(APU, CX18_APU_STOP,				0),
 	API_ENTRY(APU, CX18_APU_RESETAI,			0),
-	API_ENTRY(CPU, CX18_CPU_DEBUG_PEEK32,			0),
+	API_ENTRY(CPU, CX18_CPU_DE_PEEK32,			0),
 	API_ENTRY(0, 0,						0),
 };
 
@@ -115,10 +115,10 @@ static void dump_mb(struct cx18 *cx, struct cx18_mailbox *mb, char *name)
 {
 	char argstr[MAX_MB_ARGUMENTS*11+1];
 
-	if (!(cx18_debug & CX18_DBGFLG_API))
+	if (!(cx18_de & CX18_DBGFLG_API))
 		return;
 
-	CX18_DEBUG_API("%s: req %#010x ack %#010x cmd %#010x err %#010x args%s\n",
+	CX18_DE_API("%s: req %#010x ack %#010x cmd %#010x err %#010x args%s\n",
 		       name, mb->request, mb->ack, mb->cmd, mb->error,
 		       u32arr2hex(mb->args, MAX_MB_ARGUMENTS, argstr));
 }
@@ -291,14 +291,14 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		}
 		mdl = cx18_queue_get_mdl(s, id, mdl_ack->data_used);
 
-		CX18_DEBUG_HI_DMA("DMA DONE for %s (MDL %d)\n", s->name, id);
+		CX18_DE_HI_DMA("DMA DONE for %s (MDL %d)\n", s->name, id);
 		if (mdl == NULL) {
 			CX18_WARN("Could not find MDL %d for stream %s\n",
 				  id, s->name);
 			continue;
 		}
 
-		CX18_DEBUG_HI_DMA("%s recv bytesused = %d\n",
+		CX18_DE_HI_DMA("%s recv bytesused = %d\n",
 				  s->name, mdl->bytesused);
 
 		if (s->type == CX18_ENC_STREAM_TYPE_TS) {
@@ -329,12 +329,12 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		wake_up(&s->waitq);
 }
 
-static void epu_debug(struct cx18 *cx, struct cx18_in_work_order *order)
+static void epu_de(struct cx18 *cx, struct cx18_in_work_order *order)
 {
 	char *p;
 	char *str = order->str;
 
-	CX18_DEBUG_INFO("%x %s\n", order->mb.args[0], str);
+	CX18_DE_INFO("%x %s\n", order->mb.args[0], str);
 	p = strchr(str, '.');
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags) && p && p > str)
 		CX18_INFO("FW version: %s\n", p - 1);
@@ -349,8 +349,8 @@ static void epu_cmd(struct cx18 *cx, struct cx18_in_work_order *order)
 		case CX18_EPU_DMA_DONE:
 			epu_dma_done(cx, order);
 			break;
-		case CX18_EPU_DEBUG:
-			epu_debug(cx, order);
+		case CX18_EPU_DE:
+			epu_de(cx, order);
 			break;
 		default:
 			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
@@ -412,7 +412,7 @@ static void mb_ack_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 	/* Don't ack if the RPU has gotten impatient and timed us out */
 	if (req != cx18_readl(cx, &ack_mb->request) ||
 	    req == cx18_readl(cx, &ack_mb->ack)) {
-		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u) while processing\n",
+		CX18_DE_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u) while processing\n",
 				rpu_str[order->rpu], rpu_str[order->rpu], req);
 		order->flags |= CX18_F_EWO_MB_STALE_WHILE_PROC;
 		return;
@@ -450,7 +450,7 @@ static int epu_dma_done_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 }
 
 static
-int epu_debug_irq(struct cx18 *cx, struct cx18_in_work_order *order)
+int epu_de_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 {
 	u32 str_offset;
 	char *str = order->str;
@@ -482,8 +482,8 @@ int epu_cmd_irq(struct cx18 *cx, struct cx18_in_work_order *order)
 		case CX18_EPU_DMA_DONE:
 			ret = epu_dma_done_irq(cx, order);
 			break;
-		case CX18_EPU_DEBUG:
-			ret = epu_debug_irq(cx, order);
+		case CX18_EPU_DE:
+			ret = epu_de_irq(cx, order);
 			break;
 		default:
 			CX18_WARN("Unknown CPU to EPU mailbox command %#0x\n",
@@ -564,9 +564,9 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 		(&order_mb->request)[i] = cx18_readl(cx, &mb->request + i);
 
 	if (order_mb->request == order_mb->ack) {
-		CX18_DEBUG_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u)\n",
+		CX18_DE_WARN("Possibly falling behind: %s self-ack'ed our incoming %s to EPU mailbox (sequence no. %u)\n",
 				rpu_str[rpu], rpu_str[rpu], order_mb->request);
-		if (cx18_debug & CX18_DBGFLG_WARN)
+		if (cx18_de & CX18_DBGFLG_WARN)
 			dump_mb(cx, order_mb, "incoming");
 		order->flags = CX18_F_EWO_MB_STALE_UPON_RECEIPT;
 	}
@@ -603,14 +603,14 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		return -EINVAL;
 	}
 
-	if (cx18_debug & CX18_DBGFLG_API) { /* only call u32arr2hex if needed */
+	if (cx18_de & CX18_DBGFLG_API) { /* only call u32arr2hex if needed */
 		if (cmd == CX18_CPU_DE_SET_MDL) {
-			if (cx18_debug & CX18_DBGFLG_HIGHVOL)
-				CX18_DEBUG_HI_API("%s\tcmd %#010x args%s\n",
+			if (cx18_de & CX18_DBGFLG_HIGHVOL)
+				CX18_DE_HI_API("%s\tcmd %#010x args%s\n",
 						info->name, cmd,
 						u32arr2hex(data, args, argstr));
 		} else
-			CX18_DEBUG_API("%s\tcmd %#010x args%s\n",
+			CX18_DE_API("%s\tcmd %#010x args%s\n",
 				       info->name, cmd,
 				       u32arr2hex(data, args, argstr));
 	}
@@ -655,7 +655,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		CX18_ERR("mbox was found stuck busy when setting up for %s; clearing busy and trying to proceed\n",
 			 info->name);
 	} else if (ret != timeout)
-		CX18_DEBUG_API("waited %u msecs for busy mbox to be acked\n",
+		CX18_DE_API("waited %u msecs for busy mbox to be acked\n",
 			       jiffies_to_msecs(timeout-ret));
 
 	/* Build the outgoing mailbox */
@@ -673,7 +673,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	 */
 	timeout = msecs_to_jiffies((info->flags & API_FAST) ? 10 : 20);
 
-	CX18_DEBUG_HI_IRQ("sending interrupt SW1: %x to send %s\n",
+	CX18_DE_HI_IRQ("sending interrupt SW1: %x to send %s\n",
 			  irq, info->name);
 
 	/* So we don't miss the wakeup, prepare to wait before notifying fw */
@@ -696,10 +696,10 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		mutex_unlock(mb_lock);
 		if (ret >= timeout) {
 			/* Timed out */
-			CX18_DEBUG_WARN("sending %s timed out waiting %d msecs for RPU acknowledgment\n",
+			CX18_DE_WARN("sending %s timed out waiting %d msecs for RPU acknowledgment\n",
 					info->name, jiffies_to_msecs(ret));
 		} else {
-			CX18_DEBUG_WARN("woken up before mailbox ack was ready after submitting %s to RPU.  only waited %d msecs on req %u but awakened with unmatched ack %u\n",
+			CX18_DE_WARN("woken up before mailbox ack was ready after submitting %s to RPU.  only waited %d msecs on req %u but awakened with unmatched ack %u\n",
 					info->name,
 					jiffies_to_msecs(ret),
 					req, ack);
@@ -708,10 +708,10 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 
 	if (ret >= timeout)
-		CX18_DEBUG_WARN("failed to be awakened upon RPU acknowledgment sending %s; timed out waiting %d msecs\n",
+		CX18_DE_WARN("failed to be awakened upon RPU acknowledgment sending %s; timed out waiting %d msecs\n",
 				info->name, jiffies_to_msecs(ret));
 	else
-		CX18_DEBUG_HI_API("waited %u msecs for %s to be acked\n",
+		CX18_DE_HI_API("waited %u msecs for %s to be acked\n",
 				  jiffies_to_msecs(ret), info->name);
 
 	/* Collect data returned by the XPU */
@@ -729,7 +729,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		cx18_msleep_timeout(300, 0);
 
 	if (err)
-		CX18_DEBUG_API("mailbox error %08x for command %s\n", err,
+		CX18_DE_API("mailbox error %08x for command %s\n", err,
 				info->name);
 	return err ? -EIO : 0;
 }

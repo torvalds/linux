@@ -314,7 +314,7 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 
 		/* Write our owner ID into the lock
 		 * While not strictly necessary, this helps with
-		 * debug and bookkeeping.
+		 * de and bookkeeping.
 		 */
 		err = nfp_cpp_writel(cpp, muw, mutex->address, value);
 		if (err < 0)

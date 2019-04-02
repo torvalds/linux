@@ -166,7 +166,7 @@ static int vxp_load_xilinx_binary(struct vx_core *_chip, const struct firmware *
 	vx_outb(chip, ICR, 0);
 
 	/* Wait for answer HF2 equal to 1 */
-	snd_printdd(KERN_DEBUG "check ISR_HF2\n");
+	snd_printdd(KERN_DE "check ISR_HF2\n");
 	if (vx_check_isr(_chip, ISR_HF2, ISR_HF2, 20) < 0)
 		goto _error;
 
@@ -201,7 +201,7 @@ static int vxp_load_xilinx_binary(struct vx_core *_chip, const struct firmware *
 	c |= (int)vx_inb(chip, RXM) << 8;
 	c |= vx_inb(chip, RXL);
 
-	snd_printdd(KERN_DEBUG "xilinx: dsp size received 0x%x, orig 0x%zx\n", c, fw->size);
+	snd_printdd(KERN_DE "xilinx: dsp size received 0x%x, orig 0x%zx\n", c, fw->size);
 
 	vx_outb(chip, ICR, ICR_HF0);
 
@@ -265,7 +265,7 @@ static int vxp_load_dsp(struct vx_core *vx, int index, const struct firmware *fw
 		/* DSP image */
 		return snd_vx_dsp_load(vx, fw);
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 }
@@ -408,7 +408,7 @@ static void vxp_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	int offset = pipe->hw_ptr;
 	unsigned short *addr = (unsigned short *)(runtime->dma_area + offset);
 
-	if (snd_BUG_ON(count % 2))
+	if (snd__ON(count % 2))
 		return;
 	vx_setup_pseudo_dma(chip, 0);
 	if (offset + count >= pipe->buffer_bytes) {

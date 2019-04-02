@@ -245,7 +245,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 		if (of_property_read_string_index(np, "clock-output-names",
 				  i, &clk_output_name[i])) {
 			pr_err("%s: clock output name not in DT\n", __func__);
-			BUG();
+			();
 		}
 	}
 	cpu_parents[0] = clk_output_name[armpll];
@@ -509,14 +509,14 @@ static void __init zynq_clk_setup(struct device_node *np)
 			clk_output_name[cpu_1x], 0, SLCR_DBG_CLK_CTRL, 1, 0,
 			&dbgclk_lock);
 
-	/* leave debug clocks in the state the bootloader set them up to */
+	/* leave de clocks in the state the bootloader set them up to */
 	tmp = clk_readl(SLCR_DBG_CLK_CTRL);
 	if (tmp & DBG_CLK_CTRL_CLKACT_TRC)
 		if (clk_prepare_enable(clks[dbg_trc]))
 			pr_warn("%s: trace clk enable failed\n", __func__);
 	if (tmp & DBG_CLK_CTRL_CPU_1XCLKACT)
 		if (clk_prepare_enable(clks[dbg_apb]))
-			pr_warn("%s: debug APB clk enable failed\n", __func__);
+			pr_warn("%s: de APB clk enable failed\n", __func__);
 
 	/* One gated clock for all APER clocks. */
 	clks[dma] = clk_register_gate(NULL, clk_output_name[dma],
@@ -578,7 +578,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 		if (IS_ERR(clks[i])) {
 			pr_err("Zynq clk %d: register failed with %ld\n",
 			       i, PTR_ERR(clks[i]));
-			BUG();
+			();
 		}
 	}
 
@@ -625,5 +625,5 @@ void __init zynq_clock_init(void)
 
 np_err:
 	of_node_put(np);
-	BUG();
+	();
 }

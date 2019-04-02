@@ -634,7 +634,7 @@ sclp_state_change_cb(struct evbuf_header *evbuf)
 	unsigned long flags;
 	struct sclp_statechangebuf *scbuf;
 
-	BUILD_BUG_ON(sizeof(struct sclp_statechangebuf) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct sclp_statechangebuf) > PAGE_SIZE);
 
 	scbuf = (struct sclp_statechangebuf *) evbuf;
 	spin_lock_irqsave(&sclp_lock, flags);

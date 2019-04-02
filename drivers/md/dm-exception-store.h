@@ -153,12 +153,12 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_exception *e)
 {
 	e->new_chunk += (1ULL << DM_CHUNK_NUMBER_BITS);
 
-	BUG_ON(!dm_consecutive_chunk_count(e));
+	_ON(!dm_consecutive_chunk_count(e));
 }
 
 static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
 {
-	BUG_ON(!dm_consecutive_chunk_count(e));
+	_ON(!dm_consecutive_chunk_count(e));
 
 	e->new_chunk -= (1ULL << DM_CHUNK_NUMBER_BITS);
 }

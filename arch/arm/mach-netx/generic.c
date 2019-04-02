@@ -64,9 +64,9 @@ static struct platform_device *devices[] __initdata = {
 };
 
 #if 0
-#define DEBUG_IRQ(fmt...)	printk(fmt)
+#define DE_IRQ(fmt...)	printk(fmt)
 #else
-#define DEBUG_IRQ(fmt...)	while (0) {}
+#define DE_IRQ(fmt...)	while (0) {}
 #endif
 
 static void netx_hif_demux_handler(struct irq_desc *desc)
@@ -79,7 +79,7 @@ static void netx_hif_demux_handler(struct irq_desc *desc)
 
 	while (stat) {
 		if (stat & 1) {
-			DEBUG_IRQ("handling irq %d\n", irq);
+			DE_IRQ("handling irq %d\n", irq);
 			generic_handle_irq(irq);
 		}
 		irq++;
@@ -97,19 +97,19 @@ netx_hif_irq_type(struct irq_data *d, unsigned int type)
 	irq = d->irq - NETX_IRQ_HIF_CHAINED(0);
 
 	if (type & IRQ_TYPE_EDGE_RISING) {
-		DEBUG_IRQ("rising edges\n");
+		DE_IRQ("rising edges\n");
 		val |= (1 << 26) << irq;
 	}
 	if (type & IRQ_TYPE_EDGE_FALLING) {
-		DEBUG_IRQ("falling edges\n");
+		DE_IRQ("falling edges\n");
 		val &= ~((1 << 26) << irq);
 	}
 	if (type & IRQ_TYPE_LEVEL_LOW) {
-		DEBUG_IRQ("low level\n");
+		DE_IRQ("low level\n");
 		val &= ~((1 << 26) << irq);
 	}
 	if (type & IRQ_TYPE_LEVEL_HIGH) {
-		DEBUG_IRQ("high level\n");
+		DE_IRQ("high level\n");
 		val |= (1 << 26) << irq;
 	}
 
@@ -130,7 +130,7 @@ netx_hif_ack_irq(struct irq_data *d)
 	val &= ~((1 << 24) << irq);
 	writel(val, NETX_DPMAS_INT_EN);
 
-	DEBUG_IRQ("%s: irq %d\n", __func__, d->irq);
+	DE_IRQ("%s: irq %d\n", __func__, d->irq);
 }
 
 static void
@@ -142,7 +142,7 @@ netx_hif_mask_irq(struct irq_data *d)
 	val = readl(NETX_DPMAS_INT_EN);
 	val &= ~((1 << 24) << irq);
 	writel(val, NETX_DPMAS_INT_EN);
-	DEBUG_IRQ("%s: irq %d\n", __func__, d->irq);
+	DE_IRQ("%s: irq %d\n", __func__, d->irq);
 }
 
 static void
@@ -154,7 +154,7 @@ netx_hif_unmask_irq(struct irq_data *d)
 	val = readl(NETX_DPMAS_INT_EN);
 	val |= (1 << 24) << irq;
 	writel(val, NETX_DPMAS_INT_EN);
-	DEBUG_IRQ("%s: irq %d\n", __func__, d->irq);
+	DE_IRQ("%s: irq %d\n", __func__, d->irq);
 }
 
 static struct irq_chip netx_hif_chip = {

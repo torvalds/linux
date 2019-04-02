@@ -41,7 +41,7 @@ struct mips_r2br_emulator_stats {
 	u64 bgtzl;
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #define MIPS_R2_STATS(M)						\
 do {									\
@@ -70,7 +70,7 @@ do {								\
 #define MIPS_R2_STATS(M)          do { } while (0)
 #define MIPS_R2BR_STATS(M)        do { } while (0)
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 struct r2_decoder_table {
 	u32     mask;

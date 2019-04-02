@@ -14,9 +14,9 @@
 
 /*
  * When queued spinlock statistical counters are enabled, the following
- * debugfs files will be created for reporting the counter values:
+ * defs files will be created for reporting the counter values:
  *
- * <debugfs>/qlockstat/
+ * <defs>/qlockstat/
  *   pv_hash_hops	- average # of hops per hashing operation
  *   pv_kick_unlock	- # of vCPU kicks issued at unlock time
  *   pv_kick_wake	- # of vCPU kicks used for computing pv_latency_wake
@@ -42,7 +42,7 @@
  * values.
  *
  * These statistical counters are implemented as per-cpu variables which are
- * summed and computed whenever the corresponding debugfs files are read. This
+ * summed and computed whenever the corresponding defs files are read. This
  * minimizes added overhead making the counters usable even in a production
  * environment.
  *
@@ -74,7 +74,7 @@ enum qlock_stats {
 /*
  * Collect pvqspinlock statistics
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/fs.h>
@@ -206,7 +206,7 @@ static ssize_t qstat_write(struct file *file, const char __user *user_buf,
 }
 
 /*
- * Debugfs data structures
+ * Defs data structures
  */
 static const struct file_operations fops_qstat = {
 	.read = qstat_read,
@@ -215,37 +215,37 @@ static const struct file_operations fops_qstat = {
 };
 
 /*
- * Initialize debugfs for the qspinlock statistical counters
+ * Initialize defs for the qspinlock statistical counters
  */
 static int __init init_qspinlock_stat(void)
 {
-	struct dentry *d_qstat = debugfs_create_dir("qlockstat", NULL);
+	struct dentry *d_qstat = defs_create_dir("qlockstat", NULL);
 	int i;
 
 	if (!d_qstat)
 		goto out;
 
 	/*
-	 * Create the debugfs files
+	 * Create the defs files
 	 *
 	 * As reading from and writing to the stat files can be slow, only
 	 * root is allowed to do the read/write to limit impact to system
 	 * performance.
 	 */
 	for (i = 0; i < qstat_num; i++)
-		if (!debugfs_create_file(qstat_names[i], 0400, d_qstat,
+		if (!defs_create_file(qstat_names[i], 0400, d_qstat,
 					 (void *)(long)i, &fops_qstat))
 			goto fail_undo;
 
-	if (!debugfs_create_file(qstat_names[qstat_reset_cnts], 0200, d_qstat,
+	if (!defs_create_file(qstat_names[qstat_reset_cnts], 0200, d_qstat,
 				 (void *)(long)qstat_reset_cnts, &fops_qstat))
 		goto fail_undo;
 
 	return 0;
 fail_undo:
-	debugfs_remove_recursive(d_qstat);
+	defs_remove_recursive(d_qstat);
 out:
-	pr_warn("Could not create 'qlockstat' debugfs entries\n");
+	pr_warn("Could not create 'qlockstat' defs entries\n");
 	return -ENOMEM;
 }
 fs_initcall(init_qspinlock_stat);

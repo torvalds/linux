@@ -251,7 +251,7 @@ Although RCU's grace-period guarantee is useful in and of itself, with
 it would be good to be able to use RCU to coordinate read-side
 access to linked data structures.
 For this, the grace-period guarantee is not sufficient, as can
-be seen in function <tt>add_gp_buggy()</tt> below.
+be seen in function <tt>add_gp_gy()</tt> below.
 We will look at the reader's code later, but in the meantime, just think of
 the reader as locklessly picking up the <tt>gp</tt> pointer,
 and, if the value loaded is non-<tt>NULL</tt>, locklessly accessing the
@@ -259,7 +259,7 @@ and, if the value loaded is non-<tt>NULL</tt>, locklessly accessing the
 
 <blockquote>
 <pre>
- 1 bool add_gp_buggy(int a, int b)
+ 1 bool add_gp_gy(int a, int b)
  2 {
  3   p = kmalloc(sizeof(*p), GFP_KERNEL);
  4   if (!p)
@@ -271,7 +271,7 @@ and, if the value loaded is non-<tt>NULL</tt>, locklessly accessing the
 10   }
 11   p-&gt;a = a;
 12   p-&gt;b = a;
-13   gp = p; /* ORDERING BUG */
+13   gp = p; /* ORDERING  */
 14   spin_unlock(&amp;gp_lock);
 15   return true;
 16 }
@@ -284,7 +284,7 @@ their rights to reorder this code as follows:
 
 <blockquote>
 <pre>
- 1 bool add_gp_buggy_optimized(int a, int b)
+ 1 bool add_gp_gy_optimized(int a, int b)
  2 {
  3   p = kmalloc(sizeof(*p), GFP_KERNEL);
  4   if (!p)
@@ -294,7 +294,7 @@ their rights to reorder this code as follows:
  8     spin_unlock(&amp;gp_lock);
  9     return false;
 10   }
-<b>11   gp = p; /* ORDERING BUG */
+<b>11   gp = p; /* ORDERING  */
 12   p-&gt;a = a;
 13   p-&gt;b = a;</b>
 14   spin_unlock(&amp;gp_lock);
@@ -305,7 +305,7 @@ their rights to reorder this code as follows:
 
 <p>
 If an RCU reader fetches <tt>gp</tt> just after
-<tt>add_gp_buggy_optimized</tt> executes line&nbsp;11,
+<tt>add_gp_gy_optimized</tt> executes line&nbsp;11,
 it will see garbage in the <tt>-&gt;a</tt> and <tt>-&gt;b</tt>
 fields.
 And this is but one of many ways in which compiler and hardware optimizations
@@ -380,11 +380,11 @@ location immediately preceding the assignment.
 <p>
 It is tempting to assume that the reader need not do anything special
 to control its accesses to the RCU-protected data,
-as shown in <tt>do_something_gp_buggy()</tt> below:
+as shown in <tt>do_something_gp_gy()</tt> below:
 
 <blockquote>
 <pre>
- 1 bool do_something_gp_buggy(void)
+ 1 bool do_something_gp_gy(void)
  2 {
  3   rcu_read_lock();
  4   p = gp;  /* OPTIMIZATIONS GALORE!!! */
@@ -411,7 +411,7 @@ a separate copy in <tt>p</tt> as follows:
 
 <blockquote>
 <pre>
- 1 bool do_something_gp_buggy_optimized(void)
+ 1 bool do_something_gp_gy_optimized(void)
  2 {
  3   rcu_read_lock();
  4   if (gp) { /* OPTIMIZATIONS GALORE!!! */
@@ -986,7 +986,7 @@ The following example illustrates this:
  5   if (r1) {
  6     do_something_with_nonzero_x();
  7     r2 = READ_ONCE(x);
- 8     WARN_ON(!r2); /* BUG!!! */
+ 8     WARN_ON(!r2); /* !!! */
  9   }
 10   rcu_read_unlock();
 11 }
@@ -2031,7 +2031,7 @@ guard against mishaps and misuse:
 	Arnd Bergmann made me aware of this requirement, and also
 	supplied the needed
 	<a href="https://lwn.net/Articles/376011/">patch series</a>.
-<li>	Kernels built with <tt>CONFIG_DEBUG_OBJECTS_RCU_HEAD=y</tt>
+<li>	Kernels built with <tt>CONFIG_DE_OBJECTS_RCU_HEAD=y</tt>
 	will splat if a data element is passed to <tt>call_rcu()</tt>
 	twice in a row, without a grace period in between.
 	(This error is similar to a double free.)
@@ -2073,7 +2073,7 @@ guard against mishaps and misuse:
 
 	<p>
 	This requirement made itself known in the early 1990s, pretty
-	much the first time that it was necessary to debug a CPU stall.
+	much the first time that it was necessary to de a CPU stall.
 	That said, the initial implementation in DYNIX/ptx was quite
 	generic in comparison with that of Linux.
 <li>	Although it would be very good to detect pointers leaking out
@@ -2109,7 +2109,7 @@ guard against mishaps and misuse:
 
 <p>
 This not a hard-and-fast list:  RCU's diagnostic capabilities will
-continue to be guided by the number and type of usage bugs found
+continue to be guided by the number and type of usage s found
 in real-world RCU usage.
 
 <h2><a name="Linux Kernel Complications">Linux Kernel Complications</a></h2>
@@ -2568,7 +2568,7 @@ However, there are some restrictions on the code placed within
 	<pre>
  1     RCU_NONIDLE({
  2       do_something();
- 3       goto bad_idea;  /* BUG!!! */
+ 3       goto bad_idea;  /* !!! */
  4       do_something_else();});
  5   bad_idea:
 	</pre>
@@ -2600,7 +2600,7 @@ which was finally able to demonstrate
 As noted earlier,
 I learned of many of these requirements via angry phone calls:
 Flaming me on the Linux-kernel mailing list was apparently not
-sufficient to fully vent their ire at RCU's energy-efficiency bugs!
+sufficient to fully vent their ire at RCU's energy-efficiency s!
 
 <h3><a name="Scheduling-Clock Interrupts and RCU">
 Scheduling-Clock Interrupts and RCU</a></h3>
@@ -2727,7 +2727,7 @@ RCU needs it to be:
 But as long as RCU is properly informed of kernel state transitions between
 in-kernel execution, usermode execution, and idle, and as long as the
 scheduling-clock interrupt is enabled when RCU needs it to be, you
-can rest assured that the bugs you encounter will be in some other
+can rest assured that the s you encounter will be in some other
 part of RCU or some other part of the kernel!
 
 <h3><a name="Memory Efficiency">Memory Efficiency</a></h3>
@@ -2748,11 +2748,11 @@ This need for memory efficiency is one reason that RCU uses hand-crafted
 singly linked lists to track the <tt>rcu_head</tt> structures that
 are waiting for a grace period to elapse.
 It is also the reason why <tt>rcu_head</tt> structures do not contain
-debug information, such as fields tracking the file and line of the
+de information, such as fields tracking the file and line of the
 <tt>call_rcu()</tt> or <tt>kfree_rcu()</tt> that posted them.
-Although this information might appear in debug-only kernel builds at some
+Although this information might appear in de-only kernel builds at some
 point, in the meantime, the <tt>-&gt;func</tt> field will often provide
-the needed debug information.
+the needed de information.
 
 <p>
 However, in some cases, the need for memory efficiency leads to even
@@ -2871,7 +2871,7 @@ in order to avoid receiving an IPI from RCU.
 <p>
 Finally, RCU's status as a synchronization primitive means that
 any RCU failure can result in arbitrary memory corruption that can be
-extremely difficult to debug.
+extremely difficult to de.
 This means that RCU must be extremely reliable, which in
 practice also means that RCU must have an aggressive stress-test
 suite.
@@ -2891,7 +2891,7 @@ the celebrated Internet of Things.
 <p>
 Suppose that RCU contains a race condition that manifests on average
 once per million years of runtime.
-This bug will be occurring about three times per <i>day</i> across
+This  will be occurring about three times per <i>day</i> across
 the installed base.
 RCU could simply hide behind hardware error rates, given that no one
 should really expect their smartphone to last for a million years.
@@ -2901,7 +2901,7 @@ test of a given mechanism, which might include a Linux kernel,
 suffices for a number of types of safety-critical certifications.
 In fact, rumor has it that the Linux kernel is already being used
 in production for safety-critical applications.
-I don't know about you, but I would feel quite bad if a bug in RCU
+I don't know about you, but I would feel quite bad if a  in RCU
 killed someone.
 Which might explain my recent focus on validation and verification.
 

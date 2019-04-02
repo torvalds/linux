@@ -65,7 +65,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
 	};
 
-	BUG_ON(!skb);
+	_ON(!skb);
 
 	skb->ip_summed = CHECKSUM_NONE;
 

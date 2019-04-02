@@ -20,13 +20,13 @@
 #include "dib9000.h"
 #include "dibx000_common.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "turn on deging (default: 0)");
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 
@@ -141,7 +141,7 @@ enum dib9000_out_messages {
 	OUT_MSG_SCAN_CHANNEL,
 	OUT_MSG_MONIT_DEMOD,
 	OUT_MSG_CONF_GPIO,
-	OUT_MSG_DEBUG_HELP,
+	OUT_MSG_DE_HELP,
 	OUT_MSG_SUBBAND_SEL,
 	OUT_MSG_ENABLE_TIME_SLICE,
 	OUT_MSG_FE_FW_DL,
@@ -166,7 +166,7 @@ enum dib9000_in_messages {
 	IN_MSG_FRAME_INFO,
 	IN_MSG_CTL_MONIT,
 	IN_MSG_ACK_FREE_ITEM,
-	IN_MSG_DEBUG_BUF,
+	IN_MSG_DE_BUF,
 	IN_MSG_MPE_MONITOR,
 	IN_MSG_RAWTS_MONITOR,
 	IN_MSG_END_BRIDGE_I2C_RW,
@@ -436,7 +436,7 @@ static void dib9000_risc_mem_setup(struct dib9000_state *state, u8 cmd)
 	struct dib9000_fe_memory_map *m = &state->platform.risc.fe_mm[cmd & 0x7f];
 	/* decide whether we need to "refresh" the memory controller */
 	if (state->platform.risc.memcmd == cmd &&	/* same command */
-	    !(cmd & 0x80 && m->size < 67))	/* and we do not want to read something with less than 67 bytes looping - working around a bug in the memory controller */
+	    !(cmd & 0x80 && m->size < 67))	/* and we do not want to read something with less than 67 bytes looping - working around a  in the memory controller */
 		return;
 	dib9000_risc_mem_setup_cmd(state, m->addr, m->size, cmd & 0x80);
 	state->platform.risc.memcmd = cmd;
@@ -646,7 +646,7 @@ static u8 dib9000_mbx_read(struct dib9000_state *state, u16 * data, u8 risc_id, 
 	return size + 1;
 }
 
-static int dib9000_risc_debug_buf(struct dib9000_state *state, u16 * data, u8 size)
+static int dib9000_risc_de_buf(struct dib9000_state *state, u16 * data, u8 size)
 {
 	u32 ts = data[1] << 16 | data[0];
 	char *b = (char *)&data[2];
@@ -676,8 +676,8 @@ static int dib9000_mbx_fetch_to_cache(struct dib9000_state *state, u16 attr)
 /*                      dprintk( "MBX: fetched %04x message to cache\n", *block); */
 
 			switch (*block >> 8) {
-			case IN_MSG_DEBUG_BUF:
-				dib9000_risc_debug_buf(state, block + 1, size);	/* debug-messages are going to be printed right away */
+			case IN_MSG_DE_BUF:
+				dib9000_risc_de_buf(state, block + 1, size);	/* de-messages are going to be printed right away */
 				*block = 0;	/* free the block */
 				break;
 #if 0

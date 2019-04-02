@@ -143,7 +143,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 		/*
 		 * This is a block-addressed SDHC or SDXC card. Most
 		 * interesting fields are unused and have fixed
-		 * values. To avoid getting tripped by buggy cards,
+		 * values. To avoid getting tripped by gy cards,
 		 * we assume those fixed values ourselves.
 		 */
 		mmc_card_set_blockaddr(card);
@@ -952,7 +952,7 @@ retry:
 
 	if (oldcard) {
 		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
-			pr_debug("%s: Perhaps the card was replaced\n",
+			pr_de("%s: Perhaps the card was replaced\n",
 				mmc_hostname(host));
 			return -ENOENT;
 		}

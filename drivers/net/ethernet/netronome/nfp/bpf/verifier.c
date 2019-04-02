@@ -231,7 +231,7 @@ nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
 		return -EOPNOTSUPP;
 
 	case BPF_FUNC_perf_event_output:
-		BUILD_BUG_ON(NFP_BPF_SCALAR_VALUE != SCALAR_VALUE ||
+		BUILD__ON(NFP_BPF_SCALAR_VALUE != SCALAR_VALUE ||
 			     NFP_BPF_MAP_VALUE != PTR_TO_MAP_VALUE ||
 			     NFP_BPF_STACK != PTR_TO_STACK ||
 			     NFP_BPF_PACKET_DATA != PTR_TO_PACKET);
@@ -682,7 +682,7 @@ nfp_assign_subprog_idx_and_regs(struct bpf_verifier_env *env,
 	}
 
 	if (index + 1 != nfp_prog->subprog_cnt) {
-		pr_vlog(env, "BUG: number of processed BPF functions is not consistent (processed %d, expected %d)\n",
+		pr_vlog(env, ": number of processed BPF functions is not consistent (processed %d, expected %d)\n",
 			index + 1, nfp_prog->subprog_cnt);
 		return -EFAULT;
 	}

@@ -580,7 +580,7 @@ typedef struct buffer {
     enum   buffer_scheme scheme;      /* buffer scheme           */
     enum   buffer_magn   magn;        /* buffer magnitude        */
     struct chunk         data;        /* data buffer             */
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
     unsigned long        index;       /* buffer # in queue       */
     int                  supplied;    /* 'buffer supplied' flag  */
 #endif

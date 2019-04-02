@@ -24,7 +24,7 @@
 #include "map.h"
 #include "symbol.h"
 #include "units.h"
-#include "debug.h"
+#include "de.h"
 #include "annotate.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -856,11 +856,11 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	unsigned offset;
 	struct sym_hist *h;
 
-	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
+	pr_de3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
 	if ((addr < sym->start || addr >= sym->end) &&
 	    (addr != sym->end || sym->start != sym->end)) {
-		pr_debug("%s(%d): ERANGE! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 "\n",
+		pr_de("%s(%d): ERANGE! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 "\n",
 		       __func__, __LINE__, sym->name, sym->start, addr, sym->end);
 		return -ERANGE;
 	}
@@ -868,7 +868,7 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	offset = addr - sym->start;
 	h = annotated_source__histogram(src, evidx);
 	if (h == NULL) {
-		pr_debug("%s(%d): ENOMEM! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 ", func: %d\n",
+		pr_de("%s(%d): ENOMEM! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 ", func: %d\n",
 			 __func__, __LINE__, sym->name, sym->start, addr, sym->end, sym->type == STT_FUNC);
 		return -ENOMEM;
 	}
@@ -877,7 +877,7 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	h->period += sample->period;
 	h->addr[offset].period += sample->period;
 
-	pr_debug3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
+	pr_de3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
 		  ", evidx=%d] => nr_samples: %" PRIu64 ", period: %" PRIu64 "\n",
 		  sym->start, sym->name, addr, addr - sym->start, evidx,
 		  h->addr[offset].nr_samples, h->addr[offset].period);
@@ -987,14 +987,14 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 		   start->addr == ams->sym->start + ams->map->start)))
 		saddr = start->al_addr;
 	if (saddr == 0)
-		pr_debug2("BB with bad start: addr %"PRIx64" start %"PRIx64" sym %"PRIx64" saddr %"PRIx64"\n",
+		pr_de2("BB with bad start: addr %"PRIx64" start %"PRIx64" sym %"PRIx64" saddr %"PRIx64"\n",
 			ams->addr,
 			start ? start->addr : 0,
 			ams->sym ? ams->sym->start + ams->map->start : 0,
 			saddr);
 	err = symbol__account_cycles(ams->al_addr, saddr, ams->sym, cycles);
 	if (err)
-		pr_debug2("account_cycles failed %d\n", err);
+		pr_de2("account_cycles failed %d\n", err);
 	return err;
 }
 
@@ -1595,7 +1595,7 @@ int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *
 {
 	struct dso *dso = map->dso;
 
-	BUG_ON(buflen == 0);
+	_ON(buflen == 0);
 
 	if (errnum >= 0) {
 		str_error_r(errnum, buf, buflen);
@@ -1714,7 +1714,7 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	if (dso->binary_type != DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return -1;
 
-	pr_debug("%s: handling sym %s addr %lx len %lx\n", __func__,
+	pr_de("%s: handling sym %s addr %lx len %lx\n", __func__,
 		 sym->name, sym->start, sym->end - sym->start);
 
 	memset(tpath, 0, sizeof(tpath));
@@ -1853,11 +1853,11 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	if (err)
 		return err;
 
-	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
+	pr_de("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
 		 map->unmap_ip(map, sym->end));
 
-	pr_debug("annotating [%p] %30s : [%p] %30s\n",
+	pr_de("annotating [%p] %30s : [%p] %30s\n",
 		 dso, dso->long_name, sym, sym->name);
 
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO) {
@@ -1900,7 +1900,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		goto out_remove_tmp;
 	}
 
-	pr_debug("Executing: %s\n", command);
+	pr_de("Executing: %s\n", command);
 
 	err = -1;
 	if (pipe(stdout_fd) < 0) {
@@ -1930,7 +1930,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	if (!file) {
 		pr_err("Failure creating FILE stream for %s\n", command);
 		/*
-		 * If we were using debug info should retry with
+		 * If we were using de info should retry with
 		 * original binary.
 		 */
 		goto out_free_command;
@@ -2030,7 +2030,7 @@ static void annotation__calc_percent(struct annotation *notes,
 			struct annotation_data *data;
 			struct sym_hist *sym_hist;
 
-			BUG_ON(i >= al->data_nr);
+			_ON(i >= al->data_nr);
 
 			sym_hist = annotation__histogram(notes, evsel->idx);
 			data = &al->data[i++];
@@ -2525,7 +2525,7 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		al = notes->offsets[dl->ops.target.offset];
 
 		/*
-		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
+		 * FIXME: Oops, no jump target? gy disassembler? Or do we
 		 * have to adjust to the previous offset?
 		 */
 		if (al == NULL)
@@ -3036,7 +3036,7 @@ static int annotation__config(const char *var, const char *value,
 		      sizeof(struct annotation_config), annotation_config__cmp);
 
 	if (cfg == NULL)
-		pr_debug("%s variable unknown, ignoring...", var);
+		pr_de("%s variable unknown, ignoring...", var);
 	else if (strcmp(var, "annotate.offset_level") == 0) {
 		perf_config_int(cfg->value, name, value);
 

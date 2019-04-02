@@ -75,7 +75,7 @@ static inline int zfcp_reqlist_isempty(struct zfcp_reqlist *rl)
 static inline void zfcp_reqlist_free(struct zfcp_reqlist *rl)
 {
 	/* sanity check */
-	BUG_ON(!zfcp_reqlist_isempty(rl));
+	_ON(!zfcp_reqlist_isempty(rl));
 
 	kfree(rl);
 }

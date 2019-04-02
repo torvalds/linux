@@ -31,7 +31,7 @@ nvkm_ltc_tags_clear(struct nvkm_device *device, u32 first, u32 count)
 	struct nvkm_ltc *ltc = device->ltc;
 	const u32 limit = first + count - 1;
 
-	BUG_ON((first > limit) || (limit >= ltc->num_tags));
+	_ON((first > limit) || (limit >= ltc->num_tags));
 
 	mutex_lock(&ltc->subdev.mutex);
 	ltc->func->cbc_clear(ltc, first, limit);

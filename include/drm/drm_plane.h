@@ -442,7 +442,7 @@ struct drm_plane_funcs {
 	 * @late_register:
 	 *
 	 * This optional hook can be used to register additional userspace
-	 * interfaces attached to the plane like debugfs interfaces.
+	 * interfaces attached to the plane like defs interfaces.
 	 * It is called late in the driver load sequence from drm_dev_register().
 	 * Everything added from this callback should be unregistered in
 	 * the early_unregister callback.

@@ -192,7 +192,7 @@ acpi_status acpi_tb_load_namespace(void)
 
 			tables_failed++;
 
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+			ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 					      "Table [%4.4s:%8.8s] (id FF) - Table namespace load failed\n\n",
 					      table->signature.ascii,
 					      table->pointer->oem_table_id));
@@ -214,7 +214,7 @@ acpi_status acpi_tb_load_namespace(void)
 	}
 
 #ifdef ACPI_APPLICATION
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "\n"));
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT, "\n"));
 #endif
 
 unlock_and_exit:

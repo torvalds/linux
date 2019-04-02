@@ -69,7 +69,7 @@
 
 #include <net/mac80211.h>
 
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "mvm.h"
 #include "iwl-modparams.h"
 #include "fw/api/power.h"
@@ -83,33 +83,33 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 {
 	u16 len;
 
-	IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
+	IWL_DE_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
 			le32_to_cpu(cmd->ba_enable_beacon_abort));
-	IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
+	IWL_DE_POWER(mvm, "ba_escape_timer is: %d\n",
 			le32_to_cpu(cmd->ba_escape_timer));
-	IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
-			le32_to_cpu(cmd->bf_debug_flag));
-	IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
+	IWL_DE_POWER(mvm, "bf_de_flag is: %d\n",
+			le32_to_cpu(cmd->bf_de_flag));
+	IWL_DE_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
 			le32_to_cpu(cmd->bf_enable_beacon_filter));
-	IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
+	IWL_DE_POWER(mvm, "bf_energy_delta is: %d\n",
 			le32_to_cpu(cmd->bf_energy_delta));
-	IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
+	IWL_DE_POWER(mvm, "bf_escape_timer is: %d\n",
 			le32_to_cpu(cmd->bf_escape_timer));
-	IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
+	IWL_DE_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
 			le32_to_cpu(cmd->bf_roaming_energy_delta));
-	IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
+	IWL_DE_POWER(mvm, "bf_roaming_state is: %d\n",
 			le32_to_cpu(cmd->bf_roaming_state));
-	IWL_DEBUG_POWER(mvm, "bf_temp_threshold is: %d\n",
+	IWL_DE_POWER(mvm, "bf_temp_threshold is: %d\n",
 			le32_to_cpu(cmd->bf_temp_threshold));
-	IWL_DEBUG_POWER(mvm, "bf_temp_fast_filter is: %d\n",
+	IWL_DE_POWER(mvm, "bf_temp_fast_filter is: %d\n",
 			le32_to_cpu(cmd->bf_temp_fast_filter));
-	IWL_DEBUG_POWER(mvm, "bf_temp_slow_filter is: %d\n",
+	IWL_DE_POWER(mvm, "bf_temp_slow_filter is: %d\n",
 			le32_to_cpu(cmd->bf_temp_slow_filter));
-	IWL_DEBUG_POWER(mvm, "bf_threshold_absolute_low is: %d, %d\n",
+	IWL_DE_POWER(mvm, "bf_threshold_absolute_low is: %d, %d\n",
 			le32_to_cpu(cmd->bf_threshold_absolute_low[0]),
 			le32_to_cpu(cmd->bf_threshold_absolute_low[1]));
 
-	IWL_DEBUG_POWER(mvm, "bf_threshold_absolute_high is: %d, %d\n",
+	IWL_DE_POWER(mvm, "bf_threshold_absolute_high is: %d, %d\n",
 			le32_to_cpu(cmd->bf_threshold_absolute_high[0]),
 			le32_to_cpu(cmd->bf_threshold_absolute_high[1]));
 
@@ -145,37 +145,37 @@ void iwl_mvm_beacon_filter_set_cqm_params(struct iwl_mvm *mvm,
 static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 			      struct iwl_mac_power_cmd *cmd)
 {
-	IWL_DEBUG_POWER(mvm,
+	IWL_DE_POWER(mvm,
 			"Sending power table command on mac id 0x%X for power level %d, flags = 0x%X\n",
 			cmd->id_and_color, iwlmvm_mod_params.power_scheme,
 			le16_to_cpu(cmd->flags));
-	IWL_DEBUG_POWER(mvm, "Keep alive = %u sec\n",
+	IWL_DE_POWER(mvm, "Keep alive = %u sec\n",
 			le16_to_cpu(cmd->keep_alive_seconds));
 
 	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK))) {
-		IWL_DEBUG_POWER(mvm, "Disable power management\n");
+		IWL_DE_POWER(mvm, "Disable power management\n");
 		return;
 	}
 
-	IWL_DEBUG_POWER(mvm, "Rx timeout = %u usec\n",
+	IWL_DE_POWER(mvm, "Rx timeout = %u usec\n",
 			le32_to_cpu(cmd->rx_data_timeout));
-	IWL_DEBUG_POWER(mvm, "Tx timeout = %u usec\n",
+	IWL_DE_POWER(mvm, "Tx timeout = %u usec\n",
 			le32_to_cpu(cmd->tx_data_timeout));
 	if (cmd->flags & cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK))
-		IWL_DEBUG_POWER(mvm, "DTIM periods to skip = %u\n",
+		IWL_DE_POWER(mvm, "DTIM periods to skip = %u\n",
 				cmd->skip_dtim_periods);
 	if (cmd->flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
-		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
+		IWL_DE_POWER(mvm, "LP RX RSSI threshold = %u\n",
 				cmd->lprx_rssi_threshold);
 	if (cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)) {
-		IWL_DEBUG_POWER(mvm, "uAPSD enabled\n");
-		IWL_DEBUG_POWER(mvm, "Rx timeout (uAPSD) = %u usec\n",
+		IWL_DE_POWER(mvm, "uAPSD enabled\n");
+		IWL_DE_POWER(mvm, "Rx timeout (uAPSD) = %u usec\n",
 				le32_to_cpu(cmd->rx_data_timeout_uapsd));
-		IWL_DEBUG_POWER(mvm, "Tx timeout (uAPSD) = %u usec\n",
+		IWL_DE_POWER(mvm, "Tx timeout (uAPSD) = %u usec\n",
 				le32_to_cpu(cmd->tx_data_timeout_uapsd));
-		IWL_DEBUG_POWER(mvm, "QNDP TID = %d\n", cmd->qndp_tid);
-		IWL_DEBUG_POWER(mvm, "ACs flags = 0x%x\n", cmd->uapsd_ac_flags);
-		IWL_DEBUG_POWER(mvm, "Max SP = %d\n", cmd->uapsd_max_sp);
+		IWL_DE_POWER(mvm, "QNDP TID = %d\n", cmd->qndp_tid);
+		IWL_DE_POWER(mvm, "ACs flags = 0x%x\n", cmd->uapsd_ac_flags);
+		IWL_DE_POWER(mvm, "Max SP = %d\n", cmd->uapsd_max_sp);
 	}
 }
 
@@ -187,7 +187,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	enum ieee80211_ac_numbers ac;
 	bool tid_found = false;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	/* set advanced pm flag with no uapsd ACs to enable ps-poll */
 	if (mvmvif->dbgfs_pm.use_ps_poll) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
@@ -464,11 +464,11 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	if (iwl_mvm_power_allow_uapsd(mvm, vif))
 		iwl_mvm_power_configure_uapsd(mvm, vif, cmd);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_KEEP_ALIVE)
+#ifdef CONFIG_IWLWIFI_DEFS
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_KEEP_ALIVE)
 		cmd->keep_alive_seconds =
 			cpu_to_le16(mvmvif->dbgfs_pm.keep_alive_seconds);
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SKIP_OVER_DTIM) {
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_SKIP_OVER_DTIM) {
 		if (mvmvif->dbgfs_pm.skip_over_dtim)
 			cmd->flags |=
 				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
@@ -476,23 +476,23 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cmd->flags &=
 				cpu_to_le16(~POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 	}
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_RX_DATA_TIMEOUT)
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_RX_DATA_TIMEOUT)
 		cmd->rx_data_timeout =
 			cpu_to_le32(mvmvif->dbgfs_pm.rx_data_timeout);
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_TX_DATA_TIMEOUT)
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_TX_DATA_TIMEOUT)
 		cmd->tx_data_timeout =
 			cpu_to_le32(mvmvif->dbgfs_pm.tx_data_timeout);
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS)
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_SKIP_DTIM_PERIODS)
 		cmd->skip_dtim_periods = mvmvif->dbgfs_pm.skip_dtim_periods;
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_ENA) {
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_LPRX_ENA) {
 		if (mvmvif->dbgfs_pm.lprx_ena)
 			cmd->flags |= cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK);
 		else
 			cmd->flags &= cpu_to_le16(~POWER_FLAGS_LPRX_ENA_MSK);
 	}
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD)
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_LPRX_RSSI_THRESHOLD)
 		cmd->lprx_rssi_threshold = mvmvif->dbgfs_pm.lprx_rssi_threshold;
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SNOOZE_ENABLE) {
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_SNOOZE_ENABLE) {
 		if (mvmvif->dbgfs_pm.snooze_ena)
 			cmd->flags |=
 				cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
@@ -500,14 +500,14 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cmd->flags &=
 				cpu_to_le16(~POWER_FLAGS_SNOOZE_ENA_MSK);
 	}
-	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_UAPSD_MISBEHAVING) {
+	if (mvmvif->dbgfs_pm.mask & MVM_DEFS_PM_UAPSD_MISBEHAVING) {
 		u16 flag = POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK;
 		if (mvmvif->dbgfs_pm.uapsd_misbehaving)
 			cmd->flags |= cpu_to_le16(flag);
 		else
 			cmd->flags &= cpu_to_le16(flag);
 	}
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_IWLWIFI_DEFS */
 }
 
 static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
@@ -518,7 +518,7 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd,
 				mvm->fwrt.cur_fw_img != IWL_UCODE_WOWLAN);
 	iwl_mvm_power_log(mvm, &cmd);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
 #endif
 
@@ -538,7 +538,7 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 	if (!mvm->ps_disabled)
 		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if ((mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN) ?
 			mvm->disable_power_off_d3 : mvm->disable_power_off)
 		cmd.flags &=
@@ -547,7 +547,7 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 	if (mvm->ext_clock_valid)
 		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK);
 
-	IWL_DEBUG_POWER(mvm,
+	IWL_DE_POWER(mvm,
 			"Sending device power command with flags = 0x%X\n",
 			cmd.flags);
 
@@ -736,7 +736,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	}
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif, char *buf,
 				 int bufsz)
@@ -812,35 +812,35 @@ int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 }
 
 void
-iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
+iwl_mvm_beacon_filter_defs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_dbgfs_bf *dbgfs_bf = &mvmvif->dbgfs_bf;
 
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ENERGY_DELTA)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_ENERGY_DELTA)
 		cmd->bf_energy_delta = cpu_to_le32(dbgfs_bf->bf_energy_delta);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_ROAMING_ENERGY_DELTA)
 		cmd->bf_roaming_energy_delta =
 				cpu_to_le32(dbgfs_bf->bf_roaming_energy_delta);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ROAMING_STATE)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_ROAMING_STATE)
 		cmd->bf_roaming_state = cpu_to_le32(dbgfs_bf->bf_roaming_state);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMP_THRESHOLD)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_TEMP_THRESHOLD)
 		cmd->bf_temp_threshold =
 				cpu_to_le32(dbgfs_bf->bf_temp_threshold);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMP_FAST_FILTER)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_TEMP_FAST_FILTER)
 		cmd->bf_temp_fast_filter =
 				cpu_to_le32(dbgfs_bf->bf_temp_fast_filter);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMP_SLOW_FILTER)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_TEMP_SLOW_FILTER)
 		cmd->bf_temp_slow_filter =
 				cpu_to_le32(dbgfs_bf->bf_temp_slow_filter);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_DEBUG_FLAG)
-		cmd->bf_debug_flag = cpu_to_le32(dbgfs_bf->bf_debug_flag);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ESCAPE_TIMER)
+	if (dbgfs_bf->mask & MVM_DEFS_BF_DE_FLAG)
+		cmd->bf_de_flag = cpu_to_le32(dbgfs_bf->bf_de_flag);
+	if (dbgfs_bf->mask & MVM_DEFS_BF_ESCAPE_TIMER)
 		cmd->bf_escape_timer = cpu_to_le32(dbgfs_bf->bf_escape_timer);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BA_ESCAPE_TIMER)
+	if (dbgfs_bf->mask & MVM_DEFS_BA_ESCAPE_TIMER)
 		cmd->ba_escape_timer = cpu_to_le32(dbgfs_bf->ba_escape_timer);
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT)
+	if (dbgfs_bf->mask & MVM_DEFS_BA_ENABLE_BEACON_ABORT)
 		cmd->ba_enable_beacon_abort =
 				cpu_to_le32(dbgfs_bf->ba_enable_beacon_abort);
 }
@@ -861,7 +861,7 @@ static int _iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 
 	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, cmd, d0i3);
 	if (!d0i3)
-		iwl_mvm_beacon_filter_debugfs_parameters(vif, cmd);
+		iwl_mvm_beacon_filter_defs_parameters(vif, cmd);
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, cmd, cmd_flags);
 
 	/* don't change bf_enabled in case of temporary d0i3 configuration */
@@ -1040,7 +1040,7 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd, !enable);
 
 	iwl_mvm_power_log(mvm, &cmd);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	memcpy(&mvmvif->mac_pwr_cmd, &cmd, sizeof(cmd));
 #endif
 	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, flags,

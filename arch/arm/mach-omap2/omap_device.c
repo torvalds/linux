@@ -23,7 +23,7 @@
  *
  *
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -662,7 +662,7 @@ struct dev_pm_domain omap_device_pm_domain = {
  */
 int omap_device_register(struct platform_device *pdev)
 {
-	pr_debug("omap_device: %s: registering\n", pdev->name);
+	pr_de("omap_device: %s: registering\n", pdev->name);
 
 	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
 	return platform_device_add(pdev);

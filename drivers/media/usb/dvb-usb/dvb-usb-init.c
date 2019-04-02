@@ -13,10 +13,10 @@
  */
 #include "dvb-usb-common.h"
 
-/* debug */
-int dvb_usb_debug;
-module_param_named(debug, dvb_usb_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64,mem=128,uxfer=256  (or-able))." DVB_USB_DEBUG_STATUS);
+/* de */
+int dvb_usb_de;
+module_param_named(de, dvb_usb_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64,mem=128,uxfer=256  (or-able))." DVB_USB_DE_STATUS);
 
 int dvb_usb_disable_rc_polling;
 module_param_named(disable_rc_polling, dvb_usb_disable_rc_polling, int, 0644);

@@ -15,11 +15,11 @@
 #include <asm/opcodes.h>
 
 /*
- * GDB assumes that we're a user process being debugged, so
+ * GDB assumes that we're a user process being deged, so
  * it will send us an SWI command to write into memory as the
- * debug trap. When an SWI occurs, the next instruction addr is
+ * de trap. When an SWI occurs, the next instruction addr is
  * placed into R14_svc before jumping to the vector trap.
- * This doesn't work for kernel debugging as we are already in SVC
+ * This doesn't work for kernel deging as we are already in SVC
  * we would loose the kernel's LR, which is a bad thing. This
  * is  bad thing.
  *

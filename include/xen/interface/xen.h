@@ -49,8 +49,8 @@
 #define __HYPERVISOR_fpu_taskswitch        5
 #define __HYPERVISOR_sched_op_compat       6
 #define __HYPERVISOR_platform_op           7
-#define __HYPERVISOR_set_debugreg          8
-#define __HYPERVISOR_get_debugreg          9
+#define __HYPERVISOR_set_dereg          8
+#define __HYPERVISOR_get_dereg          9
 #define __HYPERVISOR_update_descriptor    10
 #define __HYPERVISOR_memory_op            12
 #define __HYPERVISOR_multicall            13
@@ -103,11 +103,11 @@
  * allocated to VCPU0 but can subsequently be re-bound.
  */
 #define VIRQ_TIMER      0  /* V. Timebase update, and/or requested timeout.  */
-#define VIRQ_DEBUG      1  /* V. Request guest to dump debug info.           */
+#define VIRQ_DE      1  /* V. Request guest to dump de info.           */
 #define VIRQ_CONSOLE    2  /* G. (DOM0) Bytes received on emergency console. */
 #define VIRQ_DOM_EXC    3  /* G. (DOM0) Exceptional event for some domain.   */
 #define VIRQ_TBUF       4  /* G. (DOM0) Trace buffer has records available.  */
-#define VIRQ_DEBUGGER   6  /* G. (DOM0) A domain has paused for debugging.   */
+#define VIRQ_DEGER   6  /* G. (DOM0) A domain has paused for deging.   */
 #define VIRQ_XENOPROF   7  /* V. XenOprofile interrupt: new sample available */
 #define VIRQ_CON_RING   8  /* G. (DOM0) Bytes received on console            */
 #define VIRQ_PCPU_STATE 9  /* G. (DOM0) PCPU state changed                   */

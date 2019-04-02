@@ -93,7 +93,7 @@ pof_handle_data(hysdn_card *card, int datlen)
 	switch (boot->pof_recid) {
 
 	case TAG_TIMESTMP:
-		if (card->debug_flags & LOG_POF_RECORD)
+		if (card->de_flags & LOG_POF_RECORD)
 			hysdn_addlog(card, "POF created %s", boot->buf.PofTime.DateTimeText);
 		break;
 
@@ -101,7 +101,7 @@ pof_handle_data(hysdn_card *card, int datlen)
 		DecryptBuf(boot, datlen);	/* we need to encrypt the buffer */
 		/* fall through */
 	case TAG_BOOTDTA:
-		if (card->debug_flags & LOG_POF_RECORD)
+		if (card->de_flags & LOG_POF_RECORD)
 			hysdn_addlog(card, "POF got %s len=%d offs=0x%lx",
 				     (boot->pof_recid == TAG_CBOOTDTA) ? "CBOOTDATA" : "BOOTDTA",
 				     datlen, boot->pof_recoffset);
@@ -140,7 +140,7 @@ pof_handle_data(hysdn_card *card, int datlen)
 		DecryptBuf(boot, datlen);	/* we need to encrypt the buffer */
 		/* fall through */
 	case TAG_ABSDATA:
-		if (card->debug_flags & LOG_POF_RECORD)
+		if (card->de_flags & LOG_POF_RECORD)
 			hysdn_addlog(card, "POF got %s len=%d offs=0x%lx",
 				     (boot->pof_recid == TAG_CABSDATA) ? "CABSDATA" : "ABSDATA",
 				     datlen, boot->pof_recoffset);
@@ -154,7 +154,7 @@ pof_handle_data(hysdn_card *card, int datlen)
 		break;	/* end of case boot seq data */
 
 	default:
-		if (card->debug_flags & LOG_POF_RECORD)
+		if (card->de_flags & LOG_POF_RECORD)
 			hysdn_addlog(card, "POF got data(id=0x%lx) len=%d offs=0x%lx", boot->pof_recid,
 				     datlen, boot->pof_recoffset);
 
@@ -182,12 +182,12 @@ pof_write_buffer(hysdn_card *card, int datlen)
 	if (boot->last_error < 0)
 		return (boot->last_error);	/* repeated error */
 
-	if (card->debug_flags & LOG_POF_WRITE)
+	if (card->de_flags & LOG_POF_WRITE)
 		hysdn_addlog(card, "POF write: got %d bytes ", datlen);
 
 	switch (boot->pof_state) {
 	case POF_READ_FILE_HEAD:
-		if (card->debug_flags & LOG_POF_WRITE)
+		if (card->de_flags & LOG_POF_WRITE)
 			hysdn_addlog(card, "POF write: checking file header");
 
 		if (datlen != sizeof(tPofFileHdr)) {
@@ -205,7 +205,7 @@ pof_write_buffer(hysdn_card *card, int datlen)
 		break;
 
 	case POF_READ_TAG_HEAD:
-		if (card->debug_flags & LOG_POF_WRITE)
+		if (card->de_flags & LOG_POF_WRITE)
 			hysdn_addlog(card, "POF write: checking tag header");
 
 		if (datlen != sizeof(tPofRecHdr)) {
@@ -216,7 +216,7 @@ pof_write_buffer(hysdn_card *card, int datlen)
 		boot->pof_reclen = boot->buf.PofRecHdr.PofRecDataLen;	/* total length */
 		boot->pof_recoffset = 0;	/* no starting offset */
 
-		if (card->debug_flags & LOG_POF_RECORD)
+		if (card->de_flags & LOG_POF_RECORD)
 			hysdn_addlog(card, "POF: got record id=0x%lx length=%ld ",
 				     boot->pof_recid, boot->pof_reclen);
 
@@ -233,7 +233,7 @@ pof_write_buffer(hysdn_card *card, int datlen)
 		break;
 
 	case POF_READ_TAG_DATA:
-		if (card->debug_flags & LOG_POF_WRITE)
+		if (card->de_flags & LOG_POF_WRITE)
 			hysdn_addlog(card, "POF write: getting tag data");
 
 		if (datlen != boot->last_error) {
@@ -275,13 +275,13 @@ pof_write_open(hysdn_card *card, unsigned char **bufp)
 	struct boot_data *boot;	/* pointer to boot specific data */
 
 	if (card->boot) {
-		if (card->debug_flags & LOG_POF_OPEN)
+		if (card->de_flags & LOG_POF_OPEN)
 			hysdn_addlog(card, "POF open: already opened for boot");
 		return (-ERR_ALREADY_BOOT);	/* boot already active */
 	}
 	/* error no mem available */
 	if (!(boot = kzalloc(sizeof(struct boot_data), GFP_KERNEL))) {
-		if (card->debug_flags & LOG_MEM_ERR)
+		if (card->de_flags & LOG_MEM_ERR)
 			hysdn_addlog(card, "POF open: unable to allocate mem");
 		return (-EFAULT);
 	}
@@ -290,7 +290,7 @@ pof_write_open(hysdn_card *card, unsigned char **bufp)
 
 	card->stopcard(card);	/* first stop the card */
 	if (card->testram(card)) {
-		if (card->debug_flags & LOG_POF_OPEN)
+		if (card->de_flags & LOG_POF_OPEN)
 			hysdn_addlog(card, "POF open: DPRAM test failure");
 		boot->last_error = -ERR_BOARD_DPRAM;
 		card->state = CARD_STATE_BOOTERR;	/* show boot error */
@@ -300,7 +300,7 @@ pof_write_open(hysdn_card *card, unsigned char **bufp)
 	boot->pof_state = POF_READ_FILE_HEAD;	/* read file header */
 	StartDecryption(boot);	/* if POF File should be encrypted */
 
-	if (card->debug_flags & LOG_POF_OPEN)
+	if (card->de_flags & LOG_POF_OPEN)
 		hysdn_addlog(card, "POF open: success");
 
 	*bufp = boot->buf.BootBuf;	/* point to buffer */
@@ -325,7 +325,7 @@ pof_write_close(hysdn_card *card)
 	if (card->state == CARD_STATE_RUN)
 		card->set_errlog_state(card, 1);	/* activate error log */
 
-	if (card->debug_flags & LOG_POF_OPEN)
+	if (card->de_flags & LOG_POF_OPEN)
 		hysdn_addlog(card, "POF close: success");
 
 	return (0);
@@ -341,7 +341,7 @@ EvalSysrTokData(hysdn_card *card, unsigned char *cp, int len)
 	u_char *p;
 	u_char crc;
 
-	if (card->debug_flags & LOG_POF_RECORD)
+	if (card->de_flags & LOG_POF_RECORD)
 		hysdn_addlog(card, "SysReady Token data length %d", len);
 
 	if (len < 2) {

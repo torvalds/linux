@@ -19,12 +19,12 @@
  */
 #include "af9005.h"
 
-/* debug */
-int dvb_usb_af9005_debug;
-module_param_named(debug, dvb_usb_af9005_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "set debugging level (1=info,xfer=2,rc=4,reg=8,i2c=16,fw=32 (or-able))."
-		 DVB_USB_DEBUG_STATUS);
+/* de */
+int dvb_usb_af9005_de;
+module_param_named(de, dvb_usb_af9005_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "set deging level (1=info,xfer=2,rc=4,reg=8,i2c=16,fw=32 (or-able))."
+		 DVB_USB_DE_STATUS);
 /* enable obnoxious led */
 bool dvb_usb_af9005_led = true;
 module_param_named(led, dvb_usb_af9005_led, bool, 0644);
@@ -165,7 +165,7 @@ int af9005_read_ofdm_registers(struct dvb_usb_device *d, u16 reg,
 	if (ret)
 		deb_reg("failed\n");
 	else
-		debug_dump(values, len, deb_reg);
+		de_dump(values, len, deb_reg);
 	return ret;
 }
 
@@ -189,7 +189,7 @@ int af9005_write_ofdm_registers(struct dvb_usb_device *d, u16 reg,
 {
 	int ret;
 	deb_reg("write %d registers %x values ", len, reg);
-	debug_dump(values, len, deb_reg);
+	de_dump(values, len, deb_reg);
 
 	ret = af9005_generic_read_write(d, reg,
 					AF9005_CMD_WRITE, AF9005_OFDM_REG,
@@ -364,7 +364,7 @@ static int af9005_i2c_write(struct dvb_usb_device *d, u8 i2caddr, u8 reg,
 	u8 buf[3];
 	deb_i2c("i2c_write i2caddr %x, reg %x, len %d data ", i2caddr,
 		reg, len);
-	debug_dump(data, len, deb_i2c);
+	de_dump(data, len, deb_i2c);
 
 	for (i = 0; i < len; i++) {
 		buf[0] = i2caddr;
@@ -402,7 +402,7 @@ static int af9005_i2c_read(struct dvb_usb_device *d, u8 i2caddr, u8 reg,
 		data[i] = temp;
 	}
 	deb_i2c("i2c data read: ");
-	debug_dump(data, len, deb_i2c);
+	de_dump(data, len, deb_i2c);
 	return 0;
 }
 
@@ -607,7 +607,7 @@ static int af9005_boot_packet(struct usb_device *udev, int type, u8 *reply,
 		return -EINVAL;
 	}
 	deb_fw(">>> ");
-	debug_dump(buf, FW_BULKOUT_SIZE + 2, deb_fw);
+	de_dump(buf, FW_BULKOUT_SIZE + 2, deb_fw);
 
 	ret = usb_bulk_msg(udev,
 			   usb_sndbulkpipe(udev, 0x02),
@@ -627,7 +627,7 @@ static int af9005_boot_packet(struct usb_device *udev, int type, u8 *reply,
 		return ret;
 	}
 	deb_fw("<<< ");
-	debug_dump(buf, act_len, deb_fw);
+	de_dump(buf, act_len, deb_fw);
 	checksum = 0;
 	switch (type) {
 	case FW_CONFIG:
@@ -741,7 +741,7 @@ static int af9005_download_firmware(struct usb_device *udev, const struct firmwa
 		memcpy(&buf[2], fw->data + i * FW_BULKOUT_SIZE,
 		       FW_BULKOUT_SIZE);
 		deb_fw(">>> ");
-		debug_dump(buf, FW_BULKOUT_SIZE + 2, deb_fw);
+		de_dump(buf, FW_BULKOUT_SIZE + 2, deb_fw);
 		ret = usb_bulk_msg(udev,
 				   usb_sndbulkpipe(udev, 0x02),
 				   buf, FW_BULKOUT_SIZE + 2, &act_len, 1000);
@@ -822,7 +822,7 @@ static int af9005_frontend_attach(struct dvb_usb_adapter *adap)
 		printk("EEPROM DUMP\n");
 		for (i = 0; i < 255; i += 8) {
 			af9005_read_eeprom(adap->dev, i, buf, 8);
-			debug_dump(buf, 8, printk);
+			de_dump(buf, 8, printk);
 		}
 	}
 	adap->fe_adap[0].fe = af9005_fe_attach(adap->dev);
@@ -871,7 +871,7 @@ static int af9005_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	}
 	if (len > 0) {
 		deb_rc("rc data (%d) ", len);
-		debug_dump((st->data + 6), len, deb_rc);
+		de_dump((st->data + 6), len, deb_rc);
 		ret = rc_decode(d, &st->data[6], len, event, state);
 		if (ret) {
 			err("rc_decode failed");

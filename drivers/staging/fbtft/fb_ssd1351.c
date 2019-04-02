@@ -71,7 +71,7 @@ static int set_var(struct fbtft_par *par)
 
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register A0h */
-		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+		fbtft_par_dbg(DE_INIT_DISPLAY, par,
 			      "%s: skipping since custom init_display() is used\n",
 			       __func__);
 		return 0;
@@ -163,7 +163,7 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 
 static int blank(struct fbtft_par *par, bool on)
 {
-	fbtft_par_dbg(DEBUG_BLANK, par, "(%s=%s)\n",
+	fbtft_par_dbg(DE_BLANK, par, "(%s=%s)\n",
 		      __func__, on ? "true" : "false");
 	if (on)
 		write_reg(par, 0xAE);
@@ -194,7 +194,7 @@ static int update_onboard_backlight(struct backlight_device *bd)
 	struct fbtft_par *par = bl_get_data(bd);
 	bool on;
 
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
+	fbtft_par_dbg(DE_BACKLIGHT, par,
 		      "%s: power=%d, fb_blank=%d\n",
 		      __func__, bd->props.power, bd->props.fb_blank);
 

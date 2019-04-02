@@ -119,7 +119,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 
 		copy_from_cb(p, base, offset, msglen, limit);
 
-		BUG_ON(lockspace != p->header.h_lockspace);
+		_ON(lockspace != p->header.h_lockspace);
 
 		ret += msglen;
 		offset += msglen;

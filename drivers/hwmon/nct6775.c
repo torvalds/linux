@@ -4621,7 +4621,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		break;
 	default:
 		if (val != 0xffff)
-			pr_debug("unsupported chip ID: 0x%04x\n", val);
+			pr_de("unsupported chip ID: 0x%04x\n", val);
 		superio_exit(sioaddr);
 		return -ENODEV;
 	}

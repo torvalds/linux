@@ -7,15 +7,15 @@
 #include <net/bonding.h>
 #include <net/bond_alb.h>
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_NET_NS)
+#if defined(CONFIG_DE_FS) && !defined(CONFIG_NET_NS)
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
-static struct dentry *bonding_debug_root;
+static struct dentry *bonding_de_root;
 
 /* Show RLB hash table */
-static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
+static int bond_de_rlb_hash_show(struct seq_file *m, void *v)
 {
 	struct bonding *bond = m->private;
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
@@ -45,86 +45,86 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(bond_debug_rlb_hash);
+DEFINE_SHOW_ATTRIBUTE(bond_de_rlb_hash);
 
-void bond_debug_register(struct bonding *bond)
+void bond_de_register(struct bonding *bond)
 {
-	if (!bonding_debug_root)
+	if (!bonding_de_root)
 		return;
 
-	bond->debug_dir =
-		debugfs_create_dir(bond->dev->name, bonding_debug_root);
+	bond->de_dir =
+		defs_create_dir(bond->dev->name, bonding_de_root);
 
-	if (!bond->debug_dir) {
-		netdev_warn(bond->dev, "failed to register to debugfs\n");
+	if (!bond->de_dir) {
+		netdev_warn(bond->dev, "failed to register to defs\n");
 		return;
 	}
 
-	debugfs_create_file("rlb_hash_table", 0400, bond->debug_dir,
-				bond, &bond_debug_rlb_hash_fops);
+	defs_create_file("rlb_hash_table", 0400, bond->de_dir,
+				bond, &bond_de_rlb_hash_fops);
 }
 
-void bond_debug_unregister(struct bonding *bond)
+void bond_de_unregister(struct bonding *bond)
 {
-	if (!bonding_debug_root)
+	if (!bonding_de_root)
 		return;
 
-	debugfs_remove_recursive(bond->debug_dir);
+	defs_remove_recursive(bond->de_dir);
 }
 
-void bond_debug_reregister(struct bonding *bond)
+void bond_de_reregister(struct bonding *bond)
 {
 	struct dentry *d;
 
-	if (!bonding_debug_root)
+	if (!bonding_de_root)
 		return;
 
-	d = debugfs_rename(bonding_debug_root, bond->debug_dir,
-			   bonding_debug_root, bond->dev->name);
+	d = defs_rename(bonding_de_root, bond->de_dir,
+			   bonding_de_root, bond->dev->name);
 	if (d) {
-		bond->debug_dir = d;
+		bond->de_dir = d;
 	} else {
 		netdev_warn(bond->dev, "failed to reregister, so just unregister old one\n");
-		bond_debug_unregister(bond);
+		bond_de_unregister(bond);
 	}
 }
 
-void bond_create_debugfs(void)
+void bond_create_defs(void)
 {
-	bonding_debug_root = debugfs_create_dir("bonding", NULL);
+	bonding_de_root = defs_create_dir("bonding", NULL);
 
-	if (!bonding_debug_root) {
-		pr_warn("Warning: Cannot create bonding directory in debugfs\n");
+	if (!bonding_de_root) {
+		pr_warn("Warning: Cannot create bonding directory in defs\n");
 	}
 }
 
-void bond_destroy_debugfs(void)
+void bond_destroy_defs(void)
 {
-	debugfs_remove_recursive(bonding_debug_root);
-	bonding_debug_root = NULL;
+	defs_remove_recursive(bonding_de_root);
+	bonding_de_root = NULL;
 }
 
 
-#else /* !CONFIG_DEBUG_FS */
+#else /* !CONFIG_DE_FS */
 
-void bond_debug_register(struct bonding *bond)
+void bond_de_register(struct bonding *bond)
 {
 }
 
-void bond_debug_unregister(struct bonding *bond)
+void bond_de_unregister(struct bonding *bond)
 {
 }
 
-void bond_debug_reregister(struct bonding *bond)
+void bond_de_reregister(struct bonding *bond)
 {
 }
 
-void bond_create_debugfs(void)
+void bond_create_defs(void)
 {
 }
 
-void bond_destroy_debugfs(void)
+void bond_destroy_defs(void)
 {
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

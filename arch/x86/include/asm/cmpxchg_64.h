@@ -9,13 +9,13 @@ static inline void set_64bit(volatile u64 *ptr, u64 val)
 
 #define arch_cmpxchg64(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	arch_cmpxchg((ptr), (o), (n));					\
 })
 
 #define arch_cmpxchg64_local(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	arch_cmpxchg_local((ptr), (o), (n));				\
 })
 

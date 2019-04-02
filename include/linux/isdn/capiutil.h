@@ -167,7 +167,7 @@ unsigned capi_cmsg_header(_cmsg * cmsg, __u16 _ApplId,
 /*-----------------------------------------------------------------------*/
 
 /*
- * Debugging / Tracing functions
+ * Deging / Tracing functions
  */
 
 char *capi_cmd2str(__u8 cmd, __u8 subcmd);
@@ -179,12 +179,12 @@ typedef struct {
 	size_t	pos;
 } _cdebbuf;
 
-#define	CDEBUG_SIZE	1024
-#define	CDEBUG_GSIZE	4096
+#define	CDE_SIZE	1024
+#define	CDE_GSIZE	4096
 
 void cdebbuf_free(_cdebbuf *cdb);
-int cdebug_init(void);
-void cdebug_exit(void);
+int cde_init(void);
+void cde_exit(void);
 
 _cdebbuf *capi_cmsg2str(_cmsg *cmsg);
 _cdebbuf *capi_message2str(__u8 *msg);

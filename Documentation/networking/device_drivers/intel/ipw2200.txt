@@ -160,10 +160,10 @@ Where the supported parameter are:
 	channel number for association.  The normal method for setting
         the channel would be to use the standard wireless tools
         (i.e. `iwconfig eth1 channel 10`), but it is useful sometimes
-	to set this while debugging.  Channel 0 means 'ANY'
+	to set this while deging.  Channel 0 means 'ANY'
 
-  debug
-	If using a debug build, this is used to control the amount of debug
+  de
+	If using a de build, this is used to control the amount of de
 	info is logged.  See the 'dvals' and 'load' script for more info on
 	how to use this (the dvals and load scripts are provided as part 
 	of the ipw2200 development snapshot releases available from the 
@@ -244,15 +244,15 @@ An entry in the sysfs can support reading and/or writing.  You can
 typically query the contents of a sysfs entry through the use of cat, 
 and can set the contents via echo.  For example:
 
-% cat /sys/bus/pci/drivers/ipw2200/debug_level
+% cat /sys/bus/pci/drivers/ipw2200/de_level
 
-Will report the current debug level of the driver's logging subsystem 
-(only available if CONFIG_IPW2200_DEBUG was configured when the driver
+Will report the current de level of the driver's logging subsystem 
+(only available if CONFIG_IPW2200_DE was configured when the driver
 was built).
 
-You can set the debug level via:
+You can set the de level via:
 
-% echo $VALUE > /sys/bus/pci/drivers/ipw2200/debug_level
+% echo $VALUE > /sys/bus/pci/drivers/ipw2200/de_level
 
 Where $VALUE would be a number in the case of this sysfs entry.  The 
 input to sysfs files does not have to be a number.  For example, the 
@@ -270,9 +270,9 @@ level, which applies only to the single specific instance.
 
 For the driver level files, look in /sys/bus/pci/drivers/ipw2200/
 
-  debug_level  
+  de_level  
 	
-	This controls the same global as the 'debug' module parameter
+	This controls the same global as the 'de' module parameter
 
 
 

@@ -37,7 +37,7 @@ static int rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 	dev_info(&rpdev->dev, "incoming msg %d (src: 0x%x)\n",
 		 ++idata->rx_count, src);
 
-	print_hex_dump(KERN_DEBUG, __func__, DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_DE, __func__, DUMP_PREFIX_NONE, 16, 1,
 		       data, len,  true);
 
 	/* samples should not live forever */

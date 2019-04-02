@@ -334,9 +334,9 @@ static int caam_remove(struct platform_device *pdev)
 	if (!ctrlpriv->mc_en && ctrlpriv->rng4_sh_init)
 		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
 
-	/* Shut down debug views */
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(ctrlpriv->dfs_root);
+	/* Shut down de views */
+#ifdef CONFIG_DE_FS
+	defs_remove_recursive(ctrlpriv->dfs_root);
 #endif
 
 	/* Unmap controller region */
@@ -493,7 +493,7 @@ static int caam_probe(struct platform_device *pdev)
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_drv_private *ctrlpriv;
 	struct clk *clk;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct caam_perfmon *perfmon;
 #endif
 	u32 scfgr, comp_params;
@@ -689,7 +689,7 @@ static int caam_probe(struct platform_device *pdev)
 		goto iounmap_ctrl;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	/*
 	 * FIXME: needs better naming distinction, as some amalgamation of
 	 * "caam" and nprop->full_name. The OF name isn't distinctive,
@@ -697,8 +697,8 @@ static int caam_probe(struct platform_device *pdev)
 	 */
 	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
 
-	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
-	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
+	ctrlpriv->dfs_root = defs_create_dir(dev_name(dev), NULL);
+	ctrlpriv->ctl = defs_create_dir("ctl", ctrlpriv->dfs_root);
 #endif
 
 	ring = 0;
@@ -822,54 +822,54 @@ static int caam_probe(struct platform_device *pdev)
 	dev_info(dev, "job rings = %d, qi = %d\n",
 		 ctrlpriv->total_jobrs, ctrlpriv->qi_present);
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("rq_dequeued", S_IRUSR | S_IRGRP | S_IROTH,
+#ifdef CONFIG_DE_FS
+	defs_create_file("rq_dequeued", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->req_dequeued,
 			    &caam_fops_u64_ro);
-	debugfs_create_file("ob_rq_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("ob_rq_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->ob_enc_req,
 			    &caam_fops_u64_ro);
-	debugfs_create_file("ib_rq_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("ib_rq_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->ib_dec_req,
 			    &caam_fops_u64_ro);
-	debugfs_create_file("ob_bytes_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("ob_bytes_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->ob_enc_bytes,
 			    &caam_fops_u64_ro);
-	debugfs_create_file("ob_bytes_protected", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("ob_bytes_protected", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->ob_prot_bytes,
 			    &caam_fops_u64_ro);
-	debugfs_create_file("ib_bytes_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("ib_bytes_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->ib_dec_bytes,
 			    &caam_fops_u64_ro);
-	debugfs_create_file("ib_bytes_validated", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("ib_bytes_validated", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->ib_valid_bytes,
 			    &caam_fops_u64_ro);
 
 	/* Controller level - global status values */
-	debugfs_create_file("fault_addr", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("fault_addr", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->faultaddr,
 			    &caam_fops_u32_ro);
-	debugfs_create_file("fault_detail", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("fault_detail", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->faultdetail,
 			    &caam_fops_u32_ro);
-	debugfs_create_file("fault_status", S_IRUSR | S_IRGRP | S_IROTH,
+	defs_create_file("fault_status", S_IRUSR | S_IRGRP | S_IROTH,
 			    ctrlpriv->ctl, &perfmon->status,
 			    &caam_fops_u32_ro);
 
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	debugfs_create_blob("kek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+	defs_create_blob("kek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
 			    &ctrlpriv->ctl_kek_wrap);
 
 	ctrlpriv->ctl_tkek_wrap.data = (__force void *)&ctrlpriv->ctrl->tkek[0];
 	ctrlpriv->ctl_tkek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	debugfs_create_blob("tkek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+	defs_create_blob("tkek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
 			    &ctrlpriv->ctl_tkek_wrap);
 
 	ctrlpriv->ctl_tdsk_wrap.data = (__force void *)&ctrlpriv->ctrl->tdsk[0];
 	ctrlpriv->ctl_tdsk_wrap.size = KEK_KEY_SIZE * sizeof(u32);
-	debugfs_create_blob("tdsk", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
+	defs_create_blob("tdsk", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
 			    &ctrlpriv->ctl_tdsk_wrap);
 #endif
 	return 0;

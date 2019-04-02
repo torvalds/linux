@@ -5,7 +5,7 @@ NS1=lwt_ns1
 VETH0=tst_lwt1a
 VETH1=tst_lwt1b
 
-TRACE_ROOT=/sys/kernel/debug/tracing
+TRACE_ROOT=/sys/kernel/de/tracing
 
 function cleanup {
 	ip route del 192.168.253.2/32 dev $VETH0 2> /dev/null

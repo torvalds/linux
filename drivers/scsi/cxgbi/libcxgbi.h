@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
@@ -41,7 +41,7 @@ enum cxgbi_dbg_flag {
 	CXGBI_DBG_DEV,
 };
 
-#define log_debug(level, fmt, ...)	\
+#define log_de(level, fmt, ...)	\
 	do {	\
 		if (dbg_level & (level)) \
 			pr_info(fmt, ##__VA_ARGS__); \
@@ -260,7 +260,7 @@ static inline void cxgbi_sock_set_flag(struct cxgbi_sock *csk,
 					enum cxgbi_sock_flags flag)
 {
 	__set_bit(flag, &csk->flags);
-	log_debug(1 << CXGBI_DBG_SOCK,
+	log_de(1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx, bit %d.\n",
 		csk, csk->state, csk->flags, flag);
 }
@@ -269,7 +269,7 @@ static inline void cxgbi_sock_clear_flag(struct cxgbi_sock *csk,
 					enum cxgbi_sock_flags flag)
 {
 	__clear_bit(flag, &csk->flags);
-	log_debug(1 << CXGBI_DBG_SOCK,
+	log_de(1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx, bit %d.\n",
 		csk, csk->state, csk->flags, flag);
 }
@@ -284,7 +284,7 @@ static inline int cxgbi_sock_flag(struct cxgbi_sock *csk,
 
 static inline void cxgbi_sock_set_state(struct cxgbi_sock *csk, int state)
 {
-	log_debug(1 << CXGBI_DBG_SOCK,
+	log_de(1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx, state -> %u.\n",
 		csk, csk->state, csk->flags, state);
 	csk->state = state;
@@ -296,7 +296,7 @@ static inline void cxgbi_sock_free(struct kref *kref)
 						struct cxgbi_sock,
 						refcnt);
 	if (csk) {
-		log_debug(1 << CXGBI_DBG_SOCK,
+		log_de(1 << CXGBI_DBG_SOCK,
 			"free csk 0x%p, state %u, flags 0x%lx\n",
 			csk, csk->state, csk->flags);
 		kfree(csk);
@@ -305,7 +305,7 @@ static inline void cxgbi_sock_free(struct kref *kref)
 
 static inline void __cxgbi_sock_put(const char *fn, struct cxgbi_sock *csk)
 {
-	log_debug(1 << CXGBI_DBG_SOCK,
+	log_de(1 << CXGBI_DBG_SOCK,
 		"%s, put csk 0x%p, ref %u-1.\n",
 		fn, csk, kref_read(&csk->refcnt));
 	kref_put(&csk->refcnt, cxgbi_sock_free);
@@ -314,7 +314,7 @@ static inline void __cxgbi_sock_put(const char *fn, struct cxgbi_sock *csk)
 
 static inline void __cxgbi_sock_get(const char *fn, struct cxgbi_sock *csk)
 {
-	log_debug(1 << CXGBI_DBG_SOCK,
+	log_de(1 << CXGBI_DBG_SOCK,
 		"%s, get csk 0x%p, ref %u+1.\n",
 		fn, csk, kref_read(&csk->refcnt));
 	kref_get(&csk->refcnt);
@@ -470,7 +470,7 @@ struct cxgbi_device {
 	unsigned char nmtus;
 	unsigned char nports;
 	struct pci_dev *pdev;
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	struct iscsi_transport *itp;
 	struct module *owner;
 

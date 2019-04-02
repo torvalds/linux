@@ -20,7 +20,7 @@ struct hns_mac_cb;
 #define DSAF_MOD_VERSION "v1.0"
 #define DSAF_DEVICE_NAME "dsaf"
 
-#define HNS_DSAF_DEBUG_NW_REG_OFFSET 0x100000
+#define HNS_DSAF_DE_NW_REG_OFFSET 0x100000
 
 #define DSAF_BASE_INNER_PORT_NUM 127/* mac tbl qid*/
 
@@ -70,7 +70,7 @@ enum dsaf_roce_qos_sl {
 };
 
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
-#define HNS_DSAF_IS_DEBUG(dev) ((dev)->dsaf_mode == DSAF_MODE_DISABLE_SP)
+#define HNS_DSAF_IS_DE(dev) ((dev)->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
 enum hal_dsaf_mode {
 	HRD_DSAF_NO_DSAF_MODE	= 0x0,

@@ -19,7 +19,7 @@
 /* TODO:
  *
  * o POWER PC
- * o clean up debugging
+ * o clean up deging
  * o tx_skb at PH_DEACTIVATE time
  */
 
@@ -38,14 +38,14 @@
 
 #include "hisax_fcpcipnp.h"
 
-// debugging cruft
-#define __debug_variable debug
-#include "hisax_debug.h"
+// deging cruft
+#define __de_variable de
+#include "hisax_de.h"
 
-#ifdef CONFIG_HISAX_DEBUG
-static int debug = 0;
+#ifdef CONFIG_HISAX_DE
+static int de = 0;
 /* static int hdlcfifosize = 32; */
-module_param(debug, int, 0);
+module_param(de, int, 0);
 /* module_param(hdlcfifosize, int, 0); */
 #endif
 
@@ -389,7 +389,7 @@ static void hdlc_fill_fifo(struct fritz_bcs *bcs)
 
 	DBG(0x40, "hdlc_fill_fifo");
 
-	BUG_ON(skb->len == 0);
+	_ON(skb->len == 0);
 
 	bcs->ctrl.sr.cmd &= ~HDLC_CMD_XME;
 	if (bcs->tx_skb->len > bcs->fifo_size) {
@@ -630,7 +630,7 @@ static void fritz_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 
 	switch (pr) {
 	case PH_DATA | REQUEST:
-		BUG_ON(bcs->tx_skb);
+		_ON(bcs->tx_skb);
 		bcs->tx_skb = skb;
 		DBG_SKB(1, skb);
 		hdlc_fill_fifo(bcs);

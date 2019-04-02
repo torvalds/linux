@@ -44,7 +44,7 @@
 #include <linux/gfp.h>
 #include <linux/uaccess.h>
 
-#undef DEBUG
+#undef DE
 
 #include <linux/usb.h>
 
@@ -122,7 +122,7 @@ enum op_mode_bits {
 	OpLenInclude =	0x08,
 	OpRxMerge =	0x10,
 	OpTxMerge =	0x20,
-	OpWin95bugfix =	0x40,
+	OpWin95fix =	0x40,
 	OpLoopback =	0x80,
 };
 

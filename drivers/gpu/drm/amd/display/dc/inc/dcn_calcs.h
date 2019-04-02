@@ -170,7 +170,7 @@ struct dcn_bw_internal_vars {
 	float downspreading;
 	float max_inter_dcn_tile_repeaters;
 	enum dcn_bw_defs can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
-	enum dcn_bw_defs bug_forcing_luma_and_chroma_request_to_same_size_fixed;
+	enum dcn_bw_defs _forcing_luma_and_chroma_request_to_same_size_fixed;
 	int mode;
 	float viewport_width[number_of_planes_minus_one + 1];
 	float htotal[number_of_planes_minus_one + 1];
@@ -614,7 +614,7 @@ struct dcn_ip_params {
 	float under_scan_factor;
 	int max_inter_dcn_tile_repeaters;
 	enum dcn_bw_defs can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
-	enum dcn_bw_defs bug_forcing_luma_and_chroma_request_to_same_size_fixed;
+	enum dcn_bw_defs _forcing_luma_and_chroma_request_to_same_size_fixed;
 	int dcfclk_cstate_latency;
 };
 extern const struct dcn_ip_params dcn10_ip_defaults;

@@ -81,22 +81,22 @@ struct mei_nfc_connect_resp {
 
 #define MEI_DUMP_SKB_IN(info, skb)				\
 do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump_debug("mei in : ", DUMP_PREFIX_OFFSET,	\
+	pr_de("%s:\n", info);				\
+	print_hex_dump_de("mei in : ", DUMP_PREFIX_OFFSET,	\
 			16, 1, (skb)->data, (skb)->len, false);	\
 } while (0)
 
 #define MEI_DUMP_SKB_OUT(info, skb)				\
 do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump_debug("mei out: ", DUMP_PREFIX_OFFSET,	\
+	pr_de("%s:\n", info);				\
+	print_hex_dump_de("mei out: ", DUMP_PREFIX_OFFSET,	\
 			16, 1, (skb)->data, (skb)->len, false);	\
 } while (0)
 
 #define MEI_DUMP_NFC_HDR(info, _hdr)                                \
 do {                                                                \
-	pr_debug("%s:\n", info);                                    \
-	pr_debug("cmd=%02d status=%d req_id=%d rsvd=%d size=%d\n",  \
+	pr_de("%s:\n", info);                                    \
+	pr_de("cmd=%02d status=%d req_id=%d rsvd=%d size=%d\n",  \
 		 (_hdr)->cmd, (_hdr)->status, (_hdr)->req_id,       \
 		 (_hdr)->reserved, (_hdr)->data_size);              \
 } while (0)

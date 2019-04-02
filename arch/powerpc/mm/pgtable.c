@@ -150,14 +150,14 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 	if (dirty || pte_exec(pte) || !is_exec_fault())
 		return pte;
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	/* So this is an exec fault, _PAGE_EXEC is not set. If it was
 	 * an error we would have bailed out earlier in do_page_fault()
 	 * but let's make sure of it
 	 */
 	if (WARN_ON(!(vma->vm_flags & VM_EXEC)))
 		return pte;
-#endif /* CONFIG_DEBUG_VM */
+#endif /* CONFIG_DE_VM */
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
 	pg = maybe_pte_to_page(pte);
@@ -246,7 +246,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		struct hstate *h = hstate_vma(vma);
 
 		psize = hstate_get_psize(h);
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		assert_spin_locked(huge_pte_lockptr(h, vma->vm_mm, ptep));
 #endif
 
@@ -264,7 +264,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 }
 #endif /* CONFIG_HUGETLB_PAGE */
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
@@ -274,9 +274,9 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	if (mm == &init_mm)
 		return;
 	pgd = mm->pgd + pgd_index(addr);
-	BUG_ON(pgd_none(*pgd));
+	_ON(pgd_none(*pgd));
 	pud = pud_offset(pgd, addr);
-	BUG_ON(pud_none(*pud));
+	_ON(pud_none(*pud));
 	pmd = pmd_offset(pud, addr);
 	/*
 	 * khugepaged to collapse normal pages to hugepage, first set
@@ -286,16 +286,16 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	 */
 	if (pmd_none(*pmd))
 		return;
-	BUG_ON(!pmd_present(*pmd));
+	_ON(!pmd_present(*pmd));
 	assert_spin_locked(pte_lockptr(mm, pmd));
 }
-#endif /* CONFIG_DEBUG_VM */
+#endif /* CONFIG_DE_VM */
 
 unsigned long vmalloc_to_phys(void *va)
 {
 	unsigned long pfn = vmalloc_to_pfn(va);
 
-	BUG_ON(!pfn);
+	_ON(!pfn);
 	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
 }
 EXPORT_SYMBOL_GPL(vmalloc_to_phys);

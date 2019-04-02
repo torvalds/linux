@@ -216,7 +216,7 @@ static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_RT2X00_LIB_DEFS
 static u32 _rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 				     const unsigned int offset)
 {
@@ -230,12 +230,12 @@ static void _rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_write(rt2x00dev, offset, value);
 }
 
-static const struct rt2x00debug rt2500usb_rt2x00debug = {
+static const struct rt2x00de rt2500usb_rt2x00de = {
 	.owner	= THIS_MODULE,
 	.csr	= {
 		.read		= _rt2500usb_register_read,
 		.write		= _rt2500usb_register_write,
-		.flags		= RT2X00DEBUGFS_OFFSET,
+		.flags		= RT2X00DEFS_OFFSET,
 		.word_base	= CSR_REG_BASE,
 		.word_size	= sizeof(u16),
 		.word_count	= CSR_REG_SIZE / sizeof(u16),
@@ -262,7 +262,7 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
 };
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 
 static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -520,7 +520,7 @@ static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
 	 * We should never come here because rt2x00lib is supposed
 	 * to catch this and send us the correct antenna explicitely.
 	 */
-	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
+	_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
 	       ant->tx == ANTENNA_SW_DIVERSITY);
 
 	r2 = rt2500usb_bbp_read(rt2x00dev, 2);
@@ -1156,9 +1156,9 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	rt2500usb_write_tx_desc(entry, txdesc);
 
 	/*
-	 * Dump beacon to userspace through debugfs.
+	 * Dump beacon to userspace through defs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
+	rt2x00de_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -1889,7 +1889,7 @@ static void rt2500usb_queue_init(struct data_queue *queue)
 		break;
 
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -1903,9 +1903,9 @@ static const struct rt2x00_ops rt2500usb_ops = {
 	.queue_init		= rt2500usb_queue_init,
 	.lib			= &rt2500usb_rt2x00_ops,
 	.hw			= &rt2500usb_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs		= &rt2500usb_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#ifdef CONFIG_RT2X00_LIB_DEFS
+	.defs		= &rt2500usb_rt2x00de,
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 };
 
 /*

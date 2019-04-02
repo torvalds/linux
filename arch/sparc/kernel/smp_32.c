@@ -101,15 +101,15 @@ void __init smp_cpus_done(unsigned int max_cpus)
 		break;
 	case sun4e:
 		printk("SUN4E\n");
-		BUG();
+		();
 		break;
 	case sun4u:
 		printk("SUN4U\n");
-		BUG();
+		();
 		break;
 	default:
 		printk("UNKNOWN!\n");
-		BUG();
+		();
 		break;
 	}
 }
@@ -210,15 +210,15 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		break;
 	case sun4e:
 		printk("SUN4E\n");
-		BUG();
+		();
 		break;
 	case sun4u:
 		printk("SUN4U\n");
-		BUG();
+		();
 		break;
 	default:
 		printk("UNKNOWN!\n");
-		BUG();
+		();
 		break;
 	}
 }
@@ -273,15 +273,15 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		break;
 	case sun4e:
 		printk("SUN4E\n");
-		BUG();
+		();
 		break;
 	case sun4u:
 		printk("SUN4U\n");
-		BUG();
+		();
 		break;
 	default:
 		printk("UNKNOWN!\n");
-		BUG();
+		();
 		break;
 	}
 
@@ -309,7 +309,7 @@ static void arch_cpu_pre_starting(void *arg)
 		leon_cpu_pre_starting(arg);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -336,7 +336,7 @@ static void arch_cpu_pre_online(void *arg)
 		leon_cpu_pre_online(arg);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -366,7 +366,7 @@ static void sparc_start_secondary(void *arg)
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 
 	/* We should never reach here! */
-	BUG();
+	();
 }
 
 void smp_callin(void)

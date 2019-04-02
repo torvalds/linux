@@ -48,7 +48,7 @@ union PM4_MES_TYPE_3_HEADER {
 enum mes_set_resources_queue_type_enum {
 	queue_type__mes_set_resources__kernel_interface_queue_kiq = 0,
 	queue_type__mes_set_resources__hsa_interface_queue_hiq = 1,
-	queue_type__mes_set_resources__hsa_debug_interface_queue = 4
+	queue_type__mes_set_resources__hsa_de_interface_queue = 4
 };
 
 
@@ -211,7 +211,7 @@ queue_sel__mes_map_queues__map_to_hws_determined_queue_slots_vi = 1
 
 enum mes_map_queues_queue_type_vi_enum {
 	queue_type__mes_map_queues__normal_compute_vi = 0,
-	queue_type__mes_map_queues__debug_interface_queue_vi = 1,
+	queue_type__mes_map_queues__de_interface_queue_vi = 1,
 	queue_type__mes_map_queues__normal_latency_static_queue_vi = 2,
 queue_type__mes_map_queues__low_latency_static_queue_vi = 3
 };

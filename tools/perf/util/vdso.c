@@ -16,7 +16,7 @@
 #include "machine.h"
 #include "thread.h"
 #include "linux/string.h"
-#include "debug.h"
+#include "de.h"
 
 /*
  * Include definition of find_map() also used in perf-read-vdso.c for

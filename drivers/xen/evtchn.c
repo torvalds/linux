@@ -404,7 +404,7 @@ err:
 	/* bind failed, should close the port now */
 	close.port = port;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
-		BUG();
+		();
 	del_evtchn(u, evtchn);
 	return rc;
 }
@@ -414,7 +414,7 @@ static void evtchn_unbind_from_user(struct per_user_data *u,
 {
 	int irq = irq_from_evtchn(evtchn->port);
 
-	BUG_ON(irq < 0);
+	_ON(irq < 0);
 
 	unbind_from_irqhandler(irq, evtchn);
 

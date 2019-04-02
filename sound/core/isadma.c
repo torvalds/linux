@@ -88,21 +88,21 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size)
 
 	flags = claim_dma_lock();
 	clear_dma_ff(dma);
-	if (!isa_dma_bridge_buggy)
+	if (!isa_dma_bridge_gy)
 		disable_dma(dma);
 	result = get_dma_residue(dma);
 	/*
 	 * HACK - read the counter again and choose higher value in order to
 	 * avoid reading during counter lower byte roll over if the
-	 * isa_dma_bridge_buggy is set.
+	 * isa_dma_bridge_gy is set.
 	 */
 	result1 = get_dma_residue(dma);
-	if (!isa_dma_bridge_buggy)
+	if (!isa_dma_bridge_gy)
 		enable_dma(dma);
 	release_dma_lock(flags);
 	if (unlikely(result < result1))
 		result = result1;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (result > size)
 		pr_err("ALSA: pointer (0x%x) for DMA #%ld is greater than transfer size (0x%x)\n", result, dma, size);
 #endif

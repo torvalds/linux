@@ -216,7 +216,7 @@ static void fc_exch_els_rrq(struct fc_frame *);
  */
 
 /*
- * opcode names for debugging.
+ * opcode names for deging.
  */
 static char *fc_exch_rctl_names[] = FC_RCTL_NAMES_INIT;
 
@@ -1533,7 +1533,7 @@ static void fc_exch_recv_req(struct fc_lport *lport, struct fc_exch_mgr *mp,
 	}
 	fr_dev(fp) = lport;
 
-	BUG_ON(fr_seq(fp));		/* XXX remove later */
+	_ON(fr_seq(fp));		/* XXX remove later */
 
 	/*
 	 * If the RX_ID is 0xffff, don't allocate an exchange.

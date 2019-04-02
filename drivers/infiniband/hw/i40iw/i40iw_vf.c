@@ -73,7 +73,7 @@ enum i40iw_status_code i40iw_manage_vf_pble_bp(struct i40iw_sc_cqp *cqp,
 	pd_pl_pba = LS_64(info->pd_pl_pba >> 3, I40IW_CQPSQ_MVPBP_PD_PLPBA);
 	set_64bit_val(wqe, 32, pd_pl_pba);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "MANAGE VF_PBLE_BP WQE", wqe, I40IW_CQP_WQE_SIZE * 8);
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "MANAGE VF_PBLE_BP WQE", wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
 		i40iw_sc_cqp_post_sq(cqp);

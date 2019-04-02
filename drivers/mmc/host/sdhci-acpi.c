@@ -165,12 +165,12 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
-		pr_debug("%s: DSM not supported, error %d\n",
+		pr_de("%s: DSM not supported, error %d\n",
 			 mmc_hostname(mmc), err);
 		return;
 	}
 
-	pr_debug("%s: DSM function mask %#x\n",
+	pr_de("%s: DSM function mask %#x\n",
 		 mmc_hostname(mmc), intel_host->dsm_fns);
 
 	intel_dsm(intel_host, dev, INTEL_DSM_HS_CAPS, &intel_host->hs_caps);
@@ -202,7 +202,7 @@ static int intel_start_signal_voltage_switch(struct mmc_host *mmc,
 	}
 
 	err = intel_dsm(intel_host, dev, fn, &result);
-	pr_debug("%s: %s DSM fn %u error %d result %u\n",
+	pr_de("%s: %s DSM fn %u error %d result %u\n",
 		 mmc_hostname(mmc), __func__, fn, err, result);
 
 	return 0;

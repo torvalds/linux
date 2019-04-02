@@ -136,7 +136,7 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 	return -EBUSY;
 }
 
-static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
+static void ttm_bo_man_de(struct ttm_mem_type_manager *man,
 			     struct drm_printer *printer)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
@@ -151,6 +151,6 @@ const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
 	.takedown = ttm_bo_man_takedown,
 	.get_node = ttm_bo_man_get_node,
 	.put_node = ttm_bo_man_put_node,
-	.debug = ttm_bo_man_debug
+	.de = ttm_bo_man_de
 };
 EXPORT_SYMBOL(ttm_bo_manager_func);

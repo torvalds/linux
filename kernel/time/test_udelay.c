@@ -2,7 +2,7 @@
 /*
  * udelay() test kernel module
  *
- * Test is executed by writing and reading to /sys/kernel/debug/udelay_test
+ * Test is executed by writing and reading to /sys/kernel/de/udelay_test
  * Tests are configured by writing: USECS ITERATIONS
  * Tests are executed by reading from the same file.
  * Specifying usecs of 0 or negative values will run multiples tests.
@@ -10,7 +10,7 @@
  * Copyright (C) 2014 Google, Inc.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
@@ -18,10 +18,10 @@
 
 #define DEFAULT_ITERATIONS 100
 
-#define DEBUGFS_FILENAME "udelay_test"
+#define DEFS_FILENAME "udelay_test"
 
 static DEFINE_MUTEX(udelay_test_lock);
-static struct dentry *udelay_test_debugfs_file;
+static struct dentry *udelay_test_defs_file;
 static int udelay_test_usecs;
 static int udelay_test_iterations = DEFAULT_ITERATIONS;
 
@@ -85,8 +85,8 @@ static int udelay_test_show(struct seq_file *s, void *v)
 		seq_printf(s, "udelay() test (lpj=%ld kt=%lld.%09ld)\n",
 				loops_per_jiffy, (s64)ts.tv_sec, ts.tv_nsec);
 		seq_puts(s, "usage:\n");
-		seq_puts(s, "echo USECS [ITERS] > " DEBUGFS_FILENAME "\n");
-		seq_puts(s, "cat " DEBUGFS_FILENAME "\n");
+		seq_puts(s, "echo USECS [ITERS] > " DEFS_FILENAME "\n");
+		seq_puts(s, "cat " DEFS_FILENAME "\n");
 	}
 
 	return ret;
@@ -126,7 +126,7 @@ static ssize_t udelay_test_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations udelay_test_debugfs_ops = {
+static const struct file_operations udelay_test_defs_ops = {
 	.owner = THIS_MODULE,
 	.open = udelay_test_open,
 	.read = seq_read,
@@ -138,8 +138,8 @@ static const struct file_operations udelay_test_debugfs_ops = {
 static int __init udelay_test_init(void)
 {
 	mutex_lock(&udelay_test_lock);
-	udelay_test_debugfs_file = debugfs_create_file(DEBUGFS_FILENAME,
-			S_IRUSR, NULL, NULL, &udelay_test_debugfs_ops);
+	udelay_test_defs_file = defs_create_file(DEFS_FILENAME,
+			S_IRUSR, NULL, NULL, &udelay_test_defs_ops);
 	mutex_unlock(&udelay_test_lock);
 
 	return 0;
@@ -150,7 +150,7 @@ module_init(udelay_test_init);
 static void __exit udelay_test_exit(void)
 {
 	mutex_lock(&udelay_test_lock);
-	debugfs_remove(udelay_test_debugfs_file);
+	defs_remove(udelay_test_defs_file);
 	mutex_unlock(&udelay_test_lock);
 }
 

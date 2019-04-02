@@ -28,7 +28,7 @@
 /*
  * No chip documentation has yet been found,
  * so these configuration values were pulled from
- * a running Win98 system using "debug".
+ * a running Win98 system using "de".
  * This gives around 3MByte/second read performance,
  * which is about 2/3 of what the chip is capable of.
  *

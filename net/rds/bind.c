@@ -84,7 +84,7 @@ struct rds_sock *rds_find_bound(const struct in6_addr *addr, __be16 port,
 
 	rcu_read_unlock();
 
-	rdsdebug("returning rs %p for %pI6c:%u\n", rs, addr,
+	rdsde("returning rs %p for %pI6c:%u\n", rs, addr,
 		 ntohs(port));
 
 	return rs;
@@ -131,7 +131,7 @@ static int rds_add_bound(struct rds_sock *rs, const struct in6_addr *addr,
 			*port = rs->rs_bound_port;
 			rs->rs_bound_scope_id = scope_id;
 			ret = 0;
-			rdsdebug("rs %p binding to %pI6c:%d\n",
+			rdsde("rs %p binding to %pI6c:%d\n",
 				 rs, addr, (int)ntohs(*port));
 			break;
 		} else {
@@ -151,7 +151,7 @@ void rds_remove_bound(struct rds_sock *rs)
 	if (ipv6_addr_any(&rs->rs_bound_addr))
 		return;
 
-	rdsdebug("rs %p unbinding from %pI6c:%d\n",
+	rdsde("rs %p unbinding from %pI6c:%d\n",
 		 rs, &rs->rs_bound_addr,
 		 ntohs(rs->rs_bound_port));
 

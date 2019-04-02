@@ -717,7 +717,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	int i = 0;
 
 	if (!iccsense && !therm && !volt) {
-		NV_DEBUG(drm, "Skipping hwmon registration\n");
+		NV_DE(drm, "Skipping hwmon registration\n");
 		return 0;
 	}
 

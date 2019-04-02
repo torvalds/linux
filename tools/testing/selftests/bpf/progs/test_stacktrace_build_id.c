@@ -39,7 +39,7 @@ struct bpf_map_def SEC("maps") stack_amap = {
 	.max_entries = 128,
 };
 
-/* taken from /sys/kernel/debug/tracing/events/random/urandom_read/format */
+/* taken from /sys/kernel/de/tracing/events/random/urandom_read/format */
 struct random_urandom_args {
 	unsigned long long pad;
 	int got_bits;

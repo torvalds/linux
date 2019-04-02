@@ -275,8 +275,8 @@ void __init mem_init(void)
 
 	mem_init_print_info(NULL);
 
-	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
-	BUG_ON(TASK_SIZE				> MODULES_VADDR);
+	BUILD__ON(TASK_SIZE				> MODULES_VADDR);
+	_ON(TASK_SIZE				> MODULES_VADDR);
 
 	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
 		/*

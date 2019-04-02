@@ -1249,7 +1249,7 @@ static int nilfs_identify(char *data, struct nilfs_super_data *sd)
 		}
 		if (!options)
 			break;
-		BUG_ON(options == data);
+		_ON(options == data);
 		*(options - 1) = ',';
 	} while (!ret);
 	return ret;

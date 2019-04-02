@@ -29,7 +29,7 @@ cp_out(struct nvkm_grctx *ctx, u32 inst)
 	if (ctx->mode != NVKM_GRCTX_PROG)
 		return;
 
-	BUG_ON(ctx->ctxprog_len == ctx->ctxprog_max);
+	_ON(ctx->ctxprog_len == ctx->ctxprog_max);
 	ctxprog[ctx->ctxprog_len++] = inst;
 }
 

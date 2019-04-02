@@ -975,12 +975,12 @@ static bool esas2r_flash_access(struct esas2r_adapter *a, u32 function)
 			 * chip interrupts.
 			 */
 			if (function == DRBL_FLASH_REQ) {
-				esas2r_hdebug("flash access timeout");
+				esas2r_hde("flash access timeout");
 				esas2r_write_register_dword(a, MU_DOORBELL_IN,
 							    DRBL_FLASH_DONE);
 				esas2r_enable_chip_interrupts(a);
 			} else {
-				esas2r_hdebug("flash release timeout");
+				esas2r_hde("flash release timeout");
 			}
 
 			return false;
@@ -1094,7 +1094,7 @@ bool esas2r_print_flash_rev(struct esas2r_adapter *a)
 	}
 
 	sprintf(a->flash_rev, "%02d/%02d/%04d", month, day, year);
-	esas2r_hdebug("flash version: %s", a->flash_rev);
+	esas2r_hde("flash version: %s", a->flash_rev);
 	return true;
 }
 
@@ -1196,7 +1196,7 @@ bool esas2r_nvram_read_direct(struct esas2r_adapter *a)
 
 	if (!esas2r_read_flash_block(a, a->nvram, FLS_OFFSET_NVR,
 				     sizeof(struct esas2r_sas_nvram))) {
-		esas2r_hdebug("NVRAM read failed, using defaults");
+		esas2r_hde("NVRAM read failed, using defaults");
 		return false;
 	}
 
@@ -1335,18 +1335,18 @@ bool esas2r_nvram_validate(struct esas2r_adapter *a)
 	    || n->signature[1] != 'S'
 	    || n->signature[2] != 'A'
 	    || n->signature[3] != 'S') {
-		esas2r_hdebug("invalid NVRAM signature");
+		esas2r_hde("invalid NVRAM signature");
 	} else if (esas2r_nvramcalc_cksum(n)) {
-		esas2r_hdebug("invalid NVRAM checksum");
+		esas2r_hde("invalid NVRAM checksum");
 	} else if (n->version > SASNVR_VERSION) {
-		esas2r_hdebug("invalid NVRAM version");
+		esas2r_hde("invalid NVRAM version");
 	} else {
 		set_bit(AF_NVR_VALID, &a->flags);
 		rslt = true;
 	}
 
 	if (rslt == false) {
-		esas2r_hdebug("using defaults");
+		esas2r_hde("using defaults");
 		esas2r_nvram_set_defaults(a);
 	}
 

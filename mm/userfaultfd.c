@@ -263,8 +263,8 @@ retry:
 	while (src_addr < src_start + len) {
 		pte_t dst_pteval;
 
-		BUG_ON(dst_addr >= dst_start + len);
-		VM_BUG_ON(dst_addr & ~huge_page_mask(h));
+		_ON(dst_addr >= dst_start + len);
+		VM__ON(dst_addr & ~huge_page_mask(h));
 
 		/*
 		 * Serialize via hugetlb_fault_mutex
@@ -299,7 +299,7 @@ retry:
 
 		if (unlikely(err == -ENOENT)) {
 			up_read(&dst_mm->mmap_sem);
-			BUG_ON(!page);
+			_ON(!page);
 
 			err = copy_huge_page_from_user(page,
 						(const void __user *)src_addr,
@@ -313,7 +313,7 @@ retry:
 			dst_vma = NULL;
 			goto retry;
 		} else
-			BUG_ON(page);
+			_ON(page);
 
 		if (!err) {
 			dst_addr += vma_hpagesize;
@@ -378,9 +378,9 @@ out:
 			ClearPagePrivate(page);
 		put_page(page);
 	}
-	BUG_ON(copied < 0);
-	BUG_ON(err > 0);
-	BUG_ON(!copied && !err);
+	_ON(copied < 0);
+	_ON(err > 0);
+	_ON(!copied && !err);
 	return copied ? copied : err;
 }
 #else /* !CONFIG_HUGETLB_PAGE */
@@ -450,12 +450,12 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	/*
 	 * Sanitize the command parameters:
 	 */
-	BUG_ON(dst_start & ~PAGE_MASK);
-	BUG_ON(len & ~PAGE_MASK);
+	_ON(dst_start & ~PAGE_MASK);
+	_ON(len & ~PAGE_MASK);
 
 	/* Does the address range wrap, or is the span zero-sized? */
-	BUG_ON(src_start + len <= src_start);
-	BUG_ON(dst_start + len <= dst_start);
+	_ON(src_start + len <= src_start);
+	_ON(dst_start + len <= dst_start);
 
 	src_addr = src_start;
 	dst_addr = dst_start;
@@ -525,7 +525,7 @@ retry:
 	while (src_addr < src_start + len) {
 		pmd_t dst_pmdval;
 
-		BUG_ON(dst_addr >= dst_start + len);
+		_ON(dst_addr >= dst_start + len);
 
 		dst_pmd = mm_alloc_pmd(dst_mm, dst_addr);
 		if (unlikely(!dst_pmd)) {
@@ -553,8 +553,8 @@ retry:
 			break;
 		}
 
-		BUG_ON(pmd_none(*dst_pmd));
-		BUG_ON(pmd_trans_huge(*dst_pmd));
+		_ON(pmd_none(*dst_pmd));
+		_ON(pmd_trans_huge(*dst_pmd));
 
 		err = mfill_atomic_pte(dst_mm, dst_pmd, dst_vma, dst_addr,
 				       src_addr, &page, zeropage);
@@ -564,7 +564,7 @@ retry:
 			void *page_kaddr;
 
 			up_read(&dst_mm->mmap_sem);
-			BUG_ON(!page);
+			_ON(!page);
 
 			page_kaddr = kmap(page);
 			err = copy_from_user(page_kaddr,
@@ -577,7 +577,7 @@ retry:
 			}
 			goto retry;
 		} else
-			BUG_ON(page);
+			_ON(page);
 
 		if (!err) {
 			dst_addr += PAGE_SIZE;
@@ -596,9 +596,9 @@ out_unlock:
 out:
 	if (page)
 		put_page(page);
-	BUG_ON(copied < 0);
-	BUG_ON(err > 0);
-	BUG_ON(!copied && !err);
+	_ON(copied < 0);
+	_ON(err > 0);
+	_ON(!copied && !err);
 	return copied ? copied : err;
 }
 

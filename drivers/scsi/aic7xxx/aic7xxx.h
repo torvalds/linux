@@ -88,9 +88,9 @@ struct seeprom_descriptor;
 	(SCB_GET_TARGET(ahc, scb) + (SCB_IS_SCSIBUS_B(ahc, scb) ? 8 : 0))
 #define SCB_GET_TARGET_MASK(ahc, scb) \
 	(0x01 << (SCB_GET_TARGET_OFFSET(ahc, scb)))
-#ifdef AHC_DEBUG
+#ifdef AHC_DE
 #define SCB_IS_SILENT(scb)					\
-	((ahc_debug & AHC_SHOW_MASKED_ERRORS) == 0		\
+	((ahc_de & AHC_SHOW_MASKED_ERRORS) == 0		\
       && (((scb)->flags & SCB_SILENT) != 0))
 #else
 #define SCB_IS_SILENT(scb)					\
@@ -258,49 +258,49 @@ typedef enum {
 } ahc_feature;
 
 /*
- * Bugs in the silicon that we work around in software.
+ * s in the silicon that we work around in software.
  */
 typedef enum {
-	AHC_BUGNONE		= 0x00,
+	AHC_NONE		= 0x00,
 	/*
 	 * On all chips prior to the U2 product line,
 	 * the WIDEODD S/G segment feature does not
 	 * work during scsi->HostBus transfers.
 	 */
-	AHC_TMODE_WIDEODD_BUG	= 0x01,
+	AHC_TMODE_WIDEODD_	= 0x01,
 	/*
 	 * On the aic7890/91 Rev 0 chips, the autoflush
 	 * feature does not work.  A manual flush of
 	 * the DMA FIFO is required.
 	 */
-	AHC_AUTOFLUSH_BUG	= 0x02,
+	AHC_AUTOFLUSH_	= 0x02,
 	/*
 	 * On many chips, cacheline streaming does not work.
 	 */
-	AHC_CACHETHEN_BUG	= 0x04,
+	AHC_CACHETHEN_	= 0x04,
 	/*
 	 * On the aic7896/97 chips, cacheline
 	 * streaming must be enabled.
 	 */
-	AHC_CACHETHEN_DIS_BUG	= 0x08,
+	AHC_CACHETHEN_DIS_	= 0x08,
 	/*
 	 * PCI 2.1 Retry failure on non-empty data fifo.
 	 */
-	AHC_PCI_2_1_RETRY_BUG	= 0x10,
+	AHC_PCI_2_1_RETRY_	= 0x10,
 	/*
 	 * Controller does not handle cacheline residuals
 	 * properly on S/G segments if PCI MWI instructions
 	 * are allowed.
 	 */
-	AHC_PCI_MWI_BUG		= 0x20,
+	AHC_PCI_MWI_		= 0x20,
 	/*
 	 * An SCB upload using the SCB channel's
 	 * auto array entry copy feature may 
 	 * corrupt data.  This appears to only
 	 * occur on 66MHz systems.
 	 */
-	AHC_SCBCHAN_UPLOAD_BUG	= 0x40
-} ahc_bug;
+	AHC_SCBCHAN_UPLOAD_	= 0x40
+} ahc_;
 
 /*
  * Configuration specific settings.
@@ -319,7 +319,7 @@ typedef enum {
 					 * SRAM, we use the default target
 					 * settings.
 					 */
-	AHC_SEQUENCER_DEBUG   = 0x008,
+	AHC_SEQUENCER_DE   = 0x008,
 	AHC_SHARED_SRAM	      = 0x010,
 	AHC_LARGE_SEEPROM     = 0x020,  /* Uses C56_66 not C46 */
 	AHC_RESET_BUS_A	      = 0x040,
@@ -980,7 +980,7 @@ struct ahc_softc {
 	 */
 	ahc_chip		  chip;
 	ahc_feature		  features;
-	ahc_bug			  bugs;
+	ahc_			  s;
 	ahc_flag		  flags;
 	struct seeprom_config	 *seep_config;
 
@@ -1044,10 +1044,10 @@ struct ahc_softc {
 
 	/*
 	 * Bus address of the one byte buffer used to
-	 * work-around a DMA bug for chips <= aic7880
+	 * work-around a DMA  for chips <= aic7880
 	 * in target mode.
 	 */
-	dma_addr_t		  dma_bug_buf;
+	dma_addr_t		  dma__buf;
 
 	/* Number of enabled target mode device on this card */
 	u_int			  enabled_luns;
@@ -1244,9 +1244,9 @@ cam_status	ahc_find_tmode_devs(struct ahc_softc *ahc,
 #define AHC_TMODE_ENABLE 0
 #endif
 #endif
-/******************************* Debug ***************************************/
-#ifdef AHC_DEBUG
-extern uint32_t ahc_debug;
+/******************************* De ***************************************/
+#ifdef AHC_DE
+extern uint32_t ahc_de;
 #define	AHC_SHOW_MISC		0x0001
 #define	AHC_SHOW_SENSE		0x0002
 #define AHC_DUMP_SEEPROM	0x0004
@@ -1259,7 +1259,7 @@ extern uint32_t ahc_debug;
 #define AHC_SHOW_QUEUE		0x0400
 #define AHC_SHOW_TQIN		0x0800
 #define AHC_SHOW_MASKED_ERRORS	0x1000
-#define AHC_DEBUG_SEQUENCER	0x2000
+#define AHC_DE_SEQUENCER	0x2000
 #endif
 void			ahc_print_devinfo(struct ahc_softc *ahc,
 					  struct ahc_devinfo *dev);

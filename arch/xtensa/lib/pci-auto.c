@@ -86,7 +86,7 @@ pciauto_setup_bars(struct pci_dev *dev, int bar_limit)
 		{
 			bar_size &= PCI_BASE_ADDRESS_IO_MASK;
 			upper_limit = &pciauto_upper_iospc;
-			pr_debug("PCI Autoconfig: BAR %d, I/O, ", bar_nr);
+			pr_de("PCI Autoconfig: BAR %d, I/O, ", bar_nr);
 		}
 		else
 		{
@@ -96,7 +96,7 @@ pciauto_setup_bars(struct pci_dev *dev, int bar_limit)
 
 			bar_size &= PCI_BASE_ADDRESS_MEM_MASK;
 			upper_limit = &pciauto_upper_memspc;
-			pr_debug("PCI Autoconfig: BAR %d, Mem, ", bar_nr);
+			pr_de("PCI Autoconfig: BAR %d, Mem, ", bar_nr);
 		}
 
 		/* Allocate a base address (bar_size is negative!) */
@@ -114,7 +114,7 @@ pciauto_setup_bars(struct pci_dev *dev, int bar_limit)
 		if (found_mem64)
 			pci_write_config_dword(dev, (bar+=4), 0x00000000);
 
-		pr_debug("size=0x%x, address=0x%x\n",
+		pr_de("size=0x%x, address=0x%x\n",
 			 ~bar_size + 1, *upper_limit);
 	}
 }
@@ -140,7 +140,7 @@ pciauto_setup_irq(struct pci_controller* pci_ctrl,struct pci_dev *dev,int devfn)
 	if (irq == -1)
 		irq = 0;
 
-	pr_debug("PCI Autoconfig: Interrupt %d, pin %d\n", irq, pin);
+	pr_de("PCI Autoconfig: Interrupt %d, pin %d\n", irq, pin);
 
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
@@ -279,7 +279,7 @@ int __init pciauto_bus_scan(struct pci_controller *pci_ctrl, int current_bus)
 
 			int iosave, memsave;
 
-			pr_debug("PCI Autoconfig: Found P2P bridge, device %d\n",
+			pr_de("PCI Autoconfig: Found P2P bridge, device %d\n",
 				 PCI_SLOT(pci_devfn));
 
 			/* Allocate PCI I/O and/or memory space */
@@ -310,7 +310,7 @@ int __init pciauto_bus_scan(struct pci_controller *pci_ctrl, int current_bus)
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x80);
 
 		/* Allocate PCI I/O and/or memory space */
-		pr_debug("PCI Autoconfig: Found Bus %d, Device %d, Function %d\n",
+		pr_de("PCI Autoconfig: Found Bus %d, Device %d, Function %d\n",
 			 current_bus, PCI_SLOT(pci_devfn), PCI_FUNC(pci_devfn));
 
 		pciauto_setup_bars(dev, PCI_BASE_ADDRESS_5);

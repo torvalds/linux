@@ -34,7 +34,7 @@
 #include "tpm.h"
 
 /*
- * Bug workaround - some TPM's don't flush the most
+ *  workaround - some TPM's don't flush the most
  * recently changed pcr on suspend, so force the flush
  * with an extend to the selected _unused_ non-volatile pcr.
  */

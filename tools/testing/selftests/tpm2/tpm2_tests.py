@@ -160,11 +160,11 @@ class SmokeTest(unittest.TestCase):
 
 class SpaceTest(unittest.TestCase):
     def setUp(self):
-        logging.basicConfig(filename='SpaceTest.log', level=logging.DEBUG)
+        logging.basicConfig(filename='SpaceTest.log', level=logging.DE)
 
     def test_make_two_spaces(self):
         log = logging.getLogger(__name__)
-        log.debug("test_make_two_spaces")
+        log.de("test_make_two_spaces")
 
         space1 = tpm2.Client(tpm2.Client.FLAG_SPACE)
         root1 = space1.create_root_key()
@@ -172,23 +172,23 @@ class SpaceTest(unittest.TestCase):
         root2 = space2.create_root_key()
         root3 = space2.create_root_key()
 
-        log.debug("%08x" % (root1))
-        log.debug("%08x" % (root2))
-        log.debug("%08x" % (root3))
+        log.de("%08x" % (root1))
+        log.de("%08x" % (root2))
+        log.de("%08x" % (root3))
 
     def test_flush_context(self):
         log = logging.getLogger(__name__)
-        log.debug("test_flush_context")
+        log.de("test_flush_context")
 
         space1 = tpm2.Client(tpm2.Client.FLAG_SPACE)
         root1 = space1.create_root_key()
-        log.debug("%08x" % (root1))
+        log.de("%08x" % (root1))
 
         space1.flush_context(root1)
 
     def test_get_handles(self):
         log = logging.getLogger(__name__)
-        log.debug("test_get_handles")
+        log.de("test_get_handles")
 
         space1 = tpm2.Client(tpm2.Client.FLAG_SPACE)
         space1.create_root_key()
@@ -200,18 +200,18 @@ class SpaceTest(unittest.TestCase):
 
         self.assertEqual(len(handles), 2)
 
-        log.debug("%08x" % (handles[0]))
-        log.debug("%08x" % (handles[1]))
+        log.de("%08x" % (handles[0]))
+        log.de("%08x" % (handles[1]))
 
     def test_invalid_cc(self):
         log = logging.getLogger(__name__)
-        log.debug(sys._getframe().f_code.co_name)
+        log.de(sys._getframe().f_code.co_name)
 
         TPM2_CC_INVALID = tpm2.TPM2_CC_FIRST - 1
 
         space1 = tpm2.Client(tpm2.Client.FLAG_SPACE)
         root1 = space1.create_root_key()
-        log.debug("%08x" % (root1))
+        log.de("%08x" % (root1))
 
         fmt = '>HII'
         cmd = struct.pack(fmt, tpm2.TPM2_ST_NO_SESSIONS, struct.calcsize(fmt),

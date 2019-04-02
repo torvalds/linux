@@ -153,7 +153,7 @@ linux-api@vger.kernel.org に送ることを勧めます。
     このドキュメントは Linux 開発の思想を理解するのに非常に重要です。
     そして、他のOSでの開発者が Linux に移る時にとても重要です。
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/admin-guide/security-s.rst <securitys>`
     もし Linux カーネルでセキュリティ問題を発見したように思ったら、こ
     のドキュメントのステップに従ってカーネル開発者に連絡し、問題解決を
     支援してください。
@@ -360,14 +360,14 @@ https://patchwork.kernel.org/ でリストされています。
 バグレポート
 -------------
 
-https://bugzilla.kernel.org は Linux カーネル開発者がカーネルのバグを追跡する
+https://zilla.kernel.org は Linux カーネル開発者がカーネルのバグを追跡する
 場所です。ユーザは見つけたバグの全てをこのツールで報告すべきです。どう
-kernel bugzilla を使うかの詳細は、以下を参照してください -
+kernel zilla を使うかの詳細は、以下を参照してください -
 
-	https://bugzilla.kernel.org/page.cgi?id=faq.html
+	https://zilla.kernel.org/page.cgi?id=faq.html
 
 メインカーネルソースディレクトリにあるファイル
-admin-guide/reporting-bugs.rstはカーネルバグらしいものについてどうレポー
+admin-guide/reporting-s.rstはカーネルバグらしいものについてどうレポー
 トするかの良いテンプレートであり、問題の追跡を助けるためにカーネル開発
 者にとってどんな情報が必要なのかの詳細が書かれています。
 
@@ -383,14 +383,14 @@ admin-guide/reporting-bugs.rstはカーネルバグらしいものについて�
 いからです。
 
 すでにレポートされたバグのために仕事をするためには、
-https://bugzilla.kernel.org に行ってください。もし今後のバグレポートに
-ついてアドバイスを受けたいのであれば、bugme-new メーリングリスト(新し
-いバグレポートだけがここにメールされる) または bugme-janitor メーリン
-グリスト(bugzilla の変更毎にここにメールされる)を購読できます。
+https://zilla.kernel.org に行ってください。もし今後のバグレポートに
+ついてアドバイスを受けたいのであれば、me-new メーリングリスト(新し
+いバグレポートだけがここにメールされる) または me-janitor メーリン
+グリスト(zilla の変更毎にここにメールされる)を購読できます。
 
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
+	https://lists.linux-foundation.org/mailman/listinfo/me-new
 
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
+	https://lists.linux-foundation.org/mailman/listinfo/me-janitors
 
 メーリングリスト
 ----------------

@@ -374,7 +374,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		.dev_disconnect = snd_hwdep_dev_disconnect,
 	};
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 	if (rhwdep)
 		*rhwdep = NULL;
@@ -465,7 +465,7 @@ static int snd_hwdep_dev_disconnect(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
 
-	if (snd_BUG_ON(!hwdep))
+	if (snd__ON(!hwdep))
 		return -ENXIO;
 	mutex_lock(&register_mutex);
 	if (snd_hwdep_search(hwdep->card, hwdep->device) != hwdep) {

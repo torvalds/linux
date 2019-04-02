@@ -120,7 +120,7 @@ static ssize_t lcd_power_store(struct device *dev,
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->set_power) {
-		pr_debug("set power to %lu\n", power);
+		pr_de("set power to %lu\n", power);
 		ld->ops->set_power(ld, power);
 		rc = count;
 	}
@@ -159,7 +159,7 @@ static ssize_t contrast_store(struct device *dev,
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->set_contrast) {
-		pr_debug("set contrast to %lu\n", contrast);
+		pr_de("set contrast to %lu\n", contrast);
 		ld->ops->set_contrast(ld, contrast);
 		rc = count;
 	}
@@ -211,7 +211,7 @@ struct lcd_device *lcd_device_register(const char *name, struct device *parent,
 	struct lcd_device *new_ld;
 	int rc;
 
-	pr_debug("lcd_device_register: name=%s\n", name);
+	pr_de("lcd_device_register: name=%s\n", name);
 
 	new_ld = kzalloc(sizeof(struct lcd_device), GFP_KERNEL);
 	if (!new_ld)

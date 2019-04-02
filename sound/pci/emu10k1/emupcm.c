@@ -4,7 +4,7 @@
  *  Routines for control of EMU10K1 chips / PCM routines
  *  Multichannel PCM support Copyright (c) Lee Revell <rlrevell@joe-job.com>
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -203,7 +203,7 @@ static unsigned int snd_emu10k1_capture_rate_reg(unsigned int rate)
 	case 44100:	return ADCCR_SAMPLERATE_44;
 	case 48000:	return ADCCR_SAMPLERATE_48;
 	default:
-			snd_BUG();
+			snd_();
 			return ADCCR_SAMPLERATE_8;
 	}
 }
@@ -221,7 +221,7 @@ static unsigned int snd_emu10k1_audigy_capture_rate_reg(unsigned int rate)
 	case 44100:	return ADCCR_SAMPLERATE_44;
 	case 48000:	return ADCCR_SAMPLERATE_48;
 	default:
-			snd_BUG();
+			snd_();
 			return A_ADCCR_SAMPLERATE_8;
 	}
 }
@@ -627,7 +627,7 @@ static int snd_emu10k1_capture_prepare(struct snd_pcm_substream *substream)
 		}
 	}
 	if (epcm->capture_bs_val == 0) {
-		snd_BUG();
+		snd_();
 		epcm->capture_bs_val++;
 	}
 	if (epcm->type == CAPTURE_AC97ADC) {

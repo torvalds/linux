@@ -238,14 +238,14 @@ static void __always_unused __check_inet_diag_req_raw(void)
 	(offsetof(struct inet_diag_req_v2, m1) !=	\
 	 offsetof(struct inet_diag_req_raw, m2))
 
-	BUILD_BUG_ON(sizeof(struct inet_diag_req_v2) !=
+	BUILD__ON(sizeof(struct inet_diag_req_v2) !=
 		     sizeof(struct inet_diag_req_raw));
-	BUILD_BUG_ON(__offset_mismatch(sdiag_family, sdiag_family));
-	BUILD_BUG_ON(__offset_mismatch(sdiag_protocol, sdiag_protocol));
-	BUILD_BUG_ON(__offset_mismatch(idiag_ext, idiag_ext));
-	BUILD_BUG_ON(__offset_mismatch(pad, sdiag_raw_protocol));
-	BUILD_BUG_ON(__offset_mismatch(idiag_states, idiag_states));
-	BUILD_BUG_ON(__offset_mismatch(id, id));
+	BUILD__ON(__offset_mismatch(sdiag_family, sdiag_family));
+	BUILD__ON(__offset_mismatch(sdiag_protocol, sdiag_protocol));
+	BUILD__ON(__offset_mismatch(idiag_ext, idiag_ext));
+	BUILD__ON(__offset_mismatch(pad, sdiag_raw_protocol));
+	BUILD__ON(__offset_mismatch(idiag_states, idiag_states));
+	BUILD__ON(__offset_mismatch(id, id));
 #undef __offset_mismatch
 }
 

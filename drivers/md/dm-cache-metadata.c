@@ -657,7 +657,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	/*
 	 * We need to know if the cache_disk_superblock exceeds a 512-byte sector.
 	 */
-	BUILD_BUG_ON(sizeof(struct cache_disk_superblock) > 512);
+	BUILD__ON(sizeof(struct cache_disk_superblock) > 512);
 
 	if (separate_dirty_bits(cmd)) {
 		r = dm_bitset_flush(&cmd->dirty_info, cmd->dirty_root,

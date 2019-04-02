@@ -133,7 +133,7 @@ static int __map_kernel_page(unsigned long ea, unsigned long pa,
 	/*
 	 * Make sure task size is correct as per the max adddr
 	 */
-	BUILD_BUG_ON(TASK_SIZE_USER64 > RADIX_PGTABLE_RANGE);
+	BUILD__ON(TASK_SIZE_USER64 > RADIX_PGTABLE_RANGE);
 
 	if (unlikely(!slab_is_available()))
 		return early_map_kernel_page(ea, pa, flags, map_page_size,
@@ -189,7 +189,7 @@ void radix__change_memory_range(unsigned long start, unsigned long end,
 	start = ALIGN_DOWN(start, PAGE_SIZE);
 	end = PAGE_ALIGN(end); // aligns up
 
-	pr_debug("Changing flags on range %lx-%lx removing 0x%lx\n",
+	pr_de("Changing flags on range %lx-%lx removing 0x%lx\n",
 		 start, end, clear);
 
 	for (idx = start; idx < end; idx += PAGE_SIZE) {
@@ -365,7 +365,7 @@ void __init radix_init_pgtable(void)
 	 * Allocate Partition table and process table for the
 	 * host.
 	 */
-	BUG_ON(PRTB_SIZE_SHIFT > 36);
+	_ON(PRTB_SIZE_SHIFT > 36);
 	process_tb = early_alloc_pgtable(1UL << PRTB_SIZE_SHIFT, -1, 0, 0);
 	/*
 	 * Fill in the process table.
@@ -649,7 +649,7 @@ void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
 	 */
-	BUG_ON(first_memblock_base != 0);
+	_ON(first_memblock_base != 0);
 
 	/*
 	 * Radix mode is not limited by RMA / VRMA addressing.
@@ -894,7 +894,7 @@ int __meminit radix__vmemmap_create_mapping(unsigned long start,
 	int ret;
 
 	ret = __map_kernel_page_nid(start, phys, __pgprot(flags), page_size, nid);
-	BUG_ON(ret);
+	_ON(ret);
 
 	return 0;
 }
@@ -915,7 +915,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 {
 	unsigned long old;
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	WARN_ON(!radix__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
 #endif
@@ -932,9 +932,9 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 {
 	pmd_t pmd;
 
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-	VM_BUG_ON(radix__pmd_trans_huge(*pmdp));
-	VM_BUG_ON(pmd_devmap(*pmdp));
+	VM__ON(address & ~HPAGE_PMD_MASK);
+	VM__ON(radix__pmd_trans_huge(*pmdp));
+	VM__ON(pmd_devmap(*pmdp));
 	/*
 	 * khugepaged calls this for normal pmd
 	 */

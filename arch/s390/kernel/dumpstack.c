@@ -10,15 +10,15 @@
 #include <linux/kprobes.h>
 #include <linux/utsname.h>
 #include <linux/export.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/ptrace.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <asm/processor.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/dis.h>
 #include <asm/ipl.h>
 
@@ -109,7 +109,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	dump_trace(show_address, NULL, task, sp);
 	if (!task)
 		task = current;
-	debug_show_held_locks(task);
+	de_show_held_locks(task);
 }
 
 static void show_last_breaking_event(struct pt_regs *regs)
@@ -161,7 +161,7 @@ void die(struct pt_regs *regs, const char *str)
 
 	oops_enter();
 	lgr_info_log();
-	debug_stop_all();
+	de_stop_all();
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
@@ -173,8 +173,8 @@ void die(struct pt_regs *regs, const char *str)
 #ifdef CONFIG_SMP
 	pr_cont("SMP ");
 #endif
-	if (debug_pagealloc_enabled())
-		pr_cont("DEBUG_PAGEALLOC");
+	if (de_pagealloc_enabled())
+		pr_cont("DE_PAGEALLOC");
 	pr_cont("\n");
 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
 	print_modules();

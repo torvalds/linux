@@ -72,16 +72,16 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 {
 	u32 ggtt_size;
 
-	GEM_BUG_ON(!size);
+	GEM__ON(!size);
 
 	if (tiling == I915_TILING_NONE)
 		return size;
 
-	GEM_BUG_ON(!stride);
+	GEM__ON(!stride);
 
 	if (INTEL_GEN(i915) >= 4) {
 		stride *= i915_gem_tile_height(tiling);
-		GEM_BUG_ON(!IS_ALIGNED(stride, I965_FENCE_PAGE));
+		GEM__ON(!IS_ALIGNED(stride, I965_FENCE_PAGE));
 		return roundup(size, stride);
 	}
 
@@ -110,7 +110,7 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 			     unsigned int tiling, unsigned int stride)
 {
-	GEM_BUG_ON(!size);
+	GEM__ON(!size);
 
 	/*
 	 * Minimum alignment is 4k (GTT page size), but might be greater
@@ -225,10 +225,10 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	int err;
 
 	/* Make sure we don't cross-contaminate obj->tiling_and_stride */
-	BUILD_BUG_ON(I915_TILING_LAST & STRIDE_MASK);
+	BUILD__ON(I915_TILING_LAST & STRIDE_MASK);
 
-	GEM_BUG_ON(!i915_tiling_ok(obj, tiling, stride));
-	GEM_BUG_ON(!stride ^ (tiling == I915_TILING_NONE));
+	GEM__ON(!i915_tiling_ok(obj, tiling, stride));
+	GEM__ON(!stride ^ (tiling == I915_TILING_NONE));
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
 	if ((tiling | stride) == obj->tiling_and_stride)
@@ -269,12 +269,12 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	    obj->mm.madv == I915_MADV_WILLNEED &&
 	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (tiling == I915_TILING_NONE) {
-			GEM_BUG_ON(!obj->mm.quirked);
+			GEM__ON(!obj->mm.quirked);
 			__i915_gem_object_unpin_pages(obj);
 			obj->mm.quirked = false;
 		}
 		if (!i915_gem_object_is_tiled(obj)) {
-			GEM_BUG_ON(obj->mm.quirked);
+			GEM__ON(obj->mm.quirked);
 			__i915_gem_object_pin_pages(obj);
 			obj->mm.quirked = true;
 		}

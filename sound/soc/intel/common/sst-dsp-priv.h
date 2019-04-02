@@ -279,8 +279,8 @@ struct sst_dsp {
 	/* operations */
 	struct sst_ops *ops;
 
-	/* debug FS */
-	struct dentry *debugfs_root;
+	/* de FS */
+	struct dentry *defs_root;
 
 	/* base addresses */
 	struct sst_addr addr;

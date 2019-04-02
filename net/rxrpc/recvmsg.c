@@ -29,7 +29,7 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	struct rxrpc_sock *rx;
 	struct sock *sk;
 
-	_enter("%d", call->debug_id);
+	_enter("%d", call->de_id);
 
 	if (!list_empty(&call->recvmsg_link))
 		return;
@@ -52,7 +52,7 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 			write_unlock_bh(&rx->recvmsg_lock);
 
 			if (!sock_flag(sk, SOCK_DEAD)) {
-				_debug("call %ps", sk->sk_data_ready);
+				_de("call %ps", sk->sk_data_ready);
 				sk->sk_data_ready(sk);
 			}
 		}
@@ -94,7 +94,7 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 		break;
 	default:
 		pr_err("Invalid terminal call state %u\n", call->state);
-		BUG();
+		();
 		break;
 	}
 
@@ -119,7 +119,7 @@ static int rxrpc_recvmsg_new_call(struct rxrpc_sock *rx,
 	ret = put_cmsg(msg, SOL_RXRPC, RXRPC_NEW_CALL, 0, &tmp);
 
 	if (ret == 0 && !(flags & MSG_PEEK)) {
-		_debug("to be accepted");
+		_de("to be accepted");
 		write_lock_bh(&rx->recvmsg_lock);
 		list_del_init(&call->recvmsg_link);
 		write_unlock_bh(&rx->recvmsg_lock);
@@ -139,7 +139,7 @@ static int rxrpc_recvmsg_new_call(struct rxrpc_sock *rx,
  */
 static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 {
-	_enter("%d,%s", call->debug_id, rxrpc_call_states[call->state]);
+	_enter("%d,%s", call->de_id, rxrpc_call_states[call->state]);
 
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
@@ -184,7 +184,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	u8 flags;
 	int ix;
 
-	_enter("%d", call->debug_id);
+	_enter("%d", call->de_id);
 
 	hard_ack = call->rx_hard_ack;
 	top = smp_load_acquire(&call->rx_top);
@@ -207,7 +207,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 
-	_debug("%u,%u,%02x", hard_ack, top, flags);
+	_de("%u,%u,%02x", hard_ack, top, flags);
 	trace_rxrpc_receive(call, rxrpc_receive_rotate, serial, hard_ack);
 	if (flags & RXRPC_LAST_PACKET) {
 		rxrpc_end_rx_phase(call, serial);
@@ -246,7 +246,7 @@ static int rxrpc_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if ((annotation & RXRPC_RX_ANNO_JUMBO) > 1) {
 		__be16 tmp;
 		if (skb_copy_bits(skb, offset - 2, &tmp, 2) < 0)
-			BUG();
+			();
 		cksum = ntohs(tmp);
 		seq += (annotation & RXRPC_RX_ANNO_JUMBO) - 1;
 	}
@@ -512,7 +512,7 @@ try_again:
 	release_sock(&rx->sk);
 
 	if (test_bit(RXRPC_CALL_RELEASED, &call->flags))
-		BUG();
+		();
 
 	if (test_bit(RXRPC_CALL_HAS_USERID, &call->flags)) {
 		if (flags & MSG_CMSG_COMPAT) {
@@ -635,7 +635,7 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 	int ret;
 
 	_enter("{%d,%s},%zu,%d",
-	       call->debug_id, rxrpc_call_states[call->state],
+	       call->de_id, rxrpc_call_states[call->state],
 	       iov_iter_count(iter), want_more);
 
 	ASSERTCMP(call->state, !=, RXRPC_CALL_SERVER_ACCEPTING);

@@ -226,7 +226,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	struct dentry *dentry;
 	struct inode *inode;
 
-	BUG_ON(fc->ctl_ndents >= FUSE_CTL_NUM_DENTRIES);
+	_ON(fc->ctl_ndents >= FUSE_CTL_NUM_DENTRIES);
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
 		return NULL;
@@ -328,7 +328,7 @@ static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
 		return err;
 
 	mutex_lock(&fuse_mutex);
-	BUG_ON(fuse_control_sb);
+	_ON(fuse_control_sb);
 	fuse_control_sb = sb;
 	list_for_each_entry(fc, &fuse_conn_list, entry) {
 		err = fuse_ctl_add_conn(fc);

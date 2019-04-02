@@ -26,7 +26,7 @@
  *	- a patch that adds the entry for your device, including your
  *	  email address right above the entry (plus maybe a brief
  *	  explanation of the reason for the entry),
- *	- a copy of /sys/kernel/debug/usb/devices with your device plugged in
+ *	- a copy of /sys/kernel/de/usb/devices with your device plugged in
  *	  running with this patch.
  * Send your submission to the USB development list <linux-usb@vger.kernel.org>
  */
@@ -662,7 +662,7 @@ UNUSUAL_DEV(  0x054c, 0x0025, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
-/* Submitted by Olaf Hering, <olh@suse.de> SuSE Bugzilla #49049 */
+/* Submitted by Olaf Hering, <olh@suse.de> SuSE zilla #49049 */
 UNUSUAL_DEV(  0x054c, 0x002c, 0x0501, 0x2000,
 		"Sony",
 		"USB Floppy Drive",
@@ -1098,7 +1098,7 @@ UNUSUAL_DEV(  0x07c4, 0xa400, 0x0000, 0xffff,
 
 /*
  * Reported by Rauch Wolke <rauchwolke@gmx.net>
- * and augmented by binbin <binbinsh@gmail.com> (Bugzilla #12882)
+ * and augmented by binbin <binbinsh@gmail.com> (zilla #12882)
  */
 UNUSUAL_DEV(  0x07c4, 0xa4a5, 0x0000, 0xffff,
 		"Simple Tech/Datafab",
@@ -1294,7 +1294,7 @@ UNUSUAL_DEV(  0x090c, 0x6000, 0x0100, 0x0100,
  * - It does not like the INQUIRY command. So we must handle this command
  *   of the SCSI layer ourselves.
  * Tested on Rev. 10.00 (0x1000)
- * Submitted by James Courtier-Dutton <James@superbug.demon.co.uk>
+ * Submitted by James Courtier-Dutton <James@super.demon.co.uk>
  */
 UNUSUAL_DEV( 0x0a17, 0x0004, 0x1000, 0x1000,
 		"Pentax",
@@ -2186,7 +2186,7 @@ UNUSUAL_DEV(  0x1822, 0x0001, 0x0000, 0x9999,
 /*
  * Reported by Hans de Goede <hdegoede@redhat.com>
  * These Appotech controllers are found in Picture Frames, they provide a
- * (buggy) emulation of a cdrom drive which contains the windows software
+ * (gy) emulation of a cdrom drive which contains the windows software
  * Uploading of pictures happens over the corresponding /dev/sg device.
  */
 UNUSUAL_DEV( 0x1908, 0x1315, 0x0000, 0x0000,

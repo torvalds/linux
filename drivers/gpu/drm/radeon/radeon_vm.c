@@ -217,7 +217,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	}
 
 	/* should never happen */
-	BUG();
+	();
 	return NULL;
 }
 
@@ -530,7 +530,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	soffset >>= radeon_vm_block_size;
 	eoffset >>= radeon_vm_block_size;
 
-	BUG_ON(eoffset >= radeon_vm_num_pdes(rdev));
+	_ON(eoffset >= radeon_vm_num_pdes(rdev));
 
 	if (eoffset > vm->max_pde_used)
 		vm->max_pde_used = eoffset;

@@ -265,7 +265,7 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 	 *    insufficent MTU.
 	 */
 	features = netif_skb_features(skb);
-	BUILD_BUG_ON(sizeof(*IPCB(skb)) > SKB_SGO_CB_OFFSET);
+	BUILD__ON(sizeof(*IPCB(skb)) > SKB_SGO_CB_OFFSET);
 	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
 	if (IS_ERR_OR_NULL(segs)) {
 		kfree_skb(skb);
@@ -416,7 +416,7 @@ int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb)
  */
 static void ip_copy_addrs(struct iphdr *iph, const struct flowi4 *fl4)
 {
-	BUILD_BUG_ON(offsetof(typeof(*fl4), daddr) !=
+	BUILD__ON(offsetof(typeof(*fl4), daddr) !=
 		     offsetof(typeof(*fl4), saddr) + sizeof(fl4->saddr));
 	memcpy(&iph->saddr, &fl4->saddr,
 	       sizeof(fl4->saddr) + sizeof(fl4->daddr));
@@ -634,7 +634,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			if (skb_shared(frag))
 				goto slow_path_clean;
 
-			BUG_ON(frag->sk);
+			_ON(frag->sk);
 			if (skb->sk) {
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
@@ -774,7 +774,7 @@ slow_path:
 		 *	Copy a block of the IP datagram.
 		 */
 		if (skb_copy_bits(skb, ptr, skb_transport_header(skb2), len))
-			BUG();
+			();
 		left -= len;
 
 		/*

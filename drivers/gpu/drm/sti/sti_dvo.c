@@ -6,7 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -147,7 +147,7 @@ static void dvo_awg_configure(struct sti_dvo *dvo, u32 *awg_ram_code, int nb)
 {
 	int i;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	for (i = 0; i < nb; i++)
 		writel(awg_ram_code[i],
@@ -190,20 +190,20 @@ static int dvo_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list dvo_debugfs_files[] = {
+static struct drm_info_list dvo_defs_files[] = {
 	{ "dvo", dvo_dbg_show, 0, NULL },
 };
 
-static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_minor *minor)
+static int dvo_defs_init(struct sti_dvo *dvo, struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(dvo_debugfs_files); i++)
-		dvo_debugfs_files[i].data = dvo;
+	for (i = 0; i < ARRAY_SIZE(dvo_defs_files); i++)
+		dvo_defs_files[i].data = dvo;
 
-	return drm_debugfs_create_files(dvo_debugfs_files,
-					ARRAY_SIZE(dvo_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(dvo_defs_files,
+					ARRAY_SIZE(dvo_defs_files),
+					minor->defs_root, minor);
 }
 
 static void sti_dvo_disable(struct drm_bridge *bridge)
@@ -213,7 +213,7 @@ static void sti_dvo_disable(struct drm_bridge *bridge)
 	if (!dvo->enabled)
 		return;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (dvo->config->awg_fwgen_fct)
 		writel(0x00000000, dvo->regs + DVO_AWG_DIGSYNC_CTRL);
@@ -236,7 +236,7 @@ static void sti_dvo_pre_enable(struct drm_bridge *bridge)
 	struct dvo_config *config = dvo->config;
 	u32 val;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (dvo->enabled)
 		return;
@@ -286,7 +286,7 @@ static void sti_dvo_set_mode(struct drm_bridge *bridge,
 	struct clk *clkp;
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	memcpy(&dvo->mode, mode, sizeof(struct drm_display_mode));
 
@@ -359,11 +359,11 @@ static int sti_dvo_connector_mode_valid(struct drm_connector *connector,
 
 	result = clk_round_rate(dvo->clk_pix, target);
 
-	DRM_DEBUG_DRIVER("target rate = %d => available rate = %d\n",
+	DRM_DE_DRIVER("target rate = %d => available rate = %d\n",
 			 target, result);
 
 	if ((result < target_min) || (result > target_max)) {
-		DRM_DEBUG_DRIVER("dvo pixclk=%d not supported\n", target);
+		DRM_DE_DRIVER("dvo pixclk=%d not supported\n", target);
 		return MODE_BAD;
 	}
 
@@ -383,7 +383,7 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 		= to_sti_dvo_connector(connector);
 	struct sti_dvo *dvo = dvo_connector->dvo;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (!dvo->panel) {
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
@@ -405,8 +405,8 @@ static int sti_dvo_late_register(struct drm_connector *connector)
 		= to_sti_dvo_connector(connector);
 	struct sti_dvo *dvo = dvo_connector->dvo;
 
-	if (dvo_debugfs_init(dvo, dvo->drm_dev->primary)) {
-		DRM_ERROR("DVO debugfs setup failed\n");
+	if (dvo_defs_init(dvo, dvo->drm_dev->primary)) {
+		DRM_ERROR("DVO defs setup failed\n");
 		return -EINVAL;
 	}
 
@@ -553,13 +553,13 @@ static int sti_dvo_probe(struct platform_device *pdev)
 
 	dvo->clk_main_parent = devm_clk_get(dev, "main_parent");
 	if (IS_ERR(dvo->clk_main_parent)) {
-		DRM_DEBUG_DRIVER("Cannot get main_parent clock\n");
+		DRM_DE_DRIVER("Cannot get main_parent clock\n");
 		dvo->clk_main_parent = NULL;
 	}
 
 	dvo->clk_aux_parent = devm_clk_get(dev, "aux_parent");
 	if (IS_ERR(dvo->clk_aux_parent)) {
-		DRM_DEBUG_DRIVER("Cannot get aux_parent clock\n");
+		DRM_DE_DRIVER("Cannot get aux_parent clock\n");
 		dvo->clk_aux_parent = NULL;
 	}
 

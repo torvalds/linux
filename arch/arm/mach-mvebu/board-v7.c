@@ -108,7 +108,7 @@ static void __init mvebu_init_irq(void)
 	irqchip_init();
 	mvebu_scu_enable();
 	coherency_init();
-	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
+	_ON(mvebu_mbus_dt_init(coherency_available()));
 }
 
 static void __init i2c_quirk(void)

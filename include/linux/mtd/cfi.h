@@ -22,7 +22,7 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/map.h>
@@ -76,7 +76,7 @@
 #warning No CONFIG_MTD_CFI_Ix selected. No NOR chip support can work.
 static inline int cfi_interleave(void *cfi)
 {
-	BUG();
+	();
 	return 0;
 }
 #endif

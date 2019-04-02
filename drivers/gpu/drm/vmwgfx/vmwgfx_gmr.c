@@ -96,7 +96,7 @@ static int vmw_gmr2_bind(struct vmw_private *dev_priv,
 		remap_pos += nr;
 	}
 
-	BUG_ON(cmd != cmd_orig + cmd_size / sizeof(*cmd));
+	_ON(cmd != cmd_orig + cmd_size / sizeof(*cmd));
 
 	vmw_fifo_commit(dev_priv, cmd_size);
 

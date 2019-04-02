@@ -2046,7 +2046,7 @@ static int rs_check_reshape(struct raid_set *rs)
 
 static int read_disk_sb(struct md_rdev *rdev, int size, bool force_reload)
 {
-	BUG_ON(!rdev->sb_page);
+	_ON(!rdev->sb_page);
 
 	if (rdev->sb_loaded && !force_reload)
 		return 0;
@@ -2105,7 +2105,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 	if (!rdev->meta_bdev)
 		return;
 
-	BUG_ON(!rdev->sb_page);
+	_ON(!rdev->sb_page);
 
 	sb = page_address(rdev->sb_page);
 

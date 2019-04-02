@@ -178,7 +178,7 @@ void pps_event(struct pps_device *pps, struct pps_event_time *ts, int event,
 	struct pps_ktime ts_real = { .sec = 0, .nsec = 0, .flags = 0 };
 
 	/* check event type */
-	BUG_ON((event & (PPS_CAPTUREASSERT | PPS_CAPTURECLEAR)) == 0);
+	_ON((event & (PPS_CAPTUREASSERT | PPS_CAPTURECLEAR)) == 0);
 
 	dev_dbg(pps->dev, "PPS event at %lld.%09ld\n",
 			(s64)ts->ts_real.tv_sec, ts->ts_real.tv_nsec);

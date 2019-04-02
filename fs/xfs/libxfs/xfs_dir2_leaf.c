@@ -37,7 +37,7 @@ static void xfs_dir3_leaf_log_tail(struct xfs_da_args *args,
  * Check the internal consistency of a leaf1 block.
  * Pop an assert if something is wrong.
  */
-#ifdef DEBUG
+#ifdef DE
 static xfs_failaddr_t
 xfs_dir3_leaf1_check(
 	struct xfs_inode	*dp,
@@ -136,7 +136,7 @@ xfs_dir3_leaf_check_int(
 }
 
 /*
- * We verify the magic numbers before decoding the leaf header so that on debug
+ * We verify the magic numbers before decoding the leaf header so that on de
  * kernels we don't get assertion failures in xfs_dir3_leaf_hdr_from_disk() due
  * to incorrect magic numbers.
  */
@@ -1576,7 +1576,7 @@ xfs_dir2_leaf_trim_data(
 	leaf = lbp->b_addr;
 	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 
-#ifdef DEBUG
+#ifdef DE
 {
 	struct xfs_dir2_data_hdr *hdr = dbp->b_addr;
 	struct xfs_dir2_data_free *bf = dp->d_ops->data_bestfree_p(hdr);

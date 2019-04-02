@@ -28,7 +28,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
- * Known bugs:
+ * Known s:
  * We suspect that on some hardware no TX done interrupts are generated.
  * This means recovery from netif_stop_queue only happens if the hw timer
  * interrupt fires (100 times/second, configurable with NVREG_POLL_DEFAULT)
@@ -914,9 +914,9 @@ enum {
 static int dma_64bit = NV_DMA_64BIT_ENABLED;
 
 /*
- * Debug output control for tx_timeout
+ * De output control for tx_timeout
  */
-static bool debug_tx_timeout = false;
+static bool de_tx_timeout = false;
 
 /*
  * Crossover Detection
@@ -2688,7 +2688,7 @@ static void nv_tx_timeout(struct net_device *dev)
 
 	netdev_warn(dev, "Got tx_timeout. irq status: %08x\n", status);
 
-	if (unlikely(debug_tx_timeout)) {
+	if (unlikely(de_tx_timeout)) {
 		int i;
 
 		netdev_info(dev, "Ring at %lx\n", (unsigned long)np->ring_addr);
@@ -5928,7 +5928,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		np->need_linktimer = 0;
 	}
 
-	/* Limit the number of tx's outstanding for hw bug */
+	/* Limit the number of tx's outstanding for hw  */
 	if (id->driver_data & DEV_NEED_TX_LIMIT) {
 		np->tx_limit = 1;
 		if (((id->driver_data & DEV_NEED_TX_LIMIT2) == DEV_NEED_TX_LIMIT2) &&
@@ -6410,8 +6410,8 @@ module_param(phy_cross, int, 0);
 MODULE_PARM_DESC(phy_cross, "Phy crossover detection for Realtek 8201 phy is enabled by setting to 1 and disabled by setting to 0.");
 module_param(phy_power_down, int, 0);
 MODULE_PARM_DESC(phy_power_down, "Power down phy and disable link when interface is down (1), or leave phy powered up (0).");
-module_param(debug_tx_timeout, bool, 0);
-MODULE_PARM_DESC(debug_tx_timeout,
+module_param(de_tx_timeout, bool, 0);
+MODULE_PARM_DESC(de_tx_timeout,
 		 "Dump tx related registers and ring when tx_timeout happens");
 
 module_pci_driver(forcedeth_pci_driver);

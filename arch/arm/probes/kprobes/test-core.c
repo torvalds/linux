@@ -207,7 +207,7 @@
 #include <linux/kprobes.h>
 #include <linux/errno.h>
 #include <linux/stddef.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/opcodes.h>
 
 #include "core.h"
@@ -1180,7 +1180,7 @@ static int register_test_probe(struct test_probe *probe)
 	int ret;
 
 	if (probe->registered)
-		BUG();
+		();
 
 	ret = register_kprobe(&probe->kprobe);
 	if (ret >= 0) {

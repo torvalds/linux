@@ -83,7 +83,7 @@ static int print_bpf_output(void *data, int size)
 	int i;
 
 	if (e->cookie != 0xdead) {
-		printf("BUG cookie %x sized %d\n",
+		printf(" cookie %x sized %d\n",
 		       e->cookie, size);
 		return LIBBPF_PERF_EVENT_ERROR;
 	}

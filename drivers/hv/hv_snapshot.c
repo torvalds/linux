@@ -111,7 +111,7 @@ static void vss_timeout_func(struct work_struct *dummy)
 static void vss_register_done(void)
 {
 	hv_poll_channel(vss_transaction.recv_channel, vss_poll_wrapper);
-	pr_debug("VSS: userspace daemon registered\n");
+	pr_de("VSS: userspace daemon registered\n");
 }
 
 static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
@@ -142,7 +142,7 @@ static int vss_on_msg(void *msg, int len)
 	struct hv_vss_msg *vss_msg = (struct hv_vss_msg *)msg;
 
 	if (len != sizeof(*vss_msg)) {
-		pr_debug("VSS: Message size does not match length\n");
+		pr_de("VSS: Message size does not match length\n");
 		return -EINVAL;
 	}
 
@@ -153,7 +153,7 @@ static int vss_on_msg(void *msg, int len)
 		 * of a transaction processing.
 		 */
 		if (vss_transaction.state > HVUTIL_READY) {
-			pr_debug("VSS: Got unexpected registration request\n");
+			pr_de("VSS: Got unexpected registration request\n");
 			return -EINVAL;
 		}
 
@@ -173,7 +173,7 @@ static int vss_on_msg(void *msg, int len)
 		}
 	} else {
 		/* This is a spurious call! */
-		pr_debug("VSS: Transaction not active\n");
+		pr_de("VSS: Transaction not active\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -187,7 +187,7 @@ static void vss_send_op(void)
 
 	/* The transaction state is wrong. */
 	if (vss_transaction.state != HVUTIL_HOSTMSG_RECEIVED) {
-		pr_debug("VSS: Unexpected attempt to send to daemon\n");
+		pr_de("VSS: Unexpected attempt to send to daemon\n");
 		return;
 	}
 
@@ -229,12 +229,12 @@ static void vss_handle_request(struct work_struct *dummy)
 	case VSS_OP_HOT_BACKUP:
 		if (vss_transaction.state < HVUTIL_READY) {
 			/* Userspace is not registered yet */
-			pr_debug("VSS: Not ready for request.\n");
+			pr_de("VSS: Not ready for request.\n");
 			vss_respond_to_host(HV_E_FAIL);
 			return;
 		}
 
-		pr_debug("VSS: Received request for op code: %d\n",
+		pr_de("VSS: Received request for op code: %d\n",
 			vss_transaction.msg->vss_hdr.operation);
 		vss_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
 		vss_send_op();

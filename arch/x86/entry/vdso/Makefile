@@ -62,7 +62,7 @@ $(obj)/vdso-image-%.c: $(obj)/vdso%.so.dbg $(obj)/vdso%.so $(obj)/vdso2c FORCE
 	$(call if_changed,vdso2c)
 
 #
-# Don't omit frame pointers for ease of userspace debugging, but do
+# Don't omit frame pointers for ease of userspace deging, but do
 # optimize sibling calls.
 #
 CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \
@@ -187,7 +187,7 @@ define cmd_vdso_install
 	  first=`echo $$buildid | cut -b-2`; \
 	  last=`echo $$buildid | cut -b3-`; \
 	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
-	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
+	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.de"; \
 	fi
 endef
 

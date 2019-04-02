@@ -23,7 +23,7 @@
 
 #include "ath5k.h"
 #include "reg.h"
-#include "debug.h"
+#include "de.h"
 
 /**
  * struct ath5k_ini - Mode-independent initial register writes

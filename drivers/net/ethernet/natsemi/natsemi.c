@@ -69,7 +69,7 @@
 				 NETIF_MSG_WOL		| \
 				 NETIF_MSG_RX_ERR	| \
 				 NETIF_MSG_TX_ERR)
-static int debug = -1;
+static int de = -1;
 
 static int mtu;
 
@@ -138,13 +138,13 @@ MODULE_DESCRIPTION("National Semiconductor DP8381x series PCI Ethernet driver");
 MODULE_LICENSE("GPL");
 
 module_param(mtu, int, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(dspcfg_workaround, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 MODULE_PARM_DESC(mtu, "DP8381x MTU (all boards)");
-MODULE_PARM_DESC(debug, "DP8381x default debug level");
+MODULE_PARM_DESC(de, "DP8381x default de level");
 MODULE_PARM_DESC(rx_copybreak,
 	"DP8381x copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(dspcfg_workaround, "DP8381x: control DspCfg workaround");
@@ -874,7 +874,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 	np->iosize = iosize;
 	spin_lock_init(&np->lock);
-	np->msg_enable = (debug >= 0) ? (1<<debug)-1 : NATSEMI_DEF_MSG;
+	np->msg_enable = (de >= 0) ? (1<<de)-1 : NATSEMI_DEF_MSG;
 	np->hands_off = 0;
 	np->intr_status = 0;
 	np->eeprom_size = natsemi_pci_info[chip_idx].eeprom_size;
@@ -988,7 +988,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 /* Delay between EEPROM clock transitions.
    No extra delay is needed with 33Mhz PCI, but future 66Mhz access may need
-   a delay.  Note that pre-2.0.34 kernels had a cache-alignment bug that
+   a delay.  Note that pre-2.0.34 kernels had a cache-alignment  that
    made udelay() unreliable.
    The old method of using an ISA access as a delay, __SLOW_DOWN_IO__, is
    deprecated.
@@ -1431,7 +1431,7 @@ static void natsemi_reset(struct net_device *dev)
 		printk(KERN_WARNING "%s: reset did not complete in %d usec.\n",
 			dev->name, i*5);
 	} else if (netif_msg_hw(np)) {
-		printk(KERN_DEBUG "%s: reset completed in %d usec.\n",
+		printk(KERN_DE "%s: reset completed in %d usec.\n",
 			dev->name, i*5);
 	}
 
@@ -1502,7 +1502,7 @@ static void natsemi_reload_eeprom(struct net_device *dev)
 		printk(KERN_WARNING "natsemi %s: EEPROM did not reload in %d usec.\n",
 			pci_name(np->pci_dev), i*50);
 	} else if (netif_msg_hw(np)) {
-		printk(KERN_DEBUG "natsemi %s: EEPROM reloaded in %d usec.\n",
+		printk(KERN_DE "natsemi %s: EEPROM reloaded in %d usec.\n",
 			pci_name(np->pci_dev), i*50);
 	}
 }
@@ -1523,7 +1523,7 @@ static void natsemi_stop_rxtx(struct net_device *dev)
 		printk(KERN_WARNING "%s: Tx/Rx process did not stop in %d usec.\n",
 			dev->name, i*5);
 	} else if (netif_msg_hw(np)) {
-		printk(KERN_DEBUG "%s: Tx/Rx process stopped in %d usec.\n",
+		printk(KERN_DE "%s: Tx/Rx process stopped in %d usec.\n",
 			dev->name, i*5);
 	}
 }
@@ -1542,7 +1542,7 @@ static int netdev_open(struct net_device *dev)
 	if (i) return i;
 
 	if (netif_msg_ifup(np))
-		printk(KERN_DEBUG "%s: netdev_open() irq %d.\n",
+		printk(KERN_DE "%s: netdev_open() irq %d.\n",
 			dev->name, irq);
 	i = alloc_ring(dev);
 	if (i < 0) {
@@ -1567,7 +1567,7 @@ static int netdev_open(struct net_device *dev)
 	netif_start_queue(dev);
 
 	if (netif_msg_ifup(np))
-		printk(KERN_DEBUG "%s: Done netdev_open(), status: %#08x.\n",
+		printk(KERN_DE "%s: Done netdev_open(), status: %#08x.\n",
 			dev->name, (int)readl(ioaddr + ChipCmd));
 
 	/* Set the timer to check for link beat. */
@@ -1611,7 +1611,7 @@ static void do_cable_magic(struct net_device *dev)
 		if (!(data & 0x80) || ((data >= 0xd8) && (data <= 0xff))) {
 			np = netdev_priv(dev);
 
-			/* the bug has been triggered - fix the coefficient */
+			/* the  has been triggered - fix the coefficient */
 			writew(TSTDAT_FIXED, ioaddr + TSTDAT);
 			/* lock the value */
 			data = readw(ioaddr + DSPCFG);
@@ -1799,7 +1799,7 @@ static void netdev_timer(struct timer_list *t)
 		/* DO NOT read the IntrStatus register,
 		 * a read clears any pending interrupts.
 		 */
-		printk(KERN_DEBUG "%s: Media selection timer tick.\n",
+		printk(KERN_DE "%s: Media selection timer tick.\n",
 			dev->name);
 	}
 
@@ -1864,16 +1864,16 @@ static void dump_ring(struct net_device *dev)
 
 	if (netif_msg_pktdata(np)) {
 		int i;
-		printk(KERN_DEBUG "  Tx ring at %p:\n", np->tx_ring);
+		printk(KERN_DE "  Tx ring at %p:\n", np->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++) {
-			printk(KERN_DEBUG " #%d desc. %#08x %#08x %#08x.\n",
+			printk(KERN_DE " #%d desc. %#08x %#08x %#08x.\n",
 				i, np->tx_ring[i].next_desc,
 				np->tx_ring[i].cmd_status,
 				np->tx_ring[i].addr);
 		}
-		printk(KERN_DEBUG "  Rx ring %p:\n", np->rx_ring);
+		printk(KERN_DE "  Rx ring %p:\n", np->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++) {
-			printk(KERN_DEBUG " #%d desc. %#08x %#08x %#08x.\n",
+			printk(KERN_DE " #%d desc. %#08x %#08x %#08x.\n",
 				i, np->rx_ring[i].next_desc,
 				np->rx_ring[i].cmd_status,
 				np->rx_ring[i].addr);
@@ -2134,7 +2134,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&np->lock, flags);
 
 	if (netif_msg_tx_queued(np)) {
-		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d.\n",
+		printk(KERN_DE "%s: Transmit frame #%d queued in slot %d.\n",
 			dev->name, np->cur_tx, entry);
 	}
 	return NETDEV_TX_OK;
@@ -2149,7 +2149,7 @@ static void netdev_tx_done(struct net_device *dev)
 		if (np->tx_ring[entry].cmd_status & cpu_to_le32(DescOwn))
 			break;
 		if (netif_msg_tx_done(np))
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"%s: tx frame #%d finished, status %#08x.\n",
 					dev->name, np->dirty_tx,
 					le32_to_cpu(np->tx_ring[entry].cmd_status));
@@ -2203,7 +2203,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		return IRQ_NONE;
 
 	if (netif_msg_intr(np))
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: Interrupt, status %#08x, mask %#08x.\n",
 		       dev->name, np->intr_status,
 		       readl(ioaddr + IntrMask));
@@ -2235,7 +2235,7 @@ static int natsemi_poll(struct napi_struct *napi, int budget)
 
 	do {
 		if (netif_msg_intr(np))
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "%s: Poll, status %#08x, mask %#08x.\n",
 			       dev->name, np->intr_status,
 			       readl(ioaddr + IntrMask));
@@ -2292,7 +2292,7 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 	while (desc_status < 0) { /* e.g. & DescOwn */
 		int pkt_len;
 		if (netif_msg_rx_status(np))
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"  netdev_rx() entry %d status was %#08x.\n",
 				entry, desc_status);
 		if (--boguscnt < 0)
@@ -3165,11 +3165,11 @@ static int netdev_close(struct net_device *dev)
 	const int irq = np->pci_dev->irq;
 
 	if (netif_msg_ifdown(np))
-		printk(KERN_DEBUG
+		printk(KERN_DE
 			"%s: Shutting down ethercard, status was %#04x.\n",
 			dev->name, (int)readl(ioaddr + ChipCmd));
 	if (netif_msg_pktdata(np))
-		printk(KERN_DEBUG
+		printk(KERN_DE
 			"%s: Queue pointers were Tx %d / %d,  Rx %d / %d.\n",
 			dev->name, np->cur_tx, np->dirty_tx,
 			np->cur_rx, np->dirty_rx);
@@ -3338,7 +3338,7 @@ static int natsemi_resume (struct pci_dev *pdev)
 	if (netif_running(dev)) {
 		const int irq = np->pci_dev->irq;
 
-		BUG_ON(!np->hands_off);
+		_ON(!np->hands_off);
 		ret = pci_enable_device(pdev);
 		if (ret < 0) {
 			dev_err(&pdev->dev,

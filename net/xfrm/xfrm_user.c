@@ -992,7 +992,7 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 	struct xfrm_state_walk *walk = (struct xfrm_state_walk *) &cb->args[1];
 	struct xfrm_dump_info info;
 
-	BUILD_BUG_ON(sizeof(struct xfrm_state_walk) >
+	BUILD__ON(sizeof(struct xfrm_state_walk) >
 		     sizeof(cb->args) - sizeof(cb->args[0]));
 
 	info.in_skb = cb->skb;
@@ -1193,7 +1193,7 @@ static int xfrm_get_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENOMEM;
 
 	err = build_spdinfo(r_skb, net, sportid, seq, *flags);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return nlmsg_unicast(net->xfrm.nlsk, r_skb, sportid);
 }
@@ -1252,7 +1252,7 @@ static int xfrm_get_sadinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENOMEM;
 
 	err = build_sadinfo(r_skb, net, sportid, seq, *flags);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return nlmsg_unicast(net->xfrm.nlsk, r_skb, sportid);
 }
@@ -1795,7 +1795,7 @@ static int xfrm_dump_policy_start(struct netlink_callback *cb)
 {
 	struct xfrm_policy_walk *walk = (struct xfrm_policy_walk *)cb->args;
 
-	BUILD_BUG_ON(sizeof(*walk) > sizeof(cb->args));
+	BUILD__ON(sizeof(*walk) > sizeof(cb->args));
 
 	xfrm_policy_walk_init(walk, XFRM_POLICY_TYPE_ANY);
 	return 0;
@@ -2060,7 +2060,7 @@ static int xfrm_get_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	c.portid = nlh->nlmsg_pid;
 
 	err = build_aevent(r_skb, x, &c);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	err = nlmsg_unicast(net->xfrm.nlsk, r_skb, NETLINK_CB(skb).portid);
 	spin_unlock_bh(&x->lock);
@@ -2501,7 +2501,7 @@ static int xfrm_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 
 	/* build migrate */
 	err = build_migrate(skb, m, num_migrate, k, sel, encap, dir, type);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_MIGRATE);
 }
@@ -2739,7 +2739,7 @@ static int xfrm_aevent_state_notify(struct xfrm_state *x, const struct km_event 
 		return -ENOMEM;
 
 	err = build_aevent(skb, x, c);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_AEVENTS);
 }
@@ -2959,7 +2959,7 @@ static int xfrm_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *xt,
 		return -ENOMEM;
 
 	err = build_acquire(skb, x, xt, xp);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_ACQUIRE);
 }
@@ -3077,7 +3077,7 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, const struct 
 		return -ENOMEM;
 
 	err = build_polexpire(skb, xp, dir, c);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_EXPIRE);
 }
@@ -3241,7 +3241,7 @@ static int xfrm_send_report(struct net *net, u8 proto,
 		return -ENOMEM;
 
 	err = build_report(skb, proto, sel, addr);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_REPORT);
 }
@@ -3295,7 +3295,7 @@ static int xfrm_send_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr,
 		return -ENOMEM;
 
 	err = build_mapping(skb, x, ipaddr, sport);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	return xfrm_nlmsg_multicast(net, skb, 0, XFRMNLGRP_MAPPING);
 }

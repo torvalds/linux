@@ -195,7 +195,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 	}
 	reg = ret;
 
-	if (reg & WM831X_WDOG_DEBUG)
+	if (reg & WM831X_WDOG_DE)
 		dev_warn(wm831x->dev, "Watchdog is paused\n");
 
 	driver_data = devm_kzalloc(&pdev->dev, sizeof(*driver_data),

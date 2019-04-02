@@ -628,8 +628,8 @@
 #define   HOST_ENTER_S3			2
 
 #define SDIO_CFG			0xFE70
-#define PM_EVENT_DEBUG			0xFE71
-#define   PME_DEBUG_0			0x08
+#define PM_EVENT_DE			0xFE71
+#define   PME_DE_0			0x08
 #define NFTS_TX_CTRL			0xFE72
 
 #define PWR_GATE_CTRL			0xFE75
@@ -942,7 +942,7 @@
 #define _PHY_ANA03			0x03
 #define   _PHY_ANA03_TIMER_MAX		0x2700
 #define   _PHY_ANA03_OOBS_DEB_EN	0x0040
-#define   _PHY_CMU_DEBUG_EN		0x0008
+#define   _PHY_CMU_DE_EN		0x0008
 
 #define PHY_RTCR			0x04
 #define PHY_RDR				0x05
@@ -1021,7 +1021,7 @@
 #define   PHY_FLD3_RXDELINK		0x0004
 #define   PHY_FLD3_INIT_27S		0x0004
 #define PHY_ANA1D			0x1D
-#define   PHY_ANA1D_DEBUG_ADDR		0x0004
+#define   PHY_ANA1D_DE_ADDR		0x0004
 #define _PHY_FLD0			0x1D
 #define   _PHY_FLD0_CLK_REQ_20C		0x8000
 #define   _PHY_FLD0_RX_IDLE_EN		0x1000

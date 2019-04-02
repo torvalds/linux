@@ -175,7 +175,7 @@ static int sm_disk_new_block(struct dm_space_map *sm, dm_block_t *b)
 	smd->begin = *b + 1;
 	r = sm_ll_inc(&smd->ll, *b, &ev);
 	if (!r) {
-		BUG_ON(ev != SM_ALLOC);
+		_ON(ev != SM_ALLOC);
 		smd->nr_allocated_this_transaction++;
 	}
 

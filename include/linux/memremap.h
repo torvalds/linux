@@ -69,7 +69,7 @@ enum memory_type {
  * explanation in include/linux/memory_hotplug.h.
  *
  * The page_free() callback is called once the page refcount reaches 1
- * (ZONE_DEVICE pages never reach 0 refcount unless there is a refcount bug.
+ * (ZONE_DEVICE pages never reach 0 refcount unless there is a refcount .
  * This allows the device driver to implement its own memory management.)
  */
 typedef void (*dev_page_free_t)(struct page *page, void *data);
@@ -81,7 +81,7 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
  * @res: physical address range covered by @ref
  * @ref: reference count that pins the devm_memremap_pages() mapping
  * @kill: callback to transition @ref to the dead state
- * @dev: host device of the mapping for debug
+ * @dev: host device of the mapping for de
  * @data: private data pointer for page_free()
  * @type: memory type: see MEMORY_* in memory_hotplug.h
  */

@@ -40,12 +40,12 @@
 
 #if 0
 #define dprintk(format, args...) \
-	printk(KERN_DEBUG "mpoa:%s: " format, __func__, ##args)
+	printk(KERN_DE "mpoa:%s: " format, __func__, ##args)
 #define dprintk_cont(format, args...) printk(KERN_CONT format, ##args)
 #else
 #define dprintk(format, args...)					\
 	do { if (0)							\
-		printk(KERN_DEBUG "mpoa:%s: " format, __func__, ##args);\
+		printk(KERN_DE "mpoa:%s: " format, __func__, ##args);\
 	} while (0)
 #define dprintk_cont(format, args...)			\
 	do { if (0) printk(KERN_CONT format, ##args); } while (0)
@@ -53,12 +53,12 @@
 
 #if 0
 #define ddprintk(format, args...) \
-	printk(KERN_DEBUG "mpoa:%s: " format, __func__, ##args)
+	printk(KERN_DE "mpoa:%s: " format, __func__, ##args)
 #define ddprintk_cont(format, args...) printk(KERN_CONT format, ##args)
 #else
 #define ddprintk(format, args...)					\
 	do { if (0)							\
-		printk(KERN_DEBUG "mpoa:%s: " format, __func__, ##args);\
+		printk(KERN_DE "mpoa:%s: " format, __func__, ##args);\
 	} while (0)
 #define ddprintk_cont(format, args...)			\
 	do { if (0) printk(KERN_CONT format, ##args); } while (0)
@@ -240,7 +240,7 @@ int atm_mpoa_delete_qos(struct atm_mpoa_qos *entry)
 	return 0;
 }
 
-/* this is buggered - we need locking for qos_head */
+/* this is gered - we need locking for qos_head */
 void atm_mpoa_disp_qos(struct seq_file *m)
 {
 	struct atm_mpoa_qos *qos;

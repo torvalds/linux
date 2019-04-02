@@ -9,12 +9,12 @@
 #include <linux/cdrom.h>
 #include <asm/byteorder.h>
 
-#define IDECD_DEBUG_LOG		0
+#define IDECD_DE_LOG		0
 
-#if IDECD_DEBUG_LOG
-#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, ## args)
+#if IDECD_DE_LOG
+#define ide_de_log(lvl, fmt, args...) __ide_de_log(lvl, fmt, ## args)
 #else
-#define ide_debug_log(lvl, fmt, args...) do {} while (0)
+#define ide_de_log(lvl, fmt, args...) do {} while (0)
 #endif
 
 #define ATAPI_WAIT_WRITE_BUSY	(10 * HZ)

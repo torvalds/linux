@@ -63,11 +63,11 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
  * We will not find block in two cases
  *  a) when its small message and block in not there, so silently ignore
  *  them
- *  b) when we are actually not able to find the block (bug perhaps)
+ *  b) when we are actually not able to find the block ( perhaps)
  *
  *  Since we have bit of small messages we can spam kernel log with err
- *  print on above so need to keep as debug prints which should be enabled
- *  via dynamic debug while debugging IPC issues
+ *  print on above so need to keep as de prints which should be enabled
+ *  via dynamic de while deging IPC issues
  */
 int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 		u32 drv_id, u32 ipc, void *data, u32 size)
@@ -106,7 +106,7 @@ int sst_free_block(struct intel_sst_drv *ctx, struct sst_block *freed)
 	spin_lock_bh(&ctx->block_lock);
 	list_for_each_entry_safe(block, __block, &ctx->block_list, node) {
 		if (block == freed) {
-			pr_debug("pvt_id freed --> %d\n", freed->drv_id);
+			pr_de("pvt_id freed --> %d\n", freed->drv_id);
 			/* toggle the index position of pvt_id */
 			list_del(&freed->node);
 			spin_unlock_bh(&ctx->block_lock);
@@ -219,7 +219,7 @@ void intel_sst_clear_intr_mrfld(struct intel_sst_drv *sst_drv_ctx)
  * @msg: IPC message mailbox data from FW
  *
  * This function processes the FW init msg from FW
- * marks FW state and prints debug info of loaded FW
+ * marks FW state and prints de info of loaded FW
  */
 static void process_fw_init(struct intel_sst_drv *sst_drv_ctx,
 			void *msg)
@@ -301,7 +301,7 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 	case IPC_IA_FW_ASYNC_ERR_MRFLD:
 		dev_err(sst_drv_ctx->dev, "FW sent async error msg:\n");
 		for (i = 0; i < (data_size/4); i++)
-			print_hex_dump(KERN_DEBUG, NULL, DUMP_PREFIX_NONE,
+			print_hex_dump(KERN_DE, NULL, DUMP_PREFIX_NONE,
 					16, 4, data_offset, data_size, false);
 		break;
 

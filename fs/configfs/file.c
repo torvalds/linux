@@ -80,7 +80,7 @@ static int fill_read_buffer(struct dentry * dentry, struct configfs_buffer * buf
 
 	count = attr->show(item, buffer->page);
 
-	BUG_ON(count > (ssize_t)SIMPLE_ATTR_SIZE);
+	_ON(count > (ssize_t)SIMPLE_ATTR_SIZE);
 	if (count >= 0) {
 		buffer->needs_read_fill = 0;
 		buffer->count = count;
@@ -119,7 +119,7 @@ configfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *pp
 		if ((retval = fill_read_buffer(file->f_path.dentry,buffer)))
 			goto out;
 	}
-	pr_debug("%s: count = %zd, ppos = %lld, buf = %s\n",
+	pr_de("%s: count = %zd, ppos = %lld, buf = %s\n",
 		 __func__, count, *ppos, buffer->page);
 	retval = simple_read_from_buffer(buf, count, ppos, buffer->page,
 					 buffer->count);

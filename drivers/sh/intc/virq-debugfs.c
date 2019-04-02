@@ -1,5 +1,5 @@
 /*
- * Support for virtual IRQ subgroups debugfs mapping.
+ * Support for virtual IRQ subgroups defs mapping.
  *
  * Copyright (C) 2010  Paul Mundt
  *
@@ -13,10 +13,10 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "internals.h"
 
-static int intc_irq_xlate_debug(struct seq_file *m, void *priv)
+static int intc_irq_xlate_de(struct seq_file *m, void *priv)
 {
 	int i;
 
@@ -39,7 +39,7 @@ static int intc_irq_xlate_debug(struct seq_file *m, void *priv)
 
 static int intc_irq_xlate_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, intc_irq_xlate_debug, inode->i_private);
+	return single_open(file, intc_irq_xlate_de, inode->i_private);
 }
 
 static const struct file_operations intc_irq_xlate_fops = {
@@ -52,10 +52,10 @@ static const struct file_operations intc_irq_xlate_fops = {
 static int __init intc_irq_xlate_init(void)
 {
 	/*
-	 * XXX.. use arch_debugfs_dir here when all of the intc users are
+	 * XXX.. use arch_defs_dir here when all of the intc users are
 	 * converted.
 	 */
-	if (debugfs_create_file("intc_irq_xlate", S_IRUGO, NULL, NULL,
+	if (defs_create_file("intc_irq_xlate", S_IRUGO, NULL, NULL,
 				&intc_irq_xlate_fops) == NULL)
 		return -ENOMEM;
 

@@ -35,7 +35,7 @@ static struct file *ovl_open_realfile(const struct file *file,
 				       realinode, current_cred());
 	revert_creds(old_cred);
 
-	pr_debug("open(%p[%pD2/%c], 0%o) -> (%p, 0%o)\n",
+	pr_de("open(%p[%pD2/%c], 0%o) -> (%p, 0%o)\n",
 		 file, file, ovl_whatisit(inode, realinode), file->f_flags,
 		 realfile, IS_ERR(realfile) ? 0 : realfile->f_flags);
 

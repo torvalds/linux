@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Xilinx Zynq MPSoC Firmware layer for debugfs APIs
+ * Xilinx Zynq MPSoC Firmware layer for defs APIs
  *
  *  Copyright (C) 2014-2018 Xilinx, Inc.
  *
@@ -13,11 +13,11 @@
 #include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 
 #include <linux/firmware/xlnx-zynqmp.h>
-#include "zynqmp-debug.h"
+#include "zynqmp-de.h"
 
 #define PM_API_NAME_LEN			50
 
@@ -27,7 +27,7 @@ struct pm_api_info {
 	char api_name_len;
 };
 
-static char debugfs_buf[PAGE_SIZE];
+static char defs_buf[PAGE_SIZE];
 
 #define PM_API(id)		 {id, #id, strlen(#id)}
 static struct pm_api_info pm_api_list[] = {
@@ -35,7 +35,7 @@ static struct pm_api_info pm_api_list[] = {
 	PM_API(PM_QUERY_DATA),
 };
 
-struct dentry *firmware_debugfs_root;
+struct dentry *firmware_defs_root;
 
 /**
  * zynqmp_pm_argument_value() - Extract argument value from a PM-API request
@@ -96,7 +96,7 @@ static int process_api_request(u32 pm_id, u64 *pm_api_arg, u32 *pm_api_ret)
 	switch (pm_id) {
 	case PM_GET_API_VERSION:
 		ret = eemi_ops->get_api_version(&pm_api_version);
-		sprintf(debugfs_buf, "PM-API Version = %d.%d\n",
+		sprintf(defs_buf, "PM-API Version = %d.%d\n",
 			pm_api_version >> 16, pm_api_version & 0xffff);
 		break;
 	case PM_QUERY_DATA:
@@ -111,22 +111,22 @@ static int process_api_request(u32 pm_id, u64 *pm_api_arg, u32 *pm_api_ret)
 
 		switch (qdata.qid) {
 		case PM_QID_CLOCK_GET_NAME:
-			sprintf(debugfs_buf, "Clock name = %s\n",
+			sprintf(defs_buf, "Clock name = %s\n",
 				(char *)pm_api_ret);
 			break;
 		case PM_QID_CLOCK_GET_FIXEDFACTOR_PARAMS:
-			sprintf(debugfs_buf, "Multiplier = %d, Divider = %d\n",
+			sprintf(defs_buf, "Multiplier = %d, Divider = %d\n",
 				pm_api_ret[1], pm_api_ret[2]);
 			break;
 		default:
-			sprintf(debugfs_buf,
+			sprintf(defs_buf,
 				"data[0] = 0x%08x\ndata[1] = 0x%08x\n data[2] = 0x%08x\ndata[3] = 0x%08x\n",
 				pm_api_ret[0], pm_api_ret[1],
 				pm_api_ret[2], pm_api_ret[3]);
 		}
 		break;
 	default:
-		sprintf(debugfs_buf, "Unsupported PM-API request\n");
+		sprintf(defs_buf, "Unsupported PM-API request\n");
 		ret = -EINVAL;
 	}
 
@@ -134,20 +134,20 @@ static int process_api_request(u32 pm_id, u64 *pm_api_arg, u32 *pm_api_ret)
 }
 
 /**
- * zynqmp_pm_debugfs_api_write() - debugfs write function
+ * zynqmp_pm_defs_api_write() - defs write function
  * @file:	User file
  * @ptr:	User entered PM-API string
  * @len:	Length of the userspace buffer
  * @off:	Offset within the file
  *
  * Used for triggering pm api functions by writing
- * echo <pm_api_id>	> /sys/kernel/debug/zynqmp_pm/power or
- * echo <pm_api_name>	> /sys/kernel/debug/zynqmp_pm/power
+ * echo <pm_api_id>	> /sys/kernel/de/zynqmp_pm/power or
+ * echo <pm_api_name>	> /sys/kernel/de/zynqmp_pm/power
  *
  * Return: Number of bytes copied if PM-API request succeeds,
  *	   the corresponding error code otherwise
  */
-static ssize_t zynqmp_pm_debugfs_api_write(struct file *file,
+static ssize_t zynqmp_pm_defs_api_write(struct file *file,
 					   const char __user *ptr, size_t len,
 					   loff_t *off)
 {
@@ -161,7 +161,7 @@ static ssize_t zynqmp_pm_debugfs_api_write(struct file *file,
 	int ret;
 	int i = 0;
 
-	strcpy(debugfs_buf, "");
+	strcpy(defs_buf, "");
 
 	if (*off != 0 || len == 0)
 		return -EINVAL;
@@ -203,7 +203,7 @@ err:
 }
 
 /**
- * zynqmp_pm_debugfs_api_read() - debugfs read function
+ * zynqmp_pm_defs_api_read() - defs read function
  * @file:	User file
  * @ptr:	Requested pm_api_version string
  * @len:	Length of the userspace buffer
@@ -212,39 +212,39 @@ err:
  * Return: Length of the version string on success
  *	   else error code
  */
-static ssize_t zynqmp_pm_debugfs_api_read(struct file *file, char __user *ptr,
+static ssize_t zynqmp_pm_defs_api_read(struct file *file, char __user *ptr,
 					  size_t len, loff_t *off)
 {
-	return simple_read_from_buffer(ptr, len, off, debugfs_buf,
-				       strlen(debugfs_buf));
+	return simple_read_from_buffer(ptr, len, off, defs_buf,
+				       strlen(defs_buf));
 }
 
-/* Setup debugfs fops */
+/* Setup defs fops */
 static const struct file_operations fops_zynqmp_pm_dbgfs = {
 	.owner = THIS_MODULE,
-	.write = zynqmp_pm_debugfs_api_write,
-	.read = zynqmp_pm_debugfs_api_read,
+	.write = zynqmp_pm_defs_api_write,
+	.read = zynqmp_pm_defs_api_read,
 };
 
 /**
- * zynqmp_pm_api_debugfs_init - Initialize debugfs interface
+ * zynqmp_pm_api_defs_init - Initialize defs interface
  *
  * Return:	None
  */
-void zynqmp_pm_api_debugfs_init(void)
+void zynqmp_pm_api_defs_init(void)
 {
-	/* Initialize debugfs interface */
-	firmware_debugfs_root = debugfs_create_dir("zynqmp-firmware", NULL);
-	debugfs_create_file("pm", 0660, firmware_debugfs_root, NULL,
+	/* Initialize defs interface */
+	firmware_defs_root = defs_create_dir("zynqmp-firmware", NULL);
+	defs_create_file("pm", 0660, firmware_defs_root, NULL,
 			    &fops_zynqmp_pm_dbgfs);
 }
 
 /**
- * zynqmp_pm_api_debugfs_exit - Remove debugfs interface
+ * zynqmp_pm_api_defs_exit - Remove defs interface
  *
  * Return:	None
  */
-void zynqmp_pm_api_debugfs_exit(void)
+void zynqmp_pm_api_defs_exit(void)
 {
-	debugfs_remove_recursive(firmware_debugfs_root);
+	defs_remove_recursive(firmware_defs_root);
 }

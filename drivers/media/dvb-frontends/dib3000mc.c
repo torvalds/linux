@@ -21,17 +21,17 @@
 
 #include "dib3000mc.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "turn on deging (default: 0)");
 
-static int buggy_sfn_workaround;
-module_param(buggy_sfn_workaround, int, 0644);
-MODULE_PARM_DESC(buggy_sfn_workaround, "Enable work-around for buggy SFNs (default: 0)");
+static int gy_sfn_workaround;
+module_param(gy_sfn_workaround, int, 0644);
+MODULE_PARM_DESC(gy_sfn_workaround, "Enable work-around for gy SFNs (default: 0)");
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 
@@ -737,7 +737,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 	dib3000mc_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->bandwidth_hz));
 
 	/* maybe the parameter has been changed */
-	state->sfn_workaround_active = buggy_sfn_workaround;
+	state->sfn_workaround_active = gy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe);

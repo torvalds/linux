@@ -93,7 +93,7 @@ static __be16 gre_keymap_lookup(struct net *net, struct nf_conntrack_tuple *t)
 		}
 	}
 
-	pr_debug("lookup src key 0x%x for ", key);
+	pr_de("lookup src key 0x%x for ", key);
 	nf_ct_dump_tuple(t);
 
 	return key;
@@ -115,7 +115,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 			if (gre_key_cmpfn(km, t) && km == *kmp)
 				return 0;
 		}
-		pr_debug("trying to override keymap_%s for ct %p\n",
+		pr_de("trying to override keymap_%s for ct %p\n",
 			 dir == IP_CT_DIR_REPLY ? "reply" : "orig", ct);
 		return -EEXIST;
 	}
@@ -126,7 +126,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 	memcpy(&km->tuple, t, sizeof(*t));
 	*kmp = km;
 
-	pr_debug("adding new entry %p: ", km);
+	pr_de("adding new entry %p: ", km);
 	nf_ct_dump_tuple(&km->tuple);
 
 	spin_lock_bh(&keymap_lock);
@@ -143,12 +143,12 @@ void nf_ct_gre_keymap_destroy(struct nf_conn *ct)
 	struct nf_ct_pptp_master *ct_pptp_info = nfct_help_data(ct);
 	enum ip_conntrack_dir dir;
 
-	pr_debug("entering for ct %p\n", ct);
+	pr_de("entering for ct %p\n", ct);
 
 	spin_lock_bh(&keymap_lock);
 	for (dir = IP_CT_DIR_ORIGINAL; dir < IP_CT_DIR_MAX; dir++) {
 		if (ct_pptp_info->keymap[dir]) {
-			pr_debug("removing %p from list\n",
+			pr_de("removing %p from list\n",
 				 ct_pptp_info->keymap[dir]);
 			list_del_rcu(&ct_pptp_info->keymap[dir]->list);
 			kfree_rcu(ct_pptp_info->keymap[dir], rcu);
@@ -186,7 +186,7 @@ bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 		return true;
 
 	if (grehdr->protocol != GRE_PROTO_PPP) {
-		pr_debug("Unsupported GRE proto(0x%x)\n", ntohs(grehdr->protocol));
+		pr_de("Unsupported GRE proto(0x%x)\n", ntohs(grehdr->protocol));
 		return false;
 	}
 

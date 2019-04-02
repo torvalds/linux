@@ -367,9 +367,9 @@ static int convert_type80(struct zcrypt_queue *zq,
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	if (zq->zcard->user_space_type == ZCRYPT_CEX2A)
-		BUG_ON(t80h->len > CEX2A_MAX_RESPONSE_SIZE);
+		_ON(t80h->len > CEX2A_MAX_RESPONSE_SIZE);
 	else
-		BUG_ON(t80h->len > CEX3A_MAX_RESPONSE_SIZE);
+		_ON(t80h->len > CEX3A_MAX_RESPONSE_SIZE);
 	data = reply->message + t80h->len - outputdatalength;
 	if (copy_to_user(outputdata, data, outputdatalength))
 		return -EFAULT;

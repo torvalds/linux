@@ -67,7 +67,7 @@
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "fw/img.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-prph.h"
@@ -95,7 +95,7 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 		.valid = cpu_to_le32(valid_tx_ant),
 	};
 
-	IWL_DEBUG_FW(mvm, "select valid tx ant: %u\n", valid_tx_ant);
+	IWL_DE_FW(mvm, "select valid tx ant: %u\n", valid_tx_ant);
 	return iwl_mvm_send_cmd_pdu(mvm, TX_ANT_CONFIGURATION_CMD, 0,
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
 }
@@ -180,7 +180,7 @@ static int iwl_mvm_send_dqa_cmd(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to send DQA enabling command: %d\n", ret);
 	else
-		IWL_DEBUG_FW(mvm, "Working in DQA mode\n");
+		IWL_DE_FW(mvm, "Working in DQA mode\n");
 
 	return ret;
 }
@@ -199,7 +199,7 @@ void iwl_mvm_mfu_assert_dump_notif(struct iwl_mvm *mvm,
 			 le32_to_cpu(mfu_dump_notif->assert_id));
 
 	for (i = 0; i < n_words; i++)
-		IWL_DEBUG_INFO(mvm,
+		IWL_DE_INFO(mvm,
 			       "MFUART assert dump, dword %u: 0x%08x\n",
 			       le16_to_cpu(mfu_dump_notif->index_num) *
 			       n_words + i,
@@ -264,14 +264,14 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	alive_data->scd_base_addr = le32_to_cpu(lmac1->dbg_ptrs.scd_base_ptr);
 	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
 
-	IWL_DEBUG_FW(mvm,
+	IWL_DE_FW(mvm,
 		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
 		     status, lmac1->ver_type, lmac1->ver_subtype);
 
 	if (lmac2)
-		IWL_DEBUG_FW(mvm, "Alive ucode CDB\n");
+		IWL_DE_FW(mvm, "Alive ucode CDB\n");
 
-	IWL_DEBUG_FW(mvm,
+	IWL_DE_FW(mvm,
 		     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
 		     le32_to_cpu(umac->umac_major),
 		     le32_to_cpu(umac->umac_minor));
@@ -391,7 +391,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		BIT(IWL_MAX_TID_COUNT + 2);
 
 	set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	iwl_fw_set_dbg_rec_on(&mvm->fwrt);
 #endif
 
@@ -505,7 +505,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	phy_cfg_cmd.calib_control.flow_trigger =
 		mvm->fw->default_calib[ucode_type].flow_trigger;
 
-	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
+	IWL_DE_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
 		       phy_cfg_cmd.phy_cfg);
 
 	return iwl_mvm_send_cmd_pdu(mvm, PHY_CONFIGURATION_CMD, 0,
@@ -571,7 +571,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	 * the init seq later when RF kill will switch to off
 	 */
 	if (iwl_mvm_is_radio_hw_killed(mvm)) {
-		IWL_DEBUG_RF_KILL(mvm,
+		IWL_DE_RF_KILL(mvm,
 				  "jump over all phy activities due to RF kill\n");
 		goto remove_notif;
 	}
@@ -600,7 +600,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto out;
 
 	if (iwl_mvm_is_radio_hw_killed(mvm)) {
-		IWL_DEBUG_RF_KILL(mvm, "RFKILL while calibrating.\n");
+		IWL_DE_RF_KILL(mvm, "RFKILL while calibrating.\n");
 		ret = 0;
 	} else {
 		IWL_ERR(mvm, "Failed to run INIT calibrations: %d\n",
@@ -614,7 +614,7 @@ remove_notif:
 out:
 	mvm->calibrating = false;
 	if (iwlmvm_mod_params.init_dbg && !mvm->nvm_data) {
-		/* we want to debug INIT and we have no NVM - fake */
+		/* we want to de INIT and we have no NVM - fake */
 		mvm->nvm_data = kzalloc(sizeof(struct iwl_nvm_data) +
 					sizeof(struct ieee80211_channel) +
 					sizeof(struct ieee80211_rate),
@@ -810,8 +810,8 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
 	int len;
 
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
+	BUILD__ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
+	BUILD__ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
 		     ACPI_SAR_TABLE_SIZE);
 
 	cmd.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS);
@@ -841,23 +841,23 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 
 		/* if the profile is disabled, do nothing */
 		if (!prof->enabled) {
-			IWL_DEBUG_RADIO(mvm, "SAR profile %d is disabled.\n",
+			IWL_DE_RADIO(mvm, "SAR profile %d is disabled.\n",
 					profs[i]);
 			/* if one of the profiles is disabled, we fail all */
 			return -ENOENT;
 		}
 
-		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
+		IWL_DE_RADIO(mvm, "  Chain[%d]:\n", i);
 		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
 			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
 			cmd.v5.v3.per_chain_restriction[i][j] =
 				cpu_to_le16(prof->table[idx]);
-			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
+			IWL_DE_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
 					j, prof->table[idx]);
 		}
 	}
 
-	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
+	IWL_DE_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
 
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
@@ -913,19 +913,19 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 
 	ret = iwl_mvm_sar_get_wgds_table(mvm);
 	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
+		IWL_DE_RADIO(mvm,
 				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
 		/* we don't fail if the table is not available */
 		return 0;
 	}
 
-	IWL_DEBUG_RADIO(mvm, "Sending GEO_TX_POWER_LIMIT\n");
+	IWL_DE_RADIO(mvm, "Sending GEO_TX_POWER_LIMIT\n");
 
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
+	BUILD__ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
 		     ACPI_WGDS_TABLE_SIZE + 1 !=  ACPI_WGDS_WIFI_DATA_SIZE);
 
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
+	BUILD__ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
 
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
 		struct iwl_per_chain_offset *chain =
@@ -939,7 +939,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 			chain[j].max_tx_power = cpu_to_le16(value[0]);
 			chain[j].chain_a = value[1];
 			chain[j].chain_b = value[2];
-			IWL_DEBUG_RADIO(mvm,
+			IWL_DE_RADIO(mvm,
 					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
 					i, j, value[1], value[2], value[0]);
 		}
@@ -1037,7 +1037,7 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 
 	ret = iwl_mvm_sar_get_wrds_table(mvm);
 	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
+		IWL_DE_RADIO(mvm,
 				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
 		/*
@@ -1050,7 +1050,7 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 	ret = iwl_mvm_sar_get_ewrd_table(mvm);
 	/* if EWRD is not available, we can still use WRDS, so don't fail */
 	if (ret < 0)
-		IWL_DEBUG_RADIO(mvm,
+		IWL_DE_RADIO(mvm,
 				"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
 
@@ -1271,7 +1271,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
 
 	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
-		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
+		IWL_DE_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
 
 	ret = iwl_mvm_sar_init(mvm);
 	if (ret == 0) {
@@ -1291,7 +1291,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	iwl_mvm_leds_sync(mvm);
 
-	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
+	IWL_DE_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
 	if (!iwlmvm_mod_params.init_dbg || !ret)
@@ -1350,7 +1350,7 @@ void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
 	u32 flags = le32_to_cpu(card_state_notif->flags);
 
-	IWL_DEBUG_RF_KILL(mvm, "Card state received: HW:%s SW:%s CT:%s\n",
+	IWL_DE_RF_KILL(mvm, "Card state received: HW:%s SW:%s CT:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & CT_KILL_CARD_DISABLED) ?
@@ -1363,7 +1363,7 @@ void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
 
-	IWL_DEBUG_INFO(mvm,
+	IWL_DE_INFO(mvm,
 		       "MFUART: installed ver: 0x%08x, external ver: 0x%08x, status: 0x%08x, duration: 0x%08x\n",
 		       le32_to_cpu(mfuart_notif->installed_ver),
 		       le32_to_cpu(mfuart_notif->external_ver),
@@ -1371,7 +1371,7 @@ void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 		       le32_to_cpu(mfuart_notif->duration));
 
 	if (iwl_rx_packet_payload_len(pkt) == sizeof(*mfuart_notif))
-		IWL_DEBUG_INFO(mvm,
+		IWL_DE_INFO(mvm,
 			       "MFUART: image size: 0x%08x\n",
 			       le32_to_cpu(mfuart_notif->image_size));
 }

@@ -87,19 +87,19 @@
 #define LME2510_LG	"dvb-usb-lme2510-lg.fw";
 #define LME2510_S0194	"dvb-usb-lme2510-s0194.fw";
 
-/* debug */
-static int dvb_usb_lme2510_debug;
-#define lme_debug(var, level, args...) do { \
+/* de */
+static int dvb_usb_lme2510_de;
+#define lme_de(var, level, args...) do { \
 	if ((var >= level)) \
-		pr_debug(DVB_USB_LOG_PREFIX": " args); \
+		pr_de(DVB_USB_LOG_PREFIX": " args); \
 } while (0)
-#define deb_info(level, args...) lme_debug(dvb_usb_lme2510_debug, level, args)
-#define debug_data_snipet(level, name, p) \
+#define deb_info(level, args...) lme_de(dvb_usb_lme2510_de, level, args)
+#define de_data_snipet(level, name, p) \
 	 deb_info(level, name" (%8phN)", p);
 #define info(args...) pr_info(DVB_USB_LOG_PREFIX": "args)
 
-module_param_named(debug, dvb_usb_lme2510_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
+module_param_named(de, dvb_usb_lme2510_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info (or-able)).");
 
 static int dvb_usb_lme2510_firmware;
 module_param_named(firmware, dvb_usb_lme2510_firmware, int, 0644);
@@ -308,7 +308,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 		switch (ibuf[0]) {
 		case 0xaa:
-			debug_data_snipet(1, "INT Remote data snippet", ibuf);
+			de_data_snipet(1, "INT Remote data snippet", ibuf);
 			if (!adap_to_d(adap)->rc_dev)
 				break;
 
@@ -358,13 +358,13 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 			lme2510_update_stats(adap);
 
-			debug_data_snipet(5, "INT Remote data snippet in", ibuf);
+			de_data_snipet(5, "INT Remote data snippet in", ibuf);
 		break;
 		case 0xcc:
-			debug_data_snipet(1, "INT Control data snippet", ibuf);
+			de_data_snipet(1, "INT Control data snippet", ibuf);
 			break;
 		default:
-			debug_data_snipet(1, "INT Unknown data snippet", ibuf);
+			de_data_snipet(1, "INT Unknown data snippet", ibuf);
 		break;
 		}
 	}

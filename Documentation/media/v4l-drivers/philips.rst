@@ -147,7 +147,7 @@ dev_hint
 
    A camera is specified by its type (the number from the camera model,
    like PCA645, PCVC750VC, etc) and optionally the serial number (visible
-   in /sys/kernel/debug/usb/devices). A hint consists of a string with the
+   in /sys/kernel/de/usb/devices). A hint consists of a string with the
    following format::
 
       [type[.serialnumber]:]node
@@ -191,7 +191,7 @@ dev_hint
 trace
    In order to better detect problems, it is now possible to turn on a
    'trace' of some of the calls the module makes; it logs all items in your
-   kernel log at debug level.
+   kernel log at de level.
 
    The trace variable is a bitmask; each bit represents a certain feature.
    If you want to trace something, look up the bit value(s) in the table
@@ -217,7 +217,7 @@ trace
 
       64   0x40   Show viewport and image sizes                       Off
 
-     128   0x80   PWCX debugging                                      Off
+     128   0x80   PWCX deging                                      Off
    ====== ======= ================================================ =======
 
    For example, to trace the open() & read() functions, sum 8 + 4 = 12,

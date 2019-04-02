@@ -28,7 +28,7 @@
 
 #include "via_clock.h"
 #include "global.h"
-#include "debug.h"
+#include "de.h"
 
 static const char *via_slap = "Please slap VIA Technologies to motivate them "
 	"releasing full documentation for your platform!\n";

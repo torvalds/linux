@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -615,7 +615,7 @@ static int fimc_m2m_open(struct file *file)
 	struct fimc_ctx *ctx;
 	int ret = -EBUSY;
 
-	pr_debug("pid: %d, state: %#lx\n", task_pid_nr(current), fimc->state);
+	pr_de("pid: %d, state: %#lx\n", task_pid_nr(current), fimc->state);
 
 	if (mutex_lock_interruptible(&fimc->lock))
 		return -ERESTARTSYS;

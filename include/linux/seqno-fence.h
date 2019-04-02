@@ -98,8 +98,8 @@ seqno_fence_init(struct seqno_fence *fence, spinlock_t *lock,
 		 enum seqno_fence_condition cond,
 		 const struct dma_fence_ops *ops)
 {
-	BUG_ON(!fence || !sync_buf || !ops);
-	BUG_ON(!ops->wait || !ops->enable_signaling ||
+	_ON(!fence || !sync_buf || !ops);
+	_ON(!ops->wait || !ops->enable_signaling ||
 	       !ops->get_driver_name || !ops->get_timeline_name);
 
 	/*

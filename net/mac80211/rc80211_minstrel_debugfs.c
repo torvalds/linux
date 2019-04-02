@@ -47,7 +47,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ieee80211.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -58,7 +58,7 @@ int
 minstrel_stats_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_sta_info *mi = inode->i_private;
-	struct minstrel_debugfs_info *ms;
+	struct minstrel_defs_info *ms;
 	unsigned int i, tp_max, tp_avg, eprob;
 	char *p;
 
@@ -120,7 +120,7 @@ int
 minstrel_stats_csv_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_sta_info *mi = inode->i_private;
-	struct minstrel_debugfs_info *ms;
+	struct minstrel_defs_info *ms;
 	unsigned int i, tp_max, tp_avg, eprob;
 	char *p;
 

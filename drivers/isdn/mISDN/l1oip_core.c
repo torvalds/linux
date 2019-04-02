@@ -75,9 +75,9 @@
  optional value to identify frames. This value must be equal on both
  peers and should be random. If omitted or 0, no ID is transmitted.
 
- * debug:
- NOTE: only one debug value must be given for all cards
- enable debugging (see l1oip.h for debug options)
+ * de:
+ NOTE: only one de value must be given for all cards
+ enable deging (see l1oip.h for de options)
 
 
  Special mISDN controls:
@@ -255,7 +255,7 @@ static u_int remoteport[MAX_CARDS];
 static u_int ondemand[MAX_CARDS];
 static u_int limit[MAX_CARDS];
 static u_int id[MAX_CARDS];
-static int debug;
+static int de;
 static int ulaw;
 
 MODULE_AUTHOR("Andreas Eversberg");
@@ -269,7 +269,7 @@ module_param_array(ondemand, uint, NULL, S_IRUGO | S_IWUSR);
 module_param_array(limit, uint, NULL, S_IRUGO | S_IWUSR);
 module_param_array(id, uint, NULL, S_IRUGO | S_IWUSR);
 module_param(ulaw, uint, S_IRUGO | S_IWUSR);
-module_param(debug, uint, S_IRUGO | S_IWUSR);
+module_param(de, uint, S_IRUGO | S_IWUSR);
 
 /*
  * send a frame via socket, if open and restart timer
@@ -282,8 +282,8 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	u8 frame[MAX_DFRAME_LEN_L1 + 32];
 	struct socket *socket = NULL;
 
-	if (debug & DEBUG_L1OIP_MSG)
-		printk(KERN_DEBUG "%s: sending data to socket (len = %d)\n",
+	if (de & DE_L1OIP_MSG)
+		printk(KERN_DE "%s: sending data to socket (len = %d)\n",
 		       __func__, len);
 
 	p = frame;
@@ -294,13 +294,13 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	else
 		hc->keep_tl.expires = jiffies + L1OIP_KEEPALIVE * HZ;
 
-	if (debug & DEBUG_L1OIP_MSG)
-		printk(KERN_DEBUG "%s: resetting timer\n", __func__);
+	if (de & DE_L1OIP_MSG)
+		printk(KERN_DE "%s: resetting timer\n", __func__);
 
 	/* drop if we have no remote ip or port */
 	if (!hc->sin_remote.sin_addr.s_addr || !hc->sin_remote.sin_port) {
-		if (debug & DEBUG_L1OIP_MSG)
-			printk(KERN_DEBUG "%s: dropping frame, because remote "
+		if (de & DE_L1OIP_MSG)
+			printk(KERN_DE "%s: dropping frame, because remote "
 			       "IP is not set.\n", __func__);
 		return len;
 	}
@@ -344,8 +344,8 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	hc->socket = NULL;
 	spin_unlock(&hc->socket_lock);
 	/* send packet */
-	if (debug & DEBUG_L1OIP_MSG)
-		printk(KERN_DEBUG "%s: sending packet to socket (len "
+	if (de & DE_L1OIP_MSG)
+		printk(KERN_DE "%s: sending packet to socket (len "
 		       "= %d)\n", __func__, len);
 	hc->sendiov.iov_base = frame;
 	hc->sendiov.iov_len  = len;
@@ -371,14 +371,14 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 	u32 rx_counter;
 
 	if (len == 0) {
-		if (debug & DEBUG_L1OIP_MSG)
-			printk(KERN_DEBUG "%s: received empty keepalive data, "
+		if (de & DE_L1OIP_MSG)
+			printk(KERN_DE "%s: received empty keepalive data, "
 			       "ignoring\n", __func__);
 		return;
 	}
 
-	if (debug & DEBUG_L1OIP_MSG)
-		printk(KERN_DEBUG "%s: received data, sending to mISDN (%d)\n",
+	if (de & DE_L1OIP_MSG)
+		printk(KERN_DE "%s: received data, sending to mISDN (%d)\n",
 		       __func__, len);
 
 	if (channel < 1 || channel > 127) {
@@ -438,7 +438,7 @@ l1oip_socket_recv(struct l1oip *hc, u8 remotecodec, u8 channel, u16 timebase,
 		}
 		hc->chan[channel].rx_counter = rx_counter;
 
-#ifdef REORDER_DEBUG
+#ifdef REORDER_DE
 		if (hc->chan[channel].disorder_flag) {
 			swap(hc->chan[channel].disorder_skb, nskb);
 			swap(hc->chan[channel].disorder_cnt, rx_counter);
@@ -465,8 +465,8 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 	int			len_start = len; /* initial frame length */
 	struct dchannel		*dch = hc->chan[hc->d_idx].dch;
 
-	if (debug & DEBUG_L1OIP_MSG)
-		printk(KERN_DEBUG "%s: received frame, parsing... (%d)\n",
+	if (de & DE_L1OIP_MSG)
+		printk(KERN_DE "%s: received frame, parsing... (%d)\n",
 		       __func__, len);
 
 	/* check length */
@@ -597,8 +597,8 @@ multiframe:
 
 	/* if inactive, we send up a PH_ACTIVATE and activate */
 	if (!test_bit(FLG_ACTIVE, &dch->Flags)) {
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: interface become active due to "
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: interface become active due to "
 			       "received packet\n", __func__);
 		test_and_set_bit(FLG_ACTIVE, &dch->Flags);
 		_queue_data(&dch->dev.D, PH_ACTIVATE_IND, MISDN_ID_ANY, 0,
@@ -624,8 +624,8 @@ multiframe:
 	/* if ip or source port changes */
 	if ((hc->sin_remote.sin_addr.s_addr != sin->sin_addr.s_addr)
 	    || (hc->sin_remote.sin_port != sin->sin_port)) {
-		if (debug & DEBUG_L1OIP_SOCKET)
-			printk(KERN_DEBUG "%s: remote address changes from "
+		if (de & DE_L1OIP_SOCKET)
+			printk(KERN_DE "%s: remote address changes from "
 			       "0x%08x to 0x%08x (port %d to %d)\n", __func__,
 			       ntohl(hc->sin_remote.sin_addr.s_addr),
 			       ntohl(sin->sin_addr.s_addr),
@@ -714,8 +714,8 @@ l1oip_socket_thread(void *data)
 	spin_unlock(&hc->socket_lock);
 
 	/* read loop */
-	if (debug & DEBUG_L1OIP_SOCKET)
-		printk(KERN_DEBUG "%s: socket created and open\n",
+	if (de & DE_L1OIP_SOCKET)
+		printk(KERN_DE "%s: socket created and open\n",
 		       __func__);
 	while (!signal_pending(current)) {
 		iov_iter_kvec(&msg.msg_iter, READ, &iov, 1, recvbuf_size);
@@ -723,7 +723,7 @@ l1oip_socket_thread(void *data)
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
 		} else {
-			if (debug & DEBUG_L1OIP_SOCKET)
+			if (de & DE_L1OIP_SOCKET)
 				printk(KERN_WARNING
 				       "%s: broken pipe on socket\n", __func__);
 		}
@@ -740,8 +740,8 @@ l1oip_socket_thread(void *data)
 	hc->socket = NULL;
 	spin_unlock(&hc->socket_lock);
 
-	if (debug & DEBUG_L1OIP_SOCKET)
-		printk(KERN_DEBUG "%s: socket thread terminating\n",
+	if (de & DE_L1OIP_SOCKET)
+		printk(KERN_DE "%s: socket thread terminating\n",
 		       __func__);
 
 fail:
@@ -756,8 +756,8 @@ fail:
 	complete(&hc->socket_complete);
 	hc->socket_thread = NULL; /* show termination of thread */
 
-	if (debug & DEBUG_L1OIP_SOCKET)
-		printk(KERN_DEBUG "%s: socket thread terminated\n",
+	if (de & DE_L1OIP_SOCKET)
+		printk(KERN_DE "%s: socket thread terminated\n",
 		       __func__);
 	return ret;
 }
@@ -769,8 +769,8 @@ l1oip_socket_close(struct l1oip *hc)
 
 	/* kill thread */
 	if (hc->socket_thread) {
-		if (debug & DEBUG_L1OIP_SOCKET)
-			printk(KERN_DEBUG "%s: socket thread exists, "
+		if (de & DE_L1OIP_SOCKET)
+			printk(KERN_DE "%s: socket thread exists, "
 			       "killing...\n", __func__);
 		send_sig(SIGTERM, hc->socket_thread, 0);
 		wait_for_completion(&hc->socket_complete);
@@ -778,8 +778,8 @@ l1oip_socket_close(struct l1oip *hc)
 
 	/* if active, we send up a PH_DEACTIVATE and deactivate */
 	if (test_bit(FLG_ACTIVE, &dch->Flags)) {
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: interface become deactivated "
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: interface become deactivated "
 			       "due to timeout\n", __func__);
 		test_and_clear_bit(FLG_ACTIVE, &dch->Flags);
 		_queue_data(&dch->dev.D, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
@@ -806,8 +806,8 @@ l1oip_socket_open(struct l1oip *hc)
 		sock_release(hc->socket);
 		return err;
 	}
-	if (debug & DEBUG_L1OIP_SOCKET)
-		printk(KERN_DEBUG "%s: socket thread created\n", __func__);
+	if (de & DE_L1OIP_SOCKET)
+		printk(KERN_DE "%s: socket thread created\n", __func__);
 
 	return 0;
 }
@@ -818,8 +818,8 @@ l1oip_send_bh(struct work_struct *work)
 {
 	struct l1oip *hc = container_of(work, struct l1oip, workq);
 
-	if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-		printk(KERN_DEBUG "%s: keepalive timer expired, sending empty "
+	if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+		printk(KERN_DE "%s: keepalive timer expired, sending empty "
 		       "frame on dchannel\n", __func__);
 
 	/* send an empty l1oip frame at D-channel */
@@ -845,16 +845,16 @@ l1oip_timeout(struct timer_list *t)
 								  timeout_tl);
 	struct dchannel		*dch = hc->chan[hc->d_idx].dch;
 
-	if (debug & DEBUG_L1OIP_MSG)
-		printk(KERN_DEBUG "%s: timeout timer expired, turn layer one "
+	if (de & DE_L1OIP_MSG)
+		printk(KERN_DE "%s: timeout timer expired, turn layer one "
 		       "down.\n", __func__);
 
 	hc->timeout_on = 0; /* state that timer must be initialized next time */
 
 	/* if timeout, we send up a PH_DEACTIVATE and deactivate */
 	if (test_bit(FLG_ACTIVE, &dch->Flags)) {
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: interface become deactivated "
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: interface become deactivated "
 			       "due to timeout\n", __func__);
 		test_and_clear_bit(FLG_ACTIVE, &dch->Flags);
 		_queue_data(&dch->dev.D, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
@@ -863,8 +863,8 @@ l1oip_timeout(struct timer_list *t)
 
 	/* if we have ondemand set, we remove ip address */
 	if (hc->ondemand) {
-		if (debug & DEBUG_L1OIP_MSG)
-			printk(KERN_DEBUG "%s: on demand causes ip address to "
+		if (de & DE_L1OIP_MSG)
+			printk(KERN_DE "%s: on demand causes ip address to "
 			       "be removed\n", __func__);
 		hc->sin_remote.sin_addr.s_addr = 0;
 	}
@@ -915,8 +915,8 @@ handle_dmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		queue_ch_frame(ch, PH_DATA_CNF, hh->id, skb);
 		return 0;
 	case PH_ACTIVATE_REQ:
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: PH_ACTIVATE channel %d (1..%d)\n"
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: PH_ACTIVATE channel %d (1..%d)\n"
 			       , __func__, dch->slot, hc->b_num + 1);
 		skb_trim(skb, 0);
 		if (test_bit(FLG_ACTIVE, &dch->Flags))
@@ -925,8 +925,8 @@ handle_dmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 			queue_ch_frame(ch, PH_DEACTIVATE_IND, hh->id, skb);
 		return 0;
 	case PH_DEACTIVATE_REQ:
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: PH_DEACTIVATE channel %d "
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: PH_DEACTIVATE channel %d "
 			       "(1..%d)\n", __func__, dch->slot,
 			       hc->b_num + 1);
 		skb_trim(skb, 0);
@@ -958,21 +958,21 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		hc->localport = cq->p2 >> 16;
 		if (!hc->remoteport)
 			hc->remoteport = hc->localport;
-		if (debug & DEBUG_L1OIP_SOCKET)
-			printk(KERN_DEBUG "%s: got new ip address from user "
+		if (de & DE_L1OIP_SOCKET)
+			printk(KERN_DE "%s: got new ip address from user "
 			       "space.\n", __func__);
 		l1oip_socket_open(hc);
 		break;
 	case MISDN_CTRL_UNSETPEER:
-		if (debug & DEBUG_L1OIP_SOCKET)
-			printk(KERN_DEBUG "%s: removing ip address.\n",
+		if (de & DE_L1OIP_SOCKET)
+			printk(KERN_DE "%s: removing ip address.\n",
 			       __func__);
 		hc->remoteip = 0;
 		l1oip_socket_open(hc);
 		break;
 	case MISDN_CTRL_GETPEER:
-		if (debug & DEBUG_L1OIP_SOCKET)
-			printk(KERN_DEBUG "%s: getting ip address.\n",
+		if (de & DE_L1OIP_SOCKET)
+			printk(KERN_DE "%s: getting ip address.\n",
 			       __func__);
 		cq->p1 = hc->remoteip;
 		cq->p2 = hc->remoteport | (hc->localport << 16);
@@ -989,14 +989,14 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 static int
 open_dchannel(struct l1oip *hc, struct dchannel *dch, struct channel_req *rq)
 {
-	if (debug & DEBUG_HW_OPEN)
-		printk(KERN_DEBUG "%s: dev(%d) open from %p\n", __func__,
+	if (de & DE_HW_OPEN)
+		printk(KERN_DE "%s: dev(%d) open from %p\n", __func__,
 		       dch->dev.id, __builtin_return_address(0));
 	if (rq->protocol == ISDN_P_NONE)
 		return -EINVAL;
 	if ((dch->dev.D.protocol != ISDN_P_NONE) &&
 	    (dch->dev.D.protocol != rq->protocol)) {
-		if (debug & DEBUG_HW_OPEN)
+		if (de & DE_HW_OPEN)
 			printk(KERN_WARNING "%s: change protocol %x to %x\n",
 			       __func__, dch->dev.D.protocol, rq->protocol);
 	}
@@ -1048,8 +1048,8 @@ l1oip_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	struct channel_req	*rq;
 	int			err = 0;
 
-	if (dch->debug & DEBUG_HW)
-		printk(KERN_DEBUG "%s: cmd:%x %p\n",
+	if (dch->de & DE_HW)
+		printk(KERN_DE "%s: cmd:%x %p\n",
 		       __func__, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
@@ -1076,8 +1076,8 @@ l1oip_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		}
 		break;
 	case CLOSE_CHANNEL:
-		if (debug & DEBUG_HW_OPEN)
-			printk(KERN_DEBUG "%s: dev(%d) close from %p\n",
+		if (de & DE_HW_OPEN)
+			printk(KERN_DE "%s: dev(%d) close from %p\n",
 			       __func__, dch->dev.id,
 			       __builtin_return_address(0));
 		module_put(THIS_MODULE);
@@ -1086,8 +1086,8 @@ l1oip_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		err = channel_dctrl(dch, arg);
 		break;
 	default:
-		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: unknown command %x\n",
+		if (dch->de & DE_HW)
+			printk(KERN_DE "%s: unknown command %x\n",
 			       __func__, cmd);
 		err = -EINVAL;
 	}
@@ -1119,8 +1119,8 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		/* check for AIS / ulaw-silence */
 		l = skb->len;
 		if (!memchr_inv(skb->data, 0xff, l)) {
-			if (debug & DEBUG_L1OIP_MSG)
-				printk(KERN_DEBUG "%s: got AIS, not sending, "
+			if (de & DE_L1OIP_MSG)
+				printk(KERN_DE "%s: got AIS, not sending, "
 				       "but counting\n", __func__);
 			hc->chan[bch->slot].tx_counter += l;
 			skb_trim(skb, 0);
@@ -1130,8 +1130,8 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		/* check for silence */
 		l = skb->len;
 		if (!memchr_inv(skb->data, 0x2a, l)) {
-			if (debug & DEBUG_L1OIP_MSG)
-				printk(KERN_DEBUG "%s: got silence, not sending"
+			if (de & DE_L1OIP_MSG)
+				printk(KERN_DE "%s: got silence, not sending"
 				       ", but counting\n", __func__);
 			hc->chan[bch->slot].tx_counter += l;
 			skb_trim(skb, 0);
@@ -1158,8 +1158,8 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		queue_ch_frame(ch, PH_DATA_CNF, hh->id, skb);
 		return 0;
 	case PH_ACTIVATE_REQ:
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: PH_ACTIVATE channel %d (1..%d)\n"
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: PH_ACTIVATE channel %d (1..%d)\n"
 			       , __func__, bch->slot, hc->b_num + 1);
 		hc->chan[bch->slot].codecstate = 0;
 		test_and_set_bit(FLG_ACTIVE, &bch->Flags);
@@ -1167,8 +1167,8 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 		queue_ch_frame(ch, PH_ACTIVATE_IND, hh->id, skb);
 		return 0;
 	case PH_DEACTIVATE_REQ:
-		if (debug & (DEBUG_L1OIP_MSG | DEBUG_L1OIP_SOCKET))
-			printk(KERN_DEBUG "%s: PH_DEACTIVATE channel %d "
+		if (de & (DE_L1OIP_MSG | DE_L1OIP_SOCKET))
+			printk(KERN_DE "%s: PH_DEACTIVATE channel %d "
 			       "(1..%d)\n", __func__, bch->slot,
 			       hc->b_num + 1);
 		test_and_clear_bit(FLG_ACTIVE, &bch->Flags);
@@ -1193,8 +1193,8 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 		cq->op = MISDN_CTRL_HW_FEATURES_OP;
 		break;
 	case MISDN_CTRL_HW_FEATURES: /* fill features structure */
-		if (debug & DEBUG_L1OIP_MSG)
-			printk(KERN_DEBUG "%s: HW_FEATURE request\n",
+		if (de & DE_L1OIP_MSG)
+			printk(KERN_DE "%s: HW_FEATURE request\n",
 			       __func__);
 		/* create confirm */
 		features->unclocked = 1;
@@ -1215,8 +1215,8 @@ l1oip_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	struct bchannel	*bch = container_of(ch, struct bchannel, ch);
 	int		err = -EINVAL;
 
-	if (bch->debug & DEBUG_HW)
-		printk(KERN_DEBUG "%s: cmd:%x %p\n",
+	if (bch->de & DE_HW)
+		printk(KERN_DE "%s: cmd:%x %p\n",
 		       __func__, cmd, arg);
 	switch (cmd) {
 	case CLOSE_CHANNEL:
@@ -1267,7 +1267,7 @@ release_card(struct l1oip *hc)
 		if (hc->chan[ch].bch) {
 			mISDN_freebchannel(hc->chan[ch].bch);
 			kfree(hc->chan[ch].bch);
-#ifdef REORDER_DEBUG
+#ifdef REORDER_DE
 			if (hc->chan[ch].disorder_skb)
 				dev_kfree_skb(hc->chan[ch].disorder_skb);
 #endif
@@ -1327,8 +1327,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		return -EINVAL;
 	}
 	hc->codec = codec[l1oip_cnt];
-	if (debug & DEBUG_L1OIP_INIT)
-		printk(KERN_DEBUG "%s: using codec %d\n",
+	if (de & DE_L1OIP_INIT)
+		printk(KERN_DE "%s: using codec %d\n",
 		       __func__, hc->codec);
 
 	if (id[l1oip_cnt] == 0) {
@@ -1337,8 +1337,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		       "bit random number 0x...\n");
 	}
 	hc->id = id[l1oip_cnt];
-	if (debug & DEBUG_L1OIP_INIT)
-		printk(KERN_DEBUG "%s: using id 0x%x\n", __func__, hc->id);
+	if (de & DE_L1OIP_INIT)
+		printk(KERN_DE "%s: using id 0x%x\n", __func__, hc->id);
 
 	hc->ondemand = ondemand[l1oip_cnt];
 	if (hc->ondemand && !hc->id) {
@@ -1375,8 +1375,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		hc->remoteport = remoteport[l1oip_cnt];
 	else
 		hc->remoteport = hc->localport;
-	if (debug & DEBUG_L1OIP_INIT)
-		printk(KERN_DEBUG "%s: using local port %d remote ip "
+	if (de & DE_L1OIP_INIT)
+		printk(KERN_DE "%s: using local port %d remote ip "
 		       "%d.%d.%d.%d port %d ondemand %d\n", __func__,
 		       hc->localport, hc->remoteip >> 24,
 		       (hc->remoteip >> 16) & 0xff,
@@ -1386,7 +1386,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	dch = kzalloc(sizeof(struct dchannel), GFP_KERNEL);
 	if (!dch)
 		return -ENOMEM;
-	dch->debug = debug;
+	dch->de = de;
 	mISDN_initdchannel(dch, MAX_DFRAME_LEN_L1, NULL);
 	dch->hw = hc;
 	if (pri)
@@ -1412,7 +1412,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		}
 		bch->nr = i + ch;
 		bch->slot = i + ch;
-		bch->debug = debug;
+		bch->de = de;
 		mISDN_initbchannel(bch, MAX_DATA_MEM, 0);
 		bch->hw = hc;
 		bch->ch.send = handle_bmsg;
@@ -1428,8 +1428,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		return ret;
 	hc->registered = 1;
 
-	if (debug & DEBUG_L1OIP_INIT)
-		printk(KERN_DEBUG "%s: Setting up network card(%d)\n",
+	if (de & DE_L1OIP_INIT)
+		printk(KERN_DE "%s: Setting up network card(%d)\n",
 		       __func__, l1oip_cnt + 1);
 	ret = l1oip_socket_open(hc);
 	if (ret)
@@ -1487,8 +1487,8 @@ l1oip_init(void)
 			return -EINVAL;
 		}
 
-		if (debug & DEBUG_L1OIP_INIT)
-			printk(KERN_DEBUG "%s: interface %d is %s with %s.\n",
+		if (de & DE_L1OIP_INIT)
+			printk(KERN_DE "%s: interface %d is %s with %s.\n",
 			       __func__, l1oip_cnt, pri ? "PRI" : "BRI",
 			       bundle ? "bundled IP packet for all B-channels" :
 			       "separate IP packets for every B-channel");

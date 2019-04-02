@@ -95,7 +95,7 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 		cache_op(paddr, size, dma_wbinv_range);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -111,6 +111,6 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		cache_op(paddr, size, dma_wbinv_range);
 		break;
 	default:
-		BUG();
+		();
 	}
 }

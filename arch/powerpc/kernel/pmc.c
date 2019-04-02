@@ -13,7 +13,7 @@
  */
 
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
 
@@ -39,7 +39,7 @@ static void dummy_perf(struct pt_regs *regs)
 
 
 static DEFINE_RAW_SPINLOCK(pmc_owner_lock);
-static void *pmc_owner_caller; /* mostly for debugging */
+static void *pmc_owner_caller; /* mostly for deging */
 perf_irq_t perf_irq = dummy_perf;
 
 int reserve_pmc_hardware(perf_irq_t new_perf_irq)

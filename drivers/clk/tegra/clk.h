@@ -505,7 +505,7 @@ struct tegra_clk_periph_regs {
  * TEGRA_PERIPH_ON_APB - If peripheral is in the APB bus then read the
  *     bus to flush the write operation in apb bus. This flag indicates
  *     that this peripheral is in apb bus.
- * TEGRA_PERIPH_WAR_1005168 - Apply workaround for Tegra114 MSENC bug
+ * TEGRA_PERIPH_WAR_1005168 - Apply workaround for Tegra114 MSENC 
  */
 struct tegra_clk_periph_gate {
 	u32			magic;

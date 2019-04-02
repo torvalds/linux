@@ -635,7 +635,7 @@ err_unlock:
 static const struct iio_info ad5758_info = {
 	.read_raw = ad5758_read_raw,
 	.write_raw = ad5758_write_raw,
-	.debugfs_reg_access = &ad5758_reg_access,
+	.defs_reg_access = &ad5758_reg_access,
 };
 
 static const struct iio_chan_spec_ext_info ad5758_ext_info[] = {

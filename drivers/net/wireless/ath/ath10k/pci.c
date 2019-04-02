@@ -11,7 +11,7 @@
 #include <linux/bitops.h>
 
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "coredump.h"
 
 #include "targaddrs.h"
@@ -894,7 +894,7 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 }
 
 /*
- * Diagnostic read/write access is provided for startup/config/debug usage.
+ * Diagnostic read/write access is provided for startup/config/de usage.
  * Caller must guarantee proper alignment, when applicable, and single user
  * at any moment.
  */
@@ -1451,7 +1451,7 @@ static void ath10k_pci_dump_registers(struct ath10k *ar,
 		return;
 	}
 
-	BUILD_BUG_ON(REG_DUMP_COUNT_QCA988X % 4);
+	BUILD__ON(REG_DUMP_COUNT_QCA988X % 4);
 
 	ath10k_err(ar, "firmware register dump:\n");
 	for (i = 0; i < REG_DUMP_COUNT_QCA988X; i += 4)

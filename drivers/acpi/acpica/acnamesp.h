@@ -178,7 +178,7 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
  */
 void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth);
 
-void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level);
+void acpi_ns_dump_entry(acpi_handle handle, u32 de_level);
 
 void
 acpi_ns_dump_pathname(acpi_handle handle,

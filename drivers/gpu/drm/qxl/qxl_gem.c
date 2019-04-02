@@ -84,8 +84,8 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 	struct drm_gem_object *gobj;
 	int r;
 
-	BUG_ON(!qobj);
-	BUG_ON(!handle);
+	_ON(!qobj);
+	_ON(!handle);
 
 	r = qxl_gem_object_create(qdev, size, 0,
 				  domain,

@@ -60,7 +60,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "[%4.4s.%s] was not found\n",
 					  acpi_ut_get_node_name(prefix_node),
 					  path));
@@ -229,7 +229,7 @@ acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 * flags)
 			 * the returned flags will indicate that the device is present,
 			 * functional, and enabled.
 			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "_STA on %4.4s was not found, assuming device is present\n",
 					  acpi_ut_get_node_name(device_node)));
 
@@ -304,7 +304,7 @@ acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
 			continue;	/* Ignore if not found */
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Failed %s on Device %4.4s, %s\n",
 				  ACPI_CAST_PTR(char, method_names[i]),
 				  acpi_ut_get_node_name(device_node),

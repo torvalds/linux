@@ -74,7 +74,7 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 	dev_priv->vram_offset = fb->offset;
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("offset = %lu, size = %lu\n", fb->offset, fb->size);
+	DRM_DE("offset = %lu, size = %lu\n", fb->offset, fb->size);
 
 	return 0;
 }
@@ -154,7 +154,7 @@ fail_alloc:
 	mem->size = 0;
 	mem->free = 0;
 
-	DRM_DEBUG("alloc %d, size = %ld, offset = %ld\n", pool, mem->size,
+	DRM_DE("alloc %d, size = %ld, offset = %ld\n", pool, mem->size,
 		  mem->offset);
 
 	return retval;
@@ -183,7 +183,7 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 #endif
 	kfree(obj);
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("free = 0x%lx\n", mem->free);
+	DRM_DE("free = 0x%lx\n", mem->free);
 
 	return 0;
 }
@@ -208,7 +208,7 @@ static int sis_ioctl_agp_init(struct drm_device *dev, void *data,
 	dev_priv->agp_offset = agp->offset;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("offset = %lu, size = %lu\n", agp->offset, agp->size);
+	DRM_DE("offset = %lu, size = %lu\n", agp->offset, agp->size);
 	return 0;
 }
 

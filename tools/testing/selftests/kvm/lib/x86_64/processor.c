@@ -994,7 +994,7 @@ struct kvm_x86_state {
 	struct kvm_xsave xsave;
 	struct kvm_xcrs xcrs;
 	struct kvm_sregs sregs;
-	struct kvm_debugregs debugregs;
+	struct kvm_deregs deregs;
 	union {
 		struct kvm_nested_state nested;
 		char nested_[16384];
@@ -1080,8 +1080,8 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
         TEST_ASSERT(r == nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed at %x)",
                 r, r == nmsrs ? -1 : list->indices[r]);
 
-	r = ioctl(vcpu->fd, KVM_GET_DEBUGREGS, &state->debugregs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEBUGREGS, r: %i",
+	r = ioctl(vcpu->fd, KVM_GET_DEREGS, &state->deregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEREGS, r: %i",
                 r);
 
 	free(list);
@@ -1123,8 +1123,8 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_MP_STATE, r: %i",
                 r);
 
-	r = ioctl(vcpu->fd, KVM_SET_DEBUGREGS, &state->debugregs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_DEBUGREGS, r: %i",
+	r = ioctl(vcpu->fd, KVM_SET_DEREGS, &state->deregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_DEREGS, r: %i",
                 r);
 
 	r = ioctl(vcpu->fd, KVM_SET_REGS, &state->regs);

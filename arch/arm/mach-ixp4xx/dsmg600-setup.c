@@ -240,7 +240,7 @@ static int __init dsmg600_gpio_init(void)
 	if (request_irq(gpio_to_irq(DSMG600_RB_GPIO), &dsmg600_reset_handler,
 		IRQF_TRIGGER_LOW, "DSM-G600 reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DE "Reset Button IRQ %d not available\n",
 			gpio_to_irq(DSMG600_RB_GPIO));
 	}
 

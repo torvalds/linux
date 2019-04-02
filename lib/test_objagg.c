@@ -857,37 +857,37 @@ static const struct hints_case hints_case = {
 				DELTA(6, 1), DELTA(7, 1)),
 };
 
-static void __pr_debug_stats(const struct objagg_stats *stats)
+static void __pr_de_stats(const struct objagg_stats *stats)
 {
 	int i;
 
 	for (i = 0; i < stats->stats_info_count; i++)
-		pr_debug("Stat index %d key %u: u %d, d %d, %s\n", i,
+		pr_de("Stat index %d key %u: u %d, d %d, %s\n", i,
 			 obj_to_key_id(stats->stats_info[i].objagg_obj),
 			 stats->stats_info[i].stats.user_count,
 			 stats->stats_info[i].stats.delta_user_count,
 			 stats->stats_info[i].is_root ? "root" : "noroot");
 }
 
-static void pr_debug_stats(struct objagg *objagg)
+static void pr_de_stats(struct objagg *objagg)
 {
 	const struct objagg_stats *stats;
 
 	stats = objagg_stats_get(objagg);
 	if (IS_ERR(stats))
 		return;
-	__pr_debug_stats(stats);
+	__pr_de_stats(stats);
 	objagg_stats_put(stats);
 }
 
-static void pr_debug_hints_stats(struct objagg_hints *objagg_hints)
+static void pr_de_hints_stats(struct objagg_hints *objagg_hints)
 {
 	const struct objagg_stats *stats;
 
 	stats = objagg_hints_stats_get(objagg_hints);
 	if (IS_ERR(stats))
 		return;
-	__pr_debug_stats(stats);
+	__pr_de_stats(stats);
 	objagg_stats_put(stats);
 }
 
@@ -931,7 +931,7 @@ static int test_hints_case(const struct hints_case *hints_case)
 		}
 	}
 
-	pr_debug_stats(objagg);
+	pr_de_stats(objagg);
 	err = check_expect_stats(objagg, &hints_case->expect_stats, &errmsg);
 	if (err) {
 		pr_err("Stats: %s\n", errmsg);
@@ -944,7 +944,7 @@ static int test_hints_case(const struct hints_case *hints_case)
 		goto err_hints_get;
 	}
 
-	pr_debug_hints_stats(hints);
+	pr_de_hints_stats(hints);
 	err = check_expect_hints_stats(hints, &hints_case->expect_stats_hints,
 				       &errmsg);
 	if (err) {
@@ -965,7 +965,7 @@ static int test_hints_case(const struct hints_case *hints_case)
 		}
 	}
 
-	pr_debug_stats(objagg2);
+	pr_de_stats(objagg2);
 	err = check_expect_stats(objagg2, &hints_case->expect_stats_hints,
 				 &errmsg);
 	if (err) {

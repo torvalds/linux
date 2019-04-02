@@ -229,7 +229,7 @@ static void wa_check_for_delayed_rpipes(struct wahc *wa)
 		__wa_xfer_delayed_run(rpipe, &dto_waiting);
 		/* remove this RPIPE from the list if it is not waiting. */
 		if (!dto_waiting) {
-			pr_debug("%s: RPIPE %d serviced and removed from delayed list.\n",
+			pr_de("%s: RPIPE %d serviced and removed from delayed list.\n",
 				__func__,
 				le16_to_cpu(rpipe->descr.wRPipeIndex));
 			list_del_init(&rpipe->list_node);
@@ -246,7 +246,7 @@ static void wa_add_delayed_rpipe(struct wahc *wa, struct wa_rpipe *rpipe)
 	spin_lock_irqsave(&wa->rpipe_lock, flags);
 	/* add rpipe to the list if it is not already on it. */
 	if (list_empty(&rpipe->list_node)) {
-		pr_debug("%s: adding RPIPE %d to the delayed list.\n",
+		pr_de("%s: adding RPIPE %d to the delayed list.\n",
 			__func__, le16_to_cpu(rpipe->descr.wRPipeIndex));
 		list_add_tail(&rpipe->list_node, &wa->rpipe_delayed_list);
 	}
@@ -600,7 +600,7 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 		break;
 	default:
 		/* never happens */
-		BUG();
+		();
 		result = -EINVAL;	/* shut gcc up */
 	}
 	xfer->is_inbound = urb->pipe & USB_DIR_IN ? 1 : 0;
@@ -614,7 +614,7 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 	 * a check (FIXME) */
 	if (xfer->seg_size < maxpktsize) {
 		dev_err(dev,
-			"HW BUG? seg_size %zu smaller than maxpktsize %zu\n",
+			"HW ? seg_size %zu smaller than maxpktsize %zu\n",
 			xfer->seg_size, maxpktsize);
 		result = -EINVAL;
 		goto error;
@@ -642,7 +642,7 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 	}
 
 	if (xfer->segs > WA_SEGS_MAX) {
-		dev_err(dev, "BUG? oops, number of segments %zu bigger than %d\n",
+		dev_err(dev, "? oops, number of segments %zu bigger than %d\n",
 			(urb->transfer_buffer_length/xfer->seg_size),
 			WA_SEGS_MAX);
 		result = -EINVAL;
@@ -713,7 +713,7 @@ static void __wa_xfer_setup_hdr0(struct wa_xfer *xfer,
 		break;
 	}
 	default:
-		BUG();
+		();
 	};
 }
 
@@ -1555,7 +1555,7 @@ static int __wa_xfer_submit(struct wa_xfer *xfer)
 	list_add_tail(&xfer->list_node, &wa->xfer_list);
 	spin_unlock_irqrestore(&wa->xfer_list_lock, flags);
 
-	BUG_ON(atomic_read(&rpipe->segs_available) > maxrequests);
+	_ON(atomic_read(&rpipe->segs_available) > maxrequests);
 	result = 0;
 	spin_lock_irqsave(&rpipe->seg_lock, flags);
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
@@ -1830,7 +1830,7 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 	    && (urb->sg == NULL)
 	    && !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 	    && urb->transfer_buffer_length != 0) {
-		dev_err(dev, "BUG? urb %p: NULL xfer buffer & NODMA\n", urb);
+		dev_err(dev, "? urb %p: NULL xfer buffer & NODMA\n", urb);
 		dump_stack();
 	}
 
@@ -1944,10 +1944,10 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 	if (xfer == NULL)
 		return -ENOENT;
 	spin_lock_irqsave(&xfer->lock, flags);
-	pr_debug("%s: DEQUEUE xfer id 0x%08X\n", __func__, wa_xfer_id(xfer));
+	pr_de("%s: DEQUEUE xfer id 0x%08X\n", __func__, wa_xfer_id(xfer));
 	rpipe = xfer->ep->hcpriv;
 	if (rpipe == NULL) {
-		pr_debug("%s: xfer %p id 0x%08X has no RPIPE.  %s",
+		pr_de("%s: xfer %p id 0x%08X has no RPIPE.  %s",
 			__func__, xfer, wa_xfer_id(xfer),
 			"Probably already aborted.\n" );
 		result = -ENOENT;
@@ -1958,7 +1958,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 	 * twice.
 	 */
 	if (__wa_xfer_is_done(xfer)) {
-		pr_debug("%s: xfer %p id 0x%08X already done.\n", __func__,
+		pr_de("%s: xfer %p id 0x%08X already done.\n", __func__,
 			xfer, wa_xfer_id(xfer));
 		result = -ENOENT;
 		goto out_unlock;
@@ -1979,7 +1979,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 	spin_lock(&rpipe->seg_lock);
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
 		seg = xfer->seg[cnt];
-		pr_debug("%s: xfer id 0x%08X#%d status = %d\n",
+		pr_de("%s: xfer id 0x%08X#%d status = %d\n",
 			__func__, wa_xfer_id(xfer), cnt, seg->status);
 		switch (seg->status) {
 		case WA_SEG_NOTREADY:
@@ -2098,14 +2098,14 @@ static int wa_xfer_status_to_errno(u8 status)
 	if (status == 0)
 		return 0;
 	if (status >= ARRAY_SIZE(xlat)) {
-		printk_ratelimited(KERN_ERR "%s(): BUG? "
+		printk_ratelimited(KERN_ERR "%s(): ? "
 			       "Unknown WA transfer status 0x%02x\n",
 			       __func__, real_status);
 		return -EINVAL;
 	}
 	errno = xlat[status];
 	if (unlikely(errno > 0)) {
-		printk_ratelimited(KERN_ERR "%s(): BUG? "
+		printk_ratelimited(KERN_ERR "%s(): ? "
 			       "Inconsistent WA status: 0x%02x\n",
 			       __func__, real_status);
 		errno = -errno;
@@ -2131,7 +2131,7 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 	for (index = starting_index; index < xfer->segs_submitted; index++) {
 		struct wa_seg *current_seg = xfer->seg[index];
 
-		BUG_ON(current_seg == NULL);
+		_ON(current_seg == NULL);
 
 		switch (current_seg->status) {
 		case WA_SEG_SUBMITTED:
@@ -2170,7 +2170,7 @@ static int __wa_populate_buf_in_urb_isoc(struct wahc *wa,
 	int next_frame_contiguous;
 	struct usb_iso_packet_descriptor *iso_frame;
 
-	BUG_ON(buf_in_urb->status == -EINPROGRESS);
+	_ON(buf_in_urb->status == -EINPROGRESS);
 
 	/*
 	 * If the current frame actual_length is contiguous with the next frame
@@ -2221,7 +2221,7 @@ static int wa_populate_buf_in_urb(struct urb *buf_in_urb, struct wa_xfer *xfer,
 	int result = 0;
 	struct wa_seg *seg = xfer->seg[seg_idx];
 
-	BUG_ON(buf_in_urb->status == -EINPROGRESS);
+	_ON(buf_in_urb->status == -EINPROGRESS);
 	/* this should always be 0 before a resubmit. */
 	buf_in_urb->num_mapped_sgs	= 0;
 
@@ -2755,7 +2755,7 @@ static void wa_dti_cb(struct urb *urb)
 	u32 xfer_id;
 	u8 usb_status;
 
-	BUG_ON(wa->dti_urb != urb);
+	_ON(wa->dti_urb != urb);
 	switch (wa->dti_urb->status) {
 	case 0:
 		if (wa->dti_state == WA_DTI_TRANSFER_RESULT_PENDING) {
@@ -2907,11 +2907,11 @@ void wa_handle_notif_xfer(struct wahc *wa, struct wa_notif_hdr *notif_hdr)
 	const struct usb_endpoint_descriptor *dti_epd = wa->dti_epd;
 
 	notif_xfer = container_of(notif_hdr, struct wa_notif_xfer, hdr);
-	BUG_ON(notif_hdr->bNotifyType != WA_NOTIF_TRANSFER);
+	_ON(notif_hdr->bNotifyType != WA_NOTIF_TRANSFER);
 
 	if ((0x80 | notif_xfer->bEndpoint) != dti_epd->bEndpointAddress) {
 		/* FIXME: hardcoded limitation, adapt */
-		dev_err(dev, "BUG: DTI ep is %u, not %u (hack me)\n",
+		dev_err(dev, ": DTI ep is %u, not %u (hack me)\n",
 			notif_xfer->bEndpoint, dti_epd->bEndpointAddress);
 		goto error;
 	}

@@ -90,7 +90,7 @@ void __init lpc32xx_serial_init(void)
 
 		/*
 		 * Force a flush of the RX FIFOs to work around a
-		 * HW bug
+		 * HW 
 		 */
 		puart = uartinit_data[i].mapbase;
 		__raw_writel(0xC1, LPC32XX_UART_IIR_FCR(puart));
@@ -105,7 +105,7 @@ void __init lpc32xx_serial_init(void)
 	/* This needs to be done after all UART clocks are setup */
 	__raw_writel(clkmodes, LPC32XX_UARTCTL_CLKMODE);
 	for (i = 0; i < ARRAY_SIZE(uartinit_data); i++) {
-		/* Force a flush of the RX FIFOs to work around a HW bug */
+		/* Force a flush of the RX FIFOs to work around a HW  */
 		puart = uartinit_data[i].mapbase;
 		__raw_writel(0xC1, LPC32XX_UART_IIR_FCR(puart));
 		__raw_writel(0x00, LPC32XX_UART_DLL_FIFO(puart));

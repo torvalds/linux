@@ -151,7 +151,7 @@
 #define SLV_MAX_LEN			0x7c
 #define MAX_READ_TURNAROUND		0x80
 #define MAX_DATA_SPEED			0x84
-#define SLV_DEBUG_STATUS		0x88
+#define SLV_DE_STATUS		0x88
 #define SLV_INTR_REQ			0x8c
 #define DEVICE_CTRL_EXTENDED		0xb0
 #define SCL_I3C_OD_TIMING		0xb4

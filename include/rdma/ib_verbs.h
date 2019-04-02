@@ -479,7 +479,7 @@ enum ib_port_speed {
  *   directory.
  * @num_counters - How many hardware counters there are.  If name is
  *   shorter than this number, a kernel oops will result.  Driver authors
- *   are encouraged to leave BUILD_BUG_ON(ARRAY_SIZE(@name) < num_counters)
+ *   are encouraged to leave BUILD__ON(ARRAY_SIZE(@name) < num_counters)
  *   in their code to prevent this.
  * @value - Array of u64 counters that are accessed by the sysfs code and
  *   filled in by the drivers get_stats routine
@@ -2276,8 +2276,8 @@ struct uverbs_attr_bundle;
 #define INIT_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)                      \
 	.size_##ib_struct =                                                    \
 		(sizeof(struct drv_struct) +                                   \
-		 BUILD_BUG_ON_ZERO(offsetof(struct drv_struct, member)) +      \
-		 BUILD_BUG_ON_ZERO(                                            \
+		 BUILD__ON_ZERO(offsetof(struct drv_struct, member)) +      \
+		 BUILD__ON_ZERO(                                            \
 			 !__same_type(((struct drv_struct *)NULL)->member,     \
 				      struct ib_struct)))
 
@@ -2665,7 +2665,7 @@ struct ib_client {
 struct ib_device *_ib_alloc_device(size_t size);
 #define ib_alloc_device(drv_struct, member)                                    \
 	container_of(_ib_alloc_device(sizeof(struct drv_struct) +              \
-				      BUILD_BUG_ON_ZERO(offsetof(              \
+				      BUILD__ON_ZERO(offsetof(              \
 					      struct drv_struct, member))),    \
 		     struct drv_struct, member)
 
@@ -2860,7 +2860,7 @@ static inline u8 rdma_start_port(const struct ib_device *device)
  * @iter - The unsigned int to store the port number
  */
 #define rdma_for_each_port(device, iter)                                       \
-	for (iter = rdma_start_port(device + BUILD_BUG_ON_ZERO(!__same_type(   \
+	for (iter = rdma_start_port(device + BUILD__ON_ZERO(!__same_type(   \
 						     unsigned int, iter)));    \
 	     iter <= rdma_end_port(device); (iter)++)
 

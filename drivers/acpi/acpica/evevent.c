@@ -185,7 +185,7 @@ u32 acpi_ev_fixed_event_detect(void)
 		return (int_status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
+	ACPI_DE_PRINT((ACPI_DB_INTERRUPTS,
 			  "Fixed Event Block: Enable %08X Status %08X\n",
 			  fixed_enable, fixed_status));
 

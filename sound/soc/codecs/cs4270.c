@@ -506,7 +506,7 @@ static int cs4270_probe(struct snd_soc_component *component)
 	struct cs4270_private *cs4270 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	/* Disable auto-mute.  This feature appears to be buggy.  In some
+	/* Disable auto-mute.  This feature appears to be gy.  In some
 	 * situations, auto-mute will not deactivate when it should, so we want
 	 * this feature disabled by default.  An application (e.g. alsactl) can
 	 * re-enabled it by using the controls.

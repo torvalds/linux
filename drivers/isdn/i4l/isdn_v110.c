@@ -18,7 +18,7 @@
 #include <linux/isdn.h>
 #include "isdn_v110.h"
 
-#undef ISDN_V110_DEBUG
+#undef ISDN_V110_DE
 
 char *isdn_v110_revision = "$Revision: 1.1.2.2 $";
 
@@ -136,8 +136,8 @@ isdn_v110_close(isdn_v110_stream *v)
 {
 	if (v == NULL)
 		return;
-#ifdef ISDN_V110_DEBUG
-	printk(KERN_DEBUG "v110 close\n");
+#ifdef ISDN_V110_DE
+	printk(KERN_DE "v110 close\n");
 #endif
 	kfree(v->encodebuf);
 	kfree(v);
@@ -175,8 +175,8 @@ SyncHeader(isdn_v110_stream *v)
 		memcpy(v->decodebuf, rbuf, len);
 
 	v->decodelen = len;
-#ifdef ISDN_V110_DEBUG
-	printk(KERN_DEBUG "isdn_v110: Header resync\n");
+#ifdef ISDN_V110_DE
+	printk(KERN_DE "isdn_v110: Header resync\n");
 #endif
 }
 
@@ -199,8 +199,8 @@ DecodeMatrix(isdn_v110_stream *v, unsigned char *m, int len, unsigned char *buf)
 	while (line < len) {    /* Are we done with all lines of the matrix? */
 		if ((line % 10) == 0) {	/* the 0. line of the matrix is always 0 ! */
 			if (m[line] != 0x00) {	/* not 0 ? -> error! */
-#ifdef ISDN_V110_DEBUG
-				printk(KERN_DEBUG "isdn_v110: DecodeMatrix, V110 Bad Header\n");
+#ifdef ISDN_V110_DE
+				printk(KERN_DE "isdn_v110: DecodeMatrix, V110 Bad Header\n");
 				/* returning now is not the right thing, though :-( */
 #endif
 			}
@@ -208,8 +208,8 @@ DecodeMatrix(isdn_v110_stream *v, unsigned char *m, int len, unsigned char *buf)
 			continue;
 		} else if ((line % 10) == 5) {	/* in line 5 there's only e-bits ! */
 			if ((m[line] & 0x70) != 0x30) {	/* 011 has to be at the beginning! */
-#ifdef ISDN_V110_DEBUG
-				printk(KERN_DEBUG "isdn_v110: DecodeMatrix, V110 Bad 5th line\n");
+#ifdef ISDN_V110_DE
+				printk(KERN_DE "isdn_v110: DecodeMatrix, V110 Bad 5th line\n");
 				/* returning now is not the right thing, though :-( */
 #endif
 			}

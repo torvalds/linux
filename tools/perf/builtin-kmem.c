@@ -20,7 +20,7 @@
 #include "util/data.h"
 #include "util/cpumap.h"
 
-#include "util/debug.h"
+#include "util/de.h"
 
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
@@ -361,7 +361,7 @@ static int build_alloc_func_list(void)
 		if (func == NULL)
 			return -ENOMEM;
 
-		pr_debug("alloc func: %s\n", sym->name);
+		pr_de("alloc func: %s\n", sym->name);
 		func[nr_alloc_funcs].start = sym->start;
 		func[nr_alloc_funcs].end   = sym->end;
 		func[nr_alloc_funcs].name  = sym->name;
@@ -415,13 +415,13 @@ static u64 find_callsite(struct perf_evsel *evsel, struct perf_sample *sample)
 
 			return addr;
 		} else
-			pr_debug3("skipping alloc function: %s\n", caller->name);
+			pr_de3("skipping alloc function: %s\n", caller->name);
 
 		callchain_cursor_advance(&callchain_cursor);
 	}
 
 out:
-	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
+	pr_de2("unknown callsite: %"PRIx64 "\n", sample->ip);
 	return sample->ip;
 }
 
@@ -873,7 +873,7 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	this.page = page;
 	pstat = page_stat__find_page(&this);
 	if (pstat == NULL) {
-		pr_debug2("missing free at page %"PRIx64" (order: %d)\n",
+		pr_de2("missing free at page %"PRIx64" (order: %d)\n",
 			  page, order);
 
 		nr_page_nomatch++;
@@ -943,7 +943,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 							sample->tid);
 
 	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
+		pr_de("problem processing %d event, skipping it.\n",
 			 event->header.type);
 		return -1;
 	}

@@ -1501,7 +1501,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_add_txqs				= 0x0C30,
 	ice_aqc_opc_dis_txqs				= 0x0C31,
 
-	/* debug commands */
+	/* de commands */
 	ice_aqc_opc_fw_logging				= 0xFF09,
 };
 

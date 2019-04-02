@@ -26,7 +26,7 @@
 
 /********************* Driver for on-board I2C adapter *********************/
 
-/* #define GO7007_I2C_DEBUG */
+/* #define GO7007_I2C_DE */
 
 #define SPI_I2C_ADDR_BASE		0x1400
 #define STATUS_REG_ADDR			(SPI_I2C_ADDR_BASE + 0x2)
@@ -52,7 +52,7 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 	if (go->status == STATUS_SHUTDOWN)
 		return -ENODEV;
 
-#ifdef GO7007_I2C_DEBUG
+#ifdef GO7007_I2C_DE
 	if (read)
 		dev_dbg(go->dev, "go7007-i2c: reading 0x%02x on 0x%02x\n",
 			command, addr);

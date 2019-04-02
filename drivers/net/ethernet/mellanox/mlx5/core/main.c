@@ -43,7 +43,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include <linux/mlx5/vport.h>
@@ -72,9 +72,9 @@ MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) c
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
-unsigned int mlx5_core_debug_mask;
-module_param_named(debug_mask, mlx5_core_debug_mask, uint, 0644);
-MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
+unsigned int mlx5_core_de_mask;
+module_param_named(de_mask, mlx5_core_de_mask, uint, 0644);
+MODULE_PARM_DESC(de_mask, "de mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
 #define MLX5_DEFAULT_PROF	2
 static unsigned int prof_sel = MLX5_DEFAULT_PROF;
@@ -753,9 +753,9 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	priv->numa_node = dev_to_node(&dev->pdev->dev);
 
-	if (mlx5_debugfs_root)
+	if (mlx5_defs_root)
 		priv->dbg_root =
-			debugfs_create_dir(pci_name(pdev), mlx5_debugfs_root);
+			defs_create_dir(pci_name(pdev), mlx5_defs_root);
 
 	err = mlx5_pci_enable_device(dev);
 	if (err) {
@@ -799,7 +799,7 @@ err_disable:
 	mlx5_pci_disable_device(dev);
 
 err_dbg:
-	debugfs_remove(priv->dbg_root);
+	defs_remove(priv->dbg_root);
 	return err;
 }
 
@@ -809,7 +809,7 @@ static void mlx5_pci_close(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	pci_clear_master(dev->pdev);
 	release_bar(dev->pdev);
 	mlx5_pci_disable_device(dev);
-	debugfs_remove_recursive(priv->dbg_root);
+	defs_remove_recursive(priv->dbg_root);
 }
 
 static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
@@ -840,9 +840,9 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_eq_cleanup;
 	}
 
-	err = mlx5_cq_debugfs_init(dev);
+	err = mlx5_cq_defs_init(dev);
 	if (err) {
-		dev_err(&pdev->dev, "failed to initialize cq debugfs\n");
+		dev_err(&pdev->dev, "failed to initialize cq defs\n");
 		goto err_events_cleanup;
 	}
 
@@ -902,7 +902,7 @@ err_tables_cleanup:
 	mlx5_vxlan_destroy(dev->vxlan);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
-	mlx5_cq_debugfs_cleanup(dev);
+	mlx5_cq_defs_cleanup(dev);
 err_events_cleanup:
 	mlx5_events_cleanup(dev);
 err_eq_cleanup:
@@ -926,7 +926,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_qp_table(dev);
-	mlx5_cq_debugfs_cleanup(dev);
+	mlx5_cq_defs_cleanup(dev);
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
 	mlx5_devcom_unregister_device(dev->priv.devcom);
@@ -1559,11 +1559,11 @@ static int __init init(void)
 
 	mlx5_core_verify_params();
 	mlx5_fpga_ipsec_build_fs_cmds();
-	mlx5_register_debugfs();
+	mlx5_register_defs();
 
 	err = pci_register_driver(&mlx5_core_driver);
 	if (err)
-		goto err_debug;
+		goto err_de;
 
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5e_init();
@@ -1571,8 +1571,8 @@ static int __init init(void)
 
 	return 0;
 
-err_debug:
-	mlx5_unregister_debugfs();
+err_de:
+	mlx5_unregister_defs();
 	return err;
 }
 
@@ -1582,7 +1582,7 @@ static void __exit cleanup(void)
 	mlx5e_cleanup();
 #endif
 	pci_unregister_driver(&mlx5_core_driver);
-	mlx5_unregister_debugfs();
+	mlx5_unregister_defs();
 }
 
 module_init(init);

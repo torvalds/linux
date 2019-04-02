@@ -63,7 +63,7 @@
 #include "quirks.h"
 #include "endpoint.h"
 #include "helper.h"
-#include "debug.h"
+#include "de.h"
 #include "pcm.h"
 #include "format.h"
 #include "power.h"

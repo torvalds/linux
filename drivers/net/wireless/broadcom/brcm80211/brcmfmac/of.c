@@ -18,7 +18,7 @@
 #include <linux/of_irq.h>
 
 #include <defs.h>
-#include "debug.h"
+#include "de.h"
 #include "core.h"
 #include "common.h"
 #include "of.h"

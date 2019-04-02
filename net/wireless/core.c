@@ -15,7 +15,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/nl80211.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
@@ -26,7 +26,7 @@
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "wext-compat.h"
 #include "rdev-ops.h"
 
@@ -42,8 +42,8 @@ MODULE_ALIAS_GENL_FAMILY(NL80211_GENL_NAME);
 LIST_HEAD(cfg80211_rdev_list);
 int cfg80211_rdev_list_generation;
 
-/* for debugfs */
-static struct dentry *ieee80211_debugfs_dir;
+/* for defs */
+static struct dentry *ieee80211_defs_dir;
 
 /* for the cleanup, scan and event works */
 struct workqueue_struct *cfg80211_wq;
@@ -141,12 +141,12 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	if (result)
 		return result;
 
-	if (rdev->wiphy.debugfsdir &&
-	    !debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
-			    rdev->wiphy.debugfsdir,
-			    rdev->wiphy.debugfsdir->d_parent,
+	if (rdev->wiphy.defsdir &&
+	    !defs_rename(rdev->wiphy.defsdir->d_parent,
+			    rdev->wiphy.defsdir,
+			    rdev->wiphy.defsdir->d_parent,
 			    newname))
-		pr_err("failed to rename debugfs dir to %s!\n", newname);
+		pr_err("failed to rename defs dir to %s!\n", newname);
 
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
@@ -884,14 +884,14 @@ int wiphy_register(struct wiphy *wiphy)
 	list_add_rcu(&rdev->list, &cfg80211_rdev_list);
 	cfg80211_rdev_list_generation++;
 
-	/* add to debugfs */
-	rdev->wiphy.debugfsdir =
-		debugfs_create_dir(wiphy_name(&rdev->wiphy),
-				   ieee80211_debugfs_dir);
-	if (IS_ERR(rdev->wiphy.debugfsdir))
-		rdev->wiphy.debugfsdir = NULL;
+	/* add to defs */
+	rdev->wiphy.defsdir =
+		defs_create_dir(wiphy_name(&rdev->wiphy),
+				   ieee80211_defs_dir);
+	if (IS_ERR(rdev->wiphy.defsdir))
+		rdev->wiphy.defsdir = NULL;
 
-	cfg80211_debugfs_rdev_add(rdev);
+	cfg80211_defs_rdev_add(rdev);
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
 	if (wiphy->regulatory_flags & REGULATORY_CUSTOM_REG) {
@@ -993,7 +993,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * First remove the hardware from everywhere, this makes
 	 * it impossible to find from userspace.
 	 */
-	debugfs_remove_recursive(rdev->wiphy.debugfsdir);
+	defs_remove_recursive(rdev->wiphy.defsdir);
 	list_del_rcu(&rdev->list);
 	synchronize_rcu();
 
@@ -1450,7 +1450,7 @@ static int __init cfg80211_init(void)
 	if (err)
 		goto out_fail_nl80211;
 
-	ieee80211_debugfs_dir = debugfs_create_dir("ieee80211", NULL);
+	ieee80211_defs_dir = defs_create_dir("ieee80211", NULL);
 
 	err = regulatory_init();
 	if (err)
@@ -1467,7 +1467,7 @@ static int __init cfg80211_init(void)
 out_fail_wq:
 	regulatory_exit();
 out_fail_reg:
-	debugfs_remove(ieee80211_debugfs_dir);
+	defs_remove(ieee80211_defs_dir);
 	nl80211_exit();
 out_fail_nl80211:
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
@@ -1482,7 +1482,7 @@ fs_initcall(cfg80211_init);
 
 static void __exit cfg80211_exit(void)
 {
-	debugfs_remove(ieee80211_debugfs_dir);
+	defs_remove(ieee80211_defs_dir);
 	nl80211_exit();
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 	wiphy_sysfs_exit();

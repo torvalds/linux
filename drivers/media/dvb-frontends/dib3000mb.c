@@ -40,9 +40,9 @@
 #define DRIVER_DESC "DiBcom 3000M-B DVB-T demodulator"
 #define DRIVER_AUTHOR "Patrick Boettcher, patrick.boettcher@posteo.de"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe (|-able)).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,2=xfer,4=setfe,8=getfe (|-able)).");
 
 #define deb_info(args...) dprintk(0x01, args)
 #define deb_i2c(args...)  dprintk(0x02, args)

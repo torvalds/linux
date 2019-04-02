@@ -301,7 +301,7 @@ int snd_msndmix_new(struct snd_card *card)
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return -EINVAL;
 	spin_lock_init(&chip->mixer_lock);
 	strcpy(card->mixername, "MSND Pinnacle Mixer");

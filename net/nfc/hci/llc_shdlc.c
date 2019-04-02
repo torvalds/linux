@@ -111,8 +111,8 @@ enum uframe_modifier {
 
 #define SHDLC_DUMP_SKB(info, skb)				  \
 do {								  \
-	pr_debug("%s:\n", info);				  \
-	print_hex_dump(KERN_DEBUG, "shdlc: ", DUMP_PREFIX_OFFSET, \
+	pr_de("%s:\n", info);				  \
+	print_hex_dump(KERN_DE, "shdlc: ", DUMP_PREFIX_OFFSET, \
 		       16, 1, skb->data, skb->len, 0);		  \
 } while (0)
 
@@ -154,7 +154,7 @@ static int llc_shdlc_send_s_frame(struct llc_shdlc *shdlc,
 	int r;
 	struct sk_buff *skb;
 
-	pr_debug("sframe_type=%d nr=%d\n", sframe_type, nr);
+	pr_de("sframe_type=%d nr=%d\n", sframe_type, nr);
 
 	skb = llc_shdlc_alloc_skb(shdlc, 0);
 	if (skb == NULL)
@@ -176,7 +176,7 @@ static int llc_shdlc_send_u_frame(struct llc_shdlc *shdlc,
 {
 	int r;
 
-	pr_debug("uframe_modifier=%d\n", uframe_modifier);
+	pr_de("uframe_modifier=%d\n", uframe_modifier);
 
 	*(u8 *)skb_push(skb, 1) = SHDLC_CONTROL_HEAD_U | uframe_modifier;
 
@@ -196,10 +196,10 @@ static void llc_shdlc_reset_t2(struct llc_shdlc *shdlc, int y_nr)
 	struct sk_buff *skb;
 	int dnr = shdlc->dnr;	/* MUST initially be < y_nr */
 
-	pr_debug("release ack pending up to frame %d excluded\n", y_nr);
+	pr_de("release ack pending up to frame %d excluded\n", y_nr);
 
 	while (dnr != y_nr) {
-		pr_debug("release ack pending frame %d\n", dnr);
+		pr_de("release ack pending frame %d\n", dnr);
 
 		skb = skb_dequeue(&shdlc->ack_pending_q);
 		kfree_skb(skb);
@@ -212,7 +212,7 @@ static void llc_shdlc_reset_t2(struct llc_shdlc *shdlc, int y_nr)
 			del_timer_sync(&shdlc->t2_timer);
 			shdlc->t2_active = false;
 
-			pr_debug
+			pr_de
 			    ("All sent frames acked. Stopped T2(retransmit)\n");
 		}
 	} else {
@@ -222,7 +222,7 @@ static void llc_shdlc_reset_t2(struct llc_shdlc *shdlc, int y_nr)
 			  msecs_to_jiffies(SHDLC_T2_VALUE_MS));
 		shdlc->t2_active = true;
 
-		pr_debug
+		pr_de
 		    ("Start T2(retransmit) for remaining unacked sent frames\n");
 	}
 }
@@ -237,7 +237,7 @@ static void llc_shdlc_rcv_i_frame(struct llc_shdlc *shdlc,
 	int x_ns = ns;
 	int y_nr = nr;
 
-	pr_debug("recvd I-frame %d, remote waiting frame %d\n", ns, nr);
+	pr_de("recvd I-frame %d, remote waiting frame %d\n", ns, nr);
 
 	if (shdlc->state != SHDLC_CONNECTED)
 		goto exit;
@@ -251,7 +251,7 @@ static void llc_shdlc_rcv_i_frame(struct llc_shdlc *shdlc,
 		shdlc->t1_active = true;
 		mod_timer(&shdlc->t1_timer, jiffies +
 			  msecs_to_jiffies(SHDLC_T1_VALUE_MS(shdlc->w)));
-		pr_debug("(re)Start T1(send ack)\n");
+		pr_de("(re)Start T1(send ack)\n");
 	}
 
 	if (skb->len) {
@@ -273,7 +273,7 @@ exit:
 
 static void llc_shdlc_rcv_ack(struct llc_shdlc *shdlc, int y_nr)
 {
-	pr_debug("remote acked up to frame %d excluded\n", y_nr);
+	pr_de("remote acked up to frame %d excluded\n", y_nr);
 
 	if (llc_shdlc_x_lt_y_lteq_z(shdlc->dnr, y_nr, shdlc->ns)) {
 		llc_shdlc_reset_t2(shdlc, y_nr);
@@ -285,7 +285,7 @@ static void llc_shdlc_requeue_ack_pending(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 
-	pr_debug("ns reset to %d\n", shdlc->dnr);
+	pr_de("ns reset to %d\n", shdlc->dnr);
 
 	while ((skb = skb_dequeue_tail(&shdlc->ack_pending_q))) {
 		skb_pull(skb, 1);	/* remove control field */
@@ -298,13 +298,13 @@ static void llc_shdlc_rcv_rej(struct llc_shdlc *shdlc, int y_nr)
 {
 	struct sk_buff *skb;
 
-	pr_debug("remote asks retransmission from frame %d\n", y_nr);
+	pr_de("remote asks retransmission from frame %d\n", y_nr);
 
 	if (llc_shdlc_x_lteq_y_lt_z(shdlc->dnr, y_nr, shdlc->ns)) {
 		if (shdlc->t2_active) {
 			del_timer_sync(&shdlc->t2_timer);
 			shdlc->t2_active = false;
-			pr_debug("Stopped T2(retransmit)\n");
+			pr_de("Stopped T2(retransmit)\n");
 		}
 
 		if (shdlc->dnr != y_nr) {
@@ -353,7 +353,7 @@ static void llc_shdlc_rcv_s_frame(struct llc_shdlc *shdlc,
 
 static void llc_shdlc_connect_complete(struct llc_shdlc *shdlc, int r)
 {
-	pr_debug("result=%d\n", r);
+	pr_de("result=%d\n", r);
 
 	del_timer_sync(&shdlc->connect_timer);
 
@@ -376,7 +376,7 @@ static int llc_shdlc_connect_initiate(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	skb = llc_shdlc_alloc_skb(shdlc, 2);
 	if (skb == NULL)
@@ -392,7 +392,7 @@ static int llc_shdlc_connect_send_ua(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	skb = llc_shdlc_alloc_skb(shdlc, 0);
 	if (skb == NULL)
@@ -409,7 +409,7 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 	bool srej_support = SHDLC_SREJ_SUPPORT;
 	int r;
 
-	pr_debug("u_frame_modifier=%d\n", u_frame_modifier);
+	pr_de("u_frame_modifier=%d\n", u_frame_modifier);
 
 	switch (u_frame_modifier) {
 	case U_FRAME_RSET:
@@ -477,7 +477,7 @@ static void llc_shdlc_handle_rcv_queue(struct llc_shdlc *shdlc)
 	enum uframe_modifier u_frame_modifier;
 
 	if (shdlc->rcv_q.qlen)
-		pr_debug("rcvQlen=%d\n", shdlc->rcv_q.qlen);
+		pr_de("rcvQlen=%d\n", shdlc->rcv_q.qlen);
 
 	while ((skb = skb_dequeue(&shdlc->rcv_q)) != NULL) {
 		control = skb->data[0];
@@ -533,7 +533,7 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 	unsigned long time_sent;
 
 	if (shdlc->send_q.qlen)
-		pr_debug
+		pr_de
 		    ("sendQlen=%d ns=%d dnr=%d rnr=%s w_room=%d unackQlen=%d\n",
 		     shdlc->send_q.qlen, shdlc->ns, shdlc->dnr,
 		     shdlc->rnr == false ? "false" : "true",
@@ -546,7 +546,7 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 		if (shdlc->t1_active) {
 			del_timer_sync(&shdlc->t1_timer);
 			shdlc->t1_active = false;
-			pr_debug("Stopped T1(send ack)\n");
+			pr_de("Stopped T1(send ack)\n");
 		}
 
 		skb = skb_dequeue(&shdlc->send_q);
@@ -554,7 +554,7 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 		*(u8 *)skb_push(skb, 1) = SHDLC_CONTROL_HEAD_I | (shdlc->ns << 3) |
 					shdlc->nr;
 
-		pr_debug("Sending I-Frame %d, waiting to rcv %d\n", shdlc->ns,
+		pr_de("Sending I-Frame %d, waiting to rcv %d\n", shdlc->ns,
 			 shdlc->nr);
 		SHDLC_DUMP_SKB("shdlc frame written", skb);
 
@@ -575,7 +575,7 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 			shdlc->t2_active = true;
 			mod_timer(&shdlc->t2_timer, time_sent +
 				  msecs_to_jiffies(SHDLC_T2_VALUE_MS));
-			pr_debug("Started T2 (retransmit)\n");
+			pr_de("Started T2 (retransmit)\n");
 		}
 	}
 }
@@ -584,7 +584,7 @@ static void llc_shdlc_connect_timeout(struct timer_list *t)
 {
 	struct llc_shdlc *shdlc = from_timer(shdlc, t, connect_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	schedule_work(&shdlc->sm_work);
 }
@@ -593,7 +593,7 @@ static void llc_shdlc_t1_timeout(struct timer_list *t)
 {
 	struct llc_shdlc *shdlc = from_timer(shdlc, t, t1_timer);
 
-	pr_debug("SoftIRQ: need to send ack\n");
+	pr_de("SoftIRQ: need to send ack\n");
 
 	schedule_work(&shdlc->sm_work);
 }
@@ -602,7 +602,7 @@ static void llc_shdlc_t2_timeout(struct timer_list *t)
 {
 	struct llc_shdlc *shdlc = from_timer(shdlc, t, t2_timer);
 
-	pr_debug("SoftIRQ: need to retransmit\n");
+	pr_de("SoftIRQ: need to retransmit\n");
 
 	schedule_work(&shdlc->sm_work);
 }
@@ -612,7 +612,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 	struct llc_shdlc *shdlc = container_of(work, struct llc_shdlc, sm_work);
 	int r;
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	mutex_lock(&shdlc->state_mutex);
 
@@ -660,7 +660,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 		llc_shdlc_handle_send_queue(shdlc);
 
 		if (shdlc->t1_active && timer_pending(&shdlc->t1_timer) == 0) {
-			pr_debug
+			pr_de
 			    ("Handle T1(send ack) elapsed (T1 now inactive)\n");
 
 			shdlc->t1_active = false;
@@ -671,7 +671,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 		}
 
 		if (shdlc->t2_active && timer_pending(&shdlc->t2_timer) == 0) {
-			pr_debug
+			pr_de
 			    ("Handle T2(retransmit) elapsed (T2 inactive)\n");
 
 			shdlc->t2_active = false;
@@ -697,7 +697,7 @@ static int llc_shdlc_connect(struct llc_shdlc *shdlc)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(connect_wq);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	mutex_lock(&shdlc->state_mutex);
 
@@ -717,7 +717,7 @@ static int llc_shdlc_connect(struct llc_shdlc *shdlc)
 
 static void llc_shdlc_disconnect(struct llc_shdlc *shdlc)
 {
-	pr_debug("\n");
+	pr_de("\n");
 
 	mutex_lock(&shdlc->state_mutex);
 

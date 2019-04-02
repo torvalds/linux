@@ -1183,7 +1183,7 @@ static void dma_block_input(struct net_device *dev, int count,
 
     /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
       /* DMA termination address check... */
     if (netif_msg_rx_status(ei_local)) {
 	int addr, tries = 20;
@@ -1213,13 +1213,13 @@ static void dma_block_output(struct net_device *dev, int count,
 {
     unsigned int nic_base = dev->base_addr;
     struct pcnet_dev *info = PRIV(dev);
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
     int retries = 0;
     struct ei_device *ei_local = netdev_priv(dev);
 #endif
     u_long dma_start;
 
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
     netif_dbg(ei_local, tx_queued, dev, "[bo=%d]\n", count);
 #endif
 
@@ -1238,7 +1238,7 @@ static void dma_block_output(struct net_device *dev, int count,
     /* We should already be in page 0, but to be safe... */
     outb_p(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base+PCNET_CMD);
 
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
   retry:
 #endif
 
@@ -1255,7 +1255,7 @@ static void dma_block_output(struct net_device *dev, int count,
 
     dma_start = jiffies;
 
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
     /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
     /* DMA termination address check... */

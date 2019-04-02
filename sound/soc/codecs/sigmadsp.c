@@ -392,7 +392,7 @@ static int process_sigma_action(struct sigmadsp *sigmadsp,
 	size_t len = sigma_action_len(sa);
 	struct sigmadsp_data *data;
 
-	pr_debug("%s: instr:%i addr:%#x len:%zu\n", __func__,
+	pr_de("%s: instr:%i addr:%#x len:%zu\n", __func__,
 		sa->instr, sa->addr, len);
 
 	switch (sa->instr) {
@@ -439,7 +439,7 @@ static int sigmadsp_fw_load_v1(struct sigmadsp *sigmadsp,
 
 		ret = process_sigma_action(sigmadsp, sa);
 
-		pr_debug("%s: action returned %i\n", __func__, ret);
+		pr_de("%s: action returned %i\n", __func__, ret);
 
 		if (ret <= 0)
 			return ret;
@@ -483,7 +483,7 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 	/* first load the blob */
 	ret = request_firmware(&fw, name, sigmadsp->dev);
 	if (ret) {
-		pr_debug("%s: request_firmware() failed with %i\n", __func__, ret);
+		pr_de("%s: request_firmware() failed with %i\n", __func__, ret);
 		goto done;
 	}
 
@@ -509,7 +509,7 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 
 	crc = crc32(0, fw->data + sizeof(*ssfw_head),
 			fw->size - sizeof(*ssfw_head));
-	pr_debug("%s: crc=%x\n", __func__, crc);
+	pr_de("%s: crc=%x\n", __func__, crc);
 	if (crc != le32_to_cpu(ssfw_head->crc)) {
 		dev_err(sigmadsp->dev, "Failed to load firmware: Wrong crc checksum: expected %x got %x\n",
 			le32_to_cpu(ssfw_head->crc), crc);

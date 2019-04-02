@@ -9,7 +9,7 @@
  * Partition via the IO channel.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -103,7 +103,7 @@ struct chanstat {
  * @server_down:                    IOPART is down.
  * @server_change_state:            Processing SERVER_CHANGESTATE msg.
  * @going_away:                     device is being torn down.
- * @struct *eth_debugfs_dir:
+ * @struct *eth_defs_dir:
  * @interrupts_rcvd:
  * @interrupts_notme:
  * @interrupts_disabled:
@@ -158,7 +158,7 @@ struct visornic_devdata {
 	bool server_down;
 	bool server_change_state;
 	bool going_away;
-	struct dentry *eth_debugfs_dir;
+	struct dentry *eth_defs_dir;
 	u64 interrupts_rcvd;
 	u64 interrupts_notme;
 	u64 interrupts_disabled;
@@ -170,7 +170,7 @@ struct visornic_devdata {
 	u64 flow_control_upper_hits;
 	u64 flow_control_lower_hits;
 
-	/* debug counters */
+	/* de counters */
 	unsigned long n_rcv0;
 	unsigned long n_rcv1;
 	unsigned long n_rcv2;
@@ -319,14 +319,14 @@ static ssize_t enable_ints_write(struct file *file,
 				 const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
-	/* Don't want to break ABI here by having a debugfs
+	/* Don't want to break ABI here by having a defs
 	 * file that no longer exists or is writable, so
 	 * lets just make this a vestigual function
 	 */
 	return count;
 }
 
-static const struct file_operations debugfs_enable_ints_fops = {
+static const struct file_operations defs_enable_ints_fops = {
 	.write = enable_ints_write,
 };
 
@@ -1421,8 +1421,8 @@ static const struct net_device_ops visornic_dev_ops = {
 	.ndo_set_rx_mode = visornic_set_multi,
 };
 
-/* DebugFS code */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
+/* DeFS code */
+static ssize_t info_defs_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *offset)
 {
 	ssize_t bytes_read = 0;
@@ -1569,9 +1569,9 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	return bytes_read;
 }
 
-static struct dentry *visornic_debugfs_dir;
-static const struct file_operations debugfs_info_fops = {
-	.read = info_debugfs_read,
+static struct dentry *visornic_defs_dir;
+static const struct file_operations defs_info_fops = {
+	.read = info_defs_read,
 };
 
 /* send_rcv_posts_if_needed - send receive buffers to the IO Partition.
@@ -1929,12 +1929,12 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_napi_add;
 	}
 
-	/* create debug/sysfs directories */
-	devdata->eth_debugfs_dir = debugfs_create_dir(netdev->name,
-						      visornic_debugfs_dir);
-	if (!devdata->eth_debugfs_dir) {
+	/* create de/sysfs directories */
+	devdata->eth_defs_dir = defs_create_dir(netdev->name,
+						      visornic_defs_dir);
+	if (!devdata->eth_defs_dir) {
 		dev_err(&dev->device,
-			"%s debugfs_create_dir %s failed\n",
+			"%s defs_create_dir %s failed\n",
 			__func__, netdev->name);
 		err = -ENOMEM;
 		goto cleanup_register_netdev;
@@ -2012,7 +2012,7 @@ static void visornic_remove(struct visor_device *dev)
 	/* going_away prevents new items being added to the workqueues */
 	cancel_work_sync(&devdata->timeout_reset);
 
-	debugfs_remove_recursive(devdata->eth_debugfs_dir);
+	defs_remove_recursive(devdata->eth_defs_dir);
 	/* this will call visornic_close() */
 	unregister_netdev(netdev);
 
@@ -2126,16 +2126,16 @@ static int visornic_init(void)
 {
 	int err;
 
-	visornic_debugfs_dir = debugfs_create_dir("visornic", NULL);
+	visornic_defs_dir = defs_create_dir("visornic", NULL);
 
-	debugfs_create_file("info", 0400, visornic_debugfs_dir, NULL,
-			    &debugfs_info_fops);
-	debugfs_create_file("enable_ints", 0200, visornic_debugfs_dir, NULL,
-			    &debugfs_enable_ints_fops);
+	defs_create_file("info", 0400, visornic_defs_dir, NULL,
+			    &defs_info_fops);
+	defs_create_file("enable_ints", 0200, visornic_defs_dir, NULL,
+			    &defs_enable_ints_fops);
 
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (err)
-		debugfs_remove_recursive(visornic_debugfs_dir);
+		defs_remove_recursive(visornic_defs_dir);
 
 	return err;
 }
@@ -2147,7 +2147,7 @@ static int visornic_init(void)
 static void visornic_cleanup(void)
 {
 	visorbus_unregister_visor_driver(&visornic_driver);
-	debugfs_remove_recursive(visornic_debugfs_dir);
+	defs_remove_recursive(visornic_defs_dir);
 }
 
 module_init(visornic_init);

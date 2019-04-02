@@ -165,9 +165,9 @@ static struct n_hdlc_buf *n_hdlc_buf_get(struct n_hdlc_buf_list *list);
 
 static struct n_hdlc *n_hdlc_alloc (void);
 
-/* debug level can be set by insmod for debugging purposes */
-#define DEBUG_LEVEL_INFO	1
-static int debuglevel;
+/* de level can be set by insmod for deging purposes */
+#define DE_LEVEL_INFO	1
+static int delevel;
 
 /* max frame size for memory allocations */
 static int maxframe = 4096;
@@ -235,7 +235,7 @@ static void n_hdlc_release(struct n_hdlc *n_hdlc)
 	struct tty_struct *tty = n_hdlc2tty (n_hdlc);
 	struct n_hdlc_buf *buf;
 	
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_release() called\n",__FILE__,__LINE__);
 		
 	/* Ensure that the n_hdlcd process is not hanging on select()/poll() */
@@ -289,7 +289,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_close() called\n",__FILE__,__LINE__);
 		
 	if (n_hdlc != NULL) {
@@ -312,7 +312,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 		}
 	}
 	
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_close() success\n",__FILE__,__LINE__);
 		
 }	/* end of n_hdlc_tty_close() */
@@ -327,7 +327,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_open() called (device=%s)\n",
 		__FILE__,__LINE__,
 		tty->name);
@@ -356,7 +356,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 	/* flush receive data from driver */
 	tty_driver_flush_buffer(tty);
 		
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_open() success\n",__FILE__,__LINE__);
 		
 	return 0;
@@ -378,7 +378,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 	unsigned long flags;
 	struct n_hdlc_buf *tbuf;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_send_frames() called\n",__FILE__,__LINE__);
  check_again:
 		
@@ -394,7 +394,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 
 	tbuf = n_hdlc_buf_get(&n_hdlc->tx_buf_list);
 	while (tbuf) {
-		if (debuglevel >= DEBUG_LEVEL_INFO)	
+		if (delevel >= DE_LEVEL_INFO)	
 			printk("%s(%d)sending frame %p, count=%d\n",
 				__FILE__,__LINE__,tbuf,tbuf->count);
 			
@@ -413,7 +413,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 			actual = tbuf->count;
 		
 		if (actual == tbuf->count) {
-			if (debuglevel >= DEBUG_LEVEL_INFO)	
+			if (delevel >= DE_LEVEL_INFO)	
 				printk("%s(%d)frame %p completed\n",
 					__FILE__,__LINE__,tbuf);
 					
@@ -426,7 +426,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 			/* get next pending transmit buffer */
 			tbuf = n_hdlc_buf_get(&n_hdlc->tx_buf_list);
 		} else {
-			if (debuglevel >= DEBUG_LEVEL_INFO)	
+			if (delevel >= DE_LEVEL_INFO)	
 				printk("%s(%d)frame %p pending\n",
 					__FILE__,__LINE__,tbuf);
 
@@ -450,7 +450,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
         if (n_hdlc->woke_up)
 	  goto check_again;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_send_frames() exit\n",__FILE__,__LINE__);
 		
 }	/* end of n_hdlc_send_frames() */
@@ -465,7 +465,7 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 {
 	struct n_hdlc *n_hdlc = tty2n_hdlc(tty);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_wakeup() called\n",__FILE__,__LINE__);
 		
 	if (!n_hdlc)
@@ -496,7 +496,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	register struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 	register struct n_hdlc_buf *buf;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_receive() called count=%d\n",
 			__FILE__,__LINE__, count);
 		
@@ -512,7 +512,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	}
 	
 	if ( count>maxframe ) {
-		if (debuglevel >= DEBUG_LEVEL_INFO)	
+		if (delevel >= DE_LEVEL_INFO)	
 			printk("%s(%d) rx count>maxframesize, data discarded\n",
 			       __FILE__,__LINE__);
 		return;
@@ -528,7 +528,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	}
 	
 	if (!buf) {
-		if (debuglevel >= DEBUG_LEVEL_INFO)	
+		if (delevel >= DE_LEVEL_INFO)	
 			printk("%s(%d) no more rx buffers, data discarded\n",
 			       __FILE__,__LINE__);
 		return;
@@ -565,7 +565,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 	struct n_hdlc_buf *rbuf;
 	DECLARE_WAITQUEUE(wait, current);
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_read() called\n",__FILE__,__LINE__);
 		
 	/* Validate the pointers */
@@ -650,7 +650,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 	DECLARE_WAITQUEUE(wait, current);
 	struct n_hdlc_buf *tbuf;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_write() called count=%zd\n",
 			__FILE__,__LINE__,count);
 		
@@ -663,7 +663,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 
 	/* verify frame size */
 	if (count > maxframe ) {
-		if (debuglevel & DEBUG_LEVEL_INFO)
+		if (delevel & DE_LEVEL_INFO)
 			printk (KERN_WARNING
 				"n_hdlc_tty_write: truncating user packet "
 				"from %lu to %d\n", (unsigned long) count,
@@ -735,7 +735,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned long flags;
 	struct n_hdlc_buf *buf = NULL;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_ioctl() called %d\n",
 			__FILE__,__LINE__,cmd);
 		
@@ -803,7 +803,7 @@ static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 	struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 	__poll_t mask = 0;
 
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
+	if (delevel >= DE_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_poll() called\n",__FILE__,__LINE__);
 		
 	if (n_hdlc && n_hdlc->magic == HDLC_MAGIC && tty == n_hdlc->tty) {
@@ -856,7 +856,7 @@ static struct n_hdlc *n_hdlc_alloc(void)
 		buf = kmalloc(N_HDLC_BUF_SIZE, GFP_KERNEL);
 		if (buf)
 			n_hdlc_buf_put(&n_hdlc->rx_free_buf_list,buf);
-		else if (debuglevel >= DEBUG_LEVEL_INFO)	
+		else if (delevel >= DE_LEVEL_INFO)	
 			printk("%s(%d)n_hdlc_alloc(), kalloc() failed for rx buffer %d\n",__FILE__,__LINE__, i);
 	}
 	
@@ -865,7 +865,7 @@ static struct n_hdlc *n_hdlc_alloc(void)
 		buf = kmalloc(N_HDLC_BUF_SIZE, GFP_KERNEL);
 		if (buf)
 			n_hdlc_buf_put(&n_hdlc->tx_free_buf_list,buf);
-		else if (debuglevel >= DEBUG_LEVEL_INFO)	
+		else if (delevel >= DE_LEVEL_INFO)	
 			printk("%s(%d)n_hdlc_alloc(), kalloc() failed for tx buffer %d\n",__FILE__,__LINE__, i);
 	}
 	
@@ -989,6 +989,6 @@ module_exit(n_hdlc_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul Fulghum paulkf@microgate.com");
-module_param(debuglevel, int, 0);
+module_param(delevel, int, 0);
 module_param(maxframe, int, 0);
 MODULE_ALIAS_LDISC(N_HDLC);

@@ -120,7 +120,7 @@ static void rds_ib_dev_free(struct work_struct *work)
 
 void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 {
-	BUG_ON(refcount_read(&rds_ibdev->refcount) == 0);
+	_ON(refcount_read(&rds_ibdev->refcount) == 0);
 	if (refcount_dec_and_test(&rds_ibdev->refcount))
 		queue_work(rds_wq, &rds_ibdev->free_work);
 }
@@ -194,7 +194,7 @@ static void rds_ib_add_one(struct ib_device *device)
 		goto put_dev;
 	}
 
-	rdsdebug("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, fmr_max_remaps = %d, max_1m_mrs = %d, max_8k_mrs = %d\n",
+	rdsde("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, fmr_max_remaps = %d, max_1m_mrs = %d, max_8k_mrs = %d\n",
 		 device->attrs.max_fmr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
 		 rds_ibdev->fmr_max_remaps, rds_ibdev->max_1m_mrs,
 		 rds_ibdev->max_8k_mrs);
@@ -469,7 +469,7 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 	    cm_id->device->node_type != RDMA_NODE_IB_CA)
 		ret = -EADDRNOTAVAIL;
 
-	rdsdebug("addr %pI6c%%%u ret %d node type %d\n",
+	rdsde("addr %pI6c%%%u ret %d node type %d\n",
 		 addr, scope_id, ret,
 		 cm_id->device ? cm_id->device->node_type : -1);
 

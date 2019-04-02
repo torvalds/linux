@@ -875,12 +875,12 @@ struct local_info {
 	struct prism2_download_data *dl_sec;
 #endif /* PRISM2_DOWNLOAD_SUPPORT */
 
-#ifdef PRISM2_IO_DEBUG
-#define PRISM2_IO_DEBUG_SIZE 10000
-	u32 io_debug[PRISM2_IO_DEBUG_SIZE];
-	int io_debug_head;
-	int io_debug_enabled;
-#endif /* PRISM2_IO_DEBUG */
+#ifdef PRISM2_IO_DE
+#define PRISM2_IO_DE_SIZE 10000
+	u32 io_de[PRISM2_IO_DE_SIZE];
+	int io_de_head;
+	int io_de_enabled;
+#endif /* PRISM2_IO_DE */
 
 	/* Pointer to hardware model specific (cs,pci,plx) private data. */
 	void *hw_priv;
@@ -937,94 +937,94 @@ struct hostap_skb_tx_data {
 };
 
 
-#ifndef PRISM2_NO_DEBUG
+#ifndef PRISM2_NO_DE
 
-#define DEBUG_FID BIT(0)
-#define DEBUG_PS BIT(1)
-#define DEBUG_FLOW BIT(2)
-#define DEBUG_AP BIT(3)
-#define DEBUG_HW BIT(4)
-#define DEBUG_EXTRA BIT(5)
-#define DEBUG_EXTRA2 BIT(6)
-#define DEBUG_PS2 BIT(7)
-#define DEBUG_MASK (DEBUG_PS | DEBUG_AP | DEBUG_HW | DEBUG_EXTRA)
-#define PDEBUG(n, args...) \
-do { if ((n) & DEBUG_MASK) printk(KERN_DEBUG args); } while (0)
-#define PDEBUG2(n, args...) \
-do { if ((n) & DEBUG_MASK) printk(args); } while (0)
+#define DE_FID BIT(0)
+#define DE_PS BIT(1)
+#define DE_FLOW BIT(2)
+#define DE_AP BIT(3)
+#define DE_HW BIT(4)
+#define DE_EXTRA BIT(5)
+#define DE_EXTRA2 BIT(6)
+#define DE_PS2 BIT(7)
+#define DE_MASK (DE_PS | DE_AP | DE_HW | DE_EXTRA)
+#define PDE(n, args...) \
+do { if ((n) & DE_MASK) printk(KERN_DE args); } while (0)
+#define PDE2(n, args...) \
+do { if ((n) & DE_MASK) printk(args); } while (0)
 
-#else /* PRISM2_NO_DEBUG */
+#else /* PRISM2_NO_DE */
 
-#define PDEBUG(n, args...)
-#define PDEBUG2(n, args...)
+#define PDE(n, args...)
+#define PDE2(n, args...)
 
-#endif /* PRISM2_NO_DEBUG */
+#endif /* PRISM2_NO_DE */
 
 enum { BAP0 = 0, BAP1 = 1 };
 
-#define PRISM2_IO_DEBUG_CMD_INB 0
-#define PRISM2_IO_DEBUG_CMD_INW 1
-#define PRISM2_IO_DEBUG_CMD_INSW 2
-#define PRISM2_IO_DEBUG_CMD_OUTB 3
-#define PRISM2_IO_DEBUG_CMD_OUTW 4
-#define PRISM2_IO_DEBUG_CMD_OUTSW 5
-#define PRISM2_IO_DEBUG_CMD_ERROR 6
-#define PRISM2_IO_DEBUG_CMD_INTERRUPT 7
+#define PRISM2_IO_DE_CMD_INB 0
+#define PRISM2_IO_DE_CMD_INW 1
+#define PRISM2_IO_DE_CMD_INSW 2
+#define PRISM2_IO_DE_CMD_OUTB 3
+#define PRISM2_IO_DE_CMD_OUTW 4
+#define PRISM2_IO_DE_CMD_OUTSW 5
+#define PRISM2_IO_DE_CMD_ERROR 6
+#define PRISM2_IO_DE_CMD_INTERRUPT 7
 
-#ifdef PRISM2_IO_DEBUG
+#ifdef PRISM2_IO_DE
 
-#define PRISM2_IO_DEBUG_ENTRY(cmd, reg, value) \
+#define PRISM2_IO_DE_ENTRY(cmd, reg, value) \
 (((cmd) << 24) | ((reg) << 16) | value)
 
-static inline void prism2_io_debug_add(struct net_device *dev, int cmd,
+static inline void prism2_io_de_add(struct net_device *dev, int cmd,
 				       int reg, int value)
 {
 	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 
-	if (!local->io_debug_enabled)
+	if (!local->io_de_enabled)
 		return;
 
-	local->io_debug[local->io_debug_head] =	jiffies & 0xffffffff;
-	if (++local->io_debug_head >= PRISM2_IO_DEBUG_SIZE)
-		local->io_debug_head = 0;
-	local->io_debug[local->io_debug_head] =
-		PRISM2_IO_DEBUG_ENTRY(cmd, reg, value);
-	if (++local->io_debug_head >= PRISM2_IO_DEBUG_SIZE)
-		local->io_debug_head = 0;
+	local->io_de[local->io_de_head] =	jiffies & 0xffffffff;
+	if (++local->io_de_head >= PRISM2_IO_DE_SIZE)
+		local->io_de_head = 0;
+	local->io_de[local->io_de_head] =
+		PRISM2_IO_DE_ENTRY(cmd, reg, value);
+	if (++local->io_de_head >= PRISM2_IO_DE_SIZE)
+		local->io_de_head = 0;
 }
 
 
-static inline void prism2_io_debug_error(struct net_device *dev, int err)
+static inline void prism2_io_de_error(struct net_device *dev, int err)
 {
 	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	unsigned long flags;
 
-	if (!local->io_debug_enabled)
+	if (!local->io_de_enabled)
 		return;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_ERROR, 0, err);
-	if (local->io_debug_enabled == 1) {
-		local->io_debug_enabled = 0;
-		printk(KERN_DEBUG "%s: I/O debug stopped\n", dev->name);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_ERROR, 0, err);
+	if (local->io_de_enabled == 1) {
+		local->io_de_enabled = 0;
+		printk(KERN_DE "%s: I/O de stopped\n", dev->name);
 	}
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-#else /* PRISM2_IO_DEBUG */
+#else /* PRISM2_IO_DE */
 
-static inline void prism2_io_debug_add(struct net_device *dev, int cmd,
+static inline void prism2_io_de_add(struct net_device *dev, int cmd,
 				       int reg, int value)
 {
 }
 
-static inline void prism2_io_debug_error(struct net_device *dev, int err)
+static inline void prism2_io_de_error(struct net_device *dev, int err)
 {
 }
 
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 
 #ifdef PRISM2_CALLBACK

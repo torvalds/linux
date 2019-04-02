@@ -41,7 +41,7 @@ struct itc_jitter_data_t itc_jitter_data;
 
 volatile int time_keeper_id = 0; /* smp_processor_id() of time-keeper */
 
-#ifdef CONFIG_IA64_DEBUG_IRQ
+#ifdef CONFIG_IA64_DE_IRQ
 
 unsigned long last_cli_ip;
 EXPORT_SYMBOL(last_cli_ip);
@@ -294,7 +294,7 @@ void ia64_init_itm(void)
 	itc_freq = (platform_base_freq*itc_ratio.num)/itc_ratio.den;
 
 	local_cpu_data->itm_delta = (itc_freq + HZ/2) / HZ;
-	printk(KERN_DEBUG "CPU %d: base freq=%lu.%03luMHz, ITC ratio=%u/%u, "
+	printk(KERN_DE "CPU %d: base freq=%lu.%03luMHz, ITC ratio=%u/%u, "
 	       "ITC freq=%lu.%03luMHz", smp_processor_id(),
 	       platform_base_freq / 1000000, (platform_base_freq / 1000) % 1000,
 	       itc_ratio.num, itc_ratio.den, itc_freq / 1000000, (itc_freq / 1000) % 1000);

@@ -47,13 +47,13 @@
  * END_DESC
 */
 
-#define FPUDEBUG 0
+#define FPUDE 0
 
 #include "float.h"
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <asm/processor.h>
-/* #include <sys/debug.h> */
+/* #include <sys/de.h> */
 /* #include <machine/sys/mdep_private.h> */
 
 #define COPR_INST 0x30000000
@@ -214,7 +214,7 @@ fpudispatch(u_int ir, u_int excp_code, u_int holder, u_int fpregs[])
 	else
 		subop = get_subop(ir);
 
-	if (FPUDEBUG) printk("class %d subop %d\n", class, subop);
+	if (FPUDE) printk("class %d subop %d\n", class, subop);
 
 	switch (excp_code) {
 		case MAJOR_0C_EXCP:
@@ -542,7 +542,7 @@ decode_0c(u_int ir, u_int class, u_int subop, u_int fpregs[])
 					 * ftest,acc and ftest,rej
 					 * third param is the subop (y-field)
 					 */
-					BUG();
+					();
 					/* Unsupported
 					 * return(ftest(0L,extru(ir,fptpos,5),
 					 *	 &fpregs[0],subop));
@@ -612,7 +612,7 @@ decode_0c(u_int ir, u_int class, u_int subop, u_int fpregs[])
 					 * ftest,acc and ftest,rej
 					 * third param is the subop (y-field)
 					 */
-					BUG();
+					();
 					/* unsupported
 					 * return(ftest(0L,extru(ir,fptpos,5),
 					 *     &fpregs[0],subop));
@@ -1064,7 +1064,7 @@ u_int fpregs[];
 					     */
 					    if (t & 1)
 						return(MAJOR_0E_EXCP);
-					    BUG();
+					    ();
 					    /* unsupported
 					     * impyu(&fpregs[r1],&fpregs[r2],
 						 * &fpregs[t]);

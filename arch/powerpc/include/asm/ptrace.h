@@ -169,12 +169,12 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
 #ifndef __powerpc64__
 #define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
 #define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
-#define IS_DEBUG_EXC(regs)	(((regs)->trap & 8) != 0)
+#define IS_DE_EXC(regs)	(((regs)->trap & 8) != 0)
 #endif /* ! __powerpc64__ */
 #define TRAP(regs)		((regs)->trap & ~0xF)
 #ifdef __powerpc64__
 #define NV_REG_POISON		0xdeadbeefdeadbeefUL
-#define CHECK_FULL_REGS(regs)	BUG_ON(regs->trap & 1)
+#define CHECK_FULL_REGS(regs)	_ON(regs->trap & 1)
 #else
 #define NV_REG_POISON		0xdeadbeef
 #define CHECK_FULL_REGS(regs)						      \

@@ -18,7 +18,7 @@
  * XXX The DPLL and CORE clocks should be split into two separate clock
  * types.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/errno.h>

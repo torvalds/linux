@@ -553,7 +553,7 @@ bfa_msgq_isr(void *cbarg, struct bfi_mbmsg *msg)
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 }
 

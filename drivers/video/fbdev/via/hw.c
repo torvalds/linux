@@ -1016,7 +1016,7 @@ void viafb_write_regx(struct io_reg RegTable[], int ItemNum)
 {
 	int i;
 
-	/*DEBUG_MSG(KERN_INFO "Table Size : %x!!\n",ItemNum ); */
+	/*DE_MSG(KERN_INFO "Table Size : %x!!\n",ItemNum ); */
 
 	for (i = 0; i < ItemNum; i++)
 		via_write_reg_mask(RegTable[i].port, RegTable[i].index,
@@ -1562,7 +1562,7 @@ static void init_gfx_chip_info(int chip_type)
 
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CX700) {
 		tmp = viafb_read_reg(VIASR, SR43);
-		DEBUG_MSG(KERN_INFO "SR43:%X\n", tmp);
+		DE_MSG(KERN_INFO "SR43:%X\n", tmp);
 		if (tmp & 0x02) {
 			viaparinfo->chip_info->gfx_chip_revision =
 				CX700_REVISION_700M2;
@@ -1631,7 +1631,7 @@ static void init_tmds_chip_info(void)
 		}
 	}
 
-	DEBUG_MSG(KERN_INFO "TMDS Chip = %d\n",
+	DE_MSG(KERN_INFO "TMDS Chip = %d\n",
 		  viaparinfo->chip_info->tmds_chip_info.tmds_chip_name);
 	viafb_init_dvi_size(&viaparinfo->shared->chip_info.tmds_chip_info,
 		&viaparinfo->shared->tmds_setting_info);
@@ -1663,11 +1663,11 @@ static void init_lvds_chip_info(void)
 		}
 	}
 
-	DEBUG_MSG(KERN_INFO "LVDS Chip = %d\n",
+	DE_MSG(KERN_INFO "LVDS Chip = %d\n",
 		  viaparinfo->chip_info->lvds_chip_info.lvds_chip_name);
-	DEBUG_MSG(KERN_INFO "LVDS1 output_interface = %d\n",
+	DE_MSG(KERN_INFO "LVDS1 output_interface = %d\n",
 		  viaparinfo->chip_info->lvds_chip_info.output_interface);
-	DEBUG_MSG(KERN_INFO "LVDS2 output_interface = %d\n",
+	DE_MSG(KERN_INFO "LVDS2 output_interface = %d\n",
 		  viaparinfo->chip_info->lvds_chip_info.output_interface);
 }
 

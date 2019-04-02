@@ -3105,7 +3105,7 @@ static __init int event_trace_enable(void)
 
 	/*
 	 * We need the top trace array to have a working set of trace
-	 * points at early init, before the debug files and directories
+	 * points at early init, before the de files and directories
 	 * are created. Create the file entries now, and attach them
 	 * to the actual file dentries later.
 	 */

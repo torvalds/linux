@@ -19,7 +19,7 @@
 #include "hpi_internal.h"
 #include "hpi_version.h"
 #include "hpimsginit.h"
-#include "hpidebug.h"
+#include "hpide.h"
 #include "hpimsgx.h"
 #include "hpioctl.h"
 #include "hpicmn.h"
@@ -50,11 +50,11 @@ module_param(prealloc_stream_buf, int, 0444);
 MODULE_PARM_DESC(prealloc_stream_buf,
 	"Preallocate size for per-adapter stream buffer");
 
-/* Allow the debug level to be changed after module load.
- E.g.   echo 2 > /sys/module/asihpi/parameters/hpiDebugLevel
+/* Allow the de level to be changed after module load.
+ E.g.   echo 2 > /sys/module/asihpi/parameters/hpiDeLevel
 */
-module_param(hpi_debug_level, int, 0644);
-MODULE_PARM_DESC(hpi_debug_level, "debug verbosity 0..5");
+module_param(hpi_de_level, int, 0644);
+MODULE_PARM_DESC(hpi_de_level, "de verbosity 0..5");
 
 /* List of adapters found */
 static struct hpi_adapter adapters[HPI_MAX_ADAPTERS];
@@ -89,7 +89,7 @@ int asihpi_hpi_release(struct file *file)
 	struct hpi_message hm;
 	struct hpi_response hr;
 
-/* HPI_DEBUG_LOG(INFO,"hpi_release file %p, pid %d\n", file, current->pid); */
+/* HPI_DE_LOG(INFO,"hpi_release file %p, pid %d\n", file, current->pid); */
 	/* close the subsystem just in case the application forgot to. */
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
 		HPI_SUBSYS_CLOSE);
@@ -140,7 +140,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	uncopied_bytes = copy_from_user(hm, puhm, msg_size);
 	if (uncopied_bytes) {
-		HPI_DEBUG_LOG(ERROR, "uncopied bytes %d\n", uncopied_bytes);
+		HPI_DE_LOG(ERROR, "uncopied bytes %d\n", uncopied_bytes);
 		err = -EFAULT;
 		goto out;
 	}
@@ -154,7 +154,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	/* printk(KERN_INFO "user response size %d\n", res_max_size); */
 	if (res_max_size < sizeof(struct hpi_response_header)) {
-		HPI_DEBUG_LOG(WARNING, "small res size %d\n", res_max_size);
+		HPI_DE_LOG(WARNING, "small res size %d\n", res_max_size);
 		err = -EFAULT;
 		goto out;
 	}
@@ -221,7 +221,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				   of the transaction?
 				 */
 				if (pa->buffer_size < size) {
-					HPI_DEBUG_LOG(DEBUG,
+					HPI_DE_LOG(DE,
 						"Realloc adapter %d stream "
 						"buffer from %zd to %d\n",
 						hm->h.adapter_index,
@@ -234,7 +234,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					if (pa->p_buffer)
 						pa->buffer_size = size;
 					else {
-						HPI_DEBUG_LOG(ERROR,
+						HPI_DE_LOG(ERROR,
 							"HPI could not allocate "
 							"stream buffer size %d\n",
 							size);
@@ -263,7 +263,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			uncopied_bytes =
 				copy_from_user(pa->p_buffer, ptr, size);
 			if (uncopied_bytes)
-				HPI_DEBUG_LOG(WARNING,
+				HPI_DE_LOG(WARNING,
 					"Missed %d of %d "
 					"bytes from user\n", uncopied_bytes,
 					size);
@@ -275,7 +275,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			uncopied_bytes =
 				copy_to_user(ptr, pa->p_buffer, size);
 			if (uncopied_bytes)
-				HPI_DEBUG_LOG(WARNING,
+				HPI_DE_LOG(WARNING,
 					"Missed %d of %d " "bytes to user\n",
 					uncopied_bytes, size);
 		}
@@ -287,13 +287,13 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/*printk(KERN_INFO "response size %d\n", hr->h.wSize); */
 
 	if (!hr->h.size) {
-		HPI_DEBUG_LOG(ERROR, "response zero size\n");
+		HPI_DE_LOG(ERROR, "response zero size\n");
 		err = -EFAULT;
 		goto out;
 	}
 
 	if (hr->h.size > res_max_size) {
-		HPI_DEBUG_LOG(ERROR, "response too big %d %d\n", hr->h.size,
+		HPI_DE_LOG(ERROR, "response too big %d %d\n", hr->h.size,
 			res_max_size);
 		hr->h.error = HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL;
 		hr->h.specific_error = hr->h.size;
@@ -302,7 +302,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	uncopied_bytes = copy_to_user(puhr, hr, hr->h.size);
 	if (uncopied_bytes) {
-		HPI_DEBUG_LOG(ERROR, "uncopied bytes %d\n", uncopied_bytes);
+		HPI_DE_LOG(ERROR, "uncopied bytes %d\n", uncopied_bytes);
 		err = -EFAULT;
 		goto out;
 	}
@@ -354,7 +354,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 
 	memset(&adapter, 0, sizeof(adapter));
 
-	dev_printk(KERN_DEBUG, &pci_dev->dev,
+	dev_printk(KERN_DE, &pci_dev->dev,
 		"probe %04x:%04x,%04x:%04x,%04x\n", pci_dev->vendor,
 		pci_dev->device, pci_dev->subsystem_vendor,
 		pci_dev->subsystem_device, pci_dev->devfn);
@@ -377,7 +377,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	nm = HPI_MAX_ADAPTER_MEM_SPACES;
 
 	for (idx = 0; idx < nm; idx++) {
-		HPI_DEBUG_LOG(INFO, "resource %d %pR\n", idx,
+		HPI_DE_LOG(INFO, "resource %d %pR\n", idx,
 			&pci_dev->resource[idx]);
 
 		if (pci_resource_flags(pci_dev, idx) & IORESOURCE_MEM) {
@@ -386,7 +386,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 				ioremap(pci_resource_start(pci_dev, idx),
 				memlen);
 			if (!pci.ap_mem_base[idx]) {
-				HPI_DEBUG_LOG(ERROR,
+				HPI_DE_LOG(ERROR,
 					"ioremap failed, aborting\n");
 				/* unmap previously mapped pci mem space */
 				goto err;
@@ -409,7 +409,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	if (prealloc_stream_buf) {
 		adapter.p_buffer = vmalloc(prealloc_stream_buf);
 		if (!adapter.p_buffer) {
-			HPI_DEBUG_LOG(ERROR,
+			HPI_DE_LOG(ERROR,
 				"HPI could not allocate "
 				"kernel buffer size %d\n",
 				prealloc_stream_buf);
@@ -423,7 +423,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 
 	if (hr.error) {
-		HPI_DEBUG_LOG(ERROR, "HPI_ADAPTER_OPEN failed, aborting\n");
+		HPI_DE_LOG(ERROR, "HPI_ADAPTER_OPEN failed, aborting\n");
 		goto err;
 	}
 
@@ -479,7 +479,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 		hm.u.ax.property_set.parameter2 = 0;
 		hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 		if (hr.error) {
-			HPI_DEBUG_LOG(ERROR,
+			HPI_DE_LOG(ERROR,
 				"HPI_ADAPTER_GET_MODE failed, aborting\n");
 			goto err;
 		}
@@ -518,7 +518,7 @@ err:
 		vfree(adapter.p_buffer);
 	}
 
-	HPI_DEBUG_LOG(ERROR, "adapter_probe failed\n");
+	HPI_DE_LOG(ERROR, "adapter_probe failed\n");
 	return -ENODEV;
 }
 

@@ -31,9 +31,9 @@
 #define WIL_DEFAULT_NUM_RX_STATUS_RINGS 1
 #define WIL_BOARD_FILE_MAX_NAMELEN 128
 
-bool debug_fw; /* = false; */
-module_param(debug_fw, bool, 0444);
-MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
+bool de_fw; /* = false; */
+module_param(de_fw, bool, 0444);
+MODULE_PARM_DESC(de_fw, " do not perform card reset. For FW de");
 
 static u8 oob_mode;
 module_param(oob_mode, byte, 0444);
@@ -731,7 +731,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->reply_mid = U8_MAX;
 	wil->max_vifs = 1;
 
-	/* edma configuration can be updated via debugfs before allocation */
+	/* edma configuration can be updated via defs before allocation */
 	wil->num_rx_status_rings = WIL_DEFAULT_NUM_RX_STATUS_RINGS;
 	wil->tx_status_ring_order = WIL_TX_SRING_SIZE_ORDER_DEFAULT;
 
@@ -1169,7 +1169,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 
 	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
-	/* enable fix for HW bug related to the SA/DA swap in AP Rx */
+	/* enable fix for HW  related to the SA/DA swap in AP Rx */
 	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
 	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
@@ -1566,7 +1566,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 	WARN_ON(test_bit(wil_status_napi_en, wil->status));
 
-	if (debug_fw) {
+	if (de_fw) {
 		static const u8 mac[ETH_ALEN] = {
 			0x00, 0xde, 0xad, 0x12, 0x34, 0x56,
 		};
@@ -1725,12 +1725,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 		wil->txrx_ops.configure_interrupt_moderation(wil);
 
-		/* Enable OFU rdy valid bug fix, to prevent hang in oful34_rx
+		/* Enable OFU rdy valid  fix, to prevent hang in oful34_rx
 		 * while there is back-pressure from Host during RX
 		 */
 		if (wil->hw_version >= HW_VER_TALYN_MB)
 			wil_s(wil, RGF_DMA_MISC_CTL,
-			      BIT_OFUL34_RDY_VALID_BUG_FIX_EN);
+			      BIT_OFUL34_RDY_VALID__FIX_EN);
 
 		rc = wil_restore_vifs(wil);
 		if (rc) {

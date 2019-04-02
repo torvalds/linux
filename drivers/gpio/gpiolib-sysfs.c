@@ -492,7 +492,7 @@ static ssize_t export_store(struct class *class,
 
 done:
 	if (status)
-		pr_debug("%s: status %d\n", __func__, status);
+		pr_de("%s: status %d\n", __func__, status);
 	return status ? : len;
 }
 static CLASS_ATTR_WO(export);
@@ -528,7 +528,7 @@ static ssize_t unexport_store(struct class *class,
 	}
 done:
 	if (status)
-		pr_debug("%s: status %d\n", __func__, status);
+		pr_de("%s: status %d\n", __func__, status);
 	return status ? : len;
 }
 static CLASS_ATTR_WO(unexport);
@@ -555,7 +555,7 @@ static struct class gpio_class = {
  * Context: arch_initcall or later
  *
  * When drivers want to make a GPIO accessible to userspace after they
- * have requested it -- perhaps while debugging, or as part of their
+ * have requested it -- perhaps while deging, or as part of their
  * public interface -- they may use this routine.  If the GPIO can
  * change direction (some can't) and the caller allows it, userspace
  * will see "direction" sysfs attribute which may be used to change
@@ -576,12 +576,12 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 
 	/* can't export until sysfs is available ... */
 	if (!gpio_class.p) {
-		pr_debug("%s: called too early!\n", __func__);
+		pr_de("%s: called too early!\n", __func__);
 		return -ENOENT;
 	}
 
 	if (!desc) {
-		pr_debug("%s: invalid gpio descriptor\n", __func__);
+		pr_de("%s: invalid gpio descriptor\n", __func__);
 		return -EINVAL;
 	}
 

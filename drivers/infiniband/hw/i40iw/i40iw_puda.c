@@ -115,7 +115,7 @@ static void i40iw_puda_post_recvbuf(struct i40iw_puda_rsrc *rsrc, u32 wqe_idx,
 
 	qp->qp_uk.rq_wrid_array[wqe_idx] = (uintptr_t)buf;
 	wqe = qp->qp_uk.rq_base[wqe_idx].elem;
-	i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
+	i40iw_de(rsrc->dev, I40IW_DE_PUDA,
 		    "%s: wqe_idx= %d buf = %p wqe = %p\n", __func__,
 		    wqe_idx, buf, wqe);
 	if (!initial)
@@ -169,14 +169,14 @@ static struct i40iw_puda_buf *i40iw_puda_alloc_buf(struct i40iw_sc_dev *dev,
 	ret = i40iw_allocate_virt_mem(dev->hw, &buf_mem,
 				      sizeof(struct i40iw_puda_buf));
 	if (ret) {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA,
+		i40iw_de(dev, I40IW_DE_PUDA,
 			    "%s: error mem for buf\n", __func__);
 		return NULL;
 	}
 	buf = (struct i40iw_puda_buf *)buf_mem.va;
 	ret = i40iw_allocate_dma_mem(dev->hw, &buf->mem, length, 1);
 	if (ret) {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA,
+		i40iw_de(dev, I40IW_DE_PUDA,
 			    "%s: error dma mem for buf\n", __func__);
 		i40iw_free_virt_mem(dev->hw, &buf_mem);
 		return NULL;
@@ -241,10 +241,10 @@ static enum i40iw_status_code i40iw_puda_poll_info(struct i40iw_sc_cq *cq,
 	if (valid_bit != cq->cq_uk.polarity)
 		return I40IW_ERR_QUEUE_EMPTY;
 
-	i40iw_debug_buf(cq->dev, I40IW_DEBUG_PUDA, "PUDA CQE", cqe, 32);
+	i40iw_de_buf(cq->dev, I40IW_DE_PUDA, "PUDA CQE", cqe, 32);
 	error = (bool)RS_64(qword3, I40IW_CQ_ERROR);
 	if (error) {
-		i40iw_debug(cq->dev, I40IW_DEBUG_PUDA, "%s receive error\n", __func__);
+		i40iw_de(cq->dev, I40IW_DE_PUDA, "%s receive error\n", __func__);
 		major_err = (u32)(RS_64(qword3, I40IW_CQ_MAJERR));
 		minor_err = (u32)(RS_64(qword3, I40IW_CQ_MINERR));
 		info->compl_error = major_err << 16 | minor_err;
@@ -293,7 +293,7 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 	if ((cq_type == I40IW_CQ_TYPE_ILQ) || (cq_type == I40IW_CQ_TYPE_IEQ)) {
 		rsrc = (cq_type == I40IW_CQ_TYPE_ILQ) ? cq->vsi->ilq : cq->vsi->ieq;
 	} else {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s qp_type error\n", __func__);
+		i40iw_de(dev, I40IW_DE_PUDA, "%s qp_type error\n", __func__);
 		return I40IW_ERR_BAD_PTR;
 	}
 	memset(&info, 0, sizeof(info));
@@ -333,7 +333,7 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 
 		rsrc->stats_pkt_rcvd++;
 		rsrc->compl_rxwqe_idx = info.wqe_idx;
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s RQ completion\n", __func__);
+		i40iw_de(dev, I40IW_DE_PUDA, "%s RQ completion\n", __func__);
 		rsrc->receive(rsrc->vsi, buf);
 		if (cq_type == I40IW_CQ_TYPE_ILQ)
 			i40iw_ilq_putback_rcvbuf(&rsrc->qp, info.wqe_idx);
@@ -341,7 +341,7 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 			i40iw_puda_replenish_rq(rsrc, false);
 
 	} else {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s SQ completion\n", __func__);
+		i40iw_de(dev, I40IW_DE_PUDA, "%s SQ completion\n", __func__);
 		sqwrid = (void *)(uintptr_t)qp->sq_wrtrk_array[info.wqe_idx].wrid;
 		I40IW_RING_SET_TAIL(qp->sq_ring, info.wqe_idx);
 		rsrc->xmit_complete(rsrc->vsi, sqwrid);
@@ -409,7 +409,7 @@ enum i40iw_status_code i40iw_puda_send(struct i40iw_sc_qp *qp,
 
 	i40iw_insert_wqe_hdr(wqe, header[1]);
 
-	i40iw_debug_buf(qp->dev, I40IW_DEBUG_PUDA, "PUDA SEND WQE", wqe, 32);
+	i40iw_de_buf(qp->dev, I40IW_DE_PUDA, "PUDA SEND WQE", wqe, 32);
 	i40iw_qp_post_wr(&qp->qp_uk);
 	return 0;
 }
@@ -434,7 +434,7 @@ void i40iw_puda_send_buf(struct i40iw_puda_rsrc *rsrc, struct i40iw_puda_buf *bu
 		spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
 		rsrc->stats_sent_pkt_q++;
 		if (rsrc->type == I40IW_PUDA_RSRC_TYPE_ILQ)
-			i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
+			i40iw_de(rsrc->dev, I40IW_DE_PUDA,
 				    "%s: adding to txpend\n", __func__);
 		return;
 	}
@@ -462,7 +462,7 @@ void i40iw_puda_send_buf(struct i40iw_puda_rsrc *rsrc, struct i40iw_puda_buf *bu
 		rsrc->stats_sent_pkt_q++;
 		list_add(&buf->list, &rsrc->txpend);
 		if (rsrc->type == I40IW_PUDA_RSRC_TYPE_ILQ)
-			i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
+			i40iw_de(rsrc->dev, I40IW_DE_PUDA,
 				    "%s: adding to puda_send\n", __func__);
 	} else {
 		rsrc->stats_pkt_sent++;
@@ -505,7 +505,7 @@ static void i40iw_puda_qp_setctx(struct i40iw_puda_rsrc *rsrc)
 		      LS_64(qp->rq_tph_val, I40IWQPC_RQTPHVAL) |
 		      LS_64(qp->qs_handle, I40IWQPC_QSHANDLE));
 
-	i40iw_debug_buf(rsrc->dev, I40IW_DEBUG_PUDA, "PUDA QP CONTEXT",
+	i40iw_de_buf(rsrc->dev, I40IW_DE_PUDA, "PUDA QP CONTEXT",
 			qp_ctx, I40IW_QP_CTX_SIZE);
 }
 
@@ -537,7 +537,7 @@ static enum i40iw_status_code i40iw_puda_qp_wqe(struct i40iw_sc_dev *dev, struct
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_PUDA, "PUDA CQE", wqe, 32);
+	i40iw_de_buf(cqp->dev, I40IW_DE_PUDA, "PUDA CQE", wqe, 32);
 	i40iw_sc_cqp_post_sq(cqp);
 	status = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
 						    I40IW_CQP_OP_CREATE_QP,
@@ -566,7 +566,7 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 	    i40iw_allocate_dma_mem(rsrc->dev->hw, &rsrc->qpmem, t_size,
 				   I40IW_HW_PAGE_SIZE);
 	if (ret) {
-		i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA, "%s: error dma mem\n", __func__);
+		i40iw_de(rsrc->dev, I40IW_DE_PUDA, "%s: error dma mem\n", __func__);
 		return ret;
 	}
 
@@ -655,7 +655,7 @@ static enum i40iw_status_code i40iw_puda_cq_wqe(struct i40iw_sc_dev *dev, struct
 	    LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_PUDA, "PUDA CQE",
+	i40iw_de_buf(dev, I40IW_DE_PUDA, "PUDA CQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	i40iw_sc_cqp_post_sq(dev->cqp);
@@ -733,7 +733,7 @@ static void i40iw_puda_free_qp(struct i40iw_puda_rsrc *rsrc)
 	ret = dev->iw_priv_qp_ops->qp_destroy(&rsrc->qp,
 			0, false, true, true);
 	if (ret)
-		i40iw_debug(dev, I40IW_DEBUG_PUDA,
+		i40iw_de(dev, I40IW_DE_PUDA,
 			    "%s error puda qp destroy wqe\n",
 			    __func__);
 
@@ -742,7 +742,7 @@ static void i40iw_puda_free_qp(struct i40iw_puda_rsrc *rsrc)
 				I40IW_CQP_OP_DESTROY_QP,
 				&compl_info);
 		if (ret)
-			i40iw_debug(dev, I40IW_DEBUG_PUDA,
+			i40iw_de(dev, I40IW_DE_PUDA,
 				    "%s error puda qp destroy failed\n",
 				    __func__);
 	}
@@ -765,7 +765,7 @@ static void i40iw_puda_free_cq(struct i40iw_puda_rsrc *rsrc)
 	ret = dev->iw_priv_cq_ops->cq_destroy(&rsrc->cq, 0, true);
 
 	if (ret)
-		i40iw_debug(dev, I40IW_DEBUG_PUDA,
+		i40iw_de(dev, I40IW_DE_PUDA,
 			    "%s error ieq cq destroy\n",
 			    __func__);
 
@@ -774,7 +774,7 @@ static void i40iw_puda_free_cq(struct i40iw_puda_rsrc *rsrc)
 				I40IW_CQP_OP_DESTROY_CQ,
 				&compl_info);
 		if (ret)
-			i40iw_debug(dev, I40IW_DEBUG_PUDA,
+			i40iw_de(dev, I40IW_DE_PUDA,
 				    "%s error ieq qp destroy done\n",
 				    __func__);
 	}
@@ -806,7 +806,7 @@ void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 		vmem = &vsi->ieq_mem;
 		break;
 	default:
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s: error resource type = 0x%x\n",
+		i40iw_de(dev, I40IW_DE_PUDA, "%s: error resource type = 0x%x\n",
 			    __func__, type);
 		return;
 	}
@@ -828,7 +828,7 @@ void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 		i40iw_free_dma_mem(dev->hw, &rsrc->cqmem);
 		break;
 	default:
-		i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA, "%s error no resources\n", __func__);
+		i40iw_de(rsrc->dev, I40IW_DE_PUDA, "%s error no resources\n", __func__);
 		break;
 	}
 	/* Free all allocated puda buffers for both tx and rx */
@@ -947,7 +947,7 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 		ret = i40iw_puda_qp_create(rsrc);
 	}
 	if (ret) {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "[%s] error qp_create\n",
+		i40iw_de(dev, I40IW_DE_PUDA, "[%s] error qp_create\n",
 			    __func__);
 		goto error;
 	}
@@ -955,7 +955,7 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 
 	ret = i40iw_puda_allocbufs(rsrc, info->tx_buf_cnt + info->rq_size);
 	if (ret) {
-		i40iw_debug(dev, I40IW_DEBUG_PUDA, "[%s] error alloc_buf\n",
+		i40iw_de(dev, I40IW_DE_PUDA, "[%s] error alloc_buf\n",
 			    __func__);
 		goto error;
 	}
@@ -1206,13 +1206,13 @@ static enum i40iw_status_code i40iw_ieq_handle_partial(struct i40iw_puda_rsrc *i
 		status = i40iw_ieq_check_mpacrc(ieq->hash_desc, txbuf->data,
 						(fpdu_len - 4), mpacrc);
 		if (status) {
-			i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
+			i40iw_de(ieq->dev, I40IW_DE_IEQ,
 				    "%s: error bad crc\n", __func__);
 			goto error;
 		}
 	}
 
-	i40iw_debug_buf(ieq->dev, I40IW_DEBUG_IEQ, "IEQ TX BUFFER",
+	i40iw_de_buf(ieq->dev, I40IW_DE_IEQ, "IEQ TX BUFFER",
 			txbuf->mem.va, txbuf->totallen);
 	i40iw_puda_send_buf(ieq, txbuf);
 	pfpdu->rcv_nxt = seqnum + fpdu_len;
@@ -1257,7 +1257,7 @@ static enum i40iw_status_code i40iw_ieq_process_buf(struct i40iw_puda_rsrc *ieq,
 	while (datalen) {
 		fpdu_len = i40iw_ieq_get_fpdu_length(ntohs(*(__be16 *)datap));
 		if (fpdu_len > pfpdu->max_fpdu_data) {
-			i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
+			i40iw_de(ieq->dev, I40IW_DE_IEQ,
 				    "%s: error bad fpdu_len\n", __func__);
 			status = I40IW_ERR_MPA_CRC;
 			list_add(&buf->list, rxlist);
@@ -1337,7 +1337,7 @@ static void i40iw_ieq_process_fpdus(struct i40iw_sc_qp *qp,
 			break;
 		buf = i40iw_puda_get_listbuf(rxlist);
 		if (!buf) {
-			i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
+			i40iw_de(ieq->dev, I40IW_DE_IEQ,
 				    "%s: error no buf\n", __func__);
 			break;
 		}
@@ -1390,13 +1390,13 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
 	if (pfpdu->mode && (fps != pfpdu->fps)) {
 		/* clean up qp as it is new partial sequence */
 		i40iw_ieq_cleanup_qp(ieq, qp);
-		i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
+		i40iw_de(ieq->dev, I40IW_DE_IEQ,
 			    "%s: restarting new partial\n", __func__);
 		pfpdu->mode = false;
 	}
 
 	if (!pfpdu->mode) {
-		i40iw_debug_buf(ieq->dev, I40IW_DEBUG_IEQ, "Q2 BUFFER", (u64 *)qp->q2_buf, 128);
+		i40iw_de_buf(ieq->dev, I40IW_DE_IEQ, "Q2 BUFFER", (u64 *)qp->q2_buf, 128);
 		/* First_Partial_Sequence_Number check */
 		pfpdu->rcv_nxt = fps;
 		pfpdu->fps = fps;

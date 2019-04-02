@@ -12,7 +12,7 @@
 #define __ASM_PROM_H
 
 #ifdef CONFIG_USE_OF
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io.h>
 #include <linux/types.h>
 #include <asm/bootinfo.h>

@@ -333,7 +333,7 @@ static int tx4939ide_dma_end(ide_drive_t *drive)
 	if ((dma_stat & CHECK_DMA_MASK) == 0 &&
 	    (ctl & (TX4939IDE_INT_XFEREND | TX4939IDE_INT_HOST)) ==
 	    (TX4939IDE_INT_XFEREND | TX4939IDE_INT_HOST))
-		/* INT_IDE lost... bug? */
+		/* INT_IDE lost... ? */
 		return 0;
 	return ((dma_stat & CHECK_DMA_MASK) !=
 		ATA_DMA_INTR) ? 0x10 | dma_stat : 0;

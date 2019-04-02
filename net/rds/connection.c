@@ -99,7 +99,7 @@ static struct rds_connection *rds_conn_lookup(struct net *net,
 			break;
 		}
 	}
-	rdsdebug("returning conn %p for %pI6c -> %pI6c\n", ret,
+	rdsde("returning conn %p for %pI6c -> %pI6c\n", ret,
 		 laddr, faddr);
 	return ret;
 }
@@ -114,7 +114,7 @@ static void rds_conn_path_reset(struct rds_conn_path *cp)
 {
 	struct rds_connection *conn = cp->cp_conn;
 
-	rdsdebug("connection %pI6c to %pI6c reset\n",
+	rdsde("connection %pI6c to %pI6c reset\n",
 		 &conn->c_laddr, &conn->c_faddr);
 
 	rds_stats_inc(s_conn_reset);
@@ -270,7 +270,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		goto out;
 	}
 
-	rdsdebug("allocated conn %p for %pI6c -> %pI6c over %s %s\n",
+	rdsde("allocated conn %p for %pI6c -> %pI6c over %s %s\n",
 		 conn, laddr, faddr,
 		 strnlen(trans->t_name, sizeof(trans->t_name)) ?
 		 trans->t_name : "[unknown]", is_outgoing ? "(outgoing)" : "");
@@ -445,7 +445,7 @@ static void rds_conn_path_destroy(struct rds_conn_path *cp)
 				 &cp->cp_send_queue,
 				 m_conn_item) {
 		list_del_init(&rm->m_conn_item);
-		BUG_ON(!list_empty(&rm->m_sock_item));
+		_ON(!list_empty(&rm->m_sock_item));
 		rds_message_put(rm);
 	}
 	if (cp->cp_xmit_rm)
@@ -473,7 +473,7 @@ void rds_conn_destroy(struct rds_connection *conn)
 	struct rds_conn_path *cp;
 	int npaths = (conn->c_trans->t_mp_capable ? RDS_MPATH_WORKERS : 1);
 
-	rdsdebug("freeing conn %p for %pI4 -> "
+	rdsde("freeing conn %p for %pI4 -> "
 		 "%pI4\n", conn, &conn->c_laddr,
 		 &conn->c_faddr);
 
@@ -487,7 +487,7 @@ void rds_conn_destroy(struct rds_connection *conn)
 	for (i = 0; i < npaths; i++) {
 		cp = &conn->c_path[i];
 		rds_conn_path_destroy(cp);
-		BUG_ON(!list_empty(&cp->cp_retrans));
+		_ON(!list_empty(&cp->cp_retrans));
 	}
 
 	/*
@@ -702,7 +702,7 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 			 * information of all of them using the existing
 			 * API.  For example, there is only one next_tx_seq,
 			 * which path's next_tx_seq should we report?  It is
-			 * a bug in the design of MPRDS.
+			 * a  in the design of MPRDS.
 			 */
 			cp = conn->c_path;
 

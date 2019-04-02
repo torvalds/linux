@@ -9,8 +9,8 @@ PROGS := mpssd
 CC = $(CROSS_COMPILE)gcc
 CFLAGS := -I../../../usr/include -I../../../tools/include
 
-ifdef DEBUG
-CFLAGS += -DDEBUG=$(DEBUG)
+ifdef DE
+CFLAGS += -DDE=$(DE)
 endif
 
 all: $(PROGS)

@@ -311,7 +311,7 @@ int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
 		uintptr_t ll_end = (uintptr_t) ip + ll;
 		if ((ll_end + ((t + ll) >> 5)) <= ll_end)
 			break;
-		BUILD_BUG_ON(D_SIZE * sizeof(lzo_dict_t) > LZO1X_1_MEM_COMPRESS);
+		BUILD__ON(D_SIZE * sizeof(lzo_dict_t) > LZO1X_1_MEM_COMPRESS);
 		memset(wrkmem, 0, D_SIZE * sizeof(lzo_dict_t));
 		t = lzo1x_1_do_compress(ip, ll, op, out_len, t, wrkmem,
 					&state_offset, bitstream_version);

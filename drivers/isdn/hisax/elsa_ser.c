@@ -16,16 +16,16 @@
 #define RS_ISR_PASS_LIMIT 256
 #define BASE_BAUD (1843200 / 16)
 
-//#define SERIAL_DEBUG_OPEN 1
-//#define SERIAL_DEBUG_INTR 1
-//#define SERIAL_DEBUG_FLOW 1
-#undef SERIAL_DEBUG_OPEN
-#undef SERIAL_DEBUG_INTR
-#undef SERIAL_DEBUG_FLOW
-#undef SERIAL_DEBUG_REG
-//#define SERIAL_DEBUG_REG 1
+//#define SERIAL_DE_OPEN 1
+//#define SERIAL_DE_INTR 1
+//#define SERIAL_DE_FLOW 1
+#undef SERIAL_DE_OPEN
+#undef SERIAL_DE_INTR
+#undef SERIAL_DE_FLOW
+#undef SERIAL_DE_REG
+//#define SERIAL_DE_REG 1
 
-#ifdef SERIAL_DEBUG_REG
+#ifdef SERIAL_DE_REG
 static u_char deb[32];
 const char *ModemIn[] = {"RBR", "IER", "IIR", "LCR", "MCR", "LSR", "MSR", "SCR"};
 const char *ModemOut[] = {"THR", "IER", "FCR", "LCR", "MCR", "LSR", "MSR", "SCR"};
@@ -47,9 +47,9 @@ static char *MInit_dialin = "ATs7=60 x1 a\r\0";
 
 static inline unsigned int serial_in(struct IsdnCardState *cs, int offset)
 {
-#ifdef SERIAL_DEBUG_REG
+#ifdef SERIAL_DE_REG
 	u_int val = inb(cs->hw.elsa.base + 8 + offset);
-	debugl1(cs, "in   %s %02x", ModemIn[offset], val);
+	del1(cs, "in   %s %02x", ModemIn[offset], val);
 	return (val);
 #else
 	return inb(cs->hw.elsa.base + 8 + offset);
@@ -58,13 +58,13 @@ static inline unsigned int serial_in(struct IsdnCardState *cs, int offset)
 
 static inline unsigned int serial_inp(struct IsdnCardState *cs, int offset)
 {
-#ifdef SERIAL_DEBUG_REG
+#ifdef SERIAL_DE_REG
 #ifdef ELSA_SERIAL_NOPAUSE_IO
 	u_int val = inb(cs->hw.elsa.base + 8 + offset);
-	debugl1(cs, "inp  %s %02x", ModemIn[offset], val);
+	del1(cs, "inp  %s %02x", ModemIn[offset], val);
 #else
 	u_int val = inb_p(cs->hw.elsa.base + 8 + offset);
-	debugl1(cs, "inP  %s %02x", ModemIn[offset], val);
+	del1(cs, "inP  %s %02x", ModemIn[offset], val);
 #endif
 	return (val);
 #else
@@ -78,8 +78,8 @@ static inline unsigned int serial_inp(struct IsdnCardState *cs, int offset)
 
 static inline void serial_out(struct IsdnCardState *cs, int offset, int value)
 {
-#ifdef SERIAL_DEBUG_REG
-	debugl1(cs, "out  %s %02x", ModemOut[offset], value);
+#ifdef SERIAL_DE_REG
+	del1(cs, "out  %s %02x", ModemOut[offset], value);
 #endif
 	outb(value, cs->hw.elsa.base + 8 + offset);
 }
@@ -87,11 +87,11 @@ static inline void serial_out(struct IsdnCardState *cs, int offset, int value)
 static inline void serial_outp(struct IsdnCardState *cs, int offset,
 			       int value)
 {
-#ifdef SERIAL_DEBUG_REG
+#ifdef SERIAL_DE_REG
 #ifdef ELSA_SERIAL_NOPAUSE_IO
-	debugl1(cs, "outp %s %02x", ModemOut[offset], value);
+	del1(cs, "outp %s %02x", ModemOut[offset], value);
 #else
-	debugl1(cs, "outP %s %02x", ModemOut[offset], value);
+	del1(cs, "outP %s %02x", ModemOut[offset], value);
 #endif
 #endif
 #ifdef ELSA_SERIAL_NOPAUSE_IO
@@ -131,7 +131,7 @@ static void change_speed(struct IsdnCardState *cs, int baud)
 	cs->hw.elsa.IER |= UART_IER_MSI;
 	serial_outp(cs, UART_IER, cs->hw.elsa.IER);
 
-	debugl1(cs, "modem quot=0x%x", quot);
+	del1(cs, "modem quot=0x%x", quot);
 	serial_outp(cs, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
 	serial_outp(cs, UART_DLL, quot & 0xff);		/* LS of divisor */
 	serial_outp(cs, UART_DLM, quot >> 8);		/* MS of divisor */
@@ -208,8 +208,8 @@ errout:
 static void mshutdown(struct IsdnCardState *cs)
 {
 
-#ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG"Shutting down serial ....");
+#ifdef SERIAL_DE_OPEN
+	printk(KERN_DE"Shutting down serial ....");
 #endif
 
 	/*
@@ -231,7 +231,7 @@ static void mshutdown(struct IsdnCardState *cs)
 	serial_outp(cs, UART_FCR, (UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT));
 	serial_inp(cs, UART_RX);    /* read data port to reset things */
 
-#ifdef SERIAL_DEBUG_OPEN
+#ifdef SERIAL_DE_OPEN
 	printk(" done\n");
 #endif
 }
@@ -317,13 +317,13 @@ static inline void receive_chars(struct IsdnCardState *cs,
 		if (cs->hw.elsa.rcvcnt >= MAX_MODEM_BUF)
 			break;
 		cs->hw.elsa.rcvbuf[cs->hw.elsa.rcvcnt++] = ch;
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 		printk("DR%02x:%02x...", ch, *status);
 #endif
 		if (*status & (UART_LSR_BI | UART_LSR_PE |
 			       UART_LSR_FE | UART_LSR_OE)) {
 
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 			printk("handling exept....");
 #endif
 		}
@@ -344,7 +344,7 @@ static inline void receive_chars(struct IsdnCardState *cs,
 
 		t += sprintf(t, "modem read cnt %d", cs->hw.elsa.rcvcnt);
 		QuickHex(t, cs->hw.elsa.rcvbuf, cs->hw.elsa.rcvcnt);
-		debugl1(cs, "%s", tmp);
+		del1(cs, "%s", tmp);
 	}
 	cs->hw.elsa.rcvcnt = 0;
 }
@@ -353,7 +353,7 @@ static inline void transmit_chars(struct IsdnCardState *cs, int *intr_done)
 {
 	int count;
 
-	debugl1(cs, "transmit_chars: p(%x) cnt(%x)", cs->hw.elsa.transp,
+	del1(cs, "transmit_chars: p(%x) cnt(%x)", cs->hw.elsa.transp,
 		cs->hw.elsa.transcnt);
 
 	if (cs->hw.elsa.transcnt <= 0) {
@@ -372,7 +372,7 @@ static inline void transmit_chars(struct IsdnCardState *cs, int *intr_done)
 	if ((cs->hw.elsa.transcnt < WAKEUP_CHARS) && (cs->hw.elsa.MFlag == 2))
 		modem_fill(cs->hw.elsa.bcs);
 
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	printk("THRE...");
 #endif
 	if (intr_done)
@@ -389,14 +389,14 @@ static void rs_interrupt_elsa(struct IsdnCardState *cs)
 	int status, iir, msr;
 	int pass_counter = 0;
 
-#ifdef SERIAL_DEBUG_INTR
-	printk(KERN_DEBUG "rs_interrupt_single(%d)...", cs->irq);
+#ifdef SERIAL_DE_INTR
+	printk(KERN_DE "rs_interrupt_single(%d)...", cs->irq);
 #endif
 
 	do {
 		status = serial_inp(cs, UART_LSR);
-		debugl1(cs, "rs LSR %02x", status);
-#ifdef SERIAL_DEBUG_INTR
+		del1(cs, "rs LSR %02x", status);
+#ifdef SERIAL_DE_INTR
 		printk("status = %x...", status);
 #endif
 		if (status & UART_LSR_DR)
@@ -408,13 +408,13 @@ static void rs_interrupt_elsa(struct IsdnCardState *cs)
 			break;
 		}
 		iir = serial_inp(cs, UART_IIR);
-		debugl1(cs, "rs IIR %02x", iir);
+		del1(cs, "rs IIR %02x", iir);
 		if ((iir & 0xf) == 0) {
 			msr = serial_inp(cs, UART_MSR);
-			debugl1(cs, "rs MSR %02x", msr);
+			del1(cs, "rs MSR %02x", msr);
 		}
 	} while (!(iir & UART_IIR_NO_INT));
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	printk("end.\n");
 #endif
 }
@@ -482,43 +482,43 @@ modem_set_init(struct IsdnCardState *cs) {
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	modem_write_cmd(cs, MInit_2, strlen(MInit_2));
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	modem_write_cmd(cs, MInit_3, strlen(MInit_3));
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	modem_write_cmd(cs, MInit_4, strlen(MInit_4));
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	modem_write_cmd(cs, MInit_5, strlen(MInit_5));
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	modem_write_cmd(cs, MInit_6, strlen(MInit_6));
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	modem_write_cmd(cs, MInit_7, strlen(MInit_7));
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 }
 
@@ -531,7 +531,7 @@ modem_set_dial(struct IsdnCardState *cs, int outgoing) {
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 	if (outgoing)
 		modem_write_cmd(cs, MInit_dialout, strlen(MInit_dialout));
@@ -540,7 +540,7 @@ modem_set_dial(struct IsdnCardState *cs, int outgoing) {
 	timeout = 1000;
 	while (timeout-- && cs->hw.elsa.transcnt)
 		udelay(1000);
-	debugl1(cs, "msi tout=%d", timeout);
+	del1(cs, "msi tout=%d", timeout);
 	mdelay(RCV_DELAY);
 }
 

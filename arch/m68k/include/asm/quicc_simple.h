@@ -46,7 +46,7 @@ void quicc_scc_loopback(int scc_num);
 unsigned short  IntrDis(void);
 void            IntrEna(unsigned short old_sr);
 
-/* For debugging */
+/* For deging */
 void print_rbd(int scc_num);
 void print_tbd(int scc_num);
 

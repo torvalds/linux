@@ -39,7 +39,7 @@ Optional properties:
 
  - maximum-speed : valid arguments are "super-speed", "high-speed" and
 	"full-speed"; refer to usb/generic.txt
- - enable-manual-drd : supports manual dual-role switch via debugfs; usually
+ - enable-manual-drd : supports manual dual-role switch via defs; usually
 	used when receptacle is TYPE-A and also wants to support dual-role
 	mode.
  - wakeup-source: enable USB remote wakeup of host mode.

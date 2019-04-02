@@ -1573,7 +1573,7 @@ static void max98088_handle_eq_pdata(struct snd_soc_component *component)
                        max98088_get_eq_enum,
                        max98088_put_eq_enum),
        };
-       BUILD_BUG_ON(ARRAY_SIZE(controls) != ARRAY_SIZE(eq_mode_name));
+       BUILD__ON(ARRAY_SIZE(controls) != ARRAY_SIZE(eq_mode_name));
 
        cfg = pdata->eq_cfg;
        cfgcnt = pdata->eq_cfgcnt;

@@ -171,7 +171,7 @@ static inline u8 num_of_ant(u8 mask)
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadow register support
  * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
- *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
+ *	is in flight. This is due to a HW  in 7260, 3160 and 7265.
  * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
  * @max_tfd_queue_size: max number of entries in tfd queue.
  */
@@ -378,8 +378,8 @@ struct iwl_csr_params {
  * @gen2: 22000 and on transport operation
  * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
- * @d3_debug_data_base_addr: base address where D3 debug data is stored
- * @d3_debug_data_length: length of the D3 debug data
+ * @d3_de_data_base_addr: base address where D3 de data is stored
+ * @d3_de_data_length: length of the D3 de data
  * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
  * @umac_prph_offset: offset to add to UMAC periphery address
@@ -446,8 +446,8 @@ struct iwl_cfg {
 	u8 ucode_api_min;
 	u32 min_umac_error_event_table;
 	u32 extra_phy_cfg_flags;
-	u32 d3_debug_data_base_addr;
-	u32 d3_debug_data_length;
+	u32 d3_de_data_base_addr;
+	u32 d3_de_data_length;
 	u32 min_txq_size;
 	u32 umac_prph_offset;
 };

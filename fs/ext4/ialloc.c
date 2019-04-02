@@ -59,7 +59,7 @@ void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 	if (start_bit >= end_bit)
 		return;
 
-	ext4_debug("mark end bits +%d through +%d used\n", start_bit, end_bit);
+	ext4_de("mark end bits +%d through +%d used\n", start_bit, end_bit);
 	for (i = start_bit; i < ((start_bit + 7) & ~7UL); i++)
 		ext4_set_bit(i, bitmap);
 	if (i < end_bit)
@@ -262,7 +262,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	sbi = EXT4_SB(sb);
 
 	ino = inode->i_ino;
-	ext4_debug("freeing inode %lu\n", ino);
+	ext4_de("freeing inode %lu\n", ino);
 	trace_ext4_free_inode(inode);
 
 	/*
@@ -924,7 +924,7 @@ repeat_in_this_group:
 		}
 
 		if (!handle) {
-			BUG_ON(nblocks <= 0);
+			_ON(nblocks <= 0);
 			handle = __ext4_journal_start_sb(dir->i_sb, line_no,
 							 handle_type, nblocks,
 							 0);
@@ -1181,7 +1181,7 @@ got:
 		goto fail_free_drop;
 	}
 
-	ext4_debug("allocating inode %lu\n", inode->i_ino);
+	ext4_de("allocating inode %lu\n", inode->i_ino);
 	trace_ext4_allocate_inode(inode, dir, mode);
 	brelse(inode_bitmap_bh);
 	return ret;
@@ -1275,7 +1275,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 	unsigned long desc_count;
 	struct ext4_group_desc *gdp;
 	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
-#ifdef EXT4FS_DEBUG
+#ifdef EXT4FS_DE
 	struct ext4_super_block *es;
 	unsigned long bitmap_count, x;
 	struct buffer_head *bitmap_bh = NULL;
@@ -1298,12 +1298,12 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 
 		x = ext4_count_free(bitmap_bh->b_data,
 				    EXT4_INODES_PER_GROUP(sb) / 8);
-		printk(KERN_DEBUG "group %lu: stored = %d, counted = %lu\n",
+		printk(KERN_DE "group %lu: stored = %d, counted = %lu\n",
 			(unsigned long) i, ext4_free_inodes_count(sb, gdp), x);
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	printk(KERN_DEBUG "ext4_count_free_inodes: "
+	printk(KERN_DE "ext4_count_free_inodes: "
 	       "stored = %u, computed = %lu, %lu\n",
 	       le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
 	return desc_count;
@@ -1418,7 +1418,7 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	if (unlikely(num == 0))
 		goto skip_zeroout;
 
-	ext4_debug("going to zero out inode table in group %d\n",
+	ext4_de("going to zero out inode table in group %d\n",
 		   group);
 	ret = sb_issue_zeroout(sb, blk, num, GFP_NOFS);
 	if (ret < 0)

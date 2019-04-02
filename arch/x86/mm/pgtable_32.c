@@ -35,22 +35,22 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 
 	pgd = swapper_pg_dir + pgd_index(vaddr);
 	if (pgd_none(*pgd)) {
-		BUG();
+		();
 		return;
 	}
 	p4d = p4d_offset(pgd, vaddr);
 	if (p4d_none(*p4d)) {
-		BUG();
+		();
 		return;
 	}
 	pud = pud_offset(p4d, vaddr);
 	if (pud_none(*pud)) {
-		BUG();
+		();
 		return;
 	}
 	pmd = pmd_offset(pud, vaddr);
 	if (pmd_none(*pmd)) {
-		BUG();
+		();
 		return;
 	}
 	pte = pte_offset_kernel(pmd, vaddr);

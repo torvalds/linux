@@ -6,7 +6,7 @@
  */
 #include <linux/sched.h>		/* test_thread_flag(), ...	*/
 #include <linux/sched/task_stack.h>	/* task_stack_*(), ...		*/
-#include <linux/kdebug.h>		/* oops_begin/end, ...		*/
+#include <linux/kde.h>		/* oops_begin/end, ...		*/
 #include <linux/extable.h>		/* search_exception_tables	*/
 #include <linux/memblock.h>		/* max_low_pfn			*/
 #include <linux/kprobes.h>		/* NOKPROBE_SYMBOL, ...		*/
@@ -199,7 +199,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	if (!pmd_present(*pmd))
 		set_pmd(pmd, *pmd_k);
 	else
-		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+		_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 
 	return pmd_k;
 }
@@ -376,7 +376,7 @@ static noinline int vmalloc_fault(unsigned long address)
 			set_pgd(pgd, *pgd_k);
 			arch_flush_lazy_mmu_mode();
 		} else {
-			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_k));
+			_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_k));
 		}
 	}
 
@@ -390,10 +390,10 @@ static noinline int vmalloc_fault(unsigned long address)
 		set_p4d(p4d, *p4d_k);
 		arch_flush_lazy_mmu_mode();
 	} else {
-		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_k));
+		_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_k));
 	}
 
-	BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS < 4);
+	BUILD__ON(CONFIG_PGTABLE_LEVELS < 4);
 
 	pud = pud_offset(p4d, address);
 	if (pud_none(*pud))
@@ -498,7 +498,7 @@ bad:
 #endif /* CONFIG_X86_64 */
 
 /*
- * Workaround for K8 erratum #93 & buggy BIOS.
+ * Workaround for K8 erratum #93 & gy BIOS.
  *
  * BIOS SMM functions are required to use a specific workaround
  * to avoid corruption of the 64bit RIP register on C stepping K8.
@@ -552,15 +552,15 @@ static int is_errata100(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
-static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
+static int is_f00f_(struct pt_regs *regs, unsigned long address)
 {
-#ifdef CONFIG_X86_F00F_BUG
+#ifdef CONFIG_X86_F00F_
 	unsigned long nr;
 
 	/*
-	 * Pentium F0 0F C7 C8 bug workaround:
+	 * Pentium F0 0F C7 C8  workaround:
 	 */
-	if (boot_cpu_has_bug(X86_BUG_F00F)) {
+	if (boot_cpu_has_(X86__F00F)) {
 		nr = (address - idt_descr.address) >> 3;
 
 		if (nr == 6) {
@@ -644,7 +644,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 				from_kuid(&init_user_ns, current_uid()));
 	}
 
-	pr_alert("BUG: unable to handle kernel %s at %px\n",
+	pr_alert(": unable to handle kernel %s at %px\n",
 		 address < PAGE_SIZE ? "NULL pointer dereference" : "paging request",
 		 (void *)address);
 
@@ -824,7 +824,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	 *
 	 * 64-bit:
 	 *
-	 *   Hall of shame of CPU/BIOS bugs.
+	 *   Hall of shame of CPU/BIOS s.
 	 */
 	if (is_prefetch(regs, error_code, address))
 		return;
@@ -833,7 +833,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 		return;
 
 	/*
-	 * Buggy firmware could access regions which might page fault, try to
+	 * gy firmware could access regions which might page fault, try to
 	 * recover from such faults.
 	 */
 	if (IS_ENABLED(CONFIG_EFI))
@@ -941,7 +941,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		return;
 	}
 
-	if (is_f00f_bug(regs, address))
+	if (is_f00f_(regs, address))
 		return;
 
 	no_context(regs, error_code, address, SIGSEGV, si_code);
@@ -1095,7 +1095,7 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		else if (fault & VM_FAULT_SIGSEGV)
 			bad_area_nosemaphore(regs, error_code, address);
 		else
-			BUG();
+			();
 	}
 }
 
@@ -1189,7 +1189,7 @@ spurious_kernel_fault(unsigned long error_code, unsigned long address)
 
 	/*
 	 * Make sure we have permissions in PMD.
-	 * If not, then there's a bug in the page tables:
+	 * If not, then there's a  in the page tables:
 	 */
 	ret = spurious_kernel_fault_check(error_code, (pte_t *) pmd);
 	WARN_ONCE(!ret, "PMD has incorrect permission bits\n");
@@ -1368,7 +1368,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 * vmalloc fault has been handled.
 	 *
 	 * User-mode registers count as a user access even for any
-	 * potential system fault or CPU buglet:
+	 * potential system fault or CPU let:
 	 */
 	if (user_mode(regs)) {
 		local_irq_enable();

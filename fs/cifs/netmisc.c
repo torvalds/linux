@@ -35,7 +35,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smberr.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "nterr.h"
 
 struct smb_to_posix_error {
@@ -690,7 +690,7 @@ static const struct {
 	ERRDOS, ERRunsup, NT_STATUS_NOT_SERVER_SESSION}, {
 	ERRDOS, ERRunsup, NT_STATUS_NOT_CLIENT_SESSION}, {
 	ERRHRD, ERRgeneral, NT_STATUS_CANNOT_LOAD_REGISTRY_FILE}, {
-	ERRHRD, ERRgeneral, NT_STATUS_DEBUG_ATTACH_FAILED}, {
+	ERRHRD, ERRgeneral, NT_STATUS_DE_ATTACH_FAILED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_SYSTEM_PROCESS_TERMINATED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_DATA_NOT_ACCEPTED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_BROWSER_SERVERS_FOUND}, {

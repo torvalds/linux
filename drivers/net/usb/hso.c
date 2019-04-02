@@ -107,11 +107,11 @@
 #define MAX_RX_URBS			2
 
 /*****************************************************************************/
-/* Debugging functions                                                       */
+/* Deging functions                                                       */
 /*****************************************************************************/
 #define hso_dbg(lvl, fmt, ...)						\
 do {									\
-	if ((lvl) & debug)						\
+	if ((lvl) & de)						\
 		pr_info("[%d:%s] " fmt,					\
 			__LINE__, __func__, ##__VA_ARGS__);		\
 } while (0)
@@ -296,7 +296,7 @@ struct hso_device {
 
 /* Additional device info */
 #define HSO_INFO_MASK		0xFF000000
-#define HSO_INFO_CRC_BUG	0x01000000
+#define HSO_INFO_CRC_	0x01000000
 
 /*****************************************************************************/
 /* Prototypes                                                                */
@@ -333,7 +333,7 @@ static void tiocmget_intr_callback(struct urb *urb);
 /* Helping functions                                                         */
 /*****************************************************************************/
 
-/* #define DEBUG */
+/* #define DE */
 
 static inline struct hso_net *dev2net(struct hso_device *hso_dev)
 {
@@ -345,8 +345,8 @@ static inline struct hso_serial *dev2ser(struct hso_device *hso_dev)
 	return hso_dev->port_data.dev_serial;
 }
 
-/* Debugging functions */
-#ifdef DEBUG
+/* Deging functions */
+#ifdef DE
 static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 		     unsigned int len)
 {
@@ -361,7 +361,7 @@ static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 
 #define DUMP1(buf_, len_)			\
 	do {					\
-		if (0x01 & debug)		\
+		if (0x01 & de)		\
 			DUMP(buf_, len_);	\
 	} while (0)
 #else
@@ -370,7 +370,7 @@ static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 #endif
 
 /* module parameters */
-static int debug;
+static int de;
 static int tty_major;
 static int disable_net;
 
@@ -981,7 +981,7 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 	}
 }
 
-static void fix_crc_bug(struct urb *urb, __le16 max_packet_size)
+static void fix_crc_(struct urb *urb, __le16 max_packet_size)
 {
 	static const u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
 	u32 rest = urb->actual_length % le16_to_cpu(max_packet_size);
@@ -1022,8 +1022,8 @@ static void read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	if (odev->parent->port_spec & HSO_INFO_CRC_BUG)
-		fix_crc_bug(urb, odev->in_endp->wMaxPacketSize);
+	if (odev->parent->port_spec & HSO_INFO_CRC_)
+		fix_crc_(urb, odev->in_endp->wMaxPacketSize);
 
 	/* do we even have a packet? */
 	if (urb->actual_length) {
@@ -1215,8 +1215,8 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 	if (serial->port.count == 0)
 		return;
 
-	if (serial->parent->port_spec & HSO_INFO_CRC_BUG)
-		fix_crc_bug(urb, serial->in_endp->wMaxPacketSize);
+	if (serial->parent->port_spec & HSO_INFO_CRC_)
+		fix_crc_(urb, serial->in_endp->wMaxPacketSize);
 	/* Valid data, handle RX data */
 	spin_lock_irqsave(&serial->serial_lock, flags);
 	serial->rx_urb_filled[hso_urb_to_index(serial, urb)] = 1;
@@ -1483,7 +1483,7 @@ static void tiocmget_intr_callback(struct urb *urb)
 	tiocmget = serial->tiocmget;
 	if (!tiocmget)
 		return;
-	BUG_ON((serial->parent->port_spec & HSO_PORT_MASK) != HSO_PORT_MODEM);
+	_ON((serial->parent->port_spec & HSO_PORT_MASK) != HSO_PORT_MODEM);
 
 	usb = serial->parent->usb;
 	interface = serial->parent->interface;
@@ -2858,7 +2858,7 @@ static int hso_get_config_data(struct usb_interface *interface)
 		result |= HSO_INTF_BULK;
 
 	if (config_data[16] & 0x1)
-		result |= HSO_INFO_CRC_BUG;
+		result |= HSO_INFO_CRC_;
 
 	kfree(config_data);
 	return result;
@@ -3305,9 +3305,9 @@ MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
-/* change the debug level (eg: insmod hso.ko debug=0x04) */
-MODULE_PARM_DESC(debug, "debug level mask [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");
-module_param(debug, int, 0644);
+/* change the de level (eg: insmod hso.ko de=0x04) */
+MODULE_PARM_DESC(de, "de level mask [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");
+module_param(de, int, 0644);
 
 /* set the major tty number (eg: insmod hso.ko tty_major=245) */
 MODULE_PARM_DESC(tty_major, "Set the major tty number");

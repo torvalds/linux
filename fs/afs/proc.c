@@ -119,7 +119,7 @@ static int afs_proc_cells_write(struct file *file, char *buf, size_t size)
 	}
 
 	/* determine command to perform */
-	_debug("cmd=%s name=%s args=%s", buf, name, args);
+	_de("cmd=%s name=%s args=%s", buf, name, args);
 
 	if (strcmp(buf, "add") == 0) {
 		struct afs_cell *cell;
@@ -192,7 +192,7 @@ static int afs_proc_rootcell_write(struct file *file, char *buf, size_t size)
 		*s = 0;
 
 	/* determine command to perform */
-	_debug("rootcell=%s", buf);
+	_de("rootcell=%s", buf);
 
 	ret = afs_cell_init(net, buf);
 

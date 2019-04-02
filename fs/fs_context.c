@@ -587,7 +587,7 @@ static int legacy_get_tree(struct fs_context *fc)
 		return PTR_ERR(root);
 
 	sb = root->d_sb;
-	BUG_ON(!sb);
+	_ON(!sb);
 
 	fc->root = root;
 	return 0;

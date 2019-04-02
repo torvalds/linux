@@ -78,7 +78,7 @@ int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		if (ret > 0)
 			goto out;
 	} else {
-		BUG_ON(ret == 0);		/* Logical error */
+		_ON(ret == 0);		/* Logical error */
 		if (path->slots[0] == 0)
 			goto out;
 		path->slots[0]--;
@@ -141,7 +141,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		btrfs_print_leaf(path->nodes[0]);
 		btrfs_crit(fs_info, "unable to update root key %llu %u %llu",
 			   key->objectid, key->type, key->offset);
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	l = path->nodes[0];
@@ -307,7 +307,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 		err = btrfs_insert_fs_root(fs_info, root);
 		if (err) {
-			BUG_ON(err == -EEXIST);
+			_ON(err == -EEXIST);
 			btrfs_free_fs_root(root);
 			break;
 		}
@@ -337,7 +337,7 @@ int btrfs_del_root(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 
 	ret = btrfs_del_item(trans, root, path);
 out:
@@ -368,7 +368,7 @@ int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 	key.offset = ref_id;
 again:
 	ret = btrfs_search_slot(trans, tree_root, &key, path, -1, 1);
-	BUG_ON(ret < 0);
+	_ON(ret < 0);
 	if (ret == 0) {
 		leaf = path->nodes[0];
 		ref = btrfs_item_ptr(leaf, path->slots[0],

@@ -664,13 +664,13 @@ static irqreturn_t wil6210_thread_irq(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
-/* DEBUG
- * There is subtle bug in hardware that causes IRQ to raise when it should be
- * masked. It is quite rare and hard to debug.
+/* DE
+ * There is subtle  in hardware that causes IRQ to raise when it should be
+ * masked. It is quite rare and hard to de.
  *
  * Catch irq issue if it happens and print all I can.
  */
-static int wil6210_debug_irq_mask(struct wil6210_priv *wil, u32 pseudo_cause)
+static int wil6210_de_irq_mask(struct wil6210_priv *wil, u32 pseudo_cause)
 {
 	u32 icm_rx, icr_rx, imv_rx;
 	u32 icm_tx, icr_tx, imv_tx;
@@ -754,8 +754,8 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	if (unlikely((pseudo_cause == 0) || ((pseudo_cause & 0xff) == 0xff)))
 		return IRQ_NONE;
 
-	/* IRQ mask debug */
-	if (unlikely(wil6210_debug_irq_mask(wil, pseudo_cause)))
+	/* IRQ mask de */
+	if (unlikely(wil6210_de_irq_mask(wil, pseudo_cause)))
 		return IRQ_NONE;
 
 	trace_wil6210_irq_pseudo(pseudo_cause);

@@ -427,7 +427,7 @@ typedef struct lboard_s {
 	unsigned char	brd_promver;	  /* board prom version, if any */
 	unsigned char	brd_flags;	  /* Enabled, Disabled etc */
 	unsigned char	brd_slot;	  /* slot number */
-	unsigned short	brd_debugsw;	  /* Debug switches */
+	unsigned short	brd_desw;	  /* De switches */
 	moduleid_t	brd_module;	  /* module to which it belongs */
 	partid_t	brd_partition;	  /* Partition number */
 	unsigned short	brd_diagval;	  /* diagnostic value */
@@ -853,7 +853,7 @@ typedef union kldev_s {	     /* for device structure allocation */
  *
  * Do we need to Mark off sepatate heaps for lboard_t, rboard_t, component,
  * errinfo and allocate from them, or have a single heap and allocate all
- * structures from it. Debug is easier in the former method since we can
+ * structures from it. De is easier in the former method since we can
  * dump all similar structs in one command, but there will be lots of holes,
  * in memory and max limits are needed for number of structures.
  * Another way to make it organized, is to have a union of all components
@@ -882,7 +882,7 @@ typedef union {
 #define VDS_DEFAULTS		0x08	/* Use default environment values */
 #define VDS_NOMEMCLEAR		0x04	/* Don't run mem cfg code */
 #define VDS_2ND_IO4		0x02	/* Boot from the second IO4 */
-#define VDS_DEBUG_PROM		0x01	/* Print PROM debugging messages */
+#define VDS_DE_PROM		0x01	/* Print PROM deging messages */
 
 /* external declarations of Linux kernel functions. */
 

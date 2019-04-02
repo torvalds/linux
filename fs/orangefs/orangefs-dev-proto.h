@@ -51,7 +51,7 @@
  * Misc constants. Please retain them as multiples of 8!
  * Otherwise 32-64 bit interactions will be messed up :)
  */
-#define ORANGEFS_MAX_DEBUG_STRING_LEN	0x00000800
+#define ORANGEFS_MAX_DE_STRING_LEN	0x00000800
 
 #define ORANGEFS_MAX_DIRENT_COUNT_READDIR 512
 

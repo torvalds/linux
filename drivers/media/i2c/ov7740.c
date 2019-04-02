@@ -266,7 +266,7 @@ static const struct ov7740_framesize ov7740_framesizes[] = {
 	},
 };
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ov7740_get_register(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_register *reg)
 {
@@ -324,7 +324,7 @@ static int ov7740_set_power(struct ov7740 *ov7740, int on)
 
 static const struct v4l2_subdev_core_ops ov7740_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = ov7740_get_register,
 	.s_register = ov7740_set_register,
 #endif

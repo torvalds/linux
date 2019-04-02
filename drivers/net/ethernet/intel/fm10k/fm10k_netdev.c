@@ -1651,7 +1651,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_features_check	= fm10k_features_check,
 };
 
-#define DEFAULT_DEBUG_LEVEL_SHIFT 3
+#define DEFAULT_DE_LEVEL_SHIFT 3
 
 struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 {
@@ -1667,9 +1667,9 @@ struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 	dev->netdev_ops = &fm10k_netdev_ops;
 	fm10k_set_ethtool_ops(dev);
 
-	/* configure default debug level */
+	/* configure default de level */
 	interface = netdev_priv(dev);
-	interface->msg_enable = BIT(DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	interface->msg_enable = BIT(DEFAULT_DE_LEVEL_SHIFT) - 1;
 
 	/* configure default features */
 	dev->features |= NETIF_F_IP_CSUM |

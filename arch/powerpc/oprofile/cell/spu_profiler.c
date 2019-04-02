@@ -203,7 +203,7 @@ int start_spu_profiling_cycles(unsigned int cycles_reset)
 {
 	ktime_t kt;
 
-	pr_debug("timer resolution: %lu\n", TICK_NSEC);
+	pr_de("timer resolution: %lu\n", TICK_NSEC);
 	kt = profiling_interval;
 	hrtimer_init(&timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer_set_expires(&timer, kt);
@@ -243,7 +243,7 @@ void stop_spu_profiling_cycles(void)
 	spu_prof_running = 0;
 	hrtimer_cancel(&timer);
 	kfree(samples);
-	pr_debug("SPU_PROF: stop_spu_profiling_cycles issued\n");
+	pr_de("SPU_PROF: stop_spu_profiling_cycles issued\n");
 }
 
 void stop_spu_profiling_events(void)

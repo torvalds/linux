@@ -38,13 +38,13 @@ void snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream)
 
 	mult = 1000000000;
 	rate = runtime->rate;
-	if (snd_BUG_ON(!rate))
+	if (snd__ON(!rate))
 		return;
 	l = gcd(mult, rate);
 	mult /= l;
 	rate /= l;
 	fsize = runtime->period_size;
-	if (snd_BUG_ON(!fsize))
+	if (snd__ON(!fsize))
 		return;
 	l = gcd(rate, fsize);
 	rate /= l;

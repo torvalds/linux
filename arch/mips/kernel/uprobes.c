@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/highmem.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/types.h>
 #include <linux/notifier.h>
 #include <linux/sched.h>
@@ -160,7 +160,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 	struct die_args *args = data;
 	struct pt_regs *regs = args->regs;
 
-	/* regs == NULL is a kernel bug */
+	/* regs == NULL is a kernel  */
 	if (WARN_ON(!regs))
 		return NOTIFY_DONE;
 

@@ -74,8 +74,8 @@
 
 #ifdef __KERNEL__
 
-#ifdef NEOFB_DEBUG
-# define DBG(x)		printk (KERN_DEBUG "neofb: %s\n", (x));
+#ifdef NEOFB_DE
+# define DBG(x)		printk (KERN_DE "neofb: %s\n", (x));
 #else
 # define DBG(x)
 #endif

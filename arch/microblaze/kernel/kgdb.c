@@ -7,7 +7,7 @@
  */
 
 #include <linux/kgdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <asm/cacheflush.h>

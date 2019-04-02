@@ -1041,7 +1041,7 @@ xfs_trans_cancel(
 		XFS_ERROR_REPORT("xfs_trans_cancel", XFS_ERRLEVEL_LOW, mp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	}
-#ifdef DEBUG
+#ifdef DE
 	if (!dirty && !XFS_FORCED_SHUTDOWN(mp)) {
 		struct xfs_log_item *lip;
 

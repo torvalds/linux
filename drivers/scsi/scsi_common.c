@@ -3,7 +3,7 @@
  * SCSI functions used by both the initiator and the target code.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>

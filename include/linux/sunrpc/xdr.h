@@ -229,7 +229,7 @@ struct xdr_stream {
 	struct page **page_ptr;	/* pointer to the current page */
 	unsigned int nwords;	/* Remaining decode buffer length */
 
-	struct rpc_rqst *rqst;	/* For debugging */
+	struct rpc_rqst *rqst;	/* For deging */
 };
 
 /*

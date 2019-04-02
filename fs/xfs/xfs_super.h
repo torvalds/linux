@@ -38,10 +38,10 @@ extern void xfs_qm_exit(void);
 # define XFS_SCRUB_STRING
 #endif
 
-#ifdef DEBUG
-# define XFS_DBG_STRING		"debug"
+#ifdef DE
+# define XFS_DBG_STRING		"de"
 #else
-# define XFS_DBG_STRING		"no debug"
+# define XFS_DBG_STRING		"no de"
 #endif
 
 #define XFS_VERSION_STRING	"SGI XFS"

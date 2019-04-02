@@ -345,7 +345,7 @@ MODULE_PARM_DESC(skd_max_pass_thru,
 		 "Maximum SCSI pass-thru at a time. IGNORED");
 
 module_param(skd_dbg_level, int, 0444);
-MODULE_PARM_DESC(skd_dbg_level, "s1120 debug level (0,1,2)");
+MODULE_PARM_DESC(skd_dbg_level, "s1120 de level (0,1,2)");
 
 module_param(skd_isr_comp_limit, int, 0444);
 MODULE_PARM_DESC(skd_isr_comp_limit, "s1120 isr comp limit (0=none) default=4");
@@ -3192,7 +3192,7 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = register_blkdev(0, DRV_NAME);
 		if (rc < 0)
 			goto err_out_regions;
-		BUG_ON(!rc);
+		_ON(!rc);
 		skd_major = rc;
 	}
 
@@ -3604,14 +3604,14 @@ static void skd_log_skreq(struct skd_device *skdev,
 
 static int __init skd_init(void)
 {
-	BUILD_BUG_ON(sizeof(struct fit_completion_entry_v1) != 8);
-	BUILD_BUG_ON(sizeof(struct fit_comp_error_info) != 32);
-	BUILD_BUG_ON(sizeof(struct skd_command_header) != 16);
-	BUILD_BUG_ON(sizeof(struct skd_scsi_request) != 32);
-	BUILD_BUG_ON(sizeof(struct driver_inquiry_data) != 44);
-	BUILD_BUG_ON(offsetof(struct skd_msg_buf, fmh) != 0);
-	BUILD_BUG_ON(offsetof(struct skd_msg_buf, scsi) != 64);
-	BUILD_BUG_ON(sizeof(struct skd_msg_buf) != SKD_N_FITMSG_BYTES);
+	BUILD__ON(sizeof(struct fit_completion_entry_v1) != 8);
+	BUILD__ON(sizeof(struct fit_comp_error_info) != 32);
+	BUILD__ON(sizeof(struct skd_command_header) != 16);
+	BUILD__ON(sizeof(struct skd_scsi_request) != 32);
+	BUILD__ON(sizeof(struct driver_inquiry_data) != 44);
+	BUILD__ON(offsetof(struct skd_msg_buf, fmh) != 0);
+	BUILD__ON(offsetof(struct skd_msg_buf, scsi) != 64);
+	BUILD__ON(sizeof(struct skd_msg_buf) != SKD_N_FITMSG_BYTES);
 
 	switch (skd_isr_type) {
 	case SKD_IRQ_LEGACY:

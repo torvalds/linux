@@ -941,7 +941,7 @@ static void be_tx_setup_wrb_hdr(struct be_adapter *adapter,
 	wrb_fill_hdr(adapter, hdr, wrb_params, skb);
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
 
-	BUG_ON(txo->sent_skb_list[head]);
+	_ON(txo->sent_skb_list[head]);
 	txo->sent_skb_list[head] = skb;
 	txo->last_req_hdr = head;
 	atomic_add(num_frags, &txq->used);
@@ -1154,7 +1154,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	    veh->h_vlan_proto == htons(ETH_P_8021Q))
 		BE_WRB_F_SET(wrb_params->features, VLAN_SKIP_HW, 1);
 
-	/* HW has a bug wherein it will calculate CSUM for VLAN
+	/* HW has a  wherein it will calculate CSUM for VLAN
 	 * pkts even though it is disabled.
 	 * Manually insert VLAN in pkt.
 	 */
@@ -1200,7 +1200,7 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 {
 	int err;
 
-	/* Lancer, SH and BE3 in SRIOV mode have a bug wherein
+	/* Lancer, SH and BE3 in SRIOV mode have a  wherein
 	 * packets that are 32b or less may cause a transmit stall
 	 * on that port. The workaround is to pad such packets
 	 * (len <= 32 bytes) to a minimum length of 36b.
@@ -2287,7 +2287,7 @@ static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo)
 	u32 frag_idx = rxq->tail;
 
 	rx_page_info = &rxo->page_info_tbl[frag_idx];
-	BUG_ON(!rx_page_info->page);
+	_ON(!rx_page_info->page);
 
 	if (rx_page_info->last_frag) {
 		dma_unmap_page(&adapter->pdev->dev,
@@ -2361,7 +2361,7 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 	page_info->page = NULL;
 
 	if (rxcp->pkt_size <= rx_frag_size) {
-		BUG_ON(rxcp->num_rcvd != 1);
+		_ON(rxcp->num_rcvd != 1);
 		return;
 	}
 
@@ -2391,7 +2391,7 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		remaining -= curr_frag_len;
 		page_info->page = NULL;
 	}
-	BUG_ON(j > MAX_SKB_FRAGS);
+	_ON(j > MAX_SKB_FRAGS);
 }
 
 /* Process the RX completion indicated by rxcp when GRO is disabled */
@@ -2469,7 +2469,7 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 		remaining -= curr_frag_len;
 		memset(page_info, 0, sizeof(*page_info));
 	}
-	BUG_ON(j > MAX_SKB_FRAGS);
+	_ON(j > MAX_SKB_FRAGS);
 
 	skb_shinfo(skb)->nr_frags = j + 1;
 	skb->len = rxcp->pkt_size;
@@ -2823,7 +2823,7 @@ static void be_rxq_clean(struct be_rx_obj *rxo)
 		put_page(page_info->page);
 		memset(page_info, 0, sizeof(*page_info));
 	}
-	BUG_ON(atomic_read(&rxq->used));
+	_ON(atomic_read(&rxq->used));
 	rxq->tail = 0;
 	rxq->head = 0;
 }
@@ -2924,7 +2924,7 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 			 */
 			num_wrbs = be_tx_compl_process(adapter, txo, end_idx);
 			atomic_sub(num_wrbs, &txq->used);
-			BUG_ON(atomic_read(&txq->used));
+			_ON(atomic_read(&txq->used));
 			txo->pend_wrb_cnt = 0;
 			/* Since hw was never notified of these requests,
 			 * reset TXQ indices
@@ -3618,8 +3618,8 @@ static void be_disable_if_filters(struct be_adapter *adapter)
 	 * assigned to a VM the following happens:
 	 *	- VF's IFACE flags get cleared in the detach path
 	 *	- IFACE create is issued by the VF in the attach path
-	 * Due to a bug in the BE3/Skyhawk-R FW
-	 * (Lancer FW doesn't have the bug), the IFACE capability flags
+	 * Due to a  in the BE3/Skyhawk-R FW
+	 * (Lancer FW doesn't have the ), the IFACE capability flags
 	 * specified along with the IFACE create cmd issued by a VF are not
 	 * honoured by FW.  As a consequence, if a *new* driver
 	 * (that enables/disables IFACE flags in open/close)
@@ -5813,7 +5813,7 @@ static int be_drv_init(struct be_adapter *adapter)
 	adapter->rx_fc = true;
 	adapter->tx_fc = true;
 
-	/* Must be a power of 2 or else MODULO will BUG_ON */
+	/* Must be a power of 2 or else MODULO will _ON */
 	adapter->be_get_temp_freq = 64;
 
 	INIT_LIST_HEAD(&adapter->vxlan_port_list);
@@ -6114,7 +6114,7 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	pci_disable_device(pdev);
 
-	/* The error could cause the FW to trigger a flash debug dump.
+	/* The error could cause the FW to trigger a flash de dump.
 	 * Resetting the card while flash dump is in progress
 	 * can cause it not to recover; wait for it to finish.
 	 * Wait only for first function as it is needed only once per

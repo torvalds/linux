@@ -61,9 +61,9 @@
 
 /* IF YOU ARE HAVING PROBLEMS WITH THIS DRIVER, AND WANT TO WATCH
    IT WORK, THEN:
-#define DEBUG
+#define DE
 */
-#ifdef DEBUG
+#ifdef DE
 #define DEB(x) x
 #else
 #define DEB(x)
@@ -137,7 +137,7 @@ static int aha1740_makecode(unchar *sense, unchar *status)
 	int retval = DID_OK;
 
 	status_word = * (struct statusword *) status;
-#ifdef DEBUG
+#ifdef DE
 	printk("makecode from %x,%x,%x,%x %x,%x,%x,%x",
 	       status[0], status[1], status[2], status[3],
 	       sense[0], sense[1], sense[2], sense[3]);
@@ -330,7 +330,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 		return 0;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	if (*cmd == READ_10 || *cmd == WRITE_10)
 		i = xscsi2int(cmd+2);
 	else if (*cmd == READ_6 || *cmd == WRITE_6)
@@ -366,7 +366,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 	host->last_ecb_used = ecbno;    
 	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("Sending command (%d %x)...", ecbno, done);
 #endif
 
@@ -393,7 +393,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 	sgptr->sg_dma_addr = sg_dma;
 
 	nseg = scsi_dma_map(SCpnt);
-	BUG_ON(nseg < 0);
+	_ON(nseg < 0);
 	if (nseg) {
 		struct scatterlist *sg;
 		struct aha1740_chain * cptr;
@@ -409,7 +409,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 		}
 		host->ecb[ecbno].datalen = nseg * sizeof(struct aha1740_chain);
 		host->ecb[ecbno].dataptr = sg_dma;
-#ifdef DEBUG
+#ifdef DE
 		printk("cptr %x: ",cptr);
 		ptr = (unsigned char *) cptr;
 		for(i=0;i<24;i++) printk("%02x ", ptr[i]);
@@ -429,7 +429,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 						     host->ecb[ecbno].status);
 	host->ecb[ecbno].done = done;
 	host->ecb[ecbno].SCpnt = SCpnt;
-#ifdef DEBUG
+#ifdef DE
 	{
 		int i;
 		printk("aha1740_command: sending.. ");

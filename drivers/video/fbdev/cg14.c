@@ -511,7 +511,7 @@ static int cg14_probe(struct platform_device *op)
 	is_8mb = (((op->resource[1].end - op->resource[1].start) + 1) ==
 		  (8 * 1024 * 1024));
 
-	BUILD_BUG_ON(sizeof(par->mmap_map) != sizeof(__cg14_mmap_map));
+	BUILD__ON(sizeof(par->mmap_map) != sizeof(__cg14_mmap_map));
 		
 	memcpy(&par->mmap_map, &__cg14_mmap_map, sizeof(par->mmap_map));
 

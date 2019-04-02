@@ -22,7 +22,7 @@
 #include "util/event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/symbol.h"
@@ -42,7 +42,7 @@
 #include "util/time-utils.h"
 #include "util/units.h"
 #include "util/bpf-event.h"
-#include "asm/bug.h"
+#include "asm/.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -478,7 +478,7 @@ out:
 
 static void record__read_auxtrace_snapshot(struct record *rec)
 {
-	pr_debug("Recording AUX area tracing snapshot\n");
+	pr_de("Recording AUX area tracing snapshot\n");
 	if (record__auxtrace_read_snapshot_all(rec) < 0) {
 		trigger_error(&auxtrace_snapshot_trigger);
 	} else {
@@ -674,8 +674,8 @@ static int process_buildids(struct record *rec)
 	 * we prefer the vmlinux path like
 	 *   /lib/modules/3.16.4/build/vmlinux
 	 *
-	 * rather than build-id path (in debug directory).
-	 *   $HOME/.debug/.build-id/f0/6e17aa50adf4d00b88925e03775de107611551
+	 * rather than build-id path (in de directory).
+	 *   $HOME/.de/.build-id/f0/6e17aa50adf4d00b88925e03775de107611551
 	 */
 	symbol_conf.ignore_vmlinux_buildid = true;
 
@@ -1242,7 +1242,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		bpf_event__add_sb_event(&sb_evlist, &session->header.env);
 
 	if (perf_evlist__start_sb_thread(sb_evlist, &rec->opts.target)) {
-		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
+		pr_de("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
 		opts->no_bpf_event = true;
 	}
 
@@ -1502,14 +1502,14 @@ out_delete_session:
 	return status;
 }
 
-static void callchain_debug(struct callchain_param *callchain)
+static void callchain_de(struct callchain_param *callchain)
 {
 	static const char *str[CALLCHAIN_MAX] = { "NONE", "FP", "DWARF", "LBR" };
 
-	pr_debug("callchain: type %s\n", str[callchain->record_mode]);
+	pr_de("callchain: type %s\n", str[callchain->record_mode]);
 
 	if (callchain->record_mode == CALLCHAIN_DWARF)
-		pr_debug("callchain: stack dump size %d\n",
+		pr_de("callchain: stack dump size %d\n",
 			 callchain->dump_size);
 }
 
@@ -1523,7 +1523,7 @@ int record_opts__parse_callchain(struct record_opts *record,
 	/* --no-call-graph */
 	if (unset) {
 		callchain->record_mode = CALLCHAIN_NONE;
-		pr_debug("callchain: disabled\n");
+		pr_de("callchain: disabled\n");
 		return 0;
 	}
 
@@ -1532,7 +1532,7 @@ int record_opts__parse_callchain(struct record_opts *record,
 		/* Enable data address sampling for DWARF unwind. */
 		if (callchain->record_mode == CALLCHAIN_DWARF)
 			record->sample_address = true;
-		callchain_debug(callchain);
+		callchain_de(callchain);
 	}
 
 	return ret;
@@ -1556,7 +1556,7 @@ int record_callchain_opt(const struct option *opt,
 	if (callchain->record_mode == CALLCHAIN_NONE)
 		callchain->record_mode = CALLCHAIN_FP;
 
-	callchain_debug(callchain);
+	callchain_de(callchain);
 	return 0;
 }
 
@@ -1787,21 +1787,21 @@ static int switch_output_setup(struct record *rec)
 
 	if (!strcmp(s->str, "signal")) {
 		s->signal = true;
-		pr_debug("switch-output with SIGUSR2 signal\n");
+		pr_de("switch-output with SIGUSR2 signal\n");
 		goto enabled;
 	}
 
 	val = parse_tag_value(s->str, tags_size);
 	if (val != (unsigned long) -1) {
 		s->size = val;
-		pr_debug("switch-output with %s size threshold\n", s->str);
+		pr_de("switch-output with %s size threshold\n", s->str);
 		goto enabled;
 	}
 
 	val = parse_tag_value(s->str, tags_time);
 	if (val != (unsigned long) -1) {
 		s->time = val;
-		pr_debug("switch-output with %s time threshold (%lu seconds)\n",
+		pr_de("switch-output with %s time threshold (%lu seconds)\n",
 			 s->str, s->time);
 		goto enabled;
 	}
@@ -2223,7 +2223,7 @@ int cmd_record(int argc, const char **argv)
 	if (verbose > 0)
 		pr_info("nr_cblocks: %d\n", rec->opts.nr_cblocks);
 
-	pr_debug("affinity: %s\n", affinity_tags[rec->opts.affinity]);
+	pr_de("affinity: %s\n", affinity_tags[rec->opts.affinity]);
 
 	err = __cmd_record(&record, argc, argv);
 out:

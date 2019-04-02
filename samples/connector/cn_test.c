@@ -130,7 +130,7 @@ static void cn_test_timer_func(struct timer_list *unused)
 	struct cn_msg *m;
 	char data[32];
 
-	pr_debug("%s: timer fired\n", __func__);
+	pr_de("%s: timer fired\n", __func__);
 
 	m = kzalloc(sizeof(*m) + sizeof(data), GFP_ATOMIC);
 	if (m) {

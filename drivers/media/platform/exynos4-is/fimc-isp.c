@@ -31,8 +31,8 @@
 #include "fimc-is-regs.h"
 #include "fimc-is.h"
 
-int fimc_isp_debug;
-module_param_named(debug_isp, fimc_isp_debug, int, S_IRUGO | S_IWUSR);
+int fimc_isp_de;
+module_param_named(de_isp, fimc_isp_de, int, S_IRUGO | S_IWUSR);
 
 static const struct fimc_fmt fimc_isp_formats[FIMC_ISP_NUM_FORMATS] = {
 	{
@@ -307,7 +307,7 @@ static int fimc_isp_subdev_s_power(struct v4l2_subdev *sd, int on)
 	struct fimc_is *is = fimc_isp_to_is(isp);
 	int ret = 0;
 
-	pr_debug("on: %d\n", on);
+	pr_de("on: %d\n", on);
 
 	if (on) {
 		ret = pm_runtime_get_sync(&is->pdev->dev);

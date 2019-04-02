@@ -36,7 +36,7 @@ long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 		page = vmalloc_to_page(pmem->virt_addr + offset);
 		if (pfn)
 			*pfn = page_to_pfn_t(page);
-		pr_debug_ratelimited("%s: pmem: %p pgoff: %#lx pfn: %#lx\n",
+		pr_de_ratelimited("%s: pmem: %p pgoff: %#lx pfn: %#lx\n",
 				__func__, pmem, pgoff, page_to_pfn(page));
 
 		return 1;

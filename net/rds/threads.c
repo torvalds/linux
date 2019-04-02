@@ -82,7 +82,7 @@ void rds_connect_path_complete(struct rds_conn_path *cp, int curr)
 		return;
 	}
 
-	rdsdebug("conn %p for %pI6c to %pI6c complete\n",
+	rdsde("conn %p for %pI6c to %pI6c complete\n",
 		 cp->cp_conn, &cp->cp_conn->c_laddr, &cp->cp_conn->c_faddr);
 
 	cp->cp_reconnect_jiffies = 0;
@@ -126,7 +126,7 @@ void rds_queue_reconnect(struct rds_conn_path *cp)
 	unsigned long rand;
 	struct rds_connection *conn = cp->cp_conn;
 
-	rdsdebug("conn %p for %pI6c to %pI6c reconnect jiffies %lu\n",
+	rdsde("conn %p for %pI6c to %pI6c reconnect jiffies %lu\n",
 		 conn, &conn->c_laddr, &conn->c_faddr,
 		 cp->cp_reconnect_jiffies);
 
@@ -146,7 +146,7 @@ void rds_queue_reconnect(struct rds_conn_path *cp)
 	}
 
 	get_random_bytes(&rand, sizeof(rand));
-	rdsdebug("%lu delay %lu ceil conn %p for %pI6c -> %pI6c\n",
+	rdsde("%lu delay %lu ceil conn %p for %pI6c -> %pI6c\n",
 		 rand % cp->cp_reconnect_jiffies, cp->cp_reconnect_jiffies,
 		 conn, &conn->c_laddr, &conn->c_faddr);
 	rcu_read_lock();
@@ -174,7 +174,7 @@ void rds_connect_worker(struct work_struct *work)
 	ret = rds_conn_path_transition(cp, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
 	if (ret) {
 		ret = conn->c_trans->conn_path_connect(cp);
-		rdsdebug("conn %p for %pI6c to %pI6c dispatched, ret %d\n",
+		rdsde("conn %p for %pI6c to %pI6c dispatched, ret %d\n",
 			 conn, &conn->c_laddr, &conn->c_faddr, ret);
 
 		if (ret) {
@@ -199,7 +199,7 @@ void rds_send_worker(struct work_struct *work)
 		clear_bit(RDS_LL_SEND_FULL, &cp->cp_flags);
 		ret = rds_send_xmit(cp);
 		cond_resched();
-		rdsdebug("conn %p ret %d\n", cp->cp_conn, ret);
+		rdsde("conn %p ret %d\n", cp->cp_conn, ret);
 		switch (ret) {
 		case -EAGAIN:
 			rds_stats_inc(s_send_immediate_retry);
@@ -223,7 +223,7 @@ void rds_recv_worker(struct work_struct *work)
 
 	if (rds_conn_path_state(cp) == RDS_CONN_UP) {
 		ret = cp->cp_conn->c_trans->recv_path(cp);
-		rdsdebug("conn %p ret %d\n", cp->cp_conn, ret);
+		rdsde("conn %p ret %d\n", cp->cp_conn, ret);
 		switch (ret) {
 		case -EAGAIN:
 			rds_stats_inc(s_recv_immediate_retry);

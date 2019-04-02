@@ -155,7 +155,7 @@ static int xen_starting_cpu(unsigned int cpu)
 
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
 				 &info);
-	BUG_ON(err);
+	_ON(err);
 	per_cpu(xen_vcpu, cpu) = vcpup;
 
 	xen_setup_runstate_info(cpu);
@@ -177,7 +177,7 @@ void xen_reboot(int reason)
 	int rc;
 
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	BUG_ON(rc);
+	_ON(rc);
 }
 
 static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
@@ -246,12 +246,12 @@ void __init xen_early_init(void)
 {
 	of_scan_flat_dt(fdt_find_hyper_node, NULL);
 	if (!hyper_node.found) {
-		pr_debug("No Xen support\n");
+		pr_de("No Xen support\n");
 		return;
 	}
 
 	if (hyper_node.version == NULL) {
-		pr_debug("Xen version not found\n");
+		pr_de("Xen version not found\n");
 		return;
 	}
 
@@ -342,7 +342,7 @@ static int __init xen_guest_init(void)
 	xatp.space = XENMAPSPACE_shared_info;
 	xatp.gpfn = virt_to_gfn(shared_info_page);
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
-		BUG();
+		();
 
 	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
 

@@ -1130,7 +1130,7 @@ void odm_false_alarm_counter_statistics(void *dm_void)
 			odm_set_bb_reg(dm, ODM_REG_PAGE_F_RST_11N, BIT(16), 0);
 		}
 
-		/* Get debug port 0 */
+		/* Get de port 0 */
 		odm_set_bb_reg(dm, ODM_REG_DBG_RPT_11N, MASKDWORD, 0x0);
 		false_alm_cnt->dbg_port0 =
 			odm_get_bb_reg(dm, ODM_REG_RPT_11N, MASKDWORD);
@@ -1225,7 +1225,7 @@ void odm_false_alarm_counter_statistics(void *dm_void)
 		if (adc_smp->adc_smp_state == ADCSMP_STATE_IDLE) {
 			if (phydm_set_bb_dbg_port(
 				    dm, BB_DBGPORT_PRIORITY_1,
-				    0x0)) { /*set debug port to 0x0*/
+				    0x0)) { /*set de port to 0x0*/
 				false_alm_cnt->dbg_port0 =
 					phydm_get_bb_dbg_port_value(dm);
 				phydm_release_bb_dbg_port(dm);
@@ -1233,7 +1233,7 @@ void odm_false_alarm_counter_statistics(void *dm_void)
 
 			if (phydm_set_bb_dbg_port(
 				    dm, BB_DBGPORT_PRIORITY_1,
-				    0x209)) { /*set debug port to 0x0*/
+				    0x209)) { /*set de port to 0x0*/
 				false_alm_cnt->edcca_flag =
 					(bool)((phydm_get_bb_dbg_port_value(
 							dm) &

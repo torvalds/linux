@@ -23,9 +23,9 @@
 static DEFINE_MUTEX(mxl5007t_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
-static int mxl5007t_debug;
-module_param_named(debug, mxl5007t_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level");
+static int mxl5007t_de;
+module_param_named(de, mxl5007t_de, int, 0644);
+MODULE_PARM_DESC(de, "set de level");
 
 /* ------------------------------------------------------------------------- */
 
@@ -41,10 +41,10 @@ MODULE_PARM_DESC(debug, "set debug level");
 #define mxl_info(fmt, arg...) \
 	mxl_printk(KERN_INFO, fmt, ##arg)
 
-#define mxl_debug(fmt, arg...)				\
+#define mxl_de(fmt, arg...)				\
 ({							\
-	if (mxl5007t_debug)				\
-		mxl_printk(KERN_DEBUG, fmt, ##arg);	\
+	if (mxl5007t_de)				\
+		mxl_printk(KERN_DE, fmt, ##arg);	\
 })
 
 #define mxl_fail(ret)							\
@@ -591,7 +591,7 @@ static int mxl5007t_get_status(struct dvb_frontend *fe, u32 *status)
 	ret = mxl5007t_synth_lock_status(state, &rf_locked, &ref_locked);
 	if (mxl_fail(ret))
 		goto fail;
-	mxl_debug("%s%s", rf_locked ? "rf locked " : "",
+	mxl_de("%s%s", rf_locked ? "rf locked " : "",
 		  ref_locked ? "ref locked" : "");
 
 	if ((rf_locked) || (ref_locked))

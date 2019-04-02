@@ -17,9 +17,9 @@ config SH_STANDARD_BIOS
 	  mask ROM and no flash (WindowsCE machines fall in this category).
 	  If unsure, say N.
 
-config STACK_DEBUG
+config STACK_DE
 	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL && SUPERH32
+	depends on DE_KERNEL && SUPERH32
 	help
 	  This option will cause messages to be printed if free stack space
 	  drops below a certain limit. Saying Y here will add overhead to
@@ -28,7 +28,7 @@ config STACK_DEBUG
 
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
-	depends on DEBUG_KERNEL && (MMU || BROKEN) && !PAGE_SIZE_64KB
+	depends on DE_KERNEL && (MMU || BROKEN) && !PAGE_SIZE_64KB
 	help
 	  If you say Y here the kernel will use a 4Kb stacksize for the
 	  kernel stack attached to each process/thread. This facilitates
@@ -38,7 +38,7 @@ config 4KSTACKS
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	depends on DEBUG_KERNEL && SUPERH32 && BROKEN
+	depends on DE_KERNEL && SUPERH32 && BROKEN
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid
@@ -46,15 +46,15 @@ config IRQSTACKS
 
 config DUMP_CODE
 	bool "Show disassembly of nearby code in register dumps"
-	depends on DEBUG_KERNEL && SUPERH32
-	default y if DEBUG_BUGVERBOSE
+	depends on DE_KERNEL && SUPERH32
+	default y if DE_VERBOSE
 	default n
 	help
 	  This prints out a code trace of the instructions leading up to
-	  the faulting instruction as a debugging aid. As this does grow
+	  the faulting instruction as a deging aid. As this does grow
 	  the kernel in size a bit, most users will want to say N here.
 
-	  Those looking for more verbose debugging output should say Y.
+	  Those looking for more verbose deging output should say Y.
 
 config DWARF_UNWINDER
 	bool "Enable the DWARF unwinder for stacktraces"
@@ -67,21 +67,21 @@ config DWARF_UNWINDER
 
 config SH_NO_BSS_INIT
 	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	default n
 	help
 	  If running in painfully slow environments, such as an RTL
-	  simulation or from remote memory via SHdebug, where the memory
+	  simulation or from remote memory via SHde, where the memory
 	  can already be guaranteed to ber zeroed on boot, say Y.
 
 	  For all other cases, say N. If this option seems perplexing, or
 	  you aren't sure, say N.
 
 config SH64_SR_WATCH
-	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
+	bool "De: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64
 
 config MCOUNT
 	def_bool y
 	depends on SUPERH32
-	depends on STACK_DEBUG || FUNCTION_TRACER
+	depends on STACK_DE || FUNCTION_TRACER

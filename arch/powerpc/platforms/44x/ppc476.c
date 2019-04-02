@@ -140,7 +140,7 @@ static void __init ppc47x_init_irq(void)
 		 */
 		struct mpic *mpic =
 			mpic_alloc(np, 0, MPIC_NO_RESET, 0, 0, " MPIC     ");
-		BUG_ON(mpic == NULL);
+		_ON(mpic == NULL);
 		mpic_init(mpic);
 		ppc_md.get_irq = mpic_get_irq;
 	} else
@@ -160,7 +160,7 @@ static int smp_ppc47x_kick_cpu(int cpu)
 	u32 *spin_table;
 	extern void start_secondary_47x(void);
 
-	BUG_ON(cpunode == NULL);
+	_ON(cpunode == NULL);
 
 	/* Assume spin table. We could test for the enable-method in
 	 * the device-tree but currently there's little point as it's
@@ -181,7 +181,7 @@ static int smp_ppc47x_kick_cpu(int cpu)
 	 * XXX: Is there any reason to assume differently?
 	 */
 	spin_table = (u32 *)__va(*spin_table_addr_prop);
-	pr_debug("CPU%d: Spin table mapped at %p\n", cpu, spin_table);
+	pr_de("CPU%d: Spin table mapped at %p\n", cpu, spin_table);
 
 	spin_table[3] = cpu;
 	smp_wmb();

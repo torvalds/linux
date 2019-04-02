@@ -747,7 +747,7 @@ static void asd_dl_tasklet_handler(unsigned long data)
 		ascb = asd_tc_index_find(seq, (int)le16_to_cpu(dl->index));
 		spin_unlock_irqrestore(&seq->tc_index_lock, flags);
 		if (unlikely(!ascb)) {
-			ASD_DPRINTK("BUG:sequencer:dl:no ascb?!\n");
+			ASD_DPRINTK(":sequencer:dl:no ascb?!\n");
 			goto next_1;
 		} else if (ascb->scb->header.opcode == EMPTY_SCB) {
 			goto out;

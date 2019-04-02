@@ -101,7 +101,7 @@ fr_common:
 		return SIGFPE;
 
 	default:
-		BUG();
+		();
 	}
 
 	return SIGFPE;

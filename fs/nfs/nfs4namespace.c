@@ -356,7 +356,7 @@ static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *
 	struct page *page;
 	int err;
 
-	/* BUG_ON(IS_ROOT(dentry)); */
+	/* _ON(IS_ROOT(dentry)); */
 	page = alloc_page(GFP_KERNEL);
 	if (page == NULL)
 		return mnt;

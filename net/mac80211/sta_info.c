@@ -27,7 +27,7 @@
 #include "driver-ops.h"
 #include "rate.h"
 #include "sta_info.h"
-#include "debugfs_sta.h"
+#include "defs_sta.h"
 #include "mesh.h"
 #include "wme.h"
 
@@ -599,8 +599,8 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	/* accept BA sessions now */
 	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
-	ieee80211_sta_debugfs_add(sta);
-	rate_control_add_sta_debugfs(sta);
+	ieee80211_sta_defs_add(sta);
+	rate_control_add_sta_defs(sta);
 
 	sinfo->generation = local->sta_generation;
 	cfg80211_new_sta(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
@@ -1018,8 +1018,8 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
 	kfree(sinfo);
 
-	rate_control_remove_sta_debugfs(sta);
-	ieee80211_sta_debugfs_remove(sta);
+	rate_control_remove_sta_defs(sta);
+	ieee80211_sta_defs_remove(sta);
 
 	cleanup_single_sta(sta);
 }
@@ -1238,7 +1238,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	clear_sta_flag(sta, WLAN_STA_SP);
 
-	BUILD_BUG_ON(BITS_TO_LONGS(IEEE80211_NUM_TIDS) > 1);
+	BUILD__ON(BITS_TO_LONGS(IEEE80211_NUM_TIDS) > 1);
 	sta->driver_buffered_tids = 0;
 	sta->txq_buffered_tids = 0;
 

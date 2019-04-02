@@ -18,7 +18,7 @@
  * bch_ptr_bad().
  *
  * bch_ptr_invalid() primarily filters out keys and pointers that would be
- * invalid due to some sort of bug, whereas bch_ptr_bad() filters out keys and
+ * invalid due to some sort of , whereas bch_ptr_bad() filters out keys and
  * pointer that occur in normal practice but don't point to real data.
  *
  * The one exception to the rule that ptr_invalid() filters out invalid keys is
@@ -219,7 +219,7 @@ struct btree_keys {
 	uint8_t			page_order;
 	uint8_t			nsets;
 	unsigned int		last_set_unwritten:1;
-	bool			*expensive_debug_checks;
+	bool			*expensive_de_checks;
 
 	/*
 	 * Sets of sorted keys - the real btree node - plus a binary search tree
@@ -270,7 +270,7 @@ static inline size_t bch_btree_keys_u64s_remaining(struct btree_keys *b)
 {
 	struct bset_tree *t = bset_tree_last(b);
 
-	BUG_ON((PAGE_SIZE << b->page_order) <
+	_ON((PAGE_SIZE << b->page_order) <
 	       (bset_byte_offset(b, t->data) + set_bytes(t->data)));
 
 	if (!b->last_set_unwritten)
@@ -293,7 +293,7 @@ void bch_btree_keys_free(struct btree_keys *b);
 int bch_btree_keys_alloc(struct btree_keys *b, unsigned int page_order,
 			 gfp_t gfp);
 void bch_btree_keys_init(struct btree_keys *b, const struct btree_keys_ops *ops,
-			 bool *expensive_debug_checks);
+			 bool *expensive_de_checks);
 
 void bch_bset_init_next(struct btree_keys *b, struct bset *i, uint64_t magic);
 void bch_bset_build_written_tree(struct btree_keys *b);
@@ -316,7 +316,7 @@ enum {
 
 struct btree_iter {
 	size_t size, used;
-#ifdef CONFIG_BCACHE_DEBUG
+#ifdef CONFIG_BCACHE_DE
 	struct btree_keys *b;
 #endif
 	struct btree_iter_set {
@@ -424,13 +424,13 @@ bool __bch_cut_back(const struct bkey *where, struct bkey *k);
 
 static inline bool bch_cut_front(const struct bkey *where, struct bkey *k)
 {
-	BUG_ON(bkey_cmp(where, k) > 0);
+	_ON(bkey_cmp(where, k) > 0);
 	return __bch_cut_front(where, k);
 }
 
 static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
 {
-	BUG_ON(bkey_cmp(where, &START_KEY(k)) < 0);
+	_ON(bkey_cmp(where, &START_KEY(k)) < 0);
 	return __bch_cut_back(where, k);
 }
 
@@ -542,9 +542,9 @@ struct bkey *bch_keylist_pop(struct keylist *l);
 void bch_keylist_pop_front(struct keylist *l);
 int __bch_keylist_realloc(struct keylist *l, unsigned int u64s);
 
-/* Debug stuff */
+/* De stuff */
 
-#ifdef CONFIG_BCACHE_DEBUG
+#ifdef CONFIG_BCACHE_DE
 
 int __bch_count_data(struct btree_keys *b);
 void __printf(2, 3) __bch_check_keys(struct btree_keys *b,
@@ -565,8 +565,8 @@ void bch_dump_bset(struct btree_keys *b, struct bset *i, unsigned int set);
 
 static inline bool btree_keys_expensive_checks(struct btree_keys *b)
 {
-#ifdef CONFIG_BCACHE_DEBUG
-	return *b->expensive_debug_checks;
+#ifdef CONFIG_BCACHE_DE
+	return *b->expensive_de_checks;
 #else
 	return false;
 #endif

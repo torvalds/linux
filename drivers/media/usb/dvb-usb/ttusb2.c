@@ -36,21 +36,21 @@
 /* CA */
 #include <media/dvb_ca_en50221.h>
 
-/* debug */
-static int dvb_usb_ttusb2_debug;
-#define deb_info(args...)   dprintk(dvb_usb_ttusb2_debug,0x01,args)
-module_param_named(debug,dvb_usb_ttusb2_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able))." DVB_USB_DEBUG_STATUS);
-static int dvb_usb_ttusb2_debug_ci;
-module_param_named(debug_ci,dvb_usb_ttusb2_debug_ci, int, 0644);
-MODULE_PARM_DESC(debug_ci, "set debugging ci." DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_ttusb2_de;
+#define deb_info(args...)   dprintk(dvb_usb_ttusb2_de,0x01,args)
+module_param_named(de,dvb_usb_ttusb2_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info (or-able))." DVB_USB_DE_STATUS);
+static int dvb_usb_ttusb2_de_ci;
+module_param_named(de_ci,dvb_usb_ttusb2_de_ci, int, 0644);
+MODULE_PARM_DESC(de_ci, "set deging ci." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define ci_dbg(format, arg...)                \
 do {                                          \
-	if (dvb_usb_ttusb2_debug_ci)                                    \
-		printk(KERN_DEBUG DVB_USB_LOG_PREFIX \
+	if (dvb_usb_ttusb2_de_ci)                                    \
+		printk(KERN_DE DVB_USB_LOG_PREFIX \
 			": %s " format "\n" , __func__, ## arg);       \
 } while (0)
 

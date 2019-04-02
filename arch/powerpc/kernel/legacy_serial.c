@@ -16,9 +16,9 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) do { printk(fmt); } while(0)
 #else
 #define DBG(fmt...) do { } while(0)
@@ -112,7 +112,7 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	if (legacy_serial_infos[index].np != NULL) {
 		/* if we still have some room, move it, else override */
 		if (legacy_serial_count < MAX_LEGACY_SERIAL_PORTS) {
-			printk(KERN_DEBUG "Moved legacy port %d -> %d\n",
+			printk(KERN_DE "Moved legacy port %d -> %d\n",
 			       index, legacy_serial_count);
 			legacy_serial_ports[legacy_serial_count] =
 				legacy_serial_ports[index];
@@ -120,7 +120,7 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 				legacy_serial_infos[index];
 			legacy_serial_count++;
 		} else {
-			printk(KERN_DEBUG "Replacing legacy port %d\n", index);
+			printk(KERN_DE "Replacing legacy port %d\n", index);
 		}
 	}
 
@@ -148,9 +148,9 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 		legacy_serial_ports[index].serial_out = tsi_serial_out;
 	}
 
-	printk(KERN_DEBUG "Found legacy serial port %d for %pOF\n",
+	printk(KERN_DE "Found legacy serial port %d for %pOF\n",
 	       index, np);
-	printk(KERN_DEBUG "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
+	printk(KERN_DE "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
 	       (iotype == UPIO_PORT) ? "port" : "mem",
 	       (unsigned long long)base, (unsigned long long)taddr, irq,
 	       legacy_serial_ports[index].uartclk,

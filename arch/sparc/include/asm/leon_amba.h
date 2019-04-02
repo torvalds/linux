@@ -184,8 +184,8 @@ extern unsigned long amba_system_id;
 extern struct leon3_irqctrl_regs_map *leon3_irqctrl_regs;
 extern struct leon3_gptimer_regs_map *leon3_gptimer_regs;
 extern struct amba_apb_device leon_percpu_timer_dev[16];
-extern int leondebug_irq_disable;
-extern int leon_debug_irqout;
+extern int leonde_irq_disable;
+extern int leon_de_irqout;
 extern unsigned long leon3_gptimer_irq;
 extern unsigned int sparc_leon_eirq;
 

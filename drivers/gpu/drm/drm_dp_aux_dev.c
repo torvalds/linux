@@ -286,7 +286,7 @@ void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
 		device_destroy(drm_dp_aux_dev_class,
 			       MKDEV(drm_dev_major, minor));
 
-	DRM_DEBUG("drm_dp_aux_dev: aux [%s] unregistering\n", aux->name);
+	DRM_DE("drm_dp_aux_dev: aux [%s] unregistering\n", aux->name);
 	kref_put(&aux_dev->refcount, release_drm_dp_aux_dev);
 }
 
@@ -308,7 +308,7 @@ int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
 		goto error;
 	}
 
-	DRM_DEBUG("drm_dp_aux_dev: aux [%s] registered as minor %d\n",
+	DRM_DE("drm_dp_aux_dev: aux [%s] registered as minor %d\n",
 		  aux->name, aux_dev->index);
 	return 0;
 error:

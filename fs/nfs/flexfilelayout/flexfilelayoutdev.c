@@ -452,7 +452,7 @@ nfs4_ff_find_or_create_ds_client(struct nfs4_ff_layout_mirror *mirror,
 	case 4:
 		return nfs4_find_or_create_ds_client(ds_clp, inode);
 	default:
-		BUG();
+		();
 	}
 }
 

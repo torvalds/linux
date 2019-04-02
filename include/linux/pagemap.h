@@ -168,7 +168,7 @@ static inline int __page_cache_add_speculative(struct page *page, int count)
 {
 #ifdef CONFIG_TINY_RCU
 # ifdef CONFIG_PREEMPT_COUNT
-	VM_BUG_ON(!in_atomic() && !irqs_disabled());
+	VM__ON(!in_atomic() && !irqs_disabled());
 # endif
 	/*
 	 * Preempt must be disabled here - we rely on rcu_read_lock doing
@@ -179,7 +179,7 @@ static inline int __page_cache_add_speculative(struct page *page, int count)
 	 * disabling preempt, and hence no need for the "speculative get" that
 	 * SMP requires.
 	 */
-	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+	VM__ON_PAGE(page_count(page) == 0, page);
 	page_ref_add(page, count);
 
 #else
@@ -192,7 +192,7 @@ static inline int __page_cache_add_speculative(struct page *page, int count)
 		return 0;
 	}
 #endif
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 
 	return 1;
 }

@@ -207,7 +207,7 @@ static int scsifront_do_request(struct vscsifrnt_info *info,
 	ring_req->channel = sc->device->channel;
 	ring_req->cmd_len = sc->cmd_len;
 
-	BUG_ON(sc->cmd_len > VSCSIIF_MAX_COMMAND_SIZE);
+	_ON(sc->cmd_len > VSCSIIF_MAX_COMMAND_SIZE);
 
 	memcpy(ring_req->cmnd, sc->cmnd, sc->cmd_len);
 
@@ -236,7 +236,7 @@ static void scsifront_gnttab_done(struct vscsifrnt_info *info,
 		if (unlikely(gnttab_query_foreign_access(shadow->gref[i]))) {
 			shost_printk(KERN_ALERT, info->host, KBUILD_MODNAME
 				     "grant still in use by backend\n");
-			BUG();
+			();
 		}
 		gnttab_end_foreign_access(shadow->gref[i], 0, 0UL);
 	}
@@ -256,7 +256,7 @@ static void scsifront_cdb_cmd_done(struct vscsifrnt_info *info,
 	shadow = info->shadow[id];
 	sc = shadow->sc;
 
-	BUG_ON(sc == NULL);
+	_ON(sc == NULL);
 
 	scsifront_gnttab_done(info, shadow);
 	scsifront_put_rqid(info, id);
@@ -440,7 +440,7 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
 
 			ref = gnttab_claim_grant_reference(&gref_head);
-			BUG_ON(ref == -ENOSPC);
+			_ON(ref == -ENOSPC);
 
 			gnttab_grant_foreign_access_ref(ref,
 				info->dev->otherend_id,
@@ -455,7 +455,7 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 			off = 0;
 			ref_cnt++;
 		}
-		BUG_ON(seg_grants < ref_cnt);
+		_ON(seg_grants < ref_cnt);
 		seg_grants = ref_cnt;
 	}
 
@@ -474,7 +474,7 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 			bytes = min(bytes, data_len);
 
 			ref = gnttab_claim_grant_reference(&gref_head);
-			BUG_ON(ref == -ENOSPC);
+			_ON(ref == -ENOSPC);
 
 			gnttab_grant_foreign_access_ref(ref,
 				info->dev->otherend_id,
@@ -546,7 +546,7 @@ static int scsifront_queuecommand(struct Scsi_Host *shost,
 
 	err = map_data_for_request(info, sc, shadow);
 	if (err < 0) {
-		pr_debug("%s: err %d\n", __func__, err);
+		pr_de("%s: err %d\n", __func__, err);
 		scsifront_return(info);
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		if (err == -ENOMEM)
@@ -569,7 +569,7 @@ static int scsifront_queuecommand(struct Scsi_Host *shost,
 busy:
 	scsifront_return(info);
 	spin_unlock_irqrestore(shost->host_lock, flags);
-	pr_debug("%s: busy\n", __func__);
+	pr_de("%s: busy\n", __func__);
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
@@ -641,13 +641,13 @@ fail:
 
 static int scsifront_eh_abort_handler(struct scsi_cmnd *sc)
 {
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	return scsifront_action_handler(sc, VSCSIIF_ACT_SCSI_ABORT);
 }
 
 static int scsifront_dev_reset_handler(struct scsi_cmnd *sc)
 {
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	return scsifront_action_handler(sc, VSCSIIF_ACT_SCSI_RESET);
 }
 
@@ -771,12 +771,12 @@ static int scsifront_init_ring(struct vscsifrnt_info *info)
 	struct xenbus_transaction xbt;
 	int err;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	err = scsifront_alloc_ring(info);
 	if (err)
 		return err;
-	pr_debug("%s: %u %u\n", __func__, info->ring_ref, info->evtchn);
+	pr_de("%s: %u %u\n", __func__, info->ring_ref, info->evtchn);
 
 again:
 	err = xenbus_transaction_start(&xbt);
@@ -926,7 +926,7 @@ static int scsifront_remove(struct xenbus_device *dev)
 {
 	struct vscsifrnt_info *info = dev_get_drvdata(&dev->dev);
 
-	pr_debug("%s: %s removed\n", __func__, dev->nodename);
+	pr_de("%s: %s removed\n", __func__, dev->nodename);
 
 	mutex_lock(&scsifront_mutex);
 	if (info->host_active) {
@@ -947,7 +947,7 @@ static void scsifront_disconnect(struct vscsifrnt_info *info)
 	struct xenbus_device *dev = info->dev;
 	struct Scsi_Host *host = info->host;
 
-	pr_debug("%s: %s disconnect\n", __func__, dev->nodename);
+	pr_de("%s: %s disconnect\n", __func__, dev->nodename);
 
 	/*
 	 * When this function is executed, all devices of
@@ -981,7 +981,7 @@ static void scsifront_do_lun_hotplug(struct vscsifrnt_info *info, int op)
 		return;
 
 	/* mark current task as the one allowed to modify device states */
-	BUG_ON(info->curr);
+	_ON(info->curr);
 	info->curr = current;
 
 	for (i = 0; i < dir_n; i++) {
@@ -1081,7 +1081,7 @@ static void scsifront_backend_changed(struct xenbus_device *dev,
 {
 	struct vscsifrnt_info *info = dev_get_drvdata(&dev->dev);
 
-	pr_debug("%s: %p %u %u\n", __func__, dev, dev->state, backend_state);
+	pr_de("%s: %p %u %u\n", __func__, dev, dev->state, backend_state);
 
 	switch (backend_state) {
 	case XenbusStateUnknown:

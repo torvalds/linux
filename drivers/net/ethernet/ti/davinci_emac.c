@@ -74,12 +74,12 @@
 #include "cpsw.h"
 #include "davinci_cpdma.h"
 
-static int debug_level;
-module_param(debug_level, int, 0);
-MODULE_PARM_DESC(debug_level, "DaVinci EMAC debug level (NETIF_MSG bits)");
+static int de_level;
+module_param(de_level, int, 0);
+MODULE_PARM_DESC(de_level, "DaVinci EMAC de level (NETIF_MSG bits)");
 
-/* Netif debug messages possible */
-#define DAVINCI_EMAC_DEBUG	(NETIF_MSG_DRV | \
+/* Netif de messages possible */
+#define DAVINCI_EMAC_DE	(NETIF_MSG_DRV | \
 				NETIF_MSG_PROBE | \
 				NETIF_MSG_LINK | \
 				NETIF_MSG_TIMER | \
@@ -1808,7 +1808,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->pdev = pdev;
 	priv->ndev = ndev;
-	priv->msg_enable = netif_msg_init(debug_level, DAVINCI_EMAC_DEBUG);
+	priv->msg_enable = netif_msg_init(de_level, DAVINCI_EMAC_DE);
 
 	spin_lock_init(&priv->lock);
 

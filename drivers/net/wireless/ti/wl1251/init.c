@@ -273,7 +273,7 @@ static int wl1251_hw_init_tx_queue_config(struct wl1251 *wl)
 	struct wl1251_acx_mem_map *wl_mem_map = wl->target_mem_map;
 	int ret, i;
 
-	wl1251_debug(DEBUG_ACX, "acx tx queue config");
+	wl1251_de(DE_ACX, "acx tx queue config");
 
 	config = kzalloc(sizeof(*config), GFP_KERNEL);
 	if (!config) {

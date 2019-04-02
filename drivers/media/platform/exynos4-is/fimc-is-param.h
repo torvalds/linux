@@ -915,7 +915,7 @@ struct is_region {
 #define DMA2_OUTPUT_ADDR_ARRAY_OFFS \
 	(offsetof(struct is_region, shared) + 32 * sizeof(u32))
 
-struct is_debug_frame_descriptor {
+struct is_de_frame_descriptor {
 	u32 sensor_frame_time;
 	u32 sensor_exposure_time;
 	s32 sensor_analog_gain;
@@ -956,7 +956,7 @@ struct is_share_region {
 	u32 frame_descp_update_done;
 	u32 frame_descp_idx;
 	u32 frame_descp_max_idx;
-	struct is_debug_frame_descriptor
+	struct is_de_frame_descriptor
 		dbg_frame_descp_ctx[MAX_FRAMEDESCRIPTOR_CONTEXT_NUM];
 
 	u32 chip_id;
@@ -968,7 +968,7 @@ struct is_share_region {
 	u8 sirc_sdk_rev_date[MAX_VERSION_DISPLAY_BUF];
 } __packed;
 
-struct is_debug_control {
+struct is_de_control {
 	u32 write_point;	/* 0~ 500KB boundary */
 	u32 assert_flag;	/* 0: Not invoked, 1: Invoked */
 	u32 pabort_flag;	/* 0: Not invoked, 1: Invoked */

@@ -46,7 +46,7 @@ static int radeon_dp_mst_set_be_cntl(struct radeon_encoder *primary,
 		reg &= ~NI_DIG_FE_SOURCE_SELECT(1 << mst_enc->fe);
 
 	reg |= NI_DIG_HPD_SELECT(hpd);
-	DRM_DEBUG_KMS("writing 0x%08x 0x%08x\n", NI_DIG_BE_CNTL + primary->offset, reg);
+	DRM_DE_KMS("writing 0x%08x 0x%08x\n", NI_DIG_BE_CNTL + primary->offset, reg);
 	WREG32(NI_DIG_BE_CNTL + primary->offset, reg);
 
 	if (enable) {
@@ -85,7 +85,7 @@ static int radeon_dp_mst_set_stream_attrib(struct radeon_encoder *primary,
 
 	temp |= val;
 
-	DRM_DEBUG_KMS("writing 0x%08x 0x%08x\n", NI_DP_MSE_SAT0 + satreg + primary->offset, temp);
+	DRM_DE_KMS("writing 0x%08x 0x%08x\n", NI_DP_MSE_SAT0 + satreg + primary->offset, temp);
 	WREG32(NI_DP_MSE_SAT0 + satreg + primary->offset, temp);
 
 	WREG32(NI_DP_MSE_SAT_UPDATE + primary->offset, 1);
@@ -194,7 +194,7 @@ static int radeon_dp_mst_get_ddc_modes(struct drm_connector *connector)
 
 	edid = drm_dp_mst_get_edid(connector, &master->mst_mgr, radeon_connector->port);
 	radeon_connector->edid = edid;
-	DRM_DEBUG_KMS("edid retrieved %p\n", edid);
+	DRM_DE_KMS("edid retrieved %p\n", edid);
 	if (radeon_connector->edid) {
 		drm_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
@@ -283,7 +283,7 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 	connector = &radeon_connector->base;
 	radeon_connector->port = port;
 	radeon_connector->mst_port = master;
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	drm_connector_init(dev, connector, &radeon_dp_mst_connector_funcs, DRM_MODE_CONNECTOR_DisplayPort);
 	drm_connector_helper_add(connector, &radeon_dp_mst_connector_helper_funcs);
@@ -318,7 +318,7 @@ static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	drm_connector_cleanup(connector);
 
 	kfree(connector);
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 }
 
 static const struct drm_dp_mst_topology_cbs mst_cbs = {
@@ -340,7 +340,7 @@ radeon_connector *radeon_mst_find_connector(struct drm_encoder *encoder)
 		if (!radeon_connector->is_mst_connector)
 			continue;
 
-		DRM_DEBUG_KMS("checking %p vs %p\n", connector->encoder, encoder);
+		DRM_DE_KMS("checking %p vs %p\n", connector->encoder, encoder);
 		if (connector->encoder == encoder)
 			return radeon_connector;
 	}
@@ -366,7 +366,7 @@ void radeon_dp_mst_prepare_pll(struct drm_crtc *crtc, struct drm_display_mode *m
 			radeon_crtc->bpc = 8;
 	}
 
-	DRM_DEBUG_KMS("dp_clock %p %d\n", dig_connector, dig_connector->dp_clock);
+	DRM_DE_KMS("dp_clock %p %d\n", dig_connector, dig_connector->dp_clock);
 	dp_clock = dig_connector->dp_clock;
 	radeon_crtc->ss_enabled =
 		radeon_atombios_get_asic_ss_info(rdev, &radeon_crtc->ss,
@@ -405,7 +405,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 	dig_enc = primary->enc_priv;
 
 	crtc = encoder->crtc;
-	DRM_DEBUG_KMS("got connector %d\n", dig_enc->active_mst_links);
+	DRM_DE_KMS("got connector %d\n", dig_enc->active_mst_links);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -435,7 +435,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 			atombios_set_mst_encoder_crtc_source(encoder, mst_enc->fe);
 		}
 
-		DRM_DEBUG_KMS("dig encoder is %d %d %d\n", dig_enc->dig_encoder,
+		DRM_DE_KMS("dig encoder is %d %d %d\n", dig_enc->dig_encoder,
 			      dig_enc->linkb, radeon_crtc->crtc_id);
 
 		slots = drm_dp_find_vcpi_slots(&radeon_connector->mst_port->mst_mgr,
@@ -516,7 +516,7 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
 
 	mst_enc->primary->active_device = mst_enc->primary->devices & mst_enc->connector->devices;
-	DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
+	DRM_DE_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
 		      mst_enc->primary->active_device, mst_enc->primary->devices,
 		      mst_enc->connector->devices, mst_enc->primary->base.encoder_type);
 
@@ -525,7 +525,7 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 	dig_connector = mst_enc->connector->con_priv;
 	dig_connector->dp_lane_count = drm_dp_max_lane_count(dig_connector->dpcd);
 	dig_connector->dp_clock = drm_dp_max_link_rate(dig_connector->dpcd);
-	DRM_DEBUG_KMS("dig clock %p %d %d\n", dig_connector,
+	DRM_DE_KMS("dig clock %p %d %d\n", dig_connector,
 		      dig_connector->dp_lane_count, dig_connector->dp_clock);
 	return true;
 }
@@ -539,7 +539,7 @@ static void radeon_mst_encoder_prepare(struct drm_encoder *encoder)
 
 	radeon_connector = radeon_mst_find_connector(encoder);
 	if (!radeon_connector) {
-		DRM_DEBUG_KMS("failed to find connector %p\n", encoder);
+		DRM_DE_KMS("failed to find connector %p\n", encoder);
 		return;
 	}
 	radeon_encoder = to_radeon_encoder(encoder);
@@ -561,7 +561,7 @@ static void radeon_mst_encoder_prepare(struct drm_encoder *encoder)
 
 
 	}
-	DRM_DEBUG_KMS("%d %d\n", dig_enc->dig_encoder, primary->offset);
+	DRM_DE_KMS("%d %d\n", dig_enc->dig_encoder, primary->offset);
 }
 
 static void
@@ -569,13 +569,13 @@ radeon_mst_encoder_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adjusted_mode)
 {
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 }
 
 static void radeon_mst_encoder_commit(struct drm_encoder *encoder)
 {
 	radeon_mst_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 }
 
 static const struct drm_encoder_helper_funcs radeon_mst_helper_funcs = {
@@ -607,7 +607,7 @@ radeon_dp_create_fake_mst_encoder(struct radeon_connector *connector)
 	const struct drm_connector_helper_funcs *connector_funcs = connector->base.helper_private;
 	struct drm_encoder *enc_master = connector_funcs->best_encoder(&connector->base);
 
-	DRM_DEBUG_KMS("enc master is %p\n", enc_master);
+	DRM_DE_KMS("enc master is %p\n", enc_master);
 	radeon_encoder = kzalloc(sizeof(*radeon_encoder), GFP_KERNEL);
 	if (!radeon_encoder)
 		return NULL;
@@ -681,10 +681,10 @@ radeon_dp_mst_probe(struct radeon_connector *radeon_connector)
 			       1);
 	if (ret) {
 		if (msg[0] & DP_MST_CAP) {
-			DRM_DEBUG_KMS("Sink is MST capable\n");
+			DRM_DE_KMS("Sink is MST capable\n");
 			dig_connector->is_mst = true;
 		} else {
-			DRM_DEBUG_KMS("Sink is not MST capable\n");
+			DRM_DE_KMS("Sink is not MST capable\n");
 			dig_connector->is_mst = false;
 		}
 
@@ -710,7 +710,7 @@ radeon_dp_mst_check_status(struct radeon_connector *radeon_connector)
 				       DP_SINK_COUNT_ESI, esi, 8);
 go_again:
 		if (dret == 8) {
-			DRM_DEBUG_KMS("got esi %3ph\n", esi);
+			DRM_DE_KMS("got esi %3ph\n", esi);
 			ret = drm_dp_mst_hpd_irq(&radeon_connector->mst_mgr, esi, &handled);
 
 			if (handled) {
@@ -725,7 +725,7 @@ go_again:
 				dret = drm_dp_dpcd_read(&radeon_connector->ddc_bus->aux,
 							DP_SINK_COUNT_ESI, esi, 8);
 				if (dret == 8) {
-					DRM_DEBUG_KMS("got esi2 %3ph\n", esi);
+					DRM_DE_KMS("got esi2 %3ph\n", esi);
 					goto go_again;
 				}
 			} else
@@ -733,7 +733,7 @@ go_again:
 
 			return ret;
 		} else {
-			DRM_DEBUG_KMS("failed to get ESI - device may have failed %d\n", ret);
+			DRM_DE_KMS("failed to get ESI - device may have failed %d\n", ret);
 			dig_connector->is_mst = false;
 			drm_dp_mst_topology_mgr_set_mst(&radeon_connector->mst_mgr,
 							dig_connector->is_mst);
@@ -743,9 +743,9 @@ go_again:
 	return -EINVAL;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
+static int radeon_defs_mst_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -776,15 +776,15 @@ static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list radeon_debugfs_mst_list[] = {
-	{"radeon_mst_info", &radeon_debugfs_mst_info, 0, NULL},
+static struct drm_info_list radeon_defs_mst_list[] = {
+	{"radeon_mst_info", &radeon_defs_mst_info, 0, NULL},
 };
 #endif
 
-int radeon_mst_debugfs_init(struct radeon_device *rdev)
+int radeon_mst_defs_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_mst_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, radeon_defs_mst_list, 1);
 #endif
 	return 0;
 }

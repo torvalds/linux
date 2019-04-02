@@ -47,7 +47,7 @@ void sn_timer_interrupt(int irq, void *dev_id)
 
 	if (is_shub1()) {
 		if (enable_shub_wars_1_1()) {
-			/* Bugfix code for SHUB 1.1 */
+			/* fix code for SHUB 1.1 */
 			if (pda->pio_shub_war_cam_addr)
 				*pda->pio_shub_war_cam_addr = 0x8000000000000010UL;
 		}

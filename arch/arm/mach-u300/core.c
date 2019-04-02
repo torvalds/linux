@@ -146,9 +146,9 @@
 #define U300_SYSCON_SMCR_SEMI_SREFACK_IND			(0x0008)
 #define U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE			(0x0004)
 #define U300_SYSCON_SMCR_SEMI_EXT_BOOT_MODE_ENABLE		(0x0002)
-/* CPU_SW_DBGEN Software Debug Enable 16bit (R/W) */
+/* CPU_SW_DBGEN Software De Enable 16bit (R/W) */
 #define U300_SYSCON_CSDR					(0x4f0)
-#define U300_SYSCON_CSDR_SW_DEBUG_ENABLE			(0x0001)
+#define U300_SYSCON_CSDR_SW_DE_ENABLE			(0x0001)
 /* PRINT_CONTROL Print Control 16bit (R/-) */
 #define U300_SYSCON_PCR						(0x4f8)
 #define U300_SYSCON_PCR_SERV_IND				(0x0001)
@@ -366,15 +366,15 @@ static void __init u300_init_irq_dt(void)
 
 	/* Bootstrap EMIF and SEMI clocks */
 	clk = clk_get_sys("pl172", NULL);
-	BUG_ON(IS_ERR(clk));
+	_ON(IS_ERR(clk));
 	clk_prepare_enable(clk);
 	clk = clk_get_sys("semi", NULL);
-	BUG_ON(IS_ERR(clk));
+	_ON(IS_ERR(clk));
 	clk_prepare_enable(clk);
 
 	/* Clock the interrupt controller */
 	clk = clk_get_sys("intcon", NULL);
-	BUG_ON(IS_ERR(clk));
+	_ON(IS_ERR(clk));
 	clk_prepare_enable(clk);
 
 	irqchip_init();

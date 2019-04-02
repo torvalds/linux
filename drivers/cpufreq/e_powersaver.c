@@ -136,7 +136,7 @@ static int eps_set_state(struct eps_cpu_data *centaur,
 		}
 	} while (lo & ((1 << 16) | (1 << 17)));
 
-#ifdef DEBUG
+#ifdef DE
 	{
 	u8 current_multiplier, current_voltage;
 

@@ -166,39 +166,39 @@ static int mixer_dbg_show(struct seq_file *s, void *arg)
 	return 0;
 }
 
-static struct drm_info_list mixer0_debugfs_files[] = {
+static struct drm_info_list mixer0_defs_files[] = {
 	{ "mixer_main", mixer_dbg_show, 0, NULL },
 };
 
-static struct drm_info_list mixer1_debugfs_files[] = {
+static struct drm_info_list mixer1_defs_files[] = {
 	{ "mixer_aux", mixer_dbg_show, 0, NULL },
 };
 
-int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
+int sti_mixer_defs_init(struct sti_mixer *mixer, struct drm_minor *minor)
 {
 	unsigned int i;
-	struct drm_info_list *mixer_debugfs_files;
+	struct drm_info_list *mixer_defs_files;
 	int nb_files;
 
 	switch (mixer->id) {
 	case STI_MIXER_MAIN:
-		mixer_debugfs_files = mixer0_debugfs_files;
-		nb_files = ARRAY_SIZE(mixer0_debugfs_files);
+		mixer_defs_files = mixer0_defs_files;
+		nb_files = ARRAY_SIZE(mixer0_defs_files);
 		break;
 	case STI_MIXER_AUX:
-		mixer_debugfs_files = mixer1_debugfs_files;
-		nb_files = ARRAY_SIZE(mixer1_debugfs_files);
+		mixer_defs_files = mixer1_defs_files;
+		nb_files = ARRAY_SIZE(mixer1_defs_files);
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	for (i = 0; i < nb_files; i++)
-		mixer_debugfs_files[i].data = mixer;
+		mixer_defs_files[i].data = mixer;
 
-	return drm_debugfs_create_files(mixer_debugfs_files,
+	return drm_defs_create_files(mixer_defs_files,
 					nb_files,
-					minor->debugfs_root, minor);
+					minor->defs_root, minor);
 }
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable)
@@ -271,7 +271,7 @@ int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 	mask |= GAM_DEPTH_MASK_ID << (3 * depth);
 	plane_id = plane_id << (3 * depth);
 
-	DRM_DEBUG_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
+	DRM_DE_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
 			 sti_plane_to_str(plane), depth);
 	dev_dbg(mixer->dev, "GAM_MIXER_CRB val 0x%x mask 0x%x\n",
 		plane_id, mask);
@@ -295,7 +295,7 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 	xdo = sti_vtg_get_pixel_number(*mode, 0);
 	xds = sti_vtg_get_pixel_number(*mode, mode->hdisplay - 1);
 
-	DRM_DEBUG_DRIVER("%s active video area xdo:%d ydo:%d xds:%d yds:%d\n",
+	DRM_DE_DRIVER("%s active video area xdo:%d ydo:%d xds:%d yds:%d\n",
 			 sti_mixer_to_str(mixer), xdo, ydo, xds, yds);
 	sti_mixer_reg_write(mixer, GAM_MIXER_AVO, ydo << 16 | xdo);
 	sti_mixer_reg_write(mixer, GAM_MIXER_AVS, yds << 16 | xds);
@@ -334,7 +334,7 @@ int sti_mixer_set_plane_status(struct sti_mixer *mixer,
 {
 	u32 mask, val;
 
-	DRM_DEBUG_DRIVER("%s %s %s\n", status ? "enable" : "disable",
+	DRM_DE_DRIVER("%s %s %s\n", status ? "enable" : "disable",
 			 sti_mixer_to_str(mixer), sti_plane_to_str(plane));
 
 	mask = sti_mixer_get_plane_mask(plane);
@@ -367,7 +367,7 @@ struct sti_mixer *sti_mixer_create(struct device *dev,
 	mixer->dev = dev;
 	mixer->id = id;
 
-	DRM_DEBUG_DRIVER("%s created. Regs=%p\n",
+	DRM_DE_DRIVER("%s created. Regs=%p\n",
 			 sti_mixer_to_str(mixer), mixer->regs);
 
 	return mixer;

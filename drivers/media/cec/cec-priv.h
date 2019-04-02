@@ -13,7 +13,7 @@
 
 #define dprintk(lvl, fmt, arg...)					\
 	do {								\
-		if (lvl <= cec_debug)					\
+		if (lvl <= cec_de)					\
 			pr_info("cec-%s: " fmt, adap->name, ## arg);	\
 	} while (0)
 
@@ -21,7 +21,7 @@
 #define to_cec_adapter(node) container_of(node, struct cec_adapter, devnode)
 
 /* cec-core.c */
-extern int cec_debug;
+extern int cec_de;
 int cec_get_device(struct cec_devnode *devnode);
 void cec_put_device(struct cec_devnode *devnode);
 

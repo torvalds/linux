@@ -106,10 +106,10 @@ struct thread_vr_state {
 	vector128	vscr __attribute__((aligned(16)));
 };
 
-struct debug_reg {
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+struct de_reg {
+#ifdef CONFIG_PPC_ADV_DE_REGS
 	/*
-	 * The following help to manage the use of Debug Control Registers
+	 * The following help to manage the use of De Control Registers
 	 * om the BookE platforms.
 	 */
 	uint32_t	dbcr0;
@@ -119,26 +119,26 @@ struct debug_reg {
 #endif
 	/*
 	 * The stored value of the DBSR register will be the value at the
-	 * last debug interrupt. This register can only be read from the
+	 * last de interrupt. This register can only be read from the
 	 * user (will never be written to) and has value while helping to
-	 * describe the reason for the last debug trap.  Torez
+	 * describe the reason for the last de trap.  Torez
 	 */
 	uint32_t	dbsr;
 	/*
-	 * The following will contain addresses used by debug applications
+	 * The following will contain addresses used by de applications
 	 * to help trace and trap on particular address locations.
-	 * The bits in the Debug Control Registers above help define which
+	 * The bits in the De Control Registers above help define which
 	 * of the following registers will contain valid data and/or addresses.
 	 */
 	unsigned long	iac1;
 	unsigned long	iac2;
-#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+#if CONFIG_PPC_ADV_DE_IACS > 2
 	unsigned long	iac3;
 	unsigned long	iac4;
 #endif
 	unsigned long	dac1;
 	unsigned long	dac2;
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
+#if CONFIG_PPC_ADV_DE_DVCS > 0
 	unsigned long	dvc1;
 	unsigned long	dvc2;
 #endif
@@ -164,8 +164,8 @@ struct thread_struct {
 	unsigned long	rtas_sp;	/* stack pointer for when in RTAS */
 #endif
 #endif
-	/* Debug Registers */
-	struct debug_reg debug;
+	/* De Registers */
+	struct de_reg de;
 	struct thread_fp_state	fp_state;
 	struct thread_fp_state	*fp_save_area;
 	int		fpexc_mode;	/* floating-point exception mode */

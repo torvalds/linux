@@ -193,7 +193,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 	if (urb_size == 0) {
 		/* can't determine URB size */
-		dev_err(line6pcm->line6->ifcdev, "driver bug: urb_size = 0\n");
+		dev_err(line6pcm->line6->ifcdev, "driver : urb_size = 0\n");
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 				       len * bytes_per_frame, runtime->dma_area,
 				       (urb_frames - len) * bytes_per_frame);
 			} else
-				dev_err(line6pcm->line6->ifcdev, "driver bug: len = %d\n",
+				dev_err(line6pcm->line6->ifcdev, "driver : len = %d\n",
 					len);
 		} else {
 			memcpy(urb_out->transfer_buffer,

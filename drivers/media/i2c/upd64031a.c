@@ -38,10 +38,10 @@ MODULE_DESCRIPTION("uPD64031A driver");
 MODULE_AUTHOR("T. Adachi, Takeru KOMORIYA, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 enum {
@@ -98,7 +98,7 @@ static void upd64031a_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 
 	buf[0] = reg;
 	buf[1] = val;
-	v4l2_dbg(1, debug, sd, "write reg: %02X val: %02X\n", reg, val);
+	v4l2_dbg(1, de, sd, "write reg: %02X val: %02X\n", reg, val);
 	if (i2c_master_send(client, buf, 2) != 2)
 		v4l2_err(sd, "I/O error write 0x%02x/0x%02x\n", reg, val);
 }
@@ -111,7 +111,7 @@ static int upd64031a_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequ
 	struct upd64031a_state *state = to_state(sd);
 	u8 reg = state->regs[R00];
 
-	v4l2_dbg(1, debug, sd, "changed input or channel\n");
+	v4l2_dbg(1, de, sd, "changed input or channel\n");
 	upd64031a_write(sd, R00, reg | 0x10);
 	upd64031a_write(sd, R00, reg & ~0x10);
 	return 0;
@@ -149,7 +149,7 @@ static int upd64031a_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int upd64031a_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = upd64031a_read(sd, reg->reg & 0xff);
@@ -168,7 +168,7 @@ static int upd64031a_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_re
 
 static const struct v4l2_subdev_core_ops upd64031a_core_ops = {
 	.log_status = upd64031a_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = upd64031a_g_register,
 	.s_register = upd64031a_s_register,
 #endif

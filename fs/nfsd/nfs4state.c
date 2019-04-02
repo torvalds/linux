@@ -1446,7 +1446,7 @@ hash_sessionid(struct nfs4_sessionid *sessionid)
 	return sid->sequence % SESSION_HASH_SIZE;
 }
 
-#ifdef CONFIG_SUNRPC_DEBUG
+#ifdef CONFIG_SUNRPC_DE
 static inline void
 dump_sessionid(const char *fn, struct nfs4_sessionid *sessionid)
 {
@@ -1578,7 +1578,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	struct nfsd4_session *new;
 	int mem, i;
 
-	BUILD_BUG_ON(NFSD_MAX_SLOTS_PER_SESSION * sizeof(struct nfsd4_slot *)
+	BUILD__ON(NFSD_MAX_SLOTS_PER_SESSION * sizeof(struct nfsd4_slot *)
 			+ sizeof(struct nfsd4_session) > PAGE_SIZE);
 	mem = numslots * sizeof(struct nfsd4_slot *);
 
@@ -2563,7 +2563,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		}
 		/*
 		 * Sometimes userspace doesn't give us a principal.
-		 * Which is a bug, really.  Anyway, we can't enforce
+		 * Which is a , really.  Anyway, we can't enforce
 		 * MACH_CRED in that case, better to give up now:
 		 */
 		if (!new->cl_cred.cr_principal &&
@@ -2589,7 +2589,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		bool verfs_match = same_verf(&verf, &conf->cl_verifier);
 
 		if (update) {
-			if (!clp_used_exchangeid(conf)) { /* buggy client */
+			if (!clp_used_exchangeid(conf)) { /* gy client */
 				status = nfserr_inval;
 				goto out;
 			}
@@ -3430,7 +3430,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	/*
 	 * We try hard to give out unique clientid's, so if we get an
 	 * attempt to confirm the same clientid with a different cred,
-	 * the client may be buggy; this should never happen.
+	 * the client may be gy; this should never happen.
 	 *
 	 * Nevertheless, RFC 7530 recommends INUSE for this case:
 	 */
@@ -4843,7 +4843,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 	 * server supports them. Thus this shouldn't lead to clients blocking
 	 * indefinitely once the lock does become free.
 	 */
-	BUG_ON(!list_empty(&reaplist));
+	_ON(!list_empty(&reaplist));
 	spin_lock(&nn->blocked_locks_lock);
 	while (!list_empty(&nn->blocked_locks_lru)) {
 		nbl = list_first_entry(&nn->blocked_locks_lru,
@@ -4965,12 +4965,12 @@ static __be32 check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_s
 	if (in->si_generation == ref->si_generation)
 		return nfs_ok;
 
-	/* If the client sends us a stateid from the future, it's buggy: */
+	/* If the client sends us a stateid from the future, it's gy: */
 	if (nfsd4_stateid_generation_after(in, ref))
 		return nfserr_bad_stateid;
 	/*
 	 * However, we could see a stateid from the past, even from a
-	 * non-buggy client.  For example, if the client sends a lock
+	 * non-gy client.  For example, if the client sends a lock
 	 * while some IO is outstanding, the lock may bump si_generation
 	 * while the IO is still in flight.  The client could avoid that
 	 * situation by waiting for responses on all the IO requests,
@@ -5009,7 +5009,7 @@ static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid) ||
 		CLOSE_STATEID(stateid))
 		return status;
-	/* Client debugging aid. */
+	/* Client deging aid. */
 	if (!same_clid(&stateid->si_opaque.so_clid, &cl->cl_clientid)) {
 		char addr_str[INET6_ADDRSTRLEN];
 		rpc_ntop((struct sockaddr *)&cl->cl_addr, addr_str,

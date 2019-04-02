@@ -7,7 +7,7 @@
  *
  *  See linux/MAINTAINERS for address of current maintainer.
  *
- *  This file provides support for disabling the buggy read-ahead
+ *  This file provides support for disabling the gy read-ahead
  *  mode of the RZ1000 IDE chipset, commonly used on Intel motherboards.
  */
 

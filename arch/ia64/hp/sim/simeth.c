@@ -77,7 +77,7 @@ static char *simeth_device="eth0";	 /* default host interface to use */
 
 
 static volatile unsigned int card_count; /* how many cards "found" so far */
-static int simeth_debug;		/* set to 1 to get debug information */
+static int simeth_de;		/* set to 1 to get de information */
 
 /*
  * Used to catch IFF_UP & IFF_DOWN events
@@ -336,7 +336,7 @@ simeth_close(struct net_device *dev)
 }
 
 /*
- * Only used for debug
+ * Only used for de
  */
 static void
 frame_print(unsigned char *from, unsigned char *frame, int len)
@@ -385,7 +385,7 @@ simeth_tx(struct sk_buff *skb, struct net_device *dev)
 	local->stats.tx_packets++;
 
 
-	if (simeth_debug > 5) frame_print("simeth_tx", skb->data, length);
+	if (simeth_de > 5) frame_print("simeth_tx", skb->data, length);
 
 	netdev_send(local->simfd, skb->data, length);
 
@@ -449,7 +449,7 @@ simeth_rx(struct net_device *dev)
 		 */
 		len = netdev_read(local->simfd, skb->data, SIMETH_FRAME_SIZE);
 		if ( len == 0 ) {
-			if ( simeth_debug > 0 ) printk(KERN_WARNING "%s: count=%d netdev_read=0\n",
+			if ( simeth_de > 0 ) printk(KERN_WARNING "%s: count=%d netdev_read=0\n",
 						       dev->name, SIMETH_RECV_MAX-rcv_count);
 			break;
 		}
@@ -462,7 +462,7 @@ simeth_rx(struct net_device *dev)
 #endif
 		skb->protocol = eth_type_trans(skb, dev);
 
-		if ( simeth_debug > 6 ) frame_print("simeth_rx", skb->data, len);
+		if ( simeth_de > 6 ) frame_print("simeth_rx", skb->data, len);
 
 		/*
 		 * push the packet up & trigger software interrupt

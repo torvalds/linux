@@ -22,11 +22,11 @@
 #include <linux/uidgid.h>
 
 #if 0
-#define kdebug(FMT, ...)						\
+#define kde(FMT, ...)						\
 	printk("[%-5.5s%5u] " FMT "\n",					\
 	       current->comm, current->pid, ##__VA_ARGS__)
 #else
-#define kdebug(FMT, ...)						\
+#define kde(FMT, ...)						\
 do {									\
 	if (0)								\
 		no_printk("[%-5.5s%5u] " FMT "\n",			\
@@ -44,7 +44,7 @@ struct group_info init_groups = { .usage = ATOMIC_INIT(2) };
  */
 struct cred init_cred = {
 	.usage			= ATOMIC_INIT(4),
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	.subscribers		= ATOMIC_INIT(2),
 	.magic			= CRED_MAGIC,
 #endif
@@ -68,14 +68,14 @@ struct cred init_cred = {
 
 static inline void set_cred_subscribers(struct cred *cred, int n)
 {
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	atomic_set(&cred->subscribers, n);
 #endif
 }
 
 static inline int read_cred_subscribers(const struct cred *cred)
 {
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	return atomic_read(&cred->subscribers);
 #else
 	return 0;
@@ -84,7 +84,7 @@ static inline int read_cred_subscribers(const struct cred *cred)
 
 static inline void alter_cred_subscribers(const struct cred *_cred, int n)
 {
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	struct cred *cred = (struct cred *) _cred;
 
 	atomic_add(n, &cred->subscribers);
@@ -98,9 +98,9 @@ static void put_cred_rcu(struct rcu_head *rcu)
 {
 	struct cred *cred = container_of(rcu, struct cred, rcu);
 
-	kdebug("put_cred_rcu(%p)", cred);
+	kde("put_cred_rcu(%p)", cred);
 
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	if (cred->magic != CRED_MAGIC_DEAD ||
 	    atomic_read(&cred->usage) != 0 ||
 	    read_cred_subscribers(cred) != 0)
@@ -135,18 +135,18 @@ static void put_cred_rcu(struct rcu_head *rcu)
  */
 void __put_cred(struct cred *cred)
 {
-	kdebug("__put_cred(%p{%d,%d})", cred,
+	kde("__put_cred(%p{%d,%d})", cred,
 	       atomic_read(&cred->usage),
 	       read_cred_subscribers(cred));
 
-	BUG_ON(atomic_read(&cred->usage) != 0);
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	BUG_ON(read_cred_subscribers(cred) != 0);
+	_ON(atomic_read(&cred->usage) != 0);
+#ifdef CONFIG_DE_CREDENTIALS
+	_ON(read_cred_subscribers(cred) != 0);
 	cred->magic = CRED_MAGIC_DEAD;
 	cred->put_addr = __builtin_return_address(0);
 #endif
-	BUG_ON(cred == current->cred);
-	BUG_ON(cred == current->real_cred);
+	_ON(cred == current->cred);
+	_ON(cred == current->real_cred);
 
 	call_rcu(&cred->rcu, put_cred_rcu);
 }
@@ -159,7 +159,7 @@ void exit_creds(struct task_struct *tsk)
 {
 	struct cred *cred;
 
-	kdebug("exit_creds(%u,%p,%p,{%d,%d})", tsk->pid, tsk->real_cred, tsk->cred,
+	kde("exit_creds(%u,%p,%p,{%d,%d})", tsk->pid, tsk->real_cred, tsk->cred,
 	       atomic_read(&tsk->cred->usage),
 	       read_cred_subscribers(tsk->cred));
 
@@ -194,7 +194,7 @@ const struct cred *get_task_cred(struct task_struct *task)
 
 	do {
 		cred = __task_cred((task));
-		BUG_ON(!cred);
+		_ON(!cred);
 	} while (!get_cred_rcu(cred));
 
 	rcu_read_unlock();
@@ -215,7 +215,7 @@ struct cred *cred_alloc_blank(void)
 		return NULL;
 
 	atomic_set(&new->usage, 1);
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	new->magic = CRED_MAGIC;
 #endif
 
@@ -255,7 +255,7 @@ struct cred *prepare_creds(void)
 	if (!new)
 		return NULL;
 
-	kdebug("prepare_creds() alloc %p", new);
+	kde("prepare_creds() alloc %p", new);
 
 	old = task->cred;
 	memcpy(new, old, sizeof(struct cred));
@@ -336,7 +336,7 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 		p->real_cred = get_cred(p->cred);
 		get_cred(p->cred);
 		alter_cred_subscribers(p->cred, 2);
-		kdebug("share_creds(%p{%d,%d})",
+		kde("share_creds(%p{%d,%d})",
 		       p->cred, atomic_read(&p->cred->usage),
 		       read_cred_subscribers(p->cred));
 		atomic_inc(&p->cred->user->processes);
@@ -427,17 +427,17 @@ int commit_creds(struct cred *new)
 	struct task_struct *task = current;
 	const struct cred *old = task->real_cred;
 
-	kdebug("commit_creds(%p{%d,%d})", new,
+	kde("commit_creds(%p{%d,%d})", new,
 	       atomic_read(&new->usage),
 	       read_cred_subscribers(new));
 
-	BUG_ON(task->cred != old);
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	BUG_ON(read_cred_subscribers(old) < 2);
+	_ON(task->cred != old);
+#ifdef CONFIG_DE_CREDENTIALS
+	_ON(read_cred_subscribers(old) < 2);
 	validate_creds(old);
 	validate_creds(new);
 #endif
-	BUG_ON(atomic_read(&new->usage) < 1);
+	_ON(atomic_read(&new->usage) < 1);
 
 	get_cred(new); /* we will require a ref for the subj creds too */
 
@@ -501,14 +501,14 @@ EXPORT_SYMBOL(commit_creds);
  */
 void abort_creds(struct cred *new)
 {
-	kdebug("abort_creds(%p{%d,%d})", new,
+	kde("abort_creds(%p{%d,%d})", new,
 	       atomic_read(&new->usage),
 	       read_cred_subscribers(new));
 
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	BUG_ON(read_cred_subscribers(new) != 0);
+#ifdef CONFIG_DE_CREDENTIALS
+	_ON(read_cred_subscribers(new) != 0);
 #endif
-	BUG_ON(atomic_read(&new->usage) < 1);
+	_ON(atomic_read(&new->usage) < 1);
 	put_cred(new);
 }
 EXPORT_SYMBOL(abort_creds);
@@ -524,7 +524,7 @@ const struct cred *override_creds(const struct cred *new)
 {
 	const struct cred *old = current->cred;
 
-	kdebug("override_creds(%p{%d,%d})", new,
+	kde("override_creds(%p{%d,%d})", new,
 	       atomic_read(&new->usage),
 	       read_cred_subscribers(new));
 
@@ -535,7 +535,7 @@ const struct cred *override_creds(const struct cred *new)
 	rcu_assign_pointer(current->cred, new);
 	alter_cred_subscribers(old, -1);
 
-	kdebug("override_creds() = %p{%d,%d}", old,
+	kde("override_creds() = %p{%d,%d}", old,
 	       atomic_read(&old->usage),
 	       read_cred_subscribers(old));
 	return old;
@@ -553,7 +553,7 @@ void revert_creds(const struct cred *old)
 {
 	const struct cred *override = current->cred;
 
-	kdebug("revert_creds(%p{%d,%d})", old,
+	kde("revert_creds(%p{%d,%d})", old,
 	       atomic_read(&old->usage),
 	       read_cred_subscribers(old));
 
@@ -657,7 +657,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	if (!new)
 		return NULL;
 
-	kdebug("prepare_kernel_cred() alloc %p", new);
+	kde("prepare_kernel_cred() alloc %p", new);
 
 	if (daemon)
 		old = get_task_cred(daemon);
@@ -754,7 +754,7 @@ int set_create_files_as(struct cred *new, struct inode *inode)
 }
 EXPORT_SYMBOL(set_create_files_as);
 
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 
 bool creds_are_invalid(const struct cred *cred)
 {
@@ -809,7 +809,7 @@ void __invalid_creds(const struct cred *cred, const char *file, unsigned line)
 	printk(KERN_ERR "CRED: Invalid credentials\n");
 	printk(KERN_ERR "CRED: At %s:%u\n", file, line);
 	dump_invalid_creds(cred, "Specified", current);
-	BUG();
+	();
 }
 EXPORT_SYMBOL(__invalid_creds);
 
@@ -841,7 +841,7 @@ invalid_creds:
 		dump_invalid_creds(tsk->cred, "Effective", tsk);
 	else
 		printk(KERN_ERR "CRED: Effective creds == Real creds\n");
-	BUG();
+	();
 }
 EXPORT_SYMBOL(__validate_process_creds);
 
@@ -850,7 +850,7 @@ EXPORT_SYMBOL(__validate_process_creds);
  */
 void validate_creds_for_do_exit(struct task_struct *tsk)
 {
-	kdebug("validate_creds_for_do_exit(%p,%p{%d,%d})",
+	kde("validate_creds_for_do_exit(%p,%p{%d,%d})",
 	       tsk->real_cred, tsk->cred,
 	       atomic_read(&tsk->cred->usage),
 	       read_cred_subscribers(tsk->cred));
@@ -858,4 +858,4 @@ void validate_creds_for_do_exit(struct task_struct *tsk)
 	__validate_process_creds(tsk, __FILE__, __LINE__);
 }
 
-#endif /* CONFIG_DEBUG_CREDENTIALS */
+#endif /* CONFIG_DE_CREDENTIALS */

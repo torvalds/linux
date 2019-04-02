@@ -89,7 +89,7 @@ static int __must_check __smsc95xx_read_reg(struct usbnet *dev, u32 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, void *, u16);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!in_pm)
 		fn = usbnet_read_cmd;
@@ -118,7 +118,7 @@ static int __must_check __smsc95xx_write_reg(struct usbnet *dev, u32 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, const void *, u16);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!in_pm)
 		fn = usbnet_write_cmd;
@@ -351,8 +351,8 @@ static int smsc95xx_read_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	u32 val;
 	int i, ret;
 
-	BUG_ON(!dev);
-	BUG_ON(!data);
+	_ON(!dev);
+	_ON(!data);
 
 	ret = smsc95xx_eeprom_confirm_not_busy(dev);
 	if (ret)
@@ -389,8 +389,8 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	u32 val;
 	int i, ret;
 
-	BUG_ON(!dev);
-	BUG_ON(!data);
+	_ON(!dev);
+	_ON(!data);
 
 	ret = smsc95xx_eeprom_confirm_not_busy(dev);
 	if (ret)
@@ -1859,7 +1859,7 @@ static int smsc95xx_resume(struct usb_interface *intf)
 	int ret;
 	u32 val;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 	pdata = (struct smsc95xx_priv *)(dev->data[0]);
 	suspend_flags = pdata->suspend_flags;
 
@@ -2035,7 +2035,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	void *ptr;
 
 	/* We do not advertise SG, so skbs should be already linearized */
-	BUG_ON(skb_shinfo(skb)->nr_frags);
+	_ON(skb_shinfo(skb)->nr_frags);
 
 	/* Make writable and expand header space by overhead if required */
 	if (skb_cow_head(skb, overhead)) {

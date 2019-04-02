@@ -21,14 +21,14 @@
  */
 
 /*
- * This file implements most of the debugging stuff which is compiled in only
- * when it is enabled. But some debugging check functions are implemented in
+ * This file implements most of the deging stuff which is compiled in only
+ * when it is enabled. But some deging check functions are implemented in
  * corresponding subsystem, just because they are closely related and utilize
  * various local functions of those subsystems.
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/math64.h>
 #include <linux/uaccess.h>
 #include <linux/random.h>
@@ -979,7 +979,7 @@ void ubifs_dump_index(struct ubifs_info *c)
  */
 void dbg_save_space_info(struct ubifs_info *c)
 {
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 	int freeable_cnt;
 
 	spin_lock(&c->space_lock);
@@ -1029,7 +1029,7 @@ void dbg_save_space_info(struct ubifs_info *c)
  */
 int dbg_check_space_info(struct ubifs_info *c)
 {
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 	struct ubifs_lp_stats lst;
 	long long free;
 	int freeable_cnt;
@@ -1567,7 +1567,7 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
  * and a negative error code in case of failure.
  *
  * It would be better if this function removed every znode it pulled to into
- * the TNC, so that the behavior more closely matched the non-debugging
+ * the TNC, so that the behavior more closely matched the non-deging
  * behavior.
  */
 int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
@@ -2465,7 +2465,7 @@ static inline int chance(unsigned int n, unsigned int out_of)
 
 static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 {
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 
 	ubifs_assert(c, dbg_is_tst_rcvry(c));
 
@@ -2650,7 +2650,7 @@ int dbg_leb_map(struct ubifs_info *c, int lnum)
 }
 
 /*
- * Root directory for UBIFS stuff in debugfs. Contains sub-directories which
+ * Root directory for UBIFS stuff in defs. Contains sub-directories which
  * contain the stuff specific to particular file-system mounts.
  */
 static struct dentry *dfs_rootdir;
@@ -2662,14 +2662,14 @@ static int dfs_file_open(struct inode *inode, struct file *file)
 }
 
 /**
- * provide_user_output - provide output to the user reading a debugfs file.
+ * provide_user_output - provide output to the user reading a defs file.
  * @val: boolean value for the answer
  * @u: the buffer to store the answer at
  * @count: size of the buffer
  * @ppos: position in the @u output buffer
  *
  * This is a simple helper function which stores @val boolean value in the user
- * buffer when the user reads one of UBIFS debugfs files. Returns amount of
+ * buffer when the user reads one of UBIFS defs files. Returns amount of
  * bytes written to @u in case of success and a negative error code in case of
  * failure.
  */
@@ -2693,7 +2693,7 @@ static ssize_t dfs_file_read(struct file *file, char __user *u, size_t count,
 {
 	struct dentry *dent = file->f_path.dentry;
 	struct ubifs_info *c = file->private_data;
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 	int val;
 
 	if (dent == d->dfs_chk_gen)
@@ -2717,12 +2717,12 @@ static ssize_t dfs_file_read(struct file *file, char __user *u, size_t count,
 }
 
 /**
- * interpret_user_input - interpret user debugfs file input.
+ * interpret_user_input - interpret user defs file input.
  * @u: user-provided buffer with the input
  * @count: buffer size
  *
  * This is a helper function which interpret user input to a boolean UBIFS
- * debugfs file. Returns %0 or %1 in case of success and a negative error code
+ * defs file. Returns %0 or %1 in case of success and a negative error code
  * in case of failure.
  */
 static int interpret_user_input(const char __user *u, size_t count)
@@ -2746,7 +2746,7 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 			      size_t count, loff_t *ppos)
 {
 	struct ubifs_info *c = file->private_data;
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 	struct dentry *dent = file->f_path.dentry;
 	int val;
 
@@ -2754,13 +2754,13 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 	 * TODO: this is racy - the file-system might have already been
 	 * unmounted and we'd oops in this case. The plan is to fix it with
 	 * help of 'iterate_supers_type()' which we should have in v3.0: when
-	 * a debugfs opened, we rember FS's UUID in file->private_data. Then
-	 * whenever we access the FS via a debugfs file, we iterate all UBIFS
+	 * a defs opened, we rember FS's UUID in file->private_data. Then
+	 * whenever we access the FS via a defs file, we iterate all UBIFS
 	 * superblocks and fine the one with the same UUID, and take the
 	 * locking right.
 	 *
 	 * The other way to go suggested by Al Viro is to create a separate
-	 * 'ubifs-debug' file-system instead.
+	 * 'ubifs-de' file-system instead.
 	 */
 	if (file->f_path.dentry == d->dfs_dump_lprops) {
 		ubifs_dump_lprops(c);
@@ -2810,25 +2810,25 @@ static const struct file_operations dfs_fops = {
 };
 
 /**
- * dbg_debugfs_init_fs - initialize debugfs for UBIFS instance.
+ * dbg_defs_init_fs - initialize defs for UBIFS instance.
  * @c: UBIFS file-system description object
  *
- * This function creates all debugfs files for this instance of UBIFS. Returns
+ * This function creates all defs files for this instance of UBIFS. Returns
  * zero in case of success and a negative error code in case of failure.
  *
  * Note, the only reason we have not merged this function with the
- * 'ubifs_debugging_init()' function is because it is better to initialize
- * debugfs interfaces at the very end of the mount process, and remove them at
+ * 'ubifs_deging_init()' function is because it is better to initialize
+ * defs interfaces at the very end of the mount process, and remove them at
  * the very beginning of the mount process.
  */
-int dbg_debugfs_init_fs(struct ubifs_info *c)
+int dbg_defs_init_fs(struct ubifs_info *c)
 {
 	int err, n;
 	const char *fname;
 	struct dentry *dent;
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+	if (!IS_ENABLED(CONFIG_DE_FS))
 		return 0;
 
 	n = snprintf(d->dfs_dir_name, UBIFS_DFS_DIR_LEN + 1, UBIFS_DFS_DIR_NAME,
@@ -2841,73 +2841,73 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	}
 
 	fname = d->dfs_dir_name;
-	dent = debugfs_create_dir(fname, dfs_rootdir);
+	dent = defs_create_dir(fname, dfs_rootdir);
 	if (IS_ERR_OR_NULL(dent))
 		goto out;
 	d->dfs_dir = dent;
 
 	fname = "dump_lprops";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_lprops = dent;
 
 	fname = "dump_budg";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_budg = dent;
 
 	fname = "dump_tnc";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_tnc = dent;
 
 	fname = "chk_general";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_gen = dent;
 
 	fname = "chk_index";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_index = dent;
 
 	fname = "chk_orphans";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_orph = dent;
 
 	fname = "chk_lprops";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_lprops = dent;
 
 	fname = "chk_fs";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_fs = dent;
 
 	fname = "tst_recovery";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_tst_rcvry = dent;
 
 	fname = "ro_error";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
@@ -2916,25 +2916,25 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	return 0;
 
 out_remove:
-	debugfs_remove_recursive(d->dfs_dir);
+	defs_remove_recursive(d->dfs_dir);
 out:
 	err = dent ? PTR_ERR(dent) : -ENODEV;
-	ubifs_err(c, "cannot create \"%s\" debugfs file or directory, error %d\n",
+	ubifs_err(c, "cannot create \"%s\" defs file or directory, error %d\n",
 		  fname, err);
 	return err;
 }
 
 /**
- * dbg_debugfs_exit_fs - remove all debugfs files.
+ * dbg_defs_exit_fs - remove all defs files.
  * @c: UBIFS file-system description object
  */
-void dbg_debugfs_exit_fs(struct ubifs_info *c)
+void dbg_defs_exit_fs(struct ubifs_info *c)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		debugfs_remove_recursive(c->dbg->dfs_dir);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		defs_remove_recursive(c->dbg->dfs_dir);
 }
 
-struct ubifs_global_debug_info ubifs_dbg;
+struct ubifs_global_de_info ubifs_dbg;
 
 static struct dentry *dfs_chk_gen;
 static struct dentry *dfs_chk_index;
@@ -3003,65 +3003,65 @@ static const struct file_operations dfs_global_fops = {
 };
 
 /**
- * dbg_debugfs_init - initialize debugfs file-system.
+ * dbg_defs_init - initialize defs file-system.
  *
- * UBIFS uses debugfs file-system to expose various debugging knobs to
- * user-space. This function creates "ubifs" directory in the debugfs
+ * UBIFS uses defs file-system to expose various deging knobs to
+ * user-space. This function creates "ubifs" directory in the defs
  * file-system. Returns zero in case of success and a negative error code in
  * case of failure.
  */
-int dbg_debugfs_init(void)
+int dbg_defs_init(void)
 {
 	int err;
 	const char *fname;
 	struct dentry *dent;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+	if (!IS_ENABLED(CONFIG_DE_FS))
 		return 0;
 
 	fname = "ubifs";
-	dent = debugfs_create_dir(fname, NULL);
+	dent = defs_create_dir(fname, NULL);
 	if (IS_ERR_OR_NULL(dent))
 		goto out;
 	dfs_rootdir = dent;
 
 	fname = "chk_general";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
 				   &dfs_global_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	dfs_chk_gen = dent;
 
 	fname = "chk_index";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
 				   &dfs_global_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	dfs_chk_index = dent;
 
 	fname = "chk_orphans";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
 				   &dfs_global_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	dfs_chk_orph = dent;
 
 	fname = "chk_lprops";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
 				   &dfs_global_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	dfs_chk_lprops = dent;
 
 	fname = "chk_fs";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
 				   &dfs_global_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	dfs_chk_fs = dent;
 
 	fname = "tst_recovery";
-	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+	dent = defs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
 				   &dfs_global_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
@@ -3070,21 +3070,21 @@ int dbg_debugfs_init(void)
 	return 0;
 
 out_remove:
-	debugfs_remove_recursive(dfs_rootdir);
+	defs_remove_recursive(dfs_rootdir);
 out:
 	err = dent ? PTR_ERR(dent) : -ENODEV;
-	pr_err("UBIFS error (pid %d): cannot create \"%s\" debugfs file or directory, error %d\n",
+	pr_err("UBIFS error (pid %d): cannot create \"%s\" defs file or directory, error %d\n",
 	       current->pid, fname, err);
 	return err;
 }
 
 /**
- * dbg_debugfs_exit - remove the "ubifs" directory from debugfs file-system.
+ * dbg_defs_exit - remove the "ubifs" directory from defs file-system.
  */
-void dbg_debugfs_exit(void)
+void dbg_defs_exit(void)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		debugfs_remove_recursive(dfs_rootdir);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		defs_remove_recursive(dfs_rootdir);
 }
 
 void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
@@ -3094,7 +3094,7 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
 
 	switch (c->assert_action) {
 		case ASSACT_PANIC:
-		BUG();
+		();
 		break;
 
 		case ASSACT_RO:
@@ -3110,16 +3110,16 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
 }
 
 /**
- * ubifs_debugging_init - initialize UBIFS debugging.
+ * ubifs_deging_init - initialize UBIFS deging.
  * @c: UBIFS file-system description object
  *
- * This function initializes debugging-related data for the file system.
+ * This function initializes deging-related data for the file system.
  * Returns zero in case of success and a negative error code in case of
  * failure.
  */
-int ubifs_debugging_init(struct ubifs_info *c)
+int ubifs_deging_init(struct ubifs_info *c)
 {
-	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
+	c->dbg = kzalloc(sizeof(struct ubifs_de_info), GFP_KERNEL);
 	if (!c->dbg)
 		return -ENOMEM;
 
@@ -3127,10 +3127,10 @@ int ubifs_debugging_init(struct ubifs_info *c)
 }
 
 /**
- * ubifs_debugging_exit - free debugging data.
+ * ubifs_deging_exit - free deging data.
  * @c: UBIFS file-system description object
  */
-void ubifs_debugging_exit(struct ubifs_info *c)
+void ubifs_deging_exit(struct ubifs_info *c)
 {
 	kfree(c->dbg);
 }

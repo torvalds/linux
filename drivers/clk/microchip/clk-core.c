@@ -429,7 +429,7 @@ static int roclk_determine_rate(struct clk_hw *hw,
 		return clk_hw_get_rate(hw);
 	}
 
-	pr_debug("%s,rate %lu, best_parent(%s, %lu), best %lu, delta %d\n",
+	pr_de("%s,rate %lu, best_parent(%s, %lu), best %lu, delta %d\n",
 		 clk_hw_get_name(hw), req->rate,
 		 clk_hw_get_name(best_parent_clk), best_parent_rate,
 		 best, best_delta);
@@ -490,7 +490,7 @@ static int roclk_set_rate_and_parent(struct clk_hw *hw,
 	/* calculate new rodiv & rotrim for new rate */
 	roclk_calc_div_trim(rate, parent_rate, &rodiv, &trim);
 
-	pr_debug("parent_rate = %lu, rate = %lu, div = %d, trim = %d\n",
+	pr_de("parent_rate = %lu, rate = %lu, div = %d, trim = %d\n",
 		 parent_rate, rate, rodiv, trim);
 
 	/* wait till source change is active */
@@ -634,7 +634,7 @@ static unsigned long spll_calc_mult_div(struct pic32_sys_pll *pll,
 		return 0;
 	}
 
-	pr_debug("rate %lu, par_rate %lu/mult %u, div %u, best_rate %lu\n",
+	pr_de("rate %lu, par_rate %lu/mult %u, div %u, best_rate %lu\n",
 		 rate, parent_rate, best_mul, best_div, best_rate);
 
 	if (mult_p)

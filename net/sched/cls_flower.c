@@ -802,7 +802,7 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 		}
 
 		new_len += sizeof(struct geneve_opt) + data_len;
-		BUILD_BUG_ON(FLOW_DIS_TUN_OPTS_MAX != IP_TUNNEL_OPTS_MAX);
+		BUILD__ON(FLOW_DIS_TUN_OPTS_MAX != IP_TUNNEL_OPTS_MAX);
 		if (new_len > FLOW_DIS_TUN_OPTS_MAX) {
 			NL_SET_ERR_MSG(extack, "Tunnel options exceeds max size");
 			return -ERANGE;

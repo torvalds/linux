@@ -15,13 +15,13 @@
 #include <asm/prom.h>
 #include <asm/pmac_pfunc.h>
 
-/* Debug */
+/* De */
 #define LOG_PARSE(fmt...)
 #define LOG_ERROR(fmt...)	printk(fmt)
 #define LOG_BLOB(t,b,c)
 
-#undef DEBUG
-#ifdef DEBUG
+#undef DE
+#ifdef DE
 #define DBG(fmt...)		printk(fmt)
 #else
 #define DBG(fmt...)
@@ -76,7 +76,7 @@ struct pmf_cmd {
 };
 
 #if 0
-/* Debug output */
+/* De output */
 static void print_blob(const char *title, const void *blob, int bytes)
 {
 	printk("%s", title);
@@ -895,7 +895,7 @@ void pmf_unregister_irq_client(struct pmf_irq_client *client)
 	struct pmf_function *func = client->func;
 	unsigned long flags;
 
-	BUG_ON(func == NULL);
+	_ON(func == NULL);
 
 	/* guard against manipulations of list */
 	mutex_lock(&pmf_irq_mutex);

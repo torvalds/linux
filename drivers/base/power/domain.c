@@ -213,7 +213,7 @@ static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 	smp_mb__after_atomic();
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void genpd_update_accounting(struct generic_pm_domain *genpd)
 {
 	ktime_t delta, now;
@@ -438,7 +438,7 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 
 	genpd->states[state_idx].power_on_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
-	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
+	pr_de("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "on", elapsed_ns);
 
 	return ret;
@@ -468,7 +468,7 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 
 	genpd->states[state_idx].power_off_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
-	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
+	pr_de("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "off", elapsed_ns);
 
 	return 0;
@@ -1813,7 +1813,7 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 	genpd_unlock(genpd);
 	cancel_work_sync(&genpd->power_off_work);
 	kfree(genpd->free);
-	pr_debug("%s: removed %s\n", __func__, genpd->name);
+	pr_de("%s: removed %s\n", __func__, genpd->name);
 
 	return 0;
 }
@@ -1950,7 +1950,7 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	mutex_lock(&of_genpd_mutex);
 	list_add(&cp->link, &of_genpd_providers);
 	mutex_unlock(&of_genpd_mutex);
-	pr_debug("Added domain provider from %pOF\n", np);
+	pr_de("Added domain provider from %pOF\n", np);
 
 	return 0;
 }
@@ -2514,7 +2514,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	err = of_property_read_u32(state_node, "entry-latency-us",
 						&entry_latency);
 	if (err) {
-		pr_debug(" * %pOF missing entry-latency-us property\n",
+		pr_de(" * %pOF missing entry-latency-us property\n",
 			 state_node);
 		return -EINVAL;
 	}
@@ -2522,7 +2522,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	err = of_property_read_u32(state_node, "exit-latency-us",
 						&exit_latency);
 	if (err) {
-		pr_debug(" * %pOF missing exit-latency-us property\n",
+		pr_de(" * %pOF missing exit-latency-us property\n",
 			 state_node);
 		return -EINVAL;
 	}
@@ -2656,16 +2656,16 @@ core_initcall(genpd_bus_init);
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
 
 
-/***        debugfs support        ***/
+/***        defs support        ***/
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/pm.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/kobject.h>
-static struct dentry *genpd_debugfs_dir;
+static struct dentry *genpd_defs_dir;
 
 /*
  * TODO: This function is a slightly modified version of rtpm_status_show
@@ -2942,43 +2942,43 @@ DEFINE_SHOW_ATTRIBUTE(total_idle_time);
 DEFINE_SHOW_ATTRIBUTE(devices);
 DEFINE_SHOW_ATTRIBUTE(perf_state);
 
-static int __init genpd_debug_init(void)
+static int __init genpd_de_init(void)
 {
 	struct dentry *d;
 	struct generic_pm_domain *genpd;
 
-	genpd_debugfs_dir = debugfs_create_dir("pm_genpd", NULL);
+	genpd_defs_dir = defs_create_dir("pm_genpd", NULL);
 
-	debugfs_create_file("pm_genpd_summary", S_IRUGO, genpd_debugfs_dir,
+	defs_create_file("pm_genpd_summary", S_IRUGO, genpd_defs_dir,
 			    NULL, &summary_fops);
 
 	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
-		d = debugfs_create_dir(genpd->name, genpd_debugfs_dir);
+		d = defs_create_dir(genpd->name, genpd_defs_dir);
 
-		debugfs_create_file("current_state", 0444,
+		defs_create_file("current_state", 0444,
 				d, genpd, &status_fops);
-		debugfs_create_file("sub_domains", 0444,
+		defs_create_file("sub_domains", 0444,
 				d, genpd, &sub_domains_fops);
-		debugfs_create_file("idle_states", 0444,
+		defs_create_file("idle_states", 0444,
 				d, genpd, &idle_states_fops);
-		debugfs_create_file("active_time", 0444,
+		defs_create_file("active_time", 0444,
 				d, genpd, &active_time_fops);
-		debugfs_create_file("total_idle_time", 0444,
+		defs_create_file("total_idle_time", 0444,
 				d, genpd, &total_idle_time_fops);
-		debugfs_create_file("devices", 0444,
+		defs_create_file("devices", 0444,
 				d, genpd, &devices_fops);
 		if (genpd->set_performance_state)
-			debugfs_create_file("perf_state", 0444,
+			defs_create_file("perf_state", 0444,
 					    d, genpd, &perf_state_fops);
 	}
 
 	return 0;
 }
-late_initcall(genpd_debug_init);
+late_initcall(genpd_de_init);
 
-static void __exit genpd_debug_exit(void)
+static void __exit genpd_de_exit(void)
 {
-	debugfs_remove_recursive(genpd_debugfs_dir);
+	defs_remove_recursive(genpd_defs_dir);
 }
-__exitcall(genpd_debug_exit);
-#endif /* CONFIG_DEBUG_FS */
+__exitcall(genpd_de_exit);
+#endif /* CONFIG_DE_FS */

@@ -416,7 +416,7 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 		}
 		break;
 	default:
-		pr_err("%s: BUG!!! UNKNOWN state: slave:%d, port:%d\n",
+		pr_err("%s: !!! UNKNOWN state: slave:%d, port:%d\n",
 		       __func__, slave, port);
 		goto out;
 	}

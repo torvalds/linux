@@ -33,4 +33,4 @@ libsas-y +=  sas_init.o     \
 libsas-$(CONFIG_SCSI_SAS_ATA) +=	sas_ata.o
 libsas-$(CONFIG_SCSI_SAS_HOST_SMP) +=	sas_host_smp.o
 
-ccflags-y := -DDEBUG
+ccflags-y := -DDE

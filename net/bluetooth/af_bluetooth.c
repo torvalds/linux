@@ -25,7 +25,7 @@
 /* Bluetooth address family and sockets. */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/stringify.h>
 #include <linux/sched/signal.h>
 
@@ -68,8 +68,8 @@ static const char *const bt_slock_key_strings[BT_MAX_PROTO] = {
 
 void bt_sock_reclassify_lock(struct sock *sk, int proto)
 {
-	BUG_ON(!sk);
-	BUG_ON(!sock_allow_reclassification(sk));
+	_ON(!sk);
+	_ON(!sock_allow_reclassification(sk));
 
 	sock_lock_init_class_and_name(sk,
 			bt_slock_key_strings[proto], &bt_slock_key[proto],
@@ -719,8 +719,8 @@ static const struct net_proto_family bt_sock_family_ops = {
 	.create	= bt_sock_create,
 };
 
-struct dentry *bt_debugfs;
-EXPORT_SYMBOL_GPL(bt_debugfs);
+struct dentry *bt_defs;
+EXPORT_SYMBOL_GPL(bt_defs);
 
 #define VERSION __stringify(BT_SUBSYS_VERSION) "." \
 		__stringify(BT_SUBSYS_REVISION)
@@ -737,7 +737,7 @@ static int __init bt_init(void)
 	if (err < 0)
 		return err;
 
-	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
+	bt_defs = defs_create_dir("bluetooth", NULL);
 
 	bt_leds_init();
 
@@ -798,7 +798,7 @@ static void __exit bt_exit(void)
 
 	bt_leds_cleanup();
 
-	debugfs_remove_recursive(bt_debugfs);
+	defs_remove_recursive(bt_defs);
 }
 
 subsys_initcall(bt_init);

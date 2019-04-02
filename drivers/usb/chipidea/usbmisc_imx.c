@@ -349,7 +349,7 @@ static int usbmisc_imx6q_set_wakeup
 		val |= wakeup_setting;
 	} else {
 		if (val & MX6_BM_WAKEUP_INTR)
-			pr_debug("wakeup int at ci_hdrc.%d\n", data->index);
+			pr_de("wakeup int at ci_hdrc.%d\n", data->index);
 		val &= ~wakeup_setting;
 	}
 	writel(val, usbmisc->base + data->index * 4);

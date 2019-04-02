@@ -322,7 +322,7 @@ static int cosm_scif_server(void *unused)
 		schedule_work(&cdev->scif_work);
 	}
 
-	pr_debug("%s %d Server thread stopped\n", __func__, __LINE__);
+	pr_de("%s %d Server thread stopped\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -348,7 +348,7 @@ static int cosm_scif_listen(void)
 		pr_err("%s %d scif_listen rc %d\n", __func__, __LINE__, rc);
 		goto err;
 	}
-	pr_debug("%s %d listen_epd set up\n", __func__, __LINE__);
+	pr_de("%s %d listen_epd set up\n", __func__, __LINE__);
 	return 0;
 err:
 	scif_close(listen_epd);
@@ -358,7 +358,7 @@ err:
 
 static void cosm_scif_listen_exit(void)
 {
-	pr_debug("%s %d closing listen_epd\n", __func__, __LINE__);
+	pr_de("%s %d closing listen_epd\n", __func__, __LINE__);
 	if (listen_epd) {
 		scif_close(listen_epd);
 		listen_epd = NULL;

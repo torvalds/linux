@@ -35,15 +35,15 @@
 
 static unsigned int version_printed;
 
-static int sonic_debug = -1;
-module_param(sonic_debug, int, 0);
-MODULE_PARM_DESC(sonic_debug, "debug message level");
+static int sonic_de = -1;
+module_param(sonic_de, int, 0);
+MODULE_PARM_DESC(sonic_de, "de message level");
 
 static void sonic_msg_init(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 
-	lp->msg_enable = netif_msg_init(sonic_debug, 0);
+	lp->msg_enable = netif_msg_init(sonic_de, 0);
 
 	if (version_printed++ == 0)
 		netif_dbg(lp, drv, dev, "%s", version);
@@ -396,7 +396,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 		if (status & SONIC_INT_BR) {
 			printk(KERN_ERR "%s: Bus retry occurred! Device interrupt disabled.\n",
 				dev->name);
-			/* ... to help debug DMA problems causing endless interrupts. */
+			/* ... to help de DMA problems causing endless interrupts. */
 			/* Bounce the eth interface to turn on the interrupt again. */
 			SONIC_WRITE(SONIC_IMR, 0);
 			SONIC_WRITE(SONIC_ISR, SONIC_INT_BR); /* clear the interrupt */

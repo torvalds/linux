@@ -131,7 +131,7 @@ struct csio_lnode_stats {
 struct csio_lnode_params {
 	uint32_t	ra_tov;
 	uint32_t	fcfi;
-	uint32_t	log_level;	/* Module level for debugging */
+	uint32_t	log_level;	/* Module level for deging */
 };
 
 struct csio_service_parms {

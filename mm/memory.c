@@ -64,8 +64,8 @@
 #include <linux/gfp.h>
 #include <linux/migrate.h>
 #include <linux/string.h>
-#include <linux/dma-debug.h>
-#include <linux/debugfs.h>
+#include <linux/dma-de.h>
+#include <linux/defs.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/dax.h>
 #include <linux/oom.h>
@@ -500,7 +500,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 			return;
 		}
 		if (nr_unshown) {
-			pr_alert("BUG: Bad page map: %lu messages suppressed\n",
+			pr_alert(": Bad page map: %lu messages suppressed\n",
 				 nr_unshown);
 			nr_unshown = 0;
 		}
@@ -512,7 +512,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	mapping = vma->vm_file ? vma->vm_file->f_mapping : NULL;
 	index = linear_page_index(vma, addr);
 
-	pr_alert("BUG: Bad page map in process %s  pte:%08llx pmd:%08llx\n",
+	pr_alert(": Bad page map in process %s  pte:%08llx pmd:%08llx\n",
 		 current->comm,
 		 (long long)pte_val(pte), (long long)pmd_val(*pmd));
 	if (page)
@@ -893,7 +893,7 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
 		if (is_swap_pmd(*src_pmd) || pmd_trans_huge(*src_pmd)
 			|| pmd_devmap(*src_pmd)) {
 			int err;
-			VM_BUG_ON_VMA(next-addr != HPAGE_PMD_SIZE, vma);
+			VM__ON_VMA(next-addr != HPAGE_PMD_SIZE, vma);
 			err = copy_huge_pmd(dst_mm, src_mm,
 					    dst_pmd, src_pmd, addr, vma);
 			if (err == -ENOMEM)
@@ -927,7 +927,7 @@ static inline int copy_pud_range(struct mm_struct *dst_mm, struct mm_struct *src
 		if (pud_trans_huge(*src_pud) || pud_devmap(*src_pud)) {
 			int err;
 
-			VM_BUG_ON_VMA(next-addr != HPAGE_PUD_SIZE, vma);
+			VM__ON_VMA(next-addr != HPAGE_PUD_SIZE, vma);
 			err = copy_huge_pud(dst_mm, src_mm,
 					    dst_pud, src_pud, addr, vma);
 			if (err == -ENOMEM)
@@ -1211,7 +1211,7 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
 		next = pud_addr_end(addr, end);
 		if (pud_trans_huge(*pud) || pud_devmap(*pud)) {
 			if (next - addr != HPAGE_PUD_SIZE) {
-				VM_BUG_ON_VMA(!rwsem_is_locked(&tlb->mm->mmap_sem), vma);
+				VM__ON_VMA(!rwsem_is_locked(&tlb->mm->mmap_sem), vma);
 				split_huge_pud(vma, pud, addr);
 			} else if (zap_huge_pud(tlb, vma, pud, addr))
 				goto next;
@@ -1254,7 +1254,7 @@ void unmap_page_range(struct mmu_gather *tlb,
 	pgd_t *pgd;
 	unsigned long next;
 
-	BUG_ON(addr >= end);
+	_ON(addr >= end);
 	tlb_start_vma(tlb, vma);
 	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
@@ -1432,7 +1432,7 @@ pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
 	if (!pmd)
 		return NULL;
 
-	VM_BUG_ON(pmd_trans_huge(*pmd));
+	VM__ON(pmd_trans_huge(*pmd));
 	return pte_alloc_map_lock(mm, pmd, addr, ptl);
 }
 
@@ -1515,8 +1515,8 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
 	if (!page_count(page))
 		return -EINVAL;
 	if (!(vma->vm_flags & VM_MIXEDMAP)) {
-		BUG_ON(down_read_trylock(&vma->vm_mm->mmap_sem));
-		BUG_ON(vma->vm_flags & VM_PFNMAP);
+		_ON(down_read_trylock(&vma->vm_mm->mmap_sem));
+		_ON(vma->vm_flags & VM_PFNMAP);
 		vma->vm_flags |= VM_MIXEDMAP;
 	}
 	return insert_page(vma, addr, page, vma->vm_page_prot);
@@ -1603,11 +1603,11 @@ vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 	 * consistency in testing and feature parity among all, so we should
 	 * try to keep these invariants in place for everybody.
 	 */
-	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
-	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+	_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
+	_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
 						(VM_PFNMAP|VM_MIXEDMAP));
-	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
-	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
+	_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+	_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return VM_FAULT_SIGBUS;
@@ -1669,7 +1669,7 @@ static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
 	pgprot_t pgprot = vma->vm_page_prot;
 	int err;
 
-	BUG_ON(!vm_mixed_ok(vma, pfn));
+	_ON(!vm_mixed_ok(vma, pfn));
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return VM_FAULT_SIGBUS;
@@ -1746,7 +1746,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		return -ENOMEM;
 	arch_enter_lazy_mmu_mode();
 	do {
-		BUG_ON(!pte_none(*pte));
+		_ON(!pte_none(*pte));
 		if (!pfn_modify_allowed(pfn, prot)) {
 			err = -EACCES;
 			break;
@@ -1771,7 +1771,7 @@ static inline int remap_pmd_range(struct mm_struct *mm, pud_t *pud,
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
 		return -ENOMEM;
-	VM_BUG_ON(pmd_trans_huge(*pmd));
+	VM__ON(pmd_trans_huge(*pmd));
 	do {
 		next = pmd_addr_end(addr, end);
 		err = remap_pte_range(mm, pmd, addr, next,
@@ -1878,7 +1878,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 
-	BUG_ON(addr >= end);
+	_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
 	pgd = pgd_offset(mm, addr);
 	flush_cache_range(vma, addr, end);
@@ -1961,7 +1961,7 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 	if (!pte)
 		return -ENOMEM;
 
-	BUG_ON(pmd_huge(*pmd));
+	_ON(pmd_huge(*pmd));
 
 	arch_enter_lazy_mmu_mode();
 
@@ -1988,7 +1988,7 @@ static int apply_to_pmd_range(struct mm_struct *mm, pud_t *pud,
 	unsigned long next;
 	int err;
 
-	BUG_ON(pud_huge(*pud));
+	_ON(pud_huge(*pud));
 
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
@@ -2095,7 +2095,7 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
 
 static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
 {
-	debug_dma_assert_idle(src);
+	de_dma_assert_idle(src);
 
 	/*
 	 * If the source page was a PFN mapping, we don't have
@@ -2162,7 +2162,7 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
 		}
 		ret |= VM_FAULT_LOCKED;
 	} else
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
 	return ret;
 }
 
@@ -2179,7 +2179,7 @@ static void fault_dirty_shared_page(struct vm_area_struct *vma,
 	bool page_mkwrite = vma->vm_ops && vma->vm_ops->page_mkwrite;
 
 	dirtied = set_page_dirty(page);
-	VM_BUG_ON_PAGE(PageAnon(page), page);
+	VM__ON_PAGE(PageAnon(page), page);
 	/*
 	 * Take a local copy of the address_space - page.mapping may be zeroed
 	 * by truncate after unlock_page().   The address_space itself remains
@@ -3053,7 +3053,7 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
 	if (unlikely(!(ret & VM_FAULT_LOCKED)))
 		lock_page(vmf->page);
 	else
-		VM_BUG_ON_PAGE(!PageLocked(vmf->page), vmf->page);
+		VM__ON_PAGE(!PageLocked(vmf->page), vmf->page);
 
 	return ret;
 }
@@ -3204,7 +3204,7 @@ out:
 #else
 static vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 #endif
@@ -3236,7 +3236,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 	if (pmd_none(*vmf->pmd) && PageTransCompound(page) &&
 			IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
 		/* THP on COW? */
-		VM_BUG_ON_PAGE(memcg, page);
+		VM__ON_PAGE(memcg, page);
 
 		ret = do_set_pmd(vmf, page);
 		if (ret != VM_FAULT_FALLBACK)
@@ -3319,7 +3319,7 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 static unsigned long fault_around_bytes __read_mostly =
 	rounddown_pow_of_two(65536);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int fault_around_bytes_get(void *data, u64 *val)
 {
 	*val = fault_around_bytes;
@@ -3340,16 +3340,16 @@ static int fault_around_bytes_set(void *data, u64 val)
 		fault_around_bytes = PAGE_SIZE; /* rounddown_pow_of_two(0) is undefined */
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fault_around_bytes_fops,
+DEFINE_DEFS_ATTRIBUTE(fault_around_bytes_fops,
 		fault_around_bytes_get, fault_around_bytes_set, "%llu\n");
 
-static int __init fault_around_debugfs(void)
+static int __init fault_around_defs(void)
 {
-	debugfs_create_file_unsafe("fault_around_bytes", 0644, NULL, NULL,
+	defs_create_file_unsafe("fault_around_bytes", 0644, NULL, NULL,
 				   &fault_around_bytes_fops);
 	return 0;
 }
-late_initcall(fault_around_debugfs);
+late_initcall(fault_around_defs);
 #endif
 
 /*
@@ -3713,7 +3713,7 @@ static inline vm_fault_t wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
 		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PMD);
 
 	/* COW handled on pte level: split pmd */
-	VM_BUG_ON_VMA(vmf->vma->vm_flags & VM_SHARED, vmf->vma);
+	VM__ON_VMA(vmf->vma->vm_flags & VM_SHARED, vmf->vma);
 	__split_huge_pmd(vmf->vma, vmf->pmd, vmf->address, false, NULL);
 
 	return VM_FAULT_FALLBACK;
@@ -3910,7 +3910,7 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 
 		barrier();
 		if (unlikely(is_swap_pmd(orig_pmd))) {
-			VM_BUG_ON(thp_migration_supported() &&
+			VM__ON(thp_migration_supported() &&
 					  !is_pmd_migration_entry(orig_pmd));
 			if (is_pmd_migration_entry(orig_pmd))
 				pmd_migration_entry_wait(mm, vmf.pmd);
@@ -4097,7 +4097,7 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
 		goto out;
 
 	pmd = pmd_offset(pud, address);
-	VM_BUG_ON(pmd_trans_huge(*pmd));
+	VM__ON(pmd_trans_huge(*pmd));
 
 	if (pmd_huge(*pmd)) {
 		if (!pmdpp)
@@ -4388,7 +4388,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
 	up_read(&mm->mmap_sem);
 }
 
-#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP)
+#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DE_ATOMIC_SLEEP)
 void __might_fault(const char *file, int line)
 {
 	/*
@@ -4402,7 +4402,7 @@ void __might_fault(const char *file, int line)
 	if (pagefault_disabled())
 		return;
 	__might_sleep(file, line, 0);
-#if defined(CONFIG_DEBUG_ATOMIC_SLEEP)
+#if defined(CONFIG_DE_ATOMIC_SLEEP)
 	if (current->mm)
 		might_lock_read(&current->mm->mmap_sem);
 #endif

@@ -50,10 +50,10 @@
 #define LOCK_RETRY_COUNT                (5)
 #define LOCK_RETRY_DELAY                (200)
 
-/* Debug functions */
-static bool debug;
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+/* De functions */
+static bool de;
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("TVP514X linux decoder driver");
@@ -481,7 +481,7 @@ static int tvp514x_configure(struct v4l2_subdev *sd,
 	if (err)
 		return err;
 
-	if (debug)
+	if (de)
 		tvp514x_reg_dump(sd);
 
 	return 0;
@@ -508,7 +508,7 @@ static int tvp514x_detect(struct v4l2_subdev *sd,
 	chip_id_lsb = tvp514x_read_reg(sd, REG_CHIP_ID_LSB);
 	rom_ver = tvp514x_read_reg(sd, REG_ROM_VERSION);
 
-	v4l2_dbg(1, debug, sd,
+	v4l2_dbg(1, de, sd,
 		 "chip id detected msb:0x%x lsb:0x%x rom version:0x%x\n",
 		 chip_id_msb, chip_id_lsb, rom_ver);
 	if ((chip_id_msb != TVP514X_CHIP_ID_MSB)
@@ -607,7 +607,7 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 
 	*std_id &= decoder->std_list[current_std].standard.id;
 
-	v4l2_dbg(1, debug, sd, "Current STD: %s\n",
+	v4l2_dbg(1, de, sd, "Current STD: %s\n",
 			decoder->std_list[current_std].standard.name);
 	return 0;
 }
@@ -641,7 +641,7 @@ static int tvp514x_s_std(struct v4l2_subdev *sd, v4l2_std_id std_id)
 	decoder->tvp514x_regs[REG_VIDEO_STD].val =
 		decoder->std_list[i].video_std;
 
-	v4l2_dbg(1, debug, sd, "Standard set to: %s\n",
+	v4l2_dbg(1, de, sd, "Standard set to: %s\n",
 			decoder->std_list[i].standard.name);
 	return 0;
 }
@@ -689,7 +689,7 @@ static int tvp514x_s_routing(struct v4l2_subdev *sd,
 	decoder->input = input;
 	decoder->output = output;
 
-	v4l2_dbg(1, debug, sd, "Input set to: %d\n", input_sel);
+	v4l2_dbg(1, de, sd, "Input set to: %d\n", input_sel);
 
 	return 0;
 }
@@ -741,7 +741,7 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	v4l2_dbg(1, debug, sd, "Set Control: ID - %d - %d\n",
+	v4l2_dbg(1, de, sd, "Set Control: ID - %d - %d\n",
 			ctrl->id, ctrl->val);
 	return err;
 }

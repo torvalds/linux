@@ -12,14 +12,14 @@
 #include <linux/ptrace.h>
 #include <linux/stddef.h>
 
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/compiler.h>
 #include <asm/cpu.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
 #include <asm/setup.h>
 
-static char bug64hit[] __initdata =
+static char 64hit[] __initdata =
 	"reliable operation impossible!\n%s";
 static char nowar[] __initdata =
 	"Please report to <linux-mips@linux-mips.org>.";
@@ -120,9 +120,9 @@ static inline void mult_sh_align_mod(long *v1, long *v2, long *w,
 static inline void check_mult_sh(void)
 {
 	long v1[8], v2[8], w[8];
-	int bug, fix, i;
+	int , fix, i;
 
-	printk("Checking for the multiply/shift bug... ");
+	printk("Checking for the multiply/shift ... ");
 
 	/*
 	 * Testing discovered false negatives for certain code offsets
@@ -142,12 +142,12 @@ static inline void check_mult_sh(void)
 	mult_sh_align_mod(&v1[6], &v2[6], &w[6], 32, 6);
 	mult_sh_align_mod(&v1[7], &v2[7], &w[7], 32, 7);
 
-	bug = 0;
+	 = 0;
 	for (i = 0; i < 8; i++)
 		if (v1[i] != w[i])
-			bug = 1;
+			 = 1;
 
-	if (bug == 0) {
+	if ( == 0) {
 		pr_cont("no.\n");
 		return;
 	}
@@ -165,7 +165,7 @@ static inline void check_mult_sh(void)
 	}
 
 	pr_cont("no.\n");
-	panic(bug64hit, !R4000_WAR ? r4kwar : nowar);
+	panic(64hit, !R4000_WAR ? r4kwar : nowar);
 }
 
 static volatile int daddi_ov;
@@ -187,7 +187,7 @@ static inline void check_daddi(void)
 	void *handler;
 	long v, tmp;
 
-	printk("Checking for the daddi bug... ");
+	printk("Checking for the daddi ... ");
 
 	local_irq_save(flags);
 	handler = set_except_vector(EXCCODE_OV, handle_daddi_ov);
@@ -241,16 +241,16 @@ static inline void check_daddi(void)
 	}
 
 	pr_cont("no.\n");
-	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
+	panic(64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
-int daddiu_bug	= IS_ENABLED(CONFIG_CPU_MIPSR6) ? 0 : -1;
+int daddiu_	= IS_ENABLED(CONFIG_CPU_MIPSR6) ? 0 : -1;
 
 static inline void check_daddiu(void)
 {
 	long v, w, tmp;
 
-	printk("Checking for the daddiu bug... ");
+	printk("Checking for the daddiu ... ");
 
 	/*
 	 * The following code leads to a wrong result of daddiu when
@@ -285,9 +285,9 @@ static inline void check_daddiu(void)
 		: "=&r" (v), "=&r" (w), "=&r" (tmp)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
-	daddiu_bug = v != w;
+	daddiu_ = v != w;
 
-	if (!daddiu_bug) {
+	if (!daddiu_) {
 		pr_cont("no.\n");
 		return;
 	}
@@ -309,10 +309,10 @@ static inline void check_daddiu(void)
 	}
 
 	pr_cont("no.\n");
-	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
+	panic(64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
-void __init check_bugs64_early(void)
+void __init check_s64_early(void)
 {
 	if (!IS_ENABLED(CONFIG_CPU_MIPSR6)) {
 		check_mult_sh();
@@ -320,7 +320,7 @@ void __init check_bugs64_early(void)
 	}
 }
 
-void __init check_bugs64(void)
+void __init check_s64(void)
 {
 	if (!IS_ENABLED(CONFIG_CPU_MIPSR6))
 		check_daddi();

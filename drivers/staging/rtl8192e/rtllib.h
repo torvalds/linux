@@ -35,7 +35,7 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 
-#include "rtllib_debug.h"
+#include "rtllib_de.h"
 #include "rtl819x_HT.h"
 #include "rtl819x_BA.h"
 #include "rtl819x_TS.h"
@@ -1100,7 +1100,7 @@ struct rtllib_network {
 	/* These entries are used to identify a unique network */
 	u8 bssid[ETH_ALEN];
 	u8 channel;
-	/* Ensure null-terminated for any debug msgs */
+	/* Ensure null-terminated for any de msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 	u8 hidden_ssid[IW_ESSID_MAX_SIZE + 1];

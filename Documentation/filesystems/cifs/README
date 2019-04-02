@@ -17,7 +17,7 @@ Please see
 for more details.
 
 
-For questions or bug reports please contact:
+For questions or  reports please contact:
     smfrench@gmail.com
 
 See the project page at: https://wiki.samba.org/index.php/LinuxCIFS_utils
@@ -493,7 +493,7 @@ A partial list of the supported mount options follows:
 		in order to turn off multiple settings all at once (ie
 		posix acls, posix locks, posix paths, symlink support
 		and retrieving uids/gids/mode from the server) or to
-		work around a bug in server which implement the Unix
+		work around a  in server which implement the Unix
 		Extensions.
  nobrl          Do not send byte range lock requests to the server.
 		This is necessary for certain applications that break
@@ -596,10 +596,10 @@ including:
 With most 2.6 kernel versions of modutils, the version of the cifs kernel
 module can be displayed via modinfo.
 
-Misc /proc/fs/cifs Flags and Debug Info
+Misc /proc/fs/cifs Flags and De Info
 =======================================
 Informational pseudo-files:
-DebugData		Displays information about active CIFS sessions and
+DeData		Displays information about active CIFS sessions and
 			shares, features enabled as well as the cifs.ko
 			version.
 Stats			Lists summary resource usage information as well as per
@@ -642,13 +642,13 @@ SecurityFlags		Flags which control security negotiation and
 			must use plaintext passwords			0x20020
 			(reserved for future packet encryption)		0x00040
 
-cifsFYI			If set to non-zero value, additional debug information
+cifsFYI			If set to non-zero value, additional de information
 			will be logged to the system error log.  This field
 			contains three flags controlling different classes of
-			debugging entries.  The maximum value it can be set
-			to is 7 which enables all debugging points (default 0).
-			Some debugging statements are not compiled into the
-			cifs kernel unless CONFIG_CIFS_DEBUG2 is enabled in the
+			deging entries.  The maximum value it can be set
+			to is 7 which enables all deging points (default 0).
+			Some deging statements are not compiled into the
+			cifs kernel unless CONFIG_CIFS_DE2 is enabled in the
 			kernel configuration. cifsFYI may be set to one or
 			nore of the following flags (7 sets them all):
 
@@ -658,7 +658,7 @@ cifsFYI			If set to non-zero value, additional debug information
 			  CONFIG_CIFS_STATS2 must be enabled in .config	0x04
 				
 				
-traceSMB		If set to one, debug information is logged to the
+traceSMB		If set to one, de information is logged to the
 			system error log with the start of smb requests
 			and responses (default 0)
 LookupCacheEnable	If set to one, inode information is kept cached
@@ -703,7 +703,7 @@ number of bytes read and written by the application running on the client.
 Statistics can be reset to zero by "echo 0 > /proc/fs/cifs/Stats" which may be
 useful if comparing performance of two different scenarios.
 	
-Also note that "cat /proc/fs/cifs/DebugData" will display information about
+Also note that "cat /proc/fs/cifs/DeData" will display information about
 the active sessions and the shares that are mounted.
 
 Enabling Kerberos (extended security) works but requires version 1.2 or later

@@ -21,7 +21,7 @@
 #define PIPE_MIN_SIZE		(PAGE_SIZE*PIPE_DEF_BUFS)
 #define PIPE_MAX_SIZE		(1024*1024)
 #define READ_PATH_FMT	\
-		"/sys/kernel/debug/tracing/per_cpu/cpu%d/trace_pipe_raw"
+		"/sys/kernel/de/tracing/per_cpu/cpu%d/trace_pipe_raw"
 #define WRITE_PATH_FMT		"/dev/virtio-ports/trace-path-cpu%d"
 #define CTL_PATH		"/dev/virtio-ports/agent-ctl-path"
 
@@ -169,7 +169,7 @@ static void *agent_info_init(struct agent_info *s)
 				goto error;
 		} else
 			/* stdout mode */
-			pr_debug("stdout mode\n");
+			pr_de("stdout mode\n");
 
 		rw_thread_init(cpu, in_path, out_path, s->use_stdout,
 						s->pipe_size, s->rw_ti[cpu]);

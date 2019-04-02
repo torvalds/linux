@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* For general debugging purposes */
+/* For general deging purposes */
 
 #include "../perf.h"
 
@@ -8,7 +8,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <sys/wait.h>
-#include <api/debug.h>
+#include <api/de.h>
 #include <linux/time64.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
@@ -16,7 +16,7 @@
 #include "cache.h"
 #include "color.h"
 #include "event.h"
-#include "debug.h"
+#include "de.h"
 #include "print_binary.h"
 #include "util.h"
 #include "target.h"
@@ -25,9 +25,9 @@
 
 int verbose;
 bool dump_trace = false, quiet = false;
-int debug_ordered_events;
+int de_ordered_events;
 static int redirect_to_stderr;
-int debug_data_convert;
+int de_data_convert;
 
 int veprintf(int level, int var, const char *fmt, va_list args)
 {
@@ -172,20 +172,20 @@ void trace_event(union perf_event *event)
 		     trace_event_printer, event);
 }
 
-static struct debug_variable {
+static struct de_variable {
 	const char *name;
 	int *ptr;
-} debug_variables[] = {
+} de_variables[] = {
 	{ .name = "verbose",		.ptr = &verbose },
-	{ .name = "ordered-events",	.ptr = &debug_ordered_events},
+	{ .name = "ordered-events",	.ptr = &de_ordered_events},
 	{ .name = "stderr",		.ptr = &redirect_to_stderr},
-	{ .name = "data-convert",	.ptr = &debug_data_convert },
+	{ .name = "data-convert",	.ptr = &de_data_convert },
 	{ .name = NULL, }
 };
 
-int perf_debug_option(const char *str)
+int perf_de_option(const char *str)
 {
-	struct debug_variable *var = &debug_variables[0];
+	struct de_variable *var = &de_variables[0];
 	char *vstr, *s = strdup(str);
 	int v = 1;
 
@@ -200,7 +200,7 @@ int perf_debug_option(const char *str)
 	}
 
 	if (!var->name) {
-		pr_err("Unknown debug variable name '%s'\n", s);
+		pr_err("Unknown de variable name '%s'\n", s);
 		free(s);
 		return -1;
 	}
@@ -224,9 +224,9 @@ int perf_debug_option(const char *str)
 
 int perf_quiet_option(void)
 {
-	struct debug_variable *var = &debug_variables[0];
+	struct de_variable *var = &de_variables[0];
 
-	/* disable all debug messages */
+	/* disable all de messages */
 	while (var->name) {
 		*var->ptr = -1;
 		var++;
@@ -235,7 +235,7 @@ int perf_quiet_option(void)
 	return 0;
 }
 
-#define DEBUG_WRAPPER(__n, __l)				\
+#define DE_WRAPPER(__n, __l)				\
 static int pr_ ## __n ## _wrapper(const char *fmt, ...)	\
 {							\
 	va_list args;					\
@@ -247,12 +247,12 @@ static int pr_ ## __n ## _wrapper(const char *fmt, ...)	\
 	return ret;					\
 }
 
-DEBUG_WRAPPER(warning, 0);
-DEBUG_WRAPPER(debug, 1);
+DE_WRAPPER(warning, 0);
+DE_WRAPPER(de, 1);
 
-void perf_debug_setup(void)
+void perf_de_setup(void)
 {
-	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_debug_wrapper);
+	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_de_wrapper);
 }
 
 /* Obtain a backtrace and print it to stdout. */

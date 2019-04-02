@@ -60,7 +60,7 @@ static void nand_select_chip(struct nand_chip *chip, int chipnr)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -569,7 +569,7 @@ static int nand_wait(struct nand_chip *chip)
 	if (ret)
 		return ret;
 
-	/* This can happen if in case of timeout or buggy dev_ready */
+	/* This can happen if in case of timeout or gy dev_ready */
 	WARN_ON(!(status & NAND_STATUS_READY));
 	return status;
 }

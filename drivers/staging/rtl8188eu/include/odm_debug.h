@@ -11,7 +11,7 @@
 
 
 /*  */
-/*	Define the debug levels */
+/*	Define the de levels */
 /*  */
 /*	1. DBG_TRACE and DBG_LOUD are used for normal cases. */
 /*	They can help SW engineer to develop or trace states changed */
@@ -19,14 +19,14 @@
 /*	e.g IO, Tx, Rx. */
 /*  */
 /*	2. DBG_WARNNING and DBG_SERIOUS are used for unusual or error cases, */
-/*	which help us to debug SW or HW. */
+/*	which help us to de SW or HW. */
 
 /*	Never used in a call to ODM_RT_TRACE()! */
 #define ODM_DBG_OFF				1
 
-/*	Fatal bug. */
+/*	Fatal . */
 /*	For example, Tx/Rx/IO locked up, OS hangs, memory access violation, */
-/*	resource allocation failed, unexpected HW behavior, HW BUG and so on. */
+/*	resource allocation failed, unexpected HW behavior, HW  and so on. */
 #define ODM_DBG_SERIOUS				2
 
 /*	Abnormal, rare, or unexpected cases. */
@@ -78,8 +78,8 @@
 #endif
 
 #define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)				\
-	if (((comp) & pDM_Odm->DebugComponents) &&			\
-	    (level <= pDM_Odm->DebugLevel)) {				\
+	if (((comp) & pDM_Odm->DeComponents) &&			\
+	    (level <= pDM_Odm->DeLevel)) {				\
 		pr_info("[ODM-8188E] ");				\
 		RT_PRINTK fmt;						\
 	}
@@ -93,6 +93,6 @@
 		ASSERT(false);						\
 	}
 
-void ODM_InitDebugSetting(struct odm_dm_struct *pDM_Odm);
+void ODM_InitDeSetting(struct odm_dm_struct *pDM_Odm);
 
 #endif	/*  __ODM_DBG_H__ */

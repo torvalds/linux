@@ -49,7 +49,7 @@ static void rxrpc_call_timer_expired(struct timer_list *t)
 {
 	struct rxrpc_call *call = from_timer(call, t, timer);
 
-	_enter("%d", call->debug_id);
+	_enter("%d", call->de_id);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		trace_rxrpc_timer(call, rxrpc_timer_expired, jiffies);
@@ -100,7 +100,7 @@ found_extant_call:
  * allocate a new call
  */
 struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
-				    unsigned int debug_id)
+				    unsigned int de_id)
 {
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
@@ -141,7 +141,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	spin_lock_init(&call->input_lock);
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
-	call->debug_id = debug_id;
+	call->de_id = de_id;
 	call->tx_total_len = -1;
 	call->next_rx_timo = 20 * HZ;
 	call->next_req_timo = 1 * HZ;
@@ -173,14 +173,14 @@ nomem:
 static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 						  struct sockaddr_rxrpc *srx,
 						  gfp_t gfp,
-						  unsigned int debug_id)
+						  unsigned int de_id)
 {
 	struct rxrpc_call *call;
 	ktime_t now;
 
 	_enter("");
 
-	call = rxrpc_alloc_call(rx, gfp, debug_id);
+	call = rxrpc_alloc_call(rx, gfp, de_id);
 	if (!call)
 		return ERR_PTR(-ENOMEM);
 	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
@@ -222,7 +222,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct sockaddr_rxrpc *srx,
 					 struct rxrpc_call_params *p,
 					 gfp_t gfp,
-					 unsigned int debug_id)
+					 unsigned int de_id)
 	__releases(&rx->sk.sk_lock.slock)
 	__acquires(&call->user_mutex)
 {
@@ -234,7 +234,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	_enter("%p,%lx", rx, p->user_call_ID);
 
-	call = rxrpc_alloc_client_call(rx, srx, gfp, debug_id);
+	call = rxrpc_alloc_client_call(rx, srx, gfp, de_id);
 	if (IS_ERR(call)) {
 		release_sock(&rx->sk);
 		_leave(" = %ld", PTR_ERR(call));
@@ -297,7 +297,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	rxrpc_start_call_timer(call);
 
-	_net("CALL new %d on CONN %d", call->debug_id, call->conn->debug_id);
+	_net("CALL new %d on CONN %d", call->de_id, call->conn->de_id);
 
 	_leave(" = %p [new]", call);
 	return call;
@@ -336,7 +336,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	u32 chan;
 
-	_enter(",%d", call->conn->debug_id);
+	_enter(",%d", call->conn->de_id);
 
 	rcu_assign_pointer(call->socket, rx);
 	call->call_id		= sp->hdr.callNumber;
@@ -362,7 +362,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	hlist_add_head_rcu(&call->error_link, &conn->params.peer->error_targets);
 	spin_unlock(&conn->params.peer->lock);
 
-	_net("CALL incoming %d on CONN %d", call->debug_id, call->conn->debug_id);
+	_net("CALL incoming %d on CONN %d", call->de_id, call->conn->de_id);
 
 	rxrpc_start_call_timer(call);
 	_leave("");
@@ -433,7 +433,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	bool put = false;
 	int i;
 
-	_enter("{%d,%d}", call->debug_id, atomic_read(&call->usage));
+	_enter("{%d,%d}", call->de_id, atomic_read(&call->usage));
 
 	trace_rxrpc_call(call, rxrpc_call_release, atomic_read(&call->usage),
 			 here, (const void *)call->flags);
@@ -442,7 +442,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	spin_lock_bh(&call->lock);
 	if (test_and_set_bit(RXRPC_CALL_RELEASED, &call->flags))
-		BUG();
+		();
 	spin_unlock_bh(&call->lock);
 
 	del_timer_sync(&call->timer);
@@ -451,7 +451,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	write_lock_bh(&rx->recvmsg_lock);
 
 	if (!list_empty(&call->recvmsg_link)) {
-		_debug("unlinking once-pending call %p { e=%lx f=%lx }",
+		_de("unlinking once-pending call %p { e=%lx f=%lx }",
 		       call, call->events, call->flags);
 		list_del(&call->recvmsg_link);
 		put = true;
@@ -476,7 +476,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	list_del(&call->sock_link);
 	write_unlock(&rx->call_lock);
 
-	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
+	_de("RELEASE CALL %p (%d CONN %p)", call, call->de_id, conn);
 
 	if (conn)
 		rxrpc_disconnect_call(call);
@@ -536,7 +536,7 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 	trace_rxrpc_call(call, op, n, here, NULL);
 	ASSERTCMP(n, >=, 0);
 	if (n == 0) {
-		_debug("call %d dead", call->debug_id);
+		_de("call %d dead", call->de_id);
 		ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
 		if (!list_empty(&call->link)) {
@@ -572,7 +572,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 {
 	int i;
 
-	_net("DESTROY CALL %d", call->debug_id);
+	_net("DESTROY CALL %d", call->de_id);
 
 	memset(&call->sock_node, 0xcd, sizeof(call->sock_node));
 
@@ -611,7 +611,7 @@ void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 
 	while (!list_empty(&rxnet->calls)) {
 		call = list_entry(rxnet->calls.next, struct rxrpc_call, link);
-		_debug("Zapping call %p", call);
+		_de("Zapping call %p", call);
 
 		rxrpc_see_call(call);
 		list_del_init(&call->link);

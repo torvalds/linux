@@ -754,7 +754,7 @@ static int asb100_detect(struct i2c_client *client,
 	int val1, val2;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("detect failed, smbus byte data not supported!\n");
+		pr_de("detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
@@ -767,7 +767,7 @@ static int asb100_detect(struct i2c_client *client,
 			(((!(val1 & 0x80)) && (val2 != 0x94)) ||
 			/* Check for ASB100 ID (high byte ) */
 			((val1 & 0x80) && (val2 != 0x06)))) {
-		pr_debug("detect failed, bad chip id 0x%02x!\n", val2);
+		pr_de("detect failed, bad chip id 0x%02x!\n", val2);
 		return -ENODEV;
 	}
 

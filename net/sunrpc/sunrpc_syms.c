@@ -101,8 +101,8 @@ init_sunrpc(void)
 	if (err)
 		goto out4;
 
-	sunrpc_debugfs_init();
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+	sunrpc_defs_init();
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 	rpc_register_sysctl();
 #endif
 	svc_init_xprt_sock();	/* svc sock transport */
@@ -126,11 +126,11 @@ cleanup_sunrpc(void)
 	rpcauth_remove_module();
 	cleanup_socket_xprt();
 	svc_cleanup_xprt_sock();
-	sunrpc_debugfs_exit();
+	sunrpc_defs_exit();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
 	unregister_pernet_subsys(&sunrpc_net_ops);
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 	rpc_unregister_sysctl();
 #endif
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

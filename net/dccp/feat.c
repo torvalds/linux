@@ -205,13 +205,13 @@ static int dccp_feat_default_value(u8 feat_num)
 	 * There are no default values for unknown features, so encountering a
 	 * negative index here indicates a serious problem somewhere else.
 	 */
-	DCCP_BUG_ON(idx < 0);
+	DCCP__ON(idx < 0);
 
 	return idx < 0 ? 0 : dccp_feat_table[idx].default_value;
 }
 
 /*
- *	Debugging and verbose-printing section
+ *	Deging and verbose-printing section
  */
 static const char *dccp_feat_fname(const u8 feat)
 {
@@ -242,7 +242,7 @@ static const char *const dccp_feat_sname[] = {
 	"DEFAULT", "INITIALISING", "CHANGING", "UNSTABLE", "STABLE",
 };
 
-#ifdef CONFIG_IP_DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DE
 static const char *dccp_feat_oname(const u8 opt)
 {
 	switch (opt) {
@@ -259,14 +259,14 @@ static void dccp_feat_printval(u8 feat_num, dccp_feat_val const *val)
 	u8 i, type = dccp_feat_type(feat_num);
 
 	if (val == NULL || (type == FEAT_SP && val->sp.vec == NULL))
-		dccp_pr_debug_cat("(NULL)");
+		dccp_pr_de_cat("(NULL)");
 	else if (type == FEAT_SP)
 		for (i = 0; i < val->sp.len; i++)
-			dccp_pr_debug_cat("%s%u", i ? " " : "", val->sp.vec[i]);
+			dccp_pr_de_cat("%s%u", i ? " " : "", val->sp.vec[i]);
 	else if (type == FEAT_NN)
-		dccp_pr_debug_cat("%llu", (unsigned long long)val->nn);
+		dccp_pr_de_cat("%llu", (unsigned long long)val->nn);
 	else
-		dccp_pr_debug_cat("unknown type %u", type);
+		dccp_pr_de_cat("unknown type %u", type);
 }
 
 static void dccp_feat_printvals(u8 feat_num, u8 *list, u8 len)
@@ -281,26 +281,26 @@ static void dccp_feat_printvals(u8 feat_num, u8 *list, u8 len)
 
 static void dccp_feat_print_entry(struct dccp_feat_entry const *entry)
 {
-	dccp_debug("   * %s %s = ", entry->is_local ? "local" : "remote",
+	dccp_de("   * %s %s = ", entry->is_local ? "local" : "remote",
 				    dccp_feat_fname(entry->feat_num));
 	dccp_feat_printval(entry->feat_num, &entry->val);
-	dccp_pr_debug_cat(", state=%s %s\n", dccp_feat_sname[entry->state],
+	dccp_pr_de_cat(", state=%s %s\n", dccp_feat_sname[entry->state],
 			  entry->needs_confirm ? "(Confirm pending)" : "");
 }
 
 #define dccp_feat_print_opt(opt, feat, val, len, mandatory)	do {	      \
-	dccp_pr_debug("%s(%s, ", dccp_feat_oname(opt), dccp_feat_fname(feat));\
+	dccp_pr_de("%s(%s, ", dccp_feat_oname(opt), dccp_feat_fname(feat));\
 	dccp_feat_printvals(feat, val, len);				      \
-	dccp_pr_debug_cat(") %s\n", mandatory ? "!" : "");	} while (0)
+	dccp_pr_de_cat(") %s\n", mandatory ? "!" : "");	} while (0)
 
 #define dccp_feat_print_fnlist(fn_list)  {		\
 	const struct dccp_feat_entry *___entry;		\
 							\
-	dccp_pr_debug("List Dump:\n");			\
+	dccp_pr_de("List Dump:\n");			\
 	list_for_each_entry(___entry, fn_list, node)	\
 		dccp_feat_print_entry(___entry);	\
 }
-#else	/* ! CONFIG_IP_DCCP_DEBUG */
+#else	/* ! CONFIG_IP_DCCP_DE */
 #define dccp_feat_print_opt(opt, feat, val, len, mandatory)
 #define dccp_feat_print_fnlist(fn_list)
 #endif
@@ -337,7 +337,7 @@ static int __dccp_feat_activate(struct sock *sk, const int idx,
 	/* Location is RX if this is a local-RX or remote-TX feature */
 	rx = (is_local == (dccp_feat_table[idx].rxtx == FEAT_AT_RX));
 
-	dccp_debug("   -> activating %s %s, %sval=%llu\n", rx ? "RX" : "TX",
+	dccp_de("   -> activating %s %s, %sval=%llu\n", rx ? "RX" : "TX",
 		   dccp_feat_fname(dccp_feat_table[idx].feat_num),
 		   fval ? "" : "default ",  (unsigned long long)val);
 
@@ -658,7 +658,7 @@ int dccp_feat_insert_opts(struct dccp_sock *dp, struct dccp_request_sock *dreq,
 				ptr = nn_in_nbo;
 				dccp_encode_value_var(pos->val.nn, ptr, len);
 			} else {
-				DCCP_BUG("unknown feature %u", pos->feat_num);
+				DCCP_("unknown feature %u", pos->feat_num);
 				return -1;
 			}
 		}
@@ -785,7 +785,7 @@ u64 dccp_feat_nn_get(struct sock *sk, u8 feat)
 			return dp->dccps_l_seq_win;
 		}
 	}
-	DCCP_BUG("attempt to look up unsupported feature %u", feat);
+	DCCP_("attempt to look up unsupported feature %u", feat);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dccp_feat_nn_get);
@@ -816,7 +816,7 @@ int dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val)
 
 	entry = dccp_feat_list_lookup(fn, feat, 1);
 	if (entry != NULL) {
-		dccp_pr_debug("Clobbering existing NN entry %llu -> %llu\n",
+		dccp_pr_de("Clobbering existing NN entry %llu -> %llu\n",
 			      (unsigned long long)entry->val.nn,
 			      (unsigned long long)nn_val);
 		dccp_feat_list_pop(entry);
@@ -1514,7 +1514,7 @@ int dccp_feat_activate_values(struct sock *sk, struct list_head *fn_list)
 
 		idx = dccp_feat_index(cur->feat_num);
 		if (idx < 0) {
-			DCCP_BUG("Unknown feature %u", cur->feat_num);
+			DCCP_("Unknown feature %u", cur->feat_num);
 			goto activation_failed;
 		}
 		if (cur->state != FEAT_STABLE) {
@@ -1545,7 +1545,7 @@ int dccp_feat_activate_values(struct sock *sk, struct list_head *fn_list)
 		if (!cur->needs_confirm)
 			dccp_feat_list_pop(cur);
 
-	dccp_pr_debug("Activation OK\n");
+	dccp_pr_de("Activation OK\n");
 	return 0;
 
 activation_failed:

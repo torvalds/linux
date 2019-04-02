@@ -24,7 +24,7 @@
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
 #include <asm/cpcmd.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/ebcdic.h>
 #include <net/iucv/iucv.h>
 #include <linux/kmod.h>

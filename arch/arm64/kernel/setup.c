@@ -130,7 +130,7 @@ static void __init smp_build_mpidr_hash(void)
 	 */
 	for_each_possible_cpu(i)
 		mask |= (cpu_logical_map(i) ^ cpu_logical_map(0));
-	pr_debug("mask of set bits %#llx\n", mask);
+	pr_de("mask of set bits %#llx\n", mask);
 	/*
 	 * Find and stash the last and first bit set at all affinity levels to
 	 * check how many bits are required to represent them.
@@ -164,7 +164,7 @@ static void __init smp_build_mpidr_hash(void)
 				  fs[3] - (bits[2] + bits[1] + bits[0]);
 	mpidr_hash.mask = mask;
 	mpidr_hash.bits = bits[3] + bits[2] + bits[1] + bits[0];
-	pr_debug("MPIDR hash: aff0[%u] aff1[%u] aff2[%u] aff3[%u] mask[%#llx] bits[%u]\n",
+	pr_de("MPIDR hash: aff0[%u] aff1[%u] aff2[%u] aff3[%u] mask[%#llx] bits[%u]\n",
 		mpidr_hash.shift_aff[0],
 		mpidr_hash.shift_aff[1],
 		mpidr_hash.shift_aff[2],

@@ -7,13 +7,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <sys/types.h>
 #include <dirent.h>
 
 #include "data.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "header.h"
 
 static void close_dir(struct perf_data_file *files, int nr)
@@ -389,7 +389,7 @@ int perf_data__switch(struct perf_data *data,
 
 		if (lseek(data->file.fd, pos, SEEK_SET) == (off_t)-1) {
 			ret = -errno;
-			pr_debug("Failed to lseek to %zu: %s",
+			pr_de("Failed to lseek to %zu: %s",
 				 pos, strerror(errno));
 			goto out;
 		}

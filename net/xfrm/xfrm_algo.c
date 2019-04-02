@@ -781,7 +781,7 @@ void xfrm_probe_algs(void)
 {
 	int i, status;
 
-	BUG_ON(in_softirq());
+	_ON(in_softirq());
 
 	for (i = 0; i < aalg_entries(); i++) {
 		status = crypto_has_ahash(aalg_list[i].name, 0, 0);

@@ -17,7 +17,7 @@
 #include <linux/hw_breakpoint.h>
 
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "perf.h"
 #include "cloexec.h"
 
@@ -50,7 +50,7 @@ static int __event(bool is_x, void *addr, struct perf_event_attr *attr)
 	fd = sys_perf_event_open(attr, -1, 0, -1,
 				 perf_event_open_cloexec_flag());
 	if (fd < 0) {
-		pr_debug("failed opening event %llx\n", attr->config);
+		pr_de("failed opening event %llx\n", attr->config);
 		return TEST_FAIL;
 	}
 
@@ -75,7 +75,7 @@ static int bp_accounting(int wp_cnt, int share)
 	for (i = 0; i < wp_cnt; i++) {
 		fd[i] = wp_event((void *)&the_var, &attr);
 		TEST_ASSERT_VAL("failed to create wp\n", fd[i] != -1);
-		pr_debug("wp %d created\n", i);
+		pr_de("wp %d created\n", i);
 	}
 
 	attr_mod = attr;
@@ -85,12 +85,12 @@ static int bp_accounting(int wp_cnt, int share)
 	ret = ioctl(fd[0], PERF_EVENT_IOC_MODIFY_ATTRIBUTES, &attr_mod);
 	TEST_ASSERT_VAL("failed to modify wp\n", ret == 0);
 
-	pr_debug("wp 0 modified to bp\n");
+	pr_de("wp 0 modified to bp\n");
 
 	if (!share) {
 		fd_wp = wp_event((void *)&the_var, &attr_new);
 		TEST_ASSERT_VAL("failed to create max wp\n", fd_wp != -1);
-		pr_debug("wp max created\n");
+		pr_de("wp max created\n");
 	}
 
 	for (i = 0; i < wp_cnt; i++)
@@ -107,7 +107,7 @@ static int detect_cnt(bool is_x)
 
 	while (1) {
 		if (cnt == 100) {
-			pr_debug("way too many debug registers, fix the test\n");
+			pr_de("way too many de registers, fix the test\n");
 			return 0;
 		}
 		fd[cnt] = __event(is_x, addr, &attr);
@@ -182,7 +182,7 @@ int test__bp_accounting(struct test *test __maybe_unused, int subtest __maybe_un
 	int bp_cnt = detect_cnt(true);
 	int share  = detect_share(wp_cnt, bp_cnt);
 
-	pr_debug("watchpoints count %d, breakpoints count %d, has_ioctl %d, share %d\n",
+	pr_de("watchpoints count %d, breakpoints count %d, has_ioctl %d, share %d\n",
 		 wp_cnt, bp_cnt, has_ioctl, share);
 
 	if (!wp_cnt || !bp_cnt || !has_ioctl)

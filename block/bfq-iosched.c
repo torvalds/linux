@@ -4083,7 +4083,7 @@ exit:
 	return rq;
 }
 
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
+#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DE_BLK_CGROUP)
 static void bfq_update_dispatch_stats(struct request_queue *q,
 				      struct request *rq,
 				      struct bfq_queue *in_serv_queue,
@@ -4689,7 +4689,7 @@ static bool __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 	return idle_timer_disabled;
 }
 
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
+#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DE_BLK_CGROUP)
 static void bfq_update_insert_stats(struct request_queue *q,
 				    struct bfq_queue *bfqq,
 				    bool idle_timer_disabled,

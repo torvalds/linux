@@ -371,7 +371,7 @@ xfs_trans_apply_dquot_deltas(
 				qtrx->qt_delbcnt_delta;
 			totalrtbdelta = qtrx->qt_rtbcount_delta +
 				qtrx->qt_delrtb_delta;
-#ifdef DEBUG
+#ifdef DE
 			if (totalbdelta < 0)
 				ASSERT(be64_to_cpu(d->d_bcount) >=
 				       -totalbdelta);

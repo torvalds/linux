@@ -378,7 +378,7 @@ ahc_aic7770_setup(struct ahc_softc *ahc)
 	ahc->channel_b = 'B';
 	ahc->chip = AHC_AIC7770;
 	ahc->features = AHC_AIC7770_FE;
-	ahc->bugs |= AHC_TMODE_WIDEODD_BUG;
+	ahc->s |= AHC_TMODE_WIDEODD_;
 	ahc->flags |= AHC_PAGESCBS;
 	ahc->instruction_ram_size = 448;
 	return (0);

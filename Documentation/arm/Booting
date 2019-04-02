@@ -45,7 +45,7 @@ New boot loaders:		OPTIONAL, RECOMMENDED
 The boot loader should initialise and enable one serial port on the
 target.  This allows the kernel serial driver to automatically detect
 which serial port it should use for the kernel console (generally
-used for debugging purposes, or communication with the target.)
+used for deging purposes, or communication with the target.)
 
 As an alternative, the boot loader can pass the relevant 'console='
 option to the kernel via the tagged lists specifying the port, and
@@ -171,7 +171,7 @@ In any case, the following conditions must be met:
 
 - Quiesce all DMA capable devices so that memory does not get
   corrupted by bogus network packets or disk data. This will save
-  you many hours of debug.
+  you many hours of de.
 
 - CPU register settings
   r0 = 0,

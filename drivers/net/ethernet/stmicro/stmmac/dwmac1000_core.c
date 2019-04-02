@@ -148,7 +148,7 @@ static void dwmac1000_set_mchash(void __iomem *ioaddr, u32 *mcfilterbits,
 		numhashregs = 8;
 		break;
 	default:
-		pr_debug("STMMAC: err in setting multicast filter\n");
+		pr_de("STMMAC: err in setting multicast filter\n");
 		return;
 		break;
 	}
@@ -166,7 +166,7 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 	u32 mc_filter[8];
 	int mcbitslog2 = hw->mcast_bits_log2;
 
-	pr_debug("%s: # mcasts %d, # unicast %d\n", __func__,
+	pr_de("%s: # mcasts %d, # unicast %d\n", __func__,
 		 netdev_mc_count(dev), netdev_uc_count(dev));
 
 	memset(mc_filter, 0, sizeof(mc_filter));
@@ -218,8 +218,8 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 		}
 	}
 
-#ifdef FRAME_FILTER_DEBUG
-	/* Enable Receive all mode (to debug filtering_fail errors) */
+#ifdef FRAME_FILTER_DE
+	/* Enable Receive all mode (to de filtering_fail errors) */
 	value |= GMAC_FRAME_FILTER_RA;
 #endif
 	writel(value, ioaddr + GMAC_FRAME_FILTER);
@@ -236,18 +236,18 @@ static void dwmac1000_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	 */
 	unsigned int flow = GMAC_FLOW_CTRL_UP;
 
-	pr_debug("GMAC Flow-Control:\n");
+	pr_de("GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
-		pr_debug("\tReceive Flow-Control ON\n");
+		pr_de("\tReceive Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_RFE;
 	}
 	if (fc & FLOW_TX) {
-		pr_debug("\tTransmit Flow-Control ON\n");
+		pr_de("\tTransmit Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_TFE;
 	}
 
 	if (duplex) {
-		pr_debug("\tduplex mode: PAUSE %d\n", pause_time);
+		pr_de("\tduplex mode: PAUSE %d\n", pause_time);
 		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
 	}
 
@@ -260,11 +260,11 @@ static void dwmac1000_pmt(struct mac_device_info *hw, unsigned long mode)
 	unsigned int pmt = 0;
 
 	if (mode & WAKE_MAGIC) {
-		pr_debug("GMAC: WOL Magic frame\n");
+		pr_de("GMAC: WOL Magic frame\n");
 		pmt |= power_down | magic_pkt_en;
 	}
 	if (mode & WAKE_UCAST) {
-		pr_debug("GMAC: WOL on global unicast\n");
+		pr_de("GMAC: WOL on global unicast\n");
 		pmt |= power_down | global_unicast | wake_up_frame_en;
 	}
 
@@ -424,78 +424,78 @@ static void dwmac1000_get_adv_lp(void __iomem *ioaddr, struct rgmii_adv *adv)
 	dwmac_get_adv_lp(ioaddr, GMAC_PCS_BASE, adv);
 }
 
-static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+static void dwmac1000_de(void __iomem *ioaddr, struct stmmac_extra_stats *x,
 			    u32 rx_queues, u32 tx_queues)
 {
-	u32 value = readl(ioaddr + GMAC_DEBUG);
+	u32 value = readl(ioaddr + GMAC_DE);
 
-	if (value & GMAC_DEBUG_TXSTSFSTS)
+	if (value & GMAC_DE_TXSTSFSTS)
 		x->mtl_tx_status_fifo_full++;
-	if (value & GMAC_DEBUG_TXFSTS)
+	if (value & GMAC_DE_TXFSTS)
 		x->mtl_tx_fifo_not_empty++;
-	if (value & GMAC_DEBUG_TWCSTS)
+	if (value & GMAC_DE_TWCSTS)
 		x->mmtl_fifo_ctrl++;
-	if (value & GMAC_DEBUG_TRCSTS_MASK) {
-		u32 trcsts = (value & GMAC_DEBUG_TRCSTS_MASK)
-			     >> GMAC_DEBUG_TRCSTS_SHIFT;
-		if (trcsts == GMAC_DEBUG_TRCSTS_WRITE)
+	if (value & GMAC_DE_TRCSTS_MASK) {
+		u32 trcsts = (value & GMAC_DE_TRCSTS_MASK)
+			     >> GMAC_DE_TRCSTS_SHIFT;
+		if (trcsts == GMAC_DE_TRCSTS_WRITE)
 			x->mtl_tx_fifo_read_ctrl_write++;
-		else if (trcsts == GMAC_DEBUG_TRCSTS_TXW)
+		else if (trcsts == GMAC_DE_TRCSTS_TXW)
 			x->mtl_tx_fifo_read_ctrl_wait++;
-		else if (trcsts == GMAC_DEBUG_TRCSTS_READ)
+		else if (trcsts == GMAC_DE_TRCSTS_READ)
 			x->mtl_tx_fifo_read_ctrl_read++;
 		else
 			x->mtl_tx_fifo_read_ctrl_idle++;
 	}
-	if (value & GMAC_DEBUG_TXPAUSED)
+	if (value & GMAC_DE_TXPAUSED)
 		x->mac_tx_in_pause++;
-	if (value & GMAC_DEBUG_TFCSTS_MASK) {
-		u32 tfcsts = (value & GMAC_DEBUG_TFCSTS_MASK)
-			      >> GMAC_DEBUG_TFCSTS_SHIFT;
+	if (value & GMAC_DE_TFCSTS_MASK) {
+		u32 tfcsts = (value & GMAC_DE_TFCSTS_MASK)
+			      >> GMAC_DE_TFCSTS_SHIFT;
 
-		if (tfcsts == GMAC_DEBUG_TFCSTS_XFER)
+		if (tfcsts == GMAC_DE_TFCSTS_XFER)
 			x->mac_tx_frame_ctrl_xfer++;
-		else if (tfcsts == GMAC_DEBUG_TFCSTS_GEN_PAUSE)
+		else if (tfcsts == GMAC_DE_TFCSTS_GEN_PAUSE)
 			x->mac_tx_frame_ctrl_pause++;
-		else if (tfcsts == GMAC_DEBUG_TFCSTS_WAIT)
+		else if (tfcsts == GMAC_DE_TFCSTS_WAIT)
 			x->mac_tx_frame_ctrl_wait++;
 		else
 			x->mac_tx_frame_ctrl_idle++;
 	}
-	if (value & GMAC_DEBUG_TPESTS)
+	if (value & GMAC_DE_TPESTS)
 		x->mac_gmii_tx_proto_engine++;
-	if (value & GMAC_DEBUG_RXFSTS_MASK) {
-		u32 rxfsts = (value & GMAC_DEBUG_RXFSTS_MASK)
-			     >> GMAC_DEBUG_RRCSTS_SHIFT;
+	if (value & GMAC_DE_RXFSTS_MASK) {
+		u32 rxfsts = (value & GMAC_DE_RXFSTS_MASK)
+			     >> GMAC_DE_RRCSTS_SHIFT;
 
-		if (rxfsts == GMAC_DEBUG_RXFSTS_FULL)
+		if (rxfsts == GMAC_DE_RXFSTS_FULL)
 			x->mtl_rx_fifo_fill_level_full++;
-		else if (rxfsts == GMAC_DEBUG_RXFSTS_AT)
+		else if (rxfsts == GMAC_DE_RXFSTS_AT)
 			x->mtl_rx_fifo_fill_above_thresh++;
-		else if (rxfsts == GMAC_DEBUG_RXFSTS_BT)
+		else if (rxfsts == GMAC_DE_RXFSTS_BT)
 			x->mtl_rx_fifo_fill_below_thresh++;
 		else
 			x->mtl_rx_fifo_fill_level_empty++;
 	}
-	if (value & GMAC_DEBUG_RRCSTS_MASK) {
-		u32 rrcsts = (value & GMAC_DEBUG_RRCSTS_MASK) >>
-			     GMAC_DEBUG_RRCSTS_SHIFT;
+	if (value & GMAC_DE_RRCSTS_MASK) {
+		u32 rrcsts = (value & GMAC_DE_RRCSTS_MASK) >>
+			     GMAC_DE_RRCSTS_SHIFT;
 
-		if (rrcsts == GMAC_DEBUG_RRCSTS_FLUSH)
+		if (rrcsts == GMAC_DE_RRCSTS_FLUSH)
 			x->mtl_rx_fifo_read_ctrl_flush++;
-		else if (rrcsts == GMAC_DEBUG_RRCSTS_RSTAT)
+		else if (rrcsts == GMAC_DE_RRCSTS_RSTAT)
 			x->mtl_rx_fifo_read_ctrl_read_data++;
-		else if (rrcsts == GMAC_DEBUG_RRCSTS_RDATA)
+		else if (rrcsts == GMAC_DE_RRCSTS_RDATA)
 			x->mtl_rx_fifo_read_ctrl_status++;
 		else
 			x->mtl_rx_fifo_read_ctrl_idle++;
 	}
-	if (value & GMAC_DEBUG_RWCSTS)
+	if (value & GMAC_DE_RWCSTS)
 		x->mtl_rx_fifo_ctrl_active++;
-	if (value & GMAC_DEBUG_RFCFCSTS_MASK)
-		x->mac_rx_frame_ctrl_fifo = (value & GMAC_DEBUG_RFCFCSTS_MASK)
-					    >> GMAC_DEBUG_RFCFCSTS_SHIFT;
-	if (value & GMAC_DEBUG_RPESTS)
+	if (value & GMAC_DE_RFCFCSTS_MASK)
+		x->mac_rx_frame_ctrl_fifo = (value & GMAC_DE_RFCFCSTS_MASK)
+					    >> GMAC_DE_RFCFCSTS_SHIFT;
+	if (value & GMAC_DE_RPESTS)
 		x->mac_gmii_rx_proto_engine++;
 }
 
@@ -514,7 +514,7 @@ const struct stmmac_ops dwmac1000_ops = {
 	.reset_eee_mode = dwmac1000_reset_eee_mode,
 	.set_eee_timer = dwmac1000_set_eee_timer,
 	.set_eee_pls = dwmac1000_set_eee_pls,
-	.debug = dwmac1000_debug,
+	.de = dwmac1000_de,
 	.pcs_ctrl_ane = dwmac1000_ctrl_ane,
 	.pcs_rane = dwmac1000_rane,
 	.pcs_get_adv_lp = dwmac1000_get_adv_lp,

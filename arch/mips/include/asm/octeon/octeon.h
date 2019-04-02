@@ -73,7 +73,7 @@ struct octeon_boot_descriptor {
 	uint32_t argv[OCTEON_ARGV_MAX_ARGS];
 
 #define	 BOOT_FLAG_INIT_CORE		(1 << 0)
-#define	 OCTEON_BL_FLAG_DEBUG		(1 << 1)
+#define	 OCTEON_BL_FLAG_DE		(1 << 1)
 #define	 OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
 #define	 OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
@@ -88,8 +88,8 @@ struct octeon_boot_descriptor {
 	uint32_t dram_size;
 	/* physical address of free memory descriptor block. */
 	uint32_t phy_mem_desc_addr;
-	/* used to pass flags from app to debugger. */
-	uint32_t debugger_flags_base_addr;
+	/* used to pass flags from app to deger. */
+	uint32_t deger_flags_base_addr;
 	/* CPU clock speed, in hz. */
 	uint32_t eclock_hz;
 	/* DRAM clock speed, in hz. */
@@ -127,7 +127,7 @@ struct octeon_boot_descriptor {
 	uint32_t argv[OCTEON_ARGV_MAX_ARGS];
 
 #define  BOOT_FLAG_INIT_CORE		(1 << 0)
-#define  OCTEON_BL_FLAG_DEBUG		(1 << 1)
+#define  OCTEON_BL_FLAG_DE		(1 << 1)
 #define  OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
 #define  OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
@@ -144,8 +144,8 @@ struct octeon_boot_descriptor {
 	uint32_t dram_size;
 	/* CPU clock speed, in hz. */
 	uint32_t eclock_hz;
-	/* used to pass flags from app to debugger. */
-	uint32_t debugger_flags_base_addr;
+	/* used to pass flags from app to deger. */
+	uint32_t deger_flags_base_addr;
 	/* SPI4 clock in hz. */
 	uint32_t spi_clock_hz;
 	/* DRAM clock speed, in hz. */
@@ -264,7 +264,7 @@ union octeon_cvmemctl {
 		/* Reserved */
 		__BITFIELD_FIELD(uint64_t reserved2:2,
 		/* R/W If set, CVMSEG is available for loads/stores in
-		 * kernel/debug mode. */
+		 * kernel/de mode. */
 		__BITFIELD_FIELD(uint64_t cvmsegenak:1,
 		/* R/W If set, CVMSEG is available for loads/stores in
 		 * supervisor mode. */

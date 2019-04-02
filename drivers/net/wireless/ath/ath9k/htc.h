@@ -319,20 +319,20 @@ static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
-	BUILD_BUG_ON(sizeof(struct ath9k_htc_tx_ctl) >
+	BUILD__ON(sizeof(struct ath9k_htc_tx_ctl) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct ath9k_htc_tx_ctl *) &tx_info->driver_data;
 }
 
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_ATH9K_HTC_DEFS
 
-#define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
-#define TX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c += a)
-#define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.skbrx_stats.c++)
-#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.skbrx_stats.c += a)
-#define CAB_STAT_INC   priv->debug.tx_stats.cab_queued++
+#define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->de.tx_stats.c++)
+#define TX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->de.tx_stats.c += a)
+#define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->de.skbrx_stats.c++)
+#define RX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->de.skbrx_stats.c += a)
+#define CAB_STAT_INC   priv->de.tx_stats.cab_queued++
 
-#define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
+#define TX_QSTAT_INC(q) (priv->de.tx_stats.queue_stats[q]++)
 
 void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 			   struct ath_rx_status *rs);
@@ -355,8 +355,8 @@ struct ath_skbrx_stats {
 	u32 skb_dropped;
 };
 
-struct ath9k_debug {
-	struct dentry *debugfs_phy;
+struct ath9k_de {
+	struct dentry *defs_phy;
 	struct ath_tx_stats tx_stats;
 	struct ath_rx_stats rx_stats;
 	struct ath_skbrx_stats skbrx_stats;
@@ -385,7 +385,7 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 {
 }
 
-#endif /* CONFIG_ATH9K_HTC_DEBUGFS */
+#endif /* CONFIG_ATH9K_HTC_DEFS */
 
 #define ATH_LED_PIN_DEF             1
 #define ATH_LED_PIN_9287            10
@@ -527,8 +527,8 @@ struct ath9k_htc_priv {
 
 	struct delayed_work coex_period_work;
 	struct delayed_work duty_cycle_work;
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-	struct ath9k_debug debug;
+#ifdef CONFIG_ATH9K_HTC_DEFS
+	struct ath9k_de de;
 #endif
 	struct mutex mutex;
 	struct ieee80211_vif *csa_vif;
@@ -634,14 +634,14 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 void ath9k_htc_suspend(struct htc_target *htc_handle);
 int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-int ath9k_htc_init_debug(struct ath_hw *ah);
-void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv);
+#ifdef CONFIG_ATH9K_HTC_DEFS
+int ath9k_htc_init_de(struct ath_hw *ah);
+void ath9k_htc_deinit_de(struct ath9k_htc_priv *priv);
 #else
-static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
-static inline void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
+static inline int ath9k_htc_init_de(struct ath_hw *ah) { return 0; };
+static inline void ath9k_htc_deinit_de(struct ath9k_htc_priv *priv)
 {
 }
-#endif /* CONFIG_ATH9K_HTC_DEBUGFS */
+#endif /* CONFIG_ATH9K_HTC_DEFS */
 
 #endif /* HTC_H */

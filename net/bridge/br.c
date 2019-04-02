@@ -241,7 +241,7 @@ int br_boolopt_multi_toggle(struct net_bridge *br,
 
 		err = br_boolopt_toggle(br, opt_id, on, extack);
 		if (err) {
-			br_debug(br, "boolopt multi-toggle error: option: %d current: %d new: %d error: %d\n",
+			br_de(br, "boolopt multi-toggle error: option: %d current: %d new: %d error: %d\n",
 				 opt_id, br_boolopt_get(br, opt_id), on, err);
 			break;
 		}
@@ -268,7 +268,7 @@ void br_opt_toggle(struct net_bridge *br, enum net_bridge_opts opt, bool on)
 {
 	bool cur = !!br_opt_get(br, opt);
 
-	br_debug(br, "toggle option: %d state: %d -> %d\n",
+	br_de(br, "toggle option: %d state: %d -> %d\n",
 		 opt, cur, on);
 
 	if (cur == on)
@@ -307,7 +307,7 @@ static int __init br_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct br_input_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD__ON(sizeof(struct br_input_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	err = stp_proto_register(&br_stp_proto);
 	if (err < 0) {

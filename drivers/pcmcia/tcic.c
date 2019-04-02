@@ -120,30 +120,30 @@ static struct tcic_socket socket_table[2];
    to map to irq 11, but is coded as 0 or 1 in the irq registers. */
 #define TCIC_IRQ(x) ((x) ? (((x) == 11) ? 1 : (x)) : 15)
 
-#ifdef DEBUG_X
+#ifdef DE_X
 static u_char tcic_getb(u_char reg)
 {
     u_char val = inb(tcic_base+reg);
-    printk(KERN_DEBUG "tcic_getb(%#lx) = %#x\n", tcic_base+reg, val);
+    printk(KERN_DE "tcic_getb(%#lx) = %#x\n", tcic_base+reg, val);
     return val;
 }
 
 static u_short tcic_getw(u_char reg)
 {
     u_short val = inw(tcic_base+reg);
-    printk(KERN_DEBUG "tcic_getw(%#lx) = %#x\n", tcic_base+reg, val);
+    printk(KERN_DE "tcic_getw(%#lx) = %#x\n", tcic_base+reg, val);
     return val;
 }
 
 static void tcic_setb(u_char reg, u_char data)
 {
-    printk(KERN_DEBUG "tcic_setb(%#lx, %#x)\n", tcic_base+reg, data);
+    printk(KERN_DE "tcic_setb(%#lx, %#x)\n", tcic_base+reg, data);
     outb(data, tcic_base+reg);
 }
 
 static void tcic_setw(u_char reg, u_short data)
 {
-    printk(KERN_DEBUG "tcic_setw(%#lx, %#x)\n", tcic_base+reg, data);
+    printk(KERN_DE "tcic_setw(%#lx, %#x)\n", tcic_base+reg, data);
     outw(data, tcic_base+reg);
 }
 #else
@@ -155,8 +155,8 @@ static void tcic_setw(u_char reg, u_short data)
 
 static void tcic_setl(u_char reg, u_int data)
 {
-#ifdef DEBUG_X
-    printk(KERN_DEBUG "tcic_setl(%#x, %#lx)\n", tcic_base+reg, data);
+#ifdef DE_X
+    printk(KERN_DE "tcic_setl(%#x, %#lx)\n", tcic_base+reg, data);
 #endif
     outw(data & 0xffff, tcic_base+reg);
     outw(data >> 16, tcic_base+reg+2);
@@ -540,7 +540,7 @@ static irqreturn_t tcic_interrupt(int irq, void *dev)
     } else
 	active = 1;
 
-    pr_debug("tcic_interrupt()\n");
+    pr_de("tcic_interrupt()\n");
     
     for (i = 0; i < sockets; i++) {
 	psock = socket_table[i].psock;
@@ -577,13 +577,13 @@ static irqreturn_t tcic_interrupt(int irq, void *dev)
     }
     active = 0;
     
-    pr_debug("interrupt done\n");
+    pr_de("interrupt done\n");
     return IRQ_HANDLED;
 } /* tcic_interrupt */
 
 static void tcic_timer(struct timer_list *unused)
 {
-    pr_debug("tcic_timer()\n");
+    pr_de("tcic_timer()\n");
     tcic_timer_pending = 0;
     tcic_interrupt(0, NULL);
 } /* tcic_timer */

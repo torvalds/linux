@@ -18,7 +18,7 @@ affs_count_free_blocks(struct super_block *sb)
 	u32 free;
 	int i;
 
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	if (sb_rdonly(sb))
 		return 0;
@@ -44,7 +44,7 @@ affs_free_block(struct super_block *sb, u32 block)
 	u32 blk, bmap, bit, mask, tmp;
 	__be32 *data;
 
-	pr_debug("%s(%u)\n", __func__, block);
+	pr_de("%s(%u)\n", __func__, block);
 
 	if (block > sbi->s_partition_size)
 		goto err_range;
@@ -125,10 +125,10 @@ affs_alloc_block(struct inode *inode, u32 goal)
 	sb = inode->i_sb;
 	sbi = AFFS_SB(sb);
 
-	pr_debug("balloc(inode=%lu,goal=%u): ", inode->i_ino, goal);
+	pr_de("balloc(inode=%lu,goal=%u): ", inode->i_ino, goal);
 
 	if (AFFS_I(inode)->i_pa_cnt) {
-		pr_debug("%d\n", AFFS_I(inode)->i_lastalloc+1);
+		pr_de("%d\n", AFFS_I(inode)->i_lastalloc+1);
 		AFFS_I(inode)->i_pa_cnt--;
 		return ++AFFS_I(inode)->i_lastalloc;
 	}
@@ -228,7 +228,7 @@ find_bit:
 
 	mutex_unlock(&sbi->s_bmlock);
 
-	pr_debug("%d\n", blk);
+	pr_de("%d\n", blk);
 	return blk;
 
 err_bh_read:
@@ -237,7 +237,7 @@ err_bh_read:
 	sbi->s_last_bmap = ~0;
 err_full:
 	mutex_unlock(&sbi->s_bmlock);
-	pr_debug("failed\n");
+	pr_de("failed\n");
 	return 0;
 }
 
@@ -291,7 +291,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 			*flags |= SB_RDONLY;
 			goto out;
 		}
-		pr_debug("read bitmap block %d: %d\n", blk, bm->bm_key);
+		pr_de("read bitmap block %d: %d\n", blk, bm->bm_key);
 		bm->bm_free = memweight(bh->b_data + 4, sb->s_blocksize - 4);
 
 		/* Don't try read the extension if this is the last block,
@@ -314,7 +314,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 
 	offset = (sbi->s_partition_size - sbi->s_reserved) % sbi->s_bmap_bits;
 	mask = ~(0xFFFFFFFFU << (offset & 31));
-	pr_debug("last word: %d %d %d\n", offset, offset / 32 + 1, mask);
+	pr_de("last word: %d %d %d\n", offset, offset / 32 + 1, mask);
 	offset = offset / 32 + 1;
 
 	if (mask) {

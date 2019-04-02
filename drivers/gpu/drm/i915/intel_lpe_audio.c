@@ -206,7 +206,7 @@ static int lpe_audio_setup(struct drm_i915_private *dev_priv)
 		goto err;
 	}
 
-	DRM_DEBUG("irq = %d\n", dev_priv->lpe_audio.irq);
+	DRM_DE("irq = %d\n", dev_priv->lpe_audio.irq);
 
 	ret = lpe_audio_irq_init(dev_priv);
 

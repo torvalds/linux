@@ -427,7 +427,7 @@ int gma_intel_setup_gmbus(struct drm_device *dev)
 		/* By default use a conservative clock rate */
 		bus->reg0 = i | GMBUS_RATE_100KHZ;
 
-		/* XXX force bit banging until GMBUS is fully debugged */
+		/* XXX force bit banging until GMBUS is fully deged */
 		bus->force_bit = intel_gpio_create(dev_priv, i);
 	}
 

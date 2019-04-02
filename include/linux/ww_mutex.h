@@ -34,15 +34,15 @@ struct ww_acquire_ctx {
 	unsigned int acquired;
 	unsigned short wounded;
 	unsigned short is_wait_die;
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	unsigned int done_acquire;
 	struct ww_class *ww_class;
 	struct ww_mutex *contending_lock;
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif
-#ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+#ifdef CONFIG_DE_WW_MUTEX_SLOWPATH
 	unsigned int deadlock_inject_interval;
 	unsigned int deadlock_inject_countdown;
 #endif
@@ -51,12 +51,12 @@ struct ww_acquire_ctx {
 struct ww_mutex {
 	struct mutex base;
 	struct ww_acquire_ctx *ctx;
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	struct ww_class *ww_class;
 #endif
 };
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define __WW_CLASS_MUTEX_INITIALIZER(lockname, class) \
 		, .ww_class = class
 #else
@@ -97,7 +97,7 @@ static inline void ww_mutex_init(struct ww_mutex *lock,
 {
 	__mutex_init(&lock->base, ww_class->mutex_name, &ww_class->mutex_key);
 	lock->ctx = NULL;
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	lock->ww_class = ww_class;
 #endif
 }
@@ -134,18 +134,18 @@ static inline void ww_acquire_init(struct ww_acquire_ctx *ctx,
 	ctx->acquired = 0;
 	ctx->wounded = false;
 	ctx->is_wait_die = ww_class->is_wait_die;
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	ctx->ww_class = ww_class;
 	ctx->done_acquire = 0;
 	ctx->contending_lock = NULL;
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	debug_check_no_locks_freed((void *)ctx, sizeof(*ctx));
+#ifdef CONFIG_DE_LOCK_ALLOC
+	de_check_no_locks_freed((void *)ctx, sizeof(*ctx));
 	lockdep_init_map(&ctx->dep_map, ww_class->acquire_name,
 			 &ww_class->acquire_key, 0);
 	mutex_acquire(&ctx->dep_map, 0, 0, _RET_IP_);
 #endif
-#ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+#ifdef CONFIG_DE_WW_MUTEX_SLOWPATH
 	ctx->deadlock_inject_interval = 1;
 	ctx->deadlock_inject_countdown = ctx->stamp & 0xf;
 #endif
@@ -164,10 +164,10 @@ static inline void ww_acquire_init(struct ww_acquire_ctx *ctx,
  */
 static inline void ww_acquire_done(struct ww_acquire_ctx *ctx)
 {
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	lockdep_assert_held(ctx);
 
-	DEBUG_LOCKS_WARN_ON(ctx->done_acquire);
+	DE_LOCKS_WARN_ON(ctx->done_acquire);
 	ctx->done_acquire = 1;
 #endif
 }
@@ -181,10 +181,10 @@ static inline void ww_acquire_done(struct ww_acquire_ctx *ctx)
  */
 static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
 {
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	mutex_release(&ctx->dep_map, 0, _THIS_IP_);
 
-	DEBUG_LOCKS_WARN_ON(ctx->acquired);
+	DE_LOCKS_WARN_ON(ctx->acquired);
 	if (!IS_ENABLED(CONFIG_PROVE_LOCKING))
 		/*
 		 * lockdep will normally handle this,
@@ -192,7 +192,7 @@ static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
 		 */
 		ctx->done_acquire = 1;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_LOCK_ALLOC))
+	if (!IS_ENABLED(CONFIG_DE_LOCK_ALLOC))
 		/* ensure ww_acquire_fini will still fail if called twice */
 		ctx->acquired = ~0U;
 #endif
@@ -289,8 +289,8 @@ static inline void
 ww_mutex_lock_slow(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
 	int ret;
-#ifdef CONFIG_DEBUG_MUTEXES
-	DEBUG_LOCKS_WARN_ON(!ctx->contending_lock);
+#ifdef CONFIG_DE_MUTEXES
+	DE_LOCKS_WARN_ON(!ctx->contending_lock);
 #endif
 	ret = ww_mutex_lock(lock, ctx);
 	(void)ret;
@@ -325,8 +325,8 @@ static inline int __must_check
 ww_mutex_lock_slow_interruptible(struct ww_mutex *lock,
 				 struct ww_acquire_ctx *ctx)
 {
-#ifdef CONFIG_DEBUG_MUTEXES
-	DEBUG_LOCKS_WARN_ON(!ctx->contending_lock);
+#ifdef CONFIG_DE_MUTEXES
+	DE_LOCKS_WARN_ON(!ctx->contending_lock);
 #endif
 	return ww_mutex_lock_interruptible(lock, ctx);
 }

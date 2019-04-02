@@ -20,7 +20,7 @@
  */
 
 /* Uncomment next line to get verbose printout */
-/* #define DEBUG */
+/* #define DE */
 #define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/module.h>
@@ -86,7 +86,7 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 {
 	if (!strcmp("Linux", interface)) {
-		pr_notice_once(FW_BUG
+		pr_notice_once(FW_
 			"BIOS _OSI(Linux) query %s%s\n",
 			osi_config.linux_enable ? "honored" : "ignored",
 			osi_config.linux_cmdline ? " via cmdline" :
@@ -481,7 +481,7 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	},
 
 	/*
-	 * BIOS invocation of _OSI(Linux) is almost always a BIOS bug.
+	 * BIOS invocation of _OSI(Linux) is almost always a BIOS .
 	 * Linux ignores it, except for the machines enumerated below.
 	 */
 

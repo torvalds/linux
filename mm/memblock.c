@@ -16,7 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/poison.h>
 #include <linux/pfn.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kmemleak.h>
 #include <linux/seq_file.h>
 #include <linux/memblock.h>
@@ -137,7 +137,7 @@ struct memblock memblock __initdata_memblock = {
 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
 };
 
-int memblock_debug __initdata_memblock;
+int memblock_de __initdata_memblock;
 static bool system_has_some_mirror __initdata_memblock = false;
 static int memblock_can_resize __initdata_memblock;
 static int memblock_memory_in_slab __initdata_memblock = 0;
@@ -498,7 +498,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 	 * needn't do it
 	 */
 	if (!use_slab)
-		BUG_ON(memblock_reserve(addr, new_alloc_size));
+		_ON(memblock_reserve(addr, new_alloc_size));
 
 	/* Update slab flag */
 	*in_slab = use_slab;
@@ -525,7 +525,7 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
 		    memblock_get_region_node(this) !=
 		    memblock_get_region_node(next) ||
 		    this->flags != next->flags) {
-			BUG_ON(this->base + this->size > next->base);
+			_ON(this->base + this->size > next->base);
 			i++;
 			continue;
 		}
@@ -557,7 +557,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
 {
 	struct memblock_region *rgn = &type->regions[idx];
 
-	BUG_ON(type->cnt >= type->max);
+	_ON(type->cnt >= type->max);
 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
 	rgn->base = base;
 	rgn->size = size;
@@ -1433,7 +1433,7 @@ static void * __init memblock_alloc_internal(
  *	      allocate only from memory limited by memblock.current_limit value
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
  *
- * Public function, provides additional debug information (including caller
+ * Public function, provides additional de information (including caller
  * info), if enabled. Does not zero allocated memory, does not panic if request
  * cannot be satisfied.
  *
@@ -1470,7 +1470,7 @@ void * __init memblock_alloc_try_nid_raw(
  *	      allocate only from memory limited by memblock.current_limit value
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
  *
- * Public function, provides additional debug information (including caller
+ * Public function, provides additional de information (including caller
  * info), if enabled. This function zeroes the allocated memory.
  *
  * Return:
@@ -1823,8 +1823,8 @@ void __init memblock_allow_resize(void)
 
 static int __init early_memblock(char *p)
 {
-	if (p && strstr(p, "debug"))
-		memblock_debug = 1;
+	if (p && strstr(p, "de"))
+		memblock_de = 1;
 	return 0;
 }
 early_param("memblock", early_memblock);
@@ -1923,9 +1923,9 @@ unsigned long __init memblock_free_all(void)
 	return pages;
 }
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_ARCH_DISCARD_MEMBLOCK)
+#if defined(CONFIG_DE_FS) && !defined(CONFIG_ARCH_DISCARD_MEMBLOCK)
 
-static int memblock_debug_show(struct seq_file *m, void *private)
+static int memblock_de_show(struct seq_file *m, void *private)
 {
 	struct memblock_type *type = m->private;
 	struct memblock_region *reg;
@@ -1941,23 +1941,23 @@ static int memblock_debug_show(struct seq_file *m, void *private)
 	}
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(memblock_debug);
+DEFINE_SHOW_ATTRIBUTE(memblock_de);
 
-static int __init memblock_init_debugfs(void)
+static int __init memblock_init_defs(void)
 {
-	struct dentry *root = debugfs_create_dir("memblock", NULL);
+	struct dentry *root = defs_create_dir("memblock", NULL);
 
-	debugfs_create_file("memory", 0444, root,
-			    &memblock.memory, &memblock_debug_fops);
-	debugfs_create_file("reserved", 0444, root,
-			    &memblock.reserved, &memblock_debug_fops);
+	defs_create_file("memory", 0444, root,
+			    &memblock.memory, &memblock_de_fops);
+	defs_create_file("reserved", 0444, root,
+			    &memblock.reserved, &memblock_de_fops);
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-	debugfs_create_file("physmem", 0444, root,
-			    &memblock.physmem, &memblock_debug_fops);
+	defs_create_file("physmem", 0444, root,
+			    &memblock.physmem, &memblock_de_fops);
 #endif
 
 	return 0;
 }
-__initcall(memblock_init_debugfs);
+__initcall(memblock_init_defs);
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

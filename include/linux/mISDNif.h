@@ -415,23 +415,23 @@ struct mISDN_ctrl_req {
 #include <net/sock.h>
 #include <linux/completion.h>
 
-#define DEBUG_CORE		0x000000ff
-#define DEBUG_CORE_FUNC		0x00000002
-#define DEBUG_SOCKET		0x00000004
-#define DEBUG_MANAGER		0x00000008
-#define DEBUG_SEND_ERR		0x00000010
-#define DEBUG_MSG_THREAD	0x00000020
-#define DEBUG_QUEUE_FUNC	0x00000040
-#define DEBUG_L1		0x0000ff00
-#define DEBUG_L1_FSM		0x00000200
-#define DEBUG_L2		0x00ff0000
-#define DEBUG_L2_FSM		0x00020000
-#define DEBUG_L2_CTRL		0x00040000
-#define DEBUG_L2_RECV		0x00080000
-#define DEBUG_L2_TEI		0x00100000
-#define DEBUG_L2_TEIFSM		0x00200000
-#define DEBUG_TIMER		0x01000000
-#define DEBUG_CLOCK		0x02000000
+#define DE_CORE		0x000000ff
+#define DE_CORE_FUNC		0x00000002
+#define DE_SOCKET		0x00000004
+#define DE_MANAGER		0x00000008
+#define DE_SEND_ERR		0x00000010
+#define DE_MSG_THREAD	0x00000020
+#define DE_QUEUE_FUNC	0x00000040
+#define DE_L1		0x0000ff00
+#define DE_L1_FSM		0x00000200
+#define DE_L2		0x00ff0000
+#define DE_L2_FSM		0x00020000
+#define DE_L2_CTRL		0x00040000
+#define DE_L2_RECV		0x00080000
+#define DE_L2_TEI		0x00100000
+#define DE_L2_TEIFSM		0x00200000
+#define DE_TIMER		0x01000000
+#define DE_CLOCK		0x02000000
 
 #define mISDN_HEAD_P(s)		((struct mISDNhead *)&s->cb[0])
 #define mISDN_HEAD_PRIM(s)	(((struct mISDNhead *)&s->cb[0])->prim)

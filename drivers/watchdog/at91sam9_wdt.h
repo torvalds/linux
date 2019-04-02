@@ -26,7 +26,7 @@
 #define		AT91_WDT_WDDIS		(1     << 15)		/* Watchdog Disable */
 #define		AT91_WDT_WDD		(0xfff << 16)		/* Delta Value */
 #define			AT91_WDT_SET_WDD(x)	(((x) << 16) & AT91_WDT_WDD)
-#define		AT91_WDT_WDDBGHLT	(1     << 28)		/* Debug Halt */
+#define		AT91_WDT_WDDBGHLT	(1     << 28)		/* De Halt */
 #define		AT91_WDT_WDIDLEHLT	(1     << 29)		/* Idle Halt */
 
 #define AT91_WDT_SR		0x08			/* Watchdog Status Register */

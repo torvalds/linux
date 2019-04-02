@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: dsdebug - Parser/Interpreter interface - debugging
+ * Module Name: dsde - Parser/Interpreter interface - deging
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -17,9 +17,9 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
-ACPI_MODULE_NAME("dsdebug")
+ACPI_MODULE_NAME("dsde")
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 /* Local prototypes */
 static void
 acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
@@ -47,7 +47,7 @@ acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
 	ACPI_FUNCTION_TRACE(ds_print_node_pathname);
 
 	if (!node) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "[NULL NAME]"));
+		ACPI_DE_PRINT_RAW((ACPI_DB_DISPATCH, "[NULL NAME]"));
 		return_VOID;
 	}
 
@@ -58,11 +58,11 @@ acpi_ds_print_node_pathname(struct acpi_namespace_node *node,
 	status = acpi_ns_handle_to_pathname(node, &buffer, TRUE);
 	if (ACPI_SUCCESS(status)) {
 		if (message) {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "%s ",
+			ACPI_DE_PRINT_RAW((ACPI_DB_DISPATCH, "%s ",
 					      message));
 		}
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "[%s] (Node %p)",
+		ACPI_DE_PRINT_RAW((ACPI_DB_DISPATCH, "[%s] (Node %p)",
 				      (char *)buffer.pointer, node));
 		ACPI_FREE(buffer.pointer);
 	}
@@ -107,7 +107,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 	/* We may be executing a deferred opcode */
 
 	if (walk_state->deferred_node) {
-		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+		ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 				  "Executing subtree for Buffer/Package/Region\n"));
 		return_VOID;
 	}
@@ -124,7 +124,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 
 	/* Display exception and method name */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "\n**** Exception %s during execution of method ",
 			  acpi_format_exception(status)));
 
@@ -132,7 +132,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 
 	/* Display stack of executing methods */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT_RAW((ACPI_DB_DISPATCH,
 			      "\n\nMethod Execution Stack:\n"));
 	next_walk_state = thread->walk_state_list;
 
@@ -146,7 +146,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 						  method_desc, walk_state);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+		ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 				  "    Method [%4.4s] executing: ",
 				  acpi_ut_get_node_name(next_walk_state->
 							method_node)));
@@ -180,14 +180,14 @@ acpi_ds_dump_method_stack(acpi_status status,
 			 * NOTE: the method call parse subtree is already deleted at
 			 * this point, so we cannot disassemble the method invocation.
 			 */
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH,
+			ACPI_DE_PRINT_RAW((ACPI_DB_DISPATCH,
 					      "Call to method "));
 			acpi_ds_print_node_pathname(previous_method, NULL);
 		}
 
 		previous_method = next_walk_state->method_node;
 		next_walk_state = next_walk_state->next;
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DISPATCH, "\n"));
+		ACPI_DE_PRINT_RAW((ACPI_DB_DISPATCH, "\n"));
 	}
 
 	return_VOID;

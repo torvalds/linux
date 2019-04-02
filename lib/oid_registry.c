@@ -14,7 +14,7 @@
 #include <linux/oid_registry.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include "oid_registry_data.c"
 
 MODULE_DESCRIPTION("OID Registry");
@@ -168,12 +168,12 @@ int sprint_OID(enum OID oid, char *buffer, size_t bufsize)
 {
 	int ret;
 
-	BUG_ON(oid >= OID__NR);
+	_ON(oid >= OID__NR);
 
 	ret = sprint_oid(oid_data + oid_index[oid],
 			 oid_index[oid + 1] - oid_index[oid],
 			 buffer, bufsize);
-	BUG_ON(ret == -EBADMSG);
+	_ON(ret == -EBADMSG);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sprint_OID);

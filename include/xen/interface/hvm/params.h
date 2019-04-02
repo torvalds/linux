@@ -118,7 +118,7 @@
 /* Boolean: Enable aligning all periodic vpts to reduce interrupts */
 #define HVM_PARAM_VPT_ALIGN    16
 
-/* Console debug shared memory ring and event channel */
+/* Console de shared memory ring and event channel */
 #define HVM_PARAM_CONSOLE_PFN    17
 #define HVM_PARAM_CONSOLE_EVTCHN 18
 

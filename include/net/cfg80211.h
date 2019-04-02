@@ -14,9 +14,9 @@
  */
 
 #include <linux/netdevice.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
@@ -4191,7 +4191,7 @@ struct cfg80211_pmsr_capabilities {
  *	the same number of arbitrary MAC addresses.
  * @registered: protects ->resume and ->suspend sysfs callbacks against
  *	unregister hardware
- * @debugfsdir: debugfs directory used for this wiphy, will be renamed
+ * @defsdir: defs directory used for this wiphy, will be renamed
  *	automatically on wiphy renames
  * @dev: (virtual) struct device for this wiphy
  * @registered: helps synchronize suspend/resume with wiphy unregister
@@ -4435,8 +4435,8 @@ struct wiphy {
 	/* protects ->resume, ->suspend sysfs callbacks against unregister hw */
 	bool registered;
 
-	/* dir in debugfs: ieee80211/<wiphyname> */
-	struct dentry *debugfsdir;
+	/* dir in defs: ieee80211/<wiphyname> */
+	struct dentry *defsdir;
 
 	const struct ieee80211_ht_cap *ht_capa_mod_mask;
 	const struct ieee80211_vht_cap *vht_capa_mod_mask;
@@ -4495,7 +4495,7 @@ static inline void wiphy_net_set(struct wiphy *wiphy, struct net *net)
  */
 static inline void *wiphy_priv(struct wiphy *wiphy)
 {
-	BUG_ON(!wiphy);
+	_ON(!wiphy);
 	return &wiphy->priv;
 }
 
@@ -4507,7 +4507,7 @@ static inline void *wiphy_priv(struct wiphy *wiphy)
  */
 static inline struct wiphy *priv_to_wiphy(void *priv)
 {
-	BUG_ON(!priv);
+	_ON(!priv);
 	return container_of(priv, struct wiphy, priv);
 }
 
@@ -4790,7 +4790,7 @@ static inline bool wdev_running(struct wireless_dev *wdev)
  */
 static inline void *wdev_priv(struct wireless_dev *wdev)
 {
-	BUG_ON(!wdev);
+	_ON(!wdev);
 	return wiphy_priv(wdev->wiphy);
 }
 
@@ -7162,7 +7162,7 @@ void cfg80211_pmsr_complete(struct wireless_dev *wdev,
 			    struct cfg80211_pmsr_request *req,
 			    gfp_t gfp);
 
-/* Logging, debugging and troubleshooting/diagnostic helpers. */
+/* Logging, deging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
 
@@ -7183,19 +7183,19 @@ void cfg80211_pmsr_complete(struct wireless_dev *wdev,
 #define wiphy_info(wiphy, format, args...)			\
 	dev_info(&(wiphy)->dev, format, ##args)
 
-#define wiphy_debug(wiphy, format, args...)			\
-	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)
+#define wiphy_de(wiphy, format, args...)			\
+	wiphy_printk(KERN_DE, wiphy, format, ##args)
 
 #define wiphy_dbg(wiphy, format, args...)			\
 	dev_dbg(&(wiphy)->dev, format, ##args)
 
-#if defined(VERBOSE_DEBUG)
+#if defined(VERBOSE_DE)
 #define wiphy_vdbg	wiphy_dbg
 #else
 #define wiphy_vdbg(wiphy, format, args...)				\
 ({									\
 	if (0)								\
-		wiphy_printk(KERN_DEBUG, wiphy, format, ##args);	\
+		wiphy_printk(KERN_DE, wiphy, format, ##args);	\
 	0;								\
 })
 #endif

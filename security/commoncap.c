@@ -1217,7 +1217,7 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 * [2] no unlocking of locks
 			 * [3] no setting of unsupported bits
 			 * [4] doing anything requires privilege (go read about
-			 *     the "sendmail capabilities bug")
+			 *     the "sendmail capabilities ")
 			 */
 		    )
 			/* cannot change a locked bit */

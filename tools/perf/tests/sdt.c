@@ -6,7 +6,7 @@
 #include <util/symbol.h>
 #include <linux/filter.h>
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "probe-file.h"
 #include "build-id.h"
 
@@ -30,14 +30,14 @@ static int build_id_cache__add_file(const char *filename)
 
 	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
 	if (err < 0) {
-		pr_debug("Failed to read build id of %s\n", filename);
+		pr_de("Failed to read build id of %s\n", filename);
 		return err;
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__add_s(sbuild_id, filename, NULL, false, false);
 	if (err < 0)
-		pr_debug("Failed to add build id cache of %s\n", filename);
+		pr_de("Failed to add build id cache of %s\n", filename);
 	return err;
 }
 
@@ -46,7 +46,7 @@ static char *get_self_path(void)
 	char *buf = calloc(PATH_MAX, sizeof(char));
 
 	if (buf && readlink("/proc/self/exe", buf, PATH_MAX - 1) < 0) {
-		pr_debug("Failed to get correct path of perf\n");
+		pr_de("Failed to get correct path of perf\n");
 		free(buf);
 		return NULL;
 	}
@@ -60,12 +60,12 @@ static int search_cached_probe(const char *target,
 	int ret = 0;
 
 	if (!cache) {
-		pr_debug("Failed to open probe cache of %s\n", target);
+		pr_de("Failed to open probe cache of %s\n", target);
 		return -EINVAL;
 	}
 
 	if (!probe_cache__find_by_name(cache, group, event)) {
-		pr_debug("Failed to find %s:%s in the cache\n", group, event);
+		pr_de("Failed to find %s:%s in the cache\n", group, event);
 		ret = -ENOENT;
 	}
 	probe_cache__delete(cache);
@@ -80,7 +80,7 @@ int test__sdt_event(struct test *test __maybe_unused, int subtests __maybe_unuse
 	char *tempdir = NULL, *myself = get_self_path();
 
 	if (myself == NULL || mkdtemp(__tempdir) == NULL) {
-		pr_debug("Failed to make a tempdir for build-id cache\n");
+		pr_de("Failed to make a tempdir for build-id cache\n");
 		goto error;
 	}
 	/* Note that buildid_dir must be an absolute path */
@@ -113,7 +113,7 @@ error:
 #else
 int test__sdt_event(struct test *test __maybe_unused, int subtests __maybe_unused)
 {
-	pr_debug("Skip SDT event test because SDT support is not compiled\n");
+	pr_de("Skip SDT event test because SDT support is not compiled\n");
 	return TEST_SKIP;
 }
 #endif

@@ -1210,8 +1210,8 @@
 #define ixTHM_TMON1_RDIR15_DATA                                                 0xc03001fc
 #define ixTHM_TMON0_INT_DATA                                                    0xc0300300
 #define ixTHM_TMON1_INT_DATA                                                    0xc0300304
-#define ixTHM_TMON0_DEBUG                                                       0xc0300310
-#define ixTHM_TMON1_DEBUG                                                       0xc0300314
+#define ixTHM_TMON0_DE                                                       0xc0300310
+#define ixTHM_TMON1_DE                                                       0xc0300314
 #define ixGENERAL_PWRMGT                                                        0xc0200000
 #define ixCNB_PWRMGT_CNTL                                                       0xc0200004
 #define ixSCLK_PWRMGT_CNTL                                                      0xc0200008

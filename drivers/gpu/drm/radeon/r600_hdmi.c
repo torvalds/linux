@@ -425,10 +425,10 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 		return;
 	offset = dig->afmt->offset;
 
-	DRM_DEBUG("%s with %d channels, %d Hz sampling rate, %d bits per sample,\n",
+	DRM_DE("%s with %d channels, %d Hz sampling rate, %d bits per sample,\n",
 		 r600_hdmi_is_audio_buffer_filled(encoder) ? "playing" : "stopped",
 		  audio.channels, audio.rate, audio.bits_per_sample);
-	DRM_DEBUG("0x%02X IEC60958 status bits and 0x%02X category code\n",
+	DRM_DE("0x%02X IEC60958 status bits and 0x%02X category code\n",
 		  (int)audio.status_bits, (int)audio.category_code);
 
 	err = hdmi_audio_infoframe_init(&frame);
@@ -529,7 +529,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 
 	dig->afmt->enabled = enable;
 
-	DRM_DEBUG("%sabling HDMI interface @ 0x%04X for encoder 0x%x\n",
+	DRM_DE("%sabling HDMI interface @ 0x%04X for encoder 0x%x\n",
 		  enable ? "En" : "Dis", dig->afmt->offset, radeon_encoder->encoder_id);
 }
 

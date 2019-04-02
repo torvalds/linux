@@ -1,7 +1,7 @@
 /*
  * Logging Support for MPT (Message Passing Technology) based controllers
  *
- * This code is based on drivers/scsi/mpt3sas/mpt3sas_debug.c
+ * This code is based on drivers/scsi/mpt3sas/mpt3sas_de.c
  * Copyright (C) 2012-2014  LSI Corporation
  * Copyright (C) 2013-2014 Avago Technologies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
@@ -42,30 +42,30 @@
  * USA.
  */
 
-#ifndef MPT3SAS_DEBUG_H_INCLUDED
-#define MPT3SAS_DEBUG_H_INCLUDED
+#ifndef MPT3SAS_DE_H_INCLUDED
+#define MPT3SAS_DE_H_INCLUDED
 
-#define MPT_DEBUG			0x00000001
-#define MPT_DEBUG_MSG_FRAME		0x00000002
-#define MPT_DEBUG_SG			0x00000004
-#define MPT_DEBUG_EVENTS		0x00000008
-#define MPT_DEBUG_EVENT_WORK_TASK	0x00000010
-#define MPT_DEBUG_INIT			0x00000020
-#define MPT_DEBUG_EXIT			0x00000040
-#define MPT_DEBUG_FAIL			0x00000080
-#define MPT_DEBUG_TM			0x00000100
-#define MPT_DEBUG_REPLY		0x00000200
-#define MPT_DEBUG_HANDSHAKE		0x00000400
-#define MPT_DEBUG_CONFIG		0x00000800
-#define MPT_DEBUG_DL			0x00001000
-#define MPT_DEBUG_RESET		0x00002000
-#define MPT_DEBUG_SCSI			0x00004000
-#define MPT_DEBUG_IOCTL		0x00008000
-#define MPT_DEBUG_SAS			0x00020000
-#define MPT_DEBUG_TRANSPORT		0x00040000
-#define MPT_DEBUG_TASK_SET_FULL	0x00080000
+#define MPT_DE			0x00000001
+#define MPT_DE_MSG_FRAME		0x00000002
+#define MPT_DE_SG			0x00000004
+#define MPT_DE_EVENTS		0x00000008
+#define MPT_DE_EVENT_WORK_TASK	0x00000010
+#define MPT_DE_INIT			0x00000020
+#define MPT_DE_EXIT			0x00000040
+#define MPT_DE_FAIL			0x00000080
+#define MPT_DE_TM			0x00000100
+#define MPT_DE_REPLY		0x00000200
+#define MPT_DE_HANDSHAKE		0x00000400
+#define MPT_DE_CONFIG		0x00000800
+#define MPT_DE_DL			0x00001000
+#define MPT_DE_RESET		0x00002000
+#define MPT_DE_SCSI			0x00004000
+#define MPT_DE_IOCTL		0x00008000
+#define MPT_DE_SAS			0x00020000
+#define MPT_DE_TRANSPORT		0x00040000
+#define MPT_DE_TASK_SET_FULL	0x00080000
 
-#define MPT_DEBUG_TRIGGER_DIAG		0x00200000
+#define MPT_DE_TRIGGER_DIAG		0x00200000
 
 
 #define MPT_CHECK_LOGGING(IOC, CMD, BITS)			\
@@ -75,83 +75,83 @@
 }
 
 /*
- * debug macros
+ * de macros
  */
 
 #define dprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE)
 
 #define dsgprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_SG)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_SG)
 
 #define devtprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_EVENTS)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_EVENTS)
 
 #define dewtprintk(IOC, CMD)		\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_EVENT_WORK_TASK)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_EVENT_WORK_TASK)
 
 #define dinitprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_INIT)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_INIT)
 
 #define dexitprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_EXIT)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_EXIT)
 
 #define dfailprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_FAIL)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_FAIL)
 
 #define dtmprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_TM)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_TM)
 
 #define dreplyprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_REPLY)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_REPLY)
 
 #define dhsprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_HANDSHAKE)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_HANDSHAKE)
 
 #define dcprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_CONFIG)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_CONFIG)
 
 #define ddlprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_DL)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_DL)
 
 #define drsprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_RESET)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_RESET)
 
 #define dsprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_SCSI)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_SCSI)
 
 #define dctlprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_IOCTL)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_IOCTL)
 
 #define dsasprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_SAS)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_SAS)
 
 #define dsastransport(IOC, CMD)		\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_SAS_WIDE)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_SAS_WIDE)
 
 #define dmfprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_MSG_FRAME)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_MSG_FRAME)
 
 #define dtsfprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_TASK_SET_FULL)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_TASK_SET_FULL)
 
 #define dtransportprintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_TRANSPORT)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_TRANSPORT)
 
 #define dTriggerDiagPrintk(IOC, CMD)			\
-	MPT_CHECK_LOGGING(IOC, CMD, MPT_DEBUG_TRIGGER_DIAG)
+	MPT_CHECK_LOGGING(IOC, CMD, MPT_DE_TRIGGER_DIAG)
 
 
 
-/* inline functions for dumping debug data*/
+/* inline functions for dumping de data*/
 
 /**
- * _debug_dump_mf - print message frame contents
+ * _de_dump_mf - print message frame contents
  * @mpi_request: pointer to message frame
  * @sz: number of dwords
  */
 static inline void
-_debug_dump_mf(void *mpi_request, int sz)
+_de_dump_mf(void *mpi_request, int sz)
 {
 	int i;
 	__le32 *mfp = (__le32 *)mpi_request;
@@ -165,12 +165,12 @@ _debug_dump_mf(void *mpi_request, int sz)
 	pr_info("\n");
 }
 /**
- * _debug_dump_reply - print message frame contents
+ * _de_dump_reply - print message frame contents
  * @mpi_request: pointer to message frame
  * @sz: number of dwords
  */
 static inline void
-_debug_dump_reply(void *mpi_request, int sz)
+_de_dump_reply(void *mpi_request, int sz)
 {
 	int i;
 	__le32 *mfp = (__le32 *)mpi_request;
@@ -184,12 +184,12 @@ _debug_dump_reply(void *mpi_request, int sz)
 	pr_info("\n");
 }
 /**
- * _debug_dump_config - print config page contents
+ * _de_dump_config - print config page contents
  * @mpi_request: pointer to message frame
  * @sz: number of dwords
  */
 static inline void
-_debug_dump_config(void *mpi_request, int sz)
+_de_dump_config(void *mpi_request, int sz)
 {
 	int i;
 	__le32 *mfp = (__le32 *)mpi_request;
@@ -203,4 +203,4 @@ _debug_dump_config(void *mpi_request, int sz)
 	pr_info("\n");
 }
 
-#endif /* MPT3SAS_DEBUG_H_INCLUDED */
+#endif /* MPT3SAS_DE_H_INCLUDED */

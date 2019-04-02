@@ -229,7 +229,7 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 	/* XXX: old code skips write if control unchanged */
 	if (cmd == I915_READ(MIPI_DPI_CONTROL(port)))
-		DRM_DEBUG_KMS("Same special packet %02x twice in a row.\n", cmd);
+		DRM_DE_KMS("Same special packet %02x twice in a row.\n", cmd);
 
 	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
 
@@ -269,7 +269,7 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int ret;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	if (fixed_mode) {
@@ -449,7 +449,7 @@ static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 	enum port port;
 	u32 val;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	/* Enable MIPI PHY transparent latch */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -476,7 +476,7 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 	enum port port;
 	u32 val;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	mutex_lock(&dev_priv->sb_lock);
 	/* program rcomp for compliance, reduce from 50 ohms to 45 ohms
@@ -592,7 +592,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
 		i915_reg_t port_ctrl = IS_GEN9_LP(dev_priv) ?
@@ -765,7 +765,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	u32 val;
 	bool glk_cold_boot = false;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
@@ -864,7 +864,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(old_conn_state);
@@ -901,7 +901,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	enum port port;
 	u32 val;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports)
@@ -972,7 +972,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	enum port port;
 	bool active = false;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	wakeref = intel_display_power_get_if_enabled(dev_priv,
 						     encoder->power_domain);
@@ -1201,7 +1201,7 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 pclk;
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 
@@ -1332,7 +1332,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	u32 val, tmp;
 	u16 mode_hdisplay;
 
-	DRM_DEBUG_KMS("pipe %c\n", pipe_name(intel_crtc->pipe));
+	DRM_DE_KMS("pipe %c\n", pipe_name(intel_crtc->pipe));
 
 	mode_hdisplay = adjusted_mode->crtc_hdisplay;
 
@@ -1661,7 +1661,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_display_mode *scan, *fixed_mode = NULL;
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	/* There is no detection method for MIPI so rely on VBT */
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
@@ -1735,7 +1735,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
-		DRM_DEBUG_KMS("no device found\n");
+		DRM_DE_KMS("no device found\n");
 		goto err;
 	}
 
@@ -1779,7 +1779,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (!fixed_mode) {
-		DRM_DEBUG_KMS("no fixed mode\n");
+		DRM_DE_KMS("no fixed mode\n");
 		goto err;
 	}
 

@@ -40,12 +40,12 @@
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 
-#define DEBUG_DESC		0
-#define DEBUG_RX		0
-#define DEBUG_TX		0
-#define DEBUG_PKT_BYTES		0
-#define DEBUG_MDIO		0
-#define DEBUG_CLOSE		0
+#define DE_DESC		0
+#define DE_RX		0
+#define DE_TX		0
+#define DE_PKT_BYTES		0
+#define DE_MDIO		0
+#define DE_CLOSE		0
 
 #define DRV_NAME		"ixp4xx_eth"
 
@@ -469,8 +469,8 @@ static int ixp4xx_mdio_cmd(struct mii_bus *bus, int phy_id, int location,
 		return -1;
 	}
 
-#if DEBUG_MDIO
-	printk(KERN_DEBUG "%s #%i: mdio_%s() took %i cycles\n", bus->name,
+#if DE_MDIO
+	printk(KERN_DE "%s #%i: mdio_%s() took %i cycles\n", bus->name,
 	       phy_id, write ? "write" : "read", cycles);
 #endif
 
@@ -478,8 +478,8 @@ static int ixp4xx_mdio_cmd(struct mii_bus *bus, int phy_id, int location,
 		return 0;
 
 	if (__raw_readl(&mdio_regs->mdio_status[3]) & 0x80) {
-#if DEBUG_MDIO
-		printk(KERN_DEBUG "%s #%i: MII read failed\n", bus->name,
+#if DE_MDIO
+		printk(KERN_DE "%s #%i: MII read failed\n", bus->name,
 		       phy_id);
 #endif
 		return 0xFFFF; /* don't return error */
@@ -497,8 +497,8 @@ static int ixp4xx_mdio_read(struct mii_bus *bus, int phy_id, int location)
 	spin_lock_irqsave(&mdio_lock, flags);
 	ret = ixp4xx_mdio_cmd(bus, phy_id, location, 0, 0);
 	spin_unlock_irqrestore(&mdio_lock, flags);
-#if DEBUG_MDIO
-	printk(KERN_DEBUG "%s #%i: MII read [%i] -> 0x%X\n", bus->name,
+#if DE_MDIO
+	printk(KERN_DE "%s #%i: MII read [%i] -> 0x%X\n", bus->name,
 	       phy_id, location, ret);
 #endif
 	return ret;
@@ -513,8 +513,8 @@ static int ixp4xx_mdio_write(struct mii_bus *bus, int phy_id, int location,
 	spin_lock_irqsave(&mdio_lock, flags);
 	ret = ixp4xx_mdio_cmd(bus, phy_id, location, 1, val);
 	spin_unlock_irqrestore(&mdio_lock, flags);
-#if DEBUG_MDIO
-	printk(KERN_DEBUG "%s #%i: MII write [%i] <- 0x%X, err = %i\n",
+#if DE_MDIO
+	printk(KERN_DE "%s #%i: MII write [%i] <- 0x%X, err = %i\n",
 	       bus->name, phy_id, location, val, ret);
 #endif
 	return ret;
@@ -589,15 +589,15 @@ static void ixp4xx_adjust_link(struct net_device *dev)
 }
 
 
-static inline void debug_pkt(struct net_device *dev, const char *func,
+static inline void de_pkt(struct net_device *dev, const char *func,
 			     u8 *data, int len)
 {
-#if DEBUG_PKT_BYTES
+#if DE_PKT_BYTES
 	int i;
 
-	printk(KERN_DEBUG "%s: %s(%i) ", dev->name, func, len);
+	printk(KERN_DE "%s: %s(%i) ", dev->name, func, len);
 	for (i = 0; i < len; i++) {
-		if (i >= DEBUG_PKT_BYTES)
+		if (i >= DE_PKT_BYTES)
 			break;
 		printk("%s%02X",
 		       ((i == 6) || (i == 12) || (i >= 14)) ? " " : "",
@@ -608,10 +608,10 @@ static inline void debug_pkt(struct net_device *dev, const char *func,
 }
 
 
-static inline void debug_desc(u32 phys, struct desc *desc)
+static inline void de_desc(u32 phys, struct desc *desc)
 {
-#if DEBUG_DESC
-	printk(KERN_DEBUG "%X: %X %3X %3X %08X %2X < %2X %4X %X"
+#if DE_DESC
+	printk(KERN_DE "%X: %X %3X %3X %08X %2X < %2X %4X %X"
 	       " %X %X %02X%02X%02X%02X%02X%02X < %02X%02X%02X%02X%02X%02X\n",
 	       phys, desc->next, desc->buf_len, desc->pkt_len,
 	       desc->data, desc->dest_id, desc->src_id, desc->flags,
@@ -636,17 +636,17 @@ static inline int queue_get_desc(unsigned int queue, struct port *port,
 	tab_phys = is_tx ? tx_desc_phys(port, 0) : rx_desc_phys(port, 0);
 	tab = is_tx ? tx_desc_ptr(port, 0) : rx_desc_ptr(port, 0);
 	n_desc = (phys - tab_phys) / sizeof(struct desc);
-	BUG_ON(n_desc >= (is_tx ? TX_DESCS : RX_DESCS));
-	debug_desc(phys, &tab[n_desc]);
-	BUG_ON(tab[n_desc].next);
+	_ON(n_desc >= (is_tx ? TX_DESCS : RX_DESCS));
+	de_desc(phys, &tab[n_desc]);
+	_ON(tab[n_desc].next);
 	return n_desc;
 }
 
 static inline void queue_put_desc(unsigned int queue, u32 phys,
 				  struct desc *desc)
 {
-	debug_desc(phys, desc);
-	BUG_ON(phys & 0x1F);
+	de_desc(phys, desc);
+	_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
 	/* Don't check for queue overflow here, we've allocated sufficient
 	   length and queues >= 32 don't support this check anyway. */
@@ -671,8 +671,8 @@ static void eth_rx_irq(void *pdev)
 	struct net_device *dev = pdev;
 	struct port *port = netdev_priv(dev);
 
-#if DEBUG_RX
-	printk(KERN_DEBUG "%s: eth_rx_irq\n", dev->name);
+#if DE_RX
+	printk(KERN_DE "%s: eth_rx_irq\n", dev->name);
 #endif
 	qmgr_disable_irq(port->plat->rxq);
 	napi_schedule(&port->napi);
@@ -685,8 +685,8 @@ static int eth_poll(struct napi_struct *napi, int budget)
 	unsigned int rxq = port->plat->rxq, rxfreeq = RXFREE_QUEUE(port->id);
 	int received = 0;
 
-#if DEBUG_RX
-	printk(KERN_DEBUG "%s: eth_poll\n", dev->name);
+#if DE_RX
+	printk(KERN_DE "%s: eth_poll\n", dev->name);
 #endif
 
 	while (received < budget) {
@@ -699,23 +699,23 @@ static int eth_poll(struct napi_struct *napi, int budget)
 #endif
 
 		if ((n = queue_get_desc(rxq, port, 0)) < 0) {
-#if DEBUG_RX
-			printk(KERN_DEBUG "%s: eth_poll napi_complete\n",
+#if DE_RX
+			printk(KERN_DE "%s: eth_poll napi_complete\n",
 			       dev->name);
 #endif
 			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_below_low_watermark(rxq) &&
 			    napi_reschedule(napi)) { /* not empty again */
-#if DEBUG_RX
-				printk(KERN_DEBUG "%s: eth_poll napi_reschedule succeeded\n",
+#if DE_RX
+				printk(KERN_DE "%s: eth_poll napi_reschedule succeeded\n",
 				       dev->name);
 #endif
 				qmgr_disable_irq(rxq);
 				continue;
 			}
-#if DEBUG_RX
-			printk(KERN_DEBUG "%s: eth_poll all done\n",
+#if DE_RX
+			printk(KERN_DE "%s: eth_poll all done\n",
 			       dev->name);
 #endif
 			return received; /* all work done */
@@ -761,7 +761,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, desc->pkt_len);
 
-		debug_pkt(dev, "eth_poll", skb->data, skb->len);
+		de_pkt(dev, "eth_poll", skb->data, skb->len);
 
 		ixp_rx_timestamp(port, skb);
 		skb->protocol = eth_type_trans(skb, dev);
@@ -780,8 +780,8 @@ static int eth_poll(struct napi_struct *napi, int budget)
 		received++;
 	}
 
-#if DEBUG_RX
-	printk(KERN_DEBUG "eth_poll(): end, not all work done\n");
+#if DE_RX
+	printk(KERN_DE "eth_poll(): end, not all work done\n");
 #endif
 	return received;		/* not all work done */
 }
@@ -791,8 +791,8 @@ static void eth_txdone_irq(void *unused)
 {
 	u32 phys;
 
-#if DEBUG_TX
-	printk(KERN_DEBUG DRV_NAME ": eth_txdone_irq\n");
+#if DE_TX
+	printk(KERN_DE DRV_NAME ": eth_txdone_irq\n");
 #endif
 	while ((phys = qmgr_get_entry(TXDONE_QUEUE)) != 0) {
 		u32 npe_id, n_desc;
@@ -801,22 +801,22 @@ static void eth_txdone_irq(void *unused)
 		int start;
 
 		npe_id = phys & 3;
-		BUG_ON(npe_id >= MAX_NPES);
+		_ON(npe_id >= MAX_NPES);
 		port = npe_port_tab[npe_id];
-		BUG_ON(!port);
+		_ON(!port);
 		phys &= ~0x1F; /* mask out non-address bits */
 		n_desc = (phys - tx_desc_phys(port, 0)) / sizeof(struct desc);
-		BUG_ON(n_desc >= TX_DESCS);
+		_ON(n_desc >= TX_DESCS);
 		desc = tx_desc_ptr(port, n_desc);
-		debug_desc(phys, desc);
+		de_desc(phys, desc);
 
 		if (port->tx_buff_tab[n_desc]) { /* not the draining packet */
 			port->netdev->stats.tx_packets++;
 			port->netdev->stats.tx_bytes += desc->pkt_len;
 
 			dma_unmap_tx(port, desc);
-#if DEBUG_TX
-			printk(KERN_DEBUG "%s: eth_txdone_irq free %p\n",
+#if DE_TX
+			printk(KERN_DE "%s: eth_txdone_irq free %p\n",
 			       port->netdev->name, port->tx_buff_tab[n_desc]);
 #endif
 			free_buffer_irq(port->tx_buff_tab[n_desc]);
@@ -826,8 +826,8 @@ static void eth_txdone_irq(void *unused)
 		start = qmgr_stat_below_low_watermark(port->plat->txreadyq);
 		queue_put_desc(port->plat->txreadyq, phys, desc);
 		if (start) { /* TX-ready queue was empty */
-#if DEBUG_TX
-			printk(KERN_DEBUG "%s: eth_txdone_irq xmit ready\n",
+#if DE_TX
+			printk(KERN_DE "%s: eth_txdone_irq xmit ready\n",
 			       port->netdev->name);
 #endif
 			netif_wake_queue(port->netdev);
@@ -844,8 +844,8 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 phys;
 	struct desc *desc;
 
-#if DEBUG_TX
-	printk(KERN_DEBUG "%s: eth_xmit\n", dev->name);
+#if DE_TX
+	printk(KERN_DE "%s: eth_xmit\n", dev->name);
 #endif
 
 	if (unlikely(skb->len > MAX_MRU)) {
@@ -854,7 +854,7 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	debug_pkt(dev, "eth_xmit", skb->data, skb->len);
+	de_pkt(dev, "eth_xmit", skb->data, skb->len);
 
 	len = skb->len;
 #ifdef __ARMEB__
@@ -883,7 +883,7 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	n = queue_get_desc(txreadyq, port, 1);
-	BUG_ON(n < 0);
+	_ON(n < 0);
 	desc = tx_desc_ptr(port, n);
 
 #ifdef __ARMEB__
@@ -899,23 +899,23 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
-#if DEBUG_TX
-		printk(KERN_DEBUG "%s: eth_xmit queue full\n", dev->name);
+#if DE_TX
+		printk(KERN_DE "%s: eth_xmit queue full\n", dev->name);
 #endif
 		netif_stop_queue(dev);
 		/* we could miss TX ready interrupt */
 		/* really empty in fact */
 		if (!qmgr_stat_below_low_watermark(txreadyq)) {
-#if DEBUG_TX
-			printk(KERN_DEBUG "%s: eth_xmit ready again\n",
+#if DE_TX
+			printk(KERN_DE "%s: eth_xmit ready again\n",
 			       dev->name);
 #endif
 			netif_wake_queue(dev);
 		}
 	}
 
-#if DEBUG_TX
-	printk(KERN_DEBUG "%s: eth_xmit end\n", dev->name);
+#if DE_TX
+	printk(KERN_DE "%s: eth_xmit end\n", dev->name);
 #endif
 
 	ixp_tx_timestamp(port, skb);
@@ -1081,7 +1081,7 @@ rel_rx:
 	qmgr_release_queue(port->plat->rxq);
 rel_rxfree:
 	qmgr_release_queue(RXFREE_QUEUE(port->id));
-	printk(KERN_DEBUG "%s: unable to request hardware queues\n",
+	printk(KERN_DE "%s: unable to request hardware queues\n",
 	       port->netdev->name);
 	return err;
 }
@@ -1315,7 +1315,7 @@ static int eth_close(struct net_device *dev)
 			struct desc *desc;
 			u32 phys;
 			int n = queue_get_desc(port->plat->txreadyq, port, 1);
-			BUG_ON(n < 0);
+			_ON(n < 0);
 			desc = tx_desc_ptr(port, n);
 			phys = tx_desc_phys(port, n);
 			desc->buf_len = desc->pkt_len = 1;
@@ -1328,9 +1328,9 @@ static int eth_close(struct net_device *dev)
 	if (buffs)
 		printk(KERN_CRIT "%s: unable to drain RX queue, %i buffer(s)"
 		       " left in NPE\n", dev->name, buffs);
-#if DEBUG_CLOSE
+#if DE_CLOSE
 	if (!buffs)
-		printk(KERN_DEBUG "Draining RX queue took %i cycles\n", i);
+		printk(KERN_DE "Draining RX queue took %i cycles\n", i);
 #endif
 
 	buffs = TX_DESCS;
@@ -1348,9 +1348,9 @@ static int eth_close(struct net_device *dev)
 	if (buffs)
 		printk(KERN_CRIT "%s: unable to drain TX queue, %i buffer(s) "
 		       "left in NPE\n", dev->name, buffs);
-#if DEBUG_CLOSE
+#if DE_CLOSE
 	if (!buffs)
-		printk(KERN_DEBUG "Draining TX queues took %i cycles\n", i);
+		printk(KERN_DE "Draining TX queues took %i cycles\n", i);
 #endif
 
 	msg.byte3 = 0;

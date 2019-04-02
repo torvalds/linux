@@ -848,7 +848,7 @@ void inet_csk_destroy_sock(struct sock *sk)
 
 	xfrm_sk_free_policy(sk);
 
-	sk_refcnt_debug_release(sk);
+	sk_refcnt_de_release(sk);
 
 	percpu_counter_dec(sk->sk_prot->orphan_count);
 
@@ -915,8 +915,8 @@ static void inet_child_forget(struct sock *sk, struct request_sock *req,
 	percpu_counter_inc(sk->sk_prot->orphan_count);
 
 	if (sk->sk_protocol == IPPROTO_TCP && tcp_rsk(req)->tfo_listener) {
-		BUG_ON(tcp_sk(child)->fastopen_rsk != req);
-		BUG_ON(sk != req->rsk_listener);
+		_ON(tcp_sk(child)->fastopen_rsk != req);
+		_ON(sk != req->rsk_listener);
 
 		/* Paranoid, to prevent race condition if
 		 * an inbound pkt destined for child is

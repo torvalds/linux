@@ -184,7 +184,7 @@ static void __init pseries_setup_i8259_cascade(void)
 	}
 
 	if (found == NULL) {
-		printk(KERN_DEBUG "pic: no ISA interrupt controller\n");
+		printk(KERN_DE "pic: no ISA interrupt controller\n");
 		return;
 	}
 
@@ -193,7 +193,7 @@ static void __init pseries_setup_i8259_cascade(void)
 		printk(KERN_ERR "pic: failed to map cascade interrupt");
 		return;
 	}
-	pr_debug("pic: cascade mapped to irq %d\n", cascade);
+	pr_de("pic: cascade mapped to irq %d\n", cascade);
 
 	for (old = of_node_get(found); old != NULL ; old = np) {
 		np = of_get_parent(old);
@@ -211,7 +211,7 @@ static void __init pseries_setup_i8259_cascade(void)
 			intack |= ((unsigned long)addrp[naddr-2]) << 32;
 	}
 	if (intack)
-		printk(KERN_DEBUG "pic: PCI 8259 intack at 0x%016lx\n", intack);
+		printk(KERN_DE "pic: PCI 8259 intack at 0x%016lx\n", intack);
 	i8259_init(found, intack);
 	of_node_put(found);
 	irq_set_chained_handler(cascade, pseries_8259_cascade);
@@ -444,7 +444,7 @@ void pseries_big_endian_exceptions(void)
 	 * At this point it is unlikely panic() will get anything
 	 * out to the user, since this is called very late in kexec
 	 * but at least this will stop us from continuing on further
-	 * and creating an even more difficult to debug situation.
+	 * and creating an even more difficult to de situation.
 	 *
 	 * There is a known problem when kdump'ing, if cpus are offline
 	 * the above call will fail. Rather than panicking again, keep
@@ -866,7 +866,7 @@ static void pSeries_cmo_feature_init(void)
 	int call_status;
 	int page_order = IOMMU_PAGE_SHIFT_4K;
 
-	pr_debug(" -> fw_cmo_feature_init()\n");
+	pr_de(" -> fw_cmo_feature_init()\n");
 	spin_lock(&rtas_data_buf_lock);
 	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
 	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
@@ -877,8 +877,8 @@ static void pSeries_cmo_feature_init(void)
 
 	if (call_status != 0) {
 		spin_unlock(&rtas_data_buf_lock);
-		pr_debug("CMO not available\n");
-		pr_debug(" <- fw_cmo_feature_init()\n");
+		pr_de("CMO not available\n");
+		pr_de(" <- fw_cmo_feature_init()\n");
 		return;
 	}
 
@@ -898,7 +898,7 @@ static void pSeries_cmo_feature_init(void)
 			ptr[0] = '\0';
 
 			if (key == value) {
-				pr_debug("Malformed key/value pair\n");
+				pr_de("Malformed key/value pair\n");
 				/* Never found a '=', end processing */
 				break;
 			}
@@ -918,19 +918,19 @@ static void pSeries_cmo_feature_init(void)
 	 * convert to the page size in bytes before returning
 	 */
 	CMO_PageSize = 1 << page_order;
-	pr_debug("CMO_PageSize = %lu\n", CMO_PageSize);
+	pr_de("CMO_PageSize = %lu\n", CMO_PageSize);
 
 	if (CMO_PrPSP != -1 || CMO_SecPSP != -1) {
 		pr_info("CMO enabled\n");
-		pr_debug("CMO enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
+		pr_de("CMO enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);
 		powerpc_firmware_features |= FW_FEATURE_CMO;
 		pSeries_coalesce_init();
 	} else
-		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
+		pr_de("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);
 	spin_unlock(&rtas_data_buf_lock);
-	pr_debug(" <- fw_cmo_feature_init()\n");
+	pr_de(" <- fw_cmo_feature_init()\n");
 }
 
 /*
@@ -938,7 +938,7 @@ static void pSeries_cmo_feature_init(void)
  */
 static void __init pseries_init(void)
 {
-	pr_debug(" -> pseries_init()\n");
+	pr_de(" -> pseries_init()\n");
 
 #ifdef CONFIG_HVC_CONSOLE
 	if (firmware_has_feature(FW_FEATURE_LPAR))
@@ -955,7 +955,7 @@ static void __init pseries_init(void)
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();
 
-	pr_debug(" <- pseries_init()\n");
+	pr_de(" <- pseries_init()\n");
 }
 
 /**
@@ -1000,7 +1000,7 @@ static int __init pSeries_probe(void)
 
 	pm_power_off = pseries_power_off;
 
-	pr_debug("Machine is%s LPAR !\n",
+	pr_de("Machine is%s LPAR !\n",
 	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
 	pseries_init();

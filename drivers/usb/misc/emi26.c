@@ -58,7 +58,7 @@ static int emi26_set_reset (struct usb_device *dev, unsigned char reset_bit)
 {
 	int response;
 	dev_info(&dev->dev, "%s - %d\n", __func__, reset_bit);
-	/* printk(KERN_DEBUG "%s - %d", __func__, reset_bit); */
+	/* printk(KERN_DE "%s - %d", __func__, reset_bit); */
 	response = emi26_writememory (dev, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0) {
 		dev_err(&dev->dev, "set_reset (%d) failed\n", reset_bit);

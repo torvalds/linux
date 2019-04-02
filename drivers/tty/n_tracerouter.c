@@ -24,7 +24,7 @@
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include "n_tracesink.h"
 
 /*

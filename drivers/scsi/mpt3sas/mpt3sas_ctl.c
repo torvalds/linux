@@ -79,24 +79,24 @@ enum block_state {
 };
 
 /**
- * _ctl_display_some_debug - debug routine
+ * _ctl_display_some_de - de routine
  * @ioc: per adapter object
  * @smid: system request message index
  * @calling_function_name: string pass from calling function
  * @mpi_reply: reply message frame
  * Context: none.
  *
- * Function for displaying debug info helpful when debugging issues
+ * Function for displaying de info helpful when deging issues
  * in this module.
  */
 static void
-_ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
+_ctl_display_some_de(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	char *calling_function_name, MPI2DefaultReply_t *mpi_reply)
 {
 	Mpi2ConfigRequest_t *mpi_request;
 	char *desc = NULL;
 
-	if (!(ioc->logging_level & MPT_DEBUG_IOCTL))
+	if (!(ioc->logging_level & MPT_DE_IOCTL))
 		return;
 
 	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
@@ -295,7 +295,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 		}
 	}
 
-	_ctl_display_some_debug(ioc, smid, "ctl_done", mpi_reply);
+	_ctl_display_some_de(ioc, smid, "ctl_done", mpi_reply);
 	ioc->ctl_cmds.status &= ~MPT3_CMD_PENDING;
 	complete(&ioc->ctl_cmds.done);
 	return 1;
@@ -763,7 +763,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	psge = (void *)request + (karg.data_sge_offset*4);
 
 	/* send command to firmware */
-	_ctl_display_some_debug(ioc, smid, "ctl_request", NULL);
+	_ctl_display_some_de(ioc, smid, "ctl_request", NULL);
 
 	init_completion(&ioc->ctl_cmds.done);
 	switch (mpi_request->Function) {
@@ -980,7 +980,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	mpi_reply = ioc->ctl_cmds.reply;
 
 	if (mpi_reply->Function == MPI2_FUNCTION_SCSI_TASK_MGMT &&
-	    (ioc->logging_level & MPT_DEBUG_TM)) {
+	    (ioc->logging_level & MPT_DE_TM)) {
 		Mpi2SCSITaskManagementReply_t *tm_reply =
 		    (Mpi2SCSITaskManagementReply_t *)mpi_reply;
 
@@ -2764,25 +2764,25 @@ static DEVICE_ATTR(logging_level, S_IRUGO | S_IWUSR, _ctl_logging_level_show,
 	_ctl_logging_level_store);
 
 /**
- * _ctl_fwfault_debug_show - show/store fwfault_debug
+ * _ctl_fwfault_de_show - show/store fwfault_de
  * @cdev: pointer to embedded class device
  * @attr: ?
  * @buf: the buffer returned
  *
- * mpt3sas_fwfault_debug is command line option
+ * mpt3sas_fwfault_de is command line option
  * A sysfs 'read/write' shost attribute.
  */
 static ssize_t
-_ctl_fwfault_debug_show(struct device *cdev, struct device_attribute *attr,
+_ctl_fwfault_de_show(struct device *cdev, struct device_attribute *attr,
 	char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ioc->fwfault_debug);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ioc->fwfault_de);
 }
 static ssize_t
-_ctl_fwfault_debug_store(struct device *cdev, struct device_attribute *attr,
+_ctl_fwfault_de_store(struct device *cdev, struct device_attribute *attr,
 	const char *buf, size_t count)
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
@@ -2792,13 +2792,13 @@ _ctl_fwfault_debug_store(struct device *cdev, struct device_attribute *attr,
 	if (sscanf(buf, "%d", &val) != 1)
 		return -EINVAL;
 
-	ioc->fwfault_debug = val;
-	ioc_info(ioc, "fwfault_debug=%d\n",
-		 ioc->fwfault_debug);
+	ioc->fwfault_de = val;
+	ioc_info(ioc, "fwfault_de=%d\n",
+		 ioc->fwfault_de);
 	return strlen(buf);
 }
-static DEVICE_ATTR(fwfault_debug, S_IRUGO | S_IWUSR,
-	_ctl_fwfault_debug_show, _ctl_fwfault_debug_store);
+static DEVICE_ATTR(fwfault_de, S_IRUGO | S_IWUSR,
+	_ctl_fwfault_de_show, _ctl_fwfault_de_store);
 
 /**
  * _ctl_ioc_reset_count_show - ioc reset count
@@ -3372,7 +3372,7 @@ struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_io_delay,
 	&dev_attr_device_delay,
 	&dev_attr_logging_level,
-	&dev_attr_fwfault_debug,
+	&dev_attr_fwfault_de,
 	&dev_attr_fw_queue_depth,
 	&dev_attr_host_sas_address,
 	&dev_attr_ioc_reset_count,

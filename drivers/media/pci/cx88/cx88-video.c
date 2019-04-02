@@ -59,17 +59,17 @@ MODULE_PARM_DESC(video_nr, "video device numbers");
 MODULE_PARM_DESC(vbi_nr, "vbi device numbers");
 MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
-static unsigned int video_debug;
-module_param(video_debug, int, 0644);
-MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
+static unsigned int video_de;
+module_param(video_de, int, 0644);
+MODULE_PARM_DESC(video_de, "enable de messages [video]");
 
-static unsigned int irq_debug;
-module_param(irq_debug, int, 0644);
-MODULE_PARM_DESC(irq_debug, "enable debug messages [IRQ handler]");
+static unsigned int irq_de;
+module_param(irq_de, int, 0644);
+MODULE_PARM_DESC(irq_de, "enable de messages [IRQ handler]");
 
 #define dprintk(level, fmt, arg...) do {			\
-	if (video_debug >= level)				\
-		printk(KERN_DEBUG pr_fmt("%s: video:" fmt),	\
+	if (video_de >= level)				\
+		printk(KERN_DE pr_fmt("%s: video:" fmt),	\
 			__func__, ##arg);			\
 } while (0)
 
@@ -888,7 +888,7 @@ int cx88_enum_input(struct cx88_core  *core, struct v4l2_input *i)
 		[CX88_VMUX_TELEVISION] = "Television",
 		[CX88_VMUX_CABLE] = "Cable TV",
 		[CX88_VMUX_DVB] = "DVB",
-		[CX88_VMUX_DEBUG] = "for debug only",
+		[CX88_VMUX_DE] = "for de only",
 	};
 	unsigned int n = i->index;
 
@@ -1028,7 +1028,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return cx88_set_freq(core, f);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_register(struct file *file, void *fh,
 			     struct v4l2_dbg_register *reg)
 {
@@ -1104,7 +1104,7 @@ static void cx8800_vid_irq(struct cx8800_dev *dev)
 	if (0 == (status & mask))
 		return;
 	cx_write(MO_VID_INTSTAT, status);
-	if (irq_debug  ||  (status & mask & ~0xff))
+	if (irq_de  ||  (status & mask & ~0xff))
 		cx88_print_irqbits("irq vid",
 				   cx88_vid_irqs, ARRAY_SIZE(cx88_vid_irqs),
 				   status, mask);
@@ -1199,7 +1199,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
@@ -1232,7 +1232,7 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
@@ -1261,7 +1261,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif

@@ -6,7 +6,7 @@
  *
  *	Fixes:
  *		Alan Cox	:	Fixed the worst of the load
- *					balancer bugs.
+ *					balancer s.
  *		Dave Platt	:	Interrupt stacking fix.
  *	Richard Kooijman	:	Timestamp fixes.
  *		Alan Cox	:	Changed buffer format.
@@ -104,7 +104,7 @@ static void skb_panic(struct sk_buff *skb, unsigned int sz, void *addr,
 		 msg, addr, skb->len, sz, skb->head, skb->data,
 		 (unsigned long)skb->tail, (unsigned long)skb->end,
 		 skb->dev ? skb->dev->name : "<NULL>");
-	BUG();
+	();
 }
 
 static void skb_over_panic(struct sk_buff *skb, unsigned int sz, void *addr)
@@ -200,7 +200,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 
 	/* We do our best to align skb_shared_info on a separate cache
 	 * line. It usually works because kmalloc(X > SMP_CACHE_BYTES) gives
-	 * aligned memory blocks, unless SLUB/SLAB debug is enabled.
+	 * aligned memory blocks, unless SLUB/SLAB de is enabled.
 	 * Both skb->head and skb_shared_info are cache line aligned.
 	 */
 	size = SKB_DATA_ALIGN(size);
@@ -788,9 +788,9 @@ EXPORT_SYMBOL(napi_consume_skb);
 
 /* Make sure a field is enclosed inside headers_start/headers_end section */
 #define CHECK_SKB_FIELD(field) \
-	BUILD_BUG_ON(offsetof(struct sk_buff, field) <		\
+	BUILD__ON(offsetof(struct sk_buff, field) <		\
 		     offsetof(struct sk_buff, headers_start));	\
-	BUILD_BUG_ON(offsetof(struct sk_buff, field) >		\
+	BUILD__ON(offsetof(struct sk_buff, field) >		\
 		     offsetof(struct sk_buff, headers_end));	\
 
 static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
@@ -945,7 +945,7 @@ struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 	if (!skb)
 		return NULL;
 
-	BUILD_BUG_ON(sizeof(*uarg) > sizeof(skb->cb));
+	BUILD__ON(sizeof(*uarg) > sizeof(skb->cb));
 	uarg = (void *)skb->cb;
 	uarg->mmp.user = NULL;
 
@@ -1362,7 +1362,7 @@ struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 	/* Set the tail pointer and length */
 	skb_put(n, skb->len);
 
-	BUG_ON(skb_copy_bits(skb, -headerlen, n->head, headerlen + skb->len));
+	_ON(skb_copy_bits(skb, -headerlen, n->head, headerlen + skb->len));
 
 	skb_copy_header(n, skb);
 	return n;
@@ -1458,9 +1458,9 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	long off;
 	u8 *data;
 
-	BUG_ON(nhead < 0);
+	_ON(nhead < 0);
 
-	BUG_ON(skb_shared(skb));
+	_ON(skb_shared(skb));
 
 	size = SKB_DATA_ALIGN(size);
 
@@ -1605,7 +1605,7 @@ struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 		head_copy_off = newheadroom - head_copy_len;
 
 	/* Copy the linear header and data. */
-	BUG_ON(skb_copy_bits(skb, -head_copy_len, n->head + head_copy_off,
+	_ON(skb_copy_bits(skb, -head_copy_len, n->head + head_copy_off,
 			     skb->len + head_copy_len));
 
 	skb_copy_header(n, skb);
@@ -1902,7 +1902,7 @@ void *__pskb_pull_tail(struct sk_buff *skb, int delta)
 			return NULL;
 	}
 
-	BUG_ON(skb_copy_bits(skb, skb_headlen(skb),
+	_ON(skb_copy_bits(skb, skb_headlen(skb),
 			     skb_tail_pointer(skb), delta));
 
 	/* Optimization: no fragments, no reasons to preestimate
@@ -2535,7 +2535,7 @@ __wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
 		}
 		start = end;
 	}
-	BUG_ON(len);
+	_ON(len);
 
 	return csum;
 }
@@ -2634,7 +2634,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 		}
 		start = end;
 	}
-	BUG_ON(len);
+	_ON(len);
 	return csum;
 }
 EXPORT_SYMBOL(skb_copy_and_csum_bits);
@@ -2775,7 +2775,7 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 	struct page *page;
 	unsigned int offset;
 
-	BUG_ON(!from->head_frag && !hlen);
+	_ON(!from->head_frag && !hlen);
 
 	/* dont bother with small payloads */
 	if (len <= skb_tailroom(to))
@@ -2833,7 +2833,7 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 	else
 		csstart = skb_headlen(skb);
 
-	BUG_ON(csstart > skb_headlen(skb));
+	_ON(csstart > skb_headlen(skb));
 
 	skb_copy_from_linear_data(skb, to, csstart);
 
@@ -3129,7 +3129,7 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 	int from, to, merge, todo;
 	struct skb_frag_struct *fragfrom, *fragto;
 
-	BUG_ON(shiftlen > skb->len);
+	_ON(shiftlen > skb->len);
 
 	if (skb_headlen(skb))
 		return 0;
@@ -3224,7 +3224,7 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 		skb_shinfo(skb)->frags[to++] = skb_shinfo(skb)->frags[from++];
 	skb_shinfo(skb)->nr_frags = to;
 
-	BUG_ON(todo > 0 && !skb_shinfo(skb)->nr_frags);
+	_ON(todo > 0 && !skb_shinfo(skb)->nr_frags);
 
 onlymerged:
 	/* Most likely the tgt won't ever need its checksum anymore, skb on
@@ -3446,7 +3446,7 @@ void *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 {
 	unsigned char *data = skb->data;
 
-	BUG_ON(len > skb->len);
+	_ON(len > skb->len);
 	__skb_pull(skb, len);
 	skb_postpull_rcsum(skb, data, len);
 	return skb->data;
@@ -3574,7 +3574,7 @@ normal:
 
 		if (!hsize && i >= nfrags && skb_headlen(list_skb) &&
 		    (skb_headlen(list_skb) == len || sg)) {
-			BUG_ON(skb_headlen(list_skb) > len);
+			_ON(skb_headlen(list_skb) > len);
 
 			i = 0;
 			nfrags = skb_shinfo(list_skb)->nr_frags;
@@ -3583,7 +3583,7 @@ normal:
 			pos += skb_headlen(list_skb);
 
 			while (pos < offset + len) {
-				BUG_ON(i >= nfrags);
+				_ON(i >= nfrags);
 
 				size = skb_frag_size(frag);
 				if (pos + size > offset + len)
@@ -3675,9 +3675,9 @@ normal:
 				frag = skb_shinfo(list_skb)->frags;
 				frag_skb = list_skb;
 				if (!skb_headlen(list_skb)) {
-					BUG_ON(!nfrags);
+					_ON(!nfrags);
 				} else {
-					BUG_ON(!list_skb->head_frag);
+					_ON(!list_skb->head_frag);
 
 					/* to make room for head_frag. */
 					i--;
@@ -3931,8 +3931,8 @@ static __always_inline unsigned int skb_ext_total_length(void)
 
 static void skb_extensions_init(void)
 {
-	BUILD_BUG_ON(SKB_EXT_NUM >= 8);
-	BUILD_BUG_ON(skb_ext_total_length() > 255);
+	BUILD__ON(SKB_EXT_NUM >= 8);
+	BUILD__ON(skb_ext_total_length() > 255);
 
 	skbuff_ext_cache = kmem_cache_create("skbuff_ext_cache",
 					     SKB_EXT_ALIGN_VALUE * skb_ext_total_length(),
@@ -4029,7 +4029,7 @@ __skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len,
 		}
 		start = end;
 	}
-	BUG_ON(len);
+	_ON(len);
 	return elt;
 }
 
@@ -4209,7 +4209,7 @@ static void skb_set_err_queue(struct sk_buff *skb)
 	 * So, it is safe to (mis)use it to mark skbs on the error queue.
 	 */
 	skb->pkt_type = PACKET_OUTGOING;
-	BUILD_BUG_ON(PACKET_OUTGOING == 0);
+	BUILD__ON(PACKET_OUTGOING == 0);
 }
 
 /*
@@ -4311,7 +4311,7 @@ static void __skb_complete_tx_timestamp(struct sk_buff *skb,
 	struct sock_exterr_skb *serr;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct sock_exterr_skb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct sock_exterr_skb) > sizeof(skb->cb));
 
 	serr = SKB_EXT_ERR(skb);
 	memset(serr, 0, sizeof(*serr));
@@ -4839,7 +4839,7 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 
 	if (len <= skb_tailroom(to)) {
 		if (len)
-			BUG_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
+			_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
 		*delta_truesize = 0;
 		return true;
 	}

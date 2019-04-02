@@ -235,9 +235,9 @@ to select the specified device node number, you can call the function
 
 Whenever a device node is created some attributes are also created for you.
 If you look in ``/sys/class/video4linux`` you see the devices. Go into e.g.
-``video0`` and you will see 'name', 'dev_debug' and 'index' attributes. The
+``video0`` and you will see 'name', 'dev_de' and 'index' attributes. The
 'name' attribute is the 'name' field of the video_device struct. The
-'dev_debug' attribute can be used to enable core debugging. See the next
+'dev_de' attribute can be used to enable core deging. See the next
 section for more detailed information on this.
 
 The 'index' attribute is the index of the device node: for each call to
@@ -263,10 +263,10 @@ it. The ``vdev->release()`` callback will never be called if the registration
 failed, nor should you ever attempt to unregister the device if the
 registration failed.
 
-video device debugging
+video device deging
 ----------------------
 
-The 'dev_debug' attribute that is created for each video, vbi, radio or swradio
+The 'dev_de' attribute that is created for each video, vbi, radio or swradio
 device in ``/sys/class/video4linux/<devX>/`` allows you to enable logging of
 file operations.
 

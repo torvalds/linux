@@ -64,7 +64,7 @@ static void __page_cache_release(struct page *page)
 
 		spin_lock_irqsave(&pgdat->lru_lock, flags);
 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
-		VM_BUG_ON_PAGE(!PageLRU(page), page);
+		VM__ON_PAGE(!PageLRU(page), page);
 		__ClearPageLRU(page);
 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
 		spin_unlock_irqrestore(&pgdat->lru_lock, flags);
@@ -344,7 +344,7 @@ static void __lru_cache_activate_page(struct page *page)
 	 * pagevec that is currently being drained. Furthermore, marking
 	 * a remote pagevec's page PageActive potentially hits a race where
 	 * a page is marked PageActive just after it is added to the inactive
-	 * list causing accounting errors and BUG_ON checks to trigger.
+	 * list causing accounting errors and _ON checks to trigger.
 	 */
 	for (i = pagevec_count(pvec) - 1; i >= 0; i--) {
 		struct page *pagevec_page = pvec->pages[i];
@@ -435,8 +435,8 @@ EXPORT_SYMBOL(lru_cache_add_file);
  */
 void lru_cache_add(struct page *page)
 {
-	VM_BUG_ON_PAGE(PageActive(page) && PageUnevictable(page), page);
-	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(PageActive(page) && PageUnevictable(page), page);
+	VM__ON_PAGE(PageLRU(page), page);
 	__lru_cache_add(page);
 }
 
@@ -453,7 +453,7 @@ void lru_cache_add(struct page *page)
 void lru_cache_add_active_or_unevictable(struct page *page,
 					 struct vm_area_struct *vma)
 {
-	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(PageLRU(page), page);
 
 	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
 		SetPageActive(page);
@@ -776,7 +776,7 @@ void release_pages(struct page **pages, int nr)
 			}
 
 			lruvec = mem_cgroup_page_lruvec(page, locked_pgdat);
-			VM_BUG_ON_PAGE(!PageLRU(page), page);
+			VM__ON_PAGE(!PageLRU(page), page);
 			__ClearPageLRU(page);
 			del_page_from_lru_list(page, lruvec, page_off_lru(page));
 		}
@@ -823,9 +823,9 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 {
 	const int file = 0;
 
-	VM_BUG_ON_PAGE(!PageHead(page), page);
-	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
-	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
+	VM__ON_PAGE(!PageHead(page), page);
+	VM__ON_PAGE(PageCompound(page_tail), page);
+	VM__ON_PAGE(PageLRU(page_tail), page);
 	lockdep_assert_held(&lruvec_pgdat(lruvec)->lru_lock);
 
 	if (!list)
@@ -862,7 +862,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 	enum lru_list lru;
 	int was_unevictable = TestClearPageUnevictable(page);
 
-	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(PageLRU(page), page);
 
 	SetPageLRU(page);
 	/*

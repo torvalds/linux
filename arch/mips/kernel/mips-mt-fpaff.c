@@ -211,7 +211,7 @@ static __init int mt_fp_affinity_init(void)
 		mt_fpemul_threshold =
 			(FPUSEFACTOR * (loops_per_jiffy/(500000/HZ))) / HZ;
 	}
-	printk(KERN_DEBUG "FPU Affinity set after %ld emulations\n",
+	printk(KERN_DE "FPU Affinity set after %ld emulations\n",
 	       mt_fpemul_threshold);
 
 	return 0;

@@ -1125,7 +1125,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 		0,
 	/*
 	 *  Return to the previous DATA script which 
-	 *  is guaranteed by design (if no bug) to be 
+	 *  is guaranteed by design (if no ) to be 
 	 *  the main DATA script for this transfer.
 	 */
 	SCR_LOAD_REL (temp, 4),
@@ -1190,7 +1190,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 		0,
 	/*
 	 *  Return to the previous DATA script which 
-	 *  is guaranteed by design (if no bug) to be 
+	 *  is guaranteed by design (if no ) to be 
 	 *  the main DATA script for this transfer.
 	 */
 	SCR_LOAD_REL (temp, 4),

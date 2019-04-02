@@ -98,7 +98,7 @@ u32 pamu_get_max_subwin_cnt(void)
 static struct paace *pamu_get_ppaace(int liodn)
 {
 	if (!ppaact || liodn >= PAACE_NUMBER_ENTRIES) {
-		pr_debug("PPAACT doesn't exist\n");
+		pr_de("PPAACT doesn't exist\n");
 		return NULL;
 	}
 
@@ -117,12 +117,12 @@ int pamu_enable_liodn(int liodn)
 
 	ppaace = pamu_get_ppaace(liodn);
 	if (!ppaace) {
-		pr_debug("Invalid primary paace entry\n");
+		pr_de("Invalid primary paace entry\n");
 		return -ENOENT;
 	}
 
 	if (!get_bf(ppaace->addr_bitfields, PPAACE_AF_WSE)) {
-		pr_debug("liodn %d not configured\n", liodn);
+		pr_de("liodn %d not configured\n", liodn);
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ int pamu_disable_liodn(int liodn)
 
 	ppaace = pamu_get_ppaace(liodn);
 	if (!ppaace) {
-		pr_debug("Invalid primary paace entry\n");
+		pr_de("Invalid primary paace entry\n");
 		return -ENOENT;
 	}
 
@@ -160,8 +160,8 @@ int pamu_disable_liodn(int liodn)
 /* Derive the window size encoding for a particular PAACE entry */
 static unsigned int map_addrspace_size_to_wse(phys_addr_t addrspace_size)
 {
-	/* Bug if not a power of 2 */
-	BUG_ON(addrspace_size & (addrspace_size - 1));
+	/*  if not a power of 2 */
+	_ON(addrspace_size & (addrspace_size - 1));
 
 	/* window size is 2^(WSE+1) bytes */
 	return fls64(addrspace_size) - 2;
@@ -211,7 +211,7 @@ static struct paace *pamu_get_spaace(struct paace *paace, u32 wnum)
 	if (wnum < subwin_cnt)
 		spaace = &spaact[paace->fspi + wnum];
 	else
-		pr_debug("secondary paace out of bounds\n");
+		pr_de("secondary paace out of bounds\n");
 
 	return spaace;
 }
@@ -252,7 +252,7 @@ void pamu_free_subwins(int liodn)
 
 	ppaace = pamu_get_ppaace(liodn);
 	if (!ppaace) {
-		pr_debug("Invalid liodn entry\n");
+		pr_de("Invalid liodn entry\n");
 		return;
 	}
 
@@ -274,7 +274,7 @@ int  pamu_update_paace_stash(int liodn, u32 subwin, u32 value)
 
 	paace = pamu_get_ppaace(liodn);
 	if (!paace) {
-		pr_debug("Invalid liodn entry\n");
+		pr_de("Invalid liodn entry\n");
 		return -ENOENT;
 	}
 	if (subwin) {
@@ -296,7 +296,7 @@ int pamu_disable_spaace(int liodn, u32 subwin)
 
 	paace = pamu_get_ppaace(liodn);
 	if (!paace) {
-		pr_debug("Invalid liodn entry\n");
+		pr_de("Invalid liodn entry\n");
 		return -ENOENT;
 	}
 	if (subwin) {
@@ -339,13 +339,13 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 	unsigned long fspi;
 
 	if ((win_size & (win_size - 1)) || win_size < PAMU_PAGE_SIZE) {
-		pr_debug("window size too small or not a power of two %pa\n",
+		pr_de("window size too small or not a power of two %pa\n",
 			 &win_size);
 		return -EINVAL;
 	}
 
 	if (win_addr & (win_size - 1)) {
-		pr_debug("window address is not aligned with window size\n");
+		pr_de("window address is not aligned with window size\n");
 		return -EINVAL;
 	}
 
@@ -368,7 +368,7 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 		set_bf(ppaace->impl_attr, PAACE_IA_OTM, PAACE_OTM_INDEXED);
 		ppaace->op_encode.index_ot.omi = omi;
 	} else if (~omi != 0) {
-		pr_debug("bad operation mapping index: %d\n", omi);
+		pr_de("bad operation mapping index: %d\n", omi);
 		return -EINVAL;
 	}
 
@@ -384,7 +384,7 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 		/* The first entry is in the primary PAACE instead */
 		fspi = pamu_get_fspi_and_allocate(subwin_cnt - 1);
 		if (fspi == ULONG_MAX) {
-			pr_debug("spaace indexes exhausted\n");
+			pr_de("spaace indexes exhausted\n");
 			return -EINVAL;
 		}
 
@@ -431,7 +431,7 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 
 	/* setup sub-windows */
 	if (!subwin_cnt) {
-		pr_debug("Invalid subwindow count\n");
+		pr_de("Invalid subwindow count\n");
 		return -EINVAL;
 	}
 
@@ -446,17 +446,17 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 	}
 
 	if (!paace) {
-		pr_debug("Invalid liodn entry\n");
+		pr_de("Invalid liodn entry\n");
 		return -ENOENT;
 	}
 
 	if ((subwin_size & (subwin_size - 1)) || subwin_size < PAMU_PAGE_SIZE) {
-		pr_debug("subwindow size out of range, or not a power of 2\n");
+		pr_de("subwindow size out of range, or not a power of 2\n");
 		return -EINVAL;
 	}
 
 	if (rpn == ULONG_MAX) {
-		pr_debug("real page number out of range\n");
+		pr_de("real page number out of range\n");
 		return -EINVAL;
 	}
 
@@ -478,7 +478,7 @@ int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
 		set_bf(paace->impl_attr, PAACE_IA_OTM, PAACE_OTM_INDEXED);
 		paace->op_encode.index_ot.omi = omi;
 	} else if (~omi != 0) {
-		pr_debug("bad operation mapping index: %d\n", omi);
+		pr_de("bad operation mapping index: %d\n", omi);
 		return -EINVAL;
 	}
 
@@ -532,7 +532,7 @@ u32 get_stash_id(u32 stash_dest_hint, u32 vcpu)
 		if (node) {
 			prop = of_get_property(node, "cache-stash-id", NULL);
 			if (!prop) {
-				pr_debug("missing cache-stash-id at %pOF\n",
+				pr_de("missing cache-stash-id at %pOF\n",
 					 node);
 				of_node_put(node);
 				return ~(u32)0;
@@ -559,7 +559,7 @@ found_cpu_node:
 		if (stash_dest_hint == cache_level) {
 			prop = of_get_property(node, "cache-stash-id", NULL);
 			if (!prop) {
-				pr_debug("missing cache-stash-id at %pOF\n",
+				pr_de("missing cache-stash-id at %pOF\n",
 					 node);
 				of_node_put(node);
 				return ~(u32)0;
@@ -570,7 +570,7 @@ found_cpu_node:
 
 		prop = of_get_property(node, "next-level-cache", NULL);
 		if (!prop) {
-			pr_debug("can't find next-level-cache at %pOF\n", node);
+			pr_de("can't find next-level-cache at %pOF\n", node);
 			of_node_put(node);
 			return ~(u32)0;  /* can't traverse any further */
 		}
@@ -579,12 +579,12 @@ found_cpu_node:
 		/* advance to next node in cache hierarchy */
 		node = of_find_node_by_phandle(*prop);
 		if (!node) {
-			pr_debug("Invalid node for cache hierarchy\n");
+			pr_de("Invalid node for cache hierarchy\n");
 			return ~(u32)0;
 		}
 	}
 
-	pr_debug("stash dest not found for %d on vcpu %d\n",
+	pr_de("stash dest not found for %d on vcpu %d\n",
 		 stash_dest_hint, vcpu);
 	return ~(u32)0;
 }
@@ -734,7 +734,7 @@ static void setup_liodns(void)
 
 			liodn = be32_to_cpup(&prop[i]);
 			if (liodn >= PAACE_NUMBER_ENTRIES) {
-				pr_debug("Invalid LIODN value %d\n", liodn);
+				pr_de("Invalid LIODN value %d\n", liodn);
 				continue;
 			}
 			ppaace = pamu_get_ppaace(liodn);
@@ -803,7 +803,7 @@ static irqreturn_t pamu_av_isr(int irq, void *arg)
 			/* clear access violation condition */
 			out_be32(p + PAMU_AVS1, avs1 & PAMU_AV_MASK);
 			paace = pamu_get_ppaace(avs1 >> PAMU_AVS1_LIODN_SHIFT);
-			BUG_ON(!paace);
+			_ON(!paace);
 			/* check if we got a violation for a disabled LIODN */
 			if (!get_bf(paace->addr_bitfields, PAACE_AF_V)) {
 				/*
@@ -816,7 +816,7 @@ static irqreturn_t pamu_av_isr(int irq, void *arg)
 			} else {
 				/* Disable the LIODN */
 				ret = pamu_disable_liodn(avs1 >> PAMU_AVS1_LIODN_SHIFT);
-				BUG_ON(ret);
+				_ON(ret);
 				pr_emerg("Disabling liodn %x\n",
 					 avs1 >> PAMU_AVS1_LIODN_SHIFT);
 			}

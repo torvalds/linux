@@ -141,9 +141,9 @@ enum {
 	CMD_DIAG_RPRT       = 0x30,
 	CMD_NOP             = 0x31,
 
-	/* debug commands */
-	CMD_QUERY_DEBUG_MSG = 0x2a,
-	CMD_SET_DEBUG_MSG   = 0x2b,
+	/* de commands */
+	CMD_QUERY_DE_MSG = 0x2a,
+	CMD_SET_DE_MSG   = 0x2b,
 };
 
 /*
@@ -424,7 +424,7 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	down(&dev->cmd.event_sem);
 
 	spin_lock(&dev->cmd.context_lock);
-	BUG_ON(dev->cmd.free_head < 0);
+	_ON(dev->cmd.free_head < 0);
 	context = &dev->cmd.context[dev->cmd.free_head];
 	context->token += dev->cmd.token_mask + 1;
 	dev->cmd.free_head = context->next;
@@ -1781,7 +1781,7 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, enum ib_qp_state cur,
 	if (op[cur][next] == CMD_ERR2RST_QPEE) {
 		op_mod = 3;	/* don't write outbox, any->reset */
 
-		/* For debugging */
+		/* For deging */
 		if (!mailbox) {
 			mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 			if (!IS_ERR(mailbox)) {

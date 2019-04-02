@@ -35,7 +35,7 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <rdma/rdma_vt.h>
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/seq_file.h>
 #endif
 
@@ -410,7 +410,7 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static const char * const qp_type_str[] = {
 	"SMI", "GSI", "RC", "UC", "UD",

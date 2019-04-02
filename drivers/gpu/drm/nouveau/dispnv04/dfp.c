@@ -293,8 +293,8 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	const struct drm_framebuffer *fb = encoder->crtc->primary->fb;
 	uint32_t mode_ratio, panel_ratio;
 
-	NV_DEBUG(drm, "Output mode on CRTC %d:\n", nv_crtc->index);
-	drm_mode_debug_printmodeline(output_mode);
+	NV_DE(drm, "Output mode on CRTC %d:\n", nv_crtc->index);
+	drm_mode_de_printmodeline(output_mode);
 
 	/* Initialize the FP registers in this CRTC. */
 	regp->fp_horiz_regs[FP_DISPLAY_END] = output_mode->hdisplay - 1;
@@ -357,18 +357,18 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	if (output_mode->clock > 165000)
 		regp->fp_control |= (8 << 28);
 
-	regp->fp_debug_0 = NV_PRAMDAC_FP_DEBUG_0_YWEIGHT_ROUND |
-			   NV_PRAMDAC_FP_DEBUG_0_XWEIGHT_ROUND |
-			   NV_PRAMDAC_FP_DEBUG_0_YINTERP_BILINEAR |
-			   NV_PRAMDAC_FP_DEBUG_0_XINTERP_BILINEAR |
-			   NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED |
-			   NV_PRAMDAC_FP_DEBUG_0_YSCALE_ENABLE |
-			   NV_PRAMDAC_FP_DEBUG_0_XSCALE_ENABLE;
+	regp->fp_de_0 = NV_PRAMDAC_FP_DE_0_YWEIGHT_ROUND |
+			   NV_PRAMDAC_FP_DE_0_XWEIGHT_ROUND |
+			   NV_PRAMDAC_FP_DE_0_YINTERP_BILINEAR |
+			   NV_PRAMDAC_FP_DE_0_XINTERP_BILINEAR |
+			   NV_RAMDAC_FP_DE_0_TMDS_ENABLED |
+			   NV_PRAMDAC_FP_DE_0_YSCALE_ENABLE |
+			   NV_PRAMDAC_FP_DE_0_XSCALE_ENABLE;
 
 	/* We want automatic scaling */
-	regp->fp_debug_1 = 0;
+	regp->fp_de_1 = 0;
 	/* This can override HTOTAL and VTOTAL */
-	regp->fp_debug_2 = 0;
+	regp->fp_de_2 = 0;
 
 	/* Use 20.12 fixed point format to avoid floats */
 	mode_ratio = (1 << 12) * adjusted_mode->hdisplay / adjusted_mode->vdisplay;
@@ -386,8 +386,8 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 			 * to maintain aspect */
 
 			scale = (1 << 12) * adjusted_mode->vdisplay / output_mode->vdisplay;
-			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
-					   XLATE(scale, divide_by_2, NV_PRAMDAC_FP_DEBUG_1_XSCALE_VALUE);
+			regp->fp_de_1 = NV_PRAMDAC_FP_DE_1_XSCALE_TESTMODE_ENABLE |
+					   XLATE(scale, divide_by_2, NV_PRAMDAC_FP_DE_1_XSCALE_VALUE);
 
 			/* restrict area of screen used, horizontally */
 			diff = output_mode->hdisplay -
@@ -402,8 +402,8 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 			 * to maintain aspect */
 
 			scale = (1 << 12) * adjusted_mode->hdisplay / output_mode->hdisplay;
-			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
-					   XLATE(scale, divide_by_2, NV_PRAMDAC_FP_DEBUG_1_YSCALE_VALUE);
+			regp->fp_de_1 = NV_PRAMDAC_FP_DE_1_YSCALE_TESTMODE_ENABLE |
+					   XLATE(scale, divide_by_2, NV_PRAMDAC_FP_DE_1_YSCALE_VALUE);
 
 			/* restrict area of screen used, vertically */
 			diff = output_mode->vdisplay -
@@ -477,7 +477,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_DEBUG(drm, "Output %s is running on CRTC %d using output %c\n",
+	NV_DE(drm, "Output %s is running on CRTC %d using output %c\n",
 		 nouveau_encoder_connector_get(nv_encoder)->base.name,
 		 nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
@@ -494,10 +494,10 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 	if (dev->pdev->device == 0x0174 || dev->pdev->device == 0x0179 ||
 	    dev->pdev->device == 0x0189 || dev->pdev->device == 0x0329) {
 		if (mode == DRM_MODE_DPMS_ON) {
-			nvif_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 1 << 31);
+			nvif_mask(device, NV_PBUS_DE_DUALHEAD_CTL, 1 << 31, 1 << 31);
 			nvif_mask(device, NV_PCRTC_GPIO_EXT, 3, 1);
 		} else {
-			nvif_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
+			nvif_mask(device, NV_PBUS_DE_DUALHEAD_CTL, 1 << 31, 0);
 			nvif_mask(device, NV_PCRTC_GPIO_EXT, 3, 0);
 		}
 	}
@@ -521,7 +521,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nv_encoder->last_dpms = mode;
 
-	NV_DEBUG(drm, "Setting dpms mode %d on lvds encoder (output %d)\n",
+	NV_DE(drm, "Setting dpms mode %d on lvds encoder (output %d)\n",
 		 mode, nv_encoder->dcb->index);
 
 	if (was_powersaving && is_powersaving_dpms(mode))
@@ -566,7 +566,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nv_encoder->last_dpms = mode;
 
-	NV_DEBUG(drm, "Setting dpms mode %d on tmds encoder (output %d)\n",
+	NV_DE(drm, "Setting dpms mode %d on tmds encoder (output %d)\n",
 		 mode, nv_encoder->dcb->index);
 
 	nv04_dfp_update_backlight(encoder, mode);

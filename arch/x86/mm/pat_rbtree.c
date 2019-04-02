@@ -10,7 +10,7 @@
  */
 
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/rbtree_augmented.h>
 #include <linux/sched.h>
@@ -258,7 +258,7 @@ struct memtype *rbt_memtype_lookup(u64 addr)
 	return memtype_rb_lowest_match(&memtype_rbroot, addr, addr + PAGE_SIZE);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 int rbt_memtype_copy_nth_element(struct memtype *out, loff_t pos)
 {
 	struct rb_node *node;

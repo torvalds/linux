@@ -88,10 +88,10 @@ void clear_page_mlock(struct page *page)
 void mlock_vma_page(struct page *page)
 {
 	/* Serialize with page migration */
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
+	VM__ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
 
 	if (!TestSetPageMlocked(page)) {
 		mod_zone_page_state(page_zone(page), NR_MLOCK,
@@ -185,9 +185,9 @@ unsigned int munlock_vma_page(struct page *page)
 	pg_data_t *pgdat = page_pgdat(page);
 
 	/* For try_to_munlock() and to serialize with page migration */
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 
 	/*
 	 * Serialize with any parallel __split_huge_page_refcount() which
@@ -246,8 +246,8 @@ static int __mlock_posix_error_return(long retval)
 static bool __putback_lru_fast_prepare(struct page *page, struct pagevec *pvec,
 		int *pgrescued)
 {
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	if (page_mapcount(page) <= 1 && page_evictable(page)) {
 		pagevec_add(pvec, page);
@@ -466,7 +466,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 
 		if (page && !IS_ERR(page)) {
 			if (PageTransTail(page)) {
-				VM_BUG_ON_PAGE(PageMlocked(page), page);
+				VM__ON_PAGE(PageMlocked(page), page);
 				put_page(page); /* follow_page_mask() */
 			} else if (PageTransHuge(page)) {
 				lock_page(page);
@@ -587,8 +587,8 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 	struct vm_area_struct * vma, * prev;
 	int error;
 
-	VM_BUG_ON(offset_in_page(start));
-	VM_BUG_ON(len != PAGE_ALIGN(len));
+	VM__ON(offset_in_page(start));
+	VM__ON(len != PAGE_ALIGN(len));
 	end = start + len;
 	if (end < start)
 		return -EINVAL;

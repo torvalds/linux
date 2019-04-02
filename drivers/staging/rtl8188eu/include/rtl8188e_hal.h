@@ -286,8 +286,8 @@ struct hal_data_8188e {
 	u8	TRxAntDivType;
 
 
-	u8	bDumpRxPkt;/* for debug */
-	u8	bDumpTxPkt;/* for debug */
+	u8	bDumpRxPkt;/* for de */
+	u8	bDumpTxPkt;/* for de */
 	u8	FwRsvdPageStartOffset; /* Reserve page start offset except
 					*  beacon in TxQ.
 					*/

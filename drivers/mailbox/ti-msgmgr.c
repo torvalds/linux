@@ -120,7 +120,7 @@ struct ti_queue_inst {
  * @dev:	device pointer corresponding to the Message Manager instance
  * @desc:	Description of the SoC integration
  * @queue_proxy_region:	Queue proxy region where queue buffers are located
- * @queue_state_debug_region:	Queue status register regions
+ * @queue_state_de_region:	Queue status register regions
  * @queue_ctrl_region:	Queue Control register regions
  * @num_valid_queues:	Number of valid queues defined for the processor
  *		Note: other queues are probably reserved for other processors
@@ -133,7 +133,7 @@ struct ti_msgmgr_inst {
 	struct device *dev;
 	const struct ti_msgmgr_desc *desc;
 	void __iomem *queue_proxy_region;
-	void __iomem *queue_state_debug_region;
+	void __iomem *queue_state_de_region;
 	void __iomem *queue_ctrl_region;
 	u8 num_valid_queues;
 	struct ti_queue_inst *qinsts;
@@ -604,7 +604,7 @@ static int ti_msgmgr_queue_setup(int idx, struct device *dev,
 		qinst->queue_buff_end = inst->queue_proxy_region +
 		    SPROXY_THREAD_DATA_OFFSET(qinst->proxy_id,
 					      d->data_last_reg);
-		qinst->queue_state = inst->queue_state_debug_region +
+		qinst->queue_state = inst->queue_state_de_region +
 		    SPROXY_THREAD_STATUS_OFFSET(qinst->proxy_id);
 		qinst->queue_ctrl = inst->queue_ctrl_region +
 		    SPROXY_THREAD_CTRL_OFFSET(qinst->proxy_id);
@@ -621,7 +621,7 @@ static int ti_msgmgr_queue_setup(int idx, struct device *dev,
 		    Q_DATA_OFFSET(qinst->proxy_id, qinst->queue_id,
 				  d->data_last_reg);
 		qinst->queue_state =
-		    inst->queue_state_debug_region +
+		    inst->queue_state_de_region +
 		    Q_STATE_OFFSET(qinst->queue_id);
 		qinst->is_tx = qd->is_tx;
 		dir = qinst->is_tx ? "tx" : "rx";
@@ -671,7 +671,7 @@ static const struct ti_msgmgr_desc k2g_desc = {
 	.max_message_size = 64,
 	.max_messages = 128,
 	.data_region_name = "queue_proxy_region",
-	.status_region_name = "queue_state_debug_region",
+	.status_region_name = "queue_state_de_region",
 	.data_first_reg = 16,
 	.data_last_reg = 31,
 	.status_cnt_mask = Q_STATE_ENTRY_COUNT_MASK,
@@ -747,9 +747,9 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   desc->status_region_name);
-	inst->queue_state_debug_region = devm_ioremap_resource(dev, res);
-	if (IS_ERR(inst->queue_state_debug_region))
-		return PTR_ERR(inst->queue_state_debug_region);
+	inst->queue_state_de_region = devm_ioremap_resource(dev, res);
+	if (IS_ERR(inst->queue_state_de_region))
+		return PTR_ERR(inst->queue_state_de_region);
 
 	if (desc->is_sproxy) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -760,7 +760,7 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(dev, "proxy region=%p, queue_state=%p\n",
-		inst->queue_proxy_region, inst->queue_state_debug_region);
+		inst->queue_proxy_region, inst->queue_state_de_region);
 
 	queue_count = desc->num_valid_queues;
 	if (!queue_count || queue_count > desc->queue_count) {

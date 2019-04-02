@@ -158,8 +158,8 @@ inline void do_fpu_context_switch(struct pt_regs *regs)
 	/* Enable to use FPU. */
 
 	if (!user_mode(regs)) {
-		pr_err("BUG: FPU is used in kernel mode.\n");
-		BUG();
+		pr_err(": FPU is used in kernel mode.\n");
+		();
 		return;
 	}
 

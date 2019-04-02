@@ -243,21 +243,21 @@ class ConfigInfoView : public QTextBrowser {
 	typedef class QTextBrowser Parent;
 public:
 	ConfigInfoView(QWidget* parent, const char *name = 0);
-	bool showDebug(void) const { return _showDebug; }
+	bool showDe(void) const { return _showDe; }
 
 public slots:
 	void setInfo(struct menu *menu);
 	void saveSettings(void);
-	void setShowDebug(bool);
+	void setShowDe(bool);
 
 signals:
-	void showDebugChanged(bool);
+	void showDeChanged(bool);
 	void menuSelected(struct menu *);
 
 protected:
 	void symbolInfo(void);
 	void menuInfo(void);
-	QString debug_info(struct symbol *sym);
+	QString de_info(struct symbol *sym);
 	static QString print_filter(const QString &str);
 	static void expr_print_help(void *data, struct symbol *sym, const char *str);
 	QMenu *createStandardContextMenu(const QPoint & pos);
@@ -265,7 +265,7 @@ protected:
 
 	struct symbol *sym;
 	struct menu *_menu;
-	bool _showDebug;
+	bool _showDe;
 };
 
 class ConfigSearchWindow : public QDialog {

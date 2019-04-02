@@ -8,7 +8,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "perf.h"
-#include "debug.h"
+#include "de.h"
 #include "tests.h"
 
 static int sched__get_first_possible_cpu(pid_t pid, cpu_set_t *maskp)
@@ -71,7 +71,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 		evlist = perf_evlist__new_default();
 
 	if (evlist == NULL) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_de("Not enough memory to create evlist\n");
 		goto out;
 	}
 
@@ -83,7 +83,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 */
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_de("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -95,7 +95,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 */
 	err = perf_evlist__prepare_workload(evlist, &opts.target, argv, false, NULL);
 	if (err < 0) {
-		pr_debug("Couldn't run the workload!\n");
+		pr_de("Couldn't run the workload!\n");
 		goto out_delete_evlist;
 	}
 
@@ -110,7 +110,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
-		pr_debug("sched__get_first_possible_cpu: %s\n",
+		pr_de("sched__get_first_possible_cpu: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -121,7 +121,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 * So that we can check perf_sample.cpu on all the samples.
 	 */
 	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
-		pr_debug("sched_setaffinity: %s\n",
+		pr_de("sched_setaffinity: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -132,7 +132,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 */
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("perf_evlist__open: %s\n",
+		pr_de("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -144,7 +144,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 */
 	err = perf_evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_de("perf_evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -183,7 +183,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				if (err < 0) {
 					if (verbose > 0)
 						perf_event__fprintf(event, stderr);
-					pr_debug("Couldn't parse sample\n");
+					pr_de("Couldn't parse sample\n");
 					goto out_delete_evlist;
 				}
 
@@ -193,7 +193,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				}
 
 				if (prev_time > sample.time) {
-					pr_debug("%s going backwards in time, prev=%" PRIu64 ", curr=%" PRIu64 "\n",
+					pr_de("%s going backwards in time, prev=%" PRIu64 ", curr=%" PRIu64 "\n",
 						 name, prev_time, sample.time);
 					++errs;
 				}
@@ -201,19 +201,19 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				prev_time = sample.time;
 
 				if (sample.cpu != cpu) {
-					pr_debug("%s with unexpected cpu, expected %d, got %d\n",
+					pr_de("%s with unexpected cpu, expected %d, got %d\n",
 						 name, cpu, sample.cpu);
 					++errs;
 				}
 
 				if ((pid_t)sample.pid != evlist->workload.pid) {
-					pr_debug("%s with unexpected pid, expected %d, got %d\n",
+					pr_de("%s with unexpected pid, expected %d, got %d\n",
 						 name, evlist->workload.pid, sample.pid);
 					++errs;
 				}
 
 				if ((pid_t)sample.tid != evlist->workload.pid) {
-					pr_debug("%s with unexpected tid, expected %d, got %d\n",
+					pr_de("%s with unexpected tid, expected %d, got %d\n",
 						 name, evlist->workload.pid, sample.tid);
 					++errs;
 				}
@@ -224,7 +224,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				     type == PERF_RECORD_FORK ||
 				     type == PERF_RECORD_EXIT) &&
 				     (pid_t)event->comm.pid != evlist->workload.pid) {
-					pr_debug("%s with unexpected pid/tid\n", name);
+					pr_de("%s with unexpected pid/tid\n", name);
 					++errs;
 				}
 
@@ -232,14 +232,14 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				     type == PERF_RECORD_MMAP ||
 				     type == PERF_RECORD_MMAP2) &&
 				     event->comm.pid != event->comm.tid) {
-					pr_debug("%s with different pid/tid!\n", name);
+					pr_de("%s with different pid/tid!\n", name);
 					++errs;
 				}
 
 				switch (type) {
 				case PERF_RECORD_COMM:
 					if (strcmp(event->comm.comm, cmd)) {
-						pr_debug("%s with unexpected comm!\n", name);
+						pr_de("%s with unexpected comm!\n", name);
 						++errs;
 					}
 					break;
@@ -269,7 +269,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 					/* Just ignore samples for now */
 					break;
 				default:
-					pr_debug("Unexpected perf_event->header.type %d!\n",
+					pr_de("Unexpected perf_event->header.type %d!\n",
 						 type);
 					++errs;
 				}
@@ -289,39 +289,39 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 
 		sleep(1);
 		if (++wakeups > 5) {
-			pr_debug("No PERF_RECORD_EXIT event!\n");
+			pr_de("No PERF_RECORD_EXIT event!\n");
 			break;
 		}
 	}
 
 found_exit:
 	if (nr_events[PERF_RECORD_COMM] > 1 + !!found_coreutils_mmap) {
-		pr_debug("Excessive number of PERF_RECORD_COMM events!\n");
+		pr_de("Excessive number of PERF_RECORD_COMM events!\n");
 		++errs;
 	}
 
 	if (nr_events[PERF_RECORD_COMM] == 0) {
-		pr_debug("Missing PERF_RECORD_COMM for %s!\n", cmd);
+		pr_de("Missing PERF_RECORD_COMM for %s!\n", cmd);
 		++errs;
 	}
 
 	if (!found_cmd_mmap && !found_coreutils_mmap) {
-		pr_debug("PERF_RECORD_MMAP for %s missing!\n", cmd);
+		pr_de("PERF_RECORD_MMAP for %s missing!\n", cmd);
 		++errs;
 	}
 
 	if (!found_libc_mmap) {
-		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "libc");
+		pr_de("PERF_RECORD_MMAP for %s missing!\n", "libc");
 		++errs;
 	}
 
 	if (!found_ld_mmap) {
-		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "ld");
+		pr_de("PERF_RECORD_MMAP for %s missing!\n", "ld");
 		++errs;
 	}
 
 	if (!found_vdso_mmap) {
-		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "[vdso]");
+		pr_de("PERF_RECORD_MMAP for %s missing!\n", "[vdso]");
 		++errs;
 	}
 out_delete_evlist:

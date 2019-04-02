@@ -344,7 +344,7 @@ static bool deref_stack_regs(struct unwind_state *state, unsigned long addr,
 	struct pt_regs *regs = (struct pt_regs *)addr;
 
 	/* x86-32 support will be more complicated due to the &regs->sp hack */
-	BUILD_BUG_ON(IS_ENABLED(CONFIG_X86_32));
+	BUILD__ON(IS_ENABLED(CONFIG_X86_32));
 
 	if (!stack_access_ok(state, addr, sizeof(struct pt_regs)))
 		return false;

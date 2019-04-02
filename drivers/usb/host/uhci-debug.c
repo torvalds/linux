@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * UHCI-specific debugging code. Invaluable when something
+ * UHCI-specific deging code. Invaluable when something
  * goes wrong, but don't get in my face.
  *
  * Kernel visible pointers are surrounded in []s and bus
@@ -12,16 +12,16 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <asm/io.h>
 
 #include "uhci-hcd.h"
 
 #define EXTRA_SPACE	1024
 
-static struct dentry *uhci_debugfs_root;
+static struct dentry *uhci_defs_root;
 
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 
 /* Handle REALLY large printks so we don't overflow buffers */
 static void lprintk(char *buf)
@@ -33,7 +33,7 @@ static void lprintk(char *buf)
 		p = strchr(buf, '\n');
 		if (p)
 			*p = 0;
-		printk(KERN_DEBUG "%s\n", buf);
+		printk(KERN_DE "%s\n", buf);
 		buf = p;
 		if (buf)
 			buf++;
@@ -138,7 +138,7 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp,
 	i = nactive = ninactive = 0;
 	list_for_each_entry(td, &urbp->td_list, list) {
 		if (urbp->qh->type != USB_ENDPOINT_XFER_ISOC &&
-				(++i <= 10 || debug > 2)) {
+				(++i <= 10 || de > 2)) {
 			out += sprintf(out, "%*s%d: ", space + 2, "", i);
 			out += uhci_show_td(uhci, td, out,
 					len - (out - buf), 0);
@@ -194,16 +194,16 @@ static int uhci_show_qh(struct uhci_hcd *uhci,
 		goto done;
 
 	if (element & UHCI_PTR_QH(uhci))
-		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");
+		out += sprintf(out, "%*s  Element points to QH (?)\n", space, "");
 
 	if (element & UHCI_PTR_DEPTH(uhci))
 		out += sprintf(out, "%*s  Depth traverse\n", space, "");
 
 	if (element & cpu_to_hc32(uhci, 8))
-		out += sprintf(out, "%*s  Bit 3 set (bug?)\n", space, "");
+		out += sprintf(out, "%*s  Bit 3 set (?)\n", space, "");
 
 	if (!(element & ~(UHCI_PTR_QH(uhci) | UHCI_PTR_DEPTH(uhci))))
-		out += sprintf(out, "%*s  Element is NULL (bug?)\n", space, "");
+		out += sprintf(out, "%*s  Element is NULL (?)\n", space, "");
 
 	if (out - buf > len)
 		goto done;
@@ -405,7 +405,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 			uhci->total_load,
 			uhci_to_hcd(uhci)->self.bandwidth_int_reqs,
 			uhci_to_hcd(uhci)->self.bandwidth_isoc_reqs);
-	if (debug <= 1)
+	if (de <= 1)
 		goto tail;
 
 	out += sprintf(out, "Frame List\n");
@@ -546,19 +546,19 @@ tail:
 	return out - buf;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #define MAX_OUTPUT	(64 * 1024)
 
-struct uhci_debug {
+struct uhci_de {
 	int size;
 	char *data;
 };
 
-static int uhci_debug_open(struct inode *inode, struct file *file)
+static int uhci_de_open(struct inode *inode, struct file *file)
 {
 	struct uhci_hcd *uhci = inode->i_private;
-	struct uhci_debug *up;
+	struct uhci_de *up;
 	unsigned long flags;
 
 	up = kmalloc(sizeof(*up), GFP_KERNEL);
@@ -583,22 +583,22 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
+static loff_t uhci_de_lseek(struct file *file, loff_t off, int whence)
 {
-	struct uhci_debug *up = file->private_data;
+	struct uhci_de *up = file->private_data;
 	return no_seek_end_llseek_size(file, off, whence, up->size);
 }
 
-static ssize_t uhci_debug_read(struct file *file, char __user *buf,
+static ssize_t uhci_de_read(struct file *file, char __user *buf,
 				size_t nbytes, loff_t *ppos)
 {
-	struct uhci_debug *up = file->private_data;
+	struct uhci_de *up = file->private_data;
 	return simple_read_from_buffer(buf, nbytes, ppos, up->data, up->size);
 }
 
-static int uhci_debug_release(struct inode *inode, struct file *file)
+static int uhci_de_release(struct inode *inode, struct file *file)
 {
-	struct uhci_debug *up = file->private_data;
+	struct uhci_de *up = file->private_data;
 
 	kfree(up->data);
 	kfree(up);
@@ -606,18 +606,18 @@ static int uhci_debug_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations uhci_debug_operations = {
+static const struct file_operations uhci_de_operations = {
 	.owner =	THIS_MODULE,
-	.open =		uhci_debug_open,
-	.llseek =	uhci_debug_lseek,
-	.read =		uhci_debug_read,
-	.release =	uhci_debug_release,
+	.open =		uhci_de_open,
+	.llseek =	uhci_de_lseek,
+	.read =		uhci_de_read,
+	.release =	uhci_de_release,
 };
-#define UHCI_DEBUG_OPS
+#define UHCI_DE_OPS
 
-#endif	/* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DE_FS */
 
-#else	/* CONFIG_DYNAMIC_DEBUG*/
+#else	/* CONFIG_DYNAMIC_DE*/
 
 static inline void lprintk(char *buf)
 {}

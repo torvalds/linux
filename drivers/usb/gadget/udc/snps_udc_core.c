@@ -595,7 +595,7 @@ udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq)
 	ep = container_of(usbep, struct udc_ep, ep);
 	req = container_of(usbreq, struct udc_request, req);
 	VDBG(ep->dev, "free_req req=%p\n", req);
-	BUG_ON(!list_empty(&req->queue));
+	_ON(!list_empty(&req->queue));
 	if (req->td_data) {
 		VDBG(ep->dev, "req->td_data=%p\n", req->td_data);
 
@@ -623,7 +623,7 @@ static void udc_init_bna_dummy(struct udc_request *req)
 					UDC_DMA_STP_STS_BS_DMA_DONE,
 					UDC_DMA_STP_STS_BS);
 #ifdef UDC_VERBOSE
-		pr_debug("bna desc = %p, sts = %08x\n",
+		pr_de("bna desc = %p, sts = %08x\n",
 			req->td_data, req->td_data->status);
 #endif
 	}
@@ -1318,7 +1318,7 @@ udc_set_halt(struct usb_ep *usbep, int halt)
 	if (!usbep)
 		return -EINVAL;
 
-	pr_debug("set_halt %s: halt=%d\n", usbep->name, halt);
+	pr_de("set_halt %s: halt=%d\n", usbep->name, halt);
 
 	ep = container_of(usbep, struct udc_ep, ep);
 	if (!ep->ep.desc && (ep->num != 0 && ep->num != UDC_EP0OUT_IX))
@@ -1602,7 +1602,7 @@ static void udc_setup_endpoints(struct udc *dev)
 	}
 
 	/*
-	 * with suspend bug workaround, ep0 params for gadget driver
+	 * with suspend  workaround, ep0 params for gadget driver
 	 * are set at gadget driver bind() call
 	 */
 	dev->gadget.ep0 = &dev->ep[UDC_EP0IN_IX].ep;
@@ -1763,7 +1763,7 @@ static void udc_timer_function(struct timer_list *unused)
 			 * set_rde=0 (RDE is set in udc_queue())
 			 */
 			set_rde++;
-			/* debug: lhadmot_timer_start = 221070 */
+			/* de: lhadmot_timer_start = 221070 */
 			udc_timer.expires = jiffies + HZ*UDC_RDE_TIMER_SECONDS;
 			if (!stop_timer)
 				add_timer(&udc_timer);

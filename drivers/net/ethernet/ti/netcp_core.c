@@ -43,7 +43,7 @@
 #define NETCP_MOD_PROBE_SKIPPED	1
 #define NETCP_MOD_PROBE_FAILED	2
 
-#define NETCP_DEBUG (NETIF_MSG_HW	| NETIF_MSG_WOL		|	\
+#define NETCP_DE (NETIF_MSG_HW	| NETIF_MSG_WOL		|	\
 		    NETIF_MSG_DRV	| NETIF_MSG_LINK	|	\
 		    NETIF_MSG_IFUP	| NETIF_MSG_INTR	|	\
 		    NETIF_MSG_PROBE	| NETIF_MSG_TIMER	|	\
@@ -109,9 +109,9 @@ static LIST_HEAD(netcp_devices);
 static LIST_HEAD(netcp_modules);
 static DEFINE_MUTEX(netcp_modules_lock);
 
-static int netcp_debug_level = -1;
-module_param(netcp_debug_level, int, 0);
-MODULE_PARM_DESC(netcp_debug_level, "Netcp debug level (NETIF_MSG bits) (0=none,...,16=all)");
+static int netcp_de_level = -1;
+module_param(netcp_de_level, int, 0);
+MODULE_PARM_DESC(netcp_de_level, "Netcp de level (NETIF_MSG bits) (0=none,...,16=all)");
 
 /* Helper functions - Get/Set */
 static void get_pkt_info(dma_addr_t *buff, u32 *buff_len, dma_addr_t *ndesc,
@@ -2006,7 +2006,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->dev = netcp_device->device;
 	netcp->ndev = ndev;
 	netcp->ndev_dev  = &ndev->dev;
-	netcp->msg_enable = netif_msg_init(netcp_debug_level, NETCP_DEBUG);
+	netcp->msg_enable = netif_msg_init(netcp_de_level, NETCP_DE);
 	netcp->tx_pause_threshold = MAX_SKB_FRAGS;
 	netcp->tx_resume_threshold = netcp->tx_pause_threshold;
 	netcp->node_interface = node_interface;

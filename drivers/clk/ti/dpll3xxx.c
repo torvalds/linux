@@ -83,7 +83,7 @@ static int _omap3_wait_dpll_status(struct clk_hw_omap *clk, u8 state)
 		pr_err("clock: %s failed transition to '%s'\n",
 		       clk_name, (state) ? "locked" : "bypassed");
 	} else {
-		pr_debug("clock: %s transition to '%s' in %d loops\n",
+		pr_de("clock: %s transition to '%s' in %d loops\n",
 			 clk_name, (state) ? "locked" : "bypassed", i);
 
 		ret = 0;
@@ -100,7 +100,7 @@ static u16 _omap3_dpll_compute_freqsel(struct clk_hw_omap *clk, u8 n)
 
 	fint = clk_hw_get_rate(clk->dpll_data->clk_ref) / n;
 
-	pr_debug("clock: fint is %lu\n", fint);
+	pr_de("clock: fint is %lu\n", fint);
 
 	if (fint >= 750000 && fint <= 1000000)
 		f = 0x3;
@@ -123,7 +123,7 @@ static u16 _omap3_dpll_compute_freqsel(struct clk_hw_omap *clk, u8 n)
 	else if (fint > 17500000 && fint <= 21000000)
 		f = 0xF;
 	else
-		pr_debug("clock: unknown freqsel setting for %d\n", n);
+		pr_de("clock: unknown freqsel setting for %d\n", n);
 
 	return f;
 }
@@ -145,7 +145,7 @@ static int _omap3_noncore_dpll_lock(struct clk_hw_omap *clk)
 	u8 state = 1;
 	int r = 0;
 
-	pr_debug("clock: locking DPLL %s\n", clk_hw_get_name(&clk->hw));
+	pr_de("clock: locking DPLL %s\n", clk_hw_get_name(&clk->hw));
 
 	dd = clk->dpll_data;
 	state <<= __ffs(dd->idlest_mask);
@@ -192,7 +192,7 @@ static int _omap3_noncore_dpll_bypass(struct clk_hw_omap *clk)
 	if (!(clk->dpll_data->modes & (1 << DPLL_LOW_POWER_BYPASS)))
 		return -EINVAL;
 
-	pr_debug("clock: configuring DPLL %s for low-power bypass\n",
+	pr_de("clock: configuring DPLL %s for low-power bypass\n",
 		 clk_hw_get_name(&clk->hw));
 
 	ai = omap3_dpll_autoidle_read(clk);
@@ -223,7 +223,7 @@ static int _omap3_noncore_dpll_stop(struct clk_hw_omap *clk)
 	if (!(clk->dpll_data->modes & (1 << DPLL_LOW_POWER_STOP)))
 		return -EINVAL;
 
-	pr_debug("clock: stopping DPLL %s\n", clk_hw_get_name(&clk->hw));
+	pr_de("clock: stopping DPLL %s\n", clk_hw_get_name(&clk->hw));
 
 	ai = omap3_dpll_autoidle_read(clk);
 
@@ -588,7 +588,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 		WARN_ON(!freqsel);
 	}
 
-	pr_debug("%s: %s: set rate: locking rate to %lu.\n", __func__,
+	pr_de("%s: %s: set rate: locking rate to %lu.\n", __func__,
 		 clk_hw_get_name(hw), rate);
 
 	ret = omap3_noncore_dpll_program(clk, freqsel);

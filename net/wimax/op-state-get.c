@@ -30,7 +30,7 @@
 #include "wimax-internal.h"
 
 #define D_SUBMODULE op_state_get
-#include "debug-levels.h"
+#include "de-levels.h"
 
 
 /*

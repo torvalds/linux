@@ -343,7 +343,7 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	/* Enable RX/TX/Error interupts */
 	out_8(&i2c_reg->i2cmr, I2CER_TXE | I2CER_TXB | I2CER_RXB);
 	out_8(&i2c_reg->i2cer, 0xff);	/* Clear interrupt status */
-	/* Chip bug, set enable here */
+	/* Chip , set enable here */
 	setbits8(&i2c_reg->i2mod, I2MOD_EN);	/* Enable */
 	/* Begin transmission */
 	setbits8(&i2c_reg->i2com, I2COM_START);

@@ -176,7 +176,7 @@ static void rfbi_write_command(const void *buf, u32 len)
 	case OMAP_DSS_RFBI_PARALLELMODE_16:
 	{
 		const u16 *w = buf;
-		BUG_ON(len & 1);
+		_ON(len & 1);
 		for (; len; len -= 2)
 			rfbi_write_reg(RFBI_CMD, *w++);
 		break;
@@ -185,7 +185,7 @@ static void rfbi_write_command(const void *buf, u32 len)
 	case OMAP_DSS_RFBI_PARALLELMODE_9:
 	case OMAP_DSS_RFBI_PARALLELMODE_12:
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -205,7 +205,7 @@ static void rfbi_read_data(void *buf, u32 len)
 	case OMAP_DSS_RFBI_PARALLELMODE_16:
 	{
 		u16 *w = buf;
-		BUG_ON(len & ~1);
+		_ON(len & ~1);
 		for (; len; len -= 2) {
 			rfbi_write_reg(RFBI_READ, 0);
 			*w++ = rfbi_read_reg(RFBI_READ);
@@ -216,7 +216,7 @@ static void rfbi_read_data(void *buf, u32 len)
 	case OMAP_DSS_RFBI_PARALLELMODE_9:
 	case OMAP_DSS_RFBI_PARALLELMODE_12:
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -234,7 +234,7 @@ static void rfbi_write_data(const void *buf, u32 len)
 	case OMAP_DSS_RFBI_PARALLELMODE_16:
 	{
 		const u16 *w = buf;
-		BUG_ON(len & 1);
+		_ON(len & 1);
 		for (; len; len -= 2)
 			rfbi_write_reg(RFBI_PARAM, *w++);
 		break;
@@ -243,7 +243,7 @@ static void rfbi_write_data(const void *buf, u32 len)
 	case OMAP_DSS_RFBI_PARALLELMODE_9:
 	case OMAP_DSS_RFBI_PARALLELMODE_12:
 	default:
-		BUG();
+		();
 
 	}
 }
@@ -298,7 +298,7 @@ static void rfbi_write_pixels(const void __iomem *buf, int scr_width,
 			pd += horiz_offset;
 		}
 	} else {
-		BUG();
+		();
 	}
 }
 
@@ -311,8 +311,8 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 	u16 width = rfbi.timings.x_res;
 	u16 height = rfbi.timings.y_res;
 
-	/*BUG_ON(callback == 0);*/
-	BUG_ON(rfbi.framedone_callback != NULL);
+	/*_ON(callback == 0);*/
+	_ON(rfbi.framedone_callback != NULL);
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
@@ -449,7 +449,7 @@ static void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
 			DSSERR("Failed to calc timings\n");
 	}
 
-	BUG_ON(!t->converted);
+	_ON(!t->converted);
 
 	rfbi_write_reg(RFBI_ONOFF_TIME(rfbi_module), t->tim[0]);
 	rfbi_write_reg(RFBI_CYCLE_TIME(rfbi_module), t->tim[1]);
@@ -653,7 +653,7 @@ static int rfbi_configure_bus(int rfbi_module, int bpp, int lines)
 		datatype = OMAP_DSS_RFBI_DATATYPE_24;
 		break;
 	default:
-		BUG();
+		();
 		return 1;
 	}
 	rfbi.datatype = datatype;
@@ -672,7 +672,7 @@ static int rfbi_configure_bus(int rfbi_module, int bpp, int lines)
 		parallelmode = OMAP_DSS_RFBI_PARALLELMODE_16;
 		break;
 	default:
-		BUG();
+		();
 		return 1;
 	}
 	rfbi.parallelmode = parallelmode;
@@ -689,18 +689,18 @@ static int rfbi_configure_bus(int rfbi_module, int bpp, int lines)
 			cycleformat = OMAP_DSS_RFBI_CYCLEFORMAT_3_1;
 			break;
 		default:
-			BUG();
+			();
 			return 1;
 		}
 	} else if ((2 * bpp % lines) == 0) {
 		if ((2 * bpp / lines) == 3)
 			cycleformat = OMAP_DSS_RFBI_CYCLEFORMAT_3_2;
 		else {
-			BUG();
+			();
 			return 1;
 		}
 	} else {
-		BUG();
+		();
 		return 1;
 	}
 
@@ -996,7 +996,7 @@ static int rfbi_bind(struct device *dev, struct device *master, void *data)
 
 	rfbi_runtime_put();
 
-	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
+	dss_defs_create_file("rfbi", rfbi_dump_regs);
 
 	rfbi_init_output(pdev);
 

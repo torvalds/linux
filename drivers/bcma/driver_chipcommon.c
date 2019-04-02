@@ -41,7 +41,7 @@ static bool bcma_core_cc_has_pmu_watchdog(struct bcma_drv_cc *cc)
 	if (cc->capabilities & BCMA_CC_CAP_PMU) {
 		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573) {
 			WARN(bus->chipinfo.rev <= 1, "No watchdog available\n");
-			/* 53573B0 and 53573B1 have bugged PMU watchdog. It can
+			/* 53573B0 and 53573B1 have ged PMU watchdog. It can
 			 * be enabled but timer can't be bumped. Use CC one
 			 * instead.
 			 */
@@ -118,7 +118,7 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 
 	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573 &&
 	    bus->chipinfo.rev <= 1) {
-		pr_debug("No watchdog on 53573A0 / 53573A1\n");
+		pr_de("No watchdog on 53573A0 / 53573A1\n");
 		return 0;
 	}
 
@@ -146,11 +146,11 @@ static void bcma_core_chipcommon_flash_detect(struct bcma_drv_cc *cc)
 	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
 	case BCMA_CC_FLASHT_ATSER:
-		bcma_debug(bus, "Found serial flash\n");
+		bcma_de(bus, "Found serial flash\n");
 		bcma_sflash_init(cc);
 		break;
 	case BCMA_CC_FLASHT_PARA:
-		bcma_debug(bus, "Found parallel flash\n");
+		bcma_de(bus, "Found parallel flash\n");
 		bcma_pflash_init(cc);
 		break;
 	default:
@@ -160,7 +160,7 @@ static void bcma_core_chipcommon_flash_detect(struct bcma_drv_cc *cc)
 	if (cc->core->id.rev == 38 ||
 	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
 		if (cc->capabilities & BCMA_CC_CAP_NFLASH) {
-			bcma_debug(bus, "Found NAND flash\n");
+			bcma_de(bus, "Found NAND flash\n");
 			bcma_nflash_init(cc);
 		}
 	}

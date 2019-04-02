@@ -236,7 +236,7 @@ static inline bool i915_gem_context_is_closed(const struct i915_gem_context *ctx
 
 static inline void i915_gem_context_set_closed(struct i915_gem_context *ctx)
 {
-	GEM_BUG_ON(i915_gem_context_is_closed(ctx));
+	GEM__ON(i915_gem_context_is_closed(ctx));
 	set_bit(CONTEXT_CLOSED, &ctx->flags);
 }
 
@@ -301,7 +301,7 @@ static inline int i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
 
 static inline void i915_gem_context_unpin_hw_id(struct i915_gem_context *ctx)
 {
-	GEM_BUG_ON(atomic_read(&ctx->hw_id_pin_count) == 0u);
+	GEM__ON(atomic_read(&ctx->hw_id_pin_count) == 0u);
 	atomic_dec(&ctx->hw_id_pin_count);
 }
 
@@ -330,17 +330,17 @@ intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 
 static inline void __intel_context_pin(struct intel_context *ce)
 {
-	GEM_BUG_ON(!ce->pin_count);
+	GEM__ON(!ce->pin_count);
 	ce->pin_count++;
 }
 
 static inline void intel_context_unpin(struct intel_context *ce)
 {
-	GEM_BUG_ON(!ce->pin_count);
+	GEM__ON(!ce->pin_count);
 	if (--ce->pin_count)
 		return;
 
-	GEM_BUG_ON(!ce->ops);
+	GEM__ON(!ce->ops);
 	ce->ops->unpin(ce);
 }
 

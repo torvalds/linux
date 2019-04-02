@@ -3,15 +3,15 @@ Date:		June 2017
 Contact:	Lu Baolu <baolu.lu@linux.intel.com>
 Description:
 		xHCI compatible USB host controllers (i.e. super-speed
-		USB3 controllers) are often implemented with the Debug
-		Capability (DbC). It can present a debug device which
+		USB3 controllers) are often implemented with the De
+		Capability (DbC). It can present a de device which
 		is fully compliant with the USB framework and provides
 		the equivalent of a very high performance full-duplex
-		serial link for debug purpose.
+		serial link for de purpose.
 
-		The DbC debug device shares a root port with xHCI host.
+		The DbC de device shares a root port with xHCI host.
 		When the DbC is enabled, the root port will be assigned
-		to the Debug Capability. Otherwise, it will be assigned
+		to the De Capability. Otherwise, it will be assigned
 		to xHCI.
 
 		Writing "enable" to this attribute will enable the DbC

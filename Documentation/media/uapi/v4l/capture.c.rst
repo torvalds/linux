@@ -512,7 +512,7 @@ file: media/v4l/capture.c
 			    errno_exit("VIDIOC_G_FMT");
 	    }
 
-	    /* Buggy driver paranoia. */
+	    /* gy driver paranoia. */
 	    min = fmt.fmt.pix.width * 2;
 	    if (fmt.fmt.pix.bytesperline < min)
 		    fmt.fmt.pix.bytesperline = min;

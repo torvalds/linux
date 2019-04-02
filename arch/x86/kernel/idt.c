@@ -58,7 +58,7 @@ struct idt_data {
  * stacks work only after cpu_init().
  */
 static const __initconst struct idt_data early_idts[] = {
-	INTG(X86_TRAP_DB,		debug),
+	INTG(X86_TRAP_DB,		de),
 	SYSG(X86_TRAP_BP,		int3),
 #ifdef CONFIG_X86_32
 	INTG(X86_TRAP_PF,		page_fault),
@@ -82,7 +82,7 @@ static const __initconst struct idt_data def_idts[] = {
 	INTG(X86_TRAP_NP,		segment_not_present),
 	INTG(X86_TRAP_SS,		stack_segment),
 	INTG(X86_TRAP_GP,		general_protection),
-	INTG(X86_TRAP_SPURIOUS,		spurious_interrupt_bug),
+	INTG(X86_TRAP_SPURIOUS,		spurious_interrupt_),
 	INTG(X86_TRAP_MF,		coprocessor_error),
 	INTG(X86_TRAP_AC,		alignment_check),
 	INTG(X86_TRAP_XF,		simd_coprocessor_error),
@@ -92,7 +92,7 @@ static const __initconst struct idt_data def_idts[] = {
 #else
 	INTG(X86_TRAP_DF,		double_fault),
 #endif
-	INTG(X86_TRAP_DB,		debug),
+	INTG(X86_TRAP_DB,		de),
 
 #ifdef CONFIG_X86_MCE
 	INTG(X86_TRAP_MC,		&machine_check),
@@ -159,11 +159,11 @@ static const __initconst struct idt_data early_pf_idts[] = {
 };
 
 /*
- * Override for the debug_idt. Same as the default, but with interrupt
+ * Override for the de_idt. Same as the default, but with interrupt
  * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
  */
 static const __initconst struct idt_data dbg_idts[] = {
-	INTG(X86_TRAP_DB,	debug),
+	INTG(X86_TRAP_DB,	de),
 };
 #endif
 
@@ -177,14 +177,14 @@ struct desc_ptr idt_descr __ro_after_init = {
 
 #ifdef CONFIG_X86_64
 /* No need to be aligned, but done to keep all IDTs defined the same way. */
-gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
+gate_desc de_idt_table[IDT_ENTRIES] __page_aligned_bss;
 
 /*
  * The exceptions which use Interrupt stacks. They are setup after
  * cpu_init() when the TSS has been initialized.
  */
 static const __initconst struct idt_data ist_idts[] = {
-	ISTG(X86_TRAP_DB,	debug,		DEBUG_STACK),
+	ISTG(X86_TRAP_DB,	de,		DE_STACK),
 	ISTG(X86_TRAP_NMI,	nmi,		NMI_STACK),
 	ISTG(X86_TRAP_DF,	double_fault,	DOUBLEFAULT_STACK),
 #ifdef CONFIG_X86_MCE
@@ -193,12 +193,12 @@ static const __initconst struct idt_data ist_idts[] = {
 };
 
 /*
- * Override for the debug_idt. Same as the default, but with interrupt
+ * Override for the de_idt. Same as the default, but with interrupt
  * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
  */
-const struct desc_ptr debug_idt_descr = {
+const struct desc_ptr de_idt_descr = {
 	.size		= IDT_ENTRIES * 16 - 1,
-	.address	= (unsigned long) debug_idt_table,
+	.address	= (unsigned long) de_idt_table,
 };
 #endif
 
@@ -233,7 +233,7 @@ static void set_intr_gate(unsigned int n, const void *addr)
 {
 	struct idt_data data;
 
-	BUG_ON(n > 0xFF);
+	_ON(n > 0xFF);
 
 	memset(&data, 0, sizeof(data));
 	data.vector	= n;
@@ -293,13 +293,13 @@ void __init idt_setup_ist_traps(void)
 }
 
 /**
- * idt_setup_debugidt_traps - Initialize the debug idt table with debug traps
+ * idt_setup_deidt_traps - Initialize the de idt table with de traps
  */
-void __init idt_setup_debugidt_traps(void)
+void __init idt_setup_deidt_traps(void)
 {
-	memcpy(&debug_idt_table, &idt_table, IDT_ENTRIES * 16);
+	memcpy(&de_idt_table, &idt_table, IDT_ENTRIES * 16);
 
-	idt_setup_from_table(debug_idt_table, dbg_idts, ARRAY_SIZE(dbg_idts), false);
+	idt_setup_from_table(de_idt_table, dbg_idts, ARRAY_SIZE(dbg_idts), false);
 }
 #endif
 
@@ -362,7 +362,7 @@ void __init update_intr_gate(unsigned int n, const void *addr)
 
 void alloc_intr_gate(unsigned int n, const void *addr)
 {
-	BUG_ON(n < FIRST_SYSTEM_VECTOR);
+	_ON(n < FIRST_SYSTEM_VECTOR);
 	if (!test_and_set_bit(n, system_vectors))
 		set_intr_gate(n, addr);
 }

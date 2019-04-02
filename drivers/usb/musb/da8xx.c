@@ -398,7 +398,7 @@ static int da8xx_musb_init(struct musb *musb)
 	msleep(5);
 
 	/* NOTE: IRQs are in mixed mode, not bypass to pure MUSB */
-	pr_debug("DA8xx OTG revision %08x, control %02x\n", rev,
+	pr_de("DA8xx OTG revision %08x, control %02x\n", rev,
 		 musb_readb(reg_base, DA8XX_USB_CTRL_REG));
 
 	musb->isr = da8xx_musb_interrupt;

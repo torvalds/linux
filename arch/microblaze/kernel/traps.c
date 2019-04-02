@@ -12,8 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/kallsyms.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
-#include <linux/debug_locks.h>
+#include <linux/sched/de.h>
+#include <linux/de_locks.h>
 
 #include <asm/exceptions.h>
 #include <asm/unwind.h>
@@ -74,5 +74,5 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	if (!task)
 		task = current;
 
-	debug_show_held_locks(task);
+	de_show_held_locks(task);
 }

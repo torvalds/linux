@@ -7,7 +7,7 @@
  * GCC 7 & older can suboptimally generate __multi3 calls for mips64r6, so for
  * that specific case only we implement that intrinsic here.
  *
- * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82981
+ * See https://gcc.gnu.org/zilla/show_.cgi?id=82981
  */
 #if defined(CONFIG_64BIT) && defined(CONFIG_CPU_MIPSR6) && (__GNUC__ < 8)
 

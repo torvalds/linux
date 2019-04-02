@@ -291,11 +291,11 @@ static int atmel_ssc_startup(struct snd_pcm_substream *substream,
 	int dir, dir_mask;
 	int ret;
 
-	pr_debug("atmel_ssc_startup: SSC_SR=0x%x\n",
+	pr_de("atmel_ssc_startup: SSC_SR=0x%x\n",
 		ssc_readl(ssc_p->ssc->regs, SR));
 
 	/* Enable PMC peripheral clock for this SSC */
-	pr_debug("atmel_ssc_dai: Starting clock\n");
+	pr_de("atmel_ssc_dai: Starting clock\n");
 	clk_enable(ssc_p->ssc->clk);
 	ssc_p->mck_rate = clk_get_rate(ssc_p->ssc->clk);
 
@@ -385,7 +385,7 @@ static void atmel_ssc_shutdown(struct snd_pcm_substream *substream,
 	spin_unlock_irq(&ssc_p->lock);
 
 	/* Shutdown the SSC clock. */
-	pr_debug("atmel_ssc_dai: Stopping clock\n");
+	pr_de("atmel_ssc_dai: Stopping clock\n");
 	clk_disable(ssc_p->ssc->clk);
 }
 
@@ -798,7 +798,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 			ssc_p->daifmt);
 		return -EINVAL;
 	}
-	pr_debug("atmel_ssc_hw_params: "
+	pr_de("atmel_ssc_hw_params: "
 			"RCMR=%08x RFMR=%08x TCMR=%08x TFMR=%08x\n",
 			rcmr, rfmr, tcmr, tfmr);
 
@@ -820,7 +820,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		if (ret < 0) {
 			printk(KERN_WARNING
 					"atmel_ssc_dai: request_irq failure\n");
-			pr_debug("Atmel_ssc_dai: Stopping clock\n");
+			pr_de("Atmel_ssc_dai: Stopping clock\n");
 			clk_disable(ssc_p->ssc->clk);
 			return ret;
 		}
@@ -839,7 +839,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	ssc_writel(ssc_p->ssc->regs, TCMR, tcmr);
 	ssc_writel(ssc_p->ssc->regs, TFMR, tfmr);
 
-	pr_debug("atmel_ssc_dai,hw_params: SSC initialized\n");
+	pr_de("atmel_ssc_dai,hw_params: SSC initialized\n");
 	return 0;
 }
 
@@ -862,7 +862,7 @@ static int atmel_ssc_prepare(struct snd_pcm_substream *substream,
 	ssc_writel(ssc_p->ssc->regs, CR, dma_params->mask->ssc_disable);
 	ssc_writel(ssc_p->ssc->regs, IDR, dma_params->mask->ssc_error);
 
-	pr_debug("%s enabled SSC_SR=0x%08x\n",
+	pr_de("%s enabled SSC_SR=0x%08x\n",
 			dir ? "receive" : "transmit",
 			ssc_readl(ssc_p->ssc->regs, SR));
 	return 0;

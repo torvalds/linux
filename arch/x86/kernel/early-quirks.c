@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Various workarounds for chipset bugs.
+/* Various workarounds for chipset s.
    This code runs very early and can't use the regular PCI subsystem
    The entries are keyed to PCI bridges which usually identify chipsets
    uniquely.
@@ -7,8 +7,8 @@
    need early invasive action (e.g. before the timers are initialized).
    Most PCI device specific workarounds can be done later and should be
    in standard PCI quirks
-   Mainboard specific bugs should be handled by DMI entries.
-   CPU specific bugs in setup.c */
+   Mainboard specific s should be handled by DMI entries.
+   CPU specific s in setup.c */
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -44,7 +44,7 @@ static void __init fix_hypertransport_config(int num, int slot, int func)
 		if ((htcfg & (1 << 17)) == 0) {
 			printk(KERN_INFO "Enabling hypertransport extended "
 					 "apic interrupt broadcast\n");
-			printk(KERN_INFO "Note this is a bios bug, "
+			printk(KERN_INFO "Note this is a bios , "
 					 "please contact your hw vendor\n");
 			htcfg |= (1 << 17);
 			write_pci_config(num, slot, func, 0x68, htcfg);
@@ -54,7 +54,7 @@ static void __init fix_hypertransport_config(int num, int slot, int func)
 
 }
 
-static void __init via_bugs(int  num, int slot, int func)
+static void __init via_s(int  num, int slot, int func)
 {
 #ifdef CONFIG_GART_IOMMU
 	if ((max_pfn > MAX_DMA32_PFN ||  force_iommu) &&
@@ -77,7 +77,7 @@ static int __init nvidia_hpet_check(struct acpi_table_header *header)
 #endif /* CONFIG_X86_IO_APIC */
 #endif /* CONFIG_ACPI */
 
-static void __init nvidia_bugs(int num, int slot, int func)
+static void __init nvidia_s(int num, int slot, int func)
 {
 #ifdef CONFIG_ACPI
 #ifdef CONFIG_X86_IO_APIC
@@ -131,7 +131,7 @@ static u32 __init ati_ixp4x0_rev(int num, int slot, int func)
 	return d;
 }
 
-static void __init ati_bugs(int num, int slot, int func)
+static void __init ati_s(int num, int slot, int func)
 {
 	u32 d;
 	u8  b;
@@ -167,7 +167,7 @@ static u32 __init ati_sbx00_rev(int num, int slot, int func)
 	return d;
 }
 
-static void __init ati_bugs_contd(int num, int slot, int func)
+static void __init ati_s_contd(int num, int slot, int func)
 {
 	u32 d, rev;
 
@@ -199,11 +199,11 @@ static void __init ati_bugs_contd(int num, int slot, int func)
 	}
 }
 #else
-static void __init ati_bugs(int num, int slot, int func)
+static void __init ati_s(int num, int slot, int func)
 {
 }
 
-static void __init ati_bugs_contd(int num, int slot, int func)
+static void __init ati_s_contd(int num, int slot, int func)
 {
 }
 #endif
@@ -680,15 +680,15 @@ struct chipset {
 
 static struct chipset early_qrk[] __initdata = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
-	  PCI_CLASS_BRIDGE_PCI, PCI_ANY_ID, QFLAG_APPLY_ONCE, nvidia_bugs },
+	  PCI_CLASS_BRIDGE_PCI, PCI_ANY_ID, QFLAG_APPLY_ONCE, nvidia_s },
 	{ PCI_VENDOR_ID_VIA, PCI_ANY_ID,
-	  PCI_CLASS_BRIDGE_PCI, PCI_ANY_ID, QFLAG_APPLY_ONCE, via_bugs },
+	  PCI_CLASS_BRIDGE_PCI, PCI_ANY_ID, QFLAG_APPLY_ONCE, via_s },
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,
 	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, fix_hypertransport_config },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS,
-	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs },
+	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_s },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
-	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs_contd },
+	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_s_contd },
 	{ PCI_VENDOR_ID_INTEL, 0x3403, PCI_CLASS_BRIDGE_HOST,
 	  PCI_BASE_CLASS_BRIDGE, 0, intel_remapping_check },
 	{ PCI_VENDOR_ID_INTEL, 0x3405, PCI_CLASS_BRIDGE_HOST,

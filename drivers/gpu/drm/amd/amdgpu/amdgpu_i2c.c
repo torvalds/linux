@@ -306,9 +306,9 @@ static void amdgpu_i2c_get_byte(struct amdgpu_i2c_chan *i2c_bus,
 
 	if (i2c_transfer(&i2c_bus->adapter, msgs, 2) == 2) {
 		*val = in_buf[0];
-		DRM_DEBUG("val = 0x%02x\n", *val);
+		DRM_DE("val = 0x%02x\n", *val);
 	} else {
-		DRM_DEBUG("i2c 0x%02x 0x%02x read failed\n",
+		DRM_DE("i2c 0x%02x 0x%02x read failed\n",
 			  addr, *val);
 	}
 }
@@ -330,7 +330,7 @@ static void amdgpu_i2c_put_byte(struct amdgpu_i2c_chan *i2c_bus,
 	out_buf[1] = val;
 
 	if (i2c_transfer(&i2c_bus->adapter, &msg, 1) != 1)
-		DRM_DEBUG("i2c 0x%02x 0x%02x write failed\n",
+		DRM_DE("i2c 0x%02x 0x%02x write failed\n",
 			  addr, val);
 }
 

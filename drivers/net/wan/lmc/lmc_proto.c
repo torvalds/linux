@@ -42,7 +42,7 @@
 
 #include "lmc.h"
 #include "lmc_var.h"
-#include "lmc_debug.h"
+#include "lmc_de.h"
 #include "lmc_ioctl.h"
 #include "lmc_proto.h"
 

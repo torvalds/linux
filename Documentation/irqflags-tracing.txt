@@ -10,7 +10,7 @@ every hardirqs-off/hardirqs-on, softirqs-off/softirqs-on event that
 happens in the kernel.
 
 CONFIG_TRACE_IRQFLAGS_SUPPORT is needed for CONFIG_PROVE_SPIN_LOCKING
-and CONFIG_PROVE_RW_LOCKING to be offered by the generic lock debugging
+and CONFIG_PROVE_RW_LOCKING to be offered by the generic lock deging
 code. Otherwise only CONFIG_PROVE_MUTEX_LOCKING and
 CONFIG_PROVE_RWSEM_LOCKING will be offered on an architecture - these
 are locking APIs that are not used in IRQ context. (the one exception
@@ -46,7 +46,7 @@ irq-flags-tracing support:
 In general there is no risk from having an incomplete irq-flags-tracing
 implementation in an architecture: lockdep will detect that and will
 turn itself off. I.e. the lock validator will still be reliable. There
-should be no crashes due to irq-tracing bugs. (except if the assembly
+should be no crashes due to irq-tracing s. (except if the assembly
 changes break other code by modifying conditions or registers that
 shouldn't be)
 

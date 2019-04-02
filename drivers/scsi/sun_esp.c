@@ -386,7 +386,7 @@ static void sbus_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 {
 	u32 csr;
 
-	BUG_ON(!(cmd & ESP_CMD_DMA));
+	_ON(!(cmd & ESP_CMD_DMA));
 
 	sbus_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	sbus_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);

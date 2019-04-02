@@ -15,7 +15,7 @@
 #include <linux/gfp.h>
 #include <linux/io.h>
 #include <linux/atomic.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/qdio.h>
 #include <asm/ipl.h>
 
@@ -23,7 +23,7 @@
 #include "css.h"
 #include "device.h"
 #include "qdio.h"
-#include "qdio_debug.h"
+#include "qdio_de.h"
 
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>,"\
 	"Jan Glauber <jang@linux.vnet.ibm.com>");
@@ -377,7 +377,7 @@ static inline void qdio_sync_queues(struct qdio_q *q)
 		qdio_siga_sync_q(q);
 }
 
-int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
+int de_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 			unsigned char *state)
 {
 	if (need_siga_sync(q))
@@ -1167,7 +1167,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 
 	tiqdio_remove_input_queues(irq_ptr);
 	qdio_shutdown_queues(cdev);
-	qdio_shutdown_debug_entries(irq_ptr);
+	qdio_shutdown_de_entries(irq_ptr);
 
 	/* cleanup subchannel */
 	spin_lock_irq(get_ccwdev_lock(cdev));
@@ -1226,7 +1226,7 @@ int qdio_free(struct ccw_device *cdev)
 	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf abandoned");
 	mutex_lock(&irq_ptr->setup_mutex);
 
-	irq_ptr->debug_area = NULL;
+	irq_ptr->de_area = NULL;
 	cdev->private->qdio_data = NULL;
 	mutex_unlock(&irq_ptr->setup_mutex);
 
@@ -1383,7 +1383,7 @@ int qdio_establish(struct qdio_initialize *init_data)
 
 	mutex_unlock(&irq_ptr->setup_mutex);
 	qdio_print_subchannel_info(irq_ptr, cdev);
-	qdio_setup_debug_entries(irq_ptr, cdev);
+	qdio_setup_de_entries(irq_ptr, cdev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qdio_establish);
@@ -1826,12 +1826,12 @@ static int __init init_QDIO(void)
 {
 	int rc;
 
-	rc = qdio_debug_init();
+	rc = qdio_de_init();
 	if (rc)
 		return rc;
 	rc = qdio_setup_init();
 	if (rc)
-		goto out_debug;
+		goto out_de;
 	rc = tiqdio_allocate_memory();
 	if (rc)
 		goto out_cache;
@@ -1844,8 +1844,8 @@ out_ti:
 	tiqdio_free_memory();
 out_cache:
 	qdio_setup_exit();
-out_debug:
-	qdio_debug_exit();
+out_de:
+	qdio_de_exit();
 	return rc;
 }
 
@@ -1854,7 +1854,7 @@ static void __exit exit_QDIO(void)
 	tiqdio_unregister_thinints();
 	tiqdio_free_memory();
 	qdio_setup_exit();
-	qdio_debug_exit();
+	qdio_de_exit();
 }
 
 module_init(init_QDIO);

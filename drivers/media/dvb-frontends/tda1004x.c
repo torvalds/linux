@@ -39,10 +39,10 @@
 #include <media/dvb_frontend.h>
 #include "tda1004x.h"
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "tda1004x: " args); \
+		if (de) printk(KERN_DE "tda1004x: " args); \
 	} while (0)
 
 #define TDA1004X_CHIPID		 0x00
@@ -542,7 +542,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 		printk(KERN_INFO "tda1004x: waiting for firmware upload...\n");
 		ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
 		if (ret) {
-			/* remain compatible to old bug: try to load with tda10045 image name */
+			/* remain compatible to old : try to load with tda10045 image name */
 			ret = state->config->request_firmware(fe, &fw, TDA10045_DEFAULT_FIRMWARE);
 			if (ret) {
 				printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
@@ -1049,7 +1049,7 @@ static int tda1004x_read_status(struct dvb_frontend *fe,
 		if (status == -1)
 			return -EIO;
 		cber |= (status << 8);
-		// The address 0x20 should be read to cope with a TDA10046 bug
+		// The address 0x20 should be read to cope with a TDA10046 
 		tda1004x_read_byte(state, TDA1004X_CBER_RESET);
 
 		if (cber != 65535)
@@ -1071,7 +1071,7 @@ static int tda1004x_read_status(struct dvb_frontend *fe,
 		if (status == -1)
 			return -EIO;
 		vber |= (status & 0x0f) << 16;
-		// The CVBER_LUT should be read to cope with TDA10046 hardware bug
+		// The CVBER_LUT should be read to cope with TDA10046 hardware 
 		tda1004x_read_byte(state, TDA1004X_CVBER_LUT);
 
 		// if RS has passed some valid TS packets, then we must be
@@ -1185,7 +1185,7 @@ static int tda1004x_read_ber(struct dvb_frontend* fe, u32* ber)
 	if (tmp < 0)
 		return -EIO;
 	*ber |= (tmp << 9);
-	// The address 0x20 should be read to cope with a TDA10046 bug
+	// The address 0x20 should be read to cope with a TDA10046 
 	tda1004x_read_byte(state, TDA1004X_CBER_RESET);
 
 	dprintk("%s: ber=0x%x\n", __func__, *ber);
@@ -1384,8 +1384,8 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	return &state->frontend;
 }
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Philips TDA10045H & TDA10046H DVB-T Demodulator");
 MODULE_AUTHOR("Andrew de Quincey & Robert Schlabbach");

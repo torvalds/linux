@@ -19,10 +19,10 @@ config CRYPTO_DEV_FSL_CAAM
 
 if CRYPTO_DEV_FSL_CAAM
 
-config CRYPTO_DEV_FSL_CAAM_DEBUG
-	bool "Enable debug output in CAAM driver"
+config CRYPTO_DEV_FSL_CAAM_DE
+	bool "Enable de output in CAAM driver"
 	help
-	  Selecting this will enable printing of various debug
+	  Selecting this will enable printing of various de
 	  information in the CAAM driver.
 
 config CRYPTO_DEV_FSL_CAAM_JR

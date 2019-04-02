@@ -89,7 +89,7 @@
 
 
 #define D_SUBMODULE rx
-#include "usb-debug-levels.h"
+#include "usb-de-levels.h"
 
 /*
  * Dynamic RX size
@@ -255,7 +255,7 @@ retry:
 		if (rx_size <= (1 << 16))	/* cap it */
 			i2400mu->rx_size = rx_size;
 		else if (printk_ratelimit()) {
-			dev_err(dev, "BUG? rx_size up to %d\n", rx_size);
+			dev_err(dev, "? rx_size up to %d\n", rx_size);
 			result = -EINVAL;
 			goto out;
 		}
@@ -339,7 +339,7 @@ int i2400mu_rxd(void *_i2400mu)
 
 	d_fnstart(4, dev, "(i2400mu %p)\n", i2400mu);
 	spin_lock_irqsave(&i2400m->rx_lock, flags);
-	BUG_ON(i2400mu->rx_kthread != NULL);
+	_ON(i2400mu->rx_kthread != NULL);
 	i2400mu->rx_kthread = current;
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	while (1) {

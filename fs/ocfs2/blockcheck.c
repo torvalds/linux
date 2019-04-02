@@ -22,7 +22,7 @@
 #include <linux/crc32.h>
 #include <linux/buffer_head.h>
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <asm/byteorder.h>
@@ -108,7 +108,7 @@ u32 ocfs2_hamming_encode(u32 parity, void *data, unsigned int d, unsigned int nr
 {
 	unsigned int i, b, p = 0;
 
-	BUG_ON(!d);
+	_ON(!d);
 
 	/*
 	 * b is the hamming code bit number.  Hamming code specifies a
@@ -168,7 +168,7 @@ void ocfs2_hamming_fix(void *data, unsigned int d, unsigned int nr,
 {
 	unsigned int i, b;
 
-	BUG_ON(!d);
+	_ON(!d);
 
 	/*
 	 * If the bit to fix has an hweight of 1, it's a parity bit.  One
@@ -227,10 +227,10 @@ void ocfs2_hamming_fix_block(void *data, unsigned int blocksize,
 
 
 /*
- * Debugfs handling.
+ * Defs handling.
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int blockcheck_u64_get(void *data, u64 *val)
 {
@@ -239,29 +239,29 @@ static int blockcheck_u64_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(blockcheck_fops, blockcheck_u64_get, NULL, "%llu\n");
 
-static struct dentry *blockcheck_debugfs_create(const char *name,
+static struct dentry *blockcheck_defs_create(const char *name,
 						struct dentry *parent,
 						u64 *value)
 {
-	return debugfs_create_file(name, S_IFREG | S_IRUSR, parent, value,
+	return defs_create_file(name, S_IFREG | S_IRUSR, parent, value,
 				   &blockcheck_fops);
 }
 
-static void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
+static void ocfs2_blockcheck_de_remove(struct ocfs2_blockcheck_stats *stats)
 {
 	if (stats) {
-		debugfs_remove(stats->b_debug_check);
-		stats->b_debug_check = NULL;
-		debugfs_remove(stats->b_debug_failure);
-		stats->b_debug_failure = NULL;
-		debugfs_remove(stats->b_debug_recover);
-		stats->b_debug_recover = NULL;
-		debugfs_remove(stats->b_debug_dir);
-		stats->b_debug_dir = NULL;
+		defs_remove(stats->b_de_check);
+		stats->b_de_check = NULL;
+		defs_remove(stats->b_de_failure);
+		stats->b_de_failure = NULL;
+		defs_remove(stats->b_de_recover);
+		stats->b_de_recover = NULL;
+		defs_remove(stats->b_de_dir);
+		stats->b_de_dir = NULL;
 	}
 }
 
-static int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
+static int ocfs2_blockcheck_de_install(struct ocfs2_blockcheck_stats *stats,
 					  struct dentry *parent)
 {
 	int rc = -EINVAL;
@@ -269,55 +269,55 @@ static int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
 	if (!stats)
 		goto out;
 
-	stats->b_debug_dir = debugfs_create_dir("blockcheck", parent);
-	if (!stats->b_debug_dir)
+	stats->b_de_dir = defs_create_dir("blockcheck", parent);
+	if (!stats->b_de_dir)
 		goto out;
 
-	stats->b_debug_check =
-		blockcheck_debugfs_create("blocks_checked",
-					  stats->b_debug_dir,
+	stats->b_de_check =
+		blockcheck_defs_create("blocks_checked",
+					  stats->b_de_dir,
 					  &stats->b_check_count);
 
-	stats->b_debug_failure =
-		blockcheck_debugfs_create("checksums_failed",
-					  stats->b_debug_dir,
+	stats->b_de_failure =
+		blockcheck_defs_create("checksums_failed",
+					  stats->b_de_dir,
 					  &stats->b_failure_count);
 
-	stats->b_debug_recover =
-		blockcheck_debugfs_create("ecc_recoveries",
-					  stats->b_debug_dir,
+	stats->b_de_recover =
+		blockcheck_defs_create("ecc_recoveries",
+					  stats->b_de_dir,
 					  &stats->b_recover_count);
-	if (stats->b_debug_check && stats->b_debug_failure &&
-	    stats->b_debug_recover)
+	if (stats->b_de_check && stats->b_de_failure &&
+	    stats->b_de_recover)
 		rc = 0;
 
 out:
 	if (rc)
-		ocfs2_blockcheck_debug_remove(stats);
+		ocfs2_blockcheck_de_remove(stats);
 	return rc;
 }
 #else
-static inline int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
+static inline int ocfs2_blockcheck_de_install(struct ocfs2_blockcheck_stats *stats,
 						 struct dentry *parent)
 {
 	return 0;
 }
 
-static inline void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
+static inline void ocfs2_blockcheck_de_remove(struct ocfs2_blockcheck_stats *stats)
 {
 }
-#endif  /* CONFIG_DEBUG_FS */
+#endif  /* CONFIG_DE_FS */
 
-/* Always-called wrappers for starting and stopping the debugfs files */
-int ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
+/* Always-called wrappers for starting and stopping the defs files */
+int ocfs2_blockcheck_stats_defs_install(struct ocfs2_blockcheck_stats *stats,
 					   struct dentry *parent)
 {
-	return ocfs2_blockcheck_debug_install(stats, parent);
+	return ocfs2_blockcheck_de_install(stats, parent);
 }
 
-void ocfs2_blockcheck_stats_debugfs_remove(struct ocfs2_blockcheck_stats *stats)
+void ocfs2_blockcheck_stats_defs_remove(struct ocfs2_blockcheck_stats *stats)
 {
-	ocfs2_blockcheck_debug_remove(stats);
+	ocfs2_blockcheck_de_remove(stats);
 }
 
 static void ocfs2_blockcheck_inc_check(struct ocfs2_blockcheck_stats *stats)
@@ -403,7 +403,7 @@ void ocfs2_block_check_compute(void *data, size_t blocksize,
 	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
 	 * larger than 16 bits.
 	 */
-	BUG_ON(ecc > USHRT_MAX);
+	_ON(ecc > USHRT_MAX);
 
 	bc->bc_crc32e = cpu_to_le32(crc);
 	bc->bc_ecc = cpu_to_le16((u16)ecc);
@@ -486,7 +486,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 	int i;
 	u32 crc, ecc;
 
-	BUG_ON(nr < 0);
+	_ON(nr < 0);
 
 	if (!nr)
 		return;
@@ -509,7 +509,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
 	 * larger than 16 bits.
 	 */
-	BUG_ON(ecc > USHRT_MAX);
+	_ON(ecc > USHRT_MAX);
 
 	bc->bc_crc32e = cpu_to_le32(crc);
 	bc->bc_ecc = cpu_to_le16((u16)ecc);
@@ -533,7 +533,7 @@ int ocfs2_block_check_validate_bhs(struct buffer_head **bhs, int nr,
 	u16 bc_ecc;
 	u32 crc, ecc, fix;
 
-	BUG_ON(nr < 0);
+	_ON(nr < 0);
 
 	if (!nr)
 		return 0;

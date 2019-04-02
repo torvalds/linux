@@ -37,12 +37,12 @@ void purge_waiting_ops(void)
 
 	spin_lock(&orangefs_request_list_lock);
 	list_for_each_entry_safe(op, tmp, &orangefs_request_list, list) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "pvfs2-client-core: purging op tag %llu %s\n",
 			     llu(op->tag),
 			     get_opname_string(op));
 		set_op_state_purged(op);
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: op:%s: op_state:%d: process:%s:\n",
 			     __func__,
 			     get_opname_string(op),
@@ -76,7 +76,7 @@ int service_operation(struct orangefs_kernel_op_s *op,
 
 retry_servicing:
 	op->downcall.status = 0;
-	gossip_debug(GOSSIP_WAIT_DEBUG,
+	gossip_de(GOSSIP_WAIT_DE,
 		     "%s: %s op:%p: process:%s: pid:%d:\n",
 		     __func__,
 		     op_name,
@@ -101,7 +101,7 @@ retry_servicing:
 		 */
 		if (ret < 0) {
 			op->downcall.status = ret;
-			gossip_debug(GOSSIP_WAIT_DEBUG,
+			gossip_de(GOSSIP_WAIT_DE,
 				     "%s: service_operation interrupted.\n",
 				     __func__);
 			return ret;
@@ -112,7 +112,7 @@ retry_servicing:
 	spin_lock(&orangefs_request_list_lock);
 	spin_lock(&op->lock);
 	set_op_state_waiting(op);
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "%s: op:%s: op_state:%d: process:%s:\n",
 		     __func__,
 		     get_opname_string(op),
@@ -126,7 +126,7 @@ retry_servicing:
 	spin_unlock(&op->lock);
 	wake_up_interruptible(&orangefs_request_list_waitq);
 	if (!__is_daemon_in_service()) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "%s:client core is NOT in service.\n",
 			     __func__);
 		/*
@@ -146,7 +146,7 @@ retry_servicing:
 	ret = wait_for_matching_downcall(op, timeout,
 					 flags & ORANGEFS_OP_INTERRUPTIBLE);
 
-	gossip_debug(GOSSIP_WAIT_DEBUG,
+	gossip_de(GOSSIP_WAIT_DE,
 		     "%s: wait_for_matching_downcall returned %d for %p\n",
 		     __func__,
 		     ret,
@@ -179,7 +179,7 @@ retry_servicing:
 	if (ret == -EAGAIN) {
 		op->attempts++;
 		timeout = op_timeout_secs * HZ;
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "orangefs: tag %llu (%s)"
 			     " -- operation to be retried (%d attempt)\n",
 			     llu(op->tag),
@@ -196,7 +196,7 @@ retry_servicing:
 	}
 
 out:
-	gossip_debug(GOSSIP_WAIT_DEBUG,
+	gossip_de(GOSSIP_WAIT_DE,
 		     "%s: %s returning: %d for %p.\n",
 		     __func__,
 		     op_name,
@@ -229,7 +229,7 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 	}
 	spin_lock(&op->lock);
 	set_op_state_waiting(op);
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "%s: op:%s: op_state:%d: process:%s:\n",
 		     __func__,
 		     get_opname_string(op),
@@ -239,7 +239,7 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 	spin_unlock(&op->lock);
 	spin_unlock(&orangefs_request_list_lock);
 
-	gossip_debug(GOSSIP_WAIT_DEBUG,
+	gossip_de(GOSSIP_WAIT_DE,
 		     "Attempting ORANGEFS operation cancellation of tag %llu\n",
 		     llu(tag));
 	return true;
@@ -267,7 +267,7 @@ static void
 
 	if (list_empty(&op->list)) {
 		/* caught copying to/from daemon */
-		BUG_ON(op_state_serviced(op));
+		_ON(op_state_serviced(op));
 		spin_unlock(&op->lock);
 		wait_for_completion(&op->waitq);
 	} else if (op_state_waiting(op)) {
@@ -279,7 +279,7 @@ static void
 		spin_lock(&orangefs_request_list_lock);
 		list_del_init(&op->list);
 		spin_unlock(&orangefs_request_list_lock);
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "Interrupted: Removed op %p from request_list\n",
 			     op);
 	} else if (op_state_in_progress(op)) {
@@ -288,7 +288,7 @@ static void
 		spin_lock(&orangefs_htable_ops_in_progress_lock);
 		list_del_init(&op->list);
 		spin_unlock(&orangefs_htable_ops_in_progress_lock);
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "Interrupted: Removed op %p"
 			     " from htable_ops_in_progress\n",
 			     op);
@@ -342,7 +342,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 		return 0;
 
 	if (unlikely(n < 0)) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "%s: operation interrupted, tag %llu, %p\n",
 			     __func__,
 			     llu(op->tag),
@@ -350,7 +350,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 		return -EINTR;
 	}
 	if (op_state_purged(op)) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
+		gossip_de(GOSSIP_WAIT_DE,
 			     "%s: operation purged, tag %llu, %p, %d\n",
 			     __func__,
 			     llu(op->tag),
@@ -361,7 +361,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 			 -EIO;
 	}
 	/* must have timed out, then... */
-	gossip_debug(GOSSIP_WAIT_DEBUG,
+	gossip_de(GOSSIP_WAIT_DE,
 		     "%s: operation timed out, tag %llu, %p, %d)\n",
 		     __func__,
 		     llu(op->tag),

@@ -80,7 +80,7 @@ int
 nvkm_pcie_oneinit(struct nvkm_pci *pci)
 {
 	if (pci->func->pcie.max_speed)
-		nvkm_debug(&pci->subdev, "pcie max speed: %s\n",
+		nvkm_de(&pci->subdev, "pcie max speed: %s\n",
 			   nvkm_pcie_speeds[pci->func->pcie.max_speed(pci)]);
 	return 0;
 }
@@ -140,7 +140,7 @@ nvkm_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 	nvkm_trace(subdev, "current speed: %s\n", nvkm_pcie_speeds[cur_speed]);
 
 	if (speed > max_speed) {
-		nvkm_debug(subdev, "%s not supported by bus or card, dropping"
+		nvkm_de(subdev, "%s not supported by bus or card, dropping"
 			   "requested speed to %s", nvkm_pcie_speeds[speed],
 			   nvkm_pcie_speeds[max_speed]);
 		speed = max_speed;
@@ -150,11 +150,11 @@ nvkm_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 	pci->pcie.width = width;
 
 	if (speed == cur_speed) {
-		nvkm_debug(subdev, "requested matches current speed\n");
+		nvkm_de(subdev, "requested matches current speed\n");
 		return speed;
 	}
 
-	nvkm_debug(subdev, "set link to %s x%i\n",
+	nvkm_de(subdev, "set link to %s x%i\n",
 		   nvkm_pcie_speeds[speed], width);
 
 	ret = pci->func->pcie.set_link(pci, speed, width);

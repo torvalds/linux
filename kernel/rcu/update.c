@@ -24,7 +24,7 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/percpu.h>
@@ -59,20 +59,20 @@ static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
 #endif /* #ifndef CONFIG_TINY_RCU */
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 /**
  * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
  *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an
+ * If CONFIG_DE_LOCK_ALLOC is selected, returns nonzero iff in an
  * RCU-sched read-side critical section.  In absence of
- * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
+ * CONFIG_DE_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
  * critical section unless it can prove otherwise.  Note that disabling
  * of preemption (including disabling irqs) counts as an RCU-sched
- * read-side critical section.  This is useful for debug checks in functions
+ * read-side critical section.  This is useful for de checks in functions
  * that required that they be called within an RCU-sched read-side
  * critical section.
  *
- * Check debug_lockdep_rcu_enabled() to prevent false positives during boot
+ * Check de_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
  *
  * Note that if the CPU is in the idle loop from an RCU point of
@@ -95,13 +95,13 @@ int rcu_read_lock_sched_held(void)
 {
 	int lockdep_opinion = 0;
 
-	if (!debug_lockdep_rcu_enabled())
+	if (!de_lockdep_rcu_enabled())
 		return 1;
 	if (!rcu_is_watching())
 		return 0;
 	if (!rcu_lockdep_current_cpu_online())
 		return 0;
-	if (debug_locks)
+	if (de_locks)
 		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
 	return lockdep_opinion || !preemptible();
 }
@@ -210,7 +210,7 @@ core_initcall(rcu_set_runtime_mode);
 
 #endif /* #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU) */
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
 struct lockdep_map rcu_lock_map =
 	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock", &rcu_lock_key);
@@ -231,24 +231,24 @@ struct lockdep_map rcu_callback_map =
 	STATIC_LOCKDEP_MAP_INIT("rcu_callback", &rcu_callback_key);
 EXPORT_SYMBOL_GPL(rcu_callback_map);
 
-int notrace debug_lockdep_rcu_enabled(void)
+int notrace de_lockdep_rcu_enabled(void)
 {
-	return rcu_scheduler_active != RCU_SCHEDULER_INACTIVE && debug_locks &&
+	return rcu_scheduler_active != RCU_SCHEDULER_INACTIVE && de_locks &&
 	       current->lockdep_recursion == 0;
 }
-EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
-NOKPROBE_SYMBOL(debug_lockdep_rcu_enabled);
+EXPORT_SYMBOL_GPL(de_lockdep_rcu_enabled);
+NOKPROBE_SYMBOL(de_lockdep_rcu_enabled);
 
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
  *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an RCU
- * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,
+ * If CONFIG_DE_LOCK_ALLOC is selected, returns nonzero iff in an RCU
+ * read-side critical section.  In absence of CONFIG_DE_LOCK_ALLOC,
  * this assumes we are in an RCU read-side critical section unless it can
- * prove otherwise.  This is useful for debug checks in functions that
+ * prove otherwise.  This is useful for de checks in functions that
  * require that they be called within an RCU read-side critical section.
  *
- * Checks debug_lockdep_rcu_enabled() to prevent false positives during boot
+ * Checks de_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
  *
  * Note that rcu_read_lock() and the matching rcu_read_unlock() must
@@ -261,7 +261,7 @@ NOKPROBE_SYMBOL(debug_lockdep_rcu_enabled);
  */
 int rcu_read_lock_held(void)
 {
-	if (!debug_lockdep_rcu_enabled())
+	if (!de_lockdep_rcu_enabled())
 		return 1;
 	if (!rcu_is_watching())
 		return 0;
@@ -277,18 +277,18 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_held);
  * Check for bottom half being disabled, which covers both the
  * CONFIG_PROVE_RCU and not cases.  Note that if someone uses
  * rcu_read_lock_bh(), but then later enables BH, lockdep (if enabled)
- * will show the situation.  This is useful for debug checks in functions
+ * will show the situation.  This is useful for de checks in functions
  * that require that they be called within an RCU read-side critical
  * section.
  *
- * Check debug_lockdep_rcu_enabled() to prevent false positives during boot.
+ * Check de_lockdep_rcu_enabled() to prevent false positives during boot.
  *
  * Note that rcu_read_lock_bh() is disallowed if the CPU is either idle or
  * offline from an RCU perspective, so check for those as well.
  */
 int rcu_read_lock_bh_held(void)
 {
-	if (!debug_lockdep_rcu_enabled())
+	if (!de_lockdep_rcu_enabled())
 		return 1;
 	if (!rcu_is_watching())
 		return 0;
@@ -298,7 +298,7 @@ int rcu_read_lock_bh_held(void)
 }
 EXPORT_SYMBOL_GPL(rcu_read_lock_bh_held);
 
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #ifdef CONFIG_DE_LOCK_ALLOC */
 
 /**
  * wakeme_after_rcu() - Callback function to awaken a task after grace period
@@ -352,16 +352,16 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 }
 EXPORT_SYMBOL_GPL(__wait_rcu_gp);
 
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+#ifdef CONFIG_DE_OBJECTS_RCU_HEAD
 void init_rcu_head(struct rcu_head *head)
 {
-	debug_object_init(head, &rcuhead_debug_descr);
+	de_object_init(head, &rcuhead_de_descr);
 }
 EXPORT_SYMBOL_GPL(init_rcu_head);
 
 void destroy_rcu_head(struct rcu_head *head)
 {
-	debug_object_free(head, &rcuhead_debug_descr);
+	de_object_free(head, &rcuhead_de_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_rcu_head);
 
@@ -371,44 +371,44 @@ static bool rcuhead_is_static_object(void *addr)
 }
 
 /**
- * init_rcu_head_on_stack() - initialize on-stack rcu_head for debugobjects
+ * init_rcu_head_on_stack() - initialize on-stack rcu_head for deobjects
  * @head: pointer to rcu_head structure to be initialized
  *
- * This function informs debugobjects of a new rcu_head structure that
+ * This function informs deobjects of a new rcu_head structure that
  * has been allocated as an auto variable on the stack.  This function
  * is not required for rcu_head structures that are statically defined or
  * that are dynamically allocated on the heap.  This function has no
- * effect for !CONFIG_DEBUG_OBJECTS_RCU_HEAD kernel builds.
+ * effect for !CONFIG_DE_OBJECTS_RCU_HEAD kernel builds.
  */
 void init_rcu_head_on_stack(struct rcu_head *head)
 {
-	debug_object_init_on_stack(head, &rcuhead_debug_descr);
+	de_object_init_on_stack(head, &rcuhead_de_descr);
 }
 EXPORT_SYMBOL_GPL(init_rcu_head_on_stack);
 
 /**
- * destroy_rcu_head_on_stack() - destroy on-stack rcu_head for debugobjects
+ * destroy_rcu_head_on_stack() - destroy on-stack rcu_head for deobjects
  * @head: pointer to rcu_head structure to be initialized
  *
- * This function informs debugobjects that an on-stack rcu_head structure
+ * This function informs deobjects that an on-stack rcu_head structure
  * is about to go out of scope.  As with init_rcu_head_on_stack(), this
  * function is not required for rcu_head structures that are statically
  * defined or that are dynamically allocated on the heap.  Also as with
  * init_rcu_head_on_stack(), this function has no effect for
- * !CONFIG_DEBUG_OBJECTS_RCU_HEAD kernel builds.
+ * !CONFIG_DE_OBJECTS_RCU_HEAD kernel builds.
  */
 void destroy_rcu_head_on_stack(struct rcu_head *head)
 {
-	debug_object_free(head, &rcuhead_debug_descr);
+	de_object_free(head, &rcuhead_de_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_rcu_head_on_stack);
 
-struct debug_obj_descr rcuhead_debug_descr = {
+struct de_obj_descr rcuhead_de_descr = {
 	.name = "rcu_head",
 	.is_static_object = rcuhead_is_static_object,
 };
-EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
-#endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+EXPORT_SYMBOL_GPL(rcuhead_de_descr);
+#endif /* #ifdef CONFIG_DE_OBJECTS_RCU_HEAD */
 
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
 void do_trace_rcu_torture_read(const char *rcutorturename, struct rcu_head *rhp,

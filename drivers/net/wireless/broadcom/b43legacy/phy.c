@@ -86,7 +86,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev);
 static inline
 void b43legacy_voluntary_preempt(void)
 {
-	B43legacy_BUG_ON(!(!in_atomic() && !in_irq() &&
+	B43legacy__ON(!(!in_atomic() && !in_irq() &&
 			  !in_interrupt() && !irqs_disabled()));
 #ifndef CONFIG_PREEMPT
 	cond_resched();
@@ -97,7 +97,7 @@ void b43legacy_voluntary_preempt(void)
  * This lock is nonrecursive. */
 void b43legacy_phy_lock(struct b43legacy_wldev *dev)
 {
-#if B43legacy_DEBUG
+#if B43legacy_DE
 	B43legacy_WARN_ON(dev->phy.phy_locked);
 	dev->phy.phy_locked = 1;
 #endif
@@ -112,7 +112,7 @@ void b43legacy_phy_lock(struct b43legacy_wldev *dev)
 
 void b43legacy_phy_unlock(struct b43legacy_wldev *dev)
 {
-#if B43legacy_DEBUG
+#if B43legacy_DE
 	B43legacy_WARN_ON(!dev->phy.phy_locked);
 	dev->phy.phy_locked = 0;
 #endif
@@ -164,7 +164,7 @@ static void b43legacy_phy_init_pctl(struct b43legacy_wldev *dev)
 	u16 saved_txctl1 = 0;
 	int must_reset_txpower = 0;
 
-	B43legacy_BUG_ON(!(phy->type == B43legacy_PHYTYPE_B ||
+	B43legacy__ON(!(phy->type == B43legacy_PHYTYPE_B ||
 			  phy->type == B43legacy_PHYTYPE_G));
 	if (is_bcm_board_vendor(dev) &&
 	    (dev->dev->bus->boardinfo.type == 0x0416))
@@ -180,7 +180,7 @@ static void b43legacy_phy_init_pctl(struct b43legacy_wldev *dev)
 	}
 	if (phy->savedpctlreg != 0xFFFF)
 		return;
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 	if (phy->manual_txpower_control)
 		return;
 #endif
@@ -336,7 +336,7 @@ static void b43legacy_phy_setupg(struct b43legacy_wldev *dev)
 	struct b43legacy_phy *phy = &dev->phy;
 	u16 i;
 
-	B43legacy_BUG_ON(phy->type != B43legacy_PHYTYPE_G);
+	B43legacy__ON(phy->type != B43legacy_PHYTYPE_G);
 	if (phy->rev == 1) {
 		b43legacy_phy_write(dev, 0x0406, 0x4F19);
 		b43legacy_phy_write(dev, B43legacy_PHY_G_CRS,
@@ -1294,7 +1294,7 @@ void b43legacy_lo_write(struct b43legacy_wldev *dev,
 	value = (u8)(pair->low);
 	value |= ((u8)(pair->high)) << 8;
 
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 	/* Sanity check. */
 	if (pair->low < -8 || pair->low > 8 ||
 	    pair->high < -8 || pair->high > 8) {
@@ -1709,7 +1709,7 @@ void b43legacy_phy_lo_g_measure(struct b43legacy_wldev *dev)
 	}
 	b43legacy_radio_selectchannel(dev, oldchannel, 1);
 
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 	{
 		/* Sanity check for all lopairs. */
 		for (i = 0; i < B43legacy_LO_COUNT; i++) {
@@ -1722,7 +1722,7 @@ void b43legacy_phy_lo_g_measure(struct b43legacy_wldev *dev)
 				       tmp_control->low, tmp_control->high, i);
 		}
 	}
-#endif /* CONFIG_B43LEGACY_DEBUG */
+#endif /* CONFIG_B43LEGACY_DE */
 }
 
 static
@@ -1766,7 +1766,7 @@ static s8 b43legacy_phy_estimate_power_out(struct b43legacy_wldev *dev, s8 tssi)
 		dbm = phy->tssi2dbm[tmp];
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 
 	return dbm;
@@ -1797,12 +1797,12 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	if ((dev->dev->bus->boardinfo.type == 0x0416) &&
 	    is_bcm_board_vendor(dev))
 		return;
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 	if (phy->manual_txpower_control)
 		return;
 #endif
 
-	B43legacy_BUG_ON(!(phy->type == B43legacy_PHYTYPE_B ||
+	B43legacy__ON(!(phy->type == B43legacy_PHYTYPE_B ||
 			 phy->type == B43legacy_PHYTYPE_G));
 	tmp = b43legacy_shm_read16(dev, B43legacy_SHM_SHARED, 0x0058);
 	v0 = (s8)(tmp & 0x00FF);
@@ -1866,7 +1866,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	/* find the desired power in Q5.2 - power_level is in dBm
 	 * and limit it - max_pwr is already in Q5.2 */
 	desired_pwr = clamp_val(phy->power_level << 2, 0, max_pwr);
-	if (b43legacy_debug(dev, B43legacy_DBG_XMITPOWER))
+	if (b43legacy_de(dev, B43legacy_DBG_XMITPOWER))
 		b43legacydbg(dev->wl, "Current TX power output: " Q52_FMT
 		       " dBm, Desired TX power output: " Q52_FMT
 		       " dBm\n", Q52_ARG(estimated_pwr),

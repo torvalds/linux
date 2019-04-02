@@ -190,7 +190,7 @@ static void mips_cm_probe_l2sync(void)
 
 	/* Find a location for the L2 sync region */
 	addr = mips_cm_l2sync_phys_base();
-	BUG_ON((addr & CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE) != addr);
+	_ON((addr & CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE) != addr);
 	if (!addr)
 		return;
 
@@ -215,7 +215,7 @@ int mips_cm_probe(void)
 		return 0;
 
 	addr = mips_cm_phys_base();
-	BUG_ON((addr & CM_GCR_BASE_GCRBASE) != addr);
+	_ON((addr & CM_GCR_BASE_GCRBASE) != addr);
 	if (!addr)
 		return -ENODEV;
 

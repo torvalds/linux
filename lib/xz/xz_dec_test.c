@@ -165,7 +165,7 @@ static ssize_t xz_dec_test_write(struct file *file, const char __user *buf,
 		break;
 
 	default:
-		printk(KERN_INFO DEVICE_NAME ": Bug detected!\n");
+		printk(KERN_INFO DEVICE_NAME ":  detected!\n");
 		break;
 	}
 

@@ -28,7 +28,7 @@
 #include <asm/io.h>
 
 #include "emac.h"
-#include "debug.h"
+#include "de.h"
 
 // XXX FIXME: Axon seems to support a subset of the RGMII, we
 // thus need to take that into account and possibly change some
@@ -76,7 +76,7 @@ static inline u32 rgmii_mode_mask(int mode, int input)
 	case PHY_INTERFACE_MODE_RTBI:
 		return RGMII_FER_RTBI(input);
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -180,7 +180,7 @@ void rgmii_detach(struct platform_device *ofdev, int input)
 	struct rgmii_instance *dev = platform_get_drvdata(ofdev);
 	struct rgmii_regs __iomem *p;
 
-	BUG_ON(!dev || dev->users == 0);
+	_ON(!dev || dev->users == 0);
 	p = dev->base;
 
 	mutex_lock(&dev->lock);

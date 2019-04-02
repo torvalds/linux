@@ -302,7 +302,7 @@ void thread_stack_cache_init(void)
 	thread_stack_cache = kmem_cache_create_usercopy("thread_stack",
 					THREAD_SIZE, THREAD_SIZE, 0, 0,
 					THREAD_SIZE, NULL);
-	BUG_ON(thread_stack_cache == NULL);
+	_ON(thread_stack_cache == NULL);
 }
 # endif
 #endif
@@ -356,12 +356,12 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
 	void *stack = task_stack_page(tsk);
 	struct vm_struct *vm = task_stack_vm_area(tsk);
 
-	BUILD_BUG_ON(IS_ENABLED(CONFIG_VMAP_STACK) && PAGE_SIZE % 1024 != 0);
+	BUILD__ON(IS_ENABLED(CONFIG_VMAP_STACK) && PAGE_SIZE % 1024 != 0);
 
 	if (vm) {
 		int i;
 
-		BUG_ON(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
+		_ON(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
 
 		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
 			mod_zone_page_state(page_zone(vm->pages[i]),
@@ -448,7 +448,7 @@ void free_task(struct task_struct *tsk)
 	 */
 	WARN_ON_ONCE(refcount_read(&tsk->stack_refcount) != 0);
 #endif
-	rt_mutex_debug_task_free(tsk);
+	rt_mutex_de_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
 	put_seccomp_filter(tsk);
 	arch_release_task_struct(tsk);
@@ -642,16 +642,16 @@ static void check_mm(struct mm_struct *mm)
 		long x = atomic_long_read(&mm->rss_stat.count[i]);
 
 		if (unlikely(x))
-			printk(KERN_ALERT "BUG: Bad rss-counter state "
+			printk(KERN_ALERT ": Bad rss-counter state "
 					  "mm:%p idx:%d val:%ld\n", mm, i, x);
 	}
 
 	if (mm_pgtables_bytes(mm))
-		pr_alert("BUG: non-zero pgtables_bytes on freeing mm: %ld\n",
+		pr_alert(": non-zero pgtables_bytes on freeing mm: %ld\n",
 				mm_pgtables_bytes(mm));
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
-	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
+	VM__ON_MM(mm->pmd_huge_pte, mm);
 #endif
 }
 
@@ -665,7 +665,7 @@ static void check_mm(struct mm_struct *mm)
  */
 void __mmdrop(struct mm_struct *mm)
 {
-	BUG_ON(mm == &init_mm);
+	_ON(mm == &init_mm);
 	WARN_ON_ONCE(mm == current->mm);
 	WARN_ON_ONCE(mm == current->active_mm);
 	mm_free_pgd(mm);
@@ -1037,7 +1037,7 @@ struct mm_struct *mm_alloc(void)
 
 static inline void __mmput(struct mm_struct *mm)
 {
-	VM_BUG_ON(atomic_read(&mm->mm_users));
+	VM__ON(atomic_read(&mm->mm_users));
 
 	uprobe_clear_state(mm);
 	exit_aio(mm);
@@ -1273,7 +1273,7 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 
 	/*
 	 * Signal userspace if we're not exiting with a core dump
-	 * because we want to leave the value intact for debugging
+	 * because we want to leave the value intact for deging
 	 * purposes.
 	 */
 	if (tsk->clear_child_tid) {
@@ -1770,8 +1770,8 @@ static __latent_entropy struct task_struct *copy_process(
 	rt_mutex_init_task(p);
 
 #ifdef CONFIG_PROVE_LOCKING
-	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
-	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
+	DE_LOCKS_WARN_ON(!p->hardirqs_enabled);
+	DE_LOCKS_WARN_ON(!p->softirqs_enabled);
 #endif
 	retval = -EAGAIN;
 	if (atomic_read(&p->real_cred->user->processes) >=
@@ -1874,7 +1874,7 @@ static __latent_entropy struct task_struct *copy_process(
 	lockdep_init_task(p);
 #endif
 
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
 #ifdef CONFIG_BCACHE

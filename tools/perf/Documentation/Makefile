@@ -137,7 +137,7 @@ SHELL_PATH ?= $(SHELL)
 SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
 
 #
-# Please note that there is a minor bug in asciidoc.
+# Please note that there is a minor  in asciidoc.
 # The version after 6.0.3 _will_ include the patch found here:
 #   http://marc.theaimsgroup.com/?l=perf&m=111558757202243&w=2
 #

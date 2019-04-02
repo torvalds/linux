@@ -15,7 +15,7 @@
 #define pr_fmt(fmt) "meson-sm: " fmt
 
 #include <linux/arm-smccc.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>

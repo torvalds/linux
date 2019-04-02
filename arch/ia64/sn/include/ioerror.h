@@ -23,7 +23,7 @@
  *        we have a single structure, and the appropriate fields get filled in
  *        at each layer.
  *      - This provides a way to dump all error related information in any layer
- *        of erorr handling (debugging aid).
+ *        of erorr handling (deging aid).
  *
  * A second possibility is to allow each layer to define its own error
  * data structure, and fill in the proper fields. This has the advantage

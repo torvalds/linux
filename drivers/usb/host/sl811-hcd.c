@@ -48,7 +48,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/prefetch.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <asm/io.h>
@@ -1381,7 +1381,7 @@ static void dump_irq(struct seq_file *s, char *label, u8 mask)
 		(mask & SL11H_INTMASK_DP) ? " dp" : "");
 }
 
-static int sl811h_debug_show(struct seq_file *s, void *unused)
+static int sl811h_de_show(struct seq_file *s, void *unused)
 {
 	struct sl811		*sl811 = s->private;
 	struct sl811h_ep	*ep;
@@ -1491,19 +1491,19 @@ static int sl811h_debug_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(sl811h_debug);
+DEFINE_SHOW_ATTRIBUTE(sl811h_de);
 
 /* expect just one sl811 per system */
-static void create_debug_file(struct sl811 *sl811)
+static void create_de_file(struct sl811 *sl811)
 {
-	sl811->debug_file = debugfs_create_file("sl811h", S_IRUGO,
-						usb_debug_root, sl811,
-						&sl811h_debug_fops);
+	sl811->de_file = defs_create_file("sl811h", S_IRUGO,
+						usb_de_root, sl811,
+						&sl811h_de_fops);
 }
 
-static void remove_debug_file(struct sl811 *sl811)
+static void remove_de_file(struct sl811 *sl811)
 {
-	debugfs_remove(sl811->debug_file);
+	defs_remove(sl811->de_file);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1588,7 +1588,7 @@ sl811h_remove(struct platform_device *dev)
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
 	struct resource		*res;
 
-	remove_debug_file(sl811);
+	remove_de_file(sl811);
 	usb_remove_hcd(hcd);
 
 	/* some platforms may use IORESOURCE_IO */
@@ -1721,7 +1721,7 @@ sl811h_probe(struct platform_device *dev)
 
 	device_wakeup_enable(hcd->self.controller);
 
-	create_debug_file(sl811);
+	create_de_file(sl811);
 	return retval;
 
  err6:

@@ -180,19 +180,19 @@ do {									\
 
 #define emit_loadptr(BASE, STRUCT, FIELD, DEST)				\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
-	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(void *));	\
+	BUILD__ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(void *));	\
 	*prog++ = LDPTRI | RS1(BASE) | S13(_off) | RD(DEST);		\
 } while (0)
 
 #define emit_load32(BASE, STRUCT, FIELD, DEST)				\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
-	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u32));	\
+	BUILD__ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u32));	\
 	*prog++ = LD32I | RS1(BASE) | S13(_off) | RD(DEST);		\
 } while (0)
 
 #define emit_load16(BASE, STRUCT, FIELD, DEST)				\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
-	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u16));	\
+	BUILD__ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u16));	\
 	*prog++ = LD16I | RS1(BASE) | S13(_off) | RD(DEST);		\
 } while (0)
 
@@ -202,7 +202,7 @@ do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
 } while (0)
 
 #define emit_load8(BASE, STRUCT, FIELD, DEST)				\
-do {	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u8));	\
+do {	BUILD__ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u8));	\
 	__emit_load8(BASE, STRUCT, FIELD, DEST);			\
 } while (0)
 

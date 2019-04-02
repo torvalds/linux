@@ -28,7 +28,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/ktime.h>
 #include <net/genetlink.h>
@@ -526,7 +526,7 @@ struct mac80211_hwsim_data {
 		PS_DISABLED, PS_ENABLED, PS_AUTO_POLL, PS_MANUAL_POLL
 	} ps;
 	bool ps_poll_pending;
-	struct dentry *debugfs;
+	struct dentry *defs;
 
 	uintptr_t pending_cookie;
 	struct sk_buff_head pending;	/* packets pending */
@@ -1065,7 +1065,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	msg_head = genlmsg_put(skb, 0, 0, &hwsim_genl_family, 0,
 			       HWSIM_CMD_FRAME);
 	if (msg_head == NULL) {
-		pr_debug("mac80211_hwsim: problem with msg_head\n");
+		pr_de("mac80211_hwsim: problem with msg_head\n");
 		goto nla_put_failure;
 	}
 
@@ -1133,7 +1133,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 nla_put_failure:
 	nlmsg_free(skb);
 err_free_txskb:
-	pr_debug("mac80211_hwsim: error occurred in %s\n", __func__);
+	pr_de("mac80211_hwsim: error occurred in %s\n", __func__);
 	ieee80211_free_txskb(hw, my_skb);
 	data->tx_failed++;
 }
@@ -2138,11 +2138,11 @@ static void mac80211_hwsim_sw_scan(struct ieee80211_hw *hw,
 	mutex_lock(&hwsim->mutex);
 
 	if (hwsim->scanning) {
-		pr_debug("two hwsim sw_scans detected!\n");
+		pr_de("two hwsim sw_scans detected!\n");
 		goto out;
 	}
 
-	pr_debug("hwsim sw_scan request, prepping stuff\n");
+	pr_de("hwsim sw_scan request, prepping stuff\n");
 
 	memcpy(hwsim->scan_addr, mac_addr, ETH_ALEN);
 	hwsim->scanning = true;
@@ -2159,7 +2159,7 @@ static void mac80211_hwsim_sw_scan_complete(struct ieee80211_hw *hw,
 
 	mutex_lock(&hwsim->mutex);
 
-	pr_debug("hwsim sw_scan_complete\n");
+	pr_de("hwsim sw_scan_complete\n");
 	hwsim->scanning = false;
 	eth_zero_addr(hwsim->scan_addr);
 
@@ -2658,7 +2658,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		ops = &mac80211_hwsim_mchan_ops;
 	hw = ieee80211_alloc_hw_nm(sizeof(*data), ops, param->hwname);
 	if (!hw) {
-		pr_debug("mac80211_hwsim: ieee80211_alloc_hw failed\n");
+		pr_de("mac80211_hwsim: ieee80211_alloc_hw failed\n");
 		err = -ENOMEM;
 		goto failed;
 	}
@@ -2677,7 +2677,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	data->dev = device_create(hwsim_class, NULL, 0, hw, "hwsim%d", idx);
 	if (IS_ERR(data->dev)) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "mac80211_hwsim: device_create failed (%ld)\n",
 		       PTR_ERR(data->dev));
 		err = -ENOMEM;
@@ -2686,7 +2686,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	data->dev->driver = &mac80211_hwsim_driver.driver;
 	err = device_bind_driver(data->dev);
 	if (err != 0) {
-		pr_debug("mac80211_hwsim: device_bind_driver failed (%d)\n",
+		pr_de("mac80211_hwsim: device_bind_driver failed (%d)\n",
 		       err);
 		goto failed_bind;
 	}
@@ -2928,7 +2928,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	err = ieee80211_register_hw(hw);
 	if (err < 0) {
-		pr_debug("mac80211_hwsim: ieee80211_register_hw failed (%d)\n",
+		pr_de("mac80211_hwsim: ieee80211_register_hw failed (%d)\n",
 		       err);
 		goto failed_hw;
 	}
@@ -2941,13 +2941,13 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		regulatory_hint(hw->wiphy, param->reg_alpha2);
 	}
 
-	data->debugfs = debugfs_create_dir("hwsim", hw->wiphy->debugfsdir);
-	debugfs_create_file("ps", 0666, data->debugfs, data, &hwsim_fops_ps);
-	debugfs_create_file("group", 0666, data->debugfs, data,
+	data->defs = defs_create_dir("hwsim", hw->wiphy->defsdir);
+	defs_create_file("ps", 0666, data->defs, data, &hwsim_fops_ps);
+	defs_create_file("group", 0666, data->defs, data,
 			    &hwsim_fops_group);
 	if (!data->use_chanctx)
-		debugfs_create_file("dfs_simulate_radar", 0222,
-				    data->debugfs,
+		defs_create_file("dfs_simulate_radar", 0222,
+				    data->defs,
 				    data, &hwsim_simulate_radar);
 
 	spin_lock_bh(&hwsim_radio_lock);
@@ -2972,7 +2972,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	return idx;
 
 failed_final_insert:
-	debugfs_remove_recursive(data->debugfs);
+	defs_remove_recursive(data->defs);
 	ieee80211_unregister_hw(data->hw);
 failed_hw:
 	device_release_driver(data->dev);
@@ -3024,7 +3024,7 @@ static void mac80211_hwsim_del_radio(struct mac80211_hwsim_data *data,
 				     struct genl_info *info)
 {
 	hwsim_mcast_del_radio(data->idx, hwname, info);
-	debugfs_remove_recursive(data->debugfs);
+	defs_remove_recursive(data->defs);
 	ieee80211_unregister_hw(data->hw);
 	device_release_driver(data->dev);
 	device_unregister(data->dev);
@@ -3294,7 +3294,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 
 	return 0;
 err:
-	pr_debug("mac80211_hwsim: error occurred in %s\n", __func__);
+	pr_de("mac80211_hwsim: error occurred in %s\n", __func__);
 out:
 	dev_kfree_skb(skb);
 	return -EINVAL;
@@ -3325,7 +3325,7 @@ static int hwsim_register_received_nl(struct sk_buff *skb_2,
 
 	hwsim_register_wmediumd(net, info->snd_portid);
 
-	pr_debug("mac80211_hwsim: received a REGISTER, "
+	pr_de("mac80211_hwsim: received a REGISTER, "
 	       "switching to wmediumd mode with pid %d\n", info->snd_portid);
 
 	return 0;
@@ -3732,7 +3732,7 @@ static int __init hwsim_init_netlink(void)
 	return 0;
 
 failure:
-	pr_debug("mac80211_hwsim: error occurred in %s\n", __func__);
+	pr_de("mac80211_hwsim: error occurred in %s\n", __func__);
 	return -EINVAL;
 }
 
@@ -3941,7 +3941,7 @@ module_init(init_mac80211_hwsim);
 
 static void __exit exit_mac80211_hwsim(void)
 {
-	pr_debug("mac80211_hwsim: unregister radios\n");
+	pr_de("mac80211_hwsim: unregister radios\n");
 
 	hwsim_exit_netlink();
 

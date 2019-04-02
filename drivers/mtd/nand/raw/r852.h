@@ -145,12 +145,12 @@ struct r852_device {
 };
 
 #define dbg(format, ...) \
-	if (debug) \
-		pr_debug(format "\n", ## __VA_ARGS__)
+	if (de) \
+		pr_de(format "\n", ## __VA_ARGS__)
 
 #define dbg_verbose(format, ...) \
-	if (debug > 1) \
-		pr_debug(format "\n", ## __VA_ARGS__)
+	if (de > 1) \
+		pr_de(format "\n", ## __VA_ARGS__)
 
 
 #define message(format, ...) \

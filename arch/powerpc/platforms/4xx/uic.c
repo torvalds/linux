@@ -234,7 +234,7 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	const u32 *indexp, *dcrreg;
 	int len;
 
-	BUG_ON(! of_device_is_compatible(node, "ibm,uic"));
+	_ON(! of_device_is_compatible(node, "ibm,uic"));
 
 	uic = kzalloc(sizeof(*uic), GFP_KERNEL);
 	if (! uic)
@@ -288,7 +288,7 @@ void __init uic_init_tree(void)
 			break;
 	}
 
-	BUG_ON(!np); /* uic_init_tree() assumes there's a UIC as the
+	_ON(!np); /* uic_init_tree() assumes there's a UIC as the
 		      * top-level interrupt controller */
 	primary_uic = uic_init_one(np);
 	if (!primary_uic)
@@ -325,7 +325,7 @@ unsigned int uic_get_irq(void)
 	u32 msr;
 	int src;
 
-	BUG_ON(! primary_uic);
+	_ON(! primary_uic);
 
 	msr = mfdcr(primary_uic->dcrbase + UIC_MSR);
 	src = 32 - ffs(msr);

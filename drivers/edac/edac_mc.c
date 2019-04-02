@@ -135,7 +135,7 @@ unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 	return count;
 }
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 
 static void edac_mc_dump_channel(struct rank_info *chan)
 {
@@ -190,7 +190,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 	edac_dbg(3, "\tpvt_info = %p\n\n", mci->pvt_info);
 }
 
-#endif				/* CONFIG_EDAC_DEBUG */
+#endif				/* CONFIG_EDAC_DE */
 
 const char * const edac_mem_types[] = {
 	[MEM_EMPTY]	= "Empty",
@@ -321,7 +321,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	int i, j, row, chn, n, len, off;
 	bool per_rank = false;
 
-	BUG_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0);
+	_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0);
 	/*
 	 * Calculate the total amount of dimms and csrows/cschannels while
 	 * in the old API emulation mode
@@ -430,7 +430,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 		chan = mci->csrows[row]->channels[chn];
 		off = EDAC_DIMM_OFF(layer, n_layers, pos[0], pos[1], pos[2]);
 		if (off < 0 || off >= tot_dimms) {
-			edac_mc_printk(mci, KERN_ERR, "EDAC core bug: EDAC_DIMM_OFF is trying to do an illegal data access\n");
+			edac_mc_printk(mci, KERN_ERR, "EDAC core : EDAC_DIMM_OFF is trying to do an illegal data access\n");
 			goto error;
 		}
 
@@ -659,7 +659,7 @@ fail0:
 
 fail1:
 	edac_printk(KERN_WARNING, EDAC_MC,
-		"bug in low-level driver: attempt to assign\n"
+		" in low-level driver: attempt to assign\n"
 		"    duplicate mc_idx %d in %s()\n", p->mc_idx, __func__);
 	return 1;
 }
@@ -714,11 +714,11 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 	int ret = -EINVAL;
 	edac_dbg(0, "\n");
 
-#ifdef CONFIG_EDAC_DEBUG
-	if (edac_debug_level >= 3)
+#ifdef CONFIG_EDAC_DE
+	if (edac_de_level >= 3)
 		edac_mc_dump_mci(mci);
 
-	if (edac_debug_level >= 4) {
+	if (edac_de_level >= 4) {
 		int i;
 
 		for (i = 0; i < mci->nr_csrows; i++) {

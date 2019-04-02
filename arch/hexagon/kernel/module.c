@@ -25,9 +25,9 @@
 #include <linux/vmalloc.h>
 
 #if 0
-#define DEBUGP printk
+#define DEP printk
 #else
-#define DEBUGP(fmt , ...)
+#define DEP(fmt , ...)
 #endif
 
 /*
@@ -46,7 +46,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 
 	/* Look for .plt and/or .got.plt and/or .init.plt sections */
 	for (i = 0; i < hdr->e_shnum; i++) {
-		DEBUGP("Section %d is %s\n", i,
+		DEP("Section %d is %s\n", i,
 		       secstrings + sechdrs[i].sh_name);
 		if (strcmp(secstrings + sechdrs[i].sh_name, ".plt") == 0)
 			found = i+1;
@@ -91,7 +91,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	Elf32_Sym *sym_base = (Elf32_Sym *) sechdrs[symindex].sh_addr;
 	void *loc_base = (void *) sechdrs[sym_info].sh_addr;
 
-	DEBUGP("Applying relocations in section %u to section %u base=%p\n",
+	DEP("Applying relocations in section %u to section %u base=%p\n",
 	       relsec, sym_info, loc_base);
 
 	for (i = 0; i < nrelocs; i++) {
@@ -105,7 +105,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		/* `Everything is relative'. */
 		value = sym->st_value + rela[i].r_addend;
 
-		DEBUGP("%d: value=%08x loc=%p reloc=%d symbol=%s\n",
+		DEP("%d: value=%08x loc=%p reloc=%d symbol=%s\n",
 		       i, value, location, ELF32_R_TYPE(rela[i].r_info),
 		       sym->st_name ?
 		       &strtab[sym->st_name] : "(anonymous)");
@@ -124,11 +124,11 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 				       &strtab[sym->st_name] : "(anonymous)");
 				return -ENOEXEC;
 			}
-			DEBUGP("B22_PCREL contents: %08X.\n", *location);
+			DEP("B22_PCREL contents: %08X.\n", *location);
 			*location &= ~0x01ff3fff;
 			*location |= 0x00003fff & dist;
 			*location |= 0x01ff0000 & (dist<<2);
-			DEBUGP("Contents after reloc: %08x\n", *location);
+			DEP("Contents after reloc: %08x\n", *location);
 			break;
 		}
 		case R_HEXAGON_HI16:

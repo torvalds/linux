@@ -28,7 +28,7 @@
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
 
-#undef DEBUG
+#undef DE
 
 unsigned long isa_io_base     = 0;
 unsigned long pci_dram_offset = 0;
@@ -123,7 +123,7 @@ pcibios_make_OF_bus_map(void)
 	}
 
 	/* We fill the bus map with invalid values, that helps
-	 * debugging.
+	 * deging.
 	 */
 	for (i=0; i<pci_bus_count; i++)
 		pci_to_OF_bus_map[i] = 0xff;
@@ -139,11 +139,11 @@ pcibios_make_OF_bus_map(void)
 	dn = of_find_node_by_path("/");
 	map_prop = of_find_property(dn, "pci-OF-bus-map", NULL);
 	if (map_prop) {
-		BUG_ON(pci_bus_count > map_prop->length);
+		_ON(pci_bus_count > map_prop->length);
 		memcpy(map_prop->value, pci_to_OF_bus_map, pci_bus_count);
 	}
 	of_node_put(dn);
-#ifdef DEBUG
+#ifdef DE
 	printk("PCI->OF bus map:\n");
 	for (i=0; i<pci_bus_count; i++) {
 		if (pci_to_OF_bus_map[i] == 0xff)

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 
 #include <rtw_wifi_regd.h>
 

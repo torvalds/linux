@@ -5,12 +5,12 @@
  */
 
 #include <linux/kgdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/ftrace.h>
 #include <linux/context_tracking.h>
 
 #include <asm/cacheflush.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
 

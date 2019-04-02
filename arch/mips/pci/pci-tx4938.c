@@ -105,7 +105,7 @@ int __init tx4938_pciclk66_setup(void)
 		}
 		tx4938_ccfg_change(TX4938_CCFG_PCIDIVMODE_MASK,
 				   pcidivmode);
-		pr_debug("PCICLK: ccfg:%08lx\n",
+		pr_de("PCICLK: ccfg:%08lx\n",
 			 (unsigned long)__raw_readq(&tx4938_ccfgptr->ccfg));
 	} else
 		pciclk = -1;

@@ -7,7 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/qrtr.h>
@@ -285,8 +285,8 @@ static struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 };
 
 /*
- * ping_write() - ping_pong debugfs file write handler
- * @file:	debugfs file context
+ * ping_write() - ping_pong defs file write handler
+ * @file:	defs file context
  * @user_buf:	reference to the user data (ignored)
  * @count:	number of bytes in @user_buf
  * @ppos:	offset in @file to write
@@ -352,8 +352,8 @@ static void ping_pong_cb(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 }
 
 /*
- * data_write() - data debugfs file write handler
- * @file:	debugfs file context
+ * data_write() - data defs file write handler
+ * @file:	defs file context
  * @user_buf:	reference to the user data
  * @count:	number of bytes in @user_buf
  * @ppos:	offset in @file to write
@@ -448,7 +448,7 @@ struct qmi_sample {
 	struct dentry *de_ping;
 };
 
-static struct dentry *qmi_debug_dir;
+static struct dentry *qmi_de_dir;
 
 static int qmi_sample_probe(struct platform_device *pdev)
 {
@@ -477,20 +477,20 @@ static int qmi_sample_probe(struct platform_device *pdev)
 
 	snprintf(path, sizeof(path), "%d:%d", sq->sq_node, sq->sq_port);
 
-	sample->de_dir = debugfs_create_dir(path, qmi_debug_dir);
+	sample->de_dir = defs_create_dir(path, qmi_de_dir);
 	if (IS_ERR(sample->de_dir)) {
 		ret = PTR_ERR(sample->de_dir);
 		goto err_release_qmi_handle;
 	}
 
-	sample->de_data = debugfs_create_file("data", 0600, sample->de_dir,
+	sample->de_data = defs_create_file("data", 0600, sample->de_dir,
 					      sample, &data_fops);
 	if (IS_ERR(sample->de_data)) {
 		ret = PTR_ERR(sample->de_data);
 		goto err_remove_de_dir;
 	}
 
-	sample->de_ping = debugfs_create_file("ping", 0600, sample->de_dir,
+	sample->de_ping = defs_create_file("ping", 0600, sample->de_dir,
 					      sample, &ping_fops);
 	if (IS_ERR(sample->de_ping)) {
 		ret = PTR_ERR(sample->de_ping);
@@ -502,9 +502,9 @@ static int qmi_sample_probe(struct platform_device *pdev)
 	return 0;
 
 err_remove_de_data:
-	debugfs_remove(sample->de_data);
+	defs_remove(sample->de_data);
 err_remove_de_dir:
-	debugfs_remove(sample->de_dir);
+	defs_remove(sample->de_dir);
 err_release_qmi_handle:
 	qmi_handle_release(&sample->qmi);
 
@@ -515,9 +515,9 @@ static int qmi_sample_remove(struct platform_device *pdev)
 {
 	struct qmi_sample *sample = platform_get_drvdata(pdev);
 
-	debugfs_remove(sample->de_ping);
-	debugfs_remove(sample->de_data);
-	debugfs_remove(sample->de_dir);
+	defs_remove(sample->de_ping);
+	defs_remove(sample->de_data);
+	defs_remove(sample->de_dir);
 
 	qmi_handle_release(&sample->qmi);
 
@@ -580,15 +580,15 @@ static int qmi_sample_init(void)
 {
 	int ret;
 
-	qmi_debug_dir = debugfs_create_dir("qmi_sample", NULL);
-	if (IS_ERR(qmi_debug_dir)) {
+	qmi_de_dir = defs_create_dir("qmi_sample", NULL);
+	if (IS_ERR(qmi_de_dir)) {
 		pr_err("failed to create qmi_sample dir\n");
-		return PTR_ERR(qmi_debug_dir);
+		return PTR_ERR(qmi_de_dir);
 	}
 
 	ret = platform_driver_register(&qmi_sample_driver);
 	if (ret)
-		goto err_remove_debug_dir;
+		goto err_remove_de_dir;
 
 	ret = qmi_handle_init(&lookup_client, 0, &lookup_ops, NULL);
 	if (ret < 0)
@@ -600,8 +600,8 @@ static int qmi_sample_init(void)
 
 err_unregister_driver:
 	platform_driver_unregister(&qmi_sample_driver);
-err_remove_debug_dir:
-	debugfs_remove(qmi_debug_dir);
+err_remove_de_dir:
+	defs_remove(qmi_de_dir);
 
 	return ret;
 }
@@ -612,7 +612,7 @@ static void qmi_sample_exit(void)
 
 	platform_driver_unregister(&qmi_sample_driver);
 
-	debugfs_remove(qmi_debug_dir);
+	defs_remove(qmi_de_dir);
 }
 
 module_init(qmi_sample_init);

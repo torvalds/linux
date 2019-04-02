@@ -143,10 +143,10 @@ ssize_t diag_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 {
 	struct diag_ftp_ldfpl *ldfpl;
 	ssize_t len;
-#ifdef DEBUG
+#ifdef DE
 	unsigned long start_jiffies;
 
-	pr_debug("starting DIAG X'2C4' on '%s', requesting %zd bytes\n",
+	pr_de("starting DIAG X'2C4' on '%s', requesting %zd bytes\n",
 		 ftp->fname, ftp->len);
 	start_jiffies = jiffies;
 #endif
@@ -180,10 +180,10 @@ ssize_t diag_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 	 */
 	wait_for_completion(&diag_ftp_rx_complete);
 
-#ifdef DEBUG
-	pr_debug("completed DIAG X'2C4' after %lu ms\n",
+#ifdef DE
+	pr_de("completed DIAG X'2C4' after %lu ms\n",
 		 (jiffies - start_jiffies) * 1000 / HZ);
-	pr_debug("status of DIAG X'2C4' is %u, with %lld/%lld bytes\n",
+	pr_de("status of DIAG X'2C4' is %u, with %lld/%lld bytes\n",
 		 diag_ftp_subcode, ldfpl->transferred, ldfpl->fsize);
 #endif
 

@@ -25,13 +25,13 @@
 #include <media/v4l2-ctrls.h>
 #include <media/i2c/ad9389b.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de level (0-2)");
 
 MODULE_DESCRIPTION("Analog Devices AD9389B/AD9889B video encoder driver");
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
-MODULE_AUTHOR("Martin Bugge <marbugge@cisco.com>");
+MODULE_AUTHOR("Martin ge <marge@cisco.com>");
 MODULE_LICENSE("GPL");
 
 #define MASK_AD9389B_EDID_RDY_INT   0x04
@@ -84,7 +84,7 @@ struct ad9389b_state {
 	struct v4l2_ctrl *rgb_quantization_range_ctrl;
 	struct i2c_client *edid_i2c_client;
 	struct ad9389b_state_edid edid;
-	/* Running counter of the number of detected EDIDs (for debugging) */
+	/* Running counter of the number of detected EDIDs (for deging) */
 	unsigned edid_detect_counter;
 	struct delayed_work edid_handler; /* work entry */
 };
@@ -142,7 +142,7 @@ static void ad9389b_edid_rd(struct v4l2_subdev *sd, u16 len, u8 *buf)
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 	int i;
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	for (i = 0; i < len; i++)
 		buf[i] = i2c_smbus_read_byte_data(state->edid_i2c_client, i);
@@ -302,7 +302,7 @@ static int ad9389b_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
-	v4l2_dbg(1, debug, sd,
+	v4l2_dbg(1, de, sd,
 		 "%s: ctrl id: %d, ctrl->val %d\n", __func__, ctrl->id, ctrl->val);
 
 	if (state->hdmi_mode_ctrl == ctrl) {
@@ -322,7 +322,7 @@ static const struct v4l2_ctrl_ops ad9389b_ctrl_ops = {
 
 /* ---------------------------- CORE OPS ------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = ad9389b_rd(sd, reg->reg & 0xff);
@@ -437,7 +437,7 @@ static int ad9389b_s_power(struct v4l2_subdev *sd, int on)
 	const int retries = 20;
 	int i;
 
-	v4l2_dbg(1, debug, sd, "%s: power %s\n", __func__, on ? "on" : "off");
+	v4l2_dbg(1, de, sd, "%s: power %s\n", __func__, on ? "on" : "off");
 
 	state->power_on = on;
 
@@ -458,12 +458,12 @@ static int ad9389b_s_power(struct v4l2_subdev *sd, int on)
 		msleep(10);
 	}
 	if (i == retries) {
-		v4l2_dbg(1, debug, sd, "failed to powerup the ad9389b\n");
+		v4l2_dbg(1, de, sd, "failed to powerup the ad9389b\n");
 		ad9389b_s_power(sd, 0);
 		return false;
 	}
 	if (i > 1)
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			 "needed %d retries to powerup the ad9389b\n", i);
 
 	/* Select chip: AD9389B */
@@ -537,7 +537,7 @@ static int ad9389b_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	/* enable interrupts */
 	ad9389b_set_isr(sd, true);
 
-	v4l2_dbg(1, debug, sd, "%s: irq_status 0x%x\n", __func__, irq_status);
+	v4l2_dbg(1, de, sd, "%s: irq_status 0x%x\n", __func__, irq_status);
 
 	if (irq_status & (MASK_AD9389B_HPD_INT))
 		ad9389b_check_monitor_present_status(sd);
@@ -550,7 +550,7 @@ static int ad9389b_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 	.log_status = ad9389b_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = ad9389b_g_register,
 	.s_register = ad9389b_s_register,
 #endif
@@ -563,7 +563,7 @@ static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 /* Enable/disable ad9389b output */
 static int ad9389b_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, (enable ? "en" : "dis"));
+	v4l2_dbg(1, de, sd, "%s: %sable\n", __func__, (enable ? "en" : "dis"));
 
 	ad9389b_wr_and_or(sd, 0xa1, ~0x3c, (enable ? 0 : 0x3c));
 	if (enable) {
@@ -590,7 +590,7 @@ static int ad9389b_s_dv_timings(struct v4l2_subdev *sd,
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	/* quick sanity check */
 	if (!v4l2_valid_dv_timings(timings, &ad9389b_timings_cap, NULL, NULL))
@@ -623,7 +623,7 @@ static int ad9389b_g_dv_timings(struct v4l2_subdev *sd,
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (!timings)
 		return -EINVAL;
@@ -670,7 +670,7 @@ static int ad9389b_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	if (edid->blocks == 0 || edid->blocks > 256)
 		return -EINVAL;
 	if (!state->edid.segments) {
-		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
+		v4l2_dbg(1, de, sd, "EDID segment 0 not found\n");
 		return -ENODATA;
 	}
 	if (edid->start_block >= state->edid.segments * 2)
@@ -692,7 +692,7 @@ static const struct v4l2_subdev_pad_ops ad9389b_pad_ops = {
 
 static int ad9389b_s_audio_stream(struct v4l2_subdev *sd, int enable)
 {
-	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, (enable ? "en" : "dis"));
+	v4l2_dbg(1, de, sd, "%s: %sable\n", __func__, (enable ? "en" : "dis"));
 
 	if (enable)
 		ad9389b_wr_and_or(sd, 0x45, 0x3f, 0x80);
@@ -782,27 +782,27 @@ static const struct v4l2_subdev_ops ad9389b_ops = {
 };
 
 /* ----------------------------------------------------------------------- */
-static void ad9389b_dbg_dump_edid(int lvl, int debug, struct v4l2_subdev *sd,
+static void ad9389b_dbg_dump_edid(int lvl, int de, struct v4l2_subdev *sd,
 				  int segment, u8 *buf)
 {
 	int i, j;
 
-	if (debug < lvl)
+	if (de < lvl)
 		return;
 
-	v4l2_dbg(lvl, debug, sd, "edid segment %d\n", segment);
+	v4l2_dbg(lvl, de, sd, "edid segment %d\n", segment);
 	for (i = 0; i < 256; i += 16) {
 		u8 b[128];
 		u8 *bp = b;
 
 		if (i == 128)
-			v4l2_dbg(lvl, debug, sd, "\n");
+			v4l2_dbg(lvl, de, sd, "\n");
 		for (j = i; j < i + 16; j++) {
 			sprintf(bp, "0x%02x, ", buf[j]);
 			bp += 6;
 		}
 		bp[0] = '\0';
-		v4l2_dbg(lvl, debug, sd, "%s\n", b);
+		v4l2_dbg(lvl, de, sd, "%s\n", b);
 	}
 }
 
@@ -814,7 +814,7 @@ static void ad9389b_edid_handler(struct work_struct *work)
 	struct v4l2_subdev *sd = &state->sd;
 	struct ad9389b_edid_detect ed;
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (ad9389b_check_edid_status(sd)) {
 		/* Return if we received the EDID. */
@@ -827,7 +827,7 @@ static void ad9389b_edid_handler(struct work_struct *work)
 		 * (DVI connectors are particularly prone to this problem). */
 		if (state->edid.read_retries) {
 			state->edid.read_retries--;
-			v4l2_dbg(1, debug, sd, "%s: edid read failed\n", __func__);
+			v4l2_dbg(1, de, sd, "%s: edid read failed\n", __func__);
 			ad9389b_s_power(sd, false);
 			ad9389b_s_power(sd, true);
 			schedule_delayed_work(&state->edid_handler, EDID_DELAY);
@@ -839,12 +839,12 @@ static void ad9389b_edid_handler(struct work_struct *work)
 	ed.present = false;
 	ed.segment = ad9389b_rd(sd, 0xc4);
 	v4l2_subdev_notify(sd, AD9389B_EDID_DETECT, (void *)&ed);
-	v4l2_dbg(1, debug, sd, "%s: no edid found\n", __func__);
+	v4l2_dbg(1, de, sd, "%s: no edid found\n", __func__);
 }
 
 static void ad9389b_audio_setup(struct v4l2_subdev *sd)
 {
-	v4l2_dbg(1, debug, sd, "%s\n", __func__);
+	v4l2_dbg(1, de, sd, "%s\n", __func__);
 
 	ad9389b_s_i2s_clock_freq(sd, 48000);
 	ad9389b_s_clock_freq(sd, 48000);
@@ -858,7 +858,7 @@ static void ad9389b_setup(struct v4l2_subdev *sd)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s\n", __func__);
+	v4l2_dbg(1, de, sd, "%s\n", __func__);
 
 	/* Input format: RGB 4:4:4 */
 	ad9389b_wr_and_or(sd, 0x15, 0xf1, 0x0);
@@ -902,17 +902,17 @@ static void ad9389b_update_monitor_present_status(struct v4l2_subdev *sd)
 	/* read hotplug and rx-sense state */
 	u8 status = ad9389b_rd(sd, 0x42);
 
-	v4l2_dbg(1, debug, sd, "%s: status: 0x%x%s%s\n",
+	v4l2_dbg(1, de, sd, "%s: status: 0x%x%s%s\n",
 		 __func__,
 		 status,
 		 status & MASK_AD9389B_HPD_DETECT ? ", hotplug" : "",
 		 status & MASK_AD9389B_MSEN_DETECT ? ", rx-sense" : "");
 
 	if (status & MASK_AD9389B_HPD_DETECT) {
-		v4l2_dbg(1, debug, sd, "%s: hotplug detected\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: hotplug detected\n", __func__);
 		state->have_monitor = true;
 		if (!ad9389b_s_power(sd, true)) {
-			v4l2_dbg(1, debug, sd,
+			v4l2_dbg(1, de, sd,
 				 "%s: monitor detected, powerup failed\n", __func__);
 			return;
 		}
@@ -921,7 +921,7 @@ static void ad9389b_update_monitor_present_status(struct v4l2_subdev *sd)
 		state->edid.read_retries = EDID_MAX_RETRIES;
 		schedule_delayed_work(&state->edid_handler, EDID_DELAY);
 	} else if (!(status & MASK_AD9389B_HPD_DETECT)) {
-		v4l2_dbg(1, debug, sd, "%s: hotplug not detected\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: hotplug not detected\n", __func__);
 		state->have_monitor = false;
 		ad9389b_notify_monitor_detect(sd);
 		ad9389b_s_power(sd, false);
@@ -954,7 +954,7 @@ static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
 			v4l2_err(sd, "retried %d times, give up\n", retry);
 			return;
 		}
-		v4l2_dbg(1, debug, sd, "%s: reset and re-check status (%d)\n", __func__, retry);
+		v4l2_dbg(1, de, sd, "%s: reset and re-check status (%d)\n", __func__, retry);
 		ad9389b_notify_monitor_detect(sd);
 		cancel_delayed_work_sync(&state->edid_handler);
 		memset(&state->edid, 0, sizeof(struct ad9389b_state_edid));
@@ -1013,7 +1013,7 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	int segment;
 	u8 edidRdy = ad9389b_rd(sd, 0xc5);
 
-	v4l2_dbg(1, debug, sd, "%s: edid ready (retries: %d)\n",
+	v4l2_dbg(1, de, sd, "%s: edid ready (retries: %d)\n",
 		 __func__, EDID_MAX_RETRIES - state->edid.read_retries);
 
 	if (!(edidRdy & MASK_AD9389B_EDID_RDY))
@@ -1024,13 +1024,13 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 		v4l2_err(sd, "edid segment number too big\n");
 		return false;
 	}
-	v4l2_dbg(1, debug, sd, "%s: got segment %d\n", __func__, segment);
+	v4l2_dbg(1, de, sd, "%s: got segment %d\n", __func__, segment);
 	ad9389b_edid_rd(sd, 256, &state->edid.data[segment * 256]);
-	ad9389b_dbg_dump_edid(2, debug, sd, segment,
+	ad9389b_dbg_dump_edid(2, de, sd, segment,
 			      &state->edid.data[segment * 256]);
 	if (segment == 0) {
 		state->edid.blocks = state->edid.data[0x7e] + 1;
-		v4l2_dbg(1, debug, sd, "%s: %d blocks in total\n",
+		v4l2_dbg(1, de, sd, "%s: %d blocks in total\n",
 			 __func__, state->edid.blocks);
 	}
 	if (!edid_verify_crc(sd, segment) ||
@@ -1045,7 +1045,7 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	state->edid.segments = segment + 1;
 	if (((state->edid.data[0x7e] >> 1) + 1) > state->edid.segments) {
 		/* Request next EDID segment */
-		v4l2_dbg(1, debug, sd, "%s: request segment %d\n",
+		v4l2_dbg(1, de, sd, "%s: request segment %d\n",
 			 __func__, state->edid.segments);
 		ad9389b_wr(sd, 0xc9, 0xf);
 		ad9389b_wr(sd, 0xc4, state->edid.segments);
@@ -1070,7 +1070,7 @@ static void ad9389b_init_setup(struct v4l2_subdev *sd)
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 	struct ad9389b_state_edid *edid = &state->edid;
 
-	v4l2_dbg(1, debug, sd, "%s\n", __func__);
+	v4l2_dbg(1, de, sd, "%s\n", __func__);
 
 	/* clear all interrupts */
 	ad9389b_wr(sd, 0x96, 0xff);
@@ -1093,7 +1093,7 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_dbg(1, debug, client, "detecting ad9389b client on address 0x%x\n",
+	v4l_dbg(1, de, client, "detecting ad9389b client on address 0x%x\n",
 		client->addr << 1);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
@@ -1145,7 +1145,7 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 		err = -EIO;
 		goto err_entity;
 	}
-	v4l2_dbg(1, debug, sd, "reg 0x41 0x%x, chip version (reg 0x00) 0x%x\n",
+	v4l2_dbg(1, de, sd, "reg 0x41 0x%x, chip version (reg 0x00) 0x%x\n",
 		 ad9389b_rd(sd, 0x41), state->chip_revision);
 
 	state->edid_i2c_client = i2c_new_dummy(client->adapter, (0x7e>>1));
@@ -1181,7 +1181,7 @@ static int ad9389b_remove(struct i2c_client *client)
 
 	state->chip_revision = -1;
 
-	v4l2_dbg(1, debug, sd, "%s removed @ 0x%x (%s)\n", client->name,
+	v4l2_dbg(1, de, sd, "%s removed @ 0x%x (%s)\n", client->name,
 		 client->addr << 1, client->adapter->name);
 
 	ad9389b_s_stream(sd, false);

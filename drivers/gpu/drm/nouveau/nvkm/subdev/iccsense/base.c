@@ -287,7 +287,7 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 			rail->sensor = sensor;
 			rail->idx = r;
 			rail->mohm = res->mohm;
-			nvkm_debug(subdev, "create rail for extdev %i: { idx: %i, mohm: %i }\n", pwr_rail->extdev_id, r, rail->mohm);
+			nvkm_de(subdev, "create rail for extdev %i: { idx: %i, mohm: %i }\n", pwr_rail->extdev_id, r, rail->mohm);
 			list_add_tail(&rail->head, &iccsense->rails);
 		}
 	}

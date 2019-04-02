@@ -202,7 +202,7 @@ To log the current CEC hardware status:
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 
 This optional callback can be used to show the status of the CEC hardware.
-The status is available through debugfs: cat /sys/kernel/debug/cec/cecX/status
+The status is available through defs: cat /sys/kernel/de/cec/cecX/status
 
 To free any resources when the adapter is deleted:
 
@@ -318,7 +318,7 @@ be exposed through the Error Injection callbacks:
 		...
 	};
 
-If both callbacks are set, then an ``error-inj`` file will appear in debugfs.
+If both callbacks are set, then an ``error-inj`` file will appear in defs.
 The basic syntax is as follows:
 
 Leading spaces/tabs are ignored. If the next character is a ``#`` or the end of the

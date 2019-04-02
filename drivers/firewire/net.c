@@ -7,7 +7,7 @@
  * based on eth1394 by Ben Collins et al
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -862,7 +862,7 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 				"outstanding packet %x lf %x, header %x,%x\n",
 				ptask->outstanding_pkts, lf, ptask->hdr.w0,
 				ptask->hdr.w1);
-			BUG();
+			();
 
 		case RFC2374_HDR_FIRSTFRAG:
 			/* Set frag type here for future interior fragments */
@@ -974,7 +974,7 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	if (ptask->dest_node == IEEE1394_ALL_NODES) {
 		u8 *p;

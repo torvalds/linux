@@ -51,13 +51,13 @@
 /**************************************/
 
 static unsigned int bt878_verbose = 1;
-static unsigned int bt878_debug;
+static unsigned int bt878_de;
 
 module_param_named(verbose, bt878_verbose, int, 0444);
 MODULE_PARM_DESC(verbose,
 		 "verbose startup messages, default is 1 (yes)");
-module_param_named(debug, bt878_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging, default is 0 (off).");
+module_param_named(de, bt878_de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging, default is 0 (off).");
 
 int bt878_num;
 struct bt878 bt878[BT878_MAX];
@@ -77,8 +77,8 @@ EXPORT_SYMBOL(bt878);
 #endif
 #define dprintk(fmt, arg...) \
 	do { \
-		if (bt878_debug) \
-			printk(KERN_DEBUG fmt, ##arg); \
+		if (bt878_de) \
+			printk(KERN_DE fmt, ##arg); \
 	} while (0)
 
 static void bt878_mem_free(struct bt878 *bt)
@@ -204,7 +204,7 @@ void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
 {
 	u32 int_mask;
 
-	dprintk("bt878 debug: bt878_start (ctl=%8.8x)\n", controlreg);
+	dprintk("bt878 de: bt878_start (ctl=%8.8x)\n", controlreg);
 	/* complete the writing of the risc dma program now we have
 	 * the card specifics
 	 */
@@ -238,7 +238,7 @@ void bt878_stop(struct bt878 *bt)
 	u32 stat;
 	int i = 0;
 
-	dprintk("bt878 debug: bt878_stop\n");
+	dprintk("bt878 de: bt878_stop\n");
 
 	btwrite(0, BT878_AINT_MASK);
 	btand(~0x13, BT878_AGPIO_DMA_CTL);
@@ -250,7 +250,7 @@ void bt878_stop(struct bt878 *bt)
 		i++;
 	} while (i < 500);
 
-	dprintk("bt878(%d) debug: bt878_stop, i=%d, stat=0x%8.8x\n",
+	dprintk("bt878(%d) de: bt878_stop, i=%d, stat=0x%8.8x\n",
 		bt->nr, i, stat);
 }
 
@@ -275,7 +275,7 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 		mask = btread(BT878_AINT_MASK);
 		if (!(astat = (stat & mask)))
 			return IRQ_NONE;	/* this interrupt is not for me */
-/*		dprintk("bt878(%d) debug: irq count %d, stat 0x%8.8x, mask 0x%8.8x\n",bt->nr,count,stat,mask); */
+/*		dprintk("bt878(%d) de: irq count %d, stat 0x%8.8x, mask 0x%8.8x\n",bt->nr,count,stat,mask); */
 		btwrite(astat, BT878_AINT_STAT);	/* try to clear interrupt condition */
 
 
@@ -528,7 +528,7 @@ static void bt878_remove(struct pci_dev *pci_dev)
 	pci_write_config_byte(bt->dev, PCI_COMMAND, command);
 
 	free_irq(bt->irq, bt);
-	printk(KERN_DEBUG "bt878_mem: 0x%p.\n", bt->bt878_mem);
+	printk(KERN_DE "bt878_mem: 0x%p.\n", bt->bt878_mem);
 	if (bt->bt878_mem)
 		iounmap(bt->bt878_mem);
 

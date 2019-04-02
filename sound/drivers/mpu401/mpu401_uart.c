@@ -86,7 +86,7 @@ static void snd_mpu401_uart_clear_rx(struct snd_mpu401 *mpu)
 	int timeout = 100000;
 	for (; timeout > 0 && snd_mpu401_input_avail(mpu); timeout--)
 		mpu->read(mpu, MPU401D(mpu));
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (timeout <= 0)
 		snd_printk(KERN_ERR "cmd: clear rx timeout (status = 0x%x)\n",
 			   mpu->read(mpu, MPU401C(mpu)));
@@ -237,7 +237,7 @@ static int snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd,
 		for (timeout = 1000; timeout > 0 &&
 			     !snd_mpu401_output_ready(mpu); timeout--)
 			udelay(10);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 		if (!timeout)
 			snd_printk(KERN_ERR "cmd: tx timeout (status = 0x%x)\n",
 				   mpu->read(mpu, MPU401C(mpu)));

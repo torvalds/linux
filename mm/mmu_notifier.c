@@ -245,7 +245,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 	struct mmu_notifier_mm *mmu_notifier_mm;
 	int ret;
 
-	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+	_ON(atomic_read(&mm->mm_users) <= 0);
 
 	ret = -ENOMEM;
 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
@@ -285,7 +285,7 @@ out_clean:
 		up_write(&mm->mmap_sem);
 	kfree(mmu_notifier_mm);
 out:
-	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+	_ON(atomic_read(&mm->mm_users) <= 0);
 	return ret;
 }
 
@@ -321,9 +321,9 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
 /* this is called after the last mmu_notifier_unregister() returned */
 void __mmu_notifier_mm_destroy(struct mm_struct *mm)
 {
-	BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
+	_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
 	kfree(mm->mmu_notifier_mm);
-	mm->mmu_notifier_mm = LIST_POISON1; /* debug */
+	mm->mmu_notifier_mm = LIST_POISON1; /* de */
 }
 
 /*
@@ -338,7 +338,7 @@ void __mmu_notifier_mm_destroy(struct mm_struct *mm)
  */
 void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 {
-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+	_ON(atomic_read(&mm->mm_count) <= 0);
 
 	if (!hlist_unhashed(&mn->hlist)) {
 		/*
@@ -371,7 +371,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 	 */
 	synchronize_srcu(&srcu);
 
-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+	_ON(atomic_read(&mm->mm_count) <= 0);
 
 	mmdrop(mm);
 }
@@ -391,7 +391,7 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
 	hlist_del_init_rcu(&mn->hlist);
 	spin_unlock(&mm->mmu_notifier_mm->lock);
 
-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+	_ON(atomic_read(&mm->mm_count) <= 0);
 	mmdrop(mm);
 }
 EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);

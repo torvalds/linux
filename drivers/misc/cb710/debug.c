@@ -1,5 +1,5 @@
 /*
- *  cb710/debug.c
+ *  cb710/de.c
  *
  *  Copyright by Michał Mirosław, 2008-2009
  *

@@ -2061,10 +2061,10 @@ void cec_monitor_pin_cnt_dec(struct cec_adapter *adap)
 		WARN_ON(call_op(adap, adap_monitor_pin_enable, 0));
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
  * Log the current state of the CEC adapter.
- * Very useful for debugging.
+ * Very useful for deging.
  */
 int cec_adap_status(struct seq_file *file, void *priv)
 {

@@ -140,7 +140,7 @@ void ath9k_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *queue)
 static struct ath_frame_info *get_frame_info(struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	BUILD_BUG_ON(sizeof(struct ath_frame_info) >
+	BUILD__ON(sizeof(struct ath_frame_info) >
 		     sizeof(tx_info->rate_driver_data));
 	return (struct ath_frame_info *) &tx_info->rate_driver_data[0];
 }
@@ -1773,7 +1773,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 	int error = 0;
 	struct ath9k_tx_queue_info qi;
 
-	BUG_ON(sc->tx.txq[qnum].axq_qnum != qnum);
+	_ON(sc->tx.txq[qnum].axq_qnum != qnum);
 
 	ath9k_hw_get_txq_props(ah, qnum, &qi);
 	qi.tqi_aifs = qinfo->tqi_aifs;
@@ -2482,7 +2482,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 		else
 			complete(&sc->paprd_complete);
 	} else {
-		ath_debug_stat_tx(sc, bf, ts, txq, tx_flags);
+		ath_de_stat_tx(sc, bf, ts, txq, tx_flags);
 		ath_tx_complete(sc, skb, tx_flags, txq, sta);
 	}
 skip_tx_complete:
@@ -2519,7 +2519,7 @@ static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 
-		BUG_ON(nbad > nframes);
+		_ON(nbad > nframes);
 	}
 	tx_info->status.ampdu_len = nframes;
 	tx_info->status.ampdu_ack_len = nframes - nbad;

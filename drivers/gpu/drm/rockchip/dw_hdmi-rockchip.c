@@ -285,7 +285,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		DRM_DEV_ERROR(hdmi->dev, "Could not write to GRF: %d\n", ret);
 
 	clk_disable_unprepare(hdmi->grf_clk);
-	DRM_DEV_DEBUG(hdmi->dev, "vop %s output to hdmi\n",
+	DRM_DEV_DE(hdmi->dev, "vop %s output to hdmi\n",
 		      ret ? "LIT" : "BIG");
 }
 

@@ -61,7 +61,7 @@
  *
  * The Linux driver was written by Jan "Yenya" Kasprzak <kas@fi.muni.cz>.
  *
- * You can mail me bugfixes and even success reports. I am especially
+ * You can mail me fixes and even success reports. I am especially
  * interested in the SMP and/or muliti-channel success/failure reports
  * (I wonder if I did the locking properly :-).
  *
@@ -207,9 +207,9 @@ static int cosa_major = 117;
 
 #define COSA_MTU 2000	/* FIXME: I don't know this exactly */
 
-#undef DEBUG_DATA //1	/* Dump the data read or written to the channel */
-#undef DEBUG_IRQS //1	/* Print the message when the IRQ is received */
-#undef DEBUG_IO   //1	/* Dump the I/O traffic */
+#undef DE_DATA //1	/* Dump the data read or written to the channel */
+#undef DE_IRQS //1	/* Print the message when the IRQ is received */
+#undef DE_IO   //1	/* Dump the I/O traffic */
 
 #define TX_TIMEOUT	(5*HZ)
 
@@ -341,13 +341,13 @@ static void put_driver_status_nolock(struct cosa_data *cosa);
 /* Interrupt handling */
 static irqreturn_t cosa_interrupt(int irq, void *cosa);
 
-/* I/O ops debugging */
-#ifdef DEBUG_IO
-static void debug_data_in(struct cosa_data *cosa, int data);
-static void debug_data_out(struct cosa_data *cosa, int data);
-static void debug_data_cmd(struct cosa_data *cosa, int data);
-static void debug_status_in(struct cosa_data *cosa, int status);
-static void debug_status_out(struct cosa_data *cosa, int status);
+/* I/O ops deging */
+#ifdef DE_IO
+static void de_data_in(struct cosa_data *cosa, int data);
+static void de_data_out(struct cosa_data *cosa, int data);
+static void de_data_cmd(struct cosa_data *cosa, int data);
+static void de_status_in(struct cosa_data *cosa, int status);
+static void de_status_out(struct cosa_data *cosa, int status);
 #endif
 
 static inline struct channel_data* dev_to_chan(struct net_device *dev)
@@ -478,7 +478,7 @@ static int cosa_probe(int base, int irq, int dma)
 		return -1;
 	
 	if (cosa_reset_and_read_id(cosa, cosa->id_string) < 0) {
-		printk(KERN_DEBUG "probe at 0x%x failed.\n", base);
+		printk(KERN_DE "probe at 0x%x failed.\n", base);
 		err = -1;
 		goto err_out;
 	}
@@ -499,7 +499,7 @@ static int cosa_probe(int base, int irq, int dma)
 	/* Update the name of the region now we know the type of card */ 
 	release_region(base, is_8bit(cosa)?2:4);
 	if (!request_region(base, is_8bit(cosa)?2:4, cosa->type)) {
-		printk(KERN_DEBUG "changing name at 0x%x failed.\n", base);
+		printk(KERN_DE "changing name at 0x%x failed.\n", base);
 		return -1;
 	}
 
@@ -1242,7 +1242,7 @@ static int cosa_start_tx(struct channel_data *chan, char *buf, int len)
 {
 	struct cosa_data *cosa = chan->cosa;
 	unsigned long flags;
-#ifdef DEBUG_DATA
+#ifdef DE_DATA
 	int i;
 
 	pr_info("cosa%dc%d: starting tx(0x%x)",
@@ -1280,21 +1280,21 @@ static void put_driver_status(struct cosa_data *cosa)
 		if (cosa->rxbitmap|cosa->txbitmap) {
 			if (!cosa->enabled) {
 				cosa_putstatus(cosa, SR_RX_INT_ENA);
-#ifdef DEBUG_IO
-				debug_status_out(cosa, SR_RX_INT_ENA);
+#ifdef DE_IO
+				de_status_out(cosa, SR_RX_INT_ENA);
 #endif
 				cosa->enabled = 1;
 			}
 		} else if (cosa->enabled) {
 			cosa->enabled = 0;
 			cosa_putstatus(cosa, 0);
-#ifdef DEBUG_IO
-			debug_status_out(cosa, 0);
+#ifdef DE_IO
+			de_status_out(cosa, 0);
 #endif
 		}
 		cosa_putdata8(cosa, status);
-#ifdef DEBUG_IO
-		debug_data_cmd(cosa, status);
+#ifdef DE_IO
+		de_data_cmd(cosa, status);
 #endif
 	}
 	spin_unlock_irqrestore(&cosa->lock, flags);
@@ -1311,20 +1311,20 @@ static void put_driver_status_nolock(struct cosa_data *cosa)
 
 	if (cosa->rxbitmap|cosa->txbitmap) {
 		cosa_putstatus(cosa, SR_RX_INT_ENA);
-#ifdef DEBUG_IO
-		debug_status_out(cosa, SR_RX_INT_ENA);
+#ifdef DE_IO
+		de_status_out(cosa, SR_RX_INT_ENA);
 #endif
 		cosa->enabled = 1;
 	} else {
 		cosa_putstatus(cosa, 0);
-#ifdef DEBUG_IO
-		debug_status_out(cosa, 0);
+#ifdef DE_IO
+		de_status_out(cosa, 0);
 #endif
 		cosa->enabled = 0;
 	}
 	cosa_putdata8(cosa, status);
-#ifdef DEBUG_IO
-	debug_data_cmd(cosa, status);
+#ifdef DE_IO
+	de_data_cmd(cosa, status);
 #endif
 }
 
@@ -1429,7 +1429,7 @@ static int download(struct cosa_data *cosa, const char __user *microcode, int le
 	if (get_wait_data(cosa) != '\n') return -22;
 	if (get_wait_data(cosa) != '.') return -23;
 #if 0
-	printk(KERN_DEBUG "cosa%d: download completed.\n", cosa->num);
+	printk(KERN_DE "cosa%d: download completed.\n", cosa->num);
 #endif
 	return 0;
 }
@@ -1455,7 +1455,7 @@ static int startmicrocode(struct cosa_data *cosa, int address)
 	if (get_wait_data(cosa) != '\r') return -9;
 	if (get_wait_data(cosa) != '\n') return -10;
 #if 0
-	printk(KERN_DEBUG "cosa%d: microcode started\n", cosa->num);
+	printk(KERN_DE "cosa%d: microcode started\n", cosa->num);
 #endif
 	return 0;
 }
@@ -1467,7 +1467,7 @@ static int startmicrocode(struct cosa_data *cosa, int address)
  * by SRP monitor sending "<CR><LF>." (dot at the end).
  *
  * This routine is not needed during the normal operation and serves
- * for debugging purposes only.
+ * for deging purposes only.
  */
 static int readmem(struct cosa_data *cosa, char __user *microcode, int length, int address)
 {
@@ -1505,7 +1505,7 @@ static int readmem(struct cosa_data *cosa, char __user *microcode, int length, i
 	if (get_wait_data(cosa) != '\n') return -22;
 	if (get_wait_data(cosa) != '.') return -23;
 #if 0
-	printk(KERN_DEBUG "cosa%d: readmem completed.\n", cosa->num);
+	printk(KERN_DE "cosa%d: readmem completed.\n", cosa->num);
 #endif
 	return 0;
 }
@@ -1661,7 +1661,7 @@ static int puthexnumber(struct cosa_data *cosa, int number)
  * flow-control - in the status word has bits 2 and 3 set to 1 means that the
  * channel 0 or 1 doesn't want to receive data.
  *
- * It seems there is a bug in COSA firmware (need to trace it further):
+ * It seems there is a  in COSA firmware (need to trace it further):
  * When the driver status says that the kernel has no more data for transmit
  * (e.g. at the end of TX DMA) and then the kernel changes its mind
  * (e.g. new packet is queued to hard_start_xmit()), the card issues
@@ -1672,7 +1672,7 @@ static int puthexnumber(struct cosa_data *cosa, int number)
 static inline void tx_interrupt(struct cosa_data *cosa, int status)
 {
 	unsigned long flags, flags1;
-#ifdef DEBUG_IRQS
+#ifdef DE_IRQS
 	pr_info("cosa%d: SR_DOWN_REQUEST status=0x%04x\n", cosa->num, status);
 #endif
 	spin_lock_irqsave(&cosa->lock, flags);
@@ -1700,8 +1700,8 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			/* in second pass, accept first ready-to-TX channel */
 			if (i > cosa->nchannels) {
 				/* Can be safely ignored */
-#ifdef DEBUG_IRQS
-				printk(KERN_DEBUG "%s: Forcing TX "
+#ifdef DE_IRQS
+				printk(KERN_DE "%s: Forcing TX "
 					"to not-ready channel %d\n",
 					cosa->name, cosa->txchan);
 #endif
@@ -1725,11 +1725,11 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			cosa_putstatus(cosa, SR_TX_INT_ENA);
 			cosa_putdata8(cosa, ((cosa->txchan << 5) & 0xe0)|
 				((cosa->txsize >> 8) & 0x1f));
-#ifdef DEBUG_IO
-			debug_status_out(cosa, SR_TX_INT_ENA);
-			debug_data_out(cosa, ((cosa->txchan << 5) & 0xe0)|
+#ifdef DE_IO
+			de_status_out(cosa, SR_TX_INT_ENA);
+			de_data_out(cosa, ((cosa->txchan << 5) & 0xe0)|
                                 ((cosa->txsize >> 8) & 0x1f));
-			debug_data_in(cosa, cosa_getdata8(cosa));
+			de_data_in(cosa, cosa_getdata8(cosa));
 #else
 			cosa_getdata8(cosa);
 #endif
@@ -1740,21 +1740,21 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			clear_bit(IRQBIT, &cosa->rxtx);
 			cosa_putstatus(cosa, 0);
 			cosa_putdata8(cosa, cosa->txsize&0xff);
-#ifdef DEBUG_IO
-			debug_status_out(cosa, 0);
-			debug_data_out(cosa, cosa->txsize&0xff);
+#ifdef DE_IO
+			de_status_out(cosa, 0);
+			de_data_out(cosa, cosa->txsize&0xff);
 #endif
 		}
 	} else {
 		cosa_putstatus(cosa, SR_TX_INT_ENA);
 		cosa_putdata16(cosa, ((cosa->txchan<<13) & 0xe000)
 			| (cosa->txsize & 0x1fff));
-#ifdef DEBUG_IO
-		debug_status_out(cosa, SR_TX_INT_ENA);
-		debug_data_out(cosa, ((cosa->txchan<<13) & 0xe000)
+#ifdef DE_IO
+		de_status_out(cosa, SR_TX_INT_ENA);
+		de_data_out(cosa, ((cosa->txchan<<13) & 0xe000)
                         | (cosa->txsize & 0x1fff));
-		debug_data_in(cosa, cosa_getdata8(cosa));
-		debug_status_out(cosa, 0);
+		de_data_in(cosa, cosa_getdata8(cosa));
+		de_status_out(cosa, 0);
 #else
 		cosa_getdata8(cosa);
 #endif
@@ -1798,8 +1798,8 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 		release_dma_lock(flags1);
 	}
 	cosa_putstatus(cosa, SR_TX_DMA_ENA|SR_USR_INT_ENA);
-#ifdef DEBUG_IO
-	debug_status_out(cosa, SR_TX_DMA_ENA|SR_USR_INT_ENA);
+#ifdef DE_IO
+	de_status_out(cosa, SR_TX_DMA_ENA|SR_USR_INT_ENA);
 #endif
 	spin_unlock_irqrestore(&cosa->lock, flags);
 }
@@ -1807,7 +1807,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 static inline void rx_interrupt(struct cosa_data *cosa, int status)
 {
 	unsigned long flags;
-#ifdef DEBUG_IRQS
+#ifdef DE_IRQS
 	pr_info("cosa%d: SR_UP_REQUEST\n", cosa->num);
 #endif
 
@@ -1819,16 +1819,16 @@ static inline void rx_interrupt(struct cosa_data *cosa, int status)
 			set_bit(IRQBIT, &cosa->rxtx);
 			put_driver_status_nolock(cosa);
 			cosa->rxsize = cosa_getdata8(cosa) <<8;
-#ifdef DEBUG_IO
-			debug_data_in(cosa, cosa->rxsize >> 8);
+#ifdef DE_IO
+			de_data_in(cosa, cosa->rxsize >> 8);
 #endif
 			spin_unlock_irqrestore(&cosa->lock, flags);
 			return;
 		} else {
 			clear_bit(IRQBIT, &cosa->rxtx);
 			cosa->rxsize |= cosa_getdata8(cosa) & 0xff;
-#ifdef DEBUG_IO
-			debug_data_in(cosa, cosa->rxsize & 0xff);
+#ifdef DE_IO
+			de_data_in(cosa, cosa->rxsize & 0xff);
 #endif
 #if 0
 			pr_info("cosa%d: receive rxsize = (0x%04x)\n",
@@ -1837,8 +1837,8 @@ static inline void rx_interrupt(struct cosa_data *cosa, int status)
 		}
 	} else {
 		cosa->rxsize = cosa_getdata16(cosa);
-#ifdef DEBUG_IO
-		debug_data_in(cosa, cosa->rxsize);
+#ifdef DE_IO
+		de_data_in(cosa, cosa->rxsize);
 #endif
 #if 0
 		pr_info("cosa%d: receive rxsize = (0x%04x)\n",
@@ -1883,10 +1883,10 @@ reject:		/* Reject the packet */
 	cosa_putstatus(cosa, SR_RX_DMA_ENA|SR_USR_INT_ENA);
 	if (!is_8bit(cosa) && (status & SR_TX_RDY))
 		cosa_putdata8(cosa, DRIVER_RX_READY);
-#ifdef DEBUG_IO
-	debug_status_out(cosa, SR_RX_DMA_ENA|SR_USR_INT_ENA);
+#ifdef DE_IO
+	de_status_out(cosa, SR_RX_DMA_ENA|SR_USR_INT_ENA);
 	if (!is_8bit(cosa) && (status & SR_TX_RDY))
-		debug_data_cmd(cosa, DRIVER_RX_READY);
+		de_data_cmd(cosa, DRIVER_RX_READY);
 #endif
 	spin_unlock_irqrestore(&cosa->lock, flags);
 }
@@ -1905,7 +1905,7 @@ static inline void eot_interrupt(struct cosa_data *cosa, int status)
 			if (chan->tx_done(chan, cosa->txsize))
 				clear_bit(chan->num, &cosa->txbitmap);
 	} else if (test_bit(RXBIT, &cosa->rxtx)) {
-#ifdef DEBUG_DATA
+#ifdef DE_DATA
 	{
 		int i;
 		pr_info("cosa%dc%d: done rx(0x%x)",
@@ -1945,11 +1945,11 @@ static irqreturn_t cosa_interrupt(int irq, void *cosa_)
 	struct cosa_data *cosa = cosa_;
 again:
 	status = cosa_getstatus(cosa);
-#ifdef DEBUG_IRQS
+#ifdef DE_IRQS
 	pr_info("cosa%d: got IRQ, status 0x%02x\n", cosa->num, status & 0xff);
 #endif
-#ifdef DEBUG_IO
-	debug_status_in(cosa, status);
+#ifdef DE_IO
+	de_status_in(cosa, status);
 #endif
 	switch (status & SR_CMD_FROM_SRP_MASK) {
 	case SR_DOWN_REQUEST:
@@ -1970,7 +1970,7 @@ again:
 		pr_info("cosa%d: unknown status 0x%02x in IRQ after %d retries\n",
 			cosa->num, status & 0xff, count);
 	}
-#ifdef DEBUG_IRQS
+#ifdef DE_IRQS
 	if (count)
 		pr_info("%s: %d-times got unknown status in IRQ\n",
 			cosa->name, count);
@@ -1981,15 +1981,15 @@ again:
 }
 
 
-/* ---------- I/O debugging routines ---------- */
+/* ---------- I/O deging routines ---------- */
 /*
  * These routines can be used to monitor COSA/SRP I/O and to printk()
  * the data being transferred on the data and status I/O port in a
  * readable way.
  */
 
-#ifdef DEBUG_IO
-static void debug_status_in(struct cosa_data *cosa, int status)
+#ifdef DE_IO
+static void de_status_in(struct cosa_data *cosa, int status)
 {
 	char *s;
 	switch (status & SR_CMD_FROM_SRP_MASK) {
@@ -2015,7 +2015,7 @@ static void debug_status_in(struct cosa_data *cosa, int status)
 		s);
 }
 
-static void debug_status_out(struct cosa_data *cosa, int status)
+static void de_status_out(struct cosa_data *cosa, int status)
 {
 	pr_info("%s: IO: status <- 0x%02x (%s%s%s%s%s%s)\n",
 		cosa->name,
@@ -2028,17 +2028,17 @@ static void debug_status_out(struct cosa_data *cosa, int status)
 		status & SR_RX_INT_ENA  ? "RXINT"   : "!rxint");
 }
 
-static void debug_data_in(struct cosa_data *cosa, int data)
+static void de_data_in(struct cosa_data *cosa, int data)
 {
 	pr_info("%s: IO: data -> 0x%04x\n", cosa->name, data);
 }
 
-static void debug_data_out(struct cosa_data *cosa, int data)
+static void de_data_out(struct cosa_data *cosa, int data)
 {
 	pr_info("%s: IO: data <- 0x%04x\n", cosa->name, data);
 }
 
-static void debug_data_cmd(struct cosa_data *cosa, int data)
+static void de_data_cmd(struct cosa_data *cosa, int data)
 {
 	pr_info("%s: IO: data <- 0x%04x (%s|%s)\n",
 		cosa->name, data,

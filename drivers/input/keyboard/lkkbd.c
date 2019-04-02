@@ -102,8 +102,8 @@ MODULE_PARM_DESC(lk201_compose_is_alt,
 
 
 
-#undef LKKBD_DEBUG
-#ifdef LKKBD_DEBUG
+#undef LKKBD_DE
+#ifdef LKKBD_DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...) do {} while (0)
@@ -288,7 +288,7 @@ struct lkkbd {
 	int ctrlclick_volume;
 };
 
-#ifdef LKKBD_DEBUG
+#ifdef LKKBD_DE
 /*
  * Responses from the keyboard and mapping back to their names.
  */
@@ -321,7 +321,7 @@ static unsigned char *response_name(unsigned char value)
 
 	return "<unknown>";
 }
-#endif /* LKKBD_DEBUG */
+#endif /* LKKBD_DE */
 
 /*
  * Calculate volume parameter byte for a given volume.

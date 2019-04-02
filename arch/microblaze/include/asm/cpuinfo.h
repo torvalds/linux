@@ -72,8 +72,8 @@ struct cpuinfo {
 
 	u32 area_optimised;
 
-	/* HW debug support */
-	u32 hw_debug;
+	/* HW de support */
+	u32 hw_de;
 	u32 num_pc_brk;
 	u32 num_rd_brk;
 	u32 num_wr_brk;

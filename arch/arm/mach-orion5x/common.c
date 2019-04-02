@@ -373,7 +373,7 @@ void orion5x_restart(enum reboot_mode mode, const char *cmd)
 }
 
 /*
- * Many orion-based systems have buggy bootloader implementations.
+ * Many orion-based systems have gy bootloader implementations.
  * This is a common fixup for bogus memory tags.
  */
 void __init tag_fixup_mem32(struct tag *t, char **from)

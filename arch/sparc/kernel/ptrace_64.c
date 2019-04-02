@@ -108,7 +108,7 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 			 unsigned long uaddr, void *kaddr,
 			 unsigned long len, int write)
 {
-	BUG_ON(len > PAGE_SIZE);
+	_ON(len > PAGE_SIZE);
 
 	if (tlb_type == hypervisor)
 		return;

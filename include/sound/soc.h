@@ -861,9 +861,9 @@ struct snd_soc_component {
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_root;
-	const char *debugfs_prefix;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_root;
+	const char *defs_prefix;
 #endif
 };
 
@@ -1168,9 +1168,9 @@ struct snd_soc_card {
 	struct snd_soc_dapm_stats dapm_stats;
 	struct snd_soc_dapm_update *update;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_card_root;
-	struct dentry *debugfs_pop_time;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_card_root;
+	struct dentry *defs_pop_time;
 #endif
 	u32 pop_time;
 
@@ -1221,8 +1221,8 @@ struct snd_soc_pcm_runtime {
 	unsigned int num_codecs;
 
 	struct delayed_work delayed_work;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_dpcm_root;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_dpcm_root;
 #endif
 
 	unsigned int num; /* 0-based and monotonic increasing */
@@ -1614,8 +1614,8 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-extern struct dentry *snd_soc_debugfs_root;
+#ifdef CONFIG_DE_FS
+extern struct dentry *snd_soc_defs_root;
 #endif
 
 extern const struct dev_pm_ops snd_soc_pm_ops;

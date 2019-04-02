@@ -10,17 +10,17 @@
  * published by the Free Software Foundation.
  *
  *  'traps.c' handles hardware exceptions after we have saved some state.
- *  Mostly a debugging aid, but will probably kill the offending process.
+ *  Mostly a deging aid, but will probably kill the offending process.
  */
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/spinlock.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
@@ -255,7 +255,7 @@ void uc32_notify_die(const char *str, struct pt_regs *regs,
 
 /*
  * bad_mode handles the impossible case in the vectors.  If you see one of
- * these, then it's extremely serious, and could mean you have buggy hardware.
+ * these, then it's extremely serious, and could mean you have gy hardware.
  * It never returns, and never tries to sync.  We hope that we can at least
  * dump out some state information...
  */
@@ -294,7 +294,7 @@ EXPORT_SYMBOL(__div0);
 
 void abort(void)
 {
-	BUG();
+	();
 
 	/* if that doesn't kill us, halt */
 	panic("Oops failed to kill thread");

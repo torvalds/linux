@@ -53,14 +53,14 @@ union ppe_spe_reg {
 
 
 struct cbe_pmd_regs {
-	/* Debug Bus Control */
+	/* De Bus Control */
 	u64	pad_0x0000;					/* 0x0000 */
 
 	u64	group_control;					/* 0x0008 */
 
 	u8	pad_0x0010_0x00a8 [0x00a8 - 0x0010];		/* 0x0010 */
 
-	u64	debug_bus_control;				/* 0x00a8 */
+	u64	de_bus_control;				/* 0x00a8 */
 
 	u8	pad_0x00b0_0x0100 [0x0100 - 0x00b0];		/* 0x00b0 */
 
@@ -143,7 +143,7 @@ extern struct cbe_pmd_regs __iomem *cbe_get_cpu_pmd_regs(int cpu);
 
 struct cbe_pmd_shadow_regs {
 	u32 group_control;
-	u32 debug_bus_control;
+	u32 de_bus_control;
 	u32 trace_address;
 	u32 ext_tr_timer;
 	u32 pm_status;
@@ -296,7 +296,7 @@ struct cbe_mic_tm_regs {
 #define CBE_MIC_FIR_ECC_SINGLE_1_SET	0x0000000000000080ULL
 #define CBE_MIC_FIR_ECC_MULTI_1_SET	0x0000000000000040ULL
 #define CBE_MIC_FIR_ECC_SET_MASK	0x000000000000ffffULL
-	u64	mic_fir_debug;					/* 0x0238 */
+	u64	mic_fir_de;					/* 0x0238 */
 
 	u8	pad_0x0240_0x1000[0x1000 - 0x0240];		/* 0x0240 */
 };

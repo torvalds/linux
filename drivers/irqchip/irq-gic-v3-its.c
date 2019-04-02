@@ -1525,7 +1525,7 @@ static int alloc_lpi_range(u32 nr_lpis, u32 *base)
 
 	mutex_unlock(&lpi_range_lock);
 
-	pr_debug("ITS: alloc %u:%u\n", *base, nr_lpis);
+	pr_de("ITS: alloc %u:%u\n", *base, nr_lpis);
 	return err;
 }
 
@@ -1569,7 +1569,7 @@ static int __init its_lpi_init(u32 id_bits)
 	 * full range of LPIs.
 	 */
 	err = free_lpi_range(8192, lpis);
-	pr_debug("ITS: Allocator initialized for %u LPIs\n", lpis);
+	pr_de("ITS: Allocator initialized for %u LPIs\n", lpis);
 	return err;
 }
 
@@ -2191,7 +2191,7 @@ static void its_cpu_init_lpis(void)
 		 * So we initialize IDbits to known value to avoid VLPI drop.
 		 */
 		val = (LPI_NRBITS - 1) & GICR_VPROPBASER_IDBITS_MASK;
-		pr_debug("GICv4: CPU%d: Init IDbits to 0x%llx for GICR_VPROPBASER\n",
+		pr_de("GICv4: CPU%d: Init IDbits to 0x%llx for GICR_VPROPBASER\n",
 			smp_processor_id(), val);
 		gits_write_vpropbaser(val, vlpi_base + GICR_VPROPBASER);
 
@@ -2516,7 +2516,7 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 		 * create the device.
 		 */
 		its_dev->shared = true;
-		pr_debug("Reusing ITT for devID %x\n", dev_id);
+		pr_de("Reusing ITT for devID %x\n", dev_id);
 		goto out;
 	}
 
@@ -2526,7 +2526,7 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 		goto out;
 	}
 
-	pr_debug("ITT %d entries, %d bits\n", nvec, ilog2(nvec));
+	pr_de("ITT %d entries, %d bits\n", nvec, ilog2(nvec));
 out:
 	mutex_unlock(&its->dev_alloc_lock);
 	info->scratchpad[0].ptr = its_dev;
@@ -2582,7 +2582,7 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		irq_domain_set_hwirq_and_chip(domain, virq + i,
 					      hwirq + i, &its_irq_chip, its_dev);
 		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq + i)));
-		pr_debug("ID:%d pID:%d vID:%d\n",
+		pr_de("ID:%d pID:%d vID:%d\n",
 			 (int)(hwirq + i - its_dev->event_map.lpi_base),
 			 (int)(hwirq + i), virq + i);
 	}
@@ -3038,7 +3038,7 @@ static void its_vpe_irq_domain_free(struct irq_domain *domain,
 								virq + i);
 		struct its_vpe *vpe = irq_data_get_irq_chip_data(data);
 
-		BUG_ON(vm != vpe->its_vm);
+		_ON(vm != vpe->its_vm);
 
 		clear_bit(data->hwirq, vm->db_bitmap);
 		its_vpe_teardown(vpe);
@@ -3059,7 +3059,7 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 	struct page *vprop_page;
 	int base, nr_ids, i, err = 0;
 
-	BUG_ON(!vm);
+	_ON(!vm);
 
 	bitmap = its_lpi_alloc(roundup_pow_of_two(nr_irqs), &base, &nr_ids);
 	if (!bitmap)
@@ -3494,7 +3494,7 @@ static int its_init_vpe_domain(void)
 		return -ENOMEM;
 	}
 
-	BUG_ON(entries > vpe_proxy.dev->nr_ites);
+	_ON(entries > vpe_proxy.dev->nr_ites);
 
 	raw_spin_lock_init(&vpe_proxy.lock);
 	vpe_proxy.next_victim = 0;

@@ -24,7 +24,7 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlb.h>
-#include <asm/tlbdebug.h>
+#include <asm/tlbde.h>
 
 #undef CONFIG_MIPS_MT
 #include <asm/r4kcache.h>
@@ -129,7 +129,7 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 		}
 	}
 
-	kvm_debug("%s: entryhi: %#lx, index: %d lo0: %#lx, lo1: %#lx\n",
+	kvm_de("%s: entryhi: %#lx, index: %d lo0: %#lx, lo1: %#lx\n",
 		  __func__, entryhi, index, tlb[i].tlb_lo[0], tlb[i].tlb_lo[1]);
 
 	return index;
@@ -148,7 +148,7 @@ static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 	idx = read_c0_index();
 
 	if (idx >= current_cpu_data.tlbsize)
-		BUG();
+		();
 
 	if (idx >= 0) {
 		write_c0_entryhi(UNIQUE_ENTRYHI(idx));
@@ -197,11 +197,11 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va,
 		flush_icache_all();
 
 	if (user && idx_user >= 0)
-		kvm_debug("%s: Invalidated guest user entryhi %#lx @ idx %d\n",
+		kvm_de("%s: Invalidated guest user entryhi %#lx @ idx %d\n",
 			  __func__, (va & VPN2_MASK) |
 				    kvm_mips_get_user_asid(vcpu), idx_user);
 	if (kernel && idx_kernel >= 0)
-		kvm_debug("%s: Invalidated guest kernel entryhi %#lx @ idx %d\n",
+		kvm_de("%s: Invalidated guest kernel entryhi %#lx @ idx %d\n",
 			  __func__, (va & VPN2_MASK) |
 				    kvm_mips_get_kernel_asid(vcpu), idx_kernel);
 
@@ -279,7 +279,7 @@ int kvm_vz_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 		flush_icache_all();
 
 	if (idx > 0)
-		kvm_debug("%s: Invalidated root entryhi %#lx @ idx %d\n",
+		kvm_de("%s: Invalidated root entryhi %#lx @ idx %d\n",
 			  __func__, (va & VPN2_MASK) |
 				    kvm_mips_get_root_asid(vcpu), idx);
 

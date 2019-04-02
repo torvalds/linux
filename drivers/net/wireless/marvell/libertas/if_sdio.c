@@ -19,7 +19,7 @@
  * current block size.
  *
  * As SDIO is still new to the kernel, it is unfortunately common with
- * bugs in the host controllers related to that. One such bug is that
+ * s in the host controllers related to that. One such  is that
  * controllers cannot do transfers that aren't a multiple of 4 bytes.
  * If you don't have time to fix the host controller driver, you can
  * work around the problem by modifying if_sdio_host_to_card() and
@@ -221,7 +221,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	i = (priv->resp_idx == 0) ? 1 : 0;
-	BUG_ON(priv->resp_len[i]);
+	_ON(priv->resp_len[i]);
 	priv->resp_len[i] = size;
 	memcpy(priv->resp_buf[i], buffer, size);
 	lbs_notify_command_response(priv, i);
@@ -769,7 +769,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 	/*
 	 * Set up the interrupt handler late.
 	 *
-	 * If we set it up earlier, the (buggy) hardware generates a spurious
+	 * If we set it up earlier, the (gy) hardware generates a spurious
 	 * interrupt, even before the interrupt has been enabled, with
 	 * CCCR_INTx = 0.
 	 *

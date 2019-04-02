@@ -7,7 +7,7 @@
 #define _RTW_PWRCTRL_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <hal_data.h>
 #include <linux/jiffies.h>
 
@@ -155,7 +155,7 @@ void rtw_ps_processor(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	u32 ps_deny = 0;
 
 	mutex_lock(&adapter_to_pwrctl(padapter)->lock);
@@ -396,7 +396,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
-	struct debug_priv *pdbgpriv = &padapter->dvobj->drv_dbg;
+	struct de_priv *pdbgpriv = &padapter->dvobj->drv_dbg;
 #endif
 
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,

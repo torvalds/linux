@@ -281,7 +281,7 @@ static int intel_th_gth_reset(struct gth_device *gth)
 	int port, i;
 
 	reg = ioread32(gth->base + REG_GTH_SCRPD0);
-	if (reg & SCRPD_DEBUGGER_IN_USE)
+	if (reg & SCRPD_DEGER_IN_USE)
 		return -EBUSY;
 
 	/* Always save/restore STH and TU registers in S0ix entry/exit */
@@ -673,7 +673,7 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 	dev_set_drvdata(dev, gth);
 
 	/*
-	 * Host mode can be signalled via SW means or via SCRPD_DEBUGGER_IN_USE
+	 * Host mode can be signalled via SW means or via SCRPD_DEGER_IN_USE
 	 * bit. Either way, don't reset HW in this case, and don't export any
 	 * capture configuration attributes. Also, refuse to assign output
 	 * drivers to ports, see intel_th_gth_assign().

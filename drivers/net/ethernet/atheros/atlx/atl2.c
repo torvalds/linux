@@ -1541,7 +1541,7 @@ static int atl2_suspend(struct pci_dev *pdev, pm_message_t state)
 		/* get current link speed & duplex */
 		ret_val = atl2_get_speed_and_duplex(hw, &speed, &duplex);
 		if (ret_val) {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"%s: get speed&duplex error while suspend\n",
 				atl2_driver_name);
 			goto wol_dis;
@@ -2643,7 +2643,7 @@ static s32 atl2_phy_setup_autoneg_adv(struct atl2_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *
- * Sets bit 15 and 12 of the MII Control regiser (for F001 bug)
+ * Sets bit 15 and 12 of the MII Control regiser (for F001 )
  */
 static s32 atl2_phy_commit(struct atl2_hw *hw)
 {
@@ -2807,7 +2807,7 @@ static void atl2_force_ps(struct atl2_hw *hw)
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
- * over and over (plus this helps to avoid typo bugs).
+ * over and over (plus this helps to avoid typo s).
  */
 #define ATL2_PARAM_INIT {[0 ... ATL2_MAX_NIC] = OPTION_UNSET}
 #ifndef module_param_array
@@ -2949,7 +2949,7 @@ static int atl2_validate_option(int *value, struct atl2_option *opt)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	printk(KERN_INFO "Invalid %s specified (%i) %s\n",

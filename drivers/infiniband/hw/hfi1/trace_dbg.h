@@ -111,14 +111,14 @@ void __hfi1_trace_##lvl(const char *func, char *fmt, ...)		\
  * To create a new trace level simply define it below and as a __hfi1_trace_fn
  * in trace.c. This will create all the hooks for calling
  * hfi1_cdbg(LVL, fmt, ...); as well as take care of all
- * the debugfs stuff.
+ * the defs stuff.
  */
 __hfi1_trace_def(AFFINITY);
 __hfi1_trace_def(PKT);
 __hfi1_trace_def(PROC);
 __hfi1_trace_def(SDMA);
 __hfi1_trace_def(LINKVERB);
-__hfi1_trace_def(DEBUG);
+__hfi1_trace_def(DE);
 __hfi1_trace_def(SNOOP);
 __hfi1_trace_def(CNTR);
 __hfi1_trace_def(PIO);
@@ -133,7 +133,7 @@ __hfi1_trace_def(IOCTL);
 	__hfi1_trace_##which(__func__, fmt, ##__VA_ARGS__)
 
 #define hfi1_dbg(fmt, ...) \
-	hfi1_cdbg(DEBUG, fmt, ##__VA_ARGS__)
+	hfi1_cdbg(DE, fmt, ##__VA_ARGS__)
 
 /*
  * Define HFI1_EARLY_DBG at compile time or here to enable early trace

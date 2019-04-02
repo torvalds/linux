@@ -201,7 +201,7 @@ prepare_cached_spu_info(struct spu *spu, unsigned long objectId)
 	info = get_cached_info(spu, spu->number);
 
 	if (info) {
-		pr_debug("Found cached SPU info.\n");
+		pr_de("Found cached SPU info.\n");
 		goto out;
 	}
 
@@ -225,7 +225,7 @@ prepare_cached_spu_info(struct spu *spu, unsigned long objectId)
 		goto err_alloc;
 	}
 
-	pr_debug("Created vma_map\n");
+	pr_de("Created vma_map\n");
 	info->map = new_map;
 	info->the_spu = spu;
 	kref_init(&info->cache_ref);
@@ -332,7 +332,7 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 	exe_file = get_mm_exe_file(mm);
 	if (exe_file) {
 		app_cookie = fast_get_dcookie(&exe_file->f_path);
-		pr_debug("got dcookie for %pD\n", exe_file);
+		pr_de("got dcookie for %pD\n", exe_file);
 		fput(exe_file);
 	}
 
@@ -344,14 +344,14 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 		if (!vma->vm_file)
 			goto fail_no_image_cookie;
 
-		pr_debug("Found spu ELF at %X(object-id:%lx) for file %pD\n",
+		pr_de("Found spu ELF at %X(object-id:%lx) for file %pD\n",
 			 my_offset, spu_ref, vma->vm_file);
 		*offsetp = my_offset;
 		break;
 	}
 
 	*spu_bin_dcookie = fast_get_dcookie(&vma->vm_file->f_path);
-	pr_debug("got dcookie for %pD\n", vma->vm_file);
+	pr_de("got dcookie for %pD\n", vma->vm_file);
 
 	up_read(&mm->mmap_sem);
 
@@ -430,7 +430,7 @@ static int spu_active_notify(struct notifier_block *self, unsigned long val,
 	unsigned long flags;
 	struct spu *the_spu = data;
 
-	pr_debug("SPU event notification arrived\n");
+	pr_de("SPU event notification arrived\n");
 	if (!val) {
 		spin_lock_irqsave(&cache_lock, flags);
 		retval = release_cached_info(the_spu->number);
@@ -546,7 +546,7 @@ int spu_sync_start(void)
 		goto out;
 	}
 
-	pr_debug("spu_sync_start -- running.\n");
+	pr_de("spu_sync_start -- running.\n");
 out:
 	return ret;
 }
@@ -576,7 +576,7 @@ void spu_sync_buffer(int spu_num, unsigned int *samples,
 		 * samples are recorded.
 		 * No big deal -- so we just drop a few samples.
 		 */
-		pr_debug("SPU_PROF: No cached SPU contex "
+		pr_de("SPU_PROF: No cached SPU contex "
 			  "for SPU #%d. Dropping samples.\n", spu_num);
 		goto out;
 	}
@@ -655,7 +655,7 @@ int spu_sync_stop(void)
 		kfree(spu_buff[k].buff);
 		spu_buff[k].buff = 0;
 	}
-	pr_debug("spu_sync_stop -- done.\n");
+	pr_de("spu_sync_stop -- done.\n");
 	return ret;
 }
 

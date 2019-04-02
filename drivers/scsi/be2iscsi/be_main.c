@@ -1542,7 +1542,7 @@ beiscsi_hdl_get_handle(struct beiscsi_conn *beiscsi_conn,
 
 	if (pasync_handle->pa.u.a64.address != phys_addr.u.a64.address ||
 	    pasync_handle->index != ci) {
-		/* driver bug - if ci does not match async handle index */
+		/* driver  - if ci does not match async handle index */
 		error = 1;
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
 			    "BM_%d : cid %u async PDU handle mismatch - addr in %cQE %llx at %u:addr in CQE %llx ci %u\n",
@@ -5470,7 +5470,7 @@ static pci_ers_result_t beiscsi_eeh_err_detected(struct pci_dev *pdev,
 
 	pci_disable_device(pdev);
 
-	/* The error could cause the FW to trigger a flash debug dump.
+	/* The error could cause the FW to trigger a flash de dump.
 	 * Resetting the card while flash dump is in progress
 	 * can cause it not to recover; wait for it to finish.
 	 * Wait only for first function as it is needed only once per

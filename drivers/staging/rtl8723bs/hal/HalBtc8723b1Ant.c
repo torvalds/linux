@@ -2540,14 +2540,14 @@ static void halbtc8723b1ant_RunCoexistMechanism(PBTC_COEXIST pBtCoexist)
 			halbtc8723b1ant_LimitedRx(pBtCoexist, NORMAL_EXEC, false, true, 0x8);
 
 		halbtc8723b1ant_SwMechanism(pBtCoexist, true);
-		halbtc8723b1ant_RunSwCoexistMechanism(pBtCoexist);  /* just print debug message */
+		halbtc8723b1ant_RunSwCoexistMechanism(pBtCoexist);  /* just print de message */
 	} else {
 		halbtc8723b1ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0);
 
 		halbtc8723b1ant_LimitedRx(pBtCoexist, NORMAL_EXEC, false, false, 0x5);
 
 		halbtc8723b1ant_SwMechanism(pBtCoexist, false);
-		halbtc8723b1ant_RunSwCoexistMechanism(pBtCoexist); /* just print debug message */
+		halbtc8723b1ant_RunSwCoexistMechanism(pBtCoexist); /* just print de message */
 	}
 
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_HS_OPERATION, &bBtHsOn);

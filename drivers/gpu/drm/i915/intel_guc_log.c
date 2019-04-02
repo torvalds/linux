@@ -22,7 +22,7 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "intel_guc_log.h"
 #include "i915_drv.h"
@@ -33,7 +33,7 @@ static void guc_log_capture_logs(struct intel_guc_log *log);
  * DOC: GuC firmware log
  *
  * Firmware log is enabled by setting i915.guc_log_level to the positive level.
- * Log data is printed out via reading debugfs i915_guc_log_dump. Reading from
+ * Log data is printed out via reading defs i915_guc_log_dump. Reading from
  * i915_guc_load_status will print out firmware loading status and scratch
  * registers value.
  */
@@ -67,7 +67,7 @@ static int guc_action_control_log(struct intel_guc *guc, bool enable,
 		(default_logging ? GUC_LOG_CONTROL_DEFAULT_LOGGING : 0)
 	};
 
-	GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
+	GEM__ON(verbosity > GUC_LOG_VERBOSITY_MAX);
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
@@ -117,7 +117,7 @@ static int subbuf_start_callback(struct rchan_buf *buf,
 }
 
 /*
- * file_create() callback. Creates relay file in debugfs.
+ * file_create() callback. Creates relay file in defs.
  */
 static struct dentry *create_buf_file_callback(const char *filename,
 					       struct dentry *parent,
@@ -138,7 +138,7 @@ static struct dentry *create_buf_file_callback(const char *filename,
 	if (!parent)
 		return NULL;
 
-	buf_file = debugfs_create_file(filename, mode,
+	buf_file = defs_create_file(filename, mode,
 				       parent, buf, &relay_file_operations);
 	if (IS_ERR(buf_file))
 		return NULL;
@@ -147,11 +147,11 @@ static struct dentry *create_buf_file_callback(const char *filename,
 }
 
 /*
- * file_remove() default callback. Removes relay file in debugfs.
+ * file_remove() default callback. Removes relay file in defs.
  */
 static int remove_buf_file_callback(struct dentry *dentry)
 {
-	debugfs_remove(dentry);
+	defs_remove(dentry);
 	return 0;
 }
 
@@ -411,7 +411,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	n_subbufs = 8;
 
 	guc_log_relay_chan = relay_open("guc_log",
-					dev_priv->drm.primary->debugfs_root,
+					dev_priv->drm.primary->defs_root,
 					subbuf_size, n_subbufs,
 					&relay_callbacks, dev_priv);
 	if (!guc_log_relay_chan) {
@@ -421,7 +421,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 		return ret;
 	}
 
-	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
+	GEM__ON(guc_log_relay_chan->subbuf_size < subbuf_size);
 	log->relay.channel = guc_log_relay_chan;
 
 	return 0;
@@ -458,7 +458,7 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	u32 guc_log_size;
 	int ret;
 
-	GEM_BUG_ON(log->vma);
+	GEM__ON(log->vma);
 
 	/*
 	 *  GuC Log buffer Layout
@@ -511,8 +511,8 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
-	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN != 0);
-	GEM_BUG_ON(!log->vma);
+	BUILD__ON(GUC_LOG_VERBOSITY_MIN != 0);
+	GEM__ON(!log->vma);
 
 	/*
 	 * GuC is recognizing log levels starting from 0 to max, we're using 0
@@ -532,7 +532,7 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 					     GUC_LOG_LEVEL_IS_ENABLED(level),
 					     GUC_LOG_LEVEL_TO_VERBOSITY(level));
 	if (ret) {
-		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
+		DRM_DE_DRIVER("guc_log_control action failed %d\n", ret);
 		goto out_unlock;
 	}
 
@@ -624,7 +624,7 @@ void intel_guc_log_relay_close(struct intel_guc_log *log)
 	flush_work(&log->relay.flush_work);
 
 	mutex_lock(&log->relay.lock);
-	GEM_BUG_ON(!intel_guc_log_relay_enabled(log));
+	GEM__ON(!intel_guc_log_relay_enabled(log));
 	guc_log_unmap(log);
 	guc_log_relay_destroy(log);
 	mutex_unlock(&log->relay.lock);

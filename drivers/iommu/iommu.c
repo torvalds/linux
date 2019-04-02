@@ -20,7 +20,7 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/export.h>
@@ -365,7 +365,7 @@ static void iommu_group_release(struct kobject *kobj)
 {
 	struct iommu_group *group = to_iommu_group(kobj);
 
-	pr_debug("Releasing group %d\n", group->id);
+	pr_de("Releasing group %d\n", group->id);
 
 	if (group->iommu_data_release)
 		group->iommu_data_release(group->iommu_data);
@@ -446,7 +446,7 @@ struct iommu_group *iommu_group_alloc(void)
 	if (ret)
 		return ERR_PTR(ret);
 
-	pr_debug("Allocated group %d\n", group->id);
+	pr_de("Allocated group %d\n", group->id);
 
 	return group;
 }
@@ -472,7 +472,7 @@ struct iommu_group *iommu_group_get_by_id(int id)
 		return NULL;
 
 	group = container_of(group_kobj, struct iommu_group, kobj);
-	BUG_ON(group->id != id);
+	_ON(group->id != id);
 
 	kobject_get(group->devices_kobj);
 	kobject_put(&group->kobj);
@@ -560,7 +560,7 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 	if (!domain || domain->type != IOMMU_DOMAIN_DMA)
 		return 0;
 
-	BUG_ON(!domain->pgsize_bitmap);
+	_ON(!domain->pgsize_bitmap);
 
 	pg_size = 1UL << __ffs(domain->pgsize_bitmap);
 	INIT_LIST_HEAD(&mappings);
@@ -1311,7 +1311,7 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 					iommu_fault_handler_t handler,
 					void *token)
 {
-	BUG_ON(!domain);
+	_ON(!domain);
 
 	domain->handler = handler;
 	domain->handler_token = token;
@@ -1575,7 +1575,7 @@ static size_t iommu_pgsize(struct iommu_domain *domain,
 	pgsize &= domain->pgsize_bitmap;
 
 	/* make sure we're still sane */
-	BUG_ON(!pgsize);
+	_ON(!pgsize);
 
 	/* pick the biggest page */
 	pgsize_idx = __fls(pgsize);
@@ -1615,12 +1615,12 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		return -EINVAL;
 	}
 
-	pr_debug("map: iova 0x%lx pa %pa size 0x%zx\n", iova, &paddr, size);
+	pr_de("map: iova 0x%lx pa %pa size 0x%zx\n", iova, &paddr, size);
 
 	while (size) {
 		size_t pgsize = iommu_pgsize(domain, iova | paddr, size);
 
-		pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
+		pr_de("mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
 			 iova, &paddr, pgsize);
 
 		ret = ops->map(domain, iova, paddr, pgsize, prot);
@@ -1675,7 +1675,7 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 		return 0;
 	}
 
-	pr_debug("unmap this: iova 0x%lx size 0x%zx\n", iova, size);
+	pr_de("unmap this: iova 0x%lx size 0x%zx\n", iova, size);
 
 	/*
 	 * Keep iterating until we either unmap 'size' bytes (or more)
@@ -1691,7 +1691,7 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 		if (sync && ops->iotlb_range_add)
 			ops->iotlb_range_add(domain, iova, pgsize);
 
-		pr_debug("unmapped: iova 0x%lx size 0x%zx\n",
+		pr_de("unmapped: iova 0x%lx size 0x%zx\n",
 			 iova, unmapped_page);
 
 		iova += unmapped_page;
@@ -1827,9 +1827,9 @@ static int __init iommu_init(void)
 {
 	iommu_group_kset = kset_create_and_add("iommu_groups",
 					       NULL, kernel_kobj);
-	BUG_ON(!iommu_group_kset);
+	_ON(!iommu_group_kset);
 
-	iommu_debugfs_setup();
+	iommu_defs_setup();
 
 	return 0;
 }

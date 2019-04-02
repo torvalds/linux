@@ -12,7 +12,7 @@
 #include <subcmd/parse-options.h>
 #include <subcmd/run-command.h>
 #include <subcmd/help.h>
-#include "util/debug.h"
+#include "util/de.h"
 #include <linux/kernel.h>
 #include <errno.h>
 #include <stdio.h>

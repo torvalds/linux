@@ -110,7 +110,7 @@ iounmap_atomic(void __iomem *kvaddr)
 		type = kmap_atomic_idx();
 		idx = type + KM_TYPE_NR * smp_processor_id();
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 		WARN_ON_ONCE(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 #endif
 		/*

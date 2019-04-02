@@ -38,9 +38,9 @@ MODULE_AUTHOR("Pauline Middelink");
 MODULE_LICENSE("GPL");
 
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 #define SAA7110_MAX_INPUT	9	/* 6 CVBS, 3 SVHS */
 #define SAA7110_MAX_OUTPUT	1	/* 1 YUV */
@@ -197,23 +197,23 @@ static v4l2_std_id determine_norm(struct v4l2_subdev *sd)
 	finish_wait(&decoder->wq, &wait);
 	status = saa7110_read(sd);
 	if (status & 0x40) {
-		v4l2_dbg(1, debug, sd, "status=0x%02x (no signal)\n", status);
+		v4l2_dbg(1, de, sd, "status=0x%02x (no signal)\n", status);
 		return V4L2_STD_UNKNOWN;
 	}
 	if ((status & 3) == 0) {
 		saa7110_write(sd, 0x06, 0x83);
 		if (status & 0x20) {
-			v4l2_dbg(1, debug, sd, "status=0x%02x (NTSC/no color)\n", status);
+			v4l2_dbg(1, de, sd, "status=0x%02x (NTSC/no color)\n", status);
 			/*saa7110_write(sd,0x2E,0x81);*/
 			return V4L2_STD_NTSC;
 		}
-		v4l2_dbg(1, debug, sd, "status=0x%02x (PAL/no color)\n", status);
+		v4l2_dbg(1, de, sd, "status=0x%02x (PAL/no color)\n", status);
 		/*saa7110_write(sd,0x2E,0x9A);*/
 		return V4L2_STD_PAL;
 	}
 	/*saa7110_write(sd,0x06,0x03);*/
 	if (status & 0x20) {	/* 60Hz */
-		v4l2_dbg(1, debug, sd, "status=0x%02x (NTSC)\n", status);
+		v4l2_dbg(1, de, sd, "status=0x%02x (NTSC)\n", status);
 		saa7110_write(sd, 0x0D, 0x86);
 		saa7110_write(sd, 0x0F, 0x50);
 		saa7110_write(sd, 0x11, 0x2C);
@@ -233,11 +233,11 @@ static v4l2_std_id determine_norm(struct v4l2_subdev *sd)
 
 	status = saa7110_read(sd);
 	if ((status & 0x03) == 0x01) {
-		v4l2_dbg(1, debug, sd, "status=0x%02x (SECAM)\n", status);
+		v4l2_dbg(1, de, sd, "status=0x%02x (SECAM)\n", status);
 		saa7110_write(sd, 0x0D, 0x87);
 		return V4L2_STD_SECAM;
 	}
-	v4l2_dbg(1, debug, sd, "status=0x%02x (PAL)\n", status);
+	v4l2_dbg(1, de, sd, "status=0x%02x (PAL)\n", status);
 	return V4L2_STD_PAL;
 }
 
@@ -247,7 +247,7 @@ static int saa7110_g_input_status(struct v4l2_subdev *sd, u32 *pstatus)
 	int res = V4L2_IN_ST_NO_SIGNAL;
 	int status = saa7110_read(sd);
 
-	v4l2_dbg(1, debug, sd, "status=0x%02x norm=%llx\n",
+	v4l2_dbg(1, de, sd, "status=0x%02x norm=%llx\n",
 		       status, (unsigned long long)decoder->norm);
 	if (!(status & 0x40))
 		res = 0;
@@ -276,19 +276,19 @@ static int saa7110_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 			saa7110_write(sd, 0x0F, 0x50);
 			saa7110_write(sd, 0x11, 0x2C);
 			/*saa7110_write(sd, 0x2E, 0x81);*/
-			v4l2_dbg(1, debug, sd, "switched to NTSC\n");
+			v4l2_dbg(1, de, sd, "switched to NTSC\n");
 		} else if (std & V4L2_STD_PAL) {
 			saa7110_write(sd, 0x0D, 0x86);
 			saa7110_write(sd, 0x0F, 0x10);
 			saa7110_write(sd, 0x11, 0x59);
 			/*saa7110_write(sd, 0x2E, 0x9A);*/
-			v4l2_dbg(1, debug, sd, "switched to PAL\n");
+			v4l2_dbg(1, de, sd, "switched to PAL\n");
 		} else if (std & V4L2_STD_SECAM) {
 			saa7110_write(sd, 0x0D, 0x87);
 			saa7110_write(sd, 0x0F, 0x10);
 			saa7110_write(sd, 0x11, 0x59);
 			/*saa7110_write(sd, 0x2E, 0x9A);*/
-			v4l2_dbg(1, debug, sd, "switched to SECAM\n");
+			v4l2_dbg(1, de, sd, "switched to SECAM\n");
 		} else {
 			return -EINVAL;
 		}
@@ -302,12 +302,12 @@ static int saa7110_s_routing(struct v4l2_subdev *sd,
 	struct saa7110 *decoder = to_saa7110(sd);
 
 	if (input >= SAA7110_MAX_INPUT) {
-		v4l2_dbg(1, debug, sd, "input=%d not available\n", input);
+		v4l2_dbg(1, de, sd, "input=%d not available\n", input);
 		return -EINVAL;
 	}
 	if (decoder->input != input) {
 		saa7110_selmux(sd, input);
-		v4l2_dbg(1, debug, sd, "switched to input=%d\n", input);
+		v4l2_dbg(1, de, sd, "switched to input=%d\n", input);
 	}
 	return 0;
 }
@@ -319,7 +319,7 @@ static int saa7110_s_stream(struct v4l2_subdev *sd, int enable)
 	if (decoder->enable != enable) {
 		decoder->enable = enable;
 		saa7110_write(sd, 0x0E, enable ? 0x18 : 0x80);
-		v4l2_dbg(1, debug, sd, "YUV %s\n", enable ? "on" : "off");
+		v4l2_dbg(1, de, sd, "YUV %s\n", enable ? "on" : "off");
 	}
 	return 0;
 }
@@ -412,7 +412,7 @@ static int saa7110_probe(struct i2c_client *client,
 
 	rv = saa7110_write_block(sd, initseq, sizeof(initseq));
 	if (rv < 0) {
-		v4l2_dbg(1, debug, sd, "init status %d\n", rv);
+		v4l2_dbg(1, de, sd, "init status %d\n", rv);
 	} else {
 		int ver, status;
 		saa7110_write(sd, 0x21, 0x10);
@@ -422,7 +422,7 @@ static int saa7110_probe(struct i2c_client *client,
 		saa7110_write(sd, 0x0D, 0x06);
 		/*mdelay(150);*/
 		status = saa7110_read(sd);
-		v4l2_dbg(1, debug, sd, "version %x, status=0x%02x\n",
+		v4l2_dbg(1, de, sd, "version %x, status=0x%02x\n",
 			       ver, status);
 		saa7110_write(sd, 0x0D, 0x86);
 		saa7110_write(sd, 0x0F, 0x10);

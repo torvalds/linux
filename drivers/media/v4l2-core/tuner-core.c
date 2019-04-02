@@ -57,14 +57,14 @@ module_param(no_autodetect, int, 0444);
 module_param(show_i2c, int, 0444);
 
 /* insmod options used at runtime => read/write */
-static int tuner_debug;
+static int tuner_de;
 static unsigned int tv_range[2] = { 44, 958 };
 static unsigned int radio_range[2] = { 65, 108 };
 static char pal[] = "--";
 static char secam[] = "--";
 static char ntsc[] = "-";
 
-module_param_named(debug, tuner_debug, int, 0644);
+module_param_named(de, tuner_de, int, 0644);
 module_param_array(tv_range, int, NULL, 0644);
 module_param_array(radio_range, int, NULL, 0644);
 module_param_string(pal, pal, sizeof(pal), 0644);
@@ -79,7 +79,7 @@ static LIST_HEAD(tuner_list);
 static const struct v4l2_subdev_ops tuner_ops;
 
 /*
- * Debug macros
+ * De macros
  */
 
 #undef pr_fmt
@@ -89,8 +89,8 @@ static const struct v4l2_subdev_ops tuner_ops;
 
 
 #define dprintk(fmt, arg...) do {					\
-	if (tuner_debug)						\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt), __func__, ##arg);	\
+	if (tuner_de)						\
+		printk(KERN_DE pr_fmt("%s: " fmt), __func__, ##arg);	\
 } while (0)
 
 /*
@@ -835,7 +835,7 @@ static inline int check_mode(struct tuner *t, enum v4l2_tuner_type mode)
  * @mode:	enum v4l2_type (radio or TV)
  *
  * If tuner doesn't support the needed mode (radio or TV), prints a
- * debug message and returns -EINVAL, changing its state to standby.
+ * de message and returns -EINVAL, changing its state to standby.
  * Otherwise, changes the mode and returns 0.
  */
 static int set_mode(struct tuner *t, enum v4l2_tuner_type mode)
@@ -936,7 +936,7 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
  * On other operational systems, the drivers generally have a per-country
  * code, and some logic to apply per-country hacks. V4L2 API doesn't provide
  * such hacks. Instead, it relies on a proper video standard selection from
- * the userspace application. However, as some apps are buggy, not allowing
+ * the userspace application. However, as some apps are gy, not allowing
  * to distinguish all video standard variations, a modprobe parameter can
  * be used to force a video standard match.
  */
@@ -1073,14 +1073,14 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 }
 
 /*
- * Debug function for reporting tuner status to userspace
+ * De function for reporting tuner status to userspace
  */
 
 /**
  * tuner_status - Dumps the current tuner status at dmesg
  * @fe: pointer to struct dvb_frontend
  *
- * This callback is used only for driver debug purposes, answering to
+ * This callback is used only for driver de purposes, answering to
  * VIDIOC_LOG_STATUS. No changes should happen on this call.
  */
 static void tuner_status(struct dvb_frontend *fe)

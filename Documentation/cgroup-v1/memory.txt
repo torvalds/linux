@@ -509,7 +509,7 @@ total_<counter>		- # hierarchical version of <counter>, which in
 			sum of all hierarchical children's values of
 			<counter>, i.e. total_cache
 
-# The following additional stats are dependent on CONFIG_DEBUG_VM.
+# The following additional stats are dependent on CONFIG_DE_VM.
 
 recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
 recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
@@ -519,7 +519,7 @@ recent_scanned_file	- VM internal parameter. (see mm/vmscan.c)
 Memo:
 	recent_rotated means recent frequency of LRU rotation.
 	recent_scanned means recent # of scans to LRU.
-	showing for better debug please see the code for meanings.
+	showing for better de please see the code for meanings.
 
 Note:
 	Only anonymous and swap cache memory is listed as part of 'rss' stat.

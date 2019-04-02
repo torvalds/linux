@@ -107,7 +107,7 @@ static bool alloc_vda_req(struct esas2r_adapter *a,
 		sizeof(struct esas2r_mem_desc), GFP_KERNEL);
 
 	if (memdesc == NULL) {
-		esas2r_hdebug("could not alloc mem for vda request memdesc\n");
+		esas2r_hde("could not alloc mem for vda request memdesc\n");
 		return false;
 	}
 
@@ -115,7 +115,7 @@ static bool alloc_vda_req(struct esas2r_adapter *a,
 			ESAS2R_DATA_BUF_LEN;
 
 	if (!esas2r_initmem_alloc(a, memdesc, 256)) {
-		esas2r_hdebug("could not alloc mem for vda request\n");
+		esas2r_hde("could not alloc mem for vda request\n");
 		kfree(memdesc);
 		return false;
 	}
@@ -303,7 +303,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 
 	esas2r_adapters[index] = a;
 	sprintf(a->name, ESAS2R_DRVR_NAME "_%02d", index);
-	esas2r_debug("new adapter %p, name %s", a, a->name);
+	esas2r_de("new adapter %p, name %s", a, a->name);
 	spin_lock_init(&a->request_lock);
 	spin_lock_init(&a->fw_event_lock);
 	mutex_init(&a->fm_api_mutex);
@@ -343,7 +343,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 		}
 	}
 
-	esas2r_debug("requests: %p to %p (%d, %d)", first_request,
+	esas2r_de("requests: %p to %p (%d, %d)", first_request,
 		     last_request,
 		     sizeof(*first_request),
 		     num_requests);
@@ -385,7 +385,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 
 	a->uncached_phys = bus_addr;
 
-	esas2r_debug("%d bytes uncached memory allocated @ %p (%x:%x)",
+	esas2r_de("%d bytes uncached memory allocated @ %p (%x:%x)",
 		     a->uncached_size,
 		     a->uncached,
 		     upper_32_bits(bus_addr),
@@ -415,7 +415,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	if (!esas2r_init_adapter_hw(a, true))
 		esas2r_log(ESAS2R_LOG_CRIT, "failed to initialize hardware!");
 	else
-		esas2r_debug("esas2r_init_adapter ok");
+		esas2r_de("esas2r_init_adapter ok");
 
 	esas2r_claim_interrupts(a);
 
@@ -425,7 +425,7 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	set_bit(AF2_INIT_DONE, &a->flags2);
 	if (!test_bit(AF_DEGRADED_MODE, &a->flags))
 		esas2r_kickoff_timer(a);
-	esas2r_debug("esas2r_init_adapter done for %p (%d)",
+	esas2r_de("esas2r_init_adapter done for %p (%d)",
 		     a, a->disable_cnt);
 
 	return 1;
@@ -450,7 +450,7 @@ static void esas2r_adapter_power_down(struct esas2r_adapter *a,
 		 * cache is lazily flushed.
 		 */
 		mdelay(500);
-		esas2r_debug("chip halted");
+		esas2r_de("chip halted");
 	}
 
 	/* Remove sysfs binary files */
@@ -493,14 +493,14 @@ static void esas2r_adapter_power_down(struct esas2r_adapter *a,
 			       "free_irq(%d) called", a->pcid->irq);
 
 		free_irq(a->pcid->irq, a);
-		esas2r_debug("IRQ released");
+		esas2r_de("IRQ released");
 		clear_bit(AF2_IRQ_CLAIMED, &a->flags2);
 	}
 
 	if (test_bit(AF2_MSI_ENABLED, &a->flags2)) {
 		pci_disable_msi(a->pcid);
 		clear_bit(AF2_MSI_ENABLED, &a->flags2);
-		esas2r_debug("MSI disabled");
+		esas2r_de("MSI disabled");
 	}
 
 	if (a->inbound_list_md.virt_addr)
@@ -534,7 +534,7 @@ static void esas2r_adapter_power_down(struct esas2r_adapter *a,
 		esas2r_unmap_regions(a);
 		a->regs = NULL;
 		a->data_window = NULL;
-		esas2r_debug("regions unmapped");
+		esas2r_de("regions unmapped");
 	}
 }
 
@@ -546,7 +546,7 @@ void esas2r_kill_adapter(int i)
 	if (a) {
 		unsigned long flags;
 		struct workqueue_struct *wq;
-		esas2r_debug("killing adapter %p [%d] ", a, i);
+		esas2r_de("killing adapter %p [%d] ", a, i);
 		esas2r_fw_event_off(a);
 		esas2r_adapter_power_down(a, 0);
 		if (esas2r_buffered_ioctl &&
@@ -589,7 +589,7 @@ void esas2r_kill_adapter(int i)
 					  a->uncached,
 					  (dma_addr_t)a->uncached_phys);
 			a->uncached = NULL;
-			esas2r_debug("uncached area freed");
+			esas2r_de("uncached area freed");
 		}
 
 		esas2r_log_dev(ESAS2R_LOG_INFO,
@@ -708,7 +708,7 @@ int esas2r_resume(struct pci_dev *pdev)
 	 */
 	esas2r_disable_chip_interrupts(a);
 	if (!esas2r_power_up(a, true)) {
-		esas2r_debug("yikes, esas2r_power_up failed");
+		esas2r_de("yikes, esas2r_power_up failed");
 		rez = -ENOMEM;
 		goto error_exit;
 	}
@@ -723,7 +723,7 @@ int esas2r_resume(struct pci_dev *pdev)
 		esas2r_enable_chip_interrupts(a);
 		esas2r_kickoff_timer(a);
 	} else {
-		esas2r_debug("yikes, unable to claim IRQ");
+		esas2r_de("yikes, unable to claim IRQ");
 		esas2r_log(ESAS2R_LOG_CRIT, "could not re-claim IRQ!");
 		rez = -ENOMEM;
 		goto error_exit;
@@ -805,7 +805,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 	a->targetdb_end = &a->targetdb[ESAS2R_MAX_TARGETS];
 
 	if (!alloc_vda_req(a, &a->general_req)) {
-		esas2r_hdebug(
+		esas2r_hde(
 			"failed to allocate a VDA request for the general req!");
 		return false;
 	}
@@ -887,7 +887,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 					 esas2r_inbound_list_source_entry);
 
 	if (!esas2r_initmem_alloc(a, &a->inbound_list_md, ESAS2R_LIST_ALIGN)) {
-		esas2r_hdebug("failed to allocate IB list");
+		esas2r_hde("failed to allocate IB list");
 		return false;
 	}
 
@@ -897,7 +897,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	if (!esas2r_initmem_alloc(a, &a->outbound_list_md,
 				  ESAS2R_LIST_ALIGN)) {
-		esas2r_hdebug("failed to allocate IB list");
+		esas2r_hde("failed to allocate IB list");
 		return false;
 	}
 
@@ -946,7 +946,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 		     i++) {
 			INIT_LIST_HEAD(&rq->req_list);
 			if (!alloc_vda_req(a, rq)) {
-				esas2r_hdebug(
+				esas2r_hde(
 					"failed to allocate a VDA request!");
 				return false;
 			}
@@ -1030,8 +1030,8 @@ bool esas2r_check_adapter(struct esas2r_adapter *a)
 		schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 		if ((jiffies_to_msecs(jiffies) - starttime) > 180000) {
-			esas2r_hdebug("FW ready TMO");
-			esas2r_bugon();
+			esas2r_hde("FW ready TMO");
+			esas2r_on();
 
 			return esas2r_set_degraded_mode(a,
 							"firmware start has timed out");
@@ -1053,7 +1053,7 @@ bool esas2r_check_adapter(struct esas2r_adapter *a)
 		schedule_timeout_interruptible(msecs_to_jiffies(50));
 
 		if ((jiffies_to_msecs(jiffies) - starttime) > 3000) {
-			esas2r_hdebug("timeout waiting for interface down");
+			esas2r_hde("timeout waiting for interface down");
 			break;
 		}
 	}
@@ -1142,9 +1142,9 @@ skip_chip_reset:
 		schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 		if ((jiffies_to_msecs(jiffies) - starttime) > 3000) {
-			esas2r_hdebug(
+			esas2r_hde(
 				"timeout waiting for communication list init");
-			esas2r_bugon();
+			esas2r_on();
 			return esas2r_set_degraded_mode(a,
 							"timeout waiting for communication list init");
 		}
@@ -1182,7 +1182,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 	case ESAS2R_INIT_MSG_START:
 	case ESAS2R_INIT_MSG_REINIT:
 	{
-		esas2r_hdebug("CFG init");
+		esas2r_hde("CFG init");
 		esas2r_build_cfg_req(a,
 				     rq,
 				     VDA_CFG_INIT,
@@ -1212,7 +1212,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 			minor = HIBYTE(fw_release);
 			a->fw_version += (major << 16) + (minor << 24);
 		} else {
-			esas2r_hdebug("FAILED");
+			esas2r_hde("FAILED");
 		}
 
 		/*
@@ -1222,7 +1222,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 
 		if ((test_bit(AF2_THUNDERBOLT, &a->flags2))
 		    || (be32_to_cpu(a->fw_version) > 0x00524702)) {
-			esas2r_hdebug("CFG get init");
+			esas2r_hde("CFG get init");
 			esas2r_build_cfg_req(a,
 					     rq,
 					     VDA_CFG_GET_INIT2,
@@ -1252,7 +1252,7 @@ static bool esas2r_format_init_msg(struct esas2r_adapter *a,
 				a->ioctl_tunnel =
 					le32_to_cpu(ci->ioctl_tunnel);
 			} else {
-				esas2r_hdebug("FAILED");
+				esas2r_hde("FAILED");
 			}
 		}
 		/* fall through */
@@ -1350,7 +1350,7 @@ bool esas2r_init_adapter_hw(struct esas2r_adapter *a, bool init_poll)
 			(int)LOBYTE(HIWORD(a->fw_version)),
 			(int)HIBYTE(HIWORD(a->fw_version)));
 
-	esas2r_hdebug("firmware revision: %s", a->fw_rev);
+	esas2r_hde("firmware revision: %s", a->fw_rev);
 
 	if (test_bit(AF_CHPRST_DETECTED, &a->flags)
 	    && (test_bit(AF_FIRST_INIT, &a->flags))) {
@@ -1548,7 +1548,7 @@ static void esas2r_power_down_notify_firmware(struct esas2r_adapter *a)
 		schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 		if ((jiffies_to_msecs(jiffies) - starttime) > 30000) {
-			esas2r_hdebug("Timeout waiting for power down");
+			esas2r_hde("Timeout waiting for power down");
 			break;
 		}
 	}
@@ -1593,7 +1593,7 @@ void esas2r_power_down(struct esas2r_adapter *a)
 			schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 			if ((jiffies_to_msecs(jiffies) - starttime) > 3000) {
-				esas2r_hdebug(
+				esas2r_hde(
 					"timeout waiting for interface down");
 				break;
 			}

@@ -48,7 +48,7 @@ void f2fs_do_read_inline_data(struct page *page, struct page *ipage)
 	if (PageUptodate(page))
 		return;
 
-	f2fs_bug_on(F2FS_P_SB(page), page->index);
+	f2fs__on(F2FS_P_SB(page), page->index);
 
 	zero_user_segment(page, MAX_INLINE_DATA(inode), PAGE_SIZE);
 
@@ -147,7 +147,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		return -EINVAL;
 	}
 
-	f2fs_bug_on(F2FS_P_SB(page), PageWriteback(page));
+	f2fs__on(F2FS_P_SB(page), PageWriteback(page));
 
 	f2fs_do_read_inline_data(page, dn->inode_page);
 	set_page_dirty(page);
@@ -234,7 +234,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
 		return -EAGAIN;
 	}
 
-	f2fs_bug_on(F2FS_I_SB(inode), page->index);
+	f2fs__on(F2FS_I_SB(inode), page->index);
 
 	f2fs_wait_on_page_writeback(dn.inode_page, NODE, true, true);
 	src_addr = kmap_atomic(page);
@@ -275,7 +275,7 @@ bool f2fs_recover_inline_data(struct inode *inode, struct page *npage)
 			ri && (ri->i_inline & F2FS_INLINE_DATA)) {
 process_inline:
 		ipage = f2fs_get_node_page(sbi, inode->i_ino);
-		f2fs_bug_on(sbi, IS_ERR(ipage));
+		f2fs__on(sbi, IS_ERR(ipage));
 
 		f2fs_wait_on_page_writeback(ipage, NODE, true, true);
 
@@ -293,7 +293,7 @@ process_inline:
 
 	if (f2fs_has_inline_data(inode)) {
 		ipage = f2fs_get_node_page(sbi, inode->i_ino);
-		f2fs_bug_on(sbi, IS_ERR(ipage));
+		f2fs__on(sbi, IS_ERR(ipage));
 		f2fs_truncate_inline_inode(inode, ipage, 0);
 		clear_inode_flag(inode, FI_INLINE_DATA);
 		f2fs_put_page(ipage, 1);

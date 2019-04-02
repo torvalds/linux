@@ -9,7 +9,7 @@
 #include "mac.h"
 #include "hif.h"
 #include "txrx.h"
-#include "debug.h"
+#include "de.h"
 
 static u8 ath10k_htt_tx_txq_calc_size(size_t count)
 {
@@ -801,8 +801,8 @@ static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)
 	 * the HW expects the buffer to be an integral number of 4-byte
 	 * "words"
 	 */
-	BUILD_BUG_ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
-	BUILD_BUG_ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
+	BUILD__ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
+	BUILD__ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
 
 	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup_32.hdr)
 	    + (sizeof(*ring) * num_rx_ring);
@@ -872,8 +872,8 @@ static int ath10k_htt_send_rx_ring_cfg_64(struct ath10k_htt *htt)
 	/* HW expects the buffer to be an integral number of 4-byte
 	 * "words"
 	 */
-	BUILD_BUG_ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
-	BUILD_BUG_ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
+	BUILD__ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
+	BUILD__ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
 
 	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup_64.hdr)
 	    + (sizeof(*ring) * num_rx_ring);
@@ -941,8 +941,8 @@ static int ath10k_htt_send_rx_ring_cfg_hl(struct ath10k_htt *htt)
 	 * the HW expects the buffer to be an integral number of 4-byte
 	 * "words"
 	 */
-	BUILD_BUG_ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
-	BUILD_BUG_ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
+	BUILD__ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
+	BUILD__ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
 
 	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup_32.hdr)
 	    + (sizeof(*ring) * num_rx_ring);

@@ -40,7 +40,7 @@ enum dss_feat_id {
 	FEAT_CORE_CLK_DIV,
 	FEAT_LCD_CLK_SRC,
 	/* DSI-PLL power command 0x3 is not working */
-	FEAT_DSI_PLL_PWR_BUG,
+	FEAT_DSI_PLL_PWR_,
 	FEAT_DSI_DCS_CMD_CONFIG_VC,
 	FEAT_DSI_VC_OCP_WIDTH,
 	FEAT_DSI_REVERSE_TXCLKESC,
@@ -57,8 +57,8 @@ enum dss_feat_id {
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
-	/* An unknown HW bug causing the normal FIFO thresholds not to work */
-	FEAT_OMAP3_DSI_FIFO_BUG,
+	/* An unknown HW  causing the normal FIFO thresholds not to work */
+	FEAT_OMAP3_DSI_FIFO_,
 	FEAT_BURST_2D,
 	FEAT_DSI_PHY_DCC,
 	FEAT_MFLAG,

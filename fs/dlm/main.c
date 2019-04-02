@@ -37,13 +37,13 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_lockspace;
 
-	error = dlm_register_debugfs();
+	error = dlm_register_defs();
 	if (error)
 		goto out_config;
 
 	error = dlm_user_init();
 	if (error)
-		goto out_debug;
+		goto out_de;
 
 	error = dlm_netlink_init();
 	if (error)
@@ -61,8 +61,8 @@ static int __init init_dlm(void)
 	dlm_netlink_exit();
  out_user:
 	dlm_user_exit();
- out_debug:
-	dlm_unregister_debugfs();
+ out_de:
+	dlm_unregister_defs();
  out_config:
 	dlm_config_exit();
  out_lockspace:
@@ -82,7 +82,7 @@ static void __exit exit_dlm(void)
 	dlm_memory_exit();
 	dlm_lockspace_exit();
 	dlm_lowcomms_exit();
-	dlm_unregister_debugfs();
+	dlm_unregister_defs();
 }
 
 module_init(init_dlm);

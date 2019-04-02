@@ -1,62 +1,62 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_BUG_H
-#define _LINUX_BUG_H
+#ifndef _LINUX__H
+#define _LINUX__H
 
-#include <asm/bug.h>
+#include <asm/.h>
 #include <linux/compiler.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 
-enum bug_trap_type {
-	BUG_TRAP_TYPE_NONE = 0,
-	BUG_TRAP_TYPE_WARN = 1,
-	BUG_TRAP_TYPE_BUG = 2,
+enum _trap_type {
+	_TRAP_TYPE_NONE = 0,
+	_TRAP_TYPE_WARN = 1,
+	_TRAP_TYPE_ = 2,
 };
 
 struct pt_regs;
 
 #ifdef __CHECKER__
-#define MAYBE_BUILD_BUG_ON(cond) (0)
+#define MAYBE_BUILD__ON(cond) (0)
 #else /* __CHECKER__ */
 
-#define MAYBE_BUILD_BUG_ON(cond)			\
+#define MAYBE_BUILD__ON(cond)			\
 	do {						\
 		if (__builtin_constant_p((cond)))       \
-			BUILD_BUG_ON(cond);             \
+			BUILD__ON(cond);             \
 		else                                    \
-			BUG_ON(cond);                   \
+			_ON(cond);                   \
 	} while (0)
 
 #endif	/* __CHECKER__ */
 
-#ifdef CONFIG_GENERIC_BUG
-#include <asm-generic/bug.h>
+#ifdef CONFIG_GENERIC_
+#include <asm-generic/.h>
 
-static inline int is_warning_bug(const struct bug_entry *bug)
+static inline int is_warning_(const struct _entry *)
 {
-	return bug->flags & BUGFLAG_WARNING;
+	return ->flags & FLAG_WARNING;
 }
 
-struct bug_entry *find_bug(unsigned long bugaddr);
+struct _entry *find_(unsigned long addr);
 
-enum bug_trap_type report_bug(unsigned long bug_addr, struct pt_regs *regs);
+enum _trap_type report_(unsigned long _addr, struct pt_regs *regs);
 
 /* These are defined by the architecture */
-int is_valid_bugaddr(unsigned long addr);
+int is_valid_addr(unsigned long addr);
 
-void generic_bug_clear_once(void);
+void generic__clear_once(void);
 
-#else	/* !CONFIG_GENERIC_BUG */
+#else	/* !CONFIG_GENERIC_ */
 
-static inline enum bug_trap_type report_bug(unsigned long bug_addr,
+static inline enum _trap_type report_(unsigned long _addr,
 					    struct pt_regs *regs)
 {
-	return BUG_TRAP_TYPE_BUG;
+	return _TRAP_TYPE_;
 }
 
 
-static inline void generic_bug_clear_once(void) {}
+static inline void generic__clear_once(void) {}
 
-#endif	/* CONFIG_GENERIC_BUG */
+#endif	/* CONFIG_GENERIC_ */
 
 /*
  * Since detected data corruption should stop operation on the affected
@@ -67,13 +67,13 @@ static inline __must_check bool check_data_corruption(bool v) { return v; }
 	check_data_corruption(({					 \
 		bool corruption = unlikely(condition);			 \
 		if (corruption) {					 \
-			if (IS_ENABLED(CONFIG_BUG_ON_DATA_CORRUPTION)) { \
+			if (IS_ENABLED(CONFIG__ON_DATA_CORRUPTION)) { \
 				pr_err(fmt, ##__VA_ARGS__);		 \
-				BUG();					 \
+				();					 \
 			} else						 \
 				WARN(1, fmt, ##__VA_ARGS__);		 \
 		}							 \
 		corruption;						 \
 	}))
 
-#endif	/* _LINUX_BUG_H */
+#endif	/* _LINUX__H */

@@ -57,7 +57,7 @@
  * @vop_mutex: Synchronize access to the device page as well as serialize
  *             creation/deletion of virtio devices on the peer node
  * @dp: Peer device page information
- * @dbg: Debugfs entry
+ * @dbg: Defs entry
  * @dma_ch: The DMA channel used by this transport for data transfers.
  * @name: Name for this transport used in misc device creation.
  * @miscdev: The misc device registered.
@@ -109,15 +109,15 @@ struct vop_vringh {
  * @waitq - Waitqueue to allow ring3 apps to poll.
  * @vpdev - pointer to VOP bus device.
  * @poll_wake - Used for waking up threads blocked in poll.
- * @out_bytes - Debug stats for number of bytes copied from host to card.
- * @in_bytes - Debug stats for number of bytes copied from card to host.
- * @out_bytes_dma - Debug stats for number of bytes copied from host to card
+ * @out_bytes - De stats for number of bytes copied from host to card.
+ * @in_bytes - De stats for number of bytes copied from card to host.
+ * @out_bytes_dma - De stats for number of bytes copied from host to card
  * using DMA.
- * @in_bytes_dma - Debug stats for number of bytes copied from card to host
+ * @in_bytes_dma - De stats for number of bytes copied from card to host
  * using DMA.
- * @tx_len_unaligned - Debug stats for number of bytes copied to the card where
+ * @tx_len_unaligned - De stats for number of bytes copied to the card where
  * the transfer length did not have the required DMA alignment.
- * @tx_dst_unaligned - Debug stats for number of bytes copied where the
+ * @tx_dst_unaligned - De stats for number of bytes copied where the
  * destination address on the card did not have the required DMA alignment.
  * @vvr - Store per VRING data structures.
  * @virtio_bh_work - Work struct used to schedule virtio bottom half handling.
@@ -163,8 +163,8 @@ static inline bool vop_vdevup(struct vop_vdev *vdev)
 	return !!vdev->dd->status;
 }
 
-void vop_init_debugfs(struct vop_info *vi);
-void vop_exit_debugfs(struct vop_info *vi);
+void vop_init_defs(struct vop_info *vi);
+void vop_exit_defs(struct vop_info *vi);
 int vop_host_init(struct vop_info *vi);
 void vop_host_uninit(struct vop_info *vi);
 #endif

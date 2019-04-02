@@ -387,7 +387,7 @@ static noinline int add_async_extent(struct async_cow *cow,
 	struct async_extent *async_extent;
 
 	async_extent = kmalloc(sizeof(*async_extent), GFP_NOFS);
-	BUG_ON(!async_extent); /* -ENOMEM */
+	_ON(!async_extent); /* -ENOMEM */
 	async_extent->start = start;
 	async_extent->ram_size = ram_size;
 	async_extent->compressed_size = compressed_size;
@@ -470,7 +470,7 @@ static noinline void compress_file_range(struct inode *inode,
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
-	BUILD_BUG_ON((BTRFS_MAX_COMPRESSED % PAGE_SIZE) != 0);
+	BUILD__ON((BTRFS_MAX_COMPRESSED % PAGE_SIZE) != 0);
 	nr_pages = min_t(unsigned long, nr_pages,
 			BTRFS_MAX_COMPRESSED / PAGE_SIZE);
 
@@ -1198,7 +1198,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 			 1, 0, NULL);
 	while (start < end) {
 		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
-		BUG_ON(!async_cow); /* -ENOMEM */
+		_ON(!async_cow); /* -ENOMEM */
 		/*
 		 * igrab is called higher up in the call chain, take only the
 		 * lightweight reference for the callback lifetime
@@ -1451,7 +1451,7 @@ next_slot:
 			extent_end = ALIGN(extent_end,
 					   fs_info->sectorsize);
 		} else {
-			BUG_ON(1);
+			_ON(1);
 		}
 out_check:
 		if (extent_end <= start) {
@@ -1515,7 +1515,7 @@ out_check:
 					       num_bytes, num_bytes, type);
 		if (nocow)
 			btrfs_dec_nocow_writers(fs_info, disk_bytenr);
-		BUG_ON(ret); /* -ENOMEM */
+		_ON(ret); /* -ENOMEM */
 
 		if (root->root_key.objectid ==
 		    BTRFS_DATA_RELOC_TREE_OBJECTID)
@@ -1729,7 +1729,7 @@ static void btrfs_add_delalloc_inodes(struct btrfs_root *root,
 		root->nr_delalloc_inodes++;
 		if (root->nr_delalloc_inodes == 1) {
 			spin_lock(&fs_info->delalloc_root_lock);
-			BUG_ON(!list_empty(&root->delalloc_root));
+			_ON(!list_empty(&root->delalloc_root));
 			list_add_tail(&root->delalloc_root,
 				      &fs_info->delalloc_roots);
 			spin_unlock(&fs_info->delalloc_root_lock);
@@ -1752,7 +1752,7 @@ void __btrfs_del_delalloc_inode(struct btrfs_root *root,
 		if (!root->nr_delalloc_inodes) {
 			ASSERT(list_empty(&root->delalloc_inodes));
 			spin_lock(&fs_info->delalloc_root_lock);
-			BUG_ON(list_empty(&root->delalloc_root));
+			_ON(list_empty(&root->delalloc_root));
 			list_del_init(&root->delalloc_root);
 			spin_unlock(&fs_info->delalloc_root_lock);
 		}
@@ -1942,7 +1942,7 @@ static blk_status_t btrfs_submit_bio_start(void *private_data, struct bio *bio,
 	blk_status_t ret = 0;
 
 	ret = btrfs_csum_one_bio(inode, bio, 0, 0);
-	BUG_ON(ret); /* -ENOMEM */
+	_ON(ret); /* -ENOMEM */
 	return 0;
 }
 
@@ -2381,7 +2381,7 @@ static noinline int record_one_backref(u64 inum, u64 offset, u64 root_id,
 		if (PTR_ERR(root) == -ENOENT)
 			return 0;
 		WARN_ON(1);
-		btrfs_debug(fs_info, "inum=%llu, offset=%llu, root_id=%llu",
+		btrfs_de(fs_info, "inum=%llu, offset=%llu, root_id=%llu",
 			 inum, offset, root_id);
 		return PTR_ERR(root);
 	}
@@ -2960,7 +2960,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 	}
 
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
-		BUG_ON(!list_empty(&ordered_extent->list)); /* Logic error */
+		_ON(!list_empty(&ordered_extent->list)); /* Logic error */
 
 		/*
 		 * For mwrite(mmap + memset to write) case, we still reserve
@@ -3020,7 +3020,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
 		compress_type = ordered_extent->compress_type;
 	if (test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags)) {
-		BUG_ON(compress_type);
+		_ON(compress_type);
 		btrfs_qgroup_free_data(inode, NULL, ordered_extent->file_offset,
 				       ordered_extent->len);
 		ret = btrfs_mark_extent_written(trans, BTRFS_I(inode),
@@ -3028,7 +3028,7 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 						ordered_extent->file_offset +
 						logical_len);
 	} else {
-		BUG_ON(root == fs_info->tree_root);
+		_ON(root == fs_info->tree_root);
 		ret = insert_reserved_file_extent(trans, inode,
 						ordered_extent->file_offset,
 						ordered_extent->start,
@@ -3474,7 +3474,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				ret = PTR_ERR(trans);
 				goto out;
 			}
-			btrfs_debug(fs_info, "auto deleting %Lu",
+			btrfs_de(fs_info, "auto deleting %Lu",
 				    found_key.objectid);
 			ret = btrfs_del_orphan_item(trans, root,
 						    found_key.objectid);
@@ -3501,7 +3501,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	}
 
 	if (nr_unlink)
-		btrfs_debug(fs_info, "unlinked %d orphans", nr_unlink);
+		btrfs_de(fs_info, "unlinked %d orphans", nr_unlink);
 
 out:
 	if (ret)
@@ -4201,7 +4201,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret == 0);
+	_ON(ret == 0);
 
 	ret = 0;
 	if (path->slots[0] > 0) {
@@ -4517,7 +4517,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	bool be_nice = false;
 	bool should_throttle = false;
 
-	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
+	_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
 	/*
 	 * for non-free space inodes and ref cows, we want to back off from
@@ -4708,7 +4708,7 @@ delete:
 				pending_del_nr++;
 				pending_del_slot = path->slots[0];
 			} else {
-				BUG();
+				();
 			}
 		} else {
 			break;
@@ -5380,7 +5380,7 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 
 	if (inode->i_nlink > 0) {
-		BUG_ON(btrfs_root_refs(&root->root_item) != 0 &&
+		_ON(btrfs_root_refs(&root->root_item) != 0 &&
 		       root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID);
 		goto no_delete;
 	}
@@ -5967,7 +5967,7 @@ next:
 	 * New directory entries are assigned a strictly increasing
 	 * offset.  This means that new entries created during readdir
 	 * are *guaranteed* to be seen in the future by that readdir.
-	 * This has broken buggy programs which operate on names as
+	 * This has broken gy programs which operate on names as
 	 * they're returned by readdir.  Until we re-use freed offsets
 	 * we have this hack to stop new entries from being returned
 	 * under the assumption that they'll never reach this huge
@@ -6991,7 +6991,7 @@ out:
 		free_extent_map(em);
 		return ERR_PTR(err);
 	}
-	BUG_ON(!em); /* Error is always set */
+	_ON(!em); /* Error is always set */
 	return em;
 }
 
@@ -7714,7 +7714,7 @@ static inline blk_status_t submit_dio_repair_bio(struct inode *inode,
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	blk_status_t ret;
 
-	BUG_ON(bio_op(bio) == REQ_OP_WRITE);
+	_ON(bio_op(bio) == REQ_OP_WRITE);
 
 	ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DIO_REPAIR);
 	if (ret)
@@ -7740,7 +7740,7 @@ static int btrfs_check_dio_repairable(struct inode *inode,
 		 * all the retry and error correction code that follows. no
 		 * matter what the error is, it is very likely to persist.
 		 */
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"Check DIO Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d",
 			num_copies, failrec->this_mirror, failed_mirror);
 		return 0;
@@ -7752,7 +7752,7 @@ static int btrfs_check_dio_repairable(struct inode *inode,
 		failrec->this_mirror++;
 
 	if (failrec->this_mirror > num_copies) {
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"Check DIO Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d",
 			num_copies, failrec->this_mirror, failed_mirror);
 		return 0;
@@ -7777,7 +7777,7 @@ static blk_status_t dio_read_error(struct inode *inode, struct bio *failed_bio,
 	blk_status_t status;
 	struct bio_vec bvec;
 
-	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
+	_ON(bio_op(failed_bio) == REQ_OP_WRITE);
 
 	ret = btrfs_get_io_failure_record(inode, start, end, &failrec);
 	if (ret)
@@ -7802,7 +7802,7 @@ static blk_status_t dio_read_error(struct inode *inode, struct bio *failed_bio,
 				pgoff, isector, repair_endio, repair_arg);
 	bio->bi_opf = REQ_OP_READ | read_mode;
 
-	btrfs_debug(BTRFS_I(inode)->root->fs_info,
+	btrfs_de(BTRFS_I(inode)->root->fs_info,
 		    "repair DIO read error: submitting new dio read[%#x] to this_mirror=%d, in_validation=%d",
 		    read_mode, failrec->this_mirror, failrec->in_validation);
 
@@ -8135,7 +8135,7 @@ static blk_status_t btrfs_submit_bio_start_direct_io(void *private_data,
 	struct inode *inode = private_data;
 	blk_status_t ret;
 	ret = btrfs_csum_one_bio(inode, bio, offset, 1);
-	BUG_ON(ret); /* -ENOMEM */
+	_ON(ret); /* -ENOMEM */
 	return 0;
 }
 
@@ -9021,7 +9021,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 	/* Migrate the slack space for the truncate to our reserve */
 	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
 				      min_size, false);
-	BUG_ON(ret);
+	_ON(ret);
 
 	/*
 	 * So if we truncate and then write and fsync we normally would just
@@ -9058,7 +9058,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 		btrfs_block_rsv_release(fs_info, rsv, -1);
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
 					      rsv, min_size, false);
-		BUG_ON(ret);	/* shouldn't happen */
+		_ON(ret);	/* shouldn't happen */
 		trans->block_rsv = rsv;
 	}
 
@@ -9820,7 +9820,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			ret = btrfs_unlink_subvol(trans, new_dir, root_objectid,
 						new_dentry->d_name.name,
 						new_dentry->d_name.len);
-			BUG_ON(new_inode->i_nlink == 0);
+			_ON(new_inode->i_nlink == 0);
 		} else {
 			ret = btrfs_unlink_inode(trans, dest, BTRFS_I(new_dir),
 						 BTRFS_I(d_inode(new_dentry)),
@@ -10070,7 +10070,7 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int nr)
 		root = list_first_entry(&splice, struct btrfs_root,
 					delalloc_root);
 		root = btrfs_grab_fs_root(root);
-		BUG_ON(!root);
+		_ON(!root);
 		list_move_tail(&root->delalloc_root,
 			       &fs_info->delalloc_roots);
 		spin_unlock(&fs_info->delalloc_root_lock);

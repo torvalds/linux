@@ -123,7 +123,7 @@ struct intel_dvo_dev_ops {
 	void (*destroy) (struct intel_dvo_device *dvo);
 
 	/**
-	 * Debugging hook to dump device registers to log file
+	 * Deging hook to dump device registers to log file
 	 */
 	void (*dump_regs)(struct intel_dvo_device *dvo);
 };

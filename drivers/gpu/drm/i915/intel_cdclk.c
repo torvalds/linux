@@ -240,7 +240,7 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 	if (vco == 0)
 		DRM_ERROR("Bad HPLL VCO (HPLLVCO=0x%02x)\n", tmp);
 	else
-		DRM_DEBUG_KMS("HPLL VCO %u kHz\n", vco);
+		DRM_DE_KMS("HPLL VCO %u kHz\n", vco);
 
 	return vco;
 }
@@ -1115,7 +1115,7 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		return;
 
 sanitize:
-	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
+	DRM_DE_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	/* force cdclk programming */
 	dev_priv->cdclk.hw.cdclk = 0;
@@ -1481,7 +1481,7 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		return;
 
 sanitize:
-	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
+	DRM_DE_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	/* force cdclk programming */
 	dev_priv->cdclk.hw.cdclk = 0;
@@ -1782,7 +1782,7 @@ static void cnl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		return;
 
 sanitize:
-	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
+	DRM_DE_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	/* force cdclk programming */
 	dev_priv->cdclk.hw.cdclk = 0;
@@ -1993,7 +1993,7 @@ void icl_init_cdclk(struct drm_i915_private *dev_priv)
 	return;
 
 sanitize:
-	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
+	DRM_DE_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	sanitized_state.ref = dev_priv->cdclk.hw.ref;
 	sanitized_state.cdclk = icl_calc_cdclk(0, sanitized_state.ref);
@@ -2103,7 +2103,7 @@ bool intel_cdclk_changed(const struct intel_cdclk_state *a,
 void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
 			    const char *context)
 {
-	DRM_DEBUG_DRIVER("%s %d kHz, VCO %d kHz, ref %d kHz, bypass %d kHz, voltage level %d\n",
+	DRM_DE_DRIVER("%s %d kHz, VCO %d kHz, ref %d kHz, bypass %d kHz, voltage level %d\n",
 			 context, cdclk_state->cdclk, cdclk_state->vco,
 			 cdclk_state->ref, cdclk_state->bypass,
 			 cdclk_state->voltage_level);
@@ -2211,7 +2211,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		min_cdclk = max(320000, min_cdclk);
 
 	if (min_cdclk > dev_priv->max_cdclk_freq) {
-		DRM_DEBUG_KMS("required cdclk (%d kHz) exceeds max (%d kHz)\n",
+		DRM_DE_KMS("required cdclk (%d kHz) exceeds max (%d kHz)\n",
 			      min_cdclk, dev_priv->max_cdclk_freq);
 		return -EINVAL;
 	}
@@ -2619,10 +2619,10 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 
 	dev_priv->max_dotclk_freq = intel_compute_max_dotclk(dev_priv);
 
-	DRM_DEBUG_DRIVER("Max CD clock rate: %d kHz\n",
+	DRM_DE_DRIVER("Max CD clock rate: %d kHz\n",
 			 dev_priv->max_cdclk_freq);
 
-	DRM_DEBUG_DRIVER("Max dotclock rate: %d kHz\n",
+	DRM_DE_DRIVER("Max dotclock rate: %d kHz\n",
 			 dev_priv->max_dotclk_freq);
 }
 
@@ -2735,7 +2735,7 @@ void intel_update_rawclk(struct drm_i915_private *dev_priv)
 		/* no rawclk on other platforms, or no need to know it */
 		return;
 
-	DRM_DEBUG_DRIVER("rawclk rate: %d kHz\n", dev_priv->rawclk_freq);
+	DRM_DE_DRIVER("rawclk rate: %d kHz\n", dev_priv->rawclk_freq);
 }
 
 /**

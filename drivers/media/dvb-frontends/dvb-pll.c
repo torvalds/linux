@@ -24,7 +24,7 @@
 #include "dvb-pll.h"
 
 #define dprintk(fmt, arg...) \
-	printk(KERN_DEBUG pr_fmt("%s: " fmt), __func__, ##arg)
+	printk(KERN_DE pr_fmt("%s: " fmt), __func__, ##arg)
 
 struct dvb_pll_priv {
 	/* pll number */
@@ -46,14 +46,14 @@ struct dvb_pll_priv {
 
 static unsigned int dvb_pll_devcount;
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 static unsigned int id[DVB_PLL_MAX] =
 	{ [ 0 ... (DVB_PLL_MAX-1) ] = DVB_PLL_UNDEFINED };
 module_param_array(id, int, NULL, 0644);
-MODULE_PARM_DESC(id, "force pll id to use (DEBUG ONLY)");
+MODULE_PARM_DESC(id, "force pll id to use (DE ONLY)");
 
 /* ----------------------------------------------------------- */
 
@@ -616,7 +616,7 @@ static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 		break;
 	}
 
-	if (debug)
+	if (de)
 		dprintk("pll: %s: freq=%d | i=%d/%d\n", desc->name,
 		       frequency, i, desc->count);
 	if (i == desc->count)
@@ -632,7 +632,7 @@ static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 	if (desc->set)
 		desc->set(fe, buf);
 
-	if (debug)
+	if (de)
 		dprintk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
 		       desc->name, div, buf[0], buf[1], buf[2], buf[3]);
 
@@ -668,7 +668,7 @@ static int dvb_pll_sleep(struct dvb_frontend *fe)
 		}
 		return 0;
 	}
-	/* Shouldn't be called when initdata is NULL, maybe BUG()? */
+	/* Shouldn't be called when initdata is NULL, maybe ()? */
 	return -EINVAL;
 }
 
@@ -773,7 +773,7 @@ static int dvb_pll_init(struct dvb_frontend *fe)
 		}
 		return 0;
 	}
-	/* Shouldn't be called when initdata is NULL, maybe BUG()? */
+	/* Shouldn't be called when initdata is NULL, maybe ()? */
 	return -EINVAL;
 }
 
@@ -808,7 +808,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	    (id[dvb_pll_devcount] < ARRAY_SIZE(pll_list)))
 		pll_desc_id = id[dvb_pll_devcount];
 
-	BUG_ON(pll_desc_id < 1 || pll_desc_id >= ARRAY_SIZE(pll_list));
+	_ON(pll_desc_id < 1 || pll_desc_id >= ARRAY_SIZE(pll_list));
 
 	desc = pll_list[pll_desc_id];
 
@@ -855,7 +855,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 
 	fe->tuner_priv = priv;
 
-	if ((debug) || (id[priv->nr] == pll_desc_id)) {
+	if ((de) || (id[priv->nr] == pll_desc_id)) {
 		dprintk("dvb-pll[%d]", priv->nr);
 		if (i2c != NULL)
 			pr_cont(" %d-%04x", i2c_adapter_id(i2c), pll_addr);

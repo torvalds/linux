@@ -17,7 +17,7 @@
 #include <linux/page-flags.h>
 #include <linux/radix-tree.h>
 #include <linux/atomic.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/page.h>
 
 extern pgd_t swapper_pg_dir[];
@@ -98,7 +98,7 @@ extern unsigned long MODULES_END;
 
 static inline int is_module_addr(void *addr)
 {
-	BUILD_BUG_ON(MODULES_LEN > (1UL << 31));
+	BUILD__ON(MODULES_LEN > (1UL << 31));
 	if (addr < (void *)MODULES_VADDR)
 		return 0;
 	if (addr > (void *)MODULES_END)
@@ -1475,7 +1475,7 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
 					unsigned long addr, pmd_t *pmdp,
 					pmd_t entry, int dirty)
 {
-	VM_BUG_ON(addr & ~HPAGE_MASK);
+	VM__ON(addr & ~HPAGE_MASK);
 
 	entry = pmd_mkyoung(entry);
 	if (dirty)
@@ -1500,7 +1500,7 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline int pmdp_clear_flush_young(struct vm_area_struct *vma,
 					 unsigned long addr, pmd_t *pmdp)
 {
-	VM_BUG_ON(addr & ~HPAGE_MASK);
+	VM__ON(addr & ~HPAGE_MASK);
 	return pmdp_test_and_clear_young(vma, addr, pmdp);
 }
 

@@ -12,7 +12,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/fixes to esc.storagedev@microsemi.com
  *
  */
 
@@ -723,7 +723,7 @@ struct pqi_encryption_info {
 #define PQI_CONFIG_TABLE_SECTION_GENERAL_INFO		0
 #define PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES	1
 #define PQI_CONFIG_TABLE_SECTION_FIRMWARE_ERRATA	2
-#define PQI_CONFIG_TABLE_SECTION_DEBUG			3
+#define PQI_CONFIG_TABLE_SECTION_DE			3
 #define PQI_CONFIG_TABLE_SECTION_HEARTBEAT		4
 #define PQI_CONFIG_TABLE_SECTION_SOFT_RESET		5
 
@@ -769,7 +769,7 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_SMP			1
 #define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
 
-struct pqi_config_table_debug {
+struct pqi_config_table_de {
 	struct pqi_config_table_section_header header;
 	__le32	scratchpad;
 };

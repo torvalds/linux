@@ -552,7 +552,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pPeerHTInfo = (struct ht_info_ele *)(pHTInfo->PeerHTInfoBuf);
 
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	print_hex_dump_bytes("HTOnAssocRsp(): ", DUMP_PREFIX_NONE,
 			     pPeerHTCap, sizeof(struct ht_capab_ele));
 #endif

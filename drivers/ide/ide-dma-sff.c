@@ -13,7 +13,7 @@
  *	If the drive supports at least mode 2 DMA or UDMA of any kind
  *	then attempt to place it into DMA mode. Drives that are known to
  *	support DMA but predate the DMA properties or that are known
- *	to have DMA handling bugs are also set up appropriately based
+ *	to have DMA handling s are also set up appropriately based
  *	on the good/bad drive lists.
  */
 
@@ -231,7 +231,7 @@ EXPORT_SYMBOL_GPL(ide_dma_setup);
  *	Finally if we have an interrupt we let it complete the I/O.
  *	But only one time - we clear expiry and if it's still not
  *	completed after WAIT_CMD, we error and retry in PIO.
- *	This can occur if an interrupt is lost or due to hang or bugs.
+ *	This can occur if an interrupt is lost or due to hang or s.
  */
 
 int ide_dma_sff_timer_expiry(ide_drive_t *drive)

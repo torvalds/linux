@@ -25,7 +25,7 @@ static int index[SNDRV_CARDS]	= SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS]	= SNDRV_DEFAULT_STR;
 static bool enable[SNDRV_CARDS]	= SNDRV_DEFAULT_ENABLE_PNP;
 unsigned int snd_efw_resp_buf_size	= 1024;
-bool snd_efw_resp_buf_debug		= false;
+bool snd_efw_resp_buf_de		= false;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "card index");
@@ -36,8 +36,8 @@ MODULE_PARM_DESC(enable, "enable Fireworks sound card");
 module_param_named(resp_buf_size, snd_efw_resp_buf_size, uint, 0444);
 MODULE_PARM_DESC(resp_buf_size,
 		 "response buffer size (max 4096, default 1024)");
-module_param_named(resp_buf_debug, snd_efw_resp_buf_debug, bool, 0444);
-MODULE_PARM_DESC(resp_buf_debug, "store all responses to buffer");
+module_param_named(resp_buf_de, snd_efw_resp_buf_de, bool, 0444);
+MODULE_PARM_DESC(resp_buf_de, "store all responses to buffer");
 
 static DEFINE_MUTEX(devices_mutex);
 static DECLARE_BITMAP(devices_used, SNDRV_CARDS);

@@ -95,10 +95,10 @@ UVCIOC_CTRL_ADD and UVCIOC_CTRL_MAP ioctls require super user permissions.
 Suggestions on how to improve this are welcome.
 
 
-Debugging
+Deging
 ~~~~~~~~~
 
-In order to debug problems related to XU controls or controls in general it is
+In order to de problems related to XU controls or controls in general it is
 recommended to enable the UVC_TRACE_CONTROL bit in the module parameter 'trace'.
 This causes extra output to be written into the system log.
 

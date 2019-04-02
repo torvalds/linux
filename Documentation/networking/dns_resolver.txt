@@ -9,7 +9,7 @@ Contents:
  - Setting up.
  - Usage.
  - Mechanism.
- - Debugging.
+ - Deging.
 
 
 ========
@@ -148,10 +148,10 @@ information about request-key function.
 
 
 =========
-DEBUGGING
+DEGING
 =========
 
-Debugging messages can be turned on dynamically by writing a 1 into the
+Deging messages can be turned on dynamically by writing a 1 into the
 following file:
 
-        /sys/module/dnsresolver/parameters/debug
+        /sys/module/dnsresolver/parameters/de

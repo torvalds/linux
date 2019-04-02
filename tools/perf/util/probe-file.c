@@ -25,7 +25,7 @@
 #include "event.h"
 #include "strlist.h"
 #include "strfilter.h"
-#include "debug.h"
+#include "de.h"
 #include "cache.h"
 #include "color.h"
 #include "symbol.h"
@@ -56,7 +56,7 @@ static void print_open_warning(int err, bool uprobe)
 			   " - please rebuild kernel with %s.\n",
 			   uprobe ? 'u' : 'k', config);
 	} else if (err == -ENOTSUP)
-		pr_warning("Tracefs or debugfs is not mounted.\n");
+		pr_warning("Tracefs or defs is not mounted.\n");
 	else
 		pr_warning("Failed to open %cprobe_events: %s\n",
 			   uprobe ? 'u' : 'k',
@@ -67,7 +67,7 @@ static void print_both_open_warning(int kerr, int uerr)
 {
 	/* Both kprobes and uprobes are disabled, warn it. */
 	if (kerr == -ENOTSUP && uerr == -ENOTSUP)
-		pr_warning("Tracefs or debugfs is not mounted.\n");
+		pr_warning("Tracefs or defs is not mounted.\n");
 	else if (kerr == -ENOENT && uerr == -ENOENT)
 		pr_warning("Please rebuild kernel with CONFIG_KPROBE_EVENTS "
 			   "or/and CONFIG_UPROBE_EVENTS.\n");
@@ -87,7 +87,7 @@ int open_trace_file(const char *trace_file, bool readwrite)
 
 	ret = e_snprintf(buf, PATH_MAX, "%s/%s", tracing_path_mount(), trace_file);
 	if (ret >= 0) {
-		pr_debug("Opening %s write=%d\n", buf, readwrite);
+		pr_de("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
 			ret = open(buf, O_RDWR | O_APPEND, 0);
 		else
@@ -172,7 +172,7 @@ struct strlist *probe_file__get_rawlist(int fd)
 			p[idx] = '\0';
 		ret = strlist__add(sl, buf);
 		if (ret < 0) {
-			pr_debug("strlist__add failed (%d)\n", ret);
+			pr_de("strlist__add failed (%d)\n", ret);
 			goto out_close_fp;
 		}
 	}
@@ -240,11 +240,11 @@ int probe_file__add_event(int fd, struct probe_trace_event *tev)
 	char sbuf[STRERR_BUFSIZE];
 
 	if (!buf) {
-		pr_debug("Failed to synthesize probe trace event.\n");
+		pr_de("Failed to synthesize probe trace event.\n");
 		return -EINVAL;
 	}
 
-	pr_debug("Writing event: %s\n", buf);
+	pr_de("Writing event: %s\n", buf);
 	if (!probe_event_dry_run) {
 		if (write(fd, buf, strlen(buf)) < (int)strlen(buf)) {
 			ret = -errno;
@@ -270,14 +270,14 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 
 	p = strchr(buf + 2, ':');
 	if (!p) {
-		pr_debug("Internal error: %s should have ':' but not.\n",
+		pr_de("Internal error: %s should have ':' but not.\n",
 			 ent->s);
 		ret = -ENOTSUP;
 		goto error;
 	}
 	*p = '/';
 
-	pr_debug("Writing event: %s\n", buf);
+	pr_de("Writing event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
 	if (ret < 0) {
 		ret = -errno;
@@ -355,7 +355,7 @@ int probe_file__del_events(int fd, struct strfilter *filter)
 static void probe_cache_entry__delete(struct probe_cache_entry *entry)
 {
 	if (entry) {
-		BUG_ON(!list_empty(&entry->node));
+		_ON(!list_empty(&entry->node));
 
 		strlist__delete(entry->tevlist);
 		clear_perf_probe_event(&entry->pev);
@@ -441,7 +441,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target,
 	}
 
 	if (ret < 0) {
-		pr_debug("Failed to get build-id from %s.\n", target);
+		pr_de("Failed to get build-id from %s.\n", target);
 		return ret;
 	}
 
@@ -450,7 +450,7 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target,
 		ret = build_id_cache__add_s(sbuildid, target, nsi,
 					    is_kallsyms, NULL);
 		if (ret < 0) {
-			pr_debug("Failed to add build-id cache: %s\n", target);
+			pr_de("Failed to add build-id cache: %s\n", target);
 			return ret;
 		}
 	}
@@ -459,14 +459,14 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target,
 					    false);
 found:
 	if (!dir_name) {
-		pr_debug("Failed to get cache from %s\n", target);
+		pr_de("Failed to get cache from %s\n", target);
 		return -ENOMEM;
 	}
 
 	snprintf(cpath, PATH_MAX, "%s/probes", dir_name);
 	fd = open(cpath, O_CREAT | O_RDWR, 0644);
 	if (fd < 0)
-		pr_debug("Failed to open cache(%d): %s\n", fd, cpath);
+		pr_de("Failed to open cache(%d): %s\n", fd, cpath);
 	free(dir_name);
 	pcache->fd = fd;
 
@@ -570,13 +570,13 @@ struct probe_cache *probe_cache__new(const char *target, struct nsinfo *nsi)
 
 	ret = probe_cache__open(pcache, target, nsi);
 	if (ret < 0) {
-		pr_debug("Cache open error: %d\n", ret);
+		pr_de("Cache open error: %d\n", ret);
 		goto out_err;
 	}
 
 	ret = probe_cache__load(pcache);
 	if (ret < 0) {
-		pr_debug("Cache read error: %d\n", ret);
+		pr_de("Cache read error: %d\n", ret);
 		goto out_err;
 	}
 
@@ -685,11 +685,11 @@ int probe_cache__add_entry(struct probe_cache *pcache,
 		free(command);
 	}
 	list_add_tail(&entry->node, &pcache->entries);
-	pr_debug("Added probe cache: %d\n", ntevs);
+	pr_de("Added probe cache: %d\n", ntevs);
 	return 0;
 
 out_err:
-	pr_debug("Failed to add probe caches\n");
+	pr_de("Failed to add probe caches\n");
 	probe_cache_entry__delete(entry);
 	return ret;
 }
@@ -725,7 +725,7 @@ static int sdt_arg_parse_size(char *n_ptr, const char **suffix)
 
 	type_idx = strtol(n_ptr, NULL, 10);
 	if (type_idx < -8 || type_idx > 8) {
-		pr_debug4("Failed to get a valid sdt type\n");
+		pr_de4("Failed to get a valid sdt type\n");
 		return -1;
 	}
 
@@ -740,7 +740,7 @@ static int synthesize_sdt_probe_arg(struct strbuf *buf, int i, const char *arg)
 	int ret = -1;
 
 	if (desc == NULL) {
-		pr_debug4("Allocation error\n");
+		pr_de4("Allocation error\n");
 		return ret;
 	}
 
@@ -832,7 +832,7 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 	INIT_LIST_HEAD(&sdtlist);
 	ret = get_sdt_note_list(&sdtlist, pathname);
 	if (ret < 0) {
-		pr_debug4("Failed to get sdt note: %d\n", ret);
+		pr_de4("Failed to get sdt note: %d\n", ret);
 		return ret;
 	}
 	list_for_each_entry(note, &sdtlist, note_list) {
@@ -887,7 +887,7 @@ static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 	if (ret < 0)
 		return ret;
 
-	pr_debug("Writing cache: %s%s\n", prefix, entry->spev);
+	pr_de("Writing cache: %s%s\n", prefix, entry->spev);
 	iov[0].iov_base = (void *)prefix; iov[0].iov_len = 1;
 	iov[1].iov_base = entry->spev; iov[1].iov_len = strlen(entry->spev);
 	iov[2].iov_base = (void *)"\n"; iov[2].iov_len = 1;
@@ -931,7 +931,7 @@ int probe_cache__commit(struct probe_cache *pcache)
 
 	for_each_probe_cache_entry(entry, pcache) {
 		ret = probe_cache_entry__write(entry, pcache->fd);
-		pr_debug("Cache committed: %d\n", ret);
+		pr_de("Cache committed: %d\n", ret);
 		if (ret < 0)
 			break;
 	}
@@ -986,12 +986,12 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 	struct str_node *nd;
 	char *buf = strfilter__string(filter);
 
-	pr_debug("list cache with filter: %s\n", buf);
+	pr_de("list cache with filter: %s\n", buf);
 	free(buf);
 
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: %d\n", errno);
+		pr_de("Failed to get buildids: %d\n", errno);
 		return -EINVAL;
 	}
 	strlist__for_each_entry(nd, bidlist) {

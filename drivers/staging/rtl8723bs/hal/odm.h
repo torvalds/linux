@@ -262,7 +262,7 @@ struct odm_packet_info {
 };
 
 typedef struct _ODM_Phy_Dbg_Info_ {
-	/* ODM Write, debug info */
+	/* ODM Write, de info */
 	s8 RxSNRdB[4];
 	u32 NumQryPhyStatus;
 	u32 NumQryPhyStatusCCK;
@@ -711,7 +711,7 @@ typedef struct ODM_RF_Calibration_Structure {
 
 	bool bReloadtxpowerindex;
 	u8 bRfPiEnable;
-	u32 TXPowerTrackingCallbackCnt; /* cosa add for debug */
+	u32 TXPowerTrackingCallbackCnt; /* cosa add for de */
 
 	/*  Tx power Tracking ------------------------- */
 	u8 bCCKinCH14;
@@ -879,8 +879,8 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	PHY_REG_PG_TYPE PhyRegPgValueType;
 	u8 PhyRegPgVersion;
 
-	u64	DebugComponents;
-	u32 DebugLevel;
+	u64	DeComponents;
+	u32 DeLevel;
 
 	u32 NumQryPhyStatusAll;	/* CCK + OFDM */
 	u32 LastNumQryPhyStatusAll;

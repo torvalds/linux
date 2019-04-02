@@ -45,8 +45,8 @@ static inline void write_maar_pair(unsigned idx, phys_addr_t lower,
 				   phys_addr_t upper, unsigned attrs)
 {
 	/* Addresses begin at bit 16, but are shifted right 4 bits */
-	BUG_ON(lower & (0xffff | ~(MIPS_MAAR_ADDR << 4)));
-	BUG_ON(((upper & 0xffff) != 0xffff)
+	_ON(lower & (0xffff | ~(MIPS_MAAR_ADDR << 4)));
+	_ON(((upper & 0xffff) != 0xffff)
 		|| ((upper & ~0xffffull) & ~(MIPS_MAAR_ADDR << 4)));
 
 	/* Automatically set MIPS_MAAR_VL */

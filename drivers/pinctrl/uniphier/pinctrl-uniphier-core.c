@@ -68,7 +68,7 @@ static int uniphier_pctl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 				       struct seq_file *s, unsigned offset)
 {
@@ -92,7 +92,7 @@ static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 		pull_dir = "NONE";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (uniphier_pin_get_drv_type(desc->drv_data)) {
@@ -118,7 +118,7 @@ static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 		drv_type = "NONE";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	seq_printf(s, " PULL_DIR=%s  DRV_TYPE=%s", pull_dir, drv_type);
@@ -129,7 +129,7 @@ static const struct pinctrl_ops uniphier_pctlops = {
 	.get_groups_count = uniphier_pctl_get_groups_count,
 	.get_group_name = uniphier_pctl_get_group_name,
 	.get_group_pins = uniphier_pctl_get_group_pins,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_dbg_show = uniphier_pctl_pin_dbg_show,
 #endif
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
@@ -235,7 +235,7 @@ static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	pupdctrl = uniphier_pin_get_pupdctrl(desc->drv_data);
@@ -402,7 +402,7 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 			return 0; /* configuration ingored */
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	pupdctrl = uniphier_pin_get_pupdctrl(desc->drv_data);
@@ -595,7 +595,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 		/*
 		 *  Mode     reg_offset     bit_position
 		 *  Normal    4 * n        shift+3:shift
-		 *  Debug     4 * n        shift+7:shift+4
+		 *  De     4 * n        shift+7:shift+4
 		 */
 		mux_bits = 4;
 		reg_stride = 8;
@@ -604,7 +604,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 		/*
 		 *  Mode     reg_offset     bit_position
 		 *  Normal    8 * n        shift+3:shift
-		 *  Debug     8 * n + 4    shift+3:shift
+		 *  De     8 * n + 4    shift+3:shift
 		 */
 		mux_bits = 8;
 		reg_stride = 4;

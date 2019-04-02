@@ -76,10 +76,10 @@ static u64 i8253_read(struct clocksource *cs)
 	 *     resulting interrupt and incremented jiffies yet.
 	 *  2. Hardware problem with the timer, not giving us continuous time,
 	 *     the counter does small "jumps" upwards on some Pentium systems,
-	 *     (see c't 95/10 page 335 for Neptun bug.)
+	 *     (see c't 95/10 page 335 for Neptun .)
 	 *
 	 * Previous attempts to handle these cases intelligently were
-	 * buggy, so we just do the simple thing now.
+	 * gy, so we just do the simple thing now.
 	 */
 	if (count > old_count && jifs == old_jifs)
 		count = old_count;

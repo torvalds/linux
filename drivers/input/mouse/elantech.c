@@ -25,10 +25,10 @@
 #include "elantech.h"
 #include "elan_i2c.h"
 
-#define elantech_debug(fmt, ...)					\
+#define elantech_de(fmt, ...)					\
 	do {								\
-		if (etd->info.debug)					\
-			psmouse_printk(KERN_DEBUG, psmouse,		\
+		if (etd->info.de)					\
+			psmouse_printk(KERN_DE, psmouse,		\
 					fmt, ##__VA_ARGS__);		\
 	} while (0)
 
@@ -81,7 +81,7 @@ static int elantech_ps2_command(struct psmouse *psmouse,
 		if (rc == 0)
 			break;
 		tries--;
-		elantech_debug("retrying ps2 command 0x%02x (%d).\n",
+		elantech_de("retrying ps2 command 0x%02x (%d).\n",
 				command, tries);
 		msleep(ETP_PS2_COMMAND_DELAY);
 	} while (tries > 0);
@@ -225,7 +225,7 @@ static int elantech_write_reg(struct psmouse *psmouse, unsigned char reg,
  */
 static void elantech_packet_dump(struct psmouse *psmouse)
 {
-	psmouse_printk(KERN_DEBUG, psmouse, "PS/2 packet [%*ph]\n",
+	psmouse_printk(KERN_DE, psmouse, "PS/2 packet [%*ph]\n",
 		       psmouse->pktsize, psmouse->packet);
 }
 
@@ -261,7 +261,7 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 		} else if (etd->single_finger_reports < 2) {
 			/* Discard first 2 reports of one finger, bogus */
 			etd->single_finger_reports++;
-			elantech_debug("discarding packet\n");
+			elantech_de("discarding packet\n");
 			return;
 		}
 	}
@@ -446,8 +446,8 @@ static void elantech_report_trackpoint(struct psmouse *psmouse,
 		break;
 
 	default:
-		/* Dump unexpected packet sequences if debug=1 (default) */
-		if (etd->info.debug == 1)
+		/* Dump unexpected packet sequences if de=1 (default) */
+		if (etd->info.de == 1)
 			elantech_packet_dump(psmouse);
 
 		break;
@@ -830,7 +830,7 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 	if (psmouse->pktcnt < psmouse->pktsize)
 		return PSMOUSE_GOOD_DATA;
 
-	if (etd->info.debug > 1)
+	if (etd->info.de > 1)
 		elantech_packet_dump(psmouse);
 
 	switch (etd->info.hw_version) {
@@ -972,7 +972,7 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 			if (rc == 0)
 				break;
 			tries--;
-			elantech_debug("retrying read (%d).\n", tries);
+			elantech_de("retrying read (%d).\n", tries);
 			msleep(ETP_READ_BACK_DELAY);
 		} while (tries > 0);
 
@@ -1380,7 +1380,7 @@ ELANTECH_INT_ATTR(reg_23, 0x23);
 ELANTECH_INT_ATTR(reg_24, 0x24);
 ELANTECH_INT_ATTR(reg_25, 0x25);
 ELANTECH_INT_ATTR(reg_26, 0x26);
-ELANTECH_INFO_ATTR(debug);
+ELANTECH_INFO_ATTR(de);
 ELANTECH_INFO_ATTR(paritycheck);
 ELANTECH_INFO_ATTR(crc_enabled);
 
@@ -1395,7 +1395,7 @@ static struct attribute *elantech_attrs[] = {
 	&psmouse_attr_reg_24.dattr.attr,
 	&psmouse_attr_reg_25.dattr.attr,
 	&psmouse_attr_reg_26.dattr.attr,
-	&psmouse_attr_debug.dattr.attr,
+	&psmouse_attr_de.dattr.attr,
 	&psmouse_attr_paritycheck.dattr.attr,
 	&psmouse_attr_crc_enabled.dattr.attr,
 	NULL
@@ -1663,8 +1663,8 @@ static int elantech_set_properties(struct elantech_device_info *info)
 		(info->fw_version == 0x020022 || info->fw_version == 0x020600);
 
 	if (info->hw_version > 1) {
-		/* For now show extra debug information */
-		info->debug = 1;
+		/* For now show extra de information */
+		info->de = 1;
 
 		if (info->fw_version >= 0x020800)
 			info->reports_pressure = true;
@@ -1731,7 +1731,7 @@ static int elantech_query_info(struct psmouse *psmouse,
 
 	if (info->samples[1] == 0x74 && info->hw_version == 0x03) {
 		/*
-		 * This module has a bug which makes absolute mode
+		 * This module has a  which makes absolute mode
 		 * unusable, so let's abort so we'll be using standard
 		 * PS/2 protocol.
 		 */

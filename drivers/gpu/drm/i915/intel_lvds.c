@@ -182,7 +182,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 
 	if (INTEL_GEN(dev_priv) <= 4 &&
 	    pps->t1_t2 == 0 && pps->t5 == 0 && pps->t3 == 0 && pps->tx == 0) {
-		DRM_DEBUG_KMS("Panel power timings uninitialized, "
+		DRM_DE_KMS("Panel power timings uninitialized, "
 			      "setting defaults\n");
 		/* Set T2 to 40ms and T5 to 200ms in 100 usec units */
 		pps->t1_t2 = 40 * 10;
@@ -192,7 +192,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 		pps->tx = 200 * 10;
 	}
 
-	DRM_DEBUG_DRIVER("LVDS PPS:t1+t2 %d t3 %d t4 %d t5 %d tx %d "
+	DRM_DE_DRIVER("LVDS PPS:t1+t2 %d t3 %d t4 %d t5 %d tx %d "
 			 "divider %d port %d powerdown_on_reset %d\n",
 			 pps->t1_t2, pps->t3, pps->t4, pps->t5, pps->tx,
 			 pps->divider, pps->port, pps->powerdown_on_reset);
@@ -405,7 +405,7 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		lvds_bpp = 6*3;
 
 	if (lvds_bpp != pipe_config->pipe_bpp && !pipe_config->bw_constrained) {
-		DRM_DEBUG_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
+		DRM_DE_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
 			      pipe_config->pipe_bpp, lvds_bpp);
 		pipe_config->pipe_bpp = lvds_bpp;
 	}
@@ -830,7 +830,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (!dev_priv->vbt.int_lvds_support) {
-		DRM_DEBUG_KMS("Internal LVDS support disabled by VBT\n");
+		DRM_DE_KMS("Internal LVDS support disabled by VBT\n");
 		return;
 	}
 
@@ -849,10 +849,10 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	pin = GMBUS_PIN_PANEL;
 	if (!intel_bios_is_lvds_present(dev_priv, &pin)) {
 		if ((lvds & LVDS_PORT_EN) == 0) {
-			DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+			DRM_DE_KMS("LVDS is not present in VBT\n");
 			return;
 		}
-		DRM_DEBUG_KMS("LVDS is not present in VBT, but enabled anyway\n");
+		DRM_DE_KMS("LVDS is not present in VBT, but enabled anyway\n");
 	}
 
 	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);
@@ -954,8 +954,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
-			DRM_DEBUG_KMS("using preferred mode from EDID: ");
-			drm_mode_debug_printmodeline(scan);
+			DRM_DE_KMS("using preferred mode from EDID: ");
+			drm_mode_de_printmodeline(scan);
 
 			fixed_mode = drm_mode_duplicate(dev, scan);
 			if (fixed_mode)
@@ -965,8 +965,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	/* Failed to get EDID, what about VBT? */
 	if (dev_priv->vbt.lfp_lvds_vbt_mode) {
-		DRM_DEBUG_KMS("using mode from VBT: ");
-		drm_mode_debug_printmodeline(dev_priv->vbt.lfp_lvds_vbt_mode);
+		DRM_DE_KMS("using mode from VBT: ");
+		drm_mode_de_printmodeline(dev_priv->vbt.lfp_lvds_vbt_mode);
 
 		fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
 		if (fixed_mode) {
@@ -984,8 +984,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 */
 	fixed_mode = intel_encoder_current_mode(intel_encoder);
 	if (fixed_mode) {
-		DRM_DEBUG_KMS("using current (BIOS) mode: ");
-		drm_mode_debug_printmodeline(fixed_mode);
+		DRM_DE_KMS("using current (BIOS) mode: ");
+		drm_mode_de_printmodeline(fixed_mode);
 		fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 
@@ -1000,7 +1000,7 @@ out:
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
-	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
+	DRM_DE_KMS("detected %s-link lvds configuration\n",
 		      lvds_encoder->is_dual_link ? "dual" : "single");
 
 	lvds_encoder->a3_power = lvds & LVDS_A3_POWER_MASK;
@@ -1010,7 +1010,7 @@ out:
 failed:
 	mutex_unlock(&dev->mode_config.mutex);
 
-	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
+	DRM_DE_KMS("No LVDS modes found, disabling.\n");
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
 	kfree(lvds_encoder);

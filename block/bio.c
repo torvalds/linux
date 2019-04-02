@@ -167,7 +167,7 @@ void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned int idx)
 		return;
 	idx--;
 
-	BIO_BUG_ON(idx >= BVEC_POOL_NR);
+	BIO__ON(idx >= BVEC_POOL_NR);
 
 	if (idx == BVEC_POOL_MAX) {
 		mempool_free(bv, pool);
@@ -338,7 +338,7 @@ static void bio_chain_endio(struct bio *bio)
  */
 void bio_chain(struct bio *bio, struct bio *parent)
 {
-	BUG_ON(bio->bi_private || bio->bi_end_io);
+	_ON(bio->bi_private || bio->bi_end_io);
 
 	bio->bi_private = parent;
 	bio->bi_end_io	= bio_chain_endio;
@@ -560,7 +560,7 @@ void bio_put(struct bio *bio)
 	if (!bio_flagged(bio, BIO_REFFED))
 		bio_free(bio);
 	else {
-		BIO_BUG_ON(!atomic_read(&bio->__bi_cnt));
+		BIO__ON(!atomic_read(&bio->__bi_cnt));
 
 		/*
 		 * last put frees it
@@ -592,7 +592,7 @@ int bio_phys_segments(struct request_queue *q, struct bio *bio)
  */
 void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 {
-	BUG_ON(bio->bi_pool && BVEC_POOL_IDX(bio));
+	_ON(bio->bi_pool && BVEC_POOL_IDX(bio));
 
 	/*
 	 * most users will be overriding ->bi_disk with a new target,
@@ -891,7 +891,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	 * possible so that we can start filling biovecs from the beginning
 	 * without overwriting the temporary page array.
 	*/
-	BUILD_BUG_ON(PAGE_PTRS_PER_BVEC < 2);
+	BUILD__ON(PAGE_PTRS_PER_BVEC < 2);
 	pages += entries_left * (PAGE_PTRS_PER_BVEC - 1);
 
 	size = iov_iter_get_pages(iter, pages, LONG_MAX, nr_pages, &offset);
@@ -1800,7 +1800,7 @@ static inline bool bio_remaining_done(struct bio *bio)
 	if (!bio_flagged(bio, BIO_CHAIN))
 		return true;
 
-	BUG_ON(atomic_read(&bio->__bi_remaining) <= 0);
+	_ON(atomic_read(&bio->__bi_remaining) <= 0);
 
 	if (atomic_dec_and_test(&bio->__bi_remaining)) {
 		bio_clear_flag(bio, BIO_CHAIN);
@@ -1881,8 +1881,8 @@ struct bio *bio_split(struct bio *bio, int sectors,
 {
 	struct bio *split;
 
-	BUG_ON(sectors <= 0);
-	BUG_ON(sectors >= bio_sectors(bio));
+	_ON(sectors <= 0);
+	_ON(sectors >= bio_sectors(bio));
 
 	split = bio_clone_fast(bio, gfp, bs);
 	if (!split)

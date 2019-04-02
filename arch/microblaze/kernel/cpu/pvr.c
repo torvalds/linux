@@ -54,7 +54,7 @@ int cpu_has_pvr(void)
 		return 0;
 
 	get_single_pvr(0, pvr0);
-	pr_debug("%s: pvr0 is 0x%08x\n", __func__, pvr0);
+	pr_de("%s: pvr0 is 0x%08x\n", __func__, pvr0);
 
 	if (pvr0 & PVR0_PVR_FULL_MASK)
 		return 1;

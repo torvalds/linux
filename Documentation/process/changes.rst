@@ -18,7 +18,7 @@ Current Minimal Requirements
 ****************************
 
 Upgrade to at **least** these software revisions before thinking you've
-encountered a bug!  If you're unsure what version you're currently
+encountered a !  If you're unsure what version you're currently
 running, the suggested command should tell you.
 
 Again, keep in mind that this list assumes you are already functionally
@@ -173,8 +173,8 @@ mkinitrd be upgraded.
 E2fsprogs
 ---------
 
-The latest version of ``e2fsprogs`` fixes several bugs in fsck and
-debugfs.  Obviously, it's a good idea to upgrade.
+The latest version of ``e2fsprogs`` fixes several s in fsck and
+defs.  Obviously, it's a good idea to upgrade.
 
 JFSutils
 --------
@@ -194,7 +194,7 @@ Reiserfsprogs
 
 The reiserfsprogs package should be used for reiserfs-3.6.x
 (Linux kernels 2.4.x). It is a combined package and contains working
-versions of ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` and
+versions of ``mkreiserfs``, ``resize_reiserfs``, ``dereiserfs`` and
 ``reiserfsck``. These utils work on both i386 and alpha platforms.
 
 Xfsprogs

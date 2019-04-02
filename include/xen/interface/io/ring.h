@@ -190,7 +190,7 @@ struct __name##_back_ring {						\
  * Use this in preference to RING_GET_REQUEST() so all processing is
  * done on a local copy that cannot be modified by the other end.
  *
- * Note that https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145 may cause this
+ * Note that https://gcc.gnu.org/zilla/show_.cgi?id=58145 may cause this
  * to be ineffective where _req is a struct which consists of only bitfields.
  */
 #define RING_COPY_REQUEST(_r, _idx, _req) do {				\

@@ -1464,8 +1464,8 @@ static int rtl8187_probe(struct usb_interface *intf,
 
 	skb_queue_head_init(&priv->rx_queue);
 
-	BUILD_BUG_ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
-	BUILD_BUG_ON(sizeof(priv->rates) != sizeof(rtl818x_rates));
+	BUILD__ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
+	BUILD__ON(sizeof(priv->rates) != sizeof(rtl818x_rates));
 
 	memcpy(priv->channels, rtl818x_channels, sizeof(rtl818x_channels));
 	memcpy(priv->rates, rtl818x_rates, sizeof(rtl818x_rates));

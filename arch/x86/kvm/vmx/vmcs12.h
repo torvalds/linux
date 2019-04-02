@@ -2,7 +2,7 @@
 #ifndef __KVM_X86_VMX_VMCS12_H
 #define __KVM_X86_VMX_VMCS12_H
 
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 
 #include "vmcs.h"
 
@@ -52,7 +52,7 @@ struct __packed vmcs12 {
 	u64 xss_exit_bitmap;
 	u64 guest_physical_address;
 	u64 vmcs_link_pointer;
-	u64 guest_ia32_debugctl;
+	u64 guest_ia32_dectl;
 	u64 guest_ia32_pat;
 	u64 guest_ia32_efer;
 	u64 guest_ia32_perf_global_ctrl;
@@ -215,7 +215,7 @@ struct __packed vmcs12 {
  * For save/restore compatibility, the vmcs12 field offsets must not change.
  */
 #define CHECK_OFFSET(field, loc)				\
-	BUILD_BUG_ON_MSG(offsetof(struct vmcs12, field) != (loc),	\
+	BUILD__ON_MSG(offsetof(struct vmcs12, field) != (loc),	\
 		"Offset of " #field " in struct vmcs12 has changed.")
 
 static inline void vmx_check_vmcs12_offsets(void)
@@ -241,7 +241,7 @@ static inline void vmx_check_vmcs12_offsets(void)
 	CHECK_OFFSET(xss_exit_bitmap, 160);
 	CHECK_OFFSET(guest_physical_address, 168);
 	CHECK_OFFSET(vmcs_link_pointer, 176);
-	CHECK_OFFSET(guest_ia32_debugctl, 184);
+	CHECK_OFFSET(guest_ia32_dectl, 184);
 	CHECK_OFFSET(guest_ia32_pat, 192);
 	CHECK_OFFSET(guest_ia32_efer, 200);
 	CHECK_OFFSET(guest_ia32_perf_global_ctrl, 208);

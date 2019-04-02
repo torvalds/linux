@@ -606,7 +606,7 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 	pcxhr_set_pipe_cmd_params(&rmh, is_capture, stream->pipe->first_audio,
 				  stream_num, 0);
 	if (is_capture) {
-		/* bug with old dsp versions: */
+		/*  with old dsp versions: */
 		/* bit 12 also sets the format of the playback stream */
 		if (DSP_EXT_CMD_SET(chip->mgr))
 			rmh.cmd[0] |= 1<<10;
@@ -654,7 +654,7 @@ static int pcxhr_update_r_buffer(struct pcxhr_stream *stream)
 				  stream_num, 0);
 
 	/* max buffer size is 2 MByte */
-	snd_BUG_ON(subs->runtime->dma_bytes >= 0x200000);
+	snd__ON(subs->runtime->dma_bytes >= 0x200000);
 	/* size in bits */
 	rmh.cmd[1] = subs->runtime->dma_bytes * 8;
 	/* most significant byte */
@@ -710,7 +710,7 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	int capture_mask = 0;
 	int playback_mask = 0;
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	ktime_t start_time, stop_time, diff_time;
 
 	start_time = ktime_get();
@@ -823,7 +823,7 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 
 	mutex_unlock(&mgr->setup_mutex);
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	stop_time = ktime_get();
 	diff_time = ktime_sub(stop_time, start_time);
 	dev_dbg(&mgr->pci->dev, "***TRIGGER START*** TIME = %ld (err = %x)\n",
@@ -1047,7 +1047,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 		return -EBUSY;
 	}
 
-	/* float format support is in some cases buggy on stereo cards */
+	/* float format support is in some cases gy on stereo cards */
 	if (mgr->is_hr_stereo)
 		runtime->hw.formats &= ~SNDRV_PCM_FMTBIT_FLOAT_LE;
 
@@ -1297,7 +1297,7 @@ static void pcxhr_proc_info(struct snd_info_entry *entry,
 			    mgr->async_err_stream_xrun);
 		snd_iprintf(buffer, "dsp async last other error : %x\n",
 			    mgr->async_err_other_last);
-		/* debug zone dsp */
+		/* de zone dsp */
 		rmh.cmd[0] = 0x4200 + PCXHR_SIZE_MAX_STATUS;
 		rmh.cmd_len = 1;
 		rmh.stat_len = PCXHR_SIZE_MAX_STATUS;
@@ -1308,7 +1308,7 @@ static void pcxhr_proc_info(struct snd_info_entry *entry,
 			if (rmh.stat_len > 8)
 				rmh.stat_len = 8;
 			for (i = 0; i < rmh.stat_len; i++)
-				snd_iprintf(buffer, "debug[%02d] = %06x\n",
+				snd_iprintf(buffer, "de[%02d] = %06x\n",
 					    i,  rmh.stat[i]);
 		}
 	} else
@@ -1542,7 +1542,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 		return -ENOMEM;
 	}
 
-	if (snd_BUG_ON(pci_id->driver_data >= PCI_ID_LAST)) {
+	if (snd__ON(pci_id->driver_data >= PCI_ID_LAST)) {
 		kfree(mgr);
 		pci_disable_device(pci);
 		return -ENODEV;

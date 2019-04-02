@@ -16,13 +16,13 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/mm_types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <asm/irq.h>
 #include <asm/traps.h>
@@ -49,7 +49,7 @@ asmlinkage void set_esp0(unsigned long ssp)
 }
 
 /*
- *	Generic dumping code. Used for panic and debug.
+ *	Generic dumping code. Used for panic and de.
  */
 
 static void dump(struct pt_regs *fp)
@@ -105,7 +105,7 @@ void die(const char *str, struct pt_regs *fp, unsigned long err)
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
-	report_bug(fp->pc, fp);
+	report_(fp->pc, fp);
 	pr_crit("%s: %04lx [#%d] ", str, err & 0xffff, ++diecount);
 	dump(fp);
 

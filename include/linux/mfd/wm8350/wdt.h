@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 
 #define WM8350_WDOG_HIB_MODE                    0x0080
-#define WM8350_WDOG_DEBUG                       0x0040
+#define WM8350_WDOG_DE                       0x0040
 #define WM8350_WDOG_MODE_MASK                   0x0030
 #define WM8350_WDOG_TO_MASK                     0x0007
 

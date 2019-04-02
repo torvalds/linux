@@ -186,7 +186,7 @@ typedef struct lboard_s {
         unsigned char 	brd_promver;      /* board prom version, if any */
  	unsigned char 	brd_flags;        /* Enabled, Disabled etc */
 	unsigned char 	brd_slot;         /* slot number */
-	unsigned short	brd_debugsw;      /* Debug switches */
+	unsigned short	brd_desw;      /* De switches */
 	geoid_t		brd_geoid;	  /* geo id */
 	partid_t 	brd_partition;    /* Partition number */
         unsigned short 	brd_diagval;      /* diagnostic value */

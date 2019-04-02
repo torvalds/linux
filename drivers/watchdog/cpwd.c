@@ -226,7 +226,7 @@ static void cpwd_resetbrokentimer(struct cpwd *p, int index)
 }
 
 /* Timer method called to reset stopped watchdogs--
- * because of the PLD bug on CP1400, we cannot mask
+ * because of the PLD  on CP1400, we cannot mask
  * interrupts within the PLD so me must continually
  * reset the timers ad infinitum.
  */

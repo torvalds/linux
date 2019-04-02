@@ -120,7 +120,7 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 	u16 cptr_idx;
 	int err;
 
-	pr_debug("Device %d\n", dev_idx);
+	pr_de("Device %d\n", dev_idx);
 
 	multi = mlxfw_mfa2_tlv_multi_get(mfa2_file, dev_tlv);
 	if (!multi) {
@@ -145,7 +145,7 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 		return false;
 	}
 
-	print_hex_dump_debug("  -- Device PSID ", DUMP_PREFIX_NONE, 16, 16,
+	print_hex_dump_de("  -- Device PSID ", DUMP_PREFIX_NONE, 16, 16,
 			     psid->psid, be16_to_cpu(tlv->len), true);
 
 	/* Validate the device has COMPONENT_PTR */
@@ -174,7 +174,7 @@ mlxfw_mfa2_file_dev_validate(const struct mlxfw_mfa2_file *mfa2_file,
 			return false;
 		}
 
-		pr_debug("  -- Component index %d\n",
+		pr_de("  -- Component index %d\n",
 			 be16_to_cpu(cptr->component_index));
 	}
 	return true;
@@ -189,7 +189,7 @@ mlxfw_mfa2_file_comp_validate(const struct mlxfw_mfa2_file *mfa2_file,
 	const struct mlxfw_mfa2_tlv_multi *multi;
 	const struct mlxfw_mfa2_tlv *tlv;
 
-	pr_debug("Component %d\n", comp_idx);
+	pr_de("Component %d\n", comp_idx);
 
 	multi = mlxfw_mfa2_tlv_multi_get(mfa2_file, comp_tlv);
 	if (!multi) {
@@ -213,8 +213,8 @@ mlxfw_mfa2_file_comp_validate(const struct mlxfw_mfa2_file *mfa2_file,
 		       comp_idx);
 		return false;
 	}
-	pr_debug("  -- Component type %d\n", be16_to_cpu(cdesc->identifier));
-	pr_debug("  -- Offset 0x%llx and size %d\n",
+	pr_de("  -- Component type %d\n", be16_to_cpu(cdesc->identifier));
+	pr_de("  -- Offset 0x%llx and size %d\n",
 		 ((u64) be32_to_cpu(cdesc->cb_offset_h) << 32)
 		 | be32_to_cpu(cdesc->cb_offset_l), be32_to_cpu(cdesc->size));
 
@@ -226,7 +226,7 @@ static bool mlxfw_mfa2_file_validate(const struct mlxfw_mfa2_file *mfa2_file)
 	const struct mlxfw_mfa2_tlv *tlv;
 	u16 idx;
 
-	pr_debug("Validating file\n");
+	pr_de("Validating file\n");
 
 	/* check that all the devices exist */
 	mlxfw_mfa2_tlv_foreach(mfa2_file, tlv, idx, mfa2_file->first_dev,

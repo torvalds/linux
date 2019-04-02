@@ -29,7 +29,7 @@
 
 #include "attrib.h"
 #include "inode.h"
-#include "debug.h"
+#include "de.h"
 #include "ntfs.h"
 
 /**
@@ -74,7 +74,7 @@ static DEFINE_SPINLOCK(ntfs_cb_lock);
  */
 int allocate_compression_buffers(void)
 {
-	BUG_ON(ntfs_compression_buffer);
+	_ON(ntfs_compression_buffer);
 
 	ntfs_compression_buffer = vmalloc(NTFS_MAX_CB_SIZE);
 	if (!ntfs_compression_buffer)
@@ -89,7 +89,7 @@ int allocate_compression_buffers(void)
  */
 void free_compression_buffers(void)
 {
-	BUG_ON(!ntfs_compression_buffer);
+	_ON(!ntfs_compression_buffer);
 	vfree(ntfs_compression_buffer);
 	ntfs_compression_buffer = NULL;
 }
@@ -103,7 +103,7 @@ static void zero_partial_compressed_page(struct page *page,
 	u8 *kp = page_address(page);
 	unsigned int kp_ofs;
 
-	ntfs_debug("Zeroing page region outside initialized size.");
+	ntfs_de("Zeroing page region outside initialized size.");
 	if (((s64)page->index << PAGE_SHIFT) >= initialized_size) {
 		clear_page(kp);
 		return;
@@ -196,9 +196,9 @@ static int ntfs_decompress(struct page *dest_pages[], int completed_pages[],
 	/* Default error code. */
 	int err = -EOVERFLOW;
 
-	ntfs_debug("Entering, cb_size = 0x%x.", cb_size);
+	ntfs_de("Entering, cb_size = 0x%x.", cb_size);
 do_next_sb:
-	ntfs_debug("Beginning sub-block at offset = 0x%zx in the cb.",
+	ntfs_de("Beginning sub-block at offset = 0x%zx in the cb.",
 			cb - cb_start);
 	/*
 	 * Have we reached the end of the compression block or the end of the
@@ -211,7 +211,7 @@ do_next_sb:
 			*dest_ofs == dest_max_ofs)) {
 		int i;
 
-		ntfs_debug("Completed. Returning success (0).");
+		ntfs_de("Completed. Returning success (0).");
 		err = 0;
 return_error:
 		/* We can sleep from now on, so we drop lock. */
@@ -279,7 +279,7 @@ return_error:
 
 	/* Now, we are ready to process the current sub-block (sb). */
 	if (!(le16_to_cpup((le16*)cb) & NTFS_SB_IS_COMPRESSED)) {
-		ntfs_debug("Found uncompressed sub-block.");
+		ntfs_de("Found uncompressed sub-block.");
 		/* This sb is not compressed, just copy it into destination. */
 
 		/* Advance source position to first data byte. */
@@ -307,7 +307,7 @@ finalize_page:
 		}
 		goto do_next_sb;
 	}
-	ntfs_debug("Found compressed sub-block.");
+	ntfs_de("Found compressed sub-block.");
 	/* This sb is compressed, decompress it into destination. */
 
 	/* Setup destination pointers. */
@@ -322,7 +322,7 @@ do_next_tag:
 		if (dp_addr < dp_sb_end) {
 			int nr_bytes = do_sb_end - *dest_ofs;
 
-			ntfs_debug("Filling incomplete sub-block with "
+			ntfs_de("Filling incomplete sub-block with "
 					"zeroes.");
 			/* Zero remainder and update destination position. */
 			memset(dp_addr, 0, nr_bytes);
@@ -459,7 +459,7 @@ return_overflow:
  * FIXME: For PAGE_SIZE > cb_size we are not doing the Right Thing(TM) at
  * the end of the file I think. We need to detect this case and zero the out
  * of bounds remainder of the page in question and mark it as handled. At the
- * moment we would just return -EIO on such a page. This bug will only become
+ * moment we would just return -EIO on such a page. This  will only become
  * apparent if pages are above 8kiB and the NTFS volume only uses 512 byte
  * clusters so is probably not going to be seen by anyone. Still this should
  * be fixed. (AIA)
@@ -517,14 +517,14 @@ int ntfs_read_compressed_block(struct page *page)
 	int *completed_pages;
 	unsigned char xpage_done = 0;
 
-	ntfs_debug("Entering, page->index = 0x%lx, cb_size = 0x%x, nr_pages = "
+	ntfs_de("Entering, page->index = 0x%lx, cb_size = 0x%x, nr_pages = "
 			"%i.", index, cb_size, nr_pages);
 	/*
 	 * Bad things happen if we get here for anything that is not an
 	 * unnamed $DATA attribute.
 	 */
-	BUG_ON(ni->type != AT_DATA);
-	BUG_ON(ni->name_len);
+	_ON(ni->type != AT_DATA);
+	_ON(ni->name_len);
 
 	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS);
 	completed_pages = kmalloc_array(nr_pages + 1, sizeof(int), GFP_NOFS);
@@ -565,7 +565,7 @@ int ntfs_read_compressed_block(struct page *page)
 		kfree(pages);
 		kfree(completed_pages);
 		zero_user(page, 0, PAGE_SIZE);
-		ntfs_debug("Compressed read outside i_size - truncated?");
+		ntfs_de("Compressed read outside i_size - truncated?");
 		SetPageUptodate(page);
 		unlock_page(page);
 		return 0;
@@ -623,7 +623,7 @@ lock_retry_remap:
 			lcn = ntfs_rl_vcn_to_lcn(rl, vcn);
 		} else
 			lcn = LCN_RL_NOT_MAPPED;
-		ntfs_debug("Reading vcn = 0x%llx, lcn = 0x%llx.",
+		ntfs_de("Reading vcn = 0x%llx, lcn = 0x%llx.",
 				(unsigned long long)vcn,
 				(unsigned long long)lcn);
 		if (lcn < 0) {
@@ -649,7 +649,7 @@ lock_retry_remap:
 		/* Read the lcn from device in chunks of block_size bytes. */
 		max_block = block + (vol->cluster_size >> block_size_bits);
 		do {
-			ntfs_debug("block = 0x%x.", block);
+			ntfs_de("block = 0x%x.", block);
 			if (unlikely(!(bhs[nr_bhs] = sb_getblk(sb, block))))
 				goto getblk_err;
 			nr_bhs++;
@@ -711,7 +711,7 @@ lock_retry_remap:
 	spin_lock(&ntfs_cb_lock);
 	cb = ntfs_compression_buffer;
 
-	BUG_ON(!cb);
+	_ON(!cb);
 
 	cb_pos = cb;
 	cb_end = cb + cb_size;
@@ -730,7 +730,7 @@ lock_retry_remap:
 	cb_pos = cb;
 
 	/* We now have both source (if present) and destination. */
-	ntfs_debug("Successfully read the compression block.");
+	ntfs_de("Successfully read the compression block.");
 
 	/* The last page and maximum offset within it for the current cb. */
 	cb_max_page = (cur_page << PAGE_SHIFT) + cur_ofs + cb_size;
@@ -743,7 +743,7 @@ lock_retry_remap:
 
 	if (vcn == start_vcn - cb_clusters) {
 		/* Sparse cb, zero out page range overlapping the cb. */
-		ntfs_debug("Found sparse compression block.");
+		ntfs_de("Found sparse compression block.");
 		/* We can sleep from now on, so we drop lock. */
 		spin_unlock(&ntfs_cb_lock);
 		if (cb_max_ofs)
@@ -790,7 +790,7 @@ lock_retry_remap:
 		unsigned int cur_ofs2 = cur_ofs;
 		u8 *cb_pos2 = cb_pos;
 
-		ntfs_debug("Found uncompressed compression block.");
+		ntfs_de("Found uncompressed compression block.");
 		/* Uncompressed cb, copy it to the destination pages. */
 		/*
 		 * TODO: As a big optimization, we could detect this case
@@ -855,7 +855,7 @@ lock_retry_remap:
 		/* Compressed cb, decompress it into the destination page(s). */
 		unsigned int prev_cur_page = cur_page;
 
-		ntfs_debug("Found compressed compression block.");
+		ntfs_de("Found compressed compression block.");
 		err = ntfs_decompress(pages, completed_pages, &cur_page,
 				&cur_ofs, cb_max_page, cb_max_ofs, xpage,
 				&xpage_done, cb_pos, cb_size - (cb_pos - cb),
@@ -920,7 +920,7 @@ lock_retry_remap:
 	if (likely(xpage_done))
 		return 0;
 
-	ntfs_debug("Failed. Returning error code %s.", err == -EOVERFLOW ?
+	ntfs_de("Failed. Returning error code %s.", err == -EOVERFLOW ?
 			"EOVERFLOW" : (!err ? "EIO" : "unknown error"));
 	return err < 0 ? err : -EIO;
 

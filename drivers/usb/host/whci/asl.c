@@ -19,7 +19,7 @@ static void qset_get_next_prev(struct whc *whc, struct whc_qset *qset,
 {
 	struct list_head *n, *p;
 
-	BUG_ON(list_empty(&whc->async_list));
+	_ON(list_empty(&whc->async_list));
 
 	n = qset->list_node.next;
 	if (n == &whc->async_list)

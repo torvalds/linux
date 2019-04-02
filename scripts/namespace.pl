@@ -105,7 +105,7 @@ my %nmexception = (
     'arch/ia64/kernel/gate-data'	=> 1,
     'security/capability'		=> 1,
     'fs/ntfs/sysctl'			=> 1,
-    'fs/jfs/jfs_debug'			=> 1,
+    'fs/jfs/jfs_de'			=> 1,
 );
 
 my %nameexception = (

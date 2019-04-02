@@ -17,7 +17,7 @@
 #include <asm-generic/dma.h>
 
 #ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 #endif
 
 #endif /* __UNICORE_DMA_H__ */

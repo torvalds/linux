@@ -117,7 +117,7 @@ static void update_topology_flags_workfn(struct work_struct *work)
 {
 	update_topology = 1;
 	rebuild_sched_domains();
-	pr_debug("sched_domain hierarchy rebuilt, flags updated\n");
+	pr_de("sched_domain hierarchy rebuilt, flags updated\n");
 	update_topology = 0;
 }
 
@@ -140,15 +140,15 @@ void topology_normalize_cpu_scale(void)
 	if (!raw_capacity)
 		return;
 
-	pr_debug("cpu_capacity: capacity_scale=%u\n", capacity_scale);
+	pr_de("cpu_capacity: capacity_scale=%u\n", capacity_scale);
 	mutex_lock(&cpu_scale_mutex);
 	for_each_possible_cpu(cpu) {
-		pr_debug("cpu_capacity: cpu=%d raw_capacity=%u\n",
+		pr_de("cpu_capacity: cpu=%d raw_capacity=%u\n",
 			 cpu, raw_capacity[cpu]);
 		capacity = (raw_capacity[cpu] << SCHED_CAPACITY_SHIFT)
 			/ capacity_scale;
 		topology_set_cpu_scale(cpu, capacity);
-		pr_debug("cpu_capacity: CPU%d cpu_capacity=%lu\n",
+		pr_de("cpu_capacity: CPU%d cpu_capacity=%lu\n",
 			cpu, topology_get_cpu_scale(NULL, cpu));
 	}
 	mutex_unlock(&cpu_scale_mutex);
@@ -178,7 +178,7 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 		}
 		capacity_scale = max(cpu_capacity, capacity_scale);
 		raw_capacity[cpu] = cpu_capacity;
-		pr_debug("cpu_capacity: %pOF cpu_capacity=%u (raw)\n",
+		pr_de("cpu_capacity: %pOF cpu_capacity=%u (raw)\n",
 			cpu_node, raw_capacity[cpu]);
 	} else {
 		if (raw_capacity) {
@@ -212,7 +212,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	if (val != CPUFREQ_NOTIFY)
 		return 0;
 
-	pr_debug("cpu_capacity: init cpu capacity for CPUs [%*pbl] (to_visit=%*pbl)\n",
+	pr_de("cpu_capacity: init cpu capacity for CPUs [%*pbl] (to_visit=%*pbl)\n",
 		 cpumask_pr_args(policy->related_cpus),
 		 cpumask_pr_args(cpus_to_visit));
 
@@ -228,7 +228,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 		topology_normalize_cpu_scale();
 		schedule_work(&update_topology_flags_work);
 		free_raw_capacity();
-		pr_debug("cpu_capacity: parsing done\n");
+		pr_de("cpu_capacity: parsing done\n");
 		schedule_work(&parsing_done_work);
 	}
 

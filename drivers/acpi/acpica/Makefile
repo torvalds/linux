@@ -4,7 +4,7 @@
 #
 
 ccflags-y			:= -Os -D_LINUX -DBUILDING_ACPICA
-ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
+ccflags-$(CONFIG_ACPI_DE)	+= -DACPI_DE_OUTPUT
 
 # use acpi.o to put all files here into acpi.o modparam namespace
 obj-y	+= acpi.o
@@ -12,7 +12,7 @@ obj-y	+= acpi.o
 acpi-y :=		\
 	dsargs.o	\
 	dscontrol.o	\
-	dsdebug.o	\
+	dsde.o	\
 	dsfield.o	\
 	dsinit.o	\
 	dsmethod.o	\
@@ -49,7 +49,7 @@ acpi-y +=		\
 	exconfig.o	\
 	exconvrt.o	\
 	excreate.o	\
-	exdebug.o	\
+	exde.o	\
 	exdump.o	\
 	exfield.o	\
 	exfldio.o	\
@@ -157,7 +157,7 @@ acpi-y +=		\
 	utbuffer.o	\
 	utcopy.o	\
 	utexcep.o	\
-	utdebug.o	\
+	utde.o	\
 	utdecode.o	\
 	utdelete.o	\
 	uterror.o	\
@@ -186,7 +186,7 @@ acpi-y +=		\
 	utxferror.o	\
 	utxfmutex.o
 
-acpi-$(CONFIG_ACPI_DEBUGGER) +=	\
+acpi-$(CONFIG_ACPI_DEGER) +=	\
 	dbcmds.o		\
 	dbconvert.o		\
 	dbdisply.o		\

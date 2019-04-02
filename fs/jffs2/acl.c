@@ -187,7 +187,7 @@ struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 		xprefix = JFFS2_XPREFIX_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 	rc = do_jffs2_getxattr(inode, xprefix, "", NULL, 0);
 	if (rc > 0) {

@@ -18,8 +18,8 @@
 #include <video/vga.h>
 #include "../edid.h"
 
-#ifdef SAVAGEFB_DEBUG
-# define DBG(x)		printk (KERN_DEBUG "savagefb: %s\n", (x));
+#ifdef SAVAGEFB_DE
+# define DBG(x)		printk (KERN_DE "savagefb: %s\n", (x));
 #else
 # define DBG(x)
 # define SavagePrintRegs(...)

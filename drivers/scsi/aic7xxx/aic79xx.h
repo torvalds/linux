@@ -86,9 +86,9 @@ struct scb_platform_data;
 	SCB_GET_TARGET(ahd, scb)
 #define SCB_GET_TARGET_MASK(ahd, scb) \
 	(0x01 << (SCB_GET_TARGET_OFFSET(ahd, scb)))
-#ifdef AHD_DEBUG
+#ifdef AHD_DE
 #define SCB_IS_SILENT(scb)					\
-	((ahd_debug & AHD_SHOW_MASKED_ERRORS) == 0		\
+	((ahd_de & AHD_SHOW_MASKED_ERRORS) == 0		\
       && (((scb)->flags & SCB_SILENT) != 0))
 #else
 #define SCB_IS_SILENT(scb)					\
@@ -227,84 +227,84 @@ typedef enum {
 } ahd_feature;
 
 /*
- * Bugs in the silicon that we work around in software.
+ * s in the silicon that we work around in software.
  */
 typedef enum {
-	AHD_BUGNONE		= 0x0000,
+	AHD_NONE		= 0x0000,
 	/*
 	 * Rev A hardware fails to update LAST/CURR/NEXTSCB
 	 * correctly in certain packetized selection cases.
 	 */
-	AHD_SENT_SCB_UPDATE_BUG	= 0x0001,
+	AHD_SENT_SCB_UPDATE_	= 0x0001,
 	/* The wrong SCB is accessed to check the abort pending bit. */
-	AHD_ABORT_LQI_BUG	= 0x0002,
+	AHD_ABORT_LQI_	= 0x0002,
 	/* Packetized bitbucket crosses packet boundaries. */
-	AHD_PKT_BITBUCKET_BUG	= 0x0004,
+	AHD_PKT_BITBUCKET_	= 0x0004,
 	/* The selection timer runs twice as long as its setting. */
-	AHD_LONG_SETIMO_BUG	= 0x0008,
+	AHD_LONG_SETIMO_	= 0x0008,
 	/* The Non-LQ CRC error status is delayed until phase change. */
-	AHD_NLQICRC_DELAYED_BUG	= 0x0010,
+	AHD_NLQICRC_DELAYED_	= 0x0010,
 	/* The chip must be reset for all outgoing bus resets.  */
-	AHD_SCSIRST_BUG		= 0x0020,
+	AHD_SCSIRST_		= 0x0020,
 	/* Some PCIX fields must be saved and restored across chip reset. */
-	AHD_PCIX_CHIPRST_BUG	= 0x0040,
+	AHD_PCIX_CHIPRST_	= 0x0040,
 	/* MMAPIO is not functional in PCI-X mode.  */
-	AHD_PCIX_MMAPIO_BUG	= 0x0080,
+	AHD_PCIX_MMAPIO_	= 0x0080,
 	/* Reads to SCBRAM fail to reset the discard timer. */
-	AHD_PCIX_SCBRAM_RD_BUG  = 0x0100,
-	/* Bug workarounds that can be disabled on non-PCIX busses. */
-	AHD_PCIX_BUG_MASK	= AHD_PCIX_CHIPRST_BUG
-				| AHD_PCIX_MMAPIO_BUG
-				| AHD_PCIX_SCBRAM_RD_BUG,
+	AHD_PCIX_SCBRAM_RD_  = 0x0100,
+	/*  workarounds that can be disabled on non-PCIX busses. */
+	AHD_PCIX__MASK	= AHD_PCIX_CHIPRST_
+				| AHD_PCIX_MMAPIO_
+				| AHD_PCIX_SCBRAM_RD_,
 	/*
 	 * LQOSTOP0 status set even for forced selections with ATN
 	 * to perform non-packetized message delivery.
 	 */
-	AHD_LQO_ATNO_BUG	= 0x0200,
+	AHD_LQO_ATNO_	= 0x0200,
 	/* FIFO auto-flush does not always trigger.  */
-	AHD_AUTOFLUSH_BUG	= 0x0400,
+	AHD_AUTOFLUSH_	= 0x0400,
 	/* The CLRLQO registers are not self-clearing. */
-	AHD_CLRLQO_AUTOCLR_BUG	= 0x0800,
+	AHD_CLRLQO_AUTOCLR_	= 0x0800,
 	/* The PACKETIZED status bit refers to the previous connection. */
-	AHD_PKTIZED_STATUS_BUG  = 0x1000,
+	AHD_PKTIZED_STATUS_  = 0x1000,
 	/* "Short Luns" are not placed into outgoing LQ packets correctly. */
-	AHD_PKT_LUN_BUG		= 0x2000,
+	AHD_PKT_LUN_		= 0x2000,
 	/*
 	 * Only the FIFO allocated to the non-packetized connection may
 	 * be in use during a non-packetzied connection.
 	 */
-	AHD_NONPACKFIFO_BUG	= 0x4000,
+	AHD_NONPACKFIFO_	= 0x4000,
 	/*
 	 * Writing to a DFF SCBPTR register may fail if concurent with
 	 * a hardware write to the other DFF SCBPTR register.  This is
 	 * not currently a concern in our sequencer since all chips with
-	 * this bug have the AHD_NONPACKFIFO_BUG and all writes of concern
+	 * this  have the AHD_NONPACKFIFO_ and all writes of concern
 	 * occur in non-packetized connections.
 	 */
-	AHD_MDFF_WSCBPTR_BUG	= 0x8000,
+	AHD_MDFF_WSCBPTR_	= 0x8000,
 	/* SGHADDR updates are slow. */
-	AHD_REG_SLOW_SETTLE_BUG	= 0x10000,
+	AHD_REG_SLOW_SETTLE_	= 0x10000,
 	/*
 	 * Changing the MODE_PTR coincident with an interrupt that
 	 * switches to a different mode will cause the interrupt to
 	 * be in the mode written outside of interrupt context.
 	 */
-	AHD_SET_MODE_BUG	= 0x20000,
+	AHD_SET_MODE_	= 0x20000,
 	/* Non-packetized busfree revision does not work. */
-	AHD_BUSFREEREV_BUG	= 0x40000,
+	AHD_BUSFREEREV_	= 0x40000,
 	/*
 	 * Paced transfers are indicated with a non-standard PPR
 	 * option bit in the neg table, 160MHz is indicated by
 	 * sync factor 0x7, and the offset if off by a factor of 2.
 	 */
-	AHD_PACED_NEGTABLE_BUG	= 0x80000,
+	AHD_PACED_NEGTABLE_	= 0x80000,
 	/* LQOOVERRUN false positives. */
-	AHD_LQOOVERRUN_BUG	= 0x100000,
+	AHD_LQOOVERRUN_	= 0x100000,
 	/*
 	 * Controller write to INTSTAT will lose to a host
 	 * write to CLRINT.
 	 */
-	AHD_INTCOLLISION_BUG	= 0x200000,
+	AHD_INTCOLLISION_	= 0x200000,
 	/*
 	 * The GEM318 violates the SCSI spec by not waiting
 	 * the mandated bus settle delay between phase changes
@@ -314,12 +314,12 @@ typedef enum {
 	 * glitches.  This flag tells the firmware to tolerate
 	 * early REQ assertions.
 	 */
-	AHD_EARLY_REQ_BUG	= 0x400000,
+	AHD_EARLY_REQ_	= 0x400000,
 	/*
 	 * The LED does not stay on long enough in packetized modes.
 	 */
-	AHD_FAINT_LED_BUG	= 0x800000
-} ahd_bug;
+	AHD_FAINT_LED_	= 0x800000
+} ahd_;
 
 /*
  * Configuration specific settings.
@@ -335,7 +335,7 @@ typedef enum {
 					 * SRAM, we use the default target
 					 * settings.
 					 */
-	AHD_SEQUENCER_DEBUG   = 0x00008,
+	AHD_SEQUENCER_DE   = 0x00008,
 	AHD_RESET_BUS_A	      = 0x00010,
 	AHD_EXTENDED_TRANS_A  = 0x00020,
 	AHD_TERM_ENB_A	      = 0x00040,
@@ -1130,7 +1130,7 @@ struct ahd_softc {
 	 */
 	ahd_chip		  chip;
 	ahd_feature		  features;
-	ahd_bug			  bugs;
+	ahd_			  s;
 	ahd_flag		  flags;
 	struct seeprom_config	 *seep_config;
 
@@ -1434,9 +1434,9 @@ cam_status	ahd_find_tmode_devs(struct ahd_softc *ahd,
 #define AHD_TMODE_ENABLE 0
 #endif
 #endif
-/******************************* Debug ***************************************/
-#ifdef AHD_DEBUG
-extern uint32_t ahd_debug;
+/******************************* De ***************************************/
+#ifdef AHD_DE
+extern uint32_t ahd_de;
 #define AHD_SHOW_MISC		0x00001
 #define AHD_SHOW_SENSE		0x00002
 #define AHD_SHOW_RECOVERY	0x00004
@@ -1454,7 +1454,7 @@ extern uint32_t ahd_debug;
 #define AHD_SHOW_TQIN		0x04000
 #define AHD_SHOW_SG		0x08000
 #define AHD_SHOW_INT_COALESCING	0x10000
-#define AHD_DEBUG_SEQUENCER	0x20000
+#define AHD_DE_SEQUENCER	0x20000
 #endif
 void			ahd_print_devinfo(struct ahd_softc *ahd,
 					  struct ahd_devinfo *devinfo);

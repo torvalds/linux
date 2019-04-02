@@ -22,9 +22,9 @@
 #define QOS_CONTROL_LEN		2
 
 /* Module parameters */
-unsigned int lbtf_debug;
-EXPORT_SYMBOL_GPL(lbtf_debug);
-module_param_named(libertas_tf_debug, lbtf_debug, int, 0644);
+unsigned int lbtf_de;
+EXPORT_SYMBOL_GPL(lbtf_de);
+module_param_named(libertas_tf_de, lbtf_de, int, 0644);
 
 struct workqueue_struct *lbtf_wq;
 
@@ -138,12 +138,12 @@ static void command_timer_fn(struct timer_list *t)
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (!priv->cur_cmd) {
-		printk(KERN_DEBUG "libertastf: command timer expired; "
+		printk(KERN_DE "libertastf: command timer expired; "
 				  "no pending command\n");
 		goto out;
 	}
 
-	printk(KERN_DEBUG "libertas: command %x timed out\n",
+	printk(KERN_DE "libertas: command %x timed out\n",
 		le16_to_cpu(priv->cur_cmd->cmdbuf->command));
 
 	priv->cmd_timed_out = 1;
@@ -242,7 +242,7 @@ static void lbtf_tx_work(struct work_struct *work)
 	txpd->tx_packet_length = cpu_to_le16(len);
 	txpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
 	lbtf_deb_hex(LBTF_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
-	BUG_ON(priv->tx_skb);
+	_ON(priv->tx_skb);
 	spin_lock_irq(&priv->driver_lock);
 	priv->tx_skb = skb;
 	err = priv->ops->hw_host_to_card(priv, MVMS_DAT, skb->data, skb->len);

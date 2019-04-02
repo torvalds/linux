@@ -8,7 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
@@ -414,7 +414,7 @@ struct tegra_sor {
 
 	struct drm_dp_aux *aux;
 
-	struct drm_info_list *debugfs_files;
+	struct drm_info_list *defs_files;
 
 	const struct tegra_sor_ops *ops;
 	enum tegra_io_pad pad;
@@ -1302,124 +1302,124 @@ unlock:
 	return err;
 }
 
-#define DEBUGFS_REG32(_name) { .name = #_name, .offset = _name }
+#define DEFS_REG32(_name) { .name = #_name, .offset = _name }
 
-static const struct debugfs_reg32 tegra_sor_regs[] = {
-	DEBUGFS_REG32(SOR_CTXSW),
-	DEBUGFS_REG32(SOR_SUPER_STATE0),
-	DEBUGFS_REG32(SOR_SUPER_STATE1),
-	DEBUGFS_REG32(SOR_STATE0),
-	DEBUGFS_REG32(SOR_STATE1),
-	DEBUGFS_REG32(SOR_HEAD_STATE0(0)),
-	DEBUGFS_REG32(SOR_HEAD_STATE0(1)),
-	DEBUGFS_REG32(SOR_HEAD_STATE1(0)),
-	DEBUGFS_REG32(SOR_HEAD_STATE1(1)),
-	DEBUGFS_REG32(SOR_HEAD_STATE2(0)),
-	DEBUGFS_REG32(SOR_HEAD_STATE2(1)),
-	DEBUGFS_REG32(SOR_HEAD_STATE3(0)),
-	DEBUGFS_REG32(SOR_HEAD_STATE3(1)),
-	DEBUGFS_REG32(SOR_HEAD_STATE4(0)),
-	DEBUGFS_REG32(SOR_HEAD_STATE4(1)),
-	DEBUGFS_REG32(SOR_HEAD_STATE5(0)),
-	DEBUGFS_REG32(SOR_HEAD_STATE5(1)),
-	DEBUGFS_REG32(SOR_CRC_CNTRL),
-	DEBUGFS_REG32(SOR_DP_DEBUG_MVID),
-	DEBUGFS_REG32(SOR_CLK_CNTRL),
-	DEBUGFS_REG32(SOR_CAP),
-	DEBUGFS_REG32(SOR_PWR),
-	DEBUGFS_REG32(SOR_TEST),
-	DEBUGFS_REG32(SOR_PLL0),
-	DEBUGFS_REG32(SOR_PLL1),
-	DEBUGFS_REG32(SOR_PLL2),
-	DEBUGFS_REG32(SOR_PLL3),
-	DEBUGFS_REG32(SOR_CSTM),
-	DEBUGFS_REG32(SOR_LVDS),
-	DEBUGFS_REG32(SOR_CRCA),
-	DEBUGFS_REG32(SOR_CRCB),
-	DEBUGFS_REG32(SOR_BLANK),
-	DEBUGFS_REG32(SOR_SEQ_CTL),
-	DEBUGFS_REG32(SOR_LANE_SEQ_CTL),
-	DEBUGFS_REG32(SOR_SEQ_INST(0)),
-	DEBUGFS_REG32(SOR_SEQ_INST(1)),
-	DEBUGFS_REG32(SOR_SEQ_INST(2)),
-	DEBUGFS_REG32(SOR_SEQ_INST(3)),
-	DEBUGFS_REG32(SOR_SEQ_INST(4)),
-	DEBUGFS_REG32(SOR_SEQ_INST(5)),
-	DEBUGFS_REG32(SOR_SEQ_INST(6)),
-	DEBUGFS_REG32(SOR_SEQ_INST(7)),
-	DEBUGFS_REG32(SOR_SEQ_INST(8)),
-	DEBUGFS_REG32(SOR_SEQ_INST(9)),
-	DEBUGFS_REG32(SOR_SEQ_INST(10)),
-	DEBUGFS_REG32(SOR_SEQ_INST(11)),
-	DEBUGFS_REG32(SOR_SEQ_INST(12)),
-	DEBUGFS_REG32(SOR_SEQ_INST(13)),
-	DEBUGFS_REG32(SOR_SEQ_INST(14)),
-	DEBUGFS_REG32(SOR_SEQ_INST(15)),
-	DEBUGFS_REG32(SOR_PWM_DIV),
-	DEBUGFS_REG32(SOR_PWM_CTL),
-	DEBUGFS_REG32(SOR_VCRC_A0),
-	DEBUGFS_REG32(SOR_VCRC_A1),
-	DEBUGFS_REG32(SOR_VCRC_B0),
-	DEBUGFS_REG32(SOR_VCRC_B1),
-	DEBUGFS_REG32(SOR_CCRC_A0),
-	DEBUGFS_REG32(SOR_CCRC_A1),
-	DEBUGFS_REG32(SOR_CCRC_B0),
-	DEBUGFS_REG32(SOR_CCRC_B1),
-	DEBUGFS_REG32(SOR_EDATA_A0),
-	DEBUGFS_REG32(SOR_EDATA_A1),
-	DEBUGFS_REG32(SOR_EDATA_B0),
-	DEBUGFS_REG32(SOR_EDATA_B1),
-	DEBUGFS_REG32(SOR_COUNT_A0),
-	DEBUGFS_REG32(SOR_COUNT_A1),
-	DEBUGFS_REG32(SOR_COUNT_B0),
-	DEBUGFS_REG32(SOR_COUNT_B1),
-	DEBUGFS_REG32(SOR_DEBUG_A0),
-	DEBUGFS_REG32(SOR_DEBUG_A1),
-	DEBUGFS_REG32(SOR_DEBUG_B0),
-	DEBUGFS_REG32(SOR_DEBUG_B1),
-	DEBUGFS_REG32(SOR_TRIG),
-	DEBUGFS_REG32(SOR_MSCHECK),
-	DEBUGFS_REG32(SOR_XBAR_CTRL),
-	DEBUGFS_REG32(SOR_XBAR_POL),
-	DEBUGFS_REG32(SOR_DP_LINKCTL0),
-	DEBUGFS_REG32(SOR_DP_LINKCTL1),
-	DEBUGFS_REG32(SOR_LANE_DRIVE_CURRENT0),
-	DEBUGFS_REG32(SOR_LANE_DRIVE_CURRENT1),
-	DEBUGFS_REG32(SOR_LANE4_DRIVE_CURRENT0),
-	DEBUGFS_REG32(SOR_LANE4_DRIVE_CURRENT1),
-	DEBUGFS_REG32(SOR_LANE_PREEMPHASIS0),
-	DEBUGFS_REG32(SOR_LANE_PREEMPHASIS1),
-	DEBUGFS_REG32(SOR_LANE4_PREEMPHASIS0),
-	DEBUGFS_REG32(SOR_LANE4_PREEMPHASIS1),
-	DEBUGFS_REG32(SOR_LANE_POSTCURSOR0),
-	DEBUGFS_REG32(SOR_LANE_POSTCURSOR1),
-	DEBUGFS_REG32(SOR_DP_CONFIG0),
-	DEBUGFS_REG32(SOR_DP_CONFIG1),
-	DEBUGFS_REG32(SOR_DP_MN0),
-	DEBUGFS_REG32(SOR_DP_MN1),
-	DEBUGFS_REG32(SOR_DP_PADCTL0),
-	DEBUGFS_REG32(SOR_DP_PADCTL1),
-	DEBUGFS_REG32(SOR_DP_PADCTL2),
-	DEBUGFS_REG32(SOR_DP_DEBUG0),
-	DEBUGFS_REG32(SOR_DP_DEBUG1),
-	DEBUGFS_REG32(SOR_DP_SPARE0),
-	DEBUGFS_REG32(SOR_DP_SPARE1),
-	DEBUGFS_REG32(SOR_DP_AUDIO_CTRL),
-	DEBUGFS_REG32(SOR_DP_AUDIO_HBLANK_SYMBOLS),
-	DEBUGFS_REG32(SOR_DP_AUDIO_VBLANK_SYMBOLS),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_HEADER),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK0),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK1),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK2),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK3),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK4),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK5),
-	DEBUGFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK6),
-	DEBUGFS_REG32(SOR_DP_TPG),
-	DEBUGFS_REG32(SOR_DP_TPG_CONFIG),
-	DEBUGFS_REG32(SOR_DP_LQ_CSTM0),
-	DEBUGFS_REG32(SOR_DP_LQ_CSTM1),
-	DEBUGFS_REG32(SOR_DP_LQ_CSTM2),
+static const struct defs_reg32 tegra_sor_regs[] = {
+	DEFS_REG32(SOR_CTXSW),
+	DEFS_REG32(SOR_SUPER_STATE0),
+	DEFS_REG32(SOR_SUPER_STATE1),
+	DEFS_REG32(SOR_STATE0),
+	DEFS_REG32(SOR_STATE1),
+	DEFS_REG32(SOR_HEAD_STATE0(0)),
+	DEFS_REG32(SOR_HEAD_STATE0(1)),
+	DEFS_REG32(SOR_HEAD_STATE1(0)),
+	DEFS_REG32(SOR_HEAD_STATE1(1)),
+	DEFS_REG32(SOR_HEAD_STATE2(0)),
+	DEFS_REG32(SOR_HEAD_STATE2(1)),
+	DEFS_REG32(SOR_HEAD_STATE3(0)),
+	DEFS_REG32(SOR_HEAD_STATE3(1)),
+	DEFS_REG32(SOR_HEAD_STATE4(0)),
+	DEFS_REG32(SOR_HEAD_STATE4(1)),
+	DEFS_REG32(SOR_HEAD_STATE5(0)),
+	DEFS_REG32(SOR_HEAD_STATE5(1)),
+	DEFS_REG32(SOR_CRC_CNTRL),
+	DEFS_REG32(SOR_DP_DE_MVID),
+	DEFS_REG32(SOR_CLK_CNTRL),
+	DEFS_REG32(SOR_CAP),
+	DEFS_REG32(SOR_PWR),
+	DEFS_REG32(SOR_TEST),
+	DEFS_REG32(SOR_PLL0),
+	DEFS_REG32(SOR_PLL1),
+	DEFS_REG32(SOR_PLL2),
+	DEFS_REG32(SOR_PLL3),
+	DEFS_REG32(SOR_CSTM),
+	DEFS_REG32(SOR_LVDS),
+	DEFS_REG32(SOR_CRCA),
+	DEFS_REG32(SOR_CRCB),
+	DEFS_REG32(SOR_BLANK),
+	DEFS_REG32(SOR_SEQ_CTL),
+	DEFS_REG32(SOR_LANE_SEQ_CTL),
+	DEFS_REG32(SOR_SEQ_INST(0)),
+	DEFS_REG32(SOR_SEQ_INST(1)),
+	DEFS_REG32(SOR_SEQ_INST(2)),
+	DEFS_REG32(SOR_SEQ_INST(3)),
+	DEFS_REG32(SOR_SEQ_INST(4)),
+	DEFS_REG32(SOR_SEQ_INST(5)),
+	DEFS_REG32(SOR_SEQ_INST(6)),
+	DEFS_REG32(SOR_SEQ_INST(7)),
+	DEFS_REG32(SOR_SEQ_INST(8)),
+	DEFS_REG32(SOR_SEQ_INST(9)),
+	DEFS_REG32(SOR_SEQ_INST(10)),
+	DEFS_REG32(SOR_SEQ_INST(11)),
+	DEFS_REG32(SOR_SEQ_INST(12)),
+	DEFS_REG32(SOR_SEQ_INST(13)),
+	DEFS_REG32(SOR_SEQ_INST(14)),
+	DEFS_REG32(SOR_SEQ_INST(15)),
+	DEFS_REG32(SOR_PWM_DIV),
+	DEFS_REG32(SOR_PWM_CTL),
+	DEFS_REG32(SOR_VCRC_A0),
+	DEFS_REG32(SOR_VCRC_A1),
+	DEFS_REG32(SOR_VCRC_B0),
+	DEFS_REG32(SOR_VCRC_B1),
+	DEFS_REG32(SOR_CCRC_A0),
+	DEFS_REG32(SOR_CCRC_A1),
+	DEFS_REG32(SOR_CCRC_B0),
+	DEFS_REG32(SOR_CCRC_B1),
+	DEFS_REG32(SOR_EDATA_A0),
+	DEFS_REG32(SOR_EDATA_A1),
+	DEFS_REG32(SOR_EDATA_B0),
+	DEFS_REG32(SOR_EDATA_B1),
+	DEFS_REG32(SOR_COUNT_A0),
+	DEFS_REG32(SOR_COUNT_A1),
+	DEFS_REG32(SOR_COUNT_B0),
+	DEFS_REG32(SOR_COUNT_B1),
+	DEFS_REG32(SOR_DE_A0),
+	DEFS_REG32(SOR_DE_A1),
+	DEFS_REG32(SOR_DE_B0),
+	DEFS_REG32(SOR_DE_B1),
+	DEFS_REG32(SOR_TRIG),
+	DEFS_REG32(SOR_MSCHECK),
+	DEFS_REG32(SOR_XBAR_CTRL),
+	DEFS_REG32(SOR_XBAR_POL),
+	DEFS_REG32(SOR_DP_LINKCTL0),
+	DEFS_REG32(SOR_DP_LINKCTL1),
+	DEFS_REG32(SOR_LANE_DRIVE_CURRENT0),
+	DEFS_REG32(SOR_LANE_DRIVE_CURRENT1),
+	DEFS_REG32(SOR_LANE4_DRIVE_CURRENT0),
+	DEFS_REG32(SOR_LANE4_DRIVE_CURRENT1),
+	DEFS_REG32(SOR_LANE_PREEMPHASIS0),
+	DEFS_REG32(SOR_LANE_PREEMPHASIS1),
+	DEFS_REG32(SOR_LANE4_PREEMPHASIS0),
+	DEFS_REG32(SOR_LANE4_PREEMPHASIS1),
+	DEFS_REG32(SOR_LANE_POSTCURSOR0),
+	DEFS_REG32(SOR_LANE_POSTCURSOR1),
+	DEFS_REG32(SOR_DP_CONFIG0),
+	DEFS_REG32(SOR_DP_CONFIG1),
+	DEFS_REG32(SOR_DP_MN0),
+	DEFS_REG32(SOR_DP_MN1),
+	DEFS_REG32(SOR_DP_PADCTL0),
+	DEFS_REG32(SOR_DP_PADCTL1),
+	DEFS_REG32(SOR_DP_PADCTL2),
+	DEFS_REG32(SOR_DP_DE0),
+	DEFS_REG32(SOR_DP_DE1),
+	DEFS_REG32(SOR_DP_SPARE0),
+	DEFS_REG32(SOR_DP_SPARE1),
+	DEFS_REG32(SOR_DP_AUDIO_CTRL),
+	DEFS_REG32(SOR_DP_AUDIO_HBLANK_SYMBOLS),
+	DEFS_REG32(SOR_DP_AUDIO_VBLANK_SYMBOLS),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_HEADER),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK0),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK1),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK2),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK3),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK4),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK5),
+	DEFS_REG32(SOR_DP_GENERIC_INFOFRAME_SUBPACK6),
+	DEFS_REG32(SOR_DP_TPG),
+	DEFS_REG32(SOR_DP_TPG_CONFIG),
+	DEFS_REG32(SOR_DP_LQ_CSTM0),
+	DEFS_REG32(SOR_DP_LQ_CSTM1),
+	DEFS_REG32(SOR_DP_LQ_CSTM2),
 };
 
 static int tegra_sor_show_regs(struct seq_file *s, void *data)
@@ -1450,7 +1450,7 @@ unlock:
 	return err;
 }
 
-static const struct drm_info_list debugfs_files[] = {
+static const struct drm_info_list defs_files[] = {
 	{ "crc", tegra_sor_show_crc, 0, NULL },
 	{ "regs", tegra_sor_show_regs, 0, NULL },
 };
@@ -1458,29 +1458,29 @@ static const struct drm_info_list debugfs_files[] = {
 static int tegra_sor_late_register(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	unsigned int i, count = ARRAY_SIZE(debugfs_files);
+	unsigned int i, count = ARRAY_SIZE(defs_files);
 	struct drm_minor *minor = connector->dev->primary;
-	struct dentry *root = connector->debugfs_entry;
+	struct dentry *root = connector->defs_entry;
 	struct tegra_sor *sor = to_sor(output);
 	int err;
 
-	sor->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
+	sor->defs_files = kmemdup(defs_files, sizeof(defs_files),
 				     GFP_KERNEL);
-	if (!sor->debugfs_files)
+	if (!sor->defs_files)
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++)
-		sor->debugfs_files[i].data = sor;
+		sor->defs_files[i].data = sor;
 
-	err = drm_debugfs_create_files(sor->debugfs_files, count, root, minor);
+	err = drm_defs_create_files(sor->defs_files, count, root, minor);
 	if (err < 0)
 		goto free;
 
 	return 0;
 
 free:
-	kfree(sor->debugfs_files);
-	sor->debugfs_files = NULL;
+	kfree(sor->defs_files);
+	sor->defs_files = NULL;
 
 	return err;
 }
@@ -1488,13 +1488,13 @@ free:
 static void tegra_sor_early_unregister(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	unsigned int count = ARRAY_SIZE(debugfs_files);
+	unsigned int count = ARRAY_SIZE(defs_files);
 	struct tegra_sor *sor = to_sor(output);
 
-	drm_debugfs_remove_files(sor->debugfs_files, count,
+	drm_defs_remove_files(sor->defs_files, count,
 				 connector->dev->primary);
-	kfree(sor->debugfs_files);
-	sor->debugfs_files = NULL;
+	kfree(sor->defs_files);
+	sor->defs_files = NULL;
 }
 
 static void tegra_sor_connector_reset(struct drm_connector *connector)
@@ -2022,7 +2022,7 @@ tegra_sor_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 
 	default:
-		DRM_DEBUG_KMS("%u bits-per-color not supported\n", info->bpc);
+		DRM_DE_KMS("%u bits-per-color not supported\n", info->bpc);
 		state->bpc = 8;
 		break;
 	}
@@ -2356,7 +2356,7 @@ static void tegra_sor_hdmi_scdc_work(struct work_struct *work)
 	struct i2c_adapter *ddc = sor->output.ddc;
 
 	if (!drm_scdc_get_scrambling_status(ddc)) {
-		DRM_DEBUG_KMS("SCDC not scrambled\n");
+		DRM_DE_KMS("SCDC not scrambled\n");
 		tegra_sor_hdmi_scdc_enable(sor);
 	}
 
@@ -2511,10 +2511,10 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value &= ~SOR_CLK_CNTRL_DP_CLK_SEL_MASK;
 
 	if (mode->clock < 340000) {
-		DRM_DEBUG_KMS("setting 2.7 GHz link speed\n");
+		DRM_DE_KMS("setting 2.7 GHz link speed\n");
 		value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G2_70;
 	} else {
-		DRM_DEBUG_KMS("setting 5.4 GHz link speed\n");
+		DRM_DE_KMS("setting 5.4 GHz link speed\n");
 		value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G5_40;
 	}
 
@@ -2578,7 +2578,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	if (mode->clock >= 340000)
 		rate /= 2;
 
-	DRM_DEBUG_KMS("setting clock to %lu Hz, mode: %lu Hz\n", rate, pclk);
+	DRM_DE_KMS("setting clock to %lu Hz, mode: %lu Hz\n", rate, pclk);
 
 	clk_set_rate(sor->clk, rate);
 

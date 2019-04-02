@@ -247,8 +247,8 @@ static struct rtl_mod_params rtl8723e_mod_params = {
 	.swctrl_lps = true,
 	.fwctrl_lps = false,
 	.aspm_support = 1,
-	.debug_level = 0,
-	.debug_mask = 0,
+	.de_level = 0,
+	.de_mask = 0,
 	.msi_support = false,
 	.disable_watchdog = false,
 };
@@ -362,8 +362,8 @@ MODULE_DESCRIPTION("Realtek 8723E 802.11n PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8723efw.bin");
 
 module_param_named(swenc, rtl8723e_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug_level, rtl8723e_mod_params.debug_level, int, 0644);
-module_param_named(debug_mask, rtl8723e_mod_params.debug_mask, ullong, 0644);
+module_param_named(de_level, rtl8723e_mod_params.de_level, int, 0644);
+module_param_named(de_mask, rtl8723e_mod_params.de_mask, ullong, 0644);
 module_param_named(ips, rtl8723e_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl8723e_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl8723e_mod_params.fwctrl_lps, bool, 0444);
@@ -377,8 +377,8 @@ MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 1)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 0)\n");
 MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
-MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
-MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
+MODULE_PARM_DESC(de_level, "Set de level (0-5) (default 0)");
+MODULE_PARM_DESC(de_mask, "Set de mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");
 
 static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);

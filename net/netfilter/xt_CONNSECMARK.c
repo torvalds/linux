@@ -78,7 +78,7 @@ connsecmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return XT_CONTINUE;

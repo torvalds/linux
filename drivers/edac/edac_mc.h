@@ -63,30 +63,30 @@
 /* prefixes for edac_printk() and edac_mc_printk() */
 #define EDAC_MC "MC"
 #define EDAC_PCI "PCI"
-#define EDAC_DEBUG "DEBUG"
+#define EDAC_DE "DE"
 
 extern const char * const edac_mem_types[];
 
-#ifdef CONFIG_EDAC_DEBUG
-extern int edac_debug_level;
+#ifdef CONFIG_EDAC_DE
+extern int edac_de_level;
 
 #define edac_dbg(level, fmt, ...)					\
 do {									\
-	if (level <= edac_debug_level)					\
-		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
+	if (level <= edac_de_level)					\
+		edac_printk(KERN_DE, EDAC_DE,			\
 			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
 } while (0)
 
-#else				/* !CONFIG_EDAC_DEBUG */
+#else				/* !CONFIG_EDAC_DE */
 
 #define edac_dbg(level, fmt, ...)					\
 do {									\
 	if (0)								\
-		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
+		edac_printk(KERN_DE, EDAC_DE,			\
 			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
 } while (0)
 
-#endif				/* !CONFIG_EDAC_DEBUG */
+#endif				/* !CONFIG_EDAC_DE */
 
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev

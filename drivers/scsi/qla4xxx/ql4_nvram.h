@@ -226,7 +226,7 @@ struct eeprom_data {
 			u16 tcpMaxWindowSize;	/* x96 */
 			u16 ipSecurity;	/* x98 */
 			u8 reserved_156[294]; /* x9A */
-			u16 qDebug[8];	/* QLOGIC USE ONLY   x1C0 */
+			u16 qDe[8];	/* QLOGIC USE ONLY   x1C0 */
 			struct eeprom_function_cfg funcCfg_fn0;	/* x1D0 */
 			u16 reserved_510; /* x1FE */
 

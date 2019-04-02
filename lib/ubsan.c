@@ -11,7 +11,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

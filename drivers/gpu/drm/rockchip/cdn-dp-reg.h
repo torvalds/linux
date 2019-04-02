@@ -32,8 +32,8 @@
 #define VER_H				0x20
 #define VER_LIB_L_ADDR			0x24
 #define VER_LIB_H_ADDR			0x28
-#define SW_DEBUG_L			0x2c
-#define SW_DEBUG_H			0x30
+#define SW_DE_L			0x2c
+#define SW_DE_H			0x30
 #define MAILBOX_INT_MASK		0x34
 #define MAILBOX_INT_STATUS		0x38
 #define SW_CLK_L			0x3c

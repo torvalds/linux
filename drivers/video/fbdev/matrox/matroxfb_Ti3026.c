@@ -21,7 +21,7 @@
  *
  *               "Bibek Sahu" <scorpio@dodds.net>
  *                     Access device through readb|w|l and write b|w|l
- *                     Extensive debugging stuff
+ *                     Extensive deging stuff
  *
  *               "Daniel Haun" <haund@usa.net>
  *                     Testing, hardware cursor fixes
@@ -34,7 +34,7 @@
  *
  *               "Kelly French" <targon@hazmat.com>
  *               "Fernando Herrera" <fherrera@eurielec.etsit.upm.es>
- *                     Betatesting, bug reporting
+ *                     Betatesting,  reporting
  *
  *               "Pablo Bianucci" <pbian@pccp.com.ar>
  *                     Fixes, ideas, betatesting
@@ -563,7 +563,7 @@ static void Ti3026_restore(struct matrox_fb_info *minfo)
 
 	DBG(__func__)
 
-#ifdef DEBUG
+#ifdef DE
 	dprintk(KERN_INFO "EXTVGA regs: ");
 	for (i = 0; i < 6; i++)
 		dprintk("%02X:", hw->CRTCEXT[i]);
@@ -654,13 +654,13 @@ static void Ti3026_restore(struct matrox_fb_info *minfo)
 		}
 	}
 
-#ifdef DEBUG
-	dprintk(KERN_DEBUG "3026DACregs ");
+#ifdef DE
+	dprintk(KERN_DE "3026DACregs ");
 	for (i = 0; i < 21; i++) {
 		dprintk("R%02X=%02X ", DACseq[i], hw->DACreg[i]);
-		if ((i & 0x7) == 0x7) dprintk(KERN_DEBUG "continuing... ");
+		if ((i & 0x7) == 0x7) dprintk(KERN_DE "continuing... ");
 	}
-	dprintk(KERN_DEBUG "DACclk ");
+	dprintk(KERN_DE "DACclk ");
 	for (i = 0; i < 6; i++)
 		dprintk("C%02X=%02X ", i, hw->DACclk[i]);
 	dprintk("\n");

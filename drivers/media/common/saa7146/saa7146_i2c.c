@@ -364,7 +364,7 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 	/* return the number of delivered messages */
 	DEB_I2C("transmission successful. (msg:%d)\n", err);
 out:
-	/* another bug in revision 0: the i2c-registers get uploaded randomly by other
+	/* another  in revision 0: the i2c-registers get uploaded randomly by other
 	   uploads, so we better clear them out before continuing */
 	if( 0 == dev->revision ) {
 		__le32 zero = 0;

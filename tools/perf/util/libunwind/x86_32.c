@@ -22,7 +22,7 @@
 #define LIBUNWIND__ARCH_REG_SP PERF_REG_X86_SP
 
 #include "unwind.h"
-#include "debug.h"
+#include "de.h"
 #include "libunwind-x86.h"
 #include <../../../../arch/x86/include/uapi/asm/perf_regs.h>
 
@@ -32,11 +32,11 @@
 #undef HAVE_ARCH_X86_64_SUPPORT
 #include "../../arch/x86/util/unwind-libunwind.c"
 
-/* Explicitly define NO_LIBUNWIND_DEBUG_FRAME, because non-ARM has no
- * dwarf_find_debug_frame() function.
+/* Explicitly define NO_LIBUNWIND_DE_FRAME, because non-ARM has no
+ * dwarf_find_de_frame() function.
  */
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
-#define NO_LIBUNWIND_DEBUG_FRAME
+#ifndef NO_LIBUNWIND_DE_FRAME
+#define NO_LIBUNWIND_DE_FRAME
 #endif
 #include "util/unwind-libunwind-local.c"
 

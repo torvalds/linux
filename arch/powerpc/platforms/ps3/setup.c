@@ -37,10 +37,10 @@
 
 #include "platform.h"
 
-#if defined(DEBUG)
+#if defined(DE)
 #define DBG udbg_printf
 #else
-#define DBG pr_debug
+#define DBG pr_de
 #endif
 
 /* mutex synchronizing GPU accesses and video mode changes */

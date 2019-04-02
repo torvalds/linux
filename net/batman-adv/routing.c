@@ -313,7 +313,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
 	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
-		pr_debug("Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
+		pr_de("Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
 			 icmp_packet->orig, icmp_packet->dst);
 		goto out;
 	}
@@ -698,7 +698,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 	/* TTL exceeded */
 	if (unicast_packet->ttl < 2) {
-		pr_debug("Warning - can't forward unicast packet from %pM to %pM: ttl exceeded\n",
+		pr_de("Warning - can't forward unicast packet from %pM to %pM: ttl exceeded\n",
 			 ethhdr->h_source, unicast_packet->dest);
 		goto free_skb;
 	}

@@ -218,7 +218,7 @@ out_kfree:
 
 void __init clps711x_intc_init(phys_addr_t base, resource_size_t size)
 {
-	BUG_ON(_clps711x_intc_init(NULL, base, size));
+	_ON(_clps711x_intc_init(NULL, base, size));
 }
 
 #ifdef CONFIG_IRQCHIP

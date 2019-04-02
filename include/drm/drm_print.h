@@ -35,7 +35,7 @@
  * DOC: print
  *
  * A simple wrapper for dev_printk(), seq_printf(), etc.  Allows same
- * debug code to be used for both debugfs and printk logging.
+ * de code to be used for both defs and printk logging.
  *
  * For example::
  *
@@ -45,8 +45,8 @@
  *             drm_printf(p, "bar=%d\n", bar);
  *     }
  *
- *     #ifdef CONFIG_DEBUG_FS
- *     void debugfs_show(struct seq_file *f)
+ *     #ifdef CONFIG_DE_FS
+ *     void defs_show(struct seq_file *f)
  *     {
  *             struct drm_printer p = drm_seq_file_printer(f);
  *             log_some_info(&p);
@@ -79,7 +79,7 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str);
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
-void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
+void __drm_printfn_de(struct drm_printer *p, struct va_format *vaf);
 
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
@@ -208,16 +208,16 @@ static inline struct drm_printer drm_info_printer(struct device *dev)
 }
 
 /**
- * drm_debug_printer - construct a &drm_printer that outputs to pr_debug()
- * @prefix: debug output prefix
+ * drm_de_printer - construct a &drm_printer that outputs to pr_de()
+ * @prefix: de output prefix
  *
  * RETURNS:
  * The &drm_printer object
  */
-static inline struct drm_printer drm_debug_printer(const char *prefix)
+static inline struct drm_printer drm_de_printer(const char *prefix)
 {
 	struct drm_printer p = {
-		.printfn = __drm_printfn_debug,
+		.printfn = __drm_printfn_de,
 		.prefix = prefix
 	};
 	return p;
@@ -227,35 +227,35 @@ static inline struct drm_printer drm_debug_printer(const char *prefix)
  * The following categories are defined:
  *
  * CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c, drm_memory.c, ...
- *	 This is the category used by the DRM_DEBUG() macro.
+ *	 This is the category used by the DRM_DE() macro.
  *
  * DRIVER: Used in the vendor specific part of the driver: i915, radeon, ...
- *	   This is the category used by the DRM_DEBUG_DRIVER() macro.
+ *	   This is the category used by the DRM_DE_DRIVER() macro.
  *
  * KMS: used in the modesetting code.
- *	This is the category used by the DRM_DEBUG_KMS() macro.
+ *	This is the category used by the DRM_DE_KMS() macro.
  *
  * PRIME: used in the prime code.
- *	  This is the category used by the DRM_DEBUG_PRIME() macro.
+ *	  This is the category used by the DRM_DE_PRIME() macro.
  *
  * ATOMIC: used in the atomic code.
- *	  This is the category used by the DRM_DEBUG_ATOMIC() macro.
+ *	  This is the category used by the DRM_DE_ATOMIC() macro.
  *
- * VBL: used for verbose debug message in the vblank code
- *	  This is the category used by the DRM_DEBUG_VBL() macro.
+ * VBL: used for verbose de message in the vblank code
+ *	  This is the category used by the DRM_DE_VBL() macro.
  *
- * Enabling verbose debug messages is done through the drm.debug parameter,
+ * Enabling verbose de messages is done through the drm.de parameter,
  * each category being enabled by a bit.
  *
- * drm.debug=0x1 will enable CORE messages
- * drm.debug=0x2 will enable DRIVER messages
- * drm.debug=0x3 will enable CORE and DRIVER messages
+ * drm.de=0x1 will enable CORE messages
+ * drm.de=0x2 will enable DRIVER messages
+ * drm.de=0x3 will enable CORE and DRIVER messages
  * ...
- * drm.debug=0x3f will enable all messages
+ * drm.de=0x3f will enable all messages
  *
  * An interesting feature is that it's possible to enable verbose logging at
- * run-time by echoing the debug value in its sysfs node:
- *   # echo 0xf > /sys/module/drm/parameters/debug
+ * run-time by echoing the de value in its sysfs node:
+ *   # echo 0xf > /sys/module/drm/parameters/de
  */
 #define DRM_UT_NONE		0x00
 #define DRM_UT_CORE		0x01
@@ -341,50 +341,50 @@ void drm_err(const char *format, ...);
 })
 
 /**
- * Debug output.
+ * De output.
  *
  * @dev: device pointer
  * @fmt: printf() like format string.
  */
-#define DRM_DEV_DEBUG(dev, fmt, ...)					\
+#define DRM_DEV_DE(dev, fmt, ...)					\
 	drm_dev_dbg(dev, DRM_UT_CORE, fmt, ##__VA_ARGS__)
-#define DRM_DEBUG(fmt, ...)						\
+#define DRM_DE(fmt, ...)						\
 	drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_DRIVER(dev, fmt, ...)				\
+#define DRM_DEV_DE_DRIVER(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_DRIVER,	fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_DRIVER(fmt, ...)					\
+#define DRM_DE_DRIVER(fmt, ...)					\
 	drm_dbg(DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_KMS(dev, fmt, ...)				\
+#define DRM_DEV_DE_KMS(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_KMS, fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_KMS(fmt, ...)						\
+#define DRM_DE_KMS(fmt, ...)						\
 	drm_dbg(DRM_UT_KMS, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_PRIME(dev, fmt, ...)				\
+#define DRM_DEV_DE_PRIME(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_PRIME(fmt, ...)					\
+#define DRM_DE_PRIME(fmt, ...)					\
 	drm_dbg(DRM_UT_PRIME, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_ATOMIC(dev, fmt, ...)				\
+#define DRM_DEV_DE_ATOMIC(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_ATOMIC,	fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_ATOMIC(fmt, ...)					\
+#define DRM_DE_ATOMIC(fmt, ...)					\
 	drm_dbg(DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_VBL(dev, fmt, ...)				\
+#define DRM_DEV_DE_VBL(dev, fmt, ...)				\
 	drm_dev_dbg(dev, DRM_UT_VBL, fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_VBL(fmt, ...)						\
+#define DRM_DE_VBL(fmt, ...)						\
 	drm_dbg(DRM_UT_VBL, fmt, ##__VA_ARGS__)
 
-#define DRM_DEBUG_LEASE(fmt, ...)					\
+#define DRM_DE_LEASE(fmt, ...)					\
 	drm_dbg(DRM_UT_LEASE, fmt, ##__VA_ARGS__)
 
-#define	DRM_DEV_DEBUG_DP(dev, fmt, ...)					\
+#define	DRM_DEV_DE_DP(dev, fmt, ...)					\
 	drm_dev_dbg(dev, DRM_UT_DP, fmt, ## __VA_ARGS__)
-#define DRM_DEBUG_DP(fmt, ...)						\
+#define DRM_DE_DP(fmt, ...)						\
 	drm_dbg(DRM_UT_DP, fmt, ## __VA_ARGS__)
 
-#define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, category, fmt, ...)	\
+#define _DRM_DEV_DEFINE_DE_RATELIMITED(dev, category, fmt, ...)	\
 ({									\
 	static DEFINE_RATELIMIT_STATE(_rs,				\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
@@ -394,33 +394,33 @@ void drm_err(const char *format, ...);
 })
 
 /**
- * Rate limited debug output. Like DRM_DEBUG() but won't flood the log.
+ * Rate limited de output. Like DRM_DE() but won't flood the log.
  *
  * @dev: device pointer
  * @fmt: printf() like format string.
  */
-#define DRM_DEV_DEBUG_RATELIMITED(dev, fmt, ...)			\
-	_DEV_DRM_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_CORE,		\
+#define DRM_DEV_DE_RATELIMITED(dev, fmt, ...)			\
+	_DEV_DRM_DEFINE_DE_RATELIMITED(dev, DRM_UT_CORE,		\
 					  fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_RATELIMITED(fmt, ...)					\
-	DRM_DEV_DEBUG_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+#define DRM_DE_RATELIMITED(fmt, ...)					\
+	DRM_DEV_DE_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_DRIVER_RATELIMITED(dev, fmt, ...)			\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_DRIVER,		\
+#define DRM_DEV_DE_DRIVER_RATELIMITED(dev, fmt, ...)			\
+	_DRM_DEV_DEFINE_DE_RATELIMITED(dev, DRM_UT_DRIVER,		\
 					  fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_DRIVER_RATELIMITED(fmt, ...)				\
-	DRM_DEV_DEBUG_DRIVER_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+#define DRM_DE_DRIVER_RATELIMITED(fmt, ...)				\
+	DRM_DEV_DE_DRIVER_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_KMS_RATELIMITED(dev, fmt, ...)			\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_KMS,		\
+#define DRM_DEV_DE_KMS_RATELIMITED(dev, fmt, ...)			\
+	_DRM_DEV_DEFINE_DE_RATELIMITED(dev, DRM_UT_KMS,		\
 					  fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_KMS_RATELIMITED(fmt, ...)				\
-	DRM_DEV_DEBUG_KMS_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+#define DRM_DE_KMS_RATELIMITED(fmt, ...)				\
+	DRM_DEV_DE_KMS_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_PRIME_RATELIMITED(dev, fmt, ...)			\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_PRIME,		\
+#define DRM_DEV_DE_PRIME_RATELIMITED(dev, fmt, ...)			\
+	_DRM_DEV_DEFINE_DE_RATELIMITED(dev, DRM_UT_PRIME,		\
 					  fmt, ##__VA_ARGS__)
-#define DRM_DEBUG_PRIME_RATELIMITED(fmt, ...)				\
-	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+#define DRM_DE_PRIME_RATELIMITED(fmt, ...)				\
+	DRM_DEV_DE_PRIME_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
 #endif /* DRM_PRINT_H_ */

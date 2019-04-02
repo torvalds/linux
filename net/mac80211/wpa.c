@@ -79,7 +79,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
 
 	if (tx->key->conf.flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) {
-		/* Zeroed MIC can help with debug */
+		/* Zeroed MIC can help with de */
 		memset(mic, 0, MICHAEL_MIC_LEN);
 		return TX_CONTINUE;
 	}

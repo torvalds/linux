@@ -46,7 +46,7 @@ static int falconide_intr_lock;
 static void falconide_release_lock(void)
 {
 	if (falconide_intr_lock == 0) {
-		printk(KERN_ERR "%s: bug\n", __func__);
+		printk(KERN_ERR "%s: \n", __func__);
 		return;
 	}
 	falconide_intr_lock = 0;

@@ -41,12 +41,12 @@
 #define KERNEL_HAS_ATOMIC64
 #endif
 
-#ifdef RDS_DEBUG
-#define rdsdebug(fmt, args...) pr_debug("%s(): " fmt, __func__ , ##args)
+#ifdef RDS_DE
+#define rdsde(fmt, args...) pr_de("%s(): " fmt, __func__ , ##args)
 #else
-/* sigh, pr_debug() causes unused variable warnings */
+/* sigh, pr_de() causes unused variable warnings */
 static inline __printf(1, 2)
-void rdsdebug(char *fmt, ...)
+void rdsde(char *fmt, ...)
 {
 }
 #endif

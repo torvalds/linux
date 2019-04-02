@@ -20,7 +20,7 @@
 /* Secondary cache size in bytes, if present.  */
 static unsigned long scache_size;
 
-#undef DEBUG_CACHE
+#undef DE_CACHE
 
 #define SC_SIZE 0x00080000
 #define SC_LINE 32
@@ -75,12 +75,12 @@ static void indy_sc_wback_invalidate(unsigned long addr, unsigned long size)
 	unsigned long first_line, last_line;
 	unsigned long flags;
 
-#ifdef DEBUG_CACHE
+#ifdef DE_CACHE
 	printk("indy_sc_wback_invalidate[%08lx,%08lx]", addr, size);
 #endif
 
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	_ON(size == 0);
 
 	/* Which lines to flush?  */
 	first_line = SC_INDEX(addr);
@@ -103,7 +103,7 @@ static void indy_sc_enable(void)
 	unsigned long addr, tmp1, tmp2;
 
 	/* This is really cool... */
-#ifdef DEBUG_CACHE
+#ifdef DE_CACHE
 	printk("Enabling R4600 SCACHE\n");
 #endif
 	__asm__ __volatile__(
@@ -133,7 +133,7 @@ static void indy_sc_disable(void)
 {
 	unsigned long tmp1, tmp2, tmp3;
 
-#ifdef DEBUG_CACHE
+#ifdef DE_CACHE
 	printk("Disabling R4600 SCACHE\n");
 #endif
 	__asm__ __volatile__(

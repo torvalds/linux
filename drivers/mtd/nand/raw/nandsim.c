@@ -46,7 +46,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 /* Default simulator parameters values */
 #if !defined(CONFIG_NANDSIM_FIRST_ID_BYTE)  || \
@@ -156,7 +156,7 @@ MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanoseconds)");
 MODULE_PARM_DESC(bus_width,      "Chip's bus width (8- or 16-bit)");
 MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if not zero");
 MODULE_PARM_DESC(log,            "Perform logging if not zero");
-MODULE_PARM_DESC(dbg,            "Output debug information if not zero");
+MODULE_PARM_DESC(dbg,            "Output de information if not zero");
 MODULE_PARM_DESC(parts,          "Partition sizes (in erase blocks) separated by commas");
 /* Page and erase block positions for the following parameters are independent of any partitions */
 MODULE_PARM_DESC(badblocks,      "Erase blocks that are initially marked bad, separated by commas");
@@ -181,11 +181,11 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 /* The largest possible page size */
 #define NS_LARGEST_PAGE_SIZE	4096
 
-/* Simulator's output macros (logging, debugging, warning, error) */
+/* Simulator's output macros (logging, deging, warning, error) */
 #define NS_LOG(args...) \
-	do { if (log) pr_debug(" log: " args); } while(0)
+	do { if (log) pr_de(" log: " args); } while(0)
 #define NS_DBG(args...) \
-	do { if (dbg) pr_debug(" debug: " args); } while(0)
+	do { if (dbg) pr_de(" de: " args); } while(0)
 #define NS_WARN(args...) \
 	do { pr_warn(" warning: " args); } while(0)
 #define NS_ERR(args...) \
@@ -497,32 +497,32 @@ static int nandsim_show(struct seq_file *m, void *private)
 DEFINE_SHOW_ATTRIBUTE(nandsim);
 
 /**
- * nandsim_debugfs_create - initialize debugfs
+ * nandsim_defs_create - initialize defs
  * @dev: nandsim device description object
  *
- * This function creates all debugfs files for UBI device @ubi. Returns zero in
+ * This function creates all defs files for UBI device @ubi. Returns zero in
  * case of success and a negative error code in case of failure.
  */
-static int nandsim_debugfs_create(struct nandsim *dev)
+static int nandsim_defs_create(struct nandsim *dev)
 {
 	struct dentry *root = nsmtd->dbg.dfs_dir;
 	struct dentry *dent;
 
 	/*
-	 * Just skip debugfs initialization when the debugfs directory is
+	 * Just skip defs initialization when the defs directory is
 	 * missing.
 	 */
 	if (IS_ERR_OR_NULL(root)) {
-		if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+		if (IS_ENABLED(CONFIG_DE_FS) &&
 		    !IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
-			NS_WARN("CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose debugfs stuff\n");
+			NS_WARN("CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose defs stuff\n");
 		return 0;
 	}
 
-	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
+	dent = defs_create_file("nandsim_wear_report", S_IRUSR,
 				   root, dev, &nandsim_fops);
 	if (IS_ERR_OR_NULL(dent)) {
-		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
+		NS_ERR("cannot create \"nandsim_wear_report\" defs entry\n");
 		return -1;
 	}
 
@@ -1002,7 +1002,7 @@ static void update_wear(unsigned int erase_block_no)
 		return;
 	total_wear += 1;
 	/*
-	 * TODO: Notify this through a debugfs entry,
+	 * TODO: Notify this through a defs entry,
 	 * instead of showing an error message.
 	 */
 	if (total_wear == 0)
@@ -1066,7 +1066,7 @@ static char *get_state_name(uint32_t state)
 			return "STATE_UNKNOWN";
 	}
 
-	NS_ERR("get_state_name: unknown state, BUG\n");
+	NS_ERR("get_state_name: unknown state, \n");
 	return NULL;
 }
 
@@ -1133,7 +1133,7 @@ static uint32_t get_state_by_command(unsigned command)
 			return STATE_CMD_RNDOUTSTART;
 	}
 
-	NS_ERR("get_state_by_command: unknown command, BUG\n");
+	NS_ERR("get_state_by_command: unknown command, \n");
 	return 0;
 }
 
@@ -1290,7 +1290,7 @@ static int find_operation(struct nandsim *ns, uint32_t flag)
 
 	if (flag) {
 		/* This shouldn't happen */
-		NS_DBG("find_operation: BUG, operation must be known if address is input\n");
+		NS_DBG("find_operation: , operation must be known if address is input\n");
 		return -2;
 	}
 
@@ -1693,7 +1693,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 
 	case ACTION_HALFOFF:
 		if (!(ns->options & OPT_PAGE512_8BIT)) {
-			NS_ERR("do_state_action: BUG! can't skip half of page for non-512"
+			NS_ERR("do_state_action: ! can't skip half of page for non-512"
 				"byte page size 8x chips\n");
 			return -1;
 		}
@@ -1707,7 +1707,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 		break;
 
 	default:
-		NS_DBG("do_state_action: BUG! unknown action\n");
+		NS_DBG("do_state_action: ! unknown action\n");
 	}
 
 	return 0;
@@ -1819,7 +1819,7 @@ static void switch_state(struct nandsim *ns)
 				break;
 
 			default:
-				NS_ERR("switch_state: BUG! unknown data state\n");
+				NS_ERR("switch_state: ! unknown data state\n");
 		}
 
 	} else if (ns->nxstate & STATE_ADDR_MASK) {
@@ -1849,7 +1849,7 @@ static void switch_state(struct nandsim *ns)
 				break;
 
 			default:
-				NS_ERR("switch_state: BUG! unknown address state\n");
+				NS_ERR("switch_state: ! unknown address state\n");
 		}
 	} else {
 		/*
@@ -1909,7 +1909,7 @@ static u_char ns_nand_read_byte(struct nand_chip *chip)
 			ns->regs.count += 1;
 			break;
 		default:
-			BUG();
+			();
 	}
 
 	if (ns->regs.count == ns->regs.num) {
@@ -2012,7 +2012,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 					ns->regs.num = 1;
 					break;
 				default:
-					BUG();
+					();
 			}
 		}
 
@@ -2332,7 +2332,7 @@ static int __init ns_init_module(void)
 	if (retval != 0)
 		goto err_exit;
 
-	if ((retval = nandsim_debugfs_create(nand)) != 0)
+	if ((retval = nandsim_defs_create(nand)) != 0)
 		goto err_exit;
 
         return 0;

@@ -59,7 +59,7 @@
 /*
  *   Module configuration parameters
  */
-static unsigned int pmcraid_debug_log;
+static unsigned int pmcraid_de_log;
 static unsigned int pmcraid_disable_aen;
 static unsigned int pmcraid_log_level = IOASC_LOG_LEVEL_MUST;
 static unsigned int pmcraid_enable_msix;
@@ -93,8 +93,8 @@ MODULE_PARM_DESC(log_level,
 		 " errors, 2: all errors including high-severity errors,"
 		 " 0: disables logging");
 
-module_param_named(debug, pmcraid_debug_log, uint, (S_IRUGO | S_IWUSR));
-MODULE_PARM_DESC(debug,
+module_param_named(de, pmcraid_de_log, uint, (S_IRUGO | S_IWUSR));
+MODULE_PARM_DESC(de,
 		 "Enable driver verbose message logging. Set 1 to enable."
 		 "(default: 0)");
 

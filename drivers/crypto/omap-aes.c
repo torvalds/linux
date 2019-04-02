@@ -14,8 +14,8 @@
  */
 
 #define pr_fmt(fmt) "%20s: " fmt, __func__
-#define prn(num) pr_debug(#num "=%d\n", num)
-#define prx(num) pr_debug(#num "=%x\n", num)
+#define prn(num) pr_de(#num "=%d\n", num)
+#define prx(num) pr_de(#num "=%x\n", num)
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -49,12 +49,12 @@ static DEFINE_SPINLOCK(list_lock);
 
 static int aes_fallback_sz = 200;
 
-#ifdef DEBUG
+#ifdef DE
 #define omap_aes_read(dd, offset)				\
 ({								\
 	int _read_ret;						\
 	_read_ret = __raw_readl(dd->io_base + offset);		\
-	pr_debug("omap_aes_read(" #offset "=%#x)= %#x\n",	\
+	pr_de("omap_aes_read(" #offset "=%#x)= %#x\n",	\
 		 offset, _read_ret);				\
 	_read_ret;						\
 })
@@ -65,10 +65,10 @@ inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
 }
 #endif
 
-#ifdef DEBUG
+#ifdef DE
 #define omap_aes_write(dd, offset, value)				\
 	do {								\
-		pr_debug("omap_aes_write(" #offset "=%#x) value=%#x\n",	\
+		pr_de("omap_aes_write(" #offset "=%#x) value=%#x\n",	\
 			 offset, value);				\
 		__raw_writel(value, dd->io_base + offset);		\
 	} while (0)
@@ -355,7 +355,7 @@ int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 {
 	int err;
 
-	pr_debug("total: %d\n", dd->total);
+	pr_de("total: %d\n", dd->total);
 
 	if (!dd->pio_only) {
 		err = dma_map_sg(dd->dev, dd->in_sg, dd->in_sg_len,
@@ -388,7 +388,7 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 {
 	struct ablkcipher_request *req = dd->req;
 
-	pr_debug("err: %d\n", err);
+	pr_de("err: %d\n", err);
 
 	crypto_finalize_ablkcipher_request(dd->engine, req, err);
 
@@ -398,7 +398,7 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 
 int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 {
-	pr_debug("total: %d\n", dd->total);
+	pr_de("total: %d\n", dd->total);
 
 	omap_aes_dma_stop(dd);
 
@@ -487,7 +487,7 @@ static void omap_aes_done_task(unsigned long data)
 {
 	struct omap_aes_dev *dd = (struct omap_aes_dev *)data;
 
-	pr_debug("enter done_task\n");
+	pr_de("enter done_task\n");
 
 	if (!dd->pio_only) {
 		dma_sync_sg_for_device(dd->dev, dd->out_sg, dd->out_sg_len,
@@ -506,7 +506,7 @@ static void omap_aes_done_task(unsigned long data)
 
 	omap_aes_finish_req(dd, 0);
 
-	pr_debug("exit\n");
+	pr_de("exit\n");
 }
 
 static int omap_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
@@ -517,7 +517,7 @@ static int omap_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	struct omap_aes_dev *dd;
 	int ret;
 
-	pr_debug("nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
+	pr_de("nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
 		  !!(mode & FLAGS_ENCRYPT),
 		  !!(mode & FLAGS_CBC));
 
@@ -559,7 +559,7 @@ static int omap_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 		   keylen != AES_KEYSIZE_256)
 		return -EINVAL;
 
-	pr_debug("enter, keylen: %d\n", keylen);
+	pr_de("enter, keylen: %d\n", keylen);
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
@@ -893,9 +893,9 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 	if (status & AES_REG_IRQ_DATA_IN) {
 		omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x0);
 
-		BUG_ON(!dd->in_sg);
+		_ON(!dd->in_sg);
 
-		BUG_ON(_calc_walked(in) > dd->in_sg->length);
+		_ON(_calc_walked(in) > dd->in_sg->length);
 
 		src = sg_virt(dd->in_sg) + _calc_walked(in);
 
@@ -926,9 +926,9 @@ static irqreturn_t omap_aes_irq(int irq, void *dev_id)
 	} else if (status & AES_REG_IRQ_DATA_OUT) {
 		omap_aes_write(dd, AES_REG_IRQ_ENABLE(dd), 0x0);
 
-		BUG_ON(!dd->out_sg);
+		_ON(!dd->out_sg);
 
-		BUG_ON(_calc_walked(out) > dd->out_sg->length);
+		_ON(_calc_walked(out) > dd->out_sg->length);
 
 		dst = sg_virt(dd->out_sg) + _calc_walked(out);
 
@@ -1220,7 +1220,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 			for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
 				algp = &dd->pdata->algs_info[i].algs_list[j];
 
-				pr_debug("reg alg: %s\n", algp->cra_name);
+				pr_de("reg alg: %s\n", algp->cra_name);
 
 				err = crypto_register_alg(algp);
 				if (err)
@@ -1237,7 +1237,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 			aalg = &dd->pdata->aead_algs_info->algs_list[i];
 			algp = &aalg->base;
 
-			pr_debug("reg alg: %s\n", algp->cra_name);
+			pr_de("reg alg: %s\n", algp->cra_name);
 
 			err = crypto_register_aead(aalg);
 			if (err)

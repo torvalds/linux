@@ -180,7 +180,7 @@ struct cros_ec_platform {
 	u16 cmd_offset;
 };
 
-struct cros_ec_debugfs;
+struct cros_ec_defs;
 
 /**
  * struct cros_ec_dev - ChromeOS EC device entry point.
@@ -188,7 +188,7 @@ struct cros_ec_debugfs;
  * @cdev: Character device structure in /dev.
  * @ec_dev: cros_ec_device structure to talk to the physical device.
  * @dev: Pointer to the platform device.
- * @debug_info: cros_ec_debugfs structure for debugging information.
+ * @de_info: cros_ec_defs structure for deging information.
  * @has_kb_wake_angle: True if at least 2 accelerometer are connected to the EC.
  * @cmd_offset: Offset to apply for each command.
  * @features: Features supported by the EC.
@@ -198,7 +198,7 @@ struct cros_ec_dev {
 	struct cdev cdev;
 	struct cros_ec_device *ec_dev;
 	struct device *dev;
-	struct cros_ec_debugfs *debug_info;
+	struct cros_ec_defs *de_info;
 	bool has_kb_wake_angle;
 	u16 cmd_offset;
 	u32 features[2];

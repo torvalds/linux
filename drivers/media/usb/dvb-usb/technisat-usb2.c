@@ -35,11 +35,11 @@
 /* module parameters */
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		"set debugging level (bit-mask: 1=info,2=eeprom,4=i2c,8=rc)." \
-		DVB_USB_DEBUG_STATUS);
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de,
+		"set deging level (bit-mask: 1=info,2=eeprom,4=i2c,8=rc)." \
+		DVB_USB_DE_STATUS);
 
 /* disables all LED control command and
  * also does not start the signal polling thread */
@@ -59,11 +59,11 @@ struct technisat_usb2_state {
 	u8 buf[64];
 };
 
-/* debug print helpers */
-#define deb_info(args...)    dprintk(debug, 0x01, args)
-#define deb_eeprom(args...)  dprintk(debug, 0x02, args)
-#define deb_i2c(args...)     dprintk(debug, 0x04, args)
-#define deb_rc(args...)      dprintk(debug, 0x08, args)
+/* de print helpers */
+#define deb_info(args...)    dprintk(de, 0x01, args)
+#define deb_eeprom(args...)  dprintk(de, 0x02, args)
+#define deb_i2c(args...)     dprintk(de, 0x04, args)
+#define deb_rc(args...)      dprintk(de, 0x08, args)
 
 /* vendor requests */
 #define SET_IFCLK_TO_EXTERNAL_TSCLK_VENDOR_REQUEST 0xB3
@@ -92,7 +92,7 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 		return -ENOMEM;
 
 	deb_i2c("i2c-access: %02x, tx: ", device_addr);
-	debug_dump(tx, txlen, deb_i2c);
+	de_dump(tx, txlen, deb_i2c);
 	deb_i2c(" ");
 
 	if (txlen > 62) {
@@ -148,7 +148,7 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 		memcpy(rx, &b[2], rxlen);
 
 		deb_i2c("rx (%d): ", rxlen);
-		debug_dump(rx, rxlen, deb_i2c);
+		de_dump(rx, rxlen, deb_i2c);
 	}
 
 	deb_i2c("\n");
@@ -651,7 +651,7 @@ unlock:
 
 #if 0
 	deb_rc("RC: %d ", ret);
-	debug_dump(b, ret, deb_rc);
+	de_dump(b, ret, deb_rc);
 #endif
 
 	ev.pulse = 0;

@@ -99,7 +99,7 @@ enum apex_bar2_regs {
 	APEX_BAR2_REG_IDLEGENERATOR_IDLEGEN_IDLEREGISTER = 0x4A000,
 	APEX_BAR2_REG_KERNEL_HIB_PAGE_TABLE = 0x50000,
 
-	/* Error registers - Used mostly for debug */
+	/* Error registers - Used mostly for de */
 	APEX_BAR2_REG_USER_HIB_ERROR_STATUS = 0x86f0,
 	APEX_BAR2_REG_SCALAR_CORE_ERROR_STATUS = 0x41a0,
 };

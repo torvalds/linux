@@ -362,7 +362,7 @@ DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
 extern void hrtimer_init(struct hrtimer *timer, clockid_t which_clock,
 			 enum hrtimer_mode mode);
 
-#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+#ifdef CONFIG_DE_OBJECTS_TIMERS
 extern void hrtimer_init_on_stack(struct hrtimer *timer, clockid_t which_clock,
 				  enum hrtimer_mode mode);
 
@@ -387,7 +387,7 @@ extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
  * @tim:	expiry time
  * @mode:	timer mode: absolute (HRTIMER_MODE_ABS) or
  *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED);
- *		softirq based mode is considered for debug purpose only!
+ *		softirq based mode is considered for de purpose only!
  */
 static inline void hrtimer_start(struct hrtimer *timer, ktime_t tim,
 				 const enum hrtimer_mode mode)

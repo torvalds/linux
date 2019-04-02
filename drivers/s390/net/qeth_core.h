@@ -28,7 +28,7 @@
 #include <net/addrconf.h>
 #include <net/tcp.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/qdio.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
@@ -39,7 +39,7 @@
 #include "qeth_core_mpc.h"
 
 /**
- * Debug Facility stuff
+ * De Facility stuff
  */
 enum qeth_dbf_names {
 	QETH_DBF_SETUP,
@@ -49,40 +49,40 @@ enum qeth_dbf_names {
 };
 
 struct qeth_dbf_info {
-	char name[DEBUG_MAX_NAME_LEN];
+	char name[DE_MAX_NAME_LEN];
 	int pages;
 	int areas;
 	int len;
 	int level;
-	struct debug_view *view;
-	debug_info_t *id;
+	struct de_view *view;
+	de_info_t *id;
 };
 
 #define QETH_DBF_CTRL_LEN 256
 
 #define QETH_DBF_TEXT(name, level, text) \
-	debug_text_event(qeth_dbf[QETH_DBF_##name].id, level, text)
+	de_text_event(qeth_dbf[QETH_DBF_##name].id, level, text)
 
 #define QETH_DBF_HEX(name, level, addr, len) \
-	debug_event(qeth_dbf[QETH_DBF_##name].id, level, (void *)(addr), len)
+	de_event(qeth_dbf[QETH_DBF_##name].id, level, (void *)(addr), len)
 
 #define QETH_DBF_MESSAGE(level, text...) \
-	debug_sprintf_event(qeth_dbf[QETH_DBF_MSG].id, level, text)
+	de_sprintf_event(qeth_dbf[QETH_DBF_MSG].id, level, text)
 
 #define QETH_DBF_TEXT_(name, level, text...) \
 	qeth_dbf_longtext(qeth_dbf[QETH_DBF_##name].id, level, text)
 
 #define QETH_CARD_TEXT(card, level, text) \
-	debug_text_event(card->debug, level, text)
+	de_text_event(card->de, level, text)
 
 #define QETH_CARD_HEX(card, level, addr, len) \
-	debug_event(card->debug, level, (void *)(addr), len)
+	de_event(card->de, level, (void *)(addr), len)
 
 #define QETH_CARD_MESSAGE(card, text...) \
-	debug_sprintf_event(card->debug, level, text)
+	de_sprintf_event(card->de, level, text)
 
 #define QETH_CARD_TEXT_(card, level, text...) \
-	qeth_dbf_longtext(card->debug, level, text)
+	qeth_dbf_longtext(card->de, level, text)
 
 #define SENSE_COMMAND_REJECT_BYTE 0
 #define SENSE_COMMAND_REJECT_FLAG 0x80
@@ -796,7 +796,7 @@ struct qeth_card {
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
-	debug_info_t *debug;
+	de_info_t *de;
 	struct mutex conf_mutex;
 	struct mutex discipline_mutex;
 	struct napi_struct napi;
@@ -999,7 +999,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			unsigned int offset, unsigned int hd_len,
 			int elements_needed);
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
+void qeth_dbf_longtext(de_info_t *id, int level, char *text, ...);
 int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);

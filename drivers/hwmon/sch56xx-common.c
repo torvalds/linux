@@ -492,7 +492,7 @@ static int __init sch56xx_find(int sioaddr, const char **name)
 		*name = "sch5636";
 		break;
 	default:
-		pr_debug("Unsupported device id: 0x%02x\n",
+		pr_de("Unsupported device id: 0x%02x\n",
 			 (unsigned int)devid);
 		err = -ENODEV;
 		goto exit;

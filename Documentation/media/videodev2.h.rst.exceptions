@@ -484,7 +484,7 @@ replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ :c:type:`v4l2_event_motion_det`
 replace define V4L2_EVENT_SUB_FL_SEND_INITIAL event-flags
 replace define V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK event-flags
 
-# V4L2 debugging
+# V4L2 deging
 replace define V4L2_CHIP_MATCH_BRIDGE vidioc_dbg_g_register
 replace define V4L2_CHIP_MATCH_SUBDEV vidioc_dbg_g_register
 replace define V4L2_CHIP_MATCH_HOST vidioc_dbg_g_register

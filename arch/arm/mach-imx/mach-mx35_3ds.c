@@ -44,7 +44,7 @@
 
 #include <video/platform_lcd.h>
 
-#include "3ds_debugboard.h"
+#include "3ds_deboard.h"
 #include "common.h"
 #include "devices-imx35.h"
 #include "ehci.h"
@@ -497,8 +497,8 @@ static void __init mx35_3ds_late_init(void)
 	struct platform_device *imx35_fb_pdev;
 
 	if (mxc_expio_init(MX35_CS5_BASE_ADDR, IMX_GPIO_NR(1, 1)))
-		pr_warn("Init of the debugboard failed, all "
-			"devices on the debugboard are unusable.\n");
+		pr_warn("Init of the deboard failed, all "
+			"devices on the deboard are unusable.\n");
 
 	imx35_fb_pdev = imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 	mx35_3ds_lcd.dev.parent = &imx35_fb_pdev->dev;

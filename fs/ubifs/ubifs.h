@@ -272,7 +272,7 @@ enum {
  * Action taken upon a failed ubifs_assert().
  * @ASSACT_REPORT: just report the failed assertion
  * @ASSACT_RO: switch to read-only mode
- * @ASSACT_PANIC: call BUG() and possible panic the kernel
+ * @ASSACT_PANIC: call () and possible panic the kernel
  */
 enum {
 	ASSACT_REPORT = 0,
@@ -894,7 +894,7 @@ struct ubifs_compressor {
 struct ubifs_budget_req {
 	unsigned int fast:1;
 	unsigned int recalculate:1;
-#ifndef UBIFS_DEBUG
+#ifndef UBIFS_DE
 	unsigned int new_page:1;
 	unsigned int dirtied_page:1;
 	unsigned int new_dent:1;
@@ -997,7 +997,7 @@ struct ubifs_budg_info {
 	int dent_budget;
 };
 
-struct ubifs_debug_info;
+struct ubifs_de_info;
 
 /**
  * struct ubifs_info - UBIFS file-system description data structure
@@ -1258,7 +1258,7 @@ struct ubifs_debug_info;
  * @size_tree: inode size information for recovery
  * @mount_opts: UBIFS-specific mount options
  *
- * @dbg: debugging-related information
+ * @dbg: deging-related information
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
@@ -1500,7 +1500,7 @@ struct ubifs_info {
 	struct rb_root size_tree;
 	struct ubifs_mount_opts mount_opts;
 
-	struct ubifs_debug_info *dbg;
+	struct ubifs_de_info *dbg;
 };
 
 extern struct list_head ubifs_infos;
@@ -1958,7 +1958,7 @@ void ubifs_add_lpt_dirt(struct ubifs_info *c, int lnum, int dirty);
 void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode);
 uint32_t ubifs_unpack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos, int nrbits);
 struct ubifs_nnode *ubifs_first_nnode(struct ubifs_info *c, int *hght);
-/* Needed only in debugging code in lpt_commit.c */
+/* Needed only in deging code in lpt_commit.c */
 int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
 		       struct ubifs_nnode *nnode);
 int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash);
@@ -2067,7 +2067,7 @@ void ubifs_compress(const struct ubifs_info *c, const void *in_buf, int in_len,
 int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 		     void *out, int *out_len, int compr_type);
 
-#include "debug.h"
+#include "de.h"
 #include "misc.h"
 #include "key.h"
 

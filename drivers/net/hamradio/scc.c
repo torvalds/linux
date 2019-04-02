@@ -82,7 +82,7 @@
    		  * Uses sk_buffer memory management
    		  * Reduced overhead of /proc/net/z8530drv output
    		  * Streamlined quite a lot things
-   		  * Invents brand new bugs... ;-)
+   		  * Invents brand new s... ;-)
 
    		  The move to version number 3.0 reflects theses changes.
    		  You can use 'kissbridge' if you need a KISS TNC emulator.
@@ -93,7 +93,7 @@
    		routines, added calibration code.
    1997-10-12	Made SCC_DELAY a CONFIG option, added CONFIG_SCC_TRXECHO
    1998-01-29	Small fix to avoid lock-up on initialization
-   1998-09-29	Fixed the "grouping" bugs, tx_inhibit works again,
+   1998-09-29	Fixed the "grouping" s, tx_inhibit works again,
    		using dev->tx_queue_len now instead of MAXQUEUE now.
    1998-10-21	Postponed the spinlock changes, would need a lot of
    		testing I currently don't have the time to. Softdcd doesn't
@@ -107,7 +107,7 @@
    		does TX timeouts itself since it uses its own queue
    		scheme.
 
-   Thanks to all who contributed to this driver with ideas and bug
+   Thanks to all who contributed to this driver with ideas and 
    reports!
    
    NB -- if you find errors, change something, please let me know
@@ -141,7 +141,7 @@
 
 #define SCC_MAXCHIPS	4       /* number of max. supported chips */
 #define SCC_BUFSIZE	384     /* must not exceed 4096 */
-#undef	SCC_DEBUG
+#undef	SCC_DE
 
 #define SCC_DEFAULT_CLOCK	4915200 
 				/* default pclock if nothing is specified */
@@ -547,7 +547,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 	if (skb->len >= scc->stat.bufsize)
 	{
 #ifdef notdef
-		printk(KERN_DEBUG "z8530drv: oops, scc_rxint() received huge frame...\n");
+		printk(KERN_DE "z8530drv: oops, scc_rxint() received huge frame...\n");
 #endif
 		dev_kfree_skb_irq(skb);
 		scc->rx_buff = NULL;
@@ -2054,7 +2054,7 @@ static int scc_net_seq_show(struct seq_file *seq, void *v)
 				K(fulldup), K(waittime), K(mintime), K(maxkeyup),
 				K(idletime), K(maxdefer), K(tx_inhibit), K(group));
 #undef K
-#ifdef SCC_DEBUG
+#ifdef SCC_DE
 		{
 			int reg;
 

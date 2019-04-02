@@ -40,7 +40,7 @@ static int xfs_dir2_node_addname_int(xfs_da_args_t *args,
 /*
  * Check internal consistency of a leafn block.
  */
-#ifdef DEBUG
+#ifdef DE
 static xfs_failaddr_t
 xfs_dir3_leafn_check(
 	struct xfs_inode	*dp,
@@ -318,7 +318,7 @@ xfs_dir2_free_log_header(
 	struct xfs_da_args	*args,
 	struct xfs_buf		*bp)
 {
-#ifdef DEBUG
+#ifdef DE
 	xfs_dir2_free_t		*free;		/* freespace structure */
 
 	free = bp->b_addr;
@@ -504,7 +504,7 @@ xfs_dir2_leafn_add(
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void
 xfs_dir2_free_hdr_check(
 	struct xfs_inode *dp,
@@ -522,7 +522,7 @@ xfs_dir2_free_hdr_check(
 }
 #else
 #define xfs_dir2_free_hdr_check(dp, bp, db)
-#endif	/* DEBUG */
+#endif	/* DE */
 
 /*
  * Return the last hash value in the leaf.
@@ -1006,7 +1006,7 @@ xfs_dir2_leafn_rebalance(
 	xfs_dir2_leaf_t		*leaf1;		/* first leaf structure */
 	xfs_dir2_leaf_t		*leaf2;		/* second leaf structure */
 	int			mid;		/* midpoint leaf index */
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 	int			oldstale;	/* old count of stale leaves */
 #endif
 	int			oldsum;		/* old total leaf count */
@@ -1033,7 +1033,7 @@ xfs_dir2_leafn_rebalance(
 	ents2 = dp->d_ops->leaf_ents_p(leaf2);
 
 	oldsum = hdr1.count + hdr2.count;
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 	oldstale = hdr1.stale + hdr2.stale;
 #endif
 	mid = oldsum >> 1;
@@ -1295,7 +1295,7 @@ xfs_dir2_leafn_remove(
 		if (error)
 			return error;
 		free = fbp->b_addr;
-#ifdef DEBUG
+#ifdef DE
 	{
 		struct xfs_dir3_icfree_hdr freehdr;
 		dp->d_ops->free_hdr_from_disk(&freehdr, free);

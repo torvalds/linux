@@ -128,7 +128,7 @@ target_core_iblock      9280  1
 target_core_mod       228575  31
 tcm_nab5000,iscsi_target_mod,target_core_stgt,target_core_pscsi,target_core_file,target_core_iblock
 libfc                  73681  0
-scsi_debug             56265  0
+scsi_de             56265  0
 scsi_tgt                8666  1 target_core_stgt
 configfs               20644  2 target_core_mod
 

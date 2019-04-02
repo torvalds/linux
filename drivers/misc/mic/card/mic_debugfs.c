@@ -24,7 +24,7 @@
  * Intel MIC Card driver.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
@@ -33,7 +33,7 @@
 #include "../common/mic_dev.h"
 #include "mic_device.h"
 
-/* Debugfs parent dir */
+/* Defs parent dir */
 static struct dentry *mic_dbg;
 
 /**
@@ -59,22 +59,22 @@ static int mic_intr_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(mic_intr);
 
 /**
- * mic_create_card_debug_dir - Initialize MIC debugfs entries.
+ * mic_create_card_de_dir - Initialize MIC defs entries.
  */
-void __init mic_create_card_debug_dir(struct mic_driver *mdrv)
+void __init mic_create_card_de_dir(struct mic_driver *mdrv)
 {
 	struct dentry *d;
 
 	if (!mic_dbg)
 		return;
 
-	mdrv->dbg_dir = debugfs_create_dir(mdrv->name, mic_dbg);
+	mdrv->dbg_dir = defs_create_dir(mdrv->name, mic_dbg);
 	if (!mdrv->dbg_dir) {
 		dev_err(mdrv->dev, "Cant create dbg_dir %s\n", mdrv->name);
 		return;
 	}
 
-	d = debugfs_create_file("intr_test", 0444, mdrv->dbg_dir,
+	d = defs_create_file("intr_test", 0444, mdrv->dbg_dir,
 		mdrv, &mic_intr_fops);
 
 	if (!d) {
@@ -85,30 +85,30 @@ void __init mic_create_card_debug_dir(struct mic_driver *mdrv)
 }
 
 /**
- * mic_delete_card_debug_dir - Uninitialize MIC debugfs entries.
+ * mic_delete_card_de_dir - Uninitialize MIC defs entries.
  */
-void mic_delete_card_debug_dir(struct mic_driver *mdrv)
+void mic_delete_card_de_dir(struct mic_driver *mdrv)
 {
 	if (!mdrv->dbg_dir)
 		return;
 
-	debugfs_remove_recursive(mdrv->dbg_dir);
+	defs_remove_recursive(mdrv->dbg_dir);
 }
 
 /**
- * mic_init_card_debugfs - Initialize global debugfs entry.
+ * mic_init_card_defs - Initialize global defs entry.
  */
-void __init mic_init_card_debugfs(void)
+void __init mic_init_card_defs(void)
 {
-	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	mic_dbg = defs_create_dir(KBUILD_MODNAME, NULL);
 	if (!mic_dbg)
-		pr_err("can't create debugfs dir\n");
+		pr_err("can't create defs dir\n");
 }
 
 /**
- * mic_exit_card_debugfs - Uninitialize global debugfs entry
+ * mic_exit_card_defs - Uninitialize global defs entry
  */
-void mic_exit_card_debugfs(void)
+void mic_exit_card_defs(void)
 {
-	debugfs_remove(mic_dbg);
+	defs_remove(mic_dbg);
 }

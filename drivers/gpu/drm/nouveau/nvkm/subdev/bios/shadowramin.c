@@ -70,7 +70,7 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	if (device->card_type >= NV_C0)
 		addr = nvkm_rd32(device, 0x022500);
 	if (addr & 0x00000001) {
-		nvkm_debug(subdev, "... display disabled\n");
+		nvkm_de(subdev, "... display disabled\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -83,11 +83,11 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	else
 		addr = nvkm_rd32(device, 0x619f04);
 	if (!(addr & 0x00000008)) {
-		nvkm_debug(subdev, "... not enabled\n");
+		nvkm_de(subdev, "... not enabled\n");
 		return ERR_PTR(-ENODEV);
 	}
 	if ( (addr & 0x00000003) != 1) {
-		nvkm_debug(subdev, "... not in vram\n");
+		nvkm_de(subdev, "... not in vram\n");
 		return ERR_PTR(-ENODEV);
 	}
 

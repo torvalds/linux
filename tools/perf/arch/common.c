@@ -3,7 +3,7 @@
 #include "common.h"
 #include "../util/env.h"
 #include "../util/util.h"
-#include "../util/debug.h"
+#include "../util/de.h"
 
 const char *const arc_triplets[] = {
 	"arc-linux-",

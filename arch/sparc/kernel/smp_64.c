@@ -168,7 +168,7 @@ void cpu_panic(void)
 static DEFINE_RAW_SPINLOCK(itc_sync_lock);
 static unsigned long go[SLAVE + 1];
 
-#define DEBUG_TICK_SYNC	0
+#define DE_TICK_SYNC	0
 
 static inline long get_delta (long *rt, long *master)
 {
@@ -204,7 +204,7 @@ void smp_synchronize_tick_client(void)
 {
 	long i, delta, adj, adjust_latency = 0, done = 0;
 	unsigned long flags, rt, master_time_stamp;
-#if DEBUG_TICK_SYNC
+#if DE_TICK_SYNC
 	struct {
 		long rt;	/* roundtrip time */
 		long master;	/* master's timestamp */
@@ -234,7 +234,7 @@ void smp_synchronize_tick_client(void)
 
 				tick_ops->add_tick(adj);
 			}
-#if DEBUG_TICK_SYNC
+#if DE_TICK_SYNC
 			t[i].rt = rt;
 			t[i].master = master_time_stamp;
 			t[i].diff = delta;
@@ -244,7 +244,7 @@ void smp_synchronize_tick_client(void)
 	}
 	local_irq_restore(flags);
 
-#if DEBUG_TICK_SYNC
+#if DE_TICK_SYNC
 	for (i = 0; i < NUM_ROUNDS; i++)
 		printk("rt=%5ld master=%5ld diff=%5ld adjlat=%5ld\n",
 		       t[i].rt, t[i].master, t[i].diff, t[i].lat);
@@ -944,7 +944,7 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 	if (tlb_type == hypervisor)
 		return;
 
-#ifdef CONFIG_DEBUG_DCFLUSH
+#ifdef CONFIG_DE_DCFLUSH
 	atomic_inc(&dcpage_flushes);
 #endif
 
@@ -968,7 +968,7 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 		if (data0) {
 			xcall_deliver(data0, __pa(pg_addr),
 				      (u64) pg_addr, cpumask_of(cpu));
-#ifdef CONFIG_DEBUG_DCFLUSH
+#ifdef CONFIG_DE_DCFLUSH
 			atomic_inc(&dcpage_flushes_xcall);
 #endif
 		}
@@ -987,7 +987,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 
 	preempt_disable();
 
-#ifdef CONFIG_DEBUG_DCFLUSH
+#ifdef CONFIG_DE_DCFLUSH
 	atomic_inc(&dcpage_flushes);
 #endif
 	data0 = 0;
@@ -1004,7 +1004,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	if (data0) {
 		xcall_deliver(data0, __pa(pg_addr),
 			      (u64) pg_addr, cpu_online_mask);
-#ifdef CONFIG_DEBUG_DCFLUSH
+#ifdef CONFIG_DE_DCFLUSH
 		atomic_inc(&dcpage_flushes_xcall);
 #endif
 	}
@@ -1160,7 +1160,7 @@ void smp_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 }
 
 /* CPU capture. */
-/* #define CAPTURE_DEBUG */
+/* #define CAPTURE_DE */
 extern unsigned long xcall_capture;
 
 static atomic_t smp_capture_depth = ATOMIC_INIT(0);
@@ -1174,7 +1174,7 @@ void smp_capture(void)
 	if (result == 1) {
 		int ncpus = num_online_cpus();
 
-#ifdef CAPTURE_DEBUG
+#ifdef CAPTURE_DE
 		printk("CPU[%d]: Sending penguins to jail...",
 		       smp_processor_id());
 #endif
@@ -1183,7 +1183,7 @@ void smp_capture(void)
 		smp_cross_call(&xcall_capture, 0, 0, 0);
 		while (atomic_read(&smp_capture_registry) != ncpus)
 			rmb();
-#ifdef CAPTURE_DEBUG
+#ifdef CAPTURE_DE
 		printk("done\n");
 #endif
 	}
@@ -1192,7 +1192,7 @@ void smp_capture(void)
 void smp_release(void)
 {
 	if (atomic_dec_and_test(&smp_capture_depth)) {
-#ifdef CAPTURE_DEBUG
+#ifdef CAPTURE_DE
 		printk("CPU[%d]: Giving pardon to "
 		       "imprisoned penguins\n",
 		       smp_processor_id());
@@ -1512,7 +1512,7 @@ void smp_init_cpu_poke(void)
 
 	ret = sun4v_hvapi_get(HV_GRP_CORE, &major, &minor);
 	if (ret) {
-		pr_debug("HV_GRP_CORE is not registered\n");
+		pr_de("HV_GRP_CORE is not registered\n");
 		return;
 	}
 
@@ -1522,7 +1522,7 @@ void smp_init_cpu_poke(void)
 		return;
 	}
 
-	pr_debug("CPU_POKE not supported\n");
+	pr_de("CPU_POKE not supported\n");
 }
 
 void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
@@ -1591,12 +1591,12 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
 		ptr = memblock_alloc_from(size, align, goal);
 		pr_info("cpu %d has no node %d or node-local memory\n",
 			cpu, node);
-		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
+		pr_de("per cpu data for cpu%d %lu bytes at %016lx\n",
 			 cpu, size, __pa(ptr));
 	} else {
 		ptr = memblock_alloc_try_nid(size, align, goal,
 					     MEMBLOCK_ALLOC_ACCESSIBLE, node);
-		pr_debug("per cpu data for cpu%d %lu bytes on node%d at "
+		pr_de("per cpu data for cpu%d %lu bytes on node%d at "
 			 "%016lx\n", cpu, size, node, __pa(ptr));
 	}
 	return ptr;

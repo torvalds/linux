@@ -37,7 +37,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 	struct task_struct *tsk;
 	int ret = 0;
 
-	BUG_ON(c->gc_task);
+	_ON(c->gc_task);
 
 	init_completion(&c->gc_thread_start);
 	init_completion(&c->gc_thread_exit);

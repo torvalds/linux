@@ -109,7 +109,7 @@ struct dwc2_hsotg_req;
  *       used to indicate an request has been loaded onto the endpoint
  *       and has yet to be completed (maybe due to data move, or simply
  *       awaiting an ack from the core all the data has been completed).
- * @debugfs: File entry for debugfs file for this endpoint.
+ * @defs: File entry for defs file for this endpoint.
  * @dir_in: Set to true if this endpoint is of the IN direction, which
  *          means that it is sending data to the Host.
  * @index: The index for the endpoint registers.
@@ -151,7 +151,7 @@ struct dwc2_hsotg_ep {
 	struct list_head        queue;
 	struct dwc2_hsotg       *parent;
 	struct dwc2_hsotg_req    *req;
-	struct dentry           *debugfs;
+	struct dentry           *defs;
 
 	unsigned long           total_data;
 	unsigned int            size_loaded;
@@ -785,7 +785,7 @@ struct dwc2_hregs_backup {
  * - DWC2_HS_SCHEDULE_UFRAMES must even divide 0x4000 (HFNUM_MAX_FRNUM + 1)
  * - DWC2_HS_SCHEDULE_UFRAMES must be 8 times DWC2_LS_SCHEDULE_FRAMES (probably
  *   could be any multiple of 8 times DWC2_LS_SCHEDULE_FRAMES, but there might
- *   be bugs).  The 8 comes from the USB spec: number of microframes per frame.
+ *   be s).  The 8 comes from the USB spec: number of microframes per frame.
  */
 #define DWC2_US_PER_UFRAME		125
 #define DWC2_HS_PERIODIC_US_PER_UFRAME	100
@@ -985,7 +985,7 @@ struct dwc2_hregs_backup {
  * @driver:             USB gadget driver
  * @dedicated_fifos:    Set if the hardware has dedicated IN-EP fifos.
  * @num_of_eps:         Number of available EPs (excluding EP0)
- * @debug_root:         Root directrory for debugfs.
+ * @de_root:         Root directrory for defs.
  * @ep0_reply:          Request used for ep0 reply.
  * @ep0_buff:           Buffer for EP0 reply data, if needed.
  * @ctrl_buff:          Buffer for EP0 control requests.
@@ -1004,7 +1004,7 @@ struct dwc2_hregs_backup {
  * @clk:		Pointer to otg clock
  * @reset:		Pointer to dwc2 reset controller
  * @reset_ecc:          Pointer to dwc2 optional reset controller in Stratix10.
- * @regset:		A pointer to a struct debugfs_regset32, which contains
+ * @regset:		A pointer to a struct defs_regset32, which contains
  *			a pointer to an array of register definitions, the
  *			array size and the base address where the register bank
  *			is to be found.
@@ -1072,8 +1072,8 @@ struct dwc2_hsotg {
 	struct dwc2_dregs_backup dr_backup;
 	struct dwc2_hregs_backup hr_backup;
 
-	struct dentry *debug_root;
-	struct debugfs_regset32 *regset;
+	struct dentry *de_root;
+	struct defs_regset32 *regset;
 	bool needs_byte_swap;
 
 	/* DWC OTG HW Release versions */

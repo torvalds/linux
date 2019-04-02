@@ -214,9 +214,9 @@ static int mxc_shutdown(struct clock_event_device *ced)
 	/* Clear pending interrupt */
 	imxtm->gpt->gpt_irq_acknowledge(imxtm);
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_INFO "%s: changing mode\n", __func__);
-#endif /* DEBUG */
+#endif /* DE */
 
 	return 0;
 }
@@ -237,9 +237,9 @@ static int mxc_set_oneshot(struct clock_event_device *ced)
 		imxtm->gpt->gpt_irq_acknowledge(imxtm);
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_INFO "%s: changing mode\n", __func__);
-#endif /* DEBUG */
+#endif /* DE */
 
 	/*
 	 * Do not put overhead of interrupt enable/disable into
@@ -431,13 +431,13 @@ void __init mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type)
 	struct imx_timer *imxtm;
 
 	imxtm = kzalloc(sizeof(*imxtm), GFP_KERNEL);
-	BUG_ON(!imxtm);
+	_ON(!imxtm);
 
 	imxtm->clk_per = clk_get_sys("imx-gpt.0", "per");
 	imxtm->clk_ipg = clk_get_sys("imx-gpt.0", "ipg");
 
 	imxtm->base = ioremap(pbase, SZ_4K);
-	BUG_ON(!imxtm->base);
+	_ON(!imxtm->base);
 
 	imxtm->type = type;
 	imxtm->irq = irq;

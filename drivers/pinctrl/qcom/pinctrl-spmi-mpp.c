@@ -160,7 +160,7 @@ static const struct pinconf_generic_params pmic_mpp_bindings[] = {
 	{"qcom,paired",		PMIC_MPP_CONF_PAIRED,		0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item pmic_conf_items[] = {
 	PCONFDUMP(PMIC_MPP_CONF_AMUX_ROUTE, "analog mux", NULL, true),
 	PCONFDUMP(PMIC_MPP_CONF_ANALOG_LEVEL, "analog level", NULL, true),
@@ -826,7 +826,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	if (npins < 0)
 		return npins;
 
-	BUG_ON(npins > ARRAY_SIZE(pmic_mpp_groups));
+	_ON(npins > ARRAY_SIZE(pmic_mpp_groups));
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -859,7 +859,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 
 	pctrldesc->num_custom_params = ARRAY_SIZE(pmic_mpp_bindings);
 	pctrldesc->custom_params = pmic_mpp_bindings;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	pctrldesc->custom_conf_items = pmic_conf_items;
 #endif
 

@@ -57,7 +57,7 @@ static void __iomem *__isamem_convert_addr(const volatile void __iomem *addr)
 	if ((a & 0x20000) == (a & 0x40000) >> 1)
 		return (void __iomem *)ret;
 
-	BUG();
+	();
 	return NULL;
 }
 
@@ -81,7 +81,7 @@ u16 __readw(const volatile void __iomem *addr)
 	void __iomem *a = __isamem_convert_addr(addr);
 
 	if ((unsigned long)addr & 1)
-		BUG();
+		();
 
 	return __raw_readw(a);
 }
@@ -92,7 +92,7 @@ u32 __readl(const volatile void __iomem *addr)
 	u32 ret;
 
 	if ((unsigned long)addr & 3)
-		BUG();
+		();
 
 	ret = __raw_readw(a);
 	ret |= __raw_readw(a + 4) << 16;
@@ -107,7 +107,7 @@ void readsw(const volatile void __iomem *addr, void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
-	BUG_ON((unsigned long)addr & 1);
+	_ON((unsigned long)addr & 1);
 
 	__raw_readsw(a, data, len);
 }
@@ -117,7 +117,7 @@ void readsl(const volatile void __iomem *addr, void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
-	BUG_ON((unsigned long)addr & 3);
+	_ON((unsigned long)addr & 3);
 
 	__raw_readsl(a, data, len);
 }
@@ -138,7 +138,7 @@ void __writew(u16 val, volatile void __iomem *addr)
 	void __iomem *a = __isamem_convert_addr(addr);
 
 	if ((unsigned long)addr & 1)
-		BUG();
+		();
 
 	__raw_writew(val, a);
 }
@@ -148,7 +148,7 @@ void __writel(u32 val, volatile void __iomem *addr)
 	void __iomem *a = __isamem_convert_addr(addr);
 
 	if ((unsigned long)addr & 3)
-		BUG();
+		();
 
 	__raw_writew(val, a);
 	__raw_writew(val >> 16, a + 4);
@@ -162,7 +162,7 @@ void writesw(volatile void __iomem *addr, const void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
-	BUG_ON((unsigned long)addr & 1);
+	_ON((unsigned long)addr & 1);
 
 	__raw_writesw(a, data, len);
 }
@@ -172,7 +172,7 @@ void writesl(volatile void __iomem *addr, const void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
-	BUG_ON((unsigned long)addr & 3);
+	_ON((unsigned long)addr & 3);
 
 	__raw_writesl(a, data, len);
 }
@@ -260,7 +260,7 @@ u16 __inw(unsigned int port)
 		offset = port << 2;
 	else {
 		offset = port << 1;
-		BUG_ON(port & 1);
+		_ON(port & 1);
 	}
 	return __raw_readw((void __iomem *)ISAIO_BASE + offset);
 }
@@ -273,7 +273,7 @@ u32 __inl(unsigned int port)
 	void __iomem *a;
 
 	if (SUPERIO_PORT(port) || port & 3)
-		BUG();
+		();
 
 	a = (void __iomem *)ISAIO_BASE + ((port & ~1) << 1);
 
@@ -331,14 +331,14 @@ void __outw(u16 val, unsigned int port)
 		offset = port << 2;
 	else {
 		offset = port << 1;
-		BUG_ON(port & 1);
+		_ON(port & 1);
 	}
 	__raw_writew(val, (void __iomem *)ISAIO_BASE + offset);
 }
 
 void __outl(u32 val, unsigned int port)
 {
-	BUG();
+	();
 }
 
 EXPORT_SYMBOL(__outb8);
@@ -355,7 +355,7 @@ void outsb(unsigned int port, const void *from, int len)
 	else {
 		off = (port & ~1) << 1;
 		if (port & 1)
-			BUG();
+			();
 	}
 
 	__raw_writesb((void __iomem *)ISAIO_BASE + off, from, len);
@@ -370,7 +370,7 @@ void insb(unsigned int port, void *from, int len)
 	else {
 		off = (port & ~1) << 1;
 		if (port & 1)
-			BUG();
+			();
 	}
 
 	__raw_readsb((void __iomem *)ISAIO_BASE + off, from, len);
@@ -388,7 +388,7 @@ void outsw(unsigned int port, const void *from, int len)
 	else {
 		off = (port & ~1) << 1;
 		if (port & 1)
-			BUG();
+			();
 	}
 
 	__raw_writesw((void __iomem *)ISAIO_BASE + off, from, len);
@@ -403,7 +403,7 @@ void insw(unsigned int port, void *from, int len)
 	else {
 		off = (port & ~1) << 1;
 		if (port & 1)
-			BUG();
+			();
 	}
 
 	__raw_readsw((void __iomem *)ISAIO_BASE + off, from, len);
@@ -421,7 +421,7 @@ void outsl(unsigned int port, const void *from, int len)
 	u32 off = port << 1;
 
 	if (SUPERIO_PORT(port) || port & 3)
-		BUG();
+		();
 
 	__raw_writesw((void __iomem *)ISAIO_BASE + off, from, len << 1);
 }
@@ -431,7 +431,7 @@ void insl(unsigned int port, void *from, int len)
 	u32 off = port << 1;
 
 	if (SUPERIO_PORT(port) || port & 3)
-		BUG();
+		();
 
 	__raw_readsw((void __iomem *)ISAIO_BASE + off, from, len << 1);
 }

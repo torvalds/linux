@@ -854,7 +854,7 @@ static int __init lm78_isa_found(unsigned short address)
 	 */
 	for (port = address; port < address + LM78_EXTENT; port++) {
 		if (!request_region(port, 1, "lm78")) {
-			pr_debug("Failed to request port 0x%x\n", port);
+			pr_de("Failed to request port 0x%x\n", port);
 			goto release;
 		}
 	}

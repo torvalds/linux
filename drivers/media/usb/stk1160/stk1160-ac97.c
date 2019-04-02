@@ -63,7 +63,7 @@ static void stk1160_write_ac97(struct stk1160 *dev, u16 reg, u16 value)
 	stk1160_ac97_wait_transfer_complete(dev);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static u16 stk1160_read_ac97(struct stk1160 *dev, u16 reg)
 {
 	u8 vall = 0;
@@ -159,7 +159,7 @@ void stk1160_ac97_setup(struct stk1160 *dev)
 	stk1160_write_ac97(dev, 0x02, 0x0000); /* Master volume */
 	stk1160_write_ac97(dev, 0x1c, 0x0808); /* Record gain */
 
-#ifdef DEBUG
+#ifdef DE
 	stk1160_ac97_dump_regs(dev);
 #endif
 }

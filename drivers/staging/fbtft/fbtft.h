@@ -99,7 +99,7 @@ struct fbtft_ops {
  * @gamma: String representation of Gamma curve(s)
  * @gamma_num: Number of Gamma curves
  * @gamma_len: Number of values per Gamma curve
- * @debug: Initial debug value
+ * @de: Initial de value
  *
  * This structure is not stored by FBTFT except for init_sequence.
  */
@@ -117,7 +117,7 @@ struct fbtft_display {
 	char *gamma;
 	int gamma_num;
 	int gamma_len;
-	unsigned long debug;
+	unsigned long de;
 };
 
 /**
@@ -181,10 +181,10 @@ struct fbtft_platform_data {
  * @gamma.curves: Pointer to Gamma curve array
  * @gamma.num_values: Number of values per Gamma curve
  * @gamma.num_curves: Number of Gamma curves
- * @debug: Pointer to debug value
- * @current_debug:
+ * @de: Pointer to de value
+ * @current_de:
  * @first_update_done: Used to only time the first display update
- * @update_time: Used to calculate 'fps' in debug output
+ * @update_time: Used to calculate 'fps' in de output
  * @bgr: BGR mode/\n
  * @extra: Extra info needed by driver
  */
@@ -223,7 +223,7 @@ struct fbtft_par {
 		int num_values;
 		int num_curves;
 	} gamma;
-	unsigned long debug;
+	unsigned long de;
 	bool first_update_done;
 	ktime_t update_time;
 	bool bgr;
@@ -343,67 +343,67 @@ static void __exit fbtft_driver_module_exit(void)                          \
 module_init(fbtft_driver_module_init);                                     \
 module_exit(fbtft_driver_module_exit);
 
-/* Debug macros */
+/* De macros */
 
-/* shorthand debug levels */
-#define DEBUG_LEVEL_1	DEBUG_REQUEST_GPIOS
-#define DEBUG_LEVEL_2	(DEBUG_LEVEL_1 | DEBUG_DRIVER_INIT_FUNCTIONS | DEBUG_TIME_FIRST_UPDATE)
-#define DEBUG_LEVEL_3	(DEBUG_LEVEL_2 | DEBUG_RESET | DEBUG_INIT_DISPLAY | DEBUG_BLANK | DEBUG_REQUEST_GPIOS | DEBUG_FREE_GPIOS | DEBUG_VERIFY_GPIOS | DEBUG_BACKLIGHT | DEBUG_SYSFS)
-#define DEBUG_LEVEL_4	(DEBUG_LEVEL_2 | DEBUG_FB_READ | DEBUG_FB_WRITE | DEBUG_FB_FILLRECT | DEBUG_FB_COPYAREA | DEBUG_FB_IMAGEBLIT | DEBUG_FB_BLANK)
-#define DEBUG_LEVEL_5	(DEBUG_LEVEL_3 | DEBUG_UPDATE_DISPLAY)
-#define DEBUG_LEVEL_6	(DEBUG_LEVEL_4 | DEBUG_LEVEL_5)
-#define DEBUG_LEVEL_7	0xFFFFFFFF
+/* shorthand de levels */
+#define DE_LEVEL_1	DE_REQUEST_GPIOS
+#define DE_LEVEL_2	(DE_LEVEL_1 | DE_DRIVER_INIT_FUNCTIONS | DE_TIME_FIRST_UPDATE)
+#define DE_LEVEL_3	(DE_LEVEL_2 | DE_RESET | DE_INIT_DISPLAY | DE_BLANK | DE_REQUEST_GPIOS | DE_FREE_GPIOS | DE_VERIFY_GPIOS | DE_BACKLIGHT | DE_SYSFS)
+#define DE_LEVEL_4	(DE_LEVEL_2 | DE_FB_READ | DE_FB_WRITE | DE_FB_FILLRECT | DE_FB_COPYAREA | DE_FB_IMAGEBLIT | DE_FB_BLANK)
+#define DE_LEVEL_5	(DE_LEVEL_3 | DE_UPDATE_DISPLAY)
+#define DE_LEVEL_6	(DE_LEVEL_4 | DE_LEVEL_5)
+#define DE_LEVEL_7	0xFFFFFFFF
 
-#define DEBUG_DRIVER_INIT_FUNCTIONS BIT(3)
-#define DEBUG_TIME_FIRST_UPDATE     BIT(4)
-#define DEBUG_TIME_EACH_UPDATE      BIT(5)
-#define DEBUG_DEFERRED_IO           BIT(6)
-#define DEBUG_FBTFT_INIT_FUNCTIONS  BIT(7)
+#define DE_DRIVER_INIT_FUNCTIONS BIT(3)
+#define DE_TIME_FIRST_UPDATE     BIT(4)
+#define DE_TIME_EACH_UPDATE      BIT(5)
+#define DE_DEFERRED_IO           BIT(6)
+#define DE_FBTFT_INIT_FUNCTIONS  BIT(7)
 
 /* fbops */
-#define DEBUG_FB_READ               BIT(8)
-#define DEBUG_FB_WRITE              BIT(9)
-#define DEBUG_FB_FILLRECT           BIT(10)
-#define DEBUG_FB_COPYAREA           BIT(11)
-#define DEBUG_FB_IMAGEBLIT          BIT(12)
-#define DEBUG_FB_SETCOLREG          BIT(13)
-#define DEBUG_FB_BLANK              BIT(14)
+#define DE_FB_READ               BIT(8)
+#define DE_FB_WRITE              BIT(9)
+#define DE_FB_FILLRECT           BIT(10)
+#define DE_FB_COPYAREA           BIT(11)
+#define DE_FB_IMAGEBLIT          BIT(12)
+#define DE_FB_SETCOLREG          BIT(13)
+#define DE_FB_BLANK              BIT(14)
 
-#define DEBUG_SYSFS                 BIT(16)
+#define DE_SYSFS                 BIT(16)
 
 /* fbtftops */
-#define DEBUG_BACKLIGHT             BIT(17)
-#define DEBUG_READ                  BIT(18)
-#define DEBUG_WRITE                 BIT(19)
-#define DEBUG_WRITE_VMEM            BIT(20)
-#define DEBUG_WRITE_REGISTER        BIT(21)
-#define DEBUG_SET_ADDR_WIN          BIT(22)
-#define DEBUG_RESET                 BIT(23)
-#define DEBUG_MKDIRTY               BIT(24)
-#define DEBUG_UPDATE_DISPLAY        BIT(25)
-#define DEBUG_INIT_DISPLAY          BIT(26)
-#define DEBUG_BLANK                 BIT(27)
-#define DEBUG_REQUEST_GPIOS         BIT(28)
-#define DEBUG_FREE_GPIOS            BIT(29)
-#define DEBUG_REQUEST_GPIOS_MATCH   BIT(30)
-#define DEBUG_VERIFY_GPIOS          BIT(31)
+#define DE_BACKLIGHT             BIT(17)
+#define DE_READ                  BIT(18)
+#define DE_WRITE                 BIT(19)
+#define DE_WRITE_VMEM            BIT(20)
+#define DE_WRITE_REGISTER        BIT(21)
+#define DE_SET_ADDR_WIN          BIT(22)
+#define DE_RESET                 BIT(23)
+#define DE_MKDIRTY               BIT(24)
+#define DE_UPDATE_DISPLAY        BIT(25)
+#define DE_INIT_DISPLAY          BIT(26)
+#define DE_BLANK                 BIT(27)
+#define DE_REQUEST_GPIOS         BIT(28)
+#define DE_FREE_GPIOS            BIT(29)
+#define DE_REQUEST_GPIOS_MATCH   BIT(30)
+#define DE_VERIFY_GPIOS          BIT(31)
 
 #define fbtft_init_dbg(dev, format, arg...)                  \
 do {                                                         \
 	if (unlikely((dev)->platform_data &&                 \
-	    (((struct fbtft_platform_data *)(dev)->platform_data)->display.debug & DEBUG_DRIVER_INIT_FUNCTIONS))) \
+	    (((struct fbtft_platform_data *)(dev)->platform_data)->display.de & DE_DRIVER_INIT_FUNCTIONS))) \
 		dev_info(dev, format, ##arg);                \
 } while (0)
 
 #define fbtft_par_dbg(level, par, format, arg...)            \
 do {                                                         \
-	if (unlikely(par->debug & level))                    \
+	if (unlikely(par->de & level))                    \
 		dev_info(par->info->device, format, ##arg);  \
 } while (0)
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \
 do {                                                                       \
-	if (unlikely((par)->debug & (level)))                                  \
+	if (unlikely((par)->de & (level)))                                  \
 		fbtft_dbg_hex(dev, sizeof(type), buf,\
 			      (num) * sizeof(type), format, ##arg); \
 } while (0)

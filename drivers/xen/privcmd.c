@@ -159,7 +159,7 @@ static int traverse_pages(unsigned nelem, size_t size,
 	unsigned pageidx;
 	int ret = 0;
 
-	BUG_ON(size > PAGE_SIZE);
+	_ON(size > PAGE_SIZE);
 
 	pageidx = PAGE_SIZE;
 	pagedata = NULL;	/* hush, gcc */
@@ -194,7 +194,7 @@ static int traverse_pages_block(unsigned nelem, size_t size,
 	void *pagedata;
 	int ret = 0;
 
-	BUG_ON(size > PAGE_SIZE);
+	_ON(size > PAGE_SIZE);
 
 	while (nelem) {
 		int nr = (PAGE_SIZE/size);
@@ -345,7 +345,7 @@ static int mmap_batch_fn(void *data, int nr, void *state)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		cur_pages = &pages[st->index];
 
-	BUG_ON(nr < 0);
+	_ON(nr < 0);
 	ret = xen_remap_domain_gfn_array(st->vma, st->va & PAGE_MASK, gfnp, nr,
 					 (int *)gfnp, st->vma->vm_page_prot,
 					 st->domain, cur_pages);
@@ -433,7 +433,7 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 		kfree(pages);
 		return -ENOMEM;
 	}
-	BUG_ON(vma->vm_private_data != NULL);
+	_ON(vma->vm_private_data != NULL);
 	vma->vm_private_data = pages;
 
 	return 0;
@@ -549,9 +549,9 @@ static long privcmd_ioctl_mmap_batch(
 	state.global_error  = 0;
 	state.version       = version;
 
-	BUILD_BUG_ON(((PAGE_SIZE / sizeof(xen_pfn_t)) % XEN_PFN_PER_PAGE) != 0);
+	BUILD__ON(((PAGE_SIZE / sizeof(xen_pfn_t)) % XEN_PFN_PER_PAGE) != 0);
 	/* mmap_batch_fn guarantees ret == 0 */
-	BUG_ON(traverse_pages_block(m.num, sizeof(xen_pfn_t),
+	_ON(traverse_pages_block(m.num, sizeof(xen_pfn_t),
 				    &pagelist, mmap_batch_fn, &state));
 
 	up_write(&mm->mmap_sem);
@@ -936,7 +936,7 @@ static void privcmd_close(struct vm_area_struct *vma)
 
 static vm_fault_t privcmd_fault(struct vm_fault *vmf)
 {
-	printk(KERN_DEBUG "privcmd_fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
+	printk(KERN_DE "privcmd_fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
 	       vmf->vma, vmf->vma->vm_start, vmf->vma->vm_end,
 	       vmf->pgoff, (void *)vmf->address);
 

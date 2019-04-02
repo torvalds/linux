@@ -26,17 +26,17 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
-/* #define DEBUG_MMU */
-/* #define DEBUG_MMU_PTE */
-/* #define DEBUG_MMU_PTE_IP 0xfff14c40 */
+/* #define DE_MMU */
+/* #define DE_MMU_PTE */
+/* #define DE_MMU_PTE_IP 0xfff14c40 */
 
-#ifdef DEBUG_MMU
+#ifdef DE_MMU
 #define dprintk(X...) printk(KERN_INFO X)
 #else
 #define dprintk(X...) do { } while(0)
 #endif
 
-#ifdef DEBUG_MMU_PTE
+#ifdef DE_MMU_PTE
 #define dprintk_pte(X...) printk(KERN_INFO X)
 #else
 #define dprintk_pte(X...) do { } while(0)
@@ -48,10 +48,10 @@
 #define SID_SHIFT		28
 #endif
 
-static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
+static inline bool check_de_ip(struct kvm_vcpu *vcpu)
 {
-#ifdef DEBUG_MMU_PTE_IP
-	return vcpu->arch.regs.nip == DEBUG_MMU_PTE_IP;
+#ifdef DE_MMU_PTE_IP
+	return vcpu->arch.regs.nip == DE_MMU_PTE_IP;
 #else
 	return true;
 #endif
@@ -162,7 +162,7 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 				continue;
 		}
 
-		if (check_debug_ip(vcpu))
+		if (check_de_ip(vcpu))
 		{
 			dprintk_pte("%cBAT %02d: 0x%lx - 0x%x (0x%x)\n",
 				    data ? 'd' : 'i', i, eaddr, bat->bepi,
@@ -289,7 +289,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 no_page_found:
 
-	if (check_debug_ip(vcpu)) {
+	if (check_de_ip(vcpu)) {
 		dprintk_pte("KVM MMU: No PTE found (sdr1=0x%llx ptegp=0x%lx)\n",
 			    to_book3s(vcpu)->sdr1, ptegp);
 		for (i=0; i<16; i+=2) {
@@ -394,7 +394,7 @@ static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 			*vsid = VSID_BAT | gvsid;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (msr & MSR_PR)

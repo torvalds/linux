@@ -58,7 +58,7 @@ struct fdpic_func_descriptor {
 #else
 #define TRAP_NOARG 0xc310		/* Syscall w/no args (NR in R3) */
 #endif
-#define OR_R0_R0 0x200b			/* or r0,r0 (insert to avoid hardware bug) */
+#define OR_R0_R0 0x200b			/* or r0,r0 (insert to avoid hardware ) */
 
 struct sigframe
 {
@@ -324,7 +324,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (err)
 		return -EFAULT;
 
-	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
+	pr_de("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
 	return 0;
@@ -394,7 +394,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (err)
 		return -EFAULT;
 
-	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
+	pr_de("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
 
 	return 0;

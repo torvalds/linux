@@ -27,7 +27,7 @@
  * information.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/pagemap.h>
 #include <linux/namei.h>
@@ -222,7 +222,7 @@ const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 {
 	struct configfs_attribute *attr;
 
-	BUG_ON(!sd || !sd->s_element);
+	_ON(!sd || !sd->s_element);
 
 	/* These always have a dentry, so use that */
 	if (sd->s_type & (CONFIGFS_DIR | CONFIGFS_ITEM_LINK))

@@ -33,7 +33,7 @@ static void quirk_add(struct drm_i915_gem_object *obj,
 		      struct list_head *objects)
 {
 	/* quirk is only for live tiled objects, use it to declare ownership */
-	GEM_BUG_ON(obj->mm.quirked);
+	GEM__ON(obj->mm.quirked);
 	obj->mm.quirked = true;
 	list_add(&obj->st_link, objects);
 }
@@ -110,7 +110,7 @@ static void cleanup_objects(struct drm_i915_private *i915,
 	struct drm_i915_gem_object *obj, *on;
 
 	list_for_each_entry_safe(obj, on, list, st_link) {
-		GEM_BUG_ON(!obj->mm.quirked);
+		GEM__ON(!obj->mm.quirked);
 		obj->mm.quirked = false;
 		i915_gem_object_put(obj);
 	}

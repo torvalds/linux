@@ -132,7 +132,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 		return -ENODEV;
 	}
 
-	pr_debug("CPU %d: _PPC is %d - frequency %s limited\n", pr->id,
+	pr_de("CPU %d: _PPC is %d - frequency %s limited\n", pr->id,
 		       (int)ppc, ppc ? "" : "not");
 
 	pr->performance_platform_limit = (int)ppc;
@@ -203,7 +203,7 @@ void acpi_processor_ppc_init(void)
 	    (&acpi_ppc_notifier_block, CPUFREQ_POLICY_NOTIFIER))
 		acpi_processor_ppc_status |= PPC_REGISTERED;
 	else
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "Warning: Processor Platform Limit not supported.\n");
 }
 
@@ -338,7 +338,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 		goto end;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d performance states\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Found %d performance states\n",
 			  pss->package.count));
 
 	pr->performance->state_count = pss->package.count;
@@ -358,7 +358,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 		state.length = sizeof(struct acpi_processor_px);
 		state.pointer = px;
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Extracting state %d\n", i));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Extracting state %d\n", i));
 
 		status = acpi_extract_package(&(pss->package.elements[i]),
 					      &format, &state);
@@ -371,7 +371,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 
 		amd_fixup_frequency(px, i);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "State [%d]: core_frequency[%d] power[%d] transition_latency[%d] bus_master_latency[%d] control[0x%x] status[0x%x]\n",
 				  i,
 				  (u32) px->core_frequency,
@@ -386,7 +386,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 		if (!px->core_frequency ||
 		    ((u32)(px->core_frequency * 1000) !=
 		     (px->core_frequency * 1000))) {
-			printk(KERN_ERR FW_BUG PREFIX
+			printk(KERN_ERR FW_ PREFIX
 			       "Invalid BIOS _PSS frequency found for processor %d: 0x%llx MHz\n",
 			       pr->id, px->core_frequency);
 			if (last_invalid == -1)
@@ -404,7 +404,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 	}
 
 	if (last_invalid == 0) {
-		printk(KERN_ERR FW_BUG PREFIX
+		printk(KERN_ERR FW_ PREFIX
 		       "No valid BIOS _PSS frequency found for processor %d\n", pr->id);
 		result = -EFAULT;
 		kfree(pr->performance->states);
@@ -428,7 +428,7 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 		return -EINVAL;
 
 	if (!acpi_has_method(pr->handle, "_PCT")) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "ACPI-based processor performance control unavailable\n"));
 		return -ENODEV;
 	}
@@ -455,7 +455,7 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 #ifdef CONFIG_X86
 	if (acpi_has_method(pr->handle, "_PPC")) {
 		if(boot_cpu_has(X86_FEATURE_EST))
-			printk(KERN_WARNING FW_BUG "BIOS needs update for CPU "
+			printk(KERN_WARNING FW_ "BIOS needs update for CPU "
 			       "frequency support\n");
 	}
 #endif
@@ -470,7 +470,7 @@ int acpi_processor_pstate_control(void)
 	if (!acpi_gbl_FADT.smi_command || !acpi_gbl_FADT.pstate_control)
 		return 0;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Writing pstate_control [0x%x] to smi_command [0x%x]\n",
 			  acpi_gbl_FADT.pstate_control, acpi_gbl_FADT.smi_command));
 
@@ -513,7 +513,7 @@ int acpi_processor_notify_smm(struct module *calling_module)
 
 	result = acpi_processor_pstate_control();
 	if (!result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No SMI port or pstate_control\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "No SMI port or pstate_control\n"));
 		module_put(calling_module);
 		return 0;
 	}

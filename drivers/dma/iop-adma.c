@@ -63,7 +63,7 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 {
 	struct dma_async_tx_descriptor *tx = &desc->async_tx;
 
-	BUG_ON(tx->cookie < 0);
+	_ON(tx->cookie < 0);
 	if (tx->cookie > 0) {
 		cookie = tx->cookie;
 		tx->cookie = 0;
@@ -124,7 +124,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 	 */
 	list_for_each_entry_safe(iter, _iter, &iop_chan->chain,
 					chain_node) {
-		pr_debug("\tcookie: %d slot: %d busy: %d "
+		pr_de("\tcookie: %d slot: %d busy: %d "
 			"this_desc: %#x next_desc: %#x ack: %d\n",
 			iter->async_tx.cookie, iter->idx, busy,
 			iter->async_tx.phys, iop_desc_get_next_desc(iter),
@@ -144,7 +144,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 		 * needs to be re-read (i.e. has been appended to)
 		 */
 		if (iter->async_tx.phys == current_desc) {
-			BUG_ON(seen_current++);
+			_ON(seen_current++);
 			if (busy || iop_desc_get_next_desc(iter))
 				break;
 		}
@@ -160,7 +160,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 		}
 
 		if (slot_cnt) {
-			pr_debug("\tgroup++\n");
+			pr_de("\tgroup++\n");
 			if (!grp_start)
 				grp_start = iter;
 			slot_cnt -= slots_per_op;
@@ -170,7 +170,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 		if (slots_per_op != 0 && slot_cnt == 0) {
 			struct iop_adma_desc_slot *grp_iter, *_grp_iter;
 			int end_of_chain = 0;
-			pr_debug("\tgroup end\n");
+			pr_de("\tgroup end\n");
 
 			/* collect the total results */
 			if (grp_start->xor_check_result) {
@@ -182,13 +182,13 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 					&iop_chan->chain, chain_node) {
 					zero_sum_result |=
 					    iop_desc_get_zero_result(grp_iter);
-					    pr_debug("\titer%d result: %d\n",
+					    pr_de("\titer%d result: %d\n",
 					    grp_iter->idx, zero_sum_result);
 					slot_cnt -= slots_per_op;
 					if (slot_cnt == 0)
 						break;
 				}
-				pr_debug("\tgrp_start->xor_check_result: %p\n",
+				pr_de("\tgrp_start->xor_check_result: %p\n",
 					grp_start->xor_check_result);
 				*grp_start->xor_check_result = zero_sum_result;
 			}
@@ -210,7 +210,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 			}
 
 			/* the group should be complete at this point */
-			BUG_ON(slot_cnt);
+			_ON(slot_cnt);
 
 			slots_per_op = 0;
 			grp_start = NULL;
@@ -235,7 +235,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 
 	if (cookie > 0) {
 		iop_chan->common.completed_cookie = cookie;
-		pr_debug("\tcompleted cookie %d\n", cookie);
+		pr_de("\tcompleted cookie %d\n", cookie);
 	}
 }
 
@@ -392,7 +392,7 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	/* fix up the hardware chain */
 	next_dma = grp_start->async_tx.phys;
 	iop_desc_set_next_desc(old_chain_tail, next_dma);
-	BUG_ON(iop_desc_get_next_desc(old_chain_tail) != next_dma); /* flush */
+	_ON(iop_desc_get_next_desc(old_chain_tail) != next_dma); /* flush */
 
 	/* check for pre-chained descriptors */
 	iop_paranoia(iop_desc_get_next_desc(sw_desc));
@@ -485,7 +485,7 @@ static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 			iop_chan->device->common.cap_mask))
 			iop_chan_start_null_xor(iop_chan);
 		else
-			BUG();
+			();
 	}
 
 	return (idx > 0) ? idx : -ENOMEM;
@@ -523,7 +523,7 @@ iop_adma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dma_dest,
 
 	if (unlikely(!len))
 		return NULL;
-	BUG_ON(len > IOP_ADMA_MAX_BYTE_COUNT);
+	_ON(len > IOP_ADMA_MAX_BYTE_COUNT);
 
 	dev_dbg(iop_chan->device->common.dev, "%s len: %u\n",
 		__func__, len);
@@ -555,7 +555,7 @@ iop_adma_prep_dma_xor(struct dma_chan *chan, dma_addr_t dma_dest,
 
 	if (unlikely(!len))
 		return NULL;
-	BUG_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
+	_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
 
 	dev_dbg(iop_chan->device->common.dev,
 		"%s src_cnt: %d len: %u flags: %lx\n",
@@ -602,7 +602,7 @@ iop_adma_prep_dma_xor_val(struct dma_chan *chan, dma_addr_t *dma_src,
 		iop_desc_init_zero_sum(grp_start, src_cnt, flags);
 		iop_desc_set_zero_sum_byte_count(grp_start, len);
 		grp_start->xor_check_result = result;
-		pr_debug("\t%s: grp_start->xor_check_result: %p\n",
+		pr_de("\t%s: grp_start->xor_check_result: %p\n",
 			__func__, grp_start->xor_check_result);
 		sw_desc->async_tx.flags = flags;
 		while (src_cnt--)
@@ -626,7 +626,7 @@ iop_adma_prep_dma_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 
 	if (unlikely(!len))
 		return NULL;
-	BUG_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
+	_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
 
 	dev_dbg(iop_chan->device->common.dev,
 		"%s src_cnt: %d len: %u flags: %lx\n",
@@ -690,7 +690,7 @@ iop_adma_prep_dma_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 
 	if (unlikely(!len))
 		return NULL;
-	BUG_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
+	_ON(len > IOP_ADMA_XOR_MAX_BYTE_COUNT);
 
 	dev_dbg(iop_chan->device->common.dev, "%s src_cnt: %d len: %u\n",
 		__func__, src_cnt, len);
@@ -708,7 +708,7 @@ iop_adma_prep_dma_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		iop_desc_init_pq_zero_sum(g, src_cnt+2, flags);
 		iop_desc_set_pq_zero_sum_byte_count(g, len);
 		g->pq_check_result = pqres;
-		pr_debug("\t%s: g->pq_check_result: %p\n",
+		pr_de("\t%s: g->pq_check_result: %p\n",
 			__func__, g->pq_check_result);
 		sw_desc->async_tx.flags = flags;
 		while (src_cnt--)
@@ -819,7 +819,7 @@ static irqreturn_t iop_adma_err_handler(int irq, void *data)
 
 	iop_adma_device_clear_err_status(chan);
 
-	BUG();
+	();
 
 	return IRQ_HANDLED;
 }
@@ -1472,7 +1472,7 @@ static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan)
 		iop_chan->common.completed_cookie = cookie - 1;
 
 		/* channel should not be busy */
-		BUG_ON(iop_chan_is_busy(iop_chan));
+		_ON(iop_chan_is_busy(iop_chan));
 
 		/* clear any prior error-status bits */
 		iop_adma_device_clear_err_status(iop_chan);
@@ -1486,7 +1486,7 @@ static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan)
 		/* 1/ don't add pre-chained descriptors
 		 * 2/ dummy read to flush next_desc write
 		 */
-		BUG_ON(iop_desc_get_next_desc(sw_desc));
+		_ON(iop_desc_get_next_desc(sw_desc));
 
 		/* run the descriptor */
 		iop_chan_enable(iop_chan);
@@ -1525,7 +1525,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 		iop_chan->common.completed_cookie = cookie - 1;
 
 		/* channel should not be busy */
-		BUG_ON(iop_chan_is_busy(iop_chan));
+		_ON(iop_chan_is_busy(iop_chan));
 
 		/* clear any prior error-status bits */
 		iop_adma_device_clear_err_status(iop_chan);
@@ -1539,7 +1539,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 		/* 1/ don't add pre-chained descriptors
 		 * 2/ dummy read to flush next_desc write
 		 */
-		BUG_ON(iop_desc_get_next_desc(sw_desc));
+		_ON(iop_desc_get_next_desc(sw_desc));
 
 		/* run the descriptor */
 		iop_chan_enable(iop_chan);

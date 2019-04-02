@@ -209,8 +209,8 @@ static int do_load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum
 	uint32_t crc, length;
 	int i, ret, retry = 0;
 
-	BUG_ON(ref_flags(xd->node) != REF_PRISTINE);
-	BUG_ON(!list_empty(&xd->xindex));
+	_ON(ref_flags(xd->node) != REF_PRISTINE);
+	_ON(!list_empty(&xd->xindex));
  retry:
 	length = xd->name_len + 1 + xd->value_len;
 	data = kmalloc(length, GFP_KERNEL);
@@ -269,7 +269,7 @@ static int load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	 */
 	int rc = 0;
 
-	BUG_ON(xd->flags & JFFS2_XFLAGS_DEAD);
+	_ON(xd->flags & JFFS2_XFLAGS_DEAD);
 	if (xd->xname)
 		return 0;
 	if (xd->flags & JFFS2_XFLAGS_INVALID)
@@ -290,8 +290,8 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	int rc, totlen;
 	uint32_t phys_ofs = write_ofs(c);
 
-	BUG_ON(!xd->xname);
-	BUG_ON(xd->flags & (JFFS2_XFLAGS_DEAD|JFFS2_XFLAGS_INVALID));
+	_ON(!xd->xname);
+	_ON(xd->flags & (JFFS2_XFLAGS_DEAD|JFFS2_XFLAGS_INVALID));
 
 	vecs[0].iov_base = &rx;
 	vecs[0].iov_len = sizeof(rx);
@@ -408,7 +408,7 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
 		unload_xattr_datum(c, xd);
 		xd->flags |= JFFS2_XFLAGS_DEAD;
 		if (xd->node == (void *)xd) {
-			BUG_ON(!(xd->flags & JFFS2_XFLAGS_INVALID));
+			_ON(!(xd->flags & JFFS2_XFLAGS_INVALID));
 			jffs2_free_xattr_datum(xd);
 		} else {
 			list_add(&xd->xindex, &c->xattr_dead_list);
@@ -728,7 +728,7 @@ static struct jffs2_xattr_datum *jffs2_find_xattr_datum(struct jffs2_sb_info *c,
 	int i = xid % XATTRINDEX_HASHSIZE;
 
 	/* It's only used in scanning/building process. */
-	BUG_ON(!(c->flags & (JFFS2_SB_FLAG_SCANNING|JFFS2_SB_FLAG_BUILDING)));
+	_ON(!(c->flags & (JFFS2_SB_FLAG_SCANNING|JFFS2_SB_FLAG_BUILDING)));
 
 	list_for_each_entry(xd, &c->xattrindex[i], xindex) {
 		if (xd->xid==xid)
@@ -782,7 +782,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 	int i, xdatum_count = 0, xdatum_unchecked_count = 0, xref_count = 0;
 	int xdatum_orphan_count = 0, xref_orphan_count = 0, xref_dead_count = 0;
 
-	BUG_ON(!(c->flags & JFFS2_SB_FLAG_BUILDING));
+	_ON(!(c->flags & JFFS2_SB_FLAG_BUILDING));
 
 	/* Phase.1 : Merge same xref */
 	for (i=0; i < XREF_TMPHASH_SIZE; i++)
@@ -793,7 +793,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 		_ref = ref->next;
 		if (ref_flags(ref->node) != REF_PRISTINE) {
 			if (verify_xattr_ref(c, ref)) {
-				BUG_ON(ref->node->next_in_ino != (void *)ref);
+				_ON(ref->node->next_in_ino != (void *)ref);
 				ref->node->next_in_ino = NULL;
 				jffs2_mark_node_obsolete(c, ref->node);
 				jffs2_free_xattr_ref(ref);
@@ -979,7 +979,7 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
  retry:
 	len = 0;
 	for (ref=ic->xref, pref=&ic->xref; ref; pref=&ref->next, ref=ref->next) {
-		BUG_ON(ref->ic != ic);
+		_ON(ref->ic != ic);
 		xd = ref->xd;
 		if (!xd->xname) {
 			/* xdatum is unchached */
@@ -1045,7 +1045,7 @@ int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
 	down_read(&c->xattr_sem);
  retry:
 	for (ref=ic->xref, pref=&ic->xref; ref; pref=&ref->next, ref=ref->next) {
-		BUG_ON(ref->ic!=ic);
+		_ON(ref->ic!=ic);
 
 		xd = ref->xd;
 		if (xd->xprefix != xprefix)
@@ -1259,7 +1259,7 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	int rc = 0;
 
 	down_write(&c->xattr_sem);
-	BUG_ON(!ref->node);
+	_ON(!ref->node);
 
 	if (ref->node != raw)
 		goto out;

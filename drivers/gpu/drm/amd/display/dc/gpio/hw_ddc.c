@@ -184,7 +184,7 @@ static enum gpio_result set_config(
 	break;
 	}
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 
 	return GPIO_RESULT_NON_SPECIFIC_ERROR;
 }

@@ -20,7 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/notifier.h>
 #include <linux/irqflags.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/tracefs.h>
 #include <linux/pagemap.h>
 #include <linux/hardirq.h>
@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/splice.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/string.h>
 #include <linux/mount.h>
 #include <linux/rwsem.h>
@@ -938,7 +938,7 @@ void tracing_snapshot_instance(struct trace_array *tr)
  *
  * Note, make sure to allocate the snapshot with either
  * a tracing_snapshot_alloc(), or by doing it manually
- * with: echo 1 > /sys/kernel/debug/tracing/snapshot
+ * with: echo 1 > /sys/kernel/de/tracing/snapshot
  *
  * If the snapshot buffer is not allocated, it will stop tracing.
  * Basically making a permanent snapshot.
@@ -1991,7 +1991,7 @@ void tracing_start(void)
 	raw_spin_lock_irqsave(&global_trace.start_lock, flags);
 	if (--global_trace.stop_count) {
 		if (global_trace.stop_count < 0) {
-			/* Someone screwed up their debugging */
+			/* Someone screwed up their deging */
 			WARN_ON_ONCE(1);
 			global_trace.stop_count = 0;
 		}
@@ -2033,7 +2033,7 @@ static void tracing_start_tr(struct trace_array *tr)
 
 	if (--tr->stop_count) {
 		if (tr->stop_count < 0) {
-			/* Someone screwed up their debugging */
+			/* Someone screwed up their deging */
 			WARN_ON_ONCE(1);
 			tr->stop_count = 0;
 		}
@@ -3022,7 +3022,7 @@ void trace_printk_init_buffers(void)
 	if (alloc_percpu_trace_buffer())
 		return;
 
-	/* trace_printk() is for debug use only. Don't use it in production. */
+	/* trace_printk() is for de use only. Don't use it in production. */
 
 	pr_warn("\n");
 	pr_warn("**********************************************************\n");
@@ -3030,10 +3030,10 @@ void trace_printk_init_buffers(void)
 	pr_warn("**                                                      **\n");
 	pr_warn("** trace_printk() being used. Allocating extra memory.  **\n");
 	pr_warn("**                                                      **\n");
-	pr_warn("** This means that this is a DEBUG kernel and it is     **\n");
+	pr_warn("** This means that this is a DE kernel and it is     **\n");
 	pr_warn("** unsafe for production use.                           **\n");
 	pr_warn("**                                                      **\n");
-	pr_warn("** If you see this message and you are not debugging    **\n");
+	pr_warn("** If you see this message and you are not deging    **\n");
 	pr_warn("** the kernel, report this immediately to your vendor!  **\n");
 	pr_warn("**                                                      **\n");
 	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
@@ -6321,7 +6321,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (cnt > TRACE_BUF_SIZE)
 		cnt = TRACE_BUF_SIZE;
 
-	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
+	BUILD__ON(TRACE_BUF_SIZE >= PAGE_SIZE);
 
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt + 2; /* add '\0' and possible '\n' */
@@ -6404,7 +6404,7 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	if (cnt > TRACE_BUF_SIZE)
 		cnt = TRACE_BUF_SIZE;
 
-	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
+	BUILD__ON(TRACE_BUF_SIZE >= PAGE_SIZE);
 
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt;
@@ -8271,8 +8271,8 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
 
 	/*
 	 * To maintain backward compatibility for tools that mount
-	 * debugfs to get to the tracing facility, tracefs is automatically
-	 * mounted to the debugfs/tracing directory.
+	 * defs to get to the tracing facility, tracefs is automatically
+	 * mounted to the defs/tracing directory.
 	 */
 	type = get_fs_type("tracefs");
 	if (!type)
@@ -8302,20 +8302,20 @@ struct dentry *tracing_init_dentry(void)
 		return NULL;
 
 	if (WARN_ON(!tracefs_initialized()) ||
-		(IS_ENABLED(CONFIG_DEBUG_FS) &&
-		 WARN_ON(!debugfs_initialized())))
+		(IS_ENABLED(CONFIG_DE_FS) &&
+		 WARN_ON(!defs_initialized())))
 		return ERR_PTR(-ENODEV);
 
 	/*
 	 * As there may still be users that expect the tracing
-	 * files to exist in debugfs/tracing, we must automount
+	 * files to exist in defs/tracing, we must automount
 	 * the tracefs file system there, so older tools still
 	 * work with the newer kerenl.
 	 */
-	tr->dir = debugfs_create_automount("tracing", NULL,
+	tr->dir = defs_create_automount("tracing", NULL,
 					   trace_automount, NULL);
 	if (!tr->dir) {
-		pr_warn_once("Could not create debugfs directory 'tracing'\n");
+		pr_warn_once("Could not create defs directory 'tracing'\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -8751,7 +8751,7 @@ __init static int tracer_alloc_buffers(void)
 	 * Make sure we don't accidently add more trace options
 	 * than we have bits for.
 	 */
-	BUILD_BUG_ON(TRACE_ITER_LAST_BIT > TRACE_FLAGS_MAX_SIZE);
+	BUILD__ON(TRACE_ITER_LAST_BIT > TRACE_FLAGS_MAX_SIZE);
 
 	if (!alloc_cpumask_var(&tracing_buffer_mask, GFP_KERNEL))
 		goto out;

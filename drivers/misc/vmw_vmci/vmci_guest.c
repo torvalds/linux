@@ -222,7 +222,7 @@ static void vmci_dispatch_dgs(unsigned long data)
 	size_t current_dg_in_buffer_size = PAGE_SIZE;
 	size_t remaining_bytes;
 
-	BUILD_BUG_ON(VMCI_MAX_DG_SIZE < PAGE_SIZE);
+	BUILD__ON(VMCI_MAX_DG_SIZE < PAGE_SIZE);
 
 	ioread8_rep(vmci_dev->iobase + VMCI_DATA_IN_ADDR,
 		    vmci_dev->data_buffer, current_dg_in_buffer_size);

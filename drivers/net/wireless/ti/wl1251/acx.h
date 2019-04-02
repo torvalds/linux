@@ -1122,7 +1122,7 @@ struct wl1251_acx_memory {
 	u8 host_if_options; /* HOST_IF* */
 	u8 tx_min_mem_block_num;
 	u8 num_ssid_profiles;
-	__le16 debug_buffer_size;
+	__le16 de_buffer_size;
 } __packed;
 
 
@@ -1177,11 +1177,11 @@ struct wl1251_acx_mem_map {
 	void *packet_memory_pool_start;
 	void *packet_memory_pool_end;
 
-	void *debug_buffer1_start;
-	void *debug_buffer1_end;
+	void *de_buffer1_start;
+	void *de_buffer1_end;
 
-	void *debug_buffer2_start;
-	void *debug_buffer2_end;
+	void *de_buffer2_start;
+	void *de_buffer2_end;
 
 	/* Number of blocks FW allocated for TX packets */
 	u32 num_tx_mem_blocks;
@@ -1383,7 +1383,7 @@ enum {
 	ACX_RX_CFG                  = 0x0010,
 	ACX_TX_QUEUE_CFG            = 0x0011, /* FIXME: only used by wl1251 */
 	ACX_BSS_IN_PS               = 0x0012, /* for AP only */
-	ACX_STATISTICS              = 0x0013, /* Debug API */
+	ACX_STATISTICS              = 0x0013, /* De API */
 	ACX_FEATURE_CFG             = 0x0015,
 	ACX_MISC_CFG                = 0x0017, /* Not used */
 	ACX_TID_CFG                 = 0x001A,

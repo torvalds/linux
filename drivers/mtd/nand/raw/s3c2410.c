@@ -22,8 +22,8 @@
 
 #define pr_fmt(fmt) "nand-s3c2410: " fmt
 
-#ifdef CONFIG_MTD_NAND_S3C2410_DEBUG
-#define DEBUG
+#ifdef CONFIG_MTD_NAND_S3C2410_DE
+#define DE
 #endif
 
 #include <linux/module.h>
@@ -272,7 +272,7 @@ static int s3c_nand_calc_rate(int wanted, unsigned long clk, int max)
 
 	result = DIV_ROUND_UP((wanted * clk), NS_IN_KHZ);
 
-	pr_debug("result %d from %ld, %d\n", result, clk, wanted);
+	pr_de("result %d from %ld, %d\n", result, clk, wanted);
 
 	if (result > max) {
 		pr_err("%d ns is too big for current clock rate %ld\n",
@@ -355,7 +355,7 @@ static int s3c2410_nand_setrate(struct s3c2410_nand_info *info)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	local_irq_save(flags);
@@ -524,13 +524,13 @@ static int s3c2410_nand_correct_data(struct nand_chip *chip, u_char *dat,
 	unsigned int diff0, diff1, diff2;
 	unsigned int bit, byte;
 
-	pr_debug("%s(%p,%p,%p,%p)\n", __func__, mtd, dat, read_ecc, calc_ecc);
+	pr_de("%s(%p,%p,%p,%p)\n", __func__, mtd, dat, read_ecc, calc_ecc);
 
 	diff0 = read_ecc[0] ^ calc_ecc[0];
 	diff1 = read_ecc[1] ^ calc_ecc[1];
 	diff2 = read_ecc[2] ^ calc_ecc[2];
 
-	pr_debug("%s: rd %*phN calc %*phN diff %02x%02x%02x\n",
+	pr_de("%s: rd %*phN calc %*phN diff %02x%02x%02x\n",
 		 __func__, 3, read_ecc, 3, calc_ecc,
 		 diff0, diff1, diff2);
 
@@ -638,7 +638,7 @@ static int s3c2410_nand_calculate_ecc(struct nand_chip *chip,
 	ecc_code[1] = readb(info->regs + S3C2410_NFECC + 1);
 	ecc_code[2] = readb(info->regs + S3C2410_NFECC + 2);
 
-	pr_debug("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
+	pr_de("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
 
 	return 0;
 }
@@ -654,7 +654,7 @@ static int s3c2412_nand_calculate_ecc(struct nand_chip *chip,
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
+	pr_de("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
 
 	return 0;
 }
@@ -670,7 +670,7 @@ static int s3c2440_nand_calculate_ecc(struct nand_chip *chip,
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("%s: returning ecc %06lx\n", __func__, ecc & 0xffffff);
+	pr_de("%s: returning ecc %06lx\n", __func__, ecc & 0xffffff);
 
 	return 0;
 }
@@ -791,7 +791,7 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 		int mtdno;
 
 		for (mtdno = 0; mtdno < info->mtd_count; mtdno++, ptr++) {
-			pr_debug("releasing mtd %d (%p)\n", mtdno, ptr);
+			pr_de("releasing mtd %d (%p)\n", mtdno, ptr);
 			nand_release(&ptr->chip);
 		}
 	}
@@ -1177,7 +1177,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	for (setno = 0; setno < nr_sets; setno++, nmtd++, sets++) {
 		struct mtd_info *mtd = nand_to_mtd(&nmtd->chip);
 
-		pr_debug("initialising set %d (%p, info %p)\n",
+		pr_de("initialising set %d (%p, info %p)\n",
 			 setno, nmtd, info);
 
 		mtd->dev.parent = &pdev->dev;

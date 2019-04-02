@@ -74,21 +74,21 @@
 
 #define iser_dbg(fmt, arg...)				 \
 	do {						 \
-		if (unlikely(iser_debug_level > 2))	 \
-			printk(KERN_DEBUG PFX "%s: " fmt,\
+		if (unlikely(iser_de_level > 2))	 \
+			printk(KERN_DE PFX "%s: " fmt,\
 				__func__ , ## arg);	 \
 	} while (0)
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
-		if (unlikely(iser_debug_level > 0))	\
+		if (unlikely(iser_de_level > 0))	\
 			pr_warn(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_info(fmt, arg...)				\
 	do {						\
-		if (unlikely(iser_debug_level > 1))	\
+		if (unlikely(iser_de_level > 1))	\
 			pr_info(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
@@ -570,7 +570,7 @@ struct iser_global {
 };
 
 extern struct iser_global ig;
-extern int iser_debug_level;
+extern int iser_de_level;
 extern bool iser_pi_enable;
 extern int iser_pi_guard;
 extern unsigned int iser_max_sectors;

@@ -19,7 +19,7 @@ static void cmov_sigill_test_handler(int sig)
 	longjmp(cmov_test_return, 1);
 }
 
-void arch_check_bugs(void)
+void arch_check_s(void)
 {
 	struct sigaction old, new;
 

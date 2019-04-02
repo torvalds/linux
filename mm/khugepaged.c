@@ -427,7 +427,7 @@ int __khugepaged_enter(struct mm_struct *mm)
 		return -ENOMEM;
 
 	/* __khugepaged_exit() must not run from under us */
-	VM_BUG_ON_MM(khugepaged_test_exit(mm), mm);
+	VM__ON_MM(khugepaged_test_exit(mm), mm);
 	if (unlikely(test_and_set_bit(MMF_VM_HUGEPAGE, &mm->flags))) {
 		free_mm_slot(mm_slot);
 		return 0;
@@ -555,7 +555,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 			goto out;
 		}
 
-		VM_BUG_ON_PAGE(!PageAnon(page), page);
+		VM__ON_PAGE(!PageAnon(page), page);
 
 		/*
 		 * We can do it before isolate_lru_page because the
@@ -604,8 +604,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		}
 		inc_node_page_state(page,
 				NR_ISOLATED_ANON + page_is_file_cache(page));
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		VM_BUG_ON_PAGE(PageLRU(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(PageLRU(page), page);
 
 		/* There should be enough young pte to collapse the page */
 		if (pte_young(pteval) ||
@@ -660,7 +660,7 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 		} else {
 			src_page = pte_page(pteval);
 			copy_user_highpage(page, src_page, address, vma);
-			VM_BUG_ON_PAGE(page_mapcount(src_page) != 1, src_page);
+			VM__ON_PAGE(page_mapcount(src_page) != 1, src_page);
 			release_pte_page(src_page);
 			/*
 			 * ptl mostly unnecessary, but preempt has to
@@ -768,7 +768,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
 static struct page *
 khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
 {
-	VM_BUG_ON_PAGE(*hpage, *hpage);
+	VM__ON_PAGE(*hpage, *hpage);
 
 	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
 	if (unlikely(!*hpage)) {
@@ -832,7 +832,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
 static struct page *
 khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
 {
-	VM_BUG_ON(!*hpage);
+	VM__ON(!*hpage);
 
 	return  *hpage;
 }
@@ -947,7 +947,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	struct mmu_notifier_range range;
 	gfp_t gfp;
 
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	VM__ON(address & ~HPAGE_PMD_MASK);
 
 	/* Only allocate from the target node */
 	gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_THISNODE;
@@ -1023,7 +1023,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	 * After this gup_fast can't run anymore. This also removes
 	 * any huge TLB entry from the CPU so we won't allow
 	 * huge and small TLB entries for the same virtual address
-	 * to avoid the risk of CPU bugs in that area.
+	 * to avoid the risk of CPU s in that area.
 	 */
 	_pmd = pmdp_collapse_flush(vma, address, pmd);
 	spin_unlock(pmd_ptl);
@@ -1036,7 +1036,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (unlikely(!isolated)) {
 		pte_unmap(pte);
 		spin_lock(pmd_ptl);
-		BUG_ON(!pmd_none(*pmd));
+		_ON(!pmd_none(*pmd));
 		/*
 		 * We can only use set_pmd_at when establishing
 		 * hugepmds and never for establishing regular pmds that
@@ -1071,7 +1071,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	smp_wmb();
 
 	spin_lock(pmd_ptl);
-	BUG_ON(!pmd_none(*pmd));
+	_ON(!pmd_none(*pmd));
 	page_add_new_anon_rmap(new_page, vma, address, true);
 	mem_cgroup_commit_charge(new_page, memcg, false, true);
 	count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
@@ -1109,7 +1109,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 	int node = NUMA_NO_NODE, unmapped = 0;
 	bool writable = false;
 
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	VM__ON(address & ~HPAGE_PMD_MASK);
 
 	pmd = mm_find_pmd(mm, address);
 	if (!pmd) {
@@ -1312,7 +1312,7 @@ static void collapse_shmem(struct mm_struct *mm,
 	XA_STATE_ORDER(xas, &mapping->i_pages, start, HPAGE_PMD_ORDER);
 	int nr_none = 0, result = SCAN_SUCCEED;
 
-	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
+	VM__ON(start & (HPAGE_PMD_NR - 1));
 
 	/* Only allocate from the target node */
 	gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_THISNODE;
@@ -1357,7 +1357,7 @@ static void collapse_shmem(struct mm_struct *mm,
 	for (index = start; index < end; index++) {
 		struct page *page = xas_next(&xas);
 
-		VM_BUG_ON(index != xas.xa_index);
+		VM__ON(index != xas.xa_index);
 		if (!page) {
 			/*
 			 * Stop if extent has been truncated or hole-punched,
@@ -1399,8 +1399,8 @@ static void collapse_shmem(struct mm_struct *mm,
 		 * The page must be locked, so we can drop the i_pages lock
 		 * without racing with truncate.
 		 */
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		VM_BUG_ON_PAGE(!PageUptodate(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(!PageUptodate(page), page);
 
 		/*
 		 * If file was truncated then extended, or hole-punched, before
@@ -1427,8 +1427,8 @@ static void collapse_shmem(struct mm_struct *mm,
 		xas_lock_irq(&xas);
 		xas_set(&xas, index);
 
-		VM_BUG_ON_PAGE(page != xas_load(&xas), page);
-		VM_BUG_ON_PAGE(page_mapped(page), page);
+		VM__ON_PAGE(page != xas_load(&xas), page);
+		VM__ON_PAGE(page_mapped(page), page);
 
 		/*
 		 * The page is expected to have page_count() == 3:
@@ -1534,7 +1534,7 @@ xa_unlocked:
 				continue;
 			}
 
-			VM_BUG_ON_PAGE(page->index != xas.xa_index, page);
+			VM__ON_PAGE(page->index != xas.xa_index, page);
 
 			/* Unfreeze the page. */
 			list_del(&page->lru);
@@ -1546,7 +1546,7 @@ xa_unlocked:
 			putback_lru_page(page);
 			xas_lock_irq(&xas);
 		}
-		VM_BUG_ON(nr_none);
+		VM__ON(nr_none);
 		xas_unlock_irq(&xas);
 
 		mem_cgroup_cancel_charge(new_page, memcg, true);
@@ -1555,7 +1555,7 @@ xa_unlocked:
 
 	unlock_page(new_page);
 out:
-	VM_BUG_ON(!list_empty(&pagelist));
+	VM__ON(!list_empty(&pagelist));
 	/* TODO: tracepoints */
 }
 
@@ -1638,7 +1638,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
 		struct address_space *mapping,
 		pgoff_t start, struct page **hpage)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 #endif
 
@@ -1652,7 +1652,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
 	struct vm_area_struct *vma;
 	int progress = 0;
 
-	VM_BUG_ON(!pages);
+	VM__ON(!pages);
 	lockdep_assert_held(&khugepaged_mm_lock);
 
 	if (khugepaged_scan.mm_slot)
@@ -1698,7 +1698,7 @@ skip:
 			goto skip;
 		if (khugepaged_scan.address < hstart)
 			khugepaged_scan.address = hstart;
-		VM_BUG_ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
+		VM__ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
 
 		while (khugepaged_scan.address < hend) {
 			int ret;
@@ -1706,7 +1706,7 @@ skip:
 			if (unlikely(khugepaged_test_exit(mm)))
 				goto breakouterloop;
 
-			VM_BUG_ON(khugepaged_scan.address < hstart ||
+			VM__ON(khugepaged_scan.address < hstart ||
 				  khugepaged_scan.address + HPAGE_PMD_SIZE >
 				  hend);
 			if (shmem_file(vma->vm_file)) {
@@ -1741,7 +1741,7 @@ breakouterloop:
 breakouterloop_mmap_sem:
 
 	spin_lock(&khugepaged_mm_lock);
-	VM_BUG_ON(khugepaged_scan.mm_slot != mm_slot);
+	VM__ON(khugepaged_scan.mm_slot != mm_slot);
 	/*
 	 * Release the current mm_slot if this mm is about to die, or
 	 * if we scanned all vmas of this mm.

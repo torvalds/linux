@@ -432,7 +432,7 @@ static int fpr_get_msa(struct task_struct *target,
 	u64 fpr_val;
 	int err;
 
-	BUILD_BUG_ON(sizeof(fpr_val) != sizeof(elf_fpreg_t));
+	BUILD__ON(sizeof(fpr_val) != sizeof(elf_fpreg_t));
 	for (i = 0; i < NUM_FPU_REGS; i++) {
 		fpr_val = get_fpr64(&target->thread.fpu.fpr[i], 0);
 		err = user_regset_copyout(pos, count, kbuf, ubuf,
@@ -507,7 +507,7 @@ static int fpr_set_msa(struct task_struct *target,
 	u64 fpr_val;
 	int err;
 
-	BUILD_BUG_ON(sizeof(fpr_val) != sizeof(elf_fpreg_t));
+	BUILD__ON(sizeof(fpr_val) != sizeof(elf_fpreg_t));
 	for (i = 0; i < NUM_FPU_REGS && *count > 0; i++) {
 		err = user_regset_copyin(pos, count, kbuf, ubuf,
 					 &fpr_val, i * sizeof(elf_fpreg_t),
@@ -542,7 +542,7 @@ static int fpr_set(struct task_struct *target,
 	u32 fcr31;
 	int err;
 
-	BUG_ON(count % sizeof(elf_fpreg_t));
+	_ON(count % sizeof(elf_fpreg_t));
 
 	if (pos + count > sizeof(elf_fpregset_t))
 		return -EIO;
@@ -604,7 +604,7 @@ static int fp_mode_set(struct task_struct *target,
 	int fp_mode;
 	int err;
 
-	BUG_ON(count % sizeof(int));
+	_ON(count % sizeof(int));
 
 	if (pos + count > sizeof(fp_mode))
 		return -EIO;
@@ -759,7 +759,7 @@ static int dsp32_get(struct task_struct *target,
 	unsigned int start, num_regs, i;
 	u32 dspregs[NUM_DSP_REGS + 1];
 
-	BUG_ON(count % sizeof(u32));
+	_ON(count % sizeof(u32));
 
 	if (!cpu_has_dsp)
 		return -EIO;
@@ -795,7 +795,7 @@ static int dsp32_set(struct task_struct *target,
 	u32 dspregs[NUM_DSP_REGS + 1];
 	int err;
 
-	BUG_ON(count % sizeof(u32));
+	_ON(count % sizeof(u32));
 
 	if (!cpu_has_dsp)
 		return -EIO;
@@ -839,7 +839,7 @@ static int dsp64_get(struct task_struct *target,
 	unsigned int start, num_regs, i;
 	u64 dspregs[NUM_DSP_REGS + 1];
 
-	BUG_ON(count % sizeof(u64));
+	_ON(count % sizeof(u64));
 
 	if (!cpu_has_dsp)
 		return -EIO;
@@ -875,7 +875,7 @@ static int dsp64_set(struct task_struct *target,
 	u64 dspregs[NUM_DSP_REGS + 1];
 	int err;
 
-	BUG_ON(count % sizeof(u64));
+	_ON(count % sizeof(u64));
 
 	if (!cpu_has_dsp)
 		return -EIO;

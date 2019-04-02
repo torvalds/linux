@@ -415,7 +415,7 @@ static inline void vas_log_write(struct vas_window *win, char *name,
 			void *regptr, u64 val)
 {
 	if (val)
-		pr_debug("%swin #%d: %s reg %p, val 0x%016llx\n",
+		pr_de("%swin #%d: %s reg %p, val 0x%016llx\n",
 				win->tx_win ? "Tx" : "Rx", win->winid, name,
 				regptr, val);
 }

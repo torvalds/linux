@@ -138,7 +138,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	}
 
 	brelse(bh);
-	pr_debug("efs_iget(): inode %lu, extents %d, mode %o\n",
+	pr_de("efs_iget(): inode %lu, extents %d, mode %o\n",
 		 inode->i_ino, in->numextents, inode->i_mode);
 	switch (inode->i_mode & S_IFMT) {
 		case S_IFDIR: 
@@ -236,7 +236,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 		return 0;
 	}
 
-	pr_debug("%s(): indirect search for logical block %u\n",
+	pr_de("%s(): indirect search for logical block %u\n",
 		 __func__, block);
 	direxts = in->extents[0].cooked.ex_offset;
 	indexts = in->numextents;
@@ -281,7 +281,7 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 				       __func__, iblock);
 				return 0;
 			}
-			pr_debug("%s(): read indirect extent block %d\n",
+			pr_de("%s(): read indirect extent block %d\n",
 				 __func__, iblock);
 			first = 0;
 			lastblock = iblock;

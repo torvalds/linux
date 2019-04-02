@@ -26,7 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <asm/pci-bridge.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/ppc-pci.h>
 
 
@@ -100,9 +100,9 @@ struct eeh_dev *eeh_addr_cache_get_dev(unsigned long addr)
 	return edev;
 }
 
-#ifdef DEBUG
+#ifdef DE
 /*
- * Handy-dandy debug print routine, does nothing more
+ * Handy-dandy de print routine, does nothing more
  * than print out the contents of our addr cache.
  */
 static void eeh_addr_cache_print(struct pci_io_addr_cache *cache)
@@ -158,7 +158,7 @@ eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 	piar->pcidev = dev;
 	piar->flags = flags;
 
-	pr_debug("PIAR: insert range=[%pap:%pap] dev=%s\n",
+	pr_de("PIAR: insert range=[%pap:%pap] dev=%s\n",
 		 &alo, &ahi, pci_name(dev));
 
 	rb_link_node(&piar->rb_node, parent, p);
@@ -239,7 +239,7 @@ restart:
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
 
 		if (piar->pcidev == dev) {
-			pr_debug("PIAR: remove range=[%pap:%pap] dev=%s\n",
+			pr_de("PIAR: remove range=[%pap:%pap] dev=%s\n",
 				 &piar->addr_lo, &piar->addr_hi, pci_name(dev));
 			rb_erase(n, &pci_io_addr_cache_root.rb_root);
 			kfree(piar);
@@ -320,9 +320,9 @@ static int eeh_addr_cache_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(eeh_addr_cache);
 
-void eeh_cache_debugfs_init(void)
+void eeh_cache_defs_init(void)
 {
-	debugfs_create_file_unsafe("eeh_address_cache", 0400,
-			powerpc_debugfs_root, NULL,
+	defs_create_file_unsafe("eeh_address_cache", 0400,
+			powerpc_defs_root, NULL,
 			&eeh_addr_cache_fops);
 }

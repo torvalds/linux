@@ -110,7 +110,7 @@ struct pluto {
 	/* i2c */
 	struct i2c_algo_bit_data i2c_bit;
 	struct i2c_adapter i2c_adap;
-	unsigned int i2cbug;
+	unsigned int i2c;
 
 	/* irq */
 	unsigned int overflow;
@@ -178,14 +178,14 @@ static void pluto_setscl(void *data, int state)
 	else
 		pluto_rw(pluto, REG_SLCS, SLCS_SCL, 0);
 
-	/* try to detect i2c_inb() to workaround hardware bug:
+	/* try to detect i2c_inb() to workaround hardware :
 	 * reset SDA to high after SCL has been set to low */
-	if ((state) && (pluto->i2cbug == 0)) {
-		pluto->i2cbug = 1;
+	if ((state) && (pluto->i2c == 0)) {
+		pluto->i2c = 1;
 	} else {
-		if ((!state) && (pluto->i2cbug == 1))
+		if ((!state) && (pluto->i2c == 1))
 			pluto_setsda(pluto, 1);
-		pluto->i2cbug = 0;
+		pluto->i2c = 0;
 	}
 }
 
@@ -306,7 +306,7 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 		nbpackets = i / 188;
 		if (i == 0) {
 			pluto_reset_ts(pluto, 1);
-			dev_printk(KERN_DEBUG, &pluto->pdev->dev, "resetting TS because of invalid packet counter\n");
+			dev_printk(KERN_DE, &pluto->pdev->dev, "resetting TS because of invalid packet counter\n");
 		}
 	}
 

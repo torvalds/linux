@@ -32,6 +32,6 @@ int gm200_i2c_aux_new(struct nvkm_i2c_pad *, int, u8, struct nvkm_i2c_aux **);
 	nvkm_##l(&_aux->pad->i2c->subdev, "aux %04x: "f"\n", _aux->id, ##a);   \
 } while(0)
 #define AUX_ERR(b,f,a...) AUX_MSG((b), error, f, ##a)
-#define AUX_DBG(b,f,a...) AUX_MSG((b), debug, f, ##a)
+#define AUX_DBG(b,f,a...) AUX_MSG((b), de, f, ##a)
 #define AUX_TRACE(b,f,a...) AUX_MSG((b), trace, f, ##a)
 #endif

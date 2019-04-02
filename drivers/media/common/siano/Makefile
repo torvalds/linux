@@ -8,6 +8,6 @@ ifeq ($(CONFIG_SMS_SIANO_RC),y)
   smsmdtv-objs += smsir.o
 endif
 
-ifeq ($(CONFIG_SMS_SIANO_DEBUGFS),y)
-  smsdvb-objs += smsdvb-debugfs.o
+ifeq ($(CONFIG_SMS_SIANO_DEFS),y)
+  smsdvb-objs += smsdvb-defs.o
 endif

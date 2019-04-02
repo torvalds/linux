@@ -170,19 +170,19 @@ config B43_HWRNG
 	depends on B43 && (HW_RANDOM = y || HW_RANDOM = B43)
 	default y
 
-config B43_DEBUG
-	bool "Broadcom 43xx debugging"
+config B43_DE
+	bool "Broadcom 43xx deging"
 	depends on B43
 	---help---
-	  Broadcom 43xx debugging.
+	  Broadcom 43xx deging.
 
 	  This adds additional runtime sanity checks and statistics to the driver.
 	  These checks and statistics might be expensive and hurt the runtime
 	  performance of your system.
-	  This also adds the b43 debugfs interface.
+	  This also adds the b43 defs interface.
 
-	  Do not enable this, unless you are debugging the driver.
+	  Do not enable this, unless you are deging the driver.
 
 	  Say N, if you are a distributor or user building a release kernel
 	  for production use.
-	  Only say Y, if you are debugging a problem in the b43 driver sourcecode.
+	  Only say Y, if you are deging a problem in the b43 driver sourcecode.

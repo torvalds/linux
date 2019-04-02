@@ -110,7 +110,7 @@ void drbd_req_destroy(struct kref *kref)
 		atomic_read(&req->completion_ref) ||
 		(s & RQ_LOCAL_PENDING) ||
 		((s & RQ_NET_MASK) && !(s & RQ_NET_DONE))) {
-		drbd_err(device, "drbd_req_destroy: Logic BUG rq_state = 0x%x, completion_ref = %d\n",
+		drbd_err(device, "drbd_req_destroy: Logic  rq_state = 0x%x, completion_ref = %d\n",
 				s, atomic_read(&req->completion_ref));
 		return;
 	}
@@ -136,7 +136,7 @@ void drbd_req_destroy(struct kref *kref)
 			root = &device->read_requests;
 		drbd_remove_request_interval(root, req);
 	} else if (s & (RQ_NET_MASK & ~RQ_NET_DONE) && req->i.size != 0)
-		drbd_err(device, "drbd_req_destroy: Logic BUG: interval empty, but: rq_state=0x%x, sect=%llu, size=%u\n",
+		drbd_err(device, "drbd_req_destroy: Logic : interval empty, but: rq_state=0x%x, sect=%llu, size=%u\n",
 			s, (unsigned long long)req->i.sector, req->i.size);
 
 	/* if it was a write, we may have to set the corresponding
@@ -238,12 +238,12 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 	if ((s & RQ_LOCAL_PENDING && !(s & RQ_LOCAL_ABORTED)) ||
 	    (s & RQ_NET_QUEUED) || (s & RQ_NET_PENDING) ||
 	    (s & RQ_COMPLETION_SUSP)) {
-		drbd_err(device, "drbd_req_complete: Logic BUG rq_state = 0x%x\n", s);
+		drbd_err(device, "drbd_req_complete: Logic  rq_state = 0x%x\n", s);
 		return;
 	}
 
 	if (!req->master_bio) {
-		drbd_err(device, "drbd_req_complete: Logic BUG, master_bio == NULL!\n");
+		drbd_err(device, "drbd_req_complete: Logic , master_bio == NULL!\n");
 		return;
 	}
 
@@ -588,7 +588,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	switch (what) {
 	default:
-		drbd_err(device, "LOGIC BUG in %s:%u\n", __FILE__ , __LINE__);
+		drbd_err(device, "LOGIC  in %s:%u\n", __FILE__ , __LINE__);
 		break;
 
 	/* does not happen...

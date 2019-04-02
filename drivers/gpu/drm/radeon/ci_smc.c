@@ -216,7 +216,7 @@ int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 			break;
 		default:
 			DRM_ERROR("unknown asic in smc ucode loader\n");
-			BUG();
+			();
 		}
 
 		src = (const u8 *)rdev->smc_fw->data;

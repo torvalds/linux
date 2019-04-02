@@ -764,11 +764,11 @@ static int __init nfp_main_init(void)
 	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2017 Netronome Systems\n",
 		nfp_driver_name);
 
-	nfp_net_debugfs_create();
+	nfp_net_defs_create();
 
 	err = pci_register_driver(&nfp_pci_driver);
 	if (err < 0)
-		goto err_destroy_debugfs;
+		goto err_destroy_defs;
 
 	err = pci_register_driver(&nfp_netvf_pci_driver);
 	if (err)
@@ -778,8 +778,8 @@ static int __init nfp_main_init(void)
 
 err_unreg_pf:
 	pci_unregister_driver(&nfp_pci_driver);
-err_destroy_debugfs:
-	nfp_net_debugfs_destroy();
+err_destroy_defs:
+	nfp_net_defs_destroy();
 	return err;
 }
 
@@ -787,7 +787,7 @@ static void __exit nfp_main_exit(void)
 {
 	pci_unregister_driver(&nfp_netvf_pci_driver);
 	pci_unregister_driver(&nfp_pci_driver);
-	nfp_net_debugfs_destroy();
+	nfp_net_defs_destroy();
 }
 
 module_init(nfp_main_init);

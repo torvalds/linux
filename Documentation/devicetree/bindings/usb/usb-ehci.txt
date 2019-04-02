@@ -4,7 +4,7 @@ Required properties:
   - compatible : should be "generic-ehci".
   - reg : should contain at least address and length of the standard EHCI
     register set for the device. Optional platform-dependent registers
-    (debug-port or other) can be also specified here, but only after
+    (de-port or other) can be also specified here, but only after
     definition of standard EHCI registers.
   - interrupts : one EHCI interrupt should be described here.
 

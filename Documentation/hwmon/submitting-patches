@@ -47,7 +47,7 @@ increase the chances of your change being accepted.
   your patch into a cleanup part and the actual addition. This makes it easier
   to review your changes, and to bisect any resulting problems.
 
-* Never mix bug fixes, cleanup, and functional enhancements in a single patch.
+* Never mix  fixes, cleanup, and functional enhancements in a single patch.
 
 
 3. New drivers
@@ -91,7 +91,7 @@ increase the chances of your change being accepted.
   and supported functions, please see Documentation/driver-model/devres.txt.
   If a function is not supported by devres, consider using devm_add_action().
 
-* If the driver has a detect function, make sure it is silent. Debug messages
+* If the driver has a detect function, make sure it is silent. De messages
   and messages printed after a successful detection are acceptable, but it
   must not print messages such as "Chip XXX not found/supported".
 

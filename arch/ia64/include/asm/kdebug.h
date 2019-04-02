@@ -1,5 +1,5 @@
-#ifndef _IA64_KDEBUG_H
-#define _IA64_KDEBUG_H 1
+#ifndef _IA64_KDE_H
+#define _IA64_KDE_H 1
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  *
  * 2005-Apr     Rusty Lynch <rusty.lynch@intel.com> and Anil S Keshavamurthy
  *              <anil.s.keshavamurthy@intel.com> adopted from
- *              include/asm-x86_64/kdebug.h
+ *              include/asm-x86_64/kde.h
  *
  * 2005-Oct	Keith Owens <kaos@sgi.com>.  Expand notify_die to cover more
  *		events.
@@ -48,8 +48,8 @@ enum die_val {
 	DIE_INIT_SLAVE_ENTER,
 	DIE_INIT_SLAVE_PROCESS,
 	DIE_INIT_SLAVE_LEAVE,
-	DIE_KDEBUG_ENTER,
-	DIE_KDEBUG_LEAVE,
+	DIE_KDE_ENTER,
+	DIE_KDE_LEAVE,
 	DIE_KDUMP_ENTER,
 	DIE_KDUMP_LEAVE,
 };

@@ -252,7 +252,7 @@ static int qfq_calc_index(u32 inv_w, unsigned int maxlen, u32 min_slot_shift)
 	if (index < 0)
 		index = 0;
 out:
-	pr_debug("qfq calc_index: W = %lu, L = %u, I = %d\n",
+	pr_de("qfq calc_index: W = %lu, L = %u, I = %d\n",
 		 (unsigned long) ONE_FP/inv_w, maxlen, index);
 
 	return index;
@@ -696,7 +696,7 @@ static struct qfq_class *qfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 	int result;
 
 	if (TC_H_MAJ(skb->priority ^ sch->handle) == 0) {
-		pr_debug("qfq_classify: found %d\n", skb->priority);
+		pr_de("qfq_classify: found %d\n", skb->priority);
 		cl = qfq_find_class(sch, skb->priority);
 		if (cl != NULL)
 			return cl;
@@ -920,7 +920,7 @@ static void qfq_front_slot_remove(struct qfq_group *grp)
 {
 	struct qfq_aggregate *agg = qfq_slot_head(grp);
 
-	BUG_ON(!agg);
+	_ON(!agg);
 	hlist_del(&agg->next);
 	if (hlist_empty(&grp->slots[grp->front]))
 		__clear_bit(0, &grp->full_slots);
@@ -935,7 +935,7 @@ static struct qfq_aggregate *qfq_slot_scan(struct qfq_group *grp)
 {
 	unsigned int i;
 
-	pr_debug("qfq slot_scan: grp %u full %#lx\n",
+	pr_de("qfq slot_scan: grp %u full %#lx\n",
 		 grp->index, grp->full_slots);
 
 	if (grp->full_slots == 0)
@@ -1021,7 +1021,7 @@ static inline void charge_actual_service(struct qfq_aggregate *agg)
 	/* Compute the service received by the aggregate, taking into
 	 * account that, after decreasing the number of classes in
 	 * agg, it may happen that
-	 * agg->initial_budget - agg->budget > agg->bugdetmax
+	 * agg->initial_budget - agg->budget > agg->detmax
 	 */
 	u32 service_received = min(agg->budgetmax,
 				   agg->initial_budget - agg->budget);
@@ -1157,7 +1157,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 		in_serv_agg->budget -= len;
 
 	q->V += (u64)len * q->iwsum;
-	pr_debug("qfq dequeue: len %u F %lld now %lld\n",
+	pr_de("qfq dequeue: len %u F %lld now %lld\n",
 		 len, (unsigned long long) in_serv_agg->F,
 		 (unsigned long long) q->V);
 
@@ -1224,10 +1224,10 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		__qdisc_drop(skb, to_free);
 		return err;
 	}
-	pr_debug("qfq_enqueue: cl = %x\n", cl->common.classid);
+	pr_de("qfq_enqueue: cl = %x\n", cl->common.classid);
 
 	if (unlikely(cl->agg->lmax < len)) {
-		pr_debug("qfq: increasing maxpkt from %u to %u for class %u",
+		pr_de("qfq: increasing maxpkt from %u to %u for class %u",
 			 cl->agg->lmax, len, cl->common.classid);
 		err = qfq_change_agg(sch, cl, cl->agg->class_weight, len);
 		if (err) {
@@ -1240,7 +1240,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	first = !cl->qdisc->q.qlen;
 	err = qdisc_enqueue(skb, cl->qdisc, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
-		pr_debug("qfq_enqueue: enqueue failed %d\n", err);
+		pr_de("qfq_enqueue: enqueue failed %d\n", err);
 		if (net_xmit_drop_count(err)) {
 			cl->qstats.drops++;
 			qdisc_qstats_drop(sch);
@@ -1315,7 +1315,7 @@ static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 	s = qfq_calc_state(q, grp);
 	__set_bit(grp->index, &q->bitmaps[s]);
 
-	pr_debug("qfq enqueue: new state %d %#lx S %lld F %lld V %lld\n",
+	pr_de("qfq enqueue: new state %d %#lx S %lld F %lld V %lld\n",
 		 s, q->bitmaps[s],
 		 (unsigned long long) agg->S,
 		 (unsigned long long) agg->F,

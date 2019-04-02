@@ -160,8 +160,8 @@ static inline void coresight_clear_claim_tags(void __iomem *base)
 /*
  * coresight_claim_device_unlocked : Claim the device for self-hosted usage
  * to prevent an external tool from touching this device. As per PSCI
- * standards, section "Preserving the execution context" => "Debug and Trace
- * save and Restore", DBGCLAIM[1] is reserved for Self-hosted debug/trace and
+ * standards, section "Preserving the execution context" => "De and Trace
+ * save and Restore", DBGCLAIM[1] is reserved for Self-hosted de/trace and
  * DBGCLAIM[0] is reserved for external tools.
  *
  * Called with CS_UNLOCKed for the component.

@@ -60,7 +60,7 @@
  *
  *****************************************************************************/
 #include "mvm.h"
-#include "debugfs.h"
+#include "defs.h"
 
 static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,
@@ -72,53 +72,53 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 	dbgfs_pm->mask |= param;
 
 	switch (param) {
-	case MVM_DEBUGFS_PM_KEEP_ALIVE: {
+	case MVM_DEFS_PM_KEEP_ALIVE: {
 		int dtimper = vif->bss_conf.dtim_period ?: 1;
 		int dtimper_msec = dtimper * vif->bss_conf.beacon_int;
 
-		IWL_DEBUG_POWER(mvm, "debugfs: set keep_alive= %d sec\n", val);
+		IWL_DE_POWER(mvm, "defs: set keep_alive= %d sec\n", val);
 		if (val * MSEC_PER_SEC < 3 * dtimper_msec)
 			IWL_WARN(mvm,
-				 "debugfs: keep alive period (%ld msec) is less than minimum required (%d msec)\n",
+				 "defs: keep alive period (%ld msec) is less than minimum required (%d msec)\n",
 				 val * MSEC_PER_SEC, 3 * dtimper_msec);
 		dbgfs_pm->keep_alive_seconds = val;
 		break;
 	}
-	case MVM_DEBUGFS_PM_SKIP_OVER_DTIM:
-		IWL_DEBUG_POWER(mvm, "skip_over_dtim %s\n",
+	case MVM_DEFS_PM_SKIP_OVER_DTIM:
+		IWL_DE_POWER(mvm, "skip_over_dtim %s\n",
 				val ? "enabled" : "disabled");
 		dbgfs_pm->skip_over_dtim = val;
 		break;
-	case MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS:
-		IWL_DEBUG_POWER(mvm, "skip_dtim_periods=%d\n", val);
+	case MVM_DEFS_PM_SKIP_DTIM_PERIODS:
+		IWL_DE_POWER(mvm, "skip_dtim_periods=%d\n", val);
 		dbgfs_pm->skip_dtim_periods = val;
 		break;
-	case MVM_DEBUGFS_PM_RX_DATA_TIMEOUT:
-		IWL_DEBUG_POWER(mvm, "rx_data_timeout=%d\n", val);
+	case MVM_DEFS_PM_RX_DATA_TIMEOUT:
+		IWL_DE_POWER(mvm, "rx_data_timeout=%d\n", val);
 		dbgfs_pm->rx_data_timeout = val;
 		break;
-	case MVM_DEBUGFS_PM_TX_DATA_TIMEOUT:
-		IWL_DEBUG_POWER(mvm, "tx_data_timeout=%d\n", val);
+	case MVM_DEFS_PM_TX_DATA_TIMEOUT:
+		IWL_DE_POWER(mvm, "tx_data_timeout=%d\n", val);
 		dbgfs_pm->tx_data_timeout = val;
 		break;
-	case MVM_DEBUGFS_PM_LPRX_ENA:
-		IWL_DEBUG_POWER(mvm, "lprx %s\n", val ? "enabled" : "disabled");
+	case MVM_DEFS_PM_LPRX_ENA:
+		IWL_DE_POWER(mvm, "lprx %s\n", val ? "enabled" : "disabled");
 		dbgfs_pm->lprx_ena = val;
 		break;
-	case MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD:
-		IWL_DEBUG_POWER(mvm, "lprx_rssi_threshold=%d\n", val);
+	case MVM_DEFS_PM_LPRX_RSSI_THRESHOLD:
+		IWL_DE_POWER(mvm, "lprx_rssi_threshold=%d\n", val);
 		dbgfs_pm->lprx_rssi_threshold = val;
 		break;
-	case MVM_DEBUGFS_PM_SNOOZE_ENABLE:
-		IWL_DEBUG_POWER(mvm, "snooze_enable=%d\n", val);
+	case MVM_DEFS_PM_SNOOZE_ENABLE:
+		IWL_DE_POWER(mvm, "snooze_enable=%d\n", val);
 		dbgfs_pm->snooze_ena = val;
 		break;
-	case MVM_DEBUGFS_PM_UAPSD_MISBEHAVING:
-		IWL_DEBUG_POWER(mvm, "uapsd_misbehaving_enable=%d\n", val);
+	case MVM_DEFS_PM_UAPSD_MISBEHAVING:
+		IWL_DE_POWER(mvm, "uapsd_misbehaving_enable=%d\n", val);
 		dbgfs_pm->uapsd_misbehaving = val;
 		break;
-	case MVM_DEBUGFS_PM_USE_PS_POLL:
-		IWL_DEBUG_POWER(mvm, "use_ps_poll=%d\n", val);
+	case MVM_DEFS_PM_USE_PS_POLL:
+		IWL_DE_POWER(mvm, "use_ps_poll=%d\n", val);
 		dbgfs_pm->use_ps_poll = val;
 		break;
 	}
@@ -135,46 +135,46 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 	if (!strncmp("keep_alive=", buf, 11)) {
 		if (sscanf(buf + 11, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_KEEP_ALIVE;
+		param = MVM_DEFS_PM_KEEP_ALIVE;
 	} else if (!strncmp("skip_over_dtim=", buf, 15)) {
 		if (sscanf(buf + 15, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_SKIP_OVER_DTIM;
+		param = MVM_DEFS_PM_SKIP_OVER_DTIM;
 	} else if (!strncmp("skip_dtim_periods=", buf, 18)) {
 		if (sscanf(buf + 18, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS;
+		param = MVM_DEFS_PM_SKIP_DTIM_PERIODS;
 	} else if (!strncmp("rx_data_timeout=", buf, 16)) {
 		if (sscanf(buf + 16, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_RX_DATA_TIMEOUT;
+		param = MVM_DEFS_PM_RX_DATA_TIMEOUT;
 	} else if (!strncmp("tx_data_timeout=", buf, 16)) {
 		if (sscanf(buf + 16, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_TX_DATA_TIMEOUT;
+		param = MVM_DEFS_PM_TX_DATA_TIMEOUT;
 	} else if (!strncmp("lprx=", buf, 5)) {
 		if (sscanf(buf + 5, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_LPRX_ENA;
+		param = MVM_DEFS_PM_LPRX_ENA;
 	} else if (!strncmp("lprx_rssi_threshold=", buf, 20)) {
 		if (sscanf(buf + 20, "%d", &val) != 1)
 			return -EINVAL;
 		if (val > POWER_LPRX_RSSI_THRESHOLD_MAX || val <
 		    POWER_LPRX_RSSI_THRESHOLD_MIN)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD;
+		param = MVM_DEFS_PM_LPRX_RSSI_THRESHOLD;
 	} else if (!strncmp("snooze_enable=", buf, 14)) {
 		if (sscanf(buf + 14, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_SNOOZE_ENABLE;
+		param = MVM_DEFS_PM_SNOOZE_ENABLE;
 	} else if (!strncmp("uapsd_misbehaving=", buf, 18)) {
 		if (sscanf(buf + 18, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_UAPSD_MISBEHAVING;
+		param = MVM_DEFS_PM_UAPSD_MISBEHAVING;
 	} else if (!strncmp("use_ps_poll=", buf, 12)) {
 		if (sscanf(buf + 12, "%d", &val) != 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_PM_USE_PS_POLL;
+		param = MVM_DEFS_PM_USE_PS_POLL;
 	} else {
 		return -EINVAL;
 	}
@@ -311,37 +311,37 @@ static void iwl_dbgfs_update_bf(struct ieee80211_vif *vif,
 	dbgfs_bf->mask |= param;
 
 	switch (param) {
-	case MVM_DEBUGFS_BF_ENERGY_DELTA:
+	case MVM_DEFS_BF_ENERGY_DELTA:
 		dbgfs_bf->bf_energy_delta = value;
 		break;
-	case MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA:
+	case MVM_DEFS_BF_ROAMING_ENERGY_DELTA:
 		dbgfs_bf->bf_roaming_energy_delta = value;
 		break;
-	case MVM_DEBUGFS_BF_ROAMING_STATE:
+	case MVM_DEFS_BF_ROAMING_STATE:
 		dbgfs_bf->bf_roaming_state = value;
 		break;
-	case MVM_DEBUGFS_BF_TEMP_THRESHOLD:
+	case MVM_DEFS_BF_TEMP_THRESHOLD:
 		dbgfs_bf->bf_temp_threshold = value;
 		break;
-	case MVM_DEBUGFS_BF_TEMP_FAST_FILTER:
+	case MVM_DEFS_BF_TEMP_FAST_FILTER:
 		dbgfs_bf->bf_temp_fast_filter = value;
 		break;
-	case MVM_DEBUGFS_BF_TEMP_SLOW_FILTER:
+	case MVM_DEFS_BF_TEMP_SLOW_FILTER:
 		dbgfs_bf->bf_temp_slow_filter = value;
 		break;
-	case MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER:
+	case MVM_DEFS_BF_ENABLE_BEACON_FILTER:
 		dbgfs_bf->bf_enable_beacon_filter = value;
 		break;
-	case MVM_DEBUGFS_BF_DEBUG_FLAG:
-		dbgfs_bf->bf_debug_flag = value;
+	case MVM_DEFS_BF_DE_FLAG:
+		dbgfs_bf->bf_de_flag = value;
 		break;
-	case MVM_DEBUGFS_BF_ESCAPE_TIMER:
+	case MVM_DEFS_BF_ESCAPE_TIMER:
 		dbgfs_bf->bf_escape_timer = value;
 		break;
-	case MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT:
+	case MVM_DEFS_BA_ENABLE_BEACON_ABORT:
 		dbgfs_bf->ba_enable_beacon_abort = value;
 		break;
-	case MVM_DEBUGFS_BA_ESCAPE_TIMER:
+	case MVM_DEFS_BA_ESCAPE_TIMER:
 		dbgfs_bf->ba_escape_timer = value;
 		break;
 	}
@@ -361,81 +361,81 @@ static ssize_t iwl_dbgfs_bf_params_write(struct ieee80211_vif *vif, char *buf,
 		if (value < IWL_BF_ENERGY_DELTA_MIN ||
 		    value > IWL_BF_ENERGY_DELTA_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_ENERGY_DELTA;
+		param = MVM_DEFS_BF_ENERGY_DELTA;
 	} else if (!strncmp("bf_roaming_energy_delta=", buf, 24)) {
 		if (sscanf(buf+24, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BF_ROAMING_ENERGY_DELTA_MIN ||
 		    value > IWL_BF_ROAMING_ENERGY_DELTA_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA;
+		param = MVM_DEFS_BF_ROAMING_ENERGY_DELTA;
 	} else if (!strncmp("bf_roaming_state=", buf, 17)) {
 		if (sscanf(buf+17, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BF_ROAMING_STATE_MIN ||
 		    value > IWL_BF_ROAMING_STATE_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_ROAMING_STATE;
+		param = MVM_DEFS_BF_ROAMING_STATE;
 	} else if (!strncmp("bf_temp_threshold=", buf, 18)) {
 		if (sscanf(buf+18, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BF_TEMP_THRESHOLD_MIN ||
 		    value > IWL_BF_TEMP_THRESHOLD_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_TEMP_THRESHOLD;
+		param = MVM_DEFS_BF_TEMP_THRESHOLD;
 	} else if (!strncmp("bf_temp_fast_filter=", buf, 20)) {
 		if (sscanf(buf+20, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BF_TEMP_FAST_FILTER_MIN ||
 		    value > IWL_BF_TEMP_FAST_FILTER_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_TEMP_FAST_FILTER;
+		param = MVM_DEFS_BF_TEMP_FAST_FILTER;
 	} else if (!strncmp("bf_temp_slow_filter=", buf, 20)) {
 		if (sscanf(buf+20, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BF_TEMP_SLOW_FILTER_MIN ||
 		    value > IWL_BF_TEMP_SLOW_FILTER_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_TEMP_SLOW_FILTER;
+		param = MVM_DEFS_BF_TEMP_SLOW_FILTER;
 	} else if (!strncmp("bf_enable_beacon_filter=", buf, 24)) {
 		if (sscanf(buf+24, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < 0 || value > 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER;
-	} else if (!strncmp("bf_debug_flag=", buf, 14)) {
+		param = MVM_DEFS_BF_ENABLE_BEACON_FILTER;
+	} else if (!strncmp("bf_de_flag=", buf, 14)) {
 		if (sscanf(buf+14, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < 0 || value > 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_DEBUG_FLAG;
+		param = MVM_DEFS_BF_DE_FLAG;
 	} else if (!strncmp("bf_escape_timer=", buf, 16)) {
 		if (sscanf(buf+16, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BF_ESCAPE_TIMER_MIN ||
 		    value > IWL_BF_ESCAPE_TIMER_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_ESCAPE_TIMER;
+		param = MVM_DEFS_BF_ESCAPE_TIMER;
 	} else if (!strncmp("ba_escape_timer=", buf, 16)) {
 		if (sscanf(buf+16, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < IWL_BA_ESCAPE_TIMER_MIN ||
 		    value > IWL_BA_ESCAPE_TIMER_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BA_ESCAPE_TIMER;
+		param = MVM_DEFS_BA_ESCAPE_TIMER;
 	} else if (!strncmp("ba_enable_beacon_abort=", buf, 23)) {
 		if (sscanf(buf+23, "%d", &value) != 1)
 			return -EINVAL;
 		if (value < 0 || value > 1)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT;
+		param = MVM_DEFS_BA_ENABLE_BEACON_ABORT;
 	} else {
 		return -EINVAL;
 	}
 
 	mutex_lock(&mvm->mutex);
 	iwl_dbgfs_update_bf(vif, param, value);
-	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value)
+	if (param == MVM_DEFS_BF_ENABLE_BEACON_FILTER && !value)
 		ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
 	else
 		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
@@ -461,7 +461,7 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 			cpu_to_le32(IWL_BA_ENABLE_BEACON_ABORT_DEFAULT),
 	};
 
-	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
+	iwl_mvm_beacon_filter_defs_parameters(vif, &cmd);
 	if (mvmvif->bf_data.bf_enabled)
 		cmd.bf_enable_beacon_filter = cpu_to_le32(1);
 	else
@@ -481,8 +481,8 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 			 le32_to_cpu(cmd.bf_temp_slow_filter));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_enable_beacon_filter = %d\n",
 			 le32_to_cpu(cmd.bf_enable_beacon_filter));
-	pos += scnprintf(buf+pos, bufsz-pos, "bf_debug_flag = %d\n",
-			 le32_to_cpu(cmd.bf_debug_flag));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_de_flag = %d\n",
+			 le32_to_cpu(cmd.bf_de_flag));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_escape_timer = %d\n",
 			 le32_to_cpu(cmd.bf_escape_timer));
 	pos += scnprintf(buf+pos, bufsz-pos, "ba_escape_timer = %d\n",
@@ -537,7 +537,7 @@ static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_update_low_latency(mvm, vif, value, LOW_LATENCY_DEBUGFS);
+	iwl_mvm_update_low_latency(mvm, vif, value, LOW_LATENCY_DEFS);
 	mutex_unlock(&mvm->mutex);
 
 	return count;
@@ -562,15 +562,15 @@ iwl_dbgfs_low_latency_force_write(struct ieee80211_vif *vif, char *buf,
 	mutex_lock(&mvm->mutex);
 	if (value == LOW_LATENCY_FORCE_UNSET) {
 		iwl_mvm_update_low_latency(mvm, vif, false,
-					   LOW_LATENCY_DEBUGFS_FORCE);
+					   LOW_LATENCY_DEFS_FORCE);
 		iwl_mvm_update_low_latency(mvm, vif, false,
-					   LOW_LATENCY_DEBUGFS_FORCE_ENABLE);
+					   LOW_LATENCY_DEFS_FORCE_ENABLE);
 	} else {
 		iwl_mvm_update_low_latency(mvm, vif,
 					   value == LOW_LATENCY_FORCE_ON,
-					   LOW_LATENCY_DEBUGFS_FORCE);
+					   LOW_LATENCY_DEFS_FORCE);
 		iwl_mvm_update_low_latency(mvm, vif, true,
-					   LOW_LATENCY_DEBUGFS_FORCE_ENABLE);
+					   LOW_LATENCY_DEFS_FORCE_ENABLE);
 	}
 	mutex_unlock(&mvm->mutex);
 	return count;
@@ -594,12 +594,12 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 
 	len = scnprintf(buf, sizeof(buf) - 1, format,
 			!!(mvmvif->low_latency & LOW_LATENCY_TRAFFIC),
-			!!(mvmvif->low_latency & LOW_LATENCY_DEBUGFS),
+			!!(mvmvif->low_latency & LOW_LATENCY_DEFS),
 			!!(mvmvif->low_latency & LOW_LATENCY_VCMD),
 			!!(mvmvif->low_latency & LOW_LATENCY_VIF_TYPE),
 			!!(mvmvif->low_latency &
-			   LOW_LATENCY_DEBUGFS_FORCE_ENABLE),
-			!!(mvmvif->low_latency & LOW_LATENCY_DEBUGFS_FORCE),
+			   LOW_LATENCY_DEFS_FORCE_ENABLE),
+			!!(mvmvif->low_latency & LOW_LATENCY_DEFS_FORCE),
 			!!(mvmvif->low_latency_actual));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -738,45 +738,45 @@ static ssize_t iwl_dbgfs_quota_min_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-#define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
-	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
-#define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
-	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
-#define MVM_DEBUGFS_ADD_FILE_VIF(name, parent, mode) do {		\
-		if (!debugfs_create_file(#name, mode, parent, vif,	\
+#define MVM_DEFS_WRITE_FILE_OPS(name, bufsz) \
+	_MVM_DEFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
+#define MVM_DEFS_READ_WRITE_FILE_OPS(name, bufsz) \
+	_MVM_DEFS_READ_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
+#define MVM_DEFS_ADD_FILE_VIF(name, parent, mode) do {		\
+		if (!defs_create_file(#name, mode, parent, vif,	\
 					 &iwl_dbgfs_##name##_ops))	\
 			goto err;					\
 	} while (0)
 
-MVM_DEBUGFS_READ_FILE_OPS(mac_params);
-MVM_DEBUGFS_READ_FILE_OPS(tx_pwr_lmt);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
-MVM_DEBUGFS_WRITE_FILE_OPS(low_latency_force, 10);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);
-MVM_DEBUGFS_READ_FILE_OPS(os_device_timediff);
+MVM_DEFS_READ_FILE_OPS(mac_params);
+MVM_DEFS_READ_FILE_OPS(tx_pwr_lmt);
+MVM_DEFS_READ_WRITE_FILE_OPS(pm_params, 32);
+MVM_DEFS_READ_WRITE_FILE_OPS(bf_params, 256);
+MVM_DEFS_READ_WRITE_FILE_OPS(low_latency, 10);
+MVM_DEFS_WRITE_FILE_OPS(low_latency_force, 10);
+MVM_DEFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
+MVM_DEFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
+MVM_DEFS_READ_WRITE_FILE_OPS(quota_min, 32);
+MVM_DEFS_READ_FILE_OPS(os_device_timediff);
 
 
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	struct dentry *dbgfs_dir = vif->debugfs_dir;
+	struct dentry *dbgfs_dir = vif->defs_dir;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	char buf[100];
 
 	/*
-	 * Check if debugfs directory already exist before creating it.
+	 * Check if defs directory already exist before creating it.
 	 * This may happen when, for example, resetting hw or suspend-resume
 	 */
 	if (!dbgfs_dir || mvmvif->dbgfs_dir)
 		return;
 
-	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);
+	mvmvif->dbgfs_dir = defs_create_dir("iwlmvm", dbgfs_dir);
 
 	if (!mvmvif->dbgfs_dir) {
-		IWL_ERR(mvm, "Failed to create debugfs directory under %pd\n",
+		IWL_ERR(mvm, "Failed to create defs directory under %pd\n",
 			dbgfs_dir);
 		return;
 	}
@@ -784,25 +784,25 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM &&
 	    ((vif->type == NL80211_IFTYPE_STATION && !vif->p2p) ||
 	     (vif->type == NL80211_IFTYPE_STATION && vif->p2p)))
-		MVM_DEBUGFS_ADD_FILE_VIF(pm_params, mvmvif->dbgfs_dir, 0600);
+		MVM_DEFS_ADD_FILE_VIF(pm_params, mvmvif->dbgfs_dir, 0600);
 
-	MVM_DEBUGFS_ADD_FILE_VIF(tx_pwr_lmt, mvmvif->dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE_VIF(low_latency_force, mvmvif->dbgfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE_VIF(uapsd_misbehaving, mvmvif->dbgfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE_VIF(quota_min, mvmvif->dbgfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE_VIF(os_device_timediff, mvmvif->dbgfs_dir, 0400);
+	MVM_DEFS_ADD_FILE_VIF(tx_pwr_lmt, mvmvif->dbgfs_dir, 0400);
+	MVM_DEFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir, 0400);
+	MVM_DEFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir, 0600);
+	MVM_DEFS_ADD_FILE_VIF(low_latency_force, mvmvif->dbgfs_dir, 0600);
+	MVM_DEFS_ADD_FILE_VIF(uapsd_misbehaving, mvmvif->dbgfs_dir, 0600);
+	MVM_DEFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir, 0600);
+	MVM_DEFS_ADD_FILE_VIF(quota_min, mvmvif->dbgfs_dir, 0600);
+	MVM_DEFS_ADD_FILE_VIF(os_device_timediff, mvmvif->dbgfs_dir, 0400);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvmvif == mvm->bf_allowed_vif)
-		MVM_DEBUGFS_ADD_FILE_VIF(bf_params, mvmvif->dbgfs_dir, 0600);
+		MVM_DEFS_ADD_FILE_VIF(bf_params, mvmvif->dbgfs_dir, 0600);
 
 	/*
 	 * Create symlink for convenience pointing to interface specific
-	 * debugfs entries for the driver. For example, under
-	 * /sys/kernel/debug/iwlwifi/0000\:02\:00.0/iwlmvm/
+	 * defs entries for the driver. For example, under
+	 * /sys/kernel/de/iwlwifi/0000\:02\:00.0/iwlmvm/
 	 * find
 	 * netdev:wlan0 -> ../../../ieee80211/phy0/netdev:wlan0/iwlmvm/
 	 */
@@ -810,23 +810,23 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		 dbgfs_dir,
 		 mvmvif->dbgfs_dir);
 
-	mvmvif->dbgfs_slink = debugfs_create_symlink(dbgfs_dir->d_name.name,
-						     mvm->debugfs_dir, buf);
+	mvmvif->dbgfs_slink = defs_create_symlink(dbgfs_dir->d_name.name,
+						     mvm->defs_dir, buf);
 	if (!mvmvif->dbgfs_slink)
-		IWL_ERR(mvm, "Can't create debugfs symbolic link under %pd\n",
+		IWL_ERR(mvm, "Can't create defs symbolic link under %pd\n",
 			dbgfs_dir);
 	return;
 err:
-	IWL_ERR(mvm, "Can't create debugfs entity\n");
+	IWL_ERR(mvm, "Can't create defs entity\n");
 }
 
 void iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	debugfs_remove(mvmvif->dbgfs_slink);
+	defs_remove(mvmvif->dbgfs_slink);
 	mvmvif->dbgfs_slink = NULL;
 
-	debugfs_remove_recursive(mvmvif->dbgfs_dir);
+	defs_remove_recursive(mvmvif->dbgfs_dir);
 	mvmvif->dbgfs_dir = NULL;
 }

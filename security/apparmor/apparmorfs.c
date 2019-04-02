@@ -180,8 +180,8 @@ static int __aafs_setup_d_inode(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode = new_inode(dir->i_sb);
 
-	AA_BUG(!dir);
-	AA_BUG(!dentry);
+	AA_(!dir);
+	AA_(!dentry);
 
 	if (!inode)
 		return -ENOMEM;
@@ -232,8 +232,8 @@ static struct dentry *aafs_create(const char *name, umode_t mode,
 	struct inode *dir;
 	int error;
 
-	AA_BUG(!name);
-	AA_BUG(!parent);
+	AA_(!name);
+	AA_(!parent);
 
 	if (!(mode & S_IFMT))
 		mode = (mode & S_IALLUGO) | S_IFREG;
@@ -385,7 +385,7 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 {
 	struct aa_loaddata *data;
 
-	AA_BUG(copy_size > alloc_size);
+	AA_(copy_size > alloc_size);
 
 	if (*pos != 0)
 		/* only writes from pos 0, that is complete writes */
@@ -840,7 +840,7 @@ static void multi_transaction_set(struct file *file,
 {
 	struct multi_transaction *old;
 
-	AA_BUG(n > MULTI_TRANSACTION_LIMIT);
+	AA_(n > MULTI_TRANSACTION_LIMIT);
 
 	new->size = n;
 	spin_lock(&multi_transaction_lock);
@@ -1225,7 +1225,7 @@ static int seq_rawdata_open(struct inode *inode, struct file *file,
 
 	error = single_open(file, show, data);
 	if (error) {
-		AA_BUG(file->private_data &&
+		AA_(file->private_data &&
 		       ((struct seq_file *)file->private_data)->private);
 		aa_put_loaddata(data);
 	}
@@ -1329,7 +1329,7 @@ static void remove_rawdata_dents(struct aa_loaddata *rawdata)
 
 void __aa_fs_remove_rawdata(struct aa_loaddata *rawdata)
 {
-	AA_BUG(rawdata->ns && !mutex_is_locked(&rawdata->ns->lock));
+	AA_(rawdata->ns && !mutex_is_locked(&rawdata->ns->lock));
 
 	if (rawdata->ns) {
 		remove_rawdata_dents(rawdata);
@@ -1343,10 +1343,10 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 {
 	struct dentry *dent, *dir;
 
-	AA_BUG(!ns);
-	AA_BUG(!rawdata);
-	AA_BUG(!mutex_is_locked(&ns->lock));
-	AA_BUG(!ns_subdata_dir(ns));
+	AA_(!ns);
+	AA_(!rawdata);
+	AA_(!mutex_is_locked(&ns->lock));
+	AA_(!ns_subdata_dir(ns));
 
 	/*
 	 * just use ns revision dir was originally created at. This is
@@ -1440,9 +1440,9 @@ void __aafs_profile_migrate_dents(struct aa_profile *old,
 {
 	int i;
 
-	AA_BUG(!old);
-	AA_BUG(!new);
-	AA_BUG(!mutex_is_locked(&profiles_ns(old)->lock));
+	AA_(!old);
+	AA_(!new);
+	AA_(!mutex_is_locked(&profiles_ns(old)->lock));
 
 	for (i = 0; i < AAFS_PROF_SIZEOF; i++) {
 		new->dents[i] = old->dents[i];
@@ -1578,8 +1578,8 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	struct dentry *dent = NULL, *dir;
 	int error;
 
-	AA_BUG(!profile);
-	AA_BUG(!mutex_is_locked(&profiles_ns(profile)->lock));
+	AA_(!profile);
+	AA_(!mutex_is_locked(&profiles_ns(profile)->lock));
 
 	if (!parent) {
 		struct aa_profile *p;
@@ -1695,7 +1695,7 @@ static int ns_mkdir_op(struct inode *dir, struct dentry *dentry, umode_t mode)
 		return error;
 
 	parent = aa_get_ns(dir->i_private);
-	AA_BUG(d_inode(ns_subns_dir(parent)) != dir);
+	AA_(d_inode(ns_subns_dir(parent)) != dir);
 
 	/* we have to unlock and then relock to get locking order right
 	 * for pin_fs
@@ -1758,7 +1758,7 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 		error = -ENOENT;
 		goto out;
 	}
-	AA_BUG(ns_dir(ns) != dentry);
+	AA_(ns_dir(ns) != dentry);
 
 	__aa_remove_ns(ns);
 	aa_put_ns(ns);
@@ -1782,7 +1782,7 @@ static void __aa_fs_list_remove_rawdata(struct aa_ns *ns)
 {
 	struct aa_loaddata *ent, *tmp;
 
-	AA_BUG(!mutex_is_locked(&ns->lock));
+	AA_(!mutex_is_locked(&ns->lock));
 
 	list_for_each_entry_safe(ent, tmp, &ns->rawdata_list, list)
 		__aa_fs_remove_rawdata(ent);
@@ -1800,7 +1800,7 @@ void __aafs_ns_rmdir(struct aa_ns *ns)
 
 	if (!ns)
 		return;
-	AA_BUG(!mutex_is_locked(&ns->lock));
+	AA_(!mutex_is_locked(&ns->lock));
 
 	list_for_each_entry(child, &ns->base.profiles, base.list)
 		__aafs_profile_rmdir(child);
@@ -1845,8 +1845,8 @@ static int __aafs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
 {
 	struct dentry *dent;
 
-	AA_BUG(!ns);
-	AA_BUG(!dir);
+	AA_(!ns);
+	AA_(!dir);
 
 	dent = aafs_create_dir("profiles", dir);
 	if (IS_ERR(dent))
@@ -1908,9 +1908,9 @@ int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name,
 	struct dentry *dir;
 	int error;
 
-	AA_BUG(!ns);
-	AA_BUG(!parent);
-	AA_BUG(!mutex_is_locked(&ns->lock));
+	AA_(!ns);
+	AA_(!parent);
+	AA_(!mutex_is_locked(&ns->lock));
 
 	if (!name)
 		name = ns->base.name;
@@ -1973,9 +1973,9 @@ static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 {
 	struct aa_ns *parent, *next;
 
-	AA_BUG(!root);
-	AA_BUG(!ns);
-	AA_BUG(ns != root && !mutex_is_locked(&ns->parent->lock));
+	AA_(!root);
+	AA_(!ns);
+	AA_(ns != root && !mutex_is_locked(&ns->parent->lock));
 
 	/* is next namespace a child */
 	if (!list_empty(&ns->sub_ns)) {
@@ -2011,8 +2011,8 @@ static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 static struct aa_profile *__first_profile(struct aa_ns *root,
 					  struct aa_ns *ns)
 {
-	AA_BUG(!root);
-	AA_BUG(ns && !mutex_is_locked(&ns->lock));
+	AA_(!root);
+	AA_(ns && !mutex_is_locked(&ns->lock));
 
 	for (; ns; ns = __next_ns(root, ns)) {
 		if (!list_empty(&ns->base.profiles))
@@ -2036,7 +2036,7 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
 	struct aa_profile *parent;
 	struct aa_ns *ns = p->ns;
 
-	AA_BUG(!mutex_is_locked(&profiles_ns(p)->lock));
+	AA_(!mutex_is_locked(&profiles_ns(p)->lock));
 
 	/* is next profile a child */
 	if (!list_empty(&p->base.profiles))

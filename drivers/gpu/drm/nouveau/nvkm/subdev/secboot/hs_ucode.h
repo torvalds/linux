@@ -30,8 +30,8 @@ struct nvkm_falcon;
 
 /**
  * struct hsf_fw_header - HS firmware descriptor
- * @sig_dbg_offset:	offset of the debug signature
- * @sig_dbg_size:	size of the debug signature
+ * @sig_dbg_offset:	offset of the de signature
+ * @sig_dbg_size:	size of the de signature
  * @sig_prod_offset:	offset of the production signature
  * @sig_prod_size:	size of the production signature
  * @patch_loc:		offset of the offset (sic) of where the signature is

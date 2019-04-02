@@ -126,8 +126,8 @@
 		 */
 		"[SD_DAT1]", /* HSEC pin 3: GPIO_035_UART0_RXD */
 		"[SD_DAT2]", /* HSEC pin 5: GPIO_036_UART0_TXD */
-		"[UART1_RXD]", /* LSEC pin 13: DEBUG_UART6_RXD */
-		"[UART1_TXD]", /* LSEC pin 11: DEBUG_UART6_TXD */
+		"[UART1_RXD]", /* LSEC pin 13: DE_UART6_RXD */
+		"[UART1_TXD]", /* LSEC pin 11: DE_UART6_TXD */
 		"[SOC_GPS_UART3_CTS_N]"; /* TP2304 */
 };
 

@@ -50,8 +50,8 @@
 #define PWARN(format, ...)\
 	printk(KERN_WARNING KBUILD_MODNAME ": "\
 		DRIVER_VERSION ": " format "\n", ## __VA_ARGS__)
-# define PDEBUG(format, ...)\
-	printk(KERN_DEBUG KBUILD_MODNAME ": "\
+# define PDE(format, ...)\
+	printk(KERN_DE KBUILD_MODNAME ": "\
 		DRIVER_VERSION ": " format "\n", ## __VA_ARGS__)
 
 /* Frequency limits in MHz -- these are European values.  For Japanese
@@ -431,7 +431,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	struct tea5764_regs *r;
 	int ret;
 
-	PDEBUG("probe");
+	PDE("probe");
 	radio = kzalloc(sizeof(struct tea5764_device), GFP_KERNEL);
 	if (!radio)
 		return -ENOMEM;
@@ -460,7 +460,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	if (ret)
 		goto errunreg;
 	r = &radio->regs;
-	PDEBUG("chipid = %04X, manid = %04X", r->chipid, r->manid);
+	PDE("chipid = %04X, manid = %04X", r->chipid, r->manid);
 	if (r->chipid != TEA5764_CHIPID ||
 		(r->manid & 0x0fff) != TEA5764_MANID) {
 		PWARN("This chip is not a TEA5764!");
@@ -501,7 +501,7 @@ static int tea5764_i2c_remove(struct i2c_client *client)
 {
 	struct tea5764_device *radio = i2c_get_clientdata(client);
 
-	PDEBUG("remove");
+	PDE("remove");
 	if (radio) {
 		tea5764_power_down(radio);
 		video_unregister_device(&radio->vdev);

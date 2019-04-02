@@ -52,7 +52,7 @@ const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
-	FIELD64(GUEST_IA32_DEBUGCTL, guest_ia32_debugctl),
+	FIELD64(GUEST_IA32_DECTL, guest_ia32_dectl),
 	FIELD64(GUEST_IA32_PAT, guest_ia32_pat),
 	FIELD64(GUEST_IA32_EFER, guest_ia32_efer),
 	FIELD64(GUEST_IA32_PERF_GLOBAL_CTRL, guest_ia32_perf_global_ctrl),

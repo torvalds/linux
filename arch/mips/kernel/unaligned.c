@@ -78,14 +78,14 @@
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/perf_event.h>
 
 #include <asm/asm.h>
 #include <asm/branch.h>
 #include <asm/byteorder.h>
 #include <asm/cop2.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
@@ -100,7 +100,7 @@ enum {
 	UNALIGNED_ACTION_SIGNAL,
 	UNALIGNED_ACTION_SHOW,
 };
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static u32 unaligned_instructions;
 static u32 unaligned_action;
 #else
@@ -903,7 +903,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		/*
 		 * These are instructions that a compiler doesn't generate.  We
 		 * can assume therefore that the code is MIPS-aware and
-		 * really buggy.  Emulating these instructions would break the
+		 * really gy.  Emulating these instructions would break the
 		 * semantics anyway.
 		 */
 	case ll_op:
@@ -1217,7 +1217,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		void __user *fault_addr = NULL;
 
 		die_if_kernel("Unaligned FP access in kernel code", regs);
-		BUG_ON(!used_math());
+		_ON(!used_math());
 
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
@@ -1247,7 +1247,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * the MSA disabled exception & initialised vector context at
 		 * some point in the past.
 		 */
-		BUG_ON(!thread_msa_context_live());
+		_ON(!thread_msa_context_live());
 
 		df = insn.msa_mi10_format.df;
 		wd = insn.msa_mi10_format.wd;
@@ -1350,7 +1350,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		goto sigill;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	unaligned_instructions++;
 #endif
 
@@ -1736,8 +1736,8 @@ fpu_emul:
 		regs->regs[31] = orig31;
 
 		die_if_kernel("Unaligned FP access in kernel code", regs);
-		BUG_ON(!used_math());
-		BUG_ON(!is_fpu_owner());
+		_ON(!used_math());
+		_ON(!is_fpu_owner());
 
 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
@@ -1977,7 +1977,7 @@ storeDW:
 success:
 	regs->cp0_epc = contpc;	/* advance or branch */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	unaligned_instructions++;
 #endif
 	return;
@@ -2256,7 +2256,7 @@ writeDW:
 		goto sigill;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	unaligned_instructions++;
 #endif
 
@@ -2372,14 +2372,14 @@ sigbus:
 	exception_exit(prev_state);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int __init debugfs_unaligned(void)
+#ifdef CONFIG_DE_FS
+static int __init defs_unaligned(void)
 {
-	debugfs_create_u32("unaligned_instructions", S_IRUGO, mips_debugfs_dir,
+	defs_create_u32("unaligned_instructions", S_IRUGO, mips_defs_dir,
 			   &unaligned_instructions);
-	debugfs_create_u32("unaligned_action", S_IRUGO | S_IWUSR,
-			   mips_debugfs_dir, &unaligned_action);
+	defs_create_u32("unaligned_action", S_IRUGO | S_IWUSR,
+			   mips_defs_dir, &unaligned_action);
 	return 0;
 }
-arch_initcall(debugfs_unaligned);
+arch_initcall(defs_unaligned);
 #endif

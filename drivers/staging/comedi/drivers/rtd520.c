@@ -907,7 +907,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* just interrupt, don't stop */
 	writel(1, dev->mmio + LAS0_ACNT_STOP_ENABLE);
 
-	/* BUG??? these look like enumerated values, but they are bit fields */
+	/* ??? these look like enumerated values, but they are bit fields */
 
 	/* First, setup when to stop */
 	switch (cmd->stop_src) {
@@ -971,8 +971,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* transfer every N samples */
 	writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
 
-	/* BUG: start_src is ASSUMED to be TRIG_NOW */
-	/* BUG? it seems like things are running before the "start" */
+	/* : start_src is ASSUMED to be TRIG_NOW */
+	/* ? it seems like things are running before the "start" */
 	readl(dev->mmio + LAS0_PACER);	/* start pacer */
 	return 0;
 }

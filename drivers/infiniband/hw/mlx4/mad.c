@@ -265,7 +265,7 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, const struct ib_mad 
 			base = (__be16 *) &(((struct ib_smp *)mad)->data[0]);
 			pkey_change_bitmap = 0;
 			for (i = 0; i < 32; i++) {
-				pr_debug("PKEY[%d] = x%x\n",
+				pr_de("PKEY[%d] = x%x\n",
 					 i + bn*32, be16_to_cpu(base[i]));
 				if (be16_to_cpu(base[i]) !=
 				    dev->pkeys.phys_pkey_cache[port_num - 1][i + bn*32]) {
@@ -274,7 +274,7 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, const struct ib_mad 
 						be16_to_cpu(base[i]);
 				}
 			}
-			pr_debug("PKEY Change event: port=%d, "
+			pr_de("PKEY Change event: port=%d, "
 				 "block=0x%x, change_bitmap=0x%x\n",
 				 port_num, bn, pkey_change_bitmap);
 
@@ -318,7 +318,7 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, const struct ib_mad 
 
 				for (jj = 0; jj < 8; jj++) {
 					sl2vl64.sl8[jj] = ((struct ib_smp *)mad)->data[jj];
-					pr_debug("port %u, sl2vl[%d] = %02x\n",
+					pr_de("port %u, sl2vl[%d] = %02x\n",
 						 port_num, jj, sl2vl64.sl8[jj]);
 				}
 				atomic64_set(&dev->sl2vl[port_num - 1], sl2vl64.sl64);
@@ -351,7 +351,7 @@ static void __propagate_pkey_ev(struct mlx4_ib_dev *dev, int port_num,
 				if (dev->pkeys.virt2phys_pkey[slave][port_num - 1]
 				    [ix] == i + 32 * block) {
 					err = mlx4_gen_pkey_eqe(dev->dev, slave, port_num);
-					pr_debug("propagate_pkey_ev: slave %d,"
+					pr_de("propagate_pkey_ev: slave %d,"
 						 " port %d, ix %d (%d)\n",
 						 slave, port_num, ix, err);
 					have_event = 1;
@@ -696,7 +696,7 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 			err = mlx4_get_slave_from_roce_gid(dev->dev, other_port, dgid.raw, &slave);
 			if (!err) {
 				port = other_port;
-				pr_debug("resolved slave %d from gid %pI6 wire port %d other %d\n",
+				pr_de("resolved slave %d from gid %pI6 wire port %d other %d\n",
 					 slave, grh->dgid.raw, port, other_port);
 			}
 		}
@@ -715,7 +715,7 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 
 		err = mlx4_ib_send_to_slave(dev, slave, port, wc->qp->qp_type, wc, grh, mad);
 		if (err)
-			pr_debug("failed sending to slave %d via tunnel qp (%d)\n",
+			pr_de("failed sending to slave %d via tunnel qp (%d)\n",
 				 slave, err);
 		return 0;
 	}
@@ -780,7 +780,7 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 	default:
 		/* Drop unsupported classes for slaves in tunnel mode */
 		if (slave != mlx4_master_func_num(dev->dev)) {
-			pr_debug("dropping unsupported ingress mad from class:%d "
+			pr_de("dropping unsupported ingress mad from class:%d "
 				 "for slave:%d\n", mad->mad_hdr.mgmt_class, slave);
 			return 0;
 		}
@@ -794,7 +794,7 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 
 	err = mlx4_ib_send_to_slave(dev, slave, port, wc->qp->qp_type, wc, grh, mad);
 	if (err)
-		pr_debug("failed sending to slave %d via tunnel qp (%d)\n",
+		pr_de("failed sending to slave %d via tunnel qp (%d)\n",
 			 slave, err);
 	return 0;
 }
@@ -808,7 +808,7 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	struct ib_port_attr pattr;
 
 	if (in_wc && in_wc->qp) {
-		pr_debug("received MAD: port:%d slid:%d sqpn:%d "
+		pr_de("received MAD: port:%d slid:%d sqpn:%d "
 			 "dlid_bits:%d dqpn:%d wc_flags:0x%x tid:%016llx cls:%x mtd:%x atr:%x\n",
 			 port_num,
 			 in_wc->slid, in_wc->src_qp,
@@ -819,10 +819,10 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			 in_mad->mad_hdr.mgmt_class, in_mad->mad_hdr.method,
 			 be16_to_cpu(in_mad->mad_hdr.attr_id));
 		if (in_wc->wc_flags & IB_WC_GRH) {
-			pr_debug("sgid_hi:0x%016llx sgid_lo:0x%016llx\n",
+			pr_de("sgid_hi:0x%016llx sgid_lo:0x%016llx\n",
 				 be64_to_cpu(in_grh->sgid.global.subnet_prefix),
 				 be64_to_cpu(in_grh->sgid.global.interface_id));
-			pr_debug("dgid_hi:0x%016llx dgid_lo:0x%016llx\n",
+			pr_de("dgid_hi:0x%016llx dgid_lo:0x%016llx\n",
 				 be64_to_cpu(in_grh->dgid.global.subnet_prefix),
 				 be64_to_cpu(in_grh->dgid.global.interface_id));
 		}
@@ -1223,7 +1223,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 					pr_warn("Could not change QP1 subnet prefix for port %d: query_gid error (%d)\n",
 						port, err);
 				} else {
-					pr_debug("Changing QP1 subnet prefix for port %d. old=0x%llx. new=0x%llx\n",
+					pr_de("Changing QP1 subnet prefix for port %d. old=0x%llx. new=0x%llx\n",
 						 port,
 						 (u64)atomic64_read(&dev->sriov.demux[port - 1].subnet_prefix),
 						 be64_to_cpu(gid.global.subnet_prefix));
@@ -1270,7 +1270,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 			for (jj = 0; jj < 8; jj++) {
 				sl2vl64.sl8[jj] =
 					eqe->event.port_mgmt_change.params.sl2vl_tbl_change_info.sl2vl_table[jj];
-				pr_debug("port %u, sl2vl[%d] = %02x\n",
+				pr_de("port %u, sl2vl[%d] = %02x\n",
 					 port, jj, sl2vl64.sl8[jj]);
 			}
 			atomic64_set(&dev->sl2vl[port - 1], sl2vl64.sl64);
@@ -1745,7 +1745,7 @@ static void mlx4_ib_tunnel_comp_worker(struct work_struct *work)
 					       "buf:%lld\n", wc.wr_id);
 				break;
 			case IB_WC_SEND:
-				pr_debug("received tunnel send completion:"
+				pr_de("received tunnel send completion:"
 					 "wrid=0x%llx, status=0x%x\n",
 					 wc.wr_id, wc.status);
 				rdma_destroy_ah(tun_qp->tx_ring[wc.wr_id &
@@ -1761,7 +1761,7 @@ static void mlx4_ib_tunnel_comp_worker(struct work_struct *work)
 				break;
 			}
 		} else  {
-			pr_debug("mlx4_ib: completion error in tunnel: %d."
+			pr_de("mlx4_ib: completion error in tunnel: %d."
 				 " status = %d, wrid = 0x%llx\n",
 				 ctx->slave, wc.status, wc.wr_id);
 			if (!MLX4_TUN_IS_RECV(wc.wr_id)) {
@@ -1927,7 +1927,7 @@ static void mlx4_ib_sqp_comp_worker(struct work_struct *work)
 				break;
 			}
 		} else  {
-			pr_debug("mlx4_ib: completion error in tunnel: %d."
+			pr_de("mlx4_ib: completion error in tunnel: %d."
 				 " status = %d, wrid = 0x%llx\n",
 				 ctx->slave, wc.status, wc.wr_id);
 			if (!MLX4_TUN_IS_RECV(wc.wr_id)) {

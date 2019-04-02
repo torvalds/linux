@@ -18,7 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -1198,7 +1198,7 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		 * handle this in hardware we need to deal with these
 		 * transactions.
 		 */
-		BUG();
+		();
 		break;
 
 	default:

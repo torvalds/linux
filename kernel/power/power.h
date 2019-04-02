@@ -242,7 +242,7 @@ enum {
 #define TEST_FIRST	TEST_NONE
 #define TEST_MAX	(__TEST_AFTER_LAST - 1)
 
-#ifdef CONFIG_PM_SLEEP_DEBUG
+#ifdef CONFIG_PM_SLEEP_DE
 extern int pm_test_level;
 #else
 #define pm_test_level	(TEST_NONE)

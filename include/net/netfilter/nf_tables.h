@@ -133,9 +133,9 @@ static inline void nft_data_copy(u32 *dst, const struct nft_data *src,
 	memcpy(dst, src, len);
 }
 
-static inline void nft_data_debug(const struct nft_data *data)
+static inline void nft_data_de(const struct nft_data *data)
 {
-	pr_debug("data[0]=%x data[1]=%x data[2]=%x data[3]=%x\n",
+	pr_de("data[0]=%x data[1]=%x data[2]=%x data[3]=%x\n",
 		 data->data[0], data->data[1],
 		 data->data[2], data->data[3]);
 }
@@ -551,7 +551,7 @@ static inline void nft_set_ext_add_length(struct nft_set_ext_tmpl *tmpl, u8 id,
 					  unsigned int len)
 {
 	tmpl->len	 = ALIGN(tmpl->len, nft_set_ext_types[id].align);
-	BUG_ON(tmpl->len > U8_MAX);
+	_ON(tmpl->len > U8_MAX);
 	tmpl->offset[id] = tmpl->len;
 	tmpl->len	+= nft_set_ext_types[id].len + len;
 }
@@ -1310,7 +1310,7 @@ static inline int nft_set_elem_mark_busy(struct nft_set_ext *ext)
 {
 	unsigned long *word = (unsigned long *)ext;
 
-	BUILD_BUG_ON(offsetof(struct nft_set_ext, genmask) != 0);
+	BUILD__ON(offsetof(struct nft_set_ext, genmask) != 0);
 	return test_and_set_bit(NFT_SET_ELEM_BUSY_BIT, word);
 }
 

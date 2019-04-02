@@ -112,7 +112,7 @@
 				 * command word.*/
 
 enum cmd_mb_opcodes {
-	CMD_00_INFO_DEBUG	        = 0x00,
+	CMD_00_INFO_DE	        = 0x00,
 	CMD_01_GET_SYS_CFG		= 0x01,
 	CMD_02_SET_GRANULARITY		= 0x02,
 	CMD_03_SET_TIMER_IRQ		= 0x03,

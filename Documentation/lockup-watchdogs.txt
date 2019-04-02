@@ -5,7 +5,7 @@ Softlockup detector and hardlockup detector (aka nmi_watchdog)
 The Linux kernel can act as a watchdog to detect both soft and hard
 lockups.
 
-A 'softlockup' is defined as a bug that causes the kernel to loop in
+A 'softlockup' is defined as a  that causes the kernel to loop in
 kernel mode for more than 20 seconds (see "Implementation" below for
 details), without giving other tasks a chance to run. The current
 stack trace is displayed upon detection and, by default, the system
@@ -15,7 +15,7 @@ panic; a sysctl, "kernel.softlockup_panic", a kernel parameter,
 details), and a compile option, "BOOTPARAM_SOFTLOCKUP_PANIC", are
 provided for this.
 
-A 'hardlockup' is defined as a bug that causes the CPU to loop in
+A 'hardlockup' is defined as a  that causes the CPU to loop in
 kernel mode for more than 10 seconds (see "Implementation" below for
 details), without letting other interrupts have a chance to run.
 Similarly to the softlockup case, the current stack trace is displayed
@@ -51,7 +51,7 @@ The watchdog task is a high priority kernel thread that updates a
 timestamp every time it is scheduled. If that timestamp is not updated
 for 2*watchdog_thresh seconds (the softlockup threshold) the
 'softlockup detector' (coded inside the hrtimer callback function)
-will dump useful debug information to the system log, after which it
+will dump useful de information to the system log, after which it
 will call panic if it was instructed to do so or resume execution of
 other kernel code.
 
@@ -79,5 +79,5 @@ that we will continue to detect lockups properly on those cores.
 
 In either case, the set of cores excluded from running the watchdog
 may be adjusted via the kernel.watchdog_cpumask sysctl.  For
-nohz_full cores, this may be useful for debugging a case where the
+nohz_full cores, this may be useful for deging a case where the
 kernel seems to be hanging on the nohz_full cores.

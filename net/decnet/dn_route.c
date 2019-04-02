@@ -34,7 +34,7 @@
  *                                 are numbered!
  *              Steve Whitehouse : Added return-to-sender functions. Added
  *                                 backlog congestion level return codes.
- *		Steve Whitehouse : Fixed bug where routes were set up with
+ *		Steve Whitehouse : Fixed  where routes were set up with
  *                                 no ref count on net devices.
  *              Steve Whitehouse : RCU for the route cache
  *              Steve Whitehouse : Preparations for the flow cache
@@ -513,10 +513,10 @@ static int dn_route_rx_packet(struct net *net, struct sock *sk, struct sk_buff *
 		return dst_input(skb);
 
 	cb = DN_SKB_CB(skb);
-	if (decnet_debug_level & 4) {
+	if (decnet_de_level & 4) {
 		char *devname = skb->dev ? skb->dev->name : "???";
 
-		printk(KERN_DEBUG
+		printk(KERN_DE
 			"DECnet: dn_route_rx_packet: rt_flags=0x%02x dev=%s len=%d src=0x%04hx dst=0x%04hx err=%d type=%d\n",
 			(int)cb->rt_flags, devname, skb->len,
 			le16_to_cpu(cb->src), le16_to_cpu(cb->dst),
@@ -673,8 +673,8 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 
 	cb->rt_flags = flags;
 
-	if (decnet_debug_level & 1)
-		printk(KERN_DEBUG
+	if (decnet_de_level & 1)
+		printk(KERN_DE
 			"dn_route_rcv: got 0x%02x from %s [%d %d %d]\n",
 			(int)flags, (dev) ? dev->name : "???", len, skb->len,
 			padlen);
@@ -819,14 +819,14 @@ drop:
 }
 
 /*
- * Used to catch bugs. This should never normally get
+ * Used to catch s. This should never normally get
  * called.
  */
-static int dn_rt_bug_out(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int dn_rt__out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
-	net_dbg_ratelimited("dn_rt_bug: skb from:%04x to:%04x\n",
+	net_dbg_ratelimited("dn_rt_: skb from:%04x to:%04x\n",
 			    le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
 
 	kfree_skb(skb);
@@ -834,11 +834,11 @@ static int dn_rt_bug_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 	return NET_RX_DROP;
 }
 
-static int dn_rt_bug(struct sk_buff *skb)
+static int dn_rt_(struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
-	net_dbg_ratelimited("dn_rt_bug: skb from:%04x to:%04x\n",
+	net_dbg_ratelimited("dn_rt_: skb from:%04x to:%04x\n",
 			    le16_to_cpu(cb->src), le16_to_cpu(cb->dst));
 
 	kfree_skb(skb);
@@ -970,8 +970,8 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowidn *o
 	int free_res = 0;
 	__le16 gateway = 0;
 
-	if (decnet_debug_level & 16)
-		printk(KERN_DEBUG
+	if (decnet_de_level & 16)
+		printk(KERN_DE
 		       "dn_route_output_slow: dst=%04x src=%04x mark=%d"
 		       " iif=%d oif=%d\n", le16_to_cpu(oldflp->daddr),
 		       le16_to_cpu(oldflp->saddr),
@@ -1046,8 +1046,8 @@ source_ok:
 		goto make_route;
 	}
 
-	if (decnet_debug_level & 16)
-		printk(KERN_DEBUG
+	if (decnet_de_level & 16)
+		printk(KERN_DE
 		       "dn_route_output_slow: initial checks complete."
 		       " dst=%04x src=%04x oif=%d try_hard=%d\n",
 		       le16_to_cpu(fld.daddr), le16_to_cpu(fld.saddr),
@@ -1117,7 +1117,7 @@ source_ok:
 		}
 		/* Not local either.... try sending it to the default router */
 		neigh = neigh_clone(dn_db->router);
-		BUG_ON(neigh && neigh->dev != dev_out);
+		_ON(neigh && neigh->dev != dev_out);
 
 		/* Ok then, we assume its directly connected and move on */
 select_source:
@@ -1204,7 +1204,7 @@ make_route:
 
 	rt->dst.lastuse = jiffies;
 	rt->dst.output  = dn_output;
-	rt->dst.input   = dn_rt_bug;
+	rt->dst.input   = dn_rt_;
 	rt->rt_flags      = flags;
 	if (flags & RTCF_LOCAL)
 		rt->dst.input = dn_nsp_rx;
@@ -1363,7 +1363,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 		out_dev = DN_FIB_RES_DEV(res);
 		if (out_dev == NULL) {
-			net_crit_ratelimited("Bug in dn_route_input_slow() No output device\n");
+			net_crit_ratelimited(" in dn_route_input_slow() No output device\n");
 			goto e_inval;
 		}
 		dev_hold(out_dev);
@@ -1469,7 +1469,7 @@ make_route:
 
 	rt->n = neigh;
 	rt->dst.lastuse = jiffies;
-	rt->dst.output = dn_rt_bug_out;
+	rt->dst.output = dn_rt__out;
 	switch (res.type) {
 	case RTN_UNICAST:
 		rt->dst.input = dn_forward;

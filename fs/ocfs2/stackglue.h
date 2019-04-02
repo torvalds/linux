@@ -220,8 +220,8 @@ struct ocfs2_stack_operations {
 		     struct file_lock *fl);
 
 	/*
-	 * This is an optoinal debugging hook.  If provided, the
-	 * stack can dump debugging information about this lock.
+	 * This is an optoinal deging hook.  If provided, the
+	 * stack can dump deging information about this lock.
 	 */
 	void (*dump_lksb)(struct ocfs2_dlm_lksb *lksb);
 };

@@ -291,7 +291,7 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 	/* ========== Decode BDESC ========== */
 	if (spuh->mh.flags & MH_BDESC_PRES) {
-#ifdef DEBUG
+#ifdef DE
 		struct BDESC_HEADER *bdesc = (struct BDESC_HEADER *)ptr;
 #endif
 		packet_log("  BDESC[0] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
@@ -315,7 +315,7 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 	/* ========== Decode BD ========== */
 	if (spuh->mh.flags & MH_BD_PRES) {
-#ifdef DEBUG
+#ifdef DE
 		struct BD_HEADER *bd = (struct BD_HEADER *)ptr;
 #endif
 		packet_log("  BD[0] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));

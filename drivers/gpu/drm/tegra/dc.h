@@ -90,7 +90,7 @@ struct tegra_dc {
 	struct tegra_dc_stats stats;
 	struct list_head list;
 
-	struct drm_info_list *debugfs_files;
+	struct drm_info_list *defs_files;
 
 	const struct tegra_dc_soc_info *soc;
 

@@ -39,7 +39,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 	unsigned long dec_nsec;
 	unsigned long long dec_time;
 
-	pr_debug("mtDEC: %lx\n", vcpu->arch.dec);
+	pr_de("mtDEC: %lx\n", vcpu->arch.dec);
 	hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -216,7 +216,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	if (emulated != EMULATE_DONE)
 		return emulated;
 
-	pr_debug("Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
+	pr_de("Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
 
 	rs = get_rs(inst);
 	rt = get_rt(inst);
@@ -281,8 +281,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 * these are illegal instructions.
 		 */
 		if (inst == KVMPPC_INST_SW_BREAKPOINT) {
-			run->exit_reason = KVM_EXIT_DEBUG;
-			run->debug.arch.address = kvmppc_get_pc(vcpu);
+			run->exit_reason = KVM_EXIT_DE;
+			run->de.arch.address = kvmppc_get_pc(vcpu);
 			emulated = EMULATE_EXIT_USER;
 			advance = 0;
 		} else

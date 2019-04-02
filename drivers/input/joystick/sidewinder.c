@@ -41,8 +41,8 @@ MODULE_LICENSE("GPL");
  * as well as break everything.
  */
 
-#undef SW_DEBUG
-#undef SW_DEBUG_DATA
+#undef SW_DE
+#undef SW_DE_DATA
 
 #define SW_START	600	/* The time we wait for the first bit [600 us] */
 #define SW_STROBE	60	/* Max time per bit [60 us] */
@@ -54,8 +54,8 @@ MODULE_LICENSE("GPL");
 #define SW_OK		64	/* Number of packet read successes to switch optimization back on */
 #define SW_LENGTH	512	/* Max number of bits in a packet */
 
-#ifdef SW_DEBUG
-#define dbg(format, arg...) printk(KERN_DEBUG __FILE__ ": " format "\n" , ## arg)
+#ifdef SW_DE
+#define dbg(format, arg...) printk(KERN_DE __FILE__ ": " format "\n" , ## arg)
 #else
 #define dbg(format, arg...) do {} while (0)
 #endif
@@ -189,10 +189,10 @@ static int sw_read_packet(struct gameport *gameport, unsigned char *buf, int len
 
 	local_irq_restore(flags);					/* Done - relax */
 
-#ifdef SW_DEBUG_DATA
+#ifdef SW_DE_DATA
 	{
 		int j;
-		printk(KERN_DEBUG "sidewinder.c: Read %d triplets. [", i);
+		printk(KERN_DE "sidewinder.c: Read %d triplets. [", i);
 		for (j = 0; j < i; j++) printk("%d", buf[j]);
 		printk("]\n");
 	}
@@ -715,7 +715,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		goto fail2;
 	}
 
-#ifdef SW_DEBUG
+#ifdef SW_DE
 	sw_print_packet("ID", j * 3, idbuf, 3);
 	sw_print_packet("Data", i * m, buf, m);
 #endif

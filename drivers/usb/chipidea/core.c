@@ -12,7 +12,7 @@
  *
  * This driver is composed of several blocks:
  * - HW:     hardware interface
- * - DBG:    debug facilities (optional)
+ * - DBG:    de facilities (optional)
  * - UTIL:   utilities
  * - ISR:    interrupts handling
  * - ENDPT:  endpoint operations (Gadget API)
@@ -26,7 +26,7 @@
  *              => case 5: Hi >  Di
  *              => case 8: Hi <> Do
  *              if undefined usbtest 13 fails
- * - TRACE:     enable function tracing (depends on DEBUG)
+ * - TRACE:     enable function tracing (depends on DE)
  *
  * Main Features
  * - Chapter 9 & Mass Storage Compliance with Gadget File Storage
@@ -1059,7 +1059,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			/*
 			 * If the controller is not OTG capable, but support
 			 * role switch, the defalt role is gadget, and the
-			 * user can switch it through debugfs.
+			 * user can switch it through defs.
 			 */
 			ci->role = CI_ROLE_GADGET;
 		}
@@ -1107,11 +1107,11 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	ret = sysfs_create_group(&dev->kobj, &ci_attr_group);
 	if (ret)
-		goto remove_debug;
+		goto remove_de;
 
 	return 0;
 
-remove_debug:
+remove_de:
 	dbg_remove_files(ci);
 stop:
 	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])

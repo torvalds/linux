@@ -24,11 +24,11 @@
 
 #include "ge_pic.h"
 
-#define DEBUG
-#undef DEBUG
+#define DE
+#undef DE
 
-#ifdef DEBUG
-#define DBG(fmt...) do { printk(KERN_DEBUG "gef_pic: " fmt); } while (0)
+#ifdef DE
+#define DBG(fmt...) do { printk(KERN_DE "gef_pic: " fmt); } while (0)
 #else
 #define DBG(fmt...) do { } while (0)
 #endif

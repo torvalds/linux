@@ -55,7 +55,7 @@
 #define __ETHER1_C
 #include "ether1.h"
 
-static unsigned int net_debug = NET_DEBUG;
+static unsigned int net_de = NET_DE;
 
 #define BUFFER_SIZE	0x10000
 #define TX_AREA_START	0x00100
@@ -466,7 +466,7 @@ ether1_init_for_open (struct net_device *dev)
 	ether1_writebuffer (dev, &init_nop,  NOP_ADDR,  NOP_SIZE);
 
 	if (ether1_readw(dev, CFG_ADDR, cfg_t, cfg_command, NORMALIRQS) != CMD_CONFIG) {
-		printk (KERN_ERR "%s: detected either RAM fault or compiler bug\n",
+		printk (KERN_ERR "%s: detected either RAM fault or compiler \n",
 			dev->name);
 		return 1;
 	}
@@ -532,7 +532,7 @@ ether1_init_for_open (struct net_device *dev)
 
 	if ((status & (STAT_COMPLETE | STAT_OK)) != (STAT_COMPLETE | STAT_OK)) {
 		printk (KERN_WARNING "%s: can't initialise 82586: config status %04X\n", dev->name, status);
-		printk (KERN_DEBUG "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
+		printk (KERN_DE "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_command, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_cbl_offset, NORMALIRQS),
@@ -549,7 +549,7 @@ ether1_init_for_open (struct net_device *dev)
 
 	if ((status & (STAT_COMPLETE | STAT_OK)) != (STAT_COMPLETE | STAT_OK)) {
 		printk (KERN_WARNING "%s: can't initialise 82586: set address status %04X\n", dev->name, status);
-		printk (KERN_DEBUG "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
+		printk (KERN_DE "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_command, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_cbl_offset, NORMALIRQS),
@@ -566,7 +566,7 @@ ether1_init_for_open (struct net_device *dev)
 
 	if ((status & (STAT_COMPLETE | STAT_OK)) != (STAT_COMPLETE | STAT_OK)) {
 		printk (KERN_WARNING "%s: can't initialise 82586: set multicast status %04X\n", dev->name, status);
-		printk (KERN_DEBUG "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
+		printk (KERN_DE "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_command, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_cbl_offset, NORMALIRQS),
@@ -583,7 +583,7 @@ ether1_init_for_open (struct net_device *dev)
 
 	if ((status & (STAT_COMPLETE | STAT_OK)) != (STAT_COMPLETE | STAT_OK)) {
 		printk (KERN_WARNING "%s: can't tdr (ignored)\n", dev->name);
-		printk (KERN_DEBUG "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
+		printk (KERN_DE "%s: SCB=[STS=%04X CMD=%04X CBL=%04X RFA=%04X]\n", dev->name,
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_status, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_command, NORMALIRQS),
 			ether1_readw(dev, SCB_ADDR, scb_t, scb_cbl_offset, NORMALIRQS),
@@ -971,7 +971,7 @@ static void ether1_banner(void)
 {
 	static unsigned int version_printed = 0;
 
-	if (net_debug && version_printed++ == 0)
+	if (net_de && version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 }
 

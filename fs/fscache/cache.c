@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL CACHE
+#define FSCACHE_DE_LEVEL CACHE
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "internal.h"
@@ -221,8 +221,8 @@ int fscache_add_cache(struct fscache_cache *cache,
 	struct fscache_cache_tag *tag;
 
 	ASSERTCMP(ifsdef->cookie, ==, &fscache_fsdef_index);
-	BUG_ON(!cache->ops);
-	BUG_ON(!ifsdef);
+	_ON(!cache->ops);
+	_ON(!ifsdef);
 
 	cache->flags = 0;
 	ifsdef->event_mask =
@@ -233,7 +233,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	if (!tagname)
 		tagname = cache->identifier;
 
-	BUG_ON(!tagname[0]);
+	_ON(!tagname[0]);
 
 	_enter("{%s.%s},,%s", cache->ops->name, cache->identifier, tagname);
 
@@ -339,7 +339,7 @@ static void fscache_withdraw_all_objects(struct fscache_cache *cache,
 					    struct fscache_object, cache_link);
 			list_move_tail(&object->cache_link, dying_objects);
 
-			_debug("withdraw %p", object->cookie);
+			_de("withdraw %p", object->cookie);
 
 			/* This must be done under object_list_lock to prevent
 			 * a race with fscache_drop_object().
@@ -373,7 +373,7 @@ void fscache_withdraw_cache(struct fscache_cache *cache)
 
 	/* make the cache unavailable for cookie acquisition */
 	if (test_and_set_bit(FSCACHE_CACHE_WITHDRAWN, &cache->flags))
-		BUG();
+		();
 
 	down_write(&fscache_addremove_sem);
 	list_del_init(&cache->link);
@@ -395,19 +395,19 @@ void fscache_withdraw_cache(struct fscache_cache *cache)
 	/* we now have to destroy all the active objects pertaining to this
 	 * cache - which we do by passing them off to thread pool to be
 	 * disposed of */
-	_debug("destroy");
+	_de("destroy");
 
 	fscache_withdraw_all_objects(cache, &dying_objects);
 
 	/* wait for all extant objects to finish their outstanding operations
 	 * and go away */
-	_debug("wait for finish");
+	_de("wait for finish");
 	wait_event(fscache_cache_cleared_wq,
 		   atomic_read(&cache->object_count) == 0);
-	_debug("wait for clearance");
+	_de("wait for clearance");
 	wait_event(fscache_cache_cleared_wq,
 		   list_empty(&cache->object_list));
-	_debug("cleared");
+	_de("cleared");
 	ASSERT(list_empty(&dying_objects));
 
 	kobject_put(cache->kobj);

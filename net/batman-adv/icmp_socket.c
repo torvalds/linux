@@ -21,7 +21,7 @@
 
 #include <linux/atomic.h>
 #include <linux/compiler.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/eventpoll.h>
@@ -47,7 +47,7 @@
 #include <linux/wait.h>
 #include <uapi/linux/batadv_packet.h>
 
-#include "debugfs.h"
+#include "defs.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
@@ -75,7 +75,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	batadv_debugfs_deprecated(file, "");
+	batadv_defs_deprecated(file, "");
 
 	nonseekable_open(inode, file);
 
@@ -324,7 +324,7 @@ static const struct file_operations batadv_fops = {
 };
 
 /**
- * batadv_socket_setup() - Create debugfs "socket" file
+ * batadv_socket_setup() - Create defs "socket" file
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success or negative error number in case of failure
@@ -333,10 +333,10 @@ int batadv_socket_setup(struct batadv_priv *bat_priv)
 {
 	struct dentry *d;
 
-	if (!bat_priv->debug_dir)
+	if (!bat_priv->de_dir)
 		goto err;
 
-	d = debugfs_create_file(BATADV_ICMP_SOCKET, 0600, bat_priv->debug_dir,
+	d = defs_create_file(BATADV_ICMP_SOCKET, 0600, bat_priv->de_dir,
 				bat_priv, &batadv_fops);
 	if (!d)
 		goto err;

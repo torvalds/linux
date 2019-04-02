@@ -97,7 +97,7 @@ static const char *translate_esas2r_event_level_to_kernel(const long level)
 	case ESAS2R_LOG_DEBG:
 	case ESAS2R_LOG_TRCE:
 	default:
-		return KERN_DEBUG;
+		return KERN_DE;
 	}
 }
 

@@ -8,7 +8,7 @@
 /*
  * include/linux/rwlock_api_smp.h
  *
- * spinlock API declarations on SMP (and debug)
+ * spinlock API declarations on SMP (and de)
  * (implemented in kernel/spinlock.c)
  *
  * portions Copyright 2005, Red Hat, Inc., Ingo Molnar
@@ -141,7 +141,7 @@ static inline int __raw_write_trylock(rwlock_t *lock)
  * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
  * not re-enabled during lock-acquire (which the preempt-spin-ops do):
  */
-#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
+#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DE_LOCK_ALLOC)
 
 static inline void __raw_read_lock(rwlock_t *lock)
 {
@@ -211,7 +211,7 @@ static inline void __raw_write_lock(rwlock_t *lock)
 	LOCK_CONTENDED(lock, do_raw_write_trylock, do_raw_write_lock);
 }
 
-#endif /* !CONFIG_GENERIC_LOCKBREAK || CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* !CONFIG_GENERIC_LOCKBREAK || CONFIG_DE_LOCK_ALLOC */
 
 static inline void __raw_write_unlock(rwlock_t *lock)
 {

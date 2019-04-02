@@ -268,8 +268,8 @@ drm_fb_helper_from_client(struct drm_client_dev *client)
 	.fb_setcmap	= drm_fb_helper_setcmap, \
 	.fb_blank	= drm_fb_helper_blank, \
 	.fb_pan_display	= drm_fb_helper_pan_display, \
-	.fb_debug_enter = drm_fb_helper_debug_enter, \
-	.fb_debug_leave = drm_fb_helper_debug_leave, \
+	.fb_de_enter = drm_fb_helper_de_enter, \
+	.fb_de_leave = drm_fb_helper_de_leave, \
 	.fb_ioctl	= drm_fb_helper_ioctl
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -331,8 +331,8 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
-int drm_fb_helper_debug_enter(struct fb_info *info);
-int drm_fb_helper_debug_leave(struct fb_info *info);
+int drm_fb_helper_de_enter(struct fb_info *info);
+int drm_fb_helper_de_leave(struct fb_info *info);
 struct drm_display_mode *
 drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
 			int width, int height);
@@ -526,12 +526,12 @@ drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 
-static inline int drm_fb_helper_debug_enter(struct fb_info *info)
+static inline int drm_fb_helper_de_enter(struct fb_info *info)
 {
 	return 0;
 }
 
-static inline int drm_fb_helper_debug_leave(struct fb_info *info)
+static inline int drm_fb_helper_de_leave(struct fb_info *info)
 {
 	return 0;
 }

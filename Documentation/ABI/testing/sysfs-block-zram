@@ -82,12 +82,12 @@ Description:
 		statistics (orig_data_size, compr_data_size, etc.) in a format
 		similar to block layer statistics file format.
 
-What:		/sys/block/zram<id>/debug_stat
+What:		/sys/block/zram<id>/de_stat
 Date:		July 2016
 Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Description:
-		The debug_stat file is read-only and represents various
-		device's debugging info useful for kernel developers. Its
+		The de_stat file is read-only and represents various
+		device's deging info useful for kernel developers. Its
 		format is not documented intentionally and may change
 		anytime without any notice.
 
@@ -104,8 +104,8 @@ Date:		November 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		idle file is write-only and mark zram slot as idle.
-		If system has mounted debugfs, user can see which slots
-		are idle via /sys/kernel/debug/zram/zram<id>/block_state
+		If system has mounted defs, user can see which slots
+		are idle via /sys/kernel/de/zram/zram<id>/block_state
 
 What:		/sys/block/zram<id>/writeback
 Date:		November 2018

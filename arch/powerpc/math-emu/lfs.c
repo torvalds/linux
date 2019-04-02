@@ -16,7 +16,7 @@ lfs(void *frD, void *ea)
 	FP_DECL_EX;
 	float f;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: D %p, ea %p\n", __func__, frD, ea);
 #endif
 
@@ -25,14 +25,14 @@ lfs(void *frD, void *ea)
 
 	FP_UNPACK_S(A, f);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("A: %ld %lu %ld (%ld) [%08lx]\n", A_s, A_f, A_e, A_c,
 	       *(unsigned long *)&f);
 #endif
 
 	FP_CONV(D, S, 2, 1, R, A);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("R: %ld %lu %lu %ld (%ld)\n", R_s, R_f1, R_f0, R_e, R_c);
 #endif
 

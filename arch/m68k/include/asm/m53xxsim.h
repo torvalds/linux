@@ -153,7 +153,7 @@
 
 /*
  *	The M5329EVB board needs a help getting its devices initialized 
- *	at kernel start time if dBUG doesn't set it up (for example 
+ *	at kernel start time if d doesn't set it up (for example 
  *	it is not used), so we need to do it manually.
  */
 #ifdef __ASSEMBLER__
@@ -412,7 +412,7 @@
 #define MCFGPIO_DSCR_TIMER		(0xFC0A406D)
 #define MCFGPIO_DSCR_SSI		(0xFC0A406E)
 #define MCFGPIO_DSCR_LCD		(0xFC0A406F)
-#define MCFGPIO_DSCR_DEBUG		(0xFC0A4070)
+#define MCFGPIO_DSCR_DE		(0xFC0A4070)
 #define MCFGPIO_DSCR_CLKRST		(0xFC0A4071)
 #define MCFGPIO_DSCR_IRQ		(0xFC0A4072)
 
@@ -1081,8 +1081,8 @@
 /* Bit definitions and macros for MCF_GPIO_DSCR_LCD */
 #define MCF_GPIO_DSCR_LCD_LCD_DSE(x)               (((x)&0x03)<<0)
 
-/* Bit definitions and macros for MCF_GPIO_DSCR_DEBUG */
-#define MCF_GPIO_DSCR_DEBUG_DEBUG_DSE(x)           (((x)&0x03)<<0)
+/* Bit definitions and macros for MCF_GPIO_DSCR_DE */
+#define MCF_GPIO_DSCR_DE_DE_DSE(x)           (((x)&0x03)<<0)
 
 /* Bit definitions and macros for MCF_GPIO_DSCR_CLKRST */
 #define MCF_GPIO_DSCR_CLKRST_CLKRST_DSE(x)         (((x)&0x03)<<0)

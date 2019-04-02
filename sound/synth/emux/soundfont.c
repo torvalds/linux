@@ -1040,7 +1040,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	/* panning position; -128 - 127 => 0-127 */
 	zone->v.pan = (patch.panning + 128) / 2;
 #if 0
-	snd_printk(KERN_DEBUG
+	snd_printk(KERN_DE
 		   "gus: basefrq=%d (ofs=%d) root=%d,tune=%d, range:%d-%d\n",
 		   (int)patch.base_freq, zone->v.rate_offset,
 		   zone->v.root, zone->v.tune, zone->v.low, zone->v.high);
@@ -1075,7 +1075,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 		zone->v.parm.volrelease = 0x8000 | snd_sf_calc_parm_decay(release);
 		zone->v.attenuation = calc_gus_attenuation(patch.env_offset[0]);
 #if 0
-		snd_printk(KERN_DEBUG
+		snd_printk(KERN_DE
 			   "gus: atkhld=%x, dcysus=%x, volrel=%x, att=%d\n",
 			   zone->v.parm.volatkhld,
 			   zone->v.parm.voldcysus,

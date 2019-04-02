@@ -20,7 +20,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -244,7 +244,7 @@ spufs_mem_mmap_fault(struct vm_fault *vmf)
 	if (offset >= LS_SIZE)
 		return VM_FAULT_SIGBUS;
 
-	pr_debug("spufs_mem_mmap_fault address=0x%lx, offset=0x%lx\n",
+	pr_de("spufs_mem_mmap_fault address=0x%lx, offset=0x%lx\n",
 			vmf->address, offset);
 
 	if (spu_acquire(ctx))
@@ -1557,7 +1557,7 @@ out:
 
 static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
 {
-	pr_debug("queueing DMA %x %llx %x %x %x\n", cmd->lsa,
+	pr_de("queueing DMA %x %llx %x %x %x\n", cmd->lsa,
 		 cmd->ea, cmd->size, cmd->tag, cmd->cmd);
 
 	switch (cmd->cmd) {
@@ -1569,12 +1569,12 @@ static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
 	case MFC_GETB_CMD:
 		break;
 	default:
-		pr_debug("invalid DMA opcode %x\n", cmd->cmd);
+		pr_de("invalid DMA opcode %x\n", cmd->cmd);
 		return -EIO;
 	}
 
 	if ((cmd->lsa & 0xf) != (cmd->ea &0xf)) {
-		pr_debug("invalid DMA alignment, ea %llx lsa %x\n",
+		pr_de("invalid DMA alignment, ea %llx lsa %x\n",
 				cmd->ea, cmd->lsa);
 		return -EIO;
 	}
@@ -1600,25 +1600,25 @@ static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
 		break;
 	error:
 	default:
-		pr_debug("invalid DMA alignment %x for size %x\n",
+		pr_de("invalid DMA alignment %x for size %x\n",
 			cmd->lsa & 0xf, cmd->size);
 		return -EIO;
 	}
 
 	if (cmd->size > 16 * 1024) {
-		pr_debug("invalid DMA size %x\n", cmd->size);
+		pr_de("invalid DMA size %x\n", cmd->size);
 		return -EIO;
 	}
 
 	if (cmd->tag & 0xfff0) {
 		/* we reserve the higher tag numbers for kernel use */
-		pr_debug("invalid DMA tag\n");
+		pr_de("invalid DMA tag\n");
 		return -EIO;
 	}
 
 	if (cmd->class) {
 		/* not supported in this version */
-		pr_debug("invalid DMA class\n");
+		pr_de("invalid DMA class\n");
 		return -EIO;
 	}
 
@@ -1717,7 +1717,7 @@ static __poll_t spufs_mfc_poll(struct file *file,poll_table *wait)
 	if (tagstatus & ctx->tagwait)
 		mask |= EPOLLIN | EPOLLRDNORM;
 
-	pr_debug("%s: free %d tagstatus %d tagwait %d\n", __func__,
+	pr_de("%s: free %d tagstatus %d tagwait %d\n", __func__,
 		free_elements, tagstatus, ctx->tagwait);
 
 	return mask;
@@ -2632,7 +2632,7 @@ const struct spufs_tree_descr spufs_dir_nosched_contents[] = {
 	{},
 };
 
-const struct spufs_tree_descr spufs_dir_debug_contents[] = {
+const struct spufs_tree_descr spufs_dir_de_contents[] = {
 	{ ".ctx", &spufs_ctx_fops, 0444, },
 	{},
 };

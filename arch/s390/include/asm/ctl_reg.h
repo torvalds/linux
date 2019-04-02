@@ -32,12 +32,12 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/bug.h>
+#include <linux/.h>
 
 #define __ctl_load(array, low, high) do {				\
 	typedef struct { char _[sizeof(array)]; } addrtype;		\
 									\
-	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
+	BUILD__ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
 	asm volatile(							\
 		"	lctlg	%1,%2,%0\n"				\
 		:							\
@@ -48,7 +48,7 @@
 #define __ctl_store(array, low, high) do {				\
 	typedef struct { char _[sizeof(array)]; } addrtype;		\
 									\
-	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
+	BUILD__ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
 	asm volatile(							\
 		"	stctg	%1,%2,%0\n"				\
 		: "=Q" (*(addrtype *)(&array))				\

@@ -34,7 +34,7 @@
 #include "netns.h"
 #include "sunrpc.h"
 
-#define RPCDBG_FACILITY RPCDBG_DEBUG
+#define RPCDBG_FACILITY RPCDBG_DE
 
 #define NET_NAME(net)	((net == &init_net) ? " (init_net)" : "")
 
@@ -667,7 +667,7 @@ static void __rpc_depopulate(struct dentry *parent,
 			goto next;
 		switch (d_inode(dentry)->i_mode & S_IFMT) {
 			default:
-				BUG();
+				();
 			case S_IFREG:
 				__rpc_unlink(dir, dentry);
 				break;
@@ -707,7 +707,7 @@ static int rpc_populate(struct dentry *parent,
 			goto out_bad;
 		switch (files[i].mode & S_IFMT) {
 			default:
-				BUG();
+				();
 			case S_IFREG:
 				err = __rpc_create(dir, dentry,
 						files[i].mode,

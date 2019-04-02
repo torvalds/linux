@@ -73,7 +73,7 @@ static inline void exception_exit(enum ctx_state prev_ctx)
  *
  * Returns the current cpu's context tracking state if context tracking
  * is enabled.  If context tracking is disabled, returns
- * CONTEXT_DISABLED.  This should be used primarily for debugging.
+ * CONTEXT_DISABLED.  This should be used primarily for deging.
  */
 static inline enum ctx_state ct_state(void)
 {

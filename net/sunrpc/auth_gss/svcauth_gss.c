@@ -52,7 +52,7 @@
 #include "gss_rpc_upcall.h"
 
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -158,7 +158,7 @@ static void update_rsi(struct cache_head *cnew, struct cache_head *citem)
 	struct rsi *new = container_of(cnew, struct rsi, h);
 	struct rsi *item = container_of(citem, struct rsi, h);
 
-	BUG_ON(new->out_handle.data || new->out_token.data);
+	_ON(new->out_handle.data || new->out_token.data);
 	new->out_handle.len = item->out_handle.len;
 	item->out_handle.len = 0;
 	new->out_token.len = item->out_token.len;
@@ -1206,7 +1206,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 
 	/* creds */
 	if (!ud->found_creds) {
-		/* userspace seem buggy, we should always get at least a
+		/* userspace seem gy, we should always get at least a
 		 * mapping to nobody */
 		dprintk("RPC:       No creds found!\n");
 		goto out;
@@ -1632,7 +1632,7 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 		goto out;
 	integ_offset = (u8 *)(p + 1) - (u8 *)resbuf->head[0].iov_base;
 	integ_len = resbuf->len - integ_offset;
-	BUG_ON(integ_len % 4);
+	_ON(integ_len % 4);
 	*p++ = htonl(integ_len);
 	*p++ = htonl(gc->gc_seq);
 	if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset, integ_len)) {
@@ -1656,7 +1656,7 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	resv->iov_len += XDR_QUADLEN(mic.len) << 2;
 	/* not strictly required: */
 	resbuf->len += XDR_QUADLEN(mic.len) << 2;
-	BUG_ON(resv->iov_len > PAGE_SIZE);
+	_ON(resv->iov_len > PAGE_SIZE);
 out:
 	stat = 0;
 out_err:
@@ -1692,9 +1692,9 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	 * both the head and tail.
 	 */
 	if (resbuf->tail[0].iov_base) {
-		BUG_ON(resbuf->tail[0].iov_base >= resbuf->head[0].iov_base
+		_ON(resbuf->tail[0].iov_base >= resbuf->head[0].iov_base
 							+ PAGE_SIZE);
-		BUG_ON(resbuf->tail[0].iov_base < resbuf->head[0].iov_base);
+		_ON(resbuf->tail[0].iov_base < resbuf->head[0].iov_base);
 		if (resbuf->tail[0].iov_len + resbuf->head[0].iov_len
 				+ 2 * RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			return -ENOMEM;

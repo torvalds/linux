@@ -59,7 +59,7 @@
  * Local variables
  */
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_XPRT
 #endif
 
@@ -1841,7 +1841,7 @@ found:
 		return ERR_PTR(-ENOMEM);
 	}
 
-	rpc_xprt_debugfs_register(xprt);
+	rpc_xprt_defs_register(xprt);
 
 	dprintk("RPC:       created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
@@ -1854,7 +1854,7 @@ static void xprt_destroy_cb(struct work_struct *work)
 	struct rpc_xprt *xprt =
 		container_of(work, struct rpc_xprt, task_cleanup);
 
-	rpc_xprt_debugfs_unregister(xprt);
+	rpc_xprt_defs_unregister(xprt);
 	rpc_destroy_wait_queue(&xprt->binding);
 	rpc_destroy_wait_queue(&xprt->pending);
 	rpc_destroy_wait_queue(&xprt->sending);

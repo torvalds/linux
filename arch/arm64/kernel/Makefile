@@ -12,7 +12,7 @@ CFLAGS_REMOVE_insn.o = -pg
 CFLAGS_REMOVE_return_address.o = -pg
 
 # Object file lists.
-obj-y			:= debug-monitors.o entry.o irq.o fpsimd.o		\
+obj-y			:= de-monitors.o entry.o irq.o fpsimd.o		\
 			   entry-fpsimd.o process.o ptrace.o setup.o signal.o	\
 			   sys.o stacktrace.o time.o traps.o io.o vdso.o	\
 			   hyp-stub.o psci.o cpu_ops.o insn.o	\
@@ -64,6 +64,6 @@ obj-y					+= vdso/ probes/
 head-y					:= head.o
 extra-y					+= $(head-y) vmlinux.lds
 
-ifeq ($(CONFIG_DEBUG_EFI),y)
+ifeq ($(CONFIG_DE_EFI),y)
 AFLAGS_head.o += -DVMLINUX_PATH="\"$(realpath $(objtree)/vmlinux)\""
 endif

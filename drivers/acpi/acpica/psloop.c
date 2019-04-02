@@ -55,7 +55,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "Get arguments for opcode [%s]\n",
 			  op->common.aml_op_name));
 
@@ -126,7 +126,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			INCREMENT_ARG_LIST(walk_state->arg_types);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "Final argument count: %8.8X pass %u\n",
 				  walk_state->arg_count,
 				  walk_state->pass_number));
@@ -162,7 +162,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			     AML_NAME_OP)
 			    && (walk_state->pass_number <=
 				ACPI_IMODE_LOAD_PASS2)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				ACPI_DE_PRINT((ACPI_DB_PARSE,
 						  "Setup Package/Buffer: Pass %u, AML Ptr: %p\n",
 						  walk_state->pass_number,
 						  aml_op_start));
@@ -284,7 +284,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			acpi_ps_pop_scope(parser_state, &op,
 					  &walk_state->arg_types,
 					  &walk_state->arg_count);
-			ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			ACPI_DE_PRINT((ACPI_DB_PARSE,
 					  "Popped scope, Op=%p\n", op));
 		} else if (walk_state->prev_op) {
 
@@ -447,7 +447,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 		/* Check for arguments that need to be processed */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "Parseloop: argument count: %8.8X\n",
 				  walk_state->arg_count));
 

@@ -4,12 +4,12 @@ use Text::Tabs;
 use Getopt::Long;
 use Pod::Usage;
 
-my $debug;
+my $de;
 my $help;
 my $man;
 
 GetOptions(
-	"debug" => \$debug,
+	"de" => \$de,
 	'usage|?' => \$help,
 	'help' => \$man
 ) or pod2usage(2);
@@ -28,7 +28,7 @@ my %enums;
 my %enum_symbols;
 my %structs;
 
-require Data::Dumper if ($debug);
+require Data::Dumper if ($de);
 
 #
 # read the file and get identifiers
@@ -225,7 +225,7 @@ if ($file_exceptions) {
 	}
 }
 
-if ($debug) {
+if ($de) {
 	print Data::Dumper->Dump([\%ioctls], [qw(*ioctls)]) if (%ioctls);
 	print Data::Dumper->Dump([\%typedefs], [qw(*typedefs)]) if (%typedefs);
 	print Data::Dumper->Dump([\%enums], [qw(*enums)]) if (%enums);
@@ -262,7 +262,7 @@ foreach my $r (keys %ioctls) {
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
-	print "$r -> $s\n" if ($debug);
+	print "$r -> $s\n" if ($de);
 
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
@@ -272,7 +272,7 @@ foreach my $r (keys %defines) {
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
-	print "$r -> $s\n" if ($debug);
+	print "$r -> $s\n" if ($de);
 
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
@@ -282,7 +282,7 @@ foreach my $r (keys %enum_symbols) {
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
-	print "$r -> $s\n" if ($debug);
+	print "$r -> $s\n" if ($de);
 
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
@@ -292,7 +292,7 @@ foreach my $r (keys %enums) {
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
-	print "$r -> $s\n" if ($debug);
+	print "$r -> $s\n" if ($de);
 
 	$data =~ s/enum\s+($r)$end_delim/$s$2/g;
 }
@@ -302,7 +302,7 @@ foreach my $r (keys %structs) {
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
-	print "$r -> $s\n" if ($debug);
+	print "$r -> $s\n" if ($de);
 
 	$data =~ s/struct\s+($r)$end_delim/$s$2/g;
 }
@@ -312,7 +312,7 @@ foreach my $r (keys %typedefs) {
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
-	print "$r -> $s\n" if ($debug);
+	print "$r -> $s\n" if ($de);
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
@@ -344,15 +344,15 @@ enums and defines and create cross-references to a Sphinx book.
 
 B<parse_headers.pl> [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
 
-Where <options> can be: --debug, --help or --usage.
+Where <options> can be: --de, --help or --usage.
 
 =head1 OPTIONS
 
 =over 8
 
-=item B<--debug>
+=item B<--de>
 
-Put the script in verbose mode, useful for debugging.
+Put the script in verbose mode, useful for deging.
 
 =item B<--usage>
 
@@ -385,9 +385,9 @@ to replace the default references by a custom one.
 Please read Documentation/doc-guide/parse-headers.rst at the Kernel's
 tree for more details.
 
-=head1 BUGS
+=head1 S
 
-Report bugs to Mauro Carvalho Chehab <mchehab@kernel.org>
+Report s to Mauro Carvalho Chehab <mchehab@kernel.org>
 
 =head1 COPYRIGHT
 

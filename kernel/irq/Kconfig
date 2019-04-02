@@ -120,14 +120,14 @@ config SPARSE_IRQ
 
 	  If you don't know what to do here, say N.
 
-config GENERIC_IRQ_DEBUGFS
-	bool "Expose irq internals in debugfs"
-	depends on DEBUG_FS
+config GENERIC_IRQ_DEFS
+	bool "Expose irq internals in defs"
+	depends on DE_FS
 	default n
 	---help---
 
-	  Exposes internal state information through debugfs. Mostly for
-	  developers and debugging of hard to diagnose interrupt problems.
+	  Exposes internal state information through defs. Mostly for
+	  developers and deging of hard to diagnose interrupt problems.
 
 	  If you don't know what to do here, say N.
 

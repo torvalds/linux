@@ -190,8 +190,8 @@ void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 	int reg;
 	u32 speed;
 
-	BUILD_BUG_ON(MDIO_SUPPORTS_C22 != ETH_MDIO_SUPPORTS_C22);
-	BUILD_BUG_ON(MDIO_SUPPORTS_C45 != ETH_MDIO_SUPPORTS_C45);
+	BUILD__ON(MDIO_SUPPORTS_C22 != ETH_MDIO_SUPPORTS_C22);
+	BUILD__ON(MDIO_SUPPORTS_C45 != ETH_MDIO_SUPPORTS_C45);
 
 	ecmd->transceiver = XCVR_INTERNAL;
 	ecmd->phy_address = mdio->prtad;
@@ -362,8 +362,8 @@ void mdio45_ethtool_ksettings_get_npage(const struct mdio_if_info *mdio,
 	int reg;
 	u32 speed, supported = 0, advertising = 0, lp_advertising = 0;
 
-	BUILD_BUG_ON(MDIO_SUPPORTS_C22 != ETH_MDIO_SUPPORTS_C22);
-	BUILD_BUG_ON(MDIO_SUPPORTS_C45 != ETH_MDIO_SUPPORTS_C45);
+	BUILD__ON(MDIO_SUPPORTS_C22 != ETH_MDIO_SUPPORTS_C22);
+	BUILD__ON(MDIO_SUPPORTS_C45 != ETH_MDIO_SUPPORTS_C45);
 
 	cmd->base.phy_address = mdio->prtad;
 	cmd->base.mdio_support =

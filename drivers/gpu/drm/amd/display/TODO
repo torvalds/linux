@@ -74,10 +74,10 @@ HW blocks.
 a few indirections, and consider removing entirely and using the
 drm_atomic_helper_best_encoder default behaviour.
 
-14. core/dc_debug.c, consider switching to the atomic state debug helpers and
+14. core/dc_de.c, consider switching to the atomic state de helpers and
 moving all your driver state printing into the various atomic_print_state
 callbacks. There's also plans to expose this stuff in a standard way across all
-drivers, to make debugging userspace compositors easier across different hw.
+drivers, to make deging userspace compositors easier across different hw.
 
 15. Move DP/HDMI dual mode adaptors to drm_dp_dual_mode_helper.c. See
 dal_ddc_service_i2c_query_dp_dual_mode_adaptor.
@@ -98,9 +98,9 @@ issue with DC - other drivers, especially around DP sink handling, are equally
 guilty.
 
 19. DONE - The DC logger is still a rather sore thing, but I know that the
-DRM_DEBUG stuff just isn't up to the challenges either. We need to figure out
-something that integrates better with DRM and linux debug printing, while not
-being useless with filtering output. dynamic debug printing might be an option.
+DRM_DE stuff just isn't up to the challenges either. We need to figure out
+something that integrates better with DRM and linux de printing, while not
+being useless with filtering output. dynamic de printing might be an option.
 
 20. Use kernel i2c device to program HDMI retimer. Some boards have an HDMI
 retimer that we need to program to pass PHY compliance. Currently that's

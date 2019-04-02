@@ -56,9 +56,9 @@
 
 #include "pmac.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -637,7 +637,7 @@ static void smp_core99_pfunc_tb_freeze(int freeze)
 	struct pmf_args args;
 
 	cpus = of_find_node_by_path("/cpus");
-	BUG_ON(cpus == NULL);
+	_ON(cpus == NULL);
 	args.count = 1;
 	args.u[0].v = !freeze;
 	pmf_call_function(cpus, "cpu-timebase", &args);
@@ -931,7 +931,7 @@ static void pmac_cpu_die(void)
 
 	local_irq_disable();
 	idle_task_exit();
-	pr_debug("CPU%d offline\n", cpu);
+	pr_de("CPU%d offline\n", cpu);
 	generic_set_cpu_dead(cpu);
 	smp_wmb();
 	mb();

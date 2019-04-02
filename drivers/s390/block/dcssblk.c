@@ -361,7 +361,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 			rc = segment_modify_shared(entry->segment_name,
 						SEGMENT_SHARED);
 			if (rc < 0) {
-				BUG_ON(rc == -EINVAL);
+				_ON(rc == -EINVAL);
 				if (rc != -EAGAIN)
 					goto removeseg;
 			}
@@ -386,7 +386,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 			rc = segment_modify_shared(entry->segment_name,
 						   SEGMENT_EXCLUSIVE);
 			if (rc < 0) {
-				BUG_ON(rc == -EINVAL);
+				_ON(rc == -EINVAL);
 				if (rc != -EAGAIN)
 					goto removeseg;
 			}

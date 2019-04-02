@@ -75,12 +75,12 @@ MODULE_LICENSE("GPL");
 * We'll depend on users using the tpctl utility to do that for now
 */
 static DEFINE_MUTEX(mwave_mutex);
-int mwave_debug = 0;
+int mwave_de = 0;
 int mwave_3780i_irq = 0;
 int mwave_3780i_io = 0;
 int mwave_uart_irq = 0;
 int mwave_uart_io = 0;
-module_param(mwave_debug, int, 0);
+module_param(mwave_de, int, 0);
 module_param_hw(mwave_3780i_irq, int, irq, 0);
 module_param_hw(mwave_3780i_io, int, ioport, 0);
 module_param_hw(mwave_uart_irq, int, irq, 0);

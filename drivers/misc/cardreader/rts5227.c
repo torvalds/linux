@@ -353,7 +353,7 @@ static int rts522a_extra_init_hw(struct rtsx_pcr *pcr)
 	rtsx_pci_write_register(pcr, FUNC_FORCE_CTL, FUNC_FORCE_UPME_XMT_DBG,
 		FUNC_FORCE_UPME_XMT_DBG);
 	rtsx_pci_write_register(pcr, PCLK_CTL, 0x04, 0x04);
-	rtsx_pci_write_register(pcr, PM_EVENT_DEBUG, PME_DEBUG_0, PME_DEBUG_0);
+	rtsx_pci_write_register(pcr, PM_EVENT_DE, PME_DE_0, PME_DE_0);
 	rtsx_pci_write_register(pcr, PM_CLK_FORCE_CTL, 0xFF, 0x11);
 
 	return 0;

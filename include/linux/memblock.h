@@ -94,7 +94,7 @@ struct memblock {
 };
 
 extern struct memblock memblock;
-extern int memblock_debug;
+extern int memblock_de;
 
 #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
 #define __init_memblock __meminit
@@ -106,7 +106,7 @@ void memblock_discard(void);
 #endif
 
 #define memblock_dbg(fmt, ...) \
-	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+	if (memblock_de) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
 phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
 				   phys_addr_t size, phys_addr_t align);
@@ -416,7 +416,7 @@ extern void __memblock_dump_all(void);
 
 static inline void memblock_dump_all(void)
 {
-	if (memblock_debug)
+	if (memblock_de)
 		__memblock_dump_all();
 }
 

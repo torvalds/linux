@@ -200,7 +200,7 @@ static void asd_form_port(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 		/* Use a free port if this doesn't form a wide port */
 		if (i >= ASD_MAX_PHYS) {
 			port = free_port;
-			BUG_ON(!port);
+			_ON(!port);
 			memcpy(port->sas_addr, sas_phy->sas_addr,
 			       SAS_ADDR_SIZE);
 			memcpy(port->attached_sas_addr,

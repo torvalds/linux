@@ -195,7 +195,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 
 		/* Change Speed safely */
 		ivtv_api(itv, CX2341X_DEC_SET_PLAYBACK_SPEED, 7, data);
-		IVTV_DEBUG_INFO("Setting Speed to 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		IVTV_DE_INFO("Setting Speed to 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
 				data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
 	}
 	if (single_step) {
@@ -701,7 +701,7 @@ static int ivtv_s_fmt_vid_out_overlay(struct file *file, void *fh, struct v4l2_f
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ivtv_itvc(struct ivtv *itv, bool get, u64 reg, u64 *val)
 {
 	volatile u8 __iomem *reg_start;
@@ -1007,7 +1007,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 		return -EINVAL;
 
 	if (inp == itv->active_input) {
-		IVTV_DEBUG_INFO("Input unchanged\n");
+		IVTV_DE_INFO("Input unchanged\n");
 		return 0;
 	}
 
@@ -1015,7 +1015,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 		return -EBUSY;
 	}
 
-	IVTV_DEBUG_INFO("Changing input from %d to %d\n",
+	IVTV_DE_INFO("Changing input from %d to %d\n",
 			itv->active_input, inp);
 
 	itv->active_input = inp;
@@ -1060,10 +1060,10 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 		return -EINVAL;
 
 	if (outp == itv->active_output) {
-		IVTV_DEBUG_INFO("Output unchanged\n");
+		IVTV_DE_INFO("Output unchanged\n");
 		return 0;
 	}
-	IVTV_DEBUG_INFO("Changing output from %d to %d\n",
+	IVTV_DE_INFO("Changing output from %d to %d\n",
 		   itv->active_output, outp);
 
 	itv->active_output = outp;
@@ -1099,7 +1099,7 @@ int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *v
 		return -EINVAL;
 
 	ivtv_mute(itv);
-	IVTV_DEBUG_INFO("v4l2 ioctl: set frequency %d\n", vf->frequency);
+	IVTV_DE_INFO("v4l2 ioctl: set frequency %d\n", vf->frequency);
 	ivtv_call_all(itv, tuner, s_frequency, vf);
 	ivtv_unmute(itv);
 	return 0;
@@ -1196,7 +1196,7 @@ static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id std)
 		return -EBUSY;
 	}
 
-	IVTV_DEBUG_INFO("Switching standard to %llx.\n",
+	IVTV_DE_INFO("Switching standard to %llx.\n",
 		(unsigned long long)itv->std);
 
 	ivtv_s_std_enc(itv, std);
@@ -1304,18 +1304,18 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_START\n");
 		enc->flags = 0;
 		return ivtv_start_capture(id);
 
 	case V4L2_ENC_CMD_STOP:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_STOP\n");
 		enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 		ivtv_stop_capture(id, enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
 		return 0;
 
 	case V4L2_ENC_CMD_PAUSE:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_PAUSE\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_PAUSE\n");
 		enc->flags = 0;
 
 		if (!atomic_read(&itv->capturing))
@@ -1328,7 +1328,7 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 		break;
 
 	case V4L2_ENC_CMD_RESUME:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_RESUME\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_RESUME\n");
 		enc->flags = 0;
 
 		if (!atomic_read(&itv->capturing))
@@ -1341,7 +1341,7 @@ static int ivtv_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 		ivtv_unmute(itv);
 		break;
 	default:
-		IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		IVTV_DE_IOCTL("Unknown cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 
@@ -1354,26 +1354,26 @@ static int ivtv_try_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_START\n");
 		enc->flags = 0;
 		return 0;
 
 	case V4L2_ENC_CMD_STOP:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_STOP\n");
 		enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 		return 0;
 
 	case V4L2_ENC_CMD_PAUSE:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_PAUSE\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_PAUSE\n");
 		enc->flags = 0;
 		return 0;
 
 	case V4L2_ENC_CMD_RESUME:
-		IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_RESUME\n");
+		IVTV_DE_IOCTL("V4L2_ENC_CMD_RESUME\n");
 		enc->flags = 0;
 		return 0;
 	default:
-		IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		IVTV_DE_IOCTL("Unknown cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 }
@@ -1610,7 +1610,7 @@ static int ivtv_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd
 	struct ivtv_open_id *id = fh2id(file->private_data);
 	struct ivtv *itv = id->itv;
 
-	IVTV_DEBUG_IOCTL("VIDIOC_DECODER_CMD %d\n", dec->cmd);
+	IVTV_DE_IOCTL("VIDIOC_DECODER_CMD %d\n", dec->cmd);
 	return ivtv_video_command(itv, id, dec, false);
 }
 
@@ -1619,7 +1619,7 @@ static int ivtv_try_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder
 	struct ivtv_open_id *id = fh2id(file->private_data);
 	struct ivtv *itv = id->itv;
 
-	IVTV_DEBUG_IOCTL("VIDIOC_TRY_DECODER_CMD %d\n", dec->cmd);
+	IVTV_DE_IOCTL("VIDIOC_TRY_DECODER_CMD %d\n", dec->cmd);
 	return ivtv_video_command(itv, id, dec, true);
 }
 
@@ -1660,7 +1660,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case IVTV_IOC_DMA_FRAME: {
 		struct ivtv_dma_frame *args = arg;
 
-		IVTV_DEBUG_IOCTL("IVTV_IOC_DMA_FRAME\n");
+		IVTV_DE_IOCTL("IVTV_IOC_DMA_FRAME\n");
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		if (args->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
@@ -1682,7 +1682,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	}
 
 	case IVTV_IOC_PASSTHROUGH_MODE:
-		IVTV_DEBUG_IOCTL("IVTV_IOC_PASSTHROUGH_MODE\n");
+		IVTV_DE_IOCTL("IVTV_IOC_PASSTHROUGH_MODE\n");
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		return ivtv_passthrough_mode(itv, *(int *)arg != 0);
@@ -1819,7 +1819,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			mutex_lock(&itv->serialize_lock);
 			if (signal_pending(current)) {
 				/* return if a signal was received */
-				IVTV_DEBUG_INFO("User stopped wait for event\n");
+				IVTV_DE_INFO("User stopped wait for event\n");
 				return -EINTR;
 			}
 		}
@@ -1967,7 +1967,7 @@ static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
 	.vidioc_try_fmt_vid_out_overlay     = ivtv_try_fmt_vid_out_overlay,
 	.vidioc_try_fmt_sliced_vbi_out	    = ivtv_try_fmt_sliced_vbi_out,
 	.vidioc_g_sliced_vbi_cap	    = ivtv_g_sliced_vbi_cap,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register		    = ivtv_g_register,
 	.vidioc_s_register		    = ivtv_s_register,
 #endif

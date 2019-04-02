@@ -66,16 +66,16 @@
 #define	SSIF_IPMI_RESPONSE			3
 #define	SSIF_IPMI_MULTI_PART_RESPONSE_MIDDLE	9
 
-/* ssif_debug is a bit-field
- *	SSIF_DEBUG_MSG -	commands and their responses
- *	SSIF_DEBUG_STATES -	message states
- *	SSIF_DEBUG_TIMING -	 Measure times between events in the driver
+/* ssif_de is a bit-field
+ *	SSIF_DE_MSG -	commands and their responses
+ *	SSIF_DE_STATES -	message states
+ *	SSIF_DE_TIMING -	 Measure times between events in the driver
  */
-#define SSIF_DEBUG_TIMING	4
-#define SSIF_DEBUG_STATE	2
-#define SSIF_DEBUG_MSG		1
-#define SSIF_NODEBUG		0
-#define SSIF_DEFAULT_DEBUG	(SSIF_NODEBUG)
+#define SSIF_DE_TIMING	4
+#define SSIF_DE_STATE	2
+#define SSIF_DE_MSG		1
+#define SSIF_NODE		0
+#define SSIF_DEFAULT_DE	(SSIF_NODE)
 
 /*
  * Timer values
@@ -183,7 +183,7 @@ enum ssif_stat_indexes {
 struct ssif_addr_info {
 	struct i2c_board_info binfo;
 	char *adapter_name;
-	int debug;
+	int de;
 	int slave_addr;
 	enum ipmi_addr_src addr_src;
 	union ipmi_smi_info_union addr_info;
@@ -209,7 +209,7 @@ struct ssif_info {
 	struct ipmi_smi_msg *waiting_msg;
 	struct ipmi_smi_msg *curr_msg;
 	enum ssif_intf_state ssif_state;
-	unsigned long       ssif_debug;
+	unsigned long       ssif_de;
 
 	struct ipmi_smi_handlers handlers;
 
@@ -546,7 +546,7 @@ static void start_get(struct ssif_info *ssif_info)
 			  ssif_info->recv, I2C_SMBUS_BLOCK_DATA);
 	if (rv < 0) {
 		/* request failed, just return the error. */
-		if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+		if (ssif_info->ssif_de & SSIF_DE_MSG)
 			dev_dbg(&ssif_info->client->dev,
 				"Error from i2c_non_blocking_op(5)\n");
 
@@ -649,7 +649,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 
 		ssif_inc_stat(ssif_info, receive_errors);
 
-		if  (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+		if  (ssif_info->ssif_de & SSIF_DE_MSG)
 			dev_dbg(&ssif_info->client->dev,
 				"%s: Error %d\n", __func__, result);
 		len = 0;
@@ -675,7 +675,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 				  SSIF_IPMI_MULTI_PART_RESPONSE_MIDDLE,
 				  ssif_info->recv, I2C_SMBUS_BLOCK_DATA);
 		if (rv < 0) {
-			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+			if (ssif_info->ssif_de & SSIF_DE_MSG)
 				dev_dbg(&ssif_info->client->dev,
 					"Error from i2c_non_blocking_op(1)\n");
 
@@ -689,7 +689,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 
 		if (len == 0) {
 			result = -EIO;
-			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+			if (ssif_info->ssif_de & SSIF_DE_MSG)
 				dev_dbg(&ssif_info->client->dev,
 					"Middle message with no data\n");
 
@@ -703,7 +703,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		if (blocknum != 0xff && len != 31) {
 		    /* All blocks but the last must have 31 data bytes. */
 			result = -EIO;
-			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+			if (ssif_info->ssif_de & SSIF_DE_MSG)
 				dev_dbg(&ssif_info->client->dev,
 					"Received middle message <31\n");
 
@@ -713,7 +713,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		if (ssif_info->multi_len + len > IPMI_MAX_MSG_LENGTH) {
 			/* Received message too big, abort the operation. */
 			result = -E2BIG;
-			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+			if (ssif_info->ssif_de & SSIF_DE_MSG)
 				dev_dbg(&ssif_info->client->dev,
 					"Received message too big\n");
 
@@ -745,7 +745,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 					   ssif_info->recv,
 					   I2C_SMBUS_BLOCK_DATA);
 			if (rv < 0) {
-				if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+				if (ssif_info->ssif_de & SSIF_DE_MSG)
 					dev_dbg(&ssif_info->client->dev,
 						"Error from ssif_i2c_send\n");
 
@@ -763,7 +763,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		ssif_inc_stat(ssif_info, received_message_parts);
 	}
 
-	if (ssif_info->ssif_debug & SSIF_DEBUG_STATE)
+	if (ssif_info->ssif_de & SSIF_DE_STATE)
 		dev_dbg(&ssif_info->client->dev,
 			"DONE 1: state = %d, result=%d\n",
 			ssif_info->ssif_state, result);
@@ -897,7 +897,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 	} else
 		ipmi_ssif_unlock_cond(ssif_info, flags);
 
-	if (ssif_info->ssif_debug & SSIF_DEBUG_STATE)
+	if (ssif_info->ssif_de & SSIF_DE_STATE)
 		dev_dbg(&ssif_info->client->dev,
 			"DONE 2: state = %d.\n", ssif_info->ssif_state);
 }
@@ -918,7 +918,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			/* request failed, just return the error. */
 			ssif_inc_stat(ssif_info, send_errors);
 
-			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+			if (ssif_info->ssif_de & SSIF_DE_MSG)
 				dev_dbg(&ssif_info->client->dev,
 					"%s: Out of retries\n", __func__);
 			msg_done_handler(ssif_info, -EIO, NULL, 0);
@@ -931,7 +931,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 		 * Got an error on transmit, let the done routine
 		 * handle it.
 		 */
-		if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+		if (ssif_info->ssif_de & SSIF_DE_MSG)
 			dev_dbg(&ssif_info->client->dev,
 				"%s: Error  %d\n", __func__, result);
 
@@ -976,7 +976,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			/* request failed, just return the error. */
 			ssif_inc_stat(ssif_info, send_errors);
 
-			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+			if (ssif_info->ssif_de & SSIF_DE_MSG)
 				dev_dbg(&ssif_info->client->dev,
 					"Error from i2c_non_blocking_op(3)\n");
 			msg_done_handler(ssif_info, -EIO, NULL, 0);
@@ -1033,7 +1033,7 @@ static int start_resend(struct ssif_info *ssif_info)
 
 	rv = ssif_i2c_send(ssif_info, msg_written_handler, I2C_SMBUS_WRITE,
 			  command, ssif_info->data, I2C_SMBUS_BLOCK_DATA);
-	if (rv && (ssif_info->ssif_debug & SSIF_DEBUG_MSG))
+	if (rv && (ssif_info->ssif_de & SSIF_DE_MSG))
 		dev_dbg(&ssif_info->client->dev,
 			"Error from i2c_non_blocking_op(4)\n");
 	return rv;
@@ -1094,13 +1094,13 @@ static void sender(void                *send_info,
 	struct ssif_info *ssif_info = (struct ssif_info *) send_info;
 	unsigned long oflags, *flags;
 
-	BUG_ON(ssif_info->waiting_msg);
+	_ON(ssif_info->waiting_msg);
 	ssif_info->waiting_msg = msg;
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
 	start_next_msg(ssif_info, flags);
 
-	if (ssif_info->ssif_debug & SSIF_DEBUG_TIMING) {
+	if (ssif_info->ssif_de & SSIF_DE_TIMING) {
 		struct timespec64 t;
 
 		ktime_get_real_ts64(&t);
@@ -1197,18 +1197,18 @@ module_param(alerts_broken, bool, 0);
 MODULE_PARM_DESC(alerts_broken, "Don't enable alerts for the controller.");
 
 /*
- * Bit 0 enables message debugging, bit 1 enables state debugging, and
- * bit 2 enables timing debugging.  This is an array indexed by
+ * Bit 0 enables message deging, bit 1 enables state deging, and
+ * bit 2 enables timing deging.  This is an array indexed by
  * interface number"
  */
 static int dbg[MAX_SSIF_BMCS];
 static int num_dbg;
 module_param_array(dbg, int, &num_dbg, 0);
-MODULE_PARM_DESC(dbg, "Turn on debugging.");
+MODULE_PARM_DESC(dbg, "Turn on deging.");
 
 static bool ssif_dbg_probe;
 module_param_named(dbg_probe, ssif_dbg_probe, bool, 0);
-MODULE_PARM_DESC(dbg_probe, "Enable debugging of probing of adapters.");
+MODULE_PARM_DESC(dbg_probe, "Enable deging of probing of adapters.");
 
 static bool ssif_tryacpi = true;
 module_param_named(tryacpi, ssif_tryacpi, bool, 0);
@@ -1627,7 +1627,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			ssif_info->addr_source = SI_HOTMOD;
 		} else {
 			ssif_info->addr_source = addr_info->addr_src;
-			ssif_info->ssif_debug = addr_info->debug;
+			ssif_info->ssif_de = addr_info->de;
 			ssif_info->addr_info = addr_info->addr_info;
 			addr_info->client = client;
 			slave_addr = addr_info->slave_addr;
@@ -1870,7 +1870,7 @@ static int ssif_adapter_handler(struct device *adev, void *opaque)
 }
 
 static int new_ssif_client(int addr, char *adapter_name,
-			   int debug, int slave_addr,
+			   int de, int slave_addr,
 			   enum ipmi_addr_src addr_src,
 			   struct device *dev)
 {
@@ -1902,7 +1902,7 @@ static int new_ssif_client(int addr, char *adapter_name,
 		sizeof(addr_info->binfo.type));
 	addr_info->binfo.addr = addr;
 	addr_info->binfo.platform_data = addr_info;
-	addr_info->debug = debug;
+	addr_info->de = de;
 	addr_info->slave_addr = slave_addr;
 	addr_info->addr_src = addr_src;
 	addr_info->dev = dev;

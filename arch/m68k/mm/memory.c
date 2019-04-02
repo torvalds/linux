@@ -48,7 +48,7 @@ void __init init_pointer_table(unsigned long ptable)
 	}
 
 	PD_MARKBITS(dp) &= ~mask;
-	pr_debug("init_pointer_table: %lx, %x\n", ptable, PD_MARKBITS(dp));
+	pr_de("init_pointer_table: %lx, %x\n", ptable, PD_MARKBITS(dp));
 
 	/* unreserve the page so it's possible to free that page */
 	__ClearPageReserved(PD_PAGE(dp));
@@ -209,7 +209,7 @@ void cache_clear (unsigned long paddr, int len)
 	/*
 	 * We need special treatment for the first page, in case it
 	 * is not page-aligned. Page align the addresses to work
-	 * around bug I17 in the 68060.
+	 * around  I17 in the 68060.
 	 */
 	if ((tmp = -paddr & (PAGE_SIZE - 1))) {
 	    pushcl040(paddr & PAGE_MASK);
@@ -263,7 +263,7 @@ void cache_push (unsigned long paddr, int len)
 	len += paddr & (PAGE_SIZE - 1);
 
 	/*
-	 * Work around bug I17 in the 68060 affecting some instruction
+	 * Work around  I17 in the 68060 affecting some instruction
 	 * lines not being invalidated properly.
 	 */
 	paddr &= PAGE_MASK;

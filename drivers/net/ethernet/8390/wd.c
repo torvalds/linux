@@ -512,7 +512,7 @@ MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");
 MODULE_PARM_DESC(mem, "memory base address(es)(ignored for PureData boards)");
 MODULE_PARM_DESC(mem_end, "memory end address(es)");
-MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+MODULE_PARM_DESC(msg_enable, "De message level (see linux/netdevice.h for bitmap)");
 MODULE_DESCRIPTION("ISA Western Digital wd8003/wd8013 ; SMC Elite, Elite16 ethernet driver");
 MODULE_LICENSE("GPL");
 

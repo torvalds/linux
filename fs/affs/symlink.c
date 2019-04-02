@@ -21,7 +21,7 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	char			 c;
 	char			 lc;
 
-	pr_debug("get_link(ino=%lu)\n", inode->i_ino);
+	pr_de("get_link(ino=%lu)\n", inode->i_ino);
 
 	bh = affs_bread(inode->i_sb, inode->i_ino);
 	if (!bh)

@@ -37,31 +37,31 @@ config SECURITY_APPARMOR_HASH_DEFAULT
 	 these cases policy hashing can be disabled by default and
 	 enabled only if needed.
 
-config SECURITY_APPARMOR_DEBUG
-	bool "Build AppArmor with debug code"
+config SECURITY_APPARMOR_DE
+	bool "Build AppArmor with de code"
 	depends on SECURITY_APPARMOR
 	default n
 	help
-	  Build apparmor with debugging logic in apparmor. Not all
-	  debugging logic will necessarily be enabled. A submenu will
-	  provide fine grained control of the debug options that are
+	  Build apparmor with deging logic in apparmor. Not all
+	  deging logic will necessarily be enabled. A submenu will
+	  provide fine grained control of the de options that are
 	  available.
 
-config SECURITY_APPARMOR_DEBUG_ASSERTS
-	bool "Build AppArmor with debugging asserts"
-	depends on SECURITY_APPARMOR_DEBUG
+config SECURITY_APPARMOR_DE_ASSERTS
+	bool "Build AppArmor with deging asserts"
+	depends on SECURITY_APPARMOR_DE
 	default y
 	help
-	  Enable code assertions made with AA_BUG. These are primarily
+	  Enable code assertions made with AA_. These are primarily
 	  function entry preconditions but also exist at other key
 	  points. If the assert is triggered it will trigger a WARN
 	  message.
 
-config SECURITY_APPARMOR_DEBUG_MESSAGES
-	bool "Debug messages enabled by default"
-	depends on SECURITY_APPARMOR_DEBUG
+config SECURITY_APPARMOR_DE_MESSAGES
+	bool "De messages enabled by default"
+	depends on SECURITY_APPARMOR_DE
 	default n
 	help
-	  Set the default value of the apparmor.debug kernel parameter.
-	  When enabled, various debug messages will be logged to
+	  Set the default value of the apparmor.de kernel parameter.
+	  When enabled, various de messages will be logged to
 	  the kernel message buffer.

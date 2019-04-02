@@ -7,7 +7,7 @@ Description:
 
 		Default: 0x7ff (standard frame)
 
-		Due to a chip bug (errata 50.2.6.3 & 50.3.5.3 in
+		Due to a chip  (errata 50.2.6.3 & 50.3.5.3 in
 		"AT91SAM9263 Preliminary 6249H-ATARM-27-Jul-09") the
 		contents of mailbox 0 may be send under certain
 		conditions (even if disabled or in rx mode).

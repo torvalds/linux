@@ -483,7 +483,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			}
 		}
 		if (!found) {
-			DRM_DEBUG_KMS("unknown crtc id %d\n", info->mode_crtc.id);
+			DRM_DE_KMS("unknown crtc id %d\n", info->mode_crtc.id);
 			return -EINVAL;
 		}
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
@@ -659,7 +659,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			if (amdgpu_asic_read_register(adev, se_num, sh_num,
 						      info->read_mmr_reg.dword_offset + i,
 						      &regs[i])) {
-				DRM_DEBUG_KMS("unallowed offset %#x\n",
+				DRM_DE_KMS("unallowed offset %#x\n",
 					      info->read_mmr_reg.dword_offset + i);
 				kfree(regs);
 				return -EFAULT;
@@ -702,7 +702,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;
 
-		/* Older VCE FW versions are buggy and can handle only 40bits */
+		/* Older VCE FW versions are gy and can handle only 40bits */
 		if (adev->vce.fw_version &&
 		    adev->vce.fw_version < AMDGPU_VCE_FW_53_45)
 			vm_size = min(vm_size, 1ULL << 40);
@@ -791,7 +791,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 					? -EFAULT : 0;
 		}
 		default:
-			DRM_DEBUG_KMS("Invalid request %d\n",
+			DRM_DE_KMS("Invalid request %d\n",
 					info->vbios_info.type);
 			return -EINVAL;
 		}
@@ -900,7 +900,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			ui32 /= 100;
 			break;
 		default:
-			DRM_DEBUG_KMS("Invalid request %d\n",
+			DRM_DE_KMS("Invalid request %d\n",
 				      info->sensor_info.type);
 			return -EINVAL;
 		}
@@ -910,7 +910,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		ui32 = atomic_read(&adev->vram_lost_counter);
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	default:
-		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
+		DRM_DE_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
 	}
 	return 0;
@@ -1043,7 +1043,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	if (amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
-		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
+		_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
 		amdgpu_vm_bo_rmv(adev, fpriv->csa_va);
 		fpriv->csa_va = NULL;
 		amdgpu_bo_unreserve(adev->virt.csa_obj);
@@ -1121,9 +1121,9 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 
 		if (((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
 		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE))) {
-			DRM_DEBUG_VBL("Query failed! stat %d\n", stat);
+			DRM_DE_VBL("Query failed! stat %d\n", stat);
 		} else {
-			DRM_DEBUG_VBL("crtc %d: dist from vblank start %d\n",
+			DRM_DE_VBL("crtc %d: dist from vblank start %d\n",
 				      pipe, vpos);
 
 			/* Bump counter if we are at >= leading edge of vblank,
@@ -1136,7 +1136,7 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 	} else {
 		/* Fallback to use value as is. */
 		count = amdgpu_display_vblank_get_counter(adev, pipe);
-		DRM_DEBUG_VBL("NULL mode info! Returned count may be wrong.\n");
+		DRM_DE_VBL("NULL mode info! Returned count may be wrong.\n");
 	}
 
 	return count;
@@ -1197,11 +1197,11 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 const int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
+static int amdgpu_defs_firmware_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -1370,14 +1370,14 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 }
 
 static const struct drm_info_list amdgpu_firmware_info_list[] = {
-	{"amdgpu_firmware_info", amdgpu_debugfs_firmware_info, 0, NULL},
+	{"amdgpu_firmware_info", amdgpu_defs_firmware_info, 0, NULL},
 };
 #endif
 
-int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev)
+int amdgpu_defs_firmware_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_firmware_info_list,
+#if defined(CONFIG_DE_FS)
+	return amdgpu_defs_add_files(adev, amdgpu_firmware_info_list,
 					ARRAY_SIZE(amdgpu_firmware_info_list));
 #else
 	return 0;

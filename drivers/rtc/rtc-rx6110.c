@@ -114,7 +114,7 @@ struct rx6110_data {
  */
 static int rx6110_rtc_tm_to_data(struct rtc_time *tm, u8 *data)
 {
-	pr_debug("%s: date %ptRr\n", __func__, tm);
+	pr_de("%s: date %ptRr\n", __func__, tm);
 
 	/*
 	 * The year in the RTC is a value between 0 and 99.
@@ -152,7 +152,7 @@ static int rx6110_data_to_rtc_tm(u8 *data, struct rtc_time *tm)
 	tm->tm_mon = bcd2bin(data[RTC_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(data[RTC_YEAR]) + 100;
 
-	pr_debug("%s: date %ptRr\n", __func__, tm);
+	pr_de("%s: date %ptRr\n", __func__, tm);
 
 	/*
 	 * The year in the RTC is a value between 0 and 99.
@@ -171,7 +171,7 @@ static int rx6110_data_to_rtc_tm(u8 *data, struct rtc_time *tm)
  * @dev: the rtc device in use
  * @tm: holds date and time
  *
- * BUG: The HW assumes every year that is a multiple of 4 to be a leap
+ * : The HW assumes every year that is a multiple of 4 to be a leap
  * year. Next time this is wrong is 2100, which will not be a leap year
  *
  * Note: If STOP is not set/cleared, the clock will start when the seconds

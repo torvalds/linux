@@ -123,7 +123,7 @@ extern "C" {
 #define R200_EMIT_PP_TXOFFSET_5                     47	/* tex5/1 */
 #define R200_EMIT_VTE_CNTL                          48	/* vte/1 */
 #define R200_EMIT_OUTPUT_VTX_COMP_SEL               49	/* vtx/1 */
-#define R200_EMIT_PP_TAM_DEBUG3                     50	/* tam/1 */
+#define R200_EMIT_PP_TAM_DE3                     50	/* tam/1 */
 #define R200_EMIT_PP_CNTL_X                         51	/* cst/1 */
 #define R200_EMIT_RB3D_DEPTHXY_OFFSET               52	/* cst/1 */
 #define R200_EMIT_RE_AUX_SCISSOR_CNTL               53	/* cst/1 */

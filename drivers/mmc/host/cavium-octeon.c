@@ -22,7 +22,7 @@
 /*
  * The l2c* functions below are used for the EMMC-17978 workaround.
  *
- * Due to a bug in the design of the MMC bus hardware, the 2nd to last
+ * Due to a  in the design of the MMC bus hardware, the 2nd to last
  * cache block of a DMA read must be locked into the L2 Cache.
  * Otherwise, data corruption may occur.
  */

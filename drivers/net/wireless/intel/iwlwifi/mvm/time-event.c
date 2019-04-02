@@ -166,7 +166,7 @@ static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
 	if (!csa_vif || !csa_vif->csa_active)
 		goto out_unlock;
 
-	IWL_DEBUG_TE(mvm, "CSA NOA started\n");
+	IWL_DE_TE(mvm, "CSA NOA started\n");
 
 	/*
 	 * CSA NoA is started but we still have beacons to
@@ -219,7 +219,7 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (!notif->status)
-		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
+		IWL_DE_TE(mvm, "CSA time event failed to start\n");
 
 	switch (te_data->vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -296,7 +296,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 {
 	lockdep_assert_held(&mvm->time_event_lock);
 
-	IWL_DEBUG_TE(mvm, "Handle time event notif - UID = 0x%x action %d\n",
+	IWL_DE_TE(mvm, "Handle time event notif - UID = 0x%x action %d\n",
 		     le32_to_cpu(notif->unique_id),
 		     le32_to_cpu(notif->action));
 
@@ -318,7 +318,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		else
 			msg = "Time Event end notification failure";
 
-		IWL_DEBUG_TE(mvm, "%s\n", msg);
+		IWL_DE_TE(mvm, "%s\n", msg);
 
 		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, msg)) {
 			iwl_mvm_te_clear_data(mvm, te_data);
@@ -327,7 +327,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	}
 
 	if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_END) {
-		IWL_DEBUG_TE(mvm,
+		IWL_DE_TE(mvm,
 			     "TE ended - current time %lu, estimated end %lu\n",
 			     jiffies, te_data->end_jiffies);
 
@@ -386,7 +386,7 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 
 	iwl_mvm_te_check_trigger(mvm, notif, te_data);
 
-	IWL_DEBUG_TE(mvm,
+	IWL_DE_TE(mvm,
 		     "Aux ROC time event notification  - UID = 0x%x action %d (error = %d)\n",
 		     le32_to_cpu(notif->unique_id),
 		     le32_to_cpu(notif->action), le32_to_cpu(notif->status));
@@ -407,7 +407,7 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 		iwl_mvm_ref(mvm, IWL_MVM_REF_ROC_AUX);
 		ieee80211_ready_on_channel(mvm->hw); /* Start TE */
 	} else {
-		IWL_DEBUG_TE(mvm,
+		IWL_DE_TE(mvm,
 			     "ERROR: Unknown Aux ROC Time Event (action = %d)\n",
 			     le32_to_cpu(notif->action));
 		return -EINVAL;
@@ -426,7 +426,7 @@ void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 	struct iwl_time_event_notif *notif = (void *)pkt->data;
 	struct iwl_mvm_time_event_data *te_data, *tmp;
 
-	IWL_DEBUG_TE(mvm, "Time event notification - UID = 0x%x action %d\n",
+	IWL_DE_TE(mvm, "Time event notification - UID = 0x%x action %d\n",
 		     le32_to_cpu(notif->unique_id),
 		     le32_to_cpu(notif->action));
 
@@ -466,7 +466,7 @@ static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,
 	if (le32_to_cpu(resp->unique_id) != te_data->uid)
 		return false;
 
-	IWL_DEBUG_TE(mvm, "TIME_EVENT_NOTIFICATION response - UID = 0x%x\n",
+	IWL_DE_TE(mvm, "TIME_EVENT_NOTIFICATION response - UID = 0x%x\n",
 		     te_data->uid);
 	if (!resp->status)
 		IWL_ERR(mvm,
@@ -499,7 +499,7 @@ static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
 		return false;
 
 	te_data->uid = le32_to_cpu(resp->unique_id);
-	IWL_DEBUG_TE(mvm, "TIME_EVENT_CMD response - UID = 0x%x\n",
+	IWL_DE_TE(mvm, "TIME_EVENT_CMD response - UID = 0x%x\n",
 		     te_data->uid);
 	return true;
 }
@@ -515,7 +515,7 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	IWL_DEBUG_TE(mvm, "Add new TE, duration %d TU\n",
+	IWL_DE_TE(mvm, "Add new TE, duration %d TU\n",
 		     le32_to_cpu(te_cmd->duration));
 
 	spin_lock_bh(&mvm->time_event_lock);
@@ -580,13 +580,13 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 
 	if (te_data->running &&
 	    time_after(te_data->end_jiffies, TU_TO_EXP_TIME(min_duration))) {
-		IWL_DEBUG_TE(mvm, "We have enough time in the current TE: %u\n",
+		IWL_DE_TE(mvm, "We have enough time in the current TE: %u\n",
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
 		return;
 	}
 
 	if (te_data->running) {
-		IWL_DEBUG_TE(mvm, "extend 0x%x: only %u ms left\n",
+		IWL_DE_TE(mvm, "extend 0x%x: only %u ms left\n",
 			     te_data->uid,
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
 		/*
@@ -669,7 +669,7 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	 * send a removal command.
 	 */
 	if (id == TE_MAX) {
-		IWL_DEBUG_TE(mvm, "TE 0x%x has already ended\n", *uid);
+		IWL_DE_TE(mvm, "TE 0x%x has already ended\n", *uid);
 		return false;
 	}
 
@@ -699,7 +699,7 @@ static void iwl_mvm_remove_aux_roc_te(struct iwl_mvm *mvm,
 	aux_cmd.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE);
 	aux_cmd.id_and_color =
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
-	IWL_DEBUG_TE(mvm, "Removing BSS AUX ROC TE 0x%x\n",
+	IWL_DE_TE(mvm, "Removing BSS AUX ROC TE 0x%x\n",
 		     le32_to_cpu(aux_cmd.event_unique_id));
 	ret = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0,
 				   len, &aux_cmd);
@@ -730,7 +730,7 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	time_cmd.id_and_color =
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 
-	IWL_DEBUG_TE(mvm, "Removing TE 0x%x\n", le32_to_cpu(time_cmd.id));
+	IWL_DE_TE(mvm, "Removing TE 0x%x\n", le32_to_cpu(time_cmd.id));
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, 0,
 				   sizeof(time_cmd), &time_cmd);
 	if (WARN_ON(ret))
@@ -751,7 +751,7 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
-		IWL_DEBUG_TE(mvm,
+		IWL_DE_TE(mvm,
 			     "don't remove TE with id=%u (not session protection)\n",
 			     id);
 		return;
@@ -891,7 +891,7 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 		spin_unlock_bh(&mvm->time_event_lock);
 
 		if (id == TE_CHANNEL_SWITCH_PERIOD) {
-			IWL_DEBUG_TE(mvm, "CS period is already scheduled\n");
+			IWL_DE_TE(mvm, "CS period is already scheduled\n");
 			return -EBUSY;
 		}
 

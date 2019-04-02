@@ -1586,9 +1586,9 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 			(const struct mc_firmware_header_v1_0 *)rdev->mc_fw->data;
 
 		radeon_ucode_print_mc_hdr(&hdr->header);
-		regs_size = le32_to_cpu(hdr->io_debug_size_bytes) / (4 * 2);
+		regs_size = le32_to_cpu(hdr->io_de_size_bytes) / (4 * 2);
 		new_io_mc_regs = (const __le32 *)
-			(rdev->mc_fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
+			(rdev->mc_fw->data + le32_to_cpu(hdr->io_de_array_offset_bytes));
 		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
 		new_fw_data = (const __le32 *)
 			(rdev->mc_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
@@ -1631,11 +1631,11 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 		/* load mc io regs */
 		for (i = 0; i < regs_size; i++) {
 			if (rdev->new_fw) {
-				WREG32(MC_SEQ_IO_DEBUG_INDEX, le32_to_cpup(new_io_mc_regs++));
-				WREG32(MC_SEQ_IO_DEBUG_DATA, le32_to_cpup(new_io_mc_regs++));
+				WREG32(MC_SEQ_IO_DE_INDEX, le32_to_cpup(new_io_mc_regs++));
+				WREG32(MC_SEQ_IO_DE_DATA, le32_to_cpup(new_io_mc_regs++));
 			} else {
-				WREG32(MC_SEQ_IO_DEBUG_INDEX, io_mc_regs[(i << 1)]);
-				WREG32(MC_SEQ_IO_DEBUG_DATA, io_mc_regs[(i << 1) + 1]);
+				WREG32(MC_SEQ_IO_DE_INDEX, io_mc_regs[(i << 1)]);
+				WREG32(MC_SEQ_IO_DE_DATA, io_mc_regs[(i << 1) + 1]);
 			}
 		}
 		/* load the MC ucode */
@@ -1680,7 +1680,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	bool si58_fw = false;
 	bool banks2_fw = false;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
@@ -1769,7 +1769,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		mc_req_size = mc2_req_size = OLAND_MC_UCODE_SIZE * 4;
 		smc_req_size = ALIGN(HAINAN_SMC_UCODE_SIZE, 4);
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	/* this memory configuration requires special firmware */
@@ -2386,7 +2386,7 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 		    !dce6_average_bandwidth_vs_available_bandwidth(&wm_high) ||
 		    !dce6_check_latency_hiding(&wm_high) ||
 		    (rdev->disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority to high\n");
+			DRM_DE_KMS("force priority to high\n");
 			priority_a_cnt |= PRIORITY_ALWAYS_ON;
 			priority_b_cnt |= PRIORITY_ALWAYS_ON;
 		}
@@ -2394,7 +2394,7 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 		    !dce6_average_bandwidth_vs_available_bandwidth(&wm_low) ||
 		    !dce6_check_latency_hiding(&wm_low) ||
 		    (rdev->disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority to high\n");
+			DRM_DE_KMS("force priority to high\n");
 			priority_a_cnt |= PRIORITY_ALWAYS_ON;
 			priority_b_cnt |= PRIORITY_ALWAYS_ON;
 		}
@@ -3090,7 +3090,7 @@ static void si_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config = 0;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
-	u32 sx_debug_1;
+	u32 sx_de_1;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
 	int i, j;
@@ -3306,8 +3306,8 @@ static void si_gpu_init(struct radeon_device *rdev)
 				     ROQ_IB2_START(0x2b)));
 	WREG32(CP_MEQ_THRESHOLDS, MEQ1_START(0x30) | MEQ2_START(0x60));
 
-	sx_debug_1 = RREG32(SX_DEBUG_1);
-	WREG32(SX_DEBUG_1, sx_debug_1);
+	sx_de_1 = RREG32(SX_DE_1);
+	WREG32(SX_DE_1, sx_de_1);
 
 	WREG32(SPI_CONFIG_CNTL_1, VTX_DONE_DELAY(4));
 
@@ -3656,7 +3656,7 @@ static int si_cp_resume(struct radeon_device *rdev)
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
 
-	WREG32(CP_DEBUG, 0);
+	WREG32(CP_DE, 0);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 
 	/* ring 0 - compute and gfx */
@@ -3841,7 +3841,7 @@ u32 si_gpu_check_soft_reset(struct radeon_device *rdev)
 
 	/* Skip MC reset as it's mostly likely not hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
-		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		DRM_DE("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
 	}
 
@@ -6075,24 +6075,24 @@ int si_irq_set(struct radeon_device *rdev)
 
 	/* enable CP interrupts on all rings */
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
-		DRM_DEBUG("si_irq_set: sw int gfx\n");
+		DRM_DE("si_irq_set: sw int gfx\n");
 		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
 	if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_CP1_INDEX])) {
-		DRM_DEBUG("si_irq_set: sw int cp1\n");
+		DRM_DE("si_irq_set: sw int cp1\n");
 		cp_int_cntl1 |= TIME_STAMP_INT_ENABLE;
 	}
 	if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_CP2_INDEX])) {
-		DRM_DEBUG("si_irq_set: sw int cp2\n");
+		DRM_DE("si_irq_set: sw int cp2\n");
 		cp_int_cntl2 |= TIME_STAMP_INT_ENABLE;
 	}
 	if (atomic_read(&rdev->irq.ring_int[R600_RING_TYPE_DMA_INDEX])) {
-		DRM_DEBUG("si_irq_set: sw int dma\n");
+		DRM_DE("si_irq_set: sw int dma\n");
 		dma_cntl |= TRAP_ENABLE;
 	}
 
 	if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_DMA1_INDEX])) {
-		DRM_DEBUG("si_irq_set: sw int dma1\n");
+		DRM_DE("si_irq_set: sw int dma1\n");
 		dma_cntl1 |= TRAP_ENABLE;
 	}
 
@@ -6106,7 +6106,7 @@ int si_irq_set(struct radeon_device *rdev)
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 
 	if (rdev->irq.dpm_thermal) {
-		DRM_DEBUG("dpm thermal\n");
+		DRM_DE("dpm thermal\n");
 		thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
 	}
 
@@ -6264,7 +6264,7 @@ restart_ih:
 		return IRQ_NONE;
 
 	rptr = rdev->ih.rptr;
-	DRM_DEBUG("si_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
+	DRM_DE("si_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();
@@ -6306,18 +6306,18 @@ restart_ih:
 				mask = LB_D1_VLINE_INTERRUPT;
 				event_name = "vline";
 			} else {
-				DRM_DEBUG("Unhandled interrupt: %d %d\n",
+				DRM_DE("Unhandled interrupt: %d %d\n",
 					  src_id, src_data);
 				break;
 			}
 
 			if (!(disp_int[crtc_idx] & mask)) {
-				DRM_DEBUG("IH: D%d %s - IH event w/o asserted irq bit?\n",
+				DRM_DE("IH: D%d %s - IH event w/o asserted irq bit?\n",
 					  crtc_idx + 1, event_name);
 			}
 
 			disp_int[crtc_idx] &= ~mask;
-			DRM_DEBUG("IH: D%d %s\n", crtc_idx + 1, event_name);
+			DRM_DE("IH: D%d %s\n", crtc_idx + 1, event_name);
 
 			break;
 		case 8: /* D1 page flip */
@@ -6326,7 +6326,7 @@ restart_ih:
 		case 14: /* D4 page flip */
 		case 16: /* D5 page flip */
 		case 18: /* D6 page flip */
-			DRM_DEBUG("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
+			DRM_DE("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
 			if (radeon_use_pflipirq > 0)
 				radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
 			break;
@@ -6344,23 +6344,23 @@ restart_ih:
 				event_name = "HPD_RX";
 
 			} else {
-				DRM_DEBUG("Unhandled interrupt: %d %d\n",
+				DRM_DE("Unhandled interrupt: %d %d\n",
 					  src_id, src_data);
 				break;
 			}
 
 			if (!(disp_int[hpd_idx] & mask))
-				DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+				DRM_DE("IH: IH event w/o asserted irq bit?\n");
 
 			disp_int[hpd_idx] &= ~mask;
-			DRM_DEBUG("IH: %s%d\n", event_name, hpd_idx + 1);
+			DRM_DE("IH: %s%d\n", event_name, hpd_idx + 1);
 			break;
 		case 96:
 			DRM_ERROR("SRBM_READ_ERROR: 0x%x\n", RREG32(SRBM_READ_ERROR));
 			WREG32(SRBM_INT_ACK, 0x1);
 			break;
 		case 124: /* UVD */
-			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			DRM_DE("IH: UVD int: 0x%08x\n", src_data);
 			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
 			break;
 		case 146:
@@ -6388,7 +6388,7 @@ restart_ih:
 			radeon_fence_process(rdev, CAYMAN_RING_TYPE_CP2_INDEX);
 			break;
 		case 181: /* CP EOP event */
-			DRM_DEBUG("IH: CP EOP\n");
+			DRM_DE("IH: CP EOP\n");
 			switch (ring_id) {
 			case 0:
 				radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
@@ -6402,28 +6402,28 @@ restart_ih:
 			}
 			break;
 		case 224: /* DMA trap event */
-			DRM_DEBUG("IH: DMA trap\n");
+			DRM_DE("IH: DMA trap\n");
 			radeon_fence_process(rdev, R600_RING_TYPE_DMA_INDEX);
 			break;
 		case 230: /* thermal low to high */
-			DRM_DEBUG("IH: thermal low to high\n");
+			DRM_DE("IH: thermal low to high\n");
 			rdev->pm.dpm.thermal.high_to_low = false;
 			queue_thermal = true;
 			break;
 		case 231: /* thermal high to low */
-			DRM_DEBUG("IH: thermal high to low\n");
+			DRM_DE("IH: thermal high to low\n");
 			rdev->pm.dpm.thermal.high_to_low = true;
 			queue_thermal = true;
 			break;
 		case 233: /* GUI IDLE */
-			DRM_DEBUG("IH: GUI idle\n");
+			DRM_DE("IH: GUI idle\n");
 			break;
 		case 244: /* DMA trap event */
-			DRM_DEBUG("IH: DMA1 trap\n");
+			DRM_DE("IH: DMA1 trap\n");
 			radeon_fence_process(rdev, CAYMAN_RING_TYPE_DMA1_INDEX);
 			break;
 		default:
-			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
+			DRM_DE("Unhandled interrupt: %d %d\n", src_id, src_data);
 			break;
 		}
 

@@ -13,7 +13,7 @@ int fbtft_write_spi(struct fbtft_par *par, void *buf, size_t len)
 	};
 	struct spi_message m;
 
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	if (!par->spi) {
@@ -46,7 +46,7 @@ int fbtft_write_spi_emulate_9(struct fbtft_par *par, void *buf, size_t len)
 	int bits, i, j;
 	u64 val, dc, tmp;
 
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	if (!par->extra) {
@@ -108,7 +108,7 @@ int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len)
 		}
 		txbuf[0] = par->startbyte | 0x3;
 		t.tx_buf = txbuf;
-		fbtft_par_dbg_hex(DEBUG_READ, par, par->info->device, u8,
+		fbtft_par_dbg_hex(DE_READ, par, par->info->device, u8,
 				  txbuf, len, "%s(len=%d) txbuf => ",
 				  __func__, len);
 	}
@@ -116,7 +116,7 @@ int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len)
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
 	ret = spi_sync(par->spi, &m);
-	fbtft_par_dbg_hex(DEBUG_READ, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_READ, par, par->info->device, u8, buf, len,
 			  "%s(len=%d) buf <= ", __func__, len);
 
 	return ret;
@@ -135,7 +135,7 @@ int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 	static u8 prev_data;
 #endif
 
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	while (len--) {
@@ -185,7 +185,7 @@ int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
 	static u16 prev_data;
 #endif
 
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	while (len) {

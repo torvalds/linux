@@ -450,7 +450,7 @@ struct mei_fw_version {
  * @device_list : mei client bus list
  * @cl_bus_lock : client bus list lock
  *
- * @dbgfs_dir   : debugfs mei root directory
+ * @dbgfs_dir   : defs mei root directory
  *
  * @ops:        : hw specific operations
  * @hw          : hw specific data
@@ -531,9 +531,9 @@ struct mei_device {
 	struct list_head device_list;
 	struct mutex cl_bus_lock;
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 
 	const struct mei_hw_ops *ops;
@@ -726,7 +726,7 @@ bool mei_hbuf_acquire(struct mei_device *dev);
 
 bool mei_write_is_idle(struct mei_device *dev);
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 int mei_dbgfs_register(struct mei_device *dev, const char *name);
 void mei_dbgfs_deregister(struct mei_device *dev);
 #else
@@ -735,7 +735,7 @@ static inline int mei_dbgfs_register(struct mei_device *dev, const char *name)
 	return 0;
 }
 static inline void mei_dbgfs_deregister(struct mei_device *dev) {}
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 int mei_register(struct mei_device *dev, struct device *parent);
 void mei_deregister(struct mei_device *dev);

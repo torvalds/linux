@@ -401,7 +401,7 @@ struct ipoib_dev_priv {
 	struct ipoib_cm_dev_priv cm;
 #endif
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 	struct list_head fs_list;
 	struct dentry *mcg_dentry;
 	struct dentry *path_dentry;
@@ -557,7 +557,7 @@ static inline void ipoib_build_sge(struct ipoib_dev_priv *priv,
 	priv->tx_wr.wr.num_sge	     = nr_frags + off;
 }
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev);
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter);
 void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
@@ -777,16 +777,16 @@ static inline void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *w
 }
 #endif
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-void ipoib_create_debug_files(struct net_device *dev);
-void ipoib_delete_debug_files(struct net_device *dev);
-void ipoib_register_debugfs(void);
-void ipoib_unregister_debugfs(void);
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
+void ipoib_create_de_files(struct net_device *dev);
+void ipoib_delete_de_files(struct net_device *dev);
+void ipoib_register_defs(void);
+void ipoib_unregister_defs(void);
 #else
-static inline void ipoib_create_debug_files(struct net_device *dev) { }
-static inline void ipoib_delete_debug_files(struct net_device *dev) { }
-static inline void ipoib_register_debugfs(void) { }
-static inline void ipoib_unregister_debugfs(void) { }
+static inline void ipoib_create_de_files(struct net_device *dev) { }
+static inline void ipoib_delete_de_files(struct net_device *dev) { }
+static inline void ipoib_register_defs(void) { }
+static inline void ipoib_unregister_defs(void) { }
 #endif
 
 #define ipoib_printk(level, priv, format, arg...)	\
@@ -805,36 +805,36 @@ extern int ipoib_recvq_size;
 
 extern struct ib_sa_client ipoib_sa_client;
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-extern int ipoib_debug_level;
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
+extern int ipoib_de_level;
 
 #define ipoib_dbg(priv, format, arg...)			\
 	do {						\
-		if (ipoib_debug_level > 0)			\
-			ipoib_printk(KERN_DEBUG, priv, format , ## arg); \
+		if (ipoib_de_level > 0)			\
+			ipoib_printk(KERN_DE, priv, format , ## arg); \
 	} while (0)
 #define ipoib_dbg_mcast(priv, format, arg...)		\
 	do {						\
-		if (mcast_debug_level > 0)		\
-			ipoib_printk(KERN_DEBUG, priv, format , ## arg); \
+		if (mcast_de_level > 0)		\
+			ipoib_printk(KERN_DE, priv, format , ## arg); \
 	} while (0)
-#else /* CONFIG_INFINIBAND_IPOIB_DEBUG */
+#else /* CONFIG_INFINIBAND_IPOIB_DE */
 #define ipoib_dbg(priv, format, arg...)			\
 	do { (void) (priv); } while (0)
 #define ipoib_dbg_mcast(priv, format, arg...)		\
 	do { (void) (priv); } while (0)
-#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
+#endif /* CONFIG_INFINIBAND_IPOIB_DE */
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG_DATA
+#ifdef CONFIG_INFINIBAND_IPOIB_DE_DATA
 #define ipoib_dbg_data(priv, format, arg...)		\
 	do {						\
-		if (data_debug_level > 0)		\
-			ipoib_printk(KERN_DEBUG, priv, format , ## arg); \
+		if (data_de_level > 0)		\
+			ipoib_printk(KERN_DE, priv, format , ## arg); \
 	} while (0)
-#else /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
+#else /* CONFIG_INFINIBAND_IPOIB_DE_DATA */
 #define ipoib_dbg_data(priv, format, arg...)		\
 	do { (void) (priv); } while (0)
-#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
+#endif /* CONFIG_INFINIBAND_IPOIB_DE_DATA */
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
 

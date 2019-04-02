@@ -41,7 +41,7 @@ static void set_display_control(int ctrl, int disp_state)
 			cnt++;
 			poke32(reg, val);
 		} while ((peek32(reg) & ~reserved) != (val & ~reserved));
-		pr_debug("Set Plane enbit:after tried %d times\n", cnt);
+		pr_de("Set Plane enbit:after tried %d times\n", cnt);
 	} else {
 		/*
 		 * When turning off, there is no rule on the

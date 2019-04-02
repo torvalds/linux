@@ -71,11 +71,11 @@ config BTRFS_FS_RUN_SANITY_TESTS
 
 	  If unsure, say N.
 
-config BTRFS_DEBUG
-	bool "Btrfs debugging support"
+config BTRFS_DE
+	bool "Btrfs deging support"
 	depends on BTRFS_FS
 	help
-	  Enable run-time debugging support for the btrfs filesystem. This may
+	  Enable run-time deging support for the btrfs filesystem. This may
 	  enable additional and expensive checks with negative impact on
 	  performance, or export extra information via sysfs.
 

@@ -237,7 +237,7 @@ out_drop:
 	sp->dev->stats.tx_dropped++;
 	netif_start_queue(sp->dev);
 	if (net_ratelimit())
-		printk(KERN_DEBUG "%s: %s - dropped.\n", sp->dev->name, msg);
+		printk(KERN_DE "%s: %s - dropped.\n", sp->dev->name, msg);
 }
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
@@ -866,7 +866,7 @@ static void decode_prio_command(struct sixpack *sp, unsigned char cmd)
 		if (((sp->status & SIXP_DCD_MASK) == 0) &&
 			((cmd & SIXP_RX_DCD_MASK) == SIXP_RX_DCD_MASK)) {
 				if (sp->status != 1)
-					printk(KERN_DEBUG "6pack: protocol violation\n");
+					printk(KERN_DE "6pack: protocol violation\n");
 				else
 					sp->status = 0;
 				cmd &= ~SIXP_RX_DCD_MASK;
@@ -928,7 +928,7 @@ static void decode_std_command(struct sixpack *sp, unsigned char cmd)
 			for (i = 0; i < sp->rx_count_cooked; i++)
 				checksum += sp->cooked_buf[i];
 			if (checksum != SIXP_CHKSUM) {
-				printk(KERN_DEBUG "6pack: bad checksum %2.2x\n", checksum);
+				printk(KERN_DE "6pack: bad checksum %2.2x\n", checksum);
 			} else {
 				sp->rcount = sp->rx_count_cooked-2;
 				sp_bump(sp, 0);
@@ -936,12 +936,12 @@ static void decode_std_command(struct sixpack *sp, unsigned char cmd)
 			sp->rx_count_cooked = 0;
 		}
 		break;
-	case SIXP_TX_URUN: printk(KERN_DEBUG "6pack: TX underrun\n");
+	case SIXP_TX_URUN: printk(KERN_DE "6pack: TX underrun\n");
 		break;
-	case SIXP_RX_ORUN: printk(KERN_DEBUG "6pack: RX overrun\n");
+	case SIXP_RX_ORUN: printk(KERN_DE "6pack: RX overrun\n");
 		break;
 	case SIXP_RX_BUF_OVL:
-		printk(KERN_DEBUG "6pack: RX buffer overflow\n");
+		printk(KERN_DE "6pack: RX buffer overflow\n");
 	}
 }
 

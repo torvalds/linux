@@ -692,7 +692,7 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 
 	if (unlikely(!arc_emac_tx_avail(priv))) {
 		netif_stop_queue(ndev);
-		netdev_err(ndev, "BUG! Tx Ring full when queue awake!\n");
+		netdev_err(ndev, "! Tx Ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 

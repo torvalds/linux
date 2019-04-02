@@ -454,7 +454,7 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 void __init pid_idr_init(void)
 {
 	/* Verify no one has done anything silly: */
-	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_ADDING);
+	BUILD__ON(PID_MAX_LIMIT >= PIDNS_ADDING);
 
 	/* bump default and minimum pid_max based on number of cpus */
 	pid_max = min(pid_max_max, max_t(int, pid_max,

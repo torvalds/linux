@@ -135,7 +135,7 @@ The Module was originally created in 2012 by Harald Welte, but never
 completed.  Pablo came in to finish the mess Harald left behind.  But
 doe to a lack of user interest, it never got merged.
 
-In 2015, Andreas Schultz came to the rescue and fixed lots more bugs,
+In 2015, Andreas Schultz came to the rescue and fixed lots more s,
 extended it with new features and finally pushed all of us to get it
 mainline, where it was merged in 4.7.0.
 

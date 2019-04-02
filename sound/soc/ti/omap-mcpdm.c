@@ -88,7 +88,7 @@ static inline int omap_mcpdm_read(struct omap_mcpdm *mcpdm, u16 reg)
 	return readl_relaxed(mcpdm->io_base + reg);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void omap_mcpdm_reg_dump(struct omap_mcpdm *mcpdm)
 {
 	dev_dbg(mcpdm->dev, "***********************\n");

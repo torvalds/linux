@@ -66,9 +66,9 @@ static inline void ms_clear_error(struct rtsx_usb_ms *host)
 	rtsx_usb_clear_fsm_err(ucr);
 }
 
-#ifdef DEBUG
+#ifdef DE
 
-static void ms_print_debug_regs(struct rtsx_usb_ms *host)
+static void ms_print_de_regs(struct rtsx_usb_ms *host)
 {
 	struct rtsx_ucr *ucr = host->ucr;
 	u16 i;
@@ -114,7 +114,7 @@ static void ms_print_debug_regs(struct rtsx_usb_ms *host)
 
 #else
 
-static void ms_print_debug_regs(struct rtsx_usb_ms *host)
+static void ms_print_de_regs(struct rtsx_usb_ms *host)
 {
 }
 
@@ -368,7 +368,7 @@ static int ms_write_bytes(struct rtsx_usb_ms *host, u8 tpc,
 		if (int_reg)
 			*int_reg = val & 0x0F;
 
-		ms_print_debug_regs(host);
+		ms_print_de_regs(host);
 
 		ms_clear_error(host);
 
@@ -436,7 +436,7 @@ static int ms_read_bytes(struct rtsx_usb_ms *host, u8 tpc,
 		if (int_reg && (host->ifmode != MEMSTICK_SERIAL))
 			*int_reg = val & 0x0F;
 
-		ms_print_debug_regs(host);
+		ms_print_de_regs(host);
 
 		ms_clear_error(host);
 

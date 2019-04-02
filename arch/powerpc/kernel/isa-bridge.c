@@ -13,7 +13,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
+#define DE
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -164,7 +164,7 @@ void __init isa_bridge_find_early(struct pci_controller *hose)
 	/* Set the global ISA io base to indicate we have an ISA bridge */
 	isa_io_base = ISA_IO_BASE;
 
-	pr_debug("ISA bridge (early) is %pOF\n", np);
+	pr_de("ISA bridge (early) is %pOF\n", np);
 }
 
 /**
@@ -255,7 +255,7 @@ void __init isa_bridge_init_non_pci(struct device_node *np)
 	__ioremap_at(pbase, (void *)ISA_IO_BASE,
 		     size, pgprot_noncached(PAGE_KERNEL));
 
-	pr_debug("ISA: Non-PCI bridge is %pOF\n", np);
+	pr_de("ISA: Non-PCI bridge is %pOF\n", np);
 }
 
 /**
@@ -277,7 +277,7 @@ static void isa_bridge_find_late(struct pci_dev *pdev,
 	/* Set the global ISA io base to indicate we have an ISA bridge */
 	isa_io_base = ISA_IO_BASE;
 
-	pr_debug("ISA bridge (late) is %pOF on %s\n",
+	pr_de("ISA bridge (late) is %pOF on %s\n",
 		 devnode, pci_name(pdev));
 }
 
@@ -286,7 +286,7 @@ static void isa_bridge_find_late(struct pci_dev *pdev,
  */
 static void isa_bridge_remove(void)
 {
-	pr_debug("ISA bridge removed !\n");
+	pr_de("ISA bridge removed !\n");
 
 	/* Clear the global ISA io base to indicate that we have no more
 	 * ISA bridge. Note that drivers don't quite handle that, though
@@ -319,7 +319,7 @@ static int isa_bridge_notify(struct notifier_block *nb, unsigned long action,
 		/* Check if we have an early ISA device, without PCI dev */
 		if (isa_bridge_devnode && isa_bridge_devnode == devnode &&
 		    !isa_bridge_pcidev) {
-			pr_debug("ISA bridge PCI attached: %s\n",
+			pr_de("ISA bridge PCI attached: %s\n",
 				 pci_name(pdev));
 			isa_bridge_pcidev = pdev;
 		}

@@ -27,7 +27,7 @@
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/sections.h>
 #include <asm/vsyscall.h>
 #include <linux/topology.h>
@@ -43,7 +43,7 @@
 #include <asm/hwcap2.h>
 #include <linux/numa.h>
 #include <asm/asm.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/cpu.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
@@ -330,7 +330,7 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	unsigned long eflags = native_save_fl();
 
 	/* This should have been cleared long ago */
-	BUG_ON(eflags & X86_EFLAGS_AC);
+	_ON(eflags & X86_EFLAGS_AC);
 
 	if (cpu_has(c, X86_FEATURE_SMAP)) {
 #ifdef CONFIG_X86_SMAP
@@ -488,8 +488,8 @@ static const char *table_lookup_model(struct cpuinfo_x86 *c)
 	return NULL;		/* Not found */
 }
 
-__u32 cpu_caps_cleared[NCAPINTS + NBUGINTS];
-__u32 cpu_caps_set[NCAPINTS + NBUGINTS];
+__u32 cpu_caps_cleared[NCAPINTS + NINTS];
+__u32 cpu_caps_set[NCAPINTS + NINTS];
 
 void load_percpu_segment(int cpu)
 {
@@ -511,12 +511,12 @@ DEFINE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 /*
  * Special IST stacks which the CPU switches to when it calls
  * an IST-marked descriptor entry. Up to 7 stacks (hardware
- * limit), all of them are 4K, except the debug stack which
+ * limit), all of them are 4K, except the de stack which
  * is 8K.
  */
 static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {
 	  [0 ... N_EXCEPTION_STACKS - 1]	= EXCEPTION_STKSZ,
-	  [DEBUG_STACK - 1]			= DEBUG_STKSZ
+	  [DE_STACK - 1]			= DE_STKSZ
 };
 #endif
 
@@ -761,7 +761,7 @@ static void apply_forced_caps(struct cpuinfo_x86 *c)
 {
 	int i;
 
-	for (i = 0; i < NCAPINTS + NBUGINTS; i++) {
+	for (i = 0; i < NCAPINTS + NINTS; i++) {
 		c->x86_capability[i] &= ~cpu_caps_cleared[i];
 		c->x86_capability[i] |= cpu_caps_set[i];
 	}
@@ -998,15 +998,15 @@ static const __initconst struct x86_cpu_id cpu_no_l1tf[] = {
 	{}
 };
 
-static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
+static void __init cpu_set__bits(struct cpuinfo_x86 *c)
 {
 	u64 ia32_cap = 0;
 
 	if (x86_match_cpu(cpu_no_speculation))
 		return;
 
-	setup_force_cpu_bug(X86_BUG_SPECTRE_V1);
-	setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
+	setup_force_cpu_(X86__SPECTRE_V1);
+	setup_force_cpu_(X86__SPECTRE_V2);
 
 	if (cpu_has(c, X86_FEATURE_ARCH_CAPABILITIES))
 		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, ia32_cap);
@@ -1014,7 +1014,7 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	if (!x86_match_cpu(cpu_no_spec_store_bypass) &&
 	   !(ia32_cap & ARCH_CAP_SSB_NO) &&
 	   !cpu_has(c, X86_FEATURE_AMD_SSB_NO))
-		setup_force_cpu_bug(X86_BUG_SPEC_STORE_BYPASS);
+		setup_force_cpu_(X86__SPEC_STORE_BYPASS);
 
 	if (ia32_cap & ARCH_CAP_IBRS_ALL)
 		setup_force_cpu_cap(X86_FEATURE_IBRS_ENHANCED);
@@ -1026,12 +1026,12 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	if (ia32_cap & ARCH_CAP_RDCL_NO)
 		return;
 
-	setup_force_cpu_bug(X86_BUG_CPU_MELTDOWN);
+	setup_force_cpu_(X86__CPU_MELTDOWN);
 
 	if (x86_match_cpu(cpu_no_l1tf))
 		return;
 
-	setup_force_cpu_bug(X86_BUG_L1TF);
+	setup_force_cpu_(X86__L1TF);
 }
 
 /*
@@ -1102,7 +1102,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 
-	cpu_set_bug_bits(c);
+	cpu_set__bits(c);
 
 	fpu__init_system(c);
 
@@ -1179,7 +1179,7 @@ static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
 	 * detect it directly instead of hardcoding the choice by
 	 * vendor.
 	 *
-	 * I've designated AMD's behavior as the "bug" because it's
+	 * I've designated AMD's behavior as the "" because it's
 	 * counterintuitive and less friendly.
 	 */
 
@@ -1189,7 +1189,7 @@ static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
 	loadsegment(fs, 0);
 	rdmsrl(MSR_FS_BASE, tmp);
 	if (tmp != 0)
-		set_cpu_bug(c, X86_BUG_NULL_SEG);
+		set_cpu_(c, X86__NULL_SEG);
 	wrmsrl(MSR_FS_BASE, old_base);
 #endif
 }
@@ -1230,14 +1230,14 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	detect_null_seg_behavior(c);
 
 	/*
-	 * ESPFIX is a strange bug.  All real CPUs have it.  Paravirt
+	 * ESPFIX is a strange .  All real CPUs have it.  Paravirt
 	 * systems that run Linux at CPL > 0 may or may not have the
 	 * issue, but, even if they have the issue, there's absolutely
 	 * nothing we can do about it because we can't use the real IRET
 	 * instruction.
 	 *
 	 * NB: For the time being, only 32-bit kernels support
-	 * X86_BUG_ESPFIX as such.  64-bit kernels directly choose
+	 * X86__ESPFIX as such.  64-bit kernels directly choose
 	 * whether to apply espfix using paravirt hooks.  If any
 	 * non-paravirt system ever shows up that does *not* have the
 	 * ESPFIX issue, we can change this.
@@ -1247,10 +1247,10 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	do {
 		extern void native_iret(void);
 		if (pv_ops.cpu.iret == native_iret)
-			set_cpu_bug(c, X86_BUG_ESPFIX);
+			set_cpu_(c, X86__ESPFIX);
 	} while (0);
 # else
-	set_cpu_bug(c, X86_BUG_ESPFIX);
+	set_cpu_(c, X86__ESPFIX);
 # endif
 #endif
 }
@@ -1281,10 +1281,10 @@ static void validate_apic_and_package_id(struct cpuinfo_x86 *c)
 	apicid = apic->cpu_present_to_apicid(cpu);
 
 	if (apicid != c->apicid) {
-		pr_err(FW_BUG "CPU%u: APIC id mismatch. Firmware: %x APIC: %x\n",
+		pr_err(FW_ "CPU%u: APIC id mismatch. Firmware: %x APIC: %x\n",
 		       cpu, apicid, c->initial_apicid);
 	}
-	BUG_ON(topology_update_package_map(c->phys_proc_id, cpu));
+	_ON(topology_update_package_map(c->phys_proc_id, cpu));
 #else
 	c->logical_proc_id = 0;
 #endif
@@ -1335,7 +1335,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	 * Vendor-specific initialization.  In this section we
 	 * canonicalize the feature flags, meaning if there are
 	 * features a certain CPU supports which CPUID doesn't
-	 * tell us, CPUID claiming incorrect flags, or other bugs,
+	 * tell us, CPUID claiming incorrect flags, or other s,
 	 * we handle them here.
 	 *
 	 * At the end of this section, c->x86_capability better
@@ -1397,8 +1397,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 		for (i = 0; i < NCAPINTS; i++)
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
 
-		/* OR, i.e. replicate the bug flags */
-		for (i = NCAPINTS; i < NCAPINTS + NBUGINTS; i++)
+		/* OR, i.e. replicate the  flags */
+		for (i = NCAPINTS; i < NCAPINTS + NINTS; i++)
 			c->x86_capability[i] |= boot_cpu_data.x86_capability[i];
 	}
 
@@ -1454,7 +1454,7 @@ void __init identify_boot_cpu(void)
 
 void identify_secondary_cpu(struct cpuinfo_x86 *c)
 {
-	BUG_ON(c == &boot_cpu_data);
+	_ON(c == &boot_cpu_data);
 	identify_cpu(c);
 #ifdef CONFIG_X86_32
 	enable_sep_cpu();
@@ -1564,38 +1564,38 @@ void syscall_init(void)
 
 /*
  * Copies of the original ist values from the tss are only accessed during
- * debugging, no special alignment required.
+ * deging, no special alignment required.
  */
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
 
-static DEFINE_PER_CPU(unsigned long, debug_stack_addr);
-DEFINE_PER_CPU(int, debug_stack_usage);
+static DEFINE_PER_CPU(unsigned long, de_stack_addr);
+DEFINE_PER_CPU(int, de_stack_usage);
 
-int is_debug_stack(unsigned long addr)
+int is_de_stack(unsigned long addr)
 {
-	return __this_cpu_read(debug_stack_usage) ||
-		(addr <= __this_cpu_read(debug_stack_addr) &&
-		 addr > (__this_cpu_read(debug_stack_addr) - DEBUG_STKSZ));
+	return __this_cpu_read(de_stack_usage) ||
+		(addr <= __this_cpu_read(de_stack_addr) &&
+		 addr > (__this_cpu_read(de_stack_addr) - DE_STKSZ));
 }
-NOKPROBE_SYMBOL(is_debug_stack);
+NOKPROBE_SYMBOL(is_de_stack);
 
-DEFINE_PER_CPU(u32, debug_idt_ctr);
+DEFINE_PER_CPU(u32, de_idt_ctr);
 
-void debug_stack_set_zero(void)
+void de_stack_set_zero(void)
 {
-	this_cpu_inc(debug_idt_ctr);
+	this_cpu_inc(de_idt_ctr);
 	load_current_idt();
 }
-NOKPROBE_SYMBOL(debug_stack_set_zero);
+NOKPROBE_SYMBOL(de_stack_set_zero);
 
-void debug_stack_reset(void)
+void de_stack_reset(void)
 {
-	if (WARN_ON(!this_cpu_read(debug_idt_ctr)))
+	if (WARN_ON(!this_cpu_read(de_idt_ctr)))
 		return;
-	if (this_cpu_dec_return(debug_idt_ctr) == 0)
+	if (this_cpu_dec_return(de_idt_ctr) == 0)
 		load_current_idt();
 }
-NOKPROBE_SYMBOL(debug_stack_reset);
+NOKPROBE_SYMBOL(de_stack_reset);
 
 #else	/* CONFIG_X86_64 */
 
@@ -1620,9 +1620,9 @@ DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif	/* CONFIG_X86_64 */
 
 /*
- * Clear all 6 debug registers:
+ * Clear all 6 de registers:
  */
-static void clear_all_debug_regs(void)
+static void clear_all_de_regs(void)
 {
 	int i;
 
@@ -1631,22 +1631,22 @@ static void clear_all_debug_regs(void)
 		if ((i == 4) || (i == 5))
 			continue;
 
-		set_debugreg(0, i);
+		set_dereg(0, i);
 	}
 }
 
 #ifdef CONFIG_KGDB
 /*
- * Restore debug regs if using kgdbwait and you have a kernel debugger
+ * Restore de regs if using kgdbwait and you have a kernel deger
  * connection established.
  */
-static void dbg_restore_debug_regs(void)
+static void dbg_restore_de_regs(void)
 {
 	if (unlikely(kgdb_connected && arch_kgdb_ops.correct_hw_break))
 		arch_kgdb_ops.correct_hw_break();
 }
 #else /* ! CONFIG_KGDB */
-#define dbg_restore_debug_regs()
+#define dbg_restore_de_regs()
 #endif /* ! CONFIG_KGDB */
 
 static void wait_for_master_cpu(int cpu)
@@ -1726,7 +1726,7 @@ void cpu_init(void)
 
 	me = current;
 
-	pr_debug("Initializing CPU#%d\n", cpu);
+	pr_de("Initializing CPU#%d\n", cpu);
 
 	cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
@@ -1760,8 +1760,8 @@ void cpu_init(void)
 			estacks += exception_stack_sizes[v];
 			oist->ist[v] = t->x86_tss.ist[v] =
 					(unsigned long)estacks;
-			if (v == DEBUG_STACK-1)
-				per_cpu(debug_stack_addr, cpu) = (unsigned long)estacks;
+			if (v == DE_STACK-1)
+				per_cpu(de_stack_addr, cpu) = (unsigned long)estacks;
 		}
 	}
 
@@ -1776,7 +1776,7 @@ void cpu_init(void)
 
 	mmgrab(&init_mm);
 	me->active_mm = &init_mm;
-	BUG_ON(me->mm);
+	_ON(me->mm);
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
@@ -1790,8 +1790,8 @@ void cpu_init(void)
 
 	load_mm_ldt(&init_mm);
 
-	clear_all_debug_regs();
-	dbg_restore_debug_regs();
+	clear_all_de_regs();
+	dbg_restore_de_regs();
 
 	fpu__init_cpu();
 
@@ -1834,7 +1834,7 @@ void cpu_init(void)
 	 */
 	mmgrab(&init_mm);
 	curr->active_mm = &init_mm;
-	BUG_ON(curr->mm);
+	_ON(curr->mm);
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
@@ -1855,8 +1855,8 @@ void cpu_init(void)
 	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
 #endif
 
-	clear_all_debug_regs();
-	dbg_restore_debug_regs();
+	clear_all_de_regs();
+	dbg_restore_de_regs();
 
 	fpu__init_cpu();
 

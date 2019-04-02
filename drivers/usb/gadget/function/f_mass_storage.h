@@ -45,7 +45,7 @@ struct fsg_module_parameters {
 	_FSG_MODULE_PARAM(prefix, params, stall, bool,			\
 			  "false to prevent bulk stalls")
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 
 #define FSG_MODULE_PARAMETERS(prefix, params)				\
 	__FSG_MODULE_PARAMETERS(prefix, params);			\

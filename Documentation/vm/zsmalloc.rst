@@ -37,9 +37,9 @@ stat
 ====
 
 With CONFIG_ZSMALLOC_STAT, we could see zsmalloc internal information via
-``/sys/kernel/debug/zsmalloc/<user name>``. Here is a sample of stat output::
+``/sys/kernel/de/zsmalloc/<user name>``. Here is a sample of stat output::
 
- # cat /sys/kernel/debug/zsmalloc/zram0/classes
+ # cat /sys/kernel/de/zsmalloc/zram0/classes
 
  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage
     ...

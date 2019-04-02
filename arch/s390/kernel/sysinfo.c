@@ -5,7 +5,7 @@
  *	       Martin Schwidefsky <schwidefsky@de.ibm.com>,
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/ebcdic.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/topology.h>
@@ -466,12 +466,12 @@ void calibrate_delay(void)
 {
 	s390_adjust_jiffies();
 	/* Print the good old Bogomips line .. */
-	printk(KERN_DEBUG "Calibrating delay loop (skipped)... "
+	printk(KERN_DE "Calibrating delay loop (skipped)... "
 	       "%lu.%02lu BogoMIPS preset\n", loops_per_jiffy/(500000/HZ),
 	       (loops_per_jiffy/(5000/HZ)) % 100);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #define STSI_FILE(fc, s1, s2)						       \
 static int stsi_open_##fc##_##s1##_##s2(struct inode *inode, struct file *file)\
@@ -538,29 +538,29 @@ static struct stsi_file stsi_file[] __initdata = {
 
 static u8 stsi_0_0_0;
 
-static __init int stsi_init_debugfs(void)
+static __init int stsi_init_defs(void)
 {
 	struct dentry *stsi_root;
 	struct stsi_file *sf;
 	int lvl, i;
 
-	stsi_root = debugfs_create_dir("stsi", arch_debugfs_dir);
+	stsi_root = defs_create_dir("stsi", arch_defs_dir);
 	lvl = stsi(NULL, 0, 0, 0);
 	if (lvl > 0)
 		stsi_0_0_0 = lvl;
-	debugfs_create_u8("0_0_0", 0400, stsi_root, &stsi_0_0_0);
+	defs_create_u8("0_0_0", 0400, stsi_root, &stsi_0_0_0);
 	for (i = 0; i < ARRAY_SIZE(stsi_file); i++) {
 		sf = &stsi_file[i];
-		debugfs_create_file(sf->name, 0400, stsi_root, NULL, sf->fops);
+		defs_create_file(sf->name, 0400, stsi_root, NULL, sf->fops);
 	}
 	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY) && MACHINE_HAS_TOPOLOGY) {
 		char link_to[10];
 
 		sprintf(link_to, "15_1_%d", topology_mnest_limit());
-		debugfs_create_symlink("topology", stsi_root, link_to);
+		defs_create_symlink("topology", stsi_root, link_to);
 	}
 	return 0;
 }
-device_initcall(stsi_init_debugfs);
+device_initcall(stsi_init_defs);
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

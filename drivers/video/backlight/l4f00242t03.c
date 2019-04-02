@@ -35,7 +35,7 @@ struct l4f00242t03_priv {
 
 static void l4f00242t03_reset(unsigned int gpio)
 {
-	pr_debug("l4f00242t03_reset.\n");
+	pr_de("l4f00242t03_reset.\n");
 	gpio_set_value(gpio, 1);
 	mdelay(100);
 	gpio_set_value(gpio, 0);

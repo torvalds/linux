@@ -75,11 +75,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 	field_byte_length = field_byte_end_offset - field_byte_offset;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "Bit length %u, Bit offset %u\n",
 			  field_bit_length, field_bit_offset));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "Byte Length %u, Byte Offset %u, End Offset %u\n",
 			  field_byte_length, field_byte_offset,
 			  field_byte_end_offset));
@@ -114,11 +114,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 
 			accesses = field_end_offset - field_start_offset;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "AccessWidth %u end is within region\n",
 					  access_byte_width));
 
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "Field Start %u, Field End %u -- requires %u accesses\n",
 					  field_start_offset, field_end_offset,
 					  accesses));
@@ -126,7 +126,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 			/* Single access is optimal */
 
 			if (accesses <= 1) {
-				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+				ACPI_DE_PRINT((ACPI_DB_BFIELD,
 						  "Entire field can be accessed "
 						  "with one operation of size %u\n",
 						  access_byte_width));
@@ -142,11 +142,11 @@ acpi_ex_generate_access(u32 field_bit_offset,
 				minimum_access_width = access_byte_width;
 			}
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "AccessWidth %u end is NOT within region\n",
 					  access_byte_width));
 			if (access_byte_width == 1) {
-				ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+				ACPI_DE_PRINT((ACPI_DB_BFIELD,
 						  "Field goes beyond end-of-region!\n"));
 
 				/* Field does not fit in the region at all */
@@ -158,7 +158,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 			 * This width goes beyond the end-of-region, back off to
 			 * previous access
 			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "Backing off to previous optimal access width of %u\n",
 					  minimum_access_width));
 			return_VALUE(minimum_access_width);
@@ -169,7 +169,7 @@ acpi_ex_generate_access(u32 field_bit_offset,
 	 * Could not read/write field with one operation,
 	 * just use max access width
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "Cannot access field in one operation, using width 8\n"));
 
 	return_VALUE(8);
@@ -477,7 +477,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 		acpi_ut_add_reference(obj_desc->field.region_obj);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+		ACPI_DE_PRINT((ACPI_DB_BFIELD,
 				  "RegionField: BitOff %X, Off %X, Gran %X, Region %p\n",
 				  obj_desc->field.start_field_bit_offset,
 				  obj_desc->field.base_byte_offset,
@@ -498,7 +498,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		acpi_ut_add_reference(obj_desc->bank_field.region_obj);
 		acpi_ut_add_reference(obj_desc->bank_field.bank_obj);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+		ACPI_DE_PRINT((ACPI_DB_BFIELD,
 				  "Bank Field: BitOff %X, Off %X, Gran %X, Region %p, BankReg %p\n",
 				  obj_desc->bank_field.start_field_bit_offset,
 				  obj_desc->bank_field.base_byte_offset,
@@ -565,7 +565,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 					  obj_desc->index_field.
 					  access_byte_width);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+		ACPI_DE_PRINT((ACPI_DB_BFIELD,
 				  "IndexField: BitOff %X, Off %X, Value %X, "
 				  "Gran %X, Index %p, Data %p\n",
 				  obj_desc->index_field.start_field_bit_offset,
@@ -591,7 +591,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 	    acpi_ns_attach_object(info->field_node, obj_desc,
 				  acpi_ns_get_type(info->field_node));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "Set NamedObj %p [%4.4s], ObjDesc %p\n",
 			  info->field_node,
 			  acpi_ut_get_node_name(info->field_node), obj_desc));

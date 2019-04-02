@@ -1251,7 +1251,7 @@ int vfs_get_super(struct fs_context *fc,
 		test = NULL;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	sb = sget_fc(fc, test, set_anon_super_fc);
@@ -1268,7 +1268,7 @@ int vfs_get_super(struct fs_context *fc,
 		sb->s_flags |= SB_ACTIVE;
 	}
 
-	BUG_ON(fc->root);
+	_ON(fc->root);
 	fc->root = dget(sb->s_root);
 	return 0;
 }
@@ -1488,7 +1488,7 @@ int vfs_get_tree(struct fs_context *fc)
 		/* We don't know what the locking state of the superblock is -
 		 * if there is a superblock.
 		 */
-		BUG();
+		();
 	}
 
 	sb = fc->root->d_sb;
@@ -1749,7 +1749,7 @@ int freeze_super(struct super_block *sb)
 		}
 	}
 	/*
-	 * For debugging purposes so that fs can warn if it sees write activity
+	 * For deging purposes so that fs can warn if it sees write activity
 	 * when frozen is set to SB_FREEZE_COMPLETE, and for thaw_super().
 	 */
 	sb->s_writers.frozen = SB_FREEZE_COMPLETE;

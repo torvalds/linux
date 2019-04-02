@@ -35,7 +35,7 @@ static struct xen_pcibk_config_quirk *xen_pcibk_find_quirk(struct pci_dev *dev)
 		if (match_one_device(&tmp_quirk->devid, dev) != NULL)
 			goto out;
 	tmp_quirk = NULL;
-	printk(KERN_DEBUG DRV_NAME
+	printk(KERN_DE DRV_NAME
 	       ": quirk didn't match any device known\n");
 out:
 	return tmp_quirk;

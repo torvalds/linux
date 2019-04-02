@@ -122,7 +122,7 @@ int snmp_helper(void *context, size_t hdrlen, unsigned char tag,
 		return -EINVAL;
 	pdata = (__be32 *)data;
 	if (*pdata == ctx->from) {
-		pr_debug("%s: %pI4 to %pI4\n", __func__,
+		pr_de("%s: %pI4 to %pI4\n", __func__,
 			 (void *)&ctx->from, (void *)&ctx->to);
 
 		if (*ctx->check)
@@ -224,7 +224,7 @@ static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
 
 static int __init nf_nat_snmp_basic_init(void)
 {
-	BUG_ON(nf_nat_snmp_hook != NULL);
+	_ON(nf_nat_snmp_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_snmp_hook, help);
 
 	return nf_conntrack_helper_register(&snmp_trap_helper);

@@ -14,7 +14,7 @@
 #include <bpf/bpf.h>
 #include "tests.h"
 #include "llvm.h"
-#include "debug.h"
+#include "de.h"
 #define NR_ITERS       111
 #define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 
@@ -130,7 +130,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 
 	err = parse_events_load_bpf_obj(&parse_state, &parse_state.list, obj, NULL);
 	if (err || list_empty(&parse_state.list)) {
-		pr_debug("Failed to add events selected by BPF\n");
+		pr_de("Failed to add events selected by BPF\n");
 		return TEST_FAIL;
 	}
 
@@ -141,13 +141,13 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	/* Instead of perf_evlist__new_default, don't add default events */
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_de("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_de("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -158,14 +158,14 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("perf_evlist__open: %s\n",
+		pr_de("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	err = perf_evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_de("perf_evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -192,7 +192,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	}
 
 	if (count != expect) {
-		pr_debug("BPF filter result incorrect, expected %d, got %d samples\n", expect, count);
+		pr_de("BPF filter result incorrect, expected %d, got %d samples\n", expect, count);
 		goto out_delete_evlist;
 	}
 
@@ -210,7 +210,7 @@ prepare_bpf(void *obj_buf, size_t obj_buf_sz, const char *name)
 
 	obj = bpf__prepare_load_buffer(obj_buf, obj_buf_sz, name);
 	if (IS_ERR(obj)) {
-		pr_debug("Compile BPF program failed.\n");
+		pr_de("Compile BPF program failed.\n");
 		return NULL;
 	}
 	return obj;
@@ -227,7 +227,7 @@ static int __test__bpf(int idx)
 				       bpf_testcase_table[idx].prog_id,
 				       true, NULL);
 	if (ret != TEST_OK || !obj_buf || !obj_buf_sz) {
-		pr_debug("Unable to get BPF object, %s\n",
+		pr_de("Unable to get BPF object, %s\n",
 			 bpf_testcase_table[idx].msg_compile_fail);
 		if (idx == 0)
 			return TEST_SKIP;
@@ -239,10 +239,10 @@ static int __test__bpf(int idx)
 			  bpf_testcase_table[idx].name);
 	if ((!!bpf_testcase_table[idx].target_func) != (!!obj)) {
 		if (!obj)
-			pr_debug("Fail to load BPF object: %s\n",
+			pr_de("Fail to load BPF object: %s\n",
 				 bpf_testcase_table[idx].msg_load_fail);
 		else
-			pr_debug("Success unexpectedly: %s\n",
+			pr_de("Success unexpectedly: %s\n",
 				 bpf_testcase_table[idx].msg_load_fail);
 		ret = TEST_FAIL;
 		goto out;
@@ -258,13 +258,13 @@ static int __test__bpf(int idx)
 			int err;
 
 			if (!bpf_fs__mount()) {
-				pr_debug("BPF filesystem not mounted\n");
+				pr_de("BPF filesystem not mounted\n");
 				ret = TEST_FAIL;
 				goto out;
 			}
 			err = mkdir(PERF_TEST_BPF_PATH, 0777);
 			if (err && errno != EEXIST) {
-				pr_debug("Failed to make perf_test dir: %s\n",
+				pr_de("Failed to make perf_test dir: %s\n",
 					 strerror(errno));
 				ret = TEST_FAIL;
 				goto out;
@@ -306,7 +306,7 @@ static int check_env(void)
 
 	err = fetch_kernel_version(&kver_int, NULL, 0);
 	if (err) {
-		pr_debug("Unable to get kernel version\n");
+		pr_de("Unable to get kernel version\n");
 		return err;
 	}
 
@@ -331,7 +331,7 @@ int test__bpf(struct test *test __maybe_unused, int i)
 		return TEST_FAIL;
 
 	if (geteuid() != 0) {
-		pr_debug("Only root can run BPF test\n");
+		pr_de("Only root can run BPF test\n");
 		return TEST_SKIP;
 	}
 
@@ -355,7 +355,7 @@ const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 
 int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
 {
-	pr_debug("Skip BPF test because BPF support is not compiled\n");
+	pr_de("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;
 }
 #endif

@@ -170,7 +170,7 @@ static int wa_nep_queue(struct wahc *wa, size_t size)
 	struct wa_notif_work *nw;
 
 	/* dev_fnstart(dev, "(wa %p, size %zu)\n", wa, size); */
-	BUG_ON(size > wa->nep_buffer_size);
+	_ON(size > wa->nep_buffer_size);
 	if (size == 0)
 		goto out;
 	if (atomic_read(&wa->notifs_queued) > 200) {

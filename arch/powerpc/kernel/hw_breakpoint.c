@@ -1,6 +1,6 @@
 /*
  * HW_breakpoint: a unified kernel/user-space hardware breakpoint facility,
- * using the CPU's debug registers. Derived from
+ * using the CPU's de registers. Derived from
  * "arch/x86/kernel/hw_breakpoint.c"
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <linux/uaccess.h>
 
 /*
@@ -55,7 +55,7 @@ int hw_breakpoint_slots(int type)
 /*
  * Install a perf counter breakpoint.
  *
- * We seek a free debug address register and use it for this
+ * We seek a free de address register and use it for this
  * breakpoint.
  *
  * Atomic: we hold the counter->ctx->lock and we only handle variables
@@ -81,7 +81,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 /*
  * Uninstall the breakpoint contained in the given counter.
  *
- * First we search the debug address register it uses and then we disable
+ * First we search the de address register it uses and then we disable
  * it.
  *
  * Atomic: we hold the counter->ctx->lock and we only handle variables
@@ -188,7 +188,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 }
 
 /*
- * Restores the breakpoint on the debug registers.
+ * Restores the breakpoint on the de registers.
  * Invoke this function if it is known that the execution context is
  * about to change to cause loss of MSR_SE settings.
  */
@@ -206,7 +206,7 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle de exception notifications.
  */
 int hw_breakpoint_handler(struct die_args *args)
 {
@@ -341,7 +341,7 @@ static int single_step_dabr_instruction(struct die_args *args)
 NOKPROBE_SYMBOL(single_step_dabr_instruction);
 
 /*
- * Handle debug exception notifications.
+ * Handle de exception notifications.
  */
 int hw_breakpoint_exceptions_notify(
 		struct notifier_block *unused, unsigned long val, void *data)

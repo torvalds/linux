@@ -583,7 +583,7 @@ static int vmac_final(struct shash_desc *desc, u8 *out)
 	hash = vhash_final(tctx, dctx);
 
 	/* Generate pseudorandom pad by encrypting the nonce */
-	BUILD_BUG_ON(VMAC_NONCEBYTES != 2 * (VMAC_TAG_LEN / 8));
+	BUILD__ON(VMAC_NONCEBYTES != 2 * (VMAC_TAG_LEN / 8));
 	index = dctx->nonce.bytes[VMAC_NONCEBYTES - 1] & 1;
 	dctx->nonce.bytes[VMAC_NONCEBYTES - 1] &= ~1;
 	crypto_cipher_encrypt_one(tctx->cipher, dctx->nonce.bytes,

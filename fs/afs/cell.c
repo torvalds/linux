@@ -266,7 +266,7 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 	queue_work(afs_wq, &cell->manager);
 
 wait_for_cell:
-	_debug("wait_for_cell");
+	_de("wait_for_cell");
 	ret = wait_on_bit(&cell->flags, AFS_CELL_FL_NOT_READY, TASK_INTERRUPTIBLE);
 	smp_rmb();
 
@@ -275,7 +275,7 @@ wait_for_cell:
 		ret = cell->error;
 		goto error;
 	default:
-		_debug("weird %u %d", cell->state, cell->error);
+		_de("weird %u %d", cell->state, cell->error);
 		goto error;
 	case AFS_CELL_ACTIVE:
 		break;
@@ -285,7 +285,7 @@ wait_for_cell:
 	return cell;
 
 cell_already_exists:
-	_debug("cell exists");
+	_de("cell exists");
 	cell = cursor;
 	if (excl) {
 		ret = -EEXIST;
@@ -328,7 +328,7 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 
 	cp = strchr(rootcell, ':');
 	if (!cp) {
-		_debug("kAFS: no VL server IP addresses specified");
+		_de("kAFS: no VL server IP addresses specified");
 		vllist = NULL;
 		len = strlen(rootcell);
 	} else {
@@ -524,7 +524,7 @@ static int afs_alloc_anon_key(struct afs_cell *cell)
 
 	cell->anonymous_key = key;
 
-	_debug("anon key %p{%x}",
+	_de("anon key %p{%x}",
 	       cell->anonymous_key, key_serial(cell->anonymous_key));
 	return 0;
 }
@@ -609,7 +609,7 @@ static void afs_manage_cell(struct work_struct *work)
 	_enter("%s", cell->name);
 
 again:
-	_debug("state %u", cell->state);
+	_de("state %u", cell->state);
 	switch (cell->state) {
 	case AFS_CELL_INACTIVE:
 	case AFS_CELL_FAILED:
@@ -662,8 +662,8 @@ again:
 	default:
 		break;
 	}
-	_debug("bad state %u", cell->state);
-	BUG(); /* Unhandled state */
+	_de("bad state %u", cell->state);
+	(); /* Unhandled state */
 
 activation_failed:
 	cell->error = ret;
@@ -728,7 +728,7 @@ void afs_manage_cells(struct work_struct *work)
 		bool sched_cell = false;
 
 		usage = atomic_read(&cell->usage);
-		_debug("manage %s %u", cell->name, usage);
+		_de("manage %s %u", cell->name, usage);
 
 		ASSERTCMP(usage, >=, 1);
 
@@ -797,14 +797,14 @@ void afs_cell_purge(struct afs_net *net)
 	write_sequnlock(&net->cells_lock);
 	afs_put_cell(net, ws);
 
-	_debug("del timer");
+	_de("del timer");
 	if (del_timer_sync(&net->cells_timer))
 		atomic_dec(&net->cells_outstanding);
 
-	_debug("kick mgr");
+	_de("kick mgr");
 	afs_queue_cell_manager(net);
 
-	_debug("wait");
+	_de("wait");
 	wait_var_event(&net->cells_outstanding,
 		       !atomic_read(&net->cells_outstanding));
 	_leave("");

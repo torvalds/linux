@@ -164,7 +164,7 @@ static const u8 sata_phy_config2[]  = {
 	0x04, 0x00, 0x00, 0x08, 0x04, 0x00, 0x00, 0x04,
 };
 
-const int sata_phy_debug = 0;	/* set to verify PHY writes */
+const int sata_phy_de = 0;	/* set to verify PHY writes */
 
 static void sata_clear_glue_reg(u64 regbase, u32 off, u32 bit)
 {
@@ -292,7 +292,7 @@ static void nlm_sata_firmware_init(int node)
 
 	/* setup PHY */
 	config_sata_phy(regbase);
-	if (sata_phy_debug)
+	if (sata_phy_de)
 		verify_sata_phy_config(regbase);
 
 	udelay(1000);
@@ -309,7 +309,7 @@ static void nlm_sata_firmware_init(int node)
 	sata_set_glue_reg(regbase, SATA_CTL, M_CSYSREQ);
 	sata_set_glue_reg(regbase, SATA_CTL, S_CSYSREQ);
 
-	pr_debug("Waiting for PHYs to come up.\n");
+	pr_de("Waiting for PHYs to come up.\n");
 	n = 10000;
 	do {
 		reg_val = nlm_read_sata_reg(regbase, SATA_STATUS);

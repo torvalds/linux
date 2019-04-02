@@ -27,15 +27,15 @@ int blk_should_fake_timeout(struct request_queue *q)
 	return should_fail(&fail_io_timeout, 1);
 }
 
-static int __init fail_io_timeout_debugfs(void)
+static int __init fail_io_timeout_defs(void)
 {
-	struct dentry *dir = fault_create_debugfs_attr("fail_io_timeout",
+	struct dentry *dir = fault_create_defs_attr("fail_io_timeout",
 						NULL, &fail_io_timeout);
 
 	return PTR_ERR_OR_ZERO(dir);
 }
 
-late_initcall(fail_io_timeout_debugfs);
+late_initcall(fail_io_timeout_defs);
 
 ssize_t part_timeout_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)

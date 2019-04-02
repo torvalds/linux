@@ -183,7 +183,7 @@
 #define MAX_MPLS_LABELS 16 /* This is the max label stack depth */
 #define MPLS_STACK_BOTTOM htonl(0x00000100)
 
-#define func_enter() pr_debug("entering %s\n", __func__);
+#define func_enter() pr_de("entering %s\n", __func__);
 
 #define PKT_FLAGS							\
 	pf(IPV6)		/* Interface in IPV6 Mode */		\
@@ -483,7 +483,7 @@ static void pktgen_clear_counters(struct pktgen_dev *pkt_dev);
 static int pg_count_d __read_mostly = 1000;
 static int pg_delay_d __read_mostly;
 static int pg_clone_skb_d  __read_mostly;
-static int debug  __read_mostly;
+static int de  __read_mostly;
 
 static DEFINE_MUTEX(pktgen_thread_lock);
 
@@ -906,14 +906,14 @@ static ssize_t pktgen_if_write(struct file *file,
 
 	i += len;
 
-	if (debug) {
+	if (de) {
 		size_t copy = min_t(size_t, count + 1, 1024);
 		char *tp = strndup_user(user_buffer, copy);
 
 		if (IS_ERR(tp))
 			return PTR_ERR(tp);
 
-		pr_debug("%s,%zu  buffer -:%s:-\n", name, count, tp);
+		pr_de("%s,%zu  buffer -:%s:-\n", name, count, tp);
 		kfree(tp);
 	}
 
@@ -970,14 +970,14 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 
-	if (!strcmp(name, "debug")) {
+	if (!strcmp(name, "de")) {
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
 			return len;
 
 		i += len;
-		debug = value;
-		sprintf(pg_result, "OK: debug=%u", debug);
+		de = value;
+		sprintf(pg_result, "OK: de=%u", de);
 		return count;
 	}
 
@@ -1015,7 +1015,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (!value)
 			return len;
 		pkt_dev->delay = pkt_dev->min_pkt_size*8*NSEC_PER_USEC/value;
-		if (debug)
+		if (de)
 			pr_info("Delay set at: %llu ns\n", pkt_dev->delay);
 
 		sprintf(pg_result, "OK: rate=%lu", value);
@@ -1030,7 +1030,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (!value)
 			return len;
 		pkt_dev->delay = NSEC_PER_SEC/value;
-		if (debug)
+		if (de)
 			pr_info("Delay set at: %llu ns\n", pkt_dev->delay);
 
 		sprintf(pg_result, "OK: rate=%lu", value);
@@ -1270,8 +1270,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->daddr_min = in_aton(pkt_dev->dst_min);
 			pkt_dev->cur_daddr = pkt_dev->daddr_min;
 		}
-		if (debug)
-			pr_debug("dst_min set to: %s\n", pkt_dev->dst_min);
+		if (de)
+			pr_de("dst_min set to: %s\n", pkt_dev->dst_min);
 		i += len;
 		sprintf(pg_result, "OK: dst_min=%s", pkt_dev->dst_min);
 		return count;
@@ -1290,8 +1290,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->daddr_max = in_aton(pkt_dev->dst_max);
 			pkt_dev->cur_daddr = pkt_dev->daddr_max;
 		}
-		if (debug)
-			pr_debug("dst_max set to: %s\n", pkt_dev->dst_max);
+		if (de)
+			pr_de("dst_max set to: %s\n", pkt_dev->dst_max);
 		i += len;
 		sprintf(pg_result, "OK: dst_max=%s", pkt_dev->dst_max);
 		return count;
@@ -1312,8 +1312,8 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		pkt_dev->cur_in6_daddr = pkt_dev->in6_daddr;
 
-		if (debug)
-			pr_debug("dst6 set to: %s\n", buf);
+		if (de)
+			pr_de("dst6 set to: %s\n", buf);
 
 		i += len;
 		sprintf(pg_result, "OK: dst6=%s", buf);
@@ -1334,8 +1334,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		snprintf(buf, sizeof(buf), "%pI6c", &pkt_dev->min_in6_daddr);
 
 		pkt_dev->cur_in6_daddr = pkt_dev->min_in6_daddr;
-		if (debug)
-			pr_debug("dst6_min set to: %s\n", buf);
+		if (de)
+			pr_de("dst6_min set to: %s\n", buf);
 
 		i += len;
 		sprintf(pg_result, "OK: dst6_min=%s", buf);
@@ -1355,8 +1355,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		in6_pton(buf, -1, pkt_dev->max_in6_daddr.s6_addr, -1, NULL);
 		snprintf(buf, sizeof(buf), "%pI6c", &pkt_dev->max_in6_daddr);
 
-		if (debug)
-			pr_debug("dst6_max set to: %s\n", buf);
+		if (de)
+			pr_de("dst6_max set to: %s\n", buf);
 
 		i += len;
 		sprintf(pg_result, "OK: dst6_max=%s", buf);
@@ -1378,8 +1378,8 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		pkt_dev->cur_in6_saddr = pkt_dev->in6_saddr;
 
-		if (debug)
-			pr_debug("src6 set to: %s\n", buf);
+		if (de)
+			pr_de("src6 set to: %s\n", buf);
 
 		i += len;
 		sprintf(pg_result, "OK: src6=%s", buf);
@@ -1399,8 +1399,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->saddr_min = in_aton(pkt_dev->src_min);
 			pkt_dev->cur_saddr = pkt_dev->saddr_min;
 		}
-		if (debug)
-			pr_debug("src_min set to: %s\n", pkt_dev->src_min);
+		if (de)
+			pr_de("src_min set to: %s\n", pkt_dev->src_min);
 		i += len;
 		sprintf(pg_result, "OK: src_min=%s", pkt_dev->src_min);
 		return count;
@@ -1419,8 +1419,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->saddr_max = in_aton(pkt_dev->src_max);
 			pkt_dev->cur_saddr = pkt_dev->saddr_max;
 		}
-		if (debug)
-			pr_debug("src_max set to: %s\n", pkt_dev->src_max);
+		if (de)
+			pr_de("src_max set to: %s\n", pkt_dev->src_max);
 		i += len;
 		sprintf(pg_result, "OK: src_max=%s", pkt_dev->src_max);
 		return count;
@@ -1541,8 +1541,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->vlan_id = 0xffff; /* turn off VLAN/SVLAN */
 			pkt_dev->svlan_id = 0xffff;
 
-			if (debug)
-				pr_debug("VLAN/SVLAN auto turned off\n");
+			if (de)
+				pr_de("VLAN/SVLAN auto turned off\n");
 		}
 		return count;
 	}
@@ -1556,11 +1556,11 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (value <= 4095) {
 			pkt_dev->vlan_id = value;  /* turn on VLAN */
 
-			if (debug)
-				pr_debug("VLAN turned on\n");
+			if (de)
+				pr_de("VLAN turned on\n");
 
-			if (debug && pkt_dev->nr_labels)
-				pr_debug("MPLS auto turned off\n");
+			if (de && pkt_dev->nr_labels)
+				pr_de("MPLS auto turned off\n");
 
 			pkt_dev->nr_labels = 0;    /* turn off MPLS */
 			sprintf(pg_result, "OK: vlan_id=%u", pkt_dev->vlan_id);
@@ -1568,8 +1568,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->vlan_id = 0xffff; /* turn off VLAN/SVLAN */
 			pkt_dev->svlan_id = 0xffff;
 
-			if (debug)
-				pr_debug("VLAN/SVLAN turned off\n");
+			if (de)
+				pr_de("VLAN/SVLAN turned off\n");
 		}
 		return count;
 	}
@@ -1613,11 +1613,11 @@ static ssize_t pktgen_if_write(struct file *file,
 		if ((value <= 4095) && ((pkt_dev->vlan_id != 0xffff))) {
 			pkt_dev->svlan_id = value;  /* turn on SVLAN */
 
-			if (debug)
-				pr_debug("SVLAN turned on\n");
+			if (de)
+				pr_de("SVLAN turned on\n");
 
-			if (debug && pkt_dev->nr_labels)
-				pr_debug("MPLS auto turned off\n");
+			if (de && pkt_dev->nr_labels)
+				pr_de("MPLS auto turned off\n");
 
 			pkt_dev->nr_labels = 0;    /* turn off MPLS */
 			sprintf(pg_result, "OK: svlan_id=%u", pkt_dev->svlan_id);
@@ -1625,8 +1625,8 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->vlan_id = 0xffff; /* turn off VLAN/SVLAN */
 			pkt_dev->svlan_id = 0xffff;
 
-			if (debug)
-				pr_debug("VLAN/SVLAN turned off\n");
+			if (de)
+				pr_de("VLAN/SVLAN turned off\n");
 		}
 		return count;
 	}
@@ -1727,7 +1727,7 @@ static int pktgen_thread_show(struct seq_file *seq, void *v)
 	struct pktgen_thread *t = seq->private;
 	const struct pktgen_dev *pkt_dev;
 
-	BUG_ON(!t);
+	_ON(!t);
 
 	seq_puts(seq, "Running: ");
 
@@ -1792,8 +1792,8 @@ static ssize_t pktgen_thread_write(struct file *file,
 
 	i += len;
 
-	if (debug)
-		pr_debug("t=%s, count=%lu\n", name, (unsigned long)count);
+	if (de)
+		pr_de("t=%s, count=%lu\n", name, (unsigned long)count);
 
 	if (!t) {
 		pr_err("ERROR: No thread\n");
@@ -1890,7 +1890,7 @@ static void pktgen_mark_device(const struct pktgen_net *pn, const char *ifname)
 	int i = 0;
 
 	mutex_lock(&pktgen_thread_lock);
-	pr_debug("%s: marking %s for removal\n", __func__, ifname);
+	pr_de("%s: marking %s for removal\n", __func__, ifname);
 
 	while (1) {
 
@@ -1899,7 +1899,7 @@ static void pktgen_mark_device(const struct pktgen_net *pn, const char *ifname)
 			break;	/* success */
 
 		mutex_unlock(&pktgen_thread_lock);
-		pr_debug("%s: waiting for %s to disappear....\n",
+		pr_de("%s: waiting for %s to disappear....\n",
 			 __func__, ifname);
 		schedule_timeout_interruptible(msecs_to_jiffies(msec_per_try));
 		mutex_lock(&pktgen_thread_lock);
@@ -3461,12 +3461,12 @@ static int pktgen_thread_worker(void *arg)
 	struct pktgen_dev *pkt_dev = NULL;
 	int cpu = t->cpu;
 
-	BUG_ON(smp_processor_id() != cpu);
+	_ON(smp_processor_id() != cpu);
 
 	init_waitqueue_head(&t->queue);
 	complete(&t->start_done);
 
-	pr_debug("starting pktgen/%d:  pid=%d\n", cpu, task_pid_nr(current));
+	pr_de("starting pktgen/%d:  pid=%d\n", cpu, task_pid_nr(current));
 
 	set_freezable();
 
@@ -3515,13 +3515,13 @@ static int pktgen_thread_worker(void *arg)
 		try_to_freeze();
 	}
 
-	pr_debug("%s stopping all device\n", t->tsk->comm);
+	pr_de("%s stopping all device\n", t->tsk->comm);
 	pktgen_stop(t);
 
-	pr_debug("%s removing all device\n", t->tsk->comm);
+	pr_de("%s removing all device\n", t->tsk->comm);
 	pktgen_rem_all_ifs(t);
 
-	pr_debug("%s removing thread\n", t->tsk->comm);
+	pr_de("%s removing thread\n", t->tsk->comm);
 	pktgen_rem_thread(t);
 
 	return 0;
@@ -3545,7 +3545,7 @@ static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
 		}
 
 	rcu_read_unlock();
-	pr_debug("find_dev(%s) returning %p\n", ifname, pkt_dev);
+	pr_de("find_dev(%s) returning %p\n", ifname, pkt_dev);
 	return pkt_dev;
 }
 
@@ -3744,7 +3744,7 @@ static void _rem_dev_from_if_list(struct pktgen_thread *t,
 static int pktgen_remove_device(struct pktgen_thread *t,
 				struct pktgen_dev *pkt_dev)
 {
-	pr_debug("remove_device pkt_dev=%p\n", pkt_dev);
+	pr_de("remove_device pkt_dev=%p\n", pkt_dev);
 
 	if (pkt_dev->running) {
 		pr_warn("WARNING: trying to remove a running interface, stopping it now\n");
@@ -3889,5 +3889,5 @@ module_param(pg_delay_d, int, 0);
 MODULE_PARM_DESC(pg_delay_d, "Default delay between packets (nanoseconds)");
 module_param(pg_clone_skb_d, int, 0);
 MODULE_PARM_DESC(pg_clone_skb_d, "Default number of copies of the same packet");
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Enable debugging of pktgen module");
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "Enable deging of pktgen module");

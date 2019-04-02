@@ -73,7 +73,7 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 {
 	wopcm->size = GEN9_WOPCM_SIZE;
 
-	DRM_DEBUG_DRIVER("WOPCM size: %uKiB\n", wopcm->size / 1024);
+	DRM_DE_DRIVER("WOPCM size: %uKiB\n", wopcm->size / 1024);
 }
 
 static inline u32 context_reserved_size(struct drm_i915_private *i915)
@@ -166,7 +166,7 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	if (!USES_GUC(i915))
 		return 0;
 
-	GEM_BUG_ON(!wopcm->size);
+	GEM__ON(!wopcm->size);
 
 	if (i915_inject_load_failure())
 		return -E2BIG;
@@ -194,7 +194,7 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	guc_wopcm_size = wopcm->size - guc_wopcm_base - ctx_rsvd;
 	guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
 
-	DRM_DEBUG_DRIVER("Calculated GuC WOPCM Region: [%uKiB, %uKiB)\n",
+	DRM_DE_DRIVER("Calculated GuC WOPCM Region: [%uKiB, %uKiB)\n",
 			 guc_wopcm_base / 1024, guc_wopcm_size / 1024);
 
 	guc_wopcm_rsvd = GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
@@ -222,7 +222,7 @@ static inline int write_and_verify(struct drm_i915_private *dev_priv,
 {
 	u32 reg_val;
 
-	GEM_BUG_ON(val & ~mask);
+	GEM__ON(val & ~mask);
 
 	I915_WRITE(reg, val);
 
@@ -251,9 +251,9 @@ int intel_wopcm_init_hw(struct intel_wopcm *wopcm)
 	if (!USES_GUC(dev_priv))
 		return 0;
 
-	GEM_BUG_ON(!HAS_GUC(dev_priv));
-	GEM_BUG_ON(!wopcm->guc.size);
-	GEM_BUG_ON(!wopcm->guc.base);
+	GEM__ON(!HAS_GUC(dev_priv));
+	GEM__ON(!wopcm->guc.size);
+	GEM__ON(!wopcm->guc.base);
 
 	err = write_and_verify(dev_priv, GUC_WOPCM_SIZE, wopcm->guc.size,
 			       GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED,

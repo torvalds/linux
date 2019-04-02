@@ -117,7 +117,7 @@
 #define AWINPOS               0x30170
 #define AWINZ                 0x30174
 
-/*  BLT Engine Status (40000h 4FFFFh) (Software Debug) */
+/*  BLT Engine Status (40000h 4FFFFh) (Software De) */
 #define BR00                  0x40000
 #define BRO1                  0x40004
 #define BR02                  0x40008

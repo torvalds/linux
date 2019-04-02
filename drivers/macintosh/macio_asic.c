@@ -32,7 +32,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/prom.h>
 
-#undef DEBUG
+#undef DE
 
 #define MAX_NODE_NAME_SIZE (20 - 12)
 
@@ -334,7 +334,7 @@ static void macio_setup_resources(struct macio_dev *dev,
 		}
 		/* Currently, we consider failure as harmless, this may
 		 * change in the future, once I've found all the device
-		 * tree bugs in older machines & worked around them
+		 * tree s in older machines & worked around them
 		 */
 		if (insert_resource(parent_res, res)) {
 			printk(KERN_WARNING "Can't request resource "
@@ -397,7 +397,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	dev->ofdev.dev.dma_ops = chip->lbus.pdev->dev.dma_ops;
 #endif /* CONFIG_PCI */
 
-#ifdef DEBUG
+#ifdef DE
 	printk("preparing mdev @%p, ofdev @%p, dev @%p, kobj @%p\n",
 	       dev, &dev->ofdev, &dev->ofdev.dev, &dev->ofdev.dev.kobj);
 #endif
@@ -427,7 +427,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 
 	/* Register with core */
 	if (of_device_register(&dev->ofdev) != 0) {
-		printk(KERN_DEBUG"macio: device registration error for %s!\n",
+		printk(KERN_DE"macio: device registration error for %s!\n",
 		       dev_name(&dev->ofdev.dev));
 		kfree(dev);
 		return NULL;

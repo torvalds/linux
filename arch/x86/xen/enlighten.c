@@ -161,7 +161,7 @@ void xen_vcpu_restore(void)
 
 		if (other_cpu && is_up &&
 		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL))
-			BUG();
+			();
 
 		if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
 			xen_setup_runstate_info(cpu);
@@ -181,7 +181,7 @@ void xen_vcpu_restore(void)
 		 */
 		if (other_cpu && is_up && (rc == 0) &&
 		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
-			BUG();
+			();
 	}
 }
 
@@ -202,7 +202,7 @@ int xen_vcpu_setup(int cpu)
 	int err;
 	struct vcpu_info *vcpup;
 
-	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+	_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	/*
 	 * This path is called on PVHVM at bootup (xen_hvm_smp_prepare_boot_cpu)
@@ -266,7 +266,7 @@ void xen_reboot(int reason)
 		xen_pmu_finish(cpu);
 
 	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, &r))
-		BUG();
+		();
 }
 
 void xen_emergency_restart(void)

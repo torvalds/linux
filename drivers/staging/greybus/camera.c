@@ -6,7 +6,7 @@
  * Copyright 2015 Linaro Ltd.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,15 +19,15 @@
 #include "greybus.h"
 #include "greybus_protocols.h"
 
-enum gb_camera_debugs_buffer_id {
-	GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES,
-	GB_CAMERA_DEBUGFS_BUFFER_STREAMS,
-	GB_CAMERA_DEBUGFS_BUFFER_CAPTURE,
-	GB_CAMERA_DEBUGFS_BUFFER_FLUSH,
-	GB_CAMERA_DEBUGFS_BUFFER_MAX,
+enum gb_camera_des_buffer_id {
+	GB_CAMERA_DEFS_BUFFER_CAPABILITIES,
+	GB_CAMERA_DEFS_BUFFER_STREAMS,
+	GB_CAMERA_DEFS_BUFFER_CAPTURE,
+	GB_CAMERA_DEFS_BUFFER_FLUSH,
+	GB_CAMERA_DEFS_BUFFER_MAX,
 };
 
-struct gb_camera_debugfs_buffer {
+struct gb_camera_defs_buffer {
 	char data[PAGE_SIZE];
 	size_t length;
 };
@@ -44,7 +44,7 @@ enum gb_camera_state {
  * @data_cport_id: the data CPort ID on the module side
  * @mutex: protects the connection and state fields
  * @state: the current module state
- * @debugfs: debugfs entries for camera protocol operations testing
+ * @defs: defs entries for camera protocol operations testing
  * @module: Greybus camera module registered to HOST processor.
  */
 struct gb_camera {
@@ -58,8 +58,8 @@ struct gb_camera {
 
 	struct {
 		struct dentry *root;
-		struct gb_camera_debugfs_buffer *buffers;
-	} debugfs;
+		struct gb_camera_defs_buffer *buffers;
+	} defs;
 
 	struct gb_camera_module module;
 };
@@ -117,7 +117,7 @@ static const struct gb_camera_fmt_info gb_fmt_info[] = {
 		.bpp	   = 0,
 	},
 	{
-		.mbus_code = V4L2_MBUS_FMT_GB_CAM_DEBUG_DATA_1X8,
+		.mbus_code = V4L2_MBUS_FMT_GB_CAM_DE_DATA_1X8,
 		.gb_format = 0x42,
 		.bpp	   = 0,
 	},
@@ -865,14 +865,14 @@ static const struct gb_camera_ops gb_cam_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * DebugFS
+ * DeFS
  */
 
-static ssize_t gb_camera_debugfs_capabilities(struct gb_camera *gcam,
+static ssize_t gb_camera_defs_capabilities(struct gb_camera *gcam,
 					      char *buf, size_t len)
 {
-	struct gb_camera_debugfs_buffer *buffer =
-		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES];
+	struct gb_camera_defs_buffer *buffer =
+		&gcam->defs.buffers[GB_CAMERA_DEFS_BUFFER_CAPABILITIES];
 	size_t size = 1024;
 	unsigned int i;
 	u8 *caps;
@@ -904,11 +904,11 @@ done:
 	return ret;
 }
 
-static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
+static ssize_t gb_camera_defs_configure_streams(struct gb_camera *gcam,
 						   char *buf, size_t len)
 {
-	struct gb_camera_debugfs_buffer *buffer =
-		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_STREAMS];
+	struct gb_camera_defs_buffer *buffer =
+		&gcam->defs.buffers[GB_CAMERA_DEFS_BUFFER_STREAMS];
 	struct gb_camera_stream_config *streams;
 	unsigned int nstreams;
 	unsigned int flags;
@@ -998,7 +998,7 @@ done:
 	return ret;
 };
 
-static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
+static ssize_t gb_camera_defs_capture(struct gb_camera *gcam,
 					 char *buf, size_t len)
 {
 	unsigned int request_id;
@@ -1039,11 +1039,11 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 	return len;
 }
 
-static ssize_t gb_camera_debugfs_flush(struct gb_camera *gcam,
+static ssize_t gb_camera_defs_flush(struct gb_camera *gcam,
 				       char *buf, size_t len)
 {
-	struct gb_camera_debugfs_buffer *buffer =
-		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_FLUSH];
+	struct gb_camera_defs_buffer *buffer =
+		&gcam->defs.buffers[GB_CAMERA_DEFS_BUFFER_FLUSH];
 	unsigned int req_id;
 	int ret;
 
@@ -1056,43 +1056,43 @@ static ssize_t gb_camera_debugfs_flush(struct gb_camera *gcam,
 	return len;
 }
 
-struct gb_camera_debugfs_entry {
+struct gb_camera_defs_entry {
 	const char *name;
 	unsigned int mask;
 	unsigned int buffer;
 	ssize_t (*execute)(struct gb_camera *gcam, char *buf, size_t len);
 };
 
-static const struct gb_camera_debugfs_entry gb_camera_debugfs_entries[] = {
+static const struct gb_camera_defs_entry gb_camera_defs_entries[] = {
 	{
 		.name = "capabilities",
 		.mask = S_IFREG | 0444,
-		.buffer = GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES,
-		.execute = gb_camera_debugfs_capabilities,
+		.buffer = GB_CAMERA_DEFS_BUFFER_CAPABILITIES,
+		.execute = gb_camera_defs_capabilities,
 	}, {
 		.name = "configure_streams",
 		.mask = S_IFREG | 0666,
-		.buffer = GB_CAMERA_DEBUGFS_BUFFER_STREAMS,
-		.execute = gb_camera_debugfs_configure_streams,
+		.buffer = GB_CAMERA_DEFS_BUFFER_STREAMS,
+		.execute = gb_camera_defs_configure_streams,
 	}, {
 		.name = "capture",
 		.mask = S_IFREG | 0666,
-		.buffer = GB_CAMERA_DEBUGFS_BUFFER_CAPTURE,
-		.execute = gb_camera_debugfs_capture,
+		.buffer = GB_CAMERA_DEFS_BUFFER_CAPTURE,
+		.execute = gb_camera_defs_capture,
 	}, {
 		.name = "flush",
 		.mask = S_IFREG | 0666,
-		.buffer = GB_CAMERA_DEBUGFS_BUFFER_FLUSH,
-		.execute = gb_camera_debugfs_flush,
+		.buffer = GB_CAMERA_DEFS_BUFFER_FLUSH,
+		.execute = gb_camera_defs_flush,
 	},
 };
 
-static ssize_t gb_camera_debugfs_read(struct file *file, char __user *buf,
+static ssize_t gb_camera_defs_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
-	const struct gb_camera_debugfs_entry *op = file->private_data;
+	const struct gb_camera_defs_entry *op = file->private_data;
 	struct gb_camera *gcam = file_inode(file)->i_private;
-	struct gb_camera_debugfs_buffer *buffer;
+	struct gb_camera_defs_buffer *buffer;
 	ssize_t ret;
 
 	/* For read-only entries the operation is triggered by a read. */
@@ -1102,17 +1102,17 @@ static ssize_t gb_camera_debugfs_read(struct file *file, char __user *buf,
 			return ret;
 	}
 
-	buffer = &gcam->debugfs.buffers[op->buffer];
+	buffer = &gcam->defs.buffers[op->buffer];
 
 	return simple_read_from_buffer(buf, len, offset, buffer->data,
 				       buffer->length);
 }
 
-static ssize_t gb_camera_debugfs_write(struct file *file,
+static ssize_t gb_camera_defs_write(struct file *file,
 				       const char __user *buf, size_t len,
 				       loff_t *offset)
 {
-	const struct gb_camera_debugfs_entry *op = file->private_data;
+	const struct gb_camera_defs_entry *op = file->private_data;
 	struct gb_camera *gcam = file_inode(file)->i_private;
 	ssize_t ret;
 	char *kbuf;
@@ -1138,13 +1138,13 @@ done:
 	return ret;
 }
 
-static int gb_camera_debugfs_open(struct inode *inode, struct file *file)
+static int gb_camera_defs_open(struct inode *inode, struct file *file)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(gb_camera_debugfs_entries); ++i) {
-		const struct gb_camera_debugfs_entry *entry =
-			&gb_camera_debugfs_entries[i];
+	for (i = 0; i < ARRAY_SIZE(gb_camera_defs_entries); ++i) {
+		const struct gb_camera_defs_entry *entry =
+			&gb_camera_defs_entries[i];
 
 		if (!strcmp(file->f_path.dentry->d_iname, entry->name)) {
 			file->private_data = (void *)entry;
@@ -1155,51 +1155,51 @@ static int gb_camera_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations gb_camera_debugfs_ops = {
-	.open = gb_camera_debugfs_open,
-	.read = gb_camera_debugfs_read,
-	.write = gb_camera_debugfs_write,
+static const struct file_operations gb_camera_defs_ops = {
+	.open = gb_camera_defs_open,
+	.read = gb_camera_defs_read,
+	.write = gb_camera_defs_write,
 };
 
-static int gb_camera_debugfs_init(struct gb_camera *gcam)
+static int gb_camera_defs_init(struct gb_camera *gcam)
 {
 	struct gb_connection *connection = gcam->connection;
 	char dirname[27];
 	unsigned int i;
 
 	/*
-	 * Create root debugfs entry and a file entry for each camera operation.
+	 * Create root defs entry and a file entry for each camera operation.
 	 */
 	snprintf(dirname, 27, "camera-%u.%u", connection->intf->interface_id,
 		 gcam->bundle->id);
 
-	gcam->debugfs.root = debugfs_create_dir(dirname, gb_debugfs_get());
+	gcam->defs.root = defs_create_dir(dirname, gb_defs_get());
 
-	gcam->debugfs.buffers =
-		vmalloc(array_size(GB_CAMERA_DEBUGFS_BUFFER_MAX,
-				   sizeof(*gcam->debugfs.buffers)));
-	if (!gcam->debugfs.buffers)
+	gcam->defs.buffers =
+		vmalloc(array_size(GB_CAMERA_DEFS_BUFFER_MAX,
+				   sizeof(*gcam->defs.buffers)));
+	if (!gcam->defs.buffers)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(gb_camera_debugfs_entries); ++i) {
-		const struct gb_camera_debugfs_entry *entry =
-			&gb_camera_debugfs_entries[i];
+	for (i = 0; i < ARRAY_SIZE(gb_camera_defs_entries); ++i) {
+		const struct gb_camera_defs_entry *entry =
+			&gb_camera_defs_entries[i];
 
-		gcam->debugfs.buffers[i].length = 0;
+		gcam->defs.buffers[i].length = 0;
 
-		debugfs_create_file(entry->name, entry->mask,
-				    gcam->debugfs.root, gcam,
-				    &gb_camera_debugfs_ops);
+		defs_create_file(entry->name, entry->mask,
+				    gcam->defs.root, gcam,
+				    &gb_camera_defs_ops);
 	}
 
 	return 0;
 }
 
-static void gb_camera_debugfs_cleanup(struct gb_camera *gcam)
+static void gb_camera_defs_cleanup(struct gb_camera *gcam)
 {
-	debugfs_remove_recursive(gcam->debugfs.root);
+	defs_remove_recursive(gcam->defs.root);
 
-	vfree(gcam->debugfs.buffers);
+	vfree(gcam->defs.buffers);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1208,7 +1208,7 @@ static void gb_camera_debugfs_cleanup(struct gb_camera *gcam)
 
 static void gb_camera_cleanup(struct gb_camera *gcam)
 {
-	gb_camera_debugfs_cleanup(gcam);
+	gb_camera_defs_cleanup(gcam);
 
 	mutex_lock(&gcam->mutex);
 	if (gcam->data_connection) {
@@ -1291,7 +1291,7 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	if (ret)
 		goto error;
 
-	ret = gb_camera_debugfs_init(gcam);
+	ret = gb_camera_defs_init(gcam);
 	if (ret < 0)
 		goto error;
 

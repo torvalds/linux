@@ -9,7 +9,7 @@ IUU unit in phoenix mode. Loading this module will
 bring a ttyUSB[0-x] interface. This driver must be
 used by your favorite application to pilot the IUU
 
-This driver is still in beta stage, so bugs can
+This driver is still in beta stage, so s can
 occur and your system may freeze. As far I now,
 I never had any problem with it, but I'm not a real
 guru, so don't blame me if your system is unstable
@@ -37,7 +37,7 @@ How to tune the reader speed ?
  parm:           boost:overclock boost percent 100 to 500 (int)
  parm:           cdmode:Card detect mode 0=none, 1=CD, 2=!CD, 3=DSR, 4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING (int)
  parm:           xmas:xmas color enabled or not (bool)
- parm:           debug:Debug enabled or not (bool)
+ parm:           de:De enabled or not (bool)
 
 -  clockmode will provide 3 different base settings commonly adopted by
    different software:
@@ -63,7 +63,7 @@ How to tune the reader speed ?
    So I have added this option to permit him to see a lot of color ( each activity change the color
    and the frequency randomly )
 
--  debug will produce a lot of debugging messages...
+-  de will produce a lot of deging messages...
 
 
  Last notes:

@@ -348,11 +348,11 @@ static int xilinxfb_assign(struct platform_device *pdev,
 	}
 
 	if (drvdata->flags & BUS_ACCESS_FLAG) {
-		/* Put a banner in the log (for DEBUG) */
+		/* Put a banner in the log (for DE) */
 		dev_dbg(dev, "regs: phys=%pa, virt=%p\n",
 			&drvdata->regs_phys, drvdata->regs);
 	}
-	/* Put a banner in the log (for DEBUG) */
+	/* Put a banner in the log (for DE) */
 	dev_dbg(dev, "fb: phys=%llx, virt=%p, size=%x\n",
 		(unsigned long long)drvdata->fb_phys, drvdata->fb_virt, fbsize);
 

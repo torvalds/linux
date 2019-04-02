@@ -85,7 +85,7 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 	    !(mode->hdisplay == 640 && mode->vdisplay == 480) && /* VGA */
 	    !(mode->hdisplay == 720 && mode->vdisplay == 480) && /* D1 */
 	    !(mode->hdisplay == 720 && mode->vdisplay == 576)) { /* D1 */
-		DRM_DEBUG_KMS("unsupported display mode (%u x %u)\n",
+		DRM_DE_KMS("unsupported display mode (%u x %u)\n",
 			mode->hdisplay, mode->vdisplay);
 		return -EINVAL;
 	}
@@ -95,7 +95,7 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3) {
-			DRM_DEBUG_KMS("FB not 32-bit aligned\n");
+			DRM_DE_KMS("FB not 32-bit aligned\n");
 			return -EINVAL;
 		}
 
@@ -104,7 +104,7 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 		 * controls this.
 		 */
 		if (fb->pitches[0] != mode->hdisplay * fb->format->cpp[0]) {
-			DRM_DEBUG_KMS("can't handle pitches\n");
+			DRM_DE_KMS("can't handle pitches\n");
 			return -EINVAL;
 		}
 

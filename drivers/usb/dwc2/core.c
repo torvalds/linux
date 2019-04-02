@@ -688,7 +688,7 @@ void dwc2_enable_acg(struct dwc2_hsotg *hsotg)
  */
 void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 {
-#ifdef DEBUG
+#ifdef DE
 	u32 __iomem *addr;
 	int i;
 
@@ -761,7 +761,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
  */
 void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
 {
-#ifdef DEBUG
+#ifdef DE
 	u32 __iomem *addr;
 
 	dev_dbg(hsotg->dev, "Core Global Registers\n");

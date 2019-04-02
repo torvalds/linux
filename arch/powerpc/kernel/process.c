@@ -16,7 +16,7 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
@@ -56,7 +56,7 @@
 #include <asm/syscalls.h>
 #include <asm/switch_to.h>
 #include <asm/tm.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/hw_irq.h>
@@ -69,13 +69,13 @@
 #include <asm/stacktrace.h>
 
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
-/* Transactional Memory debug */
-#ifdef TM_DEBUG_SW
-#define TM_DEBUG(x...) printk(KERN_INFO x)
+/* Transactional Memory de */
+#ifdef TM_DE_SW
+#define TM_DE(x...) printk(KERN_INFO x)
 #else
-#define TM_DEBUG(x...) do { } while(0)
+#define TM_DE(x...) do { } while(0)
 #endif
 
 extern unsigned long _get_SP(void);
@@ -218,7 +218,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 			 * there is something wrong if a stopped child appears
 			 * to still have its FP state in the CPU registers.
 			 */
-			BUG_ON(tsk != current);
+			_ON(tsk != current);
 			giveup_fpu(tsk);
 		}
 		preempt_enable();
@@ -325,7 +325,7 @@ void flush_altivec_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_VEC) {
-			BUG_ON(tsk != current);
+			_ON(tsk != current);
 			giveup_altivec(tsk);
 		}
 		preempt_enable();
@@ -408,7 +408,7 @@ void flush_vsx_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		preempt_disable();
 		if (tsk->thread.regs->msr & (MSR_VSX|MSR_VEC|MSR_FP)) {
-			BUG_ON(tsk != current);
+			_ON(tsk != current);
 			giveup_vsx(tsk);
 		}
 		preempt_enable();
@@ -458,7 +458,7 @@ void flush_spe_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		preempt_disable();
 		if (tsk->thread.regs->msr & MSR_SPE) {
-			BUG_ON(tsk != current);
+			_ON(tsk != current);
 			tsk->thread.spefscr = mfspr(SPRN_SPEFSCR);
 			giveup_spe(tsk);
 		}
@@ -589,7 +589,7 @@ void flush_all_to_thread(struct task_struct *tsk)
 {
 	if (tsk->thread.regs) {
 		preempt_disable();
-		BUG_ON(tsk != current);
+		_ON(tsk != current);
 #ifdef CONFIG_SPE
 		if (tsk->thread.regs->msr & MSR_SPE)
 			tsk->thread.spefscr = mfspr(SPRN_SPEFSCR);
@@ -601,7 +601,7 @@ void flush_all_to_thread(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(flush_all_to_thread);
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 void do_send_trap(struct pt_regs *regs, unsigned long address,
 		  unsigned long error_code, int breakpt)
 {
@@ -614,7 +614,7 @@ void do_send_trap(struct pt_regs *regs, unsigned long address,
 	force_sig_ptrace_errno_trap(breakpt, /* breakpoint or watchpoint id */
 				    (void __user *)address);
 }
-#else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
+#else	/* !CONFIG_PPC_ADV_DE_REGS */
 void do_break (struct pt_regs *regs, unsigned long address,
 		    unsigned long error_code)
 {
@@ -623,7 +623,7 @@ void do_break (struct pt_regs *regs, unsigned long address,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
 
-	if (debugger_break_match(regs))
+	if (deger_break_match(regs))
 		return;
 
 	/* Clear the breakpoint */
@@ -632,81 +632,81 @@ void do_break (struct pt_regs *regs, unsigned long address,
 	/* Deliver the signal to userspace */
 	force_sig_fault(SIGTRAP, TRAP_HWBKPT, (void __user *)address, current);
 }
-#endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
+#endif	/* CONFIG_PPC_ADV_DE_REGS */
 
 static DEFINE_PER_CPU(struct arch_hw_breakpoint, current_brk);
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 /*
- * Set the debug registers back to their default "safe" values.
+ * Set the de registers back to their default "safe" values.
  */
-static void set_debug_reg_defaults(struct thread_struct *thread)
+static void set_de_reg_defaults(struct thread_struct *thread)
 {
-	thread->debug.iac1 = thread->debug.iac2 = 0;
-#if CONFIG_PPC_ADV_DEBUG_IACS > 2
-	thread->debug.iac3 = thread->debug.iac4 = 0;
+	thread->de.iac1 = thread->de.iac2 = 0;
+#if CONFIG_PPC_ADV_DE_IACS > 2
+	thread->de.iac3 = thread->de.iac4 = 0;
 #endif
-	thread->debug.dac1 = thread->debug.dac2 = 0;
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-	thread->debug.dvc1 = thread->debug.dvc2 = 0;
+	thread->de.dac1 = thread->de.dac2 = 0;
+#if CONFIG_PPC_ADV_DE_DVCS > 0
+	thread->de.dvc1 = thread->de.dvc2 = 0;
 #endif
-	thread->debug.dbcr0 = 0;
+	thread->de.dbcr0 = 0;
 #ifdef CONFIG_BOOKE
 	/*
 	 * Force User/Supervisor bits to b11 (user-only MSR[PR]=1)
 	 */
-	thread->debug.dbcr1 = DBCR1_IAC1US | DBCR1_IAC2US |
+	thread->de.dbcr1 = DBCR1_IAC1US | DBCR1_IAC2US |
 			DBCR1_IAC3US | DBCR1_IAC4US;
 	/*
 	 * Force Data Address Compare User/Supervisor bits to be User-only
 	 * (0b11 MSR[PR]=1) and set all other bits in DBCR2 register to be 0.
 	 */
-	thread->debug.dbcr2 = DBCR2_DAC1US | DBCR2_DAC2US;
+	thread->de.dbcr2 = DBCR2_DAC1US | DBCR2_DAC2US;
 #else
-	thread->debug.dbcr1 = 0;
+	thread->de.dbcr1 = 0;
 #endif
 }
 
-static void prime_debug_regs(struct debug_reg *debug)
+static void prime_de_regs(struct de_reg *de)
 {
 	/*
 	 * We could have inherited MSR_DE from userspace, since
 	 * it doesn't get cleared on exception entry.  Make sure
-	 * MSR_DE is clear before we enable any debug events.
+	 * MSR_DE is clear before we enable any de events.
 	 */
 	mtmsr(mfmsr() & ~MSR_DE);
 
-	mtspr(SPRN_IAC1, debug->iac1);
-	mtspr(SPRN_IAC2, debug->iac2);
-#if CONFIG_PPC_ADV_DEBUG_IACS > 2
-	mtspr(SPRN_IAC3, debug->iac3);
-	mtspr(SPRN_IAC4, debug->iac4);
+	mtspr(SPRN_IAC1, de->iac1);
+	mtspr(SPRN_IAC2, de->iac2);
+#if CONFIG_PPC_ADV_DE_IACS > 2
+	mtspr(SPRN_IAC3, de->iac3);
+	mtspr(SPRN_IAC4, de->iac4);
 #endif
-	mtspr(SPRN_DAC1, debug->dac1);
-	mtspr(SPRN_DAC2, debug->dac2);
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-	mtspr(SPRN_DVC1, debug->dvc1);
-	mtspr(SPRN_DVC2, debug->dvc2);
+	mtspr(SPRN_DAC1, de->dac1);
+	mtspr(SPRN_DAC2, de->dac2);
+#if CONFIG_PPC_ADV_DE_DVCS > 0
+	mtspr(SPRN_DVC1, de->dvc1);
+	mtspr(SPRN_DVC2, de->dvc2);
 #endif
-	mtspr(SPRN_DBCR0, debug->dbcr0);
-	mtspr(SPRN_DBCR1, debug->dbcr1);
+	mtspr(SPRN_DBCR0, de->dbcr0);
+	mtspr(SPRN_DBCR1, de->dbcr1);
 #ifdef CONFIG_BOOKE
-	mtspr(SPRN_DBCR2, debug->dbcr2);
+	mtspr(SPRN_DBCR2, de->dbcr2);
 #endif
 }
 /*
  * Unless neither the old or new thread are making use of the
- * debug registers, set the debug registers from the values
+ * de registers, set the de registers from the values
  * stored in the new thread.
  */
-void switch_booke_debug_regs(struct debug_reg *new_debug)
+void switch_booke_de_regs(struct de_reg *new_de)
 {
-	if ((current->thread.debug.dbcr0 & DBCR0_IDM)
-		|| (new_debug->dbcr0 & DBCR0_IDM))
-			prime_debug_regs(new_debug);
+	if ((current->thread.de.dbcr0 & DBCR0_IDM)
+		|| (new_de->dbcr0 & DBCR0_IDM))
+			prime_de_regs(new_de);
 }
-EXPORT_SYMBOL_GPL(switch_booke_debug_regs);
-#else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
+EXPORT_SYMBOL_GPL(switch_booke_de_regs);
+#else	/* !CONFIG_PPC_ADV_DE_REGS */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 static void set_breakpoint(struct arch_hw_breakpoint *brk)
 {
@@ -715,7 +715,7 @@ static void set_breakpoint(struct arch_hw_breakpoint *brk)
 	preempt_enable();
 }
 
-static void set_debug_reg_defaults(struct thread_struct *thread)
+static void set_de_reg_defaults(struct thread_struct *thread)
 {
 	thread->hw_brk.address = 0;
 	thread->hw_brk.type = 0;
@@ -723,9 +723,9 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 		set_breakpoint(&thread->hw_brk);
 }
 #endif /* !CONFIG_HAVE_HW_BREAKPOINT */
-#endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
+#endif	/* CONFIG_PPC_ADV_DE_REGS */
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	mtspr(SPRN_DAC1, dabr);
@@ -930,7 +930,7 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 
 	WARN_ON(tm_suspend_disabled);
 
-	TM_DEBUG("--- tm_reclaim on pid %d (NIP=%lx, "
+	TM_DE("--- tm_reclaim on pid %d (NIP=%lx, "
 		 "ccr=%lx, msr=%lx, trap=%lx)\n",
 		 tsk->pid, thr->regs->nip,
 		 thr->regs->ccr, thr->regs->msr,
@@ -938,7 +938,7 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 
 	tm_reclaim_thread(thr, TM_CAUSE_RESCHED);
 
-	TM_DEBUG("--- tm_reclaim on pid %d complete\n",
+	TM_DE("--- tm_reclaim on pid %d complete\n",
 		 tsk->pid);
 
 out_and_saveregs:
@@ -997,7 +997,7 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 		return;
 	}
 	/* Recheckpoint to restore original checkpointed register state. */
-	TM_DEBUG("*** tm_recheckpoint of pid %d (new->msr 0x%lx)\n",
+	TM_DE("*** tm_recheckpoint of pid %d (new->msr 0x%lx)\n",
 		 new->pid, new->thread.regs->msr);
 
 	tm_recheckpoint(&new->thread);
@@ -1009,7 +1009,7 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 	 */
 	new->thread.regs->msr &= ~(MSR_FP | MSR_VEC | MSR_VSX);
 
-	TM_DEBUG("*** tm_recheckpoint of pid %d complete "
+	TM_DE("*** tm_recheckpoint of pid %d complete "
 		 "(kernel msr 0x%lx)\n",
 		 new->pid, mfmsr());
 }
@@ -1101,7 +1101,7 @@ static inline void save_sprs(struct thread_struct *t)
 		 * Note that the TAR is not available for use in the kernel.
 		 * (To provide this, the TAR should be backed up/restored on
 		 * exception entry/exit instead, and be in pt_regs.  FIXME,
-		 * this should be in pt_regs anyway (for debug).)
+		 * this should be in pt_regs anyway (for de).)
 		 */
 		t->tar = mfspr(SPRN_TAR);
 	}
@@ -1180,8 +1180,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	switch_booke_debug_regs(&new->thread.debug);
+#ifdef CONFIG_PPC_ADV_DE_REGS
+	switch_booke_de_regs(&new->thread.de);
 #else
 /*
  * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would
@@ -1478,7 +1478,7 @@ void flush_thread(void)
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	flush_ptrace_hw_breakpoint(current);
 #else /* CONFIG_HAVE_HW_BREAKPOINT */
-	set_debug_reg_defaults(&current->thread);
+	set_de_reg_defaults(&current->thread);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 }
 

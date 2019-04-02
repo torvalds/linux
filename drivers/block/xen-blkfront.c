@@ -266,9 +266,9 @@ static int get_id_from_freelist(struct blkfront_ring_info *rinfo)
 {
 	unsigned long free = rinfo->shadow_free;
 
-	BUG_ON(free >= BLK_RING_SIZE(rinfo->dev_info));
+	_ON(free >= BLK_RING_SIZE(rinfo->dev_info));
 	rinfo->shadow_free = rinfo->shadow[free].req.u.rw.id;
-	rinfo->shadow[free].req.u.rw.id = 0x0fffffee; /* debug */
+	rinfo->shadow[free].req.u.rw.id = 0x0fffffee; /* de */
 	return free;
 }
 
@@ -322,7 +322,7 @@ out_of_memory:
 		kfree(gnt_list_entry);
 		i--;
 	}
-	BUG_ON(i != 0);
+	_ON(i != 0);
 	return -ENOMEM;
 }
 
@@ -330,7 +330,7 @@ static struct grant *get_free_grant(struct blkfront_ring_info *rinfo)
 {
 	struct grant *gnt_list_entry;
 
-	BUG_ON(list_empty(&rinfo->grants));
+	_ON(list_empty(&rinfo->grants));
 	gnt_list_entry = list_first_entry(&rinfo->grants, struct grant,
 					  node);
 	list_del(&gnt_list_entry->node);
@@ -362,7 +362,7 @@ static struct grant *get_grant(grant_ref_t *gref_head,
 
 	/* Assign a gref to this page */
 	gnt_list_entry->gref = gnttab_claim_grant_reference(gref_head);
-	BUG_ON(gnt_list_entry->gref == -ENOSPC);
+	_ON(gnt_list_entry->gref == -ENOSPC);
 	if (info->feature_persistent)
 		grant_foreign_access(gnt_list_entry, info);
 	else {
@@ -386,12 +386,12 @@ static struct grant *get_indirect_grant(grant_ref_t *gref_head,
 
 	/* Assign a gref to this page */
 	gnt_list_entry->gref = gnttab_claim_grant_reference(gref_head);
-	BUG_ON(gnt_list_entry->gref == -ENOSPC);
+	_ON(gnt_list_entry->gref == -ENOSPC);
 	if (!info->feature_persistent) {
 		struct page *indirect_page;
 
 		/* Fetch a pre-allocated page to use for indirect grefs */
-		BUG_ON(list_empty(&rinfo->indirect_pages));
+		_ON(list_empty(&rinfo->indirect_pages));
 		indirect_page = list_first_entry(&rinfo->indirect_pages,
 						 struct page, lru);
 		list_del(&indirect_page->lru);
@@ -460,7 +460,7 @@ static void xlbd_release_minors(unsigned int minor, unsigned int nr)
 {
 	unsigned int end = minor + nr;
 
-	BUG_ON(end > nr_minors);
+	_ON(end > nr_minors);
 	spin_lock(&minor_lock);
 	bitmap_clear(minors,  minor, nr);
 	spin_unlock(&minor_lock);
@@ -746,7 +746,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 
 	require_extra_req = info->max_indirect_segments == 0 &&
 		num_grant > BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	BUG_ON(!HAS_EXTRA_REQ && require_extra_req);
+	_ON(!HAS_EXTRA_REQ && require_extra_req);
 
 	rinfo->shadow[id].num_sg = num_sg;
 	if (num_grant > BLKIF_MAX_SEGMENTS_PER_REQUEST &&
@@ -755,7 +755,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		 * The indirect operation can only be a BLKIF_OP_READ or
 		 * BLKIF_OP_WRITE
 		 */
-		BUG_ON(req_op(req) == REQ_OP_FLUSH || req->cmd_flags & REQ_FUA);
+		_ON(req_op(req) == REQ_OP_FLUSH || req->cmd_flags & REQ_FUA);
 		ring_req->operation = BLKIF_OP_INDIRECT;
 		ring_req->u.indirect.indirect_op = rq_data_dir(req) ?
 			BLKIF_OP_WRITE : BLKIF_OP_READ;
@@ -810,7 +810,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		setup.extra_ring_req = extra_ring_req;
 
 	for_each_sg(rinfo->shadow[id].sg, sg, num_sg, i) {
-		BUG_ON(sg->offset + sg->length > PAGE_SIZE);
+		_ON(sg->offset + sg->length > PAGE_SIZE);
 
 		if (setup.need_copy) {
 			setup.bvec_off = sg->offset;
@@ -886,7 +886,7 @@ static blk_status_t blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct blkfront_info *info = hctx->queue->queuedata;
 	struct blkfront_ring_info *rinfo = NULL;
 
-	BUG_ON(info->nr_rings <= qid);
+	_ON(info->nr_rings <= qid);
 	rinfo = &info->rinfo[qid];
 	blk_mq_start_request(qd->rq);
 	spin_lock_irqsave(&rinfo->ring_lock, flags);
@@ -1101,8 +1101,8 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	int nr_parts;
 	char *ptr;
 
-	BUG_ON(info->gd != NULL);
-	BUG_ON(info->rq != NULL);
+	_ON(info->gd != NULL);
+	_ON(info->rq != NULL);
 
 	if ((info->vdevice>>EXT_SHIFT) > 1) {
 		/* this is above the extended range; something is wrong */
@@ -1144,7 +1144,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 
 	strcpy(gd->disk_name, DEV_NAME);
 	ptr = encode_disk_name(gd->disk_name + sizeof(DEV_NAME) - 1, offset);
-	BUG_ON(ptr >= gd->disk_name + DISK_NAME_LEN);
+	_ON(ptr >= gd->disk_name + DISK_NAME_LEN);
 	if (nr_minors > 1)
 		*ptr = 0;
 	else
@@ -1252,7 +1252,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 	if (!list_empty(&rinfo->indirect_pages)) {
 		struct page *indirect_page, *n;
 
-		BUG_ON(info->feature_persistent);
+		_ON(info->feature_persistent);
 		list_for_each_entry_safe(indirect_page, n, &rinfo->indirect_pages, lru) {
 			list_del(&indirect_page->lru);
 			__free_page(indirect_page);
@@ -1274,7 +1274,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 			kfree(persistent_gnt);
 		}
 	}
-	BUG_ON(rinfo->persistent_gnts_c != 0);
+	_ON(rinfo->persistent_gnts_c != 0);
 
 	for (i = 0; i < BLK_RING_SIZE(info); i++) {
 		/*
@@ -1405,8 +1405,8 @@ static enum blk_req_status blkif_rsp_to_req_status(int rsp)
 static int blkif_get_final_status(enum blk_req_status s1,
 				  enum blk_req_status s2)
 {
-	BUG_ON(s1 == REQ_WAITING);
-	BUG_ON(s2 == REQ_WAITING);
+	_ON(s1 == REQ_WAITING);
+	_ON(s2 == REQ_WAITING);
 
 	if (s1 == REQ_ERROR || s2 == REQ_ERROR)
 		return BLKIF_RSP_ERROR;
@@ -1475,7 +1475,7 @@ static bool blkif_completion(unsigned long *id,
 
 	if (bret->operation == BLKIF_OP_READ && info->feature_persistent) {
 		for_each_sg(s->sg, sg, num_sg, i) {
-			BUG_ON(sg->offset + sg->length > PAGE_SIZE);
+			_ON(sg->offset + sg->length > PAGE_SIZE);
 
 			data.bvec_offset = sg->offset;
 			data.bvec_data = kmap_atomic(sg_page(sg));
@@ -1642,7 +1642,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		blk_mq_complete_request(req);
@@ -1904,7 +1904,7 @@ static int negotiate_mq(struct blkfront_info *info)
 	unsigned int backend_max_queues;
 	unsigned int i;
 
-	BUG_ON(info->nr_rings);
+	_ON(info->nr_rings);
 
 	/* Check if backend supports multiple queues. */
 	backend_max_queues = xenbus_read_unsigned(info->xbdev->otherend,
@@ -2049,7 +2049,7 @@ static int blkif_recover(struct blkfront_info *info)
 	list_for_each_entry_safe(req, n, &info->requests, queuelist) {
 		/* Requeue pending requests (flush or discard) */
 		list_del_init(&req->queuelist);
-		BUG_ON(req->nr_phys_segments > segs);
+		_ON(req->nr_phys_segments > segs);
 		blk_mq_requeue_request(req, false);
 	}
 	blk_mq_start_stopped_hw_queues(info->rq, true);
@@ -2221,7 +2221,7 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
 		 */
 		int num = INDIRECT_GREFS(grants) * BLK_RING_SIZE(info);
 
-		BUG_ON(!list_empty(&rinfo->indirect_pages));
+		_ON(!list_empty(&rinfo->indirect_pages));
 		for (i = 0; i < num; i++) {
 			struct page *indirect_page = alloc_page(GFP_NOIO);
 			if (!indirect_page)

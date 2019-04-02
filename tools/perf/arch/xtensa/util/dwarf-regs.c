@@ -1,5 +1,5 @@
 /*
- * Mapping of DWARF debug register numbers into register names.
+ * Mapping of DWARF de register numbers into register names.
  *
  * Copyright (c) 2015 Cadence Design Systems Inc.
  *

@@ -246,7 +246,7 @@ acpi_remove_notify_handler(acpi_handle device,
 					goto unlock_and_exit;
 				}
 
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 						  "Removing global notify handler\n"));
 
 				acpi_gbl_global_notify[i].handler = NULL;
@@ -624,7 +624,7 @@ acpi_install_fixed_event_handler(u32 event,
 		acpi_gbl_fixed_event_handlers[event].handler = NULL;
 		acpi_gbl_fixed_event_handlers[event].context = NULL;
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Enabled fixed event %s (%X), Handler=%p\n",
 				  acpi_ut_get_event_name(event), event,
 				  handler));
@@ -681,7 +681,7 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 			      "Could not disable fixed event - %s (%u)",
 			      acpi_ut_get_event_name(event), event));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Disabled fixed event - %s (%X)\n",
 				  acpi_ut_get_event_name(event), event));
 	}

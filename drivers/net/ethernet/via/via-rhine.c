@@ -22,7 +22,7 @@
 
 
 	This driver contains some changes from the original Donald Becker
-	version. He may or may not be interested in bug reports on this
+	version. He may or may not be interested in  reports on this
 	code. You can find his versions at:
 	http://www.scyld.com/network/via-rhine.html
 	[link no longer provides useful info -jgarzik]
@@ -39,7 +39,7 @@
 
 /* A few user-configurable values.
    These may be modified when a driver module is loaded. */
-static int debug = 0;
+static int de = 0;
 #define RHINE_MSG_DEFAULT \
         (0x0000)
 
@@ -125,10 +125,10 @@ MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("VIA Rhine PCI Fast Ethernet driver");
 MODULE_LICENSE("GPL");
 
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(avoid_D3, bool, 0);
-MODULE_PARM_DESC(debug, "VIA Rhine debug message flags");
+MODULE_PARM_DESC(de, "VIA Rhine de message flags");
 MODULE_PARM_DESC(rx_copybreak, "VIA Rhine copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(avoid_D3, "Avoid power state D3 (work-around for broken BIOSes)");
 
@@ -929,7 +929,7 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	rp->pioaddr = pioaddr;
 	rp->base = ioaddr;
 	rp->irq = irq;
-	rp->msg_enable = netif_msg_init(debug, RHINE_MSG_DEFAULT);
+	rp->msg_enable = netif_msg_init(de, RHINE_MSG_DEFAULT);
 
 	phy_id = rp->quirks & rqIntPHY ? 1 : 0;
 

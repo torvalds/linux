@@ -353,7 +353,7 @@ void odm_txpowertracking_callback_thermal_meter(void *dm_void)
 			dm, (s8 **)&delta_swing_table_xtal_up,
 			(s8 **)&delta_swing_table_xtal_down);
 
-	cali_info->txpowertracking_callback_cnt++; /*cosa add for debug*/
+	cali_info->txpowertracking_callback_cnt++; /*cosa add for de*/
 	cali_info->is_txpowertracking_init = true;
 
 	/*cali_info->txpowertrack_control = hal_data->txpowertrack_control;

@@ -69,7 +69,7 @@ enum {
 	(type) == BFA_MFG_TYPE_CHINOOK))
 
 enum {
-	CB_GPIO_TTV	= (1),		/*!< TTV debug capable cards	*/
+	CB_GPIO_TTV	= (1),		/*!< TTV de capable cards	*/
 	CB_GPIO_FC8P2   = (2),		/*!< 8G 2port FC card		*/
 	CB_GPIO_FC8P1   = (3),		/*!< 8G 1port FC card		*/
 	CB_GPIO_FC4P2   = (4),		/*!< 4G 2port FC card		*/

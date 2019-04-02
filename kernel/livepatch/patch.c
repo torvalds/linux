@@ -26,7 +26,7 @@
 #include <linux/ftrace.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/printk.h>
 #include "core.h"
 #include "patch.h"

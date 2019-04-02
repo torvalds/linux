@@ -42,7 +42,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 
 static int lpfc_els_retry(struct lpfc_hba *, struct lpfc_iocbq *,
 			  struct lpfc_iocbq *);
@@ -996,7 +996,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		goto out;
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"FLOGI cmpl:      status:x%x/x%x state:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		vport->port_state);
@@ -1304,7 +1304,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	phba->fc_stat.elsXmitFLOGI++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_flogi;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue FLOGI:     opt:x%x",
 		phba->sli3_options, 0, 0);
 
@@ -1891,7 +1891,7 @@ lpfc_cmpl_els_rrq(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
 	irsp = &rspiocb->iocb;
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"RRQ cmpl:      status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		irsp->un.elsreq64.remoteID);
@@ -1967,7 +1967,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	cmdiocb->context_un.rsp_iocb = rspiocb;
 
 	irsp = &rspiocb->iocb;
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"PLOGI cmpl:      status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		irsp->un.elsreq64.remoteID);
@@ -2158,7 +2158,7 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 	memset(sp->un.vendorVersion, 0, sizeof(sp->un.vendorVersion));
 	sp->cmn.bbRcvSizeMsb &= 0xF;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue PLOGI:     did:x%x",
 		did, 0, 0);
 
@@ -2217,7 +2217,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	ndlp->fc4_prli_sent--;
 	spin_unlock_irq(shost->host_lock);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"PRLI cmpl:       status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		ndlp->nlp_DID);
@@ -2424,7 +2424,7 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		local_nlp_type &= ~NLP_FC4_NVME;
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue PRLI:      did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
@@ -2609,7 +2609,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	irsp = &(rspiocb->iocb);
 	ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"ADISC cmpl:      status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		ndlp->nlp_DID);
@@ -2719,7 +2719,7 @@ lpfc_issue_els_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	memcpy(&ap->nodeName, &vport->fc_nodename, sizeof(struct lpfc_name));
 	ap->DID = be32_to_cpu(vport->fc_myDID);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue ADISC:     did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
@@ -2771,7 +2771,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	ndlp->nlp_flag &= ~NLP_LOGO_SND;
 	spin_unlock_irq(shost->host_lock);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO cmpl:       status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		ndlp->nlp_DID);
@@ -2926,7 +2926,7 @@ lpfc_issue_els_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	pcmd += sizeof(uint32_t);
 	memcpy(pcmd, &vport->fc_portname, sizeof(struct lpfc_name));
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue LOGO:      did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
@@ -2964,7 +2964,7 @@ lpfc_issue_els_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
  * issuing routines for the ELS State Change  Request (SCR),
  * lpfc_issue_els_scr(), and the ELS Fibre Channel Address Resolution
  * Protocol Response (FARPR) routine, lpfc_issue_els_farpr(). Other than
- * certain debug loggings, this callback function simply invokes the
+ * certain de loggings, this callback function simply invokes the
  * lpfc_els_chk_latt() routine to check whether link went down during the
  * discovery process.
  **/
@@ -2977,7 +2977,7 @@ lpfc_cmpl_els_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	irsp = &rspiocb->iocb;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"ELS cmd cmpl:    status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		irsp->un.elsreq64.remoteID);
@@ -3057,7 +3057,7 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	memset(pcmd, 0, sizeof(SCR));
 	((SCR *) pcmd)->Function = SCR_FUNC_FULL;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue SCR:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
@@ -3163,7 +3163,7 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 		       sizeof(struct lpfc_name));
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue FARPR:     did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
@@ -3471,7 +3471,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			return 1;
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Retry ELS:       wd7:x%x wd4:x%x did:x%x",
 		*(((uint32_t *) irsp) + 7), irsp->un.ulpWord[4], ndlp->nlp_DID);
 
@@ -3588,7 +3588,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				break;
 			}
 
-			/* Legacy bug fix code for targets with PLOGI delays. */
+			/* Legacy  fix code for targets with PLOGI delays. */
 			if (stat.un.b.lsRjtRsnCodeExp ==
 			    LSEXP_CMD_IN_PROGRESS) {
 				if (cmd == ELS_CMD_PLOGI) {
@@ -4035,7 +4035,7 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp;
 
 	irsp = &rspiocb->iocb;
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"ACC LOGO cmpl:   status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], ndlp->nlp_DID);
 	/* ACC to LOGO completes to NPort <nlp_DID> */
@@ -4183,7 +4183,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		goto out;
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"ELS rsp cmpl:    status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4],
 		cmdiocb->iocb.un.elsreq64.remoteID);
@@ -4368,7 +4368,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 		*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 		pcmd += sizeof(uint32_t);
 
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 			"Issue ACC:       did:x%x flg:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag, 0);
 		break;
@@ -4431,7 +4431,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			}
 		}
 
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 			"Issue ACC FLOGI/PLOGI: did:x%x flg:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag, 0);
 		break;
@@ -4453,7 +4453,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 		els_pkt_ptr = (ELS_PKT *) pcmd;
 		els_pkt_ptr->un.prlo.acceptRspCode = PRLO_REQ_EXECUTED;
 
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 			"Issue ACC PRLO:  did:x%x flg:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag, 0);
 		break;
@@ -4542,7 +4542,7 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 			 rejectError, elsiocb->iotag,
 			 elsiocb->iocb.ulpContext, ndlp->nlp_DID,
 			 ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue LS_RJT:    did:x%x flg:x%x err:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rejectError);
 
@@ -4617,7 +4617,7 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 	memcpy(&ap->nodeName, &vport->fc_nodename, sizeof(struct lpfc_name));
 	ap->DID = be32_to_cpu(vport->fc_myDID);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue ACC ADISC: did:x%x flg:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, 0);
 
@@ -4784,7 +4784,7 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 				 prli_fc4_req, ndlp->nlp_fc4_type,
 				 ndlp->nlp_DID);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue ACC PRLI:  did:x%x flg:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, 0);
 
@@ -4884,7 +4884,7 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 		break;
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue ACC RNID:  did:x%x flg:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, 0);
 
@@ -4933,7 +4933,7 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 			rxid,
 			iocb->iotag, iocb->iocb.ulpContext);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
 	if (vport->fc_myDID == be32_to_cpu(bf_get(rrq_did, rrq)))
@@ -4991,7 +4991,7 @@ lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
 	pcmd += sizeof(uint32_t);
 	memcpy(pcmd, data, cmdsize - sizeof(uint32_t));
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Issue ACC ECHO:  did:x%x flg:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, 0);
 
@@ -6325,7 +6325,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	 * Discovery processing will satisfy it.
 	 */
 	if (vport->port_state <= LPFC_NS_QRY) {
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RSCN ignore: did:x%x/ste:x%x flg:x%x",
 			ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
 
@@ -6355,7 +6355,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 					 "Data: x%x x%x x%x x%x\n",
 					 vport->fc_flag, payload_len,
 					 *lp, vport->fc_rscn_id_cnt);
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+			lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 				"RCV RSCN vport:  did:x%x/ste:x%x flg:x%x",
 				ndlp->nlp_DID, vport->port_state,
 				ndlp->nlp_flag);
@@ -6384,7 +6384,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	 * RSCN payload buffer, cmdiocb->context2 to process later.
 	 */
 	if (vport->fc_flag & (FC_RSCN_MODE | FC_NDISC_ACTIVE)) {
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RSCN defer:  did:x%x/ste:x%x flg:x%x",
 			ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
 
@@ -6436,7 +6436,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		lpfc_rscn_recovery_check(vport);
 		return 0;
 	}
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 		"RCV RSCN:        did:x%x/ste:x%x flg:x%x",
 		ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
 
@@ -7308,7 +7308,7 @@ lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	els_rrq->rrq_exchg = cpu_to_be32(els_rrq->rrq_exchg);
 
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue RRQ:     did:x%x",
 		did, rrq->xritag, rrq->rxid);
 	elsiocb->context_un.rrq = rrq;
@@ -8106,7 +8106,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	did = icmd->un.rcvels.remoteID;
 	if (icmd->ulpStatus) {
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV Unsol ELS:  status:x%x/x%x did:x%x",
 			icmd->ulpStatus, icmd->un.ulpWord[4], did);
 		goto dropit;
@@ -8191,7 +8191,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	switch (cmd) {
 	case ELS_CMD_PLOGI:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV PLOGI:       did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8238,7 +8238,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		break;
 	case ELS_CMD_FLOGI:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV FLOGI:       did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8261,7 +8261,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_LOGO:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV LOGO:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8275,7 +8275,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_LOGO);
 		break;
 	case ELS_CMD_PRLO:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV PRLO:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8303,7 +8303,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_ADISC:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV ADISC:       did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8318,7 +8318,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					NLP_EVT_RCV_ADISC);
 		break;
 	case ELS_CMD_PDISC:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV PDISC:       did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8332,7 +8332,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					NLP_EVT_RCV_PDISC);
 		break;
 	case ELS_CMD_FARPR:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV FARPR:       did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8340,7 +8340,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_els_rcv_farpr(vport, elsiocb, ndlp);
 		break;
 	case ELS_CMD_FARP:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV FARP:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8348,7 +8348,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_els_rcv_farp(vport, elsiocb, ndlp);
 		break;
 	case ELS_CMD_FAN:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV FAN:         did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8357,7 +8357,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		break;
 	case ELS_CMD_PRLI:
 	case ELS_CMD_NVMEPRLI:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV PRLI:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8371,7 +8371,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
 		break;
 	case ELS_CMD_LIRR:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV LIRR:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8381,7 +8381,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_RLS:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RLS:         did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8391,7 +8391,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_RPS:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RPS:         did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8401,7 +8401,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_RPL:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RPL:         did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8411,7 +8411,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_RNID:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RNID:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8421,7 +8421,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_RTV:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RTV:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 		phba->fc_stat.elsRcvRTV++;
@@ -8430,7 +8430,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_RRQ:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV RRQ:         did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8440,7 +8440,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_ECHO:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV ECHO:        did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
@@ -8455,7 +8455,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		rjt_exp = LSEXP_INVALID_OX_RX;
 		break;
 	default:
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV ELS cmd:     cmd:x%x did:x%x/ste:x%x",
 			cmd, did, vport->port_state);
 
@@ -9008,7 +9008,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_set_disctmo(piocb->vport);
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"FDISC cmpl:      status:x%x/x%x prevdid:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_prevDID);
 
@@ -9191,7 +9191,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	phba->fc_stat.elsXmitFDISC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_fdisc;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue FDISC:     did:x%x",
 		did, 0, 0);
 
@@ -9232,7 +9232,7 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
 	irsp = &rspiocb->iocb;
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], irsp->un.rcvels.remoteID);
 
@@ -9298,7 +9298,7 @@ lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	pcmd += sizeof(uint32_t);
 	memcpy(pcmd, &vport->fc_portname, sizeof(struct lpfc_name));
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue LOGO npiv  did:x%x flg:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, 0);
 
@@ -9381,7 +9381,7 @@ repeat:
 		iocb->iocb_cmpl = lpfc_cmpl_fabric_iocb;
 		iocb->iocb_flag |= LPFC_IO_FABRIC;
 
-		lpfc_debugfs_disc_trc(iocb->vport, LPFC_DISC_TRC_ELS_CMD,
+		lpfc_defs_disc_trc(iocb->vport, LPFC_DISC_TRC_ELS_CMD,
 			"Fabric sched1:   ste:x%x",
 			iocb->vport->port_state, 0, 0);
 
@@ -9464,7 +9464,7 @@ lpfc_cmpl_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct ls_rjt stat;
 
-	BUG_ON((cmdiocb->iocb_flag & LPFC_IO_FABRIC) != LPFC_IO_FABRIC);
+	_ON((cmdiocb->iocb_flag & LPFC_IO_FABRIC) != LPFC_IO_FABRIC);
 
 	switch (rspiocb->iocb.ulpStatus) {
 		case IOSTAT_NPORT_RJT:
@@ -9488,7 +9488,7 @@ lpfc_cmpl_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			break;
 	}
 
-	BUG_ON(atomic_read(&phba->fabric_iocb_count) == 0);
+	_ON(atomic_read(&phba->fabric_iocb_count) == 0);
 
 	cmdiocb->iocb_cmpl = cmdiocb->fabric_iocb_cmpl;
 	cmdiocb->fabric_iocb_cmpl = NULL;
@@ -9533,7 +9533,7 @@ lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 	int ready;
 	int ret;
 
-	BUG_ON(atomic_read(&phba->fabric_iocb_count) > 1);
+	_ON(atomic_read(&phba->fabric_iocb_count) > 1);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	ready = atomic_read(&phba->fabric_iocb_count) == 0 &&
@@ -9548,7 +9548,7 @@ lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 		iocb->iocb_cmpl = lpfc_cmpl_fabric_iocb;
 		iocb->iocb_flag |= LPFC_IO_FABRIC;
 
-		lpfc_debugfs_disc_trc(iocb->vport, LPFC_DISC_TRC_ELS_CMD,
+		lpfc_defs_disc_trc(iocb->vport, LPFC_DISC_TRC_ELS_CMD,
 			"Fabric sched2:   ste:x%x",
 			iocb->vport->port_state, 0, 0);
 

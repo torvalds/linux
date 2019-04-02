@@ -506,17 +506,17 @@ static int virtscsi_queuecommand(struct Scsi_Host *shost,
 	int req_size;
 	int ret;
 
-	BUG_ON(scsi_sg_count(sc) > shost->sg_tablesize);
+	_ON(scsi_sg_count(sc) > shost->sg_tablesize);
 
 	/* TODO: check feature bit and fail if unsupported?  */
-	BUG_ON(sc->sc_data_direction == DMA_BIDIRECTIONAL);
+	_ON(sc->sc_data_direction == DMA_BIDIRECTIONAL);
 
 	dev_dbg(&sc->device->sdev_gendev,
 		"cmd %p CDB: %#02x\n", sc, sc->cmnd[0]);
 
 	cmd->sc = sc;
 
-	BUG_ON(sc->cmd_len > VIRTIO_SCSI_CDB_SIZE);
+	_ON(sc->cmd_len > VIRTIO_SCSI_CDB_SIZE);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	if (virtio_has_feature(vscsi->vdev, VIRTIO_SCSI_F_T10_PI)) {

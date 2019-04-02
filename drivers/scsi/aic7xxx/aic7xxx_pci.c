@@ -831,10 +831,10 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	 * Handle chips that must have cache line
 	 * streaming (dis/en)abled.
 	 */
-	if ((ahc->bugs & AHC_CACHETHEN_DIS_BUG) != 0)
+	if ((ahc->s & AHC_CACHETHEN_DIS_) != 0)
 		dscommand0 |= CACHETHEN;
 
-	if ((ahc->bugs & AHC_CACHETHEN_BUG) != 0)
+	if ((ahc->s & AHC_CACHETHEN_) != 0)
 		dscommand0 &= ~CACHETHEN;
 
 	ahc_outb(ahc, DSCOMMAND0, dscommand0);
@@ -844,7 +844,7 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 				/*bytes*/1) & CACHESIZE;
 	ahc->pci_cachesize *= 4;
 
-	if ((ahc->bugs & AHC_PCI_2_1_RETRY_BUG) != 0
+	if ((ahc->s & AHC_PCI_2_1_RETRY_) != 0
 	 && ahc->pci_cachesize == 4) {
 
 		ahc_pci_write_config(ahc->dev_softc, CSIZE_LATTIME,
@@ -2052,10 +2052,10 @@ ahc_aic785X_setup(struct ahc_softc *ahc)
 	ahc->channel = 'A';
 	ahc->chip = AHC_AIC7850;
 	ahc->features = AHC_AIC7850_FE;
-	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
+	ahc->s |= AHC_TMODE_WIDEODD_|AHC_CACHETHEN_|AHC_PCI_MWI_;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1)
-		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
+		ahc->s |= AHC_PCI_2_1_RETRY_;
 	ahc->instruction_ram_size = 512;
 	return (0);
 }
@@ -2070,10 +2070,10 @@ ahc_aic7860_setup(struct ahc_softc *ahc)
 	ahc->channel = 'A';
 	ahc->chip = AHC_AIC7860;
 	ahc->features = AHC_AIC7860_FE;
-	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
+	ahc->s |= AHC_TMODE_WIDEODD_|AHC_CACHETHEN_|AHC_PCI_MWI_;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1)
-		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
+		ahc->s |= AHC_PCI_2_1_RETRY_;
 	ahc->instruction_ram_size = 512;
 	return (0);
 }
@@ -2097,7 +2097,7 @@ ahc_aic7870_setup(struct ahc_softc *ahc)
 	ahc->channel = 'A';
 	ahc->chip = AHC_AIC7870;
 	ahc->features = AHC_AIC7870_FE;
-	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
+	ahc->s |= AHC_TMODE_WIDEODD_|AHC_CACHETHEN_|AHC_PCI_MWI_;
 	ahc->instruction_ram_size = 512;
 	return (0);
 }
@@ -2175,12 +2175,12 @@ ahc_aic7880_setup(struct ahc_softc *ahc)
 	ahc->channel = 'A';
 	ahc->chip = AHC_AIC7880;
 	ahc->features = AHC_AIC7880_FE;
-	ahc->bugs |= AHC_TMODE_WIDEODD_BUG;
+	ahc->s |= AHC_TMODE_WIDEODD_;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1) {
-		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
+		ahc->s |= AHC_PCI_2_1_RETRY_;
 	} else {
-		ahc->bugs |= AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
+		ahc->s |= AHC_CACHETHEN_|AHC_PCI_MWI_;
 	}
 	ahc->instruction_ram_size = 512;
 	return (0);
@@ -2250,7 +2250,7 @@ ahc_aic7890_setup(struct ahc_softc *ahc)
 	ahc->flags |= AHC_NEWEEPROM_FMT;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev == 0)
-		ahc->bugs |= AHC_AUTOFLUSH_BUG|AHC_CACHETHEN_BUG;
+		ahc->s |= AHC_AUTOFLUSH_|AHC_CACHETHEN_;
 	ahc->instruction_ram_size = 768;
 	return (0);
 }
@@ -2263,7 +2263,7 @@ ahc_aic7892_setup(struct ahc_softc *ahc)
 	ahc->chip = AHC_AIC7892;
 	ahc->features = AHC_AIC7892_FE;
 	ahc->flags |= AHC_NEWEEPROM_FMT;
-	ahc->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	ahc->s |= AHC_SCBCHAN_UPLOAD_;
 	ahc->instruction_ram_size = 1024;
 	return (0);
 }
@@ -2291,21 +2291,21 @@ ahc_aic7895_setup(struct ahc_softc *ahc)
 
 		/*
 		 * The BIOS disables the use of MWI transactions
-		 * since it does not have the MWI bug work around
+		 * since it does not have the MWI  work around
 		 * we have.  Disabling MWI reduces performance, so
 		 * turn it on again.
 		 */
 		command = ahc_pci_read_config(pci, PCIR_COMMAND, /*bytes*/1);
 		command |= PCIM_CMD_MWRICEN;
 		ahc_pci_write_config(pci, PCIR_COMMAND, command, /*bytes*/1);
-		ahc->bugs |= AHC_PCI_MWI_BUG;
+		ahc->s |= AHC_PCI_MWI_;
 	}
 	/*
 	 * XXX Does CACHETHEN really not work???  What about PCI retry?
 	 * on C level chips.  Need to test, but for now, play it safe.
 	 */
-	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_PCI_2_1_RETRY_BUG
-		  |  AHC_CACHETHEN_BUG;
+	ahc->s |= AHC_TMODE_WIDEODD_|AHC_PCI_2_1_RETRY_
+		  |  AHC_CACHETHEN_;
 
 #if 0
 	uint32_t devconfig;
@@ -2344,7 +2344,7 @@ ahc_aic7896_setup(struct ahc_softc *ahc)
 	ahc->chip = AHC_AIC7896;
 	ahc->features = AHC_AIC7896_FE;
 	ahc->flags |= AHC_NEWEEPROM_FMT;
-	ahc->bugs |= AHC_CACHETHEN_DIS_BUG;
+	ahc->s |= AHC_CACHETHEN_DIS_;
 	ahc->instruction_ram_size = 768;
 	return (0);
 }
@@ -2359,7 +2359,7 @@ ahc_aic7899_setup(struct ahc_softc *ahc)
 	ahc->chip = AHC_AIC7899;
 	ahc->features = AHC_AIC7899_FE;
 	ahc->flags |= AHC_NEWEEPROM_FMT;
-	ahc->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	ahc->s |= AHC_SCBCHAN_UPLOAD_;
 	ahc->instruction_ram_size = 1024;
 	return (0);
 }

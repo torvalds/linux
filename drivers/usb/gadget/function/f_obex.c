@@ -8,7 +8,7 @@
  * Based on f_acm.c by Al Borchers and David Brownell.
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/slab.h>
 #include <linux/kernel.h>

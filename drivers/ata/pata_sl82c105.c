@@ -204,7 +204,7 @@ static void sl82c105_bmdma_stop(struct ata_queued_cmd *qc)
  *	@qc: command
  *
  *	We must issue one command per host not per channel because
- *	of the reset bug.
+ *	of the reset .
  *
  *	Q: is the scsi host lock sufficient ?
  */

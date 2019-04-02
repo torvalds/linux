@@ -64,7 +64,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	struct p9_fid *fid;
 	int omode;
 
-	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
+	p9_de(P9_DE_VFS, "inode: %p file: %p\n", inode, file);
 	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
@@ -124,7 +124,7 @@ out_error:
  * @cmd: lock command
  * @fl: file lock structure
  *
- * Bugs: this looks like a local only lock, we should extend into 9P
+ * s: this looks like a local only lock, we should extend into 9P
  *       by using open exclusive
  */
 
@@ -133,7 +133,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 	int res = 0;
 	struct inode *inode = file_inode(filp);
 
-	p9_debug(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
+	p9_de(P9_DE_VFS, "filp: %p lock: %p\n", filp, fl);
 
 	/* No mandatory locks */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
@@ -157,10 +157,10 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	struct v9fs_session_info *v9ses;
 
 	fid = filp->private_data;
-	BUG_ON(fid == NULL);
+	_ON(fid == NULL);
 
 	if ((fl->fl_flags & FL_POSIX) != FL_POSIX)
-		BUG();
+		();
 
 	res = locks_lock_file_wait(filp, fl);
 	if (res < 0)
@@ -260,7 +260,7 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 	int res = 0;
 
 	fid = filp->private_data;
-	BUG_ON(fid == NULL);
+	_ON(fid == NULL);
 
 	posix_test_lock(filp, fl);
 	/*
@@ -323,7 +323,7 @@ static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 	struct inode *inode = file_inode(filp);
 	int ret = -ENOLCK;
 
-	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
+	p9_de(P9_DE_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
 		 filp, cmd, fl, filp);
 
 	/* No mandatory locks */
@@ -359,7 +359,7 @@ static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 	struct inode *inode = file_inode(filp);
 	int ret = -ENOLCK;
 
-	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
+	p9_de(P9_DE_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
 		 filp, cmd, fl, filp);
 
 	/* No mandatory locks */
@@ -400,7 +400,7 @@ v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct p9_fid *fid = iocb->ki_filp->private_data;
 	int ret, err = 0;
 
-	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n",
+	p9_de(P9_DE_VFS, "count %zu offset %lld\n",
 		 iov_iter_count(to), iocb->ki_pos);
 
 	ret = p9_client_read(fid, iocb->ki_pos, to, &err);
@@ -470,7 +470,7 @@ static int v9fs_file_fsync(struct file *filp, loff_t start, loff_t end,
 		return retval;
 
 	inode_lock(inode);
-	p9_debug(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
+	p9_de(P9_DE_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 	v9fs_blank_wstat(&wstat);
@@ -493,7 +493,7 @@ int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
 		return retval;
 
 	inode_lock(inode);
-	p9_debug(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
+	p9_de(P9_DE_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 
@@ -562,7 +562,7 @@ v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 	struct inode *inode = file_inode(filp);
 
 
-	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
+	p9_de(P9_DE_VFS, "page %p fid %lx\n",
 		 page, (unsigned long)filp->private_data);
 
 	/* Update file times before taking page lock */
@@ -571,7 +571,7 @@ v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 	v9inode = V9FS_I(inode);
 	/* make sure the cache has finished storing the page */
 	v9fs_fscache_wait_on_page_write(inode, page);
-	BUG_ON(!v9inode->writeback_fid);
+	_ON(!v9inode->writeback_fid);
 	lock_page(page);
 	if (page->mapping != inode->i_mapping)
 		goto out_unlock;
@@ -630,7 +630,7 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
 	};
 
 
-	p9_debug(P9_DEBUG_VFS, "9p VMA close, %p, flushing", vma);
+	p9_de(P9_DE_VFS, "9p VMA close, %p, flushing", vma);
 
 	inode = file_inode(vma->vm_file);
 

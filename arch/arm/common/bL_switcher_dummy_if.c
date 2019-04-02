@@ -4,7 +4,7 @@
  * Created by:	Nicolas Pitre, November 2012
  * Copyright:	(C) 2012-2013  Linaro Limited
  *
- * Dummy interface to user space for debugging purpose only.
+ * Dummy interface to user space for deging purpose only.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,7 +25,7 @@ static ssize_t bL_switcher_write(struct file *file, const char __user *buf,
 	unsigned int cpu, cluster;
 	int ret;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (len < 3)
 		return -EINVAL;

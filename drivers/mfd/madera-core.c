@@ -308,7 +308,7 @@ static int madera_get_reset_gpio(struct madera *madera)
 	/*
 	 * A hard reset is needed for full reset of the chip. We allow running
 	 * without hard reset only because it can be useful for early
-	 * prototyping and some debugging, but we need to warn it's not ideal.
+	 * prototyping and some deging, but we need to warn it's not ideal.
 	 */
 	if (!reset)
 		dev_warn(madera->dev,

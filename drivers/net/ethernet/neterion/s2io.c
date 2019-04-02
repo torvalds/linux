@@ -1314,7 +1314,7 @@ static int init_nic(struct s2io_nic *nic)
 	}
 
 	/*
-	 * Disable 4 PCCs for Xena1, 2 and 3 as per H/W bug
+	 * Disable 4 PCCs for Xena1, 2 and 3 as per H/W 
 	 * SXE-008 TRANSMIT DMA ARBITRATION ISSUE.
 	 */
 	if ((nic->device_type == XFRAME_I_DEVICE) && (nic->pdev->revision < 4))
@@ -2820,7 +2820,7 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
  * 	This function will be called by upper layer to check for events on the
  * interface in situations where interrupts are disabled. It is used for
  * specific in-kernel networking tasks, such as remote consoles and kernel
- * debugging over the network (example netdump in RedHat).
+ * deging over the network (example netdump in RedHat).
  */
 static void s2io_netpoll(struct net_device *dev)
 {
@@ -3788,7 +3788,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	}
 
 	/*
-	 * To enable MSI-X, MSI also needs to be enabled, due to a bug
+	 * To enable MSI-X, MSI also needs to be enabled, due to a 
 	 * in the herc NIC. (Temp change, needs to be removed later)
 	 */
 	pci_read_config_word(nic->pdev, 0x42, &msi_control);
@@ -7419,7 +7419,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 					DBG_PRINT(ERR_DBG,
 						  "%s: Samadhana!!\n",
 						  __func__);
-					BUG();
+					();
 				}
 			}
 		} else {

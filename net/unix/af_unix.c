@@ -9,18 +9,18 @@
  *		2 of the License, or (at your option) any later version.
  *
  * Fixes:
- *		Linus Torvalds	:	Assorted bug cures.
+ *		Linus Torvalds	:	Assorted  cures.
  *		Niibe Yutaka	:	async I/O support.
  *		Carsten Paeth	:	PF_UNIX check, address fixes.
  *		Alan Cox	:	Limit size of allocated blocks.
- *		Alan Cox	:	Fixed the stupid socketpair bug.
+ *		Alan Cox	:	Fixed the stupid socketpair .
  *		Alan Cox	:	BSD compatibility fine tuning.
- *		Alan Cox	:	Fixed a bug in connect when interrupted.
+ *		Alan Cox	:	Fixed a  in connect when interrupted.
  *		Alan Cox	:	Sorted out a proper draft version of
  *					file descriptor passing hacked up from
  *					Mike Shaver's work.
  *		Marty Leisner	:	Fixes to fd passing
- *		Nick Nevin	:	recvmsg bugfix.
+ *		Nick Nevin	:	recvmsg fix.
  *		Alan Cox	:	Started proper garbage collector
  *		Heiko EiBfeldt	:	Missing verify_area check
  *		Alan Cox	:	Started POSIXisms
@@ -28,8 +28,8 @@
  *					reference counting
  *		Kirk Petersen	:	Made this a module
  *	    Christoph Rohland	:	Elegant non-blocking accept/connect algorithm.
- *					Lots of bug fixes.
- *	     Alexey Kuznetosv	:	Repaired (I hope) bugs introduces
+ *					Lots of  fixes.
+ *	     Alexey Kuznetosv	:	Repaired (I hope) s introduces
  *					by above two patches.
  *	     Andrea Arcangeli	:	If possible we block in connect(2)
  *					if the max backlog of the listen socket
@@ -42,7 +42,7 @@
  *					the number of skb queueable in the
  *					dgram receiver.
  *		Artur Skawina   :	Hash function optimizations
- *	     Alexey Kuznetsov   :	Full scale SMP. Lot of bugs are introduced 8)
+ *	     Alexey Kuznetsov   :	Full scale SMP. Lot of s are introduced 8)
  *	      Malcolm Beattie   :	Set peercred for socketpair
  *	     Michal Ostrowski   :       Module initialization cleanup.
  *	     Arnaldo C. Melo	:	Remove MOD_{INC,DEC}_USE_COUNT,
@@ -56,18 +56,18 @@
  *	ECONNREFUSED is not returned from one end of a connected() socket to the
  *		other the moment one end closes.
  *	fstat() doesn't return st_dev=0, and give the blksize as high water mark
- *		and a fake inode identifier (nor the BSD first socket fstat twice bug).
+ *		and a fake inode identifier (nor the BSD first socket fstat twice ).
  *	[NOT TO FIX]
  *	accept() returns a path name even if the connecting socket has closed
  *		in the meantime (BSD loses the path and gives up).
  *	accept() returns 0 length path for an unbound connector. BSD returns 16
- *		and a null first byte in the path (but not for gethost/peername - BSD bug ??)
+ *		and a null first byte in the path (but not for gethost/peername - BSD  ??)
  *	socketpair(...SOCK_RAW..) doesn't panic the kernel.
  *	BSD af_unix apparently has connect forgetting to block properly.
  *		(need to check this with the POSIX spec in detail)
  *
  * Differences from 2.0.0-11-... (ANK)
- *	Bug fixes and improvements.
+ *	 fixes and improvements.
  *		- client shutdown killed server socket.
  *		- removed all useless cli/sti pairs.
  *
@@ -511,8 +511,8 @@ static void unix_sock_destructor(struct sock *sk)
 	local_bh_disable();
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	local_bh_enable();
-#ifdef UNIX_REFCNT_DEBUG
-	pr_debug("UNIX %p is destroyed, %ld are still alive.\n", sk,
+#ifdef UNIX_REFCNT_DE
+	pr_de("UNIX %p is destroyed, %ld are still alive.\n", sk,
 		atomic_long_read(&unix_nr_socks));
 #endif
 }
@@ -1624,7 +1624,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 				 MAX_SKB_FRAGS * PAGE_SIZE);
 		data_len = PAGE_ALIGN(data_len);
 
-		BUILD_BUG_ON(SKB_MAX_ALLOC < PAGE_SIZE);
+		BUILD__ON(SKB_MAX_ALLOC < PAGE_SIZE);
 	}
 
 	skb = sock_alloc_send_pskb(sk, len - data_len, data_len,
@@ -2853,7 +2853,7 @@ static int __init af_unix_init(void)
 {
 	int rc = -1;
 
-	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD__ON(sizeof(struct unix_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	rc = proto_register(&unix_proto, 1);
 	if (rc != 0) {

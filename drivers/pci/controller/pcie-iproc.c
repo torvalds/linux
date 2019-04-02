@@ -585,7 +585,7 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 	/*
 	 * For PAXC and PAXCv2, the total number of PFs that one can enumerate
 	 * depends on the firmware configuration. Unfortunately, due to an ASIC
-	 * bug, unconfigured PFs cannot be properly hidden from the root
+	 * , unconfigured PFs cannot be properly hidden from the root
 	 * complex. As a result, write access to these PFs will cause bus lock
 	 * up on the embedded processor
 	 *

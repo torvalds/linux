@@ -49,7 +49,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kthread.h>
 #include "xpc.h"
 
@@ -57,7 +57,7 @@
 #include <asm/traps.h>
 #endif
 
-/* define two XPC debug device structures to be used with dev_dbg() et al */
+/* define two XPC de device structures to be used with dev_dbg() et al */
 
 struct device_driver xpc_dbg_name = {
 	.name = "xpc"
@@ -76,7 +76,7 @@ struct device xpc_chan_dbg_subname = {
 struct device *xpc_part = &xpc_part_dbg_subname;
 struct device *xpc_chan = &xpc_chan_dbg_subname;
 
-static int xpc_kdebug_ignore;
+static int xpc_kde_ignore;
 
 /* systune related variables for /proc/sys directories */
 
@@ -176,12 +176,12 @@ xpc_timeout_partition_disengage(struct timer_list *t)
 {
 	struct xpc_partition *part = from_timer(part, t, disengage_timer);
 
-	DBUG_ON(time_is_after_jiffies(part->disengage_timeout));
+	D_ON(time_is_after_jiffies(part->disengage_timeout));
 
 	(void)xpc_partition_disengaged(part);
 
-	DBUG_ON(part->disengage_timeout != 0);
-	DBUG_ON(xpc_arch_ops.partition_engaged(XPC_PARTID(part)));
+	D_ON(part->disengage_timeout != 0);
+	D_ON(xpc_arch_ops.partition_engaged(XPC_PARTID(part)));
 }
 
 /*
@@ -415,7 +415,7 @@ xpc_setup_ch_structures(struct xpc_partition *part)
 	 * Allocate all of the channel structures as a contiguous chunk of
 	 * memory.
 	 */
-	DBUG_ON(part->channels != NULL);
+	D_ON(part->channels != NULL);
 	part->channels = kcalloc(XPC_MAX_NCHANNELS,
 				 sizeof(struct xpc_channel),
 				 GFP_KERNEL);
@@ -498,15 +498,15 @@ out_1:
 static void
 xpc_teardown_ch_structures(struct xpc_partition *part)
 {
-	DBUG_ON(atomic_read(&part->nchannels_engaged) != 0);
-	DBUG_ON(atomic_read(&part->nchannels_active) != 0);
+	D_ON(atomic_read(&part->nchannels_engaged) != 0);
+	D_ON(atomic_read(&part->nchannels_active) != 0);
 
 	/*
 	 * Make this partition inaccessible to local processes by marking it
 	 * as no longer setup. Then wait before proceeding with the teardown
 	 * until all existing references cease.
 	 */
-	DBUG_ON(part->setup_state != XPC_P_SS_SETUP);
+	D_ON(part->setup_state != XPC_P_SS_SETUP);
 	part->setup_state = XPC_P_SS_WTEARDOWN;
 
 	wait_event(part->teardown_wq, (atomic_read(&part->references) == 0));
@@ -541,7 +541,7 @@ xpc_activating(void *__partid)
 	struct xpc_partition *part = &xpc_partitions[partid];
 	unsigned long irq_flags;
 
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
+	D_ON(partid < 0 || partid >= xp_max_npartitions);
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
@@ -553,7 +553,7 @@ xpc_activating(void *__partid)
 	}
 
 	/* indicate the thread is activating */
-	DBUG_ON(part->act_state != XPC_P_AS_ACTIVATION_REQ);
+	D_ON(part->act_state != XPC_P_AS_ACTIVATION_REQ);
 	part->act_state = XPC_P_AS_ACTIVATING;
 
 	XPC_SET_REASON(part, 0, 0);
@@ -596,7 +596,7 @@ xpc_activate_partition(struct xpc_partition *part)
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
-	DBUG_ON(part->act_state != XPC_P_AS_INACTIVE);
+	D_ON(part->act_state != XPC_P_AS_INACTIVE);
 
 	part->act_state = XPC_P_AS_ACTIVATION_REQ;
 	XPC_SET_REASON(part, xpCloneKThread, __LINE__);
@@ -620,7 +620,7 @@ xpc_activate_kthreads(struct xpc_channel *ch, int needed)
 	int assigned = atomic_read(&ch->kthreads_assigned);
 	int wakeup;
 
-	DBUG_ON(needed <= 0);
+	D_ON(needed <= 0);
 
 	if (idle > 0) {
 		wakeup = (needed > idle) ? idle : needed;
@@ -796,7 +796,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 		if (ignore_disconnecting) {
 			if (!atomic_inc_not_zero(&ch->kthreads_assigned)) {
 				/* kthreads assigned had gone to zero */
-				BUG_ON(!(ch->flags &
+				_ON(!(ch->flags &
 					 XPC_C_DISCONNECTINGCALLOUT_MADE));
 				break;
 			}
@@ -876,7 +876,7 @@ xpc_disconnect_wait(int ch_number)
 		wait_for_completion(&ch->wdisconnect_wait);
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
-		DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
+		D_ON(!(ch->flags & XPC_C_DISCONNECTED));
 		wakeup_channel_mgr = 0;
 
 		if (ch->delayed_chctl_flags) {
@@ -925,7 +925,7 @@ xpc_setup_partitions(void)
 	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
 
-		DBUG_ON((u64)part != L1_CACHE_ALIGN((u64)part));
+		D_ON((u64)part != L1_CACHE_ALIGN((u64)part));
 
 		part->activate_IRQ_rcvd = 0;
 		spin_lock_init(&part->act_lock);
@@ -959,7 +959,7 @@ xpc_do_exit(enum xp_retval reason)
 	unsigned long printmsg_time, disengage_timeout = 0;
 
 	/* a 'rmmod XPC' and a 'reboot' cannot both end up here together */
-	DBUG_ON(xpc_exiting == 1);
+	D_ON(xpc_exiting == 1);
 
 	/*
 	 * Let the heartbeat checker thread and the discovery thread
@@ -1033,7 +1033,7 @@ xpc_do_exit(enum xp_retval reason)
 
 	} while (1);
 
-	DBUG_ON(xpc_arch_ops.any_partition_engaged());
+	D_ON(xpc_arch_ops.any_partition_engaged());
 
 	xpc_teardown_rsvd_page();
 
@@ -1177,9 +1177,9 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		xpc_die_deactivate();
 		break;
 
-	case DIE_KDEBUG_ENTER:
+	case DIE_KDE_ENTER:
 		/* Should lack of heartbeat be ignored by other partitions? */
-		if (!xpc_kdebug_ignore)
+		if (!xpc_kde_ignore)
 			break;
 
 		/* fall through */
@@ -1188,9 +1188,9 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		xpc_arch_ops.offline_heartbeat();
 		break;
 
-	case DIE_KDEBUG_LEAVE:
+	case DIE_KDE_LEAVE:
 		/* Is lack of heartbeat being ignored by other partitions? */
-		if (!xpc_kdebug_ignore)
+		if (!xpc_kde_ignore)
 			break;
 
 		/* fall through */
@@ -1214,7 +1214,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 
 		break;
 	case DIE_INT3:
-	case DIE_DEBUG:
+	case DIE_DE:
 		break;
 	case DIE_OOPS:
 	case DIE_GPF:
@@ -1368,6 +1368,6 @@ module_param(xpc_disengage_timelimit, int, 0);
 MODULE_PARM_DESC(xpc_disengage_timelimit, "Number of seconds to wait "
 		 "for disengage to complete.");
 
-module_param(xpc_kdebug_ignore, int, 0);
-MODULE_PARM_DESC(xpc_kdebug_ignore, "Should lack of heartbeat be ignored by "
-		 "other partitions when dropping into kdebug.");
+module_param(xpc_kde_ignore, int, 0);
+MODULE_PARM_DESC(xpc_kde_ignore, "Should lack of heartbeat be ignored by "
+		 "other partitions when dropping into kde.");

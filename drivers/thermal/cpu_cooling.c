@@ -622,7 +622,7 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	i = cpufreq_table_count_valid_entries(policy);
 	if (!i) {
-		pr_debug("%s: CPUFreq table not found or has no valid entries\n",
+		pr_de("%s: CPUFreq table not found or has no valid entries\n",
 			 __func__);
 		return ERR_PTR(-ENODEV);
 	}
@@ -671,7 +671,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		if (!freq)
 			pr_warn("%s: table has duplicate entries\n", __func__);
 		else
-			pr_debug("%s: freq:%u KHz\n", __func__, freq);
+			pr_de("%s: freq:%u KHz\n", __func__, freq);
 	}
 
 	if (capacitance) {

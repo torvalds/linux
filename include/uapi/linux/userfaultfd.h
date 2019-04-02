@@ -111,7 +111,7 @@ struct uffd_msg {
 } __packed;
 
 /*
- * Start at 0x12 and not at 0 to be more strict against bugs.
+ * Start at 0x12 and not at 0 to be more strict against s.
  */
 #define UFFD_EVENT_PAGEFAULT	0x12
 #define UFFD_EVENT_FORK		0x13

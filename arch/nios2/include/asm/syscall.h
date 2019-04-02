@@ -61,7 +61,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	struct pt_regs *regs, unsigned int i, unsigned int n,
 	unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 
 	switch (i) {
 	case 0:
@@ -92,7 +92,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 		if (!n--)
 			break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -100,7 +100,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	struct pt_regs *regs, unsigned int i, unsigned int n,
 	const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 
 	switch (i) {
 	case 0:
@@ -131,7 +131,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 		if (!n)
 			break;
 	default:
-		BUG();
+		();
 	}
 }
 

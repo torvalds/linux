@@ -9,7 +9,7 @@
  *  Simplified starting of init:  Michael A. Griffith <grif@acm.org>
  */
 
-#define DEBUG		/* Enable initcall_debug */
+#define DE		/* Enable initcall_de */
 
 #include <linux/types.h>
 #include <linux/extable.h>
@@ -57,8 +57,8 @@
 #include <linux/key.h>
 #include <linux/buffer_head.h>
 #include <linux/page_ext.h>
-#include <linux/debug_locks.h>
-#include <linux/debugobjects.h>
+#include <linux/de_locks.h>
+#include <linux/deobjects.h>
 #include <linux/lockdep.h>
 #include <linux/kmemleak.h>
 #include <linux/pid_namespace.h>
@@ -94,7 +94,7 @@
 #include <linux/mem_encrypt.h>
 
 #include <asm/io.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -108,7 +108,7 @@ extern void init_IRQ(void);
 extern void radix_tree_init(void);
 
 /*
- * Debug helper: via this flag we know that we are in 'early bootup code'
+ * De helper: via this flag we know that we are in 'early bootup code'
  * where only the boot processor is running with IRQ disabled.  This means
  * two things - IRQ must not be enabled before the flag is cleared and some
  * operations which are not allowed with IRQ disabled are allowed while the
@@ -210,9 +210,9 @@ static bool __init obsolete_checksetup(char *line)
 unsigned long loops_per_jiffy = (1<<12);
 EXPORT_SYMBOL(loops_per_jiffy);
 
-static int __init debug_kernel(char *str)
+static int __init de_kernel(char *str)
 {
-	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+	console_loglevel = CONSOLE_LOGLEVEL_DE;
 	return 0;
 }
 
@@ -222,7 +222,7 @@ static int __init quiet_kernel(char *str)
 	return 0;
 }
 
-early_param("debug", debug_kernel);
+early_param("de", de_kernel);
 early_param("quiet", quiet_kernel);
 
 static int __init loglevel(char *str)
@@ -232,7 +232,7 @@ static int __init loglevel(char *str)
 	/*
 	 * Only update loglevel value when a correct setting was passed,
 	 * to prevent blind crashes (when loglevel being set to 0) that
-	 * are quite hard to debug
+	 * are quite hard to de
 	 */
 	if (get_option(&str, &newlevel)) {
 		console_loglevel = newlevel;
@@ -257,7 +257,7 @@ static int __init repair_env_string(char *param, char *val,
 			memmove(val-1, val, strlen(val)+1);
 			val--;
 		} else
-			BUG();
+			();
 	}
 	return 0;
 }
@@ -504,13 +504,13 @@ void __init __weak thread_stack_cache_init(void)
 
 void __init __weak mem_encrypt_init(void) { }
 
-bool initcall_debug;
-core_param(initcall_debug, initcall_debug, bool, 0644);
+bool initcall_de;
+core_param(initcall_de, initcall_de, bool, 0644);
 
 #ifdef TRACEPOINTS_ENABLED
-static void __init initcall_debug_enable(void);
+static void __init initcall_de_enable(void);
 #else
-static inline void initcall_debug_enable(void)
+static inline void initcall_de_enable(void)
 {
 }
 #endif
@@ -528,7 +528,7 @@ static void __init mm_init(void)
 	mem_init();
 	kmem_cache_init();
 	pgtable_init();
-	debug_objects_mem_init();
+	de_objects_mem_init();
 	vmalloc_init();
 	ioremap_huge_init();
 	/* Should be run before the first non-init thread is created */
@@ -549,7 +549,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
-	debug_objects_early_init();
+	de_objects_early_init();
 
 	cgroup_init_early();
 
@@ -642,8 +642,8 @@ asmlinkage __visible void __init start_kernel(void)
 	/* Trace events are available after this */
 	trace_init();
 
-	if (initcall_debug)
-		initcall_debug_enable();
+	if (initcall_de)
+		initcall_de_enable();
 
 	context_tracking_init();
 	/* init some links before init_ISA_irqs() */
@@ -681,7 +681,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	/*
 	 * Need to run this when irqs are enabled, because it wants
-	 * to self-test [hard/soft]-irqs on/off lock inversion bugs
+	 * to self-test [hard/soft]-irqs on/off lock inversion s
 	 * too:
 	 */
 	locking_selftest();
@@ -737,7 +737,7 @@ asmlinkage __visible void __init start_kernel(void)
 	taskstats_init_early();
 	delayacct_init();
 
-	check_bugs();
+	check_s();
 
 	acpi_subsystem_init();
 	arch_post_acpi_subsys_init();
@@ -775,7 +775,7 @@ static int __init initcall_blacklist(char *str)
 	do {
 		str_entry = strsep(&str, ",");
 		if (str_entry) {
-			pr_debug("blacklisting initcall %s\n", str_entry);
+			pr_de("blacklisting initcall %s\n", str_entry);
 			entry = memblock_alloc(sizeof(*entry),
 					       SMP_CACHE_BYTES);
 			if (!entry)
@@ -814,7 +814,7 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 
 	list_for_each_entry(entry, &blacklisted_initcalls, next) {
 		if (!strcmp(fn_name, entry->buf)) {
-			pr_debug("initcall %s blacklisted\n", fn_name);
+			pr_de("initcall %s blacklisted\n", fn_name);
 			return true;
 		}
 	}
@@ -840,7 +840,7 @@ trace_initcall_start_cb(void *data, initcall_t fn)
 {
 	ktime_t *calltime = (ktime_t *)data;
 
-	printk(KERN_DEBUG "calling  %pF @ %i\n", fn, task_pid_nr(current));
+	printk(KERN_DE "calling  %pF @ %i\n", fn, task_pid_nr(current));
 	*calltime = ktime_get();
 }
 
@@ -854,14 +854,14 @@ trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, *calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	printk(KERN_DEBUG "initcall %pF returned %d after %lld usecs\n",
+	printk(KERN_DE "initcall %pF returned %d after %lld usecs\n",
 		 fn, ret, duration);
 }
 
 static ktime_t initcall_calltime;
 
 #ifdef TRACEPOINTS_ENABLED
-static void __init initcall_debug_enable(void)
+static void __init initcall_de_enable(void)
 {
 	int ret;
 
@@ -876,13 +876,13 @@ static void __init initcall_debug_enable(void)
 #else
 static inline void do_trace_initcall_start(initcall_t fn)
 {
-	if (!initcall_debug)
+	if (!initcall_de)
 		return;
 	trace_initcall_start_cb(&initcall_calltime, fn);
 }
 static inline void do_trace_initcall_finish(initcall_t fn, int ret)
 {
-	if (!initcall_debug)
+	if (!initcall_de)
 		return;
 	trace_initcall_finish_cb(&initcall_calltime, fn, ret);
 }
@@ -1031,11 +1031,11 @@ static noinline void __init kernel_init_freeable(void);
 
 #if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
 bool rodata_enabled __ro_after_init = true;
-static int __init set_debug_rodata(char *str)
+static int __init set_de_rodata(char *str)
 {
 	return strtobool(str, &rodata_enabled);
 }
-__setup("rodata=", set_debug_rodata);
+__setup("rodata=", set_de_rodata);
 #endif
 
 #ifdef CONFIG_STRICT_KERNEL_RWX

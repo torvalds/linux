@@ -159,11 +159,11 @@ static int __init dw_apb_timer_init(struct device_node *timer)
 {
 	switch (num_called) {
 	case 0:
-		pr_debug("%s: found clockevent timer\n", __func__);
+		pr_de("%s: found clockevent timer\n", __func__);
 		add_clockevent(timer);
 		break;
 	case 1:
-		pr_debug("%s: found clocksource timer\n", __func__);
+		pr_de("%s: found clocksource timer\n", __func__);
 		add_clocksource(timer);
 		init_sched_clock();
 #ifdef CONFIG_ARM

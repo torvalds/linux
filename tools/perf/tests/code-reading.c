@@ -139,7 +139,7 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 		if (feof(f))
 			break;
 		if (ret < 0) {
-			pr_debug("getline failed\n");
+			pr_de("getline failed\n");
 			err = -1;
 			break;
 		}
@@ -152,7 +152,7 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 		if (sscanf(line, "%"PRIx64, &addr) != 1)
 			continue;
 		if (addr < last_addr) {
-			pr_debug("addr going backwards, read beyond section?\n");
+			pr_de("addr going backwards, read beyond section?\n");
 			break;
 		}
 		last_addr = addr;
@@ -189,20 +189,20 @@ static int read_via_objdump(const char *filename, u64 addr, void *buf,
 	if (ret <= 0 || (size_t)ret >= sizeof(cmd))
 		return -1;
 
-	pr_debug("Objdump command is: %s\n", cmd);
+	pr_de("Objdump command is: %s\n", cmd);
 
 	/* Ignore objdump errors */
 	strcat(cmd, " 2>/dev/null");
 
 	f = popen(cmd, "r");
 	if (!f) {
-		pr_debug("popen failed\n");
+		pr_de("popen failed\n");
 		return -1;
 	}
 
 	ret = read_objdump_output(f, buf, &len, addr);
 	if (len) {
-		pr_debug("objdump read too few bytes: %zd\n", len);
+		pr_de("objdump read too few bytes: %zd\n", len);
 		if (!ret)
 			ret = len;
 	}
@@ -217,11 +217,11 @@ static void dump_buf(unsigned char *buf, size_t len)
 	size_t i;
 
 	for (i = 0; i < len; i++) {
-		pr_debug("0x%02x ", buf[i]);
+		pr_de("0x%02x ", buf[i]);
 		if (i % 16 == 15)
-			pr_debug("\n");
+			pr_de("\n");
 	}
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 static int read_object_code(u64 addr, size_t len, u8 cpumode,
@@ -237,27 +237,27 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	bool decomp = false;
 	int ret;
 
-	pr_debug("Reading object code for memory address: %#"PRIx64"\n", addr);
+	pr_de("Reading object code for memory address: %#"PRIx64"\n", addr);
 
 	if (!thread__find_map(thread, cpumode, addr, &al) || !al.map->dso) {
 		if (cpumode == PERF_RECORD_MISC_HYPERVISOR) {
-			pr_debug("Hypervisor address can not be resolved - skipping\n");
+			pr_de("Hypervisor address can not be resolved - skipping\n");
 			return 0;
 		}
 
-		pr_debug("thread__find_map failed\n");
+		pr_de("thread__find_map failed\n");
 		return -1;
 	}
 
-	pr_debug("File is: %s\n", al.map->dso->long_name);
+	pr_de("File is: %s\n", al.map->dso->long_name);
 
 	if (al.map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(al.map->dso)) {
-		pr_debug("Unexpected kernel address - skipping\n");
+		pr_de("Unexpected kernel address - skipping\n");
 		return 0;
 	}
 
-	pr_debug("On file address is: %#"PRIx64"\n", al.addr);
+	pr_de("On file address is: %#"PRIx64"\n", al.addr);
 
 	if (len > BUFSZ)
 		len = BUFSZ;
@@ -270,7 +270,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	ret_len = dso__data_read_offset(al.map->dso, thread->mg->machine,
 					al.addr, buf1, len);
 	if (ret_len != len) {
-		pr_debug("dso__data_read_offset failed\n");
+		pr_de("dso__data_read_offset failed\n");
 		return -1;
 	}
 
@@ -287,13 +287,13 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 
 		for (d = 0; d < state->done_cnt; d++) {
 			if (state->done[d] == al.map->start) {
-				pr_debug("kcore map tested already");
-				pr_debug(" - skipping\n");
+				pr_de("kcore map tested already");
+				pr_de(" - skipping\n");
 				return 0;
 			}
 		}
 		if (state->done_cnt >= ARRAY_SIZE(state->done)) {
-			pr_debug("Too many kcore maps - skipping\n");
+			pr_de("Too many kcore maps - skipping\n");
 			return 0;
 		}
 		state->done[state->done_cnt++] = al.map->start;
@@ -304,7 +304,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		if (dso__decompress_kmodule_path(al.map->dso, objdump_name,
 						 decomp_name,
 						 sizeof(decomp_name)) < 0) {
-			pr_debug("decompression failed\n");
+			pr_de("decompression failed\n");
 			return -1;
 		}
 
@@ -328,14 +328,14 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		    cpumode == PERF_RECORD_MISC_GUEST_KERNEL) {
 			len -= ret;
 			if (len) {
-				pr_debug("Reducing len to %zu\n", len);
+				pr_de("Reducing len to %zu\n", len);
 			} else if (dso__is_kcore(al.map->dso)) {
 				/*
 				 * objdump cannot handle very large segments
 				 * that may be found in kcore.
 				 */
-				pr_debug("objdump failed for kcore");
-				pr_debug(" - skipping\n");
+				pr_de("objdump failed for kcore");
+				pr_de(" - skipping\n");
 				return 0;
 			} else {
 				return -1;
@@ -343,20 +343,20 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		}
 	}
 	if (ret < 0) {
-		pr_debug("read_via_objdump failed\n");
+		pr_de("read_via_objdump failed\n");
 		return -1;
 	}
 
 	/* The results should be identical */
 	if (memcmp(buf1, buf2, len)) {
-		pr_debug("Bytes read differ from those read by objdump\n");
-		pr_debug("buf1 (dso):\n");
+		pr_de("Bytes read differ from those read by objdump\n");
+		pr_de("buf1 (dso):\n");
 		dump_buf(buf1, len);
-		pr_debug("buf2 (objdump):\n");
+		pr_de("buf2 (objdump):\n");
 		dump_buf(buf2, len);
 		return -1;
 	}
-	pr_debug("Bytes read match those read by objdump\n");
+	pr_de("Bytes read match those read by objdump\n");
 
 	return 0;
 }
@@ -370,13 +370,13 @@ static int process_sample_event(struct machine *machine,
 	int ret;
 
 	if (perf_evlist__parse_sample(evlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+		pr_de("perf_evlist__parse_sample failed\n");
 		return -1;
 	}
 
 	thread = machine__findnew_thread(machine, sample.pid, sample.tid);
 	if (!thread) {
-		pr_debug("machine__findnew_thread failed\n");
+		pr_de("machine__findnew_thread failed\n");
 		return -1;
 	}
 
@@ -400,7 +400,7 @@ static int process_event(struct machine *machine, struct perf_evlist *evlist,
 
 		ret = machine__process_event(machine, event, NULL);
 		if (ret < 0)
-			pr_debug("machine__process_event failed, event type %u\n",
+			pr_de("machine__process_event failed, event type %u\n",
 				 event->header.type);
 		return ret;
 	}
@@ -447,7 +447,7 @@ static void do_sort_something(void)
 
 	for (i = 0; i < (int)ARRAY_SIZE(buf); i++) {
 		if (buf[i] != i) {
-			pr_debug("qsort failed\n");
+			pr_de("qsort failed\n");
 			break;
 		}
 	}
@@ -468,7 +468,7 @@ static void syscall_something(void)
 
 	for (i = 0; i < 1000; i++) {
 		if (pipe(pipefd) < 0) {
-			pr_debug("pipe failed\n");
+			pr_de("pipe failed\n");
 			break;
 		}
 		close(pipefd[1]);
@@ -568,7 +568,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	ret = machine__create_kernel_maps(machine);
 	if (ret < 0) {
-		pr_debug("machine__create_kernel_maps failed\n");
+		pr_de("machine__create_kernel_maps failed\n");
 		goto out_err;
 	}
 
@@ -580,7 +580,7 @@ static int do_test_code_reading(bool try_kcore)
 	map = machine__kernel_map(machine);
 	ret = map__load(map);
 	if (ret < 0) {
-		pr_debug("map__load failed\n");
+		pr_de("map__load failed\n");
 		goto out_err;
 	}
 	have_vmlinux = dso__is_vmlinux(map->dso);
@@ -596,26 +596,26 @@ static int do_test_code_reading(bool try_kcore)
 
 	threads = thread_map__new_by_tid(pid);
 	if (!threads) {
-		pr_debug("thread_map__new_by_tid failed\n");
+		pr_de("thread_map__new_by_tid failed\n");
 		goto out_err;
 	}
 
 	ret = perf_event__synthesize_thread_map(NULL, threads,
 						perf_event__process, machine, false);
 	if (ret < 0) {
-		pr_debug("perf_event__synthesize_thread_map failed\n");
+		pr_de("perf_event__synthesize_thread_map failed\n");
 		goto out_err;
 	}
 
 	thread = machine__findnew_thread(machine, pid, pid);
 	if (!thread) {
-		pr_debug("machine__findnew_thread failed\n");
+		pr_de("machine__findnew_thread failed\n");
 		goto out_put;
 	}
 
 	cpus = cpu_map__new(NULL);
 	if (!cpus) {
-		pr_debug("cpu_map__new failed\n");
+		pr_de("cpu_map__new failed\n");
 		goto out_put;
 	}
 
@@ -624,17 +624,17 @@ static int do_test_code_reading(bool try_kcore)
 
 		evlist = perf_evlist__new();
 		if (!evlist) {
-			pr_debug("perf_evlist__new failed\n");
+			pr_de("perf_evlist__new failed\n");
 			goto out_put;
 		}
 
 		perf_evlist__set_maps(evlist, cpus, threads);
 
 		str = do_determine_event(excl_kernel);
-		pr_debug("Parsing event '%s'\n", str);
+		pr_de("Parsing event '%s'\n", str);
 		ret = parse_events(evlist, str, NULL);
 		if (ret < 0) {
-			pr_debug("parse_events failed\n");
+			pr_de("parse_events failed\n");
 			goto out_put;
 		}
 
@@ -666,7 +666,7 @@ static int do_test_code_reading(bool try_kcore)
 			if (verbose > 0) {
 				char errbuf[512];
 				perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
-				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);
+				pr_de("perf_evlist__open() failed!\n%s\n", errbuf);
 			}
 
 			goto out_put;
@@ -676,7 +676,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	ret = perf_evlist__mmap(evlist, UINT_MAX);
 	if (ret < 0) {
-		pr_debug("perf_evlist__mmap failed\n");
+		pr_de("perf_evlist__mmap failed\n");
 		goto out_put;
 	}
 
@@ -726,16 +726,16 @@ int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unu
 	case TEST_CODE_READING_OK:
 		return 0;
 	case TEST_CODE_READING_NO_VMLINUX:
-		pr_debug("no vmlinux\n");
+		pr_de("no vmlinux\n");
 		return 0;
 	case TEST_CODE_READING_NO_KCORE:
-		pr_debug("no kcore\n");
+		pr_de("no kcore\n");
 		return 0;
 	case TEST_CODE_READING_NO_ACCESS:
-		pr_debug("no access\n");
+		pr_de("no access\n");
 		return 0;
 	case TEST_CODE_READING_NO_KERNEL_OBJ:
-		pr_debug("no kernel obj\n");
+		pr_de("no kernel obj\n");
 		return 0;
 	default:
 		return -1;

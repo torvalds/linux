@@ -1153,7 +1153,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		}
 	}
 //	printk("<=====%s(), %p, %p\n", __func__, ieee->dev, ieee->dev->dev_addr);
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
+//	IEEE80211_DE_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
 	return skb;
 }
 
@@ -1171,10 +1171,10 @@ void ieee80211_associate_abort(struct ieee80211_device *ieee)
 	 * with, so we retry or just get back to NO_LINK and scanning
 	 */
 	if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING) {
-		IEEE80211_DEBUG_MGMT("Authentication failed\n");
+		IEEE80211_DE_MGMT("Authentication failed\n");
 		ieee->softmac_stats.no_auth_rs++;
 	} else {
-		IEEE80211_DEBUG_MGMT("Association failed\n");
+		IEEE80211_DE_MGMT("Association failed\n");
 		ieee->softmac_stats.no_ass_rs++;
 	}
 
@@ -1198,7 +1198,7 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	struct ieee80211_network *beacon = &ieee->current_network;
 	struct sk_buff *skb;
 
-	IEEE80211_DEBUG_MGMT("Stopping scan\n");
+	IEEE80211_DE_MGMT("Stopping scan\n");
 
 	ieee->softmac_stats.tx_auth_rq++;
 	skb = ieee80211_authentication_req(beacon, ieee, 0);
@@ -1207,9 +1207,9 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 		ieee80211_associate_abort(ieee);
 	} else {
 		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING;
-		IEEE80211_DEBUG_MGMT("Sending authentication request\n");
+		IEEE80211_DE_MGMT("Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
-		//BUGON when you try to add_timer twice, using mod_timer may be better, john0709
+		//ON when you try to add_timer twice, using mod_timer may be better, john0709
 		if (!timer_pending(&ieee->associate_timer)) {
 			ieee->associate_timer.expires = jiffies + (HZ / 2);
 			add_timer(&ieee->associate_timer);
@@ -1239,7 +1239,7 @@ static void ieee80211_auth_challenge(struct ieee80211_device *ieee,
 		*(c++) = chlen;
 		memcpy(c, challenge, chlen);
 
-		IEEE80211_DEBUG_MGMT("Sending authentication challenge response\n");
+		IEEE80211_DE_MGMT("Sending authentication challenge response\n");
 
 		ieee80211_encrypt_fragment(ieee, skb, sizeof(struct rtl_80211_hdr_3addr));
 
@@ -1257,7 +1257,7 @@ static void ieee80211_associate_step2(struct ieee80211_device *ieee)
 
 	del_timer_sync(&ieee->associate_timer);
 
-	IEEE80211_DEBUG_MGMT("Sending association request\n");
+	IEEE80211_DE_MGMT("Sending association request\n");
 
 	ieee->softmac_stats.tx_ass_rq++;
 	skb = ieee80211_association_req(beacon, ieee);
@@ -1464,7 +1464,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 	struct ieee80211_authentication *a;
 	u8 *t;
 	if (skb->len < (sizeof(struct ieee80211_authentication) - sizeof(struct ieee80211_info_element))) {
-		IEEE80211_DEBUG_MGMT("invalid len in auth resp: %d\n", skb->len);
+		IEEE80211_DE_MGMT("invalid len in auth resp: %d\n", skb->len);
 		return 0xcafe;
 	}
 	*challenge = NULL;
@@ -1488,7 +1488,7 @@ static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
 	struct ieee80211_authentication *a;
 
 	if (skb->len < (sizeof(struct ieee80211_authentication) - sizeof(struct ieee80211_info_element))) {
-		IEEE80211_DEBUG_MGMT("invalid len in auth request: %d\n", skb->len);
+		IEEE80211_DE_MGMT("invalid len in auth request: %d\n", skb->len);
 		return -1;
 	}
 	a = (struct ieee80211_authentication *)skb->data;
@@ -1547,7 +1547,7 @@ static int assoc_rq_parse(struct sk_buff *skb, u8 *dest)
 
 	if (skb->len < (sizeof(struct ieee80211_assoc_request_frame) -
 		sizeof(struct ieee80211_info_element))) {
-		IEEE80211_DEBUG_MGMT("invalid len in auth request:%d \n", skb->len);
+		IEEE80211_DE_MGMT("invalid len in auth request:%d \n", skb->len);
 		return -1;
 	}
 
@@ -1564,7 +1564,7 @@ static inline u16 assoc_parse(struct ieee80211_device *ieee, struct sk_buff *skb
 	u16 status_code;
 
 	if (skb->len < sizeof(struct ieee80211_assoc_response_frame)) {
-		IEEE80211_DEBUG_MGMT("invalid len in auth resp: %d\n", skb->len);
+		IEEE80211_DE_MGMT("invalid len in auth resp: %d\n", skb->len);
 		return 0xcafe;
 	}
 
@@ -1796,9 +1796,9 @@ static void ieee80211_process_action(struct ieee80211_device *ieee,
 	struct rtl_80211_hdr *header = (struct rtl_80211_hdr *)skb->data;
 	u8 *act = ieee80211_get_payload(header);
 	u8 tmp = 0;
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+//	IEEE80211_DE_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	if (act == NULL) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "error to get payload of action frame\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "error to get payload of action frame\n");
 		return;
 	}
 	tmp = *act;
@@ -1872,7 +1872,7 @@ static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 		}
 	} else {
 		ieee->softmac_stats.rx_auth_rs_err++;
-		IEEE80211_DEBUG_MGMT("Auth response status code 0x%x", errcode);
+		IEEE80211_DE_MGMT("Auth response status code 0x%x", errcode);
 		ieee80211_associate_abort(ieee);
 	}
 }
@@ -1903,7 +1903,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
 	case IEEE80211_STYPE_ASSOC_RESP:
 	case IEEE80211_STYPE_REASSOC_RESP:
-		IEEE80211_DEBUG_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
+		IEEE80211_DE_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
 				WLAN_FC_GET_STYPE(header->frame_ctl));
 		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 		    ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATED &&
@@ -1939,7 +1939,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				ieee->softmac_stats.rx_ass_err++;
 				printk("Association response status code 0x%x\n",
 				       errcode);
-				IEEE80211_DEBUG_MGMT("Association response status code 0x%x\n",
+				IEEE80211_DE_MGMT("Association response status code 0x%x\n",
 						     errcode);
 				if (ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT)
 					schedule_work(&ieee->associate_procedure_wq);
@@ -1960,7 +1960,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) {
 			if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING
 			    && ieee->iw_mode == IW_MODE_INFRA) {
-				IEEE80211_DEBUG_MGMT("Received auth response");
+				IEEE80211_DE_MGMT("Received auth response");
 				ieee80211_check_auth_response(ieee, skb);
 			} else if (ieee->iw_mode == IW_MODE_MASTER) {
 				ieee80211_rx_auth_rq(ieee, skb);
@@ -2544,7 +2544,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 
 	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_KERNEL);
 	if (!ieee->dot11d_info)
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for DOT11D\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "can't alloc memory for DOT11D\n");
 	//added for  AP roaming
 	ieee->LinkDetectInfo.SlotNum = 2;
 	ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
@@ -2983,7 +2983,7 @@ int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_poin
 	int ret = 0;
 
 	mutex_lock(&ieee->wx_mutex);
-	//IEEE_DEBUG_INFO("wpa_supplicant: len=%d\n", p->length);
+	//IEEE_DE_INFO("wpa_supplicant: len=%d\n", p->length);
 
 	if (p->length < sizeof(struct ieee_param) || !p->pointer) {
 		ret = -EINVAL;

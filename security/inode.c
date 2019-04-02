@@ -7,12 +7,12 @@
  *	modify it under the terms of the GNU General Public License version
  *	2 as published by the Free Software Foundation.
  *
- *  Based on fs/debugfs/inode.c which had the following copyright notice:
+ *  Based on fs/defs/inode.c which had the following copyright notice:
  *    Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *    Copyright (C) 2004 IBM Inc.
  */
 
-/* #define DEBUG */
+/* #define DE */
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/fs.h>
@@ -111,7 +111,7 @@ static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 	if (!(mode & S_IFMT))
 		mode = (mode & S_IALLUGO) | S_IFREG;
 
-	pr_debug("securityfs: creating file '%s'\n",name);
+	pr_de("securityfs: creating file '%s'\n",name);
 
 	error = simple_pin_fs(&fs_type, &mount, &mount_count);
 	if (error)

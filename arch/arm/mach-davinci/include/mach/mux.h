@@ -26,7 +26,7 @@ struct mux_config {
 	const unsigned char mask_offset;
 	const unsigned char mask;
 	const unsigned char mode;
-	bool debug;
+	bool de;
 };
 
 enum davinci_dm644x_index {

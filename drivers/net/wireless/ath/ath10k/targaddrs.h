@@ -41,7 +41,7 @@ struct host_interest {
 	/* Pointer to register dump area, valid after Target crash. */
 	u32 hi_failure_state;				/* 0x04 */
 
-	/* Pointer to debug logging header */
+	/* Pointer to de logging header */
 	u32 hi_dbglog_hdr;				/* 0x08 */
 
 	u32 hi_unused0c;				/* 0x0c */
@@ -195,7 +195,7 @@ struct host_interest {
 	/* Bit 1 - unused */
 	u32 hi_fw_swap;					/* 0x104 */
 
-	/* global arenas pointer address, used by host driver debug */
+	/* global arenas pointer address, used by host driver de */
 	u32 hi_dynamic_mem_arenas_addr;			/* 0x108 */
 
 	/* allocated bytes of DRAM use by allocated */
@@ -230,11 +230,11 @@ struct host_interest {
 #define HI_OPTION_FW_BRIDGE         0x10
 /* Enable CPU profiling */
 #define HI_OPTION_ENABLE_PROFILE    0x20
-/* Disable debug logging */
+/* Disable de logging */
 #define HI_OPTION_DISABLE_DBGLOG    0x40
 /* Skip Era Tracking */
 #define HI_OPTION_SKIP_ERA_TRACKING 0x80
-/* Disable PAPRD (debug) */
+/* Disable PAPRD (de) */
 #define HI_OPTION_PAPRD_DISABLE     0x100
 #define HI_OPTION_NUM_DEV_LSB       0x200
 #define HI_OPTION_NUM_DEV_MSB       0x800

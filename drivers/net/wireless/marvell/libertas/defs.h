@@ -8,9 +8,9 @@
 
 #include <linux/spinlock.h>
 
-#ifdef CONFIG_LIBERTAS_DEBUG
-#define DEBUG
-#define PROC_DEBUG
+#ifdef CONFIG_LIBERTAS_DE
+#define DE
+#define PROC_DE
 #endif
 
 #ifndef DRV_NAME
@@ -29,7 +29,7 @@
 #define LBS_DEB_ASSOC	0x00000100
 #define LBS_DEB_JOIN	0x00000200
 #define LBS_DEB_11D	0x00000400
-#define LBS_DEB_DEBUGFS	0x00000800
+#define LBS_DEB_DEFS	0x00000800
 #define LBS_DEB_ETHTOOL	0x00001000
 #define LBS_DEB_HOST	0x00002000
 #define LBS_DEB_CMD	0x00004000
@@ -45,12 +45,12 @@
 #define LBS_DEB_SPI	0x01000000
 #define LBS_DEB_CFG80211 0x02000000
 
-extern unsigned int lbs_debug;
+extern unsigned int lbs_de;
 
-#ifdef DEBUG
+#ifdef DE
 #define LBS_DEB_LL(grp, grpnam, fmt, args...) \
-do { if ((lbs_debug & (grp)) == (grp)) \
-  printk(KERN_DEBUG DRV_NAME grpnam "%s: " fmt, \
+do { if ((lbs_de & (grp)) == (grp)) \
+  printk(KERN_DE DRV_NAME grpnam "%s: " fmt, \
          in_interrupt() ? " (INT)" : "", ## args); } while (0)
 #else
 #define LBS_DEB_LL(grp, grpnam, fmt, args...) do {} while (0)
@@ -65,7 +65,7 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_assoc(fmt, args...)     LBS_DEB_LL(LBS_DEB_ASSOC, " assoc", fmt, ##args)
 #define lbs_deb_join(fmt, args...)      LBS_DEB_LL(LBS_DEB_JOIN, " join", fmt, ##args)
 #define lbs_deb_11d(fmt, args...)       LBS_DEB_LL(LBS_DEB_11D, " 11d", fmt, ##args)
-#define lbs_deb_debugfs(fmt, args...)   LBS_DEB_LL(LBS_DEB_DEBUGFS, " debugfs", fmt, ##args)
+#define lbs_deb_defs(fmt, args...)   LBS_DEB_LL(LBS_DEB_DEFS, " defs", fmt, ##args)
 #define lbs_deb_ethtool(fmt, args...)   LBS_DEB_LL(LBS_DEB_ETHTOOL, " ethtool", fmt, ##args)
 #define lbs_deb_host(fmt, args...)      LBS_DEB_LL(LBS_DEB_HOST, " host", fmt, ##args)
 #define lbs_deb_cmd(fmt, args...)       LBS_DEB_LL(LBS_DEB_CMD, " cmd", fmt, ##args)
@@ -81,15 +81,15 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_spi(fmt, args...)       LBS_DEB_LL(LBS_DEB_SPI, " spi", fmt, ##args)
 #define lbs_deb_cfg80211(fmt, args...)  LBS_DEB_LL(LBS_DEB_CFG80211, " cfg80211", fmt, ##args)
 
-#ifdef DEBUG
+#ifdef DE
 static inline void lbs_deb_hex(unsigned int grp, const char *prompt,
 			       const u8 *buf, int len)
 {
 	int i = 0;
 
 	if (len &&
-	    (lbs_debug & LBS_DEB_HEX) &&
-	    (lbs_debug & grp))
+	    (lbs_de & LBS_DEB_HEX) &&
+	    (lbs_de & grp))
 	{
 		for (i = 1; i <= len; i++) {
 			if ((i & 0xf) == 1) {

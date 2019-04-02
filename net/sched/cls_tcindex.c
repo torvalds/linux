@@ -86,7 +86,7 @@ static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	struct tcindex_filter_result *f;
 	int key = (skb->tc_index & p->mask) >> p->shift;
 
-	pr_debug("tcindex_classify(skb %p,tp %p,res %p),p %p\n",
+	pr_de("tcindex_classify(skb %p,tp %p,res %p),p %p\n",
 		 skb, tp, res, p);
 
 	f = tcindex_lookup(p, key);
@@ -97,11 +97,11 @@ static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			return -1;
 		res->classid = TC_H_MAKE(TC_H_MAJ(q->handle), key);
 		res->class = 0;
-		pr_debug("alg 0x%x\n", res->classid);
+		pr_de("alg 0x%x\n", res->classid);
 		return 0;
 	}
 	*res = f->res;
-	pr_debug("map 0x%x\n", res->classid);
+	pr_de("map 0x%x\n", res->classid);
 
 	return tcf_exts_exec(skb, &f->exts, res);
 }
@@ -112,7 +112,7 @@ static void *tcindex_get(struct tcf_proto *tp, u32 handle)
 	struct tcindex_data *p = rtnl_dereference(tp->root);
 	struct tcindex_filter_result *r;
 
-	pr_debug("tcindex_get(tp %p,handle 0x%08x)\n", tp, handle);
+	pr_de("tcindex_get(tp %p,handle 0x%08x)\n", tp, handle);
 	if (p->perfect && handle >= p->alloc_hash)
 		return NULL;
 	r = tcindex_lookup(p, handle);
@@ -123,7 +123,7 @@ static int tcindex_init(struct tcf_proto *tp)
 {
 	struct tcindex_data *p;
 
-	pr_debug("tcindex_init(tp %p)\n", tp);
+	pr_de("tcindex_init(tp %p)\n", tp);
 	p = kzalloc(sizeof(struct tcindex_data), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -180,7 +180,7 @@ static int tcindex_delete(struct tcf_proto *tp, void *arg, bool *last,
 	struct tcindex_filter __rcu **walk;
 	struct tcindex_filter *f = NULL;
 
-	pr_debug("tcindex_delete(tp %p,arg %p),p %p\n", tp, arg, p);
+	pr_de("tcindex_delete(tp %p,arg %p),p %p\n", tp, arg, p);
 	if (p->perfect) {
 		if (!r->res.class)
 			return -ENOENT;
@@ -503,7 +503,7 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 	struct tcindex_filter_result *r = *arg;
 	int err;
 
-	pr_debug("tcindex_change(tp %p,handle 0x%08x,tca %p,arg %p),opt %p,"
+	pr_de("tcindex_change(tp %p,handle 0x%08x,tca %p,arg %p),opt %p,"
 	    "p %p,r %p,*arg %p\n",
 	    tp, handle, tca, arg, opt, p, r, arg ? *arg : NULL);
 
@@ -525,7 +525,7 @@ static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker,
 	struct tcindex_filter *f, *next;
 	int i;
 
-	pr_debug("tcindex_walk(tp %p,walker %p),p %p\n", tp, walker, p);
+	pr_de("tcindex_walk(tp %p,walker %p),p %p\n", tp, walker, p);
 	if (p->perfect) {
 		for (i = 0; i < p->hash; i++) {
 			if (!p->perfect[i].res.class)
@@ -561,7 +561,7 @@ static void tcindex_destroy(struct tcf_proto *tp, bool rtnl_held,
 	struct tcindex_data *p = rtnl_dereference(tp->root);
 	int i;
 
-	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
+	pr_de("tcindex_destroy(tp %p),p %p\n", tp, p);
 
 	if (p->perfect) {
 		for (i = 0; i < p->hash; i++) {
@@ -597,9 +597,9 @@ static int tcindex_dump(struct net *net, struct tcf_proto *tp, void *fh,
 	struct tcindex_filter_result *r = fh;
 	struct nlattr *nest;
 
-	pr_debug("tcindex_dump(tp %p,fh %p,skb %p,t %p),p %p,r %p\n",
+	pr_de("tcindex_dump(tp %p,fh %p,skb %p,t %p),p %p,r %p\n",
 		 tp, fh, skb, t, p, r);
-	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
+	pr_de("p->perfect %p p->h %p\n", p->perfect, p->h);
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
@@ -632,7 +632,7 @@ static int tcindex_dump(struct net *net, struct tcf_proto *tp, void *fh,
 				}
 			}
 		}
-		pr_debug("handle = %d\n", t->tcm_handle);
+		pr_de("handle = %d\n", t->tcm_handle);
 		if (r->res.class &&
 		    nla_put_u32(skb, TCA_TCINDEX_CLASSID, r->res.classid))
 			goto nla_put_failure;

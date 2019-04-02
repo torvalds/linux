@@ -31,7 +31,7 @@
     System Programming Guide; Section 9.11. (1997 edition - PPro).
 */
 
-#define DEBUG
+#define DE
 
 #include <linux/types.h> /* FIXME: kvm_para.h needs this */
 
@@ -295,7 +295,7 @@ static void set_mtrr_from_inactive_cpu(unsigned int reg, unsigned long base,
  *
  * %MTRR_TYPE_WRTHROUGH - Cache reads but not writes
  *
- * BUGS: Needs a quiet flag for the cases where drivers do not mind
+ * S: Needs a quiet flag for the cases where drivers do not mind
  * failures and do not wish system log messages to be sent.
  */
 int mtrr_add_page(unsigned long base, unsigned long size,
@@ -408,7 +408,7 @@ static int mtrr_check(unsigned long base, unsigned long size)
 {
 	if ((base & (PAGE_SIZE - 1)) || (size & (PAGE_SIZE - 1))) {
 		pr_warn("size and base must be multiples of 4 kiB\n");
-		pr_debug("size: 0x%lx  base: 0x%lx\n", size, base);
+		pr_de("size: 0x%lx  base: 0x%lx\n", size, base);
 		dump_stack();
 		return -1;
 	}
@@ -447,7 +447,7 @@ static int mtrr_check(unsigned long base, unsigned long size)
  *
  * %MTRR_TYPE_WRTHROUGH - Cache reads but not writes
  *
- * BUGS: Needs a quiet flag for the cases where drivers do not mind
+ * S: Needs a quiet flag for the cases where drivers do not mind
  * failures and do not wish system log messages to be sent.
  */
 int mtrr_add(unsigned long base, unsigned long size, unsigned int type,
@@ -499,7 +499,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 			}
 		}
 		if (reg < 0) {
-			pr_debug("no MTRR for %lx000,%lx000 found\n",
+			pr_de("no MTRR for %lx000,%lx000 found\n",
 				 base, size);
 			goto out;
 		}
@@ -604,7 +604,7 @@ EXPORT_SYMBOL(arch_phys_wc_del);
  * @handle: Return value from arch_phys_wc_add
  *
  * This will turn the return value from arch_phys_wc_add into an mtrr
- * index suitable for debugging.
+ * index suitable for deging.
  *
  * Note: There is no legitimate use for this function, except possibly
  * in printk line.  Alas there is an illegitimate use in some ancient

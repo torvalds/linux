@@ -187,7 +187,7 @@ static int find_tzone_tp(char *tz_name, char *d_name, struct tz_info *tzi,
 			tzi->nr_trip_pts++;
 			/* found a valid trip point */
 			tp_id = get_instance_id(d_name, 2, 0);
-			syslog(LOG_DEBUG, "tzone %s trip %d temp %lu tpnode %s",
+			syslog(LOG_DE, "tzone %s trip %d temp %lu tpnode %s",
 				tz_name, tp_id, temp_ulong, d_name);
 			if (tp_id < 0 || tp_id >= MAX_NR_TRIP) {
 				syslog(LOG_ERR, "Failed to find TP inst %s\n",
@@ -213,7 +213,7 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 	int cdev_id;
 
 	if (nl->d_type == DT_LNK) {
-		syslog(LOG_DEBUG, "TZ%d: cdev: %s cid %d\n", tz_id, nl->d_name,
+		syslog(LOG_DE, "TZ%d: cdev: %s cid %d\n", tz_id, nl->d_name,
 			cid);
 		tzi->nr_cdev++;
 		if (tzi->nr_cdev > ptdata.nr_cooling_dev) {
@@ -228,7 +228,7 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 				sizeof(cdev_name_linked) - 1) != -1) {
 			cdev_id = get_instance_id(cdev_name_linked, 1,
 						sizeof("device") - 1);
-			syslog(LOG_DEBUG, "cdev %s linked to %s : %d\n",
+			syslog(LOG_DE, "cdev %s linked to %s : %d\n",
 				cdev_name, cdev_name_linked, cdev_id);
 			tzi->cdev_binding |= (1 << cdev_id);
 
@@ -245,7 +245,7 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 			if (trip_instance > MAX_NR_TRIP)
 				trip_instance = 0;
 			tzi->trip_binding[cdev_id] |= 1 << trip_instance;
-			syslog(LOG_DEBUG, "cdev %s -> trip:%lu: 0x%lx %d\n",
+			syslog(LOG_DE, "cdev %s -> trip:%lu: 0x%lx %d\n",
 				cdev_name, trip_instance,
 				tzi->trip_binding[cdev_id],
 				cdev_id);
@@ -374,7 +374,7 @@ static int scan_cdevs(void)
 			ptdata.cdi[k].instance = i;
 			if (strstr(ptdata.cdi[k].type, ctrl_cdev)) {
 				ptdata.cdi[k].flag |= CDEV_FLAG_IN_CONTROL;
-				syslog(LOG_DEBUG, "control cdev id %d\n", i);
+				syslog(LOG_DE, "control cdev id %d\n", i);
 			}
 			while (n--)
 				free(namelist[n]);
@@ -415,7 +415,7 @@ int probe_thermal_sysfs(void)
 				if (inst > ptdata.max_cdev_instance)
 					ptdata.max_cdev_instance = inst;
 
-				syslog(LOG_DEBUG, "found cdev: %s %d %d\n",
+				syslog(LOG_DE, "found cdev: %s %d %d\n",
 					namelist[n]->d_name,
 					ptdata.nr_cooling_dev,
 					ptdata.max_cdev_instance);
@@ -426,7 +426,7 @@ int probe_thermal_sysfs(void)
 				if (inst > ptdata.max_tz_instance)
 					ptdata.max_tz_instance = inst;
 
-				syslog(LOG_DEBUG, "found tzone: %s %d %d\n",
+				syslog(LOG_DE, "found tzone: %s %d %d\n",
 					namelist[n]->d_name,
 					ptdata.nr_tz_sensor,
 					ptdata.max_tz_instance);
@@ -553,12 +553,12 @@ void set_ctrl_state(unsigned long state)
 			}
 			/* scale to percentage of max_state */
 			cdev_state = state * ptdata.cdi[i].max_state/100;
-			syslog(LOG_DEBUG,
+			syslog(LOG_DE,
 				"ctrl cdev %d set state %lu scaled to %lu\n",
 				ptdata.cdi[i].instance, state, cdev_state);
 			snprintf(ctrl_cdev_path, 256, "%s/%s%d", THERMAL_SYSFS,
 				CDEV, ptdata.cdi[i].instance);
-			syslog(LOG_DEBUG, "ctrl cdev path %s", ctrl_cdev_path);
+			syslog(LOG_DE, "ctrl cdev path %s", ctrl_cdev_path);
 			sysfs_set_ulong(ctrl_cdev_path, "cur_state",
 					cdev_state);
 		}

@@ -215,11 +215,11 @@ config BLK_DEV_DM
 
 	  If unsure, say N.
 
-config DM_DEBUG
-	bool "Device mapper debugging support"
+config DM_DE
+	bool "Device mapper deging support"
 	depends on BLK_DEV_DM
 	---help---
-	  Enable this for messages that may help debug device-mapper problems.
+	  Enable this for messages that may help de device-mapper problems.
 
 	  If unsure, say N.
 
@@ -231,7 +231,7 @@ config DM_BUFIO
 	 as a cache, holding recently-read blocks in memory and performing
 	 delayed writes.
 
-config DM_DEBUG_BLOCK_MANAGER_LOCKING
+config DM_DE_BLOCK_MANAGER_LOCKING
        bool "Block manager locking"
        depends on DM_BUFIO
        ---help---
@@ -239,12 +239,12 @@ config DM_DEBUG_BLOCK_MANAGER_LOCKING
 
 	 If unsure, say N.
 
-config DM_DEBUG_BLOCK_STACK_TRACING
+config DM_DE_BLOCK_STACK_TRACING
        bool "Keep stack trace of persistent data block lock holders"
-       depends on STACKTRACE_SUPPORT && DM_DEBUG_BLOCK_MANAGER_LOCKING
+       depends on STACKTRACE_SUPPORT && DM_DE_BLOCK_MANAGER_LOCKING
        select STACKTRACE
        ---help---
-	 Enable this for messages that may help debug problems with the
+	 Enable this for messages that may help de problems with the
 	 block manager locking used by thin provisioning and caching.
 
 	 If unsure, say N.
@@ -458,7 +458,7 @@ config DM_FLAKEY
        tristate "Flakey target"
        depends on BLK_DEV_DM
        ---help---
-         A target that intermittently fails I/O for debugging purposes.
+         A target that intermittently fails I/O for deging purposes.
 
 config DM_VERITY
 	tristate "Verity target support"

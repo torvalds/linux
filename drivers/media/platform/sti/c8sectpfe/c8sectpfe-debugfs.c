@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * c8sectpfe-debugfs.c - C8SECTPFE STi DVB driver
+ * c8sectpfe-defs.c - C8SECTPFE STi DVB driver
  *
  * Copyright (c) STMicroelectronics 2015
  *
  * Author: Peter Griffin <peter.griffin@linaro.org>
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include "c8sectpfe-debugfs.h"
+#include "c8sectpfe-defs.h"
 
 #define dump_register(nm ...)			\
 {						\
@@ -24,7 +24,7 @@
 	.offset	= nm,				\
 }
 
-static const struct debugfs_reg32 fei_sys_regs[] = {
+static const struct defs_reg32 fei_sys_regs[] = {
 	dump_register(SYS_INPUT_ERR_STATUS),
 	dump_register(SYS_OTHER_ERR_STATUS),
 	dump_register(SYS_INPUT_ERR_MASK),
@@ -223,12 +223,12 @@ static const struct debugfs_reg32 fei_sys_regs[] = {
 	dump_register(PIDF_LEAK_COUNTER),
 };
 
-void c8sectpfe_debugfs_init(struct c8sectpfei *fei)
+void c8sectpfe_defs_init(struct c8sectpfei *fei)
 {
 	struct dentry		*root;
 	struct dentry		*file;
 
-	root = debugfs_create_dir("c8sectpfe", NULL);
+	root = defs_create_dir("c8sectpfe", NULL);
 	if (!root)
 		goto err;
 
@@ -242,11 +242,11 @@ void c8sectpfe_debugfs_init(struct c8sectpfei *fei)
 	fei->regset->nregs = ARRAY_SIZE(fei_sys_regs);
 	fei->regset->base = fei->io;
 
-	file = debugfs_create_regset32("registers", S_IRUGO, root,
+	file = defs_create_regset32("registers", S_IRUGO, root,
 				fei->regset);
 	if (!file) {
 		dev_err(fei->dev,
-			"%s not able to create 'registers' debugfs\n"
+			"%s not able to create 'registers' defs\n"
 			, __func__);
 		goto err;
 	}
@@ -254,11 +254,11 @@ void c8sectpfe_debugfs_init(struct c8sectpfei *fei)
 	return;
 
 err:
-	debugfs_remove_recursive(root);
+	defs_remove_recursive(root);
 }
 
-void c8sectpfe_debugfs_exit(struct c8sectpfei *fei)
+void c8sectpfe_defs_exit(struct c8sectpfei *fei)
 {
-	debugfs_remove_recursive(fei->root);
+	defs_remove_recursive(fei->root);
 	fei->root = NULL;
 }

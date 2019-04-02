@@ -239,7 +239,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 		}
 
 		if (csk->wr_cred < credits_needed) {
-			pr_debug("csk 0x%p, skb %u/%u, wr %d < %u.\n",
+			pr_de("csk 0x%p, skb %u/%u, wr %d < %u.\n",
 				 csk, skb->len, skb->data_len,
 				 credits_needed, csk->wr_cred);
 			break;
@@ -250,7 +250,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 		csk->wr_cred -= credits_needed;
 		csk->wr_una_cred += credits_needed;
 
-		pr_debug("csk 0x%p, skb %u/%u, wr %d, left %u, unack %u.\n",
+		pr_de("csk 0x%p, skb %u/%u, wr %d, left %u, unack %u.\n",
 			 csk, skb->len, skb->data_len, credits_needed,
 			 csk->wr_cred, csk->wr_una_cred);
 
@@ -280,7 +280,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 		t4_set_arp_err_handler(skb, csk,
 				       cxgbit_arp_failure_skb_discard);
 
-		pr_debug("csk 0x%p,%u, skb 0x%p, %u.\n",
+		pr_de("csk 0x%p,%u, skb 0x%p, %u.\n",
 			 csk, csk->tid, skb, len);
 
 		cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
@@ -1065,7 +1065,7 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 		goto check_payload;
 	}
 
-	pr_debug("DataOut data_len: %u, "
+	pr_de("DataOut data_len: %u, "
 		"write_data_done: %u, data_length: %u\n",
 		  data_len,  cmd->write_data_done,
 		  cmd->se_cmd.data_length);
@@ -1144,9 +1144,9 @@ static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsi_cmd *cmd)
 		cmd->buf_ptr = ping_data;
 		cmd->buf_ptr_size = payload_length;
 
-		pr_debug("Got %u bytes of NOPOUT ping"
+		pr_de("Got %u bytes of NOPOUT ping"
 			" data.\n", payload_length);
-		pr_debug("Ping Data: \"%s\"\n", ping_data);
+		pr_de("Ping Data: \"%s\"\n", ping_data);
 	}
 
 	return iscsit_process_nop_out(conn, cmd, hdr);
@@ -1334,7 +1334,7 @@ static int cxgbit_rx_login_pdu(struct cxgbit_sock *csk)
 	login_req = (struct iscsi_login_req *)login->req;
 	memcpy(login_req, pdu_cb->hdr, sizeof(*login_req));
 
-	pr_debug("Got Login Command, Flags 0x%02x, ITT: 0x%08x,"
+	pr_de("Got Login Command, Flags 0x%02x, ITT: 0x%08x,"
 		" CmdSN: 0x%08x, ExpStatSN: 0x%08x, CID: %hu, Length: %u\n",
 		login_req->flags, login_req->itt, login_req->cmdsn,
 		login_req->exp_statsn, login_req->cid, pdu_cb->dlen);

@@ -1,7 +1,7 @@
 /*
- * arch/sh/mm/tlb-debugfs.c
+ * arch/sh/mm/tlb-defs.c
  *
- * debugfs ops for SH-4 ITLB/UTLBs.
+ * defs ops for SH-4 ITLB/UTLBs.
  *
  * Copyright (C) 2010  Matt Fleming
  *
@@ -11,7 +11,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
@@ -134,39 +134,39 @@ static int tlb_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int tlb_debugfs_open(struct inode *inode, struct file *file)
+static int tlb_defs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, tlb_seq_show, inode->i_private);
 }
 
-static const struct file_operations tlb_debugfs_fops = {
+static const struct file_operations tlb_defs_fops = {
 	.owner		= THIS_MODULE,
-	.open		= tlb_debugfs_open,
+	.open		= tlb_defs_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static int __init tlb_debugfs_init(void)
+static int __init tlb_defs_init(void)
 {
 	struct dentry *itlb, *utlb;
 
-	itlb = debugfs_create_file("itlb", S_IRUSR, arch_debugfs_dir,
+	itlb = defs_create_file("itlb", S_IRUSR, arch_defs_dir,
 				   (unsigned int *)TLB_TYPE_ITLB,
-				   &tlb_debugfs_fops);
+				   &tlb_defs_fops);
 	if (unlikely(!itlb))
 		return -ENOMEM;
 
-	utlb = debugfs_create_file("utlb", S_IRUSR, arch_debugfs_dir,
+	utlb = defs_create_file("utlb", S_IRUSR, arch_defs_dir,
 				   (unsigned int *)TLB_TYPE_UTLB,
-				   &tlb_debugfs_fops);
+				   &tlb_defs_fops);
 	if (unlikely(!utlb)) {
-		debugfs_remove(itlb);
+		defs_remove(itlb);
 		return -ENOMEM;
 	}
 
 	return 0;
 }
-module_init(tlb_debugfs_init);
+module_init(tlb_defs_init);
 
 MODULE_LICENSE("GPL v2");

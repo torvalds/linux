@@ -47,8 +47,8 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 		/* User should make sure that every key target offset is withing
 		 * boundaries of unsigned short.
 		 */
-		BUG_ON(key->offset > USHRT_MAX);
-		BUG_ON(dissector_uses_key(flow_dissector,
+		_ON(key->offset > USHRT_MAX);
+		_ON(dissector_uses_key(flow_dissector,
 					  key->key_id));
 
 		dissector_set_key(flow_dissector, key->key_id);
@@ -58,9 +58,9 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 	/* Ensure that the dissector always includes control and basic key.
 	 * That way we are able to avoid handling lack of these in fast path.
 	 */
-	BUG_ON(!dissector_uses_key(flow_dissector,
+	_ON(!dissector_uses_key(flow_dissector,
 				   FLOW_DISSECTOR_KEY_CONTROL));
-	BUG_ON(!dissector_uses_key(flow_dissector,
+	_ON(!dissector_uses_key(flow_dissector,
 				   FLOW_DISSECTOR_KEY_BASIC));
 }
 EXPORT_SYMBOL(skb_flow_dissector_init);
@@ -1252,15 +1252,15 @@ static inline const u32 *flow_keys_hash_start(const struct flow_keys *flow)
 {
 	const void *p = flow;
 
-	BUILD_BUG_ON(FLOW_KEYS_HASH_OFFSET % sizeof(u32));
+	BUILD__ON(FLOW_KEYS_HASH_OFFSET % sizeof(u32));
 	return (const u32 *)(p + FLOW_KEYS_HASH_OFFSET);
 }
 
 static inline size_t flow_keys_hash_length(const struct flow_keys *flow)
 {
 	size_t diff = FLOW_KEYS_HASH_OFFSET + sizeof(flow->addrs);
-	BUILD_BUG_ON((sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) % sizeof(u32));
-	BUILD_BUG_ON(offsetof(typeof(*flow), addrs) !=
+	BUILD__ON((sizeof(*flow) - FLOW_KEYS_HASH_OFFSET) % sizeof(u32));
+	BUILD__ON(offsetof(typeof(*flow), addrs) !=
 		     sizeof(*flow) - sizeof(flow->addrs));
 
 	switch (flow->control.addr_type) {
@@ -1385,7 +1385,7 @@ void make_flow_keys_digest(struct flow_keys_digest *digest,
 	struct _flow_keys_digest_data *data =
 	    (struct _flow_keys_digest_data *)digest;
 
-	BUILD_BUG_ON(sizeof(*data) > sizeof(*digest));
+	BUILD__ON(sizeof(*data) > sizeof(*digest));
 
 	memset(digest, 0, sizeof(*digest));
 

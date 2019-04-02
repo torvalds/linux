@@ -50,7 +50,7 @@ static irqreturn_t handle_ipi(int irq, void *dev)
 		if (ops & (1 << IPI_CALL_FUNC))
 			generic_smp_call_function_interrupt();
 
-		BUG_ON((ops >> IPI_MAX) != 0);
+		_ON((ops >> IPI_MAX) != 0);
 	}
 
 	return IRQ_HANDLED;

@@ -108,7 +108,7 @@ static long rxrpc_peer_cmp_key(const struct rxrpc_peer *peer,
 			       sizeof(struct in6_addr));
 #endif
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -143,7 +143,7 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
 
 	peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
 	if (peer) {
-		_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
+		_net("PEER %d {%pISp}", peer->de_id, &peer->srx.transport);
 		_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
 	}
 	return peer;
@@ -199,7 +199,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_sock *rx,
 #endif
 
 	default:
-		BUG();
+		();
 	}
 
 	peer->if_mtu = dst_mtu(dst);
@@ -226,7 +226,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 		seqlock_init(&peer->service_conn_lock);
 		spin_lock_init(&peer->lock);
 		spin_lock_init(&peer->rtt_input_lock);
-		peer->debug_id = atomic_inc_return(&rxrpc_debug_id);
+		peer->de_id = atomic_inc_return(&rxrpc_de_id);
 
 		if (RXRPC_TX_SMSS > 2190)
 			peer->cong_cwnd = 2;
@@ -261,7 +261,7 @@ static void rxrpc_init_peer(struct rxrpc_sock *rx, struct rxrpc_peer *peer,
 		break;
 #endif
 	default:
-		BUG();
+		();
 	}
 
 	switch (peer->srx.transport_type) {
@@ -269,7 +269,7 @@ static void rxrpc_init_peer(struct rxrpc_sock *rx, struct rxrpc_peer *peer,
 		peer->hdrsize += sizeof(struct udphdr);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	peer->hdrsize += sizeof(struct rxrpc_wire_header);
@@ -371,7 +371,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 			peer = candidate;
 	}
 
-	_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
+	_net("PEER %d {%pISp}", peer->de_id, &peer->srx.transport);
 
 	_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
 	return peer;
@@ -454,7 +454,7 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
 
 		hlist_for_each_entry(peer, &rxnet->peer_hash[i], hash_link) {
 			pr_err("Leaked peer %u {%u} %pISp\n",
-			       peer->debug_id,
+			       peer->de_id,
 			       atomic_read(&peer->usage),
 			       &peer->srx.transport);
 		}

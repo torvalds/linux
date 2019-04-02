@@ -62,14 +62,14 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 					& ~pasid_mask) | pasid);
 	}
 
-	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
+	pr_de("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
 		 client_id, source_id, vmid, pasid);
-	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
+	pr_de("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
 		 data[0], data[1], data[2], data[3],
 		 data[4], data[5], data[6], data[7]);
 
-	/* If there is no valid PASID, it's likely a bug */
-	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
+	/* If there is no valid PASID, it's likely a  */
+	if (WARN_ONCE(pasid == 0, ": No PASID in KFD interrupt"))
 		return 0;
 
 	/* Interrupt types we care about: various signals and faults.

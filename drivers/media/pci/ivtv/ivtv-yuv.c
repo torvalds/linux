@@ -65,7 +65,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 
 	/* Still in USE */
 	if (dma->SG_length || dma->page_count) {
-		IVTV_DEBUG_WARN
+		IVTV_DE_WARN
 		    ("prep_user_dma: SG_length %d page_count %d still full?\n",
 		     dma->SG_length, dma->page_count);
 		return -EBUSY;
@@ -88,7 +88,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 		int rc = -EFAULT;
 
 		if (y_pages == y_dma.page_count) {
-			IVTV_DEBUG_WARN
+			IVTV_DE_WARN
 				("failed to map uv user pages, returned %d expecting %d\n",
 				 uv_pages, uv_dma.page_count);
 
@@ -100,7 +100,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 				rc = uv_pages;
 			}
 		} else {
-			IVTV_DEBUG_WARN
+			IVTV_DE_WARN
 				("failed to map y user pages, returned %d expecting %d\n",
 				 y_pages, y_dma.page_count);
 		}
@@ -123,7 +123,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 
 	/* Fill & map SG List */
 	if (ivtv_udma_fill_sg_list (dma, &uv_dma, ivtv_udma_fill_sg_list (dma, &y_dma, 0)) < 0) {
-		IVTV_DEBUG_WARN("could not allocate bounce buffers for highmem userspace buffers\n");
+		IVTV_DE_WARN("could not allocate bounce buffers for highmem userspace buffers\n");
 		for (i = 0; i < dma->page_count; i++) {
 			put_page(dma->map[i]);
 		}
@@ -193,7 +193,7 @@ static void ivtv_yuv_filter(struct ivtv *itv, int h_filter, int v_filter_1, int 
 			write_reg(0, 0x02818);
 			write_reg(0, 0x02830);
 		}
-		IVTV_DEBUG_YUV("h_filter -> %d\n", h_filter);
+		IVTV_DE_YUV("h_filter -> %d\n", h_filter);
 	}
 
 	if (v_filter_1 > -1) {
@@ -207,7 +207,7 @@ static void ivtv_yuv_filter(struct ivtv *itv, int h_filter, int v_filter_1, int 
 			i += 8;
 			write_reg(0, 0x02908);
 		}
-		IVTV_DEBUG_YUV("v_filter_1 -> %d\n", v_filter_1);
+		IVTV_DE_YUV("v_filter_1 -> %d\n", v_filter_1);
 	}
 
 	if (v_filter_2 > -1) {
@@ -221,7 +221,7 @@ static void ivtv_yuv_filter(struct ivtv *itv, int h_filter, int v_filter_1, int 
 			i += 8;
 			write_reg(0, 0x02914);
 		}
-		IVTV_DEBUG_YUV("v_filter_2 -> %d\n", v_filter_2);
+		IVTV_DE_YUV("v_filter_2 -> %d\n", v_filter_2);
 	}
 }
 
@@ -236,7 +236,7 @@ static void ivtv_yuv_handle_horizontal(struct ivtv *itv, struct yuv_frame_info *
 	int h_filter;
 	u32 master_width;
 
-	IVTV_DEBUG_WARN
+	IVTV_DE_WARN
 	    ("Adjust to width %d src_w %d dst_w %d src_x %d dst_x %d\n",
 	     f->tru_w, f->src_w, f->dst_w, f->src_x, f->dst_x);
 
@@ -345,39 +345,39 @@ static void ivtv_yuv_handle_horizontal(struct ivtv *itv, struct yuv_frame_info *
 
 	write_reg(reg_2834, 0x02834);
 	write_reg(reg_2838, 0x02838);
-	IVTV_DEBUG_YUV("Update reg 0x2834 %08x->%08x 0x2838 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2834 %08x->%08x 0x2838 %08x->%08x\n",
 		       yi->reg_2834, reg_2834, yi->reg_2838, reg_2838);
 
 	write_reg(reg_283c, 0x0283c);
 	write_reg(reg_2844, 0x02844);
 
-	IVTV_DEBUG_YUV("Update reg 0x283c %08x->%08x 0x2844 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x283c %08x->%08x 0x2844 %08x->%08x\n",
 		       yi->reg_283c, reg_283c, yi->reg_2844, reg_2844);
 
 	write_reg(0x00080514, 0x02840);
 	write_reg(0x00100514, 0x02848);
-	IVTV_DEBUG_YUV("Update reg 0x2840 %08x->%08x 0x2848 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2840 %08x->%08x 0x2848 %08x->%08x\n",
 		       yi->reg_2840, 0x00080514, yi->reg_2848, 0x00100514);
 
 	write_reg(reg_2854, 0x02854);
-	IVTV_DEBUG_YUV("Update reg 0x2854 %08x->%08x \n",
+	IVTV_DE_YUV("Update reg 0x2854 %08x->%08x \n",
 		       yi->reg_2854, reg_2854);
 
 	write_reg(reg_285c, 0x0285c);
 	write_reg(reg_2864, 0x02864);
-	IVTV_DEBUG_YUV("Update reg 0x285c %08x->%08x 0x2864 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x285c %08x->%08x 0x2864 %08x->%08x\n",
 		       yi->reg_285c, reg_285c, yi->reg_2864, reg_2864);
 
 	write_reg(reg_2874, 0x02874);
-	IVTV_DEBUG_YUV("Update reg 0x2874 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2874 %08x->%08x\n",
 		       yi->reg_2874, reg_2874);
 
 	write_reg(reg_2870, 0x02870);
-	IVTV_DEBUG_YUV("Update reg 0x2870 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2870 %08x->%08x\n",
 		       yi->reg_2870, reg_2870);
 
 	write_reg(reg_2890, 0x02890);
-	IVTV_DEBUG_YUV("Update reg 0x2890 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2890 %08x->%08x\n",
 		       yi->reg_2890, reg_2890);
 
 	/* Only update the filter if we really need to */
@@ -402,19 +402,19 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *f)
 	u32 reg_2964_base, reg_2968_base;
 	int v_filter_1, v_filter_2;
 
-	IVTV_DEBUG_WARN
+	IVTV_DE_WARN
 	    ("Adjust to height %d src_h %d dst_h %d src_y %d dst_y %d\n",
 	     f->tru_h, f->src_h, f->dst_h, f->src_y, f->dst_y);
 
 	/* What scaling mode is being used... */
-	IVTV_DEBUG_YUV("Scaling mode Y: %s\n",
+	IVTV_DE_YUV("Scaling mode Y: %s\n",
 		       f->interlaced_y ? "Interlaced" : "Progressive");
 
-	IVTV_DEBUG_YUV("Scaling mode UV: %s\n",
+	IVTV_DE_YUV("Scaling mode UV: %s\n",
 		       f->interlaced_uv ? "Interlaced" : "Progressive");
 
 	/* What is the source video being treated as... */
-	IVTV_DEBUG_WARN("Source video: %s\n",
+	IVTV_DE_WARN("Source video: %s\n",
 			f->interlaced ? "Interlaced" : "Progressive");
 
 	/* We offset into the image using two different index methods, so split
@@ -589,67 +589,67 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *f)
 
 	write_reg(reg_2934, 0x02934);
 	write_reg(reg_293c, 0x0293c);
-	IVTV_DEBUG_YUV("Update reg 0x2934 %08x->%08x 0x293c %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2934 %08x->%08x 0x293c %08x->%08x\n",
 		       yi->reg_2934, reg_2934, yi->reg_293c, reg_293c);
 	write_reg(reg_2944, 0x02944);
 	write_reg(reg_294c, 0x0294c);
-	IVTV_DEBUG_YUV("Update reg 0x2944 %08x->%08x 0x294c %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2944 %08x->%08x 0x294c %08x->%08x\n",
 		       yi->reg_2944, reg_2944, yi->reg_294c, reg_294c);
 
 	/* Ensure 2970 is 0 (does it ever change ?) */
 /*	write_reg(0,0x02970); */
-/*	IVTV_DEBUG_YUV("Update reg 0x2970 %08x->%08x\n", yi->reg_2970, 0); */
+/*	IVTV_DE_YUV("Update reg 0x2970 %08x->%08x\n", yi->reg_2970, 0); */
 
 	write_reg(reg_2930, 0x02938);
 	write_reg(reg_2930, 0x02930);
-	IVTV_DEBUG_YUV("Update reg 0x2930 %08x->%08x 0x2938 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2930 %08x->%08x 0x2938 %08x->%08x\n",
 		       yi->reg_2930, reg_2930, yi->reg_2938, reg_2930);
 
 	write_reg(reg_2928, 0x02928);
 	write_reg(reg_2928 + 0x514, 0x0292C);
-	IVTV_DEBUG_YUV("Update reg 0x2928 %08x->%08x 0x292c %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2928 %08x->%08x 0x292c %08x->%08x\n",
 		       yi->reg_2928, reg_2928, yi->reg_292c, reg_2928 + 0x514);
 
 	write_reg(reg_2920, 0x02920);
 	write_reg(reg_2920 + 0x514, 0x02924);
-	IVTV_DEBUG_YUV("Update reg 0x2920 %08x->%08x 0x2924 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2920 %08x->%08x 0x2924 %08x->%08x\n",
 		       yi->reg_2920, reg_2920, yi->reg_2924, reg_2920 + 0x514);
 
 	write_reg(reg_2918, 0x02918);
 	write_reg(reg_291c, 0x0291C);
-	IVTV_DEBUG_YUV("Update reg 0x2918 %08x->%08x 0x291C %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2918 %08x->%08x 0x291C %08x->%08x\n",
 		       yi->reg_2918, reg_2918, yi->reg_291c, reg_291c);
 
 	write_reg(reg_296c, 0x0296c);
-	IVTV_DEBUG_YUV("Update reg 0x296c %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x296c %08x->%08x\n",
 		       yi->reg_296c, reg_296c);
 
 	write_reg(reg_2940, 0x02948);
 	write_reg(reg_2940, 0x02940);
-	IVTV_DEBUG_YUV("Update reg 0x2940 %08x->%08x 0x2948 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2940 %08x->%08x 0x2948 %08x->%08x\n",
 		       yi->reg_2940, reg_2940, yi->reg_2948, reg_2940);
 
 	write_reg(reg_2950, 0x02950);
 	write_reg(reg_2954, 0x02954);
-	IVTV_DEBUG_YUV("Update reg 0x2950 %08x->%08x 0x2954 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2950 %08x->%08x 0x2954 %08x->%08x\n",
 		       yi->reg_2950, reg_2950, yi->reg_2954, reg_2954);
 
 	write_reg(reg_2958, 0x02958);
 	write_reg(reg_295c, 0x0295C);
-	IVTV_DEBUG_YUV("Update reg 0x2958 %08x->%08x 0x295C %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2958 %08x->%08x 0x295C %08x->%08x\n",
 		       yi->reg_2958, reg_2958, yi->reg_295c, reg_295c);
 
 	write_reg(reg_2960, 0x02960);
-	IVTV_DEBUG_YUV("Update reg 0x2960 %08x->%08x \n",
+	IVTV_DE_YUV("Update reg 0x2960 %08x->%08x \n",
 		       yi->reg_2960, reg_2960);
 
 	write_reg(reg_2964, 0x02964);
 	write_reg(reg_2968, 0x02968);
-	IVTV_DEBUG_YUV("Update reg 0x2964 %08x->%08x 0x2968 %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x2964 %08x->%08x 0x2968 %08x->%08x\n",
 		       yi->reg_2964, reg_2964, yi->reg_2968, reg_2968);
 
 	write_reg(reg_289c, 0x0289c);
-	IVTV_DEBUG_YUV("Update reg 0x289c %08x->%08x\n",
+	IVTV_DE_YUV("Update reg 0x289c %08x->%08x\n",
 		       yi->reg_289c, reg_289c);
 
 	/* Only update filter 1 if we really need to */
@@ -818,7 +818,7 @@ void ivtv_yuv_work_handler(struct ivtv *itv)
 	int frame = yi->update_frame;
 	u32 yuv_update;
 
-	IVTV_DEBUG_YUV("Update yuv registers for frame %d\n", frame);
+	IVTV_DE_YUV("Update yuv registers for frame %d\n", frame);
 	f = yi->new_frame_info[frame];
 
 	if (yi->track_osd) {
@@ -857,7 +857,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 
-	IVTV_DEBUG_YUV("ivtv_yuv_init\n");
+	IVTV_DE_YUV("ivtv_yuv_init\n");
 
 	/* Take a snapshot of the current register settings */
 	yi->reg_2834 = read_reg(0x02834);
@@ -927,7 +927,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 		} else if (yi->osd_vis_h + yi->osd_y_offset > yi->decode_height) {
 			/* If output video standard has changed, requested height may
 			   not be legal */
-			IVTV_DEBUG_WARN("Clipping yuv output - fb size (%d) exceeds video standard limit (%d)\n",
+			IVTV_DE_WARN("Clipping yuv output - fb size (%d) exceeds video standard limit (%d)\n",
 					yi->osd_vis_h + yi->osd_y_offset,
 					yi->decode_height);
 			yi->osd_vis_h = yi->decode_height - yi->osd_y_offset;
@@ -940,7 +940,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 		yi->blanking_dmaptr = pci_map_single(itv->pdev, yi->blanking_ptr, 720*16, PCI_DMA_TODEVICE);
 	} else {
 		yi->blanking_dmaptr = 0;
-		IVTV_DEBUG_WARN("Failed to allocate yuv blanking buffer\n");
+		IVTV_DE_WARN("Failed to allocate yuv blanking buffer\n");
 	}
 
 	/* Enable YUV decoder output */
@@ -1058,7 +1058,7 @@ static void ivtv_yuv_setup_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	if (memcmp(&yi->old_frame_info_args, nf, sizeof(*nf))) {
 		yi->old_frame_info_args = *nf;
 		nf->update = 1;
-		IVTV_DEBUG_YUV("Requesting reg update for frame %d\n", frame);
+		IVTV_DE_YUV("Requesting reg update for frame %d\n", frame);
 	}
 
 	nf->update |= update;
@@ -1106,7 +1106,7 @@ static int ivtv_yuv_udma_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	ivtv_udma_unmap(itv);
 
 	if (got_sig) {
-		IVTV_DEBUG_INFO("User stopped YUV UDMA\n");
+		IVTV_DE_INFO("User stopped YUV UDMA\n");
 		mutex_unlock(&itv->udma.lock);
 		return -EINTR;
 	}
@@ -1169,7 +1169,7 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
 	int res;
 
-/*	IVTV_DEBUG_INFO("yuv_prep_frame\n"); */
+/*	IVTV_DE_INFO("yuv_prep_frame\n"); */
 	ivtv_yuv_next_free(itv);
 	ivtv_yuv_setup_frame(itv, args);
 	/* Wait for frame DMA. Note that serialize_lock is locked,
@@ -1186,7 +1186,7 @@ void ivtv_yuv_close(struct ivtv *itv)
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	int h_filter, v_filter_1, v_filter_2;
 
-	IVTV_DEBUG_YUV("ivtv_yuv_close\n");
+	IVTV_DE_YUV("ivtv_yuv_close\n");
 	mutex_unlock(&itv->serialize_lock);
 	ivtv_waitq(&itv->vsync_waitq);
 	mutex_lock(&itv->serialize_lock);

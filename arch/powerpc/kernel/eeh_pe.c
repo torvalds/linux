@@ -103,7 +103,7 @@ int eeh_phb_pe_create(struct pci_controller *phb)
 	/* Put it into the list */
 	list_add_tail(&pe->child, &eeh_phb_pe);
 
-	pr_debug("EEH: Add PE for PHB#%x\n", phb->global_number);
+	pr_de("EEH: Add PE for PHB#%x\n", phb->global_number);
 
 	return 0;
 }
@@ -411,7 +411,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 		/* Put the edev to PE */
 		list_add_tail(&edev->entry, &pe->edevs);
-		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
+		pr_de("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
 			 pdn->phb->global_number,
 			 pdn->busno,
 			 PCI_SLOT(pdn->devfn),
@@ -433,7 +433,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 			parent = parent->parent;
 		}
 
-		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Device "
+		pr_de("EEH: Add %04x:%02x:%02x.%01x to Device "
 			 "PE#%x, Parent PE#%x\n",
 			 pdn->phb->global_number,
 			 pdn->busno,
@@ -481,7 +481,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	list_add_tail(&pe->child, &parent->child_list);
 	list_add_tail(&edev->entry, &pe->edevs);
 	edev->pe = pe;
-	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
+	pr_de("EEH: Add %04x:%02x:%02x.%01x to "
 		 "Device PE#%x, Parent PE#%x\n",
 		 pdn->phb->global_number,
 		 pdn->busno,
@@ -509,7 +509,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 
 	pe = eeh_dev_to_pe(edev);
 	if (!pe) {
-		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
+		pr_de("%s: No PE found for device %04x:%02x:%02x.%01x\n",
 			 __func__,  pdn->phb->global_number,
 			 pdn->busno,
 			 PCI_SLOT(pdn->devfn),
@@ -730,7 +730,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	if (!(edev->mode & (EEH_DEV_ROOT_PORT | EEH_DEV_DS_PORT)))
 		return;
 
-	pr_debug("%s: Check PCIe link for %04x:%02x:%02x.%01x ...\n",
+	pr_de("%s: Check PCIe link for %04x:%02x:%02x.%01x ...\n",
 		 __func__, pdn->phb->global_number,
 		 pdn->busno,
 		 PCI_SLOT(pdn->devfn),
@@ -740,7 +740,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	cap = edev->pcie_cap;
 	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
-		pr_debug("  No card in the slot (0x%04x) !\n", val);
+		pr_de("  No card in the slot (0x%04x) !\n", val);
 		return;
 	}
 
@@ -749,7 +749,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	if (val & PCI_EXP_SLTCAP_PCP) {
 		eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCTL, 2, &val);
 		if (val & PCI_EXP_SLTCTL_PCC) {
-			pr_debug("  In power-off state, power it on ...\n");
+			pr_de("  In power-off state, power it on ...\n");
 			val &= ~(PCI_EXP_SLTCTL_PCC | PCI_EXP_SLTCTL_PIC);
 			val |= (0x0100 & PCI_EXP_SLTCTL_PIC);
 			eeh_ops->write_config(pdn, cap + PCI_EXP_SLTCTL, 2, val);
@@ -765,7 +765,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	/* Check link */
 	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCAP, 4, &val);
 	if (!(val & PCI_EXP_LNKCAP_DLLLARC)) {
-		pr_debug("  No link reporting capability (0x%08x) \n", val);
+		pr_de("  No link reporting capability (0x%08x) \n", val);
 		msleep(1000);
 		return;
 	}
@@ -782,10 +782,10 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 	}
 
 	if (val & PCI_EXP_LNKSTA_DLLLA)
-		pr_debug("  Link up (%s)\n",
+		pr_de("  Link up (%s)\n",
 			 (val & PCI_EXP_LNKSTA_CLS_2_5GB) ? "2.5GB" : "5GB");
 	else
-		pr_debug("  Link not ready (0x%04x)\n", val);
+		pr_de("  Link not ready (0x%04x)\n", val);
 }
 
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))

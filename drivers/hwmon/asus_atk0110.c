@@ -7,7 +7,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/hwmon.h>
 #include <linux/list.h>
@@ -131,7 +131,7 @@ struct atk_data {
 	struct {
 		struct dentry *root;
 		u32 id;
-	} debugfs;
+	} defs;
 };
 
 
@@ -393,7 +393,7 @@ static int validate_hwmon_pack(struct atk_data *data, union acpi_object *obj)
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static char const *atk_sensor_type(union acpi_object *flags)
 {
 	u64 type = flags->integer.value & ATK_TYPE_MASK;
@@ -420,7 +420,7 @@ static char const *atk_sensor_type(union acpi_object *flags)
 
 static void atk_print_sensor(struct atk_data *data, union acpi_object *obj)
 {
-#ifdef DEBUG
+#ifdef DE
 	struct device *dev = &data->acpi_dev->dev;
 	union acpi_object *flags;
 	union acpi_object *name;
@@ -653,8 +653,8 @@ static int atk_read_value(struct atk_sensor_data *sensor, u64 *value)
 	return err;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int atk_debugfs_gitm_get(void *p, u64 *val)
+#ifdef CONFIG_DE_FS
+static int atk_defs_gitm_get(void *p, u64 *val)
 {
 	struct atk_data *data = p;
 	union acpi_object *ret;
@@ -664,10 +664,10 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 	if (!data->read_handle)
 		return -ENODEV;
 
-	if (!data->debugfs.id)
+	if (!data->defs.id)
 		return -EINVAL;
 
-	ret = atk_gitm(data, data->debugfs.id);
+	ret = atk_gitm(data, data->defs.id);
 	if (IS_ERR(ret))
 		return PTR_ERR(ret);
 
@@ -681,7 +681,7 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 	return err;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(atk_debugfs_gitm, atk_debugfs_gitm_get, NULL,
+DEFINE_DEFS_ATTRIBUTE(atk_defs_gitm, atk_defs_gitm_get, NULL,
 			 "0x%08llx\n");
 
 static int atk_acpi_print(char *buf, size_t sz, union acpi_object *obj)
@@ -716,7 +716,7 @@ static void atk_pack_print(char *buf, size_t sz, union acpi_object *pack)
 	}
 }
 
-static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
+static int atk_defs_ggrp_open(struct inode *inode, struct file *file)
 {
 	struct atk_data *data = inode->i_private;
 	char *buf = NULL;
@@ -726,10 +726,10 @@ static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
 
 	if (!data->enumerate_handle)
 		return -ENODEV;
-	if (!data->debugfs.id)
+	if (!data->defs.id)
 		return -EINVAL;
 
-	cls = (data->debugfs.id & 0xff000000) >> 24;
+	cls = (data->defs.id & 0xff000000) >> 24;
 	ret = atk_ggrp(data, cls);
 	if (IS_ERR(ret))
 		return PTR_ERR(ret);
@@ -743,7 +743,7 @@ static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
 		if (!pack->package.count)
 			continue;
 		id = &pack->package.elements[0];
-		if (id->integer.value == data->debugfs.id) {
+		if (id->integer.value == data->defs.id) {
 			/* Print the package */
 			buf = kzalloc(512, GFP_KERNEL);
 			if (!buf) {
@@ -764,7 +764,7 @@ static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static ssize_t atk_debugfs_ggrp_read(struct file *file, char __user *buf,
+static ssize_t atk_defs_ggrp_read(struct file *file, char __user *buf,
 		size_t count, loff_t *pos)
 {
 	char *str = file->private_data;
@@ -773,63 +773,63 @@ static ssize_t atk_debugfs_ggrp_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, count, pos, str, len);
 }
 
-static int atk_debugfs_ggrp_release(struct inode *inode, struct file *file)
+static int atk_defs_ggrp_release(struct inode *inode, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
 }
 
-static const struct file_operations atk_debugfs_ggrp_fops = {
-	.read		= atk_debugfs_ggrp_read,
-	.open		= atk_debugfs_ggrp_open,
-	.release	= atk_debugfs_ggrp_release,
+static const struct file_operations atk_defs_ggrp_fops = {
+	.read		= atk_defs_ggrp_read,
+	.open		= atk_defs_ggrp_open,
+	.release	= atk_defs_ggrp_release,
 	.llseek		= no_llseek,
 };
 
-static void atk_debugfs_init(struct atk_data *data)
+static void atk_defs_init(struct atk_data *data)
 {
 	struct dentry *d;
 	struct dentry *f;
 
-	data->debugfs.id = 0;
+	data->defs.id = 0;
 
-	d = debugfs_create_dir("asus_atk0110", NULL);
+	d = defs_create_dir("asus_atk0110", NULL);
 	if (!d || IS_ERR(d))
 		return;
 
-	f = debugfs_create_x32("id", 0600, d, &data->debugfs.id);
+	f = defs_create_x32("id", 0600, d, &data->defs.id);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file_unsafe("gitm", 0400, d, data,
-				       &atk_debugfs_gitm);
+	f = defs_create_file_unsafe("gitm", 0400, d, data,
+				       &atk_defs_gitm);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file("ggrp", 0400, d, data,
-				&atk_debugfs_ggrp_fops);
+	f = defs_create_file("ggrp", 0400, d, data,
+				&atk_defs_ggrp_fops);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	data->debugfs.root = d;
+	data->defs.root = d;
 
 	return;
 cleanup:
-	debugfs_remove_recursive(d);
+	defs_remove_recursive(d);
 }
 
-static void atk_debugfs_cleanup(struct atk_data *data)
+static void atk_defs_cleanup(struct atk_data *data)
 {
-	debugfs_remove_recursive(data->debugfs.root);
+	defs_remove_recursive(data->defs.root);
 }
 
-#else /* CONFIG_DEBUG_FS */
+#else /* CONFIG_DE_FS */
 
-static void atk_debugfs_init(struct atk_data *data)
+static void atk_defs_init(struct atk_data *data)
 {
 }
 
-static void atk_debugfs_cleanup(struct atk_data *data)
+static void atk_defs_cleanup(struct atk_data *data)
 {
 }
 #endif
@@ -1351,7 +1351,7 @@ static int atk_add(struct acpi_device *device)
 	if (err)
 		goto out;
 
-	atk_debugfs_init(data);
+	atk_defs_init(data);
 
 	device->driver_data = data;
 	return 0;
@@ -1368,7 +1368,7 @@ static int atk_remove(struct acpi_device *device)
 
 	device->driver_data = NULL;
 
-	atk_debugfs_cleanup(data);
+	atk_defs_cleanup(data);
 
 	hwmon_device_unregister(data->hwmon_dev);
 

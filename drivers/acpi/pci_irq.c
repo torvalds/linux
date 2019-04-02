@@ -56,7 +56,7 @@ static inline char pin_name(int pin)
                          PCI IRQ Routing Table (PRT) Support
    -------------------------------------------------------------------------- */
 
-/* http://bugzilla.kernel.org/show_bug.cgi?id=4773 */
+/* http://zilla.kernel.org/show_.cgi?id=4773 */
 static const struct dmi_system_id medion_md9580[] = {
 	{
 		.ident = "Medion MD9580-F laptop",
@@ -68,7 +68,7 @@ static const struct dmi_system_id medion_md9580[] = {
 	{ }
 };
 
-/* http://bugzilla.kernel.org/show_bug.cgi?id=5044 */
+/* http://zilla.kernel.org/show_.cgi?id=5044 */
 static const struct dmi_system_id dell_optiplex[] = {
 	{
 		.ident = "Dell Optiplex GX1",
@@ -80,7 +80,7 @@ static const struct dmi_system_id dell_optiplex[] = {
 	{ }
 };
 
-/* http://bugzilla.kernel.org/show_bug.cgi?id=10138 */
+/* http://zilla.kernel.org/show_.cgi?id=10138 */
 static const struct dmi_system_id hp_t5710[] = {
 	{
 		.ident = "HP t5710",
@@ -205,7 +205,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	 * the interrupt controller.
 	 */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INFO,
 			      "      %04x:%02x:%02x[%c] -> %s[%d]\n",
 			      entry->id.segment, entry->id.bus,
 			      entry->id.device, pin_name(entry->pin),
@@ -320,7 +320,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 #ifdef CONFIG_X86_IO_APIC
 		acpi_reroute_boot_interrupt(dev, entry);
 #endif /* CONFIG_X86_IO_APIC */
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %s[%c] _PRT entry\n",
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found %s[%c] _PRT entry\n",
 				  pci_name(dev), pin_name(pin)));
 		return entry;
 	}
@@ -337,7 +337,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 			/* PC card has the same IRQ as its cardbridge */
 			bridge_pin = bridge->pin;
 			if (!bridge_pin) {
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 						  "No interrupt pin configured for device %s\n",
 						  pci_name(bridge)));
 				return NULL;
@@ -347,7 +347,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 
 		ret = acpi_pci_irq_find_prt_entry(bridge, pin, &entry);
 		if (!ret && entry) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					 "Derived GSI for %s INT %c from %s\n",
 					 pci_name(dev), pin_name(orig_pin),
 					 pci_name(bridge)));
@@ -426,7 +426,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 
 	pin = dev->pin;
 	if (!pin) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "No interrupt pin configured for device %s\n",
 				  pci_name(dev)));
 		return 0;

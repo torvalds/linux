@@ -73,7 +73,7 @@ bool dal_bios_parser_init_cmd_tbl_helper2(
 
 	default:
 		/* Unsupported DCE */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 }
@@ -85,7 +85,7 @@ bool dal_cmd_table_helper_controller_id_to_atom2(
 	uint8_t *atom_id)
 {
 	if (atom_id == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -117,7 +117,7 @@ bool dal_cmd_table_helper_controller_id_to_atom2(
 		return true;
 	default:
 		/* Wrong controller id */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 }
@@ -151,7 +151,7 @@ uint8_t dal_cmd_table_helper_transmitter_bp_to_atom2(
 		return 2;
 	default:
 		/* Invalid Transmitter Type! */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return 0;
 	}
 }
@@ -188,7 +188,7 @@ bool dal_cmd_table_helper_clock_source_id_to_ref_clk_src2(
 	uint32_t *ref_clk_src_id)
 {
 	if (ref_clk_src_id == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -211,7 +211,7 @@ bool dal_cmd_table_helper_clock_source_id_to_ref_clk_src2(
 		return true;
 	default:
 		/* Unsupported clock source id */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 }
@@ -266,7 +266,7 @@ uint8_t dal_cmd_table_helper_encoder_id_to_atom2(
 		return ENCODER_OBJECT_ID_NONE;
 	default:
 		/* Invalid encoder id */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return ENCODER_OBJECT_ID_NONE;
 	}
 }

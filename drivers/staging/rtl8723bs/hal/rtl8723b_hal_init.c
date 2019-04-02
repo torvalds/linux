@@ -9,7 +9,7 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtl8723b_hal.h>
 #include "hal_com_h2c.h"
 
@@ -365,7 +365,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	struct device *device = dvobj_to_dev(padapter->dvobj);
 	u8 *fwfilepath;
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	u8 tmp_ps;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
@@ -891,7 +891,7 @@ static void hal_ReadEFuse_WiFi(
 	memset(efuseTbl, 0xFF, EFUSE_MAX_MAP_LEN);
 
 
-#ifdef DEBUG
+#ifdef DE
 if (0) {
 	for (i = 0; i < 256; i++)
 		efuse_OneByteRead(padapter, i, &efuseTbl[i], false);
@@ -964,7 +964,7 @@ if (0) {
 	for (i = 0; i < _size_byte; i++)
 		pbuf[i] = efuseTbl[_offset+i];
 
-#ifdef DEBUG
+#ifdef DE
 if (1) {
 	DBG_871X("Efuse Realmap:\n");
 	for (i = 0; i < _size_byte; i++) {
@@ -1149,10 +1149,10 @@ static u16 hal_EfuseGetCurrentSize_WiFi(
 	PEFUSE_HAL		pEfuseHal = &pHalData->EfuseHal;
 #endif
 	u16 efuse_addr = 0;
-	u16 start_addr = 0; /*  for debug */
+	u16 start_addr = 0; /*  for de */
 	u8 hoffset = 0, hworden = 0;
 	u8 efuse_data, word_cnts = 0;
-	u32 count = 0; /*  for debug */
+	u32 count = 0; /*  for de */
 
 
 	if (bPseudoTest) {
@@ -2078,7 +2078,7 @@ static void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 	value32 |= TSFRST;
 	rtw_write32(padapter, REG_TCR, value32);
 
-	/*  NOTE: Fix test chip's bug (about contention windows's randomness) */
+	/*  NOTE: Fix test chip's  (about contention windows's randomness) */
 	if (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE|WIFI_AP_STATE) == true) {
 		rtw_write8(padapter, REG_RXTSF_OFFSET_CCK, 0x50);
 		rtw_write8(padapter, REG_RXTSF_OFFSET_OFDM, 0x50);
@@ -2598,7 +2598,7 @@ void Hal_EfuseParseTxPowerInfo_8723B(
 				pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][group];
 				pHalData->Index24G_BW40_Base[rfPath][ch] = pwrInfo24G.IndexBW40_Base[rfPath][group];
 			}
-#ifdef DEBUG
+#ifdef DE
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("======= Path %d, ChannelIndex %d, Group %d =======\n", rfPath, ch, group));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Index24G_CCK_Base[%d][%d] = 0x%x\n", rfPath, ch, pHalData->Index24G_CCK_Base[rfPath][ch]));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Index24G_BW40_Base[%d][%d] = 0x%x\n", rfPath, ch, pHalData->Index24G_BW40_Base[rfPath][ch]));
@@ -2611,7 +2611,7 @@ void Hal_EfuseParseTxPowerInfo_8723B(
 			pHalData->BW20_24G_Diff[rfPath][TxCount] = pwrInfo24G.BW20_Diff[rfPath][TxCount];
 			pHalData->BW40_24G_Diff[rfPath][TxCount] = pwrInfo24G.BW40_Diff[rfPath][TxCount];
 
-#ifdef DEBUG
+#ifdef DE
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("--------------------------------------- 2.4G ---------------------------------------\n"));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("CCK_24G_Diff[%d][%d]= %d\n", rfPath, TxCount, pHalData->CCK_24G_Diff[rfPath][TxCount]));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("OFDM_24G_Diff[%d][%d]= %d\n", rfPath, TxCount, pHalData->OFDM_24G_Diff[rfPath][TxCount]));

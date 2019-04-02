@@ -34,17 +34,17 @@ module_param(force_band, int, 0644);
 MODULE_PARM_DESC(force_band, "Force a specific band select "\
 	"(1-9, default:off).");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activates frontend deging (default:0)");
 
 #define info(args...) do { printk(KERN_INFO "CX24123: " args); } while (0)
 #define err(args...)  do { printk(KERN_ERR  "CX24123: " args); } while (0)
 
 #define dprintk(args...) \
 	do { \
-		if (debug) { \
-			printk(KERN_DEBUG "CX24123: %s: ", __func__); \
+		if (de) { \
+			printk(KERN_DE "CX24123: %s: ", __func__); \
 			printk(args); \
 		} \
 	} while (0)
@@ -247,7 +247,7 @@ static int cx24123_i2c_writereg(struct cx24123_state *state,
 	};
 	int err;
 
-	/* printk(KERN_DEBUG "wr(%02x): %02x %02x\n", i2c_addr, reg, data); */
+	/* printk(KERN_DE "wr(%02x): %02x %02x\n", i2c_addr, reg, data); */
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
@@ -275,7 +275,7 @@ static int cx24123_i2c_readreg(struct cx24123_state *state, u8 i2c_addr, u8 reg)
 		return ret;
 	}
 
-	/* printk(KERN_DEBUG "rd(%02x): %02x %02x\n", i2c_addr, reg, b); */
+	/* printk(KERN_DE "rd(%02x): %02x %02x\n", i2c_addr, reg, b); */
 
 	return b;
 }

@@ -174,7 +174,7 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 	toupper_t toupper = affs_get_toupper(sb);
 	u32 key;
 
-	pr_debug("%s(\"%pd\")\n", __func__, dentry);
+	pr_de("%s(\"%pd\")\n", __func__, dentry);
 
 	bh = affs_bread(sb, dir->i_ino);
 	if (!bh)
@@ -203,7 +203,7 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	struct inode *inode = NULL;
 	struct dentry *res;
 
-	pr_debug("%s(\"%pd\")\n", __func__, dentry);
+	pr_de("%s(\"%pd\")\n", __func__, dentry);
 
 	affs_lock_dir(dir);
 	bh = affs_find_entry(dir, dentry);
@@ -235,7 +235,7 @@ affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 int
 affs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
+	pr_de("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
 		 d_inode(dentry)->i_ino, dentry);
 
 	return affs_remove_header(dentry);
@@ -248,7 +248,7 @@ affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 	struct inode	*inode;
 	int		 error;
 
-	pr_debug("%s(%lu,\"%pd\",0%ho)\n",
+	pr_de("%s(%lu,\"%pd\",0%ho)\n",
 		 __func__, dir->i_ino, dentry, mode);
 
 	inode = affs_new_inode(dir);
@@ -278,7 +278,7 @@ affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct inode		*inode;
 	int			 error;
 
-	pr_debug("%s(%lu,\"%pd\",0%ho)\n",
+	pr_de("%s(%lu,\"%pd\",0%ho)\n",
 		 __func__, dir->i_ino, dentry, mode);
 
 	inode = affs_new_inode(dir);
@@ -304,7 +304,7 @@ affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 int
 affs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	pr_debug("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
+	pr_de("%s(dir=%lu, %lu \"%pd\")\n", __func__, dir->i_ino,
 		 d_inode(dentry)->i_ino, dentry);
 
 	return affs_remove_header(dentry);
@@ -320,7 +320,7 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	int			 i, maxlen, error;
 	char			 c, lc;
 
-	pr_debug("%s(%lu,\"%pd\" -> \"%s\")\n",
+	pr_de("%s(%lu,\"%pd\" -> \"%s\")\n",
 		 __func__, dir->i_ino, dentry, symname);
 
 	maxlen = AFFS_SB(sb)->s_hashsize * sizeof(u32) - 1;
@@ -392,7 +392,7 @@ affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	pr_debug("%s(%lu, %lu, \"%pd\")\n", __func__, inode->i_ino, dir->i_ino,
+	pr_de("%s(%lu, %lu, \"%pd\")\n", __func__, inode->i_ino, dir->i_ino,
 		 dentry);
 
 	return affs_add_entry(dir, inode, dentry, ST_LINKFILE);
@@ -506,7 +506,7 @@ int affs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
 		return -EINVAL;
 
-	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
+	pr_de("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
 		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);
 
 	if (flags & RENAME_EXCHANGE)

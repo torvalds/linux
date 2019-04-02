@@ -49,7 +49,7 @@ static void svc_disconnect(struct atm_vcc *vcc)
 	struct sk_buff *skb;
 	struct sock *sk = sk_atm(vcc);
 
-	pr_debug("%p\n", vcc);
+	pr_de("%p\n", vcc);
 	if (test_bit(ATM_VF_REGIS, &vcc->flags)) {
 		sigd_enq(vcc, as_close, NULL, NULL, NULL);
 		for (;;) {
@@ -64,7 +64,7 @@ static void svc_disconnect(struct atm_vcc *vcc)
 	   as_indicate has been answered */
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		atm_return(vcc, skb->truesize);
-		pr_debug("LISTEN REL\n");
+		pr_de("LISTEN REL\n");
 		sigd_enq2(NULL, as_reject, vcc, NULL, NULL, &vcc->qos, 0);
 		dev_kfree_skb(skb);
 	}
@@ -79,7 +79,7 @@ static int svc_release(struct socket *sock)
 
 	if (sk) {
 		vcc = ATM_SD(sock);
-		pr_debug("%p\n", vcc);
+		pr_de("%p\n", vcc);
 		clear_bit(ATM_VF_READY, &vcc->flags);
 		/*
 		 * VCC pointer is used as a reference,
@@ -157,7 +157,7 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 	struct atm_vcc *vcc = ATM_SD(sock);
 	int error;
 
-	pr_debug("%p\n", vcc);
+	pr_de("%p\n", vcc);
 	lock_sock(sk);
 	if (sockaddr_len != sizeof(struct sockaddr_atmsvc)) {
 		error = -EINVAL;
@@ -219,7 +219,7 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 						TASK_INTERRUPTIBLE);
 				continue;
 			}
-			pr_debug("*ABORT*\n");
+			pr_de("*ABORT*\n");
 			/*
 			 * This is tricky:
 			 *   Kernel ---close--> Demon
@@ -286,7 +286,7 @@ static int svc_listen(struct socket *sock, int backlog)
 	struct atm_vcc *vcc = ATM_SD(sock);
 	int error;
 
-	pr_debug("%p\n", vcc);
+	pr_de("%p\n", vcc);
 	lock_sock(sk);
 	/* let server handle listen on unbound sockets */
 	if (test_bit(ATM_VF_SESSION, &vcc->flags)) {
@@ -337,7 +337,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 
 	new_vcc = ATM_SD(newsock);
 
-	pr_debug("%p -> %p\n", old_vcc, new_vcc);
+	pr_de("%p -> %p\n", old_vcc, new_vcc);
 	while (1) {
 		DEFINE_WAIT(wait);
 
@@ -539,7 +539,7 @@ static int svc_addparty(struct socket *sock, struct sockaddr *sockaddr,
 		error = -EINPROGRESS;
 		goto out;
 	}
-	pr_debug("added wait queue\n");
+	pr_de("added wait queue\n");
 	for (;;) {
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		if (!test_bit(ATM_VF_WAITING, &vcc->flags) || !sigd)

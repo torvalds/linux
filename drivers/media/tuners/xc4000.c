@@ -33,9 +33,9 @@
 #include "tuner-i2c.h"
 #include "tuner-xc2028-types.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debugging level (0 to 2, default: 0 (off)).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Deging level (0 to 2, default: 0 (off)).");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
@@ -58,7 +58,7 @@ MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the defau
 static DEFINE_MUTEX(xc4000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
-#define dprintk(level, fmt, arg...) if (debug >= level) \
+#define dprintk(level, fmt, arg...) if (de >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc4000", ## arg)
 
 /* struct for storing firmware table */
@@ -245,7 +245,7 @@ static struct XC_TV_STANDARD xc4000_standard[MAX_TV_STANDARD] = {
 
 static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val);
 static int xc4000_tuner_reset(struct dvb_frontend *fe);
-static void xc_debug_dump(struct xc4000_priv *priv);
+static void xc_de_dump(struct xc4000_priv *priv);
 
 static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 {
@@ -529,10 +529,10 @@ static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz)
 	 * Frame Lines needs two frame times after initial lock
 	 * before it is valid.
 	 */
-	msleep(debug ? 100 : 10);
+	msleep(de ? 100 : 10);
 
-	if (debug)
-		xc_debug_dump(priv);
+	if (de)
+		xc_de_dump(priv);
 
 	return found;
 }
@@ -679,11 +679,11 @@ found:
 	*id = priv->firm[i].id;
 
 ret:
-	if (debug) {
-		printk(KERN_DEBUG "%s firmware for type=",
+	if (de) {
+		printk(KERN_DE "%s firmware for type=",
 		       (i < 0) ? "Can't find" : "Found");
 		dump_firm_type(type);
-		printk(KERN_DEBUG "(%x), id %016llx.\n", type, (unsigned long long)*id);
+		printk(KERN_DE "(%x), id %016llx.\n", type, (unsigned long long)*id);
 	}
 	return i;
 }
@@ -828,10 +828,10 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 			goto done;
 		}
 
-		if (debug) {
-			printk(KERN_DEBUG "Reading firmware type ");
+		if (de) {
+			printk(KERN_DE "Reading firmware type ");
 			dump_firm_type_and_int_freq(type, int_freq);
-			printk(KERN_DEBUG "(%x), id %llx, size=%d.\n",
+			printk(KERN_DE "(%x), id %llx, size=%d.\n",
 			       type, (unsigned long long)id, size);
 		}
 
@@ -896,7 +896,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 		return -EINVAL;
 	p += 12 * scode;
 
-	if (debug) {
+	if (de) {
 		tuner_info("Loading SCODE for type=");
 		dump_firm_type_and_int_freq(priv->firm[pos].type,
 					    priv->firm[pos].int_freq);
@@ -957,7 +957,7 @@ retry:
 	new_fw.int_freq = int_freq;
 
 	dprintk(1, "checking firmware, user requested type=");
-	if (debug) {
+	if (de) {
 		dump_firm_type(new_fw.type);
 		printk(KERN_CONT "(%x), id %016llx, ", new_fw.type,
 		       (unsigned long long)new_fw.std_req);
@@ -1097,7 +1097,7 @@ fail:
 	return rc;
 }
 
-static void xc_debug_dump(struct xc4000_priv *priv)
+static void xc_de_dump(struct xc4000_priv *priv)
 {
 	u16	adc_envelope;
 	u32	freq_error_hz = 0;
@@ -1529,7 +1529,7 @@ static int xc4000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 
 	*freq = priv->freq_hz + priv->freq_offset;
 
-	if (debug) {
+	if (de) {
 		mutex_lock(&priv->lock);
 		if ((priv->cur_fw.type
 		     & (BASE | FM | DTV6 | DTV7 | DTV78 | DTV8)) == BASE) {

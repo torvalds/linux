@@ -134,7 +134,7 @@
 #define for_each_rcar_drif_channel(ch, ch_mask)			\
 	for_each_set_bit(ch, ch_mask, RCAR_DRIF_MAX_CHANNEL)
 
-/* Debug */
+/* De */
 #define rdrif_dbg(sdr, fmt, arg...)				\
 	dev_dbg(sdr->v4l2_dev.dev, fmt, ## arg)
 

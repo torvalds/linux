@@ -99,7 +99,7 @@ static int module_trace_bprintk_format_notify(struct notifier_block *self,
 }
 
 /*
- * The debugfs/tracing/printk_formats file maps the addresses with
+ * The defs/tracing/printk_formats file maps the addresses with
  * the ASCII formats that are used in the bprintk events in the
  * buffer. For userspace tools to be able to decode the events from
  * the buffer, they need to be able to map the address with the format.
@@ -265,7 +265,7 @@ static const char **find_next(void *v, loff_t *pos)
 	 * The __tracepoint_str section is treated the same as the
 	 * __trace_printk_fmt section. The difference is that the
 	 * __trace_printk_fmt section should only be used by trace_printk()
-	 * in a debugging environment, as if anything exists in that section
+	 * in a deging environment, as if anything exists in that section
 	 * the trace_prink() helper buffers are allocated, which would just
 	 * waste space in a production environment.
 	 *

@@ -744,7 +744,7 @@ void clk_reparent(struct clk *child, struct clk *parent)
 		list_add(&child->sibling, &parent->children);
 	child->parent = parent;
 
-	/* now do the debugfs renaming to reattach the child
+	/* now do the defs renaming to reattach the child
 	   to the proper parent */
 }
 
@@ -958,17 +958,17 @@ late_initcall(clk_disable_unused);
 late_initcall(omap_clk_enable_autoidle_all);
 #endif
 
-#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_PM_DE) && defined(CONFIG_DE_FS)
 /*
- *	debugfs support to trace clock tree hierarchy and attributes
+ *	defs support to trace clock tree hierarchy and attributes
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
-static struct dentry *clk_debugfs_root;
+static struct dentry *clk_defs_root;
 
-static int debug_clock_show(struct seq_file *s, void *unused)
+static int de_clock_show(struct seq_file *s, void *unused)
 {
 	struct clk *c;
 	struct clk *pa;
@@ -988,30 +988,30 @@ static int debug_clock_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(debug_clock);
+DEFINE_SHOW_ATTRIBUTE(de_clock);
 
-static int clk_debugfs_register_one(struct clk *c)
+static int clk_defs_register_one(struct clk *c)
 {
 	int err;
 	struct dentry *d;
 	struct clk *pa = c->parent;
 
-	d = debugfs_create_dir(c->name, pa ? pa->dent : clk_debugfs_root);
+	d = defs_create_dir(c->name, pa ? pa->dent : clk_defs_root);
 	if (!d)
 		return -ENOMEM;
 	c->dent = d;
 
-	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, &c->usecount);
+	d = defs_create_u8("usecount", S_IRUGO, c->dent, &c->usecount);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	d = debugfs_create_ulong("rate", S_IRUGO, c->dent, &c->rate);
+	d = defs_create_ulong("rate", S_IRUGO, c->dent, &c->rate);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	d = debugfs_create_x8("flags", S_IRUGO, c->dent, &c->flags);
+	d = defs_create_x8("flags", S_IRUGO, c->dent, &c->flags);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
@@ -1019,56 +1019,56 @@ static int clk_debugfs_register_one(struct clk *c)
 	return 0;
 
 err_out:
-	debugfs_remove_recursive(c->dent);
+	defs_remove_recursive(c->dent);
 	return err;
 }
 
-static int clk_debugfs_register(struct clk *c)
+static int clk_defs_register(struct clk *c)
 {
 	int err;
 	struct clk *pa = c->parent;
 
 	if (pa && !pa->dent) {
-		err = clk_debugfs_register(pa);
+		err = clk_defs_register(pa);
 		if (err)
 			return err;
 	}
 
 	if (!c->dent) {
-		err = clk_debugfs_register_one(c);
+		err = clk_defs_register_one(c);
 		if (err)
 			return err;
 	}
 	return 0;
 }
 
-static int __init clk_debugfs_init(void)
+static int __init clk_defs_init(void)
 {
 	struct clk *c;
 	struct dentry *d;
 	int err;
 
-	d = debugfs_create_dir("clock", NULL);
+	d = defs_create_dir("clock", NULL);
 	if (!d)
 		return -ENOMEM;
-	clk_debugfs_root = d;
+	clk_defs_root = d;
 
 	list_for_each_entry(c, &clocks, node) {
-		err = clk_debugfs_register(c);
+		err = clk_defs_register(c);
 		if (err)
 			goto err_out;
 	}
 
-	d = debugfs_create_file("summary", S_IRUGO,
-		d, NULL, &debug_clock_fops);
+	d = defs_create_file("summary", S_IRUGO,
+		d, NULL, &de_clock_fops);
 	if (!d)
 		return -ENOMEM;
 
 	return 0;
 err_out:
-	debugfs_remove_recursive(clk_debugfs_root);
+	defs_remove_recursive(clk_defs_root);
 	return err;
 }
-late_initcall(clk_debugfs_init);
+late_initcall(clk_defs_init);
 
-#endif /* defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS) */
+#endif /* defined(CONFIG_PM_DE) && defined(CONFIG_DE_FS) */

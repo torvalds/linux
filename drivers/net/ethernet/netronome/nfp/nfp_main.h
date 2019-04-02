@@ -68,13 +68,13 @@ struct nfp_dumpspec {
  * @mip:		MIP handle
  * @rtbl:		RTsym table
  * @hwinfo:		HWInfo table
- * @dumpspec:		Debug dump specification
+ * @dumpspec:		De dump specification
  * @dump_flag:		Store dump flag between set_dump and get_dump_flag
  * @dump_len:		Store dump length between set_dump and get_dump_flag
  * @eth_tbl:		NSP ETH table
  * @nspi:		NSP identification info
  * @hwmon_dev:		pointer to hwmon device
- * @ddir:		Per-device debugfs directory
+ * @ddir:		Per-device defs directory
  * @max_data_vnics:	Number of data vNICs app firmware supports
  * @num_vnics:		Number of vNICs spawned
  * @vnics:		Linked list of vNIC structures (struct nfp_net)

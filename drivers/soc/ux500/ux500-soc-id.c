@@ -113,7 +113,7 @@ static void __init ux500_setup_id(void)
 
 	if (!asicid) {
 		pr_err("Unable to identify SoC\n");
-		BUG();
+		();
 	}
 
 	dbx500_id.process = asicid >> 24;

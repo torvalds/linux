@@ -28,9 +28,9 @@
 #include <media/dvb_frontend.h>
 #include "s921.h"
 
-static int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+static int de = 1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activates frontend deging (default:0)");
 
 #define rc(args...)  do {						\
 	printk(KERN_ERR  "s921: " args);				\
@@ -38,8 +38,8 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
 #define dprintk(args...)						\
 	do {								\
-		if (debug) {						\
-			printk(KERN_DEBUG "s921: %s: ", __func__);	\
+		if (de) {						\
+			printk(KERN_DE "s921: %s: ", __func__);	\
 			printk(args);					\
 		}							\
 	} while (0)

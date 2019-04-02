@@ -554,8 +554,8 @@ int erst_get_record_id_next(int *pos, u64 *record_id)
 		return -ENODEV;
 
 	/* must be enclosed by erst_get_record_id_begin/end */
-	BUG_ON(!erst_record_id_cache.refcount);
-	BUG_ON(*pos < 0 || *pos > erst_record_id_cache.len);
+	_ON(!erst_record_id_cache.refcount);
+	_ON(*pos < 0 || *pos > erst_record_id_cache.len);
 
 	mutex_lock(&erst_record_id_cache.lock);
 	entries = erst_record_id_cache.entries;
@@ -616,11 +616,11 @@ void erst_get_record_id_end(void)
 	 * return value of erst_get_record_id_begin/next, so this
 	 * function should not be called for erst_disable != 0.
 	 */
-	BUG_ON(erst_disable);
+	_ON(erst_disable);
 
 	mutex_lock(&erst_record_id_cache.lock);
 	erst_record_id_cache.refcount--;
-	BUG_ON(erst_record_id_cache.refcount < 0);
+	_ON(erst_record_id_cache.refcount < 0);
 	__erst_record_id_cache_compact();
 	mutex_unlock(&erst_record_id_cache.lock);
 }
@@ -1129,7 +1129,7 @@ static int __init erst_init(void)
 
 	rc = erst_check_table(erst_tab);
 	if (rc) {
-		pr_err(FW_BUG "ERST table is invalid.\n");
+		pr_err(FW_ "ERST table is invalid.\n");
 		goto err;
 	}
 

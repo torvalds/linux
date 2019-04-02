@@ -1047,7 +1047,7 @@
 #define	RFPGA1_RFMOD				0x900
 
 #define	RFPGA1_TXBLOCK				0x904
-#define	RFPGA1_DEBUGSELECT			0x908
+#define	RFPGA1_DESELECT			0x908
 #define	RFPGA1_TXINFO				0x90c
 
 /* 5. PageA(0xA00)  */
@@ -1066,7 +1066,7 @@
 
 #define	RCCK0_TXFILTER1				0xa20
 #define	RCCK0_TXFILTER2				0xa24
-#define	RCCK0_DEBUGPORT				0xa28
+#define	RCCK0_DEPORT				0xa28
 #define	RCCK0_FALSEALARMREPORT			0xa2c
 #define	RCCK0_TRSSIREPORT			0xa50
 #define	RCCK0_RXREPORT				0xa54

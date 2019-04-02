@@ -392,7 +392,7 @@
 		};
 
 		soc-glue@5f900000 {
-			compatible = "socionext,uniphier-pxs3-soc-glue-debug",
+			compatible = "socionext,uniphier-pxs3-soc-glue-de",
 				     "simple-mfd";
 			#address-cells = <1>;
 			#size-cells = <1>;

@@ -373,7 +373,7 @@ struct cpufreq_driver {
  * frequency present in freq-table exposed by the driver. For these drivers if
  * CPU is found running at an out of table freq, we will try to set it to a freq
  * from the table. And if that fails, we will stop further boot process by
- * issuing a BUG_ON().
+ * issuing a _ON().
  */
 #define CPUFREQ_NEED_INITIAL_FREQ_CHECK	BIT(5)
 

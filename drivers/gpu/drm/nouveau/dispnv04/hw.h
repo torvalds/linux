@@ -263,7 +263,7 @@ nv_heads_tied(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (drm->client.device.info.chipset == 0x11)
-		return !!(nvif_rd32(device, NV_PBUS_DEBUG_1) & (1 << 28));
+		return !!(nvif_rd32(device, NV_PBUS_DE_1) & (1 << 28));
 
 	return NVReadVgaCrtc(dev, 0, NV_CIO_CRE_44) & 0x4;
 }
@@ -342,7 +342,7 @@ static inline void
 nv_fix_nv40_hw_cursor(struct drm_device *dev, int head)
 {
 	/* on some nv40 (such as the "true" (in the NV_PFB_BOOT_0 sense) nv40,
-	 * the gf6800gt) a hardware bug requires a write to PRAMDAC_CURSOR_POS
+	 * the gf6800gt) a hardware  requires a write to PRAMDAC_CURSOR_POS
 	 * for changes to the CRTC CURCTL regs to take effect, whether changing
 	 * the pixmap location, or just showing/hiding the cursor
 	 */

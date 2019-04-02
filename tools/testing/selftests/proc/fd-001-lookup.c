@@ -15,7 +15,7 @@
  */
 // Test /proc/*/fd lookup.
 
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>

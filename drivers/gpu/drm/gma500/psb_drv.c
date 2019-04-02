@@ -115,7 +115,7 @@ static int psb_do_init(struct drm_device *dev)
 	uint32_t stolen_gtt;
 
 	if (pg->mmu_gatt_start & 0x0FFFFFFF) {
-		dev_err(dev->dev, "Gatt must be 256M aligned. This is a bug.\n");
+		dev_err(dev->dev, "Gatt must be 256M aligned. This is a .\n");
 		return -EINVAL;
 	}
 
@@ -264,11 +264,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 			if (!dev_priv->aux_reg)
 				goto out_err;
 
-			DRM_DEBUG_KMS("Found aux vdc");
+			DRM_DE_KMS("Found aux vdc");
 		} else {
 			/* Couldn't find the aux vdc so map to primary vdc */
 			dev_priv->aux_reg = dev_priv->vdc_reg;
-			DRM_DEBUG_KMS("Couldn't find aux pci device");
+			DRM_DE_KMS("Couldn't find aux pci device");
 		}
 		dev_priv->gmbus_reg = dev_priv->aux_reg;
 
@@ -284,7 +284,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 				&dev_priv->lpc_gpio_base);
 			dev_priv->lpc_gpio_base &= 0xffc0;
 			if (dev_priv->lpc_gpio_base)
-				DRM_DEBUG_KMS("Found LPC GPIO at 0x%04x\n",
+				DRM_DE_KMS("Found LPC GPIO at 0x%04x\n",
 						dev_priv->lpc_gpio_base);
 			else {
 				pci_dev_put(dev_priv->lpc_pdev);

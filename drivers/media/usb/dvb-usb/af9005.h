@@ -23,13 +23,13 @@
 #define DVB_USB_LOG_PREFIX "af9005"
 #include "dvb-usb.h"
 
-extern int dvb_usb_af9005_debug;
-#define deb_info(args...) dprintk(dvb_usb_af9005_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_af9005_debug,0x02,args)
-#define deb_rc(args...)   dprintk(dvb_usb_af9005_debug,0x04,args)
-#define deb_reg(args...)  dprintk(dvb_usb_af9005_debug,0x08,args)
-#define deb_i2c(args...)  dprintk(dvb_usb_af9005_debug,0x10,args)
-#define deb_fw(args...)   dprintk(dvb_usb_af9005_debug,0x20,args)
+extern int dvb_usb_af9005_de;
+#define deb_info(args...) dprintk(dvb_usb_af9005_de,0x01,args)
+#define deb_xfer(args...) dprintk(dvb_usb_af9005_de,0x02,args)
+#define deb_rc(args...)   dprintk(dvb_usb_af9005_de,0x04,args)
+#define deb_reg(args...)  dprintk(dvb_usb_af9005_de,0x08,args)
+#define deb_i2c(args...)  dprintk(dvb_usb_af9005_de,0x10,args)
+#define deb_fw(args...)   dprintk(dvb_usb_af9005_de,0x20,args)
 
 extern bool dvb_usb_af9005_led;
 
@@ -530,10 +530,10 @@ enum {
 #define	reg_trigger_sel_pos 1
 #define	reg_trigger_sel_len 2
 #define	reg_trigger_sel_lsb 0
-#define xd_p_reg_debug_ofdm	0xA0A2
-#define	reg_debug_ofdm_pos 3
-#define	reg_debug_ofdm_len 2
-#define	reg_debug_ofdm_lsb 0
+#define xd_p_reg_de_ofdm	0xA0A2
+#define	reg_de_ofdm_pos 3
+#define	reg_de_ofdm_len 2
+#define	reg_de_ofdm_lsb 0
 #define xd_p_reg_trigger_module_sel	0xA0A3
 #define	reg_trigger_module_sel_pos 0
 #define	reg_trigger_module_sel_len 6
@@ -546,10 +546,10 @@ enum {
 #define	reg_fw_int_mask_n_pos 6
 #define	reg_fw_int_mask_n_len 1
 #define	reg_fw_int_mask_n_lsb 0
-#define xd_p_reg_debug_group	0xA0A5
-#define	reg_debug_group_pos 0
-#define	reg_debug_group_len 4
-#define	reg_debug_group_lsb 0
+#define xd_p_reg_de_group	0xA0A5
+#define	reg_de_group_pos 0
+#define	reg_de_group_len 4
+#define	reg_de_group_lsb 0
 #define xd_p_reg_odbg_clk_sel	0xA0A5
 #define	reg_odbg_clk_sel_pos 4
 #define	reg_odbg_clk_sel_len 2
@@ -2130,10 +2130,10 @@ enum {
 #define	fd_sqi_dummy_reg_0_pos 0
 #define	fd_sqi_dummy_reg_0_len 1
 #define	fd_sqi_dummy_reg_0_lsb 0
-#define xd_p_fd_sqi_debug_sel	0xA33C
-#define	fd_sqi_debug_sel_pos 1
-#define	fd_sqi_debug_sel_len 2
-#define	fd_sqi_debug_sel_lsb 0
+#define xd_p_fd_sqi_de_sel	0xA33C
+#define	fd_sqi_de_sel_pos 1
+#define	fd_sqi_de_sel_len 2
+#define	fd_sqi_de_sel_lsb 0
 #define xd_p_fd_sqi_s2	0xA33C
 #define	fd_sqi_s2_pos 3
 #define	fd_sqi_s2_len 5
@@ -2850,10 +2850,10 @@ enum {
 #define	reg_top_pcout_pos 2
 #define	reg_top_pcout_len 1
 #define	reg_top_pcout_lsb 0
-#define xd_p_reg_top_debug	0xA601
-#define	reg_top_debug_pos 3
-#define	reg_top_debug_len 1
-#define	reg_top_debug_lsb 0
+#define xd_p_reg_top_de	0xA601
+#define	reg_top_de_pos 3
+#define	reg_top_de_len 1
+#define	reg_top_de_lsb 0
 #define xd_p_reg_top_adcdly	0xA601
 #define	reg_top_adcdly_pos 4
 #define	reg_top_adcdly_len 2

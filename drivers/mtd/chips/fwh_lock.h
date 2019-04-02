@@ -35,7 +35,7 @@ static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
 
 	/* Refuse the operation if the we cannot look behind the chip */
 	if (chip->start < 0x400000) {
-		pr_debug( "MTD %s(): chip->start: %lx wanted >= 0x400000\n",
+		pr_de( "MTD %s(): chip->start: %lx wanted >= 0x400000\n",
 			__func__, chip->start );
 		return -EIO;
 	}

@@ -6,7 +6,7 @@
 #include <linux/sched.h>		/* For struct task_struct.  */
 #include <linux/sched/signal.h>		/* For send_sig(), same_thread_group(), etc. */
 #include <linux/err.h>			/* for IS_ERR_VALUE */
-#include <linux/bug.h>			/* For BUG_ON.  */
+#include <linux/.h>			/* For _ON.  */
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
 
@@ -227,9 +227,9 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
  */
 static inline void ptrace_release_task(struct task_struct *task)
 {
-	BUG_ON(!list_empty(&task->ptraced));
+	_ON(!list_empty(&task->ptraced));
 	ptrace_unlink(task);
-	BUG_ON(!list_empty(&task->ptrace_entry));
+	_ON(!list_empty(&task->ptrace_entry));
 }
 
 #ifndef force_successful_syscall_return
@@ -287,7 +287,7 @@ static inline void ptrace_release_task(struct task_struct *task)
  */
 static inline void user_enable_single_step(struct task_struct *task)
 {
-	BUG();			/* This can never be called.  */
+	();			/* This can never be called.  */
 }
 
 /**
@@ -330,7 +330,7 @@ extern void user_disable_single_step(struct task_struct *);
  */
 static inline void user_enable_block_step(struct task_struct *task)
 {
-	BUG();			/* This can never be called.  */
+	();			/* This can never be called.  */
 }
 #else
 extern void user_enable_block_step(struct task_struct *);

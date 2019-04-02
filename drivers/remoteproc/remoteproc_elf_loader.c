@@ -318,7 +318,7 @@ EXPORT_SYMBOL(rproc_elf_load_rsc_table);
  * @fw: the ELF firmware image
  *
  * This function finds the location of the loaded resource table. Don't
- * call this function if the table wasn't loaded yet - it's a bug if you do.
+ * call this function if the table wasn't loaded yet - it's a  if you do.
  *
  * Returns the pointer to the resource table if it is found or NULL otherwise.
  * If the table wasn't loaded yet the result is unspecified.

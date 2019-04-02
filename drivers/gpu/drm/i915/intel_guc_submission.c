@@ -104,7 +104,7 @@ static int reserve_doorbell(struct intel_guc_client *client)
 	unsigned long end;
 	u16 id;
 
-	GEM_BUG_ON(client->doorbell_id != GUC_DOORBELL_INVALID);
+	GEM__ON(client->doorbell_id != GUC_DOORBELL_INVALID);
 
 	/*
 	 * The bitmap tracks which doorbell registers are currently in use.
@@ -124,7 +124,7 @@ static int reserve_doorbell(struct intel_guc_client *client)
 
 	__set_bit(id, client->guc->doorbell_bitmap);
 	client->doorbell_id = id;
-	DRM_DEBUG_DRIVER("client %u (high prio=%s) reserved doorbell: %d\n",
+	DRM_DE_DRIVER("client %u (high prio=%s) reserved doorbell: %d\n",
 			 client->stage_id, yesno(is_high_priority(client)),
 			 id);
 	return 0;
@@ -140,7 +140,7 @@ static bool has_doorbell(struct intel_guc_client *client)
 
 static void unreserve_doorbell(struct intel_guc_client *client)
 {
-	GEM_BUG_ON(!has_doorbell(client));
+	GEM__ON(!has_doorbell(client));
 
 	__clear_bit(client->doorbell_id, client->guc->doorbell_bitmap);
 	client->doorbell_id = GUC_DOORBELL_INVALID;
@@ -202,7 +202,7 @@ static bool __doorbell_valid(struct intel_guc *guc, u16 db_id)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	GEM_BUG_ON(db_id >= GUC_NUM_DOORBELLS);
+	GEM__ON(db_id >= GUC_NUM_DOORBELLS);
 	return I915_READ(GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID;
 }
 
@@ -245,7 +245,7 @@ static int create_doorbell(struct intel_guc_client *client)
 	if (ret) {
 		__fini_doorbell(client);
 		__update_doorbell_desc(client, GUC_DOORBELL_INVALID);
-		DRM_DEBUG_DRIVER("Couldn't create client %u doorbell: %d\n",
+		DRM_DE_DRIVER("Couldn't create client %u doorbell: %d\n",
 				 client->stage_id, ret);
 		return ret;
 	}
@@ -257,7 +257,7 @@ static int destroy_doorbell(struct intel_guc_client *client)
 {
 	int ret;
 
-	GEM_BUG_ON(!has_doorbell(client));
+	GEM__ON(!has_doorbell(client));
 
 	__fini_doorbell(client);
 	ret = __guc_deallocate_doorbell(client->guc, client->stage_id);
@@ -280,7 +280,7 @@ static unsigned long __select_cacheline(struct intel_guc *guc)
 	/* Moving to next cache line to reduce contention */
 	guc->db_cacheline += cache_line_size();
 
-	DRM_DEBUG_DRIVER("reserved cacheline 0x%lx, next 0x%x, linesize %u\n",
+	DRM_DE_DRIVER("reserved cacheline 0x%lx, next 0x%x, linesize %u\n",
 			 offset, guc->db_cacheline, cache_line_size());
 	return offset;
 }
@@ -303,7 +303,7 @@ static void guc_proc_desc_init(struct intel_guc_client *client)
 	/*
 	 * XXX: pDoorbell and WQVBaseAddress are pointers in process address
 	 * space for ring3 clients (set them as in mmap_ioctl) or kernel
-	 * space for kernel clients (map on demand instead? May make debug
+	 * space for kernel clients (map on demand instead? May make de
 	 * easier to have it mapped).
 	 */
 	desc->wq_base_addr = 0;
@@ -423,7 +423,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		desc->engines_used |= (1 << guc_engine_id);
 	}
 
-	DRM_DEBUG_DRIVER("Host engines 0x%x => GuC engines used 0x%x\n",
+	DRM_DE_DRIVER("Host engines 0x%x => GuC engines used 0x%x\n",
 			 client->engines, desc->engines_used);
 	WARN_ON(desc->engines_used == 0);
 
@@ -472,16 +472,16 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	 * XXX: if not the case, we need save data to a temp wqi and copy it to
 	 * workqueue buffer dw by dw.
 	 */
-	BUILD_BUG_ON(wqi_size != 16);
+	BUILD__ON(wqi_size != 16);
 
 	/* We expect the WQ to be active if we're appending items to it */
-	GEM_BUG_ON(desc->wq_status != WQ_STATUS_ACTIVE);
+	GEM__ON(desc->wq_status != WQ_STATUS_ACTIVE);
 
 	/* Free space is guaranteed. */
 	wq_off = READ_ONCE(desc->tail);
-	GEM_BUG_ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
+	GEM__ON(CIRC_SPACE(wq_off, READ_ONCE(desc->head),
 			      GUC_WQ_SIZE) < wqi_size);
-	GEM_BUG_ON(wq_off & (wqi_size - 1));
+	GEM__ON(wq_off & (wqi_size - 1));
 
 	/* WQ starts from the page after doorbell / process_desc */
 	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
@@ -496,7 +496,7 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 			      WQ_NO_WCFLUSH_WAIT;
 		wqi->context_desc = context_desc;
 		wqi->submit_element_info = ring_tail << WQ_RING_TAIL_SHIFT;
-		GEM_BUG_ON(ring_tail > WQ_RING_TAIL_MAX);
+		GEM__ON(ring_tail > WQ_RING_TAIL_MAX);
 		wqi->fence_id = fence_id;
 	}
 
@@ -522,7 +522,7 @@ static void guc_ring_doorbell(struct intel_guc_client *client)
 	WARN_ON_ONCE(xchg(&db->cookie, cookie + 1 ?: cookie + 2) != cookie);
 
 	/* XXX: doorbell was lost and need to acquire it again */
-	GEM_BUG_ON(db->db_status != GUC_DOORBELL_ENABLED);
+	GEM__ON(db->db_status != GUC_DOORBELL_ENABLED);
 }
 
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
@@ -591,7 +591,7 @@ static void inject_preempt_context(struct work_struct *work)
 		*cs++ = MI_NOOP;
 
 		ce->ring->emit = GUC_PREEMPT_BREADCRUMB_BYTES;
-		GEM_BUG_ON((void *)cs - ce->ring->vaddr != ce->ring->emit);
+		GEM__ON((void *)cs - ce->ring->vaddr != ce->ring->emit);
 
 		flush_ggtt_writes(ce->ring->vma);
 	}
@@ -665,7 +665,7 @@ static void complete_preempt_context(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
 
-	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
+	GEM__ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
 
 	if (inject_preempt_hang(execlists))
 		return;
@@ -708,7 +708,7 @@ static void guc_submit(struct intel_engine_cs *engine)
 
 static void port_assign(struct execlist_port *port, struct i915_request *rq)
 {
-	GEM_BUG_ON(port_isset(port));
+	GEM__ON(port_isset(port));
 
 	port_set(port, i915_request_get(rq));
 }
@@ -754,7 +754,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 		if (port_isset(port))
 			return false;
 	}
-	GEM_BUG_ON(port_isset(port));
+	GEM__ON(port_isset(port));
 
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
@@ -793,9 +793,9 @@ done:
 		execlists_user_begin(execlists, execlists->port);
 
 	/* We must always keep the beast fed if we have work piled up */
-	GEM_BUG_ON(port_isset(execlists->port) &&
+	GEM__ON(port_isset(execlists->port) &&
 		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
-	GEM_BUG_ON(rb_first_cached(&execlists->queue) &&
+	GEM__ON(rb_first_cached(&execlists->queue) &&
 		   !port_isset(execlists->port));
 
 	return submit;
@@ -882,14 +882,14 @@ static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
 {
 	bool valid;
 
-	GEM_BUG_ON(db_id >= GUC_NUM_DOORBELLS);
+	GEM__ON(db_id >= GUC_NUM_DOORBELLS);
 
 	valid = __doorbell_valid(guc, db_id);
 
 	if (test_bit(db_id, guc->doorbell_bitmap) == valid)
 		return true;
 
-	DRM_DEBUG_DRIVER("Doorbell %u has unexpected state: valid=%s\n",
+	DRM_DE_DRIVER("Doorbell %u has unexpected state: valid=%s\n",
 			 db_id, yesno(valid));
 
 	return false;
@@ -983,9 +983,9 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	else
 		client->proc_desc_offset = (GUC_DB_SIZE / 2);
 
-	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: stage_id %u\n",
+	DRM_DE_DRIVER("new priority %u client %p for engine(s) 0x%x: stage_id %u\n",
 			 priority, client, client->engines, client->stage_id);
-	DRM_DEBUG_DRIVER("doorbell id %u, cacheline offset 0x%lx\n",
+	DRM_DE_DRIVER("doorbell id %u, cacheline offset 0x%lx\n",
 			 client->doorbell_id, client->doorbell_offset);
 
 	return client;
@@ -1027,8 +1027,8 @@ static int guc_clients_create(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_guc_client *client;
 
-	GEM_BUG_ON(guc->execbuf_client);
-	GEM_BUG_ON(guc->preempt_client);
+	GEM__ON(guc->execbuf_client);
+	GEM__ON(guc->preempt_client);
 
 	client = guc_client_alloc(dev_priv,
 				  INTEL_INFO(dev_priv)->ring_mask,
@@ -1154,7 +1154,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	 * Keep static analysers happy, let them know that we allocated the
 	 * vma after testing that it didn't exist earlier.
 	 */
-	GEM_BUG_ON(!guc->stage_desc_pool);
+	GEM__ON(!guc->stage_desc_pool);
 
 	WARN_ON(!guc_verify_doorbells(guc));
 	ret = guc_clients_create(guc);
@@ -1310,11 +1310,11 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 	 * and it is guaranteed that it will remove the work item from the
 	 * queue before our request is completed.
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(engine->execlists.port) *
+	BUILD__ON(ARRAY_SIZE(engine->execlists.port) *
 		     sizeof(struct guc_wq_item) *
 		     I915_NUM_ENGINES > GUC_WQ_SIZE);
 
-	GEM_BUG_ON(!guc->execbuf_client);
+	GEM__ON(!guc->execbuf_client);
 
 	err = intel_guc_sample_forcewake(guc);
 	if (err)
@@ -1339,7 +1339,7 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	GEM_BUG_ON(dev_priv->gt.awake); /* GT should be parked first */
+	GEM__ON(dev_priv->gt.awake); /* GT should be parked first */
 
 	guc_interrupts_release(dev_priv);
 	guc_clients_disable(guc);

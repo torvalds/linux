@@ -27,7 +27,7 @@
 #include "smb2pdu.h"
 #include "smb2proto.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_unicode.h"
 #include "smb2status.h"
 #include "smb2glob.h"
@@ -88,7 +88,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 		reconnect_detected = true;
 
 	if (*val > 65000) {
-		*val = 65000; /* Don't get near 64K credits, avoid srv bugs */
+		*val = 65000; /* Don't get near 64K credits, avoid srv s */
 		printk_once(KERN_WARNING "server overflowed SMB3 credits\n");
 	}
 	server->in_flight--;
@@ -121,7 +121,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 		/* change_conf hasn't been executed */
 		break;
 	case 0:
-		cifs_dbg(VFS, "Possible client or server bug - zero credits\n");
+		cifs_dbg(VFS, "Possible client or server  - zero credits\n");
 		break;
 	case 1:
 		cifs_dbg(VFS, "disabling echoes and oplocks\n");
@@ -303,7 +303,7 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 static void
 smb2_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d\n",
@@ -713,9 +713,9 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	o_rsp = (struct smb2_create_rsp *)rsp_iov[0].iov_base;
 	oparms.fid->persistent_fid = o_rsp->PersistentFileId;
 	oparms.fid->volatile_fid = o_rsp->VolatileFileId;
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	oparms.fid->mid = le64_to_cpu(o_rsp->sync_hdr.MessageId);
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 
 	if (o_rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
 		oplock = smb2_parse_lease_state(server, o_rsp,
@@ -1272,9 +1272,9 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 
 	cfile->fid.persistent_fid = fid->persistent_fid;
 	cfile->fid.volatile_fid = fid->volatile_fid;
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	cfile->fid.mid = fid->mid;
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 	server->ops->set_oplock_level(cinode, oplock, fid->epoch,
 				      &fid->purge_cache);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);

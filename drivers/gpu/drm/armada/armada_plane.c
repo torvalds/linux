@@ -46,7 +46,7 @@ void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[2][3],
 	u32 addr = drm_fb_obj(fb)->dev_addr;
 	int i;
 
-	DRM_DEBUG_KMS("pitch %u x %d y %d bpp %d\n",
+	DRM_DE_KMS("pitch %u x %d y %d bpp %d\n",
 		      fb->pitches[0], x, y, format->cpp[0] * 8);
 
 	if (num_planes > 3)
@@ -99,7 +99,7 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_plane_state *state,
 int armada_drm_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_plane_state *state)
 {
-	DRM_DEBUG_KMS("[PLANE:%d:%s] [FB:%d]\n",
+	DRM_DE_KMS("[PLANE:%d:%s] [FB:%d]\n",
 		plane->base.id, plane->name,
 		state->fb ? state->fb->base.id : 0);
 
@@ -115,7 +115,7 @@ int armada_drm_plane_prepare_fb(struct drm_plane *plane,
 void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
 	struct drm_plane_state *old_state)
 {
-	DRM_DEBUG_KMS("[PLANE:%d:%s] [FB:%d]\n",
+	DRM_DE_KMS("[PLANE:%d:%s] [FB:%d]\n",
 		plane->base.id, plane->name,
 		old_state->fb ? old_state->fb->base.id : 0);
 
@@ -152,12 +152,12 @@ static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 	u32 cfg, cfg_mask, val;
 	unsigned int idx;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+	DRM_DE_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
 	if (!state->fb || WARN_ON(!state->crtc))
 		return;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
+	DRM_DE_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
 		plane->base.id, plane->name,
 		state->crtc->base.id, state->crtc->name,
 		state->fb->base.id,
@@ -232,12 +232,12 @@ static void armada_drm_primary_plane_atomic_disable(struct drm_plane *plane,
 	struct armada_regs *regs;
 	unsigned int idx = 0;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+	DRM_DE_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
 	if (!old_state->crtc)
 		return;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
+	DRM_DE_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
 		plane->base.id, plane->name,
 		old_state->crtc->base.id, old_state->crtc->name,
 		old_state->fb->base.id);

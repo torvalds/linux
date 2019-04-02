@@ -464,7 +464,7 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 	err = -ENODEV;
 	devid = superio_inw(addr, SIO_MANID);
 	if (devid != SIO_FINTEK_ID) {
-		pr_debug(DRVNAME ": Not a Fintek device at 0x%08x\n", addr);
+		pr_de(DRVNAME ": Not a Fintek device at 0x%08x\n", addr);
 		goto err;
 	}
 

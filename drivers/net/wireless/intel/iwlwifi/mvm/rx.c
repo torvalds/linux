@@ -76,7 +76,7 @@ void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	memcpy(&mvm->last_phy_info, pkt->data, sizeof(mvm->last_phy_info));
 	mvm->ampdu_ref++;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (mvm->last_phy_info.phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_AGG)) {
 		spin_lock(&mvm->drv_stats_lock);
 		mvm->drv_rx_stats.ampdu_count++;
@@ -168,7 +168,7 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 	max_energy = max(energy_a, energy_b);
 	max_energy = max(max_energy, energy_c);
 
-	IWL_DEBUG_STATS(mvm, "energy In A %d B %d C %d , and max %d\n",
+	IWL_DE_STATS(mvm, "energy In A %d B %d C %d , and max %d\n",
 			energy_a, energy_b, energy_c, max_energy);
 
 	rx_status->signal = max_energy;
@@ -374,7 +374,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	 */
 	if (iwl_mvm_set_mac80211_rx_flag(mvm, hdr, rx_status, rx_pkt_status,
 					 &crypt_len)) {
-		IWL_DEBUG_DROP(mvm, "Bad decryption results 0x%08x\n",
+		IWL_DE_DROP(mvm, "Bad decryption results 0x%08x\n",
 			       rx_pkt_status);
 		kfree_skb(skb);
 		return;
@@ -386,7 +386,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	 */
 	if (!(rx_pkt_status & RX_MPDU_RES_STATUS_CRC_OK) ||
 	    !(rx_pkt_status & RX_MPDU_RES_STATUS_OVERRUN_OK)) {
-		IWL_DEBUG_RX(mvm, "Bad CRC or FIFO: 0x%08X.\n", rx_pkt_status);
+		IWL_DE_RX(mvm, "Bad CRC or FIFO: 0x%08X.\n", rx_pkt_status);
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
 
@@ -408,7 +408,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	iwl_mvm_get_signal_strength(mvm, phy_info, rx_status);
 
-	IWL_DEBUG_STATS_LIMIT(mvm, "Rssi %d, TSF %llu\n", rx_status->signal,
+	IWL_DE_STATS_LIMIT(mvm, "Rssi %d, TSF %llu\n", rx_status->signal,
 			      (unsigned long long)rx_status->mactime);
 
 	rcu_read_lock();
@@ -543,7 +543,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->rate_idx = rate;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	iwl_mvm_update_frame_stats(mvm, rate_n_flags,
 				   rx_status->flag & RX_FLAG_AMPDU_DETAILS);
 #endif
@@ -624,7 +624,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		return;
 
 	if (sig == 0) {
-		IWL_DEBUG_RX(mvm, "RSSI is 0 - skip signal based decision\n");
+		IWL_DE_RX(mvm, "RSSI is 0 - skip signal based decision\n");
 		return;
 	}
 
@@ -638,14 +638,14 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		    (last_event <= mvmvif->bf_data.bt_coex_min_thold ||
 		     last_event == 0)) {
 			mvmvif->bf_data.last_bt_coex_event = sig;
-			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex high %d\n",
+			IWL_DE_RX(mvm, "cqm_iterator bt coex high %d\n",
 				     sig);
 			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_HIGH);
 		} else if (sig < mvmvif->bf_data.bt_coex_min_thold &&
 			   (last_event >= mvmvif->bf_data.bt_coex_max_thold ||
 			    last_event == 0)) {
 			mvmvif->bf_data.last_bt_coex_event = sig;
-			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex low %d\n",
+			IWL_DE_RX(mvm, "cqm_iterator bt coex low %d\n",
 				     sig);
 			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_LOW);
 		}
@@ -659,7 +659,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	if (thold && sig < thold && (last_event == 0 ||
 				     sig < last_event - hyst)) {
 		mvmvif->bf_data.last_cqm_event = sig;
-		IWL_DEBUG_RX(mvm, "cqm_iterator cqm low %d\n",
+		IWL_DE_RX(mvm, "cqm_iterator cqm low %d\n",
 			     sig);
 		ieee80211_cqm_rssi_notify(
 			vif,
@@ -669,7 +669,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	} else if (sig > thold &&
 		   (last_event == 0 || sig > last_event + hyst)) {
 		mvmvif->bf_data.last_cqm_event = sig;
-		IWL_DEBUG_RX(mvm, "cqm_iterator cqm high %d\n",
+		IWL_DE_RX(mvm, "cqm_iterator cqm high %d\n",
 			     sig);
 		ieee80211_cqm_rssi_notify(
 			vif,

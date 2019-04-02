@@ -158,10 +158,10 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	state->pllsel |= nv_crtc->index ? PLLSEL_VPLL2_MASK : PLLSEL_VPLL1_MASK;
 
 	if (pv->NM2)
-		NV_DEBUG(drm, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n",
+		NV_DE(drm, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n",
 			 pv->N1, pv->N2, pv->M1, pv->M2, pv->log2P);
 	else
-		NV_DEBUG(drm, "vpll: n %d m %d log2p %d\n",
+		NV_DE(drm, "vpll: n %d m %d log2p %d\n",
 			 pv->N1, pv->M1, pv->log2P);
 
 	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.offset);
@@ -176,7 +176,7 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
-	NV_DEBUG(drm, "Setting dpms mode %d on CRTC %d\n", mode,
+	NV_DE(drm, "Setting dpms mode %d on CRTC %d\n", mode,
 							nv_crtc->index);
 
 	if (nv_crtc->last_dpms == mode) /* Don't do unnecessary mode changes. */
@@ -638,8 +638,8 @@ nv_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int ret;
 
-	NV_DEBUG(drm, "CTRC mode on CRTC %d:\n", nv_crtc->index);
-	drm_mode_debug_printmodeline(adjusted_mode);
+	NV_DE(drm, "CTRC mode on CRTC %d:\n", nv_crtc->index);
+	drm_mode_de_printmodeline(adjusted_mode);
 
 	ret = nv_crtc_swap_fbs(crtc, old_fb);
 	if (ret)
@@ -827,11 +827,11 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	struct nouveau_framebuffer *fb;
 	int arb_burst, arb_lwm;
 
-	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
+	NV_DE(drm, "index %d\n", nv_crtc->index);
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		NV_DEBUG(drm, "No FB bound\n");
+		NV_DE(drm, "No FB bound\n");
 		return 0;
 	}
 
@@ -1322,7 +1322,7 @@ create_primary_plane(struct drm_device *dev)
 
         primary = kzalloc(sizeof(*primary), GFP_KERNEL);
         if (primary == NULL) {
-                DRM_DEBUG_KMS("Failed to allocate primary plane\n");
+                DRM_DE_KMS("Failed to allocate primary plane\n");
                 return NULL;
         }
 

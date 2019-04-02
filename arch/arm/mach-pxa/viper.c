@@ -178,7 +178,7 @@ static void viper_set_core_cpu_voltage(unsigned long khz, int force)
 		v = "1.3"; divisor = 0x325;
 	}
 
-	pr_debug("viper: setting CPU core voltage to %sV at %d.%03dMHz\n",
+	pr_de("viper: setting CPU core voltage to %sV at %d.%03dMHz\n",
 		 v, (int)khz / 1000, (int)khz % 1000);
 
 #define STEP 0x100

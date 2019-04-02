@@ -55,7 +55,7 @@ struct rxe_pkt_info {
 /* Macros should be used only for received skb */
 static inline struct rxe_pkt_info *SKB_TO_PKT(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct rxe_pkt_info) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct rxe_pkt_info) > sizeof(skb->cb));
 	return (void *)skb->cb;
 }
 

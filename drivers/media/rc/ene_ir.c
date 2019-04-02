@@ -14,7 +14,7 @@
  * General Public License for more details.
  *
  * Special thanks to:
- *   Sami R. <maesesami@gmail.com> for lot of help in debugging and therefore
+ *   Sami R. <maesesami@gmail.com> for lot of help in deging and therefore
  *    bringing to life support for transmission & learning mode.
  *
  *   Charlie Andrews <charliethepilot@googlemail.com> for lots of help in
@@ -39,7 +39,7 @@
 
 static int sample_period;
 static bool learning_mode_force;
-static int debug;
+static int de;
 static bool txsim;
 
 static void ene_set_reg_addr(struct ene_device *dev, u16 reg)
@@ -428,7 +428,7 @@ static void ene_rx_setup(struct ene_device *dev)
 		/* Enable carrier detection */
 		ene_write_reg(dev, ENE_CIRCAR_PULS, 0x63);
 		ene_set_clear_reg_mask(dev, ENE_CIRCFG2, ENE_CIRCFG2_CARR_DETECT,
-			dev->carrier_detect_enabled || debug);
+			dev->carrier_detect_enabled || de);
 	} else {
 		if (dev->hw_fan_input)
 			dev->rx_fan_input_inuse = true;
@@ -550,7 +550,7 @@ static void ene_tx_set_carrier(struct ene_device *dev)
 	if (!dev->tx_period)
 		goto unlock;
 
-	BUG_ON(dev->tx_duty_cycle >= 100 || dev->tx_duty_cycle <= 0);
+	_ON(dev->tx_duty_cycle >= 100 || dev->tx_duty_cycle <= 0);
 
 	tx_puls_width = dev->tx_period / (100 / dev->tx_duty_cycle);
 
@@ -622,7 +622,7 @@ static void ene_tx_sample(struct ene_device *dev)
 	bool pulse = dev->tx_sample_pulse;
 
 	if (!dev->tx_buffer) {
-		pr_warn("TX: BUG: attempt to transmit NULL buffer\n");
+		pr_warn("TX: : attempt to transmit NULL buffer\n");
 		return;
 	}
 
@@ -1194,8 +1194,8 @@ MODULE_PARM_DESC(sample_period, "Hardware sample period (50 us default)");
 module_param(learning_mode_force, bool, S_IRUGO);
 MODULE_PARM_DESC(learning_mode_force, "Enable learning mode by default");
 
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level");
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level");
 
 module_param(txsim, bool, S_IRUGO);
 MODULE_PARM_DESC(txsim,

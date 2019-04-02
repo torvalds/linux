@@ -254,8 +254,8 @@ static void ufs_change_blocknr(struct inode *inode, sector_t beg,
 	      inode->i_ino, count,
 	     (unsigned long long)oldb, (unsigned long long)newb);
 
-	BUG_ON(!locked_page);
-	BUG_ON(!PageLocked(locked_page));
+	_ON(!locked_page);
+	_ON(!PageLocked(locked_page));
 
 	cur_index = locked_page->index;
 	end = count + beg;

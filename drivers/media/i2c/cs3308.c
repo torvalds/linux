@@ -43,7 +43,7 @@ static inline int cs3308_read(struct v4l2_subdev *sd, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cs3308_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = cs3308_read(sd, reg->reg & 0xffff);
@@ -61,7 +61,7 @@ static int cs3308_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops cs3308_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = cs3308_g_register,
 	.s_register = cs3308_s_register,
 #endif

@@ -97,7 +97,7 @@ struct mgmt_rp_read_index_list {
 #define MGMT_SETTING_LE			0x00000200
 #define MGMT_SETTING_ADVERTISING	0x00000400
 #define MGMT_SETTING_SECURE_CONN	0x00000800
-#define MGMT_SETTING_DEBUG_KEYS		0x00001000
+#define MGMT_SETTING_DE_KEYS		0x00001000
 #define MGMT_SETTING_PRIVACY		0x00002000
 #define MGMT_SETTING_CONFIGURATION	0x00004000
 #define MGMT_SETTING_STATIC_ADDRESS	0x00008000
@@ -180,7 +180,7 @@ struct mgmt_link_key_info {
 
 #define MGMT_OP_LOAD_LINK_KEYS		0x0012
 struct mgmt_cp_load_link_keys {
-	__u8	debug_keys;
+	__u8	de_keys;
 	__le16	key_count;
 	struct	mgmt_link_key_info keys[0];
 } __packed;
@@ -190,7 +190,7 @@ struct mgmt_cp_load_link_keys {
 #define MGMT_LTK_AUTHENTICATED		0x01
 #define MGMT_LTK_P256_UNAUTH		0x02
 #define MGMT_LTK_P256_AUTH		0x03
-#define MGMT_LTK_P256_DEBUG		0x04
+#define MGMT_LTK_P256_DE		0x04
 
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
@@ -395,7 +395,7 @@ struct mgmt_cp_set_scan_params {
 
 #define MGMT_OP_SET_SECURE_CONN		0x002D
 
-#define MGMT_OP_SET_DEBUG_KEYS		0x002E
+#define MGMT_OP_SET_DE_KEYS		0x002E
 
 #define MGMT_OP_SET_PRIVACY		0x002F
 struct mgmt_cp_set_privacy {

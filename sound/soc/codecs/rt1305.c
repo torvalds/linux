@@ -1064,13 +1064,13 @@ static void rt1305_calibrate(struct rt1305_priv *rt1305)
 	rhl = (rh << 16) | rl;
 	r0ohm = (rhl*10) / 33554432;
 
-	pr_debug("Left_rhl = 0x%x rh=0x%x rl=0x%x\n", rhl, rh, rl);
+	pr_de("Left_rhl = 0x%x rh=0x%x rl=0x%x\n", rhl, rh, rl);
 	pr_info("Left channel %d.%dohm\n", (r0ohm/10), (r0ohm%10));
 
 	r0l = 562949953421312ULL;
 	if (rhl != 0)
 		do_div(r0l, rhl);
-	pr_debug("Left_r0 = 0x%llx\n", r0l);
+	pr_de("Left_r0 = 0x%llx\n", r0l);
 
 	regmap_write(rt1305->regmap, RT1305_SPK_TEMP_PROTECTION_1, 0x9200);
 	regmap_write(rt1305->regmap, RT1305_PR_BASE + 0xd4, 0xfb00);
@@ -1081,13 +1081,13 @@ static void rt1305_calibrate(struct rt1305_priv *rt1305)
 	rhl = (rh << 16) | rl;
 	r0ohm = (rhl*10) / 33554432;
 
-	pr_debug("Right_rhl = 0x%x rh=0x%x rl=0x%x\n", rhl, rh, rl);
+	pr_de("Right_rhl = 0x%x rh=0x%x rl=0x%x\n", rhl, rh, rl);
 	pr_info("Right channel %d.%dohm\n", (r0ohm/10), (r0ohm%10));
 
 	r0r = 562949953421312ULL;
 	if (rhl != 0)
 		do_div(r0r, rhl);
-	pr_debug("Right_r0 = 0x%llx\n", r0r);
+	pr_de("Right_r0 = 0x%llx\n", r0r);
 
 	regmap_write(rt1305->regmap, RT1305_SPK_TEMP_PROTECTION_1, 0xc2ec);
 

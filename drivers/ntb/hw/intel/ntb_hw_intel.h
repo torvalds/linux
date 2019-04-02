@@ -180,8 +180,8 @@ struct intel_ntb_dev {
 	unsigned long			unsafe_flags;
 	unsigned long			unsafe_flags_ignore;
 
-	struct dentry			*debugfs_dir;
-	struct dentry			*debugfs_info;
+	struct dentry			*defs_dir;
+	struct dentry			*defs_info;
 };
 
 #define ntb_ndev(__ntb) container_of(__ntb, struct intel_ntb_dev, ntb)

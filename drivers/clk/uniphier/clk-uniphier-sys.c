@@ -214,7 +214,7 @@ const struct uniphier_clk_data uniphier_ld11_sys_clk_data[] = {
 	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV4("mpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV3("spll", 3, 4, 8),
-	/* Note: both gear1 and gear4 are spll/4.  This is not a bug. */
+	/* Note: both gear1 and gear4 are spll/4.  This is not a . */
 	UNIPHIER_CLK_CPUGEAR("cpu-ca53", 33, 0x8080, 0xf, 8,
 			     "cpll/2", "spll/4", "cpll/3", "spll/3",
 			     "spll/4", "spll/8", "cpll/4", "cpll/8"),

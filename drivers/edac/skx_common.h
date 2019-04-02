@@ -12,7 +12,7 @@
 #define MSG_SIZE		1024
 
 /*
- * Debug macros
+ * De macros
  */
 #define skx_printk(level, fmt, arg...)			\
 	edac_printk(level, "skx", fmt, ##arg)
@@ -141,12 +141,12 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 void skx_remove(void);
 
-#ifdef CONFIG_EDAC_DEBUG
-void setup_skx_debug(const char *dirname);
-void teardown_skx_debug(void);
+#ifdef CONFIG_EDAC_DE
+void setup_skx_de(const char *dirname);
+void teardown_skx_de(void);
 #else
-static inline void setup_skx_debug(const char *dirname) {}
-static inline void teardown_skx_debug(void) {}
-#endif /*CONFIG_EDAC_DEBUG*/
+static inline void setup_skx_de(const char *dirname) {}
+static inline void teardown_skx_de(void) {}
+#endif /*CONFIG_EDAC_DE*/
 
 #endif /* _SKX_COMM_EDAC_H */

@@ -149,7 +149,7 @@ nowayout: Disable watchdog shutdown on close
 -------------------------------------------------
 it87_wdt:
 nogameport: Forbid the activation of game port, default=0
-nocir: Forbid the use of CIR (workaround for some buggy setups); set to 1 if
+nocir: Forbid the use of CIR (workaround for some gy setups); set to 1 if
 system resets despite watchdog daemon running, default=0
 exclusive: Watchdog exclusive device open, default=1
 timeout: Watchdog timeout in seconds, default=60
@@ -256,7 +256,7 @@ tmr_atboot: Watchdog is started at boot time if set to 1, default=0
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 soft_noboot: Watchdog action, set to 1 to ignore reboots, 0 to reboot
-debug: Watchdog debug, set to >1 for debug, (default 0)
+de: Watchdog de, set to >1 for de, (default 0)
 -------------------------------------------------
 sa1100_wdt:
 margin: Watchdog margin in seconds (default 60s)

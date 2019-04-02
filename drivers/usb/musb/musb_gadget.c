@@ -1061,7 +1061,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 	musb_ep->wedged = 0;
 	status = 0;
 
-	pr_debug("%s periph: enabled %s for %s %s, %smaxpacket %d\n",
+	pr_de("%s periph: enabled %s for %s %s, %smaxpacket %d\n",
 			musb_driver_name, musb_ep->end_point.name,
 			musb_ep_xfertype_string(musb_ep->type),
 			musb_ep->is_in ? "IN" : "OUT",

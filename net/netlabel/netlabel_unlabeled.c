@@ -50,7 +50,7 @@
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
 #include <net/netlabel.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <linux/atomic.h>
 
 #include "netlabel_user.h"

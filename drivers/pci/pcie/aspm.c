@@ -213,7 +213,7 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 	 * Configuration, so just check one function
 	 */
 	child = list_entry(linkbus->devices.next, struct pci_dev, bus_list);
-	BUG_ON(!pci_is_pcie(child));
+	_ON(!pci_is_pcie(child));
 
 	/* Check downstream component if bit Slot Clock Configuration is 1 */
 	pcie_capability_read_word(child, PCI_EXP_LNKSTA, &reg16);
@@ -951,7 +951,7 @@ out:
 static void pcie_update_aspm_capable(struct pcie_link_state *root)
 {
 	struct pcie_link_state *link;
-	BUG_ON(root->parent);
+	_ON(root->parent);
 	list_for_each_entry(link, &link_list, sibling) {
 		if (link->root != root)
 			continue;
@@ -1153,7 +1153,7 @@ static int pcie_aspm_get_policy(char *buffer, const struct kernel_param *kp)
 module_param_call(policy, pcie_aspm_set_policy, pcie_aspm_get_policy,
 	NULL, 0644);
 
-#ifdef CONFIG_PCIEASPM_DEBUG
+#ifdef CONFIG_PCIEASPM_DE
 static ssize_t link_state_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)

@@ -861,7 +861,7 @@ static int ttymajor;
 static int io[MAX_ISA_DEVICES];
 static int irq[MAX_ISA_DEVICES];
 static int dma[MAX_ISA_DEVICES];
-static int debug_level;
+static int de_level;
 static int maxframe[MAX_TOTAL_DEVICES];
 static int txdmabufs[MAX_TOTAL_DEVICES];
 static int txholdbufs[MAX_TOTAL_DEVICES];
@@ -871,7 +871,7 @@ module_param(ttymajor, int, 0);
 module_param_hw_array(io, int, ioport, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_hw_array(dma, int, dma, NULL, 0);
-module_param(debug_level, int, 0);
+module_param(de_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
 module_param_array(txdmabufs, int, NULL, 0);
 module_param_array(txholdbufs, int, NULL, 0);
@@ -910,9 +910,9 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout);
 
 /*
  * 1st function defined in .text section. Calling this function in
- * init_module() followed by a breakpoint allows a remote debugger
+ * init_module() followed by a breakpoint allows a remote deger
  * (gdb) to get the .text address for the add-symbol-file command.
- * This allows remote debugging of dynamically loadable modules.
+ * This allows remote deging of dynamically loadable modules.
  */
 static void* mgsl_get_text_ptr(void)
 {
@@ -979,7 +979,7 @@ static void mgsl_stop(struct tty_struct *tty)
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_stop"))
 		return;
 	
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("mgsl_stop(%s)\n",info->device_name);	
 		
 	spin_lock_irqsave(&info->irq_spinlock,flags);
@@ -1002,7 +1002,7 @@ static void mgsl_start(struct tty_struct *tty)
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_start"))
 		return;
 	
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("mgsl_start(%s)\n",info->device_name);	
 		
 	spin_lock_irqsave(&info->irq_spinlock,flags);
@@ -1057,7 +1057,7 @@ static void mgsl_bh_handler(struct work_struct *work)
 		container_of(work, struct mgsl_struct, task);
 	int action;
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):mgsl_bh_handler(%s) entry\n",
 			__FILE__,__LINE__,info->device_name);
 	
@@ -1066,7 +1066,7 @@ static void mgsl_bh_handler(struct work_struct *work)
 	while((action = mgsl_bh_action(info)) != 0) {
 	
 		/* Process work item */
-		if ( debug_level >= DEBUG_LEVEL_BH )
+		if ( de_level >= DE_LEVEL_BH )
 			printk( "%s(%d):mgsl_bh_handler() work item action=%d\n",
 				__FILE__,__LINE__,action);
 
@@ -1088,7 +1088,7 @@ static void mgsl_bh_handler(struct work_struct *work)
 		}
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):mgsl_bh_handler(%s) exit\n",
 			__FILE__,__LINE__,info->device_name);
 }
@@ -1098,7 +1098,7 @@ static void mgsl_bh_receive(struct mgsl_struct *info)
 	bool (*get_rx_frame)(struct mgsl_struct *info) =
 		(info->params.mode == MGSL_MODE_HDLC ? mgsl_get_rx_frame : mgsl_get_raw_rx_frame);
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):mgsl_bh_receive(%s)\n",
 			__FILE__,__LINE__,info->device_name);
 	
@@ -1119,7 +1119,7 @@ static void mgsl_bh_transmit(struct mgsl_struct *info)
 	struct tty_struct *tty = info->port.tty;
 	unsigned long flags;
 	
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):mgsl_bh_transmit() entry on %s\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -1137,7 +1137,7 @@ static void mgsl_bh_transmit(struct mgsl_struct *info)
 
 static void mgsl_bh_status(struct mgsl_struct *info)
 {
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):mgsl_bh_status() entry on %s\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -1160,7 +1160,7 @@ static void mgsl_isr_receive_status( struct mgsl_struct *info )
 {
 	u16 status = usc_InReg( info, RCSR );
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):mgsl_isr_receive_status status=%04X\n",
 			__FILE__,__LINE__,status);
 			
@@ -1212,7 +1212,7 @@ static void mgsl_isr_transmit_status( struct mgsl_struct *info )
 {
 	u16 status = usc_InReg( info, TCSR );
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
+	if ( de_level >= DE_LEVEL_ISR )	
 		printk("%s(%d):mgsl_isr_transmit_status status=%04X\n",
 			__FILE__,__LINE__,status);
 	
@@ -1280,7 +1280,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
  	struct	mgsl_icount *icount;
 	u16 status = usc_InReg( info, MISR );
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
+	if ( de_level >= DE_LEVEL_ISR )	
 		printk("%s(%d):mgsl_isr_io_pin status=%04X\n",
 			__FILE__,__LINE__,status);
 			
@@ -1341,13 +1341,13 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 
 		if (tty_port_check_carrier(&info->port) &&
 		     (status & MISCSTATUS_DCD_LATCHED) ) {
-			if ( debug_level >= DEBUG_LEVEL_ISR )
+			if ( de_level >= DE_LEVEL_ISR )
 				printk("%s CD now %s...", info->device_name,
 				       (status & MISCSTATUS_DCD) ? "on" : "off");
 			if (status & MISCSTATUS_DCD)
 				wake_up_interruptible(&info->port.open_wait);
 			else {
-				if ( debug_level >= DEBUG_LEVEL_ISR )
+				if ( de_level >= DE_LEVEL_ISR )
 					printk("doing serial hangup...");
 				if (info->port.tty)
 					tty_hangup(info->port.tty);
@@ -1358,7 +1358,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 		     (status & MISCSTATUS_CTS_LATCHED) ) {
 			if (info->port.tty->hw_stopped) {
 				if (status & MISCSTATUS_CTS) {
-					if ( debug_level >= DEBUG_LEVEL_ISR )
+					if ( de_level >= DE_LEVEL_ISR )
 						printk("CTS tx start...");
 					info->port.tty->hw_stopped = 0;
 					usc_start_transmitter(info);
@@ -1367,7 +1367,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 				}
 			} else {
 				if (!(status & MISCSTATUS_CTS)) {
-					if ( debug_level >= DEBUG_LEVEL_ISR )
+					if ( de_level >= DE_LEVEL_ISR )
 						printk("CTS tx stop...");
 					if (info->port.tty)
 						info->port.tty->hw_stopped = 1;
@@ -1398,7 +1398,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
  */
 static void mgsl_isr_transmit_data( struct mgsl_struct *info )
 {
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
+	if ( de_level >= DE_LEVEL_ISR )	
 		printk("%s(%d):mgsl_isr_transmit_data xmit_cnt=%d\n",
 			__FILE__,__LINE__,info->xmit_cnt);
 			
@@ -1436,7 +1436,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 	unsigned char DataByte;
  	struct	mgsl_icount *icount = &info->icount;
 	
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
+	if ( de_level >= DE_LEVEL_ISR )	
 		printk("%s(%d):mgsl_isr_receive_data\n",
 			__FILE__,__LINE__);
 
@@ -1511,7 +1511,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 		}
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_ISR ) {
+	if ( de_level >= DE_LEVEL_ISR ) {
 		printk("%s(%d):rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,icount->rx,icount->brk,
 			icount->parity,icount->frame,icount->overrun);
@@ -1532,7 +1532,7 @@ static void mgsl_isr_misc( struct mgsl_struct *info )
 {
 	u16 status = usc_InReg( info, MISR );
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
+	if ( de_level >= DE_LEVEL_ISR )	
 		printk("%s(%d):mgsl_isr_misc status=%04X\n",
 			__FILE__,__LINE__,status);
 			
@@ -1599,7 +1599,7 @@ static void mgsl_isr_receive_dma( struct mgsl_struct *info )
 	/* This also clears the status bits. */
 	status = usc_InDmaReg( info, RDMR );
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
+	if ( de_level >= DE_LEVEL_ISR )	
 		printk("%s(%d):mgsl_isr_receive_dma(%s) status=%04X\n",
 			__FILE__,__LINE__,info->device_name,status);
 			
@@ -1644,7 +1644,7 @@ static void mgsl_isr_transmit_dma( struct mgsl_struct *info )
 
 	status = usc_InDmaReg( info, TDMR );
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):mgsl_isr_transmit_dma(%s) status=%04X\n",
 			__FILE__,__LINE__,info->device_name,status);
 
@@ -1681,8 +1681,8 @@ static irqreturn_t mgsl_interrupt(int dummy, void *dev_id)
 	u16 UscVector;
 	u16 DmaVector;
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
-		printk(KERN_DEBUG "%s(%d):mgsl_interrupt(%d)entry.\n",
+	if ( de_level >= DE_LEVEL_ISR )	
+		printk(KERN_DE "%s(%d):mgsl_interrupt(%d)entry.\n",
 			__FILE__, __LINE__, info->irq_level);
 
 	spin_lock(&info->irq_spinlock);
@@ -1692,7 +1692,7 @@ static irqreturn_t mgsl_interrupt(int dummy, void *dev_id)
 		UscVector = usc_InReg(info, IVR) >> 9;
 		DmaVector = usc_InDmaReg(info, DIVR);
 		
-		if ( debug_level >= DEBUG_LEVEL_ISR )	
+		if ( de_level >= DE_LEVEL_ISR )	
 			printk("%s(%d):%s UscVector=%08X DmaVector=%08X\n",
 				__FILE__,__LINE__,info->device_name,UscVector,DmaVector);
 			
@@ -1721,7 +1721,7 @@ static irqreturn_t mgsl_interrupt(int dummy, void *dev_id)
 	 */
 
 	if ( info->pending_bh && !info->bh_running && !info->bh_requested ) {
-		if ( debug_level >= DEBUG_LEVEL_ISR )	
+		if ( de_level >= DE_LEVEL_ISR )	
 			printk("%s(%d):%s queueing bh task.\n",
 				__FILE__,__LINE__,info->device_name);
 		schedule_work(&info->task);
@@ -1730,8 +1730,8 @@ static irqreturn_t mgsl_interrupt(int dummy, void *dev_id)
 
 	spin_unlock(&info->irq_spinlock);
 	
-	if ( debug_level >= DEBUG_LEVEL_ISR )	
-		printk(KERN_DEBUG "%s(%d):mgsl_interrupt(%d)exit.\n",
+	if ( de_level >= DE_LEVEL_ISR )	
+		printk(KERN_DE "%s(%d):mgsl_interrupt(%d)exit.\n",
 			__FILE__, __LINE__, info->irq_level);
 
 	return IRQ_HANDLED;
@@ -1748,7 +1748,7 @@ static int startup(struct mgsl_struct * info)
 {
 	int retval = 0;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s(%d):mgsl_startup(%s)\n",__FILE__,__LINE__,info->device_name);
 
 	if (tty_port_initialized(&info->port))
@@ -1809,7 +1809,7 @@ static void shutdown(struct mgsl_struct * info)
 	if (!tty_port_initialized(&info->port))
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_shutdown(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -1902,7 +1902,7 @@ static void mgsl_change_params(struct mgsl_struct *info)
 	if (!info->port.tty)
 		return;
 		
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_change_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
@@ -2003,8 +2003,8 @@ static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 	unsigned long flags;
 	int ret = 0;
 
-	if (debug_level >= DEBUG_LEVEL_INFO) {
-		printk(KERN_DEBUG "%s(%d):mgsl_put_char(%d) on %s\n",
+	if (de_level >= DE_LEVEL_INFO) {
+		printk(KERN_DE "%s(%d):mgsl_put_char(%d) on %s\n",
 			__FILE__, __LINE__, ch, info->device_name);
 	}		
 	
@@ -2042,7 +2042,7 @@ static void mgsl_flush_chars(struct tty_struct *tty)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 				
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_flush_chars() entry on %s xmit_cnt=%d\n",
 			__FILE__,__LINE__,info->device_name,info->xmit_cnt);
 	
@@ -2053,7 +2053,7 @@ static void mgsl_flush_chars(struct tty_struct *tty)
 	    !info->xmit_buf)
 		return;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_flush_chars() entry on %s starting transmitter\n",
 			__FILE__,__LINE__,info->device_name );
 
@@ -2094,7 +2094,7 @@ static int mgsl_write(struct tty_struct * tty,
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_write(%s) count=%d\n",
 			__FILE__,__LINE__,info->device_name,count);
 	
@@ -2157,11 +2157,11 @@ static int mgsl_write(struct tty_struct * tty,
 			/* transmit DMA buffer. */
 			mgsl_load_tx_dma_buffer(info,
 				info->xmit_buf,info->xmit_cnt);
-			if ( debug_level >= DEBUG_LEVEL_INFO )
+			if ( de_level >= DE_LEVEL_INFO )
 				printk( "%s(%d):mgsl_write(%s) sync xmit_cnt flushing\n",
 					__FILE__,__LINE__,info->device_name);
 		} else {
-			if ( debug_level >= DEBUG_LEVEL_INFO )
+			if ( de_level >= DE_LEVEL_INFO )
 				printk( "%s(%d):mgsl_write(%s) sync transmit accepted\n",
 					__FILE__,__LINE__,info->device_name);
 			ret = count;
@@ -2196,7 +2196,7 @@ static int mgsl_write(struct tty_struct * tty,
 		spin_unlock_irqrestore(&info->irq_spinlock,flags);
  	}
 cleanup:	
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_write(%s) returning=%d\n",
 			__FILE__,__LINE__,info->device_name,ret);
 			
@@ -2222,7 +2222,7 @@ static int mgsl_write_room(struct tty_struct *tty)
 	if (ret < 0)
 		ret = 0;
 		
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_write_room(%s)=%d\n",
 			 __FILE__,__LINE__, info->device_name,ret );
 			 
@@ -2250,14 +2250,14 @@ static int mgsl_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mgsl_struct *info = tty->driver_data;
 			 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_chars_in_buffer(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_chars_in_buffer"))
 		return 0;
 		
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_chars_in_buffer(%s)=%d\n",
 			 __FILE__,__LINE__, info->device_name,info->xmit_cnt );
 			 
@@ -2285,7 +2285,7 @@ static void mgsl_flush_buffer(struct tty_struct *tty)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_flush_buffer(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 	
@@ -2313,7 +2313,7 @@ static void mgsl_send_xchar(struct tty_struct *tty, char ch)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_send_xchar(%s,%d)\n",
 			 __FILE__,__LINE__, info->device_name, ch );
 			 
@@ -2342,7 +2342,7 @@ static void mgsl_throttle(struct tty_struct * tty)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_throttle(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -2372,7 +2372,7 @@ static void mgsl_unthrottle(struct tty_struct * tty)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_unthrottle(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -2408,7 +2408,7 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 {
 	int err;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
@@ -2438,7 +2438,7 @@ static int mgsl_get_stats(struct mgsl_struct * info, struct mgsl_icount __user *
 static int mgsl_get_params(struct mgsl_struct * info, MGSL_PARAMS __user *user_params)
 {
 	int err;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_get_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name);
 			
@@ -2446,7 +2446,7 @@ static int mgsl_get_params(struct mgsl_struct * info, MGSL_PARAMS __user *user_p
 	COPY_TO_USER(err,user_params, &info->params, sizeof(MGSL_PARAMS));
 	mutex_unlock(&info->port.mutex);
 	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
+		if ( de_level >= DE_LEVEL_INFO )
 			printk( "%s(%d):mgsl_get_params(%s) user buffer copy failed\n",
 				__FILE__,__LINE__,info->device_name);
 		return -EFAULT;
@@ -2473,12 +2473,12 @@ static int mgsl_set_params(struct mgsl_struct * info, MGSL_PARAMS __user *new_pa
 	MGSL_PARAMS tmp_params;
 	int err;
  
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_set_params %s\n", __FILE__,__LINE__,
 			info->device_name );
 	COPY_FROM_USER(err,&tmp_params, new_params, sizeof(MGSL_PARAMS));
 	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
+		if ( de_level >= DE_LEVEL_INFO )
 			printk( "%s(%d):mgsl_set_params(%s) user buffer copy failed\n",
 				__FILE__,__LINE__,info->device_name);
 		return -EFAULT;
@@ -2509,13 +2509,13 @@ static int mgsl_get_txidle(struct mgsl_struct * info, int __user *idle_mode)
 {
 	int err;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_get_txidle(%s)=%d\n",
 			 __FILE__,__LINE__, info->device_name, info->idle_mode);
 			
 	COPY_TO_USER(err,idle_mode, &info->idle_mode, sizeof(int));
 	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
+		if ( de_level >= DE_LEVEL_INFO )
 			printk( "%s(%d):mgsl_get_txidle(%s) user buffer copy failed\n",
 				__FILE__,__LINE__,info->device_name);
 		return -EFAULT;
@@ -2536,7 +2536,7 @@ static int mgsl_set_txidle(struct mgsl_struct * info, int idle_mode)
 {
  	unsigned long flags;
  
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_set_txidle(%s,%d)\n", __FILE__,__LINE__,
 			info->device_name, idle_mode );
 			
@@ -2563,7 +2563,7 @@ static int mgsl_txenable(struct mgsl_struct * info, int enable)
 {
  	unsigned long flags;
  
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_txenable(%s,%d)\n", __FILE__,__LINE__,
 			info->device_name, enable);
 			
@@ -2600,7 +2600,7 @@ static int mgsl_txabort(struct mgsl_struct * info)
 {
  	unsigned long flags;
  
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_txabort(%s)\n", __FILE__,__LINE__,
 			info->device_name);
 			
@@ -2627,7 +2627,7 @@ static int mgsl_rxenable(struct mgsl_struct * info, int enable)
 {
  	unsigned long flags;
  
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_rxenable(%s,%d)\n", __FILE__,__LINE__,
 			info->device_name, enable);
 			
@@ -2668,7 +2668,7 @@ static int mgsl_wait_event(struct mgsl_struct * info, int __user * mask_ptr)
 		return  -EFAULT;
 	}
 		 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_wait_event(%s,%d)\n", __FILE__,__LINE__,
 			info->device_name, mask);
 
@@ -2843,7 +2843,7 @@ static int tiocmget(struct tty_struct *tty)
 		((info->serial_signals & SerialSignal_DSR) ? TIOCM_DSR:0) +
 		((info->serial_signals & SerialSignal_CTS) ? TIOCM_CTS:0);
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tiocmget() value=%08X\n",
 			 __FILE__,__LINE__, info->device_name, result );
 	return result;
@@ -2857,7 +2857,7 @@ static int tiocmset(struct tty_struct *tty,
 	struct mgsl_struct *info = tty->driver_data;
  	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tiocmset(%x,%x)\n",
 			__FILE__,__LINE__,info->device_name, set, clear);
 
@@ -2888,7 +2888,7 @@ static int mgsl_break(struct tty_struct *tty, int break_state)
 	struct mgsl_struct * info = tty->driver_data;
 	unsigned long flags;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_break(%s,%d)\n",
 			 __FILE__,__LINE__, info->device_name, break_state);
 			 
@@ -2952,7 +2952,7 @@ static int mgsl_ioctl(struct tty_struct *tty,
 {
 	struct mgsl_struct * info = tty->driver_data;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
 			info->device_name, cmd );
 	
@@ -3020,7 +3020,7 @@ static void mgsl_set_termios(struct tty_struct *tty, struct ktermios *old_termio
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_set_termios %s\n", __FILE__,__LINE__,
 			tty->driver->name );
 	
@@ -3071,7 +3071,7 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_close"))
 		return;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_close(%s) entry, count=%d\n",
 			 __FILE__,__LINE__, info->device_name, info->port.count);
 
@@ -3089,7 +3089,7 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 	tty_port_close_end(&info->port, tty);	
 	info->port.tty = NULL;
 cleanup:			
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_close(%s) exit, count=%d\n", __FILE__,__LINE__,
 			tty->driver->name, info->port.count);
 			
@@ -3114,7 +3114,7 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (!info )
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_wait_until_sent(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -3163,7 +3163,7 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 	}
       
 exit:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_wait_until_sent(%s) exit\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
@@ -3181,7 +3181,7 @@ static void mgsl_hangup(struct tty_struct *tty)
 {
 	struct mgsl_struct * info = tty->driver_data;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_hangup(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
@@ -3254,7 +3254,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	int		dcd;
 	struct tty_port *port = &info->port;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):block_til_ready on %s\n",
 			 __FILE__,__LINE__, tty->driver->name );
 
@@ -3277,7 +3277,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	retval = 0;
 	add_wait_queue(&port->open_wait, &wait);
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):block_til_ready before block on %s count=%d\n",
 			 __FILE__,__LINE__, tty->driver->name, port->count );
 
@@ -3307,7 +3307,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			break;
 		}
 		
-		if (debug_level >= DEBUG_LEVEL_INFO)
+		if (de_level >= DE_LEVEL_INFO)
 			printk("%s(%d):block_til_ready blocking on %s count=%d\n",
 				 __FILE__,__LINE__, tty->driver->name, port->count );
 				 
@@ -3324,7 +3324,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		port->count++;
 	port->blocked_open--;
 	
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):block_til_ready after blocking on %s count=%d\n",
 			 __FILE__,__LINE__, tty->driver->name, port->count );
 			 
@@ -3376,7 +3376,7 @@ static int mgsl_open(struct tty_struct *tty, struct file * filp)
 
 	info->port.tty = tty;
 		
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_open(%s), old ref count = %d\n",
 			 __FILE__,__LINE__,tty->driver->name, info->port.count);
 
@@ -3400,13 +3400,13 @@ static int mgsl_open(struct tty_struct *tty, struct file * filp)
 
 	retval = block_til_ready(tty, filp, info);
 	if (retval) {
-		if (debug_level >= DEBUG_LEVEL_INFO)
+		if (de_level >= DE_LEVEL_INFO)
 			printk("%s(%d):block_til_ready(%s) returned %d\n",
 				 __FILE__,__LINE__, info->device_name, retval);
 		goto cleanup;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgsl_open(%s) success\n",
 			 __FILE__,__LINE__, info->device_name);
 	retval = 0;
@@ -3605,7 +3605,7 @@ static int mgsl_allocate_dma_buffers(struct mgsl_struct *info)
 
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s(%d):Allocating %d TX and %d RX DMA buffers.\n",
 			__FILE__,__LINE__, info->tx_buffer_count,info->rx_buffer_count);
 	
@@ -3896,7 +3896,7 @@ static int mgsl_alloc_intermediate_txbuffer_memory(struct mgsl_struct *info)
 {
 	int i;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s %s(%d)  allocating %d tx holding buffers\n",
 				info->device_name, __FILE__,__LINE__,info->num_tx_holding_buffers);
 
@@ -4107,7 +4107,7 @@ errout:
 
 static void mgsl_release_resources(struct mgsl_struct *info)
 {
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_release_resources(%s) entry\n",
 			__FILE__,__LINE__,info->device_name );
 			
@@ -4145,7 +4145,7 @@ static void mgsl_release_resources(struct mgsl_struct *info)
 		info->lcr_base = NULL;
 	}
 	
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_release_resources(%s) exit\n",
 			__FILE__,__LINE__,info->device_name );
 			
@@ -5393,7 +5393,7 @@ static void usc_process_rxoverrun_sync( struct mgsl_struct *info )
  */
 static void usc_stop_receiver( struct mgsl_struct *info )
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):usc_stop_receiver(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
@@ -5428,7 +5428,7 @@ static void usc_start_receiver( struct mgsl_struct *info )
 {
 	u32 phys_addr;
 	
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):usc_start_receiver(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -5493,7 +5493,7 @@ static void usc_start_transmitter( struct mgsl_struct *info )
 	u32 phys_addr;
 	unsigned int FrameSize;
 
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):usc_start_transmitter(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
@@ -5596,7 +5596,7 @@ static void usc_start_transmitter( struct mgsl_struct *info )
  */
 static void usc_stop_transmitter( struct mgsl_struct *info )
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):usc_stop_transmitter(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
@@ -6520,11 +6520,11 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 			framesize -= 4;		
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk("%s(%d):mgsl_get_rx_frame(%s) status=%04X size=%d\n",
 			__FILE__,__LINE__,info->device_name,status,framesize);
 			
-	if ( debug_level >= DEBUG_LEVEL_DATA )
+	if ( de_level >= DE_LEVEL_DATA )
 		mgsl_trace_block(info,info->rx_buffer_list[StartIndex].virt_addr,
 			min_t(int, framesize, DMABUFFERSIZE),0);
 		
@@ -6564,7 +6564,7 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 						RX_CRC_ERROR :
 						RX_OK);
 
-				if ( debug_level >= DEBUG_LEVEL_DATA )
+				if ( de_level >= DE_LEVEL_DATA )
 					printk("%s(%d):mgsl_get_rx_frame(%s) rx frame status=%d\n",
 						__FILE__,__LINE__,info->device_name,
 						*ptmp);
@@ -6731,11 +6731,11 @@ static bool mgsl_get_raw_rx_frame(struct mgsl_struct *info)
 		}
 
 
-		if ( debug_level >= DEBUG_LEVEL_BH )
+		if ( de_level >= DE_LEVEL_BH )
 			printk("%s(%d):mgsl_get_raw_rx_frame(%s) status=%04X size=%d\n",
 				__FILE__,__LINE__,info->device_name,status,framesize);
 
-		if ( debug_level >= DEBUG_LEVEL_DATA )
+		if ( de_level >= DE_LEVEL_DATA )
 			mgsl_trace_block(info,info->rx_buffer_list[CurrentIndex].virt_addr,
 				min_t(int, framesize, DMABUFFERSIZE),0);
 
@@ -6794,7 +6794,7 @@ static void mgsl_load_tx_dma_buffer(struct mgsl_struct *info,
 	unsigned int i = 0;
 	DMABUFFERENTRY *pBufEntry;
 	
-	if ( debug_level >= DEBUG_LEVEL_DATA )
+	if ( de_level >= DE_LEVEL_DATA )
 		mgsl_trace_block(info,Buffer, min_t(int, BufferSize, DMABUFFERSIZE), 1);
 
 	if (info->params.flags & HDLC_FLAG_HDLC_LOOPMODE) {
@@ -7266,7 +7266,7 @@ static bool mgsl_dma_test( struct mgsl_struct *info )
  */
 static int mgsl_adapter_test( struct mgsl_struct *info )
 {
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):Testing device %s\n",
 			__FILE__,__LINE__,info->device_name );
 			
@@ -7291,7 +7291,7 @@ static int mgsl_adapter_test( struct mgsl_struct *info )
 		return -ENODEV;
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):device %s passed diagnostics\n",
 			__FILE__,__LINE__,info->device_name );
 			
@@ -7454,7 +7454,7 @@ static void mgsl_tx_timeout(struct timer_list *t)
 	struct mgsl_struct *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 	
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):mgsl_tx_timeout(%s)\n",
 			__FILE__,__LINE__,info->device_name);
 	if(info->tx_active &&
@@ -7610,7 +7610,7 @@ static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
 	struct mgsl_struct *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk(KERN_INFO "%s:hdlc_xmit(%s)\n",__FILE__,dev->name);
 
 	/* stop sending until this frame completes */
@@ -7653,7 +7653,7 @@ static int hdlcdev_open(struct net_device *dev)
 	int rc;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_open(%s)\n",__FILE__,dev->name);
 
 	/* generic HDLC layer open processing */
@@ -7711,7 +7711,7 @@ static int hdlcdev_close(struct net_device *dev)
 	struct mgsl_struct *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_close(%s)\n",__FILE__,dev->name);
 
 	netif_stop_queue(dev);
@@ -7745,7 +7745,7 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mgsl_struct *info = dev_to_port(dev);
 	unsigned int flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_ioctl(%s)\n",__FILE__,dev->name);
 
 	/* return error if TTY interface open */
@@ -7842,7 +7842,7 @@ static void hdlcdev_tx_timeout(struct net_device *dev)
 	struct mgsl_struct *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("hdlcdev_tx_timeout(%s)\n",dev->name);
 
 	dev->stats.tx_errors++;
@@ -7880,7 +7880,7 @@ static void hdlcdev_rx(struct mgsl_struct *info, char *buf, int size)
 	struct sk_buff *skb = dev_alloc_skb(size);
 	struct net_device *dev = info->netdev;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("hdlcdev_rx(%s)\n", dev->name);
 
 	if (skb == NULL) {
@@ -8013,7 +8013,7 @@ static int synclink_init_one (struct pci_dev *dev,
 		info->hw_version = 1;
 	} else {
 		/* Version 0 PCI9050 based 5V PCI adapter
-		 * A PCI9050 bug prevents reading LCR registers if 
+		 * A PCI9050  prevents reading LCR registers if 
 		 * LCR base address bit 7 is set. Maintain shadow
 		 * value so we can write to LCR misc control reg.
 		 */

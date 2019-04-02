@@ -3,7 +3,7 @@
  *  Apr 26, 2001
  *  Routines for control of ALi pci audio M5451
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:

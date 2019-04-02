@@ -230,7 +230,7 @@ void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 		smc_op = OMAP4_MON_L2X0_AUXCTRL_INDEX;
 		break;
 
-	case L2X0_DEBUG_CTRL:
+	case L2X0_DE_CTRL:
 		smc_op = OMAP4_MON_L2X0_DBG_CTRL_INDEX;
 		break;
 

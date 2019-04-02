@@ -321,7 +321,7 @@ static void __dma_sync(void *vaddr, size_t size, int direction)
 
 	switch (direction) {
 	case DMA_NONE:
-		BUG();
+		();
 	case DMA_FROM_DEVICE:
 		/*
 		 * invalidate only when cache-line aligned otherwise there is
@@ -419,7 +419,7 @@ long arch_dma_coherent_to_pfn(struct device *dev, void *vaddr,
 {
 	/* This should always be populated, so we don't test every
 	 * level. If that fails, we'll have a nice crash which
-	 * will be as good as a BUG_ON()
+	 * will be as good as a _ON()
 	 */
 	unsigned long cpu_addr = (unsigned long)vaddr;
 	pgd_t *pgd = pgd_offset_k(cpu_addr);

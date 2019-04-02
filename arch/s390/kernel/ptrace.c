@@ -136,7 +136,7 @@ void user_enable_block_step(struct task_struct *task)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Clear all debugging related fields.
+ * Clear all deging related fields.
  */
 void ptrace_disable(struct task_struct *task)
 {
@@ -303,11 +303,11 @@ static inline void __poke_user_per(struct task_struct *child,
 
 	/*
 	 * There are only three fields in the per_info struct that the
-	 * debugger user can write to.
-	 * 1) cr9: the debugger wants to set a new PER event mask
-	 * 2) starting_addr: the debugger wants to set a new starting
+	 * deger user can write to.
+	 * 1) cr9: the deger wants to set a new PER event mask
+	 * 2) starting_addr: the deger wants to set a new starting
 	 *    address to use with the PER event mask.
-	 * 3) ending_addr: the debugger wants to set a new ending
+	 * 3) ending_addr: the deger wants to set a new ending
 	 *    address to use with the PER event mask.
 	 * The user specified PER event mask and the start and end
 	 * addresses are used only if single stepping is not in effect.
@@ -849,7 +849,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	     regs->gprs[2] >= NR_syscalls)) {
 		/*
 		 * Tracing decided this syscall should not happen or the
-		 * debugger stored an invalid system call number. Skip
+		 * deger stored an invalid system call number. Skip
 		 * the system call and the system call restart handling.
 		 */
 		clear_pt_regs_flag(regs, PIF_SYSCALL);

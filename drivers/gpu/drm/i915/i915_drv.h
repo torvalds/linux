@@ -112,7 +112,7 @@
 #define I915_STATE_WARN_ON(x)						\
 	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
+#if IS_ENABLED(CONFIG_DRM_I915_DE)
 
 bool __i915_inject_load_failure(const char *func, int line);
 #define i915_inject_load_failure() \
@@ -128,7 +128,7 @@ bool i915_error_injected(void);
 #endif
 
 #define i915_load_error(i915, fmt, ...)					 \
-	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
+	__i915_printk(i915, i915_error_injected() ? KERN_DE : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
 
 typedef depot_stack_handle_t intel_wakeref_t;
@@ -499,14 +499,14 @@ struct i915_drrs {
 struct i915_psr {
 	struct mutex lock;
 
-#define I915_PSR_DEBUG_MODE_MASK	0x0f
-#define I915_PSR_DEBUG_DEFAULT		0x00
-#define I915_PSR_DEBUG_DISABLE		0x01
-#define I915_PSR_DEBUG_ENABLE		0x02
-#define I915_PSR_DEBUG_FORCE_PSR1	0x03
-#define I915_PSR_DEBUG_IRQ		0x10
+#define I915_PSR_DE_MODE_MASK	0x0f
+#define I915_PSR_DE_DEFAULT		0x00
+#define I915_PSR_DE_DISABLE		0x01
+#define I915_PSR_DE_ENABLE		0x02
+#define I915_PSR_DE_FORCE_PSR1	0x03
+#define I915_PSR_DE_IRQ		0x10
 
-	u32 debug;
+	u32 de;
 	bool sink_support;
 	bool prepared, enabled;
 	struct intel_dp *dp;
@@ -770,7 +770,7 @@ struct i915_power_well_regs {
 	i915_reg_t bios;
 	i915_reg_t driver;
 	i915_reg_t kvmr;
-	i915_reg_t debug;
+	i915_reg_t de;
 };
 
 /* Power well structure for haswell */
@@ -922,7 +922,7 @@ struct i915_gem_mm {
 	/** Bit 6 swizzling required for Y tiling */
 	u32 bit_6_swizzle_y;
 
-	/* accounting, useful for userland debugging */
+	/* accounting, useful for userland deging */
 	spinlock_t object_stat_lock;
 	u64 object_memory;
 	u32 object_count;
@@ -1176,7 +1176,7 @@ struct i915_runtime_pm {
 	bool suspended;
 	bool irqs_enabled;
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 	/*
 	 * To aide detection of wakeref leaks and general misuse, we
 	 * track all wakeref holders. With manual markup (i.e. returning
@@ -1184,7 +1184,7 @@ struct i915_runtime_pm {
 	 * paired rpm_put) we can remove corresponding pairs of and keep
 	 * the array trimmed to active wakerefs.
 	 */
-	struct intel_runtime_pm_debug {
+	struct intel_runtime_pm_de {
 		spinlock_t lock;
 
 		depot_stack_handle_t last_acquire;
@@ -1192,7 +1192,7 @@ struct i915_runtime_pm {
 
 		depot_stack_handle_t *owners;
 		unsigned long count;
-	} debug;
+	} de;
 #endif
 };
 
@@ -1661,7 +1661,7 @@ struct drm_i915_private {
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
 	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
 #endif
 
@@ -2128,8 +2128,8 @@ enum hdmi_force_audio {
  */
 #define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
 #define INTEL_FRONTBUFFER(pipe, plane_id) ({ \
-	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES > 32); \
-	BUILD_BUG_ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE); \
+	BUILD__ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES > 32); \
+	BUILD__ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE); \
 	BIT((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)); \
 })
 #define INTEL_FRONTBUFFER_OVERLAY(pipe) \
@@ -2219,8 +2219,8 @@ static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
 
 	page_sizes = 0;
 	while (sg) {
-		GEM_BUG_ON(sg->offset);
-		GEM_BUG_ON(!IS_ALIGNED(sg->length, PAGE_SIZE));
+		GEM__ON(sg->offset);
+		GEM__ON(!IS_ALIGNED(sg->length, PAGE_SIZE));
 		page_sizes |= sg->length;
 		sg = __sg_next(sg);
 	}
@@ -2254,8 +2254,8 @@ static inline unsigned int i915_sg_segment_size(void)
 #define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)
 
 #define INTEL_GEN_MASK(s, e) ( \
-	BUILD_BUG_ON_ZERO(!__builtin_constant_p(s)) + \
-	BUILD_BUG_ON_ZERO(!__builtin_constant_p(e)) + \
+	BUILD__ON_ZERO(!__builtin_constant_p(s)) + \
+	BUILD__ON_ZERO(!__builtin_constant_p(e)) + \
 	GENMASK((e) - 1, (s) - 1))
 
 /* Returns true if Gen is in inclusive range [Start, End] */
@@ -2263,7 +2263,7 @@ static inline unsigned int i915_sg_segment_size(void)
 	(!!(INTEL_INFO(dev_priv)->gen_mask & INTEL_GEN_MASK((s), (e))))
 
 #define IS_GEN(dev_priv, n) \
-	(BUILD_BUG_ON_ZERO(!__builtin_constant_p(n)) + \
+	(BUILD__ON_ZERO(!__builtin_constant_p(n)) + \
 	 INTEL_INFO(dev_priv)->gen == (n))
 
 /*
@@ -2471,7 +2471,7 @@ static inline unsigned int i915_sg_segment_size(void)
 	(INTEL_PPGTT(dev_priv) >= INTEL_PPGTT_FULL_4LVL)
 
 #define HAS_PAGE_SIZES(dev_priv, sizes) ({ \
-	GEM_BUG_ON((sizes) == 0); \
+	GEM__ON((sizes) == 0); \
 	((sizes) & ~INTEL_INFO(dev_priv)->page_sizes) == 0; \
 })
 
@@ -2906,7 +2906,7 @@ i915_gem_object_has_pages(struct drm_i915_gem_object *obj)
 static inline void
 __i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
+	GEM__ON(!i915_gem_object_has_pages(obj));
 
 	atomic_inc(&obj->mm.pages_pin_count);
 }
@@ -2920,8 +2920,8 @@ i915_gem_object_has_pinned_pages(struct drm_i915_gem_object *obj)
 static inline void
 __i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
-	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	GEM__ON(!i915_gem_object_has_pages(obj));
+	GEM__ON(!i915_gem_object_has_pinned_pages(obj));
 
 	atomic_dec(&obj->mm.pages_pin_count);
 }
@@ -3222,14 +3222,14 @@ u32 i915_gem_fence_size(struct drm_i915_private *dev_priv, u32 size,
 u32 i915_gem_fence_alignment(struct drm_i915_private *dev_priv, u32 size,
 			     unsigned int tiling, unsigned int stride);
 
-/* i915_debugfs.c */
-#ifdef CONFIG_DEBUG_FS
-int i915_debugfs_register(struct drm_i915_private *dev_priv);
-int i915_debugfs_connector_add(struct drm_connector *connector);
+/* i915_defs.c */
+#ifdef CONFIG_DE_FS
+int i915_defs_register(struct drm_i915_private *dev_priv);
+int i915_defs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_i915_private *dev_priv);
 #else
-static inline int i915_debugfs_register(struct drm_i915_private *dev_priv) {return 0;}
-static inline int i915_debugfs_connector_add(struct drm_connector *connector)
+static inline int i915_defs_register(struct drm_i915_private *dev_priv) {return 0;}
+static inline int i915_defs_connector_add(struct drm_connector *connector)
 { return 0; }
 static inline void intel_display_crc_init(struct drm_i915_private *dev_priv) {}
 #endif

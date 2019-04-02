@@ -25,7 +25,7 @@ static char *mce_helper_argv[2] = { mce_helper, NULL };
 /*
  * Lockless MCE logging infrastructure.
  * This avoids deadlocks on printk locks without having to break locks. Also
- * separate MCEs from kernel messages to avoid bogus bug reports.
+ * separate MCEs from kernel messages to avoid bogus  reports.
  */
 
 static struct mce_log_buffer mcelog = {

@@ -1139,7 +1139,7 @@ ssize_t vhost_chr_read_iter(struct vhost_dev *dev, struct iov_iter *to,
 			msg = &node->msg_v2.iotlb;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -1470,8 +1470,8 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 		}
 
 		/* Make sure it's safe to cast pointers to vring types. */
-		BUILD_BUG_ON(__alignof__ *vq->avail > VRING_AVAIL_ALIGN_SIZE);
-		BUILD_BUG_ON(__alignof__ *vq->used > VRING_USED_ALIGN_SIZE);
+		BUILD__ON(__alignof__ *vq->avail > VRING_AVAIL_ALIGN_SIZE);
+		BUILD__ON(__alignof__ *vq->used > VRING_USED_ALIGN_SIZE);
 		if ((a.avail_user_addr & (VRING_AVAIL_ALIGN_SIZE - 1)) ||
 		    (a.used_user_addr & (VRING_USED_ALIGN_SIZE - 1)) ||
 		    (a.log_guest_addr & (VRING_USED_ALIGN_SIZE - 1))) {
@@ -1703,7 +1703,7 @@ static int set_bit_to_user(int nr, void __user *addr)
 	r = get_user_pages_fast(log, 1, 1, &page);
 	if (r < 0)
 		return r;
-	BUG_ON(r != 1);
+	_ON(r != 1);
 	base = kmap_atomic(page);
 	set_bit(bit, base);
 	kunmap_atomic(base);
@@ -1831,8 +1831,8 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 			return 0;
 		}
 	}
-	/* Length written exceeds what we have stored. This is a bug. */
-	BUG();
+	/* Length written exceeds what we have stored. This is a . */
+	();
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vhost_log_write);
@@ -2216,7 +2216,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 
 	/* Assume notifications from guest are disabled at this point,
 	 * if they aren't we would need to update avail_event index. */
-	BUG_ON(!(vq->used_flags & VRING_USED_F_NO_NOTIFY));
+	_ON(!(vq->used_flags & VRING_USED_F_NO_NOTIFY));
 	return head;
 }
 EXPORT_SYMBOL_GPL(vhost_get_vq_desc);

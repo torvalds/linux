@@ -2763,7 +2763,7 @@ csio_hw_fatal_err(struct csio_hw *hw)
 	csio_set_reg_field(hw, SGE_CONTROL_A, GLOBALENABLE_F, 0);
 	csio_hw_intr_disable(hw);
 
-	/* Do not reset HW, we may need FW state for debugging */
+	/* Do not reset HW, we may need FW state for deging */
 	csio_fatal(hw, "HW Fatal error encountered!\n");
 }
 

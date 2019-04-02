@@ -501,17 +501,17 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	u64 total = 0, lcomm = ~0, lower, ubase, usize;
 	int ret, fbp, ltcs, ltcn = 0;
 
-	nvkm_debug(subdev, "%d FBP(s)\n", fbps);
+	nvkm_de(subdev, "%d FBP(s)\n", fbps);
 	for (fbp = 0; fbp < fbps; fbp++) {
 		u32 size = func->probe_fbp(func, device, fbp, &ltcs);
 		if (size) {
-			nvkm_debug(subdev, "FBP %d: %4d MiB, %d LTC(s)\n",
+			nvkm_de(subdev, "FBP %d: %4d MiB, %d LTC(s)\n",
 				   fbp, size, ltcs);
 			lcomm  = min(lcomm, (u64)(size / ltcs) << 20);
 			total += (u64) size << 20;
 			ltcn  += ltcs;
 		} else {
-			nvkm_debug(subdev, "FBP %d: disabled\n", fbp);
+			nvkm_de(subdev, "FBP %d: disabled\n", fbp);
 		}
 	}
 
@@ -519,9 +519,9 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	ubase = lcomm + func->upper;
 	usize = total - lower;
 
-	nvkm_debug(subdev, "Lower: %4lld MiB @ %010llx\n", lower >> 20, 0ULL);
-	nvkm_debug(subdev, "Upper: %4lld MiB @ %010llx\n", usize >> 20, ubase);
-	nvkm_debug(subdev, "Total: %4lld MiB\n", total >> 20);
+	nvkm_de(subdev, "Lower: %4lld MiB @ %010llx\n", lower >> 20, 0ULL);
+	nvkm_de(subdev, "Upper: %4lld MiB @ %010llx\n", usize >> 20, ubase);
+	nvkm_de(subdev, "Total: %4lld MiB\n", total >> 20);
 
 	ret = nvkm_ram_ctor(func, fb, type, total, ram);
 	if (ret)

@@ -36,14 +36,14 @@ static void kexec_image_info(const struct kimage *kimage)
 {
 	unsigned long i;
 
-	pr_debug("kexec kimage info:\n");
-	pr_debug("  type:        %d\n", kimage->type);
-	pr_debug("  start:       %lx\n", kimage->start);
-	pr_debug("  head:        %lx\n", kimage->head);
-	pr_debug("  nr_segments: %lu\n", kimage->nr_segments);
+	pr_de("kexec kimage info:\n");
+	pr_de("  type:        %d\n", kimage->type);
+	pr_de("  start:       %lx\n", kimage->start);
+	pr_de("  head:        %lx\n", kimage->head);
+	pr_de("  nr_segments: %lu\n", kimage->nr_segments);
 
 	for (i = 0; i < kimage->nr_segments; i++) {
-		pr_debug("    segment[%lu]: %016lx - %016lx, 0x%lx bytes, %lu pages\n",
+		pr_de("    segment[%lu]: %016lx - %016lx, 0x%lx bytes, %lu pages\n",
 			i,
 			kimage->segment[i].mem,
 			kimage->segment[i].mem + kimage->segment[i].memsz,

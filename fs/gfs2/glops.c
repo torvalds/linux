@@ -75,7 +75,7 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl, bool fsync,
 		gfs2_trans_add_revoke(sdp, bd);
 		nr_revokes--;
 	}
-	GLOCK_BUG_ON(gl, !fsync && atomic_read(&gl->gl_ail_count));
+	GLOCK__ON(gl, !fsync && atomic_read(&gl->gl_ail_count));
 	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
 }
@@ -157,7 +157,7 @@ static void rgrp_go_sync(struct gfs2_glock *gl)
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		return;
-	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
+	GLOCK__ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
 	gfs2_log_flush(sdp, gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_RGRP_GO_SYNC);
@@ -253,7 +253,7 @@ static void inode_go_sync(struct gfs2_glock *gl)
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
 		goto out;
 
-	GLOCK_BUG_ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
+	GLOCK__ON(gl, gl->gl_state != LM_ST_EXCLUSIVE);
 
 	gfs2_log_flush(gl->gl_name.ln_sbd, gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_INODE_GO_SYNC);

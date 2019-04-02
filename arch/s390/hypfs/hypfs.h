@@ -11,7 +11,7 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <asm/hypfs.h>
@@ -46,7 +46,7 @@ void hypfs_diag0c_exit(void);
 void hypfs_sprp_init(void);
 void hypfs_sprp_exit(void);
 
-/* debugfs interface */
+/* defs interface */
 struct hypfs_dbfs_file;
 
 struct hypfs_dbfs_data {

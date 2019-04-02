@@ -111,7 +111,7 @@ struct sock *nf_sk_lookup_slow_v6(struct net *net, const struct sk_buff *skb,
 
 	tproto = ipv6_find_hdr(skb, &thoff, -1, NULL, NULL);
 	if (tproto < 0) {
-		pr_debug("unable to find transport header in IPv6 packet, dropping\n");
+		pr_de("unable to find transport header in IPv6 packet, dropping\n");
 		return NULL;
 	}
 

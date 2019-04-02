@@ -48,11 +48,11 @@ config NFP_APP_ABM_NIC
 	  functionality.
 	  Code will be built into the nfp.ko driver.
 
-config NFP_DEBUG
-	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"
+config NFP_DE
+	bool "De support for Netronome(R) NFP4000/NFP6000 NIC drivers"
 	depends on NFP
 	---help---
-	  Enable extra sanity checks and debugfs support in
+	  Enable extra sanity checks and defs support in
 	  Netronome(R) NFP4000/NFP6000 NIC drivers.
 	  Note: selecting this option may adversely impact
 		performance.

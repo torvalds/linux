@@ -7,11 +7,11 @@
 
 #include "odm_precomp.h"
 
-void ODM_InitDebugSetting(PDM_ODM_T pDM_Odm)
+void ODM_InitDeSetting(PDM_ODM_T pDM_Odm)
 {
-	pDM_Odm->DebugLevel = ODM_DBG_LOUD;
+	pDM_Odm->DeLevel = ODM_DBG_LOUD;
 
-	pDM_Odm->DebugComponents =
+	pDM_Odm->DeComponents =
 /* BB Functions */
 /* 		ODM_COMP_DIG					| */
 /* 		ODM_COMP_RA_MASK				| */

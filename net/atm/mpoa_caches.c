@@ -14,21 +14,21 @@
 
 #if 0
 #define dprintk(format, args...)					\
-	printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args)  /* debug */
+	printk(KERN_DE "mpoa:%s: " format, __FILE__, ##args)  /* de */
 #else
 #define dprintk(format, args...)					\
 	do { if (0)							\
-		printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args);\
+		printk(KERN_DE "mpoa:%s: " format, __FILE__, ##args);\
 	} while (0)
 #endif
 
 #if 0
 #define ddprintk(format, args...)					\
-	printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args)  /* debug */
+	printk(KERN_DE "mpoa:%s: " format, __FILE__, ##args)  /* de */
 #else
 #define ddprintk(format, args...)					\
 	do { if (0)							\
-		printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args);\
+		printk(KERN_DE "mpoa:%s: " format, __FILE__, ##args);\
 	} while (0)
 #endif
 

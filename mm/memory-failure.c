@@ -934,7 +934,7 @@ int get_hwpoison_page(struct page *page)
 		/*
 		 * Non anonymous thp exists only in allocation/free time. We
 		 * can't handle such a case correctly, so let's give it up.
-		 * This should be better than triggering BUG_ON when kernel
+		 * This should be better than triggering _ON when kernel
 		 * tries to touch the "partially handled" page.
 		 */
 		if (!PageAnon(head)) {
@@ -1319,7 +1319,7 @@ int memory_failure(unsigned long pfn, int flags)
 			return -EBUSY;
 		}
 		unlock_page(p);
-		VM_BUG_ON_PAGE(!page_count(p), p);
+		VM__ON_PAGE(!page_count(p), p);
 		hpage = compound_head(p);
 	}
 
@@ -1899,7 +1899,7 @@ int soft_offline_page(struct page *page, int flags)
 	unsigned long pfn = page_to_pfn(page);
 
 	if (is_zone_device_page(page)) {
-		pr_debug_ratelimited("soft_offline: %#lx page is device page\n",
+		pr_de_ratelimited("soft_offline: %#lx page is device page\n",
 				pfn);
 		if (flags & MF_COUNT_INCREASED)
 			put_page(page);

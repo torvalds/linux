@@ -404,7 +404,7 @@ static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, lo
 	iov_iter_init(&iter, READ, &iov, 1, len);
 
 	ret = call_read_iter(filp, &kiocb, &iter);
-	BUG_ON(ret == -EIOCBQUEUED);
+	_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -472,7 +472,7 @@ static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t 
 	iov_iter_init(&iter, WRITE, &iov, 1, len);
 
 	ret = call_write_iter(filp, &kiocb, &iter);
-	BUG_ON(ret == -EIOCBQUEUED);
+	_ON(ret == -EIOCBQUEUED);
 	if (ret > 0)
 		*ppos = kiocb.ki_pos;
 	return ret;
@@ -678,7 +678,7 @@ static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 		ret = call_read_iter(filp, &kiocb, iter);
 	else
 		ret = call_write_iter(filp, &kiocb, iter);
-	BUG_ON(ret == -EIOCBQUEUED);
+	_ON(ret == -EIOCBQUEUED);
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
@@ -1432,7 +1432,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	/*
 	 * We need to debate whether we can enable this or not. The
 	 * man page documents EAGAIN return for the output at least,
-	 * and the application is arguably buggy if it doesn't expect
+	 * and the application is arguably gy if it doesn't expect
 	 * EAGAIN on a non-blocking file descriptor.
 	 */
 	if (in.file->f_flags & O_NONBLOCK)

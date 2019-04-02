@@ -24,7 +24,7 @@
 #include <linux/string.h>
 #include "fsm.h"
 
-#define FSM_TIMER_DEBUG 0
+#define FSM_TIMER_DE 0
 
 int
 mISDN_FsmNew(struct Fsm *fsm,
@@ -75,15 +75,15 @@ mISDN_FsmEvent(struct FsmInst *fi, int event, void *arg)
 	}
 	r = fi->fsm->jumpmatrix[fi->fsm->state_count * event + fi->state];
 	if (r) {
-		if (fi->debug)
-			fi->printdebug(fi, "State %s Event %s",
+		if (fi->de)
+			fi->printde(fi, "State %s Event %s",
 				       fi->fsm->strState[fi->state],
 				       fi->fsm->strEvent[event]);
 		r(fi, event, arg);
 		return 0;
 	} else {
-		if (fi->debug)
-			fi->printdebug(fi, "State %s Event %s no action",
+		if (fi->de)
+			fi->printde(fi, "State %s Event %s no action",
 				       fi->fsm->strState[fi->state],
 				       fi->fsm->strEvent[event]);
 		return 1;
@@ -95,8 +95,8 @@ void
 mISDN_FsmChangeState(struct FsmInst *fi, int newstate)
 {
 	fi->state = newstate;
-	if (fi->debug)
-		fi->printdebug(fi, "ChangeState %s",
+	if (fi->de)
+		fi->printde(fi, "ChangeState %s",
 			       fi->fsm->strState[newstate]);
 }
 EXPORT_SYMBOL(mISDN_FsmChangeState);
@@ -105,9 +105,9 @@ static void
 FsmExpireTimer(struct timer_list *t)
 {
 	struct FsmTimer *ft = from_timer(ft, t, tl);
-#if FSM_TIMER_DEBUG
-	if (ft->fi->debug)
-		ft->fi->printdebug(ft->fi, "FsmExpireTimer %lx", (long) ft);
+#if FSM_TIMER_DE
+	if (ft->fi->de)
+		ft->fi->printde(ft->fi, "FsmExpireTimer %lx", (long) ft);
 #endif
 	mISDN_FsmEvent(ft->fi, ft->event, ft->arg);
 }
@@ -116,9 +116,9 @@ void
 mISDN_FsmInitTimer(struct FsmInst *fi, struct FsmTimer *ft)
 {
 	ft->fi = fi;
-#if FSM_TIMER_DEBUG
-	if (ft->fi->debug)
-		ft->fi->printdebug(ft->fi, "mISDN_FsmInitTimer %lx", (long) ft);
+#if FSM_TIMER_DE
+	if (ft->fi->de)
+		ft->fi->printde(ft->fi, "mISDN_FsmInitTimer %lx", (long) ft);
 #endif
 	timer_setup(&ft->tl, FsmExpireTimer, 0);
 }
@@ -127,9 +127,9 @@ EXPORT_SYMBOL(mISDN_FsmInitTimer);
 void
 mISDN_FsmDelTimer(struct FsmTimer *ft, int where)
 {
-#if FSM_TIMER_DEBUG
-	if (ft->fi->debug)
-		ft->fi->printdebug(ft->fi, "mISDN_FsmDelTimer %lx %d",
+#if FSM_TIMER_DE
+	if (ft->fi->de)
+		ft->fi->printde(ft->fi, "mISDN_FsmDelTimer %lx %d",
 				   (long) ft, where);
 #endif
 	del_timer(&ft->tl);
@@ -141,17 +141,17 @@ mISDN_FsmAddTimer(struct FsmTimer *ft,
 		  int millisec, int event, void *arg, int where)
 {
 
-#if FSM_TIMER_DEBUG
-	if (ft->fi->debug)
-		ft->fi->printdebug(ft->fi, "mISDN_FsmAddTimer %lx %d %d",
+#if FSM_TIMER_DE
+	if (ft->fi->de)
+		ft->fi->printde(ft->fi, "mISDN_FsmAddTimer %lx %d %d",
 				   (long) ft, millisec, where);
 #endif
 
 	if (timer_pending(&ft->tl)) {
-		if (ft->fi->debug) {
+		if (ft->fi->de) {
 			printk(KERN_WARNING
 			       "mISDN_FsmAddTimer: timer already active!\n");
-			ft->fi->printdebug(ft->fi,
+			ft->fi->printde(ft->fi,
 					   "mISDN_FsmAddTimer already active!");
 		}
 		return -1;
@@ -169,9 +169,9 @@ mISDN_FsmRestartTimer(struct FsmTimer *ft,
 		      int millisec, int event, void *arg, int where)
 {
 
-#if FSM_TIMER_DEBUG
-	if (ft->fi->debug)
-		ft->fi->printdebug(ft->fi, "mISDN_FsmRestartTimer %lx %d %d",
+#if FSM_TIMER_DE
+	if (ft->fi->de)
+		ft->fi->printde(ft->fi, "mISDN_FsmRestartTimer %lx %d %d",
 				   (long) ft, millisec, where);
 #endif
 

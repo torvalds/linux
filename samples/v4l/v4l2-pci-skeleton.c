@@ -580,7 +580,7 @@ static int skeleton_query_dv_timings(struct file *file, void *_fh,
 	if (signal_out_of_range_of_capabilities)
 		return -ERANGE;
 
-	/* Useful for debugging */
+	/* Useful for deging */
 	v4l2_print_dv_timings(skel->v4l2_dev.name, "query_dv_timings:",
 			timings, true);
 #endif

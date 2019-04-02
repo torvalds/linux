@@ -1654,7 +1654,7 @@ static struct hv_pci_dev *get_pcichild_wslot(struct hv_pcibus_device *hbus,
  *
  * "Bus Relations" is the Windows term for "children of this
  * bus."  The terminology is preserved here for people trying to
- * debug the interaction between Hyper-V and Linux.  This
+ * de the interaction between Hyper-V and Linux.  This
  * function is called when the parent partition reports a list
  * of functions that should be observed under this PCI Express
  * port (bus).
@@ -2502,7 +2502,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 	 * hv_pcibus_device contains the hypercall arguments for retargeting in
 	 * hv_irq_unmask(). Those must not cross a page boundary.
 	 */
-	BUILD_BUG_ON(sizeof(*hbus) > PAGE_SIZE);
+	BUILD__ON(sizeof(*hbus) > PAGE_SIZE);
 
 	hbus = (struct hv_pcibus_device *)get_zeroed_page(GFP_KERNEL);
 	if (!hbus)

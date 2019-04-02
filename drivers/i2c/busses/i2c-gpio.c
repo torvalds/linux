@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/completion.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c-algo-bit.h>
@@ -28,7 +28,7 @@ struct i2c_gpio_private_data {
 	struct i2c_algo_bit_data bit_data;
 	struct i2c_gpio_platform_data pdata;
 #ifdef CONFIG_I2C_GPIO_FAULT_INJECTOR
-	struct dentry *debug_dir;
+	struct dentry *de_dir;
 	/* these must be protected by bus lock */
 	struct completion scl_irq_completion;
 	u64 scl_irq_data;
@@ -75,7 +75,7 @@ static int i2c_gpio_getscl(void *data)
 }
 
 #ifdef CONFIG_I2C_GPIO_FAULT_INJECTOR
-static struct dentry *i2c_gpio_debug_dir;
+static struct dentry *i2c_gpio_de_dir;
 
 #define setsda(bd, val)	((bd)->setsda((bd)->data, val))
 #define setscl(bd, val)	((bd)->setscl((bd)->data, val))
@@ -101,7 +101,7 @@ static int fops_##wire##_set(void *data, u64 val)		\
 	i2c_unlock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);	\
 	return 0;						\
 }								\
-DEFINE_DEBUGFS_ATTRIBUTE(fops_##wire, fops_##wire##_get, fops_##wire##_set, "%llu\n")
+DEFINE_DEFS_ATTRIBUTE(fops_##wire, fops_##wire##_get, fops_##wire##_set, "%llu\n")
 
 WIRE_ATTRIBUTE(scl);
 WIRE_ATTRIBUTE(sda);
@@ -146,7 +146,7 @@ static int fops_incomplete_addr_phase_set(void *data, u64 addr)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_addr_phase, NULL, fops_incomplete_addr_phase_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(fops_incomplete_addr_phase, NULL, fops_incomplete_addr_phase_set, "%llu\n");
 
 static int fops_incomplete_write_byte_set(void *data, u64 addr)
 {
@@ -165,7 +165,7 @@ static int fops_incomplete_write_byte_set(void *data, u64 addr)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_write_byte, NULL, fops_incomplete_write_byte_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(fops_incomplete_write_byte, NULL, fops_incomplete_write_byte_set, "%llu\n");
 
 static int i2c_gpio_fi_act_on_scl_irq(struct i2c_gpio_private_data *priv,
 				       irqreturn_t handler(int, void*))
@@ -229,7 +229,7 @@ static int fops_lose_arbitration_set(void *data, u64 duration)
 	 */
 	return i2c_gpio_fi_act_on_scl_irq(priv, lose_arbitration_irq);
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_lose_arbitration, NULL, fops_lose_arbitration_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(fops_lose_arbitration, NULL, fops_lose_arbitration_set, "%llu\n");
 
 static irqreturn_t inject_panic_irq(int irq, void *dev_id)
 {
@@ -255,48 +255,48 @@ static int fops_inject_panic_set(void *data, u64 duration)
 	 */
 	return i2c_gpio_fi_act_on_scl_irq(priv, inject_panic_irq);
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_inject_panic, NULL, fops_inject_panic_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(fops_inject_panic, NULL, fops_inject_panic_set, "%llu\n");
 
 static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv = platform_get_drvdata(pdev);
 
 	/*
-	 * If there will be a debugfs-dir per i2c adapter somewhen, put the
+	 * If there will be a defs-dir per i2c adapter somewhen, put the
 	 * 'fault-injector' dir there. Until then, we have a global dir with
 	 * all adapters as subdirs.
 	 */
-	if (!i2c_gpio_debug_dir) {
-		i2c_gpio_debug_dir = debugfs_create_dir("i2c-fault-injector", NULL);
-		if (!i2c_gpio_debug_dir)
+	if (!i2c_gpio_de_dir) {
+		i2c_gpio_de_dir = defs_create_dir("i2c-fault-injector", NULL);
+		if (!i2c_gpio_de_dir)
 			return;
 	}
 
-	priv->debug_dir = debugfs_create_dir(pdev->name, i2c_gpio_debug_dir);
-	if (!priv->debug_dir)
+	priv->de_dir = defs_create_dir(pdev->name, i2c_gpio_de_dir);
+	if (!priv->de_dir)
 		return;
 
 	init_completion(&priv->scl_irq_completion);
 
-	debugfs_create_file_unsafe("incomplete_address_phase", 0200, priv->debug_dir,
+	defs_create_file_unsafe("incomplete_address_phase", 0200, priv->de_dir,
 				   priv, &fops_incomplete_addr_phase);
-	debugfs_create_file_unsafe("incomplete_write_byte", 0200, priv->debug_dir,
+	defs_create_file_unsafe("incomplete_write_byte", 0200, priv->de_dir,
 				   priv, &fops_incomplete_write_byte);
 	if (priv->bit_data.getscl) {
-		debugfs_create_file_unsafe("inject_panic", 0200, priv->debug_dir,
+		defs_create_file_unsafe("inject_panic", 0200, priv->de_dir,
 					   priv, &fops_inject_panic);
-		debugfs_create_file_unsafe("lose_arbitration", 0200, priv->debug_dir,
+		defs_create_file_unsafe("lose_arbitration", 0200, priv->de_dir,
 					   priv, &fops_lose_arbitration);
 	}
-	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
-	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
+	defs_create_file_unsafe("scl", 0600, priv->de_dir, priv, &fops_scl);
+	defs_create_file_unsafe("sda", 0600, priv->de_dir, priv, &fops_sda);
 }
 
 static void i2c_gpio_fault_injector_exit(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv = platform_get_drvdata(pdev);
 
-	debugfs_remove_recursive(priv->debug_dir);
+	defs_remove_recursive(priv->de_dir);
 }
 #else
 static inline void i2c_gpio_fault_injector_init(struct platform_device *pdev) {}

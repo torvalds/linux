@@ -58,10 +58,10 @@ static struct mtd_chip_driver cfi_staa_chipdrv = {
 	.module		= THIS_MODULE
 };
 
-/* #define DEBUG_LOCK_BITS */
-//#define DEBUG_CFI_FEATURES
+/* #define DE_LOCK_BITS */
+//#define DE_CFI_FEATURES
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 static void cfi_tell_features(struct cfi_pri_intelext *extp)
 {
         int i;
@@ -142,7 +142,7 @@ struct mtd_info *cfi_cmdset_0020(struct map_info *map, int primary)
 		extp->BlkStatusRegMask = cfi32_to_cpu(map,
 						extp->BlkStatusRegMask);
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 		/* Tell the user about it in lots of lovely detail */
 		cfi_tell_features(extp);
 #endif
@@ -172,7 +172,7 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	unsigned long devsize = (1<<cfi->cfiq->DevSize) * cfi->interleave;
 
 	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
-	//printk(KERN_DEBUG "number of CFI chips: %d\n", cfi->numchips);
+	//printk(KERN_DE "number of CFI chips: %d\n", cfi->numchips);
 
 	if (!mtd) {
 		kfree(cfi->cmdset_priv);
@@ -219,7 +219,7 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	}
 
 	for (i=0; i<mtd->numeraseregions;i++){
-		printk(KERN_DEBUG "%d: offset=0x%llx,size=0x%x,blocks=%d\n",
+		printk(KERN_DE "%d: offset=0x%llx,size=0x%x,blocks=%d\n",
 		       i, (unsigned long long)mtd->eraseregions[i].offset,
 		       mtd->eraseregions[i].erasesize,
 		       mtd->eraseregions[i].numblocks);
@@ -441,7 +441,7 @@ static int do_write_buffer(struct map_info *map, struct flchip *chip,
 	timeo = jiffies + HZ;
  retry:
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
        printk("%s: chip->state[%d]\n", __func__, chip->state);
 #endif
 	mutex_lock(&chip->mutex);
@@ -459,7 +459,7 @@ static int do_write_buffer(struct map_info *map, struct flchip *chip,
 	case FL_JEDEC_QUERY:
 		map_write(map, CMD(0x70), cmd_adr);
                 chip->state = FL_STATUS;
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 	printk("%s: 1 status[%x]\n", __func__, map_read(map, cmd_adr));
 #endif
 		/* Fall through */
@@ -588,7 +588,7 @@ static int do_write_buffer(struct map_info *map, struct flchip *chip,
 
         /* check for errors: 'lock bit', 'VPP', 'dead cell'/'unerased cell' or 'incorrect cmd' -- saw */
         if (map_word_bitsset(map, status, CMD(0x3a))) {
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 		printk("%s: 2 status[%lx]\n", __func__, status.x[0]);
 #endif
 		/* clear status */
@@ -618,7 +618,7 @@ static int cfi_staa_write_buffers (struct mtd_info *mtd, loff_t to,
 	chipnum = to >> cfi->chipshift;
 	ofs = to  - (chipnum << cfi->chipshift);
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 	printk("%s: map_bankwidth(map)[%x]\n", __func__, map_bankwidth(map));
 	printk("%s: chipnum[%x] wbufsize[%x]\n", __func__, chipnum, wbufsize);
 	printk("%s: ofs[%x] len[%x]\n", __func__, ofs, len);
@@ -874,13 +874,13 @@ retry:
 			ret = -EIO;
 		} else if (chipstatus & 0x20) {
 			if (retries--) {
-				printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%x. Retrying...\n", adr, chipstatus);
+				printk(KERN_DE "Chip erase failed at 0x%08lx: status 0x%x. Retrying...\n", adr, chipstatus);
 				timeo = jiffies + HZ;
 				chip->state = FL_STATUS;
 				mutex_unlock(&chip->mutex);
 				goto retry;
 			}
-			printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%x\n", adr, chipstatus);
+			printk(KERN_DE "Chip erase failed at 0x%08lx: status 0x%x\n", adr, chipstatus);
 			ret = -EIO;
 		}
 	}
@@ -1133,7 +1133,7 @@ static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct cfi_private *cfi = map->fldrv_priv;
 	unsigned long adr;
 	int chipnum, ret = 0;
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 	int ofs_factor = cfi->interleave * cfi->device_type;
 #endif
 
@@ -1148,7 +1148,7 @@ static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	while(len) {
 
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 		cfi_send_gen_cmd(0x90, 0x55, 0, map, cfi, cfi->device_type, NULL);
 		printk("before lock: block status register is %x\n",cfi_read_query(map, adr+(2*ofs_factor)));
 		cfi_send_gen_cmd(0xff, 0x55, 0, map, cfi, cfi->device_type, NULL);
@@ -1156,7 +1156,7 @@ static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 		ret = do_lock_oneblock(map, &cfi->chips[chipnum], adr);
 
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 		cfi_send_gen_cmd(0x90, 0x55, 0, map, cfi, cfi->device_type, NULL);
 		printk("after lock: block status register is %x\n",cfi_read_query(map, adr+(2*ofs_factor)));
 		cfi_send_gen_cmd(0xff, 0x55, 0, map, cfi, cfi->device_type, NULL);
@@ -1280,14 +1280,14 @@ static int cfi_staa_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct cfi_private *cfi = map->fldrv_priv;
 	unsigned long adr;
 	int chipnum, ret = 0;
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 	int ofs_factor = cfi->interleave * cfi->device_type;
 #endif
 
 	chipnum = ofs >> cfi->chipshift;
 	adr = ofs - (chipnum << cfi->chipshift);
 
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 	{
 		unsigned long temp_adr = adr;
 		unsigned long temp_len = len;
@@ -1304,7 +1304,7 @@ static int cfi_staa_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	ret = do_unlock_oneblock(map, &cfi->chips[chipnum], adr);
 
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 	cfi_send_gen_cmd(0x90, 0x55, 0, map, cfi, cfi->device_type, NULL);
 	printk("after unlock: block status register is %x\n",cfi_read_query(map, adr+(2*ofs_factor)));
 	cfi_send_gen_cmd(0xff, 0x55, 0, map, cfi, cfi->device_type, NULL);

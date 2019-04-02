@@ -102,7 +102,7 @@ static int autofs_dir_open(struct inode *inode, struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
 
-	pr_debug("file=%p dentry=%p %pd\n", file, dentry, dentry);
+	pr_de("file=%p dentry=%p %pd\n", file, dentry, dentry);
 
 	if (autofs_oz_mode(sbi))
 		goto out;
@@ -132,7 +132,7 @@ static void autofs_dentry_release(struct dentry *de)
 	struct autofs_info *ino = autofs_dentry_ino(de);
 	struct autofs_sb_info *sbi = autofs_sbi(de->d_sb);
 
-	pr_debug("releasing %p\n", de);
+	pr_de("releasing %p\n", de);
 
 	if (!ino)
 		return;
@@ -272,9 +272,9 @@ static int autofs_mount_wait(const struct path *path, bool rcu_walk)
 	if (ino->flags & AUTOFS_INF_PENDING) {
 		if (rcu_walk)
 			return -ECHILD;
-		pr_debug("waiting for mount name=%pd\n", path->dentry);
+		pr_de("waiting for mount name=%pd\n", path->dentry);
 		status = autofs_wait(sbi, path, NFY_MOUNT);
-		pr_debug("mount wait done status=%d\n", status);
+		pr_de("mount wait done status=%d\n", status);
 		ino->last_used = jiffies;
 		return status;
 	}
@@ -339,7 +339,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	int status;
 
-	pr_debug("dentry=%p %pd\n", dentry, dentry);
+	pr_de("dentry=%p %pd\n", dentry, dentry);
 
 	/* The daemon never triggers a mount. */
 	if (autofs_oz_mode(sbi))
@@ -427,7 +427,7 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	int status;
 
-	pr_debug("dentry=%p %pd\n", dentry, dentry);
+	pr_de("dentry=%p %pd\n", dentry, dentry);
 
 	/* The daemon never waits. */
 	if (autofs_oz_mode(sbi)) {
@@ -504,7 +504,7 @@ static struct dentry *autofs_lookup(struct inode *dir,
 	struct autofs_info *ino;
 	struct dentry *active;
 
-	pr_debug("name = %pd\n", dentry);
+	pr_de("name = %pd\n", dentry);
 
 	/* File name too long to exist */
 	if (dentry->d_name.len > NAME_MAX)
@@ -512,7 +512,7 @@ static struct dentry *autofs_lookup(struct inode *dir,
 
 	sbi = autofs_sbi(dir->i_sb);
 
-	pr_debug("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d\n",
+	pr_de("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d\n",
 		 current->pid, task_pgrp_nr(current),
 		 sbi->flags & AUTOFS_SBI_CATATONIC,
 		 autofs_oz_mode(sbi));
@@ -558,7 +558,7 @@ static int autofs_dir_symlink(struct inode *dir,
 	size_t size = strlen(symname);
 	char *cp;
 
-	pr_debug("%s <- %pd\n", symname, dentry);
+	pr_de("%s <- %pd\n", symname, dentry);
 
 	if (!autofs_oz_mode(sbi))
 		return -EACCES;
@@ -570,7 +570,7 @@ static int autofs_dir_symlink(struct inode *dir,
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -EACCES;
 
-	BUG_ON(!ino);
+	_ON(!ino);
 
 	autofs_clean_ino(ino);
 
@@ -709,7 +709,7 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 
-	pr_debug("dentry %p, removing %pd\n", dentry, dentry);
+	pr_de("dentry %p, removing %pd\n", dentry, dentry);
 
 	if (!autofs_oz_mode(sbi))
 		return -EACCES;
@@ -766,9 +766,9 @@ static int autofs_dir_mkdir(struct inode *dir,
 	if (sbi->flags & AUTOFS_SBI_CATATONIC)
 		return -EACCES;
 
-	pr_debug("dentry %p, creating %pd\n", dentry, dentry);
+	pr_de("dentry %p, creating %pd\n", dentry, dentry);
 
-	BUG_ON(!ino);
+	_ON(!ino);
 
 	autofs_clean_ino(ino);
 
@@ -868,7 +868,7 @@ static inline int autofs_ask_umount(struct vfsmount *mnt, int __user *p)
 	if (may_umount(mnt))
 		status = 1;
 
-	pr_debug("may umount %d\n", status);
+	pr_de("may umount %d\n", status);
 
 	status = put_user(status, p);
 
@@ -896,7 +896,7 @@ static int autofs_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 	struct autofs_sb_info *sbi = autofs_sbi(inode->i_sb);
 	void __user *p = (void __user *)arg;
 
-	pr_debug("cmd = 0x%08x, arg = 0x%08lx, sbi = %p, pgrp = %u\n",
+	pr_de("cmd = 0x%08x, arg = 0x%08lx, sbi = %p, pgrp = %u\n",
 		 cmd, arg, sbi, task_pgrp_nr(current));
 
 	if (_IOC_TYPE(cmd) != _IOC_TYPE(AUTOFS_IOC_FIRST) ||

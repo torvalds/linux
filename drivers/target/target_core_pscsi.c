@@ -76,10 +76,10 @@ static int pscsi_attach_hba(struct se_hba *hba, u32 host_id)
 
 	hba->hba_ptr = phv;
 
-	pr_debug("CORE_HBA[%d] - TCM SCSI HBA Driver %s on"
+	pr_de("CORE_HBA[%d] - TCM SCSI HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		PSCSI_VERSION, TARGET_CORE_VERSION);
-	pr_debug("CORE_HBA[%d] - Attached SCSI HBA to Generic\n",
+	pr_de("CORE_HBA[%d] - Attached SCSI HBA to Generic\n",
 	       hba->hba_id);
 
 	return 0;
@@ -93,12 +93,12 @@ static void pscsi_detach_hba(struct se_hba *hba)
 	if (scsi_host) {
 		scsi_host_put(scsi_host);
 
-		pr_debug("CORE_HBA[%d] - Detached SCSI HBA: %s from"
+		pr_de("CORE_HBA[%d] - Detached SCSI HBA: %s from"
 			" Generic Target Core\n", hba->hba_id,
 			(scsi_host->hostt->name) ? (scsi_host->hostt->name) :
 			"Unknown");
 	} else
-		pr_debug("CORE_HBA[%d] - Detached Virtual SCSI HBA"
+		pr_de("CORE_HBA[%d] - Detached Virtual SCSI HBA"
 			" from Generic Target Core\n", hba->hba_id);
 
 	kfree(phv);
@@ -119,7 +119,7 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 		phv->phv_lld_host = NULL;
 		phv->phv_mode = PHV_VIRTUAL_HOST_ID;
 
-		pr_debug("CORE_HBA[%d] - Disabled pSCSI HBA Passthrough"
+		pr_de("CORE_HBA[%d] - Disabled pSCSI HBA Passthrough"
 			" %s\n", hba->hba_id, (sh->hostt->name) ?
 			(sh->hostt->name) : "Unknown");
 
@@ -140,7 +140,7 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 	phv->phv_lld_host = sh;
 	phv->phv_mode = PHV_LLD_SCSI_HOST_NO;
 
-	pr_debug("CORE_HBA[%d] - Enabled pSCSI HBA Passthrough %s\n",
+	pr_de("CORE_HBA[%d] - Enabled pSCSI HBA Passthrough %s\n",
 		hba->hba_id, (sh->hostt->name) ? (sh->hostt->name) : "Unknown");
 
 	return 1;
@@ -184,13 +184,13 @@ pscsi_set_inquiry_info(struct scsi_device *sdev, struct t10_wwn *wwn)
 	/*
 	 * Use sdev->inquiry data from drivers/scsi/scsi_scan.c:scsi_add_lun()
 	 */
-	BUILD_BUG_ON(sizeof(wwn->vendor) != INQUIRY_VENDOR_LEN + 1);
+	BUILD__ON(sizeof(wwn->vendor) != INQUIRY_VENDOR_LEN + 1);
 	snprintf(wwn->vendor, sizeof(wwn->vendor),
 		 "%." __stringify(INQUIRY_VENDOR_LEN) "s", sdev->vendor);
-	BUILD_BUG_ON(sizeof(wwn->model) != INQUIRY_MODEL_LEN + 1);
+	BUILD__ON(sizeof(wwn->model) != INQUIRY_MODEL_LEN + 1);
 	snprintf(wwn->model, sizeof(wwn->model),
 		 "%." __stringify(INQUIRY_MODEL_LEN) "s", sdev->model);
-	BUILD_BUG_ON(sizeof(wwn->revision) != INQUIRY_REVISION_LEN + 1);
+	BUILD__ON(sizeof(wwn->revision) != INQUIRY_REVISION_LEN + 1);
 	snprintf(wwn->revision, sizeof(wwn->revision),
 		 "%." __stringify(INQUIRY_REVISION_LEN) "s", sdev->rev);
 }
@@ -262,7 +262,7 @@ pscsi_get_inquiry_vpd_device_ident(struct scsi_device *sdev,
 					" length zero!\n");
 			break;
 		}
-		pr_debug("T10 VPD Identifier Length: %d\n", ident_len);
+		pr_de("T10 VPD Identifier Length: %d\n", ident_len);
 
 		vpd = kzalloc(sizeof(struct t10_vpd), GFP_KERNEL);
 		if (!vpd) {
@@ -357,7 +357,7 @@ static struct se_device *pscsi_alloc_device(struct se_hba *hba,
 		return NULL;
 	}
 
-	pr_debug("PSCSI: Allocated pdv: %p for %s\n", pdv, name);
+	pr_de("PSCSI: Allocated pdv: %p for %s\n", pdv, name);
 	return &pdv->dev;
 }
 
@@ -400,7 +400,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 		return ret;
 	}
 
-	pr_debug("CORE_PSCSI[%d] - Added TYPE_%s for %d:%d:%d:%llu\n",
+	pr_de("CORE_PSCSI[%d] - Added TYPE_%s for %d:%d:%d:%llu\n",
 		phv->phv_host_id, sd->type == TYPE_DISK ? "DISK" : "ZBC",
 		sh->host_no, sd->channel, sd->id, sd->lun);
 	return 0;
@@ -429,7 +429,7 @@ static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *
 		scsi_device_put(sd);
 		return ret;
 	}
-	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%llu\n",
+	pr_de("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%llu\n",
 		phv->phv_host_id, scsi_device_type(sd->type), sh->host_no,
 		sd->channel, sd->id, sd->lun);
 
@@ -707,7 +707,7 @@ after_mode_select:
 			if (req_sense[0] == 0xf0 &&	/* valid, fixed format */
 			    req_sense[2] & 0xe0 &&	/* FM, EOM, or ILI */
 			    (req_sense[2] & 0xf) == 0) { /* key==NO_SENSE */
-				pr_debug("Tape FM/EOM/ILI status detected. Treat as normal read.\n");
+				pr_de("Tape FM/EOM/ILI status detected. Treat as normal read.\n");
 				cmd->se_cmd_flags |= SCF_TREAT_READ_AS_NORMAL;
 			}
 		}
@@ -761,7 +761,7 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			if (ret)
 				goto out;
 			pdv->pdv_host_id = arg;
-			pr_debug("PSCSI[%d]: Referencing SCSI Host ID:"
+			pr_de("PSCSI[%d]: Referencing SCSI Host ID:"
 				" %d\n", phv->phv_host_id, pdv->pdv_host_id);
 			pdv->pdv_flags |= PDF_HAS_VIRT_HOST_ID;
 			break;
@@ -770,7 +770,7 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			if (ret)
 				goto out;
 			pdv->pdv_channel_id = arg;
-			pr_debug("PSCSI[%d]: Referencing SCSI Channel"
+			pr_de("PSCSI[%d]: Referencing SCSI Channel"
 				" ID: %d\n",  phv->phv_host_id,
 				pdv->pdv_channel_id);
 			pdv->pdv_flags |= PDF_HAS_CHANNEL_ID;
@@ -780,7 +780,7 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			if (ret)
 				goto out;
 			pdv->pdv_target_id = arg;
-			pr_debug("PSCSI[%d]: Referencing SCSI Target"
+			pr_de("PSCSI[%d]: Referencing SCSI Target"
 				" ID: %d\n", phv->phv_host_id,
 				pdv->pdv_target_id);
 			pdv->pdv_flags |= PDF_HAS_TARGET_ID;
@@ -790,7 +790,7 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			if (ret)
 				goto out;
 			pdv->pdv_lun_id = arg;
-			pr_debug("PSCSI[%d]: Referencing SCSI LUN ID:"
+			pr_de("PSCSI[%d]: Referencing SCSI LUN ID:"
 				" %d\n", phv->phv_host_id, pdv->pdv_lun_id);
 			pdv->pdv_flags |= PDF_HAS_LUN_ID;
 			break;
@@ -869,16 +869,16 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	int nr_vecs = 0, rc;
 	int rw = (cmd->data_direction == DMA_TO_DEVICE);
 
-	BUG_ON(!cmd->data_length);
+	_ON(!cmd->data_length);
 
-	pr_debug("PSCSI: nr_pages: %d\n", nr_pages);
+	pr_de("PSCSI: nr_pages: %d\n", nr_pages);
 
 	for_each_sg(sgl, sg, sgl_nents, i) {
 		page = sg_page(sg);
 		off = sg->offset;
 		len = sg->length;
 
-		pr_debug("PSCSI: i: %d page: %p len: %d off: %d\n", i,
+		pr_de("PSCSI: i: %d page: %p len: %d off: %d\n", i,
 			page, len, off);
 
 		/*
@@ -906,21 +906,21 @@ new_bio:
 				if (rw)
 					bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
-				pr_debug("PSCSI: Allocated bio: %p,"
+				pr_de("PSCSI: Allocated bio: %p,"
 					" dir: %s nr_vecs: %d\n", bio,
 					(rw) ? "rw" : "r", nr_vecs);
 			}
 
-			pr_debug("PSCSI: Calling bio_add_pc_page() i: %d"
+			pr_de("PSCSI: Calling bio_add_pc_page() i: %d"
 				" bio: %p page: %p len: %d off: %d\n", i, bio,
 				page, len, off);
 
 			rc = bio_add_pc_page(pdv->pdv_sd->request_queue,
 					bio, page, bytes, off);
-			pr_debug("PSCSI: bio->bi_vcnt: %d nr_vecs: %d\n",
+			pr_de("PSCSI: bio->bi_vcnt: %d nr_vecs: %d\n",
 				bio_segments(bio), nr_vecs);
 			if (rc != bytes) {
-				pr_debug("PSCSI: Reached bio->bi_vcnt max:"
+				pr_de("PSCSI: Reached bio->bi_vcnt max:"
 					" %d i: %d bio: %p, allocating another"
 					" bio\n", bio->bi_vcnt, i, bio);
 
@@ -1056,7 +1056,7 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 	u8 scsi_status = status_byte(result) << 1;
 
 	if (scsi_status) {
-		pr_debug("PSCSI Status Byte exception at cmd: %p CDB:"
+		pr_de("PSCSI Status Byte exception at cmd: %p CDB:"
 			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
 			result);
 	}
@@ -1069,7 +1069,7 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 			cmd->data_length - scsi_req(req)->resid_len);
 		break;
 	default:
-		pr_debug("PSCSI Host Byte exception at cmd: %p CDB:"
+		pr_de("PSCSI Host Byte exception at cmd: %p CDB:"
 			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
 			result);
 		target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);

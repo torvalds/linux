@@ -21,16 +21,16 @@
 
 #define VERSION "1.0"
 
-#undef DEBUG
-#undef LOTSA_DEBUG
+#undef DE
+#undef LOTSA_DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(args...)	printk(args)
 #else
 #define DBG(args...)	do { } while(0)
 #endif
 
-#ifdef LOTSA_DEBUG
+#ifdef LOTSA_DE
 #define DBG_LOTS(args...)	printk(args)
 #else
 #define DBG_LOTS(args...)	do { } while(0)

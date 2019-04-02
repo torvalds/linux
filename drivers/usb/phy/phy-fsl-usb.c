@@ -32,7 +32,7 @@
 #include "phy-fsl-usb.h"
 
 #ifdef VERBOSE
-#define VDBG(fmt, args...) pr_debug("[%s]  " fmt, \
+#define VDBG(fmt, args...) pr_de("[%s]  " fmt, \
 				 __func__, ## args)
 #else
 #define VDBG(stuff...)	do {} while (0)
@@ -626,7 +626,7 @@ static int fsl_otg_set_peripheral(struct usb_otg *otg,
 	otg_dev->fsm.b_bus_req = 1;
 
 	/* start the gadget right away if the ID pin says Mini-B */
-	pr_debug("ID pin=%d\n", otg_dev->fsm.id);
+	pr_de("ID pin=%d\n", otg_dev->fsm.id);
 	if (otg_dev->fsm.id == 1) {
 		fsl_otg_start_host(&otg_dev->fsm, 0);
 		otg_drv_vbus(&otg_dev->fsm, 0);
@@ -688,7 +688,7 @@ static int fsl_otg_start_hnp(struct usb_otg *otg)
 	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
-	pr_debug("start_hnp...\n");
+	pr_de("start_hnp...\n");
 
 	/* clear a_bus_req to enter a_suspend state */
 	otg_dev->fsm.a_bus_req = 0;
@@ -946,7 +946,7 @@ int usb_otg_start(struct platform_device *pdev)
 		p_otg->fsm.id = 0;
 	}
 
-	pr_debug("initial ID pin=%d\n", p_otg->fsm.id);
+	pr_de("initial ID pin=%d\n", p_otg->fsm.id);
 
 	/* enable OTG ID pin interrupt */
 	temp = fsl_readl(&p_otg->dr_mem_map->otgsc);

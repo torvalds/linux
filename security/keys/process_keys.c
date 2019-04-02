@@ -293,7 +293,7 @@ static int install_session_keyring(struct key *keyring)
 void key_fsuid_changed(struct task_struct *tsk)
 {
 	/* update the ownership of the thread keyring */
-	BUG_ON(!tsk->cred);
+	_ON(!tsk->cred);
 	if (tsk->cred->thread_keyring) {
 		down_write(&tsk->cred->thread_keyring->sem);
 		tsk->cred->thread_keyring->uid = tsk->cred->fsuid;
@@ -307,7 +307,7 @@ void key_fsuid_changed(struct task_struct *tsk)
 void key_fsgid_changed(struct task_struct *tsk)
 {
 	/* update the ownership of the thread keyring */
-	BUG_ON(!tsk->cred);
+	_ON(!tsk->cred);
 	if (tsk->cred->thread_keyring) {
 		down_write(&tsk->cred->thread_keyring->sem);
 		tsk->cred->thread_keyring->gid = tsk->cred->fsgid;
@@ -695,9 +695,9 @@ try_again:
 		ctx.index_key.description	= key->description;
 		ctx.index_key.desc_len		= strlen(key->description);
 		ctx.match_data.raw_data		= key;
-		kdebug("check possessed");
+		kde("check possessed");
 		skey_ref = search_process_keyrings(&ctx);
-		kdebug("possessed=%p", skey_ref);
+		kde("possessed=%p", skey_ref);
 
 		if (!IS_ERR(skey_ref)) {
 			key_put(key);

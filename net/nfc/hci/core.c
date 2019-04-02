@@ -106,7 +106,7 @@ next_msg:
 	msg = list_first_entry(&hdev->msg_tx_queue, struct hci_msg, msg_l);
 	list_del(&msg->msg_l);
 
-	pr_debug("msg_tx_queue has a cmd to send\n");
+	pr_de("msg_tx_queue has a cmd to send\n");
 	while ((skb = skb_dequeue(&msg->msg_frags)) != NULL) {
 		r = nfc_llc_xmit_from_hci(hdev->llc, skb);
 		if (r < 0) {
@@ -199,7 +199,7 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 	struct hci_delete_pipe_noti *delete_info;
 	struct hci_all_pipe_cleared_noti *cleared_info;
 
-	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
+	pr_de("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
 
 	switch (cmd) {
 	case NFC_HCI_ADM_NOTIFY_PIPE_CREATED:
@@ -294,7 +294,7 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 	struct sk_buff *uid_skb = NULL;
 	int r;
 
-	pr_debug("from gate %d\n", gate);
+	pr_de("from gate %d\n", gate);
 
 	targets = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
 	if (targets == NULL)
@@ -725,7 +725,7 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 	int r;
 
-	pr_debug("target_idx=%d\n", target->idx);
+	pr_de("target_idx=%d\n", target->idx);
 
 	switch (target->hci_reader_gate) {
 	case NFC_HCI_RF_READER_A_GATE:

@@ -40,8 +40,8 @@ static int test_body(void)
 	}
 
 	/*
-	 * Either a user or kernel access is sufficient to trigger the bug.
-	 * A kernel access is easier to spot & debug, as it will trigger the
+	 * Either a user or kernel access is sufficient to trigger the .
+	 * A kernel access is easier to spot & de, as it will trigger the
 	 * softlockup or RCU stall detectors, and when the system is kicked
 	 * into xmon we get a backtrace in the kernel.
 	 *

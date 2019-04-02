@@ -9,9 +9,9 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Changes:
- *     Martin Hamilton         :    fixed the terrible locking bugs
+ *     Martin Hamilton         :    fixed the terrible locking s
  *                                   *lock(tbl->lock) ==> *lock(&tbl->lock)
- *     Wensong Zhang           :    fixed the uninitialized tbl->lock bug
+ *     Wensong Zhang           :    fixed the uninitialized tbl->lock 
  *     Wensong Zhang           :    added doing full expiration check to
  *                                   collect stale entries of 24+ hours when
  *                                   no partial expire check in a half hour

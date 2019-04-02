@@ -681,7 +681,7 @@ struct mlx5_ifc_qos_cap_bits {
 	u8         reserved_at_100[0x700];
 };
 
-struct mlx5_ifc_debug_cap_bits {
+struct mlx5_ifc_de_cap_bits {
 	u8         reserved_at_0[0x20];
 
 	u8         reserved_at_20[0x2];
@@ -982,7 +982,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         out_of_seq_cnt[0x1];
 	u8         vport_counters[0x1];
 	u8         retransmission_q_counters[0x1];
-	u8         debug[0x1];
+	u8         de[0x1];
 	u8         modify_rq_counter_set_id[0x1];
 	u8         rq_delay_drop[0x1];
 	u8         max_qp_cnt[0xa];
@@ -8977,7 +8977,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	u8         reserved_at_0[0x60e0];
 };
 
-union mlx5_ifc_debug_enhancements_document_bits {
+union mlx5_ifc_de_enhancements_document_bits {
 	struct mlx5_ifc_health_buffer_bits health_buffer;
 	u8         reserved_at_0[0x200];
 };

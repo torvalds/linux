@@ -28,7 +28,7 @@ void b43_ppr_clear(struct b43_wldev *dev, struct b43_ppr *ppr)
 	memset(ppr, 0, sizeof(*ppr));
 
 	/* Compile-time PPR check */
-	BUILD_BUG_ON(sizeof(struct b43_ppr) != B43_PPR_RATES_NUM * sizeof(u8));
+	BUILD__ON(sizeof(struct b43_ppr) != B43_PPR_RATES_NUM * sizeof(u8));
 }
 
 void b43_ppr_add(struct b43_wldev *dev, struct b43_ppr *ppr, int diff)

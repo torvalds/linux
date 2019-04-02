@@ -11,7 +11,7 @@ DOS\0		The old or original filesystem, not really suited for
 DOS\1		The original Fast File System. Supported read/write.
 
 DOS\2		The old "international" filesystem. International means that
-		a bug has been fixed so that accented ("international") letters
+		a  has been fixed so that accented ("international") letters
 		in file names are case-insensitive, as they ought to be.
 		Supported read/write.
 
@@ -177,12 +177,12 @@ DO AT YOUR OWN RISK:
   dd if=/dev/zero of=rdb.fixed bs=1 seek=220 count=4
   dd if=rdb.fixed of=/dev/<disk>
 
-Bugs, Restrictions, Caveats
+s, Restrictions, Caveats
 ===========================
 
 Quite a few things may not work as advertised. Not everything is
 tested, though several hundred MB have been read and written using
-this fs. For a most up-to-date list of bugs please consult
+this fs. For a most up-to-date list of s please consult
 fs/affs/Changes.
 
 By default, filenames are truncated to 30 characters without warning.

@@ -231,7 +231,7 @@ struct mtk_mdp_ctx {
 
 extern int mtk_mdp_dbg_level;
 
-#if defined(DEBUG)
+#if defined(DE)
 
 #define mtk_mdp_dbg(level, fmt, args...)				 \
 	do {								 \

@@ -688,7 +688,7 @@ static inline int gru_wait(void *cb)
 /*
  * Wait for CB to complete. Aborts program if error. (Note: error does NOT
  * mean TLB mis - only fatal errors such as memory parity error or user
- * bugs will cause termination.
+ * s will cause termination.
  */
 static inline void gru_wait_abort(void *cb)
 {

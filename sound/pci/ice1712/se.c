@@ -628,7 +628,7 @@ static int se200pci_add_controls(struct snd_ice1712 *ice)
 			cont.put = se200pci_cont_enum_put;
 			break;
 		default:
-			snd_BUG();
+			snd_();
 			return -EINVAL;
 		}
 		err = snd_ctl_add(ice->card, snd_ctl_new1(&cont, ice));

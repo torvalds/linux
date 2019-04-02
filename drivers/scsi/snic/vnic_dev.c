@@ -512,7 +512,7 @@ int svnic_dev_spec(struct vnic_dev *vdev, unsigned int offset,
 		*(u64 *)value = a0;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

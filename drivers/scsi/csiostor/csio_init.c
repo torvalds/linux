@@ -41,9 +41,9 @@
 #include <linux/aer.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/string.h>
 #include <linux/export.h>
 
@@ -52,13 +52,13 @@
 
 #define CSIO_MIN_MEMPOOL_SZ	64
 
-static struct dentry *csio_debugfs_root;
+static struct dentry *csio_defs_root;
 
 static struct scsi_transport_template *csio_fcoe_transport;
 static struct scsi_transport_template *csio_fcoe_transport_vport;
 
 /*
- * debugfs support
+ * defs support
  */
 static ssize_t
 csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
@@ -103,83 +103,83 @@ csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return count;
 }
 
-static const struct file_operations csio_mem_debugfs_fops = {
+static const struct file_operations csio_mem_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = simple_open,
 	.read    = csio_mem_read,
 	.llseek  = default_llseek,
 };
 
-void csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
+void csio_add_defs_mem(struct csio_hw *hw, const char *name,
 				 unsigned int idx, unsigned int size_mb)
 {
-	debugfs_create_file_size(name, S_IRUSR, hw->debugfs_root,
-				 (void *)hw + idx, &csio_mem_debugfs_fops,
+	defs_create_file_size(name, S_IRUSR, hw->defs_root,
+				 (void *)hw + idx, &csio_mem_defs_fops,
 				 size_mb << 20);
 }
 
-static int csio_setup_debugfs(struct csio_hw *hw)
+static int csio_setup_defs(struct csio_hw *hw)
 {
 	int i;
 
-	if (IS_ERR_OR_NULL(hw->debugfs_root))
+	if (IS_ERR_OR_NULL(hw->defs_root))
 		return -1;
 
 	i = csio_rd_reg32(hw, MA_TARGET_MEM_ENABLE_A);
 	if (i & EDRAM0_ENABLE_F)
-		csio_add_debugfs_mem(hw, "edc0", MEM_EDC0, 5);
+		csio_add_defs_mem(hw, "edc0", MEM_EDC0, 5);
 	if (i & EDRAM1_ENABLE_F)
-		csio_add_debugfs_mem(hw, "edc1", MEM_EDC1, 5);
+		csio_add_defs_mem(hw, "edc1", MEM_EDC1, 5);
 
 	hw->chip_ops->chip_dfs_create_ext_mem(hw);
 	return 0;
 }
 
 /*
- * csio_dfs_create - Creates and sets up per-hw debugfs.
+ * csio_dfs_create - Creates and sets up per-hw defs.
  *
  */
 static int
 csio_dfs_create(struct csio_hw *hw)
 {
-	if (csio_debugfs_root) {
-		hw->debugfs_root = debugfs_create_dir(pci_name(hw->pdev),
-							csio_debugfs_root);
-		csio_setup_debugfs(hw);
+	if (csio_defs_root) {
+		hw->defs_root = defs_create_dir(pci_name(hw->pdev),
+							csio_defs_root);
+		csio_setup_defs(hw);
 	}
 
 	return 0;
 }
 
 /*
- * csio_dfs_destroy - Destroys per-hw debugfs.
+ * csio_dfs_destroy - Destroys per-hw defs.
  */
 static int
 csio_dfs_destroy(struct csio_hw *hw)
 {
-	if (hw->debugfs_root)
-		debugfs_remove_recursive(hw->debugfs_root);
+	if (hw->defs_root)
+		defs_remove_recursive(hw->defs_root);
 
 	return 0;
 }
 
 /*
- * csio_dfs_init - Debug filesystem initialization for the module.
+ * csio_dfs_init - De filesystem initialization for the module.
  *
  */
 static void
 csio_dfs_init(void)
 {
-	csio_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	csio_defs_root = defs_create_dir(KBUILD_MODNAME, NULL);
 }
 
 /*
- * csio_dfs_exit - debugfs cleanup for the module.
+ * csio_dfs_exit - defs cleanup for the module.
  */
 static void
 csio_dfs_exit(void)
 {
-	debugfs_remove(csio_debugfs_root);
+	defs_remove(csio_defs_root);
 }
 
 /*
@@ -972,7 +972,7 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rv) {
 		if (rv == -EINVAL) {
 			dev_err(&pdev->dev,
-				"Failed to start FW, continuing in debug mode.\n");
+				"Failed to start FW, continuing in de mode.\n");
 			return 0;
 		}
 		goto err_lnode_exit;

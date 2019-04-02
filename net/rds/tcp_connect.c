@@ -52,7 +52,7 @@ void rds_tcp_state_change(struct sock *sk)
 	tc = cp->cp_transport_data;
 	state_change = tc->t_orig_state_change;
 
-	rdsdebug("sock %p state_change to %d\n", tc->t_sock, sk->sk_state);
+	rdsde("sock %p state_change to %d\n", tc->t_sock, sk->sk_state);
 
 	switch (sk->sk_state) {
 	/* ignore connecting sockets as they make progress */
@@ -143,7 +143,7 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 
 	ret = sock->ops->bind(sock, addr, addrlen);
 	if (ret) {
-		rdsdebug("bind failed with %d at address %pI6c\n",
+		rdsde("bind failed with %d at address %pI6c\n",
 			 ret, &conn->c_laddr);
 		goto out;
 	}
@@ -171,7 +171,7 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 	rds_tcp_set_callbacks(sock, cp);
 	ret = sock->ops->connect(sock, addr, addrlen, O_NONBLOCK);
 
-	rdsdebug("connect to address %pI6c returned %d\n", &conn->c_faddr, ret);
+	rdsde("connect to address %pI6c returned %d\n", &conn->c_faddr, ret);
 	if (ret == -EINPROGRESS)
 		ret = 0;
 	if (ret == 0) {
@@ -202,7 +202,7 @@ void rds_tcp_conn_path_shutdown(struct rds_conn_path *cp)
 	struct rds_tcp_connection *tc = cp->cp_transport_data;
 	struct socket *sock = tc->t_sock;
 
-	rdsdebug("shutting down conn %p tc %p sock %p\n",
+	rdsde("shutting down conn %p tc %p sock %p\n",
 		 cp->cp_conn, tc, sock);
 
 	if (sock) {

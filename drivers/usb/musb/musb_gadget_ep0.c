@@ -312,51 +312,51 @@ __acquires(musb->lock)
 
 					switch (ctrlrequest->wIndex >> 8) {
 					case 1:
-						pr_debug("TEST_J\n");
+						pr_de("TEST_J\n");
 						/* TEST_J */
 						musb->test_mode_nr =
 							MUSB_TEST_J;
 						break;
 					case 2:
 						/* TEST_K */
-						pr_debug("TEST_K\n");
+						pr_de("TEST_K\n");
 						musb->test_mode_nr =
 							MUSB_TEST_K;
 						break;
 					case 3:
 						/* TEST_SE0_NAK */
-						pr_debug("TEST_SE0_NAK\n");
+						pr_de("TEST_SE0_NAK\n");
 						musb->test_mode_nr =
 							MUSB_TEST_SE0_NAK;
 						break;
 					case 4:
 						/* TEST_PACKET */
-						pr_debug("TEST_PACKET\n");
+						pr_de("TEST_PACKET\n");
 						musb->test_mode_nr =
 							MUSB_TEST_PACKET;
 						break;
 
 					case 0xc0:
 						/* TEST_FORCE_HS */
-						pr_debug("TEST_FORCE_HS\n");
+						pr_de("TEST_FORCE_HS\n");
 						musb->test_mode_nr =
 							MUSB_TEST_FORCE_HS;
 						break;
 					case 0xc1:
 						/* TEST_FORCE_FS */
-						pr_debug("TEST_FORCE_FS\n");
+						pr_de("TEST_FORCE_FS\n");
 						musb->test_mode_nr =
 							MUSB_TEST_FORCE_FS;
 						break;
 					case 0xc2:
 						/* TEST_FIFO_ACCESS */
-						pr_debug("TEST_FIFO_ACCESS\n");
+						pr_de("TEST_FIFO_ACCESS\n");
 						musb->test_mode_nr =
 							MUSB_TEST_FIFO_ACCESS;
 						break;
 					case 0xc3:
 						/* TEST_FORCE_HOST */
-						pr_debug("TEST_FORCE_HOST\n");
+						pr_de("TEST_FORCE_HOST\n");
 						musb->test_mode_nr =
 							MUSB_TEST_FORCE_HOST;
 						break;
@@ -384,7 +384,7 @@ __acquires(musb->lock)
 						goto stall;
 					musb->g.a_alt_hnp_support = 1;
 					break;
-				case USB_DEVICE_DEBUG_MODE:
+				case USB_DEVICE_DE_MODE:
 					handled = 0;
 					break;
 stall:
@@ -471,7 +471,7 @@ static void ep0_rxstate(struct musb *musb)
 	request = next_ep0_request(musb);
 	req = &request->request;
 
-	/* read packet and ack; or stall because of gadget driver bug:
+	/* read packet and ack; or stall because of gadget driver :
 	 * should have provided the rx buffer before setup() returned.
 	 */
 	if (req) {

@@ -1616,8 +1616,8 @@ struct bnxt {
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
 	u8			switch_id[8];
 	struct bnxt_tc_info	*tc_info;
-	struct dentry		*debugfs_pdev;
-	struct dentry		*debugfs_dim;
+	struct dentry		*defs_pdev;
+	struct dentry		*defs_dim;
 	struct device		*hwmon_dev;
 };
 

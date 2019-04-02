@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/pm.h>
 #include <linux/thermal.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <asm/cpu_device_id.h>
 #include <asm/mce.h>
 
@@ -82,25 +82,25 @@ static DEFINE_MUTEX(thermal_zone_mutex);
 /* The dynamically assigned cpu hotplug state for module_exit() */
 static enum cpuhp_state pkg_thermal_hp_state __read_mostly;
 
-/* Debug counters to show using debugfs */
-static struct dentry *debugfs;
+/* De counters to show using defs */
+static struct dentry *defs;
 static unsigned int pkg_interrupt_cnt;
 static unsigned int pkg_work_cnt;
 
-static int pkg_temp_debugfs_init(void)
+static int pkg_temp_defs_init(void)
 {
 	struct dentry *d;
 
-	debugfs = debugfs_create_dir("pkg_temp_thermal", NULL);
-	if (!debugfs)
+	defs = defs_create_dir("pkg_temp_thermal", NULL);
+	if (!defs)
 		return -ENOENT;
 
-	d = debugfs_create_u32("pkg_thres_interrupt", S_IRUGO, debugfs,
+	d = defs_create_u32("pkg_thres_interrupt", S_IRUGO, defs,
 			       &pkg_interrupt_cnt);
 	if (!d)
 		goto err_out;
 
-	d = debugfs_create_u32("pkg_thres_work", S_IRUGO, debugfs,
+	d = defs_create_u32("pkg_thres_work", S_IRUGO, defs,
 			       &pkg_work_cnt);
 	if (!d)
 		goto err_out;
@@ -108,7 +108,7 @@ static int pkg_temp_debugfs_init(void)
 	return 0;
 
 err_out:
-	debugfs_remove_recursive(debugfs);
+	defs_remove_recursive(defs);
 	return -ENOENT;
 }
 
@@ -156,7 +156,7 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 	rdmsr_on_cpu(pkgdev->cpu, MSR_IA32_PACKAGE_THERM_STATUS, &eax, &edx);
 	if (eax & 0x80000000) {
 		*temp = pkgdev->tj_max - ((eax >> 16) & 0x7f) * 1000;
-		pr_debug("sys_get_curr_temp %d\n", *temp);
+		pr_de("sys_get_curr_temp %d\n", *temp);
 		return 0;
 	}
 	return -EINVAL;
@@ -191,7 +191,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd,
 		*temp = pkgdev->tj_max - thres_reg_value * 1000;
 	else
 		*temp = 0;
-	pr_debug("sys_get_trip_temp %d\n", *temp);
+	pr_de("sys_get_trip_temp %d\n", *temp);
 
 	return 0;
 }
@@ -533,7 +533,7 @@ static int __init pkg_temp_thermal_init(void)
 	platform_thermal_package_rate_control = pkg_thermal_rate_control;
 
 	 /* Don't care if it fails */
-	pkg_temp_debugfs_init();
+	pkg_temp_defs_init();
 	return 0;
 
 err:
@@ -548,7 +548,7 @@ static void __exit pkg_temp_thermal_exit(void)
 	platform_thermal_package_rate_control = NULL;
 
 	cpuhp_remove_state(pkg_thermal_hp_state);
-	debugfs_remove_recursive(debugfs);
+	defs_remove_recursive(defs);
 	kfree(packages);
 }
 module_exit(pkg_temp_thermal_exit)

@@ -310,7 +310,7 @@ ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 	if ((devconfig & PCIXINITPAT) == PCIXINIT_PCI33_66) {
 		ahd->chip |= AHD_PCI;
 		/* Disable PCIX workarounds when running in PCI mode. */
-		ahd->bugs &= ~AHD_PCIX_BUG_MASK;
+		ahd->s &= ~AHD_PCIX__MASK;
 	} else {
 		ahd->chip |= AHD_PCIX;
 	}
@@ -601,9 +601,9 @@ ahd_check_extport(struct ahd_softc *ahd)
 		}
 	}
 
-#ifdef AHD_DEBUG
+#ifdef AHD_DE
 	if (have_seeprom != 0
-	 && (ahd_debug & AHD_DUMP_SEEPROM) != 0) {
+	 && (ahd_de & AHD_DUMP_SEEPROM) != 0) {
 		uint16_t *sc_data;
 		int	  i;
 
@@ -944,17 +944,17 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 		/*
 		 * Enable A series workarounds.
 		 */
-		ahd->bugs |= AHD_SENT_SCB_UPDATE_BUG|AHD_ABORT_LQI_BUG
-			  |  AHD_PKT_BITBUCKET_BUG|AHD_LONG_SETIMO_BUG
-			  |  AHD_NLQICRC_DELAYED_BUG|AHD_SCSIRST_BUG
-			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
-			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
-			  |  AHD_PCIX_CHIPRST_BUG|AHD_PCIX_SCBRAM_RD_BUG
-			  |  AHD_PKTIZED_STATUS_BUG|AHD_PKT_LUN_BUG
-			  |  AHD_MDFF_WSCBPTR_BUG|AHD_REG_SLOW_SETTLE_BUG
-			  |  AHD_SET_MODE_BUG|AHD_BUSFREEREV_BUG
-			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG
-			  |  AHD_FAINT_LED_BUG;
+		ahd->s |= AHD_SENT_SCB_UPDATE_|AHD_ABORT_LQI_
+			  |  AHD_PKT_BITBUCKET_|AHD_LONG_SETIMO_
+			  |  AHD_NLQICRC_DELAYED_|AHD_SCSIRST_
+			  |  AHD_LQO_ATNO_|AHD_AUTOFLUSH_
+			  |  AHD_CLRLQO_AUTOCLR_|AHD_PCIX_MMAPIO_
+			  |  AHD_PCIX_CHIPRST_|AHD_PCIX_SCBRAM_RD_
+			  |  AHD_PKTIZED_STATUS_|AHD_PKT_LUN_
+			  |  AHD_MDFF_WSCBPTR_|AHD_REG_SLOW_SETTLE_
+			  |  AHD_SET_MODE_|AHD_BUSFREEREV_
+			  |  AHD_NONPACKFIFO_|AHD_PACED_NEGTABLE_
+			  |  AHD_FAINT_LED_;
 
 		/*
 		 * IO Cell parameter setup.
@@ -970,8 +970,8 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 
 		ahd->features |= AHD_RTI|AHD_NEW_IOCELL_OPTS
 			      |  AHD_NEW_DFCNTRL_OPTS|AHD_FAST_CDB_DELIVERY
-			      |  AHD_BUSFREEREV_BUG;
-		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_EARLY_REQ_BUG;
+			      |  AHD_BUSFREEREV_;
+		ahd->s |= AHD_LQOOVERRUN_|AHD_EARLY_REQ_;
 
 		/* If the user requested that the SLOWCRC bit to be set. */
 		if (aic79xx_slowcrc)
@@ -981,7 +981,7 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 		 * Some issues have been resolved in the 7901B.
 		 */
 		if ((ahd->features & AHD_MULTI_FUNC) != 0)
-			ahd->bugs |= AHD_INTCOLLISION_BUG|AHD_ABORT_LQI_BUG;
+			ahd->s |= AHD_INTCOLLISION_|AHD_ABORT_LQI_;
 
 		/*
 		 * IO Cell parameter setup.

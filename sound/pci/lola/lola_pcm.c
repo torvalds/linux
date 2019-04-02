@@ -665,7 +665,7 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 		}
 	} else {
 		/* test TYPE and bits 0..11 (no test bit9 : Digital = 0/1)
-		 * (bug : ignore bit8: Conn list = 0/1)
+		 * ( : ignore bit8: Conn list = 0/1)
 		 */
 		if ((val & 0x00f00cff) != 0x00100010) {
 			dev_err(chip->card->dev,

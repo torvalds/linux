@@ -115,7 +115,7 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 
 	foundinode = qnx4_iget(dir->i_sb, ino);
 	if (IS_ERR(foundinode))
-		QNX4DEBUG((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
+		QNX4DE((KERN_ERR "qnx4: lookup->iget -> error %ld\n",
 			   PTR_ERR(foundinode)));
 out:
 	return d_splice_alias(foundinode, dentry);

@@ -182,7 +182,7 @@ int drm_rect_calc_hscale(const struct drm_rect *src,
 int drm_rect_calc_vscale(const struct drm_rect *src,
 			 const struct drm_rect *dst,
 			 int min_vscale, int max_vscale);
-void drm_rect_debug_print(const char *prefix,
+void drm_rect_de_print(const char *prefix,
 			  const struct drm_rect *r, bool fixed_point);
 void drm_rect_rotate(struct drm_rect *r,
 		     int width, int height,

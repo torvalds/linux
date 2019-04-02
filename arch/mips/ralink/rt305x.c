@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <asm/io.h>
 #include <asm/mipsregs.h>
@@ -178,12 +178,12 @@ void __init ralink_clk_init(void)
 			sys_rate = cpu_rate / 3;
 			break;
 		default:
-			BUG();
+			();
 		}
 		uart_rate = 40000000;
 		wdt_rate = sys_rate;
 	} else {
-		BUG();
+		();
 	}
 
 	if (soc_is_rt3352() || soc_is_rt5350()) {

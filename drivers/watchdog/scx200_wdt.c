@@ -32,7 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
-#define DEBUG
+#define DE
 
 MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
 MODULE_DESCRIPTION("NatSemi SCx200 Watchdog Driver");
@@ -73,7 +73,7 @@ static void scx200_wdt_update_margin(void)
 
 static void scx200_wdt_enable(void)
 {
-	pr_debug("enabling watchdog timer, wdto_restart = %d\n", wdto_restart);
+	pr_de("enabling watchdog timer, wdto_restart = %d\n", wdto_restart);
 
 	spin_lock(&scx_lock);
 	outw(0, scx200_cb_base + SCx200_WDT_WDTO);
@@ -86,7 +86,7 @@ static void scx200_wdt_enable(void)
 
 static void scx200_wdt_disable(void)
 {
-	pr_debug("disabling watchdog timer\n");
+	pr_de("disabling watchdog timer\n");
 
 	spin_lock(&scx_lock);
 	outw(0, scx200_cb_base + SCx200_WDT_WDTO);
@@ -217,7 +217,7 @@ static int __init scx200_wdt_init(void)
 {
 	int r;
 
-	pr_debug("NatSemi SCx200 Watchdog Driver\n");
+	pr_de("NatSemi SCx200 Watchdog Driver\n");
 
 	/* check that we have found the configuration block */
 	if (!scx200_cb_present())

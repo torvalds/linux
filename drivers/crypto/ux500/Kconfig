@@ -24,9 +24,9 @@ config CRYPTO_DEV_UX500_HASH
           This selects the hash driver for the UX500_HASH hardware.
           Depends on UX500/STM DMA if running in DMA mode.
 
-config CRYPTO_DEV_UX500_DEBUG
-	bool "Activate ux500 platform debug-mode for crypto and hash block"
+config CRYPTO_DEV_UX500_DE
+	bool "Activate ux500 platform de-mode for crypto and hash block"
 	depends on CRYPTO_DEV_UX500_CRYP || CRYPTO_DEV_UX500_HASH
 	help
-	  Say Y if you want to add debug prints to ux500_hash and
+	  Say Y if you want to add de prints to ux500_hash and
 	  ux500_cryp devices.

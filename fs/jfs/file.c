@@ -27,7 +27,7 @@
 #include "jfs_txnmgr.h"
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 int jfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {

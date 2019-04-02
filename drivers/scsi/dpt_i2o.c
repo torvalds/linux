@@ -26,7 +26,7 @@
  - use schedule_timeout in long long loop
  **************************************************************************/
 
-/*#define DEBUG 1 */
+/*#define DE 1 */
 /*#define UARTDELAY 1 */
 
 #include <linux/module.h>
@@ -167,9 +167,9 @@ static inline u32 dma_low(dma_addr_t addr)
 
 static u8 adpt_read_blink_led(adpt_hba* host)
 {
-	if (host->FwDebugBLEDflag_P) {
-		if( readb(host->FwDebugBLEDflag_P) == 0xbc ){
-			return readb(host->FwDebugBLEDvalue_P);
+	if (host->FwDeBLEDflag_P) {
+		if( readb(host->FwDeBLEDflag_P) == 0xbc ){
+			return readb(host->FwDeBLEDvalue_P);
 		}
 	}
 	return 0;
@@ -236,7 +236,7 @@ rebuild_sys_tab:
 		return 0;
 	}
 
-	PDEBUG("HBA's in HOLD state\n");
+	PDE("HBA's in HOLD state\n");
 
 	/* If IOP don't get online, we need to rebuild the System table */
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
@@ -247,7 +247,7 @@ rebuild_sys_tab:
 	}
 
 	/* Active IOPs now in OPERATIONAL state */
-	PDEBUG("HBA's in OPERATIONAL state\n");
+	PDE("HBA's in OPERATIONAL state\n");
 
 	printk("dpti: If you have a lot of devices this could take a few minutes.\n");
 	for (pHba = hba_chain; pHba; pHba = next) {
@@ -528,7 +528,7 @@ static int adpt_bios_param(struct scsi_device *sdev, struct block_device *dev,
 	geom[1] = sectors;
 	geom[2] = cylinders;
 	
-	PDEBUG("adpt_bios_param: exit\n");
+	PDE("adpt_bios_param: exit\n");
 	return 0;
 }
 
@@ -801,13 +801,13 @@ static int adpt_hba_reset(adpt_hba* pHba)
 		adpt_i2o_delete_hba(pHba);
 		return rcode;
 	}
-	PDEBUG("%s: in HOLD state\n",pHba->name);
+	PDE("%s: in HOLD state\n",pHba->name);
 
 	if ((rcode=adpt_i2o_online_hba(pHba)) < 0) {
 		adpt_i2o_delete_hba(pHba);	
 		return rcode;
 	}
-	PDEBUG("%s: in OPERATIONAL state\n",pHba->name);
+	PDE("%s: in OPERATIONAL state\n",pHba->name);
 
 	if ((rcode=adpt_i2o_lct_get(pHba)) < 0){
 		adpt_i2o_delete_hba(pHba);
@@ -1069,8 +1069,8 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	if(pHba->msg_addr_virt != pHba->base_addr_virt){
 		iounmap(pHba->msg_addr_virt);
 	}
-	if(pHba->FwDebugBuffer_P)
-	   	iounmap(pHba->FwDebugBuffer_P);
+	if(pHba->FwDeBuffer_P)
+	   	iounmap(pHba->FwDeBuffer_P);
 	if(pHba->hrt) {
 		dma_free_coherent(&pHba->pDev->dev,
 			pHba->hrt->num_entries * pHba->hrt->entry_len << 2,
@@ -1274,7 +1274,7 @@ static void adpt_i2o_post_wait_complete(u32 context, int status)
 	 * took longer to respond to the message than we
 	 * had allowed and timer has already expired.
 	 * Not much we can do about that except log
-	 * it for debug purposes, increase timeout, and recompile
+	 * it for de purposes, increase timeout, and recompile
 	 *
 	 * Lock needed to keep anyone from moving queue pointers
 	 * around while we're looking through them.
@@ -1293,10 +1293,10 @@ static void adpt_i2o_post_wait_complete(u32 context, int status)
 	}
 	spin_unlock(&adpt_post_wait_lock);
         // If this happens we lose commands that probably really completed
-	printk(KERN_DEBUG"dpti: Could Not find task %d in wait queue\n",context);
-	printk(KERN_DEBUG"      Tasks in wait queue:\n");
+	printk(KERN_DE"dpti: Could Not find task %d in wait queue\n",context);
+	printk(KERN_DE"      Tasks in wait queue:\n");
 	for(p1 = adpt_post_wait_queue; p1; p1 = p1->next) {
-		printk(KERN_DEBUG"           %d\n",p1->id);
+		printk(KERN_DE"           %d\n",p1->id);
 	}
 	return;
 }
@@ -1364,7 +1364,7 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 	}
 
 	if(*status == 0x01 /*I2O_EXEC_IOP_RESET_IN_PROGRESS*/) {
-		PDEBUG("%s: Reset in progress...\n", pHba->name);
+		PDE("%s: Reset in progress...\n", pHba->name);
 		// Here we wait for message frame to become available
 		// indicated that reset has finished
 		do {
@@ -1392,12 +1392,12 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 		printk(KERN_WARNING"%s: Reset reject, trying to clear\n",
 				pHba->name);
 	} else {
-		PDEBUG("%s: Reset completed.\n", pHba->name);
+		PDE("%s: Reset completed.\n", pHba->name);
 	}
 
 	dma_free_coherent(&pHba->pDev->dev, 4, status, addr);
 #ifdef UARTDELAY
-	// This delay is to allow someone attached to the card through the debug UART to 
+	// This delay is to allow someone attached to the card through the de UART to 
 	// set up the dump levels that they want before the rest of the initialization sequence
 	adpt_delay(20000);
 #endif
@@ -1500,7 +1500,7 @@ static int adpt_i2o_parse_lct(adpt_hba* pHba)
 			if(adpt_i2o_query_scalar(pHba, tid, 0x0200, -1, buf, 28)>=0)
 			{
 				pHba->channel[bus_no].scsi_id = buf[1];
-				PDEBUG("Bus %d - SCSI ID %d.\n", bus_no, buf[1]);
+				PDE("Bus %d - SCSI ID %d.\n", bus_no, buf[1]);
 			}
 			// TODO remove - this is just until we get from hrt
 			bus_no++;
@@ -1720,7 +1720,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 		struct sg_simple_element *sg =  (struct sg_simple_element*) (msg+sg_offset);
 		sg_count = (size - sg_offset*4) / sizeof(struct sg_simple_element);
 		if (sg_count > pHba->sg_tablesize){
-			printk(KERN_DEBUG"%s:IOCTL SG List too large (%u)\n", pHba->name,sg_count);
+			printk(KERN_DE"%s:IOCTL SG List too large (%u)\n", pHba->name,sg_count);
 			rcode = -EINVAL;
 			goto free;
 		}
@@ -1729,7 +1729,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 			int sg_size;
 
 			if (!(sg[i].flag_count & 0x10000000 /*I2O_SGL_FLAGS_SIMPLE_ADDRESS_ELEMENT*/)) {
-				printk(KERN_DEBUG"%s:Bad SG element %d - not simple (%x)\n",pHba->name,i,  sg[i].flag_count);
+				printk(KERN_DE"%s:Bad SG element %d - not simple (%x)\n",pHba->name,i,  sg[i].flag_count);
 				rcode = -EINVAL;
 				goto cleanup;
 			}
@@ -1737,7 +1737,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 			/* Allocate memory for the transfer */
 			p = dma_alloc_coherent(&pHba->pDev->dev, sg_size, &addr, GFP_KERNEL);
 			if(!p) {
-				printk(KERN_DEBUG"%s: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
+				printk(KERN_DE"%s: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 						pHba->name,sg_size,i,sg_count);
 				rcode = -ENOMEM;
 				goto cleanup;
@@ -1747,7 +1747,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 			if(sg[i].flag_count & 0x04000000 /*I2O_SGL_FLAGS_DIR*/) {
 				// sg_simple_element API is 32 bit
 				if (copy_from_user(p,(void __user *)(ulong)sg[i].addr_bus, sg_size)) {
-					printk(KERN_DEBUG"%s: Could not copy SG buf %d FROM user\n",pHba->name,i);
+					printk(KERN_DE"%s: Could not copy SG buf %d FROM user\n",pHba->name,i);
 					rcode = -EFAULT;
 					goto cleanup;
 				}
@@ -2128,7 +2128,7 @@ static irqreturn_t adpt_isr(int irq, void *dev_id)
 			u32 old_m = readl(reply+28); 
 			void __iomem *msg;
 			u32 old_context;
-			PDEBUG("%s: Failed message\n",pHba->name);
+			PDE("%s: Failed message\n",pHba->name);
 			if(old_m >= 0x100000){
 				printk(KERN_ERR"%s: Bad preserved MFA (%x)- dropping frame\n",pHba->name,old_m);
 				writel(m,pHba->reply_port);
@@ -2271,7 +2271,7 @@ static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_d
 	/* Now fill in the SGList and command */
 
 	nseg = scsi_dma_map(cmd);
-	BUG_ON(nseg < 0);
+	_ON(nseg < 0);
 	if (nseg) {
 		struct scatterlist *sg;
 
@@ -2973,7 +2973,7 @@ static s32 adpt_i2o_status_get(adpt_hba* pHba)
 	}
 
 
-#ifdef DEBUG
+#ifdef DE
 	printk("dpti%d: State = ",pHba->unit);
 	switch(pHba->status_block->iop_state) {
 		case 0x01:
@@ -3053,24 +3053,24 @@ static int adpt_i2o_lct_get(adpt_hba* pHba)
 		}
 	} while (pHba->lct == NULL);
 
-	PDEBUG("%s: Hardware resource table read.\n", pHba->name);
+	PDE("%s: Hardware resource table read.\n", pHba->name);
 
 
 	// I2O_DPT_EXEC_IOP_BUFFERS_GROUP_NO;
 	if(adpt_i2o_query_scalar(pHba, 0 , 0x8000, -1, buf, sizeof(buf))>=0) {
-		pHba->FwDebugBufferSize = buf[1];
-		pHba->FwDebugBuffer_P = ioremap(pHba->base_addr_phys + buf[0],
-						pHba->FwDebugBufferSize);
-		if (pHba->FwDebugBuffer_P) {
-			pHba->FwDebugFlags_P     = pHba->FwDebugBuffer_P +
-							FW_DEBUG_FLAGS_OFFSET;
-			pHba->FwDebugBLEDvalue_P = pHba->FwDebugBuffer_P +
-							FW_DEBUG_BLED_OFFSET;
-			pHba->FwDebugBLEDflag_P  = pHba->FwDebugBLEDvalue_P + 1;
-			pHba->FwDebugStrLength_P = pHba->FwDebugBuffer_P +
-						FW_DEBUG_STR_LENGTH_OFFSET;
-			pHba->FwDebugBuffer_P += buf[2]; 
-			pHba->FwDebugFlags = 0;
+		pHba->FwDeBufferSize = buf[1];
+		pHba->FwDeBuffer_P = ioremap(pHba->base_addr_phys + buf[0],
+						pHba->FwDeBufferSize);
+		if (pHba->FwDeBuffer_P) {
+			pHba->FwDeFlags_P     = pHba->FwDeBuffer_P +
+							FW_DE_FLAGS_OFFSET;
+			pHba->FwDeBLEDvalue_P = pHba->FwDeBuffer_P +
+							FW_DE_BLED_OFFSET;
+			pHba->FwDeBLEDflag_P  = pHba->FwDeBLEDvalue_P + 1;
+			pHba->FwDeStrLength_P = pHba->FwDeBuffer_P +
+						FW_DE_STR_LENGTH_OFFSET;
+			pHba->FwDeBuffer_P += buf[2]; 
+			pHba->FwDeFlags = 0;
 		}
 	}
 
@@ -3125,10 +3125,10 @@ static int adpt_i2o_build_sys_table(void)
 		count++;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 {
 	u32 *table = (u32*)sys_tbl;
-	printk(KERN_DEBUG"sys_tbl_len=%d in 32bit words\n",(sys_tbl_len >>2));
+	printk(KERN_DE"sys_tbl_len=%d in 32bit words\n",(sys_tbl_len >>2));
 	for(count = 0; count < (sys_tbl_len >>2); count++) {
 		printk(KERN_INFO "sys_tbl[%d] = %0#10x\n", 
 			count, table[count]);
@@ -3166,7 +3166,7 @@ static void adpt_i2o_report_hba_unit(adpt_hba* pHba, struct i2o_device *d)
 		buf[8]=0;
 		printk(" Rev: %-12.12s\n", buf);
 	}
-#ifdef DEBUG
+#ifdef DE
 	 printk(KERN_INFO "\tClass: %.21s\n", adpt_i2o_get_class_name(d->lct_data.class_id));
 	 printk(KERN_INFO "\tSubclass: 0x%04X\n", d->lct_data.sub_class);
 	 printk(KERN_INFO "\tFlags: ");
@@ -3183,7 +3183,7 @@ static void adpt_i2o_report_hba_unit(adpt_hba* pHba, struct i2o_device *d)
 #endif
 }
 
-#ifdef DEBUG
+#ifdef DE
 /*
  *	Do i2o class name lookup
  */
@@ -3453,7 +3453,7 @@ static int adpt_i2o_enable_hba(adpt_hba* pHba)
 		printk(KERN_WARNING"%s: Could not enable (status=%#10x).\n", 
 			pHba->name, ret);
 	} else {
-		PDEBUG("%s: Enabled.\n", pHba->name);
+		PDE("%s: Enabled.\n", pHba->name);
 	}
 
 	adpt_i2o_status_get(pHba);
@@ -3489,7 +3489,7 @@ static int adpt_i2o_systab_send(adpt_hba* pHba)
 		printk(KERN_INFO "%s: Unable to set SysTab (status=%#10x).\n", 
 			pHba->name, ret);
 	}
-#ifdef DEBUG
+#ifdef DE
 	else {
 		PINFO("%s: SysTab set.\n", pHba->name);
 	}

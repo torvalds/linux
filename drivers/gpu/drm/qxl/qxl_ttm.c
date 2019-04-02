@@ -77,7 +77,7 @@ int qxl_mmap(struct file *filp, struct vm_area_struct *vma)
 		 "filp->private_data->minor->dev->dev_private == NULL\n");
 		return -EINVAL;
 	}
-	DRM_DEBUG_DRIVER("filp->private_data = 0x%p, vma->vm_pgoff = %lx\n",
+	DRM_DE_DRIVER("filp->private_data = 0x%p, vma->vm_pgoff = %lx\n",
 		  filp->private_data, vma->vm_pgoff);
 
 	r = ttm_bo_mmap(filp, vma, &qdev->mman.bdev);
@@ -267,7 +267,7 @@ static void qxl_move_null(struct ttm_buffer_object *bo,
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
-	BUG_ON(old_mem->mm_node != NULL);
+	_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 }
@@ -364,9 +364,9 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 	DRM_INFO("qxl: ttm finalized\n");
 }
 
-#define QXL_DEBUGFS_MEM_TYPES 2
+#define QXL_DEFS_MEM_TYPES 2
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 static int qxl_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -383,14 +383,14 @@ static int qxl_mm_dump_table(struct seq_file *m, void *data)
 }
 #endif
 
-int qxl_ttm_debugfs_init(struct qxl_device *qdev)
+int qxl_ttm_defs_init(struct qxl_device *qdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];
-	static char qxl_mem_types_names[QXL_DEBUGFS_MEM_TYPES][32];
+#if defined(CONFIG_DE_FS)
+	static struct drm_info_list qxl_mem_types_list[QXL_DEFS_MEM_TYPES];
+	static char qxl_mem_types_names[QXL_DEFS_MEM_TYPES][32];
 	unsigned int i;
 
-	for (i = 0; i < QXL_DEBUGFS_MEM_TYPES; i++) {
+	for (i = 0; i < QXL_DEFS_MEM_TYPES; i++) {
 		if (i == 0)
 			sprintf(qxl_mem_types_names[i], "qxl_mem_mm");
 		else
@@ -404,7 +404,7 @@ int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 			qxl_mem_types_list[i].data = qdev->mman.bdev.man[TTM_PL_PRIV].priv;
 
 	}
-	return qxl_debugfs_add_files(qdev, qxl_mem_types_list, i);
+	return qxl_defs_add_files(qdev, qxl_mem_types_list, i);
 #else
 	return 0;
 #endif

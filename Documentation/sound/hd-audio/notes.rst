@@ -12,7 +12,7 @@ HD-audio is the new standard on-board audio component on modern PCs
 after AC97.  Although Linux has been supporting HD-audio since long
 time ago, there are often problems with new machines.  A part of the
 problem is broken BIOS, and the rest is the driver implementation.
-This document explains the brief trouble-shooting and debugging
+This document explains the brief trouble-shooting and deging
 methods for the	HD-audio hardware.
 
 The HD-audio component consists of two parts: the controller chip and 
@@ -22,7 +22,7 @@ a word of a well-known hardware vendor, it's not specific to it but for
 all controller chips by other companies.  Since the HD-audio
 controllers are supposed to be compatible, the single snd-hda-driver
 should work in most cases.  But, not surprisingly, there are known
-bugs and issues specific to each controller type.  The snd-hda-intel
+s and issues specific to each controller type.  The snd-hda-intel
 driver has a bunch of workarounds for these as described below.
 
 A controller may have multiple codecs.  Usually you have one audio
@@ -38,7 +38,7 @@ parser, usually the codec-specific parser (coded in patch_*.c) is used
 for the codec-specific implementations.  The details about the
 codec-specific problems are explained in the later sections.
 
-If you are interested in the deep debugging of HD-audio, read the
+If you are interested in the deep deging of HD-audio, read the
 HD-audio specification at first.  The specification is found on
 Intel's web page, for example:
 
@@ -213,14 +213,14 @@ There are a few special model option values:
 
 Speaker and Headphone Output
 ----------------------------
-One of the most frequent (and obvious) bugs with HD-audio is the
+One of the most frequent (and obvious) s with HD-audio is the
 silent output from either or both of a built-in speaker and a
 headphone jack.  In general, you should try a headphone output at
 first.  A speaker output often requires more additional controls like
 the external amplifier bits.  Thus a headphone output has a slightly
 better chance.
 
-Before making a bug report, double-check whether the mixer is set up
+Before making a  report, double-check whether the mixer is set up
 correctly.  The recent version of snd-hda-intel driver provides mostly
 "Master" volume control as well as "Front" volume (where Front
 indicates the front-channels).  In addition, there can be individual
@@ -235,10 +235,10 @@ not on every preset model or codec-support code.
 
 In anyway, try a different model option if you have such a problem.
 Some other models may match better and give you more matching
-functionality.  If none of the available models works, send a bug
-report.  See the bug report section for details.
+functionality.  If none of the available models works, send a 
+report.  See the  report section for details.
 
-If you are masochistic enough to debug the driver problem, note the
+If you are masochistic enough to de the driver problem, note the
 following:
 
 * The speaker (and the headphone, too) output often requires the
@@ -259,7 +259,7 @@ following:
 Capture Problems
 ----------------
 The capture problems are often because of missing setups of mixers.
-Thus, before submitting a bug report, make sure that you set up the
+Thus, before submitting a  report, make sure that you set up the
 mixer correctly.  For example, both "Capture Volume" and "Capture
 Switch" have to be set properly in addition to the right "Capture
 Source" or "Input Source" selection.  Some devices have "Mic Boost"
@@ -275,7 +275,7 @@ gain nor attenuation.  When you use "hw" PCM, i.e., a raw access PCM,
 this control will have no influence, though.
 
 It's known that some codecs / devices have fairly bad analog circuits,
-and the recorded sound contains a certain DC-offset.  This is no bug
+and the recorded sound contains a certain DC-offset.  This is no 
 of the driver.
 
 Most of modern laptops have no analog CD-input connection.  Thus, the
@@ -288,10 +288,10 @@ because of my laziness but mostly lack of testers.  Feel free to
 submit the improvement patch to the author.
 
 
-Direct Debugging
+Direct Deging
 ----------------
 If no model option gives you a better result, and you are a tough guy
-to fight against evil, try debugging via hitting the raw HD-audio
+to fight against evil, try deging via hitting the raw HD-audio
 codec verbs to the device.  Some tools are available: hda-emu and
 hda-analyzer.  The detailed description is found in the sections
 below.  You'd need to enable hwdep for using these tools.  See "Kernel
@@ -303,12 +303,12 @@ Other Issues
 
 Kernel Configuration
 --------------------
-In general, I recommend you to enable the sound debug option,
-``CONFIG_SND_DEBUG=y``, no matter whether you are debugging or not.
+In general, I recommend you to enable the sound de option,
+``CONFIG_SND_DE=y``, no matter whether you are deging or not.
 This enables snd_printd() macro and others, and you'll get additional
 kernel messages at probing.
 
-In addition, you can enable ``CONFIG_SND_DEBUG_VERBOSE=y``.  But this
+In addition, you can enable ``CONFIG_SND_DE_VERBOSE=y``.  But this
 will give you far more messages.  Thus turn this on only when you are
 sure to want it.
 
@@ -318,11 +318,11 @@ the controller chip.  Thus, even if lspci shows the Nvidia controller,
 you may need to choose the option for other vendors.  If you are
 unsure, just select all yes.
 
-``CONFIG_SND_HDA_HWDEP`` is a useful option for debugging the driver.
+``CONFIG_SND_HDA_HWDEP`` is a useful option for deging the driver.
 When this is enabled, the driver creates hardware-dependent devices
 (one per each codec), and you have a raw access to the device via
 these device files.  For example, ``hwC0D2`` will be created for the
-codec slot #2 of the first card (#0).  For debug-tools such as
+codec slot #2 of the first card (#0).  For de-tools such as
 hda-verb and hda-analyzer, the hwdep device has to be enabled.
 Thus, it'd be better to turn this on always.
 
@@ -337,7 +337,7 @@ See "Power-saving" section below.
 
 Codec Proc-File
 ---------------
-The codec proc-file is a treasure-chest for debugging HD-audio.
+The codec proc-file is a treasure-chest for deging HD-audio.
 It shows most of useful information of each codec widget.
 
 The proc file is located in /proc/asound/card*/codec#*, one file per
@@ -346,8 +346,8 @@ names, the type of each widget, capabilities and so on.
 This file, however, doesn't show the jack sensing state, so far.  This
 is because the jack-sensing might be depending on the trigger state.
 
-This file will be picked up by the debug tools, and also it can be fed
-to the emulator as the primary codec information.  See the debug tools
+This file will be picked up by the de tools, and also it can be fed
+to the emulator as the primary codec information.  See the de tools
 section below.
 
 This proc file can be also used to check whether the generic parser is
@@ -635,14 +635,14 @@ via power-saving behavior.
 Enabling all tracepoints can be done like
 ::
 
-    # echo 1 > /sys/kernel/debug/tracing/events/hda/enable
+    # echo 1 > /sys/kernel/de/tracing/events/hda/enable
 
 then after some commands, you can traces from
-/sys/kernel/debug/tracing/trace file.  For example, when you want to
+/sys/kernel/de/tracing/trace file.  For example, when you want to
 trace what codec command is sent, enable the tracepoint like:
 ::
 
-    # cat /sys/kernel/debug/tracing/trace
+    # cat /sys/kernel/de/tracing/trace
     # tracer: nop
     #
     #       TASK-PID    CPU#    TIMESTAMP  FUNCTION
@@ -684,11 +684,11 @@ and next kernels are found in for-linus and for-next branches,
 respectively.
 
 
-Sending a Bug Report
+Sending a  Report
 --------------------
 If any model or module options don't work for your device, it's time
-to send a bug report to the developers.  Give the following in your
-bug report:
+to send a  report to the developers.  Give the following in your
+ report:
 
 * Hardware vendor, product and model names
 * Kernel version (and ALSA-driver version if you built externally)
@@ -699,18 +699,18 @@ If it's a regression, at best, send alsa-info outputs of both working
 and non-working kernels.  This is really helpful because we can
 compare the codec registers directly.
 
-Send a bug report either the following:
+Send a  report either the following:
 
-kernel-bugzilla
-    https://bugzilla.kernel.org/
+kernel-zilla
+    https://zilla.kernel.org/
 alsa-devel ML
     alsa-devel@alsa-project.org
 
 
-Debug Tools
+De Tools
 ===========
 
-This section describes some tools available for debugging HD-audio
+This section describes some tools available for deging HD-audio
 problems.
 
 alsa-info
@@ -729,7 +729,7 @@ Run this script as root, and it will gather the important information
 such as the module lists, module parameters, proc file contents
 including the codec proc files, mixer outputs and the control
 elements.  As default, it will store the information onto a web server
-on alsa-project.org.  But, if you send a bug report, it'd be better to
+on alsa-project.org.  But, if you send a  report, it'd be better to
 run with ``--no-upload`` option, and attach the generated file.
 
 There are some other useful options.  See ``--help`` option output for
@@ -823,7 +823,7 @@ Codecgraph
 ----------
 Codecgraph is a utility program to generate a graph and visualizes the
 codec-node connection of a codec chip.  It's especially useful when
-you analyze or debug a codec without a proper datasheet.  The program
+you analyze or de a codec without a proper datasheet.  The program
 parses the given codec proc file and converts to SVG via graphiz
 program.
 
@@ -835,7 +835,7 @@ The tarball and GIT trees are found in the web page at:
 hda-emu
 -------
 hda-emu is an HD-audio emulator.  The main purpose of this program is
-to debug an HD-audio codec without the real hardware.  Thus, it
+to de an HD-audio codec without the real hardware.  Thus, it
 doesn't emulate the behavior with the real audio I/O, but it just
 dumps the codec register changes and the ALSA-driver internal changes
 at probing and operating the HD-audio driver.

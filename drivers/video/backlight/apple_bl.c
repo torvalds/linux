@@ -43,9 +43,9 @@ struct hw_data {
 static const struct hw_data *hw_data;
 
 /* Module parameters. */
-static int debug;
-module_param_named(debug, debug, int, 0644);
-MODULE_PARM_DESC(debug, "Set to one to enable debugging messages.");
+static int de;
+module_param_named(de, de, int, 0644);
+MODULE_PARM_DESC(de, "Set to one to enable deging messages.");
 
 /*
  * Implementation for machines with Intel chipset.
@@ -60,8 +60,8 @@ static int intel_chipset_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
 
-	if (debug)
-		pr_debug("setting brightness to %d\n", intensity);
+	if (de)
+		pr_de("setting brightness to %d\n", intensity);
 
 	intel_chipset_set_brightness(intensity);
 	return 0;
@@ -75,8 +75,8 @@ static int intel_chipset_get_intensity(struct backlight_device *bd)
 	outb(0xbf, 0xb2);
 	intensity = inb(0xb3) >> 4;
 
-	if (debug)
-		pr_debug("read brightness of %d\n", intensity);
+	if (de)
+		pr_de("read brightness of %d\n", intensity);
 
 	return intensity;
 }
@@ -105,8 +105,8 @@ static int nvidia_chipset_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
 
-	if (debug)
-		pr_debug("setting brightness to %d\n", intensity);
+	if (de)
+		pr_de("setting brightness to %d\n", intensity);
 
 	nvidia_chipset_set_brightness(intensity);
 	return 0;
@@ -120,8 +120,8 @@ static int nvidia_chipset_get_intensity(struct backlight_device *bd)
 	outb(0xbf, 0x52e);
 	intensity = inb(0x52f) >> 4;
 
-	if (debug)
-		pr_debug("read brightness of %d\n", intensity);
+	if (de)
+		pr_de("read brightness of %d\n", intensity);
 
 	return intensity;
 }

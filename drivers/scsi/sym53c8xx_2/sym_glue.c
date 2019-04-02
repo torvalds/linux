@@ -54,7 +54,7 @@
 #define NAME53C8XX	"sym53c8xx"
 
 struct sym_driver_setup sym_driver_setup = SYM_LINUX_DRIVER_SETUP;
-unsigned int sym_debug_flags = 0;
+unsigned int sym_de_flags = 0;
 
 static char *excl_string;
 static char *safe_string;
@@ -66,7 +66,7 @@ module_param_named(irqm, sym_driver_setup.irq_mode, byte, 0);
 module_param_named(buschk, sym_driver_setup.scsi_bus_check, byte, 0);
 module_param_named(hostid, sym_driver_setup.host_id, byte, 0);
 module_param_named(verb, sym_driver_setup.verbose, byte, 0);
-module_param_named(debug, sym_debug_flags, uint, 0);
+module_param_named(de, sym_de_flags, uint, 0);
 module_param_named(settle, sym_driver_setup.settle_delay, byte, 0);
 module_param_named(nvram, sym_driver_setup.use_nvram, byte, 0);
 module_param_named(excl, excl_string, charp, 0);
@@ -80,7 +80,7 @@ MODULE_PARM_DESC(irqm, "0 for open drain, 1 to leave alone, 2 for totem pole");
 MODULE_PARM_DESC(buschk, "0 to not check, 1 for detach on error, 2 for warn on error");
 MODULE_PARM_DESC(hostid, "The SCSI ID to use for the host adapters");
 MODULE_PARM_DESC(verb, "0 for minimal verbosity, 1 for normal, 2 for excessive");
-MODULE_PARM_DESC(debug, "Set bits to enable debugging");
+MODULE_PARM_DESC(de, "Set bits to enable deging");
 MODULE_PARM_DESC(settle, "Settle delay in seconds.  Default 3");
 MODULE_PARM_DESC(nvram, "Option currently not used");
 MODULE_PARM_DESC(excl, "List ioport addresses here to prevent controllers from being attached");
@@ -140,7 +140,7 @@ struct sym_ucmd {		/* Override the SCSI pointer structure */
 void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *cmd)
 {
 	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
-	BUILD_BUG_ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
+	BUILD__ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
 
 	if (ucmd->eh_done)
 		complete(ucmd->eh_done);
@@ -551,13 +551,13 @@ static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 	if (pci_channel_offline(sym_data->pdev))
 		return IRQ_NONE;
 
-	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("[");
+	if (DE_FLAGS & DE_TINY) printf_de ("[");
 
 	spin_lock(shost->host_lock);
 	result = sym_interrupt(shost);
 	spin_unlock(shost->host_lock);
 
-	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("]\n");
+	if (DE_FLAGS & DE_TINY) printf_de ("]\n");
 
 	return result;
 }
@@ -615,7 +615,7 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 		spin_lock_irq(shost->host_lock);
 		/* Make sure we didn't race */
 		if (pci_channel_offline(pdev)) {
-			BUG_ON(sym_data->io_reset);
+			_ON(sym_data->io_reset);
 			sym_data->io_reset = &eh_done;
 		} else {
 			finished_reset = 1;
@@ -897,7 +897,7 @@ struct	sym_usrcmd {
 
 #define UC_SETSYNC      10
 #define UC_SETTAGS	11
-#define UC_SETDEBUG	12
+#define UC_SETDE	12
 #define UC_SETWIDE	14
 #define UC_SETFLAG	15
 #define UC_SETVERBOSE	17
@@ -912,9 +912,9 @@ static void sym_exec_user_command (struct sym_hcb *np, struct sym_usrcmd *uc)
 	switch (uc->cmd) {
 	case 0: return;
 
-#ifdef SYM_LINUX_DEBUG_CONTROL_SUPPORT
-	case UC_SETDEBUG:
-		sym_debug_flags = uc->data;
+#ifdef SYM_LINUX_DE_CONTROL_SUPPORT
+	case UC_SETDE:
+		sym_de_flags = uc->data;
 		break;
 #endif
 	case UC_SETVERBOSE:
@@ -1052,9 +1052,9 @@ static int sym_user_command(struct Scsi_Host *shost, char *buffer, int length)
 		uc->cmd = UC_SETVERBOSE;
 	else if	((arg_len = is_keyword(ptr, len, "setwide")) != 0)
 		uc->cmd = UC_SETWIDE;
-#ifdef SYM_LINUX_DEBUG_CONTROL_SUPPORT
-	else if	((arg_len = is_keyword(ptr, len, "setdebug")) != 0)
-		uc->cmd = UC_SETDEBUG;
+#ifdef SYM_LINUX_DE_CONTROL_SUPPORT
+	else if	((arg_len = is_keyword(ptr, len, "setde")) != 0)
+		uc->cmd = UC_SETDE;
 #endif
 	else if	((arg_len = is_keyword(ptr, len, "setflag")) != 0)
 		uc->cmd = UC_SETFLAG;
@@ -1065,7 +1065,7 @@ static int sym_user_command(struct Scsi_Host *shost, char *buffer, int length)
 	else
 		arg_len = 0;
 
-#ifdef DEBUG_PROC_INFO
+#ifdef DE_PROC_INFO
 printk("sym_user_command: arg_len=%d, cmd=%ld\n", arg_len, uc->cmd);
 #endif
 
@@ -1087,7 +1087,7 @@ printk("sym_user_command: arg_len=%d, cmd=%ld\n", arg_len, uc->cmd);
 		} else {
 			GET_INT_ARG(ptr, len, target);
 			uc->target = (1<<target);
-#ifdef DEBUG_PROC_INFO
+#ifdef DE_PROC_INFO
 printk("sym_user_command: target=%ld\n", target);
 #endif
 		}
@@ -1101,45 +1101,45 @@ printk("sym_user_command: target=%ld\n", target);
 	case UC_SETWIDE:
 		SKIP_SPACES(ptr, len);
 		GET_INT_ARG(ptr, len, uc->data);
-#ifdef DEBUG_PROC_INFO
+#ifdef DE_PROC_INFO
 printk("sym_user_command: data=%ld\n", uc->data);
 #endif
 		break;
-#ifdef SYM_LINUX_DEBUG_CONTROL_SUPPORT
-	case UC_SETDEBUG:
+#ifdef SYM_LINUX_DE_CONTROL_SUPPORT
+	case UC_SETDE:
 		while (len > 0) {
 			SKIP_SPACES(ptr, len);
 			if	((arg_len = is_keyword(ptr, len, "alloc")))
-				uc->data |= DEBUG_ALLOC;
+				uc->data |= DE_ALLOC;
 			else if	((arg_len = is_keyword(ptr, len, "phase")))
-				uc->data |= DEBUG_PHASE;
+				uc->data |= DE_PHASE;
 			else if	((arg_len = is_keyword(ptr, len, "queue")))
-				uc->data |= DEBUG_QUEUE;
+				uc->data |= DE_QUEUE;
 			else if	((arg_len = is_keyword(ptr, len, "result")))
-				uc->data |= DEBUG_RESULT;
+				uc->data |= DE_RESULT;
 			else if	((arg_len = is_keyword(ptr, len, "scatter")))
-				uc->data |= DEBUG_SCATTER;
+				uc->data |= DE_SCATTER;
 			else if	((arg_len = is_keyword(ptr, len, "script")))
-				uc->data |= DEBUG_SCRIPT;
+				uc->data |= DE_SCRIPT;
 			else if	((arg_len = is_keyword(ptr, len, "tiny")))
-				uc->data |= DEBUG_TINY;
+				uc->data |= DE_TINY;
 			else if	((arg_len = is_keyword(ptr, len, "timing")))
-				uc->data |= DEBUG_TIMING;
+				uc->data |= DE_TIMING;
 			else if	((arg_len = is_keyword(ptr, len, "nego")))
-				uc->data |= DEBUG_NEGO;
+				uc->data |= DE_NEGO;
 			else if	((arg_len = is_keyword(ptr, len, "tags")))
-				uc->data |= DEBUG_TAGS;
+				uc->data |= DE_TAGS;
 			else if	((arg_len = is_keyword(ptr, len, "pointer")))
-				uc->data |= DEBUG_POINTER;
+				uc->data |= DE_POINTER;
 			else
 				return -EINVAL;
 			ptr += arg_len; len -= arg_len;
 		}
-#ifdef DEBUG_PROC_INFO
+#ifdef DE_PROC_INFO
 printk("sym_user_command: data=%ld\n", uc->data);
 #endif
 		break;
-#endif /* SYM_LINUX_DEBUG_CONTROL_SUPPORT */
+#endif /* SYM_LINUX_DE_CONTROL_SUPPORT */
 	case UC_SETFLAG:
 		while (len > 0) {
 			SKIP_SPACES(ptr, len);
@@ -1368,7 +1368,7 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 	shost->can_queue	= (SYM_CONF_MAX_START-2);
 	shost->sg_tablesize	= SYM_CONF_MAX_SG;
 	shost->max_cmd_len	= 16;
-	BUG_ON(sym2_transport_template == NULL);
+	_ON(sym2_transport_template == NULL);
 	shost->transportt	= sym2_transport_template;
 
 	/* 53c896 rev 1 errata: DMA may not cross 16MB boundary */
@@ -1772,7 +1772,7 @@ static pci_ers_result_t sym2_io_error_detected(struct pci_dev *pdev,
 }
 
 /**
- * sym2_io_slot_dump - Enable MMIO and dump debug registers
+ * sym2_io_slot_dump - Enable MMIO and dump de registers
  * @pdev: pointer to PCI device
  */
 static pci_ers_result_t sym2_io_slot_dump(struct pci_dev *pdev)

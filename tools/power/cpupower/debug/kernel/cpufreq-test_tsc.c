@@ -79,7 +79,7 @@ static int __init cpufreq_test_tsc(void)
 		pm_tmr_ioport = acpi_gbl_FADT.pm_timer_block;
 	}
 
-	printk(KERN_DEBUG "start--> \n");
+	printk(KERN_DE "start--> \n");
 	then = read_pmtmr();
 	then_tsc = rdtsc();
 	for (i=0;i<20;i++) {
@@ -88,11 +88,11 @@ static int __init cpufreq_test_tsc(void)
 		now_tsc = rdtsc();
 		diff = (now - then) & 0xFFFFFF;
 		diff_tsc = now_tsc - then_tsc;
-		printk(KERN_DEBUG "t1: %08u t2: %08u diff_pmtmr: %08u diff_tsc: %016llu\n", then, now, diff, diff_tsc);
+		printk(KERN_DE "t1: %08u t2: %08u diff_pmtmr: %08u diff_tsc: %016llu\n", then, now, diff, diff_tsc);
 		then = now;
 		then_tsc = now_tsc;
 	}
-	printk(KERN_DEBUG "<-- end \n");
+	printk(KERN_DE "<-- end \n");
 	return -ENODEV;
 }
 

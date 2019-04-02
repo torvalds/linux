@@ -271,7 +271,7 @@ static int longhaul_setstate(struct cpufreq_policy *policy,
 	freqs.old = calc_speed(longhaul_get_cpu_mult());
 	freqs.new = speed;
 
-	pr_debug("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
+	pr_de("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
 retry_loop:
 	preempt_disable();
@@ -455,12 +455,12 @@ static int longhaul_get_ranges(void)
 		break;
 	}
 
-	pr_debug("MinMult:%d.%dx MaxMult:%d.%dx\n",
+	pr_de("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
 
 	highest_speed = calc_speed(maxmult);
 	lowest_speed = calc_speed(minmult);
-	pr_debug("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
+	pr_de("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
 		 print_speed(lowest_speed/1000),
 		 print_speed(highest_speed/1000));
 

@@ -264,7 +264,7 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 
 void rq_qos_exit(struct request_queue *q)
 {
-	blk_mq_debugfs_unregister_queue_rqos(q);
+	blk_mq_defs_unregister_queue_rqos(q);
 
 	while (q->rq_qos) {
 		struct rq_qos *rqos = q->rq_qos;

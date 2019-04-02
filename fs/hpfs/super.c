@@ -431,13 +431,13 @@ HPFS filesystem options:\n\
       case=asis         do not lowercase files (default)\n\
       check=none        no fs checks - kernel may crash on corrupted filesystem\n\
       check=normal      do some checks - it should not crash (default)\n\
-      check=strict      do extra time-consuming checks, used for debugging\n\
+      check=strict      do extra time-consuming checks, used for deging\n\
       errors=continue   continue on errors\n\
       errors=remount-ro remount read-only if errors found (default)\n\
       errors=panic      panic on errors\n\
       chkdsk=no         do not mark fs for chkdsking even if there were errors\n\
       chkdsk=errors     mark fs dirty if errors found (default)\n\
-      chkdsk=always     always mark fs dirty - used for debugging\n\
+      chkdsk=always     always mark fs dirty - used for deging\n\
       eas=no            ignore extended attributes\n\
       eas=ro            read but do not write extended attributes\n\
       eas=rw            r/w eas => enables chmod, chown, mknod, ln -s (default)\n\

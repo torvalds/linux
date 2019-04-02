@@ -143,18 +143,18 @@ void lapb_stop_t2timer(struct lapb_cb *lapb);
 int lapb_t1timer_running(struct lapb_cb *lapb);
 
 /*
- * Debug levels.
+ * De levels.
  *	0 = Off
  *	1 = State Changes
  *	2 = Packets I/O and State Changes
  *	3 = Hex dumps, Packets I/O and State Changes.
  */
-#define	LAPB_DEBUG	0
+#define	LAPB_DE	0
 
 #define lapb_dbg(level, fmt, ...)			\
 do {							\
-	if (level < LAPB_DEBUG)				\
-		pr_debug(fmt, ##__VA_ARGS__);		\
+	if (level < LAPB_DE)				\
+		pr_de(fmt, ##__VA_ARGS__);		\
 } while (0)
 
 #endif

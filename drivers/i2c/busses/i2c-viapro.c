@@ -106,7 +106,7 @@ static struct i2c_adapter vt596_adapter;
 #define FEATURE_I2CBLOCK	(1<<0)
 static unsigned int vt596_features;
 
-#ifdef DEBUG
+#ifdef DE
 static void vt596_dump_regs(const char *msg, u8 size)
 {
 	dev_dbg(&vt596_adapter.dev, "%s: STS=%02x CNT=%02x CMD=%02x ADD=%02x "

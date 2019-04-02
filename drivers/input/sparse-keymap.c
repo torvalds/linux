@@ -285,7 +285,7 @@ bool sparse_keymap_report_event(struct input_dev *dev, unsigned int code,
 		return true;
 	}
 
-	/* Report an unknown key event as a debugging aid */
+	/* Report an unknown key event as a deging aid */
 	unknown_ke.type = KE_KEY;
 	unknown_ke.code = code;
 	unknown_ke.keycode = KEY_UNKNOWN;

@@ -7,7 +7,7 @@
 #define _RTW_CMD_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/jiffies.h>
 
 static struct _cmd_callback rtw_cmd_callback[] = {
@@ -1438,7 +1438,7 @@ static void dynamic_chk_wk_hdl(struct adapter *padapter)
 		expire_timeout_chk(padapter);
 	}
 
-	/* for debug purpose */
+	/* for de purpose */
 	_linked_info_dump(padapter);
 
 

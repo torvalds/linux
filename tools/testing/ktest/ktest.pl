@@ -1592,8 +1592,8 @@ sub wait_for_monitor {
     my $booted = 0;
     my $start_time = time;
     my $skip_call_trace = 0;
-    my $bug = 0;
-    my $bug_ignored = 0;
+    my $ = 0;
+    my $_ignored = 0;
     my $now;
 
     doprint "** Wait for monitor to settle down **\n";
@@ -1615,11 +1615,11 @@ sub wait_for_monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$bug && !$skip_call_trace) {
+	    if (!$ && !$skip_call_trace) {
 		if ($ignore_errors) {
-		    $bug_ignored = 1;
+		    $_ignored = 1;
 		} else {
-		    $bug = 1;
+		    $ = 1;
 		}
 	    }
 	}
@@ -1629,7 +1629,7 @@ sub wait_for_monitor {
 	}
 
 	if ($full_line =~ /Kernel panic -/) {
-	    $bug = 1;
+	    $ = 1;
 	}
 
 	if ($line =~ /\n/) {
@@ -1646,9 +1646,9 @@ sub wait_for_monitor {
     # if stop is defined but wasn't hit, return error
     # used by reboot (which wants to see a reboot)
     if (defined($stop) && !$booted) {
-	$bug = 1;
+	$ = 1;
     }
-    return $bug;
+    return $;
 }
 
 sub save_logs {
@@ -2021,8 +2021,8 @@ sub get_sha1 {
 
 sub monitor {
     my $booted = 0;
-    my $bug = 0;
-    my $bug_ignored = 0;
+    my $ = 0;
+    my $_ignored = 0;
     my $skip_call_trace = 0;
     my $loops;
 
@@ -2046,12 +2046,12 @@ sub monitor {
 
     while (!$done) {
 
-	if ($bug && defined($stop_after_failure) &&
+	if ($ && defined($stop_after_failure) &&
 	    $stop_after_failure >= 0) {
 	    my $time = $stop_after_failure - (time - $failure_start);
 	    $line = wait_for_input($monitor_fp, $time);
 	    if (!defined($line)) {
-		doprint "bug timed out after $booted_timeout seconds\n";
+		doprint " timed out after $booted_timeout seconds\n";
 		doprint "Test forced to stop after $stop_after_failure seconds after failure\n";
 		last;
 	    }
@@ -2096,17 +2096,17 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$bug && !$skip_call_trace) {
+	    if (!$ && !$skip_call_trace) {
 		if ($ignore_errors) {
-		    $bug_ignored = 1;
+		    $_ignored = 1;
 		} else {
-		    $bug = 1;
+		    $ = 1;
 		    $failure_start = time;
 		}
 	    }
 	}
 
-	if ($bug && defined($stop_after_failure) &&
+	if ($ && defined($stop_after_failure) &&
 	    $stop_after_failure >= 0) {
 	    my $now = time;
 	    if ($now - $failure_start >= $stop_after_failure) {
@@ -2121,7 +2121,7 @@ sub monitor {
 
 	if ($full_line =~ /Kernel panic -/) {
 	    $failure_start = time;
-	    $bug = 1;
+	    $ = 1;
 	}
 
 	# Detect triple faults by testing the banner
@@ -2144,7 +2144,7 @@ sub monitor {
 	    $full_line = "";
 	}
 
-	if ($stop_test_after > 0 && !$booted && !$bug) {
+	if ($stop_test_after > 0 && !$booted && !$) {
 	    if (time - $monitor_start > $stop_test_after) {
 		doprint "STOP_TEST_AFTER ($stop_test_after seconds) timed out\n";
 		$done = 1;
@@ -2157,9 +2157,9 @@ sub monitor {
 
     close(DMESG);
 
-    if ($bug) {
+    if ($) {
 	return 0 if ($in_bisect);
-	fail "failed - got a bug report" and return 0;
+	fail "failed - got a  report" and return 0;
     }
 
     if (!$booted) {
@@ -2167,7 +2167,7 @@ sub monitor {
 	fail "failed - never got a boot prompt." and return 0;
     }
 
-    if ($bug_ignored) {
+    if ($_ignored) {
 	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
     }
 
@@ -2658,8 +2658,8 @@ sub do_run_test {
     my $child_exit;
     my $line;
     my $full_line;
-    my $bug = 0;
-    my $bug_ignored = 0;
+    my $ = 0;
+    my $_ignored = 0;
 
     my $start_time = time;
 
@@ -2687,27 +2687,27 @@ sub do_run_test {
 
 	    if ($full_line =~ /call trace:/i) {
 		if ($ignore_errors) {
-		    $bug_ignored = 1;
+		    $_ignored = 1;
 		} else {
-		    $bug = 1;
+		    $ = 1;
 		}
 	    }
 
 	    if ($full_line =~ /Kernel panic -/) {
-		$bug = 1;
+		$ = 1;
 	    }
 
 	    if ($line =~ /\n/) {
 		$full_line = "";
 	    }
 	}
-    } while (!$child_done && !$bug);
+    } while (!$child_done && !$);
 
-    if (!$bug && $bug_ignored) {
+    if (!$ && $_ignored) {
 	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
     }
 
-    if ($bug) {
+    if ($) {
 	my $failure_start = time;
 	my $now;
 	do {
@@ -2732,7 +2732,7 @@ sub do_run_test {
     my $end_time = time;
     $test_time = $end_time - $start_time;
 
-    if (!$bug && $in_bisect) {
+    if (!$ && $in_bisect) {
 	if (defined($bisect_ret_good)) {
 	    if ($child_exit == $bisect_ret_good) {
 		return 1;
@@ -2769,7 +2769,7 @@ sub do_run_test {
 	}
     }
 
-    if ($bug || $child_exit) {
+    if ($ || $child_exit) {
 	return 0 if $in_bisect;
 	fail "test failed" and return 0;
     }

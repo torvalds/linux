@@ -88,7 +88,7 @@ nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 	struct nouveau_bo *pb = chan->push.buffer;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
-	BUG_ON(chan->dma.ib_free < 1);
+	_ON(chan->dma.ib_free < 1);
 
 	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
 	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);

@@ -58,7 +58,7 @@ enum typec_pwr_opmode {
 enum typec_accessory {
 	TYPEC_ACCESSORY_NONE,
 	TYPEC_ACCESSORY_AUDIO,
-	TYPEC_ACCESSORY_DEBUG,
+	TYPEC_ACCESSORY_DE,
 };
 
 #define TYPEC_MAX_ACCESSORY	3
@@ -155,7 +155,7 @@ struct typec_cable_desc {
 /*
  * struct typec_partner_desc - USB Type-C Partner Descriptor
  * @usb_pd: USB Power Delivery support
- * @accessory: Audio, Debug or none.
+ * @accessory: Audio, De or none.
  * @identity: Discover Identity command data
  *
  * Details about a partner that is attached to USB Type-C port. If @identity

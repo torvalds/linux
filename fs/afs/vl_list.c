@@ -44,7 +44,7 @@ void afs_put_vlserver(struct afs_net *net, struct afs_vlserver *vlserver)
 {
 	if (vlserver) {
 		unsigned int u = atomic_dec_return(&vlserver->usage);
-		//_debug("VL PUT %p{%u}", vlserver, u);
+		//_de("VL PUT %p{%u}", vlserver, u);
 
 		if (u == 0)
 			call_rcu(&vlserver->rcu, afs_vlserver_rcu);
@@ -69,7 +69,7 @@ void afs_put_vlserverlist(struct afs_net *net, struct afs_vlserver_list *vllist)
 	if (vllist) {
 		unsigned int u = atomic_dec_return(&vllist->usage);
 
-		//_debug("VLLS PUT %p{%u}", vllist, u);
+		//_de("VLLS PUT %p{%u}", vllist, u);
 		if (u == 0) {
 			int i;
 
@@ -209,7 +209,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		bs.protocol	= *b++;
 		bs.nr_addrs	= *b++;
 
-		_debug("extract %u %u %u %u %u %u %*.*s",
+		_de("extract %u %u %u %u %u %u %*.*s",
 		       bs.name_len, bs.priority, bs.weight,
 		       bs.port, bs.protocol, bs.nr_addrs,
 		       bs.name_len, bs.name_len, b);
@@ -266,7 +266,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		}
 
 		if (vllist->nr_servers >= nr_servers) {
-			_debug("skip %u >= %u", vllist->nr_servers, nr_servers);
+			_de("skip %u >= %u", vllist->nr_servers, nr_servers);
 			afs_put_addrlist(addrs);
 			afs_put_vlserver(cell->net, server);
 			continue;
@@ -318,7 +318,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 	}
 
 	if (b != end) {
-		_debug("parse error %zd", b - end);
+		_de("parse error %zd", b - end);
 		goto error;
 	}
 
@@ -333,7 +333,7 @@ error:
 	afs_put_vlserverlist(cell->net, previous);
 dump:
 	if (ret != -ENOMEM) {
-		printk(KERN_DEBUG "DNS: at %zu\n", (const void *)b - buffer);
+		printk(KERN_DE "DNS: at %zu\n", (const void *)b - buffer);
 		print_hex_dump_bytes("DNS: ", DUMP_PREFIX_NONE, buffer, buffer_size);
 	}
 	return ERR_PTR(ret);

@@ -34,7 +34,7 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 
 		file = fopen(path, "r");
 		if (!file) {
-			pr_debug("fopen failed for file %s\n", path);
+			pr_de("fopen failed for file %s\n", path);
 			continue;
 		}
 

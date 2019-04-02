@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/module.h>
@@ -136,9 +136,9 @@ static const struct smu7_power_state *cast_const_phw_smu7_power_state(
  */
 static int smu7_get_mc_microcode_version(struct pp_hwmgr *hwmgr)
 {
-	cgs_write_register(hwmgr->device, mmMC_SEQ_IO_DEBUG_INDEX, 0x9F);
+	cgs_write_register(hwmgr->device, mmMC_SEQ_IO_DE_INDEX, 0x9F);
 
-	hwmgr->microcode_version_info.MC = cgs_read_register(hwmgr->device, mmMC_SEQ_IO_DEBUG_DATA);
+	hwmgr->microcode_version_info.MC = cgs_read_register(hwmgr->device, mmMC_SEQ_IO_DE_DATA);
 
 	return 0;
 }
@@ -1762,7 +1762,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					if (vddc >= 2000 || vddc == 0)
 						return -EINVAL;
 				} else {
-					pr_debug("failed to retrieving EVV voltage!\n");
+					pr_de("failed to retrieving EVV voltage!\n");
 					continue;
 				}
 
@@ -3236,11 +3236,11 @@ static int smu7_get_pp_table_entry_v1(struct pp_hwmgr *hwmgr,
 	if (dep_mclk_table != NULL && dep_mclk_table->count == 1) {
 		if (dep_mclk_table->entries[0].clk !=
 				data->vbios_boot_state.mclk_bootup_value)
-			pr_debug("Single MCLK entry VDDCI/MCLK dependency table "
+			pr_de("Single MCLK entry VDDCI/MCLK dependency table "
 					"does not match VBIOS boot MCLK level");
 		if (dep_mclk_table->entries[0].vddci !=
 				data->vbios_boot_state.vddci_bootup_value)
-			pr_debug("Single VDDCI entry VDDCI/MCLK dependency table "
+			pr_de("Single VDDCI entry VDDCI/MCLK dependency table "
 					"does not match VBIOS boot VDDCI level");
 	}
 
@@ -3384,11 +3384,11 @@ static int smu7_get_pp_table_entry_v0(struct pp_hwmgr *hwmgr,
 	if (dep_mclk_table != NULL && dep_mclk_table->count == 1) {
 		if (dep_mclk_table->entries[0].clk !=
 				data->vbios_boot_state.mclk_bootup_value)
-			pr_debug("Single MCLK entry VDDCI/MCLK dependency table "
+			pr_de("Single MCLK entry VDDCI/MCLK dependency table "
 					"does not match VBIOS boot MCLK level");
 		if (dep_mclk_table->entries[0].v !=
 				data->vbios_boot_state.vddci_bootup_value)
-			pr_debug("Single VDDCI entry VDDCI/MCLK dependency table "
+			pr_de("Single VDDCI entry VDDCI/MCLK dependency table "
 					"does not match VBIOS boot VDDCI level");
 	}
 
@@ -4222,9 +4222,9 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 
 	data->need_long_memory_training = false;
 
-	cgs_write_register(hwmgr->device, mmMC_SEQ_IO_DEBUG_INDEX,
-							ixMC_IO_DEBUG_UP_13);
-	tmp = cgs_read_register(hwmgr->device, mmMC_SEQ_IO_DEBUG_DATA);
+	cgs_write_register(hwmgr->device, mmMC_SEQ_IO_DE_INDEX,
+							ixMC_IO_DE_UP_13);
+	tmp = cgs_read_register(hwmgr->device, mmMC_SEQ_IO_DE_DATA);
 
 	if (tmp & (1 << 23)) {
 		data->mem_latency_high = MEM_LATENCY_HIGH;

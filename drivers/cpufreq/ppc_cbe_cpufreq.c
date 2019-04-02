@@ -56,7 +56,7 @@ static int set_pmode(unsigned int cpu, unsigned int slow_mode)
 	else
 		rc = cbe_cpufreq_set_pmode(cpu, slow_mode);
 
-	pr_debug("register contains slow mode %d\n", cbe_cpufreq_get_pmode(cpu));
+	pr_de("register contains slow mode %d\n", cbe_cpufreq_get_pmode(cpu));
 
 	return rc;
 }
@@ -78,7 +78,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (!cpu)
 		return -ENODEV;
 
-	pr_debug("init cpufreq on CPU %d\n", policy->cpu);
+	pr_de("init cpufreq on CPU %d\n", policy->cpu);
 
 	/*
 	 * Let's check we can actually get to the CELL regs
@@ -99,21 +99,21 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* we need the freq in kHz */
 	max_freq = *max_freqp / 1000;
 
-	pr_debug("max clock-frequency is at %u kHz\n", max_freq);
-	pr_debug("initializing frequency table\n");
+	pr_de("max clock-frequency is at %u kHz\n", max_freq);
+	pr_de("initializing frequency table\n");
 
 	/* initialize frequency table */
 	cpufreq_for_each_entry(pos, cbe_freqs) {
 		pos->frequency = max_freq / pos->driver_data;
-		pr_debug("%d: %d\n", (int)(pos - cbe_freqs), pos->frequency);
+		pr_de("%d: %d\n", (int)(pos - cbe_freqs), pos->frequency);
 	}
 
-	/* if DEBUG is enabled set_pmode() measures the latency
+	/* if DE is enabled set_pmode() measures the latency
 	 * of a transition */
 	policy->cpuinfo.transition_latency = 25000;
 
 	cur_pmode = cbe_cpufreq_get_pmode(policy->cpu);
-	pr_debug("current pmode is at %d\n",cur_pmode);
+	pr_de("current pmode is at %d\n",cur_pmode);
 
 	policy->cur = cbe_freqs[cur_pmode].frequency;
 
@@ -128,7 +128,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 static int cbe_cpufreq_target(struct cpufreq_policy *policy,
 			      unsigned int cbe_pmode_new)
 {
-	pr_debug("setting frequency for cpu %d to %d kHz, " \
+	pr_de("setting frequency for cpu %d to %d kHz, " \
 		 "1/%d of max frequency\n",
 		 policy->cpu,
 		 cbe_freqs[cbe_pmode_new].frequency,

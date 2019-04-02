@@ -48,7 +48,7 @@ static inline bool arm64_kernel_unmapped_at_el0(void)
 
 static inline bool arm64_kernel_use_ng_mappings(void)
 {
-	bool tx1_bug;
+	bool tx1_;
 
 	/* What's a kpti? Use global mappings if we don't know. */
 	if (!IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
@@ -73,19 +73,19 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 	 * just put down non-global mappings from the beginning.
 	 */
 	if (!IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
-		tx1_bug = false;
+		tx1_ = false;
 #ifndef MODULE
 	} else if (!static_branch_likely(&arm64_const_caps_ready)) {
 		extern const struct midr_range cavium_erratum_27456_cpus[];
 
-		tx1_bug = is_midr_in_range_list(read_cpuid_id(),
+		tx1_ = is_midr_in_range_list(read_cpuid_id(),
 						cavium_erratum_27456_cpus);
 #endif
 	} else {
-		tx1_bug = __cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_27456);
+		tx1_ = __cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_27456);
 	}
 
-	return !tx1_bug && kaslr_offset() > 0;
+	return !tx1_ && kaslr_offset() > 0;
 }
 
 typedef void (*bp_hardening_cb_t)(void);

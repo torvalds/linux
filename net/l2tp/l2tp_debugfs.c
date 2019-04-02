@@ -1,5 +1,5 @@
 /*
- * L2TP subsystem debugfs
+ * L2TP subsystem defs
  *
  * Copyright (c) 2010 Katalix Systems Ltd
  *
@@ -19,7 +19,7 @@
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -79,7 +79,7 @@ static void *l2tp_dfs_seq_start(struct seq_file *m, loff_t *offs)
 	if (!pos)
 		goto out;
 
-	BUG_ON(m->private == NULL);
+	_ON(m->private == NULL);
 	pd = m->private;
 
 	if (pd->tunnel == NULL)
@@ -170,7 +170,7 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 		   tunnel->sock ? refcount_read(&tunnel->sock->sk_refcnt) : 0,
 		   refcount_read(&tunnel->ref_count));
 	seq_printf(m, " %08x rx %ld/%ld/%ld rx %ld/%ld/%ld\n",
-		   tunnel->debug,
+		   tunnel->de,
 		   atomic_long_read(&tunnel->stats.tx_packets),
 		   atomic_long_read(&tunnel->stats.tx_bytes),
 		   atomic_long_read(&tunnel->stats.tx_errors),
@@ -195,7 +195,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
 		   session->lns_mode ? "LNS" : "LAC",
-		   session->debug,
+		   session->de,
 		   jiffies_to_msecs(session->reorder_timeout));
 	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
 		   session->l2specific_type, l2tp_get_l2specific_len(session));
@@ -242,13 +242,13 @@ static int l2tp_dfs_seq_show(struct seq_file *m, void *v)
 		seq_puts(m, "TUNNEL ID, peer ID from IP to IP\n");
 		seq_puts(m, " L2TPv2/L2TPv3, UDP/IP\n");
 		seq_puts(m, " sessions session-count, refcnt refcnt/sk->refcnt\n");
-		seq_puts(m, " debug tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
+		seq_puts(m, " de tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
 		seq_puts(m, "  SESSION ID, peer ID, PWTYPE\n");
 		seq_puts(m, "   refcnt cnt\n");
 		seq_puts(m, "   offset OFFSET l2specific TYPE/LEN\n");
 		seq_puts(m, "   [ cookie ]\n");
 		seq_puts(m, "   [ peer cookie ]\n");
-		seq_puts(m, "   config mtu/mru/rcvseq/sendseq/dataseq/lns debug reorderto\n");
+		seq_puts(m, "   config mtu/mru/rcvseq/sendseq/dataseq/lns de reorderto\n");
 		seq_puts(m, "   nr/ns tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
 		goto out;
 	}
@@ -328,22 +328,22 @@ static const struct file_operations l2tp_dfs_fops = {
 	.release	= l2tp_dfs_seq_release,
 };
 
-static int __init l2tp_debugfs_init(void)
+static int __init l2tp_defs_init(void)
 {
 	int rc = 0;
 
-	rootdir = debugfs_create_dir("l2tp", NULL);
+	rootdir = defs_create_dir("l2tp", NULL);
 	if (IS_ERR(rootdir)) {
 		rc = PTR_ERR(rootdir);
 		rootdir = NULL;
 		goto out;
 	}
 
-	tunnels = debugfs_create_file("tunnels", 0600, rootdir, NULL, &l2tp_dfs_fops);
+	tunnels = defs_create_file("tunnels", 0600, rootdir, NULL, &l2tp_dfs_fops);
 	if (tunnels == NULL)
 		rc = -EIO;
 
-	pr_info("L2TP debugfs support\n");
+	pr_info("L2TP defs support\n");
 
 out:
 	if (rc)
@@ -352,16 +352,16 @@ out:
 	return rc;
 }
 
-static void __exit l2tp_debugfs_exit(void)
+static void __exit l2tp_defs_exit(void)
 {
-	debugfs_remove(tunnels);
-	debugfs_remove(rootdir);
+	defs_remove(tunnels);
+	defs_remove(rootdir);
 }
 
-module_init(l2tp_debugfs_init);
-module_exit(l2tp_debugfs_exit);
+module_init(l2tp_defs_init);
+module_exit(l2tp_defs_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
-MODULE_DESCRIPTION("L2TP debugfs driver");
+MODULE_DESCRIPTION("L2TP defs driver");
 MODULE_VERSION("1.0");

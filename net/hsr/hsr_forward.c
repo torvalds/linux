@@ -195,7 +195,7 @@ static struct sk_buff *frame_get_tagged_skb(struct hsr_frame_info *frame,
 		return skb_clone(frame->skb_hsr, GFP_ATOMIC);
 
 	if ((port->type != HSR_PT_SLAVE_A) && (port->type != HSR_PT_SLAVE_B)) {
-		WARN_ONCE(1, "HSR: Bug: trying to create a tagged frame for a non-ring port");
+		WARN_ONCE(1, "HSR: : trying to create a tagged frame for a non-ring port");
 		return NULL;
 	}
 

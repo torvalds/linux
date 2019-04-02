@@ -34,7 +34,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "kasan.h"
 #include "../slab.h"
@@ -53,7 +53,7 @@ void kasan_init_tags(void)
  * If a preemption happens between this_cpu_read and this_cpu_write, the only
  * side effect is that we'll give a few allocated in different contexts objects
  * the same tag. Since tag-based KASAN is meant to be used a probabilistic
- * bug-detection debug feature, this doesn't have significant negative impact.
+ * -detection de feature, this doesn't have significant negative impact.
  *
  * Ideally the tags use strong randomness to prevent any attempts to predict
  * them during explicit exploit attempts. But strong randomness is expensive,

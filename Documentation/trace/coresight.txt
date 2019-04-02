@@ -7,7 +7,7 @@
 Introduction
 ------------
 
-Coresight is an umbrella of technologies allowing for the debugging of ARM
+Coresight is an umbrella of technologies allowing for the deging of ARM
 based SoC.  It includes solutions for JTAG and HW assisted tracing.  This
 document is concerned with the latter.
 
@@ -46,7 +46,7 @@ At typical coresight system would look like this:
   | |   .        | !   | |   .        | !      | !        .   |      | SWD/
   | |   .        | !   | |   .        | !      | !        .   |      | JTAG
   *****************************************************************<-|
- *************************** AMBA Debug APB ************************
+ *************************** AMBA De APB ************************
   *****************************************************************
    |    .          !         .          !        !        .    |
    |    .          *         .          *        *        .    |
@@ -71,13 +71,13 @@ At typical coresight system would look like this:
    |    !                    I REP I<..........
    |    !                    I     I
    |    !!>&&&&&&&&&       II     I           *Source: ARM ltd.
-   |------>& TPIU  &<......II    I            DAP = Debug Access Port
+   |------>& TPIU  &<......II    I            DAP = De Access Port
            &&&&&&&&&       IIIIIII            ETM = Embedded Trace Macrocell
                ;                              PTM = Program Trace Macrocell
                ;                              CTI = Cross Trigger Interface
                *                              ETB = Embedded Trace Buffer
           To trace port                       TPIU= Trace Port Interface Unit
-                                              SWD = Serial Wire Debug
+                                              SWD = Serial Wire De
 
 While on target configuration of the components is done via the APB bus,
 all trace data are carried out-of-band on the ATB bus.  The CTM provides

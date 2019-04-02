@@ -22,7 +22,7 @@
  * intel_idle is a cpuidle driver that loads on specific Intel processors
  * in lieu of the legacy ACPI processor_idle driver.  The intent is to
  * make Linux more efficient on these processors, as intel_idle knows
- * more than ACPI, as well as make Linux more immune to ACPI BIOS bugs.
+ * more than ACPI, as well as make Linux more immune to ACPI BIOS s.
  */
 
 /*
@@ -48,8 +48,8 @@
  *
  */
 
-/* un-comment DEBUG to enable pr_debug() statements */
-#define DEBUG
+/* un-comment DE to enable pr_de() statements */
+#define DE
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -1116,7 +1116,7 @@ static int __init intel_idle_probe(void)
 	const struct x86_cpu_id *id;
 
 	if (max_cstate == 0) {
-		pr_debug("disabled\n");
+		pr_de("disabled\n");
 		return -EPERM;
 	}
 
@@ -1124,13 +1124,13 @@ static int __init intel_idle_probe(void)
 	if (!id) {
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
 		    boot_cpu_data.x86 == 6)
-			pr_debug("does not run on family %d model %d\n",
+			pr_de("does not run on family %d model %d\n",
 				 boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_MWAIT)) {
-		pr_debug("Please enable MWAIT in BIOS SETUP\n");
+		pr_de("Please enable MWAIT in BIOS SETUP\n");
 		return -ENODEV;
 	}
 
@@ -1144,12 +1144,12 @@ static int __init intel_idle_probe(void)
 	    !mwait_substates)
 			return -ENODEV;
 
-	pr_debug("MWAIT substates: 0x%x\n", mwait_substates);
+	pr_de("MWAIT substates: 0x%x\n", mwait_substates);
 
 	icpu = (const struct idle_cpu *)id->driver_data;
 	cpuidle_state_table = icpu->state_table;
 
-	pr_debug("v" INTEL_IDLE_VERSION " model 0x%X\n",
+	pr_de("v" INTEL_IDLE_VERSION " model 0x%X\n",
 		 boot_cpu_data.x86_model);
 
 	return 0;
@@ -1368,7 +1368,7 @@ static void __init intel_idle_cpuidle_driver_init(void)
 
 		/* if state marked as disabled, skip it */
 		if (cpuidle_state_table[cstate].disabled != 0) {
-			pr_debug("state %s is disabled\n",
+			pr_de("state %s is disabled\n",
 				 cpuidle_state_table[cstate].name);
 			continue;
 		}
@@ -1405,7 +1405,7 @@ static int intel_idle_cpu_init(unsigned int cpu)
 	dev->cpu = cpu;
 
 	if (cpuidle_register_device(dev)) {
-		pr_debug("cpuidle_register_device %d failed!\n", cpu);
+		pr_de("cpuidle_register_device %d failed!\n", cpu);
 		return -EIO;
 	}
 
@@ -1457,7 +1457,7 @@ static int __init intel_idle_init(void)
 	retval = cpuidle_register_driver(&intel_idle_driver);
 	if (retval) {
 		struct cpuidle_driver *drv = cpuidle_get_driver();
-		printk(KERN_DEBUG pr_fmt("intel_idle yielding to %s\n"),
+		printk(KERN_DE pr_fmt("intel_idle yielding to %s\n"),
 		       drv ? drv->name : "none");
 		goto init_driver_fail;
 	}
@@ -1470,7 +1470,7 @@ static int __init intel_idle_init(void)
 	if (retval < 0)
 		goto hp_setup_fail;
 
-	pr_debug("lapic_timer_reliable_states 0x%x\n",
+	pr_de("lapic_timer_reliable_states 0x%x\n",
 		 lapic_timer_reliable_states);
 
 	return 0;

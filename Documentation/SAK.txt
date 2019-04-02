@@ -62,7 +62,7 @@ And that's it!  Only the superuser may reprogram the SAK key.
 	# ps aux|grep 579
 	root       579  0.0  0.1  1088  436 ?        S    00:43   0:00 gpm -t ps/2
 
-     So ``gpm`` will be killed by SAK.  This is a bug in gpm.  It should
+     So ``gpm`` will be killed by SAK.  This is a  in gpm.  It should
      be closing standard input.  You can work around this by finding the
      initscript which launches gpm and changing it thusly:
 

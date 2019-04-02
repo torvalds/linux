@@ -87,7 +87,7 @@ struct s_queue {
 struct s_ecm {
 	u_char path_test ;		/* ECM path test variable */
 	u_char sb_flag ;		/* ECM stuck bypass */
-	u_char DisconnectFlag ;		/* jd 05-Aug-1999 Bug #10419 
+	u_char DisconnectFlag ;		/* jd 05-Aug-1999  #10419 
 					 * ECM disconnected */
 	u_char ecm_line_state ;		/* flag to dispatcher : line states */
 	u_long trace_prop ;		/* ECM Trace_Prop flag >= 16 bits !! */
@@ -399,11 +399,11 @@ struct smt_config {
 	u_long lct_extended ;		/* LCT : error threshold */
 } ;
 
-#ifdef	DEBUG
+#ifdef	DE
 /*
- * Debugging struct sometimes used in smc
+ * Deging struct sometimes used in smc
  */
-struct	smt_debug {
+struct	smt_de {
 	int	d_smtf ;
 	int	d_smt ;
 	int	d_ecm ;
@@ -417,15 +417,15 @@ struct	smt_debug {
 #ifdef	SBA
 	int	d_sba ;
 #endif
-	struct	os_debug	d_os;	/* Include specific OS DEBUG struct */
+	struct	os_de	d_os;	/* Include specific OS DE struct */
 } ;
 
-#ifndef	DEBUG_BRD
-/* all boards shall be debugged with one debug struct */
-extern	struct	smt_debug	debug;	/* Declaration of debug struct */
-#endif	/* DEBUG_BRD */
+#ifndef	DE_BRD
+/* all boards shall be deged with one de struct */
+extern	struct	smt_de	de;	/* Declaration of de struct */
+#endif	/* DE_BRD */
 
-#endif	/* DEBUG */
+#endif	/* DE */
 
 /*
  * the SMT Context Struct SMC
@@ -461,10 +461,10 @@ struct s_smc {
 #ifdef	ESS
 	struct s_ess	ess ;		/* Ess variables */
 #endif
-#if	defined(DEBUG) && defined(DEBUG_BRD)
-	/* If you want all single board to be debugged separately */
-	struct smt_debug	debug;	/* Declaration of debug struct */
-#endif	/* DEBUG_BRD && DEBUG */
+#if	defined(DE) && defined(DE_BRD)
+	/* If you want all single board to be deged separately */
+	struct smt_de	de;	/* Declaration of de struct */
+#endif	/* DE_BRD && DE */
 } ;
 
 extern const struct fddi_addr fddi_broadcast;

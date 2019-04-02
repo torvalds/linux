@@ -1423,7 +1423,7 @@ int vt_move_to_console(unsigned int vt, int alloc)
 	}
 	console_unlock();
 	if (vt_waitactive(vt + 1)) {
-		pr_debug("Suspend: Can't switch VCs.");
+		pr_de("Suspend: Can't switch VCs.");
 		return -EINTR;
 	}
 	return prev;

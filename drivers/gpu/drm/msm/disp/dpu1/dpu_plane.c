@@ -18,7 +18,7 @@
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-buf.h>
 
 #include <drm/drm_atomic_uapi.h>
@@ -33,7 +33,7 @@
 #include "dpu_vbif.h"
 #include "dpu_plane.h"
 
-#define DPU_DEBUG_PLANE(pl, fmt, ...) DPU_DEBUG("plane%d " fmt,\
+#define DPU_DE_PLANE(pl, fmt, ...) DPU_DE("plane%d " fmt,\
 		(pl) ? (pl)->base.base.id : -1, ##__VA_ARGS__)
 
 #define DPU_ERROR_PLANE(pl, fmt, ...) DPU_ERROR("plane%d " fmt,\
@@ -111,12 +111,12 @@ struct dpu_plane {
 	const struct dpu_sspp_sub_blks *pipe_sblk;
 	char pipe_name[DPU_NAME_SIZE];
 
-	/* debugfs related stuff */
-	struct dentry *debugfs_root;
-	struct dpu_debugfs_regset32 debugfs_src;
-	struct dpu_debugfs_regset32 debugfs_scaler;
-	struct dpu_debugfs_regset32 debugfs_csc;
-	bool debugfs_default_scale;
+	/* defs related stuff */
+	struct dentry *defs_root;
+	struct dpu_defs_regset32 defs_src;
+	struct dpu_defs_regset32 defs_scaler;
+	struct dpu_defs_regset32 defs_csc;
+	bool defs_default_scale;
 };
 
 static const uint64_t supported_format_modifiers[] = {
@@ -161,7 +161,7 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 	list_for_each_entry(tmp, &pdpu->mplane_list, mplane_list) {
 		if (!tmp->base.state->visible)
 			continue;
-		DPU_DEBUG("plane%d/%d src_width:%d/%d\n",
+		DPU_DE("plane%d/%d src_width:%d/%d\n",
 				pdpu->base.base.id, tmp->base.base.id,
 				src_width,
 				drm_rect_width(&tmp->pipe_cfg.src_rect));
@@ -189,7 +189,7 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 		}
 	}
 
-	DPU_DEBUG("plane%u: pnum:%d fmt: %4.4s w:%u fl:%u\n",
+	DPU_DE("plane%u: pnum:%d fmt: %4.4s w:%u fl:%u\n",
 			plane->base.id, pdpu->pipe - SSPP_VIG0,
 			(char *)&fmt->base.pixel_format,
 			src_width, total_fl);
@@ -259,7 +259,7 @@ static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 			(fmt) ? fmt->base.pixel_format : 0,
 			pdpu->is_rt_pipe, total_fl, qos_lut, lut_usage);
 
-	DPU_DEBUG("plane%u: pnum:%d fmt: %4.4s rt:%d fl:%u lut:0x%llx\n",
+	DPU_DE("plane%u: pnum:%d fmt: %4.4s rt:%d fl:%u lut:0x%llx\n",
 			plane->base.id,
 			pdpu->pipe - SSPP_VIG0,
 			fmt ? (char *)&fmt->base.pixel_format : NULL,
@@ -312,7 +312,7 @@ static void _dpu_plane_set_danger_lut(struct drm_plane *plane,
 			pdpu->pipe_qos_cfg.danger_lut,
 			pdpu->pipe_qos_cfg.safe_lut);
 
-	DPU_DEBUG("plane%u: pnum:%d fmt: %4.4s mode:%d luts[0x%x, 0x%x]\n",
+	DPU_DE("plane%u: pnum:%d fmt: %4.4s mode:%d luts[0x%x, 0x%x]\n",
 		plane->base.id,
 		pdpu->pipe - SSPP_VIG0,
 		fmt ? (char *)&fmt->base.pixel_format : NULL,
@@ -356,7 +356,7 @@ static void _dpu_plane_set_qos_ctrl(struct drm_plane *plane,
 		pdpu->pipe_qos_cfg.danger_safe_en = false;
 	}
 
-	DPU_DEBUG("plane%u: pnum:%d ds:%d vb:%d pri[0x%x, 0x%x] is_rt:%d\n",
+	DPU_DE("plane%u: pnum:%d ds:%d vb:%d pri[0x%x, 0x%x] is_rt:%d\n",
 		plane->base.id,
 		pdpu->pipe - SSPP_VIG0,
 		pdpu->pipe_qos_cfg.danger_safe_en,
@@ -412,7 +412,7 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane)
 	qos_params.num = pdpu->pipe_hw->idx - SSPP_VIG0;
 	qos_params.is_rt = pdpu->is_rt_pipe;
 
-	DPU_DEBUG("plane%d pipe:%d vbif:%d xin:%d rt:%d, clk_ctrl:%d\n",
+	DPU_DE("plane%d pipe:%d vbif:%d xin:%d rt:%d, clk_ctrl:%d\n",
 			plane->base.id, qos_params.num,
 			qos_params.vbif_idx,
 			qos_params.xin_id, qos_params.is_rt,
@@ -433,7 +433,7 @@ static void _dpu_plane_set_scanout(struct drm_plane *plane,
 
 	ret = dpu_format_populate_layout(aspace, fb, &pipe_cfg->layout);
 	if (ret == -EAGAIN)
-		DPU_DEBUG_PLANE(pdpu, "not updating same src addrs\n");
+		DPU_DE_PLANE(pdpu, "not updating same src addrs\n");
 	else if (ret)
 		DPU_ERROR_PLANE(pdpu, "failed to get format layout, %d\n", ret);
 	else if (pdpu->pipe_hw->ops.setup_sourceaddress) {
@@ -547,7 +547,7 @@ static void _dpu_plane_setup_csc(struct dpu_plane *pdpu)
 	else
 		pdpu->csc_ptr = (struct dpu_csc_cfg *)&dpu_csc_YUV2RGB_601L;
 
-	DPU_DEBUG_PLANE(pdpu, "using 0x%X 0x%X 0x%X...\n",
+	DPU_DE_PLANE(pdpu, "using 0x%X 0x%X 0x%X...\n",
 			pdpu->csc_ptr->csc_mv[0],
 			pdpu->csc_ptr->csc_mv[1],
 			pdpu->csc_ptr->csc_mv[2]);
@@ -589,7 +589,7 @@ static int _dpu_plane_color_fill(struct dpu_plane *pdpu,
 	const struct drm_plane *plane = &pdpu->base;
 	struct dpu_plane_state *pstate = to_dpu_plane_state(plane->state);
 
-	DPU_DEBUG_PLANE(pdpu, "\n");
+	DPU_DE_PLANE(pdpu, "\n");
 
 	/*
 	 * select fill format to match user property expectation,
@@ -753,9 +753,9 @@ done:
 		pstate[R1]->multirect_index = DPU_SSPP_RECT_1;
 	};
 
-	DPU_DEBUG_PLANE(dpu_plane[R0], "R0: %d - %d\n",
+	DPU_DE_PLANE(dpu_plane[R0], "R0: %d - %d\n",
 		pstate[R0]->multirect_mode, pstate[R0]->multirect_index);
-	DPU_DEBUG_PLANE(dpu_plane[R1], "R1: %d - %d\n",
+	DPU_DE_PLANE(dpu_plane[R1], "R1: %d - %d\n",
 		pstate[R1]->multirect_mode, pstate[R1]->multirect_index);
 	return 0;
 }
@@ -788,7 +788,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	if (!new_state->fb)
 		return 0;
 
-	DPU_DEBUG_PLANE(pdpu, "FB[%u]\n", fb->base.id);
+	DPU_DE_PLANE(pdpu, "FB[%u]\n", fb->base.id);
 
 	/* cache aspace */
 	pstate->aspace = kms->base.aspace;
@@ -835,7 +835,7 @@ static void dpu_plane_cleanup_fb(struct drm_plane *plane,
 
 	old_pstate = to_dpu_plane_state(old_state);
 
-	DPU_DEBUG_PLANE(pdpu, "FB[%u]\n", old_state->fb->base.id);
+	DPU_DE_PLANE(pdpu, "FB[%u]\n", old_state->fb->base.id);
 
 	msm_framebuffer_cleanup(old_state->fb, old_pstate->aspace);
 }
@@ -1005,7 +1005,7 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 	pdpu->is_rt_pipe = (dpu_crtc_get_client_type(crtc) != NRT_CLIENT);
 	_dpu_plane_set_qos_ctrl(plane, false, DPU_PLANE_QOS_PANIC_CTRL);
 
-	DPU_DEBUG_PLANE(pdpu, "FB[%u] " DRM_RECT_FP_FMT "->crtc%u " DRM_RECT_FMT
+	DPU_DE_PLANE(pdpu, "FB[%u] " DRM_RECT_FP_FMT "->crtc%u " DRM_RECT_FMT
 			", %4.4s ubwc %d\n", fb->base.id, DRM_RECT_FP_ARG(&state->src),
 			crtc->base.id, DRM_RECT_ARG(&state->dst),
 			(char *)&fmt->base.pixel_format, DPU_FORMAT_IS_UBWC(fmt));
@@ -1123,7 +1123,7 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 
 	pdpu->is_error = false;
 
-	DPU_DEBUG_PLANE(pdpu, "\n");
+	DPU_DE_PLANE(pdpu, "\n");
 
 	if (!state->visible) {
 		_dpu_plane_atomic_disable(plane);
@@ -1143,7 +1143,7 @@ void dpu_plane_restore(struct drm_plane *plane)
 
 	pdpu = to_dpu_plane(plane);
 
-	DPU_DEBUG_PLANE(pdpu, "\n");
+	DPU_DE_PLANE(pdpu, "\n");
 
 	/* last plane state is same as current state */
 	dpu_plane_atomic_update(plane, plane->state);
@@ -1153,7 +1153,7 @@ static void dpu_plane_destroy(struct drm_plane *plane)
 {
 	struct dpu_plane *pdpu = plane ? to_dpu_plane(plane) : NULL;
 
-	DPU_DEBUG_PLANE(pdpu, "\n");
+	DPU_DE_PLANE(pdpu, "\n");
 
 	if (pdpu) {
 		_dpu_plane_set_qos_ctrl(plane, false, DPU_PLANE_QOS_PANIC_CTRL);
@@ -1199,7 +1199,7 @@ dpu_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 	}
 
-	DPU_DEBUG_PLANE(pdpu, "\n");
+	DPU_DE_PLANE(pdpu, "\n");
 
 	pstate->pending = false;
 
@@ -1219,7 +1219,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 	}
 
 	pdpu = to_dpu_plane(plane);
-	DPU_DEBUG_PLANE(pdpu, "\n");
+	DPU_DE_PLANE(pdpu, "\n");
 
 	/* remove previous state, if present */
 	if (plane->state) {
@@ -1238,7 +1238,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 	plane->state = &pstate->base;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
@@ -1271,10 +1271,10 @@ static void _dpu_plane_set_danger_state(struct dpu_kms *kms, bool enable)
 	drm_for_each_plane(plane, kms->dev) {
 		if (plane->fb && plane->state) {
 			dpu_plane_danger_signal_ctrl(plane, enable);
-			DPU_DEBUG("plane:%d img:%dx%d ",
+			DPU_DE("plane:%d img:%dx%d ",
 				plane->base.id, plane->fb->width,
 				plane->fb->height);
-			DPU_DEBUG("src[%d,%d,%d,%d] dst[%d,%d,%d,%d]\n",
+			DPU_DE("src[%d,%d,%d,%d] dst[%d,%d,%d,%d]\n",
 				plane->state->src_x >> 16,
 				plane->state->src_y >> 16,
 				plane->state->src_w >> 16,
@@ -1282,7 +1282,7 @@ static void _dpu_plane_set_danger_state(struct dpu_kms *kms, bool enable)
 				plane->state->crtc_x, plane->state->crtc_y,
 				plane->state->crtc_w, plane->state->crtc_h);
 		} else {
-			DPU_DEBUG("Inactive plane:%d\n", plane->base.id);
+			DPU_DE("Inactive plane:%d\n", plane->base.id);
 		}
 	}
 }
@@ -1300,12 +1300,12 @@ static ssize_t _dpu_plane_danger_write(struct file *file,
 
 	if (disable_panic) {
 		/* Disable panic signal for all active pipes */
-		DPU_DEBUG("Disabling danger:\n");
+		DPU_DE("Disabling danger:\n");
 		_dpu_plane_set_danger_state(kms, false);
 		kms->has_danger_ctrl = false;
 	} else {
 		/* Enable panic signal for all active pipes */
-		DPU_DEBUG("Enabling danger:\n");
+		DPU_DE("Enabling danger:\n");
 		kms->has_danger_ctrl = true;
 		_dpu_plane_set_danger_state(kms, true);
 	}
@@ -1319,7 +1319,7 @@ static const struct file_operations dpu_plane_danger_enable = {
 	.write = _dpu_plane_danger_write,
 };
 
-static int _dpu_plane_init_debugfs(struct drm_plane *plane)
+static int _dpu_plane_init_defs(struct drm_plane *plane)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_kms *kms = _dpu_plane_get_kms(plane);
@@ -1327,76 +1327,76 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 	const struct dpu_sspp_sub_blks *sblk = cfg->sblk;
 
 	/* create overall sub-directory for the pipe */
-	pdpu->debugfs_root =
-		debugfs_create_dir(pdpu->pipe_name,
-				plane->dev->primary->debugfs_root);
+	pdpu->defs_root =
+		defs_create_dir(pdpu->pipe_name,
+				plane->dev->primary->defs_root);
 
-	if (!pdpu->debugfs_root)
+	if (!pdpu->defs_root)
 		return -ENOMEM;
 
 	/* don't error check these */
-	debugfs_create_x32("features", 0600,
-			pdpu->debugfs_root, &pdpu->features);
+	defs_create_x32("features", 0600,
+			pdpu->defs_root, &pdpu->features);
 
 	/* add register dump support */
-	dpu_debugfs_setup_regset32(&pdpu->debugfs_src,
+	dpu_defs_setup_regset32(&pdpu->defs_src,
 			sblk->src_blk.base + cfg->base,
 			sblk->src_blk.len,
 			kms);
-	dpu_debugfs_create_regset32("src_blk", 0400,
-			pdpu->debugfs_root, &pdpu->debugfs_src);
+	dpu_defs_create_regset32("src_blk", 0400,
+			pdpu->defs_root, &pdpu->defs_src);
 
 	if (cfg->features & BIT(DPU_SSPP_SCALER_QSEED3) ||
 			cfg->features & BIT(DPU_SSPP_SCALER_QSEED2)) {
-		dpu_debugfs_setup_regset32(&pdpu->debugfs_scaler,
+		dpu_defs_setup_regset32(&pdpu->defs_scaler,
 				sblk->scaler_blk.base + cfg->base,
 				sblk->scaler_blk.len,
 				kms);
-		dpu_debugfs_create_regset32("scaler_blk", 0400,
-				pdpu->debugfs_root,
-				&pdpu->debugfs_scaler);
-		debugfs_create_bool("default_scaling",
+		dpu_defs_create_regset32("scaler_blk", 0400,
+				pdpu->defs_root,
+				&pdpu->defs_scaler);
+		defs_create_bool("default_scaling",
 				0600,
-				pdpu->debugfs_root,
-				&pdpu->debugfs_default_scale);
+				pdpu->defs_root,
+				&pdpu->defs_default_scale);
 	}
 
 	if (cfg->features & BIT(DPU_SSPP_CSC) ||
 			cfg->features & BIT(DPU_SSPP_CSC_10BIT)) {
-		dpu_debugfs_setup_regset32(&pdpu->debugfs_csc,
+		dpu_defs_setup_regset32(&pdpu->defs_csc,
 				sblk->csc_blk.base + cfg->base,
 				sblk->csc_blk.len,
 				kms);
-		dpu_debugfs_create_regset32("csc_blk", 0400,
-				pdpu->debugfs_root, &pdpu->debugfs_csc);
+		dpu_defs_create_regset32("csc_blk", 0400,
+				pdpu->defs_root, &pdpu->defs_csc);
 	}
 
-	debugfs_create_u32("xin_id",
+	defs_create_u32("xin_id",
 			0400,
-			pdpu->debugfs_root,
+			pdpu->defs_root,
 			(u32 *) &cfg->xin_id);
-	debugfs_create_u32("clk_ctrl",
+	defs_create_u32("clk_ctrl",
 			0400,
-			pdpu->debugfs_root,
+			pdpu->defs_root,
 			(u32 *) &cfg->clk_ctrl);
-	debugfs_create_x32("creq_vblank",
+	defs_create_x32("creq_vblank",
 			0600,
-			pdpu->debugfs_root,
+			pdpu->defs_root,
 			(u32 *) &sblk->creq_vblank);
-	debugfs_create_x32("danger_vblank",
+	defs_create_x32("danger_vblank",
 			0600,
-			pdpu->debugfs_root,
+			pdpu->defs_root,
 			(u32 *) &sblk->danger_vblank);
 
-	debugfs_create_file("disable_danger",
+	defs_create_file("disable_danger",
 			0600,
-			pdpu->debugfs_root,
+			pdpu->defs_root,
 			kms, &dpu_plane_danger_enable);
 
 	return 0;
 }
 #else
-static int _dpu_plane_init_debugfs(struct drm_plane *plane)
+static int _dpu_plane_init_defs(struct drm_plane *plane)
 {
 	return 0;
 }
@@ -1404,14 +1404,14 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 
 static int dpu_plane_late_register(struct drm_plane *plane)
 {
-	return _dpu_plane_init_debugfs(plane);
+	return _dpu_plane_init_defs(plane);
 }
 
 static void dpu_plane_early_unregister(struct drm_plane *plane)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 
-	debugfs_remove_recursive(pdpu->debugfs_root);
+	defs_remove_recursive(pdpu->defs_root);
 }
 
 static bool dpu_plane_format_mod_supported(struct drm_plane *plane,
@@ -1550,7 +1550,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 
 	mutex_init(&pdpu->lock);
 
-	DPU_DEBUG("%s created for pipe:%u id:%u virtual:%u\n", pdpu->pipe_name,
+	DPU_DE("%s created for pipe:%u id:%u virtual:%u\n", pdpu->pipe_name,
 					pipe, plane->base.id, master_plane_id);
 	return plane;
 

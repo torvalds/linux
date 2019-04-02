@@ -216,7 +216,7 @@ static int __clkgen_pll_enable(struct clk_hw *hw)
 		if (pll->data->switch2pll_en)
 			CLKGEN_WRITE(pll, switch2pll, 0);
 
-		pr_debug("%s:%s enabled\n", __clk_get_name(hw->clk), __func__);
+		pr_de("%s:%s enabled\n", __clk_get_name(hw->clk), __func__);
 	}
 
 	return ret;
@@ -251,7 +251,7 @@ static void __clkgen_pll_disable(struct clk_hw *hw)
 
 	CLKGEN_WRITE(pll, pdn_ctrl, 1);
 
-	pr_debug("%s:%s disabled\n", __clk_get_name(hw->clk), __func__);
+	pr_de("%s:%s disabled\n", __clk_get_name(hw->clk), __func__);
 }
 
 static void clkgen_pll_disable(struct clk_hw *hw)
@@ -346,7 +346,7 @@ static unsigned long recalc_stm_pll3200c32(struct clk_hw *hw,
 		/* Note: input is divided to avoid overflow */
 		rate = ((2 * (parent_rate/1000) * ndiv) / idf) * 1000;
 
-	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
+	pr_de("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
 
 	return rate;
 }
@@ -359,12 +359,12 @@ static long round_rate_stm_pll3200c32(struct clk_hw *hw, unsigned long rate,
 	if (!clk_pll3200c32_get_params(*prate, rate, &params))
 		clk_pll3200c32_get_rate(*prate, &params, &rate);
 	else {
-		pr_debug("%s: %s rate %ld Invalid\n", __func__,
+		pr_de("%s: %s rate %ld Invalid\n", __func__,
 			 __clk_get_name(hw->clk), rate);
 		return 0;
 	}
 
-	pr_debug("%s: %s new rate %ld [ndiv=%u] [idf=%u]\n",
+	pr_de("%s: %s new rate %ld [ndiv=%u] [idf=%u]\n",
 		 __func__, __clk_get_name(hw->clk),
 		 rate, (unsigned int)params.ndiv,
 		 (unsigned int)params.idf);
@@ -386,7 +386,7 @@ static int set_rate_stm_pll3200c32(struct clk_hw *hw, unsigned long rate,
 	if (!clk_pll3200c32_get_params(parent_rate, rate, &params))
 		clk_pll3200c32_get_rate(parent_rate, &params, &hwrate);
 
-	pr_debug("%s: %s new rate %ld [ndiv=0x%x] [idf=0x%x]\n",
+	pr_de("%s: %s new rate %ld [ndiv=0x%x] [idf=0x%x]\n",
 		 __func__, __clk_get_name(hw->clk),
 		 hwrate, (unsigned int)params.ndiv,
 		 (unsigned int)params.idf);
@@ -500,7 +500,7 @@ static unsigned long recalc_stm_pll4600c28(struct clk_hw *hw,
 
 	clk_pll4600c28_get_rate(parent_rate, &params, &rate);
 
-	pr_debug("%s:%s rate %lu\n", __clk_get_name(hw->clk), __func__, rate);
+	pr_de("%s:%s rate %lu\n", __clk_get_name(hw->clk), __func__, rate);
 
 	return rate;
 }
@@ -513,12 +513,12 @@ static long round_rate_stm_pll4600c28(struct clk_hw *hw, unsigned long rate,
 	if (!clk_pll4600c28_get_params(*prate, rate, &params)) {
 		clk_pll4600c28_get_rate(*prate, &params, &rate);
 	} else {
-		pr_debug("%s: %s rate %ld Invalid\n", __func__,
+		pr_de("%s: %s rate %ld Invalid\n", __func__,
 			 __clk_get_name(hw->clk), rate);
 		return 0;
 	}
 
-	pr_debug("%s: %s new rate %ld [ndiv=%u] [idf=%u]\n",
+	pr_de("%s: %s new rate %ld [ndiv=%u] [idf=%u]\n",
 		 __func__, __clk_get_name(hw->clk),
 		 rate, (unsigned int)params.ndiv,
 		 (unsigned int)params.idf);
@@ -540,12 +540,12 @@ static int set_rate_stm_pll4600c28(struct clk_hw *hw, unsigned long rate,
 	if (!clk_pll4600c28_get_params(parent_rate, rate, &params)) {
 		clk_pll4600c28_get_rate(parent_rate, &params, &hwrate);
 	} else {
-		pr_debug("%s: %s rate %ld Invalid\n", __func__,
+		pr_de("%s: %s rate %ld Invalid\n", __func__,
 			 __clk_get_name(hw->clk), rate);
 		return -EINVAL;
 	}
 
-	pr_debug("%s: %s new rate %ld [ndiv=0x%x] [idf=0x%x]\n",
+	pr_de("%s: %s new rate %ld [ndiv=0x%x] [idf=0x%x]\n",
 		 __func__, __clk_get_name(hw->clk),
 		 hwrate, (unsigned int)params.ndiv,
 		 (unsigned int)params.idf);
@@ -628,7 +628,7 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 		return clk;
 	}
 
-	pr_debug("%s: parent %s rate %lu\n",
+	pr_de("%s: parent %s rate %lu\n",
 			__clk_get_name(clk),
 			__clk_get_name(clk_get_parent(clk)),
 			clk_get_rate(clk));
@@ -695,7 +695,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	if (IS_ERR(clk))
 		return clk;
 
-	pr_debug("%s: parent %s rate %lu\n",
+	pr_de("%s: parent %s rate %lu\n",
 			__clk_get_name(clk),
 			__clk_get_name(clk_get_parent(clk)),
 			clk_get_rate(clk));

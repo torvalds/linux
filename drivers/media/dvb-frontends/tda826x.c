@@ -27,10 +27,10 @@
 
 #include "tda826x.h"
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "tda826x: " args); \
+		if (de) printk(KERN_DE "tda826x: " args); \
 	} while (0)
 
 struct tda826x_priv {
@@ -179,8 +179,8 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 }
 EXPORT_SYMBOL(tda826x_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("DVB TDA826x driver");
 MODULE_AUTHOR("Andrew de Quincey");

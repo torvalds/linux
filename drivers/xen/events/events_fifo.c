@@ -246,7 +246,7 @@ static void evtchn_fifo_unmask(unsigned port)
 {
 	event_word_t *word = event_word_from_port(port);
 
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	clear_masked(word);
 	if (evtchn_fifo_is_pending(port)) {
@@ -369,7 +369,7 @@ static void evtchn_fifo_resume(void)
 		}
 
 		ret = init_control_block(cpu, control_block);
-		BUG_ON(ret < 0);
+		_ON(ret < 0);
 	}
 
 	/*

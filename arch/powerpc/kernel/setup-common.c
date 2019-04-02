@@ -10,7 +10,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/export.h>
 #include <linux/string.h>
@@ -35,7 +35,7 @@
 #include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/io.h>
 #include <asm/paca.h>
 #include <asm/prom.h>
@@ -70,7 +70,7 @@
 
 #include "setup.h"
 
-#ifdef DEBUG
+#ifdef DE
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
@@ -420,14 +420,14 @@ static void __init cpu_init_thread_core_maps(int tpc)
 	 * for simplicity and performance
 	 */
 	threads_shift = ilog2(tpc);
-	BUG_ON(tpc != (1 << threads_shift));
+	_ON(tpc != (1 << threads_shift));
 
 	for (i = 0; i < tpc; i++)
 		cpumask_set_cpu(i, &threads_core_mask);
 
 	printk(KERN_INFO "CPU maps initialized for %d thread%s per core\n",
 	       tpc, tpc > 1 ? "s" : "");
-	printk(KERN_DEBUG " (thread shift is %d)\n", threads_shift);
+	printk(KERN_DE " (thread shift is %d)\n", threads_shift);
 }
 
 
@@ -614,7 +614,7 @@ void probe_machine(void)
 	DBG("Probing machine type ...\n");
 
 	/*
-	 * Check ppc_md is empty, if not we have a bug, ie, we setup an
+	 * Check ppc_md is empty, if not we have a , ie, we setup an
 	 * entry before probe_machine() which will be overwritten
 	 */
 	for (i = 0; i < (sizeof(ppc_md) / sizeof(void *)); i++) {
@@ -737,7 +737,7 @@ void __init setup_panic(void)
  * checks that the cache coherency setting of the kernel matches the setting
  * left by the firmware, as indicated in the device tree.  Since a mismatch
  * will eventually result in DMA failures, we print * and error and call
- * BUG() in that case.
+ * () in that case.
  */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
@@ -763,7 +763,7 @@ static int __init check_cache_coherency(void)
 			"kernel coherency:%s != device tree_coherency:%s\n",
 			KERNEL_COHERENCY ? "on" : "off",
 			devtree_coherency ? "on" : "off");
-		BUG();
+		();
 	}
 
 	return 0;
@@ -772,17 +772,17 @@ static int __init check_cache_coherency(void)
 late_initcall(check_cache_coherency);
 #endif /* CONFIG_CHECK_CACHE_COHERENCY */
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *powerpc_debugfs_root;
-EXPORT_SYMBOL(powerpc_debugfs_root);
+#ifdef CONFIG_DE_FS
+struct dentry *powerpc_defs_root;
+EXPORT_SYMBOL(powerpc_defs_root);
 
-static int powerpc_debugfs_init(void)
+static int powerpc_defs_init(void)
 {
-	powerpc_debugfs_root = debugfs_create_dir("powerpc", NULL);
+	powerpc_defs_root = defs_create_dir("powerpc", NULL);
 
-	return powerpc_debugfs_root == NULL;
+	return powerpc_defs_root == NULL;
 }
-arch_initcall(powerpc_debugfs_init);
+arch_initcall(powerpc_defs_init);
 #endif
 
 void ppc_printk_progress(char *s, unsigned short hex)

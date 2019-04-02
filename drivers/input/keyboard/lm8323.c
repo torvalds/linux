@@ -569,7 +569,7 @@ static int init_pwm(struct lm8323_chip *lm, int id, struct device *dev,
 {
 	struct lm8323_pwm *pwm;
 
-	BUG_ON(id > 3);
+	_ON(id > 3);
 
 	pwm = &lm->pwm[id - 1];
 

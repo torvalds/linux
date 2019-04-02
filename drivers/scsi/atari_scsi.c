@@ -6,7 +6,7 @@
  *   Loosely based on the work of Robert De Vries' team and added:
  *    - working real DMA
  *    - Falcon support (untested yet!)   ++bjoern fixed and now it works
- *    - lots of extensions and bug fixes.
+ *    - lots of extensions and  fixes.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -186,7 +186,7 @@ static irqreturn_t scsi_tt_intr(int irq, void *dev)
 
 	dma_stat = tt_scsi_dma.dma_ctrl;
 
-	dsprintk(NDEBUG_INTR, instance, "NCR5380 interrupt, DMA status = %02x\n",
+	dsprintk(NDE_INTR, instance, "NCR5380 interrupt, DMA status = %02x\n",
 	         dma_stat & 0xff);
 
 	/* Look if it was the DMA that has interrupted: First possibility
@@ -213,7 +213,7 @@ static irqreturn_t scsi_tt_intr(int irq, void *dev)
 		atari_dma_residual = hostdata->dma_len -
 			(SCSI_DMA_READ_P(dma_addr) - atari_dma_startaddr);
 
-		dprintk(NDEBUG_DMA, "SCSI DMA: There are %ld residual bytes.\n",
+		dprintk(NDE_DMA, "SCSI DMA: There are %ld residual bytes.\n",
 			   atari_dma_residual);
 
 		if ((signed int)atari_dma_residual < 0)
@@ -226,7 +226,7 @@ static irqreturn_t scsi_tt_intr(int irq, void *dev)
 			atari_scsi_fetch_restbytes();
 		} else {
 			/*
-			 * There seems to be a nasty bug in some SCSI-DMA/NCR
+			 * There seems to be a nasty  in some SCSI-DMA/NCR
 			 * combinations: If a target disconnects while a write
 			 * operation is going on, the address register of the
 			 * DMA may be a few bytes farer than it actually read.
@@ -244,7 +244,7 @@ static irqreturn_t scsi_tt_intr(int irq, void *dev)
 			 * other command.  These shouldn't disconnect anyway.
 			 */
 			if (atari_dma_residual & 0x1ff) {
-				dprintk(NDEBUG_DMA, "SCSI DMA: DMA bug corrected, "
+				dprintk(NDE_DMA, "SCSI DMA: DMA  corrected, "
 					   "difference %ld bytes\n",
 					   512 - (atari_dma_residual & 0x1ff));
 				atari_dma_residual = (atari_dma_residual + 511) & ~0x1ff;
@@ -306,7 +306,7 @@ static irqreturn_t scsi_falcon_intr(int irq, void *dev)
 			       "ST-DMA fifo\n", transferred & 15);
 
 		atari_dma_residual = hostdata->dma_len - transferred;
-		dprintk(NDEBUG_DMA, "SCSI DMA: There are %ld residual bytes.\n",
+		dprintk(NDE_DMA, "SCSI DMA: There are %ld residual bytes.\n",
 			   atari_dma_residual);
 	} else
 		atari_dma_residual = 0;
@@ -340,11 +340,11 @@ static void atari_scsi_fetch_restbytes(void)
 		/* there are 'nr' bytes left for the last long address
 		   before the DMA pointer */
 		phys_dst ^= nr;
-		dprintk(NDEBUG_DMA, "SCSI DMA: there are %d rest bytes for phys addr 0x%08lx",
+		dprintk(NDE_DMA, "SCSI DMA: there are %d rest bytes for phys addr 0x%08lx",
 			   nr, phys_dst);
 		/* The content of the DMA pointer is a physical address!  */
 		dst = phys_to_virt(phys_dst);
-		dprintk(NDEBUG_DMA, " = virt addr %p\n", dst);
+		dprintk(NDE_DMA, " = virt addr %p\n", dst);
 		for (src = (char *)&tt_scsi_dma.dma_restdata; nr != 0; --nr)
 			*dst++ = *src++;
 	}
@@ -428,7 +428,7 @@ static unsigned long atari_scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 {
 	unsigned long addr = virt_to_phys(data);
 
-	dprintk(NDEBUG_DMA, "scsi%d: setting up dma, data = %p, phys = %lx, count = %ld, dir = %d\n",
+	dprintk(NDE_DMA, "scsi%d: setting up dma, data = %p, phys = %lx, count = %ld, dir = %d\n",
 	        hostdata->host->host_no, data, addr, count, dir);
 
 	if (!IS_A_TT() && !STRAM_ADDR(addr)) {
@@ -620,7 +620,7 @@ static int atari_scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 		possible_len = limit;
 
 	if (possible_len != wanted_len)
-		dprintk(NDEBUG_DMA, "DMA transfer now %d bytes instead of %d\n",
+		dprintk(NDE_DMA, "DMA transfer now %d bytes instead of %d\n",
 		        possible_len, wanted_len);
 
 	return possible_len;
@@ -827,7 +827,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		 * PIO, but there is another problem on the Medusa with the DMA
 		 * rest data register. So read_overruns is currently set
 		 * to 4 to avoid having transfers that aren't a multiple of 4.
-		 * If the rest data bug is fixed, this can be lowered to 1.
+		 * If the rest data  is fixed, this can be lowered to 1.
 		 */
 		if (MACH_IS_MEDUSA) {
 			struct NCR5380_hostdata *hostdata =

@@ -74,7 +74,7 @@ parisc|mips|powerpc)
 	installed_image_path="boot/vmlinuz-$version"
 esac
 
-BUILD_DEBUG=$(if_enabled_echo CONFIG_DEBUG_INFO Yes)
+BUILD_DE=$(if_enabled_echo CONFIG_DE_INFO Yes)
 
 # Setup the directory structure
 rm -rf "$tmpdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" $objtree/debian/files
@@ -110,16 +110,16 @@ if is_enabled CONFIG_MODULES; then
 		mv "$tmpdir/lib/modules/$version"/* "$tmpdir/usr/lib/uml/modules/$version/"
 		rmdir "$tmpdir/lib/modules/$version"
 	fi
-	if [ -n "$BUILD_DEBUG" ] ; then
+	if [ -n "$BUILD_DE" ] ; then
 		for module in $(find $tmpdir/lib/modules/ -name *.ko -printf '%P\n'); do
 			module=lib/modules/$module
-			mkdir -p $(dirname $dbg_dir/usr/lib/debug/$module)
-			# only keep debug symbols in the debug file
-			$OBJCOPY --only-keep-debug $tmpdir/$module $dbg_dir/usr/lib/debug/$module
-			# strip original module from debug symbols
-			$OBJCOPY --strip-debug $tmpdir/$module
+			mkdir -p $(dirname $dbg_dir/usr/lib/de/$module)
+			# only keep de symbols in the de file
+			$OBJCOPY --only-keep-de $tmpdir/$module $dbg_dir/usr/lib/de/$module
+			# strip original module from de symbols
+			$OBJCOPY --strip-de $tmpdir/$module
 			# then add a link to those
-			$OBJCOPY --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $tmpdir/$module
+			$OBJCOPY --add-gnu-delink=$dbg_dir/usr/lib/de/$module $tmpdir/$module
 		done
 
 		# resign stripped modules
@@ -186,17 +186,17 @@ fi
 
 create_package "$packagename" "$tmpdir"
 
-if [ -n "$BUILD_DEBUG" ] ; then
-	# Build debug package
+if [ -n "$BUILD_DE" ] ; then
+	# Build de package
 	# Different tools want the image in different locations
 	# perf
-	mkdir -p $dbg_dir/usr/lib/debug/lib/modules/$version/
-	cp vmlinux $dbg_dir/usr/lib/debug/lib/modules/$version/
+	mkdir -p $dbg_dir/usr/lib/de/lib/modules/$version/
+	cp vmlinux $dbg_dir/usr/lib/de/lib/modules/$version/
 	# systemtap
-	mkdir -p $dbg_dir/usr/lib/debug/boot/
-	ln -s ../lib/modules/$version/vmlinux $dbg_dir/usr/lib/debug/boot/vmlinux-$version
+	mkdir -p $dbg_dir/usr/lib/de/boot/
+	ln -s ../lib/modules/$version/vmlinux $dbg_dir/usr/lib/de/boot/vmlinux-$version
 	# kdump-tools
-	ln -s lib/modules/$version/vmlinux $dbg_dir/usr/lib/debug/vmlinux-$version
+	ln -s lib/modules/$version/vmlinux $dbg_dir/usr/lib/de/vmlinux-$version
 	create_package "$dbg_packagename" "$dbg_dir"
 fi
 

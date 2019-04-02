@@ -198,7 +198,7 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 */
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_HDMI_ID,
 				    hdmi_id, sizeof(hdmi_id));
-	DRM_DEBUG_KMS("DP dual mode HDMI ID: %*pE (err %zd)\n",
+	DRM_DE_KMS("DP dual mode HDMI ID: %*pE (err %zd)\n",
 		      ret ? 0 : (int)sizeof(hdmi_id), hdmi_id, ret);
 	if (ret)
 		return DRM_DP_DUAL_MODE_UNKNOWN;
@@ -217,7 +217,7 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 */
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_ADAPTOR_ID,
 				    &adaptor_id, sizeof(adaptor_id));
-	DRM_DEBUG_KMS("DP dual mode adaptor ID: %02x (err %zd)\n",
+	DRM_DE_KMS("DP dual mode adaptor ID: %02x (err %zd)\n",
 		      adaptor_id, ret);
 	if (ret == 0) {
 		if (is_lspcon_adaptor(hdmi_id, adaptor_id))
@@ -281,7 +281,7 @@ int drm_dp_dual_mode_max_tmds_clock(enum drm_dp_dual_mode_type type,
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_MAX_TMDS_CLOCK,
 				    &max_tmds_clock, sizeof(max_tmds_clock));
 	if (ret || max_tmds_clock == 0x00 || max_tmds_clock == 0xff) {
-		DRM_DEBUG_KMS("Failed to query max TMDS clock\n");
+		DRM_DE_KMS("Failed to query max TMDS clock\n");
 		return 165000;
 	}
 
@@ -320,7 +320,7 @@ int drm_dp_dual_mode_get_tmds_output(enum drm_dp_dual_mode_type type,
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_TMDS_OEN,
 				    &tmds_oen, sizeof(tmds_oen));
 	if (ret) {
-		DRM_DEBUG_KMS("Failed to query state of TMDS output buffers\n");
+		DRM_DE_KMS("Failed to query state of TMDS output buffers\n");
 		return ret;
 	}
 
@@ -365,7 +365,7 @@ int drm_dp_dual_mode_set_tmds_output(enum drm_dp_dual_mode_type type,
 		ret = drm_dp_dual_mode_write(adapter, DP_DUAL_MODE_TMDS_OEN,
 					     &tmds_oen, sizeof(tmds_oen));
 		if (ret) {
-			DRM_DEBUG_KMS("Failed to %s TMDS output buffers (%d attempts)\n",
+			DRM_DE_KMS("Failed to %s TMDS output buffers (%d attempts)\n",
 				      enable ? "enable" : "disable",
 				      retry + 1);
 			return ret;
@@ -374,7 +374,7 @@ int drm_dp_dual_mode_set_tmds_output(enum drm_dp_dual_mode_type type,
 		ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_TMDS_OEN,
 					    &tmp, sizeof(tmp));
 		if (ret) {
-			DRM_DEBUG_KMS("I2C read failed during TMDS output buffer %s (%d attempts)\n",
+			DRM_DE_KMS("I2C read failed during TMDS output buffer %s (%d attempts)\n",
 				      enable ? "enabling" : "disabling",
 				      retry + 1);
 			return ret;
@@ -384,7 +384,7 @@ int drm_dp_dual_mode_set_tmds_output(enum drm_dp_dual_mode_type type,
 			return 0;
 	}
 
-	DRM_DEBUG_KMS("I2C write value mismatch during TMDS output buffer %s\n",
+	DRM_DE_KMS("I2C write value mismatch during TMDS output buffer %s\n",
 		      enable ? "enabling" : "disabling");
 
 	return -EIO;
@@ -455,7 +455,7 @@ int drm_lspcon_get_mode(struct i2c_adapter *adapter,
 	}
 
 	if (ret < 0) {
-		DRM_DEBUG_KMS("LSPCON read(0x80, 0x41) failed\n");
+		DRM_DE_KMS("LSPCON read(0x80, 0x41) failed\n");
 		return -EFAULT;
 	}
 
@@ -510,7 +510,7 @@ int drm_lspcon_set_mode(struct i2c_adapter *adapter,
 				msleep(10);
 				time_out -= 10;
 			} else {
-				DRM_DEBUG_KMS("LSPCON mode changed to %s\n",
+				DRM_DE_KMS("LSPCON mode changed to %s\n",
 						mode == DRM_LSPCON_MODE_LS ?
 						"LS" : "PCON");
 				return 0;

@@ -292,7 +292,7 @@ set_page_writeback() and end_page_writeback().
 Note, failure to run either redirty_page_for_writepage() or the combination of
 set_page_writeback()/end_page_writeback() on a page submitted to writepage
 will leave the page itself marked clean but it will be tagged as dirty in the
-radix tree.  This incoherency can lead to all sorts of hard-to-debug problems
+radix tree.  This incoherency can lead to all sorts of hard-to-de problems
 in the filesystem like having dirty inodes at umount and losing written data.
 
 	->writepages() is used for periodic writeback and for syscall-initiated
@@ -577,7 +577,7 @@ after this call is to make the pte read-write, unless pfn_mkwrite returns
 an error.
 
 	->access() is called when get_user_pages() fails in
-access_process_vm(), typically used to debug a process through
+access_process_vm(), typically used to de a process through
 /proc/pid/mem or ptrace.  This function is needed only for
 VM_IO | VM_PFNMAP VMAs.
 

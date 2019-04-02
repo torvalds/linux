@@ -150,7 +150,7 @@ static int switchdev_port_attr_set_now(struct net_device *dev,
 		return err;
 
 	/* Phase II: commit attr set.  This cannot fail as a fault
-	 * of driver/device.  If it does, it's a bug in the driver/device
+	 * of driver/device.  If it does, it's a  in the driver/device
 	 * because the driver said everythings was OK in phase I.
 	 */
 
@@ -217,7 +217,7 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 	case SWITCHDEV_OBJ_ID_HOST_MDB:
 		return sizeof(struct switchdev_obj_port_mdb);
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -271,7 +271,7 @@ static int switchdev_port_obj_add_now(struct net_device *dev,
 		return err;
 
 	/* Phase II: commit obj add.  This cannot fail as a fault
-	 * of driver/device.  If it does, it's a bug in the driver/device
+	 * of driver/device.  If it does, it's a  in the driver/device
 	 * because the driver said everythings was OK in phase I.
 	 */
 

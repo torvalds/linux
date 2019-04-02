@@ -48,7 +48,7 @@ static void xen_unregister_watchers(struct xenvif *vif);
 static void set_backend_state(struct backend_info *be,
 			      enum xenbus_state state);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 struct dentry *xen_netback_dbg_root = NULL;
 
 static int xenvif_read_io_ring(struct seq_file *m, void *v)
@@ -196,7 +196,7 @@ static int xenvif_ctrl_show(struct seq_file *m, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(xenvif_ctrl);
 
-static void xenvif_debugfs_addif(struct xenvif *vif)
+static void xenvif_defs_addif(struct xenvif *vif)
 {
 	struct dentry *pfile;
 	int i;
@@ -204,14 +204,14 @@ static void xenvif_debugfs_addif(struct xenvif *vif)
 	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
 		return;
 
-	vif->xenvif_dbg_root = debugfs_create_dir(vif->dev->name,
+	vif->xenvif_dbg_root = defs_create_dir(vif->dev->name,
 						  xen_netback_dbg_root);
 	if (!IS_ERR_OR_NULL(vif->xenvif_dbg_root)) {
 		for (i = 0; i < vif->num_queues; ++i) {
 			char filename[sizeof("io_ring_q") + 4];
 
 			snprintf(filename, sizeof(filename), "io_ring_q%d", i);
-			pfile = debugfs_create_file(filename,
+			pfile = defs_create_file(filename,
 						    0600,
 						    vif->xenvif_dbg_root,
 						    &vif->queues[i],
@@ -222,7 +222,7 @@ static void xenvif_debugfs_addif(struct xenvif *vif)
 		}
 
 		if (vif->ctrl_irq) {
-			pfile = debugfs_create_file("ctrl",
+			pfile = defs_create_file("ctrl",
 						    0400,
 						    vif->xenvif_dbg_root,
 						    vif,
@@ -233,19 +233,19 @@ static void xenvif_debugfs_addif(struct xenvif *vif)
 		}
 	} else
 		netdev_warn(vif->dev,
-			    "Creation of vif debugfs dir returned %ld!\n",
+			    "Creation of vif defs dir returned %ld!\n",
 			    PTR_ERR(vif->xenvif_dbg_root));
 }
 
-static void xenvif_debugfs_delif(struct xenvif *vif)
+static void xenvif_defs_delif(struct xenvif *vif)
 {
 	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
 		return;
 
-	debugfs_remove_recursive(vif->xenvif_dbg_root);
+	defs_remove_recursive(vif->xenvif_dbg_root);
 	vif->xenvif_dbg_root = NULL;
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int netback_remove(struct xenbus_device *dev)
 {
@@ -385,19 +385,19 @@ static int netback_probe(struct xenbus_device *dev,
 			    "feature-split-event-channels",
 			    "%u", separate_tx_rx_irq);
 	if (err)
-		pr_debug("Error writing feature-split-event-channels\n");
+		pr_de("Error writing feature-split-event-channels\n");
 
 	/* Multi-queue support: This is an optional feature. */
 	err = xenbus_printf(XBT_NIL, dev->nodename,
 			    "multi-queue-max-queues", "%u", xenvif_max_queues);
 	if (err)
-		pr_debug("Error writing multi-queue-max-queues\n");
+		pr_de("Error writing multi-queue-max-queues\n");
 
 	err = xenbus_printf(XBT_NIL, dev->nodename,
 			    "feature-ctrl-ring",
 			    "%u", true);
 	if (err)
-		pr_debug("Error writing feature-ctrl-ring\n");
+		pr_de("Error writing feature-ctrl-ring\n");
 
 	script = xenbus_read(XBT_NIL, dev->nodename, "script", NULL);
 	if (IS_ERR(script)) {
@@ -420,7 +420,7 @@ abort_transaction:
 	xenbus_transaction_end(xbt, 1);
 	xenbus_dev_fatal(dev, err, "%s", message);
 fail:
-	pr_debug("failed\n");
+	pr_de("failed\n");
 	netback_remove(dev);
 	return err;
 }
@@ -486,9 +486,9 @@ static void backend_disconnect(struct backend_info *be)
 		unsigned int queue_index;
 
 		xen_unregister_watchers(vif);
-#ifdef CONFIG_DEBUG_FS
-		xenvif_debugfs_delif(vif);
-#endif /* CONFIG_DEBUG_FS */
+#ifdef CONFIG_DE_FS
+		xenvif_defs_delif(vif);
+#endif /* CONFIG_DE_FS */
 		xenvif_disconnect_data(vif);
 
 		/* At this point some of the handlers may still be active
@@ -518,7 +518,7 @@ static inline void backend_switch_state(struct backend_info *be,
 {
 	struct xenbus_device *dev = be->dev;
 
-	pr_debug("%s -> %s\n", dev->nodename, xenbus_strstate(state));
+	pr_de("%s -> %s\n", dev->nodename, xenbus_strstate(state));
 	be->state = state;
 
 	/* If we are waiting for a hotplug script then defer the
@@ -564,7 +564,7 @@ static void set_backend_state(struct backend_info *be,
 				backend_switch_state(be, XenbusStateClosed);
 				break;
 			default:
-				BUG();
+				();
 			}
 			break;
 		case XenbusStateClosed:
@@ -577,7 +577,7 @@ static void set_backend_state(struct backend_info *be,
 				backend_switch_state(be, XenbusStateClosing);
 				break;
 			default:
-				BUG();
+				();
 			}
 			break;
 		case XenbusStateInitWait:
@@ -591,7 +591,7 @@ static void set_backend_state(struct backend_info *be,
 				backend_switch_state(be, XenbusStateClosing);
 				break;
 			default:
-				BUG();
+				();
 			}
 			break;
 		case XenbusStateConnected:
@@ -603,7 +603,7 @@ static void set_backend_state(struct backend_info *be,
 				backend_switch_state(be, XenbusStateClosing);
 				break;
 			default:
-				BUG();
+				();
 			}
 			break;
 		case XenbusStateClosing:
@@ -614,11 +614,11 @@ static void set_backend_state(struct backend_info *be,
 				backend_switch_state(be, XenbusStateClosed);
 				break;
 			default:
-				BUG();
+				();
 			}
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 }
@@ -631,7 +631,7 @@ static void frontend_changed(struct xenbus_device *dev,
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	pr_debug("%s -> %s\n", dev->otherend, xenbus_strstate(frontend_state));
+	pr_de("%s -> %s\n", dev->otherend, xenbus_strstate(frontend_state));
 
 	be->frontend_state = frontend_state;
 
@@ -939,7 +939,7 @@ static void connect(struct backend_info *be)
 	requested_num_queues = xenbus_read_unsigned(dev->otherend,
 					"multi-queue-num-queues", 1);
 	if (requested_num_queues > xenvif_max_queues) {
-		/* buggy or malicious guest */
+		/* gy or malicious guest */
 		xenbus_dev_fatal(dev, -EINVAL,
 				 "guest requested %u queues, exceeding the maximum of %u.",
 				 requested_num_queues, xenvif_max_queues);
@@ -1011,9 +1011,9 @@ static void connect(struct backend_info *be)
 		}
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	xenvif_debugfs_addif(be->vif);
-#endif /* CONFIG_DEBUG_FS */
+#ifdef CONFIG_DE_FS
+	xenvif_defs_addif(be->vif);
+#endif /* CONFIG_DE_FS */
 
 	/* Initialisation completed, tell core driver the number of
 	 * active queues.

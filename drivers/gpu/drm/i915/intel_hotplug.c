@@ -136,7 +136,7 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
  * Systems which are new enough to support DP MST are far less likely to
  * suffer from IRQ storms at all, so this is fine.
  *
- * The HPD threshold can be controlled through i915_hpd_storm_ctl in debugfs,
+ * The HPD threshold can be controlled through i915_hpd_storm_ctl in defs,
  * and should only be adjusted for automated hotplug testing.
  *
  * Return true if an IRQ storm was detected on @pin.
@@ -163,10 +163,10 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 	hpd->stats[pin].count += increment;
 	if (hpd->stats[pin].count > threshold) {
 		hpd->stats[pin].state = HPD_MARK_DISABLED;
-		DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", pin);
+		DRM_DE_KMS("HPD interrupt storm detected on PIN %d\n", pin);
 		storm = true;
 	} else {
-		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: %d\n", pin,
+		DRM_DE_KMS("Received HPD interrupt on PIN %d - cnt: %d\n", pin,
 			      hpd->stats[pin].count);
 	}
 
@@ -249,7 +249,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 			if (!intel_connector->mst_port &&
 			    intel_connector->encoder->hpd_pin == pin) {
 				if (connector->polled != intel_connector->polled)
-					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
+					DRM_DE_DRIVER("Reenabling HPD on connector %s\n",
 							 connector->name);
 				connector->polled = intel_connector->polled;
 				if (!connector->polled)
@@ -280,7 +280,7 @@ bool intel_encoder_hotplug(struct intel_encoder *encoder,
 	if (old_status == connector->base.status)
 		return false;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 		      connector->base.base.id,
 		      connector->base.name,
 		      drm_get_connector_status_name(old_status),
@@ -358,7 +358,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	u32 hpd_event_bits;
 
 	mutex_lock(&dev->mode_config.mutex);
-	DRM_DEBUG_KMS("running encoder hotplug functions\n");
+	DRM_DE_KMS("running encoder hotplug functions\n");
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
@@ -377,7 +377,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 			continue;
 		intel_encoder = intel_connector->encoder;
 		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
-			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
+			DRM_DE_KMS("Connector %s (pin %i) received hotplug event.\n",
 				      connector->name, intel_encoder->hpd_pin);
 
 			changed |= intel_encoder->hotplug(intel_encoder,
@@ -443,7 +443,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 		long_hpd = long_mask & BIT(pin);
 
-		DRM_DEBUG_DRIVER("digital hpd port %c - %s\n", port_name(port),
+		DRM_DE_DRIVER("digital hpd port %c - %s\n", port_name(port),
 				 long_hpd ? "long" : "short");
 		queue_dig = true;
 

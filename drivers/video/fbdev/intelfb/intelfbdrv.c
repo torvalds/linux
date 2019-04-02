@@ -254,13 +254,13 @@ MODULE_PARM_DESC(fixed, "Disable mode switching");
 module_param(noinit, bool, 0);
 MODULE_PARM_DESC(noinit, "Don't initialise graphics mode when loading");
 module_param(noregister, bool, 0);
-MODULE_PARM_DESC(noregister, "Don't register, just probe and exit (debug)");
+MODULE_PARM_DESC(noregister, "Don't register, just probe and exit (de)");
 module_param(probeonly, bool, 0);
-MODULE_PARM_DESC(probeonly, "Do a minimal probe (debug)");
+MODULE_PARM_DESC(probeonly, "Do a minimal probe (de)");
 module_param(idonly, bool, 0);
-MODULE_PARM_DESC(idonly, "Just identify without doing anything else (debug)");
+MODULE_PARM_DESC(idonly, "Just identify without doing anything else (de)");
 module_param(bailearly, int, 0);
-MODULE_PARM_DESC(bailearly, "Bail out early, depending on value (debug)");
+MODULE_PARM_DESC(bailearly, "Bail out early, depending on value (de)");
 module_param(mode, charp, S_IRUGO);
 MODULE_PARM_DESC(mode,
 		 "Initial video mode \"<xres>x<yres>[-<depth>][@<refresh>]\"");

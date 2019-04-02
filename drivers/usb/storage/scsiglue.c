@@ -39,12 +39,12 @@
 
 #include "usb.h"
 #include "scsiglue.h"
-#include "debug.h"
+#include "de.h"
 #include "transport.h"
 #include "protocol.h"
 
 /*
- * Vendor IDs for companies that seem to include the READ CAPACITY bug
+ * Vendor IDs for companies that seem to include the READ CAPACITY 
  * in all their devices
  */
 #define VENDOR_ID_NOKIA		0x0421
@@ -147,7 +147,7 @@ static int slave_configure(struct scsi_device *sdev)
 	if (sdev->type == TYPE_DISK) {
 
 		/*
-		 * Some vendors seem to put the READ CAPACITY bug into
+		 * Some vendors seem to put the READ CAPACITY  into
 		 * all their devices -- primarily makers of cell phones
 		 * and digital cameras.  Since these devices always use
 		 * flash media and can be expected to have an even number
@@ -264,7 +264,7 @@ static int slave_configure(struct scsi_device *sdev)
 		 * sector in a larger then 1 sector read, since the performance
 		 * impact is negligible we set this flag for all USB disks
 		 */
-		sdev->last_sector_bug = 1;
+		sdev->last_sector_ = 1;
 
 		/*
 		 * Enable last-sector hacks for single-target devices using
@@ -280,7 +280,7 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->fflags & US_FL_WRITE_CACHE)
 			sdev->wce_default_on = 1;
 
-		/* A few buggy USB-ATA bridges don't understand FUA */
+		/* A few gy USB-ATA bridges don't understand FUA */
 		if (us->fflags & US_FL_BROKEN_FUA)
 			sdev->broken_fua = 1;
 

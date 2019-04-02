@@ -19,17 +19,17 @@
  *
  */
 
-/* debugfs support for fjes driver */
+/* defs support for fjes driver */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
 
 #include "fjes.h"
 
-static struct dentry *fjes_debug_root;
+static struct dentry *fjes_de_root;
 
 static const char * const ep_status_string[] = {
 	"unshared",
@@ -69,37 +69,37 @@ void fjes_dbg_adapter_init(struct fjes_adapter *adapter)
 	const char *name = dev_name(&adapter->plat_dev->dev);
 	struct dentry *pfile;
 
-	adapter->dbg_adapter = debugfs_create_dir(name, fjes_debug_root);
+	adapter->dbg_adapter = defs_create_dir(name, fjes_de_root);
 	if (!adapter->dbg_adapter) {
 		dev_err(&adapter->plat_dev->dev,
-			"debugfs entry for %s failed\n", name);
+			"defs entry for %s failed\n", name);
 		return;
 	}
 
-	pfile = debugfs_create_file("status", 0444, adapter->dbg_adapter,
+	pfile = defs_create_file("status", 0444, adapter->dbg_adapter,
 				    adapter, &fjes_dbg_status_fops);
 	if (!pfile)
 		dev_err(&adapter->plat_dev->dev,
-			"debugfs status for %s failed\n", name);
+			"defs status for %s failed\n", name);
 }
 
 void fjes_dbg_adapter_exit(struct fjes_adapter *adapter)
 {
-	debugfs_remove_recursive(adapter->dbg_adapter);
+	defs_remove_recursive(adapter->dbg_adapter);
 	adapter->dbg_adapter = NULL;
 }
 
 void fjes_dbg_init(void)
 {
-	fjes_debug_root = debugfs_create_dir(fjes_driver_name, NULL);
-	if (!fjes_debug_root)
-		pr_info("init of debugfs failed\n");
+	fjes_de_root = defs_create_dir(fjes_driver_name, NULL);
+	if (!fjes_de_root)
+		pr_info("init of defs failed\n");
 }
 
 void fjes_dbg_exit(void)
 {
-	debugfs_remove_recursive(fjes_debug_root);
-	fjes_debug_root = NULL;
+	defs_remove_recursive(fjes_de_root);
+	fjes_de_root = NULL;
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

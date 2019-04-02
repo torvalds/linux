@@ -170,13 +170,13 @@ static int smc_llc_add_pending_send(struct smc_link *link,
 				     pend);
 	if (rc < 0)
 		return rc;
-	BUILD_BUG_ON_MSG(
+	BUILD__ON_MSG(
 		sizeof(union smc_llc_msg) > SMC_WR_BUF_SIZE,
 		"must increase SMC_WR_BUF_SIZE to at least sizeof(struct smc_llc_msg)");
-	BUILD_BUG_ON_MSG(
+	BUILD__ON_MSG(
 		sizeof(union smc_llc_msg) != SMC_WR_TX_SIZE,
 		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_llc_msg); if not all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
-	BUILD_BUG_ON_MSG(
+	BUILD__ON_MSG(
 		sizeof(struct smc_llc_tx_pend) > SMC_WR_TX_PEND_PRIV_SIZE,
 		"must increase SMC_WR_TX_PEND_PRIV_SIZE to at least sizeof(struct smc_llc_tx_pend)");
 	return 0;

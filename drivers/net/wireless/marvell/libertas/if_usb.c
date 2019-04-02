@@ -25,8 +25,8 @@
 #include "cmd.h"
 #include "if_usb.h"
 
-#define INSANEDEBUG	0
-#define lbs_deb_usb2(...) do { if (INSANEDEBUG) lbs_deb_usbd(__VA_ARGS__); } while (0)
+#define INSANEDE	0
+#define lbs_deb_usb2(...) do { if (INSANEDE) lbs_deb_usbd(__VA_ARGS__); } while (0)
 
 #define MESSAGE_HEADER_LEN	4
 
@@ -99,7 +99,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		if (priv && priv->dnld_sent != DNLD_BOOTCMD_SENT)
 			lbs_host_to_card_done(priv);
 	} else {
-		/* print the failure status number for debug */
+		/* print the failure status number for de */
 		pr_info("URB in failure status: %d\n", urb->status);
 	}
 }
@@ -628,7 +628,7 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	i = (priv->resp_idx == 0) ? 1 : 0;
-	BUG_ON(priv->resp_len[i]);
+	_ON(priv->resp_len[i]);
 	priv->resp_len[i] = (recvlength - MESSAGE_HEADER_LEN);
 	memcpy(priv->resp_buf[i], recvbuff + MESSAGE_HEADER_LEN,
 		priv->resp_len[i]);

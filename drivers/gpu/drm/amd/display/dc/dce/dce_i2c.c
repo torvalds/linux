@@ -34,12 +34,12 @@ bool dce_i2c_submit_command(
 	struct dce_i2c_sw *dce_i2c_sw;
 
 	if (!ddc) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!cmd) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 

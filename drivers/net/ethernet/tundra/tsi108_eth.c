@@ -149,7 +149,7 @@ struct tsi108_prv_data {
 	unsigned long tx_pause_drop;	/* Add to tx_aborted_errors */
 
 	unsigned long mc_hash[16];
-	u32 msg_enable;			/* debug message level */
+	u32 msg_enable;			/* de message level */
 	struct mii_if_info mii_if;
 	unsigned int init_media;
 
@@ -168,7 +168,7 @@ static struct platform_driver tsi_eth_driver = {
 
 static void tsi108_timed_checker(struct timer_list *t);
 
-#ifdef DEBUG
+#ifdef DE
 static void dump_eth_one(struct net_device *dev)
 {
 	struct tsi108_prv_data *data = netdev_priv(dev);
@@ -873,7 +873,7 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 
 		if (err) {
 			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: RX error %x\n",
+				printk(KERN_DE "%s: RX error %x\n",
 				       dev->name, err);
 
 			if (!(TSI_READ(TSI108_EC_RXSTAT) &
@@ -1028,7 +1028,7 @@ static irqreturn_t tsi108_irq(int irq, void *dev_id)
 
 	if (stat & TSI108_INT_SFN) {
 		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: SFN error\n", dev->name);
+			printk(KERN_DE "%s: SFN error\n", dev->name);
 		TSI_WRITE(TSI108_EC_INTSTAT, TSI108_INT_SFN);
 	}
 
@@ -1275,7 +1275,7 @@ static void tsi108_init_phy(struct net_device *dev)
 	}
 
 	data->mii_if.supports_gmii = mii_check_gmii_support(&data->mii_if);
-	printk(KERN_DEBUG "PHY_STAT reg contains %08x\n", phyval);
+	printk(KERN_DE "PHY_STAT reg contains %08x\n", phyval);
 	data->phy_ok = 1;
 	data->init_media = 1;
 	spin_unlock_irqrestore(&phy_lock, flags);
@@ -1581,7 +1581,7 @@ tsi108_init_one(struct platform_device *pdev)
 	data->dev = dev;
 	data->pdev = pdev;
 
-	pr_debug("tsi108_eth%d:regs:phyresgs:phy:irq_num=0x%x:0x%x:0x%x:0x%x\n",
+	pr_de("tsi108_eth%d:regs:phyresgs:phy:irq_num=0x%x:0x%x:0x%x:0x%x\n",
 			pdev->id, einfo->regs, einfo->phyregs,
 			einfo->phy, einfo->irq_num);
 
@@ -1645,8 +1645,8 @@ tsi108_init_one(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	printk(KERN_INFO "%s: Tsi108 Gigabit Ethernet, MAC: %pM\n",
 	       dev->name, dev->dev_addr);
-#ifdef DEBUG
-	data->msg_enable = DEBUG;
+#ifdef DE
+	data->msg_enable = DE;
 	dump_eth_one(dev);
 #endif
 

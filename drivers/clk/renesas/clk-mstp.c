@@ -161,7 +161,7 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	init.flags = CLK_SET_RATE_PARENT;
 	/* INTC-SYS is the module clock of the GIC, and must not be disabled */
 	if (!strcmp(name, "intc-sys")) {
-		pr_debug("MSTP %s setting CLK_IS_CRITICAL\n", name);
+		pr_de("MSTP %s setting CLK_IS_CRITICAL\n", name);
 		init.flags |= CLK_IS_CRITICAL;
 	}
 	init.parent_names = &parent_name;

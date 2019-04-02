@@ -419,7 +419,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	 * because we always provide big enough receive buffers.
 	 */
 	ret = ftmac100_rxdes_last_segment(rxdes);
-	BUG_ON(!ret);
+	_ON(!ret);
 
 	/* start processing */
 	skb = netdev_alloc_skb_ip_align(netdev, 128);

@@ -1852,7 +1852,7 @@ struct ulptx_sc_memrd {
 	(((x) >> SCMD_NUM_IVS_S) & SCMD_NUM_IVS_M)
 
 /* EnbDbgId - If this is enabled upper 20 (63:44) bits if SeqNumber
- * (below) are used as Cid (connection id for debug status), these
+ * (below) are used as Cid (connection id for de status), these
  * bits are padded to zero for forming the 64 bit
  * sequence number for TLS
  */

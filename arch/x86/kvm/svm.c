@@ -46,7 +46,7 @@
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/kvm_para.h>
 #include <asm/irq_remapping.h>
 #include <asm/spec-ctrl.h>
@@ -87,7 +87,7 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
 #define NESTED_EXIT_CONTINUE	2	/* Further checks needed      */
 
-#define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
+#define DECTL_RESERVED_BITS (~(0x3fULL))
 
 #define TSC_RATIO_RSVD          0xffffff0000000000ULL
 #define TSC_RATIO_MIN		0x0000000000000001ULL
@@ -777,7 +777,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	if (!svm->next_rip) {
 		if (kvm_emulate_instruction(vcpu, EMULTYPE_SKIP) !=
 				EMULATE_DONE)
-			printk(KERN_DEBUG "%s: NOP\n", __func__);
+			printk(KERN_DE "%s: NOP\n", __func__);
 		return;
 	}
 	if (svm->next_rip - kvm_rip_read(vcpu) > MAX_INST_SIZE)
@@ -810,7 +810,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 		unsigned long rip, old_rip = kvm_rip_read(&svm->vcpu);
 
 		/*
-		 * For guest debugging where we have to reinject #BP if some
+		 * For guest deging where we have to reinject #BP if some
 		 * INT3 is guest-owned:
 		 * Emulate nRIP by moving RIP forward. Will fail if injection
 		 * raises a fault that is not intercepted. Still better than
@@ -835,7 +835,7 @@ static void svm_init_erratum_383(void)
 	int err;
 	u64 val;
 
-	if (!static_cpu_has_bug(X86_BUG_AMD_TLB_MMATCH))
+	if (!static_cpu_has_(X86__AMD_TLB_MMATCH))
 		return;
 
 	/* Use _safe variants to not break nested virtualization */
@@ -1044,7 +1044,7 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, unsigned msr)
 	bit_write = 2 * (msr & 0x0f) + 1;
 	tmp       = msrpm[offset];
 
-	BUG_ON(offset == MSR_INVALID);
+	_ON(offset == MSR_INVALID);
 
 	return !!test_bit(bit_write,  &tmp);
 }
@@ -1067,7 +1067,7 @@ static void set_msr_interception(u32 *msrpm, unsigned msr,
 	bit_write = 2 * (msr & 0x0f) + 1;
 	tmp       = msrpm[offset];
 
-	BUG_ON(offset == MSR_INVALID);
+	_ON(offset == MSR_INVALID);
 
 	read  ? clear_bit(bit_read,  &tmp) : set_bit(bit_read,  &tmp);
 	write ? clear_bit(bit_write, &tmp) : set_bit(bit_write, &tmp);
@@ -1110,10 +1110,10 @@ static void add_msr_offset(u32 offset)
 	}
 
 	/*
-	 * If this BUG triggers the msrpm_offsets table has an overflow. Just
+	 * If this  triggers the msrpm_offsets table has an overflow. Just
 	 * increase MSRPM_OFFSETS in this case.
 	 */
-	BUG();
+	();
 }
 
 static void init_msrpm_offsets(void)
@@ -1126,7 +1126,7 @@ static void init_msrpm_offsets(void)
 		u32 offset;
 
 		offset = svm_msrpm_offset(direct_access_msrs[i].index);
-		BUG_ON(offset == MSR_INVALID);
+		_ON(offset == MSR_INVALID);
 
 		add_msr_offset(offset);
 	}
@@ -1158,7 +1158,7 @@ static void disable_nmi_singlestep(struct vcpu_svm *svm)
 {
 	svm->nmi_singlestep = false;
 
-	if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP)) {
+	if (!(svm->vcpu.guest_de & KVM_GUESTDBG_SINGLESTEP)) {
 		/* Clear our flags if they were not set by the guest */
 		if (!(svm->nmi_singlestep_guest_rflags & X86_EFLAGS_TF))
 			svm->vmcb->save.rflags &= ~X86_EFLAGS_TF;
@@ -1190,7 +1190,7 @@ static int avic_ga_log_notifier(u32 ga_tag)
 	u32 vm_id = AVIC_GATAG_TO_VMID(ga_tag);
 	u32 vcpu_id = AVIC_GATAG_TO_VCPUID(ga_tag);
 
-	pr_debug("SVM: %s: vm_id=%#x, vcpu_id=%#x\n", __func__, vm_id, vcpu_id);
+	pr_de("SVM: %s: vm_id=%#x, vcpu_id=%#x\n", __func__, vm_id, vcpu_id);
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
 	hash_for_each_possible(svm_vm_data_hash, kvm_svm, hnode, vm_id) {
@@ -2334,11 +2334,11 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 {
 	switch (reg) {
 	case VCPU_EXREG_PDPTR:
-		BUG_ON(!npt_enabled);
+		_ON(!npt_enabled);
 		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -2366,7 +2366,7 @@ static struct vmcb_seg *svm_seg(struct kvm_vcpu *vcpu, int seg)
 	case VCPU_SREG_TR: return &save->tr;
 	case VCPU_SREG_LDTR: return &save->ldtr;
 	}
-	BUG();
+	();
 	return NULL;
 }
 
@@ -2412,7 +2412,7 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	switch (seg) {
 	case VCPU_SREG_TR:
 		/*
-		 * Work around a bug where the busy flag in the tr selector
+		 * Work around a  where the busy flag in the tr selector
 		 * isn't exposed
 		 */
 		var->type |= 0x2;
@@ -2609,11 +2609,11 @@ static void update_bp_intercept(struct kvm_vcpu *vcpu)
 
 	clr_exception_intercept(svm, BP_VECTOR);
 
-	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+	if (vcpu->guest_de & KVM_GUESTDBG_ENABLE) {
+		if (vcpu->guest_de & KVM_GUESTDBG_USE_SW_BP)
 			set_exception_intercept(svm, BP_VECTOR);
 	} else
-		vcpu->guest_debug = 0;
+		vcpu->guest_de = 0;
 }
 
 static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
@@ -2643,18 +2643,18 @@ static void svm_set_dr6(struct kvm_vcpu *vcpu, unsigned long value)
 	mark_dirty(svm->vmcb, VMCB_DR);
 }
 
-static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
+static void svm_sync_dirty_de_regs(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	get_debugreg(vcpu->arch.db[0], 0);
-	get_debugreg(vcpu->arch.db[1], 1);
-	get_debugreg(vcpu->arch.db[2], 2);
-	get_debugreg(vcpu->arch.db[3], 3);
+	get_dereg(vcpu->arch.db[0], 0);
+	get_dereg(vcpu->arch.db[1], 1);
+	get_dereg(vcpu->arch.db[2], 2);
+	get_dereg(vcpu->arch.db[3], 3);
 	vcpu->arch.dr6 = svm_get_dr6(vcpu);
 	vcpu->arch.dr7 = svm->vmcb->save.dr7;
 
-	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
+	vcpu->arch.switch_db_regs &= ~KVM_DEREG_WONT_EXIT;
 	set_dr_intercepts(svm);
 }
 
@@ -2693,7 +2693,7 @@ static int db_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
 
-	if (!(svm->vcpu.guest_debug &
+	if (!(svm->vcpu.guest_de &
 	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) &&
 		!svm->nmi_singlestep) {
 		kvm_queue_exception(&svm->vcpu, DB_VECTOR);
@@ -2704,12 +2704,12 @@ static int db_interception(struct vcpu_svm *svm)
 		disable_nmi_singlestep(svm);
 	}
 
-	if (svm->vcpu.guest_debug &
+	if (svm->vcpu.guest_de &
 	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) {
-		kvm_run->exit_reason = KVM_EXIT_DEBUG;
-		kvm_run->debug.arch.pc =
+		kvm_run->exit_reason = KVM_EXIT_DE;
+		kvm_run->de.arch.pc =
 			svm->vmcb->save.cs.base + svm->vmcb->save.rip;
-		kvm_run->debug.arch.exception = DB_VECTOR;
+		kvm_run->de.arch.exception = DB_VECTOR;
 		return 0;
 	}
 
@@ -2720,9 +2720,9 @@ static int bp_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
 
-	kvm_run->exit_reason = KVM_EXIT_DEBUG;
-	kvm_run->debug.arch.pc = svm->vmcb->save.cs.base + svm->vmcb->save.rip;
-	kvm_run->debug.arch.exception = BP_VECTOR;
+	kvm_run->exit_reason = KVM_EXIT_DE;
+	kvm_run->de.arch.pc = svm->vmcb->save.cs.base + svm->vmcb->save.rip;
+	kvm_run->de.arch.exception = BP_VECTOR;
 	return 0;
 }
 
@@ -2841,7 +2841,7 @@ static int shutdown_interception(struct vcpu_svm *svm)
 static int io_interception(struct vcpu_svm *svm)
 {
 	struct kvm_vcpu *vcpu = &svm->vcpu;
-	u32 io_info = svm->vmcb->control.exit_info_1; /* address size bug? */
+	u32 io_info = svm->vmcb->control.exit_info_1; /* address size ? */
 	int size, in, string;
 	unsigned port;
 
@@ -4040,14 +4040,14 @@ static int dr_interception(struct vcpu_svm *svm)
 	int reg, dr;
 	unsigned long val;
 
-	if (svm->vcpu.guest_debug == 0) {
+	if (svm->vcpu.guest_de == 0) {
 		/*
-		 * No more DR vmexits; force a reload of the debug registers
+		 * No more DR vmexits; force a reload of the de registers
 		 * and reenter on this instruction.  The next vmexit will
-		 * retrieve the full state of the debug registers.
+		 * retrieve the full state of the de registers.
 		 */
 		clr_dr_intercepts(svm);
-		svm->vcpu.arch.switch_db_regs |= KVM_DEBUGREG_WONT_EXIT;
+		svm->vcpu.arch.switch_db_regs |= KVM_DEREG_WONT_EXIT;
 		return 1;
 	}
 
@@ -4145,7 +4145,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	 * safely return them on rdmsr. They will always be 0 until LBRV is
 	 * implemented.
 	 */
-	case MSR_IA32_DEBUGCTLMSR:
+	case MSR_IA32_DECTLMSR:
 		msr_info->data = svm->vmcb->save.dbgctl;
 		break;
 	case MSR_IA32_LASTBRANCHFROMIP:
@@ -4363,13 +4363,13 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		svm->tsc_aux = data;
 		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 		break;
-	case MSR_IA32_DEBUGCTLMSR:
+	case MSR_IA32_DECTLMSR:
 		if (!boot_cpu_has(X86_FEATURE_LBRV)) {
-			vcpu_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTL 0x%llx, nop\n",
+			vcpu_unimpl(vcpu, "%s: MSR_IA32_DECTL 0x%llx, nop\n",
 				    __func__, data);
 			break;
 		}
-		if (data & DEBUGCTL_RESERVED_BITS)
+		if (data & DECTL_RESERVED_BITS)
 			return 1;
 
 		svm->vmcb->save.dbgctl = data;
@@ -5071,7 +5071,7 @@ static void svm_set_irq(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	BUG_ON(!(gif_set(svm)));
+	_ON(!(gif_set(svm)));
 
 	trace_kvm_inj_virq(vcpu->arch.interrupt.nr);
 	++vcpu->stat.irq_injections;
@@ -5231,12 +5231,12 @@ get_pi_vcpu_info(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 	kvm_set_msi_irq(kvm, e, &irq);
 
 	if (!kvm_intr_is_single_vcpu(kvm, &irq, &vcpu)) {
-		pr_debug("SVM: %s: use legacy intr remap mode for irq %u\n",
+		pr_de("SVM: %s: use legacy intr remap mode for irq %u\n",
 			 __func__, irq.vector);
 		return -1;
 	}
 
-	pr_debug("SVM: %s: use GA mode for irq %u\n", __func__,
+	pr_de("SVM: %s: use GA mode for irq %u\n", __func__,
 		 irq.vector);
 	*svm = to_svm(vcpu);
 	vcpu_info->pi_desc_addr = __sme_set(page_to_phys((*svm)->avic_backing_page));
@@ -5265,7 +5265,7 @@ static int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 	    !irq_remapping_cap(IRQ_POSTING_CAP))
 		return 0;
 
-	pr_debug("SVM: %s: host_irq=%#x, guest_irq=%#x, set=%#x\n",
+	pr_de("SVM: %s: host_irq=%#x, guest_irq=%#x, set=%#x\n",
 		 __func__, host_irq, guest_irq, set);
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
@@ -6797,20 +6797,20 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 	unsigned long vaddr, vaddr_end, next_vaddr;
 	unsigned long dst_vaddr;
 	struct page **src_p, **dst_p;
-	struct kvm_sev_dbg debug;
+	struct kvm_sev_dbg de;
 	unsigned long n;
 	int ret, size;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&debug, (void __user *)(uintptr_t)argp->data, sizeof(debug)))
+	if (copy_from_user(&de, (void __user *)(uintptr_t)argp->data, sizeof(de)))
 		return -EFAULT;
 
-	vaddr = debug.src_uaddr;
-	size = debug.len;
+	vaddr = de.src_uaddr;
+	size = de.len;
 	vaddr_end = vaddr + size;
-	dst_vaddr = debug.dst_uaddr;
+	dst_vaddr = de.dst_uaddr;
 
 	for (; vaddr < vaddr_end; vaddr = next_vaddr) {
 		int len, s_off, d_off;
@@ -7177,7 +7177,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.get_dr6 = svm_get_dr6,
 	.set_dr6 = svm_set_dr6,
 	.set_dr7 = svm_set_dr7,
-	.sync_dirty_debug_regs = svm_sync_dirty_debug_regs,
+	.sync_dirty_de_regs = svm_sync_dirty_de_regs,
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,

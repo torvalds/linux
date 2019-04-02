@@ -88,7 +88,7 @@ config DUMMY_IRQ
 	default n
 	---help---
 	  This module accepts a single 'irq' parameter, which it should register for.
-	  The sole purpose of this module is to help with debugging of systems on
+	  The sole purpose of this module is to help with deging of systems on
 	  which spurious IRQs would happen on disabled IRQ vector.
 
 config IBM_ASM
@@ -146,7 +146,7 @@ config INTEL_MID_PTI
 	  The PTI (Parallel Trace Interface) driver directs
 	  trace data routed from various parts in the system out
 	  through an Intel Penwell PTI port and out of the mobile
-	  device for analysis with a debugging tool (Lauterbach or Fido).
+	  device for analysis with a deging tool (Lauterbach or Fido).
 
 	  You should select this driver if the target kernel is meant for
 	  an Intel Atom (non-netbook) mobile device containing a MIPI
@@ -321,12 +321,12 @@ config SGI_GRU
 
 	If you are not running on a SGI UV system, say N.
 
-config SGI_GRU_DEBUG
-	bool  "SGI GRU driver debug"
+config SGI_GRU_DE
+	bool  "SGI GRU driver de"
 	depends on SGI_GRU
 	default n
 	---help---
-	This option enables additional debugging code for the SGI GRU driver.
+	This option enables additional deging code for the SGI GRU driver.
 	If you are unsure, say N.
 
 config APDS9802ALS

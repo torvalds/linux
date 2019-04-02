@@ -82,7 +82,7 @@
  *
  *     TH_LOG(format, ...)
  *
- * Optional debug logging function available for use in tests.
+ * Optional de logging function available for use in tests.
  * Logging may be enabled or disabled by defining TH_LOG_ENABLED.
  * E.g., #define TH_LOG_ENABLED 1
  *

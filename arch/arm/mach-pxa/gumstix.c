@@ -99,7 +99,7 @@ static void __init gumstix_mmc_init(void)
 #else
 static void __init gumstix_mmc_init(void)
 {
-	pr_debug("Gumstix mmc disabled\n");
+	pr_de("Gumstix mmc disabled\n");
 }
 #endif
 
@@ -124,7 +124,7 @@ static void __init gumstix_udc_init(void)
 #else
 static void gumstix_udc_init(void)
 {
-	pr_debug("Gumstix udc is disabled\n");
+	pr_de("Gumstix udc is disabled\n");
 }
 #endif
 
@@ -175,7 +175,7 @@ static void __init gumstix_bluetooth_init(void)
 #else
 static void gumstix_bluetooth_init(void)
 {
-	pr_debug("Gumstix Bluetooth is disabled\n");
+	pr_de("Gumstix Bluetooth is disabled\n");
 }
 #endif
 

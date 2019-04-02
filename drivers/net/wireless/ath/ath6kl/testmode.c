@@ -16,7 +16,7 @@
  */
 
 #include "testmode.h"
-#include "debug.h"
+#include "de.h"
 
 #include <net/netlink.h>
 

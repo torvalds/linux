@@ -21,19 +21,19 @@
 #include "pci_impl.h"
 
 
-#define DEBUG_ALLOC 0
-#if DEBUG_ALLOC > 0
-# define DBGA(args...)		printk(KERN_DEBUG args)
+#define DE_ALLOC 0
+#if DE_ALLOC > 0
+# define DBGA(args...)		printk(KERN_DE args)
 #else
 # define DBGA(args...)
 #endif
-#if DEBUG_ALLOC > 1
-# define DBGA2(args...)		printk(KERN_DEBUG args)
+#if DE_ALLOC > 1
+# define DBGA2(args...)		printk(KERN_DE args)
 #else
 # define DBGA2(args...)
 #endif
 
-#define DEBUG_NODIRECT 0
+#define DE_NODIRECT 0
 
 #define ISA_DMA_MASK		0x00ffffff
 
@@ -116,7 +116,7 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 	arena->next_entry = 0;
 
 	/* Align allocations to a multiple of a page size.  Not needed
-	   unless there are chip bugs.  */
+	   unless there are chip s.  */
 	arena->align_entry = 1;
 
 	return arena;
@@ -275,7 +275,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 
 	paddr = __pa(cpu_addr);
 
-#if !DEBUG_NODIRECT
+#if !DE_NODIRECT
 	/* First check to see if we can use the direct map window.  */
 	if (paddr + size + __direct_map_base - 1 <= max_dma
 	    && paddr + size <= __direct_map_size) {
@@ -342,8 +342,8 @@ static struct pci_dev *alpha_gendev_to_pci(struct device *dev)
 		return to_pci_dev(dev);
 
 	/* Assume that non-PCI devices asking for DMA are either ISA or EISA,
-	   BUG() otherwise. */
-	BUG_ON(!isa_bridge);
+	   () otherwise. */
+	_ON(!isa_bridge);
 
 	/* Assume non-busmaster ISA DMA when dma_mask is not set (the ISA
 	   bridge is bus master then). */
@@ -367,7 +367,7 @@ static dma_addr_t alpha_pci_map_page(struct device *dev, struct page *page,
 	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	int dac_allowed;
 
-	BUG_ON(dir == PCI_DMA_NONE);
+	_ON(dir == PCI_DMA_NONE);
 
 	dac_allowed = pdev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0; 
 	return pci_map_single_1(pdev, (char *)page_address(page) + offset, 
@@ -390,7 +390,7 @@ static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	struct pci_iommu_arena *arena;
 	long dma_ofs, npages;
 
-	BUG_ON(dir == PCI_DMA_NONE);
+	_ON(dir == PCI_DMA_NONE);
 
 	if (dma_addr >= __direct_map_base
 	    && dma_addr < __direct_map_base + __direct_map_size) {
@@ -418,7 +418,7 @@ static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
 		       " base %llx size %x\n",
 		       dma_addr, arena->dma_base, arena->size);
 		return;
-		BUG();
+		();
 	}
 
 	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
@@ -574,7 +574,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 	unsigned long *ptes;
 	long npages, dma_ofs, i;
 
-#if !DEBUG_NODIRECT
+#if !DE_NODIRECT
 	/* If everything is physically contiguous, and the addresses
 	   fall into the direct-map window, use it.  */
 	if (leader->dma_address == 0
@@ -629,7 +629,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 	ptes = &arena->ptes[dma_ofs];
 	sg = leader;
 	do {
-#if DEBUG_ALLOC > 0
+#if DE_ALLOC > 0
 		struct scatterlist *last_sg = sg;
 #endif
 
@@ -647,7 +647,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 		for (i = 0; i < npages; ++i, paddr += PAGE_SIZE)
 			*ptes++ = mk_iommu_pte(paddr);
 
-#if DEBUG_ALLOC > 0
+#if DE_ALLOC > 0
 		DBGA("    (%ld) [%p,%x] np %ld\n",
 		     last_sg - leader, SG_ENT_VIRT_ADDRESS(last_sg),
 		     last_sg->length, npages);
@@ -673,7 +673,7 @@ static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t max_dma;
 	int dac_allowed;
 
-	BUG_ON(dir == PCI_DMA_NONE);
+	_ON(dir == PCI_DMA_NONE);
 
 	dac_allowed = dev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0;
 
@@ -752,7 +752,7 @@ static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t max_dma;
 	dma_addr_t fbeg, fend;
 
-	BUG_ON(dir == PCI_DMA_NONE);
+	_ON(dir == PCI_DMA_NONE);
 
 	if (! alpha_mv.mv_pci_tbi)
 		return;

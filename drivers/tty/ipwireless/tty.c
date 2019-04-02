@@ -168,7 +168,7 @@ void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 	work = tty_insert_flip_string(&tty->port, data, length);
 
 	if (work != length)
-		printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
+		printk(KERN_DE IPWIRELESS_PCCARD_NAME
 				": %d chars not inserted to flip buffer!\n",
 				length - work);
 

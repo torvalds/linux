@@ -287,7 +287,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 			time_delta = ktime_ms_delta(ktime_get(),
 						    pcc_ss_data->last_mpar_reset);
 			if ((time_delta < 60 * MSEC_PER_SEC) && pcc_ss_data->last_mpar_reset) {
-				pr_debug("PCC cmd for subspace %d not sent due to MPAR limit",
+				pr_de("PCC cmd for subspace %d not sent due to MPAR limit",
 					 pcc_ss_id);
 				ret = -EIO;
 				goto end;
@@ -347,10 +347,10 @@ end:
 static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
 	if (ret < 0)
-		pr_debug("TX did not complete: CMD sent:%x, ret:%d\n",
+		pr_de("TX did not complete: CMD sent:%x, ret:%d\n",
 				*(u16 *)msg, ret);
 	else
-		pr_debug("TX completed. CMD sent:%x, ret:%d\n",
+		pr_de("TX completed. CMD sent:%x, ret:%d\n",
 				*(u16 *)msg, ret);
 }
 
@@ -376,7 +376,7 @@ static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
 
 	psd = buffer.pointer;
 	if (!psd || psd->package.count != 1) {
-		pr_debug("Invalid _PSD data\n");
+		pr_de("Invalid _PSD data\n");
 		goto end;
 	}
 
@@ -388,24 +388,24 @@ static int acpi_get_psd(struct cpc_desc *cpc_ptr, acpi_handle handle)
 	status = acpi_extract_package(&(psd->package.elements[0]),
 		&format, &state);
 	if (ACPI_FAILURE(status)) {
-		pr_debug("Invalid _PSD data for CPU:%d\n", cpc_ptr->cpu_id);
+		pr_de("Invalid _PSD data for CPU:%d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
 	if (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES) {
-		pr_debug("Unknown _PSD:num_entries for CPU:%d\n", cpc_ptr->cpu_id);
+		pr_de("Unknown _PSD:num_entries for CPU:%d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_PSD_REV0_REVISION) {
-		pr_debug("Unknown _PSD:revision for CPU: %d\n", cpc_ptr->cpu_id);
+		pr_de("Unknown _PSD:revision for CPU: %d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
 	if (pdomain->coord_type != DOMAIN_COORD_TYPE_SW_ALL &&
 	    pdomain->coord_type != DOMAIN_COORD_TYPE_SW_ANY &&
 	    pdomain->coord_type != DOMAIN_COORD_TYPE_HW_ALL) {
-		pr_debug("Invalid _PSD:coord_type for CPU:%d\n", cpc_ptr->cpu_id);
+		pr_de("Invalid _PSD:coord_type for CPU:%d\n", cpc_ptr->cpu_id);
 		goto end;
 	}
 
@@ -649,13 +649,13 @@ static bool is_cppc_supported(int revision, int num_ent)
 		expected_num_ent = CPPC_V3_NUM_ENT;
 		break;
 	default:
-		pr_debug("Firmware exports unsupported CPPC revision: %d\n",
+		pr_de("Firmware exports unsupported CPPC revision: %d\n",
 			revision);
 		return false;
 	}
 
 	if (expected_num_ent != num_ent) {
-		pr_debug("Firmware exports %d entries. Expected: %d for CPPC rev:%d\n",
+		pr_de("Firmware exports %d entries. Expected: %d for CPPC rev:%d\n",
 			num_ent, expected_num_ent, revision);
 		return false;
 	}
@@ -749,7 +749,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	if (cpc_obj->type == ACPI_TYPE_INTEGER)	{
 		num_ent = cpc_obj->integer.value;
 	} else {
-		pr_debug("Unexpected entry type(%d) for NumEntries\n",
+		pr_de("Unexpected entry type(%d) for NumEntries\n",
 				cpc_obj->type);
 		goto out_free;
 	}
@@ -760,7 +760,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	if (cpc_obj->type == ACPI_TYPE_INTEGER)	{
 		cpc_rev = cpc_obj->integer.value;
 	} else {
-		pr_debug("Unexpected entry type(%d) for Revision\n",
+		pr_de("Unexpected entry type(%d) for Revision\n",
 				cpc_obj->type);
 		goto out_free;
 	}
@@ -792,7 +792,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					if (pcc_data_alloc(pcc_subspace_id))
 						goto out_free;
 				} else if (pcc_subspace_id != gas_t->access_width) {
-					pr_debug("Mismatched PCC ids.\n");
+					pr_de("Mismatched PCC ids.\n");
 					goto out_free;
 				}
 			} else if (gas_t->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
@@ -807,7 +807,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 			} else {
 				if (gas_t->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE || !cpc_ffh_supported()) {
 					/* Support only PCC ,SYS MEM and FFH type regs */
-					pr_debug("Unsupported register type: %d\n", gas_t->space_id);
+					pr_de("Unsupported register type: %d\n", gas_t->space_id);
 					goto out_free;
 				}
 			}
@@ -815,7 +815,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 			cpc_ptr->cpc_regs[i-2].type = ACPI_TYPE_BUFFER;
 			memcpy(&cpc_ptr->cpc_regs[i-2].cpc_entry.reg, gas_t, sizeof(*gas_t));
 		} else {
-			pr_debug("Err in entry:%d in CPC table of CPU:%d \n", i, pr->id);
+			pr_de("Err in entry:%d in CPC table of CPU:%d \n", i, pr->id);
 			goto out_free;
 		}
 	}
@@ -851,7 +851,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	}
 
 	/* Everything looks okay */
-	pr_debug("Parsed CPC struct for CPU: %d\n", pr->id);
+	pr_de("Parsed CPC struct for CPU: %d\n", pr->id);
 
 	/* Add per logical CPU nodes for reading its feedback counters. */
 	cpu_dev = get_cpu_device(pr->id);
@@ -1002,7 +1002,7 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 			*val = readq_relaxed(vaddr);
 			break;
 		default:
-			pr_debug("Error: Cannot read %u bit width from PCC for ss: %d\n",
+			pr_de("Error: Cannot read %u bit width from PCC for ss: %d\n",
 				 reg->bit_width, pcc_ss_id);
 			ret_val = -EFAULT;
 	}
@@ -1041,7 +1041,7 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 			writeq_relaxed(val, vaddr);
 			break;
 		default:
-			pr_debug("Error: Cannot write %u bit width to PCC for ss: %d\n",
+			pr_de("Error: Cannot write %u bit width to PCC for ss: %d\n",
 				 reg->bit_width, pcc_ss_id);
 			ret_val = -EFAULT;
 			break;
@@ -1111,7 +1111,7 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	int ret = 0, regs_in_pcc = 0;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
+		pr_de("No CPC descriptor for CPU:%d\n", cpunum);
 		return -ENODEV;
 	}
 
@@ -1128,7 +1128,7 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg) ||
 		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(nom_freq_reg)) {
 		if (pcc_ss_id < 0) {
-			pr_debug("Invalid pcc_ss_id\n");
+			pr_de("Invalid pcc_ss_id\n");
 			return -ENODEV;
 		}
 		pcc_ss_data = pcc_data[pcc_ss_id];
@@ -1200,7 +1200,7 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	int ret = 0, regs_in_pcc = 0;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
+		pr_de("No CPC descriptor for CPU:%d\n", cpunum);
 		return -ENODEV;
 	}
 
@@ -1220,7 +1220,7 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	if (CPC_IN_PCC(delivered_reg) || CPC_IN_PCC(reference_reg) ||
 		CPC_IN_PCC(ctr_wrap_reg) || CPC_IN_PCC(ref_perf_reg)) {
 		if (pcc_ss_id < 0) {
-			pr_debug("Invalid pcc_ss_id\n");
+			pr_de("Invalid pcc_ss_id\n");
 			return -ENODEV;
 		}
 		pcc_ss_data = pcc_data[pcc_ss_id];
@@ -1278,7 +1278,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	int ret = 0;
 
 	if (!cpc_desc) {
-		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
+		pr_de("No CPC descriptor for CPU:%d\n", cpu);
 		return -ENODEV;
 	}
 
@@ -1293,7 +1293,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 */
 	if (CPC_IN_PCC(desired_reg)) {
 		if (pcc_ss_id < 0) {
-			pr_debug("Invalid pcc_ss_id\n");
+			pr_de("Invalid pcc_ss_id\n");
 			return -ENODEV;
 		}
 		pcc_ss_data = pcc_data[pcc_ss_id];

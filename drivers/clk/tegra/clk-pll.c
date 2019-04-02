@@ -578,7 +578,7 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 	default:
 		pr_err("%s Unexpected reference rate %lu\n",
 		       __func__, parent_rate);
-		BUG();
+		();
 	}
 
 	/* Raise VCO to guarantee 0.5% accuracy */
@@ -867,7 +867,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 					parent_rate)) {
 			pr_err("Clock %s has unknown fixed frequency\n",
 			       clk_hw_get_name(hw));
-			BUG();
+			();
 		}
 		return pll->params->fixed_rate;
 	}

@@ -13,7 +13,7 @@
  * A CPU clock is defined as a clock supplied to a CPU or a group of CPUs.
  * The CPU clock is typically derived from a hierarchy of clock
  * blocks which includes mux and divider blocks. There are a number of other
- * auxiliary clocks supplied to the CPU domain such as the debug blocks and AXI
+ * auxiliary clocks supplied to the CPU domain such as the de blocks and AXI
  * clock for CPU domain. The rates of these auxiliary clocks are related to the
  * CPU clock rate and this relation is usually specified in the hardware manual
  * of the SoC or supplied after the SoC characterization.
@@ -114,7 +114,7 @@ static void rockchip_cpuclk_set_dividers(struct rockchip_cpuclk *cpuclk,
 		if (!clksel->reg)
 			continue;
 
-		pr_debug("%s: setting reg 0x%x to 0x%x\n",
+		pr_de("%s: setting reg 0x%x to 0x%x\n",
 			 __func__, clksel->reg, clksel->val);
 		writel(clksel->val, cpuclk->reg_base + clksel->reg);
 	}
@@ -162,7 +162,7 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 		 * dividing the primary parent by the extra dividers that were
 		 * needed for the alt.
 		 */
-		pr_debug("%s: setting div %lu as alt-rate %lu > old-rate %lu\n",
+		pr_de("%s: setting div %lu as alt-rate %lu > old-rate %lu\n",
 			 __func__, alt_div, alt_prate, ndata->old_rate);
 
 		writel(HIWORD_UPDATE(alt_div, reg_data->div_core_mask,
@@ -236,7 +236,7 @@ static int rockchip_cpuclk_notifier_cb(struct notifier_block *nb,
 	struct rockchip_cpuclk *cpuclk = to_rockchip_cpuclk_nb(nb);
 	int ret = 0;
 
-	pr_debug("%s: event %lu, old_rate %lu, new_rate: %lu\n",
+	pr_de("%s: event %lu, old_rate %lu, new_rate: %lu\n",
 		 __func__, event, ndata->old_rate, ndata->new_rate);
 	if (event == PRE_RATE_CHANGE)
 		ret = rockchip_cpuclk_pre_rate_change(cpuclk, ndata);

@@ -300,7 +300,7 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free,
 					      sizeof(struct page *),
 					      GFP_KERNEL);
 	if (!pages_to_free) {
-		pr_debug("Failed to allocate memory for pool free operation\n");
+		pr_de("Failed to allocate memory for pool free operation\n");
 		return 0;
 	}
 
@@ -500,7 +500,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 				      GFP_KERNEL);
 
 	if (!caching_array) {
-		pr_debug("Unable to allocate table for new pages\n");
+		pr_de("Unable to allocate table for new pages\n");
 		return -ENOMEM;
 	}
 
@@ -508,7 +508,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 		p = alloc_pages(gfp_flags, order);
 
 		if (!p) {
-			pr_debug("Unable to get page %u\n", i);
+			pr_de("Unable to get page %u\n", i);
 
 			/* store already allocated pages in the pool after
 			 * setting the caching state */
@@ -608,7 +608,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool, int ttm_flags,
 			++pool->nrefills;
 			pool->npages += alloc_size;
 		} else {
-			pr_debug("Failed to fill pool (%p)\n", pool);
+			pr_de("Failed to fill pool (%p)\n", pool);
 			/* If we have any pages left put them to the pool. */
 			list_for_each_entry(p, &new_pages, lru) {
 				++cpages;
@@ -880,7 +880,7 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		while (npages) {
 			p = alloc_page(gfp_flags);
 			if (!p) {
-				pr_debug("Unable to allocate page\n");
+				pr_de("Unable to allocate page\n");
 				return -ENOMEM;
 			}
 
@@ -930,7 +930,7 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		/* If there is any pages in the list put them back to
 		 * the pool.
 		 */
-		pr_debug("Failed to allocate extra pages for large request\n");
+		pr_de("Failed to allocate extra pages for large request\n");
 		ttm_put_pages(pages, count, flags, cstate);
 		return r;
 	}
@@ -1165,7 +1165,7 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 }
 EXPORT_SYMBOL(ttm_unmap_and_unpopulate_pages);
 
-int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
+int ttm_page_alloc_defs(struct seq_file *m, void *data)
 {
 	struct ttm_page_pool *p;
 	unsigned i;
@@ -1185,4 +1185,4 @@ int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(ttm_page_alloc_debugfs);
+EXPORT_SYMBOL(ttm_page_alloc_defs);

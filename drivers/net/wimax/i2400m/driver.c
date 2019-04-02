@@ -72,16 +72,16 @@
 #include <linux/slab.h>
 
 #define D_SUBMODULE driver
-#include "debug-levels.h"
+#include "de-levels.h"
 
 
-static char i2400m_debug_params[128];
-module_param_string(debug, i2400m_debug_params, sizeof(i2400m_debug_params),
+static char i2400m_de_params[128];
+module_param_string(de, i2400m_de_params, sizeof(i2400m_de_params),
 		    0644);
-MODULE_PARM_DESC(debug,
+MODULE_PARM_DESC(de,
 		 "String of space-separated NAME:VALUE pairs, where NAMEs "
-		 "are the different debug submodules and VALUE are the "
-		 "initial debug value to set.");
+		 "are the different de submodules and VALUE are the "
+		 "initial de value to set.");
 
 static char i2400m_barkers_params[128];
 module_param_string(barkers, i2400m_barkers_params,
@@ -233,7 +233,7 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 	}
 	/* Extract MAC address */
 	ddi = (void *) skb->data;
-	BUILD_BUG_ON(ETH_ALEN != sizeof(ddi->mac_address));
+	BUILD__ON(ETH_ALEN != sizeof(ddi->mac_address));
 	d_printf(2, dev, "GET DEVICE INFO: mac addr %pM\n",
 		 ddi->mac_address);
 	if (!memcmp(net_dev->perm_addr, ddi->mac_address,
@@ -920,10 +920,10 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		goto error_sysfs_setup;
 	}
 
-	result = i2400m_debugfs_add(i2400m);
+	result = i2400m_defs_add(i2400m);
 	if (result < 0) {
-		dev_err(dev, "cannot setup i2400m's debugfs: %d\n", result);
-		goto error_debugfs_setup;
+		dev_err(dev, "cannot setup i2400m's defs: %d\n", result);
+		goto error_defs_setup;
 	}
 
 	result = i2400m_dev_start(i2400m, bm_flags);
@@ -933,8 +933,8 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	return result;
 
 error_dev_start:
-	i2400m_debugfs_rm(i2400m);
-error_debugfs_setup:
+	i2400m_defs_rm(i2400m);
+error_defs_setup:
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 error_sysfs_setup:
@@ -973,7 +973,7 @@ void i2400m_release(struct i2400m *i2400m)
 	cancel_work_sync(&i2400m->reset_ws);
 	cancel_work_sync(&i2400m->recovery_ws);
 
-	i2400m_debugfs_rm(i2400m);
+	i2400m_defs_rm(i2400m);
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 	wimax_dev_rm(&i2400m->wimax_dev);
@@ -988,12 +988,12 @@ EXPORT_SYMBOL_GPL(i2400m_release);
 
 
 /*
- * Debug levels control; see debug.h
+ * De levels control; see de.h
  */
 struct d_level D_LEVEL[] = {
 	D_SUBMODULE_DEFINE(control),
 	D_SUBMODULE_DEFINE(driver),
-	D_SUBMODULE_DEFINE(debugfs),
+	D_SUBMODULE_DEFINE(defs),
 	D_SUBMODULE_DEFINE(fw),
 	D_SUBMODULE_DEFINE(netdev),
 	D_SUBMODULE_DEFINE(rfkill),
@@ -1007,8 +1007,8 @@ size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 static
 int __init i2400m_driver_init(void)
 {
-	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400m_debug_params,
-		       "i2400m.debug");
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400m_de_params,
+		       "i2400m.de");
 	return i2400m_barker_db_init(i2400m_barkers_params);
 }
 module_init(i2400m_driver_init);

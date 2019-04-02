@@ -56,7 +56,7 @@
 #include "usnic_ib_qp_grp.h"
 #include "usnic_log.h"
 #include "usnic_fwd.h"
-#include "usnic_debugfs.h"
+#include "usnic_defs.h"
 #include "usnic_ib_verbs.h"
 #include "usnic_transport.h"
 #include "usnic_uiom.h"
@@ -102,7 +102,7 @@ static void usnic_ib_qp_grp_modify_active_to_err(struct usnic_ib_dev *us_ibdev)
 	enum ib_qp_state cur_state;
 	int status;
 
-	BUG_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
+	_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
 
 	list_for_each_entry(ctx, &us_ibdev->ctx_list, link) {
 		list_for_each_entry(qp_grp, &ctx->qp_grp_list, link) {
@@ -496,7 +496,7 @@ static struct usnic_ib_dev *usnic_ib_discover_pf(struct usnic_vnic *vnic)
 	vf_pci = usnic_vnic_get_pdev(vnic);
 	parent_pci = pci_physfn(vf_pci);
 
-	BUG_ON(!parent_pci);
+	_ON(!parent_pci);
 
 	mutex_lock(&usnic_ib_ibdev_list_lock);
 	list_for_each_entry(us_ibdev, &usnic_ib_ibdev_list, ib_dev_link) {
@@ -679,7 +679,7 @@ static int __init usnic_ib_init(void)
 		goto out_unreg_inetaddr_notifier;
 	}
 
-	usnic_debugfs_init();
+	usnic_defs_init();
 
 	return 0;
 
@@ -697,7 +697,7 @@ out_umem_fini:
 static void __exit usnic_ib_destroy(void)
 {
 	usnic_dbg("\n");
-	usnic_debugfs_exit();
+	usnic_defs_exit();
 	usnic_transport_fini();
 	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
 	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
@@ -709,7 +709,7 @@ MODULE_AUTHOR("Upinder Malhi <umalhi@cisco.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 module_param(usnic_log_lvl, uint, S_IRUGO | S_IWUSR);
 module_param(usnic_ib_share_vf, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(usnic_log_lvl, " Off=0, Err=1, Info=2, Debug=3");
+MODULE_PARM_DESC(usnic_log_lvl, " Off=0, Err=1, Info=2, De=3");
 MODULE_PARM_DESC(usnic_ib_share_vf, "Off=0, On=1 VF sharing amongst QPs");
 MODULE_DEVICE_TABLE(pci, usnic_ib_pci_ids);
 

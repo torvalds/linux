@@ -832,7 +832,7 @@ void rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DE("Update pending now high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
@@ -882,7 +882,7 @@ void rv770_pm_misc(struct radeon_device *rdev)
 		if (voltage->voltage != rdev->pm.current_vddc) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
-			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+			DRM_DE("Setting: v: %d\n", voltage->voltage);
 		}
 	}
 }
@@ -1015,10 +1015,10 @@ static void rv770_mc_program(struct radeon_device *rdev)
 		WREG32((0x2c20 + j), 0x00000000);
 		WREG32((0x2c24 + j), 0x00000000);
 	}
-	/* r7xx hw bug.  Read from HDP_DEBUG1 rather
+	/* r7xx hw .  Read from HDP_DE1 rather
 	 * than writing to HDP_REG_COHERENCY_FLUSH_CNTL
 	 */
-	tmp = RREG32(HDP_DEBUG1);
+	tmp = RREG32(HDP_DE1);
 
 	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {
@@ -1167,9 +1167,9 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 {
 	int i, j, num_qd_pipes;
 	u32 ta_aux_cntl;
-	u32 sx_debug_1;
+	u32 sx_de_1;
 	u32 smx_dc_ctl0;
-	u32 db_debug3;
+	u32 db_de3;
 	u32 num_gs_verts_per_thread;
 	u32 vgt_gs_per_es;
 	u32 gs_prim_buffer_depth = 0;
@@ -1181,7 +1181,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	u32 gb_tiling_config = 0;
 	u32 cc_gc_shader_pipe_config = 0;
 	u32 mc_arb_ramcfg;
-	u32 db_debug4, tmp;
+	u32 db_de4, tmp;
 	u32 inactive_pipes, shader_pipe_config;
 	u32 disabled_rb_mask;
 	unsigned active_number;
@@ -1402,9 +1402,9 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	ta_aux_cntl = RREG32(TA_CNTL_AUX);
 	WREG32(TA_CNTL_AUX, ta_aux_cntl | DISABLE_CUBE_ANISO);
 
-	sx_debug_1 = RREG32(SX_DEBUG_1);
-	sx_debug_1 |= ENABLE_NEW_SMX_ADDRESS;
-	WREG32(SX_DEBUG_1, sx_debug_1);
+	sx_de_1 = RREG32(SX_DE_1);
+	sx_de_1 |= ENABLE_NEW_SMX_ADDRESS;
+	WREG32(SX_DE_1, sx_de_1);
 
 	smx_dc_ctl0 = RREG32(SMX_DC_CTL0);
 	smx_dc_ctl0 &= ~CACHE_DEPTH(0x1ff);
@@ -1420,25 +1420,25 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	if (rdev->family != CHIP_RV770)
 		WREG32(SMX_SAR_CTL0, 0x00003f3f);
 
-	db_debug3 = RREG32(DB_DEBUG3);
-	db_debug3 &= ~DB_CLK_OFF_DELAY(0x1f);
+	db_de3 = RREG32(DB_DE3);
+	db_de3 &= ~DB_CLK_OFF_DELAY(0x1f);
 	switch (rdev->family) {
 	case CHIP_RV770:
 	case CHIP_RV740:
-		db_debug3 |= DB_CLK_OFF_DELAY(0x1f);
+		db_de3 |= DB_CLK_OFF_DELAY(0x1f);
 		break;
 	case CHIP_RV710:
 	case CHIP_RV730:
 	default:
-		db_debug3 |= DB_CLK_OFF_DELAY(2);
+		db_de3 |= DB_CLK_OFF_DELAY(2);
 		break;
 	}
-	WREG32(DB_DEBUG3, db_debug3);
+	WREG32(DB_DE3, db_de3);
 
 	if (rdev->family != CHIP_RV770) {
-		db_debug4 = RREG32(DB_DEBUG4);
-		db_debug4 |= DISABLE_TILE_COVERED_FOR_PS_ITER;
-		WREG32(DB_DEBUG4, db_debug4);
+		db_de4 = RREG32(DB_DE4);
+		db_de4 |= DISABLE_TILE_COVERED_FOR_PS_ITER;
+		WREG32(DB_DE4, db_de4);
 	}
 
 	WREG32(SX_EXPORT_BUFFER_SIZES, (COLOR_BUFFER_SIZE((rdev->config.rv770.sx_max_export_size / 4) - 1) |

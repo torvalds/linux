@@ -140,13 +140,13 @@
 #define TX_VBOOSTLEVEL_OVRD_IN_VBOOST_5420		(0x5 << 13)
 #define TX_VBOOSTLEVEL_OVRD_IN_VBOOST_DEFAULT		(0x4 << 13)
 
-#define EXYNOS5_DRD_PHYSS_LANE0_TX_DEBUG		(0x1010)
-#define LANE0_TX_DEBUG_RXDET_MEAS_TIME_19M2_20M		(0x4 << 4)
-#define LANE0_TX_DEBUG_RXDET_MEAS_TIME_24M		(0x8 << 4)
-#define LANE0_TX_DEBUG_RXDET_MEAS_TIME_25M_26M		(0x8 << 4)
-#define LANE0_TX_DEBUG_RXDET_MEAS_TIME_48M_50M_52M	(0x20 << 4)
-#define LANE0_TX_DEBUG_RXDET_MEAS_TIME_62M5		(0x20 << 4)
-#define LANE0_TX_DEBUG_RXDET_MEAS_TIME_96M_100M		(0x40 << 4)
+#define EXYNOS5_DRD_PHYSS_LANE0_TX_DE		(0x1010)
+#define LANE0_TX_DE_RXDET_MEAS_TIME_19M2_20M		(0x4 << 4)
+#define LANE0_TX_DE_RXDET_MEAS_TIME_24M		(0x8 << 4)
+#define LANE0_TX_DE_RXDET_MEAS_TIME_25M_26M		(0x8 << 4)
+#define LANE0_TX_DE_RXDET_MEAS_TIME_48M_50M_52M	(0x20 << 4)
+#define LANE0_TX_DE_RXDET_MEAS_TIME_62M5		(0x20 << 4)
+#define LANE0_TX_DE_RXDET_MEAS_TIME_96M_100M		(0x40 << 4)
 
 #define KHZ	1000
 #define MHZ	(KHZ * KHZ)
@@ -671,7 +671,7 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 	/*
 	 * Set proper time to wait for RxDetect measurement, for
 	 * desired reference clock of PHY, by tuning the CR_PORT
-	 * register LANE0.TX_DEBUG which is internal to PHY.
+	 * register LANE0.TX_DE which is internal to PHY.
 	 * This fixes issue with few USB 3.0 devices, which are
 	 * not detected (not even generate interrupts on the bus
 	 * on insertion) without this change.
@@ -679,20 +679,20 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 	 */
 	switch (phy_drd->extrefclk) {
 	case EXYNOS5_FSEL_50MHZ:
-		temp = LANE0_TX_DEBUG_RXDET_MEAS_TIME_48M_50M_52M;
+		temp = LANE0_TX_DE_RXDET_MEAS_TIME_48M_50M_52M;
 		break;
 	case EXYNOS5_FSEL_20MHZ:
 	case EXYNOS5_FSEL_19MHZ2:
-		temp = LANE0_TX_DEBUG_RXDET_MEAS_TIME_19M2_20M;
+		temp = LANE0_TX_DE_RXDET_MEAS_TIME_19M2_20M;
 		break;
 	case EXYNOS5_FSEL_24MHZ:
 	default:
-		temp = LANE0_TX_DEBUG_RXDET_MEAS_TIME_24M;
+		temp = LANE0_TX_DE_RXDET_MEAS_TIME_24M;
 		break;
 	}
 
 	ret = crport_ctrl_write(phy_drd,
-				EXYNOS5_DRD_PHYSS_LANE0_TX_DEBUG,
+				EXYNOS5_DRD_PHYSS_LANE0_TX_DE,
 				temp);
 	if (ret)
 		dev_err(phy_drd->dev,

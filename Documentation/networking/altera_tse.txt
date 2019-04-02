@@ -52,7 +52,7 @@ The kernel configuration option is ALTERA_TSE:
  Altera Triple-Speed Ethernet MAC support (ALTERA_TSE)
 
 2) Driver parameters list:
-	debug: message level (0: no output, 16: all);
+	de: message level (0: no output, 16: all);
 	dma_rx_num: Number of descriptors in the RX list (default is 64);
 	dma_tx_num: Number of descriptors in the TX list (default is 64).
 
@@ -106,17 +106,17 @@ The driver is compatible with PAL to work with PHY and GPHY devices.
  o altera_utils.c: Driver utility functions
  o altera_utils.h: Driver utility function definitions
 
-5) Debug Information
+5) De Information
 
-The driver exports debug information such as internal statistics,
-debug information, MAC and DMA registers etc.
+The driver exports de information such as internal statistics,
+de information, MAC and DMA registers etc.
 
 A user may use the ethtool support to get statistics:
 e.g. using: ethtool -S ethX (that shows the statistics counters)
 or sees the MAC registers: e.g. using: ethtool -d ethX
 
-The developer can also use the "debug" module parameter to get
-further debug information.
+The developer can also use the "de" module parameter to get
+further de information.
 
 6) Statistics Support
 

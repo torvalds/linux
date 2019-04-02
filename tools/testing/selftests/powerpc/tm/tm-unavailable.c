@@ -26,7 +26,7 @@
 
 #include "tm.h"
 
-#define DEBUG 0
+#define DE 0
 
 /* Unavailable exceptions to test in HTM */
 #define FP_UNA_EXCEPTION	0
@@ -103,9 +103,9 @@ void *tm_una_ping(void *input)
 
 	/*
 	 * Wait a bit so thread can get its name "ping". This is not important
-	 * to reproduce the issue but it's nice to have for systemtap debugging.
+	 * to reproduce the issue but it's nice to have for systemtap deging.
 	 */
-	if (DEBUG)
+	if (DE)
 		sleep(1);
 
 	printf("If MSR.FP=%d MSR.VEC=%d: ", flags.touch_fp, flags.touch_vec);
@@ -256,7 +256,7 @@ void *tm_una_ping(void *input)
 	}
 
 	/* 0x4 is a success and 0xa is a fail. See comment in is_failure(). */
-	if (DEBUG)
+	if (DE)
 		printf("CR0: 0x%1lx ", cr_ >> 28);
 
 	/* Check FP (vs0) for the expected value. */
@@ -286,7 +286,7 @@ void *tm_una_ping(void *input)
 void *tm_una_pong(void *not_used)
 {
 	/* Wait thread get its name "pong". */
-	if (DEBUG)
+	if (DE)
 		sleep(1);
 
 	/* Classed as an interactive-like thread. */
@@ -330,7 +330,7 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 
 	if (!retries) {
 		flags.result = 1;
-		if (DEBUG)
+		if (DE)
 			printf("All transactions failed unexpectedly\n");
 
 	}

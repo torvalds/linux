@@ -15,7 +15,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
 
@@ -105,7 +105,7 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	if (!touched && __this_cpu_read(last_irq_sum) == sum) {
 		__this_cpu_inc(alert_counter);
 		if (__this_cpu_read(alert_counter) == 30 * nmi_hz)
-			die_nmi("BUG: NMI Watchdog detected LOCKUP",
+			die_nmi(": NMI Watchdog detected LOCKUP",
 				regs, panic_on_timeout);
 	} else {
 		__this_cpu_write(last_irq_sum, sum);
@@ -141,7 +141,7 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 			cpu, prev_nmi_count[cpu], get_nmi_count(cpu));
 
 	printk(KERN_WARNING
-		"Please report this to bugzilla.kernel.org,\n");
+		"Please report this to zilla.kernel.org,\n");
 	printk(KERN_WARNING
 		"and attach the output of the 'dmesg' command.\n");
 

@@ -330,7 +330,7 @@ snd_harmony_playback_trigger(struct snd_pcm_substream *ss, int cmd)
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	default:
 		spin_unlock(&h->lock);
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	spin_unlock(&h->lock);
@@ -366,7 +366,7 @@ snd_harmony_capture_trigger(struct snd_pcm_substream *ss, int cmd)
         case SNDRV_PCM_TRIGGER_SUSPEND:
 	default:
 		spin_unlock(&h->lock);
-		snd_BUG();
+		snd_();
                 return -EINVAL;
         }
 	spin_unlock(&h->lock);
@@ -481,8 +481,8 @@ snd_harmony_playback_pointer(struct snd_pcm_substream *ss)
 	pcuradd = harmony_read(h, HARMONY_PCURADD);
 	played = pcuradd - h->pbuf.addr;
 
-#ifdef HARMONY_DEBUG
-	printk(KERN_DEBUG PFX "playback_pointer is 0x%lx-0x%lx = %d bytes\n", 
+#ifdef HARMONY_DE
+	printk(KERN_DE PFX "playback_pointer is 0x%lx-0x%lx = %d bytes\n", 
 	       pcuradd, h->pbuf.addr, played);	
 #endif
 
@@ -510,8 +510,8 @@ snd_harmony_capture_pointer(struct snd_pcm_substream *ss)
         rcuradd = harmony_read(h, HARMONY_RCURADD);
         caught = rcuradd - h->cbuf.addr;
 
-#ifdef HARMONY_DEBUG
-        printk(KERN_DEBUG PFX "capture_pointer is 0x%lx-0x%lx = %d bytes\n",
+#ifdef HARMONY_DE
+        printk(KERN_DE PFX "capture_pointer is 0x%lx-0x%lx = %d bytes\n",
                rcuradd, h->cbuf.addr, caught);
 #endif
 
@@ -624,7 +624,7 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 	struct snd_pcm *pcm;
 	int err;
 
-	if (snd_BUG_ON(!h))
+	if (snd__ON(!h))
 		return -EINVAL;
 
 	harmony_disable_interrupts(h);
@@ -859,7 +859,7 @@ snd_harmony_mixer_init(struct snd_harmony *h)
 	struct snd_card *card;
 	int idx, err;
 
-	if (snd_BUG_ON(!h))
+	if (snd__ON(!h))
 		return -EINVAL;
 	card = h->card;
 	strcpy(card->mixername, "Harmony Gain control interface");

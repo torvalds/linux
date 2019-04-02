@@ -60,7 +60,7 @@ static irqreturn_t pmi_irq_handler(int irq, void *dev_id)
 	spin_lock(&data->pmi_spinlock);
 
 	type = ioread8(data->pmi_reg + PMI_READ_TYPE);
-	pr_debug("pmi: got message of type %d\n", type);
+	pr_de("pmi: got message of type %d\n", type);
 
 	if (type & PMI_ACK && !data->completion) {
 		printk(KERN_WARNING "pmi: got unexpected ACK message.\n");
@@ -115,7 +115,7 @@ static void pmi_notify_handlers(struct work_struct *work)
 
 	spin_lock(&data->handler_spinlock);
 	list_for_each_entry(handler, &data->handler, node) {
-		pr_debug("pmi: notifying handler %p\n", handler);
+		pr_de("pmi: notifying handler %p\n", handler);
 		if (handler->type == data->msg.type)
 			handler->handle_pmi_message(data->msg);
 	}
@@ -226,7 +226,7 @@ int pmi_send_message(pmi_message_t msg)
 	mutex_lock(&data->msg_mutex);
 
 	data->msg = msg;
-	pr_debug("pmi_send_message: msg is %08x\n", *(u32*)&msg);
+	pr_de("pmi_send_message: msg is %08x\n", *(u32*)&msg);
 
 	data->completion = &completion;
 
@@ -237,7 +237,7 @@ int pmi_send_message(pmi_message_t msg)
 	iowrite8(msg.type, data->pmi_reg + PMI_WRITE_TYPE);
 	spin_unlock_irqrestore(&data->pmi_spinlock, flags);
 
-	pr_debug("pmi_send_message: wait for completion\n");
+	pr_de("pmi_send_message: wait for completion\n");
 
 	wait_for_completion_interruptible_timeout(data->completion,
 						  PMI_TIMEOUT);
@@ -268,7 +268,7 @@ void pmi_unregister_handler(struct pmi_handler *handler)
 	if (!data)
 		return;
 
-	pr_debug("pmi: unregistering handler %p\n", handler);
+	pr_de("pmi: unregistering handler %p\n", handler);
 
 	spin_lock(&data->handler_spinlock);
 	list_del(&handler->node);

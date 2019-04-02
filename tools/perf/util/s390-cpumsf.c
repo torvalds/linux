@@ -158,7 +158,7 @@
 #include "session.h"
 #include "util.h"
 #include "thread.h"
-#include "debug.h"
+#include "de.h"
 #include "auxtrace.h"
 #include "s390-cpumsf.h"
 #include "s390-cpumsf-kernel.h"
@@ -481,7 +481,7 @@ static bool s390_cpumsf_make_event(size_t pos,
 	event.sample.header.misc = sample.cpumode;
 	event.sample.header.size = sizeof(struct perf_event_header);
 
-	pr_debug4("%s pos:%#zx ip:%#" PRIx64 " P:%d CL:%d pid:%d.%d cpumode:%d cpu:%d\n",
+	pr_de4("%s pos:%#zx ip:%#" PRIx64 " P:%d CL:%d pid:%d.%d cpumode:%d cpu:%d\n",
 		 __func__, pos, sample.ip, basic->P, basic->CL, sample.pid,
 		 sample.tid, sample.cpumode, sample.cpu);
 	if (perf_session__deliver_synth_event(sfq->sf->session, &event,
@@ -683,7 +683,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 				pr_err("Failed to write auxiliary data\n");
 		}
 	}
-	pr_debug4("%s queue_nr:%d buffer:%" PRId64 " offset:%#" PRIx64 " size:%#zx rest:%#zx\n",
+	pr_de4("%s queue_nr:%d buffer:%" PRId64 " offset:%#" PRIx64 " size:%#zx rest:%#zx\n",
 		  __func__, sfq->queue_nr, buffer->buffer_nr, buffer->offset,
 		  buffer->size, buffer->use_size);
 	err = s390_cpumsf_samples(sfq, ts);

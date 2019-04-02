@@ -42,10 +42,10 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
  * We don't have any real pmd's, and this code never triggers because
  * the pgd will always be present..
  */
-/* #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); }) */
+/* #define pmd_alloc_one(mm,address)       ({ (); ((pmd_t *)2); }) */
 #define pmd_free(mm, x) 		do { } while (0)
 #define __pmd_free_tlb(tlb,x,a)		do { } while (0)
-/* #define pgd_populate(mm, pmd, pte)      BUG() */
+/* #define pgd_populate(mm, pmd, pte)      () */
 
 #ifndef CONFIG_BOOKE
 
@@ -100,7 +100,7 @@ static inline void pgtable_free(void *table, unsigned index_size)
 	if (!index_size) {
 		pte_fragment_free((unsigned long *)table, 0);
 	} else {
-		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
+		_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
 		kmem_cache_free(PGT_CACHE(index_size), table);
 	}
 }
@@ -113,7 +113,7 @@ static inline void pgtable_free_tlb(struct mmu_gather *tlb,
 				    void *table, int shift)
 {
 	unsigned long pgf = (unsigned long)table;
-	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+	_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 	pgf |= shift;
 	tlb_remove_table(tlb, (void *)pgf);
 }

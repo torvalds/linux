@@ -137,9 +137,9 @@ ZSTD_STATIC void ZSTD_wildcopy(void *dst, const void *src, ptrdiff_t length)
 	const BYTE* ip = (const BYTE*)src;
 	BYTE* op = (BYTE*)dst;
 	BYTE* const oend = op + length;
-	/* Work around https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81388.
+	/* Work around https://gcc.gnu.org/zilla/show_.cgi?id=81388.
 	 * Avoid the bad case where the loop only runs once by handling the
-	 * special case separately. This doesn't trigger the bug because it
+	 * special case separately. This doesn't trigger the  because it
 	 * doesn't involve pointer/integer overflow.
 	 */
 	if (length <= 8)

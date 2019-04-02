@@ -116,7 +116,7 @@ void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
 				return;
 	}
 
-	BUG();
+	();
 }
 EXPORT_SYMBOL_GPL(virtio_check_driver_offered_feature);
 
@@ -208,7 +208,7 @@ static int virtio_dev_probe(struct device *_d)
 	driver_features = 0;
 	for (i = 0; i < drv->feature_table_size; i++) {
 		unsigned int f = drv->feature_table[i];
-		BUG_ON(f >= 64);
+		_ON(f >= 64);
 		driver_features |= (1ULL << f);
 	}
 
@@ -217,7 +217,7 @@ static int virtio_dev_probe(struct device *_d)
 		driver_features_legacy = 0;
 		for (i = 0; i < drv->feature_table_size_legacy; i++) {
 			unsigned int f = drv->feature_table_legacy[i];
-			BUG_ON(f >= 64);
+			_ON(f >= 64);
 			driver_features_legacy |= (1ULL << f);
 		}
 	} else {
@@ -293,7 +293,7 @@ static struct bus_type virtio_bus = {
 int register_virtio_driver(struct virtio_driver *driver)
 {
 	/* Catch this early. */
-	BUG_ON(driver->feature_table_size && !driver->feature_table);
+	_ON(driver->feature_table_size && !driver->feature_table);
 	driver->driver.bus = &virtio_bus;
 	return driver_register(&driver->driver);
 }
@@ -394,7 +394,7 @@ int virtio_device_restore(struct virtio_device *dev)
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 
 	/* Maybe driver failed before freeze.
-	 * Restore the failed status, for debugging. */
+	 * Restore the failed status, for deging. */
 	if (dev->failed)
 		virtio_add_status(dev, VIRTIO_CONFIG_S_FAILED);
 

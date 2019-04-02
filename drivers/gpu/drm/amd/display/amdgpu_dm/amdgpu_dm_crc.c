@@ -53,7 +53,7 @@ amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
 	if (source < 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
+		DRM_DE_DRIVER("Unknown CRC source %s for CRTC%d\n",
 				 src_name, crtc->index);
 		return -EINVAL;
 	}
@@ -72,7 +72,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
 	if (source < 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for CRTC%d\n",
+		DRM_DE_DRIVER("Unknown CRC source %s for CRTC%d\n",
 				 src_name, crtc->index);
 		return -EINVAL;
 	}

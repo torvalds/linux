@@ -110,12 +110,12 @@ your computer, you encount some *BAD* error like disk crash.
  It works good when I using this driver right way. But I'm not guarantee
 your data. Please backup your data when you use this driver.
 
-6. Known Bugs
+6. Known s
  In 2.4 kernel, you can't use 640MB Optical disk. This error comes from
 high level SCSI driver.
 
 7. Testing
- Please send me some reports(bug reports etc..) of this software.
+ Please send me some reports( reports etc..) of this software.
 When you send report, please tell me these or more.
 	card name
 	kernel version

@@ -74,7 +74,7 @@
 #define	BRCM_BAND_2G		2	/* 2.4 Ghz */
 #define	BRCM_BAND_ALL		3	/* all bands */
 
-/* Debug levels */
+/* De levels */
 #define BRCM_DL_INFO		0x00000001
 #define BRCM_DL_MAC80211	0x00000002
 #define BRCM_DL_RX		0x00000004

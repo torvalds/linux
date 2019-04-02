@@ -593,7 +593,7 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		attr->ia_valid &= ~ATTR_MODE;
 
 	if (attr->ia_valid & ATTR_SIZE) {
-		BUG_ON(!S_ISREG(inode->i_mode));
+		_ON(!S_ISREG(inode->i_mode));
 
 		error = inode_newsize_ok(inode, attr->ia_size);
 		if (error)
@@ -1508,14 +1508,14 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_fhandle);
 
-#ifdef NFS_DEBUG
+#ifdef NFS_DE
 /*
  * _nfs_display_fhandle_hash - calculate the crc32 hash for the filehandle
  *                             in the same way that wireshark does
  *
  * @fh: file handle
  *
- * For debugging only.
+ * For deging only.
  */
 u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh)
 {
@@ -1531,7 +1531,7 @@ EXPORT_SYMBOL_GPL(_nfs_display_fhandle_hash);
  * @fh: file handle to display
  * @caption: display caption
  *
- * For debugging only.
+ * For deging only.
  */
 void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption)
 {
@@ -1812,7 +1812,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		/*
 		* Big trouble! The inode has become a different object.
 		*/
-		printk(KERN_DEBUG "NFS: %s: inode %lu mode changed, %07o to %07o\n",
+		printk(KERN_DE "NFS: %s: inode %lu mode changed, %07o to %07o\n",
 				__func__, inode->i_ino, inode->i_mode, fattr->mode);
 		goto out_err;
 	}

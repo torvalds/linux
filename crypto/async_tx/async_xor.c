@@ -179,7 +179,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dmaengine_unmap_data *unmap = NULL;
 
-	BUG_ON(src_cnt <= 1);
+	_ON(src_cnt <= 1);
 
 	if (device)
 		unmap = dmaengine_get_unmap_data(device->dev, src_cnt+1, GFP_NOWAIT);
@@ -189,7 +189,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 		int i, j;
 
 		/* run the xor asynchronously */
-		pr_debug("%s (async): len: %zu\n", __func__, len);
+		pr_de("%s (async): len: %zu\n", __func__, len);
 
 		unmap->len = len;
 		for (i = 0, j = 0; i < src_cnt; i++) {
@@ -211,7 +211,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	} else {
 		dmaengine_unmap_put(unmap);
 		/* run the xor synchronously */
-		pr_debug("%s (sync): len: %zu\n", __func__, len);
+		pr_de("%s (sync): len: %zu\n", __func__, len);
 		WARN_ONCE(chan, "%s: no space for dma address conversion\n",
 			  __func__);
 
@@ -275,7 +275,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	struct dma_async_tx_descriptor *tx = NULL;
 	struct dmaengine_unmap_data *unmap = NULL;
 
-	BUG_ON(src_cnt <= 1);
+	_ON(src_cnt <= 1);
 
 	if (device)
 		unmap = dmaengine_get_unmap_data(device->dev, src_cnt, GFP_NOWAIT);
@@ -285,7 +285,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 		unsigned long dma_prep_flags = 0;
 		int i;
 
-		pr_debug("%s: (async) len: %zu\n", __func__, len);
+		pr_de("%s: (async) len: %zu\n", __func__, len);
 
 		if (submit->cb_fn)
 			dma_prep_flags |= DMA_PREP_INTERRUPT;
@@ -317,7 +317,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	} else {
 		enum async_tx_flags flags_orig = submit->flags;
 
-		pr_debug("%s: (sync) len: %zu\n", __func__, len);
+		pr_de("%s: (sync) len: %zu\n", __func__, len);
 		WARN_ONCE(device && src_cnt <= device->max_xor,
 			  "%s: no space for dma address conversion\n",
 			  __func__);

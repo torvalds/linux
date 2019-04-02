@@ -127,7 +127,7 @@ static struct platform_device crag6410_backlight_device = {
 
 static void crag6410_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
 {
-	pr_debug("%s: setting power %d\n", __func__, power);
+	pr_de("%s: setting power %d\n", __func__, power);
 
 	if (power) {
 		gpio_set_value(S3C64XX_GPB(0), 1);

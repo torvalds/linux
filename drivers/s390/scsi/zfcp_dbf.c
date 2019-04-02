@@ -2,7 +2,7 @@
 /*
  * zfcp device driver
  *
- * Debug traces for zfcp.
+ * De traces for zfcp.
  *
  * Copyright IBM Corp. 2002, 2018
  */
@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include "zfcp_dbf.h"
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
@@ -22,13 +22,13 @@ static u32 dbfsize = 4;
 
 module_param(dbfsize, uint, 0400);
 MODULE_PARM_DESC(dbfsize,
-		 "number of pages for each debug feature area (default 4)");
+		 "number of pages for each de feature area (default 4)");
 
 static u32 dbflevel = 3;
 
 module_param(dbflevel, uint, 0400);
 MODULE_PARM_DESC(dbflevel,
-		 "log level for each debug feature area "
+		 "log level for each de feature area "
 		 "(default 3, range 0..6)");
 
 static inline unsigned int zfcp_dbf_plen(unsigned int offset)
@@ -52,7 +52,7 @@ void zfcp_dbf_pl_write(struct zfcp_dbf *dbf, void *data, u16 length, char *area,
 		rec_length = min((u16) ZFCP_DBF_PAY_MAX_REC,
 				 (u16) (length - offset));
 		memcpy(pl->data, data + offset, rec_length);
-		debug_event(dbf->pay, 1, pl, zfcp_dbf_plen(rec_length));
+		de_event(dbf->pay, 1, pl, zfcp_dbf_plen(rec_length));
 
 		offset += rec_length;
 		pl->counter++;
@@ -101,7 +101,7 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 				  rec->pl_len, "fsf_res", req->req_id);
 	}
 
-	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	de_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
@@ -118,7 +118,7 @@ void zfcp_dbf_hba_fsf_uss(char *tag, struct zfcp_fsf_req *req)
 	static int const level = 2;
 	unsigned long flags;
 
-	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+	if (unlikely(!de_level_enabled(dbf->hba, level)))
 		return;
 
 	spin_lock_irqsave(&dbf->hba_lock, flags);
@@ -148,7 +148,7 @@ void zfcp_dbf_hba_fsf_uss(char *tag, struct zfcp_fsf_req *req)
 		zfcp_dbf_pl_write(dbf, srb->payload.data, rec->pl_len,
 				  "fsf_uss", req->req_id);
 log:
-	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	de_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
@@ -165,7 +165,7 @@ void zfcp_dbf_hba_bit_err(char *tag, struct zfcp_fsf_req *req)
 	static int const level = 1;
 	unsigned long flags;
 
-	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+	if (unlikely(!de_level_enabled(dbf->hba, level)))
 		return;
 
 	spin_lock_irqsave(&dbf->hba_lock, flags);
@@ -179,7 +179,7 @@ void zfcp_dbf_hba_bit_err(char *tag, struct zfcp_fsf_req *req)
 	memcpy(&rec->u.be, &sr_buf->payload.bit_error,
 	       sizeof(struct fsf_bit_error_payload));
 
-	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	de_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
@@ -199,7 +199,7 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 	static int const level = 1;
 	u16 length;
 
-	if (unlikely(!debug_level_enabled(dbf->pay, level)))
+	if (unlikely(!de_level_enabled(dbf->pay, level)))
 		return;
 
 	if (!pl)
@@ -216,7 +216,7 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 
 	while (payload->counter < scount && (char *)pl[payload->counter]) {
 		memcpy(payload->data, (char *)pl[payload->counter], length);
-		debug_event(dbf->pay, level, payload, zfcp_dbf_plen(length));
+		de_event(dbf->pay, level, payload, zfcp_dbf_plen(length));
 		payload->counter++;
 	}
 
@@ -235,7 +235,7 @@ void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
 	static int const level = 1;
 	unsigned long flags;
 
-	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+	if (unlikely(!de_level_enabled(dbf->hba, level)))
 		return;
 
 	spin_lock_irqsave(&dbf->hba_lock, flags);
@@ -244,7 +244,7 @@ void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
 	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
 	rec->id = ZFCP_DBF_HBA_BASIC;
 
-	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	de_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
@@ -289,7 +289,7 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
 
 	lockdep_assert_held(&adapter->erp_lock);
 
-	if (unlikely(!debug_level_enabled(dbf->rec, level)))
+	if (unlikely(!de_level_enabled(dbf->rec, level)))
 		return;
 
 	spin_lock_irqsave(&dbf->rec_lock, flags);
@@ -308,7 +308,7 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
 	rec->u.trig.want = want;
 	rec->u.trig.need = need;
 
-	debug_event(dbf->rec, level, rec, sizeof(*rec));
+	de_event(dbf->rec, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
@@ -346,7 +346,7 @@ void zfcp_dbf_rec_run_lvl(int level, char *tag, struct zfcp_erp_action *erp)
 	struct zfcp_dbf_rec *rec = &dbf->rec_buf;
 	unsigned long flags;
 
-	if (!debug_level_enabled(dbf->rec, level))
+	if (!de_level_enabled(dbf->rec, level))
 		return;
 
 	spin_lock_irqsave(&dbf->rec_lock, flags);
@@ -369,7 +369,7 @@ void zfcp_dbf_rec_run_lvl(int level, char *tag, struct zfcp_erp_action *erp)
 	else
 		rec->u.run.rec_count = atomic_read(&erp->adapter->erp_counter);
 
-	debug_event(dbf->rec, level, rec, sizeof(*rec));
+	de_event(dbf->rec, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
@@ -397,7 +397,7 @@ void zfcp_dbf_rec_run_wka(char *tag, struct zfcp_fc_wka_port *wka_port,
 	static int const level = 1;
 	unsigned long flags;
 
-	if (unlikely(!debug_level_enabled(dbf->rec, level)))
+	if (unlikely(!de_level_enabled(dbf->rec, level)))
 		return;
 
 	spin_lock_irqsave(&dbf->rec_lock, flags);
@@ -415,7 +415,7 @@ void zfcp_dbf_rec_run_wka(char *tag, struct zfcp_fc_wka_port *wka_port,
 	rec->u.run.rec_action = ~0;
 	rec->u.run.rec_count = ~0;
 
-	debug_event(dbf->rec, level, rec, sizeof(*rec));
+	de_event(dbf->rec, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
@@ -463,7 +463,7 @@ void zfcp_dbf_san(char *tag, struct zfcp_dbf *dbf,
 				      (u16)(sg->length - offset));
 			/* cap_len <= pay_sum < cap_len+ZFCP_DBF_PAY_MAX_REC */
 			memcpy(payload->data, sg_virt(sg) + offset, pay_len);
-			debug_event(dbf->pay, ZFCP_DBF_SAN_LEVEL, payload,
+			de_event(dbf->pay, ZFCP_DBF_SAN_LEVEL, payload,
 				    zfcp_dbf_plen(pay_len));
 			payload->counter++;
 			offset += pay_len;
@@ -473,7 +473,7 @@ void zfcp_dbf_san(char *tag, struct zfcp_dbf *dbf,
 	spin_unlock(&dbf->pay_lock);
 
 out:
-	debug_event(dbf->san, ZFCP_DBF_SAN_LEVEL, rec, sizeof(*rec));
+	de_event(dbf->san, ZFCP_DBF_SAN_LEVEL, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->san_lock, flags);
 }
 
@@ -490,7 +490,7 @@ void zfcp_dbf_san_req(char *tag, struct zfcp_fsf_req *fsf, u32 d_id)
 	struct zfcp_fsf_ct_els *ct_els = fsf->data;
 	u16 length;
 
-	if (unlikely(!debug_level_enabled(dbf->san, ZFCP_DBF_SAN_LEVEL)))
+	if (unlikely(!de_level_enabled(dbf->san, ZFCP_DBF_SAN_LEVEL)))
 		return;
 
 	length = (u16)zfcp_qdio_real_bytes(ct_els->req);
@@ -571,7 +571,7 @@ void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 	struct zfcp_fsf_ct_els *ct_els = fsf->data;
 	u16 length;
 
-	if (unlikely(!debug_level_enabled(dbf->san, ZFCP_DBF_SAN_LEVEL)))
+	if (unlikely(!de_level_enabled(dbf->san, ZFCP_DBF_SAN_LEVEL)))
 		return;
 
 	length = (u16)zfcp_qdio_real_bytes(ct_els->resp);
@@ -593,7 +593,7 @@ void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
 	u16 length;
 	struct scatterlist sg;
 
-	if (unlikely(!debug_level_enabled(dbf->san, ZFCP_DBF_SAN_LEVEL)))
+	if (unlikely(!de_level_enabled(dbf->san, ZFCP_DBF_SAN_LEVEL)))
 		return;
 
 	length = (u16)(srb->length -
@@ -679,7 +679,7 @@ void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
 				"fcp_riu", fsf->req_id);
 	}
 
-	debug_event(dbf->scsi, level, rec, sizeof(*rec));
+	de_event(dbf->scsi, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
 }
 
@@ -701,7 +701,7 @@ void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
 	unsigned long flags;
 	static int const level = 1;
 
-	if (unlikely(!debug_level_enabled(adapter->dbf->scsi, level)))
+	if (unlikely(!de_level_enabled(adapter->dbf->scsi, level)))
 		return;
 
 	spin_lock_irqsave(&dbf->scsi_lock, flags);
@@ -719,20 +719,20 @@ void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
 	rec->host_scribble = ~0;
 	memset(rec->scsi_opcode, 0xff, ZFCP_DBF_SCSI_OPCODE);
 
-	debug_event(dbf->scsi, level, rec, sizeof(*rec));
+	de_event(dbf->scsi, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
 }
 
-static debug_info_t *zfcp_dbf_reg(const char *name, int size, int rec_size)
+static de_info_t *zfcp_dbf_reg(const char *name, int size, int rec_size)
 {
-	struct debug_info *d;
+	struct de_info *d;
 
-	d = debug_register(name, size, 1, rec_size);
+	d = de_register(name, size, 1, rec_size);
 	if (!d)
 		return NULL;
 
-	debug_register_view(d, &debug_hex_ascii_view);
-	debug_set_level(d, dbflevel);
+	de_register_view(d, &de_hex_ascii_view);
+	de_set_level(d, dbflevel);
 
 	return d;
 }
@@ -742,22 +742,22 @@ static void zfcp_dbf_unregister(struct zfcp_dbf *dbf)
 	if (!dbf)
 		return;
 
-	debug_unregister(dbf->scsi);
-	debug_unregister(dbf->san);
-	debug_unregister(dbf->hba);
-	debug_unregister(dbf->pay);
-	debug_unregister(dbf->rec);
+	de_unregister(dbf->scsi);
+	de_unregister(dbf->san);
+	de_unregister(dbf->hba);
+	de_unregister(dbf->pay);
+	de_unregister(dbf->rec);
 	kfree(dbf);
 }
 
 /**
- * zfcp_adapter_debug_register - registers debug feature for an adapter
- * @adapter: pointer to adapter for which debug features should be registered
+ * zfcp_adapter_de_register - registers de feature for an adapter
+ * @adapter: pointer to adapter for which de features should be registered
  * return: -ENOMEM on error, 0 otherwise
  */
 int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 {
-	char name[DEBUG_MAX_NAME_LEN];
+	char name[DE_MAX_NAME_LEN];
 	struct zfcp_dbf *dbf;
 
 	dbf = kzalloc(sizeof(struct zfcp_dbf), GFP_KERNEL);
@@ -770,31 +770,31 @@ int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 	spin_lock_init(&dbf->scsi_lock);
 	spin_lock_init(&dbf->rec_lock);
 
-	/* debug feature area which records recovery activity */
+	/* de feature area which records recovery activity */
 	sprintf(name, "zfcp_%s_rec", dev_name(&adapter->ccw_device->dev));
 	dbf->rec = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_rec));
 	if (!dbf->rec)
 		goto err_out;
 
-	/* debug feature area which records HBA (FSF and QDIO) conditions */
+	/* de feature area which records HBA (FSF and QDIO) conditions */
 	sprintf(name, "zfcp_%s_hba", dev_name(&adapter->ccw_device->dev));
 	dbf->hba = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_hba));
 	if (!dbf->hba)
 		goto err_out;
 
-	/* debug feature area which records payload info */
+	/* de feature area which records payload info */
 	sprintf(name, "zfcp_%s_pay", dev_name(&adapter->ccw_device->dev));
 	dbf->pay = zfcp_dbf_reg(name, dbfsize * 2, sizeof(struct zfcp_dbf_pay));
 	if (!dbf->pay)
 		goto err_out;
 
-	/* debug feature area which records SAN command failures and recovery */
+	/* de feature area which records SAN command failures and recovery */
 	sprintf(name, "zfcp_%s_san", dev_name(&adapter->ccw_device->dev));
 	dbf->san = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_san));
 	if (!dbf->san)
 		goto err_out;
 
-	/* debug feature area which records SCSI command failures and recovery */
+	/* de feature area which records SCSI command failures and recovery */
 	sprintf(name, "zfcp_%s_scsi", dev_name(&adapter->ccw_device->dev));
 	dbf->scsi = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_scsi));
 	if (!dbf->scsi)
@@ -809,8 +809,8 @@ err_out:
 }
 
 /**
- * zfcp_adapter_debug_unregister - unregisters debug feature for an adapter
- * @adapter: pointer to adapter for which debug features should be unregistered
+ * zfcp_adapter_de_unregister - unregisters de feature for an adapter
+ * @adapter: pointer to adapter for which de features should be unregistered
  */
 void zfcp_dbf_adapter_unregister(struct zfcp_adapter *adapter)
 {

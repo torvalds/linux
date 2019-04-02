@@ -298,7 +298,7 @@ acpi_ns_repair_FDE(struct acpi_evaluate_info *info,
 			byte_buffer++;
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+		ACPI_DE_PRINT((ACPI_DB_REPAIR,
 				  "%s Expanded Byte Buffer to expected DWord Buffer\n",
 				  info->full_pathname));
 		break;
@@ -532,7 +532,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 		source++;
 		new_string->string.length--;
 
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+		ACPI_DE_PRINT((ACPI_DB_REPAIR,
 				  "%s: Removed invalid leading asterisk\n",
 				  info->full_pathname));
 	}
@@ -565,7 +565,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
  * RETURN:      Status. AE_OK if object is OK or was repaired successfully
  *
  * DESCRIPTION: Repair for the _PRT object. If necessary, fix reversed
- *              source_name and source_index field, a common BIOS bug.
+ *              source_name and source_index field, a common BIOS .
  *
  *****************************************************************************/
 
@@ -834,7 +834,7 @@ acpi_ns_check_sorted_list(struct acpi_evaluate_info *info,
 
 			info->return_flags |= ACPI_OBJECT_REPAIRED;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+			ACPI_DE_PRINT((ACPI_DB_REPAIR,
 					  "%s: Repaired unsorted list - now sorted by %s\n",
 					  info->full_pathname, sort_key_name));
 			return (AE_OK);

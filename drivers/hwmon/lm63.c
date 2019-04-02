@@ -1087,7 +1087,7 @@ static void lm63_init_client(struct lm63_data *data)
 			data->remote_unsigned = true;
 	}
 
-	/* Show some debug info about the LM63 configuration */
+	/* Show some de info about the LM63 configuration */
 	if (data->kind == lm63)
 		dev_dbg(dev, "Alert/tach pin configured for %s\n",
 			(data->config & 0x04) ? "tachometer input" :

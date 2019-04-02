@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  */
 #include <linux/memblock.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>

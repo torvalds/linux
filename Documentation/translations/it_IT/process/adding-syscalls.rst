@@ -43,7 +43,7 @@ vostra interfaccia.
    in procfs potrebbe essere sufficiente.  Tuttavia, l'accesso a questi
    meccanismi richiede che il filesystem sia montato, il che potrebbe non
    essere sempre vero (per esempio, in ambienti come namespace/sandbox/chroot).
-   Evitate d'aggiungere nuove API in debugfs perché questo non viene
+   Evitate d'aggiungere nuove API in defs perché questo non viene
    considerata un'interfaccia di 'produzione' verso lo spazio utente.
  - Se l'operazione è specifica ad un particolare file o descrittore, allora
    potrebbe essere appropriata l'aggiunta di un comando :manpage:`fcntl(2)`.

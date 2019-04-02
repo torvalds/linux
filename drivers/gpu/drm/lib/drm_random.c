@@ -18,7 +18,7 @@ void drm_random_reorder(unsigned int *order, unsigned int count,
 	unsigned int i, j;
 
 	for (i = 0; i < count; ++i) {
-		BUILD_BUG_ON(sizeof(unsigned int) > sizeof(u32));
+		BUILD__ON(sizeof(unsigned int) > sizeof(u32));
 		j = drm_prandom_u32_max_state(count, state);
 		swap(order[i], order[j]);
 	}

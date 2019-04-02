@@ -7,7 +7,7 @@
 #define _RTW_RECV_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/jiffies.h>
 #include <rtw_recv.h>
 
@@ -1977,7 +1977,7 @@ int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num)
 {
 	struct adapter *padapter = preorder_ctrl->padapter;
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	u8 wsize = preorder_ctrl->wsize_b;
 	u16 wend = (preorder_ctrl->indicate_seq + wsize - 1) & 0xFFF;/*  4096; */
 
@@ -2094,8 +2094,8 @@ int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl, union rec
 
 }
 
-void recv_indicatepkts_pkt_loss_cnt(struct debug_priv *pdbgpriv, u64 prev_seq, u64 current_seq);
-void recv_indicatepkts_pkt_loss_cnt(struct debug_priv *pdbgpriv, u64 prev_seq, u64 current_seq)
+void recv_indicatepkts_pkt_loss_cnt(struct de_priv *pdbgpriv, u64 prev_seq, u64 current_seq);
+void recv_indicatepkts_pkt_loss_cnt(struct de_priv *pdbgpriv, u64 prev_seq, u64 current_seq)
 {
 	if (current_seq < prev_seq)
 		pdbgpriv->dbg_rx_ampdu_loss_count += (4096 + current_seq - prev_seq);
@@ -2114,7 +2114,7 @@ int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctr
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_in_oder);
 
@@ -2221,7 +2221,7 @@ int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *prframe
 	struct recv_reorder_ctrl *preorder_ctrl = prframe->u.hdr.preorder_ctrl;
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_reoder);
 

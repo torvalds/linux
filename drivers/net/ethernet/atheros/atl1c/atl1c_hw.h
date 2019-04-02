@@ -131,8 +131,8 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define PCIE_PHYMISC2_CDR_BW_SHIFT	16
 #define L2CB1_PCIE_PHYMISC2_CDR_BW	3
 
-#define REG_TWSI_DEBUG			0x1108
-#define TWSI_DEBUG_DEV_EXIST		BIT(29)
+#define REG_TWSI_DE			0x1108
+#define TWSI_DE_DEV_EXIST		BIT(29)
 
 #define REG_DMA_DBG			0x1114
 #define DMA_DBG_VENDOR_MSG		BIT(0)
@@ -682,7 +682,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define ISR_SMB				0x00000001
 #define ISR_TIMER			0x00000002
 /*
- * Software manual interrupt, for debug. Set when SW_MAN_INT_EN is set
+ * Software manual interrupt, for de. Set when SW_MAN_INT_EN is set
  * in Table 51 Selene Master Control Register (Offset 0x1400).
  */
 #define ISR_MANUAL         		0x00000004
@@ -773,9 +773,9 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 				 CLK_GATING_TXMAC_EN|\
 				 CLK_GATING_RXMAC_EN)
 
-/* DEBUG ADDR */
-#define REG_DEBUG_DATA0 		0x1900
-#define REG_DEBUG_DATA1 		0x1904
+/* DE ADDR */
+#define REG_DE_DATA0 		0x1900
+#define REG_DE_DATA1 		0x1904
 
 #define L1D_MPW_PHYID1			0xD01C  /* V7 */
 #define L1D_MPW_PHYID2			0xD01D  /* V1-V6 */
@@ -837,7 +837,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define MII_DBG_ADDR			0x1D
 #define MII_DBG_DATA			0x1E
 
-/***************************** debug port *************************************/
+/***************************** de port *************************************/
 
 #define MIIDBG_ANACTRL                  0x00
 #define ANACTRL_CLK125M_DELAY_EN        0x8000

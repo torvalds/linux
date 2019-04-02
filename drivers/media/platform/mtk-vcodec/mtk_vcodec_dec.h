@@ -53,7 +53,7 @@ struct vdec_fb {
  * @error:		An unrecoverable error occurs on this buffer.
  * @frame_buffer:	Decode status, and buffer information of Capture buffer
  *
- * Note : These status information help us track and debug buffer state
+ * Note : These status information help us track and de buffer state
  */
 struct mtk_video_dec_buf {
 	struct vb2_v4l2_buffer	vb;

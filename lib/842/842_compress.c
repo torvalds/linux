@@ -22,7 +22,7 @@
 #include <linux/hashtable.h>
 
 #include "842.h"
-#include "842_debugfs.h"
+#include "842_defs.h"
 
 #define SW842_HASHTABLE8_BITS	(10)
 #define SW842_HASHTABLE4_BITS	(11)
@@ -149,7 +149,7 @@ struct sw842_param {
 	struct sw842_hlist_node##b *_n = &(p)->node##b[(i)+(d)];	\
 	hash_del(&_n->node);						\
 	_n->data = (p)->data##b[d];					\
-	pr_debug("add hash index%x %x pos %x data %lx\n", b,		\
+	pr_de("add hash index%x %x pos %x data %lx\n", b,		\
 		 (unsigned int)_n->index,				\
 		 (unsigned int)((p)->in - (p)->instart),		\
 		 (unsigned long)_n->data);				\
@@ -179,7 +179,7 @@ static int add_bits(struct sw842_param *p, u64 d, u8 n)
 	u64 o;
 	u8 *out = p->out;
 
-	pr_debug("add %u bits %lx\n", (unsigned char)n, (unsigned long)d);
+	pr_de("add %u bits %lx\n", (unsigned char)n, (unsigned long)d);
 
 	if (n > 64)
 		return -EINVAL;
@@ -237,14 +237,14 @@ static int add_template(struct sw842_param *p, u8 c)
 	if (c >= OPS_MAX)
 		return -EINVAL;
 
-	pr_debug("template %x\n", t[4]);
+	pr_de("template %x\n", t[4]);
 
 	ret = add_bits(p, t[4], OP_BITS);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < 4; i++) {
-		pr_debug("op %x\n", t[i]);
+		pr_de("op %x\n", t[i]);
 
 		switch (t[i] & OP_AMOUNT) {
 		case OP_AMOUNT_8:
@@ -492,7 +492,7 @@ int sw842_compress(const u8 *in, unsigned int ilen,
 	u8 repeat_count = 0;
 	u32 crc;
 
-	BUILD_BUG_ON(sizeof(*p) > SW842_MEM_COMPRESS);
+	BUILD__ON(sizeof(*p) > SW842_MEM_COMPRESS);
 
 	init_hashtable_nodes(p, 8);
 	init_hashtable_nodes(p, 4);
@@ -621,7 +621,7 @@ EXPORT_SYMBOL_GPL(sw842_compress);
 static int __init sw842_init(void)
 {
 	if (sw842_template_counts)
-		sw842_debugfs_create();
+		sw842_defs_create();
 
 	return 0;
 }
@@ -630,7 +630,7 @@ module_init(sw842_init);
 static void __exit sw842_exit(void)
 {
 	if (sw842_template_counts)
-		sw842_debugfs_remove();
+		sw842_defs_remove();
 }
 module_exit(sw842_exit);
 

@@ -386,24 +386,24 @@ int musb_hub_control(
 			wIndex >>= 8;
 			switch (wIndex) {
 			case 1:
-				pr_debug("TEST_J\n");
+				pr_de("TEST_J\n");
 				temp = MUSB_TEST_J;
 				break;
 			case 2:
-				pr_debug("TEST_K\n");
+				pr_de("TEST_K\n");
 				temp = MUSB_TEST_K;
 				break;
 			case 3:
-				pr_debug("TEST_SE0_NAK\n");
+				pr_de("TEST_SE0_NAK\n");
 				temp = MUSB_TEST_SE0_NAK;
 				break;
 			case 4:
-				pr_debug("TEST_PACKET\n");
+				pr_de("TEST_PACKET\n");
 				temp = MUSB_TEST_PACKET;
 				musb_load_testpacket(musb);
 				break;
 			case 5:
-				pr_debug("TEST_FORCE_ENABLE\n");
+				pr_de("TEST_FORCE_ENABLE\n");
 				temp = MUSB_TEST_FORCE_HOST
 					| MUSB_TEST_FORCE_HS;
 
@@ -411,7 +411,7 @@ int musb_hub_control(
 						MUSB_DEVCTL_SESSION);
 				break;
 			case 6:
-				pr_debug("TEST_FIFO_ACCESS\n");
+				pr_de("TEST_FIFO_ACCESS\n");
 				temp = MUSB_TEST_FIFO_ACCESS;
 				break;
 			default:

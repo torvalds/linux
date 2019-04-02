@@ -109,7 +109,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 
 	for (index = 0; index < ACPI_METHOD_NUM_LOCALS; index++) {
 		if (walk_state->local_variables[index].object) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Local%u=%p\n",
+			ACPI_DE_PRINT((ACPI_DB_EXEC, "Deleting Local%u=%p\n",
 					  index,
 					  walk_state->local_variables[index].
 					  object));
@@ -125,7 +125,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 
 	for (index = 0; index < ACPI_METHOD_NUM_ARGS; index++) {
 		if (walk_state->arguments[index].object) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Deleting Arg%u=%p\n",
+			ACPI_DE_PRINT((ACPI_DB_EXEC, "Deleting Arg%u=%p\n",
 					  index,
 					  walk_state->arguments[index].object));
 
@@ -165,7 +165,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 	ACPI_FUNCTION_TRACE_PTR(ds_method_data_init_args, params);
 
 	if (!params) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "No parameter list passed to method\n"));
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -189,7 +189,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 		index++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%u args passed to method\n", index));
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "%u args passed to method\n", index));
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -286,7 +286,7 @@ acpi_ds_method_data_set_value(u8 type,
 
 	ACPI_FUNCTION_TRACE(ds_method_data_set_value);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "NewObj %p Type %2.2X, Refs=%u [%s]\n", object,
 			  type, object->common.reference_count,
 			  acpi_ut_get_type_name(object->common.type)));
@@ -506,7 +506,7 @@ acpi_ds_store_object_to_local(u8 type,
 	union acpi_operand_object *new_obj_desc;
 
 	ACPI_FUNCTION_TRACE(ds_store_object_to_local);
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Type=%2.2X Index=%u Obj=%p\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Type=%2.2X Index=%u Obj=%p\n",
 			  type, index, obj_desc));
 
 	/* Parameter validation */
@@ -524,7 +524,7 @@ acpi_ds_store_object_to_local(u8 type,
 
 	current_obj_desc = acpi_ns_get_attached_object(node);
 	if (current_obj_desc == obj_desc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p already installed!\n",
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "Obj=%p already installed!\n",
 				  obj_desc));
 		return_ACPI_STATUS(status);
 	}
@@ -580,7 +580,7 @@ acpi_ds_store_object_to_local(u8 type,
 			     ACPI_TYPE_LOCAL_REFERENCE) &&
 			    (current_obj_desc->reference.class ==
 			     ACPI_REFCLASS_REFOF)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				ACPI_DE_PRINT((ACPI_DB_EXEC,
 						  "Arg (%p) is an ObjRef(Node), storing in node %p\n",
 						  new_obj_desc,
 						  current_obj_desc));

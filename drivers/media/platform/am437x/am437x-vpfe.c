@@ -44,12 +44,12 @@
 #define VPFE_MODULE_NAME	"vpfe"
 #define VPFE_VERSION		"0.1.0"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level 0-8");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level 0-8");
 
 #define vpfe_dbg(level, dev, fmt, arg...)	\
-		v4l2_dbg(level, debug, &dev->v4l2_dev, fmt, ##arg)
+		v4l2_dbg(level, de, &dev->v4l2_dev, fmt, ##arg)
 #define vpfe_info(dev, fmt, arg...)	\
 		v4l2_info(&dev->v4l2_dev, fmt, ##arg)
 #define vpfe_err(dev, fmt, arg...)	\

@@ -23,7 +23,7 @@
 #include <linux/usb/composite.h>
 
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "gadget.h"
 #include "io.h"
 
@@ -157,7 +157,7 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 	 * we receive a SETUP phase instead of the DATA phase, core will issue
 	 * XferComplete for the DATA phase, before actually initiating it in
 	 * the wire, with the TRB's status set to "SETUP_PENDING". Such status
-	 * can only be used to print some debugging logs, as the core expects
+	 * can only be used to print some deging logs, as the core expects
 	 * us to go through to the STATUS phase and start a CONTROL_STATUS TRB,
 	 * just so it completes right away, without transferring anything and,
 	 * only then, we can go back to the SETUP phase.

@@ -41,14 +41,14 @@
 
 #include <linux/connector.h>
 
-#define DEBUG
+#define DE
 #define NETLINK_CONNECTOR 	11
 
 /* Hopefully your userspace connector.h matches this kernel */
 #define CN_TEST_IDX		CN_NETLINK_USERS + 3
 #define CN_TEST_VAL		0x456
 
-#ifdef DEBUG
+#ifdef DE
 #define ulog(f, a...) fprintf(stdout, f, ##a)
 #else
 #define ulog(f, a...) do {} while (0)

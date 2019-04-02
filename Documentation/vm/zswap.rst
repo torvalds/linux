@@ -130,6 +130,6 @@ checking for the same-value filled pages during store operation. However, the
 existing pages which are marked as same-value filled pages remain stored
 unchanged in zswap until they are either loaded or invalidated.
 
-A debugfs interface is provided for various statistic about pool size, number
+A defs interface is provided for various statistic about pool size, number
 of pages stored, same-value filled pages and various counters for the reasons
 pages are rejected.

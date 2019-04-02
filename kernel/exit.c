@@ -466,7 +466,7 @@ retry:
 	return;
 
 assign_new_owner:
-	BUG_ON(c == p);
+	_ON(c == p);
 	get_task_struct(c);
 	/*
 	 * The task_lock protects c->mm from changing.
@@ -535,7 +535,7 @@ static void exit_mm(void)
 		down_read(&mm->mmap_sem);
 	}
 	mmgrab(mm);
-	BUG_ON(mm != current->active_mm);
+	_ON(mm != current->active_mm);
 	/* more a memory barrier than a real lock */
 	task_lock(current);
 	current->mm = NULL;
@@ -685,7 +685,7 @@ static void forget_original_parent(struct task_struct *father,
 	list_for_each_entry(p, &father->children, sibling) {
 		for_each_thread(p, t) {
 			t->real_parent = reaper;
-			BUG_ON((!t->ptrace) != (t->parent == father));
+			_ON((!t->ptrace) != (t->parent == father));
 			if (likely(!t->ptrace))
 				t->parent = t->real_parent;
 			if (t->pdeath_signal)
@@ -747,7 +747,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	}
 }
 
-#ifdef CONFIG_DEBUG_STACK_USAGE
+#ifdef CONFIG_DE_STACK_USAGE
 static void check_stack_usage(void)
 {
 	static DEFINE_SPINLOCK(low_water_lock);
@@ -904,7 +904,7 @@ void __noreturn do_exit(long code)
 	/*
 	 * Make sure we are holding no locks:
 	 */
-	debug_check_no_locks_held();
+	de_check_no_locks_held();
 	/*
 	 * We can do this unlocked here. The futex code uses this flag
 	 * just to verify whether the pi state cleanup has been done
@@ -958,7 +958,7 @@ do_group_exit(int exit_code)
 {
 	struct signal_struct *sig = current->signal;
 
-	BUG_ON(exit_code & 0x80); /* core dumps don't get here */
+	_ON(exit_code & 0x80); /* core dumps don't get here */
 
 	if (signal_group_exit(sig))
 		exit_code = sig->group_exit_code;
@@ -1356,7 +1356,7 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 	if (unlikely(exit_state == EXIT_TRACE)) {
 		/*
 		 * ptrace == 0 means we are the natural parent. In this case
-		 * we should clear notask_error, debugger will notify us.
+		 * we should clear notask_error, deger will notify us.
 		 */
 		if (likely(!ptrace))
 			wo->notask_error = 0;
@@ -1760,7 +1760,7 @@ Efault:
 
 __weak void abort(void)
 {
-	BUG();
+	();
 
 	/* if that doesn't kill us, halt */
 	panic("Oops failed to kill thread");

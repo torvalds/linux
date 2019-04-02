@@ -72,7 +72,7 @@
 /* insert a value to a struct */
 #define MLX5_SET(typ, p, fld, v) do { \
 	u32 _v = v; \
-	BUILD_BUG_ON(__mlx5_st_sz_bits(typ) % 32);             \
+	BUILD__ON(__mlx5_st_sz_bits(typ) % 32);             \
 	*((__be32 *)(p) + __mlx5_dw_off(typ, fld)) = \
 	cpu_to_be32((be32_to_cpu(*((__be32 *)(p) + __mlx5_dw_off(typ, fld))) & \
 		     (~__mlx5_dw_mask(typ, fld))) | (((_v) & __mlx5_mask(typ, fld)) \
@@ -80,12 +80,12 @@
 } while (0)
 
 #define MLX5_ARRAY_SET(typ, p, fld, idx, v) do { \
-	BUILD_BUG_ON(__mlx5_bit_off(typ, fld) % 32); \
+	BUILD__ON(__mlx5_bit_off(typ, fld) % 32); \
 	MLX5_SET(typ, p, fld[idx], v); \
 } while (0)
 
 #define MLX5_SET_TO_ONES(typ, p, fld) do { \
-	BUILD_BUG_ON(__mlx5_st_sz_bits(typ) % 32);             \
+	BUILD__ON(__mlx5_st_sz_bits(typ) % 32);             \
 	*((__be32 *)(p) + __mlx5_dw_off(typ, fld)) = \
 	cpu_to_be32((be32_to_cpu(*((__be32 *)(p) + __mlx5_dw_off(typ, fld))) & \
 		     (~__mlx5_dw_mask(typ, fld))) | ((__mlx5_mask(typ, fld)) \
@@ -98,22 +98,22 @@ __mlx5_mask(typ, fld))
 
 #define MLX5_GET_PR(typ, p, fld) ({ \
 	u32 ___t = MLX5_GET(typ, p, fld); \
-	pr_debug(#fld " = 0x%x\n", ___t); \
+	pr_de(#fld " = 0x%x\n", ___t); \
 	___t; \
 })
 
 #define __MLX5_SET64(typ, p, fld, v) do { \
-	BUILD_BUG_ON(__mlx5_bit_sz(typ, fld) != 64); \
+	BUILD__ON(__mlx5_bit_sz(typ, fld) != 64); \
 	*((__be64 *)(p) + __mlx5_64_off(typ, fld)) = cpu_to_be64(v); \
 } while (0)
 
 #define MLX5_SET64(typ, p, fld, v) do { \
-	BUILD_BUG_ON(__mlx5_bit_off(typ, fld) % 64); \
+	BUILD__ON(__mlx5_bit_off(typ, fld) % 64); \
 	__MLX5_SET64(typ, p, fld, v); \
 } while (0)
 
 #define MLX5_ARRAY_SET64(typ, p, fld, idx, v) do { \
-	BUILD_BUG_ON(__mlx5_bit_off(typ, fld) % 64); \
+	BUILD__ON(__mlx5_bit_off(typ, fld) % 64); \
 	__MLX5_SET64(typ, p, fld[idx], v); \
 } while (0)
 
@@ -121,7 +121,7 @@ __mlx5_mask(typ, fld))
 
 #define MLX5_GET64_PR(typ, p, fld) ({ \
 	u64 ___t = MLX5_GET64(typ, p, fld); \
-	pr_debug(#fld " = 0x%llx\n", ___t); \
+	pr_de(#fld " = 0x%llx\n", ___t); \
 	___t; \
 })
 
@@ -131,7 +131,7 @@ __mlx5_mask16(typ, fld))
 
 #define MLX5_SET16(typ, p, fld, v) do { \
 	u16 _v = v; \
-	BUILD_BUG_ON(__mlx5_st_sz_bits(typ) % 16);             \
+	BUILD__ON(__mlx5_st_sz_bits(typ) % 16);             \
 	*((__be16 *)(p) + __mlx5_16_off(typ, fld)) = \
 	cpu_to_be16((be16_to_cpu(*((__be16 *)(p) + __mlx5_16_off(typ, fld))) & \
 		     (~__mlx5_16_mask(typ, fld))) | (((_v) & __mlx5_mask16(typ, fld)) \
@@ -1071,7 +1071,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_RESERVED,
 	MLX5_CAP_VECTOR_CALC,
 	MLX5_CAP_QOS,
-	MLX5_CAP_DEBUG,
+	MLX5_CAP_DE,
 	MLX5_CAP_RESERVED_14,
 	MLX5_CAP_DEV_MEM,
 	/* NUM OF CAP Types */
@@ -1213,8 +1213,8 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP_QOS(mdev, cap)\
 	MLX5_GET(qos_cap, mdev->caps.hca_cur[MLX5_CAP_QOS], cap)
 
-#define MLX5_CAP_DEBUG(mdev, cap)\
-	MLX5_GET(debug_cap, mdev->caps.hca_cur[MLX5_CAP_DEBUG], cap)
+#define MLX5_CAP_DE(mdev, cap)\
+	MLX5_GET(de_cap, mdev->caps.hca_cur[MLX5_CAP_DE], cap)
 
 #define MLX5_CAP_PCAM_FEATURE(mdev, fld) \
 	MLX5_GET(pcam_reg, (mdev)->caps.pcam, feature_cap_mask.enhanced_features.fld)

@@ -358,7 +358,7 @@ static void spca504_read_info(struct gspca_dev *gspca_dev)
 	int i;
 	u8 info[6];
 
-	if (gspca_debug < D_STREAM)
+	if (gspca_de < D_STREAM)
 		return;
 
 	for (i = 0; i < 6; i++) {
@@ -432,7 +432,7 @@ static void spca50x_GetFirmware(struct gspca_dev *gspca_dev)
 {
 	u8 *data;
 
-	if (gspca_debug < D_STREAM)
+	if (gspca_de < D_STREAM)
 		return;
 
 	data = gspca_dev->usb_buf;

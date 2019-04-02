@@ -1644,7 +1644,7 @@ static int w83793_detect(struct i2c_client *client,
 	tmp = bank & 0x80 ? 0x5c : 0xa3;
 	/* Check Winbond vendor ID */
 	if (tmp != i2c_smbus_read_byte_data(client, W83793_REG_VENDORID)) {
-		pr_debug("w83793: Detection failed at check vendor id\n");
+		pr_de("w83793: Detection failed at check vendor id\n");
 		return -ENODEV;
 	}
 
@@ -1655,7 +1655,7 @@ static int w83793_detect(struct i2c_client *client,
 	if ((bank & 0x07) == 0
 	 && i2c_smbus_read_byte_data(client, W83793_REG_I2C_ADDR) !=
 	    (address << 1)) {
-		pr_debug("w83793: Detection failed at check i2c addr\n");
+		pr_de("w83793: Detection failed at check i2c addr\n");
 		return -ENODEV;
 	}
 

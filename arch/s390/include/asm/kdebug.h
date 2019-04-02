@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _S390_KDEBUG_H
-#define _S390_KDEBUG_H
+#ifndef _S390_KDE_H
+#define _S390_KDE_H
 
 /*
  * Feb 2006 Ported to s390 <grundym@us.ibm.com>
@@ -16,7 +16,7 @@ enum die_val {
 	DIE_NMI,
 	DIE_DIE,
 	DIE_NMIWATCHDOG,
-	DIE_KERNELDEBUG,
+	DIE_KERNELDE,
 	DIE_TRAP,
 	DIE_GPF,
 	DIE_CALL,

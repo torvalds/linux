@@ -16,7 +16,7 @@
 #include <linux/compiler.h>
 #include <linux/sched/signal.h>
 #include "nodelist.h"
-#include "debug.h"
+#include "de.h"
 
 /*
  * Check whether the user is allowed to write.
@@ -339,7 +339,7 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 	jffs2_sum_reset_collected(c->summary); /* reset collected summary */
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-	/* adjust write buffer offset, else we get a non contiguous write bug */
+	/* adjust write buffer offset, else we get a non contiguous write  */
 	if (!(c->wbuf_ofs % c->sector_size) && !c->wbuf_len)
 		c->wbuf_ofs = 0xffffffff;
 #endif
@@ -598,7 +598,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	if (blocknr >= c->nr_blocks) {
 		pr_notice("raw node at 0x%08x is off the end of device!\n",
 			  ref->flash_offset);
-		BUG();
+		();
 	}
 	jeb = &c->blocks[blocknr];
 
@@ -622,7 +622,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 				pr_notice("raw unchecked node of size 0x%08x freed from erase block %d at 0x%08x, but unchecked_size was already 0x%08x\n",
 					  freed_len, blocknr,
 					  ref->flash_offset, jeb->used_size);
-			BUG();
+			();
 		})
 			jffs2_dbg(1, "Obsoleting previously unchecked node at 0x%08x of len %x\n",
 				  ref_offset(ref), freed_len);
@@ -633,7 +633,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 				pr_notice("raw node of size 0x%08x freed from erase block %d at 0x%08x, but used_size was already 0x%08x\n",
 					  freed_len, blocknr,
 					  ref->flash_offset, jeb->used_size);
-			BUG();
+			();
 		})
 			jffs2_dbg(1, "Obsoleting node at 0x%08x of len %#x: ",
 				  ref_offset(ref), freed_len);
@@ -869,7 +869,7 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 		nr_very_dirty++;
 		if (nr_very_dirty == c->vdirty_blocks_gctrigger) {
 			ret = 1;
-			/* In debug mode, actually go through and count them all */
+			/* In de mode, actually go through and count them all */
 			D1(continue);
 			break;
 		}

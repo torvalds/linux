@@ -283,14 +283,14 @@ Start_ISAC:
 		isac_interrupt(cs, val);
 	val = readreg(cs->hw.sedl.adr, cs->hw.sedl.hscx, HSCX_ISTA + 0x40);
 	if (val) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "HSCX IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "HSCX IntStat after IntRoutine");
 		goto Start_HSCX;
 	}
 	val = readreg(cs->hw.sedl.adr, cs->hw.sedl.isac, ISAC_ISTA);
 	if (val) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	writereg(cs->hw.sedl.adr, cs->hw.sedl.hscx, HSCX_MASK, 0xFF);
@@ -313,8 +313,8 @@ sedlbauer_interrupt_ipac(int intno, void *dev_id)
 	spin_lock_irqsave(&cs->lock, flags);
 	ista = readreg(cs->hw.sedl.adr, cs->hw.sedl.isac, IPAC_ISTA);
 Start_IPAC:
-	if (cs->debug & L1_DEB_IPAC)
-		debugl1(cs, "IPAC ISTA %02X", ista);
+	if (cs->de & L1_DEB_IPAC)
+		del1(cs, "IPAC ISTA %02X", ista);
 	if (ista & 0x0f) {
 		val = readreg(cs->hw.sedl.adr, cs->hw.sedl.hscx, HSCX_ISTA + 0x40);
 		if (ista & 0x01)
@@ -342,8 +342,8 @@ Start_IPAC:
 		goto Start_IPAC;
 	}
 	if (!icnt)
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "Sedlbauer IRQ LOOP");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "Sedlbauer IRQ LOOP");
 	writereg(cs->hw.sedl.adr, cs->hw.sedl.isac, IPAC_MASK, 0xFF);
 	writereg(cs->hw.sedl.adr, cs->hw.sedl.isac, IPAC_MASK, 0xC0);
 	spin_unlock_irqrestore(&cs->lock, flags);
@@ -369,19 +369,19 @@ Start_ISAC:
 		isac_interrupt(cs, val);
 	val = readreg(cs->hw.sedl.adr, cs->hw.sedl.hscx, ISAR_IRQBIT);
 	if ((val & ISAR_IRQSTA) && --cnt) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "ISAR IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "ISAR IntStat after IntRoutine");
 		goto Start_ISAR;
 	}
 	val = readreg(cs->hw.sedl.adr, cs->hw.sedl.isac, ISAC_ISTA);
 	if (val && --cnt) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	if (!cnt)
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "Sedlbauer IRQ LOOP");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "Sedlbauer IRQ LOOP");
 
 	writereg(cs->hw.sedl.adr, cs->hw.sedl.hscx, ISAR_IRQBIT, 0);
 	writereg(cs->hw.sedl.adr, cs->hw.sedl.isac, ISAC_MASK, 0xFF);
@@ -752,7 +752,7 @@ ready:
 	if (cs->hw.sedl.bus != SEDL_BUS_PCI) {
 		val = readreg(cs->hw.sedl.cfg_reg + SEDL_IPAC_ANY_ADR,
 			      cs->hw.sedl.cfg_reg + SEDL_IPAC_ANY_IPAC, IPAC_ID);
-		printk(KERN_DEBUG "Sedlbauer: testing IPAC version %x\n", val);
+		printk(KERN_DE "Sedlbauer: testing IPAC version %x\n", val);
 		if ((val == 1) || (val == 2)) {
 			/* IPAC */
 			cs->subtyp = SEDL_SPEED_WIN2_PC104;

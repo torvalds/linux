@@ -357,39 +357,39 @@ ohci_dump_ed (const struct ohci_hcd *ohci, const char *label,
 
 /*-------------------------------------------------------------------------*/
 
-static int debug_async_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
-static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static int de_async_open(struct inode *, struct file *);
+static int de_periodic_open(struct inode *, struct file *);
+static int de_registers_open(struct inode *, struct file *);
+static int de_async_open(struct inode *, struct file *);
+static ssize_t de_output(struct file*, char __user*, size_t, loff_t*);
+static int de_close(struct inode *, struct file *);
 
-static const struct file_operations debug_async_fops = {
+static const struct file_operations de_async_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_async_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_async_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
-static const struct file_operations debug_periodic_fops = {
+static const struct file_operations de_periodic_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_periodic_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_periodic_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
-static const struct file_operations debug_registers_fops = {
+static const struct file_operations de_registers_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_registers_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_registers_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
 
-static struct dentry *ohci_debug_root;
+static struct dentry *ohci_de_root;
 
-struct debug_buffer {
-	ssize_t (*fill_func)(struct debug_buffer *);	/* fill method */
+struct de_buffer {
+	ssize_t (*fill_func)(struct de_buffer *);	/* fill method */
 	struct ohci_hcd *ohci;
 	struct mutex mutex;	/* protect filling of buffer */
 	size_t count;		/* number of characters filled into buffer */
@@ -462,7 +462,7 @@ show_list (struct ohci_hcd *ohci, char *buf, size_t count, struct ed *ed)
 	return count - size;
 }
 
-static ssize_t fill_async_buffer(struct debug_buffer *buf)
+static ssize_t fill_async_buffer(struct de_buffer *buf)
 {
 	struct ohci_hcd		*ohci;
 	size_t			temp, size;
@@ -483,7 +483,7 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 
 #define DBG_SCHED_LIMIT 64
 
-static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
+static ssize_t fill_periodic_buffer(struct de_buffer *buf)
 {
 	struct ohci_hcd		*ohci;
 	struct ed		**seen, *ed;
@@ -578,7 +578,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 }
 #undef DBG_SCHED_LIMIT
 
-static ssize_t fill_registers_buffer(struct debug_buffer *buf)
+static ssize_t fill_registers_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd		*hcd;
 	struct ohci_hcd		*ohci;
@@ -662,12 +662,12 @@ done:
 	return PAGE_SIZE - size;
 }
 
-static struct debug_buffer *alloc_buffer(struct ohci_hcd *ohci,
-				ssize_t (*fill_func)(struct debug_buffer *))
+static struct de_buffer *alloc_buffer(struct ohci_hcd *ohci,
+				ssize_t (*fill_func)(struct de_buffer *))
 {
-	struct debug_buffer *buf;
+	struct de_buffer *buf;
 
-	buf = kzalloc(sizeof(struct debug_buffer), GFP_KERNEL);
+	buf = kzalloc(sizeof(struct de_buffer), GFP_KERNEL);
 
 	if (buf) {
 		buf->ohci = ohci;
@@ -678,7 +678,7 @@ static struct debug_buffer *alloc_buffer(struct ohci_hcd *ohci,
 	return buf;
 }
 
-static int fill_buffer(struct debug_buffer *buf)
+static int fill_buffer(struct de_buffer *buf)
 {
 	int ret = 0;
 
@@ -701,10 +701,10 @@ out:
 	return ret;
 }
 
-static ssize_t debug_output(struct file *file, char __user *user_buf,
+static ssize_t de_output(struct file *file, char __user *user_buf,
 			size_t len, loff_t *offset)
 {
-	struct debug_buffer *buf = file->private_data;
+	struct de_buffer *buf = file->private_data;
 	int ret = 0;
 
 	mutex_lock(&buf->mutex);
@@ -725,9 +725,9 @@ out:
 
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int de_close(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *buf = file->private_data;
+	struct de_buffer *buf = file->private_data;
 
 	if (buf) {
 		if (buf->page)
@@ -737,14 +737,14 @@ static int debug_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int debug_async_open(struct inode *inode, struct file *file)
+static int de_async_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int de_periodic_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private,
 					  fill_periodic_buffer);
@@ -752,33 +752,33 @@ static int debug_periodic_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int de_registers_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private,
 					  fill_registers_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
-static inline void create_debug_files (struct ohci_hcd *ohci)
+static inline void create_de_files (struct ohci_hcd *ohci)
 {
 	struct usb_bus *bus = &ohci_to_hcd(ohci)->self;
 	struct dentry *root;
 
-	root = debugfs_create_dir(bus->bus_name, ohci_debug_root);
-	ohci->debug_dir = root;
+	root = defs_create_dir(bus->bus_name, ohci_de_root);
+	ohci->de_dir = root;
 
-	debugfs_create_file("async", S_IRUGO, root, ohci, &debug_async_fops);
-	debugfs_create_file("periodic", S_IRUGO, root, ohci,
-			    &debug_periodic_fops);
-	debugfs_create_file("registers", S_IRUGO, root, ohci,
-			    &debug_registers_fops);
+	defs_create_file("async", S_IRUGO, root, ohci, &de_async_fops);
+	defs_create_file("periodic", S_IRUGO, root, ohci,
+			    &de_periodic_fops);
+	defs_create_file("registers", S_IRUGO, root, ohci,
+			    &de_registers_fops);
 
-	ohci_dbg (ohci, "created debug files\n");
+	ohci_dbg (ohci, "created de files\n");
 }
 
-static inline void remove_debug_files (struct ohci_hcd *ohci)
+static inline void remove_de_files (struct ohci_hcd *ohci)
 {
-	debugfs_remove_recursive(ohci->debug_dir);
+	defs_remove_recursive(ohci->de_dir);
 }
 
 /*-------------------------------------------------------------------------*/

@@ -53,7 +53,7 @@ static inline size_t merge_bytes(u8 high, u8 low)
 	return (high << 8) + low;
 }
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 static void cyttsp4_pr_buf(struct device *dev, u8 *pr_buf, u8 *dptr, int size,
 		const char *data_name)
 {
@@ -1094,7 +1094,7 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 
 	mutex_lock(&cd->system_lock);
 
-	/* Just to debug */
+	/* Just to de */
 	if (cd->sleep_state == SS_SLEEP_ON || cd->sleep_state == SS_SLEEPING)
 		dev_vdbg(dev, "%s: Received IRQ while in sleep\n", __func__);
 

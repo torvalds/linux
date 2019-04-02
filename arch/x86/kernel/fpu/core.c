@@ -33,7 +33,7 @@ union fpregs_state init_fpstate __read_mostly;
  *   - by IRQ context code to potentially use the FPU
  *     if it's unused.
  *
- *   - to debug kernel_fpu_begin()/end() correctness
+ *   - to de kernel_fpu_begin()/end() correctness
  */
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
