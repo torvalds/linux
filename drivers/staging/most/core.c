@@ -616,65 +616,6 @@ inline int link_channel_to_component(struct most_channel *c,
 	return 0;
 }
 
-/**
- * add_link_store - store function for add_link attribute
- * @drv: device driver
- * @buf: buffer
- * @len: buffer length
- *
- * This parses the string given by buf and splits it into
- * four substrings. Note: last substring is optional. In case a cdev
- * component is loaded the optional 4th substring will make up the name of
- * device node in the /dev directory. If omitted, the device node will
- * inherit the channel's name within sysfs.
- *
- * Searches for (device, channel) pair and probes the component
- *
- * Example:
- * (1) echo "mdev0:ch6:cdev:my_rxchannel" >add_link
- * (2) echo "mdev1:ep81:cdev" >add_link
- *
- * (1) would create the device node /dev/my_rxchannel
- * (2) would create the device node /dev/mdev1-ep81
- */
-static ssize_t add_link_store(struct device_driver *drv,
-			      const char *buf,
-			      size_t len)
-{
-	struct most_channel *c;
-	struct core_component *comp;
-	char buffer[STRING_SIZE];
-	char *mdev;
-	char *mdev_ch;
-	char *comp_name;
-	char *comp_param;
-	char devnod_buf[STRING_SIZE];
-	int ret;
-	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
-
-	strlcpy(buffer, buf, max_len);
-	ret = split_string(buffer, &mdev, &mdev_ch, &comp_name, &comp_param);
-	if (ret)
-		return ret;
-	comp = match_component(comp_name);
-	if (!comp)
-		return -ENODEV;
-	if (!comp_param || *comp_param == 0) {
-		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev,
-			 mdev_ch);
-		comp_param = devnod_buf;
-	}
-
-	c = get_channel(mdev, mdev_ch);
-	if (!c)
-		return -ENODEV;
-
-	ret = link_channel_to_component(c, comp, "name", comp_param);
-	if (ret)
-		return ret;
-	return len;
-}
-
 int most_set_cfg_buffer_size(char *mdev, char *mdev_ch, u16 val)
 {
 	struct most_channel *c = get_channel(mdev, mdev_ch);
@@ -863,13 +804,11 @@ int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
 
 static DRIVER_ATTR_RO(links);
 static DRIVER_ATTR_RO(components);
-static DRIVER_ATTR_WO(add_link);
 static DRIVER_ATTR_WO(remove_link);
 
 static struct attribute *mc_attrs[] = {
 	DRV_ATTR(links),
 	DRV_ATTR(components),
-	DRV_ATTR(add_link),
 	DRV_ATTR(remove_link),
 	NULL,
 };
