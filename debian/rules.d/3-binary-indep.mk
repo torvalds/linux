@@ -190,6 +190,7 @@ ifeq ($(do_tools_hyperv),true)
 	dh_installinit -p$(cloudpkg) -n --name hv-kvp-daemon
 	dh_installinit -p$(cloudpkg) -n --name hv-vss-daemon
 	dh_installinit -p$(cloudpkg) -n --name hv-fcopy-daemon
+	dh_installudev -p$(cloudpkg) -n --name hv-kvp-daemon
 	dh_systemd_enable -p$(cloudpkg)
 	dh_installinit -p$(cloudpkg) -o --name hv-kvp-daemon
 	dh_installinit -p$(cloudpkg) -o --name hv-vss-daemon
