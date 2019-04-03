@@ -1587,7 +1587,8 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_fifo_errors++;
 		if (net_ratelimit())
 			dev_warn(&dev->dev,
-				 "Unexpected TXQ (%d) queue failure: %d\n", qnum, err);
+				 "Unexpected TXQ (%d) queue failure: %d\n",
+				 qnum, err);
 		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -2383,7 +2384,7 @@ static int virtnet_set_guest_offloads(struct virtnet_info *vi, u64 offloads)
 
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_GUEST_OFFLOADS,
 				  VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET, &sg)) {
-		dev_warn(&vi->dev->dev, "Fail to set guest offload. \n");
+		dev_warn(&vi->dev->dev, "Fail to set guest offload.\n");
 		return -EINVAL;
 	}
 
@@ -3114,8 +3115,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 			/* Should never trigger: MTU was previously validated
 			 * in virtnet_validate.
 			 */
-			dev_err(&vdev->dev, "device MTU appears to have changed "
-				"it is now %d < %d", mtu, dev->min_mtu);
+			dev_err(&vdev->dev,
+				"device MTU appears to have changed it is now %d < %d",
+				mtu, dev->min_mtu);
 			goto free;
 		}
 
