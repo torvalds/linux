@@ -306,11 +306,12 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 	int read_params_size;
 	int read_response_size;
 
-	if (!ec_read_version_supported(ec)) {
-		dev_warn(ec->dev,
-			"device does not support reading the console log\n");
+	/*
+	 * If the console log feature is not supported return silently and
+	 * don't create the console_log entry.
+	 */
+	if (!ec_read_version_supported(ec))
 		return 0;
-	}
 
 	buf = devm_kzalloc(ec->dev, LOG_SIZE, GFP_KERNEL);
 	if (!buf)
