@@ -7,6 +7,11 @@ config ARCH_ACTIONS
 	help
 	  This enables support for the Actions Semiconductor S900 SoC family.
 
+config ARCH_AGILEX
+	bool "Intel's Agilex SoCFPGA Family"
+	help
+	  This enables support for Intel's Agilex SoCFPGA Family.
+
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
