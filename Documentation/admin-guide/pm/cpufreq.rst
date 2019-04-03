@@ -396,8 +396,8 @@ RT or deadline scheduling classes, the governor will increase the frequency to
 the allowed maximum (that is, the ``scaling_max_freq`` policy limit).  In turn,
 if it is invoked by the CFS scheduling class, the governor will use the
 Per-Entity Load Tracking (PELT) metric for the root control group of the
-given CPU as the CPU utilization estimate (see the `Per-entity load tracking`_
-LWN.net article for a description of the PELT mechanism).  Then, the new
+given CPU as the CPU utilization estimate (see the *Per-entity load tracking*
+LWN.net article [1]_ for a description of the PELT mechanism).  Then, the new
 CPU frequency to apply is computed in accordance with the formula
 
 	f = 1.25 * ``f_0`` * ``util`` / ``max``
@@ -698,4 +698,8 @@ hardware feature (e.g. all Intel ones), even if the
 :c:macro:`CONFIG_X86_ACPI_CPUFREQ_CPB` configuration option is set.
 
 
-.. _Per-entity load tracking: https://lwn.net/Articles/531853/
+References
+==========
+
+.. [1] Jonathan Corbet, *Per-entity load tracking*,
+       https://lwn.net/Articles/531853/
