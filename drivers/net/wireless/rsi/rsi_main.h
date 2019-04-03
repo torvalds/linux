@@ -219,6 +219,17 @@ enum rsi_dfs_regions {
 	RSI_REGION_WORLD
 };
 
+struct rsi_9116_features {
+	u8 pll_mode;
+	u8 rf_type;
+	u8 wireless_mode;
+	u8 afe_type;
+	u8 enable_ppe;
+	u8 dpd;
+	u32 sifs_tx_enable;
+	u32 ps_options;
+};
+
 struct rsi_common {
 	struct rsi_hw *priv;
 	struct vif_priv vif_info[RSI_MAX_VIFS];
@@ -314,6 +325,7 @@ struct rsi_common {
 
 	struct cfg80211_scan_request *hwscan;
 	struct rsi_bgscan_params bgscan;
+	struct rsi_9116_features w9116_features;
 	u8 bgscan_en;
 	u8 mac_ops_resumed;
 };
