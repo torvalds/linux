@@ -16,6 +16,7 @@ struct mdev_link {
 	struct config_item item;
 	struct list_head list;
 	bool create_link;
+	bool destroy_link;
 	u16 num_buffers;
 	u16 buffer_size;
 	u16 subbuffer_size;
@@ -132,13 +133,34 @@ static ssize_t mdev_link_create_link_store(struct config_item *item,
 	if (ret)
 		return ret;
 	if (!tmp)
-		return most_remove_link(mdev_link->device, mdev_link->channel,
-					mdev_link->comp);
+		return count;
 	ret = set_config_and_add_link(mdev_link);
 	if (ret && ret != -ENODEV)
 		return ret;
 	list_add_tail(&mdev_link->list, &mdev_link_list);
 	mdev_link->create_link = tmp;
+	return count;
+}
+
+static ssize_t mdev_link_destroy_link_store(struct config_item *item,
+					    const char *page, size_t count)
+{
+	struct mdev_link *mdev_link = to_mdev_link(item);
+	bool tmp;
+	int ret;
+
+	ret = kstrtobool(page, &tmp);
+	if (ret)
+		return ret;
+	if (!tmp)
+		return count;
+	mdev_link->destroy_link = tmp;
+	ret = most_remove_link(mdev_link->device, mdev_link->channel,
+			       mdev_link->comp);
+	if (ret)
+		return ret;
+	if (!list_empty(&mdev_link_list))
+		list_del(&mdev_link->list);
 	return count;
 }
 
@@ -326,6 +348,7 @@ static ssize_t mdev_link_dbr_size_store(struct config_item *item,
 }
 
 CONFIGFS_ATTR_WO(mdev_link_, create_link);
+CONFIGFS_ATTR_WO(mdev_link_, destroy_link);
 CONFIGFS_ATTR(mdev_link_, device);
 CONFIGFS_ATTR(mdev_link_, channel);
 CONFIGFS_ATTR(mdev_link_, comp);
@@ -340,6 +363,7 @@ CONFIGFS_ATTR(mdev_link_, dbr_size);
 
 static struct configfs_attribute *mdev_link_attrs[] = {
 	&mdev_link_attr_create_link,
+	&mdev_link_attr_destroy_link,
 	&mdev_link_attr_device,
 	&mdev_link_attr_channel,
 	&mdev_link_attr_comp,
@@ -356,6 +380,16 @@ static struct configfs_attribute *mdev_link_attrs[] = {
 
 static void mdev_link_release(struct config_item *item)
 {
+	struct mdev_link *mdev_link = to_mdev_link(item);
+	int ret;
+
+	if (!list_empty(&mdev_link_list)) {
+		ret = most_remove_link(mdev_link->device, mdev_link->channel,
+				       mdev_link->comp);
+		if (ret && (ret != -ENODEV))
+			pr_err("Removing link failed.\n");
+		list_del(&mdev_link->list);
+	}
 	kfree(to_mdev_link(item));
 }
 
