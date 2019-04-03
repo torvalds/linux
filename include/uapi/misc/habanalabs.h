@@ -20,8 +20,8 @@
 /*
  * Queue Numbering
  *
- * The external queues (DMA channels + CPU) MUST be before the internal queues
- * and each group (DMA channels + CPU and internal) must be contiguous inside
+ * The external queues (PCI DMA channels) MUST be before the internal queues
+ * and each group (PCI DMA channels and internal) must be contiguous inside
  * itself but there can be a gap between the two groups (although not
  * recommended)
  */
@@ -477,6 +477,12 @@ struct hl_debug_args {
  * Each JOB will be enqueued on a specific queue, according to the user's input.
  * There can be more then one JOB per queue.
  *
+ * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
+ * a second set is for "execution" phase and a third set is for "store" phase.
+ * The JOBS on the "restore" phase are enqueued only after context-switch
+ * (or if its the first CS for this context). The user can also order the
+ * driver to run the "restore" phase explicitly
+ *
  * There are two types of queues - external and internal. External queues
  * are DMA queues which transfer data from/to the Host. All other queues are
  * internal. The driver will get completion notifications from the device only
@@ -493,19 +499,18 @@ struct hl_debug_args {
  * relevant queues. Therefore, the user mustn't assume the CS has been completed
  * or has even started to execute.
  *
- * Upon successful enqueue, the IOCTL returns an opaque handle which the user
+ * Upon successful enqueue, the IOCTL returns a sequence number which the user
  * can use with the "Wait for CS" IOCTL to check whether the handle's CS
  * external JOBS have been completed. Note that if the CS has internal JOBS
  * which can execute AFTER the external JOBS have finished, the driver might
  * report that the CS has finished executing BEFORE the internal JOBS have
  * actually finish executing.
  *
- * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
- * a second set is for "execution" phase and a third set is for "store" phase.
- * The JOBS on the "restore" phase are enqueued only after context-switch
- * (or if its the first CS for this context). The user can also order the
- * driver to run the "restore" phase explicitly
- *
+ * Even though the sequence number increments per CS, the user can NOT
+ * automatically assume that if CS with sequence number N finished, then CS
+ * with sequence number N-1 also finished. The user can make this assumption if
+ * and only if CS N and CS N-1 are exactly the same (same CBs for the same
+ * queues).
  */
 #define HL_IOCTL_CS			\
 		_IOWR('H', 0x03, union hl_cs_args)
