@@ -923,6 +923,70 @@ static int rsi_sdio_reinit_device(struct rsi_hw *adapter)
 	return 0;
 }
 
+static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
+{
+	int status;
+	u32 addr;
+	u8 *data;
+
+	status = rsi_sdio_master_access_msword(adapter, TA_BASE_ADDR);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE,
+			"Unable to set ms word to common reg\n");
+		return status;
+	}
+
+	rsi_dbg(INIT_ZONE, "%s: Bring TA out of reset\n", __func__);
+	put_unaligned_le32(TA_HOLD_THREAD_VALUE, data);
+	addr = TA_HOLD_THREAD_REG | RSI_SD_REQUEST_MASTER;
+	status = rsi_sdio_write_register_multiple(adapter, addr,
+						  (u8 *)&data,
+						  RSI_9116_REG_SIZE);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "Unable to hold TA threads\n");
+		return status;
+	}
+
+	put_unaligned_le32(TA_SOFT_RST_CLR, data);
+	addr = TA_SOFT_RESET_REG | RSI_SD_REQUEST_MASTER;
+	status = rsi_sdio_write_register_multiple(adapter, addr,
+						  (u8 *)&data,
+						  RSI_9116_REG_SIZE);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "Unable to get TA out of reset\n");
+		return status;
+	}
+
+	put_unaligned_le32(TA_PC_ZERO, data);
+	addr = TA_TH0_PC_REG | RSI_SD_REQUEST_MASTER;
+	status = rsi_sdio_write_register_multiple(adapter, addr,
+						  (u8 *)&data,
+						  RSI_9116_REG_SIZE);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "Unable to Reset TA PC value\n");
+		return -EINVAL;
+	}
+
+	put_unaligned_le32(TA_RELEASE_THREAD_VALUE, data);
+	addr = TA_RELEASE_THREAD_REG | RSI_SD_REQUEST_MASTER;
+	status = rsi_sdio_write_register_multiple(adapter, addr,
+						  (u8 *)&data,
+						  RSI_9116_REG_SIZE);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "Unable to release TA threads\n");
+		return status;
+	}
+
+	status = rsi_sdio_master_access_msword(adapter, MISC_CFG_BASE_ADDR);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "Unable to set ms word to common reg\n");
+		return status;
+	}
+	rsi_dbg(INIT_ZONE, "***** TA Reset done *****\n");
+
+	return 0;
+}
+
 static struct rsi_host_intf_ops sdio_host_intf_ops = {
 	.write_pkt		= rsi_sdio_host_intf_write_pkt,
 	.read_pkt		= rsi_sdio_host_intf_read_pkt,
@@ -933,6 +997,7 @@ static struct rsi_host_intf_ops sdio_host_intf_ops = {
 	.master_reg_write	= rsi_sdio_master_reg_write,
 	.load_data_master_write	= rsi_sdio_load_data_master_write,
 	.reinit_device          = rsi_sdio_reinit_device,
+	.ta_reset		= rsi_sdio_ta_reset,
 };
 
 /**

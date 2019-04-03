@@ -114,8 +114,17 @@
 
 #define FW_FLASH_OFFSET			0x820
 #define LMAC_VER_OFFSET_9113		(FW_FLASH_OFFSET + 0x200)
+#define LMAC_VER_OFFSET_9116		0x22C2
 #define MAX_DWORD_ALIGN_BYTES		64
 #define RSI_COMMON_REG_SIZE		2
+#define RSI_9116_REG_SIZE		4
+#define FW_ALIGN_SIZE			4
+#define RSI_9116_FW_MAGIC_WORD		0x5aa5
+
+#define MEM_ACCESS_CTRL_FROM_HOST	0x41300000
+#define RAM_384K_ACCESS_FROM_TA		(BIT(2) | BIT(3) | BIT(4) | BIT(5) | \
+					 BIT(20) | BIT(21) | BIT(22) | \
+					 BIT(23) | BIT(24) | BIT(25))
 
 struct bl_header {
 	__le32 flags;
@@ -129,6 +138,24 @@ struct ta_metadata {
 	char *name;
 	unsigned int address;
 };
+
+#define RSI_BL_CTRL_LEN_MASK			0xFFFFFF
+#define RSI_BL_CTRL_SPI_32BIT_MODE		BIT(27)
+#define RSI_BL_CTRL_REL_TA_SOFTRESET		BIT(28)
+#define RSI_BL_CTRL_START_FROM_ROM_PC		BIT(29)
+#define RSI_BL_CTRL_SPI_8BIT_MODE		BIT(30)
+#define RSI_BL_CTRL_LAST_ENTRY			BIT(31)
+struct bootload_entry {
+	__le32 control;
+	__le32 dst_addr;
+} __packed;
+
+struct bootload_ds {
+	__le16 fixed_pattern;
+	__le16 offset;
+	__le32 reserved;
+	struct bootload_entry bl_entry[7];
+} __packed;
 
 struct rsi_mgmt_desc {
 	__le16 len_qno;

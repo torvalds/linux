@@ -385,6 +385,7 @@ struct rsi_host_intf_ops {
 				      u32 instructions_size, u16 block_size,
 				      u8 *fw);
 	int (*reinit_device)(struct rsi_hw *adapter);
+	int (*ta_reset)(struct rsi_hw *adapter);
 };
 
 enum rsi_host_intf rsi_get_host_intf(void *priv);
