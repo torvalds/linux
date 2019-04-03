@@ -1295,8 +1295,7 @@ static int ath6kl_wmi_neighbor_report_event_rx(struct wmi *wmi, u8 *datap,
 	if (len < sizeof(*ev))
 		return -EINVAL;
 	ev = (struct wmi_neighbor_report_event *) datap;
-	if (sizeof(*ev) + ev->num_neighbors * sizeof(struct wmi_neighbor_info)
-	    > len) {
+	if (struct_size(ev, neighbor, ev->num_neighbors) > len) {
 		ath6kl_dbg(ATH6KL_DBG_WMI,
 			   "truncated neighbor event (num=%d len=%d)\n",
 			   ev->num_neighbors, len);
