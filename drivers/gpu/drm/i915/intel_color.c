@@ -538,6 +538,14 @@ static void ilk_load_luts(const struct intel_crtc_state *crtc_state)
 		ilk_load_lut_10(crtc, gamma_lut);
 }
 
+static int ivb_lut_10_size(u32 prec_index)
+{
+	if (prec_index & PAL_PREC_SPLIT_MODE)
+		return 512;
+	else
+		return 1024;
+}
+
 /*
  * IVB/HSW Bspec / PAL_PREC_INDEX:
  * "Restriction : Index auto increment mode is not
@@ -545,31 +553,21 @@ static void ilk_load_luts(const struct intel_crtc_state *crtc_state)
  */
 static void ivb_load_lut_10(struct intel_crtc *crtc,
 			    const struct drm_property_blob *blob,
-			    u32 prec_index, bool duplicate)
+			    u32 prec_index)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int hw_lut_size = ivb_lut_10_size(prec_index);
 	const struct drm_color_lut *lut = blob->data;
 	int i, lut_size = drm_color_lut_size(blob);
 	enum pipe pipe = crtc->pipe;
 
-	/*
-	 * We advertise the split gamma sizes. When not using split
-	 * gamma we just duplicate each entry.
-	 *
-	 * TODO: expose the full LUT to userspace
-	 */
-	if (duplicate) {
-		for (i = 0; i < lut_size; i++) {
-			I915_WRITE(PREC_PAL_INDEX(pipe), prec_index++);
-			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
-			I915_WRITE(PREC_PAL_INDEX(pipe), prec_index++);
-			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
-		}
-	} else {
-		for (i = 0; i < lut_size; i++) {
-			I915_WRITE(PREC_PAL_INDEX(pipe), prec_index++);
-			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
-		}
+	for (i = 0; i < hw_lut_size; i++) {
+		/* We discard half the user entries in split gamma mode */
+		const struct drm_color_lut *entry =
+			&lut[i * (lut_size - 1) / (hw_lut_size - 1)];
+
+		I915_WRITE(PREC_PAL_INDEX(pipe), prec_index++);
+		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(entry));
 	}
 
 	/*
@@ -582,9 +580,10 @@ static void ivb_load_lut_10(struct intel_crtc *crtc,
 /* On BDW+ the index auto increment mode actually works */
 static void bdw_load_lut_10(struct intel_crtc *crtc,
 			    const struct drm_property_blob *blob,
-			    u32 prec_index, bool duplicate)
+			    u32 prec_index)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int hw_lut_size = ivb_lut_10_size(prec_index);
 	const struct drm_color_lut *lut = blob->data;
 	int i, lut_size = drm_color_lut_size(blob);
 	enum pipe pipe = crtc->pipe;
@@ -592,20 +591,12 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 	I915_WRITE(PREC_PAL_INDEX(pipe), prec_index |
 		   PAL_PREC_AUTO_INCREMENT);
 
-	/*
-	 * We advertise the split gamma sizes. When not using split
-	 * gamma we just duplicate each entry.
-	 *
-	 * TODO: expose the full LUT to userspace
-	 */
-	if (duplicate) {
-		for (i = 0; i < lut_size; i++) {
-			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
-			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
-		}
-	} else {
-		for (i = 0; i < lut_size; i++)
-			I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(&lut[i]));
+	for (i = 0; i < hw_lut_size; i++) {
+		/* We discard half the user entries in split gamma mode */
+		const struct drm_color_lut *entry =
+			&lut[i * (lut_size - 1) / (hw_lut_size - 1)];
+
+		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_10(entry));
 	}
 
 	/*
@@ -647,15 +638,15 @@ static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
 		i9xx_load_luts(crtc_state);
 	} else if (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT) {
 		ivb_load_lut_10(crtc, degamma_lut, PAL_PREC_SPLIT_MODE |
-				PAL_PREC_INDEX_VALUE(0), false);
+				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_10_max(crtc);
 		ivb_load_lut_10(crtc, gamma_lut, PAL_PREC_SPLIT_MODE |
-				PAL_PREC_INDEX_VALUE(512),  false);
+				PAL_PREC_INDEX_VALUE(512));
 	} else {
 		const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
 
 		ivb_load_lut_10(crtc, blob,
-				PAL_PREC_INDEX_VALUE(0), true);
+				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_10_max(crtc);
 	}
 }
@@ -670,15 +661,15 @@ static void bdw_load_luts(const struct intel_crtc_state *crtc_state)
 		i9xx_load_luts(crtc_state);
 	} else if (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT) {
 		bdw_load_lut_10(crtc, degamma_lut, PAL_PREC_SPLIT_MODE |
-				PAL_PREC_INDEX_VALUE(0), false);
+				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_10_max(crtc);
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_SPLIT_MODE |
-				PAL_PREC_INDEX_VALUE(512),  false);
+				PAL_PREC_INDEX_VALUE(512));
 	} else {
 		const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
 
 		bdw_load_lut_10(crtc, blob,
-				PAL_PREC_INDEX_VALUE(0), true);
+				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_10_max(crtc);
 	}
 }
@@ -770,7 +761,7 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT) {
 		i9xx_load_luts(crtc_state);
 	} else {
-		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0), false);
+		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_10_max(crtc);
 	}
 }
@@ -787,7 +778,7 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	    GAMMA_MODE_MODE_8BIT) {
 		i9xx_load_luts(crtc_state);
 	} else {
-		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0), false);
+		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_10_max(crtc);
 	}
 }

@@ -125,7 +125,7 @@
 #define ILK_COLORS \
 	.color = { .gamma_lut_size = 1024 }
 #define IVB_COLORS \
-	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
+	.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
 #define CHV_COLORS \
 	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257, \
 		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
