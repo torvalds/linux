@@ -183,9 +183,6 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 				   val);
 		regmap_update_bits(pdm->regmap, PDM_DMA_CTRL, PDM_DMA_RDL_MSK,
 				   PDM_DMA_RDL(16));
-		regmap_update_bits(pdm->regmap, PDM_SYSCONFIG,
-				   PDM_RX_MASK | PDM_RX_CLR_MASK,
-				   PDM_RX_STOP | PDM_RX_CLR_WR);
 	}
 
 	return 0;
@@ -353,6 +350,7 @@ static bool rockchip_pdm_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case PDM_SYSCONFIG:
+	case PDM_FIFO_CTRL:
 	case PDM_INT_CLR:
 	case PDM_INT_ST:
 		return true;
@@ -436,6 +434,7 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 		goto err_suspend;
 	}
 
+	rockchip_pdm_rxctrl(pdm, 0);
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register pcm: %d\n", ret);
