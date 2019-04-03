@@ -973,6 +973,16 @@ struct mlx5_ifc_vector_calc_cap_bits {
 	u8         reserved_at_c0[0x720];
 };
 
+struct mlx5_ifc_tls_cap_bits {
+	u8         tls_1_2_aes_gcm_128[0x1];
+	u8         tls_1_3_aes_gcm_128[0x1];
+	u8         tls_1_2_aes_gcm_256[0x1];
+	u8         tls_1_3_aes_gcm_256[0x1];
+	u8         reserved_at_4[0x1c];
+
+	u8         reserved_at_20[0x7e0];
+};
+
 enum {
 	MLX5_WQ_TYPE_LINKED_LIST  = 0x0,
 	MLX5_WQ_TYPE_CYCLIC       = 0x1,
@@ -1303,7 +1313,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_440[0x20];
 
-	u8         reserved_at_460[0x3];
+	u8         tls[0x1];
+	u8         reserved_at_461[0x2];
 	u8         log_max_uctx[0x5];
 	u8         reserved_at_468[0x3];
 	u8         log_max_umem[0x5];
@@ -1328,7 +1339,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_geneve_tlv_option_data_len[0x5];
 	u8         reserved_at_570[0x10];
 
-	u8         reserved_at_580[0x3c];
+	u8         reserved_at_580[0x33];
+	u8         log_max_dek[0x5];
+	u8         reserved_at_5b8[0x4];
 	u8         mini_cqe_resp_stride_index[0x1];
 	u8         cqe_128_always[0x1];
 	u8         cqe_compression_128[0x1];
@@ -2607,6 +2620,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_qos_cap_bits qos_cap;
 	struct mlx5_ifc_debug_cap_bits debug_cap;
 	struct mlx5_ifc_fpga_cap_bits fpga_cap;
+	struct mlx5_ifc_tls_cap_bits tls_cap;
 	u8         reserved_at_0[0x8000];
 };
 
@@ -2746,7 +2760,8 @@ struct mlx5_ifc_traffic_counter_bits {
 
 struct mlx5_ifc_tisc_bits {
 	u8         strict_lag_tx_port_affinity[0x1];
-	u8         reserved_at_1[0x3];
+	u8         tls_en[0x1];
+	u8         reserved_at_1[0x2];
 	u8         lag_tx_port_affinity[0x04];
 
 	u8         reserved_at_8[0x4];
@@ -2760,7 +2775,11 @@ struct mlx5_ifc_tisc_bits {
 
 	u8         reserved_at_140[0x8];
 	u8         underlay_qpn[0x18];
-	u8         reserved_at_160[0x3a0];
+
+	u8         reserved_at_160[0x8];
+	u8         pd[0x18];
+
+	u8         reserved_at_180[0x380];
 };
 
 enum {
@@ -9963,6 +9982,83 @@ struct mlx5_ifc_affiliated_event_header_bits {
 	u8         obj_type[0x10];
 
 	u8         obj_id[0x20];
+};
+
+enum {
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = BIT(0xc),
+};
+
+enum {
+	MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = 0xc,
+};
+
+struct mlx5_ifc_encryption_key_obj_bits {
+	u8         modify_field_select[0x40];
+
+	u8         reserved_at_40[0x14];
+	u8         key_size[0x4];
+	u8         reserved_at_58[0x4];
+	u8         key_type[0x4];
+
+	u8         reserved_at_60[0x8];
+	u8         pd[0x18];
+
+	u8         reserved_at_80[0x180];
+	u8         key[8][0x20];
+
+	u8         reserved_at_300[0x500];
+};
+
+struct mlx5_ifc_create_encryption_key_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_encryption_key_obj_bits encryption_key_object;
+};
+
+enum {
+	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_KEY_SIZE_128 = 0x0,
+	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_KEY_SIZE_256 = 0x1,
+};
+
+enum {
+	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_DEK = 0x1,
+};
+
+struct mlx5_ifc_tls_static_params_bits {
+	u8         const_2[0x2];
+	u8         tls_version[0x4];
+	u8         const_1[0x2];
+	u8         reserved_at_8[0x14];
+	u8         encryption_standard[0x4];
+
+	u8         reserved_at_20[0x20];
+
+	u8         initial_record_number[0x40];
+
+	u8         resync_tcp_sn[0x20];
+
+	u8         gcm_iv[0x20];
+
+	u8         implicit_iv[0x40];
+
+	u8         reserved_at_100[0x8];
+	u8         dek_index[0x18];
+
+	u8         reserved_at_120[0xe0];
+};
+
+struct mlx5_ifc_tls_progress_params_bits {
+	u8         valid[0x1];
+	u8         reserved_at_1[0x7];
+	u8         pd[0x18];
+
+	u8         next_record_tcp_sn[0x20];
+
+	u8         hw_resync_tcp_sn[0x20];
+
+	u8         record_tracker_state[0x2];
+	u8         auth_state[0x2];
+	u8         reserved_at_64[0x4];
+	u8         hw_offset_record_number[0x18];
 };
 
 #endif /* MLX5_IFC_H */
