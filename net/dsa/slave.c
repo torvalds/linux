@@ -379,6 +379,13 @@ static int dsa_slave_get_port_parent_id(struct net_device *dev,
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
 
+	/* For non-legacy ports, devlink is used and it takes
+	 * care of the name generation. This ndo implementation
+	 * should be removed with legacy support.
+	 */
+	if (dp->ds->devlink)
+		return -EOPNOTSUPP;
+
 	ppid->id_len = sizeof(dst->index);
 	memcpy(&ppid->id, &dst->index, ppid->id_len);
 
