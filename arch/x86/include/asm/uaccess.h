@@ -715,6 +715,9 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 #define user_access_begin(a,b)	user_access_begin(a,b)
 #define user_access_end()	__uaccess_end()
 
+#define user_access_save()	smap_save()
+#define user_access_restore(x)	smap_restore(x)
+
 #define unsafe_put_user(x, ptr, label)	\
 	__put_user_size((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), label)
 
