@@ -144,8 +144,10 @@ static inline int copy_fpregs_to_sigframe(struct xregs_state __user *buf)
  *	buf == buf_fx for 64-bit frames and 32-bit fsave frame.
  *	buf != buf_fx for 32-bit frames with fxstate.
  *
- * Save the state to task's fpu->state and then copy it to the user frame
- * pointed to by the aligned pointer 'buf_fx'.
+ * Try to save it directly to the user frame with disabled page fault handler.
+ * If this fails then do the slow path where the FPU state is first saved to
+ * task's fpu->state and then copy it to the user frame pointed to by the
+ * aligned pointer 'buf_fx'.
  *
  * If this is a 32-bit frame with fxstate, put a fsave header before
  * the aligned state at 'buf_fx'.
@@ -159,6 +161,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 	struct xregs_state *xsave = &fpu->state.xsave;
 	struct task_struct *tsk = current;
 	int ia32_fxstate = (buf != buf_fx);
+	int ret = -EFAULT;
 
 	ia32_fxstate &= (IS_ENABLED(CONFIG_X86_32) ||
 			 IS_ENABLED(CONFIG_IA32_EMULATION));
@@ -173,23 +176,30 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 
 	/*
 	 * If we do not need to load the FPU registers at return to userspace
-	 * then the CPU has the current state and we need to save it. Otherwise,
-	 * it has already been done and we can skip it.
+	 * then the CPU has the current state. Try to save it directly to
+	 * userland's stack frame if it does not cause a pagefault. If it does,
+	 * try the slowpath.
 	 */
 	fpregs_lock();
 	if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
-		copy_fpregs_to_fpstate(fpu);
+		pagefault_disable();
+		ret = copy_fpregs_to_sigframe(buf_fx);
+		pagefault_enable();
+		if (ret)
+			copy_fpregs_to_fpstate(fpu);
 		set_thread_flag(TIF_NEED_FPU_LOAD);
 	}
 	fpregs_unlock();
 
-	if (using_compacted_format()) {
-		if (copy_xstate_to_user(buf_fx, xsave, 0, size))
-			return -1;
-	} else {
-		fpstate_sanitize_xstate(fpu);
-		if (__copy_to_user(buf_fx, xsave, fpu_user_xstate_size))
-			return -1;
+	if (ret) {
+		if (using_compacted_format()) {
+			if (copy_xstate_to_user(buf_fx, xsave, 0, size))
+				return -1;
+		} else {
+			fpstate_sanitize_xstate(fpu);
+			if (__copy_to_user(buf_fx, xsave, fpu_user_xstate_size))
+				return -1;
+		}
 	}
 
 	/* Save the fsave header for the 32-bit frames. */
