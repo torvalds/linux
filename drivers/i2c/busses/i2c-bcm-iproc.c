@@ -73,6 +73,8 @@
 #define M_CMD_STATUS_NACK_ADDR       0x2
 #define M_CMD_STATUS_NACK_DATA       0x3
 #define M_CMD_STATUS_TIMEOUT         0x4
+#define M_CMD_STATUS_FIFO_UNDERRUN   0x5
+#define M_CMD_STATUS_RX_FIFO_FULL    0x6
 #define M_CMD_PROTOCOL_SHIFT         9
 #define M_CMD_PROTOCOL_MASK          0xf
 #define M_CMD_PROTOCOL_BLK_WR        0x7
@@ -534,6 +536,14 @@ static int bcm_iproc_i2c_check_status(struct bcm_iproc_i2c_dev *iproc_i2c,
 
 	case M_CMD_STATUS_TIMEOUT:
 		dev_dbg(iproc_i2c->device, "bus timeout\n");
+		return -ETIMEDOUT;
+
+	case M_CMD_STATUS_FIFO_UNDERRUN:
+		dev_dbg(iproc_i2c->device, "FIFO under-run\n");
+		return -ENXIO;
+
+	case M_CMD_STATUS_RX_FIFO_FULL:
+		dev_dbg(iproc_i2c->device, "RX FIFO full\n");
 		return -ETIMEDOUT;
 
 	default:
