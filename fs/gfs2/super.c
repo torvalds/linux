@@ -1630,8 +1630,6 @@ alloc_failed:
 			goto out_truncate;
 	}
 
-	/* Case 1 starts here */
-
 	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
 		error = gfs2_dir_exhash_dealloc(ip);
@@ -1670,7 +1668,6 @@ out_truncate:
 	write_inode_now(inode, 1);
 	gfs2_ail_flush(ip->i_gl, 0);
 
-	/* Case 2 starts here */
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_unlock;
@@ -1680,7 +1677,6 @@ out_truncate:
 	gfs2_trans_end(sdp);
 
 out_unlock:
-	/* Error path for case 1 */
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
 
@@ -1699,7 +1695,6 @@ out_unlock:
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
-	/* Case 3 starts here */
 	truncate_inode_pages_final(&inode->i_data);
 	gfs2_rsqa_delete(ip, NULL);
 	gfs2_ordered_del_inode(ip);
