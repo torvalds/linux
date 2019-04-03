@@ -215,21 +215,24 @@ struct bio {
 /*
  * bio flags
  */
-#define BIO_NO_PAGE_REF	0	/* don't put release vec pages */
-#define BIO_SEG_VALID	1	/* bi_phys_segments valid */
-#define BIO_CLONED	2	/* doesn't own data */
-#define BIO_BOUNCED	3	/* bio is a bounce bio */
-#define BIO_USER_MAPPED 4	/* contains user pages */
-#define BIO_NULL_MAPPED 5	/* contains invalid user pages */
-#define BIO_QUIET	6	/* Make BIO Quiet */
-#define BIO_CHAIN	7	/* chained bio, ->bi_remaining in effect */
-#define BIO_REFFED	8	/* bio has elevated ->bi_cnt */
-#define BIO_THROTTLED	9	/* This bio has already been subjected to
+enum {
+	BIO_NO_PAGE_REF,	/* don't put release vec pages */
+	BIO_SEG_VALID,		/* bi_phys_segments valid */
+	BIO_CLONED,		/* doesn't own data */
+	BIO_BOUNCED,		/* bio is a bounce bio */
+	BIO_USER_MAPPED,	/* contains user pages */
+	BIO_NULL_MAPPED,	/* contains invalid user pages */
+	BIO_QUIET,		/* Make BIO Quiet */
+	BIO_CHAIN,		/* chained bio, ->bi_remaining in effect */
+	BIO_REFFED,		/* bio has elevated ->bi_cnt */
+	BIO_THROTTLED,		/* This bio has already been subjected to
 				 * throttling rules. Don't do it again. */
-#define BIO_TRACE_COMPLETION 10	/* bio_endio() should trace the final completion
+	BIO_TRACE_COMPLETION,	/* bio_endio() should trace the final completion
 				 * of this bio. */
-#define BIO_QUEUE_ENTERED 11	/* can use blk_queue_enter_live() */
-#define BIO_TRACKED 12		/* set if bio goes through the rq_qos path */
+	BIO_QUEUE_ENTERED,	/* can use blk_queue_enter_live() */
+	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
+	BIO_FLAG_LAST
+};
 
 /* See BVEC_POOL_OFFSET below before adding new flags */
 

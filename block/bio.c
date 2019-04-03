@@ -2218,6 +2218,9 @@ static int __init init_bio(void)
 	bio_slab_nr = 0;
 	bio_slabs = kcalloc(bio_slab_max, sizeof(struct bio_slab),
 			    GFP_KERNEL);
+
+	BUILD_BUG_ON(BIO_FLAG_LAST > BVEC_POOL_OFFSET);
+
 	if (!bio_slabs)
 		panic("bio: can't allocate bios\n");
 
