@@ -20,6 +20,9 @@
 
 #include "dev.h"
 #include "regs.h"
+#include "version.h"
+
+#define RKCIF_VERNO_LEN		10
 
 struct cif_match_data {
 	int chip_id;
@@ -32,6 +35,10 @@ struct cif_match_data {
 int rkcif_debug;
 module_param_named(debug, rkcif_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
+
+static char rkcif_version[RKCIF_VERNO_LEN];
+module_param_string(version, rkcif_version, RKCIF_VERNO_LEN, 0444);
+MODULE_PARM_DESC(version, "version number");
 
 int using_pingpong;
 
@@ -420,6 +427,13 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	const struct cif_match_data *data;
 	struct resource *res;
 	int i, ret, irq;
+
+	sprintf(rkcif_version, "v%02x.%02x.%02x",
+		RKCIF_DRIVER_VERSION >> 16,
+		(RKCIF_DRIVER_VERSION & 0xff00) >> 8,
+		RKCIF_DRIVER_VERSION & 0x00ff);
+
+	dev_info(dev, "rkcif driver version: %s\n", rkcif_version);
 
 	match = of_match_node(rkcif_plat_of_match, node);
 	if (IS_ERR(match))
