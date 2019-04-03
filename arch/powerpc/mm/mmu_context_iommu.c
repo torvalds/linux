@@ -98,6 +98,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 	struct mm_iommu_table_group_mem_t *mem, *mem2;
 	long i, ret, locked_entries = 0, pinned = 0;
 	unsigned int pageshift;
+	unsigned long entry, chunk;
 
 	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
 		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
@@ -134,11 +135,26 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 	}
 
 	down_read(&mm->mmap_sem);
-	ret = get_user_pages_longterm(ua, entries, FOLL_WRITE, mem->hpages, NULL);
+	chunk = (1UL << (PAGE_SHIFT + MAX_ORDER - 1)) /
+			sizeof(struct vm_area_struct *);
+	chunk = min(chunk, entries);
+	for (entry = 0; entry < entries; entry += chunk) {
+		unsigned long n = min(entries - entry, chunk);
+
+		ret = get_user_pages_longterm(ua + (entry << PAGE_SHIFT), n,
+				FOLL_WRITE, mem->hpages + entry, NULL);
+		if (ret == n) {
+			pinned += n;
+			continue;
+		}
+		if (ret > 0)
+			pinned += ret;
+		break;
+	}
 	up_read(&mm->mmap_sem);
-	pinned = ret > 0 ? ret : 0;
-	if (ret != entries) {
-		ret = -EFAULT;
+	if (pinned != entries) {
+		if (!ret)
+			ret = -EFAULT;
 		goto free_exit;
 	}
 
