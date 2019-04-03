@@ -388,8 +388,9 @@ static irqreturn_t imx7d_adc_isr(int irq, void *dev_id)
 	 * timeout flags.
 	 */
 	if (status & IMX7D_REG_ADC_INT_STATUS_CHANNEL_CONV_TIME_OUT) {
-		pr_err("%s: ADC got conversion time out interrupt: 0x%08x\n",
-			dev_name(info->dev), status);
+		dev_err(info->dev,
+			"ADC got conversion time out interrupt: 0x%08x\n",
+			status);
 		status &= ~IMX7D_REG_ADC_INT_STATUS_CHANNEL_CONV_TIME_OUT;
 		writel(status, info->regs + IMX7D_REG_ADC_INT_STATUS);
 	}
