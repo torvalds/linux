@@ -698,26 +698,47 @@ static int rsi_reset_card(struct rsi_hw *adapter)
 		goto fail;
 	}
 
-	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
-				 RSI_ULP_WRITE_2, 32);
-	if (ret < 0)
-		goto fail;
-	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2,
-				 RSI_ULP_WRITE_0, 32);
-	if (ret < 0)
-		goto fail;
-	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1,
-				 RSI_ULP_WRITE_50, 32);
-	if (ret < 0)
-		goto fail;
-	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2,
-				 RSI_ULP_WRITE_0, 32);
-	if (ret < 0)
-		goto fail;
-	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
-				 RSI_ULP_TIMER_ENABLE, 32);
-	if (ret < 0)
-		goto fail;
+	if (adapter->device_model != RSI_DEV_9116) {
+		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
+					 RSI_ULP_WRITE_2, 32);
+		if (ret < 0)
+			goto fail;
+		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2,
+					 RSI_ULP_WRITE_0, 32);
+		if (ret < 0)
+			goto fail;
+		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1,
+					 RSI_ULP_WRITE_50, 32);
+		if (ret < 0)
+			goto fail;
+		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2,
+					 RSI_ULP_WRITE_0, 32);
+		if (ret < 0)
+			goto fail;
+		ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
+					 RSI_ULP_TIMER_ENABLE, 32);
+		if (ret < 0)
+			goto fail;
+	} else {
+		if ((rsi_usb_master_reg_write(adapter,
+					      NWP_WWD_INTERRUPT_TIMER,
+					      NWP_WWD_INT_TIMER_CLKS,
+					      RSI_9116_REG_SIZE)) < 0) {
+			goto fail;
+		}
+		if ((rsi_usb_master_reg_write(adapter,
+					      NWP_WWD_SYSTEM_RESET_TIMER,
+					      NWP_WWD_SYS_RESET_TIMER_CLKS,
+					      RSI_9116_REG_SIZE)) < 0) {
+			goto fail;
+		}
+		if ((rsi_usb_master_reg_write(adapter,
+					      NWP_WWD_MODE_AND_RSTART,
+					      NWP_WWD_TIMER_DISABLE,
+					      RSI_9116_REG_SIZE)) < 0) {
+			goto fail;
+		}
+	}
 
 	rsi_dbg(INFO_ZONE, "Reset card done\n");
 	return ret;

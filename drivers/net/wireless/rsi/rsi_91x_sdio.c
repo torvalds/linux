@@ -1167,16 +1167,41 @@ static void rsi_reset_chip(struct rsi_hw *adapter)
 	 * and any pending dma transfers to rf spi in device to finish.
 	 */
 	msleep(100);
-
-	ulp_read_write(adapter, RSI_ULP_RESET_REG, RSI_ULP_WRITE_0, 32);
-	ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1, RSI_ULP_WRITE_2, 32);
-	ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2, RSI_ULP_WRITE_0, 32);
-	ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1, RSI_ULP_WRITE_50,
-		       32);
-	ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2, RSI_ULP_WRITE_0,
-		       32);
-	ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
-		       RSI_ULP_TIMER_ENABLE, 32);
+	if (adapter->device_model != RSI_DEV_9116) {
+		ulp_read_write(adapter, RSI_ULP_RESET_REG, RSI_ULP_WRITE_0, 32);
+		ulp_read_write(adapter,
+			       RSI_WATCH_DOG_TIMER_1, RSI_ULP_WRITE_2, 32);
+		ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2, RSI_ULP_WRITE_0,
+			       32);
+		ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1,
+			       RSI_ULP_WRITE_50, 32);
+		ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2,
+			       RSI_ULP_WRITE_0, 32);
+		ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
+			       RSI_ULP_TIMER_ENABLE, 32);
+	} else {
+		if ((rsi_sdio_master_reg_write(adapter,
+					       NWP_WWD_INTERRUPT_TIMER,
+					       NWP_WWD_INT_TIMER_CLKS,
+					       RSI_9116_REG_SIZE)) < 0) {
+			rsi_dbg(ERR_ZONE, "Failed to write to intr timer\n");
+		}
+		if ((rsi_sdio_master_reg_write(adapter,
+					       NWP_WWD_SYSTEM_RESET_TIMER,
+					       NWP_WWD_SYS_RESET_TIMER_CLKS,
+					       RSI_9116_REG_SIZE)) < 0) {
+			rsi_dbg(ERR_ZONE,
+				"Failed to write to system reset timer\n");
+		}
+		if ((rsi_sdio_master_reg_write(adapter,
+					       NWP_WWD_MODE_AND_RSTART,
+					       NWP_WWD_TIMER_DISABLE,
+					       RSI_9116_REG_SIZE)) < 0) {
+			rsi_dbg(ERR_ZONE,
+				"Failed to write to mode and restart\n");
+		}
+		rsi_dbg(ERR_ZONE, "***** Watch Dog Reset Successful *****\n");
+	}
 	/* This msleep will be sufficient for the ulp
 	 * read write operations to complete for chip reset.
 	 */
