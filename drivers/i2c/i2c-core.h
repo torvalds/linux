@@ -43,10 +43,13 @@ static inline int __i2c_lock_bus_helper(struct i2c_adapter *adap)
 {
 	int ret = 0;
 
-	if (i2c_in_atomic_xfer_mode())
+	if (i2c_in_atomic_xfer_mode()) {
+		WARN(!adap->algo->master_xfer_atomic && !adap->algo->smbus_xfer_atomic,
+		     "No atomic I2C transfer handler for '%s'\n", dev_name(&adap->dev));
 		ret = i2c_trylock_bus(adap, I2C_LOCK_SEGMENT) ? 0 : -EAGAIN;
-	else
+	} else {
 		i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
+	}
 
 	return ret;
 }

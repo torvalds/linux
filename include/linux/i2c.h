@@ -499,9 +499,13 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * @master_xfer: Issue a set of i2c transactions to the given I2C adapter
  *   defined by the msgs array, with num messages available to transfer via
  *   the adapter specified by adap.
+ * @master_xfer_atomic: same as @master_xfer. Yet, only using atomic context
+ *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @smbus_xfer: Issue smbus transactions to the given I2C adapter. If this
  *   is not present, then the bus layer will try and convert the SMBus calls
  *   into I2C transfers instead.
+ * @smbus_xfer_atomic: same as @smbus_xfer. Yet, only using atomic context
+ *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @functionality: Return the flags that this algorithm/adapter pair supports
  *   from the I2C_FUNC_* flags.
  * @reg_slave: Register given client to I2C slave mode of this adapter
@@ -512,9 +516,9 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
  *
- * The return codes from the @master_xfer field should indicate the type of
- * error code that occurred during the transfer, as documented in the kernel
- * Documentation file Documentation/i2c/fault-codes.
+ * The return codes from the @master_xfer{_atomic} fields should indicate the
+ * type of error code that occurred during the transfer, as documented in the
+ * Kernel Documentation file Documentation/i2c/fault-codes.
  */
 struct i2c_algorithm {
 	/*
@@ -528,9 +532,14 @@ struct i2c_algorithm {
 	 */
 	int (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			   int num);
+	int (*master_xfer_atomic)(struct i2c_adapter *adap,
+				   struct i2c_msg *msgs, int num);
 	int (*smbus_xfer)(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write,
 			  u8 command, int size, union i2c_smbus_data *data);
+	int (*smbus_xfer_atomic)(struct i2c_adapter *adap, u16 addr,
+				 unsigned short flags, char read_write,
+				 u8 command, int size, union i2c_smbus_data *data);
 
 	/* To determine what the adapter supports */
 	u32 (*functionality)(struct i2c_adapter *adap);
