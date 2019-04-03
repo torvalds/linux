@@ -558,11 +558,13 @@ static int amdgpu_ras_enable_all_features(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	int ras_block_count = AMDGPU_RAS_BLOCK_COUNT;
 	int i;
+	const enum amdgpu_ras_error_type default_ras_type =
+		AMDGPU_RAS_ERROR__NONE;
 
 	for (i = 0; i < ras_block_count; i++) {
 		struct ras_common_if head = {
 			.block = i,
-			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+			.type = default_ras_type,
 			.sub_block_index = 0,
 		};
 		strcpy(head.name, ras_block_str(i));
@@ -1368,9 +1370,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_mask &= AMDGPU_RAS_BLOCK_MASK;
 
-	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
-		amdgpu_ras_enable_all_features(adev, 1);
-
 	if (amdgpu_ras_fs_init(adev))
 		goto fs_out;
 
@@ -1398,18 +1397,25 @@ void amdgpu_ras_post_init(struct amdgpu_device *adev)
 	if (!con)
 		return;
 
-	/* We enable ras on all hw_supported block, but as boot parameter might
-	 * disable some of them and one or more IP has not implemented yet.
-	 * So we disable them on behalf.
-	 */
 	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
+		/* Set up all other IPs which are not implemented. There is a
+		 * tricky thing that IP's actual ras error type should be
+		 * MULTI_UNCORRECTABLE, but as driver does not handle it, so
+		 * ERROR_NONE make sense anyway.
+		 */
+		amdgpu_ras_enable_all_features(adev, 1);
+
+		/* We enable ras on all hw_supported block, but as boot
+		 * parameter might disable some of them and one or more IP has
+		 * not implemented yet. So we disable them on behalf.
+		 */
 		list_for_each_entry_safe(obj, tmp, &con->head, node) {
 			if (!amdgpu_ras_is_supported(adev, obj->head.block)) {
 				amdgpu_ras_feature_enable(adev, &obj->head, 0);
 				/* there should be no any reference. */
 				WARN_ON(alive_obj(obj));
 			}
-		};
+		}
 	}
 }
 
