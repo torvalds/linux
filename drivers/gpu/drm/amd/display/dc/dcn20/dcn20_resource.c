@@ -2103,7 +2103,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 			vlevel = vlevel_unsplit;
 			context->bw_ctx.dml.vba.maxMpcComb = 0;
 		} else
-			need_split = context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx];
+			need_split = context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 2;
 
 		if (need_split3d || need_split || force_split) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
