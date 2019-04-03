@@ -769,6 +769,9 @@ void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
 	u32 node, port;
 
 	skb = skb_peek(inputq);
+	if (!skb)
+		return;
+
 	hdr = buf_msg(skb);
 
 	if (likely(!msg_is_syn(hdr) && skb_queue_empty(defq)))
