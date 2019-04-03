@@ -9,9 +9,6 @@ Required properties:
     Define the base and range of the I/O address space that contain the iProc
     I2C controller registers
 
-- interrupts:
-    Should contain the I2C interrupt
-
 - clock-frequency:
     This is the I2C bus clock. Need to be either 100000 or 400000
 
@@ -20,6 +17,14 @@ Required properties:
 
 - #size-cells:
     Always 0
+
+Optional properties:
+
+- interrupts:
+    Should contain the I2C interrupt. For certain revisions of the I2C
+    controller, I2C interrupt is unwired to the interrupt controller. In such
+    case, this property should be left unspecified, and driver will fall back
+    to polling mode
 
 Example:
 	i2c0: i2c@18008000 {
