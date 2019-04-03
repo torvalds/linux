@@ -164,12 +164,6 @@ static inline void gdma_dma_write(struct gdma_dma_dev *dma_dev,
 	writel(val, dma_dev->base + reg);
 }
 
-static struct gdma_dma_desc *gdma_dma_alloc_desc(unsigned int num_sgs)
-{
-	return kzalloc(sizeof(struct gdma_dma_desc) +
-		sizeof(struct gdma_dma_sg) * num_sgs, GFP_ATOMIC);
-}
-
 static enum gdma_dma_transfer_size gdma_dma_maxburst(u32 maxburst)
 {
 	if (maxburst < 2)
@@ -526,7 +520,7 @@ static struct dma_async_tx_descriptor *gdma_dma_prep_slave_sg(
 	struct scatterlist *sg;
 	unsigned int i;
 
-	desc = gdma_dma_alloc_desc(sg_len);
+	desc = kzalloc(struct_size(desc, sg, sg_len), GFP_ATOMIC);
 	if (!desc) {
 		dev_err(c->device->dev, "alloc sg decs error\n");
 		return NULL;
@@ -581,7 +575,7 @@ static struct dma_async_tx_descriptor *gdma_dma_prep_dma_memcpy(
 	xfer_count = GDMA_REG_CTRL0_TX_MASK;
 	num_periods = DIV_ROUND_UP(len, xfer_count);
 
-	desc = gdma_dma_alloc_desc(num_periods);
+	desc = kzalloc(struct_size(desc, sg, num_periods), GFP_ATOMIC);
 	if (!desc) {
 		dev_err(c->device->dev, "alloc memcpy decs error\n");
 		return NULL;
@@ -626,7 +620,7 @@ static struct dma_async_tx_descriptor *gdma_dma_prep_dma_cyclic(
 	}
 
 	num_periods = buf_len / period_len;
-	desc = gdma_dma_alloc_desc(num_periods);
+	desc = kzalloc(struct_size(desc, sg, num_periods), GFP_ATOMIC);
 	if (!desc) {
 		dev_err(c->device->dev, "alloc cyclic decs error\n");
 		return NULL;
