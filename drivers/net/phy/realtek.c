@@ -199,11 +199,9 @@ static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
 		.name           = "RTL8201CP Ethernet",
-		.get_features	= genphy_read_abilities,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc816),
 		.name		= "RTL8201F Fast Ethernet",
-		.get_features	= genphy_read_abilities,
 		.ack_interrupt	= &rtl8201_ack_interrupt,
 		.config_intr	= &rtl8201_config_intr,
 		.suspend	= genphy_suspend,
@@ -213,14 +211,12 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc910),
 		.name		= "RTL8211 Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.config_aneg	= rtl8211_config_aneg,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc912),
 		.name		= "RTL8211B Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211b_config_intr,
 		.read_mmd	= &genphy_read_mmd_unsupported,
@@ -230,14 +226,12 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc913),
 		.name		= "RTL8211C Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.config_init	= rtl8211c_config_init,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc914),
 		.name		= "RTL8211DN Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.ack_interrupt	= rtl821x_ack_interrupt,
 		.config_intr	= rtl8211e_config_intr,
 		.suspend	= genphy_suspend,
@@ -245,7 +239,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc915),
 		.name		= "RTL8211E Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211e_config_intr,
 		.suspend	= genphy_suspend,
@@ -253,7 +246,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc916),
 		.name		= "RTL8211F Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.config_init	= &rtl8211f_config_init,
 		.ack_interrupt	= &rtl8211f_ack_interrupt,
 		.config_intr	= &rtl8211f_config_intr,
@@ -264,7 +256,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc800),
 		.name		= "Generic Realtek PHY",
-		.get_features	= genphy_read_abilities,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
@@ -272,7 +263,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",
-		.get_features	= genphy_read_abilities,
 		.config_init	= &rtl8366rb_config_init,
 		/* These interrupts are handled by the irq controller
 		 * embedded inside the RTL8366RB, they get unmasked when the
