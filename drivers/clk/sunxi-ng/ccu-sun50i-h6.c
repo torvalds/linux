@@ -311,7 +311,7 @@ static SUNXI_CCU_M_WITH_MUX_GATE(ve_clk, "ve", ve_parents, 0x690,
 				       0, 3,	/* M */
 				       24, 1,	/* mux */
 				       BIT(31),	/* gate */
-				       0);
+				       CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(bus_ve_clk, "bus-ve", "psi-ahb1-ahb2",
 		      0x69c, BIT(0), 0);
@@ -691,7 +691,7 @@ static SUNXI_CCU_MUX_WITH_GATE(tcon_lcd0_clk, "tcon-lcd0",
 			       tcon_lcd0_parents, 0xb60,
 			       24, 3,	/* mux */
 			       BIT(31),	/* gate */
-			       0);
+			       CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(bus_tcon_lcd0_clk, "bus-tcon-lcd0", "ahb3",
 		      0xb7c, BIT(0), 0);
@@ -706,7 +706,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(tcon_tv0_clk, "tcon-tv0",
 				  8, 2,		/* P */
 				  24, 3,	/* mux */
 				  BIT(31),	/* gate */
-				  0);
+				  CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(bus_tcon_tv0_clk, "bus-tcon-tv0", "ahb3",
 		      0xb9c, BIT(0), 0);
