@@ -1624,7 +1624,7 @@ static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
  * Implement a generic .request() callback, using .raw_request()
  * DO NOT USE in hid drivers directly, but through hid_hw_request instead.
  */
-void __hid_request(struct hid_device *hid, struct hid_report *report,
+int __hid_request(struct hid_device *hid, struct hid_report *report,
 		int reqtype)
 {
 	char *buf;
@@ -1633,7 +1633,7 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
-		return;
+		return -ENOMEM;
 
 	len = hid_report_len(report);
 
@@ -1650,8 +1650,11 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 	if (reqtype == HID_REQ_GET_REPORT)
 		hid_input_report(hid, report->type, buf, ret, 0);
 
+	ret = 0;
+
 out:
 	kfree(buf);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__hid_request);
 
