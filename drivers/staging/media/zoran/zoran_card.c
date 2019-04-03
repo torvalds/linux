@@ -1146,8 +1146,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 	strscpy(m->name, ZR_DEVNAME(zr), sizeof(m->name));
 	m->data = zr;
 
-	switch (type)
-	{
+	switch (type) {
 	case CODEC_TYPE_ZR36060:
 		m->readreg = zr36060_read;
 		m->writereg = zr36060_write;
