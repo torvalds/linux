@@ -42,6 +42,9 @@
 
 /* PDM CTRL0 */
 #define PDM_PATH_MSK		(0xf << 27)
+#define PDM_MODE_MSK		BIT(31)
+#define PDM_MODE_RJ		0
+#define PDM_MODE_LJ		BIT(31)
 #define PDM_PATH3_EN		BIT(30)
 #define PDM_PATH2_EN		BIT(29)
 #define PDM_PATH1_EN		BIT(28)
