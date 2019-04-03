@@ -2509,9 +2509,7 @@ static void ath10k_htt_rx_proc_rx_ind_ll(struct ath10k_htt *htt,
 	mpdu_ranges = htt_rx_ind_get_mpdu_ranges(rx);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx ind: ",
-			rx, sizeof(*rx) +
-			(sizeof(struct htt_rx_indication_mpdu_range) *
-				num_mpdu_ranges));
+			rx, struct_size(rx, mpdu_ranges, num_mpdu_ranges));
 
 	for (i = 0; i < num_mpdu_ranges; i++)
 		mpdu_count += mpdu_ranges[i].mpdu_count;
