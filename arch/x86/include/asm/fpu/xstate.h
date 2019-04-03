@@ -46,8 +46,8 @@ extern void __init update_regset_xstate_info(unsigned int size,
 					     u64 xstate_mask);
 
 void fpu__xstate_clear_all_cpu_caps(void);
-void *get_xsave_addr(struct xregs_state *xsave, int xstate);
-const void *get_xsave_field_ptr(int xstate_field);
+void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr);
+const void *get_xsave_field_ptr(int xfeature_nr);
 int using_compacted_format(void);
 int copy_xstate_to_kernel(void *kbuf, struct xregs_state *xsave, unsigned int offset, unsigned int size);
 int copy_xstate_to_user(void __user *ubuf, struct xregs_state *xsave, unsigned int offset, unsigned int size);

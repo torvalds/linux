@@ -3674,15 +3674,15 @@ static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
 	 */
 	valid = xstate_bv & ~XFEATURE_MASK_FPSSE;
 	while (valid) {
-		u64 feature = valid & -valid;
-		int index = fls64(feature) - 1;
-		void *src = get_xsave_addr(xsave, feature);
+		u64 xfeature_mask = valid & -valid;
+		int xfeature_nr = fls64(xfeature_mask) - 1;
+		void *src = get_xsave_addr(xsave, xfeature_nr);
 
 		if (src) {
 			u32 size, offset, ecx, edx;
-			cpuid_count(XSTATE_CPUID, index,
+			cpuid_count(XSTATE_CPUID, xfeature_nr,
 				    &size, &offset, &ecx, &edx);
-			if (feature == XFEATURE_MASK_PKRU)
+			if (xfeature_nr == XFEATURE_PKRU)
 				memcpy(dest + offset, &vcpu->arch.pkru,
 				       sizeof(vcpu->arch.pkru));
 			else
@@ -3690,7 +3690,7 @@ static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
 
 		}
 
-		valid -= feature;
+		valid -= xfeature_mask;
 	}
 }
 
@@ -3717,22 +3717,22 @@ static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
 	 */
 	valid = xstate_bv & ~XFEATURE_MASK_FPSSE;
 	while (valid) {
-		u64 feature = valid & -valid;
-		int index = fls64(feature) - 1;
-		void *dest = get_xsave_addr(xsave, feature);
+		u64 xfeature_mask = valid & -valid;
+		int xfeature_nr = fls64(xfeature_mask) - 1;
+		void *dest = get_xsave_addr(xsave, xfeature_nr);
 
 		if (dest) {
 			u32 size, offset, ecx, edx;
-			cpuid_count(XSTATE_CPUID, index,
+			cpuid_count(XSTATE_CPUID, xfeature_nr,
 				    &size, &offset, &ecx, &edx);
-			if (feature == XFEATURE_MASK_PKRU)
+			if (xfeature_nr == XFEATURE_PKRU)
 				memcpy(&vcpu->arch.pkru, src + offset,
 				       sizeof(vcpu->arch.pkru));
 			else
 				memcpy(dest, src + offset, size);
 		}
 
-		valid -= feature;
+		valid -= xfeature_mask;
 	}
 }
 
@@ -8850,11 +8850,11 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		if (init_event)
 			kvm_put_guest_fpu(vcpu);
 		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu->state.xsave,
-					XFEATURE_MASK_BNDREGS);
+					XFEATURE_BNDREGS);
 		if (mpx_state_buffer)
 			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndreg_state));
 		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu->state.xsave,
-					XFEATURE_MASK_BNDCSR);
+					XFEATURE_BNDCSR);
 		if (mpx_state_buffer)
 			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
 		if (init_event)

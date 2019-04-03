@@ -456,7 +456,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 * which is all zeros which indicates MPX was not
 	 * responsible for the exception.
 	 */
-	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_BNDCSR);
 	if (!bndcsr)
 		goto exit_trap;
 

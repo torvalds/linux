@@ -830,15 +830,14 @@ static void *__raw_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
  *
  * Inputs:
  *	xstate: the thread's storage area for all FPU data
- *	xstate_feature: state which is defined in xsave.h (e.g.
- *	XFEATURE_MASK_FP, XFEATURE_MASK_SSE, etc...)
+ *	xfeature_nr: state which is defined in xsave.h (e.g. XFEATURE_FP,
+ *	XFEATURE_SSE, etc...)
  * Output:
  *	address of the state in the xsave area, or NULL if the
  *	field is not present in the xsave buffer.
  */
-void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
+void *get_xsave_addr(struct xregs_state *xsave, int xfeature_nr)
 {
-	int xfeature_nr;
 	/*
 	 * Do we even *have* xsave state?
 	 */
@@ -850,11 +849,11 @@ void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
 	 * have not enabled.  Remember that pcntxt_mask is
 	 * what we write to the XCR0 register.
 	 */
-	WARN_ONCE(!(xfeatures_mask & xstate_feature),
+	WARN_ONCE(!(xfeatures_mask & BIT_ULL(xfeature_nr)),
 		  "get of unsupported state");
 	/*
 	 * This assumes the last 'xsave*' instruction to
-	 * have requested that 'xstate_feature' be saved.
+	 * have requested that 'xfeature_nr' be saved.
 	 * If it did not, we might be seeing and old value
 	 * of the field in the buffer.
 	 *
@@ -863,10 +862,9 @@ void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
 	 * or because the "init optimization" caused it
 	 * to not be saved.
 	 */
-	if (!(xsave->header.xfeatures & xstate_feature))
+	if (!(xsave->header.xfeatures & BIT_ULL(xfeature_nr)))
 		return NULL;
 
-	xfeature_nr = fls64(xstate_feature) - 1;
 	return __raw_xsave_addr(xsave, xfeature_nr);
 }
 EXPORT_SYMBOL_GPL(get_xsave_addr);
@@ -882,13 +880,13 @@ EXPORT_SYMBOL_GPL(get_xsave_addr);
  * Note that this only works on the current task.
  *
  * Inputs:
- *	@xsave_state: state which is defined in xsave.h (e.g. XFEATURE_MASK_FP,
- *	XFEATURE_MASK_SSE, etc...)
+ *	@xfeature_nr: state which is defined in xsave.h (e.g. XFEATURE_FP,
+ *	XFEATURE_SSE, etc...)
  * Output:
  *	address of the state in the xsave area or NULL if the state
  *	is not present or is in its 'init state'.
  */
-const void *get_xsave_field_ptr(int xsave_state)
+const void *get_xsave_field_ptr(int xfeature_nr)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
@@ -898,7 +896,7 @@ const void *get_xsave_field_ptr(int xsave_state)
 	 */
 	fpu__save(fpu);
 
-	return get_xsave_addr(&fpu->state.xsave, xsave_state);
+	return get_xsave_addr(&fpu->state.xsave, xfeature_nr);
 }
 
 #ifdef CONFIG_ARCH_HAS_PKEYS
