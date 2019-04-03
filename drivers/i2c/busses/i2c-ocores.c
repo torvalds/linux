@@ -442,6 +442,7 @@ static u32 ocores_func(struct i2c_adapter *adap)
 
 static struct i2c_algorithm ocores_algorithm = {
 	.master_xfer = ocores_xfer,
+	.master_xfer_atomic = ocores_xfer_polling,
 	.functionality = ocores_func,
 };
 
