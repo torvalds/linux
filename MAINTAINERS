@@ -4809,6 +4809,14 @@ M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
 F:	drivers/gpu/drm/ast/
 
+DRM DRIVER FOR ASPEED BMC GFX
+M:	Joel Stanley <joel@jms.id.au>
+L:	linux-aspeed@lists.ozlabs.org
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Supported
+F:	drivers/gpu/drm/aspeed/
+F:	Documentation/devicetree/bindings/gpu/aspeed-gfx.txt
+
 DRM DRIVER FOR BOCHS VIRTUAL GPU
 M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	virtualization@lists.linux-foundation.org
