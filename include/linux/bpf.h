@@ -421,6 +421,7 @@ struct bpf_array {
 	};
 };
 
+#define BPF_COMPLEXITY_LIMIT_INSNS      1000000 /* yes. 1M insns */
 #define MAX_TAIL_CALL_CNT 32
 
 struct bpf_event_entry {

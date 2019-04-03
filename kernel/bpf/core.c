@@ -438,6 +438,7 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	u32 insn_adj_cnt, insn_rest, insn_delta = len - 1;
 	const u32 cnt_max = S16_MAX;
 	struct bpf_prog *prog_adj;
+	int err;
 
 	/* Since our patchlet doesn't expand the image, we're done. */
 	if (insn_delta == 0) {
@@ -453,8 +454,8 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	 * we afterwards may not fail anymore.
 	 */
 	if (insn_adj_cnt > cnt_max &&
-	    bpf_adj_branches(prog, off, off + 1, off + len, true))
-		return NULL;
+	    (err = bpf_adj_branches(prog, off, off + 1, off + len, true)))
+		return ERR_PTR(err);
 
 	/* Several new instructions need to be inserted. Make room
 	 * for them. Likely, there's no need for a new allocation as
@@ -463,7 +464,7 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	prog_adj = bpf_prog_realloc(prog, bpf_prog_size(insn_adj_cnt),
 				    GFP_USER);
 	if (!prog_adj)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	prog_adj->len = insn_adj_cnt;
 
@@ -1096,13 +1097,13 @@ struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *prog)
 			continue;
 
 		tmp = bpf_patch_insn_single(clone, i, insn_buff, rewritten);
-		if (!tmp) {
+		if (IS_ERR(tmp)) {
 			/* Patching may have repointed aux->prog during
 			 * realloc from the original one, so we need to
 			 * fix it up here on error.
 			 */
 			bpf_jit_prog_release_other(prog, clone);
-			return ERR_PTR(-ENOMEM);
+			return tmp;
 		}
 
 		clone = tmp;
