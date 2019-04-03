@@ -471,17 +471,11 @@ static const struct snd_pcm_ops pcm_ops = {
 	.page       = snd_pcm_lib_get_vmalloc_page,
 };
 
-static int split_arg_list(char *buf, char **device_name, u16 *ch_num,
-			  char **sample_res, u8 *create)
+static int split_arg_list(char *buf, u16 *ch_num, char **sample_res)
 {
 	char *num;
 	int ret;
 
-	*device_name = strsep(&buf, ".");
-	if (!*device_name) {
-		pr_err("Missing sound card name\n");
-		return -EIO;
-	}
 	num = strsep(&buf, "x");
 	if (!num)
 		goto err;
@@ -492,8 +486,6 @@ static int split_arg_list(char *buf, char **device_name, u16 *ch_num,
 	if (!*sample_res)
 		goto err;
 
-	if (buf && !strcmp(buf, "create"))
-		*create = 1;
 	return 0;
 
 err:
@@ -589,7 +581,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	int ret;
 	int direction;
 	u16 ch_num;
-	u8 create = 0;
 	char *sample_res;
 
 	if (!iface)
@@ -600,8 +591,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		return -EINVAL;
 	}
 
-	ret = split_arg_list(arg_list, &device_name, &ch_num, &sample_res,
-			     &create);
+	ret = split_arg_list(arg_list, &ch_num, &sample_res);
 	if (ret < 0)
 		return ret;
 
@@ -672,17 +662,31 @@ skip_adpt_alloc:
 	strscpy(pcm->name, device_name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, direction, &pcm_ops);
 
-	if (create) {
-		ret = snd_card_register(adpt->card);
-		if (ret < 0)
-			goto err_free_adpt;
-		adpt->registered = true;
-	}
 	return 0;
 
 err_free_adpt:
 	release_adapter(adpt);
 	return ret;
+}
+
+static int audio_create_sound_card(void)
+{
+	int ret;
+	struct sound_adapter *adpt;
+
+	list_for_each_entry(adpt, &adpt_list, list) {
+		if (!adpt->registered)
+			goto adpt_alloc;
+	}
+	return -ENODEV;
+adpt_alloc:
+	ret = snd_card_register(adpt->card);
+	if (ret < 0) {
+		release_adapter(adpt);
+		return ret;
+	}
+	adpt->registered = true;
+	return 0;
 }
 
 /**
@@ -781,6 +785,7 @@ static struct core_component comp = {
 	.disconnect_channel = audio_disconnect_channel,
 	.rx_completion = audio_rx_completion,
 	.tx_completion = audio_tx_completion,
+	.cfg_complete = audio_create_sound_card,
 };
 
 static int __init audio_init(void)
