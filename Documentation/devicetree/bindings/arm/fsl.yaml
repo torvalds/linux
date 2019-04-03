@@ -138,10 +138,17 @@ properties:
           - const: fsl,imx6ull # This seems odd. Should be last?
           - const: fsl,imx6ulz
 
+      - description: i.MX7S based Boards
+        items:
+          - enum:
+              - tq,imx7s-mba7             # i.MX7S TQ MBa7 with TQMa7S SoM
+          - const: fsl,imx7s
+
       - description: i.MX7D based Boards
         items:
           - enum:
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
+              - tq,imx7d-mba7             # i.MX7D TQ MBa7 with TQMa7D SoM
           - const: fsl,imx7d
 
       - description:
