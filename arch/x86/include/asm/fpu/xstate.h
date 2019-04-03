@@ -2,9 +2,11 @@
 #ifndef __ASM_X86_XSAVE_H
 #define __ASM_X86_XSAVE_H
 
-#include <linux/types.h>
-#include <asm/processor.h>
 #include <linux/uaccess.h>
+#include <linux/types.h>
+
+#include <asm/processor.h>
+#include <asm/user.h>
 
 /* Bit 63 of XCR0 is reserved for future expansion */
 #define XFEATURE_MASK_EXTEND	(~(XFEATURE_MASK_FPSSE | (1ULL << 63)))
