@@ -48,7 +48,7 @@ vc4_debugfs_init(struct drm_minor *minor)
 	return 0;
 }
 
-int vc4_debugfs_regset32(struct seq_file *m, void *unused)
+static int vc4_debugfs_regset32(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct debugfs_regset32 *regset = node->info_ent->data;
