@@ -440,16 +440,16 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	bb->chipselect = spi_gpio_chipselect;
 	bb->set_line_direction = spi_gpio_set_direction;
 
-	if ((master_flags & SPI_MASTER_NO_TX) == 0) {
-		bb->txrx_word[SPI_MODE_0] = spi_gpio_txrx_word_mode0;
-		bb->txrx_word[SPI_MODE_1] = spi_gpio_txrx_word_mode1;
-		bb->txrx_word[SPI_MODE_2] = spi_gpio_txrx_word_mode2;
-		bb->txrx_word[SPI_MODE_3] = spi_gpio_txrx_word_mode3;
-	} else {
+	if (master_flags & SPI_MASTER_NO_TX) {
 		bb->txrx_word[SPI_MODE_0] = spi_gpio_spec_txrx_word_mode0;
 		bb->txrx_word[SPI_MODE_1] = spi_gpio_spec_txrx_word_mode1;
 		bb->txrx_word[SPI_MODE_2] = spi_gpio_spec_txrx_word_mode2;
 		bb->txrx_word[SPI_MODE_3] = spi_gpio_spec_txrx_word_mode3;
+	} else {
+		bb->txrx_word[SPI_MODE_0] = spi_gpio_txrx_word_mode0;
+		bb->txrx_word[SPI_MODE_1] = spi_gpio_txrx_word_mode1;
+		bb->txrx_word[SPI_MODE_2] = spi_gpio_txrx_word_mode2;
+		bb->txrx_word[SPI_MODE_3] = spi_gpio_txrx_word_mode3;
 	}
 	bb->setup_transfer = spi_bitbang_setup_transfer;
 
