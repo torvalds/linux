@@ -1766,15 +1766,26 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 		rsi_dbg(FSM_ZONE, "%s: Boot up params confirm received\n",
 			__func__);
 		if (common->fsm_state == FSM_BOOT_PARAMS_SENT) {
-			adapter->eeprom.length = (IEEE80211_ADDR_LEN +
-						  WLAN_MAC_MAGIC_WORD_LEN +
-						  WLAN_HOST_MODE_LEN);
-			adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
-			if (rsi_eeprom_read(common)) {
-				common->fsm_state = FSM_CARD_NOT_READY;
-				goto out;
+			if (adapter->device_model == RSI_DEV_9116) {
+				common->band = NL80211_BAND_5GHZ;
+				common->num_supp_bands = 2;
+
+				if (rsi_send_reset_mac(common))
+					goto out;
+				else
+					common->fsm_state = FSM_RESET_MAC_SENT;
+			} else {
+				adapter->eeprom.length =
+					(IEEE80211_ADDR_LEN +
+					 WLAN_MAC_MAGIC_WORD_LEN +
+					 WLAN_HOST_MODE_LEN);
+				adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
+				if (rsi_eeprom_read(common)) {
+					common->fsm_state = FSM_CARD_NOT_READY;
+					goto out;
+				}
+				common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 			}
-			common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received bootup params cfm in %d state\n",
@@ -1936,6 +1947,17 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 	case FSM_COMMON_DEV_PARAMS_SENT:
 		rsi_dbg(INIT_ZONE, "Card ready indication from WLAN HAL\n");
 
+		if (common->priv->device_model == RSI_DEV_9116) {
+			if (msg[16] != MAGIC_WORD) {
+				rsi_dbg(FSM_ZONE,
+					"%s: [EEPROM_READ] Invalid token\n",
+					__func__);
+				common->fsm_state = FSM_CARD_NOT_READY;
+				return -EINVAL;
+			}
+			memcpy(common->mac_addr, &msg[20], ETH_ALEN);
+			rsi_dbg(INIT_ZONE, "MAC Addr %pM", common->mac_addr);
+		}
 		/* Get usb buffer status register address */
 		common->priv->usb_buffer_status_reg = *(u32 *)&msg[8];
 		rsi_dbg(INFO_ZONE, "USB buffer status register = %x\n",
