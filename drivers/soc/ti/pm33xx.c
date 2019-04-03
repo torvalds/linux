@@ -49,6 +49,56 @@ static u32 sram_suspend_address(unsigned long addr)
 		AMX3_PM_SRAM_SYMBOL_OFFSET(addr));
 }
 
+static int am33xx_push_sram_idle(void)
+{
+	struct am33xx_pm_ro_sram_data ro_sram_data;
+	int ret;
+	u32 table_addr, ro_data_addr;
+	void *copy_addr;
+
+	ro_sram_data.amx3_pm_sram_data_virt = ocmcram_location_data;
+	ro_sram_data.amx3_pm_sram_data_phys =
+		gen_pool_virt_to_phys(sram_pool_data, ocmcram_location_data);
+	ro_sram_data.rtc_base_virt = pm_ops->get_rtc_base_addr();
+
+	/* Save physical address to calculate resume offset during pm init */
+	am33xx_do_wfi_sram_phys = gen_pool_virt_to_phys(sram_pool,
+							ocmcram_location);
+
+	am33xx_do_wfi_sram = sram_exec_copy(sram_pool, (void *)ocmcram_location,
+					    pm_sram->do_wfi,
+					    *pm_sram->do_wfi_sz);
+	if (!am33xx_do_wfi_sram) {
+		dev_err(pm33xx_dev,
+			"PM: %s: am33xx_do_wfi copy to sram failed\n",
+			__func__);
+		return -ENODEV;
+	}
+
+	table_addr =
+		sram_suspend_address((unsigned long)pm_sram->emif_sram_table);
+	ret = ti_emif_copy_pm_function_table(sram_pool, (void *)table_addr);
+	if (ret) {
+		dev_dbg(pm33xx_dev,
+			"PM: %s: EMIF function copy failed\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	ro_data_addr =
+		sram_suspend_address((unsigned long)pm_sram->ro_sram_data);
+	copy_addr = sram_exec_copy(sram_pool, (void *)ro_data_addr,
+				   &ro_sram_data,
+				   sizeof(ro_sram_data));
+	if (!copy_addr) {
+		dev_err(pm33xx_dev,
+			"PM: %s: ro_sram_data copy to sram failed\n",
+			__func__);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_SUSPEND
 static int am33xx_pm_suspend(suspend_state_t suspend_state)
 {
@@ -217,56 +267,6 @@ static int am33xx_pm_alloc_sram(void)
 mpu_put_node:
 	of_node_put(np);
 	return ret;
-}
-
-static int am33xx_push_sram_idle(void)
-{
-	struct am33xx_pm_ro_sram_data ro_sram_data;
-	int ret;
-	u32 table_addr, ro_data_addr;
-	void *copy_addr;
-
-	ro_sram_data.amx3_pm_sram_data_virt = ocmcram_location_data;
-	ro_sram_data.amx3_pm_sram_data_phys =
-		gen_pool_virt_to_phys(sram_pool_data, ocmcram_location_data);
-	ro_sram_data.rtc_base_virt = pm_ops->get_rtc_base_addr();
-
-	/* Save physical address to calculate resume offset during pm init */
-	am33xx_do_wfi_sram_phys = gen_pool_virt_to_phys(sram_pool,
-							ocmcram_location);
-
-	am33xx_do_wfi_sram = sram_exec_copy(sram_pool, (void *)ocmcram_location,
-					    pm_sram->do_wfi,
-					    *pm_sram->do_wfi_sz);
-	if (!am33xx_do_wfi_sram) {
-		dev_err(pm33xx_dev,
-			"PM: %s: am33xx_do_wfi copy to sram failed\n",
-			__func__);
-		return -ENODEV;
-	}
-
-	table_addr =
-		sram_suspend_address((unsigned long)pm_sram->emif_sram_table);
-	ret = ti_emif_copy_pm_function_table(sram_pool, (void *)table_addr);
-	if (ret) {
-		dev_dbg(pm33xx_dev,
-			"PM: %s: EMIF function copy failed\n", __func__);
-		return -EPROBE_DEFER;
-	}
-
-	ro_data_addr =
-		sram_suspend_address((unsigned long)pm_sram->ro_sram_data);
-	copy_addr = sram_exec_copy(sram_pool, (void *)ro_data_addr,
-				   &ro_sram_data,
-				   sizeof(ro_sram_data));
-	if (!copy_addr) {
-		dev_err(pm33xx_dev,
-			"PM: %s: ro_sram_data copy to sram failed\n",
-			__func__);
-		return -ENODEV;
-	}
-
-	return 0;
 }
 
 static int am33xx_pm_probe(struct platform_device *pdev)
