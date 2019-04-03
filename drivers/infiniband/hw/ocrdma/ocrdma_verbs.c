@@ -1805,45 +1805,43 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 	return status;
 }
 
-struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
-				 struct ib_srq_init_attr *init_attr,
-				 struct ib_udata *udata)
+int ocrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
+		      struct ib_udata *udata)
 {
-	int status = -ENOMEM;
-	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
-	struct ocrdma_srq *srq;
+	int status;
+	struct ocrdma_pd *pd = get_ocrdma_pd(ibsrq->pd);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
+	struct ocrdma_srq *srq = get_ocrdma_srq(ibsrq);
 
 	if (init_attr->attr.max_sge > dev->attr.max_recv_sge)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	if (init_attr->attr.max_wr > dev->attr.max_rqe)
-		return ERR_PTR(-EINVAL);
-
-	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq)
-		return ERR_PTR(status);
+		return -EINVAL;
 
 	spin_lock_init(&srq->q_lock);
 	srq->pd = pd;
 	srq->db = dev->nic_info.db + (pd->id * dev->nic_info.db_page_size);
 	status = ocrdma_mbx_create_srq(dev, srq, init_attr, pd);
 	if (status)
-		goto err;
+		return status;
 
-	if (udata == NULL) {
-		status = -ENOMEM;
+	if (!udata) {
 		srq->rqe_wr_id_tbl = kcalloc(srq->rq.max_cnt, sizeof(u64),
 					     GFP_KERNEL);
-		if (srq->rqe_wr_id_tbl == NULL)
+		if (!srq->rqe_wr_id_tbl) {
+			status = -ENOMEM;
 			goto arm_err;
+		}
 
 		srq->bit_fields_len = (srq->rq.max_cnt / 32) +
 		    (srq->rq.max_cnt % 32 ? 1 : 0);
 		srq->idx_bit_fields =
 		    kmalloc_array(srq->bit_fields_len, sizeof(u32),
 				  GFP_KERNEL);
-		if (srq->idx_bit_fields == NULL)
+		if (!srq->idx_bit_fields) {
+			status = -ENOMEM;
 			goto arm_err;
+		}
 		memset(srq->idx_bit_fields, 0xff,
 		       srq->bit_fields_len * sizeof(u32));
 	}
@@ -1860,15 +1858,13 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 			goto arm_err;
 	}
 
-	return &srq->ibsrq;
+	return 0;
 
 arm_err:
 	ocrdma_mbx_destroy_srq(dev, srq);
-err:
 	kfree(srq->rqe_wr_id_tbl);
 	kfree(srq->idx_bit_fields);
-	kfree(srq);
-	return ERR_PTR(status);
+	return status;
 }
 
 int ocrdma_modify_srq(struct ib_srq *ibsrq,
@@ -1897,15 +1893,14 @@ int ocrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	return status;
 }
 
-int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+void ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
-	int status;
 	struct ocrdma_srq *srq;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
 
 	srq = get_ocrdma_srq(ibsrq);
 
-	status = ocrdma_mbx_destroy_srq(dev, srq);
+	ocrdma_mbx_destroy_srq(dev, srq);
 
 	if (srq->pd->uctx)
 		ocrdma_del_mmap(srq->pd->uctx, (u64) srq->rq.pa,
@@ -1913,8 +1908,6 @@ int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 
 	kfree(srq->idx_bit_fields);
 	kfree(srq->rqe_wr_id_tbl);
-	kfree(srq);
-	return status;
 }
 
 /* unprivileged verbs and their support functions. */

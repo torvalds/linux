@@ -518,8 +518,8 @@ int bnxt_qplib_modify_srq(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_srq *srq);
 int bnxt_qplib_query_srq(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_srq *srq);
-int bnxt_qplib_destroy_srq(struct bnxt_qplib_res *res,
-			   struct bnxt_qplib_srq *srq);
+void bnxt_qplib_destroy_srq(struct bnxt_qplib_res *res,
+			    struct bnxt_qplib_srq *srq);
 int bnxt_qplib_post_srq_recv(struct bnxt_qplib_srq *srq,
 			     struct bnxt_qplib_swqe *wqe);
 int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp);

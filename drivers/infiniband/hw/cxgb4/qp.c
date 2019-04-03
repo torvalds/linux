@@ -2683,11 +2683,12 @@ void c4iw_copy_wr_to_srq(struct t4_srq *srq, union t4_recv_wr *wqe, u8 len16)
 	}
 }
 
-struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
+int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 			       struct ib_udata *udata)
 {
+	struct ib_pd *pd = ib_srq->pd;
 	struct c4iw_dev *rhp;
-	struct c4iw_srq *srq;
+	struct c4iw_srq *srq = to_c4iw_srq(ib_srq);
 	struct c4iw_pd *php;
 	struct c4iw_create_srq_resp uresp;
 	struct c4iw_ucontext *ucontext;
@@ -2702,11 +2703,11 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
 	rhp = php->rhp;
 
 	if (!rhp->rdev.lldi.vr->srq.size)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	if (attrs->attr.max_wr > rhp->rdev.hw_queue.t4_max_rq_size)
-		return ERR_PTR(-E2BIG);
+		return -E2BIG;
 	if (attrs->attr.max_sge > T4_MAX_RECV_SGE)
-		return ERR_PTR(-E2BIG);
+		return -E2BIG;
 
 	/*
 	 * SRQ RQT and RQ must be a power of 2 and at least 16 deep.
@@ -2717,15 +2718,9 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
 	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
 					     ibucontext);
 
-	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq)
-		return ERR_PTR(-ENOMEM);
-
 	srq->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
-	if (!srq->wr_waitp) {
-		ret = -ENOMEM;
-		goto err_free_srq;
-	}
+	if (!srq->wr_waitp)
+		return -ENOMEM;
 
 	srq->idx = c4iw_alloc_srq_idx(&rhp->rdev);
 	if (srq->idx < 0) {
@@ -2805,7 +2800,8 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
 			(unsigned long)srq->wq.memsize, attrs->attr.max_wr);
 
 	spin_lock_init(&srq->lock);
-	return &srq->ibsrq;
+	return 0;
+
 err_free_srq_db_key_mm:
 	kfree(srq_db_key_mm);
 err_free_srq_key_mm:
@@ -2821,12 +2817,10 @@ err_free_srq_idx:
 	c4iw_free_srq_idx(&rhp->rdev, srq->idx);
 err_free_wr_wait:
 	c4iw_put_wr_wait(srq->wr_waitp);
-err_free_srq:
-	kfree(srq);
-	return ERR_PTR(ret);
+	return ret;
 }
 
-int c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+void c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_srq *srq;
@@ -2844,6 +2838,4 @@ int c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 		       srq->wr_waitp);
 	c4iw_free_srq_idx(&rhp->rdev, srq->idx);
 	c4iw_put_wr_wait(srq->wr_waitp);
-	kfree(srq);
-	return 0;
 }

@@ -507,7 +507,7 @@ static void bnxt_qplib_arm_srq(struct bnxt_qplib_srq *srq, u32 arm_type)
 	writeq(val, db);
 }
 
-int bnxt_qplib_destroy_srq(struct bnxt_qplib_res *res,
+void bnxt_qplib_destroy_srq(struct bnxt_qplib_res *res,
 			   struct bnxt_qplib_srq *srq)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
@@ -521,14 +521,12 @@ int bnxt_qplib_destroy_srq(struct bnxt_qplib_res *res,
 	/* Configure the request */
 	req.srq_cid = cpu_to_le32(srq->id);
 
-	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-					  (void *)&resp, NULL, 0);
-	if (rc)
-		return rc;
-
-	bnxt_qplib_free_hwq(res->pdev, &srq->hwq);
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (struct cmdq_base *)&req,
+					  (struct creq_base *)&resp, NULL, 0);
 	kfree(srq->swq);
-	return 0;
+	if (rc)
+		return;
+	bnxt_qplib_free_hwq(res->pdev, &srq->hwq);
 }
 
 int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,

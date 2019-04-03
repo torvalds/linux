@@ -1142,13 +1142,13 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem);
 
-struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
-				   struct ib_srq_init_attr *srq_init_attr,
-				   struct ib_udata *udata);
+int hns_roce_create_srq(struct ib_srq *srq,
+			struct ib_srq_init_attr *srq_init_attr,
+			struct ib_udata *udata);
 int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 			enum ib_srq_attr_mask srq_attr_mask,
 			struct ib_udata *udata);
-int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,

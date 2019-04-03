@@ -1305,30 +1305,22 @@ static enum ib_mtu __to_ib_mtu(u32 mtu)
 }
 
 /* Shared Receive Queues */
-int bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
+void bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 {
 	struct bnxt_re_srq *srq = container_of(ib_srq, struct bnxt_re_srq,
 					       ib_srq);
 	struct bnxt_re_dev *rdev = srq->rdev;
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
 	struct bnxt_qplib_nq *nq = NULL;
-	int rc;
 
 	if (qplib_srq->cq)
 		nq = qplib_srq->cq->nq;
-	rc = bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Destroy HW SRQ failed!");
-		return rc;
-	}
-
+	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
 	if (srq->umem)
 		ib_umem_release(srq->umem);
-	kfree(srq);
 	atomic_dec(&rdev->srq_count);
 	if (nq)
 		nq->budget--;
-	return 0;
 }
 
 static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
@@ -1362,14 +1354,16 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 	return 0;
 }
 
-struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
-				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata)
+int bnxt_re_create_srq(struct ib_srq *ib_srq,
+		       struct ib_srq_init_attr *srq_init_attr,
+		       struct ib_udata *udata)
 {
+	struct ib_pd *ib_pd = ib_srq->pd;
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	struct bnxt_re_srq *srq;
+	struct bnxt_re_srq *srq =
+		container_of(ib_srq, struct bnxt_re_srq, ib_srq);
 	struct bnxt_qplib_nq *nq = NULL;
 	int rc, entries;
 
@@ -1384,11 +1378,6 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 		goto exit;
 	}
 
-	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq) {
-		rc = -ENOMEM;
-		goto exit;
-	}
 	srq->rdev = rdev;
 	srq->qplib_srq.pd = &pd->qplib_pd;
 	srq->qplib_srq.dpi = &rdev->dpi_privileged;
@@ -1434,14 +1423,13 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 		nq->budget++;
 	atomic_inc(&rdev->srq_count);
 
-	return &srq->ib_srq;
+	return 0;
 
 fail:
 	if (srq->umem)
 		ib_umem_release(srq->umem);
-	kfree(srq);
 exit:
-	return ERR_PTR(rc);
+	return rc;
 }
 
 int bnxt_re_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *srq_attr,

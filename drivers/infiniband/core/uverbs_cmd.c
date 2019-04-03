@@ -3409,9 +3409,9 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 
-	srq = pd->device->ops.create_srq(pd, &attr, udata);
-	if (IS_ERR(srq)) {
-		ret = PTR_ERR(srq);
+	srq = rdma_zalloc_drv_obj(ib_dev, ib_srq);
+	if (!srq) {
+		ret = -ENOMEM;
 		goto err_put;
 	}
 
@@ -3421,6 +3421,10 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	srq->uobject       = &obj->uevent.uobject;
 	srq->event_handler = attr.event_handler;
 	srq->srq_context   = attr.srq_context;
+
+	ret = pd->device->ops.create_srq(srq, &attr, udata);
+	if (ret)
+		goto err_free;
 
 	if (ib_srq_has_cq(cmd->srq_type)) {
 		srq->ext.cq       = attr.ext.cq;
@@ -3461,6 +3465,8 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 err_copy:
 	ib_destroy_srq_user(srq, &attrs->driver_udata);
 
+err_free:
+	kfree(srq);
 err_put:
 	uobj_put_obj_read(pd);
 

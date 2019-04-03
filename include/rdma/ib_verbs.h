@@ -2406,14 +2406,14 @@ struct ib_device_ops {
 	int (*modify_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	int (*query_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	void (*destroy_ah)(struct ib_ah *ah, u32 flags);
-	struct ib_srq *(*create_srq)(struct ib_pd *pd,
-				     struct ib_srq_init_attr *srq_init_attr,
-				     struct ib_udata *udata);
+	int (*create_srq)(struct ib_srq *srq,
+			  struct ib_srq_init_attr *srq_init_attr,
+			  struct ib_udata *udata);
 	int (*modify_srq)(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 			  enum ib_srq_attr_mask srq_attr_mask,
 			  struct ib_udata *udata);
 	int (*query_srq)(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-	int (*destroy_srq)(struct ib_srq *srq, struct ib_udata *udata);
+	void (*destroy_srq)(struct ib_srq *srq, struct ib_udata *udata);
 	struct ib_qp *(*create_qp)(struct ib_pd *pd,
 				   struct ib_qp_init_attr *qp_init_attr,
 				   struct ib_udata *udata);
@@ -2553,6 +2553,7 @@ struct ib_device_ops {
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
+	DECLARE_RDMA_OBJ_SIZE(ib_srq);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 };
 

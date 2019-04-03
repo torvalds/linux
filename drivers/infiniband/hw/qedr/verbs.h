@@ -64,13 +64,12 @@ int qedr_query_qp(struct ib_qp *, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_qp_init_attr *);
 int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
-struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
-			       struct ib_srq_init_attr *attr,
-			       struct ib_udata *udata);
+int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *attr,
+		    struct ib_udata *udata);
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
 int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,

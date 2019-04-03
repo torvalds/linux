@@ -69,9 +69,9 @@ struct bnxt_re_ah {
 };
 
 struct bnxt_re_srq {
+	struct ib_srq		ib_srq;
 	struct bnxt_re_dev	*rdev;
 	u32			srq_limit;
-	struct ib_srq		ib_srq;
 	struct bnxt_qplib_srq	qplib_srq;
 	struct ib_umem		*umem;
 	spinlock_t		lock;		/* protect srq */
@@ -170,14 +170,14 @@ int bnxt_re_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 void bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags);
-struct ib_srq *bnxt_re_create_srq(struct ib_pd *pd,
-				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata);
+int bnxt_re_create_srq(struct ib_srq *srq,
+		       struct ib_srq_init_attr *srq_init_attr,
+		       struct ib_udata *udata);
 int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 		       enum ib_srq_attr_mask srq_attr_mask,
 		       struct ib_udata *udata);
 int bnxt_re_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-int bnxt_re_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+void bnxt_re_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 int bnxt_re_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *recv_wr,
 			  const struct ib_recv_wr **bad_recv_wr);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,

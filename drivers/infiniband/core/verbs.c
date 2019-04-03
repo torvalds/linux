@@ -964,29 +964,40 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 			     struct ib_srq_init_attr *srq_init_attr)
 {
 	struct ib_srq *srq;
+	int ret;
 
 	if (!pd->device->ops.create_srq)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	srq = pd->device->ops.create_srq(pd, srq_init_attr, NULL);
+	srq = rdma_zalloc_drv_obj(pd->device, ib_srq);
+	if (!srq)
+		return ERR_PTR(-ENOMEM);
 
-	if (!IS_ERR(srq)) {
-		srq->device    	   = pd->device;
-		srq->pd        	   = pd;
-		srq->uobject       = NULL;
-		srq->event_handler = srq_init_attr->event_handler;
-		srq->srq_context   = srq_init_attr->srq_context;
-		srq->srq_type      = srq_init_attr->srq_type;
-		if (ib_srq_has_cq(srq->srq_type)) {
-			srq->ext.cq   = srq_init_attr->ext.cq;
-			atomic_inc(&srq->ext.cq->usecnt);
-		}
-		if (srq->srq_type == IB_SRQT_XRC) {
-			srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
-			atomic_inc(&srq->ext.xrc.xrcd->usecnt);
-		}
-		atomic_inc(&pd->usecnt);
-		atomic_set(&srq->usecnt, 0);
+	srq->device = pd->device;
+	srq->pd = pd;
+	srq->event_handler = srq_init_attr->event_handler;
+	srq->srq_context = srq_init_attr->srq_context;
+	srq->srq_type = srq_init_attr->srq_type;
+
+	if (ib_srq_has_cq(srq->srq_type)) {
+		srq->ext.cq = srq_init_attr->ext.cq;
+		atomic_inc(&srq->ext.cq->usecnt);
+	}
+	if (srq->srq_type == IB_SRQT_XRC) {
+		srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
+		atomic_inc(&srq->ext.xrc.xrcd->usecnt);
+	}
+	atomic_inc(&pd->usecnt);
+
+	ret = pd->device->ops.create_srq(srq, srq_init_attr, NULL);
+	if (ret) {
+		atomic_dec(&srq->pd->usecnt);
+		if (srq->srq_type == IB_SRQT_XRC)
+			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
+		if (ib_srq_has_cq(srq->srq_type))
+			atomic_dec(&srq->ext.cq->usecnt);
+		kfree(srq);
+		return ERR_PTR(ret);
 	}
 
 	return srq;
@@ -1013,32 +1024,19 @@ EXPORT_SYMBOL(ib_query_srq);
 
 int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 {
-	struct ib_pd *pd;
-	enum ib_srq_type srq_type;
-	struct ib_xrcd *uninitialized_var(xrcd);
-	struct ib_cq *uninitialized_var(cq);
-	int ret;
-
 	if (atomic_read(&srq->usecnt))
 		return -EBUSY;
 
-	pd = srq->pd;
-	srq_type = srq->srq_type;
-	if (ib_srq_has_cq(srq_type))
-		cq = srq->ext.cq;
-	if (srq_type == IB_SRQT_XRC)
-		xrcd = srq->ext.xrc.xrcd;
+	srq->device->ops.destroy_srq(srq, udata);
 
-	ret = srq->device->ops.destroy_srq(srq, udata);
-	if (!ret) {
-		atomic_dec(&pd->usecnt);
-		if (srq_type == IB_SRQT_XRC)
-			atomic_dec(&xrcd->usecnt);
-		if (ib_srq_has_cq(srq_type))
-			atomic_dec(&cq->usecnt);
-	}
+	atomic_dec(&srq->pd->usecnt);
+	if (srq->srq_type == IB_SRQT_XRC)
+		atomic_dec(&srq->ext.xrc.xrcd->usecnt);
+	if (ib_srq_has_cq(srq->srq_type))
+		atomic_dec(&srq->ext.cq->usecnt);
+	kfree(srq);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(ib_destroy_srq_user);
 

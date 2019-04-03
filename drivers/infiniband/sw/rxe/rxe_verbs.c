@@ -289,19 +289,18 @@ err1:
 	return err;
 }
 
-static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
-				     struct ib_srq_init_attr *init,
-				     struct ib_udata *udata)
+static int rxe_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init,
+			  struct ib_udata *udata)
 {
 	int err;
-	struct rxe_dev *rxe = to_rdev(ibpd->device);
-	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_srq *srq;
+	struct rxe_dev *rxe = to_rdev(ibsrq->device);
+	struct rxe_pd *pd = to_rpd(ibsrq->pd);
+	struct rxe_srq *srq = to_rsrq(ibsrq);
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
 	if (udata) {
 		if (udata->outlen < sizeof(*uresp))
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		uresp = udata->outbuf;
 	}
 
@@ -309,13 +308,10 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	if (err)
 		goto err1;
 
-	srq = rxe_alloc(&rxe->srq_pool);
-	if (!srq) {
-		err = -ENOMEM;
+	err = rxe_add_to_pool(&rxe->srq_pool, &srq->pelem);
+	if (err)
 		goto err1;
-	}
 
-	rxe_add_index(srq);
 	rxe_add_ref(pd);
 	srq->pd = pd;
 
@@ -323,14 +319,13 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	if (err)
 		goto err2;
 
-	return &srq->ibsrq;
+	return 0;
 
 err2:
 	rxe_drop_ref(pd);
-	rxe_drop_index(srq);
 	rxe_drop_ref(srq);
 err1:
-	return ERR_PTR(err);
+	return err;
 }
 
 static int rxe_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
@@ -378,7 +373,7 @@ static int rxe_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 	return 0;
 }
 
-static int rxe_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+static void rxe_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct rxe_srq *srq = to_rsrq(ibsrq);
 
@@ -386,10 +381,7 @@ static int rxe_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 		rxe_queue_cleanup(srq->rq.queue);
 
 	rxe_drop_ref(srq->pd);
-	rxe_drop_index(srq);
 	rxe_drop_ref(srq);
-
-	return 0;
 }
 
 static int rxe_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
@@ -1166,6 +1158,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_srq, rxe_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
 };
 

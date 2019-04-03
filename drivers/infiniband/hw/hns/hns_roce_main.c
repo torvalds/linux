@@ -491,6 +491,8 @@ static const struct ib_device_ops hns_roce_dev_frmr_ops = {
 static const struct ib_device_ops hns_roce_dev_srq_ops = {
 	.create_srq = hns_roce_create_srq,
 	.destroy_srq = hns_roce_destroy_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, hns_roce_srq, ibsrq),
 };
 
 static int hns_roce_register_device(struct hns_roce_dev *hr_dev)

@@ -91,12 +91,12 @@ int ocrdma_query_qp(struct ib_qp *,
 int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 void ocrdma_del_flush_qp(struct ocrdma_qp *qp);
 
-struct ib_srq *ocrdma_create_srq(struct ib_pd *, struct ib_srq_init_attr *,
-				 struct ib_udata *);
+int ocrdma_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *attr,
+		      struct ib_udata *udata);
 int ocrdma_modify_srq(struct ib_srq *, struct ib_srq_attr *,
 		      enum ib_srq_attr_mask, struct ib_udata *);
 int ocrdma_query_srq(struct ib_srq *, struct ib_srq_attr *);
-int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+void ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int ocrdma_post_srq_recv(struct ib_srq *, const struct ib_recv_wr *,
 			 const struct ib_recv_wr **bad_recv_wr);
 

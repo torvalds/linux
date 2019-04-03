@@ -403,65 +403,53 @@ static void mthca_ah_destroy(struct ib_ah *ah, u32 flags)
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
 }
 
-static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
-				       struct ib_srq_init_attr *init_attr,
-				       struct ib_udata *udata)
+static int mthca_create_srq(struct ib_srq *ibsrq,
+			    struct ib_srq_init_attr *init_attr,
+			    struct ib_udata *udata)
 {
 	struct mthca_create_srq ucmd;
 	struct mthca_ucontext *context = rdma_udata_to_drv_context(
 		udata, struct mthca_ucontext, ibucontext);
-	struct mthca_srq *srq;
+	struct mthca_srq *srq = to_msrq(ibsrq);
 	int err;
 
 	if (init_attr->srq_type != IB_SRQT_BASIC)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	srq = kmalloc(sizeof *srq, GFP_KERNEL);
-	if (!srq)
-		return ERR_PTR(-ENOMEM);
+		return -EOPNOTSUPP;
 
 	if (udata) {
-		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
-			err = -EFAULT;
-			goto err_free;
-		}
+		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
+			return -EFAULT;
 
-		err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
+		err = mthca_map_user_db(to_mdev(ibsrq->device), &context->uar,
 					context->db_tab, ucmd.db_index,
 					ucmd.db_page);
 
 		if (err)
-			goto err_free;
+			return err;
 
 		srq->mr.ibmr.lkey = ucmd.lkey;
 		srq->db_index     = ucmd.db_index;
 	}
 
-	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
+	err = mthca_alloc_srq(to_mdev(ibsrq->device), to_mpd(ibsrq->pd),
 			      &init_attr->attr, srq, udata);
 
 	if (err && udata)
-		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
+		mthca_unmap_user_db(to_mdev(ibsrq->device), &context->uar,
 				    context->db_tab, ucmd.db_index);
 
 	if (err)
-		goto err_free;
+		return err;
 
-	if (context && ib_copy_to_udata(udata, &srq->srqn, sizeof (__u32))) {
-		mthca_free_srq(to_mdev(pd->device), srq);
-		err = -EFAULT;
-		goto err_free;
+	if (context && ib_copy_to_udata(udata, &srq->srqn, sizeof(__u32))) {
+		mthca_free_srq(to_mdev(ibsrq->device), srq);
+		return -EFAULT;
 	}
 
-	return &srq->ibsrq;
-
-err_free:
-	kfree(srq);
-
-	return ERR_PTR(err);
+	return 0;
 }
 
-static int mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
+static void mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	if (udata) {
 		struct mthca_ucontext *context =
@@ -475,9 +463,6 @@ static int mthca_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 	}
 
 	mthca_free_srq(to_mdev(srq->device), to_msrq(srq));
-	kfree(srq);
-
-	return 0;
 }
 
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
@@ -1210,6 +1195,8 @@ static const struct ib_device_ops mthca_dev_arbel_srq_ops = {
 	.modify_srq = mthca_modify_srq,
 	.post_srq_recv = mthca_arbel_post_srq_recv,
 	.query_srq = mthca_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, mthca_srq, ibsrq),
 };
 
 static const struct ib_device_ops mthca_dev_tavor_srq_ops = {
@@ -1218,6 +1205,8 @@ static const struct ib_device_ops mthca_dev_tavor_srq_ops = {
 	.modify_srq = mthca_modify_srq,
 	.post_srq_recv = mthca_tavor_post_srq_recv,
 	.query_srq = mthca_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, mthca_srq, ibsrq),
 };
 
 static const struct ib_device_ops mthca_dev_arbel_fmr_ops = {

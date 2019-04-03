@@ -4795,19 +4795,21 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	attr.ext.cq = devr->c0;
 	attr.ext.xrc.xrcd = devr->x0;
 
-	devr->s0 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
-	if (IS_ERR(devr->s0)) {
-		ret = PTR_ERR(devr->s0);
+	devr->s0 = rdma_zalloc_drv_obj(ibdev, ib_srq);
+	if (!devr->s0) {
+		ret = -ENOMEM;
 		goto error4;
 	}
+
 	devr->s0->device	= &dev->ib_dev;
 	devr->s0->pd		= devr->p0;
-	devr->s0->uobject       = NULL;
-	devr->s0->event_handler = NULL;
-	devr->s0->srq_context   = NULL;
 	devr->s0->srq_type      = IB_SRQT_XRC;
 	devr->s0->ext.xrc.xrcd	= devr->x0;
 	devr->s0->ext.cq	= devr->c0;
+	ret = mlx5_ib_create_srq(devr->s0, &attr, NULL);
+	if (ret)
+		goto err_create;
+
 	atomic_inc(&devr->s0->ext.xrc.xrcd->usecnt);
 	atomic_inc(&devr->s0->ext.cq->usecnt);
 	atomic_inc(&devr->p0->usecnt);
@@ -4817,18 +4819,21 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	attr.attr.max_sge = 1;
 	attr.attr.max_wr = 1;
 	attr.srq_type = IB_SRQT_BASIC;
-	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
-	if (IS_ERR(devr->s1)) {
-		ret = PTR_ERR(devr->s1);
+	devr->s1 = rdma_zalloc_drv_obj(ibdev, ib_srq);
+	if (!devr->s1) {
+		ret = -ENOMEM;
 		goto error5;
 	}
+
 	devr->s1->device	= &dev->ib_dev;
 	devr->s1->pd		= devr->p0;
-	devr->s1->uobject       = NULL;
-	devr->s1->event_handler = NULL;
-	devr->s1->srq_context   = NULL;
 	devr->s1->srq_type      = IB_SRQT_BASIC;
 	devr->s1->ext.cq	= devr->c0;
+
+	ret = mlx5_ib_create_srq(devr->s1, &attr, NULL);
+	if (ret)
+		goto error6;
+
 	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s1->usecnt, 0);
 
@@ -4840,8 +4845,12 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 
 	return 0;
 
+error6:
+	kfree(devr->s1);
 error5:
 	mlx5_ib_destroy_srq(devr->s0, NULL);
+err_create:
+	kfree(devr->s0);
 error4:
 	mlx5_ib_dealloc_xrcd(devr->x1, NULL);
 error3:
@@ -4862,7 +4871,9 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	int port;
 
 	mlx5_ib_destroy_srq(devr->s1, NULL);
+	kfree(devr->s1);
 	mlx5_ib_destroy_srq(devr->s0, NULL);
+	kfree(devr->s0);
 	mlx5_ib_dealloc_xrcd(devr->x0, NULL);
 	mlx5_ib_dealloc_xrcd(devr->x1, NULL);
 	mlx5_ib_destroy_cq(devr->c0, NULL);
@@ -5989,6 +6000,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx5_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mlx5_ib_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_srq, mlx5_ib_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, mlx5_ib_ucontext, ibucontext),
 };
 

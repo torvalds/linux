@@ -759,13 +759,12 @@ int mlx4_ib_create_ah_slave(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 void mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags);
 
-struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
-				  struct ib_srq_init_attr *init_attr,
-				  struct ib_udata *udata);
+int mlx4_ib_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *init_attr,
+		       struct ib_udata *udata);
 int mlx4_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		       enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int mlx4_ib_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-int mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+void mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 void mlx4_ib_free_srq_wqe(struct mlx4_ib_srq *srq, int wqe_index);
 int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);

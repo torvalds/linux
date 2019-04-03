@@ -191,6 +191,8 @@ static const struct ib_device_ops ocrdma_dev_srq_ops = {
 	.modify_srq = ocrdma_modify_srq,
 	.post_srq_recv = ocrdma_post_srq_recv,
 	.query_srq = ocrdma_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, ocrdma_srq, ibsrq),
 };
 
 static int ocrdma_register_device(struct ocrdma_dev *dev)

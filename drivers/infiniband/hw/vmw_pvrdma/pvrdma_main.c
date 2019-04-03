@@ -206,6 +206,8 @@ static const struct ib_device_ops pvrdma_dev_srq_ops = {
 	.destroy_srq = pvrdma_destroy_srq,
 	.modify_srq = pvrdma_modify_srq,
 	.query_srq = pvrdma_query_srq,
+
+	INIT_RDMA_OBJ_SIZE(ib_srq, pvrdma_srq, ibsrq),
 };
 
 static int pvrdma_register_device(struct pvrdma_dev *dev)

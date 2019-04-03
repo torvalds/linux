@@ -1267,7 +1267,7 @@ static void qedr_set_roce_db_info(struct qedr_dev *dev, struct qedr_qp *qp)
 	}
 }
 
-static int qedr_check_srq_params(struct ib_pd *ibpd, struct qedr_dev *dev,
+static int qedr_check_srq_params(struct qedr_dev *dev,
 				 struct ib_srq_init_attr *attrs,
 				 struct ib_udata *udata)
 {
@@ -1383,33 +1383,28 @@ err0:
 	return rc;
 }
 
-struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
-			       struct ib_srq_init_attr *init_attr,
-			       struct ib_udata *udata)
+int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
+		    struct ib_udata *udata)
 {
 	struct qed_rdma_destroy_srq_in_params destroy_in_params;
 	struct qed_rdma_create_srq_in_params in_params = {};
-	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
+	struct qedr_dev *dev = get_qedr_dev(ibsrq->device);
 	struct qed_rdma_create_srq_out_params out_params;
-	struct qedr_pd *pd = get_qedr_pd(ibpd);
+	struct qedr_pd *pd = get_qedr_pd(ibsrq->pd);
 	struct qedr_create_srq_ureq ureq = {};
 	u64 pbl_base_addr, phy_prod_pair_addr;
 	struct qedr_srq_hwq_info *hw_srq;
 	u32 page_cnt, page_size;
-	struct qedr_srq *srq;
+	struct qedr_srq *srq = get_qedr_srq(ibsrq);
 	int rc = 0;
 
 	DP_DEBUG(dev, QEDR_MSG_QP,
 		 "create SRQ called from %s (pd %p)\n",
 		 (udata) ? "User lib" : "kernel", pd);
 
-	rc = qedr_check_srq_params(ibpd, dev, init_attr, udata);
+	rc = qedr_check_srq_params(dev, init_attr, udata);
 	if (rc)
-		return ERR_PTR(-EINVAL);
-
-	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
 
 	srq->dev = dev;
 	hw_srq = &srq->hw_srq;
@@ -1471,7 +1466,7 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 
 	DP_DEBUG(dev, QEDR_MSG_SRQ,
 		 "create srq: created srq with srq_id=0x%0x\n", srq->srq_id);
-	return &srq->ibsrq;
+	return 0;
 
 err2:
 	destroy_in_params.srq_id = srq->srq_id;
@@ -1483,12 +1478,10 @@ err1:
 	else
 		qedr_free_srq_kernel_params(srq);
 err0:
-	kfree(srq);
-
-	return ERR_PTR(-EFAULT);
+	return -EFAULT;
 }
 
-int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct qed_rdma_destroy_srq_in_params in_params = {};
 	struct qedr_dev *dev = get_qedr_dev(ibsrq->device);
@@ -1506,9 +1499,6 @@ int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	DP_DEBUG(dev, QEDR_MSG_SRQ,
 		 "destroy srq: destroyed srq with srq_id=0x%0x\n",
 		 srq->srq_id);
-	kfree(srq);
-
-	return 0;
 }
 
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
