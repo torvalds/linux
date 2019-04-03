@@ -778,7 +778,7 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	const unsigned int pi = __platform_mask_index(rinfo, info->platform);
 	const unsigned int pb = __platform_mask_bit(rinfo, info->platform);
 	u16 devid = INTEL_DEVID(i915);
-	u32 mask;
+	u32 mask = 0;
 
 	/* Make sure IS_<platform> checks are working. */
 	RUNTIME_INFO(i915)->platform_mask[pi] = BIT(pb);
