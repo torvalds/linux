@@ -148,7 +148,7 @@ static inline bool is_ttbr1_addr(unsigned long addr)
 /*
  * Dump out the page tables associated with 'addr' in the currently active mm.
  */
-void show_pte(unsigned long addr)
+static void show_pte(unsigned long addr)
 {
 	struct mm_struct *mm;
 	pgd_t *pgdp;
