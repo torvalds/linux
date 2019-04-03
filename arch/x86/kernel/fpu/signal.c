@@ -234,7 +234,8 @@ sanitize_restored_xstate(union fpregs_state *state,
 		 */
 		xsave->i387.mxcsr &= mxcsr_feature_mask;
 
-		convert_to_fxsr(&state->fxsave, ia32_env);
+		if (ia32_env)
+			convert_to_fxsr(&state->fxsave, ia32_env);
 	}
 }
 
@@ -337,28 +338,63 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		kfree(tmp);
 		return err;
 	} else {
+		union fpregs_state *state;
+		void *tmp;
 		int ret;
+
+		tmp = kzalloc(sizeof(*state) + fpu_kernel_xstate_size + 64, GFP_KERNEL);
+		if (!tmp)
+			return -ENOMEM;
+		state = PTR_ALIGN(tmp, 64);
 
 		/*
 		 * For 64-bit frames and 32-bit fsave frames, restore the user
 		 * state to the registers directly (with exceptions handled).
 		 */
-		if (use_xsave()) {
-			if ((unsigned long)buf_fx % 64 || fx_only) {
+		if ((unsigned long)buf_fx % 64)
+			fx_only = 1;
+
+		if (use_xsave() && !fx_only) {
+			u64 init_bv = xfeatures_mask & ~xfeatures;
+
+			if (using_compacted_format()) {
+				ret = copy_user_to_xstate(&state->xsave, buf_fx);
+			} else {
+				ret = __copy_from_user(&state->xsave, buf_fx, state_size);
+
+				if (!ret && state_size > offsetof(struct xregs_state, header))
+					ret = validate_xstate_header(&state->xsave.header);
+			}
+			if (ret)
+				goto err_out;
+
+			sanitize_restored_xstate(state, NULL, xfeatures, fx_only);
+
+			if (unlikely(init_bv))
+				copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+			ret = copy_kernel_to_xregs_err(&state->xsave, xfeatures);
+
+		} else if (use_fxsr()) {
+			ret = __copy_from_user(&state->fxsave, buf_fx, state_size);
+			if (ret)
+				goto err_out;
+
+			if (use_xsave()) {
 				u64 init_bv = xfeatures_mask & ~XFEATURE_MASK_FPSSE;
 				copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
-				ret = copy_user_to_fxregs(buf_fx);
-			} else {
-				u64 init_bv = xfeatures_mask & ~xfeatures;
-				if (unlikely(init_bv))
-					copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
-				ret = copy_user_to_xregs(buf_fx, xfeatures);
 			}
-		} else if (use_fxsr()) {
-			ret = copy_user_to_fxregs(buf_fx);
-		} else
-			ret = copy_user_to_fregs(buf_fx);
+			state->fxsave.mxcsr &= mxcsr_feature_mask;
 
+			ret = copy_kernel_to_fxregs_err(&state->fxsave);
+		} else {
+			ret = __copy_from_user(&state->fsave, buf_fx, state_size);
+			if (ret)
+				goto err_out;
+			ret = copy_kernel_to_fregs_err(&state->fsave);
+		}
+
+err_out:
+		kfree(tmp);
 		if (ret) {
 			fpu__clear(fpu);
 			return -1;
