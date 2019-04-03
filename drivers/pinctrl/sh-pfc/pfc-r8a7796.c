@@ -1499,11 +1499,6 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP18_7_4,	FMIN_C,			SEL_FM_2),
 	PINMUX_IPSR_MSEL(IP18_7_4,	FMIN_D,			SEL_FM_3),
 
-	/* I2C */
-	PINMUX_IPSR_NOGP(0,		I2C_SEL_0_1),
-	PINMUX_IPSR_NOGP(0,		I2C_SEL_3_1),
-	PINMUX_IPSR_NOGP(0,		I2C_SEL_5_1),
-
 /*
  * Static pins can not be muxed between different functions but
  * still need mark entries in the pinmux list. Add each static
