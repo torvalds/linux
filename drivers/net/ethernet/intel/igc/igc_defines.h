@@ -264,9 +264,6 @@
 #define IGC_TCTL_RTLC		0x01000000 /* Re-transmit on late collision */
 #define IGC_TCTL_MULR		0x10000000 /* Multiple request support */
 
-#define IGC_CT_SHIFT			4
-#define IGC_COLLISION_THRESHOLD		15
-
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW	0x00C28001
 #define FLOW_CONTROL_ADDRESS_HIGH	0x00000100
