@@ -56,6 +56,7 @@ struct cs42l51_private {
 	enum master_slave_mode func;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(cs42l51_supply_names)];
 	struct gpio_desc *reset_gpio;
+	struct regmap *regmap;
 };
 
 #define CS42L51_FORMATS ( \
@@ -575,7 +576,106 @@ static const struct snd_soc_component_driver soc_component_device_cs42l51 = {
 	.non_legacy_dai_naming	= 1,
 };
 
+static bool cs42l51_writeable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS42L51_POWER_CTL1:
+	case CS42L51_MIC_POWER_CTL:
+	case CS42L51_INTF_CTL:
+	case CS42L51_MIC_CTL:
+	case CS42L51_ADC_CTL:
+	case CS42L51_ADC_INPUT:
+	case CS42L51_DAC_OUT_CTL:
+	case CS42L51_DAC_CTL:
+	case CS42L51_ALC_PGA_CTL:
+	case CS42L51_ALC_PGB_CTL:
+	case CS42L51_ADCA_ATT:
+	case CS42L51_ADCB_ATT:
+	case CS42L51_ADCA_VOL:
+	case CS42L51_ADCB_VOL:
+	case CS42L51_PCMA_VOL:
+	case CS42L51_PCMB_VOL:
+	case CS42L51_BEEP_FREQ:
+	case CS42L51_BEEP_VOL:
+	case CS42L51_BEEP_CONF:
+	case CS42L51_TONE_CTL:
+	case CS42L51_AOUTA_VOL:
+	case CS42L51_AOUTB_VOL:
+	case CS42L51_PCM_MIXER:
+	case CS42L51_LIMIT_THRES_DIS:
+	case CS42L51_LIMIT_REL:
+	case CS42L51_LIMIT_ATT:
+	case CS42L51_ALC_EN:
+	case CS42L51_ALC_REL:
+	case CS42L51_ALC_THRES:
+	case CS42L51_NOISE_CONF:
+	case CS42L51_CHARGE_FREQ:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool cs42l51_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS42L51_STATUS:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool cs42l51_readable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS42L51_CHIP_REV_ID:
+	case CS42L51_POWER_CTL1:
+	case CS42L51_MIC_POWER_CTL:
+	case CS42L51_INTF_CTL:
+	case CS42L51_MIC_CTL:
+	case CS42L51_ADC_CTL:
+	case CS42L51_ADC_INPUT:
+	case CS42L51_DAC_OUT_CTL:
+	case CS42L51_DAC_CTL:
+	case CS42L51_ALC_PGA_CTL:
+	case CS42L51_ALC_PGB_CTL:
+	case CS42L51_ADCA_ATT:
+	case CS42L51_ADCB_ATT:
+	case CS42L51_ADCA_VOL:
+	case CS42L51_ADCB_VOL:
+	case CS42L51_PCMA_VOL:
+	case CS42L51_PCMB_VOL:
+	case CS42L51_BEEP_FREQ:
+	case CS42L51_BEEP_VOL:
+	case CS42L51_BEEP_CONF:
+	case CS42L51_TONE_CTL:
+	case CS42L51_AOUTA_VOL:
+	case CS42L51_AOUTB_VOL:
+	case CS42L51_PCM_MIXER:
+	case CS42L51_LIMIT_THRES_DIS:
+	case CS42L51_LIMIT_REL:
+	case CS42L51_LIMIT_ATT:
+	case CS42L51_ALC_EN:
+	case CS42L51_ALC_REL:
+	case CS42L51_ALC_THRES:
+	case CS42L51_NOISE_CONF:
+	case CS42L51_STATUS:
+	case CS42L51_CHARGE_FREQ:
+		return true;
+	default:
+		return false;
+	}
+}
+
 const struct regmap_config cs42l51_regmap = {
+	.reg_bits = 8,
+	.reg_stride = 1,
+	.val_bits = 8,
+	.use_single_write = true,
+	.readable_reg = cs42l51_readable_reg,
+	.volatile_reg = cs42l51_volatile_reg,
+	.writeable_reg = cs42l51_writeable_reg,
 	.max_register = CS42L51_CHARGE_FREQ,
 	.cache_type = REGCACHE_RBTREE,
 };
@@ -596,6 +696,7 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, cs42l51);
+	cs42l51->regmap = regmap;
 
 	cs42l51->mclk_handle = devm_clk_get(dev, "MCLK");
 	if (IS_ERR(cs42l51->mclk_handle)) {
@@ -672,6 +773,27 @@ int cs42l51_remove(struct device *dev)
 				      cs42l51->supplies);
 }
 EXPORT_SYMBOL_GPL(cs42l51_remove);
+
+int __maybe_unused cs42l51_suspend(struct device *dev)
+{
+	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
+
+	regcache_cache_only(cs42l51->regmap, true);
+	regcache_mark_dirty(cs42l51->regmap);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs42l51_suspend);
+
+int __maybe_unused cs42l51_resume(struct device *dev)
+{
+	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
+
+	regcache_cache_only(cs42l51->regmap, false);
+
+	return regcache_sync(cs42l51->regmap);
+}
+EXPORT_SYMBOL_GPL(cs42l51_resume);
 
 const struct of_device_id cs42l51_of_match[] = {
 	{ .compatible = "cirrus,cs42l51", },
