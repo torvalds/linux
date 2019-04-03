@@ -230,6 +230,16 @@ config HID_COUGAR
 	Supported devices:
 	- Cougar 500k Gaming Keyboard
 
+config HID_MACALLY
+	tristate "Macally devices"
+	depends on HID
+	help
+	Support for Macally devices that are not fully compliant with the
+	HID standard.
+
+	supported devices:
+	- Macally ikey keyboard
+
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on HID && SND
