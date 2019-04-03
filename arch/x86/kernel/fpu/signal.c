@@ -242,10 +242,10 @@ sanitize_restored_xstate(union fpregs_state *state,
 /*
  * Restore the extended state if present. Otherwise, restore the FP/SSE state.
  */
-static inline int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_only)
+static int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_only)
 {
 	if (use_xsave()) {
-		if ((unsigned long)buf % 64 || fx_only) {
+		if (fx_only) {
 			u64 init_bv = xfeatures_mask & ~XFEATURE_MASK_FPSSE;
 			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
 			return copy_user_to_fxregs(buf);
@@ -327,7 +327,26 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		if (ret)
 			goto err_out;
 		envp = &env;
+	} else {
+		/*
+		 * Attempt to restore the FPU registers directly from user
+		 * memory. For that to succeed, the user access cannot cause
+		 * page faults. If it does, fall back to the slow path below,
+		 * going through the kernel buffer with the enabled pagefault
+		 * handler.
+		 */
+		fpregs_lock();
+		pagefault_disable();
+		ret = copy_user_to_fpregs_zeroing(buf_fx, xfeatures, fx_only);
+		pagefault_enable();
+		if (!ret) {
+			fpregs_mark_activate();
+			fpregs_unlock();
+			return 0;
+		}
+		fpregs_unlock();
 	}
+
 
 	if (use_xsave() && !fx_only) {
 		u64 init_bv = xfeatures_mask & ~xfeatures;
