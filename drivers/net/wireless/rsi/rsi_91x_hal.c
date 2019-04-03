@@ -829,21 +829,18 @@ static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
 	return 0;
 }
 
-static int rsi_load_firmware(struct rsi_hw *adapter)
+static int rsi_hal_prepare_fwload(struct rsi_hw *adapter)
 {
-	struct rsi_common *common = adapter->priv;
 	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
-	const struct firmware *fw_entry = NULL;
-	u32 regout_val = 0, content_size;
-	u16 tmp_regout_val = 0;
-	struct ta_metadata *metadata_p;
+	u32 regout_val = 0;
 	int status;
 
 	bl_start_cmd_timer(adapter, BL_CMD_TIMEOUT);
 
 	while (!adapter->blcmd_timer_expired) {
 		status = hif_ops->master_reg_read(adapter, SWBL_REGOUT,
-					      &regout_val, 2);
+						  &regout_val,
+						  RSI_COMMON_REG_SIZE);
 		if (status < 0) {
 			rsi_dbg(ERR_ZONE,
 				"%s: REGOUT read failed\n", __func__);
@@ -865,13 +862,26 @@ static int rsi_load_firmware(struct rsi_hw *adapter)
 		(regout_val & 0xff));
 
 	status = hif_ops->master_reg_write(adapter, SWBL_REGOUT,
-					(REGOUT_INVALID | REGOUT_INVALID << 8),
-					2);
-	if (status < 0) {
+					   (REGOUT_INVALID |
+					    REGOUT_INVALID << 8),
+					   RSI_COMMON_REG_SIZE);
+	if (status < 0)
 		rsi_dbg(ERR_ZONE, "%s: REGOUT writing failed..\n", __func__);
-		return status;
-	}
-	mdelay(1);
+	else
+		rsi_dbg(INFO_ZONE,
+			"===> Device is ready to load firmware <===\n");
+
+	return status;
+}
+
+static int rsi_load_9113_firmware(struct rsi_hw *adapter)
+{
+	struct rsi_common *common = adapter->priv;
+	const struct firmware *fw_entry = NULL;
+	u32 content_size;
+	u16 tmp_regout_val = 0;
+	struct ta_metadata *metadata_p;
+	int status;
 
 	status = bl_cmd(adapter, CONFIG_AUTO_READ_MODE, CMD_PASS,
 			"AUTO_READ_CMD");
@@ -902,13 +912,15 @@ static int rsi_load_firmware(struct rsi_hw *adapter)
 
 	/* Get the firmware version */
 	common->lmac_ver.ver.info.fw_ver[0] =
-		fw_entry->data[LMAC_VER_OFFSET] & 0xFF;
+		fw_entry->data[LMAC_VER_OFFSET_9113] & 0xFF;
 	common->lmac_ver.ver.info.fw_ver[1] =
-		fw_entry->data[LMAC_VER_OFFSET + 1] & 0xFF;
-	common->lmac_ver.major = fw_entry->data[LMAC_VER_OFFSET + 2] & 0xFF;
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 1] & 0xFF;
+	common->lmac_ver.major =
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 2] & 0xFF;
 	common->lmac_ver.release_num =
-		fw_entry->data[LMAC_VER_OFFSET + 3] & 0xFF;
-	common->lmac_ver.minor = fw_entry->data[LMAC_VER_OFFSET + 4] & 0xFF;
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 3] & 0xFF;
+	common->lmac_ver.minor =
+		fw_entry->data[LMAC_VER_OFFSET_9113 + 4] & 0xFF;
 	common->lmac_ver.patch_num = 0;
 	rsi_print_version(common);
 
@@ -980,10 +992,14 @@ fail:
 int rsi_hal_device_init(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
+	int status;
 
 	switch (adapter->device_model) {
 	case RSI_DEV_9113:
-		if (rsi_load_firmware(adapter)) {
+		status = rsi_hal_prepare_fwload(adapter);
+		if (status < 0)
+			return status;
+		if (rsi_load_9113_firmware(adapter)) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to load TA instructions\n",
 				__func__);
