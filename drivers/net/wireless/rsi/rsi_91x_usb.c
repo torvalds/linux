@@ -763,6 +763,18 @@ static int rsi_probe(struct usb_interface *pfunction,
 
 	rsi_dbg(ERR_ZONE, "%s: Initialized os intf ops\n", __func__);
 
+	if (id && id->idProduct == RSI_USB_PID_9113) {
+		rsi_dbg(INIT_ZONE, "%s: 9113 module detected\n", __func__);
+		adapter->device_model = RSI_DEV_9113;
+	} else if (id && id->idProduct == RSI_USB_PID_9116) {
+		rsi_dbg(INIT_ZONE, "%s: 9116 module detected\n", __func__);
+		adapter->device_model = RSI_DEV_9116;
+	} else {
+		rsi_dbg(ERR_ZONE, "%s: Unsupported RSI device id 0x%x\n",
+			__func__, id->idProduct);
+		goto err1;
+	}
+
 	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 
 	status = rsi_usb_reg_read(dev->usbdev, FW_STATUS_REG, &fw_status, 2);
@@ -845,7 +857,8 @@ static int rsi_resume(struct usb_interface *intf)
 #endif
 
 static const struct usb_device_id rsi_dev_table[] = {
-	{ USB_DEVICE(RSI_USB_VID_9113, RSI_USB_PID_9113) },
+	{ USB_DEVICE(RSI_USB_VENDOR_ID, RSI_USB_PID_9113) },
+	{ USB_DEVICE(RSI_USB_VENDOR_ID, RSI_USB_PID_9116) },
 	{ /* Blank */},
 };
 

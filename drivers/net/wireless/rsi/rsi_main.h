@@ -111,8 +111,12 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define RSI_WOW_ENABLED			BIT(0)
 #define RSI_WOW_NO_CONNECTION		BIT(1)
 
-#define RSI_DEV_9113		1
 #define RSI_MAX_RX_PKTS		64
+
+enum rsi_dev_model {
+	RSI_DEV_9113 = 0,
+	RSI_DEV_9116
+};
 
 struct version_info {
 	u16 major;
@@ -329,7 +333,7 @@ struct eeprom_read {
 
 struct rsi_hw {
 	struct rsi_common *priv;
-	u8 device_model;
+	enum rsi_dev_model device_model;
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vifs[RSI_MAX_VIFS];
 	struct ieee80211_tx_queue_params edca_params[NUM_EDCA_QUEUES];

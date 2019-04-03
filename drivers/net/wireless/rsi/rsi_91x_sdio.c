@@ -949,7 +949,7 @@ static int rsi_probe(struct sdio_func *pfunction,
 {
 	struct rsi_hw *adapter;
 	struct rsi_91x_sdiodev *sdev;
-	int status;
+	int status = -EINVAL;
 
 	rsi_dbg(INIT_ZONE, "%s: Init function called\n", __func__);
 
@@ -968,6 +968,20 @@ static int rsi_probe(struct sdio_func *pfunction,
 		status = -EIO;
 		goto fail_free_adapter;
 	}
+
+	if (pfunction->device == RSI_SDIO_PID_9113) {
+		rsi_dbg(ERR_ZONE, "%s: 9113 module detected\n", __func__);
+		adapter->device_model = RSI_DEV_9113;
+	} else  if (pfunction->device == RSI_SDIO_PID_9116) {
+		rsi_dbg(ERR_ZONE, "%s: 9116 module detected\n", __func__);
+		adapter->device_model = RSI_DEV_9116;
+	} else {
+		rsi_dbg(ERR_ZONE,
+			"%s: Unsupported RSI device id 0x%x\n", __func__,
+			pfunction->device);
+		goto fail_free_adapter;
+	}
+
 	sdev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	rsi_init_event(&sdev->rx_thread.event);
 	status = rsi_create_kthread(adapter->priv, &sdev->rx_thread,
@@ -1415,7 +1429,8 @@ static const struct dev_pm_ops rsi_pm_ops = {
 #endif
 
 static const struct sdio_device_id rsi_dev_table[] =  {
-	{ SDIO_DEVICE(RSI_SDIO_VID_9113, RSI_SDIO_PID_9113) },
+	{ SDIO_DEVICE(RSI_SDIO_VENDOR_ID, RSI_SDIO_PID_9113) },
+	{ SDIO_DEVICE(RSI_SDIO_VENDOR_ID, RSI_SDIO_PID_9116) },
 	{ /* Blank */},
 };
 
