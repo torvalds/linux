@@ -456,9 +456,8 @@ static int xcan_set_bittiming(struct net_device *ndev)
 static int xcan_chip_start(struct net_device *ndev)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
-	u32 reg_msr, reg_sr_mask;
+	u32 reg_msr;
 	int err;
-	unsigned long timeout;
 	u32 ier;
 
 	/* Check if it is in reset mode */
@@ -484,10 +483,8 @@ static int xcan_chip_start(struct net_device *ndev)
 	/* Check whether it is loopback mode or normal mode  */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK) {
 		reg_msr = XCAN_MSR_LBACK_MASK;
-		reg_sr_mask = XCAN_SR_LBACK_MASK;
 	} else {
 		reg_msr = 0x0;
-		reg_sr_mask = XCAN_SR_NORMAL_MASK;
 	}
 
 	/* enable the first extended filter, if any, as cores with extended
@@ -499,14 +496,6 @@ static int xcan_chip_start(struct net_device *ndev)
 	priv->write_reg(priv, XCAN_MSR_OFFSET, reg_msr);
 	priv->write_reg(priv, XCAN_SRR_OFFSET, XCAN_SRR_CEN_MASK);
 
-	timeout = jiffies + XCAN_TIMEOUT;
-	while (!(priv->read_reg(priv, XCAN_SR_OFFSET) & reg_sr_mask)) {
-		if (time_after(jiffies, timeout)) {
-			netdev_warn(ndev,
-				    "timed out for correct mode\n");
-			return -ETIMEDOUT;
-		}
-	}
 	netdev_dbg(ndev, "status:#x%08x\n",
 		   priv->read_reg(priv, XCAN_SR_OFFSET));
 
