@@ -549,25 +549,11 @@ static void sh_msiof_spi_read_fifo_s32u(struct sh_msiof_spi_priv *p,
 
 static int sh_msiof_spi_setup(struct spi_device *spi)
 {
-	struct device_node *np = spi->controller->dev.of_node;
 	struct sh_msiof_spi_priv *p =
 		spi_controller_get_devdata(spi->controller);
 	u32 clr, set, tmp;
 
-	if (!np) {
-		/*
-		 * Use spi->controller_data for CS (same strategy as spi_gpio),
-		 * if any. otherwise let HW control CS
-		 */
-		spi->cs_gpio = (uintptr_t)spi->controller_data;
-	}
-
-	if (gpio_is_valid(spi->cs_gpio)) {
-		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-		return 0;
-	}
-
-	if (spi_controller_is_slave(p->ctlr))
+	if (spi->cs_gpiod || spi_controller_is_slave(p->ctlr))
 		return 0;
 
 	if (p->native_cs_inited &&
@@ -600,7 +586,7 @@ static int sh_msiof_prepare_message(struct spi_controller *ctlr,
 	u32 ss, cs_high;
 
 	/* Configure pins before asserting CS */
-	if (gpio_is_valid(spi->cs_gpio)) {
+	if (spi->cs_gpiod) {
 		ss = p->unused_ss;
 		cs_high = p->native_cs_high;
 	} else {
@@ -1156,6 +1142,7 @@ static int sh_msiof_get_cs_gpios(struct sh_msiof_spi_priv *p)
 
 		gpiod = devm_gpiod_get_index(dev, "cs", i, GPIOD_ASIS);
 		if (!IS_ERR(gpiod)) {
+			devm_gpiod_put(dev, gpiod);
 			cs_gpios++;
 			continue;
 		}
@@ -1407,6 +1394,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	ctlr->bits_per_word_mask = chipdata->bits_per_word_mask;
 	ctlr->auto_runtime_pm = true;
 	ctlr->transfer_one = sh_msiof_transfer_one;
+	ctlr->use_gpio_descriptors = true;
 
 	ret = sh_msiof_request_dma(p);
 	if (ret < 0)
