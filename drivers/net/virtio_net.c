@@ -31,7 +31,6 @@
 #include <linux/average.h>
 #include <linux/filter.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 #include <net/route.h>
 #include <net/xdp.h>
 #include <net/net_failover.h>
