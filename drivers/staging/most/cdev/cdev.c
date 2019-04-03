@@ -527,8 +527,13 @@ static int __init mod_init(void)
 	err = most_register_component(&comp.cc);
 	if (err)
 		goto free_cdev;
+	err = most_register_configfs_subsys(&comp.cc);
+	if (err)
+		goto deregister_comp;
 	return 0;
 
+deregister_comp:
+	most_deregister_component(&comp.cc);
 free_cdev:
 	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 dest_ida:
@@ -543,6 +548,7 @@ static void __exit mod_exit(void)
 
 	pr_info("exit module\n");
 
+	most_deregister_configfs_subsys(&comp.cc);
 	most_deregister_component(&comp.cc);
 
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {

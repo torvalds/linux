@@ -1765,7 +1765,7 @@ static int __init most_init(void)
 		err = -ENOMEM;
 		goto err_unregister_driver;
 	}
-
+	configfs_init();
 	return 0;
 
 err_unregister_driver:

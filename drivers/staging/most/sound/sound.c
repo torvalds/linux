@@ -790,16 +790,25 @@ static struct core_component comp = {
 
 static int __init audio_init(void)
 {
+	int ret;
+
 	pr_info("init()\n");
 
 	INIT_LIST_HEAD(&adpt_list);
 
-	return most_register_component(&comp);
+	ret = most_register_component(&comp);
+	if (ret)
+		pr_err("Failed to register %s\n", comp.name);
+	ret = most_register_configfs_subsys(&comp);
+	if (ret)
+		pr_err("Failed to register %s configfs subsys\n", comp.name);
+	return ret;
 }
 
 static void __exit audio_exit(void)
 {
 	pr_info("exit()\n");
+	most_deregister_configfs_subsys(&comp);
 	most_deregister_component(&comp);
 }
 
