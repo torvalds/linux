@@ -308,6 +308,11 @@ static inline int at_xdmac_csize(u32 maxburst)
 	return csize;
 };
 
+static inline bool at_xdmac_chan_is_peripheral_xfer(u32 cfg)
+{
+	return cfg & AT_XDMAC_CC_TYPE_PER_TRAN;
+}
+
 static inline u8 at_xdmac_get_dwidth(u32 cfg)
 {
 	return (cfg & AT_XDMAC_CC_DWIDTH_MASK) >> AT_XDMAC_CC_DWIDTH_OFFSET;
@@ -389,7 +394,13 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 		 at_xdmac_chan_read(atchan, AT_XDMAC_CUBC));
 
 	at_xdmac_chan_write(atchan, AT_XDMAC_CID, 0xffffffff);
-	reg = AT_XDMAC_CIE_RBEIE | AT_XDMAC_CIE_WBEIE | AT_XDMAC_CIE_ROIE;
+	reg = AT_XDMAC_CIE_RBEIE | AT_XDMAC_CIE_WBEIE;
+	/*
+	 * Request Overflow Error is only for peripheral synchronized transfers
+	 */
+	if (at_xdmac_chan_is_peripheral_xfer(first->lld.mbr_cfg))
+		reg |= AT_XDMAC_CIE_ROIE;
+
 	/*
 	 * There is no end of list when doing cyclic dma, we need to get
 	 * an interrupt after each periods.
