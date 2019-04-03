@@ -425,7 +425,7 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
  * Returns 0 on success or error code otherwise.
  */
 static int comp_probe(struct most_interface *iface, int channel_id,
-		      struct most_channel_config *cfg, char *name)
+		      struct most_channel_config *cfg, char *name, char *args)
 {
 	struct comp_channel *c;
 	unsigned long cl_flags;

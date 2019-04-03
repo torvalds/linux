@@ -701,6 +701,7 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 static
 inline int link_channel_to_component(struct most_channel *c,
 				     struct core_component *comp,
+				     char *name,
 				     char *comp_param)
 {
 	int ret;
@@ -714,7 +715,8 @@ inline int link_channel_to_component(struct most_channel *c,
 		return -ENOSPC;
 
 	*comp_ptr = comp;
-	ret = comp->probe_channel(c->iface, c->channel_id, &c->cfg, comp_param);
+	ret = comp->probe_channel(c->iface, c->channel_id, &c->cfg, name,
+				  comp_param);
 	if (ret) {
 		*comp_ptr = NULL;
 		return ret;
@@ -775,7 +777,7 @@ static ssize_t add_link_store(struct device_driver *drv,
 	if (!c)
 		return -ENODEV;
 
-	ret = link_channel_to_component(c, comp, comp_param);
+	ret = link_channel_to_component(c, comp, "name", comp_param);
 	if (ret)
 		return ret;
 	return len;

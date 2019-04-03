@@ -579,7 +579,7 @@ static void release_adapter(struct sound_adapter *adpt)
  */
 static int audio_probe_channel(struct most_interface *iface, int channel_id,
 			       struct most_channel_config *cfg,
-			       char *arg_list)
+			       char *device_name, char *arg_list)
 {
 	struct channel *channel;
 	struct sound_adapter *adpt;
@@ -588,7 +588,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	int capture_count = 0;
 	int ret;
 	int direction;
-	char *device_name;
 	u16 ch_num;
 	u8 create = 0;
 	char *sample_res;

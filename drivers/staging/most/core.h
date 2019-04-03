@@ -266,7 +266,8 @@ struct core_component {
 	struct list_head list;
 	const char *name;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *cfg, char *name);
+			     struct most_channel_config *cfg, char *name,
+			     char *param);
 	int (*disconnect_channel)(struct most_interface *iface,
 				  int channel_idx);
 	int (*rx_completion)(struct mbo *mbo);
