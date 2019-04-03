@@ -717,7 +717,7 @@ static int bcm_iproc_i2c_xfer_single_msg(struct bcm_iproc_i2c_dev *iproc_i2c,
 
 			/* mark the last byte */
 			if (i == msg->len - 1)
-				val |= 1 << M_TX_WR_STATUS_SHIFT;
+				val |= BIT(M_TX_WR_STATUS_SHIFT);
 
 			iproc_i2c_wr_reg(iproc_i2c, M_TX_OFFSET, val);
 		}
@@ -844,7 +844,7 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 
 	iproc_i2c->bus_speed = bus_speed;
 	val = iproc_i2c_rd_reg(iproc_i2c, TIM_CFG_OFFSET);
-	val &= ~(1 << TIM_CFG_MODE_400_SHIFT);
+	val &= ~BIT(TIM_CFG_MODE_400_SHIFT);
 	val |= (bus_speed == 400000) << TIM_CFG_MODE_400_SHIFT;
 	iproc_i2c_wr_reg(iproc_i2c, TIM_CFG_OFFSET, val);
 
@@ -995,7 +995,7 @@ static int bcm_iproc_i2c_resume(struct device *dev)
 
 	/* configure to the desired bus speed */
 	val = iproc_i2c_rd_reg(iproc_i2c, TIM_CFG_OFFSET);
-	val &= ~(1 << TIM_CFG_MODE_400_SHIFT);
+	val &= ~BIT(TIM_CFG_MODE_400_SHIFT);
 	val |= (iproc_i2c->bus_speed == 400000) << TIM_CFG_MODE_400_SHIFT;
 	iproc_i2c_wr_reg(iproc_i2c, TIM_CFG_OFFSET, val);
 
