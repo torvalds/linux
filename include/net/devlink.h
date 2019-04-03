@@ -41,10 +41,10 @@ struct devlink {
 };
 
 struct devlink_port_attrs {
-	bool set;
+	u8 set:1,
+	   split:1;
 	enum devlink_port_flavour flavour;
 	u32 port_number; /* same value as "split group" */
-	bool split;
 	u32 split_subport_number;
 };
 
