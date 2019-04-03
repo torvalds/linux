@@ -103,12 +103,6 @@ static struct mdev_link *to_mdev_link(struct config_item *item)
 	return container_of(item, struct mdev_link, item);
 }
 
-static ssize_t mdev_link_create_link_show(struct config_item *item, char *page)
-{
-	return snprintf(page, PAGE_SIZE, "%d\n",
-			to_mdev_link(item)->create_link);
-}
-
 static int set_config_and_add_link(struct mdev_link *mdev_link)
 {
 	int i;
@@ -331,7 +325,7 @@ static ssize_t mdev_link_dbr_size_store(struct config_item *item,
 	return count;
 }
 
-CONFIGFS_ATTR(mdev_link_, create_link);
+CONFIGFS_ATTR_WO(mdev_link_, create_link);
 CONFIGFS_ATTR(mdev_link_, device);
 CONFIGFS_ATTR(mdev_link_, channel);
 CONFIGFS_ATTR(mdev_link_, comp);
@@ -479,13 +473,6 @@ static struct config_item *most_snd_grp_make_item(struct config_group *group,
 	return &mdev_link->item;
 }
 
-static ssize_t most_snd_grp_create_card_show(struct config_item *item,
-					     char *page)
-{
-	return snprintf(page, PAGE_SIZE, "%d\n",
-			to_most_snd_grp(item)->create_card);
-}
-
 static ssize_t most_snd_grp_create_card_store(struct config_item *item,
 					      const char *page, size_t count)
 {
@@ -505,7 +492,7 @@ static ssize_t most_snd_grp_create_card_store(struct config_item *item,
 	return count;
 }
 
-CONFIGFS_ATTR(most_snd_grp_, create_card);
+CONFIGFS_ATTR_WO(most_snd_grp_, create_card);
 
 static struct configfs_attribute *most_snd_grp_attrs[] = {
 	&most_snd_grp_attr_create_card,
