@@ -743,6 +743,8 @@ void devlink_compat_running_version(struct net_device *dev,
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
 int devlink_compat_phys_port_name_get(struct net_device *dev,
 				      char *name, size_t len);
+int devlink_compat_switch_id_get(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid);
 
 #else
 
@@ -760,6 +762,13 @@ devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 static inline int
 devlink_compat_phys_port_name_get(struct net_device *dev,
 				  char *name, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_compat_switch_id_get(struct net_device *dev,
+			     struct netdev_phys_item_id *ppid)
 {
 	return -EOPNOTSUPP;
 }

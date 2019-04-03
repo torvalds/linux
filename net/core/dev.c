@@ -7900,13 +7900,20 @@ int dev_get_port_parent_id(struct net_device *dev,
 	struct netdev_phys_item_id first = { };
 	struct net_device *lower_dev;
 	struct list_head *iter;
-	int err = -EOPNOTSUPP;
+	int err;
 
-	if (ops->ndo_get_port_parent_id)
-		return ops->ndo_get_port_parent_id(dev, ppid);
+	if (ops->ndo_get_port_parent_id) {
+		err = ops->ndo_get_port_parent_id(dev, ppid);
+		if (err != -EOPNOTSUPP)
+			return err;
+	}
+
+	err = devlink_compat_switch_id_get(dev, ppid);
+	if (!err || err != -EOPNOTSUPP)
+		return err;
 
 	if (!recurse)
-		return err;
+		return -EOPNOTSUPP;
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
 		err = dev_get_port_parent_id(lower_dev, ppid, recurse);

@@ -6508,6 +6508,25 @@ int devlink_compat_phys_port_name_get(struct net_device *dev,
 	return __devlink_port_phys_port_name_get(devlink_port, name, len);
 }
 
+int devlink_compat_switch_id_get(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid)
+{
+	struct devlink_port *devlink_port;
+
+	/* RTNL mutex is held here which ensures that devlink_port
+	 * instance cannot disappear in the middle. No need to take
+	 * any devlink lock as only permanent values are accessed.
+	 */
+	ASSERT_RTNL();
+	devlink_port = netdev_to_devlink_port(dev);
+	if (!devlink_port || !devlink_port->attrs.switch_port)
+		return -EOPNOTSUPP;
+
+	memcpy(ppid, &devlink_port->attrs.switch_id, sizeof(*ppid));
+
+	return 0;
+}
+
 static int __init devlink_init(void)
 {
 	return genl_register_family(&devlink_nl_family);
