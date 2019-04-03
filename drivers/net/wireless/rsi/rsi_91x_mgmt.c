@@ -209,6 +209,59 @@ static struct bootup_params boot_params_40 = {
 	.beacon_resedue_alg_en = 0,
 };
 
+static struct bootup_params_9116 boot_params_9116_20 = {
+	.magic_number = cpu_to_le16(LOADED_TOKEN),
+	.valid = cpu_to_le32(VALID_20),
+	.device_clk_info_9116 = {{
+		.pll_config_9116_g = {
+			.pll_ctrl_set_reg = cpu_to_le16(0xd518),
+			.pll_ctrl_clr_reg = cpu_to_le16(0x2ae7),
+			.pll_modem_conig_reg = cpu_to_le16(0x2000),
+			.soc_clk_config_reg = cpu_to_le16(0x0c18),
+			.adc_dac_strm1_config_reg = cpu_to_le16(0x1100),
+			.adc_dac_strm2_config_reg = cpu_to_le16(0x6600),
+		},
+		.switch_clk_9116_g = {
+			.switch_clk_info =
+				cpu_to_le32((RSI_SWITCH_TASS_CLK |
+					    RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG |
+					    RSI_SWITCH_BBP_LMAC_CLK_REG)),
+			.tass_clock_reg = cpu_to_le32(0x083C0503),
+			.wlan_bbp_lmac_clk_reg_val = cpu_to_le32(0x01042001),
+			.zbbt_bbp_lmac_clk_reg_val = cpu_to_le32(0x02010001),
+			.bbp_lmac_clk_en_val = cpu_to_le32(0x0000003b),
+		}
+	},
+	},
+};
+
+static struct bootup_params_9116 boot_params_9116_40 = {
+	.magic_number = cpu_to_le16(LOADED_TOKEN),
+	.valid = cpu_to_le32(VALID_40),
+	.device_clk_info_9116 = {{
+		.pll_config_9116_g = {
+			.pll_ctrl_set_reg = cpu_to_le16(0xd518),
+			.pll_ctrl_clr_reg = cpu_to_le16(0x2ae7),
+			.pll_modem_conig_reg = cpu_to_le16(0x3000),
+			.soc_clk_config_reg = cpu_to_le16(0x0c18),
+			.adc_dac_strm1_config_reg = cpu_to_le16(0x0000),
+			.adc_dac_strm2_config_reg = cpu_to_le16(0x6600),
+		},
+		.switch_clk_9116_g = {
+			.switch_clk_info =
+				cpu_to_le32((RSI_SWITCH_TASS_CLK |
+					    RSI_SWITCH_WLAN_BBP_LMAC_CLK_REG |
+					    RSI_SWITCH_BBP_LMAC_CLK_REG |
+					    RSI_MODEM_CLK_160MHZ)),
+			.tass_clock_reg = cpu_to_le32(0x083C0503),
+			.wlan_bbp_lmac_clk_reg_val = cpu_to_le32(0x01042002),
+			.zbbt_bbp_lmac_clk_reg_val = cpu_to_le32(0x04010002),
+			.bbp_lmac_clk_en_val = cpu_to_le32(0x0000003b),
+		}
+	},
+	},
+};
+
 static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
 
 /**
@@ -893,6 +946,50 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
+static int rsi_load_9116_bootup_params(struct rsi_common *common)
+{
+	struct sk_buff *skb;
+	struct rsi_boot_params_9116 *boot_params;
+
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending boot params frame\n", __func__);
+
+	skb = dev_alloc_skb(sizeof(struct rsi_boot_params_9116));
+	if (!skb)
+		return -ENOMEM;
+	memset(skb->data, 0, sizeof(struct rsi_boot_params));
+	boot_params = (struct rsi_boot_params_9116 *)skb->data;
+
+	if (common->channel_width == BW_40MHZ) {
+		memcpy(&boot_params->bootup_params,
+		       &boot_params_9116_40,
+		       sizeof(struct bootup_params_9116));
+		rsi_dbg(MGMT_TX_ZONE, "%s: Packet 40MHZ <=== %d\n", __func__,
+			UMAC_CLK_40BW);
+		boot_params->umac_clk = cpu_to_le16(UMAC_CLK_40BW);
+	} else {
+		memcpy(&boot_params->bootup_params,
+		       &boot_params_9116_20,
+		       sizeof(struct bootup_params_9116));
+		if (boot_params_20.valid != cpu_to_le32(VALID_20)) {
+			boot_params->umac_clk = cpu_to_le16(UMAC_CLK_20BW);
+			rsi_dbg(MGMT_TX_ZONE,
+				"%s: Packet 20MHZ <=== %d\n", __func__,
+				UMAC_CLK_20BW);
+		} else {
+			boot_params->umac_clk = cpu_to_le16(UMAC_CLK_40MHZ);
+			rsi_dbg(MGMT_TX_ZONE,
+				"%s: Packet 20MHZ <=== %d\n", __func__,
+				UMAC_CLK_40MHZ);
+		}
+	}
+	rsi_set_len_qno(&boot_params->desc_dword0.len_qno,
+			sizeof(struct bootup_params_9116), RSI_WIFI_MGMT_Q);
+	boot_params->desc_dword0.frame_type = BOOTUP_PARAMS_REQUEST;
+	skb_put(skb, sizeof(struct rsi_boot_params_9116));
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
 /**
  * rsi_send_reset_mac() - This function prepares reset MAC request and sends an
  *			  internal management frame to indicate it to firmware.
@@ -971,7 +1068,10 @@ int rsi_band_check(struct rsi_common *common,
 	}
 
 	if (common->channel_width != prev_bw) {
-		status = rsi_load_bootup_params(common);
+		if (adapter->device_model == RSI_DEV_9116)
+			status = rsi_load_9116_bootup_params(common);
+		else
+			status = rsi_load_bootup_params(common);
 		if (status)
 			return status;
 
@@ -1936,6 +2036,8 @@ out:
 
 int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 {
+	int status;
+
 	switch (common->fsm_state) {
 	case FSM_CARD_NOT_READY:
 		rsi_dbg(INIT_ZONE, "Card ready indication from Common HAL\n");
@@ -1963,9 +2065,13 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 		rsi_dbg(INFO_ZONE, "USB buffer status register = %x\n",
 			common->priv->usb_buffer_status_reg);
 
-		if (rsi_load_bootup_params(common)) {
+		if (common->priv->device_model == RSI_DEV_9116)
+			status = rsi_load_9116_bootup_params(common);
+		else
+			status = rsi_load_bootup_params(common);
+		if (status < 0) {
 			common->fsm_state = FSM_CARD_NOT_READY;
-			return -EINVAL;
+			return status;
 		}
 		common->fsm_state = FSM_BOOT_PARAMS_SENT;
 		break;

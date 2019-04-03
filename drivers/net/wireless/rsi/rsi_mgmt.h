@@ -351,6 +351,15 @@ struct rsi_boot_params {
 	struct bootup_params bootup_params;
 } __packed;
 
+struct rsi_boot_params_9116 {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	__le16 reserved;
+	__le16 umac_clk;
+	struct bootup_params_9116 bootup_params;
+} __packed;
+
 struct rsi_peer_notify {
 	struct rsi_cmd_desc desc;
 	u8 mac_addr[6];
