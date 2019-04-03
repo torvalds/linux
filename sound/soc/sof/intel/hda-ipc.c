@@ -86,11 +86,12 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 		reply.error = 0;
 		reply.hdr.cmd = SOF_IPC_GLB_REPLY;
 		reply.hdr.size = sizeof(reply);
-	} else {
-		/* get IPC reply from DSP in the mailbox */
-		sof_mailbox_read(sdev, sdev->host_box.offset, &reply,
-				 sizeof(reply));
+		goto out;
 	}
+
+	/* get IPC reply from DSP in the mailbox */
+	sof_mailbox_read(sdev, sdev->host_box.offset, &reply,
+			 sizeof(reply));
 
 	if (reply.error < 0) {
 		memcpy(msg->reply_data, &reply, sizeof(reply));
@@ -109,6 +110,7 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 					 msg->reply_data, msg->reply_size);
 	}
 
+out:
 	msg->reply_error = ret;
 
 	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
