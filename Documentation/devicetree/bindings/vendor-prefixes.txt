@@ -416,6 +416,7 @@ toumaz	Toumaz
 tpk	TPK U.S.A. LLC
 tplink	TP-LINK Technologies Co., Ltd.
 tpo	TPO
+tq	TQ Systems GmbH
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
