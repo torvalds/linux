@@ -216,7 +216,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-reset-duration = <10>;
 	phy-reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	phy-supply = <&reg_enet>;
