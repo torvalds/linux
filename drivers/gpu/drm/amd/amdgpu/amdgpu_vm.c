@@ -1739,12 +1739,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 			return r;
 	}
 
-	if (vm->use_cpu_for_update) {
-		/* Flush HDP */
-		mb();
-		amdgpu_asic_flush_hdp(adev, NULL);
-	}
-
 	/* If the BO is not in its preferred location add it back to
 	 * the evicted list so that it gets validated again on the
 	 * next command submission.
