@@ -204,8 +204,7 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 	 * another range split. So add extra two slots here.
 	 */
 	nr_ranges += 2;
-	cmem = vzalloc(sizeof(struct crash_mem) +
-			sizeof(struct crash_mem_range) * nr_ranges);
+	cmem = vzalloc(struct_size(cmem, ranges, nr_ranges));
 	if (!cmem)
 		return NULL;
 
