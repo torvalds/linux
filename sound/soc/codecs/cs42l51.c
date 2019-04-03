@@ -31,6 +31,7 @@
 #include <sound/pcm_params.h>
 #include <sound/pcm.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include "cs42l51.h"
 
@@ -40,11 +41,19 @@ enum master_slave_mode {
 	MODE_MASTER,
 };
 
+static const char * const cs42l51_supply_names[] = {
+	"VL",
+	"VD",
+	"VA",
+	"VAHP",
+};
+
 struct cs42l51_private {
 	unsigned int mclk;
 	struct clk *mclk_handle;
 	unsigned int audio_mode;	/* The mode (I2S or left-justified) */
 	enum master_slave_mode func;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(cs42l51_supply_names)];
 };
 
 #define CS42L51_FORMATS ( \
@@ -550,7 +559,7 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 {
 	struct cs42l51_private *cs42l51;
 	unsigned int val;
-	int ret;
+	int ret, i;
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
@@ -567,6 +576,23 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 		if (PTR_ERR(cs42l51->mclk_handle) != -ENOENT)
 			return PTR_ERR(cs42l51->mclk_handle);
 		cs42l51->mclk_handle = NULL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cs42l51->supplies); i++)
+		cs42l51->supplies[i].supply = cs42l51_supply_names[i];
+
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(cs42l51->supplies),
+				      cs42l51->supplies);
+	if (ret != 0) {
+		dev_err(dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs42l51->supplies),
+				    cs42l51->supplies);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
 	}
 
 	/* Verify that we have a CS42L51 */
@@ -587,10 +613,26 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 
 	ret = devm_snd_soc_register_component(dev,
 			&soc_component_device_cs42l51, &cs42l51_dai, 1);
+	if (ret < 0)
+		goto error;
+
+	return 0;
+
 error:
+	regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
+			       cs42l51->supplies);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cs42l51_probe);
+
+int cs42l51_remove(struct device *dev)
+{
+	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
+
+	return regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
+				      cs42l51->supplies);
+}
+EXPORT_SYMBOL_GPL(cs42l51_remove);
 
 const struct of_device_id cs42l51_of_match[] = {
 	{ .compatible = "cirrus,cs42l51", },
