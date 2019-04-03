@@ -207,11 +207,11 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 }
 
 static inline void
-sanitize_restored_xstate(struct task_struct *tsk,
+sanitize_restored_xstate(union fpregs_state *state,
 			 struct user_i387_ia32_struct *ia32_env,
 			 u64 xfeatures, int fx_only)
 {
-	struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
+	struct xregs_state *xsave = &state->xsave;
 	struct xstate_header *header = &xsave->header;
 
 	if (use_xsave()) {
@@ -238,7 +238,7 @@ sanitize_restored_xstate(struct task_struct *tsk,
 		 */
 		xsave->i387.mxcsr &= mxcsr_feature_mask;
 
-		convert_to_fxsr(tsk, ia32_env);
+		convert_to_fxsr(&state->fxsave, ia32_env);
 	}
 }
 
@@ -284,8 +284,6 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(buf, size))
 		return -EACCES;
 
-	fpu__initialize(fpu);
-
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(current, NULL,
 				       0, sizeof(struct user_i387_ia32_struct),
@@ -315,40 +313,32 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 * header. Validate and sanitize the copied state.
 		 */
 		struct user_i387_ia32_struct env;
+		union fpregs_state *state;
 		int err = 0;
+		void *tmp;
 
-		/*
-		 * Drop the current fpu which clears fpu->initialized. This ensures
-		 * that any context-switch during the copy of the new state,
-		 * avoids the intermediate state from getting restored/saved.
-		 * Thus avoiding the new restored state from getting corrupted.
-		 * We will be ready to restore/save the state only after
-		 * fpu->initialized is again set.
-		 */
-		fpu__drop(fpu);
+		tmp = kzalloc(sizeof(*state) + fpu_kernel_xstate_size + 64, GFP_KERNEL);
+		if (!tmp)
+			return -ENOMEM;
+		state = PTR_ALIGN(tmp, 64);
 
 		if (using_compacted_format()) {
-			err = copy_user_to_xstate(&fpu->state.xsave, buf_fx);
+			err = copy_user_to_xstate(&state->xsave, buf_fx);
 		} else {
-			err = __copy_from_user(&fpu->state.xsave, buf_fx, state_size);
+			err = __copy_from_user(&state->xsave, buf_fx, state_size);
 
 			if (!err && state_size > offsetof(struct xregs_state, header))
-				err = validate_xstate_header(&fpu->state.xsave.header);
+				err = validate_xstate_header(&state->xsave.header);
 		}
 
 		if (err || __copy_from_user(&env, buf, sizeof(env))) {
-			fpstate_init(&fpu->state);
-			trace_x86_fpu_init_state(fpu);
 			err = -1;
 		} else {
-			sanitize_restored_xstate(tsk, &env, xfeatures, fx_only);
+			sanitize_restored_xstate(state, &env, xfeatures, fx_only);
+			copy_kernel_to_fpregs(state);
 		}
 
-		local_bh_disable();
-		fpu->initialized = 1;
-		fpu__restore(fpu);
-		local_bh_enable();
-
+		kfree(tmp);
 		return err;
 	} else {
 		/*
