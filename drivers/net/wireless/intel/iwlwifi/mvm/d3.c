@@ -1068,7 +1068,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
-	iwl_trans_d3_suspend(mvm->trans, test, !unified_image);
+	ret = iwl_trans_d3_suspend(mvm->trans, test, !unified_image);
  out:
 	if (ret < 0) {
 		iwl_mvm_free_nd(mvm);
@@ -1930,15 +1930,6 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	if (IS_ERR_OR_NULL(vif))
 		goto err;
 
-	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test, !unified_image);
-	if (ret)
-		goto err;
-
-	if (d3_status != IWL_D3_STATUS_ALIVE) {
-		IWL_INFO(mvm, "Device was reset during suspend\n");
-		goto err;
-	}
-
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	if (iwl_mvm_check_rt_status(mvm, vif)) {
@@ -1947,6 +1938,15 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
 					false, 0);
 		ret = 1;
+		goto err;
+	}
+
+	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test, !unified_image);
+	if (ret)
+		goto err;
+
+	if (d3_status != IWL_D3_STATUS_ALIVE) {
+		IWL_INFO(mvm, "Device was reset during suspend\n");
 		goto err;
 	}
 

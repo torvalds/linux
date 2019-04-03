@@ -1478,15 +1478,9 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
 	}
 }
 
-static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
-				      bool reset)
+void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
+				  bool test, bool reset)
 {
-	if (!reset) {
-		/* Enable persistence mode to avoid reset */
-		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
-	}
-
 	iwl_disable_interrupts(trans);
 
 	/*
@@ -1517,6 +1511,42 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
 	iwl_pcie_set_pwr(trans, true);
 }
 
+static int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
+				     bool reset)
+{
+	int ret;
+	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	/*
+	 * Family IWL_DEVICE_FAMILY_AX210 and above persist mode is set by FW.
+	 */
+	if (!reset && trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
+		/* Enable persistence mode to avoid reset */
+		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
+	}
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+				    UREG_DOORBELL_TO_ISR6_SUSPEND);
+
+		ret = wait_event_timeout(trans_pcie->sx_waitq,
+					 trans_pcie->sx_complete, 2 * HZ);
+		/*
+		 * Invalidate it toward resume.
+		 */
+		trans_pcie->sx_complete = false;
+
+		if (!ret) {
+			IWL_ERR(trans, "Timeout entering D3\n");
+			return -ETIMEDOUT;
+		}
+	}
+	iwl_pcie_d3_complete_suspend(trans, test, reset);
+
+	return 0;
+}
+
 static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 				    enum iwl_d3_status *status,
 				    bool test,  bool reset)
@@ -1528,7 +1558,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	if (test) {
 		iwl_enable_interrupts(trans);
 		*status = IWL_D3_STATUS_ALIVE;
-		return 0;
+		goto out;
 	}
 
 	iwl_set_bit(trans, CSR_GP_CNTRL,
@@ -1575,6 +1605,25 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	else
 		*status = IWL_D3_STATUS_ALIVE;
 
+out:
+	if (*status == IWL_D3_STATUS_ALIVE &&
+	    trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		trans_pcie->sx_complete = false;
+		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+				    UREG_DOORBELL_TO_ISR6_RESUME);
+
+		ret = wait_event_timeout(trans_pcie->sx_waitq,
+					 trans_pcie->sx_complete, 2 * HZ);
+		/*
+		 * Invalidate it toward next suspend.
+		 */
+		trans_pcie->sx_complete = false;
+
+		if (!ret) {
+			IWL_ERR(trans, "Timeout exiting D3\n");
+			return -ETIMEDOUT;
+		}
+	}
 	return 0;
 }
 
@@ -3513,6 +3562,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
+
+	init_waitqueue_head(&trans_pcie->sx_waitq);
 
 	if (trans_pcie->msix_enabled) {
 		ret = iwl_pcie_init_msix_handler(pdev, trans_pcie);

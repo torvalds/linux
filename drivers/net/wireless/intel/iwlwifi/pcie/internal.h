@@ -558,8 +558,10 @@ struct iwl_trans_pcie {
 	void __iomem *hw_base;
 
 	bool ucode_write_complete;
+	bool sx_complete;
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t wait_command_queue;
+	wait_queue_head_t sx_waitq;
 
 	u8 page_offs, dev_cmd_offs;
 
@@ -1117,4 +1119,6 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id);
 void iwl_pcie_gen2_tx_free(struct iwl_trans *trans);
 void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans);
+void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
+				  bool test, bool reset);
 #endif /* __iwl_trans_int_pcie_h__ */

@@ -2196,12 +2196,23 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			iwl_pcie_irq_handle_error(trans);
 		}
 	} else if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
-		/* uCode wakes up after power-down sleep */
-		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
-		iwl_pcie_rxq_check_wrptr(trans);
-		iwl_pcie_txq_check_wrptrs(trans);
+		u32 sleep_notif =
+			le32_to_cpu(trans_pcie->prph_info->sleep_notif);
+		if (sleep_notif == IWL_D3_SLEEP_STATUS_SUSPEND ||
+		    sleep_notif == IWL_D3_SLEEP_STATUS_RESUME) {
+			IWL_DEBUG_ISR(trans,
+				      "Sx interrupt: sleep notification = 0x%x\n",
+				      sleep_notif);
+			trans_pcie->sx_complete = true;
+			wake_up(&trans_pcie->sx_waitq);
+		} else {
+			/* uCode wakes up after power-down sleep */
+			IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
+			iwl_pcie_rxq_check_wrptr(trans);
+			iwl_pcie_txq_check_wrptrs(trans);
 
-		isr_stats->wakeup++;
+			isr_stats->wakeup++;
+		}
 	}
 
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_IML) {
