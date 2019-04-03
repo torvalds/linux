@@ -447,6 +447,7 @@ config I2C_BCM_IPROC
 	tristate "Broadcom iProc I2C controller"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	default ARCH_BCM_IPROC
+	select I2C_SLAVE
 	help
 	  If you say yes to this option, support will be included for the
 	  Broadcom iProc I2C controller.
