@@ -25,7 +25,6 @@
 #include <linux/devfreq.h>
 #include <linux/devfreq_cooling.h>
 #include <linux/devfreq-event.h>
-#include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -1116,7 +1115,6 @@ struct rockchip_dmcfreq {
 	struct dram_timing *timing;
 	struct regulator *vdd_center;
 	struct notifier_block status_nb;
-	struct notifier_block fb_nb;
 	struct list_head video_info_list;
 	struct freq_map_table *vop_bw_tbl;
 	struct work_struct boost_work;
@@ -2830,37 +2828,6 @@ next:
 	return NOTIFY_OK;
 }
 
-static int rockchip_dmcfreq_fb_notifier(struct notifier_block *nb,
-					unsigned long action, void *ptr)
-{
-	struct fb_event *event = ptr;
-
-	switch (action) {
-	case FB_EARLY_EVENT_BLANK:
-		switch (*((int *)event->data)) {
-		case FB_BLANK_UNBLANK:
-			rockchip_clear_system_status(SYS_STATUS_SUSPEND);
-			break;
-		default:
-			break;
-		}
-		break;
-	case FB_EVENT_BLANK:
-		switch (*((int *)event->data)) {
-		case FB_BLANK_POWERDOWN:
-			rockchip_set_system_status(SYS_STATUS_SUSPEND);
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
 static ssize_t rockchip_dmcfreq_status_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
@@ -3410,11 +3377,6 @@ static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 	ret = rockchip_register_system_status_notifier(&dmcfreq->status_nb);
 	if (ret)
 		dev_err(dmcfreq->dev, "failed to register system_status nb\n");
-
-	dmcfreq->fb_nb.notifier_call = rockchip_dmcfreq_fb_notifier;
-	ret = fb_register_client(&dmcfreq->fb_nb);
-	if (ret)
-		dev_err(dmcfreq->dev, "failed to register fb nb\n");
 
 	dmc_mdevp.data = dmcfreq->devfreq;
 	dmcfreq->mdev_info = rockchip_system_monitor_register(dmcfreq->dev,

@@ -8,6 +8,7 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
+#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
@@ -1368,6 +1369,41 @@ static struct notifier_block rockchip_monitor_reboot_nb = {
 	.notifier_call = rockchip_monitor_reboot_notifier,
 };
 
+static int rockchip_monitor_fb_notifier(struct notifier_block *nb,
+					unsigned long action, void *ptr)
+{
+	struct fb_event *event = ptr;
+
+	switch (action) {
+	case FB_EARLY_EVENT_BLANK:
+		switch (*((int *)event->data)) {
+		case FB_BLANK_UNBLANK:
+			rockchip_clear_system_status(SYS_STATUS_SUSPEND);
+			break;
+		default:
+			break;
+		}
+		break;
+	case FB_EVENT_BLANK:
+		switch (*((int *)event->data)) {
+		case FB_BLANK_POWERDOWN:
+			rockchip_set_system_status(SYS_STATUS_SUSPEND);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rockchip_monitor_fb_nb = {
+	.notifier_call = rockchip_monitor_fb_notifier,
+};
+
 static int rockchip_system_monitor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1407,6 +1443,9 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 				  CPUFREQ_POLICY_NOTIFIER);
 
 	register_reboot_notifier(&rockchip_monitor_reboot_nb);
+
+	if (fb_register_client(&rockchip_monitor_fb_nb))
+		dev_err(dev, "failed to register fb nb\n");
 
 	dev_info(dev, "system monitor probe\n");
 
