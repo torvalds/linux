@@ -96,7 +96,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		return NULL;
 	}
 	ieee = (struct rtllib_device *)netdev_priv_rsl(dev);
-	memset(ieee, 0, sizeof(struct rtllib_device)+sizeof_priv);
+	memset(ieee, 0, sizeof(struct rtllib_device) + sizeof_priv);
 	ieee->dev = dev;
 
 	err = rtllib_networks_allocate(ieee);
