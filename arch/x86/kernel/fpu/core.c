@@ -304,30 +304,6 @@ void fpu__prepare_write(struct fpu *fpu)
 }
 
 /*
- * 'fpu__restore()' is called to copy FPU registers from
- * the FPU fpstate to the live hw registers and to activate
- * access to the hardware registers, so that FPU instructions
- * can be used afterwards.
- *
- * Must be called with kernel preemption disabled (for example
- * with local interrupts disabled, as it is in the case of
- * do_device_not_available()).
- */
-void fpu__restore(struct fpu *fpu)
-{
-	fpu__initialize(fpu);
-
-	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
-	kernel_fpu_disable();
-	trace_x86_fpu_before_restore(fpu);
-	fpregs_activate(fpu);
-	copy_kernel_to_fpregs(&fpu->state);
-	trace_x86_fpu_after_restore(fpu);
-	kernel_fpu_enable();
-}
-EXPORT_SYMBOL_GPL(fpu__restore);
-
-/*
  * Drops current FPU state: deactivates the fpregs and
  * the fpstate. NOTE: it still leaves previous contents
  * in the fpregs in the eager-FPU case.
