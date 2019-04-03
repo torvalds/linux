@@ -1262,6 +1262,7 @@ static void vrf_setup(struct net_device *dev)
 
 	/* default to no qdisc; user can add if desired */
 	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_NO_RX_HANDLER;
 }
 
 static int vrf_validate(struct nlattr *tb[], struct nlattr *data[],
