@@ -232,6 +232,11 @@ static const enum ltdc_pix_fmt ltdc_pix_fmt_a1[NB_PF] = {
 	PF_ARGB4444		/* 0x07 */
 };
 
+static const u64 ltdc_format_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static inline u32 reg_read(void __iomem *base, u32 reg)
 {
 	return readl_relaxed(base + reg);
@@ -864,6 +869,16 @@ static void ltdc_plane_atomic_print_state(struct drm_printer *p,
 	fpsi->counter = 0;
 }
 
+static bool ltdc_plane_format_mod_supported(struct drm_plane *plane,
+					    u32 format,
+					    u64 modifier)
+{
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	return false;
+}
+
 static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -872,6 +887,7 @@ static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.atomic_print_state = ltdc_plane_atomic_print_state,
+	.format_mod_supported = ltdc_plane_format_mod_supported,
 };
 
 static const struct drm_plane_helper_funcs ltdc_plane_helper_funcs = {
@@ -890,6 +906,7 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 	unsigned int i, nb_fmt = 0;
 	u32 formats[NB_PF * 2];
 	u32 drm_fmt, drm_fmt_no_alpha;
+	const u64 *modifiers = ltdc_format_modifiers;
 	int ret;
 
 	/* Get supported pixel formats */
@@ -918,7 +935,7 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 
 	ret = drm_universal_plane_init(ddev, plane, possible_crtcs,
 				       &ltdc_plane_funcs, formats, nb_fmt,
-				       NULL, type, NULL);
+				       modifiers, type, NULL);
 	if (ret < 0)
 		return NULL;
 
@@ -1206,6 +1223,8 @@ int ltdc_load(struct drm_device *ddev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	ddev->mode_config.allow_fb_modifiers = true;
 
 	ret = ltdc_crtc_init(ddev, crtc);
 	if (ret) {
