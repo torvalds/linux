@@ -30,6 +30,7 @@
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
 #include <sound/pcm.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -54,6 +55,7 @@ struct cs42l51_private {
 	unsigned int audio_mode;	/* The mode (I2S or left-justified) */
 	enum master_slave_mode func;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(cs42l51_supply_names)];
+	struct gpio_desc *reset_gpio;
 };
 
 #define CS42L51_FORMATS ( \
@@ -595,6 +597,17 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
+	cs42l51->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						      GPIOD_OUT_LOW);
+	if (IS_ERR(cs42l51->reset_gpio))
+		return PTR_ERR(cs42l51->reset_gpio);
+
+	if (cs42l51->reset_gpio) {
+		dev_dbg(dev, "Release reset gpio\n");
+		gpiod_set_value_cansleep(cs42l51->reset_gpio, 0);
+		mdelay(2);
+	}
+
 	/* Verify that we have a CS42L51 */
 	ret = regmap_read(regmap, CS42L51_CHIP_REV_ID, &val);
 	if (ret < 0) {
@@ -628,6 +641,8 @@ EXPORT_SYMBOL_GPL(cs42l51_probe);
 int cs42l51_remove(struct device *dev)
 {
 	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
+
+	gpiod_set_value_cansleep(cs42l51->reset_gpio, 1);
 
 	return regulator_bulk_disable(ARRAY_SIZE(cs42l51->supplies),
 				      cs42l51->supplies);
