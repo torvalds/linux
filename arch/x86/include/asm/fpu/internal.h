@@ -30,7 +30,7 @@ extern void fpu__prepare_write(struct fpu *fpu);
 extern void fpu__save(struct fpu *fpu);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__drop(struct fpu *fpu);
-extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
+extern int  fpu__copy(struct task_struct *dst, struct task_struct *src);
 extern void fpu__clear(struct fpu *fpu);
 extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
 extern int  dump_fpu(struct pt_regs *ptregs, struct user_i387_struct *fpstate);
@@ -531,13 +531,20 @@ static inline void fpregs_activate(struct fpu *fpu)
 /*
  * Internal helper, do not use directly. Use switch_fpu_return() instead.
  */
-static inline void __fpregs_load_activate(struct fpu *fpu, int cpu)
+static inline void __fpregs_load_activate(void)
 {
+	struct fpu *fpu = &current->thread.fpu;
+	int cpu = smp_processor_id();
+
+	if (WARN_ON_ONCE(current->mm == NULL))
+		return;
+
 	if (!fpregs_state_valid(fpu, cpu)) {
-		if (current->mm)
-			copy_kernel_to_fpregs(&fpu->state);
+		copy_kernel_to_fpregs(&fpu->state);
 		fpregs_activate(fpu);
+		fpu->last_cpu = cpu;
 	}
+	clear_thread_flag(TIF_NEED_FPU_LOAD);
 }
 
 /*
@@ -548,8 +555,8 @@ static inline void __fpregs_load_activate(struct fpu *fpu, int cpu)
  *  - switch_fpu_prepare() saves the old state.
  *    This is done within the context of the old process.
  *
- *  - switch_fpu_finish() restores the new state as
- *    necessary.
+ *  - switch_fpu_finish() sets TIF_NEED_FPU_LOAD; the floating point state
+ *    will get loaded on return to userspace, or when the kernel needs it.
  *
  * If TIF_NEED_FPU_LOAD is cleared then the CPU's FPU registers
  * are saved in the current thread's FPU register state.
@@ -581,10 +588,10 @@ switch_fpu_prepare(struct fpu *old_fpu, int cpu)
  */
 
 /*
- * Set up the userspace FPU context for the new task, if the task
- * has used the FPU.
+ * Load PKRU from the FPU context if available. Delay loading of the
+ * complete FPU state until the return to userland.
  */
-static inline void switch_fpu_finish(struct fpu *new_fpu, int cpu)
+static inline void switch_fpu_finish(struct fpu *new_fpu)
 {
 	u32 pkru_val = init_pkru_value;
 	struct pkru_state *pk;
@@ -592,7 +599,7 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, int cpu)
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return;
 
-	__fpregs_load_activate(new_fpu, cpu);
+	set_thread_flag(TIF_NEED_FPU_LOAD);
 
 	if (!cpu_feature_enabled(X86_FEATURE_OSPKE))
 		return;

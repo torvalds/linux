@@ -101,7 +101,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	dst->thread.vm86 = NULL;
 #endif
 
-	return fpu__copy(&dst->thread.fpu, &src->thread.fpu);
+	return fpu__copy(dst, src);
 }
 
 /*

@@ -102,23 +102,20 @@ static void __kernel_fpu_begin(void)
 	kernel_fpu_disable();
 
 	if (current->mm) {
-		/*
-		 * Ignore return value -- we don't care if reg state
-		 * is clobbered.
-		 */
-		copy_fpregs_to_fpstate(fpu);
-	} else {
-		__cpu_invalidate_fpregs_state();
+		if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
+			set_thread_flag(TIF_NEED_FPU_LOAD);
+			/*
+			 * Ignore return value -- we don't care if reg state
+			 * is clobbered.
+			 */
+			copy_fpregs_to_fpstate(fpu);
+		}
 	}
+	__cpu_invalidate_fpregs_state();
 }
 
 static void __kernel_fpu_end(void)
 {
-	struct fpu *fpu = &current->thread.fpu;
-
-	if (current->mm)
-		copy_kernel_to_fpregs(&fpu->state);
-
 	kernel_fpu_enable();
 }
 
@@ -145,14 +142,17 @@ void fpu__save(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
-	preempt_disable();
+	fpregs_lock();
 	trace_x86_fpu_before_save(fpu);
 
-	if (!copy_fpregs_to_fpstate(fpu))
-		copy_kernel_to_fpregs(&fpu->state);
+	if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
+		if (!copy_fpregs_to_fpstate(fpu)) {
+			copy_kernel_to_fpregs(&fpu->state);
+		}
+	}
 
 	trace_x86_fpu_after_save(fpu);
-	preempt_enable();
+	fpregs_unlock();
 }
 EXPORT_SYMBOL_GPL(fpu__save);
 
@@ -185,8 +185,11 @@ void fpstate_init(union fpregs_state *state)
 }
 EXPORT_SYMBOL_GPL(fpstate_init);
 
-int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
+int fpu__copy(struct task_struct *dst, struct task_struct *src)
 {
+	struct fpu *dst_fpu = &dst->thread.fpu;
+	struct fpu *src_fpu = &src->thread.fpu;
+
 	dst_fpu->last_cpu = -1;
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
@@ -201,16 +204,23 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
 
 	/*
-	 * Save current FPU registers directly into the child
-	 * FPU context, without any memory-to-memory copying.
+	 * If the FPU registers are not current just memcpy() the state.
+	 * Otherwise save current FPU registers directly into the child's FPU
+	 * context, without any memory-to-memory copying.
 	 *
 	 * ( The function 'fails' in the FNSAVE case, which destroys
-	 *   register contents so we have to copy them back. )
+	 *   register contents so we have to load them back. )
 	 */
-	if (!copy_fpregs_to_fpstate(dst_fpu)) {
-		memcpy(&src_fpu->state, &dst_fpu->state, fpu_kernel_xstate_size);
-		copy_kernel_to_fpregs(&src_fpu->state);
-	}
+	fpregs_lock();
+	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+		memcpy(&dst_fpu->state, &src_fpu->state, fpu_kernel_xstate_size);
+
+	else if (!copy_fpregs_to_fpstate(dst_fpu))
+		copy_kernel_to_fpregs(&dst_fpu->state);
+
+	fpregs_unlock();
+
+	set_tsk_thread_flag(dst, TIF_NEED_FPU_LOAD);
 
 	trace_x86_fpu_copy_src(src_fpu);
 	trace_x86_fpu_copy_dst(dst_fpu);
@@ -226,10 +236,9 @@ static void fpu__initialize(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
+	set_thread_flag(TIF_NEED_FPU_LOAD);
 	fpstate_init(&fpu->state);
 	trace_x86_fpu_init_state(fpu);
-
-	trace_x86_fpu_activate_state(fpu);
 }
 
 /*
@@ -308,6 +317,8 @@ void fpu__drop(struct fpu *fpu)
  */
 static inline void copy_init_fpstate_to_fpregs(void)
 {
+	fpregs_lock();
+
 	if (use_xsave())
 		copy_kernel_to_xregs(&init_fpstate.xsave, -1);
 	else if (static_cpu_has(X86_FEATURE_FXSR))
@@ -317,6 +328,9 @@ static inline void copy_init_fpstate_to_fpregs(void)
 
 	if (boot_cpu_has(X86_FEATURE_OSPKE))
 		copy_init_pkru_to_fpregs();
+
+	fpregs_mark_activate();
+	fpregs_unlock();
 }
 
 /*
@@ -338,6 +352,46 @@ void fpu__clear(struct fpu *fpu)
 	if (static_cpu_has(X86_FEATURE_FPU))
 		copy_init_fpstate_to_fpregs();
 }
+
+/*
+ * Load FPU context before returning to userspace.
+ */
+void switch_fpu_return(void)
+{
+	if (!static_cpu_has(X86_FEATURE_FPU))
+		return;
+
+	__fpregs_load_activate();
+}
+EXPORT_SYMBOL_GPL(switch_fpu_return);
+
+#ifdef CONFIG_X86_DEBUG_FPU
+/*
+ * If current FPU state according to its tracking (loaded FPU context on this
+ * CPU) is not valid then we must have TIF_NEED_FPU_LOAD set so the context is
+ * loaded on return to userland.
+ */
+void fpregs_assert_state_consistent(void)
+{
+	struct fpu *fpu = &current->thread.fpu;
+
+	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+		return;
+
+	WARN_ON_FPU(!fpregs_state_valid(fpu, smp_processor_id()));
+}
+EXPORT_SYMBOL_GPL(fpregs_assert_state_consistent);
+#endif
+
+void fpregs_mark_activate(void)
+{
+	struct fpu *fpu = &current->thread.fpu;
+
+	fpregs_activate(fpu);
+	fpu->last_cpu = smp_processor_id();
+	clear_thread_flag(TIF_NEED_FPU_LOAD);
+}
+EXPORT_SYMBOL_GPL(fpregs_mark_activate);
 
 /*
  * x87 math exception handling:
