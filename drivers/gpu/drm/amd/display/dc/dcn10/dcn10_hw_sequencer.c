@@ -1126,6 +1126,8 @@ static void dcn10_init_hw(struct dc *dc)
 			dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
 			plane_atomic_power_down(dc, dpp, hubp);
 		}
+
+		apply_DEGVIDCN10_253_wa(dc);
 	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
