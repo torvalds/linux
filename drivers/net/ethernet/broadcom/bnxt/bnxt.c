@@ -10104,7 +10104,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_bpf		= bnxt_xdp,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
-	.ndo_get_port_parent_id	= bnxt_get_port_parent_id,
 	.ndo_get_devlink_port	= bnxt_get_devlink_port,
 };
 
