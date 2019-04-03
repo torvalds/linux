@@ -41,7 +41,6 @@
 
 struct spi_gpio {
 	struct spi_bitbang		bitbang;
-	struct platform_device		*pdev;
 	struct gpio_desc		*sck;
 	struct gpio_desc		*miso;
 	struct gpio_desc		*mosi;
@@ -389,8 +388,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	spi_gpio = spi_master_get_devdata(master);
 
 	platform_set_drvdata(pdev, spi_gpio);
-
-	spi_gpio->pdev = pdev;
 
 	status = spi_gpio_request(dev, spi_gpio);
 	if (status)
