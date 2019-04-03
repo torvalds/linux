@@ -396,8 +396,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	spi_gpio = spi_master_get_devdata(master);
 
-	platform_set_drvdata(pdev, spi_gpio);
-
 	status = spi_gpio_request(dev, spi_gpio);
 	if (status)
 		return status;
@@ -437,19 +435,11 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	}
 	bb->setup_transfer = spi_bitbang_setup_transfer;
 
-	return spi_bitbang_start(&spi_gpio->bitbang);
-}
+	status = spi_bitbang_init(&spi_gpio->bitbang);
+	if (status)
+		return status;
 
-static int spi_gpio_remove(struct platform_device *pdev)
-{
-	struct spi_gpio			*spi_gpio;
-
-	spi_gpio = platform_get_drvdata(pdev);
-
-	/* stop() unregisters child devices too */
-	spi_bitbang_stop(&spi_gpio->bitbang);
-
-	return 0;
+	return devm_spi_register_master(&pdev->dev, spi_master_get(master));
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -460,7 +450,6 @@ static struct platform_driver spi_gpio_driver = {
 		.of_match_table = of_match_ptr(spi_gpio_dt_ids),
 	},
 	.probe		= spi_gpio_probe,
-	.remove		= spi_gpio_remove,
 };
 module_platform_driver(spi_gpio_driver);
 
