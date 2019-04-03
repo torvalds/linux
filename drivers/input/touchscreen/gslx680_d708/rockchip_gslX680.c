@@ -1234,6 +1234,7 @@ static int  gsl_ts_probe(struct i2c_client *client,
 
 	of_property_read_u32(np, "screen_max_x", &(ts->screen_max_x));
 	of_property_read_u32(np, "screen_max_y", &(ts->screen_max_y));
+	of_property_read_u32(np, "revert_x", &revert_x);
 	of_property_read_u32(np, "revert_y", &revert_y);
 
 	ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, NULL);
