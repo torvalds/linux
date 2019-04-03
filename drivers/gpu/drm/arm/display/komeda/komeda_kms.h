@@ -12,6 +12,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_writeback.h>
+#include <video/videomode.h>
+#include <video/display_timing.h>
 
 /** struct komeda_plane - komeda instance of drm_plane */
 struct komeda_plane {
@@ -107,6 +109,9 @@ int komeda_kms_add_planes(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 				struct komeda_dev *mdev);
 void komeda_kms_cleanup_private_objs(struct komeda_dev *mdev);
+
+void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
+			      struct komeda_events *evts);
 
 struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev);
 void komeda_kms_detach(struct komeda_kms_dev *kms);

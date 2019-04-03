@@ -13,6 +13,33 @@
 #include "malidp_product.h"
 #include "komeda_format_caps.h"
 
+#define KOMEDA_EVENT_VSYNC		BIT_ULL(0)
+#define KOMEDA_EVENT_FLIP		BIT_ULL(1)
+#define KOMEDA_EVENT_URUN		BIT_ULL(2)
+#define KOMEDA_EVENT_IBSY		BIT_ULL(3)
+#define KOMEDA_EVENT_OVR		BIT_ULL(4)
+#define KOMEDA_EVENT_EOW		BIT_ULL(5)
+#define KOMEDA_EVENT_MODE		BIT_ULL(6)
+
+#define KOMEDA_ERR_TETO			BIT_ULL(14)
+#define KOMEDA_ERR_TEMR			BIT_ULL(15)
+#define KOMEDA_ERR_TITR			BIT_ULL(16)
+#define KOMEDA_ERR_CPE			BIT_ULL(17)
+#define KOMEDA_ERR_CFGE			BIT_ULL(18)
+#define KOMEDA_ERR_AXIE			BIT_ULL(19)
+#define KOMEDA_ERR_ACE0			BIT_ULL(20)
+#define KOMEDA_ERR_ACE1			BIT_ULL(21)
+#define KOMEDA_ERR_ACE2			BIT_ULL(22)
+#define KOMEDA_ERR_ACE3			BIT_ULL(23)
+#define KOMEDA_ERR_DRIFTTO		BIT_ULL(24)
+#define KOMEDA_ERR_FRAMETO		BIT_ULL(25)
+#define KOMEDA_ERR_CSCE			BIT_ULL(26)
+#define KOMEDA_ERR_ZME			BIT_ULL(27)
+#define KOMEDA_ERR_MERR			BIT_ULL(28)
+#define KOMEDA_ERR_TCF			BIT_ULL(29)
+#define KOMEDA_ERR_TTNG			BIT_ULL(30)
+#define KOMEDA_ERR_TTF			BIT_ULL(31)
+
 /* malidp device id */
 enum {
 	MALI_D71 = 0,
@@ -39,6 +66,11 @@ struct komeda_product_data {
 
 struct komeda_dev;
 
+struct komeda_events {
+	u64 global;
+	u64 pipes[KOMEDA_MAX_PIPELINES];
+};
+
 /**
  * struct komeda_dev_funcs
  *
@@ -60,6 +92,20 @@ struct komeda_dev_funcs {
 	int (*enum_resources)(struct komeda_dev *mdev);
 	/** @cleanup: call to chip to cleanup komeda_dev->chip data */
 	void (*cleanup)(struct komeda_dev *mdev);
+	/**
+	 * @irq_handler:
+	 *
+	 * for CORE to get the HW event from the CHIP when interrupt happened.
+	 */
+	irqreturn_t (*irq_handler)(struct komeda_dev *mdev,
+				   struct komeda_events *events);
+	/** @enable_irq: enable irq */
+	int (*enable_irq)(struct komeda_dev *mdev);
+	/** @disable_irq: disable irq */
+	int (*disable_irq)(struct komeda_dev *mdev);
+
+	/** @dump_register: Optional, dump registers to seq_file */
+	void (*dump_register)(struct komeda_dev *mdev, struct seq_file *seq);
 };
 
 /**
@@ -81,6 +127,9 @@ struct komeda_dev {
 	/** @mck: HW main engine clk */
 	struct clk *mclk;
 
+	/** @irq: irq number */
+	int irq;
+
 	int n_pipelines;
 	struct komeda_pipeline *pipelines[KOMEDA_MAX_PIPELINES];
 
@@ -93,6 +142,8 @@ struct komeda_dev {
 	 * destroyed by &komeda_dev_funcs.cleanup()
 	 */
 	void *chip_data;
+
+	struct dentry *debugfs_root;
 };
 
 static inline bool

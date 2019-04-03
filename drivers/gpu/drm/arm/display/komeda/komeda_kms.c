@@ -13,6 +13,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_irq.h>
 #include <drm/drm_vblank.h>
 
 #include "komeda_dev.h"
@@ -33,10 +34,31 @@ static int komeda_gem_cma_dumb_create(struct drm_file *file,
 	return drm_gem_cma_dumb_create_internal(file, dev, args);
 }
 
+static irqreturn_t komeda_kms_irq_handler(int irq, void *data)
+{
+	struct drm_device *drm = data;
+	struct komeda_dev *mdev = drm->dev_private;
+	struct komeda_kms_dev *kms = to_kdev(drm);
+	struct komeda_events evts;
+	irqreturn_t status;
+	u32 i;
+
+	/* Call into the CHIP to recognize events */
+	memset(&evts, 0, sizeof(evts));
+	status = mdev->funcs->irq_handler(mdev, &evts);
+
+	/* Notify the crtc to handle the events */
+	for (i = 0; i < kms->n_crtcs; i++)
+		komeda_crtc_handle_event(&kms->crtcs[i], &evts);
+
+	return status;
+}
+
 static struct drm_driver komeda_kms_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
-			   DRIVER_PRIME,
+			   DRIVER_PRIME | DRIVER_HAVE_IRQ,
 	.lastclose			= drm_fb_helper_lastclose,
+	.irq_handler			= komeda_kms_irq_handler,
 	.gem_free_object_unlocked	= drm_gem_cma_free_object,
 	.gem_vm_ops			= &drm_gem_cma_vm_ops,
 	.dumb_create			= komeda_gem_cma_dumb_create,
@@ -144,12 +166,22 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 
 	drm_mode_config_reset(drm);
 
-	err = drm_dev_register(drm, 0);
+	err = drm_irq_install(drm, mdev->irq);
 	if (err)
 		goto cleanup_mode_config;
 
+	err = mdev->funcs->enable_irq(mdev);
+	if (err)
+		goto uninstall_irq;
+
+	err = drm_dev_register(drm, 0);
+	if (err)
+		goto uninstall_irq;
+
 	return kms;
 
+uninstall_irq:
+	drm_irq_uninstall(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 free_kms:
@@ -162,7 +194,9 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	struct drm_device *drm = &kms->base;
 	struct komeda_dev *mdev = drm->dev_private;
 
+	mdev->funcs->disable_irq(mdev);
 	drm_dev_unregister(drm);
+	drm_irq_uninstall(drm);
 	component_unbind_all(mdev->dev, drm);
 	komeda_kms_cleanup_private_objs(mdev);
 	drm_mode_config_cleanup(drm);
