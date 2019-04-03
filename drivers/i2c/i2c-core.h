@@ -29,6 +29,16 @@ extern int		__i2c_first_dynamic_bus_num;
 
 int i2c_check_7bit_addr_validity_strict(unsigned short addr);
 
+/*
+ * We only allow atomic transfers for very late communication, e.g. to send
+ * the powerdown command to a PMIC. Atomic transfers are a corner case and not
+ * for generic use!
+ */
+static inline bool i2c_in_atomic_xfer_mode(void)
+{
+	return system_state > SYSTEM_RUNNING && irqs_disabled();
+}
+
 #ifdef CONFIG_ACPI
 const struct acpi_device_id *
 i2c_acpi_match_device(const struct acpi_device_id *matches,
