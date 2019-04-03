@@ -1021,10 +1021,13 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	struct ltdc_device *ldev = ddev->dev_private;
 	u32 bus_width_log2, lcr, gc2r;
 
-	/* at least 1 layer must be managed */
+	/*
+	 * at least 1 layer must be managed & the number of layers
+	 * must not exceed LTDC_MAX_LAYER
+	 */
 	lcr = reg_read(ldev->regs, LTDC_LCR);
 
-	ldev->caps.nb_layers = max_t(int, lcr, 1);
+	ldev->caps.nb_layers = clamp((int)lcr, 1, LTDC_MAX_LAYER);
 
 	/* set data bus width */
 	gc2r = reg_read(ldev->regs, LTDC_GC2R);
