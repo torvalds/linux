@@ -15,16 +15,12 @@
  */
 int regset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
-	struct fpu *target_fpu = &target->thread.fpu;
-
-	return target_fpu->initialized ? regset->n : 0;
+	return regset->n;
 }
 
 int regset_xregset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
-	struct fpu *target_fpu = &target->thread.fpu;
-
-	if (boot_cpu_has(X86_FEATURE_FXSR) && target_fpu->initialized)
+	if (boot_cpu_has(X86_FEATURE_FXSR))
 		return regset->n;
 	else
 		return 0;
@@ -370,16 +366,9 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 int dump_fpu(struct pt_regs *regs, struct user_i387_struct *ufpu)
 {
 	struct task_struct *tsk = current;
-	struct fpu *fpu = &tsk->thread.fpu;
-	int fpvalid;
 
-	fpvalid = fpu->initialized;
-	if (fpvalid)
-		fpvalid = !fpregs_get(tsk, NULL,
-				      0, sizeof(struct user_i387_ia32_struct),
-				      ufpu, NULL);
-
-	return fpvalid;
+	return !fpregs_get(tsk, NULL, 0, sizeof(struct user_i387_ia32_struct),
+			   ufpu, NULL);
 }
 EXPORT_SYMBOL(dump_fpu);
 

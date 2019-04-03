@@ -13,22 +13,19 @@ DECLARE_EVENT_CLASS(x86_fpu,
 
 	TP_STRUCT__entry(
 		__field(struct fpu *, fpu)
-		__field(bool, initialized)
 		__field(u64, xfeatures)
 		__field(u64, xcomp_bv)
 		),
 
 	TP_fast_assign(
 		__entry->fpu		= fpu;
-		__entry->initialized	= fpu->initialized;
 		if (boot_cpu_has(X86_FEATURE_OSXSAVE)) {
 			__entry->xfeatures = fpu->state.xsave.header.xfeatures;
 			__entry->xcomp_bv  = fpu->state.xsave.header.xcomp_bv;
 		}
 	),
-	TP_printk("x86/fpu: %p initialized: %d xfeatures: %llx xcomp_bv: %llx",
+	TP_printk("x86/fpu: %p xfeatures: %llx xcomp_bv: %llx",
 			__entry->fpu,
-			__entry->initialized,
 			__entry->xfeatures,
 			__entry->xcomp_bv
 	)
