@@ -1794,7 +1794,7 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		 */
 		eventfd = eventfd_ctx_fdget(iocb->aio_resfd);
 		if (IS_ERR(eventfd))
-			return PTR_ERR(req->ki_eventfd);
+			return PTR_ERR(eventfd);
 
 		req->ki_eventfd = eventfd;
 	}
