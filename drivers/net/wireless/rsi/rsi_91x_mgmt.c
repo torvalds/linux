@@ -424,6 +424,10 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	}
 	radio_caps->radio_info |= radio_id;
 
+	if (adapter->device_model == RSI_DEV_9116 &&
+	    common->channel_width == BW_20MHZ)
+		radio_caps->radio_cfg_info &= ~0x3;
+
 	radio_caps->sifs_tx_11n = cpu_to_le16(SIFS_TX_11N_VALUE);
 	radio_caps->sifs_tx_11b = cpu_to_le16(SIFS_TX_11B_VALUE);
 	radio_caps->slot_rx_11n = cpu_to_le16(SHORT_SLOT_VALUE);
@@ -439,14 +443,16 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	}
 
 	for (ii = 0; ii < NUM_EDCA_QUEUES; ii++) {
-		radio_caps->qos_params[ii].cont_win_min_q =
-			cpu_to_le16(common->edca_params[ii].cw_min);
-		radio_caps->qos_params[ii].cont_win_max_q =
-			cpu_to_le16(common->edca_params[ii].cw_max);
-		radio_caps->qos_params[ii].aifsn_val_q =
-			cpu_to_le16((common->edca_params[ii].aifs) << 8);
-		radio_caps->qos_params[ii].txop_q =
-			cpu_to_le16(common->edca_params[ii].txop);
+		if (common->edca_params[ii].cw_max > 0) {
+			radio_caps->qos_params[ii].cont_win_min_q =
+				cpu_to_le16(common->edca_params[ii].cw_min);
+			radio_caps->qos_params[ii].cont_win_max_q =
+				cpu_to_le16(common->edca_params[ii].cw_max);
+			radio_caps->qos_params[ii].aifsn_val_q =
+				cpu_to_le16(common->edca_params[ii].aifs << 8);
+			radio_caps->qos_params[ii].txop_q =
+				cpu_to_le16(common->edca_params[ii].txop);
+		}
 	}
 
 	radio_caps->qos_params[BROADCAST_HW_Q].txop_q = cpu_to_le16(0xffff);
@@ -1025,6 +1031,11 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(RESET_MAC_REQ);
 	mgmt_frame->desc_word[4] = cpu_to_le16(RETRY_COUNT << 8);
+
+#define RSI_9116_DEF_TA_AGGR	3
+	if (common->priv->device_model == RSI_DEV_9116)
+		mgmt_frame->desc_word[3] |=
+			cpu_to_le16(RSI_9116_DEF_TA_AGGR << 8);
 
 	skb_put(skb, FRAME_DESC_SZ);
 

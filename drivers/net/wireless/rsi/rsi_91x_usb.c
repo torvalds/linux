@@ -213,7 +213,7 @@ static int rsi_usb_reg_read(struct usb_device *usbdev,
  */
 static int rsi_usb_reg_write(struct usb_device *usbdev,
 			     u32 reg,
-			     u16 value,
+			     u32 value,
 			     u16 len)
 {
 	u8 *usb_reg_buf;
@@ -226,17 +226,17 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 	if (!usb_reg_buf)
 		return status;
 
-	usb_reg_buf[0] = (value & 0x00ff);
-	usb_reg_buf[1] = (value & 0xff00) >> 8;
-	usb_reg_buf[2] = 0x0;
-	usb_reg_buf[3] = 0x0;
+	usb_reg_buf[0] = (cpu_to_le32(value) & 0x00ff);
+	usb_reg_buf[1] = (cpu_to_le32(value) & 0xff00) >> 8;
+	usb_reg_buf[2] = (cpu_to_le32(value) & 0x00ff0000) >> 16;
+	usb_reg_buf[3] = (cpu_to_le32(value) & 0xff000000) >> 24;
 
 	status = usb_control_msg(usbdev,
 				 usb_sndctrlpipe(usbdev, 0),
 				 USB_VENDOR_REGISTER_WRITE,
 				 RSI_USB_REQ_OUT,
-				 ((reg & 0xffff0000) >> 16),
-				 (reg & 0xffff),
+				 ((cpu_to_le32(reg) & 0xffff0000) >> 16),
+				 (cpu_to_le32(reg) & 0xffff),
 				 (void *)usb_reg_buf,
 				 len,
 				 USB_CTRL_SET_TIMEOUT);
@@ -263,8 +263,10 @@ static void rsi_rx_done_handler(struct urb *urb)
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)rx_cb->data;
 	int status = -EINVAL;
 
-	if (urb->status)
-		goto out;
+	if (urb->status) {
+		dev_kfree_skb(rx_cb->rx_skb);
+		return;
+	}
 
 	if (urb->actual_length <= 0 ||
 	    urb->actual_length > rx_cb->rx_skb->len) {
