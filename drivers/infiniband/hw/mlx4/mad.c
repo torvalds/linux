@@ -1371,9 +1371,9 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 	struct ib_ah *ah;
 	struct ib_qp *send_qp = NULL;
 	unsigned wire_tx_ix = 0;
-	int ret = 0;
 	u16 wire_pkey_ix;
 	int src_qpnum;
+	int ret;
 
 	sqp_ctx = dev->sriov.sqps[port-1];
 
@@ -1393,12 +1393,20 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 
 	send_qp = sqp->qp;
 
-	/* create ah */
-	ah = mlx4_ib_create_ah_slave(sqp_ctx->pd, attr,
-				     rdma_ah_retrieve_grh(attr)->sgid_index,
-				     s_mac, vlan_id);
-	if (IS_ERR(ah))
+	ah = rdma_zalloc_drv_obj(sqp_ctx->pd->device, ib_ah);
+	if (!ah)
 		return -ENOMEM;
+
+	ah->device = sqp_ctx->pd->device;
+	ah->pd = sqp_ctx->pd;
+
+	/* create ah */
+	ret = mlx4_ib_create_ah_slave(ah, attr,
+				      rdma_ah_retrieve_grh(attr)->sgid_index,
+				      s_mac, vlan_id);
+	if (ret)
+		goto out;
+
 	spin_lock(&sqp->tx_lock);
 	if (sqp->tx_ix_head - sqp->tx_ix_tail >=
 	    (MLX4_NUM_TUNNEL_BUFS - 1))
@@ -1410,8 +1418,7 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 		goto out;
 
 	sqp_mad = (struct mlx4_mad_snd_buf *) (sqp->tx_ring[wire_tx_ix].buf.addr);
-	if (sqp->tx_ring[wire_tx_ix].ah)
-		mlx4_ib_destroy_ah(sqp->tx_ring[wire_tx_ix].ah, 0, NULL);
+	kfree(sqp->tx_ring[wire_tx_ix].ah);
 	sqp->tx_ring[wire_tx_ix].ah = ah;
 	ib_dma_sync_single_for_cpu(&dev->ib_dev,
 				   sqp->tx_ring[wire_tx_ix].buf.map,
@@ -1450,7 +1457,7 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 	spin_unlock(&sqp->tx_lock);
 	sqp->tx_ring[wire_tx_ix].ah = NULL;
 out:
-	mlx4_ib_destroy_ah(ah, 0, NULL);
+	kfree(ah);
 	return ret;
 }
 
@@ -1902,9 +1909,8 @@ static void mlx4_ib_sqp_comp_worker(struct work_struct *work)
 		if (wc.status == IB_WC_SUCCESS) {
 			switch (wc.opcode) {
 			case IB_WC_SEND:
-				mlx4_ib_destroy_ah(sqp->tx_ring[wc.wr_id &
-					      (MLX4_NUM_TUNNEL_BUFS - 1)].ah,
-					      0, NULL);
+				kfree(sqp->tx_ring[wc.wr_id &
+				      (MLX4_NUM_TUNNEL_BUFS - 1)].ah);
 				sqp->tx_ring[wc.wr_id & (MLX4_NUM_TUNNEL_BUFS - 1)].ah
 					= NULL;
 				spin_lock(&sqp->tx_lock);
@@ -1932,9 +1938,8 @@ static void mlx4_ib_sqp_comp_worker(struct work_struct *work)
 				 " status = %d, wrid = 0x%llx\n",
 				 ctx->slave, wc.status, wc.wr_id);
 			if (!MLX4_TUN_IS_RECV(wc.wr_id)) {
-				mlx4_ib_destroy_ah(sqp->tx_ring[wc.wr_id &
-					      (MLX4_NUM_TUNNEL_BUFS - 1)].ah,
-					      0, NULL);
+				kfree(sqp->tx_ring[wc.wr_id &
+				      (MLX4_NUM_TUNNEL_BUFS - 1)].ah);
 				sqp->tx_ring[wc.wr_id & (MLX4_NUM_TUNNEL_BUFS - 1)].ah
 					= NULL;
 				spin_lock(&sqp->tx_lock);

@@ -532,25 +532,21 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 	return 0;
 }
 
-int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
-			  bool block)
+void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			   bool block)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_ah req;
 	struct creq_destroy_ah_resp resp;
 	u16 cmd_flags = 0;
-	int rc;
 
 	/* Clean up the AH table in the device */
 	RCFW_CMD_PREP(req, DESTROY_AH, cmd_flags);
 
 	req.ah_cid = cpu_to_le32(ah->id);
 
-	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-					  NULL, block);
-	if (rc)
-		return rc;
-	return 0;
+	bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp, NULL,
+				     block);
 }
 
 /* MRW */

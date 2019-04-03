@@ -415,9 +415,9 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 int pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int pvrdma_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
-struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-			       u32 flags, struct ib_udata *udata);
-int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
+int pvrdma_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
+		     struct ib_udata *udata);
+void pvrdma_destroy_ah(struct ib_ah *ah, u32 flags);
 
 struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 				 struct ib_srq_init_attr *init_attr,

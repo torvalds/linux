@@ -139,8 +139,8 @@ int ocrdma_mbx_modify_srq(struct ocrdma_srq *, struct ib_srq_attr *);
 int ocrdma_mbx_query_srq(struct ocrdma_srq *, struct ib_srq_attr *);
 int ocrdma_mbx_destroy_srq(struct ocrdma_dev *, struct ocrdma_srq *);
 
-int ocrdma_alloc_av(struct ocrdma_dev *, struct ocrdma_ah *);
-int ocrdma_free_av(struct ocrdma_dev *, struct ocrdma_ah *);
+int ocrdma_alloc_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah);
+void ocrdma_free_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah);
 
 int ocrdma_qp_state_change(struct ocrdma_qp *, enum ib_qp_state new_state,
 			    enum ib_qp_state *old_ib_state);

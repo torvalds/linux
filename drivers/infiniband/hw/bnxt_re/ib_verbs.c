@@ -633,20 +633,13 @@ fail:
 }
 
 /* Address Handles */
-int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags, struct ib_udata *udata)
+void bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	struct bnxt_re_dev *rdev = ah->rdev;
-	int rc;
 
-	rc = bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah,
-				   !(flags & RDMA_DESTROY_AH_SLEEPABLE));
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to destroy HW AH");
-		return rc;
-	}
-	kfree(ah);
-	return 0;
+	bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah,
+			      !(flags & RDMA_DESTROY_AH_SLEEPABLE));
 }
 
 static u8 bnxt_re_stack_to_dev_nw_type(enum rdma_network_type ntype)
@@ -667,26 +660,22 @@ static u8 bnxt_re_stack_to_dev_nw_type(enum rdma_network_type ntype)
 	return nw_type;
 }
 
-struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
-				struct rdma_ah_attr *ah_attr,
-				u32 flags,
-				struct ib_udata *udata)
+int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr,
+		      u32 flags, struct ib_udata *udata)
 {
+	struct ib_pd *ib_pd = ib_ah->pd;
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	const struct ib_gid_attr *sgid_attr;
-	struct bnxt_re_ah *ah;
+	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	u8 nw_type;
 	int rc;
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH)) {
 		dev_err(rdev_to_dev(rdev), "Failed to alloc AH: GRH not set");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
 
 	ah->rdev = rdev;
 	ah->qplib_ah.pd = &pd->qplib_pd;
@@ -716,7 +705,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				  !(flags & RDMA_CREATE_AH_SLEEPABLE));
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to allocate HW AH");
-		goto fail;
+		return rc;
 	}
 
 	/* Write AVID to shared page. */
@@ -733,11 +722,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 		spin_unlock_irqrestore(&uctx->sh_lock, flag);
 	}
 
-	return &ah->ib_ah;
-
-fail:
-	kfree(ah);
-	return ERR_PTR(rc);
+	return 0;
 }
 
 int bnxt_re_modify_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
@@ -810,13 +795,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	bnxt_qplib_free_qp_res(&rdev->qplib_res, &qp->qplib_qp);
 
 	if (ib_qp->qp_type == IB_QPT_GSI && rdev->qp1_sqp) {
-		rc = bnxt_qplib_destroy_ah(&rdev->qplib_res,
-					   &rdev->sqp_ah->qplib_ah, false);
-		if (rc) {
-			dev_err(rdev_to_dev(rdev),
-				"Failed to destroy HW AH for shadow QP");
-			return rc;
-		}
+		bnxt_qplib_destroy_ah(&rdev->qplib_res, &rdev->sqp_ah->qplib_ah,
+				      false);
 
 		bnxt_qplib_clean_qp(&qp->qplib_qp);
 		rc = bnxt_qplib_destroy_qp(&rdev->qplib_res,

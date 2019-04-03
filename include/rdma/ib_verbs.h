@@ -2401,12 +2401,11 @@ struct ib_device_ops {
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
 	int (*alloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
 	void (*dealloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
-	struct ib_ah *(*create_ah)(struct ib_pd *pd,
-				   struct rdma_ah_attr *ah_attr, u32 flags,
-				   struct ib_udata *udata);
+	int (*create_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
+			 u32 flags, struct ib_udata *udata);
 	int (*modify_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	int (*query_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
-	int (*destroy_ah)(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
+	void (*destroy_ah)(struct ib_ah *ah, u32 flags);
 	struct ib_srq *(*create_srq)(struct ib_pd *pd,
 				     struct ib_srq_init_attr *srq_init_attr,
 				     struct ib_udata *udata);
@@ -2552,6 +2551,7 @@ struct ib_device_ops {
 	 */
 	void (*dealloc_driver)(struct ib_device *dev);
 
+	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 };

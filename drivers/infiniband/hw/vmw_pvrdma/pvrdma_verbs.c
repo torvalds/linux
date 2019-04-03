@@ -507,34 +507,28 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
  * @udata: user data blob
  * @flags: create address handle flags (see enum rdma_create_ah_flags)
  *
- * @return: the ib_ah pointer on success, otherwise errno.
+ * @return: 0 on success, otherwise errno.
  */
-struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-			       u32 flags, struct ib_udata *udata)
+int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
+		     u32 flags, struct ib_udata *udata)
 {
-	struct pvrdma_dev *dev = to_vdev(pd->device);
-	struct pvrdma_ah *ah;
+	struct pvrdma_dev *dev = to_vdev(ibah->device);
+	struct pvrdma_ah *ah = to_vah(ibah);
 	const struct ib_global_route *grh;
 	u8 port_num = rdma_ah_get_port_num(ah_attr);
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	grh = rdma_ah_read_grh(ah_attr);
 	if ((ah_attr->type != RDMA_AH_ATTR_TYPE_ROCE)  ||
 	    rdma_is_multicast_addr((struct in6_addr *)grh->dgid.raw))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (!atomic_add_unless(&dev->num_ahs, 1, dev->dsr->caps.max_ah))
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah) {
-		atomic_dec(&dev->num_ahs);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ah->av.port_pd = to_vpd(pd)->pd_handle | (port_num << 24);
+	ah->av.port_pd = to_vpd(ibah->pd)->pd_handle | (port_num << 24);
 	ah->av.src_path_bits = rdma_ah_get_path_bits(ah_attr);
 	ah->av.src_path_bits |= 0x80;
 	ah->av.gid_index = grh->sgid_index;
@@ -544,11 +538,7 @@ struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 	memcpy(ah->av.dgid, grh->dgid.raw, 16);
 	memcpy(ah->av.dmac, ah_attr->roce.dmac, ETH_ALEN);
 
-	ah->ibah.device = pd->device;
-	ah->ibah.pd = pd;
-	ah->ibah.uobject = NULL;
-
-	return &ah->ibah;
+	return 0;
 }
 
 /**
@@ -556,14 +546,10 @@ struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
  * @ah: the address handle to destroyed
  * @flags: destroy address handle flags (see enum rdma_destroy_ah_flags)
  *
- * @return: 0 on success.
  */
-int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
+void pvrdma_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	struct pvrdma_dev *dev = to_vdev(ah->device);
 
-	kfree(to_vah(ah));
 	atomic_dec(&dev->num_ahs);
-
-	return 0;
 }

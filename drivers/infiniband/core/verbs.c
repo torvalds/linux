@@ -496,25 +496,33 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     u32 flags,
 				     struct ib_udata *udata)
 {
+	struct ib_device *device = pd->device;
 	struct ib_ah *ah;
+	int ret;
 
 	might_sleep_if(flags & RDMA_CREATE_AH_SLEEPABLE);
 
-	if (!pd->device->ops.create_ah)
+	if (!device->ops.create_ah)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	ah = pd->device->ops.create_ah(pd, ah_attr, flags, udata);
+	ah = rdma_zalloc_drv_obj_gfp(
+		device, ib_ah,
+		(flags & RDMA_CREATE_AH_SLEEPABLE) ? GFP_KERNEL : GFP_ATOMIC);
+	if (!ah)
+		return ERR_PTR(-ENOMEM);
 
-	if (!IS_ERR(ah)) {
-		ah->device  = pd->device;
-		ah->pd      = pd;
-		ah->uobject = NULL;
-		ah->type    = ah_attr->type;
-		ah->sgid_attr = rdma_update_sgid_attr(ah_attr, NULL);
+	ah->device = device;
+	ah->pd = pd;
+	ah->type = ah_attr->type;
+	ah->sgid_attr = rdma_update_sgid_attr(ah_attr, NULL);
 
-		atomic_inc(&pd->usecnt);
+	ret = device->ops.create_ah(ah, ah_attr, flags, udata);
+	if (ret) {
+		kfree(ah);
+		return ERR_PTR(ret);
 	}
 
+	atomic_inc(&pd->usecnt);
 	return ah;
 }
 
@@ -935,19 +943,18 @@ int rdma_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 {
 	const struct ib_gid_attr *sgid_attr = ah->sgid_attr;
 	struct ib_pd *pd;
-	int ret;
 
 	might_sleep_if(flags & RDMA_DESTROY_AH_SLEEPABLE);
 
 	pd = ah->pd;
-	ret = ah->device->ops.destroy_ah(ah, flags, udata);
-	if (!ret) {
-		atomic_dec(&pd->usecnt);
-		if (sgid_attr)
-			rdma_put_gid_attr(sgid_attr);
-	}
 
-	return ret;
+	ah->device->ops.destroy_ah(ah, flags);
+	atomic_dec(&pd->usecnt);
+	if (sgid_attr)
+		rdma_put_gid_attr(sgid_attr);
+
+	kfree(ah);
+	return 0;
 }
 EXPORT_SYMBOL(rdma_destroy_ah_user);
 

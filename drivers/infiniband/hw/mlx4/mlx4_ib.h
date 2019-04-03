@@ -752,14 +752,12 @@ int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 void mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 
-struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				u32 flags, struct ib_udata *udata);
-struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
-				      struct rdma_ah_attr *ah_attr,
-				      int slave_sgid_index, u8 *s_mac,
-				      u16 vlan_tag);
+int mlx4_ib_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
+		      struct ib_udata *udata);
+int mlx4_ib_create_ah_slave(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
+			    int slave_sgid_index, u8 *s_mac, u16 vlan_tag);
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
-int mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
+void mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags);
 
 struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *init_attr,

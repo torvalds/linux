@@ -71,8 +71,8 @@ struct rxe_pd {
 };
 
 struct rxe_ah {
-	struct rxe_pool_entry	pelem;
 	struct ib_ah		ibah;
+	struct rxe_pool_entry	pelem;
 	struct rxe_pd		*pd;
 	struct rxe_av		av;
 };

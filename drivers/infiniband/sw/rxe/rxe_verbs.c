@@ -191,30 +191,24 @@ static void rxe_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	rxe_drop_ref(pd);
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
-				   struct rdma_ah_attr *attr,
-				   u32 flags,
-				   struct ib_udata *udata)
+static int rxe_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr,
+			 u32 flags, struct ib_udata *udata)
 
 {
 	int err;
-	struct rxe_dev *rxe = to_rdev(ibpd->device);
-	struct rxe_pd *pd = to_rpd(ibpd);
-	struct rxe_ah *ah;
+	struct rxe_dev *rxe = to_rdev(ibah->device);
+	struct rxe_ah *ah = to_rah(ibah);
 
 	err = rxe_av_chk_attr(rxe, attr);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
-	ah = rxe_alloc(&rxe->ah_pool);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
-
-	rxe_add_ref(pd);
-	ah->pd = pd;
+	err = rxe_add_to_pool(&rxe->ah_pool, &ah->pelem);
+	if (err)
+		return err;
 
 	rxe_init_av(attr, &ah->av);
-	return &ah->ibah;
+	return 0;
 }
 
 static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
@@ -241,13 +235,11 @@ static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	return 0;
 }
 
-static int rxe_destroy_ah(struct ib_ah *ibah, u32 flags, struct ib_udata *udata)
+static void rxe_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct rxe_ah *ah = to_rah(ibah);
 
-	rxe_drop_ref(ah->pd);
 	rxe_drop_ref(ah);
-	return 0;
 }
 
 static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
@@ -1171,6 +1163,8 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.reg_user_mr = rxe_reg_user_mr,
 	.req_notify_cq = rxe_req_notify_cq,
 	.resize_cq = rxe_resize_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
 };

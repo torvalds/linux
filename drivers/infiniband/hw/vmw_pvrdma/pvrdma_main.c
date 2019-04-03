@@ -195,6 +195,8 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.query_qp = pvrdma_query_qp,
 	.reg_user_mr = pvrdma_reg_user_mr,
 	.req_notify_cq = pvrdma_req_notify_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, pvrdma_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };

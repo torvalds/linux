@@ -3067,13 +3067,12 @@ int ocrdma_alloc_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah)
 	return status;
 }
 
-int ocrdma_free_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah)
+void ocrdma_free_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&dev->av_tbl.lock, flags);
 	ah->av->valid = 0;
 	spin_unlock_irqrestore(&dev->av_tbl.lock, flags);
-	return 0;
 }
 
 static int ocrdma_create_eqs(struct ocrdma_dev *dev)

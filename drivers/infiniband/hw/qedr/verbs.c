@@ -2546,27 +2546,21 @@ int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	return rc;
 }
 
-struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     u32 flags, struct ib_udata *udata)
+int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+		   struct ib_udata *udata)
 {
-	struct qedr_ah *ah;
-
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
+	struct qedr_ah *ah = get_qedr_ah(ibah);
 
 	rdma_copy_ah_attr(&ah->attr, attr);
 
-	return &ah->ibah;
+	return 0;
 }
 
-int qedr_destroy_ah(struct ib_ah *ibah, u32 flags, struct ib_udata *udata)
+void qedr_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 
 	rdma_destroy_ah_attr(&ah->attr);
-	kfree(ah);
-	return 0;
 }
 
 static void free_mr_info(struct qedr_dev *dev, struct mr_info *info)

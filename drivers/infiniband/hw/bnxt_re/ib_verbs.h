@@ -63,8 +63,8 @@ struct bnxt_re_pd {
 };
 
 struct bnxt_re_ah {
-	struct bnxt_re_dev	*rdev;
 	struct ib_ah		ib_ah;
+	struct bnxt_re_dev	*rdev;
 	struct bnxt_qplib_ah	qplib_ah;
 };
 
@@ -165,13 +165,11 @@ enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 					    u8 port_num);
 int bnxt_re_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 void bnxt_re_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
-				struct rdma_ah_attr *ah_attr,
-				u32 flags,
-				struct ib_udata *udata);
+int bnxt_re_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
+		      struct ib_udata *udata);
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
-int bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
+void bnxt_re_destroy_ah(struct ib_ah *ah, u32 flags);
 struct ib_srq *bnxt_re_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *srq_init_attr,
 				  struct ib_udata *udata);

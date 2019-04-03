@@ -388,34 +388,19 @@ static void mthca_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
 }
 
-static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
-				     struct rdma_ah_attr *ah_attr,
-				     u32 flags,
-				     struct ib_udata *udata)
+static int mthca_ah_create(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
+			   u32 flags, struct ib_udata *udata)
 
 {
-	int err;
-	struct mthca_ah *ah;
+	struct mthca_ah *ah = to_mah(ibah);
 
-	ah = kmalloc(sizeof *ah, GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
-
-	err = mthca_create_ah(to_mdev(pd->device), to_mpd(pd), ah_attr, ah);
-	if (err) {
-		kfree(ah);
-		return ERR_PTR(err);
-	}
-
-	return &ah->ibah;
+	return mthca_create_ah(to_mdev(ibah->device), to_mpd(ibah->pd), ah_attr,
+			       ah);
 }
 
-static int mthca_ah_destroy(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
+static void mthca_ah_destroy(struct ib_ah *ah, u32 flags)
 {
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
-	kfree(ah);
-
-	return 0;
 }
 
 static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
@@ -1213,6 +1198,8 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.query_qp = mthca_query_qp,
 	.reg_user_mr = mthca_reg_user_mr,
 	.resize_cq = mthca_resize_cq,
+
+	INIT_RDMA_OBJ_SIZE(ib_ah, mthca_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mthca_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, mthca_ucontext, ibucontext),
 };
