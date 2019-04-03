@@ -205,18 +205,13 @@ static int smu10_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 	return 0;
 }
 
-static inline uint32_t convert_10k_to_mhz(uint32_t clock)
-{
-	return (clock + 99) / 100;
-}
-
 static int smu10_set_min_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->need_min_deep_sleep_dcefclk &&
-		smu10_data->deep_sleep_dcefclk != convert_10k_to_mhz(clock)) {
-		smu10_data->deep_sleep_dcefclk = convert_10k_to_mhz(clock);
+		smu10_data->deep_sleep_dcefclk != clock) {
+		smu10_data->deep_sleep_dcefclk = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinDeepSleepDcefclk,
 					smu10_data->deep_sleep_dcefclk);
@@ -229,8 +224,8 @@ static int smu10_set_hard_min_dcefclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t c
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->dcf_actual_hard_min_freq &&
-		smu10_data->dcf_actual_hard_min_freq != convert_10k_to_mhz(clock)) {
-		smu10_data->dcf_actual_hard_min_freq = convert_10k_to_mhz(clock);
+		smu10_data->dcf_actual_hard_min_freq != clock) {
+		smu10_data->dcf_actual_hard_min_freq = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetHardMinDcefclkByFreq,
 					smu10_data->dcf_actual_hard_min_freq);
@@ -243,8 +238,8 @@ static int smu10_set_hard_min_fclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t cloc
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->f_actual_hard_min_freq &&
-		smu10_data->f_actual_hard_min_freq != convert_10k_to_mhz(clock)) {
-		smu10_data->f_actual_hard_min_freq = convert_10k_to_mhz(clock);
+		smu10_data->f_actual_hard_min_freq != clock) {
+		smu10_data->f_actual_hard_min_freq = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetHardMinFclkByFreq,
 					smu10_data->f_actual_hard_min_freq);
