@@ -289,25 +289,15 @@ static void spi_gpio_cleanup(struct spi_device *spi)
  * floating signals.  (A weak pulldown would save power too, but many
  * drivers expect to see all-ones data as the no slave "response".)
  */
-static int spi_gpio_request(struct device *dev,
-			    struct spi_gpio *spi_gpio,
-			    u16 *mflags)
+static int spi_gpio_request(struct device *dev, struct spi_gpio *spi_gpio)
 {
 	spi_gpio->mosi = devm_gpiod_get_optional(dev, "mosi", GPIOD_OUT_LOW);
 	if (IS_ERR(spi_gpio->mosi))
 		return PTR_ERR(spi_gpio->mosi);
-	if (!spi_gpio->mosi)
-		/* HW configuration without MOSI pin */
-		*mflags |= SPI_MASTER_NO_TX;
 
 	spi_gpio->miso = devm_gpiod_get_optional(dev, "miso", GPIOD_IN);
 	if (IS_ERR(spi_gpio->miso))
 		return PTR_ERR(spi_gpio->miso);
-	/*
-	 * No setting SPI_MASTER_NO_RX here - if there is only a MOSI
-	 * pin connected the host can still do RX by changing the
-	 * direction of the line.
-	 */
 
 	spi_gpio->sck = devm_gpiod_get(dev, "sck", GPIOD_OUT_LOW);
 	if (IS_ERR(spi_gpio->sck))
@@ -381,7 +371,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	struct device			*dev = &pdev->dev;
 	struct spi_bitbang		*bb;
 	const struct of_device_id	*of_id;
-	u16 master_flags = 0;
 
 	of_id = of_match_device(spi_gpio_dt_ids, &pdev->dev);
 
@@ -403,14 +392,23 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 	spi_gpio->pdev = pdev;
 
-	status = spi_gpio_request(dev, spi_gpio, &master_flags);
+	status = spi_gpio_request(dev, spi_gpio);
 	if (status)
 		return status;
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->mode_bits = SPI_3WIRE | SPI_3WIRE_HIZ | SPI_CPHA | SPI_CPOL |
 			    SPI_CS_HIGH;
-	master->flags = master_flags;
+	if (!spi_gpio->mosi) {
+		/* HW configuration without MOSI pin
+		 *
+		 * No setting SPI_MASTER_NO_RX here - if there is only
+		 * a MOSI pin connected the host can still do RX by
+		 * changing the direction of the line.
+		 */
+		master->flags = SPI_MASTER_NO_TX;
+	}
+
 	master->bus_num = pdev->id;
 	master->setup = spi_gpio_setup;
 	master->cleanup = spi_gpio_cleanup;
@@ -420,7 +418,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	bb->chipselect = spi_gpio_chipselect;
 	bb->set_line_direction = spi_gpio_set_direction;
 
-	if (master_flags & SPI_MASTER_NO_TX) {
+	if (master->flags & SPI_MASTER_NO_TX) {
 		bb->txrx_word[SPI_MODE_0] = spi_gpio_spec_txrx_word_mode0;
 		bb->txrx_word[SPI_MODE_1] = spi_gpio_spec_txrx_word_mode1;
 		bb->txrx_word[SPI_MODE_2] = spi_gpio_spec_txrx_word_mode2;
