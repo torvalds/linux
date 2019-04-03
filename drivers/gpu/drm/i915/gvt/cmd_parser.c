@@ -1077,6 +1077,7 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 	bool index_mode = false;
 	unsigned int post_sync;
 	int ret = 0;
+	u32 hws_pga, val;
 
 	post_sync = (cmd_val(s, 1) & PIPE_CONTROL_POST_SYNC_OP_MASK) >> 14;
 
@@ -1100,6 +1101,15 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 					index_mode = true;
 				ret |= cmd_address_audit(s, gma, sizeof(u64),
 						index_mode);
+				if (ret)
+					return ret;
+				if (index_mode) {
+					hws_pga = s->vgpu->hws_pga[s->ring_id];
+					gma = hws_pga + gma;
+					patch_value(s, cmd_ptr(s, 2), gma);
+					val = cmd_val(s, 1) & (~(1 << 21));
+					patch_value(s, cmd_ptr(s, 1), val);
+				}
 			}
 		}
 	}
@@ -1569,6 +1579,7 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 	unsigned long gma;
 	bool index_mode = false;
 	int ret = 0;
+	u32 hws_pga, val;
 
 	/* Check post-sync and ppgtt bit */
 	if (((cmd_val(s, 0) >> 14) & 0x3) && (cmd_val(s, 1) & (1 << 2))) {
@@ -1579,6 +1590,15 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 		if (cmd_val(s, 0) & (1 << 21))
 			index_mode = true;
 		ret = cmd_address_audit(s, gma, sizeof(u64), index_mode);
+		if (ret)
+			return ret;
+		if (index_mode) {
+			hws_pga = s->vgpu->hws_pga[s->ring_id];
+			gma = hws_pga + gma;
+			patch_value(s, cmd_ptr(s, 1), gma);
+			val = cmd_val(s, 0) & (~(1 << 21));
+			patch_value(s, cmd_ptr(s, 0), val);
+		}
 	}
 	/* Check notify bit */
 	if ((cmd_val(s, 0) & (1 << 8)))
