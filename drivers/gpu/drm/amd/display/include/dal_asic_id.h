@@ -131,11 +131,12 @@
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */
 #define RAVEN_A0 0x01
 #define RAVEN_B0 0x21
-#define PICASSO_A0 0x41
 #if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 /* DCN1_01 */
+#define PICASSO_A0 0x41
 #define RAVEN2_A0 0x81
 #endif
+#define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_01)

@@ -27,6 +27,7 @@
 
 #include "reg_helper.h"
 #include "core_types.h"
+#include "dal_asic_id.h"
 
 #define TO_DCE_CLK_MGR(clocks)\
 	container_of(clocks, struct dce_clk_mgr, base)
@@ -91,13 +92,18 @@ static int dcn1_determine_dppclk_threshold(struct clk_mgr *clk_mgr, struct dc_cl
 
 static void dcn1_ramp_up_dispclk_with_dpp(struct clk_mgr *clk_mgr, struct dc_clocks *new_clocks)
 {
+	int i;
 	struct dc *dc = clk_mgr->ctx->dc;
 	int dispclk_to_dpp_threshold = dcn1_determine_dppclk_threshold(clk_mgr, new_clocks);
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
-	int i;
 
 	/* set disp clk to dpp clk threshold */
-	dce112_set_clock(clk_mgr, dispclk_to_dpp_threshold);
+
+	if (clk_mgr->funcs->set_dispclk && clk_mgr->funcs->set_dprefclk) {
+		clk_mgr->funcs->set_dispclk(clk_mgr, dispclk_to_dpp_threshold);
+		clk_mgr->funcs->set_dprefclk(clk_mgr);
+	} else
+		dce112_set_clock(clk_mgr, dispclk_to_dpp_threshold);
 
 	/* update request dpp clk division option */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -113,8 +119,13 @@ static void dcn1_ramp_up_dispclk_with_dpp(struct clk_mgr *clk_mgr, struct dc_clo
 	}
 
 	/* If target clk not same as dppclk threshold, set to target clock */
-	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz)
-		dce112_set_clock(clk_mgr, new_clocks->dispclk_khz);
+	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz) {
+		if (clk_mgr->funcs->set_dispclk && clk_mgr->funcs->set_dprefclk) {
+			clk_mgr->funcs->set_dispclk(clk_mgr, new_clocks->dispclk_khz);
+			clk_mgr->funcs->set_dprefclk(clk_mgr);
+		} else
+			dce112_set_clock(clk_mgr, dispclk_to_dpp_threshold);
+	}
 
 	clk_mgr->clks.dispclk_khz = new_clocks->dispclk_khz;
 	clk_mgr->clks.dppclk_khz = new_clocks->dppclk_khz;
@@ -242,7 +253,62 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 		}
 	}
 }
-static const struct clk_mgr_funcs dcn1_funcs = {
+
+#define VBIOSSMC_MSG_SetDispclkFreq           0x4
+#define VBIOSSMC_MSG_SetDprefclkFreq          0x5
+
+int dcn10_set_dispclk(struct clk_mgr *clk_mgr_base, int requested_dispclk_khz)
+{
+	int actual_dispclk_set_khz = -1;
+	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr_base);
+
+	/* First clear response register */
+	//dm_write_reg(ctx, mmMP1_SMN_C2PMSG_91, 0);
+	REG_WRITE(MP1_SMN_C2PMSG_91, 0);
+
+	/* Set the parameter register for the SMU message, unit is Mhz */
+	//dm_write_reg(ctx, mmMP1_SMN_C2PMSG_83, requested_dispclk_khz / 1000);
+	REG_WRITE(MP1_SMN_C2PMSG_83, requested_dispclk_khz / 1000);
+
+	/* Trigger the message transaction by writing the message ID */
+	//dm_write_reg(ctx, mmMP1_SMN_C2PMSG_67, VBIOSSMC_MSG_SetDispclkFreq);
+	REG_WRITE(MP1_SMN_C2PMSG_67, VBIOSSMC_MSG_SetDispclkFreq);
+
+	REG_WAIT(MP1_SMN_C2PMSG_91, CONTENT, 1, 10, 200000);
+
+	/* Actual dispclk set is returned in the parameter register */
+	actual_dispclk_set_khz = REG_READ(MP1_SMN_C2PMSG_83) * 1000;
+
+	return actual_dispclk_set_khz;
+
+}
+
+int dcn10_set_dprefclk(struct clk_mgr *clk_mgr_base)
+{
+	int actual_dprefclk_set_khz = -1;
+	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr_base);
+
+	REG_WRITE(MP1_SMN_C2PMSG_91, 0);
+
+	/* Set the parameter register for the SMU message */
+	REG_WRITE(MP1_SMN_C2PMSG_83, clk_mgr_dce->dprefclk_khz / 1000);
+
+	/* Trigger the message transaction by writing the message ID */
+	REG_WRITE(MP1_SMN_C2PMSG_67, VBIOSSMC_MSG_SetDprefclkFreq);
+
+	/* Wait for SMU response */
+	REG_WAIT(MP1_SMN_C2PMSG_91, CONTENT, 1, 10, 200000);
+
+	actual_dprefclk_set_khz = REG_READ(MP1_SMN_C2PMSG_83) * 1000;
+
+	return actual_dprefclk_set_khz;
+}
+
+int (*set_dispclk)(struct pp_smu *pp_smu, int dispclk);
+
+int (*set_dprefclk)(struct pp_smu *pp_smu);
+
+static struct clk_mgr_funcs dcn1_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn1_update_clocks
 };
@@ -266,8 +332,8 @@ struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx)
 	clk_mgr_dce->dprefclk_ss_percentage = 0;
 	clk_mgr_dce->dprefclk_ss_divider = 1000;
 	clk_mgr_dce->ss_on_dprefclk = false;
-
 	clk_mgr_dce->dprefclk_khz = 600000;
+
 	if (bp->integrated_info)
 		clk_mgr_dce->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
 	if (clk_mgr_dce->dentist_vco_freq_khz == 0) {

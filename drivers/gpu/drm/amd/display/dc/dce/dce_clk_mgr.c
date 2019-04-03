@@ -782,22 +782,22 @@ static void dce12_update_clocks(struct clk_mgr *clk_mgr,
 	dce11_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
 }
 
-static const struct clk_mgr_funcs dce120_funcs = {
+static struct clk_mgr_funcs dce120_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dce12_update_clocks
 };
 
-static const struct clk_mgr_funcs dce112_funcs = {
+static struct clk_mgr_funcs dce112_funcs = {
 	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.update_clocks = dce112_update_clocks
 };
 
-static const struct clk_mgr_funcs dce110_funcs = {
+static struct clk_mgr_funcs dce110_funcs = {
 	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.update_clocks = dce11_update_clocks,
 };
 
-static const struct clk_mgr_funcs dce_funcs = {
+static struct clk_mgr_funcs dce_funcs = {
 	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.update_clocks = dce_update_clocks
 };

@@ -29,7 +29,6 @@
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dcn10_resource.h"
-
 #include "dcn10_ipp.h"
 #include "dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
@@ -445,7 +444,6 @@ static const struct bios_registers bios_regs = {
 	HUBP_REG_LIST_DCN10(id)\
 }
 
-
 static const struct dcn_mi_registers hubp_regs[] = {
 	hubp_regs(0),
 	hubp_regs(1),
@@ -460,7 +458,6 @@ static const struct dcn_mi_shift hubp_shift = {
 static const struct dcn_mi_mask hubp_mask = {
 		HUBP_MASK_SH_LIST_DCN10(_MASK)
 };
-
 
 static const struct dcn_hubbub_registers hubbub_reg = {
 		HUBBUB_REG_LIST_DCN10(0)
@@ -492,6 +489,27 @@ static const struct dce110_clk_src_shift cs_shift = {
 
 static const struct dce110_clk_src_mask cs_mask = {
 		CS_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
+};
+
+
+#define mmMP1_SMN_C2PMSG_91            0x1629B
+#define mmMP1_SMN_C2PMSG_83            0x16293
+#define mmMP1_SMN_C2PMSG_67            0x16283
+
+#define MP1_SMN_C2PMSG_91__CONTENT_MASK                    0xffffffffL
+#define MP1_SMN_C2PMSG_83__CONTENT_MASK                    0xffffffffL
+#define MP1_SMN_C2PMSG_67__CONTENT_MASK                    0xffffffffL
+#define	MP1_SMN_C2PMSG_91__CONTENT__SHIFT                  0x00000000
+#define	MP1_SMN_C2PMSG_83__CONTENT__SHIFT                  0x00000000
+#define	MP1_SMN_C2PMSG_67__CONTENT__SHIFT                  0x00000000
+
+
+static const struct clk_mgr_shift clk_mgr_shift = {
+		CLK_MASK_SH_LIST_RV1(__SHIFT)
+};
+
+static const struct clk_mgr_mask clk_mgr_mask = {
+		CLK_MASK_SH_LIST_RV1(_MASK)
 };
 
 static const struct resource_caps res_cap = {
@@ -1343,12 +1361,6 @@ static bool construct(
 			goto fail;
 		}
 	}
-	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
-	if (pool->base.clk_mgr == NULL) {
-		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
-		goto fail;
-	}
 
 	pool->base.dmcu = dcn10_dmcu_create(ctx,
 			&dmcu_regs,
@@ -1409,6 +1421,13 @@ static bool construct(
 	}
 
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
+
+	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
+	if (pool->base.clk_mgr == NULL) {
+		dm_error("DC: failed to create display clock!\n");
+		BREAK_TO_DEBUGGER();
+		goto fail;
+	}
 
 	if (!dc->debug.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);
