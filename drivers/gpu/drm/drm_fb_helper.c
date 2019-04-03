@@ -3322,7 +3322,7 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 	if (ret)
 		DRM_DEV_DEBUG(dev->dev, "client hotplug ret=%d\n", ret);
 
-	drm_client_add(&fb_helper->client);
+	drm_client_register(&fb_helper->client);
 
 	return 0;
 }
