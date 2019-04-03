@@ -334,4 +334,5 @@ int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf);
 int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf);
 int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val);
 int most_cfg_complete(char *comp_name);
+void most_interface_register_notify(const char *mdev_name);
 #endif /* MOST_CORE_H_ */

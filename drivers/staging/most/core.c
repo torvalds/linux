@@ -720,19 +720,10 @@ int most_cfg_complete(char *comp_name)
 int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
 		  char *comp_param)
 {
-	struct most_channel *c;
-	struct core_component *comp;
-	char buf[STRING_SIZE];
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+	struct core_component *comp = match_component(comp_name);
 
-	comp = match_component(comp_name);
-	if (!comp)
-		return -ENODEV;
-	if (!comp_param || *comp_param == 0) {
-		snprintf(buf, sizeof(buf), "%s-%s", mdev, mdev_ch);
-		comp_param = buf;
-	}
-	c = get_channel(mdev, mdev_ch);
-	if (!c)
+	if (!c || !comp)
 		return -ENODEV;
 
 	return link_channel_to_component(c, comp, link_name, comp_param);
@@ -1462,6 +1453,7 @@ int most_register_interface(struct most_interface *iface)
 	}
 	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
+	most_interface_register_notify(iface->description);
 	return 0;
 
 err_free_most_channel:

@@ -14,6 +14,7 @@
 
 struct mdev_link {
 	struct config_item item;
+	struct list_head list;
 	bool create_link;
 	u16 num_buffers;
 	u16 buffer_size;
@@ -28,6 +29,8 @@ struct mdev_link {
 	char comp[PAGE_SIZE];
 	char comp_params[PAGE_SIZE];
 };
+
+struct list_head mdev_link_list;
 
 static int set_cfg_buffer_size(struct mdev_link *link)
 {
@@ -106,33 +109,41 @@ static ssize_t mdev_link_create_link_show(struct config_item *item, char *page)
 			to_mdev_link(item)->create_link);
 }
 
+static int set_config_and_add_link(struct mdev_link *mdev_link)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(set_config_val); i++) {
+		ret = set_config_val[i](mdev_link);
+		if (ret < 0 && ret != -ENODEV) {
+			pr_err("Config failed\n");
+			return ret;
+		}
+	}
+
+	return most_add_link(mdev_link->device, mdev_link->channel,
+			     mdev_link->comp, mdev_link->name,
+			     mdev_link->comp_params);
+}
+
 static ssize_t mdev_link_create_link_store(struct config_item *item,
 					   const char *page, size_t count)
 {
 	struct mdev_link *mdev_link = to_mdev_link(item);
 	bool tmp;
 	int ret;
-	int i;
 
 	ret = kstrtobool(page, &tmp);
 	if (ret)
 		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(set_config_val); i++) {
-		ret = set_config_val[i](mdev_link);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (tmp)
-		ret = most_add_link(mdev_link->device, mdev_link->channel,
-				    mdev_link->comp, mdev_link->name,
-				    mdev_link->comp_params);
-	else
-		ret = most_remove_link(mdev_link->device, mdev_link->channel,
-				       mdev_link->comp);
-	if (ret)
+	if (!tmp)
+		return most_remove_link(mdev_link->device, mdev_link->channel,
+					mdev_link->comp);
+	ret = set_config_and_add_link(mdev_link);
+	if (ret && ret != -ENODEV)
 		return ret;
+	list_add_tail(&mdev_link->list, &mdev_link_list);
 	mdev_link->create_link = tmp;
 	return count;
 }
@@ -594,6 +605,22 @@ int most_register_configfs_subsys(struct core_component *c)
 }
 EXPORT_SYMBOL_GPL(most_register_configfs_subsys);
 
+void most_interface_register_notify(const char *mdev)
+{
+	bool register_snd_card = false;
+	struct mdev_link *mdev_link;
+
+	list_for_each_entry(mdev_link, &mdev_link_list, list) {
+		if (!strcmp(mdev_link->device, mdev)) {
+			set_config_and_add_link(mdev_link);
+			if (!strcmp(mdev_link->comp, "sound"))
+				register_snd_card = true;
+		}
+	}
+	if (register_snd_card)
+		most_cfg_complete("sound");
+}
+
 void most_deregister_configfs_subsys(struct core_component *c)
 {
 	if (!strcmp(c->name, "cdev"))
@@ -622,6 +649,7 @@ int __init configfs_init(void)
 	mutex_init(&most_sound_subsys.subsys.su_mutex);
 
 	INIT_LIST_HEAD(&most_sound_subsys.soundcard_list);
+	INIT_LIST_HEAD(&mdev_link_list);
 
 	return 0;
 }

@@ -20,6 +20,7 @@
 #include <most/core.h>
 
 #define DRIVER_NAME "sound"
+#define STRING_SIZE	80
 
 static struct core_component comp;
 
@@ -582,6 +583,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	int direction;
 	u16 ch_num;
 	char *sample_res;
+	char arg_list_cpy[STRING_SIZE];
 
 	if (!iface)
 		return -EINVAL;
@@ -590,8 +592,8 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		pr_err("Incompatible channel type\n");
 		return -EINVAL;
 	}
-
-	ret = split_arg_list(arg_list, &ch_num, &sample_res);
+	strlcpy(arg_list_cpy, arg_list, STRING_SIZE);
+	ret = split_arg_list(arg_list_cpy, &ch_num, &sample_res);
 	if (ret < 0)
 		return ret;
 
