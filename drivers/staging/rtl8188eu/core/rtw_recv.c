@@ -632,12 +632,6 @@ static void count_rx_stats(struct adapter *padapter,
 	}
 }
 
-int sta2sta_data_frame(
-	struct adapter *adapter,
-	struct recv_frame *precv_frame,
-	struct sta_info **psta
-);
-
 int sta2sta_data_frame(struct adapter *adapter, struct recv_frame *precv_frame,
 		       struct sta_info **psta)
 {
