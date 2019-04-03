@@ -751,8 +751,8 @@ void ap_queue_prepare_remove(struct ap_queue *aq)
 	__ap_flush_queue(aq);
 	/* set REMOVE state to prevent new messages are queued in */
 	aq->state = AP_STATE_REMOVE;
-	del_timer_sync(&aq->timeout);
 	spin_unlock_bh(&aq->lock);
+	del_timer_sync(&aq->timeout);
 }
 
 void ap_queue_remove(struct ap_queue *aq)
