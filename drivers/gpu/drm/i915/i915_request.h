@@ -26,6 +26,7 @@
 #define I915_REQUEST_H
 
 #include <linux/dma-fence.h>
+#include <linux/lockdep.h>
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
@@ -119,6 +120,15 @@ struct i915_request {
 	 * RCU protected slabs.
 	 */
 	unsigned long rcustate;
+
+	/*
+	 * We pin the timeline->mutex while constructing the request to
+	 * ensure that no caller accidentally drops it during construction.
+	 * The timeline->mutex must be held to ensure that only this caller
+	 * can use the ring and manipulate the associated timeline during
+	 * construction.
+	 */
+	struct pin_cookie cookie;
 
 	/*
 	 * Fences for the various phases in the request's lifetime.

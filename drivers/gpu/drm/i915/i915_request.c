@@ -751,7 +751,10 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	rq->infix = rq->ring->emit; /* end of header; start of user payload */
 
 	/* Check that we didn't interrupt ourselves with a new request */
+	lockdep_assert_held(&rq->timeline->mutex);
 	GEM_BUG_ON(rq->timeline->seqno != rq->fence.seqno);
+	rq->cookie = lockdep_pin_lock(&rq->timeline->mutex);
+
 	return rq;
 
 err_unwind:
@@ -1070,6 +1073,8 @@ void i915_request_add(struct i915_request *request)
 		  engine->name, request->fence.context, request->fence.seqno);
 
 	lockdep_assert_held(&request->timeline->mutex);
+	lockdep_unpin_lock(&request->timeline->mutex, request->cookie);
+
 	trace_i915_request_add(request);
 
 	/*
