@@ -129,6 +129,24 @@ setup()
 	ip link set veth7 netns ${NS2}
 	ip link set veth8 netns ${NS3}
 
+	if [ ! -z "${VRF}" ] ; then
+		ip -netns ${NS1} link add red type vrf table 1001
+		ip -netns ${NS1} link set red up
+		ip -netns ${NS1} route add table 1001 unreachable default metric 8192
+		ip -netns ${NS1} -6 route add table 1001 unreachable default metric 8192
+		ip -netns ${NS1} link set veth1 vrf red
+		ip -netns ${NS1} link set veth5 vrf red
+
+		ip -netns ${NS2} link add red type vrf table 1001
+		ip -netns ${NS2} link set red up
+		ip -netns ${NS2} route add table 1001 unreachable default metric 8192
+		ip -netns ${NS2} -6 route add table 1001 unreachable default metric 8192
+		ip -netns ${NS2} link set veth2 vrf red
+		ip -netns ${NS2} link set veth3 vrf red
+		ip -netns ${NS2} link set veth6 vrf red
+		ip -netns ${NS2} link set veth7 vrf red
+	fi
+
 	# configure addesses: the top route (1-2-3-4)
 	ip -netns ${NS1}    addr add ${IPv4_1}/24  dev veth1
 	ip -netns ${NS2}    addr add ${IPv4_2}/24  dev veth2
@@ -163,29 +181,29 @@ setup()
 
 	# NS1
 	# top route
-	ip -netns ${NS1}    route add ${IPv4_2}/32  dev veth1
-	ip -netns ${NS1}    route add default dev veth1 via ${IPv4_2}  # go top by default
-	ip -netns ${NS1} -6 route add ${IPv6_2}/128 dev veth1
-	ip -netns ${NS1} -6 route add default dev veth1 via ${IPv6_2}  # go top by default
+	ip -netns ${NS1}    route add ${IPv4_2}/32  dev veth1 ${VRF}
+	ip -netns ${NS1}    route add default dev veth1 via ${IPv4_2} ${VRF}  # go top by default
+	ip -netns ${NS1} -6 route add ${IPv6_2}/128 dev veth1 ${VRF}
+	ip -netns ${NS1} -6 route add default dev veth1 via ${IPv6_2} ${VRF}  # go top by default
 	# bottom route
-	ip -netns ${NS1}    route add ${IPv4_6}/32  dev veth5
-	ip -netns ${NS1}    route add ${IPv4_7}/32  dev veth5 via ${IPv4_6}
-	ip -netns ${NS1}    route add ${IPv4_8}/32  dev veth5 via ${IPv4_6}
-	ip -netns ${NS1} -6 route add ${IPv6_6}/128 dev veth5
-	ip -netns ${NS1} -6 route add ${IPv6_7}/128 dev veth5 via ${IPv6_6}
-	ip -netns ${NS1} -6 route add ${IPv6_8}/128 dev veth5 via ${IPv6_6}
+	ip -netns ${NS1}    route add ${IPv4_6}/32  dev veth5 ${VRF}
+	ip -netns ${NS1}    route add ${IPv4_7}/32  dev veth5 via ${IPv4_6} ${VRF}
+	ip -netns ${NS1}    route add ${IPv4_8}/32  dev veth5 via ${IPv4_6} ${VRF}
+	ip -netns ${NS1} -6 route add ${IPv6_6}/128 dev veth5 ${VRF}
+	ip -netns ${NS1} -6 route add ${IPv6_7}/128 dev veth5 via ${IPv6_6} ${VRF}
+	ip -netns ${NS1} -6 route add ${IPv6_8}/128 dev veth5 via ${IPv6_6} ${VRF}
 
 	# NS2
 	# top route
-	ip -netns ${NS2}    route add ${IPv4_1}/32  dev veth2
-	ip -netns ${NS2}    route add ${IPv4_4}/32  dev veth3
-	ip -netns ${NS2} -6 route add ${IPv6_1}/128 dev veth2
-	ip -netns ${NS2} -6 route add ${IPv6_4}/128 dev veth3
+	ip -netns ${NS2}    route add ${IPv4_1}/32  dev veth2 ${VRF}
+	ip -netns ${NS2}    route add ${IPv4_4}/32  dev veth3 ${VRF}
+	ip -netns ${NS2} -6 route add ${IPv6_1}/128 dev veth2 ${VRF}
+	ip -netns ${NS2} -6 route add ${IPv6_4}/128 dev veth3 ${VRF}
 	# bottom route
-	ip -netns ${NS2}    route add ${IPv4_5}/32  dev veth6
-	ip -netns ${NS2}    route add ${IPv4_8}/32  dev veth7
-	ip -netns ${NS2} -6 route add ${IPv6_5}/128 dev veth6
-	ip -netns ${NS2} -6 route add ${IPv6_8}/128 dev veth7
+	ip -netns ${NS2}    route add ${IPv4_5}/32  dev veth6 ${VRF}
+	ip -netns ${NS2}    route add ${IPv4_8}/32  dev veth7 ${VRF}
+	ip -netns ${NS2} -6 route add ${IPv6_5}/128 dev veth6 ${VRF}
+	ip -netns ${NS2} -6 route add ${IPv6_8}/128 dev veth7 ${VRF}
 
 	# NS3
 	# top route
@@ -207,16 +225,16 @@ setup()
 	ip -netns ${NS3} tunnel add gre_dev mode gre remote ${IPv4_1} local ${IPv4_GRE} ttl 255
 	ip -netns ${NS3} link set gre_dev up
 	ip -netns ${NS3} addr add ${IPv4_GRE} dev gre_dev
-	ip -netns ${NS1} route add ${IPv4_GRE}/32 dev veth5 via ${IPv4_6}
-	ip -netns ${NS2} route add ${IPv4_GRE}/32 dev veth7 via ${IPv4_8}
+	ip -netns ${NS1} route add ${IPv4_GRE}/32 dev veth5 via ${IPv4_6} ${VRF}
+	ip -netns ${NS2} route add ${IPv4_GRE}/32 dev veth7 via ${IPv4_8} ${VRF}
 
 
 	# configure IPv6 GRE device in NS3, and a route to it via the "bottom" route
 	ip -netns ${NS3} -6 tunnel add name gre6_dev mode ip6gre remote ${IPv6_1} local ${IPv6_GRE} ttl 255
 	ip -netns ${NS3} link set gre6_dev up
 	ip -netns ${NS3} -6 addr add ${IPv6_GRE} nodad dev gre6_dev
-	ip -netns ${NS1} -6 route add ${IPv6_GRE}/128 dev veth5 via ${IPv6_6}
-	ip -netns ${NS2} -6 route add ${IPv6_GRE}/128 dev veth7 via ${IPv6_8}
+	ip -netns ${NS1} -6 route add ${IPv6_GRE}/128 dev veth5 via ${IPv6_6} ${VRF}
+	ip -netns ${NS2} -6 route add ${IPv6_GRE}/128 dev veth7 via ${IPv6_8} ${VRF}
 
 	# rp_filter gets confused by what these tests are doing, so disable it
 	ip netns exec ${NS1} sysctl -wq net.ipv4.conf.all.rp_filter=0
@@ -244,18 +262,18 @@ trap cleanup EXIT
 
 remove_routes_to_gredev()
 {
-	ip -netns ${NS1} route del ${IPv4_GRE} dev veth5
-	ip -netns ${NS2} route del ${IPv4_GRE} dev veth7
-	ip -netns ${NS1} -6 route del ${IPv6_GRE}/128 dev veth5
-	ip -netns ${NS2} -6 route del ${IPv6_GRE}/128 dev veth7
+	ip -netns ${NS1} route del ${IPv4_GRE} dev veth5 ${VRF}
+	ip -netns ${NS2} route del ${IPv4_GRE} dev veth7 ${VRF}
+	ip -netns ${NS1} -6 route del ${IPv6_GRE}/128 dev veth5 ${VRF}
+	ip -netns ${NS2} -6 route del ${IPv6_GRE}/128 dev veth7 ${VRF}
 }
 
 add_unreachable_routes_to_gredev()
 {
-	ip -netns ${NS1} route add unreachable ${IPv4_GRE}/32
-	ip -netns ${NS2} route add unreachable ${IPv4_GRE}/32
-	ip -netns ${NS1} -6 route add unreachable ${IPv6_GRE}/128
-	ip -netns ${NS2} -6 route add unreachable ${IPv6_GRE}/128
+	ip -netns ${NS1} route add unreachable ${IPv4_GRE}/32 ${VRF}
+	ip -netns ${NS2} route add unreachable ${IPv4_GRE}/32 ${VRF}
+	ip -netns ${NS1} -6 route add unreachable ${IPv6_GRE}/128 ${VRF}
+	ip -netns ${NS2} -6 route add unreachable ${IPv6_GRE}/128 ${VRF}
 }
 
 test_ping()
@@ -265,10 +283,10 @@ test_ping()
 	local RET=0
 
 	if [ "${PROTO}" == "IPv4" ] ; then
-		ip netns exec ${NS1} ping  -c 1 -W 1 -I ${IPv4_SRC} ${IPv4_DST} 2>&1 > /dev/null
+		ip netns exec ${NS1} ping  -c 1 -W 1 -I veth1 ${IPv4_DST} 2>&1 > /dev/null
 		RET=$?
 	elif [ "${PROTO}" == "IPv6" ] ; then
-		ip netns exec ${NS1} ping6 -c 1 -W 6 -I ${IPv6_SRC} ${IPv6_DST} 2>&1 > /dev/null
+		ip netns exec ${NS1} ping6 -c 1 -W 6 -I veth1 ${IPv6_DST} 2>&1 > /dev/null
 		RET=$?
 	else
 		echo "    test_ping: unknown PROTO: ${PROTO}"
@@ -328,7 +346,7 @@ test_gso()
 test_egress()
 {
 	local readonly ENCAP=$1
-	echo "starting egress ${ENCAP} encap test"
+	echo "starting egress ${ENCAP} encap test ${VRF}"
 	setup
 
 	# by default, pings work
@@ -336,26 +354,35 @@ test_egress()
 	test_ping IPv6 0
 
 	# remove NS2->DST routes, ping fails
-	ip -netns ${NS2}    route del ${IPv4_DST}/32  dev veth3
-	ip -netns ${NS2} -6 route del ${IPv6_DST}/128 dev veth3
+	ip -netns ${NS2}    route del ${IPv4_DST}/32  dev veth3 ${VRF}
+	ip -netns ${NS2} -6 route del ${IPv6_DST}/128 dev veth3 ${VRF}
 	test_ping IPv4 1
 	test_ping IPv6 1
 
 	# install replacement routes (LWT/eBPF), pings succeed
 	if [ "${ENCAP}" == "IPv4" ] ; then
-		ip -netns ${NS1} route add ${IPv4_DST} encap bpf xmit obj test_lwt_ip_encap.o sec encap_gre dev veth1
-		ip -netns ${NS1} -6 route add ${IPv6_DST} encap bpf xmit obj test_lwt_ip_encap.o sec encap_gre dev veth1
+		ip -netns ${NS1} route add ${IPv4_DST} encap bpf xmit obj \
+			test_lwt_ip_encap.o sec encap_gre dev veth1 ${VRF}
+		ip -netns ${NS1} -6 route add ${IPv6_DST} encap bpf xmit obj \
+			test_lwt_ip_encap.o sec encap_gre dev veth1 ${VRF}
 	elif [ "${ENCAP}" == "IPv6" ] ; then
-		ip -netns ${NS1} route add ${IPv4_DST} encap bpf xmit obj test_lwt_ip_encap.o sec encap_gre6 dev veth1
-		ip -netns ${NS1} -6 route add ${IPv6_DST} encap bpf xmit obj test_lwt_ip_encap.o sec encap_gre6 dev veth1
+		ip -netns ${NS1} route add ${IPv4_DST} encap bpf xmit obj \
+			test_lwt_ip_encap.o sec encap_gre6 dev veth1 ${VRF}
+		ip -netns ${NS1} -6 route add ${IPv6_DST} encap bpf xmit obj \
+			test_lwt_ip_encap.o sec encap_gre6 dev veth1 ${VRF}
 	else
 		echo "    unknown encap ${ENCAP}"
 		TEST_STATUS=1
 	fi
 	test_ping IPv4 0
 	test_ping IPv6 0
-	test_gso IPv4
-	test_gso IPv6
+
+	# skip GSO tests with VRF: VRF routing needs properly assigned
+	# source IP/device, which is easy to do with ping and hard with dd/nc.
+	if [ -z "${VRF}" ] ; then
+		test_gso IPv4
+		test_gso IPv6
+	fi
 
 	# a negative test: remove routes to GRE devices: ping fails
 	remove_routes_to_gredev
@@ -374,7 +401,7 @@ test_egress()
 test_ingress()
 {
 	local readonly ENCAP=$1
-	echo "starting ingress ${ENCAP} encap test"
+	echo "starting ingress ${ENCAP} encap test ${VRF}"
 	setup
 
 	# need to wait a bit for IPv6 to autoconf, otherwise
@@ -385,18 +412,22 @@ test_ingress()
 	test_ping IPv6 0
 
 	# remove NS2->DST routes, pings fail
-	ip -netns ${NS2}    route del ${IPv4_DST}/32  dev veth3
-	ip -netns ${NS2} -6 route del ${IPv6_DST}/128 dev veth3
+	ip -netns ${NS2}    route del ${IPv4_DST}/32  dev veth3 ${VRF}
+	ip -netns ${NS2} -6 route del ${IPv6_DST}/128 dev veth3 ${VRF}
 	test_ping IPv4 1
 	test_ping IPv6 1
 
 	# install replacement routes (LWT/eBPF), pings succeed
 	if [ "${ENCAP}" == "IPv4" ] ; then
-		ip -netns ${NS2} route add ${IPv4_DST} encap bpf in obj test_lwt_ip_encap.o sec encap_gre dev veth2
-		ip -netns ${NS2} -6 route add ${IPv6_DST} encap bpf in obj test_lwt_ip_encap.o sec encap_gre dev veth2
+		ip -netns ${NS2} route add ${IPv4_DST} encap bpf in obj \
+			test_lwt_ip_encap.o sec encap_gre dev veth2 ${VRF}
+		ip -netns ${NS2} -6 route add ${IPv6_DST} encap bpf in obj \
+			test_lwt_ip_encap.o sec encap_gre dev veth2 ${VRF}
 	elif [ "${ENCAP}" == "IPv6" ] ; then
-		ip -netns ${NS2} route add ${IPv4_DST} encap bpf in obj test_lwt_ip_encap.o sec encap_gre6 dev veth2
-		ip -netns ${NS2} -6 route add ${IPv6_DST} encap bpf in obj test_lwt_ip_encap.o sec encap_gre6 dev veth2
+		ip -netns ${NS2} route add ${IPv4_DST} encap bpf in obj \
+			test_lwt_ip_encap.o sec encap_gre6 dev veth2 ${VRF}
+		ip -netns ${NS2} -6 route add ${IPv6_DST} encap bpf in obj \
+			test_lwt_ip_encap.o sec encap_gre6 dev veth2 ${VRF}
 	else
 		echo "FAIL: unknown encap ${ENCAP}"
 		TEST_STATUS=1
@@ -418,6 +449,13 @@ test_ingress()
 	process_test_results
 }
 
+VRF=""
+test_egress IPv4
+test_egress IPv6
+test_ingress IPv4
+test_ingress IPv6
+
+VRF="vrf red"
 test_egress IPv4
 test_egress IPv6
 test_ingress IPv4
