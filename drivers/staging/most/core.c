@@ -783,6 +783,127 @@ static ssize_t add_link_store(struct device_driver *drv,
 	return len;
 }
 
+int most_set_cfg_buffer_size(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.buffer_size = val;
+	return 0;
+}
+
+int most_set_cfg_subbuffer_size(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.subbuffer_size = val;
+	return 0;
+}
+
+int most_set_cfg_dbr_size(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.dbr_size = val;
+	return 0;
+}
+
+int most_set_cfg_num_buffers(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.num_buffers = val;
+	return 0;
+}
+
+int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf)
+{
+	int i;
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
+		if (!strcmp(buf, ch_data_type[i].name)) {
+			c->cfg.data_type = ch_data_type[i].most_ch_data_type;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(ch_data_type))
+		pr_info("WARN: invalid attribute settings\n");
+	return 0;
+}
+
+int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	if (!strcmp(buf, "dir_rx\n")) {
+		c->cfg.direction = MOST_CH_RX;
+	} else if (!strcmp(buf, "rx\n")) {
+		c->cfg.direction = MOST_CH_RX;
+	} else if (!strcmp(buf, "dir_tx\n")) {
+		c->cfg.direction = MOST_CH_TX;
+	} else if (!strcmp(buf, "tx\n")) {
+		c->cfg.direction = MOST_CH_TX;
+	} else {
+		pr_info("Invalid direction\n");
+		return -ENODATA;
+	}
+	return 0;
+}
+
+int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val)
+{
+	struct most_channel *c = get_channel(mdev, mdev_ch);
+
+	if (!c)
+		return -ENODEV;
+	c->cfg.packets_per_xact = val;
+	return 0;
+}
+
+int most_cfg_complete(char *comp_name)
+{
+	struct core_component *comp;
+
+	comp = match_component(comp_name);
+	if (!comp)
+		return -ENODEV;
+
+	return comp->cfg_complete();
+}
+
+int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
+		  char *comp_param)
+{
+	struct most_channel *c;
+	struct core_component *comp;
+	char buf[STRING_SIZE];
+
+	comp = match_component(comp_name);
+	if (!comp)
+		return -ENODEV;
+	if (!comp_param || *comp_param == 0) {
+		snprintf(buf, sizeof(buf), "%s-%s", mdev, mdev_ch);
+		comp_param = buf;
+	}
+	c = get_channel(mdev, mdev_ch);
+	if (!c)
+		return -ENODEV;
+
+	return link_channel_to_component(c, comp, link_name, comp_param);
+}
 /**
  * remove_link_store - store function for remove_link attribute
  * @drv: device driver
@@ -823,6 +944,27 @@ static ssize_t remove_link_store(struct device_driver *drv,
 	if (c->pipe1.comp == comp)
 		c->pipe1.comp = NULL;
 	return len;
+}
+
+int most_remove_link(char *mdev, char *mdev_ch, char *comp_name)
+{
+	struct most_channel *c;
+	struct core_component *comp;
+
+	comp = match_component(comp_name);
+	if (!comp)
+		return -ENODEV;
+	c = get_channel(mdev, mdev_ch);
+	if (!c)
+		return -ENODEV;
+
+	if (comp->disconnect_channel(c->iface, c->channel_id))
+		return -EIO;
+	if (c->pipe0.comp == comp)
+		c->pipe0.comp = NULL;
+	if (c->pipe1.comp == comp)
+		c->pipe1.comp = NULL;
+	return 0;
 }
 
 #define DRV_ATTR(_name)  (&driver_attr_##_name.attr)
