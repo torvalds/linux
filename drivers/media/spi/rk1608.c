@@ -1559,6 +1559,11 @@ static int rk1608_probe(struct spi_device *spi)
 	struct v4l2_subdev *sd;
 	int ret = 0;
 
+	dev_info(&spi->dev, "driver version: %02x.%02x.%02x",
+		 RK1608_VERSION >> 16,
+		 (RK1608_VERSION & 0xff00) >> 8,
+		 RK1608_VERSION & 0x00ff);
+
 	rk1608 = devm_kzalloc(&spi->dev, sizeof(*rk1608), GFP_KERNEL);
 	if (!rk1608)
 		return -ENOMEM;

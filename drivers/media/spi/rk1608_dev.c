@@ -622,7 +622,10 @@ static int do_cmd_set_dsp_log_level(struct rk1608_state *pdata,
 static int do_cmd_version(struct rk1608_state *pdata,
 			  const struct auto_args *args)
 {
-	dev_info(pdata->dev, "driver version: %s\n", RK1608_VERSION);
+	dev_info(pdata->dev, "driver version: v%02x.%02x.%02x\n",
+		 RK1608_VERSION >> 16,
+		 (RK1608_VERSION & 0xff00) >> 8,
+		 RK1608_VERSION & 0x00ff);
 	return 0;
 }
 
