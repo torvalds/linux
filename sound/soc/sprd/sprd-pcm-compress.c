@@ -107,8 +107,7 @@ static void sprd_platform_compr_drain_notify(void *arg)
 
 	memset(stream->info_area, 0, sizeof(struct sprd_compr_playinfo));
 
-	if (cstream)
-		snd_compr_drain_notify(cstream);
+	snd_compr_drain_notify(cstream);
 }
 
 static void sprd_platform_compr_dma_complete(void *data)
