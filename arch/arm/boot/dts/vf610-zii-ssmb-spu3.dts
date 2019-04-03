@@ -69,7 +69,7 @@
 	 */
 	status = "disabled";
 
-	m25p128@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "m25p128", "jedec,spi-nor";
@@ -194,7 +194,7 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio6: pca9505@22 {
+	gpio6: io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
@@ -206,13 +206,13 @@
 		reg = <0x48>;
 	};
 
-	at24c04@50 {
+	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
 		label = "nameplate";
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 	};

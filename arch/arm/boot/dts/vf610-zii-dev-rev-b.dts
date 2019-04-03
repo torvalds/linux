@@ -299,7 +299,7 @@
 			     &gpio1  8 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <2>;
 
-		m25p128@0 {
+		flash@0 {
 			compatible = "m25p128", "jedec,spi-nor";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -328,7 +328,7 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio5: pca9554@20 {
+	gpio5: io-expander@20 {
 		compatible = "nxp,pca9554";
 		reg = <0x20>;
 		gpio-controller;
@@ -336,7 +336,7 @@
 
 	};
 
-	gpio6: pca9554@22 {
+	gpio6: io-expander@22 {
 		compatible = "nxp,pca9554";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pca9554_22>;
@@ -369,7 +369,7 @@
 			#size-cells = <0>;
 			reg = <0>;
 
-			sfp1: at24c04@50 {
+			sfp1: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -380,7 +380,7 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			sfp2: at24c04@50 {
+			sfp2: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -391,7 +391,7 @@
 			#size-cells = <0>;
 			reg = <2>;
 
-			sfp3: at24c04@50 {
+			sfp3: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -402,7 +402,7 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			sfp4: at24c04@50 {
+			sfp4: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
