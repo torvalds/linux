@@ -56,6 +56,7 @@ struct temp_opp_table {
  * @wide_temp_limit:	Target maximum frequency when low or high temperature,
  *			in Hz
  * @video_4k_freq:	Maximum frequency when paly 4k video, in KHz
+ * @reboot_freq:	Limit maximum and minimum frequency when reboot, in KHz
  * @status_min_limit:	Minimum frequency of some status frequency, in KHz
  * @status_max_limit:	Minimum frequency of all status frequency, in KHz
  * @freq_table:		Optional list of frequencies in descending order
@@ -67,6 +68,7 @@ struct temp_opp_table {
  * @is_high_temp:	True if current temperature greater than high_temp
  * @is_low_temp_enabled:	True if device node contains low temperature
  *				configuration
+ * @is_status_freq_fixed:	True if enter into some status
  */
 struct monitor_dev_info {
 	struct device *dev;
@@ -83,6 +85,7 @@ struct monitor_dev_info {
 	unsigned long high_temp_max_volt;
 	unsigned long wide_temp_limit;
 	unsigned int video_4k_freq;
+	unsigned int reboot_freq;
 	unsigned int status_min_limit;
 	unsigned int status_max_limit;
 	unsigned long *freq_table;
@@ -93,6 +96,7 @@ struct monitor_dev_info {
 	bool is_low_temp;
 	bool is_high_temp;
 	bool is_low_temp_enabled;
+	bool is_status_freq_fixed;
 };
 
 struct monitor_dev_profile {

@@ -36,7 +36,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
-#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rockchip/rockchip_sip.h>
@@ -1117,7 +1116,6 @@ struct rockchip_dmcfreq {
 	struct dram_timing *timing;
 	struct regulator *vdd_center;
 	struct notifier_block status_nb;
-	struct notifier_block reboot_nb;
 	struct notifier_block fb_nb;
 	struct list_head video_info_list;
 	struct freq_map_table *vop_bw_tbl;
@@ -2780,6 +2778,7 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	}
 
 	if (dmcfreq->reboot_rate && (status & SYS_STATUS_REBOOT)) {
+		devfreq_monitor_stop(dmcfreq->devfreq);
 		target_rate = dmcfreq->reboot_rate;
 		goto next;
 	}
@@ -2827,17 +2826,6 @@ next:
 	dmcfreq->is_fixed = is_fixed;
 	dmcfreq->status_rate = target_rate;
 	rockchip_dmcfreq_update_target(dmcfreq);
-
-	return NOTIFY_OK;
-}
-
-static int rockchip_dmcfreq_reboot_notifier(struct notifier_block *nb,
-					    unsigned long action, void *ptr)
-{
-	struct rockchip_dmcfreq *dmcfreq = reboot_to_dmcfreq(nb);
-
-	devfreq_monitor_stop(dmcfreq->devfreq);
-	rockchip_set_system_status(SYS_STATUS_REBOOT);
 
 	return NOTIFY_OK;
 }
@@ -3422,11 +3410,6 @@ static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 	ret = rockchip_register_system_status_notifier(&dmcfreq->status_nb);
 	if (ret)
 		dev_err(dmcfreq->dev, "failed to register system_status nb\n");
-
-	dmcfreq->reboot_nb.notifier_call = rockchip_dmcfreq_reboot_notifier;
-	ret = register_reboot_notifier(&dmcfreq->reboot_nb);
-	if (ret)
-		dev_err(dmcfreq->dev, "failed to register reboot nb\n");
 
 	dmcfreq->fb_nb.notifier_call = rockchip_dmcfreq_fb_notifier;
 	ret = fb_register_client(&dmcfreq->fb_nb);
