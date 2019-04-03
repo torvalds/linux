@@ -34,11 +34,131 @@ static DEFINE_MUTEX(xgmi_mutex);
 static struct amdgpu_hive_info xgmi_hives[AMDGPU_MAX_XGMI_HIVE];
 static unsigned hive_count = 0;
 
-
 void *amdgpu_xgmi_hive_try_lock(struct amdgpu_hive_info *hive)
 {
 	return &hive->device_list;
 }
+
+static ssize_t amdgpu_xgmi_show_hive_id(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct amdgpu_hive_info *hive =
+			container_of(attr, struct amdgpu_hive_info, dev_attr);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", hive->hive_id);
+}
+
+static int amdgpu_xgmi_sysfs_create(struct amdgpu_device *adev,
+				    struct amdgpu_hive_info *hive)
+{
+	int ret = 0;
+
+	if (WARN_ON(hive->kobj))
+		return -EINVAL;
+
+	hive->kobj = kobject_create_and_add("xgmi_hive_info", &adev->dev->kobj);
+	if (!hive->kobj) {
+		dev_err(adev->dev, "XGMI: Failed to allocate sysfs entry!\n");
+		return -EINVAL;
+	}
+
+	hive->dev_attr = (struct device_attribute) {
+		.attr = {
+			.name = "xgmi_hive_id",
+			.mode = S_IRUGO,
+
+		},
+		.show = amdgpu_xgmi_show_hive_id,
+	};
+
+	ret = sysfs_create_file(hive->kobj, &hive->dev_attr.attr);
+	if (ret) {
+		dev_err(adev->dev, "XGMI: Failed to create device file xgmi_hive_id\n");
+		kobject_del(hive->kobj);
+		kobject_put(hive->kobj);
+		hive->kobj = NULL;
+	}
+
+	return ret;
+}
+
+static void amdgpu_xgmi_sysfs_destroy(struct amdgpu_device *adev,
+				    struct amdgpu_hive_info *hive)
+{
+	sysfs_remove_file(hive->kobj, &hive->dev_attr.attr);
+	kobject_del(hive->kobj);
+	kobject_put(hive->kobj);
+	hive->kobj = NULL;
+}
+
+static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.xgmi.node_id);
+
+}
+
+
+static DEVICE_ATTR(xgmi_device_id, S_IRUGO, amdgpu_xgmi_show_device_id, NULL);
+
+
+static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
+					 struct amdgpu_hive_info *hive)
+{
+	int ret = 0;
+	char node[10] = { 0 };
+
+	/* Create xgmi device id file */
+	ret = device_create_file(adev->dev, &dev_attr_xgmi_device_id);
+	if (ret) {
+		dev_err(adev->dev, "XGMI: Failed to create device file xgmi_device_id\n");
+		return ret;
+	}
+
+	/* Create sysfs link to hive info folder on the first device */
+	if (adev != hive->adev) {
+		ret = sysfs_create_link(&adev->dev->kobj, hive->kobj,
+					"xgmi_hive_info");
+		if (ret) {
+			dev_err(adev->dev, "XGMI: Failed to create link to hive info");
+			goto remove_file;
+		}
+	}
+
+	sprintf(node, "node%d", hive->number_devices);
+	/* Create sysfs link form the hive folder to yourself */
+	ret = sysfs_create_link(hive->kobj, &adev->dev->kobj, node);
+	if (ret) {
+		dev_err(adev->dev, "XGMI: Failed to create link from hive info");
+		goto remove_link;
+	}
+
+	goto success;
+
+
+remove_link:
+	sysfs_remove_link(&adev->dev->kobj, adev->ddev->unique);
+
+remove_file:
+	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);
+
+success:
+	return ret;
+}
+
+static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
+					  struct amdgpu_hive_info *hive)
+{
+	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);
+	sysfs_remove_link(&adev->dev->kobj, adev->ddev->unique);
+	sysfs_remove_link(hive->kobj, adev->ddev->unique);
+}
+
+
 
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lock)
 {
@@ -66,16 +186,38 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lo
 
 	/* initialize new hive if not exist */
 	tmp = &xgmi_hives[hive_count++];
+
+	if (amdgpu_xgmi_sysfs_create(adev, tmp)) {
+		mutex_unlock(&xgmi_mutex);
+		return NULL;
+	}
+
+	tmp->adev = adev;
 	tmp->hive_id = adev->gmc.xgmi.hive_id;
 	INIT_LIST_HEAD(&tmp->device_list);
 	mutex_init(&tmp->hive_lock);
 	mutex_init(&tmp->reset_lock);
+
 	if (lock)
 		mutex_lock(&tmp->hive_lock);
-
+	tmp->pstate = -1;
 	mutex_unlock(&xgmi_mutex);
 
 	return tmp;
+}
+
+int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
+{
+	int ret = 0;
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
+
+	if (!hive)
+		return 0;
+
+	if (hive->pstate == pstate)
+		return 0;
+	/* Todo : sent the message to SMU for pstate change */
+	return ret;
 }
 
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev)
@@ -156,8 +298,17 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 			break;
 	}
 
-	dev_info(adev->dev, "XGMI: Add node %d, hive 0x%llx.\n",
-		 adev->gmc.xgmi.physical_node_id, adev->gmc.xgmi.hive_id);
+	if (!ret)
+		ret = amdgpu_xgmi_sysfs_add_dev_info(adev, hive);
+
+	if (!ret)
+		dev_info(adev->dev, "XGMI: Add node %d, hive 0x%llx.\n",
+			 adev->gmc.xgmi.physical_node_id, adev->gmc.xgmi.hive_id);
+	else
+		dev_err(adev->dev, "XGMI: Failed to add node %d, hive 0x%llx ret: %d\n",
+			adev->gmc.xgmi.physical_node_id, adev->gmc.xgmi.hive_id,
+			ret);
+
 
 	mutex_unlock(&hive->hive_lock);
 exit:
@@ -176,9 +327,11 @@ void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 		return;
 
 	if (!(hive->number_devices--)) {
+		amdgpu_xgmi_sysfs_destroy(adev, hive);
 		mutex_destroy(&hive->hive_lock);
 		mutex_destroy(&hive->reset_lock);
 	} else {
+		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
 		mutex_unlock(&hive->hive_lock);
 	}
 }

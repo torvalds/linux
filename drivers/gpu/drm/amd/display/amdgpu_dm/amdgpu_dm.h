@@ -132,8 +132,6 @@ struct amdgpu_display_manager {
 	 */
 	struct drm_private_obj atomic_obj;
 
-	struct drm_modeset_lock atomic_obj_lock;
-
 	/**
 	 * @dc_lock:
 	 *
@@ -240,6 +238,10 @@ struct amdgpu_dm_connector {
 	struct mutex hpd_lock;
 
 	bool fake_enable;
+#ifdef CONFIG_DEBUG_FS
+	uint32_t debugfs_dpcd_address;
+	uint32_t debugfs_dpcd_size;
+#endif
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)

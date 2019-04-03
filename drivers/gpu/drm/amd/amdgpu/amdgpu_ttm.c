@@ -50,8 +50,6 @@
 #include "amdgpu_sdma.h"
 #include "bif/bif_4_1_d.h"
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
 static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 			     struct ttm_mem_reg *mem, unsigned num_pages,
 			     uint64_t offset, unsigned window,
@@ -1424,6 +1422,13 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	struct dma_fence *f;
 	int i;
 
+	/* Don't evict VM page tables while they are busy, otherwise we can't
+	 * cleanly handle page faults.
+	 */
+	if (bo->type == ttm_bo_type_kernel &&
+	    !reservation_object_test_signaled_rcu(bo->resv, true))
+		return false;
+
 	/* If bo is a KFD BO, check if the bo belongs to the current process.
 	 * If true, then return false as any KFD process needs all its BOs to
 	 * be resident to run successfully
@@ -1671,7 +1676,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       &amdgpu_bo_driver,
 			       adev->ddev->anon_inode->i_mapping,
-			       DRM_FILE_PAGE_OFFSET,
 			       adev->need_dma32);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
@@ -1877,14 +1881,9 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct amdgpu_device *adev;
+	struct drm_file *file_priv = filp->private_data;
+	struct amdgpu_device *adev = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	adev = file_priv->minor->dev->dev_private;
 	if (adev == NULL)
 		return -EINVAL;
 

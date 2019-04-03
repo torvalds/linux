@@ -21,8 +21,6 @@
 
 #include "hibmc_drm_drv.h"
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
 static inline struct hibmc_drm_private *
 hibmc_bdev(struct ttm_bo_device *bd)
 {
@@ -191,7 +189,6 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc)
 	ret = ttm_bo_device_init(&hibmc->bdev,
 				 &hibmc_bo_driver,
 				 dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("error initializing bo driver: %d\n", ret);
@@ -322,14 +319,9 @@ int hibmc_bo_unpin(struct hibmc_bo *bo)
 
 int hibmc_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct hibmc_drm_private *hibmc;
+	struct drm_file *file_priv = filp->private_data;
+	struct hibmc_drm_private *hibmc = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	hibmc = file_priv->minor->dev->dev_private;
 	return ttm_bo_mmap(filp, vma, &hibmc->bdev);
 }
 

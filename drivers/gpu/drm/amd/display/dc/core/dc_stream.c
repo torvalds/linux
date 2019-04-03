@@ -29,6 +29,9 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#include "dcn10/dcn10_hw_sequencer.h"
+#endif
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -196,6 +199,34 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_stream_get_status_from_state(dc->current_state, stream);
 }
 
+static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
+{
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	unsigned int vupdate_line;
+	unsigned int lines_to_vupdate, us_to_vupdate, vpos, nvpos;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	unsigned int us_per_line;
+
+	if (stream->ctx->asic_id.chip_family == FAMILY_RV &&
+			ASIC_REV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
+
+		vupdate_line = get_vupdate_offset_from_vsync(pipe_ctx);
+		dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos);
+
+		if (vpos >= vupdate_line)
+			return;
+
+		us_per_line = stream->timing.h_total * 10000 / stream->timing.pix_clk_100hz;
+		lines_to_vupdate = vupdate_line - vpos;
+		us_to_vupdate = lines_to_vupdate * us_per_line;
+
+		/* 70 us is a conservative estimate of cursor update time*/
+		if (us_to_vupdate < 70)
+			udelay(us_to_vupdate);
+	}
+#endif
+}
+
 /**
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
  */
@@ -234,6 +265,8 @@ bool dc_stream_set_cursor_attributes(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
+
+			delay_cursor_until_vupdate(pipe_ctx, core_dc);
 			core_dc->hwss.pipe_control_lock(core_dc, pipe_to_program, true);
 		}
 
@@ -283,6 +316,8 @@ bool dc_stream_set_cursor_position(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
+
+			delay_cursor_until_vupdate(pipe_ctx, core_dc);
 			core_dc->hwss.pipe_control_lock(core_dc, pipe_to_program, true);
 		}
 
@@ -312,6 +347,68 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 	}
 
 	return 0;
+}
+
+static void build_dp_sdp_info_frame(struct pipe_ctx *pipe_ctx,
+		const uint8_t  *custom_sdp_message,
+		unsigned int sdp_message_size)
+{
+	uint8_t i;
+	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
+
+	/* set valid info */
+	info->dpsdp.valid = true;
+
+	/* set sdp message header */
+	info->dpsdp.hb0 = custom_sdp_message[0]; /* package id */
+	info->dpsdp.hb1 = custom_sdp_message[1]; /* package type */
+	info->dpsdp.hb2 = custom_sdp_message[2]; /* package specific byte 0 any data */
+	info->dpsdp.hb3 = custom_sdp_message[3]; /* package specific byte 0 any data */
+
+	/* set sdp message data */
+	for (i = 0; i < 32; i++)
+		info->dpsdp.sb[i] = (custom_sdp_message[i+4]);
+
+}
+
+static void invalid_dp_sdp_info_frame(struct pipe_ctx *pipe_ctx)
+{
+	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
+
+	/* in-valid info */
+	info->dpsdp.valid = false;
+}
+
+bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
+		const uint8_t *custom_sdp_message,
+		unsigned int sdp_message_size)
+{
+	int i;
+	struct dc  *core_dc;
+	struct resource_context *res_ctx;
+
+	if (stream == NULL) {
+		dm_error("DC: dc_stream is NULL!\n");
+		return false;
+	}
+
+	core_dc = stream->ctx->dc;
+	res_ctx = &core_dc->current_state->res_ctx;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (pipe_ctx->stream != stream)
+			continue;
+
+		build_dp_sdp_info_frame(pipe_ctx, custom_sdp_message, sdp_message_size);
+
+		core_dc->hwss.update_info_frame(pipe_ctx);
+
+		invalid_dp_sdp_info_frame(pipe_ctx);
+	}
+
+	return true;
 }
 
 bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,

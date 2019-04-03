@@ -524,6 +524,14 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	struct dc_stream_state *link_stream;
 	struct dc_link_settings store_settings = *link_setting;
 
+	link->preferred_link_setting = store_settings;
+
+	/* Retrain with preferred link settings only relevant for
+	 * DP signal type
+	 */
+	if (!dc_is_dp_signal(link->connector_signal))
+		return;
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream && pipe->stream->link) {
@@ -538,7 +546,10 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
 
-	link->preferred_link_setting = store_settings;
+	/* Cannot retrain link if backend is off */
+	if (link_stream->dpms_off)
+		return;
+
 	if (link_stream)
 		decide_link_settings(link_stream, &store_settings);
 
@@ -621,6 +632,8 @@ static bool construct(struct dc *dc,
 #endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
+
 	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);
@@ -722,11 +735,7 @@ static bool construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->res_pool = dc_create_resource_pool(
-			dc,
-			init_params->num_virtual_links,
-			dc_version,
-			init_params->asic_id);
+	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_version);
 	if (!dc->res_pool)
 		goto fail;
 
@@ -969,7 +978,7 @@ static bool context_changed(
 	return false;
 }
 
-bool dc_validate_seamless_boot_timing(struct dc *dc,
+bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing)
 {
@@ -1060,7 +1069,13 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc, context);
 
-	dc->hwss.prepare_bandwidth(dc, context);
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization)
+			dc->optimize_seamless_boot = true;
+	}
+
+	if (!dc->optimize_seamless_boot)
+		dc->hwss.prepare_bandwidth(dc, context);
 
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
@@ -1135,11 +1150,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	/* pplib is notified if disp_num changed */
-	dc->hwss.optimize_bandwidth(dc, context);
+	if (!dc->optimize_seamless_boot)
+		/* pplib is notified if disp_num changed */
+		dc->hwss.optimize_bandwidth(dc, context);
 
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
+
+	memset(&context->commit_hints, 0, sizeof(context->commit_hints));
 
 	dc_release_state(dc->current_state);
 
@@ -1177,7 +1195,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
-	if (dc->optimized_required == false)
+	if (!dc->optimized_required || dc->optimize_seamless_boot)
 		return true;
 
 	post_surface_trace(dc);
@@ -1661,6 +1679,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				continue;
 
 			if (stream_update->dpms_off) {
+				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
 				if (*stream_update->dpms_off) {
 					core_link_disable_stream(pipe_ctx, KEEP_ACQUIRED_RESOURCE);
 					dc->hwss.optimize_bandwidth(dc, dc->current_state);
@@ -1668,6 +1687,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					dc->hwss.prepare_bandwidth(dc, dc->current_state);
 					core_link_enable_stream(dc->current_state, pipe_ctx);
 				}
+				dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
 			}
 
 			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
@@ -1695,7 +1715,16 @@ static void commit_planes_for_stream(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
-	if (update_type == UPDATE_TYPE_FULL) {
+	if (dc->optimize_seamless_boot && surface_count > 0) {
+		/* Optimize seamless boot flag keeps clocks and watermarks high until
+		 * first flip. After first flip, optimization is required to lower
+		 * bandwidth.
+		 */
+		dc->optimize_seamless_boot = false;
+		dc->optimized_required = true;
+	}
+
+	if (update_type == UPDATE_TYPE_FULL && !dc->optimize_seamless_boot) {
 		dc->hwss.prepare_bandwidth(dc, context);
 		context_clock_trace(dc, context);
 	}

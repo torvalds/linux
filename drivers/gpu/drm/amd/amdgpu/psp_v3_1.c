@@ -37,6 +37,9 @@
 #include "sdma0/sdma0_4_0_offset.h"
 #include "nbio/nbio_6_1_offset.h"
 
+#include "oss/osssys_4_0_offset.h"
+#include "oss/osssys_4_0_sh_mask.h"
+
 MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sos.bin");
@@ -252,6 +255,37 @@ static int psp_v3_1_ring_init(struct psp_context *psp,
 	return 0;
 }
 
+static void psp_v3_1_reroute_ih(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t tmp;
+
+	/* Change IH ring for VMC */
+	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1244b);
+	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
+	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, 3);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
+
+	mdelay(20);
+	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+		     0x80000000, 0x8000FFFF, false);
+
+	/* Change IH ring for UMC */
+	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1216b);
+	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, 4);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
+
+	mdelay(20);
+	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+		     0x80000000, 0x8000FFFF, false);
+}
+
 static int psp_v3_1_ring_create(struct psp_context *psp,
 				enum psp_ring_type ring_type)
 {
@@ -259,6 +293,8 @@ static int psp_v3_1_ring_create(struct psp_context *psp,
 	unsigned int psp_ring_reg = 0;
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
+
+	psp_v3_1_reroute_ih(psp);
 
 	/* Write low address of the ring to C2PMSG_69 */
 	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);

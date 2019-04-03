@@ -33,6 +33,9 @@
 #include "sdma0/sdma0_4_0_offset.h"
 #include "nbio/nbio_7_4_offset.h"
 
+#include "oss/osssys_4_0_offset.h"
+#include "oss/osssys_4_0_sh_mask.h"
+
 MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
@@ -113,6 +116,13 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		adev->psp.ta_xgmi_ucode_size = le32_to_cpu(ta_hdr->ta_xgmi_size_bytes);
 		adev->psp.ta_xgmi_start_addr = (uint8_t *)ta_hdr +
 			le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
+		adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
+
+		adev->psp.ta_ras_ucode_version = le32_to_cpu(ta_hdr->ta_ras_ucode_version);
+		adev->psp.ta_ras_ucode_size = le32_to_cpu(ta_hdr->ta_ras_size_bytes);
+		adev->psp.ta_ras_start_addr = (uint8_t *)adev->psp.ta_xgmi_start_addr +
+			le32_to_cpu(ta_hdr->ta_ras_offset_bytes);
 	}
 
 	return 0;
@@ -217,12 +227,45 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	return ret;
 }
 
+static void psp_v11_0_reroute_ih(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t tmp;
+
+	/* Change IH ring for VMC */
+	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1244b);
+	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
+	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, 3);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
+
+	mdelay(20);
+	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+		     0x80000000, 0x8000FFFF, false);
+
+	/* Change IH ring for UMC */
+	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1216b);
+	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
+
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, 4);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
+
+	mdelay(20);
+	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+		     0x80000000, 0x8000FFFF, false);
+}
+
 static int psp_v11_0_ring_init(struct psp_context *psp,
 			      enum psp_ring_type ring_type)
 {
 	int ret = 0;
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
+
+	psp_v11_0_reroute_ih(psp);
 
 	ring = &psp->km_ring;
 
@@ -679,6 +722,54 @@ static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id
 	return 0;
 }
 
+static int psp_v11_0_ras_trigger_error(struct psp_context *psp,
+		struct ta_ras_trigger_error_input *info)
+{
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	ras_cmd->cmd_id = TA_RAS_COMMAND__TRIGGER_ERROR;
+	ras_cmd->ras_in_message.trigger_error = *info;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret)
+		return -EINVAL;
+
+	return ras_cmd->ras_status;
+}
+
+static int psp_v11_0_ras_cure_posion(struct psp_context *psp, uint64_t *mode_ptr)
+{
+#if 0
+	// not support yet.
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	ras_cmd->cmd_id = TA_RAS_COMMAND__CURE_POISON;
+	ras_cmd->ras_in_message.cure_poison.mode_ptr = mode_ptr;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret)
+		return -EINVAL;
+
+	return ras_cmd->ras_status;
+#else
+	return -EINVAL;
+#endif
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
@@ -695,6 +786,8 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
 	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
 	.support_vmr_ring = psp_v11_0_support_vmr_ring,
+	.ras_trigger_error = psp_v11_0_ras_trigger_error,
+	.ras_cure_posion = psp_v11_0_ras_cure_posion,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)

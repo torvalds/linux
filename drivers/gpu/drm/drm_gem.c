@@ -72,23 +72,6 @@
  * up at a later date, and as our interface with shmfs for memory allocation.
  */
 
-/*
- * We make up offsets for buffer objects so we can recognize them at
- * mmap time.
- */
-
-/* pgoff in mmap is an unsigned long, so we need to make sure that
- * the faked up offset will fit
- */
-
-#if BITS_PER_LONG == 64
-#define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFFUL >> PAGE_SHIFT) + 1)
-#define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFFUL >> PAGE_SHIFT) * 16)
-#else
-#define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFUL >> PAGE_SHIFT) + 1)
-#define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
-#endif
-
 /**
  * drm_gem_init - Initialize the GEM device fields
  * @dev: drm_devic structure to initialize

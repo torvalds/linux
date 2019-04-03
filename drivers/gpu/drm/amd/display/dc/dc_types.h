@@ -103,7 +103,7 @@ struct dc_context {
 };
 
 
-#define DC_MAX_EDID_BUFFER_SIZE 512
+#define DC_MAX_EDID_BUFFER_SIZE 1024
 #define EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
@@ -550,9 +550,9 @@ struct psr_config {
 	unsigned char psr_version;
 	unsigned int psr_rfb_setup_time;
 	bool psr_exit_link_training_required;
-
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	bool allow_smu_optimizations;
 };
 
 union dmcu_psr_level {
@@ -654,6 +654,7 @@ struct psr_context {
 	 * continuing powerd own
 	 */
 	unsigned int frame_delay;
+	bool allow_smu_optimizations;
 };
 
 struct colorspace_transform {

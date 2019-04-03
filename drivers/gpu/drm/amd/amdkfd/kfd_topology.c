@@ -37,6 +37,7 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_iommu.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_ras.h"
 
 /* topology_device_list - Master list of all topology devices */
 static struct list_head topology_device_list;
@@ -1197,6 +1198,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	void *crat_image = NULL;
 	size_t image_size = 0;
 	int proximity_domain;
+	struct amdgpu_ras *ctx;
 
 	INIT_LIST_HEAD(&temp_topology_device_list);
 
@@ -1326,6 +1328,20 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 			cu_info.simd_per_cu * cu_info.cu_active_number;
 		dev->node_props.max_waves_per_simd = 10;
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
+	}
+
+	ctx = amdgpu_ras_get_context((struct amdgpu_device *)(dev->gpu->kgd));
+	if (ctx) {
+		/* kfd only concerns sram ecc on GFX/SDMA and HBM ecc on UMC */
+		dev->node_props.capability |=
+			(((ctx->features & BIT(AMDGPU_RAS_BLOCK__SDMA)) != 0) ||
+			 ((ctx->features & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0)) ?
+			HSA_CAP_SRAM_EDCSUPPORTED : 0;
+		dev->node_props.capability |= ((ctx->features & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
+			HSA_CAP_MEM_EDCSUPPORTED : 0;
+
+		dev->node_props.capability |= (ctx->features != 0) ?
+			HSA_CAP_RASEVENTNOTIFY : 0;
 	}
 
 	kfd_debug_print_topology();

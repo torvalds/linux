@@ -171,24 +171,24 @@ static void submit_channel_request(
 		 (request->action == I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT)));
 	if (REG(AUXN_IMPCAL)) {
 		/* clear_aux_error */
-		REG_UPDATE_SEQ(AUXN_IMPCAL, AUXN_CALOUT_ERROR_AK,
-				1,
-				0);
+		REG_UPDATE_SEQ_2(AUXN_IMPCAL,
+				AUXN_CALOUT_ERROR_AK, 1,
+				AUXN_CALOUT_ERROR_AK, 0);
 
-		REG_UPDATE_SEQ(AUXP_IMPCAL, AUXP_CALOUT_ERROR_AK,
-				1,
-				0);
+		REG_UPDATE_SEQ_2(AUXP_IMPCAL,
+				AUXP_CALOUT_ERROR_AK, 1,
+				AUXP_CALOUT_ERROR_AK, 0);
 
 		/* force_default_calibrate */
-		REG_UPDATE_1BY1_2(AUXN_IMPCAL,
+		REG_UPDATE_SEQ_2(AUXN_IMPCAL,
 				AUXN_IMPCAL_ENABLE, 1,
 				AUXN_IMPCAL_OVERRIDE_ENABLE, 0);
 
 		/* bug? why AUXN update EN and OVERRIDE_EN 1 by 1 while AUX P toggles OVERRIDE? */
 
-		REG_UPDATE_SEQ(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE,
-				1,
-				0);
+		REG_UPDATE_SEQ_2(AUXP_IMPCAL,
+				AUXP_IMPCAL_OVERRIDE_ENABLE, 1,
+				AUXP_IMPCAL_OVERRIDE_ENABLE, 0);
 	}
 	/* set the delay and the number of bytes to write */
 
@@ -267,7 +267,7 @@ static int read_channel_reply(struct dce_aux *engine, uint32_t size,
 	if (!bytes_replied)
 		return -1;
 
-	REG_UPDATE_1BY1_3(AUX_SW_DATA,
+	REG_UPDATE_SEQ_3(AUX_SW_DATA,
 			  AUX_SW_INDEX, 0,
 			  AUX_SW_AUTOINCREMENT_DISABLE, 1,
 			  AUX_SW_DATA_RW, 1);
@@ -317,9 +317,10 @@ static enum aux_channel_operation_result get_channel_status(
 	*returned_bytes = 0;
 
 	/* poll to make sure that SW_DONE is asserted */
-	value = REG_WAIT(AUX_SW_STATUS, AUX_SW_DONE, 1,
+	REG_WAIT(AUX_SW_STATUS, AUX_SW_DONE, 1,
 				10, aux110->timeout_period/10);
 
+	value = REG_READ(AUX_SW_STATUS);
 	/* in case HPD is LOW, exit AUX transaction */
 	if ((value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
 		return AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON;
@@ -374,7 +375,6 @@ static bool acquire(
 	struct dce_aux *engine,
 	struct ddc *ddc)
 {
-
 	enum gpio_result result;
 
 	if (!is_engine_available(engine))
@@ -439,12 +439,12 @@ static enum i2caux_transaction_action i2caux_action_from_payload(struct aux_payl
 	return I2CAUX_TRANSACTION_ACTION_DP_READ;
 }
 
-int dce_aux_transfer(struct ddc_service *ddc,
-		struct aux_payload *payload)
+int dce_aux_transfer_raw(struct ddc_service *ddc,
+		struct aux_payload *payload,
+		enum aux_channel_operation_result *operation_result)
 {
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine;
-	enum aux_channel_operation_result operation_result;
 	struct aux_request_transaction_data aux_req;
 	struct aux_reply_transaction_data aux_rep;
 	uint8_t returned_bytes = 0;
@@ -455,7 +455,8 @@ int dce_aux_transfer(struct ddc_service *ddc,
 	memset(&aux_rep, 0, sizeof(aux_rep));
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	acquire(aux_engine, ddc_pin);
+	if (!acquire(aux_engine, ddc_pin))
+		return -1;
 
 	if (payload->i2c_over_aux)
 		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
@@ -470,28 +471,26 @@ int dce_aux_transfer(struct ddc_service *ddc,
 	aux_req.data = payload->data;
 
 	submit_channel_request(aux_engine, &aux_req);
-	operation_result = get_channel_status(aux_engine, &returned_bytes);
+	*operation_result = get_channel_status(aux_engine, &returned_bytes);
 
-	switch (operation_result) {
-	case AUX_CHANNEL_OPERATION_SUCCEEDED:
-		res = read_channel_reply(aux_engine, payload->length,
-							payload->data, payload->reply,
-							&status);
-		break;
-	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
-		res = 0;
-		break;
-	case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
-	case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
-	case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+	if (*operation_result == AUX_CHANNEL_OPERATION_SUCCEEDED) {
+		read_channel_reply(aux_engine, payload->length,
+					 payload->data, payload->reply,
+					 &status);
+		res = returned_bytes;
+	} else {
 		res = -1;
-		break;
 	}
+
 	release_engine(aux_engine);
 	return res;
 }
 
-#define AUX_RETRY_MAX 7
+#define AUX_MAX_RETRIES 7
+#define AUX_MAX_DEFER_RETRIES 7
+#define AUX_MAX_I2C_DEFER_RETRIES 7
+#define AUX_MAX_INVALID_REPLY_RETRIES 2
+#define AUX_MAX_TIMEOUT_RETRIES 3
 
 bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *payload)
@@ -499,24 +498,85 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 	int i, ret = 0;
 	uint8_t reply;
 	bool payload_reply = true;
+	enum aux_channel_operation_result operation_result;
+	int aux_ack_retries = 0,
+		aux_defer_retries = 0,
+		aux_i2c_defer_retries = 0,
+		aux_timeout_retries = 0,
+		aux_invalid_reply_retries = 0;
 
 	if (!payload->reply) {
 		payload_reply = false;
 		payload->reply = &reply;
 	}
 
-	for (i = 0; i < AUX_RETRY_MAX; i++) {
-		ret = dce_aux_transfer(ddc, payload);
+	for (i = 0; i < AUX_MAX_RETRIES; i++) {
+		ret = dce_aux_transfer_raw(ddc, payload, &operation_result);
+		switch (operation_result) {
+		case AUX_CHANNEL_OPERATION_SUCCEEDED:
+			aux_timeout_retries = 0;
+			aux_invalid_reply_retries = 0;
 
-		if (ret >= 0) {
-			if (*payload->reply == 0) {
-				if (!payload_reply)
-					payload->reply = NULL;
-				return true;
+			switch (*payload->reply) {
+			case AUX_TRANSACTION_REPLY_AUX_ACK:
+				if (!payload->write && payload->length != ret) {
+					if (++aux_ack_retries >= AUX_MAX_RETRIES)
+						goto fail;
+					else
+						udelay(300);
+				} else
+					return true;
+			break;
+
+			case AUX_TRANSACTION_REPLY_AUX_DEFER:
+			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
+			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
+				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES)
+					goto fail;
+				break;
+
+			case AUX_TRANSACTION_REPLY_I2C_DEFER:
+				aux_defer_retries = 0;
+				if (++aux_i2c_defer_retries >= AUX_MAX_I2C_DEFER_RETRIES)
+					goto fail;
+				break;
+
+			case AUX_TRANSACTION_REPLY_AUX_NACK:
+			case AUX_TRANSACTION_REPLY_HPD_DISCON:
+			default:
+				goto fail;
 			}
-		}
+			break;
 
-		udelay(1000);
+		case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
+			if (++aux_invalid_reply_retries >= AUX_MAX_INVALID_REPLY_RETRIES)
+				goto fail;
+			else
+				udelay(400);
+			break;
+
+		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+			if (++aux_timeout_retries >= AUX_MAX_TIMEOUT_RETRIES)
+				goto fail;
+			else {
+				/*
+				 * DP 1.4, 2.8.2:  AUX Transaction Response/Reply Timeouts
+				 * According to the DP spec there should be 3 retries total
+				 * with a 400us wait inbetween each. Hardware already waits
+				 * for 550us therefore no wait is required here.
+				 */
+			}
+			break;
+
+		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+		default:
+			goto fail;
+		}
 	}
+
+fail:
+	if (!payload_reply)
+		payload->reply = NULL;
 	return false;
 }

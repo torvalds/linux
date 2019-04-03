@@ -63,6 +63,7 @@
 #include "vcn_v1_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
+#include "amdgpu_smu.h"
 
 #define mmMP0_MISC_CGTT_CTRL0                                                                   0x01b9
 #define mmMP0_MISC_CGTT_CTRL0_BASE_IDX                                                          0
@@ -392,6 +393,7 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 {
 	u32 i;
+	int ret = 0;
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
@@ -402,7 +404,9 @@ static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 
 	pci_save_state(adev->pdev);
 
-	psp_gpu_reset(adev);
+	ret = psp_gpu_reset(adev);
+	if (ret)
+		dev_err(adev->dev, "GPU mode1 reset failed\n");
 
 	pci_restore_state(adev->pdev);
 
@@ -417,7 +421,7 @@ static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
-	return 0;
+	return ret;
 }
 
 static int soc15_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
@@ -451,6 +455,8 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "GPU BACO reset\n");
 
+	adev->in_baco_reset = 1;
+
 	return 0;
 }
 
@@ -461,6 +467,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 		soc15_asic_get_baco_capability(adev, &baco_reset);
 		break;
 	default:
@@ -602,8 +609,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		}
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			if (is_support_sw_smu(adev))
+				amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		}
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -927,7 +938,7 @@ static int soc15_common_early_init(void *handle)
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
 		}
 
-		if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
+		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_RLC_SMU_HS;

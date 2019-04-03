@@ -397,6 +397,11 @@ static const struct resource_caps polaris_11_resource_cap = {
 		.num_ddc = 5,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+	.supports_argb8888 = true,
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -887,7 +892,7 @@ enum dc_status resource_map_phy_clock_resources(
 		return DC_ERROR_UNEXPECTED;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)
-		|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
+		|| dc_is_virtual_signal(pipe_ctx->stream->signal))
 		pipe_ctx->clock_source =
 				dc->res_pool->dp_clock_source;
 	else
@@ -1309,6 +1314,9 @@ static bool construct(
 		goto res_create_fail;
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
 
 	/* Create hardware sequencer */
 	dce112_hw_sequencer_construct(dc);

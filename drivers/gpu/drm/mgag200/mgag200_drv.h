@@ -269,7 +269,6 @@ mgag200_dumb_mmap_offset(struct drm_file *file,
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 void mgag200_ttm_placement(struct mgag200_bo *bo, int domain);
 
 static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)

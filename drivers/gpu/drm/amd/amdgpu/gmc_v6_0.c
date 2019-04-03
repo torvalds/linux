@@ -225,7 +225,7 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_vram_location(adev, mc, base);
 	amdgpu_gmc_gart_location(adev, mc);
 }
 
@@ -381,20 +381,6 @@ static uint64_t gmc_v6_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	amdgpu_ring_emit_wreg(ring, mmVM_INVALIDATE_REQUEST, 1 << vmid);
 
 	return pd_addr;
-}
-
-static int gmc_v6_0_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
-				uint32_t gpu_page_idx, uint64_t addr,
-				uint64_t flags)
-{
-	void __iomem *ptr = (void *)cpu_pt_addr;
-	uint64_t value;
-
-	value = addr & 0xFFFFFFFFFFFFF000ULL;
-	value |= flags;
-	writeq(value, ptr + (gpu_page_idx * 8));
-
-	return 0;
 }
 
 static uint64_t gmc_v6_0_get_vm_pte_flags(struct amdgpu_device *adev,
@@ -1169,7 +1155,6 @@ static const struct amd_ip_funcs gmc_v6_0_ip_funcs = {
 static const struct amdgpu_gmc_funcs gmc_v6_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v6_0_flush_gpu_tlb,
 	.emit_flush_gpu_tlb = gmc_v6_0_emit_flush_gpu_tlb,
-	.set_pte_pde = gmc_v6_0_set_pte_pde,
 	.set_prt = gmc_v6_0_set_prt,
 	.get_vm_pde = gmc_v6_0_get_vm_pde,
 	.get_vm_pte_flags = gmc_v6_0_get_vm_pte_flags

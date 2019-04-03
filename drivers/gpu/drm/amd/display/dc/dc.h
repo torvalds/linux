@@ -39,9 +39,10 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.17"
+#define DC_VER "3.2.24"
 
 #define MAX_SURFACES 3
+#define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 
@@ -51,6 +52,22 @@
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
+};
+
+enum dc_plane_type {
+	DC_PLANE_TYPE_INVALID,
+	DC_PLANE_TYPE_DCE_RGB,
+	DC_PLANE_TYPE_DCE_UNDERLAY,
+	DC_PLANE_TYPE_DCN_UNIVERSAL,
+};
+
+struct dc_plane_cap {
+	enum dc_plane_type type;
+	uint32_t blends_with_above : 1;
+	uint32_t blends_with_below : 1;
+	uint32_t per_pixel_alpha : 1;
+	uint32_t supports_argb8888 : 1;
+	uint32_t supports_nv12 : 1;
 };
 
 struct dc_caps {
@@ -73,6 +90,7 @@ struct dc_caps {
 	bool force_dp_tps4_for_cp2520;
 	bool disable_dp_clk_share;
 	bool psp_setup_panel_mode;
+	struct dc_plane_cap planes[MAX_PLANES];
 };
 
 struct dc_dcc_surface_param {
@@ -164,6 +182,8 @@ struct dc_config {
 	bool gpu_vm_support;
 	bool disable_disp_pll_sharing;
 	bool fbc_support;
+	bool optimize_edp_link_rate;
+	bool allow_seamless_boot_optimization;
 };
 
 enum visual_confirm {
@@ -203,6 +223,7 @@ struct dc_clocks {
 	int fclk_khz;
 	int phyclk_khz;
 	int dramclk_khz;
+	bool p_state_change_support;
 };
 
 struct dc_debug_options {
@@ -257,12 +278,21 @@ struct dc_debug_options {
 	bool skip_detection_link_training;
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
+	bool disable_tri_buf;
 };
 
 struct dc_debug_data {
 	uint32_t ltFailCount;
 	uint32_t i2cErrorCount;
 	uint32_t auxErrorCount;
+};
+
+struct dc_bounding_box_overrides {
+	int sr_exit_time_ns;
+	int sr_enter_plus_exit_time_ns;
+	int urgent_latency_ns;
+	int percent_of_ideal_drambw;
+	int dram_clock_change_latency_ns;
 };
 
 struct dc_state;
@@ -274,6 +304,7 @@ struct dc {
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
 	struct dc_debug_options debug;
+	struct dc_bounding_box_overrides bb_overrides;
 	struct dc_context *ctx;
 
 	uint8_t link_count;
@@ -298,7 +329,11 @@ struct dc {
 	struct hw_sequencer_funcs hwss;
 	struct dce_hwseq *hwseq;
 
+	/* Require to optimize clocks and bandwidth for added/removed planes */
 	bool optimized_required;
+
+	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
+	bool optimize_seamless_boot;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
@@ -327,6 +362,7 @@ struct dc_init_data {
 	struct hw_asic_id asic_id;
 	void *driver; /* ctx */
 	struct cgs_device *cgs_device;
+	struct dc_bounding_box_overrides bb_overrides;
 
 	int num_virtual_links;
 	/*
@@ -594,7 +630,7 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
-bool dc_validate_seamless_boot_timing(struct dc *dc,
+bool dc_validate_seamless_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing);
 
@@ -645,9 +681,16 @@ struct dpcd_caps {
 	union dpcd_rev dpcd_rev;
 	union max_lane_count max_ln_count;
 	union max_down_spread max_down_spread;
+	union dprx_feature dprx_feature;
+
+	/* valid only for eDP v1.4 or higher*/
+	uint8_t edp_supported_link_rates_count;
+	enum dc_link_rate edp_supported_link_rates[8];
 
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	/* branch device or sink device */
+	bool is_branch_dev;
 	/* Dongle's downstream count. */
 	union sink_count sink_count;
 	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
@@ -663,11 +706,11 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
-	uint8_t link_rate_set;
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
 	bool dpcd_display_control_capable;
+	bool ext_receiver_cap_field_present;
 };
 
 #include "dc_link.h"

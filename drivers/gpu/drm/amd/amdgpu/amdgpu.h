@@ -83,6 +83,7 @@
 #include "amdgpu_gem.h"
 #include "amdgpu_doorbell.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_smu.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -156,6 +157,8 @@ extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
 extern uint amdgpu_dc_feature_mask;
 extern struct amdgpu_mgpu_info mgpu_info;
+extern int amdgpu_ras_enable;
+extern uint amdgpu_ras_mask;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
@@ -702,7 +705,6 @@ enum amd_hw_ip_block_type {
 struct amd_powerplay {
 	void *pp_handle;
 	const struct amd_pm_funcs *pp_funcs;
-	uint32_t pp_feature;
 };
 
 #define AMDGPU_RESET_MAGIC_NUM 64
@@ -842,6 +844,9 @@ struct amdgpu_device {
 	struct amd_powerplay		powerplay;
 	bool				pp_force_state_enabled;
 
+	/* smu */
+	struct smu_context		smu;
+
 	/* dpm */
 	struct amdgpu_pm		pm;
 	u32				cg_flags;
@@ -922,6 +927,8 @@ struct amdgpu_device {
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
+
+	bool                            in_baco_reset;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

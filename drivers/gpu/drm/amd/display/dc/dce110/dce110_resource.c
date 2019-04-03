@@ -392,6 +392,21 @@ static const struct resource_caps stoney_resource_cap = {
 		.num_ddc = 3,
 };
 
+static const struct dc_plane_cap plane_cap = {
+		.type = DC_PLANE_TYPE_DCE_RGB,
+		.blends_with_below = true,
+		.blends_with_above = true,
+		.per_pixel_alpha = 1,
+		.supports_argb8888 = true,
+};
+
+static const struct dc_plane_cap underlay_plane_cap = {
+		.type = DC_PLANE_TYPE_DCE_UNDERLAY,
+		.blends_with_above = true,
+		.per_pixel_alpha = 1,
+		.supports_nv12 = true
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -1370,6 +1385,11 @@ static bool construct(
 	dce110_hw_sequencer_construct(dc);
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < pool->base.underlay_pipe_index; ++i)
+		dc->caps.planes[i] = plane_cap;
+
+	dc->caps.planes[pool->base.underlay_pipe_index] = underlay_plane_cap;
 
 	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 
