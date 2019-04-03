@@ -272,19 +272,6 @@ static ssize_t set_number_of_buffers_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.num_buffers);
 }
 
-static ssize_t set_number_of_buffers_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf,
-					   size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.num_buffers);
-
-	if (ret)
-		return ret;
-	return count;
-}
-
 static ssize_t set_buffer_size_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
@@ -292,19 +279,6 @@ static ssize_t set_buffer_size_show(struct device *dev,
 	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.buffer_size);
-}
-
-static ssize_t set_buffer_size_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf,
-				     size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.buffer_size);
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t set_direction_show(struct device *dev,
@@ -318,28 +292,6 @@ static ssize_t set_direction_show(struct device *dev,
 	else if (c->cfg.direction & MOST_CH_RX)
 		return snprintf(buf, PAGE_SIZE, "rx\n");
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
-}
-
-static ssize_t set_direction_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf,
-				   size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-
-	if (!strcmp(buf, "dir_rx\n")) {
-		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "rx\n")) {
-		c->cfg.direction = MOST_CH_RX;
-	} else if (!strcmp(buf, "dir_tx\n")) {
-		c->cfg.direction = MOST_CH_TX;
-	} else if (!strcmp(buf, "tx\n")) {
-		c->cfg.direction = MOST_CH_TX;
-	} else {
-		pr_info("WARN: invalid attribute settings\n");
-		return -EINVAL;
-	}
-	return count;
 }
 
 static ssize_t set_datatype_show(struct device *dev,
@@ -356,28 +308,6 @@ static ssize_t set_datatype_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
-static ssize_t set_datatype_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf,
-				  size_t count)
-{
-	int i;
-	struct most_channel *c = to_channel(dev);
-
-	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
-		if (!strcmp(buf, ch_data_type[i].name)) {
-			c->cfg.data_type = ch_data_type[i].most_ch_data_type;
-			break;
-		}
-	}
-
-	if (i == ARRAY_SIZE(ch_data_type)) {
-		pr_info("WARN: invalid attribute settings\n");
-		return -EINVAL;
-	}
-	return count;
-}
-
 static ssize_t set_subbuffer_size_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
@@ -385,19 +315,6 @@ static ssize_t set_subbuffer_size_show(struct device *dev,
 	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.subbuffer_size);
-}
-
-static ssize_t set_subbuffer_size_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf,
-					size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.subbuffer_size);
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 static ssize_t set_packets_per_xact_show(struct device *dev,
@@ -409,37 +326,12 @@ static ssize_t set_packets_per_xact_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.packets_per_xact);
 }
 
-static ssize_t set_packets_per_xact_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf,
-					  size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.packets_per_xact);
-
-	if (ret)
-		return ret;
-	return count;
-}
-
 static ssize_t set_dbr_size_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct most_channel *c = to_channel(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.dbr_size);
-}
-
-static ssize_t set_dbr_size_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct most_channel *c = to_channel(dev);
-	int ret = kstrtou16(buf, 0, &c->cfg.dbr_size);
-
-	if (ret)
-		return ret;
-	return count;
 }
 
 #define to_dev_attr(a) container_of(a, struct device_attribute, attr)
@@ -469,13 +361,13 @@ static DEVICE_ATTR_RO(number_of_stream_buffers);
 static DEVICE_ATTR_RO(size_of_stream_buffer);
 static DEVICE_ATTR_RO(size_of_packet_buffer);
 static DEVICE_ATTR_RO(channel_starving);
-static DEVICE_ATTR_RW(set_buffer_size);
-static DEVICE_ATTR_RW(set_number_of_buffers);
-static DEVICE_ATTR_RW(set_direction);
-static DEVICE_ATTR_RW(set_datatype);
-static DEVICE_ATTR_RW(set_subbuffer_size);
-static DEVICE_ATTR_RW(set_packets_per_xact);
-static DEVICE_ATTR_RW(set_dbr_size);
+static DEVICE_ATTR_RO(set_buffer_size);
+static DEVICE_ATTR_RO(set_number_of_buffers);
+static DEVICE_ATTR_RO(set_direction);
+static DEVICE_ATTR_RO(set_datatype);
+static DEVICE_ATTR_RO(set_subbuffer_size);
+static DEVICE_ATTR_RO(set_packets_per_xact);
+static DEVICE_ATTR_RO(set_dbr_size);
 
 static struct attribute *channel_attrs[] = {
 	DEV_ATTR(available_directions),
