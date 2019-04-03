@@ -2185,6 +2185,30 @@ static int translate_dpcd_max_bpc(enum dpcd_downstream_port_max_bpc bpc)
 	return -1;
 }
 
+static void read_dp_device_vendor_id(struct dc_link *link)
+{
+	struct dp_device_vendor_id dp_id;
+
+	/* read IEEE branch device id */
+	core_link_read_dpcd(
+		link,
+		DP_BRANCH_OUI,
+		(uint8_t *)&dp_id,
+		sizeof(dp_id));
+
+	link->dpcd_caps.branch_dev_id =
+		(dp_id.ieee_oui[0] << 16) +
+		(dp_id.ieee_oui[1] << 8) +
+		dp_id.ieee_oui[2];
+
+	memmove(
+		link->dpcd_caps.branch_dev_name,
+		dp_id.ieee_device_id,
+		sizeof(dp_id.ieee_device_id));
+}
+
+
+
 static void get_active_converter_info(
 	uint8_t data, struct dc_link *link)
 {
@@ -2269,27 +2293,6 @@ static void get_active_converter_info(
 	}
 
 	ddc_service_set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
-
-	{
-		struct dp_device_vendor_id dp_id;
-
-		/* read IEEE branch device id */
-		core_link_read_dpcd(
-			link,
-			DP_BRANCH_OUI,
-			(uint8_t *)&dp_id,
-			sizeof(dp_id));
-
-		link->dpcd_caps.branch_dev_id =
-			(dp_id.ieee_oui[0] << 16) +
-			(dp_id.ieee_oui[1] << 8) +
-			dp_id.ieee_oui[2];
-
-		memmove(
-			link->dpcd_caps.branch_dev_name,
-			dp_id.ieee_device_id,
-			sizeof(dp_id.ieee_device_id));
-	}
 
 	{
 		struct dp_sink_hw_fw_revision dp_hw_fw_revision;
@@ -2454,6 +2457,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
 				 DP_DPCD_REV];
+
+	read_dp_device_vendor_id(link);
 
 	get_active_converter_info(ds_port.byte, link);
 
