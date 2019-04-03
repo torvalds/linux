@@ -413,6 +413,8 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 
 	if (gpiod_cansleep(priv->sda) || gpiod_cansleep(priv->scl))
 		dev_warn(dev, "Slow GPIO pins might wreak havoc into I2C/SMBus bus timing");
+	else
+		bit_data->can_do_atomic = true;
 
 	bit_data->setsda = i2c_gpio_setsda_val;
 	bit_data->setscl = i2c_gpio_setscl_val;
