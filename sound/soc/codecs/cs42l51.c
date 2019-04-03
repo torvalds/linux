@@ -340,6 +340,19 @@ static struct cs42l51_ratios slave_auto_ratios[] = {
 	{  256, CS42L51_DSM_MODE, 1 }, {  384, CS42L51_DSM_MODE, 1 },
 };
 
+/*
+ * Master mode mclk/fs ratios.
+ * Recommended configurations are SSM for 4-50khz and DSM for 50-100kHz ranges
+ * The table below provides support of following ratios:
+ * 128: SSM (%128) with div2 disabled
+ * 256: SSM (%128) with div2 enabled
+ * In both cases, if sampling rate is above 50kHz, SSM is overridden
+ * with DSM (%128) configuration
+ */
+static struct cs42l51_ratios master_ratios[] = {
+	{ 128, CS42L51_SSM_MODE, 0 }, { 256, CS42L51_SSM_MODE, 1 },
+};
+
 static int cs42l51_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
@@ -362,11 +375,13 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ratio;
 	struct cs42l51_ratios *ratios = NULL;
 	int nr_ratios = 0;
-	int intf_ctl, power_ctl, fmt;
+	int intf_ctl, power_ctl, fmt, mode;
 
 	switch (cs42l51->func) {
 	case MODE_MASTER:
-		return -EINVAL;
+		ratios = master_ratios;
+		nr_ratios = ARRAY_SIZE(master_ratios);
+		break;
 	case MODE_SLAVE:
 		ratios = slave_ratios;
 		nr_ratios = ARRAY_SIZE(slave_ratios);
@@ -402,7 +417,16 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 	switch (cs42l51->func) {
 	case MODE_MASTER:
 		intf_ctl |= CS42L51_INTF_CTL_MASTER;
-		power_ctl |= CS42L51_MIC_POWER_CTL_SPEED(ratios[i].speed_mode);
+		mode = ratios[i].speed_mode;
+		/* Force DSM mode if sampling rate is above 50kHz */
+		if (rate > 50000)
+			mode = CS42L51_DSM_MODE;
+		power_ctl |= CS42L51_MIC_POWER_CTL_SPEED(mode);
+		/*
+		 * Auto detect mode is not applicable for master mode and has to
+		 * be disabled. Otherwise SPEED[1:0] bits will be ignored.
+		 */
+		power_ctl &= ~CS42L51_MIC_POWER_CTL_AUTO;
 		break;
 	case MODE_SLAVE:
 		power_ctl |= CS42L51_MIC_POWER_CTL_SPEED(ratios[i].speed_mode);
