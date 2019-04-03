@@ -286,7 +286,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 	 * independent from front panel port numbers.
 	 */
 	devlink_port_attrs_set(&dp->devlink_port, flavour,
-			       dp->index, false, 0);
+			       dp->index, false, 0, NULL, 0);
 	err = devlink_port_register(ds->devlink, &dp->devlink_port,
 				    dp->index);
 	if (err)

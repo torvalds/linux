@@ -364,7 +364,7 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 
 	devlink_port_attrs_set(&port->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
 			       eth_port.label_port, eth_port.is_split,
-			       eth_port.label_subport);
+			       eth_port.label_subport, NULL, 0);
 
 	devlink = priv_to_devlink(app->pf);
 

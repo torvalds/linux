@@ -1730,7 +1730,8 @@ int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
 
 	mlxsw_core_port->local_port = local_port;
 	devlink_port_attrs_set(devlink_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
-			       port_number, split, split_port_subnumber);
+			       port_number, split, split_port_subnumber,
+			       NULL, 0);
 	err = devlink_port_register(devlink, devlink_port, local_port);
 	if (err)
 		memset(mlxsw_core_port, 0, sizeof(*mlxsw_core_port));
