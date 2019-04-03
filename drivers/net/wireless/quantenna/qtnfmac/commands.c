@@ -183,14 +183,6 @@ static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
 		memcpy(tlv->ie_data, buf, len);
 }
 
-static inline size_t qtnf_cmd_acl_data_size(const struct cfg80211_acl_data *acl)
-{
-	size_t size = sizeof(struct qlink_acl_data) +
-		      acl->n_acl_entries * sizeof(struct qlink_mac_address);
-
-	return size;
-}
-
 static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 				      const struct cfg80211_ap_settings *s)
 {
@@ -209,7 +201,7 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 
 	if (s->acl)
 		len += sizeof(struct qlink_tlv_hdr) +
-		       qtnf_cmd_acl_data_size(s->acl);
+		       struct_size(s->acl, mac_addrs, s->acl->n_acl_entries);
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
 		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
@@ -316,7 +308,8 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	}
 
 	if (s->acl) {
-		size_t acl_size = qtnf_cmd_acl_data_size(s->acl);
+		size_t acl_size = struct_size(s->acl, mac_addrs,
+					      s->acl->n_acl_entries);
 		struct qlink_tlv_hdr *tlv =
 			skb_put(cmd_skb, sizeof(*tlv) + acl_size);
 
@@ -2594,7 +2587,7 @@ int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 	struct qtnf_bus *bus = vif->mac->bus;
 	struct sk_buff *cmd_skb;
 	struct qlink_tlv_hdr *tlv;
-	size_t acl_size = qtnf_cmd_acl_data_size(params);
+	size_t acl_size = struct_size(params, mac_addrs, params->n_acl_entries);
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
