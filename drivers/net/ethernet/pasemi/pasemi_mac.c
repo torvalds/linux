@@ -1355,7 +1355,7 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 	const int nh_off = skb_network_offset(skb);
 	const int nh_len = skb_network_header_len(skb);
 	const int nfrags = skb_shinfo(skb)->nr_frags;
-	int cs_size, i, fill, hdr, cpyhdr, evt;
+	int cs_size, i, fill, hdr, evt;
 	dma_addr_t csdma;
 
 	fund = XCT_FUN_ST | XCT_FUN_RR_8BRES |
@@ -1396,7 +1396,6 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 		fill++;
 
 	/* Copy the result into the TCP packet */
-	cpyhdr = fill;
 	CS_DESC(csring, fill++) = XCT_FUN_O | XCT_FUN_FUN(csring->fun) |
 				  XCT_FUN_LLEN(2) | XCT_FUN_SE;
 	CS_DESC(csring, fill++) = XCT_PTR_LEN(2) | XCT_PTR_ADDR(cs_dest) | XCT_PTR_T;
