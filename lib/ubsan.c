@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/uaccess.h>
 
 #include "ubsan.h"
 
@@ -313,6 +314,7 @@ static void handle_object_size_mismatch(struct type_mismatch_data_common *data,
 static void ubsan_type_mismatch_common(struct type_mismatch_data_common *data,
 				unsigned long ptr)
 {
+	unsigned long flags = user_access_save();
 
 	if (!ptr)
 		handle_null_ptr_deref(data);
@@ -320,6 +322,8 @@ static void ubsan_type_mismatch_common(struct type_mismatch_data_common *data,
 		handle_misaligned_access(data, ptr);
 	else
 		handle_object_size_mismatch(data, ptr);
+
+	user_access_restore(flags);
 }
 
 void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
