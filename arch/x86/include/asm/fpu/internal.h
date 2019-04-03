@@ -508,6 +508,14 @@ static inline void __fpregs_load_activate(struct fpu *fpu, int cpu)
  *  - switch_fpu_finish() restores the new state as
  *    necessary.
  *
+ * If TIF_NEED_FPU_LOAD is cleared then the CPU's FPU registers
+ * are saved in the current thread's FPU register state.
+ *
+ * If TIF_NEED_FPU_LOAD is set then CPU's FPU registers may not
+ * hold current()'s FPU registers. It is required to load the
+ * registers before returning to userland or using the content
+ * otherwise.
+ *
  * The FPU context is only stored/restored for a user task and
  * ->mm is used to distinguish between kernel and user threads.
  */
