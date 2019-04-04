@@ -134,7 +134,7 @@ static const u8 tach_reg[] = {
 	MAX6650_REG_TACH3,
 };
 
-static const struct of_device_id max6650_dt_match[] = {
+static const struct of_device_id __maybe_unused max6650_dt_match[] = {
 	{
 		.compatible = "maxim,max6650",
 		.data = (void *)1
