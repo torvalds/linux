@@ -115,6 +115,29 @@ static const struct file_operations fops_lockevent = {
 	.llseek = default_llseek,
 };
 
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+#include <asm/paravirt.h>
+
+static bool __init skip_lockevent(const char *name)
+{
+	static int pv_on __initdata = -1;
+
+	if (pv_on < 0)
+		pv_on = !pv_is_native_spin_unlock();
+	/*
+	 * Skip PV qspinlock events on bare metal.
+	 */
+	if (!pv_on && !memcmp(name, "pv_", 3))
+		return true;
+	return false;
+}
+#else
+static inline bool skip_lockevent(const char *name)
+{
+	return false;
+}
+#endif
+
 /*
  * Initialize debugfs for the locking event counts.
  */
@@ -133,10 +156,13 @@ static int __init init_lockevent_counts(void)
 	 * root is allowed to do the read/write to limit impact to system
 	 * performance.
 	 */
-	for (i = 0; i < lockevent_num; i++)
+	for (i = 0; i < lockevent_num; i++) {
+		if (skip_lockevent(lockevent_names[i]))
+			continue;
 		if (!debugfs_create_file(lockevent_names[i], 0400, d_counts,
 					 (void *)(long)i, &fops_lockevent))
 			goto fail_undo;
+	}
 
 	if (!debugfs_create_file(lockevent_names[LOCKEVENT_reset_cnts], 0200,
 				 d_counts, (void *)(long)LOCKEVENT_reset_cnts,
