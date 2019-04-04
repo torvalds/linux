@@ -750,14 +750,20 @@ static void ppgtt_free_spt(struct intel_vgpu_ppgtt_spt *spt)
 
 static void ppgtt_free_all_spt(struct intel_vgpu *vgpu)
 {
-	struct intel_vgpu_ppgtt_spt *spt;
+	struct intel_vgpu_ppgtt_spt *spt, *spn;
 	struct radix_tree_iter iter;
-	void **slot;
+	LIST_HEAD(all_spt);
+	void __rcu **slot;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &vgpu->gtt.spt_tree, &iter, 0) {
 		spt = radix_tree_deref_slot(slot);
-		ppgtt_free_spt(spt);
+		list_move(&spt->post_shadow_list, &all_spt);
 	}
+	rcu_read_unlock();
+
+	list_for_each_entry_safe(spt, spn, &all_spt, post_shadow_list)
+		ppgtt_free_spt(spt);
 }
 
 static int ppgtt_handle_guest_write_page_table_bytes(
