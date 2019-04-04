@@ -4360,15 +4360,16 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) < 11)
+	if (INTEL_GEN(dev_priv) >= 11)
+		total_data_rate =
+			icl_get_total_relative_data_rate(cstate,
+							 plane_data_rate);
+	else
 		total_data_rate =
 			skl_get_total_relative_data_rate(cstate,
 							 plane_data_rate,
 							 uv_plane_data_rate);
-	else
-		total_data_rate =
-			icl_get_total_relative_data_rate(cstate,
-							 plane_data_rate);
+
 
 	skl_ddb_get_pipe_allocation_limits(dev_priv, cstate, total_data_rate,
 					   ddb, alloc, &num_active);
