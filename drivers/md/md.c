@@ -88,8 +88,7 @@ static struct kobj_type md_ktype;
 
 struct md_cluster_operations *md_cluster_ops;
 EXPORT_SYMBOL(md_cluster_ops);
-struct module *md_cluster_mod;
-EXPORT_SYMBOL(md_cluster_mod);
+static struct module *md_cluster_mod;
 
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 static struct workqueue_struct *md_wq;
