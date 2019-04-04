@@ -121,6 +121,16 @@ config SHIFT_FS
 	  unprivileged containers can use this to mount root volumes
 	  using this technique.
 
+config SHIFT_FS_POSIX_ACL
+	bool "shiftfs POSIX Access Control Lists"
+	depends on SHIFT_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  If you don't know what Access Control Lists are, say N.
+
 menu "Caches"
 
 source "fs/fscache/Kconfig"
