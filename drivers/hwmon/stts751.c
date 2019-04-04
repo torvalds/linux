@@ -85,7 +85,7 @@ static const struct i2c_device_id stts751_id[] = {
 	{ }
 };
 
-static const struct of_device_id stts751_of_match[] = {
+static const struct of_device_id __maybe_unused stts751_of_match[] = {
 	{ .compatible = "stts751" },
 	{ },
 };
