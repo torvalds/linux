@@ -525,7 +525,7 @@ static int ish_query_loader_prop(struct ishtp_cl_data *client_data,
 	if ((fw_info->ldr_capability.xfer_mode & LOADER_XFER_MODE_DIRECT_DMA) &&
 	    (fw_info->ldr_capability.max_dma_buf_size % L1_CACHE_BYTES)) {
 		dev_err(cl_data_to_dev(client_data),
-			"Shim firmware loader buffer size %d should be multipe of cacheline\n",
+			"Shim firmware loader buffer size %d should be multiple of cacheline\n",
 			fw_info->ldr_capability.max_dma_buf_size);
 		return -EINVAL;
 	}
