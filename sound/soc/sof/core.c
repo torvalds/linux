@@ -82,7 +82,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
 }
 
 struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
-					    char *name)
+					    const char *name)
 {
 	struct snd_sof_widget *swidget;
 
@@ -96,7 +96,7 @@ struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
 
 /* find widget by stream name and direction */
 struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
-						  char *pcm_name, int dir)
+						  const char *pcm_name, int dir)
 {
 	struct snd_sof_widget *swidget;
 	enum snd_soc_dapm_type type;
@@ -115,7 +115,7 @@ struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
 }
 
 struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
-				     char *name)
+				     const char *name)
 {
 	struct snd_sof_dai *dai;
 

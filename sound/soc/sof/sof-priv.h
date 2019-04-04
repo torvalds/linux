@@ -460,11 +460,12 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		       void *msg_data, size_t msg_bytes, void *reply_data,
 		       size_t reply_bytes);
 struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
-					    char *name);
+					    const char *name);
 struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
-						  char *pcm_name, int dir);
+						  const char *pcm_name,
+						  int dir);
 struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
-				     char *name);
+				     const char *name);
 
 static inline
 struct snd_sof_pcm *snd_sof_find_spcm_dai(struct snd_sof_dev *sdev,
