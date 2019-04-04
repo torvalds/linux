@@ -27,26 +27,39 @@ static int hclgevf_ring_space(struct hclgevf_cmq_ring *ring)
 	return ring->desc_num - used - 1;
 }
 
+static int hclgevf_is_valid_csq_clean_head(struct hclgevf_cmq_ring *ring,
+					   int head)
+{
+	int ntu = ring->next_to_use;
+	int ntc = ring->next_to_clean;
+
+	if (ntu > ntc)
+		return head >= ntc && head <= ntu;
+
+	return head >= ntc || head <= ntu;
+}
+
 static int hclgevf_cmd_csq_clean(struct hclgevf_hw *hw)
 {
+	struct hclgevf_dev *hdev = container_of(hw, struct hclgevf_dev, hw);
 	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
-	u16 ntc = csq->next_to_clean;
-	struct hclgevf_desc *desc;
 	int clean = 0;
 	u32 head;
 
-	desc = &csq->desc[ntc];
 	head = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG);
-	while (head != ntc) {
-		memset(desc, 0, sizeof(*desc));
-		ntc++;
-		if (ntc == csq->desc_num)
-			ntc = 0;
-		desc = &csq->desc[ntc];
-		clean++;
-	}
-	csq->next_to_clean = ntc;
+	rmb(); /* Make sure head is ready before touch any data */
 
+	if (!hclgevf_is_valid_csq_clean_head(csq, head)) {
+		dev_warn(&hdev->pdev->dev, "wrong cmd head (%d, %d-%d)\n", head,
+			 csq->next_to_use, csq->next_to_clean);
+		dev_warn(&hdev->pdev->dev,
+			 "Disabling any further commands to IMP firmware\n");
+		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+		return -EIO;
+	}
+
+	clean = (head - csq->next_to_clean + csq->desc_num) % csq->desc_num;
+	csq->next_to_clean = head;
 	return clean;
 }
 
