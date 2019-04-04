@@ -159,7 +159,8 @@ are no users left of the device.
 
 The :c:type:`struct gendisk` structure stores information about a disk. As
 stated above, such a structure is obtained from the :c:func:`alloc_disk` call
-and must be completed before it is sent to the :c:func:`add_disk` function.
+and its fields must be filled before it is sent to the :c:func:`add_disk`
+function.
 
 The :c:type:`struct gendisk` structure has the following important fields:
 
@@ -713,7 +714,7 @@ The :c:member:`bi_opf` field specifies the type of operation. Use the
    bio_add_page(bio, page, size, offset);
    //...
 
-In the code snippet above are specified the block device to which are sent the
+In the code snippet above we specified the block device to which we sent the
 following: :c:type:`struct bio` structure, startup sector, operation
 (:c:data:`REQ_OP_READ` or :c:data:`REQ_OP_WRITE`) and content. The content of a
 :c:type:`struct bio` structure is a buffer described by: a physical page,
@@ -776,9 +777,9 @@ segments, and will also update global information stored in an iterator
 internal information (segment vector index, number of bytes left to be
 processed, etc.) .
 
-It can store information in the mapped buffer, or extract information.
+You can store information in the mapped buffer, or extract information.
 
-In the case request queues are used and it is needed to process the requests
+In case request queues are used and you needed to process the requests
 at :c:type:`struct bio` level, use the :c:macro:`rq_for_each_segment`
 macrodefinition instead of the :c:macro:`bio_for_each_segment` macrodefinition.
 This macrodefinition iterates through each segment of each
@@ -922,7 +923,7 @@ Follow the comments marked with **TODO 2**. Use the
 
 .. hint:: Review the `Register a disk`_ and `Process a request`_ sections.
 
-Complete the :c:func:`my_block_request` function to process the request queue
+Fill in the :c:func:`my_block_request` function which processes the request queue
 without actually processing your request: display the "request received" message
 and the following information: start sector, total size, data size from the
 current :c:type:`struct bio` structure, direction. To validate a request type,
@@ -1140,14 +1141,14 @@ the pages of each :c:type:`struct bio` structure and access its associated
 buffers. For the actual transfer, call the :c:func:`my_block_transfer` function
 implemented in the previous exercise.
 
-For testing, use the :file:`ram-disk-test.c` test file. You compile it using on
-the host, the command:
+For testing, use the :file:`ram-disk-test.c` test file. Compile it on
+the host, using the command:
 
 .. code-block:: shell
 
     make -f Makefile.test
 
-and then run it using the QEMU virtual machine command:
+and then run it in the QEMU virtual machine using the following command:
 
 .. code-block:: shell
 
