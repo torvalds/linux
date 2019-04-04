@@ -30,6 +30,8 @@
 #include <sound/soc-topology.h>
 #include <sound/tlv.h>
 
+#define SOC_TPLG_MAGIC_BIG_ENDIAN            0x436F5341 /* ASoC in reverse */
+
 /*
  * We make several passes over the data (since it wont necessarily be ordered)
  * and process objects in the following order. This guarantees the component
@@ -2502,7 +2504,7 @@ static int soc_valid_header(struct soc_tplg *tplg,
 	}
 
 	/* big endian firmware objects not supported atm */
-	if (hdr->magic == cpu_to_be32(SND_SOC_TPLG_MAGIC)) {
+	if (hdr->magic == SOC_TPLG_MAGIC_BIG_ENDIAN) {
 		dev_err(tplg->dev,
 			"ASoC: pass %d big endian not supported header got %x at offset 0x%lx size 0x%zx.\n",
 			tplg->pass, hdr->magic,
