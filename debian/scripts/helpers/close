@@ -1,5 +1,5 @@
 #!/bin/bash -eu
-export LC_ALL=C
+export LC_ALL=C.UTF-8
 
 usage() {
 	cat << EOF
@@ -174,11 +174,3 @@ package=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SSource)
 prefix="Ubuntu$(echo "$package" | sed -r -e 's/linux(-?)/\1/')-"
 version=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SVersion)
 run git commit -sam "UBUNTU: $prefix$version"
-
-# This should only show the tag. If it starts tagging, we might revisit
-# where it is called, or not fail if it points to the same thing, and
-# warns/errors out if the tag exists, but do not point to the same
-# thing.
-alt_version="${version//\~/_}"
-head=$(git rev-parse HEAD)
-echo "git tag -sm '$prefix$version' '$prefix$alt_version' $head"
