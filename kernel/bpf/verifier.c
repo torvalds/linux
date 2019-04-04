@@ -2248,16 +2248,28 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 		if (meta && meta->raw_mode)
 			meta = NULL;
 
+		if (reg->smax_value >= BPF_MAX_VAR_OFF ||
+		    reg->smax_value <= -BPF_MAX_VAR_OFF) {
+			verbose(env, "R%d unbounded indirect variable offset stack access\n",
+				regno);
+			return -EACCES;
+		}
 		min_off = reg->smin_value + reg->off;
-		max_off = reg->umax_value + reg->off;
+		max_off = reg->smax_value + reg->off;
 		err = __check_stack_boundary(env, regno, min_off, access_size,
 					     zero_size_allowed);
-		if (err)
+		if (err) {
+			verbose(env, "R%d min value is outside of stack bound\n",
+				regno);
 			return err;
+		}
 		err = __check_stack_boundary(env, regno, max_off, access_size,
 					     zero_size_allowed);
-		if (err)
+		if (err) {
+			verbose(env, "R%d max value is outside of stack bound\n",
+				regno);
 			return err;
+		}
 	}
 
 	if (meta && meta->raw_mode) {
