@@ -1328,10 +1328,11 @@ int nicvf_stop(struct net_device *netdev)
 	struct nicvf_cq_poll *cq_poll = NULL;
 	union nic_mbx mbx = {};
 
-	cancel_delayed_work_sync(&nic->link_change_work);
-
 	/* wait till all queued set_rx_mode tasks completes */
-	drain_workqueue(nic->nicvf_rx_mode_wq);
+	if (nic->nicvf_rx_mode_wq) {
+		cancel_delayed_work_sync(&nic->link_change_work);
+		drain_workqueue(nic->nicvf_rx_mode_wq);
+	}
 
 	mbx.msg.msg = NIC_MBOX_MSG_SHUTDOWN;
 	nicvf_send_msg_to_pf(nic, &mbx);
@@ -1452,7 +1453,8 @@ int nicvf_open(struct net_device *netdev)
 	struct nicvf_cq_poll *cq_poll = NULL;
 
 	/* wait till all queued set_rx_mode tasks completes if any */
-	drain_workqueue(nic->nicvf_rx_mode_wq);
+	if (nic->nicvf_rx_mode_wq)
+		drain_workqueue(nic->nicvf_rx_mode_wq);
 
 	netif_carrier_off(netdev);
 
@@ -1550,10 +1552,12 @@ int nicvf_open(struct net_device *netdev)
 	/* Send VF config done msg to PF */
 	nicvf_send_cfg_done(nic);
 
-	INIT_DELAYED_WORK(&nic->link_change_work,
-			  nicvf_link_status_check_task);
-	queue_delayed_work(nic->nicvf_rx_mode_wq,
-			   &nic->link_change_work, 0);
+	if (nic->nicvf_rx_mode_wq) {
+		INIT_DELAYED_WORK(&nic->link_change_work,
+				  nicvf_link_status_check_task);
+		queue_delayed_work(nic->nicvf_rx_mode_wq,
+				   &nic->link_change_work, 0);
+	}
 
 	return 0;
 cleanup:
