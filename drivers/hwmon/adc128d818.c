@@ -521,7 +521,7 @@ static const struct i2c_device_id adc128_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adc128_id);
 
-static const struct of_device_id adc128_of_match[] = {
+static const struct of_device_id __maybe_unused adc128_of_match[] = {
 	{ .compatible = "ti,adc128d818" },
 	{ },
 };
