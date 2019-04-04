@@ -869,7 +869,7 @@ static void opa_vnic_event(struct ib_event_handler *handler,
 	      record->event, dev_name(&record->device->dev),
 	      record->element.port_num);
 
-	if (record->event != IB_EVENT_PORT_ERR ||
+	if (record->event != IB_EVENT_PORT_ERR &&
 	    record->event != IB_EVENT_PORT_ACTIVE)
 		return;
 
