@@ -590,6 +590,7 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 		tx_bi = &xdp_ring->tx_buffer_info[xdp_ring->next_to_use];
 		tx_bi->bytecount = len;
 		tx_bi->xdpf = NULL;
+		tx_bi->gso_segs = 1;
 
 		tx_desc = IXGBE_TX_DESC(xdp_ring, xdp_ring->next_to_use);
 		tx_desc->read.buffer_addr = cpu_to_le64(dma);
