@@ -43,8 +43,8 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
 	struct psample_group *psample_group;
+	u32 psample_group_num, rate;
 	struct tc_sample *parm;
-	u32 psample_group_num;
 	struct tcf_sample *s;
 	bool exists = false;
 	int ret, err;
@@ -80,6 +80,12 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		return -EEXIST;
 	}
 
+	rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
+	if (!rate) {
+		NL_SET_ERR_MSG(extack, "invalid sample rate");
+		tcf_idr_release(*a, bind);
+		return -EINVAL;
+	}
 	psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
 	psample_group = psample_group_get(net, psample_group_num);
 	if (!psample_group) {
@@ -91,7 +97,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	spin_lock_bh(&s->tcf_lock);
 	s->tcf_action = parm->action;
-	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
+	s->rate = rate;
 	s->psample_group_num = psample_group_num;
 	RCU_INIT_POINTER(s->psample_group, psample_group);
 
