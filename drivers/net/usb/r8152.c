@@ -1220,39 +1220,51 @@ amacout:
 	return ret;
 }
 
+static int determine_ethernet_addr(struct r8152 *tp, struct sockaddr *sa)
+{
+	struct net_device *dev = tp->netdev;
+	int ret;
+
+	if (tp->version == RTL_VER_01) {
+		ret = pla_ocp_read(tp, PLA_IDR, 8, sa->sa_data);
+	} else {
+		/* if device doesn't support MAC pass through this will
+		 * be expected to be non-zero
+		 */
+		ret = vendor_mac_passthru_addr_read(tp, sa);
+		if (ret < 0)
+			ret = pla_ocp_read(tp, PLA_BACKUP, 8, sa->sa_data);
+	}
+
+	if (ret < 0) {
+		netif_err(tp, probe, dev, "Get ether addr fail\n");
+	} else if (!is_valid_ether_addr(sa->sa_data)) {
+		netif_err(tp, probe, dev, "Invalid ether addr %pM\n",
+			  sa->sa_data);
+		eth_hw_addr_random(dev);
+		ether_addr_copy(sa->sa_data, dev->dev_addr);
+		netif_info(tp, probe, dev, "Random ether addr %pM\n",
+			   sa->sa_data);
+		return 0;
+	}
+
+	return ret;
+}
+
 static int set_ethernet_addr(struct r8152 *tp)
 {
 	struct net_device *dev = tp->netdev;
 	struct sockaddr sa;
 	int ret;
 
-	if (tp->version == RTL_VER_01) {
-		ret = pla_ocp_read(tp, PLA_IDR, 8, sa.sa_data);
-	} else {
-		/* if device doesn't support MAC pass through this will
-		 * be expected to be non-zero
-		 */
-		ret = vendor_mac_passthru_addr_read(tp, &sa);
-		if (ret < 0)
-			ret = pla_ocp_read(tp, PLA_BACKUP, 8, sa.sa_data);
-	}
+	ret = determine_ethernet_addr(tp, &sa);
+	if (ret < 0)
+		return ret;
 
-	if (ret < 0) {
-		netif_err(tp, probe, dev, "Get ether addr fail\n");
-	} else if (!is_valid_ether_addr(sa.sa_data)) {
-		netif_err(tp, probe, dev, "Invalid ether addr %pM\n",
-			  sa.sa_data);
-		eth_hw_addr_random(dev);
-		ether_addr_copy(sa.sa_data, dev->dev_addr);
+	if (tp->version == RTL_VER_01)
+		ether_addr_copy(dev->dev_addr, sa.sa_data);
+	else
 		ret = rtl8152_set_mac_address(dev, &sa);
-		netif_info(tp, probe, dev, "Random ether addr %pM\n",
-			   sa.sa_data);
-	} else {
-		if (tp->version == RTL_VER_01)
-			ether_addr_copy(dev->dev_addr, sa.sa_data);
-		else
-			ret = rtl8152_set_mac_address(dev, &sa);
-	}
 
 	return ret;
 }
@@ -4263,9 +4275,17 @@ static int rtl8152_post_reset(struct usb_interface *intf)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
 	struct net_device *netdev;
+	struct sockaddr sa;
 
 	if (!tp)
 		return 0;
+
+	/* reset the MAC adddress in case of policy change */
+	if (determine_ethernet_addr(tp, &sa) >= 0) {
+		rtnl_lock();
+		dev_set_mac_address (tp->netdev, &sa, NULL);
+		rtnl_unlock();
+	}
 
 	netdev = tp->netdev;
 	if (!netif_running(netdev))
