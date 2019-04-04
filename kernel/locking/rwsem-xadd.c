@@ -176,9 +176,8 @@ static void __rwsem_mark_wake(struct rw_semaphore *sem,
 			goto try_reader_grant;
 		}
 		/*
-		 * It is not really necessary to set it to reader-owned here,
-		 * but it gives the spinners an early indication that the
-		 * readers now have the lock.
+		 * Set it to reader-owned to give spinners an early
+		 * indication that readers now have the lock.
 		 */
 		__rwsem_set_reader_owned(sem, waiter->task);
 	}
@@ -441,6 +440,7 @@ __rwsem_down_read_failed_common(struct rw_semaphore *sem, int state)
 		 */
 		if (atomic_long_read(&sem->count) >= 0) {
 			raw_spin_unlock_irq(&sem->wait_lock);
+			rwsem_set_reader_owned(sem);
 			return sem;
 		}
 		adjustment += RWSEM_WAITING_BIAS;
