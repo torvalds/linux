@@ -285,14 +285,14 @@ MODULE_PARM_DESC(qla2xuseresexchforels,
 		 "Reserve 1/2 of emergency exchanges for ELS.\n"
 		 " 0 (default): disabled");
 
-int ql2xprotmask;
+static int ql2xprotmask;
 module_param(ql2xprotmask, int, 0644);
 MODULE_PARM_DESC(ql2xprotmask,
 		 "Override DIF/DIX protection capabilities mask\n"
 		 "Default is 0 which sets protection mask based on "
 		 "capabilities reported by HBA firmware.\n");
 
-int ql2xprotguard;
+static int ql2xprotguard;
 module_param(ql2xprotguard, int, 0644);
 MODULE_PARM_DESC(ql2xprotguard, "Override choice of DIX checksum\n"
 		 "  0 -- Let HBA firmware decide\n"
