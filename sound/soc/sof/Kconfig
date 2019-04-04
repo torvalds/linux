@@ -1,10 +1,10 @@
 config SND_SOC_SOF_TOPLEVEL
 	bool "Sound Open Firmware Support"
 	help
-          This adds support for Sound Open Firmware (SOF). SOF is a free and
+	  This adds support for Sound Open Firmware (SOF). SOF is a free and
 	  generic open source audio DSP firmware for multiple devices.
-          Say Y if you have such a device that is supported by SOF.
-          If unsure select "N".
+	  Say Y if you have such a device that is supported by SOF.
+	  If unsure select "N".
 
 if SND_SOC_SOF_TOPLEVEL
 
@@ -16,10 +16,10 @@ config SND_SOC_SOF_PCI
 	select SND_SOC_SOF_OPTIONS
 	select SND_SOC_SOF_INTEL_PCI if SND_SOC_SOF_INTEL_TOPLEVEL
 	help
-          This adds support for PCI enumeration. This option is
+	  This adds support for PCI enumeration. This option is
 	  required to enable Intel Skylake+ devices
 	  Say Y if you need this option
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_SOF_ACPI
 	tristate "SOF ACPI enumeration support"
@@ -30,10 +30,10 @@ config SND_SOC_SOF_ACPI
 	select SND_SOC_SOF_INTEL_ACPI if SND_SOC_SOF_INTEL_TOPLEVEL
 	select IOSF_MBI if X86
 	help
-          This adds support for ACPI enumeration. This option is required
+	  This adds support for ACPI enumeration. This option is required
 	  to enable Intel Haswell/Broadwell/Baytrail/Cherrytrail devices
 	  Say Y if you need this option
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_SOF_SPI
 	tristate "SOF SPI support"
@@ -51,13 +51,13 @@ config SND_SOC_SOF_SPI
 config SND_SOC_SOF_SPIDSP
 	tristate
 	help
-          This option is not user-selectable but automagically handled by
+	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 config SND_SOC_SOF_OPTIONS
 	tristate
 	help
-          This option is not user-selectable but automagically handled by
+	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
 
 if SND_SOC_SOF_OPTIONS
@@ -65,19 +65,19 @@ if SND_SOC_SOF_OPTIONS
 config SND_SOC_SOF_COMPRESS
 	bool "SOF ALSA Compressed API support"
 	help
-          This adds support for the ALSA compressed API in SOF
+	  This adds support for the ALSA compressed API in SOF
 	  Say Y if you need this option
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_SOF_NOCODEC
 	tristate "SOF nocodec mode Support"
 	help
-          This adds support for a dummy/nocodec machine driver fallback
+	  This adds support for a dummy/nocodec machine driver fallback
 	  option if no known codec is detected. This is typically only
 	  enabled for developers or devices where the sound card is
 	  controlled externally
-          Say Y if you need this nocodec fallback option
-          If unsure select "N".
+	  Say Y if you need this nocodec fallback option
+	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG
 	bool "SOF debugging features"
@@ -85,7 +85,7 @@ config SND_SOC_SOF_DEBUG
 	  This option can be used to enable or disable individual SOF firmware
 	  and driver debugging options.
 	  Say Y if you are debugging SOF FW or drivers.
-          If unsure select "N".
+	  If unsure select "N".
 
 if SND_SOC_SOF_DEBUG
 
@@ -93,13 +93,13 @@ config SND_SOC_SOF_FORCE_NOCODEC_MODE
 	bool "SOF force nocodec Mode"
 	depends on SND_SOC_SOF_NOCODEC
 	help
-          This forces SOF to use dummy/nocodec as machine driver, even
+	  This forces SOF to use dummy/nocodec as machine driver, even
 	  though there is a codec detected on the real platform. This is
 	  typically only enabled for developers for debug purposes, before
 	  codec/machine driver is ready, or to exclude the impact of those
 	  drivers
-          Say Y if you need this force nocodec mode option
-          If unsure select "N".
+	  Say Y if you need this force nocodec mode option
+	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG_XRUN_STOP
 	bool "SOF stop on XRUN"
@@ -107,7 +107,7 @@ config SND_SOC_SOF_DEBUG_XRUN_STOP
 	  This option forces PCMs to stop on any XRUN event. This is useful to
 	  preserve any trace data ond pipeline status prior to the XRUN.
 	  Say Y if you are debugging SOF FW pipeline XRUNs.
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG_VERBOSE_IPC
 	bool "SOF verbose IPC logs"
@@ -115,7 +115,7 @@ config SND_SOC_SOF_DEBUG_VERBOSE_IPC
 	  This option enables more verbose IPC logs, with command types in
 	  human-readable form instead of just 32-bit hex dumps. This is useful
 	  if you are trying to debug IPC with the DSP firmware.
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 	bool "SOF force to use IPC for position update on SKL+"
@@ -127,7 +127,7 @@ config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 	  one choice, this setting won't impact anything.
 	  if you are trying to debug pointer update with position IPCs or where
 	  DPIB/posbuf is not ready, select "Y".
-          If unsure select "N".
+	  If unsure select "N".
 
 config SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE
 	bool "SOF enable debugfs caching"
@@ -148,7 +148,7 @@ config SND_SOC_SOF
 	select SND_SOC_TOPOLOGY
 	select SND_SOC_COMPRESS if SND_SOC_SOF_COMPRESS=y
 	help
-          This option is not user-selectable but automagically handled by
+	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
 	  The selection is made at the top level and does not exactly follow
 	  module dependencies but since the module or built-in type is decided
@@ -157,7 +157,7 @@ config SND_SOC_SOF
 config SND_SOC_SOF_PROBE_WORK_QUEUE
 	bool
 	help
-          This option is not user-selectable but automagically handled by
+	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
 	  When selected, the probe is handled in two steps, for example to
 	  avoid lockdeps if request_module is used in the probe.
