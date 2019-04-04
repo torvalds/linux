@@ -1151,4 +1151,25 @@ static inline void tipc_skb_queue_splice_tail_init(struct sk_buff_head *list,
 	tipc_skb_queue_splice_tail(&tmp, head);
 }
 
+/* __tipc_skb_dequeue() - dequeue the head skb according to expected seqno
+ * @list: list to be dequeued from
+ * @seqno: seqno of the expected msg
+ *
+ * returns skb dequeued from the list if its seqno is less than or equal to
+ * the expected one, otherwise the skb is still hold
+ *
+ * Note: must be used with appropriate locks held only
+ */
+static inline struct sk_buff *__tipc_skb_dequeue(struct sk_buff_head *list,
+						 u16 seqno)
+{
+	struct sk_buff *skb = skb_peek(list);
+
+	if (skb && less_eq(buf_seqno(skb), seqno)) {
+		__skb_unlink(skb, list);
+		return skb;
+	}
+	return NULL;
+}
+
 #endif

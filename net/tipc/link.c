@@ -209,6 +209,7 @@ enum {
 };
 
 #define TIPC_BC_RETR_LIM msecs_to_jiffies(10)   /* [ms] */
+#define TIPC_UC_RETR_TIME (jiffies + msecs_to_jiffies(1))
 
 /*
  * Interval between NACKs when packets arrive out of order
@@ -1305,6 +1306,10 @@ next_gap_ack:
 			kfree_skb(skb);
 		} else if (less_eq(seqno, acked + gap)) {
 			/* retransmit skb */
+			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
+				continue;
+			TIPC_SKB_CB(skb)->nxt_retr = TIPC_UC_RETR_TIME;
+
 			_skb = __pskb_copy(skb, MIN_H_SIZE, GFP_ATOMIC);
 			if (!_skb)
 				continue;
@@ -1380,6 +1385,7 @@ static int tipc_link_build_nack_msg(struct tipc_link *l,
 				    struct sk_buff_head *xmitq)
 {
 	u32 def_cnt = ++l->stats.deferred_recv;
+	u32 defq_len = skb_queue_len(&l->deferdq);
 	int match1, match2;
 
 	if (link_is_bc_rcvlink(l)) {
@@ -1390,7 +1396,7 @@ static int tipc_link_build_nack_msg(struct tipc_link *l,
 		return 0;
 	}
 
-	if ((skb_queue_len(&l->deferdq) == 1) || !(def_cnt % TIPC_NACK_INTV))
+	if (defq_len >= 3 && !((defq_len - 3) % 16))
 		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, 0, xmitq);
 	return 0;
 }
@@ -1404,9 +1410,16 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		  struct sk_buff_head *xmitq)
 {
 	struct sk_buff_head *defq = &l->deferdq;
-	struct tipc_msg *hdr;
+	struct tipc_msg *hdr = buf_msg(skb);
 	u16 seqno, rcv_nxt, win_lim;
 	int rc = 0;
+
+	/* Verify and update link state */
+	if (unlikely(msg_user(hdr) == LINK_PROTOCOL))
+		return tipc_link_proto_rcv(l, skb, xmitq);
+
+	/* Don't send probe at next timeout expiration */
+	l->silent_intv_cnt = 0;
 
 	do {
 		hdr = buf_msg(skb);
@@ -1414,18 +1427,11 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		rcv_nxt = l->rcv_nxt;
 		win_lim = rcv_nxt + TIPC_MAX_LINK_WIN;
 
-		/* Verify and update link state */
-		if (unlikely(msg_user(hdr) == LINK_PROTOCOL))
-			return tipc_link_proto_rcv(l, skb, xmitq);
-
 		if (unlikely(!link_is_up(l))) {
 			if (l->state == LINK_ESTABLISHING)
 				rc = TIPC_LINK_UP_EVT;
 			goto drop;
 		}
-
-		/* Don't send probe at next timeout expiration */
-		l->silent_intv_cnt = 0;
 
 		/* Drop if outside receive window */
 		if (unlikely(less(seqno, rcv_nxt) || more(seqno, win_lim))) {
@@ -1457,7 +1463,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 			rc |= tipc_link_build_state_msg(l, xmitq);
 		if (unlikely(rc & ~TIPC_LINK_SND_STATE))
 			break;
-	} while ((skb = __skb_dequeue(defq)));
+	} while ((skb = __tipc_skb_dequeue(defq, l->rcv_nxt)));
 
 	return rc;
 drop:
