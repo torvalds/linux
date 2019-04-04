@@ -272,7 +272,6 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			link_status = le16_to_cpu(msg_q[1]);
 			memcpy(&speed, &msg_q[2], sizeof(speed));
 			duplex = (u8)le16_to_cpu(msg_q[4]);
-			hdev->hw.mac.media_type = (u8)le16_to_cpu(msg_q[5]);
 
 			/* update upper layer with new link link status */
 			hclgevf_update_link_status(hdev, link_status);

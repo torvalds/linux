@@ -307,6 +307,25 @@ static u16 hclgevf_get_qid_global(struct hnae3_handle *handle, u16 queue_id)
 	return qid_in_pf;
 }
 
+static int hclgevf_get_pf_media_type(struct hclgevf_dev *hdev)
+{
+	u8 resp_msg;
+	int ret;
+
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_MEDIA_TYPE, 0, NULL, 0,
+				   true, &resp_msg, sizeof(resp_msg));
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"VF request to get the pf port media type failed %d",
+			ret);
+		return ret;
+	}
+
+	hdev->hw.mac.media_type = resp_msg;
+
+	return 0;
+}
+
 static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_tqp *tqp;
@@ -1821,6 +1840,10 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 
 	/* get queue depth info from PF */
 	ret = hclgevf_get_queue_depth(hdev);
+	if (ret)
+		return ret;
+
+	ret = hclgevf_get_pf_media_type(hdev);
 	if (ret)
 		return ret;
 
