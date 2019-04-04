@@ -32,9 +32,6 @@
 #define TO_DCN20_HUBBUB(hubbub)\
 	container_of(hubbub, struct dcn20_hubbub, base)
 
-#define TO_DCN20_HUBBUB(hubbub)\
-	container_of(hubbub, struct dcn20_hubbub, base)
-
 #define HUBBUB_REG_LIST_DCN20(id)\
 	HUBBUB_REG_LIST_DCN_COMMON(), \
 	HUBBUB_VM_REG_LIST(), \
