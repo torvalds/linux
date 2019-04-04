@@ -51,6 +51,7 @@
 #define PSR_SET_WAITLOOP 0x31
 #define MCP_INIT_DMCU 0x88
 #define MCP_INIT_IRAM 0x89
+#define MCP_BL_SET_PWM_FRAC 0x6A  /* Enable or disable Fractional PWM */
 #define MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK   0x00000001L
 
 static bool dce_dmcu_init(struct dmcu *dmcu)
@@ -339,9 +340,32 @@ static void dcn10_get_dmcu_version(struct dmcu *dmcu)
 			IRAM_RD_ADDR_AUTO_INC, 0);
 }
 
+static void dcn10_dmcu_enable_fractional_pwm(struct dmcu *dmcu,
+		uint32_t fractional_pwm)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+
+	/* Wait until microcontroller is ready to process interrupt */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
+
+	/* Set PWM fractional enable/disable */
+	REG_WRITE(MASTER_COMM_DATA_REG1, fractional_pwm);
+
+	/* Set command to enable or disable fractional PWM microcontroller */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
+			MCP_BL_SET_PWM_FRAC);
+
+	/* Notify microcontroller of new command */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	/* Ensure command has been executed before continuing */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
+}
+
 static bool dcn10_dmcu_init(struct dmcu *dmcu)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+	const struct dc_config *config = &dmcu->ctx->dc->config;
 	bool status = false;
 
 	/*  Definition of DC_DMCU_SCRATCH
@@ -379,9 +403,14 @@ static bool dcn10_dmcu_init(struct dmcu *dmcu)
 		if (dmcu->dmcu_state == DMCU_RUNNING) {
 			/* Retrieve and cache the DMCU firmware version. */
 			dcn10_get_dmcu_version(dmcu);
+
+			/* Initialize DMCU to use fractional PWM or not */
+			dcn10_dmcu_enable_fractional_pwm(dmcu,
+				(config->disable_fractional_pwm == false) ? 1 : 0);
 			status = true;
-		} else
+		} else {
 			status = false;
+		}
 
 		break;
 	case DMCU_RUNNING:
