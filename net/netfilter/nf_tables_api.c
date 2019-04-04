@@ -3782,8 +3782,8 @@ bind:
 }
 EXPORT_SYMBOL_GPL(nf_tables_bind_set);
 
-void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
-			  struct nft_set_binding *binding, bool event)
+static void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
+				 struct nft_set_binding *binding, bool event)
 {
 	list_del_rcu(&binding->list);
 
@@ -3794,7 +3794,6 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
 					     GFP_KERNEL);
 	}
 }
-EXPORT_SYMBOL_GPL(nf_tables_unbind_set);
 
 void nf_tables_deactivate_set(const struct nft_ctx *ctx, struct nft_set *set,
 			      struct nft_set_binding *binding,
