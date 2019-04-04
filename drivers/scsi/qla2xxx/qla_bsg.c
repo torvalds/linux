@@ -1043,7 +1043,7 @@ qla84xx_updatefw(struct bsg_job *bsg_job)
 	}
 
 	flag = bsg_request->rqst_data.h_vendor.vendor_cmd[1];
-	fw_ver = le32_to_cpu(*((uint32_t *)((uint32_t *)fw_buf + 2)));
+	fw_ver = get_unaligned_le32((uint32_t *)fw_buf + 2);
 
 	mn->entry_type = VERIFY_CHIP_IOCB_TYPE;
 	mn->entry_count = 1;

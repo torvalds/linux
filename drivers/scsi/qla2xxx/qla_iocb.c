@@ -107,7 +107,7 @@ qla2x00_prep_cont_type0_iocb(struct scsi_qla_host *vha)
 	cont_pkt = (cont_entry_t *)req->ring_ptr;
 
 	/* Load packet defaults. */
-	*((uint32_t *)(&cont_pkt->entry_type)) = cpu_to_le32(CONTINUE_TYPE);
+	put_unaligned_le32(CONTINUE_TYPE, &cont_pkt->entry_type);
 
 	return (cont_pkt);
 }
@@ -136,9 +136,8 @@ qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *vha, struct req_que *req)
 	cont_pkt = (cont_a64_entry_t *)req->ring_ptr;
 
 	/* Load packet defaults. */
-	*((uint32_t *)(&cont_pkt->entry_type)) = IS_QLAFX00(vha->hw) ?
-	    cpu_to_le32(CONTINUE_A64_TYPE_FX00) :
-	    cpu_to_le32(CONTINUE_A64_TYPE);
+	put_unaligned_le32(IS_QLAFX00(vha->hw) ? CONTINUE_A64_TYPE_FX00 :
+			   CONTINUE_A64_TYPE, &cont_pkt->entry_type);
 
 	return (cont_pkt);
 }
@@ -202,8 +201,7 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 	cmd = GET_CMD_SP(sp);
 
 	/* Update entry type to indicate Command Type 2 IOCB */
-	*((uint32_t *)(&cmd_pkt->entry_type)) =
-	    cpu_to_le32(COMMAND_TYPE);
+	put_unaligned_le32(COMMAND_TYPE, &cmd_pkt->entry_type);
 
 	/* No data transfer */
 	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
@@ -260,7 +258,7 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 	cmd = GET_CMD_SP(sp);
 
 	/* Update entry type to indicate Command Type 3 IOCB */
-	*((uint32_t *)(&cmd_pkt->entry_type)) = cpu_to_le32(COMMAND_A64_TYPE);
+	put_unaligned_le32(COMMAND_A64_TYPE, &cmd_pkt->entry_type);
 
 	/* No data transfer */
 	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
@@ -596,7 +594,7 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 	cmd = GET_CMD_SP(sp);
 
 	/* Update entry type to indicate Command Type 3 IOCB */
-	*((uint32_t *)(&cmd_pkt->entry_type)) = cpu_to_le32(COMMAND_TYPE_6);
+	put_unaligned_le32(COMMAND_TYPE_6, &cmd_pkt->entry_type);
 
 	/* No data transfer */
 	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
@@ -711,7 +709,7 @@ qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
 	cmd = GET_CMD_SP(sp);
 
 	/* Update entry type to indicate Command Type 3 IOCB */
-	*((uint32_t *)(&cmd_pkt->entry_type)) = cpu_to_le32(COMMAND_TYPE_7);
+	put_unaligned_le32(COMMAND_TYPE_7, &cmd_pkt->entry_type);
 
 	/* No data transfer */
 	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
@@ -1427,7 +1425,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	cmd = GET_CMD_SP(sp);
 
 	/* Update entry type to indicate Command Type CRC_2 IOCB */
-	*((uint32_t *)(&cmd_pkt->entry_type)) = cpu_to_le32(COMMAND_TYPE_CRC_2);
+	put_unaligned_le32(COMMAND_TYPE_CRC_2, &cmd_pkt->entry_type);
 
 	vha = sp->vha;
 	ha = vha->hw;
@@ -3747,8 +3745,7 @@ qla25xx_build_bidir_iocb(srb_t *sp, struct scsi_qla_host *vha,
 	struct bsg_job *bsg_job = sp->u.bsg_job;
 
 	/*Update entry type to indicate bidir command */
-	*((uint32_t *)(&cmd_pkt->entry_type)) =
-		cpu_to_le32(COMMAND_BIDIRECTIONAL);
+	put_unaligned_le32(COMMAND_BIDIRECTIONAL, &cmd_pkt->entry_type);
 
 	/* Set the transfer direction, in this set both flags
 	 * Also set the BD_WRAP_BACK flag, firmware will take care

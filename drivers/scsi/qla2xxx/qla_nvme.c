@@ -449,8 +449,8 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 				req->ring_ptr++;
 			}
 			cont_pkt = (cont_a64_entry_t *)req->ring_ptr;
-			*((uint32_t *)(&cont_pkt->entry_type)) =
-			    cpu_to_le32(CONTINUE_A64_TYPE);
+			put_unaligned_le32(CONTINUE_A64_TYPE,
+					   &cont_pkt->entry_type);
 
 			cur_dsd = (uint32_t *)cont_pkt->dseg_0_address;
 			avail_dsds = 5;
