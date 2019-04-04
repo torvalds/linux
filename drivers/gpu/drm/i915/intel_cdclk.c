@@ -2104,6 +2104,7 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
 
 /**
  * intel_cdclk_needs_cd2x_update - Determine if two CDCLK states require a cd2x divider update
+ * @dev_priv: Not a CDCLK state, it's the drm_i915_private!
  * @a: first CDCLK state
  * @b: second CDCLK state
  *
