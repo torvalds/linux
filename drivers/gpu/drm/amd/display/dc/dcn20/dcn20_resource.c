@@ -271,19 +271,19 @@ static const struct dce_dmcu_shift dmcu_shift = {
 static const struct dce_dmcu_mask dmcu_mask = {
 		DMCU_MASK_SH_LIST_DCN10(_MASK)
 };
-/*
+
 static const struct dce_abm_registers abm_regs = {
-		ABM_DCN10_REG_LIST(0)
+		ABM_DCN20_REG_LIST()
 };
 
 static const struct dce_abm_shift abm_shift = {
-		ABM_MASK_SH_LIST_DCN10(__SHIFT)
+		ABM_MASK_SH_LIST_DCN20(__SHIFT)
 };
 
 static const struct dce_abm_mask abm_mask = {
-		ABM_MASK_SH_LIST_DCN10(_MASK)
+		ABM_MASK_SH_LIST_DCN20(_MASK)
 };
-*/
+
 #define audio_regs(id)\
 [id] = {\
 		AUD_COMMON_REG_LIST(id)\
@@ -2811,7 +2811,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	/*pool->base.abm = dce_abm_create(ctx,
+	pool->base.abm = dce_abm_create(ctx,
 			&abm_regs,
 			&abm_shift,
 			&abm_mask);
@@ -2819,7 +2819,7 @@ static bool construct(
 		dm_error("DC: failed to create abm!\n");
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
-	}*/
+	}
 
 	pool->base.pp_smu = dcn20_pp_smu_create(ctx);
 
