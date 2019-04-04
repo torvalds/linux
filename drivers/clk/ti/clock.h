@@ -83,6 +83,12 @@ enum {
 #define CLKF_HW_SUP			BIT(6)
 #define CLKF_NO_IDLEST			BIT(7)
 
+#define CLKF_SOC_MASK			GENMASK(10, 8)
+
+#define CLKF_SOC_DRA72			BIT(8)
+#define CLKF_SOC_DRA74			BIT(9)
+#define CLKF_SOC_DRA76			BIT(10)
+
 #define CLK(dev, con, ck)		\
 	{				\
 		.lk = {			\

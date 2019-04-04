@@ -348,7 +348,7 @@ static const struct omap_clkctrl_reg_data dra7_l3init_clkctrl_regs[] __initconst
 	{ DRA7_L3INIT_MMC2_CLKCTRL, dra7_mmc2_bit_data, CLKF_SW_SUP, "l3init-clkctrl:0010:25" },
 	{ DRA7_L3INIT_USB_OTG_SS2_CLKCTRL, dra7_usb_otg_ss2_bit_data, CLKF_HW_SUP, "dpll_core_h13x2_ck" },
 	{ DRA7_L3INIT_USB_OTG_SS3_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_core_h13x2_ck" },
-	{ DRA7_L3INIT_USB_OTG_SS4_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_core_h13x2_ck" },
+	{ DRA7_L3INIT_USB_OTG_SS4_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_DRA74 | CLKF_SOC_DRA76, "dpll_core_h13x2_ck" },
 	{ DRA7_L3INIT_SATA_CLKCTRL, dra7_sata_bit_data, CLKF_SW_SUP, "func_48m_fclk" },
 	{ DRA7_L3INIT_OCP2SCP1_CLKCTRL, NULL, CLKF_HW_SUP, "l4_root_clk_div" },
 	{ DRA7_L3INIT_OCP2SCP3_CLKCTRL, NULL, CLKF_HW_SUP, "l4_root_clk_div" },
