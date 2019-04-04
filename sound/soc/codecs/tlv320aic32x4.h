@@ -78,6 +78,8 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 
 #define AIC32X4_PWRCFG		AIC32X4_REG(1, 1)
 #define AIC32X4_LDOCTL		AIC32X4_REG(1, 2)
+#define AIC32X4_LPLAYBACK	AIC32X4_REG(1, 3)
+#define AIC32X4_RPLAYBACK	AIC32X4_REG(1, 4)
 #define AIC32X4_OUTPWRCTL	AIC32X4_REG(1, 9)
 #define AIC32X4_CMMODE		AIC32X4_REG(1, 10)
 #define AIC32X4_HPLROUTE	AIC32X4_REG(1, 12)
