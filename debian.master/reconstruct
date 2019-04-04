@@ -1,6 +1,8 @@
 # Recreate any symlinks created since the orig.
 # Remove any files deleted from the orig.
+rm -f 'include/linux/selinux.h'
 rm -f 'security/integrity/platform_certs/efi_parser.c'
+rm -f 'security/selinux/exports.c'
 chmod +x 'scripts/kmsg-doc'
 chmod +x 'ubuntu/vbox-update'
 chmod +x 'update-version-dkms'
