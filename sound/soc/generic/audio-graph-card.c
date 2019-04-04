@@ -20,6 +20,8 @@
 #include <linux/string.h>
 #include <sound/simple_card_utils.h>
 
+#define DPCM_SELECTABLE 1
+
 #define PREFIX	"audio-graph-card,"
 
 static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
@@ -415,6 +417,7 @@ static int graph_for_each_link(struct asoc_simple_priv *priv,
 	struct device_node *codec_port;
 	struct device_node *codec_port_old = NULL;
 	struct asoc_simple_data adata;
+	uintptr_t dpcm_selectable = (uintptr_t)of_device_get_match_data(dev);
 	int rc, ret;
 
 	/* loop for all listed CPU port */
@@ -445,8 +448,9 @@ static int graph_for_each_link(struct asoc_simple_priv *priv,
 			 * if Codec port has many endpoints,
 			 * or has convert-xxx property
 			 */
-			if ((of_get_child_count(codec_port) > 1) ||
-			    adata.convert_rate || adata.convert_channels)
+			if (dpcm_selectable &&
+			    ((of_get_child_count(codec_port) > 1) ||
+			     adata.convert_rate || adata.convert_channels))
 				ret = func_dpcm(priv, cpu_ep, codec_ep, li,
 						(codec_port_old == codec_port));
 			/* else normal sound */
@@ -679,7 +683,8 @@ static int graph_remove(struct platform_device *pdev)
 
 static const struct of_device_id graph_of_match[] = {
 	{ .compatible = "audio-graph-card", },
-	{ .compatible = "audio-graph-scu-card", },
+	{ .compatible = "audio-graph-scu-card",
+	  .data = (void *)DPCM_SELECTABLE },
 	{},
 };
 MODULE_DEVICE_TABLE(of, graph_of_match);
