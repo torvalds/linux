@@ -648,6 +648,10 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 static int hns3_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
+	/* Chip doesn't support this mode. */
+	if (cmd->base.speed == SPEED_1000 && cmd->base.duplex == DUPLEX_HALF)
+		return -EINVAL;
+
 	/* Only support ksettings_set for netdev with phy attached for now */
 	if (netdev->phydev)
 		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
