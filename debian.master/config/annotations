@@ -454,7 +454,7 @@ CONFIG_CRYPTO_DRBG_HASH                         policy<{'amd64': 'y', 'arm64': '
 CONFIG_CRYPTO_DRBG_CTR                          policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 
 # Menu: Device Drivers
-CONFIG_RANDOM_TRUST_CPU                         policy<{'amd64': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
+CONFIG_RANDOM_TRUST_CPU                         policy<{'amd64': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_CHARLCD                                  policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_THUNDERBOLT                              policy<{'amd64': 'm', 'i386': 'm'}>
 CONFIG_TEE                                      policy<{'arm64': 'm', 'armhf': 'm'}>
