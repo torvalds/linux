@@ -53,6 +53,7 @@
 #include "en/port.h"
 #include "en/tc_tun.h"
 #include "lib/devcom.h"
+#include "lib/geneve.h"
 
 struct mlx5_nic_flow_attr {
 	u32 action;
@@ -1063,6 +1064,19 @@ err_max_prio_chain:
 	return err;
 }
 
+static bool mlx5_flow_has_geneve_opt(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_flow_spec *spec = &flow->esw_attr->parse_attr->spec;
+	void *headers_v = MLX5_ADDR_OF(fte_match_param,
+				       spec->match_value,
+				       misc_parameters_3);
+	u32 geneve_tlv_opt_0_data = MLX5_GET(fte_match_set_misc3,
+					     headers_v,
+					     geneve_tlv_option_0_data);
+
+	return !!geneve_tlv_opt_0_data;
+}
+
 static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
 {
@@ -1083,6 +1097,9 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		else
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, attr);
 	}
+
+	if (mlx5_flow_has_geneve_opt(flow))
+		mlx5_geneve_tlv_option_del(priv->mdev->geneve);
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
@@ -1494,7 +1511,8 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_TCP) |
 	      BIT(FLOW_DISSECTOR_KEY_IP)  |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IP))) {
+	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS))) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported key");
 		netdev_warn(priv->netdev, "Unsupported key used: 0x%x\n",
 			    dissector->used_keys);
@@ -1504,7 +1522,8 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
 	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) ||
 	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_OPTS)) {
 		if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 			return -EOPNOTSUPP;
 

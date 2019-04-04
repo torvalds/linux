@@ -32,7 +32,8 @@ mlx5_core-$(CONFIG_MLX5_EN_ARFS)     += en_arfs.o
 mlx5_core-$(CONFIG_MLX5_EN_RXNFC)    += en_fs_ethtool.o
 mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) += en_dcbnl.o en/port_buffer.o
 mlx5_core-$(CONFIG_MLX5_ESWITCH)     += en_rep.o en_tc.o en/tc_tun.o lib/port_tun.o lag_mp.o \
-					lib/geneve.o en/tc_tun_vxlan.o en/tc_tun_gre.o
+					lib/geneve.o en/tc_tun_vxlan.o en/tc_tun_gre.o \
+					en/tc_tun_geneve.o
 
 #
 # Core extra

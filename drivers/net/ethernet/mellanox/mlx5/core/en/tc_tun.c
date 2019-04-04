@@ -3,12 +3,15 @@
 
 #include <net/vxlan.h>
 #include <net/gre.h>
+#include <net/geneve.h>
 #include "en/tc_tun.h"
 
 struct mlx5e_tc_tunnel *mlx5e_get_tc_tun(struct net_device *tunnel_dev)
 {
 	if (netif_is_vxlan(tunnel_dev))
 		return &vxlan_tunnel;
+	else if (netif_is_geneve(tunnel_dev))
+		return &geneve_tunnel;
 	else if (netif_is_gretap(tunnel_dev) ||
 		 netif_is_ip6gretap(tunnel_dev))
 		return &gre_tunnel;
