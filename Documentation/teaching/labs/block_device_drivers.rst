@@ -1014,12 +1014,8 @@ The purpose of this exercise is to read data from the
 .. attention:: Before solving the exercise, we need to add the disk to the
                virtual machine. To do this, generate a file that we will use as
                the disk image using the command:
-
-               .. code-block:: shell
-
-               dd if=/dev/zero of=qemu/mydisk.img bs=1024 count=1
-
-               and add the command:
+               :command:`dd if=/dev/zero of=qemu/mydisk.img bs=1024 count=1`
+               and add the following option:
                :command:`-drive file = qemu/mydisk.img, if=virtio, format=raw 
                qemu`
                in the :file:`qemu/Makefile` file (in the
