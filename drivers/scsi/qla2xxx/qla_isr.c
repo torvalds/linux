@@ -1972,6 +1972,52 @@ static void qla_ctrlvp_completed(scsi_qla_host_t *vha, struct req_que *req,
 	sp->done(sp, rval);
 }
 
+/* Process a single response queue entry. */
+static void qla2x00_process_response_entry(struct scsi_qla_host *vha,
+					   struct rsp_que *rsp,
+					   sts_entry_t *pkt)
+{
+	sts21_entry_t *sts21_entry;
+	sts22_entry_t *sts22_entry;
+	uint16_t handle_cnt;
+	uint16_t cnt;
+
+	switch (pkt->entry_type) {
+	case STATUS_TYPE:
+		qla2x00_status_entry(vha, rsp, pkt);
+		break;
+	case STATUS_TYPE_21:
+		sts21_entry = (sts21_entry_t *)pkt;
+		handle_cnt = sts21_entry->handle_count;
+		for (cnt = 0; cnt < handle_cnt; cnt++)
+			qla2x00_process_completed_request(vha, rsp->req,
+						sts21_entry->handle[cnt]);
+		break;
+	case STATUS_TYPE_22:
+		sts22_entry = (sts22_entry_t *)pkt;
+		handle_cnt = sts22_entry->handle_count;
+		for (cnt = 0; cnt < handle_cnt; cnt++)
+			qla2x00_process_completed_request(vha, rsp->req,
+						sts22_entry->handle[cnt]);
+		break;
+	case STATUS_CONT_TYPE:
+		qla2x00_status_cont_entry(rsp, (sts_cont_entry_t *)pkt);
+		break;
+	case MBX_IOCB_TYPE:
+		qla2x00_mbx_iocb_entry(vha, rsp->req, (struct mbx_entry *)pkt);
+		break;
+	case CT_IOCB_TYPE:
+		qla2x00_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);
+		break;
+	default:
+		/* Type Not Supported. */
+		ql_log(ql_log_warn, vha, 0x504a,
+		       "Received unknown response pkt type %x entry status=%x.\n",
+		       pkt->entry_type, pkt->entry_status);
+		break;
+	}
+}
+
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
  * @rsp: response queue
@@ -1983,8 +2029,6 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 	struct qla_hw_data *ha = rsp->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	sts_entry_t	*pkt;
-	uint16_t        handle_cnt;
-	uint16_t        cnt;
 
 	vha = pci_get_drvdata(ha->pdev);
 
@@ -2009,42 +2053,7 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 			continue;
 		}
 
-		switch (pkt->entry_type) {
-		case STATUS_TYPE:
-			qla2x00_status_entry(vha, rsp, pkt);
-			break;
-		case STATUS_TYPE_21:
-			handle_cnt = ((sts21_entry_t *)pkt)->handle_count;
-			for (cnt = 0; cnt < handle_cnt; cnt++) {
-				qla2x00_process_completed_request(vha, rsp->req,
-				    ((sts21_entry_t *)pkt)->handle[cnt]);
-			}
-			break;
-		case STATUS_TYPE_22:
-			handle_cnt = ((sts22_entry_t *)pkt)->handle_count;
-			for (cnt = 0; cnt < handle_cnt; cnt++) {
-				qla2x00_process_completed_request(vha, rsp->req,
-				    ((sts22_entry_t *)pkt)->handle[cnt]);
-			}
-			break;
-		case STATUS_CONT_TYPE:
-			qla2x00_status_cont_entry(rsp, (sts_cont_entry_t *)pkt);
-			break;
-		case MBX_IOCB_TYPE:
-			qla2x00_mbx_iocb_entry(vha, rsp->req,
-			    (struct mbx_entry *)pkt);
-			break;
-		case CT_IOCB_TYPE:
-			qla2x00_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);
-			break;
-		default:
-			/* Type Not Supported. */
-			ql_log(ql_log_warn, vha, 0x504a,
-			    "Received unknown response pkt type %x "
-			    "entry status=%x.\n",
-			    pkt->entry_type, pkt->entry_status);
-			break;
-		}
+		qla2x00_process_response_entry(vha, rsp, pkt);
 		((response_t *)pkt)->signature = RESPONSE_PROCESSED;
 		wmb();
 	}
