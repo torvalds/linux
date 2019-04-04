@@ -2512,7 +2512,7 @@ CONFIG_I2C_ALI15X3                              policy<{'amd64': 'm', 'arm64': '
 CONFIG_I2C_AMD756                               policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
 CONFIG_I2C_AMD756_S4882                         policy<{'amd64': 'm', 'i386': 'm'}>
 CONFIG_I2C_AMD8111                              policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
-CONFIG_I2C_AMD_MP2                              policy<{'amd64': 'y', 'arm64': 'n', 'i386': 'y'}>
+CONFIG_I2C_AMD_MP2                              policy<{'amd64': 'm', 'arm64': 'n', 'i386': 'n'}>
 CONFIG_I2C_HIX5HD2                              policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_I2C_I801                                 policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
 CONFIG_I2C_ISCH                                 policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
@@ -2557,9 +2557,8 @@ CONFIG_I2C_OWL                                  policy<{'arm64': 'm', 'armhf': '
 CONFIG_I2C_PCA_PLATFORM                         policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
 CONFIG_I2C_PXA                                  policy<{'armhf': 'm'}>
 CONFIG_I2C_PXA_SLAVE                            policy<{'armhf': 'y'}>
-CONFIG_I2C_QCOM_CCI                             policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_I2C_QCOM_GENI                            policy<{'arm64': 'm', 'armhf': 'm'}>
-CONFIG_I2C_QUP                                  policy<{'arm64-generic': 'm', 'armhf': 'm'}>
+CONFIG_I2C_QUP                                  policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_I2C_RIIC                                 policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_I2C_RK3X                                 policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_I2C_S3C2410                              policy<{'armhf': 'y'}>
@@ -9257,6 +9256,8 @@ CONFIG_AUTOFS4_FS                               policy<{'amd64': 'm', 'arm64': '
 CONFIG_AUTOFS_FS                                policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'y'}>
 CONFIG_FUSE_FS                                  policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_CUSE                                     policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
+CONFIG_SHIFT_FS                                 policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
+CONFIG_SHIFT_FS_POSIX_ACL                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 #
 CONFIG_EXT2_FS                                  note<ext4 handling via EXT4_USE_FOR_EXT23>
 CONFIG_EXT3_FS                                  note<ext4 handling via EXT4_USE_FOR_EXT23>
