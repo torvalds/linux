@@ -1,6 +1,8 @@
+#include <linux/btrfs.h>
 #include <linux/capability.h>
 #include <linux/cred.h>
 #include <linux/mount.h>
+#include <linux/fdtable.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
@@ -41,7 +43,21 @@ static void shiftfs_fill_inode(struct inode *inode, unsigned long ino,
 
 #define SHIFTFS_PASSTHROUGH_NONE 0
 #define SHIFTFS_PASSTHROUGH_STAT 1
-#define SHIFTFS_PASSTHROUGH_ALL (SHIFTFS_PASSTHROUGH_STAT)
+#define SHIFTFS_PASSTHROUGH_IOCTL 2
+#define SHIFTFS_PASSTHROUGH_ALL                                                \
+	(SHIFTFS_PASSTHROUGH_STAT | SHIFTFS_PASSTHROUGH_IOCTL)
+
+static inline bool shiftfs_passthrough_ioctls(struct shiftfs_super_info *info)
+{
+	if (!(info->passthrough & SHIFTFS_PASSTHROUGH_IOCTL))
+		return false;
+
+	if (info->info_mark &&
+	    !(info->info_mark->passthrough & SHIFTFS_PASSTHROUGH_IOCTL))
+		return false;
+
+	return true;
+}
 
 static inline bool shiftfs_passthrough_statfs(struct shiftfs_super_info *info)
 {
@@ -1345,18 +1361,120 @@ static inline void shiftfs_revert_ioctl_creds(const struct cred *oldcred,
 	return shiftfs_revert_object_creds(oldcred, newcred);
 }
 
+static inline bool is_btrfs_snap_ioctl(int cmd)
+{
+	if ((cmd == BTRFS_IOC_SNAP_CREATE) || (cmd == BTRFS_IOC_SNAP_CREATE_V2))
+		return true;
+
+	return false;
+}
+
+static int shiftfs_btrfs_ioctl_fd_restore(int cmd, struct fd lfd, int fd,
+					  void __user *arg,
+					  struct btrfs_ioctl_vol_args *v1,
+					  struct btrfs_ioctl_vol_args_v2 *v2)
+{
+	int ret;
+
+	if (!is_btrfs_snap_ioctl(cmd))
+		return 0;
+
+	if (cmd == BTRFS_IOC_SNAP_CREATE)
+		ret = copy_to_user(arg, v1, sizeof(*v1));
+	else
+		ret = copy_to_user(arg, v2, sizeof(*v2));
+
+	fdput(lfd);
+	__close_fd(current->files, fd);
+	kfree(v1);
+	kfree(v2);
+
+	return ret;
+}
+
+static int shiftfs_btrfs_ioctl_fd_replace(int cmd, void __user *arg,
+					  struct btrfs_ioctl_vol_args **b1,
+					  struct btrfs_ioctl_vol_args_v2 **b2,
+					  struct fd *lfd,
+					  int *newfd)
+{
+	int oldfd, ret;
+	struct fd src;
+	struct btrfs_ioctl_vol_args *v1 = NULL;
+	struct btrfs_ioctl_vol_args_v2 *v2 = NULL;
+
+	if (!is_btrfs_snap_ioctl(cmd))
+		return 0;
+
+	if (cmd == BTRFS_IOC_SNAP_CREATE) {
+		v1 = memdup_user(arg, sizeof(*v1));
+		if (IS_ERR(v1))
+			return PTR_ERR(v1);
+		oldfd = v1->fd;
+		*b1 = v1;
+	} else {
+		v2 = memdup_user(arg, sizeof(*v2));
+		if (IS_ERR(v2))
+			return PTR_ERR(v2);
+		oldfd = v2->fd;
+		*b2 = v2;
+	}
+
+	src = fdget(oldfd);
+	if (!src.file)
+		return -EINVAL;
+
+	ret = shiftfs_real_fdget(src.file, lfd);
+	fdput(src);
+	if (ret)
+		return ret;
+
+	*newfd = get_unused_fd_flags(lfd->file->f_flags);
+	if (*newfd < 0) {
+		fdput(*lfd);
+		return *newfd;
+	}
+
+	fd_install(*newfd, lfd->file);
+
+	if (cmd == BTRFS_IOC_SNAP_CREATE) {
+		v1->fd = *newfd;
+		ret = copy_to_user(arg, v1, sizeof(*v1));
+		v1->fd = oldfd;
+	} else {
+		v2->fd = *newfd;
+		ret = copy_to_user(arg, v2, sizeof(*v2));
+		v2->fd = oldfd;
+	}
+
+	if (ret)
+		shiftfs_btrfs_ioctl_fd_restore(cmd, *lfd, *newfd, arg, v1, v2);
+
+	return ret;
+}
+
 static long shiftfs_real_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	long ret = 0;
 	struct fd lowerfd;
 	struct cred *newcred;
 	const struct cred *oldcred;
+	int newfd = -EBADF;
+	long err = 0, ret = 0;
+	void __user *argp = (void __user *)arg;
+	struct fd btrfs_lfd = {};
 	struct super_block *sb = file->f_path.dentry->d_sb;
+	struct btrfs_ioctl_vol_args *btrfs_v1 = NULL;
+	struct btrfs_ioctl_vol_args_v2 *btrfs_v2 = NULL;
+
+	ret = shiftfs_btrfs_ioctl_fd_replace(cmd, argp, &btrfs_v1, &btrfs_v2,
+					     &btrfs_lfd, &newfd);
+	if (ret < 0)
+		return ret;
 
 	ret = shiftfs_real_fdget(file, &lowerfd);
 	if (ret)
-		return ret;
+		goto out_restore;
 
 	ret = shiftfs_override_ioctl_creds(sb, &oldcred, &newcred);
 	if (ret)
@@ -1372,7 +1490,31 @@ static long shiftfs_real_ioctl(struct file *file, unsigned int cmd,
 out_fdput:
 	fdput(lowerfd);
 
+out_restore:
+	err = shiftfs_btrfs_ioctl_fd_restore(cmd, btrfs_lfd, newfd, argp,
+					     btrfs_v1, btrfs_v2);
+	if (!ret)
+		ret = err;
+
 	return ret;
+}
+
+static bool in_ioctl_whitelist(int flag)
+{
+	switch (flag) {
+	case BTRFS_IOC_SNAP_CREATE:
+		return true;
+	case BTRFS_IOC_SNAP_CREATE_V2:
+		return true;
+	case BTRFS_IOC_SUBVOL_CREATE:
+		return true;
+	case BTRFS_IOC_SUBVOL_CREATE_V2:
+		return true;
+	case BTRFS_IOC_SNAP_DESTROY:
+		return true;
+	}
+
+	return false;
 }
 
 static long shiftfs_ioctl(struct file *file, unsigned int cmd,
@@ -1386,7 +1528,9 @@ static long shiftfs_ioctl(struct file *file, unsigned int cmd,
 	case FS_IOC_SETFLAGS:
 		break;
 	default:
-		return -ENOTTY;
+		if (!in_ioctl_whitelist(cmd) ||
+		    !shiftfs_passthrough_ioctls(file->f_path.dentry->d_sb->s_fs_info))
+			return -ENOTTY;
 	}
 
 	return shiftfs_real_ioctl(file, cmd, arg);
@@ -1403,7 +1547,9 @@ static long shiftfs_compat_ioctl(struct file *file, unsigned int cmd,
 	case FS_IOC32_SETFLAGS:
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		if (!in_ioctl_whitelist(cmd) ||
+		    !shiftfs_passthrough_ioctls(file->f_path.dentry->d_sb->s_fs_info))
+			return -ENOIOCTLCMD;
 	}
 
 	return shiftfs_real_ioctl(file, cmd, arg);
