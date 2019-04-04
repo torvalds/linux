@@ -23,7 +23,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 4KB
  *
- * - LSM6DSO/LSM6DSOX/ASM330LHH
+ * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
@@ -386,6 +386,71 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = GENMASK(7, 6),
 			},
 		},
+	},
+	{
+		.wai = 0x6b,
+		.max_fifo_size = 512,
+		.id = {
+			[0] = ST_LSM6DSR_ID,
+		},
+		.batch = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x09,
+				.mask = GENMASK(3, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x09,
+				.mask = GENMASK(7, 4),
+			},
+		},
+		.fifo_ops = {
+			.read_fifo = st_lsm6dsx_read_tagged_fifo,
+			.fifo_th = {
+				.addr = 0x07,
+				.mask = GENMASK(8, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(8, 0),
+			},
+			.th_wl = 1,
+		},
+		.ts_settings = {
+			.timer_en = {
+				.addr = 0x19,
+				.mask = BIT(5),
+			},
+			.decimator = {
+				.addr = 0x0a,
+				.mask = GENMASK(7, 6),
+			},
+		},
+		.shub_settings = {
+			.page_mux = {
+				.addr = 0x01,
+				.mask = BIT(6),
+			},
+			.master_en = {
+				.addr = 0x14,
+				.mask = BIT(2),
+			},
+			.pullup_en = {
+				.addr = 0x14,
+				.mask = BIT(3),
+			},
+			.aux_sens = {
+				.addr = 0x14,
+				.mask = GENMASK(1, 0),
+			},
+			.wr_once = {
+				.addr = 0x14,
+				.mask = BIT(6),
+			},
+			.shub_out = 0x02,
+			.slv0_addr = 0x15,
+			.dw_slv0_addr = 0x21,
+			.batch_en = BIT(3),
+		}
 	},
 };
 

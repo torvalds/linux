@@ -13,9 +13,9 @@
  * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated depending on the
  * value of the decimation factor and ODR set for each FIFO data set.
  *
- * LSM6DSO/LSM6DSOX/ASM330LHH: The FIFO buffer can be configured to store data
- * from gyroscope and accelerometer. Each sample is queued with a tag (1B)
- * indicating data source (gyroscope, accelerometer, hw timer).
+ * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR: The FIFO buffer can be configured to
+ * store data from gyroscope and accelerometer. Each sample is queued with
+ * a tag (1B) indicating data source (gyroscope, accelerometer, hw timer).
  *
  * FIFO supported modes:
  *  - BYPASS: FIFO disabled
@@ -506,7 +506,7 @@ st_lsm6dsx_push_tagged_data(struct st_lsm6dsx_hw *hw, u8 tag,
 }
 
 /**
- * st_lsm6dsx_read_tagged_fifo() - LSM6DSO/LSM6DSOX/ASM330LHH read FIFO routine
+ * st_lsm6dsx_read_tagged_fifo() - tagged hw FIFO read routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  *
  * Read samples from the hw FIFO and push them to IIO buffers.
