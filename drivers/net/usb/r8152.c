@@ -1212,7 +1212,6 @@ static int vendor_mac_passthru_addr_read(struct r8152 *tp, struct sockaddr *sa)
 		goto amacout;
 	}
 	memcpy(sa->sa_data, buf, 6);
-	ether_addr_copy(tp->netdev->dev_addr, sa->sa_data);
 	netif_info(tp, probe, tp->netdev,
 		   "Using pass-thru MAC addr %pM\n", sa->sa_data);
 
