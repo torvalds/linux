@@ -438,10 +438,12 @@ int platform_device_add(struct platform_device *pdev)
 				p = &ioport_resource;
 		}
 
-		if (p && insert_resource(p, r)) {
-			dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
-			ret = -EBUSY;
-			goto failed;
+		if (p) {
+			ret = insert_resource(p, r);
+			if (ret) {
+				dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
+				goto failed;
+			}
 		}
 	}
 
