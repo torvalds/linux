@@ -47,7 +47,7 @@ static const struct i2c_device_id ucd9200_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ucd9200_id);
 
-static const struct of_device_id ucd9200_of_match[] = {
+static const struct of_device_id __maybe_unused ucd9200_of_match[] = {
 	{
 		.compatible = "ti,cd9200",
 		.data = (void *)ucd9200
