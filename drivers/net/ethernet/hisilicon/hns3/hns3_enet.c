@@ -1012,7 +1012,6 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct hns3_desc *desc = &ring->desc[ring->next_to_use];
 	struct device *dev = ring_to_dev(ring);
-	u16 bdtp_fe_sc_vld_ra_ri = 0;
 	struct skb_frag_struct *frag;
 	unsigned int frag_buf_num;
 	int k, sizeoflast;
@@ -1080,12 +1079,30 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 
 	desc_cb->length = size;
 
+	if (likely(size <= HNS3_MAX_BD_SIZE)) {
+		u16 bdtp_fe_sc_vld_ra_ri = 0;
+
+		desc_cb->priv = priv;
+		desc_cb->dma = dma;
+		desc_cb->type = type;
+		desc->addr = cpu_to_le64(dma);
+		desc->tx.send_size = cpu_to_le16(size);
+		hns3_set_txbd_baseinfo(&bdtp_fe_sc_vld_ra_ri, frag_end);
+		desc->tx.bdtp_fe_sc_vld_ra_ri =
+			cpu_to_le16(bdtp_fe_sc_vld_ra_ri);
+
+		ring_ptr_move_fw(ring, next_to_use);
+		return 0;
+	}
+
 	frag_buf_num = hns3_tx_bd_count(size);
 	sizeoflast = size & HNS3_TX_LAST_SIZE_M;
 	sizeoflast = sizeoflast ? sizeoflast : HNS3_MAX_BD_SIZE;
 
 	/* When frag size is bigger than hardware limit, split this frag */
 	for (k = 0; k < frag_buf_num; k++) {
+		u16 bdtp_fe_sc_vld_ra_ri = 0;
+
 		/* The txbd's baseinfo of DESC_TYPE_PAGE & DESC_TYPE_SKB */
 		desc_cb->priv = priv;
 		desc_cb->dma = dma + HNS3_MAX_BD_SIZE * k;
@@ -1573,6 +1590,9 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret;
+
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
 
 	if (!h->ae_algo->ops->set_mtu)
 		return -EOPNOTSUPP;
@@ -2891,7 +2911,7 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	struct hns3_enet_tqp_vector *tqp_vector =
 		container_of(napi, struct hns3_enet_tqp_vector, napi);
 	bool clean_complete = true;
-	int rx_budget;
+	int rx_budget = budget;
 
 	if (unlikely(test_bit(HNS3_NIC_STATE_DOWN, &priv->state))) {
 		napi_complete(napi);
@@ -2905,7 +2925,8 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 		hns3_clean_tx_ring(ring);
 
 	/* make sure rx ring budget not smaller than 1 */
-	rx_budget = max(budget / tqp_vector->num_tqps, 1);
+	if (tqp_vector->num_tqps > 1)
+		rx_budget = max(budget / tqp_vector->num_tqps, 1);
 
 	hns3_for_each_ring(ring, tqp_vector->rx_group) {
 		int rx_cleaned = hns3_clean_rx_ring(ring, rx_budget,
@@ -3773,12 +3794,13 @@ static int hns3_recover_hw_addr(struct net_device *ndev)
 	struct netdev_hw_addr *ha, *tmp;
 	int ret = 0;
 
+	netif_addr_lock_bh(ndev);
 	/* go through and sync uc_addr entries to the device */
 	list = &ndev->uc;
 	list_for_each_entry_safe(ha, tmp, &list->list, list) {
 		ret = hns3_nic_uc_sync(ndev, ha->addr);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	/* go through and sync mc_addr entries to the device */
@@ -3786,9 +3808,11 @@ static int hns3_recover_hw_addr(struct net_device *ndev)
 	list_for_each_entry_safe(ha, tmp, &list->list, list) {
 		ret = hns3_nic_mc_sync(ndev, ha->addr);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
+out:
+	netif_addr_unlock_bh(ndev);
 	return ret;
 }
 
@@ -3799,6 +3823,7 @@ static void hns3_remove_hw_addr(struct net_device *netdev)
 
 	hns3_nic_uc_unsync(netdev, netdev->dev_addr);
 
+	netif_addr_lock_bh(netdev);
 	/* go through and unsync uc_addr entries to the device */
 	list = &netdev->uc;
 	list_for_each_entry_safe(ha, tmp, &list->list, list)
@@ -3809,6 +3834,8 @@ static void hns3_remove_hw_addr(struct net_device *netdev)
 	list_for_each_entry_safe(ha, tmp, &list->list, list)
 		if (ha->refcount > 1)
 			hns3_nic_mc_unsync(netdev, ha->addr);
+
+	netif_addr_unlock_bh(netdev);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -4101,7 +4128,7 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
+	if (!test_and_clear_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
 		netdev_warn(netdev, "already uninitialized\n");
 		return 0;
 	}
@@ -4122,8 +4149,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 
 	hns3_put_ring_config(priv);
 	priv->ring_data = NULL;
-
-	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
 	return ret;
 }

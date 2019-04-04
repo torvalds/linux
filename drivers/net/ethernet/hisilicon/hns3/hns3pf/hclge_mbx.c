@@ -385,24 +385,32 @@ static int hclge_get_vf_queue_depth(struct hclge_vport *vport,
 				    HCLGE_TQPS_DEPTH_INFO_LEN);
 }
 
+static int hclge_get_vf_media_type(struct hclge_vport *vport,
+				   struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	struct hclge_dev *hdev = vport->back;
+	u8 resp_data;
+
+	resp_data = hdev->hw.mac.media_type;
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, &resp_data,
+				    sizeof(resp_data));
+}
+
 static int hclge_get_link_info(struct hclge_vport *vport,
 			       struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
 	struct hclge_dev *hdev = vport->back;
 	u16 link_status;
-	u8 msg_data[10];
-	u16 media_type;
+	u8 msg_data[8];
 	u8 dest_vfid;
 	u16 duplex;
 
 	/* mac.link can only be 0 or 1 */
 	link_status = (u16)hdev->hw.mac.link;
 	duplex = hdev->hw.mac.duplex;
-	media_type = hdev->hw.mac.media_type;
 	memcpy(&msg_data[0], &link_status, sizeof(u16));
 	memcpy(&msg_data[2], &hdev->hw.mac.speed, sizeof(u32));
 	memcpy(&msg_data[6], &duplex, sizeof(u16));
-	memcpy(&msg_data[8], &media_type, sizeof(u16));
 	dest_vfid = mbx_req->mbx_src_vfid;
 
 	/* send this requested info to VF */
@@ -661,6 +669,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 						     HCLGE_MAC_ADDR_MC);
 			hclge_rm_vport_all_vlan_table(vport, true);
 			mutex_unlock(&hdev->vport_cfg_mutex);
+			break;
+		case HCLGE_MBX_GET_MEDIA_TYPE:
+			ret = hclge_get_vf_media_type(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF fail(%d) to media type for VF\n",
+					ret);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,
