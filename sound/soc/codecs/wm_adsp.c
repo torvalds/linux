@@ -4092,7 +4092,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	buf = compr->buf;
 
-	if (!buf || buf->error) {
+	if (dsp->fatal_error || !buf || buf->error) {
 		snd_compr_stop_error(stream, SNDRV_PCM_STATE_XRUN);
 		ret = -EIO;
 		goto out;
@@ -4196,12 +4196,13 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 			      char __user *buf, size_t count)
 {
+	struct wm_adsp *dsp = compr->dsp;
 	int ntotal = 0;
 	int nwords, nbytes;
 
 	compr_dbg(compr, "Requested read of %zu bytes\n", count);
 
-	if (!compr->buf || compr->buf->error) {
+	if (dsp->fatal_error || !compr->buf || compr->buf->error) {
 		snd_compr_stop_error(compr->stream, SNDRV_PCM_STATE_XRUN);
 		return -EIO;
 	}
@@ -4262,11 +4263,8 @@ static void wm_adsp_fatal_error(struct wm_adsp *dsp)
 	dsp->fatal_error = true;
 
 	list_for_each_entry(compr, &dsp->compr_list, list) {
-		if (compr->stream) {
-			snd_compr_stop_error(compr->stream,
-					     SNDRV_PCM_STATE_XRUN);
+		if (compr->stream)
 			snd_compr_fragment_elapsed(compr->stream);
-		}
 	}
 }
 
