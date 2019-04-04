@@ -2226,6 +2226,15 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 		if (err)
 			return err;
 	} else {
+		/* Only initialized buffer on stack is allowed to be accessed
+		 * with variable offset. With uninitialized buffer it's hard to
+		 * guarantee that whole memory is marked as initialized on
+		 * helper return since specific bounds are unknown what may
+		 * cause uninitialized stack leaking.
+		 */
+		if (meta && meta->raw_mode)
+			meta = NULL;
+
 		min_off = reg->smin_value + reg->off;
 		max_off = reg->umax_value + reg->off;
 		err = __check_stack_boundary(env, regno, min_off, access_size,
