@@ -1591,6 +1591,9 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret;
 
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
+
 	if (!h->ae_algo->ops->set_mtu)
 		return -EOPNOTSUPP;
 
