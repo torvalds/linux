@@ -151,10 +151,15 @@ static const struct sof_panic_msg panic_msg[] = {
 	{SOF_IPC_PANIC_WFI, "invalid wait state"},
 };
 
-int snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
-		       u32 tracep_code, void *oops,
-		       struct sof_ipc_panic_info *panic_info,
-		       void *stack, size_t stack_words)
+/*
+ * helper to be called from .dbg_dump callbacks. No error code is
+ * provided, it's left as an exercise for the caller of .dbg_dump
+ * (typically IPC or loader)
+ */
+void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
+			u32 tracep_code, void *oops,
+			struct sof_ipc_panic_info *panic_info,
+			void *stack, size_t stack_words)
 {
 	u32 code;
 	int i;
@@ -163,7 +168,7 @@ int snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 	if ((panic_code & SOF_IPC_PANIC_MAGIC_MASK) != SOF_IPC_PANIC_MAGIC) {
 		dev_err(sdev->dev, "error: unexpected fault 0x%8.8x trace 0x%8.8x\n",
 			panic_code, tracep_code);
-		return 0; /* no fault ? */
+		return; /* no fault ? */
 	}
 
 	code = panic_code & (SOF_IPC_PANIC_MAGIC_MASK | SOF_IPC_PANIC_CODE_MASK);
@@ -186,7 +191,6 @@ out:
 		panic_info->filename, panic_info->linenum);
 	sof_oops(sdev, oops);
 	sof_stack(sdev, oops, stack, stack_words);
-	return -EFAULT;
 }
 EXPORT_SYMBOL(snd_sof_get_status);
 
