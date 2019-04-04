@@ -341,25 +341,25 @@ static u16 crc16_ccitt(u8 data, u16 crc)
 	u16 result;
 
 	for (i = 0; i < 8; i++) {
-		crc_bit15 = ((crc & BIT(15)) ? 1 : 0);
-		data_bit  = (data & (BIT(0) << i) ? 1 : 0);
+		crc_bit15 = !!(crc & BIT(15));
+		data_bit  = !!(data & BIT(i));
 		shift_in = crc_bit15 ^ data_bit;
 
 		result = crc << 1;
 		if (shift_in == 0)
-			result &= (~BIT(0));
+			result &= ~BIT(0);
 		else
 			result |= BIT(0);
 
-		crc_bit11 = ((crc & BIT(11)) ? 1 : 0) ^ shift_in;
+		crc_bit11 = !!(crc & BIT(11)) ^ shift_in;
 		if (crc_bit11 == 0)
-			result &= (~BIT(12));
+			result &= ~BIT(12);
 		else
 			result |= BIT(12);
 
-		crc_bit4 = ((crc & BIT(4)) ? 1 : 0) ^ shift_in;
+		crc_bit4 = !!(crc & BIT(4)) ^ shift_in;
 		if (crc_bit4 == 0)
-			result &= (~BIT(5));
+			result &= ~BIT(5);
 		else
 			result |= BIT(5);
 
