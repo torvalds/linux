@@ -3839,11 +3839,11 @@ void icl_display_core_init(struct drm_i915_private *dev_priv,
 	/* 1. Enable PCH reset handshake. */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
-	/* 2-3. */
+	/* 2. Initialize all combo phys */
 	icl_combo_phys_init(dev_priv);
 
 	/*
-	 * 4. Enable Power Well 1 (PG1).
+	 * 3. Enable Power Well 1 (PG1).
 	 *    The AUX IO power wells will be enabled on demand.
 	 */
 	mutex_lock(&power_domains->lock);
@@ -3851,13 +3851,13 @@ void icl_display_core_init(struct drm_i915_private *dev_priv,
 	intel_power_well_enable(dev_priv, well);
 	mutex_unlock(&power_domains->lock);
 
-	/* 5. Enable CDCLK. */
+	/* 4. Enable CDCLK. */
 	intel_cdclk_init(dev_priv);
 
-	/* 6. Enable DBUF. */
+	/* 5. Enable DBUF. */
 	icl_dbuf_enable(dev_priv);
 
-	/* 7. Setup MBUS. */
+	/* 6. Setup MBUS. */
 	icl_mbus_init(dev_priv);
 
 	if (resume && dev_priv->csr.dmc_payload)
