@@ -552,7 +552,7 @@ static const struct i2c_device_id max6621_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max6621_id);
 
-static const struct of_device_id max6621_of_match[] = {
+static const struct of_device_id __maybe_unused max6621_of_match[] = {
 	{ .compatible = "maxim,max6621" },
 	{ }
 };
