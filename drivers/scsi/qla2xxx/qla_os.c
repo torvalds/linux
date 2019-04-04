@@ -306,57 +306,11 @@ MODULE_PARM_DESC(ql2xdifbundlinginternalbuffers,
     "0 (Default). Based on check.\n"
     "1 Force using internal buffers\n");
 
-/*
- * SCSI host template entry points
- */
-static int qla2xxx_slave_configure(struct scsi_device * device);
-static int qla2xxx_slave_alloc(struct scsi_device *);
-static int qla2xxx_scan_finished(struct Scsi_Host *, unsigned long time);
-static void qla2xxx_scan_start(struct Scsi_Host *);
-static void qla2xxx_slave_destroy(struct scsi_device *);
-static int qla2xxx_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *cmd);
-static int qla2xxx_eh_abort(struct scsi_cmnd *);
-static int qla2xxx_eh_device_reset(struct scsi_cmnd *);
-static int qla2xxx_eh_target_reset(struct scsi_cmnd *);
-static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
-static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
-
 static void qla2x00_clear_drv_active(struct qla_hw_data *);
 static void qla2x00_free_device(scsi_qla_host_t *);
 static int qla2xxx_map_queues(struct Scsi_Host *shost);
 static void qla2x00_destroy_deferred_work(struct qla_hw_data *);
 
-
-struct scsi_host_template qla2xxx_driver_template = {
-	.module			= THIS_MODULE,
-	.name			= QLA2XXX_DRIVER_NAME,
-	.queuecommand		= qla2xxx_queuecommand,
-
-	.eh_timed_out		= fc_eh_timed_out,
-	.eh_abort_handler	= qla2xxx_eh_abort,
-	.eh_device_reset_handler = qla2xxx_eh_device_reset,
-	.eh_target_reset_handler = qla2xxx_eh_target_reset,
-	.eh_bus_reset_handler	= qla2xxx_eh_bus_reset,
-	.eh_host_reset_handler	= qla2xxx_eh_host_reset,
-
-	.slave_configure	= qla2xxx_slave_configure,
-
-	.slave_alloc		= qla2xxx_slave_alloc,
-	.slave_destroy		= qla2xxx_slave_destroy,
-	.scan_finished		= qla2xxx_scan_finished,
-	.scan_start		= qla2xxx_scan_start,
-	.change_queue_depth	= scsi_change_queue_depth,
-	.map_queues             = qla2xxx_map_queues,
-	.this_id		= -1,
-	.cmd_per_lun		= 3,
-	.sg_tablesize		= SG_ALL,
-
-	.max_sectors		= 0xFFFF,
-	.shost_attrs		= qla2x00_host_attrs,
-
-	.supported_mode		= MODE_INITIATOR,
-	.track_queue_depth	= 1,
-};
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
 struct scsi_transport_template *qla2xxx_transport_vport_template = NULL;
@@ -7265,6 +7219,37 @@ static int qla2xxx_map_queues(struct Scsi_Host *shost)
 		rc = blk_mq_pci_map_queues(qmap, vha->hw->pdev, vha->irq_offset);
 	return rc;
 }
+
+struct scsi_host_template qla2xxx_driver_template = {
+	.module			= THIS_MODULE,
+	.name			= QLA2XXX_DRIVER_NAME,
+	.queuecommand		= qla2xxx_queuecommand,
+
+	.eh_timed_out		= fc_eh_timed_out,
+	.eh_abort_handler	= qla2xxx_eh_abort,
+	.eh_device_reset_handler = qla2xxx_eh_device_reset,
+	.eh_target_reset_handler = qla2xxx_eh_target_reset,
+	.eh_bus_reset_handler	= qla2xxx_eh_bus_reset,
+	.eh_host_reset_handler	= qla2xxx_eh_host_reset,
+
+	.slave_configure	= qla2xxx_slave_configure,
+
+	.slave_alloc		= qla2xxx_slave_alloc,
+	.slave_destroy		= qla2xxx_slave_destroy,
+	.scan_finished		= qla2xxx_scan_finished,
+	.scan_start		= qla2xxx_scan_start,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.map_queues             = qla2xxx_map_queues,
+	.this_id		= -1,
+	.cmd_per_lun		= 3,
+	.sg_tablesize		= SG_ALL,
+
+	.max_sectors		= 0xFFFF,
+	.shost_attrs		= qla2x00_host_attrs,
+
+	.supported_mode		= MODE_INITIATOR,
+	.track_queue_depth	= 1,
+};
 
 static const struct pci_error_handlers qla2xxx_err_handler = {
 	.error_detected = qla2xxx_pci_error_detected,
