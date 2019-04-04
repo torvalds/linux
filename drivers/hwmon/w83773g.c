@@ -44,7 +44,7 @@ static const struct i2c_device_id w83773_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, w83773_id);
 
-static const struct of_device_id w83773_of_match[] = {
+static const struct of_device_id __maybe_unused w83773_of_match[] = {
 	{
 		.compatible = "nuvoton,w83773g"
 	},
