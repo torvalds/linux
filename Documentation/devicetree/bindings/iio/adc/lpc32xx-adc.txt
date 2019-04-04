@@ -6,6 +6,10 @@ Required properties:
   region.
 - interrupts: The ADC interrupt
 
+Optional:
+ - vref-supply: The regulator supply ADC reference voltage, optional
+   for legacy reason, but highly encouraging to us in new device tree
+
 Example:
 
 	adc@40048000 {
@@ -13,4 +17,5 @@ Example:
 		reg = <0x40048000 0x1000>;
 		interrupt-parent = <&mic>;
 		interrupts = <39 0>;
+		vref-supply = <&vcc>;
 	};

@@ -23,7 +23,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 4KB
  *
- * - LSM6DSO
+ * - LSM6DSO/LSM6DSOX/ASM330LHH
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
@@ -287,6 +287,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.max_fifo_size = 512,
 		.id = {
 			[0] = ST_LSM6DSO_ID,
+			[1] = ST_LSM6DSOX_ID,
 		},
 		.batch = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -346,6 +347,45 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.dw_slv0_addr = 0x21,
 			.batch_en = BIT(3),
 		}
+	},
+	{
+		.wai = 0x6b,
+		.max_fifo_size = 512,
+		.id = {
+			[0] = ST_ASM330LHH_ID,
+		},
+		.batch = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x09,
+				.mask = GENMASK(3, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x09,
+				.mask = GENMASK(7, 4),
+			},
+		},
+		.fifo_ops = {
+			.read_fifo = st_lsm6dsx_read_tagged_fifo,
+			.fifo_th = {
+				.addr = 0x07,
+				.mask = GENMASK(8, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(8, 0),
+			},
+			.th_wl = 1,
+		},
+		.ts_settings = {
+			.timer_en = {
+				.addr = 0x19,
+				.mask = BIT(5),
+			},
+			.decimator = {
+				.addr = 0x0a,
+				.mask = GENMASK(7, 6),
+			},
+		},
 	},
 };
 

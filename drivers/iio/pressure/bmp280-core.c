@@ -164,6 +164,9 @@ static int bmp280_read_calib(struct bmp280_data *data,
 		return ret;
 	}
 
+	/* Toss the temperature calibration data into the entropy pool */
+	add_device_randomness(t_buf, sizeof(t_buf));
+
 	calib->T1 = le16_to_cpu(t_buf[T1]);
 	calib->T2 = le16_to_cpu(t_buf[T2]);
 	calib->T3 = le16_to_cpu(t_buf[T3]);
@@ -176,6 +179,9 @@ static int bmp280_read_calib(struct bmp280_data *data,
 			"failed to read pressure calibration parameters\n");
 		return ret;
 	}
+
+	/* Toss the pressure calibration data into the entropy pool */
+	add_device_randomness(p_buf, sizeof(p_buf));
 
 	calib->P1 = le16_to_cpu(p_buf[P1]);
 	calib->P2 = le16_to_cpu(p_buf[P2]);
