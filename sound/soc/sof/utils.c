@@ -18,7 +18,7 @@
  * Register IO
  *
  * The sof_io_xyz() wrappers are typically referenced in snd_sof_dsp_ops
- * structures and and cannot be inlined.
+ * structures and cannot be inlined.
  */
 
 void sof_io_write(struct snd_sof_dev *sdev, void __iomem *addr, u32 value)
