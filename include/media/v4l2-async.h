@@ -172,8 +172,9 @@ int v4l2_async_notifier_add_subdev(struct v4l2_async_notifier *notifier,
  *		     the driver's async sub-device struct, i.e. both
  *		     begin at the same memory address.
  *
- * Allocate a fwnode-matched asd of size asd_struct_size, and add it
- * to the notifiers @asd_list.
+ * Allocate a fwnode-matched asd of size asd_struct_size, and add it to the
+ * notifiers @asd_list. The function also gets a reference of the fwnode which
+ * is released later at notifier cleanup time.
  */
 struct v4l2_async_subdev *
 v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,

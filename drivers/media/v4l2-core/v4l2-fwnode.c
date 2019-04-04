@@ -775,23 +775,17 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
 		asd = v4l2_async_notifier_add_fwnode_subdev(notifier,
 							    args.fwnode,
 							    sizeof(*asd));
+		fwnode_handle_put(args.fwnode);
 		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
 			/* not an error if asd already exists */
-			if (ret == -EEXIST) {
-				fwnode_handle_put(args.fwnode);
+			if (PTR_ERR(asd) == -EEXIST)
 				continue;
-			}
 
-			goto error;
+			return PTR_ERR(asd);
 		}
 	}
 
 	return 0;
-
-error:
-	fwnode_handle_put(args.fwnode);
-	return ret;
 }
 
 /*
@@ -1081,23 +1075,18 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 
 		asd = v4l2_async_notifier_add_fwnode_subdev(notifier, fwnode,
 							    sizeof(*asd));
+		fwnode_handle_put(fwnode);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
 			/* not an error if asd already exists */
-			if (ret == -EEXIST) {
-				fwnode_handle_put(fwnode);
+			if (ret == -EEXIST)
 				continue;
-			}
 
-			goto error;
+			return PTR_ERR(asd);
 		}
 	}
 
 	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
-
-error:
-	fwnode_handle_put(fwnode);
-	return ret;
 }
 
 int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,

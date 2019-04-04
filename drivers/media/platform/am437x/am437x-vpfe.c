@@ -2489,10 +2489,9 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 		pdata->asd[i] = v4l2_async_notifier_add_fwnode_subdev(
 			&vpfe->notifier, of_fwnode_handle(rem),
 			sizeof(struct v4l2_async_subdev));
-		if (IS_ERR(pdata->asd[i])) {
-			of_node_put(rem);
+		of_node_put(rem);
+		if (IS_ERR(pdata->asd[i]))
 			goto cleanup;
-		}
 	}
 
 	of_node_put(endpoint);

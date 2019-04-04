@@ -593,10 +593,11 @@ v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
 		return ERR_PTR(-ENOMEM);
 
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	asd->match.fwnode = fwnode;
+	asd->match.fwnode = fwnode_handle_get(fwnode);
 
 	ret = v4l2_async_notifier_add_subdev(notifier, asd);
 	if (ret) {
+		fwnode_handle_put(fwnode);
 		kfree(asd);
 		return ERR_PTR(ret);
 	}
