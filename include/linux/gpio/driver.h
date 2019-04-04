@@ -229,9 +229,6 @@ struct gpio_irq_chip {
  * @reg_clr: output clear register (out=low) for generic GPIO
  * @reg_dir_out: direction out setting register for generic GPIO
  * @reg_dir_in: direction in setting register for generic GPIO
- * @bgpio_dir_inverted: indicates that the direction register is inverted
- *	(gpiolib private state variable) this means @reg_dir_in is
- *	available but not @reg_dir_out.
  * @bgpio_dir_unreadable: indicates that the direction register(s) cannot
  *	be read and we need to rely on out internal state tracking.
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
@@ -305,7 +302,6 @@ struct gpio_chip {
 	void __iomem *reg_clr;
 	void __iomem *reg_dir_out;
 	void __iomem *reg_dir_in;
-	bool bgpio_dir_inverted;
 	bool bgpio_dir_unreadable;
 	int bgpio_bits;
 	spinlock_t bgpio_lock;

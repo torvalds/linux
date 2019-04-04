@@ -533,13 +533,6 @@ static int bgpio_setup_direction(struct gpio_chip *gc,
 		gc->direction_output = bgpio_dir_out;
 		gc->direction_input = bgpio_dir_in;
 		gc->get_direction = bgpio_get_dir;
-		/*
-		 * If only dirin is available, this means we need
-		 * inverted semantics when handling get/set registers
-		 * so detect this here.
-		 */
-		if (dirin && !dirout)
-			gc->bgpio_dir_inverted = true;
 	} else {
 		if (flags & BGPIOF_NO_OUTPUT)
 			gc->direction_output = bgpio_dir_out_err;
