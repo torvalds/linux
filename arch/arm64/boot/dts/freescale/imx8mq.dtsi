@@ -815,6 +815,28 @@
 			};
 		};
 
+		gpu: gpu@38000000 {
+			compatible = "vivante,gc";
+			reg = <0x38000000 0x40000>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk IMX8MQ_CLK_GPU_ROOT>,
+			         <&clk IMX8MQ_CLK_GPU_SHADER_DIV>,
+			         <&clk IMX8MQ_CLK_GPU_AXI>,
+			         <&clk IMX8MQ_CLK_GPU_AHB>;
+			clock-names = "core", "shader", "bus", "reg";
+			assigned-clocks = <&clk IMX8MQ_CLK_GPU_CORE_SRC>,
+			                  <&clk IMX8MQ_CLK_GPU_SHADER_SRC>,
+			                  <&clk IMX8MQ_CLK_GPU_AXI>,
+			                  <&clk IMX8MQ_CLK_GPU_AHB>;
+			assigned-clock-parents = <&clk IMX8MQ_GPU_PLL_OUT>,
+			                         <&clk IMX8MQ_GPU_PLL_OUT>,
+			                         <&clk IMX8MQ_GPU_PLL_OUT>,
+			                         <&clk IMX8MQ_GPU_PLL_OUT>;
+			assigned-clock-rates = <800000000>, <800000000>,
+			                       <800000000>, <800000000>;
+			power-domains = <&pgc_gpu>;
+		};
+
 		usb_dwc3_0: usb@38100000 {
 			compatible = "fsl,imx8mq-dwc3", "snps,dwc3";
 			reg = <0x38100000 0x10000>;
