@@ -1821,6 +1821,14 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 	u32 max_response_size;
 	struct smb_snapshot_array snapshot_in;
 
+	/*
+	 * On the first query to enumerate the list of snapshots available
+	 * for this volume the buffer begins with 0 (number of snapshots
+	 * which can be returned is zero since at that point we do not know
+	 * how big the buffer needs to be). On the second query,
+	 * it (ret_data_len) is set to number of snapshots so we can
+	 * know to set the maximum response size larger (see below).
+	 */
 	if (get_user(ret_data_len, (unsigned int __user *)ioc_buf))
 		return -EFAULT;
 
