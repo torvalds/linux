@@ -2065,10 +2065,8 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 		ret = btrfs_add_delayed_tree_ref(trans, &generic_ref,
 				NULL, &old_ref_mod, &new_ref_mod);
 	} else {
-		ret = btrfs_add_delayed_data_ref(trans, bytenr,
-						 num_bytes, parent,
-						 root_objectid, owner, offset,
-						 0, BTRFS_ADD_DELAYED_REF,
+		btrfs_init_data_ref(&generic_ref, root_objectid, owner, offset);
+		ret = btrfs_add_delayed_data_ref(trans, &generic_ref, 0,
 						 &old_ref_mod, &new_ref_mod);
 	}
 
@@ -7276,10 +7274,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_add_delayed_tree_ref(trans, &generic_ref, NULL,
 						 &old_ref_mod, &new_ref_mod);
 	} else {
-		ret = btrfs_add_delayed_data_ref(trans, bytenr,
-						 num_bytes, parent,
-						 root_objectid, owner, offset,
-						 0, BTRFS_DROP_DELAYED_REF,
+		btrfs_init_data_ref(&generic_ref, root_objectid, owner, offset);
+		ret = btrfs_add_delayed_data_ref(trans, &generic_ref, 0,
 						 &old_ref_mod, &new_ref_mod);
 	}
 
@@ -8385,6 +8381,7 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 				     u64 offset, u64 ram_bytes,
 				     struct btrfs_key *ins)
 {
+	struct btrfs_ref generic_ref = { 0 };
 	int ret;
 
 	BUG_ON(root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID);
@@ -8393,11 +8390,11 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 			   root->root_key.objectid, owner, offset,
 			   BTRFS_ADD_DELAYED_EXTENT);
 
-	ret = btrfs_add_delayed_data_ref(trans, ins->objectid,
-					 ins->offset, 0,
-					 root->root_key.objectid, owner,
-					 offset, ram_bytes,
-					 BTRFS_ADD_DELAYED_EXTENT, NULL, NULL);
+	btrfs_init_generic_ref(&generic_ref, BTRFS_ADD_DELAYED_EXTENT,
+			       ins->objectid, ins->offset, 0);
+	btrfs_init_data_ref(&generic_ref, root->root_key.objectid, owner, offset);
+	ret = btrfs_add_delayed_data_ref(trans, &generic_ref,
+					 ram_bytes, NULL, NULL);
 	return ret;
 }
 
