@@ -28,7 +28,8 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 static inline void instruction_pointer_set(struct pt_regs *regs,
 						unsigned long val)
 {
-        regs->iaoq[0] = val;
+	regs->iaoq[0] = val;
+	regs->iaoq[1] = val + 4;
 }
 
 /* Query offset/name of register from its name/offset */
