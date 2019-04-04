@@ -242,6 +242,12 @@ static DECLARE_TLV_DB_SCALE(tlv_driver_gain, -600, 100, 0);
 /* -12dB min, 0.5dB steps */
 static DECLARE_TLV_DB_SCALE(tlv_adc_vol, -1200, 50, 0);
 
+static const char * const lo_cm_text[] = {
+	"Full Chip", "1.65V",
+};
+
+static SOC_ENUM_SINGLE_DECL(lo_cm_enum, AIC32X4_CMMODE, 3, lo_cm_text);
+
 static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 	SOC_DOUBLE_R_S_TLV("PCM Playback Volume", AIC32X4_LDACVOL,
 			AIC32X4_RDACVOL, 0, -0x7f, 0x30, 7, 0, tlv_pcm),
@@ -255,6 +261,7 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 			AIC32X4_HPRGAIN, 6, 0x01, 1),
 	SOC_DOUBLE_R("LO DAC Playback Switch", AIC32X4_LOLGAIN,
 			AIC32X4_LORGAIN, 6, 0x01, 1),
+	SOC_ENUM("LO Playback Common Mode Switch", lo_cm_enum),
 	SOC_DOUBLE_R("Mic PGA Switch", AIC32X4_LMICPGAVOL,
 			AIC32X4_RMICPGAVOL, 7, 0x01, 1),
 
