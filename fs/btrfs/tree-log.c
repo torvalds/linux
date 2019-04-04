@@ -705,9 +705,11 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			goto out;
 
 		if (ins.objectid > 0) {
+			struct btrfs_ref ref = { 0 };
 			u64 csum_start;
 			u64 csum_end;
 			LIST_HEAD(ordered_sums);
+
 			/*
 			 * is this extent already allocated in the extent
 			 * allocation tree?  If so, just add a reference
@@ -715,10 +717,13 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_data_extent(fs_info, ins.objectid,
 						ins.offset);
 			if (ret == 0) {
-				ret = btrfs_inc_extent_ref(trans, root,
-						ins.objectid, ins.offset,
-						0, root->root_key.objectid,
+				btrfs_init_generic_ref(&ref,
+						BTRFS_ADD_DELAYED_REF,
+						ins.objectid, ins.offset, 0);
+				btrfs_init_data_ref(&ref,
+						root->root_key.objectid,
 						key->objectid, offset);
+				ret = btrfs_inc_extent_ref(trans, &ref);
 				if (ret)
 					goto out;
 			} else {

@@ -2519,6 +2519,7 @@ static noinline int relink_extent_backref(struct btrfs_path *path,
 	struct btrfs_file_extent_item *item;
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_ref ref = { 0 };
 	struct btrfs_root *root;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
@@ -2689,10 +2690,11 @@ again:
 	inode_add_bytes(inode, len);
 	btrfs_release_path(path);
 
-	ret = btrfs_inc_extent_ref(trans, root, new->bytenr,
-			new->disk_len, 0,
-			backref->root_id, backref->inum,
-			new->file_pos);	/* start - extent_offset */
+	btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, new->bytenr,
+			       new->disk_len, 0);
+	btrfs_init_data_ref(&ref, backref->root_id, backref->inum,
+			    new->file_pos);  /* start - extent_offset */
+	ret = btrfs_inc_extent_ref(trans, &ref);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_free_path;

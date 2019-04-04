@@ -1643,6 +1643,8 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 
 	nritems = btrfs_header_nritems(leaf);
 	for (i = 0; i < nritems; i++) {
+		struct btrfs_ref ref = { 0 };
+
 		cond_resched();
 		btrfs_item_key_to_cpu(leaf, &key, i);
 		if (key.type != BTRFS_EXTENT_DATA_KEY)
@@ -1703,10 +1705,12 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		dirty = 1;
 
 		key.offset -= btrfs_file_extent_offset(leaf, fi);
-		ret = btrfs_inc_extent_ref(trans, root, new_bytenr,
-					   num_bytes, parent,
-					   btrfs_header_owner(leaf),
-					   key.objectid, key.offset);
+		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, new_bytenr,
+				       num_bytes, parent);
+		ref.real_root = root->root_key.objectid;
+		btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
+				    key.objectid, key.offset);
+		ret = btrfs_inc_extent_ref(trans, &ref);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			break;
@@ -1756,6 +1760,7 @@ int replace_path(struct btrfs_trans_handle *trans, struct reloc_control *rc,
 	struct btrfs_fs_info *fs_info = dest->fs_info;
 	struct extent_buffer *eb;
 	struct extent_buffer *parent;
+	struct btrfs_ref ref = { 0 };
 	struct btrfs_key key;
 	u64 old_bytenr;
 	u64 new_bytenr;
@@ -1916,13 +1921,17 @@ again:
 					      path->slots[level], old_ptr_gen);
 		btrfs_mark_buffer_dirty(path->nodes[level]);
 
-		ret = btrfs_inc_extent_ref(trans, src, old_bytenr,
-					blocksize, path->nodes[level]->start,
-					src->root_key.objectid, level - 1, 0);
+		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, old_bytenr,
+				       blocksize, path->nodes[level]->start);
+		ref.skip_qgroup = true;
+		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid);
+		ret = btrfs_inc_extent_ref(trans, &ref);
 		BUG_ON(ret);
-		ret = btrfs_inc_extent_ref(trans, dest, new_bytenr,
-					blocksize, 0, dest->root_key.objectid,
-					level - 1, 0);
+		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, new_bytenr,
+				       blocksize, 0);
+		ref.skip_qgroup = true;
+		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid);
+		ret = btrfs_inc_extent_ref(trans, &ref);
 		BUG_ON(ret);
 
 		ret = btrfs_free_extent(trans, src, new_bytenr, blocksize,
@@ -2721,6 +2730,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	rc->backref_cache.path[node->level] = node;
 	list_for_each_entry(edge, &node->upper, list[LOWER]) {
 		struct btrfs_key first_key;
+		struct btrfs_ref ref = { 0 };
 
 		cond_resched();
 
@@ -2826,11 +2836,13 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 						      trans->transid);
 			btrfs_mark_buffer_dirty(upper->eb);
 
-			ret = btrfs_inc_extent_ref(trans, root,
-						node->eb->start, blocksize,
-						upper->eb->start,
-						btrfs_header_owner(upper->eb),
-						node->level, 0);
+			btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF,
+					       node->eb->start, blocksize,
+					       upper->eb->start);
+			ref.real_root = root->root_key.objectid;
+			btrfs_init_tree_ref(&ref, node->level,
+					    btrfs_header_owner(upper->eb));
+			ret = btrfs_inc_extent_ref(trans, &ref);
 			BUG_ON(ret);
 
 			ret = btrfs_drop_subtree(trans, root, eb, upper->eb);
