@@ -3864,6 +3864,19 @@ static void dm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
+static bool does_crtc_have_active_cursor(struct drm_crtc_state *new_crtc_state)
+{
+	struct drm_device *dev = new_crtc_state->crtc->dev;
+	struct drm_plane *plane;
+
+	drm_for_each_plane_mask(plane, dev, new_crtc_state->plane_mask) {
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			return true;
+	}
+
+	return false;
+}
+
 static int count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_atomic_state *state = new_crtc_state->state;
@@ -3947,8 +3960,12 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	if (!dm_crtc_state->stream)
 		return 0;
 
-	/* We want at least one hardware plane enabled to use the stream. */
+	/*
+	 * We want at least one hardware plane enabled to use
+	 * the stream with a cursor enabled.
+	 */
 	if (state->enable && state->active &&
+	    does_crtc_have_active_cursor(state) &&
 	    dm_crtc_state->active_planes == 0)
 		return -EINVAL;
 
@@ -5394,7 +5411,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		}
 	}
 
-	if (planes_count) {
+	/* Update the planes if changed or disable if we don't have any. */
+	if (planes_count || acrtc_state->active_planes == 0) {
 		if (new_pcrtc_state->mode_changed) {
 			bundle->stream_update.src = acrtc_state->stream->src;
 			bundle->stream_update.dst = acrtc_state->stream->dst;
