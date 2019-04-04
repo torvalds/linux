@@ -203,6 +203,11 @@
 			#reset-cells = <1>;
 		};
 
+		sid: sid@3006000 {
+			compatible = "allwinner,sun50i-h6-sid";
+			reg = <0x03006000 0x400>;
+		};
+
 		pio: pinctrl@300b000 {
 			compatible = "allwinner,sun50i-h6-pinctrl";
 			reg = <0x0300b000 0x400>;
