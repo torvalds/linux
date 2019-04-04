@@ -113,24 +113,6 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	return 0;
 }
 
-struct net_device *ocrdma_get_netdev(struct ib_device *ibdev, u8 port_num)
-{
-	struct ocrdma_dev *dev;
-	struct net_device *ndev = NULL;
-
-	rcu_read_lock();
-
-	dev = get_ocrdma_dev(ibdev);
-	if (dev)
-		ndev = dev->nic_info.netdev;
-	if (ndev)
-		dev_hold(ndev);
-
-	rcu_read_unlock();
-
-	return ndev;
-}
-
 static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
 					    u8 *ib_speed, u8 *ib_width)
 {

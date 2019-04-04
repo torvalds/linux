@@ -81,20 +81,6 @@ static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str)
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
 }
 
-static struct net_device *qedr_get_netdev(struct ib_device *dev, u8 port_num)
-{
-	struct qedr_dev *qdev;
-
-	qdev = get_qedr_dev(dev);
-	dev_hold(qdev->ndev);
-
-	/* The HW vendor's device driver must guarantee
-	 * that this function returns NULL before the net device has finished
-	 * NETDEV_UNREGISTER state.
-	 */
-	return qdev->ndev;
-}
-
 static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
 				    struct ib_port_immutable *immutable)
 {
@@ -219,7 +205,6 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.get_dev_fw_str = qedr_get_dev_fw_str,
 	.get_dma_mr = qedr_get_dma_mr,
 	.get_link_layer = qedr_link_layer,
-	.get_netdev = qedr_get_netdev,
 	.map_mr_sg = qedr_map_mr_sg,
 	.mmap = qedr_mmap,
 	.modify_port = qedr_modify_port,
@@ -295,6 +280,10 @@ static int qedr_register_device(struct qedr_dev *dev)
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
 	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
+	rc = ib_device_set_netdev(&dev->ibdev, dev->ndev, 1);
+	if (rc)
+		return rc;
+
 	return ib_register_device(&dev->ibdev, "qedr%d");
 }
 

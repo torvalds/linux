@@ -161,7 +161,6 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = ocrdma_get_dma_mr,
 	.get_link_layer = ocrdma_link_layer,
-	.get_netdev = ocrdma_get_netdev,
 	.get_port_immutable = ocrdma_port_immutable,
 	.map_mr_sg = ocrdma_map_mr_sg,
 	.mmap = ocrdma_mmap,
@@ -197,6 +196,8 @@ static const struct ib_device_ops ocrdma_dev_srq_ops = {
 
 static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
+	int ret;
+
 	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
@@ -251,6 +252,10 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	}
 	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_OCRDMA;
+	ret = ib_device_set_netdev(&dev->ibdev, dev->nic_info.netdev, 1);
+	if (ret)
+		return ret;
+
 	return ib_register_device(&dev->ibdev, "ocrdma%d");
 }
 
@@ -308,6 +313,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		pr_err("Unable to allocate ib device\n");
 		return NULL;
 	}
+
 	dev->mbx_cmd = kzalloc(sizeof(struct ocrdma_mqe_emb_cmd), GFP_KERNEL);
 	if (!dev->mbx_cmd)
 		goto idr_err;

@@ -617,7 +617,6 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.get_dma_mr = bnxt_re_get_dma_mr,
 	.get_hw_stats = bnxt_re_ib_get_hw_stats,
 	.get_link_layer = bnxt_re_get_link_layer,
-	.get_netdev = bnxt_re_get_netdev,
 	.get_port_immutable = bnxt_re_get_port_immutable,
 	.map_mr_sg = bnxt_re_map_mr_sg,
 	.mmap = bnxt_re_mmap,
@@ -646,6 +645,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 {
 	struct ib_device *ibdev = &rdev->ibdev;
+	int ret;
 
 	/* ib device init */
 	ibdev->owner = THIS_MODULE;
@@ -693,6 +693,10 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
+	ret = ib_device_set_netdev(&rdev->ibdev, rdev->netdev, 1);
+	if (ret)
+		return ret;
+
 	return ib_register_device(ibdev, "bnxt_re%d");
 }
 

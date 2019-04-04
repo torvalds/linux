@@ -119,21 +119,6 @@ static int bnxt_re_build_sgl(struct ib_sge *ib_sg_list,
 }
 
 /* Device */
-struct net_device *bnxt_re_get_netdev(struct ib_device *ibdev, u8 port_num)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	struct net_device *netdev = NULL;
-
-	rcu_read_lock();
-	if (rdev)
-		netdev = rdev->netdev;
-	if (netdev)
-		dev_hold(netdev);
-
-	rcu_read_unlock();
-	return netdev;
-}
-
 int bnxt_re_query_device(struct ib_device *ibdev,
 			 struct ib_device_attr *ib_attr,
 			 struct ib_udata *udata)
