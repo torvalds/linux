@@ -399,7 +399,7 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 	status->is_cck = RTL8188_RX_HAL_IS_CCK_RATE(status->rate);
 
 	status->macid = GET_RX_DESC_MACID(pdesc);
-	if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
+	if (GET_RX_STATUS_DESC_PATTERN_MATCH(pdesc))
 		status->wake_match = BIT(2);
 	else if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
 		status->wake_match = BIT(1);
