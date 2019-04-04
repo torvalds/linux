@@ -917,11 +917,8 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
 		dump_data->len = cpu_to_le32(sizeof(*dump_info));
 		dump_info = (void *)dump_data->data;
-		dump_info->device_family =
-			fwrt->trans->cfg->device_family ==
-			IWL_DEVICE_FAMILY_7000 ?
-				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
-				cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+		dump_info->hw_type =
+			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
 		dump_info->hw_step =
 			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
