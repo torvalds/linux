@@ -9,76 +9,29 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Authors: Waiman Long <waiman.long@hpe.com>
+ * Authors: Waiman Long <longman@redhat.com>
  */
 
-/*
- * When queued spinlock statistical counters are enabled, the following
- * debugfs files will be created for reporting the counter values:
- *
- * <debugfs>/qlockstat/
- *   pv_hash_hops	- average # of hops per hashing operation
- *   pv_kick_unlock	- # of vCPU kicks issued at unlock time
- *   pv_kick_wake	- # of vCPU kicks used for computing pv_latency_wake
- *   pv_latency_kick	- average latency (ns) of vCPU kick operation
- *   pv_latency_wake	- average latency (ns) from vCPU kick to wakeup
- *   pv_lock_stealing	- # of lock stealing operations
- *   pv_spurious_wakeup	- # of spurious wakeups in non-head vCPUs
- *   pv_wait_again	- # of wait's after a queue head vCPU kick
- *   pv_wait_early	- # of early vCPU wait's
- *   pv_wait_head	- # of vCPU wait's at the queue head
- *   pv_wait_node	- # of vCPU wait's at a non-head queue node
- *   lock_pending	- # of locking operations via pending code
- *   lock_slowpath	- # of locking operations via MCS lock queue
- *   lock_use_node2	- # of locking operations that use 2nd per-CPU node
- *   lock_use_node3	- # of locking operations that use 3rd per-CPU node
- *   lock_use_node4	- # of locking operations that use 4th per-CPU node
- *   lock_no_node	- # of locking operations without using per-CPU node
- *
- * Subtracting lock_use_node[234] from lock_slowpath will give you
- * lock_use_node1.
- *
- * Writing to the special ".reset_counts" file will reset all the above
- * counter values.
- *
- * These statistical counters are implemented as per-cpu variables which are
- * summed and computed whenever the corresponding debugfs files are read. This
- * minimizes added overhead making the counters usable even in a production
- * environment.
- *
- * There may be slight difference between pv_kick_wake and pv_kick_unlock.
- */
 #include "lock_events.h"
 
-#ifdef CONFIG_QUEUED_LOCK_STAT
+#ifdef CONFIG_LOCK_EVENT_COUNTS
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
 /*
- * Collect pvqspinlock statistics
+ * Collect pvqspinlock locking event counts
  */
-#include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/fs.h>
 
 #define EVENT_COUNT(ev)	lockevents[LOCKEVENT_ ## ev]
 
-#undef  LOCK_EVENT
-#define LOCK_EVENT(name)	[LOCKEVENT_ ## name] = #name,
-
-static const char * const lockevent_names[lockevent_num + 1] = {
-
-#include "lock_events_list.h"
-
-	[LOCKEVENT_reset_cnts] = ".reset_counts",
-};
-
 /*
- * Per-cpu counters
+ * PV specific per-cpu counter
  */
-DEFINE_PER_CPU(unsigned long, lockevents[lockevent_num]);
 static DEFINE_PER_CPU(u64, pv_kick_time);
 
 /*
- * Function to read and return the qlock statistical counter values
+ * Function to read and return the PV qspinlock counts.
  *
  * The following counters are handled specially:
  * 1. pv_latency_kick
@@ -88,8 +41,8 @@ static DEFINE_PER_CPU(u64, pv_kick_time);
  * 3. pv_hash_hops
  *    Average hops/hash = pv_hash_hops/pv_kick_unlock
  */
-static ssize_t lockevent_read(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
+ssize_t lockevent_read(struct file *file, char __user *user_buf,
+		       size_t count, loff_t *ppos)
 {
 	char buf[64];
 	int cpu, id, len;
@@ -150,78 +103,6 @@ static ssize_t lockevent_read(struct file *file, char __user *user_buf,
 }
 
 /*
- * Function to handle write request
- *
- * When id = .reset_cnts, reset all the counter values.
- */
-static ssize_t lockevent_write(struct file *file, const char __user *user_buf,
-			   size_t count, loff_t *ppos)
-{
-	int cpu;
-
-	/*
-	 * Get the counter ID stored in file->f_inode->i_private
-	 */
-	if ((long)file_inode(file)->i_private != LOCKEVENT_reset_cnts)
-		return count;
-
-	for_each_possible_cpu(cpu) {
-		int i;
-		unsigned long *ptr = per_cpu_ptr(lockevents, cpu);
-
-		for (i = 0 ; i < lockevent_num; i++)
-			WRITE_ONCE(ptr[i], 0);
-	}
-	return count;
-}
-
-/*
- * Debugfs data structures
- */
-static const struct file_operations fops_lockevent = {
-	.read = lockevent_read,
-	.write = lockevent_write,
-	.llseek = default_llseek,
-};
-
-/*
- * Initialize debugfs for the qspinlock statistical counters
- */
-static int __init init_qspinlock_stat(void)
-{
-	struct dentry *d_counts = debugfs_create_dir("qlockstat", NULL);
-	int i;
-
-	if (!d_counts)
-		goto out;
-
-	/*
-	 * Create the debugfs files
-	 *
-	 * As reading from and writing to the stat files can be slow, only
-	 * root is allowed to do the read/write to limit impact to system
-	 * performance.
-	 */
-	for (i = 0; i < lockevent_num; i++)
-		if (!debugfs_create_file(lockevent_names[i], 0400, d_counts,
-					 (void *)(long)i, &fops_lockevent))
-			goto fail_undo;
-
-	if (!debugfs_create_file(lockevent_names[LOCKEVENT_reset_cnts], 0200,
-				 d_counts, (void *)(long)LOCKEVENT_reset_cnts,
-				 &fops_lockevent))
-		goto fail_undo;
-
-	return 0;
-fail_undo:
-	debugfs_remove_recursive(d_counts);
-out:
-	pr_warn("Could not create 'qlockstat' debugfs entries\n");
-	return -ENOMEM;
-}
-fs_initcall(init_qspinlock_stat);
-
-/*
  * PV hash hop count
  */
 static inline void lockevent_pv_hop(int hopcnt)
@@ -260,8 +141,10 @@ static inline void __pv_wait(u8 *ptr, u8 val)
 #define pv_kick(c)	__pv_kick(c)
 #define pv_wait(p, v)	__pv_wait(p, v)
 
-#else /* CONFIG_QUEUED_LOCK_STAT */
+#endif /* CONFIG_PARAVIRT_SPINLOCKS */
+
+#else /* CONFIG_LOCK_EVENT_COUNTS */
 
 static inline void lockevent_pv_hop(int hopcnt)	{ }
 
-#endif /* CONFIG_QUEUED_LOCK_STAT */
+#endif /* CONFIG_LOCK_EVENT_COUNTS */

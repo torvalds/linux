@@ -13,6 +13,9 @@
  * Authors: Waiman Long <longman@redhat.com>
  */
 
+#ifndef __LOCKING_LOCK_EVENTS_H
+#define __LOCKING_LOCK_EVENTS_H
+
 enum lock_events {
 
 #include "lock_events_list.h"
@@ -21,7 +24,7 @@ enum lock_events {
 	LOCKEVENT_reset_cnts = lockevent_num,
 };
 
-#ifdef CONFIG_QUEUED_LOCK_STAT
+#ifdef CONFIG_LOCK_EVENT_COUNTS
 /*
  * Per-cpu counters
  */
@@ -46,10 +49,11 @@ static inline void __lockevent_add(enum lock_events event, int inc)
 
 #define lockevent_add(ev, c)	__lockevent_add(LOCKEVENT_ ##ev, c)
 
-#else  /* CONFIG_QUEUED_LOCK_STAT */
+#else  /* CONFIG_LOCK_EVENT_COUNTS */
 
 #define lockevent_inc(ev)
 #define lockevent_add(ev, c)
 #define lockevent_cond_inc(ev, c)
 
-#endif /* CONFIG_QUEUED_LOCK_STAT */
+#endif /* CONFIG_LOCK_EVENT_COUNTS */
+#endif /* __LOCKING_LOCK_EVENTS_H */
