@@ -105,19 +105,10 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	pcm.params.host_period_bytes = params_period_bytes(params);
 
 	/* container size */
-	switch (params_width(params)) {
-	case 16:
-		pcm.params.sample_container_bytes = 2;
-		break;
-	case 24:
-		pcm.params.sample_container_bytes = 4;
-		break;
-	case 32:
-		pcm.params.sample_container_bytes = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = snd_pcm_format_physical_width(params_format(params));
+	if (ret < 0)
+		return ret;
+	pcm.params.sample_container_bytes = ret >> 3;
 
 	/* format */
 	switch (params_format(params)) {
