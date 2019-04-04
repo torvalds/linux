@@ -1470,17 +1470,17 @@ found:
 		if (fi->fib_flags & RTNH_F_DEAD)
 			continue;
 		for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-			const struct fib_nh *nh = &fi->fib_nh[nhsel];
+			struct fib_nh_common *nhc = fib_info_nhc(fi, nhsel);
 
-			if (nh->fib_nh_flags & RTNH_F_DEAD)
+			if (nhc->nhc_flags & RTNH_F_DEAD)
 				continue;
-			if (ip_ignore_linkdown(nh->fib_nh_dev) &&
-			    nh->fib_nh_flags & RTNH_F_LINKDOWN &&
+			if (ip_ignore_linkdown(nhc->nhc_dev) &&
+			    nhc->nhc_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
 			if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
 				if (flp->flowi4_oif &&
-				    flp->flowi4_oif != nh->fib_nh_oif)
+				    flp->flowi4_oif != nhc->nhc_oif)
 					continue;
 			}
 
@@ -1490,6 +1490,7 @@ found:
 			res->prefix = htonl(n->key);
 			res->prefixlen = KEYLENGTH - fa->fa_slen;
 			res->nh_sel = nhsel;
+			res->nhc = nhc;
 			res->type = fa->fa_type;
 			res->scope = fi->fib_scope;
 			res->fi = fi;
@@ -1498,7 +1499,7 @@ found:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup(tb->tb_id, flp, nh, err);
+			trace_fib_table_lookup(tb->tb_id, flp, nhc, err);
 
 			return err;
 		}

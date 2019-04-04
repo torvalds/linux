@@ -156,15 +156,16 @@ struct fib_rule;
 
 struct fib_table;
 struct fib_result {
-	__be32		prefix;
-	unsigned char	prefixlen;
-	unsigned char	nh_sel;
-	unsigned char	type;
-	unsigned char	scope;
-	u32		tclassid;
-	struct fib_info *fi;
-	struct fib_table *table;
-	struct hlist_head *fa_head;
+	__be32			prefix;
+	unsigned char		prefixlen;
+	unsigned char		nh_sel;
+	unsigned char		type;
+	unsigned char		scope;
+	u32			tclassid;
+	struct fib_nh_common	*nhc;
+	struct fib_info		*fi;
+	struct fib_table	*table;
+	struct hlist_head	*fa_head;
 };
 
 struct fib_result_nl {
@@ -182,11 +183,10 @@ struct fib_result_nl {
 	int             err;
 };
 
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-#define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
-#else /* CONFIG_IP_ROUTE_MULTIPATH */
-#define FIB_RES_NH(res)		((res).fi->fib_nh[0])
-#endif /* CONFIG_IP_ROUTE_MULTIPATH */
+static inline struct fib_nh_common *fib_info_nhc(struct fib_info *fi, int nhsel)
+{
+	return &fi->fib_nh[nhsel].nh_common;
+}
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 #define FIB_TABLE_HASHSZ 256
@@ -195,18 +195,11 @@ struct fib_result_nl {
 #endif
 
 __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
+__be32 fib_result_prefsrc(struct net *net, struct fib_result *res);
 
-#define FIB_RES_SADDR(net, res)				\
-	((FIB_RES_NH(res).nh_saddr_genid ==		\
-	  atomic_read(&(net)->ipv4.dev_addr_genid)) ?	\
-	 FIB_RES_NH(res).nh_saddr :			\
-	 fib_info_update_nh_saddr((net), &FIB_RES_NH(res)))
-#define FIB_RES_GW(res)			(FIB_RES_NH(res).fib_nh_gw4)
-#define FIB_RES_DEV(res)		(FIB_RES_NH(res).fib_nh_dev)
-#define FIB_RES_OIF(res)		(FIB_RES_NH(res).fib_nh_oif)
-
-#define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
-					 FIB_RES_SADDR(net, res))
+#define FIB_RES_NHC(res)		((res).nhc)
+#define FIB_RES_DEV(res)	(FIB_RES_NHC(res)->nhc_dev)
+#define FIB_RES_OIF(res)	(FIB_RES_NHC(res)->nhc_oif)
 
 struct fib_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
@@ -453,10 +446,12 @@ struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
 static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
+	struct fib_nh_common *nhc = res->nhc;
+	struct fib_nh *nh = container_of(nhc, struct fib_nh, nh_common);
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	u32 rtag;
 #endif
-	*itag = FIB_RES_NH(*res).nh_tclassid<<16;
+	*itag = nh->nh_tclassid << 16;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	rtag = res->tclassid;
 	if (*itag == 0)
@@ -497,4 +492,9 @@ u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr);
 int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 			  struct fib_dump_filter *filter,
 			  struct netlink_callback *cb);
+
+int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nh,
+		     unsigned int *flags, bool skip_oif);
+int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nh,
+		    int nh_weight);
 #endif  /* _NET_FIB_H */
