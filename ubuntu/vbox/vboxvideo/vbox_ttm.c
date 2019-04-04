@@ -41,6 +41,7 @@ static inline struct vbox_private *vbox_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct vbox_private, ttm.bdev);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 static int vbox_ttm_mem_global_init(struct drm_global_reference *ref)
 {
 	return ttm_mem_global_init(ref->object);
@@ -95,6 +96,16 @@ static void vbox_ttm_global_release(struct vbox_private *vbox)
 	drm_global_item_unref(&vbox->ttm.bo_global_ref.ref);
 	drm_global_item_unref(&vbox->ttm.mem_global_ref);
 }
+#else
+static inline int vbox_ttm_global_init(struct vbox_private *vbox)
+{
+	return 0;
+}
+
+static inline void vbox_ttm_global_release(struct vbox_private *vbox)
+{
+}
+#endif
 
 static void vbox_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
@@ -287,7 +298,9 @@ int vbox_mm_init(struct vbox_private *vbox)
 		return ret;
 
 	ret = ttm_bo_device_init(&vbox->ttm.bdev,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 				 vbox->ttm.bo_global_ref.ref.object,
+#endif
 				 &vbox_bo_driver,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0) || defined(RHEL_71)
 				 dev->anon_inode->i_mapping,

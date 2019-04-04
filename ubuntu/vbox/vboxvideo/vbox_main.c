@@ -647,7 +647,7 @@ vbox_dumb_mmap_offset(struct drm_file *file,
 	bo = gem_to_vbox_bo(obj);
 	*offset = vbox_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference(obj);
+	drm_gem_object_put(obj);
 	ret = 0;
 
 out_unlock:

@@ -109,6 +109,11 @@ static inline void drm_gem_object_put_unlocked(struct drm_gem_object *obj)
 {
 	drm_gem_object_unreference_unlocked(obj);
 }
+
+static inline void drm_gem_object_put(struct drm_gem_object *obj)
+{
+	drm_gem_object_unreference(obj);
+}
 #endif
 
 #define DRIVER_AUTHOR       VBOX_VENDOR
@@ -169,8 +174,10 @@ struct vbox_private {
 	int fb_mtrr;
 
 	struct {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
+#endif
 		struct ttm_bo_device bdev;
 		bool mm_initialised;
 	} ttm;
