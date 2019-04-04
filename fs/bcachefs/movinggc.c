@@ -209,7 +209,8 @@ static void bch2_copygc(struct bch_fs *c, struct bch_dev *ca)
 	up_read(&ca->bucket_lock);
 
 	if (sectors_not_moved && !ret)
-		bch_warn(c, "copygc finished but %llu/%llu sectors, %llu/%llu buckets not moved",
+		bch_warn_ratelimited(c,
+			"copygc finished but %llu/%llu sectors, %llu/%llu buckets not moved",
 			 sectors_not_moved, sectors_to_move,
 			 buckets_not_moved, buckets_to_move);
 

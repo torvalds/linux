@@ -223,6 +223,8 @@
 	printk(KERN_NOTICE bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn(c, fmt, ...) \
 	printk(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_warn_ratelimited(c, fmt, ...) \
+	printk_ratelimited(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_err(c, fmt, ...) \
 	printk(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_err_ratelimited(c, fmt, ...) \
