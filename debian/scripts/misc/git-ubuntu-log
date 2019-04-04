@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import os
 import sys
 
 import codecs
@@ -13,6 +12,8 @@ sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
 
 entries = []
+
+
 def add_entry(entry):
     if entry and 'ignore' not in entry:
         combo = []
@@ -41,6 +42,7 @@ def add_entry(entry):
         entry['key'] = combo
         entries.append(entry)
 
+
 # Suck up the git log output and extract the information we need.
 keys = []
 entry = None
@@ -59,10 +61,16 @@ for line in sys.stdin:
         subject_wait = False
         entry['subject'] = line.strip()
 
-    elif line.startswith('    BugLink: ') and 'launchpad.net' in line:
-        bits = line.strip().split(maxsplit=1)
-        bits = bits[1].split('/')
-        entry.setdefault('bugs', []).append(bits[-1])
+    elif line.startswith('    BugLink: '):
+        bits = line.strip().split(maxsplit=2)
+        if len(bits) > 2:
+            # There is text after the URL, so use that (after stripping the
+            # enclosing characters)
+            entry.setdefault('bugs', []).append(bits[2][1:-1])
+        elif 'launchpad.net' in bits[1]:
+            # Extract the bug number from the launchpad URL
+            bits = bits[1].split('/')
+            entry.setdefault('bugs', []).append(bits[-1])
 
     elif line.startswith('    CVE-'):
         entry.setdefault('cves', []).append(line.strip())
@@ -88,9 +96,9 @@ keys.append('__mainline__')
 emit_nl = False
 for key in keys:
     if key == '__packaging__':
-        title_set = [ 'Miscellaneous Ubuntu changes' ]
+        title_set = ['Miscellaneous Ubuntu changes']
     elif key == '__mainline__':
-        title_set = [ 'Miscellaneous upstream changes' ]
+        title_set = ['Miscellaneous upstream changes']
     else:
         title_set = []
         for bug in key:
@@ -100,11 +108,12 @@ for key in keys:
                 # Look for the tracking bug number on the second
                 # position of the key
                 continue
-            else:
+            elif bug.isdigit():
+                # Assume that it is an LP bug number if 'bug' contains only digits
                 bug_info = None
 
                 try:
-                    #urllib.request.urlcleanup()
+                    # urllib.request.urlcleanup()
                     request = urllib.request.Request('https://api.launchpad.net/devel/bugs/' + bug)
                     request.add_header('Cache-Control', 'max-age=0')
                     with urllib.request.urlopen(request) as response:
@@ -122,7 +131,9 @@ for key in keys:
 
                 title += ' (LP###' + bug + ')'
                 title_set.append(title)
-
+            else:
+                # Finally treat 'bug' itself as the title
+                title_set.append(bug)
 
     emit_title = True
     for entry in entries:
