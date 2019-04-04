@@ -406,10 +406,10 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 
 	/* set any runtime constraints based on topology */
 	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+				   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   le32_to_cpu(caps->period_size_min));
 	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				   SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   le32_to_cpu(caps->period_size_min));
 
 	/* set runtime config */
@@ -424,6 +424,11 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw.period_bytes_max = le32_to_cpu(caps->period_size_max);
 	runtime->hw.periods_min = le32_to_cpu(caps->periods_min);
 	runtime->hw.periods_max = le32_to_cpu(caps->periods_max);
+
+	/*
+	 * caps->buffer_size_min is not used since the
+	 * snd_pcm_hardware structure only defines buffer_bytes_max
+	 */
 	runtime->hw.buffer_bytes_max = le32_to_cpu(caps->buffer_size_max);
 
 	dev_dbg(sdev->dev, "period min %zd max %zd bytes\n",
