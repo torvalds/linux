@@ -417,6 +417,7 @@ static bool rockchip_pdm_rd_reg(struct device *dev, unsigned int reg)
 	case PDM_INT_CLR:
 	case PDM_INT_ST:
 	case PDM_DATA_VALID:
+	case PDM_RXFIFO_DATA:
 	case PDM_VERSION:
 		return true;
 	default:
@@ -431,6 +432,17 @@ static bool rockchip_pdm_volatile_reg(struct device *dev, unsigned int reg)
 	case PDM_FIFO_CTRL:
 	case PDM_INT_CLR:
 	case PDM_INT_ST:
+	case PDM_RXFIFO_DATA:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool rockchip_pdm_precious_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case PDM_RXFIFO_DATA:
 		return true;
 	default:
 		return false;
@@ -453,6 +465,7 @@ static const struct regmap_config rockchip_pdm_regmap_config = {
 	.writeable_reg = rockchip_pdm_wr_reg,
 	.readable_reg = rockchip_pdm_rd_reg,
 	.volatile_reg = rockchip_pdm_volatile_reg,
+	.precious_reg = rockchip_pdm_precious_reg,
 	.cache_type = REGCACHE_FLAT,
 };
 
