@@ -889,9 +889,6 @@ qla2xxx_qpair_sp_compl(void *ptr, int res)
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }
 
-/* If we are SP1 here, we need to still take and release the host_lock as SP1
- * does not have the changes necessary to avoid taking host->host_lock.
- */
 static int
 qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
