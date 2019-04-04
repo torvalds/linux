@@ -331,7 +331,7 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		dev_err(dev, "failed to get address resource(id-%d)\n", port);
+		dev_err(dev, "failed to get address resource\n");
 		return ret;
 	}
 
