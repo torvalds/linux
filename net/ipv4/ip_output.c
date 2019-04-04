@@ -693,11 +693,8 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			return 0;
 		}
 
-		while (frag) {
-			skb = frag->next;
-			kfree_skb(frag);
-			frag = skb;
-		}
+		kfree_skb_list(frag);
+
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		return err;
 
