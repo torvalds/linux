@@ -233,9 +233,9 @@ Thus, with the sched_cfs_boost enabled we have the following main functions to
 get the current utilization of a CPU:
 
   cpu_util()
-  boosted_cpu_util()
+  stune_util()
 
-The new boosted_cpu_util() is similar to the first but returns a boosted
+The new stune_util() is similar to the first but returns a boosted
 utilization signal which is a function of the sched_cfs_boost value.
 
 This function is used in the CFS scheduler code paths where schedutil needs to

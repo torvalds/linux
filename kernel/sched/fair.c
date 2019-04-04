@@ -5868,7 +5868,7 @@ schedtune_task_margin(struct task_struct *task)
 }
 
 unsigned long
-boosted_cpu_util(int cpu, unsigned long other_util)
+stune_util(int cpu, unsigned long other_util)
 {
 	unsigned long util = min_t(unsigned long, SCHED_CAPACITY_SCALE,
 				   cpu_util_cfs(cpu_rq(cpu)) + other_util);
