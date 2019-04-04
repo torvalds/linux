@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
+#include <linux/async.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -2366,8 +2367,9 @@ int hid_add_device(struct hid_device *hdev)
 	 * not first have hid-generic binding only to have it replaced
 	 * immediately afterwards with a specialized driver.
 	 */
-	request_module("hid:b%04Xg%04Xv%08Xp%08X",
-		       hdev->bus, hdev->group, hdev->vendor, hdev->product);
+	if (!current_is_async())
+		request_module("hid:b%04Xg%04Xv%08Xp%08X", hdev->bus,
+			       hdev->group, hdev->vendor, hdev->product);
 
 	hid_debug_register(hdev, dev_name(&hdev->dev));
 	ret = device_add(&hdev->dev);
