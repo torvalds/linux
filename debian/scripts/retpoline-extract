@@ -11,10 +11,10 @@ ur_safe=$(mktemp --tmpdir "retpoline-check-XXXXXX.ur-safe")
 find "." -path './drivers/firmware/efi/libstub' -prune -o \
 	 -path './arch/x86/boot' -prune -o \
 	 -path './arch/x86/purgatory' -prune -o \
-	 -name \*.ur-detected | xargs cat | \
+	 -name \*.ur-detected -print0 | xargs -0 cat | \
 	sed -e "s@^$1@@" -e "s@ $2/@ @" -e "s@^/@@" | \
 	sort -k 1b,1 >"$ur_detected"
-find "." -name \*.ur-safe | xargs cat | \
+find "." -name \*.ur-safe -print0 | xargs -0 cat | \
 	sed -e "s@^$1@@" -e "s@^/@@" | \
 	sort -k 1b,1 >"$ur_safe"
 
