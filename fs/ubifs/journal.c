@@ -892,6 +892,11 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		struct inode *xino;
 		struct ubifs_dent_node *xent, *pxent = NULL;
 
+		if (ui->xattr_cnt >= ubifs_xattr_max_cnt(c)) {
+			ubifs_err(c, "Cannot delete inode, it has too much xattrs!");
+			goto out_release;
+		}
+
 		lowest_xent_key(c, &key, inode->i_ino);
 		while (1) {
 			xent = ubifs_tnc_next_ent(c, &key, &nm);
@@ -907,6 +912,13 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 			fname_len(&nm) = le16_to_cpu(xent->nlen);
 
 			xino = ubifs_iget(c->vfs_sb, xent->inum);
+			if (IS_ERR(xino)) {
+				err = PTR_ERR(xino);
+				ubifs_err(c, "dead directory entry '%s', error %d",
+					  xent->name, err);
+				ubifs_ro_mode(c, err);
+				goto out_release;
+			}
 			ubifs_assert(c, ubifs_inode(xino)->xattr);
 
 			clear_nlink(xino);

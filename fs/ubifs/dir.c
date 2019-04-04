@@ -796,6 +796,10 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		return err;
 
+	err = ubifs_purge_xattrs(inode);
+	if (err)
+		return err;
+
 	sz_change = CALC_DENT_SIZE(fname_len(&nm));
 
 	ubifs_assert(c, inode_is_locked(dir));
@@ -897,6 +901,10 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 		return err;
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 1, &nm);
+	if (err)
+		return err;
+
+	err = ubifs_purge_xattrs(inode);
 	if (err)
 		return err;
 
@@ -1282,8 +1290,13 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 		old_dentry, old_inode->i_ino, old_dir->i_ino,
 		new_dentry, new_dir->i_ino, flags);
 
-	if (unlink)
+	if (unlink) {
 		ubifs_assert(c, inode_is_locked(new_inode));
+
+		err = ubifs_purge_xattrs(new_inode);
+		if (err)
+			return err;
+	}
 
 	if (unlink && is_dir) {
 		err = ubifs_check_dir_empty(new_inode);
