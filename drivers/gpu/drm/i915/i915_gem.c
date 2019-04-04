@@ -3841,16 +3841,16 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	return vma;
 }
 
-static __always_inline unsigned int __busy_read_flag(unsigned int id)
+static __always_inline u32 __busy_read_flag(u8 id)
 {
-	if (id == I915_ENGINE_CLASS_INVALID)
-		return 0xffff0000;
+	if (id == (u8)I915_ENGINE_CLASS_INVALID)
+		return 0xffff0000u;
 
 	GEM_BUG_ON(id >= 16);
-	return 0x10000 << id;
+	return 0x10000u << id;
 }
 
-static __always_inline unsigned int __busy_write_id(unsigned int id)
+static __always_inline u32 __busy_write_id(u8 id)
 {
 	/*
 	 * The uABI guarantees an active writer is also amongst the read
@@ -3861,15 +3861,14 @@ static __always_inline unsigned int __busy_write_id(unsigned int id)
 	 * last_read - hence we always set both read and write busy for
 	 * last_write.
 	 */
-	if (id == I915_ENGINE_CLASS_INVALID)
-		return 0xffffffff;
+	if (id == (u8)I915_ENGINE_CLASS_INVALID)
+		return 0xffffffffu;
 
 	return (id + 1) | __busy_read_flag(id);
 }
 
 static __always_inline unsigned int
-__busy_set_if_active(const struct dma_fence *fence,
-		     unsigned int (*flag)(unsigned int id))
+__busy_set_if_active(const struct dma_fence *fence, u32 (*flag)(u8 id))
 {
 	const struct i915_request *rq;
 
@@ -3889,6 +3888,8 @@ __busy_set_if_active(const struct dma_fence *fence,
 	if (i915_request_completed(rq))
 		return 0;
 
+	/* Beware type-expansion follies! */
+	BUILD_BUG_ON(!typecheck(u8, rq->engine->uabi_class));
 	return flag(rq->engine->uabi_class);
 }
 
