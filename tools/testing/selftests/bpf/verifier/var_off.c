@@ -115,6 +115,33 @@
 	.prog_type = BPF_PROG_TYPE_LWT_IN,
 },
 {
+	"indirect variable-offset stack access, uninitialized",
+	.insns = {
+	BPF_MOV64_IMM(BPF_REG_2, 6),
+	BPF_MOV64_IMM(BPF_REG_3, 28),
+	/* Fill the top 16 bytes of the stack. */
+	BPF_ST_MEM(BPF_W, BPF_REG_10, -16, 0),
+	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+	/* Get an unknown value. */
+	BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_1, 0),
+	/* Make it small and 4-byte aligned. */
+	BPF_ALU64_IMM(BPF_AND, BPF_REG_4, 4),
+	BPF_ALU64_IMM(BPF_SUB, BPF_REG_4, 16),
+	/* Add it to fp.  We now have either fp-12 or fp-16, we don't know
+	 * which, but either way it points to initialized stack.
+	 */
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_4, BPF_REG_10),
+	BPF_MOV64_IMM(BPF_REG_5, 8),
+	/* Dereference it indirectly. */
+	BPF_EMIT_CALL(BPF_FUNC_getsockopt),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.errstr = "invalid indirect read from stack var_off",
+	.result = REJECT,
+	.prog_type = BPF_PROG_TYPE_SOCK_OPS,
+},
+{
 	"indirect variable-offset stack access, ok",
 	.insns = {
 	/* Fill the top 16 bytes of the stack. */
