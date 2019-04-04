@@ -588,6 +588,17 @@ static void rcu_preempt_deferred_qs(struct task_struct *t)
 }
 
 /*
+ * Minimal handler to give the scheduler a chance to re-evaluate.
+ */
+static void rcu_preempt_deferred_qs_handler(struct irq_work *iwp)
+{
+	struct rcu_data *rdp;
+
+	rdp = container_of(iwp, struct rcu_data, defer_qs_iw);
+	rdp->defer_qs_iw_pending = false;
+}
+
+/*
  * Handle special cases during rcu_read_unlock(), such as needing to
  * notify RCU core processing or task having blocked during the RCU
  * read-side critical section.
@@ -630,6 +641,15 @@ static void rcu_read_unlock_special(struct task_struct *t)
 			// Also if no expediting or NO_HZ_FULL, slow is OK.
 			set_tsk_need_resched(current);
 			set_preempt_need_resched();
+			if (IS_ENABLED(CONFIG_IRQ_WORK) &&
+			    !rdp->defer_qs_iw_pending && exp) {
+				// Get scheduler to re-evaluate and call hooks.
+				// If !IRQ_WORK, FQS scan will eventually IPI.
+				init_irq_work(&rdp->defer_qs_iw,
+					      rcu_preempt_deferred_qs_handler);
+				rdp->defer_qs_iw_pending = true;
+				irq_work_queue_on(&rdp->defer_qs_iw, rdp->cpu);
+			}
 		}
 		t->rcu_read_unlock_special.b.deferred_qs = true;
 		local_irq_restore(flags);
