@@ -1642,7 +1642,7 @@ static const struct i2c_device_id lm85_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm85_id);
 
-static const struct of_device_id lm85_of_match[] = {
+static const struct of_device_id __maybe_unused lm85_of_match[] = {
 	{
 		.compatible = "adi,adm1027",
 		.data = (void *)adm1027
