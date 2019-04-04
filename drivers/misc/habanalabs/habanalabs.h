@@ -390,14 +390,12 @@ struct hl_eq {
 
 /**
  * enum hl_asic_type - supported ASIC types.
- * @ASIC_AUTO_DETECT: ASIC type will be automatically set.
- * @ASIC_GOYA: Goya device.
  * @ASIC_INVALID: Invalid ASIC type.
+ * @ASIC_GOYA: Goya device.
  */
 enum hl_asic_type {
-	ASIC_AUTO_DETECT,
-	ASIC_GOYA,
-	ASIC_INVALID
+	ASIC_INVALID,
+	ASIC_GOYA
 };
 
 struct hl_cs_parser;
