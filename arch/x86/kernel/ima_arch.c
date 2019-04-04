@@ -3,6 +3,7 @@
  * Copyright (C) 2018 IBM Corporation
  */
 #include <linux/efi.h>
+#include <linux/module.h>
 #include <linux/ima.h>
 
 extern struct boot_params boot_params;
