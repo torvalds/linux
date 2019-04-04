@@ -117,6 +117,37 @@ struct tipc_msg {
 	__be32 hdr[15];
 };
 
+/* struct tipc_gap_ack - TIPC Gap ACK block
+ * @ack: seqno of the last consecutive packet in link deferdq
+ * @gap: number of gap packets since the last ack
+ *
+ * E.g:
+ *       link deferdq: 1 2 3 4      10 11      13 14 15       20
+ * --> Gap ACK blocks:      <4, 5>,   <11, 1>,      <15, 4>, <20, 0>
+ */
+struct tipc_gap_ack {
+	__be16 ack;
+	__be16 gap;
+};
+
+/* struct tipc_gap_ack_blks
+ * @len: actual length of the record
+ * @gack_cnt: number of Gap ACK blocks in the record
+ * @gacks: array of Gap ACK blocks
+ */
+struct tipc_gap_ack_blks {
+	__be16 len;
+	u8 gack_cnt;
+	u8 reserved;
+	struct tipc_gap_ack gacks[];
+};
+
+#define tipc_gap_ack_blks_sz(n) (sizeof(struct tipc_gap_ack_blks) + \
+				 sizeof(struct tipc_gap_ack) * (n))
+
+#define MAX_GAP_ACK_BLKS	32
+#define MAX_GAP_ACK_BLKS_SZ	tipc_gap_ack_blks_sz(MAX_GAP_ACK_BLKS)
+
 static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 {
 	return (struct tipc_msg *)skb->data;
