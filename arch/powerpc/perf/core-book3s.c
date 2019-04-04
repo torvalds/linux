@@ -2318,7 +2318,7 @@ static int __init init_ppc64_pmu(void)
 	else if (!init_ppc970_pmu())
 		return 0;
 	else
-		return -ENODEV;
+		return init_generic_compat_pmu();
 }
 early_initcall(init_ppc64_pmu);
 #endif
