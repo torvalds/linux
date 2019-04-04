@@ -49,5 +49,6 @@ then point your browser at **Documentation/output/labs/index.html**.
    labs/interrupts.rst
    labs/deferred_work.rst
    labs/block_device_drivers.rst
+   labs/filesystems_part1.rst
    labs/memory_mapping.rst
    labs/device_model.rst
