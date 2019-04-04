@@ -2226,6 +2226,19 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 		if (err)
 			return err;
 	} else {
+		/* Variable offset is prohibited for unprivileged mode for
+		 * simplicity since it requires corresponding support in
+		 * Spectre masking for stack ALU.
+		 * See also retrieve_ptr_limit().
+		 */
+		if (!env->allow_ptr_leaks) {
+			char tn_buf[48];
+
+			tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
+			verbose(env, "R%d indirect variable offset stack access prohibited for !root, var_off=%s\n",
+				regno, tn_buf);
+			return -EACCES;
+		}
 		/* Only initialized buffer on stack is allowed to be accessed
 		 * with variable offset. With uninitialized buffer it's hard to
 		 * guarantee that whole memory is marked as initialized on
@@ -3339,6 +3352,9 @@ static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
 
 	switch (ptr_reg->type) {
 	case PTR_TO_STACK:
+		/* Indirect variable offset stack access is prohibited in
+		 * unprivileged mode so it's not handled here.
+		 */
 		off = ptr_reg->off + ptr_reg->var_off.value;
 		if (mask_to_left)
 			*ptr_limit = MAX_BPF_STACK + off;
