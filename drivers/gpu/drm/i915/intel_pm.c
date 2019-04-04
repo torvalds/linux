@@ -3753,14 +3753,16 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 		sagv_block_time_us = 10;
 
 	/*
-	 * SKL+ workaround: bspec recommends we disable SAGV when we have
-	 * more then one pipe enabled
-	 *
 	 * If there are no active CRTCs, no additional checks need be performed
 	 */
 	if (hweight32(intel_state->active_crtcs) == 0)
 		return true;
-	else if (hweight32(intel_state->active_crtcs) > 1)
+
+	/*
+	 * SKL+ workaround: bspec recommends we disable SAGV when we have
+	 * more then one pipe enabled
+	 */
+	if (hweight32(intel_state->active_crtcs) > 1)
 		return false;
 
 	/* Since we're now guaranteed to only have one active CRTC... */
