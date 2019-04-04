@@ -1,0 +1,10 @@
+--- drivers/net/wireless/realtek/rtlwifi/rtl8188ee/trx.c
++++ drivers/net/wireless/realtek/rtlwifi/rtl8188ee/trx.c
+@@ -373,6 +373,7 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
+ 	struct rx_fwinfo_88e *p_drvinfo;
+ 	struct ieee80211_hdr *hdr;
+ 	u32 phystatus = GET_RX_DESC_PHYST(pdesc);
++	u8 wake_match;
+ 
+ 	status->packet_report_type = (u8)GET_RX_STATUS_DESC_RPT_SEL(pdesc);
+ 	if (status->packet_report_type == TX_REPORT2)
