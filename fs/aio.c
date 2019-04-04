@@ -1034,7 +1034,7 @@ static inline struct aio_kiocb *aio_get_req(struct kioctx *ctx)
 		return NULL;
 
 	if (unlikely(!get_reqs_available(ctx))) {
-		kfree(req);
+		kmem_cache_free(kiocb_cachep, req);
 		return NULL;
 	}
 
