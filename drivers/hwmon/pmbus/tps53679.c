@@ -97,7 +97,7 @@ static const struct i2c_device_id tps53679_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, tps53679_id);
 
-static const struct of_device_id tps53679_of_match[] = {
+static const struct of_device_id __maybe_unused tps53679_of_match[] = {
 	{.compatible = "ti,tps53679"},
 	{}
 };
