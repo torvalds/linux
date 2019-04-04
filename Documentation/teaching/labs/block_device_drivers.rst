@@ -486,7 +486,7 @@ The fields of :c:type:`struct request` structure include:
      one associated buffer;
    * :c:member:`bio_data`: the address of the buffer associated to the request
    * about the :c:type:`struct bio` structure and its associated operations
-     will be discussed in the ref:`bio_structure` section;
+     will be discussed in the :ref:`bio_structure` section;
 
 Create a request
 ----------------
@@ -590,7 +590,7 @@ within this loop are:
      called in order to complete the request entirely. If all request sectors
      have been processed, the :c:func:`__blk_end_request` function is used.
 
-.. _bio_structure:
+.. bio_structure:
 
 :c:type:`struct bio` structure
 ==============================
@@ -964,7 +964,7 @@ result in read/write in a memory area.
 The memory area :c:data:`dev->data` is already allocated in the source code of
 the module using :c:func:`vmalloc`. To deallocate, use :c:func:`vfree`.
 
-..note:: Review the `Process a request`_ section.
+.. note:: Review the `Process a request`_ section.
 
 Follow the comments marked with **TODO 3** to complete the
 :c:func:`my_block_transfer` function to write /read the request information
@@ -1052,7 +1052,7 @@ macros respectively.
           page which is allocated above in the code, in the :c:data:`page`
           variable.
 
-.. hint:: Review the sections ref:`bio_content` and ref:`bio_completion`.
+.. hint:: Review the sections :ref:`bio_content` and :ref:`bio_completion`.
 
 For testing, use the :file:`test-relay-disk` script, which is copied on the
 virtual machine when running :command:`make copy`. If it is not copied, make
