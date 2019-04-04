@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/if_vlan.h>
+#include <linux/crash_dump.h>
 #include <net/rtnetlink.h>
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
@@ -1015,6 +1016,23 @@ static int hclge_get_cap(struct hclge_dev *hdev)
 	return ret;
 }
 
+static void hclge_init_kdump_kernel_config(struct hclge_dev *hdev)
+{
+#define HCLGE_MIN_TX_DESC	64
+#define HCLGE_MIN_RX_DESC	64
+
+	if (!is_kdump_kernel())
+		return;
+
+	dev_info(&hdev->pdev->dev,
+		 "Running kdump kernel. Using minimal resources\n");
+
+	/* minimal queue pairs equals to the number of vports */
+	hdev->num_tqps = hdev->num_vmdq_vport + hdev->num_req_vfs + 1;
+	hdev->num_tx_desc = HCLGE_MIN_TX_DESC;
+	hdev->num_rx_desc = HCLGE_MIN_RX_DESC;
+}
+
 static int hclge_configure(struct hclge_dev *hdev)
 {
 	struct hclge_cfg cfg;
@@ -1073,6 +1091,8 @@ static int hclge_configure(struct hclge_dev *hdev)
 		hnae3_set_bit(hdev->hw_tc_map, i, 1);
 
 	hdev->tx_sch_mode = HCLGE_FLAG_TC_BASE_SCH_MODE;
+
+	hclge_init_kdump_kernel_config(hdev);
 
 	return ret;
 }
@@ -6293,7 +6313,8 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
 		return -EINVAL;
 	}
 
-	if (!is_first && hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr))
+	if ((!is_first || is_kdump_kernel()) &&
+	    hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr))
 		dev_warn(&hdev->pdev->dev,
 			 "remove old uc mac address fail.\n");
 
