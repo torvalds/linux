@@ -160,4 +160,7 @@ int ingenic_ecc_probe(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(ingenic_ecc_probe);
 
+MODULE_AUTHOR("Alex Smith <alex@alex-smith.me.uk>");
+MODULE_AUTHOR("Harvey Hunt <harveyhuntnexus@gmail.com>");
+MODULE_DESCRIPTION("Ingenic ECC common driver");
 MODULE_LICENSE("GPL v2");
