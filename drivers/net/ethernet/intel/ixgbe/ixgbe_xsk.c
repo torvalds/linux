@@ -654,7 +654,6 @@ bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 			xsk_frames++;
 
 		tx_bi->xdpf = NULL;
-		total_bytes += tx_bi->bytecount;
 
 		tx_bi++;
 		tx_desc++;
