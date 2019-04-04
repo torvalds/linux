@@ -831,7 +831,6 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 	 */
 	if (nritems == 0 && !btrfs_header_flag(leaf, BTRFS_HEADER_FLAG_RELOC)) {
 		u64 owner = btrfs_header_owner(leaf);
-		struct btrfs_root *check_root;
 
 		/* These trees must never be empty */
 		if (owner == BTRFS_ROOT_TREE_OBJECTID ||
@@ -844,29 +843,6 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 			"invalid root, root %llu must never be empty",
 				    owner);
 			return -EUCLEAN;
-		}
-		key.objectid = owner;
-		key.type = BTRFS_ROOT_ITEM_KEY;
-		key.offset = (u64)-1;
-
-		check_root = btrfs_get_fs_root(fs_info, &key, false);
-		/*
-		 * The only reason we also check NULL here is that during
-		 * open_ctree() some roots has not yet been set up.
-		 */
-		if (!IS_ERR_OR_NULL(check_root)) {
-			struct extent_buffer *eb;
-
-			eb = btrfs_root_node(check_root);
-			/* if leaf is the root, then it's fine */
-			if (leaf != eb) {
-				generic_err(leaf, 0,
-		"invalid nritems, have %u should not be 0 for non-root leaf",
-					nritems);
-				free_extent_buffer(eb);
-				return -EUCLEAN;
-			}
-			free_extent_buffer(eb);
 		}
 		return 0;
 	}
