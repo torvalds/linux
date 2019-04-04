@@ -7407,14 +7407,15 @@ destroy_cache:
 static void __exit
 qla2x00_module_exit(void)
 {
-	unregister_chrdev(apidev_major, QLA2XXX_APIDEV);
 	pci_unregister_driver(&qla2xxx_pci_driver);
 	qla2x00_release_firmware();
-	kmem_cache_destroy(srb_cachep);
-	qlt_exit();
 	kmem_cache_destroy(ctx_cachep);
-	fc_release_transport(qla2xxx_transport_template);
 	fc_release_transport(qla2xxx_transport_vport_template);
+	if (apidev_major >= 0)
+		unregister_chrdev(apidev_major, QLA2XXX_APIDEV);
+	fc_release_transport(qla2xxx_transport_template);
+	qlt_exit();
+	kmem_cache_destroy(srb_cachep);
 }
 
 module_init(qla2x00_module_init);
