@@ -119,6 +119,9 @@ void __init ti_clk_init_features(void)
 	if (cpu_is_omap343x())
 		features.flags |= TI_CLK_DPLL_HAS_FREQSEL;
 
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+		features.flags |= TI_CLK_DEVICE_TYPE_GP;
+
 	/* Idlest value for interface clocks.
 	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
 	 * 34xx reverses this, just to keep us on our toes

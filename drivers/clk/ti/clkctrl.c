@@ -509,6 +509,9 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		data = dm816_clkctrl_data;
 #endif
 
+	if (ti_clk_get_features()->flags & TI_CLK_DEVICE_TYPE_GP)
+		soc_mask |= CLKF_SOC_NONSEC;
+
 	while (data->addr) {
 		if (addr == data->addr)
 			break;
