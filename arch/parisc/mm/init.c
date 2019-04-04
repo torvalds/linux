@@ -622,14 +622,18 @@ void __init mem_init(void)
 	 * But keep code for debugging purposes.
 	 */
 	printk("virtual kernel memory layout:\n"
-	       "    vmalloc : 0x%px - 0x%px   (%4ld MB)\n"
-	       "    memory  : 0x%px - 0x%px   (%4ld MB)\n"
-	       "      .init : 0x%px - 0x%px   (%4ld kB)\n"
-	       "      .data : 0x%px - 0x%px   (%4ld kB)\n"
-	       "      .text : 0x%px - 0x%px   (%4ld kB)\n",
+	       "     vmalloc : 0x%px - 0x%px   (%4ld MB)\n"
+	       "     fixmap  : 0x%px - 0x%px   (%4ld kB)\n"
+	       "     memory  : 0x%px - 0x%px   (%4ld MB)\n"
+	       "       .init : 0x%px - 0x%px   (%4ld kB)\n"
+	       "       .data : 0x%px - 0x%px   (%4ld kB)\n"
+	       "       .text : 0x%px - 0x%px   (%4ld kB)\n",
 
 	       (void*)VMALLOC_START, (void*)VMALLOC_END,
 	       (VMALLOC_END - VMALLOC_START) >> 20,
+
+	       (void *)FIXMAP_START, (void *)(FIXMAP_START + FIXMAP_SIZE),
+	       (unsigned long)(FIXMAP_SIZE / 1024),
 
 	       __va(0), high_memory,
 	       ((unsigned long)high_memory - (unsigned long)__va(0)) >> 20,
