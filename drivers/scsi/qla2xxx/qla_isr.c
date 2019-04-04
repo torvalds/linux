@@ -366,7 +366,7 @@ qla2x00_get_link_speed_str(struct qla_hw_data *ha, uint16_t speed)
 	static const char *const link_speeds[] = {
 		"1", "2", "?", "4", "8", "16", "32", "10"
 	};
-#define	QLA_LAST_SPEED	7
+#define	QLA_LAST_SPEED (ARRAY_SIZE(link_speeds) - 1)
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return link_speeds[0];
