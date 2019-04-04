@@ -1519,7 +1519,7 @@ static u8 cake_handle_diffserv(struct sk_buff *skb, u16 wash)
 {
 	u8 dscp;
 
-	switch (skb->protocol) {
+	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
 		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> 2;
 		if (wash && dscp)
