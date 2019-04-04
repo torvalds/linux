@@ -25,9 +25,7 @@ static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 		/* notify DSP of kcontrol values */
 		switch (scontrol->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
-			/* fallthrough */
 		case SOF_CTRL_CMD_ENUM:
-			/* fallthrough */
 		case SOF_CTRL_CMD_SWITCH:
 			ipc_cmd = SOF_IPC_COMP_SET_VALUE;
 			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
@@ -81,7 +79,6 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 
 		switch (swidget->id) {
 		case snd_soc_dapm_dai_in:
-			/* fallthrough */
 		case snd_soc_dapm_dai_out:
 			dai = (struct snd_sof_dai *)swidget->private;
 			comp_dai = &dai->comp_dai;
