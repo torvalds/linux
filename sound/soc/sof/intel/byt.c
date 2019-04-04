@@ -508,7 +508,7 @@ static struct snd_soc_dai_driver byt_dai[] = {
  * Probe and remove.
  */
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
 
 static int byt_pci_probe(struct snd_sof_dev *sdev)
 {
@@ -636,7 +636,7 @@ const struct sof_intel_dsp_desc tng_chip_info = {
 };
 EXPORT_SYMBOL(tng_chip_info);
 
-#endif /* CONFIG_SND_SOC_SOF_EDISON */
+#endif /* CONFIG_SND_SOC_SOF_MERRIFIELD */
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 

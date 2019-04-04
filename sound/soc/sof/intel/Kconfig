@@ -19,7 +19,7 @@ config SND_SOC_SOF_INTEL_ACPI
 
 config SND_SOC_SOF_INTEL_PCI
 	tristate
-	select SND_SOC_SOF_EDISON      if SND_SOC_SOF_EDISON_SUPPORT
+	select SND_SOC_SOF_MERRIFIELD  if SND_SOC_SOF_MERRIFIELD_SUPPORT
 	select SND_SOC_SOF_APOLLOLAKE  if SND_SOC_SOF_APOLLOLAKE_SUPPORT
 	select SND_SOC_SOF_GEMINILAKE  if SND_SOC_SOF_GEMINILAKE_SUPPORT
 	select SND_SOC_SOF_CANNONLAKE  if SND_SOC_SOF_CANNONLAKE_SUPPORT
@@ -99,15 +99,15 @@ endif ## SND_SOC_SOF_INTEL_ACPI
 
 if SND_SOC_SOF_INTEL_PCI
 
-config SND_SOC_SOF_EDISON_SUPPORT
-	bool "SOF support for Tangier/Edison"
+config SND_SOC_SOF_MERRIFIELD_SUPPORT
+	bool "SOF support for Tangier/Merrifield"
 	help
           This adds support for Sound Open Firmware for Intel(R) platforms
           using the Baytrail, Braswell or Cherrytrail processors.
           Say Y if you have such a device.
           If unsure select "N".
 
-config SND_SOC_SOF_EDISON
+config SND_SOC_SOF_MERRIFIELD
 	tristate
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	help

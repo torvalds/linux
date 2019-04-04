@@ -65,7 +65,7 @@ static const struct sof_dev_desc glk_desc = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
 static struct snd_soc_acpi_mach sof_tng_machines[] = {
 	{
 		.id = "INT343A",
@@ -319,7 +319,7 @@ static void sof_pci_remove(struct pci_dev *pci)
 
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
 	{ PCI_DEVICE(0x8086, 0x119a),
 		.driver_data = (unsigned long)&tng_desc},
 #endif
