@@ -4,31 +4,7 @@
  *
  * Copyright 2019 Google LLC
  *
- * There is only one attribute used for debugging, called raw.
- * You can write a hexadecimal sentence to raw, and that series of bytes
- * will be sent to the EC. Then, you can read the bytes of response
- * by reading from raw.
- *
- * For writing:
- * Bytes 0-1 indicate the message type:
- *         00 F0 = Execute Legacy Command
- *         00 F2 = Read/Write NVRAM Property
- * Byte 2 provides the command code
- * Bytes 3+ consist of the data passed in the request
- *
- * When referencing the EC interface spec, byte 2 corresponds to MBOX[0],
- * byte 3 corresponds to MBOX[1], etc.
- *
- * At least three bytes are required, for the msg type and command,
- * with additional bytes optional for additional data.
- *
- * Example:
- * // Request EC info type 3 (EC firmware build date)
- * $ echo 00 f0 38 00 03 00 > raw
- * // View the result. The decoded ASCII result "12/21/18" is
- * // included after the raw hex.
- * $ cat raw
- * 00 31 32 2f 32 31 2f 31 38 00 38 00 01 00 2f 00  .12/21/18.8...
+ * See Documentation/ABI/testing/debugfs-wilco-ec for usage.
  */
 
 #include <linux/ctype.h>
@@ -136,18 +112,15 @@ static ssize_t raw_write(struct file *file, const char __user *user_buf,
 	ret = parse_hex_sentence(buf, kcount, request_data, TYPE_AND_DATA_SIZE);
 	if (ret < 0)
 		return ret;
-	/* Need at least two bytes for message type and one for command */
+	/* Need at least two bytes for message type and one byte of data */
 	if (ret < 3)
 		return -EINVAL;
 
-	/* Clear response data buffer */
-	memset(debug_info->raw_data, '\0', EC_MAILBOX_DATA_SIZE_EXTENDED);
-
 	msg.type = request_data[0] << 8 | request_data[1];
-	msg.flags = WILCO_EC_FLAG_RAW;
-	msg.command = request_data[2];
-	msg.request_data = ret > 3 ? request_data + 3 : 0;
-	msg.request_size = ret - 3;
+	msg.flags = 0;
+	msg.request_data = request_data + 2;
+	msg.request_size = ret - 2;
+	memset(debug_info->raw_data, 0, sizeof(debug_info->raw_data));
 	msg.response_data = debug_info->raw_data;
 	msg.response_size = EC_MAILBOX_DATA_SIZE;
 
@@ -174,7 +147,8 @@ static ssize_t raw_read(struct file *file, char __user *user_buf, size_t count,
 		fmt_len = hex_dump_to_buffer(debug_info->raw_data,
 					     debug_info->response_size,
 					     16, 1, debug_info->formatted_data,
-					     FORMATTED_BUFFER_SIZE, true);
+					     sizeof(debug_info->formatted_data),
+					     true);
 		/* Only return response the first time it is read */
 		debug_info->response_size = 0;
 	}
