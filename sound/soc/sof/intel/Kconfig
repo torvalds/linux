@@ -1,6 +1,6 @@
 config SND_SOC_SOF_INTEL_TOPLEVEL
 	bool "SOF support for Intel audio DSPs"
-	depends on SND_DMA_SGBUF || COMPILE_TEST
+	depends on X86 || COMPILE_TEST
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms.
 	  Say Y if you have such a device.
