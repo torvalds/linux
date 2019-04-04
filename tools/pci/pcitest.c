@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 	/* set default endpoint device */
 	test->device = "/dev/pci-endpoint-test.0";
 
-	while ((c = getopt(argc, argv, "D:b:m:x:i:Ilrwcs:")) != EOF)
+	while ((c = getopt(argc, argv, "D:b:m:x:i:Ilhrwcs:")) != EOF)
 	switch (c) {
 	case 'D':
 		test->device = optarg;
@@ -207,7 +207,6 @@ int main(int argc, char **argv)
 	case 's':
 		test->size = strtoul(optarg, NULL, 0);
 		continue;
-	case '?':
 	case 'h':
 	default:
 usage:
@@ -225,6 +224,7 @@ usage:
 			"\t-w			Write buffer test\n"
 			"\t-c			Copy buffer test\n"
 			"\t-s <size>		Size of buffer {default: 100KB}\n",
+			"\t-h			Print this help message\n",
 			argv[0]);
 		return -EINVAL;
 	}
