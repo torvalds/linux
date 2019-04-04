@@ -9227,7 +9227,7 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 		 * reshape is happening in the remote node, we need to
 		 * update reshape_position and call start_reshape.
 		 */
-		mddev->reshape_position = sb->reshape_position;
+		mddev->reshape_position = le64_to_cpu(sb->reshape_position);
 		if (mddev->pers->update_reshape_pos)
 			mddev->pers->update_reshape_pos(mddev);
 		if (mddev->pers->start_reshape)
