@@ -1545,7 +1545,6 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		if (!rem) {
 			dev_dbg(&pdev->dev, "Remote device at %pOF not found\n",
 				endpoint);
-			of_node_put(endpoint);
 			goto done;
 		}
 
@@ -1557,7 +1556,6 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 					    GFP_KERNEL);
 		if (!chan->inputs) {
 			of_node_put(rem);
-			of_node_put(endpoint);
 			goto err_cleanup;
 		}
 
@@ -1568,7 +1566,6 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 
 		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
 						 &bus_cfg);
-		of_node_put(endpoint);
 		if (err) {
 			dev_err(&pdev->dev, "Could not parse the endpoint\n");
 			of_node_put(rem);
@@ -1599,6 +1596,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 	}
 
 done:
+	of_node_put(endpoint);
 	pdata->asd_sizes[0] = i;
 	pdata->subdev_count = i;
 	pdata->card_name = "DA850/OMAP-L138 Video Capture";
@@ -1606,6 +1604,7 @@ done:
 	return pdata;
 
 err_cleanup:
+	of_node_put(endpoint);
 	v4l2_async_notifier_cleanup(&vpif_obj.notifier);
 
 	return NULL;
