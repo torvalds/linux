@@ -30,20 +30,19 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *ext,
 
 		flow_rule_match_vlan(rule, &match);
 		/* Populate the tci field. */
-		if (match.key->vlan_id || match.key->vlan_priority) {
-			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
-					     match.key->vlan_priority) |
-				  FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
-					     match.key->vlan_id) |
-				  NFP_FLOWER_MASK_VLAN_CFI;
-			ext->tci = cpu_to_be16(tmp_tci);
-			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
-					     match.mask->vlan_priority) |
-				  FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
-					     match.mask->vlan_id) |
-				  NFP_FLOWER_MASK_VLAN_CFI;
-			msk->tci = cpu_to_be16(tmp_tci);
-		}
+		tmp_tci = NFP_FLOWER_MASK_VLAN_PRESENT;
+		tmp_tci |= FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
+				      match.key->vlan_priority) |
+			   FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
+				      match.key->vlan_id);
+		ext->tci = cpu_to_be16(tmp_tci);
+
+		tmp_tci = NFP_FLOWER_MASK_VLAN_PRESENT;
+		tmp_tci |= FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
+				      match.mask->vlan_priority) |
+			   FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
+				      match.mask->vlan_id);
+		msk->tci = cpu_to_be16(tmp_tci);
 	}
 }
 

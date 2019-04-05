@@ -96,9 +96,6 @@ int mlx5_port_query_eth_proto(struct mlx5_core_dev *dev, u8 port, bool ext,
 	if (!eproto)
 		return -EINVAL;
 
-	if (ext !=  MLX5_CAP_PCAM_FEATURE(dev, ptys_extended_ethernet))
-		return -EOPNOTSUPP;
-
 	err = mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, port);
 	if (err)
 		return err;

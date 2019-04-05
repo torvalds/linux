@@ -39,7 +39,7 @@ struct hns_mdio_sc_reg {
 };
 
 struct hns_mdio_device {
-	void *vbase;		/* mdio reg base address */
+	u8 __iomem *vbase;		/* mdio reg base address */
 	struct regmap *subctrl_vbase;
 	struct hns_mdio_sc_reg sc_reg;
 };
@@ -96,21 +96,17 @@ enum mdio_c45_op_seq {
 #define MDIO_SC_CLK_ST		0x531C
 #define MDIO_SC_RESET_ST	0x5A1C
 
-static void mdio_write_reg(void *base, u32 reg, u32 value)
+static void mdio_write_reg(u8 __iomem *base, u32 reg, u32 value)
 {
-	u8 __iomem *reg_addr = (u8 __iomem *)base;
-
-	writel_relaxed(value, reg_addr + reg);
+	writel_relaxed(value, base + reg);
 }
 
 #define MDIO_WRITE_REG(a, reg, value) \
 	mdio_write_reg((a)->vbase, (reg), (value))
 
-static u32 mdio_read_reg(void *base, u32 reg)
+static u32 mdio_read_reg(u8 __iomem *base, u32 reg)
 {
-	u8 __iomem *reg_addr = (u8 __iomem *)base;
-
-	return readl_relaxed(reg_addr + reg);
+	return readl_relaxed(base + reg);
 }
 
 #define mdio_set_field(origin, mask, shift, val) \
@@ -121,7 +117,7 @@ static u32 mdio_read_reg(void *base, u32 reg)
 
 #define mdio_get_field(origin, mask, shift) (((origin) >> (shift)) & (mask))
 
-static void mdio_set_reg_field(void *base, u32 reg, u32 mask, u32 shift,
+static void mdio_set_reg_field(u8 __iomem *base, u32 reg, u32 mask, u32 shift,
 			       u32 val)
 {
 	u32 origin = mdio_read_reg(base, reg);
@@ -133,7 +129,7 @@ static void mdio_set_reg_field(void *base, u32 reg, u32 mask, u32 shift,
 #define MDIO_SET_REG_FIELD(dev, reg, mask, shift, val) \
 	mdio_set_reg_field((dev)->vbase, (reg), (mask), (shift), (val))
 
-static u32 mdio_get_reg_field(void *base, u32 reg, u32 mask, u32 shift)
+static u32 mdio_get_reg_field(u8 __iomem *base, u32 reg, u32 mask, u32 shift)
 {
 	u32 origin;
 
