@@ -36,6 +36,7 @@
 
 #include "i915_drv.h"
 #include "intel_crt.h"
+#include "intel_ddi.h"
 #include "intel_drv.h"
 
 /* Here's the desired hotplug mode */

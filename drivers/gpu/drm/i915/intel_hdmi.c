@@ -41,6 +41,7 @@
 
 #include "i915_drv.h"
 #include "intel_audio.h"
+#include "intel_ddi.h"
 #include "intel_drv.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)

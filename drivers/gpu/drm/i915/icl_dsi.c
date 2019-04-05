@@ -25,8 +25,10 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
-#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_mipi_dsi.h>
+
+#include "intel_ddi.h"
 #include "intel_dsi.h"
 
 static inline int header_credits_available(struct drm_i915_private *dev_priv,

@@ -43,6 +43,7 @@
 
 #include "i915_drv.h"
 #include "intel_audio.h"
+#include "intel_ddi.h"
 #include "intel_drv.h"
 
 #define DP_DPRX_ESI_LEN 14

@@ -49,6 +49,7 @@
 #include "i915_reset.h"
 #include "i915_trace.h"
 #include "intel_crt.h"
+#include "intel_ddi.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
 #include "intel_frontbuffer.h"
