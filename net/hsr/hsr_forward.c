@@ -105,7 +105,7 @@ static struct sk_buff *create_stripped_skb(struct sk_buff *skb_in,
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		skb->csum_start -= HSR_HLEN;
 
-	copylen = 2*ETH_ALEN;
+	copylen = 2 * ETH_ALEN;
 	if (frame->is_vlan)
 		copylen += VLAN_HLEN;
 	src = skb_mac_header(skb_in);

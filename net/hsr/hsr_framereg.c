@@ -385,9 +385,9 @@ void hsr_prune_nodes(struct timer_list *t)
 		time_b = node->time_in[HSR_PT_SLAVE_B];
 
 		/* Check for timestamps old enough to risk wrap-around */
-		if (time_after(jiffies, time_a + MAX_JIFFY_OFFSET/2))
+		if (time_after(jiffies, time_a + MAX_JIFFY_OFFSET / 2))
 			node->time_in_stale[HSR_PT_SLAVE_A] = true;
-		if (time_after(jiffies, time_b + MAX_JIFFY_OFFSET/2))
+		if (time_after(jiffies, time_b + MAX_JIFFY_OFFSET / 2))
 			node->time_in_stale[HSR_PT_SLAVE_B] = true;
 
 		/* Get age of newest frame from node.
@@ -402,7 +402,7 @@ void hsr_prune_nodes(struct timer_list *t)
 
 		/* Warn of ring error only as long as we get frames at all */
 		if (time_is_after_jiffies(timestamp +
-					msecs_to_jiffies(1.5*MAX_SLAVE_DIFF))) {
+				msecs_to_jiffies(1.5 * MAX_SLAVE_DIFF))) {
 			rcu_read_lock();
 			port = get_late_port(hsr, node);
 			if (port)
