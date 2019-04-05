@@ -436,18 +436,27 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 {
 	const struct rtable *rt = container_of(dst, struct rtable, dst);
 	struct net_device *dev = dst->dev;
-	const __be32 *pkey = daddr;
 	struct neighbour *n;
 
-	if (rt->rt_gw_family == AF_INET)
-		pkey = (const __be32 *) &rt->rt_gw4;
-	else if (skb)
-		pkey = &ip_hdr(skb)->daddr;
+	rcu_read_lock_bh();
 
-	n = __ipv4_neigh_lookup(dev, *(__force u32 *)pkey);
-	if (n)
-		return n;
-	return neigh_create(&arp_tbl, pkey, dev);
+	if (likely(rt->rt_gw_family == AF_INET)) {
+		n = ip_neigh_gw4(dev, rt->rt_gw4);
+	} else if (rt->rt_gw_family == AF_INET6) {
+		n = ip_neigh_gw6(dev, &rt->rt_gw6);
+        } else {
+		__be32 pkey;
+
+		pkey = skb ? ip_hdr(skb)->daddr : *((__be32 *) daddr);
+		n = ip_neigh_gw4(dev, pkey);
+	}
+
+	if (n && !refcount_inc_not_zero(&n->refcnt))
+		n = NULL;
+
+	rcu_read_unlock_bh();
+
+	return n;
 }
 
 static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr)
