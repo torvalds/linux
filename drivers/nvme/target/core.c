@@ -214,6 +214,8 @@ void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
 {
 	struct nvmet_ctrl *ctrl;
 
+	lockdep_assert_held(&subsys->lock);
+
 	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry) {
 		nvmet_add_to_changed_ns_log(ctrl, cpu_to_le32(nsid));
 		if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_NS_ATTR))
@@ -494,11 +496,12 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	int ret;
 
 	mutex_lock(&subsys->lock);
-	ret = -EMFILE;
-	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
-		goto out_unlock;
 	ret = 0;
 	if (ns->enabled)
+		goto out_unlock;
+
+	ret = -EMFILE;
+	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
 		goto out_unlock;
 
 	ret = nvmet_bdev_ns_enable(ns);

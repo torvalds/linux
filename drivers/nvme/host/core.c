@@ -1105,7 +1105,7 @@ static struct nvme_id_ns *nvme_identify_ns(struct nvme_ctrl *ctrl,
 
 	error = nvme_submit_sync_cmd(ctrl->admin_q, &c, id, sizeof(*id));
 	if (error) {
-		dev_warn(ctrl->device, "Identify namespace failed\n");
+		dev_warn(ctrl->device, "Identify namespace failed (%d)\n", error);
 		kfree(id);
 		return NULL;
 	}
@@ -1588,7 +1588,7 @@ static bool nvme_ns_ids_equal(struct nvme_ns_ids *a, struct nvme_ns_ids *b)
 static void nvme_update_disk_info(struct gendisk *disk,
 		struct nvme_ns *ns, struct nvme_id_ns *id)
 {
-	sector_t capacity = le64_to_cpup(&id->nsze) << (ns->lba_shift - 9);
+	sector_t capacity = le64_to_cpu(id->nsze) << (ns->lba_shift - 9);
 	unsigned short bs = 1 << ns->lba_shift;
 
 	blk_mq_freeze_queue(disk->queue);
@@ -2549,7 +2549,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	ctrl->crdt[2] = le16_to_cpu(id->crdt3);
 
 	ctrl->oacs = le16_to_cpu(id->oacs);
-	ctrl->oncs = le16_to_cpup(&id->oncs);
+	ctrl->oncs = le16_to_cpu(id->oncs);
 	ctrl->oaes = le32_to_cpu(id->oaes);
 	atomic_set(&ctrl->abort_limit, id->acl + 1);
 	ctrl->vwc = id->vwc;
