@@ -3223,7 +3223,7 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 				rdata->nr_pages, rdata->page_offset,
 				rdata->tailsz, true, need_invalidate);
 		if (!rdata->mr)
-			return -ENOBUFS;
+			return -EAGAIN;
 
 		req->Channel = SMB2_CHANNEL_RDMA_V1_INVALIDATE;
 		if (need_invalidate)
@@ -3628,7 +3628,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 				wdata->nr_pages, wdata->page_offset,
 				wdata->tailsz, false, need_invalidate);
 		if (!wdata->mr) {
-			rc = -ENOBUFS;
+			rc = -EAGAIN;
 			goto async_writev_out;
 		}
 		req->Length = 0;
