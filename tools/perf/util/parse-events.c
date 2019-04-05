@@ -317,10 +317,12 @@ static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
 	    char *name, struct perf_pmu *pmu,
-	    struct list_head *config_terms, bool auto_merge_stats)
+	    struct list_head *config_terms, bool auto_merge_stats,
+	    const char *cpu_list)
 {
 	struct perf_evsel *evsel;
-	struct cpu_map *cpus = pmu ? pmu->cpus : NULL;
+	struct cpu_map *cpus = pmu ? pmu->cpus :
+			       cpu_list ? cpu_map__new(cpu_list) : NULL;
 
 	event_attr_init(attr);
 
@@ -348,7 +350,25 @@ static int add_event(struct list_head *list, int *idx,
 		     struct perf_event_attr *attr, char *name,
 		     struct list_head *config_terms)
 {
-	return __add_event(list, idx, attr, name, NULL, config_terms, false) ? 0 : -ENOMEM;
+	return __add_event(list, idx, attr, name, NULL, config_terms, false, NULL) ? 0 : -ENOMEM;
+}
+
+static int add_event_tool(struct list_head *list, int *idx,
+			  enum perf_tool_event tool_event)
+{
+	struct perf_evsel *evsel;
+	struct perf_event_attr attr = {
+		.type = PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_DUMMY,
+	};
+
+	evsel = __add_event(list, idx, &attr, NULL, NULL, NULL, false, "0");
+	if (!evsel)
+		return -ENOMEM;
+	evsel->tool_event = tool_event;
+	if (tool_event == PERF_TOOL_DURATION_TIME)
+		evsel->unit = strdup("ns");
+	return 0;
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -1233,6 +1253,13 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 			 get_config_name(head_config), &config_terms);
 }
 
+int parse_events_add_tool(struct parse_events_state *parse_state,
+			  struct list_head *list,
+			  enum perf_tool_event tool_event)
+{
+	return add_event_tool(list, &parse_state->idx, tool_event);
+}
+
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
@@ -1267,7 +1294,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL, auto_merge_stats);
+		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL,
+				    auto_merge_stats, NULL);
 		if (evsel) {
 			evsel->pmu_name = name;
 			evsel->use_uncore_alias = use_uncore_alias;
@@ -1295,7 +1323,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	evsel = __add_event(list, &parse_state->idx, &attr,
 			    get_config_name(head_config), pmu,
-			    &config_terms, auto_merge_stats);
+			    &config_terms, auto_merge_stats, NULL);
 	if (evsel) {
 		evsel->unit = info.unit;
 		evsel->scale = info.scale;
@@ -2429,6 +2457,25 @@ out_enomem:
 	return evt_num;
 }
 
+static void print_tool_event(const char *name, const char *event_glob,
+			     bool name_only)
+{
+	if (event_glob && !strglobmatch(name, event_glob))
+		return;
+	if (name_only)
+		printf("%s ", name);
+	else
+		printf("  %-50s [%s]\n", name, "Tool event");
+
+}
+
+void print_tool_events(const char *event_glob, bool name_only)
+{
+	print_tool_event("duration_time", event_glob, name_only);
+	if (pager_in_use())
+		printf("\n");
+}
+
 void print_symbol_events(const char *event_glob, unsigned type,
 				struct event_symbol *syms, unsigned max,
 				bool name_only)
@@ -2512,6 +2559,7 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 
 	print_symbol_events(event_glob, PERF_TYPE_SOFTWARE,
 			    event_symbols_sw, PERF_COUNT_SW_MAX, name_only);
+	print_tool_events(event_glob, name_only);
 
 	print_hwcache_events(event_glob, name_only);
 

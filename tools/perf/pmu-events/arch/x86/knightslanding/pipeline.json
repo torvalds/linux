@@ -144,7 +144,7 @@
         "BriefDescription": "Counts the number of micro-ops retired that are from the complex flows issued by the micro-sequencer (MS)."
     },
     {
-        "PublicDescription": "This event counts the number of micro-ops (uops) retired. The processor decodes complex macro instructions into a sequence of simpler uops. Most instructions are composed of one or two uops. Some instructions are decoded into longer sequences such as repeat instructions, floating point transcendental instructions, and assists. ",
+        "PublicDescription": "This event counts the number of micro-ops (uops) retired. The processor decodes complex macro instructions into a sequence of simpler uops. Most instructions are composed of one or two uops. Some instructions are decoded into longer sequences such as repeat instructions, floating point transcendental instructions, and assists.",
         "EventCode": "0xC2",
         "Counter": "0,1",
         "UMask": "0x10",
@@ -218,7 +218,7 @@
         "UMask": "0x20",
         "EventName": "NO_ALLOC_CYCLES.RAT_STALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and a RATstall (caused by reservation station full) is asserted.  "
+        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and a RATstall (caused by reservation station full) is asserted."
     },
     {
         "PublicDescription": "This event counts the number of core cycles when no uops are allocated, the instruction queue is empty and the alloc pipe is stalled waiting for instructions to be fetched.",
@@ -251,7 +251,7 @@
         "UMask": "0x1f",
         "EventName": "RS_FULL_STALL.ALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the total number of core cycles the Alloc pipeline is stalled when any one of the reservation stations is full. "
+        "BriefDescription": "Counts the total number of core cycles the Alloc pipeline is stalled when any one of the reservation stations is full."
     },
     {
         "EventCode": "0xC0",
@@ -268,11 +268,10 @@
         "UMask": "0x1",
         "EventName": "CYCLES_DIV_BUSY.ALL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does not imply a stall waiting for the divider.  "
+        "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does not imply a stall waiting for the divider."
     },
     {
         "PublicDescription": "This event counts the number of instructions that retire.  For instructions that consist of multiple micro-ops, this event counts exactly once, as the last micro-op of the instruction retires.  The event continues counting while instructions retire, including during interrupt service routines caused by hardware interrupts, faults or traps.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 1",
         "UMask": "0x1",
         "EventName": "INST_RETIRED.ANY",
@@ -296,8 +295,7 @@
         "BriefDescription": "Counts the number of unhalted reference clock cycles"
     },
     {
-        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter\r\n",
-        "EventCode": "0x00",
+        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter",
         "Counter": "Fixed counter 2",
         "UMask": "0x2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
@@ -305,7 +303,6 @@
         "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles"
     },
     {
-        "EventCode": "0x00",
         "Counter": "Fixed counter 3",
         "UMask": "0x3",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
@@ -343,7 +340,7 @@
         "UMask": "0x1",
         "EventName": "RECYCLEQ.LD_BLOCK_ST_FORWARD",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of occurences a retired load gets blocked because its address partially overlaps with a store ",
+        "BriefDescription": "Counts the number of occurences a retired load gets blocked because its address partially overlaps with a store",
         "Data_LA": "1"
     },
     {

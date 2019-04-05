@@ -1,68 +1,5 @@
 [
     {
-        "EventCode": "0xC1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "OTHER_ASSISTS.AVX_STORE",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of GSSE memory assist for stores. GSSE microcode assist is being invoked whenever the hardware is unable to properly handle GSSE-256b operations.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "OTHER_ASSISTS.AVX_TO_SSE",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
-        "EventName": "OTHER_ASSISTS.SSE_TO_AVX",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "FP_ASSIST.X87_OUTPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of X87 assists due to output value.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "FP_ASSIST.X87_INPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of X87 assists due to input value.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "FP_ASSIST.SIMD_OUTPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of SIMD FP assists due to Output values.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "FP_ASSIST.SIMD_INPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of SIMD FP assists due to input values.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "EventCode": "0x10",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -123,6 +60,69 @@
         "EventName": "SIMD_FP_256.PACKED_DOUBLE",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Number of AVX-256 Computational FP double precision uops issued this cycle.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "OTHER_ASSISTS.AVX_STORE",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of GSSE memory assist for stores. GSSE microcode assist is being invoked whenever the hardware is unable to properly handle GSSE-256b operations.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "OTHER_ASSISTS.AVX_TO_SSE",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x20",
+        "EventName": "OTHER_ASSISTS.SSE_TO_AVX",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "FP_ASSIST.X87_OUTPUT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of X87 assists due to output value.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "FP_ASSIST.X87_INPUT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of X87 assists due to input value.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "FP_ASSIST.SIMD_OUTPUT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of SIMD FP assists due to Output values.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCA",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "FP_ASSIST.SIMD_INPUT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Number of SIMD FP assists due to input values.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

@@ -40,7 +40,7 @@ int trace_event__init(struct trace_event *t)
 
 static int trace_event__init2(void)
 {
-	int be = tep_host_bigendian();
+	int be = tep_is_bigendian();
 	struct tep_handle *pevent;
 
 	if (trace_event__init(&tevent))
@@ -49,7 +49,7 @@ static int trace_event__init2(void)
 	pevent = tevent.pevent;
 	tep_set_flag(pevent, TEP_NSEC_OUTPUT);
 	tep_set_file_bigendian(pevent, be);
-	tep_set_host_bigendian(pevent, be);
+	tep_set_local_bigendian(pevent, be);
 	tevent_initialized = true;
 	return 0;
 }

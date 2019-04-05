@@ -25,9 +25,9 @@ process___le16_to_cpup(struct trace_seq *s, unsigned long long *args)
 	return val ? (long long) le16toh(*val) : 0;
 }
 
-int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 {
-	tep_register_print_function(pevent,
+	tep_register_print_function(tep,
 				    process___le16_to_cpup,
 				    TEP_FUNC_ARG_INT,
 				    "__le16_to_cpup",
@@ -36,8 +36,8 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	return 0;
 }
 
-void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 {
-	tep_unregister_print_function(pevent, process___le16_to_cpup,
+	tep_unregister_print_function(tep, process___le16_to_cpup,
 				      "__le16_to_cpup");
 }

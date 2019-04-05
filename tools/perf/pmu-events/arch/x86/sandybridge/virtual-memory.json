@@ -1,60 +1,5 @@
 [
     {
-        "EventCode": "0xAE",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "ITLB.ITLB_FLUSH",
-        "SampleAfterValue": "100007",
-        "BriefDescription": "Flushing of the Instruction TLB (ITLB) pages, includes 4k/2M/4M pages.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x4F",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "EPT.WALK_CYCLES",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycle count for an Extended Page table walk.  The Extended Page Directory cache is used by Virtual Machine operating systems while the guest operating systems use the standard TLB caches.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "ITLB_MISSES.MISS_CAUSES_A_WALK",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Misses at all ITLB levels that cause page walks.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "ITLB_MISSES.WALK_COMPLETED",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Misses in all ITLB levels that cause completed page walks.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "This event count cycles when Page Miss Handler (PMH) is servicing page walks caused by ITLB misses.",
-        "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "ITLB_MISSES.WALK_DURATION",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when PMH is busy with page walks.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "ITLB_MISSES.STLB_HIT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "EventCode": "0x08",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -126,6 +71,61 @@
         "EventName": "DTLB_STORE_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",
         "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x4F",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "EPT.WALK_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycle count for an Extended Page table walk.  The Extended Page Directory cache is used by Virtual Machine operating systems while the guest operating systems use the standard TLB caches.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "ITLB_MISSES.MISS_CAUSES_A_WALK",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Misses at all ITLB levels that cause page walks.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Misses in all ITLB levels that cause completed page walks.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event count cycles when Page Miss Handler (PMH) is servicing page walks caused by ITLB misses.",
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "ITLB_MISSES.WALK_DURATION",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when PMH is busy with page walks.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "ITLB_MISSES.STLB_HIT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xAE",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "ITLB.ITLB_FLUSH",
+        "SampleAfterValue": "100007",
+        "BriefDescription": "Flushing of the Instruction TLB (ITLB) pages, includes 4k/2M/4M pages.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

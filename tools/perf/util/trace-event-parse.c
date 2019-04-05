@@ -111,7 +111,7 @@ raw_field_value(struct tep_event *event, const char *name, void *data)
 
 unsigned long long read_size(struct tep_event *event, void *ptr, int size)
 {
-	return tep_read_number(event->pevent, ptr, size);
+	return tep_read_number(event->tep, ptr, size);
 }
 
 void event_format__fprintf(struct tep_event *event,
