@@ -2143,11 +2143,16 @@ static int phy_probe(struct device *dev)
 	 */
 	if (phydrv->features) {
 		linkmode_copy(phydev->supported, phydrv->features);
-	} else {
+	} else if (phydrv->get_features) {
 		err = phydrv->get_features(phydev);
-		if (err)
-			goto out;
+	} else if (phydev->is_c45) {
+		err = genphy_c45_pma_read_abilities(phydev);
+	} else {
+		err = genphy_read_abilities(phydev);
 	}
+
+	if (err)
+		goto out;
 
 	of_set_phy_supported(phydev);
 	linkmode_copy(phydev->advertising, phydev->supported);
@@ -2216,11 +2221,11 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 	int retval;
 
 	/* Either the features are hard coded, or dynamically
-	 * determine. It cannot be both or neither
+	 * determined. It cannot be both.
 	 */
-	if (WARN_ON((!new_driver->features && !new_driver->get_features) ||
-		    (new_driver->features && new_driver->get_features))) {
-		pr_err("%s: Driver features are missing\n", new_driver->name);
+	if (WARN_ON(new_driver->features && new_driver->get_features)) {
+		pr_err("%s: features and get_features must not both be set\n",
+		       new_driver->name);
 		return -EINVAL;
 	}
 
