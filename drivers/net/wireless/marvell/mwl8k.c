@@ -2234,8 +2234,10 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	dma_size = le16_to_cpu(cmd->length);
 	dma_addr = pci_map_single(priv->pdev, cmd, dma_size,
 				  PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(priv->pdev, dma_addr))
-		return -ENOMEM;
+	if (pci_dma_mapping_error(priv->pdev, dma_addr)) {
+		rc = -ENOMEM;
+		goto exit;
+	}
 
 	priv->hostcmd_wait = &cmd_wait;
 	iowrite32(dma_addr, regs + MWL8K_HIU_GEN_PTR);
@@ -2275,6 +2277,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 				     ms);
 	}
 
+exit:
 	if (bitmap)
 		mwl8k_enable_bsses(hw, true, bitmap);
 
