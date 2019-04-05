@@ -42,6 +42,7 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
+#include "intel_pm.h"
 #include "intel_psr.h"
 
 bool is_planar_yuv_format(u32 pixelformat)

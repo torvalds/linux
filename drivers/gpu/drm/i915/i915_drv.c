@@ -56,6 +56,7 @@
 #include "intel_audio.h"
 #include "intel_csr.h"
 #include "intel_drv.h"
+#include "intel_pm.h"
 #include "intel_uc.h"
 #include "intel_workarounds.h"
 
