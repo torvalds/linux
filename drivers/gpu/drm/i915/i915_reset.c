@@ -331,11 +331,10 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 	return gen6_hw_domain_reset(i915, hw_mask);
 }
 
-static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
-			  struct intel_engine_cs *engine)
+static u32 gen11_lock_sfc(struct intel_engine_cs *engine)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	struct intel_uncore *uncore = engine->uncore;
+	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
 	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
 	i915_reg_t sfc_usage;
@@ -399,12 +398,13 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
-			     struct intel_engine_cs *engine)
+static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 {
-	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	struct intel_uncore *uncore = engine->uncore;
+	u8 vdbox_sfc_access = RUNTIME_INFO(engine->i915)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock;
 	u32 sfc_forced_lock_bit;
+	u32 val;
 
 	switch (engine->class) {
 	case VIDEO_DECODE_CLASS:
@@ -424,8 +424,9 @@ static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	I915_WRITE_FW(sfc_forced_lock,
-		      I915_READ_FW(sfc_forced_lock) & ~sfc_forced_lock_bit);
+	val = intel_uncore_read_fw(uncore, sfc_forced_lock);
+	val &= ~sfc_forced_lock_bit;
+	intel_uncore_write_fw(uncore, sfc_forced_lock, val);
 }
 
 static int gen11_reset_engines(struct drm_i915_private *i915,
@@ -454,7 +455,7 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
-			hw_mask |= gen11_lock_sfc(i915, engine);
+			hw_mask |= gen11_lock_sfc(engine);
 		}
 	}
 
@@ -462,17 +463,18 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 
 	if (engine_mask != ALL_ENGINES)
 		for_each_engine_masked(engine, i915, engine_mask, tmp)
-			gen11_unlock_sfc(i915, engine);
+			gen11_unlock_sfc(engine);
 
 	return ret;
 }
 
 static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 {
-	struct intel_uncore *uncore = &engine->i915->uncore;
+	struct intel_uncore *uncore = engine->uncore;
 	int ret;
 
-	intel_uncore_write_fw(uncore, RING_RESET_CTL(engine->mmio_base),
+	intel_uncore_write_fw(uncore,
+			      RING_RESET_CTL(engine->mmio_base),
 			      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
 	ret = __intel_wait_for_register_fw(uncore,
@@ -647,7 +649,7 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	 * written to the powercontext is undefined and so we may lose
 	 * GPU state upon resume, i.e. fail to restart after a reset.
 	 */
-	intel_uncore_forcewake_get(&engine->i915->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 	engine->reset.prepare(engine);
 }
 
@@ -719,7 +721,7 @@ static int gt_reset(struct drm_i915_private *i915,
 static void reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-	intel_uncore_forcewake_put(&engine->i915->uncore, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(engine->uncore, FORCEWAKE_ALL);
 }
 
 struct i915_gpu_restart {
