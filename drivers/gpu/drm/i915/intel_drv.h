@@ -2314,13 +2314,6 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 
-/* intel_sdvo.c */
-bool intel_sdvo_port_enabled(struct drm_i915_private *dev_priv,
-			     i915_reg_t sdvo_reg, enum pipe *pipe);
-bool intel_sdvo_init(struct drm_i915_private *dev_priv,
-		     i915_reg_t reg, enum port port);
-
-
 /* intel_sprite.c */
 bool is_planar_yuv_format(u32 pixelformat);
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,

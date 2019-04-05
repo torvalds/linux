@@ -39,6 +39,7 @@
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_sdvo.h"
 #include "intel_sdvo_regs.h"
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
