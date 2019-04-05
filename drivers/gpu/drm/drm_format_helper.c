@@ -16,29 +16,64 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
 
+static void drm_fb_memcpy_lines(void *dst, unsigned int dst_pitch,
+				void *src, unsigned int src_pitch,
+				unsigned int linelength, unsigned int lines)
+{
+	int line;
+
+	for (line = 0; line < lines; line++) {
+		memcpy(dst, src, linelength);
+		src += src_pitch;
+		dst += dst_pitch;
+	}
+}
+
 /**
  * drm_fb_memcpy - Copy clip buffer
  * @dst: Destination buffer
  * @vaddr: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
+ *
+ * This function does not apply clipping on dst, i.e. the destination
+ * is a small buffer containing the clip rect only.
  */
 void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
 		   struct drm_rect *clip)
 {
 	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
-	unsigned int pitch = fb->pitches[0];
-	void *src = vaddr + (clip->y1 * pitch) + (clip->x1 * cpp);
+	unsigned int offset = (clip->y1 * fb->pitches[0]) + (clip->x1 * cpp);
 	size_t len = (clip->x2 - clip->x1) * cpp;
-	unsigned int y;
 
-	for (y = clip->y1; y < clip->y2; y++) {
-		memcpy(dst, src, len);
-		src += pitch;
-		dst += len;
-	}
+	drm_fb_memcpy_lines(dst, len,
+			    vaddr + offset, fb->pitches[0],
+			    len, clip->y2 - clip->y1);
 }
 EXPORT_SYMBOL(drm_fb_memcpy);
+
+/**
+ * drm_fb_memcpy_dstclip - Copy clip buffer
+ * @dst: Destination buffer
+ * @vaddr: Source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * This function applies clipping on dst, i.e. the destination is a
+ * full framebuffer but only the clip rect content is copied over.
+ */
+void drm_fb_memcpy_dstclip(void *dst, void *vaddr, struct drm_framebuffer *fb,
+			   struct drm_rect *clip)
+{
+	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
+	unsigned int offset = (clip->y1 * fb->pitches[0]) + (clip->x1 * cpp);
+	size_t len = (clip->x2 - clip->x1) * cpp;
+
+	drm_fb_memcpy_lines(dst + offset, fb->pitches[0],
+			    vaddr + offset, fb->pitches[0],
+			    len, clip->y2 - clip->y1);
+}
+EXPORT_SYMBOL(drm_fb_memcpy_dstclip);
 
 /**
  * drm_fb_swab16 - Swap bytes into clip buffer
