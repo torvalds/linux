@@ -110,6 +110,44 @@ void drm_fb_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL(drm_fb_swab16);
 
+static void drm_fb_xrgb8888_to_rgb565_lines(void *dst, unsigned int dst_pitch,
+					    void *src, unsigned int src_pitch,
+					    unsigned int src_linelength,
+					    unsigned int lines,
+					    bool swap)
+{
+	unsigned int linepixels = src_linelength / sizeof(u32);
+	unsigned int x, y;
+	u32 *sbuf;
+	u16 *dbuf, val16;
+
+	/*
+	 * The cma memory is write-combined so reads are uncached.
+	 * Speed up by fetching one line at a time.
+	 */
+	sbuf = kmalloc(src_linelength, GFP_KERNEL);
+	if (!sbuf)
+		return;
+
+	for (y = 0; y < lines; y++) {
+		memcpy(sbuf, src, src_linelength);
+		dbuf = dst;
+		for (x = 0; x < linepixels; x++) {
+			val16 = ((sbuf[x] & 0x00F80000) >> 8) |
+				((sbuf[x] & 0x0000FC00) >> 5) |
+				((sbuf[x] & 0x000000F8) >> 3);
+			if (swap)
+				*dbuf++ = swab16(val16);
+			else
+				*dbuf++ = val16;
+		}
+		src += src_pitch;
+		dst += dst_pitch;
+	}
+
+	kfree(sbuf);
+}
+
 /**
  * drm_fb_xrgb8888_to_rgb565 - Convert XRGB8888 to RGB565 clip buffer
  * @dst: RGB565 destination buffer
@@ -120,44 +158,57 @@ EXPORT_SYMBOL(drm_fb_swab16);
  *
  * Drivers can use this function for RGB565 devices that don't natively
  * support XRGB8888.
+ *
+ * This function does not apply clipping on dst, i.e. the destination
+ * is a small buffer containing the clip rect only.
  */
-void drm_fb_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
+void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
 			       struct drm_framebuffer *fb,
 			       struct drm_rect *clip, bool swap)
 {
-	size_t len = (clip->x2 - clip->x1) * sizeof(u32);
-	unsigned int x, y;
-	u32 *src, *buf;
-	u16 val16;
+	unsigned int src_offset = (clip->y1 * fb->pitches[0])
+		+ (clip->x1 * sizeof(u32));
+	size_t src_len = (clip->x2 - clip->x1) * sizeof(u32);
+	size_t dst_len = (clip->x2 - clip->x1) * sizeof(u16);
 
-	/*
-	 * The cma memory is write-combined so reads are uncached.
-	 * Speed up by fetching one line at a time.
-	 */
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return;
-
-	for (y = clip->y1; y < clip->y2; y++) {
-		src = vaddr + (y * fb->pitches[0]);
-		src += clip->x1;
-		memcpy(buf, src, len);
-		src = buf;
-		for (x = clip->x1; x < clip->x2; x++) {
-			val16 = ((*src & 0x00F80000) >> 8) |
-				((*src & 0x0000FC00) >> 5) |
-				((*src & 0x000000F8) >> 3);
-			src++;
-			if (swap)
-				*dst++ = swab16(val16);
-			else
-				*dst++ = val16;
-		}
-	}
-
-	kfree(buf);
+	drm_fb_xrgb8888_to_rgb565_lines(dst, dst_len,
+					vaddr + src_offset, fb->pitches[0],
+					src_len, clip->y2 - clip->y1,
+					swap);
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
+
+/**
+ * drm_fb_xrgb8888_to_rgb565_dstclip - Convert XRGB8888 to RGB565 clip buffer
+ * @dst: RGB565 destination buffer
+ * @dst_pitch: destination buffer pitch
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ * @swap: Swap bytes
+ *
+ * Drivers can use this function for RGB565 devices that don't natively
+ * support XRGB8888.
+ *
+ * This function applies clipping on dst, i.e. the destination is a
+ * full framebuffer but only the clip rect content is copied over.
+ */
+void drm_fb_xrgb8888_to_rgb565_dstclip(void *dst, unsigned int dst_pitch,
+				       void *vaddr, struct drm_framebuffer *fb,
+				       struct drm_rect *clip, bool swap)
+{
+	unsigned int src_offset = (clip->y1 * fb->pitches[0])
+		+ (clip->x1 * sizeof(u32));
+	unsigned int dst_offset = (clip->y1 * dst_pitch)
+		+ (clip->x1 * sizeof(u16));
+	size_t src_len = (clip->x2 - clip->x1) * sizeof(u32);
+
+	drm_fb_xrgb8888_to_rgb565_lines(dst + dst_offset, dst_pitch,
+					vaddr + src_offset, fb->pitches[0],
+					src_len, clip->y2 - clip->y1,
+					swap);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565_dstclip);
 
 /**
  * drm_fb_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
