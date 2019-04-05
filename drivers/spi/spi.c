@@ -2267,7 +2267,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 {
 	struct device		*dev = ctlr->dev.parent;
 	struct boardinfo	*bi;
-	int			status = -ENODEV;
+	int			status;
 	int			id, first_dynamic;
 
 	if (!dev)
