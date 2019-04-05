@@ -41,6 +41,7 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
+#include <net/ip6_fib.h>
 #include <net/netlink.h>
 #include <net/nexthop.h>
 #include <net/lwtunnel.h>
@@ -841,6 +842,30 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 	return true;
 }
 
+static int fib_check_nh_v6_gw(struct net *net, struct fib_nh *nh,
+			      u32 table, struct netlink_ext_ack *extack)
+{
+	struct fib6_config cfg = {
+		.fc_table = table,
+		.fc_flags = nh->fib_nh_flags | RTF_GATEWAY,
+		.fc_ifindex = nh->fib_nh_oif,
+		.fc_gateway = nh->fib_nh_gw6,
+	};
+	struct fib6_nh fib6_nh = {};
+	int err;
+
+	err = ipv6_stub->fib6_nh_init(net, &fib6_nh, &cfg, GFP_KERNEL, extack);
+	if (!err) {
+		nh->fib_nh_dev = fib6_nh.fib_nh_dev;
+		dev_hold(nh->fib_nh_dev);
+		nh->fib_nh_oif = nh->fib_nh_dev->ifindex;
+		nh->fib_nh_scope = RT_SCOPE_LINK;
+
+		ipv6_stub->fib6_nh_release(&fib6_nh);
+	}
+
+	return err;
+}
 
 /*
  * Picture
@@ -1023,6 +1048,8 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
 
 	if (nh->fib_nh_gw_family == AF_INET)
 		err = fib_check_nh_v4_gw(net, nh, table, cfg->fc_scope, extack);
+	else if (nh->fib_nh_gw_family == AF_INET6)
+		err = fib_check_nh_v6_gw(net, nh, table, extack);
 	else
 		err = fib_check_nh_nongw(net, nh, extack);
 
