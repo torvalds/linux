@@ -428,17 +428,7 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	u32 posn_offset;
 	int direction;
 
-	/* check if we have stream box */
-	if (sdev->stream_box.size == 0) {
-		/* read back full message */
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
-					 sizeof(posn));
-
-		spcm = snd_sof_find_spcm_comp(sdev, posn.comp_id, &direction);
-	} else {
-		spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
-	}
-
+	spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
 	if (!spcm) {
 		dev_err(sdev->dev,
 			"error: period elapsed for unknown stream, msg_id %d\n",
@@ -446,10 +436,14 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 		return;
 	}
 
-	/* have stream box read from stream box */
 	if (sdev->stream_box.size != 0) {
+		/* have stream box read from stream box */
 		posn_offset = spcm->posn_offset[direction];
 		snd_sof_dsp_mailbox_read(sdev, posn_offset, &posn,
+					 sizeof(posn));
+	} else {
+		/* read back full message */
+		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
 					 sizeof(posn));
 	}
 
@@ -471,27 +465,21 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 	u32 posn_offset;
 	int direction;
 
-	/* check if we have stream MMIO on this platform */
-	if (sdev->stream_box.size == 0) {
-		/* read back full message */
-		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
-					 sizeof(posn));
-
-		spcm = snd_sof_find_spcm_comp(sdev, posn.comp_id, &direction);
-	} else {
-		spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
-	}
-
+	spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
 	if (!spcm) {
 		dev_err(sdev->dev, "error: XRUN for unknown stream, msg_id %d\n",
 			msg_id);
 		return;
 	}
 
-	/* have stream box read from stream box */
 	if (sdev->stream_box.size != 0) {
+		/* have stream box read from stream box */
 		posn_offset = spcm->posn_offset[direction];
 		snd_sof_dsp_mailbox_read(sdev, posn_offset, &posn,
+					 sizeof(posn));
+	} else {
+		/* read back full message */
+		snd_sof_dsp_mailbox_read(sdev, sdev->dsp_box.offset, &posn,
 					 sizeof(posn));
 	}
 
