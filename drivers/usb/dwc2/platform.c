@@ -230,9 +230,6 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 
 	reset_control_deassert(hsotg->reset_ecc);
 
-	/* Set default UTMI width */
-	hsotg->phyif = GUSBCFG_PHYIF16;
-
 	/*
 	 * Attempt to find a generic PHY, then look for an old style
 	 * USB PHY and then fall back to pdata
@@ -280,7 +277,7 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 		 * width is 8-bit and set the phyif appropriately.
 		 */
 		if (phy_get_bus_width(hsotg->phy) == 8)
-			hsotg->phyif = GUSBCFG_PHYIF8;
+			hsotg->params.phy_utmi_width = 8;
 	}
 
 	/* Clock */
