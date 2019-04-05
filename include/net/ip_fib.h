@@ -32,10 +32,11 @@ struct fib_config {
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
-	/* 3 bytes unused */
+	u8			fc_gw_family;
+	/* 2 bytes unused */
 	u32			fc_table;
 	__be32			fc_dst;
-	__be32			fc_gw;
+	__be32			fc_gw4;
 	int			fc_oif;
 	u32			fc_flags;
 	u32			fc_priority;
