@@ -405,6 +405,10 @@ void hsr_prune_nodes(struct timer_list *t)
 		}
 	}
 	rcu_read_unlock();
+
+	/* Restart timer */
+	mod_timer(&hsr->prune_timer,
+		  jiffies + msecs_to_jiffies(PRUNE_PERIOD));
 }
 
 void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,
