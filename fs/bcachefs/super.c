@@ -378,6 +378,10 @@ int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	if (test_bit(BCH_FS_RW, &c->flags))
 		return 0;
 
+	if (c->opts.nochanges ||
+	    c->opts.noreplay)
+		return -EINVAL;
+
 	ret = bch2_fs_mark_dirty(c);
 	if (ret)
 		goto err;
@@ -684,6 +688,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	c->opts.nochanges	|= c->opts.noreplay;
 	c->opts.read_only	|= c->opts.nochanges;
+	c->opts.read_only	|= c->opts.noreplay;
 
 	if (bch2_fs_init_fault("fs_alloc"))
 		goto err;
