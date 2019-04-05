@@ -885,131 +885,147 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
  *					|
  *					|-> {local prefix} (terminal node)
  */
-static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
-			struct netlink_ext_ack *extack)
+static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
+			      u8 scope, struct netlink_ext_ack *extack)
 {
-	int err = 0;
-	struct net *net;
 	struct net_device *dev;
+	struct fib_result res;
+	int err;
 
-	net = cfg->fc_nlinfo.nl_net;
-	if (nh->fib_nh_gw4) {
-		struct fib_result res;
+	if (nh->fib_nh_flags & RTNH_F_ONLINK) {
+		unsigned int addr_type;
 
-		if (nh->fib_nh_flags & RTNH_F_ONLINK) {
-			unsigned int addr_type;
-
-			if (cfg->fc_scope >= RT_SCOPE_LINK) {
-				NL_SET_ERR_MSG(extack,
-					       "Nexthop has invalid scope");
-				return -EINVAL;
-			}
-			dev = __dev_get_by_index(net, nh->fib_nh_oif);
-			if (!dev) {
-				NL_SET_ERR_MSG(extack, "Nexthop device required for onlink");
-				return -ENODEV;
-			}
-			if (!(dev->flags & IFF_UP)) {
-				NL_SET_ERR_MSG(extack,
-					       "Nexthop device is not up");
-				return -ENETDOWN;
-			}
-			addr_type = inet_addr_type_dev_table(net, dev,
-							     nh->fib_nh_gw4);
-			if (addr_type != RTN_UNICAST) {
-				NL_SET_ERR_MSG(extack,
-					       "Nexthop has invalid gateway");
-				return -EINVAL;
-			}
-			if (!netif_carrier_ok(dev))
-				nh->fib_nh_flags |= RTNH_F_LINKDOWN;
-			nh->fib_nh_dev = dev;
-			dev_hold(dev);
-			nh->fib_nh_scope = RT_SCOPE_LINK;
-			return 0;
+		if (scope >= RT_SCOPE_LINK) {
+			NL_SET_ERR_MSG(extack, "Nexthop has invalid scope");
+			return -EINVAL;
 		}
-		rcu_read_lock();
-		{
-			struct fib_table *tbl = NULL;
-			struct flowi4 fl4 = {
-				.daddr = nh->fib_nh_gw4,
-				.flowi4_scope = cfg->fc_scope + 1,
-				.flowi4_oif = nh->fib_nh_oif,
-				.flowi4_iif = LOOPBACK_IFINDEX,
-			};
-
-			/* It is not necessary, but requires a bit of thinking */
-			if (fl4.flowi4_scope < RT_SCOPE_LINK)
-				fl4.flowi4_scope = RT_SCOPE_LINK;
-
-			if (cfg->fc_table)
-				tbl = fib_get_table(net, cfg->fc_table);
-
-			if (tbl)
-				err = fib_table_lookup(tbl, &fl4, &res,
-						       FIB_LOOKUP_IGNORE_LINKSTATE |
-						       FIB_LOOKUP_NOREF);
-
-			/* on error or if no table given do full lookup. This
-			 * is needed for example when nexthops are in the local
-			 * table rather than the given table
-			 */
-			if (!tbl || err) {
-				err = fib_lookup(net, &fl4, &res,
-						 FIB_LOOKUP_IGNORE_LINKSTATE);
-			}
-
-			if (err) {
-				NL_SET_ERR_MSG(extack,
-					       "Nexthop has invalid gateway");
-				rcu_read_unlock();
-				return err;
-			}
+		dev = __dev_get_by_index(net, nh->fib_nh_oif);
+		if (!dev) {
+			NL_SET_ERR_MSG(extack, "Nexthop device required for onlink");
+			return -ENODEV;
 		}
-		err = -EINVAL;
-		if (res.type != RTN_UNICAST && res.type != RTN_LOCAL) {
+		if (!(dev->flags & IFF_UP)) {
+			NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+			return -ENETDOWN;
+		}
+		addr_type = inet_addr_type_dev_table(net, dev, nh->fib_nh_gw4);
+		if (addr_type != RTN_UNICAST) {
+			NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
+			return -EINVAL;
+		}
+		if (!netif_carrier_ok(dev))
+			nh->fib_nh_flags |= RTNH_F_LINKDOWN;
+		nh->fib_nh_dev = dev;
+		dev_hold(dev);
+		nh->fib_nh_scope = RT_SCOPE_LINK;
+		return 0;
+	}
+	rcu_read_lock();
+	{
+		struct fib_table *tbl = NULL;
+		struct flowi4 fl4 = {
+			.daddr = nh->fib_nh_gw4,
+			.flowi4_scope = scope + 1,
+			.flowi4_oif = nh->fib_nh_oif,
+			.flowi4_iif = LOOPBACK_IFINDEX,
+		};
+
+		/* It is not necessary, but requires a bit of thinking */
+		if (fl4.flowi4_scope < RT_SCOPE_LINK)
+			fl4.flowi4_scope = RT_SCOPE_LINK;
+
+		if (table)
+			tbl = fib_get_table(net, table);
+
+		if (tbl)
+			err = fib_table_lookup(tbl, &fl4, &res,
+					       FIB_LOOKUP_IGNORE_LINKSTATE |
+					       FIB_LOOKUP_NOREF);
+
+		/* on error or if no table given do full lookup. This
+		 * is needed for example when nexthops are in the local
+		 * table rather than the given table
+		 */
+		if (!tbl || err) {
+			err = fib_lookup(net, &fl4, &res,
+					 FIB_LOOKUP_IGNORE_LINKSTATE);
+		}
+
+		if (err) {
 			NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
 			goto out;
 		}
-		nh->fib_nh_scope = res.scope;
-		nh->fib_nh_oif = FIB_RES_OIF(res);
-		nh->fib_nh_dev = dev = FIB_RES_DEV(res);
-		if (!dev) {
-			NL_SET_ERR_MSG(extack,
-				       "No egress device for nexthop gateway");
-			goto out;
-		}
-		dev_hold(dev);
-		if (!netif_carrier_ok(dev))
-			nh->fib_nh_flags |= RTNH_F_LINKDOWN;
-		err = (dev->flags & IFF_UP) ? 0 : -ENETDOWN;
-	} else {
-		struct in_device *in_dev;
-
-		if (nh->fib_nh_flags & (RTNH_F_PERVASIVE | RTNH_F_ONLINK)) {
-			NL_SET_ERR_MSG(extack,
-				       "Invalid flags for nexthop - PERVASIVE and ONLINK can not be set");
-			return -EINVAL;
-		}
-		rcu_read_lock();
-		err = -ENODEV;
-		in_dev = inetdev_by_index(net, nh->fib_nh_oif);
-		if (!in_dev)
-			goto out;
-		err = -ENETDOWN;
-		if (!(in_dev->dev->flags & IFF_UP)) {
-			NL_SET_ERR_MSG(extack, "Device for nexthop is not up");
-			goto out;
-		}
-		nh->fib_nh_dev = in_dev->dev;
-		dev_hold(nh->fib_nh_dev);
-		nh->fib_nh_scope = RT_SCOPE_HOST;
-		if (!netif_carrier_ok(nh->fib_nh_dev))
-			nh->fib_nh_flags |= RTNH_F_LINKDOWN;
-		err = 0;
 	}
+
+	err = -EINVAL;
+	if (res.type != RTN_UNICAST && res.type != RTN_LOCAL) {
+		NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
+		goto out;
+	}
+	nh->fib_nh_scope = res.scope;
+	nh->fib_nh_oif = FIB_RES_OIF(res);
+	nh->fib_nh_dev = dev = FIB_RES_DEV(res);
+	if (!dev) {
+		NL_SET_ERR_MSG(extack,
+			       "No egress device for nexthop gateway");
+		goto out;
+	}
+	dev_hold(dev);
+	if (!netif_carrier_ok(dev))
+		nh->fib_nh_flags |= RTNH_F_LINKDOWN;
+	err = (dev->flags & IFF_UP) ? 0 : -ENETDOWN;
 out:
 	rcu_read_unlock();
+	return err;
+}
+
+static int fib_check_nh_nongw(struct net *net, struct fib_nh *nh,
+			      struct netlink_ext_ack *extack)
+{
+	struct in_device *in_dev;
+	int err;
+
+	if (nh->fib_nh_flags & (RTNH_F_PERVASIVE | RTNH_F_ONLINK)) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid flags for nexthop - PERVASIVE and ONLINK can not be set");
+		return -EINVAL;
+	}
+
+	rcu_read_lock();
+
+	err = -ENODEV;
+	in_dev = inetdev_by_index(net, nh->fib_nh_oif);
+	if (!in_dev)
+		goto out;
+	err = -ENETDOWN;
+	if (!(in_dev->dev->flags & IFF_UP)) {
+		NL_SET_ERR_MSG(extack, "Device for nexthop is not up");
+		goto out;
+	}
+
+	nh->fib_nh_dev = in_dev->dev;
+	dev_hold(nh->fib_nh_dev);
+	nh->fib_nh_scope = RT_SCOPE_HOST;
+	if (!netif_carrier_ok(nh->fib_nh_dev))
+		nh->fib_nh_flags |= RTNH_F_LINKDOWN;
+	err = 0;
+out:
+	rcu_read_unlock();
+	return err;
+}
+
+static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
+			struct netlink_ext_ack *extack)
+{
+	struct net *net = cfg->fc_nlinfo.nl_net;
+	u32 table = cfg->fc_table;
+	int err;
+
+	if (nh->fib_nh_gw_family == AF_INET)
+		err = fib_check_nh_v4_gw(net, nh, table, cfg->fc_scope, extack);
+	else
+		err = fib_check_nh_nongw(net, nh, extack);
+
 	return err;
 }
 
