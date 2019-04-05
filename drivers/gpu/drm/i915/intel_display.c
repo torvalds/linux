@@ -54,6 +54,7 @@
 #include "intel_dsi.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_psr.h"
 
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {

@@ -33,6 +33,7 @@
 #include "intel_ddi.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_psr.h"
 
 struct ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */

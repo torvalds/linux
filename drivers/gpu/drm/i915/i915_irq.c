@@ -28,16 +28,19 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/sysrq.h>
-#include <linux/slab.h>
-#include <linux/cpuidle.h>
 #include <linux/circ_buf.h>
-#include <drm/drm_irq.h>
+#include <linux/cpuidle.h>
+#include <linux/slab.h>
+#include <linux/sysrq.h>
+
 #include <drm/drm_drv.h>
+#include <drm/drm_irq.h>
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include "intel_psr.h"
 
 /**
  * DOC: interrupt handling

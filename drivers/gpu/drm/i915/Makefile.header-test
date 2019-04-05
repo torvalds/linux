@@ -17,6 +17,7 @@ header_test := \
 	intel_engine_types.h \
 	intel_fbc.h \
 	intel_frontbuffer.h \
+	intel_psr.h \
 	intel_workarounds_types.h
 
 quiet_cmd_header_test = HDRTEST $@

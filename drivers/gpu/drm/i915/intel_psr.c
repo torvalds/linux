@@ -21,6 +21,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm_atomic_helper.h>
+
+#include "i915_drv.h"
+#include "intel_drv.h"
+#include "intel_psr.h"
+
 /**
  * DOC: Panel Self Refresh (PSR/SRD)
  *
@@ -50,11 +56,6 @@
  * issues the self-refresh re-enable code is done from a work queue, which
  * must be correctly synchronized/cancelled when shutting down the pipe."
  */
-
-#include <drm/drm_atomic_helper.h>
-
-#include "intel_drv.h"
-#include "i915_drv.h"
 
 static bool psr_global_enabled(u32 debug)
 {
