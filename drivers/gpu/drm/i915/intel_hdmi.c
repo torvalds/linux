@@ -46,6 +46,7 @@
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_hdcp.h"
+#include "intel_hdmi.h"
 #include "intel_lspcon.h"
 #include "intel_sdvo.h"
 #include "intel_panel.h"

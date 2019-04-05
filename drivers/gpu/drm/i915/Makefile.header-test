@@ -21,6 +21,7 @@ header_test := \
 	intel_fbdev.h \
 	intel_frontbuffer.h \
 	intel_hdcp.h \
+	intel_hdmi.h \
 	intel_lspcon.h \
 	intel_panel.h \
 	intel_pm.h \

@@ -38,6 +38,7 @@
 #include "intel_fbc.h"
 #include "intel_guc_submission.h"
 #include "intel_hdcp.h"
+#include "intel_hdmi.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
 
