@@ -421,7 +421,6 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 		return;
 
 	rcu_read_lock();
-	mt76_tx_status_lock(mdev, &list);
 
 	if (stat->wcid < ARRAY_SIZE(dev->mt76.wcid))
 		wcid = rcu_dereference(dev->mt76.wcid[stat->wcid]);
@@ -433,6 +432,8 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 		status.sta = container_of(priv, struct ieee80211_sta,
 					  drv_priv);
 	}
+
+	mt76_tx_status_lock(mdev, &list);
 
 	if (wcid) {
 		if (stat->pktid)
@@ -453,7 +454,9 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 		if (*update == 0 && stat_val == stat_cache &&
 		    stat->wcid == msta->status.wcid && msta->n_frames < 32) {
 			msta->n_frames++;
-			goto out;
+			mt76_tx_status_unlock(mdev, &list);
+			rcu_read_unlock();
+			return;
 		}
 
 		mt76x02_mac_fill_tx_status(dev, status.info, &msta->status,
@@ -469,11 +472,10 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 
 	if (status.skb)
 		mt76_tx_status_skb_done(mdev, status.skb, &list);
-	else
-		ieee80211_tx_status_ext(mt76_hw(dev), &status);
-
-out:
 	mt76_tx_status_unlock(mdev, &list);
+
+	if (!status.skb)
+		ieee80211_tx_status_ext(mt76_hw(dev), &status);
 	rcu_read_unlock();
 }
 
