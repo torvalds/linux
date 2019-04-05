@@ -1756,10 +1756,7 @@ int genphy_read_status(struct phy_device *phydev)
 	linkmode_zero(phydev->lp_advertising);
 
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
-		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				      phydev->supported) ||
-		    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				      phydev->supported)) {
+		if (phydev->is_gigabit_capable) {
 			lpagb = phy_read(phydev, MII_STAT1000);
 			if (lpagb < 0)
 				return lpagb;
@@ -2153,6 +2150,13 @@ static int phy_probe(struct device *dev)
 
 	if (err)
 		goto out;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			      phydev->supported))
+		phydev->is_gigabit_capable = 1;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      phydev->supported))
+		phydev->is_gigabit_capable = 1;
 
 	of_set_phy_supported(phydev);
 	linkmode_copy(phydev->advertising, phydev->supported);
