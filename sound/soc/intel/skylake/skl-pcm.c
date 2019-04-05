@@ -1462,9 +1462,16 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static void skl_pcm_remove(struct snd_soc_component *component)
+{
+	/* remove topology */
+	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+}
+
 static const struct snd_soc_component_driver skl_component  = {
 	.name		= "pcm",
 	.probe		= skl_platform_soc_probe,
+	.remove		= skl_pcm_remove,
 	.ops		= &skl_platform_ops,
 	.pcm_new	= skl_pcm_new,
 	.pcm_free	= skl_pcm_free,
