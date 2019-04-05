@@ -163,6 +163,10 @@ struct hsr_priv {
 	u8 prot_version;		/* Indicate if HSRv0 or HSRv1. */
 	spinlock_t seqnr_lock;			/* locking for sequence_nr */
 	unsigned char		sup_multicast_addr[ETH_ALEN];
+#ifdef	CONFIG_DEBUG_FS
+	struct dentry *node_tbl_root;
+	struct dentry *node_tbl_file;
+#endif
 };
 
 #define hsr_for_each_port(hsr, port) \
@@ -178,5 +182,18 @@ static inline u16 hsr_get_skb_sequence_nr(struct sk_buff *skb)
 	hsr_ethhdr = (struct hsr_ethhdr *)skb_mac_header(skb);
 	return ntohs(hsr_ethhdr->hsr_tag.sequence_nr);
 }
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+int hsr_prp_debugfs_init(struct hsr_priv *priv);
+void hsr_prp_debugfs_term(struct hsr_priv *priv);
+#else
+static inline int hsr_prp_debugfs_init(struct hsr_priv *priv)
+{
+	return 0;
+}
+
+static inline void hsr_prp_debugfs_term(struct hsr_priv *priv)
+{}
+#endif
 
 #endif /*  __HSR_PRIVATE_H */
