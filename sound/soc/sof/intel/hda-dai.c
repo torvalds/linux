@@ -165,26 +165,58 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	return hda_link_dma_params(link_dev, &p_params);
 }
 
+static int hda_link_pcm_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_sof_dev *sdev =
+		snd_soc_component_get_drvdata(dai->component);
+	struct snd_sof_pcm *spcm;
+	int stream = substream->stream;
+
+	spcm = snd_sof_find_spcm_dai(sdev, rtd);
+	if (!spcm)
+		return -EINVAL;
+
+	/* setup hw_params again only if resuming from system suspend */
+	if (!spcm->hw_params_upon_resume[stream])
+		return 0;
+
+	dev_dbg(sdev->dev, "hda: prepare stream %d dir %d\n",
+		spcm->pcm.pcm_id, substream->stream);
+
+	return hda_link_hw_params(substream, &rtd->dpcm[stream].hw_params,
+				  dai);
+}
+
 static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
+	int ret;
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
+		/* set up hw_params */
+		ret = hda_link_pcm_prepare(substream, dai);
+		if (ret < 0) {
+			dev_err(dai->dev,
+				"error: setting up hw_params during resume\n");
+			return ret;
+		}
+
+		/* fallthrough */
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_hdac_ext_link_stream_start(link_dev);
 		break;
-
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_hdac_ext_link_stream_clear(link_dev);
 		break;
-
 	default:
 		return -EINVAL;
 	}
@@ -255,6 +287,7 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 	.hw_params = hda_link_hw_params,
 	.hw_free = hda_link_hw_free,
 	.trigger = hda_link_pcm_trigger,
+	.prepare = hda_link_pcm_prepare,
 	.get_channel_map = hda_link_dma_get_channels,
 };
 #endif
