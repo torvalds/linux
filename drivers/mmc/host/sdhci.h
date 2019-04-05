@@ -560,7 +560,8 @@ struct sdhci_host {
 
 	unsigned int desc_sz;	/* ADMA descriptor size */
 
-	struct tasklet_struct finish_tasklet;	/* Tasklet structures */
+	struct workqueue_struct *complete_wq;	/* Request completion wq */
+	struct work_struct	complete_work;	/* Request completion work */
 
 	struct timer_list timer;	/* Timer for timeouts */
 	struct timer_list data_timer;	/* Timer for data timeouts */

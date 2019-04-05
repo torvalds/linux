@@ -1281,7 +1281,7 @@ static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 {
 	__sdhci_finish_mrq(host, mrq);
 
-	tasklet_schedule(&host->finish_tasklet);
+	queue_work(host->complete_wq, &host->complete_work);
 }
 
 static void sdhci_finish_data(struct sdhci_host *host)
@@ -2599,7 +2599,7 @@ static const struct mmc_host_ops sdhci_ops = {
 
 /*****************************************************************************\
  *                                                                           *
- * Tasklets                                                                  *
+ * Request done                                                              *
  *                                                                           *
 \*****************************************************************************/
 
@@ -2713,9 +2713,10 @@ static bool sdhci_request_done(struct sdhci_host *host)
 	return false;
 }
 
-static void sdhci_tasklet_finish(unsigned long param)
+static void sdhci_complete_work(struct work_struct *work)
 {
-	struct sdhci_host *host = (struct sdhci_host *)param;
+	struct sdhci_host *host = container_of(work, struct sdhci_host,
+					       complete_work);
 
 	while (!sdhci_request_done(host))
 		;
@@ -2761,7 +2762,7 @@ static void sdhci_timeout_data_timer(struct timer_list *t)
 		if (host->data) {
 			host->data->error = -ETIMEDOUT;
 			sdhci_finish_data(host);
-			tasklet_schedule(&host->finish_tasklet);
+			queue_work(host->complete_wq, &host->complete_work);
 		} else if (host->data_cmd) {
 			host->data_cmd->error = -ETIMEDOUT;
 			sdhci_finish_mrq(host, host->data_cmd->mrq);
@@ -3122,7 +3123,7 @@ cont:
 			continue;
 
 		if (sdhci_defer_done(host, mrq)) {
-			tasklet_schedule(&host->finish_tasklet);
+			result = IRQ_WAKE_THREAD;
 		} else {
 			mrqs_done[i] = mrq;
 			host->mrqs_done[i] = NULL;
@@ -3152,6 +3153,9 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
 	unsigned long flags;
 	u32 isr;
 
+	while (!sdhci_request_done(host))
+		;
+
 	spin_lock_irqsave(&host->lock, flags);
 	isr = host->thread_isr;
 	host->thread_isr = 0;
@@ -3173,7 +3177,7 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
 		spin_unlock_irqrestore(&host->lock, flags);
 	}
 
-	return isr ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 /*****************************************************************************\
@@ -4259,14 +4263,15 @@ EXPORT_SYMBOL_GPL(sdhci_cleanup_host);
 
 int __sdhci_add_host(struct sdhci_host *host)
 {
+	unsigned int flags = WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI;
 	struct mmc_host *mmc = host->mmc;
 	int ret;
 
-	/*
-	 * Init tasklets.
-	 */
-	tasklet_init(&host->finish_tasklet,
-		sdhci_tasklet_finish, (unsigned long)host);
+	host->complete_wq = alloc_workqueue("sdhci", flags, 0);
+	if (!host->complete_wq)
+		return -ENOMEM;
+
+	INIT_WORK(&host->complete_work, sdhci_complete_work);
 
 	timer_setup(&host->timer, sdhci_timeout_timer, 0);
 	timer_setup(&host->data_timer, sdhci_timeout_data_timer, 0);
@@ -4280,7 +4285,7 @@ int __sdhci_add_host(struct sdhci_host *host)
 	if (ret) {
 		pr_err("%s: Failed to request IRQ %d: %d\n",
 		       mmc_hostname(mmc), host->irq, ret);
-		goto untasklet;
+		goto unwq;
 	}
 
 	ret = sdhci_led_register(host);
@@ -4313,8 +4318,8 @@ unirq:
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
-untasklet:
-	tasklet_kill(&host->finish_tasklet);
+unwq:
+	destroy_workqueue(host->complete_wq);
 
 	return ret;
 }
@@ -4376,7 +4381,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	del_timer_sync(&host->timer);
 	del_timer_sync(&host->data_timer);
 
-	tasklet_kill(&host->finish_tasklet);
+	destroy_workqueue(host->complete_wq);
 
 	if (!IS_ERR(mmc->supply.vqmmc))
 		regulator_disable(mmc->supply.vqmmc);
