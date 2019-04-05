@@ -204,16 +204,28 @@ static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
 				 sizeof(pm_ctx), &reply, sizeof(reply));
 }
 
-static void sof_set_restore_stream(struct snd_sof_dev *sdev)
+static void sof_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
+	struct snd_pcm_substream *substream;
 	struct snd_sof_pcm *spcm;
+	snd_pcm_state_t state;
+	int dir;
 
-	/* suspend all running streams */
+	/*
+	 * SOF requires hw_params to be set-up internally upon resume.
+	 * So, set the flag to indicate this for those streams that
+	 * have been suspended.
+	 */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for (dir = 0; dir <= SNDRV_PCM_STREAM_CAPTURE; dir++) {
+			substream = spcm->stream[dir].substream;
+			if (!substream || !substream->runtime)
+				continue;
 
-		spcm->restore_stream[0] = 1;
-		spcm->restore_stream[1] = 1;
-
+			state = substream->runtime->status->state;
+			if (state == SNDRV_PCM_STATE_SUSPENDED)
+				spcm->hw_params_upon_resume[dir] = 1;
+		}
 	}
 }
 
@@ -319,7 +331,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* set restore_stream for all streams during system suspend */
 	if (!runtime_suspend)
-		sof_set_restore_stream(sdev);
+		sof_set_hw_params_upon_resume(sdev);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	/* cache debugfs contents during runtime suspend */
