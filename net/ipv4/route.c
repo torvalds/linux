@@ -465,13 +465,15 @@ static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr)
 	struct net_device *dev = dst->dev;
 	const __be32 *pkey = daddr;
 
-	if (rt->rt_gw_family == AF_INET)
+	if (rt->rt_gw_family == AF_INET) {
 		pkey = (const __be32 *)&rt->rt_gw4;
-	else if (!daddr ||
+	} else if (rt->rt_gw_family == AF_INET6) {
+		return __ipv6_confirm_neigh_stub(dev, &rt->rt_gw6);
+	} else if (!daddr ||
 		 (rt->rt_flags &
-		  (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL)))
+		  (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL))) {
 		return;
-
+	}
 	__ipv4_confirm_neigh(dev, *(__force u32 *)pkey);
 }
 
