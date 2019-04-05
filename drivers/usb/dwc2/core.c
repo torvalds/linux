@@ -1152,6 +1152,15 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		usbcfg &= ~(GUSBCFG_ULPI_UTMI_SEL | GUSBCFG_PHYIF16);
 		if (hsotg->params.phy_utmi_width == 16)
 			usbcfg |= GUSBCFG_PHYIF16;
+
+		/* Set turnaround time */
+		if (dwc2_is_device_mode(hsotg)) {
+			usbcfg &= ~GUSBCFG_USBTRDTIM_MASK;
+			if (hsotg->params.phy_utmi_width == 16)
+				usbcfg |= 5 << GUSBCFG_USBTRDTIM_SHIFT;
+			else
+				usbcfg |= 9 << GUSBCFG_USBTRDTIM_SHIFT;
+		}
 		break;
 	default:
 		dev_err(hsotg->dev, "FS PHY selected at HS!\n");

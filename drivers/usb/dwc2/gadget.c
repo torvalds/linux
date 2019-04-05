@@ -3314,29 +3314,14 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	/* keep other bits untouched (so e.g. forced modes are not lost) */
 	usbcfg = dwc2_readl(hsotg, GUSBCFG);
-	/* remove the HNP/SRP */
-	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
-		GUSBCFG_HNPCAP);
+	usbcfg &= ~GUSBCFG_TOUTCAL_MASK;
 	usbcfg |= GUSBCFG_TOUTCAL(7);
 
-	if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS &&
-	    (hsotg->params.speed == DWC2_SPEED_PARAM_FULL ||
-	     hsotg->params.speed == DWC2_SPEED_PARAM_LOW)) {
-		/* FS/LS Dedicated Transceiver Interface */
-		usbcfg |= GUSBCFG_PHYSEL;
-	} else if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_UTMI) {
-		if (hsotg->params.phy_utmi_width == 16)
-			usbcfg |= GUSBCFG_PHYIF16;
+	/* remove the HNP/SRP and set the PHY */
+	usbcfg &= ~(GUSBCFG_SRPCAP | GUSBCFG_HNPCAP);
+        dwc2_writel(hsotg, usbcfg, GUSBCFG);
 
-		/* Set turnaround time */
-		usbcfg &= ~GUSBCFG_USBTRDTIM_MASK;
-		if (hsotg->params.phy_utmi_width == 16)
-			usbcfg |= 5 << GUSBCFG_USBTRDTIM_SHIFT;
-		else
-			usbcfg |= 9 << GUSBCFG_USBTRDTIM_SHIFT;
-	}
-
-	dwc2_writel(hsotg, usbcfg, GUSBCFG);
+	dwc2_phy_init(hsotg, true);
 
 	dwc2_hsotg_init_fifo(hsotg);
 
