@@ -373,7 +373,7 @@ bool GetTs(
 			if(!list_empty(pUnusedList)) {
 				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, list);
 				list_del_init(&(*ppTS)->list);
-				if(TxRxSelect==TX_DIR) {
+				if (TxRxSelect == TX_DIR) {
 					struct tx_ts_record *tmp = container_of(*ppTS, struct tx_ts_record, ts_common_info);
 					ResetTxTsEntry(tmp);
 				} else {
