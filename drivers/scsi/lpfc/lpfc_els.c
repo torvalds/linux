@@ -8450,6 +8450,14 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		rjt_err = LSRJT_UNABLE_TPC;
 		rjt_exp = LSEXP_INVALID_OX_RX;
 		break;
+	case ELS_CMD_FPIN:
+		/*
+		 * Received FPIN from fabric - pass it to the
+		 * transport FPIN handler.
+		 */
+		fc_host_fpin_rcv(shost, elsiocb->iocb.unsli3.rcvsli3.acc_len,
+				(char *)payload);
+		break;
 	default:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV ELS cmd:     cmd:x%x did:x%x/ste:x%x",
