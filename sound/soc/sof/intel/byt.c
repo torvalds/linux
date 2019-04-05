@@ -510,7 +510,7 @@ static struct snd_soc_dai_driver byt_dai[] = {
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
 
-static int byt_pci_probe(struct snd_sof_dev *sdev)
+static int tangier_pci_probe(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = pdata->desc;
@@ -585,7 +585,7 @@ irq:
 
 const struct snd_sof_dsp_ops sof_tng_ops = {
 	/* device init */
-	.probe		= byt_pci_probe,
+	.probe		= tangier_pci_probe,
 
 	/* DSP core boot / reset */
 	.run		= byt_run,
