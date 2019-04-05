@@ -1629,41 +1629,6 @@ void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
 
-/* intel_cdclk.c */
-int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state);
-void skl_init_cdclk(struct drm_i915_private *dev_priv);
-void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
-void cnl_init_cdclk(struct drm_i915_private *dev_priv);
-void cnl_uninit_cdclk(struct drm_i915_private *dev_priv);
-void bxt_init_cdclk(struct drm_i915_private *dev_priv);
-void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
-void icl_init_cdclk(struct drm_i915_private *dev_priv);
-void icl_uninit_cdclk(struct drm_i915_private *dev_priv);
-void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
-void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
-void intel_update_cdclk(struct drm_i915_private *dev_priv);
-void intel_update_rawclk(struct drm_i915_private *dev_priv);
-bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
-				   const struct intel_cdclk_state *a,
-				   const struct intel_cdclk_state *b);
-bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
-			       const struct intel_cdclk_state *b);
-bool intel_cdclk_changed(const struct intel_cdclk_state *a,
-			 const struct intel_cdclk_state *b);
-void intel_cdclk_swap_state(struct intel_atomic_state *state);
-void
-intel_set_cdclk_pre_plane_update(struct drm_i915_private *dev_priv,
-				 const struct intel_cdclk_state *old_state,
-				 const struct intel_cdclk_state *new_state,
-				 enum pipe pipe);
-void
-intel_set_cdclk_post_plane_update(struct drm_i915_private *dev_priv,
-				  const struct intel_cdclk_state *old_state,
-				  const struct intel_cdclk_state *new_state,
-				  enum pipe pipe);
-void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
-			    const char *context);
-
 /* intel_display.c */
 void intel_plane_destroy(struct drm_plane *plane);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);

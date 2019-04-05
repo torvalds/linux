@@ -50,6 +50,7 @@
 #include "i915_trace.h"
 #include "intel_atomic_plane.h"
 #include "intel_color.h"
+#include "intel_cdclk.h"
 #include "intel_crt.h"
 #include "intel_ddi.h"
 #include "intel_dp.h"

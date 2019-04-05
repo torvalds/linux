@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "intel_cdclk.h"
 #include "intel_drv.h"
 
 /**

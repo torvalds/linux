@@ -54,6 +54,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_audio.h"
+#include "intel_cdclk.h"
 #include "intel_csr.h"
 #include "intel_dp.h"
 #include "intel_drv.h"

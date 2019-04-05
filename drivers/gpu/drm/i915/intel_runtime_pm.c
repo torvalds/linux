@@ -32,6 +32,7 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
+#include "intel_cdclk.h"
 #include "intel_crt.h"
 #include "intel_csr.h"
 #include "intel_dp.h"
