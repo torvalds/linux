@@ -482,10 +482,11 @@ static void remove_widget(struct snd_soc_component *comp,
 
 			snd_ctl_remove(card, kcontrol);
 
-			kfree(dobj->control.dvalues);
+			/* free enum kcontrol's dvalues and dtexts */
+			kfree(se->dobj.control.dvalues);
 			for (j = 0; j < se->items; j++)
-				kfree(dobj->control.dtexts[j]);
-			kfree(dobj->control.dtexts);
+				kfree(se->dobj.control.dtexts[j]);
+			kfree(se->dobj.control.dtexts);
 
 			kfree(se);
 			kfree(w->kcontrol_news[i].name);
