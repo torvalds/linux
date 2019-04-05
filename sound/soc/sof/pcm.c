@@ -725,6 +725,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->use_dai_pcm_id = true;
 	pd->topology_name_prefix = "sof";
 
-	 /* do not increase the refcount in core */
-	pd->ignore_module_refcount = 1;
+	 /* increment module refcount when a pcm is opened */
+	pd->module_get_upon_open = 1;
 }
