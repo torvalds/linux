@@ -24,11 +24,13 @@
  *
  */
 
-#include <linux/seq_file.h>
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
 #include "intel_drv.h"
+#include "intel_pipe_crc.h"
 
 static const char * const pipe_crc_sources[] = {
 	[INTEL_PIPE_CRC_SOURCE_NONE] = "none",

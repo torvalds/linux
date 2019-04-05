@@ -25,6 +25,7 @@ header_test := \
 	intel_hdmi.h \
 	intel_lspcon.h \
 	intel_panel.h \
+	intel_pipe_crc.h \
 	intel_pm.h \
 	intel_psr.h \
 	intel_sdvo.h \
