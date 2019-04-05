@@ -102,6 +102,8 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 
 		ret = pm_runtime_get_sync(v3d->dev);
+		if (ret < 0)
+			return ret;
 		if (args->param >= DRM_V3D_PARAM_V3D_CORE0_IDENT0 &&
 		    args->param <= DRM_V3D_PARAM_V3D_CORE0_IDENT2) {
 			args->value = V3D_CORE_READ(0, offset);

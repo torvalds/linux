@@ -335,6 +335,10 @@ source "drivers/gpu/drm/xen/Kconfig"
 
 source "drivers/gpu/drm/vboxvideo/Kconfig"
 
+source "drivers/gpu/drm/lima/Kconfig"
+
+source "drivers/gpu/drm/aspeed/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY

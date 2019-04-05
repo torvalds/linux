@@ -101,7 +101,6 @@ struct cirrus_crtc {
 
 struct cirrus_fbdev;
 struct cirrus_mode_info {
-	bool				mode_config_initialized;
 	struct cirrus_crtc		*crtc;
 	/* pointer to fbdev info structure */
 	struct cirrus_fbdev		*gfbdev;

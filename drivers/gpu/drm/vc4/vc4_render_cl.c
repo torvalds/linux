@@ -148,6 +148,12 @@ static void emit_tile(struct vc4_exec_info *exec,
 	}
 
 	if (setup->zs_read) {
+		if (setup->color_read) {
+			/* Exec previous load. */
+			vc4_tile_coordinates(setup, x, y);
+			vc4_store_before_load(setup);
+		}
+
 		if (args->zs_read.flags &
 		    VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES) {
 			rcl_u8(setup, VC4_PACKET_LOAD_FULL_RES_TILE_BUFFER);
@@ -156,12 +162,6 @@ static void emit_tile(struct vc4_exec_info *exec,
 						    &args->zs_read, x, y) |
 				VC4_LOADSTORE_FULL_RES_DISABLE_COLOR);
 		} else {
-			if (setup->color_read) {
-				/* Exec previous load. */
-				vc4_tile_coordinates(setup, x, y);
-				vc4_store_before_load(setup);
-			}
-
 			rcl_u8(setup, VC4_PACKET_LOAD_TILE_BUFFER_GENERAL);
 			rcl_u16(setup, args->zs_read.bits);
 			rcl_u32(setup, setup->zs_read->paddr +
@@ -291,16 +291,15 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 		}
 	}
 	if (setup->zs_read) {
+		if (setup->color_read) {
+			loop_body_size += VC4_PACKET_TILE_COORDINATES_SIZE;
+			loop_body_size += VC4_PACKET_STORE_TILE_BUFFER_GENERAL_SIZE;
+		}
+
 		if (args->zs_read.flags &
 		    VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES) {
 			loop_body_size += VC4_PACKET_LOAD_FULL_RES_TILE_BUFFER_SIZE;
 		} else {
-			if (setup->color_read &&
-			    !(args->color_read.flags &
-			      VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES)) {
-				loop_body_size += VC4_PACKET_TILE_COORDINATES_SIZE;
-				loop_body_size += VC4_PACKET_STORE_TILE_BUFFER_GENERAL_SIZE;
-			}
 			loop_body_size += VC4_PACKET_LOAD_TILE_BUFFER_GENERAL_SIZE;
 		}
 	}

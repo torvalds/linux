@@ -148,6 +148,7 @@ struct vc4_txp {
 	struct drm_writeback_connector connector;
 
 	void __iomem *regs;
+	struct debugfs_regset32 regset;
 };
 
 static inline struct vc4_txp *encoder_to_vc4_txp(struct drm_encoder *encoder)
@@ -160,39 +161,13 @@ static inline struct vc4_txp *connector_to_vc4_txp(struct drm_connector *conn)
 	return container_of(conn, struct vc4_txp, connector.base);
 }
 
-#define TXP_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} txp_regs[] = {
-	TXP_REG(TXP_DST_PTR),
-	TXP_REG(TXP_DST_PITCH),
-	TXP_REG(TXP_DIM),
-	TXP_REG(TXP_DST_CTRL),
-	TXP_REG(TXP_PROGRESS),
+static const struct debugfs_reg32 txp_regs[] = {
+	VC4_REG32(TXP_DST_PTR),
+	VC4_REG32(TXP_DST_PITCH),
+	VC4_REG32(TXP_DIM),
+	VC4_REG32(TXP_DST_CTRL),
+	VC4_REG32(TXP_PROGRESS),
 };
-
-#ifdef CONFIG_DEBUG_FS
-int vc4_txp_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_txp *txp = vc4->txp;
-	int i;
-
-	if (!txp)
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(txp_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   txp_regs[i].name, txp_regs[i].reg,
-			   TXP_READ(txp_regs[i].reg));
-	}
-
-	return 0;
-}
-#endif
 
 static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
@@ -410,6 +385,9 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 	txp->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(txp->regs))
 		return PTR_ERR(txp->regs);
+	txp->regset.base = txp->regs;
+	txp->regset.regs = txp_regs;
+	txp->regset.nregs = ARRAY_SIZE(txp_regs);
 
 	drm_connector_helper_add(&txp->connector.base,
 				 &vc4_txp_connector_helper_funcs);
@@ -427,6 +405,8 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 
 	dev_set_drvdata(dev, txp);
 	vc4->txp = txp;
+
+	vc4_debugfs_add_regset32(drm, "txp_regs", &txp->regset);
 
 	return 0;
 }

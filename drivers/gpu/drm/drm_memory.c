@@ -168,6 +168,13 @@ bool drm_need_swiotlb(int dma_bits)
 	if (xen_pv_domain())
 		return true;
 
+	/*
+	 * Enforce dma_alloc_coherent when memory encryption is active as well
+	 * for the same reasons as for Xen paravirtual hosts.
+	 */
+	if (mem_encrypt_active())
+		return true;
+
 	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
 		max_iomem = max(max_iomem,  tmp->end);
 	}

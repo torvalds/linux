@@ -1062,6 +1062,30 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	return 0;
 }
 
+void ltdc_suspend(struct drm_device *ddev)
+{
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	DRM_DEBUG_DRIVER("\n");
+	clk_disable_unprepare(ldev->pixel_clk);
+}
+
+int ltdc_resume(struct drm_device *ddev)
+{
+	struct ltdc_device *ldev = ddev->dev_private;
+	int ret;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	ret = clk_prepare_enable(ldev->pixel_clk);
+	if (ret) {
+		DRM_ERROR("failed to enable pixel clock (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ltdc_load(struct drm_device *ddev)
 {
 	struct platform_device *pdev = to_platform_device(ddev->dev);

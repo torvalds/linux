@@ -27,54 +27,47 @@
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
-#define HVS_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} hvs_regs[] = {
-	HVS_REG(SCALER_DISPCTRL),
-	HVS_REG(SCALER_DISPSTAT),
-	HVS_REG(SCALER_DISPID),
-	HVS_REG(SCALER_DISPECTRL),
-	HVS_REG(SCALER_DISPPROF),
-	HVS_REG(SCALER_DISPDITHER),
-	HVS_REG(SCALER_DISPEOLN),
-	HVS_REG(SCALER_DISPLIST0),
-	HVS_REG(SCALER_DISPLIST1),
-	HVS_REG(SCALER_DISPLIST2),
-	HVS_REG(SCALER_DISPLSTAT),
-	HVS_REG(SCALER_DISPLACT0),
-	HVS_REG(SCALER_DISPLACT1),
-	HVS_REG(SCALER_DISPLACT2),
-	HVS_REG(SCALER_DISPCTRL0),
-	HVS_REG(SCALER_DISPBKGND0),
-	HVS_REG(SCALER_DISPSTAT0),
-	HVS_REG(SCALER_DISPBASE0),
-	HVS_REG(SCALER_DISPCTRL1),
-	HVS_REG(SCALER_DISPBKGND1),
-	HVS_REG(SCALER_DISPSTAT1),
-	HVS_REG(SCALER_DISPBASE1),
-	HVS_REG(SCALER_DISPCTRL2),
-	HVS_REG(SCALER_DISPBKGND2),
-	HVS_REG(SCALER_DISPSTAT2),
-	HVS_REG(SCALER_DISPBASE2),
-	HVS_REG(SCALER_DISPALPHA2),
-	HVS_REG(SCALER_OLEDOFFS),
-	HVS_REG(SCALER_OLEDCOEF0),
-	HVS_REG(SCALER_OLEDCOEF1),
-	HVS_REG(SCALER_OLEDCOEF2),
+static const struct debugfs_reg32 hvs_regs[] = {
+	VC4_REG32(SCALER_DISPCTRL),
+	VC4_REG32(SCALER_DISPSTAT),
+	VC4_REG32(SCALER_DISPID),
+	VC4_REG32(SCALER_DISPECTRL),
+	VC4_REG32(SCALER_DISPPROF),
+	VC4_REG32(SCALER_DISPDITHER),
+	VC4_REG32(SCALER_DISPEOLN),
+	VC4_REG32(SCALER_DISPLIST0),
+	VC4_REG32(SCALER_DISPLIST1),
+	VC4_REG32(SCALER_DISPLIST2),
+	VC4_REG32(SCALER_DISPLSTAT),
+	VC4_REG32(SCALER_DISPLACT0),
+	VC4_REG32(SCALER_DISPLACT1),
+	VC4_REG32(SCALER_DISPLACT2),
+	VC4_REG32(SCALER_DISPCTRL0),
+	VC4_REG32(SCALER_DISPBKGND0),
+	VC4_REG32(SCALER_DISPSTAT0),
+	VC4_REG32(SCALER_DISPBASE0),
+	VC4_REG32(SCALER_DISPCTRL1),
+	VC4_REG32(SCALER_DISPBKGND1),
+	VC4_REG32(SCALER_DISPSTAT1),
+	VC4_REG32(SCALER_DISPBASE1),
+	VC4_REG32(SCALER_DISPCTRL2),
+	VC4_REG32(SCALER_DISPBKGND2),
+	VC4_REG32(SCALER_DISPSTAT2),
+	VC4_REG32(SCALER_DISPBASE2),
+	VC4_REG32(SCALER_DISPALPHA2),
+	VC4_REG32(SCALER_OLEDOFFS),
+	VC4_REG32(SCALER_OLEDCOEF0),
+	VC4_REG32(SCALER_OLEDCOEF1),
+	VC4_REG32(SCALER_OLEDCOEF2),
 };
 
 void vc4_hvs_dump_state(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_printer p = drm_info_printer(&vc4->hvs->pdev->dev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hvs_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 hvs_regs[i].reg, hvs_regs[i].name,
-			 HVS_READ(hvs_regs[i].reg));
-	}
+	drm_print_regset32(&p, &vc4->hvs->regset);
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {
@@ -87,24 +80,7 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hvs_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   hvs_regs[i].name, hvs_regs[i].reg,
-			   HVS_READ(hvs_regs[i].reg));
-	}
-
-	return 0;
-}
-
-int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
+static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -115,7 +91,6 @@ int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 
 	return 0;
 }
-#endif
 
 /* The filter kernel is composed of dwords each containing 3 9-bit
  * signed integers packed next to each other.
@@ -259,6 +234,10 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(hvs->regs))
 		return PTR_ERR(hvs->regs);
 
+	hvs->regset.base = hvs->regs;
+	hvs->regset.regs = hvs_regs;
+	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
+
 	hvs->dlist = hvs->regs + SCALER_DLIST_START;
 
 	spin_lock_init(&hvs->mm_lock);
@@ -322,6 +301,10 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 			       vc4_hvs_irq_handler, 0, "vc4 hvs", drm);
 	if (ret)
 		return ret;
+
+	vc4_debugfs_add_regset32(drm, "hvs_regs", &hvs->regset);
+	vc4_debugfs_add_file(drm, "hvs_underrun", vc4_hvs_debugfs_underrun,
+			     NULL);
 
 	return 0;
 }
