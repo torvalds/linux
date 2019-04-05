@@ -909,7 +909,8 @@ struct bch_sb_field {
 	x(quota,	4)	\
 	x(disk_groups,	5)	\
 	x(clean,	6)	\
-	x(replicas,	7)
+	x(replicas,	7)	\
+	x(journal_seq_blacklist, 8)
 
 enum bch_sb_field_type {
 #define x(f, nr)	BCH_SB_FIELD_##f = nr,
@@ -1124,6 +1125,20 @@ struct bch_sb_field_clean {
 	};
 };
 
+struct journal_seq_blacklist_entry {
+	__le64			start;
+	__le64			end;
+};
+
+struct bch_sb_field_journal_seq_blacklist {
+	struct bch_sb_field	field;
+
+	union {
+		struct journal_seq_blacklist_entry start[0];
+		__u64		_data[0];
+	};
+};
+
 /* Superblock: */
 
 /*
@@ -1279,6 +1294,7 @@ enum bch_sb_features {
 	BCH_FEATURE_ZSTD		= 2,
 	BCH_FEATURE_ATOMIC_NLINK	= 3, /* should have gone under compat */
 	BCH_FEATURE_EC			= 4,
+	BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3 = 5,
 	BCH_FEATURE_NR,
 };
 

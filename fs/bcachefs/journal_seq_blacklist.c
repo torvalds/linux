@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
-#include "btree_update.h"
-#include "btree_update_interior.h"
-#include "error.h"
-#include "journal.h"
-#include "journal_io.h"
-#include "journal_reclaim.h"
+#include "btree_iter.h"
+#include "eytzinger.h"
 #include "journal_seq_blacklist.h"
+#include "super-io.h"
 
 /*
  * journal_seq_blacklist machinery:
@@ -37,327 +34,285 @@
  * record that it was blacklisted so that a) on recovery we don't think we have
  * missing journal entries and b) so that the btree code continues to ignore
  * that bset, until that btree node is rewritten.
- *
- * Blacklisted journal sequence numbers are themselves recorded as entries in
- * the journal.
  */
 
-/*
- * Called when journal needs to evict a blacklist entry to reclaim space: find
- * any btree nodes that refer to the blacklist journal sequence numbers, and
- * rewrite them:
- */
-static void journal_seq_blacklist_flush(struct journal *j,
-					struct journal_entry_pin *pin, u64 seq)
+static unsigned
+blacklist_nr_entries(struct bch_sb_field_journal_seq_blacklist *bl)
 {
-	struct bch_fs *c =
-		container_of(j, struct bch_fs, journal);
-	struct journal_seq_blacklist *bl =
-		container_of(pin, struct journal_seq_blacklist, pin);
-	struct blacklisted_node n;
-	struct closure cl;
-	unsigned i;
-	int ret;
-
-	closure_init_stack(&cl);
-
-	for (i = 0;; i++) {
-		struct btree_trans trans;
-		struct btree_iter *iter;
-		struct btree *b;
-
-		bch2_trans_init(&trans, c);
-
-		mutex_lock(&j->blacklist_lock);
-		if (i >= bl->nr_entries) {
-			mutex_unlock(&j->blacklist_lock);
-			break;
-		}
-		n = bl->entries[i];
-		mutex_unlock(&j->blacklist_lock);
-
-		iter = bch2_trans_get_node_iter(&trans, n.btree_id, n.pos,
-						0, 0, 0);
-
-		b = bch2_btree_iter_peek_node(iter);
-
-		/* The node might have already been rewritten: */
-
-		if (b->data->keys.seq == n.seq) {
-			ret = bch2_btree_node_rewrite(c, iter, n.seq, 0);
-			if (ret) {
-				bch2_trans_exit(&trans);
-				bch2_fs_fatal_error(c,
-					"error %i rewriting btree node with blacklisted journal seq",
-					ret);
-				bch2_journal_halt(j);
-				return;
-			}
-		}
-
-		bch2_trans_exit(&trans);
-	}
-
-	for (i = 0;; i++) {
-		struct btree_update *as;
-		struct pending_btree_node_free *d;
-
-		mutex_lock(&j->blacklist_lock);
-		if (i >= bl->nr_entries) {
-			mutex_unlock(&j->blacklist_lock);
-			break;
-		}
-		n = bl->entries[i];
-		mutex_unlock(&j->blacklist_lock);
-redo_wait:
-		mutex_lock(&c->btree_interior_update_lock);
-
-		/*
-		 * Is the node on the list of pending interior node updates -
-		 * being freed? If so, wait for that to finish:
-		 */
-		for_each_pending_btree_node_free(c, as, d)
-			if (n.seq	== d->seq &&
-			    n.btree_id	== d->btree_id &&
-			    !d->level &&
-			    !bkey_cmp(n.pos, d->key.k.p)) {
-				closure_wait(&as->wait, &cl);
-				mutex_unlock(&c->btree_interior_update_lock);
-				closure_sync(&cl);
-				goto redo_wait;
-			}
-
-		mutex_unlock(&c->btree_interior_update_lock);
-	}
-
-	mutex_lock(&j->blacklist_lock);
-
-	bch2_journal_pin_drop(j, &bl->pin);
-	list_del(&bl->list);
-	kfree(bl->entries);
-	kfree(bl);
-
-	mutex_unlock(&j->blacklist_lock);
+	return bl
+		? ((vstruct_end(&bl->field) - (void *) &bl->start[0]) /
+		   sizeof(struct journal_seq_blacklist_entry))
+		: 0;
 }
 
-/*
- * Determine if a particular sequence number is blacklisted - if so, return
- * blacklist entry:
- */
-struct journal_seq_blacklist *
-bch2_journal_seq_blacklist_find(struct journal *j, u64 seq)
+static unsigned sb_blacklist_u64s(unsigned nr)
 {
-	struct journal_seq_blacklist *bl;
+	struct bch_sb_field_journal_seq_blacklist *bl;
 
-	lockdep_assert_held(&j->blacklist_lock);
+	return (sizeof(*bl) + sizeof(bl->start[0]) * nr) / sizeof(u64);
+}
 
-	list_for_each_entry(bl, &j->seq_blacklist, list)
-		if (seq >= bl->start && seq <= bl->end)
-			return bl;
+static struct bch_sb_field_journal_seq_blacklist *
+blacklist_entry_try_merge(struct bch_fs *c,
+			  struct bch_sb_field_journal_seq_blacklist *bl,
+			  unsigned i)
+{
+	unsigned nr = blacklist_nr_entries(bl);
+
+	if (le64_to_cpu(bl->start[i].end) >=
+	    le64_to_cpu(bl->start[i + 1].start)) {
+		bl->start[i].end = bl->start[i + 1].end;
+		--nr;
+		memmove(&bl->start[i],
+			&bl->start[i + 1],
+			sizeof(bl->start[0]) * (nr - i));
+
+		bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
+							sb_blacklist_u64s(nr));
+		BUG_ON(!bl);
+	}
+
+	return bl;
+}
+
+int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
+{
+	struct bch_sb_field_journal_seq_blacklist *bl;
+	unsigned i, nr;
+	int ret = 0;
+
+	mutex_lock(&c->sb_lock);
+	bl = bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+	nr = blacklist_nr_entries(bl);
+
+	if (bl) {
+		for (i = 0; i < nr; i++) {
+			struct journal_seq_blacklist_entry *e =
+				bl->start + i;
+
+			if (start == le64_to_cpu(e->start) &&
+			    end   == le64_to_cpu(e->end))
+				goto out;
+
+			if (start <= le64_to_cpu(e->start) &&
+			    end   >= le64_to_cpu(e->end)) {
+				e->start = cpu_to_le64(start);
+				e->end	= cpu_to_le64(end);
+
+				if (i + 1 < nr)
+					bl = blacklist_entry_try_merge(c,
+								bl, i);
+				if (i)
+					bl = blacklist_entry_try_merge(c,
+								bl, i - 1);
+				goto out_write_sb;
+			}
+		}
+	}
+
+	bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
+					sb_blacklist_u64s(nr + 1));
+	if (!bl) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	bl->start[nr].start	= cpu_to_le64(start);
+	bl->start[nr].end	= cpu_to_le64(end);
+out_write_sb:
+	c->disk_sb.sb->features[0] |=
+		1ULL << BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3;
+
+	ret = bch2_write_super(c);
+out:
+	mutex_unlock(&c->sb_lock);
+
+	return ret;
+}
+
+static int journal_seq_blacklist_table_cmp(const void *_l,
+					   const void *_r, size_t size)
+{
+	const struct journal_seq_blacklist_table_entry *l = _l;
+	const struct journal_seq_blacklist_table_entry *r = _r;
+
+	return (l->start > r->start) - (l->start < r->start);
+}
+
+bool bch2_journal_seq_is_blacklisted(struct bch_fs *c, u64 seq,
+				     bool dirty)
+{
+	struct journal_seq_blacklist_table *t = c->journal_seq_blacklist_table;
+	struct journal_seq_blacklist_table_entry search = { .start = seq };
+	int idx;
+
+	if (!t)
+		return false;
+
+	idx = eytzinger0_find_le(t->entries, t->nr,
+				 sizeof(t->entries[0]),
+				 journal_seq_blacklist_table_cmp,
+				 &search);
+	if (idx < 0)
+		return false;
+
+	BUG_ON(t->entries[idx].start > seq);
+
+	if (seq >= t->entries[idx].end)
+		return false;
+
+	if (dirty)
+		t->entries[idx].dirty = true;
+	return true;
+}
+
+int bch2_blacklist_table_initialize(struct bch_fs *c)
+{
+	struct bch_sb_field_journal_seq_blacklist *bl =
+		bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+	struct journal_seq_blacklist_table *t;
+	unsigned i, nr = blacklist_nr_entries(bl);
+
+	BUG_ON(c->journal_seq_blacklist_table);
+
+	if (!bl)
+		return 0;
+
+	t = kzalloc(sizeof(*t) + sizeof(t->entries[0]) * nr,
+		    GFP_KERNEL);
+	if (!t)
+		return -ENOMEM;
+
+	t->nr = nr;
+
+	for (i = 0; i < nr; i++) {
+		t->entries[i].start	= le64_to_cpu(bl->start[i].start);
+		t->entries[i].end	= le64_to_cpu(bl->start[i].end);
+	}
+
+	eytzinger0_sort(t->entries,
+			t->nr,
+			sizeof(t->entries[0]),
+			journal_seq_blacklist_table_cmp,
+			NULL);
+
+	c->journal_seq_blacklist_table = t;
+	return 0;
+}
+
+static const char *
+bch2_sb_journal_seq_blacklist_validate(struct bch_sb *sb,
+				       struct bch_sb_field *f)
+{
+	struct bch_sb_field_journal_seq_blacklist *bl =
+		field_to_type(f, journal_seq_blacklist);
+	struct journal_seq_blacklist_entry *i;
+	unsigned nr = blacklist_nr_entries(bl);
+
+	for (i = bl->start; i < bl->start + nr; i++) {
+		if (le64_to_cpu(i->start) >=
+		    le64_to_cpu(i->end))
+			return "entry start >= end";
+
+		if (i + 1 < bl->start + nr &&
+		    le64_to_cpu(i[0].end) >
+		    le64_to_cpu(i[1].start))
+			return "entries out of order";
+	}
 
 	return NULL;
 }
 
-/*
- * Allocate a new, in memory blacklist entry:
- */
-static struct journal_seq_blacklist *
-bch2_journal_seq_blacklisted_new(struct journal *j, u64 start, u64 end)
+static void bch2_sb_journal_seq_blacklist_to_text(struct printbuf *out,
+						  struct bch_sb *sb,
+						  struct bch_sb_field *f)
 {
-	struct journal_seq_blacklist *bl;
+	struct bch_sb_field_journal_seq_blacklist *bl =
+		field_to_type(f, journal_seq_blacklist);
+	struct journal_seq_blacklist_entry *i;
+	unsigned nr = blacklist_nr_entries(bl);
 
-	lockdep_assert_held(&j->blacklist_lock);
+	for (i = bl->start; i < bl->start + nr; i++) {
+		if (i != bl->start)
+			pr_buf(out, " ");
 
-	/*
-	 * When we start the journal, bch2_journal_start() will skip over @seq:
-	 */
-
-	bl = kzalloc(sizeof(*bl), GFP_KERNEL);
-	if (!bl)
-		return NULL;
-
-	bl->start	= start;
-	bl->end		= end;
-
-	list_add_tail(&bl->list, &j->seq_blacklist);
-	return bl;
+		pr_buf(out, "%llu-%llu",
+		       le64_to_cpu(i->start),
+		       le64_to_cpu(i->end));
+	}
 }
 
-/*
- * Returns true if @seq is newer than the most recent journal entry that got
- * written, and data corresponding to @seq should be ignored - also marks @seq
- * as blacklisted so that on future restarts the corresponding data will still
- * be ignored:
- */
-int bch2_journal_seq_should_ignore(struct bch_fs *c, u64 seq, struct btree *b)
+const struct bch_sb_field_ops bch_sb_field_ops_journal_seq_blacklist = {
+	.validate	= bch2_sb_journal_seq_blacklist_validate,
+	.to_text	= bch2_sb_journal_seq_blacklist_to_text
+};
+
+void bch2_blacklist_entries_gc(struct work_struct *work)
 {
-	struct journal *j = &c->journal;
-	struct journal_seq_blacklist *bl = NULL;
-	struct blacklisted_node *n;
-	u64 journal_seq;
-	int ret = 0;
+	struct bch_fs *c = container_of(work, struct bch_fs,
+					journal_seq_blacklist_gc_work);
+	struct journal_seq_blacklist_table *t;
+	struct bch_sb_field_journal_seq_blacklist *bl;
+	struct journal_seq_blacklist_entry *src, *dst;
+	struct btree_trans trans;
+	unsigned i, nr, new_nr;
+	int ret;
 
-	if (!seq)
-		return 0;
+	bch2_trans_init(&trans, c);
 
-	spin_lock(&j->lock);
-	journal_seq = journal_cur_seq(j);
-	spin_unlock(&j->lock);
+	for (i = 0; i < BTREE_ID_NR; i++) {
+		struct btree_iter *iter;
+		struct btree *b;
 
-	/* Interier updates aren't journalled: */
-	BUG_ON(b->level);
-	BUG_ON(seq > journal_seq && test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags));
-
-	/*
-	 * Decrease this back to j->seq + 2 when we next rev the on disk format:
-	 * increasing it temporarily to work around bug in old kernels
-	 */
-	fsck_err_on(seq > journal_seq + 4, c,
-		    "bset journal seq too far in the future: %llu > %llu",
-		    seq, journal_seq);
-
-	if (seq <= journal_seq &&
-	    list_empty_careful(&j->seq_blacklist))
-		return 0;
-
-	mutex_lock(&j->blacklist_lock);
-
-	if (seq <= journal_seq) {
-		bl = bch2_journal_seq_blacklist_find(j, seq);
-		if (!bl)
-			goto out;
-	} else {
-		bch_verbose(c, "btree node %u:%llu:%llu has future journal sequence number %llu, blacklisting",
-			    b->btree_id, b->key.k.p.inode, b->key.k.p.offset, seq);
-
-		if (!j->new_blacklist) {
-			j->new_blacklist = bch2_journal_seq_blacklisted_new(j,
-						journal_seq + 1,
-						journal_seq + 1);
-			if (!j->new_blacklist) {
-				ret = -ENOMEM;
-				goto out;
+		for_each_btree_node(&trans, iter, i, POS_MIN,
+				    BTREE_ITER_PREFETCH, b)
+			if (test_bit(BCH_FS_STOPPING, &c->flags)) {
+				bch2_trans_exit(&trans);
+				return;
 			}
-		}
-		bl = j->new_blacklist;
-		bl->end = max(bl->end, seq);
+		bch2_trans_iter_free(&trans, iter);
 	}
 
-	for (n = bl->entries; n < bl->entries + bl->nr_entries; n++)
-		if (b->data->keys.seq	== n->seq &&
-		    b->btree_id		== n->btree_id &&
-		    !bkey_cmp(b->key.k.p, n->pos))
-			goto found_entry;
-
-	if (!bl->nr_entries ||
-	    is_power_of_2(bl->nr_entries)) {
-		n = krealloc(bl->entries,
-			     max_t(size_t, bl->nr_entries * 2, 8) * sizeof(*n),
-			     GFP_KERNEL);
-		if (!n) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		bl->entries = n;
-	}
-
-	bl->entries[bl->nr_entries++] = (struct blacklisted_node) {
-		.seq		= b->data->keys.seq,
-		.btree_id	= b->btree_id,
-		.pos		= b->key.k.p,
-	};
-found_entry:
-	ret = 1;
-out:
-fsck_err:
-	mutex_unlock(&j->blacklist_lock);
-	return ret;
-}
-
-static int __bch2_journal_seq_blacklist_read(struct journal *j,
-					     struct journal_replay *i,
-					     u64 start, u64 end)
-{
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_seq_blacklist *bl;
-
-	bch_verbose(c, "blacklisting existing journal seq %llu-%llu",
-		    start, end);
-
-	bl = bch2_journal_seq_blacklisted_new(j, start, end);
-	if (!bl)
-		return -ENOMEM;
-
-	bch2_journal_pin_add(j, le64_to_cpu(i->j.seq), &bl->pin,
-			     journal_seq_blacklist_flush);
-	return 0;
-}
-
-/*
- * After reading the journal, find existing journal seq blacklist entries and
- * read them into memory:
- */
-int bch2_journal_seq_blacklist_read(struct journal *j,
-				    struct journal_replay *i)
-{
-	struct jset_entry *entry;
-	int ret = 0;
-
-	vstruct_for_each(&i->j, entry) {
-		switch (entry->type) {
-		case BCH_JSET_ENTRY_blacklist: {
-			struct jset_entry_blacklist *bl_entry =
-				container_of(entry, struct jset_entry_blacklist, entry);
-
-			ret = __bch2_journal_seq_blacklist_read(j, i,
-					le64_to_cpu(bl_entry->seq),
-					le64_to_cpu(bl_entry->seq));
-			break;
-		}
-		case BCH_JSET_ENTRY_blacklist_v2: {
-			struct jset_entry_blacklist_v2 *bl_entry =
-				container_of(entry, struct jset_entry_blacklist_v2, entry);
-
-			ret = __bch2_journal_seq_blacklist_read(j, i,
-					le64_to_cpu(bl_entry->start),
-					le64_to_cpu(bl_entry->end));
-			break;
-		}
-		}
-
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
-/*
- * After reading the journal and walking the btree, we might have new journal
- * sequence numbers to blacklist - add entries to the next journal entry to be
- * written:
- */
-void bch2_journal_seq_blacklist_write(struct journal *j)
-{
-	struct journal_seq_blacklist *bl = j->new_blacklist;
-	struct jset_entry_blacklist_v2 *bl_entry;
-	struct jset_entry *entry;
-
-	if (!bl)
+	ret = bch2_trans_exit(&trans);
+	if (ret)
 		return;
 
-	entry = bch2_journal_add_entry_noreservation(journal_cur_buf(j),
-			(sizeof(*bl_entry) - sizeof(*entry)) / sizeof(u64));
+	mutex_lock(&c->sb_lock);
+	bl = bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+	if (!bl)
+		goto out;
 
-	bl_entry = container_of(entry, struct jset_entry_blacklist_v2, entry);
-	bl_entry->entry.type	= BCH_JSET_ENTRY_blacklist_v2;
-	bl_entry->start		= cpu_to_le64(bl->start);
-	bl_entry->end		= cpu_to_le64(bl->end);
+	nr = blacklist_nr_entries(bl);
+	dst = bl->start;
 
-	bch2_journal_pin_add(j,
-			     journal_cur_seq(j),
-			     &bl->pin,
-			     journal_seq_blacklist_flush);
+	t = c->journal_seq_blacklist_table;
+	BUG_ON(nr != t->nr);
 
-	j->new_blacklist = NULL;
+	for (src = bl->start, i = eytzinger0_first(t->nr);
+	     src < bl->start + nr;
+	     src++, i = eytzinger0_next(i, nr)) {
+		BUG_ON(t->entries[i].start	!= le64_to_cpu(src->start));
+		BUG_ON(t->entries[i].end	!= le64_to_cpu(src->end));
+
+		if (t->entries[i].dirty)
+			*dst++ = *src;
+	}
+
+	new_nr = dst - bl->start;
+
+	bch_info(c, "nr blacklist entries was %u, now %u", nr, new_nr);
+
+	if (new_nr != nr) {
+		bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
+				new_nr ? sb_blacklist_u64s(new_nr) : 0);
+		BUG_ON(new_nr && !bl);
+
+		if (!new_nr)
+			c->disk_sb.sb->features[0] &=
+				~(1ULL << BCH_FEATURE_JOURNAL_SEQ_BLACKLIST_V3);
+
+		bch2_write_super(c);
+	}
+out:
+	mutex_unlock(&c->sb_lock);
 }

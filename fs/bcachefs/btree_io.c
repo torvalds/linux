@@ -770,7 +770,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 	struct btree_node *sorted;
 	struct bkey_packed *k;
 	struct bset *i;
-	bool used_mempool;
+	bool used_mempool, blacklisted;
 	unsigned u64s;
 	int ret, retry_read = 0, write = READ;
 
@@ -844,20 +844,15 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 
 		b->written += sectors;
 
-		ret = bch2_journal_seq_should_ignore(c, le64_to_cpu(i->journal_seq), b);
-		if (ret < 0) {
-			btree_err(BTREE_ERR_FATAL, c, b, i,
-				  "insufficient memory");
-			goto err;
-		}
+		blacklisted = bch2_journal_seq_is_blacklisted(c,
+					le64_to_cpu(i->journal_seq),
+					true);
 
-		if (ret) {
-			btree_err_on(first,
-				     BTREE_ERR_FIXABLE, c, b, i,
-				     "first btree node bset has blacklisted journal seq");
-			if (!first)
-				continue;
-		}
+		btree_err_on(blacklisted && first,
+			     BTREE_ERR_FIXABLE, c, b, i,
+			     "first btree node bset has blacklisted journal seq");
+		if (blacklisted && !first)
+			continue;
 
 		bch2_btree_node_iter_large_push(iter, b,
 					   i->start,
@@ -930,7 +925,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 out:
 	mempool_free(iter, &c->fill_iter);
 	return retry_read;
-err:
 fsck_err:
 	if (ret == BTREE_RETRY_READ) {
 		retry_read = 1;

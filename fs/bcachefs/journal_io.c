@@ -10,7 +10,6 @@
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
-#include "journal_seq_blacklist.h"
 #include "replicas.h"
 #include "trace.h"
 
@@ -655,45 +654,11 @@ void bch2_journal_entries_free(struct list_head *list)
 	}
 }
 
-int bch2_journal_set_seq(struct bch_fs *c, u64 last_seq, u64 end_seq)
-{
-	struct journal *j = &c->journal;
-	struct journal_entry_pin_list *p;
-	u64 seq, nr = end_seq - last_seq + 1;
-
-	if (nr > j->pin.size) {
-		free_fifo(&j->pin);
-		init_fifo(&j->pin, roundup_pow_of_two(nr), GFP_KERNEL);
-		if (!j->pin.data) {
-			bch_err(c, "error reallocating journal fifo (%llu open entries)", nr);
-			return -ENOMEM;
-		}
-	}
-
-	atomic64_set(&j->seq, end_seq);
-	j->last_seq_ondisk = last_seq;
-
-	j->pin.front	= last_seq;
-	j->pin.back	= end_seq + 1;
-
-	fifo_for_each_entry_ptr(p, &j->pin, seq) {
-		INIT_LIST_HEAD(&p->list);
-		INIT_LIST_HEAD(&p->flushed);
-		atomic_set(&p->count, 0);
-		p->devs.nr = 0;
-	}
-
-	return 0;
-}
-
 int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 {
-	struct journal *j = &c->journal;
 	struct journal_list jlist;
 	struct journal_replay *i;
-	struct journal_entry_pin_list *p;
 	struct bch_dev *ca;
-	u64 cur_seq, end_seq;
 	unsigned iter;
 	size_t keys = 0, entries = 0;
 	bool degraded = false;
@@ -725,16 +690,11 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 	if (jlist.ret)
 		return jlist.ret;
 
-	if (list_empty(list)){
-		bch_err(c, "no journal entries found");
-		return BCH_FSCK_REPAIR_IMPOSSIBLE;
-	}
-
 	list_for_each_entry(i, list, list) {
+		struct jset_entry *entry;
+		struct bkey_i *k, *_n;
 		struct bch_replicas_padded replicas;
 		char buf[80];
-
-		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL, i->devs);
 
 		ret = jset_validate_entries(c, &i->j, READ);
 		if (ret)
@@ -744,6 +704,8 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 		 * If we're mounting in degraded mode - if we didn't read all
 		 * the devices - this is wrong:
 		 */
+
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL, i->devs);
 
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
@@ -755,68 +717,18 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 			if (ret)
 				return ret;
 		}
-	}
-
-	i = list_last_entry(list, struct journal_replay, list);
-
-	ret = bch2_journal_set_seq(c,
-				   le64_to_cpu(i->j.last_seq),
-				   le64_to_cpu(i->j.seq));
-	if (ret)
-		return ret;
-
-	mutex_lock(&j->blacklist_lock);
-
-	list_for_each_entry(i, list, list) {
-		p = journal_seq_pin(j, le64_to_cpu(i->j.seq));
-
-		atomic_set(&p->count, 1);
-		p->devs = i->devs;
-
-		if (bch2_journal_seq_blacklist_read(j, i)) {
-			mutex_unlock(&j->blacklist_lock);
-			return -ENOMEM;
-		}
-	}
-
-	mutex_unlock(&j->blacklist_lock);
-
-	cur_seq = journal_last_seq(j);
-	end_seq = le64_to_cpu(list_last_entry(list,
-				struct journal_replay, list)->j.seq);
-
-	list_for_each_entry(i, list, list) {
-		struct jset_entry *entry;
-		struct bkey_i *k, *_n;
-		bool blacklisted;
-
-		mutex_lock(&j->blacklist_lock);
-		while (cur_seq < le64_to_cpu(i->j.seq) &&
-		       bch2_journal_seq_blacklist_find(j, cur_seq))
-			cur_seq++;
-
-		blacklisted = bch2_journal_seq_blacklist_find(j,
-							 le64_to_cpu(i->j.seq));
-		mutex_unlock(&j->blacklist_lock);
-
-		fsck_err_on(blacklisted, c,
-			    "found blacklisted journal entry %llu",
-			    le64_to_cpu(i->j.seq));
-
-		fsck_err_on(le64_to_cpu(i->j.seq) != cur_seq, c,
-			"journal entries %llu-%llu missing! (replaying %llu-%llu)",
-			cur_seq, le64_to_cpu(i->j.seq) - 1,
-			journal_last_seq(j), end_seq);
-
-		cur_seq = le64_to_cpu(i->j.seq) + 1;
 
 		for_each_jset_key(k, _n, entry, &i->j)
 			keys++;
 		entries++;
 	}
 
-	bch_info(c, "journal read done, %zu keys in %zu entries, seq %llu",
-		 keys, entries, journal_cur_seq(j));
+	if (!list_empty(list)) {
+		i = list_last_entry(list, struct journal_replay, list);
+
+		bch_info(c, "journal read done, %zu keys in %zu entries, seq %llu",
+			 keys, entries, le64_to_cpu(i->j.seq));
+	}
 fsck_err:
 	return ret;
 }

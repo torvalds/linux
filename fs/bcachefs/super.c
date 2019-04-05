@@ -30,6 +30,7 @@
 #include "io.h"
 #include "journal.h"
 #include "journal_reclaim.h"
+#include "journal_seq_blacklist.h"
 #include "move.h"
 #include "migrate.h"
 #include "movinggc.h"
@@ -468,6 +469,7 @@ static void bch2_fs_free(struct bch_fs *c)
 	kfree(c->replicas.entries);
 	kfree(c->replicas_gc.entries);
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
+	kfree(c->journal_seq_blacklist_table);
 
 	if (c->journal_reclaim_wq)
 		destroy_workqueue(c->journal_reclaim_wq);
@@ -495,6 +497,10 @@ void bch2_fs_stop(struct bch_fs *c)
 	unsigned i;
 
 	bch_verbose(c, "shutting down");
+
+	set_bit(BCH_FS_STOPPING, &c->flags);
+
+	cancel_work_sync(&c->journal_seq_blacklist_gc_work);
 
 	for_each_member_device(ca, c, i)
 		if (ca->kobj.state_in_sysfs &&
@@ -630,6 +636,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	bio_list_init(&c->btree_write_error_list);
 	spin_lock_init(&c->btree_write_error_lock);
 	INIT_WORK(&c->btree_write_error_work, bch2_btree_write_error_work);
+
+	INIT_WORK(&c->journal_seq_blacklist_gc_work,
+		  bch2_blacklist_entries_gc);
 
 	INIT_LIST_HEAD(&c->fsck_errors);
 	mutex_init(&c->fsck_error_lock);

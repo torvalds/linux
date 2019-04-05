@@ -4,8 +4,6 @@
 
 #include "opts.h"
 
-#include <linux/math64.h>
-
 extern const char * const bch2_inode_opts[];
 
 const char *bch2_inode_invalid(const struct bch_fs *, struct bkey_s_c);

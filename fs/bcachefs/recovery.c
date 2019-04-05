@@ -12,6 +12,7 @@
 #include "error.h"
 #include "fsck.h"
 #include "journal_io.h"
+#include "journal_seq_blacklist.h"
 #include "quota.h"
 #include "recovery.h"
 #include "replicas.h"
@@ -99,18 +100,49 @@ fsck_err:
 	return ret;
 }
 
+static int
+verify_journal_entries_not_blacklisted_or_missing(struct bch_fs *c,
+						  struct list_head *journal)
+{
+	struct journal_replay *i =
+		list_last_entry(journal, struct journal_replay, list);
+	u64 start_seq	= le64_to_cpu(i->j.last_seq);
+	u64 end_seq	= le64_to_cpu(i->j.seq);
+	u64 seq		= start_seq;
+	int ret = 0;
+
+	list_for_each_entry(i, journal, list) {
+		fsck_err_on(seq != le64_to_cpu(i->j.seq), c,
+			"journal entries %llu-%llu missing! (replaying %llu-%llu)",
+			seq, le64_to_cpu(i->j.seq) - 1,
+			start_seq, end_seq);
+
+		seq = le64_to_cpu(i->j.seq);
+
+		fsck_err_on(bch2_journal_seq_is_blacklisted(c, seq, false), c,
+			    "found blacklisted journal entry %llu", seq);
+
+		do {
+			seq++;
+		} while (bch2_journal_seq_is_blacklisted(c, seq, false));
+	}
+fsck_err:
+	return ret;
+}
+
 static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
 {
 	struct bch_sb_field_clean *clean, *sb_clean;
-
-	if (!c->sb.clean)
-		return NULL;
+	int ret;
 
 	mutex_lock(&c->sb_lock);
 	sb_clean = bch2_sb_get_clean(c->disk_sb.sb);
-	if (!sb_clean) {
+
+	if (fsck_err_on(!sb_clean, c,
+			"superblock marked clean but clean section not present")) {
+		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+		c->sb.clean = false;
 		mutex_unlock(&c->sb_lock);
-		bch_err(c, "superblock marked clean but clean section not present");
 		return NULL;
 	}
 
@@ -128,6 +160,9 @@ static struct bch_sb_field_clean *read_superblock_clean(struct bch_fs *c)
 	mutex_unlock(&c->sb_lock);
 
 	return clean;
+fsck_err:
+	mutex_unlock(&c->sb_lock);
+	return ERR_PTR(ret);
 }
 
 static int journal_replay_entry_early(struct bch_fs *c,
@@ -179,14 +214,32 @@ static int journal_replay_entry_early(struct bch_fs *c,
 					      le64_to_cpu(u->v));
 		break;
 	}
+	case BCH_JSET_ENTRY_blacklist: {
+		struct jset_entry_blacklist *bl_entry =
+			container_of(entry, struct jset_entry_blacklist, entry);
+
+		ret = bch2_journal_seq_blacklist_add(c,
+				le64_to_cpu(bl_entry->seq),
+				le64_to_cpu(bl_entry->seq) + 1);
+		break;
+	}
+	case BCH_JSET_ENTRY_blacklist_v2: {
+		struct jset_entry_blacklist_v2 *bl_entry =
+			container_of(entry, struct jset_entry_blacklist_v2, entry);
+
+		ret = bch2_journal_seq_blacklist_add(c,
+				le64_to_cpu(bl_entry->start),
+				le64_to_cpu(bl_entry->end) + 1);
+		break;
+	}
 	}
 
 	return ret;
 }
 
-static int load_journal_metadata(struct bch_fs *c,
-				 struct bch_sb_field_clean *clean,
-				 struct list_head *journal)
+static int journal_replay_early(struct bch_fs *c,
+				struct bch_sb_field_clean *clean,
+				struct list_head *journal)
 {
 	struct jset_entry *entry;
 	int ret;
@@ -300,37 +353,76 @@ static bool journal_empty(struct list_head *journal)
 int bch2_fs_recovery(struct bch_fs *c)
 {
 	const char *err = "cannot allocate memory";
-	struct bch_sb_field_clean *clean;
+	struct bch_sb_field_clean *clean = NULL;
+	u64 journal_seq;
 	LIST_HEAD(journal);
 	int ret;
 
-	clean = read_superblock_clean(c);
-	if (clean)
+	if (c->sb.clean)
+		clean = read_superblock_clean(c);
+	ret = PTR_ERR_OR_ZERO(clean);
+	if (ret)
+		goto err;
+
+	if (c->sb.clean)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
 
-	if (!clean || c->opts.fsck) {
+	if (!c->replicas.entries) {
+		bch_info(c, "building replicas info");
+		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
+	}
+
+	if (!c->sb.clean || c->opts.fsck) {
+		struct jset *j;
+
 		ret = bch2_journal_read(c, &journal);
 		if (ret)
 			goto err;
 
-		ret = verify_superblock_clean(c, &clean,
-			&list_last_entry(&journal, struct journal_replay,
-					 list)->j);
+		fsck_err_on(c->sb.clean && !journal_empty(&journal), c,
+			    "filesystem marked clean but journal not empty");
+
+		if (!c->sb.clean && list_empty(&journal)){
+			bch_err(c, "no journal entries found");
+			ret = BCH_FSCK_REPAIR_IMPOSSIBLE;
+			goto err;
+		}
+
+		j = &list_last_entry(&journal, struct journal_replay, list)->j;
+
+		ret = verify_superblock_clean(c, &clean, j);
 		if (ret)
 			goto err;
+
+		journal_seq = le64_to_cpu(j->seq) + 1;
 	} else {
-		ret = bch2_journal_set_seq(c,
-					   le64_to_cpu(clean->journal_seq),
-					   le64_to_cpu(clean->journal_seq));
-		if (ret)
-			goto err;
+		journal_seq = le64_to_cpu(clean->journal_seq) + 1;
 	}
 
-	fsck_err_on(clean && !journal_empty(&journal), c,
-		    "filesystem marked clean but journal not empty");
+	ret = journal_replay_early(c, clean, &journal);
+	if (ret)
+		goto err;
 
-	ret = load_journal_metadata(c, clean, &journal);
+	if (!c->sb.clean) {
+		ret = bch2_journal_seq_blacklist_add(c,
+				journal_seq,
+				journal_seq + 4);
+		if (ret) {
+			bch_err(c, "error creating new journal seq blacklist entry");
+			goto err;
+		}
+
+		journal_seq += 4;
+	}
+
+	ret = bch2_blacklist_table_initialize(c);
+
+	ret = verify_journal_entries_not_blacklisted_or_missing(c, &journal);
+	if (ret)
+		goto err;
+
+	ret = bch2_fs_journal_start(&c->journal, journal_seq, &journal);
 	if (ret)
 		goto err;
 
@@ -350,11 +442,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 	bch_verbose(c, "stripes_read done");
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
-
-	if (!c->replicas.entries) {
-		bch_info(c, "building replicas info");
-		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
-	}
 
 	if (c->opts.fsck ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
@@ -376,13 +463,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 	 */
 	if (c->sb.encryption_type && !c->sb.clean)
 		atomic64_add(1 << 16, &c->key_version);
-
-	/*
-	 * bch2_fs_journal_start() can't happen sooner, or btree_gc_finish()
-	 * will give spurious errors about oldest_gen > bucket_gen -
-	 * this is a hack but oh well.
-	 */
-	bch2_fs_journal_start(&c->journal);
 
 	if (c->opts.noreplay)
 		goto out;
@@ -424,6 +504,10 @@ int bch2_fs_recovery(struct bch_fs *c)
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
 	}
 	mutex_unlock(&c->sb_lock);
+
+	if (c->journal_seq_blacklist_table &&
+	    c->journal_seq_blacklist_table->nr > 128)
+		queue_work(system_long_wq, &c->journal_seq_blacklist_gc_work);
 out:
 	bch2_journal_entries_free(&journal);
 	kfree(clean);
@@ -472,7 +556,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * journal_res_get() will crash if called before this has
 	 * set up the journal.pin FIFO and journal.cur pointer:
 	 */
-	bch2_fs_journal_start(&c->journal);
+	bch2_fs_journal_start(&c->journal, 1, &journal);
 	bch2_journal_set_replay_done(&c->journal);
 
 	err = "error going read write";

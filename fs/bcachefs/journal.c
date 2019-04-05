@@ -988,27 +988,57 @@ void bch2_fs_journal_stop(struct journal *j)
 	cancel_delayed_work_sync(&j->reclaim_work);
 }
 
-void bch2_fs_journal_start(struct journal *j)
+int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
+			  struct list_head *journal_entries)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_seq_blacklist *bl;
-	u64 blacklist = 0;
+	struct journal_entry_pin_list *p;
+	struct journal_replay *i;
+	u64 last_seq = cur_seq, nr, seq;
 
-	list_for_each_entry(bl, &j->seq_blacklist, list)
-		blacklist = max(blacklist, bl->end);
+	if (!list_empty(journal_entries))
+		last_seq = le64_to_cpu(list_last_entry(journal_entries,
+						       struct journal_replay,
+						       list)->j.last_seq);
+
+	nr = cur_seq - last_seq;
+
+	if (nr + 1 > j->pin.size) {
+		free_fifo(&j->pin);
+		init_fifo(&j->pin, roundup_pow_of_two(nr + 1), GFP_KERNEL);
+		if (!j->pin.data) {
+			bch_err(c, "error reallocating journal fifo (%llu open entries)", nr);
+			return -ENOMEM;
+		}
+	}
+
+	j->last_seq_ondisk	= last_seq;
+	j->pin.front		= last_seq;
+	j->pin.back		= cur_seq;
+	atomic64_set(&j->seq, cur_seq - 1);
+
+	fifo_for_each_entry_ptr(p, &j->pin, seq) {
+		INIT_LIST_HEAD(&p->list);
+		INIT_LIST_HEAD(&p->flushed);
+		atomic_set(&p->count, 0);
+		p->devs.nr = 0;
+	}
+
+	list_for_each_entry(i, journal_entries, list) {
+		seq = le64_to_cpu(i->j.seq);
+
+		BUG_ON(seq < last_seq || seq >= cur_seq);
+
+		p = journal_seq_pin(j, seq);
+
+		atomic_set(&p->count, 1);
+		p->devs = i->devs;
+	}
 
 	spin_lock(&j->lock);
 
 	set_bit(JOURNAL_STARTED, &j->flags);
 
-	while (journal_cur_seq(j) < blacklist)
-		journal_pin_new_entry(j, 0);
-
-	/*
-	 * __journal_entry_close() only inits the next journal entry when it
-	 * closes an open journal entry - the very first journal entry gets
-	 * initialized here:
-	 */
 	journal_pin_new_entry(j, 1);
 	bch2_journal_buf_init(j);
 
@@ -1017,12 +1047,7 @@ void bch2_fs_journal_start(struct journal *j)
 	bch2_journal_space_available(j);
 	spin_unlock(&j->lock);
 
-	/*
-	 * Adding entries to the next journal entry before allocating space on
-	 * disk for the next journal entry - this is ok, because these entries
-	 * only have to go down with the next journal entry we write:
-	 */
-	bch2_journal_seq_blacklist_write(j);
+	return 0;
 }
 
 /* init/exit: */
@@ -1090,8 +1115,6 @@ int bch2_fs_journal_init(struct journal *j)
 	INIT_DELAYED_WORK(&j->write_work, journal_write_work);
 	INIT_DELAYED_WORK(&j->reclaim_work, bch2_journal_reclaim_work);
 	init_waitqueue_head(&j->pin_flush_wait);
-	mutex_init(&j->blacklist_lock);
-	INIT_LIST_HEAD(&j->seq_blacklist);
 	mutex_init(&j->reclaim_lock);
 	mutex_init(&j->discard_lock);
 

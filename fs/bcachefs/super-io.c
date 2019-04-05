@@ -7,6 +7,7 @@
 #include "error.h"
 #include "io.h"
 #include "journal.h"
+#include "journal_seq_blacklist.h"
 #include "replicas.h"
 #include "quota.h"
 #include "super-io.h"

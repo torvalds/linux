@@ -1156,6 +1156,8 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter, unsigned depth)
 	if (!btree_iter_node(iter, iter->level))
 		return NULL;
 
+	bch2_trans_cond_resched(iter->trans);
+
 	btree_iter_up(iter);
 
 	if (!bch2_btree_node_relock(iter, iter->level))

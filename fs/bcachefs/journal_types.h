@@ -54,24 +54,6 @@ struct journal_entry_pin {
 	u64				seq;
 };
 
-/* corresponds to a btree node with a blacklisted bset: */
-struct blacklisted_node {
-	__le64			seq;
-	enum btree_id		btree_id;
-	struct bpos		pos;
-};
-
-struct journal_seq_blacklist {
-	struct list_head	list;
-	u64			start;
-	u64			end;
-
-	struct journal_entry_pin pin;
-
-	struct blacklisted_node	*entries;
-	size_t			nr_entries;
-};
-
 struct journal_res {
 	bool			ref;
 	u8			idx;
@@ -221,10 +203,6 @@ struct journal {
 	}			pin;
 
 	u64			replay_journal_seq;
-
-	struct mutex		blacklist_lock;
-	struct list_head	seq_blacklist;
-	struct journal_seq_blacklist *new_blacklist;
 
 	struct write_point	wp;
 	spinlock_t		err_lock;

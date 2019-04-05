@@ -472,8 +472,10 @@ int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 int bch2_dev_journal_alloc(struct bch_dev *);
 
 void bch2_dev_journal_stop(struct journal *, struct bch_dev *);
+
 void bch2_fs_journal_stop(struct journal *);
-void bch2_fs_journal_start(struct journal *);
+int bch2_fs_journal_start(struct journal *, u64, struct list_head *);
+
 void bch2_dev_journal_exit(struct bch_dev *);
 int bch2_dev_journal_init(struct bch_dev *, struct bch_sb *);
 void bch2_fs_journal_exit(struct journal *);
