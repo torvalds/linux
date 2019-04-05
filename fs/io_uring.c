@@ -1022,6 +1022,8 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 
 	ret = rw_verify_area(WRITE, file, &kiocb->ki_pos, iov_count);
 	if (!ret) {
+		ssize_t ret2;
+
 		/*
 		 * Open-code file_start_write here to grab freeze protection,
 		 * which will be released by another thread in
@@ -1036,7 +1038,19 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 						SB_FREEZE_WRITE);
 		}
 		kiocb->ki_flags |= IOCB_WRITE;
-		io_rw_done(kiocb, call_write_iter(file, kiocb, &iter));
+
+		ret2 = call_write_iter(file, kiocb, &iter);
+		if (!force_nonblock || ret2 != -EAGAIN) {
+			io_rw_done(kiocb, ret2);
+		} else {
+			/*
+			 * If ->needs_lock is true, we're already in async
+			 * context.
+			 */
+			if (!s->needs_lock)
+				io_async_list_note(WRITE, req, iov_count);
+			ret = -EAGAIN;
+		}
 	}
 out_free:
 	kfree(iovec);
@@ -1968,7 +1982,15 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		return 0;
 
 	if (sig) {
-		ret = set_user_sigmask(sig, &ksigmask, &sigsaved, sigsz);
+#ifdef CONFIG_COMPAT
+		if (in_compat_syscall())
+			ret = set_compat_user_sigmask((const compat_sigset_t __user *)sig,
+						      &ksigmask, &sigsaved, sigsz);
+		else
+#endif
+			ret = set_user_sigmask(sig, &ksigmask,
+					       &sigsaved, sigsz);
+
 		if (ret)
 			return ret;
 	}

@@ -224,15 +224,6 @@ static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 	}
 }
 
-static inline void blk_mq_put_driver_tag_hctx(struct blk_mq_hw_ctx *hctx,
-				       struct request *rq)
-{
-	if (rq->tag == -1 || rq->internal_tag == -1)
-		return;
-
-	__blk_mq_put_driver_tag(hctx, rq);
-}
-
 static inline void blk_mq_put_driver_tag(struct request *rq)
 {
 	if (rq->tag == -1 || rq->internal_tag == -1)

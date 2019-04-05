@@ -417,6 +417,7 @@ int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info)
 
 done:
 	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
 	return ret;
 }
 

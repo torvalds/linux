@@ -144,6 +144,30 @@
         ]
     },
     {
+        "id": "7571",
+        "name": "Add sample action with invalid rate",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 0 group 1 index 2",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 2",
+        "matchPattern": "action order [0-9]+: sample rate 1/0 group 1.*index 2 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
         "id": "b6d4",
         "name": "Add sample action with mandatory arguments and invalid control action",
         "category": [

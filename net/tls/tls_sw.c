@@ -1497,6 +1497,8 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 
 				return err;
 			}
+		} else {
+			*zc = false;
 		}
 
 		rxm->full_len -= padding_length(ctx, tls_ctx, skb);

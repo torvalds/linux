@@ -26,7 +26,7 @@ Required node properties:
 
 Optional node properties:
 
- - ti,mode:     Operation mode (see above).
+ - ti,mode:     Operation mode (u8) (see above).
 
 
 Example (operation mode 2):
@@ -34,5 +34,5 @@ Example (operation mode 2):
 	adc128d818@1d {
 		compatible = "ti,adc128d818";
 		reg = <0x1d>;
-		ti,mode = <2>;
+		ti,mode = /bits/ 8 <2>;
 	};

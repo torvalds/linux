@@ -1201,15 +1201,6 @@ static int goya_stop_external_queues(struct hl_device *hdev)
 	return retval;
 }
 
-static void goya_resume_external_queues(struct hl_device *hdev)
-{
-	WREG32(mmDMA_QM_0_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_1_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_2_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_3_GLBL_CFG1, 0);
-	WREG32(mmDMA_QM_4_GLBL_CFG1, 0);
-}
-
 /*
  * goya_init_cpu_queues - Initialize PQ/CQ/EQ of CPU
  *
@@ -2178,36 +2169,6 @@ static int goya_stop_internal_queues(struct hl_device *hdev)
 	return retval;
 }
 
-static void goya_resume_internal_queues(struct hl_device *hdev)
-{
-	WREG32(mmMME_QM_GLBL_CFG1, 0);
-	WREG32(mmMME_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC0_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC0_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC1_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC1_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC2_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC2_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC3_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC3_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC4_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC4_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC5_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC5_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC6_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC6_CMDQ_GLBL_CFG1, 0);
-
-	WREG32(mmTPC7_QM_GLBL_CFG1, 0);
-	WREG32(mmTPC7_CMDQ_GLBL_CFG1, 0);
-}
-
 static void goya_dma_stall(struct hl_device *hdev)
 {
 	WREG32(mmDMA_QM_0_GLBL_CFG1, 1 << DMA_QM_0_GLBL_CFG1_DMA_STOP_SHIFT);
@@ -2905,20 +2866,6 @@ int goya_suspend(struct hl_device *hdev)
 {
 	int rc;
 
-	rc = goya_stop_internal_queues(hdev);
-
-	if (rc) {
-		dev_err(hdev->dev, "failed to stop internal queues\n");
-		return rc;
-	}
-
-	rc = goya_stop_external_queues(hdev);
-
-	if (rc) {
-		dev_err(hdev->dev, "failed to stop external queues\n");
-		return rc;
-	}
-
 	rc = goya_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
 	if (rc)
 		dev_err(hdev->dev, "Failed to disable PCI access from CPU\n");
@@ -2928,15 +2875,7 @@ int goya_suspend(struct hl_device *hdev)
 
 int goya_resume(struct hl_device *hdev)
 {
-	int rc;
-
-	goya_resume_external_queues(hdev);
-	goya_resume_internal_queues(hdev);
-
-	rc = goya_send_pci_access_msg(hdev, ARMCP_PACKET_ENABLE_PCI_ACCESS);
-	if (rc)
-		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
-	return rc;
+	return goya_init_iatu(hdev);
 }
 
 static int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
@@ -3070,7 +3009,7 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 
 	*dma_handle = hdev->asic_prop.sram_base_address;
 
-	base = hdev->pcie_bar[SRAM_CFG_BAR_ID];
+	base = (void *) hdev->pcie_bar[SRAM_CFG_BAR_ID];
 
 	switch (queue_id) {
 	case GOYA_QUEUE_ID_MME:
