@@ -147,6 +147,7 @@ static const struct {
 	{ FCH_EVT_PORT_OFFLINE,		"port_offline" },
 	{ FCH_EVT_PORT_FABRIC,		"port_fabric" },
 	{ FCH_EVT_LINK_UNKNOWN,		"link_unknown" },
+	{ FCH_EVT_LINK_FPIN,		"link_FPIN" },
 	{ FCH_EVT_VENDOR_UNIQUE,	"vendor_unique" },
 };
 fc_enum_name_search(host_event_code, fc_host_event_code,
@@ -639,6 +640,23 @@ fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 		data_len, data_buf, vendor_id);
 }
 EXPORT_SYMBOL(fc_host_post_vendor_event);
+
+/**
+ * fc_host_rcv_fpin - routine to process a received FPIN.
+ * @shost:		host the FPIN was received on
+ * @fpin_len:		length of FPIN payload, in bytes
+ * @fpin_buf:		pointer to FPIN payload
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ */
+void
+fc_host_fpin_rcv(struct Scsi_Host *shost, u32 fpin_len, char *fpin_buf)
+{
+	fc_host_post_fc_event(shost, fc_get_event_number(),
+				FCH_EVT_LINK_FPIN, fpin_len, fpin_buf, 0);
+}
+EXPORT_SYMBOL(fc_host_fpin_rcv);
 
 
 static __init int fc_transport_init(void)
