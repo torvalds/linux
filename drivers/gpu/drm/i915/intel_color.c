@@ -22,6 +22,7 @@
  *
  */
 
+#include "intel_color.h"
 #include "intel_drv.h"
 
 #define CTM_COEFF_SIGN	(1ULL << 63)
