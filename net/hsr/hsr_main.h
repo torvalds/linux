@@ -15,7 +15,6 @@
 #include <linux/netdevice.h>
 #include <linux/list.h>
 
-
 /* Time constants as specified in the HSR specification (IEC-62439-3 2010)
  * Table 8.
  * All values in milliseconds.
@@ -24,7 +23,6 @@
 #define HSR_NODE_FORGET_TIME		60000 /* ms */
 #define HSR_ANNOUNCE_INTERVAL		  100 /* ms */
 
-
 /* By how much may slave1 and slave2 timestamps of latest received frame from
  * each node differ before we notify of communication problem?
  */
@@ -32,16 +30,13 @@
 #define HSR_SEQNR_START			(USHRT_MAX - 1024)
 #define HSR_SUP_SEQNR_START		(HSR_SEQNR_START / 2)
 
-
 /* How often shall we check for broken ring and remove node entries older than
  * HSR_NODE_FORGET_TIME?
  */
 #define PRUNE_PERIOD			 3000 /* ms */
 
-
 #define HSR_TLV_ANNOUNCE		   22
 #define HSR_TLV_LIFE_CHECK		   23
-
 
 /* HSR Tag.
  * As defined in IEC-62439-3:2010, the HSR tag is really { ethertype = 0x88FB,
@@ -99,7 +94,6 @@ struct hsr_ethhdr {
 	struct hsr_tag	hsr_tag;
 } __packed;
 
-
 /* HSR Supervision Frame data types.
  * Field names as defined in the IEC:2010 standard for HSR.
  */
@@ -144,7 +138,6 @@ struct hsrv1_ethhdr_sp {
 	struct hsr_tag		hsr;
 	struct hsr_sup_tag	hsr_sup;
 } __packed;
-
 
 enum hsr_port_type {
 	HSR_PT_NONE = 0,	/* Must be 0, used by framereg */

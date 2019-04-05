@@ -17,7 +17,6 @@
 #include "hsr_main.h"
 #include "hsr_framereg.h"
 
-
 struct hsr_node;
 
 struct hsr_frame_info {
@@ -31,7 +30,6 @@ struct hsr_frame_info {
 	bool is_local_dest;
 	bool is_local_exclusive;
 };
-
 
 /* The uses I can see for these HSR supervision frames are:
  * 1) Use the frames that are sent after node initialization ("HSR_TLV.Type =
@@ -90,7 +88,6 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 	return true;
 }
 
-
 static struct sk_buff *create_stripped_skb(struct sk_buff *skb_in,
 					   struct hsr_frame_info *frame)
 {
@@ -127,7 +124,6 @@ static struct sk_buff *frame_get_stripped_skb(struct hsr_frame_info *frame,
 		frame->skb_std = create_stripped_skb(frame->skb_hsr, frame);
 	return skb_clone(frame->skb_std, GFP_ATOMIC);
 }
-
 
 static void hsr_fill_tag(struct sk_buff *skb, struct hsr_frame_info *frame,
 			 struct hsr_port *port, u8 protoVersion)
@@ -203,7 +199,6 @@ static struct sk_buff *frame_get_tagged_skb(struct hsr_frame_info *frame,
 	return create_tagged_skb(frame->skb_std, frame, port);
 }
 
-
 static void hsr_deliver_master(struct sk_buff *skb, struct net_device *dev,
 			       struct hsr_node *node_src)
 {
@@ -237,7 +232,6 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 	}
 	return dev_queue_xmit(skb);
 }
-
 
 /* Forward the frame through all devices except:
  * - Back through the receiving device
@@ -297,7 +291,6 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 	}
 }
 
-
 static void check_local_dest(struct hsr_priv *hsr, struct sk_buff *skb,
 			     struct hsr_frame_info *frame)
 {
@@ -316,7 +309,6 @@ static void check_local_dest(struct hsr_priv *hsr, struct sk_buff *skb,
 		frame->is_local_dest = false;
 	}
 }
-
 
 static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 			       struct sk_buff *skb, struct hsr_port *port)
