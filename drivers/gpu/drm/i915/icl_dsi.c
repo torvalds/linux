@@ -28,6 +28,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_mipi_dsi.h>
 
+#include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_dsi.h"
 

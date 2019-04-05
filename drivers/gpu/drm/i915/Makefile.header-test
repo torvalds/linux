@@ -9,6 +9,7 @@ header_test := \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
 	intel_audio.h \
+	intel_connector.h \
 	intel_context_types.h \
 	intel_crt.h \
 	intel_ddi.h \

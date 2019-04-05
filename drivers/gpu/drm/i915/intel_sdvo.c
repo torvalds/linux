@@ -25,16 +25,20 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
-#include <linux/i2c.h>
-#include <linux/slab.h>
+
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/i2c.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_connector.h"
+#include "intel_drv.h"
 #include "intel_sdvo_regs.h"
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)

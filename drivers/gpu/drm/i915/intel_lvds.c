@@ -28,17 +28,20 @@
  */
 
 #include <acpi/button.h>
+#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/vga_switcheroo.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
-#include <linux/acpi.h>
+#include "intel_connector.h"
+#include "intel_drv.h"
 
 /* Private structure for the integrated LVDS support */
 struct intel_lvds_pps {
