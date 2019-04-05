@@ -243,7 +243,7 @@ static const struct header_ops hsr_header_ops = {
 };
 
 static void send_hsr_supervision_frame(struct hsr_port *master,
-		u8 type, u8 hsrVer)
+				       u8 type, u8 hsrVer)
 {
 	struct sk_buff *skb;
 	int hlen, tlen;
@@ -331,13 +331,13 @@ static void hsr_announce(struct timer_list *t)
 
 	if (hsr->announce_count < 3 && hsr->protVersion == 0) {
 		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE,
-				hsr->protVersion);
+					   hsr->protVersion);
 		hsr->announce_count++;
 
 		interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
 	} else {
 		send_hsr_supervision_frame(master, HSR_TLV_LIFE_CHECK,
-				hsr->protVersion);
+					   hsr->protVersion);
 
 		interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
 	}

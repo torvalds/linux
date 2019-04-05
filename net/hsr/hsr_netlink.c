@@ -270,8 +270,8 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	}
 
 	msg_head = genlmsg_put(skb_out, NETLINK_CB(skb_in).portid,
-				info->snd_seq, &hsr_genl_family, 0,
-				HSR_C_SET_NODE_STATUS);
+			       info->snd_seq, &hsr_genl_family, 0,
+			       HSR_C_SET_NODE_STATUS);
 	if (!msg_head) {
 		res = -ENOMEM;
 		goto nla_put_failure;
@@ -295,7 +295,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 		goto nla_put_failure;
 
 	res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN,
-					nla_data(info->attrs[HSR_A_NODE_ADDR]));
+		      nla_data(info->attrs[HSR_A_NODE_ADDR]));
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -396,8 +396,8 @@ static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 	}
 
 	msg_head = genlmsg_put(skb_out, NETLINK_CB(skb_in).portid,
-				info->snd_seq, &hsr_genl_family, 0,
-				HSR_C_SET_NODE_LIST);
+			       info->snd_seq, &hsr_genl_family, 0,
+			       HSR_C_SET_NODE_LIST);
 	if (!msg_head) {
 		res = -ENOMEM;
 		goto nla_put_failure;

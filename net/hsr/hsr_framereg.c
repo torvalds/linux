@@ -105,7 +105,7 @@ int hsr_create_self_node(struct list_head *self_node_db,
 
 	rcu_read_lock();
 	oldnode = list_first_or_null_rcu(self_node_db,
-						struct hsr_node, mac_list);
+					 struct hsr_node, mac_list);
 	if (oldnode) {
 		list_replace_rcu(&oldnode->mac_list, &node->mac_list);
 		rcu_read_unlock();
