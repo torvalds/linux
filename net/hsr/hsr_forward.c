@@ -77,12 +77,11 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 		     &((struct hsrv0_ethhdr_sp *) skb_mac_header(skb))->hsr_sup;
 	}
 
-	if ((hsrSupTag->HSR_TLV_Type != HSR_TLV_ANNOUNCE) &&
-	    (hsrSupTag->HSR_TLV_Type != HSR_TLV_LIFE_CHECK))
+	if (hsrSupTag->HSR_TLV_Type != HSR_TLV_ANNOUNCE &&
+	    hsrSupTag->HSR_TLV_Type != HSR_TLV_LIFE_CHECK)
 		return false;
-	if ((hsrSupTag->HSR_TLV_Length != 12) &&
-			(hsrSupTag->HSR_TLV_Length !=
-					sizeof(struct hsr_sup_payload)))
+	if (hsrSupTag->HSR_TLV_Length != 12 &&
+	    hsrSupTag->HSR_TLV_Length != sizeof(struct hsr_sup_payload))
 		return false;
 
 	return true;
@@ -191,7 +190,7 @@ static struct sk_buff *frame_get_tagged_skb(struct hsr_frame_info *frame,
 	if (frame->skb_hsr)
 		return skb_clone(frame->skb_hsr, GFP_ATOMIC);
 
-	if ((port->type != HSR_PT_SLAVE_A) && (port->type != HSR_PT_SLAVE_B)) {
+	if (port->type != HSR_PT_SLAVE_A && port->type != HSR_PT_SLAVE_B) {
 		WARN_ONCE(1, "HSR: Bug: trying to create a tagged frame for a non-ring port");
 		return NULL;
 	}
@@ -255,11 +254,11 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			continue;
 
 		/* Don't deliver locally unless we should */
-		if ((port->type == HSR_PT_MASTER) && !frame->is_local_dest)
+		if (port->type == HSR_PT_MASTER && !frame->is_local_dest)
 			continue;
 
 		/* Deliver frames directly addressed to us to master only */
-		if ((port->type != HSR_PT_MASTER) && frame->is_local_exclusive)
+		if (port->type != HSR_PT_MASTER && frame->is_local_exclusive)
 			continue;
 
 		/* Don't send frame over port where it has been sent before */
@@ -267,7 +266,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 					   frame->sequence_nr))
 			continue;
 
-		if (frame->is_supervision && (port->type == HSR_PT_MASTER)) {
+		if (frame->is_supervision && port->type == HSR_PT_MASTER) {
 			hsr_handle_sup_frame(frame->skb_hsr,
 					     frame->node_src,
 					     frame->port_rcv);
@@ -301,9 +300,9 @@ static void check_local_dest(struct hsr_priv *hsr, struct sk_buff *skb,
 		frame->is_local_exclusive = false;
 	}
 
-	if ((skb->pkt_type == PACKET_HOST) ||
-	    (skb->pkt_type == PACKET_MULTICAST) ||
-	    (skb->pkt_type == PACKET_BROADCAST)) {
+	if (skb->pkt_type == PACKET_HOST ||
+	    skb->pkt_type == PACKET_MULTICAST ||
+	    skb->pkt_type == PACKET_BROADCAST) {
 		frame->is_local_dest = true;
 	} else {
 		frame->is_local_dest = false;

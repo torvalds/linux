@@ -63,8 +63,8 @@ bool hsr_port_exists(const struct net_device *dev)
 static int hsr_check_dev_ok(struct net_device *dev)
 {
 	/* Don't allow HSR on non-ethernet like devices */
-	if ((dev->flags & IFF_LOOPBACK) || (dev->type != ARPHRD_ETHER) ||
-	    (dev->addr_len != ETH_ALEN)) {
+	if ((dev->flags & IFF_LOOPBACK) || dev->type != ARPHRD_ETHER ||
+	    dev->addr_len != ETH_ALEN) {
 		netdev_info(dev, "Cannot use loopback or non-ethernet device as HSR slave.\n");
 		return -EINVAL;
 	}

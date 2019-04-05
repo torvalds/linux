@@ -67,7 +67,7 @@ static bool hsr_check_carrier(struct hsr_port *master)
 
 	rcu_read_lock();
 	hsr_for_each_port(master->hsr, port)
-		if ((port->type != HSR_PT_MASTER) && is_slave_up(port->dev)) {
+		if (port->type != HSR_PT_MASTER && is_slave_up(port->dev)) {
 			has_carrier = true;
 			break;
 		}
@@ -88,15 +88,14 @@ static void hsr_check_announce(struct net_device *hsr_dev,
 
 	hsr = netdev_priv(hsr_dev);
 
-	if ((hsr_dev->operstate == IF_OPER_UP)
-			&& (old_operstate != IF_OPER_UP)) {
+	if (hsr_dev->operstate == IF_OPER_UP && old_operstate != IF_OPER_UP) {
 		/* Went up */
 		hsr->announce_count = 0;
 		mod_timer(&hsr->announce_timer,
 			  jiffies + msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL));
 	}
 
-	if ((hsr_dev->operstate != IF_OPER_UP) && (old_operstate == IF_OPER_UP))
+	if (hsr_dev->operstate != IF_OPER_UP && old_operstate == IF_OPER_UP)
 		/* Went down */
 		del_timer(&hsr->announce_timer);
 }
