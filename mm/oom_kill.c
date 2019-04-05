@@ -915,7 +915,8 @@ static void __oom_kill_process(struct task_struct *victim)
  */
 static int oom_kill_memcg_member(struct task_struct *task, void *unused)
 {
-	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN &&
+	    !is_global_init(task)) {
 		get_task_struct(task);
 		__oom_kill_process(task);
 	}
