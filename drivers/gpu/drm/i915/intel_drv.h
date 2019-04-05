@@ -2082,9 +2082,6 @@ static inline bool icl_is_hdr_plane(struct drm_i915_private *dev_priv,
 	return plane_id < PLANE_SPRITE2;
 }
 
-/* intel_tv.c */
-void intel_tv_init(struct drm_i915_private *dev_priv);
-
 /* intel_atomic.c */
 int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 						const struct drm_connector_state *state,

@@ -64,6 +64,7 @@
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sdvo.h"
+#include "intel_tv.h"
 
 /* Primary plane formats for gen <= 3 */
 static const u32 i8xx_primary_formats[] = {
