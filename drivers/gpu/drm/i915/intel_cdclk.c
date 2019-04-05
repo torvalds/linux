@@ -1129,16 +1129,7 @@ sanitize:
 	dev_priv->cdclk.hw.vco = -1;
 }
 
-/**
- * skl_init_cdclk - Initialize CDCLK on SKL
- * @dev_priv: i915 device
- *
- * Initialize CDCLK for SKL and derivatives. This is generally
- * done only during the display core initialization sequence,
- * after which the DMC will take care of turning CDCLK off/on
- * as needed.
- */
-void skl_init_cdclk(struct drm_i915_private *dev_priv)
+static void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state;
 
@@ -1167,14 +1158,7 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 	skl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
-/**
- * skl_uninit_cdclk - Uninitialize CDCLK on SKL
- * @dev_priv: i915 device
- *
- * Uninitialize CDCLK for SKL and derivatives. This is done only
- * during the display core uninitialization sequence.
- */
-void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
+static void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
@@ -1499,16 +1483,7 @@ sanitize:
 	dev_priv->cdclk.hw.vco = -1;
 }
 
-/**
- * bxt_init_cdclk - Initialize CDCLK on BXT
- * @dev_priv: i915 device
- *
- * Initialize CDCLK for BXT and derivatives. This is generally
- * done only during the display core initialization sequence,
- * after which the DMC will take care of turning CDCLK off/on
- * as needed.
- */
-void bxt_init_cdclk(struct drm_i915_private *dev_priv)
+static void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state;
 
@@ -1537,14 +1512,7 @@ void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
-/**
- * bxt_uninit_cdclk - Uninitialize CDCLK on BXT
- * @dev_priv: i915 device
- *
- * Uninitialize CDCLK for BXT and derivatives. This is done only
- * during the display core uninitialization sequence.
- */
-void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
+static void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
@@ -1977,16 +1945,7 @@ out:
 		icl_calc_voltage_level(cdclk_state->cdclk);
 }
 
-/**
- * icl_init_cdclk - Initialize CDCLK on ICL
- * @dev_priv: i915 device
- *
- * Initialize CDCLK for ICL. This consists mainly of initializing
- * dev_priv->cdclk.hw and sanitizing the state of the hardware if needed. This
- * is generally done only during the display core initialization sequence, after
- * which the DMC will take care of turning CDCLK off/on as needed.
- */
-void icl_init_cdclk(struct drm_i915_private *dev_priv)
+static void icl_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state sanitized_state;
 	u32 val;
@@ -2023,14 +1982,7 @@ sanitize:
 	icl_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
 
-/**
- * icl_uninit_cdclk - Uninitialize CDCLK on ICL
- * @dev_priv: i915 device
- *
- * Uninitialize CDCLK for ICL. This is done only during the display core
- * uninitialization sequence.
- */
-void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
+static void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
@@ -2041,16 +1993,7 @@ void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	icl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
-/**
- * cnl_init_cdclk - Initialize CDCLK on CNL
- * @dev_priv: i915 device
- *
- * Initialize CDCLK for CNL. This is generally
- * done only during the display core initialization sequence,
- * after which the DMC will take care of turning CDCLK off/on
- * as needed.
- */
-void cnl_init_cdclk(struct drm_i915_private *dev_priv)
+static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state;
 
@@ -2069,14 +2012,7 @@ void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 	cnl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
-/**
- * cnl_uninit_cdclk - Uninitialize CDCLK on CNL
- * @dev_priv: i915 device
- *
- * Uninitialize CDCLK for CNL. This is done only
- * during the display core uninitialization sequence.
- */
-void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
+static void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
@@ -2085,6 +2021,46 @@ void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
 
 	cnl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
+}
+
+/**
+ * intel_cdclk_init - Initialize CDCLK
+ * @i915: i915 device
+ *
+ * Initialize CDCLK. This consists mainly of initializing dev_priv->cdclk.hw and
+ * sanitizing the state of the hardware if needed. This is generally done only
+ * during the display core initialization sequence, after which the DMC will
+ * take care of turning CDCLK off/on as needed.
+ */
+void intel_cdclk_init(struct drm_i915_private *i915)
+{
+	if (IS_ICELAKE(i915))
+		icl_init_cdclk(i915);
+	else if (IS_CANNONLAKE(i915))
+		cnl_init_cdclk(i915);
+	else if (IS_GEN9_BC(i915))
+		skl_init_cdclk(i915);
+	else if (IS_GEN9_LP(i915))
+		bxt_init_cdclk(i915);
+}
+
+/**
+ * intel_cdclk_uninit - Uninitialize CDCLK
+ * @i915: i915 device
+ *
+ * Uninitialize CDCLK. This is done only during the display core
+ * uninitialization sequence.
+ */
+void intel_cdclk_uninit(struct drm_i915_private *i915)
+{
+	if (IS_ICELAKE(i915))
+		icl_uninit_cdclk(i915);
+	else if (IS_CANNONLAKE(i915))
+		cnl_uninit_cdclk(i915);
+	else if (IS_GEN9_BC(i915))
+		skl_uninit_cdclk(i915);
+	else if (IS_GEN9_LP(i915))
+		bxt_uninit_cdclk(i915);
 }
 
 /**
