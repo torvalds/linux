@@ -110,6 +110,11 @@ struct qbman_swp {
 		u32 valid_bit; /* 0x00 or 0x80 */
 	} mc;
 
+	/* Management response */
+	struct {
+		u32 valid_bit; /* 0x00 or 0x80 */
+	} mr;
+
 	/* Push dequeues */
 	u32 sdq;
 
