@@ -1073,7 +1073,7 @@ static int pmbus_add_boolean(struct pmbus_data *data,
 		 name, seq, type);
 	boolean->s1 = s1;
 	boolean->s2 = s2;
-	pmbus_attr_init(a, boolean->name, S_IRUGO, pmbus_show_boolean, NULL,
+	pmbus_attr_init(a, boolean->name, 0444, pmbus_show_boolean, NULL,
 			(reg << 16) | mask);
 
 	return pmbus_add_attribute(data, &a->dev_attr.attr);
@@ -1107,7 +1107,7 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 	sensor->update = update;
 	sensor->convert = convert;
 	pmbus_dev_attr_init(a, sensor->name,
-			    readonly ? S_IRUGO : S_IRUGO | S_IWUSR,
+			    readonly ? 0444 : 0644,
 			    pmbus_show_sensor, pmbus_set_sensor);
 
 	if (pmbus_add_attribute(data, &a->attr))
@@ -1139,7 +1139,7 @@ static int pmbus_add_label(struct pmbus_data *data,
 		snprintf(label->label, sizeof(label->label), "%s%d", lstring,
 			 index);
 
-	pmbus_dev_attr_init(a, label->name, S_IRUGO, pmbus_show_label, NULL);
+	pmbus_dev_attr_init(a, label->name, 0444, pmbus_show_label, NULL);
 	return pmbus_add_attribute(data, &a->attr);
 }
 
