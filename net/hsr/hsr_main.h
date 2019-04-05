@@ -97,14 +97,14 @@ struct hsr_ethhdr {
  * Field names as defined in the IEC:2010 standard for HSR.
  */
 struct hsr_sup_tag {
-	__be16		path_and_HSR_Ver;
+	__be16		path_and_HSR_ver;
 	__be16		sequence_nr;
-	__u8		HSR_TLV_Type;
-	__u8		HSR_TLV_Length;
+	__u8		HSR_TLV_type;
+	__u8		HSR_TLV_length;
 } __packed;
 
 struct hsr_sup_payload {
-	unsigned char	MacAddressA[ETH_ALEN];
+	unsigned char	macaddress_A[ETH_ALEN];
 } __packed;
 
 static inline u16 get_hsr_stag_path(struct hsr_sup_tag *hst)
@@ -122,9 +122,9 @@ static inline void set_hsr_stag_path(struct hsr_sup_tag *hst, u16 path)
 	set_hsr_tag_path((struct hsr_tag *)hst, path);
 }
 
-static inline void set_hsr_stag_HSR_Ver(struct hsr_sup_tag *hst, u16 HSR_Ver)
+static inline void set_hsr_stag_HSR_ver(struct hsr_sup_tag *hst, u16 HSR_ver)
 {
-	set_hsr_tag_LSDU_size((struct hsr_tag *)hst, HSR_Ver);
+	set_hsr_tag_LSDU_size((struct hsr_tag *)hst, HSR_ver);
 }
 
 struct hsrv0_ethhdr_sp {
@@ -164,7 +164,7 @@ struct hsr_priv {
 	int announce_count;
 	u16 sequence_nr;
 	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
-	u8 protVersion;		/* Indicate if HSRv0 or HSRv1. */
+	u8 prot_version;		/* Indicate if HSRv0 or HSRv1. */
 	spinlock_t seqnr_lock;			/* locking for sequence_nr */
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 };

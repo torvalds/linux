@@ -243,7 +243,7 @@ static const struct header_ops hsr_header_ops = {
 };
 
 static void send_hsr_supervision_frame(struct hsr_port *master,
-				       u8 type, u8 hsrVer)
+				       u8 type, u8 hsr_ver)
 {
 	struct sk_buff *skb;
 	int hlen, tlen;
@@ -264,28 +264,28 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	skb_reserve(skb, hlen);
 
 	skb->dev = master->dev;
-	skb->protocol = htons(hsrVer ? ETH_P_HSR : ETH_P_PRP);
+	skb->protocol = htons(hsr_ver ? ETH_P_HSR : ETH_P_PRP);
 	skb->priority = TC_PRIO_CONTROL;
 
-	if (dev_hard_header(skb, skb->dev, (hsrVer ? ETH_P_HSR : ETH_P_PRP),
+	if (dev_hard_header(skb, skb->dev, (hsr_ver ? ETH_P_HSR : ETH_P_PRP),
 			    master->hsr->sup_multicast_addr,
 			    skb->dev->dev_addr, skb->len) <= 0)
 		goto out;
 	skb_reset_mac_header(skb);
 
-	if (hsrVer > 0) {
+	if (hsr_ver > 0) {
 		hsr_tag = skb_put(skb, sizeof(struct hsr_tag));
 		hsr_tag->encap_proto = htons(ETH_P_PRP);
 		set_hsr_tag_LSDU_size(hsr_tag, HSR_V1_SUP_LSDUSIZE);
 	}
 
 	hsr_stag = skb_put(skb, sizeof(struct hsr_sup_tag));
-	set_hsr_stag_path(hsr_stag, (hsrVer ? 0x0 : 0xf));
-	set_hsr_stag_HSR_Ver(hsr_stag, hsrVer);
+	set_hsr_stag_path(hsr_stag, (hsr_ver ? 0x0 : 0xf));
+	set_hsr_stag_HSR_ver(hsr_stag, hsr_ver);
 
 	/* From HSRv1 on we have separate supervision sequence numbers. */
 	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
-	if (hsrVer > 0) {
+	if (hsr_ver > 0) {
 		hsr_stag->sequence_nr = htons(master->hsr->sup_sequence_nr);
 		hsr_tag->sequence_nr = htons(master->hsr->sequence_nr);
 		master->hsr->sup_sequence_nr++;
@@ -296,13 +296,14 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	}
 	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
 
-	hsr_stag->HSR_TLV_Type = type;
+	hsr_stag->HSR_TLV_type = type;
 	/* TODO: Why 12 in HSRv0? */
-	hsr_stag->HSR_TLV_Length = hsrVer ? sizeof(struct hsr_sup_payload) : 12;
+	hsr_stag->HSR_TLV_length =
+				hsr_ver ? sizeof(struct hsr_sup_payload) : 12;
 
 	/* Payload: MacAddressA */
 	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
-	ether_addr_copy(hsr_sp->MacAddressA, master->dev->dev_addr);
+	ether_addr_copy(hsr_sp->macaddress_A, master->dev->dev_addr);
 
 	if (skb_put_padto(skb, ETH_ZLEN + HSR_HLEN))
 		return;
@@ -328,15 +329,15 @@ static void hsr_announce(struct timer_list *t)
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
-	if (hsr->announce_count < 3 && hsr->protVersion == 0) {
+	if (hsr->announce_count < 3 && hsr->prot_version == 0) {
 		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE,
-					   hsr->protVersion);
+					   hsr->prot_version);
 		hsr->announce_count++;
 
 		interval = msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
 	} else {
 		send_hsr_supervision_frame(master, HSR_TLV_LIFE_CHECK,
-					   hsr->protVersion);
+					   hsr->prot_version);
 
 		interval = msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
 	}
@@ -455,7 +456,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
 
-	hsr->protVersion = protocol_version;
+	hsr->prot_version = protocol_version;
 
 	/* FIXME: should I modify the value of these?
 	 *
