@@ -401,6 +401,8 @@ static inline bool fib4_rules_early_flow_dissect(struct net *net,
 /* Exported by fib_frontend.c */
 extern const struct nla_policy rtm_ipv4_policy[];
 void ip_fib_init(void);
+int fib_gw_from_via(struct fib_config *cfg, struct nlattr *nla,
+		    struct netlink_ext_ack *extack);
 __be32 fib_compute_spec_dst(struct sk_buff *skb);
 bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev);
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,

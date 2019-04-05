@@ -606,12 +606,22 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 
 		attrlen = rtnh_attrlen(rtnh);
 		if (attrlen > 0) {
-			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
+			struct nlattr *nla, *nlav, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
+			nlav = nla_find(attrs, attrlen, RTA_VIA);
+			if (nla && nlav) {
+				NL_SET_ERR_MSG(extack,
+					       "Nexthop configuration can not contain both GATEWAY and VIA");
+				return -EINVAL;
+			}
 			if (nla) {
 				fib_cfg.fc_gw_family = AF_INET;
 				fib_cfg.fc_gw4 = nla_get_in_addr(nla);
+			} else if (nlav) {
+				ret = fib_gw_from_via(&fib_cfg, nlav, extack);
+				if (ret)
+					goto errout;
 			}
 
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
@@ -792,11 +802,43 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
 
 		attrlen = rtnh_attrlen(rtnh);
 		if (attrlen > 0) {
-			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
+			struct nlattr *nla, *nlav, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			if (nla && nla_get_in_addr(nla) != nh->fib_nh_gw4)
-				return 1;
+			nlav = nla_find(attrs, attrlen, RTA_VIA);
+			if (nla && nlav) {
+				NL_SET_ERR_MSG(extack,
+					       "Nexthop configuration can not contain both GATEWAY and VIA");
+				return -EINVAL;
+			}
+
+			if (nla) {
+				if (nh->fib_nh_gw_family != AF_INET ||
+				    nla_get_in_addr(nla) != nh->fib_nh_gw4)
+					return 1;
+			} else if (nlav) {
+				struct fib_config cfg2;
+				int err;
+
+				err = fib_gw_from_via(&cfg2, nlav, extack);
+				if (err)
+					return err;
+
+				switch (nh->fib_nh_gw_family) {
+				case AF_INET:
+					if (cfg2.fc_gw_family != AF_INET ||
+					    cfg2.fc_gw4 != nh->fib_nh_gw4)
+						return 1;
+					break;
+				case AF_INET6:
+					if (cfg2.fc_gw_family != AF_INET6 ||
+					    ipv6_addr_cmp(&cfg2.fc_gw6,
+							  &nh->fib_nh_gw6))
+						return 1;
+					break;
+				}
+			}
+
 #ifdef CONFIG_IP_ROUTE_CLASSID
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
 			if (nla && nla_get_u32(nla) != nh->nh_tclassid)
@@ -1429,8 +1471,25 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 			goto nla_put_failure;
 		break;
 	case AF_INET6:
-		if (nla_put_in6_addr(skb, RTA_GATEWAY, &nhc->nhc_gw.ipv6) < 0)
+		/* if gateway family does not match nexthop family
+		 * gateway is encoded as RTA_VIA
+		 */
+		if (nhc->nhc_gw_family != nhc->nhc_family) {
+			int alen = sizeof(struct in6_addr);
+			struct nlattr *nla;
+			struct rtvia *via;
+
+			nla = nla_reserve(skb, RTA_VIA, alen + 2);
+			if (!nla)
+				goto nla_put_failure;
+
+			via = nla_data(nla);
+			via->rtvia_family = AF_INET6;
+			memcpy(via->rtvia_addr, &nhc->nhc_gw.ipv6, alen);
+		} else if (nla_put_in6_addr(skb, RTA_GATEWAY,
+					    &nhc->nhc_gw.ipv6) < 0) {
 			goto nla_put_failure;
+		}
 		break;
 	}
 
