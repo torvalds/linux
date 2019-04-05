@@ -513,7 +513,7 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 	nh->fib_nh_oif = cfg->fc_oif;
 	if (cfg->fc_gw) {
 		nh->fib_nh_gw4 = cfg->fc_gw;
-		nh->fib_nh_has_gw = 1;
+		nh->fib_nh_gw_family = AF_INET;
 	}
 	nh->fib_nh_flags = cfg->fc_flags;
 
@@ -1238,7 +1238,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 				       "Route with host scope can not have multiple nexthops");
 			goto err_inval;
 		}
-		if (nh->fib_nh_gw4) {
+		if (nh->fib_nh_gw_family) {
 			NL_SET_ERR_MSG(extack,
 				       "Route with host scope can not have a gateway");
 			goto err_inval;
@@ -1341,18 +1341,15 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 		rcu_read_unlock();
 	}
 
-	if (nhc->nhc_has_gw) {
-		switch (nhc->nhc_family) {
-		case AF_INET:
-			if (nla_put_in_addr(skb, RTA_GATEWAY, nhc->nhc_gw.ipv4))
-				goto nla_put_failure;
-			break;
-		case AF_INET6:
-			if (nla_put_in6_addr(skb, RTA_GATEWAY,
-					     &nhc->nhc_gw.ipv6) < 0)
-				goto nla_put_failure;
-			break;
-		}
+	switch (nhc->nhc_gw_family) {
+	case AF_INET:
+		if (nla_put_in_addr(skb, RTA_GATEWAY, nhc->nhc_gw.ipv4))
+			goto nla_put_failure;
+		break;
+	case AF_INET6:
+		if (nla_put_in6_addr(skb, RTA_GATEWAY, &nhc->nhc_gw.ipv6) < 0)
+			goto nla_put_failure;
+		break;
 	}
 
 	*flags |= (nhc->nhc_flags & RTNH_F_ONLINK);

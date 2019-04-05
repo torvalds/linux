@@ -83,8 +83,8 @@ struct fib_nh_common {
 	struct lwtunnel_state	*nhc_lwtstate;
 	unsigned char		nhc_scope;
 	u8			nhc_family;
-	u8			nhc_has_gw:1,
-				unused:7;
+	u8			nhc_gw_family;
+
 	union {
 		__be32          ipv4;
 		struct in6_addr ipv6;
@@ -112,8 +112,7 @@ struct fib_nh {
 #define fib_nh_flags		nh_common.nhc_flags
 #define fib_nh_lws		nh_common.nhc_lwtstate
 #define fib_nh_scope		nh_common.nhc_scope
-#define fib_nh_family		nh_common.nhc_family
-#define fib_nh_has_gw		nh_common.nhc_has_gw
+#define fib_nh_gw_family	nh_common.nhc_gw_family
 #define fib_nh_gw4		nh_common.nhc_gw.ipv4
 #define fib_nh_gw6		nh_common.nhc_gw.ipv6
 #define fib_nh_weight		nh_common.nhc_weight

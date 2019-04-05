@@ -2304,7 +2304,7 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 #else
 	seq_puts(seq, "00000000000000000000000000000000 00 ");
 #endif
-	if (rt->fib6_nh.fib_nh_has_gw) {
+	if (rt->fib6_nh.fib_nh_gw_family) {
 		flags |= RTF_GATEWAY;
 		seq_printf(seq, "%pi6", &rt->fib6_nh.fib_nh_gw6);
 	} else {

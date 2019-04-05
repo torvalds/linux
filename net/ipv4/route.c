@@ -1734,8 +1734,9 @@ static int __mkroute_input(struct sk_buff *skb,
 	do_cache = res->fi && !itag;
 	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
 	    skb->protocol == htons(ETH_P_IP)) {
-		__be32 gw = nhc->nhc_family == AF_INET ? nhc->nhc_gw.ipv4 : 0;
+		__be32 gw;
 
+		gw = nhc->nhc_gw_family == AF_INET ? nhc->nhc_gw.ipv4 : 0;
 		if (IN_DEV_SHARED_MEDIA(out_dev) ||
 		    inet_addr_onlink(out_dev, saddr, gw))
 			IPCB(skb)->flags |= IPSKB_DOREDIRECT;
@@ -2284,7 +2285,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		} else {
 			if (unlikely(fl4->flowi4_flags &
 				     FLOWI_FLAG_KNOWN_NH &&
-				     !(nhc->nhc_has_gw &&
+				     !(nhc->nhc_gw_family &&
 				       nhc->nhc_scope == RT_SCOPE_LINK))) {
 				do_cache = false;
 				goto add;

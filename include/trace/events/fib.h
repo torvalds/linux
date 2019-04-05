@@ -69,13 +69,13 @@ TRACE_EVENT(fib_table_lookup,
 		__assign_str(name, dev ? dev->name : "-");
 
 		if (nhc) {
-			if (nhc->nhc_family == AF_INET) {
+			if (nhc->nhc_gw_family == AF_INET) {
 				p32 = (__be32 *) __entry->gw4;
 				*p32 = nhc->nhc_gw.ipv4;
 
 				in6 = (struct in6_addr *)__entry->gw6;
 				*in6 = in6_zero;
-			} else if (nhc->nhc_family == AF_INET6) {
+			} else if (nhc->nhc_gw_family == AF_INET6) {
 				p32 = (__be32 *) __entry->gw4;
 				*p32 = 0;
 

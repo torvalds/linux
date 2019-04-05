@@ -4639,7 +4639,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 		return BPF_FIB_LKUP_RET_UNSUPP_LWT;
 
 	dev = nhc->nhc_dev;
-	if (nhc->nhc_has_gw)
+	if (nhc->nhc_gw_family)
 		params->ipv4_dst = nhc->nhc_gw.ipv4;
 
 	params->rt_metric = res.fi->fib_priority;
@@ -4752,7 +4752,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	if (f6i->fib6_nh.fib_nh_lws)
 		return BPF_FIB_LKUP_RET_UNSUPP_LWT;
 
-	if (f6i->fib6_nh.fib_nh_has_gw)
+	if (f6i->fib6_nh.fib_nh_gw_family)
 		*dst = f6i->fib6_nh.fib_nh_gw6;
 
 	dev = f6i->fib6_nh.fib_nh_dev;
