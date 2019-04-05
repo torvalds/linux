@@ -600,7 +600,6 @@ static unsigned long long ocfs2_max_file_offset(unsigned int bbits,
 	 */
 
 #if BITS_PER_LONG == 32
-# if defined(CONFIG_LBDAF)
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
 	/*
 	 * We might be limited by page cache size.
@@ -614,15 +613,6 @@ static unsigned long long ocfs2_max_file_offset(unsigned int bbits,
 		 */
 		bitshift = 31;
 	}
-# else
-	/*
-	 * We are limited by the size of sector_t. Use block size, as
-	 * that's what we expose to the VFS.
-	 */
-	bytes = 1 << bbits;
-	trim = 1;
-	bitshift = 31;
-# endif
 #endif
 
 	/*
