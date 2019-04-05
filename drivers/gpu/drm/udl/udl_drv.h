@@ -71,6 +71,8 @@ struct udl_device {
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
 };
 
+#define to_udl(x) ((x)->dev_private)
+
 struct udl_gem_object {
 	struct drm_gem_object base;
 	struct page **pages;
