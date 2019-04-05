@@ -493,9 +493,6 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 		posn_offset = spcm->posn_offset[direction];
 		snd_sof_dsp_mailbox_read(sdev, posn_offset, &posn,
 					 sizeof(posn));
-
-		dev_dbg(sdev->dev, "posn mailbox: posn offset is 0x%x",
-			posn_offset);
 	}
 
 	dev_dbg(sdev->dev,  "posn XRUN: host %llx comp %d size %d\n",
