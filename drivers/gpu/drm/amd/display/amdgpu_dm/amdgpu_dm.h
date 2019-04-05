@@ -271,6 +271,9 @@ struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
 
+	int active_planes;
+	bool interrupts_enabled;
+
 	int crc_skip_count;
 	bool crc_enabled;
 
