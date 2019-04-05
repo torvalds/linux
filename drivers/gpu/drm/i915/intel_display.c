@@ -55,6 +55,7 @@
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_dvo.h"
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
 #include "intel_frontbuffer.h"

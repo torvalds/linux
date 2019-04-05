@@ -1874,8 +1874,6 @@ void icl_dsi_init(struct drm_i915_private *dev_priv);
 /* intel_dsi_dcs_backlight.c */
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 
-/* intel_dvo.c */
-void intel_dvo_init(struct drm_i915_private *dev_priv);
 /* intel_hotplug.c */
 void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
 bool intel_encoder_hotplug(struct intel_encoder *encoder,

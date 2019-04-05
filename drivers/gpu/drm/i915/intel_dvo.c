@@ -36,6 +36,7 @@
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_dvo.h"
 #include "intel_panel.h"
 
 #define SIL164_ADDR	0x38

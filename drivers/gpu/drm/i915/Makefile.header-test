@@ -17,6 +17,7 @@ header_test := \
 	intel_csr.h \
 	intel_ddi.h \
 	intel_dp.h \
+	intel_dvo.h \
 	intel_engine_types.h \
 	intel_fbc.h \
 	intel_fbdev.h \
