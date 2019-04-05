@@ -173,6 +173,14 @@ eafnosupport_ip6_mtu_from_fib6(struct fib6_info *f6i, struct in6_addr *daddr,
 	return 0;
 }
 
+static int eafnosupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+				     struct fib6_config *cfg, gfp_t gfp_flags,
+				     struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
+	return -EAFNOSUPPORT;
+}
+
 const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
 	.ipv6_dst_lookup   = eafnosupport_ipv6_dst_lookup,
 	.ipv6_route_input  = eafnosupport_ipv6_route_input,
@@ -181,6 +189,7 @@ const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
 	.fib6_lookup       = eafnosupport_fib6_lookup,
 	.fib6_multipath_select = eafnosupport_fib6_multipath_select,
 	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
+	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
 };
 EXPORT_SYMBOL_GPL(ipv6_stub);
 
