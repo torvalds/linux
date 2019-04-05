@@ -1973,46 +1973,6 @@ void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
 bool intel_encoder_hotplug(struct intel_encoder *encoder,
 			   struct intel_connector *connector);
 
-/* legacy fbdev emulation in intel_fbdev.c */
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-extern int intel_fbdev_init(struct drm_device *dev);
-extern void intel_fbdev_initial_config_async(struct drm_device *dev);
-extern void intel_fbdev_unregister(struct drm_i915_private *dev_priv);
-extern void intel_fbdev_fini(struct drm_i915_private *dev_priv);
-extern void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous);
-extern void intel_fbdev_output_poll_changed(struct drm_device *dev);
-extern void intel_fbdev_restore_mode(struct drm_device *dev);
-#else
-static inline int intel_fbdev_init(struct drm_device *dev)
-{
-	return 0;
-}
-
-static inline void intel_fbdev_initial_config_async(struct drm_device *dev)
-{
-}
-
-static inline void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
-{
-}
-
-static inline void intel_fbdev_fini(struct drm_i915_private *dev_priv)
-{
-}
-
-static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
-{
-}
-
-static inline void intel_fbdev_output_poll_changed(struct drm_device *dev)
-{
-}
-
-static inline void intel_fbdev_restore_mode(struct drm_device *dev)
-{
-}
-#endif
-
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_i915_private *dev_priv, i915_reg_t hdmi_reg,
 		     enum port port);

@@ -17,6 +17,7 @@ header_test := \
 	intel_ddi.h \
 	intel_engine_types.h \
 	intel_fbc.h \
+	intel_fbdev.h \
 	intel_frontbuffer.h \
 	intel_hdcp.h \
 	intel_lspcon.h \

@@ -25,26 +25,27 @@
  */
 
 #include <linux/async.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/console.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/sysrq.h>
 #include <linux/delay.h>
+#include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/string.h>
+#include <linux/sysrq.h>
+#include <linux/tty.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
-
-#include "intel_drv.h"
-#include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_drv.h"
+#include "intel_fbdev.h"
+#include "intel_frontbuffer.h"
 
 static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 {

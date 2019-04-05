@@ -31,6 +31,7 @@
 #include "i915_drv.h"
 #include "i915_globals.h"
 #include "i915_selftest.h"
+#include "intel_fbdev.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
