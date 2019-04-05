@@ -1349,6 +1349,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 
 	change_nexthops(fi) {
 		fib_info_update_nh_saddr(net, nexthop_nh);
+		if (nexthop_nh->fib_nh_gw_family == AF_INET6)
+			fi->fib_nh_is_v6 = true;
 	} endfor_nexthops(fi)
 
 	fib_rebalance(fi);
