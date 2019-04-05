@@ -102,6 +102,10 @@
 	};
 };
 
+&rcc {
+	compatible = "st,stm32f769-rcc", "st,stm32f746-rcc", "st,stm32-rcc";
+};
+
 &cec {
 	pinctrl-0 = <&cec_pins_a>;
 	pinctrl-names = "default";
