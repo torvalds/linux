@@ -253,7 +253,7 @@ static void hsw_dump(struct snd_sof_dev *sdev, u32 flags)
 
 static irqreturn_t hsw_irq_handler(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	u32 isr;
 	int ret = IRQ_NONE;
 

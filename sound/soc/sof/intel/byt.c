@@ -300,7 +300,7 @@ static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 
 static irqreturn_t byt_irq_handler(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	u64 isr;
 	int ret = IRQ_NONE;
 

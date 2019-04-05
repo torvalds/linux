@@ -88,8 +88,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
 	int ret;
 	u32 size, rate, bits;
@@ -141,8 +140,7 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_sof_pcm *spcm;
 	snd_pcm_uframes_t pos;
 

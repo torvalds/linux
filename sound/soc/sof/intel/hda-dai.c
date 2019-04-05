@@ -64,7 +64,7 @@ static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 			return -EBUSY;
 		}
 
-		snd_soc_dai_set_dma_data(dai, &substream, (void *)stream);
+		snd_soc_dai_set_dma_data(dai, &substream, stream);
 		*tx_slot = hdac_stream(stream)->stream_tag - 1;
 
 		dev_dbg(bus->dev, "link dma channel %d for playback", *tx_slot);
@@ -79,7 +79,7 @@ static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 			return -EBUSY;
 		}
 
-		snd_soc_dai_set_dma_data(dai, &substream, (void *)stream);
+		snd_soc_dai_set_dma_data(dai, &substream, stream);
 		*rx_slot = hdac_stream(stream)->stream_tag - 1;
 
 		dev_dbg(bus->dev, "link dma channel %d for capture", *rx_slot);

@@ -85,7 +85,7 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	count = avail > count ? count : avail;
 
 	/* copy available trace data to debugfs */
-	rem = copy_to_user(buffer, (void *)((u8 *)(dfse->buf) + lpos), count);
+	rem = copy_to_user(buffer, ((u8 *)(dfse->buf) + lpos), count);
 	if (rem)
 		return -EFAULT;
 

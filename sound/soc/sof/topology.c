@@ -428,7 +428,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_mixer_control *mc =
-		(struct snd_soc_tplg_mixer_control *)hdr;
+		container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
 	struct sof_ipc_ctrl_data *cdata;
 	int tlv[TLV_ITEMS];
 	unsigned int i;
@@ -491,7 +491,7 @@ static int sof_control_load_enum(struct snd_soc_component *scomp,
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_enum_control *ec =
-		(struct snd_soc_tplg_enum_control *)hdr;
+		container_of(hdr, struct snd_soc_tplg_enum_control, hdr);
 
 	/* validate topology data */
 	if (le32_to_cpu(ec->num_channels) > SND_SOC_TPLG_MAX_CHAN)
@@ -524,7 +524,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc_ctrl_data *cdata;
 	struct snd_soc_tplg_bytes_control *control =
-		(struct snd_soc_tplg_bytes_control *)hdr;
+		container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
 	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
 	int max_size = sbe->max;
 
@@ -907,7 +907,7 @@ static void sof_parse_word_tokens(struct snd_soc_component *scomp,
 
 			/* pdm config array index */
 			if (sdev->private)
-				index = (u32 *)sdev->private;
+				index = sdev->private;
 
 			/* matched - determine offset */
 			switch (tokens[j].token) {
@@ -1242,7 +1242,7 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 	dev_dbg(sdev->dev, "buffer %s: size %d caps 0x%x\n",
 		swidget->widget->name, buffer->size, buffer->caps);
 
-	swidget->private = (void *)buffer;
+	swidget->private = buffer;
 
 	ret = sof_ipc_tx_message(sdev->ipc, buffer->comp.hdr.cmd, buffer,
 				 sizeof(*buffer), r, sizeof(*r));
@@ -1323,7 +1323,7 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 	dev_dbg(sdev->dev, "loaded host %s\n", swidget->widget->name);
 	sof_dbg_comp_config(scomp, &host->config);
 
-	swidget->private = (void *)host;
+	swidget->private = host;
 
 	ret = sof_ipc_tx_message(sdev->ipc, host->comp.hdr.cmd, host,
 				 sizeof(*host), r, sizeof(*r));
@@ -1431,7 +1431,7 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 		swidget->widget->name, pipeline->period, pipeline->priority,
 		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched);
 
-	swidget->private = (void *)pipeline;
+	swidget->private = pipeline;
 
 	/* send ipc's to create pipeline comp and power up schedule core */
 	ret = sof_load_pipeline_ipc(sdev, pipeline, r);
@@ -1480,7 +1480,7 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 
 	sof_dbg_comp_config(scomp, &mixer->config);
 
-	swidget->private = (void *)mixer;
+	swidget->private = mixer;
 
 	ret = sof_ipc_tx_message(sdev->ipc, mixer->comp.hdr.cmd, mixer,
 				 sizeof(*mixer), r, sizeof(*r));
@@ -1527,7 +1527,7 @@ static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
 
 	sof_dbg_comp_config(scomp, &mux->config);
 
-	swidget->private = (void *)mux;
+	swidget->private = mux;
 
 	ret = sof_ipc_tx_message(sdev->ipc, mux->comp.hdr.cmd, mux,
 				 sizeof(*mux), r, sizeof(*r));
@@ -1589,7 +1589,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 
 	sof_dbg_comp_config(scomp, &volume->config);
 
-	swidget->private = (void *)volume;
+	swidget->private = volume;
 
 	ret = sof_ipc_tx_message(sdev->ipc, volume->comp.hdr.cmd, volume,
 				 sizeof(*volume), r, sizeof(*r));
@@ -1648,7 +1648,7 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 		swidget->widget->name, src->source_rate, src->sink_rate);
 	sof_dbg_comp_config(scomp, &src->config);
 
-	swidget->private = (void *)src;
+	swidget->private = src;
 
 	ret = sof_ipc_tx_message(sdev->ipc, src->comp.hdr.cmd, src,
 				 sizeof(*src), r, sizeof(*r));
@@ -1707,7 +1707,7 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 		swidget->widget->name, tone->frequency, tone->amplitude);
 	sof_dbg_comp_config(scomp, &tone->config);
 
-	swidget->private = (void *)tone;
+	swidget->private = tone;
 
 	ret = sof_ipc_tx_message(sdev->ipc, tone->comp.hdr.cmd, tone,
 				 sizeof(*tone), r, sizeof(*r));
@@ -1858,7 +1858,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	}
 
 	process->size = ipc_data_size;
-	swidget->private = (void *)process;
+	swidget->private = process;
 
 	ret = sof_ipc_tx_message(sdev->ipc, process->comp.hdr.cmd, process,
 				 ipc_size, r, sizeof(*r));
@@ -2116,7 +2116,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	switch (swidget->id) {
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
-		dai = (struct snd_sof_dai *)swidget->private;
+		dai = swidget->private;
 
 		if (dai) {
 			/* free dai config */
@@ -2127,7 +2127,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	case snd_soc_dapm_scheduler:
 
 		/* power down the pipeline schedule core */
-		pipeline = (struct sof_ipc_pipe_new *)swidget->private;
+		pipeline = swidget->private;
 		ret = snd_sof_dsp_core_power_down(sdev, 1 << pipeline->core);
 		if (ret < 0)
 			dev_err(sdev->dev, "error: powering down pipeline schedule core %d\n",

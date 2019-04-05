@@ -80,7 +80,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 		switch (swidget->id) {
 		case snd_soc_dapm_dai_in:
 		case snd_soc_dapm_dai_out:
-			dai = (struct snd_sof_dai *)swidget->private;
+			dai = swidget->private;
 			comp_dai = &dai->comp_dai;
 			ret = sof_ipc_tx_message(sdev->ipc,
 						 comp_dai->comp.hdr.cmd,
@@ -95,11 +95,11 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 			 * and power up the core that the pipeline is
 			 * scheduled on.
 			 */
-			pipeline = (struct sof_ipc_pipe_new *)swidget->private;
+			pipeline = swidget->private;
 			ret = sof_load_pipeline_ipc(sdev, pipeline, &r);
 			break;
 		default:
-			hdr = (struct sof_ipc_cmd_hdr *)swidget->private;
+			hdr = swidget->private;
 			ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd,
 						 swidget->private, hdr->size,
 						 &r, sizeof(r));

@@ -17,7 +17,8 @@
 static int get_ext_windows(struct snd_sof_dev *sdev,
 			   struct sof_ipc_ext_data_hdr *ext_hdr)
 {
-	struct sof_ipc_window *w = (struct sof_ipc_window *)ext_hdr;
+	struct sof_ipc_window *w =
+		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
 	size_t size;
 
 	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
@@ -47,7 +48,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 	/* get first header */
 	snd_sof_dsp_block_read(sdev, bar, offset, ext_data,
 			       sizeof(*ext_hdr));
-	ext_hdr = (struct sof_ipc_ext_data_hdr *)ext_data;
+	ext_hdr = ext_data;
 
 	while (ext_hdr->hdr.cmd == SOF_IPC_FW_READY) {
 		/* read in ext structure */
@@ -80,7 +81,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 		offset += ext_hdr->hdr.size;
 		snd_sof_dsp_block_read(sdev, bar, offset, ext_data,
 				       sizeof(*ext_hdr));
-		ext_hdr = (struct sof_ipc_ext_data_hdr *)ext_data;
+		ext_hdr = ext_data;
 	}
 
 	kfree(ext_data);
@@ -145,8 +146,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 			return -EINVAL;
 		}
 		snd_sof_dsp_block_write(sdev, sdev->mmio_bar, offset,
-					(void *)((u8 *)block + sizeof(*block)),
-					block->size);
+					block + 1, block->size);
 
 		/* minus body size of block */
 		remaining -= block->size;

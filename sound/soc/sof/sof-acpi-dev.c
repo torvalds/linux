@@ -195,7 +195,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	if (!sof_pdata)
 		return -ENOMEM;
 
-	desc = (const struct sof_dev_desc *)device_get_match_data(dev);
+	desc = device_get_match_data(dev);
 	if (!desc)
 		return -ENODEV;
 

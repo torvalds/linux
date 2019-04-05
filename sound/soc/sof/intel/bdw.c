@@ -255,7 +255,7 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 
 static irqreturn_t bdw_irq_handler(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	u32 isr;
 	int ret = IRQ_NONE;
 
@@ -269,7 +269,7 @@ static irqreturn_t bdw_irq_handler(int irq, void *context)
 
 static irqreturn_t bdw_irq_thread(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	u32 ipcx, ipcd, imrx;
 
 	imrx = snd_sof_dsp_read64(sdev, BDW_DSP_BAR, SHIM_IMRX);

@@ -259,7 +259,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct firmware stripped_firmware;
 	int ret, ret1, tag, i;
 
-	chip_info = (struct sof_intel_dsp_desc *)desc->chip_info;
+	chip_info = desc->chip_info;
 
 	stripped_firmware.data = plat_data->fw->data;
 	stripped_firmware.size = plat_data->fw->size;

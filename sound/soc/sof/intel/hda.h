@@ -374,15 +374,15 @@ struct sof_intel_hda_dev {
 
 static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)s->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = s->pdata->hw_pdata;
+
 	return &hda->hbus.core;
 }
 
 static inline struct hda_bus *sof_to_hbus(struct snd_sof_dev *s)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)s->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = s->pdata->hw_pdata;
+
 	return &hda->hbus;
 }
 

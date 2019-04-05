@@ -381,7 +381,7 @@ static const struct sof_intel_dsp_desc
 	const struct sof_dev_desc *desc = pdata->desc;
 	const struct sof_intel_dsp_desc *chip_info;
 
-	chip_info = (struct sof_intel_dsp_desc *)desc->chip_info;
+	chip_info = desc->chip_info;
 
 	return chip_info;
 }
@@ -618,8 +618,7 @@ err:
 
 int hda_dsp_remove(struct snd_sof_dev *sdev)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	const struct sof_intel_dsp_desc *chip = hda->desc;

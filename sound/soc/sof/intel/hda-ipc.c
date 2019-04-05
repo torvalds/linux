@@ -216,7 +216,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 /* is this IRQ for ADSP ? - we only care about IPC here */
 irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	int ret = IRQ_NONE;
 
 	spin_lock(&sdev->hw_lock);

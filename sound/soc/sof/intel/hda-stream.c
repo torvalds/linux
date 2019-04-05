@@ -80,8 +80,7 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 			     struct snd_dma_buffer *dmab,
 			     struct hdac_stream *stream)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct sof_intel_dsp_bdl *bdl;
 	int i, offset, period_bytes, periods;
 	int remain, ioc;
@@ -433,7 +432,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 {
-	struct hdac_bus *bus = (struct hdac_bus *)context;
+	struct hdac_bus *bus = context;
 	u32 status;
 
 	if (!pm_runtime_active(bus->dev))
@@ -464,7 +463,7 @@ irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 {
-	struct hdac_bus *bus = (struct hdac_bus *)context;
+	struct hdac_bus *bus = context;
 	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
 	struct hdac_stream *s;
 	u32 status = snd_hdac_chip_readl(bus, INTSTS);

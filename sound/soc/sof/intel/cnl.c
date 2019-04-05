@@ -29,7 +29,7 @@ static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev);
 
 static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
-	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
+	struct snd_sof_dev *sdev = context;
 	u32 hipci;
 	u32 hipcctl;
 	u32 hipcida;

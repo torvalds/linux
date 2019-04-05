@@ -21,8 +21,7 @@
 
 static int hda_dsp_trace_prepare(struct snd_sof_dev *sdev)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_ext_stream *stream = hda->dtrace_stream;
 	struct hdac_stream *hstream = &stream->hstream;
 	struct snd_dma_buffer *dmab = &sdev->dmatb;
@@ -40,8 +39,7 @@ static int hda_dsp_trace_prepare(struct snd_sof_dev *sdev)
 
 int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	int ret;
 
 	hda->dtrace_stream = hda_dsp_stream_get(sdev,
@@ -72,8 +70,7 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag)
 
 int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_stream *hstream;
 
 	if (hda->dtrace_stream) {
@@ -91,8 +88,7 @@ int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 
 int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd)
 {
-	struct sof_intel_hda_dev *hda =
-		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 
 	return hda_dsp_stream_trigger(sdev, hda->dtrace_stream, cmd);
 }
