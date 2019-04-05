@@ -103,7 +103,7 @@ config SND_SOC_SOF_MERRIFIELD_SUPPORT
 	bool "SOF support for Tangier/Merrifield"
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
-	  using the Baytrail, Braswell or Cherrytrail processors.
+	  using the Tangier/Merrifield processors.
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
