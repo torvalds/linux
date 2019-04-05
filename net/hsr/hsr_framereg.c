@@ -405,7 +405,7 @@ void hsr_prune_nodes(struct timer_list *t)
 					msecs_to_jiffies(1.5*MAX_SLAVE_DIFF))) {
 			rcu_read_lock();
 			port = get_late_port(hsr, node);
-			if (port != NULL)
+			if (port)
 				hsr_nl_ringerror(hsr, node->MacAddressA, port);
 			rcu_read_unlock();
 		}

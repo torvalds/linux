@@ -97,7 +97,7 @@ static struct sk_buff *create_stripped_skb(struct sk_buff *skb_in,
 	skb_pull(skb_in, HSR_HLEN);
 	skb = __pskb_copy(skb_in, skb_headroom(skb_in) - HSR_HLEN, GFP_ATOMIC);
 	skb_push(skb_in, HSR_HLEN);
-	if (skb == NULL)
+	if (!skb)
 		return NULL;
 
 	skb_reset_mac_header(skb);
@@ -160,7 +160,7 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 
 	/* Create the new skb with enough headroom to fit the HSR tag */
 	skb = __pskb_copy(skb_o, skb_headroom(skb_o) + HSR_HLEN, GFP_ATOMIC);
-	if (skb == NULL)
+	if (!skb)
 		return NULL;
 	skb_reset_mac_header(skb);
 
@@ -277,7 +277,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			skb = frame_get_tagged_skb(frame, port);
 		else
 			skb = frame_get_stripped_skb(frame, port);
-		if (skb == NULL) {
+		if (!skb) {
 			/* FIXME: Record the dropped frame? */
 			continue;
 		}
@@ -317,7 +317,7 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 
 	frame->is_supervision = is_supervision_frame(port->hsr, skb);
 	frame->node_src = hsr_get_node(port, skb, frame->is_supervision);
-	if (frame->node_src == NULL)
+	if (!frame->node_src)
 		return -1; /* Unknown node and !is_supervision, or no mem */
 
 	ethhdr = (struct ethhdr *) skb_mac_header(skb);
@@ -364,9 +364,9 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 	hsr_register_frame_in(frame.node_src, port, frame.sequence_nr);
 	hsr_forward_do(&frame);
 
-	if (frame.skb_hsr != NULL)
+	if (frame.skb_hsr)
 		kfree_skb(frame.skb_hsr);
-	if (frame.skb_std != NULL)
+	if (frame.skb_std)
 		kfree_skb(frame.skb_std);
 	return;
 

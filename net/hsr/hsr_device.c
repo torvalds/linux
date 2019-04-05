@@ -258,7 +258,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 			    sizeof(struct hsr_sup_tag) +
 			    sizeof(struct hsr_sup_payload) + hlen + tlen);
 
-	if (skb == NULL)
+	if (!skb)
 		return;
 
 	skb_reserve(skb, hlen);

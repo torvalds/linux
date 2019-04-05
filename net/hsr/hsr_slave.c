@@ -140,11 +140,11 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 	}
 
 	port = hsr_port_get_hsr(hsr, type);
-	if (port != NULL)
+	if (port)
 		return -EBUSY;	/* This port already exists */
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	if (port == NULL)
+	if (!port)
 		return -ENOMEM;
 
 	if (type != HSR_PT_MASTER) {
@@ -181,7 +181,7 @@ void hsr_del_port(struct hsr_port *port)
 	list_del_rcu(&port->port_list);
 
 	if (port != master) {
-		if (master != NULL) {
+		if (master) {
 			netdev_update_features(master->dev);
 			dev_set_mtu(master->dev, hsr_get_max_mtu(hsr));
 		}

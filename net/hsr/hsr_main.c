@@ -30,12 +30,12 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 	dev = netdev_notifier_info_to_dev(ptr);
 	port = hsr_port_get_rtnl(dev);
-	if (port == NULL) {
+	if (!port) {
 		if (!is_hsr_master(dev))
 			return NOTIFY_DONE;	/* Not an HSR device */
 		hsr = netdev_priv(dev);
 		port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-		if (port == NULL) {
+		if (!port) {
 			/* Resend of notification concerning removed device? */
 			return NOTIFY_DONE;
 		}
