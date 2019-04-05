@@ -528,6 +528,26 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	/* do not want to be sending data on a socket we are freeing */
 	cifs_dbg(FYI, "%s: tearing down socket\n", __func__);
 	mutex_lock(&server->srv_mutex);
+
+	/* mark submitted MIDs for retry and issue callback */
+	INIT_LIST_HEAD(&retry_list);
+	cifs_dbg(FYI, "%s: moving mids to private list\n", __func__);
+	spin_lock(&GlobalMid_Lock);
+	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+		if (mid_entry->mid_state == MID_REQUEST_SUBMITTED)
+			mid_entry->mid_state = MID_RETRY_NEEDED;
+		list_move(&mid_entry->qhead, &retry_list);
+	}
+	spin_unlock(&GlobalMid_Lock);
+
+	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
+	list_for_each_safe(tmp, tmp2, &retry_list) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+		list_del_init(&mid_entry->qhead);
+		mid_entry->callback(mid_entry);
+	}
+
 	if (server->ssocket) {
 		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n",
 			 server->ssocket->state, server->ssocket->flags);
@@ -545,25 +565,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	server->session_key.len = 0;
 	server->lstrp = jiffies;
 
-	/* mark submitted MIDs for retry and issue callback */
-	INIT_LIST_HEAD(&retry_list);
-	cifs_dbg(FYI, "%s: moving mids to private list\n", __func__);
-	spin_lock(&GlobalMid_Lock);
-	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		if (mid_entry->mid_state == MID_REQUEST_SUBMITTED)
-			mid_entry->mid_state = MID_RETRY_NEEDED;
-		list_move(&mid_entry->qhead, &retry_list);
-	}
-	spin_unlock(&GlobalMid_Lock);
 	mutex_unlock(&server->srv_mutex);
-
-	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
-	list_for_each_safe(tmp, tmp2, &retry_list) {
-		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		list_del_init(&mid_entry->qhead);
-		mid_entry->callback(mid_entry);
-	}
 
 	do {
 		try_to_freeze();
