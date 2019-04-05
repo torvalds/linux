@@ -14,6 +14,10 @@ in safe mode with a limited scope. In limited mode, cpu-hotplug test is
 run on a single cpu as opposed to all hotplug capable cpus, and memory
 hotplug test is run on 2% of hotplug capable memory instead of 10%.
 
+kselftest runs as a userspace process.  Tests that can be written/run in
+userspace may wish to use the `Test Harness`_.  Tests that need to be
+run in kernel space may wish to use a `Test Module`_.
+
 Running the selftests (hotplug tests are run in limited mode)
 =============================================================
 
@@ -161,11 +165,97 @@ Contributing new tests (details)
 
    e.g: tools/testing/selftests/android/config
 
+Test Module
+===========
+
+Kselftest tests the kernel from userspace.  Sometimes things need
+testing from within the kernel, one method of doing this is to create a
+test module.  We can tie the module into the kselftest framework by
+using a shell script test runner.  ``kselftest_module.sh`` is designed
+to facilitate this process.  There is also a header file provided to
+assist writing kernel modules that are for use with kselftest:
+
+- ``tools/testing/kselftest/kselftest_module.h``
+- ``tools/testing/kselftest/kselftest_module.sh``
+
+How to use
+----------
+
+Here we show the typical steps to create a test module and tie it into
+kselftest.  We use kselftests for lib/ as an example.
+
+1. Create the test module
+
+2. Create the test script that will run (load/unload) the module
+   e.g. ``tools/testing/selftests/lib/printf.sh``
+
+3. Add line to config file e.g. ``tools/testing/selftests/lib/config``
+
+4. Add test script to makefile  e.g. ``tools/testing/selftests/lib/Makefile``
+
+5. Verify it works:
+
+.. code-block:: sh
+
+   # Assumes you have booted a fresh build of this kernel tree
+   cd /path/to/linux/tree
+   make kselftest-merge
+   make modules
+   sudo make modules_install
+   make TARGETS=lib kselftest
+
+Example Module
+--------------
+
+A bare bones test module might look like this:
+
+.. code-block:: c
+
+   // SPDX-License-Identifier: GPL-2.0+
+
+   #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+   #include "../tools/testing/selftests/kselftest_module.h"
+
+   KSTM_MODULE_GLOBALS();
+
+   /*
+    * Kernel module for testing the foobinator
+    */
+
+   static int __init test_function()
+   {
+           ...
+   }
+
+   static void __init selftest(void)
+   {
+           KSTM_CHECK_ZERO(do_test_case("", 0));
+   }
+
+   KSTM_MODULE_LOADERS(test_foo);
+   MODULE_AUTHOR("John Developer <jd@fooman.org>");
+   MODULE_LICENSE("GPL");
+
+Example test script
+-------------------
+
+.. code-block:: sh
+
+    #!/bin/bash
+    # SPDX-License-Identifier: GPL-2.0+
+    $(dirname $0)/../kselftest_module.sh "foo" test_foo
+
+
 Test Harness
 ============
 
-The kselftest_harness.h file contains useful helpers to build tests.  The tests
-from tools/testing/selftests/seccomp/seccomp_bpf.c can be used as example.
+The kselftest_harness.h file contains useful helpers to build tests.  The
+test harness is for userspace testing, for kernel space testing see `Test
+Module`_ above.
+
+The tests from tools/testing/selftests/seccomp/seccomp_bpf.c can be used as
+example.
 
 Example
 -------
