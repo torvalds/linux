@@ -708,7 +708,7 @@ int aa_pivotroot(struct aa_label *label, const struct path *old_path,
 	error = -ENOMEM;
 	if (!old_buffer || !new_buffer)
 		goto out;
-	target = fn_label_build(label, profile, GFP_ATOMIC,
+	target = fn_label_build(label, profile, GFP_KERNEL,
 			build_pivotroot(profile, new_path, new_buffer,
 					old_path, old_buffer));
 	if (!target) {

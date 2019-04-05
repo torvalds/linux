@@ -80,7 +80,7 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 	if (aad(sa)->peer) {
 		audit_log_format(ab, " target=");
 		aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
-				FLAG_VIEW_SUBNS, GFP_ATOMIC);
+				FLAG_VIEW_SUBNS, GFP_KERNEL);
 	} else if (aad(sa)->fs.target) {
 		audit_log_format(ab, " target=");
 		audit_log_untrustedstring(ab, aad(sa)->fs.target);
