@@ -1,11 +1,11 @@
 config DRM_ASPEED_GFX
 	tristate "ASPEED BMC Display Controller"
 	depends on DRM && OF
+	depends on (COMPILE_TEST || ARCH_ASPEED)
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
-	select DRM_PANEL
-	select DMA_CMA
-	select CMA
+	select DMA_CMA if HAVE_DMA_CONTIGUOUS
+	select CMA if HAVE_DMA_CONTIGUOUS
 	select MFD_SYSCON
 	help
 	  Chose this option if you have an ASPEED AST2500 SOC Display
