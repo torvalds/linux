@@ -1270,6 +1270,11 @@ static void __sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
 	}
 
 	WARN_ON(i >= SDHCI_MAX_MRQS);
+
+	sdhci_del_timer(host, mrq);
+
+	if (!sdhci_has_requests(host))
+		sdhci_led_deactivate(host);
 }
 
 static void sdhci_finish_mrq(struct sdhci_host *host, struct mmc_request *mrq)
@@ -2617,8 +2622,6 @@ static bool sdhci_request_done(struct sdhci_host *host)
 		return true;
 	}
 
-	sdhci_del_timer(host, mrq);
-
 	/*
 	 * Always unmap the data buffers if they were mapped by
 	 * sdhci_prepare_data() whenever we finish with a request.
@@ -2699,9 +2702,6 @@ static bool sdhci_request_done(struct sdhci_host *host)
 
 		host->pending_reset = false;
 	}
-
-	if (!sdhci_has_requests(host))
-		sdhci_led_deactivate(host);
 
 	host->mrqs_done[i] = NULL;
 
