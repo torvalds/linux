@@ -1627,12 +1627,6 @@ void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
 
-/* intel_crt.c */
-bool intel_crt_port_enabled(struct drm_i915_private *dev_priv,
-			    i915_reg_t adpa_reg, enum pipe *pipe);
-void intel_crt_init(struct drm_i915_private *dev_priv);
-void intel_crt_reset(struct drm_encoder *encoder);
-
 /* intel_ddi.c */
 void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
 				const struct intel_crtc_state *old_crtc_state,
