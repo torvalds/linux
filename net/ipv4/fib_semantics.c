@@ -276,7 +276,7 @@ static inline int nh_comp(const struct fib_info *fi, const struct fib_info *ofi)
 
 	for_nexthops(fi) {
 		if (nh->fib_nh_oif != onh->fib_nh_oif ||
-		    nh->fib_nh_gw4 != onh->fib_nh_gw4 ||
+		    nh->fib_nh_gw_family != onh->fib_nh_gw_family ||
 		    nh->fib_nh_scope != onh->fib_nh_scope ||
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 		    nh->fib_nh_weight != onh->fib_nh_weight ||
@@ -287,6 +287,15 @@ static inline int nh_comp(const struct fib_info *fi, const struct fib_info *ofi)
 		    lwtunnel_cmp_encap(nh->fib_nh_lws, onh->fib_nh_lws) ||
 		    ((nh->fib_nh_flags ^ onh->fib_nh_flags) & ~RTNH_COMPARE_MASK))
 			return -1;
+
+		if (nh->fib_nh_gw_family == AF_INET &&
+		    nh->fib_nh_gw4 != onh->fib_nh_gw4)
+			return -1;
+
+		if (nh->fib_nh_gw_family == AF_INET6 &&
+		    ipv6_addr_cmp(&nh->fib_nh_gw6, &onh->fib_nh_gw6))
+			return -1;
+
 		onh++;
 	} endfor_nexthops(fi);
 	return 0;
@@ -511,10 +520,12 @@ int fib_nh_init(struct net *net, struct fib_nh *nh,
 		goto init_failure;
 
 	nh->fib_nh_oif = cfg->fc_oif;
-	if (cfg->fc_gw_family == AF_INET) {
+	nh->fib_nh_gw_family = cfg->fc_gw_family;
+	if (cfg->fc_gw_family == AF_INET)
 		nh->fib_nh_gw4 = cfg->fc_gw4;
-		nh->fib_nh_gw_family = AF_INET;
-	}
+	else if (cfg->fc_gw_family == AF_INET6)
+		nh->fib_nh_gw6 = cfg->fc_gw6;
+
 	nh->fib_nh_flags = cfg->fc_flags;
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -621,9 +632,11 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 	if (cfg->fc_gw_family) {
 		if (cfg->fc_gw_family != fi->fib_nh->fib_nh_gw_family ||
 		    (cfg->fc_gw_family == AF_INET &&
-		     fi->fib_nh->fib_nh_gw4 != cfg->fc_gw4)) {
+		     fi->fib_nh->fib_nh_gw4 != cfg->fc_gw4) ||
+		    (cfg->fc_gw_family == AF_INET6 &&
+		     ipv6_addr_cmp(&fi->fib_nh->fib_nh_gw6, &cfg->fc_gw6))) {
 			NL_SET_ERR_MSG(extack,
-				       "Nexthop gateway does not match RTA_GATEWAY");
+				       "Nexthop gateway does not match RTA_GATEWAY or RTA_VIA");
 			goto errout;
 		}
 	}
@@ -743,6 +756,10 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
 
 		if (cfg->fc_gw_family == AF_INET &&
 		    cfg->fc_gw4 != fi->fib_nh->fib_nh_gw4)
+			return 1;
+
+		if (cfg->fc_gw_family == AF_INET6 &&
+		    ipv6_addr_cmp(&cfg->fc_gw6, &fi->fib_nh->fib_nh_gw6))
 			return 1;
 
 		return 0;

@@ -36,7 +36,10 @@ struct fib_config {
 	/* 2 bytes unused */
 	u32			fc_table;
 	__be32			fc_dst;
-	__be32			fc_gw4;
+	union {
+		__be32		fc_gw4;
+		struct in6_addr	fc_gw6;
+	};
 	int			fc_oif;
 	u32			fc_flags;
 	u32			fc_priority;
