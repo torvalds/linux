@@ -253,7 +253,7 @@ reserve_std_resources(void)
 
 	/* Fix up for the Jensen's queer RTC placement.  */
 	standard_io_resources[0].start = RTC_PORT(0);
-	standard_io_resources[0].end = RTC_PORT(0) + 0x10;
+	standard_io_resources[0].end = RTC_PORT(0) + 0x0f;
 
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); ++i)
 		request_resource(io, standard_io_resources+i);
