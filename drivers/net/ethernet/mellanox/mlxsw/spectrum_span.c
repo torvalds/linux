@@ -318,6 +318,9 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 	*saddrp = fl4.saddr;
 	if (rt->rt_gw_family == AF_INET)
 		*daddrp = rt->rt_gw4;
+	/* can not offload if route has an IPv6 gateway */
+	else if (rt->rt_gw_family == AF_INET6)
+		dev = NULL;
 
 out:
 	ip_rt_put(rt);
