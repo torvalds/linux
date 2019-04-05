@@ -26,7 +26,9 @@
  */
 
 #include <drm/drm_scdc_helper.h>
+
 #include "i915_drv.h"
+#include "intel_audio.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
 

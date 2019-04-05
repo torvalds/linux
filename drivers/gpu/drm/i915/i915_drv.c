@@ -48,11 +48,12 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "i915_trace.h"
 #include "i915_pmu.h"
-#include "i915_reset.h"
 #include "i915_query.h"
+#include "i915_reset.h"
+#include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_audio.h"
 #include "intel_drv.h"
 #include "intel_uc.h"
 #include "intel_workarounds.h"

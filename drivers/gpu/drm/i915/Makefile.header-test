@@ -8,6 +8,7 @@ header_test := \
 	i915_priolist_types.h \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
+	intel_audio.h \
 	intel_context_types.h \
 	intel_engine_types.h \
 	intel_frontbuffer.h \

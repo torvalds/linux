@@ -23,11 +23,13 @@
  *
  */
 
-#include "i915_drv.h"
-#include "intel_drv.h"
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
+
+#include "i915_drv.h"
+#include "intel_audio.h"
+#include "intel_drv.h"
 
 static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state,
