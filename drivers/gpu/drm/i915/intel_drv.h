@@ -2012,30 +2012,6 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 }
 #endif
 
-/* intel_fbc.c */
-void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
-			   struct intel_atomic_state *state);
-bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
-void intel_fbc_pre_update(struct intel_crtc *crtc,
-			  struct intel_crtc_state *crtc_state,
-			  struct intel_plane_state *plane_state);
-void intel_fbc_post_update(struct intel_crtc *crtc);
-void intel_fbc_init(struct drm_i915_private *dev_priv);
-void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv);
-void intel_fbc_enable(struct intel_crtc *crtc,
-		      struct intel_crtc_state *crtc_state,
-		      struct intel_plane_state *plane_state);
-void intel_fbc_disable(struct intel_crtc *crtc);
-void intel_fbc_global_disable(struct drm_i915_private *dev_priv);
-void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
-			  unsigned int frontbuffer_bits,
-			  enum fb_op_origin origin);
-void intel_fbc_flush(struct drm_i915_private *dev_priv,
-		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
-void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
-void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv);
-int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv);
-
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_i915_private *dev_priv, i915_reg_t hdmi_reg,
 		     enum port port);

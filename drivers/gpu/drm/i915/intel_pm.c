@@ -35,6 +35,7 @@
 
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "intel_fbc.h"
 #include "../../../platform/x86/intel_ips.h"
 
 /**

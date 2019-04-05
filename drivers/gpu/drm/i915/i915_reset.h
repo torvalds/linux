@@ -14,6 +14,7 @@
 #include "intel_engine_types.h"
 
 struct drm_i915_private;
+struct i915_request;
 struct intel_engine_cs;
 struct intel_guc;
 

@@ -61,9 +61,10 @@
  */
 
 
-#include "intel_drv.h"
-#include "intel_frontbuffer.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
+#include "intel_fbc.h"
+#include "intel_frontbuffer.h"
 
 void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 			       enum fb_op_origin origin,
