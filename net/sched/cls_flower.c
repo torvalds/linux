@@ -1459,6 +1459,28 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 	return 0;
 }
 
+static int fl_ht_insert_unique(struct cls_fl_filter *fnew,
+			       struct cls_fl_filter *fold,
+			       bool *in_ht)
+{
+	struct fl_flow_mask *mask = fnew->mask;
+	int err;
+
+	err = rhashtable_insert_fast(&mask->ht,
+				     &fnew->ht_node,
+				     mask->filter_ht_params);
+	if (err) {
+		*in_ht = false;
+		/* It is okay if filter with same key exists when
+		 * overwriting.
+		 */
+		return fold && err == -EEXIST ? 0 : err;
+	}
+
+	*in_ht = true;
+	return 0;
+}
+
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
@@ -1470,6 +1492,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	struct cls_fl_filter *fnew;
 	struct fl_flow_mask *mask;
 	struct nlattr **tb;
+	bool in_ht;
 	int err;
 
 	if (!tca[TCA_OPTIONS]) {
@@ -1528,10 +1551,14 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (err)
 		goto errout;
 
+	err = fl_ht_insert_unique(fnew, fold, &in_ht);
+	if (err)
+		goto errout_mask;
+
 	if (!tc_skip_hw(fnew->flags)) {
 		err = fl_hw_replace_filter(tp, fnew, rtnl_held, extack);
 		if (err)
-			goto errout_mask;
+			goto errout_ht;
 	}
 
 	if (!tc_in_hw(fnew->flags))
@@ -1557,10 +1584,17 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 		fnew->handle = handle;
 
-		err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
-					     fnew->mask->filter_ht_params);
-		if (err)
-			goto errout_hw;
+		if (!in_ht) {
+			struct rhashtable_params params =
+				fnew->mask->filter_ht_params;
+
+			err = rhashtable_insert_fast(&fnew->mask->ht,
+						     &fnew->ht_node,
+						     params);
+			if (err)
+				goto errout_hw;
+			in_ht = true;
+		}
 
 		rhashtable_remove_fast(&fold->mask->ht,
 				       &fold->ht_node,
@@ -1582,11 +1616,6 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		refcount_dec(&fold->refcnt);
 		__fl_put(fold);
 	} else {
-		if (__fl_lookup(fnew->mask, &fnew->mkey)) {
-			err = -EEXIST;
-			goto errout_hw;
-		}
-
 		if (handle) {
 			/* user specifies a handle and it doesn't exist */
 			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
@@ -1609,12 +1638,6 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			goto errout_hw;
 
 		fnew->handle = handle;
-
-		err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
-					     fnew->mask->filter_ht_params);
-		if (err)
-			goto errout_idr;
-
 		list_add_tail_rcu(&fnew->list, &fnew->mask->filters);
 		spin_unlock(&tp->lock);
 	}
@@ -1625,17 +1648,18 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	kfree(mask);
 	return 0;
 
-errout_idr:
-	idr_remove(&head->handle_idr, fnew->handle);
 errout_hw:
 	spin_unlock(&tp->lock);
 	if (!tc_skip_hw(fnew->flags))
 		fl_hw_destroy_filter(tp, fnew, rtnl_held, NULL);
+errout_ht:
+	if (in_ht)
+		rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_node,
+				       fnew->mask->filter_ht_params);
 errout_mask:
 	fl_mask_put(head, fnew->mask, true);
 errout:
-	tcf_exts_destroy(&fnew->exts);
-	kfree(fnew);
+	tcf_queue_work(&fnew->rwork, fl_destroy_filter_work);
 errout_tb:
 	kfree(tb);
 errout_mask_alloc:
