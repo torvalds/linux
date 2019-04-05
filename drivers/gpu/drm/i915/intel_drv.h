@@ -1881,13 +1881,6 @@ void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
 bool intel_encoder_hotplug(struct intel_encoder *encoder,
 			   struct intel_connector *connector);
 
-/* intel_lvds.c */
-bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
-			     i915_reg_t lvds_reg, enum pipe *pipe);
-void intel_lvds_init(struct drm_i915_private *dev_priv);
-struct intel_encoder *intel_get_lvds_encoder(struct drm_i915_private *dev_priv);
-bool intel_is_dual_link_lvds(struct drm_i915_private *dev_priv);
-
 /* intel_overlay.c */
 void intel_overlay_setup(struct drm_i915_private *dev_priv);
 void intel_overlay_cleanup(struct drm_i915_private *dev_priv);
