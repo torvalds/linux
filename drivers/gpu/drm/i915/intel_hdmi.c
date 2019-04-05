@@ -47,6 +47,7 @@
 #include "intel_hdcp.h"
 #include "intel_lspcon.h"
 #include "intel_sdvo.h"
+#include "intel_panel.h"
 
 static struct drm_device *intel_hdmi_to_dev(struct intel_hdmi *intel_hdmi)
 {

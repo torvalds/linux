@@ -48,6 +48,7 @@
 #include "intel_drv.h"
 #include "intel_hdcp.h"
 #include "intel_lspcon.h"
+#include "intel_panel.h"
 #include "intel_psr.h"
 
 #define DP_DPRX_ESI_LEN 14

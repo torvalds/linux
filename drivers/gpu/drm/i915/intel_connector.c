@@ -33,6 +33,7 @@
 #include "intel_connector.h"
 #include "intel_drv.h"
 #include "intel_hdcp.h"
+#include "intel_panel.h"
 
 int intel_connector_init(struct intel_connector *connector)
 {

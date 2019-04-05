@@ -35,6 +35,7 @@
 #include "intel_dsi.h"
 #include "intel_hdcp.h"
 #include "intel_lspcon.h"
+#include "intel_panel.h"
 #include "intel_psr.h"
 
 struct ddi_buf_trans {

@@ -20,6 +20,7 @@ header_test := \
 	intel_frontbuffer.h \
 	intel_hdcp.h \
 	intel_lspcon.h \
+	intel_panel.h \
 	intel_psr.h \
 	intel_sdvo.h \
 	intel_workarounds_types.h

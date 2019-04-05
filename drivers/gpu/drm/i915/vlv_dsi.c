@@ -36,6 +36,7 @@
 #include "intel_connector.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
+#include "intel_panel.h"
 
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,

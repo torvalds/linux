@@ -42,6 +42,7 @@
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_panel.h"
 
 /* Private structure for the integrated LVDS support */
 struct intel_lvds_pps {
