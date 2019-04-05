@@ -4822,6 +4822,8 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 			   yesno(crtc_state->dsc_params.compression_enable));
 		seq_printf(m, "DSC_Sink_Support: %s\n",
 			   yesno(drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd)));
+		seq_printf(m, "Force_DSC_Enable: %s\n",
+			   yesno(intel_dp->force_dsc_en));
 		if (!intel_dp_is_edp(intel_dp))
 			seq_printf(m, "FEC_Sink_Support: %s\n",
 				   yesno(drm_dp_sink_supports_fec(intel_dp->fec_capable)));
