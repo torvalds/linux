@@ -5358,22 +5358,36 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 			       struct net_device *netdev)
 {
+	const struct net_device_ops *ops = netdev->netdev_ops;
+
 	/* If driver registers devlink port, it should set devlink port
 	 * attributes accordingly so the compat functions are called
 	 * and the original ops are not used.
 	 */
-	if (netdev->netdev_ops->ndo_get_phys_port_name) {
+	if (ops->ndo_get_phys_port_name) {
 		/* Some drivers use the same set of ndos for netdevs
 		 * that have devlink_port registered and also for
 		 * those who don't. Make sure that ndo_get_phys_port_name
 		 * returns -EOPNOTSUPP here in case it is defined.
 		 * Warn if not.
 		 */
-		const struct net_device_ops *ops = netdev->netdev_ops;
 		char name[IFNAMSIZ];
 		int err;
 
 		err = ops->ndo_get_phys_port_name(netdev, name, sizeof(name));
+		WARN_ON(err != -EOPNOTSUPP);
+	}
+	if (ops->ndo_get_port_parent_id) {
+		/* Some drivers use the same set of ndos for netdevs
+		 * that have devlink_port registered and also for
+		 * those who don't. Make sure that ndo_get_port_parent_id
+		 * returns -EOPNOTSUPP here in case it is defined.
+		 * Warn if not.
+		 */
+		struct netdev_phys_item_id ppid;
+		int err;
+
+		err = ops->ndo_get_port_parent_id(netdev, &ppid);
 		WARN_ON(err != -EOPNOTSUPP);
 	}
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, netdev);
@@ -5414,11 +5428,16 @@ EXPORT_SYMBOL_GPL(devlink_port_type_clear);
  *	@split: indicates if this is split port
  *	@split_subport_number: if the port is split, this is the number
  *	                       of subport.
+ *	@switch_id: if the port is part of switch, this is buffer with ID,
+ *	            otwerwise this is NULL
+ *	@switch_id_len: length of the switch_id buffer
  */
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
-			    u32 split_subport_number)
+			    u32 split_subport_number,
+			    const unsigned char *switch_id,
+			    unsigned char switch_id_len)
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 
@@ -5429,6 +5448,15 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 	attrs->port_number = port_number;
 	attrs->split = split;
 	attrs->split_subport_number = split_subport_number;
+	if (switch_id) {
+		attrs->switch_port = true;
+		if (WARN_ON(switch_id_len > MAX_PHYS_ITEM_ID_LEN))
+			switch_id_len = MAX_PHYS_ITEM_ID_LEN;
+		memcpy(attrs->switch_id.id, switch_id, switch_id_len);
+		attrs->switch_id.id_len = switch_id_len;
+	} else {
+		attrs->switch_port = false;
+	}
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
 
@@ -6492,6 +6520,25 @@ int devlink_compat_phys_port_name_get(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	return __devlink_port_phys_port_name_get(devlink_port, name, len);
+}
+
+int devlink_compat_switch_id_get(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid)
+{
+	struct devlink_port *devlink_port;
+
+	/* RTNL mutex is held here which ensures that devlink_port
+	 * instance cannot disappear in the middle. No need to take
+	 * any devlink lock as only permanent values are accessed.
+	 */
+	ASSERT_RTNL();
+	devlink_port = netdev_to_devlink_port(dev);
+	if (!devlink_port || !devlink_port->attrs.switch_port)
+		return -EOPNOTSUPP;
+
+	memcpy(ppid, &devlink_port->attrs.switch_id, sizeof(*ppid));
+
+	return 0;
 }
 
 static int __init devlink_init(void)

@@ -272,7 +272,6 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_fix_features	= nfp_repr_fix_features,
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
-	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
 	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 

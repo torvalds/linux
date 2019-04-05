@@ -260,6 +260,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 {
 	enum devlink_port_flavour flavour;
 	struct dsa_switch *ds = dp->ds;
+	struct dsa_switch_tree *dst = ds->dst;
 	int err;
 
 	if (dp->type == DSA_PORT_TYPE_UNUSED)
@@ -286,7 +287,8 @@ static int dsa_port_setup(struct dsa_port *dp)
 	 * independent from front panel port numbers.
 	 */
 	devlink_port_attrs_set(&dp->devlink_port, flavour,
-			       dp->index, false, 0);
+			       dp->index, false, 0,
+			       (const char *) &dst->index, sizeof(dst->index));
 	err = devlink_port_register(ds->devlink, &dp->devlink_port,
 				    dp->index);
 	if (err)

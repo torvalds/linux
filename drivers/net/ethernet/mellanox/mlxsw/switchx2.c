@@ -379,18 +379,6 @@ mlxsw_sx_port_get_stats64(struct net_device *dev,
 	stats->tx_dropped	= tx_dropped;
 }
 
-static int mlxsw_sx_port_get_port_parent_id(struct net_device *dev,
-					    struct netdev_phys_item_id *ppid)
-{
-	struct mlxsw_sx_port *mlxsw_sx_port = netdev_priv(dev);
-	struct mlxsw_sx *mlxsw_sx = mlxsw_sx_port->mlxsw_sx;
-
-	ppid->id_len = sizeof(mlxsw_sx->hw_id);
-	memcpy(&ppid->id, &mlxsw_sx->hw_id, ppid->id_len);
-
-	return 0;
-}
-
 static struct devlink_port *
 mlxsw_sx_port_get_devlink_port(struct net_device *dev)
 {
@@ -407,7 +395,6 @@ static const struct net_device_ops mlxsw_sx_port_netdev_ops = {
 	.ndo_start_xmit		= mlxsw_sx_port_xmit,
 	.ndo_change_mtu		= mlxsw_sx_port_change_mtu,
 	.ndo_get_stats64	= mlxsw_sx_port_get_stats64,
-	.ndo_get_port_parent_id	= mlxsw_sx_port_get_port_parent_id,
 	.ndo_get_devlink_port	= mlxsw_sx_port_get_devlink_port,
 };
 
@@ -1128,7 +1115,8 @@ static int mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 	int err;
 
 	err = mlxsw_core_port_init(mlxsw_sx->core, local_port,
-				   module + 1, false, 0);
+				   module + 1, false, 0,
+				   mlxsw_sx->hw_id, sizeof(mlxsw_sx->hw_id));
 	if (err) {
 		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to init core port\n",
 			local_port);

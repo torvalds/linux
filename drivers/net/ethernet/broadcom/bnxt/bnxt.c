@@ -10104,7 +10104,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_bpf		= bnxt_xdp,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
-	.ndo_get_port_parent_id	= bnxt_get_port_parent_id,
 	.ndo_get_devlink_port	= bnxt_get_devlink_port,
 };
 
@@ -10429,6 +10428,26 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	return rc;
 }
 
+static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
+{
+	struct pci_dev *pdev = bp->pdev;
+	int pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DSN);
+	u32 dw;
+
+	if (!pos) {
+		netdev_info(bp->dev, "Unable do read adapter's DSN");
+		return -EOPNOTSUPP;
+	}
+
+	/* DSN (two dw) is at an offset of 4 from the cap pos */
+	pos += 4;
+	pci_read_config_dword(pdev, pos, &dw);
+	put_unaligned_le32(dw, &dsn[0]);
+	pci_read_config_dword(pdev, pos + 4, &dw);
+	put_unaligned_le32(dw, &dsn[4]);
+	return 0;
+}
+
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
@@ -10568,6 +10587,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -EADDRNOTAVAIL;
 		goto init_err_pci_clean;
 	}
+
+	/* Read the adapter's DSN to use as the eswitch switch_id */
+	rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
+	if (rc)
+		goto init_err_pci_clean;
 
 	bnxt_hwrm_func_qcfg(bp);
 	bnxt_hwrm_vnic_qcaps(bp);

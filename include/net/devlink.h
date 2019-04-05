@@ -41,11 +41,13 @@ struct devlink {
 };
 
 struct devlink_port_attrs {
-	bool set;
+	u8 set:1,
+	   split:1,
+	   switch_port:1;
 	enum devlink_port_flavour flavour;
 	u32 port_number; /* same value as "split group" */
-	bool split;
 	u32 split_subport_number;
+	struct netdev_phys_item_id switch_id;
 };
 
 struct devlink_port {
@@ -582,7 +584,9 @@ void devlink_port_type_clear(struct devlink_port *devlink_port);
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
-			    u32 split_subport_number);
+			    u32 split_subport_number,
+			    const unsigned char *switch_id,
+			    unsigned char switch_id_len);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
@@ -739,6 +743,8 @@ void devlink_compat_running_version(struct net_device *dev,
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
 int devlink_compat_phys_port_name_get(struct net_device *dev,
 				      char *name, size_t len);
+int devlink_compat_switch_id_get(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid);
 
 #else
 
@@ -756,6 +762,13 @@ devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 static inline int
 devlink_compat_phys_port_name_get(struct net_device *dev,
 				  char *name, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_compat_switch_id_get(struct net_device *dev,
+			     struct netdev_phys_item_id *ppid)
 {
 	return -EOPNOTSUPP;
 }
