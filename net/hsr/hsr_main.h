@@ -84,9 +84,8 @@ static inline void set_hsr_tag_path(struct hsr_tag *ht, u16 path)
 
 static inline void set_hsr_tag_LSDU_size(struct hsr_tag *ht, u16 LSDU_size)
 {
-	ht->path_and_LSDU_size = htons(
-			(ntohs(ht->path_and_LSDU_size) & 0xF000) |
-			(LSDU_size & 0x0FFF));
+	ht->path_and_LSDU_size = htons((ntohs(ht->path_and_LSDU_size) &
+				       0xF000) | (LSDU_size & 0x0FFF));
 }
 
 struct hsr_ethhdr {

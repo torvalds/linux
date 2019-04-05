@@ -254,10 +254,9 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 
 	hlen = LL_RESERVED_SPACE(master->dev);
 	tlen = master->dev->needed_tailroom;
-	skb = dev_alloc_skb(
-			sizeof(struct hsr_tag) +
-			sizeof(struct hsr_sup_tag) +
-			sizeof(struct hsr_sup_payload) + hlen + tlen);
+	skb = dev_alloc_skb(sizeof(struct hsr_tag) +
+			    sizeof(struct hsr_sup_tag) +
+			    sizeof(struct hsr_sup_payload) + hlen + tlen);
 
 	if (skb == NULL)
 		return;
