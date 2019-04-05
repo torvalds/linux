@@ -210,6 +210,66 @@ void drm_fb_xrgb8888_to_rgb565_dstclip(void *dst, unsigned int dst_pitch,
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565_dstclip);
 
+static void drm_fb_xrgb8888_to_rgb888_lines(void *dst, unsigned int dst_pitch,
+					    void *src, unsigned int src_pitch,
+					    unsigned int src_linelength,
+					    unsigned int lines)
+{
+	unsigned int linepixels = src_linelength / 3;
+	unsigned int x, y;
+	u32 *sbuf;
+	u8 *dbuf;
+
+	sbuf = kmalloc(src_linelength, GFP_KERNEL);
+	if (!sbuf)
+		return;
+
+	for (y = 0; y < lines; y++) {
+		memcpy(sbuf, src, src_linelength);
+		dbuf = dst;
+		for (x = 0; x < linepixels; x++) {
+			*dbuf++ = (sbuf[x] & 0x000000FF) >>  0;
+			*dbuf++ = (sbuf[x] & 0x0000FF00) >>  8;
+			*dbuf++ = (sbuf[x] & 0x00FF0000) >> 16;
+		}
+		src += src_pitch;
+		dst += dst_pitch;
+	}
+
+	kfree(sbuf);
+}
+
+/**
+ * drm_fb_xrgb8888_to_rgb888_dstclip - Convert XRGB8888 to RGB888 clip buffer
+ * @dst: RGB565 destination buffer
+ * @dst_pitch: destination buffer pitch
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ * @dstclip: Clip destination too.
+ *
+ * Drivers can use this function for RGB888 devices that don't natively
+ * support XRGB8888.
+ *
+ * This function applies clipping on dst, i.e. the destination is a
+ * full framebuffer but only the clip rect content is copied over.
+ */
+void drm_fb_xrgb8888_to_rgb888_dstclip(void *dst, unsigned int dst_pitch,
+				       void *vaddr, struct drm_framebuffer *fb,
+				       struct drm_rect *clip)
+{
+	unsigned int src_offset = (clip->y1 * fb->pitches[0])
+		+ (clip->x1 * sizeof(u32));
+	unsigned int dst_offset = (clip->y1 * dst_pitch)
+		+ (clip->x1 * 3);
+	size_t src_len = (clip->x2 - clip->x1) * sizeof(u32);
+
+	drm_fb_xrgb8888_to_rgb888_lines(dst + dst_offset, dst_pitch,
+					vaddr + src_offset, fb->pitches[0],
+					src_len, clip->y2 - clip->y1);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_dstclip);
+
 /**
  * drm_fb_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
  * @dst: 8-bit grayscale destination buffer
