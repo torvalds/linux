@@ -49,6 +49,7 @@ static bool seq_nr_after(u16 a, u16 b)
 
 	return (((s16)(b - a)) < 0);
 }
+
 #define seq_nr_before(a, b)		seq_nr_after((b), (a))
 #define seq_nr_after_or_eq(a, b)	(!seq_nr_before((a), (b)))
 #define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
