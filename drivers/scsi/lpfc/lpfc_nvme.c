@@ -2126,6 +2126,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	return ret;
 }
 
+#if (IS_ENABLED(CONFIG_NVME_FC))
 /* lpfc_nvme_lport_unreg_wait - Wait for the host to complete an lport unreg.
  *
  * The driver has to wait for the host nvme transport to callback
@@ -2141,7 +2142,6 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			   struct lpfc_nvme_lport *lport,
 			   struct completion *lport_unreg_cmp)
 {
-#if (IS_ENABLED(CONFIG_NVME_FC))
 	u32 wait_tmo;
 	int ret;
 
@@ -2164,8 +2164,8 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 			 "6177 Lport %p Localport %p Complete Success\n",
 			 lport, vport->localport);
-#endif
 }
+#endif
 
 /**
  * lpfc_nvme_destroy_localport - Destroy lpfc_nvme bound to nvme transport.
