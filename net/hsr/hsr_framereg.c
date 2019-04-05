@@ -187,8 +187,8 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 
 	/* Everyone may create a node entry, connected node to a HSR device. */
 
-	if (ethhdr->h_proto == htons(ETH_P_PRP)
-			|| ethhdr->h_proto == htons(ETH_P_HSR)) {
+	if (ethhdr->h_proto == htons(ETH_P_PRP) ||
+	    ethhdr->h_proto == htons(ETH_P_HSR)) {
 		/* Use the existing sequence_nr from the tag as starting point
 		 * for filtering duplicate frames.
 		 */

@@ -61,8 +61,8 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 		return false;
 
 	/* Correct ether type?. */
-	if (!(ethHdr->h_proto == htons(ETH_P_PRP)
-			|| ethHdr->h_proto == htons(ETH_P_HSR)))
+	if (!(ethHdr->h_proto == htons(ETH_P_PRP) ||
+	      ethHdr->h_proto == htons(ETH_P_HSR)))
 		return false;
 
 	/* Get the supervision header from correct location. */
@@ -327,8 +327,8 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 		/* FIXME: */
 		WARN_ONCE(1, "HSR: VLAN not yet supported");
 	}
-	if (ethhdr->h_proto == htons(ETH_P_PRP)
-			|| ethhdr->h_proto == htons(ETH_P_HSR)) {
+	if (ethhdr->h_proto == htons(ETH_P_PRP) ||
+	    ethhdr->h_proto == htons(ETH_P_HSR)) {
 		frame->skb_std = NULL;
 		frame->skb_hsr = skb;
 		frame->sequence_nr = hsr_get_skb_sequence_nr(skb);
