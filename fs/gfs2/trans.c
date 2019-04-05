@@ -260,7 +260,7 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 	unsigned int n = len;
 
 	gfs2_log_lock(sdp);
-	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_le_revoke, bd_list) {
+	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_revokes, bd_list) {
 		if ((bd->bd_blkno >= blkno) && (bd->bd_blkno < (blkno + len))) {
 			list_del_init(&bd->bd_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);

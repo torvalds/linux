@@ -809,8 +809,8 @@ struct gfs2_sbd {
 	atomic_t sd_log_pinned;
 	unsigned int sd_log_num_revoke;
 
-	struct list_head sd_log_le_revoke;
-	struct list_head sd_log_le_ordered;
+	struct list_head sd_log_revokes;
+	struct list_head sd_log_ordered;
 	spinlock_t sd_ordered_lock;
 
 	atomic_t sd_log_thresh1;

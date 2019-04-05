@@ -117,8 +117,8 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	spin_lock_init(&sdp->sd_log_lock);
 	atomic_set(&sdp->sd_log_pinned, 0);
-	INIT_LIST_HEAD(&sdp->sd_log_le_revoke);
-	INIT_LIST_HEAD(&sdp->sd_log_le_ordered);
+	INIT_LIST_HEAD(&sdp->sd_log_revokes);
+	INIT_LIST_HEAD(&sdp->sd_log_ordered);
 	spin_lock_init(&sdp->sd_ordered_lock);
 
 	init_waitqueue_head(&sdp->sd_log_waitq);
