@@ -1696,7 +1696,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (platform_info->enable_dma) {
 		status = pxa2xx_spi_dma_setup(drv_data);
 		if (status) {
-			dev_dbg(dev, "no DMA channels available, using PIO\n");
+			dev_warn(dev, "no DMA channels available, using PIO\n");
 			platform_info->enable_dma = false;
 		} else {
 			controller->can_dma = pxa2xx_spi_can_dma;
