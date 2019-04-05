@@ -1,0 +1,180 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (C) 2016 Noralf Trønnes
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#include <linux/module.h>
+#include <linux/slab.h>
+
+#include <drm/drm_format_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_rect.h>
+
+/**
+ * drm_fb_memcpy - Copy clip buffer
+ * @dst: Destination buffer
+ * @vaddr: Source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ */
+void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
+		   struct drm_rect *clip)
+{
+	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
+	unsigned int pitch = fb->pitches[0];
+	void *src = vaddr + (clip->y1 * pitch) + (clip->x1 * cpp);
+	size_t len = (clip->x2 - clip->x1) * cpp;
+	unsigned int y;
+
+	for (y = clip->y1; y < clip->y2; y++) {
+		memcpy(dst, src, len);
+		src += pitch;
+		dst += len;
+	}
+}
+EXPORT_SYMBOL(drm_fb_memcpy);
+
+/**
+ * drm_fb_swab16 - Swap bytes into clip buffer
+ * @dst: RGB565 destination buffer
+ * @vaddr: RGB565 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ */
+void drm_fb_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
+		   struct drm_rect *clip)
+{
+	size_t len = (clip->x2 - clip->x1) * sizeof(u16);
+	unsigned int x, y;
+	u16 *src, *buf;
+
+	/*
+	 * The cma memory is write-combined so reads are uncached.
+	 * Speed up by fetching one line at a time.
+	 */
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	for (y = clip->y1; y < clip->y2; y++) {
+		src = vaddr + (y * fb->pitches[0]);
+		src += clip->x1;
+		memcpy(buf, src, len);
+		src = buf;
+		for (x = clip->x1; x < clip->x2; x++)
+			*dst++ = swab16(*src++);
+	}
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(drm_fb_swab16);
+
+/**
+ * drm_fb_xrgb8888_to_rgb565 - Convert XRGB8888 to RGB565 clip buffer
+ * @dst: RGB565 destination buffer
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ * @swap: Swap bytes
+ *
+ * Drivers can use this function for RGB565 devices that don't natively
+ * support XRGB8888.
+ */
+void drm_fb_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
+			       struct drm_framebuffer *fb,
+			       struct drm_rect *clip, bool swap)
+{
+	size_t len = (clip->x2 - clip->x1) * sizeof(u32);
+	unsigned int x, y;
+	u32 *src, *buf;
+	u16 val16;
+
+	/*
+	 * The cma memory is write-combined so reads are uncached.
+	 * Speed up by fetching one line at a time.
+	 */
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	for (y = clip->y1; y < clip->y2; y++) {
+		src = vaddr + (y * fb->pitches[0]);
+		src += clip->x1;
+		memcpy(buf, src, len);
+		src = buf;
+		for (x = clip->x1; x < clip->x2; x++) {
+			val16 = ((*src & 0x00F80000) >> 8) |
+				((*src & 0x0000FC00) >> 5) |
+				((*src & 0x000000F8) >> 3);
+			src++;
+			if (swap)
+				*dst++ = swab16(val16);
+			else
+				*dst++ = val16;
+		}
+	}
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
+
+/**
+ * drm_fb_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
+ * @dst: 8-bit grayscale destination buffer
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * Drm doesn't have native monochrome or grayscale support.
+ * Such drivers can announce the commonly supported XR24 format to userspace
+ * and use this function to convert to the native format.
+ *
+ * Monochrome drivers will use the most significant bit,
+ * where 1 means foreground color and 0 background color.
+ *
+ * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
+ */
+void drm_fb_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
+			       struct drm_rect *clip)
+{
+	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
+	unsigned int x, y;
+	void *buf;
+	u32 *src;
+
+	if (WARN_ON(fb->format->format != DRM_FORMAT_XRGB8888))
+		return;
+	/*
+	 * The cma memory is write-combined so reads are uncached.
+	 * Speed up by fetching one line at a time.
+	 */
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	for (y = clip->y1; y < clip->y2; y++) {
+		src = vaddr + (y * fb->pitches[0]);
+		src += clip->x1;
+		memcpy(buf, src, len);
+		src = buf;
+		for (x = clip->x1; x < clip->x2; x++) {
+			u8 r = (*src & 0x00ff0000) >> 16;
+			u8 g = (*src & 0x0000ff00) >> 8;
+			u8 b =  *src & 0x000000ff;
+
+			/* ITU BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
+			*dst++ = (3 * r + 6 * g + b) / 10;
+			src++;
+		}
+	}
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_gray8);
+
