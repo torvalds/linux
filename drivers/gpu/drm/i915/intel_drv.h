@@ -2419,27 +2419,6 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					const struct intel_plane_state *old_plane_state,
 					struct intel_plane_state *intel_state);
 
-/* intel_lspcon.c */
-bool lspcon_init(struct intel_digital_port *intel_dig_port);
-void lspcon_resume(struct intel_lspcon *lspcon);
-void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
-void lspcon_write_infoframe(struct intel_encoder *encoder,
-			    const struct intel_crtc_state *crtc_state,
-			    unsigned int type,
-			    const void *buf, ssize_t len);
-void lspcon_read_infoframe(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *crtc_state,
-			   unsigned int type,
-			   void *frame, ssize_t len);
-void lspcon_set_infoframes(struct intel_encoder *encoder,
-			   bool enable,
-			   const struct intel_crtc_state *crtc_state,
-			   const struct drm_connector_state *conn_state);
-u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *pipe_config);
-void lspcon_ycbcr420_config(struct drm_connector *connector,
-			    struct intel_crtc_state *crtc_state);
-
 /* intel_pipe_crc.c */
 #ifdef CONFIG_DEBUG_FS
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name);

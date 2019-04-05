@@ -46,6 +46,7 @@
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_drv.h"
+#include "intel_lspcon.h"
 #include "intel_psr.h"
 
 #define DP_DPRX_ESI_LEN 14

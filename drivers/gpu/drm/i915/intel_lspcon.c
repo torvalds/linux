@@ -22,10 +22,13 @@
  *
  *
  */
-#include <drm/drm_edid.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_dual_mode_helper.h>
+#include <drm/drm_edid.h>
+
 #include "intel_drv.h"
+#include "intel_lspcon.h"
 
 /* LSPCON OUI Vendor ID(signatures) */
 #define LSPCON_VENDOR_PARADE_OUI 0x001CF8
