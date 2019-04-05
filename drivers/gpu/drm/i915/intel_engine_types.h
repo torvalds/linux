@@ -247,6 +247,11 @@ struct intel_engine_execlists {
 	u32 preempt_complete_status;
 
 	/**
+	 * @csb_size: context status buffer FIFO size
+	 */
+	u8 csb_size;
+
+	/**
 	 * @csb_head: context status buffer head
 	 */
 	u8 csb_head;

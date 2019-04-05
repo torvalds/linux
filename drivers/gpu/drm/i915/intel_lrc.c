@@ -895,7 +895,7 @@ invalidate_csb_entries(const u32 *first, const u32 *last)
 
 static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 {
-	const unsigned int reset_value = GEN8_CSB_ENTRIES - 1;
+	const unsigned int reset_value = execlists->csb_size - 1;
 
 	/*
 	 * After a reset, the HW starts writing into CSB entry [0]. We
@@ -994,6 +994,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
 	const u32 * const buf = execlists->csb_status;
+	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
 	lockdep_assert_held(&engine->timeline.lock);
@@ -1029,7 +1030,7 @@ static void process_csb(struct intel_engine_cs *engine)
 		unsigned int status;
 		unsigned int count;
 
-		if (++head == GEN8_CSB_ENTRIES)
+		if (++head == num_entries)
 			head = 0;
 
 		/*
@@ -2475,6 +2476,8 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
+
+	execlists->csb_size = GEN8_CSB_ENTRIES;
 
 	reset_csb_pointers(execlists);
 
