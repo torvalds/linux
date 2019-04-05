@@ -1041,7 +1041,7 @@
 
 		blsp2_i2c5: i2c@c1ba000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
-			reg = <0x0c175000 0x600>;
+			reg = <0x0c1ba000 0x600>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_BLSP2_QUP6_I2C_APPS_CLK>,
