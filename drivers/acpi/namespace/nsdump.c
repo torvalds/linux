@@ -612,6 +612,7 @@ acpi_ns_dump_objects (
 			 ACPI_NS_WALK_NO_UNLOCK, acpi_ns_dump_one_object,
 			 (void *) &info, NULL);
 }
+#endif	/* ACPI_FUTURE_USAGE */
 
 
 /*******************************************************************************
@@ -694,5 +695,4 @@ acpi_ns_dump_tables (
 	return_VOID;
 }
 #endif	/* _ACPI_ASL_COMPILER */
-#endif  /* ACPI_FUTURE_USAGE */
 #endif	/* defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER) */
