@@ -4328,8 +4328,6 @@ static const struct usb_ep_ops dwc2_hsotg_ep_ops = {
  */
 static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 {
-	u32 trdtim;
-	u32 usbcfg;
 	/* unmask subset of endpoint interrupts */
 
 	dwc2_writel(hsotg, DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |
@@ -4352,17 +4350,6 @@ static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 		dwc2_readl(hsotg, GNPTXFSIZ));
 
 	dwc2_hsotg_init_fifo(hsotg);
-
-	/* keep other bits untouched (so e.g. forced modes are not lost) */
-	usbcfg = dwc2_readl(hsotg, GUSBCFG);
-	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
-		GUSBCFG_HNPCAP | GUSBCFG_USBTRDTIM_MASK);
-
-	/* set the PLL on, remove the HNP/SRP and set the PHY */
-	trdtim = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
-	usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-		(trdtim << GUSBCFG_USBTRDTIM_SHIFT);
-	dwc2_writel(hsotg, usbcfg, GUSBCFG);
 
 	if (using_dma(hsotg))
 		dwc2_set_bit(hsotg, GAHBCFG, GAHBCFG_DMA_EN);
