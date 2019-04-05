@@ -70,13 +70,11 @@ struct smbd_connection {
 	int ri_rc;
 	struct completion ri_done;
 	wait_queue_head_t conn_wait;
-	wait_queue_head_t wait_destroy;
 	wait_queue_head_t disconn_wait;
 
 	struct completion negotiate_completion;
 	bool negotiate_done;
 
-	struct work_struct destroy_work;
 	struct work_struct disconnect_work;
 	struct work_struct recv_done_work;
 	struct work_struct post_send_credits_work;
@@ -124,13 +122,6 @@ struct smbd_connection {
 	wait_queue_head_t wait_for_mr_cleanup;
 
 	/* Activity accoutning */
-	/* Pending reqeusts issued from upper layer */
-	int smbd_send_pending;
-	wait_queue_head_t wait_smbd_send_pending;
-
-	int smbd_recv_pending;
-	wait_queue_head_t wait_smbd_recv_pending;
-
 	atomic_t send_pending;
 	wait_queue_head_t wait_send_pending;
 	atomic_t send_payload_pending;
