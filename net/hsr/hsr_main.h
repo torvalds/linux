@@ -109,22 +109,22 @@ struct hsr_sup_payload {
 
 static inline u16 get_hsr_stag_path(struct hsr_sup_tag *hst)
 {
-	return get_hsr_tag_path((struct hsr_tag *) hst);
+	return get_hsr_tag_path((struct hsr_tag *)hst);
 }
 
 static inline u16 get_hsr_stag_HSR_ver(struct hsr_sup_tag *hst)
 {
-	return get_hsr_tag_LSDU_size((struct hsr_tag *) hst);
+	return get_hsr_tag_LSDU_size((struct hsr_tag *)hst);
 }
 
 static inline void set_hsr_stag_path(struct hsr_sup_tag *hst, u16 path)
 {
-	set_hsr_tag_path((struct hsr_tag *) hst, path);
+	set_hsr_tag_path((struct hsr_tag *)hst, path);
 }
 
 static inline void set_hsr_stag_HSR_Ver(struct hsr_sup_tag *hst, u16 HSR_Ver)
 {
-	set_hsr_tag_LSDU_size((struct hsr_tag *) hst, HSR_Ver);
+	set_hsr_tag_LSDU_size((struct hsr_tag *)hst, HSR_Ver);
 }
 
 struct hsrv0_ethhdr_sp {
@@ -179,7 +179,7 @@ static inline u16 hsr_get_skb_sequence_nr(struct sk_buff *skb)
 {
 	struct hsr_ethhdr *hsr_ethhdr;
 
-	hsr_ethhdr = (struct hsr_ethhdr *) skb_mac_header(skb);
+	hsr_ethhdr = (struct hsr_ethhdr *)skb_mac_header(skb);
 	return ntohs(hsr_ethhdr->hsr_tag.sequence_nr);
 }
 

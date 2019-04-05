@@ -53,7 +53,7 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 	struct hsrv1_ethhdr_sp *hsrV1Hdr;
 
 	WARN_ON_ONCE(!skb_mac_header_was_set(skb));
-	ethHdr = (struct ethhdr *) skb_mac_header(skb);
+	ethHdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* Correct addr? */
 	if (!ether_addr_equal(ethHdr->h_dest,
@@ -67,14 +67,14 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 
 	/* Get the supervision header from correct location. */
 	if (ethHdr->h_proto == htons(ETH_P_HSR)) { /* Okay HSRv1. */
-		hsrV1Hdr = (struct hsrv1_ethhdr_sp *) skb_mac_header(skb);
+		hsrV1Hdr = (struct hsrv1_ethhdr_sp *)skb_mac_header(skb);
 		if (hsrV1Hdr->hsr.encap_proto != htons(ETH_P_PRP))
 			return false;
 
 		hsrSupTag = &hsrV1Hdr->hsr_sup;
 	} else {
 		hsrSupTag =
-		     &((struct hsrv0_ethhdr_sp *) skb_mac_header(skb))->hsr_sup;
+		     &((struct hsrv0_ethhdr_sp *)skb_mac_header(skb))->hsr_sup;
 	}
 
 	if (hsrSupTag->HSR_TLV_Type != HSR_TLV_ANNOUNCE &&
@@ -140,7 +140,7 @@ static void hsr_fill_tag(struct sk_buff *skb, struct hsr_frame_info *frame,
 	if (frame->is_vlan)
 		lsdu_size -= 4;
 
-	hsr_ethhdr = (struct hsr_ethhdr *) skb_mac_header(skb);
+	hsr_ethhdr = (struct hsr_ethhdr *)skb_mac_header(skb);
 
 	set_hsr_tag_path(&hsr_ethhdr->hsr_tag, lane_id);
 	set_hsr_tag_LSDU_size(&hsr_ethhdr->hsr_tag, lsdu_size);
@@ -320,7 +320,7 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 	if (!frame->node_src)
 		return -1; /* Unknown node and !is_supervision, or no mem */
 
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	frame->is_vlan = false;
 	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
 		frame->is_vlan = true;

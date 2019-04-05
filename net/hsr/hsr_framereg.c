@@ -44,10 +44,10 @@ static bool seq_nr_after(u16 a, u16 b)
 	/* Remove inconsistency where
 	 * seq_nr_after(a, b) == seq_nr_before(a, b)
 	 */
-	if ((int) b - a == 32768)
+	if ((int)b - a == 32768)
 		return false;
 
-	return (((s16) (b - a)) < 0);
+	return (((s16)(b - a)) < 0);
 }
 #define seq_nr_before(a, b)		seq_nr_after((b), (a))
 #define seq_nr_after_or_eq(a, b)	(!seq_nr_before((a), (b)))
@@ -176,7 +176,7 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 	if (!skb_mac_header_was_set(skb))
 		return NULL;
 
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	list_for_each_entry_rcu(node, node_db, mac_list) {
 		if (ether_addr_equal(node->MacAddressA, ethhdr->h_source))
@@ -218,7 +218,7 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	struct list_head *node_db;
 	int i;
 
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* Leave the ethernet header. */
 	skb_pull(skb, sizeof(struct ethhdr));
@@ -230,7 +230,7 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 	/* And leave the HSR sup tag. */
 	skb_pull(skb, sizeof(struct hsr_sup_tag));
 
-	hsr_sp = (struct hsr_sup_payload *) skb->data;
+	hsr_sp = (struct hsr_sup_payload *)skb->data;
 
 	/* Merge node_curr (registered on MacAddressB) into node_real */
 	node_db = &port_rcv->hsr->node_db;
