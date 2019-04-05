@@ -31,6 +31,7 @@
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
 #include "intel_hdcp.h"

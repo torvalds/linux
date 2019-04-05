@@ -55,6 +55,7 @@
 #include "i915_vgpu.h"
 #include "intel_audio.h"
 #include "intel_csr.h"
+#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbdev.h"
 #include "intel_pm.h"

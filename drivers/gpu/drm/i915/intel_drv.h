@@ -1664,6 +1664,7 @@ void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
 			    const char *context);
 
 /* intel_display.c */
+void intel_plane_destroy(struct drm_plane *plane);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc);
@@ -1847,109 +1848,15 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 
-/* intel_dp.c */
-struct link_config_limits {
-	int min_clock, max_clock;
-	int min_lane_count, max_lane_count;
-	int min_bpp, max_bpp;
-};
-void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
-				       struct intel_crtc_state *pipe_config,
-				       struct link_config_limits *limits);
-bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state);
-bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
-			   i915_reg_t dp_reg, enum port port,
-			   enum pipe *pipe);
-bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
-		   enum port port);
-bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
-			     struct intel_connector *intel_connector);
-void intel_dp_set_link_params(struct intel_dp *intel_dp,
-			      int link_rate, u8 lane_count,
-			      bool link_mst);
-int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
-					    int link_rate, u8 lane_count);
+/* intel_dp_link_training.c */
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
-int intel_dp_retrain_link(struct intel_encoder *encoder,
-			  struct drm_modeset_acquire_ctx *ctx);
-void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
-void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
-					   const struct intel_crtc_state *crtc_state,
-					   bool enable);
-void intel_dp_encoder_reset(struct drm_encoder *encoder);
-void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
-void intel_dp_encoder_flush_work(struct drm_encoder *encoder);
-int intel_dp_compute_config(struct intel_encoder *encoder,
-			    struct intel_crtc_state *pipe_config,
-			    struct drm_connector_state *conn_state);
-bool intel_dp_is_edp(struct intel_dp *intel_dp);
-bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
-enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
-				  bool long_hpd);
-void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
-			    const struct drm_connector_state *conn_state);
-void intel_edp_backlight_off(const struct drm_connector_state *conn_state);
-void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
-void intel_edp_panel_on(struct intel_dp *intel_dp);
-void intel_edp_panel_off(struct intel_dp *intel_dp);
-void intel_dp_mst_suspend(struct drm_i915_private *dev_priv);
-void intel_dp_mst_resume(struct drm_i915_private *dev_priv);
-int intel_dp_max_link_rate(struct intel_dp *intel_dp);
-int intel_dp_max_lane_count(struct intel_dp *intel_dp);
-int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
-void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
-void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
-u32 intel_dp_pack_aux(const u8 *src, int src_bytes);
-void intel_plane_destroy(struct drm_plane *plane);
-void intel_edp_drrs_enable(struct intel_dp *intel_dp,
-			   const struct intel_crtc_state *crtc_state);
-void intel_edp_drrs_disable(struct intel_dp *intel_dp,
-			    const struct intel_crtc_state *crtc_state);
-void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
-			       unsigned int frontbuffer_bits);
-void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
-			  unsigned int frontbuffer_bits);
-
-void
-intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
-				       u8 dp_train_pat);
-void
-intel_dp_set_signal_levels(struct intel_dp *intel_dp);
-void intel_dp_set_idle_link_train(struct intel_dp *intel_dp);
-u8
-intel_dp_voltage_max(struct intel_dp *intel_dp);
-u8
-intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing);
-void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
-			   u8 *link_bw, u8 *rate_select);
-bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);
-bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp);
-bool
-intel_dp_get_link_status(struct intel_dp *intel_dp, u8 link_status[DP_LINK_STATUS_SIZE]);
-u16 intel_dp_dsc_get_output_bpp(int link_clock, u8 lane_count,
-				int mode_clock, int mode_hdisplay);
-u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
-				int mode_hdisplay);
 
 /* intel_vdsc.c */
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config);
 enum intel_display_power_domain
 intel_dsc_power_domain(const struct intel_crtc_state *crtc_state);
-
-static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
-{
-	return ~((1 << lane_count) - 1) & 0xf;
-}
-
-bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
-int intel_dp_link_required(int pixel_clock, int bpp);
-int intel_dp_max_data_rate(int max_link_clock, int max_lanes);
-bool intel_digital_port_connected(struct intel_encoder *encoder);
-void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
-			   struct intel_digital_port *dig_port);
 
 /* intel_dp_aux_backlight.c */
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);

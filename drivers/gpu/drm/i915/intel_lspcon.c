@@ -27,6 +27,7 @@
 #include <drm/drm_dp_dual_mode_helper.h>
 #include <drm/drm_edid.h>
 
+#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_lspcon.h"
 
