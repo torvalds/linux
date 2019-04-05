@@ -316,7 +316,8 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 
 	dev = rt->dst.dev;
 	*saddrp = fl4.saddr;
-	*daddrp = rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		*daddrp = rt->rt_gw4;
 
 out:
 	ip_rt_put(rt);

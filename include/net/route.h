@@ -55,12 +55,12 @@ struct rtable {
 	unsigned int		rt_flags;
 	__u16			rt_type;
 	__u8			rt_is_input;
-	__u8			rt_uses_gateway;
+	u8			rt_gw_family;
 
 	int			rt_iif;
 
 	/* Info on neighbour */
-	__be32			rt_gateway;
+	__be32			rt_gw4;
 
 	/* Miscellaneous cached information */
 	u32			rt_mtu_locked:1,
@@ -82,8 +82,8 @@ static inline bool rt_is_output_route(const struct rtable *rt)
 
 static inline __be32 rt_nexthop(const struct rtable *rt, __be32 daddr)
 {
-	if (rt->rt_gateway)
-		return rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		return rt->rt_gw4;
 	return daddr;
 }
 
