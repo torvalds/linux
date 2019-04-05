@@ -457,10 +457,18 @@ static int fib_detect_death(struct fib_info *fi, int order,
 			    struct fib_info **last_resort, int *last_idx,
 			    int dflt)
 {
+	const struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
 	struct neighbour *n;
 	int state = NUD_NONE;
 
-	n = neigh_lookup(&arp_tbl, &fi->fib_nh[0].fib_nh_gw4, fi->fib_dev);
+	if (likely(nhc->nhc_gw_family == AF_INET))
+		n = neigh_lookup(&arp_tbl, &nhc->nhc_gw.ipv4, nhc->nhc_dev);
+	else if (nhc->nhc_gw_family == AF_INET6)
+		n = neigh_lookup(ipv6_stub->nd_tbl, &nhc->nhc_gw.ipv6,
+				 nhc->nhc_dev);
+	else
+		n = NULL;
+
 	if (n) {
 		state = n->nud_state;
 		neigh_release(n);
