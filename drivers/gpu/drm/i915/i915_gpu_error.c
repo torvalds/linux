@@ -1215,20 +1215,23 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
 
-		if (IS_GEN(dev_priv, 6))
+		if (IS_GEN(dev_priv, 6)) {
 			ee->vm_info.pp_dir_base =
 				ENGINE_READ(engine, RING_PP_DIR_BASE_READ);
-		else if (IS_GEN(dev_priv, 7))
+		} else if (IS_GEN(dev_priv, 7)) {
 			ee->vm_info.pp_dir_base =
-					ENGINE_READ(engine, RING_PP_DIR_BASE);
-		else if (INTEL_GEN(dev_priv) >= 8)
+				ENGINE_READ(engine, RING_PP_DIR_BASE);
+		} else if (INTEL_GEN(dev_priv) >= 8) {
+			u32 base = engine->mmio_base;
+
 			for (i = 0; i < 4; i++) {
 				ee->vm_info.pdp[i] =
-					I915_READ(GEN8_RING_PDP_UDW(engine, i));
+					I915_READ(GEN8_RING_PDP_UDW(base, i));
 				ee->vm_info.pdp[i] <<= 32;
 				ee->vm_info.pdp[i] |=
-					I915_READ(GEN8_RING_PDP_LDW(engine, i));
+					I915_READ(GEN8_RING_PDP_LDW(base, i));
 			}
+		}
 	}
 }
 
