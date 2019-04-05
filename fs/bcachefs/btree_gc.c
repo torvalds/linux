@@ -210,24 +210,16 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	struct btree_iter *iter;
 	struct btree *b;
 	struct range_checks r;
-	unsigned depth = btree_node_type_needs_gc(btree_id) ? 0 : 1;
+	unsigned depth = metadata_only			? 1
+		: expensive_debug_checks(c)		? 0
+		: !btree_node_type_needs_gc(btree_id)	? 1
+		: 0;
 	u8 max_stale;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c);
 
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
-
-	/*
-	 * if expensive_debug_checks is on, run range_checks on all leaf nodes:
-	 *
-	 * and on startup, we have to read every btree node (XXX: only if it was
-	 * an unclean shutdown)
-	 */
-	if (metadata_only)
-		depth = 1;
-	else if (initial || expensive_debug_checks(c))
-		depth = 0;
 
 	btree_node_range_checks_init(&r, depth);
 
