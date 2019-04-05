@@ -35,6 +35,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
+#include "intel_atomic_plane.h"
 #include "intel_drv.h"
 #include "intel_pm.h"
 

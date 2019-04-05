@@ -40,6 +40,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "intel_atomic_plane.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 #include "intel_pm.h"

@@ -48,6 +48,7 @@
 #include "i915_gem_clflush.h"
 #include "i915_reset.h"
 #include "i915_trace.h"
+#include "intel_atomic_plane.h"
 #include "intel_color.h"
 #include "intel_crt.h"
 #include "intel_ddi.h"
