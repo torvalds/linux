@@ -283,6 +283,10 @@ const struct dc_dsc_policy dsc_policy = {
 	.min_target_bpp = 8,
 };
 
+
+/* Get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range, and timing's pixel clock
+ * and uncompressed bandwidth.
+ */
 static void get_dsc_bandwidth_range(
 		const uint32_t min_bpp,
 		const uint32_t max_bpp,
@@ -311,6 +315,7 @@ static void get_dsc_bandwidth_range(
 		range->min_target_bpp_x16 = range->max_target_bpp_x16;
 	}
 }
+
 
 /* Decides if DSC should be used and calculates target bpp if it should, applying DSC policy.
  *
@@ -494,10 +499,10 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
  *
  * dsc_enc_caps        - DSC encoder capabilities
  *
- * target_bandwidth    - Target bandwidth to fit the stream into.
- *                       If 0, do not calculate target bpp.
+ * target_bandwidth_kbps  - Target bandwidth to fit the stream into.
+ *                          If 0, do not calculate target bpp.
  *
- * timing              - The stream timing to fit into 'target_bandwidth' or apply
+ * timing              - The stream timing to fit into 'target_bandwidth_kbps' or apply
  *                       maximum compression to, if 'target_badwidth == 0'
  *
  * dsc_cfg             - DSC configuration to use if it was possible to come up with
@@ -510,7 +515,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
 static bool setup_dsc_config(
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dsc_enc_caps *dsc_enc_caps,
-		int target_bandwidth,
+		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg)
 {
@@ -536,8 +541,8 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	if (target_bandwidth > 0) {
-		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_policy, &dsc_common_caps, target_bandwidth, timing, &target_bpp);
+	if (target_bandwidth_kbps > 0) {
+		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_policy, &dsc_common_caps, target_bandwidth_kbps, timing, &target_bpp);
 		dsc_cfg->bits_per_pixel = target_bpp;
 	}
 	if (!is_dsc_possible)
@@ -753,6 +758,10 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_data, struct dsc_dec_dpcd_cap
 }
 
 
+/* If DSC is possbile, get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range and
+ * timing's pixel clock and uncompressed bandwidth.
+ * If DSC is not possible, leave '*range' untouched.
+ */
 bool dc_dsc_compute_bandwidth_range(
 		const struct dc *dc,
 		const uint32_t min_bpp,
@@ -780,7 +789,7 @@ bool dc_dsc_compute_bandwidth_range(
 bool dc_dsc_compute_config(
 		const struct dc *dc,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
-		int target_bandwidth,
+		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg)
 {
@@ -790,7 +799,7 @@ bool dc_dsc_compute_config(
 	get_dsc_enc_caps(dc, &dsc_enc_caps, timing->pix_clk_100hz);
 	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
 			&dsc_enc_caps,
-			target_bandwidth,
+			target_bandwidth_kbps,
 			timing, dsc_cfg);
 	return is_dsc_possible;
 }

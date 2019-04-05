@@ -24,12 +24,13 @@
  *
  * Author: AMD
  */
+
 struct dc_dsc_bw_range {
-	uint32_t min_kbps;
+	uint32_t min_kbps; /* Bandwidth if min_target_bpp_x16 is used */
 	uint32_t min_target_bpp_x16;
-	uint32_t max_kbps;
+	uint32_t max_kbps; /* Bandwidth if max_target_bpp_x16 is used */
 	uint32_t max_target_bpp_x16;
-	uint32_t stream_kbps;
+	uint32_t stream_kbps; /* Uncompressed stream bandwidth */
 };
 
 
@@ -43,10 +44,11 @@ bool dc_dsc_compute_bandwidth_range(
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_bw_range *range);
+
 bool dc_dsc_compute_config(
 		const struct dc *dc,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
-		int target_bandwidth,
+		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg);
 #endif
