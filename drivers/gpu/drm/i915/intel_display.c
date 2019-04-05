@@ -66,6 +66,7 @@
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sdvo.h"
+#include "intel_sprite.h"
 #include "intel_tv.h"
 
 /* Primary plane formats for gen <= 3 */

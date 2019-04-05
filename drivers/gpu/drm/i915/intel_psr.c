@@ -27,6 +27,7 @@
 #include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_psr.h"
+#include "intel_sprite.h"
 
 /**
  * DOC: Panel Self Refresh (PSR/SRD)

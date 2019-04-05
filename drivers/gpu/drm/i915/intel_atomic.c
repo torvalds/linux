@@ -36,6 +36,7 @@
 
 #include "intel_drv.h"
 #include "intel_hdcp.h"
+#include "intel_sprite.h"
 
 /**
  * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.

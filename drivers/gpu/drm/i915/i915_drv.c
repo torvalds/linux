@@ -59,6 +59,7 @@
 #include "intel_drv.h"
 #include "intel_fbdev.h"
 #include "intel_pm.h"
+#include "intel_sprite.h"
 #include "intel_uc.h"
 #include "intel_workarounds.h"
 

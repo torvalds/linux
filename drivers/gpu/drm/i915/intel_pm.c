@@ -37,6 +37,7 @@
 #include "intel_drv.h"
 #include "intel_fbc.h"
 #include "intel_pm.h"
+#include "intel_sprite.h"
 #include "../../../platform/x86/intel_ips.h"
 
 /**
