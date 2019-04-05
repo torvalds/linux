@@ -169,9 +169,6 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
 
-	/* unset restore_stream */
-	spcm->restore_stream[substream->stream] = 0;
-
 	return ret;
 }
 
@@ -209,27 +206,33 @@ static int sof_pcm_hw_free(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static int sof_restore_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_sof_pcm *spcm,
-				 struct snd_sof_dev *sdev)
+static int sof_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	snd_pcm_uframes_t host;
-	u64 host_posn;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component =
+		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct snd_sof_pcm *spcm;
 	int ret;
 
-	/* resume stream */
-	host_posn = spcm->stream[substream->stream].posn.host_posn;
-	host = bytes_to_frames(substream->runtime, host_posn);
-	dev_dbg(sdev->dev,
-		"PCM: resume stream %d dir %d DMA position %lu\n",
-		spcm->pcm.pcm_id, substream->stream, host);
+	spcm = snd_sof_find_spcm_dai(sdev, rtd);
+	if (!spcm)
+		return -EINVAL;
+
+	/*
+	 * check if hw_params needs to be set-up again.
+	 * This is only needed when resuming from system sleep.
+	 */
+	if (!spcm->hw_params_upon_resume[substream->stream])
+		return 0;
+
+	dev_dbg(sdev->dev, "pcm: prepare stream %d dir %d\n", spcm->pcm.pcm_id,
+		substream->stream);
 
 	/* set hw_params */
-	ret = sof_pcm_hw_params(substream,
-				&spcm->params[substream->stream]);
+	ret = sof_pcm_hw_params(substream, &spcm->params[substream->stream]);
 	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: set pcm hw_params after resume\n");
+		dev_err(sdev->dev, "error: set pcm hw_params after resume\n");
 		return ret;
 	}
 
@@ -249,7 +252,6 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
-	int ret;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -271,60 +273,23 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_PAUSE;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-
-		/* check if the stream hw_params needs to be restored */
-		if (spcm->restore_stream[substream->stream]) {
-
-			/* restore hw_params */
-			ret = sof_restore_hw_params(substream, spcm, sdev);
-			if (ret < 0)
-				return ret;
-
-			/* unset restore_stream */
-			spcm->restore_stream[substream->stream] = 0;
-
-			/* trigger start */
-			stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_START;
-		} else {
-
-			/* trigger pause release */
-			stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
-		}
+		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_RELEASE;
 		break;
-	case SNDRV_PCM_TRIGGER_START:
-		/* fall through */
 	case SNDRV_PCM_TRIGGER_RESUME:
-
-		/* check if the stream hw_params needs to be restored */
-		if (spcm->restore_stream[substream->stream]) {
-
-			/* restore hw_params */
-			ret = sof_restore_hw_params(substream, spcm, sdev);
-			if (ret < 0)
-				return ret;
-
-			/* unset restore_stream */
-			spcm->restore_stream[substream->stream] = 0;
+		/* set up hw_params */
+		ret = sof_pcm_prepare(substream);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: failed to set up hw_params upon resume\n");
+			return ret;
 		}
 
-		/* trigger stream */
+		/* fallthrough */
+	case SNDRV_PCM_TRIGGER_START:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_START;
-
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		/* fallthrough */
 	case SNDRV_PCM_TRIGGER_STOP:
-
-		/* Check if stream was marked for restore before suspend */
-		if (spcm->restore_stream[substream->stream]) {
-
-			/* unset restore_stream */
-			spcm->restore_stream[substream->stream] = 0;
-
-			/* do not send ipc as the stream hasn't been set up */
-			return 0;
-		}
-
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		break;
 	default:
@@ -395,6 +360,9 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	dev_dbg(sdev->dev, "pcm: open stream %d dir %d\n", spcm->pcm.pcm_id,
 		substream->stream);
 
+	/* Clear hw_params_upon_resume flag */
+	spcm->hw_params_upon_resume[substream->stream] = 0;
+
 	caps = &spcm->pcm.caps[substream->stream];
 
 	ret = pm_runtime_get_sync(sdev->dev);
@@ -418,7 +386,6 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 			  SNDRV_PCM_INFO_MMAP_VALID |
 			  SNDRV_PCM_INFO_INTERLEAVED |
 			  SNDRV_PCM_INFO_PAUSE |
-			  SNDRV_PCM_INFO_RESUME |
 			  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP;
 	runtime->hw.formats = le64_to_cpu(caps->formats);
 	runtime->hw.period_bytes_min = le32_to_cpu(caps->period_size_min);
@@ -509,6 +476,7 @@ static struct snd_pcm_ops sof_pcm_ops = {
 	.close		= sof_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= sof_pcm_hw_params,
+	.prepare	= sof_pcm_prepare,
 	.hw_free	= sof_pcm_hw_free,
 	.trigger	= sof_pcm_trigger,
 	.pointer	= sof_pcm_pointer,
