@@ -1849,17 +1849,9 @@ static void enable_execlists(struct intel_engine_cs *engine)
 
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
-	/*
-	 * Make sure we're not enabling the new 12-deep CSB
-	 * FIFO as that requires a slightly updated handling
-	 * in the ctx switch irq. Since we're currently only
-	 * using only 2 elements of the enhanced execlists the
-	 * deeper FIFO it's not needed and it's not worth adding
-	 * more statements to the irq handler to support it.
-	 */
 	if (INTEL_GEN(dev_priv) >= 11)
 		I915_WRITE(RING_MODE_GEN7(engine),
-			   _MASKED_BIT_DISABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+			   _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
 	else
 		I915_WRITE(RING_MODE_GEN7(engine),
 			   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
@@ -2477,7 +2469,10 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
 
-	execlists->csb_size = GEN8_CSB_ENTRIES;
+	if (INTEL_GEN(engine->i915) < 11)
+		execlists->csb_size = GEN8_CSB_ENTRIES;
+	else
+		execlists->csb_size = GEN11_CSB_ENTRIES;
 
 	reset_csb_pointers(execlists);
 
