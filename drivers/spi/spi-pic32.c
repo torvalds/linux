@@ -559,7 +559,7 @@ static int pic32_spi_one_transfer(struct spi_master *master,
 		dev_err(&spi->dev, "wait error/timedout\n");
 		if (dma_issued) {
 			dmaengine_terminate_all(master->dma_rx);
-			dmaengine_terminate_all(master->dma_rx);
+			dmaengine_terminate_all(master->dma_tx);
 		}
 		ret = -ETIMEDOUT;
 	} else {
