@@ -1846,13 +1846,6 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 
-/* intel_csr.c */
-void intel_csr_ucode_init(struct drm_i915_private *);
-void intel_csr_load_program(struct drm_i915_private *);
-void intel_csr_ucode_fini(struct drm_i915_private *);
-void intel_csr_ucode_suspend(struct drm_i915_private *);
-void intel_csr_ucode_resume(struct drm_i915_private *);
-
 /* intel_dp.c */
 struct link_config_limits {
 	int min_clock, max_clock;

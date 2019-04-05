@@ -33,6 +33,7 @@
 
 #include "i915_drv.h"
 #include "intel_crt.h"
+#include "intel_csr.h"
 #include "intel_drv.h"
 
 /**
