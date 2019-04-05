@@ -280,6 +280,7 @@ struct btree_trans {
 	u8			nr_updates;
 	u8			size;
 	unsigned		used_mempool:1;
+	unsigned		error:1;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;
