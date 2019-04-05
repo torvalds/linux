@@ -32,6 +32,7 @@
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_hdcp.h"
 
 int intel_connector_init(struct intel_connector *connector)
 {

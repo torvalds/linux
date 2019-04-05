@@ -44,6 +44,7 @@
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_drv.h"
+#include "intel_hdcp.h"
 #include "intel_lspcon.h"
 #include "intel_sdvo.h"
 

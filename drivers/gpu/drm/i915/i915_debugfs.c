@@ -36,6 +36,7 @@
 #include "intel_drv.h"
 #include "intel_fbc.h"
 #include "intel_guc_submission.h"
+#include "intel_hdcp.h"
 #include "intel_psr.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
