@@ -1426,7 +1426,7 @@ static int check_stack_access(struct bpf_verifier_env *env,
 		char tn_buf[48];
 
 		tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
-		verbose(env, "variable stack access var_off=%s off=%d size=%d",
+		verbose(env, "variable stack access var_off=%s off=%d size=%d\n",
 			tn_buf, off, size);
 		return -EACCES;
 	}
@@ -2226,16 +2226,50 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 		if (err)
 			return err;
 	} else {
+		/* Variable offset is prohibited for unprivileged mode for
+		 * simplicity since it requires corresponding support in
+		 * Spectre masking for stack ALU.
+		 * See also retrieve_ptr_limit().
+		 */
+		if (!env->allow_ptr_leaks) {
+			char tn_buf[48];
+
+			tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
+			verbose(env, "R%d indirect variable offset stack access prohibited for !root, var_off=%s\n",
+				regno, tn_buf);
+			return -EACCES;
+		}
+		/* Only initialized buffer on stack is allowed to be accessed
+		 * with variable offset. With uninitialized buffer it's hard to
+		 * guarantee that whole memory is marked as initialized on
+		 * helper return since specific bounds are unknown what may
+		 * cause uninitialized stack leaking.
+		 */
+		if (meta && meta->raw_mode)
+			meta = NULL;
+
+		if (reg->smax_value >= BPF_MAX_VAR_OFF ||
+		    reg->smax_value <= -BPF_MAX_VAR_OFF) {
+			verbose(env, "R%d unbounded indirect variable offset stack access\n",
+				regno);
+			return -EACCES;
+		}
 		min_off = reg->smin_value + reg->off;
-		max_off = reg->umax_value + reg->off;
+		max_off = reg->smax_value + reg->off;
 		err = __check_stack_boundary(env, regno, min_off, access_size,
 					     zero_size_allowed);
-		if (err)
+		if (err) {
+			verbose(env, "R%d min value is outside of stack bound\n",
+				regno);
 			return err;
+		}
 		err = __check_stack_boundary(env, regno, max_off, access_size,
 					     zero_size_allowed);
-		if (err)
+		if (err) {
+			verbose(env, "R%d max value is outside of stack bound\n",
+				regno);
 			return err;
+		}
 	}
 
 	if (meta && meta->raw_mode) {
@@ -3330,6 +3364,9 @@ static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
 
 	switch (ptr_reg->type) {
 	case PTR_TO_STACK:
+		/* Indirect variable offset stack access is prohibited in
+		 * unprivileged mode so it's not handled here.
+		 */
 		off = ptr_reg->off + ptr_reg->var_off.value;
 		if (mask_to_left)
 			*ptr_limit = MAX_BPF_STACK + off;
