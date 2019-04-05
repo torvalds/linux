@@ -322,32 +322,9 @@ fsck_err:
 
 static bool journal_empty(struct list_head *journal)
 {
-	struct journal_replay *i;
-	struct jset_entry *entry;
-
-	if (list_empty(journal))
-		return true;
-
-	i = list_last_entry(journal, struct journal_replay, list);
-
-	if (i->j.last_seq != i->j.seq)
-		return false;
-
-	list_for_each_entry(i, journal, list) {
-		vstruct_for_each(&i->j, entry) {
-			if (entry->type == BCH_JSET_ENTRY_btree_root ||
-			    entry->type == BCH_JSET_ENTRY_usage ||
-			    entry->type == BCH_JSET_ENTRY_data_usage)
-				continue;
-
-			if (entry->type == BCH_JSET_ENTRY_btree_keys &&
-			    !entry->u64s)
-				continue;
-			return false;
-		}
-	}
-
-	return true;
+	return list_empty(journal) ||
+		journal_entry_empty(&list_last_entry(journal,
+					struct journal_replay, list)->j);
 }
 
 int bch2_fs_recovery(struct bch_fs *c)

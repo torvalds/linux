@@ -55,19 +55,6 @@ static void bch2_journal_buf_init(struct journal *j)
 	buf->data->u64s	= 0;
 }
 
-static inline bool journal_entry_empty(struct jset *j)
-{
-	struct jset_entry *i;
-
-	if (j->seq != j->last_seq)
-		return false;
-
-	vstruct_for_each(j, i)
-		if (i->type || i->u64s)
-			return false;
-	return true;
-}
-
 void bch2_journal_halt(struct journal *j)
 {
 	union journal_res_state old, new;

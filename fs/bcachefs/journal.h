@@ -231,6 +231,19 @@ static inline void bch2_journal_add_keys(struct journal *j, struct journal_res *
 			       id, 0, k, k->k.u64s);
 }
 
+static inline bool journal_entry_empty(struct jset *j)
+{
+	struct jset_entry *i;
+
+	if (j->seq != j->last_seq)
+		return false;
+
+	vstruct_for_each(j, i)
+		if (i->type == BCH_JSET_ENTRY_btree_keys && i->u64s)
+			return false;
+	return true;
+}
+
 void __bch2_journal_buf_put(struct journal *, bool);
 
 static inline void bch2_journal_buf_put(struct journal *j, unsigned idx,
