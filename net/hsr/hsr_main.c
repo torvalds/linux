@@ -63,7 +63,8 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 		if (port->type == HSR_PT_SLAVE_A) {
 			ether_addr_copy(master->dev->dev_addr, dev->dev_addr);
-			call_netdevice_notifiers(NETDEV_CHANGEADDR, master->dev);
+			call_netdevice_notifiers(NETDEV_CHANGEADDR,
+						 master->dev);
 		}
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */

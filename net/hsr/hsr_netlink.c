@@ -47,12 +47,14 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		netdev_info(dev, "HSR: Slave1 device not specified\n");
 		return -EINVAL;
 	}
-	link[0] = __dev_get_by_index(src_net, nla_get_u32(data[IFLA_HSR_SLAVE1]));
+	link[0] = __dev_get_by_index(src_net,
+				     nla_get_u32(data[IFLA_HSR_SLAVE1]));
 	if (!data[IFLA_HSR_SLAVE2]) {
 		netdev_info(dev, "HSR: Slave2 device not specified\n");
 		return -EINVAL;
 	}
-	link[1] = __dev_get_by_index(src_net, nla_get_u32(data[IFLA_HSR_SLAVE2]));
+	link[1] = __dev_get_by_index(src_net,
+				     nla_get_u32(data[IFLA_HSR_SLAVE2]));
 
 	if (!link[0] || !link[1])
 		return -ENODEV;
@@ -156,7 +158,8 @@ void hsr_nl_ringerror(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN],
 	if (!skb)
 		goto fail;
 
-	msg_head = genlmsg_put(skb, 0, 0, &hsr_genl_family, 0, HSR_C_RING_ERROR);
+	msg_head = genlmsg_put(skb, 0, 0, &hsr_genl_family, 0,
+			       HSR_C_RING_ERROR);
 	if (!msg_head)
 		goto nla_put_failure;
 
@@ -260,7 +263,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 		goto invalid;
 
 	hsr_dev = __dev_get_by_index(genl_info_net(info),
-					nla_get_u32(info->attrs[HSR_A_IFINDEX]));
+				     nla_get_u32(info->attrs[HSR_A_IFINDEX]));
 	if (!hsr_dev)
 		goto invalid;
 	if (!is_hsr_master(hsr_dev))
@@ -289,13 +292,14 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 
 	hsr = netdev_priv(hsr_dev);
 	res = hsr_get_node_data(hsr,
-			(unsigned char *) nla_data(info->attrs[HSR_A_NODE_ADDR]),
-			hsr_node_addr_b,
-			&addr_b_ifindex,
-			&hsr_node_if1_age,
-			&hsr_node_if1_seq,
-			&hsr_node_if2_age,
-			&hsr_node_if2_seq);
+				(unsigned char *)
+				nla_data(info->attrs[HSR_A_NODE_ADDR]),
+					 hsr_node_addr_b,
+					 &addr_b_ifindex,
+					 &hsr_node_if1_age,
+					 &hsr_node_if1_seq,
+					 &hsr_node_if2_age,
+					 &hsr_node_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -306,11 +310,12 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 
 	if (addr_b_ifindex > -1) {
 		res = nla_put(skb_out, HSR_A_NODE_ADDR_B, ETH_ALEN,
-								hsr_node_addr_b);
+			      hsr_node_addr_b);
 		if (res < 0)
 			goto nla_put_failure;
 
-		res = nla_put_u32(skb_out, HSR_A_ADDR_B_IFINDEX, addr_b_ifindex);
+		res = nla_put_u32(skb_out, HSR_A_ADDR_B_IFINDEX,
+				  addr_b_ifindex);
 		if (res < 0)
 			goto nla_put_failure;
 	}

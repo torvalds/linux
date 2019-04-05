@@ -75,7 +75,8 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 
 		hsrSupTag = &hsrV1Hdr->hsr_sup;
 	} else {
-		hsrSupTag = &((struct hsrv0_ethhdr_sp *) skb_mac_header(skb))->hsr_sup;
+		hsrSupTag =
+		     &((struct hsrv0_ethhdr_sp *) skb_mac_header(skb))->hsr_sup;
 	}
 
 	if ((hsrSupTag->HSR_TLV_Type != HSR_TLV_ANNOUNCE) &&

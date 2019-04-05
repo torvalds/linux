@@ -83,8 +83,8 @@ static inline u16 get_hsr_tag_LSDU_size(struct hsr_tag *ht)
 
 static inline void set_hsr_tag_path(struct hsr_tag *ht, u16 path)
 {
-	ht->path_and_LSDU_size = htons(
-			(ntohs(ht->path_and_LSDU_size) & 0x0FFF) | (path << 12));
+	ht->path_and_LSDU_size =
+		htons((ntohs(ht->path_and_LSDU_size) & 0x0FFF) | (path << 12));
 }
 
 static inline void set_hsr_tag_LSDU_size(struct hsr_tag *ht, u16 LSDU_size)
@@ -171,8 +171,8 @@ struct hsr_priv {
 	struct timer_list	prune_timer;
 	int announce_count;
 	u16 sequence_nr;
-	u16 sup_sequence_nr;			/* For HSRv1 separate seq_nr for supervision */
-	u8 protVersion;					/* Indicate if HSRv0 or HSRv1. */
+	u16 sup_sequence_nr;	/* For HSRv1 separate seq_nr for supervision */
+	u8 protVersion;		/* Indicate if HSRv0 or HSRv1. */
 	spinlock_t seqnr_lock;			/* locking for sequence_nr */
 	unsigned char		sup_multicast_addr[ETH_ALEN];
 };

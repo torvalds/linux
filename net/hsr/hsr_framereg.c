@@ -255,7 +255,8 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 		if (!node_curr->time_in_stale[i] &&
 		    time_after(node_curr->time_in[i], node_real->time_in[i])) {
 			node_real->time_in[i] = node_curr->time_in[i];
-			node_real->time_in_stale[i] = node_curr->time_in_stale[i];
+			node_real->time_in_stale[i] =
+						node_curr->time_in_stale[i];
 		}
 		if (seq_nr_after(node_curr->seq_out[i], node_real->seq_out[i]))
 			node_real->seq_out[i] = node_curr->seq_out[i];
@@ -308,7 +309,8 @@ void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
 	if (!is_unicast_ether_addr(eth_hdr(skb)->h_dest))
 		return;
 
-	node_dst = find_node_by_AddrA(&port->hsr->node_db, eth_hdr(skb)->h_dest);
+	node_dst = find_node_by_AddrA(&port->hsr->node_db,
+				      eth_hdr(skb)->h_dest);
 	if (!node_dst) {
 		WARN_ONCE(1, "%s: Unknown node\n", __func__);
 		return;
@@ -419,7 +421,7 @@ void hsr_prune_nodes(struct timer_list *t)
 
 		/* Prune old entries */
 		if (time_is_before_jiffies(timestamp +
-					msecs_to_jiffies(HSR_NODE_FORGET_TIME))) {
+				msecs_to_jiffies(HSR_NODE_FORGET_TIME))) {
 			hsr_nl_nodedown(hsr, node->MacAddressA);
 			list_del_rcu(&node->mac_list);
 			/* Note that we need to free this entry later: */
