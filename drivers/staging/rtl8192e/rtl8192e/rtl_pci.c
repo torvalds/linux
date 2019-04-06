@@ -33,12 +33,10 @@ static void _rtl92e_parse_pci_configuration(struct pci_dev *pdev,
 bool rtl92e_check_adapter(struct pci_dev *pdev, struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	u16 VenderID;
 	u16 DeviceID;
 	u8  RevisionID;
 	u16 IrqLine;
 
-	VenderID = pdev->vendor;
 	DeviceID = pdev->device;
 	RevisionID = pdev->revision;
 	pci_read_config_word(pdev, 0x3C, &IrqLine);
