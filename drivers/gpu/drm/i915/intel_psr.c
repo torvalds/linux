@@ -630,9 +630,8 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
-	if (IS_HASWELL(dev_priv) &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		DRM_DEBUG_KMS("PSR condition failed: Interlaced mode enabled\n");
 		return;
 	}
 
