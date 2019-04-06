@@ -7732,7 +7732,7 @@ static void hclge_reset_vport_state(struct hclge_dev *hdev)
 	int i;
 
 	for (i = 0; i < hdev->num_alloc_vport; i++) {
-		hclge_vport_start(vport);
+		hclge_vport_stop(vport);
 		vport++;
 	}
 }
