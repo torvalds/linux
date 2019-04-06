@@ -359,7 +359,7 @@ err:
 
 static int __bch2_alloc_write_key(struct btree_trans *trans, struct bch_dev *ca,
 				  size_t b, struct btree_iter *iter,
-				  u64 *journal_seq, unsigned flags)
+				  unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 #if 0
@@ -397,13 +397,10 @@ static int __bch2_alloc_write_key(struct btree_trans *trans, struct bch_dev *ca,
 
 	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
 
-	ret = bch2_trans_commit(trans, NULL, journal_seq,
-				   BTREE_INSERT_NOCHECK_RW|
-				   BTREE_INSERT_NOFAIL|
-				   BTREE_INSERT_USE_RESERVE|
-				   BTREE_INSERT_USE_ALLOC_RESERVE|
-				   BTREE_INSERT_NOMARK|
-				   flags);
+	ret = bch2_trans_commit(trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_NOMARK|
+				flags);
 	if (ret)
 		return ret;
 
@@ -417,13 +414,11 @@ static int __bch2_alloc_write_key(struct btree_trans *trans, struct bch_dev *ca,
 	return 0;
 }
 
-int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
+int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 {
 	struct bch_dev *ca;
 	unsigned i;
 	int ret = 0;
-
-	*wrote = false;
 
 	for_each_rw_member(ca, c, i) {
 		struct btree_trans trans;
@@ -445,10 +440,8 @@ int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 			if (!buckets->b[b].mark.dirty)
 				continue;
 
-			ret = __bch2_alloc_write_key(&trans, ca, b, iter, NULL,
-						     nowait
-						     ? BTREE_INSERT_NOWAIT
-						     : 0);
+			ret = __bch2_alloc_write_key(&trans, ca, b,
+						     iter, flags);
 			if (ret)
 				break;
 
@@ -1683,7 +1676,10 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 		 * XXX: it's possible for this to deadlock waiting on journal reclaim,
 		 * since we're holding btree writes. What then?
 		 */
-		ret = bch2_alloc_write(c, true, &wrote);
+		ret = bch2_alloc_write(c,
+				       BTREE_INSERT_NOCHECK_RW|
+				       BTREE_INSERT_USE_ALLOC_RESERVE|
+				       BTREE_INSERT_NOWAIT, &wrote);
 
 		/*
 		 * If bch2_alloc_write() did anything, it may have used some

@@ -502,7 +502,7 @@ STORE(__bch2_fs)
 	if (attr == &sysfs_trigger_alloc_write) {
 		bool wrote;
 
-		bch2_alloc_write(c, false, &wrote);
+		bch2_alloc_write(c, 0, &wrote);
 	}
 
 	if (attr == &sysfs_prune_cache) {

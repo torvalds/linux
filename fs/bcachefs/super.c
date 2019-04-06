@@ -196,13 +196,15 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		goto allocator_not_running;
 
 	do {
-		ret = bch2_stripes_write(c, &wrote);
+		wrote = false;
+
+		ret = bch2_stripes_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
 		if (ret) {
 			bch2_fs_inconsistent(c, "error writing out stripes");
 			break;
 		}
 
-		ret = bch2_alloc_write(c, false, &wrote);
+		ret = bch2_alloc_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
 		if (ret) {
 			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
 			break;
@@ -305,7 +307,9 @@ void bch2_fs_read_only(struct bch_fs *c)
 	if (!bch2_journal_error(&c->journal) &&
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
 	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags) &&
-	    test_bit(BCH_FS_STARTED, &c->flags))
+	    test_bit(BCH_FS_STARTED, &c->flags) &&
+	    !c->opts.noreplay &&
+	    !c->opts.norecovery)
 		bch2_fs_mark_clean(c);
 
 	clear_bit(BCH_FS_RW, &c->flags);

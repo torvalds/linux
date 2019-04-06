@@ -1194,7 +1194,7 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 				 BTREE_INSERT_NOFAIL|flags);
 }
 
-int bch2_stripes_write(struct bch_fs *c, bool *wrote)
+int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -1216,7 +1216,7 @@ int bch2_stripes_write(struct bch_fs *c, bool *wrote)
 			continue;
 
 		ret = __bch2_stripe_write_key(&trans, iter, m, giter.pos,
-					new_key, BTREE_INSERT_NOCHECK_RW);
+					      new_key, flags);
 		if (ret)
 			break;
 
