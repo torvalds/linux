@@ -357,8 +357,8 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	 * reset may happen when lower level reset is being processed.
 	 */
 	if (hclgevf_is_reset_pending(hdev)) {
-		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err_cmd_init;
 	}
 
 	/* get firmware version */
@@ -366,13 +366,18 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"failed(%d) to query firmware version\n", ret);
-		return ret;
+		goto err_cmd_init;
 	}
 	hdev->fw_version = version;
 
 	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
 
 	return 0;
+
+err_cmd_init:
+	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+
+	return ret;
 }
 
 static void hclgevf_cmd_uninit_regs(struct hclgevf_hw *hw)
