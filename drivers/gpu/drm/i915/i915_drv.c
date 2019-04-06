@@ -1907,6 +1907,13 @@ void i915_driver_unload(struct drm_device *dev)
 
 	i915_driver_unregister(dev_priv);
 
+	/*
+	 * After unregistering the device to prevent any new users, cancel
+	 * all in-flight requests so that we can quickly unbind the active
+	 * resources.
+	 */
+	i915_gem_set_wedged(dev_priv);
+
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
 
