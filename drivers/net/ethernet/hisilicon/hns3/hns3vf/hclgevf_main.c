@@ -1474,6 +1474,8 @@ err_reset:
 	 */
 	hclgevf_cmd_init(hdev);
 	dev_err(&hdev->pdev->dev, "failed to reset VF\n");
+	if (hclgevf_is_reset_pending(hdev))
+		hclgevf_reset_task_schedule(hdev);
 
 	return ret;
 }
