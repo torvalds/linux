@@ -13,7 +13,7 @@ void lkdtm_BUG(void);
 void lkdtm_WARNING(void);
 void lkdtm_EXCEPTION(void);
 void lkdtm_LOOP(void);
-void lkdtm_OVERFLOW(void);
+void lkdtm_EXHAUST_STACK(void);
 void lkdtm_CORRUPT_STACK(void);
 void lkdtm_CORRUPT_STACK_STRONG(void);
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void);
