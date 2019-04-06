@@ -318,7 +318,7 @@ static long zf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 	case WDIOC_KEEPALIVE:
-		zf_ping(0);
+		zf_ping(NULL);
 		break;
 	default:
 		return -ENOTTY;
