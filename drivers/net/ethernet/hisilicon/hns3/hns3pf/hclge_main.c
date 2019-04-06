@@ -2795,6 +2795,10 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hclge_dev *hdev,
 		clear_bit(HNAE3_FLR_RESET, addr);
 	}
 
+	if (hdev->reset_type != HNAE3_NONE_RESET &&
+	    rst_level < hdev->reset_type)
+		return HNAE3_NONE_RESET;
+
 	return rst_level;
 }
 
