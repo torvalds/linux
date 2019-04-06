@@ -2141,8 +2141,6 @@ static void rtl8822be_update_hal_rate_mask(struct ieee80211_hw *hw,
 	u32 ratr_bitmap, ratr_bitmap_msb = 0;
 	u8 ratr_index;
 	enum wireless_mode wirelessmode = 0;
-	u8 curtxbw_40mhz =
-		(sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ? 1 : 0;
 	bool b_shortgi = false;
 	u8 rate_mask[7];
 	u8 macid = 0;
@@ -2153,11 +2151,8 @@ static void rtl8822be_update_hal_rate_mask(struct ieee80211_hw *hw,
 
 	RT_TRACE(rtlpriv, COMP_RATR, DBG_LOUD, "wireless mode = 0x%x\n",
 		 wirelessmode);
-	if (mac->opmode == NL80211_IFTYPE_STATION ||
-	    mac->opmode == NL80211_IFTYPE_MESH_POINT) {
-		curtxbw_40mhz = mac->bw_40;
-	} else if (mac->opmode == NL80211_IFTYPE_AP ||
-		   mac->opmode == NL80211_IFTYPE_ADHOC)
+	if (mac->opmode == NL80211_IFTYPE_AP ||
+	    mac->opmode == NL80211_IFTYPE_ADHOC)
 		macid = sta->aid + 1;
 	if (wirelessmode == WIRELESS_MODE_N_5G ||
 	    wirelessmode == WIRELESS_MODE_AC_5G ||
