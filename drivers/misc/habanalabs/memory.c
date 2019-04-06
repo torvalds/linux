@@ -1159,7 +1159,8 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
 		dev_warn_ratelimited(hdev->dev,
-			"Device is disabled or in reset. Can't execute memory IOCTL\n");
+			"Device is %s. Can't execute MEMORY IOCTL\n",
+			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		return -EBUSY;
 	}
 

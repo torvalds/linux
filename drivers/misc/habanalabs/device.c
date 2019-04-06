@@ -641,14 +641,14 @@ again:
 	if ((hard_reset) && (!from_hard_reset_thread)) {
 		struct hl_device_reset_work *device_reset_work;
 
+		hdev->hard_reset_pending = true;
+
 		if (!hdev->pdev) {
 			dev_err(hdev->dev,
 				"Reset action is NOT supported in simulator\n");
 			rc = -EINVAL;
 			goto out_err;
 		}
-
-		hdev->hard_reset_pending = true;
 
 		device_reset_work = kzalloc(sizeof(*device_reset_work),
 						GFP_ATOMIC);
@@ -718,6 +718,7 @@ again:
 
 	if (hard_reset) {
 		hdev->device_cpu_disabled = false;
+		hdev->hard_reset_pending = false;
 
 		if (hdev->kernel_ctx) {
 			dev_crit(hdev->dev,
@@ -779,8 +780,6 @@ again:
 		}
 
 		hl_set_max_power(hdev, hdev->max_power);
-
-		hdev->hard_reset_pending = false;
 	} else {
 		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
 		if (rc) {
@@ -1068,6 +1067,8 @@ void hl_device_fini(struct hl_device *hdev)
 	 */
 	hdev->asic_funcs->hw_queues_lock(hdev);
 	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	hdev->hard_reset_pending = true;
 
 	device_kill_open_processes(hdev);
 

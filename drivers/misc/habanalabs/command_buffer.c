@@ -214,6 +214,13 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	u64 handle;
 	int rc;
 
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_warn_ratelimited(hdev->dev,
+			"Device is %s. Can't execute CB IOCTL\n",
+			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+		return -EBUSY;
+	}
+
 	switch (args->in.op) {
 	case HL_CB_OP_CREATE:
 		rc = hl_cb_create(hdev, &hpriv->cb_mgr, args->in.cb_size,
