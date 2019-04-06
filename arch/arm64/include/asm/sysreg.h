@@ -191,6 +191,9 @@
 #define SYS_APGAKEYLO_EL1		sys_reg(3, 0, 2, 3, 0)
 #define SYS_APGAKEYHI_EL1		sys_reg(3, 0, 2, 3, 1)
 
+#define SYS_SPSR_EL1			sys_reg(3, 0, 4, 0, 0)
+#define SYS_ELR_EL1			sys_reg(3, 0, 4, 0, 1)
+
 #define SYS_ICC_PMR_EL1			sys_reg(3, 0, 4, 6, 0)
 
 #define SYS_AFSR0_EL1			sys_reg(3, 0, 5, 1, 0)
@@ -382,6 +385,9 @@
 #define SYS_CNTP_CTL_EL0		sys_reg(3, 3, 14, 2, 1)
 #define SYS_CNTP_CVAL_EL0		sys_reg(3, 3, 14, 2, 2)
 
+#define SYS_CNTV_CTL_EL0		sys_reg(3, 3, 14, 3, 1)
+#define SYS_CNTV_CVAL_EL0		sys_reg(3, 3, 14, 3, 2)
+
 #define SYS_AARCH32_CNTP_TVAL		sys_reg(0, 0, 14, 2, 0)
 #define SYS_AARCH32_CNTP_CTL		sys_reg(0, 0, 14, 2, 1)
 #define SYS_AARCH32_CNTP_CVAL		sys_reg(0, 2, 0, 14, 0)
@@ -392,14 +398,17 @@
 #define __TYPER_CRm(n)			(0xc | (((n) >> 3) & 0x3))
 #define SYS_PMEVTYPERn_EL0(n)		sys_reg(3, 3, 14, __TYPER_CRm(n), __PMEV_op2(n))
 
-#define SYS_PMCCFILTR_EL0		sys_reg (3, 3, 14, 15, 7)
+#define SYS_PMCCFILTR_EL0		sys_reg(3, 3, 14, 15, 7)
 
 #define SYS_ZCR_EL2			sys_reg(3, 4, 1, 2, 0)
-
 #define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
+#define SYS_SPSR_EL2			sys_reg(3, 4, 4, 0, 0)
+#define SYS_ELR_EL2			sys_reg(3, 4, 4, 0, 1)
 #define SYS_IFSR32_EL2			sys_reg(3, 4, 5, 0, 1)
+#define SYS_ESR_EL2			sys_reg(3, 4, 5, 2, 0)
 #define SYS_VSESR_EL2			sys_reg(3, 4, 5, 2, 3)
 #define SYS_FPEXC32_EL2			sys_reg(3, 4, 5, 3, 0)
+#define SYS_FAR_EL2			sys_reg(3, 4, 6, 0, 0)
 
 #define SYS_VDISR_EL2			sys_reg(3, 4, 12, 1,  1)
 #define __SYS__AP0Rx_EL2(x)		sys_reg(3, 4, 12, 8, x)
@@ -444,7 +453,29 @@
 #define SYS_ICH_LR15_EL2		__SYS__LR8_EL2(7)
 
 /* VHE encodings for architectural EL0/1 system registers */
+#define SYS_SCTLR_EL12			sys_reg(3, 5, 1, 0, 0)
+#define SYS_CPACR_EL12			sys_reg(3, 5, 1, 0, 2)
 #define SYS_ZCR_EL12			sys_reg(3, 5, 1, 2, 0)
+#define SYS_TTBR0_EL12			sys_reg(3, 5, 2, 0, 0)
+#define SYS_TTBR1_EL12			sys_reg(3, 5, 2, 0, 1)
+#define SYS_TCR_EL12			sys_reg(3, 5, 2, 0, 2)
+#define SYS_SPSR_EL12			sys_reg(3, 5, 4, 0, 0)
+#define SYS_ELR_EL12			sys_reg(3, 5, 4, 0, 1)
+#define SYS_AFSR0_EL12			sys_reg(3, 5, 5, 1, 0)
+#define SYS_AFSR1_EL12			sys_reg(3, 5, 5, 1, 1)
+#define SYS_ESR_EL12			sys_reg(3, 5, 5, 2, 0)
+#define SYS_FAR_EL12			sys_reg(3, 5, 6, 0, 0)
+#define SYS_MAIR_EL12			sys_reg(3, 5, 10, 2, 0)
+#define SYS_AMAIR_EL12			sys_reg(3, 5, 10, 3, 0)
+#define SYS_VBAR_EL12			sys_reg(3, 5, 12, 0, 0)
+#define SYS_CONTEXTIDR_EL12		sys_reg(3, 5, 13, 0, 1)
+#define SYS_CNTKCTL_EL12		sys_reg(3, 5, 14, 1, 0)
+#define SYS_CNTP_TVAL_EL02		sys_reg(3, 5, 14, 2, 0)
+#define SYS_CNTP_CTL_EL02		sys_reg(3, 5, 14, 2, 1)
+#define SYS_CNTP_CVAL_EL02		sys_reg(3, 5, 14, 2, 2)
+#define SYS_CNTV_TVAL_EL02		sys_reg(3, 5, 14, 3, 0)
+#define SYS_CNTV_CTL_EL02		sys_reg(3, 5, 14, 3, 1)
+#define SYS_CNTV_CVAL_EL02		sys_reg(3, 5, 14, 3, 2)
 
 /* Common SCTLR_ELx flags. */
 #define SCTLR_ELx_DSSBS	(_BITUL(44))

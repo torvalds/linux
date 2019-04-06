@@ -152,7 +152,7 @@ unsigned long vcpu_read_spsr32(const struct kvm_vcpu *vcpu)
 
 	switch (spsr_idx) {
 	case KVM_SPSR_SVC:
-		return read_sysreg_el1(spsr);
+		return read_sysreg_el1(SYS_SPSR);
 	case KVM_SPSR_ABT:
 		return read_sysreg(spsr_abt);
 	case KVM_SPSR_UND:
@@ -177,7 +177,7 @@ void vcpu_write_spsr32(struct kvm_vcpu *vcpu, unsigned long v)
 
 	switch (spsr_idx) {
 	case KVM_SPSR_SVC:
-		write_sysreg_el1(v, spsr);
+		write_sysreg_el1(v, SYS_SPSR);
 	case KVM_SPSR_ABT:
 		write_sysreg(v, spsr_abt);
 	case KVM_SPSR_UND:
