@@ -106,10 +106,6 @@ static int dyna_pci10xx_insn_write_ao(struct comedi_device *dev,
 {
 	struct dyna_pci10xx_private *devpriv = dev->private;
 	int n;
-	unsigned int chan, range;
-
-	chan = CR_CHAN(insn->chanspec);
-	range = range_codes_pci1050_ai[CR_RANGE((insn->chanspec))];
 
 	mutex_lock(&devpriv->mutex);
 	for (n = 0; n < insn->n; n++) {
