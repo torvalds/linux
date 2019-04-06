@@ -667,9 +667,9 @@ config RTC_DRV_S5M
 	  will be called rtc-s5m.
 
 config RTC_DRV_SD3078
-    tristate "ZXW Crystal SD3078"
+    tristate "ZXW Shenzhen whwave SD3078"
     help
-      If you say yes here you get support for the ZXW Crystal
+      If you say yes here you get support for the ZXW Shenzhen whwave
       SD3078 RTC chips.
 
       This driver can also be built as a module. If so, the module
