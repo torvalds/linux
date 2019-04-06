@@ -1230,7 +1230,6 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	if (val) {
 		DRM_DEBUG_KMS("PSR interruption error set\n");
 		dev_priv->psr.sink_not_reliable = true;
-		return;
 	}
 
 	/* Set link_standby x link_off defaults */
