@@ -534,10 +534,8 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_TP2_TIME_2500us;
 
 	/*
-	 * FIXME: There is probably a issue in DMC firmwares(icl_dmc_ver1_07.bin
-	 * and kbl_dmc_ver1_04.bin at least) that causes PSR2 SU to fail after
-	 * exiting DC6 if EDP_PSR_TP1_TP3_SEL is kept in PSR_CTL, so for now
-	 * lets workaround the issue by cleaning PSR_CTL before enable PSR2.
+	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
+	 * recommending keep this bit unset while PSR2 is enabled.
 	 */
 	I915_WRITE(EDP_PSR_CTL, 0);
 
