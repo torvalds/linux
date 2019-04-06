@@ -1592,9 +1592,6 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_SB(sb)	(sb)
 #endif
 
-/*
- * Returns true if the inode is inode is encrypted
- */
 #define NEXT_ORPHAN(inode) EXT4_I(inode)->i_dtime
 
 /*
