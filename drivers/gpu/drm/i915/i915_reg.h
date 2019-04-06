@@ -4209,42 +4209,6 @@ enum {
 #define PIPESRC(trans)		_MMIO_TRANS2(trans, _PIPEASRC)
 #define PIPE_MULT(trans)	_MMIO_TRANS2(trans, _PIPE_MULT_A)
 
-/* VLV eDP PSR registers */
-#define _PSRCTLA				(VLV_DISPLAY_BASE + 0x60090)
-#define _PSRCTLB				(VLV_DISPLAY_BASE + 0x61090)
-#define  VLV_EDP_PSR_ENABLE			(1 << 0)
-#define  VLV_EDP_PSR_RESET			(1 << 1)
-#define  VLV_EDP_PSR_MODE_MASK			(7 << 2)
-#define  VLV_EDP_PSR_MODE_HW_TIMER		(1 << 3)
-#define  VLV_EDP_PSR_MODE_SW_TIMER		(1 << 2)
-#define  VLV_EDP_PSR_SINGLE_FRAME_UPDATE	(1 << 7)
-#define  VLV_EDP_PSR_ACTIVE_ENTRY		(1 << 8)
-#define  VLV_EDP_PSR_SRC_TRANSMITTER_STATE	(1 << 9)
-#define  VLV_EDP_PSR_DBL_FRAME			(1 << 10)
-#define  VLV_EDP_PSR_FRAME_COUNT_MASK		(0xff << 16)
-#define  VLV_EDP_PSR_IDLE_FRAME_SHIFT		16
-#define VLV_PSRCTL(pipe)	_MMIO_PIPE(pipe, _PSRCTLA, _PSRCTLB)
-
-#define _VSCSDPA			(VLV_DISPLAY_BASE + 0x600a0)
-#define _VSCSDPB			(VLV_DISPLAY_BASE + 0x610a0)
-#define  VLV_EDP_PSR_SDP_FREQ_MASK	(3 << 30)
-#define  VLV_EDP_PSR_SDP_FREQ_ONCE	(1 << 31)
-#define  VLV_EDP_PSR_SDP_FREQ_EVFRAME	(1 << 30)
-#define VLV_VSCSDP(pipe)	_MMIO_PIPE(pipe, _VSCSDPA, _VSCSDPB)
-
-#define _PSRSTATA			(VLV_DISPLAY_BASE + 0x60094)
-#define _PSRSTATB			(VLV_DISPLAY_BASE + 0x61094)
-#define  VLV_EDP_PSR_LAST_STATE_MASK	(7 << 3)
-#define  VLV_EDP_PSR_CURR_STATE_MASK	7
-#define  VLV_EDP_PSR_DISABLED		(0 << 0)
-#define  VLV_EDP_PSR_INACTIVE		(1 << 0)
-#define  VLV_EDP_PSR_IN_TRANS_TO_ACTIVE	(2 << 0)
-#define  VLV_EDP_PSR_ACTIVE_NORFB_UP	(3 << 0)
-#define  VLV_EDP_PSR_ACTIVE_SF_UPDATE	(4 << 0)
-#define  VLV_EDP_PSR_EXIT		(5 << 0)
-#define  VLV_EDP_PSR_IN_TRANS		(1 << 7)
-#define VLV_PSRSTAT(pipe)	_MMIO_PIPE(pipe, _PSRSTATA, _PSRSTATB)
-
 /* HSW+ eDP PSR registers */
 #define HSW_EDP_PSR_BASE	0x64800
 #define BDW_EDP_PSR_BASE	0x6f800
