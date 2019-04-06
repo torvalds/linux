@@ -1749,6 +1749,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 
 	if (band_type == BAND_ON_2_4G) {
 		s8 limits[10] = {0}; u8 i = 0;
+
 		for (i = 0; i < MAX_REGULATION_NUM; i++)
 			limits[i] = hal_data->TxPwrLimit_2_4G[i]
 							     [idx_bandwidth]
@@ -1766,6 +1767,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 
 	} else if (band_type == BAND_ON_5G) {
 		s8 limits[10] = {0}; u8 i = 0;
+
 		for (i = 0; i < MAX_REGULATION_NUM; ++i)
 			limits[i] = hal_data->TxPwrLimit_5G[i]
 							   [idx_bandwidth]
