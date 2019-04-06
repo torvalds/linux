@@ -142,7 +142,8 @@ static void bcm2835aux_debugfs_remove(struct bcm2835aux_spi *bs)
 	bs->debugfs_dir = NULL;
 }
 #else
-static void bcm2835aux_debugfs_create(struct bcm2835aux_spi *bs)
+static void bcm2835aux_debugfs_create(struct bcm2835aux_spi *bs,
+				      const char *dname)
 {
 }
 
