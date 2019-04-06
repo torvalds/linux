@@ -9754,7 +9754,8 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 
 static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 				     struct intel_crtc_state *pipe_config,
-				     u64 *power_domain_mask)
+				     u64 *power_domain_mask,
+				     intel_wakeref_t *wakerefs)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -9762,6 +9763,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	unsigned long panel_transcoder_mask = 0;
 	unsigned long enabled_panel_transcoders = 0;
 	enum transcoder panel_transcoder;
+	intel_wakeref_t wf;
 	u32 tmp;
 
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -9827,10 +9829,13 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 		enabled_panel_transcoders != BIT(TRANSCODER_EDP));
 
 	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	WARN_ON(*power_domain_mask & BIT_ULL(power_domain));
+
+	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wf)
 		return false;
 
-	WARN_ON(*power_domain_mask & BIT_ULL(power_domain));
+	wakerefs[power_domain] = wf;
 	*power_domain_mask |= BIT_ULL(power_domain);
 
 	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
@@ -9840,13 +9845,15 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 
 static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 					 struct intel_crtc_state *pipe_config,
-					 u64 *power_domain_mask)
+					 u64 *power_domain_mask,
+					 intel_wakeref_t *wakerefs)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum intel_display_power_domain power_domain;
-	enum port port;
 	enum transcoder cpu_transcoder;
+	intel_wakeref_t wf;
+	enum port port;
 	u32 tmp;
 
 	for_each_port_masked(port, BIT(PORT_A) | BIT(PORT_C)) {
@@ -9856,10 +9863,13 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 			cpu_transcoder = TRANSCODER_DSI_C;
 
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
-		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		WARN_ON(*power_domain_mask & BIT_ULL(power_domain));
+
+		wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
+		if (!wf)
 			continue;
 
-		WARN_ON(*power_domain_mask & BIT_ULL(power_domain));
+		wakerefs[power_domain] = wf;
 		*power_domain_mask |= BIT_ULL(power_domain);
 
 		/*
@@ -9938,6 +9948,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 				    struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	intel_wakeref_t wakerefs[POWER_DOMAIN_NUM], wf;
 	enum intel_display_power_domain power_domain;
 	u64 power_domain_mask;
 	bool active;
@@ -9945,16 +9956,21 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	intel_crtc_init_scalers(crtc, pipe_config);
 
 	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wf)
 		return false;
+
+	wakerefs[power_domain] = wf;
 	power_domain_mask = BIT_ULL(power_domain);
 
 	pipe_config->shared_dpll = NULL;
 
-	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_mask);
+	active = hsw_get_transcoder_state(crtc, pipe_config,
+					  &power_domain_mask, wakerefs);
 
 	if (IS_GEN9_LP(dev_priv) &&
-	    bxt_get_dsi_transcoder_state(crtc, pipe_config, &power_domain_mask)) {
+	    bxt_get_dsi_transcoder_state(crtc, pipe_config,
+					 &power_domain_mask, wakerefs)) {
 		WARN_ON(active);
 		active = true;
 	}
@@ -9988,8 +10004,11 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
-		WARN_ON(power_domain_mask & BIT_ULL(power_domain));
+	WARN_ON(power_domain_mask & BIT_ULL(power_domain));
+
+	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (wf) {
+		wakerefs[power_domain] = wf;
 		power_domain_mask |= BIT_ULL(power_domain);
 
 		if (INTEL_GEN(dev_priv) >= 9)
@@ -10021,7 +10040,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 out:
 	for_each_power_domain(power_domain, power_domain_mask)
-		intel_display_power_put_unchecked(dev_priv, power_domain);
+		intel_display_power_put(dev_priv,
+					power_domain, wakerefs[power_domain]);
 
 	return active;
 }
