@@ -252,6 +252,7 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
+	int ret;
 
 	/* nothing todo for BE */
 	if (rtd->dai_link->no_pcm)
@@ -298,6 +299,22 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+
+	/* send IPC to the DSP */
+	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
+				 sizeof(stream), &reply, sizeof(reply));
+
+	if (ret < 0 || cmd != SNDRV_PCM_TRIGGER_SUSPEND)
+		return ret;
+
+	/*
+	 * The hw_free op is usually called when the pcm stream is closed.
+	 * Since the stream is not closed during suspend, the DSP needs to be
+	 * notified explicitly to free pcm to prevent errors upon resume.
+	 */
+	stream.hdr.size = sizeof(stream);
+	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_FREE;
+	stream.comp_id = spcm->stream[substream->stream].comp_id;
 
 	/* send IPC to the DSP */
 	return sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
