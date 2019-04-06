@@ -2543,12 +2543,12 @@
 
 			uart3_cts: uart3-cts {
 				rockchip,pins =
-					<3 RK_PC2 2 &pcfg_pull_none>;
+					<3 RK_PC0 2 &pcfg_pull_none>;
 			};
 
 			uart3_rts: uart3-rts {
 				rockchip,pins =
-					<3 RK_PC3 2 &pcfg_pull_none>;
+					<3 RK_PC1 2 &pcfg_pull_none>;
 			};
 		};
 
