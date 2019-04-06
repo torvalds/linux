@@ -3022,6 +3022,7 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hdev->last_reset_time = jiffies;
 	hdev->reset_fail_cnt = 0;
 	ae_dev->reset_type = HNAE3_NONE_RESET;
+	del_timer(&hdev->reset_timer);
 
 	return;
 
