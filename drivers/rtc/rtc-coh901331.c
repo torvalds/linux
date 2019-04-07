@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Real Time Clock interface for ST-Ericsson AB COH 901 331 RTC.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  * Based on rtc-pl031.c by Deepak Saxena <dsaxena@plexity.net>
