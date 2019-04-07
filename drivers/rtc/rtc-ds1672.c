@@ -26,8 +26,9 @@
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch
  * Time is set to UTC.
  */
-static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int ds1672_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	unsigned long time;
 	unsigned char addr = DS1672_REG_CONTROL;
 	unsigned char buf[4];
@@ -83,8 +84,9 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-static int ds1672_set_mmss(struct i2c_client *client, unsigned long secs)
+static int ds1672_set_mmss(struct device *dev, unsigned long secs)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int xfer;
 	unsigned char buf[6];
 
@@ -104,19 +106,9 @@ static int ds1672_set_mmss(struct i2c_client *client, unsigned long secs)
 	return 0;
 }
 
-static int ds1672_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return ds1672_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int ds1672_rtc_set_mmss(struct device *dev, unsigned long secs)
-{
-	return ds1672_set_mmss(to_i2c_client(dev), secs);
-}
-
 static const struct rtc_class_ops ds1672_rtc_ops = {
-	.read_time = ds1672_rtc_read_time,
-	.set_mmss = ds1672_rtc_set_mmss,
+	.read_time = ds1672_read_time,
+	.set_mmss = ds1672_set_mmss,
 };
 
 static int ds1672_probe(struct i2c_client *client,
