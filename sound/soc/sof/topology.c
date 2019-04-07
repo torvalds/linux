@@ -39,6 +39,9 @@
 #define TLV_STEP	1
 #define TLV_MUTE	2
 
+/* size of tplg abi in byte */
+#define SOF_TPLG_ABI_SIZE 3
+
 /* send pcm params ipc */
 static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
 {
@@ -3046,8 +3049,28 @@ static void sof_complete(struct snd_soc_component *scomp)
 static int sof_manifest(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_manifest *man)
 {
-	/* not currently parsed */
-	return 0;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+
+	/* backward compatible with tplg without ABI info */
+	if (!man->priv.size) {
+		dev_dbg(sdev->dev, "No topology ABI info\n");
+		return 0;
+	}
+
+	if (man->priv.size == SOF_TPLG_ABI_SIZE) {
+		dev_info(sdev->dev,
+			 "Topology: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
+			 man->priv.data[0], man->priv.data[1],
+			 man->priv.data[2], SOF_ABI_MAJOR, SOF_ABI_MINOR,
+			 SOF_ABI_PATCH);
+		if (SOF_ABI_VER(man->priv.data[0], man->priv.data[1],
+				man->priv.data[2]) <= SOF_ABI_VERSION)
+			return 0;
+	}
+	dev_err(sdev->dev,
+		"error: Incompatible ABI version %d:%d:%d\n",
+		man->priv.data[0], man->priv.data[1], man->priv.data[2]);
+	return -EINVAL;
 }
 
 /* vendor specific kcontrol handlers available for binding */
