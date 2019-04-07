@@ -38,6 +38,7 @@ struct io_uring_sqe {
  * sqe->flags
  */
 #define IOSQE_FIXED_FILE	(1U << 0)	/* use fixed fileset */
+#define IOSQE_IO_DRAIN		(1U << 1)	/* issue after inflight IO */
 
 /*
  * io_uring_setup() flags
