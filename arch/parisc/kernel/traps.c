@@ -43,6 +43,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <linux/kgdb.h>
+#include <linux/kprobes.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
@@ -294,6 +295,14 @@ static void handle_break(struct pt_regs *regs)
 			(tt == BUG_TRAP_TYPE_NONE) ? 9 : 0);
 	}
 
+#ifdef CONFIG_KPROBES
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN)) {
+		parisc_kprobe_break_handler(regs);
+		return;
+	}
+
+#endif
+
 #ifdef CONFIG_KGDB
 	if (unlikely(iir == PARISC_KGDB_COMPILED_BREAK_INSN ||
 		iir == PARISC_KGDB_BREAK_INSN)) {
@@ -527,6 +536,11 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case  3:
 		/* Recovery counter trap */
 		regs->gr[0] &= ~PSW_R;
+
+#ifdef CONFIG_KPROBES
+		if (parisc_kprobe_ss_handler(regs))
+			return;
+#endif
 
 #ifdef CONFIG_KGDB
 		if (kgdb_single_step) {

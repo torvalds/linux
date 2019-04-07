@@ -55,6 +55,7 @@ config PARISC
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select HAVE_ARCH_KGDB
+	select HAVE_KPROBES
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used

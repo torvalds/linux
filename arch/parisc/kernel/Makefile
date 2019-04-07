@@ -34,3 +34,4 @@ obj-$(CONFIG_PARISC_CPU_TOPOLOGY)	+= topology.o
 obj-$(CONFIG_FUNCTION_TRACER)		+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
 obj-$(CONFIG_KGDB)			+= kgdb.o
+obj-$(CONFIG_KPROBES)			+= kprobes.o
