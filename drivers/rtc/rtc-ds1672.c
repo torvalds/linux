@@ -29,7 +29,7 @@
 static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	unsigned long time;
-	unsigned char addr = DS1672_REG_CNT_BASE;
+	unsigned char addr = DS1672_REG_CONTROL;
 	unsigned char buf[4];
 
 	struct i2c_msg msgs[] = {
@@ -41,10 +41,24 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		{/* read date */
 			.addr = client->addr,
 			.flags = I2C_M_RD,
-			.len = 4,
+			.len = 1,
 			.buf = buf
 		},
 	};
+
+	/* read control register */
+	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
+		dev_warn(&client->dev, "Unable to read the control register\n");
+		return -EIO;
+	}
+
+	if (buf[0] & DS1672_REG_CONTROL_EOSC) {
+		dev_warn(&client->dev, "Oscillator not enabled. Set time to enable.\n");
+		return -EINVAL;
+	}
+
+	addr = DS1672_REG_CNT_BASE;
+	msgs[1].len = 4;
 
 	/* read date registers */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
@@ -154,7 +168,6 @@ static int ds1672_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int err = 0;
-	u8 control;
 	struct rtc_device *rtc;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -177,16 +190,6 @@ static int ds1672_probe(struct i2c_client *client,
 		return PTR_ERR(rtc);
 
 	i2c_set_clientdata(client, rtc);
-
-	/* read control register */
-	err = ds1672_get_control(client, &control);
-	if (err) {
-		dev_warn(&client->dev, "Unable to read the control register\n");
-	}
-
-	if (control & DS1672_REG_CONTROL_EOSC)
-		dev_warn(&client->dev, "Oscillator not enabled. "
-			 "Set time to enable.\n");
 
 	/* Register sysfs hooks */
 	err = device_create_file(&client->dev, &dev_attr_control);
