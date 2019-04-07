@@ -78,7 +78,7 @@
 
 enum {
 	/* Mount options that take no arguments */
-	Opt_soft, Opt_hard,
+	Opt_soft, Opt_softerr, Opt_hard,
 	Opt_posix, Opt_noposix,
 	Opt_cto, Opt_nocto,
 	Opt_ac, Opt_noac,
@@ -125,6 +125,7 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_sloppy, "sloppy" },
 
 	{ Opt_soft, "soft" },
+	{ Opt_softerr, "softerr" },
 	{ Opt_hard, "hard" },
 	{ Opt_deprecated, "intr" },
 	{ Opt_deprecated, "nointr" },
@@ -628,7 +629,8 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		const char *str;
 		const char *nostr;
 	} nfs_info[] = {
-		{ NFS_MOUNT_SOFT, ",soft", ",hard" },
+		{ NFS_MOUNT_SOFT, ",soft", "" },
+		{ NFS_MOUNT_SOFTERR, ",softerr", "" },
 		{ NFS_MOUNT_POSIX, ",posix", "" },
 		{ NFS_MOUNT_NOCTO, ",nocto", "" },
 		{ NFS_MOUNT_NOAC, ",noac", "" },
@@ -658,6 +660,8 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		seq_printf(m, ",acdirmin=%u", nfss->acdirmin/HZ);
 	if (nfss->acdirmax != NFS_DEF_ACDIRMAX*HZ || showdefaults)
 		seq_printf(m, ",acdirmax=%u", nfss->acdirmax/HZ);
+	if (!(nfss->flags & (NFS_MOUNT_SOFT|NFS_MOUNT_SOFTERR)))
+			seq_puts(m, ",hard");
 	for (nfs_infop = nfs_info; nfs_infop->flag; nfs_infop++) {
 		if (nfss->flags & nfs_infop->flag)
 			seq_puts(m, nfs_infop->str);
@@ -1239,9 +1243,14 @@ static int nfs_parse_mount_options(char *raw,
 		 */
 		case Opt_soft:
 			mnt->flags |= NFS_MOUNT_SOFT;
+			mnt->flags &= ~NFS_MOUNT_SOFTERR;
+			break;
+		case Opt_softerr:
+			mnt->flags |= NFS_MOUNT_SOFTERR;
+			mnt->flags &= ~NFS_MOUNT_SOFT;
 			break;
 		case Opt_hard:
-			mnt->flags &= ~NFS_MOUNT_SOFT;
+			mnt->flags &= ~(NFS_MOUNT_SOFT|NFS_MOUNT_SOFTERR);
 			break;
 		case Opt_posix:
 			mnt->flags |= NFS_MOUNT_POSIX;

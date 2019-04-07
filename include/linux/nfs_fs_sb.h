@@ -147,6 +147,7 @@ struct nfs_server {
 #define NFS_MOUNT_LEGACY_INTERFACE	0x80000
 #define NFS_MOUNT_LOCAL_FLOCK		0x100000
 #define NFS_MOUNT_LOCAL_FCNTL		0x200000
+#define NFS_MOUNT_SOFTERR		0x400000
 
 	unsigned int		caps;		/* server capabilities */
 	unsigned int		rsize;		/* read size */
