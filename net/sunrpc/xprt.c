@@ -554,41 +554,6 @@ bool xprt_write_space(struct rpc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(xprt_write_space);
 
-/**
- * xprt_set_retrans_timeout_def - set a request's retransmit timeout
- * @task: task whose timeout is to be set
- *
- * Set a request's retransmit timeout based on the transport's
- * default timeout parameters.  Used by transports that don't adjust
- * the retransmit timeout based on round-trip time estimation.
- */
-void xprt_set_retrans_timeout_def(struct rpc_task *task)
-{
-	task->tk_timeout = task->tk_rqstp->rq_timeout;
-}
-EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_def);
-
-/**
- * xprt_set_retrans_timeout_rtt - set a request's retransmit timeout
- * @task: task whose timeout is to be set
- *
- * Set a request's retransmit timeout using the RTT estimator.
- */
-void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
-{
-	int timer = task->tk_msg.rpc_proc->p_timer;
-	struct rpc_clnt *clnt = task->tk_client;
-	struct rpc_rtt *rtt = clnt->cl_rtt;
-	struct rpc_rqst *req = task->tk_rqstp;
-	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
-
-	task->tk_timeout = rpc_calc_rto(rtt, timer);
-	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
-	if (task->tk_timeout > max_timeout || task->tk_timeout == 0)
-		task->tk_timeout = max_timeout;
-}
-EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_rtt);
-
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
 	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
@@ -1103,6 +1068,47 @@ static void xprt_timer(struct rpc_task *task)
 }
 
 /**
+ * xprt_wait_for_reply_request_def - wait for reply
+ * @task: pointer to rpc_task
+ *
+ * Set a request's retransmit timeout based on the transport's
+ * default timeout parameters.  Used by transports that don't adjust
+ * the retransmit timeout based on round-trip time estimation,
+ * and put the task to sleep on the pending queue.
+ */
+void xprt_wait_for_reply_request_def(struct rpc_task *task)
+{
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	task->tk_timeout = req->rq_timeout;
+	rpc_sleep_on(&req->rq_xprt->pending, task, xprt_timer);
+}
+EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_def);
+
+/**
+ * xprt_wait_for_reply_request_rtt - wait for reply using RTT estimator
+ * @task: pointer to rpc_task
+ *
+ * Set a request's retransmit timeout using the RTT estimator,
+ * and put the task to sleep on the pending queue.
+ */
+void xprt_wait_for_reply_request_rtt(struct rpc_task *task)
+{
+	int timer = task->tk_msg.rpc_proc->p_timer;
+	struct rpc_clnt *clnt = task->tk_client;
+	struct rpc_rtt *rtt = clnt->cl_rtt;
+	struct rpc_rqst *req = task->tk_rqstp;
+	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
+
+	task->tk_timeout = rpc_calc_rto(rtt, timer);
+	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
+	if (task->tk_timeout > max_timeout || task->tk_timeout == 0)
+		task->tk_timeout = max_timeout;
+	rpc_sleep_on(&req->rq_xprt->pending, task, xprt_timer);
+}
+EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_rtt);
+
+/**
  * xprt_request_wait_receive - wait for the reply to an RPC request
  * @task: RPC task about to send a request
  *
@@ -1121,8 +1127,7 @@ void xprt_request_wait_receive(struct rpc_task *task)
 	 */
 	spin_lock(&xprt->queue_lock);
 	if (test_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
-		xprt->ops->set_retrans_timeout(task);
-		rpc_sleep_on(&xprt->pending, task, xprt_timer);
+		xprt->ops->wait_for_reply_request(task);
 		/*
 		 * Send an extra queue wakeup call if the
 		 * connection was dropped in case the call to
