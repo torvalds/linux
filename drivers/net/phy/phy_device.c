@@ -225,7 +225,7 @@ static void phy_mdio_device_remove(struct mdio_device *mdiodev)
 }
 
 static struct phy_driver genphy_driver;
-extern struct phy_driver genphy_10g_driver;
+extern struct phy_driver genphy_c45_driver;
 
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
@@ -1174,7 +1174,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 */
 	if (!d->driver) {
 		if (phydev->is_c45)
-			d->driver = &genphy_10g_driver.mdiodrv.driver;
+			d->driver = &genphy_c45_driver.mdiodrv.driver;
 		else
 			d->driver = &genphy_driver.mdiodrv.driver;
 
@@ -1335,7 +1335,7 @@ EXPORT_SYMBOL_GPL(phy_driver_is_genphy);
 bool phy_driver_is_genphy_10g(struct phy_device *phydev)
 {
 	return phy_driver_is_genphy_kind(phydev,
-					 &genphy_10g_driver.mdiodrv.driver);
+					 &genphy_c45_driver.mdiodrv.driver);
 }
 EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
 
@@ -2308,14 +2308,14 @@ static int __init phy_init(void)
 
 	features_init();
 
-	rc = phy_driver_register(&genphy_10g_driver, THIS_MODULE);
+	rc = phy_driver_register(&genphy_c45_driver, THIS_MODULE);
 	if (rc)
-		goto err_10g;
+		goto err_c45;
 
 	rc = phy_driver_register(&genphy_driver, THIS_MODULE);
 	if (rc) {
-		phy_driver_unregister(&genphy_10g_driver);
-err_10g:
+		phy_driver_unregister(&genphy_c45_driver);
+err_c45:
 		mdio_bus_exit();
 	}
 
@@ -2324,7 +2324,7 @@ err_10g:
 
 static void __exit phy_exit(void)
 {
-	phy_driver_unregister(&genphy_10g_driver);
+	phy_driver_unregister(&genphy_c45_driver);
 	phy_driver_unregister(&genphy_driver);
 	mdio_bus_exit();
 }

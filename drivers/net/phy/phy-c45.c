@@ -516,21 +516,10 @@ int gen10g_config_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(gen10g_config_aneg);
 
-static int gen10g_read_status(struct phy_device *phydev)
-{
-	/* For now just lie and say it's 10G all the time */
-	phydev->speed = SPEED_10000;
-	phydev->duplex = DUPLEX_FULL;
-
-	return genphy_c45_read_link(phydev);
-}
-
-struct phy_driver genphy_10g_driver = {
+struct phy_driver genphy_c45_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
-	.name           = "Generic 10G PHY",
+	.name           = "Generic Clause 45 PHY",
 	.soft_reset	= genphy_no_soft_reset,
-	.features       = PHY_10GBIT_FEATURES,
-	.config_aneg    = gen10g_config_aneg,
-	.read_status    = gen10g_read_status,
+	.read_status    = genphy_c45_read_status,
 };
