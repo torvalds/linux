@@ -51,7 +51,10 @@
 #define RESET_SD_EMMC_A			44
 #define RESET_SD_EMMC_B			45
 #define RESET_SD_EMMC_C			46
-/*					47-60 */
+/*					47	*/
+#define RESET_USB_PHY20			48
+#define RESET_USB_PHY21			49
+/*					50-60	*/
 #define RESET_AUDIO_CODEC		61
 /*					62-63	*/
 /*	RESET2					*/
