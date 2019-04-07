@@ -61,6 +61,8 @@ struct rpc_task {
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
 
+	int			tk_rpc_status;	/* Result of last RPC operation */
+
 	/*
 	 * RPC call state
 	 */

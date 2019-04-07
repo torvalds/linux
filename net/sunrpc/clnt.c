@@ -1468,6 +1468,7 @@ static int
 __rpc_restart_call(struct rpc_task *task, void (*action)(struct rpc_task *))
 {
 	task->tk_status = 0;
+	task->tk_rpc_status = 0;
 	task->tk_action = action;
 	return 1;
 }
@@ -1508,6 +1509,19 @@ const char
 			return "NULL";
 	} else
 		return "no proc";
+}
+
+static void
+__rpc_call_rpcerror(struct rpc_task *task, int tk_status, int rpc_status)
+{
+	task->tk_rpc_status = rpc_status;
+	rpc_exit(task, tk_status);
+}
+
+static void
+rpc_call_rpcerror(struct rpc_task *task, int status)
+{
+	__rpc_call_rpcerror(task, status, status);
 }
 
 /*
@@ -1574,7 +1588,7 @@ call_reserveresult(struct rpc_task *task)
 
 		printk(KERN_ERR "%s: status=%d, but no request slot, exiting\n",
 				__func__, status);
-		rpc_exit(task, -EIO);
+		rpc_call_rpcerror(task, -EIO);
 		return;
 	}
 
@@ -1602,7 +1616,7 @@ call_reserveresult(struct rpc_task *task)
 				__func__, status);
 		break;
 	}
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 }
 
 /*
@@ -1670,7 +1684,7 @@ call_refreshresult(struct rpc_task *task)
 	}
 	dprintk("RPC: %5u %s: refresh creds failed with error %d\n",
 				task->tk_pid, __func__, status);
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 }
 
 /*
@@ -1721,7 +1735,7 @@ call_allocate(struct rpc_task *task)
 	if (status == 0)
 		return;
 	if (status != -ENOMEM) {
-		rpc_exit(task, status);
+		rpc_call_rpcerror(task, status);
 		return;
 	}
 
@@ -1790,7 +1804,7 @@ call_encode(struct rpc_task *task)
 			task->tk_action = call_refresh;
 			break;
 		default:
-			rpc_exit(task, task->tk_status);
+			rpc_call_rpcerror(task, task->tk_status);
 		}
 		return;
 	} else {
@@ -1931,7 +1945,7 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid, -task->tk_status);
 	}
 
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 	return;
 
 retry_timeout:
@@ -1966,7 +1980,7 @@ call_connect(struct rpc_task *task)
 	if (task->tk_status < 0)
 		return;
 	if (task->tk_flags & RPC_TASK_NOCONNECT) {
-		rpc_exit(task, -ENOTCONN);
+		rpc_call_rpcerror(task, -ENOTCONN);
 		return;
 	}
 	if (!xprt_prepare_transmit(task))
@@ -2026,7 +2040,7 @@ call_connect_status(struct rpc_task *task)
 		task->tk_action = call_transmit;
 		return;
 	}
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 	return;
 out_retry:
 	/* Check for timeouts before looping back to call_bind */
@@ -2111,7 +2125,7 @@ call_transmit_status(struct rpc_task *task)
 			if (!task->tk_msg.rpc_proc->p_proc)
 				trace_xprt_ping(task->tk_xprt,
 						task->tk_status);
-			rpc_exit(task, task->tk_status);
+			rpc_call_rpcerror(task, task->tk_status);
 			return;
 		}
 		/* fall through */
@@ -2275,7 +2289,7 @@ call_status(struct rpc_task *task)
 	rpc_check_timeout(task);
 	return;
 out_exit:
-	rpc_exit(task, status);
+	rpc_call_rpcerror(task, status);
 }
 
 static bool
@@ -2299,7 +2313,7 @@ rpc_check_timeout(struct rpc_task *task)
 	task->tk_timeouts++;
 
 	if (RPC_IS_SOFTCONN(task) && !rpc_check_connected(task->tk_rqstp)) {
-		rpc_exit(task, -ETIMEDOUT);
+		rpc_call_rpcerror(task, -ETIMEDOUT);
 		return;
 	}
 
@@ -2310,9 +2324,9 @@ rpc_check_timeout(struct rpc_task *task)
 				task->tk_xprt->servername);
 		}
 		if (task->tk_flags & RPC_TASK_TIMEOUT)
-			rpc_exit(task, -ETIMEDOUT);
+			rpc_call_rpcerror(task, -ETIMEDOUT);
 		else
-			rpc_exit(task, -EIO);
+			__rpc_call_rpcerror(task, -EIO, -ETIMEDOUT);
 		return;
 	}
 
