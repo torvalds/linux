@@ -581,8 +581,8 @@ gss_refresh_upcall(struct rpc_task *task)
 		/* XXX: warning on the first, under the assumption we
 		 * shouldn't normally hit this case on a refresh. */
 		warn_gssd();
-		task->tk_timeout = 15*HZ;
-		rpc_sleep_on(&pipe_version_rpc_waitqueue, task, NULL);
+		rpc_sleep_on_timeout(&pipe_version_rpc_waitqueue,
+				task, NULL, jiffies + (15 * HZ));
 		err = -EAGAIN;
 		goto out;
 	}
@@ -595,7 +595,6 @@ gss_refresh_upcall(struct rpc_task *task)
 	if (gss_cred->gc_upcall != NULL)
 		rpc_sleep_on(&gss_cred->gc_upcall->rpc_waitqueue, task, NULL);
 	else if (gss_msg->ctx == NULL && gss_msg->msg.errno >= 0) {
-		task->tk_timeout = 0;
 		gss_cred->gc_upcall = gss_msg;
 		/* gss_upcall_callback will release the reference to gss_upcall_msg */
 		refcount_inc(&gss_msg->count);

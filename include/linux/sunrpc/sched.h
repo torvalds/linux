@@ -35,7 +35,6 @@ struct rpc_wait {
 	struct list_head	list;		/* wait queue links */
 	struct list_head	links;		/* Links to related tasks */
 	struct list_head	timer_list;	/* Timer list */
-	unsigned long		expires;
 };
 
 /*
@@ -227,8 +226,16 @@ void		rpc_execute(struct rpc_task *);
 void		rpc_init_priority_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_init_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_destroy_wait_queue(struct rpc_wait_queue *);
+void		rpc_sleep_on_timeout(struct rpc_wait_queue *queue,
+					struct rpc_task *task,
+					rpc_action action,
+					unsigned long timeout);
 void		rpc_sleep_on(struct rpc_wait_queue *, struct rpc_task *,
 					rpc_action action);
+void		rpc_sleep_on_priority_timeout(struct rpc_wait_queue *queue,
+					struct rpc_task *task,
+					unsigned long timeout,
+					int priority);
 void		rpc_sleep_on_priority(struct rpc_wait_queue *,
 					struct rpc_task *,
 					int priority);

@@ -66,7 +66,7 @@ struct workqueue_struct *xprtiod_workqueue __read_mostly;
 static void
 __rpc_disable_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	if (task->tk_timeout == 0)
+	if (list_empty(&task->u.tk_wait.timer_list))
 		return;
 	dprintk("RPC: %5u disabling timer\n", task->tk_pid);
 	task->tk_timeout = 0;
@@ -86,17 +86,15 @@ rpc_set_queue_timer(struct rpc_wait_queue *queue, unsigned long expires)
  * Set up a timer for the current task.
  */
 static void
-__rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
+__rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task,
+		unsigned long timeout)
 {
-	if (!task->tk_timeout)
-		return;
-
 	dprintk("RPC: %5u setting alarm for %u ms\n",
-		task->tk_pid, jiffies_to_msecs(task->tk_timeout));
+		task->tk_pid, jiffies_to_msecs(timeout - jiffies));
 
-	task->u.tk_wait.expires = jiffies + task->tk_timeout;
-	if (list_empty(&queue->timer_list.list) || time_before(task->u.tk_wait.expires, queue->timer_list.expires))
-		rpc_set_queue_timer(queue, task->u.tk_wait.expires);
+	task->tk_timeout = timeout;
+	if (list_empty(&queue->timer_list.list) || time_before(timeout, queue->timer_list.expires))
+		rpc_set_queue_timer(queue, timeout);
 	list_add(&task->u.tk_wait.timer_list, &queue->timer_list.list);
 }
 
@@ -188,6 +186,7 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue,
 	if (RPC_IS_QUEUED(task))
 		return;
 
+	INIT_LIST_HEAD(&task->u.tk_wait.timer_list);
 	if (RPC_IS_PRIORITY(queue))
 		__rpc_add_wait_queue_priority(queue, task, queue_priority);
 	else if (RPC_IS_SWAPPER(task))
@@ -371,7 +370,17 @@ static void __rpc_sleep_on_priority(struct rpc_wait_queue *q,
 
 	__rpc_add_wait_queue(q, task, queue_priority);
 
-	__rpc_add_timer(q, task);
+}
+
+static void __rpc_sleep_on_priority_timeout(struct rpc_wait_queue *q,
+		struct rpc_task *task, unsigned long timeout,
+		unsigned char queue_priority)
+{
+	if (time_is_after_jiffies(timeout)) {
+		__rpc_sleep_on_priority(q, task, queue_priority);
+		__rpc_add_timer(q, task, timeout);
+	} else
+		task->tk_status = -ETIMEDOUT;
 }
 
 static void rpc_set_tk_callback(struct rpc_task *task, rpc_action action)
@@ -391,8 +400,8 @@ static bool rpc_sleep_check_activated(struct rpc_task *task)
 	return true;
 }
 
-void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
-				rpc_action action)
+void rpc_sleep_on_timeout(struct rpc_wait_queue *q, struct rpc_task *task,
+				rpc_action action, unsigned long timeout)
 {
 	if (!rpc_sleep_check_activated(task))
 		return;
@@ -403,10 +412,44 @@ void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 	 * Protect the queue operations.
 	 */
 	spin_lock_bh(&q->lock);
+	__rpc_sleep_on_priority_timeout(q, task, timeout, task->tk_priority);
+	spin_unlock_bh(&q->lock);
+}
+EXPORT_SYMBOL_GPL(rpc_sleep_on_timeout);
+
+void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
+				rpc_action action)
+{
+	if (!rpc_sleep_check_activated(task))
+		return;
+
+	rpc_set_tk_callback(task, action);
+
+	WARN_ON_ONCE(task->tk_timeout != 0);
+	/*
+	 * Protect the queue operations.
+	 */
+	spin_lock_bh(&q->lock);
 	__rpc_sleep_on_priority(q, task, task->tk_priority);
 	spin_unlock_bh(&q->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_sleep_on);
+
+void rpc_sleep_on_priority_timeout(struct rpc_wait_queue *q,
+		struct rpc_task *task, unsigned long timeout, int priority)
+{
+	if (!rpc_sleep_check_activated(task))
+		return;
+
+	priority -= RPC_PRIORITY_LOW;
+	/*
+	 * Protect the queue operations.
+	 */
+	spin_lock_bh(&q->lock);
+	__rpc_sleep_on_priority_timeout(q, task, timeout, priority);
+	spin_unlock_bh(&q->lock);
+}
+EXPORT_SYMBOL_GPL(rpc_sleep_on_priority_timeout);
 
 void rpc_sleep_on_priority(struct rpc_wait_queue *q, struct rpc_task *task,
 		int priority)
@@ -414,6 +457,7 @@ void rpc_sleep_on_priority(struct rpc_wait_queue *q, struct rpc_task *task,
 	if (!rpc_sleep_check_activated(task))
 		return;
 
+	WARN_ON_ONCE(task->tk_timeout != 0);
 	priority -= RPC_PRIORITY_LOW;
 	/*
 	 * Protect the queue operations.
@@ -711,7 +755,7 @@ static void __rpc_queue_timer_fn(struct timer_list *t)
 	spin_lock(&queue->lock);
 	expires = now = jiffies;
 	list_for_each_entry_safe(task, n, &queue->timer_list.list, u.tk_wait.timer_list) {
-		timeo = task->u.tk_wait.expires;
+		timeo = task->tk_timeout;
 		if (time_after_eq(now, timeo)) {
 			dprintk("RPC: %5u timeout\n", task->tk_pid);
 			task->tk_status = -ETIMEDOUT;
@@ -737,8 +781,7 @@ static void __rpc_atrun(struct rpc_task *task)
  */
 void rpc_delay(struct rpc_task *task, unsigned long delay)
 {
-	task->tk_timeout = delay;
-	rpc_sleep_on(&delay_queue, task, __rpc_atrun);
+	rpc_sleep_on_timeout(&delay_queue, task, __rpc_atrun, jiffies + delay);
 }
 EXPORT_SYMBOL_GPL(rpc_delay);
 

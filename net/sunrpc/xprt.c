@@ -209,9 +209,12 @@ out_unlock:
 out_sleep:
 	dprintk("RPC: %5u failed to lock transport %p\n",
 			task->tk_pid, xprt);
-	task->tk_timeout = RPC_IS_SOFT(task) ? req->rq_timeout : 0;
 	task->tk_status = -EAGAIN;
-	rpc_sleep_on(&xprt->sending, task, NULL);
+	if  (RPC_IS_SOFT(task))
+		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
+				jiffies + req->rq_timeout);
+	else
+		rpc_sleep_on(&xprt->sending, task, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reserve_xprt);
@@ -273,9 +276,12 @@ out_unlock:
 	xprt_clear_locked(xprt);
 out_sleep:
 	dprintk("RPC: %5u failed to lock transport %p\n", task->tk_pid, xprt);
-	task->tk_timeout = RPC_IS_SOFT(task) ? req->rq_timeout : 0;
 	task->tk_status = -EAGAIN;
-	rpc_sleep_on(&xprt->sending, task, NULL);
+	if (RPC_IS_SOFT(task))
+		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
+				jiffies + req->rq_timeout);
+	else
+		rpc_sleep_on(&xprt->sending, task, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reserve_xprt_cong);
@@ -787,9 +793,9 @@ void xprt_connect(struct rpc_task *task)
 		xprt->ops->close(xprt);
 
 	if (!xprt_connected(xprt)) {
-		task->tk_timeout = task->tk_rqstp->rq_timeout;
 		task->tk_rqstp->rq_connect_cookie = xprt->connect_cookie;
-		rpc_sleep_on(&xprt->pending, task, NULL);
+		rpc_sleep_on_timeout(&xprt->pending, task, NULL,
+				jiffies + task->tk_rqstp->rq_timeout);
 
 		if (test_bit(XPRT_CLOSING, &xprt->state))
 			return;
@@ -1080,8 +1086,8 @@ void xprt_wait_for_reply_request_def(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 
-	task->tk_timeout = req->rq_timeout;
-	rpc_sleep_on(&req->rq_xprt->pending, task, xprt_timer);
+	rpc_sleep_on_timeout(&req->rq_xprt->pending, task, xprt_timer,
+			jiffies + req->rq_timeout);
 }
 EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_def);
 
@@ -1099,12 +1105,14 @@ void xprt_wait_for_reply_request_rtt(struct rpc_task *task)
 	struct rpc_rtt *rtt = clnt->cl_rtt;
 	struct rpc_rqst *req = task->tk_rqstp;
 	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
+	unsigned long timeout;
 
-	task->tk_timeout = rpc_calc_rto(rtt, timer);
-	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
-	if (task->tk_timeout > max_timeout || task->tk_timeout == 0)
-		task->tk_timeout = max_timeout;
-	rpc_sleep_on(&req->rq_xprt->pending, task, xprt_timer);
+	timeout = rpc_calc_rto(rtt, timer);
+	timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
+	if (timeout > max_timeout || timeout == 0)
+		timeout = max_timeout;
+	rpc_sleep_on_timeout(&req->rq_xprt->pending, task, xprt_timer,
+			jiffies + timeout);
 }
 EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_rtt);
 
@@ -1656,7 +1664,6 @@ void xprt_reserve(struct rpc_task *task)
 	if (task->tk_rqstp != NULL)
 		return;
 
-	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
 	if (!xprt_throttle_congested(xprt, task))
 		xprt_do_reserve(xprt, task);
@@ -1679,7 +1686,6 @@ void xprt_retry_reserve(struct rpc_task *task)
 	if (task->tk_rqstp != NULL)
 		return;
 
-	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
 	xprt_do_reserve(xprt, task);
 }

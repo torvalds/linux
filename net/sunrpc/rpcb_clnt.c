@@ -694,7 +694,8 @@ void rpcb_getport_async(struct rpc_task *task)
 
 	/* Put self on the wait queue to ensure we get notified if
 	 * some other task is already attempting to bind the port */
-	rpc_sleep_on(&xprt->binding, task, NULL);
+	rpc_sleep_on_timeout(&xprt->binding, task,
+			NULL, jiffies + xprt->bind_timeout);
 
 	if (xprt_test_and_set_binding(xprt)) {
 		dprintk("RPC: %5u %s: waiting for another binder\n",
