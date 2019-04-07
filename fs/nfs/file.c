@@ -147,7 +147,7 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 		return 0;
 
 	/* Flush writes to the server and return any errors */
-	return vfs_fsync(file, 0);
+	return nfs_wb_all(inode);
 }
 
 ssize_t
@@ -655,7 +655,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 
 	/* Return error values */
 	if (nfs_need_check_write(file, inode)) {
-		int err = vfs_fsync(file, 0);
+		int err = nfs_wb_all(inode);
 		if (err < 0)
 			result = err;
 	}
@@ -709,7 +709,7 @@ do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	 * Flush all pending writes before doing anything
 	 * with locks..
 	 */
-	vfs_fsync(filp, 0);
+	nfs_wb_all(inode);
 
 	l_ctx = nfs_get_lock_context(nfs_file_open_context(filp));
 	if (!IS_ERR(l_ctx)) {
