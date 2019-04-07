@@ -306,6 +306,13 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 
 	info->tegra_rtc_irq = ret;
 
+	info->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(info->rtc_dev))
+		return PTR_ERR(info->rtc_dev);
+
+	info->rtc_dev->ops = &tegra_rtc_ops;
+	info->rtc_dev->range_max = U32_MAX;
+
 	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk))
 		return PTR_ERR(info->clk);
@@ -327,22 +334,19 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	info->rtc_dev = devm_rtc_device_register(&pdev->dev,
-				dev_name(&pdev->dev), &tegra_rtc_ops,
-				THIS_MODULE);
-	if (IS_ERR(info->rtc_dev)) {
-		ret = PTR_ERR(info->rtc_dev);
-		dev_err(&pdev->dev, "Unable to register device (err=%d).\n",
-			ret);
-		goto disable_clk;
-	}
-
 	ret = devm_request_irq(&pdev->dev, info->tegra_rtc_irq,
 			tegra_rtc_irq_handler, IRQF_TRIGGER_HIGH,
 			dev_name(&pdev->dev), &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Unable to request interrupt for device (err=%d).\n",
+			ret);
+		goto disable_clk;
+	}
+
+	ret = rtc_register_device(info->rtc_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to register device (err=%d).\n",
 			ret);
 		goto disable_clk;
 	}
