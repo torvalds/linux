@@ -164,11 +164,11 @@ static int stmp3xxx_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 	return 0;
 }
 
-static int stmp3xxx_rtc_set_mmss(struct device *dev, unsigned long t)
+static int stmp3xxx_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 {
 	struct stmp3xxx_rtc_data *rtc_data = dev_get_drvdata(dev);
 
-	writel(t, rtc_data->io + STMP3XXX_RTC_SECONDS);
+	writel(rtc_tm_to_time64(rtc_tm), rtc_data->io + STMP3XXX_RTC_SECONDS);
 	return stmp3xxx_wait_time(rtc_data);
 }
 
@@ -233,7 +233,7 @@ static const struct rtc_class_ops stmp3xxx_rtc_ops = {
 	.alarm_irq_enable =
 			  stmp3xxx_alarm_irq_enable,
 	.read_time	= stmp3xxx_rtc_gettime,
-	.set_mmss	= stmp3xxx_rtc_set_mmss,
+	.set_time	= stmp3xxx_rtc_settime,
 	.read_alarm	= stmp3xxx_rtc_read_alarm,
 	.set_alarm	= stmp3xxx_rtc_set_alarm,
 };
