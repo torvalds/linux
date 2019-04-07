@@ -90,12 +90,12 @@ static int coh901331_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int coh901331_set_mmss(struct device *dev, unsigned long secs)
+static int coh901331_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct coh901331_port *rtap = dev_get_drvdata(dev);
 
 	clk_enable(rtap->clk);
-	writel(secs, rtap->virtbase + COH901331_SET_TIME);
+	writel(rtc_tm_to_time64(tm), rtap->virtbase + COH901331_SET_TIME);
 	clk_disable(rtap->clk);
 
 	return 0;
@@ -143,7 +143,7 @@ static int coh901331_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static const struct rtc_class_ops coh901331_ops = {
 	.read_time = coh901331_read_time,
-	.set_mmss = coh901331_set_mmss,
+	.set_time = coh901331_set_time,
 	.read_alarm = coh901331_read_alarm,
 	.set_alarm = coh901331_set_alarm,
 	.alarm_irq_enable = coh901331_alarm_irq_enable,
