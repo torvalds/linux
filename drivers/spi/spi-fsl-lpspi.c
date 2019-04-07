@@ -843,8 +843,10 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret, irq;
 	u32 temp;
+	bool is_slave;
 
-	if (of_property_read_bool((&pdev->dev)->of_node, "spi-slave"))
+	is_slave = of_property_read_bool((&pdev->dev)->of_node, "spi-slave");
+	if (is_slave)
 		controller = spi_alloc_slave(&pdev->dev,
 					sizeof(struct fsl_lpspi_data));
 	else
@@ -856,13 +858,9 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, controller);
 
-	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
-	controller->bus_num = pdev->id;
-
 	fsl_lpspi = spi_controller_get_devdata(controller);
 	fsl_lpspi->dev = &pdev->dev;
-	fsl_lpspi->is_slave = of_property_read_bool((&pdev->dev)->of_node,
-						    "spi-slave");
+	fsl_lpspi->is_slave = is_slave;
 
 	if (!fsl_lpspi->is_slave) {
 		for (i = 0; i < controller->num_chipselect; i++) {
@@ -887,6 +885,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 		controller->prepare_message = fsl_lpspi_prepare_message;
 	}
 
+	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
 	controller->transfer_one = fsl_lpspi_transfer_one;
 	controller->prepare_transfer_hardware = lpspi_prepare_xfer_hardware;
 	controller->unprepare_transfer_hardware = lpspi_unprepare_xfer_hardware;
