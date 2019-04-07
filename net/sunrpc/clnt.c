@@ -827,14 +827,8 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 	 * Spin lock all_tasks to prevent changes...
 	 */
 	spin_lock(&clnt->cl_lock);
-	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task) {
-		if (!RPC_IS_ACTIVATED(rovr))
-			continue;
-		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
-			rovr->tk_flags |= RPC_TASK_KILLED;
-			rpc_exit(rovr, -EIO);
-		}
-	}
+	list_for_each_entry(rovr, &clnt->cl_tasks, tk_task)
+		rpc_signal_task(rovr);
 	spin_unlock(&clnt->cl_lock);
 }
 EXPORT_SYMBOL_GPL(rpc_killall_tasks);
@@ -1477,8 +1471,6 @@ EXPORT_SYMBOL_GPL(rpc_force_rebind);
 int
 rpc_restart_call_prepare(struct rpc_task *task)
 {
-	if (RPC_ASSASSINATED(task))
-		return 0;
 	task->tk_action = call_start;
 	task->tk_status = 0;
 	if (task->tk_ops->rpc_call_prepare != NULL)
@@ -1494,8 +1486,6 @@ EXPORT_SYMBOL_GPL(rpc_restart_call_prepare);
 int
 rpc_restart_call(struct rpc_task *task)
 {
-	if (RPC_ASSASSINATED(task))
-		return 0;
 	task->tk_action = call_start;
 	task->tk_status = 0;
 	return 1;
