@@ -16,8 +16,8 @@
 #include <linux/nfs.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
-#include <linux/nfs_page.h>
 #include <linux/nfs_fs.h>
+#include <linux/nfs_page.h>
 #include <linux/nfs_mount.h>
 #include <linux/export.h>
 
@@ -327,6 +327,7 @@ __nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
 	req->wb_bytes   = count;
 	req->wb_context = get_nfs_open_context(ctx);
 	kref_init(&req->wb_kref);
+	req->wb_nio = 0;
 	return req;
 }
 
@@ -370,6 +371,7 @@ nfs_create_subreq(struct nfs_page *req, struct nfs_page *last,
 		nfs_lock_request(ret);
 		ret->wb_index = req->wb_index;
 		nfs_page_group_init(ret, last);
+		ret->wb_nio = req->wb_nio;
 	}
 	return ret;
 }
@@ -724,6 +726,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirrors_dynamic = NULL;
 	desc->pg_mirrors = desc->pg_mirrors_static;
 	nfs_pageio_mirror_init(&desc->pg_mirrors[0], bsize);
+	desc->pg_maxretrans = 0;
 }
 
 /**
@@ -983,6 +986,15 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 			return 0;
 		mirror->pg_base = req->wb_pgbase;
 	}
+
+	if (desc->pg_maxretrans && req->wb_nio > desc->pg_maxretrans) {
+		if (NFS_SERVER(desc->pg_inode)->flags & NFS_MOUNT_SOFTERR)
+			desc->pg_error = -ETIMEDOUT;
+		else
+			desc->pg_error = -EIO;
+		return 0;
+	}
+
 	if (!nfs_can_coalesce_requests(prev, req, desc))
 		return 0;
 	nfs_list_move_request(req, &mirror->pg_list);

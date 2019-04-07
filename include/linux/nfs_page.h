@@ -53,6 +53,7 @@ struct nfs_page {
 	struct nfs_write_verifier	wb_verf;	/* Commit cookie */
 	struct nfs_page		*wb_this_page;  /* list of reqs for this page */
 	struct nfs_page		*wb_head;       /* head pointer for req list */
+	unsigned short		wb_nio;		/* Number of I/O attempts */
 };
 
 struct nfs_pageio_descriptor;
@@ -87,7 +88,6 @@ struct nfs_pgio_mirror {
 };
 
 struct nfs_pageio_descriptor {
-	unsigned char		pg_moreio : 1;
 	struct inode		*pg_inode;
 	const struct nfs_pageio_ops *pg_ops;
 	const struct nfs_rw_ops *pg_rw_ops;
@@ -105,6 +105,8 @@ struct nfs_pageio_descriptor {
 	struct nfs_pgio_mirror	pg_mirrors_static[1];
 	struct nfs_pgio_mirror	*pg_mirrors_dynamic;
 	u32			pg_mirror_idx;	/* current mirror */
+	unsigned short		pg_maxretrans;
+	unsigned char		pg_moreio : 1;
 };
 
 /* arbitrarily selected limit to number of mirrors */
