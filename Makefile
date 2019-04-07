@@ -1067,7 +1067,7 @@ filechk_kernel.release = \
 	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
 
 # Store (new) KERNELRELEASE string in include/config/kernel.release
-include/config/kernel.release: $(srctree)/Makefile FORCE
+include/config/kernel.release: FORCE
 	$(call filechk,kernel.release)
 
 # Additional helpers built in scripts/
