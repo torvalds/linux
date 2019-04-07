@@ -244,6 +244,12 @@ static void nfs_set_pageerror(struct address_space *mapping)
 	nfs_zap_mapping(mapping->host, mapping);
 }
 
+static void nfs_mapping_set_error(struct page *page, int error)
+{
+	SetPageError(page);
+	mapping_set_error(page_file_mapping(page), error);
+}
+
 /*
  * nfs_page_group_search_locked
  * @head - head request of page group
@@ -582,9 +588,9 @@ release_request:
 	return ERR_PTR(ret);
 }
 
-static void nfs_write_error_remove_page(struct nfs_page *req)
+static void nfs_write_error(struct nfs_page *req, int error)
 {
-	SetPageError(req->wb_page);
+	nfs_mapping_set_error(req->wb_page, error);
 	nfs_end_page_writeback(req);
 	nfs_release_request(req);
 }
@@ -608,6 +614,7 @@ nfs_error_is_fatal_on_server(int err)
 static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 				struct page *page)
 {
+	struct address_space *mapping;
 	struct nfs_page *req;
 	int ret = 0;
 
@@ -621,19 +628,19 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 	nfs_set_page_writeback(page);
 	WARN_ON_ONCE(test_bit(PG_CLEAN, &req->wb_flags));
 
-	ret = req->wb_context->error;
 	/* If there is a fatal error that covers this write, just exit */
-	if (nfs_error_is_fatal_on_server(ret))
+	ret = 0;
+	mapping = page_file_mapping(page);
+	if (test_bit(AS_ENOSPC, &mapping->flags) ||
+	    test_bit(AS_EIO, &mapping->flags))
 		goto out_launder;
 
-	ret = 0;
 	if (!nfs_pageio_add_request(pgio, req)) {
 		ret = pgio->pg_error;
 		/*
 		 * Remove the problematic req upon fatal errors on the server
 		 */
 		if (nfs_error_is_fatal(ret)) {
-			nfs_context_set_write_error(req->wb_context, ret);
 			if (nfs_error_is_fatal_on_server(ret))
 				goto out_launder;
 		} else
@@ -645,7 +652,7 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 out:
 	return ret;
 out_launder:
-	nfs_write_error_remove_page(req);
+	nfs_write_error(req, ret);
 	return 0;
 }
 
@@ -998,7 +1005,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 		if (test_bit(NFS_IOHDR_ERROR, &hdr->flags) &&
 		    (hdr->good_bytes < bytes)) {
 			nfs_set_pageerror(page_file_mapping(req->wb_page));
-			nfs_context_set_write_error(req->wb_context, hdr->error);
+			nfs_mapping_set_error(req->wb_page, hdr->error);
 			goto remove_req;
 		}
 		if (nfs_write_need_commit(hdr)) {
@@ -1422,14 +1429,10 @@ static void nfs_async_write_error(struct list_head *head, int error)
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		if (nfs_error_is_fatal(error)) {
-			nfs_context_set_write_error(req->wb_context, error);
-			if (nfs_error_is_fatal_on_server(error)) {
-				nfs_write_error_remove_page(req);
-				continue;
-			}
-		}
-		nfs_redirty_request(req);
+		if (nfs_error_is_fatal(error))
+			nfs_write_error(req, error);
+		else
+			nfs_redirty_request(req);
 	}
 }
 
@@ -1843,9 +1846,10 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 			req->wb_bytes,
 			(long long)req_offset(req));
 		if (status < 0) {
-			nfs_context_set_write_error(req->wb_context, status);
-			if (req->wb_page)
+			if (req->wb_page) {
+				nfs_mapping_set_error(req->wb_page, status);
 				nfs_inode_remove_request(req);
+			}
 			dprintk_cont(", error = %d\n", status);
 			goto next;
 		}
