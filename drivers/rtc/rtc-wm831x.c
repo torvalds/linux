@@ -165,14 +165,16 @@ static int wm831x_rtc_readtime(struct device *dev, struct rtc_time *tm)
 /*
  * Set current time and date in RTC
  */
-static int wm831x_rtc_set_mmss(struct device *dev, unsigned long time)
+static int wm831x_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
 	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	struct wm831x *wm831x = wm831x_rtc->wm831x;
 	struct rtc_time new_tm;
-	unsigned long new_time;
+	unsigned long time, new_time;
 	int ret;
 	int count = 0;
+
+	time = rtc_tm_to_time64(tm);
 
 	ret = wm831x_reg_write(wm831x, WM831X_RTC_TIME_1,
 			       (time >> 16) & 0xffff);
@@ -334,7 +336,7 @@ static irqreturn_t wm831x_alm_irq(int irq, void *data)
 
 static const struct rtc_class_ops wm831x_rtc_ops = {
 	.read_time = wm831x_rtc_readtime,
-	.set_mmss = wm831x_rtc_set_mmss,
+	.set_time = wm831x_rtc_settime,
 	.read_alarm = wm831x_rtc_readalarm,
 	.set_alarm = wm831x_rtc_setalarm,
 	.alarm_irq_enable = wm831x_rtc_alarm_irq_enable,
