@@ -409,18 +409,17 @@ void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 EXPORT_SYMBOL_GPL(rpc_sleep_on);
 
 void rpc_sleep_on_priority(struct rpc_wait_queue *q, struct rpc_task *task,
-		rpc_action action, int priority)
+		int priority)
 {
 	if (!rpc_sleep_check_activated(task))
 		return;
 
-	rpc_set_tk_callback(task, action);
-
+	priority -= RPC_PRIORITY_LOW;
 	/*
 	 * Protect the queue operations.
 	 */
 	spin_lock_bh(&q->lock);
-	__rpc_sleep_on_priority(q, task, priority - RPC_PRIORITY_LOW);
+	__rpc_sleep_on_priority(q, task, priority);
 	spin_unlock_bh(&q->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_sleep_on_priority);

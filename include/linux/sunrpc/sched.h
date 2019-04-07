@@ -231,7 +231,6 @@ void		rpc_sleep_on(struct rpc_wait_queue *, struct rpc_task *,
 					rpc_action action);
 void		rpc_sleep_on_priority(struct rpc_wait_queue *,
 					struct rpc_task *,
-					rpc_action action,
 					int priority);
 void rpc_wake_up_queued_task_on_wq(struct workqueue_struct *wq,
 		struct rpc_wait_queue *queue,
