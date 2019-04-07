@@ -372,8 +372,8 @@ int __init nvmet_init_discovery(void)
 {
 	nvmet_disc_subsys =
 		nvmet_subsys_alloc(NVME_DISC_SUBSYS_NAME, NVME_NQN_DISC);
-	if (!nvmet_disc_subsys)
-		return -ENOMEM;
+	if (IS_ERR(nvmet_disc_subsys))
+		return PTR_ERR(nvmet_disc_subsys);
 	return 0;
 }
 

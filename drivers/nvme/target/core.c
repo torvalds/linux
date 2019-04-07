@@ -1367,7 +1367,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 
 	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
 	if (!subsys)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	subsys->ver = NVME_VS(1, 3, 0); /* NVMe 1.3.0 */
 	/* generate a random serial number as our controllers are ephemeral: */
@@ -1383,14 +1383,14 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	default:
 		pr_err("%s: Unknown Subsystem type - %d\n", __func__, type);
 		kfree(subsys);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	subsys->type = type;
 	subsys->subsysnqn = kstrndup(subsysnqn, NVMF_NQN_SIZE,
 			GFP_KERNEL);
 	if (!subsys->subsysnqn) {
 		kfree(subsys);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	kref_init(&subsys->ref);
