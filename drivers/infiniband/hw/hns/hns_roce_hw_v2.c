@@ -1559,7 +1559,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->qpc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
 	caps->srqc_ba_pg_sz	= 0;
 	caps->srqc_buf_pg_sz	= 0;
-	caps->srqc_hop_num	= HNS_ROCE_HOP_NUM_0;
+	caps->srqc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
 	caps->cqc_ba_pg_sz	= 0;
 	caps->cqc_buf_pg_sz	= 0;
 	caps->cqc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
