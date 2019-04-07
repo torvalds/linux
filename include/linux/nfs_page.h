@@ -200,4 +200,10 @@ loff_t req_offset(struct nfs_page *req)
 	return (((loff_t)req->wb_index) << PAGE_SHIFT) + req->wb_offset;
 }
 
+static inline struct nfs_open_context *
+nfs_req_openctx(struct nfs_page *req)
+{
+	return req->wb_context;
+}
+
 #endif /* _LINUX_NFS_PAGE_H */
