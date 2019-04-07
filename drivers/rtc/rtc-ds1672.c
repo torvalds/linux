@@ -74,7 +74,7 @@ static int ds1672_read_time(struct device *dev, struct rtc_time *tm)
 	time = ((unsigned long)buf[3] << 24) | (buf[2] << 16) |
 	       (buf[1] << 8) | buf[0];
 
-	rtc_time_to_tm(time, tm);
+	rtc_time64_to_tm(time, tm);
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
