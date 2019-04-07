@@ -42,7 +42,6 @@ struct nfs_inode;
 struct nfs_page {
 	struct list_head	wb_list;	/* Defines state of page: */
 	struct page		*wb_page;	/* page to read in/write out */
-	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
 	pgoff_t			wb_index;	/* Offset >> PAGE_SHIFT */
 	unsigned int		wb_offset,	/* Offset & ~PAGE_MASK */
@@ -203,7 +202,7 @@ loff_t req_offset(struct nfs_page *req)
 static inline struct nfs_open_context *
 nfs_req_openctx(struct nfs_page *req)
 {
-	return req->wb_context;
+	return req->wb_lock_context->open_context;
 }
 
 #endif /* _LINUX_NFS_PAGE_H */
