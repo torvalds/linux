@@ -84,7 +84,7 @@ struct cpcap_battery_config {
 struct cpcap_coulomb_counter_data {
 	s32 sample;		/* 24 or 32 bits */
 	s32 accumulator;
-	s16 offset;		/* 10-bits */
+	s16 offset;		/* 9 bits */
 };
 
 enum cpcap_battery_state {
@@ -224,8 +224,6 @@ static int cpcap_battery_cc_raw_div(struct cpcap_battery_ddata *ddata,
 	if (!divider)
 		return 0;
 
-	offset &= 0x7ff;		/* 10-bits, signed */
-
 	switch (ddata->vendor) {
 	case CPCAP_VENDOR_ST:
 		cc_lsb = 95374;		/* μAms per LSB */
@@ -318,12 +316,12 @@ cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 	ccd->accumulator = ((s16)buf[3]) << 16;
 	ccd->accumulator |= buf[2];
 
-	/* Offset value CPCAP_REG_CCO */
-	ccd->offset = buf[5];
-
-	/* Adjust offset based on mode value CPCAP_REG_CCM? */
-	if (buf[4] >= 0x200)
-		ccd->offset |= 0xfc00;
+	/*
+	 * Coulomb counter calibration offset is CPCAP_REG_CCM,
+	 * REG_CCO seems unused
+	 */
+	ccd->offset = buf[4];
+	ccd->offset = sign_extend32(ccd->offset, 9);
 
 	return cpcap_battery_cc_to_uah(ddata,
 				       ccd->sample,
