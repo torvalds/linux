@@ -476,11 +476,11 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		val->intval = ddata->config.info.voltage_min_design;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-		if (cached) {
+		sample = latest->cc.sample - previous->cc.sample;
+		if (!sample) {
 			val->intval = cpcap_battery_cc_get_avg_current(ddata);
 			break;
 		}
-		sample = latest->cc.sample - previous->cc.sample;
 		accumulator = latest->cc.accumulator - previous->cc.accumulator;
 		val->intval = cpcap_battery_cc_to_ua(ddata, sample,
 						     accumulator,
@@ -497,13 +497,13 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		val->intval = div64_s64(tmp, 100);
 		break;
 	case POWER_SUPPLY_PROP_POWER_AVG:
-		if (cached) {
+		sample = latest->cc.sample - previous->cc.sample;
+		if (!sample) {
 			tmp = cpcap_battery_cc_get_avg_current(ddata);
 			tmp *= (latest->voltage / 10000);
 			val->intval = div64_s64(tmp, 100);
 			break;
 		}
-		sample = latest->cc.sample - previous->cc.sample;
 		accumulator = latest->cc.accumulator - previous->cc.accumulator;
 		tmp = cpcap_battery_cc_to_ua(ddata, sample, accumulator,
 					     latest->cc.offset);
