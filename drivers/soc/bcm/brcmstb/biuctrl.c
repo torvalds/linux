@@ -107,7 +107,8 @@ static int __init mcp_write_pairing_set(void)
 	return 0;
 }
 
-static const u32 b53_mach_compat[] = {
+static const u32 a72_b53_mach_compat[] = {
+	0x7211,
 	0x7216,
 	0x7255,
 	0x7260,
@@ -116,19 +117,19 @@ static const u32 b53_mach_compat[] = {
 	0x7278,
 };
 
-static void __init mcp_b53_set(void)
+static void __init mcp_a72_b53_set(void)
 {
 	unsigned int i;
 	u32 reg;
 
 	reg = brcmstb_get_family_id();
 
-	for (i = 0; i < ARRAY_SIZE(b53_mach_compat); i++) {
-		if (BRCM_ID(reg) == b53_mach_compat[i])
+	for (i = 0; i < ARRAY_SIZE(a72_b53_mach_compat); i++) {
+		if (BRCM_ID(reg) == a72_b53_mach_compat[i])
 			break;
 	}
 
-	if (i == ARRAY_SIZE(b53_mach_compat))
+	if (i == ARRAY_SIZE(a72_b53_mach_compat))
 		return;
 
 	/* Set all 3 MCP interfaces to 8 credits */
@@ -261,7 +262,7 @@ static int __init brcmstb_biuctrl_init(void)
 		return ret;
 	}
 
-	mcp_b53_set();
+	mcp_a72_b53_set();
 #ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&brcmstb_cpu_credit_syscore_ops);
 #endif
