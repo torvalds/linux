@@ -484,8 +484,11 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 	}
 
 	clnt->cl_softrtry = 1;
-	if (args->flags & RPC_CLNT_CREATE_HARDRTRY)
+	if (args->flags & (RPC_CLNT_CREATE_HARDRTRY|RPC_CLNT_CREATE_SOFTERR)) {
 		clnt->cl_softrtry = 0;
+		if (args->flags & RPC_CLNT_CREATE_SOFTERR)
+			clnt->cl_softerr = 1;
+	}
 
 	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
 		clnt->cl_autobind = 1;
@@ -623,6 +626,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
 	new->cl_softrtry = clnt->cl_softrtry;
+	new->cl_softerr = clnt->cl_softerr;
 	new->cl_noretranstimeo = clnt->cl_noretranstimeo;
 	new->cl_discrtry = clnt->cl_discrtry;
 	new->cl_chatty = clnt->cl_chatty;
@@ -1001,6 +1005,8 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 		atomic_inc(&clnt->cl_count);
 		if (clnt->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
+		if (clnt->cl_softerr)
+			task->tk_flags |= RPC_TASK_TIMEOUT;
 		if (clnt->cl_noretranstimeo)
 			task->tk_flags |= RPC_TASK_NO_RETRANS_TIMEOUT;
 		if (atomic_read(&clnt->cl_swapper))
