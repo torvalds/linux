@@ -21,12 +21,10 @@
 
 #define DS1672_REG_CONTROL_EOSC	0x80
 
-static struct i2c_driver ds1672_driver;
-
 /*
  * In the routines that deal directly with the ds1672 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch
- * Epoch is initialized as 2000. Time is set to UTC.
+ * Time is set to UTC.
  */
 static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
@@ -164,8 +162,16 @@ static int ds1672_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	rtc = devm_rtc_device_register(&client->dev, ds1672_driver.driver.name,
-				  &ds1672_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	rtc->ops = &ds1672_rtc_ops;
+	rtc->range_max = U32_MAX;
+
+	err = rtc_register_device(rtc);
+	if (err)
+		return err;
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
