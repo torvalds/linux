@@ -598,8 +598,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ1202),
 	.name		= "Aquantia AQ1202",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -608,8 +606,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ2104),
 	.name		= "Aquantia AQ2104",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -618,8 +614,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR105),
 	.name		= "Aquantia AQR105",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -628,8 +622,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR106),
 	.name		= "Aquantia AQR106",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -638,8 +630,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR107),
 	.name		= "Aquantia AQR107",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.probe		= aqr107_probe,
 	.config_init	= aqr107_config_init,
 	.config_aneg    = aqr_config_aneg,
@@ -658,8 +648,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
 	.name		= "Aquantia AQCS109",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.probe		= aqr107_probe,
 	.config_init	= aqcs109_config_init,
 	.config_aneg    = aqr_config_aneg,
@@ -678,8 +666,6 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
 	.name		= "Aquantia AQR405",
-	.aneg_done	= genphy_c45_aneg_done,
-	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
