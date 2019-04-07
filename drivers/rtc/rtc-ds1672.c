@@ -84,11 +84,12 @@ static int ds1672_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int ds1672_set_mmss(struct device *dev, unsigned long secs)
+static int ds1672_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int xfer;
 	unsigned char buf[6];
+	unsigned long secs = rtc_tm_to_time64(tm);
 
 	buf[0] = DS1672_REG_CNT_BASE;
 	buf[1] = secs & 0x000000FF;
@@ -108,7 +109,7 @@ static int ds1672_set_mmss(struct device *dev, unsigned long secs)
 
 static const struct rtc_class_ops ds1672_rtc_ops = {
 	.read_time = ds1672_read_time,
-	.set_mmss = ds1672_set_mmss,
+	.set_time = ds1672_set_time,
 };
 
 static int ds1672_probe(struct i2c_client *client,
