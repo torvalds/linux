@@ -188,6 +188,13 @@ static int __init coh901331_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	rtap->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtap->rtc))
+		return PTR_ERR(rtap->rtc);
+
+	rtap->rtc->ops = &coh901331_ops;
+	rtap->rtc->range_max = U32_MAX;
+
 	/* We enable/disable the clock only to assure it works */
 	ret = clk_prepare_enable(rtap->clk);
 	if (ret) {
@@ -197,12 +204,10 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	clk_disable(rtap->clk);
 
 	platform_set_drvdata(pdev, rtap);
-	rtap->rtc = devm_rtc_device_register(&pdev->dev, "coh901331",
-					&coh901331_ops, THIS_MODULE);
-	if (IS_ERR(rtap->rtc)) {
-		ret = PTR_ERR(rtap->rtc);
+
+	ret = rtc_register_device(rtap->rtc);
+	if (ret)
 		goto out_no_rtc;
-	}
 
 	return 0;
 
