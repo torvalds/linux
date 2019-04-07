@@ -509,8 +509,6 @@ void elv_unregister_queue(struct request_queue *q)
 
 int elv_register(struct elevator_type *e)
 {
-	char *def = "";
-
 	/* create icq_cache if requested */
 	if (e->icq_size) {
 		if (WARN_ON(e->icq_size < sizeof(struct io_cq)) ||
@@ -535,8 +533,8 @@ int elv_register(struct elevator_type *e)
 	list_add_tail(&e->list, &elv_list);
 	spin_unlock(&elv_list_lock);
 
-	printk(KERN_INFO "io scheduler %s registered%s\n", e->elevator_name,
-								def);
+	printk(KERN_INFO "io scheduler %s registered\n", e->elevator_name);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(elv_register);
