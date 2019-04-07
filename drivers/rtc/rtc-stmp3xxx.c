@@ -361,8 +361,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 			STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
 		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 
-	rtc_data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				&stmp3xxx_rtc_ops, THIS_MODULE);
+	rtc_data->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc_data->rtc))
 		return PTR_ERR(rtc_data->rtc);
 
@@ -373,6 +372,13 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 			rtc_data->irq_alarm);
 		return err;
 	}
+
+	rtc_data->rtc->ops = &stmp3xxx_rtc_ops;
+	rtc_data->rtc->range_max = U32_MAX;
+
+	err = rtc_register_device(rtc_data->rtc);
+	if (err)
+		return err;
 
 	stmp3xxx_wdt_register(pdev);
 	return 0;
