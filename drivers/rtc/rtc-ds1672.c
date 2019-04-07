@@ -73,10 +73,7 @@ static int ds1672_read_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_time64_to_tm(time, tm);
 
-	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
-		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__func__, tm->tm_sec, tm->tm_min, tm->tm_hour,
-		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+	dev_dbg(&client->dev, "%s: tm is %ptR\n", __func__, tm);
 
 	return 0;
 }
