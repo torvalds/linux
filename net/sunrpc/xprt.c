@@ -569,18 +569,44 @@ bool xprt_write_space(struct rpc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(xprt_write_space);
 
-static void xprt_reset_majortimeo(struct rpc_rqst *req)
+static unsigned long xprt_abs_ktime_to_jiffies(ktime_t abstime)
+{
+	s64 delta = ktime_to_ns(ktime_get() - abstime);
+	return likely(delta >= 0) ?
+		jiffies - nsecs_to_jiffies(delta) :
+		jiffies + nsecs_to_jiffies(-delta);
+}
+
+static unsigned long xprt_calc_majortimeo(struct rpc_rqst *req)
 {
 	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
+	unsigned long majortimeo = req->rq_timeout;
 
-	req->rq_majortimeo = req->rq_timeout;
 	if (to->to_exponential)
-		req->rq_majortimeo <<= to->to_retries;
+		majortimeo <<= to->to_retries;
 	else
-		req->rq_majortimeo += to->to_increment * to->to_retries;
-	if (req->rq_majortimeo > to->to_maxval || req->rq_majortimeo == 0)
-		req->rq_majortimeo = to->to_maxval;
-	req->rq_majortimeo += jiffies;
+		majortimeo += to->to_increment * to->to_retries;
+	if (majortimeo > to->to_maxval || majortimeo == 0)
+		majortimeo = to->to_maxval;
+	return majortimeo;
+}
+
+static void xprt_reset_majortimeo(struct rpc_rqst *req)
+{
+	req->rq_majortimeo += xprt_calc_majortimeo(req);
+}
+
+static void xprt_init_majortimeo(struct rpc_task *task, struct rpc_rqst *req)
+{
+	unsigned long time_init;
+	struct rpc_xprt *xprt = req->rq_xprt;
+
+	if (likely(xprt && xprt_connected(xprt)))
+		time_init = jiffies;
+	else
+		time_init = xprt_abs_ktime_to_jiffies(task->tk_start);
+	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
+	req->rq_majortimeo = time_init + xprt_calc_majortimeo(req);
 }
 
 /**
@@ -997,7 +1023,6 @@ xprt_request_enqueue_receive(struct rpc_task *task)
 	set_bit(RPC_TASK_NEED_RECV, &task->tk_runstate);
 	spin_unlock(&xprt->queue_lock);
 
-	xprt_reset_majortimeo(req);
 	/* Turn off autodisconnect */
 	del_singleshot_timer_sync(&xprt->timer);
 }
@@ -1631,7 +1656,6 @@ xprt_request_init(struct rpc_task *task)
 	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpc_rqst	*req = task->tk_rqstp;
 
-	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;
@@ -1644,7 +1668,7 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_snd_buf.bvec = NULL;
 	req->rq_rcv_buf.bvec = NULL;
 	req->rq_release_snd_buf = NULL;
-	xprt_reset_majortimeo(req);
+	xprt_init_majortimeo(task, req);
 	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
 			req, ntohl(req->rq_xid));
 }
