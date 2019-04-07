@@ -297,8 +297,8 @@ out:
 
 static struct nfs_page *
 __nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
-		   struct nfs_page *last, unsigned int pgbase,
-		   unsigned int offset, unsigned int count)
+		   unsigned int pgbase, unsigned int offset,
+		   unsigned int count)
 {
 	struct nfs_page		*req;
 	struct nfs_open_context *ctx = l_ctx->open_context;
@@ -327,7 +327,6 @@ __nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
 	req->wb_bytes   = count;
 	req->wb_context = get_nfs_open_context(ctx);
 	kref_init(&req->wb_kref);
-	nfs_page_group_init(req, last);
 	return req;
 }
 
@@ -335,7 +334,6 @@ __nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
  * nfs_create_request - Create an NFS read/write request.
  * @ctx: open context to use
  * @page: page to write
- * @last: last nfs request created for this page group or NULL if head
  * @offset: starting offset within the page for the write
  * @count: number of bytes to read/write
  *
@@ -345,15 +343,16 @@ __nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
  */
 struct nfs_page *
 nfs_create_request(struct nfs_open_context *ctx, struct page *page,
-		   struct nfs_page *last, unsigned int offset,
-		   unsigned int count)
+		   unsigned int offset, unsigned int count)
 {
 	struct nfs_lock_context *l_ctx = nfs_get_lock_context(ctx);
 	struct nfs_page *ret;
 
 	if (IS_ERR(l_ctx))
 		return ERR_CAST(l_ctx);
-	ret = __nfs_create_request(l_ctx, page, last, offset, offset, count);
+	ret = __nfs_create_request(l_ctx, page, offset, offset, count);
+	if (!IS_ERR(ret))
+		nfs_page_group_init(ret, NULL);
 	nfs_put_lock_context(l_ctx);
 	return ret;
 }
@@ -365,11 +364,12 @@ nfs_create_subreq(struct nfs_page *req, struct nfs_page *last,
 {
 	struct nfs_page *ret;
 
-	ret = __nfs_create_request(req->wb_lock_context, req->wb_page, last,
+	ret = __nfs_create_request(req->wb_lock_context, req->wb_page,
 			pgbase, offset, count);
 	if (!IS_ERR(ret)) {
 		nfs_lock_request(ret);
 		ret->wb_index = req->wb_index;
+		nfs_page_group_init(ret, last);
 	}
 	return ret;
 }
