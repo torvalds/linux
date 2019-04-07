@@ -186,7 +186,7 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		__entry->client_id = task->tk_client ?
 				     task->tk_client->cl_clid : -1;
 		__entry->task_id = task->tk_pid;
-		__entry->timeout = task->tk_timeout;
+		__entry->timeout = rpc_task_timeout(task);
 		__entry->runstate = task->tk_runstate;
 		__entry->status = task->tk_status;
 		__entry->flags = task->tk_flags;

@@ -226,6 +226,7 @@ void		rpc_execute(struct rpc_task *);
 void		rpc_init_priority_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_init_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_destroy_wait_queue(struct rpc_wait_queue *);
+unsigned long	rpc_task_timeout(const struct rpc_task *task);
 void		rpc_sleep_on_timeout(struct rpc_wait_queue *queue,
 					struct rpc_task *task,
 					rpc_action action,
