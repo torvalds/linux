@@ -788,8 +788,11 @@ static irqreturn_t fsl_lpspi_isr(int irq, void *dev_id)
 
 static int fsl_lpspi_runtime_resume(struct device *dev)
 {
-	struct fsl_lpspi_data *fsl_lpspi = dev_get_drvdata(dev);
+	struct spi_controller *controller = dev_get_drvdata(dev);
+	struct fsl_lpspi_data *fsl_lpspi;
 	int ret;
+
+	fsl_lpspi = spi_controller_get_devdata(controller);
 
 	ret = clk_prepare_enable(fsl_lpspi->clk_per);
 	if (ret)
@@ -806,7 +809,10 @@ static int fsl_lpspi_runtime_resume(struct device *dev)
 
 static int fsl_lpspi_runtime_suspend(struct device *dev)
 {
-	struct fsl_lpspi_data *fsl_lpspi = dev_get_drvdata(dev);
+	struct spi_controller *controller = dev_get_drvdata(dev);
+	struct fsl_lpspi_data *fsl_lpspi;
+
+	fsl_lpspi = spi_controller_get_devdata(controller);
 
 	clk_disable_unprepare(fsl_lpspi->clk_per);
 	clk_disable_unprepare(fsl_lpspi->clk_ipg);
@@ -853,7 +859,6 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 
 	fsl_lpspi = spi_controller_get_devdata(controller);
 	fsl_lpspi->dev = &pdev->dev;
-	dev_set_drvdata(&pdev->dev, fsl_lpspi);
 	fsl_lpspi->is_slave = of_property_read_bool((&pdev->dev)->of_node,
 						    "spi-slave");
 
