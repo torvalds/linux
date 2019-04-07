@@ -123,7 +123,7 @@ static int tegra_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	spin_unlock_irqrestore(&info->tegra_rtc_lock, sl_irq_flags);
 
-	rtc_time_to_tm(sec, tm);
+	rtc_time64_to_tm(sec, tm);
 
 	dev_vdbg(dev, "time read as %lu. %ptR\n", sec, tm);
 
@@ -137,7 +137,7 @@ static int tegra_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	int ret;
 
 	/* convert tm to seconds. */
-	rtc_tm_to_time(tm, &sec);
+	sec = rtc_tm_to_time64(tm);
 
 	dev_vdbg(dev, "time set to %lu. %ptR\n", sec, tm);
 
@@ -166,7 +166,7 @@ static int tegra_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	} else {
 		/* alarm is enabled. */
 		alarm->enabled = 1;
-		rtc_time_to_tm(sec, &alarm->time);
+		rtc_time64_to_tm(sec, &alarm->time);
 	}
 
 	tmp = readl(info->rtc_base + TEGRA_RTC_REG_INTR_STATUS);
@@ -204,7 +204,7 @@ static int tegra_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long sec;
 
 	if (alarm->enabled)
-		rtc_tm_to_time(&alarm->time, &sec);
+		sec = rtc_tm_to_time64(&alarm->time);
 	else
 		sec = 0;
 
