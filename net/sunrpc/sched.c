@@ -92,8 +92,7 @@ __rpc_disable_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 static void
 rpc_set_queue_timer(struct rpc_wait_queue *queue, unsigned long expires)
 {
-	queue->timer_list.expires = expires;
-	mod_timer(&queue->timer_list.timer, expires);
+	timer_reduce(&queue->timer_list.timer, expires);
 }
 
 /*
@@ -107,8 +106,7 @@ __rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task,
 		task->tk_pid, jiffies_to_msecs(timeout - jiffies));
 
 	task->tk_timeout = timeout;
-	if (list_empty(&queue->timer_list.list) || time_before(timeout, queue->timer_list.expires))
-		rpc_set_queue_timer(queue, timeout);
+	rpc_set_queue_timer(queue, timeout);
 	list_add(&task->u.tk_wait.timer_list, &queue->timer_list.list);
 }
 
