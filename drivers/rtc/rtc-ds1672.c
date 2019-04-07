@@ -114,51 +114,6 @@ static int ds1672_rtc_set_mmss(struct device *dev, unsigned long secs)
 	return ds1672_set_mmss(to_i2c_client(dev), secs);
 }
 
-static int ds1672_get_control(struct i2c_client *client, u8 *status)
-{
-	unsigned char addr = DS1672_REG_CONTROL;
-
-	struct i2c_msg msgs[] = {
-		{/* setup read ptr */
-			.addr = client->addr,
-			.len = 1,
-			.buf = &addr
-		},
-		{/* read control */
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = 1,
-			.buf = status
-		},
-	};
-
-	/* read control register */
-	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __func__);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/* following are the sysfs callback functions */
-static ssize_t show_control(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	u8 control;
-	int err;
-
-	err = ds1672_get_control(client, &control);
-	if (err)
-		return err;
-
-	return sprintf(buf, "%s\n", (control & DS1672_REG_CONTROL_EOSC)
-		       ? "disabled" : "enabled");
-}
-
-static DEVICE_ATTR(control, S_IRUGO, show_control, NULL);
-
 static const struct rtc_class_ops ds1672_rtc_ops = {
 	.read_time = ds1672_rtc_read_time,
 	.set_mmss = ds1672_rtc_set_mmss,
@@ -190,12 +145,6 @@ static int ds1672_probe(struct i2c_client *client,
 		return PTR_ERR(rtc);
 
 	i2c_set_clientdata(client, rtc);
-
-	/* Register sysfs hooks */
-	err = device_create_file(&client->dev, &dev_attr_control);
-	if (err)
-		dev_err(&client->dev, "Unable to create sysfs entry: %s\n",
-			dev_attr_control.attr.name);
 
 	return 0;
 }
