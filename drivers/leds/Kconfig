@@ -138,6 +138,16 @@ config LEDS_LM3530
 	  controlled manually or using PWM input or using ambient
 	  light automatically.
 
+config LEDS_LM3532
+	tristate "LCD Backlight driver for LM3532"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the LCD backlight using
+	  LM3532 ambient light sensor chip. This ALS chip can be
+	  controlled manually or using PWM input or using ambient
+	  light automatically.
+
 config LEDS_LM3533
 	tristate "LED support for LM3533"
 	depends on LEDS_CLASS
