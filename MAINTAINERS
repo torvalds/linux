@@ -5124,7 +5124,7 @@ F:	Documentation/devicetree/bindings/display/hisilicon/
 DRM DRIVERS FOR LIMA
 M:	Qiang Yu <yuq825@gmail.com>
 L:	dri-devel@lists.freedesktop.org
-L:	lima@lists.freedesktop.org
+L:	lima@lists.freedesktop.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/gpu/drm/lima/
 F:	include/uapi/drm/lima_drm.h
