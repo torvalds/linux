@@ -295,6 +295,42 @@ out:
 		nfs_release_request(head);
 }
 
+static struct nfs_page *
+__nfs_create_request(struct nfs_lock_context *l_ctx, struct page *page,
+		   struct nfs_page *last, unsigned int pgbase,
+		   unsigned int offset, unsigned int count)
+{
+	struct nfs_page		*req;
+	struct nfs_open_context *ctx = l_ctx->open_context;
+
+	if (test_bit(NFS_CONTEXT_BAD, &ctx->flags))
+		return ERR_PTR(-EBADF);
+	/* try to allocate the request struct */
+	req = nfs_page_alloc();
+	if (req == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	req->wb_lock_context = l_ctx;
+	refcount_inc(&l_ctx->count);
+	atomic_inc(&l_ctx->io_count);
+
+	/* Initialize the request struct. Initially, we assume a
+	 * long write-back delay. This will be adjusted in
+	 * update_nfs_request below if the region is not locked. */
+	req->wb_page    = page;
+	if (page) {
+		req->wb_index = page_index(page);
+		get_page(page);
+	}
+	req->wb_offset  = offset;
+	req->wb_pgbase	= pgbase;
+	req->wb_bytes   = count;
+	req->wb_context = get_nfs_open_context(ctx);
+	kref_init(&req->wb_kref);
+	nfs_page_group_init(req, last);
+	return req;
+}
+
 /**
  * nfs_create_request - Create an NFS read/write request.
  * @ctx: open context to use
@@ -312,40 +348,30 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 		   struct nfs_page *last, unsigned int offset,
 		   unsigned int count)
 {
-	struct nfs_page		*req;
-	struct nfs_lock_context *l_ctx;
+	struct nfs_lock_context *l_ctx = nfs_get_lock_context(ctx);
+	struct nfs_page *ret;
 
-	if (test_bit(NFS_CONTEXT_BAD, &ctx->flags))
-		return ERR_PTR(-EBADF);
-	/* try to allocate the request struct */
-	req = nfs_page_alloc();
-	if (req == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	/* get lock context early so we can deal with alloc failures */
-	l_ctx = nfs_get_lock_context(ctx);
-	if (IS_ERR(l_ctx)) {
-		nfs_page_free(req);
+	if (IS_ERR(l_ctx))
 		return ERR_CAST(l_ctx);
-	}
-	req->wb_lock_context = l_ctx;
-	atomic_inc(&l_ctx->io_count);
+	ret = __nfs_create_request(l_ctx, page, last, offset, offset, count);
+	nfs_put_lock_context(l_ctx);
+	return ret;
+}
 
-	/* Initialize the request struct. Initially, we assume a
-	 * long write-back delay. This will be adjusted in
-	 * update_nfs_request below if the region is not locked. */
-	req->wb_page    = page;
-	if (page) {
-		req->wb_index = page_index(page);
-		get_page(page);
+static struct nfs_page *
+nfs_create_subreq(struct nfs_page *req, struct nfs_page *last,
+		  unsigned int pgbase, unsigned int offset,
+		  unsigned int count)
+{
+	struct nfs_page *ret;
+
+	ret = __nfs_create_request(req->wb_lock_context, req->wb_page, last,
+			pgbase, offset, count);
+	if (!IS_ERR(ret)) {
+		nfs_lock_request(ret);
+		ret->wb_index = req->wb_index;
 	}
-	req->wb_offset  = offset;
-	req->wb_pgbase	= offset;
-	req->wb_bytes   = count;
-	req->wb_context = get_nfs_open_context(ctx);
-	kref_init(&req->wb_kref);
-	nfs_page_group_init(req, last);
-	return req;
+	return ret;
 }
 
 /**
@@ -1049,14 +1075,10 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 		pgbase += subreq->wb_bytes;
 
 		if (bytes_left) {
-			subreq = nfs_create_request(req->wb_context,
-					req->wb_page,
-					subreq, pgbase, bytes_left);
+			subreq = nfs_create_subreq(req, subreq, pgbase,
+					offset, bytes_left);
 			if (IS_ERR(subreq))
 				goto err_ptr;
-			nfs_lock_request(subreq);
-			subreq->wb_offset  = offset;
-			subreq->wb_index = req->wb_index;
 		}
 	} while (bytes_left > 0);
 
@@ -1158,19 +1180,14 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			     lastreq = lastreq->wb_this_page)
 				;
 
-			dupreq = nfs_create_request(req->wb_context,
-					req->wb_page, lastreq, pgbase, bytes);
+			dupreq = nfs_create_subreq(req, lastreq,
+					pgbase, offset, bytes);
 
+			nfs_page_group_unlock(req);
 			if (IS_ERR(dupreq)) {
-				nfs_page_group_unlock(req);
 				desc->pg_error = PTR_ERR(dupreq);
 				goto out_failed;
 			}
-
-			nfs_lock_request(dupreq);
-			nfs_page_group_unlock(req);
-			dupreq->wb_offset = offset;
-			dupreq->wb_index = req->wb_index;
 		} else
 			dupreq = req;
 
