@@ -73,6 +73,15 @@ static void	 xprt_destroy(struct rpc_xprt *xprt);
 static DEFINE_SPINLOCK(xprt_list_lock);
 static LIST_HEAD(xprt_list);
 
+static unsigned long xprt_request_timeout(const struct rpc_rqst *req)
+{
+	unsigned long timeout = jiffies + req->rq_timeout;
+
+	if (time_before(timeout, req->rq_majortimeo))
+		return timeout;
+	return req->rq_majortimeo;
+}
+
 /**
  * xprt_register_transport - register a transport implementation
  * @transport: transport to register
@@ -212,7 +221,7 @@ out_sleep:
 	task->tk_status = -EAGAIN;
 	if  (RPC_IS_SOFT(task))
 		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
-				jiffies + req->rq_timeout);
+				xprt_request_timeout(req));
 	else
 		rpc_sleep_on(&xprt->sending, task, NULL);
 	return 0;
@@ -279,7 +288,7 @@ out_sleep:
 	task->tk_status = -EAGAIN;
 	if (RPC_IS_SOFT(task))
 		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
-				jiffies + req->rq_timeout);
+				xprt_request_timeout(req));
 	else
 		rpc_sleep_on(&xprt->sending, task, NULL);
 	return 0;
@@ -795,7 +804,7 @@ void xprt_connect(struct rpc_task *task)
 	if (!xprt_connected(xprt)) {
 		task->tk_rqstp->rq_connect_cookie = xprt->connect_cookie;
 		rpc_sleep_on_timeout(&xprt->pending, task, NULL,
-				jiffies + task->tk_rqstp->rq_timeout);
+				xprt_request_timeout(task->tk_rqstp));
 
 		if (test_bit(XPRT_CLOSING, &xprt->state))
 			return;
@@ -1087,7 +1096,7 @@ void xprt_wait_for_reply_request_def(struct rpc_task *task)
 	struct rpc_rqst *req = task->tk_rqstp;
 
 	rpc_sleep_on_timeout(&req->rq_xprt->pending, task, xprt_timer,
-			jiffies + req->rq_timeout);
+			xprt_request_timeout(req));
 }
 EXPORT_SYMBOL_GPL(xprt_wait_for_reply_request_def);
 
