@@ -52,6 +52,11 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
+/* vsprintf() in __base_pr() uses nonliteral format string. It may break
+ * compilation if user enables corresponding warning. Disable it explicitly.
+ */
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
 static int __base_pr(enum libbpf_print_level level, const char *format,
