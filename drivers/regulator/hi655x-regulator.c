@@ -158,7 +158,7 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 	.ctrl_mask = cmask,                                      \
 }
 
-static struct hi655x_regulator regulators[] = {
+static const struct hi655x_regulator regulators[] = {
 	HI655X_LDO_LINEAR(LDO2, 0x72, 0x07, 0x29, 0x2a, 0x2b, 0x01,
 			  2500000, 8, 100000),
 	HI655X_LDO(LDO7, 0x78, 0x07, 0x29, 0x2a, 0x2b, 0x06, ldo7_voltages),
