@@ -567,7 +567,7 @@ static void inject_preempt_context(struct work_struct *work)
 					     preempt_work[engine->id]);
 	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	struct intel_context *ce = intel_context_lookup(client->owner, engine);
+	struct intel_context *ce = engine->preempt_context;
 	u32 data[7];
 
 	if (!ce->ring->emit) { /* recreate upon load/resume */
