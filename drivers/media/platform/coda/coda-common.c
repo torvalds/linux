@@ -2061,11 +2061,17 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_VFLIP, 0, 1, 1, 0);
 	if (ctx->inst_type == CODA_INST_ENCODER) {
+		v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+				  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT,
+				  1, 1, 1, 1);
 		if (ctx->cvd->dst_formats[0] == V4L2_PIX_FMT_JPEG)
 			coda_jpeg_encode_ctrls(ctx);
 		else
 			coda_encode_ctrls(ctx);
 	} else {
+		v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+				  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE,
+				  1, 1, 1, 1);
 		if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_H264)
 			coda_decode_ctrls(ctx);
 	}
