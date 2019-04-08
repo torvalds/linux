@@ -75,6 +75,15 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 	unsigned long flags;
 	int ret = 0;
 
+	/*
+	 * Sometimes, there is unexpected reply ipc arriving. The reply
+	 * ipc belongs to none of the ipcs sent from driver.
+	 * In this case, the driver must ignore the ipc.
+	 */
+	if (!msg) {
+		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
+		return;
+	}
 	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
 	hdr = msg->msg_data;
