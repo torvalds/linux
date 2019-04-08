@@ -446,6 +446,12 @@ struct optc {
 	uint32_t min_v_sync_width;
 	uint32_t min_v_blank;
 	uint32_t min_v_blank_interlace;
+
+	int vstartup_start;
+	int vupdate_offset;
+	int vupdate_width;
+	int vready_offset;
+	enum signal_type signal;
 };
 
 void dcn10_timing_generator_init(struct optc *optc);
@@ -481,6 +487,11 @@ bool optc1_validate_timing(
 void optc1_program_timing(
 	struct timing_generator *optc,
 	const struct dc_crtc_timing *dc_crtc_timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios);
 
 void optc1_setup_vertical_interrupt0(
@@ -495,7 +506,11 @@ void optc1_setup_vertical_interrupt2(
 		uint32_t start_line);
 
 void optc1_program_global_sync(
-		struct timing_generator *optc);
+		struct timing_generator *optc,
+		int vready_offset,
+		int vstartup_start,
+		int vupdate_offset,
+		int vupdate_width);
 
 bool optc1_disable_crtc(struct timing_generator *optc);
 

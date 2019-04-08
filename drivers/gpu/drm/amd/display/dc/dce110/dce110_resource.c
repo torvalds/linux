@@ -1097,6 +1097,11 @@ static struct pipe_ctx *dce110_acquire_underlay(
 
 		pipe_ctx->stream_res.tg->funcs->program_timing(pipe_ctx->stream_res.tg,
 				&stream->timing,
+				0,
+				0,
+				0,
+				0,
+				pipe_ctx->stream->signal,
 				false);
 
 		pipe_ctx->stream_res.tg->funcs->enable_advanced_request(

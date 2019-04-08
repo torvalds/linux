@@ -60,24 +60,33 @@ static void optc1_apply_front_porch_workaround(
 }
 
 void optc1_program_global_sync(
-		struct timing_generator *optc)
+		struct timing_generator *optc,
+		int vready_offset,
+		int vstartup_start,
+		int vupdate_offset,
+		int vupdate_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	if (optc->dlg_otg_param.vstartup_start == 0) {
+	optc1->vready_offset = vready_offset;
+	optc1->vstartup_start = vstartup_start;
+	optc1->vupdate_offset = vupdate_offset;
+	optc1->vupdate_width = vupdate_width;
+
+	if (optc1->vstartup_start == 0) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
 
 	REG_SET(OTG_VSTARTUP_PARAM, 0,
-		VSTARTUP_START, optc->dlg_otg_param.vstartup_start);
+		VSTARTUP_START, optc1->vstartup_start);
 
 	REG_SET_2(OTG_VUPDATE_PARAM, 0,
-			VUPDATE_OFFSET, optc->dlg_otg_param.vupdate_offset,
-			VUPDATE_WIDTH, optc->dlg_otg_param.vupdate_width);
+			VUPDATE_OFFSET, optc1->vupdate_offset,
+			VUPDATE_WIDTH, optc1->vupdate_width);
 
 	REG_SET(OTG_VREADY_PARAM, 0,
-			VREADY_OFFSET, optc->dlg_otg_param.vready_offset);
+			VREADY_OFFSET, optc1->vready_offset);
 }
 
 static void optc1_disable_stereo(struct timing_generator *optc)
@@ -132,6 +141,11 @@ void optc1_setup_vertical_interrupt2(
 void optc1_program_timing(
 	struct timing_generator *optc,
 	const struct dc_crtc_timing *dc_crtc_timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	struct dc_crtc_timing patched_crtc_timing;
@@ -149,6 +163,11 @@ void optc1_program_timing(
 
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
+	optc1->signal = signal;
+	optc1->vready_offset = vready_offset;
+	optc1->vstartup_start = vstartup_start;
+	optc1->vupdate_offset = vupdate_offset;
+	optc1->vupdate_width = vupdate_width;
 	patched_crtc_timing = *dc_crtc_timing;
 	optc1_apply_front_porch_workaround(optc, &patched_crtc_timing);
 
@@ -226,7 +245,7 @@ void optc1_program_timing(
 			patched_crtc_timing.v_addressable +
 			patched_crtc_timing.v_border_bottom);
 
-	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
+	vertical_line_start = asic_blank_end - optc1->vstartup_start + 1;
 	v_fp2 = 0;
 	if (vertical_line_start < 0)
 		v_fp2 = -vertical_line_start;
@@ -243,9 +262,9 @@ void optc1_program_timing(
 		OTG_V_SYNC_A_POL, v_sync_polarity);
 
 	v_init = asic_blank_start;
-	if (optc->signal == SIGNAL_TYPE_DISPLAY_PORT ||
-		optc->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-		optc->signal == SIGNAL_TYPE_EDP) {
+	if (optc1->signal == SIGNAL_TYPE_DISPLAY_PORT ||
+		optc1->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
+		optc1->signal == SIGNAL_TYPE_EDP) {
 		start_point = 1;
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;
@@ -257,7 +276,7 @@ void optc1_program_timing(
 			REG_UPDATE(OTG_INTERLACE_CONTROL,
 					OTG_INTERLACE_ENABLE, 1);
 			v_init = v_init / 2;
-			if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
+			if ((optc1->vstartup_start/2)*2 > asic_blank_end)
 				v_fp2 = v_fp2 / 2;
 		} else
 			REG_UPDATE(OTG_INTERLACE_CONTROL,
@@ -277,7 +296,11 @@ void optc1_program_timing(
 			OTG_START_POINT_CNTL, start_point,
 			OTG_FIELD_NUMBER_CNTL, field_num);
 
-	optc1_program_global_sync(optc);
+	optc1_program_global_sync(optc,
+			vready_offset,
+			vstartup_start,
+			vupdate_offset,
+			vupdate_width);
 
 	/* TODO
 	 * patched_crtc_timing.flags.HORZ_COUNT_BY_TWO == 1
