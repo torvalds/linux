@@ -241,7 +241,6 @@ struct mlx5e_params {
 	struct net_dim_cq_moder rx_cq_moderation;
 	struct net_dim_cq_moder tx_cq_moderation;
 	bool lro_en;
-	u32 lro_wqe_sz;
 	u8  tx_min_inline_mode;
 	bool vlan_strip_disable;
 	bool scatter_fcs_en;
@@ -975,7 +974,7 @@ void mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc,
 	 */
 	wmb();
 
-	mlx5_write64((__be32 *)ctrl, uar_map, NULL);
+	mlx5_write64((__be32 *)ctrl, uar_map);
 }
 
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
@@ -1087,6 +1086,7 @@ mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *prof
 int mlx5e_attach_netdev(struct mlx5e_priv *priv);
 void mlx5e_detach_netdev(struct mlx5e_priv *priv);
 void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
+void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_rss_params *rss_params,
 			    struct mlx5e_params *params,

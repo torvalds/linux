@@ -204,7 +204,6 @@ static u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params)
 {
-	params->lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 	params->log_rq_mtu_frames = is_kdump_kernel() ?
 		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 		MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
@@ -2637,7 +2636,7 @@ static void mlx5e_build_tir_ctx_lro(struct mlx5e_params *params, void *tirc)
 		 MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
 		 MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
 	MLX5_SET(tirc, tirc, lro_max_ip_payload_size,
-		 (params->lro_wqe_sz - ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
+		 (MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ - ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
 	MLX5_SET(tirc, tirc, lro_timeout_period_usecs, params->lro_timeout);
 }
 
@@ -2810,6 +2809,21 @@ int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
 
 	params->sw_mtu = mtu;
 	return 0;
+}
+
+void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv)
+{
+	struct mlx5e_params *params = &priv->channels.params;
+	struct net_device *netdev   = priv->netdev;
+	struct mlx5_core_dev *mdev  = priv->mdev;
+	u16 max_mtu;
+
+	/* MTU range: 68 - hw-specific max */
+	netdev->min_mtu = ETH_MIN_MTU;
+
+	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
+	netdev->max_mtu = min_t(unsigned int, MLX5E_HW2SW_MTU(params, max_mtu),
+				ETH_MAX_MTU);
 }
 
 static void mlx5e_netdev_set_tcs(struct net_device *netdev)
@@ -4913,7 +4927,6 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 max_mtu;
 
 	mlx5e_init_l2_addr(priv);
 
@@ -4921,10 +4934,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	if (!netif_running(netdev))
 		mlx5_set_port_admin_status(mdev, MLX5_PORT_DOWN);
 
-	/* MTU range: 68 - hw-specific max */
-	netdev->min_mtu = ETH_MIN_MTU;
-	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
-	netdev->max_mtu = MLX5E_HW2SW_MTU(&priv->channels.params, max_mtu);
+	mlx5e_set_netdev_mtu_boundaries(priv);
 	mlx5e_set_dev_port_mtu(priv);
 
 	mlx5_lag_add(mdev, netdev);

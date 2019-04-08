@@ -8027,6 +8027,52 @@ struct mlx5_ifc_ppcnt_reg_bits {
 	union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits counter_set;
 };
 
+struct mlx5_ifc_mpein_reg_bits {
+	u8         reserved_at_0[0x2];
+	u8         depth[0x6];
+	u8         pcie_index[0x8];
+	u8         node[0x8];
+	u8         reserved_at_18[0x8];
+
+	u8         capability_mask[0x20];
+
+	u8         reserved_at_40[0x8];
+	u8         link_width_enabled[0x8];
+	u8         link_speed_enabled[0x10];
+
+	u8         lane0_physical_position[0x8];
+	u8         link_width_active[0x8];
+	u8         link_speed_active[0x10];
+
+	u8         num_of_pfs[0x10];
+	u8         num_of_vfs[0x10];
+
+	u8         bdf0[0x10];
+	u8         reserved_at_b0[0x10];
+
+	u8         max_read_request_size[0x4];
+	u8         max_payload_size[0x4];
+	u8         reserved_at_c8[0x5];
+	u8         pwr_status[0x3];
+	u8         port_type[0x4];
+	u8         reserved_at_d4[0xb];
+	u8         lane_reversal[0x1];
+
+	u8         reserved_at_e0[0x14];
+	u8         pci_power[0xc];
+
+	u8         reserved_at_100[0x20];
+
+	u8         device_status[0x10];
+	u8         port_state[0x8];
+	u8         reserved_at_138[0x8];
+
+	u8         reserved_at_140[0x10];
+	u8         receiver_detect_result[0x10];
+
+	u8         reserved_at_160[0x20];
+};
+
 struct mlx5_ifc_mpcnt_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         pcie_index[0x8];
@@ -8346,7 +8392,9 @@ struct mlx5_ifc_pcam_reg_bits {
 };
 
 struct mlx5_ifc_mcam_enhanced_features_bits {
-	u8         reserved_at_0[0x74];
+	u8         reserved_at_0[0x6e];
+	u8         pci_status_and_power[0x1];
+	u8         reserved_at_6f[0x5];
 	u8         mark_tx_action_cnp[0x1];
 	u8         mark_tx_action_cqe[0x1];
 	u8         dynamic_tx_overflow[0x1];
@@ -8954,6 +9002,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_pmtu_reg_bits pmtu_reg;
 	struct mlx5_ifc_ppad_reg_bits ppad_reg;
 	struct mlx5_ifc_ppcnt_reg_bits ppcnt_reg;
+	struct mlx5_ifc_mpein_reg_bits mpein_reg;
 	struct mlx5_ifc_mpcnt_reg_bits mpcnt_reg;
 	struct mlx5_ifc_pplm_reg_bits pplm_reg;
 	struct mlx5_ifc_pplr_reg_bits pplr_reg;
