@@ -18,8 +18,9 @@ properties:
   "#size-cells": true
 
   compatible:
-    const: allwinner,sun4i-a10-nand
-
+    enum:
+      - allwinner,sun4i-a10-nand
+      - allwinner,sun8i-a23-nand-controller
   reg:
     maxItems: 1
 
