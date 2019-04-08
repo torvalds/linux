@@ -321,7 +321,7 @@ extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
 extern bool sclp_mask_compat_mode;
 
-extern char sclp_early_sccb[PAGE_SIZE];
+extern char *sclp_early_sccb;
 
 void sclp_early_wait_irq(void);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);

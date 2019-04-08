@@ -147,7 +147,7 @@ static void __init sclp_early_console_detect(struct init_sccb *sccb)
 
 void __init sclp_early_detect(void)
 {
-	void *sccb = &sclp_early_sccb;
+	void *sccb = sclp_early_sccb;
 
 	sclp_early_facilities_detect(sccb);
 	sclp_early_init_core_info(sccb);

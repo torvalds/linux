@@ -12,7 +12,10 @@
 #define EP_OFFSET		0x10008
 #define EP_STRING		"S390EP"
 #define PARMAREA		0x10400
-#define PARMAREA_END		0x11000
+#define EARLY_SCCB_OFFSET	0x11000
+#define HEAD_END		0x12000
+
+#define EARLY_SCCB_SIZE		PAGE_SIZE
 
 /*
  * Machine features detected in early.c

@@ -337,10 +337,8 @@ int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
 	 * load memory in head.S will be accessed, e.g. to register the next
 	 * command line. If the next kernel were smaller the current kernel
 	 * will panic at load.
-	 *
-	 * 0x11000 = sizeof(head.S)
 	 */
-	if (buf_len < 0x11000)
+	if (buf_len < HEAD_END)
 		return -ENOEXEC;
 
 	return kexec_image_probe_default(image, buf, buf_len);

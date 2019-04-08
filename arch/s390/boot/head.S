@@ -336,4 +336,7 @@ ENTRY(startup_kdump)
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
 
-	.org	0x11000
+	.org	EARLY_SCCB_OFFSET
+	.fill	4096
+
+	.org	HEAD_END
