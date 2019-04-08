@@ -1000,6 +1000,11 @@ static int coda_s_selection(struct file *file, void *fh,
 static int coda_try_encoder_cmd(struct file *file, void *fh,
 				struct v4l2_encoder_cmd *ec)
 {
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+
+	if (ctx->inst_type != CODA_INST_ENCODER)
+		return -ENOTTY;
+
 	if (ec->cmd != V4L2_ENC_CMD_STOP)
 		return -EINVAL;
 
@@ -1020,10 +1025,6 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 	if (ret < 0)
 		return ret;
 
-	/* Ignore encoder stop command silently in decoder context */
-	if (ctx->inst_type != CODA_INST_ENCODER)
-		return 0;
-
 	/* Set the stream-end flag on this context */
 	ctx->bit_stream_param |= CODA_BIT_STREAM_END_FLAG;
 
@@ -1041,6 +1042,11 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 static int coda_try_decoder_cmd(struct file *file, void *fh,
 				struct v4l2_decoder_cmd *dc)
 {
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+
+	if (ctx->inst_type != CODA_INST_DECODER)
+		return -ENOTTY;
+
 	if (dc->cmd != V4L2_DEC_CMD_STOP)
 		return -EINVAL;
 
@@ -1062,10 +1068,6 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 	ret = coda_try_decoder_cmd(file, fh, dc);
 	if (ret < 0)
 		return ret;
-
-	/* Ignore decoder stop command silently in encoder context */
-	if (ctx->inst_type != CODA_INST_DECODER)
-		return 0;
 
 	/* Set the stream-end flag on this context */
 	coda_bit_stream_end_flag(ctx);
