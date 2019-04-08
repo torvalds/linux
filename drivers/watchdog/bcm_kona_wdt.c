@@ -271,11 +271,6 @@ static struct watchdog_device bcm_kona_wdt_wdd = {
 	.timeout =	SECWDOG_MAX_COUNT >> SECWDOG_DEFAULT_RESOLUTION,
 };
 
-static void bcm_kona_wdt_shutdown(struct platform_device *pdev)
-{
-	bcm_kona_wdt_stop(&bcm_kona_wdt_wdd);
-}
-
 static int bcm_kona_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -301,7 +296,7 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 	watchdog_set_drvdata(&bcm_kona_wdt_wdd, wdt);
-	bcm_kona_wdt_wdd.parent = &pdev->dev;
+	bcm_kona_wdt_wdd.parent = dev;
 
 	ret = bcm_kona_wdt_set_timeout_reg(&bcm_kona_wdt_wdd, 0);
 	if (ret) {
@@ -309,7 +304,9 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = watchdog_register_device(&bcm_kona_wdt_wdd);
+	watchdog_stop_on_reboot(&bcm_kona_wdt_wdd);
+	watchdog_stop_on_unregister(&bcm_kona_wdt_wdd);
+	ret = devm_watchdog_register_device(dev, &bcm_kona_wdt_wdd);
 	if (ret) {
 		dev_err(dev, "Failed to register watchdog device");
 		return ret;
@@ -324,8 +321,6 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 static int bcm_kona_wdt_remove(struct platform_device *pdev)
 {
 	bcm_kona_wdt_debug_exit(pdev);
-	bcm_kona_wdt_shutdown(pdev);
-	watchdog_unregister_device(&bcm_kona_wdt_wdd);
 	dev_dbg(&pdev->dev, "Watchdog driver disabled");
 
 	return 0;
@@ -344,7 +339,6 @@ static struct platform_driver bcm_kona_wdt_driver = {
 		  },
 	.probe = bcm_kona_wdt_probe,
 	.remove = bcm_kona_wdt_remove,
-	.shutdown = bcm_kona_wdt_shutdown,
 };
 
 module_platform_driver(bcm_kona_wdt_driver);
