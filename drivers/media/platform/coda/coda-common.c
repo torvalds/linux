@@ -819,6 +819,11 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
+	ctx->colorspace = f->fmt.pix.colorspace;
+	ctx->xfer_func = f->fmt.pix.xfer_func;
+	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
+	ctx->quantization = f->fmt.pix.quantization;
+
 	if (ctx->inst_type != CODA_INST_DECODER)
 		return 0;
 
@@ -830,11 +835,6 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 		return -EINVAL;
 	}
 	ctx->codec = codec;
-
-	ctx->colorspace = f->fmt.pix.colorspace;
-	ctx->xfer_func = f->fmt.pix.xfer_func;
-	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
-	ctx->quantization = f->fmt.pix.quantization;
 
 	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	if (!dst_vq)
