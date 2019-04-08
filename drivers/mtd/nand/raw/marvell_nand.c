@@ -2980,7 +2980,7 @@ static int __maybe_unused marvell_nfc_resume(struct device *dev)
 
 	/*
 	 * Reset nfc->selected_chip so the next command will cause the timing
-	 * registers to be restored in marvell_nfc_select_chip().
+	 * registers to be restored in marvell_nfc_select_target().
 	 */
 	nfc->selected_chip = NULL;
 
