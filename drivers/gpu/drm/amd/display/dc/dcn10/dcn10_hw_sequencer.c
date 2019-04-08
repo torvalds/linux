@@ -1755,7 +1755,7 @@ static void dcn10_program_output_csc(struct dc *dc,
 
 bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->plane_state->visible)
+	if (pipe_ctx->plane_state && pipe_ctx->plane_state->visible)
 		return true;
 	if (pipe_ctx->bottom_pipe && is_lower_pipe_tree_visible(pipe_ctx->bottom_pipe))
 		return true;
@@ -1764,7 +1764,7 @@ bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 
 bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->plane_state->visible)
+	if (pipe_ctx->plane_state && pipe_ctx->plane_state->visible)
 		return true;
 	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
 		return true;
@@ -1773,7 +1773,7 @@ bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 
 bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->plane_state->visible)
+	if (pipe_ctx->plane_state && pipe_ctx->plane_state->visible)
 		return true;
 	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
 		return true;
@@ -1919,7 +1919,7 @@ static uint16_t fixed_point_to_int_frac(
 	return result;
 }
 
-void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
+void dcn10_build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
 		const struct dc_plane_state *plane_state)
 {
 	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
@@ -1952,7 +1952,7 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 			plane_state->color_space);
 
 	//set scale and bias registers
-	build_prescale_params(&bns_params, plane_state);
+	dcn10_build_prescale_params(&bns_params, plane_state);
 	if (dpp->funcs->dpp_program_bias_and_scale)
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 }
@@ -2641,9 +2641,6 @@ static void dcn10_wait_for_mpcc_disconnect(
 			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, mpcc_inst);
 			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
 			hubp->funcs->set_blank(hubp, true);
-			/*DC_LOG_ERROR(dc->ctx->logger,
-					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
-					i);*/
 		}
 	}
 

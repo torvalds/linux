@@ -1358,6 +1358,9 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->global_alpha_value != u->surface->global_alpha_value)
 		update_flags->bits.global_alpha_change = 1;
 
+	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level)
+		update_flags->bits.sdr_white_level = 1;
+
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
 			|| u->plane_info->dcc.grph.independent_64b_blks != u->surface->dcc.grph.independent_64b_blks
 			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch)
@@ -1460,6 +1463,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 
 	update_flags->raw = 0; // Reset all flags
+
+	if (u->flip_addr)
+		update_flags->bits.addr_update = 1;
 
 	if (!is_surface_in_context(context, u->surface)) {
 		update_flags->bits.new_plane = 1;

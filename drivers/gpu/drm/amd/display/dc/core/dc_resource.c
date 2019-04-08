@@ -2497,7 +2497,6 @@ void dc_resource_state_copy_construct(
 
 		if (cur_pipe->bottom_pipe)
 			cur_pipe->bottom_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
-
 	}
 
 	for (i = 0; i < dst_ctx->stream_count; i++) {
