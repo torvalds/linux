@@ -7776,43 +7776,46 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 				goto out_free;
 			ssid = tb[NL80211_SCHED_SCAN_MATCH_ATTR_SSID];
 			bssid = tb[NL80211_SCHED_SCAN_MATCH_ATTR_BSSID];
-			if (ssid || bssid) {
-				if (WARN_ON(i >= n_match_sets)) {
-					/* this indicates a programming error,
-					 * the loop above should have verified
-					 * things properly
-					 */
+
+			if (!ssid && !bssid) {
+				i++;
+				continue;
+			}
+
+			if (WARN_ON(i >= n_match_sets)) {
+				/* this indicates a programming error,
+				 * the loop above should have verified
+				 * things properly
+				 */
+				err = -EINVAL;
+				goto out_free;
+			}
+
+			if (ssid) {
+				if (nla_len(ssid) > IEEE80211_MAX_SSID_LEN) {
 					err = -EINVAL;
 					goto out_free;
 				}
-
-				if (ssid) {
-					if (nla_len(ssid) > IEEE80211_MAX_SSID_LEN) {
-						err = -EINVAL;
-						goto out_free;
-					}
-					memcpy(request->match_sets[i].ssid.ssid,
-					       nla_data(ssid), nla_len(ssid));
-					request->match_sets[i].ssid.ssid_len =
-						nla_len(ssid);
-				}
-				if (bssid) {
-					if (nla_len(bssid) != ETH_ALEN) {
-						err = -EINVAL;
-						goto out_free;
-					}
-					memcpy(request->match_sets[i].bssid,
-					       nla_data(bssid), ETH_ALEN);
-				}
-
-				/* special attribute - old implementation w/a */
-				request->match_sets[i].rssi_thold =
-					default_match_rssi;
-				rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
-				if (rssi)
-					request->match_sets[i].rssi_thold =
-						nla_get_s32(rssi);
+				memcpy(request->match_sets[i].ssid.ssid,
+				       nla_data(ssid), nla_len(ssid));
+				request->match_sets[i].ssid.ssid_len =
+					nla_len(ssid);
 			}
+			if (bssid) {
+				if (nla_len(bssid) != ETH_ALEN) {
+					err = -EINVAL;
+					goto out_free;
+				}
+				memcpy(request->match_sets[i].bssid,
+				       nla_data(bssid), ETH_ALEN);
+			}
+
+			/* special attribute - old implementation w/a */
+			request->match_sets[i].rssi_thold = default_match_rssi;
+			rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
+			if (rssi)
+				request->match_sets[i].rssi_thold =
+					nla_get_s32(rssi);
 			i++;
 		}
 
