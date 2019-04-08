@@ -187,6 +187,7 @@ static const struct watchdog_info aspeed_wdt_info = {
 
 static int aspeed_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	const struct aspeed_wdt_config *config;
 	const struct of_device_id *ofdid;
 	struct aspeed_wdt *wdt;
@@ -196,7 +197,7 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	u32 status;
 	int ret;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -212,12 +213,12 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.info = &aspeed_wdt_info;
 	wdt->wdd.ops = &aspeed_wdt_ops;
 	wdt->wdd.max_hw_heartbeat_ms = WDT_MAX_TIMEOUT_MS;
-	wdt->wdd.parent = &pdev->dev;
+	wdt->wdd.parent = dev;
 
 	wdt->wdd.timeout = WDT_DEFAULT_TIMEOUT;
-	watchdog_init_timeout(&wdt->wdd, 0, &pdev->dev);
+	watchdog_init_timeout(&wdt->wdd, 0, dev);
 
-	np = pdev->dev.of_node;
+	np = dev->of_node;
 
 	ofdid = of_match_node(aspeed_wdt_of_table, np);
 	if (!ofdid)
@@ -286,11 +287,11 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 		u32 max_duration = config->ext_pulse_width_mask + 1;
 
 		if (duration == 0 || duration > max_duration) {
-			dev_err(&pdev->dev, "Invalid pulse duration: %uus\n",
-					duration);
+			dev_err(dev, "Invalid pulse duration: %uus\n",
+				duration);
 			duration = max(1U, min(max_duration, duration));
-			dev_info(&pdev->dev, "Pulse duration set to %uus\n",
-					duration);
+			dev_info(dev, "Pulse duration set to %uus\n",
+				 duration);
 		}
 
 		/*
@@ -312,9 +313,9 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
 	if (status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY)
 		wdt->wdd.bootstatus = WDIOF_CARDRESET;
 
-	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdd);
+	ret = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register\n");
+		dev_err(dev, "failed to register\n");
 		return ret;
 	}
 
