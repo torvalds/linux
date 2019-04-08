@@ -54,9 +54,9 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 
 			wait_for_completion_timeout(&completion, 3*HZ);
 
-			spin_lock_irq(sch->lock);
 			private->completion = NULL;
 			flush_workqueue(vfio_ccw_work_q);
+			spin_lock_irq(sch->lock);
 			ret = cio_cancel_halt_clear(sch, &iretry);
 		};
 
