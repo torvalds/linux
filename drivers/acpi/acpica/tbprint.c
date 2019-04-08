@@ -94,7 +94,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 {
 	struct acpi_table_header local_header;
 
-	if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_FACS)) {
+	if (ACPI_COMPARE_NAMESEG(header->signature, ACPI_SIG_FACS)) {
 
 		/* FACS only has signature and length fields */
 
@@ -158,8 +158,8 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
 	 * They are the odd tables, have no standard ACPI header and no checksum
 	 */
 
-	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_S3PT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_FACS)) {
+	if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_S3PT) ||
+	    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_FACS)) {
 		return (AE_OK);
 	}
 

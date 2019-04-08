@@ -310,9 +310,9 @@ int ap_dump_table_by_name(char *signature)
 
 	/* To be friendly, handle tables whose signatures do not match the name */
 
-	if (ACPI_COMPARE_NAME(local_signature, "FADT")) {
+	if (ACPI_COMPARE_NAMESEG(local_signature, "FADT")) {
 		strcpy(local_signature, ACPI_SIG_FADT);
-	} else if (ACPI_COMPARE_NAME(local_signature, "MADT")) {
+	} else if (ACPI_COMPARE_NAMESEG(local_signature, "MADT")) {
 		strcpy(local_signature, ACPI_SIG_MADT);
 	}
 

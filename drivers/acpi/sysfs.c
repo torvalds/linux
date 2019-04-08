@@ -368,10 +368,10 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	char instance_str[ACPI_INST_SIZE];
 
 	sysfs_attr_init(&table_attr->attr.attr);
-	ACPI_MOVE_NAME(table_attr->name, table_header->signature);
+	ACPI_COPY_NAMESEG(table_attr->name, table_header->signature);
 
 	list_for_each_entry(attr, &acpi_table_attr_list, node) {
-		if (ACPI_COMPARE_NAME(table_attr->name, attr->name))
+		if (ACPI_COMPARE_NAMESEG(table_attr->name, attr->name))
 			if (table_attr->instance < attr->instance)
 				table_attr->instance = attr->instance;
 	}
@@ -382,7 +382,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 		return -ERANGE;
 	}
 
-	ACPI_MOVE_NAME(table_attr->filename, table_header->signature);
+	ACPI_COPY_NAMESEG(table_attr->filename, table_header->signature);
 	table_attr->filename[ACPI_NAME_SIZE] = '\0';
 	if (table_attr->instance > 1 || (table_attr->instance == 1 &&
 					 !acpi_get_table
@@ -484,7 +484,7 @@ static int acpi_table_data_init(struct acpi_table_header *th)
 	int i;
 
 	for (i = 0; i < NUM_ACPI_DATA_OBJS; i++) {
-		if (ACPI_COMPARE_NAME(th->signature, acpi_data_objs[i].name)) {
+		if (ACPI_COMPARE_NAMESEG(th->signature, acpi_data_objs[i].name)) {
 			data_attr = kzalloc(sizeof(*data_attr), GFP_KERNEL);
 			if (!data_attr)
 				return -ENOMEM;

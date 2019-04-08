@@ -188,7 +188,7 @@ static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
 
 	this_name = acpi_ns_repairable_names;
 	while (this_name->repair_function) {
-		if (ACPI_COMPARE_NAME(node->name.ascii, this_name->name)) {
+		if (ACPI_COMPARE_NAMESEG(node->name.ascii, this_name->name)) {
 			return (this_name);
 		}
 
