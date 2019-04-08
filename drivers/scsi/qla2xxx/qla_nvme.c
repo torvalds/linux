@@ -205,7 +205,7 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	if (atomic_read(&sp->ref_count) == 0) {
 		WARN_ON(1);
 		ql_log(ql_log_info, fcport->vha, 0xffff,
-			"%s: command alredy aborted on sp: %p\n",
+			"%s: command already aborted on sp: %p\n",
 			__func__, sp);
 		return;
 	}
