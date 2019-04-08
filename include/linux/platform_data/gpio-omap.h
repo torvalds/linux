@@ -200,8 +200,6 @@ struct omap_gpio_platform_data {
 	bool is_mpuio;		/* whether the bank is of type MPUIO */
 	u32 non_wakeup_gpios;
 
-	u32 quirks;		/* Version specific quirks mask */
-
 	struct omap_gpio_reg_offs *regs;
 
 	/* Return context loss count due to PM states changing */
