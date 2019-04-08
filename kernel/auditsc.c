@@ -771,15 +771,13 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
-	if (!list_empty(list)) {
-		list_for_each_entry_rcu(e, list, list) {
-			if (audit_in_mask(&e->rule, ctx->major) &&
-			    audit_filter_rules(tsk, &e->rule, ctx, NULL,
-					       &state, false)) {
-				rcu_read_unlock();
-				ctx->current_state = state;
-				return state;
-			}
+	list_for_each_entry_rcu(e, list, list) {
+		if (audit_in_mask(&e->rule, ctx->major) &&
+		    audit_filter_rules(tsk, &e->rule, ctx, NULL,
+				       &state, false)) {
+			rcu_read_unlock();
+			ctx->current_state = state;
+			return state;
 		}
 	}
 	rcu_read_unlock();
@@ -798,9 +796,6 @@ static int audit_filter_inode_name(struct task_struct *tsk,
 	struct audit_entry *e;
 	enum audit_state state;
 
-	if (list_empty(list))
-		return 0;
-
 	list_for_each_entry_rcu(e, list, list) {
 		if (audit_in_mask(&e->rule, ctx->major) &&
 		    audit_filter_rules(tsk, &e->rule, ctx, n, &state, false)) {
@@ -808,7 +803,6 @@ static int audit_filter_inode_name(struct task_struct *tsk,
 			return 1;
 		}
 	}
-
 	return 0;
 }
 
@@ -1945,18 +1939,16 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 		return;
 
 	rcu_read_lock();
-	if (!list_empty(list)) {
-		list_for_each_entry_rcu(e, list, list) {
-			for (i = 0; i < e->rule.field_count; i++) {
-				struct audit_field *f = &e->rule.fields[i];
+	list_for_each_entry_rcu(e, list, list) {
+		for (i = 0; i < e->rule.field_count; i++) {
+			struct audit_field *f = &e->rule.fields[i];
 
-				if (f->type == AUDIT_FSTYPE
-				    && audit_comparator(inode->i_sb->s_magic,
-							f->op, f->val)
-				    && e->rule.action == AUDIT_NEVER) {
-					rcu_read_unlock();
-					return;
-				}
+			if (f->type == AUDIT_FSTYPE
+			    && audit_comparator(inode->i_sb->s_magic,
+						f->op, f->val)
+			    && e->rule.action == AUDIT_NEVER) {
+				rcu_read_unlock();
+				return;
 			}
 		}
 	}
@@ -2065,18 +2057,16 @@ void __audit_inode_child(struct inode *parent,
 		return;
 
 	rcu_read_lock();
-	if (!list_empty(list)) {
-		list_for_each_entry_rcu(e, list, list) {
-			for (i = 0; i < e->rule.field_count; i++) {
-				struct audit_field *f = &e->rule.fields[i];
+	list_for_each_entry_rcu(e, list, list) {
+		for (i = 0; i < e->rule.field_count; i++) {
+			struct audit_field *f = &e->rule.fields[i];
 
-				if (f->type == AUDIT_FSTYPE
-				    && audit_comparator(parent->i_sb->s_magic,
-							f->op, f->val)
-				    && e->rule.action == AUDIT_NEVER) {
-					rcu_read_unlock();
-					return;
-				}
+			if (f->type == AUDIT_FSTYPE
+			    && audit_comparator(parent->i_sb->s_magic,
+						f->op, f->val)
+			    && e->rule.action == AUDIT_NEVER) {
+				rcu_read_unlock();
+				return;
 			}
 		}
 	}
