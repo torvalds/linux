@@ -102,6 +102,14 @@ config USB_DWC3_OF_SIMPLE
 	 Currently supports Xilinx and Qualcomm DWC USB3 IP.
 	 Say 'Y' or 'M' if you have one such device.
 
+config USB_DWC3_ROCKCHIP
+       tristate "Rockchip Platforms"
+       depends on EXTCON && (ARCH_ROCKCHIP || COMPILE_TEST)
+       depends on OF
+       default USB_DWC3
+       help
+         Support of USB2/3 functionality in Rockchip
+
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
 	depends on (ARCH_STI || COMPILE_TEST) && OF
