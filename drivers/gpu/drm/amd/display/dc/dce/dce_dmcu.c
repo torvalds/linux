@@ -51,6 +51,8 @@
 #define PSR_SET_WAITLOOP 0x31
 #define MCP_INIT_DMCU 0x88
 #define MCP_INIT_IRAM 0x89
+#define MCP_SYNC_PHY_LOCK 0x90
+#define MCP_SYNC_PHY_UNLOCK 0x91
 #define MCP_BL_SET_PWM_FRAC 0x6A  /* Enable or disable Fractional PWM */
 #define MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK   0x00000001L
 
@@ -719,7 +721,7 @@ static bool dcn10_is_dmcu_initialized(struct dmcu *dmcu)
 	return true;
 }
 
-#endif
+#endif //(CONFIG_DRM_AMD_DC_DCN1_0)
 
 static const struct dmcu_funcs dce_funcs = {
 	.dmcu_init = dce_dmcu_init,
