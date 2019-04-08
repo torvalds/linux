@@ -21,7 +21,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200 init=/linuxrc";
+		bootargs = "init=/linuxrc";
+		stdout-path = "serial2:115200n8";
 	};
 
 	fixed-rate-clocks {
