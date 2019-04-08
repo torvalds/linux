@@ -2696,6 +2696,10 @@ static int nested_vmx_check_vmentry_postreqs(struct kvm_vcpu *vcpu,
 	    !nested_guest_cr4_valid(vcpu, vmcs12->guest_cr4))
 		return 1;
 
+	if ((vmcs12->vm_entry_controls & VM_ENTRY_LOAD_IA32_PAT) &&
+	    !kvm_pat_valid(vmcs12->guest_ia32_pat))
+		return 1;
+
 	if (nested_vmx_check_vmcs_link_ptr(vcpu, vmcs12)) {
 		*exit_qual = ENTRY_FAIL_VMCS_LINK_PTR;
 		return 1;
