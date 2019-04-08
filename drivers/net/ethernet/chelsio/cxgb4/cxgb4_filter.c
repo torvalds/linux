@@ -1722,12 +1722,13 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 		break;
 
 	default:
-		dev_err(adap->pdev_dev, "%s: filter creation PROBLEM; status = %u\n",
-			__func__, status);
+		if (status != CPL_ERR_TCAM_FULL)
+			dev_err(adap->pdev_dev, "%s: filter creation PROBLEM; status = %u\n",
+				__func__, status);
 
 		if (ctx) {
 			if (status == CPL_ERR_TCAM_FULL)
-				ctx->result = -EAGAIN;
+				ctx->result = -ENOSPC;
 			else
 				ctx->result = -EINVAL;
 		}
