@@ -28,7 +28,6 @@
 struct hi655x_regulator {
 	unsigned int disable_reg;
 	unsigned int status_reg;
-	unsigned int ctrl_mask;
 	struct regulator_desc rdesc;
 };
 
@@ -77,22 +76,18 @@ enum hi655x_regulator_id {
 static int hi655x_is_enabled(struct regulator_dev *rdev)
 {
 	unsigned int value = 0;
-
 	struct hi655x_regulator *regulator = rdev_get_drvdata(rdev);
 
 	regmap_read(rdev->regmap, regulator->status_reg, &value);
-	return (value & BIT(regulator->ctrl_mask));
+	return (value & rdev->desc->enable_mask);
 }
 
 static int hi655x_disable(struct regulator_dev *rdev)
 {
-	int ret = 0;
-
 	struct hi655x_regulator *regulator = rdev_get_drvdata(rdev);
 
-	ret = regmap_write(rdev->regmap, regulator->disable_reg,
-			   BIT(regulator->ctrl_mask));
-	return ret;
+	return regmap_write(rdev->regmap, regulator->disable_reg,
+			    rdev->desc->enable_mask);
 }
 
 static const struct regulator_ops hi655x_regulator_ops = {
@@ -132,7 +127,6 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 	},                                                       \
 	.disable_reg = HI655X_BUS_ADDR(dreg),                    \
 	.status_reg = HI655X_BUS_ADDR(sreg),                     \
-	.ctrl_mask = cmask,                                      \
 }
 
 #define HI655X_LDO_LINEAR(_ID, vreg, vmask, ereg, dreg,          \
@@ -155,7 +149,6 @@ static const struct regulator_ops hi655x_ldo_linear_ops = {
 	},                                                       \
 	.disable_reg = HI655X_BUS_ADDR(dreg),                    \
 	.status_reg = HI655X_BUS_ADDR(sreg),                     \
-	.ctrl_mask = cmask,                                      \
 }
 
 static const struct hi655x_regulator regulators[] = {
