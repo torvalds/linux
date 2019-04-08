@@ -840,6 +840,16 @@ enum dwb_subsample_position {
 	DWB_COSITED_SUBSAMPLING      = 1
 };
 
+enum dwb_stereo_eye_select {
+	DWB_STEREO_EYE_LEFT  = 1,		/* Capture left eye only */
+	DWB_STEREO_EYE_RIGHT = 2,		/* Capture right eye only */
+};
+
+enum dwb_stereo_type {
+	DWB_STEREO_TYPE_FRAME_PACKING = 0,		/* Frame packing */
+	DWB_STEREO_TYPE_FRAME_SEQUENTIAL = 3,	/* Frame sequential */
+};
+
 #define MCIF_BUF_COUNT	4
 
 struct mcif_buf_params {

@@ -423,6 +423,13 @@ enum display_content_type {
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 /* writeback */
+struct dwb_stereo_params {
+	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
+	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
+	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
+	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
+};
+
 struct dc_dwb_cnv_params {
 	unsigned int		src_width;	/* input active width */
 	unsigned int		src_height;	/* input active height (half-active height in interlaced mode) */

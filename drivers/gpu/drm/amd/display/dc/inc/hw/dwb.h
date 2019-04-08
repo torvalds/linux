@@ -81,16 +81,6 @@ enum dwb_frame_capture_enable {
 	DWB_FRAME_CAPTURE_ENABLE = 1,
 };
 
-enum dwb_stereo_eye_select {
-	DWB_STEREO_EYE_LEFT  = 1,		/* Capture left eye only */
-	DWB_STEREO_EYE_RIGHT = 2,		/* Capture right eye only */
-};
-
-enum dwb_stereo_type {
-	DWB_STEREO_TYPE_FRAME_PACKING = 0,		/* Frame packing */
-	DWB_STEREO_TYPE_FRAME_SEQUENTIAL = 3,	/* Frame sequential */
-};
-
 enum wbscl_coef_filter_type_sel {
 	WBSCL_COEF_LUMA_VERT_FILTER = 0,
 	WBSCL_COEF_CHROMA_VERT_FILTER = 1,
@@ -101,13 +91,6 @@ enum wbscl_coef_filter_type_sel {
 #endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-struct dwb_stereo_params {
-	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
-	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
-	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
-	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
-};
-
 struct dwb_warmup_params {
 	bool	warmup_en;	/* false: normal mode, true: enable pattern generator */
 	bool	warmup_mode;	/* false: 420, true: 444 */
