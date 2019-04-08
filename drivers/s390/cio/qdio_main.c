@@ -492,9 +492,8 @@ static inline void inbound_primed(struct qdio_q *q, unsigned int start,
 	set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
 }
 
-static int get_inbound_buffer_frontier(struct qdio_q *q)
+static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 {
-	unsigned int start = q->first_to_check;
 	unsigned char state = 0;
 	int count;
 
@@ -519,7 +518,6 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	switch (state) {
 	case SLSB_P_INPUT_PRIMED:
 		inbound_primed(q, start, count);
-		q->first_to_check = add_buf(start, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -527,7 +525,6 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 		return count;
 	case SLSB_P_INPUT_ERROR:
 		process_buffer_error(q, start, count);
-		q->first_to_check = add_buf(start, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -547,11 +544,11 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	}
 }
 
-static int qdio_inbound_q_moved(struct qdio_q *q)
+static int qdio_inbound_q_moved(struct qdio_q *q, unsigned int start)
 {
 	int count;
 
-	count = get_inbound_buffer_frontier(q);
+	count = get_inbound_buffer_frontier(q, start);
 
 	if (count && !is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
 		q->u.in.timestamp = get_tod_clock();
@@ -559,9 +556,8 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 	return count;
 }
 
-static inline int qdio_inbound_q_done(struct qdio_q *q)
+static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 {
-	unsigned int start = q->first_to_check;
 	unsigned char state = 0;
 
 	if (!atomic_read(&q->nr_buf_used))
@@ -672,17 +668,20 @@ static inline int qdio_tasklet_schedule(struct qdio_q *q)
 
 static void __qdio_inbound_processing(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
 	int count;
 
 	qperf_inc(q, tasklet_inbound);
 
-	count = qdio_inbound_q_moved(q);
+	count = qdio_inbound_q_moved(q, start);
 	if (count == 0)
 		return;
 
+	start = add_buf(start, count);
+	q->first_to_check = start;
 	qdio_kick_handler(q, count);
 
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		/* means poll time is not yet over */
 		qperf_inc(q, tasklet_inbound_resched);
 		if (!qdio_tasklet_schedule(q))
@@ -694,7 +693,7 @@ static void __qdio_inbound_processing(struct qdio_q *q)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		qperf_inc(q, tasklet_inbound_resched2);
 		qdio_tasklet_schedule(q);
 	}
@@ -706,9 +705,8 @@ void qdio_inbound_processing(unsigned long data)
 	__qdio_inbound_processing(q);
 }
 
-static int get_outbound_buffer_frontier(struct qdio_q *q)
+static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 {
-	unsigned int start = q->first_to_check;
 	unsigned char state = 0;
 	int count;
 
@@ -740,13 +738,11 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 			"out empty:%1d %02x", q->nr, count);
 
 		atomic_sub(count, &q->nr_buf_used);
-		q->first_to_check = add_buf(start, count);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
 		return count;
 	case SLSB_P_OUTPUT_ERROR:
 		process_buffer_error(q, start, count);
-		q->first_to_check = add_buf(start, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals_error(q, count);
@@ -773,11 +769,11 @@ static inline int qdio_outbound_q_done(struct qdio_q *q)
 	return atomic_read(&q->nr_buf_used) == 0;
 }
 
-static inline int qdio_outbound_q_moved(struct qdio_q *q)
+static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start)
 {
 	int count;
 
-	count = get_outbound_buffer_frontier(q);
+	count = get_outbound_buffer_frontier(q, start);
 
 	if (count)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
@@ -829,14 +825,17 @@ retry:
 
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
 	int count;
 
 	qperf_inc(q, tasklet_outbound);
 	WARN_ON_ONCE(atomic_read(&q->nr_buf_used) < 0);
 
-	count = qdio_outbound_q_moved(q);
-	if (count)
+	count = qdio_outbound_q_moved(q, start);
+	if (count) {
+		q->first_to_check = add_buf(start, count);
 		qdio_kick_handler(q, count);
+	}
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT && !pci_out_supported(q->irq_ptr) &&
 	    !qdio_outbound_q_done(q))
@@ -891,6 +890,7 @@ static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
 
 static void __tiqdio_inbound_processing(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
 	int count;
 
 	qperf_inc(q, tasklet_inbound);
@@ -900,13 +900,15 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	/* The interrupt could be caused by a PCI request: */
 	qdio_check_outbound_pci_queues(q->irq_ptr);
 
-	count = qdio_inbound_q_moved(q);
+	count = qdio_inbound_q_moved(q, start);
 	if (count == 0)
 		return;
 
+	start = add_buf(start, count);
+	q->first_to_check = start;
 	qdio_kick_handler(q, count);
 
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		qperf_inc(q, tasklet_inbound_resched);
 		if (!qdio_tasklet_schedule(q))
 			return;
@@ -917,7 +919,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		qperf_inc(q, tasklet_inbound_resched2);
 		qdio_tasklet_schedule(q);
 	}
@@ -1637,7 +1639,7 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 	 */
 	if (test_nonshared_ind(irq_ptr))
 		goto rescan;
-	if (!qdio_inbound_q_done(q))
+	if (!qdio_inbound_q_done(q, q->first_to_check))
 		goto rescan;
 	return 0;
 
@@ -1668,11 +1670,13 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 {
 	struct qdio_q *q;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+	unsigned int start;
 	int count;
 
 	if (!irq_ptr)
 		return -ENODEV;
 	q = irq_ptr->input_qs[nr];
+	start = q->first_to_check;
 
 	/*
 	 * Cannot rely on automatic sync after interrupt since queues may
@@ -1683,9 +1687,12 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 
 	qdio_check_outbound_pci_queues(irq_ptr);
 
-	count = qdio_inbound_q_moved(q);
+	count = qdio_inbound_q_moved(q, start);
 	if (count == 0)
 		return 0;
+
+	start = add_buf(start, count);
+	q->first_to_check = start;
 
 	/* Note: upper-layer MUST stop processing immediately here ... */
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
