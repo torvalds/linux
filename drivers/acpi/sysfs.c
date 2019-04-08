@@ -327,9 +327,9 @@ static struct kobject *hotplug_kobj;
 
 struct acpi_table_attr {
 	struct bin_attribute attr;
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	int instance;
-	char filename[ACPI_NAME_SIZE+ACPI_INST_SIZE];
+	char filename[ACPI_NAMESEG_SIZE+ACPI_INST_SIZE];
 	struct list_head node;
 };
 
@@ -383,7 +383,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	}
 
 	ACPI_COPY_NAMESEG(table_attr->filename, table_header->signature);
-	table_attr->filename[ACPI_NAME_SIZE] = '\0';
+	table_attr->filename[ACPI_NAMESEG_SIZE] = '\0';
 	if (table_attr->instance > 1 || (table_attr->instance == 1 &&
 					 !acpi_get_table
 					 (table_header->signature, 2, &header))) {

@@ -289,14 +289,14 @@ int ap_dump_table_by_address(char *ascii_address)
 
 int ap_dump_table_by_name(char *signature)
 {
-	char local_signature[ACPI_NAME_SIZE + 1];
+	char local_signature[ACPI_NAMESEG_SIZE + 1];
 	u32 instance;
 	struct acpi_table_header *table;
 	acpi_physical_address address;
 	acpi_status status;
 	int table_status;
 
-	if (strlen(signature) != ACPI_NAME_SIZE) {
+	if (strlen(signature) != ACPI_NAMESEG_SIZE) {
 		fprintf(stderr,
 			"Invalid table signature [%s]: must be exactly 4 characters\n",
 			signature);

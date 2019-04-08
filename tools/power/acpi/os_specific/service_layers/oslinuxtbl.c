@@ -19,7 +19,7 @@ ACPI_MODULE_NAME("oslinuxtbl")
 typedef struct osl_table_info {
 	struct osl_table_info *next;
 	u32 instance;
-	char signature[ACPI_NAME_SIZE];
+	char signature[ACPI_NAMESEG_SIZE];
 
 } osl_table_info;
 
@@ -995,7 +995,7 @@ static acpi_status osl_list_customized_tables(char *directory)
 {
 	void *table_dir;
 	u32 instance;
-	char temp_name[ACPI_NAME_SIZE];
+	char temp_name[ACPI_NAMESEG_SIZE];
 	char *filename;
 	acpi_status status = AE_OK;
 
@@ -1158,15 +1158,15 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 
 	/* Ignore meaningless files */
 
-	if (strlen(filename) < ACPI_NAME_SIZE) {
+	if (strlen(filename) < ACPI_NAMESEG_SIZE) {
 		return (AE_BAD_SIGNATURE);
 	}
 
 	/* Extract instance number */
 
-	if (isdigit((int)filename[ACPI_NAME_SIZE])) {
-		sscanf(&filename[ACPI_NAME_SIZE], "%u", instance);
-	} else if (strlen(filename) != ACPI_NAME_SIZE) {
+	if (isdigit((int)filename[ACPI_NAMESEG_SIZE])) {
+		sscanf(&filename[ACPI_NAMESEG_SIZE], "%u", instance);
+	} else if (strlen(filename) != ACPI_NAMESEG_SIZE) {
 		return (AE_BAD_SIGNATURE);
 	} else {
 		*instance = 0;
@@ -1311,7 +1311,7 @@ osl_get_customized_table(char *pathname,
 {
 	void *table_dir;
 	u32 current_instance = 0;
-	char temp_name[ACPI_NAME_SIZE];
+	char temp_name[ACPI_NAMESEG_SIZE];
 	char table_filename[PATH_MAX];
 	char *filename;
 	acpi_status status;

@@ -239,7 +239,7 @@ const char *acpi_ut_get_node_name(void *object)
 {
 	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
 
-	/* Must return a string of exactly 4 characters == ACPI_NAME_SIZE */
+	/* Must return a string of exactly 4 characters == ACPI_NAMESEG_SIZE */
 
 	if (!object) {
 		return ("NULL");

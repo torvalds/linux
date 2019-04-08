@@ -230,7 +230,7 @@ static void get_single_name(acpi_handle handle, char *name)
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)))
 		pr_warn("Failed to get device name from acpi handle\n");
 	else {
-		memcpy(name, buffer.pointer, ACPI_NAME_SIZE);
+		memcpy(name, buffer.pointer, ACPI_NAMESEG_SIZE);
 		kfree(buffer.pointer);
 	}
 }
