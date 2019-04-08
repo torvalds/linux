@@ -661,6 +661,10 @@ static inline int is_x86_event(struct perf_event *event)
 	return event->pmu == &pmu;
 }
 
+struct pmu *x86_get_pmu(void)
+{
+	return &pmu;
+}
 /*
  * Event scheduler state:
  *

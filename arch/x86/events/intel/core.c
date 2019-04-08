@@ -4156,6 +4156,50 @@ done:
 	return count;
 }
 
+static void update_tfa_sched(void *ignored)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	/*
+	 * check if PMC3 is used
+	 * and if so force schedule out for all event types all contexts
+	 */
+	if (test_bit(3, cpuc->active_mask))
+		perf_pmu_resched(x86_get_pmu());
+}
+
+static ssize_t show_sysctl_tfa(struct device *cdev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", allow_tsx_force_abort);
+}
+
+static ssize_t set_sysctl_tfa(struct device *cdev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	bool val;
+	ssize_t ret;
+
+	ret = kstrtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	/* no change */
+	if (val == allow_tsx_force_abort)
+		return count;
+
+	allow_tsx_force_abort = val;
+
+	get_online_cpus();
+	on_each_cpu(update_tfa_sched, NULL, 1);
+	put_online_cpus();
+
+	return count;
+}
+
+
 static DEVICE_ATTR_RW(freeze_on_smi);
 
 static ssize_t branches_show(struct device *cdev,
@@ -4188,7 +4232,9 @@ static struct attribute *intel_pmu_caps_attrs[] = {
        NULL
 };
 
-static DEVICE_BOOL_ATTR(allow_tsx_force_abort, 0644, allow_tsx_force_abort);
+static DEVICE_ATTR(allow_tsx_force_abort, 0644,
+		   show_sysctl_tfa,
+		   set_sysctl_tfa);
 
 static struct attribute *intel_pmu_attrs[] = {
 	&dev_attr_freeze_on_smi.attr,
@@ -4697,7 +4743,7 @@ __init int intel_pmu_init(void)
 			x86_pmu.get_event_constraints = tfa_get_event_constraints;
 			x86_pmu.enable_all = intel_tfa_pmu_enable_all;
 			x86_pmu.commit_scheduling = intel_tfa_commit_scheduling;
-			intel_pmu_attrs[1] = &dev_attr_allow_tsx_force_abort.attr.attr;
+			intel_pmu_attrs[1] = &dev_attr_allow_tsx_force_abort.attr;
 		}
 
 		pr_cont("Skylake events, ");
