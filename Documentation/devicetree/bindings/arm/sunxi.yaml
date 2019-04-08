@@ -136,6 +136,11 @@ properties:
           - const: lemaker,bananapro
           - const: allwinner,sun7i-a20
 
+      - description: Beelink GS1
+        items:
+          - const: azw,beelink-gs1
+          - const: allwinner,sun50i-h6
+
       - description: Beelink X2
         items:
           - const: roofull,beelink-x2
