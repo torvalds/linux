@@ -333,7 +333,7 @@ bool dc_stream_set_cursor_position(
 				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
 				!pipe_ctx->plane_state ||
 				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp) ||
-				!pipe_ctx->plane_res.ipp)
+				(!pipe_ctx->plane_res.ipp && !pipe_ctx->plane_res.dpp))
 			continue;
 
 		if (!pipe_to_program) {
