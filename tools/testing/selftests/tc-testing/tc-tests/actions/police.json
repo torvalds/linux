@@ -739,5 +739,30 @@
         "teardown": [
             "$TC actions flush action police"
         ]
+    },
+    {
+        "id": "689e",
+        "name": "Replace police action with invalid goto chain control",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action police rate 3mbit burst 250k drop index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action police rate 3mbit burst 250k goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action police index 90",
+        "matchPattern": "action order [0-9]*:  police 0x5a rate 3Mbit burst 250Kb mtu 2Kb action drop",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
     }
 ]

@@ -291,13 +291,14 @@ int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
 {
 	const unsigned char *ip = in;
 	unsigned char *op = out;
+	unsigned char *data_start;
 	size_t l = in_len;
 	size_t t = 0;
 	signed char state_offset = -2;
 	unsigned int m4_max_offset;
 
-	// LZO v0 will never write 17 as first byte,
-	// so this is used to version the bitstream
+	// LZO v0 will never write 17 as first byte (except for zero-length
+	// input), so this is used to version the bitstream
 	if (bitstream_version > 0) {
 		*op++ = 17;
 		*op++ = bitstream_version;
@@ -305,6 +306,8 @@ int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
 	} else {
 		m4_max_offset = M4_MAX_OFFSET_V0;
 	}
+
+	data_start = op;
 
 	while (l > 20) {
 		size_t ll = l <= (m4_max_offset + 1) ? l : (m4_max_offset + 1);
@@ -324,7 +327,7 @@ int lzogeneric1x_1_compress(const unsigned char *in, size_t in_len,
 	if (t > 0) {
 		const unsigned char *ii = in + in_len - t;
 
-		if (op == out && t <= 238) {
+		if (op == data_start && t <= 238) {
 			*op++ = (17 + t);
 		} else if (t <= 3) {
 			op[state_offset] |= t;

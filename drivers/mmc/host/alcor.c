@@ -1044,14 +1044,27 @@ static void alcor_init_mmc(struct alcor_sdmmc_host *host)
 	mmc->caps2 = MMC_CAP2_NO_SDIO;
 	mmc->ops = &alcor_sdc_ops;
 
-	/* Hardware cannot do scatter lists */
+	/* The hardware does DMA data transfer of 4096 bytes to/from a single
+	 * buffer address. Scatterlists are not supported, but upon DMA
+	 * completion (signalled via IRQ), the original vendor driver does
+	 * then immediately set up another DMA transfer of the next 4096
+	 * bytes.
+	 *
+	 * This means that we need to handle the I/O in 4096 byte chunks.
+	 * Lacking a way to limit the sglist entries to 4096 bytes, we instead
+	 * impose that only one segment is provided, with maximum size 4096,
+	 * which also happens to be the minimum size. This means that the
+	 * single-entry sglist handled by this driver can be handed directly
+	 * to the hardware, nice and simple.
+	 *
+	 * Unfortunately though, that means we only do 4096 bytes I/O per
+	 * MMC command. A future improvement would be to make the driver
+	 * accept sg lists and entries of any size, and simply iterate
+	 * through them 4096 bytes at a time.
+	 */
 	mmc->max_segs = AU6601_MAX_DMA_SEGMENTS;
 	mmc->max_seg_size = AU6601_MAX_DMA_BLOCK_SIZE;
-
-	mmc->max_blk_size = mmc->max_seg_size;
-	mmc->max_blk_count = mmc->max_segs;
-
-	mmc->max_req_size = mmc->max_seg_size * mmc->max_segs;
+	mmc->max_req_size = mmc->max_seg_size;
 }
 
 static int alcor_pci_sdmmc_drv_probe(struct platform_device *pdev)

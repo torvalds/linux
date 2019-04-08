@@ -251,6 +251,10 @@ static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 	}
 
 	attr = nla_nest_start(skb, NCSI_ATTR_PACKAGE_LIST);
+	if (!attr) {
+		rc = -EMSGSIZE;
+		goto err;
+	}
 	rc = ncsi_write_package_info(skb, ndp, package->id);
 	if (rc) {
 		nla_nest_cancel(skb, attr);

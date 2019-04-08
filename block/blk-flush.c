@@ -220,7 +220,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
 		flush_rq->tag = -1;
 	} else {
-		blk_mq_put_driver_tag_hctx(hctx, flush_rq);
+		blk_mq_put_driver_tag(flush_rq);
 		flush_rq->internal_tag = -1;
 	}
 
@@ -324,7 +324,7 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 
 	if (q->elevator) {
 		WARN_ON(rq->tag < 0);
-		blk_mq_put_driver_tag_hctx(hctx, rq);
+		blk_mq_put_driver_tag(rq);
 	}
 
 	/*

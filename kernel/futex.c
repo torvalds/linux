@@ -3436,6 +3436,10 @@ static int handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int p
 {
 	u32 uval, uninitialized_var(nval), mval;
 
+	/* Futex address must be 32bit aligned */
+	if ((((unsigned long)uaddr) % sizeof(*uaddr)) != 0)
+		return -1;
+
 retry:
 	if (get_user(uval, uaddr))
 		return -1;

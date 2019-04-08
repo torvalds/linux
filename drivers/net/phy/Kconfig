@@ -7,6 +7,8 @@ menuconfig MDIO_DEVICE
 	help
 	  MDIO devices and driver infrastructure code.
 
+if MDIO_DEVICE
+
 config MDIO_BUS
 	tristate
 	default m if PHYLIB=m
@@ -178,6 +180,7 @@ config MDIO_XGENE
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
 
+endif
 endif
 
 config PHYLINK

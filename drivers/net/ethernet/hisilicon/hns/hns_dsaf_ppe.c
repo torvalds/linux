@@ -61,7 +61,7 @@ void hns_ppe_set_indir_table(struct hns_ppe_cb *ppe_cb,
 	}
 }
 
-static void __iomem *
+static u8 __iomem *
 hns_ppe_common_get_ioaddr(struct ppe_common_cb *ppe_common)
 {
 	return ppe_common->dsaf_dev->ppe_base + PPE_COMMON_REG_OFFSET;
@@ -111,8 +111,8 @@ hns_ppe_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index)
 	dsaf_dev->ppe_common[comm_index] = NULL;
 }
 
-static void __iomem *hns_ppe_get_iobase(struct ppe_common_cb *ppe_common,
-					int ppe_idx)
+static u8 __iomem *hns_ppe_get_iobase(struct ppe_common_cb *ppe_common,
+				      int ppe_idx)
 {
 	return ppe_common->dsaf_dev->ppe_base + ppe_idx * PPE_REG_OFFSET;
 }

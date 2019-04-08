@@ -586,8 +586,8 @@ static int omap_dm_timer_set_load(struct omap_dm_timer *timer, int autoreload,
 }
 
 /* Optimized set_load which removes costly spin wait in timer_start */
-int omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
-                            unsigned int load)
+static int omap_dm_timer_set_load_start(struct omap_dm_timer *timer,
+					int autoreload, unsigned int load)
 {
 	u32 l;
 

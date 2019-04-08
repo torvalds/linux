@@ -413,7 +413,7 @@ algorithm.
 .. _F-RTO: https://tools.ietf.org/html/rfc5682
 
 TCP Fast Path
-============
+=============
 When kernel receives a TCP packet, it has two paths to handler the
 packet, one is fast path, another is slow path. The comment in kernel
 code provides a good explanation of them, I pasted them below::
@@ -681,6 +681,7 @@ The TCP stack receives an out of order duplicate packet, so it sends a
 DSACK to the sender.
 
 * TcpExtTCPDSACKRecv
+
 The TCP stack receives a DSACK, which indicates an acknowledged
 duplicate packet is received.
 
@@ -690,7 +691,7 @@ The TCP stack receives a DSACK, which indicate an out of order
 duplicate packet is received.
 
 invalid SACK and DSACK
-====================
+======================
 When a SACK (or DSACK) block is invalid, a corresponding counter would
 be updated. The validation method is base on the start/end sequence
 number of the SACK block. For more details, please refer the comment
@@ -704,11 +705,13 @@ explaination:
 .. _Add counters for discarded SACK blocks: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=18f02545a9a16c9a89778b91a162ad16d510bb32
 
 * TcpExtTCPSACKDiscard
+
 This counter indicates how many SACK blocks are invalid. If the invalid
 SACK block is caused by ACK recording, the TCP stack will only ignore
 it and won't update this counter.
 
 * TcpExtTCPDSACKIgnoredOld and TcpExtTCPDSACKIgnoredNoUndo
+
 When a DSACK block is invalid, one of these two counters would be
 updated. Which counter will be updated depends on the undo_marker flag
 of the TCP socket. If the undo_marker is not set, the TCP stack isn't
@@ -719,7 +722,7 @@ will be updated. If the undo_marker is set, TcpExtTCPDSACKIgnoredOld
 will be updated. As implied in its name, it might be an old packet.
 
 SACK shift
-=========
+==========
 The linux networking stack stores data in sk_buff struct (skb for
 short). If a SACK block acrosses multiple skb, the TCP stack will try
 to re-arrange data in these skb. E.g. if a SACK block acknowledges seq
@@ -730,12 +733,15 @@ seq 14 to 20. All data in skb2 will be moved to skb1, and skb2 will be
 discard, this operation is 'merge'.
 
 * TcpExtTCPSackShifted
+
 A skb is shifted
 
 * TcpExtTCPSackMerged
+
 A skb is merged
 
 * TcpExtTCPSackShiftFallback
+
 A skb should be shifted or merged, but the TCP stack doesn't do it for
 some reasons.
 

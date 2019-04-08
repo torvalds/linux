@@ -71,6 +71,7 @@ int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 
 void mt76x2_cleanup(struct mt76x02_dev *dev);
 
+int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard);
 void mt76x2_reset_wlan(struct mt76x02_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x02_dev *dev,
 			 struct ieee80211_supported_band *sband);

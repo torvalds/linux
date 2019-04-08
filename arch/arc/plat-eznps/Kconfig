@@ -26,8 +26,8 @@ config EZNPS_MTM_EXT
 	help
 	  Here we add new hierarchy for CPUs topology.
 	  We got:
-		Core
-		Thread
+	    Core
+	    Thread
 	  At the new thread level each CPU represent one HW thread.
 	  At highest hierarchy each core contain 16 threads,
 	  any of them seem like CPU from Linux point of view.
@@ -35,10 +35,10 @@ config EZNPS_MTM_EXT
 	  core and HW scheduler round robin between them.
 
 config EZNPS_MEM_ERROR_ALIGN
-       bool "ARC-EZchip Memory error as an exception"
-       depends on EZNPS_MTM_EXT
-       default n
-       help
+	bool "ARC-EZchip Memory error as an exception"
+	depends on EZNPS_MTM_EXT
+	default n
+	help
 	  On the real chip of the NPS, user memory errors are handled
 	  as a machine check exception, which is fatal, whereas on
 	  simulator platform for NPS, is handled as a Level 2 interrupt

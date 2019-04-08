@@ -352,7 +352,7 @@ static inline bool strict_kernel_rwx_enabled(void)
 #if defined(CONFIG_SPARSEMEM_VMEMMAP) && defined(CONFIG_SPARSEMEM_EXTREME) &&	\
 	defined (CONFIG_PPC_64K_PAGES)
 #define MAX_PHYSMEM_BITS        51
-#else
+#elif defined(CONFIG_SPARSEMEM)
 #define MAX_PHYSMEM_BITS        46
 #endif
 
