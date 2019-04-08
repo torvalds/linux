@@ -2743,11 +2743,11 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state)
 	}
 
 	if (use_ssc) {
-		tmp = (u64)dco_khz * 47 * 32;
+		tmp = mul_u32_u32(dco_khz, 47 * 32);
 		do_div(tmp, refclk_khz * m1div * 10000);
 		ssc_stepsize = tmp;
 
-		tmp = (u64)dco_khz * 1000;
+		tmp = mul_u32_u32(dco_khz, 1000);
 		ssc_steplen = DIV_ROUND_UP_ULL(tmp, 32 * 2 * 32);
 	} else {
 		ssc_stepsize = 0;

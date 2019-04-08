@@ -575,7 +575,7 @@ int chv_calc_dpll_params(int refclk, struct dpll *clock)
 	clock->p = clock->p1 * clock->p2;
 	if (WARN_ON(clock->n == 0 || clock->p == 0))
 		return 0;
-	clock->vco = DIV_ROUND_CLOSEST_ULL((u64)refclk * clock->m,
+	clock->vco = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, clock->m),
 					   clock->n << 22);
 	clock->dot = DIV_ROUND_CLOSEST(clock->vco, clock->p);
 
@@ -960,8 +960,8 @@ chv_find_best_dpll(const struct intel_limit *limit,
 
 			clock.p = clock.p1 * clock.p2;
 
-			m2 = DIV_ROUND_CLOSEST_ULL(((u64)target * clock.p *
-					clock.n) << 22, refclk * clock.m1);
+			m2 = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(target, clock.p * clock.n) << 22,
+						   refclk * clock.m1);
 
 			if (m2 > INT_MAX/clock.m1)
 				continue;
@@ -6946,7 +6946,7 @@ static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 		if (WARN_ON(!pfit_w || !pfit_h))
 			return pixel_rate;
 
-		pixel_rate = div_u64((u64)pixel_rate * pipe_w * pipe_h,
+		pixel_rate = div_u64(mul_u32_u32(pixel_rate, pipe_w * pipe_h),
 				     pfit_w * pfit_h);
 	}
 
@@ -7066,7 +7066,7 @@ static void compute_m_n(unsigned int m, unsigned int n,
 	else
 		*ret_n = min_t(unsigned int, roundup_pow_of_two(n), DATA_LINK_N_MAX);
 
-	*ret_m = div_u64((u64)m * *ret_n, n);
+	*ret_m = div_u64(mul_u32_u32(m, *ret_n), n);
 	intel_reduce_m_n_ratio(ret_m, ret_n);
 }
 

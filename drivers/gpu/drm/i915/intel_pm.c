@@ -678,7 +678,7 @@ static unsigned int intel_wm_method1(unsigned int pixel_rate,
 {
 	u64 ret;
 
-	ret = (u64)pixel_rate * cpp * latency;
+	ret = mul_u32_u32(pixel_rate, cpp * latency);
 	ret = DIV_ROUND_UP_ULL(ret, 10000);
 
 	return ret;
