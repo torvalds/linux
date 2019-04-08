@@ -27,7 +27,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/freezer.h>
 #include <linux/iopoll.h>
 #include <linux/reset.h>
@@ -164,12 +164,12 @@ static ssize_t dwc3_mode_store(struct device *device,
 static int dwc3_rockchip_set_test_mode(struct dwc3_rockchip *rockchip,
 				       u32 mode)
 {
-	struct dwc3	*dwc = rockchip->dwc;
-	struct usb_hcd	*hcd  = dev_get_drvdata(&dwc->xhci->dev);
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	__le32 __iomem	**port_array;
-	int		ret, val;
-	u32		reg;
+	struct dwc3		*dwc = rockchip->dwc;
+	struct usb_hcd		*hcd  = dev_get_drvdata(&dwc->xhci->dev);
+	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
+	struct xhci_port	*port;
+	int			ret, val;
+	u32			reg;
 
 	ret = readx_poll_timeout(readl, &hcd->state, val,
 				 val != HC_STATE_HALT, 1000,
@@ -185,15 +185,15 @@ static int dwc3_rockchip_set_test_mode(struct dwc3_rockchip *rockchip,
 	case TEST_SE0_NAK:
 	case TEST_PACKET:
 	case TEST_FORCE_EN:
-		port_array = xhci->usb2_ports;
-		reg = readl(port_array[0] + PORTPMSC);
+		port = xhci->usb2_rhub.ports[0];
+		reg = readl(port->addr + PORTPMSC);
 		reg &= ~XHCI_TSTCTRL_MASK;
 		reg |= mode << 28;
-		writel(reg, port_array[0] + PORTPMSC);
+		writel(reg, port->addr + PORTPMSC);
 		break;
 	case USB_SS_PORT_LS_COMP_MOD:
-		port_array = xhci->usb3_ports;
-		xhci_set_link_state(xhci, port_array, 0, mode);
+		port = xhci->usb3_rhub.ports[0];
+		xhci_set_link_state(xhci, port, mode);
 		break;
 	default:
 		return -EINVAL;
@@ -211,7 +211,7 @@ static ssize_t host_testmode_show(struct device *device,
 	struct dwc3		*dwc = rockchip->dwc;
 	struct usb_hcd		*hcd  = dev_get_drvdata(&dwc->xhci->dev);
 	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
-	__le32 __iomem		**port_array;
+	struct xhci_port	*port;
 	u32			reg;
 	int			ret;
 
@@ -225,8 +225,8 @@ static ssize_t host_testmode_show(struct device *device,
 		return 0;
 	}
 
-	port_array = xhci->usb2_ports;
-	reg = readl(port_array[0] + PORTPMSC);
+	port = xhci->usb2_rhub.ports[0];
+	reg = readl(port->addr + PORTPMSC);
 	reg &= XHCI_TSTCTRL_MASK;
 	reg >>= 28;
 
@@ -253,8 +253,8 @@ static ssize_t host_testmode_show(struct device *device,
 		ret = sprintf(buf, "U2: UNKNOWN %d\n", reg);
 	}
 
-	port_array = xhci->usb3_ports;
-	reg = readl(port_array[0]);
+	port = xhci->usb3_rhub.ports[0];
+	reg = readl(port->addr);
 	reg &= PORT_PLS_MASK;
 	if (reg == USB_SS_PORT_LS_COMP_MOD)
 		ret += sprintf(buf + ret, "U3: compliance mode\n");
@@ -299,14 +299,14 @@ static ssize_t host_testmode_store(struct device *device,
 		return count;
 	}
 
-	if (edev && !extcon_get_cable_state_(edev, EXTCON_USB_HOST)) {
-		if (extcon_get_cable_state_(edev, EXTCON_USB) > 0)
-			extcon_set_cable_state_(edev, EXTCON_USB, false);
+	if (edev && !extcon_get_state(edev, EXTCON_USB_HOST)) {
+		if (extcon_get_state(edev, EXTCON_USB) > 0)
+			extcon_set_state(edev, EXTCON_USB, false);
 
 		property.intval = flip;
 		extcon_set_property(edev, EXTCON_USB_HOST,
 				    EXTCON_PROP_USB_TYPEC_POLARITY, property);
-		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
+		extcon_set_state(edev, EXTCON_USB_HOST, true);
 
 		/* Add a delay 1s to wait for XHCI HCD init */
 		msleep(1000);
@@ -378,7 +378,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	mutex_lock(&rockchip->lock);
 
 	if (rockchip->force_mode ? dwc->dr_mode == USB_DR_MODE_PERIPHERAL :
-	    extcon_get_cable_state_(edev, EXTCON_USB)) {
+	    extcon_get_state(edev, EXTCON_USB)) {
 		if (rockchip->connected)
 			goto out;
 
@@ -430,7 +430,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		rockchip->connected = true;
 		dev_info(rockchip->dev, "USB peripheral connected\n");
 	} else if (rockchip->force_mode ? dwc->dr_mode == USB_DR_MODE_HOST :
-		   extcon_get_cable_state_(edev, EXTCON_USB_HOST)) {
+		   extcon_get_state(edev, EXTCON_USB_HOST)) {
 		if (rockchip->connected) {
 			reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
@@ -681,10 +681,10 @@ static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
 		pm_runtime_suspend(dwc->dev);
 		pm_runtime_put_sync(rockchip->dev);
 
-		if ((extcon_get_cable_state_(rockchip->edev,
-					     EXTCON_USB) > 0) ||
-		    (extcon_get_cable_state_(rockchip->edev,
-					     EXTCON_USB_HOST) > 0))
+		if ((extcon_get_state(rockchip->edev,
+				      EXTCON_USB) > 0) ||
+		    (extcon_get_state(rockchip->edev,
+				      EXTCON_USB_HOST) > 0))
 			schedule_work(&rockchip->otg_work);
 	} else {
 		/*
@@ -950,8 +950,8 @@ static int __maybe_unused dwc3_rockchip_suspend(struct device *dev)
 		 * state, but after resume DWC3 controller is in
 		 * P0 state. So we put USB3 PHY in power on state.
 		 */
-		if (extcon_get_cable_state_(rockchip->edev,
-					    EXTCON_USB_HOST) > 0)
+		if (extcon_get_state(rockchip->edev,
+				     EXTCON_USB_HOST) > 0)
 			phy_power_off(dwc->usb2_generic_phy);
 	}
 
@@ -975,8 +975,8 @@ static int __maybe_unused dwc3_rockchip_resume(struct device *dev)
 		schedule_work(&rockchip->otg_work);
 
 	if (rockchip->edev && dwc->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		if (extcon_get_cable_state_(rockchip->edev,
-					    EXTCON_USB_HOST) > 0)
+		if (extcon_get_state(rockchip->edev,
+				     EXTCON_USB_HOST) > 0)
 			phy_power_on(dwc->usb2_generic_phy);
 	}
 
