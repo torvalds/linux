@@ -2184,7 +2184,7 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	}
 
 	fod->req.cmd = &fod->cmdiubuf.sqe;
-	fod->req.rsp = &fod->rspiubuf.cqe;
+	fod->req.cqe = &fod->rspiubuf.cqe;
 	fod->req.port = tgtport->pe->port;
 
 	/* clear any response payload */

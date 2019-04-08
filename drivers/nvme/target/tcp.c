@@ -161,14 +161,14 @@ static inline bool nvmet_tcp_has_data_in(struct nvmet_tcp_cmd *cmd)
 
 static inline bool nvmet_tcp_need_data_in(struct nvmet_tcp_cmd *cmd)
 {
-	return nvmet_tcp_has_data_in(cmd) && !cmd->req.rsp->status;
+	return nvmet_tcp_has_data_in(cmd) && !cmd->req.cqe->status;
 }
 
 static inline bool nvmet_tcp_need_data_out(struct nvmet_tcp_cmd *cmd)
 {
 	return !nvme_is_write(cmd->req.cmd) &&
 		cmd->req.transfer_len > 0 &&
-		!cmd->req.rsp->status;
+		!cmd->req.cqe->status;
 }
 
 static inline bool nvmet_tcp_has_inline_data(struct nvmet_tcp_cmd *cmd)
@@ -378,7 +378,7 @@ static void nvmet_setup_c2h_data_pdu(struct nvmet_tcp_cmd *cmd)
 	pdu->hdr.plen =
 		cpu_to_le32(pdu->hdr.hlen + hdgst +
 				cmd->req.transfer_len + ddgst);
-	pdu->command_id = cmd->req.rsp->command_id;
+	pdu->command_id = cmd->req.cqe->command_id;
 	pdu->data_length = cpu_to_le32(cmd->req.transfer_len);
 	pdu->data_offset = cpu_to_le32(cmd->wbytes_done);
 
@@ -1224,7 +1224,7 @@ static int nvmet_tcp_alloc_cmd(struct nvmet_tcp_queue *queue,
 			sizeof(*c->rsp_pdu) + hdgst, GFP_KERNEL | __GFP_ZERO);
 	if (!c->rsp_pdu)
 		goto out_free_cmd;
-	c->req.rsp = &c->rsp_pdu->cqe;
+	c->req.cqe = &c->rsp_pdu->cqe;
 
 	c->data_pdu = page_frag_alloc(&queue->pf_cache,
 			sizeof(*c->data_pdu) + hdgst, GFP_KERNEL | __GFP_ZERO);

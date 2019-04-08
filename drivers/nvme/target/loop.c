@@ -18,7 +18,7 @@
 struct nvme_loop_iod {
 	struct nvme_request	nvme_req;
 	struct nvme_command	cmd;
-	struct nvme_completion	rsp;
+	struct nvme_completion	cqe;
 	struct nvmet_req	req;
 	struct nvme_loop_queue	*queue;
 	struct work_struct	work;
@@ -94,7 +94,7 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 {
 	struct nvme_loop_queue *queue =
 		container_of(req->sq, struct nvme_loop_queue, nvme_sq);
-	struct nvme_completion *cqe = req->rsp;
+	struct nvme_completion *cqe = req->cqe;
 
 	/*
 	 * AEN requests are special as they don't time out and can
@@ -207,7 +207,7 @@ static int nvme_loop_init_iod(struct nvme_loop_ctrl *ctrl,
 		struct nvme_loop_iod *iod, unsigned int queue_idx)
 {
 	iod->req.cmd = &iod->cmd;
-	iod->req.rsp = &iod->rsp;
+	iod->req.cqe = &iod->cqe;
 	iod->queue = &ctrl->queues[queue_idx];
 	INIT_WORK(&iod->work, nvme_loop_execute_work);
 	return 0;

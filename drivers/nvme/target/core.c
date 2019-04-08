@@ -647,7 +647,7 @@ static void nvmet_update_sq_head(struct nvmet_req *req)
 		} while (cmpxchg(&req->sq->sqhd, old_sqhd, new_sqhd) !=
 					old_sqhd);
 	}
-	req->rsp->sq_head = cpu_to_le16(req->sq->sqhd & 0x0000FFFF);
+	req->cqe->sq_head = cpu_to_le16(req->sq->sqhd & 0x0000FFFF);
 }
 
 static void nvmet_set_error(struct nvmet_req *req, u16 status)
@@ -656,7 +656,7 @@ static void nvmet_set_error(struct nvmet_req *req, u16 status)
 	struct nvme_error_slot *new_error_slot;
 	unsigned long flags;
 
-	req->rsp->status = cpu_to_le16(status << 1);
+	req->cqe->status = cpu_to_le16(status << 1);
 
 	if (!ctrl || req->error_loc == NVMET_NO_ERROR_LOC)
 		return;
@@ -676,15 +676,15 @@ static void nvmet_set_error(struct nvmet_req *req, u16 status)
 	spin_unlock_irqrestore(&ctrl->error_lock, flags);
 
 	/* set the more bit for this request */
-	req->rsp->status |= cpu_to_le16(1 << 14);
+	req->cqe->status |= cpu_to_le16(1 << 14);
 }
 
 static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 {
 	if (!req->sq->sqhd_disabled)
 		nvmet_update_sq_head(req);
-	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
-	req->rsp->command_id = req->cmd->common.command_id;
+	req->cqe->sq_id = cpu_to_le16(req->sq->qid);
+	req->cqe->command_id = req->cmd->common.command_id;
 
 	if (unlikely(status))
 		nvmet_set_error(req, status);
@@ -841,8 +841,8 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->sg = NULL;
 	req->sg_cnt = 0;
 	req->transfer_len = 0;
-	req->rsp->status = 0;
-	req->rsp->sq_head = 0;
+	req->cqe->status = 0;
+	req->cqe->sq_head = 0;
 	req->ns = NULL;
 	req->error_loc = NVMET_NO_ERROR_LOC;
 	req->error_slba = 0;
@@ -1069,7 +1069,7 @@ u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 	if (!subsys) {
 		pr_warn("connect request for invalid subsystem %s!\n",
 			subsysnqn);
-		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
 		return NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 	}
 
@@ -1090,7 +1090,7 @@ u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 
 	pr_warn("could not find controller %d for subsys %s / host %s\n",
 		cntlid, subsysnqn, hostnqn);
-	req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
+	req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
 	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 
 out:
@@ -1188,7 +1188,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!subsys) {
 		pr_warn("connect request for invalid subsystem %s!\n",
 			subsysnqn);
-		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
 		goto out;
 	}
 
@@ -1197,7 +1197,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!nvmet_host_allowed(subsys, hostnqn)) {
 		pr_info("connect by host %s for subsystem %s not allowed\n",
 			hostnqn, subsysnqn);
-		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
 		status = NVME_SC_CONNECT_INVALID_HOST | NVME_SC_DNR;
 		goto out_put_subsystem;
