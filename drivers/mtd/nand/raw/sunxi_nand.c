@@ -42,7 +42,7 @@
 #define NFC_REG_CMD		0x0024
 #define NFC_REG_RCMD_SET	0x0028
 #define NFC_REG_WCMD_SET	0x002C
-#define NFC_REG_IO_DATA		0x0030
+#define NFC_REG_A10_IO_DATA	0x0030
 #define NFC_REG_ECC_CTL		0x0034
 #define NFC_REG_ECC_ST		0x0038
 #define NFC_REG_DEBUG		0x003C
@@ -200,6 +200,18 @@ static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
 	return container_of(nand, struct sunxi_nand_chip, nand);
 }
 
+/*
+ * NAND Controller capabilities structure: stores NAND controller capabilities
+ * for distinction between compatible strings.
+ *
+ * @reg_io_data:	I/O data register
+ * @dma_maxburst:	DMA maxburst
+ */
+struct sunxi_nfc_caps {
+	unsigned int reg_io_data;
+	unsigned int dma_maxburst;
+};
+
 /**
  * struct sunxi_nfc - stores sunxi NAND controller information
  *
@@ -228,6 +240,7 @@ struct sunxi_nfc {
 	struct list_head chips;
 	struct completion complete;
 	struct dma_chan *dmac;
+	const struct sunxi_nfc_caps *caps;
 };
 
 static inline struct sunxi_nfc *to_sunxi_nfc(struct nand_controller *ctrl)
@@ -2087,6 +2100,12 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		goto out_mod_clk_unprepare;
 	}
 
+	nfc->caps = of_device_get_match_data(&pdev->dev);
+	if (!nfc->caps) {
+		ret = -EINVAL;
+		goto out_ahb_reset_reassert;
+	}
+
 	ret = sunxi_nfc_rst(nfc);
 	if (ret)
 		goto out_ahb_reset_reassert;
@@ -2101,12 +2120,12 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 	if (nfc->dmac) {
 		struct dma_slave_config dmac_cfg = { };
 
-		dmac_cfg.src_addr = r->start + NFC_REG_IO_DATA;
+		dmac_cfg.src_addr = r->start + nfc->caps->reg_io_data;
 		dmac_cfg.dst_addr = dmac_cfg.src_addr;
 		dmac_cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		dmac_cfg.dst_addr_width = dmac_cfg.src_addr_width;
-		dmac_cfg.src_maxburst = 4;
-		dmac_cfg.dst_maxburst = 4;
+		dmac_cfg.src_maxburst = nfc->caps->dma_maxburst;
+		dmac_cfg.dst_maxburst = nfc->caps->dma_maxburst;
 		dmaengine_slave_config(nfc->dmac, &dmac_cfg);
 	} else {
 		dev_warn(dev, "failed to request rxtx DMA channel\n");
@@ -2151,8 +2170,16 @@ static int sunxi_nfc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sunxi_nfc_caps sunxi_nfc_a10_caps = {
+	.reg_io_data = NFC_REG_A10_IO_DATA,
+	.dma_maxburst = 4,
+};
+
 static const struct of_device_id sunxi_nfc_ids[] = {
-	{ .compatible = "allwinner,sun4i-a10-nand" },
+	{
+		.compatible = "allwinner,sun4i-a10-nand",
+		.data = &sunxi_nfc_a10_caps,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sunxi_nfc_ids);
