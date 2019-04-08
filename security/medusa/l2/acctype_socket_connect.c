@@ -37,6 +37,10 @@ medusa_answer_t medusa_socket_connect(struct socket *sock, struct sockaddr *addr
 	if (!MED_MAGIC_VALID(&sock_security(sock->sk)) && socket_kobj_validate(sock) <= 0)
 		return MED_YES;
 
+	if (!VS_INTERSECT(VSS(&task_security(current)),VS(&sock_security(sock->sk))) ||
+		!VS_INTERSECT(VSW(&task_security(current)),VS(&sock_security(sock->sk))))
+		return MED_ERR;
+
 	if (MEDUSA_MONITORED_ACCESS_S(socket_connect_access, &task_security(current))) {
 		process_kern2kobj(&process, current);
 		socket_kern2kobj(&sock_kobj, sock);
