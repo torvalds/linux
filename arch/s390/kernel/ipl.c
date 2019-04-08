@@ -283,6 +283,20 @@ static ssize_t ipl_secure_show(struct kobject *kobj,
 static struct kobj_attribute sys_ipl_secure_attr =
 	__ATTR(secure, 0444, ipl_secure_show, NULL);
 
+static ssize_t ipl_has_secure_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *page)
+{
+	if (MACHINE_IS_LPAR)
+		return sprintf(page, "%i\n", !!sclp.has_sipl);
+	else if (MACHINE_IS_VM)
+		return sprintf(page, "%i\n", !!sclp.has_sipl_g2);
+	else
+		return sprintf(page, "%i\n", 0);
+}
+
+static struct kobj_attribute sys_ipl_has_secure_attr =
+	__ATTR(has_secure, 0444, ipl_has_secure_show, NULL);
+
 static ssize_t ipl_vm_parm_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *page)
 {
@@ -379,6 +393,7 @@ static struct attribute *ipl_fcp_attrs[] = {
 	&sys_ipl_fcp_br_lba_attr.attr,
 	&sys_ipl_ccw_loadparm_attr.attr,
 	&sys_ipl_secure_attr.attr,
+	&sys_ipl_has_secure_attr.attr,
 	NULL,
 };
 
@@ -395,6 +410,7 @@ static struct attribute *ipl_ccw_attrs_vm[] = {
 	&sys_ipl_ccw_loadparm_attr.attr,
 	&sys_ipl_vm_parm_attr.attr,
 	&sys_ipl_secure_attr.attr,
+	&sys_ipl_has_secure_attr.attr,
 	NULL,
 };
 
@@ -403,6 +419,7 @@ static struct attribute *ipl_ccw_attrs_lpar[] = {
 	&sys_ipl_device_attr.attr,
 	&sys_ipl_ccw_loadparm_attr.attr,
 	&sys_ipl_secure_attr.attr,
+	&sys_ipl_has_secure_attr.attr,
 	NULL,
 };
 
