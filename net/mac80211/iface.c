@@ -1763,13 +1763,13 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			txq_size += sizeof(struct txq_info) +
 				    local->hw.txq_data_size;
 
-		if (local->ops->wake_tx_queue)
+		if (local->ops->wake_tx_queue) {
 			if_setup = ieee80211_if_setup_no_queue;
-		else
+		} else {
 			if_setup = ieee80211_if_setup;
-
-		if (local->hw.queues >= IEEE80211_NUM_ACS)
-			txqs = IEEE80211_NUM_ACS;
+			if (local->hw.queues >= IEEE80211_NUM_ACS)
+				txqs = IEEE80211_NUM_ACS;
+		}
 
 		ndev = alloc_netdev_mqs(size + txq_size,
 					name, name_assign_type,
