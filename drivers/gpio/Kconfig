@@ -330,20 +330,6 @@ config GPIO_MM_LANTIQ
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
 
-config GPIO_MOCKUP
-	tristate "GPIO Testing Driver"
-	depends on GPIOLIB && SYSFS
-	select GPIO_SYSFS
-	select GPIOLIB_IRQCHIP
-	select IRQ_SIM
-	help
-	  This enables GPIO Testing driver, which provides a way to test GPIO
-	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
-	  must be selected for this test.
-	  User could use it through the script in
-	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
-	  it.
-
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
@@ -1316,6 +1302,13 @@ config GPIO_MERRIFIELD
 	help
 	  Say Y here to support Intel Merrifield GPIO.
 
+config GPIO_MLXBF
+	tristate "Mellanox BlueField SoC GPIO"
+	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || (64BIT && COMPILE_TEST)
+	select GPIO_GENERIC
+	help
+	  Say Y here if you want GPIO support on Mellanox BlueField SoC.
+
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
 	depends on X86 || COMPILE_TEST
@@ -1441,5 +1434,17 @@ config GPIO_VIPERBOARD
 	  of the module parameters.
 
 endmenu
+
+config GPIO_MOCKUP
+	tristate "GPIO Testing Driver"
+	depends on GPIOLIB
+	select IRQ_SIM
+	help
+	  This enables GPIO Testing driver, which provides a way to test GPIO
+	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
+	  must be selected for this test.
+	  User could use it through the script in
+	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
+	  it.
 
 endif

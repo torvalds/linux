@@ -83,7 +83,6 @@ struct gpio_bank {
 	int stride;
 	u32 width;
 	int context_loss_count;
-	bool workaround_enabled;
 	u32 quirks;
 
 	void (*set_dataout)(struct gpio_bank *bank, unsigned gpio, int enable);
@@ -353,6 +352,22 @@ static void omap_clear_gpio_debounce(struct gpio_bank *bank, unsigned offset)
 	}
 }
 
+/*
+ * Off mode wake-up capable GPIOs in bank(s) that are in the wakeup domain.
+ * See TRM section for GPIO for "Wake-Up Generation" for the list of GPIOs
+ * in wakeup domain. If bank->non_wakeup_gpios is not configured, assume none
+ * are capable waking up the system from off mode.
+ */
+static bool omap_gpio_is_off_wakeup_capable(struct gpio_bank *bank, u32 gpio_mask)
+{
+	u32 no_wake = bank->non_wakeup_gpios;
+
+	if (no_wake)
+		return !!(~no_wake & gpio_mask);
+
+	return false;
+}
+
 static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 						unsigned trigger)
 {
@@ -384,13 +399,7 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 	}
 
 	/* This part needs to be executed always for OMAP{34xx, 44xx} */
-	if (!bank->regs->irqctrl) {
-		/* On omap24xx proceed only when valid GPIO bit is set */
-		if (bank->non_wakeup_gpios) {
-			if (!(bank->non_wakeup_gpios & gpio_bit))
-				goto exit;
-		}
-
+	if (!bank->regs->irqctrl && !omap_gpio_is_off_wakeup_capable(bank, gpio)) {
 		/*
 		 * Log the edge gpio and manually trigger the IRQ
 		 * after resume if the input level changes
@@ -403,7 +412,6 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 			bank->enabled_non_wakeup_gpios &= ~gpio_bit;
 	}
 
-exit:
 	bank->level_mask =
 		readl_relaxed(bank->base + bank->regs->leveldetect0) |
 		readl_relaxed(bank->base + bank->regs->leveldetect1);
@@ -1311,7 +1319,10 @@ static void omap_gpio_restore_context(struct gpio_bank *bank)
 static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
 {
 	struct device *dev = bank->chip.parent;
-	u32 l1 = 0, l2 = 0;
+	void __iomem *base = bank->base;
+	u32 nowake;
+
+	bank->saved_datain = readl_relaxed(base + bank->regs->datain);
 
 	if (bank->funcs.idle_enable_level_quirk)
 		bank->funcs.idle_enable_level_quirk(bank);
@@ -1323,22 +1334,15 @@ static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
 		goto update_gpio_context_count;
 
 	/*
-	 * If going to OFF, remove triggering for all
+	 * If going to OFF, remove triggering for all wkup domain
 	 * non-wakeup GPIOs.  Otherwise spurious IRQs will be
 	 * generated.  See OMAP2420 Errata item 1.101.
 	 */
-	bank->saved_datain = readl_relaxed(bank->base +
-						bank->regs->datain);
-	l1 = bank->context.fallingdetect;
-	l2 = bank->context.risingdetect;
-
-	l1 &= ~bank->enabled_non_wakeup_gpios;
-	l2 &= ~bank->enabled_non_wakeup_gpios;
-
-	writel_relaxed(l1, bank->base + bank->regs->fallingdetect);
-	writel_relaxed(l2, bank->base + bank->regs->risingdetect);
-
-	bank->workaround_enabled = true;
+	if (!bank->loses_context && bank->enabled_non_wakeup_gpios) {
+		nowake = bank->enabled_non_wakeup_gpios;
+		omap_gpio_rmw(base, bank->regs->fallingdetect, nowake, ~nowake);
+		omap_gpio_rmw(base, bank->regs->risingdetect, nowake, ~nowake);
+	}
 
 update_gpio_context_count:
 	if (bank->get_context_loss_count)
@@ -1383,10 +1387,13 @@ static void omap_gpio_unidle(struct gpio_bank *bank)
 				return;
 			}
 		}
+	} else {
+		/* Restore changes done for OMAP2420 errata 1.101 */
+		writel_relaxed(bank->context.fallingdetect,
+			       bank->base + bank->regs->fallingdetect);
+		writel_relaxed(bank->context.risingdetect,
+			       bank->base + bank->regs->risingdetect);
 	}
-
-	if (!bank->workaround_enabled)
-		return;
 
 	l = readl_relaxed(bank->base + bank->regs->datain);
 
@@ -1437,8 +1444,6 @@ static void omap_gpio_unidle(struct gpio_bank *bank)
 		writel_relaxed(old0, bank->base + bank->regs->leveldetect0);
 		writel_relaxed(old1, bank->base + bank->regs->leveldetect1);
 	}
-
-	bank->workaround_enabled = false;
 }
 
 static int gpio_omap_cpu_notifier(struct notifier_block *nb,

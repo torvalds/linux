@@ -24,13 +24,13 @@
  *
  * @node:	  list-entry of the events list of the struct acpi_gpio_chip
  * @handle:	  handle of ACPI method to execute when the IRQ triggers
- * @handler:	  irq_handler to pass to request_irq when requesting the IRQ
- * @pin:	  GPIO pin number on the gpio_chip
- * @irq:	  Linux IRQ number for the event, for request_ / free_irq
- * @irqflags:     flags to pass to request_irq when requesting the IRQ
+ * @handler:	  handler function to pass to request_irq() when requesting the IRQ
+ * @pin:	  GPIO pin number on the struct gpio_chip
+ * @irq:	  Linux IRQ number for the event, for request_irq() / free_irq()
+ * @irqflags:	  flags to pass to request_irq() when requesting the IRQ
  * @irq_is_wake:  If the ACPI flags indicate the IRQ is a wakeup source
- * @irq_requested:True if request_irq has been done
- * @desc:	  gpio_desc for the GPIO pin for this event
+ * @irq_requested:True if request_irq() has been done
+ * @desc:	  struct gpio_desc for the GPIO pin for this event
  */
 struct acpi_gpio_event {
 	struct list_head node;
@@ -65,10 +65,10 @@ struct acpi_gpio_chip {
 };
 
 /*
- * For gpiochips which call acpi_gpiochip_request_interrupts() before late_init
+ * For GPIO chips which call acpi_gpiochip_request_interrupts() before late_init
  * (so builtin drivers) we register the ACPI GpioInt IRQ handlers from a
- * late_initcall_sync handler, so that other builtin drivers can register their
- * OpRegions before the event handlers can run.  This list contains gpiochips
+ * late_initcall_sync() handler, so that other builtin drivers can register their
+ * OpRegions before the event handlers can run. This list contains GPIO chips
  * for which the acpi_gpiochip_request_irqs() call has been deferred.
  */
 static DEFINE_MUTEX(acpi_gpio_deferred_req_irqs_lock);
@@ -90,7 +90,7 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
  *
  * Return: GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
  * error value. Specifically returns %-EPROBE_DEFER if the referenced GPIO
- * controller does not have gpiochip registered at the moment. This is to
+ * controller does not have GPIO chip registered at the moment. This is to
  * support probe deferral.
  */
 static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
@@ -287,9 +287,9 @@ fail_free_desc:
  *
  * ACPI5 platforms can use GPIO signaled ACPI events. These GPIO interrupts are
  * handled by ACPI event methods which need to be called from the GPIO
- * chip's interrupt handler. acpi_gpiochip_request_interrupts finds out which
- * gpio pins have acpi event methods and assigns interrupt handlers that calls
- * the acpi event methods for those pins.
+ * chip's interrupt handler. acpi_gpiochip_request_interrupts() finds out which
+ * GPIO pins have ACPI event methods and assigns interrupt handlers that calls
+ * the ACPI event methods for those pins.
  */
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 {
@@ -653,7 +653,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
  * that case @index is used to select the GPIO entry in the property value
  * (in case of multiple).
  *
- * If the GPIO cannot be translated or there is an error an ERR_PTR is
+ * If the GPIO cannot be translated or there is an error, an ERR_PTR is
  * returned.
  *
  * Note: if the GPIO resource has multiple entries in the pin list, this
@@ -751,10 +751,13 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
  * @index: index of GpioIo/GpioInt resource (starting from %0)
  * @info: info pointer to fill in (optional)
  *
- * If @fwnode is an ACPI device object, call %acpi_get_gpiod_by_index() for it.
- * Otherwise (ie. it is a data-only non-device object), use the property-based
+ * If @fwnode is an ACPI device object, call acpi_get_gpiod_by_index() for it.
+ * Otherwise (i.e. it is a data-only non-device object), use the property-based
  * GPIO lookup to get to the GPIO resource with the relevant information and use
  * that to obtain the GPIO descriptor to return.
+ *
+ * If the GPIO cannot be translated or there is an error an ERR_PTR is
+ * returned.
  */
 struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 				      const char *propname, int index,
@@ -1158,11 +1161,13 @@ static int acpi_find_gpio_count(struct acpi_resource *ares, void *data)
 }
 
 /**
- * acpi_gpio_count - return the number of GPIOs associated with a
- *		device / function or -ENOENT if no GPIO has been
- *		assigned to the requested function.
- * @dev:	GPIO consumer, can be NULL for system-global GPIOs
+ * acpi_gpio_count - count the GPIOs associated with a device / function
+ * @dev:	GPIO consumer, can be %NULL for system-global GPIOs
  * @con_id:	function within the GPIO consumer
+ *
+ * Return:
+ * The number of GPIOs associated with a device / function or %-ENOENT,
+ * if no GPIO has been assigned to the requested function.
  */
 int acpi_gpio_count(struct device *dev, const char *con_id)
 {
