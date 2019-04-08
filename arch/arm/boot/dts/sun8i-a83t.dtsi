@@ -709,6 +709,12 @@
 				function = "i2c1";
 			};
 
+			/omit-if-no-ref/
+			i2c2_pe_pins: i2c2-pe-pins {
+				pins = "PE14", "PE15";
+				function = "i2c2";
+			};
+
 			i2c2_ph_pins: i2c2-ph-pins {
 				pins = "PH4", "PH5";
 				function = "i2c2";
