@@ -1252,12 +1252,29 @@ xemaclite_poll_controller(struct net_device *ndev)
 }
 #endif
 
+/* Ioctl MII Interface */
+static int xemaclite_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	if (!dev->phydev || !netif_running(dev))
+		return -EINVAL;
+
+	switch (cmd) {
+	case SIOCGMIIPHY:
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
+		return phy_mii_ioctl(dev->phydev, rq, cmd);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_open		= xemaclite_open,
 	.ndo_stop		= xemaclite_close,
 	.ndo_start_xmit		= xemaclite_send,
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
+	.ndo_do_ioctl		= xemaclite_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = xemaclite_poll_controller,
 #endif
