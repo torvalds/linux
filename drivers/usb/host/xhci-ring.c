@@ -3166,6 +3166,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	bool more_trbs_coming = true;
 	bool need_zero_pkt = false;
 	bool first_trb = true;
+	bool en_trb_ent = true;
 	unsigned int num_trbs;
 	unsigned int start_cycle, num_sgs = 0;
 	unsigned int enqd_len, block_len, trb_buff_len, full_len;
@@ -3202,6 +3203,13 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (urb->transfer_flags & URB_ZERO_PACKET && urb_priv->num_tds > 1)
 		need_zero_pkt = true;
 
+	/*
+	 * Don't enable the ENT flag in the TRB if
+	 * the EP support bulk streaming protocol.
+	 */
+	if (urb->stream_id)
+		en_trb_ent = false;
+
 	td = &urb_priv->td[0];
 
 	/*
@@ -3230,6 +3238,13 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			first_trb = false;
 			if (start_cycle == 0)
 				field |= TRB_CYCLE;
+			/*
+			 * Don't enable the ENT flag in the TRB if the
+			 * transfer length of the first TRB isn't an
+			 * integer multiple of the EP maxpacket.
+			 */
+			if (trb_buff_len % usb_endpoint_maxp(&urb->ep->desc))
+				en_trb_ent = false;
 		} else
 			field |= ring->cycle_state;
 
@@ -3238,6 +3253,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (enqd_len + trb_buff_len < full_len) {
 			field |= TRB_CHAIN;
+			if (xhci->quirks & XHCI_TRB_ENT_QUIRK && en_trb_ent)
+				field |= TRB_ENT;
 			if (trb_is_link(ring->enqueue + 1)) {
 				if (xhci_align_td(xhci, urb, enqd_len,
 						  &trb_buff_len,

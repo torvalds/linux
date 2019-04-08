@@ -291,6 +291,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (device_property_read_bool(tmpdev, "xhci-slow-suspend"))
 			xhci->quirks |= XHCI_SLOW_SUSPEND;
 
+		if (device_property_read_bool(tmpdev, "xhci-trb-ent-quirk"))
+			xhci->quirks |= XHCI_TRB_ENT_QUIRK;
+
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);
 	}
