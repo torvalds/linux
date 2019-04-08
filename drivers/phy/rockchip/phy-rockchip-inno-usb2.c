@@ -31,6 +31,7 @@
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
@@ -1806,6 +1807,10 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	rphy->clk = of_clk_get_by_name(np, "phyclk");
 	if (!IS_ERR(rphy->clk)) {
 		clk_prepare_enable(rphy->clk);
@@ -1884,6 +1889,8 @@ next_child:
 put_child:
 	of_node_put(child_np);
 disable_clks:
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 	if (rphy->clk) {
 		clk_disable_unprepare(rphy->clk);
 		clk_put(rphy->clk);
