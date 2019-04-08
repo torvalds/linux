@@ -152,6 +152,26 @@ u32 arch_timer_reg_read(int access, enum arch_timer_reg reg,
 	return val;
 }
 
+static u64 arch_counter_get_cntpct_stable(void)
+{
+	return __arch_counter_get_cntpct_stable();
+}
+
+static u64 arch_counter_get_cntpct(void)
+{
+	return __arch_counter_get_cntpct();
+}
+
+static u64 arch_counter_get_cntvct_stable(void)
+{
+	return __arch_counter_get_cntvct_stable();
+}
+
+static u64 arch_counter_get_cntvct(void)
+{
+	return __arch_counter_get_cntvct();
+}
+
 /*
  * Default to cp15 based access because arm64 uses this function for
  * sched_clock() before DT is probed and the cp15 method is guaranteed
@@ -365,6 +385,7 @@ static u32 notrace sun50i_a64_read_cntv_tval_el0(void)
 DEFINE_PER_CPU(const struct arch_timer_erratum_workaround *, timer_unstable_counter_workaround);
 EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
 
+static atomic_t timer_unstable_counter_workaround_in_use = ATOMIC_INIT(0);
 
 static void erratum_set_next_event_tval_generic(const int access, unsigned long evt,
 						struct clock_event_device *clk)
@@ -535,6 +556,9 @@ void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa
 			per_cpu(timer_unstable_counter_workaround, i) = wa;
 	}
 
+	if (wa->read_cntvct_el0 || wa->read_cntpct_el0)
+		atomic_set(&timer_unstable_counter_workaround_in_use, 1);
+
 	/*
 	 * Don't use the vdso fastpath if errata require using the
 	 * out-of-line counter accessor. We may change our mind pretty
@@ -591,9 +615,15 @@ static bool arch_timer_this_cpu_has_cntvct_wa(void)
 {
 	return has_erratum_handler(read_cntvct_el0);
 }
+
+static bool arch_timer_counter_has_wa(void)
+{
+	return atomic_read(&timer_unstable_counter_workaround_in_use);
+}
 #else
 #define arch_timer_check_ool_workaround(t,a)		do { } while(0)
 #define arch_timer_this_cpu_has_cntvct_wa()		({false;})
+#define arch_timer_counter_has_wa()			({false;})
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
 
 static __always_inline irqreturn_t timer_handler(const int access,
@@ -942,12 +972,22 @@ static void __init arch_counter_register(unsigned type)
 
 	/* Register the CP15 based counter if we have one */
 	if (type & ARCH_TIMER_TYPE_CP15) {
-		if ((IS_ENABLED(CONFIG_ARM64) && !is_hyp_mode_available()) ||
-		    arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI)
-			arch_timer_read_counter = arch_counter_get_cntvct;
-		else
-			arch_timer_read_counter = arch_counter_get_cntpct;
+		u64 (*rd)(void);
 
+		if ((IS_ENABLED(CONFIG_ARM64) && !is_hyp_mode_available()) ||
+		    arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI) {
+			if (arch_timer_counter_has_wa())
+				rd = arch_counter_get_cntvct_stable;
+			else
+				rd = arch_counter_get_cntvct;
+		} else {
+			if (arch_timer_counter_has_wa())
+				rd = arch_counter_get_cntpct_stable;
+			else
+				rd = arch_counter_get_cntpct;
+		}
+
+		arch_timer_read_counter = rd;
 		clocksource_counter.archdata.vdso_direct = vdso_default;
 	} else {
 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
