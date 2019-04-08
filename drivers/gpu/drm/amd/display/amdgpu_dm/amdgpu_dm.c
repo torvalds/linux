@@ -5430,6 +5430,63 @@ cleanup:
 }
 
 /*
+ * Enable interrupts on CRTCs that are newly active, undergone
+ * a modeset, or have active planes again.
+ *
+ * Done in two passes, based on the for_modeset flag:
+ * Pass 1: For CRTCs going through modeset
+ * Pass 2: For CRTCs going from 0 to n active planes
+ *
+ * Interrupts can only be enabled after the planes are programmed,
+ * so this requires a two-pass approach since we don't want to
+ * just defer the interrupts until after commit planes every time.
+ */
+static void amdgpu_dm_enable_crtc_interrupts(struct drm_device *dev,
+					     struct drm_atomic_state *state,
+					     bool for_modeset)
+{
+	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	int i;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
+				      new_crtc_state, i) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+		struct dm_crtc_state *dm_new_crtc_state =
+			to_dm_crtc_state(new_crtc_state);
+		struct dm_crtc_state *dm_old_crtc_state =
+			to_dm_crtc_state(old_crtc_state);
+		bool modeset = drm_atomic_crtc_needs_modeset(new_crtc_state);
+		bool run_pass;
+
+		run_pass = (for_modeset && modeset) ||
+			   (!for_modeset && !modeset &&
+			    !dm_old_crtc_state->interrupts_enabled);
+
+		if (!run_pass)
+			continue;
+
+		/* Handle vrr on->off / off->on transitions */
+		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
+						dm_new_crtc_state);
+
+		if (!dm_new_crtc_state->interrupts_enabled)
+			continue;
+
+		manage_dm_interrupts(adev, acrtc, true);
+
+#ifdef CONFIG_DEBUG_FS
+		/* The stream has changed so CRC capture needs to re-enabled. */
+		if (dm_new_crtc_state->crc_enabled) {
+			dm_new_crtc_state->crc_enabled = false;
+			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
+		}
+#endif
+	}
+}
+
+/*
  * amdgpu_dm_crtc_copy_transient_flags - copy mirrored flags from DRM to DC
  * @crtc_state: the DRM CRTC state
  * @stream_state: the DC stream state.
@@ -5709,42 +5766,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
 	}
 
-	/*
-	 * Enable interrupts on CRTCs that are newly active, undergone
-	 * a modeset, or have active planes again.
-	 */
+	/* Count number of newly disabled CRTCs for dropping PM refs later. */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
-			new_crtc_state, i) {
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-		bool enable;
-
+				      new_crtc_state, i)
 		if (old_crtc_state->active && !new_crtc_state->active)
 			crtc_disable_count++;
 
-		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
-
-		/* Handle vrr on->off / off->on transitions */
-		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
-						dm_new_crtc_state);
-
-		enable = dm_new_crtc_state->interrupts_enabled &&
-			 (!dm_old_crtc_state->interrupts_enabled ||
-			  drm_atomic_crtc_needs_modeset(new_crtc_state));
-
-		if (!enable)
-			continue;
-
-		manage_dm_interrupts(adev, acrtc, true);
-
-#ifdef CONFIG_DEBUG_FS
-		/* The stream has changed so CRC capture needs to re-enabled. */
-		if (dm_new_crtc_state->crc_enabled) {
-			dm_new_crtc_state->crc_enabled = false;
-			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
-		}
-#endif
-	}
+	/* Enable interrupts for CRTCs going through a modeset. */
+	amdgpu_dm_enable_crtc_interrupts(dev, state, true);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
 		if (new_crtc_state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
@@ -5759,6 +5788,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 						dm, crtc, wait_for_vblank);
 	}
 
+	/* Enable interrupts for CRTCs going from 0 to n active planes. */
+	amdgpu_dm_enable_crtc_interrupts(dev, state, false);
 
 	/*
 	 * send vblank event on all events not handled in flip and
