@@ -59,7 +59,7 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service);
  * bfq_update_next_in_service - update sd->next_in_service
  * @sd: sched_data for which to perform the update.
  * @new_entity: if not NULL, pointer to the entity whose activation,
- *		requeueing or repositionig triggered the invocation of
+ *		requeueing or repositioning triggered the invocation of
  *		this function.
  * @expiration: id true, this function is being invoked after the
  *             expiration of the in-service entity
@@ -90,7 +90,7 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 
 	/*
 	 * If this update is triggered by the activation, requeueing
-	 * or repositiong of an entity that does not coincide with
+	 * or repositioning of an entity that does not coincide with
 	 * sd->next_in_service, then a full lookup in the active tree
 	 * can be avoided. In fact, it is enough to check whether the
 	 * just-modified entity has the same priority as
@@ -1396,7 +1396,7 @@ left:
  * In this first case, update the virtual time in @st too (see the
  * comments on this update inside the function).
  *
- * In constrast, if there is an in-service entity, then return the
+ * In contrast, if there is an in-service entity, then return the
  * entity that would be set in service if not only the above
  * conditions, but also the next one held true: the currently
  * in-service entity, on expiration,
@@ -1479,12 +1479,12 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 		 * is being invoked as a part of the expiration path
 		 * of the in-service queue. In this case, even if
 		 * sd->in_service_entity is not NULL,
-		 * sd->in_service_entiy at this point is actually not
+		 * sd->in_service_entity at this point is actually not
 		 * in service any more, and, if needed, has already
 		 * been properly queued or requeued into the right
 		 * tree. The reason why sd->in_service_entity is still
 		 * not NULL here, even if expiration is true, is that
-		 * sd->in_service_entiy is reset as a last step in the
+		 * sd->in_service_entity is reset as a last step in the
 		 * expiration path. So, if expiration is true, tell
 		 * __bfq_lookup_next_entity that there is no
 		 * sd->in_service_entity.

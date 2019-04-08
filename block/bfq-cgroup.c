@@ -1103,7 +1103,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 	},
 #endif /* CONFIG_DEBUG_BLK_CGROUP */
 
-	/* the same statictics which cover the bfqg and its descendants */
+	/* the same statistics which cover the bfqg and its descendants */
 	{
 		.name = "bfq.io_service_bytes_recursive",
 		.private = (unsigned long)&blkcg_policy_bfq,
