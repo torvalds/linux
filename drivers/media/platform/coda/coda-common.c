@@ -1077,6 +1077,42 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 	return 0;
 }
 
+static int coda_enum_framesizes(struct file *file, void *fh,
+				struct v4l2_frmsizeenum *fsize)
+{
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+	struct coda_q_data *q_data_dst;
+	const struct coda_codec *codec;
+
+	if (ctx->inst_type != CODA_INST_ENCODER)
+		return -ENOTTY;
+
+	if (fsize->index)
+		return -EINVAL;
+
+	if (coda_format_normalize_yuv(fsize->pixel_format) ==
+	    V4L2_PIX_FMT_YUV420) {
+		q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+		codec = coda_find_codec(ctx->dev, fsize->pixel_format,
+					q_data_dst->fourcc);
+	} else {
+		codec = coda_find_codec(ctx->dev, V4L2_PIX_FMT_YUV420,
+					fsize->pixel_format);
+	}
+	if (!codec)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = MIN_W;
+	fsize->stepwise.max_width = codec->max_w;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.min_height = MIN_H;
+	fsize->stepwise.max_height = codec->max_h;
+	fsize->stepwise.step_height = 1;
+
+	return 0;
+}
+
 static int coda_enum_frameintervals(struct file *file, void *fh,
 				    struct v4l2_frmivalenum *f)
 {
@@ -1255,6 +1291,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_g_parm		= coda_g_parm,
 	.vidioc_s_parm		= coda_s_parm,
 
+	.vidioc_enum_framesizes	= coda_enum_framesizes,
 	.vidioc_enum_frameintervals = coda_enum_frameintervals,
 
 	.vidioc_subscribe_event = coda_subscribe_event,
