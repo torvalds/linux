@@ -3568,7 +3568,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	int r;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
-		amdgpu_ras_feature_enable(adev, &ras_block, 0);
+		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
 		return 0;
 	}
 
@@ -3581,7 +3581,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 
 	**ras_if = ras_block;
 
-	r = amdgpu_ras_feature_enable(adev, *ras_if, 1);
+	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
 	if (r)
 		goto feature;
 
