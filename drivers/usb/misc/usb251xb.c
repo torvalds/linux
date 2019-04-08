@@ -547,7 +547,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	 */
 	hub->port_swap = USB251XB_DEF_PORT_SWAP;
 	of_property_for_each_u32(np, "swap-dx-lanes", prop, p, port) {
-		if ((port >= 0) && (port <= data->port_cnt))
+		if (port <= data->port_cnt)
 			hub->port_swap |= BIT(port);
 	}
 
@@ -612,7 +612,7 @@ static int usb251xb_probe(struct usb251xb *hub)
 							   dev);
 	int err;
 
-	if (np) {
+	if (np && of_id) {
 		err = usb251xb_get_ofdata(hub,
 					  (struct usb251xb_data *)of_id->data);
 		if (err) {

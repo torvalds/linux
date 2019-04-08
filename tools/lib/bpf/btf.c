@@ -1602,16 +1602,12 @@ static bool btf_equal_int(struct btf_type *t1, struct btf_type *t2)
 /* Calculate type signature hash of ENUM. */
 static __u32 btf_hash_enum(struct btf_type *t)
 {
-	struct btf_enum *member = (struct btf_enum *)(t + 1);
-	__u32 vlen = BTF_INFO_VLEN(t->info);
-	__u32 h = btf_hash_common(t);
-	int i;
+	__u32 h;
 
-	for (i = 0; i < vlen; i++) {
-		h = hash_combine(h, member->name_off);
-		h = hash_combine(h, member->val);
-		member++;
-	}
+	/* don't hash vlen and enum members to support enum fwd resolving */
+	h = hash_combine(0, t->name_off);
+	h = hash_combine(h, t->info & ~0xffff);
+	h = hash_combine(h, t->size);
 	return h;
 }
 
@@ -1635,6 +1631,22 @@ static bool btf_equal_enum(struct btf_type *t1, struct btf_type *t2)
 		m2++;
 	}
 	return true;
+}
+
+static inline bool btf_is_enum_fwd(struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM &&
+	       BTF_INFO_VLEN(t->info) == 0;
+}
+
+static bool btf_compat_enum(struct btf_type *t1, struct btf_type *t2)
+{
+	if (!btf_is_enum_fwd(t1) && !btf_is_enum_fwd(t2))
+		return btf_equal_enum(t1, t2);
+	/* ignore vlen when comparing */
+	return t1->name_off == t2->name_off &&
+	       (t1->info & ~0xffff) == (t2->info & ~0xffff) &&
+	       t1->size == t2->size;
 }
 
 /*
@@ -1860,6 +1872,17 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 				new_id = cand_node->type_id;
 				break;
 			}
+			if (d->opts.dont_resolve_fwds)
+				continue;
+			if (btf_compat_enum(t, cand)) {
+				if (btf_is_enum_fwd(t)) {
+					/* resolve fwd to full enum */
+					new_id = cand_node->type_id;
+					break;
+				}
+				/* resolve canonical enum fwd to full enum */
+				d->map[cand_node->type_id] = type_id;
+			}
 		}
 		break;
 
@@ -2084,15 +2107,15 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		return fwd_kind == real_kind;
 	}
 
-	if (cand_type->info != canon_type->info)
-		return 0;
-
 	switch (cand_kind) {
 	case BTF_KIND_INT:
 		return btf_equal_int(cand_type, canon_type);
 
 	case BTF_KIND_ENUM:
-		return btf_equal_enum(cand_type, canon_type);
+		if (d->opts.dont_resolve_fwds)
+			return btf_equal_enum(cand_type, canon_type);
+		else
+			return btf_compat_enum(cand_type, canon_type);
 
 	case BTF_KIND_FWD:
 		return btf_equal_common(cand_type, canon_type);
@@ -2103,6 +2126,8 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 	case BTF_KIND_PTR:
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
+		if (cand_type->info != canon_type->info)
+			return 0;
 		return btf_dedup_is_equiv(d, cand_type->type, canon_type->type);
 
 	case BTF_KIND_ARRAY: {

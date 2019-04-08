@@ -111,11 +111,8 @@ struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
 
 	ret = drm_gem_handle_create(file, &obj->gem, handle);
 	drm_gem_object_put_unlocked(&obj->gem);
-	if (ret) {
-		drm_gem_object_release(&obj->gem);
-		kfree(obj);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	return &obj->gem;
 }

@@ -229,7 +229,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
 	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
-	u32 asic_rev, mac_rev;
+	u32 mac_rev;
 	int ret;
 
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), &mt76x0u_ops,
@@ -262,10 +262,14 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 		goto err;
 	}
 
-	asic_rev = mt76_rr(dev, MT_ASIC_VERSION);
+	mdev->rev = mt76_rr(dev, MT_ASIC_VERSION);
 	mac_rev = mt76_rr(dev, MT_MAC_CSR0);
 	dev_info(mdev->dev, "ASIC revision: %08x MAC revision: %08x\n",
-		 asic_rev, mac_rev);
+		 mdev->rev, mac_rev);
+	if (!is_mt76x0(dev)) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	/* Note: vendor driver skips this check for MT76X0U */
 	if (!(mt76_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))

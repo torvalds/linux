@@ -484,5 +484,30 @@
         "teardown": [
             "$TC actions flush action skbedit"
         ]
+    },
+    {
+        "id": "1b2b",
+        "name": "Replace skbedit action with invalid goto_chain control",
+        "category": [
+            "actions",
+            "skbedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbedit",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbedit ptype host pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action skbedit ptype host goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action skbedit",
+        "matchPattern": "action order [0-9]*: skbedit  ptype host pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbedit"
+        ]
     }
 ]

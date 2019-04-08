@@ -1673,6 +1673,7 @@ init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
 		info->supports_dvi = (port != PORT_A && port != PORT_E);
 		info->supports_hdmi = info->supports_dvi;
 		info->supports_dp = (port != PORT_E);
+		info->supports_edp = (port == PORT_A);
 	}
 }
 

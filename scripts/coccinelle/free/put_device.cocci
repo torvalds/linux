@@ -32,6 +32,7 @@ if (id == NULL || ...) { ... return ...; }
 (    id
 |    (T2)dev_get_drvdata(&id->dev)
 |    (T3)platform_get_drvdata(id)
+|    &id->dev
 );
 | return@p2 ...;
 )

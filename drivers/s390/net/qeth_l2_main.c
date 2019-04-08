@@ -629,8 +629,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	} /* else fall through */
 
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
-	QETH_TXQ_STAT_INC(queue, tx_errors);
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
 }
@@ -645,6 +644,8 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc;
 
+	qeth_l2_vnicc_set_defaults(card);
+
 	if (gdev->dev.type == &qeth_generic_devtype) {
 		rc = qeth_l2_create_device_attributes(&gdev->dev);
 		if (rc)
@@ -652,8 +653,6 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	}
 
 	hash_init(card->mac_htable);
-	card->info.hwtrap = 0;
-	qeth_l2_vnicc_set_defaults(card);
 	return 0;
 }
 

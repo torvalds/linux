@@ -1482,7 +1482,7 @@ static int lpi_range_cmp(void *priv, struct list_head *a, struct list_head *b)
 	ra = container_of(a, struct lpi_range, entry);
 	rb = container_of(b, struct lpi_range, entry);
 
-	return rb->base_id - ra->base_id;
+	return ra->base_id - rb->base_id;
 }
 
 static void merge_lpi_ranges(void)
