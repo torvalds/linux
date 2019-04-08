@@ -13,7 +13,12 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_CC_IS_CLANG
+/* https://bugs.llvm.org/show_bug.cgi?id=41424 */
+#define ftrace_return_address(n) 0UL
+#else
 #define ftrace_return_address(n) __builtin_return_address(n)
+#endif
 
 void _mcount(void);
 void ftrace_caller(void);
