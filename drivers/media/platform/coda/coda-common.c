@@ -1501,6 +1501,9 @@ static int coda_queue_setup(struct vb2_queue *vq,
 	q_data = get_q_data(ctx, vq->type);
 	size = q_data->sizeimage;
 
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
+
 	*nplanes = 1;
 	sizes[0] = size;
 
