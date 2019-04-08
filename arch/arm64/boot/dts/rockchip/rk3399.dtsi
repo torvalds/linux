@@ -436,6 +436,7 @@
 			 <&cru ACLK_USB3OTG0>, <&cru ACLK_USB3_GRF>;
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk", "grf_clk";
+		power-domains = <&power RK3399_PD_USB3>;
 		resets = <&cru SRST_A_USB3_OTG0>;
 		reset-names = "usb3-otg";
 		status = "disabled";
@@ -456,7 +457,6 @@
 			snps,xhci-slow-suspend-quirk;
 			snps,xhci-trb-ent-quirk;
 			snps,usb3-warm-reset-on-resume-quirk;
-			power-domains = <&power RK3399_PD_USB3>;
 			status = "disabled";
 		};
 	};
@@ -470,6 +470,7 @@
 			 <&cru ACLK_USB3OTG1>, <&cru ACLK_USB3_GRF>;
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk", "grf_clk";
+		power-domains = <&power RK3399_PD_USB3>;
 		resets = <&cru SRST_A_USB3_OTG1>;
 		reset-names = "usb3-otg";
 		status = "disabled";
@@ -490,7 +491,6 @@
 			snps,xhci-slow-suspend-quirk;
 			snps,xhci-trb-ent-quirk;
 			snps,usb3-warm-reset-on-resume-quirk;
-			power-domains = <&power RK3399_PD_USB3>;
 			status = "disabled";
 		};
 	};
