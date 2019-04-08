@@ -8534,6 +8534,60 @@ static inline void mlxsw_reg_mpar_pack(char *payload, u8 local_port,
 	mlxsw_reg_mpar_pa_id_set(payload, pa_id);
 }
 
+/* MGIR - Management General Information Register
+ * ----------------------------------------------
+ * MGIR register allows software to query the hardware and firmware general
+ * information.
+ */
+#define MLXSW_REG_MGIR_ID 0x9020
+#define MLXSW_REG_MGIR_LEN 0x9C
+
+MLXSW_REG_DEFINE(mgir, MLXSW_REG_MGIR_ID, MLXSW_REG_MGIR_LEN);
+
+/* reg_mgir_hw_info_device_hw_revision
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgir, hw_info_device_hw_revision, 0x0, 16, 16);
+
+#define MLXSW_REG_MGIR_FW_INFO_PSID_SIZE 16
+
+/* reg_mgir_fw_info_psid
+ * PSID (ASCII string).
+ * Access: RO
+ */
+MLXSW_ITEM_BUF(reg, mgir, fw_info_psid, 0x30, MLXSW_REG_MGIR_FW_INFO_PSID_SIZE);
+
+/* reg_mgir_fw_info_extended_major
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgir, fw_info_extended_major, 0x44, 0, 32);
+
+/* reg_mgir_fw_info_extended_minor
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgir, fw_info_extended_minor, 0x48, 0, 32);
+
+/* reg_mgir_fw_info_extended_sub_minor
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgir, fw_info_extended_sub_minor, 0x4C, 0, 32);
+
+static inline void mlxsw_reg_mgir_pack(char *payload)
+{
+	MLXSW_REG_ZERO(mgir, payload);
+}
+
+static inline void
+mlxsw_reg_mgir_unpack(char *payload, u32 *hw_rev, char *fw_info_psid,
+		      u32 *fw_major, u32 *fw_minor, u32 *fw_sub_minor)
+{
+	*hw_rev = mlxsw_reg_mgir_hw_info_device_hw_revision_get(payload);
+	mlxsw_reg_mgir_fw_info_psid_memcpy_from(payload, fw_info_psid);
+	*fw_major = mlxsw_reg_mgir_fw_info_extended_major_get(payload);
+	*fw_minor = mlxsw_reg_mgir_fw_info_extended_minor_get(payload);
+	*fw_sub_minor = mlxsw_reg_mgir_fw_info_extended_sub_minor_get(payload);
+}
+
 /* MRSR - Management Reset and Shutdown Register
  * ---------------------------------------------
  * MRSR register is used to reset or shutdown the switch or
@@ -9958,6 +10012,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcia),
 	MLXSW_REG(mpat),
 	MLXSW_REG(mpar),
+	MLXSW_REG(mgir),
 	MLXSW_REG(mrsr),
 	MLXSW_REG(mlcr),
 	MLXSW_REG(mpsc),
