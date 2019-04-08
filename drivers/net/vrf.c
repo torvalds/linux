@@ -1275,8 +1275,12 @@ static void vrf_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->priv_flags |= IFF_NO_RX_HANDLER;
 
-	dev->min_mtu = 0;
-	dev->max_mtu = 0;
+	/* VRF devices do not care about MTU, but if the MTU is set
+	 * too low then the ipv4 and ipv6 protocols are disabled
+	 * which breaks networking.
+	 */
+	dev->min_mtu = IPV6_MIN_MTU;
+	dev->max_mtu = ETH_MAX_MTU;
 }
 
 static int vrf_validate(struct nlattr *tb[], struct nlattr *data[],
