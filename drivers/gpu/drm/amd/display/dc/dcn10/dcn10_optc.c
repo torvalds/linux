@@ -243,9 +243,9 @@ void optc1_program_timing(
 		OTG_V_SYNC_A_POL, v_sync_polarity);
 
 	v_init = asic_blank_start;
-	if (optc->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT ||
-		optc->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-		optc->dlg_otg_param.signal == SIGNAL_TYPE_EDP) {
+	if (optc->signal == SIGNAL_TYPE_DISPLAY_PORT ||
+		optc->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
+		optc->signal == SIGNAL_TYPE_EDP) {
 		start_point = 1;
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;

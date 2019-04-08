@@ -75,7 +75,6 @@ struct _dlg_otg_param {
 	int vupdate_offset;
 	int vupdate_width;
 	int vready_offset;
-	enum signal_type signal;
 };
 
 struct vupdate_keepout_params {
@@ -127,6 +126,7 @@ struct timing_generator {
 	struct dc_bios *bp;
 	struct dc_context *ctx;
 	struct _dlg_otg_param dlg_otg_param;
+	enum signal_type signal;
 	int inst;
 };
 
