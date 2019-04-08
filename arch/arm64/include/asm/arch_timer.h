@@ -77,23 +77,37 @@ struct arch_timer_erratum_workaround {
 DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
 		timer_unstable_counter_workaround);
 
+/* inline sysreg accessors that make erratum_handler() work */
+static inline notrace u32 arch_timer_read_cntp_tval_el0(void)
+{
+	return read_sysreg(cntp_tval_el0);
+}
+
+static inline notrace u32 arch_timer_read_cntv_tval_el0(void)
+{
+	return read_sysreg(cntv_tval_el0);
+}
+
+static inline notrace u64 arch_timer_read_cntpct_el0(void)
+{
+	return read_sysreg(cntpct_el0);
+}
+
+static inline notrace u64 arch_timer_read_cntvct_el0(void)
+{
+	return read_sysreg(cntvct_el0);
+}
+
 #define arch_timer_reg_read_stable(reg)					\
-({									\
-	u64 _val;							\
-	if (needs_unstable_timer_counter_workaround()) {		\
-		const struct arch_timer_erratum_workaround *wa;		\
+	({								\
+		u64 _val;						\
+									\
 		preempt_disable_notrace();				\
-		wa = __this_cpu_read(timer_unstable_counter_workaround); \
-		if (wa && wa->read_##reg)				\
-			_val = wa->read_##reg();			\
-		else							\
-			_val = read_sysreg(reg);			\
+		_val = erratum_handler(read_ ## reg)();			\
 		preempt_enable_notrace();				\
-	} else {							\
-		_val = read_sysreg(reg);				\
-	}								\
-	_val;								\
-})
+									\
+		_val;							\
+	})
 
 /*
  * These register accessors are marked inline so the compiler can
