@@ -524,12 +524,6 @@ struct smu_funcs
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*set_od8_default_settings)(struct smu_context *smu,
 					bool initialize);
-	int (*get_activity_monitor_coeff)(struct smu_context *smu,
-				      uint8_t *table,
-				      uint16_t workload_type);
-	int (*set_activity_monitor_coeff)(struct smu_context *smu,
-				      uint8_t *table,
-				      uint16_t workload_type);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
