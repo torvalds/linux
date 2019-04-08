@@ -496,6 +496,14 @@ config VEXPRESS_SYSCFG
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
 
+config ASPEED_P2A_CTRL
+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	tristate "Aspeed ast2400/2500 HOST P2A VGA MMIO to BMC bridge control"
+	help
+	  Control Aspeed ast2400/2500 HOST P2A VGA MMIO to BMC mappings through
+	  ioctl()s, the driver also provides an interface for userspace mappings to
+	  a pre-defined region.
+
 config ASPEED_LPC_CTRL
 	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
 	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
