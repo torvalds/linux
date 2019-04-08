@@ -415,7 +415,8 @@ static inline void account_sbals(struct qdio_q *q, unsigned int count)
 	q->q_stats.nr_sbals[pos]++;
 }
 
-static void process_buffer_error(struct qdio_q *q, int count)
+static void process_buffer_error(struct qdio_q *q, unsigned int start,
+				 int count)
 {
 	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
 					SLSB_P_OUTPUT_NOT_INIT;
@@ -424,29 +425,29 @@ static void process_buffer_error(struct qdio_q *q, int count)
 
 	/* special handling for no target buffer empty */
 	if (queue_type(q) == QDIO_IQDIO_QFMT && !q->is_input_q &&
-	    q->sbal[q->first_to_check]->element[15].sflags == 0x10) {
+	    q->sbal[start]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
-			      q->first_to_check);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x", start);
 		goto set;
 	}
 
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
 	DBF_ERROR((q->is_input_q) ? "IN:%2d" : "OUT:%2d", q->nr);
-	DBF_ERROR("FTC:%3d C:%3d", q->first_to_check, count);
+	DBF_ERROR("FTC:%3d C:%3d", start, count);
 	DBF_ERROR("F14:%2x F15:%2x",
-		  q->sbal[q->first_to_check]->element[14].sflags,
-		  q->sbal[q->first_to_check]->element[15].sflags);
+		  q->sbal[start]->element[14].sflags,
+		  q->sbal[start]->element[15].sflags);
 
 set:
 	/*
 	 * Interrupts may be avoided as long as the error is present
 	 * so change the buffer state immediately to avoid starvation.
 	 */
-	set_buf_states(q, q->first_to_check, state, count);
+	set_buf_states(q, start, state, count);
 }
 
-static inline void inbound_primed(struct qdio_q *q, int count)
+static inline void inbound_primed(struct qdio_q *q, unsigned int start,
+				  int count)
 {
 	int new;
 
@@ -457,7 +458,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 		if (!q->u.in.polling) {
 			q->u.in.polling = 1;
 			q->u.in.ack_count = count;
-			q->u.in.ack_start = q->first_to_check;
+			q->u.in.ack_start = start;
 			return;
 		}
 
@@ -465,7 +466,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
 			       q->u.in.ack_count);
 		q->u.in.ack_count = count;
-		q->u.in.ack_start = q->first_to_check;
+		q->u.in.ack_start = start;
 		return;
 	}
 
@@ -473,7 +474,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	 * ACK the newest buffer. The ACK will be removed in qdio_stop_polling
 	 * or by the next inbound run.
 	 */
-	new = add_buf(q->first_to_check, count - 1);
+	new = add_buf(start, count - 1);
 	if (q->u.in.polling) {
 		/* reset the previous ACK but first set the new one */
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
@@ -488,11 +489,12 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	if (!count)
 		return;
 	/* need to change ALL buffers to get more interrupts */
-	set_buf_states(q, q->first_to_check, SLSB_P_INPUT_NOT_INIT, count);
+	set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
 }
 
 static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
 	unsigned char state = 0;
 	int count;
 
@@ -510,22 +512,22 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	 * No siga sync here, as a PCI or we after a thin interrupt
 	 * already sync'ed the queues.
 	 */
-	count = get_buf_states(q, q->first_to_check, &state, count, 1, 0);
+	count = get_buf_states(q, start, &state, count, 1, 0);
 	if (!count)
 		return 0;
 
 	switch (state) {
 	case SLSB_P_INPUT_PRIMED:
-		inbound_primed(q, count);
-		q->first_to_check = add_buf(q->first_to_check, count);
+		inbound_primed(q, start, count);
+		q->first_to_check = add_buf(start, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
 		return count;
 	case SLSB_P_INPUT_ERROR:
-		process_buffer_error(q, count);
-		q->first_to_check = add_buf(q->first_to_check, count);
+		process_buffer_error(q, start, count);
+		q->first_to_check = add_buf(start, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -537,7 +539,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 		if (q->irq_ptr->perf_stat_enabled)
 			q->q_stats.nr_sbal_nop++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop:%1d %#02x",
-			q->nr, q->first_to_check);
+			      q->nr, start);
 		return 0;
 	default:
 		WARN_ON_ONCE(1);
@@ -559,6 +561,7 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 
 static inline int qdio_inbound_q_done(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
 	unsigned char state = 0;
 
 	if (!atomic_read(&q->nr_buf_used))
@@ -566,7 +569,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 
 	if (need_siga_sync(q))
 		qdio_siga_sync_q(q);
-	get_buf_state(q, q->first_to_check, &state, 0);
+	get_buf_state(q, start, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED || state == SLSB_P_INPUT_ERROR)
 		/* more work coming */
@@ -584,8 +587,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
 	if (get_tod_clock_fast() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
-			      q->first_to_check);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x", start);
 		return 1;
 	} else
 		return 0;
@@ -706,6 +708,7 @@ void qdio_inbound_processing(unsigned long data)
 
 static int get_outbound_buffer_frontier(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
 	unsigned char state = 0;
 	int count;
 
@@ -726,8 +729,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	if (!count)
 		return 0;
 
-	count = get_buf_states(q, q->first_to_check, &state, count, 0,
-			       q->u.out.use_cq);
+	count = get_buf_states(q, start, &state, count, 0, q->u.out.use_cq);
 	if (!count)
 		return 0;
 
@@ -738,13 +740,13 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 			"out empty:%1d %02x", q->nr, count);
 
 		atomic_sub(count, &q->nr_buf_used);
-		q->first_to_check = add_buf(q->first_to_check, count);
+		q->first_to_check = add_buf(start, count);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
 		return count;
 	case SLSB_P_OUTPUT_ERROR:
-		process_buffer_error(q, count);
-		q->first_to_check = add_buf(q->first_to_check, count);
+		process_buffer_error(q, start, count);
+		q->first_to_check = add_buf(start, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals_error(q, count);
