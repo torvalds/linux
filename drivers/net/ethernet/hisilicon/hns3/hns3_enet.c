@@ -3718,12 +3718,12 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	hns3_client_stop(handle);
-
 	hns3_remove_hw_addr(netdev);
 
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
+
+	hns3_client_stop(handle);
 
 	if (!test_and_clear_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
 		netdev_warn(netdev, "already uninitialized\n");
@@ -4075,10 +4075,18 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	if (ret)
 		goto err_uninit_vector;
 
+	ret = hns3_client_start(handle);
+	if (ret) {
+		dev_err(priv->dev, "hns3_client_start fail! ret=%d\n", ret);
+		goto err_uninit_ring;
+	}
+
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
 	return ret;
 
+err_uninit_ring:
+	hns3_uninit_all_ring(priv);
 err_uninit_vector:
 	hns3_nic_uninit_vector_data(priv);
 	priv->ring_data = NULL;
