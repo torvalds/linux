@@ -934,6 +934,46 @@ mlxsw_devlink_sb_occ_tc_port_bind_get(struct devlink_port *devlink_port,
 						     pool_type, p_cur, p_max);
 }
 
+static int
+mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
+		       struct netlink_ext_ack *extack)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	char fw_info_psid[MLXSW_REG_MGIR_FW_INFO_PSID_SIZE];
+	u32 hw_rev, fw_major, fw_minor, fw_sub_minor;
+	char mgir_pl[MLXSW_REG_MGIR_LEN];
+	char buf[32];
+	int err;
+
+	err = devlink_info_driver_name_put(req,
+					   mlxsw_core->bus_info->device_kind);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgir_pack(mgir_pl);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgir), mgir_pl);
+	if (err)
+		return err;
+	mlxsw_reg_mgir_unpack(mgir_pl, &hw_rev, fw_info_psid, &fw_major,
+			      &fw_minor, &fw_sub_minor);
+
+	sprintf(buf, "%X", hw_rev);
+	err = devlink_info_version_fixed_put(req, "hw.revision", buf);
+	if (err)
+		return err;
+
+	err = devlink_info_version_fixed_put(req, "fw.psid", fw_info_psid);
+	if (err)
+		return err;
+
+	sprintf(buf, "%d.%d.%d", fw_major, fw_minor, fw_sub_minor);
+	err = devlink_info_version_running_put(req, "fw.version", buf);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
 						struct netlink_ext_ack *extack)
 {
@@ -968,6 +1008,7 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.sb_occ_max_clear		= mlxsw_devlink_sb_occ_max_clear,
 	.sb_occ_port_pool_get		= mlxsw_devlink_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_devlink_sb_occ_tc_port_bind_get,
+	.info_get			= mlxsw_devlink_info_get,
 };
 
 static int
