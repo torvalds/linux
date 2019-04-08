@@ -1427,6 +1427,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	update_flags->raw = 0; // Reset all flags
 
+	if (u->flip_addr)
+		update_flags->bits.addr_update = 1;
+
 	if (!is_surface_in_context(context, u->surface)) {
 		update_flags->bits.new_plane = 1;
 		return UPDATE_TYPE_FULL;

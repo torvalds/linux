@@ -492,7 +492,7 @@ static void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 }
 
 
-static void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	DC_LOGGER_INIT(dc->ctx->logger);
 
@@ -500,8 +500,6 @@ static void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	dcn20_plane_atomic_disable(dc, pipe_ctx);
-
-	//apply_DEGVIDCN10_253_wa(dc);
 
 	DC_LOG_DC("Power down front end %d\n",
 					pipe_ctx->pipe_idx);
@@ -1092,7 +1090,7 @@ static void dcn20_power_on_plane(
 	}
 }
 
-static void dcn20_enable_plane(
+void dcn20_enable_plane(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
@@ -1167,7 +1165,7 @@ static void dcn20_enable_plane(
 }
 
 
-void dcn20_program_pipe(
+static void dcn20_program_pipe(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)

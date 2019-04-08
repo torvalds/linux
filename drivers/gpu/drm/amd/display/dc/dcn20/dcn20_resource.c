@@ -2340,7 +2340,6 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		context->bw_ctx.dml.funcs.rq_dlg_get_rq_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].rq_regs,
 				pipes[pipe_idx].pipe);
-
 		pipe_idx++;
 	}
 

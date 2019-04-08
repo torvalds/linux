@@ -89,7 +89,15 @@ void dcn20_pipe_control_lock_global(
 		struct pipe_ctx *pipe,
 		bool lock);
 void dcn20_setup_gsl_group_as_lock(const struct dc *dc,
-				  struct pipe_ctx *pipe_ctx,
-				  bool enable);
-
+				struct pipe_ctx *pipe_ctx,
+				bool enable);
+void dcn20_pipe_control_lock(
+	struct dc *dc,
+	struct pipe_ctx *pipe,
+	bool lock);
+void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn20_enable_plane(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct dc_state *context);
 #endif /* __DC_HWSS_DCN20_H__ */
