@@ -2027,7 +2027,6 @@ static void coda_jpeg_encode_ctrls(struct coda_ctx *ctx)
 
 static void coda_decode_ctrls(struct coda_ctx *ctx)
 {
-	u64 mask;
 	u8 max;
 
 	ctx->h264_profile_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
@@ -2041,27 +2040,14 @@ static void coda_decode_ctrls(struct coda_ctx *ctx)
 		ctx->h264_profile_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	if (ctx->dev->devtype->product == CODA_HX4 ||
-	    ctx->dev->devtype->product == CODA_7541) {
+	    ctx->dev->devtype->product == CODA_7541)
 		max = V4L2_MPEG_VIDEO_H264_LEVEL_4_0;
-		mask = ~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_0));
-	} else if (ctx->dev->devtype->product == CODA_960) {
+	else if (ctx->dev->devtype->product == CODA_960)
 		max = V4L2_MPEG_VIDEO_H264_LEVEL_4_1;
-		mask = ~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_0) |
-			 (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_1));
-	} else {
+	else
 		return;
-	}
 	ctx->h264_level_ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrls,
-		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL, max, mask,
-		max);
+		&coda_ctrl_ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL, max, 0, max);
 	if (ctx->h264_level_ctrl)
 		ctx->h264_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 }
