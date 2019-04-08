@@ -31,10 +31,26 @@
 #include <clocksource/arm_arch_timer.h>
 
 #if IS_ENABLED(CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND)
+#define has_erratum_handler(h)						\
+	({								\
+		const struct arch_timer_erratum_workaround *__wa;	\
+		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
+		(__wa && __wa->h);					\
+	})
+
+#define erratum_handler(h)						\
+	({								\
+		const struct arch_timer_erratum_workaround *__wa;	\
+		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
+		(__wa && __wa->h) ? __wa->h : arch_timer_##h;		\
+	})
+
 extern struct static_key_false arch_timer_read_ool_enabled;
 #define needs_unstable_timer_counter_workaround() \
 	static_branch_unlikely(&arch_timer_read_ool_enabled)
 #else
+#define has_erratum_handler(h)			   false
+#define erratum_handler(h)			   (arch_timer_##h)
 #define needs_unstable_timer_counter_workaround()  false
 #endif
 

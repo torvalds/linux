@@ -598,36 +598,12 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 		local ? "local" : "global", wa->desc);
 }
 
-#define erratum_handler(fn, r, ...)					\
-({									\
-	bool __val;							\
-	if (needs_unstable_timer_counter_workaround()) {		\
-		const struct arch_timer_erratum_workaround *__wa;	\
-		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
-		if (__wa && __wa->fn) {					\
-			r = __wa->fn(__VA_ARGS__);			\
-			__val = true;					\
-		} else {						\
-			__val = false;					\
-		}							\
-	} else {							\
-		__val = false;						\
-	}								\
-	__val;								\
-})
-
 static bool arch_timer_this_cpu_has_cntvct_wa(void)
 {
-	const struct arch_timer_erratum_workaround *wa;
-
-	wa = __this_cpu_read(timer_unstable_counter_workaround);
-	return wa && wa->read_cntvct_el0;
+	return has_erratum_handler(read_cntvct_el0);
 }
 #else
 #define arch_timer_check_ool_workaround(t,a)		do { } while(0)
-#define erratum_set_next_event_tval_virt(...)		({BUG(); 0;})
-#define erratum_set_next_event_tval_phys(...)		({BUG(); 0;})
-#define erratum_handler(fn, r, ...)			({false;})
 #define arch_timer_this_cpu_has_cntvct_wa()		({false;})
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
 
@@ -721,11 +697,6 @@ static __always_inline void set_next_event(const int access, unsigned long evt,
 static int arch_timer_set_next_event_virt(unsigned long evt,
 					  struct clock_event_device *clk)
 {
-	int ret;
-
-	if (erratum_handler(set_next_event_virt, ret, evt, clk))
-		return ret;
-
 	set_next_event(ARCH_TIMER_VIRT_ACCESS, evt, clk);
 	return 0;
 }
@@ -733,11 +704,6 @@ static int arch_timer_set_next_event_virt(unsigned long evt,
 static int arch_timer_set_next_event_phys(unsigned long evt,
 					  struct clock_event_device *clk)
 {
-	int ret;
-
-	if (erratum_handler(set_next_event_phys, ret, evt, clk))
-		return ret;
-
 	set_next_event(ARCH_TIMER_PHYS_ACCESS, evt, clk);
 	return 0;
 }
@@ -762,6 +728,10 @@ static void __arch_timer_setup(unsigned type,
 	clk->features = CLOCK_EVT_FEAT_ONESHOT;
 
 	if (type == ARCH_TIMER_TYPE_CP15) {
+		typeof(clk->set_next_event) sne;
+
+		arch_timer_check_ool_workaround(ate_match_local_cap_id, NULL);
+
 		if (arch_timer_c3stop)
 			clk->features |= CLOCK_EVT_FEAT_C3STOP;
 		clk->name = "arch_sys_timer";
@@ -772,20 +742,20 @@ static void __arch_timer_setup(unsigned type,
 		case ARCH_TIMER_VIRT_PPI:
 			clk->set_state_shutdown = arch_timer_shutdown_virt;
 			clk->set_state_oneshot_stopped = arch_timer_shutdown_virt;
-			clk->set_next_event = arch_timer_set_next_event_virt;
+			sne = erratum_handler(set_next_event_virt);
 			break;
 		case ARCH_TIMER_PHYS_SECURE_PPI:
 		case ARCH_TIMER_PHYS_NONSECURE_PPI:
 		case ARCH_TIMER_HYP_PPI:
 			clk->set_state_shutdown = arch_timer_shutdown_phys;
 			clk->set_state_oneshot_stopped = arch_timer_shutdown_phys;
-			clk->set_next_event = arch_timer_set_next_event_phys;
+			sne = erratum_handler(set_next_event_phys);
 			break;
 		default:
 			BUG();
 		}
 
-		arch_timer_check_ool_workaround(ate_match_local_cap_id, NULL);
+		clk->set_next_event = sne;
 	} else {
 		clk->features |= CLOCK_EVT_FEAT_DYNIRQ;
 		clk->name = "arch_mem_timer";

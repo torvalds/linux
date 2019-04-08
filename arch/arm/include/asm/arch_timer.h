@@ -11,6 +11,10 @@
 #include <clocksource/arm_arch_timer.h>
 
 #ifdef CONFIG_ARM_ARCH_TIMER
+/* 32bit ARM doesn't know anything about timer errata... */
+#define has_erratum_handler(h)		(false)
+#define erratum_handler(h)		(arch_timer_##h)
+
 int arch_timer_arch_init(void);
 
 /*
