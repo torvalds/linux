@@ -108,7 +108,7 @@ acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
 	/* Just copy the ACPI name from the Node and zero terminate it */
 
 	node_name = acpi_ut_get_node_name(node);
-	ACPI_MOVE_NAME(buffer->pointer, node_name);
+	ACPI_COPY_NAMESEG(buffer->pointer, node_name);
 	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));

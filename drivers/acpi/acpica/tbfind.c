@@ -56,7 +56,7 @@ acpi_tb_find_table(char *signature,
 	/* Normalize the input strings */
 
 	memset(&header, 0, sizeof(struct acpi_table_header));
-	ACPI_MOVE_NAME(header.signature, signature);
+	ACPI_COPY_NAMESEG(header.signature, signature);
 	strncpy(header.oem_id, oem_id, ACPI_OEM_ID_SIZE);
 	strncpy(header.oem_table_id, oem_table_id, ACPI_OEM_TABLE_ID_SIZE);
 

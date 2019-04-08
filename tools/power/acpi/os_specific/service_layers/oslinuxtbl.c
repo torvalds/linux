@@ -286,7 +286,7 @@ static acpi_status osl_add_table_to_list(char *signature, u32 instance)
 		return (AE_NO_MEMORY);
 	}
 
-	ACPI_MOVE_NAME(new_info->signature, signature);
+	ACPI_COPY_NAMESEG(new_info->signature, signature);
 
 	if (!gbl_table_list_head) {
 		gbl_table_list_head = new_info;
@@ -1174,7 +1174,7 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 
 	/* Extract signature */
 
-	ACPI_MOVE_NAME(signature, filename);
+	ACPI_COPY_NAMESEG(signature, filename);
 	return (AE_OK);
 }
 

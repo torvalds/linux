@@ -110,9 +110,9 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Construct lower-case filename from the table local signature */
 
 	if (ACPI_VALIDATE_RSDP_SIG(table->signature)) {
-		ACPI_MOVE_NAME(filename, ACPI_RSDP_NAME);
+		ACPI_COPY_NAMESEG(filename, ACPI_RSDP_NAME);
 	} else {
-		ACPI_MOVE_NAME(filename, table->signature);
+		ACPI_COPY_NAMESEG(filename, table->signature);
 	}
 
 	filename[0] = (char)tolower((int)filename[0]);

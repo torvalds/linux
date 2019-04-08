@@ -145,7 +145,7 @@ void acpi_ut_repair_name(char *name)
 		return;
 	}
 
-	ACPI_MOVE_NAME(&original_name, name);
+	ACPI_COPY_NAMESEG(&original_name, name);
 
 	/* Check each character in the name */
 
