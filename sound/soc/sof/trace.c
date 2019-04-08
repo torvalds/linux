@@ -17,18 +17,19 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 				   loff_t pos, size_t buffer_size)
 {
 	wait_queue_entry_t wait;
+	loff_t host_offset = READ_ONCE(sdev->host_offset);
 
 	/*
 	 * If host offset is less than local pos, it means write pointer of
 	 * host DMA buffer has been wrapped. We should output the trace data
 	 * at the end of host DMA buffer at first.
 	 */
-	if (sdev->host_offset < pos)
+	if (host_offset < pos)
 		return buffer_size - pos;
 
 	/* If there is available trace data now, it is unnecessary to wait. */
-	if (sdev->host_offset > pos)
-		return sdev->host_offset - pos;
+	if (host_offset > pos)
+		return host_offset - pos;
 
 	/* wait for available trace data from FW */
 	init_waitqueue_entry(&wait, current);
@@ -42,10 +43,11 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 	remove_wait_queue(&sdev->trace_sleep, &wait);
 
 	/* return bytes available for copy */
-	if (sdev->host_offset < pos)
+	host_offset = READ_ONCE(sdev->host_offset);
+	if (host_offset < pos)
 		return buffer_size - pos;
 
-	return sdev->host_offset - pos;
+	return host_offset - pos;
 }
 
 static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
