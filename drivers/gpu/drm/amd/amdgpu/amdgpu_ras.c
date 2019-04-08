@@ -530,6 +530,33 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	return 0;
 }
 
+/* Only used in device probe stage and called only once. */
+int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
+		struct ras_common_if *head, bool enable)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	int ret;
+
+	if (!con)
+		return -EINVAL;
+
+	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
+		/* If ras is enabled by vbios, we set up ras object first in
+		 * both case. For enable, that is all what we need do. For
+		 * disable, we need perform a ras TA disable cmd after that.
+		 */
+		ret = __amdgpu_ras_feature_enable(adev, head, 1);
+		if (ret)
+			return ret;
+
+		if (!enable)
+			ret = amdgpu_ras_feature_enable(adev, head, 0);
+	} else
+		ret = amdgpu_ras_feature_enable(adev, head, enable);
+
+	return ret;
+}
+
 static int amdgpu_ras_disable_all_features(struct amdgpu_device *adev,
 		bool bypass)
 {
