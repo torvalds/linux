@@ -584,11 +584,6 @@ out:
 	return kmem_cache_alloc(global.slab_requests, GFP_KERNEL);
 }
 
-static int add_timeline_barrier(struct i915_request *rq)
-{
-	return i915_request_await_active_request(rq, &rq->timeline->barrier);
-}
-
 /**
  * i915_request_alloc - allocate a request structure
  *
@@ -737,10 +732,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * position of the head.
 	 */
 	rq->head = rq->ring->emit;
-
-	ret = add_timeline_barrier(rq);
-	if (ret)
-		goto err_unwind;
 
 	ret = engine->request_alloc(rq);
 	if (ret)

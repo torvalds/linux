@@ -1167,7 +1167,7 @@ static int
 gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 {
 	struct drm_i915_private *i915 = ce->engine->i915;
-	struct i915_request *rq, *prev;
+	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	int ret;
 
@@ -1192,16 +1192,7 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	}
 
 	/* Queue this switch after all other activity by this context. */
-	prev = i915_active_request_raw(&ce->ring->timeline->last_request,
-				       &i915->drm.struct_mutex);
-	if (prev && !i915_request_completed(prev)) {
-		ret = i915_request_await_dma_fence(rq, &prev->fence);
-		if (ret < 0)
-			goto out_add;
-	}
-
-	/* Order all following requests to be after. */
-	ret = i915_timeline_set_barrier(ce->ring->timeline, rq);
+	ret = i915_active_request_set(&ce->ring->timeline->last_request, rq);
 	if (ret)
 		goto out_add;
 
