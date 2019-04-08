@@ -784,13 +784,65 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
+static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
+{
+	return drm_color_lut_extract(color->green, 14) << 16 |
+		drm_color_lut_extract(color->blue, 14);
+}
+
+static u32 chv_cgm_degamma_udw(const struct drm_color_lut *color)
+{
+	return drm_color_lut_extract(color->red, 14);
+}
+
+static void chv_load_cgm_degamma(struct intel_crtc *crtc,
+				 const struct drm_property_blob *blob)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_color_lut *lut = blob->data;
+	int i, lut_size = drm_color_lut_size(blob);
+	enum pipe pipe = crtc->pipe;
+
+	for (i = 0; i < lut_size; i++) {
+		I915_WRITE(CGM_PIPE_DEGAMMA(pipe, i, 0),
+			   chv_cgm_degamma_ldw(&lut[i]));
+		I915_WRITE(CGM_PIPE_DEGAMMA(pipe, i, 1),
+			   chv_cgm_degamma_udw(&lut[i]));
+	}
+}
+
+static u32 chv_cgm_gamma_ldw(const struct drm_color_lut *color)
+{
+	return drm_color_lut_extract(color->green, 10) << 16 |
+		drm_color_lut_extract(color->blue, 10);
+}
+
+static u32 chv_cgm_gamma_udw(const struct drm_color_lut *color)
+{
+	return drm_color_lut_extract(color->red, 10);
+}
+
+static void chv_load_cgm_gamma(struct intel_crtc *crtc,
+			       const struct drm_property_blob *blob)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_color_lut *lut = blob->data;
+	int i, lut_size = drm_color_lut_size(blob);
+	enum pipe pipe = crtc->pipe;
+
+	for (i = 0; i < lut_size; i++) {
+		I915_WRITE(CGM_PIPE_GAMMA(pipe, i, 0),
+			   chv_cgm_gamma_ldw(&lut[i]));
+		I915_WRITE(CGM_PIPE_GAMMA(pipe, i, 1),
+			   chv_cgm_gamma_udw(&lut[i]));
+	}
+}
+
+static void chv_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
 	const struct drm_property_blob *degamma_lut = crtc_state->base.degamma_lut;
-	enum pipe pipe = crtc->pipe;
 
 	cherryview_load_csc_matrix(crtc_state);
 
@@ -799,41 +851,11 @@ static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
 		return;
 	}
 
-	if (degamma_lut) {
-		const struct drm_color_lut *lut = degamma_lut->data;
-		int i, lut_size = INTEL_INFO(dev_priv)->color.degamma_lut_size;
+	if (degamma_lut)
+		chv_load_cgm_degamma(crtc, degamma_lut);
 
-		for (i = 0; i < lut_size; i++) {
-			u32 word0, word1;
-
-			/* Write LUT in U0.14 format. */
-			word0 =
-			(drm_color_lut_extract(lut[i].green, 14) << 16) |
-			drm_color_lut_extract(lut[i].blue, 14);
-			word1 = drm_color_lut_extract(lut[i].red, 14);
-
-			I915_WRITE(CGM_PIPE_DEGAMMA(pipe, i, 0), word0);
-			I915_WRITE(CGM_PIPE_DEGAMMA(pipe, i, 1), word1);
-		}
-	}
-
-	if (gamma_lut) {
-		const struct drm_color_lut *lut = gamma_lut->data;
-		int i, lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
-
-		for (i = 0; i < lut_size; i++) {
-			u32 word0, word1;
-
-			/* Write LUT in U0.10 format. */
-			word0 =
-			(drm_color_lut_extract(lut[i].green, 10) << 16) |
-			drm_color_lut_extract(lut[i].blue, 10);
-			word1 = drm_color_lut_extract(lut[i].red, 10);
-
-			I915_WRITE(CGM_PIPE_GAMMA(pipe, i, 0), word0);
-			I915_WRITE(CGM_PIPE_GAMMA(pipe, i, 1), word1);
-		}
-	}
+	if (gamma_lut)
+		chv_load_cgm_gamma(crtc, gamma_lut);
 }
 
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
@@ -1232,7 +1254,7 @@ void intel_color_init(struct intel_crtc *crtc)
 		if (IS_CHERRYVIEW(dev_priv)) {
 			dev_priv->display.color_check = chv_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
-			dev_priv->display.load_luts = cherryview_load_luts;
+			dev_priv->display.load_luts = chv_load_luts;
 		} else if (INTEL_GEN(dev_priv) >= 4) {
 			dev_priv->display.color_check = i9xx_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
