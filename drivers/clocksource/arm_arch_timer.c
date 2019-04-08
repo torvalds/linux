@@ -365,8 +365,6 @@ static u32 notrace sun50i_a64_read_cntv_tval_el0(void)
 DEFINE_PER_CPU(const struct arch_timer_erratum_workaround *, timer_unstable_counter_workaround);
 EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
 
-DEFINE_STATIC_KEY_FALSE(arch_timer_read_ool_enabled);
-EXPORT_SYMBOL_GPL(arch_timer_read_ool_enabled);
 
 static void erratum_set_next_event_tval_generic(const int access, unsigned long evt,
 						struct clock_event_device *clk)
@@ -538,12 +536,6 @@ void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa
 	}
 
 	/*
-	 * Use the locked version, as we're called from the CPU
-	 * hotplug framework. Otherwise, we end-up in deadlock-land.
-	 */
-	static_branch_enable_cpuslocked(&arch_timer_read_ool_enabled);
-
-	/*
 	 * Don't use the vdso fastpath if errata require using the
 	 * out-of-line counter accessor. We may change our mind pretty
 	 * late in the game (with a per-CPU erratum, for example), so
@@ -558,7 +550,7 @@ void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa
 static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type type,
 					    void *arg)
 {
-	const struct arch_timer_erratum_workaround *wa;
+	const struct arch_timer_erratum_workaround *wa, *__wa;
 	ate_match_fn_t match_fn = NULL;
 	bool local = false;
 
@@ -582,16 +574,13 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 	if (!wa)
 		return;
 
-	if (needs_unstable_timer_counter_workaround()) {
-		const struct arch_timer_erratum_workaround *__wa;
-		__wa = __this_cpu_read(timer_unstable_counter_workaround);
-		if (__wa && wa != __wa)
-			pr_warn("Can't enable workaround for %s (clashes with %s\n)",
-				wa->desc, __wa->desc);
+	__wa = __this_cpu_read(timer_unstable_counter_workaround);
+	if (__wa && wa != __wa)
+		pr_warn("Can't enable workaround for %s (clashes with %s\n)",
+			wa->desc, __wa->desc);
 
-		if (__wa)
-			return;
-	}
+	if (__wa)
+		return;
 
 	arch_timer_enable_workaround(wa, local);
 	pr_info("Enabling %s workaround for %s\n",

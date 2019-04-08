@@ -45,13 +45,9 @@
 		(__wa && __wa->h) ? __wa->h : arch_timer_##h;		\
 	})
 
-extern struct static_key_false arch_timer_read_ool_enabled;
-#define needs_unstable_timer_counter_workaround() \
-	static_branch_unlikely(&arch_timer_read_ool_enabled)
 #else
 #define has_erratum_handler(h)			   false
 #define erratum_handler(h)			   (arch_timer_##h)
-#define needs_unstable_timer_counter_workaround()  false
 #endif
 
 enum arch_timer_erratum_match_type {
