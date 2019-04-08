@@ -493,7 +493,7 @@ static void cntvct_read_handler(unsigned int esr, struct pt_regs *regs)
 {
 	int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_counter_get_cntvct());
+	pt_regs_write_reg(regs, rt, arch_timer_read_counter());
 	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 }
 
@@ -665,7 +665,7 @@ static void compat_cntvct_read_handler(unsigned int esr, struct pt_regs *regs)
 {
 	int rt = (esr & ESR_ELx_CP15_64_ISS_RT_MASK) >> ESR_ELx_CP15_64_ISS_RT_SHIFT;
 	int rt2 = (esr & ESR_ELx_CP15_64_ISS_RT2_MASK) >> ESR_ELx_CP15_64_ISS_RT2_SHIFT;
-	u64 val = arch_counter_get_cntvct();
+	u64 val = arch_timer_read_counter();
 
 	pt_regs_write_reg(regs, rt, lower_32_bits(val));
 	pt_regs_write_reg(regs, rt2, upper_32_bits(val));
