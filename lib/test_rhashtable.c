@@ -500,7 +500,7 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 		struct rhash_head *pos, *next;
 		struct test_obj_rhl *p;
 
-		pos = rht_dereference(tbl->buckets[i], ht);
+		pos = rht_ptr(rht_dereference(tbl->buckets[i], ht));
 		next = !rht_is_a_nulls(pos) ? rht_dereference(pos->next, ht) : NULL;
 
 		if (!rht_is_a_nulls(pos)) {
