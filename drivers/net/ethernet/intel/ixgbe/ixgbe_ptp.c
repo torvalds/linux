@@ -72,7 +72,7 @@
 #define IXGBE_INCPER_SHIFT_82599 24
 
 #define IXGBE_OVERFLOW_PERIOD    (HZ * 30)
-#define IXGBE_PTP_TX_TIMEOUT     (HZ * 15)
+#define IXGBE_PTP_TX_TIMEOUT     (HZ)
 
 /* half of a one second clock period, for use with PPS signal. We have to use
  * this instead of something pre-defined like IXGBE_PTP_PPS_HALF_SECOND, in
