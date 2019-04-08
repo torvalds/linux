@@ -278,19 +278,42 @@ struct iwl_fw_error_dump_mem {
 	u8 data[];
 };
 
-#define IWL_INI_DUMP_MEM_VER 1
-#define IWL_INI_DUMP_MONITOR_VER 1
-#define IWL_INI_DUMP_FIFO_VER 1
+/* Dump version, used by the dump parser to differentiate between
+ * different dump formats
+ */
+#define IWL_INI_DUMP_VER 1
+
+/* This bit is used to differentiate the legacy dump from the ini dump */
+#define INI_DUMP_BIT BIT(31)
+
+/**
+ * struct iwl_fw_ini_fifo_hdr - fifo range header
+ * @fifo_num: the fifo number. In case of umac rx fifo, set BIT(31) to
+ *	distinguish between lmac and umac rx fifos
+ * @num_of_registers: num of registers to dump, dword size each
+ */
+struct iwl_fw_ini_fifo_hdr {
+	__le32 fifo_num;
+	__le32 num_of_registers;
+} __packed;
 
 /**
  * struct iwl_fw_ini_error_dump_range - range of memory
  * @range_data_size: the size of this range, in bytes
- * @start_addr: the start address of this range
+ * @internal_base_addr - base address of internal memory range
+ * @dram_base_addr - base address of dram monitor range
+ * @page_num - page number of memory range
+ * @fifo_hdr - fifo header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
 	__le32 range_data_size;
-	__le64 start_addr;
+	union {
+		__le32 internal_base_addr;
+		__le64 dram_base_addr;
+		__le32 page_num;
+		struct iwl_fw_ini_fifo_hdr fifo_hdr;
+	};
 	__le32 data[];
 } __packed;
 
@@ -331,32 +354,6 @@ struct iwl_fw_ini_error_dump {
 struct iwl_fw_ini_error_dump_register {
 	__le32 addr;
 	__le32 data;
-} __packed;
-
-/**
- * struct iwl_fw_ini_fifo_error_dump_range - ini fifo range dump
- * @fifo_num: the fifo num. In case of rxf and umac rxf, set BIT(31) to
- *	distinguish between lmac and umac
- * @num_of_registers: num of registers to dump, dword size each
- * @range_data_size: the size of the data
- * @data: consist of
- *	num_of_registers * (register address + register value) + fifo data
- */
-struct iwl_fw_ini_fifo_error_dump_range {
-	__le32 fifo_num;
-	__le32 num_of_registers;
-	__le32 range_data_size;
-	__le32 data[];
-} __packed;
-
-/**
- * struct iwl_fw_ini_fifo_error_dump - ini fifo region dump
- * @header: the header of this region
- * @ranges: the memory ranges of this region
- */
-struct iwl_fw_ini_fifo_error_dump {
-	struct iwl_fw_ini_error_dump_header header;
-	struct iwl_fw_ini_fifo_error_dump_range ranges[];
 } __packed;
 
 /**

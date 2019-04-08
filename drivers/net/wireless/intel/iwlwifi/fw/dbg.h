@@ -457,9 +457,6 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 		trans->umac_error_event_table = umac_error_event_table;
 }
 
-/* This bit is used to differentiate the legacy dump from the ini dump */
-#define INI_DUMP_BIT BIT(31)
-
 static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 {
 	if (fwrt->trans->ini_valid && fwrt->trans->hw_error) {

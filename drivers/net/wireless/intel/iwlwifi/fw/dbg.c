@@ -1059,7 +1059,7 @@ static int iwl_dump_ini_prph_iter(struct iwl_fw_runtime *fwrt,
 	u32 addr = le32_to_cpu(reg->start_addr[idx]) + le32_to_cpu(reg->offset);
 	int i;
 
-	range->start_addr = cpu_to_le64(addr);
+	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = reg->internal.range_data_size;
 	for (i = 0; i < le32_to_cpu(reg->internal.range_data_size); i += 4) {
 		prph_val = iwl_read_prph(fwrt->trans, addr + i);
@@ -1080,7 +1080,7 @@ static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
 	u32 addr = le32_to_cpu(reg->start_addr[idx]) + le32_to_cpu(reg->offset);
 	int i;
 
-	range->start_addr = cpu_to_le64(addr);
+	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = reg->internal.range_data_size;
 	for (i = 0; i < le32_to_cpu(reg->internal.range_data_size); i += 4)
 		*val++ = cpu_to_le32(iwl_trans_read32(fwrt->trans, addr + i));
@@ -1095,7 +1095,7 @@ static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	u32 addr = le32_to_cpu(reg->start_addr[idx]) + le32_to_cpu(reg->offset);
 
-	range->start_addr = cpu_to_le64(addr);
+	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = reg->internal.range_data_size;
 	iwl_trans_read_mem_bytes(fwrt->trans, addr, range->data,
 				 le32_to_cpu(reg->internal.range_data_size));
@@ -1111,7 +1111,7 @@ iwl_dump_ini_paging_gen2_iter(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	u32 page_size = fwrt->trans->init_dram.paging[idx].size;
 
-	range->start_addr = cpu_to_le64(idx);
+	range->page_num = cpu_to_le32(idx);
 	range->range_data_size = cpu_to_le32(page_size);
 	memcpy(range->data, fwrt->trans->init_dram.paging[idx].block,
 	       page_size);
@@ -1131,7 +1131,7 @@ static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 	dma_addr_t addr = fwrt->fw_paging_db[idx].fw_paging_phys;
 	u32 page_size = fwrt->fw_paging_db[idx].fw_paging_size;
 
-	range->start_addr = cpu_to_le64(idx);
+	range->page_num = cpu_to_le32(idx);
 	range->range_data_size = cpu_to_le32(page_size);
 	dma_sync_single_for_cpu(fwrt->trans->dev, addr,	page_size,
 				DMA_BIDIRECTIONAL);
@@ -1154,7 +1154,7 @@ iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
 	if (start_addr == 0x5a5a5a5a)
 		return -EBUSY;
 
-	range->start_addr = cpu_to_le64(start_addr);
+	range->dram_base_addr = cpu_to_le64(start_addr);
 	range->range_data_size = cpu_to_le32(fwrt->trans->fw_mon[idx].size);
 
 	memcpy(range->data, fwrt->trans->fw_mon[idx].block,
@@ -1228,7 +1228,7 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 				 struct iwl_fw_ini_region_cfg *reg,
 				 void *range_ptr, int idx)
 {
-	struct iwl_fw_ini_fifo_error_dump_range *range = range_ptr;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	struct iwl_ini_txf_iter_data *iter;
 	struct iwl_fw_ini_error_dump_register *reg_dump = (void *)range->data;
 	u32 offs = le32_to_cpu(reg->offset), addr;
@@ -1246,8 +1246,8 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 
 	iter = fwrt->dump.fifo_iter;
 
-	range->fifo_num = cpu_to_le32(iter->fifo);
-	range->num_of_registers = reg->fifos.num_of_registers;
+	range->fifo_hdr.fifo_num = cpu_to_le32(iter->fifo);
+	range->fifo_hdr.num_of_registers = reg->fifos.num_of_registers;
 	range->range_data_size = cpu_to_le32(iter->fifo_size + registers_size);
 
 	iwl_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
@@ -1336,7 +1336,7 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 				 struct iwl_fw_ini_region_cfg *reg,
 				 void *range_ptr, int idx)
 {
-	struct iwl_fw_ini_fifo_error_dump_range *range = range_ptr;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	struct iwl_ini_rxf_data rxf_data;
 	struct iwl_fw_ini_error_dump_register *reg_dump = (void *)range->data;
 	u32 offs = le32_to_cpu(reg->offset), addr;
@@ -1353,8 +1353,8 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return -EBUSY;
 
-	range->fifo_num = cpu_to_le32(rxf_data.fifo_num);
-	range->num_of_registers = reg->fifos.num_of_registers;
+	range->fifo_hdr.fifo_num = cpu_to_le32(rxf_data.fifo_num);
+	range->fifo_hdr.num_of_registers = reg->fifos.num_of_registers;
 	range->range_data_size = cpu_to_le32(rxf_data.size + registers_size);
 
 	/*
@@ -1408,7 +1408,7 @@ static void *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_error_dump *dump = data;
 
-	dump->header.version = cpu_to_le32(IWL_INI_DUMP_MEM_VER);
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 
 	return dump->ranges;
 }
@@ -1433,7 +1433,7 @@ static void
 
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
 
-	data->header.version = cpu_to_le32(IWL_INI_DUMP_MONITOR_VER);
+	data->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 	data->write_ptr = cpu_to_le32(write_ptr & write_ptr_msk);
 	data->cycle_cnt = cpu_to_le32(cycle_cnt & cycle_cnt_msk);
 
@@ -1488,17 +1488,6 @@ static void
 					    cfg->fw_mon_smem_cycle_cnt_ptr_addr,
 					    cfg->fw_mon_smem_cycle_cnt_ptr_msk);
 
-}
-
-static void *iwl_dump_ini_fifo_fill_header(struct iwl_fw_runtime *fwrt,
-					   struct iwl_fw_ini_region_cfg *reg,
-					   void *data)
-{
-	struct iwl_fw_ini_fifo_error_dump *dump = data;
-
-	dump->header.version = cpu_to_le32(IWL_INI_DUMP_FIFO_VER);
-
-	return dump->ranges;
 }
 
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
@@ -1613,8 +1602,9 @@ static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
 	struct iwl_ini_txf_iter_data iter = { .init = true };
 	void *fifo_iter = fwrt->dump.fifo_iter;
 	u32 size = 0;
-	u32 fifo_hdr = sizeof(struct iwl_fw_ini_fifo_error_dump_range) +
-		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32) * 2;
+	u32 fifo_hdr = sizeof(struct iwl_fw_ini_error_dump_range) +
+		le32_to_cpu(reg->fifos.num_of_registers) *
+		sizeof(struct iwl_fw_ini_error_dump_register);
 
 	fwrt->dump.fifo_iter = &iter;
 	while (iwl_ini_txf_iter(fwrt, reg)) {
@@ -1624,7 +1614,7 @@ static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
 	}
 
 	if (size)
-		size += sizeof(struct iwl_fw_ini_fifo_error_dump);
+		size += sizeof(struct iwl_fw_ini_error_dump);
 
 	fwrt->dump.fifo_iter = fifo_iter;
 
@@ -1635,9 +1625,10 @@ static u32 iwl_dump_ini_rxf_get_size(struct iwl_fw_runtime *fwrt,
 				     struct iwl_fw_ini_region_cfg *reg)
 {
 	struct iwl_ini_rxf_data rx_data;
-	u32 size = sizeof(struct iwl_fw_ini_fifo_error_dump) +
-		sizeof(struct iwl_fw_ini_fifo_error_dump_range) +
-		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32) * 2;
+	u32 size = sizeof(struct iwl_fw_ini_error_dump) +
+		sizeof(struct iwl_fw_ini_error_dump_range) +
+		le32_to_cpu(reg->fifos.num_of_registers) *
+		sizeof(struct iwl_fw_ini_error_dump_register);
 
 	if (reg->fifos.header_only)
 		return size;
@@ -1879,7 +1870,7 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			fwrt->dump.fifo_iter = &iter;
 			ops.get_num_of_ranges = iwl_dump_ini_txf_ranges;
 			ops.get_size = iwl_dump_ini_txf_get_size;
-			ops.fill_mem_hdr = iwl_dump_ini_fifo_fill_header;
+			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
 			ops.fill_range = iwl_dump_ini_txf_iter;
 			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			fwrt->dump.fifo_iter = fifo_iter;
@@ -1888,7 +1879,7 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		case IWL_FW_INI_REGION_RXF:
 			ops.get_num_of_ranges = iwl_dump_ini_rxf_ranges;
 			ops.get_size = iwl_dump_ini_rxf_get_size;
-			ops.fill_mem_hdr = iwl_dump_ini_fifo_fill_header;
+			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
 			ops.fill_range = iwl_dump_ini_rxf_iter;
 			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
