@@ -226,7 +226,7 @@ static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_ptp_read_X550 - read cycle counter value
- * @hw_cc: cyclecounter structure
+ * @cc: cyclecounter structure
  *
  * This function reads SYSTIME registers. It is called by the cyclecounter
  * structure to convert from internal representation into nanoseconds. We need
@@ -234,10 +234,10 @@ static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
  * result of SYSTIME is 32bits of "billions of cycles" and 32 bits of
  * "cycles", rather than seconds and nanoseconds.
  */
-static u64 ixgbe_ptp_read_X550(const struct cyclecounter *hw_cc)
+static u64 ixgbe_ptp_read_X550(const struct cyclecounter *cc)
 {
 	struct ixgbe_adapter *adapter =
-			container_of(hw_cc, struct ixgbe_adapter, hw_cc);
+		container_of(cc, struct ixgbe_adapter, hw_cc);
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct timespec64 ts;
 
