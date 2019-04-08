@@ -8,7 +8,7 @@
 #include <linux/const.h>
 
 /*
- * PAGE_SHIFT determines the page size
+ * PAGE_SHIFT determines the page size: 4KB
  */
 #define PAGE_SHIFT	12
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
@@ -17,12 +17,18 @@
 #define THREAD_MASK	(~(THREAD_SIZE - 1))
 #define THREAD_SHIFT	(PAGE_SHIFT + 1)
 
+
 /*
- * NOTE: virtual isn't really correct, actually it should be the offset into the
- * memory node, but we have no highmem, so that works for now.
- * TODO: implement (fast) pfn<->pgdat_idx conversion functions, this makes lots
- * of the shifts unnecessary.
+ * For C-SKY "User-space:Kernel-space" is "2GB:2GB" fixed by hardware and there
+ * are two segment registers (MSA0 + MSA1) to mapping 512MB + 512MB physical
+ * address region. We use them mapping kernel 1GB direct-map address area and
+ * for more than 1GB of memory we use highmem.
  */
+#define PAGE_OFFSET	0x80000000
+#define SSEG_SIZE	0x20000000
+#define LOWMEM_LIMIT	(SSEG_SIZE * 2)
+
+#define PHYS_OFFSET_OFFSET (CONFIG_RAM_BASE & (SSEG_SIZE - 1))
 
 #ifndef __ASSEMBLY__
 
@@ -50,9 +56,6 @@ struct page;
 
 struct vm_area_struct;
 
-/*
- * These are used to make use of C type-checking..
- */
 typedef struct { unsigned long pte_low; } pte_t;
 #define pte_val(x)	((x).pte_low)
 
@@ -69,18 +72,13 @@ typedef struct page *pgtable_t;
 #define __pgd(x)	((pgd_t) { (x) })
 #define __pgprot(x)	((pgprot_t) { (x) })
 
-#endif /* !__ASSEMBLY__ */
+extern unsigned long phys_offset;
 
-#define PHYS_OFFSET		(CONFIG_RAM_BASE & ~(LOWMEM_LIMIT - 1))
-#define PHYS_OFFSET_OFFSET	(CONFIG_RAM_BASE & (LOWMEM_LIMIT - 1))
-#define ARCH_PFN_OFFSET		PFN_DOWN(CONFIG_RAM_BASE)
+#define ARCH_PFN_OFFSET	PFN_DOWN(phys_offset + PHYS_OFFSET_OFFSET)
 
-#define	PAGE_OFFSET	0x80000000
-#define LOWMEM_LIMIT	0x40000000
-
-#define __pa(x)		((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __pa(x)		((unsigned long)(x) - PAGE_OFFSET + phys_offset)
 #define __va(x)		((void *)((unsigned long)(x) + PAGE_OFFSET - \
-				  PHYS_OFFSET))
+				  phys_offset))
 #define __pa_symbol(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
 
 #define MAP_NR(x)	PFN_DOWN((unsigned long)(x) - PAGE_OFFSET - \
@@ -90,15 +88,10 @@ typedef struct page *pgtable_t;
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-/*
- * main RAM and kernel working space are coincident at 0x80000000, but to make
- * life more interesting, there's also an uncached virtual shadow at 0xb0000000
- * - these mappings are fixed in the MMU
- */
-
 #define pfn_to_kaddr(x)	__va(PFN_PHYS(x))
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
 
+#endif /* !__ASSEMBLY__ */
 #endif /* __ASM_CSKY_PAGE_H */

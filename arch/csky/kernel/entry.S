@@ -40,7 +40,8 @@ ENTRY(csky_\name)
 	WR_MCIR	a2
 #endif
 	bclri   r6, 0
-	lrw	a2, PHYS_OFFSET
+	lrw	a2, phys_offset
+	ld.w	a2, (a2, 0)
 	subu	r6, a2
 	bseti	r6, 31
 
@@ -50,7 +51,8 @@ ENTRY(csky_\name)
 	addu    r6, a2
 	ldw     r6, (r6)
 
-	lrw	a2, PHYS_OFFSET
+	lrw	a2, phys_offset
+	ld.w	a2, (a2, 0)
 	subu	r6, a2
 	bseti	r6, 31
 

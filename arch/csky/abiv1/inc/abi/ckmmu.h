@@ -40,6 +40,26 @@ static inline void write_mmu_entryhi(int value)
 	cpwcr("cpcr4", value);
 }
 
+static inline unsigned long read_mmu_msa0(void)
+{
+	return cprcr("cpcr30");
+}
+
+static inline void write_mmu_msa0(unsigned long value)
+{
+	cpwcr("cpcr30", value);
+}
+
+static inline unsigned long read_mmu_msa1(void)
+{
+	return cprcr("cpcr31");
+}
+
+static inline void write_mmu_msa1(unsigned long value)
+{
+	cpwcr("cpcr31", value);
+}
+
 /*
  * TLB operations.
  */

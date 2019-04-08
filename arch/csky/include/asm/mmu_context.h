@@ -17,7 +17,7 @@
 static inline void tlbmiss_handler_setup_pgd(unsigned long pgd, bool kernel)
 {
 	pgd -= PAGE_OFFSET;
-	pgd += PHYS_OFFSET;
+	pgd += phys_offset;
 	pgd |= 1;
 	setup_pgd(pgd, kernel);
 }
@@ -29,7 +29,7 @@ static inline void tlbmiss_handler_setup_pgd(unsigned long pgd, bool kernel)
 
 static inline unsigned long tlb_get_pgd(void)
 {
-	return ((get_pgd() - PHYS_OFFSET) & ~1) + PAGE_OFFSET;
+	return ((get_pgd() - phys_offset) & ~1) + PAGE_OFFSET;
 }
 
 #define cpu_context(cpu, mm)	((mm)->context.asid[cpu])

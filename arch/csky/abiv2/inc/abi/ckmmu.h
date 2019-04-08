@@ -42,6 +42,26 @@ static inline void write_mmu_entryhi(int value)
 	mtcr("cr<4, 15>", value);
 }
 
+static inline unsigned long read_mmu_msa0(void)
+{
+	return mfcr("cr<30, 15>");
+}
+
+static inline void write_mmu_msa0(unsigned long value)
+{
+	mtcr("cr<30, 15>", value);
+}
+
+static inline unsigned long read_mmu_msa1(void)
+{
+	return mfcr("cr<31, 15>");
+}
+
+static inline void write_mmu_msa1(unsigned long value)
+{
+	mtcr("cr<31, 15>", value);
+}
+
 /*
  * TLB operations.
  */

@@ -163,9 +163,29 @@
 .endm
 
 .macro SETUP_MMU rx
-	lrw	\rx, PHYS_OFFSET | 0xe
+	/* Check MMU on | off */
+	mfcr	\rx, cr18
+	btsti	\rx, 0
+	bt	1f
+	grs	\rx, 1f
+	br	2f
+1:
+	/*
+	 * cr<30, 15> format:
+	 * 31 - 29 | 28 - 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0
+	 *   BA     Reserved  SH  WA  B   SO SEC  C   D   V
+	 */
+	mfcr	\rx, cr<30, 15>
+2:
+	lsri	\rx, 28
+	lsli	\rx, 28
+	addi	\rx, 0x1ce
 	mtcr	\rx, cr<30, 15>
-	lrw	\rx, (PHYS_OFFSET + 0x20000000) | 0xe
+
+	lsri	\rx, 28
+	addi	\rx, 2
+	lsli	\rx, 28
+	addi	\rx, 0x1ce
 	mtcr	\rx, cr<31, 15>
 .endm
 

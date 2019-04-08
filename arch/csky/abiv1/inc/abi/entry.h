@@ -144,9 +144,24 @@
 .endm
 
 .macro SETUP_MMU rx
-	lrw	\rx, PHYS_OFFSET | 0xe
+	/* Select MMU as co-processor */
+	cpseti	cp15
+
+	/*
+	 * cpcr30 format:
+	 * 31 - 29 | 28 - 4 | 3 | 2 | 1 | 0
+	 *   BA     Reserved  C   D   V
+	 */
+	cprcr	\rx, cpcr30
+	lsri	\rx, 28
+	lsli	\rx, 28
+	addi	\rx, 0xe
 	cpwcr	\rx, cpcr30
-	lrw	\rx, (PHYS_OFFSET + 0x20000000) | 0xe
+
+	lsri	\rx, 28
+	addi	\rx, 2
+	lsli	\rx, 28
+	addi	\rx, 0xe
 	cpwcr	\rx, cpcr31
 .endm
 
