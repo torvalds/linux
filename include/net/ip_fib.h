@@ -32,10 +32,14 @@ struct fib_config {
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
-	/* 3 bytes unused */
+	u8			fc_gw_family;
+	/* 2 bytes unused */
 	u32			fc_table;
 	__be32			fc_dst;
-	__be32			fc_gw;
+	union {
+		__be32		fc_gw4;
+		struct in6_addr	fc_gw6;
+	};
 	int			fc_oif;
 	u32			fc_flags;
 	u32			fc_priority;
@@ -83,8 +87,8 @@ struct fib_nh_common {
 	struct lwtunnel_state	*nhc_lwtstate;
 	unsigned char		nhc_scope;
 	u8			nhc_family;
-	u8			nhc_has_gw:1,
-				unused:7;
+	u8			nhc_gw_family;
+
 	union {
 		__be32          ipv4;
 		struct in6_addr ipv6;
@@ -112,8 +116,7 @@ struct fib_nh {
 #define fib_nh_flags		nh_common.nhc_flags
 #define fib_nh_lws		nh_common.nhc_lwtstate
 #define fib_nh_scope		nh_common.nhc_scope
-#define fib_nh_family		nh_common.nhc_family
-#define fib_nh_has_gw		nh_common.nhc_has_gw
+#define fib_nh_gw_family	nh_common.nhc_gw_family
 #define fib_nh_gw4		nh_common.nhc_gw.ipv4
 #define fib_nh_gw6		nh_common.nhc_gw.ipv6
 #define fib_nh_weight		nh_common.nhc_weight
@@ -144,6 +147,7 @@ struct fib_info {
 #define fib_rtt fib_metrics->metrics[RTAX_RTT-1]
 #define fib_advmss fib_metrics->metrics[RTAX_ADVMSS-1]
 	int			fib_nhs;
+	bool			fib_nh_is_v6;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
 #define fib_dev		fib_nh[0].fib_nh_dev
@@ -397,6 +401,8 @@ static inline bool fib4_rules_early_flow_dissect(struct net *net,
 /* Exported by fib_frontend.c */
 extern const struct nla_policy rtm_ipv4_policy[];
 void ip_fib_init(void);
+int fib_gw_from_via(struct fib_config *cfg, struct nlattr *nla,
+		    struct netlink_ext_ack *extack);
 __be32 fib_compute_spec_dst(struct sk_buff *skb);
 bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev);
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,

@@ -533,7 +533,7 @@ static void rt6_probe(struct fib6_info *rt)
 	 * Router Reachability Probe MUST be rate-limited
 	 * to no more than one per minute.
 	 */
-	if (!rt || !rt->fib6_nh.fib_nh_has_gw)
+	if (!rt || !rt->fib6_nh.fib_nh_gw_family)
 		return;
 
 	nh_gw = &rt->fib6_nh.fib_nh_gw6;
@@ -595,7 +595,7 @@ static inline enum rt6_nud_state rt6_check_neigh(struct fib6_info *rt)
 	struct neighbour *neigh;
 
 	if (rt->fib6_flags & RTF_NONEXTHOP ||
-	    !rt->fib6_nh.fib_nh_has_gw)
+	    !rt->fib6_nh.fib_nh_gw_family)
 		return RT6_NUD_SUCCEED;
 
 	rcu_read_lock_bh();
@@ -769,7 +769,7 @@ static struct fib6_info *rt6_select(struct net *net, struct fib6_node *fn,
 
 static bool rt6_is_gw_or_nonexthop(const struct fib6_info *rt)
 {
-	return (rt->fib6_flags & RTF_NONEXTHOP) || rt->fib6_nh.fib_nh_has_gw;
+	return (rt->fib6_flags & RTF_NONEXTHOP) || rt->fib6_nh.fib_nh_gw_family;
 }
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
@@ -975,7 +975,7 @@ static void ip6_rt_copy_init(struct rt6_info *rt, struct fib6_info *ort)
 	rt->rt6i_dst = ort->fib6_dst;
 	rt->rt6i_idev = dev ? in6_dev_get(dev) : NULL;
 	rt->rt6i_flags = ort->fib6_flags;
-	if (ort->fib6_nh.fib_nh_has_gw) {
+	if (ort->fib6_nh.fib_nh_gw_family) {
 		rt->rt6i_gateway = ort->fib6_nh.fib_nh_gw6;
 		rt->rt6i_flags |= RTF_GATEWAY;
 	}
@@ -1860,7 +1860,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 		rcu_read_unlock();
 		return rt;
 	} else if (unlikely((fl6->flowi6_flags & FLOWI_FLAG_KNOWN_NH) &&
-			    !f6i->fib6_nh.fib_nh_has_gw)) {
+			    !f6i->fib6_nh.fib_nh_gw_family)) {
 		/* Create a RTF_CACHE clone which will not be
 		 * owned by the fib6 tree.  It is for the special case where
 		 * the daddr in the skb during the neighbor look-up is different
@@ -2430,7 +2430,7 @@ restart:
 			continue;
 		if (rt->fib6_flags & RTF_REJECT)
 			break;
-		if (!rt->fib6_nh.fib_nh_has_gw)
+		if (!rt->fib6_nh.fib_nh_gw_family)
 			continue;
 		if (fl6->flowi6_oif != rt->fib6_nh.fib_nh_dev->ifindex)
 			continue;
@@ -2964,7 +2964,7 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 			goto out;
 
 		fib6_nh->fib_nh_gw6 = cfg->fc_gateway;
-		fib6_nh->fib_nh_has_gw = 1;
+		fib6_nh->fib_nh_gw_family = AF_INET6;
 	}
 
 	err = -ENODEV;
@@ -3476,7 +3476,7 @@ static struct fib6_info *rt6_get_route_info(struct net *net,
 		if (rt->fib6_nh.fib_nh_dev->ifindex != ifindex)
 			continue;
 		if (!(rt->fib6_flags & RTF_ROUTEINFO) ||
-		    !rt->fib6_nh.fib_nh_has_gw)
+		    !rt->fib6_nh.fib_nh_gw_family)
 			continue;
 		if (!ipv6_addr_equal(&rt->fib6_nh.fib_nh_gw6, gwaddr))
 			continue;
@@ -3807,7 +3807,7 @@ static int fib6_clean_tohost(struct fib6_info *rt, void *arg)
 	struct in6_addr *gateway = (struct in6_addr *)arg;
 
 	if (((rt->fib6_flags & RTF_RA_ROUTER) == RTF_RA_ROUTER) &&
-	    rt->fib6_nh.fib_nh_has_gw &&
+	    rt->fib6_nh.fib_nh_gw_family &&
 	    ipv6_addr_equal(gateway, &rt->fib6_nh.fib_nh_gw6)) {
 		return -1;
 	}

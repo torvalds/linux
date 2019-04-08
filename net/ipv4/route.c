@@ -434,37 +434,46 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 					   struct sk_buff *skb,
 					   const void *daddr)
 {
+	const struct rtable *rt = container_of(dst, struct rtable, dst);
 	struct net_device *dev = dst->dev;
-	const __be32 *pkey = daddr;
-	const struct rtable *rt;
 	struct neighbour *n;
 
-	rt = (const struct rtable *) dst;
-	if (rt->rt_gateway)
-		pkey = (const __be32 *) &rt->rt_gateway;
-	else if (skb)
-		pkey = &ip_hdr(skb)->daddr;
+	rcu_read_lock_bh();
 
-	n = __ipv4_neigh_lookup(dev, *(__force u32 *)pkey);
-	if (n)
-		return n;
-	return neigh_create(&arp_tbl, pkey, dev);
+	if (likely(rt->rt_gw_family == AF_INET)) {
+		n = ip_neigh_gw4(dev, rt->rt_gw4);
+	} else if (rt->rt_gw_family == AF_INET6) {
+		n = ip_neigh_gw6(dev, &rt->rt_gw6);
+        } else {
+		__be32 pkey;
+
+		pkey = skb ? ip_hdr(skb)->daddr : *((__be32 *) daddr);
+		n = ip_neigh_gw4(dev, pkey);
+	}
+
+	if (n && !refcount_inc_not_zero(&n->refcnt))
+		n = NULL;
+
+	rcu_read_unlock_bh();
+
+	return n;
 }
 
 static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr)
 {
+	const struct rtable *rt = container_of(dst, struct rtable, dst);
 	struct net_device *dev = dst->dev;
 	const __be32 *pkey = daddr;
-	const struct rtable *rt;
 
-	rt = (const struct rtable *)dst;
-	if (rt->rt_gateway)
-		pkey = (const __be32 *)&rt->rt_gateway;
-	else if (!daddr ||
+	if (rt->rt_gw_family == AF_INET) {
+		pkey = (const __be32 *)&rt->rt_gw4;
+	} else if (rt->rt_gw_family == AF_INET6) {
+		return __ipv6_confirm_neigh_stub(dev, &rt->rt_gw6);
+	} else if (!daddr ||
 		 (rt->rt_flags &
-		  (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL)))
+		  (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL))) {
 		return;
-
+	}
 	__ipv4_confirm_neigh(dev, *(__force u32 *)pkey);
 }
 
@@ -629,8 +638,8 @@ static void fill_route_from_fnhe(struct rtable *rt, struct fib_nh_exception *fnh
 
 	if (fnhe->fnhe_gw) {
 		rt->rt_flags |= RTCF_REDIRECTED;
-		rt->rt_gateway = fnhe->fnhe_gw;
-		rt->rt_uses_gateway = 1;
+		rt->rt_gw_family = AF_INET;
+		rt->rt_gw4 = fnhe->fnhe_gw;
 	}
 }
 
@@ -747,7 +756,7 @@ static void __ip_do_redirect(struct rtable *rt, struct sk_buff *skb, struct flow
 		return;
 	}
 
-	if (rt->rt_gateway != old_gw)
+	if (rt->rt_gw_family != AF_INET || rt->rt_gw4 != old_gw)
 		return;
 
 	in_dev = __in_dev_get_rcu(dev);
@@ -1282,7 +1291,7 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 	mtu = READ_ONCE(dst->dev->mtu);
 
 	if (unlikely(ip_mtu_locked(dst))) {
-		if (rt->rt_uses_gateway && mtu > 576)
+		if (rt->rt_gw_family && mtu > 576)
 			mtu = 576;
 	}
 
@@ -1410,8 +1419,10 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 			orig = NULL;
 		}
 		fill_route_from_fnhe(rt, fnhe);
-		if (!rt->rt_gateway)
-			rt->rt_gateway = daddr;
+		if (!rt->rt_gw4) {
+			rt->rt_gw4 = daddr;
+			rt->rt_gw_family = AF_INET;
+		}
 
 		if (do_cache) {
 			dst_hold(&rt->dst);
@@ -1535,14 +1546,20 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 
 	if (fi) {
 		struct fib_nh_common *nhc = FIB_RES_NHC(*res);
-		struct fib_nh *nh = container_of(nhc, struct fib_nh, nh_common);
+		struct fib_nh *nh;
 
-		if (nh->fib_nh_gw4 && nh->fib_nh_scope == RT_SCOPE_LINK) {
-			rt->rt_gateway = nh->fib_nh_gw4;
-			rt->rt_uses_gateway = 1;
+		if (nhc->nhc_gw_family && nhc->nhc_scope == RT_SCOPE_LINK) {
+			rt->rt_gw_family = nhc->nhc_gw_family;
+			/* only INET and INET6 are supported */
+			if (likely(nhc->nhc_gw_family == AF_INET))
+				rt->rt_gw4 = nhc->nhc_gw.ipv4;
+			else
+				rt->rt_gw6 = nhc->nhc_gw.ipv6;
 		}
+
 		ip_dst_init_metrics(&rt->dst, fi->fib_metrics);
 
+		nh = container_of(nhc, struct fib_nh, nh_common);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
@@ -1557,8 +1574,10 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			 * However, if we are unsuccessful at storing this
 			 * route into the cache we really need to set it.
 			 */
-			if (!rt->rt_gateway)
-				rt->rt_gateway = daddr;
+			if (!rt->rt_gw4) {
+				rt->rt_gw_family = AF_INET;
+				rt->rt_gw4 = daddr;
+			}
 			rt_add_uncached_list(rt);
 		}
 	} else
@@ -1591,8 +1610,8 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 		rt->rt_iif = 0;
 		rt->rt_pmtu = 0;
 		rt->rt_mtu_locked = 0;
-		rt->rt_gateway = 0;
-		rt->rt_uses_gateway = 0;
+		rt->rt_gw_family = 0;
+		rt->rt_gw4 = 0;
 		INIT_LIST_HEAD(&rt->rt_uncached);
 
 		rt->dst.output = ip_output;
@@ -1734,8 +1753,9 @@ static int __mkroute_input(struct sk_buff *skb,
 	do_cache = res->fi && !itag;
 	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
 	    skb->protocol == htons(ETH_P_IP)) {
-		__be32 gw = nhc->nhc_family == AF_INET ? nhc->nhc_gw.ipv4 : 0;
+		__be32 gw;
 
+		gw = nhc->nhc_gw_family == AF_INET ? nhc->nhc_gw.ipv4 : 0;
 		if (IN_DEV_SHARED_MEDIA(out_dev) ||
 		    inet_addr_onlink(out_dev, saddr, gw))
 			IPCB(skb)->flags |= IPSKB_DOREDIRECT;
@@ -2284,7 +2304,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		} else {
 			if (unlikely(fl4->flowi4_flags &
 				     FLOWI_FLAG_KNOWN_NH &&
-				     !(nhc->nhc_has_gw &&
+				     !(nhc->nhc_gw_family &&
 				       nhc->nhc_scope == RT_SCOPE_LINK))) {
 				do_cache = false;
 				goto add;
@@ -2594,8 +2614,11 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		rt->rt_genid = rt_genid_ipv4(net);
 		rt->rt_flags = ort->rt_flags;
 		rt->rt_type = ort->rt_type;
-		rt->rt_gateway = ort->rt_gateway;
-		rt->rt_uses_gateway = ort->rt_uses_gateway;
+		rt->rt_gw_family = ort->rt_gw_family;
+		if (rt->rt_gw_family == AF_INET)
+			rt->rt_gw4 = ort->rt_gw4;
+		else if (rt->rt_gw_family == AF_INET6)
+			rt->rt_gw6 = ort->rt_gw6;
 
 		INIT_LIST_HEAD(&rt->rt_uncached);
 	}
@@ -2674,9 +2697,22 @@ static int rt_fill_info(struct net *net, __be32 dst, __be32 src,
 		if (nla_put_in_addr(skb, RTA_PREFSRC, fl4->saddr))
 			goto nla_put_failure;
 	}
-	if (rt->rt_uses_gateway &&
-	    nla_put_in_addr(skb, RTA_GATEWAY, rt->rt_gateway))
+	if (rt->rt_gw_family == AF_INET &&
+	    nla_put_in_addr(skb, RTA_GATEWAY, rt->rt_gw4)) {
 		goto nla_put_failure;
+	} else if (rt->rt_gw_family == AF_INET6) {
+		int alen = sizeof(struct in6_addr);
+		struct nlattr *nla;
+		struct rtvia *via;
+
+		nla = nla_reserve(skb, RTA_VIA, alen + 2);
+		if (!nla)
+			goto nla_put_failure;
+
+		via = nla_data(nla);
+		via->rtvia_family = AF_INET6;
+		memcpy(via->rtvia_addr, &rt->rt_gw6, alen);
+	}
 
 	expires = rt->dst.expires;
 	if (expires) {
