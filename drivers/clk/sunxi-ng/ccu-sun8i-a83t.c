@@ -513,8 +513,9 @@ static SUNXI_CCU_GATE(csi_misc_clk, "csi-misc", "osc24M", 0x130, BIT(16), 0);
 
 static SUNXI_CCU_GATE(mipi_csi_clk, "mipi-csi", "osc24M", 0x130, BIT(31), 0);
 
-static const char * const csi_mclk_parents[] = { "pll-de", "osc24M" };
-static const u8 csi_mclk_table[] = { 3, 5 };
+static const char * const csi_mclk_parents[] = { "pll-video0", "pll-de",
+						 "osc24M" };
+static const u8 csi_mclk_table[] = { 0, 3, 5 };
 static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(csi_mclk_clk, "csi-mclk",
 				       csi_mclk_parents, csi_mclk_table,
 				       0x134,
