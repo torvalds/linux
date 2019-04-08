@@ -231,10 +231,6 @@ static int __init maple_cpufreq_init(void)
 
 	rc = cpufreq_register_driver(&maple_cpufreq_driver);
 
-	of_node_put(cpunode);
-
-	return rc;
-
 bail_noprops:
 	of_node_put(cpunode);
 
