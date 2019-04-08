@@ -764,6 +764,7 @@ static int coda_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
 	struct coda_q_data *q_data_src;
+	const struct coda_codec *codec;
 	struct v4l2_rect r;
 	int ret;
 
@@ -784,6 +785,15 @@ static int coda_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ctx->inst_type != CODA_INST_ENCODER)
 		return 0;
 
+	/* Setting the coded format determines the selected codec */
+	codec = coda_find_codec(ctx->dev, q_data_src->fourcc,
+				f->fmt.pix.pixelformat);
+	if (!codec) {
+		v4l2_err(&ctx->dev->v4l2_dev, "failed to determine codec\n");
+		return -EINVAL;
+	}
+	ctx->codec = codec;
+
 	ctx->colorspace = f->fmt.pix.colorspace;
 	ctx->xfer_func = f->fmt.pix.xfer_func;
 	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
@@ -796,6 +806,7 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 			      struct v4l2_format *f)
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
+	const struct coda_codec *codec;
 	struct v4l2_format f_cap;
 	struct vb2_queue *dst_vq;
 	int ret;
@@ -810,6 +821,15 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 
 	if (ctx->inst_type != CODA_INST_DECODER)
 		return 0;
+
+	/* Setting the coded format determines the selected codec */
+	codec = coda_find_codec(ctx->dev, f->fmt.pix.pixelformat,
+				V4L2_PIX_FMT_YUV420);
+	if (!codec) {
+		v4l2_err(&ctx->dev->v4l2_dev, "failed to determine codec\n");
+		return -EINVAL;
+	}
+	ctx->codec = codec;
 
 	ctx->colorspace = f->fmt.pix.colorspace;
 	ctx->xfer_func = f->fmt.pix.xfer_func;
@@ -1679,14 +1699,6 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		v4l2_m2m_set_src_buffered(ctx->fh.m2m_ctx, true);
 
 	ctx->gopcounter = ctx->params.gop_size - 1;
-
-	ctx->codec = coda_find_codec(ctx->dev, q_data_src->fourcc,
-				     q_data_dst->fourcc);
-	if (!ctx->codec) {
-		v4l2_err(v4l2_dev, "couldn't tell instance type.\n");
-		ret = -EINVAL;
-		goto err;
-	}
 
 	if (q_data_dst->fourcc == V4L2_PIX_FMT_JPEG)
 		ctx->params.gop_size = 1;
