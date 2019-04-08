@@ -43,6 +43,7 @@
 #define NFC_REG_RCMD_SET	0x0028
 #define NFC_REG_WCMD_SET	0x002C
 #define NFC_REG_A10_IO_DATA	0x0030
+#define NFC_REG_A23_IO_DATA	0x0300
 #define NFC_REG_ECC_CTL		0x0034
 #define NFC_REG_ECC_ST		0x0038
 #define NFC_REG_DEBUG		0x003C
@@ -50,6 +51,7 @@
 #define NFC_REG_USER_DATA(x)	(0x0050 + ((x) * 4))
 #define NFC_REG_SPARE_AREA	0x00A0
 #define NFC_REG_PAT_ID		0x00A4
+#define NFC_REG_MDMA_CNT	0x00C4
 #define NFC_RAM0_BASE		0x0400
 #define NFC_RAM1_BASE		0x0800
 
@@ -68,6 +70,7 @@
 #define NFC_PAGE_SHIFT(x)	(((x) < 10 ? 0 : (x) - 10) << 8)
 #define NFC_SAM			BIT(12)
 #define NFC_RAM_METHOD		BIT(14)
+#define NFC_DMA_TYPE_NORMAL	BIT(15)
 #define NFC_DEBUG_CTL		BIT(31)
 
 /* define bit use in NFC_ST */
@@ -204,10 +207,13 @@ static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
  * NAND Controller capabilities structure: stores NAND controller capabilities
  * for distinction between compatible strings.
  *
+ * @extra_mbus_conf:	Contrary to A10, A10s and A13, accessing internal RAM
+ *			through MBUS on A23/A33 needs extra configuration.
  * @reg_io_data:	I/O data register
  * @dma_maxburst:	DMA maxburst
  */
 struct sunxi_nfc_caps {
+	bool extra_mbus_conf;
 	unsigned int reg_io_data;
 	unsigned int dma_maxburst;
 };
@@ -367,6 +373,9 @@ static int sunxi_nfc_dma_op_prepare(struct sunxi_nfc *nfc, const void *buf,
 	       nfc->regs + NFC_REG_CTL);
 	writel(nchunks, nfc->regs + NFC_REG_SECTOR_NUM);
 	writel(chunksize, nfc->regs + NFC_REG_CNT);
+	if (nfc->caps->extra_mbus_conf)
+		writel(chunksize * nchunks, nfc->regs + NFC_REG_MDMA_CNT);
+
 	dmat = dmaengine_submit(dmad);
 
 	ret = dma_submit_error(dmat);
@@ -2127,6 +2136,11 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		dmac_cfg.src_maxburst = nfc->caps->dma_maxburst;
 		dmac_cfg.dst_maxburst = nfc->caps->dma_maxburst;
 		dmaengine_slave_config(nfc->dmac, &dmac_cfg);
+
+		if (nfc->caps->extra_mbus_conf)
+			writel(readl(nfc->regs + NFC_REG_CTL) |
+			       NFC_DMA_TYPE_NORMAL, nfc->regs + NFC_REG_CTL);
+
 	} else {
 		dev_warn(dev, "failed to request rxtx DMA channel\n");
 	}
@@ -2175,10 +2189,20 @@ static const struct sunxi_nfc_caps sunxi_nfc_a10_caps = {
 	.dma_maxburst = 4,
 };
 
+static const struct sunxi_nfc_caps sunxi_nfc_a23_caps = {
+	.extra_mbus_conf = true,
+	.reg_io_data = NFC_REG_A23_IO_DATA,
+	.dma_maxburst = 8,
+};
+
 static const struct of_device_id sunxi_nfc_ids[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-nand",
 		.data = &sunxi_nfc_a10_caps,
+	},
+	{
+		.compatible = "allwinner,sun8i-a23-nand-controller",
+		.data = &sunxi_nfc_a23_caps,
 	},
 	{ /* sentinel */ }
 };
