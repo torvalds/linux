@@ -745,8 +745,11 @@ extern int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool
 extern int smu_feature_is_supported(struct smu_context *smu, int feature_id);
 extern int smu_feature_set_supported(struct smu_context *smu, int feature_id, bool enable);
 
-int smu_update_table(struct smu_context *smu, uint32_t table_id,
+int smu_update_table_with_arg(struct smu_context *smu, uint16_t table_id, uint16_t exarg,
 		     void *table_data, bool drv2smu);
+#define smu_update_table(smu, table_id, table_data, drv2smu) \
+	smu_update_table_with_arg((smu), (table_id), 0, (table_data), (drv2smu))
+
 bool is_support_sw_smu(struct amdgpu_device *adev);
 int smu_reset(struct smu_context *smu);
 int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
