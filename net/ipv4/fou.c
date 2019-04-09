@@ -136,7 +136,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	case 1: {
-		/* Direct encasulation of IPv4 or IPv6 */
+		/* Direct encapsulation of IPv4 or IPv6 */
 
 		int prot;
 
@@ -1137,7 +1137,7 @@ static int gue_err(struct sk_buff *skb, u32 info)
 	case 0: /* Full GUE header present */
 		break;
 	case 1: {
-		/* Direct encasulation of IPv4 or IPv6 */
+		/* Direct encapsulation of IPv4 or IPv6 */
 		skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));
 
 		switch (((struct iphdr *)guehdr)->version) {
