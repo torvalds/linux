@@ -2,6 +2,7 @@
 
 Required properties:
  - compatible: Has to contain one of the following:
+	nxp,pca6416
 	nxp,pca9505
 	nxp,pca9534
 	nxp,pca9535
