@@ -521,6 +521,7 @@ nfsd4_decode_access(struct nfsd4_compoundargs *argp, struct nfsd4_access *access
 static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_cb_sec *cbs)
 {
 	DECODE_HEAD;
+	struct user_namespace *userns = nfsd_user_namespace(argp->rqstp);
 	u32 dummy, uid, gid;
 	char *machine_name;
 	int i;
@@ -563,8 +564,8 @@ static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_
 			dummy = be32_to_cpup(p++);
 			READ_BUF(dummy * 4);
 			if (cbs->flavor == (u32)(-1)) {
-				kuid_t kuid = make_kuid(&init_user_ns, uid);
-				kgid_t kgid = make_kgid(&init_user_ns, gid);
+				kuid_t kuid = make_kuid(userns, uid);
+				kgid_t kgid = make_kgid(userns, gid);
 				if (uid_valid(kuid) && gid_valid(kgid)) {
 					cbs->uid = kuid;
 					cbs->gid = kgid;
