@@ -85,6 +85,11 @@ static int __base_pr(enum libbpf_print_level level __attribute__((unused)),
 #define BTF_UNION_ENC(name, nr_elems, sz)	\
 	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_UNION, 0, nr_elems), sz)
 
+#define BTF_VAR_ENC(name, type, linkage)	\
+	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_VAR, 0, 0), type), (linkage)
+#define BTF_VAR_SECINFO_ENC(type, offset, size)	\
+	(type), (offset), (size)
+
 #define BTF_MEMBER_ENC(name, type, bits_offset)	\
 	(name), (type), (bits_offset)
 #define BTF_ENUM_ENC(name, val) (name), (val)
@@ -291,7 +296,6 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 3,
 	.max_entries = 4,
 },
-
 {
 	.descr = "struct test #3 Invalid member offset",
 	.raw_types = {
@@ -319,7 +323,664 @@ static struct btf_raw_test raw_tests[] = {
 	.btf_load_err = true,
 	.err_str = "Invalid member bits_offset",
 },
-
+/*
+ * struct A {
+ *	unsigned long long m;
+ *	int n;
+ *	char o;
+ *	[3 bytes hole]
+ *	int p[8];
+ * };
+ */
+{
+	.descr = "global data test #1",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_test1_map",
+	.key_size = sizeof(int),
+	.value_size = 48,
+	.key_type_id = 1,
+	.value_type_id = 5,
+	.max_entries = 4,
+},
+/*
+ * struct A {
+ *	unsigned long long m;
+ *	int n;
+ *	char o;
+ *	[3 bytes hole]
+ *	int p[8];
+ * };
+ * static struct A t; <- in .bss
+ */
+{
+	.descr = "global data test #2",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* .bss section */				/* [7] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 48),
+		BTF_VAR_SECINFO_ENC(6, 0, 48),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 48,
+	.key_type_id = 0,
+	.value_type_id = 7,
+	.max_entries = 1,
+},
+{
+	.descr = "global data test #3",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* static int t */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [2] */
+		/* .bss section */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0t\0.bss",
+	.str_sec_size = sizeof("\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 3,
+	.max_entries = 1,
+},
+{
+	.descr = "global data test #4, unsupported linkage",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* static int t */
+		BTF_VAR_ENC(NAME_TBD, 1, 2),			/* [2] */
+		/* .bss section */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0t\0.bss",
+	.str_sec_size = sizeof("\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 3,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Linkage not supported",
+},
+{
+	.descr = "global data test #5, invalid var type",
+	.raw_types = {
+		/* static void t */
+		BTF_VAR_ENC(NAME_TBD, 0, 0),			/* [1] */
+		/* .bss section */				/* [2] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(1, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0t\0.bss",
+	.str_sec_size = sizeof("\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 2,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
+	.descr = "global data test #6, invalid var type (fwd type)",
+	.raw_types = {
+		/* union A */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_FWD, 1, 0), 0), /* [1] */
+		/* static union A t */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [2] */
+		/* .bss section */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 2,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type",
+},
+{
+	.descr = "global data test #7, invalid var type (fwd type)",
+	.raw_types = {
+		/* union A */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_FWD, 1, 0), 0), /* [1] */
+		/* static union A t */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [2] */
+		/* .bss section */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(1, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 2,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type",
+},
+{
+	.descr = "global data test #8, invalid var size",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* .bss section */				/* [7] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 48),
+		BTF_VAR_SECINFO_ENC(6, 0, 47),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 48,
+	.key_type_id = 0,
+	.value_type_id = 7,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid size",
+},
+{
+	.descr = "global data test #9, invalid var size",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* .bss section */				/* [7] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 46),
+		BTF_VAR_SECINFO_ENC(6, 0, 48),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 48,
+	.key_type_id = 0,
+	.value_type_id = 7,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid size",
+},
+{
+	.descr = "global data test #10, invalid var size",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* .bss section */				/* [7] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 46),
+		BTF_VAR_SECINFO_ENC(6, 0, 46),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 48,
+	.key_type_id = 0,
+	.value_type_id = 7,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid size",
+},
+{
+	.descr = "global data test #11, multiple section members",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* static int u */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [7] */
+		/* .bss section */				/* [8] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 2), 62),
+		BTF_VAR_SECINFO_ENC(6, 10, 48),
+		BTF_VAR_SECINFO_ENC(7, 58, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0u\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0u\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 62,
+	.key_type_id = 0,
+	.value_type_id = 8,
+	.max_entries = 1,
+},
+{
+	.descr = "global data test #12, invalid offset",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* static int u */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [7] */
+		/* .bss section */				/* [8] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 2), 62),
+		BTF_VAR_SECINFO_ENC(6, 10, 48),
+		BTF_VAR_SECINFO_ENC(7, 60, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0u\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0u\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 62,
+	.key_type_id = 0,
+	.value_type_id = 8,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid offset+size",
+},
+{
+	.descr = "global data test #13, invalid offset",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* static int u */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [7] */
+		/* .bss section */				/* [8] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 2), 62),
+		BTF_VAR_SECINFO_ENC(6, 10, 48),
+		BTF_VAR_SECINFO_ENC(7, 12, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0u\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0u\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 62,
+	.key_type_id = 0,
+	.value_type_id = 8,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid offset",
+},
+{
+	.descr = "global data test #14, invalid offset",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* unsigned long long */
+		BTF_TYPE_INT_ENC(0, 0, 0, 64, 8),		/* [2] */
+		/* char */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 8, 1),	/* [3] */
+		/* int[8] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
+		/* struct A { */				/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 4), 48),
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
+		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
+		/* } */
+		/* static struct A t */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [6] */
+		/* static int u */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [7] */
+		/* .bss section */				/* [8] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 2), 62),
+		BTF_VAR_SECINFO_ENC(7, 58, 4),
+		BTF_VAR_SECINFO_ENC(6, 10, 48),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0m\0n\0o\0p\0t\0u\0.bss",
+	.str_sec_size = sizeof("\0A\0m\0n\0o\0p\0t\0u\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 62,
+	.key_type_id = 0,
+	.value_type_id = 8,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid offset",
+},
+{
+	.descr = "global data test #15, not var kind",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [2] */
+		/* .bss section */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(1, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0.bss",
+	.str_sec_size = sizeof("\0A\0t\0.bss"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 3,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Not a VAR kind member",
+},
+{
+	.descr = "global data test #16, invalid var referencing sec",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_VAR_ENC(NAME_TBD, 5, 0),			/* [2] */
+		BTF_VAR_ENC(NAME_TBD, 2, 0),			/* [3] */
+		/* a section */					/* [4] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(3, 0, 4),
+		/* a section */					/* [5] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(6, 0, 4),
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [6] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0s\0a\0a",
+	.str_sec_size = sizeof("\0A\0t\0s\0a\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
+	.descr = "global data test #17, invalid var referencing var",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [2] */
+		BTF_VAR_ENC(NAME_TBD, 2, 0),			/* [3] */
+		/* a section */					/* [4] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(3, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0s\0a\0a",
+	.str_sec_size = sizeof("\0A\0t\0s\0a\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
+	.descr = "global data test #18, invalid var loop",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_VAR_ENC(NAME_TBD, 2, 0),			/* [2] */
+		/* .bss section */				/* [3] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0aaa",
+	.str_sec_size = sizeof("\0A\0t\0aaa"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
+	.descr = "global data test #19, invalid var referencing var",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_VAR_ENC(NAME_TBD, 3, 0),			/* [2] */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [3] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0s\0a\0a",
+	.str_sec_size = sizeof("\0A\0t\0s\0a\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
+	.descr = "global data test #20, invalid ptr referencing var",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* PTR type_id=3	*/			/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 3),
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [3] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0s\0a\0a",
+	.str_sec_size = sizeof("\0A\0t\0s\0a\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
+	.descr = "global data test #21, var included in struct",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* struct A { */				/* [2] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), sizeof(int) * 2),
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),	/* int m; */
+		BTF_MEMBER_ENC(NAME_TBD, 3, 32),/* VAR type_id=3; */
+		/* } */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [3] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0s\0a\0a",
+	.str_sec_size = sizeof("\0A\0t\0s\0a\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid member",
+},
+{
+	.descr = "global data test #22, array of var",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_ARRAY_ENC(3, 1, 4),			/* [2] */
+		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [3] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0t\0s\0a\0a",
+	.str_sec_size = sizeof("\0A\0t\0s\0a\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = ".bss",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 0,
+	.value_type_id = 4,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid elem",
+},
 /* Test member exceeds the size of struct.
  *
  * struct A {
