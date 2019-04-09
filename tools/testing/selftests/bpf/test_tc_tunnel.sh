@@ -17,6 +17,9 @@ readonly ns2_v6=fd::2
 
 # Must match port used by bpf program
 readonly udpport=5555
+# MPLSoverUDP
+readonly mplsudpport=6635
+readonly mplsproto=137
 
 readonly infile="$(mktemp)"
 readonly outfile="$(mktemp)"
@@ -41,8 +44,8 @@ setup() {
 	# clamp route to reserve room for tunnel headers
 	ip -netns "${ns1}" -4 route flush table main
 	ip -netns "${ns1}" -6 route flush table main
-	ip -netns "${ns1}" -4 route add "${ns2_v4}" mtu 1472 dev veth1
-	ip -netns "${ns1}" -6 route add "${ns2_v6}" mtu 1452 dev veth1
+	ip -netns "${ns1}" -4 route add "${ns2_v4}" mtu 1458 dev veth1
+	ip -netns "${ns1}" -6 route add "${ns2_v6}" mtu 1438 dev veth1
 
 	sleep 1
 
@@ -89,42 +92,44 @@ set -e
 # no arguments: automated test, run all
 if [[ "$#" -eq "0" ]]; then
 	echo "ipip"
-	$0 ipv4 ipip 100
+	$0 ipv4 ipip none 100
 
 	echo "ip6ip6"
-	$0 ipv6 ip6tnl 100
+	$0 ipv6 ip6tnl none 100
 
-	echo "ip gre"
-	$0 ipv4 gre 100
+	for mac in none mpls eth ; do
+		echo "ip gre $mac"
+		$0 ipv4 gre $mac 100
 
-	echo "ip6 gre"
-	$0 ipv6 ip6gre 100
+		echo "ip6 gre $mac"
+		$0 ipv6 ip6gre $mac 100
 
-	echo "ip gre gso"
-	$0 ipv4 gre 2000
+		echo "ip gre $mac gso"
+		$0 ipv4 gre $mac 2000
 
-	echo "ip6 gre gso"
-	$0 ipv6 ip6gre 2000
+		echo "ip6 gre $mac gso"
+		$0 ipv6 ip6gre $mac 2000
 
-	echo "ip udp"
-	$0 ipv4 udp 100
+		echo "ip udp $mac"
+		$0 ipv4 udp $mac 100
 
-	echo "ip6 udp"
-	$0 ipv6 ip6udp 100
+		echo "ip6 udp $mac"
+		$0 ipv6 ip6udp $mac 100
 
-	echo "ip udp gso"
-	$0 ipv4 udp 2000
+		echo "ip udp $mac gso"
+		$0 ipv4 udp $mac 2000
 
-	echo "ip6 udp gso"
-	$0 ipv6 ip6udp 2000
+		echo "ip6 udp $mac gso"
+		$0 ipv6 ip6udp $mac 2000
+	done
 
 	echo "OK. All tests passed"
 	exit 0
 fi
 
-if [[ "$#" -ne "3" ]]; then
+if [[ "$#" -ne "4" ]]; then
 	echo "Usage: $0"
-	echo "   or: $0 <ipv4|ipv6> <tuntype> <data_len>"
+	echo "   or: $0 <ipv4|ipv6> <tuntype> <none|mpls|eth> <data_len>"
 	exit 1
 fi
 
@@ -137,6 +142,8 @@ case "$1" in
 	readonly foumod=fou
 	readonly foutype=ipip
 	readonly fouproto=4
+	readonly fouproto_mpls=${mplsproto}
+	readonly gretaptype=gretap
 	;;
 "ipv6")
 	readonly addr1="${ns1_v6}"
@@ -146,6 +153,8 @@ case "$1" in
 	readonly foumod=fou6
 	readonly foutype=ip6tnl
 	readonly fouproto="41 -6"
+	readonly fouproto_mpls="${mplsproto} -6"
+	readonly gretaptype=ip6gretap
 	;;
 *)
 	echo "unknown arg: $1"
@@ -154,9 +163,10 @@ case "$1" in
 esac
 
 readonly tuntype=$2
-readonly datalen=$3
+readonly mac=$3
+readonly datalen=$4
 
-echo "encap ${addr1} to ${addr2}, type ${tuntype}, len ${datalen}"
+echo "encap ${addr1} to ${addr2}, type ${tuntype}, mac ${mac} len ${datalen}"
 
 trap cleanup EXIT
 
@@ -173,7 +183,7 @@ verify_data
 ip netns exec "${ns1}" tc qdisc add dev veth1 clsact
 ip netns exec "${ns1}" tc filter add dev veth1 egress \
 	bpf direct-action object-file ./test_tc_tunnel.o \
-	section "encap_${tuntype}"
+	section "encap_${tuntype}_${mac}"
 echo "test bpf encap without decap (expect failure)"
 server_listen
 ! client_connect
@@ -184,7 +194,18 @@ if [[ "$tuntype" =~ "udp" ]]; then
 	targs="encap fou encap-sport auto encap-dport $udpport"
 	# fou may be a module; allow this to fail.
 	modprobe "${foumod}" ||true
-	ip netns exec "${ns2}" ip fou add port 5555 ipproto ${fouproto}
+	if [[ "$mac" == "mpls" ]]; then
+		dport=${mplsudpport}
+		dproto=${fouproto_mpls}
+		tmode="mode any ttl 255"
+	else
+		dport=${udpport}
+		dproto=${fouproto}
+	fi
+	ip netns exec "${ns2}" ip fou add port $dport ipproto ${dproto}
+	targs="encap fou encap-sport auto encap-dport $dport"
+elif [[ "$tuntype" =~ "gre" && "$mac" == "eth" ]]; then
+	ttype=$gretaptype
 else
 	ttype=$tuntype
 	targs=""
@@ -194,7 +215,31 @@ fi
 # server is still running
 # client can connect again
 ip netns exec "${ns2}" ip link add name testtun0 type "${ttype}" \
-	remote "${addr1}" local "${addr2}" $targs
+	${tmode} remote "${addr1}" local "${addr2}" $targs
+
+expect_tun_fail=0
+
+if [[ "$tuntype" == "ip6udp" && "$mac" == "mpls" ]]; then
+	# No support for MPLS IPv6 fou tunnel; expect failure.
+	expect_tun_fail=1
+elif [[ "$tuntype" =~ "udp" && "$mac" == "eth" ]]; then
+	# No support for TEB fou tunnel; expect failure.
+	expect_tun_fail=1
+elif [[ "$tuntype" =~ "gre" && "$mac" == "eth" ]]; then
+	# Share ethernet address between tunnel/veth2 so L2 decap works.
+	ethaddr=$(ip netns exec "${ns2}" ip link show veth2 | \
+		  awk '/ether/ { print $2 }')
+	ip netns exec "${ns2}" ip link set testtun0 address $ethaddr
+elif [[ "$mac" == "mpls" ]]; then
+	modprobe mpls_iptunnel ||true
+	modprobe mpls_gso ||true
+	ip netns exec "${ns2}" sysctl -qw net.mpls.platform_labels=65536
+	ip netns exec "${ns2}" ip -f mpls route add 1000 dev lo
+	ip netns exec "${ns2}" ip link set lo up
+	ip netns exec "${ns2}" sysctl -qw net.mpls.conf.testtun0.input=1
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.lo.rp_filter=0
+fi
+
 # Because packets are decapped by the tunnel they arrive on testtun0 from
 # the IP stack perspective.  Ensure reverse path filtering is disabled
 # otherwise we drop the TCP SYN as arriving on testtun0 instead of the
@@ -204,16 +249,22 @@ ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
 # selected as the max of the "all" and device-specific values.
 ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.testtun0.rp_filter=0
 ip netns exec "${ns2}" ip link set dev testtun0 up
-echo "test bpf encap with tunnel device decap"
-client_connect
-verify_data
+if [[ "$expect_tun_fail" == 1 ]]; then
+	# This tunnel mode is not supported, so we expect failure.
+	echo "test bpf encap with tunnel device decap (expect failure)"
+	! client_connect
+else
+	echo "test bpf encap with tunnel device decap"
+	client_connect
+	verify_data
+	server_listen
+fi
 
 # serverside, use BPF for decap
 ip netns exec "${ns2}" ip link del dev testtun0
 ip netns exec "${ns2}" tc qdisc add dev veth2 clsact
 ip netns exec "${ns2}" tc filter add dev veth2 ingress \
 	bpf direct-action object-file ./test_tc_tunnel.o section decap
-server_listen
 echo "test bpf encap with bpf decap"
 client_connect
 verify_data
