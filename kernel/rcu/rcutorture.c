@@ -1010,10 +1010,13 @@ rcu_torture_writer(void *arg)
 				       !rcu_gp_is_normal();
 		}
 		rcu_torture_writer_state = RTWS_STUTTER;
-		if (stutter_wait("rcu_torture_writer"))
+		if (stutter_wait("rcu_torture_writer") &&
+		    !READ_ONCE(rcu_fwd_cb_nodelay))
 			for (i = 0; i < ARRAY_SIZE(rcu_tortures); i++)
-				if (list_empty(&rcu_tortures[i].rtort_free))
-					WARN_ON_ONCE(1);
+				if (list_empty(&rcu_tortures[i].rtort_free) &&
+				    rcu_access_pointer(rcu_torture_current) !=
+				    &rcu_tortures[i])
+					WARN(1, "%s: rtort_pipe_count: %d\n", __func__, rcu_tortures[i].rtort_pipe_count);
 	} while (!torture_must_stop());
 	/* Reset expediting back to unexpedited. */
 	if (expediting > 0)
@@ -1709,6 +1712,8 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	}
 
 	/* Tight loop containing cond_resched(). */
+	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	cur_ops->sync(); /* Later readers see above write. */
 	if  (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 0);
 		cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
@@ -1747,6 +1752,8 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 		WARN_ON(READ_ONCE(fcs.stop) != 2);
 		destroy_rcu_head_on_stack(&fcs.rh);
 	}
+	schedule_timeout_uninterruptible(HZ / 10); /* Let kthreads recover. */
+	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
 }
 
 /* Carry out call_rcu() forward-progress testing. */
@@ -1816,7 +1823,6 @@ static void rcu_torture_fwd_prog_cr(void)
 	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
 	(void)rcu_torture_fwd_prog_cbfree();
 
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
 	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop)) {
 		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
 		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
@@ -1827,6 +1833,8 @@ static void rcu_torture_fwd_prog_cr(void)
 			 n_max_gps, n_max_cbs, cver, gps);
 		rcu_torture_fwd_cb_hist();
 	}
+	schedule_timeout_uninterruptible(HZ); /* Let CBs drain. */
+	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
 }
 
 
