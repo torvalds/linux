@@ -96,6 +96,8 @@
 #define PD_VDO_DPSTS_HPD_LVL(x)	(((x) >> 7) & 0x1)
 #define PD_VDO_DPSTS_MF_PREF(x)	(((x) >> 4) & 0x1)
 
+#define CC_STATE_ROLE(chip)	(((chip)->cc_state) & CC_STATE_TOGSS_ROLE)
+
 static u8 fusb30x_port_used;
 static struct fusb30x_chip *fusb30x_port_info[256];
 
@@ -269,7 +271,7 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 	if (chip->notify.is_cc_connected)
 		chip->notify.orientation =
 			(chip->cc_polarity == TYPEC_POLARITY_CC1) ?
-			CC1 : CC2;
+			TYPEC_ORIENTATION_CC1 : TYPEC_ORIENTATION_CC2;
 
 	/* avoid notify repeated */
 	if (memcmp(&chip->notify, &chip->notify_cmp,
@@ -281,8 +283,9 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 
 		plugged = chip->notify.is_cc_connected ||
 			  chip->notify.is_pd_connected;
-		if (chip->notify.orientation != NONE)
-			flip = (chip->notify.orientation == CC1) ? false : true;
+		if (chip->notify.orientation != TYPEC_ORIENTATION_NONE)
+			flip = (chip->notify.orientation == TYPEC_ORIENTATION_CC1) ?
+			       false : true;
 		dp = chip->notify.is_enter_mode;
 
 		if (dp) {
@@ -408,97 +411,107 @@ static void fusb302_flush_rx_fifo(struct fusb30x_chip *chip)
 	regmap_write(chip->regmap, FUSB_REG_CONTROL1, CONTROL1_RX_FLUSH);
 }
 
-static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
+static int tcpm_get_cc_pull_up(struct fusb30x_chip *chip,
+			       enum CC_ORIENTATION cc)
 {
-	u32 val;
-	int *CC_MEASURE;
-	u32 store;
+	int ret;
+	u32 val, store;
 
-	*CC1 = TYPEC_CC_VOLT_OPEN;
-	*CC2 = TYPEC_CC_VOLT_OPEN;
+	if (cc == TYPEC_ORIENTATION_NONE)
+		return 0;
 
-	if (chip->cc_state & CC_STATE_TOGSS_CC1)
-		CC_MEASURE = CC1;
+	ret = TYPEC_CC_VOLT_OPEN;
+	regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
+	val = store;
+	val &= ~(SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
+			SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2);
+	if (cc == TYPEC_ORIENTATION_CC1)
+		val |= SWITCHES0_MEAS_CC1 | SWITCHES0_PU_EN1;
 	else
-		CC_MEASURE = CC2;
+		val |= SWITCHES0_MEAS_CC2 | SWITCHES0_PU_EN2;
+	regmap_write(chip->regmap, FUSB_REG_SWITCHES0, val);
 
-	if (chip->cc_state & CC_STATE_TOGSS_IS_UFP) {
-		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
-		/* measure cc1 first */
-		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
-				   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
-				   SWITCHES0_PDWN1 | SWITCHES0_PDWN2,
-				   SWITCHES0_PDWN1 | SWITCHES0_PDWN2 |
-				   SWITCHES0_MEAS_CC1);
-		usleep_range(250, 300);
+	regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_high);
+	usleep_range(250, 300);
 
-		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-		val &= STATUS0_BC_LVL;
-		*CC1 = val ? TYPEC_CC_VOLT_RP : TYPEC_CC_VOLT_OPEN;
+	regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+	if (val & STATUS0_COMP) {
+		int retry = 3;
+		int comp_times = 0;
 
-		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
-				   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
-				   SWITCHES0_PDWN1 | SWITCHES0_PDWN2,
-				   SWITCHES0_PDWN1 | SWITCHES0_PDWN2 |
-				   SWITCHES0_MEAS_CC2);
-		usleep_range(250, 300);
-
-		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-		val &= STATUS0_BC_LVL;
-		*CC2 = val ? TYPEC_CC_VOLT_RP : TYPEC_CC_VOLT_OPEN;
-
-		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2,
-				   store);
-	} else {
-		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
-		val = store;
-		val &= ~(SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
-				SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2);
-		if (chip->cc_state & CC_STATE_TOGSS_CC1) {
-			val |= SWITCHES0_MEAS_CC1 | SWITCHES0_PU_EN1;
-		} else {
-			val |= SWITCHES0_MEAS_CC2 | SWITCHES0_PU_EN2;
-		}
-		regmap_write(chip->regmap, FUSB_REG_SWITCHES0, val);
-
-		regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_high);
-		usleep_range(250, 300);
-
-		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-		if (val & STATUS0_COMP) {
-			int retry = 3;
-			int comp_times = 0;
-
-			while (retry--) {
-				regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_high);
-				usleep_range(250, 300);
-				regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-				if (val & STATUS0_COMP) {
-					comp_times++;
-					if (comp_times == 3) {
-						*CC_MEASURE = TYPEC_CC_VOLT_OPEN;
-						regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
-					}
+		while (retry--) {
+			regmap_write(chip->regmap, FUSB_REG_MEASURE,
+				     chip->cc_meas_high);
+			usleep_range(250, 300);
+			regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+			if (val & STATUS0_COMP) {
+				comp_times++;
+				if (comp_times == 3) {
+					ret = TYPEC_CC_VOLT_OPEN;
+					regmap_write(chip->regmap,
+						     FUSB_REG_SWITCHES0,
+						     store);
 				}
 			}
-		} else {
-			regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_low);
-			regmap_read(chip->regmap, FUSB_REG_MEASURE, &val);
-			usleep_range(250, 300);
-
-			regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-
-			if (val & STATUS0_COMP)
-				*CC_MEASURE = TYPEC_CC_VOLT_RD;
-			else
-				*CC_MEASURE = TYPEC_CC_VOLT_RA;
 		}
-		regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
-		regmap_write(chip->regmap, FUSB_REG_MEASURE,
-			     chip->cc_meas_high);
+	} else {
+		regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_low);
+		regmap_read(chip->regmap, FUSB_REG_MEASURE, &val);
+		usleep_range(250, 300);
+
+		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+
+		if (val & STATUS0_COMP)
+			ret = TYPEC_CC_VOLT_RD;
+		else
+			ret = TYPEC_CC_VOLT_RA;
+	}
+	regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
+	regmap_write(chip->regmap, FUSB_REG_MEASURE,
+		     chip->cc_meas_high);
+	return ret;
+}
+
+static int tcpm_get_cc_pull_down(struct fusb30x_chip *chip,
+				 enum CC_ORIENTATION cc)
+{
+	u32 val, store;
+
+	if (cc == TYPEC_ORIENTATION_NONE)
+		return 0;
+
+	regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
+	val = SWITCHES0_PDWN1 | SWITCHES0_PDWN2;
+	val |= (cc == TYPEC_ORIENTATION_CC1) ?
+	       SWITCHES0_MEAS_CC1 : SWITCHES0_MEAS_CC2;
+	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
+			   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
+			   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
+			   SWITCHES0_PDWN1 | SWITCHES0_PDWN2,
+			   val);
+	usleep_range(250, 300);
+
+	regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+	val &= STATUS0_BC_LVL;
+	return val ? TYPEC_CC_VOLT_RP : TYPEC_CC_VOLT_OPEN;
+}
+
+static int tcpm_get_cc(struct fusb30x_chip *chip, int *cc1, int *cc2)
+{
+	if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP) {
+		*cc1 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC1);
+		*cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
+	} else if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_DFP) {
+		if (chip->cc_state & CC_STATE_TOGSS_CC1) {
+			*cc1 = tcpm_get_cc_pull_up(chip, TYPEC_ORIENTATION_CC1);
+			*cc2 = TYPEC_CC_VOLT_OPEN;
+		} else {
+			*cc1 = TYPEC_CC_VOLT_OPEN;
+			*cc2 = tcpm_get_cc_pull_up(chip, TYPEC_ORIENTATION_CC2);
+		}
+	} else {
+		*cc1 = tcpm_get_cc_pull_up(chip, TYPEC_ORIENTATION_CC1);
+		*cc2 = tcpm_get_cc_pull_up(chip, TYPEC_ORIENTATION_CC2);
 	}
 
 	return 0;
@@ -561,6 +574,8 @@ static int tcpm_set_cc(struct fusb30x_chip *chip, enum role_mode mode)
 		break;
 	}
 
+	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL4,
+			   CONTROL4_TOG_USRC_EXIT, CONTROL4_TOG_USRC_EXIT);
 	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2, CONTROL2_TOGGLE,
 			   CONTROL2_TOGGLE);
 
@@ -616,7 +631,7 @@ static int tcpm_set_polarity(struct fusb30x_chip *chip,
 			val |= SWITCHES0_VCONN_CC2;
 	}
 
-	if (chip->cc_state & CC_STATE_TOGSS_IS_UFP) {
+	if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP) {
 		if (polarity == TYPEC_POLARITY_CC1)
 			val |= SWITCHES0_MEAS_CC1;
 		else
@@ -779,6 +794,20 @@ static void pd_execute_hard_reset(struct fusb30x_chip *chip)
 		set_state(chip, policy_snk_transition_default);
 }
 
+static int set_cc_state(int reg)
+{
+	reg = reg >> 3;
+
+	if (reg & CC_STATE_TOGSS_IS_UFP) {
+		if ((reg & 0x03) == 0x03)
+			return CC_STATE_TOGSS_IS_ACC | 0x03;
+		else
+			return CC_STATE_TOGSS_IS_UFP | (reg & 0x03);
+	} else {
+		return CC_STATE_TOGSS_IS_DFP | (reg & 0x03);
+	}
+}
+
 static void tcpc_alert(struct fusb30x_chip *chip, u32 *evt)
 {
 	int interrupt, interrupta, interruptb;
@@ -790,7 +819,7 @@ static void tcpc_alert(struct fusb30x_chip *chip, u32 *evt)
 	regmap_read(chip->regmap, FUSB_REG_INTERRUPTB, &interruptb);
 
 	if ((interrupt & INTERRUPT_COMP_CHNG) &&
-	    (!(chip->cc_state & CC_STATE_TOGSS_IS_UFP))) {
+	    (CC_STATE_ROLE(chip) != CC_STATE_TOGSS_IS_UFP)) {
 		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 		if (val & STATUS0_COMP)
 			*evt |= EVENT_CC;
@@ -804,7 +833,7 @@ static void tcpc_alert(struct fusb30x_chip *chip, u32 *evt)
 	if (interrupta & INTERRUPTA_TOGDONE) {
 		*evt |= EVENT_CC;
 		regmap_read(chip->regmap, FUSB_REG_STATUS1A, &val);
-		chip->cc_state = ((u8)val >> 3) & 0x07;
+		chip->cc_state = set_cc_state(val);
 
 		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
 				   CONTROL2_TOGGLE,
@@ -1540,10 +1569,12 @@ static void fusb_state_unattached(struct fusb30x_chip *chip, u32 evt)
 	chip->is_pd_support = false;
 
 	if ((evt & EVENT_CC) && chip->cc_state) {
-		if (chip->cc_state & CC_STATE_TOGSS_IS_UFP)
+		if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP)
 			set_state(chip, attach_wait_sink);
-		else
+		else if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_DFP)
 			set_state(chip, attach_wait_source);
+		else
+			set_state(chip, attach_wait_audio_acc);
 
 		chip->vbus_begin = tcpm_check_vbus(chip);
 
@@ -1654,8 +1685,8 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, u32 evt)
 					set_state(chip, attached_source);
 			} else {
 				set_state_unattached(chip);
+				return;
 			}
-			return;
 		}
 
 		chip->timer_mux = 2;
@@ -1718,7 +1749,7 @@ static void fusb_state_try_attach(struct fusb30x_chip *chip, u32 evt,
 {
 	if ((evt & EVENT_CC) && chip->cc_state) {
 		chip->try_role_complete = true;
-		if (chip->cc_state & CC_STATE_TOGSS_IS_UFP)
+		if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP)
 			set_state(chip, (mode == ROLE_MODE_UFP) ?
 					attach_wait_sink : error_recovery);
 		else
@@ -1743,6 +1774,50 @@ static void fusb_state_try_attach(struct fusb30x_chip *chip, u32 evt,
 			set_state(chip, error_recovery);
 		}
 	}
+}
+
+static void fusb_state_attach_wait_audio_acc(struct fusb30x_chip *chip, u32 evt)
+{
+	int cc1, cc2;
+
+	if (evt & EVENT_TIMER_MUX) {
+		tcpm_get_cc(chip, &cc1, &cc2);
+
+		if (chip->cc1 == cc1 && chip->cc2 == cc2) {
+			chip->debounce_cnt++;
+		} else {
+			chip->cc1 = cc1;
+			chip->cc2 = cc2;
+			chip->debounce_cnt = 0;
+		}
+
+		if (chip->debounce_cnt > N_DEBOUNCE_CNT) {
+			if (chip->cc1 == TYPEC_CC_VOLT_RA &&
+			    chip->cc2 == TYPEC_CC_VOLT_RA) {
+				set_state(chip, attached_audio_acc);
+			} else {
+				dev_warn(chip->dev, "unknown acc, cc %d %d\n",
+					 chip->cc1, chip->cc2);
+				set_state_unattached(chip);
+				return;
+			}
+		}
+
+		chip->timer_mux = 2;
+		fusb_timer_start(&chip->timer_mux_machine,
+				 chip->timer_mux);
+	}
+}
+
+static void fusb_state_attached_audio_acc(struct fusb30x_chip *chip, u32 evt)
+{
+	tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
+				TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2);
+	chip->notify.is_cc_connected = true;
+	chip->hardrst_count = 0;
+	set_state(chip, disabled);
+	regmap_update_bits(chip->regmap, FUSB_REG_MASK, MASK_M_COMP_CHNG, 0);
+	dev_info(chip->dev, "CC connected as Audio Accessory\n");
 }
 
 static void fusb_soft_reset_parameter(struct fusb30x_chip *chip)
@@ -2198,6 +2273,7 @@ static void fusb_state_src_prs_source_off(struct fusb30x_chip *chip, u32 evt)
 				chip->timer_state = T_DISABLED;
 				/* snk startup */
 				chip->notify.is_pd_connected = false;
+				chip->cc_state &= ~CC_STATE_TOGSS_ROLE;
 				chip->cc_state |= CC_STATE_TOGSS_IS_UFP;
 				tcpm_set_polarity(chip, chip->cc_polarity);
 				tcpm_set_rx_enable(chip, 1);
@@ -2764,7 +2840,8 @@ static void fusb_state_snk_prs_source_on(struct fusb30x_chip *chip, u32 evt)
 		break;
 	case 3:
 		if (evt & EVENT_TIMER_STATE) {
-			chip->cc_state &= ~CC_STATE_TOGSS_IS_UFP;
+			chip->cc_state &= ~CC_STATE_TOGSS_ROLE;
+			chip->cc_state |= CC_STATE_TOGSS_IS_DFP;
 			regmap_update_bits(chip->regmap, FUSB_REG_MASK,
 					   MASK_M_COMP_CHNG, 0);
 			set_state(chip, policy_src_send_caps);
@@ -2842,7 +2919,12 @@ static void fusb_try_detach(struct fusb30x_chip *chip)
 {
 	int cc1, cc2;
 
-	if ((chip->cc_state & CC_STATE_TOGSS_IS_UFP) &&
+	if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_ACC) {
+		tcpm_get_cc(chip, &cc1, &cc2);
+		if (cc1 != TYPEC_CC_VOLT_RA ||
+		    cc2 != TYPEC_CC_VOLT_RA)
+			set_state_unattached(chip);
+	} else if ((CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP) &&
 	    (chip->conn_state !=
 	     policy_snk_transition_default) &&
 	    (chip->conn_state !=
@@ -2927,6 +3009,12 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 		break;
 	case attach_try_snk:
 		fusb_state_try_attach(chip, evt, ROLE_MODE_UFP);
+		break;
+	case attach_wait_audio_acc:
+		fusb_state_attach_wait_audio_acc(chip, evt);
+		break;
+	case attached_audio_acc:
+		fusb_state_attached_audio_acc(chip, evt);
 		break;
 
 	/* POWER DELIVERY */
