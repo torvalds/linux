@@ -162,7 +162,7 @@ static void cancel_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
 		 rpm->debug.count, atomic_read(&rpm->wakeref_count))) {
 		char *buf;
 
-		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		buf = kmalloc(PAGE_SIZE, GFP_NOWAIT | __GFP_NOWARN);
 		if (!buf)
 			return;
 
@@ -198,7 +198,7 @@ __print_intel_runtime_pm_wakeref(struct drm_printer *p,
 	unsigned long i;
 	char *buf;
 
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	buf = kmalloc(PAGE_SIZE, GFP_NOWAIT | __GFP_NOWARN);
 	if (!buf)
 		return;
 
@@ -282,7 +282,9 @@ void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
 		if (dbg.count <= alloc)
 			break;
 
-		s = krealloc(dbg.owners, dbg.count * sizeof(*s), GFP_KERNEL);
+		s = krealloc(dbg.owners,
+			     dbg.count * sizeof(*s),
+			     GFP_NOWAIT | __GFP_NOWARN);
 		if (!s)
 			goto out;
 
