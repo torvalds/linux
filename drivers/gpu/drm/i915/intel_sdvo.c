@@ -1106,7 +1106,7 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 
 	return intel_sdvo_write_infoframe(intel_sdvo, SDVO_HBUF_INDEX_AVI_IF,
 					  SDVO_HBUF_TX_VSYNC,
-					  sdvo_data, sizeof(sdvo_data));
+					  sdvo_data, len);
 }
 
 static void intel_sdvo_get_avi_infoframe(struct intel_sdvo *intel_sdvo,
