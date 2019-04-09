@@ -106,12 +106,14 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 	/* module->size doesn't include header size */
 	remaining = module->size;
 	for (count = 0; count < module->num_blocks; count++) {
-		/* minus header size of block */
-		remaining -= sizeof(*block);
-		if (remaining < block->size) {
+		/* check for wrap */
+		if (remaining < sizeof(*block)) {
 			dev_err(sdev->dev, "error: not enough data remaining\n");
 			return -EINVAL;
 		}
+
+		/* minus header size of block */
+		remaining -= sizeof(*block);
 
 		if (block->size == 0) {
 			dev_warn(sdev->dev,
@@ -146,6 +148,11 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 			return -EINVAL;
 		}
 		snd_sof_dsp_block_write(sdev, offset, block + 1, block->size);
+
+		if (remaining < block->size) {
+			dev_err(sdev->dev, "error: not enough data remaining\n");
+			return -EINVAL;
+		}
 
 		/* minus body size of block */
 		remaining -= block->size;
@@ -202,19 +209,34 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 	/* parse each module */
 	module = (struct snd_sof_mod_hdr *)((u8 *)(fw->data) + sizeof(*header));
 	remaining = fw->size - sizeof(*header);
+	/* check for wrap */
+	if (remaining > fw->size) {
+		dev_err(sdev->dev, "error: fw size smaller than header size\n");
+		return -EINVAL;
+	}
+
 	for (count = 0; count < header->num_modules; count++) {
-		/* minus header size of module */
-		remaining -= sizeof(*module);
-		if (remaining < module->size) {
+		/* check for wrap */
+		if (remaining < sizeof(*module)) {
 			dev_err(sdev->dev, "error: not enough data remaining\n");
 			return -EINVAL;
 		}
+
+		/* minus header size of module */
+		remaining -= sizeof(*module);
+
 		/* module */
 		ret = load_module(sdev, module);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: invalid module %d\n", count);
 			return ret;
 		}
+
+		if (remaining < module->size) {
+			dev_err(sdev->dev, "error: not enough data remaining\n");
+			return -EINVAL;
+		}
+
 		/* minus body size of module */
 		remaining -=  module->size;
 		module = (struct snd_sof_mod_hdr *)((u8 *)module
