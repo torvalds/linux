@@ -22,10 +22,11 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 {
 	struct snd_sof_dfsentry *dfse = file->private_data;
 	struct snd_sof_dev *sdev = dfse->sdev;
-	int size;
-	u32 *buf;
 	loff_t pos = *ppos;
 	size_t size_ret;
+	int skip = 0;
+	int size;
+	u8 *buf;
 
 	size = dfse->size;
 
@@ -38,8 +39,18 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	if (count > size - pos)
 		count = size - pos;
 
+	/* align io read start to u32 multiple */
+	pos = ALIGN_DOWN(pos, 4);
+
 	/* intermediate buffer size must be u32 multiple */
 	size = ALIGN(count, 4);
+
+	/* if start position is unaligned, read extra u32 */
+	if (unlikely(pos != *ppos)) {
+		skip = *ppos - pos;
+		if (pos + size + 4 < dfse->size)
+			size += 4;
+	}
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
@@ -79,7 +90,8 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	}
 
 	/* copy to userspace */
-	size_ret = copy_to_user(buffer, buf, count);
+	size_ret = copy_to_user(buffer, buf + skip, count);
+
 	kfree(buf);
 
 	/* update count & position if copy succeeded */
