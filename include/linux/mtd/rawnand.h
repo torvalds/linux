@@ -806,7 +806,7 @@ struct nand_op_parser_pattern {
 #define NAND_OP_PARSER_PATTERN(_exec, ...)							\
 	{											\
 		.exec = _exec,									\
-		.elems = (struct nand_op_parser_pattern_elem[]) { __VA_ARGS__ },		\
+		.elems = (const struct nand_op_parser_pattern_elem[]) { __VA_ARGS__ },		\
 		.nelems = sizeof((struct nand_op_parser_pattern_elem[]) { __VA_ARGS__ }) /	\
 			  sizeof(struct nand_op_parser_pattern_elem),				\
 	}
@@ -832,7 +832,7 @@ struct nand_op_parser {
 
 #define NAND_OP_PARSER(...)									\
 	{											\
-		.patterns = (struct nand_op_parser_pattern[]) { __VA_ARGS__ },			\
+		.patterns = (const struct nand_op_parser_pattern[]) { __VA_ARGS__ },		\
 		.npatterns = sizeof((struct nand_op_parser_pattern[]) { __VA_ARGS__ }) /	\
 			     sizeof(struct nand_op_parser_pattern),				\
 	}
