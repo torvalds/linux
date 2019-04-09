@@ -570,6 +570,7 @@ static void torture_shutdown_cleanup(void)
 static struct task_struct *stutter_task;
 static int stutter_pause_test;
 static int stutter;
+static int stutter_gap;
 
 /*
  * Block until the stutter interval ends.  This must be called periodically
@@ -621,7 +622,7 @@ static int torture_stutter(void *arg)
 		}
 		WRITE_ONCE(stutter_pause_test, 0);
 		if (!torture_must_stop())
-			schedule_timeout_interruptible(stutter);
+			schedule_timeout_interruptible(stutter_gap);
 		torture_shutdown_absorb("torture_stutter");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("torture_stutter");
@@ -631,9 +632,10 @@ static int torture_stutter(void *arg)
 /*
  * Initialize and kick off the torture_stutter kthread.
  */
-int torture_stutter_init(const int s)
+int torture_stutter_init(const int s, const int sgap)
 {
 	stutter = s;
+	stutter_gap = sgap;
 	return torture_create_kthread(torture_stutter, NULL, stutter_task);
 }
 EXPORT_SYMBOL_GPL(torture_stutter_init);
