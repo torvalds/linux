@@ -1419,7 +1419,7 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 
 		sd.nr = syscall;
 		sd.arch = syscall_get_arch();
-		syscall_get_arguments(current, regs, 0, 6, args);
+		syscall_get_arguments(current, regs, args);
 		for (i = 0; i < 6; i++)
 			sd.args[i] = args[i];
 		sd.instruction_pointer = KSTK_EIP(current);

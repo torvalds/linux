@@ -2873,7 +2873,7 @@ struct tg3_tx_ring_info {
 struct tg3_link_config {
 	/* Describes what we're trying to get. */
 	u32				advertising;
-	u16				speed;
+	u32				speed;
 	u8				duplex;
 	u8				autoneg;
 	u8				flowctrl;
@@ -2882,7 +2882,7 @@ struct tg3_link_config {
 	u8				active_flowctrl;
 
 	u8				active_duplex;
-	u16				active_speed;
+	u32				active_speed;
 	u32				rmt_adv;
 };
 

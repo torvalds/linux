@@ -314,6 +314,7 @@ static void pcd_init_units(void)
 		disk->queue = blk_mq_init_sq_queue(&cd->tag_set, &pcd_mq_ops,
 						   1, BLK_MQ_F_SHOULD_MERGE);
 		if (IS_ERR(disk->queue)) {
+			put_disk(disk);
 			disk->queue = NULL;
 			continue;
 		}
@@ -750,6 +751,8 @@ static int pcd_detect(void)
 
 	printk("%s: No CD-ROM drive found\n", name);
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
+		if (!cd->disk)
+			continue;
 		blk_cleanup_queue(cd->disk->queue);
 		cd->disk->queue = NULL;
 		blk_mq_free_tag_set(&cd->tag_set);
@@ -1010,8 +1013,14 @@ static int __init pcd_init(void)
 	pcd_probe_capabilities();
 
 	if (register_blkdev(major, name)) {
-		for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++)
+		for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
+			if (!cd->disk)
+				continue;
+
+			blk_cleanup_queue(cd->disk->queue);
+			blk_mq_free_tag_set(&cd->tag_set);
 			put_disk(cd->disk);
+		}
 		return -EBUSY;
 	}
 
@@ -1032,6 +1041,9 @@ static void __exit pcd_exit(void)
 	int unit;
 
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
+		if (!cd->disk)
+			continue;
+
 		if (cd->present) {
 			del_gendisk(cd->disk);
 			pi_release(cd->pi);
