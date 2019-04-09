@@ -552,6 +552,36 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	return NOTIFY_DONE;
 }
 
+static int __i915_sw_fence_call
+semaphore_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	struct i915_request *request =
+		container_of(fence, typeof(*request), semaphore);
+
+	switch (state) {
+	case FENCE_COMPLETE:
+		/*
+		 * We only check a small portion of our dependencies
+		 * and so cannot guarantee that there remains no
+		 * semaphore chain across all. Instead of opting
+		 * for the full NOSEMAPHORE boost, we go for the
+		 * smaller (but still preempting) boost of
+		 * NEWCLIENT. This will be enough to boost over
+		 * a busywaiting request (as that cannot be
+		 * NEWCLIENT) without accidentally boosting
+		 * a busywait over real work elsewhere.
+		 */
+		i915_schedule_bump_priority(request, I915_PRIORITY_NEWCLIENT);
+		break;
+
+	case FENCE_FREE:
+		i915_request_put(request);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static void ring_retire_requests(struct intel_ring *ring)
 {
 	struct i915_request *rq, *rn;
@@ -702,6 +732,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 
 	/* We bump the ref for the fence chain */
 	i915_sw_fence_init(&i915_request_get(rq)->submit, submit_notify);
+	i915_sw_fence_init(&i915_request_get(rq)->semaphore, semaphore_notify);
 
 	i915_sched_node_init(&rq->sched);
 
@@ -783,6 +814,12 @@ emit_semaphore_wait(struct i915_request *to,
 		return i915_sw_fence_await_dma_fence(&to->submit,
 						     &from->fence, 0,
 						     I915_FENCE_GFP);
+
+	err = i915_sw_fence_await_dma_fence(&to->semaphore,
+					    &from->fence, 0,
+					    I915_FENCE_GFP);
+	if (err < 0)
+		return err;
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
 	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
@@ -1114,6 +1151,7 @@ void i915_request_add(struct i915_request *request)
 	 * run at the earliest possible convenience.
 	 */
 	local_bh_disable();
+	i915_sw_fence_commit(&request->semaphore);
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
 	if (engine->schedule) {
 		struct i915_sched_attr attr = request->gem_context->sched;
@@ -1320,7 +1358,9 @@ long i915_request_wait(struct i915_request *rq,
 	if (flags & I915_WAIT_PRIORITY) {
 		if (!i915_request_started(rq) && INTEL_GEN(rq->i915) >= 6)
 			gen6_rps_boost(rq);
+		local_bh_disable(); /* suspend tasklets for reprioritisation */
 		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
+		local_bh_enable(); /* kick tasklets en masse */
 	}
 
 	wait.tsk = current;

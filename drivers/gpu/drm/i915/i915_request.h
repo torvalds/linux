@@ -143,6 +143,7 @@ struct i915_request {
 		struct i915_sw_dma_fence_cb dmaq;
 	};
 	struct list_head execute_cb;
+	struct i915_sw_fence semaphore;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
