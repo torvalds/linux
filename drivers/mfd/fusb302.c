@@ -899,6 +899,13 @@ static void mux_alert(struct fusb30x_chip *chip, u32 *evt)
 static void set_state_unattached(struct fusb30x_chip *chip)
 {
 	dev_info(chip->dev, "connection has disconnected\n");
+
+	if (chip->notify.is_cc_connected &&
+	    CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_ACC) {
+		input_report_switch(chip->input, SW_HEADPHONE_INSERT, 0);
+		input_sync(chip->input);
+	}
+
 	tcpm_init(chip);
 	tcpm_set_rx_enable(chip, 0);
 	set_state(chip, unattached);
@@ -1818,6 +1825,8 @@ static void fusb_state_attached_audio_acc(struct fusb30x_chip *chip, u32 evt)
 	set_state(chip, disabled);
 	regmap_update_bits(chip->regmap, FUSB_REG_MASK, MASK_M_COMP_CHNG, 0);
 	dev_info(chip->dev, "CC connected as Audio Accessory\n");
+	input_report_switch(chip->input, SW_HEADPHONE_INSERT, 1);
+	input_sync(chip->input);
 }
 
 static void fusb_soft_reset_parameter(struct fusb30x_chip *chip)
@@ -3470,8 +3479,24 @@ static int fusb30x_probe(struct i2c_client *client,
 		 "port %d probe success with role %s, try_role %s\n",
 		 chip->port_num, string[0], string[1]);
 
-	return 0;
+	chip->input = devm_input_allocate_device(&client->dev);
+	if (!chip->input) {
+		dev_err(chip->dev, "Can't allocate input dev\n");
+		ret = -ENOMEM;
+		goto IRQ_ERR;
+	}
 
+	chip->input->name = "Typec_Headphone";
+	chip->input->phys = "fusb302/typec";
+
+	input_set_capability(chip->input, EV_SW, SW_HEADPHONE_INSERT);
+
+	ret = input_register_device(chip->input);
+	if (ret) {
+		dev_err(chip->dev, "Can't register input device: %d\n", ret);
+		goto IRQ_ERR;
+	}
+	return 0;
 IRQ_ERR:
 	destroy_workqueue(chip->fusb30x_wq);
 	return ret;

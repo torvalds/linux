@@ -14,6 +14,7 @@
 
 #include <linux/i2c.h>
 #include <linux/hrtimer.h>
+#include <linux/input.h>
 
 const char *FUSB_DT_INTERRUPT_INTN =	"fsc_interrupt_int_n";
 #define FUSB_DT_GPIO_INTN		"fairchild,int_n"
@@ -553,6 +554,7 @@ struct fusb30x_chip {
 	bool vconn_supported;
 	bool try_role_complete;
 	enum role_mode try_role;
+	struct input_dev *input;
 };
 
 #endif /* FUSB302_H */
