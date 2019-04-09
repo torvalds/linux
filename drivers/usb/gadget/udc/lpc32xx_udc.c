@@ -152,7 +152,6 @@ struct lpc32xx_udc {
 
 	/* Work queues related to I2C support */
 	struct work_struct	pullup_job;
-	struct work_struct	vbus_job;
 	struct work_struct	power_job;
 
 	/* USB device peripheral - various */
@@ -2828,11 +2827,9 @@ static irqreturn_t lpc32xx_usb_devdma_irq(int irq, void *_udc)
  * VBUS detection, pullup handler, and Gadget cable state notification
  *
  */
-static void vbus_work(struct work_struct *work)
+static void vbus_work(struct lpc32xx_udc *udc)
 {
 	u8 value;
-	struct lpc32xx_udc *udc = container_of(work, struct lpc32xx_udc,
-					       vbus_job);
 
 	if (udc->enabled != 0) {
 		/* Discharge VBUS real quick */
@@ -2877,9 +2874,7 @@ static irqreturn_t lpc32xx_usb_vbus_irq(int irq, void *_udc)
 {
 	struct lpc32xx_udc *udc = _udc;
 
-	/* Defer handling of VBUS IRQ to work queue */
-	disable_irq_nosync(udc->udp_irq[IRQ_USB_ATX]);
-	schedule_work(&udc->vbus_job);
+	vbus_work(udc);
 
 	return IRQ_HANDLED;
 }
@@ -2908,7 +2903,7 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 
 	/* Force VBUS process once to check for cable insertion */
 	udc->last_vbus = udc->vbus = 0;
-	schedule_work(&udc->vbus_job);
+	vbus_work(udc);
 
 	/* Do not re-enable ATX IRQ (3) */
 	for (i = IRQ_USB_LP; i < IRQ_USB_ATX; i++)
@@ -3080,7 +3075,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	/* Setup deferred workqueue data */
 	udc->poweron = udc->pullup = 0;
 	INIT_WORK(&udc->pullup_job, pullup_work);
-	INIT_WORK(&udc->vbus_job, vbus_work);
 #ifdef CONFIG_PM
 	INIT_WORK(&udc->power_job, power_work);
 #endif
@@ -3143,8 +3137,9 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 
 	/* The transceiver interrupt is used for VBUS detection and will
 	   kick off the VBUS handler function */
-	retval = devm_request_irq(dev, udc->udp_irq[IRQ_USB_ATX],
-				  lpc32xx_usb_vbus_irq, 0, "udc_otg", udc);
+	retval = devm_request_threaded_irq(dev, udc->udp_irq[IRQ_USB_ATX], NULL,
+					   lpc32xx_usb_vbus_irq, IRQF_ONESHOT,
+					   "udc_otg", udc);
 	if (retval < 0) {
 		dev_err(udc->dev, "VBUS request irq %d failed\n",
 			udc->udp_irq[IRQ_USB_ATX]);
