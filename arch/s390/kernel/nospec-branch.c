@@ -37,7 +37,7 @@ static int __init nospec_report(void)
 {
 	if (test_facility(156))
 		pr_info("Spectre V2 mitigation: etokens\n");
-	if (IS_ENABLED(CC_USING_EXPOLINE) && !nospec_disable)
+	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable)
 		pr_info("Spectre V2 mitigation: execute trampolines\n");
 	if (__test_facility(82, S390_lowcore.alt_stfle_fac_list))
 		pr_info("Spectre V2 mitigation: limited branch prediction\n");
@@ -63,10 +63,10 @@ void __init nospec_auto_detect(void)
 		 * The machine supports etokens.
 		 * Disable expolines and disable nobp.
 		 */
-		if (IS_ENABLED(CC_USING_EXPOLINE))
+		if (__is_defined(CC_USING_EXPOLINE))
 			nospec_disable = 1;
 		__clear_facility(82, S390_lowcore.alt_stfle_fac_list);
-	} else if (IS_ENABLED(CC_USING_EXPOLINE)) {
+	} else if (__is_defined(CC_USING_EXPOLINE)) {
 		/*
 		 * The kernel has been compiled with expolines.
 		 * Keep expolines enabled and disable nobp.
