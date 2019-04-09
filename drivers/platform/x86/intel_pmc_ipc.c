@@ -131,6 +131,7 @@ static struct intel_pmc_ipc_dev {
 
 	/* punit */
 	struct platform_device *punit_dev;
+	unsigned int punit_res_count;
 
 	/* Telemetry */
 	resource_size_t telem_pmc_ssram_base;
@@ -682,7 +683,7 @@ static int ipc_create_punit_device(void)
 		.name = PUNIT_DEVICE_NAME,
 		.id = -1,
 		.res = punit_res_array,
-		.num_res = ARRAY_SIZE(punit_res_array),
+		.num_res = ipcdev.punit_res_count,
 		};
 
 	pdev = platform_device_register_full(&pdevinfo);
@@ -789,7 +790,7 @@ static int ipc_create_pmc_devices(void)
 
 static int ipc_plat_get_res(struct platform_device *pdev)
 {
-	struct resource *res, *punit_res;
+	struct resource *res, *punit_res = punit_res_array;
 	void __iomem *addr;
 	int size;
 
@@ -804,7 +805,8 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 	ipcdev.acpi_io_size = size;
 	dev_info(&pdev->dev, "io res: %pR\n", res);
 
-	punit_res = punit_res_array;
+	ipcdev.punit_res_count = 0;
+
 	/* This is index 0 to cover BIOS data register */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_BIOS_DATA_INDEX);
@@ -812,7 +814,7 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get res of punit BIOS data\n");
 		return -ENXIO;
 	}
-	*punit_res = *res;
+	punit_res[ipcdev.punit_res_count++] = *res;
 	dev_info(&pdev->dev, "punit BIOS data res: %pR\n", res);
 
 	/* This is index 1 to cover BIOS interface register */
@@ -822,42 +824,38 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get res of punit BIOS iface\n");
 		return -ENXIO;
 	}
-	*++punit_res = *res;
+	punit_res[ipcdev.punit_res_count++] = *res;
 	dev_info(&pdev->dev, "punit BIOS interface res: %pR\n", res);
 
 	/* This is index 2 to cover ISP data register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_ISP_DATA_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit ISP data res: %pR\n", res);
 	}
 
 	/* This is index 3 to cover ISP interface register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_ISP_IFACE_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit ISP interface res: %pR\n", res);
 	}
 
 	/* This is index 4 to cover GTD data register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_GTD_DATA_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit GTD data res: %pR\n", res);
 	}
 
 	/* This is index 5 to cover GTD interface register, optional */
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_GTD_IFACE_INDEX);
-	++punit_res;
 	if (res) {
-		*punit_res = *res;
+		punit_res[ipcdev.punit_res_count++] = *res;
 		dev_info(&pdev->dev, "punit GTD interface res: %pR\n", res);
 	}
 
