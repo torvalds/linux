@@ -1062,35 +1062,36 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	f6i = rcu_dereference(fn->leaf);
-	if (!f6i) {
+	if (!f6i)
 		f6i = net->ipv6.fib6_null_entry;
-	} else {
+	else
 		f6i = rt6_device_match(net, f6i, &fl6->saddr,
 				      fl6->flowi6_oif, flags);
-		if (f6i->fib6_nsiblings && fl6->flowi6_oif == 0)
-			f6i = fib6_multipath_select(net, f6i, fl6,
-						    fl6->flowi6_oif, skb,
-						    flags);
-	}
+
 	if (f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
 			goto restart;
+
+		rt = net->ipv6.ip6_null_entry;
+		dst_hold(&rt->dst);
+		goto out;
 	}
 
-	trace_fib6_table_lookup(net, f6i, table, fl6);
-
+	if (f6i->fib6_nsiblings && fl6->flowi6_oif == 0)
+		f6i = fib6_multipath_select(net, f6i, fl6, fl6->flowi6_oif, skb,
+					    flags);
 	/* Search through exception table */
 	rt = rt6_find_cached_rt(f6i, &fl6->daddr, &fl6->saddr);
 	if (rt) {
 		if (ip6_hold_safe(net, &rt))
 			dst_use_noref(&rt->dst, jiffies);
-	} else if (f6i == net->ipv6.fib6_null_entry) {
-		rt = net->ipv6.ip6_null_entry;
-		dst_hold(&rt->dst);
 	} else {
 		rt = ip6_create_rt_rcu(f6i);
 	}
+
+out:
+	trace_fib6_table_lookup(net, f6i, table, fl6);
 
 	rcu_read_unlock();
 
