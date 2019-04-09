@@ -433,6 +433,13 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev->first_boot = true;
 	dev_set_drvdata(dev, sdev);
 
+	/* check all mandatory ops */
+	if (!sof_ops(sdev) || sof_ops(sdev)->probe || !sof_ops(sdev)->run ||
+	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
+	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
+	    !sof_ops(sdev)->ipc_msg_data || !sof_ops(sdev)->ipc_pcm_params)
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&sdev->pcm_list);
 	INIT_LIST_HEAD(&sdev->kcontrol_list);
 	INIT_LIST_HEAD(&sdev->widget_list);

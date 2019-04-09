@@ -21,14 +21,12 @@
 #define sof_ops(sdev) \
 	((sdev)->pdata->desc->ops)
 
+/* Mandatory operations are verified during probing */
+
 /* init */
 static inline int snd_sof_probe(struct snd_sof_dev *sdev)
 {
-	if (sof_ops(sdev)->probe)
-		return sof_ops(sdev)->probe(sdev);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
+	return sof_ops(sdev)->probe(sdev);
 }
 
 static inline int snd_sof_remove(struct snd_sof_dev *sdev)
@@ -47,11 +45,7 @@ static inline int snd_sof_remove(struct snd_sof_dev *sdev)
  */
 static inline int snd_sof_dsp_run(struct snd_sof_dev *sdev)
 {
-	if (sof_ops(sdev)->run)
-		return sof_ops(sdev)->run(sdev);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
+	return sof_ops(sdev)->run(sdev);
 }
 
 static inline int snd_sof_dsp_stall(struct snd_sof_dev *sdev)
@@ -202,34 +196,20 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 static inline void snd_sof_dsp_block_read(struct snd_sof_dev *sdev, u32 bar,
 					  u32 offset, void *dest, size_t bytes)
 {
-	if (sof_ops(sdev)->block_read) {
-		sof_ops(sdev)->block_read(sdev, bar, offset, dest, bytes);
-		return;
-	}
-
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
+	sof_ops(sdev)->block_read(sdev, bar, offset, dest, bytes);
 }
 
 static inline void snd_sof_dsp_block_write(struct snd_sof_dev *sdev, u32 bar,
 					   u32 offset, void *src, size_t bytes)
 {
-	if (sof_ops(sdev)->block_write) {
-		sof_ops(sdev)->block_write(sdev, bar, offset, src, bytes);
-		return;
-	}
-
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
+	sof_ops(sdev)->block_write(sdev, bar, offset, src, bytes);
 }
 
 /* ipc */
 static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 				       struct snd_sof_ipc_msg *msg)
 {
-	if (sof_ops(sdev)->send_msg)
-		return sof_ops(sdev)->send_msg(sdev, msg);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
+	return sof_ops(sdev)->send_msg(sdev, msg);
 }
 
 /* host DMA trace */
@@ -310,8 +290,7 @@ static inline void snd_sof_ipc_msg_data(struct snd_sof_dev *sdev,
 					struct snd_pcm_substream *substream,
 					void *p, size_t sz)
 {
-	if (sof_ops(sdev) && sof_ops(sdev)->ipc_msg_data)
-		sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
+	sof_ops(sdev)->ipc_msg_data(sdev, substream, p, sz);
 }
 
 /* host configure DSP HW parameters */
@@ -320,11 +299,7 @@ snd_sof_ipc_pcm_params(struct snd_sof_dev *sdev,
 		       struct snd_pcm_substream *substream,
 		       const struct sof_ipc_pcm_params_reply *reply)
 {
-	if (sof_ops(sdev) && sof_ops(sdev)->ipc_pcm_params)
-		return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
+	return sof_ops(sdev)->ipc_pcm_params(sdev, substream, reply);
 }
 
 /* host stream pointer */

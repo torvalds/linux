@@ -84,15 +84,19 @@ struct snd_sof_dsp_ops {
 	int (*core_power_down)(struct snd_sof_dev *sof_dev,
 			       unsigned int core_mask); /* optional */
 
-	/* Register IO */
+	/*
+	 * Register IO: only used by respective drivers themselves,
+	 * TODO: consider removing these operations and calling respective
+	 * implementations directly
+	 */
 	void (*write)(struct snd_sof_dev *sof_dev, void __iomem *addr,
-		      u32 value); /* mandatory */
+		      u32 value); /* optional */
 	u32 (*read)(struct snd_sof_dev *sof_dev,
-		    void __iomem *addr); /* mandatory */
+		    void __iomem *addr); /* optional */
 	void (*write64)(struct snd_sof_dev *sof_dev, void __iomem *addr,
-			u64 value); /* mandatory */
+			u64 value); /* optional */
 	u64 (*read64)(struct snd_sof_dev *sof_dev,
-		      void __iomem *addr); /* mandatory */
+		      void __iomem *addr); /* optional */
 
 	/* memcpy IO */
 	void (*block_read)(struct snd_sof_dev *sof_dev, u32 bar,
@@ -103,8 +107,8 @@ struct snd_sof_dsp_ops {
 			    size_t size); /* mandatory */
 
 	/* doorbell */
-	irqreturn_t (*irq_handler)(int irq, void *context); /* mandatory */
-	irqreturn_t (*irq_thread)(int irq, void *context); /* mandatory */
+	irqreturn_t (*irq_handler)(int irq, void *context); /* optional */
+	irqreturn_t (*irq_thread)(int irq, void *context); /* optional */
 
 	/* ipc */
 	int (*send_msg)(struct snd_sof_dev *sof_dev,
@@ -118,7 +122,7 @@ struct snd_sof_dsp_ops {
 	 * FW ready checks for ABI compatibility and creates
 	 * memory windows at first boot
 	 */
-	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id); /* mandatory */
+	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id); /* optional */
 
 	/* connect pcm substream to a host stream */
 	int (*pcm_open)(struct snd_sof_dev *sdev,
