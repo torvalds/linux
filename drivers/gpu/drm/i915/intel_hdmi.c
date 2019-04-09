@@ -1807,7 +1807,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (pipe_config->infoframes.enable)
 		pipe_config->has_infoframe = true;
 
-	if (tmp & SDVO_AUDIO_ENABLE)
+	if (tmp & HDMI_AUDIO_ENABLE)
 		pipe_config->has_audio = true;
 
 	if (!HAS_PCH_SPLIT(dev_priv) &&
@@ -1866,7 +1866,7 @@ static void g4x_enable_hdmi(struct intel_encoder *encoder,
 
 	temp |= SDVO_ENABLE;
 	if (pipe_config->has_audio)
-		temp |= SDVO_AUDIO_ENABLE;
+		temp |= HDMI_AUDIO_ENABLE;
 
 	I915_WRITE(intel_hdmi->hdmi_reg, temp);
 	POSTING_READ(intel_hdmi->hdmi_reg);
@@ -1888,7 +1888,7 @@ static void ibx_enable_hdmi(struct intel_encoder *encoder,
 
 	temp |= SDVO_ENABLE;
 	if (pipe_config->has_audio)
-		temp |= SDVO_AUDIO_ENABLE;
+		temp |= HDMI_AUDIO_ENABLE;
 
 	/*
 	 * HW workaround, need to write this twice for issue
@@ -1940,7 +1940,7 @@ static void cpt_enable_hdmi(struct intel_encoder *encoder,
 
 	temp |= SDVO_ENABLE;
 	if (pipe_config->has_audio)
-		temp |= SDVO_AUDIO_ENABLE;
+		temp |= HDMI_AUDIO_ENABLE;
 
 	/*
 	 * WaEnableHDMI8bpcBefore12bpc:snb,ivb
@@ -2000,7 +2000,7 @@ static void intel_disable_hdmi(struct intel_encoder *encoder,
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 
-	temp &= ~(SDVO_ENABLE | SDVO_AUDIO_ENABLE);
+	temp &= ~(SDVO_ENABLE | HDMI_AUDIO_ENABLE);
 	I915_WRITE(intel_hdmi->hdmi_reg, temp);
 	POSTING_READ(intel_hdmi->hdmi_reg);
 
