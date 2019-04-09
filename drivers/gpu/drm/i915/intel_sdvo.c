@@ -1132,7 +1132,7 @@ static void intel_sdvo_get_avi_infoframe(struct intel_sdvo *intel_sdvo,
 	crtc_state->infoframes.enable |=
 		intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI);
 
-	ret = hdmi_infoframe_unpack(frame, sdvo_data, sizeof(sdvo_data));
+	ret = hdmi_infoframe_unpack(frame, sdvo_data, len);
 	if (ret) {
 		DRM_DEBUG_KMS("Failed to unpack AVI infoframe\n");
 		return;
