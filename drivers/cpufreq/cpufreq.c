@@ -2472,7 +2472,7 @@ int cpufreq_boost_trigger_state(int state)
 
 static bool cpufreq_boost_supported(void)
 {
-	return likely(cpufreq_driver) && cpufreq_driver->set_boost;
+	return cpufreq_driver->set_boost;
 }
 
 static int create_boost_sysfs_file(void)
