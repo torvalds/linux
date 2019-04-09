@@ -440,7 +440,7 @@ static int __init aes_init(void)
 	int err;
 	int i;
 
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
 	err = crypto_register_skciphers(aes_algs, ARRAY_SIZE(aes_algs));

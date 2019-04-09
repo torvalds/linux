@@ -18,7 +18,7 @@
 #define _UAPI__ASM_HWCAP_H
 
 /*
- * HWCAP flags - for elf_hwcap (in kernel) and AT_HWCAP
+ * HWCAP flags - for AT_HWCAP
  */
 #define HWCAP_FP		(1 << 0)
 #define HWCAP_ASIMD		(1 << 1)

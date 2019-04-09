@@ -101,7 +101,7 @@ static struct shash_alg crc_t10dif_alg[] = {{
 
 static int __init crc_t10dif_mod_init(void)
 {
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		return crypto_register_shashes(crc_t10dif_alg,
 					       ARRAY_SIZE(crc_t10dif_alg));
 	else
@@ -111,7 +111,7 @@ static int __init crc_t10dif_mod_init(void)
 
 static void __exit crc_t10dif_mod_exit(void)
 {
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		crypto_unregister_shashes(crc_t10dif_alg,
 					  ARRAY_SIZE(crc_t10dif_alg));
 	else

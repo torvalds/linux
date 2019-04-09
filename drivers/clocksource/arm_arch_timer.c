@@ -833,7 +833,11 @@ static void arch_timer_evtstrm_enable(int divider)
 	cntkctl |= (divider << ARCH_TIMER_EVT_TRIGGER_SHIFT)
 			| ARCH_TIMER_VIRT_EVT_EN;
 	arch_timer_set_cntkctl(cntkctl);
+#ifdef CONFIG_ARM64
+	cpu_set_named_feature(EVTSTRM);
+#else
 	elf_hwcap |= HWCAP_EVTSTRM;
+#endif
 #ifdef CONFIG_COMPAT
 	compat_elf_hwcap |= COMPAT_HWCAP_EVTSTRM;
 #endif
@@ -1055,7 +1059,11 @@ static int arch_timer_cpu_pm_notify(struct notifier_block *self,
 	} else if (action == CPU_PM_ENTER_FAILED || action == CPU_PM_EXIT) {
 		arch_timer_set_cntkctl(__this_cpu_read(saved_cntkctl));
 
+#ifdef CONFIG_ARM64
+		if (cpu_have_named_feature(EVTSTRM))
+#else
 		if (elf_hwcap & HWCAP_EVTSTRM)
+#endif
 			cpumask_set_cpu(smp_processor_id(), &evtstrm_available);
 	}
 	return NOTIFY_OK;

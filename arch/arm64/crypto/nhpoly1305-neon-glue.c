@@ -56,7 +56,7 @@ static struct shash_alg nhpoly1305_alg = {
 
 static int __init nhpoly1305_mod_init(void)
 {
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
 	return crypto_register_shash(&nhpoly1305_alg);
