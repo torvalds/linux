@@ -139,7 +139,6 @@ static void nsim_dev_release(struct device *dev)
 	struct netdevsim *ns = to_nsim(dev);
 
 	nsim_vfs_disable(ns);
-	free_netdev(ns->netdev);
 }
 
 static struct device_type nsim_dev_type = {
@@ -490,6 +489,7 @@ static void nsim_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 
 	dev->netdev_ops = &nsim_netdev_ops;
+	dev->needs_free_netdev = true;
 	dev->priv_destructor = nsim_free;
 
 	dev->tx_queue_len = 0;
