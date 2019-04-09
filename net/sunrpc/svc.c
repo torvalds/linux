@@ -1160,6 +1160,45 @@ svc_get_autherr(struct svc_rqst *rqstp, __be32 *statp)
 	return rpc_auth_ok;
 }
 
+static int
+svc_generic_dispatch(struct svc_rqst *rqstp, __be32 *statp)
+{
+	struct kvec *argv = &rqstp->rq_arg.head[0];
+	struct kvec *resv = &rqstp->rq_res.head[0];
+	const struct svc_procedure *procp = rqstp->rq_procinfo;
+
+	/*
+	 * Decode arguments
+	 * XXX: why do we ignore the return value?
+	 */
+	if (procp->pc_decode &&
+	    !procp->pc_decode(rqstp, argv->iov_base)) {
+		*statp = rpc_garbage_args;
+		return 1;
+	}
+
+	*statp = procp->pc_func(rqstp);
+
+	if (*statp == rpc_drop_reply ||
+	    test_bit(RQ_DROPME, &rqstp->rq_flags))
+		return 0;
+
+	if (test_bit(RQ_AUTHERR, &rqstp->rq_flags))
+		return 1;
+
+	if (*statp != rpc_success)
+		return 1;
+
+	/* Encode reply */
+	if (procp->pc_encode &&
+	    !procp->pc_encode(rqstp, resv->iov_base + resv->iov_len)) {
+		dprintk("svc: failed to encode reply\n");
+		/* serv->sv_stats->rpcsystemerr++; */
+		*statp = rpc_system_err;
+	}
+	return 1;
+}
+
 __be32
 svc_generic_init_request(struct svc_rqst *rqstp,
 		const struct svc_program *progp,
@@ -1328,40 +1367,17 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	/* Call the function that processes the request. */
 	if (!process.dispatch) {
-		/*
-		 * Decode arguments
-		 * XXX: why do we ignore the return value?
-		 */
-		if (procp->pc_decode &&
-		    !procp->pc_decode(rqstp, argv->iov_base))
+		if (!svc_generic_dispatch(rqstp, statp))
+			goto release_dropit;
+		if (*statp == rpc_garbage_args)
 			goto err_garbage;
-
-		*statp = procp->pc_func(rqstp);
-
-		/* Encode reply */
-		if (*statp == rpc_drop_reply ||
-		    test_bit(RQ_DROPME, &rqstp->rq_flags)) {
-			if (procp->pc_release)
-				procp->pc_release(rqstp);
-			goto dropit;
-		}
 		auth_stat = svc_get_autherr(rqstp, statp);
 		if (auth_stat != rpc_auth_ok)
 			goto err_release_bad_auth;
-		if (*statp == rpc_success && procp->pc_encode &&
-		    !procp->pc_encode(rqstp, resv->iov_base + resv->iov_len)) {
-			dprintk("svc: failed to encode reply\n");
-			/* serv->sv_stats->rpcsystemerr++; */
-			*statp = rpc_system_err;
-		}
 	} else {
 		dprintk("svc: calling dispatcher\n");
-		if (!process.dispatch(rqstp, statp)) {
-			/* Release reply info */
-			if (procp->pc_release)
-				procp->pc_release(rqstp);
-			goto dropit;
-		}
+		if (!process.dispatch(rqstp, statp))
+			goto release_dropit; /* Release reply info */
 	}
 
 	/* Check RPC status result */
@@ -1380,6 +1396,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto close;
 	return 1;		/* Caller can now send it */
 
+release_dropit:
+	if (procp->pc_release)
+		procp->pc_release(rqstp);
  dropit:
 	svc_authorise(rqstp);	/* doesn't hurt to call this twice */
 	dprintk("svc: svc_process dropit\n");
