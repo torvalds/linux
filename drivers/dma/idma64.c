@@ -19,10 +19,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "idma64.h"
+#include <linux/dma/idma64.h>
 
-/* Platform driver name */
-#define DRV_NAME		"idma64"
+#include "idma64.h"
 
 /* For now we support only two channels */
 #define IDMA64_NR_CHAN		2
@@ -699,7 +698,7 @@ static struct platform_driver idma64_platform_driver = {
 	.probe		= idma64_platform_probe,
 	.remove		= idma64_platform_remove,
 	.driver = {
-		.name	= DRV_NAME,
+		.name	= LPSS_IDMA64_DRIVER_NAME,
 		.pm	= &idma64_dev_pm_ops,
 	},
 };
@@ -709,4 +708,4 @@ module_platform_driver(idma64_platform_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("iDMA64 core driver");
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
-MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_ALIAS("platform:" LPSS_IDMA64_DRIVER_NAME);
