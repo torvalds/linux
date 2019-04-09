@@ -87,6 +87,7 @@ static struct svc_program	nfsd_acl_program = {
 	.pg_stats		= &nfsd_acl_svcstats,
 	.pg_authenticate	= &svc_set_client,
 	.pg_init_request	= svc_generic_init_request,
+	.pg_rpcbind_set		= svc_generic_rpcbind_set,
 };
 
 static struct svc_stat	nfsd_acl_svcstats = {
@@ -120,7 +121,7 @@ struct svc_program		nfsd_program = {
 	.pg_stats		= &nfsd_svcstats,	/* version table */
 	.pg_authenticate	= &svc_set_client,	/* export authentication */
 	.pg_init_request	= svc_generic_init_request,
-
+	.pg_rpcbind_set		= svc_generic_rpcbind_set,
 };
 
 static bool nfsd_supported_minorversions[NFSD_SUPPORTED_MINOR_VERSION + 1] = {
