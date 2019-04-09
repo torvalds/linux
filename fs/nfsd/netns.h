@@ -134,10 +134,18 @@ struct nfsd_net {
 	u32		s2s_cp_cl_id;
 	struct idr	s2s_cp_stateids;
 	spinlock_t	s2s_cp_lock;
+
+	/*
+	 * Version information
+	 */
+	bool *nfsd_versions;
+	bool *nfsd4_minorversions;
 };
 
 /* Simple check to find out if a given net was properly initialized */
 #define nfsd_netns_ready(nn) ((nn)->sessionid_hashtbl)
+
+extern void nfsd_netns_free_versions(struct nfsd_net *nn);
 
 extern unsigned int nfsd_net_id;
 #endif /* __NFSD_NETNS_H__ */

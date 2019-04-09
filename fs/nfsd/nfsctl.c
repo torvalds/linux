@@ -537,14 +537,14 @@ out_free:
 }
 
 static ssize_t
-nfsd_print_version_support(char *buf, int remaining, const char *sep,
-		unsigned vers, int minor)
+nfsd_print_version_support(struct nfsd_net *nn, char *buf, int remaining,
+		const char *sep, unsigned vers, int minor)
 {
 	const char *format = minor < 0 ? "%s%c%u" : "%s%c%u.%u";
-	bool supported = !!nfsd_vers(vers, NFSD_TEST);
+	bool supported = !!nfsd_vers(nn, vers, NFSD_TEST);
 
 	if (vers == 4 && minor >= 0 &&
-	    !nfsd_minorversion(minor, NFSD_TEST))
+	    !nfsd_minorversion(nn, minor, NFSD_TEST))
 		supported = false;
 	if (minor == 0 && supported)
 		/*
@@ -599,20 +599,20 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			switch(num) {
 			case 2:
 			case 3:
-				nfsd_vers(num, cmd);
+				nfsd_vers(nn, num, cmd);
 				break;
 			case 4:
 				if (*minorp == '.') {
-					if (nfsd_minorversion(minor, cmd) < 0)
+					if (nfsd_minorversion(nn, minor, cmd) < 0)
 						return -EINVAL;
-				} else if ((cmd == NFSD_SET) != nfsd_vers(num, NFSD_TEST)) {
+				} else if ((cmd == NFSD_SET) != nfsd_vers(nn, num, NFSD_TEST)) {
 					/*
 					 * Either we have +4 and no minors are enabled,
 					 * or we have -4 and at least one minor is enabled.
 					 * In either case, propagate 'cmd' to all minors.
 					 */
 					minor = 0;
-					while (nfsd_minorversion(minor, cmd) >= 0)
+					while (nfsd_minorversion(nn, minor, cmd) >= 0)
 						minor++;
 				}
 				break;
@@ -624,7 +624,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 		/* If all get turned off, turn them back on, as
 		 * having no versions is BAD
 		 */
-		nfsd_reset_versions();
+		nfsd_reset_versions(nn);
 	}
 
 	/* Now write current state into reply buffer */
@@ -633,12 +633,12 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	remaining = SIMPLE_TRANSACTION_LIMIT;
 	for (num=2 ; num <= 4 ; num++) {
 		int minor;
-		if (!nfsd_vers(num, NFSD_AVAIL))
+		if (!nfsd_vers(nn, num, NFSD_AVAIL))
 			continue;
 
 		minor = -1;
 		do {
-			len = nfsd_print_version_support(buf, remaining,
+			len = nfsd_print_version_support(nn, buf, remaining,
 					sep, num, minor);
 			if (len >= remaining)
 				goto out;
@@ -1239,6 +1239,8 @@ static __net_init int nfsd_init_net(struct net *net)
 	retval = nfsd_idmap_init(net);
 	if (retval)
 		goto out_idmap_error;
+	nn->nfsd_versions = NULL;
+	nn->nfsd4_minorversions = NULL;
 	nn->nfsd4_lease = 90;	/* default lease time */
 	nn->nfsd4_grace = 90;
 	nn->somebody_reclaimed = false;
@@ -1261,6 +1263,7 @@ static __net_exit void nfsd_exit_net(struct net *net)
 {
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
+	nfsd_netns_free_versions(net_generic(net, nfsd_net_id));
 }
 
 static struct pernet_operations nfsd_net_ops = {
