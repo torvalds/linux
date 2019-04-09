@@ -16,6 +16,10 @@
 #define QTNF_DMP_MAX_LEN 48
 #define QTNF_PRIMARY_VIF_IDX	0
 
+static bool slave_radar = true;
+module_param(slave_radar, bool, 0644);
+MODULE_PARM_DESC(slave_radar, "set 0 to disable radar detection in slave mode");
+
 struct qtnf_frame_meta_info {
 	u8 magic_s;
 	u8 ifidx;
@@ -424,6 +428,11 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	bus->mac[macid] = mac;
 
 	return mac;
+}
+
+bool qtnf_mac_slave_radar_get(struct wiphy *wiphy)
+{
+	return slave_radar;
 }
 
 static const struct ethtool_ops qtnf_ethtool_ops = {
