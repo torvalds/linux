@@ -1336,6 +1336,7 @@ tag - INTEGER
 	Default value is 0.
 
 xfrm4_gc_thresh - INTEGER
+	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.
@@ -1919,6 +1920,7 @@ echo_ignore_all - BOOLEAN
 	Default: 0
 
 xfrm6_gc_thresh - INTEGER
+	(Obsolete since linux-4.14)
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
 	refuse new allocations.
