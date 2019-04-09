@@ -71,9 +71,10 @@ static int lpc32xx_rtc_read_time(struct device *dev, struct rtc_time *time)
 	return 0;
 }
 
-static int lpc32xx_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int lpc32xx_rtc_set_time(struct device *dev, struct rtc_time *time)
 {
 	struct lpc32xx_rtc *rtc = dev_get_drvdata(dev);
+	u32 secs = rtc_tm_to_time64(time);
 	u32 tmp;
 
 	spin_lock_irq(&rtc->lock);
@@ -184,7 +185,7 @@ static irqreturn_t lpc32xx_rtc_alarm_interrupt(int irq, void *dev)
 
 static const struct rtc_class_ops lpc32xx_rtc_ops = {
 	.read_time		= lpc32xx_rtc_read_time,
-	.set_mmss		= lpc32xx_rtc_set_mmss,
+	.set_time		= lpc32xx_rtc_set_time,
 	.read_alarm		= lpc32xx_rtc_read_alarm,
 	.set_alarm		= lpc32xx_rtc_set_alarm,
 	.alarm_irq_enable	= lpc32xx_rtc_alarm_irq_enable,
