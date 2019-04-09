@@ -2610,8 +2610,9 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 			rdt_last_cmd_puts("Failed to initialize allocations\n");
 			return ret;
 		}
-		rdtgrp->mode = RDT_MODE_SHAREABLE;
 	}
+
+	rdtgrp->mode = RDT_MODE_SHAREABLE;
 
 	return 0;
 }
