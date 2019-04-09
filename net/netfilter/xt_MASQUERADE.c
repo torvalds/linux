@@ -107,32 +107,20 @@ static int __init masquerade_tg_init(void)
 	if (ret)
 		return ret;
 
-	ret = nf_nat_masquerade_ipv4_register_notifier();
+	ret = nf_nat_masquerade_inet_register_notifiers();
 	if (ret) {
 		xt_unregister_targets(masquerade_tg_reg,
 				      ARRAY_SIZE(masquerade_tg_reg));
 		return ret;
 	}
 
-#if IS_ENABLED(CONFIG_IPV6)
-	ret = nf_nat_masquerade_ipv6_register_notifier();
-	if (ret) {
-		xt_unregister_targets(masquerade_tg_reg,
-				      ARRAY_SIZE(masquerade_tg_reg));
-		nf_nat_masquerade_ipv4_unregister_notifier();
-		return ret;
-	}
-#endif
 	return ret;
 }
 
 static void __exit masquerade_tg_exit(void)
 {
 	xt_unregister_targets(masquerade_tg_reg, ARRAY_SIZE(masquerade_tg_reg));
-	nf_nat_masquerade_ipv4_unregister_notifier();
-#if IS_ENABLED(CONFIG_IPV6)
-	nf_nat_masquerade_ipv6_unregister_notifier();
-#endif
+	nf_nat_masquerade_inet_unregister_notifiers();
 }
 
 module_init(masquerade_tg_init);

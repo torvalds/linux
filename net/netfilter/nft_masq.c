@@ -195,22 +195,12 @@ static struct nft_expr_type nft_masq_ipv6_type __read_mostly = {
 
 static int __init nft_masq_module_init_ipv6(void)
 {
-	int ret = nft_register_expr(&nft_masq_ipv6_type);
-
-	if (ret)
-		return ret;
-
-	ret = nf_nat_masquerade_ipv6_register_notifier();
-	if (ret < 0)
-		nft_unregister_expr(&nft_masq_ipv6_type);
-
-	return ret;
+	return nft_register_expr(&nft_masq_ipv6_type);
 }
 
 static void nft_masq_module_exit_ipv6(void)
 {
 	nft_unregister_expr(&nft_masq_ipv6_type);
-	nf_nat_masquerade_ipv6_unregister_notifier();
 }
 #else
 static inline int nft_masq_module_init_ipv6(void) { return 0; }
@@ -293,7 +283,7 @@ static int __init nft_masq_module_init(void)
 		return ret;
 	}
 
-	ret = nf_nat_masquerade_ipv4_register_notifier();
+	ret = nf_nat_masquerade_inet_register_notifiers();
 	if (ret < 0) {
 		nft_masq_module_exit_ipv6();
 		nft_masq_module_exit_inet();
@@ -309,7 +299,7 @@ static void __exit nft_masq_module_exit(void)
 	nft_masq_module_exit_ipv6();
 	nft_masq_module_exit_inet();
 	nft_unregister_expr(&nft_masq_ipv4_type);
-	nf_nat_masquerade_ipv4_unregister_notifier();
+	nf_nat_masquerade_inet_unregister_notifiers();
 }
 
 module_init(nft_masq_module_init);

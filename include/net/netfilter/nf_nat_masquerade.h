@@ -9,13 +9,11 @@ nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 		       const struct nf_nat_range2 *range,
 		       const struct net_device *out);
 
-int nf_nat_masquerade_ipv4_register_notifier(void);
-void nf_nat_masquerade_ipv4_unregister_notifier(void);
+int nf_nat_masquerade_inet_register_notifiers(void);
+void nf_nat_masquerade_inet_unregister_notifiers(void);
 
 unsigned int
 nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 		       const struct net_device *out);
-int nf_nat_masquerade_ipv6_register_notifier(void);
-void nf_nat_masquerade_ipv6_unregister_notifier(void);
 
 #endif /*_NF_NAT_MASQUERADE_H_ */
