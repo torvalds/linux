@@ -415,9 +415,14 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	case IPPROTO_ICMPV6:
 		/* id is same for either direction... */
 		keyptr = &tuple->src.u.icmp.id;
-		min = range->min_proto.icmp.id;
-		range_size = ntohs(range->max_proto.icmp.id) -
-			     ntohs(range->min_proto.icmp.id) + 1;
+		if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
+			min = 0;
+			range_size = 65536;
+		} else {
+			min = ntohs(range->min_proto.icmp.id);
+			range_size = ntohs(range->max_proto.icmp.id) -
+				     ntohs(range->min_proto.icmp.id) + 1;
+		}
 		goto find_free_id;
 #if IS_ENABLED(CONFIG_NF_CT_PROTO_GRE)
 	case IPPROTO_GRE:
