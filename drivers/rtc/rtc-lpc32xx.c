@@ -47,8 +47,6 @@
 
 #define LPC32XX_RTC_KEY_ONSW_LOADVAL	0xB5C13F27
 
-#define RTC_NAME "rtc-lpc32xx"
-
 #define rtc_readl(dev, reg) \
 	__raw_readl((dev)->rtc_base + (reg))
 #define rtc_writel(dev, reg, val) \
@@ -201,7 +199,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct lpc32xx_rtc *rtc;
-	int rtcirq;
+	int rtcirq, err;
 	u32 tmp;
 
 	rtcirq = platform_get_irq(pdev, 0);
@@ -256,12 +254,15 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, RTC_NAME,
-					&lpc32xx_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc)) {
-		dev_err(&pdev->dev, "Can't get RTC\n");
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc))
 		return PTR_ERR(rtc->rtc);
-	}
+
+	rtc->rtc->ops = &lpc32xx_rtc_ops;
+
+	err = rtc_register_device(rtc->rtc);
+	if (err)
+		return err;
 
 	/*
 	 * IRQ is enabled after device registration in case alarm IRQ
@@ -374,7 +375,7 @@ static struct platform_driver lpc32xx_rtc_driver = {
 	.probe		= lpc32xx_rtc_probe,
 	.remove		= lpc32xx_rtc_remove,
 	.driver = {
-		.name	= RTC_NAME,
+		.name	= "rtc-lpc32xx",
 		.pm	= LPC32XX_RTC_PM_OPS,
 		.of_match_table = of_match_ptr(lpc32xx_rtc_match),
 	},
