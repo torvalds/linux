@@ -884,6 +884,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		ERRATA_MIDR_RANGE_LIST(tx2_family_cpus),
 		.matches = needs_tx2_tvm_workaround,
 	},
+	{
+		.desc = "Cavium ThunderX2 erratum 219 (PRFM removal)",
+		.capability = ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM,
+		ERRATA_MIDR_RANGE_LIST(tx2_family_cpus),
+	},
 #endif
 	{
 	}
