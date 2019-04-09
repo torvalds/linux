@@ -1674,16 +1674,18 @@ static unsigned long rcu_torture_fwd_prog_cbfree(void)
 	for (;;) {
 		spin_lock_irqsave(&rcu_fwd_lock, flags);
 		rfcp = rcu_fwd_cb_head;
-		if (!rfcp)
+		if (!rfcp) {
+			spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 			break;
+		}
 		rcu_fwd_cb_head = rfcp->rfc_next;
 		if (!rcu_fwd_cb_head)
 			rcu_fwd_cb_tail = &rcu_fwd_cb_head;
 		spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 		kfree(rfcp);
 		freed++;
+		cond_resched();
 	}
-	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 	return freed;
 }
 
