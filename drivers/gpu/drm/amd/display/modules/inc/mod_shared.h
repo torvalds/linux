@@ -61,7 +61,10 @@ union lut3d_control_flags {
 		unsigned int use_3dlut					:1;
 		unsigned int less_than_dcip3				:1;
 		unsigned int override_lum				:1;
-		unsigned int reseved					:8;
+		unsigned int use_gamut_map_lib					:1;
+		unsigned int chromatic_adaptation_src				:1;
+		unsigned int chromatic_adaptation_dst				:1;
+		unsigned int reseved					:5;
 	} bits;
 };
 
@@ -69,6 +72,21 @@ enum tm_show_option_internal {
 	tm_show_option_internal_single_file		= 0,/*flags2 not in use*/
 	tm_show_option_internal_duplicate_file,		/*use flags2*/
 	tm_show_option_internal_duplicate_sidebyside/*use flags2*/
+};
+
+enum lut3d_control_gamut_map {
+	lut3d_control_gamut_map_none = 0,
+	lut3d_control_gamut_map_tonemap,
+	lut3d_control_gamut_map_chto,
+	lut3d_control_gamut_map_chto_chso,
+	lut3d_control_gamut_map_chto_chci
+};
+
+enum lut3d_control_rotation_mode {
+	lut3d_control_rotation_mode_none = 0,
+	lut3d_control_rotation_mode_hue,
+	lut3d_control_rotation_mode_cc,
+	lut3d_control_rotation_mode_hue_cc
 };
 
 struct lut3d_settings {
@@ -80,6 +98,10 @@ struct lut3d_settings {
 	unsigned int max_lum;
 	unsigned int min_lum2;
 	unsigned int max_lum2;
+	enum lut3d_control_gamut_map map;
+	enum lut3d_control_rotation_mode rotation;
+	enum lut3d_control_gamut_map map2;
+	enum lut3d_control_rotation_mode rotation2;
 };
 #endif
 
