@@ -94,8 +94,6 @@ int dns_query(const char *type, const char *name, size_t namelen,
 		desclen += typelen + 1;
 	}
 
-	if (!namelen)
-		namelen = strnlen(name, 256);
 	if (namelen < 3 || namelen > 255)
 		return -EINVAL;
 	desclen += namelen + 1;
