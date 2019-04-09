@@ -66,7 +66,7 @@ static int lpc32xx_rtc_read_time(struct device *dev, struct rtc_time *time)
 	struct lpc32xx_rtc *rtc = dev_get_drvdata(dev);
 
 	elapsed_sec = rtc_readl(rtc, LPC32XX_RTC_UCOUNT);
-	rtc_time_to_tm(elapsed_sec, time);
+	rtc_time64_to_tm(elapsed_sec, time);
 
 	return 0;
 }
@@ -95,7 +95,7 @@ static int lpc32xx_rtc_read_alarm(struct device *dev,
 {
 	struct lpc32xx_rtc *rtc = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(rtc_readl(rtc, LPC32XX_RTC_MATCH0), &wkalrm->time);
+	rtc_time64_to_tm(rtc_readl(rtc, LPC32XX_RTC_MATCH0), &wkalrm->time);
 	wkalrm->enabled = rtc->alarm_enabled;
 	wkalrm->pending = !!(rtc_readl(rtc, LPC32XX_RTC_INTSTAT) &
 		LPC32XX_RTC_INTSTAT_MATCH0);
@@ -109,13 +109,8 @@ static int lpc32xx_rtc_set_alarm(struct device *dev,
 	struct lpc32xx_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long alarmsecs;
 	u32 tmp;
-	int ret;
 
-	ret = rtc_tm_to_time(&wkalrm->time, &alarmsecs);
-	if (ret < 0) {
-		dev_warn(dev, "Failed to convert time: %d\n", ret);
-		return ret;
-	}
+	alarmsecs = rtc_tm_to_time64(&wkalrm->time);
 
 	spin_lock_irq(&rtc->lock);
 
