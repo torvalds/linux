@@ -439,7 +439,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 			return rv;
 		if (newthreads < 0)
 			return -EINVAL;
-		rv = nfsd_svc(newthreads, net);
+		rv = nfsd_svc(newthreads, net, file->f_cred);
 		if (rv < 0)
 			return rv;
 	} else
@@ -717,7 +717,7 @@ static ssize_t __write_ports_names(char *buf, struct net *net)
  * a socket of a supported family/protocol, and we use it as an
  * nfsd listener.
  */
-static ssize_t __write_ports_addfd(char *buf, struct net *net)
+static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred *cred)
 {
 	char *mesg = buf;
 	int fd, err;
@@ -736,7 +736,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net)
 	if (err != 0)
 		return err;
 
-	err = svc_addsock(nn->nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT);
+	err = svc_addsock(nn->nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT, cred);
 	if (err < 0) {
 		nfsd_destroy(net);
 		return err;
@@ -751,7 +751,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net)
  * A transport listener is added by writing it's transport name and
  * a port number.
  */
-static ssize_t __write_ports_addxprt(char *buf, struct net *net)
+static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cred *cred)
 {
 	char transport[16];
 	struct svc_xprt *xprt;
@@ -769,12 +769,12 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net)
 		return err;
 
 	err = svc_create_xprt(nn->nfsd_serv, transport, net,
-				PF_INET, port, SVC_SOCK_ANONYMOUS);
+				PF_INET, port, SVC_SOCK_ANONYMOUS, cred);
 	if (err < 0)
 		goto out_err;
 
 	err = svc_create_xprt(nn->nfsd_serv, transport, net,
-				PF_INET6, port, SVC_SOCK_ANONYMOUS);
+				PF_INET6, port, SVC_SOCK_ANONYMOUS, cred);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;
 
@@ -799,10 +799,10 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size,
 		return __write_ports_names(buf, net);
 
 	if (isdigit(buf[0]))
-		return __write_ports_addfd(buf, net);
+		return __write_ports_addfd(buf, net, file->f_cred);
 
 	if (isalpha(buf[0]))
-		return __write_ports_addxprt(buf, net);
+		return __write_ports_addxprt(buf, net, file->f_cred);
 
 	return -EINVAL;
 }

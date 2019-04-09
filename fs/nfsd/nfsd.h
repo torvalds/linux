@@ -73,7 +73,7 @@ extern const struct seq_operations nfs_exports_op;
 /*
  * Function prototypes.
  */
-int		nfsd_svc(int nrservs, struct net *net);
+int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred);
 int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
 
 int		nfsd_nrthreads(struct net *);
