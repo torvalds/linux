@@ -544,18 +544,12 @@ static int nsim_newlink(struct net *src_net, struct net_device *dev,
 	return register_netdevice(dev);
 }
 
-static void nsim_dellink(struct net_device *dev, struct list_head *head)
-{
-	unregister_netdevice_queue(dev, head);
-}
-
 static struct rtnl_link_ops nsim_link_ops __read_mostly = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct netdevsim),
 	.setup		= nsim_setup,
 	.validate	= nsim_validate,
 	.newlink	= nsim_newlink,
-	.dellink	= nsim_dellink,
 };
 
 static int __init nsim_module_init(void)
