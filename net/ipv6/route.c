@@ -632,25 +632,22 @@ static int rt6_score_route(const struct fib6_nh *nh, u32 fib6_flags, int oif,
 	return m;
 }
 
-static struct fib6_info *find_match(struct fib6_info *rt, int oif, int strict,
-				   int *mpri, struct fib6_info *match,
-				   bool *do_rr)
+static bool find_match(struct fib6_nh *nh, u32 fib6_flags,
+		       int oif, int strict, int *mpri, bool *do_rr)
 {
-	int m;
 	bool match_do_rr = false;
+	bool rc = false;
+	int m;
 
-	if (rt->fib6_nh.fib_nh_flags & RTNH_F_DEAD)
+	if (nh->fib_nh_flags & RTNH_F_DEAD)
 		goto out;
 
-	if (ip6_ignore_linkdown(rt->fib6_nh.fib_nh_dev) &&
-	    rt->fib6_nh.fib_nh_flags & RTNH_F_LINKDOWN &&
+	if (ip6_ignore_linkdown(nh->fib_nh_dev) &&
+	    nh->fib_nh_flags & RTNH_F_LINKDOWN &&
 	    !(strict & RT6_LOOKUP_F_IGNORE_LINKSTATE))
 		goto out;
 
-	if (fib6_check_expired(rt))
-		goto out;
-
-	m = rt6_score_route(&rt->fib6_nh, rt->fib6_flags, oif, strict);
+	m = rt6_score_route(nh, fib6_flags, oif, strict);
 	if (m == RT6_NUD_FAIL_DO_RR) {
 		match_do_rr = true;
 		m = 0; /* lowest valid score */
@@ -659,16 +656,16 @@ static struct fib6_info *find_match(struct fib6_info *rt, int oif, int strict,
 	}
 
 	if (strict & RT6_LOOKUP_F_REACHABLE)
-		rt6_probe(&rt->fib6_nh);
+		rt6_probe(nh);
 
 	/* note that m can be RT6_NUD_FAIL_PROBE at this point */
 	if (m > *mpri) {
 		*do_rr = match_do_rr;
 		*mpri = m;
-		match = rt;
+		rc = true;
 	}
 out:
-	return match;
+	return rc;
 }
 
 static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
@@ -678,6 +675,7 @@ static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
 				     bool *do_rr)
 {
 	struct fib6_info *rt, *match, *cont;
+	struct fib6_nh *nh;
 	int mpri = -1;
 
 	match = NULL;
@@ -688,7 +686,12 @@ static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
 			break;
 		}
 
-		match = find_match(rt, oif, strict, &mpri, match, do_rr);
+		if (fib6_check_expired(rt))
+			continue;
+
+		nh = &rt->fib6_nh;
+		if (find_match(nh, rt->fib6_flags, oif, strict, &mpri, do_rr))
+			match = rt;
 	}
 
 	for (rt = leaf; rt && rt != rr_head;
@@ -698,14 +701,25 @@ static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
 			break;
 		}
 
-		match = find_match(rt, oif, strict, &mpri, match, do_rr);
+		if (fib6_check_expired(rt))
+			continue;
+
+		nh = &rt->fib6_nh;
+		if (find_match(nh, rt->fib6_flags, oif, strict, &mpri, do_rr))
+			match = rt;
 	}
 
 	if (match || !cont)
 		return match;
 
-	for (rt = cont; rt; rt = rcu_dereference(rt->fib6_next))
-		match = find_match(rt, oif, strict, &mpri, match, do_rr);
+	for (rt = cont; rt; rt = rcu_dereference(rt->fib6_next)) {
+		if (fib6_check_expired(rt))
+			continue;
+
+		nh = &rt->fib6_nh;
+		if (find_match(nh, rt->fib6_flags, oif, strict, &mpri, do_rr))
+			match = rt;
+	}
 
 	return match;
 }
