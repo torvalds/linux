@@ -364,7 +364,7 @@ static int nfsd_startup_net(int nrservs, struct net *net, const struct cred *cre
 		goto out_socks;
 
 	if (nfsd_needs_lockd(nn) && !nn->lockd_up) {
-		ret = lockd_up(net);
+		ret = lockd_up(net, cred);
 		if (ret)
 			goto out_socks;
 		nn->lockd_up = 1;

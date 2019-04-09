@@ -56,7 +56,7 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 	u32 nlm_version = (nlm_init->nfs_version == 2) ? 1 : 4;
 	int status;
 
-	status = lockd_up(nlm_init->net);
+	status = lockd_up(nlm_init->net, nlm_init->cred);
 	if (status < 0)
 		return ERR_PTR(status);
 
@@ -241,7 +241,7 @@ reclaimer(void *ptr)
 	allow_signal(SIGKILL);
 
 	down_write(&host->h_rwsem);
-	lockd_up(net);	/* note: this cannot fail as lockd is already running */
+	lockd_up(net, NULL);	/* note: this cannot fail as lockd is already running */
 
 	dprintk("lockd: reclaiming locks for host %s\n", host->h_name);
 

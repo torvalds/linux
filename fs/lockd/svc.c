@@ -188,9 +188,9 @@ lockd(void *vrqstp)
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,
 				 struct net *net, const int family,
-				 const unsigned short port)
+				 const unsigned short port,
+				 const struct cred *cred)
 {
-	const struct cred *cred = current_cred();
 	struct svc_xprt *xprt;
 
 	xprt = svc_find_xprt(serv, name, net, family, 0);
@@ -202,15 +202,17 @@ static int create_lockd_listener(struct svc_serv *serv, const char *name,
 }
 
 static int create_lockd_family(struct svc_serv *serv, struct net *net,
-			       const int family)
+			       const int family, const struct cred *cred)
 {
 	int err;
 
-	err = create_lockd_listener(serv, "udp", net, family, nlm_udpport);
+	err = create_lockd_listener(serv, "udp", net, family, nlm_udpport,
+			cred);
 	if (err < 0)
 		return err;
 
-	return create_lockd_listener(serv, "tcp", net, family, nlm_tcpport);
+	return create_lockd_listener(serv, "tcp", net, family, nlm_tcpport,
+			cred);
 }
 
 /*
@@ -223,16 +225,17 @@ static int create_lockd_family(struct svc_serv *serv, struct net *net,
  * Returns zero if all listeners are available; otherwise a
  * negative errno value is returned.
  */
-static int make_socks(struct svc_serv *serv, struct net *net)
+static int make_socks(struct svc_serv *serv, struct net *net,
+		const struct cred *cred)
 {
 	static int warned;
 	int err;
 
-	err = create_lockd_family(serv, net, PF_INET);
+	err = create_lockd_family(serv, net, PF_INET, cred);
 	if (err < 0)
 		goto out_err;
 
-	err = create_lockd_family(serv, net, PF_INET6);
+	err = create_lockd_family(serv, net, PF_INET6, cred);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_err;
 
@@ -247,7 +250,8 @@ out_err:
 	return err;
 }
 
-static int lockd_up_net(struct svc_serv *serv, struct net *net)
+static int lockd_up_net(struct svc_serv *serv, struct net *net,
+		const struct cred *cred)
 {
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 	int error;
@@ -259,7 +263,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	if (error)
 		goto err_bind;
 
-	error = make_socks(serv, net);
+	error = make_socks(serv, net, cred);
 	if (error < 0)
 		goto err_bind;
 	set_grace_period(net);
@@ -462,7 +466,7 @@ static struct svc_serv *lockd_create_svc(void)
 /*
  * Bring up the lockd process if it's not already up.
  */
-int lockd_up(struct net *net)
+int lockd_up(struct net *net, const struct cred *cred)
 {
 	struct svc_serv *serv;
 	int error;
@@ -475,7 +479,7 @@ int lockd_up(struct net *net)
 		goto err_create;
 	}
 
-	error = lockd_up_net(serv, net);
+	error = lockd_up_net(serv, net, cred);
 	if (error < 0) {
 		lockd_unregister_notifiers();
 		goto err_put;
