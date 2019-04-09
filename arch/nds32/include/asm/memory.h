@@ -15,14 +15,6 @@
 #define PHYS_OFFSET     (0x0)
 #endif
 
-#ifndef __virt_to_bus
-#define __virt_to_bus	__virt_to_phys
-#endif
-
-#ifndef __bus_to_virt
-#define __bus_to_virt	__phys_to_virt
-#endif
-
 /*
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
