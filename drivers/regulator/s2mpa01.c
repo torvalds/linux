@@ -17,8 +17,6 @@
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s2mpa01.h>
 
-#define S2MPA01_REGULATOR_CNT ARRAY_SIZE(regulators)
-
 struct s2mpa01_info {
 	int ramp_delay24;
 	int ramp_delay3;
