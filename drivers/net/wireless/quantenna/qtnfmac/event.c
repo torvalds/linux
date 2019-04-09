@@ -493,14 +493,20 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 
 	for (i = 0; i < QTNF_MAX_INTF; i++) {
 		vif = &mac->iflist[i];
+
 		if (vif->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED)
 			continue;
 
-		if (vif->netdev) {
-			mutex_lock(&vif->wdev.mtx);
-			cfg80211_ch_switch_notify(vif->netdev, &chandef);
-			mutex_unlock(&vif->wdev.mtx);
-		}
+		if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
+		    !vif->wdev.current_bss)
+			continue;
+
+		if (!vif->netdev)
+			continue;
+
+		mutex_lock(&vif->wdev.mtx);
+		cfg80211_ch_switch_notify(vif->netdev, &chandef);
+		mutex_unlock(&vif->wdev.mtx);
 	}
 
 	return 0;
