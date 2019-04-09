@@ -554,10 +554,15 @@ int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr)
 	attr.test.data_out = ptr_to_u64(test_attr->data_out);
 	attr.test.data_size_in = test_attr->data_size_in;
 	attr.test.data_size_out = test_attr->data_size_out;
+	attr.test.ctx_in = ptr_to_u64(test_attr->ctx_in);
+	attr.test.ctx_out = ptr_to_u64(test_attr->ctx_out);
+	attr.test.ctx_size_in = test_attr->ctx_size_in;
+	attr.test.ctx_size_out = test_attr->ctx_size_out;
 	attr.test.repeat = test_attr->repeat;
 
 	ret = sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
 	test_attr->data_size_out = attr.test.data_size_out;
+	test_attr->ctx_size_out = attr.test.ctx_size_out;
 	test_attr->retval = attr.test.retval;
 	test_attr->duration = attr.test.duration;
 	return ret;
