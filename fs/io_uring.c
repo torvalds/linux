@@ -1267,6 +1267,54 @@ static int io_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
+static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	int ret = 0;
+
+	if (!req->file)
+		return -EBADF;
+	/* Prep already done (EAGAIN retry) */
+	if (req->flags & REQ_F_PREPPED)
+		return 0;
+
+	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
+		return -EINVAL;
+
+	req->flags |= REQ_F_PREPPED;
+	return ret;
+}
+
+static int io_sync_file_range(struct io_kiocb *req,
+			      const struct io_uring_sqe *sqe,
+			      bool force_nonblock)
+{
+	loff_t sqe_off;
+	loff_t sqe_len;
+	unsigned flags;
+	int ret;
+
+	ret = io_prep_sfr(req, sqe);
+	if (ret)
+		return ret;
+
+	/* sync_file_range always requires a blocking context */
+	if (force_nonblock)
+		return -EAGAIN;
+
+	sqe_off = READ_ONCE(sqe->off);
+	sqe_len = READ_ONCE(sqe->len);
+	flags = READ_ONCE(sqe->sync_range_flags);
+
+	ret = sync_file_range(req->rw.ki_filp, sqe_off, sqe_len, flags);
+
+	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
+	io_put_req(req);
+	return 0;
+}
+
 static void io_poll_remove_one(struct io_kiocb *req)
 {
 	struct io_poll_iocb *poll = &req->poll;
@@ -1548,6 +1596,9 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		break;
 	case IORING_OP_POLL_REMOVE:
 		ret = io_poll_remove(req, s->sqe);
+		break;
+	case IORING_OP_SYNC_FILE_RANGE:
+		ret = io_sync_file_range(req, s->sqe, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
