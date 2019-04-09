@@ -43,12 +43,12 @@
 /*
  * RTC clock functions and device struct declaration
  */
-static int ab3100_rtc_set_mmss(struct device *dev, time64_t secs)
+static int ab3100_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	u8 regs[] = {AB3100_TI0, AB3100_TI1, AB3100_TI2,
 		     AB3100_TI3, AB3100_TI4, AB3100_TI5};
 	unsigned char buf[6];
-	u64 hw_counter = secs * AB3100_RTC_CLOCK_RATE * 2;
+	u64 hw_counter = rtc_tm_to_time64(tm) * AB3100_RTC_CLOCK_RATE * 2;
 	int err = 0;
 	int i;
 
@@ -192,7 +192,7 @@ static int ab3100_rtc_irq_enable(struct device *dev, unsigned int enabled)
 
 static const struct rtc_class_ops ab3100_rtc_ops = {
 	.read_time	= ab3100_rtc_read_time,
-	.set_mmss64	= ab3100_rtc_set_mmss,
+	.set_time	= ab3100_rtc_set_time,
 	.read_alarm	= ab3100_rtc_read_alarm,
 	.set_alarm	= ab3100_rtc_set_alarm,
 	.alarm_irq_enable = ab3100_rtc_irq_enable,
