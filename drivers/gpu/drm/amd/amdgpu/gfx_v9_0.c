@@ -4840,10 +4840,16 @@ static int gfx_v9_0_cp_ecc_error_irq(struct amdgpu_device *adev,
 				  struct amdgpu_irq_src *source,
 				  struct amdgpu_iv_entry *entry)
 {
+	struct ras_common_if *ras_if = adev->gfx.ras_if;
 	struct ras_dispatch_if ih_data = {
-		.head = *adev->gfx.ras_if,
 		.entry = entry,
 	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
 	DRM_ERROR("CP ECC ERROR IRQ\n");
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;

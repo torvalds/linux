@@ -248,10 +248,16 @@ static int gmc_v9_0_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry)
 {
+	struct ras_common_if *ras_if = adev->gmc.ras_if;
 	struct ras_dispatch_if ih_data = {
-		.head = *adev->gmc.ras_if,
 		.entry = entry,
 	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
 }
