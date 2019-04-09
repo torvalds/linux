@@ -19,7 +19,7 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/addrconf.h>
 #include <net/ipv6.h>
-#include <net/netfilter/ipv6/nf_nat_masquerade.h>
+#include <net/netfilter/nf_nat_masquerade.h>
 
 static unsigned int
 masquerade_tg6(struct sk_buff *skb, const struct xt_action_param *par)

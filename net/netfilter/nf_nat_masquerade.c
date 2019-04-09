@@ -7,8 +7,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 
-#include <net/netfilter/ipv4/nf_nat_masquerade.h>
-#include <net/netfilter/ipv6/nf_nat_masquerade.h>
+#include <net/netfilter/nf_nat_masquerade.h>
 
 static DEFINE_MUTEX(masq_mutex);
 static unsigned int masq_refcnt4 __read_mostly;

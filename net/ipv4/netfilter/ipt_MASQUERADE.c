@@ -22,7 +22,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter/x_tables.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/ipv4/nf_nat_masquerade.h>
+#include <net/netfilter/nf_nat_masquerade.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");

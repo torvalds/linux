@@ -14,8 +14,7 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/ipv4/nf_nat_masquerade.h>
-#include <net/netfilter/ipv6/nf_nat_masquerade.h>
+#include <net/netfilter/nf_nat_masquerade.h>
 
 struct nft_masq {
 	u32			flags;
