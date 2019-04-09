@@ -199,20 +199,12 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct lpc32xx_rtc *rtc;
-	int rtcirq, err;
+	int err;
 	u32 tmp;
-
-	rtcirq = platform_get_irq(pdev, 0);
-	if (rtcirq < 0) {
-		dev_warn(&pdev->dev, "Can't get interrupt resource\n");
-		rtcirq = -1;
-	}
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
 		return -ENOMEM;
-
-	rtc->irq = rtcirq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc->rtc_base = devm_ioremap_resource(&pdev->dev, res);
@@ -269,7 +261,10 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	 * IRQ is enabled after device registration in case alarm IRQ
 	 * is pending upon suspend exit.
 	 */
-	if (rtc->irq >= 0) {
+	rtc->irq = platform_get_irq(pdev, 0);
+	if (rtc->irq < 0) {
+		dev_warn(&pdev->dev, "Can't get interrupt resource\n");
+	} else {
 		if (devm_request_irq(&pdev->dev, rtc->irq,
 				     lpc32xx_rtc_alarm_interrupt,
 				     0, pdev->name, rtc) < 0) {
