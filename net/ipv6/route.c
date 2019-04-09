@@ -589,18 +589,14 @@ static inline int rt6_check_dev(struct fib6_info *rt, int oif)
 	return 0;
 }
 
-static inline enum rt6_nud_state rt6_check_neigh(struct fib6_info *rt)
+static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 {
 	enum rt6_nud_state ret = RT6_NUD_FAIL_HARD;
 	struct neighbour *neigh;
 
-	if (rt->fib6_flags & RTF_NONEXTHOP ||
-	    !rt->fib6_nh.fib_nh_gw_family)
-		return RT6_NUD_SUCCEED;
-
 	rcu_read_lock_bh();
-	neigh = __ipv6_neigh_lookup_noref(rt->fib6_nh.fib_nh_dev,
-					  &rt->fib6_nh.fib_nh_gw6);
+	neigh = __ipv6_neigh_lookup_noref(fib6_nh->fib_nh_dev,
+					  &fib6_nh->fib_nh_gw6);
 	if (neigh) {
 		read_lock(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
@@ -623,6 +619,7 @@ static inline enum rt6_nud_state rt6_check_neigh(struct fib6_info *rt)
 
 static int rt6_score_route(struct fib6_info *rt, int oif, int strict)
 {
+	struct fib6_nh *nh = &rt->fib6_nh;
 	int m;
 
 	m = rt6_check_dev(rt, oif);
@@ -631,8 +628,9 @@ static int rt6_score_route(struct fib6_info *rt, int oif, int strict)
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->fib6_flags)) << 2;
 #endif
-	if (strict & RT6_LOOKUP_F_REACHABLE) {
-		int n = rt6_check_neigh(rt);
+	if ((strict & RT6_LOOKUP_F_REACHABLE) &&
+	    !(rt->fib6_flags & RTF_NONEXTHOP) && nh->fib_nh_gw_family) {
+		int n = rt6_check_neigh(nh);
 		if (n < 0)
 			return n;
 	}
