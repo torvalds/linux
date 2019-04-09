@@ -146,6 +146,7 @@ static struct watchdog_device sirfsoc_wdd = {
 
 static int sirfsoc_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	void __iomem *base;
 
@@ -155,29 +156,18 @@ static int sirfsoc_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&sirfsoc_wdd, (__force void *)base);
 
-	watchdog_init_timeout(&sirfsoc_wdd, timeout, &pdev->dev);
+	watchdog_init_timeout(&sirfsoc_wdd, timeout, dev);
 	watchdog_set_nowayout(&sirfsoc_wdd, nowayout);
-	sirfsoc_wdd.parent = &pdev->dev;
+	sirfsoc_wdd.parent = dev;
 
-	ret = watchdog_register_device(&sirfsoc_wdd);
+	watchdog_stop_on_reboot(&sirfsoc_wdd);
+	watchdog_stop_on_unregister(&sirfsoc_wdd);
+	ret = devm_watchdog_register_device(dev, &sirfsoc_wdd);
 	if (ret)
 		return ret;
 
 	platform_set_drvdata(pdev, &sirfsoc_wdd);
 
-	return 0;
-}
-
-static void sirfsoc_wdt_shutdown(struct platform_device *pdev)
-{
-	struct watchdog_device *wdd = platform_get_drvdata(pdev);
-
-	sirfsoc_wdt_disable(wdd);
-}
-
-static int sirfsoc_wdt_remove(struct platform_device *pdev)
-{
-	sirfsoc_wdt_shutdown(pdev);
 	return 0;
 }
 
@@ -218,8 +208,6 @@ static struct platform_driver sirfsoc_wdt_driver = {
 		.of_match_table	= sirfsoc_wdt_of_match,
 	},
 	.probe = sirfsoc_wdt_probe,
-	.remove = sirfsoc_wdt_remove,
-	.shutdown = sirfsoc_wdt_shutdown,
 };
 module_platform_driver(sirfsoc_wdt_driver);
 
