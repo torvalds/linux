@@ -1005,6 +1005,11 @@ static ssize_t intel_sdvo_read_infoframe(struct intel_sdvo *intel_sdvo,
 	if (av_split < if_index)
 		return 0;
 
+	if (!intel_sdvo_set_value(intel_sdvo,
+				  SDVO_CMD_SET_HBUF_INDEX,
+				  set_buf_index, 2))
+		return -ENXIO;
+
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_HBUF_TXRATE,
 				  &tx_rate, 1))
@@ -1012,11 +1017,6 @@ static ssize_t intel_sdvo_read_infoframe(struct intel_sdvo *intel_sdvo,
 
 	if (tx_rate == SDVO_HBUF_TX_DISABLED)
 		return 0;
-
-	if (!intel_sdvo_set_value(intel_sdvo,
-				  SDVO_CMD_SET_HBUF_INDEX,
-				  set_buf_index, 2))
-		return -ENXIO;
 
 	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HBUF_INFO,
 				  &hbuf_size, 1))
