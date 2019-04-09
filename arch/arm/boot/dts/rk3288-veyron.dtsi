@@ -62,12 +62,19 @@
 		pinctrl-0 = <&bt_enable_l>, <&wifi_enable_h>;
 
 		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
+		 * Depending on the actual card populated GPIO4 D4 and D5
+		 * correspond to one of these signals on the module:
+		 *
+		 * D4:
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
+		 *
+		 * D5:
+		 * - BT_I2S_WS_BT_RFDISABLE_L
+		 * - No connect
 		 */
-		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>,
+			      <&gpio4 RK_PD5 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc_5v: vcc-5v {
