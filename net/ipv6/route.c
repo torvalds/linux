@@ -1843,15 +1843,15 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	rcu_read_lock();
 
 	f6i = fib6_table_lookup(net, table, oif, fl6, strict);
-	if (f6i->fib6_nsiblings)
-		f6i = fib6_multipath_select(net, f6i, fl6, oif, skb, strict);
-
 	if (f6i == net->ipv6.fib6_null_entry) {
 		rt = net->ipv6.ip6_null_entry;
 		rcu_read_unlock();
 		dst_hold(&rt->dst);
 		return rt;
 	}
+
+	if (f6i->fib6_nsiblings)
+		f6i = fib6_multipath_select(net, f6i, fl6, oif, skb, strict);
 
 	/*Search through exception table */
 	rt = rt6_find_cached_rt(f6i, &fl6->daddr, &fl6->saddr);
