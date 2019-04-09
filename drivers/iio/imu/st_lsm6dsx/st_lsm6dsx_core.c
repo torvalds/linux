@@ -62,37 +62,19 @@
 #define ST_LSM6DSX_REG_INT2_ON_INT1_ADDR	0x13
 #define ST_LSM6DSX_REG_INT2_ON_INT1_MASK	BIT(5)
 
-#define ST_LSM6DSX_REG_ACC_ODR_ADDR		0x10
-#define ST_LSM6DSX_REG_ACC_ODR_MASK		GENMASK(7, 4)
-#define ST_LSM6DSX_REG_ACC_FS_ADDR		0x10
-#define ST_LSM6DSX_REG_ACC_FS_MASK		GENMASK(3, 2)
 #define ST_LSM6DSX_REG_ACC_OUT_X_L_ADDR		0x28
 #define ST_LSM6DSX_REG_ACC_OUT_Y_L_ADDR		0x2a
 #define ST_LSM6DSX_REG_ACC_OUT_Z_L_ADDR		0x2c
 
-#define ST_LSM6DSX_REG_GYRO_ODR_ADDR		0x11
-#define ST_LSM6DSX_REG_GYRO_ODR_MASK		GENMASK(7, 4)
-#define ST_LSM6DSX_REG_GYRO_FS_ADDR		0x11
-#define ST_LSM6DSX_REG_GYRO_FS_MASK		GENMASK(3, 2)
 #define ST_LSM6DSX_REG_GYRO_OUT_X_L_ADDR	0x22
 #define ST_LSM6DSX_REG_GYRO_OUT_Y_L_ADDR	0x24
 #define ST_LSM6DSX_REG_GYRO_OUT_Z_L_ADDR	0x26
 
-#define ST_LSM6DSX_ACC_FS_2G_GAIN		IIO_G_TO_M_S_2(61)
-#define ST_LSM6DSX_ACC_FS_4G_GAIN		IIO_G_TO_M_S_2(122)
-#define ST_LSM6DSX_ACC_FS_8G_GAIN		IIO_G_TO_M_S_2(244)
-#define ST_LSM6DSX_ACC_FS_16G_GAIN		IIO_G_TO_M_S_2(488)
-
-#define ST_LSM6DSX_GYRO_FS_245_GAIN		IIO_DEGREE_TO_RAD(8750)
-#define ST_LSM6DSX_GYRO_FS_500_GAIN		IIO_DEGREE_TO_RAD(17500)
-#define ST_LSM6DSX_GYRO_FS_1000_GAIN		IIO_DEGREE_TO_RAD(35000)
-#define ST_LSM6DSX_GYRO_FS_2000_GAIN		IIO_DEGREE_TO_RAD(70000)
-
 static const struct st_lsm6dsx_odr_table_entry st_lsm6dsx_odr_table[] = {
 	[ST_LSM6DSX_ID_ACC] = {
 		.reg = {
-			.addr = ST_LSM6DSX_REG_ACC_ODR_ADDR,
-			.mask = ST_LSM6DSX_REG_ACC_ODR_MASK,
+			.addr = 0x10,
+			.mask = GENMASK(7, 4),
 		},
 		.odr_avl[0] = {  13, 0x01 },
 		.odr_avl[1] = {  26, 0x02 },
@@ -103,8 +85,8 @@ static const struct st_lsm6dsx_odr_table_entry st_lsm6dsx_odr_table[] = {
 	},
 	[ST_LSM6DSX_ID_GYRO] = {
 		.reg = {
-			.addr = ST_LSM6DSX_REG_GYRO_ODR_ADDR,
-			.mask = ST_LSM6DSX_REG_GYRO_ODR_MASK,
+			.addr = 0x11,
+			.mask = GENMASK(7, 4),
 		},
 		.odr_avl[0] = {  13, 0x01 },
 		.odr_avl[1] = {  26, 0x02 },
@@ -118,23 +100,23 @@ static const struct st_lsm6dsx_odr_table_entry st_lsm6dsx_odr_table[] = {
 static const struct st_lsm6dsx_fs_table_entry st_lsm6dsx_fs_table[] = {
 	[ST_LSM6DSX_ID_ACC] = {
 		.reg = {
-			.addr = ST_LSM6DSX_REG_ACC_FS_ADDR,
-			.mask = ST_LSM6DSX_REG_ACC_FS_MASK,
+			.addr = 0x10,
+			.mask = GENMASK(3, 2),
 		},
-		.fs_avl[0] = {  ST_LSM6DSX_ACC_FS_2G_GAIN, 0x0 },
-		.fs_avl[1] = {  ST_LSM6DSX_ACC_FS_4G_GAIN, 0x2 },
-		.fs_avl[2] = {  ST_LSM6DSX_ACC_FS_8G_GAIN, 0x3 },
-		.fs_avl[3] = { ST_LSM6DSX_ACC_FS_16G_GAIN, 0x1 },
+		.fs_avl[0] = {  IIO_G_TO_M_S_2(61), 0x0 },
+		.fs_avl[1] = { IIO_G_TO_M_S_2(122), 0x2 },
+		.fs_avl[2] = { IIO_G_TO_M_S_2(244), 0x3 },
+		.fs_avl[3] = { IIO_G_TO_M_S_2(488), 0x1 },
 	},
 	[ST_LSM6DSX_ID_GYRO] = {
 		.reg = {
-			.addr = ST_LSM6DSX_REG_GYRO_FS_ADDR,
-			.mask = ST_LSM6DSX_REG_GYRO_FS_MASK,
+			.addr = 0x11,
+			.mask = GENMASK(3, 2),
 		},
-		.fs_avl[0] = {  ST_LSM6DSX_GYRO_FS_245_GAIN, 0x0 },
-		.fs_avl[1] = {  ST_LSM6DSX_GYRO_FS_500_GAIN, 0x1 },
-		.fs_avl[2] = { ST_LSM6DSX_GYRO_FS_1000_GAIN, 0x2 },
-		.fs_avl[3] = { ST_LSM6DSX_GYRO_FS_2000_GAIN, 0x3 },
+		.fs_avl[0] = {  IIO_DEGREE_TO_RAD(8750), 0x0 },
+		.fs_avl[1] = { IIO_DEGREE_TO_RAD(17500), 0x1 },
+		.fs_avl[2] = { IIO_DEGREE_TO_RAD(35000), 0x2 },
+		.fs_avl[3] = { IIO_DEGREE_TO_RAD(70000), 0x3 },
 	}
 };
 
