@@ -807,5 +807,6 @@ static struct svc_program	nlmsvc_program = {
 	.pg_name		= "lockd",		/* service name */
 	.pg_class		= "nfsd",		/* share authentication with nfsd */
 	.pg_stats		= &nlmsvc_stats,	/* stats table */
-	.pg_authenticate = &lockd_authenticate	/* export authentication */
+	.pg_authenticate	= &lockd_authenticate,	/* export authentication */
+	.pg_init_request	= svc_generic_init_request,
 };

@@ -1160,6 +1160,59 @@ svc_get_autherr(struct svc_rqst *rqstp, __be32 *statp)
 	return rpc_auth_ok;
 }
 
+__be32
+svc_generic_init_request(struct svc_rqst *rqstp,
+		const struct svc_program *progp,
+		struct svc_process_info *ret)
+{
+	const struct svc_version *versp = NULL;	/* compiler food */
+	const struct svc_procedure *procp = NULL;
+
+	if (rqstp->rq_vers >= progp->pg_nvers )
+		goto err_bad_vers;
+	  versp = progp->pg_vers[rqstp->rq_vers];
+	  if (!versp)
+		goto err_bad_vers;
+
+	/*
+	 * Some protocol versions (namely NFSv4) require some form of
+	 * congestion control.  (See RFC 7530 section 3.1 paragraph 2)
+	 * In other words, UDP is not allowed. We mark those when setting
+	 * up the svc_xprt, and verify that here.
+	 *
+	 * The spec is not very clear about what error should be returned
+	 * when someone tries to access a server that is listening on UDP
+	 * for lower versions. RPC_PROG_MISMATCH seems to be the closest
+	 * fit.
+	 */
+	if (versp->vs_need_cong_ctrl && rqstp->rq_xprt &&
+	    !test_bit(XPT_CONG_CTRL, &rqstp->rq_xprt->xpt_flags))
+		goto err_bad_vers;
+
+	if (rqstp->rq_proc >= versp->vs_nproc)
+		goto err_bad_proc;
+	rqstp->rq_procinfo = procp = &versp->vs_proc[rqstp->rq_proc];
+	if (!procp)
+		goto err_bad_proc;
+
+	/* Initialize storage for argp and resp */
+	memset(rqstp->rq_argp, 0, procp->pc_argsize);
+	memset(rqstp->rq_resp, 0, procp->pc_ressize);
+
+	/* Bump per-procedure stats counter */
+	versp->vs_count[rqstp->rq_proc]++;
+
+	ret->dispatch = versp->vs_dispatch;
+	return rpc_success;
+err_bad_vers:
+	ret->mismatch.lovers = progp->pg_lovers;
+	ret->mismatch.hivers = progp->pg_hivers;
+	return rpc_prog_mismatch;
+err_bad_proc:
+	return rpc_proc_unavail;
+}
+EXPORT_SYMBOL_GPL(svc_generic_init_request);
+
 /*
  * Common routine for processing the RPC request.
  */
@@ -1167,11 +1220,11 @@ static int
 svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 {
 	struct svc_program	*progp;
-	const struct svc_version *versp = NULL;	/* compiler food */
 	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
+	struct svc_process_info process;
 	__be32			*statp;
-	u32			prog, vers, proc;
+	u32			prog, vers;
 	__be32			auth_stat, rpc_stat;
 	int			auth_res;
 	__be32			*reply_statp;
@@ -1203,8 +1256,8 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	svc_putnl(resv, 0);		/* ACCEPT */
 
 	rqstp->rq_prog = prog = svc_getnl(argv);	/* program number */
-	rqstp->rq_vers = vers = svc_getnl(argv);	/* version number */
-	rqstp->rq_proc = proc = svc_getnl(argv);	/* procedure number */
+	rqstp->rq_vers = svc_getnl(argv);	/* version number */
+	rqstp->rq_proc = svc_getnl(argv);	/* procedure number */
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next)
 		if (prog == progp->pg_prog)
@@ -1242,29 +1295,22 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	if (progp == NULL)
 		goto err_bad_prog;
 
-	if (vers >= progp->pg_nvers ||
-	  !(versp = progp->pg_vers[vers]))
+	rpc_stat = progp->pg_init_request(rqstp, progp, &process);
+	switch (rpc_stat) {
+	case rpc_success:
+		break;
+	case rpc_prog_unavail:
+		goto err_bad_prog;
+	case rpc_prog_mismatch:
 		goto err_bad_vers;
-
-	/*
-	 * Some protocol versions (namely NFSv4) require some form of
-	 * congestion control.  (See RFC 7530 section 3.1 paragraph 2)
-	 * In other words, UDP is not allowed. We mark those when setting
-	 * up the svc_xprt, and verify that here.
-	 *
-	 * The spec is not very clear about what error should be returned
-	 * when someone tries to access a server that is listening on UDP
-	 * for lower versions. RPC_PROG_MISMATCH seems to be the closest
-	 * fit.
-	 */
-	if (versp->vs_need_cong_ctrl && rqstp->rq_xprt &&
-	    !test_bit(XPT_CONG_CTRL, &rqstp->rq_xprt->xpt_flags))
-		goto err_bad_vers;
-
-	procp = versp->vs_proc + proc;
-	if (proc >= versp->vs_nproc || !procp->pc_func)
+	case rpc_proc_unavail:
 		goto err_bad_proc;
-	rqstp->rq_procinfo = procp;
+	}
+
+	procp = rqstp->rq_procinfo;
+	/* Should this check go into the dispatcher? */
+	if (!procp || !procp->pc_func)
+		goto err_bad_proc;
 
 	/* Syntactic check complete */
 	serv->sv_stats->rpccnt++;
@@ -1274,13 +1320,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	statp = resv->iov_base +resv->iov_len;
 	svc_putnl(resv, RPC_SUCCESS);
 
-	/* Bump per-procedure stats counter */
-	versp->vs_count[proc]++;
-
-	/* Initialize storage for argp and resp */
-	memset(rqstp->rq_argp, 0, procp->pc_argsize);
-	memset(rqstp->rq_resp, 0, procp->pc_ressize);
-
 	/* un-reserve some of the out-queue now that we have a
 	 * better idea of reply size
 	 */
@@ -1288,7 +1327,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		svc_reserve_auth(rqstp, procp->pc_xdrressize<<2);
 
 	/* Call the function that processes the request. */
-	if (!versp->vs_dispatch) {
+	if (!process.dispatch) {
 		/*
 		 * Decode arguments
 		 * XXX: why do we ignore the return value?
@@ -1317,7 +1356,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		}
 	} else {
 		dprintk("svc: calling dispatcher\n");
-		if (!versp->vs_dispatch(rqstp, statp)) {
+		if (!process.dispatch(rqstp, statp)) {
 			/* Release reply info */
 			if (procp->pc_release)
 				procp->pc_release(rqstp);
@@ -1386,16 +1425,16 @@ err_bad_prog:
 
 err_bad_vers:
 	svc_printk(rqstp, "unknown version (%d for prog %d, %s)\n",
-		       vers, prog, progp->pg_name);
+		       rqstp->rq_vers, rqstp->rq_prog, progp->pg_name);
 
 	serv->sv_stats->rpcbadfmt++;
 	svc_putnl(resv, RPC_PROG_MISMATCH);
-	svc_putnl(resv, progp->pg_lovers);
-	svc_putnl(resv, progp->pg_hivers);
+	svc_putnl(resv, process.mismatch.lovers);
+	svc_putnl(resv, process.mismatch.hivers);
 	goto sendit;
 
 err_bad_proc:
-	svc_printk(rqstp, "unknown procedure (%d)\n", proc);
+	svc_printk(rqstp, "unknown procedure (%d)\n", rqstp->rq_proc);
 
 	serv->sv_stats->rpcbadfmt++;
 	svc_putnl(resv, RPC_PROC_UNAVAIL);

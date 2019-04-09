@@ -86,6 +86,7 @@ static struct svc_program	nfsd_acl_program = {
 	.pg_class		= "nfsd",
 	.pg_stats		= &nfsd_acl_svcstats,
 	.pg_authenticate	= &svc_set_client,
+	.pg_init_request	= svc_generic_init_request,
 };
 
 static struct svc_stat	nfsd_acl_svcstats = {
@@ -118,6 +119,7 @@ struct svc_program		nfsd_program = {
 	.pg_class		= "nfsd",		/* authentication class */
 	.pg_stats		= &nfsd_svcstats,	/* version table */
 	.pg_authenticate	= &svc_set_client,	/* export authentication */
+	.pg_init_request	= svc_generic_init_request,
 
 };
 

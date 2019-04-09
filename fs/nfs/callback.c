@@ -457,4 +457,5 @@ static struct svc_program nfs4_callback_program = {
 	.pg_class = "nfs",				/* authentication class */
 	.pg_stats = &nfs4_callback_stats,
 	.pg_authenticate = nfs_callback_authenticate,
+	.pg_init_request = svc_generic_init_request,
 };
