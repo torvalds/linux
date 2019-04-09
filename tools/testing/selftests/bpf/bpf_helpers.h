@@ -9,14 +9,14 @@
 #define SEC(NAME) __attribute__((section(NAME), used))
 
 /* helper functions called from eBPF programs written in C */
-static void *(*bpf_map_lookup_elem)(void *map, void *key) =
+static void *(*bpf_map_lookup_elem)(void *map, const void *key) =
 	(void *) BPF_FUNC_map_lookup_elem;
-static int (*bpf_map_update_elem)(void *map, void *key, void *value,
+static int (*bpf_map_update_elem)(void *map, const void *key, const void *value,
 				  unsigned long long flags) =
 	(void *) BPF_FUNC_map_update_elem;
-static int (*bpf_map_delete_elem)(void *map, void *key) =
+static int (*bpf_map_delete_elem)(void *map, const void *key) =
 	(void *) BPF_FUNC_map_delete_elem;
-static int (*bpf_map_push_elem)(void *map, void *value,
+static int (*bpf_map_push_elem)(void *map, const void *value,
 				unsigned long long flags) =
 	(void *) BPF_FUNC_map_push_elem;
 static int (*bpf_map_pop_elem)(void *map, void *value) =
