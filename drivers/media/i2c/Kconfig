@@ -1136,6 +1136,19 @@ config VIDEO_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called video-i2c
 
+config VIDEO_ST_MIPID02
+	tristate "STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.
+	  It is used to allow usage of CSI-2 sensor with PARALLEL port
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st-mipid02.
+
 endmenu
 
 endif
