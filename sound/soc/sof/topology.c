@@ -450,7 +450,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	scontrol->num_channels = le32_to_cpu(mc->num_channels);
 
 	/* set cmd for mixer control */
-	if (mc->max == 1) {
+	if (le32_to_cpu(mc->max) == 1) {
 		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
 		goto out;
 	}
@@ -464,7 +464,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	}
 
 	/* set up volume table */
-	ret = set_up_volume_table(scontrol, tlv, mc->max + 1);
+	ret = set_up_volume_table(scontrol, tlv, le32_to_cpu(mc->max) + 1);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: setting up volume table\n");
 		return ret;
