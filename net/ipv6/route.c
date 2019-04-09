@@ -580,15 +580,6 @@ static inline void rt6_probe(struct fib6_info *rt)
 /*
  * Default Router Selection (RFC 2461 6.3.6)
  */
-static inline int rt6_check_dev(struct fib6_info *rt, int oif)
-{
-	const struct net_device *dev = rt->fib6_nh.fib_nh_dev;
-
-	if (!oif || dev->ifindex == oif)
-		return 2;
-	return 0;
-}
-
 static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 {
 	enum rt6_nud_state ret = RT6_NUD_FAIL_HARD;
@@ -620,9 +611,11 @@ static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 static int rt6_score_route(struct fib6_info *rt, int oif, int strict)
 {
 	struct fib6_nh *nh = &rt->fib6_nh;
-	int m;
+	int m = 0;
 
-	m = rt6_check_dev(rt, oif);
+	if (!oif || nh->fib_nh_dev->ifindex == oif)
+		m = 2;
+
 	if (!m && (strict & RT6_LOOKUP_F_IFACE))
 		return RT6_NUD_FAIL_HARD;
 #ifdef CONFIG_IPV6_ROUTER_PREF
