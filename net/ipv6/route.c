@@ -102,7 +102,8 @@ static void		ip6_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 					   struct sk_buff *skb, u32 mtu);
 static void		rt6_do_redirect(struct dst_entry *dst, struct sock *sk,
 					struct sk_buff *skb);
-static int rt6_score_route(struct fib6_info *rt, int oif, int strict);
+static int rt6_score_route(const struct fib6_nh *nh, u32 fib6_flags, int oif,
+			   int strict);
 static size_t rt6_nlmsg_size(struct fib6_info *rt);
 static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 			 struct fib6_info *rt, struct dst_entry *dst,
@@ -446,12 +447,13 @@ struct fib6_info *fib6_multipath_select(const struct net *net,
 
 	list_for_each_entry_safe(sibling, next_sibling, &match->fib6_siblings,
 				 fib6_siblings) {
+		const struct fib6_nh *nh = &sibling->fib6_nh;
 		int nh_upper_bound;
 
-		nh_upper_bound = atomic_read(&sibling->fib6_nh.fib_nh_upper_bound);
+		nh_upper_bound = atomic_read(&nh->fib_nh_upper_bound);
 		if (fl6->mp_hash > nh_upper_bound)
 			continue;
-		if (rt6_score_route(sibling, oif, strict) < 0)
+		if (rt6_score_route(nh, sibling->fib6_flags, oif, strict) < 0)
 			break;
 		match = sibling;
 		break;
@@ -608,9 +610,9 @@ static enum rt6_nud_state rt6_check_neigh(const struct fib6_nh *fib6_nh)
 	return ret;
 }
 
-static int rt6_score_route(struct fib6_info *rt, int oif, int strict)
+static int rt6_score_route(const struct fib6_nh *nh, u32 fib6_flags, int oif,
+			   int strict)
 {
-	struct fib6_nh *nh = &rt->fib6_nh;
 	int m = 0;
 
 	if (!oif || nh->fib_nh_dev->ifindex == oif)
@@ -619,10 +621,10 @@ static int rt6_score_route(struct fib6_info *rt, int oif, int strict)
 	if (!m && (strict & RT6_LOOKUP_F_IFACE))
 		return RT6_NUD_FAIL_HARD;
 #ifdef CONFIG_IPV6_ROUTER_PREF
-	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->fib6_flags)) << 2;
+	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(fib6_flags)) << 2;
 #endif
 	if ((strict & RT6_LOOKUP_F_REACHABLE) &&
-	    !(rt->fib6_flags & RTF_NONEXTHOP) && nh->fib_nh_gw_family) {
+	    !(fib6_flags & RTF_NONEXTHOP) && nh->fib_nh_gw_family) {
 		int n = rt6_check_neigh(nh);
 		if (n < 0)
 			return n;
@@ -648,7 +650,7 @@ static struct fib6_info *find_match(struct fib6_info *rt, int oif, int strict,
 	if (fib6_check_expired(rt))
 		goto out;
 
-	m = rt6_score_route(rt, oif, strict);
+	m = rt6_score_route(&rt->fib6_nh, rt->fib6_flags, oif, strict);
 	if (m == RT6_NUD_FAIL_DO_RR) {
 		match_do_rr = true;
 		m = 0; /* lowest valid score */
