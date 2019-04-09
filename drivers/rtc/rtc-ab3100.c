@@ -228,15 +228,17 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 		/* Ignore any error on this write */
 	}
 
-	rtc = devm_rtc_device_register(&pdev->dev, "ab3100-rtc",
-					&ab3100_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		err = PTR_ERR(rtc);
-		return err;
-	}
+	rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	rtc->ops = &ab3100_rtc_ops;
+	/* 48bit counter at (AB3100_RTC_CLOCK_RATE * 2) */
+	rtc->range_max = U32_MAX;
+
 	platform_set_drvdata(pdev, rtc);
 
-	return 0;
+	return rtc_register_device(rtc);
 }
 
 static struct platform_driver ab3100_rtc_driver = {
