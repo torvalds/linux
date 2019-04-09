@@ -871,20 +871,20 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				obj->efile.symbols = data;
 				obj->efile.strtabidx = sh.sh_link;
 			}
-		} else if ((sh.sh_type == SHT_PROGBITS) &&
-			   (sh.sh_flags & SHF_EXECINSTR) &&
-			   (data->d_size > 0)) {
-			if (strcmp(name, ".text") == 0)
-				obj->efile.text_shndx = idx;
-			err = bpf_object__add_program(obj, data->d_buf,
-						      data->d_size, name, idx);
-			if (err) {
-				char errmsg[STRERR_BUFSIZE];
-				char *cp = libbpf_strerror_r(-err, errmsg,
-							     sizeof(errmsg));
+		} else if (sh.sh_type == SHT_PROGBITS && data->d_size > 0) {
+			if (sh.sh_flags & SHF_EXECINSTR) {
+				if (strcmp(name, ".text") == 0)
+					obj->efile.text_shndx = idx;
+				err = bpf_object__add_program(obj, data->d_buf,
+							      data->d_size, name, idx);
+				if (err) {
+					char errmsg[STRERR_BUFSIZE];
+					char *cp = libbpf_strerror_r(-err, errmsg,
+								     sizeof(errmsg));
 
-				pr_warning("failed to alloc program %s (%s): %s",
-					   name, obj->path, cp);
+					pr_warning("failed to alloc program %s (%s): %s",
+						   name, obj->path, cp);
+				}
 			}
 		} else if (sh.sh_type == SHT_REL) {
 			void *reloc = obj->efile.reloc;
@@ -1046,24 +1046,26 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 
-		/* TODO: 'maps' is sorted. We can use bsearch to make it faster. */
-		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
-			if (maps[map_idx].offset == sym.st_value) {
-				pr_debug("relocation: find map %zd (%s) for insn %u\n",
-					 map_idx, maps[map_idx].name, insn_idx);
-				break;
+		if (sym.st_shndx == maps_shndx) {
+			/* TODO: 'maps' is sorted. We can use bsearch to make it faster. */
+			for (map_idx = 0; map_idx < nr_maps; map_idx++) {
+				if (maps[map_idx].offset == sym.st_value) {
+					pr_debug("relocation: find map %zd (%s) for insn %u\n",
+						 map_idx, maps[map_idx].name, insn_idx);
+					break;
+				}
 			}
-		}
 
-		if (map_idx >= nr_maps) {
-			pr_warning("bpf relocation: map_idx %d large than %d\n",
-				   (int)map_idx, (int)nr_maps - 1);
-			return -LIBBPF_ERRNO__RELOC;
-		}
+			if (map_idx >= nr_maps) {
+				pr_warning("bpf relocation: map_idx %d large than %d\n",
+					   (int)map_idx, (int)nr_maps - 1);
+				return -LIBBPF_ERRNO__RELOC;
+			}
 
-		prog->reloc_desc[i].type = RELO_LD64;
-		prog->reloc_desc[i].insn_idx = insn_idx;
-		prog->reloc_desc[i].map_idx = map_idx;
+			prog->reloc_desc[i].type = RELO_LD64;
+			prog->reloc_desc[i].insn_idx = insn_idx;
+			prog->reloc_desc[i].map_idx = map_idx;
+		}
 	}
 	return 0;
 }
@@ -1425,7 +1427,7 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 			}
 			insns[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
 			insns[insn_idx].imm = obj->maps[map_idx].fd;
-		} else {
+		} else if (prog->reloc_desc[i].type == RELO_CALL) {
 			err = bpf_program__reloc_text(prog, obj,
 						      &prog->reloc_desc[i]);
 			if (err)
