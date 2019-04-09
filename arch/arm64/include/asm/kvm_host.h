@@ -580,7 +580,7 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu);
 
 static inline bool kvm_pmu_counter_deferred(struct perf_event_attr *attr)
 {
-	return attr->exclude_host;
+	return (!has_vhe() && attr->exclude_host);
 }
 
 #ifdef CONFIG_KVM /* Avoid conflicts with core headers if CONFIG_KVM=n */
@@ -594,6 +594,9 @@ void kvm_clr_pmu_events(u32 clr);
 
 void __pmu_switch_to_host(struct kvm_cpu_context *host_ctxt);
 bool __pmu_switch_to_guest(struct kvm_cpu_context *host_ctxt);
+
+void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu);
+void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu);
 #else
 static inline void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr) {}
 static inline void kvm_clr_pmu_events(u32 clr) {}

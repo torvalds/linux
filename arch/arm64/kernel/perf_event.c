@@ -847,8 +847,12 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	 * with other architectures (x86 and Power).
 	 */
 	if (is_kernel_in_hyp_mode()) {
-		if (!attr->exclude_kernel)
+		if (!attr->exclude_kernel && !attr->exclude_host)
 			config_base |= ARMV8_PMU_INCLUDE_EL2;
+		if (attr->exclude_guest)
+			config_base |= ARMV8_PMU_EXCLUDE_EL1;
+		if (attr->exclude_host)
+			config_base |= ARMV8_PMU_EXCLUDE_EL0;
 	} else {
 		if (!attr->exclude_hv && !attr->exclude_host)
 			config_base |= ARMV8_PMU_INCLUDE_EL2;
