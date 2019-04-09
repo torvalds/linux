@@ -668,58 +668,52 @@ out:
 	return rc;
 }
 
-static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
-				     struct fib6_info *leaf,
-				     struct fib6_info *rr_head,
-				     u32 metric, int oif, int strict,
-				     bool *do_rr)
+static void __find_rr_leaf(struct fib6_info *rt_start,
+			   struct fib6_info *nomatch, u32 metric,
+			   struct fib6_info **match, struct fib6_info **cont,
+			   int oif, int strict, bool *do_rr, int *mpri)
 {
-	struct fib6_info *rt, *match, *cont;
-	struct fib6_nh *nh;
+	struct fib6_info *rt;
+
+	for (rt = rt_start;
+	     rt && rt != nomatch;
+	     rt = rcu_dereference(rt->fib6_next)) {
+		struct fib6_nh *nh;
+
+		if (cont && rt->fib6_metric != metric) {
+			*cont = rt;
+			return;
+		}
+
+		if (fib6_check_expired(rt))
+			continue;
+
+		nh = &rt->fib6_nh;
+		if (find_match(nh, rt->fib6_flags, oif, strict, mpri, do_rr))
+			*match = rt;
+	}
+}
+
+static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
+				      struct fib6_info *leaf,
+				      struct fib6_info *rr_head,
+				      u32 metric, int oif, int strict,
+				      bool *do_rr)
+{
+	struct fib6_info *match = NULL, *cont = NULL;
 	int mpri = -1;
 
-	match = NULL;
-	cont = NULL;
-	for (rt = rr_head; rt; rt = rcu_dereference(rt->fib6_next)) {
-		if (rt->fib6_metric != metric) {
-			cont = rt;
-			break;
-		}
+	__find_rr_leaf(rr_head, NULL, metric, &match, &cont,
+		       oif, strict, do_rr, &mpri);
 
-		if (fib6_check_expired(rt))
-			continue;
-
-		nh = &rt->fib6_nh;
-		if (find_match(nh, rt->fib6_flags, oif, strict, &mpri, do_rr))
-			match = rt;
-	}
-
-	for (rt = leaf; rt && rt != rr_head;
-	     rt = rcu_dereference(rt->fib6_next)) {
-		if (rt->fib6_metric != metric) {
-			cont = rt;
-			break;
-		}
-
-		if (fib6_check_expired(rt))
-			continue;
-
-		nh = &rt->fib6_nh;
-		if (find_match(nh, rt->fib6_flags, oif, strict, &mpri, do_rr))
-			match = rt;
-	}
+	__find_rr_leaf(leaf, rr_head, metric, &match, &cont,
+		       oif, strict, do_rr, &mpri);
 
 	if (match || !cont)
 		return match;
 
-	for (rt = cont; rt; rt = rcu_dereference(rt->fib6_next)) {
-		if (fib6_check_expired(rt))
-			continue;
-
-		nh = &rt->fib6_nh;
-		if (find_match(nh, rt->fib6_flags, oif, strict, &mpri, do_rr))
-			match = rt;
-	}
+	__find_rr_leaf(cont, NULL, metric, &match, NULL,
+		       oif, strict, do_rr, &mpri);
 
 	return match;
 }
