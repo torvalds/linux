@@ -1568,7 +1568,15 @@ static void sta_ps_start(struct sta_info *sta)
 		return;
 
 	for (tid = 0; tid < IEEE80211_NUM_TIDS; tid++) {
-		if (txq_has_queue(sta->sta.txq[tid]))
+		struct ieee80211_txq *txq = sta->sta.txq[tid];
+		struct txq_info *txqi = to_txq_info(txq);
+
+		spin_lock(&local->active_txq_lock[txq->ac]);
+		if (!list_empty(&txqi->schedule_order))
+			list_del_init(&txqi->schedule_order);
+		spin_unlock(&local->active_txq_lock[txq->ac]);
+
+		if (txq_has_queue(txq))
 			set_bit(tid, &sta->txq_buffered_tids);
 		else
 			clear_bit(tid, &sta->txq_buffered_tids);

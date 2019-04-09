@@ -2728,7 +2728,7 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 			num_msdus++;
 			num_bytes += ret;
 		}
-		ieee80211_return_txq(hw, txq);
+		ieee80211_return_txq(hw, txq, false);
 		ieee80211_txq_schedule_end(hw, txq->ac);
 
 		record->num_msdus = cpu_to_le16(num_msdus);

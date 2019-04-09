@@ -167,8 +167,10 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		 * The driver doesn't know anything about VLAN interfaces.
 		 * Hence, don't send GTKs for VLAN interfaces to the driver.
 		 */
-		if (!(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		if (!(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+			ret = 1;
 			goto out_unsupported;
+		}
 	}
 
 	ret = drv_set_key(key->local, SET_KEY, sdata,
@@ -213,11 +215,8 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		/* all of these we can do in software - if driver can */
 		if (ret == 1)
 			return 0;
-		if (ieee80211_hw_check(&key->local->hw, SW_CRYPTO_CONTROL)) {
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-				return 0;
+		if (ieee80211_hw_check(&key->local->hw, SW_CRYPTO_CONTROL))
 			return -EINVAL;
-		}
 		return 0;
 	default:
 		return -EINVAL;

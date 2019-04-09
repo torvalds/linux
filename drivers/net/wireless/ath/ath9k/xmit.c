@@ -1938,12 +1938,15 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 		goto out;
 
 	while ((queue = ieee80211_next_txq(hw, txq->mac80211_qnum))) {
+		bool force;
+
 		tid = (struct ath_atx_tid *)queue->drv_priv;
 
 		ret = ath_tx_sched_aggr(sc, txq, tid);
 		ath_dbg(common, QUEUE, "ath_tx_sched_aggr returned %d\n", ret);
 
-		ieee80211_return_txq(hw, queue);
+		force = !skb_queue_empty(&tid->retry_q);
+		ieee80211_return_txq(hw, queue, force);
 	}
 
 out:
