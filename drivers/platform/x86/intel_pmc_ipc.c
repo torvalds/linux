@@ -40,7 +40,7 @@
  * The ARC handles the interrupt and services it, writing optional data to
  * the IPC1 registers, updates the IPC_STS response register with the status.
  */
-#define IPC_CMD			0x0
+#define IPC_CMD			0x00
 #define		IPC_CMD_MSI		BIT(8)
 #define		IPC_CMD_SIZE		16
 #define		IPC_CMD_SUBCMD		12
@@ -101,8 +101,8 @@
 #define TELEM_SSRAM_SIZE		240
 #define TELEM_PMC_SSRAM_OFFSET		0x1B00
 #define TELEM_PUNIT_SSRAM_OFFSET	0x1A00
-#define TCO_PMC_OFFSET			0x8
-#define TCO_PMC_SIZE			0x4
+#define TCO_PMC_OFFSET			0x08
+#define TCO_PMC_SIZE			0x04
 
 /* PMC register bit definitions */
 
