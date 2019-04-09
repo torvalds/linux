@@ -27,12 +27,18 @@
 	};
 };
 
-&mcpdm {
+&mcpdm_module {
+	/*
+	 * McPDM pads must be muxed at the interconnect target module
+	 * level as the module on the SoC needs external clock from
+	 * the PMIC
+	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
 
+&mcpdm {
 	clocks = <&twl6040>;
 	clock-names = "pdmclk";
-
-	status = "okay";
 };
