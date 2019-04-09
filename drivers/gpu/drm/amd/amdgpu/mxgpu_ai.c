@@ -157,6 +157,82 @@ static void xgpu_ai_mailbox_trans_msg (struct amdgpu_device *adev,
 	xgpu_ai_mailbox_set_valid(adev, false);
 }
 
+static int xgpu_ai_get_pp_clk(struct amdgpu_device *adev, u32 type, char *buf)
+{
+        int r = 0;
+        u32 req, val, size;
+
+        if (!amdgim_is_hwperf(adev) || buf == NULL)
+                return -EBADRQC;
+
+        switch(type) {
+        case PP_SCLK:
+                req = IDH_IRQ_GET_PP_SCLK;
+                break;
+        case PP_MCLK:
+                req = IDH_IRQ_GET_PP_MCLK;
+                break;
+        default:
+                return -EBADRQC;
+        }
+
+        mutex_lock(&adev->virt.dpm_mutex);
+
+        xgpu_ai_mailbox_trans_msg(adev, req, 0, 0, 0);
+
+        r = xgpu_ai_poll_msg(adev, IDH_SUCCESS);
+        if (!r && adev->fw_vram_usage.va != NULL) {
+                val = RREG32_NO_KIQ(
+                        SOC15_REG_OFFSET(NBIO, 0,
+                                         mmBIF_BX_PF0_MAILBOX_MSGBUF_RCV_DW1));
+                size = strnlen((((char *)adev->virt.fw_reserve.p_pf2vf) +
+                                val), PAGE_SIZE);
+
+                if (size < PAGE_SIZE)
+                        strcpy(buf,((char *)adev->virt.fw_reserve.p_pf2vf + val));
+                else
+                        size = 0;
+
+                r = size;
+                goto out;
+        }
+
+        r = xgpu_ai_poll_msg(adev, IDH_FAIL);
+        if(r)
+                pr_info("%s DPM request failed",
+                        (type == PP_SCLK)? "SCLK" : "MCLK");
+
+out:
+        mutex_unlock(&adev->virt.dpm_mutex);
+        return r;
+}
+
+static int xgpu_ai_force_dpm_level(struct amdgpu_device *adev, u32 level)
+{
+        int r = 0;
+        u32 req = IDH_IRQ_FORCE_DPM_LEVEL;
+
+        if (!amdgim_is_hwperf(adev))
+                return -EBADRQC;
+
+        mutex_lock(&adev->virt.dpm_mutex);
+        xgpu_ai_mailbox_trans_msg(adev, req, level, 0, 0);
+
+        r = xgpu_ai_poll_msg(adev, IDH_SUCCESS);
+        if (!r)
+                goto out;
+
+        r = xgpu_ai_poll_msg(adev, IDH_FAIL);
+        if (!r)
+                pr_info("DPM request failed");
+        else
+                pr_info("Mailbox is broken");
+
+out:
+        mutex_unlock(&adev->virt.dpm_mutex);
+        return r;
+}
+
 static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 					enum idh_request req)
 {
@@ -375,4 +451,6 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.reset_gpu = xgpu_ai_request_reset,
 	.wait_reset = NULL,
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
+	.get_pp_clk = xgpu_ai_get_pp_clk,
+	.force_dpm_level = xgpu_ai_force_dpm_level,
 };
