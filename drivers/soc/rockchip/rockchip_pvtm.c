@@ -265,10 +265,8 @@ static void px30_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 static void rk1808_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 				     unsigned int sub_ch)
 {
-	unsigned int ch = pvtm->channel->ch;
-
 	regmap_write(pvtm->grf, pvtm->con,
-		     wr_mask_bit(sub_ch, (ch * 0x4 + 0x2), 0x7));
+		     wr_mask_bit(sub_ch, 0x2, 0x7));
 }
 
 static void rk3399_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
