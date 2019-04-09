@@ -466,12 +466,34 @@ struct fib6_info *fib6_multipath_select(const struct net *net,
  *	Route lookup. rcu_read_lock() should be held.
  */
 
+static bool __rt6_device_match(struct net *net, const struct fib6_nh *nh,
+			       const struct in6_addr *saddr, int oif, int flags)
+{
+	const struct net_device *dev;
+
+	if (nh->fib_nh_flags & RTNH_F_DEAD)
+		return false;
+
+	dev = nh->fib_nh_dev;
+	if (oif) {
+		if (dev->ifindex == oif)
+			return true;
+	} else {
+		if (ipv6_chk_addr(net, saddr, dev,
+				  flags & RT6_LOOKUP_F_IFACE))
+			return true;
+	}
+
+	return false;
+}
+
 static inline struct fib6_info *rt6_device_match(struct net *net,
 						 struct fib6_info *rt,
 						    const struct in6_addr *saddr,
 						    int oif,
 						    int flags)
 {
+	const struct fib6_nh *nh;
 	struct fib6_info *sprt;
 
 	if (!oif && ipv6_addr_any(saddr) &&
@@ -479,19 +501,9 @@ static inline struct fib6_info *rt6_device_match(struct net *net,
 		return rt;
 
 	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->fib6_next)) {
-		const struct net_device *dev = sprt->fib6_nh.fib_nh_dev;
-
-		if (sprt->fib6_nh.fib_nh_flags & RTNH_F_DEAD)
-			continue;
-
-		if (oif) {
-			if (dev->ifindex == oif)
-				return sprt;
-		} else {
-			if (ipv6_chk_addr(net, saddr, dev,
-					  flags & RT6_LOOKUP_F_IFACE))
-				return sprt;
-		}
+		nh = &sprt->fib6_nh;
+		if (__rt6_device_match(net, nh, saddr, oif, flags))
+			return sprt;
 	}
 
 	if (oif && flags & RT6_LOOKUP_F_IFACE)
