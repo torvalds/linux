@@ -41,13 +41,13 @@
  * the IPC1 registers, updates the IPC_STS response register with the status.
  */
 #define IPC_CMD			0x0
-#define		IPC_CMD_MSI		0x100
+#define		IPC_CMD_MSI		BIT(8)
 #define		IPC_CMD_SIZE		16
 #define		IPC_CMD_SUBCMD		12
 #define IPC_STATUS		0x04
-#define		IPC_STATUS_IRQ		0x4
-#define		IPC_STATUS_ERR		0x2
-#define		IPC_STATUS_BUSY		0x1
+#define		IPC_STATUS_IRQ		BIT(2)
+#define		IPC_STATUS_ERR		BIT(1)
+#define		IPC_STATUS_BUSY		BIT(0)
 #define IPC_SPTR		0x08
 #define IPC_DPTR		0x0C
 #define IPC_WRITE_BUFFER	0x80
@@ -107,7 +107,7 @@
 /* PMC register bit definitions */
 
 /* PMC_CFG_REG bit masks */
-#define PMC_CFG_NO_REBOOT_MASK		(1 << 4)
+#define PMC_CFG_NO_REBOOT_MASK		BIT_MASK(4)
 #define PMC_CFG_NO_REBOOT_EN		(1 << 4)
 #define PMC_CFG_NO_REBOOT_DIS		(0 << 4)
 
