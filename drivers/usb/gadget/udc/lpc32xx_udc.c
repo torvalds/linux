@@ -617,17 +617,13 @@ static void isp1301_udc_configure(struct lpc32xx_udc *udc)
 		(ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR),
 		OTG1_VBUS_DISCHRG);
 
-	/* Clear and enable VBUS high edge interrupt */
 	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
 		ISP1301_I2C_INTERRUPT_LATCH | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
+
 	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
 		ISP1301_I2C_INTERRUPT_FALLING | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
 	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
-		ISP1301_I2C_INTERRUPT_FALLING, INT_SESS_VLD | INT_VBUS_VLD);
-	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
 		ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
-	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
-		ISP1301_I2C_INTERRUPT_RISING, INT_SESS_VLD | INT_VBUS_VLD);
 
 	dev_info(udc->dev, "ISP1301 Vendor ID  : 0x%04x\n", vendor);
 	dev_info(udc->dev, "ISP1301 Product ID : 0x%04x\n", product);
@@ -2887,9 +2883,6 @@ static void vbus_work(struct lpc32xx_udc *udc)
 			lpc32xx_vbus_session(&udc->gadget, udc->vbus);
 		}
 	}
-
-	/* Re-enable after completion */
-	enable_irq(udc->udp_irq[IRQ_USB_ATX]);
 }
 
 static irqreturn_t lpc32xx_usb_vbus_irq(int irq, void *_udc)
@@ -2905,7 +2898,6 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver)
 {
 	struct lpc32xx_udc *udc = to_udc(gadget);
-	int i;
 
 	if (!driver || driver->max_speed < USB_SPEED_FULL || !driver->setup) {
 		dev_err(udc->dev, "bad parameter.\n");
@@ -2927,20 +2919,23 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 	udc->last_vbus = udc->vbus = 0;
 	vbus_work(udc);
 
-	/* Do not re-enable ATX IRQ (3) */
-	for (i = IRQ_USB_LP; i < IRQ_USB_ATX; i++)
-		enable_irq(udc->udp_irq[i]);
+	/* enable interrupts */
+	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_FALLING, INT_SESS_VLD | INT_VBUS_VLD);
+	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_RISING, INT_SESS_VLD | INT_VBUS_VLD);
 
 	return 0;
 }
 
 static int lpc32xx_stop(struct usb_gadget *gadget)
 {
-	int i;
 	struct lpc32xx_udc *udc = to_udc(gadget);
 
-	for (i = IRQ_USB_LP; i <= IRQ_USB_ATX; i++)
-		disable_irq(udc->udp_irq[i]);
+	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_FALLING | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
+	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
 
 	if (udc->clocked) {
 		spin_lock(&udc->lock);
@@ -3171,10 +3166,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	/* Initialize wait queue */
 	init_waitqueue_head(&udc->ep_disable_wait_queue);
 	atomic_set(&udc->enabled_ep_cnt, 0);
-
-	/* Keep all IRQs disabled until GadgetFS starts up */
-	for (i = IRQ_USB_LP; i <= IRQ_USB_ATX; i++)
-		disable_irq(udc->udp_irq[i]);
 
 	retval = usb_add_gadget_udc(dev, &udc->gadget);
 	if (retval < 0)
