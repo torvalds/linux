@@ -112,8 +112,9 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 			     IEEE80211_HT_CAP_TX_STBC);
 
 	/* Allow user to configure RX STBC bits */
-	if (ht_capa_mask->cap_info & IEEE80211_HT_CAP_RX_STBC)
-		ht_cap->cap |= ht_capa->cap_info & IEEE80211_HT_CAP_RX_STBC;
+	if (ht_capa_mask->cap_info & cpu_to_le16(IEEE80211_HT_CAP_RX_STBC))
+		ht_cap->cap |= le16_to_cpu(ht_capa->cap_info) &
+					IEEE80211_HT_CAP_RX_STBC;
 
 	/* Allow user to decrease AMPDU factor */
 	if (ht_capa_mask->ampdu_params_info &
