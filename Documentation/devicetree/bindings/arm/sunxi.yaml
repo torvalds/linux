@@ -716,6 +716,11 @@ properties:
           - const: xunlong,orangepi-2
           - const: allwinner,sun8i-h3
 
+      - description: Xunlong OrangePi 3
+        items:
+          - const: xunlong,orangepi-3
+          - const: allwinner,sun50i-h6
+
       - description: Xunlong OrangePi Lite
         items:
           - const: xunlong,orangepi-lite
