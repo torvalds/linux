@@ -2390,46 +2390,129 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 
 static int
 smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
-		   const char *full_path, char **target_path,
-		   struct cifs_sb_info *cifs_sb)
+		   struct cifs_sb_info *cifs_sb, const char *full_path,
+		   char **target_path, bool is_reparse_point)
 {
 	int rc;
-	__le16 *utf16_path;
+	__le16 *utf16_path = NULL;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct kvec err_iov = {NULL, 0};
 	struct smb2_err_rsp *err_buf = NULL;
-	int resp_buftype;
 	struct smb2_symlink_err_rsp *symlink;
 	unsigned int sub_len;
 	unsigned int sub_offset;
 	unsigned int print_len;
 	unsigned int print_offset;
+	int flags = 0;
+	struct smb_rqst rqst[3];
+	int resp_buftype[3];
+	struct kvec rsp_iov[3];
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
+	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
+	struct kvec close_iov[1];
+	struct smb2_create_rsp *create_rsp;
+	struct smb2_ioctl_rsp *ioctl_rsp;
+	char *ioctl_buf;
+	u32 plen;
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+	memset(rqst, 0, sizeof(rqst));
+	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
+	memset(rsp_iov, 0, sizeof(rsp_iov));
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)
 		return -ENOMEM;
 
+	/* Open */
+	memset(&open_iov, 0, sizeof(open_iov));
+	rqst[0].rq_iov = open_iov;
+	rqst[0].rq_nvec = SMB2_CREATE_IOV_SIZE;
+
+	memset(&oparms, 0, sizeof(oparms));
 	oparms.tcon = tcon;
 	oparms.desired_access = FILE_READ_ATTRIBUTES;
 	oparms.disposition = FILE_OPEN;
+
 	if (backup_cred(cifs_sb))
 		oparms.create_options = CREATE_OPEN_BACKUP_INTENT;
 	else
 		oparms.create_options = 0;
+	if (is_reparse_point)
+		oparms.create_options = OPEN_REPARSE_POINT;
+
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, &err_iov,
-		       &resp_buftype);
-	if (!rc)
-		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	rc = SMB2_open_init(tcon, &rqst[0], &oplock, &oparms, utf16_path);
+	if (rc)
+		goto querty_exit;
+	smb2_set_next_command(tcon, &rqst[0]);
+
+
+	/* IOCTL */
+	memset(&io_iov, 0, sizeof(io_iov));
+	rqst[1].rq_iov = io_iov;
+	rqst[1].rq_nvec = SMB2_IOCTL_IOV_SIZE;
+
+	rc = SMB2_ioctl_init(tcon, &rqst[1], fid.persistent_fid,
+			     fid.volatile_fid, FSCTL_GET_REPARSE_POINT,
+			     true /* is_fctl */, NULL, 0, CIFSMaxBufSize);
+	if (rc)
+		goto querty_exit;
+
+	smb2_set_next_command(tcon, &rqst[1]);
+	smb2_set_related(&rqst[1]);
+
+
+	/* Close */
+	memset(&close_iov, 0, sizeof(close_iov));
+	rqst[2].rq_iov = close_iov;
+	rqst[2].rq_nvec = 1;
+
+	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID);
+	if (rc)
+		goto querty_exit;
+
+	smb2_set_related(&rqst[2]);
+
+	rc = compound_send_recv(xid, tcon->ses, flags, 3, rqst,
+				resp_buftype, rsp_iov);
+
+	create_rsp = rsp_iov[0].iov_base;
+	if (create_rsp && create_rsp->sync_hdr.Status)
+		err_iov = rsp_iov[0];
+	ioctl_rsp = rsp_iov[1].iov_base;
+
+	/*
+	 * Open was successful and we got an ioctl response.
+	 */
+	if ((rc == 0) && (is_reparse_point)) {
+		/* See MS-FSCC 2.3.23 */
+
+		ioctl_buf = (char *)ioctl_rsp + le32_to_cpu(ioctl_rsp->OutputOffset);
+		plen = le32_to_cpu(ioctl_rsp->OutputCount);
+
+		if (plen + le32_to_cpu(ioctl_rsp->OutputOffset) >
+		    rsp_iov[1].iov_len) {
+			cifs_dbg(VFS, "srv returned invalid ioctl length: %d\n", plen);
+			rc = -EIO;
+			goto querty_exit;
+		}
+
+		/* Do stuff with ioctl_buf/plen */
+		goto querty_exit;
+	}
+
 	if (!rc || !err_iov.iov_base) {
 		rc = -ENOENT;
-		goto free_path;
+		goto querty_exit;
 	}
 
 	err_buf = err_iov.iov_base;
@@ -2469,9 +2552,14 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
 
  querty_exit:
-	free_rsp_buf(resp_buftype, err_buf);
- free_path:
+	cifs_dbg(FYI, "query symlink rc %d\n", rc);
 	kfree(utf16_path);
+	SMB2_open_free(&rqst[0]);
+	SMB2_ioctl_free(&rqst[1]);
+	SMB2_close_free(&rqst[2]);
+	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
+	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
+	free_rsp_buf(resp_buftype[2], rsp_iov[2].iov_base);
 	return rc;
 }
 

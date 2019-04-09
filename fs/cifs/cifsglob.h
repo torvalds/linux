@@ -355,7 +355,8 @@ struct smb_version_operations {
 			       struct cifs_sb_info *);
 	/* query symlink target */
 	int (*query_symlink)(const unsigned int, struct cifs_tcon *,
-			     const char *, char **, struct cifs_sb_info *);
+			     struct cifs_sb_info *, const char *,
+			     char **, bool);
 	/* open a file for non-posix mounts */
 	int (*open)(const unsigned int, struct cifs_open_parms *,
 		    __u32 *, FILE_ALL_INFO *);
