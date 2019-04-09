@@ -155,8 +155,7 @@ keeping lock contention under control at all tree levels regardless
 of the level of loading on the system.
 
 </p><p>RCU updaters wait for normal grace periods by registering
-RCU callbacks, either directly via <tt>call_rcu()</tt> and
-friends (namely <tt>call_rcu_bh()</tt> and <tt>call_rcu_sched()</tt>),
+RCU callbacks, either directly via <tt>call_rcu()</tt>
 or indirectly via <tt>synchronize_rcu()</tt> and friends.
 RCU callbacks are represented by <tt>rcu_head</tt> structures,
 which are queued on <tt>rcu_data</tt> structures while they are
