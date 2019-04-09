@@ -463,6 +463,7 @@ struct dcn_optc_registers {
 	type OPTC_SEG0_SRC_SEL;\
 	type OPTC_SEG1_SRC_SEL;\
 	type OPTC_MEM_SEL;\
+	type OPTC_DATA_FORMAT;\
 	type OPTC_DSC_MODE;\
 	type OPTC_DSC_BYTES_PER_PIXEL;\
 	type OPTC_DSC_SLICE_WIDTH;\

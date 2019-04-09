@@ -238,11 +238,13 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 			OPTC_MEM_SEL, 0);
 }
 
-void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id, int mpcc_hactive)
+void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id,
+		int mpcc_hactive, enum dc_pixel_encoding pixel_encoding)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	/* 2 pieces of memory required for up to 5120 displays, 4 for up to 8192 */
 	int memory_mask = mpcc_hactive <= 2560 ? 0x3 : 0xf;
+	uint32_t data_fmt = 0;
 
 	/* TODO: In pseudocode but does not affect maximus, delete comment if we dont need on asic
 	 * REG_SET(OTG_GLOBAL_CONTROL2, 0, GLOBAL_UPDATE_LOCK_EN, 1);
@@ -254,6 +256,13 @@ void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id, in
 	if (REG(OPTC_MEMORY_CONFIG))
 		REG_SET(OPTC_MEMORY_CONFIG, 0,
 			OPTC_MEM_SEL, memory_mask << (optc->inst * 4));
+
+	if (pixel_encoding == PIXEL_ENCODING_YCBCR422)
+		data_fmt = 1;
+	else if (pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		data_fmt = 2;
+
+	REG_SET(OPTC_DATA_FORMAT_CONTROL, 0, OPTC_DATA_FORMAT, data_fmt);
 
 	REG_SET_3(OPTC_DATA_SOURCE_SELECT, 0,
 			OPTC_NUM_OF_INPUT_SEGMENT, 1,

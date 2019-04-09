@@ -66,6 +66,7 @@
 	SF(ODM0_OPTC_DATA_SOURCE_SELECT, OPTC_SEG1_SRC_SEL, mask_sh),\
 	SF(ODM0_OPTC_DATA_SOURCE_SELECT, OPTC_NUM_OF_INPUT_SEGMENT, mask_sh),\
 	SF(ODM0_OPTC_MEMORY_CONFIG, OPTC_MEM_SEL, mask_sh),\
+	SF(ODM0_OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, mask_sh),\
 	SF(ODM0_OPTC_DATA_FORMAT_CONTROL, OPTC_DSC_MODE, mask_sh),\
 	SF(ODM0_OPTC_BYTES_PER_PIXEL, OPTC_DSC_BYTES_PER_PIXEL, mask_sh),\
 	SF(ODM0_OPTC_WIDTH_CONTROL, OPTC_DSC_SLICE_WIDTH, mask_sh),\
@@ -95,7 +96,8 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
 
-void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id, int mpcc_hactive);
+void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id,
+		int mpcc_hactive, enum dc_pixel_encoding pixel_encoding);
 
 void optc2_get_optc_source(struct timing_generator *optc,
 		uint32_t *num_of_src_opp,

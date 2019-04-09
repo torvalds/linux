@@ -703,7 +703,8 @@ enum dc_status dcn20_enable_stream_timing(
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
 				odm_pipe->stream_res.opp->inst,
-				pipe_ctx->stream->timing.h_addressable/2);
+				pipe_ctx->stream->timing.h_addressable/2,
+				pipe_ctx->stream->timing.pixel_encoding);
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
 	 */
@@ -1007,7 +1008,8 @@ static void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pip
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
 				combine_pipe->stream_res.opp->inst,
-				pipe_ctx->plane_res.scl_data.h_active);
+				pipe_ctx->plane_res.scl_data.h_active,
+				pipe_ctx->stream->timing.pixel_encoding);
 	else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
