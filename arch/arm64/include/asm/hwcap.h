@@ -17,6 +17,7 @@
 #define __ASM_HWCAP_H
 
 #include <uapi/asm/hwcap.h>
+#include <asm/cpufeature.h>
 
 #define COMPAT_HWCAP_HALF	(1 << 1)
 #define COMPAT_HWCAP_THUMB	(1 << 2)
@@ -40,7 +41,6 @@
 #define COMPAT_HWCAP2_CRC32	(1 << 4)
 
 #ifndef __ASSEMBLY__
-#include <linux/kernel.h>
 #include <linux/log2.h>
 
 /*
@@ -93,8 +93,8 @@
  * This yields a mask that user programs can use to figure out what
  * instruction set this cpu supports.
  */
-#define ELF_HWCAP		lower_32_bits(elf_hwcap)
-#define ELF_HWCAP2		upper_32_bits(elf_hwcap)
+#define ELF_HWCAP		cpu_get_elf_hwcap()
+#define ELF_HWCAP2		cpu_get_elf_hwcap2()
 
 #ifdef CONFIG_COMPAT
 #define COMPAT_ELF_HWCAP	(compat_elf_hwcap)
@@ -110,6 +110,5 @@ enum {
 #endif
 };
 
-extern unsigned long elf_hwcap;
 #endif
 #endif
