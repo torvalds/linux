@@ -669,6 +669,112 @@ static bool bpf_map_type__is_map_in_map(enum bpf_map_type type)
 	return false;
 }
 
+static int bpf_object_search_section_size(const struct bpf_object *obj,
+					  const char *name, size_t *d_size)
+{
+	const GElf_Ehdr *ep = &obj->efile.ehdr;
+	Elf *elf = obj->efile.elf;
+	Elf_Scn *scn = NULL;
+	int idx = 0;
+
+	while ((scn = elf_nextscn(elf, scn)) != NULL) {
+		const char *sec_name;
+		Elf_Data *data;
+		GElf_Shdr sh;
+
+		idx++;
+		if (gelf_getshdr(scn, &sh) != &sh) {
+			pr_warning("failed to get section(%d) header from %s\n",
+				   idx, obj->path);
+			return -EIO;
+		}
+
+		sec_name = elf_strptr(elf, ep->e_shstrndx, sh.sh_name);
+		if (!sec_name) {
+			pr_warning("failed to get section(%d) name from %s\n",
+				   idx, obj->path);
+			return -EIO;
+		}
+
+		if (strcmp(name, sec_name))
+			continue;
+
+		data = elf_getdata(scn, 0);
+		if (!data) {
+			pr_warning("failed to get section(%d) data from %s(%s)\n",
+				   idx, name, obj->path);
+			return -EIO;
+		}
+
+		*d_size = data->d_size;
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+int bpf_object__section_size(const struct bpf_object *obj, const char *name,
+			     __u32 *size)
+{
+	int ret = -ENOENT;
+	size_t d_size;
+
+	*size = 0;
+	if (!name) {
+		return -EINVAL;
+	} else if (!strcmp(name, ".data")) {
+		if (obj->efile.data)
+			*size = obj->efile.data->d_size;
+	} else if (!strcmp(name, ".bss")) {
+		if (obj->efile.bss)
+			*size = obj->efile.bss->d_size;
+	} else if (!strcmp(name, ".rodata")) {
+		if (obj->efile.rodata)
+			*size = obj->efile.rodata->d_size;
+	} else {
+		ret = bpf_object_search_section_size(obj, name, &d_size);
+		if (!ret)
+			*size = d_size;
+	}
+
+	return *size ? 0 : ret;
+}
+
+int bpf_object__variable_offset(const struct bpf_object *obj, const char *name,
+				__u32 *off)
+{
+	Elf_Data *symbols = obj->efile.symbols;
+	const char *sname;
+	size_t si;
+
+	if (!name || !off)
+		return -EINVAL;
+
+	for (si = 0; si < symbols->d_size / sizeof(GElf_Sym); si++) {
+		GElf_Sym sym;
+
+		if (!gelf_getsym(symbols, si, &sym))
+			continue;
+		if (GELF_ST_BIND(sym.st_info) != STB_GLOBAL ||
+		    GELF_ST_TYPE(sym.st_info) != STT_OBJECT)
+			continue;
+
+		sname = elf_strptr(obj->efile.elf, obj->efile.strtabidx,
+				   sym.st_name);
+		if (!sname) {
+			pr_warning("failed to get sym name string for var %s\n",
+				   name);
+			return -EIO;
+		}
+		if (strcmp(name, sname) == 0) {
+			*off = sym.st_value;
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
 static bool bpf_object__has_maps(const struct bpf_object *obj)
 {
 	return obj->efile.maps_shndx >= 0 ||
@@ -911,6 +1017,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
 	Elf_Data *btf_ext_data = NULL;
+	Elf_Data *btf_data = NULL;
 	Elf_Scn *scn = NULL;
 	int idx = 0, err = 0;
 
@@ -954,32 +1061,18 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			 (int)sh.sh_link, (unsigned long)sh.sh_flags,
 			 (int)sh.sh_type);
 
-		if (strcmp(name, "license") == 0)
+		if (strcmp(name, "license") == 0) {
 			err = bpf_object__init_license(obj,
 						       data->d_buf,
 						       data->d_size);
-		else if (strcmp(name, "version") == 0)
+		} else if (strcmp(name, "version") == 0) {
 			err = bpf_object__init_kversion(obj,
 							data->d_buf,
 							data->d_size);
-		else if (strcmp(name, "maps") == 0)
+		} else if (strcmp(name, "maps") == 0) {
 			obj->efile.maps_shndx = idx;
-		else if (strcmp(name, BTF_ELF_SEC) == 0) {
-			obj->btf = btf__new(data->d_buf, data->d_size);
-			if (IS_ERR(obj->btf)) {
-				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
-					   BTF_ELF_SEC, PTR_ERR(obj->btf));
-				obj->btf = NULL;
-				continue;
-			}
-			err = btf__load(obj->btf);
-			if (err) {
-				pr_warning("Error loading %s into kernel: %d. Ignored and continue.\n",
-					   BTF_ELF_SEC, err);
-				btf__free(obj->btf);
-				obj->btf = NULL;
-				err = 0;
-			}
+		} else if (strcmp(name, BTF_ELF_SEC) == 0) {
+			btf_data = data;
 		} else if (strcmp(name, BTF_EXT_ELF_SEC) == 0) {
 			btf_ext_data = data;
 		} else if (sh.sh_type == SHT_SYMTAB) {
@@ -1053,6 +1146,25 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 	if (!obj->efile.strtabidx || obj->efile.strtabidx >= idx) {
 		pr_warning("Corrupted ELF file: index of strtab invalid\n");
 		return LIBBPF_ERRNO__FORMAT;
+	}
+	if (btf_data) {
+		obj->btf = btf__new(btf_data->d_buf, btf_data->d_size);
+		if (IS_ERR(obj->btf)) {
+			pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
+				   BTF_ELF_SEC, PTR_ERR(obj->btf));
+			obj->btf = NULL;
+		} else {
+			err = btf__finalize_data(obj, obj->btf);
+			if (!err)
+				err = btf__load(obj->btf);
+			if (err) {
+				pr_warning("Error finalizing and loading %s into kernel: %d. Ignored and continue.\n",
+					   BTF_ELF_SEC, err);
+				btf__free(obj->btf);
+				obj->btf = NULL;
+				err = 0;
+			}
+		}
 	}
 	if (btf_ext_data) {
 		if (!obj->btf) {

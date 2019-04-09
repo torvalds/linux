@@ -162,4 +162,5 @@ LIBBPF_0.0.3 {
 	global:
 		bpf_map__is_internal;
 		bpf_map_freeze;
+		btf__finalize_data;
 } LIBBPF_0.0.2;
