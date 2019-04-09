@@ -20,7 +20,7 @@ struct patch {
 	unsigned int insn;
 };
 
-static void __kprobes *patch_map(void *addr, int fixmap, unsigned long *flags)
+static void __kprobes *patch_map(void *addr, int fixmap)
 {
 	unsigned long uintaddr = (uintptr_t) addr;
 	bool module = !core_kernel_text(uintaddr);
@@ -38,22 +38,21 @@ static void __kprobes *patch_map(void *addr, int fixmap, unsigned long *flags)
 	return (void *) (__fix_to_virt(fixmap) + (uintaddr & ~PAGE_MASK));
 }
 
-static void __kprobes patch_unmap(int fixmap, unsigned long *flags)
+static void __kprobes patch_unmap(int fixmap)
 {
 	clear_fixmap(fixmap);
 }
 
 void __kprobes __patch_text(void *addr, unsigned int insn)
 {
-	unsigned long flags;
 	void *waddr = addr;
 	int size;
 
-	waddr = patch_map(addr, FIX_TEXT_POKE0, &flags);
+	waddr = patch_map(addr, FIX_TEXT_POKE0);
 	*(u32 *)waddr = insn;
 	size = sizeof(u32);
 	flush_kernel_vmap_range(waddr, size);
-	patch_unmap(FIX_TEXT_POKE0, &flags);
+	patch_unmap(FIX_TEXT_POKE0);
 	flush_icache_range((uintptr_t)(addr),
 			   (uintptr_t)(addr) + size);
 }
