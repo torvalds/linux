@@ -39,6 +39,8 @@ Optional properties:
 		  0: clock source 0 (oscillator clock)
 		  1: clock source 1 (peripheral clock)
 
+- wakeup-source: enable CAN remote wakeup
+
 Example:
 
 	can@1c000 {
