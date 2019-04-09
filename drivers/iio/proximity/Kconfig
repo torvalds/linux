@@ -68,12 +68,19 @@ config RFD77402
 	  module will be called rfd77402.
 
 config SRF04
-	tristate "Devantech SRF04 ultrasonic ranger sensor"
+	tristate "GPIO bitbanged ultrasonic ranger sensor (SRF04, MB1000)"
 	depends on GPIOLIB
 	help
-	  Say Y here to build a driver for Devantech SRF04 ultrasonic
+	  Say Y here to build a driver for GPIO bitbanged ultrasonic
 	  ranger sensor. This driver can be used to measure the distance
 	  of objects. It is using two GPIOs.
+	  Actually Supported types are:
+	  - Devantech SRF04
+	  - Maxbotix mb1000
+	  - Maxbotix mb1010
+	  - Maxbotix mb1020
+	  - Maxbotix mb1030
+	  - Maxbotix mb1040
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called srf04.
