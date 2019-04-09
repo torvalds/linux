@@ -548,10 +548,6 @@
 	status = "okay";
 };
 
-&uart2 {
-	status = "okay";
-};
-
 &u2phy {
 	status = "okay";
 };
