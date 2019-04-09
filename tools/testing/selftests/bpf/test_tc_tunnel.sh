@@ -15,6 +15,9 @@ readonly ns2_v4=192.168.1.2
 readonly ns1_v6=fd::1
 readonly ns2_v6=fd::2
 
+# Must match port used by bpf program
+readonly udpport=5555
+
 readonly infile="$(mktemp)"
 readonly outfile="$(mktemp)"
 
@@ -38,8 +41,8 @@ setup() {
 	# clamp route to reserve room for tunnel headers
 	ip -netns "${ns1}" -4 route flush table main
 	ip -netns "${ns1}" -6 route flush table main
-	ip -netns "${ns1}" -4 route add "${ns2_v4}" mtu 1476 dev veth1
-	ip -netns "${ns1}" -6 route add "${ns2_v6}" mtu 1456 dev veth1
+	ip -netns "${ns1}" -4 route add "${ns2_v4}" mtu 1472 dev veth1
+	ip -netns "${ns1}" -6 route add "${ns2_v6}" mtu 1452 dev veth1
 
 	sleep 1
 
@@ -103,6 +106,18 @@ if [[ "$#" -eq "0" ]]; then
 	echo "ip6 gre gso"
 	$0 ipv6 ip6gre 2000
 
+	echo "ip udp"
+	$0 ipv4 udp 100
+
+	echo "ip6 udp"
+	$0 ipv6 ip6udp 100
+
+	echo "ip udp gso"
+	$0 ipv4 udp 2000
+
+	echo "ip6 udp gso"
+	$0 ipv6 ip6udp 2000
+
 	echo "OK. All tests passed"
 	exit 0
 fi
@@ -117,12 +132,20 @@ case "$1" in
 "ipv4")
 	readonly addr1="${ns1_v4}"
 	readonly addr2="${ns2_v4}"
-	readonly netcat_opt=-4
+	readonly ipproto=4
+	readonly netcat_opt=-${ipproto}
+	readonly foumod=fou
+	readonly foutype=ipip
+	readonly fouproto=4
 	;;
 "ipv6")
 	readonly addr1="${ns1_v6}"
 	readonly addr2="${ns2_v6}"
-	readonly netcat_opt=-6
+	readonly ipproto=6
+	readonly netcat_opt=-${ipproto}
+	readonly foumod=fou6
+	readonly foutype=ip6tnl
+	readonly fouproto="41 -6"
 	;;
 *)
 	echo "unknown arg: $1"
@@ -155,11 +178,23 @@ echo "test bpf encap without decap (expect failure)"
 server_listen
 ! client_connect
 
+if [[ "$tuntype" =~ "udp" ]]; then
+	# Set up fou tunnel.
+	ttype="${foutype}"
+	targs="encap fou encap-sport auto encap-dport $udpport"
+	# fou may be a module; allow this to fail.
+	modprobe "${foumod}" ||true
+	ip netns exec "${ns2}" ip fou add port 5555 ipproto ${fouproto}
+else
+	ttype=$tuntype
+	targs=""
+fi
+
 # serverside, insert decap module
 # server is still running
 # client can connect again
-ip netns exec "${ns2}" ip link add dev testtun0 type "${tuntype}" \
-	remote "${addr1}" local "${addr2}"
+ip netns exec "${ns2}" ip link add name testtun0 type "${ttype}" \
+	remote "${addr1}" local "${addr2}" $targs
 # Because packets are decapped by the tunnel they arrive on testtun0 from
 # the IP stack perspective.  Ensure reverse path filtering is disabled
 # otherwise we drop the TCP SYN as arriving on testtun0 instead of the
