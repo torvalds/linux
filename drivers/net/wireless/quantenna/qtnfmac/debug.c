@@ -5,7 +5,9 @@
 
 void qtnf_debugfs_init(struct qtnf_bus *bus, const char *name)
 {
-	bus->dbg_dir = debugfs_create_dir(name, NULL);
+	struct dentry *parent = qtnf_get_debugfs_dir();
+
+	bus->dbg_dir = debugfs_create_dir(name, parent);
 }
 
 void qtnf_debugfs_remove(struct qtnf_bus *bus)
