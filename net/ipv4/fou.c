@@ -170,9 +170,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	/* guehdr may change after pull */
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
-	hdrlen = sizeof(struct guehdr) + optlen;
-
-	if (guehdr->version != 0 || validate_gue_flags(guehdr, optlen))
+	if (validate_gue_flags(guehdr, optlen))
 		goto drop;
 
 	hdrlen = sizeof(struct guehdr) + optlen;
