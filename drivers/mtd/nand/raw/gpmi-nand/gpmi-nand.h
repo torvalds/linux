@@ -159,40 +159,6 @@ struct gpmi_nand_data {
 	void			*private;
 };
 
-/* Common Services */
-int common_nfc_set_geometry(struct gpmi_nand_data *);
-struct dma_chan *get_dma_chan(struct gpmi_nand_data *);
-bool prepare_data_dma(struct gpmi_nand_data *, const void *buf, int len,
-		      enum dma_data_direction dr);
-int start_dma_without_bch_irq(struct gpmi_nand_data *,
-			      struct dma_async_tx_descriptor *);
-int start_dma_with_bch_irq(struct gpmi_nand_data *,
-			   struct dma_async_tx_descriptor *);
-
-/* GPMI-NAND helper function library */
-int gpmi_init(struct gpmi_nand_data *);
-void gpmi_clear_bch(struct gpmi_nand_data *);
-void gpmi_dump_info(struct gpmi_nand_data *);
-int bch_set_geometry(struct gpmi_nand_data *);
-int gpmi_is_ready(struct gpmi_nand_data *, unsigned chip);
-int gpmi_send_command(struct gpmi_nand_data *);
-int gpmi_enable_clk(struct gpmi_nand_data *this);
-int gpmi_disable_clk(struct gpmi_nand_data *this);
-int gpmi_setup_data_interface(struct nand_chip *chip, int chipnr,
-			      const struct nand_data_interface *conf);
-void gpmi_nfc_apply_timings(struct gpmi_nand_data *this);
-int gpmi_read_data(struct gpmi_nand_data *, void *buf, int len);
-int gpmi_send_data(struct gpmi_nand_data *, const void *buf, int len);
-
-int gpmi_send_page(struct gpmi_nand_data *,
-		   dma_addr_t payload, dma_addr_t auxiliary);
-int gpmi_read_page(struct gpmi_nand_data *,
-		   dma_addr_t payload, dma_addr_t auxiliary);
-
-void gpmi_copy_bits(u8 *dst, size_t dst_bit_off,
-		    const u8 *src, size_t src_bit_off,
-		    size_t nbits);
-
 /* BCH : Status Block Completion Codes */
 #define STATUS_GOOD		0x00
 #define STATUS_ERASED		0xff
