@@ -22,6 +22,7 @@
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -40,6 +41,9 @@
 #include "../atom/sst-atom-controls.h"
 #include "../common/sst-dsp.h"
 
+/* jd-inv + terminating entry */
+#define MAX_NO_PROPS 2
+
 struct byt_cht_es8316_private {
 	struct clk *mclk;
 	struct snd_soc_jack jack;
@@ -55,6 +59,7 @@ enum {
 #define BYT_CHT_ES8316_MAP(quirk)		((quirk) & GENMASK(3, 0))
 #define BYT_CHT_ES8316_SSP0			BIT(16)
 #define BYT_CHT_ES8316_MONO_SPEAKER		BIT(17)
+#define BYT_CHT_ES8316_JD_INVERTED		BIT(18)
 
 static int quirk;
 
@@ -72,6 +77,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk SSP0 enabled");
 	if (quirk & BYT_CHT_ES8316_MONO_SPEAKER)
 		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
+	if (quirk & BYT_CHT_ES8316_JD_INVERTED)
+		dev_info(dev, "quirk JD_INVERTED enabled\n");
 }
 
 static int byt_cht_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
@@ -435,15 +442,31 @@ static const struct acpi_gpio_mapping byt_cht_es8316_gpios[] = {
 	{ },
 };
 
+/* Please keep this list alphabetically sorted */
+static const struct dmi_system_id byt_cht_es8316_quirk_table[] = {
+	{	/* Teclast X98 Plus II */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X98 Plus II"),
+		},
+		.driver_data = (void *)(BYT_CHT_ES8316_INTMIC_IN1_MAP
+					| BYT_CHT_ES8316_JD_INVERTED),
+	},
+	{}
+};
+
 static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 {
 	static const char * const mic_name[] = { "in1", "in2" };
+	struct property_entry props[MAX_NO_PROPS] = {};
 	struct byt_cht_es8316_private *priv;
+	const struct dmi_system_id *dmi_id;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
 	struct acpi_device *adev;
 	struct device *codec_dev;
+	unsigned int cnt = 0;
 	int dai_index = 0;
 	int i;
 	int ret = 0;
@@ -480,7 +503,10 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Check for BYTCR or other platform and setup quirks */
-	if (x86_match_cpu(baytrail_cpu_ids) &&
+	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
+	if (dmi_id) {
+		quirk = (int)dmi_id->driver_data;
+	} else if (x86_match_cpu(baytrail_cpu_ids) &&
 	    mach->mach_params.acpi_ipc_irq_index == 0) {
 		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
@@ -512,6 +538,15 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL, codec_name);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
+
+	if (quirk & BYT_CHT_ES8316_JD_INVERTED)
+		props[cnt++] = PROPERTY_ENTRY_BOOL("everest,jack-detect-inverted");
+
+	if (cnt) {
+		ret = device_add_properties(codec_dev, props);
+		if (ret)
+			return ret;
+	}
 
 	devm_acpi_dev_add_driver_gpios(codec_dev, byt_cht_es8316_gpios);
 	priv->speaker_en_gpio =
