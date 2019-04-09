@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * RTC clock driver for the AB3100 Analog Baseband Chip
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
