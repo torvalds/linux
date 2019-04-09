@@ -7,15 +7,54 @@
 #include <asm/irqflags-arcv2.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
+/*
+ * Interrupt/Exception stack layout (pt_regs) for ARCv2
+ *   (End of struct aligned to end of page [unless nested])
+ *
+ *  INTERRUPT                          EXCEPTION
+ *
+ *    manual    ---------------------  manual
+ *              |      orig_r0      |
+ *              |      event/ECR    |
+ *              |      bta          |
+ *              |      user_r25     |
+ *              |      gp           |
+ *              |      fp           |
+ *              |      sp           |
+ *              |      r12          |
+ *              |      r30          |
+ *              |      r58          |
+ *              |      r59          |
+ *  hw autosave ---------------------
+ *    optional  |      r0           |
+ *              |      r1           |
+ *              ~                   ~
+ *              |      r9           |
+ *              |      r10          |
+ *              |      r11          |
+ *              |      blink        |
+ *              |      lpe          |
+ *              |      lps          |
+ *              |      lpc          |
+ *              |      ei base      |
+ *              |      ldi base     |
+ *              |      jli base     |
+ *              ---------------------
+ *  hw autosave |       pc / eret   |
+ *   mandatory  | stat32 / erstatus |
+ *              ---------------------
+ */
+
 /*------------------------------------------------------------------------*/
 .macro INTERRUPT_PROLOGUE	called_from
-
-	; Before jumping to Interrupt Vector, hardware micro-ops did following:
+	; (A) Before jumping to Interrupt Vector, hardware micro-ops did following:
 	;   1. SP auto-switched to kernel mode stack
-	;   2. STATUS32.Z flag set to U mode at time of interrupt (U:1, K:0)
-	;   3. Auto saved: r0-r11, blink, LPE,LPS,LPC, JLI,LDI,EI, PC, STAT32
+	;   2. STATUS32.Z flag set if in U mode at time of interrupt (U:1,K:0)
+	;   3. Auto save: (mandatory) Push PC and STAT32 on stack
+	;                 hardware does even if CONFIG_ARC_IRQ_NO_AUTOSAVE
+	;   4. Auto save: (optional) r0-r11, blink, LPE,LPS,LPC, JLI,LDI,EI
 	;
-	; Now manually save: r12, sp, fp, gp, r25
+	; (B) Manually saved some regs: r12,r25,r30, sp,fp,gp, ACCL pair
 
 #ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
 .ifnc \called_from, exception
@@ -57,14 +96,17 @@
 	;  - U mode: retrieve it from AUX_USER_SP
 	;  - K mode: add the offset from current SP where H/w starts auto push
 	;
-	; Utilize the fact that Z bit is set if Intr taken in U mode
+	; 1. Utilize the fact that Z bit is set if Intr taken in U mode
+	; 2. Upon entry SP is always saved (for any inspection, unwinding etc),
+	;    but on return, restored only if U mode
+
 	mov.nz	r9, sp
-	add.nz	r9, r9, SZ_PT_REGS - PT_sp - 4
+	add.nz	r9, r9, SZ_PT_REGS - PT_sp - 4		; K mode SP
 	bnz	1f
 
-	lr	r9, [AUX_USER_SP]
+	lr	r9, [AUX_USER_SP]			; U mode SP
 1:
-	PUSH	r9	; SP
+	PUSH	r9					; SP (pt_regs->sp)
 
 	PUSH	fp
 	PUSH	gp
@@ -85,6 +127,8 @@
 /*------------------------------------------------------------------------*/
 .macro INTERRUPT_EPILOGUE	called_from
 
+	; INPUT: r0 has STAT32 of calling context
+	; INPUT: Z flag set if returning to K mode
 .ifnc \called_from, exception
 	add	sp, sp, 12	; skip BTA/ECR/orig_r0 placeholderss
 .endif
@@ -98,9 +142,10 @@
 	POP	gp
 	POP	fp
 
-	; Don't touch AUX_USER_SP if returning to K mode (Z bit set)
-	; (Z bit set on K mode is inverse of INTERRUPT_PROLOGUE)
-	add.z	sp, sp, 4
+	; Restore SP (into AUX_USER_SP) only if returning to U mode
+	;  - for K mode, it will be implicitly restored as stack is unwound
+	;  - Z flag set on K is inverse of what hardware does on interrupt entry
+	;    but that doesn't really matter
 	bz	1f
 
 	POPAX	AUX_USER_SP
@@ -145,11 +190,11 @@
 /*------------------------------------------------------------------------*/
 .macro EXCEPTION_PROLOGUE
 
-	; Before jumping to Exception Vector, hardware micro-ops did following:
+	; (A) Before jumping to Exception Vector, hardware micro-ops did following:
 	;   1. SP auto-switched to kernel mode stack
-	;   2. STATUS32.Z flag set to U mode at time of interrupt (U:1,K:0)
+	;   2. STATUS32.Z flag set if in U mode at time of exception (U:1,K:0)
 	;
-	; Now manually save the complete reg file
+	; (B) Manually save the complete reg file below
 
 	PUSH	r9		; freeup a register: slot of erstatus
 
@@ -195,12 +240,13 @@
 	PUSHAX	ecr		; r9 contains ECR, expected by EV_Trap
 
 	PUSH	r0		; orig_r0
+	; OUTPUT: r9 has ECR
 .endm
 
 /*------------------------------------------------------------------------*/
 .macro EXCEPTION_EPILOGUE
 
-	; Assumes r0 has PT_status32
+	; INPUT: r0 has STAT32 of calling context
 	btst   r0, STATUS_U_BIT	; Z flag set if K, used in INTERRUPT_EPILOGUE
 
 	add	sp, sp, 8	; orig_r0/ECR don't need restoring
