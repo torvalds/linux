@@ -91,7 +91,6 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 {
 	struct moxart_wdt_dev *moxart_wdt;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
 	struct clk *clk;
 	int err;
 	unsigned int max_timeout;
@@ -107,7 +106,7 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(moxart_wdt->base))
 		return PTR_ERR(moxart_wdt->base);
 
-	clk = of_clk_get(node, 0);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		pr_err("%s: of_clk_get failed\n", __func__);
 		return PTR_ERR(clk);
@@ -134,21 +133,13 @@ static int moxart_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&moxart_wdt->dev, moxart_wdt);
 
-	err = watchdog_register_device(&moxart_wdt->dev);
+	watchdog_stop_on_unregister(&moxart_wdt->dev);
+	err = devm_watchdog_register_device(dev, &moxart_wdt->dev);
 	if (err)
 		return err;
 
 	dev_dbg(dev, "Watchdog enabled (heartbeat=%d sec, nowayout=%d)\n",
 		moxart_wdt->dev.timeout, nowayout);
-
-	return 0;
-}
-
-static int moxart_wdt_remove(struct platform_device *pdev)
-{
-	struct moxart_wdt_dev *moxart_wdt = platform_get_drvdata(pdev);
-
-	moxart_wdt_stop(&moxart_wdt->dev);
 
 	return 0;
 }
@@ -161,7 +152,6 @@ MODULE_DEVICE_TABLE(of, moxart_watchdog_match);
 
 static struct platform_driver moxart_wdt_driver = {
 	.probe      = moxart_wdt_probe,
-	.remove     = moxart_wdt_remove,
 	.driver     = {
 		.name		= "moxart-watchdog",
 		.of_match_table	= moxart_watchdog_match,
