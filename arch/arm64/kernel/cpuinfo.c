@@ -85,6 +85,7 @@ static const char *const hwcap_str[] = {
 	"sb",
 	"paca",
 	"pacg",
+	"dcpodp",
 	NULL
 };
 

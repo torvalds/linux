@@ -88,6 +88,7 @@
 #define KERNEL_HWCAP_PACG		__khwcap_feature(PACG)
 
 #define __khwcap2_feature(x)		(const_ilog2(HWCAP2_ ## x) + 32)
+#define KERNEL_HWCAP_DCPODP		__khwcap2_feature(DCPODP)
 
 /*
  * This yields a mask that user programs can use to figure out what
