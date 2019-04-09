@@ -7516,7 +7516,7 @@ F:	include/net/mac802154.h
 F:	include/net/af_ieee802154.h
 F:	include/net/cfg802154.h
 F:	include/net/ieee802154_netdev.h
-F:	Documentation/networking/ieee802154.txt
+F:	Documentation/networking/ieee802154.rst
 
 IFE PROTOCOL
 M:	Yotam Gigi <yotam.gi@gmail.com>
