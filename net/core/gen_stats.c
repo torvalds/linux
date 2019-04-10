@@ -291,6 +291,7 @@ __gnet_stats_copy_queue_cpu(struct gnet_stats_queue *qstats,
 	for_each_possible_cpu(i) {
 		const struct gnet_stats_queue *qcpu = per_cpu_ptr(q, i);
 
+		qstats->qlen = 0;
 		qstats->backlog += qcpu->backlog;
 		qstats->drops += qcpu->drops;
 		qstats->requeues += qcpu->requeues;
@@ -306,6 +307,7 @@ void __gnet_stats_copy_queue(struct gnet_stats_queue *qstats,
 	if (cpu) {
 		__gnet_stats_copy_queue_cpu(qstats, cpu);
 	} else {
+		qstats->qlen = q->qlen;
 		qstats->backlog = q->backlog;
 		qstats->drops = q->drops;
 		qstats->requeues = q->requeues;
