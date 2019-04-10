@@ -980,6 +980,9 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 	DRM_DEBUG_KMS("writing sdvo hbuf: %i, hbuf_size %i, hbuf_size: %i\n",
 		      if_index, length, hbuf_size);
 
+	if (hbuf_size < length)
+		return false;
+
 	for (i = 0; i < hbuf_size; i += 8) {
 		memset(tmp, 0, 8);
 		if (i < length)
