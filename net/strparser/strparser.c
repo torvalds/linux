@@ -299,7 +299,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			break;
 		}
 
-		/* Positive extra indicates ore bytes than needed for the
+		/* Positive extra indicates more bytes than needed for the
 		 * message
 		 */
 
