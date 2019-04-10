@@ -112,8 +112,6 @@
 
 #define NVRAM_SIZE	0x40
 
-static struct i2c_driver pcf85363_driver;
-
 struct pcf85363 {
 	struct rtc_device	*rtc;
 	struct regmap		*regmap;
