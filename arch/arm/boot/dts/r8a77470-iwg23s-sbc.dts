@@ -106,6 +106,10 @@
 	};
 };
 
+&ehci1 {
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <20000000>;
 };
@@ -164,6 +168,10 @@
 			};
 		};
 	};
+};
+
+&ohci1 {
+	status = "okay";
 };
 
 &pfc {
