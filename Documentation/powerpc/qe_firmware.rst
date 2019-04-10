@@ -1,23 +1,23 @@
-	   Freescale QUICC Engine Firmware Uploading
-	   -----------------------------------------
+=========================================
+Freescale QUICC Engine Firmware Uploading
+=========================================
 
 (c) 2007 Timur Tabi <timur at freescale.com>,
     Freescale Semiconductor
 
-Table of Contents
-=================
+.. Table of Contents
 
-  I - Software License for Firmware
+   I - Software License for Firmware
 
-  II - Microcode Availability
+   II - Microcode Availability
 
-  III - Description and Terminology
+   III - Description and Terminology
 
-  IV - Microcode Programming Details
+   IV - Microcode Programming Details
 
-  V - Firmware Structure Layout
+   V - Firmware Structure Layout
 
-  VI - Sample Code for Creating Firmware Files
+   VI - Sample Code for Creating Firmware Files
 
 Revision Information
 ====================
@@ -39,7 +39,7 @@ http://opensource.freescale.com.  For other firmware files, please contact
 your Freescale representative or your operating system vendor.
 
 III - Description and Terminology
-================================
+=================================
 
 In this document, the term 'microcode' refers to the sequence of 32-bit
 integers that compose the actual QE microcode.
@@ -89,7 +89,7 @@ being fixed in the RAM package utilizing they should be activated.  This data
 structure signals the microcode which of these virtual traps is active.
 
 This structure contains 6 words that the application should copy to some
-specific been defined.  This table describes the structure.
+specific been defined.  This table describes the structure::
 
 	---------------------------------------------------------------
 	| Offset in |                  | Destination Offset | Size of |
@@ -119,7 +119,7 @@ Extended Modes
 This is a double word bit array (64 bits) that defines special functionality
 which has an impact on the software drivers.  Each bit has its own impact
 and has special instructions for the s/w associated with it.  This structure is
-described in this table:
+described in this table::
 
 	-----------------------------------------------------------------------
 	| Bit #  |     Name     |   Description                               |
@@ -220,7 +220,8 @@ The 'model' field is a 16-bit number that matches the actual SOC. The
 'major' and 'minor' fields are the major and minor revision numbers,
 respectively, of the SOC.
 
-For example, to match the 8323, revision 1.0:
+For example, to match the 8323, revision 1.0::
+
      soc.model = 8323
      soc.major = 1
      soc.minor = 0
@@ -273,10 +274,10 @@ library and available to any driver that calles qe_get_firmware_info().
 	'reserved'.
 
 After the last microcode is a 32-bit CRC.  It can be calculated using
-this algorithm:
+this algorithm::
 
-u32 crc32(const u8 *p, unsigned int len)
-{
+  u32 crc32(const u8 *p, unsigned int len)
+  {
 	unsigned int i;
 	u32 crc = 0;
 
@@ -286,7 +287,7 @@ u32 crc32(const u8 *p, unsigned int len)
 		   crc = (crc >> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
 	}
 	return crc;
-}
+  }
 
 VI - Sample Code for Creating Firmware Files
 ============================================
