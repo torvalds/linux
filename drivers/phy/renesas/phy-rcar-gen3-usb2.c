@@ -393,6 +393,12 @@ static const struct phy_ops rcar_gen3_phy_usb2_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static const struct phy_ops rz_g1c_phy_usb2_ops = {
+	.init		= rcar_gen3_phy_usb2_init,
+	.exit		= rcar_gen3_phy_usb2_exit,
+	.owner		= THIS_MODULE,
+};
+
 static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 {
 	struct rcar_gen3_chan *ch = _ch;
@@ -411,11 +417,27 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 }
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
-	{ .compatible = "renesas,usb2-phy-r8a7795" },
-	{ .compatible = "renesas,usb2-phy-r8a7796" },
-	{ .compatible = "renesas,usb2-phy-r8a77965" },
-	{ .compatible = "renesas,rcar-gen3-usb2-phy" },
-	{ }
+	{
+		.compatible = "renesas,usb2-phy-r8a77470",
+		.data = &rz_g1c_phy_usb2_ops,
+	},
+	{
+		.compatible = "renesas,usb2-phy-r8a7795",
+		.data = &rcar_gen3_phy_usb2_ops,
+	},
+	{
+		.compatible = "renesas,usb2-phy-r8a7796",
+		.data = &rcar_gen3_phy_usb2_ops,
+	},
+	{
+		.compatible = "renesas,usb2-phy-r8a77965",
+		.data = &rcar_gen3_phy_usb2_ops,
+	},
+	{
+		.compatible = "renesas,rcar-gen3-usb2-phy",
+		.data = &rcar_gen3_phy_usb2_ops,
+	},
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_phy_usb2_match_table);
 
@@ -431,6 +453,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	struct rcar_gen3_chan *channel;
 	struct phy_provider *provider;
 	struct resource *res;
+	const struct phy_ops *phy_usb2_ops;
 	int irq, ret = 0;
 
 	if (!dev->of_node) {
@@ -481,7 +504,11 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	 * And then, phy-core will manage runtime pm for this device.
 	 */
 	pm_runtime_enable(dev);
-	channel->phy = devm_phy_create(dev, NULL, &rcar_gen3_phy_usb2_ops);
+	phy_usb2_ops = of_device_get_match_data(dev);
+	if (!phy_usb2_ops)
+		return -EINVAL;
+
+	channel->phy = devm_phy_create(dev, NULL, phy_usb2_ops);
 	if (IS_ERR(channel->phy)) {
 		dev_err(dev, "Failed to create USB2 PHY\n");
 		ret = PTR_ERR(channel->phy);
