@@ -210,6 +210,9 @@ static int max31856_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
 		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	return ret;
