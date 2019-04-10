@@ -1651,40 +1651,26 @@ static int __maybe_unused omap_gpio_runtime_suspend(struct device *dev)
 {
 	struct gpio_bank *bank = dev_get_drvdata(dev);
 	unsigned long flags;
-	int error = 0;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
-	/* Must be idled only by CPU_CLUSTER_PM_ENTER? */
-	if (bank->irq_usage) {
-		error = -EBUSY;
-		goto unlock;
-	}
 	omap_gpio_idle(bank, true);
 	bank->is_suspended = true;
-unlock:
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 
-	return error;
+	return 0;
 }
 
 static int __maybe_unused omap_gpio_runtime_resume(struct device *dev)
 {
 	struct gpio_bank *bank = dev_get_drvdata(dev);
 	unsigned long flags;
-	int error = 0;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
-	/* Must be unidled only by CPU_CLUSTER_PM_ENTER? */
-	if (bank->irq_usage) {
-		error = -EBUSY;
-		goto unlock;
-	}
 	omap_gpio_unidle(bank);
 	bank->is_suspended = false;
-unlock:
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 
-	return error;
+	return 0;
 }
 
 static const struct dev_pm_ops gpio_pm_ops = {
