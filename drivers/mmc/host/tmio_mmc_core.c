@@ -1153,6 +1153,15 @@ void tmio_mmc_host_free(struct tmio_mmc_host *host)
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_host_free);
 
+/**
+ * tmio_mmc_host_probe() - Common probe for all implementations
+ * @_host: Host to probe
+ *
+ * Perform tasks common to all implementations probe functions.
+ *
+ * The caller should have called pm_runtime_enable() prior to calling
+ * the common probe function.
+ */
 int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 {
 	struct platform_device *pdev = _host->pdev;
@@ -1261,7 +1270,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 
 	ret = mmc_add_host(mmc);
 	if (ret)
@@ -1297,7 +1305,6 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_host_remove);
 
