@@ -543,30 +543,11 @@ out_unlock:
 int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr)
 {
-	struct net_device *idev;
-	unsigned long mask;
-	int ret;
+	unsigned long mask = GID_ATTR_FIND_MASK_GID |
+			     GID_ATTR_FIND_MASK_GID_TYPE |
+			     GID_ATTR_FIND_MASK_NETDEV;
 
-	idev = ib_device_get_netdev(ib_dev, port);
-	if (idev && attr->ndev != idev) {
-		union ib_gid default_gid;
-
-		/* Adding default GIDs is not permitted */
-		make_default_gid(idev, &default_gid);
-		if (!memcmp(gid, &default_gid, sizeof(*gid))) {
-			dev_put(idev);
-			return -EPERM;
-		}
-	}
-	if (idev)
-		dev_put(idev);
-
-	mask = GID_ATTR_FIND_MASK_GID |
-	       GID_ATTR_FIND_MASK_GID_TYPE |
-	       GID_ATTR_FIND_MASK_NETDEV;
-
-	ret = __ib_cache_gid_add(ib_dev, port, gid, attr, mask, false);
-	return ret;
+	return __ib_cache_gid_add(ib_dev, port, gid, attr, mask, false);
 }
 
 static int
