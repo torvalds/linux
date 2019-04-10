@@ -62,8 +62,6 @@ MODULE_DESCRIPTION(OCRDMA_ROCE_DRV_DESC " " OCRDMA_ROCE_DRV_VERSION);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static DEFINE_IDR(ocrdma_dev_id);
-
 void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
 {
 	u8 mac_addr[6];
@@ -316,13 +314,10 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 
 	dev->mbx_cmd = kzalloc(sizeof(struct ocrdma_mqe_emb_cmd), GFP_KERNEL);
 	if (!dev->mbx_cmd)
-		goto idr_err;
+		goto init_err;
 
 	memcpy(&dev->nic_info, dev_info, sizeof(*dev_info));
-	dev->id = idr_alloc(&ocrdma_dev_id, NULL, 0, 0, GFP_KERNEL);
-	if (dev->id < 0)
-		goto idr_err;
-
+	dev->id = PCI_FUNC(dev->nic_info.pdev->devfn);
 	status = ocrdma_init_hw(dev);
 	if (status)
 		goto init_err;
@@ -359,8 +354,6 @@ alloc_err:
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
 init_err:
-	idr_remove(&ocrdma_dev_id, dev->id);
-idr_err:
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
 	pr_err("%s() leaving. ret=%d\n", __func__, status);
@@ -370,7 +363,6 @@ idr_err:
 static void ocrdma_remove_free(struct ocrdma_dev *dev)
 {
 
-	idr_remove(&ocrdma_dev_id, dev->id);
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
 }
@@ -475,7 +467,6 @@ static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
 	ocrdma_rem_debugfs();
-	idr_destroy(&ocrdma_dev_id);
 }
 
 module_init(ocrdma_init_module);
