@@ -26,6 +26,7 @@ struct stm32_desc_function {
 struct stm32_desc_pin {
 	struct pinctrl_pin_desc pin;
 	const struct stm32_desc_function *functions;
+	const unsigned int pkg;
 };
 
 #define STM32_PIN(_pin, ...)					\
@@ -35,6 +36,13 @@ struct stm32_desc_pin {
 			__VA_ARGS__, { } },			\
 	}
 
+#define STM32_PIN_PKG(_pin, _pkg, ...)					\
+	{							\
+		.pin = _pin,					\
+		.pkg  = _pkg,				\
+		.functions = (struct stm32_desc_function[]){	\
+			__VA_ARGS__, { } },			\
+	}
 #define STM32_FUNCTION(_num, _name)		\
 	{							\
 		.num = _num,					\
