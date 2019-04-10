@@ -33,68 +33,50 @@ static struct safesetid_file_entry safesetid_files[] = {
 
 /*
  * In the case the input buffer contains one or more invalid UIDs, the kuid_t
- * variables pointed to by 'parent' and 'child' will get updated but this
+ * variables pointed to by @parent and @child will get updated but this
  * function will return an error.
+ * Contents of @buf may be modified.
  */
-static int parse_safesetid_whitelist_policy(const char __user *buf,
-					    size_t len,
-					    kuid_t *parent,
-					    kuid_t *child)
+static int parse_policy_line(
+	struct file *file, char *buf, kuid_t *parent, kuid_t *child)
 {
-	char *kern_buf;
-	char *parent_buf;
-	char *child_buf;
-	const char separator[] = ":";
+	char *child_str;
 	int ret;
-	size_t first_substring_length;
-	long parsed_parent;
-	long parsed_child;
+	u32 parsed_parent, parsed_child;
 
-	/* Duplicate string from user memory and NULL-terminate */
-	kern_buf = memdup_user_nul(buf, len);
-	if (IS_ERR(kern_buf))
-		return PTR_ERR(kern_buf);
+	/* Format of |buf| string should be <UID>:<UID>. */
+	child_str = strchr(buf, ':');
+	if (child_str == NULL)
+		return -EINVAL;
+	*child_str = '\0';
+	child_str++;
 
-	/*
-	 * Format of |buf| string should be <UID>:<UID>.
-	 * Find location of ":" in kern_buf (copied from |buf|).
-	 */
-	first_substring_length = strcspn(kern_buf, separator);
-	if (first_substring_length == 0 || first_substring_length == len) {
-		ret = -EINVAL;
-		goto free_kern;
-	}
-
-	parent_buf = kmemdup_nul(kern_buf, first_substring_length, GFP_KERNEL);
-	if (!parent_buf) {
-		ret = -ENOMEM;
-		goto free_kern;
-	}
-
-	ret = kstrtol(parent_buf, 0, &parsed_parent);
+	ret = kstrtou32(buf, 0, &parsed_parent);
 	if (ret)
-		goto free_both;
+		return ret;
 
-	child_buf = kern_buf + first_substring_length + 1;
-	ret = kstrtol(child_buf, 0, &parsed_child);
+	ret = kstrtou32(child_str, 0, &parsed_child);
 	if (ret)
-		goto free_both;
+		return ret;
 
 	*parent = make_kuid(current_user_ns(), parsed_parent);
-	if (!uid_valid(*parent)) {
-		ret = -EINVAL;
-		goto free_both;
-	}
-
 	*child = make_kuid(current_user_ns(), parsed_child);
-	if (!uid_valid(*child)) {
-		ret = -EINVAL;
-		goto free_both;
-	}
+	if (!uid_valid(*parent) || !uid_valid(*child))
+		return -EINVAL;
 
-free_both:
-	kfree(parent_buf);
-free_kern:
+	return 0;
+}
+
+static int parse_safesetid_whitelist_policy(
+	struct file *file, const char __user *buf, size_t len,
+	kuid_t *parent, kuid_t *child)
+{
+	char *kern_buf = memdup_user_nul(buf, len);
+	int ret;
+
+	if (IS_ERR(kern_buf))
+		return PTR_ERR(kern_buf);
+	ret = parse_policy_line(file, kern_buf, parent, child);
 	kfree(kern_buf);
 	return ret;
 }
@@ -121,8 +103,8 @@ static ssize_t safesetid_file_write(struct file *file,
 		flush_safesetid_whitelist_entries();
 		break;
 	case SAFESETID_WHITELIST_ADD:
-		ret = parse_safesetid_whitelist_policy(buf, len, &parent,
-								 &child);
+		ret = parse_safesetid_whitelist_policy(file, buf, len,
+						       &parent, &child);
 		if (ret)
 			return ret;
 
