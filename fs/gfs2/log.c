@@ -108,8 +108,7 @@ __acquires(&sdp->sd_ail_lock)
 					  &tr->tr_ail2_list);
 				continue;
 			}
-			if (!test_and_set_bit(SDF_AIL1_IO_ERROR,
-					      &sdp->sd_flags)) {
+			if (!cmpxchg(&sdp->sd_log_error, 0, -EIO)) {
 				gfs2_io_error_bh(sdp, bh);
 				gfs2_withdraw_delayed(sdp);
 			}
@@ -205,10 +204,19 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 					 bd_ail_st_list) {
 		bh = bd->bd_bh;
 		gfs2_assert(sdp, bd->bd_tr == tr);
-		if (buffer_busy(bh))
+		/*
+		 * If another process flagged an io error, e.g. writing to the
+		 * journal, error all other bhs and move them off the ail1 to
+		 * prevent a tight loop when unmount tries to flush ail1,
+		 * regardless of whether they're still busy. If no outside
+		 * errors were found and the buffer is busy, move to the next.
+		 * If the ail buffer is not busy and caught an error, flag it
+		 * for others.
+		 */
+		if (!sdp->sd_log_error && buffer_busy(bh))
 			continue;
 		if (!buffer_uptodate(bh) &&
-		    !test_and_set_bit(SDF_AIL1_IO_ERROR, &sdp->sd_flags)) {
+		    !cmpxchg(&sdp->sd_log_error, 0, -EIO)) {
 			gfs2_io_error_bh(sdp, bh);
 			gfs2_withdraw_delayed(sdp);
 		}
