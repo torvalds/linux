@@ -91,7 +91,7 @@ static int safesetid_security_capable(const struct cred *cred,
 			 * to functionality other than calling set*uid() (e.g.
 			 * allowing user to set up userns uid mappings).
 			 */
-			pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions",
+			pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
 				__kuid_val(cred->uid));
 			return -1;
 		}
@@ -103,7 +103,7 @@ static int check_uid_transition(kuid_t parent, kuid_t child)
 {
 	if (check_setuid_policy_hashtable_key_value(parent, child))
 		return 0;
-	pr_warn("UID transition (%d -> %d) blocked",
+	pr_warn("UID transition (%d -> %d) blocked\n",
 		__kuid_val(parent),
 		__kuid_val(child));
 	/*
