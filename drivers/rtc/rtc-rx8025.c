@@ -311,7 +311,7 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->time.tm_hour = bcd2bin(ald[1] & 0x1f) % 12
 			+ (ald[1] & 0x20 ? 12 : 0);
 
-	dev_dbg(dev, "%s: date: %ptRr\n", __func__, t);
+	dev_dbg(dev, "%s: date: %ptRr\n", __func__, &t->time);
 	t->enabled = !!(rx8025->ctrl1 & RX8025_BIT_CTRL1_DALE);
 	t->pending = (ctrl2 & RX8025_BIT_CTRL2_DAFG) && t->enabled;
 
