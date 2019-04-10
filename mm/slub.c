@@ -553,7 +553,6 @@ static void set_track(struct kmem_cache *s, void *object,
 	if (addr) {
 #ifdef CONFIG_STACKTRACE
 		struct stack_trace trace;
-		int i;
 
 		trace.nr_entries = 0;
 		trace.max_entries = TRACK_ADDRS_COUNT;
@@ -563,20 +562,16 @@ static void set_track(struct kmem_cache *s, void *object,
 		save_stack_trace(&trace);
 		metadata_access_disable();
 
-		/* See rant in lockdep.c */
-		if (trace.nr_entries != 0 &&
-		    trace.entries[trace.nr_entries - 1] == ULONG_MAX)
-			trace.nr_entries--;
-
-		for (i = trace.nr_entries; i < TRACK_ADDRS_COUNT; i++)
-			p->addrs[i] = 0;
+		if (trace.nr_entries < TRACK_ADDRS_COUNT)
+			p->addrs[trace.nr_entries] = 0;
 #endif
 		p->addr = addr;
 		p->cpu = smp_processor_id();
 		p->pid = current->pid;
 		p->when = jiffies;
-	} else
+	} else {
 		memset(p, 0, sizeof(struct track));
+	}
 }
 
 static void init_tracking(struct kmem_cache *s, void *object)
