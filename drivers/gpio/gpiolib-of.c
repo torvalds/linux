@@ -287,8 +287,7 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 }
 
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-			       unsigned int idx,
-			       enum gpio_lookup_flags *flags)
+			       unsigned int idx, unsigned long *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
@@ -361,8 +360,8 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  * @chip:	GPIO chip whose hog is parsed
  * @idx:	Index of the GPIO to parse
  * @name:	GPIO line name
- * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
- *		of_parse_own_gpio()
+ * @lflags:	bitmask of gpio_lookup_flags GPIO_* values - returned from
+ *		of_find_gpio() or of_parse_own_gpio()
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
  * Returns GPIO descriptor to use with Linux GPIO API, or one of the errno
@@ -371,7 +370,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 					   struct gpio_chip *chip,
 					   unsigned int idx, const char **name,
-					   enum gpio_lookup_flags *lflags,
+					   unsigned long *lflags,
 					   enum gpiod_flags *dflags)
 {
 	struct device_node *chip_np;
@@ -444,7 +443,7 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 	struct gpio_desc *desc = NULL;
 	struct device_node *np;
 	const char *name;
-	enum gpio_lookup_flags lflags;
+	unsigned long lflags;
 	enum gpiod_flags dflags;
 	unsigned int i;
 	int ret;

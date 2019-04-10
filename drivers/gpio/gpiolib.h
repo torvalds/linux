@@ -17,7 +17,6 @@
 #include <linux/cdev.h>
 
 enum of_gpio_flags;
-enum gpio_lookup_flags;
 struct acpi_device;
 
 /**
@@ -95,7 +94,7 @@ static __maybe_unused const char * const gpio_suffixes[] = { "gpios", "gpio" };
 struct gpio_desc *of_find_gpio(struct device *dev,
 			       const char *con_id,
 			       unsigned int idx,
-			       enum gpio_lookup_flags *flags);
+			       unsigned long *lookupflags);
 struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		   const char *list_name, int index, enum of_gpio_flags *flags);
 int of_gpiochip_add(struct gpio_chip *gc);
@@ -104,7 +103,7 @@ void of_gpiochip_remove(struct gpio_chip *gc);
 static inline struct gpio_desc *of_find_gpio(struct device *dev,
 					     const char *con_id,
 					     unsigned int idx,
-					     enum gpio_lookup_flags *flags)
+					     unsigned long *lookupflags)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -131,7 +130,7 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 const char *con_id,
 				 unsigned int idx,
 				 enum gpiod_flags *dflags,
-				 enum gpio_lookup_flags *lookupflags);
+				 unsigned long *lookupflags);
 struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 				      const char *propname, int index,
 				      struct acpi_gpio_info *info);
@@ -158,7 +157,7 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *inf
 static inline struct gpio_desc *
 acpi_find_gpio(struct device *dev, const char *con_id,
 	       unsigned int idx, enum gpiod_flags *dflags,
-	       enum gpio_lookup_flags *lookupflags)
+	       unsigned long *lookupflags)
 {
 	return ERR_PTR(-ENOENT);
 }

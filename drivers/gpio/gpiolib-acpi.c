@@ -696,7 +696,7 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 const char *con_id,
 				 unsigned int idx,
 				 enum gpiod_flags *dflags,
-				 enum gpio_lookup_flags *lookupflags)
+				 unsigned long *lookupflags)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct acpi_gpio_info info;
@@ -995,9 +995,12 @@ static void acpi_gpiochip_free_regions(struct acpi_gpio_chip *achip)
 	}
 }
 
-static struct gpio_desc *acpi_gpiochip_parse_own_gpio(
-	struct acpi_gpio_chip *achip, struct fwnode_handle *fwnode,
-	const char **name, unsigned int *lflags, unsigned int *dflags)
+static struct gpio_desc *
+acpi_gpiochip_parse_own_gpio(struct acpi_gpio_chip *achip,
+			     struct fwnode_handle *fwnode,
+			     const char **name,
+			     unsigned long *lflags,
+			     unsigned int *dflags)
 {
 	struct gpio_chip *chip = achip->chip;
 	struct gpio_desc *desc;
@@ -1040,7 +1043,8 @@ static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
 	struct fwnode_handle *fwnode;
 
 	device_for_each_child_node(chip->parent, fwnode) {
-		unsigned int lflags, dflags;
+		unsigned long lflags;
+		unsigned int dflags;
 		struct gpio_desc *desc;
 		const char *name;
 		int ret;
