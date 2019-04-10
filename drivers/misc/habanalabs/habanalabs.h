@@ -11,8 +11,6 @@
 #include "include/armcp_if.h"
 #include "include/qman_if.h"
 
-#define pr_fmt(fmt)			"habanalabs: " fmt
-
 #include <linux/cdev.h>
 #include <linux/iopoll.h>
 #include <linux/irqreturn.h>

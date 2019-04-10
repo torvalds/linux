@@ -6,6 +6,8 @@
  *
  */
 
+#define pr_fmt(fmt)		"habanalabs: " fmt
+
 #include "habanalabs.h"
 
 #include <linux/pci.h>
