@@ -386,7 +386,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		return ERR_PTR(-EINVAL);
 
 	xlate_flags = 0;
-	*lflags = 0;
+	*lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	*dflags = 0;
 
 	ret = of_property_read_u32(chip_np, "#gpio-cells", &tmp);

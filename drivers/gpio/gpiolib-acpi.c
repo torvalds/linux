@@ -819,6 +819,7 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 			return PTR_ERR(desc);
 
 		if (info.gpioint && idx++ == index) {
+			unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 			char label[32];
 			int irq;
 
@@ -830,7 +831,7 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 				return irq;
 
 			snprintf(label, sizeof(label), "GpioInt() %d", index);
-			ret = gpiod_configure_flags(desc, label, 0, info.flags);
+			ret = gpiod_configure_flags(desc, label, lflags, info.flags);
 			if (ret < 0)
 				return ret;
 
@@ -1007,7 +1008,7 @@ acpi_gpiochip_parse_own_gpio(struct acpi_gpio_chip *achip,
 	u32 gpios[2];
 	int ret;
 
-	*lflags = 0;
+	*lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	*dflags = 0;
 	*name = NULL;
 
