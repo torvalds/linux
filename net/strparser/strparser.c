@@ -140,13 +140,11 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			/* We are going to append to the frags_list of head.
 			 * Need to unshare the frag_list.
 			 */
-			if (skb_has_frag_list(head)) {
-				err = skb_unclone(head, GFP_ATOMIC);
-				if (err) {
-					STRP_STATS_INCR(strp->stats.mem_fail);
-					desc->error = err;
-					return 0;
-				}
+			err = skb_unclone(head, GFP_ATOMIC);
+			if (err) {
+				STRP_STATS_INCR(strp->stats.mem_fail);
+				desc->error = err;
+				return 0;
 			}
 
 			if (unlikely(skb_shinfo(head)->frag_list)) {
