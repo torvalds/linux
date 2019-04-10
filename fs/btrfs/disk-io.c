@@ -885,11 +885,10 @@ static int check_async_write(struct btrfs_inode *bi)
 	return 1;
 }
 
-static blk_status_t btree_submit_bio_hook(void *private_data, struct bio *bio,
+static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 					  int mirror_num, unsigned long bio_flags,
 					  u64 bio_offset)
 {
-	struct inode *inode = private_data;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int async = check_async_write(BTRFS_I(inode));
 	blk_status_t ret;
@@ -915,7 +914,7 @@ static blk_status_t btree_submit_bio_hook(void *private_data, struct bio *bio,
 		 * checksumming can happen in parallel across all CPUs
 		 */
 		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, 0,
-					  bio_offset, private_data,
+					  bio_offset, inode,
 					  btree_submit_bio_start);
 	}
 

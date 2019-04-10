@@ -104,7 +104,7 @@ struct extent_io_ops {
 	 * The following callbacks must be always defined, the function
 	 * pointer will be called unconditionally.
 	 */
-	blk_status_t (*submit_bio_hook)(void *private_data, struct bio *bio,
+	blk_status_t (*submit_bio_hook)(struct inode *inode, struct bio *bio,
 					int mirror_num, unsigned long bio_flags,
 					u64 bio_offset);
 	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
