@@ -26,10 +26,6 @@ config CPU_FREQ_GOV_COMMON
 	select IRQ_WORK
 	bool
 
-config CPU_FREQ_BOOST_SW
-	bool
-	depends on THERMAL
-
 config CPU_FREQ_STAT
 	bool "CPU frequency transition statistics"
 	help
