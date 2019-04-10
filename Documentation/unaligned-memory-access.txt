@@ -1,5 +1,5 @@
 =========================
-UNALIGNED MEMORY ACCESSES
+Unaligned Memory Accesses
 =========================
 
 :Author: Daniel Drake <dsd@gentoo.org>,
