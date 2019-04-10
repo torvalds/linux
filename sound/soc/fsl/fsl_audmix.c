@@ -445,13 +445,29 @@ static const struct regmap_config fsl_audmix_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static const struct of_device_id fsl_audmix_ids[] = {
+	{
+		.compatible = "fsl,imx8qm-audmix",
+		.data = "imx-audmix",
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, fsl_audmix_ids);
+
 static int fsl_audmix_probe(struct platform_device *pdev)
 {
 	struct fsl_audmix *priv;
 	struct resource *res;
+	const char *mdrv;
+	const struct of_device_id *of_id;
 	void __iomem *regs;
 	int ret;
-	const char *sprop;
+
+	of_id = of_match_device(fsl_audmix_ids, &pdev->dev);
+	if (!of_id || !of_id->data)
+		return -EINVAL;
+
+	mdrv = of_id->data;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -487,19 +503,12 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	sprop = of_get_property(pdev->dev.of_node, "model", NULL);
-	if (sprop) {
-		priv->pdev = platform_device_register_data(&pdev->dev, sprop, 0,
-							   NULL, 0);
-		if (IS_ERR(priv->pdev)) {
-			ret = PTR_ERR(priv->pdev);
-			dev_err(&pdev->dev,
-				"failed to register platform %s: %d\n", sprop,
-				 ret);
-		}
-	} else {
-		dev_err(&pdev->dev, "[model] attribute missing.\n");
-		ret = -EINVAL;
+	priv->pdev = platform_device_register_data(&pdev->dev, mdrv, 0, NULL,
+						   0);
+	if (IS_ERR(priv->pdev)) {
+		ret = PTR_ERR(priv->pdev);
+		dev_err(&pdev->dev, "failed to register platform %s: %d\n",
+			mdrv, ret);
 	}
 
 	return ret;
@@ -552,12 +561,6 @@ static const struct dev_pm_ops fsl_audmix_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
-
-static const struct of_device_id fsl_audmix_ids[] = {
-	{ .compatible = "fsl,imx8qm-audmix", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, fsl_audmix_ids);
 
 static struct platform_driver fsl_audmix_driver = {
 	.probe = fsl_audmix_probe,
