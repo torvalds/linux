@@ -88,8 +88,7 @@ static struct kobj_type md_ktype;
 
 struct md_cluster_operations *md_cluster_ops;
 EXPORT_SYMBOL(md_cluster_ops);
-struct module *md_cluster_mod;
-EXPORT_SYMBOL(md_cluster_mod);
+static struct module *md_cluster_mod;
 
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 static struct workqueue_struct *md_wq;
@@ -1548,7 +1547,7 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 		 */
 		s32 offset;
 		sector_t bb_sector;
-		u64 *bbp;
+		__le64 *bbp;
 		int i;
 		int sectors = le16_to_cpu(sb->bblog_size);
 		if (sectors > (PAGE_SIZE / 512))
@@ -1560,7 +1559,7 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 		if (!sync_page_io(rdev, bb_sector, sectors << 9,
 				  rdev->bb_page, REQ_OP_READ, 0, true))
 			return -EIO;
-		bbp = (u64 *)page_address(rdev->bb_page);
+		bbp = (__le64 *)page_address(rdev->bb_page);
 		rdev->badblocks.shift = sb->bblog_shift;
 		for (i = 0 ; i < (sectors << (9-3)) ; i++, bbp++) {
 			u64 bb = le64_to_cpu(*bbp);
@@ -1872,7 +1871,7 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 		md_error(mddev, rdev);
 	else {
 		struct badblocks *bb = &rdev->badblocks;
-		u64 *bbp = (u64 *)page_address(rdev->bb_page);
+		__le64 *bbp = (__le64 *)page_address(rdev->bb_page);
 		u64 *p = bb->page;
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_BAD_BLOCKS);
 		if (bb->changed) {
@@ -2850,8 +2849,10 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 			err = 0;
 		}
 	} else if (cmd_match(buf, "re-add")) {
-		if (test_bit(Faulty, &rdev->flags) && (rdev->raid_disk == -1) &&
-			rdev->saved_raid_disk >= 0) {
+		if (!rdev->mddev->pers)
+			err = -EINVAL;
+		else if (test_bit(Faulty, &rdev->flags) && (rdev->raid_disk == -1) &&
+				rdev->saved_raid_disk >= 0) {
 			/* clear_bit is performed _after_ all the devices
 			 * have their local Faulty bit cleared. If any writes
 			 * happen in the meantime in the local node, they
@@ -9225,7 +9226,7 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 		 * reshape is happening in the remote node, we need to
 		 * update reshape_position and call start_reshape.
 		 */
-		mddev->reshape_position = sb->reshape_position;
+		mddev->reshape_position = le64_to_cpu(sb->reshape_position);
 		if (mddev->pers->update_reshape_pos)
 			mddev->pers->update_reshape_pos(mddev);
 		if (mddev->pers->start_reshape)

@@ -711,6 +711,8 @@ static bool is_full_stripe_write(struct stripe_head *sh)
 }
 
 static void lock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
+		__acquires(&sh1->stripe_lock)
+		__acquires(&sh2->stripe_lock)
 {
 	if (sh1 > sh2) {
 		spin_lock_irq(&sh2->stripe_lock);
@@ -722,6 +724,8 @@ static void lock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
 }
 
 static void unlock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
+		__releases(&sh1->stripe_lock)
+		__releases(&sh2->stripe_lock)
 {
 	spin_unlock(&sh1->stripe_lock);
 	spin_unlock_irq(&sh2->stripe_lock);
@@ -6155,6 +6159,8 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio,
 static int handle_active_stripes(struct r5conf *conf, int group,
 				 struct r5worker *worker,
 				 struct list_head *temp_inactive_list)
+		__releases(&conf->device_lock)
+		__acquires(&conf->device_lock)
 {
 	struct stripe_head *batch[MAX_STRIPE_BATCH], *sh;
 	int i, batch_size = 0, hash;
