@@ -1642,7 +1642,12 @@ static int ath10k_sdio_hif_swap_mailbox(struct ath10k *ar)
 		ath10k_dbg(ar, ATH10K_DBG_SDIO,
 			   "sdio mailbox swap service enabled\n");
 		ar_sdio->swap_mbox = true;
+	} else {
+		ath10k_dbg(ar, ATH10K_DBG_SDIO,
+			   "sdio mailbox swap service disabled\n");
+		ar_sdio->swap_mbox = false;
 	}
+
 	return 0;
 }
 
