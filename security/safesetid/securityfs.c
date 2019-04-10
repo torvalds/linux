@@ -59,8 +59,8 @@ static int parse_policy_line(
 	if (ret)
 		return ret;
 
-	*parent = make_kuid(current_user_ns(), parsed_parent);
-	*child = make_kuid(current_user_ns(), parsed_child);
+	*parent = make_kuid(file->f_cred->user_ns, parsed_parent);
+	*child = make_kuid(file->f_cred->user_ns, parsed_child);
 	if (!uid_valid(*parent) || !uid_valid(*child))
 		return -EINVAL;
 
@@ -92,7 +92,7 @@ static ssize_t safesetid_file_write(struct file *file,
 	kuid_t child;
 	int ret;
 
-	if (!ns_capable(current_user_ns(), CAP_MAC_ADMIN))
+	if (!file_ns_capable(file, &init_user_ns, CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (*ppos != 0)
