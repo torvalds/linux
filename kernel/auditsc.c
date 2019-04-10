@@ -2519,6 +2519,28 @@ void __audit_tk_injoffset(struct timespec64 offset)
 		  (long long)offset.tv_sec, offset.tv_nsec);
 }
 
+static void audit_log_ntp_val(const struct audit_ntp_data *ad,
+			      const char *op, enum audit_ntp_type type)
+{
+	const struct audit_ntp_val *val = &ad->vals[type];
+
+	if (val->newval == val->oldval)
+		return;
+
+	audit_log(audit_context(), GFP_KERNEL, AUDIT_TIME_ADJNTPVAL,
+		  "op=%s old=%lli new=%lli", op, val->oldval, val->newval);
+}
+
+void __audit_ntp_log(const struct audit_ntp_data *ad)
+{
+	audit_log_ntp_val(ad, "offset",	AUDIT_NTP_OFFSET);
+	audit_log_ntp_val(ad, "freq",	AUDIT_NTP_FREQ);
+	audit_log_ntp_val(ad, "status",	AUDIT_NTP_STATUS);
+	audit_log_ntp_val(ad, "tai",	AUDIT_NTP_TAI);
+	audit_log_ntp_val(ad, "tick",	AUDIT_NTP_TICK);
+	audit_log_ntp_val(ad, "adjust",	AUDIT_NTP_ADJUST);
+}
+
 static void audit_log_task(struct audit_buffer *ab)
 {
 	kuid_t auid, uid;
