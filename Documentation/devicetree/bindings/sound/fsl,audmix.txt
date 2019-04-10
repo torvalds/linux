@@ -38,9 +38,6 @@ Device driver required properties:
 			  to SAI interfaces to be provided, the first SAI in the
 			  list being used to route the AUDMIX output.
 
-  - model		: Must contain machine driver name which will configure
-			  and instantiate the appropriate audio card.
-
 Device driver configuration example:
 ======================================
   audmix: audmix@59840000 {
@@ -50,5 +47,4 @@ Device driver configuration example:
     clock-names = "ipg";
     power-domains = <&pd_audmix>;
     dais = <&sai4>, <&sai5>;
-    model = "imx-audmix";
   };
