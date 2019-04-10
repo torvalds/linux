@@ -968,7 +968,7 @@ config TI_ADS1015
 
 config TI_ADS7950
 	tristate "Texas Instruments ADS7950 ADC driver"
-	depends on SPI
+	depends on SPI && GPIOLIB
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
