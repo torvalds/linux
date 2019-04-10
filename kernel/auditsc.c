@@ -2512,6 +2512,13 @@ void __audit_fanotify(unsigned int response)
 		AUDIT_FANOTIFY,	"resp=%u", response);
 }
 
+void __audit_tk_injoffset(struct timespec64 offset)
+{
+	audit_log(audit_context(), GFP_KERNEL, AUDIT_TIME_INJOFFSET,
+		  "sec=%lli nsec=%li",
+		  (long long)offset.tv_sec, offset.tv_nsec);
+}
+
 static void audit_log_task(struct audit_buffer *ab)
 {
 	kuid_t auid, uid;

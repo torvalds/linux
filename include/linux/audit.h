@@ -365,6 +365,7 @@ extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 extern void __audit_log_kern_module(char *name);
 extern void __audit_fanotify(unsigned int response);
+extern void __audit_tk_injoffset(struct timespec64 offset);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -465,6 +466,16 @@ static inline void audit_fanotify(unsigned int response)
 {
 	if (!audit_dummy_context())
 		__audit_fanotify(response);
+}
+
+static inline void audit_tk_injoffset(struct timespec64 offset)
+{
+	/* ignore no-op events */
+	if (offset.tv_sec == 0 && offset.tv_nsec == 0)
+		return;
+
+	if (!audit_dummy_context())
+		__audit_tk_injoffset(offset);
 }
 
 extern int audit_n_rules;
@@ -578,6 +589,9 @@ static inline void audit_log_kern_module(char *name)
 }
 
 static inline void audit_fanotify(unsigned int response)
+{ }
+
+static inline void audit_tk_injoffset(struct timespec64 offset)
 { }
 
 static inline void audit_ptrace(struct task_struct *t)
