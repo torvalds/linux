@@ -22,10 +22,10 @@ void drm_fb_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
 		   struct drm_rect *clip);
 void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
 			       struct drm_framebuffer *fb,
-			       struct drm_rect *clip, bool swap);
-void drm_fb_xrgb8888_to_rgb565_dstclip(void *dst, unsigned int dst_pitch,
+			       struct drm_rect *clip, bool swab);
+void drm_fb_xrgb8888_to_rgb565_dstclip(void __iomem *dst, unsigned int dst_pitch,
 				       void *vaddr, struct drm_framebuffer *fb,
-				       struct drm_rect *clip, bool swap);
+				       struct drm_rect *clip, bool swab);
 void drm_fb_xrgb8888_to_rgb888_dstclip(void *dst, unsigned int dst_pitch,
 				       void *vaddr, struct drm_framebuffer *fb,
 				       struct drm_rect *clip);
