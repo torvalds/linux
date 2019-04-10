@@ -3762,6 +3762,7 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_query_ip_offload_buffer *buf = &adapter->ip_offload_buf;
+	netdev_features_t old_hw_features = 0;
 	union ibmvnic_crq crq;
 	int i;
 
@@ -3837,24 +3838,41 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
 	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
 
-	adapter->netdev->features = NETIF_F_SG | NETIF_F_GSO;
+	if (adapter->state != VNIC_PROBING) {
+		old_hw_features = adapter->netdev->hw_features;
+		adapter->netdev->hw_features = 0;
+	}
+
+	adapter->netdev->hw_features = NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
 
 	if (buf->tcp_ipv4_chksum || buf->udp_ipv4_chksum)
-		adapter->netdev->features |= NETIF_F_IP_CSUM;
+		adapter->netdev->hw_features |= NETIF_F_IP_CSUM;
 
 	if (buf->tcp_ipv6_chksum || buf->udp_ipv6_chksum)
-		adapter->netdev->features |= NETIF_F_IPV6_CSUM;
+		adapter->netdev->hw_features |= NETIF_F_IPV6_CSUM;
 
 	if ((adapter->netdev->features &
 	    (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
-		adapter->netdev->features |= NETIF_F_RXCSUM;
+		adapter->netdev->hw_features |= NETIF_F_RXCSUM;
 
 	if (buf->large_tx_ipv4)
-		adapter->netdev->features |= NETIF_F_TSO;
+		adapter->netdev->hw_features |= NETIF_F_TSO;
 	if (buf->large_tx_ipv6)
-		adapter->netdev->features |= NETIF_F_TSO6;
+		adapter->netdev->hw_features |= NETIF_F_TSO6;
 
-	adapter->netdev->hw_features |= adapter->netdev->features;
+	if (adapter->state == VNIC_PROBING) {
+		adapter->netdev->features |= adapter->netdev->hw_features;
+	} else if (old_hw_features != adapter->netdev->hw_features) {
+		netdev_features_t tmp = 0;
+
+		/* disable features no longer supported */
+		adapter->netdev->features &= adapter->netdev->hw_features;
+		/* turn on features now supported if previously enabled */
+		tmp = (old_hw_features ^ adapter->netdev->hw_features) &
+			adapter->netdev->hw_features;
+		adapter->netdev->features |=
+				tmp & adapter->netdev->wanted_features;
+	}
 
 	memset(&crq, 0, sizeof(crq));
 	crq.control_ip_offload.first = IBMVNIC_CRQ_CMD;
