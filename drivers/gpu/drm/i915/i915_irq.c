@@ -1796,6 +1796,25 @@ static void i9xx_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 /* The RPS events need forcewake, so we add them to a work queue and mask their
  * IMR bits until the work is done. Other interrupts can be processed without
  * the work queue. */
+static void gen11_rps_irq_handler(struct drm_i915_private *i915, u32 pm_iir)
+{
+	struct intel_rps *rps = &i915->gt_pm.rps;
+	const u32 events = i915->pm_rps_events & pm_iir;
+
+	lockdep_assert_held(&i915->irq_lock);
+
+	if (unlikely(!events))
+		return;
+
+	gen6_mask_pm_irq(i915, events);
+
+	if (!rps->interrupts_enabled)
+		return;
+
+	rps->pm_iir |= events;
+	schedule_work(&rps->work);
+}
+
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
@@ -2949,7 +2968,7 @@ gen11_other_irq_handler(struct drm_i915_private * const i915,
 			const u8 instance, const u16 iir)
 {
 	if (instance == OTHER_GTPM_INSTANCE)
-		return gen6_rps_irq_handler(i915, iir);
+		return gen11_rps_irq_handler(i915, iir);
 
 	WARN_ONCE(1, "unhandled other interrupt instance=0x%x, iir=0x%x\n",
 		  instance, iir);
