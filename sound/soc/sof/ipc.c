@@ -645,12 +645,12 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 		send_bytes = sizeof(struct sof_ipc_ctrl_value_chan) *
 		cdata->num_elems;
 		if (send)
-			snd_sof_dsp_block_write(sdev,
+			snd_sof_dsp_block_write(sdev, sdev->mmio_bar,
 						scontrol->readback_offset,
 						cdata->chanv, send_bytes);
 
 		else
-			snd_sof_dsp_block_read(sdev,
+			snd_sof_dsp_block_read(sdev, sdev->mmio_bar,
 					       scontrol->readback_offset,
 					       cdata->chanv, send_bytes);
 		return 0;

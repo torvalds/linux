@@ -36,7 +36,7 @@
  * Memory copy.
  */
 
-static void spi_block_read(struct snd_sof_dev *sdev, u32 offset,
+static void spi_block_read(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			   void *dest, size_t size)
 {
 	u8 *buf;
@@ -62,7 +62,7 @@ static void spi_block_read(struct snd_sof_dev *sdev, u32 offset,
 	}
 }
 
-static void spi_block_write(struct snd_sof_dev *sdev, u32 offset,
+static void spi_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			    void *src, size_t size)
 {
 	int ret;
