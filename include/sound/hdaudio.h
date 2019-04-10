@@ -297,7 +297,7 @@ struct hdac_rb {
  * @num_streams: streams supported
  * @idx: HDA link index
  * @hlink_list: link list of HDA links
- * @lock: lock for link mgmt
+ * @lock: lock for link and display power mgmt
  * @cmd_dma_state: state of cmd DMAs: CORB and RIRB
  */
 struct hdac_bus {
@@ -363,6 +363,7 @@ struct hdac_bus {
 	/* locks */
 	spinlock_t reg_lock;
 	struct mutex cmd_mutex;
+	struct mutex lock;
 
 	/* DRM component interface */
 	struct drm_audio_component *audio_component;
@@ -373,11 +374,9 @@ struct hdac_bus {
 	int num_streams;
 	int idx;
 
+	/* link management */
 	struct list_head hlink_list;
-
-	struct mutex lock;
 	bool cmd_dma_state;
-
 };
 
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
