@@ -219,6 +219,13 @@ void tls_device_sk_destruct(struct sock *sk)
 }
 EXPORT_SYMBOL(tls_device_sk_destruct);
 
+void tls_device_free_resources_tx(struct sock *sk)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+
+	tls_free_partial_record(sk, tls_ctx);
+}
+
 static void tls_append_frag(struct tls_record_info *record,
 			    struct page_frag *pfrag,
 			    int size)
