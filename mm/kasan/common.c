@@ -74,9 +74,6 @@ static inline depot_stack_handle_t save_stack(gfp_t flags)
 
 	save_stack_trace(&trace);
 	filter_irq_stacks(&trace);
-	if (trace.nr_entries != 0 &&
-	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
-		trace.nr_entries--;
 
 	return depot_save_stack(&trace, flags);
 }
