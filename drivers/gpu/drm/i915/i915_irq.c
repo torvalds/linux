@@ -136,36 +136,48 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_F] = SDE_TC4_HOTPLUG_ICP
 };
 
-/* IIR can theoretically queue up two events. Be paranoid. */
-#define GEN8_IRQ_RESET_NDX(type, which) do { \
-	I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
-	POSTING_READ(GEN8_##type##_IMR(which)); \
-	I915_WRITE(GEN8_##type##_IER(which), 0); \
-	I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
-	POSTING_READ(GEN8_##type##_IIR(which)); \
-	I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff); \
-	POSTING_READ(GEN8_##type##_IIR(which)); \
-} while (0)
+static void gen3_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
+			   i915_reg_t iir, i915_reg_t ier)
+{
+	I915_WRITE(imr, 0xffffffff);
+	POSTING_READ(imr);
 
-#define GEN3_IRQ_RESET(type) do { \
-	I915_WRITE(type##IMR, 0xffffffff); \
-	POSTING_READ(type##IMR); \
-	I915_WRITE(type##IER, 0); \
-	I915_WRITE(type##IIR, 0xffffffff); \
-	POSTING_READ(type##IIR); \
-	I915_WRITE(type##IIR, 0xffffffff); \
-	POSTING_READ(type##IIR); \
-} while (0)
+	I915_WRITE(ier, 0);
 
-#define GEN2_IRQ_RESET(type) do { \
-	I915_WRITE16(type##IMR, 0xffff); \
-	POSTING_READ16(type##IMR); \
-	I915_WRITE16(type##IER, 0); \
-	I915_WRITE16(type##IIR, 0xffff); \
-	POSTING_READ16(type##IIR); \
-	I915_WRITE16(type##IIR, 0xffff); \
-	POSTING_READ16(type##IIR); \
-} while (0)
+	/* IIR can theoretically queue up two events. Be paranoid. */
+	I915_WRITE(iir, 0xffffffff);
+	POSTING_READ(iir);
+	I915_WRITE(iir, 0xffffffff);
+	POSTING_READ(iir);
+}
+
+static void gen2_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
+			   i915_reg_t iir, i915_reg_t ier)
+{
+	I915_WRITE16(imr, 0xffff);
+	POSTING_READ16(imr);
+
+	I915_WRITE16(ier, 0);
+
+	/* IIR can theoretically queue up two events. Be paranoid. */
+	I915_WRITE16(iir, 0xffff);
+	POSTING_READ16(iir);
+	I915_WRITE16(iir, 0xffff);
+	POSTING_READ16(iir);
+}
+
+#define GEN8_IRQ_RESET_NDX(type, which) \
+({ \
+	unsigned int which_ = which; \
+	gen3_irq_reset(dev_priv, GEN8_##type##_IMR(which_), \
+		       GEN8_##type##_IIR(which_), GEN8_##type##_IER(which_)); \
+})
+
+#define GEN3_IRQ_RESET(type) \
+	gen3_irq_reset(dev_priv, type##IMR, type##IIR, type##IER)
+
+#define GEN2_IRQ_RESET(type) \
+	gen2_irq_reset(dev_priv, type##IMR, type##IIR, type##IER)
 
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
@@ -202,26 +214,50 @@ static void gen2_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 	POSTING_READ16(reg);
 }
 
-#define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
-	gen3_assert_iir_is_zero(dev_priv, GEN8_##type##_IIR(which)); \
-	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
-	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
-	POSTING_READ(GEN8_##type##_IMR(which)); \
-} while (0)
+static void gen3_irq_init(struct drm_i915_private *dev_priv,
+			  i915_reg_t imr, u32 imr_val,
+			  i915_reg_t ier, u32 ier_val,
+			  i915_reg_t iir)
+{
+	gen3_assert_iir_is_zero(dev_priv, iir);
 
-#define GEN3_IRQ_INIT(type, imr_val, ier_val) do { \
-	gen3_assert_iir_is_zero(dev_priv, type##IIR); \
-	I915_WRITE(type##IER, (ier_val)); \
-	I915_WRITE(type##IMR, (imr_val)); \
-	POSTING_READ(type##IMR); \
-} while (0)
+	I915_WRITE(ier, ier_val);
+	I915_WRITE(imr, imr_val);
+	POSTING_READ(imr);
+}
 
-#define GEN2_IRQ_INIT(type, imr_val, ier_val) do { \
-	gen2_assert_iir_is_zero(dev_priv, type##IIR); \
-	I915_WRITE16(type##IER, (ier_val)); \
-	I915_WRITE16(type##IMR, (imr_val)); \
-	POSTING_READ16(type##IMR); \
-} while (0)
+static void gen2_irq_init(struct drm_i915_private *dev_priv,
+			  i915_reg_t imr, u32 imr_val,
+			  i915_reg_t ier, u32 ier_val,
+			  i915_reg_t iir)
+{
+	gen2_assert_iir_is_zero(dev_priv, iir);
+
+	I915_WRITE16(ier, ier_val);
+	I915_WRITE16(imr, imr_val);
+	POSTING_READ16(imr);
+}
+
+#define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) \
+({ \
+	unsigned int which_ = which; \
+	gen3_irq_init(dev_priv, \
+		      GEN8_##type##_IMR(which_), imr_val, \
+		      GEN8_##type##_IER(which_), ier_val, \
+		      GEN8_##type##_IIR(which_)); \
+})
+
+#define GEN3_IRQ_INIT(type, imr_val, ier_val) \
+	gen3_irq_init(dev_priv, \
+		      type##IMR, imr_val, \
+		      type##IER, ier_val, \
+		      type##IIR)
+
+#define GEN2_IRQ_INIT(type, imr_val, ier_val) \
+	gen2_irq_init(dev_priv, \
+		      type##IMR, imr_val, \
+		      type##IER, ier_val, \
+		      type##IIR)
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
