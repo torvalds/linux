@@ -406,6 +406,8 @@ static int pcf85363_probe(struct i2c_client *client,
 		return PTR_ERR(pcf85363->rtc);
 
 	pcf85363->rtc->ops = &rtc_ops;
+	pcf85363->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pcf85363->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	if (client->irq > 0) {
 		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
