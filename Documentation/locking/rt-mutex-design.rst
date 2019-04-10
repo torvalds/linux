@@ -1,14 +1,15 @@
-#
-# Copyright (c) 2006 Steven Rostedt
-# Licensed under the GNU Free Documentation License, Version 1.2
-#
-
+==============================
 RT-mutex implementation design
-------------------------------
+==============================
+
+Copyright (c) 2006 Steven Rostedt
+
+Licensed under the GNU Free Documentation License, Version 1.2
+
 
 This document tries to describe the design of the rtmutex.c implementation.
 It doesn't describe the reasons why rtmutex.c exists. For that please see
-Documentation/locking/rt-mutex.txt.  Although this document does explain problems
+Documentation/locking/rt-mutex.rst.  Although this document does explain problems
 that happen without this code, but that is in the concept to understand
 what the code actually is doing.
 
@@ -41,17 +42,17 @@ to release the lock, because for all we know, B is a CPU hog and will
 never give C a chance to release the lock.  This is called unbounded priority
 inversion.
 
-Here's a little ASCII art to show the problem.
+Here's a little ASCII art to show the problem::
 
-   grab lock L1 (owned by C)
-     |
-A ---+
-        C preempted by B
-          |
-C    +----+
+     grab lock L1 (owned by C)
+       |
+  A ---+
+          C preempted by B
+            |
+  C    +----+
 
-B         +-------->
-                B now keeps A from running.
+  B         +-------->
+                  B now keeps A from running.
 
 
 Priority Inheritance (PI)
@@ -75,24 +76,29 @@ Terminology
 Here I explain some terminology that is used in this document to help describe
 the design that is used to implement PI.
 
-PI chain - The PI chain is an ordered series of locks and processes that cause
+PI chain
+         - The PI chain is an ordered series of locks and processes that cause
            processes to inherit priorities from a previous process that is
            blocked on one of its locks.  This is described in more detail
            later in this document.
 
-mutex    - In this document, to differentiate from locks that implement
+mutex
+         - In this document, to differentiate from locks that implement
            PI and spin locks that are used in the PI code, from now on
            the PI locks will be called a mutex.
 
-lock     - In this document from now on, I will use the term lock when
+lock
+         - In this document from now on, I will use the term lock when
            referring to spin locks that are used to protect parts of the PI
            algorithm.  These locks disable preemption for UP (when
            CONFIG_PREEMPT is enabled) and on SMP prevents multiple CPUs from
            entering critical sections simultaneously.
 
-spin lock - Same as lock above.
+spin lock
+         - Same as lock above.
 
-waiter   - A waiter is a struct that is stored on the stack of a blocked
+waiter
+         - A waiter is a struct that is stored on the stack of a blocked
            process.  Since the scope of the waiter is within the code for
            a process being blocked on the mutex, it is fine to allocate
            the waiter on the process's stack (local variable).  This
@@ -104,14 +110,18 @@ waiter   - A waiter is a struct that is stored on the stack of a blocked
            waiter is sometimes used in reference to the task that is waiting
            on a mutex. This is the same as waiter->task.
 
-waiters  - A list of processes that are blocked on a mutex.
+waiters
+         - A list of processes that are blocked on a mutex.
 
-top waiter - The highest priority process waiting on a specific mutex.
+top waiter
+         - The highest priority process waiting on a specific mutex.
 
-top pi waiter - The highest priority process waiting on one of the mutexes
+top pi waiter
+              - The highest priority process waiting on one of the mutexes
                 that a specific process owns.
 
-Note:  task and process are used interchangeably in this document, mostly to
+Note:
+       task and process are used interchangeably in this document, mostly to
        differentiate between two processes that are being described together.
 
 
@@ -123,7 +133,7 @@ inheritance to take place.  Multiple chains may converge, but a chain
 would never diverge, since a process can't be blocked on more than one
 mutex at a time.
 
-Example:
+Example::
 
    Process:  A, B, C, D, E
    Mutexes:  L1, L2, L3, L4
@@ -137,21 +147,21 @@ Example:
                          D owns L4
                                 E blocked on L4
 
-The chain would be:
+The chain would be::
 
    E->L4->D->L3->C->L2->B->L1->A
 
 To show where two chains merge, we could add another process F and
 another mutex L5 where B owns L5 and F is blocked on mutex L5.
 
-The chain for F would be:
+The chain for F would be::
 
    F->L5->B->L1->A
 
 Since a process may own more than one mutex, but never be blocked on more than
 one, the chains merge.
 
-Here we show both chains:
+Here we show both chains::
 
    E->L4->D->L3->C->L2-+
                        |
@@ -165,12 +175,12 @@ than the processes to the left or below in the chain.
 
 Also since a mutex may have more than one process blocked on it, we can
 have multiple chains merge at mutexes.  If we add another process G that is
-blocked on mutex L2:
+blocked on mutex L2::
 
   G->L2->B->L1->A
 
 And once again, to show how this can grow I will show the merging chains
-again.
+again::
 
    E->L4->D->L3->C-+
                    +->L2-+
@@ -184,7 +194,7 @@ the chain (A and B in this example), must have their priorities increased
 to that of G.
 
 Mutex Waiters Tree
------------------
+------------------
 
 Every mutex keeps track of all the waiters that are blocked on itself. The
 mutex has a rbtree to store these waiters by priority.  This tree is protected
@@ -219,19 +229,19 @@ defined.  But is very complex to figure it out, since it depends on all
 the nesting of mutexes.  Let's look at the example where we have 3 mutexes,
 L1, L2, and L3, and four separate functions func1, func2, func3 and func4.
 The following shows a locking order of L1->L2->L3, but may not actually
-be directly nested that way.
+be directly nested that way::
 
-void func1(void)
-{
+  void func1(void)
+  {
 	mutex_lock(L1);
 
 	/* do anything */
 
 	mutex_unlock(L1);
-}
+  }
 
-void func2(void)
-{
+  void func2(void)
+  {
 	mutex_lock(L1);
 	mutex_lock(L2);
 
@@ -239,10 +249,10 @@ void func2(void)
 
 	mutex_unlock(L2);
 	mutex_unlock(L1);
-}
+  }
 
-void func3(void)
-{
+  void func3(void)
+  {
 	mutex_lock(L2);
 	mutex_lock(L3);
 
@@ -250,30 +260,30 @@ void func3(void)
 
 	mutex_unlock(L3);
 	mutex_unlock(L2);
-}
+  }
 
-void func4(void)
-{
+  void func4(void)
+  {
 	mutex_lock(L3);
 
 	/* do something again */
 
 	mutex_unlock(L3);
-}
+  }
 
 Now we add 4 processes that run each of these functions separately.
 Processes A, B, C, and D which run functions func1, func2, func3 and func4
 respectively, and such that D runs first and A last.  With D being preempted
-in func4 in the "do something again" area, we have a locking that follows:
+in func4 in the "do something again" area, we have a locking that follows::
 
-D owns L3
-       C blocked on L3
-       C owns L2
-              B blocked on L2
-              B owns L1
-                     A blocked on L1
+  D owns L3
+         C blocked on L3
+         C owns L2
+                B blocked on L2
+                B owns L1
+                       A blocked on L1
 
-And thus we have the chain A->L1->B->L2->C->L3->D.
+  And thus we have the chain A->L1->B->L2->C->L3->D.
 
 This gives us a PI depth of 4 (four processes), but looking at any of the
 functions individually, it seems as though they only have at most a locking
@@ -298,7 +308,7 @@ not true, the rtmutex.c code will be broken!), this allows for the least
 significant bit to be used as a flag.  Bit 0 is used as the "Has Waiters"
 flag. It's set whenever there are waiters on a mutex.
 
-See Documentation/locking/rt-mutex.txt for further details.
+See Documentation/locking/rt-mutex.rst for further details.
 
 cmpxchg Tricks
 --------------
@@ -307,17 +317,17 @@ Some architectures implement an atomic cmpxchg (Compare and Exchange).  This
 is used (when applicable) to keep the fast path of grabbing and releasing
 mutexes short.
 
-cmpxchg is basically the following function performed atomically:
+cmpxchg is basically the following function performed atomically::
 
-unsigned long _cmpxchg(unsigned long *A, unsigned long *B, unsigned long *C)
-{
+  unsigned long _cmpxchg(unsigned long *A, unsigned long *B, unsigned long *C)
+  {
 	unsigned long T = *A;
 	if (*A == *B) {
 		*A = *C;
 	}
 	return T;
-}
-#define cmpxchg(a,b,c) _cmpxchg(&a,&b,&c)
+  }
+  #define cmpxchg(a,b,c) _cmpxchg(&a,&b,&c)
 
 This is really nice to have, since it allows you to only update a variable
 if the variable is what you expect it to be.  You know if it succeeded if
@@ -352,9 +362,10 @@ Then rt_mutex_setprio is called to adjust the priority of the task to the
 new priority. Note that rt_mutex_setprio is defined in kernel/sched/core.c
 to implement the actual change in priority.
 
-(Note:  For the "prio" field in task_struct, the lower the number, the
+Note:
+	For the "prio" field in task_struct, the lower the number, the
 	higher the priority. A "prio" of 5 is of higher priority than a
-	"prio" of 10.)
+	"prio" of 10.
 
 It is interesting to note that rt_mutex_adjust_prio can either increase
 or decrease the priority of the task.  In the case that a higher priority
@@ -439,6 +450,7 @@ wait_lock, which this code currently holds. So setting the "Has Waiters" flag
 forces the current owner to synchronize with this code.
 
 The lock is taken if the following are true:
+
    1) The lock has no owner
    2) The current task is the highest priority against all other
       waiters of the lock
@@ -546,10 +558,13 @@ Credits
 -------
 
 Author:  Steven Rostedt <rostedt@goodmis.org>
+
 Updated: Alex Shi <alex.shi@linaro.org>	- 7/6/2017
 
-Original Reviewers:  Ingo Molnar, Thomas Gleixner, Thomas Duetsch, and
+Original Reviewers:
+		     Ingo Molnar, Thomas Gleixner, Thomas Duetsch, and
 		     Randy Dunlap
+
 Update (7/6/2017) Reviewers: Steven Rostedt and Sebastian Siewior
 
 Updates

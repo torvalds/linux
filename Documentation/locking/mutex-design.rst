@@ -1,6 +1,9 @@
+=======================
 Generic Mutex Subsystem
+=======================
 
 started by Ingo Molnar <mingo@redhat.com>
+
 updated by Davidlohr Bueso <davidlohr@hp.com>
 
 What are mutexes?
@@ -23,7 +26,7 @@ Implementation
 Mutexes are represented by 'struct mutex', defined in include/linux/mutex.h
 and implemented in kernel/locking/mutex.c. These locks use an atomic variable
 (->owner) to keep track of the lock state during its lifetime.  Field owner
-actually contains 'struct task_struct *' to the current lock owner and it is
+actually contains `struct task_struct *` to the current lock owner and it is
 therefore NULL if not currently owned. Since task_struct pointers are aligned
 at at least L1_CACHE_BYTES, low bits (3) are used to store extra state (e.g.,
 if waiter list is non-empty).  In its most basic form it also includes a
@@ -101,29 +104,36 @@ features that make lock debugging easier and faster:
 
 Interfaces
 ----------
-Statically define the mutex:
+Statically define the mutex::
+
    DEFINE_MUTEX(name);
 
-Dynamically initialize the mutex:
+Dynamically initialize the mutex::
+
    mutex_init(mutex);
 
-Acquire the mutex, uninterruptible:
+Acquire the mutex, uninterruptible::
+
    void mutex_lock(struct mutex *lock);
    void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
    int  mutex_trylock(struct mutex *lock);
 
-Acquire the mutex, interruptible:
+Acquire the mutex, interruptible::
+
    int mutex_lock_interruptible_nested(struct mutex *lock,
 				       unsigned int subclass);
    int mutex_lock_interruptible(struct mutex *lock);
 
-Acquire the mutex, interruptible, if dec to 0:
+Acquire the mutex, interruptible, if dec to 0::
+
    int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *lock);
 
-Unlock the mutex:
+Unlock the mutex::
+
    void mutex_unlock(struct mutex *lock);
 
-Test if the mutex is taken:
+Test if the mutex is taken::
+
    int mutex_is_locked(struct mutex *lock);
 
 Disadvantages

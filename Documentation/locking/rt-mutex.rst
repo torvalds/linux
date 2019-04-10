@@ -1,5 +1,6 @@
+==================================
 RT-mutex subsystem with PI support
-----------------------------------
+==================================
 
 RT-mutexes with priority inheritance are used to support PI-futexes,
 which enable pthread_mutex_t priority inheritance attributes
@@ -46,27 +47,30 @@ The state of the rt-mutex is tracked via the owner field of the rt-mutex
 structure:
 
 lock->owner holds the task_struct pointer of the owner. Bit 0 is used to
-keep track of the "lock has waiters" state.
+keep track of the "lock has waiters" state:
 
- owner        bit0
+ ============ ======= ================================================
+ owner        bit0    Notes
+ ============ ======= ================================================
  NULL         0       lock is free (fast acquire possible)
  NULL         1       lock is free and has waiters and the top waiter
-			is going to take the lock*
+		      is going to take the lock [1]_
  taskpointer  0       lock is held (fast release possible)
- taskpointer  1       lock is held and has waiters**
+ taskpointer  1       lock is held and has waiters [2]_
+ ============ ======= ================================================
 
 The fast atomic compare exchange based acquire and release is only
 possible when bit 0 of lock->owner is 0.
 
-(*) It also can be a transitional state when grabbing the lock
-with ->wait_lock is held. To prevent any fast path cmpxchg to the lock,
-we need to set the bit0 before looking at the lock, and the owner may be
-NULL in this small time, hence this can be a transitional state.
+.. [1] It also can be a transitional state when grabbing the lock
+       with ->wait_lock is held. To prevent any fast path cmpxchg to the lock,
+       we need to set the bit0 before looking at the lock, and the owner may
+       be NULL in this small time, hence this can be a transitional state.
 
-(**) There is a small time when bit 0 is set but there are no
-waiters. This can happen when grabbing the lock in the slow path.
-To prevent a cmpxchg of the owner releasing the lock, we need to
-set this bit before looking at the lock.
+.. [2] There is a small time when bit 0 is set but there are no
+       waiters. This can happen when grabbing the lock in the slow path.
+       To prevent a cmpxchg of the owner releasing the lock, we need to
+       set this bit before looking at the lock.
 
 BTW, there is still technically a "Pending Owner", it's just not called
 that anymore. The pending owner happens to be the top_waiter of a lock

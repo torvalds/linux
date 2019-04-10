@@ -1,3 +1,4 @@
+======================================
 Wound/Wait Deadlock-Proof Mutex Design
 ======================================
 
@@ -85,6 +86,7 @@ Furthermore there are three different class of w/w lock acquire functions:
   no deadlock potential and hence the ww_mutex_lock call will block and not
   prematurely return -EDEADLK. The advantage of the _slow functions is in
   interface safety:
+
   - ww_mutex_lock has a __must_check int return type, whereas ww_mutex_lock_slow
     has a void return type. Note that since ww mutex code needs loops/retries
     anyway the __must_check doesn't result in spurious warnings, even though the
@@ -115,36 +117,36 @@ expect the number of simultaneous competing transactions to be typically small,
 and you want to reduce the number of rollbacks.
 
 Three different ways to acquire locks within the same w/w class. Common
-definitions for methods #1 and #2:
+definitions for methods #1 and #2::
 
-static DEFINE_WW_CLASS(ww_class);
+  static DEFINE_WW_CLASS(ww_class);
 
-struct obj {
+  struct obj {
 	struct ww_mutex lock;
 	/* obj data */
-};
+  };
 
-struct obj_entry {
+  struct obj_entry {
 	struct list_head head;
 	struct obj *obj;
-};
+  };
 
 Method 1, using a list in execbuf->buffers that's not allowed to be reordered.
 This is useful if a list of required objects is already tracked somewhere.
 Furthermore the lock helper can use propagate the -EALREADY return code back to
 the caller as a signal that an object is twice on the list. This is useful if
 the list is constructed from userspace input and the ABI requires userspace to
-not have duplicate entries (e.g. for a gpu commandbuffer submission ioctl).
+not have duplicate entries (e.g. for a gpu commandbuffer submission ioctl)::
 
-int lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
-{
+  int lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
+  {
 	struct obj *res_obj = NULL;
 	struct obj_entry *contended_entry = NULL;
 	struct obj_entry *entry;
 
 	ww_acquire_init(ctx, &ww_class);
 
-retry:
+  retry:
 	list_for_each_entry (entry, list, head) {
 		if (entry->obj == res_obj) {
 			res_obj = NULL;
@@ -160,7 +162,7 @@ retry:
 	ww_acquire_done(ctx);
 	return 0;
 
-err:
+  err:
 	list_for_each_entry_continue_reverse (entry, list, head)
 		ww_mutex_unlock(&entry->obj->lock);
 
@@ -176,14 +178,14 @@ err:
 	ww_acquire_fini(ctx);
 
 	return ret;
-}
+  }
 
 Method 2, using a list in execbuf->buffers that can be reordered. Same semantics
 of duplicate entry detection using -EALREADY as method 1 above. But the
-list-reordering allows for a bit more idiomatic code.
+list-reordering allows for a bit more idiomatic code::
 
-int lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
-{
+  int lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
+  {
 	struct obj_entry *entry, *entry2;
 
 	ww_acquire_init(ctx, &ww_class);
@@ -216,24 +218,25 @@ int lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
 
 	ww_acquire_done(ctx);
 	return 0;
-}
+  }
 
-Unlocking works the same way for both methods #1 and #2:
+Unlocking works the same way for both methods #1 and #2::
 
-void unlock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
-{
+  void unlock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
+  {
 	struct obj_entry *entry;
 
 	list_for_each_entry (entry, list, head)
 		ww_mutex_unlock(&entry->obj->lock);
 
 	ww_acquire_fini(ctx);
-}
+  }
 
 Method 3 is useful if the list of objects is constructed ad-hoc and not upfront,
 e.g. when adjusting edges in a graph where each node has its own ww_mutex lock,
 and edges can only be changed when holding the locks of all involved nodes. w/w
 mutexes are a natural fit for such a case for two reasons:
+
 - They can handle lock-acquisition in any order which allows us to start walking
   a graph from a starting point and then iteratively discovering new edges and
   locking down the nodes those edges connect to.
@@ -243,6 +246,7 @@ mutexes are a natural fit for such a case for two reasons:
   as a starting point).
 
 Note that this approach differs in two important ways from the above methods:
+
 - Since the list of objects is dynamically constructed (and might very well be
   different when retrying due to hitting the -EDEADLK die condition) there's
   no need to keep any object on a persistent list when it's not locked. We can
@@ -260,17 +264,17 @@ any interface misuse for these cases.
 
 Also, method 3 can't fail the lock acquisition step since it doesn't return
 -EALREADY. Of course this would be different when using the _interruptible
-variants, but that's outside of the scope of these examples here.
+variants, but that's outside of the scope of these examples here::
 
-struct obj {
+  struct obj {
 	struct ww_mutex ww_mutex;
 	struct list_head locked_list;
-};
+  };
 
-static DEFINE_WW_CLASS(ww_class);
+  static DEFINE_WW_CLASS(ww_class);
 
-void __unlock_objs(struct list_head *list)
-{
+  void __unlock_objs(struct list_head *list)
+  {
 	struct obj *entry, *temp;
 
 	list_for_each_entry_safe (entry, temp, list, locked_list) {
@@ -279,15 +283,15 @@ void __unlock_objs(struct list_head *list)
 		list_del(&entry->locked_list);
 		ww_mutex_unlock(entry->ww_mutex)
 	}
-}
+  }
 
-void lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
-{
+  void lock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
+  {
 	struct obj *obj;
 
 	ww_acquire_init(ctx, &ww_class);
 
-retry:
+  retry:
 	/* re-init loop start state */
 	loop {
 		/* magic code which walks over a graph and decides which objects
@@ -312,13 +316,13 @@ retry:
 
 	ww_acquire_done(ctx);
 	return 0;
-}
+  }
 
-void unlock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
-{
+  void unlock_objs(struct list_head *list, struct ww_acquire_ctx *ctx)
+  {
 	__unlock_objs(list);
 	ww_acquire_fini(ctx);
-}
+  }
 
 Method 4: Only lock one single objects. In that case deadlock detection and
 prevention is obviously overkill, since with grabbing just one lock you can't
@@ -329,11 +333,14 @@ Implementation Details
 ----------------------
 
 Design:
+^^^^^^^
+
   ww_mutex currently encapsulates a struct mutex, this means no extra overhead for
   normal mutex locks, which are far more common. As such there is only a small
   increase in code size if wait/wound mutexes are not used.
 
   We maintain the following invariants for the wait list:
+
   (1) Waiters with an acquire context are sorted by stamp order; waiters
       without an acquire context are interspersed in FIFO order.
   (2) For Wait-Die, among waiters with contexts, only the first one can have
@@ -355,6 +362,8 @@ Design:
   therefore be directed towards the uncontended cases.
 
 Lockdep:
+^^^^^^^^
+
   Special care has been taken to warn for as many cases of api abuse
   as possible. Some common api abuses will be caught with
   CONFIG_DEBUG_MUTEXES, but CONFIG_PROVE_LOCKING is recommended.
@@ -379,5 +388,6 @@ Lockdep:
      having called ww_acquire_fini on the first.
    - 'normal' deadlocks that can occur.
 
-FIXME: Update this section once we have the TASK_DEADLOCK task state flag magic
-implemented.
+FIXME:
+  Update this section once we have the TASK_DEADLOCK task state flag magic
+  implemented.

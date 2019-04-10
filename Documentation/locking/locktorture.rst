@@ -1,6 +1,9 @@
+==================================
 Kernel Lock Torture Test Operation
+==================================
 
 CONFIG_LOCK_TORTURE_TEST
+========================
 
 The CONFIG LOCK_TORTURE_TEST config option provides a kernel module
 that runs torture tests on core kernel locking primitives. The kernel
@@ -18,61 +21,77 @@ can be simulated by either enlarging this critical region hold time and/or
 creating more kthreads.
 
 
-MODULE PARAMETERS
+Module Parameters
+=================
 
 This module has the following parameters:
 
 
-	    ** Locktorture-specific **
+Locktorture-specific
+--------------------
 
-nwriters_stress   Number of kernel threads that will stress exclusive lock
+nwriters_stress
+		  Number of kernel threads that will stress exclusive lock
 		  ownership (writers). The default value is twice the number
 		  of online CPUs.
 
-nreaders_stress   Number of kernel threads that will stress shared lock
+nreaders_stress
+		  Number of kernel threads that will stress shared lock
 		  ownership (readers). The default is the same amount of writer
 		  locks. If the user did not specify nwriters_stress, then
 		  both readers and writers be the amount of online CPUs.
 
-torture_type	  Type of lock to torture. By default, only spinlocks will
+torture_type
+		  Type of lock to torture. By default, only spinlocks will
 		  be tortured. This module can torture the following locks,
 		  with string values as follows:
 
-		     o "lock_busted": Simulates a buggy lock implementation.
+		     - "lock_busted":
+				Simulates a buggy lock implementation.
 
-		     o "spin_lock": spin_lock() and spin_unlock() pairs.
+		     - "spin_lock":
+				spin_lock() and spin_unlock() pairs.
 
-		     o "spin_lock_irq": spin_lock_irq() and spin_unlock_irq()
-					pairs.
+		     - "spin_lock_irq":
+				spin_lock_irq() and spin_unlock_irq() pairs.
 
-		     o "rw_lock": read/write lock() and unlock() rwlock pairs.
+		     - "rw_lock":
+				read/write lock() and unlock() rwlock pairs.
 
-		     o "rw_lock_irq": read/write lock_irq() and unlock_irq()
-				      rwlock pairs.
+		     - "rw_lock_irq":
+				read/write lock_irq() and unlock_irq()
+				rwlock pairs.
 
-		     o "mutex_lock": mutex_lock() and mutex_unlock() pairs.
+		     - "mutex_lock":
+				mutex_lock() and mutex_unlock() pairs.
 
-		     o "rtmutex_lock": rtmutex_lock() and rtmutex_unlock()
-				       pairs. Kernel must have CONFIG_RT_MUTEX=y.
+		     - "rtmutex_lock":
+				rtmutex_lock() and rtmutex_unlock() pairs.
+				Kernel must have CONFIG_RT_MUTEX=y.
 
-		     o "rwsem_lock": read/write down() and up() semaphore pairs.
+		     - "rwsem_lock":
+				read/write down() and up() semaphore pairs.
 
 
-	    ** Torture-framework (RCU + locking) **
+Torture-framework (RCU + locking)
+---------------------------------
 
-shutdown_secs	  The number of seconds to run the test before terminating
+shutdown_secs
+		  The number of seconds to run the test before terminating
 		  the test and powering off the system.  The default is
 		  zero, which disables test termination and system shutdown.
 		  This capability is useful for automated testing.
 
-onoff_interval	  The number of seconds between each attempt to execute a
+onoff_interval
+		  The number of seconds between each attempt to execute a
 		  randomly selected CPU-hotplug operation.  Defaults
 		  to zero, which disables CPU hotplugging.  In
 		  CONFIG_HOTPLUG_CPU=n kernels, locktorture will silently
 		  refuse to do any CPU-hotplug operations regardless of
 		  what value is specified for onoff_interval.
 
-onoff_holdoff	  The number of seconds to wait until starting CPU-hotplug
+onoff_holdoff
+		  The number of seconds to wait until starting CPU-hotplug
 		  operations.  This would normally only be used when
 		  locktorture was built into the kernel and started
 		  automatically at boot time, in which case it is useful
@@ -80,53 +99,59 @@ onoff_holdoff	  The number of seconds to wait until starting CPU-hotplug
 		  coming and going. This parameter is only useful if
 		  CONFIG_HOTPLUG_CPU is enabled.
 
-stat_interval	  Number of seconds between statistics-related printk()s.
+stat_interval
+		  Number of seconds between statistics-related printk()s.
 		  By default, locktorture will report stats every 60 seconds.
 		  Setting the interval to zero causes the statistics to
 		  be printed -only- when the module is unloaded, and this
 		  is the default.
 
-stutter		  The length of time to run the test before pausing for this
+stutter
+		  The length of time to run the test before pausing for this
 		  same period of time.  Defaults to "stutter=5", so as
 		  to run and pause for (roughly) five-second intervals.
 		  Specifying "stutter=0" causes the test to run continuously
 		  without pausing, which is the old default behavior.
 
-shuffle_interval  The number of seconds to keep the test threads affinitied
+shuffle_interval
+		  The number of seconds to keep the test threads affinitied
 		  to a particular subset of the CPUs, defaults to 3 seconds.
 		  Used in conjunction with test_no_idle_hz.
 
-verbose		  Enable verbose debugging printing, via printk(). Enabled
+verbose
+		  Enable verbose debugging printing, via printk(). Enabled
 		  by default. This extra information is mostly related to
 		  high-level errors and reports from the main 'torture'
 		  framework.
 
 
-STATISTICS
+Statistics
+==========
 
-Statistics are printed in the following format:
+Statistics are printed in the following format::
 
-spin_lock-torture: Writes:  Total: 93746064  Max/Min: 0/0   Fail: 0
-   (A)		    (B)		   (C)		  (D)	       (E)
+  spin_lock-torture: Writes:  Total: 93746064  Max/Min: 0/0   Fail: 0
+     (A)		    (B)		   (C)		  (D)	       (E)
 
-(A): Lock type that is being tortured -- torture_type parameter.
+  (A): Lock type that is being tortured -- torture_type parameter.
 
-(B): Number of writer lock acquisitions. If dealing with a read/write primitive
-     a second "Reads" statistics line is printed.
+  (B): Number of writer lock acquisitions. If dealing with a read/write
+       primitive a second "Reads" statistics line is printed.
 
-(C): Number of times the lock was acquired.
+  (C): Number of times the lock was acquired.
 
-(D): Min and max number of times threads failed to acquire the lock.
+  (D): Min and max number of times threads failed to acquire the lock.
 
-(E): true/false values if there were errors acquiring the lock. This should
-     -only- be positive if there is a bug in the locking primitive's
-     implementation. Otherwise a lock should never fail (i.e., spin_lock()).
-     Of course, the same applies for (C), above. A dummy example of this is
-     the "lock_busted" type.
+  (E): true/false values if there were errors acquiring the lock. This should
+       -only- be positive if there is a bug in the locking primitive's
+       implementation. Otherwise a lock should never fail (i.e., spin_lock()).
+       Of course, the same applies for (C), above. A dummy example of this is
+       the "lock_busted" type.
 
-USAGE
+Usage
+=====
 
-The following script may be used to torture locks:
+The following script may be used to torture locks::
 
 	#!/bin/sh
 
