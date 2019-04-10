@@ -98,18 +98,17 @@ static struct snd_seq_event_cell *fifo_cell_out(struct snd_seq_fifo *f);
 void snd_seq_fifo_clear(struct snd_seq_fifo *f)
 {
 	struct snd_seq_event_cell *cell;
-	unsigned long flags;
 
 	/* clear overflow flag */
 	atomic_set(&f->overflow, 0);
 
 	snd_use_lock_sync(&f->use_lock);
-	spin_lock_irqsave(&f->lock, flags);
+	spin_lock_irq(&f->lock);
 	/* drain the fifo */
 	while ((cell = fifo_cell_out(f)) != NULL) {
 		snd_seq_cell_free(cell);
 	}
-	spin_unlock_irqrestore(&f->lock, flags);
+	spin_unlock_irq(&f->lock);
 }
 
 
@@ -195,9 +194,9 @@ int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&f->input_sleep, &wait);
-		spin_unlock_irq(&f->lock);
+		spin_unlock_irqrestore(&f->lock, flags);
 		schedule();
-		spin_lock_irq(&f->lock);
+		spin_lock_irqsave(&f->lock, flags);
 		remove_wait_queue(&f->input_sleep, &wait);
 		if (signal_pending(current)) {
 			spin_unlock_irqrestore(&f->lock, flags);
@@ -239,7 +238,6 @@ int snd_seq_fifo_poll_wait(struct snd_seq_fifo *f, struct file *file,
 /* change the size of pool; all old events are removed */
 int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 {
-	unsigned long flags;
 	struct snd_seq_pool *newpool, *oldpool;
 	struct snd_seq_event_cell *cell, *next, *oldhead;
 
@@ -255,7 +253,7 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 		return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&f->lock, flags);
+	spin_lock_irq(&f->lock);
 	/* remember old pool */
 	oldpool = f->pool;
 	oldhead = f->head;
@@ -265,7 +263,7 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	f->tail = NULL;
 	f->cells = 0;
 	/* NOTE: overflow flag is not cleared */
-	spin_unlock_irqrestore(&f->lock, flags);
+	spin_unlock_irq(&f->lock);
 
 	/* close the old pool and wait until all users are gone */
 	snd_seq_pool_mark_closing(oldpool);
