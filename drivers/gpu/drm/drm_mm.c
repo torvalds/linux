@@ -113,9 +113,6 @@ static noinline void save_stack(struct drm_mm_node *node)
 	};
 
 	save_stack_trace(&trace);
-	if (trace.nr_entries != 0 &&
-	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
-		trace.nr_entries--;
 
 	/* May be called under spinlock, so avoid sleeping */
 	node->stack = depot_save_stack(&trace, GFP_NOWAIT);

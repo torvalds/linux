@@ -67,10 +67,6 @@ static noinline depot_stack_handle_t __save_depot_stack(void)
 	};
 
 	save_stack_trace(&trace);
-	if (trace.nr_entries &&
-	    trace.entries[trace.nr_entries - 1] == ULONG_MAX)
-		trace.nr_entries--;
-
 	return depot_save_stack(&trace, GFP_NOWAIT | __GFP_NOWARN);
 }
 
