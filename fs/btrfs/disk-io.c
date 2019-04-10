@@ -465,8 +465,7 @@ static int btree_read_extent_buffer_pages(struct extent_buffer *eb,
 	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	while (1) {
 		clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
-		ret = read_extent_buffer_pages(io_tree, eb, WAIT_COMPLETE,
-					       mirror_num);
+		ret = read_extent_buffer_pages(eb, WAIT_COMPLETE, mirror_num);
 		if (!ret) {
 			if (verify_parent_transid(io_tree, eb,
 						   parent_transid, 0))
@@ -1034,15 +1033,13 @@ static const struct address_space_operations btree_aops = {
 void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
 	struct extent_buffer *buf = NULL;
-	struct inode *btree_inode = fs_info->btree_inode;
 	int ret;
 
 	buf = btrfs_find_create_tree_block(fs_info, bytenr);
 	if (IS_ERR(buf))
 		return;
 
-	ret = read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf,
-			WAIT_NONE, 0);
+	ret = read_extent_buffer_pages(buf, WAIT_NONE, 0);
 	if (ret < 0)
 		free_extent_buffer_stale(buf);
 	else
@@ -1053,8 +1050,6 @@ int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 			 int mirror_num, struct extent_buffer **eb)
 {
 	struct extent_buffer *buf = NULL;
-	struct inode *btree_inode = fs_info->btree_inode;
-	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
 	int ret;
 
 	buf = btrfs_find_create_tree_block(fs_info, bytenr);
@@ -1063,8 +1058,7 @@ int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 
 	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
 
-	ret = read_extent_buffer_pages(io_tree, buf, WAIT_PAGE_LOCK,
-				       mirror_num);
+	ret = read_extent_buffer_pages(buf, WAIT_PAGE_LOCK, mirror_num);
 	if (ret) {
 		free_extent_buffer_stale(buf);
 		return ret;
