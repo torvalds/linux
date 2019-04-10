@@ -122,11 +122,12 @@ static const struct watchdog_ops ts72xx_wdt_ops = {
 
 static int ts72xx_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct ts72xx_wdt_priv *priv;
 	struct watchdog_device *wdd;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -143,20 +144,20 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 	wdd->ops = &ts72xx_wdt_ops;
 	wdd->min_timeout = 1;
 	wdd->max_hw_heartbeat_ms = 8000;
-	wdd->parent = &pdev->dev;
+	wdd->parent = dev;
 
 	watchdog_set_nowayout(wdd, nowayout);
 
 	wdd->timeout = TS72XX_WDT_DEFAULT_TIMEOUT;
-	watchdog_init_timeout(wdd, timeout, &pdev->dev);
+	watchdog_init_timeout(wdd, timeout, dev);
 
 	watchdog_set_drvdata(wdd, priv);
 
-	ret = devm_watchdog_register_device(&pdev->dev, wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret)
 		return ret;
 
-	dev_info(&pdev->dev, "TS-72xx Watchdog driver\n");
+	dev_info(dev, "TS-72xx Watchdog driver\n");
 
 	return 0;
 }
