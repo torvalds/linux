@@ -57,9 +57,8 @@ static struct inode *alloc_inode(struct super_block *sb)
 	return &vi->vfs_inode;
 }
 
-static void i_callback(struct rcu_head *head)
+static void free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct erofs_vnode *vi = EROFS_V(inode);
 
 	/* be careful RCU symlink path (see ext4_inode_info->i_data)! */
@@ -69,11 +68,6 @@ static void i_callback(struct rcu_head *head)
 	kfree(vi->xattr_shared_xattrs);
 
 	kmem_cache_free(erofs_inode_cachep, vi);
-}
-
-static void destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, i_callback);
 }
 
 static int superblock_read(struct super_block *sb)
@@ -668,7 +662,7 @@ out:
 const struct super_operations erofs_sops = {
 	.put_super = erofs_put_super,
 	.alloc_inode = alloc_inode,
-	.destroy_inode = destroy_inode,
+	.free_inode = free_inode,
 	.statfs = erofs_statfs,
 	.show_options = erofs_show_options,
 	.remount_fs = erofs_remount,
