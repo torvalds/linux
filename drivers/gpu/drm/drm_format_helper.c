@@ -216,33 +216,16 @@ void drm_fb_xrgb8888_to_rgb565_dstclip(void __iomem *dst, unsigned int dst_pitch
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565_dstclip);
 
-static void drm_fb_xrgb8888_to_rgb888_lines(void *dst, unsigned int dst_pitch,
-					    void *src, unsigned int src_pitch,
-					    unsigned int src_linelength,
-					    unsigned int lines)
+static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, u32 *sbuf,
+					   unsigned int pixels)
 {
-	unsigned int linepixels = src_linelength / 3;
-	unsigned int x, y;
-	u32 *sbuf;
-	u8 *dbuf;
+	unsigned int x;
 
-	sbuf = kmalloc(src_linelength, GFP_KERNEL);
-	if (!sbuf)
-		return;
-
-	for (y = 0; y < lines; y++) {
-		memcpy(sbuf, src, src_linelength);
-		dbuf = dst;
-		for (x = 0; x < linepixels; x++) {
-			*dbuf++ = (sbuf[x] & 0x000000FF) >>  0;
-			*dbuf++ = (sbuf[x] & 0x0000FF00) >>  8;
-			*dbuf++ = (sbuf[x] & 0x00FF0000) >> 16;
-		}
-		src += src_pitch;
-		dst += dst_pitch;
+	for (x = 0; x < pixels; x++) {
+		*dbuf++ = (sbuf[x] & 0x000000FF) >>  0;
+		*dbuf++ = (sbuf[x] & 0x0000FF00) >>  8;
+		*dbuf++ = (sbuf[x] & 0x00FF0000) >> 16;
 	}
-
-	kfree(sbuf);
 }
 
 /**
@@ -264,15 +247,25 @@ void drm_fb_xrgb8888_to_rgb888_dstclip(void *dst, unsigned int dst_pitch,
 				       void *vaddr, struct drm_framebuffer *fb,
 				       struct drm_rect *clip)
 {
-	unsigned int src_offset = (clip->y1 * fb->pitches[0])
-		+ (clip->x1 * sizeof(u32));
-	unsigned int dst_offset = (clip->y1 * dst_pitch)
-		+ (clip->x1 * 3);
-	size_t src_len = (clip->x2 - clip->x1) * sizeof(u32);
+	size_t linepixels = clip->x2 - clip->x1;
+	size_t dst_len = linepixels * 3;
+	unsigned y, lines = clip->y2 - clip->y1;
+	void *dbuf;
 
-	drm_fb_xrgb8888_to_rgb888_lines(dst + dst_offset, dst_pitch,
-					vaddr + src_offset, fb->pitches[0],
-					src_len, clip->y2 - clip->y1);
+	dbuf = kmalloc(dst_len, GFP_KERNEL);
+	if (!dbuf)
+		return;
+
+	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
+	dst += clip_offset(clip, dst_pitch, sizeof(u16));
+	for (y = 0; y < lines; y++) {
+		drm_fb_xrgb8888_to_rgb888_line(dbuf, vaddr, linepixels);
+		memcpy_toio(dst, dbuf, dst_len);
+		vaddr += fb->pitches[0];
+		dst += dst_len;
+	}
+
+	kfree(dbuf);
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_dstclip);
 

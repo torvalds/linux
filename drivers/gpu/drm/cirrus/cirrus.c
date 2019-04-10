@@ -316,7 +316,7 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 						  vmap, fb, rect, false);
 
 	else if (fb->format->cpp[0] == 4 && cirrus->cpp == 3)
-		drm_fb_xrgb8888_to_rgb888_dstclip(__io_virt(cirrus->vram),
+		drm_fb_xrgb8888_to_rgb888_dstclip(cirrus->vram,
 						  cirrus->pitch,
 						  vmap, fb, rect);
 
