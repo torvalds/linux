@@ -469,7 +469,7 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 
 				sums->len = this_sum_bytes;
 				this_sum_bytes = 0;
-				btrfs_add_ordered_sum(inode, ordered, sums);
+				btrfs_add_ordered_sum(ordered, sums);
 				btrfs_put_ordered_extent(ordered);
 
 				bytes_left = bio->bi_iter.bi_size - total_bytes;
@@ -506,7 +506,7 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 
 	}
 	this_sum_bytes = 0;
-	btrfs_add_ordered_sum(inode, ordered, sums);
+	btrfs_add_ordered_sum(ordered, sums);
 	btrfs_put_ordered_extent(ordered);
 	return 0;
 }

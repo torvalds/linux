@@ -4604,7 +4604,7 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 		new_bytenr = ordered->start + (sums->bytenr - disk_bytenr);
 		sums->bytenr = new_bytenr;
 
-		btrfs_add_ordered_sum(inode, ordered, sums);
+		btrfs_add_ordered_sum(ordered, sums);
 	}
 out:
 	btrfs_put_ordered_extent(ordered);
