@@ -7,6 +7,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include <drm/drm_gem.h>
 
@@ -69,9 +70,8 @@ struct bochs_device {
 	struct edid *edid;
 
 	/* drm */
-	struct drm_device  *dev;
-	struct drm_crtc crtc;
-	struct drm_encoder encoder;
+	struct drm_device *dev;
+	struct drm_simple_display_pipe pipe;
 	struct drm_connector connector;
 
 	/* ttm */
