@@ -136,121 +136,120 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_F] = SDE_TC4_HOTPLUG_ICP
 };
 
-static void gen3_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
+static void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 			   i915_reg_t iir, i915_reg_t ier)
 {
-	I915_WRITE(imr, 0xffffffff);
-	POSTING_READ(imr);
+	intel_uncore_write(uncore, imr, 0xffffffff);
+	intel_uncore_posting_read(uncore, imr);
 
-	I915_WRITE(ier, 0);
+	intel_uncore_write(uncore, ier, 0);
 
 	/* IIR can theoretically queue up two events. Be paranoid. */
-	I915_WRITE(iir, 0xffffffff);
-	POSTING_READ(iir);
-	I915_WRITE(iir, 0xffffffff);
-	POSTING_READ(iir);
+	intel_uncore_write(uncore, iir, 0xffffffff);
+	intel_uncore_posting_read(uncore, iir);
+	intel_uncore_write(uncore, iir, 0xffffffff);
+	intel_uncore_posting_read(uncore, iir);
 }
 
-static void gen2_irq_reset(struct drm_i915_private *dev_priv)
+static void gen2_irq_reset(struct intel_uncore *uncore)
 {
-	I915_WRITE16(GEN2_IMR, 0xffff);
-	POSTING_READ16(GEN2_IMR);
+	intel_uncore_write16(uncore, GEN2_IMR, 0xffff);
+	intel_uncore_posting_read16(uncore, GEN2_IMR);
 
-	I915_WRITE16(GEN2_IER, 0);
+	intel_uncore_write16(uncore, GEN2_IER, 0);
 
 	/* IIR can theoretically queue up two events. Be paranoid. */
-	I915_WRITE16(GEN2_IIR, 0xffff);
-	POSTING_READ16(GEN2_IIR);
-	I915_WRITE16(GEN2_IIR, 0xffff);
-	POSTING_READ16(GEN2_IIR);
+	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
+	intel_uncore_posting_read16(uncore, GEN2_IIR);
+	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
+	intel_uncore_posting_read16(uncore, GEN2_IIR);
 }
 
 #define GEN8_IRQ_RESET_NDX(type, which) \
 ({ \
 	unsigned int which_ = which; \
-	gen3_irq_reset(dev_priv, GEN8_##type##_IMR(which_), \
+	gen3_irq_reset(&dev_priv->uncore, GEN8_##type##_IMR(which_), \
 		       GEN8_##type##_IIR(which_), GEN8_##type##_IER(which_)); \
 })
 
 #define GEN3_IRQ_RESET(type) \
-	gen3_irq_reset(dev_priv, type##IMR, type##IIR, type##IER)
+	gen3_irq_reset(&dev_priv->uncore, type##IMR, type##IIR, type##IER)
 
 #define GEN2_IRQ_RESET() \
-	gen2_irq_reset(dev_priv)
+	gen2_irq_reset(&dev_priv->uncore)
 
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-static void gen3_assert_iir_is_zero(struct drm_i915_private *dev_priv,
-				    i915_reg_t reg)
+static void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 {
-	u32 val = I915_READ(reg);
+	u32 val = intel_uncore_read(uncore, reg);
 
 	if (val == 0)
 		return;
 
 	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
 	     i915_mmio_reg_offset(reg), val);
-	I915_WRITE(reg, 0xffffffff);
-	POSTING_READ(reg);
-	I915_WRITE(reg, 0xffffffff);
-	POSTING_READ(reg);
+	intel_uncore_write(uncore, reg, 0xffffffff);
+	intel_uncore_posting_read(uncore, reg);
+	intel_uncore_write(uncore, reg, 0xffffffff);
+	intel_uncore_posting_read(uncore, reg);
 }
 
-static void gen2_assert_iir_is_zero(struct drm_i915_private *dev_priv)
+static void gen2_assert_iir_is_zero(struct intel_uncore *uncore)
 {
-	u16 val = I915_READ16(GEN2_IIR);
+	u16 val = intel_uncore_read16(uncore, GEN2_IIR);
 
 	if (val == 0)
 		return;
 
 	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
 	     i915_mmio_reg_offset(GEN2_IIR), val);
-	I915_WRITE16(GEN2_IIR, 0xffff);
-	POSTING_READ16(GEN2_IIR);
-	I915_WRITE16(GEN2_IIR, 0xffff);
-	POSTING_READ16(GEN2_IIR);
+	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
+	intel_uncore_posting_read16(uncore, GEN2_IIR);
+	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
+	intel_uncore_posting_read16(uncore, GEN2_IIR);
 }
 
-static void gen3_irq_init(struct drm_i915_private *dev_priv,
+static void gen3_irq_init(struct intel_uncore *uncore,
 			  i915_reg_t imr, u32 imr_val,
 			  i915_reg_t ier, u32 ier_val,
 			  i915_reg_t iir)
 {
-	gen3_assert_iir_is_zero(dev_priv, iir);
+	gen3_assert_iir_is_zero(uncore, iir);
 
-	I915_WRITE(ier, ier_val);
-	I915_WRITE(imr, imr_val);
-	POSTING_READ(imr);
+	intel_uncore_write(uncore, ier, ier_val);
+	intel_uncore_write(uncore, imr, imr_val);
+	intel_uncore_posting_read(uncore, imr);
 }
 
-static void gen2_irq_init(struct drm_i915_private *dev_priv,
+static void gen2_irq_init(struct intel_uncore *uncore,
 			  u32 imr_val, u32 ier_val)
 {
-	gen2_assert_iir_is_zero(dev_priv);
+	gen2_assert_iir_is_zero(uncore);
 
-	I915_WRITE16(GEN2_IER, ier_val);
-	I915_WRITE16(GEN2_IMR, imr_val);
-	POSTING_READ16(GEN2_IMR);
+	intel_uncore_write16(uncore, GEN2_IER, ier_val);
+	intel_uncore_write16(uncore, GEN2_IMR, imr_val);
+	intel_uncore_posting_read16(uncore, GEN2_IMR);
 }
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) \
 ({ \
 	unsigned int which_ = which; \
-	gen3_irq_init(dev_priv, \
+	gen3_irq_init(&dev_priv->uncore, \
 		      GEN8_##type##_IMR(which_), imr_val, \
 		      GEN8_##type##_IER(which_), ier_val, \
 		      GEN8_##type##_IIR(which_)); \
 })
 
 #define GEN3_IRQ_INIT(type, imr_val, ier_val) \
-	gen3_irq_init(dev_priv, \
+	gen3_irq_init(&dev_priv->uncore, \
 		      type##IMR, imr_val, \
 		      type##IER, ier_val, \
 		      type##IIR)
 
 #define GEN2_IRQ_INIT(imr_val, ier_val) \
-	gen2_irq_init(dev_priv, imr_val, ier_val)
+	gen2_irq_init(&dev_priv->uncore, imr_val, ier_val)
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
@@ -3884,7 +3883,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	else
 		mask = SDE_GMBUS_CPT;
 
-	gen3_assert_iir_is_zero(dev_priv, SDEIIR);
+	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
@@ -3953,7 +3952,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	}
 
 	if (IS_HASWELL(dev_priv)) {
-		gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
+		gen3_assert_iir_is_zero(&dev_priv->uncore, EDP_PSR_IIR);
 		intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
@@ -4099,7 +4098,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
-	gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
+	gen3_assert_iir_is_zero(&dev_priv->uncore, EDP_PSR_IIR);
 	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 
 	for_each_pipe(dev_priv, pipe) {
@@ -4183,7 +4182,7 @@ static void icp_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIER, 0xffffffff);
 	POSTING_READ(SDEIER);
 
-	gen3_assert_iir_is_zero(dev_priv, SDEIIR);
+	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 
 	icp_hpd_detection_setup(dev_priv);
