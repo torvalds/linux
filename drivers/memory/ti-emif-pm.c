@@ -138,6 +138,9 @@ static int ti_emif_alloc_sram(struct device *dev,
 	emif_data->pm_functions.exit_sr =
 		sram_resume_address(emif_data,
 				    (unsigned long)ti_emif_exit_sr);
+	emif_data->pm_functions.run_hw_leveling =
+		sram_resume_address(emif_data,
+				    (unsigned long)ti_emif_run_hw_leveling);
 
 	emif_data->pm_data.regs_virt =
 		(struct emif_regs_amx3 *)emif_data->ti_emif_sram_data_virt;
