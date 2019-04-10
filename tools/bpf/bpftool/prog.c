@@ -249,6 +249,9 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	if (info->nr_map_ids)
 		show_prog_maps(fd, info->nr_map_ids);
 
+	if (info->btf_id)
+		jsonw_int_field(json_wtr, "btf_id", info->btf_id);
+
 	if (!hash_empty(prog_table.table)) {
 		struct pinned_obj *obj;
 
@@ -318,6 +321,9 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 				printf("\n\tpinned %s", obj->path);
 		}
 	}
+
+	if (info->btf_id)
+		printf("\n\tbtf_id %d\n", info->btf_id);
 
 	printf("\n");
 }
