@@ -444,17 +444,6 @@ static int save_trace(struct stack_trace *trace)
 
 	save_stack_trace(trace);
 
-	/*
-	 * Some daft arches put -1 at the end to indicate its a full trace.
-	 *
-	 * <rant> this is buggy anyway, since it takes a whole extra entry so a
-	 * complete trace that maxes out the entries provided will be reported
-	 * as incomplete, friggin useless </rant>
-	 */
-	if (trace->nr_entries != 0 &&
-	    trace->entries[trace->nr_entries-1] == ULONG_MAX)
-		trace->nr_entries--;
-
 	trace->max_entries = trace->nr_entries;
 
 	nr_stack_trace_entries += trace->nr_entries;
