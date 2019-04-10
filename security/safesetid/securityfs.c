@@ -11,25 +11,15 @@
  * published by the Free Software Foundation.
  *
  */
+
+#define pr_fmt(fmt) "SafeSetID: " fmt
+
 #include <linux/security.h>
 #include <linux/cred.h>
 
 #include "lsm.h"
 
-static struct dentry *safesetid_policy_dir;
-
-struct safesetid_file_entry {
-	const char *name;
-	enum safesetid_whitelist_file_write_type type;
-	struct dentry *dentry;
-};
-
-static struct safesetid_file_entry safesetid_files[] = {
-	{.name = "add_whitelist_policy",
-	 .type = SAFESETID_WHITELIST_ADD},
-	{.name = "flush_whitelist_policies",
-	 .type = SAFESETID_WHITELIST_FLUSH},
-};
+static DEFINE_SPINLOCK(policy_update_lock);
 
 /*
  * In the case the input buffer contains one or more invalid UIDs, the kuid_t
@@ -37,8 +27,8 @@ static struct safesetid_file_entry safesetid_files[] = {
  * function will return an error.
  * Contents of @buf may be modified.
  */
-static int parse_policy_line(
-	struct file *file, char *buf, kuid_t *parent, kuid_t *child)
+static int parse_policy_line(struct file *file, char *buf,
+	struct setuid_rule *rule)
 {
 	char *child_str;
 	int ret;
@@ -59,26 +49,103 @@ static int parse_policy_line(
 	if (ret)
 		return ret;
 
-	*parent = make_kuid(file->f_cred->user_ns, parsed_parent);
-	*child = make_kuid(file->f_cred->user_ns, parsed_child);
-	if (!uid_valid(*parent) || !uid_valid(*child))
+	rule->src_uid = make_kuid(file->f_cred->user_ns, parsed_parent);
+	rule->dst_uid = make_kuid(file->f_cred->user_ns, parsed_child);
+	if (!uid_valid(rule->src_uid) || !uid_valid(rule->dst_uid))
 		return -EINVAL;
 
 	return 0;
 }
 
-static int parse_safesetid_whitelist_policy(
-	struct file *file, const char __user *buf, size_t len,
-	kuid_t *parent, kuid_t *child)
+static void __release_ruleset(struct rcu_head *rcu)
 {
-	char *kern_buf = memdup_user_nul(buf, len);
-	int ret;
+	struct setuid_ruleset *pol =
+		container_of(rcu, struct setuid_ruleset, rcu);
+	int bucket;
+	struct setuid_rule *rule;
+	struct hlist_node *tmp;
 
-	if (IS_ERR(kern_buf))
-		return PTR_ERR(kern_buf);
-	ret = parse_policy_line(file, kern_buf, parent, child);
-	kfree(kern_buf);
-	return ret;
+	hash_for_each_safe(pol->rules, bucket, tmp, rule, next)
+		kfree(rule);
+	kfree(pol);
+}
+
+static void release_ruleset(struct setuid_ruleset *pol)
+{
+	call_rcu(&pol->rcu, __release_ruleset);
+}
+
+static ssize_t handle_policy_update(struct file *file,
+				    const char __user *ubuf, size_t len)
+{
+	struct setuid_ruleset *pol;
+	char *buf, *p, *end;
+	int err;
+
+	pol = kmalloc(sizeof(struct setuid_ruleset), GFP_KERNEL);
+	if (!pol)
+		return -ENOMEM;
+	hash_init(pol->rules);
+
+	p = buf = memdup_user_nul(ubuf, len);
+	if (IS_ERR(buf)) {
+		err = PTR_ERR(buf);
+		goto out_free_pol;
+	}
+
+	/* policy lines, including the last one, end with \n */
+	while (*p != '\0') {
+		struct setuid_rule *rule;
+
+		end = strchr(p, '\n');
+		if (end == NULL) {
+			err = -EINVAL;
+			goto out_free_buf;
+		}
+		*end = '\0';
+
+		rule = kmalloc(sizeof(struct setuid_rule), GFP_KERNEL);
+		if (!rule) {
+			err = -ENOMEM;
+			goto out_free_buf;
+		}
+
+		err = parse_policy_line(file, p, rule);
+		if (err)
+			goto out_free_rule;
+
+		if (_setuid_policy_lookup(pol, rule->src_uid, rule->dst_uid) ==
+		    SIDPOL_ALLOWED) {
+			pr_warn("bad policy: duplicate entry\n");
+			err = -EEXIST;
+			goto out_free_rule;
+		}
+
+		hash_add(pol->rules, &rule->next, __kuid_val(rule->src_uid));
+		p = end + 1;
+		continue;
+
+out_free_rule:
+		kfree(rule);
+		goto out_free_buf;
+	}
+
+	/*
+	 * Everything looks good, apply the policy and release the old one.
+	 * What we really want here is an xchg() wrapper for RCU, but since that
+	 * doesn't currently exist, just use a spinlock for now.
+	 */
+	spin_lock(&policy_update_lock);
+	rcu_swap_protected(safesetid_setuid_rules, pol,
+			   lockdep_is_held(&policy_update_lock));
+	spin_unlock(&policy_update_lock);
+	err = len;
+
+out_free_buf:
+	kfree(buf);
+out_free_pol:
+	release_ruleset(pol);
+	return err;
 }
 
 static ssize_t safesetid_file_write(struct file *file,
@@ -86,90 +153,45 @@ static ssize_t safesetid_file_write(struct file *file,
 				    size_t len,
 				    loff_t *ppos)
 {
-	struct safesetid_file_entry *file_entry =
-		file->f_inode->i_private;
-	kuid_t parent;
-	kuid_t child;
-	int ret;
-
 	if (!file_ns_capable(file, &init_user_ns, CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (*ppos != 0)
 		return -EINVAL;
 
-	switch (file_entry->type) {
-	case SAFESETID_WHITELIST_FLUSH:
-		flush_safesetid_whitelist_entries();
-		break;
-	case SAFESETID_WHITELIST_ADD:
-		ret = parse_safesetid_whitelist_policy(file, buf, len,
-						       &parent, &child);
-		if (ret)
-			return ret;
-
-		ret = add_safesetid_whitelist_entry(parent, child);
-		if (ret)
-			return ret;
-		break;
-	default:
-		pr_warn("Unknown securityfs file %d\n", file_entry->type);
-		break;
-	}
-
-	/* Return len on success so caller won't keep trying to write */
-	return len;
+	return handle_policy_update(file, buf, len);
 }
 
 static const struct file_operations safesetid_file_fops = {
 	.write = safesetid_file_write,
 };
 
-static void safesetid_shutdown_securityfs(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(safesetid_files); ++i) {
-		struct safesetid_file_entry *entry =
-			&safesetid_files[i];
-		securityfs_remove(entry->dentry);
-		entry->dentry = NULL;
-	}
-
-	securityfs_remove(safesetid_policy_dir);
-	safesetid_policy_dir = NULL;
-}
-
 static int __init safesetid_init_securityfs(void)
 {
-	int i;
 	int ret;
+	struct dentry *policy_dir;
+	struct dentry *policy_file;
 
 	if (!safesetid_initialized)
 		return 0;
 
-	safesetid_policy_dir = securityfs_create_dir("safesetid", NULL);
-	if (IS_ERR(safesetid_policy_dir)) {
-		ret = PTR_ERR(safesetid_policy_dir);
+	policy_dir = securityfs_create_dir("safesetid", NULL);
+	if (IS_ERR(policy_dir)) {
+		ret = PTR_ERR(policy_dir);
 		goto error;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(safesetid_files); ++i) {
-		struct safesetid_file_entry *entry =
-			&safesetid_files[i];
-		entry->dentry = securityfs_create_file(
-			entry->name, 0200, safesetid_policy_dir,
-			entry, &safesetid_file_fops);
-		if (IS_ERR(entry->dentry)) {
-			ret = PTR_ERR(entry->dentry);
-			goto error;
-		}
+	policy_file = securityfs_create_file("whitelist_policy", 0200,
+			policy_dir, NULL, &safesetid_file_fops);
+	if (IS_ERR(policy_file)) {
+		ret = PTR_ERR(policy_file);
+		goto error;
 	}
 
 	return 0;
 
 error:
-	safesetid_shutdown_securityfs();
+	securityfs_remove(policy_dir);
 	return ret;
 }
 fs_initcall(safesetid_init_securityfs);

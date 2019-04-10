@@ -24,28 +24,38 @@
 /* Flag indicating whether initialization completed */
 int safesetid_initialized;
 
-#define NUM_BITS 8 /* 256 buckets in hash table */
+struct setuid_ruleset __rcu *safesetid_setuid_rules;
 
-static DEFINE_HASHTABLE(safesetid_whitelist_hashtable, NUM_BITS);
-
-static DEFINE_SPINLOCK(safesetid_whitelist_hashtable_spinlock);
-
-static enum sid_policy_type setuid_policy_lookup(kuid_t src, kuid_t dst)
+/* Compute a decision for a transition from @src to @dst under @policy. */
+enum sid_policy_type _setuid_policy_lookup(struct setuid_ruleset *policy,
+		kuid_t src, kuid_t dst)
 {
-	struct entry *entry;
+	struct setuid_rule *rule;
 	enum sid_policy_type result = SIDPOL_DEFAULT;
 
-	rcu_read_lock();
-	hash_for_each_possible_rcu(safesetid_whitelist_hashtable,
-				   entry, next, __kuid_val(src)) {
-		if (!uid_eq(entry->src_uid, src))
+	hash_for_each_possible(policy->rules, rule, next, __kuid_val(src)) {
+		if (!uid_eq(rule->src_uid, src))
 			continue;
-		if (uid_eq(entry->dst_uid, dst)) {
-			rcu_read_unlock();
+		if (uid_eq(rule->dst_uid, dst))
 			return SIDPOL_ALLOWED;
-		}
 		result = SIDPOL_CONSTRAINED;
 	}
+	return result;
+}
+
+/*
+ * Compute a decision for a transition from @src to @dst under the active
+ * policy.
+ */
+static enum sid_policy_type setuid_policy_lookup(kuid_t src, kuid_t dst)
+{
+	enum sid_policy_type result = SIDPOL_DEFAULT;
+	struct setuid_ruleset *pol;
+
+	rcu_read_lock();
+	pol = rcu_dereference(safesetid_setuid_rules);
+	if (pol)
+		result = _setuid_policy_lookup(pol, src, dst);
 	rcu_read_unlock();
 	return result;
 }
@@ -137,52 +147,6 @@ static int safesetid_task_fix_setuid(struct cred *new,
 	 */
 	force_sig(SIGKILL);
 	return -EACCES;
-}
-
-int add_safesetid_whitelist_entry(kuid_t parent, kuid_t child)
-{
-	struct entry *new;
-
-	/* Return if entry already exists */
-	if (setuid_policy_lookup(parent, child) == SIDPOL_ALLOWED)
-		return 0;
-
-	new = kzalloc(sizeof(struct entry), GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
-	new->src_uid = parent;
-	new->dst_uid = child;
-	spin_lock(&safesetid_whitelist_hashtable_spinlock);
-	hash_add_rcu(safesetid_whitelist_hashtable,
-		     &new->next,
-		     __kuid_val(parent));
-	spin_unlock(&safesetid_whitelist_hashtable_spinlock);
-	return 0;
-}
-
-void flush_safesetid_whitelist_entries(void)
-{
-	struct entry *entry;
-	struct hlist_node *hlist_node;
-	unsigned int bkt_loop_cursor;
-	HLIST_HEAD(free_list);
-
-	/*
-	 * Could probably use hash_for_each_rcu here instead, but this should
-	 * be fine as well.
-	 */
-	spin_lock(&safesetid_whitelist_hashtable_spinlock);
-	hash_for_each_safe(safesetid_whitelist_hashtable, bkt_loop_cursor,
-			   hlist_node, entry, next) {
-		hash_del_rcu(&entry->next);
-		hlist_add_head(&entry->dlist, &free_list);
-	}
-	spin_unlock(&safesetid_whitelist_hashtable_spinlock);
-	synchronize_rcu();
-	hlist_for_each_entry_safe(entry, hlist_node, &free_list, dlist) {
-		hlist_del(&entry->dlist);
-		kfree(entry);
-	}
 }
 
 static struct security_hook_list safesetid_security_hooks[] = {
