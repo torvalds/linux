@@ -3608,45 +3608,40 @@ out:
 }
 
 /* Check if the dev needs to go through non-identity map and unmap process.*/
-static int iommu_no_mapping(struct device *dev)
+static bool iommu_need_mapping(struct device *dev)
 {
 	int found;
 
 	if (iommu_dummy(dev))
-		return 1;
+		return false;
 
 	if (!iommu_identity_mapping)
-		return 0;
+		return true;
 
 	found = identity_mapping(dev);
 	if (found) {
 		if (iommu_should_identity_map(dev, 0))
-			return 1;
-		else {
-			/*
-			 * 32 bit DMA is removed from si_domain and fall back
-			 * to non-identity mapping.
-			 */
-			dmar_remove_one_dev_info(dev);
-			dev_info(dev, "32bit DMA uses non-identity mapping\n");
-			return 0;
-		}
+			return false;
+
+		/*
+		 * 32 bit DMA is removed from si_domain and fall back to
+		 * non-identity mapping.
+		 */
+		dmar_remove_one_dev_info(dev);
+		dev_info(dev, "32bit DMA uses non-identity mapping\n");
 	} else {
 		/*
 		 * In case of a detached 64 bit DMA device from vm, the device
 		 * is put into si_domain for identity mapping.
 		 */
-		if (iommu_should_identity_map(dev, 0)) {
-			int ret;
-			ret = domain_add_dev_info(si_domain, dev);
-			if (!ret) {
-				dev_info(dev, "64bit DMA uses identity mapping\n");
-				return 1;
-			}
+		if (iommu_should_identity_map(dev, 0) &&
+		    !domain_add_dev_info(si_domain, dev)) {
+			dev_info(dev, "64bit DMA uses identity mapping\n");
+			return false;
 		}
 	}
 
-	return 0;
+	return true;
 }
 
 static dma_addr_t __intel_map_single(struct device *dev, phys_addr_t paddr,
@@ -3662,7 +3657,7 @@ static dma_addr_t __intel_map_single(struct device *dev, phys_addr_t paddr,
 
 	BUG_ON(dir == DMA_NONE);
 
-	if (iommu_no_mapping(dev))
+	if (!iommu_need_mapping(dev))
 		return paddr;
 
 	domain = get_valid_domain_for_dev(dev);
@@ -3733,7 +3728,7 @@ static void intel_unmap(struct device *dev, dma_addr_t dev_addr, size_t size)
 	struct intel_iommu *iommu;
 	struct page *freelist;
 
-	if (iommu_no_mapping(dev))
+	if (!iommu_need_mapping(dev))
 		return;
 
 	domain = find_domain(dev);
@@ -3784,7 +3779,7 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
 
-	if (!iommu_no_mapping(dev))
+	if (iommu_need_mapping(dev))
 		flags &= ~(GFP_DMA | GFP_DMA32);
 	else if (dev->coherent_dma_mask < dma_get_required_mask(dev)) {
 		if (dev->coherent_dma_mask < DMA_BIT_MASK(32))
@@ -3798,7 +3793,7 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
 
 		page = dma_alloc_from_contiguous(dev, count, order,
 						 flags & __GFP_NOWARN);
-		if (page && iommu_no_mapping(dev) &&
+		if (page && !iommu_need_mapping(dev) &&
 		    page_to_phys(page) + size > dev->coherent_dma_mask) {
 			dma_release_from_contiguous(dev, page, count);
 			page = NULL;
@@ -3880,7 +3875,7 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
 	struct intel_iommu *iommu;
 
 	BUG_ON(dir == DMA_NONE);
-	if (iommu_no_mapping(dev))
+	if (!iommu_need_mapping(dev))
 		return intel_nontranslate_map_sg(dev, sglist, nelems, dir);
 
 	domain = get_valid_domain_for_dev(dev);
