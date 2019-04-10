@@ -101,10 +101,11 @@ static const struct watchdog_info imx_sc_wdt_info = {
 
 static int imx_sc_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct watchdog_device *imx_sc_wdd;
 	int ret;
 
-	imx_sc_wdd = devm_kzalloc(&pdev->dev, sizeof(*imx_sc_wdd), GFP_KERNEL);
+	imx_sc_wdd = devm_kzalloc(dev, sizeof(*imx_sc_wdd), GFP_KERNEL);
 	if (!imx_sc_wdd)
 		return -ENOMEM;
 
@@ -114,19 +115,19 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 	imx_sc_wdd->ops = &imx_sc_wdt_ops;
 	imx_sc_wdd->min_timeout = 1;
 	imx_sc_wdd->max_timeout = MAX_TIMEOUT;
-	imx_sc_wdd->parent = &pdev->dev;
+	imx_sc_wdd->parent = dev;
 	imx_sc_wdd->timeout = DEFAULT_TIMEOUT;
 
-	ret = watchdog_init_timeout(imx_sc_wdd, 0, &pdev->dev);
+	ret = watchdog_init_timeout(imx_sc_wdd, 0, dev);
 	if (ret)
-		dev_warn(&pdev->dev, "Failed to set timeout value, using default\n");
+		dev_warn(dev, "Failed to set timeout value, using default\n");
 
 	watchdog_stop_on_reboot(imx_sc_wdd);
 	watchdog_stop_on_unregister(imx_sc_wdd);
 
-	ret = devm_watchdog_register_device(&pdev->dev, imx_sc_wdd);
+	ret = devm_watchdog_register_device(dev, imx_sc_wdd);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register watchdog device\n");
+		dev_err(dev, "Failed to register watchdog device\n");
 		return ret;
 	}
 
