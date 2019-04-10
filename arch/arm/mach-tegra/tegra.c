@@ -35,6 +35,8 @@
 #include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
 
+#include <linux/firmware/trusted_foundations.h>
+
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
 
@@ -44,7 +46,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
-#include <asm/trusted_foundations.h>
 
 #include "board.h"
 #include "common.h"

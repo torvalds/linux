@@ -21,10 +21,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include <linux/firmware/trusted_foundations.h>
+
 #include <asm/cpuidle.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
-#include <asm/trusted_foundations.h>
 #include <asm/psci.h>
 
 #include "cpuidle.h"

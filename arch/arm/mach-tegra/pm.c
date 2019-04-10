@@ -27,6 +27,8 @@
 #include <linux/spinlock.h>
 #include <linux/suspend.h>
 
+#include <linux/firmware/trusted_foundations.h>
+
 #include <soc/tegra/flowctrl.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pm.h>
@@ -39,7 +41,6 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
-#include <asm/trusted_foundations.h>
 
 #include "iomap.h"
 #include "pm.h"

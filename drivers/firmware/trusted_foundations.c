@@ -17,10 +17,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of.h>
+
+#include <linux/firmware/trusted_foundations.h>
+
 #include <asm/firmware.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/outercache.h>
-#include <asm/trusted_foundations.h>
 
 #define TF_CACHE_MAINT		0xfffff100
 

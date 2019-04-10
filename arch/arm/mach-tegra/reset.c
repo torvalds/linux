@@ -19,12 +19,13 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#include <linux/firmware/trusted_foundations.h>
+
 #include <soc/tegra/fuse.h>
 
 #include <asm/cacheflush.h>
 #include <asm/firmware.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/trusted_foundations.h>
 
 #include "iomap.h"
 #include "irammap.h"

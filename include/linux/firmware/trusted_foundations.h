@@ -23,8 +23,8 @@
  * PSCI standard.
  */
 
-#ifndef __ASM_ARM_TRUSTED_FOUNDATIONS_H
-#define __ASM_ARM_TRUSTED_FOUNDATIONS_H
+#ifndef __FIRMWARE_TRUSTED_FOUNDATIONS_H
+#define __FIRMWARE_TRUSTED_FOUNDATIONS_H
 
 #include <linux/printk.h>
 #include <linux/bug.h>
