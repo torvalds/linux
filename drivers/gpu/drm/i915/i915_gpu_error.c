@@ -1635,9 +1635,9 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->gtier[0] = I915_READ(GTIER);
 		error->ngtier = 1;
 	} else if (IS_GEN(dev_priv, 2)) {
-		error->ier = I915_READ16(IER);
+		error->ier = I915_READ16(GEN2_IER);
 	} else if (!IS_VALLEYVIEW(dev_priv)) {
-		error->ier = I915_READ(IER);
+		error->ier = I915_READ(GEN2_IER);
 	}
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);

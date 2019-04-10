@@ -977,15 +977,15 @@ static void
 i9xx_irq_enable(struct intel_engine_cs *engine)
 {
 	engine->i915->irq_mask &= ~engine->irq_enable_mask;
-	intel_uncore_write(engine->uncore, IMR, engine->i915->irq_mask);
-	intel_uncore_posting_read_fw(engine->uncore, IMR);
+	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
+	intel_uncore_posting_read_fw(engine->uncore, GEN2_IMR);
 }
 
 static void
 i9xx_irq_disable(struct intel_engine_cs *engine)
 {
 	engine->i915->irq_mask |= engine->irq_enable_mask;
-	intel_uncore_write(engine->uncore, IMR, engine->i915->irq_mask);
+	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
 }
 
 static void
@@ -994,7 +994,7 @@ i8xx_irq_enable(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	dev_priv->irq_mask &= ~engine->irq_enable_mask;
-	I915_WRITE16(IMR, dev_priv->irq_mask);
+	I915_WRITE16(GEN2_IMR, dev_priv->irq_mask);
 	POSTING_READ16(RING_IMR(engine->mmio_base));
 }
 
@@ -1004,7 +1004,7 @@ i8xx_irq_disable(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	dev_priv->irq_mask |= engine->irq_enable_mask;
-	I915_WRITE16(IMR, dev_priv->irq_mask);
+	I915_WRITE16(GEN2_IMR, dev_priv->irq_mask);
 }
 
 static int

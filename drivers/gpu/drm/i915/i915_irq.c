@@ -153,16 +153,16 @@ static void gen3_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
 
 static void gen2_irq_reset(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE16(IMR, 0xffff);
-	POSTING_READ16(IMR);
+	I915_WRITE16(GEN2_IMR, 0xffff);
+	POSTING_READ16(GEN2_IMR);
 
-	I915_WRITE16(IER, 0);
+	I915_WRITE16(GEN2_IER, 0);
 
 	/* IIR can theoretically queue up two events. Be paranoid. */
-	I915_WRITE16(IIR, 0xffff);
-	POSTING_READ16(IIR);
-	I915_WRITE16(IIR, 0xffff);
-	POSTING_READ16(IIR);
+	I915_WRITE16(GEN2_IIR, 0xffff);
+	POSTING_READ16(GEN2_IIR);
+	I915_WRITE16(GEN2_IIR, 0xffff);
+	POSTING_READ16(GEN2_IIR);
 }
 
 #define GEN8_IRQ_RESET_NDX(type, which) \
@@ -199,17 +199,17 @@ static void gen3_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 
 static void gen2_assert_iir_is_zero(struct drm_i915_private *dev_priv)
 {
-	u16 val = I915_READ16(IIR);
+	u16 val = I915_READ16(GEN2_IIR);
 
 	if (val == 0)
 		return;
 
 	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
-	     i915_mmio_reg_offset(IIR), val);
-	I915_WRITE16(IIR, 0xffff);
-	POSTING_READ16(IIR);
-	I915_WRITE16(IIR, 0xffff);
-	POSTING_READ16(IIR);
+	     i915_mmio_reg_offset(GEN2_IIR), val);
+	I915_WRITE16(GEN2_IIR, 0xffff);
+	POSTING_READ16(GEN2_IIR);
+	I915_WRITE16(GEN2_IIR, 0xffff);
+	POSTING_READ16(GEN2_IIR);
 }
 
 static void gen3_irq_init(struct drm_i915_private *dev_priv,
@@ -229,9 +229,9 @@ static void gen2_irq_init(struct drm_i915_private *dev_priv,
 {
 	gen2_assert_iir_is_zero(dev_priv);
 
-	I915_WRITE16(IER, ier_val);
-	I915_WRITE16(IMR, imr_val);
-	POSTING_READ16(IMR);
+	I915_WRITE16(GEN2_IER, ier_val);
+	I915_WRITE16(GEN2_IMR, imr_val);
+	POSTING_READ16(GEN2_IMR);
 }
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) \
@@ -4360,7 +4360,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		u16 eir = 0, eir_stuck = 0;
 		u16 iir;
 
-		iir = I915_READ16(IIR);
+		iir = I915_READ16(GEN2_IIR);
 		if (iir == 0)
 			break;
 
@@ -4373,7 +4373,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i8xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
 
-		I915_WRITE16(IIR, iir);
+		I915_WRITE16(GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
 			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
@@ -4400,7 +4400,7 @@ static void i915_irq_reset(struct drm_device *dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	GEN3_IRQ_RESET();
+	GEN3_IRQ_RESET(GEN2_);
 }
 
 static int i915_irq_postinstall(struct drm_device *dev)
@@ -4432,7 +4432,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
 	}
 
-	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
+	GEN3_IRQ_INIT(GEN2_, dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
@@ -4464,7 +4464,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		u32 hotplug_status = 0;
 		u32 iir;
 
-		iir = I915_READ(IIR);
+		iir = I915_READ(GEN2_IIR);
 		if (iir == 0)
 			break;
 
@@ -4481,7 +4481,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
 
-		I915_WRITE(IIR, iir);
+		I915_WRITE(GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
 			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
@@ -4509,7 +4509,7 @@ static void i965_irq_reset(struct drm_device *dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	GEN3_IRQ_RESET();
+	GEN3_IRQ_RESET(GEN2_);
 }
 
 static int i965_irq_postinstall(struct drm_device *dev)
@@ -4552,7 +4552,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	if (IS_G4X(dev_priv))
 		enable_mask |= I915_BSD_USER_INTERRUPT;
 
-	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
+	GEN3_IRQ_INIT(GEN2_, dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
@@ -4610,7 +4610,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		u32 hotplug_status = 0;
 		u32 iir;
 
-		iir = I915_READ(IIR);
+		iir = I915_READ(GEN2_IIR);
 		if (iir == 0)
 			break;
 
@@ -4626,7 +4626,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
 
-		I915_WRITE(IIR, iir);
+		I915_WRITE(GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
 			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);

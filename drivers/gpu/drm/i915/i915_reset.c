@@ -1239,7 +1239,8 @@ void i915_clear_error_registers(struct drm_i915_private *i915)
 		 */
 		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
 		rmw_set(uncore, EMR, eir);
-		intel_uncore_write(uncore, IIR, I915_MASTER_ERROR_INTERRUPT);
+		intel_uncore_write(uncore, GEN2_IIR,
+				   I915_MASTER_ERROR_INTERRUPT);
 	}
 
 	if (INTEL_GEN(i915) >= 8) {
