@@ -128,6 +128,7 @@ extern int fscrypt_inherit_context(struct inode *, struct inode *,
 /* keyinfo.c */
 extern int fscrypt_get_encryption_info(struct inode *);
 extern void fscrypt_put_encryption_info(struct inode *);
+extern void fscrypt_free_inode(struct inode *);
 
 /* fname.c */
 extern int fscrypt_setup_filename(struct inode *, const struct qstr *,
@@ -339,6 +340,10 @@ static inline int fscrypt_get_encryption_info(struct inode *inode)
 static inline void fscrypt_put_encryption_info(struct inode *inode)
 {
 	return;
+}
+
+static inline void fscrypt_free_inode(struct inode *inode)
+{
 }
 
  /* fname.c */
