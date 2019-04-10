@@ -268,8 +268,6 @@ static inline void intel_ring_put(struct intel_ring *ring)
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
 
-void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
-
 int __must_check intel_ring_cacheline_align(struct i915_request *rq);
 
 u32 __must_check *intel_ring_begin(struct i915_request *rq, unsigned int n);
@@ -463,6 +461,7 @@ static inline void intel_engine_reset(struct intel_engine_cs *engine,
 }
 
 void intel_engines_sanitize(struct drm_i915_private *i915, bool force);
+void intel_gt_resume(struct drm_i915_private *i915);
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);

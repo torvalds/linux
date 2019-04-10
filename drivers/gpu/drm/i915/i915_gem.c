@@ -4513,7 +4513,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	i915->gt.resume(i915);
+	intel_gt_resume(i915);
 
 	if (i915_gem_init_hw(i915))
 		goto err_wedged;
@@ -4853,13 +4853,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		dev_priv->gt.resume = intel_lr_context_resume;
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv))
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
-	} else {
-		dev_priv->gt.resume = intel_legacy_submission_resume;
+	else
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
-	}
 
 	i915_timelines_init(dev_priv);
 

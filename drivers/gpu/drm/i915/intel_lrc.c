@@ -1379,9 +1379,33 @@ static int execlists_context_pin(struct intel_context *ce)
 	return __execlists_context_pin(ce, ce->engine);
 }
 
+static void execlists_context_reset(struct intel_context *ce)
+{
+	/*
+	 * Because we emit WA_TAIL_DWORDS there may be a disparity
+	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
+	 * that stored in context. As we only write new commands from
+	 * ce->ring->tail onwards, everything before that is junk. If the GPU
+	 * starts reading from its RING_HEAD from the context, it may try to
+	 * execute that junk and die.
+	 *
+	 * The contexts that are stilled pinned on resume belong to the
+	 * kernel, and are local to each engine. All other contexts will
+	 * have their head/tail sanitized upon pinning before use, so they
+	 * will never see garbage,
+	 *
+	 * So to avoid that we reset the context images upon resume. For
+	 * simplicity, we just zero everything out.
+	 */
+	intel_ring_reset(ce->ring, 0);
+	__execlists_update_reg_state(ce, ce->engine);
+}
+
 static const struct intel_context_ops execlists_context_ops = {
 	.pin = execlists_context_pin,
 	.unpin = execlists_context_unpin,
+
+	.reset = execlists_context_reset,
 	.destroy = execlists_context_destroy,
 };
 
@@ -2893,31 +2917,6 @@ error_ring_free:
 error_deref_obj:
 	i915_gem_object_put(ctx_obj);
 	return ret;
-}
-
-void intel_lr_context_resume(struct drm_i915_private *i915)
-{
-	struct i915_gem_context *ctx;
-	struct intel_context *ce;
-
-	/*
-	 * Because we emit WA_TAIL_DWORDS there may be a disparity
-	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
-	 * that stored in context. As we only write new commands from
-	 * ce->ring->tail onwards, everything before that is junk. If the GPU
-	 * starts reading from its RING_HEAD from the context, it may try to
-	 * execute that junk and die.
-	 *
-	 * So to avoid that we reset the context images upon resume. For
-	 * simplicity, we just zero everything out.
-	 */
-	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		list_for_each_entry(ce, &ctx->active_engines, active_link) {
-			GEM_BUG_ON(!ce->ring);
-			intel_ring_reset(ce->ring, 0);
-			__execlists_update_reg_state(ce, ce->engine);
-		}
-	}
 }
 
 void intel_execlists_show_requests(struct intel_engine_cs *engine,

@@ -753,6 +753,30 @@ err_unpin:
 	return ret;
 }
 
+void intel_gt_resume(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/*
+	 * After resume, we may need to poke into the pinned kernel
+	 * contexts to paper over any damage caused by the sudden suspend.
+	 * Only the kernel contexts should remain pinned over suspend,
+	 * allowing us to fixup the user contexts on their first pin.
+	 */
+	for_each_engine(engine, i915, id) {
+		struct intel_context *ce;
+
+		ce = engine->kernel_context;
+		if (ce)
+			ce->ops->reset(ce);
+
+		ce = engine->preempt_context;
+		if (ce)
+			ce->ops->reset(ce);
+	}
+}
+
 /**
  * intel_engines_cleanup_common - cleans up the engine state created by
  *                                the common initiailizers.
