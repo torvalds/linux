@@ -2298,6 +2298,7 @@ static const struct super_operations btrfs_super_ops = {
 	.show_devname	= btrfs_show_devname,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
+	.free_inode	= btrfs_free_inode,
 	.statfs		= btrfs_statfs,
 	.remount_fs	= btrfs_remount,
 	.freeze_fs	= btrfs_freeze,
