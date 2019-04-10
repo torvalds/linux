@@ -7185,7 +7185,9 @@ static void gen11_enable_rc6(struct drm_i915_private *dev_priv)
 
 	/* 3b: Enable Coarse Power Gating only when RC6 is enabled. */
 	I915_WRITE(GEN9_PG_ENABLE,
-		   GEN9_RENDER_PG_ENABLE | GEN9_MEDIA_PG_ENABLE);
+		   GEN9_RENDER_PG_ENABLE |
+		   GEN9_MEDIA_PG_ENABLE |
+		   GEN11_MEDIA_SAMPLER_PG_ENABLE);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 }
