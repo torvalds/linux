@@ -279,7 +279,7 @@ static const struct of_device_id sirfsoc_rtc_of_match[] = {
 	{},
 };
 
-const struct regmap_config sysrtc_regmap_config = {
+static const struct regmap_config sysrtc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.fast_io = true,
