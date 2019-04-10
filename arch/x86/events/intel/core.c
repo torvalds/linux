@@ -1856,6 +1856,45 @@ static __initconst const u64 glp_hw_cache_extra_regs
 	},
 };
 
+#define TNT_LOCAL_DRAM			BIT_ULL(26)
+#define TNT_DEMAND_READ			GLM_DEMAND_DATA_RD
+#define TNT_DEMAND_WRITE		GLM_DEMAND_RFO
+#define TNT_LLC_ACCESS			GLM_ANY_RESPONSE
+#define TNT_SNP_ANY			(SNB_SNP_NOT_NEEDED|SNB_SNP_MISS| \
+					 SNB_NO_FWD|SNB_SNP_FWD|SNB_HITM)
+#define TNT_LLC_MISS			(TNT_SNP_ANY|SNB_NON_DRAM|TNT_LOCAL_DRAM)
+
+static __initconst const u64 tnt_hw_cache_extra_regs
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= TNT_DEMAND_READ|
+						  TNT_LLC_ACCESS,
+			[C(RESULT_MISS)]	= TNT_DEMAND_READ|
+						  TNT_LLC_MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= TNT_DEMAND_WRITE|
+						  TNT_LLC_ACCESS,
+			[C(RESULT_MISS)]	= TNT_DEMAND_WRITE|
+						  TNT_LLC_MISS,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= 0x0,
+			[C(RESULT_MISS)]	= 0x0,
+		},
+	},
+};
+
+static struct extra_reg intel_tnt_extra_regs[] __read_mostly = {
+	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
+	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0xffffff9fffull, RSP_0),
+	INTEL_UEVENT_EXTRA_REG(0x02b7, MSR_OFFCORE_RSP_1, 0xffffff9fffull, RSP_1),
+	EVENT_EXTRA_END
+};
+
 #define KNL_OT_L2_HITE		BIT_ULL(19) /* Other Tile L2 Hit */
 #define KNL_OT_L2_HITF		BIT_ULL(20) /* Other Tile L2 Hit */
 #define KNL_MCDRAM_LOCAL	BIT_ULL(21)
@@ -3406,6 +3445,9 @@ static struct event_constraint counter2_constraint =
 static struct event_constraint fixed0_constraint =
 			FIXED_EVENT_CONSTRAINT(0x00c0, 0);
 
+static struct event_constraint fixed0_counter0_constraint =
+			INTEL_ALL_EVENT_CONSTRAINT(0, 0x100000001ULL);
+
 static struct event_constraint *
 hsw_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			  struct perf_event *event)
@@ -3448,6 +3490,29 @@ glp_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	/* :ppp means to do reduced skid PEBS which is PMC0 only. */
 	if (event->attr.precise_ip == 3)
 		return &counter0_constraint;
+
+	c = intel_get_event_constraints(cpuc, idx, event);
+
+	return c;
+}
+
+static struct event_constraint *
+tnt_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
+{
+	struct event_constraint *c;
+
+	/*
+	 * :ppp means to do reduced skid PEBS,
+	 * which is available on PMC0 and fixed counter 0.
+	 */
+	if (event->attr.precise_ip == 3) {
+		/* Force instruction:ppp on PMC0 and Fixed counter 0 */
+		if (constraint_match(&fixed0_constraint, event->hw.config))
+			return &fixed0_counter0_constraint;
+
+		return &counter0_constraint;
+	}
 
 	c = intel_get_event_constraints(cpuc, idx, event);
 
@@ -4583,6 +4648,32 @@ __init int intel_pmu_init(void)
 		extra_attr = slm_format_attr;
 		pr_cont("Goldmont plus events, ");
 		name = "goldmont_plus";
+		break;
+
+	case INTEL_FAM6_ATOM_TREMONT_X:
+		x86_pmu.late_ack = true;
+		memcpy(hw_cache_event_ids, glp_hw_cache_event_ids,
+		       sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, tnt_hw_cache_extra_regs,
+		       sizeof(hw_cache_extra_regs));
+		hw_cache_event_ids[C(ITLB)][C(OP_READ)][C(RESULT_ACCESS)] = -1;
+
+		intel_pmu_lbr_init_skl();
+
+		x86_pmu.event_constraints = intel_slm_event_constraints;
+		x86_pmu.extra_regs = intel_tnt_extra_regs;
+		/*
+		 * It's recommended to use CPU_CLK_UNHALTED.CORE_P + NPEBS
+		 * for precise cycles.
+		 */
+		x86_pmu.pebs_aliases = NULL;
+		x86_pmu.pebs_prec_dist = true;
+		x86_pmu.lbr_pt_coexist = true;
+		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+		x86_pmu.get_event_constraints = tnt_get_event_constraints;
+		extra_attr = slm_format_attr;
+		pr_cont("Tremont events, ");
+		name = "Tremont";
 		break;
 
 	case INTEL_FAM6_WESTMERE:
