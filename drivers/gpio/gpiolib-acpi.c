@@ -525,6 +525,15 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *inf
 	return ret;
 }
 
+int acpi_gpio_update_gpiod_lookup_flags(unsigned long *lookupflags,
+					struct acpi_gpio_info *info)
+{
+	if (info->polarity == GPIO_ACTIVE_LOW)
+		*lookupflags |= GPIO_ACTIVE_LOW;
+
+	return 0;
+}
+
 struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
 	int index;
@@ -745,10 +754,8 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 		return ERR_PTR(-ENOENT);
 	}
 
-	if (info.polarity == GPIO_ACTIVE_LOW)
-		*lookupflags |= GPIO_ACTIVE_LOW;
-
 	acpi_gpio_update_gpiod_flags(dflags, &info);
+	acpi_gpio_update_gpiod_lookup_flags(lookupflags, &info);
 	return desc;
 }
 
