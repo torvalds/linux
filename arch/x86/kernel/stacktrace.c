@@ -46,9 +46,6 @@ static void noinline __save_stack_trace(struct stack_trace *trace,
 		if (!addr || save_stack_address(trace, addr, nosched))
 			break;
 	}
-
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 
 /*
@@ -97,7 +94,7 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 		if (regs) {
 			/* Success path for user tasks */
 			if (user_mode(regs))
-				goto success;
+				return 0;
 
 			/*
 			 * Kernel mode registers on the stack indicate an
@@ -131,10 +128,6 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 	/* Success path for non-user tasks, i.e. kthreads and idle tasks */
 	if (!(task->flags & (PF_KTHREAD | PF_IDLE)))
 		return -EINVAL;
-
-success:
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 
 	return 0;
 }
@@ -221,9 +214,6 @@ void save_stack_trace_user(struct stack_trace *trace)
 	/*
 	 * Trace user stack if we are not a kernel thread
 	 */
-	if (current->mm) {
+	if (current->mm)
 		__save_stack_trace_user(trace);
-	}
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
