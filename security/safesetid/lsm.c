@@ -55,21 +55,32 @@ static int safesetid_security_capable(const struct cred *cred,
 				      int cap,
 				      unsigned int opts)
 {
-	if (cap == CAP_SETUID &&
-	    setuid_policy_lookup(cred->uid, INVALID_UID) != SIDPOL_DEFAULT) {
-		if (!(opts & CAP_OPT_INSETID)) {
-			/*
-			 * Deny if we're not in a set*uid() syscall to avoid
-			 * giving powers gated by CAP_SETUID that are related
-			 * to functionality other than calling set*uid() (e.g.
-			 * allowing user to set up userns uid mappings).
-			 */
-			pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
-				__kuid_val(cred->uid));
-			return -1;
-		}
-	}
-	return 0;
+	/* We're only interested in CAP_SETUID. */
+	if (cap != CAP_SETUID)
+		return 0;
+
+	/*
+	 * If CAP_SETUID is currently used for a set*uid() syscall, we want to
+	 * let it go through here; the real security check happens later, in the
+	 * task_fix_setuid hook.
+	 */
+	if ((opts & CAP_OPT_INSETID) != 0)
+		return 0;
+
+	/*
+	 * If no policy applies to this task, allow the use of CAP_SETUID for
+	 * other purposes.
+	 */
+	if (setuid_policy_lookup(cred->uid, INVALID_UID) == SIDPOL_DEFAULT)
+		return 0;
+
+	/*
+	 * Reject use of CAP_SETUID for functionality other than calling
+	 * set*uid() (e.g. setting up userns uid mappings).
+	 */
+	pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
+		__kuid_val(cred->uid));
+	return -1;
 }
 
 /*
