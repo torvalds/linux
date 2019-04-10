@@ -99,20 +99,30 @@ static int safesetid_security_capable(const struct cred *cred,
 	return 0;
 }
 
-static int check_uid_transition(kuid_t parent, kuid_t child)
+/*
+ * Check whether a caller with old credentials @old is allowed to switch to
+ * credentials that contain @new_uid.
+ */
+static bool uid_permitted_for_cred(const struct cred *old, kuid_t new_uid)
 {
-	if (check_setuid_policy_hashtable_key_value(parent, child))
-		return 0;
-	pr_warn("UID transition (%d -> %d) blocked\n",
-		__kuid_val(parent),
-		__kuid_val(child));
+	bool permitted;
+
+	/* If our old creds already had this UID in it, it's fine. */
+	if (uid_eq(new_uid, old->uid) || uid_eq(new_uid, old->euid) ||
+	    uid_eq(new_uid, old->suid))
+		return true;
+
 	/*
-	 * Kill this process to avoid potential security vulnerabilities
-	 * that could arise from a missing whitelist entry preventing a
-	 * privileged process from dropping to a lesser-privileged one.
+	 * Transitions to new UIDs require a check against the policy of the old
+	 * RUID.
 	 */
-	force_sig(SIGKILL);
-	return -EACCES;
+	permitted = check_setuid_policy_hashtable_key_value(old->uid, new_uid);
+	if (!permitted) {
+		pr_warn("UID transition ((%d,%d,%d) -> %d) blocked\n",
+			__kuid_val(old->uid), __kuid_val(old->euid),
+			__kuid_val(old->suid), __kuid_val(new_uid));
+	}
+	return permitted;
 }
 
 /*
@@ -125,88 +135,23 @@ static int safesetid_task_fix_setuid(struct cred *new,
 				     int flags)
 {
 
-	/* Do nothing if there are no setuid restrictions for this UID. */
+	/* Do nothing if there are no setuid restrictions for our old RUID. */
 	if (!check_setuid_policy_hashtable_key(old->uid))
 		return 0;
 
-	switch (flags) {
-	case LSM_SETID_RE:
-		/*
-		 * Users for which setuid restrictions exist can only set the
-		 * real UID to the real UID or the effective UID, unless an
-		 * explicit whitelist policy allows the transition.
-		 */
-		if (!uid_eq(old->uid, new->uid) &&
-			!uid_eq(old->euid, new->uid)) {
-			return check_uid_transition(old->uid, new->uid);
-		}
-		/*
-		 * Users for which setuid restrictions exist can only set the
-		 * effective UID to the real UID, the effective UID, or the
-		 * saved set-UID, unless an explicit whitelist policy allows
-		 * the transition.
-		 */
-		if (!uid_eq(old->uid, new->euid) &&
-			!uid_eq(old->euid, new->euid) &&
-			!uid_eq(old->suid, new->euid)) {
-			return check_uid_transition(old->euid, new->euid);
-		}
-		break;
-	case LSM_SETID_ID:
-		/*
-		 * Users for which setuid restrictions exist cannot change the
-		 * real UID or saved set-UID unless an explicit whitelist
-		 * policy allows the transition.
-		 */
-		if (!uid_eq(old->uid, new->uid))
-			return check_uid_transition(old->uid, new->uid);
-		if (!uid_eq(old->suid, new->suid))
-			return check_uid_transition(old->suid, new->suid);
-		break;
-	case LSM_SETID_RES:
-		/*
-		 * Users for which setuid restrictions exist cannot change the
-		 * real UID, effective UID, or saved set-UID to anything but
-		 * one of: the current real UID, the current effective UID or
-		 * the current saved set-user-ID unless an explicit whitelist
-		 * policy allows the transition.
-		 */
-		if (!uid_eq(new->uid, old->uid) &&
-			!uid_eq(new->uid, old->euid) &&
-			!uid_eq(new->uid, old->suid)) {
-			return check_uid_transition(old->uid, new->uid);
-		}
-		if (!uid_eq(new->euid, old->uid) &&
-			!uid_eq(new->euid, old->euid) &&
-			!uid_eq(new->euid, old->suid)) {
-			return check_uid_transition(old->euid, new->euid);
-		}
-		if (!uid_eq(new->suid, old->uid) &&
-			!uid_eq(new->suid, old->euid) &&
-			!uid_eq(new->suid, old->suid)) {
-			return check_uid_transition(old->suid, new->suid);
-		}
-		break;
-	case LSM_SETID_FS:
-		/*
-		 * Users for which setuid restrictions exist cannot change the
-		 * filesystem UID to anything but one of: the current real UID,
-		 * the current effective UID or the current saved set-UID
-		 * unless an explicit whitelist policy allows the transition.
-		 */
-		if (!uid_eq(new->fsuid, old->uid)  &&
-			!uid_eq(new->fsuid, old->euid)  &&
-			!uid_eq(new->fsuid, old->suid) &&
-			!uid_eq(new->fsuid, old->fsuid)) {
-			return check_uid_transition(old->fsuid, new->fsuid);
-		}
-		break;
-	default:
-		pr_warn("Unknown setid state %d\n", flags);
-		force_sig(SIGKILL);
-		return -EINVAL;
-	}
-	return 0;
+	if (uid_permitted_for_cred(old, new->uid) &&
+	    uid_permitted_for_cred(old, new->euid) &&
+	    uid_permitted_for_cred(old, new->suid) &&
+	    uid_permitted_for_cred(old, new->fsuid))
+		return 0;
+
+	/*
+	 * Kill this process to avoid potential security vulnerabilities
+	 * that could arise from a missing whitelist entry preventing a
+	 * privileged process from dropping to a lesser-privileged one.
+	 */
+	force_sig(SIGKILL);
+	return -EACCES;
 }
 
 int add_safesetid_whitelist_entry(kuid_t parent, kuid_t child)
