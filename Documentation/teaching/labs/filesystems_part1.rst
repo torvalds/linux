@@ -69,7 +69,7 @@ An inode stores information like:
   * file size;
   * access rights;
   * access or modify time;
-  * location of data on the dick (pointers to disk blocks containing data).
+  * location of data on the disk (pointers to disk blocks containing data).
 
 .. note::
   Usually, the inode does not contain the file name. The name is stored by the :c:type:`dentry` entity. This way, an inode can have multiple names (hardlinks).
@@ -284,17 +284,17 @@ The superbloc operations are described by the :c:type:`struct super_operations` 
 
 .. code-block:: c
 
-  struct super_operations {
-        // ...
-        int ( * write_inode ) ( struct inode *, struct writeback_control * wbc ) ;
-        structure inode * ( * alloc_inode ) ( struct super_block * sb ) ;
-        void ( * destroy_inode ) ( struct inode * ) ;
-
-        void ( * put_super ) ( struct super_block * ) ;
-        int ( * statfs ) ( struct dentry *, struct kstatfs * ) ;
-        int ( * remount_fs ) ( super_block structure *, int *, char * ) ;
-        // ...
-  } ;
+	struct super_operations {
+	       //...
+	       int (*write_inode) (struct inode *, struct writeback_control *wbc);
+	       struct inode *(*alloc_inode)(struct super_block *sb);
+	       void (*destroy_inode)(struct inode *);
+	 
+	       void (*put_super) (struct super_block *);
+	       int (*statfs) (struct dentry *, struct kstatfs *);
+	       int (*remount_fs) (struct super_block *, int *, char *);
+	       //...
+	};
 
 The fields of the structure are function pointers with the following meanings:
 
@@ -314,47 +314,48 @@ An example of implementation is the :c:func:`ramfs_fill_super` function which is
 
 .. code-block:: c
 
-  #include <linux / pagemap.h>
+	#include <linux/pagemap.h>
+	 
+	#define RAMFS_MAGIC     0x858458f6
+	 
+	static const struct super_operations ramfs_ops = {
+		.statfs         = simple_statfs,
+		.drop_inode     = generic_delete_inode,
+		.show_options   = ramfs_show_options,
+	};
+	 
+	static int ramfs_fill_super(struct super_block *sb, void *data, int silent)
+	{
+		struct ramfs_fs_info *fsi;
+		struct inode *inode;
+		int err;
+	 
+		save_mount_options(sb, data);
+	 
+		fsi = kzalloc(sizeof(struct ramfs_fs_info), GFP_KERNEL);
+		sb->s_fs_info = fsi;
+		if (!fsi)
+			return -ENOMEM;
+	 
+		err = ramfs_parse_options(data, &fsi->mount_opts);
+		if (err)
+			return err;
+	 
+		sb->s_maxbytes          = MAX_LFS_FILESIZE;
+		sb->s_blocksize         = PAGE_SIZE;
+		sb->s_blocksize_bits    = PAGE_SHIFT;
+		sb->s_magic             = RAMFS_MAGIC;
+		sb->s_op                = &ramfs_ops;
+		sb->s_time_gran         = 1;
+	 
+		inode = ramfs_get_inode(sb, NULL, S_IFDIR | fsi->mount_opts.mode, 0);
+		sb->s_root = d_make_root(inode);
+		if (!sb->s_root)
+			return -ENOMEM;
+	 
+		return 0;
+	}
 
-  #define RAMFS_MAGIC 0x858458f6
-
-  static const struct super_operations ramfs_ops = {
-          .  statfs = simple_statfs ,
-          .  drop_inode = generic_delete_inode ,
-          .  show_options = ramfs_show_options ,
-  } ;
-
-  static int ramfs_fill_super ( super_block structure * sb , void * data , int silent )
-  {
-          struct ramfs_fs_info * fsi ;
-          struct inode * inode ;
-          int err ;
-
-          save_mount_options ( sb , data ) ;
-
-          fsi = kzaloc ( sizeof ( struct ramfs_fs_info ) , GFP_KERNEL ) ;
-          sb -> s_fs_info = fsi ;
-          if ( ! fsi )
-                  return - ENOM ;
-
-          err = ramfs_parse_options ( data , & fsi -> mount_opts ) ;
-          if ( err )
-                  return err ;
-
-          sb -> s_maxbytes = MAX_LFS_FILESIZE ;
-          sb -> s_blocksize = PAGE_SIZE ;
-          sb -> s_blocksize_bits = PAGE_SHIFT ;
-          sb -> s_magic = RAMFS_MAGIC
-          sb -> s_op = & ramfs_ops ;
-          sb -> s_time_gran = 1 ;
-
-          inode = ramfs_get_inode ( sb , NULL , S_IFDIR | fsi -> mount_opts mode , 0 ) ;
-          sb - & s_root = d_make_root ( inode ) ;
-          if ( ! sb -> s_root )
-                  return - ENOM ;
-
-          return 0 ;
-  }
 
 The kernel provides generic function to implement operations with file system structures.
 The :c:func:`generic_drop_inode` and :c:func:`simple_statfs` functions used in the above code are such functions and can be used to implement the drivers if their functionality is sufficient.
@@ -462,7 +463,7 @@ The steps you need to take are described in the section :ref:`RegisterUnregister
 .. note::
   Within the file system structure, use the ``myfs_mount`` function present in the code skeleton to fill the superblock (done when mounting). In ``myfs_mount`` call the function specific to a file system without disk support (TODO). As an argument for the specific mount function, use the function of type ``fill_super`` defined in the code skeleton.
 
-  To destroy the superblock (done at unmounting) use ``kill_litter_super``, also a function specific to a file system without disk support.
+  To destroy the superblock (done at unmounting) use ``kill_litter_super``, also a function specific to a file system without disk support. The function is already implemented, you need to fill it in the :c:type:`struct file_system_type` structure.
 
 
 After completing the sections marked with ``TODO 1`` , compile the module, copy it to the QEMU virtual machine, and start the virtual machine. Load the kernel module and then check the presence of the ``myfs`` file system within the ``/proc/filesystems`` file.
@@ -537,8 +538,8 @@ To successfully complete mounting the file system, you will need to fill the ``m
     #. Check if this is a directory type inode using the ``S_ISDIR`` macro.
     #. For the ``i_op`` and ``i_fop`` fields, use kernel functions that are already implemented:
 
-       * for ``i_op``: :c:func:`simple_dir_inode_operations`.
-       * for ``i_fop``: :c:func:`simple_dir_operations`
+       * for ``i_op``: :c:type:`simple_dir_inode_operations`.
+       * for ``i_fop``: :c:type:`simple_dir_operations`
 
     #. Increase the number of links for the directory using the :c:func:`inc_nlink` function.
 
@@ -565,7 +566,7 @@ We check myfs file system statistics using the following command:
 
 .. code-block:: console
 
-  state -f / mnt / myfs
+  stat -f / mnt / myfs
 
 We want to see what the mount point ``/mnt/myfs`` contains and if we can create files.
 For this we run the commands:
@@ -629,7 +630,7 @@ Follow the diagram below to clarify the role of structures within the ``minfs`` 
 
   .. code-block:: console
 
-    dd if=/dev/zero of=qemu/mydisk.img bs=1M count=100
+    dd if=/dev/zero of=mydisk.img bs=1M count=100
 
   and add the ``-drive file=qemu/mydisk.img,if=virtio,format=raw`` argument to the ``qemu`` command in ``qemu/Makefile`` (in the ``QEMU_OPTS`` variable).
   The new argument for the ``qemu`` command must be added after the one for the existing disk (``YOCTO_IMAGE``).
@@ -651,11 +652,11 @@ Load the kernel module and then check the presence of the ``minfs`` file system 
 
 To test the mounting of the ``minfs`` file system we will need to format the disk with its structure. Formatting requires the ``mkfs.minfs`` formatting tool from the ``minfs/user`` directory. The utility is automatically compiled when running ``make build`` and copied to the virtual machine at ``make copy``.
 
-After compiling, copying, and starting the virtual machine, format the ``/dev/vdX`` using the formatting utility:
+After compiling, copying, and starting the virtual machine, format the ``/dev/vdb`` using the formatting utility:
 
 .. code-block:: console
 
-  # ./mkfs.minfs /dev/vdX
+  # ./mkfs.minfs /dev/vdb
 
 Load the kernel module:
 
@@ -670,6 +671,8 @@ Create mount point ``/mnt/minfs/``:
   # mkdir -p /mnt/minfs/
 
 and mount the filesystem
+
+.. code-block:: console
 
   # mount -t minfs /dev/vdX /mnt/minfs/
 
