@@ -755,8 +755,9 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 			break;
 		case RTA_GATEWAY:
 			has_gw = true;
-			cfg->fc_gw_family = AF_INET;
 			cfg->fc_gw4 = nla_get_be32(attr);
+			if (cfg->fc_gw4)
+				cfg->fc_gw_family = AF_INET;
 			break;
 		case RTA_VIA:
 			has_via = true;

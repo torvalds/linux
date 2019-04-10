@@ -616,8 +616,9 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 				return -EINVAL;
 			}
 			if (nla) {
-				fib_cfg.fc_gw_family = AF_INET;
 				fib_cfg.fc_gw4 = nla_get_in_addr(nla);
+				if (fib_cfg.fc_gw4)
+					fib_cfg.fc_gw_family = AF_INET;
 			} else if (nlav) {
 				ret = fib_gw_from_via(&fib_cfg, nlav, extack);
 				if (ret)
