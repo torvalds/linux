@@ -27,5 +27,4 @@ config SENSORS_OCC_P9_SBE
 	 called occ-p9-hwmon.
 
 config SENSORS_OCC
-	bool "POWER On-Chip Controller"
-	depends on SENSORS_OCC_P8_I2C || SENSORS_OCC_P9_SBE
+	tristate

@@ -3,6 +3,7 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
@@ -177,3 +178,4 @@ void occ_shutdown(struct occ *occ)
 {
 	sysfs_remove_group(&occ->bus_dev->kobj, &occ_sysfs);
 }
+EXPORT_SYMBOL_GPL(occ_shutdown);

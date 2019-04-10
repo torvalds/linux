@@ -2,11 +2,13 @@
 // Copyright IBM Corp 2019
 
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <asm/unaligned.h>
@@ -1099,3 +1101,8 @@ int occ_setup(struct occ *occ, const char *name)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(occ_setup);
+
+MODULE_AUTHOR("Eddie James <eajames@linux.ibm.com>");
+MODULE_DESCRIPTION("Common OCC hwmon code");
+MODULE_LICENSE("GPL");
