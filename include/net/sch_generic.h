@@ -1106,6 +1106,32 @@ static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 	return skb;
 }
 
+static inline void qdisc_update_stats_at_dequeue(struct Qdisc *sch,
+						 struct sk_buff *skb)
+{
+	if (qdisc_is_percpu_stats(sch)) {
+		qdisc_qstats_cpu_backlog_dec(sch, skb);
+		qdisc_bstats_cpu_update(sch, skb);
+		qdisc_qstats_atomic_qlen_dec(sch);
+	} else {
+		qdisc_qstats_backlog_dec(sch, skb);
+		qdisc_bstats_update(sch, skb);
+		sch->q.qlen--;
+	}
+}
+
+static inline void qdisc_update_stats_at_enqueue(struct Qdisc *sch,
+						 unsigned int pkt_len)
+{
+	if (qdisc_is_percpu_stats(sch)) {
+		qdisc_qstats_atomic_qlen_inc(sch);
+		this_cpu_add(sch->cpu_qstats->backlog, pkt_len);
+	} else {
+		sch->qstats.backlog += pkt_len;
+		sch->q.qlen++;
+	}
+}
+
 /* use instead of qdisc->dequeue() for all qdiscs queried with ->peek() */
 static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 {

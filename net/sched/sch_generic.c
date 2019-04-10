@@ -629,11 +629,7 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 	if (unlikely(err))
 		return qdisc_drop_cpu(skb, qdisc, to_free);
 
-	qdisc_qstats_atomic_qlen_inc(qdisc);
-	/* Note: skb can not be used after skb_array_produce(),
-	 * so we better not use qdisc_qstats_cpu_backlog_inc()
-	 */
-	this_cpu_add(qdisc->cpu_qstats->backlog, pkt_len);
+	qdisc_update_stats_at_enqueue(qdisc, pkt_len);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -652,9 +648,7 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 		skb = __skb_array_consume(q);
 	}
 	if (likely(skb)) {
-		qdisc_qstats_cpu_backlog_dec(qdisc, skb);
-		qdisc_bstats_cpu_update(qdisc, skb);
-		qdisc_qstats_atomic_qlen_dec(qdisc);
+		qdisc_update_stats_at_dequeue(qdisc, skb);
 	} else {
 		qdisc->empty = true;
 	}
