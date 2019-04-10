@@ -385,9 +385,6 @@ static int pcf85363_probe(struct i2c_client *client,
 	if (data)
 		config = data;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
 	pcf85363 = devm_kzalloc(&client->dev, sizeof(struct pcf85363),
 				GFP_KERNEL);
 	if (!pcf85363)
