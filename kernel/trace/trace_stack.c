@@ -18,8 +18,7 @@
 
 #include "trace.h"
 
-static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES+1] =
-	 { [0 ... (STACK_TRACE_ENTRIES)] = ULONG_MAX };
+static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES + 1];
 unsigned stack_trace_index[STACK_TRACE_ENTRIES];
 
 /*
@@ -52,10 +51,7 @@ void stack_trace_print(void)
 			   stack_trace_max.nr_entries);
 
 	for (i = 0; i < stack_trace_max.nr_entries; i++) {
-		if (stack_dump_trace[i] == ULONG_MAX)
-			break;
-		if (i+1 == stack_trace_max.nr_entries ||
-				stack_dump_trace[i+1] == ULONG_MAX)
+		if (i + 1 == stack_trace_max.nr_entries)
 			size = stack_trace_index[i];
 		else
 			size = stack_trace_index[i] - stack_trace_index[i+1];
@@ -150,8 +146,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 		p = start;
 
 		for (; p < top && i < stack_trace_max.nr_entries; p++) {
-			if (stack_dump_trace[i] == ULONG_MAX)
-				break;
 			/*
 			 * The READ_ONCE_NOCHECK is used to let KASAN know that
 			 * this is not a stack-out-of-bounds error.
@@ -183,8 +177,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 	}
 
 	stack_trace_max.nr_entries = x;
-	for (; x < i; x++)
-		stack_dump_trace[x] = ULONG_MAX;
 
 	if (task_stack_end_corrupted(current)) {
 		stack_trace_print();
@@ -286,7 +278,7 @@ __next(struct seq_file *m, loff_t *pos)
 {
 	long n = *pos - 1;
 
-	if (n >= stack_trace_max.nr_entries || stack_dump_trace[n] == ULONG_MAX)
+	if (n >= stack_trace_max.nr_entries)
 		return NULL;
 
 	m->private = (void *)n;
@@ -360,12 +352,10 @@ static int t_show(struct seq_file *m, void *v)
 
 	i = *(long *)v;
 
-	if (i >= stack_trace_max.nr_entries ||
-	    stack_dump_trace[i] == ULONG_MAX)
+	if (i >= stack_trace_max.nr_entries)
 		return 0;
 
-	if (i+1 == stack_trace_max.nr_entries ||
-	    stack_dump_trace[i+1] == ULONG_MAX)
+	if (i + 1 == stack_trace_max.nr_entries)
 		size = stack_trace_index[i];
 	else
 		size = stack_trace_index[i] - stack_trace_index[i+1];

@@ -5246,7 +5246,7 @@ static void hist_trigger_stacktrace_print(struct seq_file *m,
 	unsigned int i;
 
 	for (i = 0; i < max_entries; i++) {
-		if (stacktrace_entries[i] == ULONG_MAX)
+		if (!stacktrace_entries[i])
 			return;
 
 		seq_printf(m, "%*c", 1 + spaces, ' ');
