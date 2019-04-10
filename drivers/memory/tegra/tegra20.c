@@ -274,7 +274,7 @@ static int terga20_mc_unblock_dma(struct tegra_mc *mc,
 	return 0;
 }
 
-const struct tegra_mc_reset_ops terga20_mc_reset_ops = {
+static const struct tegra_mc_reset_ops terga20_mc_reset_ops = {
 	.hotreset_assert = terga20_mc_hotreset_assert,
 	.hotreset_deassert = terga20_mc_hotreset_deassert,
 	.block_dma = terga20_mc_block_dma,
