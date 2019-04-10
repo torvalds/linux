@@ -287,7 +287,7 @@ static unsigned int wdat_wdt_get_timeleft(struct watchdog_device *wdd)
 	struct wdat_wdt *wdat = to_wdat_wdt(wdd);
 	u32 periods = 0;
 
-	wdat_wdt_run_action(wdat, ACPI_WDAT_GET_COUNTDOWN, 0, &periods);
+	wdat_wdt_run_action(wdat, ACPI_WDAT_GET_CURRENT_COUNTDOWN, 0, &periods);
 	return periods * wdat->period / 1000;
 }
 
