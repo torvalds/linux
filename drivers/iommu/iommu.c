@@ -2135,3 +2135,107 @@ int iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_aux_get_pasid);
+
+/**
+ * iommu_sva_bind_device() - Bind a process address space to a device
+ * @dev: the device
+ * @mm: the mm to bind, caller must hold a reference to it
+ *
+ * Create a bond between device and address space, allowing the device to access
+ * the mm using the returned PASID. If a bond already exists between @device and
+ * @mm, it is returned and an additional reference is taken. Caller must call
+ * iommu_sva_unbind_device() to release each reference.
+ *
+ * iommu_dev_enable_feature(dev, IOMMU_DEV_FEAT_SVA) must be called first, to
+ * initialize the required SVA features.
+ *
+ * On error, returns an ERR_PTR value.
+ */
+struct iommu_sva *
+iommu_sva_bind_device(struct device *dev, struct mm_struct *mm, void *drvdata)
+{
+	struct iommu_group *group;
+	struct iommu_sva *handle = ERR_PTR(-EINVAL);
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_bind)
+		return ERR_PTR(-ENODEV);
+
+	group = iommu_group_get(dev);
+	if (!group)
+		return ERR_PTR(-ENODEV);
+
+	/* Ensure device count and domain don't change while we're binding */
+	mutex_lock(&group->mutex);
+
+	/*
+	 * To keep things simple, SVA currently doesn't support IOMMU groups
+	 * with more than one device. Existing SVA-capable systems are not
+	 * affected by the problems that required IOMMU groups (lack of ACS
+	 * isolation, device ID aliasing and other hardware issues).
+	 */
+	if (iommu_group_device_count(group) != 1)
+		goto out_unlock;
+
+	handle = ops->sva_bind(dev, mm, drvdata);
+
+out_unlock:
+	mutex_unlock(&group->mutex);
+	iommu_group_put(group);
+
+	return handle;
+}
+EXPORT_SYMBOL_GPL(iommu_sva_bind_device);
+
+/**
+ * iommu_sva_unbind_device() - Remove a bond created with iommu_sva_bind_device
+ * @handle: the handle returned by iommu_sva_bind_device()
+ *
+ * Put reference to a bond between device and address space. The device should
+ * not be issuing any more transaction for this PASID. All outstanding page
+ * requests for this PASID must have been flushed to the IOMMU.
+ *
+ * Returns 0 on success, or an error value
+ */
+void iommu_sva_unbind_device(struct iommu_sva *handle)
+{
+	struct iommu_group *group;
+	struct device *dev = handle->dev;
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_unbind)
+		return;
+
+	group = iommu_group_get(dev);
+	if (!group)
+		return;
+
+	mutex_lock(&group->mutex);
+	ops->sva_unbind(handle);
+	mutex_unlock(&group->mutex);
+
+	iommu_group_put(group);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_unbind_device);
+
+int iommu_sva_set_ops(struct iommu_sva *handle,
+		      const struct iommu_sva_ops *sva_ops)
+{
+	if (handle->ops && handle->ops != sva_ops)
+		return -EEXIST;
+
+	handle->ops = sva_ops;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_sva_set_ops);
+
+int iommu_sva_get_pasid(struct iommu_sva *handle)
+{
+	const struct iommu_ops *ops = handle->dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_get_pasid)
+		return IOMMU_PASID_INVALID;
+
+	return ops->sva_get_pasid(handle);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_get_pasid);
