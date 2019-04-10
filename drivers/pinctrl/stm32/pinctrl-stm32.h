@@ -18,6 +18,12 @@
 #define STM32_PIN_AF(x)		((x) + 1)
 #define STM32_PIN_ANALOG	(STM32_PIN_AF(15) + 1)
 
+/*  package information */
+#define STM32MP_PKG_AA		BIT(0)
+#define STM32MP_PKG_AB		BIT(1)
+#define STM32MP_PKG_AC		BIT(2)
+#define STM32MP_PKG_AD		BIT(3)
+
 struct stm32_desc_function {
 	const char *name;
 	const unsigned char num;
