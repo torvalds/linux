@@ -637,7 +637,7 @@ static __init int hmat_init(void)
 
 	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
 	if (ACPI_FAILURE(status))
-		return 0;
+		goto out_put;
 
 	hmat_revision = tbl->revision;
 	switch (hmat_revision) {
