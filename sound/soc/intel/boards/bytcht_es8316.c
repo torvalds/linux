@@ -61,9 +61,9 @@ enum {
 #define BYT_CHT_ES8316_MONO_SPEAKER		BIT(17)
 #define BYT_CHT_ES8316_JD_INVERTED		BIT(18)
 
-static int quirk;
+static unsigned long quirk;
 
-static int quirk_override = -1;
+static int quirk_override;
 module_param_named(quirk, quirk_override, int, 0444);
 MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
@@ -505,7 +505,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	/* Check for BYTCR or other platform and setup quirks */
 	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
 	if (dmi_id) {
-		quirk = (int)dmi_id->driver_data;
+		quirk = (unsigned long)dmi_id->driver_data;
 	} else if (x86_match_cpu(baytrail_cpu_ids) &&
 	    mach->mach_params.acpi_ipc_irq_index == 0) {
 		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
@@ -516,8 +516,9 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		quirk = BYT_CHT_ES8316_INTMIC_IN1_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;
 	}
-	if (quirk_override != -1) {
-		dev_info(dev, "Overriding quirk 0x%x => 0x%x\n", quirk,
+	if (quirk_override) {
+		dev_info(dev, "Overriding quirk 0x%x => 0x%x\n",
+			 (unsigned int)quirk,
 			 quirk_override);
 		quirk = quirk_override;
 	}
