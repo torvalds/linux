@@ -3837,7 +3837,7 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
 	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
 
-	adapter->netdev->features = NETIF_F_SG | NETIF_F_GSO;
+	adapter->netdev->hw_features = NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
 
 	if (buf->tcp_ipv4_chksum || buf->udp_ipv4_chksum)
 		adapter->netdev->features |= NETIF_F_IP_CSUM;
