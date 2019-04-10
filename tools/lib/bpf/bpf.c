@@ -429,6 +429,16 @@ int bpf_map_get_next_key(int fd, const void *key, void *next_key)
 	return sys_bpf(BPF_MAP_GET_NEXT_KEY, &attr, sizeof(attr));
 }
 
+int bpf_map_freeze(int fd)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.map_fd = fd;
+
+	return sys_bpf(BPF_MAP_FREEZE, &attr, sizeof(attr));
+}
+
 int bpf_obj_pin(int fd, const char *pathname)
 {
 	union bpf_attr attr;

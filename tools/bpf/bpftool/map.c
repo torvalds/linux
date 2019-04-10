@@ -153,11 +153,13 @@ static int do_dump_btf(const struct btf_dumper *d,
 	/* start of key-value pair */
 	jsonw_start_object(d->jw);
 
-	jsonw_name(d->jw, "key");
+	if (map_info->btf_key_type_id) {
+		jsonw_name(d->jw, "key");
 
-	ret = btf_dumper_type(d, map_info->btf_key_type_id, key);
-	if (ret)
-		goto err_end_obj;
+		ret = btf_dumper_type(d, map_info->btf_key_type_id, key);
+		if (ret)
+			goto err_end_obj;
+	}
 
 	if (!map_is_per_cpu(map_info->type)) {
 		jsonw_name(d->jw, "value");
