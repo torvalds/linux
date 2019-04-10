@@ -493,10 +493,8 @@ CPU 에게 기대할 수 있는 최소한의 보장사항 몇가지가 있습니
      이 타입의 오퍼레이션은 단방향의 투과성 배리어처럼 동작합니다.  ACQUIRE
      오퍼레이션 뒤의 모든 메모리 오퍼레이션들이 ACQUIRE 오퍼레이션 후에
      일어난 것으로 시스템의 나머지 컴포넌트들에 보이게 될 것이 보장됩니다.
-     LOCK 오퍼레이션과 smp_load_acquire(), smp_cond_acquire() 오퍼레이션도
-     ACQUIRE 오퍼레이션에 포함됩니다.  smp_cond_acquire() 오퍼레이션은 컨트롤
-     의존성과 smp_rmb() 를 사용해서 ACQUIRE 의 의미적 요구사항(semantic)을
-     충족시킵니다.
+     LOCK 오퍼레이션과 smp_load_acquire(), smp_cond_load_acquire() 오퍼레이션도
+     ACQUIRE 오퍼레이션에 포함됩니다.
 
      ACQUIRE 오퍼레이션 앞의 메모리 오퍼레이션들은 ACQUIRE 오퍼레이션 완료 후에
      수행된 것처럼 보일 수 있습니다.
@@ -2146,33 +2144,40 @@ set_current_state() 는 다음의 것들로 감싸질 수도 있습니다:
 	event_indicated = 1;
 	wake_up_process(event_daemon);
 
-wake_up() 류에 의해 쓰기 메모리 배리어가 내포됩니다.  만약 그것들이 뭔가를
-깨운다면요.  이 배리어는 태스크 상태가 지워지기 전에 수행되므로, 이벤트를
-알리기 위한 STORE 와 태스크 상태를 TASK_RUNNING 으로 설정하는 STORE 사이에
-위치하게 됩니다.
+wake_up() 이 무언가를 깨우게 되면, 이 함수는 범용 메모리 배리어를 수행합니다.
+이 함수가 아무것도 깨우지 않는다면 메모리 배리어는 수행될 수도, 수행되지 않을
+수도 있습니다; 이 경우에 메모리 배리어를 수행할 거라 오해해선 안됩니다.  이
+배리어는 태스크 상태가 접근되기 전에 수행되는데, 자세히 말하면 이 이벤트를
+알리기 위한 STORE 와 TASK_RUNNING 으로 상태를 쓰는 STORE 사이에 수행됩니다:
 
-	CPU 1				CPU 2
+	CPU 1 (Sleeper)			CPU 2 (Waker)
 	===============================	===============================
 	set_current_state();		STORE event_indicated
 	  smp_store_mb();		wake_up();
-	    STORE current->state	  <쓰기 배리어>
-	    <범용 배리어>		  STORE current->state
-	LOAD event_indicated
+	    STORE current->state	  ...
+	    <범용 배리어>		  <범용 배리어>
+	LOAD event_indicated		  if ((LOAD task->state) & TASK_NORMAL)
+					    STORE task->state
 
-한번더 말합니다만, 이 쓰기 메모리 배리어는 이 코드가 정말로 뭔가를 깨울 때에만
-실행됩니다.  이걸 설명하기 위해, X 와 Y 는 모두 0 으로 초기화 되어 있다는 가정
-하에 아래의 이벤트 시퀀스를 생각해 봅시다:
+여기서 "task" 는 깨어나지는 쓰레드이고 CPU 1 의 "current" 와 같습니다.
+
+반복하지만, wake_up() 이 무언가를 정말 깨운다면 범용 메모리 배리어가 수행될
+것이 보장되지만, 그렇지 않다면 그런 보장이 없습니다.  이걸 이해하기 위해, X 와
+Y 는 모두 0 으로 초기화 되어 있다는 가정 하에 아래의 이벤트 시퀀스를 생각해
+봅시다:
 
 	CPU 1				CPU 2
 	===============================	===============================
-	X = 1;				STORE event_indicated
+	X = 1;				Y = 1;
 	smp_mb();			wake_up();
-	Y = 1;				wait_event(wq, Y == 1);
-	wake_up();			  load from Y sees 1, no memory barrier
-					load from X might see 0
+	LOAD Y				LOAD X
 
-위 예제에서의 경우와 달리 깨우기가 정말로 행해졌다면, CPU 2 의 X 로드는 1 을
-본다고 보장될 수 있을 겁니다.
+정말로 깨우기가 행해졌다면, 두 로드 중 (최소한) 하나는 1 을 보게 됩니다.
+반면에, 실제 깨우기가 행해지지 않았다면, 두 로드 모두 0을 볼 수도 있습니다.
+
+wake_up_process() 는 항상 범용 메모리 배리어를 수행합니다.  이 배리어 역시
+태스크 상태가 접근되기 전에 수행됩니다.  특히, 앞의 예제 코드에서 wake_up() 이
+wake_up_process() 로 대체된다면 두 로드 중 하나는 1을 볼 것이 보장됩니다.
 
 사용 가능한 깨우기류 함수들로 다음과 같은 것들이 있습니다:
 
@@ -2192,6 +2197,8 @@ wake_up() 류에 의해 쓰기 메모리 배리어가 내포됩니다.  만약 �
 	wake_up_poll();
 	wake_up_process();
 
+메모리 순서규칙 관점에서, 이 함수들은 모두 wake_up() 과 같거나 보다 강한 순서
+보장을 제공합니다.
 
 [!] 잠재우는 코드와 깨우는 코드에 내포되는 메모리 배리어들은 깨우기 전에
 이루어진 스토어를 잠재우는 코드가 set_current_state() 를 호출한 후에 행하는

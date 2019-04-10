@@ -56,6 +56,23 @@ Barriers:
   smp_mb__{before,after}_atomic()
 
 
+TYPES (signed vs unsigned)
+-----
+
+While atomic_t, atomic_long_t and atomic64_t use int, long and s64
+respectively (for hysterical raisins), the kernel uses -fno-strict-overflow
+(which implies -fwrapv) and defines signed overflow to behave like
+2s-complement.
+
+Therefore, an explicitly unsigned variant of the atomic ops is strictly
+unnecessary and we can simply cast, there is no UB.
+
+There was a bug in UBSAN prior to GCC-8 that would generate UB warnings for
+signed types.
+
+With this we also conform to the C/C++ _Atomic behaviour and things like
+P1236R1.
+
 
 SEMANTICS
 ---------
