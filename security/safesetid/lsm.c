@@ -90,7 +90,7 @@ static int safesetid_security_capable(const struct cred *cred,
 	 */
 	pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
 		__kuid_val(cred->uid));
-	return -1;
+	return -EPERM;
 }
 
 /*
