@@ -137,7 +137,7 @@ static int jz4725b_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-const struct mtd_ooblayout_ops jz4725b_ooblayout_ops = {
+static const struct mtd_ooblayout_ops jz4725b_ooblayout_ops = {
 	.ecc = jz4725b_ooblayout_ecc,
 	.free = jz4725b_ooblayout_free,
 };
