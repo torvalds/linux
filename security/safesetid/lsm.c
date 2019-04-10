@@ -14,67 +14,40 @@
 
 #define pr_fmt(fmt) "SafeSetID: " fmt
 
-#include <linux/hashtable.h>
 #include <linux/lsm_hooks.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/sched/task_stack.h>
 #include <linux/security.h>
+#include "lsm.h"
 
 /* Flag indicating whether initialization completed */
 int safesetid_initialized;
 
-#define NUM_BITS 8 /* 128 buckets in hash table */
+#define NUM_BITS 8 /* 256 buckets in hash table */
 
 static DEFINE_HASHTABLE(safesetid_whitelist_hashtable, NUM_BITS);
 
-/*
- * Hash table entry to store safesetid policy signifying that 'parent' user
- * can setid to 'child' user.
- */
-struct entry {
-	struct hlist_node next;
-	struct hlist_node dlist; /* for deletion cleanup */
-	uint64_t parent_kuid;
-	uint64_t child_kuid;
-};
-
 static DEFINE_SPINLOCK(safesetid_whitelist_hashtable_spinlock);
 
-static bool check_setuid_policy_hashtable_key(kuid_t parent)
+static enum sid_policy_type setuid_policy_lookup(kuid_t src, kuid_t dst)
 {
 	struct entry *entry;
+	enum sid_policy_type result = SIDPOL_DEFAULT;
 
 	rcu_read_lock();
 	hash_for_each_possible_rcu(safesetid_whitelist_hashtable,
-				   entry, next, __kuid_val(parent)) {
-		if (entry->parent_kuid == __kuid_val(parent)) {
+				   entry, next, __kuid_val(src)) {
+		if (!uid_eq(entry->src_uid, src))
+			continue;
+		if (uid_eq(entry->dst_uid, dst)) {
 			rcu_read_unlock();
-			return true;
+			return SIDPOL_ALLOWED;
 		}
+		result = SIDPOL_CONSTRAINED;
 	}
 	rcu_read_unlock();
-
-	return false;
-}
-
-static bool check_setuid_policy_hashtable_key_value(kuid_t parent,
-						    kuid_t child)
-{
-	struct entry *entry;
-
-	rcu_read_lock();
-	hash_for_each_possible_rcu(safesetid_whitelist_hashtable,
-				   entry, next, __kuid_val(parent)) {
-		if (entry->parent_kuid == __kuid_val(parent) &&
-		    entry->child_kuid == __kuid_val(child)) {
-			rcu_read_unlock();
-			return true;
-		}
-	}
-	rcu_read_unlock();
-
-	return false;
+	return result;
 }
 
 static int safesetid_security_capable(const struct cred *cred,
@@ -83,7 +56,7 @@ static int safesetid_security_capable(const struct cred *cred,
 				      unsigned int opts)
 {
 	if (cap == CAP_SETUID &&
-	    check_setuid_policy_hashtable_key(cred->uid)) {
+	    setuid_policy_lookup(cred->uid, INVALID_UID) != SIDPOL_DEFAULT) {
 		if (!(opts & CAP_OPT_INSETID)) {
 			/*
 			 * Deny if we're not in a set*uid() syscall to avoid
@@ -116,7 +89,8 @@ static bool uid_permitted_for_cred(const struct cred *old, kuid_t new_uid)
 	 * Transitions to new UIDs require a check against the policy of the old
 	 * RUID.
 	 */
-	permitted = check_setuid_policy_hashtable_key_value(old->uid, new_uid);
+	permitted =
+	    setuid_policy_lookup(old->uid, new_uid) != SIDPOL_CONSTRAINED;
 	if (!permitted) {
 		pr_warn("UID transition ((%d,%d,%d) -> %d) blocked\n",
 			__kuid_val(old->uid), __kuid_val(old->euid),
@@ -136,7 +110,7 @@ static int safesetid_task_fix_setuid(struct cred *new,
 {
 
 	/* Do nothing if there are no setuid restrictions for our old RUID. */
-	if (!check_setuid_policy_hashtable_key(old->uid))
+	if (setuid_policy_lookup(old->uid, INVALID_UID) == SIDPOL_DEFAULT)
 		return 0;
 
 	if (uid_permitted_for_cred(old, new->uid) &&
@@ -159,14 +133,14 @@ int add_safesetid_whitelist_entry(kuid_t parent, kuid_t child)
 	struct entry *new;
 
 	/* Return if entry already exists */
-	if (check_setuid_policy_hashtable_key_value(parent, child))
+	if (setuid_policy_lookup(parent, child) == SIDPOL_ALLOWED)
 		return 0;
 
 	new = kzalloc(sizeof(struct entry), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
-	new->parent_kuid = __kuid_val(parent);
-	new->child_kuid = __kuid_val(child);
+	new->src_uid = parent;
+	new->dst_uid = child;
 	spin_lock(&safesetid_whitelist_hashtable_spinlock);
 	hash_add_rcu(safesetid_whitelist_hashtable,
 		     &new->next,

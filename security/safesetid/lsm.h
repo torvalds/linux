@@ -15,6 +15,8 @@
 #define _SAFESETID_H
 
 #include <linux/types.h>
+#include <linux/uidgid.h>
+#include <linux/hashtable.h>
 
 /* Flag indicating whether initialization completed */
 extern int safesetid_initialized;
@@ -23,6 +25,23 @@ extern int safesetid_initialized;
 enum safesetid_whitelist_file_write_type {
 	SAFESETID_WHITELIST_ADD, /* Add whitelist policy. */
 	SAFESETID_WHITELIST_FLUSH, /* Flush whitelist policies. */
+};
+
+enum sid_policy_type {
+	SIDPOL_DEFAULT, /* source ID is unaffected by policy */
+	SIDPOL_CONSTRAINED, /* source ID is affected by policy */
+	SIDPOL_ALLOWED /* target ID explicitly allowed */
+};
+
+/*
+ * Hash table entry to store safesetid policy signifying that 'src_uid'
+ * can setid to 'dst_uid'.
+ */
+struct entry {
+	struct hlist_node next;
+	struct hlist_node dlist; /* for deletion cleanup */
+	kuid_t src_uid;
+	kuid_t dst_uid;
 };
 
 /* Add entry to safesetid whitelist to allow 'parent' to setid to 'child'. */
