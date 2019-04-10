@@ -22,7 +22,7 @@ menuconfig MTD_RAW_NAND
 if MTD_RAW_NAND
 
 config MTD_NAND_ECC_SW_BCH
-	tristate "Support software BCH ECC"
+	bool "Support software BCH ECC"
 	select BCH
 	default n
 	help
