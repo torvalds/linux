@@ -171,6 +171,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 			np->full_name);
 		return -EINVAL;
 	}
+	put_device(&audmix_pdev->dev);
 
 	num_dai = of_count_phandle_with_args(audmix_np, "dais", NULL);
 	if (num_dai != FSL_AUDMIX_MAX_DAIS) {
@@ -216,6 +217,7 @@ static int imx_audmix_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to find SAI platform device\n");
 			return -EINVAL;
 		}
+		put_device(&cpu_pdev->dev);
 
 		dai_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s%s",
 					  fe_name_pref, args.np->full_name + 1);
@@ -280,6 +282,8 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to find SAI platform device\n");
 		return -EINVAL;
 	}
+	put_device(&cpu_pdev->dev);
+
 	priv->cpu_mclk = devm_clk_get(&cpu_pdev->dev, "mclk1");
 	if (IS_ERR(priv->cpu_mclk)) {
 		ret = PTR_ERR(priv->cpu_mclk);
