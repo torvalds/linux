@@ -181,6 +181,16 @@ static int spi_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	int ret = 0;
 	u32 size;
 
+	/*
+	 * Sometimes, there is unexpected reply ipc arriving. The reply
+	 * ipc belongs to none of the ipcs sent from driver.
+	 * In this case, the driver must ignore the ipc.
+	 */
+	if (!msg) {
+		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
+		return 0;
+	}
+
 	/* get reply */
 	spi_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
 	if (reply.error < 0) {
