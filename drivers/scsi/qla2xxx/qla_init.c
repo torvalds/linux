@@ -5268,16 +5268,23 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	rport->supported_classes = fcport->supported_classes;
 
-	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	rport_ids.roles = FC_PORT_ROLE_UNKNOWN;
 	if (fcport->port_type == FCT_INITIATOR)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_INITIATOR;
 	if (fcport->port_type == FCT_TARGET)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
+	if (fcport->port_type & FCT_NVME_INITIATOR)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_INITIATOR;
+	if (fcport->port_type & FCT_NVME_TARGET)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_TARGET;
+	if (fcport->port_type & FCT_NVME_DISCOVERY)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_DISCOVERY;
 
 	ql_dbg(ql_dbg_disc, vha, 0x20ee,
 	    "%s %8phN. rport %p is %s mode\n",
 	    __func__, fcport->port_name, rport,
-	    (fcport->port_type == FCT_TARGET) ? "tgt" : "ini");
+	    (fcport->port_type == FCT_TARGET) ? "tgt" :
+	    ((fcport->port_type & FCT_NVME) ? "nvme" :"ini"));
 
 	fc_remote_port_rolechg(rport, rport_ids.roles);
 }

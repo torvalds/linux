@@ -2264,7 +2264,10 @@ typedef enum {
 	FCT_BROADCAST,
 	FCT_INITIATOR,
 	FCT_TARGET,
-	FCT_NVME
+	FCT_NVME_INITIATOR = 0x10,
+	FCT_NVME_TARGET = 0x20,
+	FCT_NVME_DISCOVERY = 0x40,
+	FCT_NVME = 0xf0,
 } fc_port_type_t;
 
 enum qla_sess_deletion {

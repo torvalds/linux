@@ -296,6 +296,9 @@ static const struct {
 	{ FC_PORT_ROLE_FCP_INITIATOR,		"FCP Initiator" },
 	{ FC_PORT_ROLE_IP_PORT,			"IP Port" },
 	{ FC_PORT_ROLE_FCP_DUMMY_INITIATOR,	"FCP Dummy Initiator" },
+	{ FC_PORT_ROLE_NVME_INITIATOR,		"NVMe Initiator" },
+	{ FC_PORT_ROLE_NVME_TARGET,		"NVMe Target" },
+	{ FC_PORT_ROLE_NVME_DISCOVERY,		"NVMe Discovery" },
 };
 fc_bitfield_name_search(port_roles, fc_port_role_names)
 

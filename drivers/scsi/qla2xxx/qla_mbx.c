@@ -6387,7 +6387,13 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	fcport->d_id.b.rsvd_1 = 0;
 
 	if (fcport->fc4f_nvme) {
-		fcport->port_type = FCT_NVME;
+		fcport->port_type = 0;
+		if ((pd->prli_svc_param_word_3[0] & BIT_5) == 0)
+			fcport->port_type |= FCT_NVME_INITIATOR;
+		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
+			fcport->port_type |= FCT_NVME_TARGET;
+		if ((pd->prli_svc_param_word_3[0] & BIT_3) == 0)
+			fcport->port_type |= FCT_NVME_DISCOVERY;
 	} else {
 		/* If not target must be initiator or unknown type. */
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)

@@ -165,6 +165,9 @@ enum fc_tgtid_binding_type  {
 #define FC_PORT_ROLE_FCP_INITIATOR		0x02
 #define FC_PORT_ROLE_IP_PORT			0x04
 #define FC_PORT_ROLE_FCP_DUMMY_INITIATOR	0x08
+#define FC_PORT_ROLE_NVME_INITIATOR		0x10
+#define FC_PORT_ROLE_NVME_TARGET		0x20
+#define FC_PORT_ROLE_NVME_DISCOVERY		0x40
 
 /* The following are for compatibility */
 #define FC_RPORT_ROLE_UNKNOWN			FC_PORT_ROLE_UNKNOWN

@@ -4146,9 +4146,15 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rdata->pnode = lpfc_nlp_get(ndlp);
 
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
 	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+		rport_ids.roles |= FC_PORT_ROLE_FCP_INITIATOR;
+	if (ndlp->nlp_type & NLP_NVME_INITIATOR)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_INITIATOR;
+	if (ndlp->nlp_type & NLP_NVME_TARGET)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_TARGET;
+	if (ndlp->nlp_type & NLP_NVME_DISCOVERY)
+		rport_ids.roles |= FC_PORT_ROLE_NVME_DISCOVERY;
 
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
