@@ -45,8 +45,6 @@ void save_stack_trace(struct stack_trace *trace)
 
 	sp = current_stack_pointer();
 	dump_trace(save_address, trace, NULL, sp);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
@@ -58,8 +56,6 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	if (tsk == current)
 		sp = current_stack_pointer();
 	dump_trace(save_address_nosched, trace, tsk, sp);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
@@ -69,7 +65,5 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 
 	sp = kernel_stack_pointer(regs);
 	dump_trace(save_address, trace, NULL, sp);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_regs);
