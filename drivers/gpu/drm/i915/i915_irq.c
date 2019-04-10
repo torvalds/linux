@@ -151,19 +151,18 @@ static void gen3_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
 	POSTING_READ(iir);
 }
 
-static void gen2_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
-			   i915_reg_t iir, i915_reg_t ier)
+static void gen2_irq_reset(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE16(imr, 0xffff);
-	POSTING_READ16(imr);
+	I915_WRITE16(IMR, 0xffff);
+	POSTING_READ16(IMR);
 
-	I915_WRITE16(ier, 0);
+	I915_WRITE16(IER, 0);
 
 	/* IIR can theoretically queue up two events. Be paranoid. */
-	I915_WRITE16(iir, 0xffff);
-	POSTING_READ16(iir);
-	I915_WRITE16(iir, 0xffff);
-	POSTING_READ16(iir);
+	I915_WRITE16(IIR, 0xffff);
+	POSTING_READ16(IIR);
+	I915_WRITE16(IIR, 0xffff);
+	POSTING_READ16(IIR);
 }
 
 #define GEN8_IRQ_RESET_NDX(type, which) \
@@ -176,8 +175,8 @@ static void gen2_irq_reset(struct drm_i915_private *dev_priv, i915_reg_t imr,
 #define GEN3_IRQ_RESET(type) \
 	gen3_irq_reset(dev_priv, type##IMR, type##IIR, type##IER)
 
-#define GEN2_IRQ_RESET(type) \
-	gen2_irq_reset(dev_priv, type##IMR, type##IIR, type##IER)
+#define GEN2_IRQ_RESET() \
+	gen2_irq_reset(dev_priv)
 
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
@@ -198,20 +197,19 @@ static void gen3_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 	POSTING_READ(reg);
 }
 
-static void gen2_assert_iir_is_zero(struct drm_i915_private *dev_priv,
-				    i915_reg_t reg)
+static void gen2_assert_iir_is_zero(struct drm_i915_private *dev_priv)
 {
-	u16 val = I915_READ16(reg);
+	u16 val = I915_READ16(IIR);
 
 	if (val == 0)
 		return;
 
 	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
-	     i915_mmio_reg_offset(reg), val);
-	I915_WRITE16(reg, 0xffff);
-	POSTING_READ16(reg);
-	I915_WRITE16(reg, 0xffff);
-	POSTING_READ16(reg);
+	     i915_mmio_reg_offset(IIR), val);
+	I915_WRITE16(IIR, 0xffff);
+	POSTING_READ16(IIR);
+	I915_WRITE16(IIR, 0xffff);
+	POSTING_READ16(IIR);
 }
 
 static void gen3_irq_init(struct drm_i915_private *dev_priv,
@@ -227,15 +225,13 @@ static void gen3_irq_init(struct drm_i915_private *dev_priv,
 }
 
 static void gen2_irq_init(struct drm_i915_private *dev_priv,
-			  i915_reg_t imr, u32 imr_val,
-			  i915_reg_t ier, u32 ier_val,
-			  i915_reg_t iir)
+			  u32 imr_val, u32 ier_val)
 {
-	gen2_assert_iir_is_zero(dev_priv, iir);
+	gen2_assert_iir_is_zero(dev_priv);
 
-	I915_WRITE16(ier, ier_val);
-	I915_WRITE16(imr, imr_val);
-	POSTING_READ16(imr);
+	I915_WRITE16(IER, ier_val);
+	I915_WRITE16(IMR, imr_val);
+	POSTING_READ16(IMR);
 }
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) \
@@ -253,11 +249,8 @@ static void gen2_irq_init(struct drm_i915_private *dev_priv,
 		      type##IER, ier_val, \
 		      type##IIR)
 
-#define GEN2_IRQ_INIT(type, imr_val, ier_val) \
-	gen2_irq_init(dev_priv, \
-		      type##IMR, imr_val, \
-		      type##IER, ier_val, \
-		      type##IIR)
+#define GEN2_IRQ_INIT(imr_val, ier_val) \
+	gen2_irq_init(dev_priv, imr_val, ier_val)
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
@@ -4263,7 +4256,7 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
-	GEN2_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
+	GEN2_IRQ_INIT(dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
