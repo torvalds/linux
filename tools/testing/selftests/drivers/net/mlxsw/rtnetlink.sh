@@ -11,6 +11,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	rif_set_addr_test
+	rif_vrf_set_addr_test
 	rif_inherit_bridge_addr_test
 	rif_non_inherit_bridge_addr_test
 	vlan_interface_deletion_test
@@ -96,6 +97,25 @@ rif_set_addr_test()
 
 	ip link set dev $swp2 addr $swp2_mac
 	ip link set dev $swp1 addr $swp1_mac
+}
+
+rif_vrf_set_addr_test()
+{
+	# Test that it is possible to set an IP address on a VRF upper despite
+	# its random MAC address.
+	RET=0
+
+	ip link add name vrf-test type vrf table 10
+	ip link set dev $swp1 master vrf-test
+
+	ip -4 address add 192.0.2.1/24 dev vrf-test
+	check_err $? "failed to set IPv4 address on VRF"
+	ip -6 address add 2001:db8:1::1/64 dev vrf-test
+	check_err $? "failed to set IPv6 address on VRF"
+
+	log_test "RIF - setting IP address on VRF"
+
+	ip link del dev vrf-test
 }
 
 rif_inherit_bridge_addr_test()

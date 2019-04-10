@@ -70,6 +70,7 @@ static const struct mlxsw_sp_sb_pool_des mlxsw_sp2_sb_pool_dess[] = {
 	{MLXSW_REG_SBXX_DIR_EGRESS, 1},
 	{MLXSW_REG_SBXX_DIR_EGRESS, 2},
 	{MLXSW_REG_SBXX_DIR_EGRESS, 3},
+	{MLXSW_REG_SBXX_DIR_EGRESS, 15},
 };
 
 #define MLXSW_SP_SB_ING_TC_COUNT 8
@@ -428,6 +429,7 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
+	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI),
 };
 
 static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
@@ -517,14 +519,14 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_egress[] = {
 	MLXSW_SP_SB_CM(0, 7, 4),
 	MLXSW_SP_SB_CM(0, 7, 4),
 	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
-	MLXSW_SP_SB_CM(0, 7, 4),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
+	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
 	MLXSW_SP_SB_CM(1, 0xff, 4),
 };
 
@@ -671,6 +673,7 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(10000, 90000),
 };
 
 static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
