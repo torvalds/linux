@@ -747,7 +747,7 @@ static inline bool qdisc_all_tx_empty(const struct net_device *dev)
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 		const struct Qdisc *q = rcu_dereference(txq->qdisc);
 
-		if (q->q.qlen) {
+		if (!qdisc_is_empty(q)) {
 			rcu_read_unlock();
 			return false;
 		}
