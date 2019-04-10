@@ -1118,7 +1118,7 @@ static void dcn10_init_hw(struct dc *dc)
 	 * Otherwise, if taking control is not possible, we need to power
 	 * everything down.
 	 */
-	if (dcb->funcs->is_accelerated_mode(dcb)) {
+	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct hubp *hubp = dc->res_pool->hubps[i];
 			struct dpp *dpp = dc->res_pool->dpps[i];

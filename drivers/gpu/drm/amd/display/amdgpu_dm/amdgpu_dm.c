@@ -534,6 +534,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
 
+	init_data.flags.power_down_display_on_boot = true;
+
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 

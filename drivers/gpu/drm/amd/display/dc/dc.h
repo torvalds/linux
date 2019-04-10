@@ -204,6 +204,7 @@ struct dc_config {
 	bool optimize_edp_link_rate;
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
+	bool power_down_display_on_boot;
 };
 
 enum visual_confirm {
