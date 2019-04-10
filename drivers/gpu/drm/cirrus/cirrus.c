@@ -307,7 +307,7 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
 		return -ENOMEM;
 
 	if (cirrus->cpp == fb->format->cpp[0])
-		drm_fb_memcpy_dstclip(__io_virt(cirrus->vram),
+		drm_fb_memcpy_dstclip(cirrus->vram,
 				      vmap, fb, rect);
 
 	else if (fb->format->cpp[0] == 4 && cirrus->cpp == 2)
