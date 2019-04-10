@@ -733,7 +733,7 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			if (!(flags & TTM_PAGE_FLAG_DMA32) &&
 			    (npages - i) >= HPAGE_PMD_NR) {
 				for (j = 1; j < HPAGE_PMD_NR; ++j)
-					if (p++ != pages[i + j])
+					if (++p != pages[i + j])
 					    break;
 
 				if (j == HPAGE_PMD_NR)
@@ -768,7 +768,7 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 				break;
 
 			for (j = 1; j < HPAGE_PMD_NR; ++j)
-				if (p++ != pages[i + j])
+				if (++p != pages[i + j])
 				    break;
 
 			if (j != HPAGE_PMD_NR)
