@@ -522,6 +522,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 #define BUF_LEN 256
 	char buffer[BUF_LEN];
 
+	buffer[0] = '\0';
 
 	/*
 	 * The documentation states that all commands will be
@@ -585,7 +586,8 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	return true;
 
 log_fail:
-	DRM_DEBUG_KMS("%s: R: ... failed\n", SDVO_NAME(intel_sdvo));
+	DRM_DEBUG_KMS("%s: R: ... failed %s\n",
+		      SDVO_NAME(intel_sdvo), buffer);
 	return false;
 }
 
