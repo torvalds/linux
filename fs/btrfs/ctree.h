@@ -1016,6 +1016,7 @@ struct btrfs_fs_info {
 	/* used to keep from writing metadata until there is a nice batch */
 	struct percpu_counter dirty_metadata_bytes;
 	struct percpu_counter delalloc_bytes;
+	struct percpu_counter dio_bytes;
 	s32 dirty_metadata_batch;
 	s32 delalloc_batch;
 
