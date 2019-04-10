@@ -2877,7 +2877,6 @@ static void collect_uncached_write_data(struct cifs_aio_ctx *ctx)
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb;
 	struct dentry *dentry = ctx->cfile->dentry;
-	unsigned int i;
 	int rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
@@ -2940,10 +2939,6 @@ restart_loop:
 		list_del_init(&wdata->list);
 		kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 	}
-
-	if (!ctx->direct_io)
-		for (i = 0; i < ctx->npages; i++)
-			put_page(ctx->bv[i].bv_page);
 
 	cifs_stats_bytes_written(tcon, ctx->total_len);
 	set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(dentry->d_inode)->flags);
@@ -3582,7 +3577,6 @@ collect_uncached_read_data(struct cifs_aio_ctx *ctx)
 	struct iov_iter *to = &ctx->iter;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
-	unsigned int i;
 	int rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
@@ -3666,15 +3660,8 @@ again:
 		kref_put(&rdata->refcount, cifs_uncached_readdata_release);
 	}
 
-	if (!ctx->direct_io) {
-		for (i = 0; i < ctx->npages; i++) {
-			if (ctx->should_dirty)
-				set_page_dirty(ctx->bv[i].bv_page);
-			put_page(ctx->bv[i].bv_page);
-		}
-
+	if (!ctx->direct_io)
 		ctx->total_len = ctx->len - iov_iter_count(to);
-	}
 
 	/* mask nodata case */
 	if (rc == -ENODATA)
