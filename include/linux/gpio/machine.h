@@ -6,14 +6,14 @@
 #include <linux/list.h>
 
 enum gpio_lookup_flags {
-	GPIO_ACTIVE_HIGH = (0 << 0),
-	GPIO_ACTIVE_LOW = (1 << 0),
-	GPIO_OPEN_DRAIN = (1 << 1),
-	GPIO_OPEN_SOURCE = (1 << 2),
-	GPIO_PERSISTENT = (0 << 3),
-	GPIO_TRANSITORY = (1 << 3),
-	GPIO_PULL_UP = (1 << 4),
-	GPIO_PULL_DOWN = (1 << 5),
+	GPIO_ACTIVE_HIGH		= (0 << 0),
+	GPIO_ACTIVE_LOW			= (1 << 0),
+	GPIO_OPEN_DRAIN			= (1 << 1),
+	GPIO_OPEN_SOURCE		= (1 << 2),
+	GPIO_PERSISTENT			= (0 << 3),
+	GPIO_TRANSITORY			= (1 << 3),
+	GPIO_PULL_UP			= (1 << 4),
+	GPIO_PULL_DOWN			= (1 << 5),
 };
 
 /**
