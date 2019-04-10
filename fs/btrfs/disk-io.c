@@ -913,8 +913,7 @@ static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 		 * checksumming can happen in parallel across all CPUs
 		 */
 		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, 0,
-					  bio_offset, inode,
-					  btree_submit_bio_start);
+					  0, inode, btree_submit_bio_start);
 	}
 
 	if (ret)
