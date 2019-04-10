@@ -108,81 +108,41 @@ void syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
  * syscall_get_arguments - extract system call parameter values
  * @task:	task of interest, must be blocked
  * @regs:	task_pt_regs() of @task
- * @i:		argument index [0,5]
- * @n:		number of arguments; n+i must be [1,6].
  * @args:	array filled with argument values
  *
- * Fetches @n arguments to the system call starting with the @i'th argument
- * (from 0 through 5).  Argument @i is stored in @args[0], and so on.
- * An arch inline version is probably optimal when @i and @n are constants.
+ * Fetches 6 arguments to the system call (from 0 through 5). The first
+ * argument is stored in @args[0], and so on.
  *
  * It's only valid to call this when @task is stopped for tracing on
  * entry to a system call, due to %TIF_SYSCALL_TRACE or %TIF_SYSCALL_AUDIT.
- * It's invalid to call this with @i + @n > 6; we only support system calls
- * taking up to 6 arguments.
  */
 #define SYSCALL_MAX_ARGS 6
 void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
-			   unsigned int i, unsigned int n, unsigned long *args)
+			   unsigned long *args)
 {
-	if (n == 0)
-		return;
-	if (i + n > SYSCALL_MAX_ARGS) {
-		unsigned long *args_bad = args + SYSCALL_MAX_ARGS - i;
-		unsigned int n_bad = n + i - SYSCALL_MAX_ARGS;
-		pr_warning("%s called with max args %d, handling only %d\n",
-			   __func__, i + n, SYSCALL_MAX_ARGS);
-		memset(args_bad, 0, n_bad * sizeof(args[0]));
-		memset(args_bad, 0, n_bad * sizeof(args[0]));
-	}
-
-	if (i == 0) {
-		args[0] = regs->orig_r0;
-		args++;
-		i++;
-		n--;
-	}
-
-	memcpy(args, &regs->uregs[0] + i, n * sizeof(args[0]));
+	args[0] = regs->orig_r0;
+	args++;
+	memcpy(args, &regs->uregs[0] + 1, 5 * sizeof(args[0]));
 }
 
 /**
  * syscall_set_arguments - change system call parameter value
  * @task:	task of interest, must be in system call entry tracing
  * @regs:	task_pt_regs() of @task
- * @i:		argument index [0,5]
- * @n:		number of arguments; n+i must be [1,6].
  * @args:	array of argument values to store
  *
- * Changes @n arguments to the system call starting with the @i'th argument.
- * Argument @i gets value @args[0], and so on.
- * An arch inline version is probably optimal when @i and @n are constants.
+ * Changes 6 arguments to the system call. The first argument gets value
+ * @args[0], and so on.
  *
  * It's only valid to call this when @task is stopped for tracing on
  * entry to a system call, due to %TIF_SYSCALL_TRACE or %TIF_SYSCALL_AUDIT.
- * It's invalid to call this with @i + @n > 6; we only support system calls
- * taking up to 6 arguments.
  */
 void syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
-			   unsigned int i, unsigned int n,
 			   const unsigned long *args)
 {
-	if (n == 0)
-		return;
+	regs->orig_r0 = args[0];
+	args++;
 
-	if (i + n > SYSCALL_MAX_ARGS) {
-		pr_warn("%s called with max args %d, handling only %d\n",
-			__func__, i + n, SYSCALL_MAX_ARGS);
-		n = SYSCALL_MAX_ARGS - i;
-	}
-
-	if (i == 0) {
-		regs->orig_r0 = args[0];
-		args++;
-		i++;
-		n--;
-	}
-
-	memcpy(&regs->uregs[0] + i, args, n * sizeof(args[0]));
+	memcpy(&regs->uregs[0] + 1, args, 5 * sizeof(args[0]));
 }
 #endif /* _ASM_NDS32_SYSCALL_H */

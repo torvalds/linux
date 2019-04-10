@@ -5777,6 +5777,53 @@ const struct btf_dedup_test dedup_tests[] = {
 	},
 },
 {
+	.descr = "dedup: void equiv check",
+	/*
+	 * // CU 1:
+	 * struct s {
+	 *	struct {} *x;
+	 * };
+	 * // CU 2:
+	 * struct s {
+	 *	int *x;
+	 * };
+	 */
+	.input = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(0, 0, 1),				/* [1] struct {}  */
+			BTF_PTR_ENC(1),						/* [2] ptr -> [1] */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 8),			/* [3] struct s   */
+				BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			/* CU 2 */
+			BTF_PTR_ENC(0),						/* [4] ptr -> void */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 8),			/* [5] struct s   */
+				BTF_MEMBER_ENC(NAME_NTH(2), 4, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0s\0x"),
+	},
+	.expect = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_STRUCT_ENC(0, 0, 1),				/* [1] struct {}  */
+			BTF_PTR_ENC(1),						/* [2] ptr -> [1] */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 8),			/* [3] struct s   */
+				BTF_MEMBER_ENC(NAME_NTH(2), 2, 0),
+			/* CU 2 */
+			BTF_PTR_ENC(0),						/* [4] ptr -> void */
+			BTF_STRUCT_ENC(NAME_NTH(1), 1, 8),			/* [5] struct s   */
+				BTF_MEMBER_ENC(NAME_NTH(2), 4, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0s\0x"),
+	},
+	.opts = {
+		.dont_resolve_fwds = false,
+		.dedup_table_size = 1, /* force hash collisions */
+	},
+},
+{
 	.descr = "dedup: all possible kinds (no duplicates)",
 	.input = {
 		.raw_types = {

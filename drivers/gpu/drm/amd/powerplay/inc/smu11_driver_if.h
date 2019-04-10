@@ -99,7 +99,7 @@
 #define FEATURE_DS_MP1CLK_BIT           30
 #define FEATURE_DS_MP0CLK_BIT           31
 #define FEATURE_XGMI_BIT                32
-#define FEATURE_SPARE_33_BIT            33
+#define FEATURE_ECC_BIT                 33
 #define FEATURE_SPARE_34_BIT            34
 #define FEATURE_SPARE_35_BIT            35
 #define FEATURE_SPARE_36_BIT            36
@@ -165,7 +165,8 @@
 #define FEATURE_DS_FCLK_MASK            (1 << FEATURE_DS_FCLK_BIT            )
 #define FEATURE_DS_MP1CLK_MASK          (1 << FEATURE_DS_MP1CLK_BIT          )
 #define FEATURE_DS_MP0CLK_MASK          (1 << FEATURE_DS_MP0CLK_BIT          )
-#define FEATURE_XGMI_MASK               (1 << FEATURE_XGMI_BIT               )
+#define FEATURE_XGMI_MASK               (1ULL << FEATURE_XGMI_BIT               )
+#define FEATURE_ECC_MASK                (1ULL << FEATURE_ECC_BIT                )
 
 #define DPM_OVERRIDE_DISABLE_SOCCLK_PID             0x00000001
 #define DPM_OVERRIDE_DISABLE_UCLK_PID               0x00000002

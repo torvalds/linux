@@ -238,9 +238,6 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		default:
 			gvt_vgpu_err("invalid tiling mode: %x\n", p.tiled);
 		}
-
-		info->size = (((p.stride * p.height * p.bpp) / 8) +
-			      (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	} else if (plane_id == DRM_PLANE_TYPE_CURSOR) {
 		ret = intel_vgpu_decode_cursor_plane(vgpu, &c);
 		if (ret)
@@ -262,14 +259,13 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 			info->x_hot = UINT_MAX;
 			info->y_hot = UINT_MAX;
 		}
-
-		info->size = (((info->stride * c.height * c.bpp) / 8)
-				+ (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	} else {
 		gvt_vgpu_err("invalid plane id:%d\n", plane_id);
 		return -EINVAL;
 	}
 
+	info->size = (info->stride * info->height + PAGE_SIZE - 1)
+		      >> PAGE_SHIFT;
 	if (info->size == 0) {
 		gvt_vgpu_err("fb size is zero\n");
 		return -EINVAL;
