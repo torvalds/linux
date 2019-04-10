@@ -6606,7 +6606,7 @@ static void rps_set_power(struct drm_i915_private *dev_priv, int new_power)
 				       ei_down * threshold_down / 100));
 
 	I915_WRITE(GEN6_RP_CONTROL,
-		   GEN6_RP_MEDIA_TURBO |
+		   (INTEL_GEN(dev_priv) > 9 ? 0 : GEN6_RP_MEDIA_TURBO) |
 		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
 		   GEN6_RP_MEDIA_IS_GFX |
 		   GEN6_RP_ENABLE |
