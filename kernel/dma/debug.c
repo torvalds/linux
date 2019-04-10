@@ -706,7 +706,7 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 #ifdef CONFIG_STACKTRACE
 	entry->stacktrace.max_entries = DMA_DEBUG_STACKTRACE_ENTRIES;
 	entry->stacktrace.entries = entry->st_entries;
-	entry->stacktrace.skip = 2;
+	entry->stacktrace.skip = 1;
 	save_stack_trace(&entry->stacktrace);
 #endif
 
