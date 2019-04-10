@@ -157,6 +157,27 @@
 				};
 			};
 
+			cec_pins_sleep_a: cec-sleep-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 15, ANALOG)>; /* HDMI_CEC */
+				};
+			};
+
+			cec_pins_b: cec-1 {
+				pins {
+					pinmux = <STM32_PINMUX('B', 6, AF5)>;
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			cec_pins_sleep_b: cec-sleep-1 {
+				pins {
+					pinmux = <STM32_PINMUX('B', 6, ANALOG)>; /* HDMI_CEC */
+				};
+			};
+
 			ethernet0_rgmii_pins_a: rgmii-0 {
 				pins1 {
 					pinmux = <STM32_PINMUX('G', 5, AF11)>, /* ETH_RGMII_CLK125 */
