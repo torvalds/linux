@@ -86,6 +86,7 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 		reply.error = 0;
 		reply.hdr.cmd = SOF_IPC_GLB_REPLY;
 		reply.hdr.size = sizeof(reply);
+		memcpy(msg->reply_data, &reply, sizeof(reply));
 		goto out;
 	}
 
