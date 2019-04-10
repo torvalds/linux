@@ -83,8 +83,9 @@ static int p8_aes_ctr_setkey(struct crypto_tfm *tfm, const u8 *key,
 	pagefault_enable();
 	preempt_enable();
 
-	ret += crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
-	return ret;
+	ret |= crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
+
+	return ret ? -EINVAL : 0;
 }
 
 static void p8_aes_ctr_final(struct p8_aes_ctr_ctx *ctx,

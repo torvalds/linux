@@ -86,14 +86,15 @@ static int p8_aes_xts_setkey(struct crypto_tfm *tfm, const u8 *key,
 	pagefault_disable();
 	enable_kernel_vsx();
 	ret = aes_p8_set_encrypt_key(key + keylen/2, (keylen/2) * 8, &ctx->tweak_key);
-	ret += aes_p8_set_encrypt_key(key, (keylen/2) * 8, &ctx->enc_key);
-	ret += aes_p8_set_decrypt_key(key, (keylen/2) * 8, &ctx->dec_key);
+	ret |= aes_p8_set_encrypt_key(key, (keylen/2) * 8, &ctx->enc_key);
+	ret |= aes_p8_set_decrypt_key(key, (keylen/2) * 8, &ctx->dec_key);
 	disable_kernel_vsx();
 	pagefault_enable();
 	preempt_enable();
 
-	ret += crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
-	return ret;
+	ret |= crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
+
+	return ret ? -EINVAL : 0;
 }
 
 static int p8_aes_xts_crypt(struct blkcipher_desc *desc,
