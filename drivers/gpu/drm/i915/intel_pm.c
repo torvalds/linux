@@ -7151,6 +7151,8 @@ static void gen11_enable_rc6(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
+	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+
 	/*
 	 * 2c: Program Coarse Power Gating Policies.
 	 *
@@ -7176,8 +7178,6 @@ static void gen11_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 250);
 
 	/* 3a: Enable RC6 */
-	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
-
 	I915_WRITE(GEN6_RC_CONTROL,
 		   GEN6_RC_CTL_HW_ENABLE |
 		   GEN6_RC_CTL_RC6_ENABLE |
