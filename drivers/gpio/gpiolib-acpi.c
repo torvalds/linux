@@ -528,6 +528,17 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *inf
 int acpi_gpio_update_gpiod_lookup_flags(unsigned long *lookupflags,
 					struct acpi_gpio_info *info)
 {
+	switch (info->pin_config) {
+	case ACPI_PIN_CONFIG_PULLUP:
+		*lookupflags |= GPIO_PULL_UP;
+		break;
+	case ACPI_PIN_CONFIG_PULLDOWN:
+		*lookupflags |= GPIO_PULL_DOWN;
+		break;
+	default:
+		break;
+	}
+
 	if (info->polarity == GPIO_ACTIVE_LOW)
 		*lookupflags |= GPIO_ACTIVE_LOW;
 
@@ -567,6 +578,7 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 
 		lookup->desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
 					      agpio->pin_table[pin_index]);
+		lookup->info.pin_config = agpio->pin_config;
 		lookup->info.gpioint = gpioint;
 
 		/*
