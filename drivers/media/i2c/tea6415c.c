@@ -9,7 +9,7 @@
     It is cascadable, i.e. it can be found at the addresses
     0x86 and 0x06 on the i2c-bus.
 
-    For detailed informations download the specifications directly
+    For detailed information download the specifications directly
     from SGS Thomson at http://www.st.com
 
     This program is free software; you can redistribute it and/or modify

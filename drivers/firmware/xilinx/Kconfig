@@ -6,6 +6,7 @@ menu "Zynq MPSoC Firmware Drivers"
 
 config ZYNQMP_FIRMWARE
 	bool "Enable Xilinx Zynq MPSoC firmware interface"
+	select MFD_CORE
 	help
 	  Firmware interface driver is used by different
 	  drivers to communicate with the firmware for

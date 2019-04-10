@@ -43,6 +43,9 @@ struct smb_snapshot_array {
 	/*	snapshots[]; */
 } __packed;
 
+/* query_info flags */
+#define PASSTHRU_QUERY_INFO	0x00000000
+#define PASSTHRU_FSCTL		0x00000001
 struct smb_query_info {
 	__u32   info_type;
 	__u32   file_info_class;

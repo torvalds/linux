@@ -148,7 +148,7 @@ int __init atari_parse_bootinfo(const struct bi_record *record)
 /* Parse the Atari-specific switches= option. */
 static int __init atari_switches_setup(char *str)
 {
-	char switches[strlen(str) + 1];
+	char switches[COMMAND_LINE_SIZE];
 	char *p;
 	int ovsc_shift;
 	char *args = switches;

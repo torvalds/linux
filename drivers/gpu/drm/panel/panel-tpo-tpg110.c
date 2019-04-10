@@ -118,7 +118,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 480 + 10 + 1 + 35,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "640x480 RGB",
@@ -135,7 +135,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 480 + 18 + 1 + 27,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "480x272 RGB",
@@ -152,7 +152,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 272 + 2 + 1 + 12,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "480x640 RGB",
@@ -169,7 +169,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 640 + 4 + 1 + 8,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 	{
 		.name = "400x240 RGB",
@@ -186,7 +186,7 @@ static const struct tpg110_panel_mode tpg110_modes[] = {
 			.vtotal = 240 + 2 + 1 + 20,
 			.vrefresh = 60,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 	},
 };
 

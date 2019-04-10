@@ -98,7 +98,7 @@ static unsigned long cmx255_pin_config[] = {
 };
 
 #if defined(CONFIG_SPI_PXA2XX)
-static struct pxa2xx_spi_master pxa_ssp_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
 };
 

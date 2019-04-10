@@ -94,7 +94,7 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	drm_display_mode_to_videomode(mode, &vm);
 
 	/* INV_PXCK as default (most display sample data on rising edge) */
-	if (!(con->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE))
+	if (!(con->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE))
 		pol |= DCU_SYN_POL_INV_PXCK;
 
 	if (vm.flags & DISPLAY_FLAGS_HSYNC_LOW)

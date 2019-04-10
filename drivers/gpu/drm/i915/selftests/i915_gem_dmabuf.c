@@ -315,6 +315,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 		goto err;
 	}
 	memset(ptr + PAGE_SIZE, 0xaa, PAGE_SIZE);
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	ptr = dma_buf_kmap(dmabuf, 1);

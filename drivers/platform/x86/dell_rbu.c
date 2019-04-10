@@ -59,7 +59,6 @@ static struct _rbu_data {
 	unsigned long image_update_buffer_size;
 	unsigned long bios_image_size;
 	int image_update_ordernum;
-	int dma_alloc;
 	spinlock_t lock;
 	unsigned long packet_read_count;
 	unsigned long num_packets;
@@ -89,7 +88,6 @@ static struct packet_data packet_data_head;
 
 static struct platform_device *rbu_device;
 static int context;
-static dma_addr_t dell_rbu_dmaaddr;
 
 static void init_packet_head(void)
 {
@@ -380,12 +378,8 @@ static void img_update_free(void)
 	 */
 	memset(rbu_data.image_update_buffer, 0,
 		rbu_data.image_update_buffer_size);
-	if (rbu_data.dma_alloc == 1)
-		dma_free_coherent(NULL, rbu_data.bios_image_size,
-			rbu_data.image_update_buffer, dell_rbu_dmaaddr);
-	else
-		free_pages((unsigned long) rbu_data.image_update_buffer,
-			rbu_data.image_update_ordernum);
+	free_pages((unsigned long) rbu_data.image_update_buffer,
+		rbu_data.image_update_ordernum);
 
 	/*
 	 * Re-initialize the rbu_data variables after a free
@@ -394,7 +388,6 @@ static void img_update_free(void)
 	rbu_data.image_update_buffer = NULL;
 	rbu_data.image_update_buffer_size = 0;
 	rbu_data.bios_image_size = 0;
-	rbu_data.dma_alloc = 0;
 }
 
 /*
@@ -410,10 +403,8 @@ static void img_update_free(void)
 static int img_update_realloc(unsigned long size)
 {
 	unsigned char *image_update_buffer = NULL;
-	unsigned long rc;
 	unsigned long img_buf_phys_addr;
 	int ordernum;
-	int dma_alloc = 0;
 
 	/*
 	 * check if the buffer of sufficient size has been
@@ -444,36 +435,23 @@ static int img_update_realloc(unsigned long size)
 
 	ordernum = get_order(size);
 	image_update_buffer =
-		(unsigned char *) __get_free_pages(GFP_KERNEL, ordernum);
-
-	img_buf_phys_addr =
-		(unsigned long) virt_to_phys(image_update_buffer);
-
-	if (img_buf_phys_addr > BIOS_SCAN_LIMIT) {
-		free_pages((unsigned long) image_update_buffer, ordernum);
-		ordernum = -1;
-		image_update_buffer = dma_alloc_coherent(NULL, size,
-			&dell_rbu_dmaaddr, GFP_KERNEL);
-		dma_alloc = 1;
-	}
-
+		(unsigned char *)__get_free_pages(GFP_DMA32, ordernum);
 	spin_lock(&rbu_data.lock);
-
-	if (image_update_buffer != NULL) {
-		rbu_data.image_update_buffer = image_update_buffer;
-		rbu_data.image_update_buffer_size = size;
-		rbu_data.bios_image_size =
-			rbu_data.image_update_buffer_size;
-		rbu_data.image_update_ordernum = ordernum;
-		rbu_data.dma_alloc = dma_alloc;
-		rc = 0;
-	} else {
+	if (!image_update_buffer) {
 		pr_debug("Not enough memory for image update:"
 			"size = %ld\n", size);
-		rc = -ENOMEM;
+		return -ENOMEM;
 	}
 
-	return rc;
+	img_buf_phys_addr = (unsigned long)virt_to_phys(image_update_buffer);
+	if (WARN_ON_ONCE(img_buf_phys_addr > BIOS_SCAN_LIMIT))
+		return -EINVAL; /* can't happen per definition */
+
+	rbu_data.image_update_buffer = image_update_buffer;
+	rbu_data.image_update_buffer_size = size;
+	rbu_data.bios_image_size = rbu_data.image_update_buffer_size;
+	rbu_data.image_update_ordernum = ordernum;
+	return 0;
 }
 
 static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)

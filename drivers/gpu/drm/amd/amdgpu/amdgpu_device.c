@@ -60,6 +60,7 @@
 #include "amdgpu_pm.h"
 
 #include "amdgpu_xgmi.h"
+#include "amdgpu_ras.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
@@ -1506,7 +1507,9 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 			return -EAGAIN;
 	}
 
-	adev->powerplay.pp_feature = amdgpu_pp_feature_mask;
+	adev->pm.pp_feature = amdgpu_pp_feature_mask;
+	if (amdgpu_sriov_vf(adev))
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
@@ -1638,6 +1641,10 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	r = amdgpu_ras_init(adev);
+	if (r)
+		return r;
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
@@ -1679,6 +1686,13 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 				}
 			}
 		}
+	}
+
+	r = amdgpu_ib_pool_init(adev);
+	if (r) {
+		dev_err(adev->dev, "IB initialization failed (%d).\n", r);
+		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_IB_INIT_FAIL, 0, r);
+		goto init_failed;
 	}
 
 	r = amdgpu_ucode_create_bo(adev); /* create ucode bo when sw_init complete*/
@@ -1869,6 +1883,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	amdgpu_ras_pre_fini(adev);
+
 	if (adev->gmc.xgmi.num_physical_nodes > 1)
 		amdgpu_xgmi_remove_device(adev);
 
@@ -1917,6 +1933,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			amdgpu_free_static_csa(&adev->virt.csa_obj);
 			amdgpu_device_wb_fini(adev);
 			amdgpu_device_vram_scratch_fini(adev);
+			amdgpu_ib_pool_fini(adev);
 		}
 
 		r = adev->ip_blocks[i].version->funcs->sw_fini((void *)adev);
@@ -1936,6 +1953,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			adev->ip_blocks[i].version->funcs->late_fini((void *)adev);
 		adev->ip_blocks[i].status.late_initialized = false;
 	}
+
+	amdgpu_ras_fini(adev);
 
 	if (amdgpu_sriov_vf(adev))
 		if (amdgpu_virt_release_full_gpu(adev, false))
@@ -1999,6 +2018,10 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	r = amdgpu_device_enable_mgpu_fan_boost();
 	if (r)
 		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
+
+	/*set to low pstate by default */
+	amdgpu_xgmi_set_pstate(adev, 0);
+
 }
 
 static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
@@ -2369,7 +2392,7 @@ static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)
 
 	adev->asic_reset_res =  amdgpu_asic_reset(adev);
 	if (adev->asic_reset_res)
-		DRM_WARN("ASIC reset failed with err r, %d for drm dev, %s",
+		DRM_WARN("ASIC reset failed with error, %d for drm dev, %s",
 			 adev->asic_reset_res, adev->ddev->unique);
 }
 
@@ -2642,13 +2665,6 @@ fence_driver_init:
 	/* Get a log2 for easy divisions. */
 	adev->mm_stats.log2_max_MBps = ilog2(max(1u, max_MBps));
 
-	r = amdgpu_ib_pool_init(adev);
-	if (r) {
-		dev_err(adev->dev, "IB initialization failed (%d).\n", r);
-		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_IB_INIT_FAIL, 0, r);
-		goto failed;
-	}
-
 	amdgpu_fbdev_init(adev);
 
 	r = amdgpu_pm_sysfs_init(adev);
@@ -2694,6 +2710,9 @@ fence_driver_init:
 		goto failed;
 	}
 
+	/* must succeed. */
+	amdgpu_ras_post_init(adev);
+
 	return 0;
 
 failed:
@@ -2726,7 +2745,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		else
 			drm_atomic_helper_shutdown(adev->ddev);
 	}
-	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_pm_sysfs_fini(adev);
 	amdgpu_fbdev_fini(adev);
@@ -3219,6 +3237,8 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
+	amdgpu_amdkfd_pre_reset(adev);
+
 	/* Resume IP prior to SMC */
 	r = amdgpu_device_ip_reinit_early_sriov(adev);
 	if (r)
@@ -3238,6 +3258,7 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 
 	amdgpu_irq_gpu_reset_resume_helper(adev);
 	r = amdgpu_ib_ring_tests(adev);
+	amdgpu_amdkfd_post_reset(adev);
 
 error:
 	amdgpu_virt_init_data_exchange(adev);
@@ -3370,7 +3391,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 				r = amdgpu_asic_reset(tmp_adev);
 
 			if (r) {
-				DRM_ERROR("ASIC reset failed with err r, %d for drm dev, %s",
+				DRM_ERROR("ASIC reset failed with error, %d for drm dev, %s",
 					 r, tmp_adev->ddev->unique);
 				break;
 			}
@@ -3386,6 +3407,11 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 					if (r)
 						break;
 				}
+			}
+
+			list_for_each_entry(tmp_adev, device_list_handle,
+					gmc.xgmi.head) {
+				amdgpu_ras_reserve_bad_pages(tmp_adev);
 			}
 		}
 	}

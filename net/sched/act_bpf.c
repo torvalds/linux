@@ -396,7 +396,7 @@ static int tcf_bpf_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_bpf_ops __read_mostly = {
 	.kind		=	"bpf",
-	.type		=	TCA_ACT_BPF,
+	.id		=	TCA_ID_BPF,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_bpf_act,
 	.dump		=	tcf_bpf_dump,

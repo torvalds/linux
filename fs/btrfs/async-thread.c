@@ -139,13 +139,11 @@ __btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info, const char *name,
 	}
 
 	if (flags & WQ_HIGHPRI)
-		ret->normal_wq = alloc_workqueue("%s-%s-high", flags,
-						 ret->current_active, "btrfs",
-						 name);
+		ret->normal_wq = alloc_workqueue("btrfs-%s-high", flags,
+						 ret->current_active, name);
 	else
-		ret->normal_wq = alloc_workqueue("%s-%s", flags,
-						 ret->current_active, "btrfs",
-						 name);
+		ret->normal_wq = alloc_workqueue("btrfs-%s", flags,
+						 ret->current_active, name);
 	if (!ret->normal_wq) {
 		kfree(ret);
 		return NULL;

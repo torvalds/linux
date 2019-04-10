@@ -106,6 +106,7 @@ struct bnxt_qplib_swq {
 	u32				start_psn;
 	u32				next_psn;
 	struct sq_psn_search		*psn_search;
+	struct sq_psn_search_ext	*psn_ext;
 };
 
 struct bnxt_qplib_swqe {
@@ -254,6 +255,7 @@ struct bnxt_qplib_q {
 struct bnxt_qplib_qp {
 	struct bnxt_qplib_pd		*pd;
 	struct bnxt_qplib_dpi		*dpi;
+	struct bnxt_qplib_chip_ctx	*cctx;
 	u64				qp_handle;
 #define        BNXT_QPLIB_QP_ID_INVALID        0xFFFFFFFF
 	u32				id;
@@ -347,6 +349,7 @@ struct bnxt_qplib_cqe {
 	u8				type;
 	u8				opcode;
 	u32				length;
+	u16				cfa_meta;
 	u64				wr_id;
 	union {
 		__be32			immdata;
@@ -432,13 +435,47 @@ struct bnxt_qplib_cq {
 #define NQ_DB_CP_FLAGS			(NQ_DB_KEY_CP    |	\
 					 NQ_DB_IDX_VALID |	\
 					 NQ_DB_IRQ_DIS)
-#define NQ_DB_REARM(db, raw_cons, cp_bit)			\
-	writel(NQ_DB_CP_FLAGS_REARM | ((raw_cons) & ((cp_bit) - 1)), db)
-#define NQ_DB(db, raw_cons, cp_bit)				\
-	writel(NQ_DB_CP_FLAGS | ((raw_cons) & ((cp_bit) - 1)), db)
+
+static inline void bnxt_qplib_ring_nq_db64(void __iomem *db, u32 index,
+					   u32 xid, bool arm)
+{
+	u64 val;
+
+	val = xid & DBC_DBC_XID_MASK;
+	val |= DBC_DBC_PATH_ROCE;
+	val |= arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
+	val <<= 32;
+	val |= index & DBC_DBC_INDEX_MASK;
+	writeq(val, db);
+}
+
+static inline void bnxt_qplib_ring_nq_db_rearm(void __iomem *db, u32 raw_cons,
+					       u32 max_elements, u32 xid,
+					       bool gen_p5)
+{
+	u32 index = raw_cons & (max_elements - 1);
+
+	if (gen_p5)
+		bnxt_qplib_ring_nq_db64(db, index, xid, true);
+	else
+		writel(NQ_DB_CP_FLAGS_REARM | (index & DBC_DBC32_XID_MASK), db);
+}
+
+static inline void bnxt_qplib_ring_nq_db(void __iomem *db, u32 raw_cons,
+					 u32 max_elements, u32 xid,
+					 bool gen_p5)
+{
+	u32 index = raw_cons & (max_elements - 1);
+
+	if (gen_p5)
+		bnxt_qplib_ring_nq_db64(db, index, xid, false);
+	else
+		writel(NQ_DB_CP_FLAGS | (index & DBC_DBC32_XID_MASK), db);
+}
 
 struct bnxt_qplib_nq {
 	struct pci_dev		*pdev;
+	struct bnxt_qplib_res	*res;
 
 	int			vector;
 	cpumask_t		mask;
@@ -448,7 +485,7 @@ struct bnxt_qplib_nq {
 	struct bnxt_qplib_hwq	hwq;
 
 	u16			bar_reg;
-	u16			bar_reg_off;
+	u32			bar_reg_off;
 	u16			ring_id;
 	void __iomem		*bar_reg_iomem;
 

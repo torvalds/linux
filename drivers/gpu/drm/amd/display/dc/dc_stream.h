@@ -80,6 +80,7 @@ struct dc_stream_state {
 	struct dc_info_packet vrr_infopacket;
 	struct dc_info_packet vsc_infopacket;
 	struct dc_info_packet vsp_infopacket;
+	struct dc_info_packet dpsdp_infopacket;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -220,6 +221,13 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);
  * Return the current frame counter.
  */
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream);
+
+/*
+ * Send dp sdp message.
+ */
+bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
+		const uint8_t *custom_sdp_message,
+		unsigned int sdp_message_size);
 
 /* TODO: Return parsed values rather than direct register read
  * This has a dependency on the caller (amdgpu_display_get_crtc_scanoutpos)

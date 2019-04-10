@@ -45,6 +45,23 @@ the API.  The only supported use is one virtual machine per process,
 and one vcpu per thread.
 
 
+It is important to note that althought VM ioctls may only be issued from
+the process that created the VM, a VM's lifecycle is associated with its
+file descriptor, not its creator (process).  In other words, the VM and
+its resources, *including the associated address space*, are not freed
+until the last reference to the VM's file descriptor has been released.
+For example, if fork() is issued after ioctl(KVM_CREATE_VM), the VM will
+not be freed until both the parent (original) process and its child have
+put their references to the VM's file descriptor.
+
+Because a VM's resources are not freed until the last reference to its
+file descriptor is released, creating additional references to a VM via
+via fork(), dup(), etc... without careful consideration is strongly
+discouraged and may have unwanted side effects, e.g. memory allocated
+by and on behalf of the VM's process may not be freed/unaccounted when
+the VM is shut down.
+
+
 3. Extensions
 -------------
 

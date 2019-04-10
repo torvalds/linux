@@ -425,6 +425,14 @@ struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
 
+static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	for_each_card_rtds(card, rtd)
+		flush_delayed_work(&rtd->delayed_work);
+}
+
 static void codec2codec_close_delayed_work(struct work_struct *work)
 {
 	/*
@@ -494,8 +502,7 @@ int snd_soc_suspend(struct device *dev)
 	}
 
 	/* close any waiting streams */
-	for_each_card_rtds(card, rtd)
-		flush_delayed_work(&rtd->delayed_work);
+	snd_soc_flush_all_delayed_work(card);
 
 	for_each_card_rtds(card, rtd) {
 
@@ -868,7 +875,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+	struct snd_soc_dai_link_component *codecs;
 	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
@@ -903,13 +910,12 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	rtd->num_codecs = dai_link->num_codecs;
 
 	/* Find CODEC from registered CODECs */
-	/* we can use for_each_rtd_codec_dai() after this */
 	codec_dais = rtd->codec_dais;
-	for (i = 0; i < rtd->num_codecs; i++) {
-		codec_dais[i] = snd_soc_find_dai(&codecs[i]);
+	for_each_link_codecs(dai_link, i, codecs) {
+		codec_dais[i] = snd_soc_find_dai(codecs);
 		if (!codec_dais[i]) {
-			dev_err(card->dev, "ASoC: CODEC DAI %s not registered\n",
-				codecs[i].dai_name);
+			dev_info(card->dev, "ASoC: CODEC DAI %s not registered\n",
+				 codecs->dai_name);
 			goto _err_defer;
 		}
 		snd_soc_rtdcom_add(rtd, codec_dais[i]->component);
@@ -920,7 +926,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 
 	/* find one from the set of registered platforms */
 	for_each_component(component) {
-		if (!snd_soc_is_matching_component(dai_link->platform,
+		if (!snd_soc_is_matching_component(dai_link->platforms,
 						   component))
 			continue;
 
@@ -935,21 +941,25 @@ _err_defer:
 	return -EPROBE_DEFER;
 }
 
+static void soc_cleanup_component(struct snd_soc_component *component)
+{
+	list_del(&component->card_list);
+	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
+	soc_cleanup_component_debugfs(component);
+	component->card = NULL;
+	if (!component->driver->ignore_module_refcount)
+		module_put(component->dev->driver->owner);
+}
+
 static void soc_remove_component(struct snd_soc_component *component)
 {
 	if (!component->card)
 		return;
 
-	list_del(&component->card_list);
-
 	if (component->driver->remove)
 		component->driver->remove(component);
 
-	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
-
-	soc_cleanup_component_debugfs(component);
-	component->card = NULL;
-	module_put(component->dev->driver->owner);
+	soc_cleanup_component(component);
 }
 
 static void soc_remove_dai(struct snd_soc_dai *dai, int order)
@@ -1031,22 +1041,28 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 static int snd_soc_init_platform(struct snd_soc_card *card,
 				 struct snd_soc_dai_link *dai_link)
 {
-	struct snd_soc_dai_link_component *platform = dai_link->platform;
+	struct snd_soc_dai_link_component *platform = dai_link->platforms;
 
 	/*
-	 * FIXME
+	 * REMOVE ME
 	 *
-	 * this function should be removed in the future
+	 * This is glue code for Legacy vs Modern dai_link.
+	 * This function will be removed if all derivers are switched to
+	 * modern style dai_link.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * see
+	 *	soc.h :: struct snd_soc_dai_link
 	 */
 	/* convert Legacy platform link */
-	if (!platform || dai_link->legacy_platform) {
+	if (!platform) {
 		platform = devm_kzalloc(card->dev,
 				sizeof(struct snd_soc_dai_link_component),
 				GFP_KERNEL);
 		if (!platform)
 			return -ENOMEM;
 
-		dai_link->platform	  = platform;
+		dai_link->platforms	  = platform;
+		dai_link->num_platforms	  = 1;
 		dai_link->legacy_platform = 1;
 		platform->name		  = dai_link->platform_name;
 		platform->of_node	  = dai_link->platform_of_node;
@@ -1061,9 +1077,38 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 	return 0;
 }
 
+static void soc_cleanup_platform(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *link;
+	int i;
+	/*
+	 * FIXME
+	 *
+	 * this function should be removed with snd_soc_init_platform
+	 */
+
+	for_each_card_prelinks(card, i, link) {
+		if (link->legacy_platform) {
+			link->legacy_platform = 0;
+			link->platforms       = NULL;
+		}
+	}
+}
+
 static int snd_soc_init_multicodec(struct snd_soc_card *card,
 				   struct snd_soc_dai_link *dai_link)
 {
+	/*
+	 * REMOVE ME
+	 *
+	 * This is glue code for Legacy vs Modern dai_link.
+	 * This function will be removed if all derivers are switched to
+	 * modern style dai_link.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * see
+	 *	soc.h :: struct snd_soc_dai_link
+	 */
+
 	/* Legacy codec/codec_dai link is a single entry in multicodec */
 	if (dai_link->codec_name || dai_link->codec_of_node ||
 	    dai_link->codec_dai_name) {
@@ -1125,11 +1170,19 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 		}
 	}
 
+	/* FIXME */
+	if (link->num_platforms > 1) {
+		dev_err(card->dev,
+			"ASoC: multi platform is not yet supported %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
 	/*
 	 * Platform may be specified by either name or OF node, but
 	 * can be left unspecified, and a dummy platform will be used.
 	 */
-	if (link->platform->name && link->platform->of_node) {
+	if (link->platforms->name && link->platforms->of_node) {
 		dev_err(card->dev,
 			"ASoC: Both platform name/of_node are set for %s\n",
 			link->name);
@@ -1140,8 +1193,8 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	 * Defer card registartion if platform dai component is not added to
 	 * component list.
 	 */
-	if ((link->platform->of_node || link->platform->name) &&
-	    !soc_find_component(link->platform->of_node, link->platform->name))
+	if ((link->platforms->of_node || link->platforms->name) &&
+	    !soc_find_component(link->platforms->of_node, link->platforms->name))
 		return -EPROBE_DEFER;
 
 	/*
@@ -1328,11 +1381,14 @@ static int soc_probe_component(struct snd_soc_card *card,
 		return 0;
 	}
 
-	if (!try_module_get(component->dev->driver->owner))
+	if (!component->driver->ignore_module_refcount &&
+	    !try_module_get(component->dev->driver->owner))
 		return -ENODEV;
 
 	component->card = card;
 	dapm->card = card;
+	INIT_LIST_HEAD(&component->card_list);
+	INIT_LIST_HEAD(&dapm->list);
 	soc_set_name_prefix(card, component);
 
 	soc_init_component_debugfs(component);
@@ -1395,12 +1451,9 @@ static int soc_probe_component(struct snd_soc_card *card,
 	/* see for_each_card_components */
 	list_add(&component->card_list, &card->component_dev_list);
 
-	return 0;
-
 err_probe:
-	soc_cleanup_component_debugfs(component);
-	component->card = NULL;
-	module_put(component->dev->driver->owner);
+	if (ret < 0)
+		soc_cleanup_component(component);
 
 	return ret;
 }
@@ -1585,27 +1638,24 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 					 dai_link->stream_name);
 			return ret;
 		}
-	} else {
-
-		if (!dai_link->params) {
-			/* create the pcm */
-			ret = soc_new_pcm(rtd, num);
-			if (ret < 0) {
-				dev_err(card->dev, "ASoC: can't create pcm %s :%d\n",
-					dai_link->stream_name, ret);
-				return ret;
-			}
-			ret = soc_link_dai_pcm_new(&cpu_dai, 1, rtd);
-			if (ret < 0)
-				return ret;
-			ret = soc_link_dai_pcm_new(rtd->codec_dais,
-						   rtd->num_codecs, rtd);
-			if (ret < 0)
-				return ret;
-		} else {
-			INIT_DELAYED_WORK(&rtd->delayed_work,
-						codec2codec_close_delayed_work);
+	} else if (!dai_link->params) {
+		/* create the pcm */
+		ret = soc_new_pcm(rtd, num);
+		if (ret < 0) {
+			dev_err(card->dev, "ASoC: can't create pcm %s :%d\n",
+				dai_link->stream_name, ret);
+			return ret;
 		}
+		ret = soc_link_dai_pcm_new(&cpu_dai, 1, rtd);
+		if (ret < 0)
+			return ret;
+		ret = soc_link_dai_pcm_new(rtd->codec_dais,
+					   rtd->num_codecs, rtd);
+		if (ret < 0)
+			return ret;
+	} else {
+		INIT_DELAYED_WORK(&rtd->delayed_work,
+				  codec2codec_close_delayed_work);
 	}
 
 	return 0;
@@ -1945,7 +1995,7 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 				dev_err(card->dev, "init platform error");
 				continue;
 			}
-			dai_link->platform->name = component->name;
+			dai_link->platforms->name = component->name;
 
 			/* convert non BE into BE */
 			dai_link->no_pcm = 1;
@@ -1981,6 +2031,30 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 	}
 }
 
+static int soc_cleanup_card_resources(struct snd_soc_card *card)
+{
+	/* free the ALSA card at first; this syncs with pending operations */
+	if (card->snd_card)
+		snd_card_free(card->snd_card);
+
+	/* remove and free each DAI */
+	soc_remove_dai_links(card);
+	soc_remove_pcm_runtimes(card);
+	soc_cleanup_platform(card);
+
+	/* remove auxiliary devices */
+	soc_remove_aux_devices(card);
+
+	snd_soc_dapm_free(&card->dapm);
+	soc_cleanup_card_debugfs(card);
+
+	/* remove the card */
+	if (card->remove)
+		card->remove(card);
+
+	return 0;
+}
+
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -1990,6 +2064,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	mutex_lock(&client_mutex);
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
+	card->dapm.bias_level = SND_SOC_BIAS_OFF;
+	card->dapm.dev = card->dev;
+	card->dapm.card = card;
+	list_add(&card->dapm.list, &card->dapm_list);
+
 	/* check whether any platform is ignore machine FE and using topology */
 	soc_check_tplg_fes(card);
 
@@ -1997,14 +2076,14 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	for_each_card_prelinks(card, i, dai_link) {
 		ret = soc_bind_dai_link(card, dai_link);
 		if (ret != 0)
-			goto base_error;
+			goto probe_end;
 	}
 
 	/* bind aux_devs too */
 	for (i = 0; i < card->num_aux_devs; i++) {
 		ret = soc_bind_aux_dev(card, i);
 		if (ret != 0)
-			goto base_error;
+			goto probe_end;
 	}
 
 	/* add predefined DAI links to the list */
@@ -2018,15 +2097,10 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		dev_err(card->dev,
 			"ASoC: can't create sound card for card %s: %d\n",
 			card->name, ret);
-		goto base_error;
+		goto probe_end;
 	}
 
 	soc_init_card_debugfs(card);
-
-	card->dapm.bias_level = SND_SOC_BIAS_OFF;
-	card->dapm.dev = card->dev;
-	card->dapm.card = card;
-	list_add(&card->dapm.list, &card->dapm_list);
 
 #ifdef CONFIG_DEBUG_FS
 	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
@@ -2049,7 +2123,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (card->probe) {
 		ret = card->probe(card);
 		if (ret < 0)
-			goto card_probe_error;
+			goto probe_end;
 	}
 
 	/* probe all components used by DAI links on this card */
@@ -2060,7 +2134,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 				dev_err(card->dev,
 					"ASoC: failed to instantiate card %d\n",
 					ret);
-				goto probe_dai_err;
+				goto probe_end;
 			}
 		}
 	}
@@ -2068,7 +2142,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	/* probe auxiliary components */
 	ret = soc_probe_aux_devices(card);
 	if (ret < 0)
-		goto probe_dai_err;
+		goto probe_end;
 
 	/*
 	 * Find new DAI links added during probing components and bind them.
@@ -2080,10 +2154,10 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 		ret = soc_init_dai_link(card, dai_link);
 		if (ret)
-			goto probe_dai_err;
+			goto probe_end;
 		ret = soc_bind_dai_link(card, dai_link);
 		if (ret)
-			goto probe_dai_err;
+			goto probe_end;
 	}
 
 	/* probe all DAI links on this card */
@@ -2094,7 +2168,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 				dev_err(card->dev,
 					"ASoC: failed to instantiate card %d\n",
 					ret);
-				goto probe_dai_err;
+				goto probe_end;
 			}
 		}
 	}
@@ -2141,7 +2215,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		if (ret < 0) {
 			dev_err(card->dev, "ASoC: %s late_probe() failed: %d\n",
 				card->name, ret);
-			goto probe_aux_dev_err;
+			goto probe_end;
 		}
 	}
 
@@ -2151,33 +2225,17 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (ret < 0) {
 		dev_err(card->dev, "ASoC: failed to register soundcard %d\n",
 				ret);
-		goto probe_aux_dev_err;
+		goto probe_end;
 	}
 
 	card->instantiated = 1;
 	dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
-	mutex_unlock(&card->mutex);
-	mutex_unlock(&client_mutex);
 
-	return 0;
+probe_end:
+	if (ret < 0)
+		soc_cleanup_card_resources(card);
 
-probe_aux_dev_err:
-	soc_remove_aux_devices(card);
-
-probe_dai_err:
-	soc_remove_dai_links(card);
-
-card_probe_error:
-	if (card->remove)
-		card->remove(card);
-
-	snd_soc_dapm_free(&card->dapm);
-	soc_cleanup_card_debugfs(card);
-	snd_card_free(card->snd_card);
-
-base_error:
-	soc_remove_pcm_runtimes(card);
 	mutex_unlock(&card->mutex);
 	mutex_unlock(&client_mutex);
 
@@ -2206,34 +2264,6 @@ static int soc_probe(struct platform_device *pdev)
 	return snd_soc_register_card(card);
 }
 
-static int soc_cleanup_card_resources(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	/* make sure any delayed work runs */
-	for_each_card_rtds(card, rtd)
-		flush_delayed_work(&rtd->delayed_work);
-
-	/* free the ALSA card at first; this syncs with pending operations */
-	snd_card_free(card->snd_card);
-
-	/* remove and free each DAI */
-	soc_remove_dai_links(card);
-	soc_remove_pcm_runtimes(card);
-
-	/* remove auxiliary devices */
-	soc_remove_aux_devices(card);
-
-	snd_soc_dapm_free(&card->dapm);
-	soc_cleanup_card_debugfs(card);
-
-	/* remove the card */
-	if (card->remove)
-		card->remove(card);
-
-	return 0;
-}
-
 /* removes a socdev */
 static int soc_remove(struct platform_device *pdev)
 {
@@ -2255,8 +2285,7 @@ int snd_soc_poweroff(struct device *dev)
 	 * Flush out pmdown_time work - we actually do want to run it
 	 * now, we're shutting down so no imminent restart.
 	 */
-	for_each_card_rtds(card, rtd)
-		flush_delayed_work(&rtd->delayed_work);
+	snd_soc_flush_all_delayed_work(card);
 
 	snd_soc_dapm_shutdown(card);
 
@@ -2800,6 +2829,7 @@ static void snd_soc_unbind_card(struct snd_soc_card *card, bool unregister)
 	if (card->instantiated) {
 		card->instantiated = false;
 		snd_soc_dapm_shutdown(card);
+		snd_soc_flush_all_delayed_work(card);
 		soc_cleanup_card_resources(card);
 		if (!unregister)
 			list_add(&card->list, &unbind_card_list);

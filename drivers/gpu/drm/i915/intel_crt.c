@@ -435,7 +435,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 		I915_WRITE(crt->adpa_reg, adpa);
 
-		if (intel_wait_for_register(dev_priv,
+		if (intel_wait_for_register(&dev_priv->uncore,
 					    crt->adpa_reg,
 					    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 0,
 					    1000))
@@ -489,7 +489,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 
 	I915_WRITE(crt->adpa_reg, adpa);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    crt->adpa_reg,
 				    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 0,
 				    1000)) {
@@ -542,7 +542,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (intel_wait_for_register(dev_priv, PORT_HOTPLUG_EN,
+		if (intel_wait_for_register(&dev_priv->uncore, PORT_HOTPLUG_EN,
 					    CRT_HOTPLUG_FORCE_DETECT, 0,
 					    1000))
 			DRM_DEBUG_KMS("timed out waiting for FORCE_DETECT to go off");

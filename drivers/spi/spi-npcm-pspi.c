@@ -465,7 +465,8 @@ out_master_put:
 
 static int npcm_pspi_remove(struct platform_device *pdev)
 {
-	struct npcm_pspi *priv = platform_get_drvdata(pdev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct npcm_pspi *priv = spi_master_get_devdata(master);
 
 	npcm_pspi_reset_hw(priv);
 	clk_disable_unprepare(priv->clk);

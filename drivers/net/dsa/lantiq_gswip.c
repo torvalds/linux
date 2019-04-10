@@ -480,8 +480,7 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void gswip_port_disable(struct dsa_switch *ds, int port,
-			       struct phy_device *phy)
+static void gswip_port_disable(struct dsa_switch *ds, int port)
 {
 	struct gswip_priv *priv = ds->priv;
 
@@ -549,7 +548,7 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	/* disable port fetch/store dma on all ports */
 	for (i = 0; i < priv->hw_info->max_ports; i++)
-		gswip_port_disable(ds, i, NULL);
+		gswip_port_disable(ds, i);
 
 	/* enable Switch */
 	gswip_mdio_mask(priv, 0, GSWIP_MDIO_GLOB_ENABLE, GSWIP_MDIO_GLOB);
@@ -1069,10 +1068,10 @@ static int gswip_probe(struct platform_device *pdev)
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
 	/* bring up the mdio bus */
-	gphy_fw_np = of_find_compatible_node(pdev->dev.of_node, NULL,
-					     "lantiq,gphy-fw");
+	gphy_fw_np = of_get_compatible_child(dev->of_node, "lantiq,gphy-fw");
 	if (gphy_fw_np) {
 		err = gswip_gphy_fw_list(priv, gphy_fw_np, version);
+		of_node_put(gphy_fw_np);
 		if (err) {
 			dev_err(dev, "gphy fw probe failed\n");
 			return err;
@@ -1080,13 +1079,12 @@ static int gswip_probe(struct platform_device *pdev)
 	}
 
 	/* bring up the mdio bus */
-	mdio_np = of_find_compatible_node(pdev->dev.of_node, NULL,
-					  "lantiq,xrx200-mdio");
+	mdio_np = of_get_compatible_child(dev->of_node, "lantiq,xrx200-mdio");
 	if (mdio_np) {
 		err = gswip_mdio(priv, mdio_np);
 		if (err) {
 			dev_err(dev, "mdio probe failed\n");
-			goto gphy_fw;
+			goto put_mdio_node;
 		}
 	}
 
@@ -1099,7 +1097,7 @@ static int gswip_probe(struct platform_device *pdev)
 		dev_err(dev, "wrong CPU port defined, HW only supports port: %i",
 			priv->hw_info->cpu_port);
 		err = -EINVAL;
-		goto mdio_bus;
+		goto disable_switch;
 	}
 
 	platform_set_drvdata(pdev, priv);
@@ -1109,10 +1107,14 @@ static int gswip_probe(struct platform_device *pdev)
 		 (version & GSWIP_VERSION_MOD_MASK) >> GSWIP_VERSION_MOD_SHIFT);
 	return 0;
 
+disable_switch:
+	gswip_mdio_mask(priv, GSWIP_MDIO_GLOB_ENABLE, 0, GSWIP_MDIO_GLOB);
+	dsa_unregister_switch(priv->ds);
 mdio_bus:
 	if (mdio_np)
 		mdiobus_unregister(priv->ds->slave_mii_bus);
-gphy_fw:
+put_mdio_node:
+	of_node_put(mdio_np);
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 	return err;
@@ -1123,16 +1125,15 @@ static int gswip_remove(struct platform_device *pdev)
 	struct gswip_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
-	if (!priv)
-		return 0;
-
 	/* disable the switch */
 	gswip_mdio_mask(priv, GSWIP_MDIO_GLOB_ENABLE, 0, GSWIP_MDIO_GLOB);
 
 	dsa_unregister_switch(priv->ds);
 
-	if (priv->ds->slave_mii_bus)
+	if (priv->ds->slave_mii_bus) {
 		mdiobus_unregister(priv->ds->slave_mii_bus);
+		of_node_put(priv->ds->slave_mii_bus->dev.of_node);
+	}
 
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);

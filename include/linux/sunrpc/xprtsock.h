@@ -26,6 +26,7 @@ struct sock_xprt {
 	 */
 	struct socket *		sock;
 	struct sock *		inet;
+	struct file *		file;
 
 	/*
 	 * State of TCP reply receive

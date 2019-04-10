@@ -49,10 +49,8 @@ static bool vega20_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t mp1_fw_flags;
 
-	WREG32_SOC15(NBIF, 0, mmPCIE_INDEX2,
-		     (MP1_Public | (smnMP1_FIRMWARE_FLAGS & 0xffffffff)));
-
-	mp1_fw_flags = RREG32_SOC15(NBIF, 0, mmPCIE_DATA2);
+	mp1_fw_flags = RREG32_PCIE(MP1_Public |
+				   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
 
 	if ((mp1_fw_flags & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
 	    MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED__SHIFT)
@@ -365,6 +363,26 @@ static int vega20_set_tools_address(struct pp_hwmgr *hwmgr)
 					PPSMC_MSG_SetToolsDramAddrLow,
 					lower_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr));
 	}
+
+	return ret;
+}
+
+int vega20_set_pptable_driver_address(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_smumgr *priv =
+			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	int ret = 0;
+
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrHigh,
+			upper_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr))) == 0,
+			"[SetPPtabeDriverAddress] Attempt to Set Dram Addr High Failed!",
+			return ret);
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrLow,
+			lower_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr))) == 0,
+			"[SetPPtabeDriverAddress] Attempt to Set Dram Addr Low Failed!",
+			return ret);
 
 	return ret;
 }

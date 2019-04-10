@@ -63,7 +63,7 @@ int main(void)
 	p = mmap((void *)va, PAGE_SIZE, PROT_NONE, MAP_PRIVATE|MAP_FILE|MAP_FIXED, fd, 0);
 	if (p == MAP_FAILED) {
 		if (errno == EPERM)
-			return 2;
+			return 4;
 		return 1;
 	}
 

@@ -341,7 +341,7 @@ static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 				  enum dpio_phy phy)
 {
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    BXT_PORT_REF_DW3(phy),
 				    GRC_DONE, GRC_DONE,
 				    10))
@@ -383,7 +383,8 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	 * The flag should get set in 100us according to the HW team, but
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
-	if (intel_wait_for_register_fw(dev_priv, BXT_PORT_CL1CM_DW0(phy),
+	if (intel_wait_for_register_fw(&dev_priv->uncore,
+				       BXT_PORT_CL1CM_DW0(phy),
 				       PHY_RESERVED | PHY_POWER_GOOD,
 				       PHY_POWER_GOOD,
 				       1))

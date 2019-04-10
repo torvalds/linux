@@ -695,6 +695,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	memset(bundle.attr_present, 0, sizeof(bundle.attr_present));
 	bundle.ufile = file;
+	bundle.context = NULL; /* only valid if bundle has uobject */
 	if (!method_elm->is_ex) {
 		size_t in_len = hdr.in_words * 4 - sizeof(hdr);
 		size_t out_len = hdr.out_words * 4;
@@ -1135,6 +1136,7 @@ static const struct file_operations uverbs_mmap_fops = {
 
 static struct ib_client uverbs_client = {
 	.name   = "uverbs",
+	.no_kverbs_req = true,
 	.add    = ib_uverbs_add_one,
 	.remove = ib_uverbs_remove_one
 };

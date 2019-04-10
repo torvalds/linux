@@ -4,7 +4,6 @@
  */
 
 /dts-v1/;
-/include/ "skeleton.dtsi"
 
 / {
 	model = "ST-Ericsson U300";
@@ -22,6 +21,7 @@
         };
 
 	memory {
+		device_type = "memory";
 		reg = <0x48000000 0x03c00000>;
 	};
 

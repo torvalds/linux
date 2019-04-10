@@ -87,7 +87,7 @@ struct mlx5_core_srq *mlx5_cmd_get_srq(struct mlx5_ib_dev *dev, u32 srqn)
 
 	srq = radix_tree_lookup(&table->tree, srqn);
 	if (srq)
-		atomic_inc(&srq->refcount);
+		atomic_inc(&srq->common.refcount);
 
 	spin_unlock(&table->lock);
 
@@ -594,8 +594,8 @@ int mlx5_cmd_create_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	if (err)
 		return err;
 
-	atomic_set(&srq->refcount, 1);
-	init_completion(&srq->free);
+	atomic_set(&srq->common.refcount, 1);
+	init_completion(&srq->common.free);
 
 	spin_lock_irq(&table->lock);
 	err = radix_tree_insert(&table->tree, srq->srqn, srq);
@@ -627,9 +627,8 @@ int mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq)
 	if (err)
 		return err;
 
-	if (atomic_dec_and_test(&srq->refcount))
-		complete(&srq->free);
-	wait_for_completion(&srq->free);
+	mlx5_core_res_put(&srq->common);
+	wait_for_completion(&srq->common.free);
 
 	return 0;
 }
@@ -685,7 +684,7 @@ static int srq_event_notifier(struct notifier_block *nb,
 
 	srq = radix_tree_lookup(&table->tree, srqn);
 	if (srq)
-		atomic_inc(&srq->refcount);
+		atomic_inc(&srq->common.refcount);
 
 	spin_unlock(&table->lock);
 
@@ -694,8 +693,7 @@ static int srq_event_notifier(struct notifier_block *nb,
 
 	srq->event(srq, eqe->type);
 
-	if (atomic_dec_and_test(&srq->refcount))
-		complete(&srq->free);
+	mlx5_core_res_put(&srq->common);
 
 	return NOTIFY_OK;
 }

@@ -10,6 +10,7 @@
 #ifndef __LIBBPF_LIBBPF_H
 #define __LIBBPF_LIBBPF_H
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -47,17 +48,16 @@ enum libbpf_errno {
 
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
-/*
- * __printf is defined in include/linux/compiler-gcc.h. However,
- * it would be better if libbpf.h didn't depend on Linux header files.
- * So instead of __printf, here we use gcc attribute directly.
- */
-typedef int (*libbpf_print_fn_t)(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
+enum libbpf_print_level {
+        LIBBPF_WARN,
+        LIBBPF_INFO,
+        LIBBPF_DEBUG,
+};
 
-LIBBPF_API void libbpf_set_print(libbpf_print_fn_t warn,
-				 libbpf_print_fn_t info,
-				 libbpf_print_fn_t debug);
+typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
+				 const char *, va_list ap);
+
+LIBBPF_API void libbpf_set_print(libbpf_print_fn_t fn);
 
 /* Hide internal to user */
 struct bpf_object;
@@ -90,6 +90,9 @@ LIBBPF_API int bpf_object__load(struct bpf_object *obj);
 LIBBPF_API int bpf_object__unload(struct bpf_object *obj);
 LIBBPF_API const char *bpf_object__name(struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(struct bpf_object *obj);
+
+struct btf;
+LIBBPF_API struct btf *bpf_object__btf(struct bpf_object *obj);
 LIBBPF_API int bpf_object__btf_fd(const struct bpf_object *obj);
 
 LIBBPF_API struct bpf_program *
@@ -264,6 +267,9 @@ struct bpf_map;
 LIBBPF_API struct bpf_map *
 bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
+LIBBPF_API int
+bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name);
+
 /*
  * Get bpf_map through the offset of corresponding struct bpf_map_def
  * in the BPF object file.
@@ -273,10 +279,11 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
 
 LIBBPF_API struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
-#define bpf_map__for_each(pos, obj)		\
+#define bpf_object__for_each_map(pos, obj)		\
 	for ((pos) = bpf_map__next(NULL, (obj));	\
 	     (pos) != NULL;				\
 	     (pos) = bpf_map__next((pos), (obj)))
+#define bpf_map__for_each bpf_object__for_each_map
 
 LIBBPF_API struct bpf_map *
 bpf_map__prev(struct bpf_map *map, struct bpf_object *obj);
@@ -292,6 +299,7 @@ LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 				 bpf_map_clear_priv_t clear_priv);
 LIBBPF_API void *bpf_map__priv(struct bpf_map *map);
 LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
+LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
 LIBBPF_API bool bpf_map__is_offload_neutral(struct bpf_map *map);
 LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
@@ -314,6 +322,7 @@ LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
 			     struct bpf_object **pobj, int *prog_fd);
 
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
 
 enum bpf_perf_event_ret {
 	LIBBPF_PERF_EVENT_DONE	= 0,
@@ -354,6 +363,83 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 LIBBPF_API const struct bpf_line_info *
 bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
 		      __u32 insn_off, __u32 nr_skip);
+
+/*
+ * Probe for supported system features
+ *
+ * Note that running many of these probes in a short amount of time can cause
+ * the kernel to reach the maximal size of lockable memory allowed for the
+ * user, causing subsequent probes to fail. In this case, the caller may want
+ * to adjust that limit with setrlimit().
+ */
+LIBBPF_API bool bpf_probe_prog_type(enum bpf_prog_type prog_type,
+				    __u32 ifindex);
+LIBBPF_API bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex);
+LIBBPF_API bool bpf_probe_helper(enum bpf_func_id id,
+				 enum bpf_prog_type prog_type, __u32 ifindex);
+
+/*
+ * Get bpf_prog_info in continuous memory
+ *
+ * struct bpf_prog_info has multiple arrays. The user has option to choose
+ * arrays to fetch from kernel. The following APIs provide an uniform way to
+ * fetch these data. All arrays in bpf_prog_info are stored in a single
+ * continuous memory region. This makes it easy to store the info in a
+ * file.
+ *
+ * Before writing bpf_prog_info_linear to files, it is necessary to
+ * translate pointers in bpf_prog_info to offsets. Helper functions
+ * bpf_program__bpil_addr_to_offs() and bpf_program__bpil_offs_to_addr()
+ * are introduced to switch between pointers and offsets.
+ *
+ * Examples:
+ *   # To fetch map_ids and prog_tags:
+ *   __u64 arrays = (1UL << BPF_PROG_INFO_MAP_IDS) |
+ *           (1UL << BPF_PROG_INFO_PROG_TAGS);
+ *   struct bpf_prog_info_linear *info_linear =
+ *           bpf_program__get_prog_info_linear(fd, arrays);
+ *
+ *   # To save data in file
+ *   bpf_program__bpil_addr_to_offs(info_linear);
+ *   write(f, info_linear, sizeof(*info_linear) + info_linear->data_len);
+ *
+ *   # To read data from file
+ *   read(f, info_linear, <proper_size>);
+ *   bpf_program__bpil_offs_to_addr(info_linear);
+ */
+enum bpf_prog_info_array {
+	BPF_PROG_INFO_FIRST_ARRAY = 0,
+	BPF_PROG_INFO_JITED_INSNS = 0,
+	BPF_PROG_INFO_XLATED_INSNS,
+	BPF_PROG_INFO_MAP_IDS,
+	BPF_PROG_INFO_JITED_KSYMS,
+	BPF_PROG_INFO_JITED_FUNC_LENS,
+	BPF_PROG_INFO_FUNC_INFO,
+	BPF_PROG_INFO_LINE_INFO,
+	BPF_PROG_INFO_JITED_LINE_INFO,
+	BPF_PROG_INFO_PROG_TAGS,
+	BPF_PROG_INFO_LAST_ARRAY,
+};
+
+struct bpf_prog_info_linear {
+	/* size of struct bpf_prog_info, when the tool is compiled */
+	__u32			info_len;
+	/* total bytes allocated for data, round up to 8 bytes */
+	__u32			data_len;
+	/* which arrays are included in data */
+	__u64			arrays;
+	struct bpf_prog_info	info;
+	__u8			data[];
+};
+
+LIBBPF_API struct bpf_prog_info_linear *
+bpf_program__get_prog_info_linear(int fd, __u64 arrays);
+
+LIBBPF_API void
+bpf_program__bpil_addr_to_offs(struct bpf_prog_info_linear *info_linear);
+
+LIBBPF_API void
+bpf_program__bpil_offs_to_addr(struct bpf_prog_info_linear *info_linear);
 
 #ifdef __cplusplus
 } /* extern "C" */

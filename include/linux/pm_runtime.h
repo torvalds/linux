@@ -113,6 +113,8 @@ static inline bool pm_runtime_is_irq_safe(struct device *dev)
 	return dev->power.irq_safe;
 }
 
+extern u64 pm_runtime_suspended_time(struct device *dev);
+
 #else /* !CONFIG_PM */
 
 static inline bool queue_pm_work(struct work_struct *work) { return false; }

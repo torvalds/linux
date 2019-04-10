@@ -131,7 +131,7 @@ void __init tegra210_init_speedo_data(struct tegra_sku_info *sku_info)
 
 	soc_speedo[0] = tegra_fuse_read_early(FUSE_SOC_SPEEDO_0);
 	soc_speedo[1] = tegra_fuse_read_early(FUSE_SOC_SPEEDO_1);
-	soc_speedo[2] = tegra_fuse_read_early(FUSE_CPU_SPEEDO_2);
+	soc_speedo[2] = tegra_fuse_read_early(FUSE_SOC_SPEEDO_2);
 
 	cpu_iddq = tegra_fuse_read_early(FUSE_CPU_IDDQ) * 4;
 	soc_iddq = tegra_fuse_read_early(FUSE_SOC_IDDQ) * 4;

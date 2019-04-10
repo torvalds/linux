@@ -22,24 +22,15 @@ static void engine_skip_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
 	struct i915_gem_context *hung_ctx = rq->gem_context;
-	struct i915_timeline *timeline = rq->timeline;
 
 	lockdep_assert_held(&engine->timeline.lock);
-	GEM_BUG_ON(timeline == &engine->timeline);
 
-	spin_lock(&timeline->lock);
+	if (!i915_request_is_active(rq))
+		return;
 
-	if (i915_request_is_active(rq)) {
-		list_for_each_entry_continue(rq,
-					     &engine->timeline.requests, link)
-			if (rq->gem_context == hung_ctx)
-				i915_request_skip(rq, -EIO);
-	}
-
-	list_for_each_entry(rq, &timeline->requests, link)
-		i915_request_skip(rq, -EIO);
-
-	spin_unlock(&timeline->lock);
+	list_for_each_entry_continue(rq, &engine->timeline.requests, link)
+		if (rq->gem_context == hung_ctx)
+			i915_request_skip(rq, -EIO);
 }
 
 static void client_mark_guilty(struct drm_i915_file_private *file_priv,
@@ -68,23 +59,29 @@ static void client_mark_guilty(struct drm_i915_file_private *file_priv,
 
 static bool context_mark_guilty(struct i915_gem_context *ctx)
 {
-	unsigned int score;
-	bool banned, bannable;
+	unsigned long prev_hang;
+	bool banned;
+	int i;
 
 	atomic_inc(&ctx->guilty_count);
 
-	bannable = i915_gem_context_is_bannable(ctx);
-	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
-	banned = score >= CONTEXT_SCORE_BAN_THRESHOLD;
-
-	/* Cool contexts don't accumulate client ban score */
-	if (!bannable)
+	/* Cool contexts are too cool to be banned! (Used for reset testing.) */
+	if (!i915_gem_context_is_bannable(ctx))
 		return false;
 
+	/* Record the timestamp for the last N hangs */
+	prev_hang = ctx->hang_timestamp[0];
+	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp) - 1; i++)
+		ctx->hang_timestamp[i] = ctx->hang_timestamp[i + 1];
+	ctx->hang_timestamp[i] = jiffies;
+
+	/* If we have hung N+1 times in rapid succession, we ban the context! */
+	banned = !i915_gem_context_is_recoverable(ctx);
+	if (time_before(jiffies, prev_hang + CONTEXT_FAST_HANG_JIFFIES))
+		banned = true;
 	if (banned) {
-		DRM_DEBUG_DRIVER("context %s: guilty %d, score %u, banned\n",
-				 ctx->name, atomic_read(&ctx->guilty_count),
-				 score);
+		DRM_DEBUG_DRIVER("context %s: guilty %d, banned\n",
+				 ctx->name, atomic_read(&ctx->guilty_count));
 		i915_gem_context_set_banned(ctx);
 	}
 
@@ -101,6 +98,12 @@ static void context_mark_innocent(struct i915_gem_context *ctx)
 
 void i915_reset_request(struct i915_request *rq, bool guilty)
 {
+	GEM_TRACE("%s rq=%llx:%lld, guilty? %s\n",
+		  rq->engine->name,
+		  rq->fence.context,
+		  rq->fence.seqno,
+		  yesno(guilty));
+
 	lockdep_assert_held(&rq->engine->timeline.lock);
 	GEM_BUG_ON(i915_request_completed(rq));
 
@@ -119,8 +122,10 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	const u32 base = engine->mmio_base;
 
+	GEM_TRACE("%s\n", engine->name);
+
 	if (intel_engine_stop_cs(engine))
-		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n", engine->name);
+		GEM_TRACE("%s: timed out on STOP_RING\n", engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
 	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
@@ -133,9 +138,9 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	I915_WRITE_FW(RING_CTL(base), 0);
 
 	/* Check acts as a post */
-	if (I915_READ_FW(RING_HEAD(base)) != 0)
-		DRM_DEBUG_DRIVER("%s: ring head not parked\n",
-				 engine->name);
+	if (I915_READ_FW(RING_HEAD(base)))
+		GEM_TRACE("%s: ring head [%x] not parked\n",
+			  engine->name, I915_READ_FW(RING_HEAD(base)));
 }
 
 static void i915_stop_engines(struct drm_i915_private *i915,
@@ -240,10 +245,12 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 			     unsigned int engine_mask,
 			     unsigned int retry)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	int ret;
 
-	I915_WRITE_FW(ILK_GDSR, ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
-	ret = __intel_wait_for_register_fw(dev_priv, ILK_GDSR,
+	intel_uncore_write_fw(uncore, ILK_GDSR,
+			      ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
+	ret = __intel_wait_for_register_fw(uncore, ILK_GDSR,
 					   ILK_GRDOM_RESET_ENABLE, 0,
 					   5000, 0,
 					   NULL);
@@ -252,8 +259,9 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 		goto out;
 	}
 
-	I915_WRITE_FW(ILK_GDSR, ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
-	ret = __intel_wait_for_register_fw(dev_priv, ILK_GDSR,
+	intel_uncore_write_fw(uncore, ILK_GDSR,
+			      ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
+	ret = __intel_wait_for_register_fw(uncore, ILK_GDSR,
 					   ILK_GRDOM_RESET_ENABLE, 0,
 					   5000, 0,
 					   NULL);
@@ -263,8 +271,8 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 	}
 
 out:
-	I915_WRITE_FW(ILK_GDSR, 0);
-	POSTING_READ_FW(ILK_GDSR);
+	intel_uncore_write_fw(uncore, ILK_GDSR, 0);
+	intel_uncore_posting_read_fw(uncore, ILK_GDSR);
 	return ret;
 }
 
@@ -272,6 +280,7 @@ out:
 static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 				u32 hw_domain_mask)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	int err;
 
 	/*
@@ -279,10 +288,10 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
-	I915_WRITE_FW(GEN6_GDRST, hw_domain_mask);
+	intel_uncore_write_fw(uncore, GEN6_GDRST, hw_domain_mask);
 
 	/* Wait for the device to ack the reset requests */
-	err = __intel_wait_for_register_fw(dev_priv,
+	err = __intel_wait_for_register_fw(uncore,
 					   GEN6_GDRST, hw_domain_mask, 0,
 					   500, 0,
 					   NULL);
@@ -298,12 +307,12 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
-	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
-		[RCS] = GEN6_GRDOM_RENDER,
-		[BCS] = GEN6_GRDOM_BLT,
-		[VCS] = GEN6_GRDOM_MEDIA,
-		[VCS2] = GEN8_GRDOM_MEDIA2,
-		[VECS] = GEN6_GRDOM_VECS,
+	const u32 hw_engine_mask[] = {
+		[RCS0]  = GEN6_GRDOM_RENDER,
+		[BCS0]  = GEN6_GRDOM_BLT,
+		[VCS0]  = GEN6_GRDOM_MEDIA,
+		[VCS1]  = GEN8_GRDOM_MEDIA2,
+		[VECS0] = GEN6_GRDOM_VECS,
 	};
 	u32 hw_mask;
 
@@ -313,8 +322,10 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 		unsigned int tmp;
 
 		hw_mask = 0;
-		for_each_engine_masked(engine, i915, engine_mask, tmp)
+		for_each_engine_masked(engine, i915, engine_mask, tmp) {
+			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
+		}
 	}
 
 	return gen6_hw_domain_reset(i915, hw_mask);
@@ -323,6 +334,7 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 			  struct intel_engine_cs *engine)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
 	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
 	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
@@ -370,10 +382,9 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 	 * ends up being locked to the engine we want to reset, we have to reset
 	 * it as well (we will unlock it once the reset sequence is completed).
 	 */
-	I915_WRITE_FW(sfc_forced_lock,
-		      I915_READ_FW(sfc_forced_lock) | sfc_forced_lock_bit);
+	intel_uncore_rmw_or_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
 
-	if (__intel_wait_for_register_fw(dev_priv,
+	if (__intel_wait_for_register_fw(uncore,
 					 sfc_forced_lock_ack,
 					 sfc_forced_lock_ack_bit,
 					 sfc_forced_lock_ack_bit,
@@ -382,7 +393,7 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (I915_READ_FW(sfc_usage) & sfc_usage_bit)
+	if (intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit)
 		return sfc_reset_bit;
 
 	return 0;
@@ -421,28 +432,27 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 			       unsigned int engine_mask,
 			       unsigned int retry)
 {
-	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
-		[RCS] = GEN11_GRDOM_RENDER,
-		[BCS] = GEN11_GRDOM_BLT,
-		[VCS] = GEN11_GRDOM_MEDIA,
-		[VCS2] = GEN11_GRDOM_MEDIA2,
-		[VCS3] = GEN11_GRDOM_MEDIA3,
-		[VCS4] = GEN11_GRDOM_MEDIA4,
-		[VECS] = GEN11_GRDOM_VECS,
-		[VECS2] = GEN11_GRDOM_VECS2,
+	const u32 hw_engine_mask[] = {
+		[RCS0]  = GEN11_GRDOM_RENDER,
+		[BCS0]  = GEN11_GRDOM_BLT,
+		[VCS0]  = GEN11_GRDOM_MEDIA,
+		[VCS1]  = GEN11_GRDOM_MEDIA2,
+		[VCS2]  = GEN11_GRDOM_MEDIA3,
+		[VCS3]  = GEN11_GRDOM_MEDIA4,
+		[VECS0] = GEN11_GRDOM_VECS,
+		[VECS1] = GEN11_GRDOM_VECS2,
 	};
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
 	u32 hw_mask;
 	int ret;
 
-	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
-
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN11_GRDOM_FULL;
 	} else {
 		hw_mask = 0;
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
+			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
 			hw_mask |= gen11_lock_sfc(i915, engine);
 		}
@@ -459,13 +469,13 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 
 static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct intel_uncore *uncore = &engine->i915->uncore;
 	int ret;
 
-	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
-		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
+	intel_uncore_write_fw(uncore, RING_RESET_CTL(engine->mmio_base),
+			      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
-	ret = __intel_wait_for_register_fw(dev_priv,
+	ret = __intel_wait_for_register_fw(uncore,
 					   RING_RESET_CTL(engine->mmio_base),
 					   RESET_CTL_READY_TO_RESET,
 					   RESET_CTL_READY_TO_RESET,
@@ -532,9 +542,6 @@ typedef int (*reset_func)(struct drm_i915_private *,
 
 static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
 {
-	if (!i915_modparams.reset)
-		return NULL;
-
 	if (INTEL_GEN(i915) >= 8)
 		return gen8_reset_engines;
 	else if (INTEL_GEN(i915) >= 6)
@@ -566,7 +573,7 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 	 * If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
 	 */
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 	for (retry = 0; ret == -ETIMEDOUT && retry < retries; retry++) {
 		/*
 		 * We stop engines, otherwise we might get failed reset and a
@@ -582,14 +589,15 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 		 *
 		 * FIXME: Wa for more modern gens needs to be validated
 		 */
-		i915_stop_engines(i915, engine_mask);
+		if (retry)
+			i915_stop_engines(i915, engine_mask);
 
 		GEM_TRACE("engine_mask=%x\n", engine_mask);
 		preempt_disable();
 		ret = reset(i915, engine_mask, retry);
 		preempt_enable();
 	}
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -598,6 +606,9 @@ bool intel_has_gpu_reset(struct drm_i915_private *i915)
 {
 	if (USES_GUC(i915))
 		return false;
+
+	if (!i915_modparams.reset)
+		return NULL;
 
 	return intel_get_gpu_reset(i915);
 }
@@ -615,9 +626,9 @@ int intel_reset_guc(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(!HAS_GUC(i915));
 
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(i915, guc_domain);
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -635,8 +646,34 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	 * written to the powercontext is undefined and so we may lose
 	 * GPU state upon resume, i.e. fail to restart after a reset.
 	 */
-	intel_uncore_forcewake_get(engine->i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&engine->i915->uncore, FORCEWAKE_ALL);
 	engine->reset.prepare(engine);
+}
+
+static void revoke_mmaps(struct drm_i915_private *i915)
+{
+	int i;
+
+	for (i = 0; i < i915->num_fence_regs; i++) {
+		struct drm_vma_offset_node *node;
+		struct i915_vma *vma;
+		u64 vma_offset;
+
+		vma = READ_ONCE(i915->fence_regs[i].vma);
+		if (!vma)
+			continue;
+
+		if (!i915_vma_has_userfault(vma))
+			continue;
+
+		GEM_BUG_ON(vma->fence != &i915->fence_regs[i]);
+		node = &vma->obj->base.vma_node;
+		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
+		unmap_mapping_range(i915->drm.anon_inode->i_mapping,
+				    drm_vma_node_offset_addr(node) + vma_offset,
+				    vma->size,
+				    1);
+	}
 }
 
 static void reset_prepare(struct drm_i915_private *i915)
@@ -647,7 +684,12 @@ static void reset_prepare(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id)
 		reset_prepare_engine(engine);
 
-	intel_uc_sanitize(i915);
+	intel_uc_reset_prepare(i915);
+}
+
+static void gt_revoke(struct drm_i915_private *i915)
+{
+	revoke_mmaps(i915);
 }
 
 static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
@@ -665,7 +707,7 @@ static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 		return err;
 
 	for_each_engine(engine, i915, id)
-		intel_engine_reset(engine, stalled_mask & ENGINE_MASK(id));
+		intel_engine_reset(engine, stalled_mask & engine->mask);
 
 	i915_gem_restore_fences(i915);
 
@@ -675,7 +717,7 @@ static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 static void reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-	intel_uncore_forcewake_put(engine->i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&engine->i915->uncore, FORCEWAKE_ALL);
 }
 
 struct i915_gpu_restart {
@@ -722,8 +764,10 @@ static void reset_finish(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, i915, id) {
 		reset_finish_engine(engine);
+		intel_engine_signal_breadcrumbs(engine);
+	}
 }
 
 static void reset_restart(struct drm_i915_private *i915)
@@ -761,23 +805,19 @@ static void nop_submit_request(struct i915_request *request)
 	spin_lock_irqsave(&engine->timeline.lock, flags);
 	__i915_request_submit(request);
 	i915_request_mark_complete(request);
-	intel_engine_write_global_seqno(engine, request->global_seqno);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
 	intel_engine_queue_breadcrumbs(engine);
 }
 
-void i915_gem_set_wedged(struct drm_i915_private *i915)
+static void __i915_gem_set_wedged(struct drm_i915_private *i915)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	mutex_lock(&error->wedge_mutex);
-	if (test_bit(I915_WEDGED, &error->flags)) {
-		mutex_unlock(&error->wedge_mutex);
+	if (test_bit(I915_WEDGED, &error->flags))
 		return;
-	}
 
 	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(i915)) {
 		struct drm_printer p = drm_debug_printer(__func__);
@@ -793,11 +833,10 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * rolling the global seqno forward (since this would complete requests
 	 * for which we haven't set the fence error to EIO yet).
 	 */
-	for_each_engine(engine, i915, id)
-		reset_prepare_engine(engine);
+	reset_prepare(i915);
 
 	/* Even if the GPU reset fails, it should still stop the engines */
-	if (INTEL_GEN(i915) >= 5)
+	if (!INTEL_INFO(i915)->gpu_reset_clobbers_display)
 		intel_gpu_reset(i915, ALL_ENGINES);
 
 	for_each_engine(engine, i915, id) {
@@ -811,39 +850,41 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * either this call here to intel_engine_write_global_seqno, or the one
 	 * in nop_submit_request.
 	 */
-	synchronize_rcu();
+	synchronize_rcu_expedited();
 
 	/* Mark all executing requests as skipped */
 	for_each_engine(engine, i915, id)
 		engine->cancel_requests(engine);
 
-	for_each_engine(engine, i915, id) {
-		reset_finish_engine(engine);
-		intel_engine_signal_breadcrumbs(engine);
-	}
+	reset_finish(i915);
 
 	smp_mb__before_atomic();
 	set_bit(I915_WEDGED, &error->flags);
 
 	GEM_TRACE("end\n");
-	mutex_unlock(&error->wedge_mutex);
-
-	wake_up_all(&error->reset_queue);
 }
 
-bool i915_gem_unset_wedged(struct drm_i915_private *i915)
+void i915_gem_set_wedged(struct drm_i915_private *i915)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+	intel_wakeref_t wakeref;
+
+	mutex_lock(&error->wedge_mutex);
+	with_intel_runtime_pm(i915, wakeref)
+		__i915_gem_set_wedged(i915);
+	mutex_unlock(&error->wedge_mutex);
+}
+
+static bool __i915_gem_unset_wedged(struct drm_i915_private *i915)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct i915_timeline *tl;
-	bool ret = false;
 
 	if (!test_bit(I915_WEDGED, &error->flags))
 		return true;
 
 	if (!i915->gt.scratch) /* Never full initialised, recovery impossible */
 		return false;
-
-	mutex_lock(&error->wedge_mutex);
 
 	GEM_TRACE("start\n");
 
@@ -860,30 +901,20 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	mutex_lock(&i915->gt.timelines.mutex);
 	list_for_each_entry(tl, &i915->gt.timelines.active_list, link) {
 		struct i915_request *rq;
-		long timeout;
 
 		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
 
 		/*
-		 * We can't use our normal waiter as we want to
-		 * avoid recursively trying to handle the current
-		 * reset. The basic dma_fence_default_wait() installs
-		 * a callback for dma_fence_signal(), which is
-		 * triggered by our nop handler (indirectly, the
-		 * callback enables the signaler thread which is
-		 * woken by the nop_submit_request() advancing the seqno
-		 * and when the seqno passes the fence, the signaler
-		 * then signals the fence waking us up).
+		 * All internal dependencies (i915_requests) will have
+		 * been flushed by the set-wedge, but we may be stuck waiting
+		 * for external fences. These should all be capped to 10s
+		 * (I915_FENCE_TIMEOUT) so this wait should not be unbounded
+		 * in the worst case.
 		 */
-		timeout = dma_fence_default_wait(&rq->fence, true,
-						 MAX_SCHEDULE_TIMEOUT);
+		dma_fence_default_wait(&rq->fence, false, MAX_SCHEDULE_TIMEOUT);
 		i915_request_put(rq);
-		if (timeout < 0) {
-			mutex_unlock(&i915->gt.timelines.mutex);
-			goto unlock;
-		}
 	}
 	mutex_unlock(&i915->gt.timelines.mutex);
 
@@ -904,57 +935,37 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
-	ret = true;
-unlock:
-	mutex_unlock(&i915->gpu_error.wedge_mutex);
 
-	return ret;
+	return true;
 }
 
-struct __i915_reset {
-	struct drm_i915_private *i915;
-	unsigned int stalled_mask;
-};
-
-static int __i915_reset__BKL(void *data)
+bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 {
-	struct __i915_reset *arg = data;
-	int err;
+	struct i915_gpu_error *error = &i915->gpu_error;
+	bool result;
 
-	err = intel_gpu_reset(arg->i915, ALL_ENGINES);
-	if (err)
-		return err;
+	mutex_lock(&error->wedge_mutex);
+	result = __i915_gem_unset_wedged(i915);
+	mutex_unlock(&error->wedge_mutex);
 
-	return gt_reset(arg->i915, arg->stalled_mask);
+	return result;
 }
-
-#if RESET_UNDER_STOP_MACHINE
-/*
- * XXX An alternative to using stop_machine would be to park only the
- * processes that have a GGTT mmap. By remote parking the threads (SIGSTOP)
- * we should be able to prevent their memmory accesses via the lost fence
- * registers over the course of the reset without the potential recursive
- * of mutexes between the pagefault handler and reset.
- *
- * See igt/gem_mmap_gtt/hang
- */
-#define __do_reset(fn, arg) stop_machine(fn, arg, NULL)
-#else
-#define __do_reset(fn, arg) fn(arg)
-#endif
 
 static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 {
-	struct __i915_reset arg = { i915, stalled_mask };
 	int err, i;
 
-	err = __do_reset(__i915_reset__BKL, &arg);
-	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
-		msleep(100);
-		err = __do_reset(__i915_reset__BKL, &arg);
-	}
+	gt_revoke(i915);
 
-	return err;
+	err = intel_gpu_reset(i915, ALL_ENGINES);
+	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
+		msleep(10 * (i + 1));
+		err = intel_gpu_reset(i915, ALL_ENGINES);
+	}
+	if (err)
+		return err;
+
+	return gt_reset(i915, stalled_mask);
 }
 
 /**
@@ -965,8 +976,6 @@ static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
  *
  * Reset the chip.  Useful if a hang is detected. Marks the device as wedged
  * on failure.
- *
- * Caller must hold the struct_mutex.
  *
  * Procedure is fairly simple:
  *   - reset the chip using the reset reg
@@ -990,7 +999,7 @@ void i915_reset(struct drm_i915_private *i915,
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
-	if (!i915_gem_unset_wedged(i915))
+	if (!__i915_gem_unset_wedged(i915))
 		return;
 
 	if (reason)
@@ -1007,10 +1016,16 @@ void i915_reset(struct drm_i915_private *i915,
 		goto error;
 	}
 
+	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
+		intel_runtime_pm_disable_interrupts(i915);
+
 	if (do_reset(i915, stalled_mask)) {
 		dev_err(i915->drm.dev, "Failed to reset chip\n");
 		goto taint;
 	}
+
+	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
+		intel_runtime_pm_enable_interrupts(i915);
 
 	intel_overlay_reset(i915);
 
@@ -1033,7 +1048,7 @@ void i915_reset(struct drm_i915_private *i915,
 
 finish:
 	reset_finish(i915);
-	if (!i915_terminally_wedged(error))
+	if (!__i915_wedged(error))
 		reset_restart(i915);
 	return;
 
@@ -1052,14 +1067,14 @@ taint:
 	 */
 	add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
 error:
-	i915_gem_set_wedged(i915);
+	__i915_gem_set_wedged(i915);
 	goto finish;
 }
 
 static inline int intel_gt_reset_engine(struct drm_i915_private *i915,
 					struct intel_engine_cs *engine)
 {
-	return intel_gpu_reset(i915, intel_engine_flag(engine));
+	return intel_gpu_reset(i915, engine->mask);
 }
 
 /**
@@ -1144,7 +1159,12 @@ static void i915_reset_device(struct drm_i915_private *i915,
 	i915_wedge_on_timeout(&w, i915, 5 * HZ) {
 		intel_prepare_reset(i915);
 
+		/* Flush everyone using a resource about to be clobbered */
+		synchronize_srcu_expedited(&error->reset_backoff_srcu);
+
+		mutex_lock(&error->wedge_mutex);
 		i915_reset(i915, engine_mask, reason);
+		mutex_unlock(&error->wedge_mutex);
 
 		intel_finish_reset(i915);
 	}
@@ -1153,19 +1173,24 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
 }
 
+static void clear_register(struct drm_i915_private *dev_priv, i915_reg_t reg)
+{
+	I915_WRITE(reg, I915_READ(reg));
+}
+
 void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
 	u32 eir;
 
 	if (!IS_GEN(dev_priv, 2))
-		I915_WRITE(PGTBL_ER, I915_READ(PGTBL_ER));
+		clear_register(dev_priv, PGTBL_ER);
 
 	if (INTEL_GEN(dev_priv) < 4)
-		I915_WRITE(IPEIR, I915_READ(IPEIR));
+		clear_register(dev_priv, IPEIR(RENDER_RING_BASE));
 	else
-		I915_WRITE(IPEIR_I965, I915_READ(IPEIR_I965));
+		clear_register(dev_priv, IPEIR_I965);
 
-	I915_WRITE(EIR, I915_READ(EIR));
+	clear_register(dev_priv, EIR);
 	eir = I915_READ(EIR);
 	if (eir) {
 		/*
@@ -1190,7 +1215,7 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 				   I915_READ(RING_FAULT_REG(engine)) &
 				   ~RING_FAULT_VALID);
 		}
-		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
+		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS0]));
 	}
 }
 
@@ -1212,6 +1237,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 		       unsigned long flags,
 		       const char *fmt, ...)
 {
+	struct i915_gpu_error *error = &i915->gpu_error;
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
 	unsigned int tmp;
@@ -1237,7 +1263,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 	 */
 	wakeref = intel_runtime_pm_get(i915);
 
-	engine_mask &= INTEL_INFO(i915)->ring_mask;
+	engine_mask &= INTEL_INFO(i915)->engine_mask;
 
 	if (flags & I915_ERROR_CAPTURE) {
 		i915_capture_error_state(i915, engine_mask, msg);
@@ -1248,20 +1274,19 @@ void i915_handle_error(struct drm_i915_private *i915,
 	 * Try engine reset when available. We fall back to full reset if
 	 * single reset fails.
 	 */
-	if (intel_has_reset_engine(i915) &&
-	    !i915_terminally_wedged(&i915->gpu_error)) {
+	if (intel_has_reset_engine(i915) && !__i915_wedged(error)) {
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
-					     &i915->gpu_error.flags))
+					     &error->flags))
 				continue;
 
 			if (i915_reset_engine(engine, msg) == 0)
-				engine_mask &= ~intel_engine_flag(engine);
+				engine_mask &= ~engine->mask;
 
 			clear_bit(I915_RESET_ENGINE + engine->id,
-				  &i915->gpu_error.flags);
-			wake_up_bit(&i915->gpu_error.flags,
+				  &error->flags);
+			wake_up_bit(&error->flags,
 				    I915_RESET_ENGINE + engine->id);
 		}
 	}
@@ -1270,18 +1295,20 @@ void i915_handle_error(struct drm_i915_private *i915,
 		goto out;
 
 	/* Full reset needs the mutex, stop any other user trying to do so. */
-	if (test_and_set_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags)) {
-		wait_event(i915->gpu_error.reset_queue,
-			   !test_bit(I915_RESET_BACKOFF,
-				     &i915->gpu_error.flags));
-		goto out;
+	if (test_and_set_bit(I915_RESET_BACKOFF, &error->flags)) {
+		wait_event(error->reset_queue,
+			   !test_bit(I915_RESET_BACKOFF, &error->flags));
+		goto out; /* piggy-back on the other reset */
 	}
+
+	/* Make sure i915_reset_trylock() sees the I915_RESET_BACKOFF */
+	synchronize_rcu_expedited();
 
 	/* Prevent any other reset-engine attempt. */
 	for_each_engine(engine, i915, tmp) {
 		while (test_and_set_bit(I915_RESET_ENGINE + engine->id,
-					&i915->gpu_error.flags))
-			wait_on_bit(&i915->gpu_error.flags,
+					&error->flags))
+			wait_on_bit(&error->flags,
 				    I915_RESET_ENGINE + engine->id,
 				    TASK_UNINTERRUPTIBLE);
 	}
@@ -1290,14 +1317,72 @@ void i915_handle_error(struct drm_i915_private *i915,
 
 	for_each_engine(engine, i915, tmp) {
 		clear_bit(I915_RESET_ENGINE + engine->id,
-			  &i915->gpu_error.flags);
+			  &error->flags);
 	}
 
-	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
-	wake_up_all(&i915->gpu_error.reset_queue);
+	clear_bit(I915_RESET_BACKOFF, &error->flags);
+	wake_up_all(&error->reset_queue);
 
 out:
 	intel_runtime_pm_put(i915, wakeref);
+}
+
+int i915_reset_trylock(struct drm_i915_private *i915)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+	int srcu;
+
+	might_lock(&error->reset_backoff_srcu);
+	might_sleep();
+
+	rcu_read_lock();
+	while (test_bit(I915_RESET_BACKOFF, &error->flags)) {
+		rcu_read_unlock();
+
+		if (wait_event_interruptible(error->reset_queue,
+					     !test_bit(I915_RESET_BACKOFF,
+						       &error->flags)))
+			return -EINTR;
+
+		rcu_read_lock();
+	}
+	srcu = srcu_read_lock(&error->reset_backoff_srcu);
+	rcu_read_unlock();
+
+	return srcu;
+}
+
+void i915_reset_unlock(struct drm_i915_private *i915, int tag)
+__releases(&i915->gpu_error.reset_backoff_srcu)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+
+	srcu_read_unlock(&error->reset_backoff_srcu, tag);
+}
+
+int i915_terminally_wedged(struct drm_i915_private *i915)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+
+	might_sleep();
+
+	if (!__i915_wedged(error))
+		return 0;
+
+	/* Reset still in progress? Maybe we will recover? */
+	if (!test_bit(I915_RESET_BACKOFF, &error->flags))
+		return -EIO;
+
+	/* XXX intel_reset_finish() still takes struct_mutex!!! */
+	if (mutex_is_locked(&i915->drm.struct_mutex))
+		return -EAGAIN;
+
+	if (wait_event_interruptible(error->reset_queue,
+				     !test_bit(I915_RESET_BACKOFF,
+					       &error->flags)))
+		return -EINTR;
+
+	return __i915_wedged(error) ? -EIO : 0;
 }
 
 bool i915_reset_flush(struct drm_i915_private *i915)

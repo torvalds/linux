@@ -51,6 +51,7 @@
  * must be correctly synchronized/cancelled when shutting down the pipe."
  */
 
+#include <drm/drm_atomic_helper.h>
 
 #include "intel_drv.h"
 #include "i915_drv.h"
@@ -78,9 +79,6 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 	case I915_PSR_DEBUG_DISABLE:
 	case I915_PSR_DEBUG_FORCE_PSR1:
 		return false;
-	case I915_PSR_DEBUG_DEFAULT:
-		if (i915_modparams.enable_psr <= 0)
-			return false;
 	default:
 		return crtc_state->has_psr2;
 	}
@@ -435,6 +433,41 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
 }
 
+static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 val = 0;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		val |= EDP_PSR_TP4_TIME_0US;
+
+	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
+		val |= EDP_PSR_TP1_TIME_0us;
+	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
+		val |= EDP_PSR_TP1_TIME_100us;
+	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP1_TIME_500us;
+	else
+		val |= EDP_PSR_TP1_TIME_2500us;
+
+	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
+		val |= EDP_PSR_TP2_TP3_TIME_0us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+		val |= EDP_PSR_TP2_TP3_TIME_100us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP2_TP3_TIME_500us;
+	else
+		val |= EDP_PSR_TP2_TP3_TIME_2500us;
+
+	if (intel_dp_source_supports_hbr2(intel_dp) &&
+	    drm_dp_tps3_supported(intel_dp->dpcd))
+		val |= EDP_PSR_TP1_TP3_SEL;
+	else
+		val |= EDP_PSR_TP1_TP2_SEL;
+
+	return val;
+}
+
 static void hsw_activate_psr1(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -459,29 +492,7 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	if (dev_priv->psr.link_standby)
 		val |= EDP_PSR_LINK_STANDBY;
 
-	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
-		val |=  EDP_PSR_TP1_TIME_0us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
-		val |= EDP_PSR_TP1_TIME_100us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
-		val |= EDP_PSR_TP1_TIME_500us;
-	else
-		val |= EDP_PSR_TP1_TIME_2500us;
-
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
-		val |=  EDP_PSR_TP2_TP3_TIME_0us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
-		val |= EDP_PSR_TP2_TP3_TIME_100us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
-		val |= EDP_PSR_TP2_TP3_TIME_500us;
-	else
-		val |= EDP_PSR_TP2_TP3_TIME_2500us;
-
-	if (intel_dp_source_supports_hbr2(intel_dp) &&
-	    drm_dp_tps3_supported(intel_dp->dpcd))
-		val |= EDP_PSR_TP1_TP3_SEL;
-	else
-		val |= EDP_PSR_TP1_TP2_SEL;
+	val |= intel_psr1_get_tp_time(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 8)
 		val |= EDP_PSR_CRC_ENABLE;
@@ -509,15 +520,23 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 
 	val |= EDP_PSR2_FRAME_BEFORE_SU(dev_priv->psr.sink_sync_latency + 1);
 
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us >= 0 &&
-	    dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 50)
+	if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
+	    dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
 		val |= EDP_PSR2_TP2_TIME_50us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
 		val |= EDP_PSR2_TP2_TIME_100us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
 		val |= EDP_PSR2_TP2_TIME_500us;
 	else
 		val |= EDP_PSR2_TP2_TIME_2500us;
+
+	/*
+	 * FIXME: There is probably a issue in DMC firmwares(icl_dmc_ver1_07.bin
+	 * and kbl_dmc_ver1_04.bin at least) that causes PSR2 SU to fail after
+	 * exiting DC6 if EDP_PSR_TP1_TP3_SEL is kept in PSR_CTL, so for now
+	 * lets workaround the issue by cleaning PSR_CTL before enable PSR2.
+	 */
+	I915_WRITE(EDP_PSR_CTL, 0);
 
 	I915_WRITE(EDP_PSR2_CTL, val);
 }
@@ -530,11 +549,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	int crtc_vdisplay = crtc_state->base.adjusted_mode.crtc_vdisplay;
 	int psr_max_h = 0, psr_max_v = 0;
 
-	/*
-	 * FIXME psr2_support is messed up. It's both computed
-	 * dynamically during PSR enable, and extracted from sink
-	 * caps during eDP detection.
-	 */
 	if (!dev_priv->psr.sink_psr2_support)
 		return false;
 
@@ -572,6 +586,11 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (crtc_hdisplay % dev_priv->psr.su_x_granularity) {
 		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
 			      crtc_hdisplay, dev_priv->psr.su_x_granularity);
+		return false;
+	}
+
+	if (crtc_state->crc_enabled) {
+		DRM_DEBUG_KMS("PSR2 not enabled because it would inhibit pipe CRC calculation\n");
 		return false;
 	}
 
@@ -718,8 +737,11 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 {
 	struct intel_dp *intel_dp = dev_priv->psr.dp;
 
-	if (dev_priv->psr.enabled)
-		return;
+	WARN_ON(dev_priv->psr.enabled);
+
+	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
+	dev_priv->psr.busy_frontbuffer_bits = 0;
+	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
 
 	DRM_DEBUG_KMS("Enabling PSR%s\n",
 		      dev_priv->psr.psr2_enabled ? "2" : "1");
@@ -752,20 +774,13 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	WARN_ON(dev_priv->drrs.dp);
 
 	mutex_lock(&dev_priv->psr.lock);
-	if (dev_priv->psr.prepared) {
-		DRM_DEBUG_KMS("PSR already in use\n");
+
+	if (!psr_global_enabled(dev_priv->psr.debug)) {
+		DRM_DEBUG_KMS("PSR disabled by flag\n");
 		goto unlock;
 	}
 
-	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
-	dev_priv->psr.busy_frontbuffer_bits = 0;
-	dev_priv->psr.prepared = true;
-	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
-
-	if (psr_global_enabled(dev_priv->psr.debug))
-		intel_psr_enable_locked(dev_priv, crtc_state);
-	else
-		DRM_DEBUG_KMS("PSR disabled by flag\n");
+	intel_psr_enable_locked(dev_priv, crtc_state);
 
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
@@ -819,8 +834,8 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	}
 
 	/* Wait till PSR is idle */
-	if (intel_wait_for_register(dev_priv, psr_status, psr_status_mask, 0,
-				    2000))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    psr_status, psr_status_mask, 0, 2000))
 		DRM_ERROR("Timed out waiting PSR idle state\n");
 
 	/* Disable PSR on Sink */
@@ -848,16 +863,67 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
-	if (!dev_priv->psr.prepared) {
-		mutex_unlock(&dev_priv->psr.lock);
-		return;
-	}
 
 	intel_psr_disable_locked(intel_dp);
 
-	dev_priv->psr.prepared = false;
 	mutex_unlock(&dev_priv->psr.lock);
 	cancel_work_sync(&dev_priv->psr.work);
+}
+
+static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * Display WA #0884: all
+	 * This documented WA for bxt can be safely applied
+	 * broadly so we can force HW tracking to exit PSR
+	 * instead of disabling and re-enabling.
+	 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
+	 * but it makes more sense write to the current active
+	 * pipe.
+	 */
+	I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
+}
+
+/**
+ * intel_psr_update - Update PSR state
+ * @intel_dp: Intel DP
+ * @crtc_state: new CRTC state
+ *
+ * This functions will update PSR states, disabling, enabling or switching PSR
+ * version when executing fastsets. For full modeset, intel_psr_disable() and
+ * intel_psr_enable() should be called instead.
+ */
+void intel_psr_update(struct intel_dp *intel_dp,
+		      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct i915_psr *psr = &dev_priv->psr;
+	bool enable, psr2_enable;
+
+	if (!CAN_PSR(dev_priv) || READ_ONCE(psr->dp) != intel_dp)
+		return;
+
+	mutex_lock(&dev_priv->psr.lock);
+
+	enable = crtc_state->has_psr && psr_global_enabled(psr->debug);
+	psr2_enable = intel_psr2_enabled(dev_priv, crtc_state);
+
+	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled) {
+		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
+		if (crtc_state->crc_enabled && psr->enabled)
+			psr_force_hw_tracking_exit(dev_priv);
+
+		goto unlock;
+	}
+
+	if (psr->enabled)
+		intel_psr_disable_locked(intel_dp);
+
+	if (enable)
+		intel_psr_enable_locked(dev_priv, crtc_state);
+
+unlock:
+	mutex_unlock(&dev_priv->psr.lock);
 }
 
 /**
@@ -890,7 +956,7 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 	 * defensive enough to cover everything.
 	 */
 
-	return __intel_wait_for_register(dev_priv, EDP_PSR_STATUS,
+	return __intel_wait_for_register(&dev_priv->uncore, EDP_PSR_STATUS,
 					 EDP_PSR_STATUS_STATE_MASK,
 					 EDP_PSR_STATUS_STATE_IDLE, 2, 50,
 					 out_value);
@@ -915,7 +981,7 @@ static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 
 	mutex_unlock(&dev_priv->psr.lock);
 
-	err = intel_wait_for_register(dev_priv, reg, mask, 0, 50);
+	err = intel_wait_for_register(&dev_priv->uncore, reg, mask, 0, 50);
 	if (err)
 		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 
@@ -924,36 +990,63 @@ static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 	return err == 0 && dev_priv->psr.enabled;
 }
 
-static bool switching_psr(struct drm_i915_private *dev_priv,
-			  struct intel_crtc_state *crtc_state,
-			  u32 mode)
-{
-	/* Can't switch psr state anyway if PSR2 is not supported. */
-	if (!crtc_state || !crtc_state->has_psr2)
-		return false;
-
-	if (dev_priv->psr.psr2_enabled && mode == I915_PSR_DEBUG_FORCE_PSR1)
-		return true;
-
-	if (!dev_priv->psr.psr2_enabled && mode != I915_PSR_DEBUG_FORCE_PSR1)
-		return true;
-
-	return false;
-}
-
-int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
-			       struct drm_modeset_acquire_ctx *ctx,
-			       u64 val)
+static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct drm_connector_state *conn_state;
-	struct intel_crtc_state *crtc_state = NULL;
-	struct drm_crtc_commit *commit;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
 	struct drm_crtc *crtc;
-	struct intel_dp *dp;
+	int err;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return -ENOMEM;
+
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
+	state->acquire_ctx = &ctx;
+
+retry:
+	drm_for_each_crtc(crtc, dev) {
+		struct drm_crtc_state *crtc_state;
+		struct intel_crtc_state *intel_crtc_state;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state)) {
+			err = PTR_ERR(crtc_state);
+			goto error;
+		}
+
+		intel_crtc_state = to_intel_crtc_state(crtc_state);
+
+		if (crtc_state->active && intel_crtc_state->has_psr) {
+			/* Mark mode as changed to trigger a pipe->update() */
+			crtc_state->mode_changed = true;
+			break;
+		}
+	}
+
+	err = drm_atomic_commit(state);
+
+error:
+	if (err == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		err = drm_modeset_backoff(&ctx);
+		if (!err)
+			goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+	drm_atomic_state_put(state);
+
+	return err;
+}
+
+int intel_psr_debug_set(struct drm_i915_private *dev_priv, u64 val)
+{
+	const u32 mode = val & I915_PSR_DEBUG_MODE_MASK;
+	u32 old_mode;
 	int ret;
-	bool enable;
-	u32 mode = val & I915_PSR_DEBUG_MODE_MASK;
 
 	if (val & ~(I915_PSR_DEBUG_IRQ | I915_PSR_DEBUG_MODE_MASK) ||
 	    mode > I915_PSR_DEBUG_FORCE_PSR1) {
@@ -961,49 +1054,19 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 		return -EINVAL;
 	}
 
-	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, ctx);
-	if (ret)
-		return ret;
-
-	/* dev_priv->psr.dp should be set once and then never touched again. */
-	dp = READ_ONCE(dev_priv->psr.dp);
-	conn_state = dp->attached_connector->base.state;
-	crtc = conn_state->crtc;
-	if (crtc) {
-		ret = drm_modeset_lock(&crtc->mutex, ctx);
-		if (ret)
-			return ret;
-
-		crtc_state = to_intel_crtc_state(crtc->state);
-		commit = crtc_state->base.commit;
-	} else {
-		commit = conn_state->commit;
-	}
-	if (commit) {
-		ret = wait_for_completion_interruptible(&commit->hw_done);
-		if (ret)
-			return ret;
-	}
-
 	ret = mutex_lock_interruptible(&dev_priv->psr.lock);
 	if (ret)
 		return ret;
 
-	enable = psr_global_enabled(val);
-
-	if (!enable || switching_psr(dev_priv, crtc_state, mode))
-		intel_psr_disable_locked(dev_priv->psr.dp);
-
+	old_mode = dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK;
 	dev_priv->psr.debug = val;
-	if (crtc)
-		dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
-
 	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 
-	if (dev_priv->psr.prepared && enable)
-		intel_psr_enable_locked(dev_priv, crtc_state);
-
 	mutex_unlock(&dev_priv->psr.lock);
+
+	if (old_mode != mode)
+		ret = intel_psr_fastset_force(dev_priv);
+
 	return ret;
 }
 
@@ -1121,18 +1184,8 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
 	/* By definition flush = invalidate + flush */
-	if (frontbuffer_bits) {
-		/*
-		 * Display WA #0884: all
-		 * This documented WA for bxt can be safely applied
-		 * broadly so we can force HW tracking to exit PSR
-		 * instead of disabling and re-enabling.
-		 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
-		 * but it makes more sense write to the current active
-		 * pipe.
-		 */
-		I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
-	}
+	if (frontbuffer_bits)
+		psr_force_hw_tracking_exit(dev_priv);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		schedule_work(&dev_priv->psr.work);

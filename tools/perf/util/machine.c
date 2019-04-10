@@ -10,6 +10,7 @@
 #include "hist.h"
 #include "machine.h"
 #include "map.h"
+#include "symbol.h"
 #include "sort.h"
 #include "strlist.h"
 #include "thread.h"
@@ -21,6 +22,7 @@
 #include "unwind.h"
 #include "linux/hash.h"
 #include "asm/bug.h"
+#include "bpf-event.h"
 
 #include "sane_ctype.h"
 #include <symbol/kallsyms.h>
@@ -41,7 +43,7 @@ static void machine__threads_init(struct machine *machine)
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		struct threads *threads = &machine->threads[i];
-		threads->entries = RB_ROOT;
+		threads->entries = RB_ROOT_CACHED;
 		init_rwsem(&threads->lock);
 		threads->nr = 0;
 		INIT_LIST_HEAD(&threads->dead);
@@ -179,7 +181,7 @@ void machine__delete_threads(struct machine *machine)
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		struct threads *threads = &machine->threads[i];
 		down_write(&threads->lock);
-		nd = rb_first(&threads->entries);
+		nd = rb_first_cached(&threads->entries);
 		while (nd) {
 			struct thread *t = rb_entry(nd, struct thread, rb_node);
 
@@ -222,7 +224,7 @@ void machine__delete(struct machine *machine)
 void machines__init(struct machines *machines)
 {
 	machine__init(&machines->host, "", HOST_KERNEL_ID);
-	machines->guests = RB_ROOT;
+	machines->guests = RB_ROOT_CACHED;
 }
 
 void machines__exit(struct machines *machines)
@@ -234,9 +236,10 @@ void machines__exit(struct machines *machines)
 struct machine *machines__add(struct machines *machines, pid_t pid,
 			      const char *root_dir)
 {
-	struct rb_node **p = &machines->guests.rb_node;
+	struct rb_node **p = &machines->guests.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct machine *pos, *machine = malloc(sizeof(*machine));
+	bool leftmost = true;
 
 	if (machine == NULL)
 		return NULL;
@@ -251,12 +254,14 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 		pos = rb_entry(parent, struct machine, rb_node);
 		if (pid < pos->pid)
 			p = &(*p)->rb_left;
-		else
+		else {
 			p = &(*p)->rb_right;
+			leftmost = false;
+		}
 	}
 
 	rb_link_node(&machine->rb_node, parent, p);
-	rb_insert_color(&machine->rb_node, &machines->guests);
+	rb_insert_color_cached(&machine->rb_node, &machines->guests, leftmost);
 
 	return machine;
 }
@@ -267,7 +272,7 @@ void machines__set_comm_exec(struct machines *machines, bool comm_exec)
 
 	machines->host.comm_exec = comm_exec;
 
-	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *machine = rb_entry(nd, struct machine, rb_node);
 
 		machine->comm_exec = comm_exec;
@@ -276,7 +281,7 @@ void machines__set_comm_exec(struct machines *machines, bool comm_exec)
 
 struct machine *machines__find(struct machines *machines, pid_t pid)
 {
-	struct rb_node **p = &machines->guests.rb_node;
+	struct rb_node **p = &machines->guests.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct machine *machine;
 	struct machine *default_machine = NULL;
@@ -339,7 +344,7 @@ void machines__process_guests(struct machines *machines,
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		process(pos, data);
 	}
@@ -352,7 +357,8 @@ void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size)
 
 	machines->host.id_hdr_size = id_hdr_size;
 
-	for (node = rb_first(&machines->guests); node; node = rb_next(node)) {
+	for (node = rb_first_cached(&machines->guests); node;
+	     node = rb_next(node)) {
 		machine = rb_entry(node, struct machine, rb_node);
 		machine->id_hdr_size = id_hdr_size;
 	}
@@ -465,9 +471,10 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 						  pid_t pid, pid_t tid,
 						  bool create)
 {
-	struct rb_node **p = &threads->entries.rb_node;
+	struct rb_node **p = &threads->entries.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct thread *th;
+	bool leftmost = true;
 
 	th = threads__get_last_match(threads, machine, pid, tid);
 	if (th)
@@ -485,8 +492,10 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 
 		if (tid < th->tid)
 			p = &(*p)->rb_left;
-		else
+		else {
 			p = &(*p)->rb_right;
+			leftmost = false;
+		}
 	}
 
 	if (!create)
@@ -495,7 +504,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	th = thread__new(pid, tid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
-		rb_insert_color(&th->rb_node, &threads->entries);
+		rb_insert_color_cached(&th->rb_node, &threads->entries, leftmost);
 
 		/*
 		 * We have to initialize map_groups separately
@@ -506,7 +515,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		 * leader and that would screwed the rb tree.
 		 */
 		if (thread__init_map_groups(th, machine)) {
-			rb_erase_init(&th->rb_node, &threads->entries);
+			rb_erase_cached(&th->rb_node, &threads->entries);
 			RB_CLEAR_NODE(&th->rb_node);
 			thread__put(th);
 			return NULL;
@@ -681,6 +690,59 @@ int machine__process_switch_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+static int machine__process_ksymbol_register(struct machine *machine,
+					     union perf_event *event,
+					     struct perf_sample *sample __maybe_unused)
+{
+	struct symbol *sym;
+	struct map *map;
+
+	map = map_groups__find(&machine->kmaps, event->ksymbol_event.addr);
+	if (!map) {
+		map = dso__new_map(event->ksymbol_event.name);
+		if (!map)
+			return -ENOMEM;
+
+		map->start = event->ksymbol_event.addr;
+		map->pgoff = map->start;
+		map->end = map->start + event->ksymbol_event.len;
+		map_groups__insert(&machine->kmaps, map);
+	}
+
+	sym = symbol__new(event->ksymbol_event.addr, event->ksymbol_event.len,
+			  0, 0, event->ksymbol_event.name);
+	if (!sym)
+		return -ENOMEM;
+	dso__insert_symbol(map->dso, sym);
+	return 0;
+}
+
+static int machine__process_ksymbol_unregister(struct machine *machine,
+					       union perf_event *event,
+					       struct perf_sample *sample __maybe_unused)
+{
+	struct map *map;
+
+	map = map_groups__find(&machine->kmaps, event->ksymbol_event.addr);
+	if (map)
+		map_groups__remove(&machine->kmaps, map);
+
+	return 0;
+}
+
+int machine__process_ksymbol(struct machine *machine __maybe_unused,
+			     union perf_event *event,
+			     struct perf_sample *sample)
+{
+	if (dump_trace)
+		perf_event__fprintf_ksymbol(event, stdout);
+
+	if (event->ksymbol_event.flags & PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER)
+		return machine__process_ksymbol_unregister(machine, event,
+							   sample);
+	return machine__process_ksymbol_register(machine, event, sample);
+}
+
 static void dso__adjust_kmod_long_name(struct dso *dso, const char *filename)
 {
 	const char *dup_filename;
@@ -744,7 +806,7 @@ size_t machines__fprintf_dsos(struct machines *machines, FILE *fp)
 	struct rb_node *nd;
 	size_t ret = __dsos__fprintf(&machines->host.dsos.head, fp);
 
-	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret += __dsos__fprintf(&pos->dsos.head, fp);
 	}
@@ -764,7 +826,7 @@ size_t machines__fprintf_dsos_buildid(struct machines *machines, FILE *fp,
 	struct rb_node *nd;
 	size_t ret = machine__fprintf_dsos_buildid(&machines->host, fp, skip, parm);
 
-	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret += machine__fprintf_dsos_buildid(pos, fp, skip, parm);
 	}
@@ -804,7 +866,8 @@ size_t machine__fprintf(struct machine *machine, FILE *fp)
 
 		ret = fprintf(fp, "Threads: %u\n", threads->nr);
 
-		for (nd = rb_first(&threads->entries); nd; nd = rb_next(nd)) {
+		for (nd = rb_first_cached(&threads->entries); nd;
+		     nd = rb_next(nd)) {
 			struct thread *pos = rb_entry(nd, struct thread, rb_node);
 
 			ret += thread__fprintf(pos, fp);
@@ -1107,7 +1170,7 @@ failure:
 
 void machines__destroy_kernel_maps(struct machines *machines)
 {
-	struct rb_node *next = rb_first(&machines->guests);
+	struct rb_node *next = rb_first_cached(&machines->guests);
 
 	machine__destroy_kernel_maps(&machines->host);
 
@@ -1115,7 +1178,7 @@ void machines__destroy_kernel_maps(struct machines *machines)
 		struct machine *pos = rb_entry(next, struct machine, rb_node);
 
 		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, &machines->guests);
+		rb_erase_cached(&pos->rb_node, &machines->guests);
 		machine__delete(pos);
 	}
 }
@@ -1680,7 +1743,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	BUG_ON(refcount_read(&th->refcnt) == 0);
 	if (lock)
 		down_write(&threads->lock);
-	rb_erase_init(&th->rb_node, &threads->entries);
+	rb_erase_cached(&th->rb_node, &threads->entries);
 	RB_CLEAR_NODE(&th->rb_node);
 	--threads->nr;
 	/*
@@ -1812,6 +1875,10 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 	case PERF_RECORD_SWITCH:
 	case PERF_RECORD_SWITCH_CPU_WIDE:
 		ret = machine__process_switch_event(machine, event); break;
+	case PERF_RECORD_KSYMBOL:
+		ret = machine__process_ksymbol(machine, event, sample); break;
+	case PERF_RECORD_BPF_EVENT:
+		ret = machine__process_bpf_event(machine, event, sample); break;
 	default:
 		ret = -1;
 		break;
@@ -2453,7 +2520,8 @@ int machine__for_each_thread(struct machine *machine,
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		threads = &machine->threads[i];
-		for (nd = rb_first(&threads->entries); nd; nd = rb_next(nd)) {
+		for (nd = rb_first_cached(&threads->entries); nd;
+		     nd = rb_next(nd)) {
 			thread = rb_entry(nd, struct thread, rb_node);
 			rc = fn(thread, priv);
 			if (rc != 0)
@@ -2480,7 +2548,7 @@ int machines__for_each_thread(struct machines *machines,
 	if (rc != 0)
 		return rc;
 
-	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *machine = rb_entry(nd, struct machine, rb_node);
 
 		rc = machine__for_each_thread(machine, fn, priv);

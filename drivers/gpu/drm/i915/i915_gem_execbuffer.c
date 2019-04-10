@@ -794,8 +794,8 @@ static int eb_wait_for_ring(const struct i915_execbuffer *eb)
 	 * keeping all of their resources pinned.
 	 */
 
-	ce = to_intel_context(eb->ctx, eb->engine);
-	if (!ce->ring) /* first use, assume empty! */
+	ce = intel_context_lookup(eb->ctx, eb->engine);
+	if (!ce || !ce->ring) /* first use, assume empty! */
 		return 0;
 
 	rq = __eb_wait_for_ring(ce->ring);
@@ -849,12 +849,12 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		}
 
 		vma = i915_vma_instance(obj, eb->vm, NULL);
-		if (unlikely(IS_ERR(vma))) {
+		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto err_obj;
 		}
 
-		lut = kmem_cache_alloc(eb->i915->luts, GFP_KERNEL);
+		lut = i915_lut_handle_alloc();
 		if (unlikely(!lut)) {
 			err = -ENOMEM;
 			goto err_obj;
@@ -862,7 +862,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 		err = radix_tree_insert(handles_vma, handle, vma);
 		if (unlikely(err)) {
-			kmem_cache_free(eb->i915->luts, lut);
+			i915_lut_handle_free(lut);
 			goto err_obj;
 		}
 
@@ -1001,7 +1001,10 @@ static void reloc_gpu_flush(struct reloc_cache *cache)
 {
 	GEM_BUG_ON(cache->rq_size >= cache->rq->batch->obj->base.size / sizeof(u32));
 	cache->rq_cmd[cache->rq_size] = MI_BATCH_BUFFER_END;
+
+	__i915_gem_object_flush_map(cache->rq->batch->obj, 0, cache->rq_size);
 	i915_gem_object_unpin_map(cache->rq->batch->obj);
+
 	i915_gem_chipset_flush(cache->rq->i915);
 
 	i915_request_add(cache->rq);
@@ -1213,10 +1216,6 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	i915_gem_object_unpin_pages(obj);
 	if (IS_ERR(cmd))
 		return PTR_ERR(cmd);
-
-	err = i915_gem_object_set_to_wc_domain(obj, false);
-	if (err)
-		goto err_unmap;
 
 	batch = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -1957,7 +1956,7 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	u32 *cs;
 	int i;
 
-	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS) {
+	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS0) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
@@ -2082,11 +2081,11 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 #define I915_USER_RINGS (4)
 
 static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
-	[I915_EXEC_DEFAULT]	= RCS,
-	[I915_EXEC_RENDER]	= RCS,
-	[I915_EXEC_BLT]		= BCS,
-	[I915_EXEC_BSD]		= VCS,
-	[I915_EXEC_VEBOX]	= VECS
+	[I915_EXEC_DEFAULT]	= RCS0,
+	[I915_EXEC_RENDER]	= RCS0,
+	[I915_EXEC_BLT]		= BCS0,
+	[I915_EXEC_BSD]		= VCS0,
+	[I915_EXEC_VEBOX]	= VECS0
 };
 
 static struct intel_engine_cs *
@@ -2109,7 +2108,7 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 		return NULL;
 	}
 
-	if (user_ring_id == I915_EXEC_BSD && HAS_BSD2(dev_priv)) {
+	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(dev_priv, VCS1)) {
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {
@@ -2312,10 +2311,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (args->flags & I915_EXEC_IS_PINNED)
 		eb.batch_flags |= I915_DISPATCH_PINNED;
 
-	eb.engine = eb_select_engine(eb.i915, file, args);
-	if (!eb.engine)
-		return -EINVAL;
-
 	if (args->flags & I915_EXEC_FENCE_IN) {
 		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
 		if (!in_fence)
@@ -2339,6 +2334,12 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	err = eb_select_context(&eb);
 	if (unlikely(err))
 		goto err_destroy;
+
+	eb.engine = eb_select_engine(eb.i915, file, args);
+	if (!eb.engine) {
+		err = -EINVAL;
+		goto err_engine;
+	}
 
 	/*
 	 * Take a local wakeref for preparing to dispatch the execbuf as
@@ -2505,6 +2506,7 @@ err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
 	intel_runtime_pm_put(eb.i915, wakeref);
+err_engine:
 	i915_gem_context_put(eb.ctx);
 err_destroy:
 	eb_destroy(&eb);

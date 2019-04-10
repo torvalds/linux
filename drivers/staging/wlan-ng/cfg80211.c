@@ -70,7 +70,8 @@ static int prism2_result2err(int prism2_result)
 	return err;
 }
 
-static int prism2_domibset_uint32(struct wlandevice *wlandev, u32 did, u32 data)
+static int prism2_domibset_uint32(struct wlandevice *wlandev,
+				  u32 did, u32 data)
 {
 	struct p80211msg_dot11req_mibset msg;
 	struct p80211item_uint32 *mibitem =

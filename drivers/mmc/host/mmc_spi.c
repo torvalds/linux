@@ -1453,7 +1453,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	mmc_detect_change(mmc, 0);
 
 	/* Index 1 is write protect/read only */
-	status = mmc_gpiod_request_ro(mmc, NULL, 1, false, 0, NULL);
+	status = mmc_gpiod_request_ro(mmc, NULL, 1, 0, NULL);
 	if (status == -EPROBE_DEFER)
 		goto fail_add_host;
 	if (!status)

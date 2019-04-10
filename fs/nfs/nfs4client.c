@@ -42,7 +42,7 @@ static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
 }
 
 #ifdef CONFIG_NFS_V4_1
-/**
+/*
  * Per auth flavor data server rpc clients
  */
 struct nfs4_ds_server {
@@ -51,7 +51,9 @@ struct nfs4_ds_server {
 };
 
 /**
- * Common lookup case for DS I/O
+ * nfs4_find_ds_client - Common lookup case for DS I/O
+ * @ds_clp: pointer to the DS's nfs_client
+ * @flavor: rpc auth flavour to match
  */
 static struct nfs4_ds_server *
 nfs4_find_ds_client(struct nfs_client *ds_clp, rpc_authflavor_t flavor)
@@ -118,9 +120,13 @@ nfs4_free_ds_server(struct nfs4_ds_server *dss)
 }
 
 /**
-* Find or create a DS rpc client with th MDS server rpc client auth flavor
-* in the nfs_client cl_ds_clients list.
-*/
+ * nfs4_find_or_create_ds_client - Find or create a DS rpc client
+ * @ds_clp: pointer to the DS's nfs_client
+ * @inode: pointer to the inode
+ *
+ * Find or create a DS rpc client with th MDS server rpc client auth flavor
+ * in the nfs_client cl_ds_clients list.
+ */
 struct rpc_clnt *
 nfs4_find_or_create_ds_client(struct nfs_client *ds_clp, struct inode *inode)
 {
@@ -145,7 +151,6 @@ static void
 nfs4_shutdown_ds_clients(struct nfs_client *clp)
 {
 	struct nfs4_ds_server *dss;
-	LIST_HEAD(shutdown_list);
 
 	while (!list_empty(&clp->cl_ds_clients)) {
 		dss = list_entry(clp->cl_ds_clients.next,
@@ -284,7 +289,7 @@ static int nfs4_init_callback(struct nfs_client *clp)
 
 /**
  * nfs40_init_client - nfs_client initialization tasks for NFSv4.0
- * @clp - nfs_client to initialize
+ * @clp: nfs_client to initialize
  *
  * Returns zero on success, or a negative errno if some error occurred.
  */
@@ -312,7 +317,7 @@ int nfs40_init_client(struct nfs_client *clp)
 
 /**
  * nfs41_init_client - nfs_client initialization tasks for NFSv4.1+
- * @clp - nfs_client to initialize
+ * @clp: nfs_client to initialize
  *
  * Returns zero on success, or a negative errno if some error occurred.
  */
@@ -360,9 +365,7 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
  * nfs4_init_client - Initialise an NFS4 client record
  *
  * @clp: nfs_client to initialise
- * @timeparms: timeout parameters for underlying RPC transport
- * @ip_addr: callback IP address in presentation format
- * @authflavor: authentication flavor for underlying RPC transport
+ * @cl_init: pointer to nfs_client_initdata
  *
  * Returns pointer to an NFS client, or an ERR_PTR value.
  */
@@ -649,13 +652,13 @@ nfs4_check_server_scope(struct nfs41_server_scope *s1,
 
 /**
  * nfs4_detect_session_trunking - Checks for session trunking.
- *
- * Called after a successful EXCHANGE_ID on a multi-addr connection.
- * Upon success, add the transport.
- *
  * @clp:    original mount nfs_client
  * @res:    result structure from an exchange_id using the original mount
  *          nfs_client with a new multi_addr transport
+ * @xprt:   pointer to the transport to add.
+ *
+ * Called after a successful EXCHANGE_ID on a multi-addr connection.
+ * Upon success, add the transport.
  *
  * Returns zero on success, otherwise -EINVAL
  *

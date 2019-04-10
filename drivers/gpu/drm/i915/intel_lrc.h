@@ -28,20 +28,20 @@
 #include "i915_gem_context.h"
 
 /* Execlists regs */
-#define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)
-#define RING_EXECLIST_STATUS_LO(engine)		_MMIO((engine)->mmio_base + 0x234)
-#define RING_EXECLIST_STATUS_HI(engine)		_MMIO((engine)->mmio_base + 0x234 + 4)
-#define RING_CONTEXT_CONTROL(engine)		_MMIO((engine)->mmio_base + 0x244)
+#define RING_ELSP(base)				_MMIO((base) + 0x230)
+#define RING_EXECLIST_STATUS_LO(base)		_MMIO((base) + 0x234)
+#define RING_EXECLIST_STATUS_HI(base)		_MMIO((base) + 0x234 + 4)
+#define RING_CONTEXT_CONTROL(base)		_MMIO((base) + 0x244)
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
-#define   CTX_CTRL_RS_CTX_ENABLE                (1 << 1)
+#define   CTX_CTRL_RS_CTX_ENABLE		(1 << 1)
 #define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	(1 << 2)
-#define RING_CONTEXT_STATUS_BUF_BASE(engine)	_MMIO((engine)->mmio_base + 0x370)
-#define RING_CONTEXT_STATUS_BUF_LO(engine, i)	_MMIO((engine)->mmio_base + 0x370 + (i) * 8)
-#define RING_CONTEXT_STATUS_BUF_HI(engine, i)	_MMIO((engine)->mmio_base + 0x370 + (i) * 8 + 4)
-#define RING_CONTEXT_STATUS_PTR(engine)		_MMIO((engine)->mmio_base + 0x3a0)
-#define RING_EXECLIST_SQ_CONTENTS(engine)	_MMIO((engine)->mmio_base + 0x510)
-#define RING_EXECLIST_CONTROL(engine)		_MMIO((engine)->mmio_base + 0x550)
+#define RING_CONTEXT_STATUS_BUF_BASE(base)	_MMIO((base) + 0x370)
+#define RING_CONTEXT_STATUS_BUF_LO(base, i)	_MMIO((base) + 0x370 + (i) * 8)
+#define RING_CONTEXT_STATUS_BUF_HI(base, i)	_MMIO((base) + 0x370 + (i) * 8 + 4)
+#define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
+#define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
+#define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
 #define	  EL_CTRL_LOAD				(1 << 0)
 
 /* The docs specify that the write pointer wraps around after 5h, "After status

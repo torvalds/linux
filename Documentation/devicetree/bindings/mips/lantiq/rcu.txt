@@ -26,24 +26,6 @@ Example of the RCU bindings on a xRX200 SoC:
 		ranges = <0x0 0x203000 0x100>;
 		big-endian;
 
-		gphy0: gphy@20 {
-			compatible = "lantiq,xrx200a2x-gphy";
-			reg = <0x20 0x4>;
-
-			resets = <&reset0 31 30>, <&reset1 7 7>;
-			reset-names = "gphy", "gphy2";
-			lantiq,gphy-mode = <GPHY_MODE_GE>;
-		};
-
-		gphy1: gphy@68 {
-			compatible = "lantiq,xrx200a2x-gphy";
-			reg = <0x68 0x4>;
-
-			resets = <&reset0 29 28>, <&reset1 6 6>;
-			reset-names = "gphy", "gphy2";
-			lantiq,gphy-mode = <GPHY_MODE_GE>;
-		};
-
 		reset0: reset-controller@10 {
 			compatible = "lantiq,xrx200-reset";
 			reg = <0x10 4>, <0x14 4>;

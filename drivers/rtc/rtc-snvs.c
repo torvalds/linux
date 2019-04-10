@@ -239,6 +239,9 @@ static irqreturn_t snvs_rtc_irq_handler(int irq, void *dev_id)
 	u32 lpsr;
 	u32 events = 0;
 
+	if (data->clk)
+		clk_enable(data->clk);
+
 	regmap_read(data->regmap, data->offset + SNVS_LPSR, &lpsr);
 
 	if (lpsr & SNVS_LPSR_LPTA) {
@@ -252,6 +255,9 @@ static irqreturn_t snvs_rtc_irq_handler(int irq, void *dev_id)
 
 	/* clear interrupt status */
 	regmap_write(data->regmap, data->offset + SNVS_LPSR, lpsr);
+
+	if (data->clk)
+		clk_disable(data->clk);
 
 	return events ? IRQ_HANDLED : IRQ_NONE;
 }

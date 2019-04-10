@@ -1,5 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
+============================================================
 Linux* Base Virtual Function Driver for Intel(R) 1G Ethernet
 ============================================================
 

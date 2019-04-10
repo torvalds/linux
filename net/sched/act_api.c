@@ -543,7 +543,7 @@ int tcf_register_action(struct tc_action_ops *act,
 
 	write_lock(&act_mod_lock);
 	list_for_each_entry(a, &act_base, head) {
-		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
+		if (act->id == a->id || (strcmp(act->kind, a->kind) == 0)) {
 			write_unlock(&act_mod_lock);
 			unregister_pernet_subsys(ops);
 			return -EEXIST;

@@ -29,6 +29,7 @@ int cpu_map__get_core_id(int cpu);
 int cpu_map__get_core(struct cpu_map *map, int idx, void *data);
 int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp);
 int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep);
+const struct cpu_map *cpu_map__online(void); /* thread unsafe */
 
 struct cpu_map *cpu_map__get(struct cpu_map *map);
 void cpu_map__put(struct cpu_map *map);

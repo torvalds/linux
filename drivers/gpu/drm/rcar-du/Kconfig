@@ -36,3 +36,7 @@ config DRM_RCAR_VSP
 	depends on VIDEO_RENESAS_VSP1=y || (VIDEO_RENESAS_VSP1 && DRM_RCAR_DU=m)
 	help
 	  Enable support to expose the R-Car VSP Compositor as KMS planes.
+
+config DRM_RCAR_WRITEBACK
+	bool
+	default y if ARM64

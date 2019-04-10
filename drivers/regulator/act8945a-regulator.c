@@ -87,7 +87,8 @@ static const struct regulator_linear_range act8945a_voltage_ranges[] = {
 static int act8945a_set_suspend_state(struct regulator_dev *rdev, bool enable)
 {
 	struct regmap *regmap = rdev->regmap;
-	int id = rdev->desc->id, reg, val;
+	int id = rdev_get_id(rdev);
+	int reg, val;
 
 	switch (id) {
 	case ACT8945A_ID_DCDC1:
@@ -159,7 +160,7 @@ static int act8945a_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	struct act8945a_pmic *act8945a = rdev_get_drvdata(rdev);
 	struct regmap *regmap = rdev->regmap;
-	int id = rdev->desc->id;
+	int id = rdev_get_id(rdev);
 	int reg, ret, val = 0;
 
 	switch (id) {
@@ -190,11 +191,11 @@ static int act8945a_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	switch (mode) {
 	case REGULATOR_MODE_STANDBY:
-		if (rdev->desc->id > ACT8945A_ID_DCDC3)
+		if (id > ACT8945A_ID_DCDC3)
 			val = BIT(5);
 		break;
 	case REGULATOR_MODE_NORMAL:
-		if (rdev->desc->id <= ACT8945A_ID_DCDC3)
+		if (id <= ACT8945A_ID_DCDC3)
 			val = BIT(5);
 		break;
 	default:
@@ -213,7 +214,7 @@ static int act8945a_set_mode(struct regulator_dev *rdev, unsigned int mode)
 static unsigned int act8945a_get_mode(struct regulator_dev *rdev)
 {
 	struct act8945a_pmic *act8945a = rdev_get_drvdata(rdev);
-	int id = rdev->desc->id;
+	int id = rdev_get_id(rdev);
 
 	if (id < ACT8945A_ID_DCDC1 || id >= ACT8945A_ID_MAX)
 		return -EINVAL;

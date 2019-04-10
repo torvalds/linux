@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/ftrace.h>
 #include <linux/completion.h>
+#include <linux/list.h>
 
 #if IS_ENABLED(CONFIG_LIVEPATCH)
 
@@ -40,11 +41,14 @@
  * @new_func:	pointer to the patched function code
  * @old_sympos: a hint indicating which symbol position the old function
  *		can be found (optional)
- * @old_addr:	the address of the function being patched
+ * @old_func:	pointer to the function being patched
  * @kobj:	kobject for sysfs resources
+ * @node:	list node for klp_object func_list
  * @stack_node:	list node for klp_ops func_stack list
  * @old_size:	size of the old function
  * @new_size:	size of the new function
+ * @kobj_added: @kobj has been added and needs freeing
+ * @nop:        temporary patch to use the original code again; dyn. allocated
  * @patched:	the func has been added to the klp_ops list
  * @transition:	the func is currently being applied or reverted
  *
@@ -77,10 +81,13 @@ struct klp_func {
 	unsigned long old_sympos;
 
 	/* internal */
-	unsigned long old_addr;
+	void *old_func;
 	struct kobject kobj;
+	struct list_head node;
 	struct list_head stack_node;
 	unsigned long old_size, new_size;
+	bool kobj_added;
+	bool nop;
 	bool patched;
 	bool transition;
 };
@@ -115,8 +122,12 @@ struct klp_callbacks {
  * @funcs:	function entries for functions to be patched in the object
  * @callbacks:	functions to be executed pre/post (un)patching
  * @kobj:	kobject for sysfs resources
+ * @func_list:	dynamic list of the function entries
+ * @node:	list node for klp_patch obj_list
  * @mod:	kernel module associated with the patched object
  *		(NULL for vmlinux)
+ * @kobj_added: @kobj has been added and needs freeing
+ * @dynamic:    temporary object for nop functions; dynamically allocated
  * @patched:	the object's funcs have been added to the klp_ops list
  */
 struct klp_object {
@@ -127,7 +138,11 @@ struct klp_object {
 
 	/* internal */
 	struct kobject kobj;
+	struct list_head func_list;
+	struct list_head node;
 	struct module *mod;
+	bool kobj_added;
+	bool dynamic;
 	bool patched;
 };
 
@@ -135,35 +150,54 @@ struct klp_object {
  * struct klp_patch - patch structure for live patching
  * @mod:	reference to the live patch module
  * @objs:	object entries for kernel objects to be patched
- * @list:	list node for global list of registered patches
+ * @replace:	replace all actively used patches
+ * @list:	list node for global list of actively used patches
  * @kobj:	kobject for sysfs resources
+ * @obj_list:	dynamic list of the object entries
+ * @kobj_added: @kobj has been added and needs freeing
  * @enabled:	the patch is enabled (but operation may be incomplete)
+ * @forced:	was involved in a forced transition
+ * @free_work:	patch cleanup from workqueue-context
  * @finish:	for waiting till it is safe to remove the patch module
  */
 struct klp_patch {
 	/* external */
 	struct module *mod;
 	struct klp_object *objs;
+	bool replace;
 
 	/* internal */
 	struct list_head list;
 	struct kobject kobj;
+	struct list_head obj_list;
+	bool kobj_added;
 	bool enabled;
+	bool forced;
+	struct work_struct free_work;
 	struct completion finish;
 };
 
-#define klp_for_each_object(patch, obj) \
+#define klp_for_each_object_static(patch, obj) \
 	for (obj = patch->objs; obj->funcs || obj->name; obj++)
 
-#define klp_for_each_func(obj, func) \
+#define klp_for_each_object_safe(patch, obj, tmp_obj)		\
+	list_for_each_entry_safe(obj, tmp_obj, &patch->obj_list, node)
+
+#define klp_for_each_object(patch, obj)	\
+	list_for_each_entry(obj, &patch->obj_list, node)
+
+#define klp_for_each_func_static(obj, func) \
 	for (func = obj->funcs; \
 	     func->old_name || func->new_func || func->old_sympos; \
 	     func++)
 
-int klp_register_patch(struct klp_patch *);
-int klp_unregister_patch(struct klp_patch *);
+#define klp_for_each_func_safe(obj, func, tmp_func)			\
+	list_for_each_entry_safe(func, tmp_func, &obj->func_list, node)
+
+#define klp_for_each_func(obj, func)	\
+	list_for_each_entry(func, &obj->func_list, node)
+
 int klp_enable_patch(struct klp_patch *);
-int klp_disable_patch(struct klp_patch *);
 
 void arch_klp_init_object_loaded(struct klp_patch *patch,
 				 struct klp_object *obj);

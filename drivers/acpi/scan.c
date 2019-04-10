@@ -1545,6 +1545,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 */
 	static const struct acpi_device_id i2c_multi_instantiate_ids[] = {
 		{"BSG1160", },
+		{"BSG2150", },
 		{"INT33FE", },
 		{"INT3515", },
 		{}

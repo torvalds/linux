@@ -173,7 +173,8 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	wr32(hw, VPINT_ALLOC(vf->vf_id), 0);
 	wr32(hw, VPINT_ALLOC_PCI(vf->vf_id), 0);
 
-	first = vf->first_vector_idx;
+	first = vf->first_vector_idx +
+		hw->func_caps.common_cap.msix_vector_first_id;
 	last = first + pf->num_vf_msix - 1;
 	for (v = first; v <= last; v++) {
 		u32 reg;
@@ -224,13 +225,15 @@ void ice_free_vfs(struct ice_pf *pf)
 
 	/* Avoid wait time by stopping all VFs at the same time */
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		struct ice_vsi *vsi;
+
 		if (!test_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states))
 			continue;
 
+		vsi = pf->vsi[pf->vf[i].lan_vsi_idx];
 		/* stop rings without wait time */
-		ice_vsi_stop_tx_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
-				      ICE_NO_RESET, i);
-		ice_vsi_stop_rx_rings(pf->vsi[pf->vf[i].lan_vsi_idx]);
+		ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, i);
+		ice_vsi_stop_rx_rings(vsi);
 
 		clear_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states);
 	}
@@ -308,6 +311,11 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr)
 	 */
 	clear_bit(ICE_VF_STATE_INIT, vf->vf_states);
 
+	/* Clear the VF's ARQLEN register. This is how the VF detects reset,
+	 * since the VFGEN_RSTAT register doesn't stick at 0 after reset.
+	 */
+	wr32(hw, VF_MBX_ARQLEN(vf_abs_id), 0);
+
 	/* In the case of a VFLR, the HW has already reset the VF and we
 	 * just need to clean up, so don't hit the VFRTRIG register.
 	 */
@@ -343,25 +351,33 @@ static int ice_vsi_set_pvid(struct ice_vsi *vsi, u16 vid)
 {
 	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_hw *hw = &vsi->back->hw;
-	struct ice_vsi_ctx ctxt = { 0 };
+	struct ice_vsi_ctx *ctxt;
 	enum ice_status status;
+	int ret = 0;
 
-	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
-			       ICE_AQ_VSI_PVLAN_INSERT_PVID |
-			       ICE_AQ_VSI_VLAN_EMOD_STR;
-	ctxt.info.pvid = cpu_to_le16(vid);
-	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
+	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		return -ENOMEM;
 
-	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
+	ctxt->info.vlan_flags = (ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
+				 ICE_AQ_VSI_PVLAN_INSERT_PVID |
+				 ICE_AQ_VSI_VLAN_EMOD_STR);
+	ctxt->info.pvid = cpu_to_le16(vid);
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
+
+	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
 		dev_info(dev, "update VSI for VLAN insert failed, err %d aq_err %d\n",
 			 status, hw->adminq.sq_last_status);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
-	vsi->info.pvid = ctxt.info.pvid;
-	vsi->info.vlan_flags = ctxt.info.vlan_flags;
-	return 0;
+	vsi->info.pvid = ctxt->info.pvid;
+	vsi->info.vlan_flags = ctxt->info.vlan_flags;
+out:
+	devm_kfree(dev, ctxt);
+	return ret;
 }
 
 /**
@@ -508,7 +524,8 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 
 	hw = &pf->hw;
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	first = vf->first_vector_idx;
+	first = vf->first_vector_idx +
+		hw->func_caps.common_cap.msix_vector_first_id;
 	last = (first + pf->num_vf_msix) - 1;
 	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
@@ -831,6 +848,7 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 {
 	struct ice_pf *pf = vf->pf;
 	struct ice_hw *hw = &pf->hw;
+	struct ice_vsi *vsi;
 	bool rsd = false;
 	u32 reg;
 	int i;
@@ -843,17 +861,18 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 
 	ice_trigger_vf_reset(vf, is_vflr);
 
+	vsi = pf->vsi[vf->lan_vsi_idx];
+
 	if (test_bit(ICE_VF_STATE_ENA, vf->vf_states)) {
-		ice_vsi_stop_tx_rings(pf->vsi[vf->lan_vsi_idx], ICE_VF_RESET,
-				      vf->vf_id);
-		ice_vsi_stop_rx_rings(pf->vsi[vf->lan_vsi_idx]);
+		ice_vsi_stop_lan_tx_rings(vsi, ICE_VF_RESET, vf->vf_id);
+		ice_vsi_stop_rx_rings(vsi);
 		clear_bit(ICE_VF_STATE_ENA, vf->vf_states);
 	} else {
 		/* Call Disable LAN Tx queue AQ call even when queues are not
 		 * enabled. This is needed for successful completiom of VFR
 		 */
-		ice_dis_vsi_txq(pf->vsi[vf->lan_vsi_idx]->port_info, 0,
-				NULL, NULL, ICE_VF_RESET, vf->vf_id, NULL);
+		ice_dis_vsi_txq(vsi->port_info, 0, NULL, NULL, ICE_VF_RESET,
+				vf->vf_id, NULL);
 	}
 
 	/* poll VPGEN_VFRSTAT reg to make sure
@@ -1614,7 +1633,7 @@ static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	if (ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, vf->vf_id)) {
+	if (ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id)) {
 		dev_err(&vsi->back->pdev->dev,
 			"Failed to stop tx rings on VSI %d\n",
 			vsi->vsi_num);
@@ -1784,7 +1803,7 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 	vsi->num_txq = qci->num_queue_pairs;
 	vsi->num_rxq = qci->num_queue_pairs;
 
-	if (!ice_vsi_cfg_txqs(vsi) && !ice_vsi_cfg_rxqs(vsi))
+	if (!ice_vsi_cfg_lan_txqs(vsi) && !ice_vsi_cfg_rxqs(vsi))
 		aq_ret = 0;
 	else
 		aq_ret = ICE_ERR_PARAM;
@@ -2475,11 +2494,12 @@ int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
 int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi_ctx ctx = { 0 };
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
+	struct ice_vsi_ctx *ctx;
+	enum ice_status status;
 	struct ice_vf *vf;
-	int status;
+	int ret = 0;
 
 	/* validate the request */
 	if (vf_id >= pf->num_alloc_vfs) {
@@ -2499,25 +2519,31 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 		return 0;
 	}
 
-	ctx.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+	ctx = devm_kzalloc(&pf->pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
 
 	if (ena) {
-		ctx.info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
-		ctx.info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M;
+		ctx->info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+		ctx->info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M;
 	}
 
-	status = ice_update_vsi(&pf->hw, vsi->idx, &ctx, NULL);
+	status = ice_update_vsi(&pf->hw, vsi->idx, ctx, NULL);
 	if (status) {
 		dev_dbg(&pf->pdev->dev,
 			"Error %d, failed to update VSI* parameters\n", status);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	vf->spoofchk = ena;
-	vsi->info.sec_flags = ctx.info.sec_flags;
-	vsi->info.sw_flags2 = ctx.info.sw_flags2;
-
-	return status;
+	vsi->info.sec_flags = ctx->info.sec_flags;
+	vsi->info.sw_flags2 = ctx->info.sw_flags2;
+out:
+	devm_kfree(&pf->pdev->dev, ctx);
+	return ret;
 }
 
 /**

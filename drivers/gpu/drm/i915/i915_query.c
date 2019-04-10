@@ -10,12 +10,34 @@
 #include "i915_query.h"
 #include <uapi/drm/i915_drm.h>
 
+static int copy_query_item(void *query_hdr, size_t query_sz,
+			   u32 total_length,
+			   struct drm_i915_query_item *query_item)
+{
+	if (query_item->length == 0)
+		return total_length;
+
+	if (query_item->length < total_length)
+		return -EINVAL;
+
+	if (copy_from_user(query_hdr, u64_to_user_ptr(query_item->data_ptr),
+			   query_sz))
+		return -EFAULT;
+
+	if (!access_ok(u64_to_user_ptr(query_item->data_ptr),
+		       total_length))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int query_topology_info(struct drm_i915_private *dev_priv,
 			       struct drm_i915_query_item *query_item)
 {
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct drm_i915_query_topology_info topo;
 	u32 slice_length, subslice_length, eu_length, total_length;
+	int ret;
 
 	if (query_item->flags != 0)
 		return -EINVAL;
@@ -33,22 +55,13 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 
 	total_length = sizeof(topo) + slice_length + subslice_length + eu_length;
 
-	if (query_item->length == 0)
-		return total_length;
-
-	if (query_item->length < total_length)
-		return -EINVAL;
-
-	if (copy_from_user(&topo, u64_to_user_ptr(query_item->data_ptr),
-			   sizeof(topo)))
-		return -EFAULT;
+	ret = copy_query_item(&topo, sizeof(topo), total_length,
+			      query_item);
+	if (ret != 0)
+		return ret;
 
 	if (topo.flags != 0)
 		return -EINVAL;
-
-	if (!access_ok(u64_to_user_ptr(query_item->data_ptr),
-		       total_length))
-		return -EFAULT;
 
 	memset(&topo, 0, sizeof(topo));
 	topo.max_slices = sseu->max_slices;

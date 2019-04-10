@@ -253,12 +253,12 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	if (!(bus_flags & DRM_BUS_FLAG_DE_LOW))
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
 	/*
-	 * DRM_BUS_FLAG_PIXDATA_ defines are controller centric,
+	 * DRM_BUS_FLAG_PIXDATA_DRIVE_ defines are controller centric,
 	 * controllers VDCTRL0_DOTCLK is display centric.
 	 * Drive on positive edge       -> display samples on falling edge
-	 * DRM_BUS_FLAG_PIXDATA_POSEDGE -> VDCTRL0_DOTCLK_ACT_FALLING
+	 * DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE -> VDCTRL0_DOTCLK_ACT_FALLING
 	 */
-	if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+	if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
 		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, mxsfb->base + LCDC_VDCTRL0);

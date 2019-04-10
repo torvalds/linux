@@ -2389,7 +2389,7 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false) {
 		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_fwstate);
-	    return ret;
+		return ret;
 	}
 /*
 	if (pattrib->psta)

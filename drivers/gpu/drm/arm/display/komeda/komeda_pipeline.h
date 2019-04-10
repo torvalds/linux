@@ -204,29 +204,27 @@ static inline u16 component_changed_inputs(struct komeda_component_state *st)
 	return component_disabling_inputs(st) | st->changed_active_inputs;
 }
 
+#define for_each_changed_input(st, i)	\
+	for ((i) = 0; (i) < (st)->component->max_active_inputs; (i)++)	\
+		if (has_bit((i), component_changed_inputs(st)))
+
 #define to_comp(__c)	(((__c) == NULL) ? NULL : &((__c)->base))
 #define to_cpos(__c)	((struct komeda_component **)&(__c))
 
-/* these structures are going to be filled in in uture patches */
 struct komeda_layer {
 	struct komeda_component base;
-	/* layer specific features and caps */
-	int layer_type; /* RICH, SIMPLE or WB */
+	/* accepted h/v input range before rotation */
+	struct malidp_range hsize_in, vsize_in;
+	u32 layer_type; /* RICH, SIMPLE or WB */
+	u32 supported_rots;
 };
 
 struct komeda_layer_state {
 	struct komeda_component_state base;
 	/* layer specific configuration state */
-};
-
-struct komeda_compiz {
-	struct komeda_component base;
-	/* compiz specific features and caps */
-};
-
-struct komeda_compiz_state {
-	struct komeda_component_state base;
-	/* compiz specific configuration state */
+	u16 hsize, vsize;
+	u32 rot;
+	dma_addr_t addr[3];
 };
 
 struct komeda_scaler {
@@ -238,17 +236,42 @@ struct komeda_scaler_state {
 	struct komeda_component_state base;
 };
 
+struct komeda_compiz {
+	struct komeda_component base;
+	struct malidp_range hsize, vsize;
+};
+
+struct komeda_compiz_input_cfg {
+	u16 hsize, vsize;
+	u16 hoffset, voffset;
+	u8 pixel_blend_mode, layer_alpha;
+};
+
+struct komeda_compiz_state {
+	struct komeda_component_state base;
+	/* composition size */
+	u16 hsize, vsize;
+	struct komeda_compiz_input_cfg cins[KOMEDA_COMPONENT_N_INPUTS];
+};
+
 struct komeda_improc {
 	struct komeda_component base;
+	u32 supported_color_formats;  /* DRM_RGB/YUV444/YUV420*/
+	u32 supported_color_depths; /* BIT(8) | BIT(10)*/
+	u8 supports_degamma : 1;
+	u8 supports_csc : 1;
+	u8 supports_gamma : 1;
 };
 
 struct komeda_improc_state {
 	struct komeda_component_state base;
+	u16 hsize, vsize;
 };
 
 /* display timing controller */
 struct komeda_timing_ctrlr {
 	struct komeda_component base;
+	u8 supports_dual_link : 1;
 };
 
 struct komeda_timing_ctrlr_state {
@@ -340,9 +363,12 @@ komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
 		    struct komeda_pipeline_funcs *funcs);
 void komeda_pipeline_destroy(struct komeda_dev *mdev,
 			     struct komeda_pipeline *pipe);
-
+int komeda_assemble_pipelines(struct komeda_dev *mdev);
 struct komeda_component *
 komeda_pipeline_get_component(struct komeda_pipeline *pipe, int id);
+
+void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
+				   struct seq_file *sf);
 
 /* component APIs */
 struct komeda_component *

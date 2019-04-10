@@ -1,6 +1,6 @@
 [config]
 command = record
-args    = -b kill >/dev/null 2>&1
+args    = --no-bpf-event -b kill >/dev/null 2>&1
 ret     = 1
 
 [event:base-record]

@@ -23,7 +23,7 @@ int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id)
 			goto err_out0;
 	}
 
-	err = xa_alloc(&mgr->handles, id, UINT_MAX, ctx, GFP_KERNEL);
+	err = xa_alloc(&mgr->handles, id, ctx, xa_limit_32b, GFP_KERNEL);
 	if (err < 0)
 		goto err_out0;
 

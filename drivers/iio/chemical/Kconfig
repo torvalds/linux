@@ -61,6 +61,27 @@ config IAQCORE
 	  iAQ-Core Continuous/Pulsed VOC (Volatile Organic Compounds)
 	  sensors
 
+config PMS7003
+	tristate "Plantower PMS7003 particulate matter sensor"
+	depends on SERIAL_DEV_BUS
+	help
+	  Say Y here to build support for the Plantower PMS7003 particulate
+	  matter sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pms7003.
+
+config SPS30
+	tristate "SPS30 particulate matter sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build support for the Sensirion SPS30 particulate
+	  matter sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sps30.
+
 config VZ89X
 	tristate "SGX Sensortech MiCS VZ89X VOC sensor"
 	depends on I2C

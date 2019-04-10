@@ -1729,7 +1729,7 @@ static int kvm_hv_eventfd_assign(struct kvm *kvm, u32 conn_id, int fd)
 
 	mutex_lock(&hv->hv_lock);
 	ret = idr_alloc(&hv->conn_to_evt, eventfd, conn_id, conn_id + 1,
-			GFP_KERNEL);
+			GFP_KERNEL_ACCOUNT);
 	mutex_unlock(&hv->hv_lock);
 
 	if (ret >= 0)

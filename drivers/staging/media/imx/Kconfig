@@ -11,7 +11,7 @@ config VIDEO_IMX_MEDIA
 	  driver for the i.MX5/6 SOC.
 
 if VIDEO_IMX_MEDIA
-menu "i.MX5/6 Media Sub devices"
+menu "i.MX5/6/7 Media Sub devices"
 
 config VIDEO_IMX_CSI
 	tristate "i.MX5/6 Camera Sensor Interface driver"
@@ -20,5 +20,12 @@ config VIDEO_IMX_CSI
 	---help---
 	  A video4linux camera sensor interface driver for i.MX5/6.
 
+config VIDEO_IMX7_CSI
+	tristate "i.MX7 Camera Sensor Interface driver"
+	depends on VIDEO_IMX_MEDIA && VIDEO_DEV && I2C
+	default y
+	help
+	  Enable support for video4linux camera sensor interface driver for
+	  i.MX7.
 endmenu
 endif

@@ -387,6 +387,11 @@ static const struct resource_caps res_cap_83 = {
 		.num_ddc = 2,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+	.supports_argb8888 = true,
+};
+
 static const struct dce_dmcu_registers dmcu_regs = {
 		DMCU_DCE80_REG_LIST()
 };
@@ -1032,6 +1037,10 @@ static bool dce80_construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	dc->caps.disable_dp_clk_share = true;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
@@ -1237,6 +1246,10 @@ static bool dce81_construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	dc->caps.disable_dp_clk_share = true;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
@@ -1438,6 +1451,10 @@ static bool dce83_construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	dc->caps.disable_dp_clk_share = true;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,

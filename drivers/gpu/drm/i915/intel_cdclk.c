@@ -234,7 +234,8 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 	else
 		return 0;
 
-	tmp = I915_READ(IS_MOBILE(dev_priv) ? HPLLVCO_MOBILE : HPLLVCO);
+	tmp = I915_READ(IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv) ?
+			HPLLVCO_MOBILE : HPLLVCO);
 
 	vco = vco_table[tmp & 0x7];
 	if (vco == 0)
@@ -468,7 +469,7 @@ static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
 					       cdclk_state->vco);
 
 	mutex_lock(&dev_priv->pcu_lock);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (IS_VALLEYVIEW(dev_priv))
@@ -543,11 +544,11 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
-	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) &
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) &
 		      DSPFREQSTAT_MASK) == (cmd << DSPFREQSTAT_SHIFT),
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
@@ -624,11 +625,11 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
-	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) &
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) &
 		      DSPFREQSTAT_MASK_CHV) == (cmd << DSPFREQSTAT_SHIFT_CHV),
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
@@ -964,7 +965,7 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) | LCPLL_PLL_ENABLE);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    LCPLL1_CTL, LCPLL_PLL_LOCK, LCPLL_PLL_LOCK,
 				    5))
 		DRM_ERROR("DPLL0 not locked\n");
@@ -978,9 +979,9 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 static void skl_dpll0_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
-	if (intel_wait_for_register(dev_priv,
-				   LCPLL1_CTL, LCPLL_PLL_LOCK, 0,
-				   1))
+	if (intel_wait_for_register(&dev_priv->uncore,
+				    LCPLL1_CTL, LCPLL_PLL_LOCK, 0,
+				    1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
 
 	dev_priv->cdclk.hw.vco = 0;
@@ -1323,7 +1324,7 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 0,
 				    1))
 		DRM_ERROR("timeout waiting for DE PLL unlock\n");
@@ -1344,7 +1345,7 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
 
 	/* Timeout 200us */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    BXT_DE_PLL_ENABLE,
 				    BXT_DE_PLL_LOCK,
 				    BXT_DE_PLL_LOCK,
@@ -2560,7 +2561,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 {
-	if (IS_ICELAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
 		if (dev_priv->cdclk.hw.ref == 24000)
 			dev_priv->max_cdclk_freq = 648000;
 		else
@@ -2668,7 +2669,7 @@ static int cnp_rawclk(struct drm_i915_private *dev_priv)
 
 		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(numerator * 1000,
 							   fraction) - 1);
-		if (HAS_PCH_ICP(dev_priv))
+		if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 			rawclk |= ICP_RAWCLK_NUM(numerator);
 	}
 
@@ -2723,7 +2724,7 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_rawclk(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_CNP(dev_priv) || HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		dev_priv->rawclk_freq = cnp_rawclk(dev_priv);
 	else if (HAS_PCH_SPLIT(dev_priv))
 		dev_priv->rawclk_freq = pch_rawclk(dev_priv);
@@ -2744,18 +2745,13 @@ void intel_update_rawclk(struct drm_i915_private *dev_priv)
  */
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->display.set_cdclk = chv_set_cdclk;
+	if (INTEL_GEN(dev_priv) >= 11) {
+		dev_priv->display.set_cdclk = icl_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		dev_priv->display.set_cdclk = cnl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
-			vlv_modeset_calc_cdclk;
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		dev_priv->display.set_cdclk = vlv_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			vlv_modeset_calc_cdclk;
-	} else if (IS_BROADWELL(dev_priv)) {
-		dev_priv->display.set_cdclk = bdw_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			bdw_modeset_calc_cdclk;
+			cnl_modeset_calc_cdclk;
 	} else if (IS_GEN9_LP(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
@@ -2764,23 +2760,28 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			skl_modeset_calc_cdclk;
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		dev_priv->display.set_cdclk = cnl_set_cdclk;
+	} else if (IS_BROADWELL(dev_priv)) {
+		dev_priv->display.set_cdclk = bdw_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
-			cnl_modeset_calc_cdclk;
-	} else if (IS_ICELAKE(dev_priv)) {
-		dev_priv->display.set_cdclk = icl_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+			bdw_modeset_calc_cdclk;
+	} else if (IS_CHERRYVIEW(dev_priv)) {
+		dev_priv->display.set_cdclk = chv_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			vlv_modeset_calc_cdclk;
+	} else if (IS_VALLEYVIEW(dev_priv)) {
+		dev_priv->display.set_cdclk = vlv_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			vlv_modeset_calc_cdclk;
 	}
 
-	if (IS_ICELAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11)
 		dev_priv->display.get_cdclk = icl_get_cdclk;
 	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.get_cdclk = cnl_get_cdclk;
-	else if (IS_GEN9_BC(dev_priv))
-		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_GEN9_LP(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;
+	else if (IS_GEN9_BC(dev_priv))
+		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.get_cdclk = bdw_get_cdclk;
 	else if (IS_HASWELL(dev_priv))

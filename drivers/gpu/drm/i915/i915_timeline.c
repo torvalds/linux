@@ -6,19 +6,32 @@
 
 #include "i915_drv.h"
 
-#include "i915_timeline.h"
+#include "i915_active.h"
 #include "i915_syncmap.h"
+#include "i915_timeline.h"
+
+#define ptr_set_bit(ptr, bit) ((typeof(ptr))((unsigned long)(ptr) | BIT(bit)))
+#define ptr_test_bit(ptr, bit) ((unsigned long)(ptr) & BIT(bit))
 
 struct i915_timeline_hwsp {
-	struct i915_vma *vma;
+	struct i915_gt_timelines *gt;
 	struct list_head free_link;
+	struct i915_vma *vma;
 	u64 free_bitmap;
 };
 
-static inline struct i915_timeline_hwsp *
-i915_timeline_hwsp(const struct i915_timeline *tl)
+struct i915_timeline_cacheline {
+	struct i915_active active;
+	struct i915_timeline_hwsp *hwsp;
+	void *vaddr;
+#define CACHELINE_BITS 6
+#define CACHELINE_FREE CACHELINE_BITS
+};
+
+static inline struct drm_i915_private *
+hwsp_to_i915(struct i915_timeline_hwsp *hwsp)
 {
-	return tl->hwsp_ggtt->private;
+	return container_of(hwsp->gt, struct drm_i915_private, gt.timelines);
 }
 
 static struct i915_vma *__hwsp_alloc(struct drm_i915_private *i915)
@@ -71,6 +84,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 		vma->private = hwsp;
 		hwsp->vma = vma;
 		hwsp->free_bitmap = ~0ull;
+		hwsp->gt = gt;
 
 		spin_lock(&gt->hwsp_lock);
 		list_add(&hwsp->free_link, &gt->hwsp_free_list);
@@ -88,14 +102,9 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 	return hwsp->vma;
 }
 
-static void hwsp_free(struct i915_timeline *timeline)
+static void __idle_hwsp_free(struct i915_timeline_hwsp *hwsp, int cacheline)
 {
-	struct i915_gt_timelines *gt = &timeline->i915->gt.timelines;
-	struct i915_timeline_hwsp *hwsp;
-
-	hwsp = i915_timeline_hwsp(timeline);
-	if (!hwsp) /* leave global HWSP alone! */
-		return;
+	struct i915_gt_timelines *gt = hwsp->gt;
 
 	spin_lock(&gt->hwsp_lock);
 
@@ -103,7 +112,8 @@ static void hwsp_free(struct i915_timeline *timeline)
 	if (!hwsp->free_bitmap)
 		list_add_tail(&hwsp->free_link, &gt->hwsp_free_list);
 
-	hwsp->free_bitmap |= BIT_ULL(timeline->hwsp_offset / CACHELINE_BYTES);
+	GEM_BUG_ON(cacheline >= BITS_PER_TYPE(hwsp->free_bitmap));
+	hwsp->free_bitmap |= BIT_ULL(cacheline);
 
 	/* And if no one is left using it, give the page back to the system */
 	if (hwsp->free_bitmap == ~0ull) {
@@ -115,9 +125,78 @@ static void hwsp_free(struct i915_timeline *timeline)
 	spin_unlock(&gt->hwsp_lock);
 }
 
+static void __idle_cacheline_free(struct i915_timeline_cacheline *cl)
+{
+	GEM_BUG_ON(!i915_active_is_idle(&cl->active));
+
+	i915_gem_object_unpin_map(cl->hwsp->vma->obj);
+	i915_vma_put(cl->hwsp->vma);
+	__idle_hwsp_free(cl->hwsp, ptr_unmask_bits(cl->vaddr, CACHELINE_BITS));
+
+	i915_active_fini(&cl->active);
+	kfree(cl);
+}
+
+static void __cacheline_retire(struct i915_active *active)
+{
+	struct i915_timeline_cacheline *cl =
+		container_of(active, typeof(*cl), active);
+
+	i915_vma_unpin(cl->hwsp->vma);
+	if (ptr_test_bit(cl->vaddr, CACHELINE_FREE))
+		__idle_cacheline_free(cl);
+}
+
+static struct i915_timeline_cacheline *
+cacheline_alloc(struct i915_timeline_hwsp *hwsp, unsigned int cacheline)
+{
+	struct i915_timeline_cacheline *cl;
+	void *vaddr;
+
+	GEM_BUG_ON(cacheline >= BIT(CACHELINE_BITS));
+
+	cl = kmalloc(sizeof(*cl), GFP_KERNEL);
+	if (!cl)
+		return ERR_PTR(-ENOMEM);
+
+	vaddr = i915_gem_object_pin_map(hwsp->vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		kfree(cl);
+		return ERR_CAST(vaddr);
+	}
+
+	i915_vma_get(hwsp->vma);
+	cl->hwsp = hwsp;
+	cl->vaddr = page_pack_bits(vaddr, cacheline);
+
+	i915_active_init(hwsp_to_i915(hwsp), &cl->active, __cacheline_retire);
+
+	return cl;
+}
+
+static void cacheline_acquire(struct i915_timeline_cacheline *cl)
+{
+	if (cl && i915_active_acquire(&cl->active))
+		__i915_vma_pin(cl->hwsp->vma);
+}
+
+static void cacheline_release(struct i915_timeline_cacheline *cl)
+{
+	if (cl)
+		i915_active_release(&cl->active);
+}
+
+static void cacheline_free(struct i915_timeline_cacheline *cl)
+{
+	GEM_BUG_ON(ptr_test_bit(cl->vaddr, CACHELINE_FREE));
+	cl->vaddr = ptr_set_bit(cl->vaddr, CACHELINE_FREE);
+
+	if (i915_active_is_idle(&cl->active))
+		__idle_cacheline_free(cl);
+}
+
 int i915_timeline_init(struct drm_i915_private *i915,
 		       struct i915_timeline *timeline,
-		       const char *name,
 		       struct i915_vma *hwsp)
 {
 	void *vaddr;
@@ -133,35 +212,46 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	BUILD_BUG_ON(KSYNCMAP < I915_NUM_ENGINES);
 
 	timeline->i915 = i915;
-	timeline->name = name;
 	timeline->pin_count = 0;
 	timeline->has_initial_breadcrumb = !hwsp;
+	timeline->hwsp_cacheline = NULL;
 
-	timeline->hwsp_offset = I915_GEM_HWS_SEQNO_ADDR;
 	if (!hwsp) {
+		struct i915_timeline_cacheline *cl;
 		unsigned int cacheline;
 
 		hwsp = hwsp_alloc(timeline, &cacheline);
 		if (IS_ERR(hwsp))
 			return PTR_ERR(hwsp);
 
-		timeline->hwsp_offset = cacheline * CACHELINE_BYTES;
-	}
-	timeline->hwsp_ggtt = i915_vma_get(hwsp);
+		cl = cacheline_alloc(hwsp->private, cacheline);
+		if (IS_ERR(cl)) {
+			__idle_hwsp_free(hwsp->private, cacheline);
+			return PTR_ERR(cl);
+		}
 
-	vaddr = i915_gem_object_pin_map(hwsp->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		hwsp_free(timeline);
-		i915_vma_put(hwsp);
-		return PTR_ERR(vaddr);
+		timeline->hwsp_cacheline = cl;
+		timeline->hwsp_offset = cacheline * CACHELINE_BYTES;
+
+		vaddr = page_mask_bits(cl->vaddr);
+	} else {
+		timeline->hwsp_offset = I915_GEM_HWS_SEQNO_ADDR;
+
+		vaddr = i915_gem_object_pin_map(hwsp->obj, I915_MAP_WB);
+		if (IS_ERR(vaddr))
+			return PTR_ERR(vaddr);
 	}
 
 	timeline->hwsp_seqno =
 		memset(vaddr + timeline->hwsp_offset, 0, CACHELINE_BYTES);
 
+	timeline->hwsp_ggtt = i915_vma_get(hwsp);
+	GEM_BUG_ON(timeline->hwsp_offset >= hwsp->size);
+
 	timeline->fence_context = dma_fence_context_alloc(1);
 
 	spin_lock_init(&timeline->lock);
+	mutex_init(&timeline->mutex);
 
 	INIT_ACTIVE_REQUEST(&timeline->barrier);
 	INIT_ACTIVE_REQUEST(&timeline->last_request);
@@ -239,15 +329,17 @@ void i915_timeline_fini(struct i915_timeline *timeline)
 	GEM_BUG_ON(i915_active_request_isset(&timeline->barrier));
 
 	i915_syncmap_free(&timeline->sync);
-	hwsp_free(timeline);
 
-	i915_gem_object_unpin_map(timeline->hwsp_ggtt->obj);
+	if (timeline->hwsp_cacheline)
+		cacheline_free(timeline->hwsp_cacheline);
+	else
+		i915_gem_object_unpin_map(timeline->hwsp_ggtt->obj);
+
 	i915_vma_put(timeline->hwsp_ggtt);
 }
 
 struct i915_timeline *
 i915_timeline_create(struct drm_i915_private *i915,
-		     const char *name,
 		     struct i915_vma *global_hwsp)
 {
 	struct i915_timeline *timeline;
@@ -257,7 +349,7 @@ i915_timeline_create(struct drm_i915_private *i915,
 	if (!timeline)
 		return ERR_PTR(-ENOMEM);
 
-	err = i915_timeline_init(i915, timeline, name, global_hwsp);
+	err = i915_timeline_init(i915, timeline, global_hwsp);
 	if (err) {
 		kfree(timeline);
 		return ERR_PTR(err);
@@ -284,12 +376,164 @@ int i915_timeline_pin(struct i915_timeline *tl)
 		i915_ggtt_offset(tl->hwsp_ggtt) +
 		offset_in_page(tl->hwsp_offset);
 
+	cacheline_acquire(tl->hwsp_cacheline);
 	timeline_add_to_active(tl);
 
 	return 0;
 
 unpin:
 	tl->pin_count = 0;
+	return err;
+}
+
+static u32 timeline_advance(struct i915_timeline *tl)
+{
+	GEM_BUG_ON(!tl->pin_count);
+	GEM_BUG_ON(tl->seqno & tl->has_initial_breadcrumb);
+
+	return tl->seqno += 1 + tl->has_initial_breadcrumb;
+}
+
+static void timeline_rollback(struct i915_timeline *tl)
+{
+	tl->seqno -= 1 + tl->has_initial_breadcrumb;
+}
+
+static noinline int
+__i915_timeline_get_seqno(struct i915_timeline *tl,
+			  struct i915_request *rq,
+			  u32 *seqno)
+{
+	struct i915_timeline_cacheline *cl;
+	unsigned int cacheline;
+	struct i915_vma *vma;
+	void *vaddr;
+	int err;
+
+	/*
+	 * If there is an outstanding GPU reference to this cacheline,
+	 * such as it being sampled by a HW semaphore on another timeline,
+	 * we cannot wraparound our seqno value (the HW semaphore does
+	 * a strict greater-than-or-equals compare, not i915_seqno_passed).
+	 * So if the cacheline is still busy, we must detach ourselves
+	 * from it and leave it inflight alongside its users.
+	 *
+	 * However, if nobody is watching and we can guarantee that nobody
+	 * will, we could simply reuse the same cacheline.
+	 *
+	 * if (i915_active_request_is_signaled(&tl->last_request) &&
+	 *     i915_active_is_signaled(&tl->hwsp_cacheline->active))
+	 *	return 0;
+	 *
+	 * That seems unlikely for a busy timeline that needed to wrap in
+	 * the first place, so just replace the cacheline.
+	 */
+
+	vma = hwsp_alloc(tl, &cacheline);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_rollback;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	if (err) {
+		__idle_hwsp_free(vma->private, cacheline);
+		goto err_rollback;
+	}
+
+	cl = cacheline_alloc(vma->private, cacheline);
+	if (IS_ERR(cl)) {
+		err = PTR_ERR(cl);
+		__idle_hwsp_free(vma->private, cacheline);
+		goto err_unpin;
+	}
+	GEM_BUG_ON(cl->hwsp->vma != vma);
+
+	/*
+	 * Attach the old cacheline to the current request, so that we only
+	 * free it after the current request is retired, which ensures that
+	 * all writes into the cacheline from previous requests are complete.
+	 */
+	err = i915_active_ref(&tl->hwsp_cacheline->active,
+			      tl->fence_context, rq);
+	if (err)
+		goto err_cacheline;
+
+	cacheline_release(tl->hwsp_cacheline); /* ownership now xfered to rq */
+	cacheline_free(tl->hwsp_cacheline);
+
+	i915_vma_unpin(tl->hwsp_ggtt); /* binding kept alive by old cacheline */
+	i915_vma_put(tl->hwsp_ggtt);
+
+	tl->hwsp_ggtt = i915_vma_get(vma);
+
+	vaddr = page_mask_bits(cl->vaddr);
+	tl->hwsp_offset = cacheline * CACHELINE_BYTES;
+	tl->hwsp_seqno =
+		memset(vaddr + tl->hwsp_offset, 0, CACHELINE_BYTES);
+
+	tl->hwsp_offset += i915_ggtt_offset(vma);
+
+	cacheline_acquire(cl);
+	tl->hwsp_cacheline = cl;
+
+	*seqno = timeline_advance(tl);
+	GEM_BUG_ON(i915_seqno_passed(*tl->hwsp_seqno, *seqno));
+	return 0;
+
+err_cacheline:
+	cacheline_free(cl);
+err_unpin:
+	i915_vma_unpin(vma);
+err_rollback:
+	timeline_rollback(tl);
+	return err;
+}
+
+int i915_timeline_get_seqno(struct i915_timeline *tl,
+			    struct i915_request *rq,
+			    u32 *seqno)
+{
+	*seqno = timeline_advance(tl);
+
+	/* Replace the HWSP on wraparound for HW semaphores */
+	if (unlikely(!*seqno && tl->hwsp_cacheline))
+		return __i915_timeline_get_seqno(tl, rq, seqno);
+
+	return 0;
+}
+
+static int cacheline_ref(struct i915_timeline_cacheline *cl,
+			 struct i915_request *rq)
+{
+	return i915_active_ref(&cl->active, rq->fence.context, rq);
+}
+
+int i915_timeline_read_hwsp(struct i915_request *from,
+			    struct i915_request *to,
+			    u32 *hwsp)
+{
+	struct i915_timeline_cacheline *cl = from->hwsp_cacheline;
+	struct i915_timeline *tl = from->timeline;
+	int err;
+
+	GEM_BUG_ON(to->timeline == tl);
+
+	mutex_lock_nested(&tl->mutex, SINGLE_DEPTH_NESTING);
+	err = i915_request_completed(from);
+	if (!err)
+		err = cacheline_ref(cl, to);
+	if (!err) {
+		if (likely(cl == tl->hwsp_cacheline)) {
+			*hwsp = tl->hwsp_offset;
+		} else { /* across a seqno wrap, recover the original offset */
+			*hwsp = i915_ggtt_offset(cl->hwsp->vma) +
+				ptr_unmask_bits(cl->vaddr, CACHELINE_BITS) *
+				CACHELINE_BYTES;
+		}
+	}
+	mutex_unlock(&tl->mutex);
+
 	return err;
 }
 
@@ -300,6 +544,7 @@ void i915_timeline_unpin(struct i915_timeline *tl)
 		return;
 
 	timeline_remove_from_active(tl);
+	cacheline_release(tl->hwsp_cacheline);
 
 	/*
 	 * Since this timeline is idle, all bariers upon which we were waiting

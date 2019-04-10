@@ -452,6 +452,14 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 	DRM_DEBUG_DRIVER("AVI infoframes updated successfully\n");
 }
 
+void lspcon_read_infoframe(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state,
+			   unsigned int type,
+			   void *frame, ssize_t len)
+{
+	/* FIXME implement this */
+}
+
 void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   bool enable,
 			   const struct intel_crtc_state *crtc_state,
@@ -469,6 +477,8 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		DRM_ERROR("Writing infoframes while LSPCON disabled ?\n");
 		return;
 	}
+
+	/* FIXME precompute infoframes */
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
 						       conn_state->connector,
@@ -504,9 +514,10 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 				  buf, ret);
 }
 
-bool lspcon_infoframe_enabled(struct intel_encoder *encoder,
+u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
+	/* FIXME actually read this from the hw */
 	return enc_to_intel_lspcon(&encoder->base)->active;
 }
 

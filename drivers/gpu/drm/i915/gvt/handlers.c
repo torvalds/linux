@@ -323,25 +323,25 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	} else {
 		if (data & GEN6_GRDOM_RENDER) {
 			gvt_dbg_mmio("vgpu%d: request RCS reset\n", vgpu->id);
-			engine_mask |= (1 << RCS);
+			engine_mask |= BIT(RCS0);
 		}
 		if (data & GEN6_GRDOM_MEDIA) {
 			gvt_dbg_mmio("vgpu%d: request VCS reset\n", vgpu->id);
-			engine_mask |= (1 << VCS);
+			engine_mask |= BIT(VCS0);
 		}
 		if (data & GEN6_GRDOM_BLT) {
 			gvt_dbg_mmio("vgpu%d: request BCS Reset\n", vgpu->id);
-			engine_mask |= (1 << BCS);
+			engine_mask |= BIT(BCS0);
 		}
 		if (data & GEN6_GRDOM_VECS) {
 			gvt_dbg_mmio("vgpu%d: request VECS Reset\n", vgpu->id);
-			engine_mask |= (1 << VECS);
+			engine_mask |= BIT(VECS0);
 		}
 		if (data & GEN8_GRDOM_MEDIA2) {
 			gvt_dbg_mmio("vgpu%d: request VCS2 Reset\n", vgpu->id);
-			if (HAS_BSD2(vgpu->gvt->dev_priv))
-				engine_mask |= (1 << VCS2);
+			engine_mask |= BIT(VCS1);
 		}
+		engine_mask &= INTEL_INFO(vgpu->gvt->dev_priv)->engine_mask;
 	}
 
 	/* vgpu_lock already hold by emulate mmio r/w */
@@ -1704,7 +1704,7 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			return 0;
 
 		ret = intel_vgpu_select_submission_ops(vgpu,
-			       ENGINE_MASK(ring_id),
+			       BIT(ring_id),
 			       INTEL_VGPU_EXECLIST_SUBMISSION);
 		if (ret)
 			return ret;
@@ -1724,19 +1724,19 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 
 	switch (offset) {
 	case 0x4260:
-		id = RCS;
+		id = RCS0;
 		break;
 	case 0x4264:
-		id = VCS;
+		id = VCS0;
 		break;
 	case 0x4268:
-		id = VCS2;
+		id = VCS1;
 		break;
 	case 0x426c:
-		id = BCS;
+		id = BCS0;
 		break;
 	case 0x4270:
-		id = VECS;
+		id = VECS0;
 		break;
 	default:
 		return -EINVAL;
@@ -1793,7 +1793,7 @@ static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
 	MMIO_F(prefix(BLT_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(GEN6_BSD_RING_BASE), s, f, am, rm, d, r, w); \
 	MMIO_F(prefix(VEBOX_RING_BASE), s, f, am, rm, d, r, w); \
-	if (HAS_BSD2(dev_priv)) \
+	if (HAS_ENGINE(dev_priv, VCS1)) \
 		MMIO_F(prefix(GEN8_BSD2_RING_BASE), s, f, am, rm, d, r, w); \
 } while (0)
 
@@ -1848,7 +1848,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(GEN7_SC_INSTDONE, D_BDW_PLUS, mmio_read_from_hw, NULL);
 
 	MMIO_GM_RDR(_MMIO(0x2148), D_ALL, NULL, NULL);
-	MMIO_GM_RDR(CCID, D_ALL, NULL, NULL);
+	MMIO_GM_RDR(CCID(RENDER_RING_BASE), D_ALL, NULL, NULL);
 	MMIO_GM_RDR(_MMIO(0x12198), D_ALL, NULL, NULL);
 	MMIO_D(GEN7_CXT_SIZE, D_ALL);
 

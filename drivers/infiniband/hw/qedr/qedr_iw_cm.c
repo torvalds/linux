@@ -349,7 +349,7 @@ qedr_iw_event_handler(void *context, struct qed_iwarp_cm_event_params *params)
 	default:
 		DP_NOTICE(dev, "Unknown event received %d\n", params->event);
 		break;
-	};
+	}
 	return 0;
 }
 

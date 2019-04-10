@@ -28,14 +28,44 @@
 
 #include <drm/drm_drv.h>
 
-#include "i915_active.h"
 #include "i915_drv.h"
+#include "i915_globals.h"
 #include "i915_selftest.h"
 
 #define PLATFORM(x) .platform = (x), .platform_mask = BIT(x)
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
 
-#define GEN_DEFAULT_PIPEOFFSETS \
+#define I845_PIPE_OFFSETS \
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET,	\
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+	}
+
+#define I9XX_PIPE_OFFSETS \
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET,	\
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+	}
+
+#define IVB_PIPE_OFFSETS \
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET,	\
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+		[TRANSCODER_C] = PIPE_C_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
+	}
+
+#define HSW_PIPE_OFFSETS \
 	.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
@@ -49,7 +79,7 @@
 		[TRANSCODER_EDP] = TRANSCODER_EDP_OFFSET, \
 	}
 
-#define GEN_CHV_PIPEOFFSETS \
+#define CHV_PIPE_OFFSETS \
 	.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
@@ -61,11 +91,30 @@
 		[TRANSCODER_C] = CHV_TRANSCODER_C_OFFSET, \
 	}
 
-#define CURSOR_OFFSETS \
-	.cursor_offsets = { CURSOR_A_OFFSET, CURSOR_B_OFFSET, CHV_CURSOR_C_OFFSET }
+#define I845_CURSOR_OFFSETS \
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+	}
+
+#define I9XX_CURSOR_OFFSETS \
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+		[PIPE_B] = CURSOR_B_OFFSET, \
+	}
+
+#define CHV_CURSOR_OFFSETS \
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+		[PIPE_B] = CURSOR_B_OFFSET, \
+		[PIPE_C] = CHV_CURSOR_C_OFFSET, \
+	}
 
 #define IVB_CURSOR_OFFSETS \
-	.cursor_offsets = { CURSOR_A_OFFSET, IVB_CURSOR_B_OFFSET, IVB_CURSOR_C_OFFSET }
+	.cursor_offsets = { \
+		[PIPE_A] = CURSOR_A_OFFSET, \
+		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
+		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
+	}
 
 #define BDW_COLORS \
 	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
@@ -75,7 +124,7 @@
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define GLK_COLORS \
-	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024, \
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024, \
 		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
 					DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
@@ -85,7 +134,25 @@
 #define GEN_DEFAULT_PAGE_SIZES \
 	.page_sizes = I915_GTT_PAGE_SIZE_4K
 
-#define GEN2_FEATURES \
+#define I830_FEATURES \
+	GEN(2), \
+	.is_mobile = 1, \
+	.num_pipes = 2, \
+	.display.has_overlay = 1, \
+	.display.cursor_needs_physical = 1, \
+	.display.overlay_needs_physical = 1, \
+	.display.has_gmch = 1, \
+	.gpu_reset_clobbers_display = true, \
+	.hws_needs_physical = 1, \
+	.unfenced_needs_alignment = 1, \
+	.engine_mask = BIT(RCS0), \
+	.has_snoop = true, \
+	.has_coherent_ggtt = false, \
+	I9XX_PIPE_OFFSETS, \
+	I9XX_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
+
+#define I845_FEATURES \
 	GEN(2), \
 	.num_pipes = 1, \
 	.display.has_overlay = 1, \
@@ -94,37 +161,31 @@
 	.gpu_reset_clobbers_display = true, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
-	.ring_mask = RENDER_RING, \
+	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	GEN_DEFAULT_PAGE_SIZES, \
-	CURSOR_OFFSETS
+	I845_PIPE_OFFSETS, \
+	I845_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_i830_info = {
-	GEN2_FEATURES,
+	I830_FEATURES,
 	PLATFORM(INTEL_I830),
-	.is_mobile = 1,
-	.display.cursor_needs_physical = 1,
-	.num_pipes = 2, /* legal, last one wins */
 };
 
 static const struct intel_device_info intel_i845g_info = {
-	GEN2_FEATURES,
+	I845_FEATURES,
 	PLATFORM(INTEL_I845G),
 };
 
 static const struct intel_device_info intel_i85x_info = {
-	GEN2_FEATURES,
+	I830_FEATURES,
 	PLATFORM(INTEL_I85X),
-	.is_mobile = 1,
-	.num_pipes = 2, /* legal, last one wins */
-	.display.cursor_needs_physical = 1,
 	.display.has_fbc = 1,
 };
 
 static const struct intel_device_info intel_i865g_info = {
-	GEN2_FEATURES,
+	I845_FEATURES,
 	PLATFORM(INTEL_I865G),
 };
 
@@ -133,12 +194,12 @@ static const struct intel_device_info intel_i865g_info = {
 	.num_pipes = 2, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.ring_mask = RENDER_RING, \
+	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	GEN_DEFAULT_PAGE_SIZES, \
-	CURSOR_OFFSETS
+	I9XX_PIPE_OFFSETS, \
+	I9XX_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_i915g_info = {
 	GEN3_FEATURES,
@@ -210,12 +271,12 @@ static const struct intel_device_info intel_pineview_info = {
 	.display.has_hotplug = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.ring_mask = RENDER_RING, \
+	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	GEN_DEFAULT_PAGE_SIZES, \
-	CURSOR_OFFSETS
+	I9XX_PIPE_OFFSETS, \
+	I9XX_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_i965g_info = {
 	GEN4_FEATURES,
@@ -239,7 +300,7 @@ static const struct intel_device_info intel_i965gm_info = {
 static const struct intel_device_info intel_g45_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_G45),
-	.ring_mask = RENDER_RING | BSD_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -249,7 +310,7 @@ static const struct intel_device_info intel_gm45_info = {
 	.is_mobile = 1,
 	.display.has_fbc = 1,
 	.display.supports_tv = 1,
-	.ring_mask = RENDER_RING | BSD_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -257,14 +318,14 @@ static const struct intel_device_info intel_gm45_info = {
 	GEN(5), \
 	.num_pipes = 2, \
 	.display.has_hotplug = 1, \
-	.ring_mask = RENDER_RING | BSD_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	/* ilk does support rc6, but we do not implement [power] contexts */ \
 	.has_rc6 = 0, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	GEN_DEFAULT_PAGE_SIZES, \
-	CURSOR_OFFSETS
+	I9XX_PIPE_OFFSETS, \
+	I9XX_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_ironlake_d_info = {
 	GEN5_FEATURES,
@@ -283,15 +344,16 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.num_pipes = 2, \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
-	.ppgtt = INTEL_PPGTT_ALIASING, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	GEN_DEFAULT_PAGE_SIZES, \
-	CURSOR_OFFSETS
+	.ppgtt_type = INTEL_PPGTT_ALIASING, \
+	.ppgtt_size = 31, \
+	I9XX_PIPE_OFFSETS, \
+	I9XX_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
 
 #define SNB_D_PLATFORM \
 	GEN6_FEATURES, \
@@ -328,15 +390,16 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.num_pipes = 3, \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
-	.ppgtt = INTEL_PPGTT_FULL, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	GEN_DEFAULT_PAGE_SIZES, \
-	IVB_CURSOR_OFFSETS
+	.ppgtt_type = INTEL_PPGTT_FULL, \
+	.ppgtt_size = 31, \
+	IVB_PIPE_OFFSETS, \
+	IVB_CURSOR_OFFSETS, \
+	GEN_DEFAULT_PAGE_SIZES
 
 #define IVB_D_PLATFORM \
 	GEN7_FEATURES, \
@@ -386,24 +449,26 @@ static const struct intel_device_info intel_valleyview_info = {
 	.has_rc6 = 1,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
-	.ppgtt = INTEL_PPGTT_FULL,
+	.ppgtt_type = INTEL_PPGTT_FULL,
+	.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	I9XX_PIPE_OFFSETS,
+	I9XX_CURSOR_OFFSETS,
 	GEN_DEFAULT_PAGE_SIZES,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS
 };
 
 #define G75_FEATURES  \
 	GEN7_FEATURES, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_psr = 1, \
 	.display.has_dp_mst = 1, \
 	.has_rc6p = 0 /* RC6p removed-by HSW */, \
+	HSW_PIPE_OFFSETS, \
 	.has_runtime_pm = 1
 
 #define HSW_PLATFORM \
@@ -433,7 +498,8 @@ static const struct intel_device_info intel_haswell_gt3_info = {
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
 		      I915_GTT_PAGE_SIZE_2M, \
 	.has_logical_ring_contexts = 1, \
-	.ppgtt = INTEL_PPGTT_FULL_4LVL, \
+	.ppgtt_type = INTEL_PPGTT_FULL, \
+	.ppgtt_size = 48, \
 	.has_64bit_reloc = 1, \
 	.has_reset_engine = 1
 
@@ -462,7 +528,8 @@ static const struct intel_device_info intel_broadwell_rsvd_info = {
 static const struct intel_device_info intel_broadwell_gt3_info = {
 	BDW_PLATFORM,
 	.gt = 3,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 static const struct intel_device_info intel_cherryview_info = {
@@ -471,21 +538,22 @@ static const struct intel_device_info intel_cherryview_info = {
 	.num_pipes = 3,
 	.display.has_hotplug = 1,
 	.is_lp = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
-	.ppgtt = INTEL_PPGTT_FULL,
+	.ppgtt_type = INTEL_PPGTT_FULL,
+	.ppgtt_size = 32,
 	.has_reset_engine = 1,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
-	GEN_DEFAULT_PAGE_SIZES,
-	GEN_CHV_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	CHV_PIPE_OFFSETS,
+	CHV_CURSOR_OFFSETS,
 	CHV_COLORS,
+	GEN_DEFAULT_PAGE_SIZES,
 };
 
 #define GEN9_DEFAULT_PAGE_SIZES \
@@ -521,7 +589,8 @@ static const struct intel_device_info intel_skylake_gt2_info = {
 
 #define SKL_GT3_PLUS_PLATFORM \
 	SKL_PLATFORM, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING
+	.engine_mask = \
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1)
 
 
 static const struct intel_device_info intel_skylake_gt3_info = {
@@ -538,7 +607,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	GEN(9), \
 	.is_lp = 1, \
 	.display.has_hotplug = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.num_pipes = 3, \
 	.has_64bit_reloc = 1, \
 	.display.has_ddi = 1, \
@@ -552,15 +621,16 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \
 	.has_guc = 1, \
-	.ppgtt = INTEL_PPGTT_FULL_4LVL, \
+	.ppgtt_type = INTEL_PPGTT_FULL, \
+	.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
 	.display.has_ipc = 1, \
-	GEN9_DEFAULT_PAGE_SIZES, \
-	GEN_DEFAULT_PIPEOFFSETS, \
+	HSW_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
-	BDW_COLORS
+	BDW_COLORS, \
+	GEN9_DEFAULT_PAGE_SIZES
 
 static const struct intel_device_info intel_broxton_info = {
 	GEN9_LP_FEATURES,
@@ -592,7 +662,8 @@ static const struct intel_device_info intel_kabylake_gt2_info = {
 static const struct intel_device_info intel_kabylake_gt3_info = {
 	KBL_PLATFORM,
 	.gt = 3,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 #define CFL_PLATFORM \
@@ -612,7 +683,8 @@ static const struct intel_device_info intel_coffeelake_gt2_info = {
 static const struct intel_device_info intel_coffeelake_gt3_info = {
 	CFL_PLATFORM,
 	.gt = 3,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 #define GEN10_FEATURES \
@@ -648,13 +720,22 @@ static const struct intel_device_info intel_cannonlake_info = {
 	}, \
 	GEN(11), \
 	.ddb_size = 2048, \
-	.has_logical_ring_elsq = 1
+	.has_logical_ring_elsq = 1, \
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024 }
 
 static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ICELAKE),
+	.engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+};
+
+static const struct intel_device_info intel_elkhartlake_info = {
+	GEN11_FEATURES,
+	PLATFORM(INTEL_ELKHARTLAKE),
 	.is_alpha_support = 1,
-	.ring_mask = RENDER_RING | BLT_RING | VEBOX_RING | BSD_RING | BSD3_RING,
+	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0),
+	.ppgtt_size = 36,
 };
 
 #undef GEN
@@ -722,8 +803,11 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_WHL_U_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_AML_CFL_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_WHL_U_GT3_IDS(&intel_coffeelake_gt3_info),
+	INTEL_CML_GT1_IDS(&intel_coffeelake_gt1_info),
+	INTEL_CML_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CNL_IDS(&intel_cannonlake_info),
 	INTEL_ICL_11_IDS(&intel_icelake_11_info),
+	INTEL_EHL_IDS(&intel_elkhartlake_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -801,7 +885,9 @@ static int __init i915_init(void)
 	bool use_kms = true;
 	int err;
 
-	i915_global_active_init();
+	err = i915_globals_init();
+	if (err)
+		return err;
 
 	err = i915_mock_selftests();
 	if (err)
@@ -834,7 +920,7 @@ static void __exit i915_exit(void)
 		return;
 
 	pci_unregister_driver(&i915_pci_driver);
-	i915_global_active_exit();
+	i915_globals_exit();
 }
 
 module_init(i915_init);

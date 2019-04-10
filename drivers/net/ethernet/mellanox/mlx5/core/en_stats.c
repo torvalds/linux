@@ -127,9 +127,9 @@ static int mlx5e_grp_sw_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 	return idx;
 }
 
-void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
+static void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 {
-	struct mlx5e_sw_stats temp, *s = &temp;
+	struct mlx5e_sw_stats *s = &priv->stats.sw;
 	int i;
 
 	memset(s, 0, sizeof(*s));
@@ -212,8 +212,6 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 			s->tx_cqes		+= sq_stats->cqes;
 		}
 	}
-
-	memcpy(&priv->stats.sw, s, sizeof(*s));
 }
 
 static const struct counter_desc q_stats_desc[] = {

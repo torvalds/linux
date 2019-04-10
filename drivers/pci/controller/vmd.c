@@ -571,6 +571,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	LIST_HEAD(resources);
 	resource_size_t offset[2] = {0};
 	resource_size_t membar2_offset = 0x2000, busn_start = 0;
+	struct pci_bus *child;
 
 	/*
 	 * Shadow registers may exist in certain VMD device ids which allow
@@ -698,7 +699,19 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	vmd_attach_resources(vmd);
 	vmd_setup_dma_ops(vmd);
 	dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
-	pci_rescan_bus(vmd->bus);
+
+	pci_scan_child_bus(vmd->bus);
+	pci_assign_unassigned_bus_resources(vmd->bus);
+
+	/*
+	 * VMD root buses are virtual and don't return true on pci_is_pcie()
+	 * and will fail pcie_bus_configure_settings() early. It can instead be
+	 * run on each of the real root ports.
+	 */
+	list_for_each_entry(child, &vmd->bus->children, node)
+		pcie_bus_configure_settings(child);
+
+	pci_bus_add_devices(vmd->bus);
 
 	WARN(sysfs_create_link(&vmd->dev->dev.kobj, &vmd->bus->dev.kobj,
 			       "domain"), "Can't create symlink to domain\n");

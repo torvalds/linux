@@ -195,6 +195,7 @@ int aic32x4_remove(struct device *dev);
 /* AIC32X4_MICBIAS */
 #define AIC32X4_MICBIAS_LDOIN		BIT(3)
 #define AIC32X4_MICBIAS_2075V		0x60
+#define AIC32x4_MICBIAS_MASK            GENMASK(6, 3)
 
 /* AIC32X4_LMICPGANIN */
 #define AIC32X4_LMICPGANIN_IN2R_10K	0x10

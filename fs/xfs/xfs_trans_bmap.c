@@ -17,7 +17,6 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_inode.h"
-#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate a "bmap update done"

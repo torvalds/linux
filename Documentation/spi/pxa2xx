@@ -21,15 +21,15 @@ Typically a SPI master is defined in the arch/.../mach-*/board-*.c as a
 "platform device".  The master configuration is passed to the driver via a table
 found in include/linux/spi/pxa2xx_spi.h:
 
-struct pxa2xx_spi_master {
+struct pxa2xx_spi_controller {
 	u16 num_chipselect;
 	u8 enable_dma;
 };
 
-The "pxa2xx_spi_master.num_chipselect" field is used to determine the number of
+The "pxa2xx_spi_controller.num_chipselect" field is used to determine the number of
 slave device (chips) attached to this SPI master.
 
-The "pxa2xx_spi_master.enable_dma" field informs the driver that SSP DMA should
+The "pxa2xx_spi_controller.enable_dma" field informs the driver that SSP DMA should
 be used.  This caused the driver to acquire two DMA channels: rx_channel and
 tx_channel.  The rx_channel has a higher DMA service priority the tx_channel.
 See the "PXA2xx Developer Manual" section "DMA Controller".
@@ -51,7 +51,7 @@ static struct resource pxa_spi_nssp_resources[] = {
 	},
 };
 
-static struct pxa2xx_spi_master pxa_nssp_master_info = {
+static struct pxa2xx_spi_controller pxa_nssp_master_info = {
 	.num_chipselect = 1, /* Matches the number of chips attached to NSSP */
 	.enable_dma = 1, /* Enables NSSP DMA */
 };
@@ -206,7 +206,7 @@ DMA and PIO I/O Support
 -----------------------
 The pxa2xx_spi driver supports both DMA and interrupt driven PIO message
 transfers.  The driver defaults to PIO mode and DMA transfers must be enabled
-by setting the "enable_dma" flag in the "pxa2xx_spi_master" structure.  The DMA
+by setting the "enable_dma" flag in the "pxa2xx_spi_controller" structure.  The DMA
 mode supports both coherent and stream based DMA mappings.
 
 The following logic is used to determine the type of I/O to be used on

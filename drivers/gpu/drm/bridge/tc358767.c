@@ -1222,8 +1222,8 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 					 &bus_format, 1);
 	tc->connector.display_info.bus_flags =
 		DRM_BUS_FLAG_DE_HIGH |
-		DRM_BUS_FLAG_PIXDATA_NEGEDGE |
-		DRM_BUS_FLAG_SYNC_NEGEDGE;
+		DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE |
+		DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE;
 	drm_connector_attach_encoder(&tc->connector, tc->bridge.encoder);
 
 	return 0;

@@ -1194,7 +1194,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 				dma_unmap_single(dev->dev.parent,
 						 tx_cmd->dma_addr,
 						 skb->len, DMA_TO_DEVICE);
-				dev_kfree_skb_irq(skb);
+				dev_consume_skb_irq(skb);
 
 				tx_cmd->cmd.command = 0; /* Mark free */
 				break;

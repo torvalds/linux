@@ -595,6 +595,9 @@
 	type AGP_BASE;\
 	type AGP_BOT;\
 	type AGP_TOP;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB;\
 	/* todo:  get these from GVM instead of reading registers ourselves */\
 	type PAGE_DIRECTORY_ENTRY_HI32;\
 	type PAGE_DIRECTORY_ENTRY_LO32;\

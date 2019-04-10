@@ -563,6 +563,7 @@ static void nfs4_gc_state_owners(struct nfs_server *server)
  * nfs4_get_state_owner - Look up a state owner given a credential
  * @server: nfs_server to search
  * @cred: RPC credential to match
+ * @gfp_flags: allocation mode
  *
  * Returns a pointer to an instantiated nfs4_state_owner struct, or NULL.
  */

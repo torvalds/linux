@@ -39,6 +39,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_display.h"
+#include "amdgpu_ras.h"
 
 static void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
@@ -295,6 +296,17 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 	case AMDGPU_INFO_FW_SMC:
 		fw_info->ver = adev->pm.fw_version;
 		fw_info->feature = 0;
+		break;
+	case AMDGPU_INFO_FW_TA:
+		if (query_fw->index > 1)
+			return -EINVAL;
+		if (query_fw->index == 0) {
+			fw_info->ver = adev->psp.ta_fw_version;
+			fw_info->feature = adev->psp.ta_xgmi_ucode_version;
+		} else {
+			fw_info->ver = adev->psp.ta_fw_version;
+			fw_info->feature = adev->psp.ta_ras_ucode_version;
+		}
 		break;
 	case AMDGPU_INFO_FW_SDMA:
 		if (query_fw->index >= adev->sdma.num_instances)
@@ -909,6 +921,18 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_VRAM_LOST_COUNTER:
 		ui32 = atomic_read(&adev->vram_lost_counter);
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
+	case AMDGPU_INFO_RAS_ENABLED_FEATURES: {
+		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+		uint64_t ras_mask;
+
+		if (!ras)
+			return -EINVAL;
+		ras_mask = (uint64_t)ras->supported << 32 | ras->features;
+
+		return copy_to_user(out, &ras_mask,
+				min_t(u64, size, sizeof(ras_mask))) ?
+			-EFAULT : 0;
+	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
@@ -1327,6 +1351,16 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		return ret;
 	seq_printf(m, "ASD feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
+
+	query_fw.fw_type = AMDGPU_INFO_FW_TA;
+	for (i = 0; i < 2; i++) {
+		query_fw.index = i;
+		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+		if (ret)
+			continue;
+		seq_printf(m, "TA %s feature version: %u, firmware version: 0x%08x\n",
+				i ? "RAS" : "XGMI", fw_info.feature, fw_info.ver);
+	}
 
 	/* SMC */
 	query_fw.fw_type = AMDGPU_INFO_FW_SMC;

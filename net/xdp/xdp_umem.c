@@ -13,11 +13,14 @@
 #include <linux/mm.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/idr.h>
 
 #include "xdp_umem.h"
 #include "xsk_queue.h"
 
 #define XDP_UMEM_MIN_CHUNK_SIZE 2048
+
+static DEFINE_IDA(umem_ida);
 
 void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 {
@@ -67,6 +70,7 @@ struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
 
 	return NULL;
 }
+EXPORT_SYMBOL(xdp_get_umem_from_qid);
 
 static void xdp_clear_umem_at_qid(struct net_device *dev, u16 queue_id)
 {
@@ -193,6 +197,8 @@ static void xdp_umem_release(struct xdp_umem *umem)
 	struct mm_struct *mm;
 
 	xdp_umem_clear_dev(umem);
+
+	ida_simple_remove(&umem_ida, umem->id);
 
 	if (umem->fq) {
 		xskq_destroy(umem->fq);
@@ -400,8 +406,16 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 
+	err = ida_simple_get(&umem_ida, 0, 0, GFP_KERNEL);
+	if (err < 0) {
+		kfree(umem);
+		return ERR_PTR(err);
+	}
+	umem->id = err;
+
 	err = xdp_umem_reg(umem, mr);
 	if (err) {
+		ida_simple_remove(&umem_ida, umem->id);
 		kfree(umem);
 		return ERR_PTR(err);
 	}

@@ -45,6 +45,10 @@ static void __init populate(void *start, void *end)
 	pmd_t *pmd = pmd_offset(pgd, vaddr);
 	pte_t *pte = memblock_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
 
+	if (!pte)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, n_pages * sizeof(pte_t), PAGE_SIZE);
+
 	pr_debug("%s: %p - %p\n", __func__, start, end);
 
 	for (i = j = 0; i < n_pmds; ++i) {
@@ -52,8 +56,10 @@ static void __init populate(void *start, void *end)
 
 		for (k = 0; k < PTRS_PER_PTE; ++k, ++j) {
 			phys_addr_t phys =
-				memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
-						    MEMBLOCK_ALLOC_ANYWHERE);
+				memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
+
+			if (!phys)
+				panic("Failed to allocate page table page\n");
 
 			set_pte(pte + j, pfn_pte(PHYS_PFN(phys), PAGE_KERNEL));
 		}

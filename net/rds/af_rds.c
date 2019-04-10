@@ -254,7 +254,40 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 
 static int rds_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
+	rds_tos_t utos, tos = 0;
+
+	switch (cmd) {
+	case SIOCRDSSETTOS:
+		if (get_user(utos, (rds_tos_t __user *)arg))
+			return -EFAULT;
+
+		if (rs->rs_transport &&
+		    rs->rs_transport->get_tos_map)
+			tos = rs->rs_transport->get_tos_map(utos);
+		else
+			return -ENOIOCTLCMD;
+
+		spin_lock_bh(&rds_sock_lock);
+		if (rs->rs_tos || rs->rs_conn) {
+			spin_unlock_bh(&rds_sock_lock);
+			return -EINVAL;
+		}
+		rs->rs_tos = tos;
+		spin_unlock_bh(&rds_sock_lock);
+		break;
+	case SIOCRDSGETTOS:
+		spin_lock_bh(&rds_sock_lock);
+		tos = rs->rs_tos;
+		spin_unlock_bh(&rds_sock_lock);
+		if (put_user(tos, (rds_tos_t __user *)arg))
+			return -EFAULT;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
 }
 
 static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
@@ -348,7 +381,7 @@ static int rds_set_transport(struct rds_sock *rs, char __user *optval,
 }
 
 static int rds_enable_recvtstamp(struct sock *sk, char __user *optval,
-				 int optlen)
+				 int optlen, int optname)
 {
 	int val, valbool;
 
@@ -359,6 +392,9 @@ static int rds_enable_recvtstamp(struct sock *sk, char __user *optval,
 		return -EFAULT;
 
 	valbool = val ? 1 : 0;
+
+	if (optname == SO_TIMESTAMP_NEW)
+		sock_set_flag(sk, SOCK_TSTAMP_NEW);
 
 	if (valbool)
 		sock_set_flag(sk, SOCK_RCVTSTAMP);
@@ -430,9 +466,10 @@ static int rds_setsockopt(struct socket *sock, int level, int optname,
 		ret = rds_set_transport(rs, optval, optlen);
 		release_sock(sock->sk);
 		break;
-	case SO_TIMESTAMP:
+	case SO_TIMESTAMP_OLD:
+	case SO_TIMESTAMP_NEW:
 		lock_sock(sock->sk);
-		ret = rds_enable_recvtstamp(sock->sk, optval, optlen);
+		ret = rds_enable_recvtstamp(sock->sk, optval, optlen, optname);
 		release_sock(sock->sk);
 		break;
 	case SO_RDS_MSG_RXPATH_LATENCY:
@@ -646,6 +683,8 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	spin_lock_init(&rs->rs_rdma_lock);
 	rs->rs_rdma_keys = RB_ROOT;
 	rs->rs_rx_traces = 0;
+	rs->rs_tos = 0;
+	rs->rs_conn = NULL;
 
 	spin_lock_bh(&rds_sock_lock);
 	list_add_tail(&rs->rs_item, &rds_sock_list);

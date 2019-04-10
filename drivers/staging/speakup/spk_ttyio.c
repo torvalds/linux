@@ -128,7 +128,8 @@ struct spk_io_ops spk_ttyio_ops = {
 };
 EXPORT_SYMBOL_GPL(spk_ttyio_ops);
 
-static inline void get_termios(struct tty_struct *tty, struct ktermios *out_termios)
+static inline void get_termios(struct tty_struct *tty,
+			       struct ktermios *out_termios)
 {
 	down_read(&tty->termios_rwsem);
 	*out_termios = tty->termios;
@@ -167,8 +168,9 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 		tmp_termios.c_cflag |= CRTSCTS;
 		tty_set_termios(tty, &tmp_termios);
 		/*
-		 * check c_cflag to see if it's updated as tty_set_termios may not return
-		 * error even when no tty bits are changed by the request.
+		 * check c_cflag to see if it's updated as tty_set_termios
+		 * may not return error even when no tty bits are
+		 * changed by the request.
 		 */
 		get_termios(tty, &tmp_termios);
 		if (!(tmp_termios.c_cflag & CRTSCTS))
@@ -207,10 +209,11 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 			/* No room */
 			return 0;
 		if (ret < 0) {
-			pr_warn("%s: I/O error, deactivating speakup\n", in_synth->long_name);
-			/* No synth any more, so nobody will restart TTYs, and we thus
-			 * need to do it ourselves.  Now that there is no synth we can
-			 * let application flood anyway
+			pr_warn("%s: I/O error, deactivating speakup\n",
+				in_synth->long_name);
+			/* No synth any more, so nobody will restart TTYs,
+			 * and we thus need to do it ourselves.  Now that there
+			 * is no synth we can let application flood anyway
 			 */
 			in_synth->alive = 0;
 			speakup_start_ttys();
@@ -371,7 +374,8 @@ const char *spk_ttyio_synth_immediate(struct spk_synth *synth, const char *buff)
 	while ((ch = *buff)) {
 		if (ch == '\n')
 			ch = synth->procspeech;
-		if (tty_write_room(speakup_tty) < 1 || !synth->io_ops->synth_out(synth, ch))
+		if (tty_write_room(speakup_tty) < 1 ||
+		    !synth->io_ops->synth_out(synth, ch))
 			return buff;
 		buff++;
 	}

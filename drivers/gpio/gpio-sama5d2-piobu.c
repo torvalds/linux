@@ -109,16 +109,6 @@ static int sama5d2_piobu_read_value(struct gpio_chip *chip, unsigned int pin,
 }
 
 /**
- * sama5d2_piobu_set_direction() - mark pin as input or output
- */
-static int sama5d2_piobu_set_direction(struct gpio_chip *chip,
-				       unsigned int direction,
-				       unsigned int pin)
-{
-	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION, direction);
-}
-
-/**
  * sama5d2_piobu_get_direction() - gpiochip get_direction
  */
 static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
@@ -138,7 +128,7 @@ static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
 static int sama5d2_piobu_direction_input(struct gpio_chip *chip,
 					 unsigned int pin)
 {
-	return sama5d2_piobu_set_direction(chip, PIOBU_IN, pin);
+	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION, PIOBU_IN);
 }
 
 /**
@@ -147,7 +137,13 @@ static int sama5d2_piobu_direction_input(struct gpio_chip *chip,
 static int sama5d2_piobu_direction_output(struct gpio_chip *chip,
 					  unsigned int pin, int value)
 {
-	return sama5d2_piobu_set_direction(chip, PIOBU_OUT, pin);
+	unsigned int val = PIOBU_OUT;
+
+	if (value)
+		val |= PIOBU_HIGH;
+
+	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION | PIOBU_SOD,
+					 val);
 }
 
 /**

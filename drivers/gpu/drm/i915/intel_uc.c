@@ -332,8 +332,6 @@ void intel_uc_sanitize(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(!HAS_GUC(i915));
 
-	guc_disable_communication(guc);
-
 	intel_huc_sanitize(huc);
 	intel_guc_sanitize(guc);
 
@@ -451,6 +449,23 @@ void intel_uc_fini_hw(struct drm_i915_private *i915)
 	guc_disable_communication(guc);
 }
 
+/**
+ * intel_uc_reset_prepare - Prepare for reset
+ * @i915: device private
+ *
+ * Preparing for full gpu reset.
+ */
+void intel_uc_reset_prepare(struct drm_i915_private *i915)
+{
+	struct intel_guc *guc = &i915->guc;
+
+	if (!USES_GUC(i915))
+		return;
+
+	guc_disable_communication(guc);
+	intel_uc_sanitize(i915);
+}
+
 int intel_uc_suspend(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
@@ -468,7 +483,7 @@ int intel_uc_suspend(struct drm_i915_private *i915)
 		return err;
 	}
 
-	gen9_disable_guc_interrupts(i915);
+	guc_disable_communication(guc);
 
 	return 0;
 }
@@ -484,7 +499,7 @@ int intel_uc_resume(struct drm_i915_private *i915)
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
-	gen9_enable_guc_interrupts(i915);
+	guc_enable_communication(guc);
 
 	err = intel_guc_resume(guc);
 	if (err) {

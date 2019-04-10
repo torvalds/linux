@@ -56,7 +56,7 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	int slice;
 	int subslice;
 
-	if (engine->id != RCS)
+	if (engine->id != RCS0)
 		return true;
 
 	intel_engine_get_instdone(engine, &instdone);
@@ -118,11 +118,11 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 * and break the hang. This should work on
 	 * all but the second generation chipsets.
 	 */
-	tmp = I915_READ_CTL(engine);
+	tmp = ENGINE_READ(engine, RING_CTL);
 	if (tmp & RING_WAIT) {
-		i915_handle_error(dev_priv, BIT(engine->id), 0,
+		i915_handle_error(dev_priv, engine->mask, 0,
 				  "stuck wait on %s", engine->name);
-		I915_WRITE_CTL(engine, tmp);
+		ENGINE_WRITE(engine, RING_CTL, tmp);
 		return ENGINE_WAIT_KICK;
 	}
 
@@ -133,21 +133,21 @@ static void hangcheck_load_sample(struct intel_engine_cs *engine,
 				  struct hangcheck *hc)
 {
 	hc->acthd = intel_engine_get_active_head(engine);
-	hc->seqno = intel_engine_get_seqno(engine);
+	hc->seqno = intel_engine_get_hangcheck_seqno(engine);
 }
 
 static void hangcheck_store_sample(struct intel_engine_cs *engine,
 				   const struct hangcheck *hc)
 {
 	engine->hangcheck.acthd = hc->acthd;
-	engine->hangcheck.seqno = hc->seqno;
+	engine->hangcheck.last_seqno = hc->seqno;
 }
 
 static enum intel_engine_hangcheck_action
 hangcheck_get_action(struct intel_engine_cs *engine,
 		     const struct hangcheck *hc)
 {
-	if (engine->hangcheck.seqno != hc->seqno)
+	if (engine->hangcheck.last_seqno != hc->seqno)
 		return ENGINE_ACTIVE_SEQNO;
 
 	if (intel_engine_is_idle(engine))
@@ -263,14 +263,14 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	if (!READ_ONCE(dev_priv->gt.awake))
 		return;
 
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
+	if (i915_terminally_wedged(dev_priv))
 		return;
 
 	/* As enabling the GPU requires fairly extensive mmio access,
 	 * periodically arm the mmio checker to see if we are triggering
 	 * any invalid access.
 	 */
-	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+	intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
 
 	for_each_engine(engine, dev_priv, id) {
 		struct hangcheck hc;
@@ -282,13 +282,13 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		hangcheck_store_sample(engine, &hc);
 
 		if (hc.stalled) {
-			hung |= intel_engine_flag(engine);
+			hung |= engine->mask;
 			if (hc.action != ENGINE_DEAD)
-				stuck |= intel_engine_flag(engine);
+				stuck |= engine->mask;
 		}
 
 		if (hc.wedged)
-			wedged |= intel_engine_flag(engine);
+			wedged |= engine->mask;
 	}
 
 	if (GEM_SHOW_DEBUG() && (hung | stuck)) {

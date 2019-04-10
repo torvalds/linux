@@ -102,6 +102,14 @@ class SubPlugin(TdcPlugin):
         if not self.args.valgrind:
             return
 
+        res = TestResult('{}-mem'.format(self.args.testid),
+              '{} memory leak check'.format(self.args.test_name))
+        if self.args.test_skip:
+            res.set_result(ResultState.skip)
+            res.set_errormsg('Test case designated as skipped.')
+            self._add_results(res)
+            return
+
         self.definitely_lost_re = re.compile(
             r'definitely lost:\s+([,0-9]+)\s+bytes in\s+([,0-9]+)\sblocks', re.MULTILINE | re.DOTALL)
         self.indirectly_lost_re = re.compile(
@@ -134,8 +142,6 @@ class SubPlugin(TdcPlugin):
                 nle_num = int(nle_mo.group(1))
 
         mem_results = ''
-        res = TestResult('{}-mem'.format(self.args.testid),
-              '{} memory leak check'.format(self.args.test_name))
         if (def_num > 0) or (ind_num > 0) or (pos_num > 0) or (nle_num > 0):
             mem_results += 'not '
             res.set_result(ResultState.fail)
@@ -146,12 +152,6 @@ class SubPlugin(TdcPlugin):
 
         self._add_results(res)
 
-        mem_results += 'ok {} - {}-mem # {}\n'.format(
-            self.args.test_ordinal, self.args.testid, 'memory leak check')
-        self._add_to_tap(mem_results)
-        if mem_results.startswith('not '):
-            print('{}'.format(content))
-            self._add_to_tap(content)
 
     def _add_results(self, res):
         self._tsr.add_resultdata(res)

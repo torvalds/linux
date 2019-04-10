@@ -42,7 +42,6 @@
  */
 
 #define KERNEL_DS	(~0UL)
-#define get_ds()	(KERNEL_DS)
 
 #define USER_DS		(TASK_SIZE)
 #define get_fs()	(current_thread_info()->addr_limit)

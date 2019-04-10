@@ -170,7 +170,7 @@ static inline unsigned int ahash_instance_headroom(void)
 static inline struct ahash_instance *ahash_alloc_instance(
 	const char *name, struct crypto_alg *alg)
 {
-	return crypto_alloc_instance2(name, alg, ahash_instance_headroom());
+	return crypto_alloc_instance(name, alg, ahash_instance_headroom());
 }
 
 static inline void ahash_request_complete(struct ahash_request *req, int err)
@@ -233,8 +233,8 @@ static inline void *shash_instance_ctx(struct shash_instance *inst)
 static inline struct shash_instance *shash_alloc_instance(
 	const char *name, struct crypto_alg *alg)
 {
-	return crypto_alloc_instance2(name, alg,
-				      sizeof(struct shash_alg) - sizeof(*alg));
+	return crypto_alloc_instance(name, alg,
+				     sizeof(struct shash_alg) - sizeof(*alg));
 }
 
 static inline struct crypto_shash *crypto_spawn_shash(

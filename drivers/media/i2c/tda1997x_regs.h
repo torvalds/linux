@@ -596,7 +596,7 @@
 #define RESET_AUDIO		BIT(0)	/* Reset Audio FIFO control */
 
 /* HDCP_BCAPS bits */
-#define HDCP_HDMI		BIT(7)	/* HDCP suports HDMI (vs DVI only) */
+#define HDCP_HDMI		BIT(7)	/* HDCP supports HDMI (vs DVI only) */
 #define HDCP_REPEATER		BIT(6)	/* HDCP supports repeater function */
 #define HDCP_READY		BIT(5)	/* set by repeater function */
 #define HDCP_FAST		BIT(4)	/* Up to 400kHz */

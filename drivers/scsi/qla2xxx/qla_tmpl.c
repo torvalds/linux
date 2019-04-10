@@ -221,7 +221,13 @@ qla27xx_skip_entry(struct qla27xx_fwdt_entry *ent, void *buf)
 		ent->hdr.driver_flags |= DRIVER_FLAG_SKIP_ENTRY;
 }
 
-static int
+static inline struct qla27xx_fwdt_entry *
+qla27xx_next_entry(struct qla27xx_fwdt_entry *ent)
+{
+	return (void *)ent + ent->hdr.size;
+}
+
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t0(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -229,10 +235,10 @@ qla27xx_fwdt_entry_t0(struct scsi_qla_host *vha,
 	    "%s: nop [%lx]\n", __func__, *len);
 	qla27xx_skip_entry(ent, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t255(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -241,10 +247,10 @@ qla27xx_fwdt_entry_t255(struct scsi_qla_host *vha,
 	qla27xx_skip_entry(ent, buf);
 
 	/* terminate */
-	return true;
+	return NULL;
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t256(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -255,10 +261,10 @@ qla27xx_fwdt_entry_t256(struct scsi_qla_host *vha,
 	qla27xx_read_window(reg, ent->t256.base_addr, ent->t256.pci_offset,
 	    ent->t256.reg_count, ent->t256.reg_width, buf, len);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t257(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -269,10 +275,10 @@ qla27xx_fwdt_entry_t257(struct scsi_qla_host *vha,
 	qla27xx_write_reg(reg, IOBASE_ADDR, ent->t257.base_addr, buf);
 	qla27xx_write_reg(reg, ent->t257.pci_offset, ent->t257.write_data, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t258(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -284,10 +290,10 @@ qla27xx_fwdt_entry_t258(struct scsi_qla_host *vha,
 	qla27xx_read_window(reg, ent->t258.base_addr, ent->t258.pci_offset,
 	    ent->t258.reg_count, ent->t258.reg_width, buf, len);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t259(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -299,10 +305,10 @@ qla27xx_fwdt_entry_t259(struct scsi_qla_host *vha,
 	qla27xx_write_reg(reg, ent->t259.banksel_offset, ent->t259.bank, buf);
 	qla27xx_write_reg(reg, ent->t259.pci_offset, ent->t259.write_data, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t260(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -313,10 +319,10 @@ qla27xx_fwdt_entry_t260(struct scsi_qla_host *vha,
 	qla27xx_insert32(ent->t260.pci_offset, buf, len);
 	qla27xx_read_reg(reg, ent->t260.pci_offset, buf, len);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t261(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -326,10 +332,10 @@ qla27xx_fwdt_entry_t261(struct scsi_qla_host *vha,
 	    "%s: wrpci [%lx]\n", __func__, *len);
 	qla27xx_write_reg(reg, ent->t261.pci_offset, ent->t261.write_data, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -362,6 +368,11 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 			ent->t262.start_addr = start;
 			ent->t262.end_addr = end;
 		}
+	} else if (ent->t262.ram_area == T262_RAM_AREA_MISC) {
+		if (buf) {
+			ent->t262.start_addr = start;
+			ent->t262.end_addr = end;
+		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd022,
 		    "%s: unknown area %x\n", __func__, ent->t262.ram_area);
@@ -384,10 +395,10 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 	}
 	*len += dwords * sizeof(uint32_t);
 done:
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -450,10 +461,10 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 			qla27xx_skip_entry(ent, buf);
 	}
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t264(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -478,10 +489,10 @@ qla27xx_fwdt_entry_t264(struct scsi_qla_host *vha,
 		qla27xx_skip_entry(ent, buf);
 	}
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t265(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -492,10 +503,10 @@ qla27xx_fwdt_entry_t265(struct scsi_qla_host *vha,
 	if (buf)
 		qla24xx_pause_risc(reg, vha->hw);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t266(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -504,10 +515,10 @@ qla27xx_fwdt_entry_t266(struct scsi_qla_host *vha,
 	if (buf)
 		qla24xx_soft_reset(vha->hw);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t267(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -517,10 +528,10 @@ qla27xx_fwdt_entry_t267(struct scsi_qla_host *vha,
 	    "%s: dis intr [%lx]\n", __func__, *len);
 	qla27xx_write_reg(reg, ent->t267.pci_offset, ent->t267.data, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -587,10 +598,10 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 		break;
 	}
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t269(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -604,10 +615,10 @@ qla27xx_fwdt_entry_t269(struct scsi_qla_host *vha,
 	if (buf)
 		ent->t269.scratch_size = 5 * sizeof(uint32_t);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -625,10 +636,10 @@ qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 		addr += sizeof(uint32_t);
 	}
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t271(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -642,10 +653,10 @@ qla27xx_fwdt_entry_t271(struct scsi_qla_host *vha,
 	qla27xx_write_reg(reg, 0xc4, data, buf);
 	qla27xx_write_reg(reg, 0xc0, addr, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t272(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -662,10 +673,10 @@ qla27xx_fwdt_entry_t272(struct scsi_qla_host *vha,
 	}
 	*len += dwords * sizeof(uint32_t);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t273(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -685,10 +696,10 @@ qla27xx_fwdt_entry_t273(struct scsi_qla_host *vha,
 		addr += sizeof(uint32_t);
 	}
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -746,10 +757,10 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 			qla27xx_skip_entry(ent, buf);
 	}
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
@@ -763,7 +774,7 @@ qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
-	if (offset + ent->t275.length > ent->hdr.entry_size) {
+	if (offset + ent->t275.length > ent->hdr.size) {
 		ql_dbg(ql_dbg_misc, vha, 0xd030,
 		    "%s: buffer overflow\n", __func__);
 		qla27xx_skip_entry(ent, buf);
@@ -772,59 +783,103 @@ qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
 
 	qla27xx_insertbuf(ent->t275.buffer, ent->t275.length, buf, len);
 done:
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-static int
+static struct qla27xx_fwdt_entry *
+qla27xx_fwdt_entry_t276(struct scsi_qla_host *vha,
+    struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
+{
+	uint type = vha->hw->pdev->device >> 4 & 0xf;
+	uint func = vha->hw->port_no & 0x3;
+
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd214,
+	    "%s: cond [%lx]\n", __func__, *len);
+
+	if (type != ent->t276.cond1 || func != ent->t276.cond2) {
+		ent = qla27xx_next_entry(ent);
+		qla27xx_skip_entry(ent, buf);
+	}
+
+	return qla27xx_next_entry(ent);
+}
+
+static struct qla27xx_fwdt_entry *
+qla27xx_fwdt_entry_t277(struct scsi_qla_host *vha,
+    struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
+{
+	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd215,
+	    "%s: rdpep [%lx]\n", __func__, *len);
+	qla27xx_insert32(ent->t277.wr_cmd_data, buf, len);
+	qla27xx_write_reg(reg, ent->t277.cmd_addr, ent->t277.wr_cmd_data, buf);
+	qla27xx_read_reg(reg, ent->t277.data_addr, buf, len);
+
+	return qla27xx_next_entry(ent);
+}
+
+static struct qla27xx_fwdt_entry *
+qla27xx_fwdt_entry_t278(struct scsi_qla_host *vha,
+    struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
+{
+	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd216,
+	    "%s: wrpep [%lx]\n", __func__, *len);
+	qla27xx_write_reg(reg, ent->t278.data_addr, ent->t278.wr_data, buf);
+	qla27xx_write_reg(reg, ent->t278.cmd_addr, ent->t278.wr_cmd_data, buf);
+
+	return qla27xx_next_entry(ent);
+}
+
+static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_other(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	ql_dbg(ql_dbg_misc, vha, 0xd2ff,
-	    "%s: type %x [%lx]\n", __func__, ent->hdr.entry_type, *len);
+	    "%s: type %x [%lx]\n", __func__, ent->hdr.type, *len);
 	qla27xx_skip_entry(ent, buf);
 
-	return false;
+	return qla27xx_next_entry(ent);
 }
 
-struct qla27xx_fwdt_entry_call {
+static struct {
 	uint type;
-	int (*call)(
-	    struct scsi_qla_host *,
-	    struct qla27xx_fwdt_entry *,
-	    void *,
-	    ulong *);
+	typeof(qla27xx_fwdt_entry_other)(*call);
+} qla27xx_fwdt_entry_call[] = {
+	{ ENTRY_TYPE_NOP,		qla27xx_fwdt_entry_t0    },
+	{ ENTRY_TYPE_TMP_END,		qla27xx_fwdt_entry_t255  },
+	{ ENTRY_TYPE_RD_IOB_T1,		qla27xx_fwdt_entry_t256  },
+	{ ENTRY_TYPE_WR_IOB_T1,		qla27xx_fwdt_entry_t257  },
+	{ ENTRY_TYPE_RD_IOB_T2,		qla27xx_fwdt_entry_t258  },
+	{ ENTRY_TYPE_WR_IOB_T2,		qla27xx_fwdt_entry_t259  },
+	{ ENTRY_TYPE_RD_PCI,		qla27xx_fwdt_entry_t260  },
+	{ ENTRY_TYPE_WR_PCI,		qla27xx_fwdt_entry_t261  },
+	{ ENTRY_TYPE_RD_RAM,		qla27xx_fwdt_entry_t262  },
+	{ ENTRY_TYPE_GET_QUEUE,		qla27xx_fwdt_entry_t263  },
+	{ ENTRY_TYPE_GET_FCE,		qla27xx_fwdt_entry_t264  },
+	{ ENTRY_TYPE_PSE_RISC,		qla27xx_fwdt_entry_t265  },
+	{ ENTRY_TYPE_RST_RISC,		qla27xx_fwdt_entry_t266  },
+	{ ENTRY_TYPE_DIS_INTR,		qla27xx_fwdt_entry_t267  },
+	{ ENTRY_TYPE_GET_HBUF,		qla27xx_fwdt_entry_t268  },
+	{ ENTRY_TYPE_SCRATCH,		qla27xx_fwdt_entry_t269  },
+	{ ENTRY_TYPE_RDREMREG,		qla27xx_fwdt_entry_t270  },
+	{ ENTRY_TYPE_WRREMREG,		qla27xx_fwdt_entry_t271  },
+	{ ENTRY_TYPE_RDREMRAM,		qla27xx_fwdt_entry_t272  },
+	{ ENTRY_TYPE_PCICFG,		qla27xx_fwdt_entry_t273  },
+	{ ENTRY_TYPE_GET_SHADOW,	qla27xx_fwdt_entry_t274  },
+	{ ENTRY_TYPE_WRITE_BUF,		qla27xx_fwdt_entry_t275  },
+	{ ENTRY_TYPE_CONDITIONAL,	qla27xx_fwdt_entry_t276  },
+	{ ENTRY_TYPE_RDPEPREG,		qla27xx_fwdt_entry_t277  },
+	{ ENTRY_TYPE_WRPEPREG,		qla27xx_fwdt_entry_t278  },
+	{ -1,				qla27xx_fwdt_entry_other }
 };
 
-static struct qla27xx_fwdt_entry_call ql27xx_fwdt_entry_call_list[] = {
-	{ ENTRY_TYPE_NOP		, qla27xx_fwdt_entry_t0    } ,
-	{ ENTRY_TYPE_TMP_END		, qla27xx_fwdt_entry_t255  } ,
-	{ ENTRY_TYPE_RD_IOB_T1		, qla27xx_fwdt_entry_t256  } ,
-	{ ENTRY_TYPE_WR_IOB_T1		, qla27xx_fwdt_entry_t257  } ,
-	{ ENTRY_TYPE_RD_IOB_T2		, qla27xx_fwdt_entry_t258  } ,
-	{ ENTRY_TYPE_WR_IOB_T2		, qla27xx_fwdt_entry_t259  } ,
-	{ ENTRY_TYPE_RD_PCI		, qla27xx_fwdt_entry_t260  } ,
-	{ ENTRY_TYPE_WR_PCI		, qla27xx_fwdt_entry_t261  } ,
-	{ ENTRY_TYPE_RD_RAM		, qla27xx_fwdt_entry_t262  } ,
-	{ ENTRY_TYPE_GET_QUEUE		, qla27xx_fwdt_entry_t263  } ,
-	{ ENTRY_TYPE_GET_FCE		, qla27xx_fwdt_entry_t264  } ,
-	{ ENTRY_TYPE_PSE_RISC		, qla27xx_fwdt_entry_t265  } ,
-	{ ENTRY_TYPE_RST_RISC		, qla27xx_fwdt_entry_t266  } ,
-	{ ENTRY_TYPE_DIS_INTR		, qla27xx_fwdt_entry_t267  } ,
-	{ ENTRY_TYPE_GET_HBUF		, qla27xx_fwdt_entry_t268  } ,
-	{ ENTRY_TYPE_SCRATCH		, qla27xx_fwdt_entry_t269  } ,
-	{ ENTRY_TYPE_RDREMREG		, qla27xx_fwdt_entry_t270  } ,
-	{ ENTRY_TYPE_WRREMREG		, qla27xx_fwdt_entry_t271  } ,
-	{ ENTRY_TYPE_RDREMRAM		, qla27xx_fwdt_entry_t272  } ,
-	{ ENTRY_TYPE_PCICFG		, qla27xx_fwdt_entry_t273  } ,
-	{ ENTRY_TYPE_GET_SHADOW		, qla27xx_fwdt_entry_t274  } ,
-	{ ENTRY_TYPE_WRITE_BUF		, qla27xx_fwdt_entry_t275  } ,
-	{ -1				, qla27xx_fwdt_entry_other }
-};
-
-static inline int (*qla27xx_find_entry(uint type))
-	(struct scsi_qla_host *, struct qla27xx_fwdt_entry *, void *, ulong *)
+static inline
+typeof(qla27xx_fwdt_entry_call->call)(qla27xx_find_entry(uint type))
 {
-	struct qla27xx_fwdt_entry_call *list = ql27xx_fwdt_entry_call_list;
+	typeof(*qla27xx_fwdt_entry_call) *list = qla27xx_fwdt_entry_call;
 
 	while (list->type < type)
 		list++;
@@ -832,14 +887,6 @@ static inline int (*qla27xx_find_entry(uint type))
 	if (list->type == type)
 		return list->call;
 	return qla27xx_fwdt_entry_other;
-}
-
-static inline void *
-qla27xx_next_entry(void *p)
-{
-	struct qla27xx_fwdt_entry *ent = p;
-
-	return p + ent->hdr.entry_size;
 }
 
 static void
@@ -852,18 +899,16 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd01a,
 	    "%s: entry count %lx\n", __func__, count);
 	while (count--) {
-		if (buf && *len >= vha->hw->fw_dump_len)
+		ent = qla27xx_find_entry(ent->hdr.type)(vha, ent, buf, len);
+		if (!ent)
 			break;
-		if (qla27xx_find_entry(ent->hdr.entry_type)(vha, ent, buf, len))
-			break;
-		ent = qla27xx_next_entry(ent);
 	}
 
 	if (count)
 		ql_dbg(ql_dbg_misc, vha, 0xd018,
 		    "%s: entry residual count (%lx)\n", __func__, count);
 
-	if (ent->hdr.entry_type != ENTRY_TYPE_TMP_END)
+	if (ent)
 		ql_dbg(ql_dbg_misc, vha, 0xd019,
 		    "%s: missing end entry (%lx)\n", __func__, count);
 

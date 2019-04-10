@@ -472,7 +472,7 @@ static int software_node_read_string_array(const struct fwnode_handle *fwnode,
 						val, nval);
 }
 
-struct fwnode_handle *
+static struct fwnode_handle *
 software_node_get_parent(const struct fwnode_handle *fwnode)
 {
 	struct software_node *swnode = to_software_node(fwnode);
@@ -481,7 +481,7 @@ software_node_get_parent(const struct fwnode_handle *fwnode)
 			NULL;
 }
 
-struct fwnode_handle *
+static struct fwnode_handle *
 software_node_get_next_child(const struct fwnode_handle *fwnode,
 			     struct fwnode_handle *child)
 {
@@ -499,6 +499,28 @@ software_node_get_next_child(const struct fwnode_handle *fwnode,
 	return &c->fwnode;
 }
 
+static struct fwnode_handle *
+software_node_get_named_child_node(const struct fwnode_handle *fwnode,
+				   const char *childname)
+{
+	struct software_node *swnode = to_software_node(fwnode);
+	const struct property_entry *prop;
+	struct software_node *child;
+
+	if (!swnode || list_empty(&swnode->children))
+		return NULL;
+
+	list_for_each_entry(child, &swnode->children, entry) {
+		prop = property_entry_get(child->properties, "name");
+		if (!prop)
+			continue;
+		if (!strcmp(childname, prop->value.str)) {
+			kobject_get(&child->kobj);
+			return &child->fwnode;
+		}
+	}
+	return NULL;
+}
 
 static const struct fwnode_operations software_node_ops = {
 	.get = software_node_get,
@@ -508,6 +530,7 @@ static const struct fwnode_operations software_node_ops = {
 	.property_read_string_array = software_node_read_string_array,
 	.get_parent = software_node_get_parent,
 	.get_next_child_node = software_node_get_next_child,
+	.get_named_child_node = software_node_get_named_child_node,
 };
 
 /* -------------------------------------------------------------------------- */

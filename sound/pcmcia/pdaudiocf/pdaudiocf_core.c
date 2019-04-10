@@ -148,10 +148,7 @@ static void pdacf_proc_read(struct snd_info_entry * entry,
 
 static void pdacf_proc_init(struct snd_pdacf *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "pdaudiocf", &entry))
-		snd_info_set_text_ops(entry, chip, pdacf_proc_read);
+	snd_card_ro_proc_new(chip->card, "pdaudiocf", chip, pdacf_proc_read);
 }
 
 struct snd_pdacf *snd_pdacf_create(struct snd_card *card)
@@ -265,7 +262,6 @@ int snd_pdacf_suspend(struct snd_pdacf *chip)
 	u16 val;
 	
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	/* disable interrupts, but use direct write to preserve old register value in chip->regmap */
 	val = inw(chip->port + PDAUDIOCF_REG_IER);
 	val &= ~(PDAUDIOCF_IRQOVREN|PDAUDIOCF_IRQAKMEN|PDAUDIOCF_IRQLVLEN0|PDAUDIOCF_IRQLVLEN1);

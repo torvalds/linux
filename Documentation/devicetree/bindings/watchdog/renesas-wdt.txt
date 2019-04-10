@@ -8,6 +8,7 @@ Required properties:
 		 - "renesas,r8a7743-wdt" (RZ/G1M)
 		 - "renesas,r8a7744-wdt" (RZ/G1N)
 		 - "renesas,r8a7745-wdt" (RZ/G1E)
+		 - "renesas,r8a77470-wdt" (RZ/G1C)
 		 - "renesas,r8a774a1-wdt" (RZ/G2M)
 		 - "renesas,r8a774c0-wdt" (RZ/G2E)
 	         - "renesas,r8a7790-wdt" (R-Car H2)

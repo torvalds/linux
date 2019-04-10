@@ -190,7 +190,7 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 		/* normal duplex detection */
 		break;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
@@ -312,6 +312,14 @@ int mv88e6341_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 	return mv88e6xxx_port_set_speed(chip, port, speed, !port, true);
 }
 
+phy_interface_t mv88e6341_port_max_speed_mode(int port)
+{
+	if (port == 5)
+		return PHY_INTERFACE_MODE_2500BASEX;
+
+	return PHY_INTERFACE_MODE_NA;
+}
+
 /* Support 10, 100, 200, 1000 Mbps (e.g. 88E6352 family) */
 int mv88e6352_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 {
@@ -345,6 +353,14 @@ int mv88e6390_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
 }
 
+phy_interface_t mv88e6390_port_max_speed_mode(int port)
+{
+	if (port == 9 || port == 10)
+		return PHY_INTERFACE_MODE_2500BASEX;
+
+	return PHY_INTERFACE_MODE_NA;
+}
+
 /* Support 10, 100, 200, 1000, 2500, 10000 Mbps (e.g. 88E6190X) */
 int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 {
@@ -358,6 +374,14 @@ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 		return -EOPNOTSUPP;
 
 	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
+}
+
+phy_interface_t mv88e6390x_port_max_speed_mode(int port)
+{
+	if (port == 9 || port == 10)
+		return PHY_INTERFACE_MODE_XAUI;
+
+	return PHY_INTERFACE_MODE_NA;
 }
 
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
@@ -448,6 +472,8 @@ int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode)
 {
 	switch (mode) {
+	case PHY_INTERFACE_MODE_NA:
+		return 0;
 	case PHY_INTERFACE_MODE_XGMII:
 	case PHY_INTERFACE_MODE_XAUI:
 	case PHY_INTERFACE_MODE_RXAUI:

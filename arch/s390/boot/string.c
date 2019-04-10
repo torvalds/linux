@@ -2,6 +2,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#undef CONFIG_KASAN
 #include "../lib/string.c"
 
 int strncmp(const char *cs, const char *ct, size_t count)

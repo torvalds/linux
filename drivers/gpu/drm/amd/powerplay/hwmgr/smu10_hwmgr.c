@@ -114,11 +114,6 @@ static int smu10_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	smu10_data->num_active_display = 0;
 	smu10_data->deep_sleep_dcefclk = 0;
 
-	if (hwmgr->feature_mask & PP_GFXOFF_MASK)
-		smu10_data->gfx_off_controled_by_driver = true;
-	else
-		smu10_data->gfx_off_controled_by_driver = false;
-
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SclkDeepSleep);
 
@@ -330,9 +325,9 @@ static bool smu10_is_gfx_on(struct pp_hwmgr *hwmgr)
 
 static int smu10_disable_gfx_off(struct pp_hwmgr *hwmgr)
 {
-	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (smu10_data->gfx_off_controled_by_driver) {
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableGfxOff);
 
 		/* confirm gfx is back to "on" state */
@@ -350,9 +345,9 @@ static int smu10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 {
-	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (smu10_data->gfx_off_controled_by_driver)
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableGfxOff);
 
 	return 0;

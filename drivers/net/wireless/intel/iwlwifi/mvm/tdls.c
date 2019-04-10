@@ -399,6 +399,9 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
 	struct iwl_tdls_channel_switch_cmd cmd = {0};
+	struct iwl_tdls_channel_switch_cmd_tail *tail =
+		iwl_mvm_chan_info_cmd_tail(mvm, &cmd.ci);
+	u16 len = sizeof(cmd) - iwl_mvm_chan_info_padding(mvm);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -414,9 +417,9 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	}
 
 	cmd.switch_type = type;
-	cmd.timing.frame_timestamp = cpu_to_le32(timestamp);
-	cmd.timing.switch_time = cpu_to_le32(switch_time);
-	cmd.timing.switch_timeout = cpu_to_le32(switch_timeout);
+	tail->timing.frame_timestamp = cpu_to_le32(timestamp);
+	tail->timing.switch_time = cpu_to_le32(switch_time);
+	tail->timing.switch_timeout = cpu_to_le32(switch_timeout);
 
 	rcu_read_lock();
 	sta = ieee80211_find_sta(vif, peer);
@@ -448,21 +451,16 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (chandef) {
-		cmd.ci.band = (chandef->chan->band == NL80211_BAND_2GHZ ?
-			       PHY_BAND_24 : PHY_BAND_5);
-		cmd.ci.channel = chandef->chan->hw_value;
-		cmd.ci.width = iwl_mvm_get_channel_width(chandef);
-		cmd.ci.ctrl_pos = iwl_mvm_get_ctrl_pos(chandef);
-	}
+	if (chandef)
+		iwl_mvm_set_chan_info_chandef(mvm, &cmd.ci, chandef);
 
 	/* keep quota calculation simple for now - 50% of DTIM for TDLS */
-	cmd.timing.max_offchan_duration =
+	tail->timing.max_offchan_duration =
 			cpu_to_le32(TU_TO_US(vif->bss_conf.dtim_period *
 					     vif->bss_conf.beacon_int) / 2);
 
 	/* Switch time is the first element in the switch-timing IE. */
-	cmd.frame.switch_time_offset = cpu_to_le32(ch_sw_tm_ie + 2);
+	tail->frame.switch_time_offset = cpu_to_le32(ch_sw_tm_ie + 2);
 
 	info = IEEE80211_SKB_CB(skb);
 	hdr = (void *)skb->data;
@@ -472,20 +470,19 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 			ret = -EINVAL;
 			goto out;
 		}
-		iwl_mvm_set_tx_cmd_ccmp(info, &cmd.frame.tx_cmd);
+		iwl_mvm_set_tx_cmd_ccmp(info, &tail->frame.tx_cmd);
 	}
 
-	iwl_mvm_set_tx_cmd(mvm, skb, &cmd.frame.tx_cmd, info,
+	iwl_mvm_set_tx_cmd(mvm, skb, &tail->frame.tx_cmd, info,
 			   mvmsta->sta_id);
 
-	iwl_mvm_set_tx_cmd_rate(mvm, &cmd.frame.tx_cmd, info, sta,
+	iwl_mvm_set_tx_cmd_rate(mvm, &tail->frame.tx_cmd, info, sta,
 				hdr->frame_control);
 	rcu_read_unlock();
 
-	memcpy(cmd.frame.data, skb->data, skb->len);
+	memcpy(tail->frame.data, skb->data, skb->len);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, TDLS_CHANNEL_SWITCH_CMD, 0,
-				   sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, TDLS_CHANNEL_SWITCH_CMD, 0, len, &cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to send TDLS_CHANNEL_SWITCH cmd: %d\n",
 			ret);

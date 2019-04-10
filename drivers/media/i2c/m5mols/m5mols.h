@@ -253,7 +253,7 @@ struct m5mols_info {
  *
  * The I2C read operation of the M-5MOLS requires 2 messages. The first
  * message sends the information about the command, command category, and total
- * message size. The second message is used to retrieve the data specifed in
+ * message size. The second message is used to retrieve the data specified in
  * the first message
  *
  *   1st message                                2nd message

@@ -175,22 +175,6 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 #endif
 
 /**
- * scsi_cmd_get_serial - Assign a serial number to a command
- * @host: the scsi host
- * @cmd: command to assign serial number to
- *
- * Description: a serial number identifies a request for error recovery
- * and debugging purposes.  Protected by the Host_Lock of host.
- */
-void scsi_cmd_get_serial(struct Scsi_Host *host, struct scsi_cmnd *cmd)
-{
-	cmd->serial_number = host->cmd_serial_number++;
-	if (cmd->serial_number == 0) 
-		cmd->serial_number = host->cmd_serial_number++;
-}
-EXPORT_SYMBOL(scsi_cmd_get_serial);
-
-/**
  * scsi_finish_command - cleanup and pass command back to upper layer
  * @cmd: the command
  *

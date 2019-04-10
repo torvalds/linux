@@ -213,7 +213,6 @@ struct i915_vma;
 
 struct i915_page_dma {
 	struct page *page;
-	int order;
 	union {
 		dma_addr_t daddr;
 
@@ -293,6 +292,7 @@ struct i915_address_space {
 #define VM_CLASS_PPGTT 1
 
 	u64 scratch_pte;
+	int scratch_order;
 	struct i915_page_dma scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
@@ -348,7 +348,7 @@ struct i915_address_space {
 #define i915_is_ggtt(vm) ((vm)->is_ggtt)
 
 static inline bool
-i915_vm_is_48bit(const struct i915_address_space *vm)
+i915_vm_is_4lvl(const struct i915_address_space *vm)
 {
 	return (vm->total - 1) >> 32;
 }
@@ -356,7 +356,7 @@ i915_vm_is_48bit(const struct i915_address_space *vm)
 static inline bool
 i915_vm_has_scratch_64K(struct i915_address_space *vm)
 {
-	return vm->scratch_page.order == get_order(I915_GTT_PAGE_SIZE_64K);
+	return vm->scratch_order == get_order(I915_GTT_PAGE_SIZE_64K);
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
@@ -390,12 +390,14 @@ struct i915_hw_ppgtt {
 	struct i915_address_space vm;
 	struct kref ref;
 
-	unsigned long pd_dirty_rings;
+	unsigned long pd_dirty_engines;
 	union {
 		struct i915_pml4 pml4;		/* GEN8+ & 48b PPGTT */
 		struct i915_page_directory_pointer pdp;	/* GEN8+ */
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
+
+	u32 user_handle;
 };
 
 struct gen6_hw_ppgtt {
@@ -488,7 +490,7 @@ static inline u32 gen6_pde_index(u32 addr)
 static inline unsigned int
 i915_pdpes_per_pdp(const struct i915_address_space *vm)
 {
-	if (i915_vm_is_48bit(vm))
+	if (i915_vm_is_4lvl(vm))
 		return GEN8_PML4ES_PER_PML4;
 
 	return GEN8_3LVL_PDPES;
@@ -603,15 +605,16 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv);
+
+struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
 void i915_ppgtt_release(struct kref *kref);
-struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
-					struct drm_i915_file_private *fpriv);
-void i915_ppgtt_close(struct i915_address_space *vm);
-static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
+
+static inline struct i915_hw_ppgtt *i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
-	if (ppgtt)
-		kref_get(&ppgtt->ref);
+	kref_get(&ppgtt->ref);
+	return ppgtt;
 }
+
 static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)
@@ -620,6 +623,7 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 
 int gen6_ppgtt_pin(struct i915_hw_ppgtt *base);
 void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base);
+void gen6_ppgtt_unpin_all(struct i915_hw_ppgtt *base);
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv);

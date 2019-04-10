@@ -199,16 +199,16 @@ struct dce_dmcu {
  ******************************************************************/
 union dce_dmcu_psr_config_data_reg1 {
 	struct {
-		unsigned int timehyst_frames:8;    /*[7:0]*/
-		unsigned int hyst_lines:7;         /*[14:8]*/
-		unsigned int rfb_update_auto_en:1; /*[15:15]*/
-		unsigned int dp_port_num:3;        /*[18:16]*/
-		unsigned int dcp_sel:3;            /*[21:19]*/
-		unsigned int phy_type:1;           /*[22:22]*/
-		unsigned int frame_cap_ind:1;      /*[23:23]*/
-		unsigned int aux_chan:3;           /*[26:24]*/
-		unsigned int aux_repeat:4;         /*[30:27]*/
-		unsigned int reserved:1;           /*[31:31]*/
+		unsigned int timehyst_frames:8;                  /*[7:0]*/
+		unsigned int hyst_lines:7;                       /*[14:8]*/
+		unsigned int rfb_update_auto_en:1;               /*[15:15]*/
+		unsigned int dp_port_num:3;                      /*[18:16]*/
+		unsigned int dcp_sel:3;                          /*[21:19]*/
+		unsigned int phy_type:1;                         /*[22:22]*/
+		unsigned int frame_cap_ind:1;                    /*[23:23]*/
+		unsigned int aux_chan:3;                         /*[26:24]*/
+		unsigned int aux_repeat:4;                       /*[30:27]*/
+		unsigned int allow_smu_optimizations:1;         /*[31:31]*/
 	} bits;
 	unsigned int u32All;
 };
@@ -236,7 +236,7 @@ union dce_dmcu_psr_config_data_reg3 {
 	struct {
 		unsigned int psr_level:16;      /*[15:0]*/
 		unsigned int link_rate:4;       /*[19:16]*/
-		unsigned int reserved:12;       /*[31:20]*/
+		unsigned int reserved:12;        /*[31:20]*/
 	} bits;
 	unsigned int u32All;
 };

@@ -297,7 +297,7 @@ static void nvmet_file_execute_discard(struct nvmet_req *req)
 		}
 
 		ret = vfs_fallocate(req->ns->file, mode, offset, len);
-		if (ret) {
+		if (ret && ret != -EOPNOTSUPP) {
 			req->error_slba = le64_to_cpu(range.slba);
 			status = errno_to_nvme_status(req, ret);
 			break;

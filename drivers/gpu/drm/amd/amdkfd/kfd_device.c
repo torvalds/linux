@@ -466,6 +466,8 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	memset(&kfd->doorbell_available_index, 0,
 		sizeof(kfd->doorbell_available_index));
 
+	atomic_set(&kfd->sram_ecc_flag, 0);
+
 	return kfd;
 }
 
@@ -661,6 +663,9 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 		return ret;
 	count = atomic_dec_return(&kfd_locked);
 	WARN_ONCE(count != 0, "KFD reset ref. error");
+
+	atomic_set(&kfd->sram_ecc_flag, 0);
+
 	return 0;
 }
 
@@ -1022,6 +1027,12 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 
 	kfree(mem_obj);
 	return 0;
+}
+
+void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
+{
+	if (kfd)
+		atomic_inc(&kfd->sram_ecc_flag);
 }
 
 #if defined(CONFIG_DEBUG_FS)

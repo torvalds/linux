@@ -188,6 +188,11 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
+	case INTEL_PCH_CMP_DEVICE_ID_TYPE:
+		DRM_DEBUG_KMS("Found Comet Lake PCH (CMP)\n");
+		WARN_ON(!IS_COFFEELAKE(dev_priv));
+		/* CometPoint is CNP Compatible */
+		return PCH_CNP;
 	case INTEL_PCH_ICP_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found Ice Lake PCH\n");
 		WARN_ON(!IS_ICELAKE(dev_priv));
@@ -219,20 +224,20 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_GEN(dev_priv, 5))
-		id = INTEL_PCH_IBX_DEVICE_ID_TYPE;
-	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
-		id = INTEL_PCH_CPT_DEVICE_ID_TYPE;
+	if (IS_ICELAKE(dev_priv))
+		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
+	else if (IS_CANNONLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
+		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
+	else if (IS_KABYLAKE(dev_priv) || IS_SKYLAKE(dev_priv))
+		id = INTEL_PCH_SPT_DEVICE_ID_TYPE;
 	else if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
 		id = INTEL_PCH_LPT_LP_DEVICE_ID_TYPE;
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		id = INTEL_PCH_LPT_DEVICE_ID_TYPE;
-	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		id = INTEL_PCH_SPT_DEVICE_ID_TYPE;
-	else if (IS_COFFEELAKE(dev_priv) || IS_CANNONLAKE(dev_priv))
-		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
-	else if (IS_ICELAKE(dev_priv))
-		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
+	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+		id = INTEL_PCH_CPT_DEVICE_ID_TYPE;
+	else if (IS_GEN(dev_priv, 5))
+		id = INTEL_PCH_IBX_DEVICE_ID_TYPE;
 
 	if (id)
 		DRM_DEBUG_KMS("Assuming PCH ID %04x\n", id);
@@ -330,16 +335,16 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = dev_priv->overlay ? 1 : 0;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = !!dev_priv->engine[VCS];
+		value = !!dev_priv->engine[VCS0];
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = !!dev_priv->engine[BCS];
+		value = !!dev_priv->engine[BCS0];
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = !!dev_priv->engine[VECS];
+		value = !!dev_priv->engine[VECS0];
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = !!dev_priv->engine[VCS2];
+		value = !!dev_priv->engine[VCS1];
 		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);
@@ -348,10 +353,10 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = HAS_WT(dev_priv);
 		break;
 	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = min_t(int, INTEL_PPGTT(dev_priv), I915_GEM_PPGTT_FULL);
+		value = INTEL_PPGTT(dev_priv);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = 0;
+		value = !!(dev_priv->caps.scheduler & I915_SCHEDULER_CAP_SEMAPHORES);
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
 		value = capable(CAP_SYS_ADMIN);
@@ -714,8 +719,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	return 0;
 
 cleanup_gem:
-	if (i915_gem_suspend(dev_priv))
-		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
+	i915_gem_suspend(dev_priv);
 	i915_gem_fini(dev_priv);
 cleanup_modeset:
 	intel_modeset_cleanup(dev);
@@ -756,39 +760,6 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 
 	return ret;
 }
-
-#if !defined(CONFIG_VGA_CONSOLE)
-static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
-{
-	return 0;
-}
-#elif !defined(CONFIG_DUMMY_CONSOLE)
-static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
-{
-	return -ENODEV;
-}
-#else
-static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
-{
-	int ret = 0;
-
-	DRM_INFO("Replacing VGA console driver\n");
-
-	console_lock();
-	if (con_is_bound(&vga_con))
-		ret = do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES - 1, 1);
-	if (ret == 0) {
-		ret = do_unregister_con_driver(&vga_con);
-
-		/* Ignore "already unregistered". */
-		if (ret == -ENODEV)
-			ret = 0;
-	}
-	console_unlock();
-
-	return ret;
-}
-#endif
 
 static void intel_init_dpio(struct drm_i915_private *dev_priv)
 {
@@ -906,6 +877,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->av_mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
+	mutex_init(&dev_priv->hdcp_comp_mutex);
 
 	i915_memcpy_init_early(dev_priv);
 	intel_runtime_pm_init_early(dev_priv);
@@ -963,46 +935,6 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_engines_cleanup(dev_priv);
 }
 
-static int i915_mmio_setup(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	int mmio_bar;
-	int mmio_size;
-
-	mmio_bar = IS_GEN(dev_priv, 2) ? 1 : 0;
-	/*
-	 * Before gen4, the registers and the GTT are behind different BARs.
-	 * However, from gen4 onwards, the registers and the GTT are shared
-	 * in the same BAR, so we want to restrict this ioremap from
-	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
-	 * the register BAR remains the same size for all the earlier
-	 * generations up to Ironlake.
-	 */
-	if (INTEL_GEN(dev_priv) < 5)
-		mmio_size = 512 * 1024;
-	else
-		mmio_size = 2 * 1024 * 1024;
-	dev_priv->regs = pci_iomap(pdev, mmio_bar, mmio_size);
-	if (dev_priv->regs == NULL) {
-		DRM_ERROR("failed to map registers\n");
-
-		return -EIO;
-	}
-
-	/* Try to make sure MCHBAR is enabled before poking at it */
-	intel_setup_mchbar(dev_priv);
-
-	return 0;
-}
-
-static void i915_mmio_cleanup(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-
-	intel_teardown_mchbar(dev_priv);
-	pci_iounmap(pdev, dev_priv->regs);
-}
-
 /**
  * i915_driver_init_mmio - setup device MMIO
  * @dev_priv: device private
@@ -1022,15 +954,16 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	if (i915_get_bridge_dev(dev_priv))
 		return -EIO;
 
-	ret = i915_mmio_setup(dev_priv);
+	ret = intel_uncore_init(&dev_priv->uncore);
 	if (ret < 0)
 		goto err_bridge;
 
-	intel_uncore_init(dev_priv);
+	/* Try to make sure MCHBAR is enabled before poking at it */
+	intel_setup_mchbar(dev_priv);
 
 	intel_device_info_init_mmio(dev_priv);
 
-	intel_uncore_prune(dev_priv);
+	intel_uncore_prune(&dev_priv->uncore);
 
 	intel_uc_init_mmio(dev_priv);
 
@@ -1043,8 +976,8 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_uncore:
-	intel_uncore_fini(dev_priv);
-	i915_mmio_cleanup(dev_priv);
+	intel_teardown_mchbar(dev_priv);
+	intel_uncore_fini(&dev_priv->uncore);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
@@ -1057,8 +990,8 @@ err_bridge:
  */
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
-	intel_uncore_fini(dev_priv);
-	i915_mmio_cleanup(dev_priv);
+	intel_teardown_mchbar(dev_priv);
+	intel_uncore_fini(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
 }
 
@@ -1067,110 +1000,180 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
-static enum dram_rank skl_get_dimm_rank(u8 size, u32 rank)
-{
-	if (size == 0)
-		return I915_DRAM_RANK_INVALID;
-	if (rank == SKL_DRAM_RANK_SINGLE)
-		return I915_DRAM_RANK_SINGLE;
-	else if (rank == SKL_DRAM_RANK_DUAL)
-		return I915_DRAM_RANK_DUAL;
+#define DRAM_TYPE_STR(type) [INTEL_DRAM_ ## type] = #type
 
-	return I915_DRAM_RANK_INVALID;
+static const char *intel_dram_type_str(enum intel_dram_type type)
+{
+	static const char * const str[] = {
+		DRAM_TYPE_STR(UNKNOWN),
+		DRAM_TYPE_STR(DDR3),
+		DRAM_TYPE_STR(DDR4),
+		DRAM_TYPE_STR(LPDDR3),
+		DRAM_TYPE_STR(LPDDR4),
+	};
+
+	if (type >= ARRAY_SIZE(str))
+		type = INTEL_DRAM_UNKNOWN;
+
+	return str[type];
+}
+
+#undef DRAM_TYPE_STR
+
+static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
+{
+	return dimm->ranks * 64 / (dimm->width ?: 1);
+}
+
+/* Returns total GB for the whole DIMM */
+static int skl_get_dimm_size(u16 val)
+{
+	return val & SKL_DRAM_SIZE_MASK;
+}
+
+static int skl_get_dimm_width(u16 val)
+{
+	if (skl_get_dimm_size(val) == 0)
+		return 0;
+
+	switch (val & SKL_DRAM_WIDTH_MASK) {
+	case SKL_DRAM_WIDTH_X8:
+	case SKL_DRAM_WIDTH_X16:
+	case SKL_DRAM_WIDTH_X32:
+		val = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+		return 8 << val;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int skl_get_dimm_ranks(u16 val)
+{
+	if (skl_get_dimm_size(val) == 0)
+		return 0;
+
+	val = (val & SKL_DRAM_RANK_MASK) >> SKL_DRAM_RANK_SHIFT;
+
+	return val + 1;
+}
+
+/* Returns total GB for the whole DIMM */
+static int cnl_get_dimm_size(u16 val)
+{
+	return (val & CNL_DRAM_SIZE_MASK) / 2;
+}
+
+static int cnl_get_dimm_width(u16 val)
+{
+	if (cnl_get_dimm_size(val) == 0)
+		return 0;
+
+	switch (val & CNL_DRAM_WIDTH_MASK) {
+	case CNL_DRAM_WIDTH_X8:
+	case CNL_DRAM_WIDTH_X16:
+	case CNL_DRAM_WIDTH_X32:
+		val = (val & CNL_DRAM_WIDTH_MASK) >> CNL_DRAM_WIDTH_SHIFT;
+		return 8 << val;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int cnl_get_dimm_ranks(u16 val)
+{
+	if (cnl_get_dimm_size(val) == 0)
+		return 0;
+
+	val = (val & CNL_DRAM_RANK_MASK) >> CNL_DRAM_RANK_SHIFT;
+
+	return val + 1;
 }
 
 static bool
-skl_is_16gb_dimm(enum dram_rank rank, u8 size, u8 width)
+skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 {
-	if (rank == I915_DRAM_RANK_SINGLE && width == 8 && size == 16)
-		return true;
-	else if (rank == I915_DRAM_RANK_DUAL && width == 8 && size == 32)
-		return true;
-	else if (rank == SKL_DRAM_RANK_SINGLE && width == 16 && size == 8)
-		return true;
-	else if (rank == SKL_DRAM_RANK_DUAL && width == 16 && size == 16)
-		return true;
+	/* Convert total GB to Gb per DRAM device */
+	return 8 * dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
+}
 
-	return false;
+static void
+skl_dram_get_dimm_info(struct drm_i915_private *dev_priv,
+		       struct dram_dimm_info *dimm,
+		       int channel, char dimm_name, u16 val)
+{
+	if (INTEL_GEN(dev_priv) >= 10) {
+		dimm->size = cnl_get_dimm_size(val);
+		dimm->width = cnl_get_dimm_width(val);
+		dimm->ranks = cnl_get_dimm_ranks(val);
+	} else {
+		dimm->size = skl_get_dimm_size(val);
+		dimm->width = skl_get_dimm_width(val);
+		dimm->ranks = skl_get_dimm_ranks(val);
+	}
+
+	DRM_DEBUG_KMS("CH%u DIMM %c size: %u GB, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
+		      channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
+		      yesno(skl_is_16gb_dimm(dimm)));
 }
 
 static int
-skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
+skl_dram_get_channel_info(struct drm_i915_private *dev_priv,
+			  struct dram_channel_info *ch,
+			  int channel, u32 val)
 {
-	u32 tmp_l, tmp_s;
-	u32 s_val = val >> SKL_DRAM_S_SHIFT;
+	skl_dram_get_dimm_info(dev_priv, &ch->dimm_l,
+			       channel, 'L', val & 0xffff);
+	skl_dram_get_dimm_info(dev_priv, &ch->dimm_s,
+			       channel, 'S', val >> 16);
 
-	if (!val)
+	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
+		DRM_DEBUG_KMS("CH%u not populated\n", channel);
 		return -EINVAL;
+	}
 
-	tmp_l = val & SKL_DRAM_SIZE_MASK;
-	tmp_s = s_val & SKL_DRAM_SIZE_MASK;
-
-	if (tmp_l == 0 && tmp_s == 0)
-		return -EINVAL;
-
-	ch->l_info.size = tmp_l;
-	ch->s_info.size = tmp_s;
-
-	tmp_l = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
-	tmp_s = (s_val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
-	ch->l_info.width = (1 << tmp_l) * 8;
-	ch->s_info.width = (1 << tmp_s) * 8;
-
-	tmp_l = val & SKL_DRAM_RANK_MASK;
-	tmp_s = s_val & SKL_DRAM_RANK_MASK;
-	ch->l_info.rank = skl_get_dimm_rank(ch->l_info.size, tmp_l);
-	ch->s_info.rank = skl_get_dimm_rank(ch->s_info.size, tmp_s);
-
-	if (ch->l_info.rank == I915_DRAM_RANK_DUAL ||
-	    ch->s_info.rank == I915_DRAM_RANK_DUAL)
-		ch->rank = I915_DRAM_RANK_DUAL;
-	else if (ch->l_info.rank == I915_DRAM_RANK_SINGLE &&
-		 ch->s_info.rank == I915_DRAM_RANK_SINGLE)
-		ch->rank = I915_DRAM_RANK_DUAL;
+	if (ch->dimm_l.ranks == 2 || ch->dimm_s.ranks == 2)
+		ch->ranks = 2;
+	else if (ch->dimm_l.ranks == 1 && ch->dimm_s.ranks == 1)
+		ch->ranks = 2;
 	else
-		ch->rank = I915_DRAM_RANK_SINGLE;
+		ch->ranks = 1;
 
-	ch->is_16gb_dimm = skl_is_16gb_dimm(ch->l_info.rank, ch->l_info.size,
-					    ch->l_info.width) ||
-			   skl_is_16gb_dimm(ch->s_info.rank, ch->s_info.size,
-					    ch->s_info.width);
+	ch->is_16gb_dimm =
+		skl_is_16gb_dimm(&ch->dimm_l) ||
+		skl_is_16gb_dimm(&ch->dimm_s);
 
-	DRM_DEBUG_KMS("(size:width:rank) L(%dGB:X%d:%s) S(%dGB:X%d:%s)\n",
-		      ch->l_info.size, ch->l_info.width,
-		      ch->l_info.rank ? "dual" : "single",
-		      ch->s_info.size, ch->s_info.width,
-		      ch->s_info.rank ? "dual" : "single");
+	DRM_DEBUG_KMS("CH%u ranks: %u, 16Gb DIMMs: %s\n",
+		      channel, ch->ranks, yesno(ch->is_16gb_dimm));
 
 	return 0;
 }
 
 static bool
-intel_is_dram_symmetric(u32 val_ch0, u32 val_ch1,
-			struct dram_channel_info *ch0)
+intel_is_dram_symmetric(const struct dram_channel_info *ch0,
+			const struct dram_channel_info *ch1)
 {
-	return (val_ch0 == val_ch1 &&
-		(ch0->s_info.size == 0 ||
-		 (ch0->l_info.size == ch0->s_info.size &&
-		  ch0->l_info.width == ch0->s_info.width &&
-		  ch0->l_info.rank == ch0->s_info.rank)));
+	return !memcmp(ch0, ch1, sizeof(*ch0)) &&
+		(ch0->dimm_s.size == 0 ||
+		 !memcmp(&ch0->dimm_l, &ch0->dimm_s, sizeof(ch0->dimm_l)));
 }
 
 static int
 skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 {
 	struct dram_info *dram_info = &dev_priv->dram_info;
-	struct dram_channel_info ch0, ch1;
-	u32 val_ch0, val_ch1;
+	struct dram_channel_info ch0 = {}, ch1 = {};
+	u32 val;
 	int ret;
 
-	val_ch0 = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch0, val_ch0);
+	val = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(dev_priv, &ch0, 0, val);
 	if (ret == 0)
 		dram_info->num_channels++;
 
-	val_ch1 = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch1, val_ch1);
+	val = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(dev_priv, &ch1, 1, val);
 	if (ret == 0)
 		dram_info->num_channels++;
 
@@ -1184,26 +1187,45 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 	 * will be same as if single rank memory, so consider single rank
 	 * memory.
 	 */
-	if (ch0.rank == I915_DRAM_RANK_SINGLE ||
-	    ch1.rank == I915_DRAM_RANK_SINGLE)
-		dram_info->rank = I915_DRAM_RANK_SINGLE;
+	if (ch0.ranks == 1 || ch1.ranks == 1)
+		dram_info->ranks = 1;
 	else
-		dram_info->rank = max(ch0.rank, ch1.rank);
+		dram_info->ranks = max(ch0.ranks, ch1.ranks);
 
-	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
+	if (dram_info->ranks == 0) {
 		DRM_INFO("couldn't get memory rank information\n");
 		return -EINVAL;
 	}
 
 	dram_info->is_16gb_dimm = ch0.is_16gb_dimm || ch1.is_16gb_dimm;
 
-	dev_priv->dram_info.symmetric_memory = intel_is_dram_symmetric(val_ch0,
-								       val_ch1,
-								       &ch0);
+	dram_info->symmetric_memory = intel_is_dram_symmetric(&ch0, &ch1);
 
-	DRM_DEBUG_KMS("memory configuration is %sSymmetric memory\n",
-		      dev_priv->dram_info.symmetric_memory ? "" : "not ");
+	DRM_DEBUG_KMS("Memory configuration is symmetric? %s\n",
+		      yesno(dram_info->symmetric_memory));
 	return 0;
+}
+
+static enum intel_dram_type
+skl_get_dram_type(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	val = I915_READ(SKL_MAD_INTER_CHANNEL_0_0_0_MCHBAR_MCMAIN);
+
+	switch (val & SKL_DRAM_DDR_TYPE_MASK) {
+	case SKL_DRAM_DDR_TYPE_DDR3:
+		return INTEL_DRAM_DDR3;
+	case SKL_DRAM_DDR_TYPE_DDR4:
+		return INTEL_DRAM_DDR4;
+	case SKL_DRAM_DDR_TYPE_LPDDR3:
+		return INTEL_DRAM_LPDDR3;
+	case SKL_DRAM_DDR_TYPE_LPDDR4:
+		return INTEL_DRAM_LPDDR4;
+	default:
+		MISSING_CASE(val);
+		return INTEL_DRAM_UNKNOWN;
+	}
 }
 
 static int
@@ -1212,6 +1234,9 @@ skl_get_dram_info(struct drm_i915_private *dev_priv)
 	struct dram_info *dram_info = &dev_priv->dram_info;
 	u32 mem_freq_khz, val;
 	int ret;
+
+	dram_info->type = skl_get_dram_type(dev_priv);
+	DRM_DEBUG_KMS("DRAM type: %s\n", intel_dram_type_str(dram_info->type));
 
 	ret = skl_dram_get_channels_info(dev_priv);
 	if (ret)
@@ -1231,6 +1256,85 @@ skl_get_dram_info(struct drm_i915_private *dev_priv)
 
 	dram_info->valid = true;
 	return 0;
+}
+
+/* Returns Gb per DRAM device */
+static int bxt_get_dimm_size(u32 val)
+{
+	switch (val & BXT_DRAM_SIZE_MASK) {
+	case BXT_DRAM_SIZE_4GBIT:
+		return 4;
+	case BXT_DRAM_SIZE_6GBIT:
+		return 6;
+	case BXT_DRAM_SIZE_8GBIT:
+		return 8;
+	case BXT_DRAM_SIZE_12GBIT:
+		return 12;
+	case BXT_DRAM_SIZE_16GBIT:
+		return 16;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int bxt_get_dimm_width(u32 val)
+{
+	if (!bxt_get_dimm_size(val))
+		return 0;
+
+	val = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
+
+	return 8 << val;
+}
+
+static int bxt_get_dimm_ranks(u32 val)
+{
+	if (!bxt_get_dimm_size(val))
+		return 0;
+
+	switch (val & BXT_DRAM_RANK_MASK) {
+	case BXT_DRAM_RANK_SINGLE:
+		return 1;
+	case BXT_DRAM_RANK_DUAL:
+		return 2;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static enum intel_dram_type bxt_get_dimm_type(u32 val)
+{
+	if (!bxt_get_dimm_size(val))
+		return INTEL_DRAM_UNKNOWN;
+
+	switch (val & BXT_DRAM_TYPE_MASK) {
+	case BXT_DRAM_TYPE_DDR3:
+		return INTEL_DRAM_DDR3;
+	case BXT_DRAM_TYPE_LPDDR3:
+		return INTEL_DRAM_LPDDR3;
+	case BXT_DRAM_TYPE_DDR4:
+		return INTEL_DRAM_DDR4;
+	case BXT_DRAM_TYPE_LPDDR4:
+		return INTEL_DRAM_LPDDR4;
+	default:
+		MISSING_CASE(val);
+		return INTEL_DRAM_UNKNOWN;
+	}
+}
+
+static void bxt_get_dimm_info(struct dram_dimm_info *dimm,
+			      u32 val)
+{
+	dimm->width = bxt_get_dimm_width(val);
+	dimm->ranks = bxt_get_dimm_ranks(val);
+
+	/*
+	 * Size in register is Gb per DRAM device. Convert to total
+	 * GB to match the way we report this for non-LP platforms.
+	 */
+	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm) / 8;
 }
 
 static int
@@ -1261,57 +1365,44 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
 	 */
 	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
-		u8 size, width;
-		enum dram_rank rank;
-		u32 tmp;
+		struct dram_dimm_info dimm;
+		enum intel_dram_type type;
 
 		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
 		if (val == 0xFFFFFFFF)
 			continue;
 
 		dram_info->num_channels++;
-		tmp = val & BXT_DRAM_RANK_MASK;
 
-		if (tmp == BXT_DRAM_RANK_SINGLE)
-			rank = I915_DRAM_RANK_SINGLE;
-		else if (tmp == BXT_DRAM_RANK_DUAL)
-			rank = I915_DRAM_RANK_DUAL;
-		else
-			rank = I915_DRAM_RANK_INVALID;
+		bxt_get_dimm_info(&dimm, val);
+		type = bxt_get_dimm_type(val);
 
-		tmp = val & BXT_DRAM_SIZE_MASK;
-		if (tmp == BXT_DRAM_SIZE_4GB)
-			size = 4;
-		else if (tmp == BXT_DRAM_SIZE_6GB)
-			size = 6;
-		else if (tmp == BXT_DRAM_SIZE_8GB)
-			size = 8;
-		else if (tmp == BXT_DRAM_SIZE_12GB)
-			size = 12;
-		else if (tmp == BXT_DRAM_SIZE_16GB)
-			size = 16;
-		else
-			size = 0;
+		WARN_ON(type != INTEL_DRAM_UNKNOWN &&
+			dram_info->type != INTEL_DRAM_UNKNOWN &&
+			dram_info->type != type);
 
-		tmp = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
-		width = (1 << tmp) * 8;
-		DRM_DEBUG_KMS("dram size:%dGB width:X%d rank:%s\n", size,
-			      width, rank == I915_DRAM_RANK_SINGLE ? "single" :
-			      rank == I915_DRAM_RANK_DUAL ? "dual" : "unknown");
+		DRM_DEBUG_KMS("CH%u DIMM size: %u GB, width: X%u, ranks: %u, type: %s\n",
+			      i - BXT_D_CR_DRP0_DUNIT_START,
+			      dimm.size, dimm.width, dimm.ranks,
+			      intel_dram_type_str(type));
 
 		/*
 		 * If any of the channel is single rank channel,
 		 * worst case output will be same as if single rank
 		 * memory, so consider single rank memory.
 		 */
-		if (dram_info->rank == I915_DRAM_RANK_INVALID)
-			dram_info->rank = rank;
-		else if (rank == I915_DRAM_RANK_SINGLE)
-			dram_info->rank = I915_DRAM_RANK_SINGLE;
+		if (dram_info->ranks == 0)
+			dram_info->ranks = dimm.ranks;
+		else if (dimm.ranks == 1)
+			dram_info->ranks = 1;
+
+		if (type != INTEL_DRAM_UNKNOWN)
+			dram_info->type = type;
 	}
 
-	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
-		DRM_INFO("couldn't get memory rank information\n");
+	if (dram_info->type == INTEL_DRAM_UNKNOWN ||
+	    dram_info->ranks == 0) {
+		DRM_INFO("couldn't get memory information\n");
 		return -EINVAL;
 	}
 
@@ -1323,13 +1414,7 @@ static void
 intel_get_dram_info(struct drm_i915_private *dev_priv)
 {
 	struct dram_info *dram_info = &dev_priv->dram_info;
-	char bandwidth_str[32];
 	int ret;
-
-	dram_info->valid = false;
-	dram_info->rank = I915_DRAM_RANK_INVALID;
-	dram_info->bandwidth_kbps = 0;
-	dram_info->num_channels = 0;
 
 	/*
 	 * Assume 16Gb DIMMs are present until proven otherwise.
@@ -1338,28 +1423,22 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	 */
 	dram_info->is_16gb_dimm = !IS_GEN9_LP(dev_priv);
 
-	if (INTEL_GEN(dev_priv) < 9 || IS_GEMINILAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) < 9)
 		return;
 
-	/* Need to calculate bandwidth only for Gen9 */
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		ret = bxt_get_dram_info(dev_priv);
-	else if (IS_GEN(dev_priv, 9))
-		ret = skl_get_dram_info(dev_priv);
 	else
-		ret = skl_dram_get_channels_info(dev_priv);
+		ret = skl_get_dram_info(dev_priv);
 	if (ret)
 		return;
 
-	if (dram_info->bandwidth_kbps)
-		sprintf(bandwidth_str, "%d KBps", dram_info->bandwidth_kbps);
-	else
-		sprintf(bandwidth_str, "unknown");
-	DRM_DEBUG_KMS("DRAM bandwidth:%s, total-channels: %u\n",
-		      bandwidth_str, dram_info->num_channels);
-	DRM_DEBUG_KMS("DRAM rank: %s rank 16GB-dimm:%s\n",
-		      (dram_info->rank == I915_DRAM_RANK_DUAL) ?
-		      "dual" : "single", yesno(dram_info->is_16gb_dimm));
+	DRM_DEBUG_KMS("DRAM bandwidth: %u kBps, channels: %u\n",
+		      dram_info->bandwidth_kbps,
+		      dram_info->num_channels);
+
+	DRM_DEBUG_KMS("DRAM ranks: %u, 16Gb DIMMs: %s\n",
+		      dram_info->ranks, yesno(dram_info->is_16gb_dimm));
 }
 
 /**
@@ -1381,7 +1460,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
-		    !intel_vgpu_has_full_48bit_ppgtt(dev_priv)) {
+		    !intel_vgpu_has_full_ppgtt(dev_priv)) {
 			i915_report_error(dev_priv,
 					  "incompatible vGPU found, support for isolated ppGTT required\n");
 			return -ENXIO;
@@ -1420,7 +1499,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto err_ggtt;
 	}
 
-	ret = i915_kick_out_vgacon(dev_priv);
+	ret = vga_remove_vgacon(pdev);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting VGA console\n");
 		goto err_ggtt;
@@ -1786,8 +1865,7 @@ void i915_driver_unload(struct drm_device *dev)
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
 
-	if (i915_gem_suspend(dev_priv))
-		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
+	i915_gem_suspend(dev_priv);
 
 	drm_atomic_helper_shutdown(dev);
 
@@ -1895,7 +1973,6 @@ static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 static int i915_drm_prepare(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	int err;
 
 	/*
 	 * NB intel_display_suspend() may issue new requests after we've
@@ -1903,12 +1980,9 @@ static int i915_drm_prepare(struct drm_device *dev)
 	 * split out that work and pull it forward so that after point,
 	 * the GPU is not woken again.
 	 */
-	err = i915_gem_suspend(i915);
-	if (err)
-		dev_err(&i915->drm.pdev->dev,
-			"GEM idle failed, suspend/resume might fail\n");
+	i915_gem_suspend(i915);
 
-	return err;
+	return 0;
 }
 
 static int i915_drm_suspend(struct drm_device *dev)
@@ -1978,7 +2052,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	i915_gem_suspend_late(dev_priv);
 
-	intel_uncore_suspend(dev_priv);
+	intel_uncore_suspend(&dev_priv->uncore);
 
 	intel_power_domains_suspend(dev_priv,
 				    get_suspend_mode(dev_priv, hibernation));
@@ -2174,7 +2248,9 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_resume_early(dev_priv);
+	intel_uncore_resume_early(&dev_priv->uncore);
+
+	i915_check_and_clear_faults(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
 		gen9_sanitize_dc_state(dev_priv);
@@ -2578,7 +2654,7 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 	if (!force_on)
 		return 0;
 
-	err = intel_wait_for_register(dev_priv,
+	err = intel_wait_for_register(&dev_priv->uncore,
 				      VLV_GTLC_SURVIVABILITY_REG,
 				      VLV_GFX_CLK_STATUS_BIT,
 				      VLV_GFX_CLK_STATUS_BIT,
@@ -2744,7 +2820,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
-	intel_uncore_suspend(dev_priv);
+	intel_uncore_suspend(&dev_priv->uncore);
 
 	ret = 0;
 	if (INTEL_GEN(dev_priv) >= 11) {
@@ -2761,7 +2837,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
-		intel_uncore_runtime_resume(dev_priv);
+		intel_uncore_runtime_resume(&dev_priv->uncore);
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -2778,7 +2854,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	enable_rpm_wakeref_asserts(dev_priv);
 	intel_runtime_pm_cleanup(dev_priv);
 
-	if (intel_uncore_arm_unclaimed_mmio_detection(dev_priv))
+	if (intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
 
 	dev_priv->runtime_pm.suspended = true;
@@ -2806,7 +2882,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		intel_opregion_notify_adapter(dev_priv, PCI_D1);
 	}
 
-	assert_forcewakes_inactive(dev_priv);
+	assert_forcewakes_inactive(&dev_priv->uncore);
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_init(dev_priv);
@@ -2832,7 +2908,7 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 	dev_priv->runtime_pm.suspended = false;
-	if (intel_uncore_unclaimed_mmio(dev_priv))
+	if (intel_uncore_unclaimed_mmio(&dev_priv->uncore))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
 	if (INTEL_GEN(dev_priv) >= 11) {
@@ -2858,7 +2934,7 @@ static int intel_runtime_resume(struct device *kdev)
 		ret = vlv_resume_prepare(dev_priv, true);
 	}
 
-	intel_uncore_runtime_resume(dev_priv);
+	intel_uncore_runtime_resume(&dev_priv->uncore);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -3002,7 +3078,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_SET_SPRITE_COLORKEY, intel_sprite_set_colorkey_ioctl, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_GET_SPRITE_COLORKEY, drm_noop, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_GEM_WAIT, i915_gem_wait_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_CREATE, i915_gem_context_create_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_CREATE_EXT, i915_gem_context_create_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_DESTROY, i915_gem_context_destroy_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_REG_READ, i915_reg_read_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GET_RESET_STATS, i915_gem_context_reset_stats_ioctl, DRM_RENDER_ALLOW),

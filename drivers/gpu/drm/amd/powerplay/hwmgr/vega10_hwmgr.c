@@ -2575,10 +2575,10 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.gfx_clock = boot_up_values.ulGfxClk;
 		data->vbios_boot_state.mem_clock = boot_up_values.ulUClk;
 		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
-				SMU9_SYSPLL0_SOCCLK_ID, &boot_up_values.ulSocClk);
+				SMU9_SYSPLL0_SOCCLK_ID, 0, &boot_up_values.ulSocClk);
 
 		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
-				SMU9_SYSPLL0_DCEFCLK_ID, &boot_up_values.ulDCEFClk);
+				SMU9_SYSPLL0_DCEFCLK_ID, 0, &boot_up_values.ulDCEFClk);
 
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
@@ -4407,9 +4407,9 @@ static int vega10_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 		return ret;
 
 	features_to_disable =
-		(features_enabled ^ new_ppfeature_masks) & features_enabled;
+		features_enabled & ~new_ppfeature_masks;
 	features_to_enable =
-		(features_enabled ^ new_ppfeature_masks) ^ features_to_disable;
+		~features_enabled & new_ppfeature_masks;
 
 	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
 	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
@@ -4904,13 +4904,12 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 	uint8_t FPS;
 	uint8_t use_rlc_busy;
 	uint8_t min_active_level;
-
-	hwmgr->power_profile_mode = input[size];
+	uint32_t power_profile_mode = input[size];
 
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
-						1<<hwmgr->power_profile_mode);
+						1 << power_profile_mode);
 
-	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		if (size == 0 || size > 4)
 			return -EINVAL;
 
@@ -4923,6 +4922,8 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 					busy_set_point | FPS<<8 |
 					use_rlc_busy << 16 | min_active_level<<24);
 	}
+
+	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
 }
@@ -5170,8 +5171,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_power_limit = vega10_set_power_limit,
 	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
 	.get_performance_level = vega10_get_performance_level,
-	.get_asic_baco_capability = vega10_baco_get_capability,
-	.get_asic_baco_state = vega10_baco_get_state,
+	.get_asic_baco_capability = smu9_baco_get_capability,
+	.get_asic_baco_state = smu9_baco_get_state,
 	.set_asic_baco_state = vega10_baco_set_state,
 	.enable_mgpu_fan_boost = vega10_enable_mgpu_fan_boost,
 	.get_ppfeature_status = vega10_get_ppfeature_status,

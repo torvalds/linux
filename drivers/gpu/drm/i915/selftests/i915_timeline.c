@@ -64,7 +64,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 		unsigned long cacheline;
 		int err;
 
-		tl = i915_timeline_create(state->i915, "mock", NULL);
+		tl = i915_timeline_create(state->i915, NULL);
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
@@ -476,7 +476,7 @@ checked_i915_timeline_create(struct drm_i915_private *i915)
 {
 	struct i915_timeline *tl;
 
-	tl = i915_timeline_create(i915, "live", NULL);
+	tl = i915_timeline_create(i915, NULL);
 	if (IS_ERR(tl))
 		return tl;
 
@@ -641,6 +641,118 @@ out:
 #undef NUM_TIMELINES
 }
 
+static int live_hwsp_wrap(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct i915_timeline *tl;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = 0;
+
+	/*
+	 * Across a seqno wrap, we need to keep the old cacheline alive for
+	 * foreign GPU references.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
+	tl = i915_timeline_create(i915, NULL);
+	if (IS_ERR(tl)) {
+		err = PTR_ERR(tl);
+		goto out_rpm;
+	}
+	if (!tl->has_initial_breadcrumb || !tl->hwsp_cacheline)
+		goto out_free;
+
+	err = i915_timeline_pin(tl);
+	if (err)
+		goto out_free;
+
+	for_each_engine(engine, i915, id) {
+		const u32 *hwsp_seqno[2];
+		struct i915_request *rq;
+		u32 seqno[2];
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		rq = i915_request_alloc(engine, i915->kernel_context);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto out;
+		}
+
+		tl->seqno = -4u;
+
+		err = i915_timeline_get_seqno(tl, rq, &seqno[0]);
+		if (err) {
+			i915_request_add(rq);
+			goto out;
+		}
+		pr_debug("seqno[0]:%08x, hwsp_offset:%08x\n",
+			 seqno[0], tl->hwsp_offset);
+
+		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqno[0]);
+		if (err) {
+			i915_request_add(rq);
+			goto out;
+		}
+		hwsp_seqno[0] = tl->hwsp_seqno;
+
+		err = i915_timeline_get_seqno(tl, rq, &seqno[1]);
+		if (err) {
+			i915_request_add(rq);
+			goto out;
+		}
+		pr_debug("seqno[1]:%08x, hwsp_offset:%08x\n",
+			 seqno[1], tl->hwsp_offset);
+
+		err = emit_ggtt_store_dw(rq, tl->hwsp_offset, seqno[1]);
+		if (err) {
+			i915_request_add(rq);
+			goto out;
+		}
+		hwsp_seqno[1] = tl->hwsp_seqno;
+
+		/* With wrap should come a new hwsp */
+		GEM_BUG_ON(seqno[1] >= seqno[0]);
+		GEM_BUG_ON(hwsp_seqno[0] == hwsp_seqno[1]);
+
+		i915_request_add(rq);
+
+		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+			pr_err("Wait for timeline writes timed out!\n");
+			err = -EIO;
+			goto out;
+		}
+
+		if (*hwsp_seqno[0] != seqno[0] || *hwsp_seqno[1] != seqno[1]) {
+			pr_err("Bad timeline values: found (%x, %x), expected (%x, %x)\n",
+			       *hwsp_seqno[0], *hwsp_seqno[1],
+			       seqno[0], seqno[1]);
+			err = -EINVAL;
+			goto out;
+		}
+
+		i915_retire_requests(i915); /* recycle HWSP */
+	}
+
+out:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+
+	i915_timeline_unpin(tl);
+out_free:
+	i915_timeline_put(tl);
+out_rpm:
+	intel_runtime_pm_put(i915, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	return err;
+}
+
 static int live_hwsp_recycle(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -723,6 +835,7 @@ int i915_timeline_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_hwsp_recycle),
 		SUBTEST(live_hwsp_engine),
 		SUBTEST(live_hwsp_alternate),
+		SUBTEST(live_hwsp_wrap),
 	};
 
 	return i915_subtests(tests, i915);

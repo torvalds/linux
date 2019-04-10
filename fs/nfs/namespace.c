@@ -221,10 +221,10 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 
 /**
  * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
- * @dentry - parent directory
- * @fh - filehandle for new root dentry
- * @fattr - attributes for new root inode
- * @authflavor - security flavor to use when performing the mount
+ * @dentry: parent directory
+ * @fh: filehandle for new root dentry
+ * @fattr: attributes for new root inode
+ * @authflavor: security flavor to use when performing the mount
  *
  */
 struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,

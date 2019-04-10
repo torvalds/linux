@@ -66,7 +66,7 @@ static void tty_audit_log(const char *description, dev_t dev,
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 	unsigned int sessionid = audit_get_sessionid(current);
 
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_TTY);
 	if (ab) {
 		char name[sizeof(current->comm)];
 

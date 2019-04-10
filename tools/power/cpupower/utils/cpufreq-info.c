@@ -161,18 +161,11 @@ static void print_duration(unsigned long duration)
 	return;
 }
 
-/* --boost / -b */
-
-static int get_boost_mode(unsigned int cpu)
+static int get_boost_mode_x86(unsigned int cpu)
 {
 	int support, active, b_states = 0, ret, pstate_no, i;
 	/* ToDo: Make this more global */
 	unsigned long pstates[MAX_HW_PSTATES] = {0,};
-
-	if (cpupower_cpu_info.vendor != X86_VENDOR_AMD &&
-	    cpupower_cpu_info.vendor != X86_VENDOR_HYGON &&
-	    cpupower_cpu_info.vendor != X86_VENDOR_INTEL)
-		return 0;
 
 	ret = cpufreq_has_boost_support(cpu, &support, &active, &b_states);
 	if (ret) {
@@ -245,6 +238,33 @@ static int get_boost_mode(unsigned int cpu)
 			printf(_("    %.0f MHz max turbo 1 active cores\n"),
 			       ratio * bclk);
 	}
+	return 0;
+}
+
+/* --boost / -b */
+
+static int get_boost_mode(unsigned int cpu)
+{
+	struct cpufreq_frequencies *freqs;
+
+	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD ||
+	    cpupower_cpu_info.vendor == X86_VENDOR_HYGON ||
+	    cpupower_cpu_info.vendor == X86_VENDOR_INTEL)
+		return get_boost_mode_x86(cpu);
+
+	freqs = cpufreq_get_frequencies("boost", cpu);
+	if (freqs) {
+		printf(_("  boost frequency steps: "));
+		while (freqs->next) {
+			print_speed(freqs->frequency);
+			printf(", ");
+			freqs = freqs->next;
+		}
+		print_speed(freqs->frequency);
+		printf("\n");
+		cpufreq_put_frequencies(freqs);
+	}
+
 	return 0;
 }
 
@@ -456,7 +476,7 @@ static int get_latency(unsigned int cpu, unsigned int human)
 
 static void debug_output_one(unsigned int cpu)
 {
-	struct cpufreq_available_frequencies *freqs;
+	struct cpufreq_frequencies *freqs;
 
 	get_driver(cpu);
 	get_related_cpus(cpu);
@@ -464,7 +484,7 @@ static void debug_output_one(unsigned int cpu)
 	get_latency(cpu, 1);
 	get_hardware_limits(cpu, 1);
 
-	freqs = cpufreq_get_available_frequencies(cpu);
+	freqs = cpufreq_get_frequencies("available", cpu);
 	if (freqs) {
 		printf(_("  available frequency steps:  "));
 		while (freqs->next) {
@@ -474,7 +494,7 @@ static void debug_output_one(unsigned int cpu)
 		}
 		print_speed(freqs->frequency);
 		printf("\n");
-		cpufreq_put_available_frequencies(freqs);
+		cpufreq_put_frequencies(freqs);
 	}
 
 	get_available_governors(cpu);

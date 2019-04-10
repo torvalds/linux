@@ -799,7 +799,7 @@ out:
 		  shost->host_failed, tries);
 }
 
-int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+int sas_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -313,11 +313,11 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto error_out;
 	}
 
-	/* NPIV is not supported if HBA has NVME enabled */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+	/* NPIV is not supported if HBA has NVME Target enabled */
+	if (phba->nvmet_support) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 				"3189 Create VPORT failed: "
-				"NPIV is not supported on NVME\n");
+				"NPIV is not supported on NVME Target\n");
 		rc = VPORT_INVAL;
 		goto error_out;
 	}
@@ -403,6 +403,9 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	/* Set the DFT_LUN_Q_DEPTH accordingly */
 	vport->cfg_lun_queue_depth  = phba->pport->cfg_lun_queue_depth;
 
+	/* Only the physical port can support NVME for now */
+	vport->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
+
 	*(struct lpfc_vport **)fc_vport->dd_data = vport;
 	vport->fc_vport = fc_vport;
 
@@ -413,22 +416,6 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		/* Setup appropriate attribute masks */
 		vport->fdmi_hba_mask = phba->pport->fdmi_hba_mask;
 		vport->fdmi_port_mask = phba->pport->fdmi_port_mask;
-	}
-
-	if ((phba->nvmet_support == 0) &&
-	    ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-	     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))) {
-		/* Create NVME binding with nvme_fc_transport. This
-		 * ensures the vport is initialized.
-		 */
-		rc = lpfc_nvme_create_localport(vport);
-		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6003 %s status x%x\n",
-					"NVME registration failed, ",
-					rc);
-			goto error_out;
-		}
 	}
 
 	/*

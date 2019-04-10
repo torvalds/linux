@@ -34,7 +34,7 @@
 
 static LIST_HEAD(klp_ops);
 
-struct klp_ops *klp_find_ops(unsigned long old_addr)
+struct klp_ops *klp_find_ops(void *old_func)
 {
 	struct klp_ops *ops;
 	struct klp_func *func;
@@ -42,7 +42,7 @@ struct klp_ops *klp_find_ops(unsigned long old_addr)
 	list_for_each_entry(ops, &klp_ops, node) {
 		func = list_first_entry(&ops->func_stack, struct klp_func,
 					stack_node);
-		if (func->old_addr == old_addr)
+		if (func->old_func == old_func)
 			return ops;
 	}
 
@@ -118,7 +118,15 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 		}
 	}
 
+	/*
+	 * NOPs are used to replace existing patches with original code.
+	 * Do nothing! Setting pc would cause an infinite loop.
+	 */
+	if (func->nop)
+		goto unlock;
+
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
+
 unlock:
 	preempt_enable_notrace();
 }
@@ -142,17 +150,18 @@ static void klp_unpatch_func(struct klp_func *func)
 
 	if (WARN_ON(!func->patched))
 		return;
-	if (WARN_ON(!func->old_addr))
+	if (WARN_ON(!func->old_func))
 		return;
 
-	ops = klp_find_ops(func->old_addr);
+	ops = klp_find_ops(func->old_func);
 	if (WARN_ON(!ops))
 		return;
 
 	if (list_is_singular(&ops->func_stack)) {
 		unsigned long ftrace_loc;
 
-		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		ftrace_loc =
+			klp_get_ftrace_location((unsigned long)func->old_func);
 		if (WARN_ON(!ftrace_loc))
 			return;
 
@@ -174,17 +183,18 @@ static int klp_patch_func(struct klp_func *func)
 	struct klp_ops *ops;
 	int ret;
 
-	if (WARN_ON(!func->old_addr))
+	if (WARN_ON(!func->old_func))
 		return -EINVAL;
 
 	if (WARN_ON(func->patched))
 		return -EINVAL;
 
-	ops = klp_find_ops(func->old_addr);
+	ops = klp_find_ops(func->old_func);
 	if (!ops) {
 		unsigned long ftrace_loc;
 
-		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		ftrace_loc =
+			klp_get_ftrace_location((unsigned long)func->old_func);
 		if (!ftrace_loc) {
 			pr_err("failed to find location for function '%s'\n",
 				func->old_name);
@@ -236,15 +246,26 @@ err:
 	return ret;
 }
 
-void klp_unpatch_object(struct klp_object *obj)
+static void __klp_unpatch_object(struct klp_object *obj, bool nops_only)
 {
 	struct klp_func *func;
 
-	klp_for_each_func(obj, func)
+	klp_for_each_func(obj, func) {
+		if (nops_only && !func->nop)
+			continue;
+
 		if (func->patched)
 			klp_unpatch_func(func);
+	}
 
-	obj->patched = false;
+	if (obj->dynamic || !nops_only)
+		obj->patched = false;
+}
+
+
+void klp_unpatch_object(struct klp_object *obj)
+{
+	__klp_unpatch_object(obj, false);
 }
 
 int klp_patch_object(struct klp_object *obj)
@@ -267,11 +288,21 @@ int klp_patch_object(struct klp_object *obj)
 	return 0;
 }
 
-void klp_unpatch_objects(struct klp_patch *patch)
+static void __klp_unpatch_objects(struct klp_patch *patch, bool nops_only)
 {
 	struct klp_object *obj;
 
 	klp_for_each_object(patch, obj)
 		if (obj->patched)
-			klp_unpatch_object(obj);
+			__klp_unpatch_object(obj, nops_only);
+}
+
+void klp_unpatch_objects(struct klp_patch *patch)
+{
+	__klp_unpatch_objects(patch, false);
+}
+
+void klp_unpatch_objects_dynamic(struct klp_patch *patch)
+{
+	__klp_unpatch_objects(patch, true);
 }

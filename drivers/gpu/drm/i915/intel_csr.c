@@ -486,7 +486,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 12) {
 		/* Allow to load fw via parameter using the last known size */
 		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
-	} else if (IS_ICELAKE(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 11)) {
 		csr->fw_path = ICL_CSR_PATH;
 		csr->required_version = ICL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;

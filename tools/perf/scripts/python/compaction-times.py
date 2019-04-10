@@ -216,15 +216,15 @@ def compaction__mm_compaction_migratepages(event_name, context, common_cpu,
 		pair(nr_migrated, nr_failed), None, None)
 
 def compaction__mm_compaction_isolate_freepages(event_name, context, common_cpu,
-        common_secs, common_nsecs, common_pid, common_comm,
-        common_callchain, start_pfn, end_pfn, nr_scanned, nr_taken):
+	common_secs, common_nsecs, common_pid, common_comm,
+	common_callchain, start_pfn, end_pfn, nr_scanned, nr_taken):
 
 	chead.increment_pending(common_pid,
 		None, pair(nr_scanned, nr_taken), None)
 
 def compaction__mm_compaction_isolate_migratepages(event_name, context, common_cpu,
-        common_secs, common_nsecs, common_pid, common_comm,
-        common_callchain, start_pfn, end_pfn, nr_scanned, nr_taken):
+	common_secs, common_nsecs, common_pid, common_comm,
+	common_callchain, start_pfn, end_pfn, nr_scanned, nr_taken):
 
 	chead.increment_pending(common_pid,
 		None, None, pair(nr_scanned, nr_taken))

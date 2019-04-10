@@ -9,10 +9,11 @@ lib_dir=$(dirname $0)/../../../../net/forwarding
 
 ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	multiple_masks_test ctcam_edge_cases_test delta_simple_test \
+	delta_two_masks_one_key_test delta_simple_rehash_test \
 	bloom_simple_test bloom_complex_test bloom_delta_test"
 NUM_NETIFS=2
 source $lib_dir/tc_common.sh
-source $lib_dir/lib.sh
+source $lib_dir/devlink_lib.sh
 
 tcflags="skip_hw"
 
@@ -36,6 +37,55 @@ h2_destroy()
 {
 	tc qdisc del dev $h2 clsact
 	simple_if_fini $h2 192.0.2.2/24 198.51.100.2/24
+}
+
+tp_record()
+{
+	local tracepoint=$1
+	local cmd=$2
+
+	perf record -q -e $tracepoint $cmd
+	return $?
+}
+
+tp_record_all()
+{
+	local tracepoint=$1
+	local seconds=$2
+
+	perf record -a -q -e $tracepoint sleep $seconds
+	return $?
+}
+
+__tp_hit_count()
+{
+	local tracepoint=$1
+
+	local perf_output=`perf script -F trace:event,trace`
+	return `echo $perf_output | grep "$tracepoint:" | wc -l`
+}
+
+tp_check_hits()
+{
+	local tracepoint=$1
+	local count=$2
+
+	__tp_hit_count $tracepoint
+	if [[ "$?" -ne "$count" ]]; then
+		return 1
+	fi
+	return 0
+}
+
+tp_check_hits_any()
+{
+	local tracepoint=$1
+
+	__tp_hit_count $tracepoint
+	if [[ "$?" -eq "0" ]]; then
+		return 1
+	fi
+	return 0
 }
 
 single_mask_test()
@@ -182,20 +232,38 @@ multiple_masks_test()
 	# spillage is performed correctly and that the right filter is
 	# matched
 
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
 	local index
 
 	RET=0
 
 	NUM_MASKS=32
+	NUM_ERPS=16
 	BASE_INDEX=100
 
 	for i in $(eval echo {1..$NUM_MASKS}); do
 		index=$((BASE_INDEX - i))
 
-		tc filter add dev $h2 ingress protocol ip pref $index \
-			handle $index \
-			flower $tcflags dst_ip 192.0.2.2/${i} src_ip 192.0.2.1 \
-			action drop
+		if ((i > NUM_ERPS)); then
+			exp_hits=1
+			err_msg="$i filters - C-TCAM spill did not happen when it was expected"
+		else
+			exp_hits=0
+			err_msg="$i filters - C-TCAM spill happened when it should not"
+		fi
+
+		tp_record "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
+			"tc filter add dev $h2 ingress protocol ip pref $index \
+				handle $index \
+				flower $tcflags \
+				dst_ip 192.0.2.2/${i} src_ip 192.0.2.1/${i} \
+				action drop"
+		tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
+				$exp_hits
+		check_err $? "$err_msg"
 
 		$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 \
 			-B 192.0.2.2 -t ip -q
@@ -325,28 +393,6 @@ ctcam_edge_cases_test()
 	ctcam_no_atcam_masks_test
 }
 
-tp_record()
-{
-	local tracepoint=$1
-	local cmd=$2
-
-	perf record -q -e $tracepoint $cmd
-	return $?
-}
-
-tp_check_hits()
-{
-	local tracepoint=$1
-	local count=$2
-
-	perf_output=`perf script -F trace:event,trace`
-	hits=`echo $perf_output | grep "$tracepoint:" | wc -l`
-	if [[ "$count" -ne "$hits" ]]; then
-		return 1
-	fi
-	return 0
-}
-
 delta_simple_test()
 {
 	# The first filter will create eRP, the second filter will fit into
@@ -403,6 +449,365 @@ delta_simple_test()
 	check_err $? "eRP was not destroyed"
 
 	log_test "delta simple test ($tcflags)"
+}
+
+delta_two_masks_one_key_test()
+{
+	# If 2 keys are the same and only differ in mask in a way that
+	# they belong under the same ERP (second is delta of the first),
+	# there should be no C-TCAM spill.
+
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
+		   pref 1 handle 101 flower $tcflags dst_ip 192.0.2.0/24 \
+		   action drop"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
+	check_err $? "incorrect C-TCAM spill while inserting the first rule"
+
+	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
+		   pref 2 handle 102 flower $tcflags dst_ip 192.0.2.2 \
+		   action drop"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
+	check_err $? "incorrect C-TCAM spill while inserting the second rule"
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+
+	log_test "delta two masks one key test ($tcflags)"
+}
+
+delta_simple_rehash_test()
+{
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 0
+	check_err $? "Failed to set ACL region rehash interval"
+
+	tp_record_all mlxsw:mlxsw_sp_acl_tcam_vregion_rehash 7
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_fail $? "Rehash trace was hit even when rehash should be disabled"
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 3000
+	check_err $? "Failed to set ACL region rehash interval"
+
+	sleep 1
+
+	tc filter add dev $h2 ingress protocol ip pref 1 handle 101 flower \
+		$tcflags dst_ip 192.0.1.0/25 action drop
+	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
+		$tcflags dst_ip 192.0.2.2 action drop
+	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
+		$tcflags dst_ip 192.0.3.0/24 action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tp_record_all mlxsw:* 3
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_err $? "Rehash trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
+	check_err $? "Migrate trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_err $? "Migrate end trace was not hit"
+	tp_record_all mlxsw:* 3
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_err $? "Rehash trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
+	check_fail $? "Migrate trace was hit when no migration should happen"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_fail $? "Migrate end trace was hit when no migration should happen"
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_err $? "Did not match on correct filter after rehash"
+
+	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	log_test "delta simple rehash test ($tcflags)"
+}
+
+delta_simple_ipv6_rehash_test()
+{
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 0
+	check_err $? "Failed to set ACL region rehash interval"
+
+	tp_record_all mlxsw:mlxsw_sp_acl_tcam_vregion_rehash 7
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_fail $? "Rehash trace was hit even when rehash should be disabled"
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 3000
+	check_err $? "Failed to set ACL region rehash interval"
+
+	sleep 1
+
+	tc filter add dev $h2 ingress protocol ipv6 pref 1 handle 101 flower \
+		$tcflags dst_ip 2001:db8:1::0/121 action drop
+	tc filter add dev $h2 ingress protocol ipv6 pref 2 handle 102 flower \
+		$tcflags dst_ip 2001:db8:2::2 action drop
+	tc filter add dev $h2 ingress protocol ipv6 pref 3 handle 103 flower \
+		$tcflags dst_ip 2001:db8:3::0/120 action drop
+
+	$MZ $h1 -6 -c 1 -p 64 -a $h1mac -b $h2mac \
+		-A 2001:db8:2::1 -B 2001:db8:2::2 -t udp -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tp_record_all mlxsw:* 3
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_err $? "Rehash trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
+	check_err $? "Migrate trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_err $? "Migrate end trace was not hit"
+	tp_record_all mlxsw:* 3
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_err $? "Rehash trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
+	check_fail $? "Migrate trace was hit when no migration should happen"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_fail $? "Migrate end trace was hit when no migration should happen"
+
+	$MZ $h1 -6 -c 1 -p 64 -a $h1mac -b $h2mac \
+		-A 2001:db8:2::1 -B 2001:db8:2::2 -t udp -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_err $? "Did not match on correct filter after rehash"
+
+	tc filter del dev $h2 ingress protocol ipv6 pref 3 handle 103 flower
+	tc filter del dev $h2 ingress protocol ipv6 pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol ipv6 pref 1 handle 101 flower
+
+	log_test "delta simple IPv6 rehash test ($tcflags)"
+}
+
+TEST_RULE_BASE=256
+declare -a test_rules_inserted
+
+test_rule_add()
+{
+	local iface=$1
+	local tcflags=$2
+	local index=$3
+
+	if ! [ ${test_rules_inserted[$index]} ] ; then
+		test_rules_inserted[$index]=false
+	fi
+	if ${test_rules_inserted[$index]} ; then
+		return
+	fi
+
+	local number=$(( $index + $TEST_RULE_BASE ))
+	printf -v hexnumber '%x' $number
+
+	batch="${batch}filter add dev $iface ingress protocol ipv6 pref 1 \
+		handle $number flower $tcflags \
+		src_ip 2001:db8:1::$hexnumber action drop\n"
+	test_rules_inserted[$index]=true
+}
+
+test_rule_del()
+{
+	local iface=$1
+	local index=$2
+
+	if ! [ ${test_rules_inserted[$index]} ] ; then
+		test_rules_inserted[$index]=false
+	fi
+	if ! ${test_rules_inserted[$index]} ; then
+		return
+	fi
+
+	local number=$(( $index + $TEST_RULE_BASE ))
+	printf -v hexnumber '%x' $number
+
+	batch="${batch}filter del dev $iface ingress protocol ipv6 pref 1 \
+		handle $number flower\n"
+	test_rules_inserted[$index]=false
+}
+
+test_rule_add_or_remove()
+{
+	local iface=$1
+	local tcflags=$2
+	local index=$3
+
+	if ! [ ${test_rules_inserted[$index]} ] ; then
+		test_rules_inserted[$index]=false
+	fi
+	if ${test_rules_inserted[$index]} ; then
+		test_rule_del $iface $index
+	else
+		test_rule_add $iface $tcflags $index
+	fi
+}
+
+test_rule_add_or_remove_random_batch()
+{
+	local iface=$1
+	local tcflags=$2
+	local total_count=$3
+	local skip=0
+	local count=0
+	local MAXSKIP=20
+	local MAXCOUNT=20
+
+	for ((i=1;i<=total_count;i++)); do
+		if (( $skip == 0 )) && (($count == 0)); then
+			((skip=$RANDOM % $MAXSKIP + 1))
+			((count=$RANDOM % $MAXCOUNT + 1))
+		fi
+		if (( $skip != 0 )); then
+			((skip-=1))
+		else
+			((count-=1))
+			test_rule_add_or_remove $iface $tcflags $i
+		fi
+	done
+}
+
+delta_massive_ipv6_rehash_test()
+{
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 0
+	check_err $? "Failed to set ACL region rehash interval"
+
+	tp_record_all mlxsw:mlxsw_sp_acl_tcam_vregion_rehash 7
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_fail $? "Rehash trace was hit even when rehash should be disabled"
+
+	RANDOM=4432897
+	declare batch=""
+	test_rule_add_or_remove_random_batch $h2 $tcflags 5000
+
+	echo -n -e $batch | tc -b -
+
+	declare batch=""
+	test_rule_add_or_remove_random_batch $h2 $tcflags 5000
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 3000
+	check_err $? "Failed to set ACL region rehash interval"
+
+	sleep 1
+
+	tc filter add dev $h2 ingress protocol ipv6 pref 1 handle 101 flower \
+		$tcflags dst_ip 2001:db8:1::0/121 action drop
+	tc filter add dev $h2 ingress protocol ipv6 pref 2 handle 102 flower \
+		$tcflags dst_ip 2001:db8:2::2 action drop
+	tc filter add dev $h2 ingress protocol ipv6 pref 3 handle 103 flower \
+		$tcflags dst_ip 2001:db8:3::0/120 action drop
+
+	$MZ $h1 -6 -c 1 -p 64 -a $h1mac -b $h2mac \
+		-A 2001:db8:2::1 -B 2001:db8:2::2 -t udp -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	echo -n -e $batch | tc -b -
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 0
+	check_err $? "Failed to set ACL region rehash interval"
+
+	$MZ $h1 -6 -c 1 -p 64 -a $h1mac -b $h2mac \
+		-A 2001:db8:2::1 -B 2001:db8:2::2 -t udp -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_err $? "Did not match on correct filter after rehash"
+
+	tc filter del dev $h2 ingress protocol ipv6 pref 3 handle 103 flower
+	tc filter del dev $h2 ingress protocol ipv6 pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol ipv6 pref 1 handle 101 flower
+
+	declare batch=""
+	for i in {1..5000}; do
+		test_rule_del $h2 $tcflags $i
+	done
+	echo -e $batch | tc -b -
+
+	log_test "delta massive IPv6 rehash test ($tcflags)"
 }
 
 bloom_simple_test()

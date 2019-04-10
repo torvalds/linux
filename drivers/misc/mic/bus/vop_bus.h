@@ -87,8 +87,8 @@ struct vop_driver {
  * @get_dp: Get access to the virtio device page used by the self
  *          node to add/remove/configure virtio devices.
  * @send_intr: Send an interrupt to the peer node on a specified doorbell.
- * @ioremap: Map a buffer with the specified DMA address and length.
- * @iounmap: Unmap a buffer previously mapped.
+ * @remap: Map a buffer with the specified DMA address and length.
+ * @unmap: Unmap a buffer previously mapped.
  * @dma_filter: The DMA filter function to use for obtaining access to
  *		a DMA channel on the peer node.
  */
@@ -104,9 +104,9 @@ struct vop_hw_ops {
 	void __iomem * (*get_remote_dp)(struct vop_device *vpdev);
 	void * (*get_dp)(struct vop_device *vpdev);
 	void (*send_intr)(struct vop_device *vpdev, int db);
-	void __iomem * (*ioremap)(struct vop_device *vpdev,
+	void __iomem * (*remap)(struct vop_device *vpdev,
 				  dma_addr_t pa, size_t len);
-	void (*iounmap)(struct vop_device *vpdev, void __iomem *va);
+	void (*unmap)(struct vop_device *vpdev, void __iomem *va);
 };
 
 struct vop_device *

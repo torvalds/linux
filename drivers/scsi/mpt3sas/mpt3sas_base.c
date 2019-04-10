@@ -3563,6 +3563,7 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
 					 ioc->pdev->subsystem_device);
 				break;
 			}
+			break;
 		case MPI2_MFGPAGE_DEVID_SAS2308_2:
 			switch (ioc->pdev->subsystem_device) {
 			case MPT2SAS_INTEL_RS25GB008_SSDID:
@@ -3598,6 +3599,7 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
 					 ioc->pdev->subsystem_device);
 				break;
 			}
+			break;
 		case MPI25_MFGPAGE_DEVID_SAS3008:
 			switch (ioc->pdev->subsystem_device) {
 			case MPT3SAS_INTEL_RMS3JC080_SSDID:
@@ -3742,6 +3744,7 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
 					 ioc->pdev->subsystem_device);
 				break;
 			}
+			break;
 		case MPI2_MFGPAGE_DEVID_SAS2308_2:
 			switch (ioc->pdev->subsystem_device) {
 			case MPT2SAS_HP_2_4_INTERNAL_SSDID:
@@ -3765,6 +3768,7 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
 					 ioc->pdev->subsystem_device);
 				break;
 			}
+			break;
 		default:
 			ioc_info(ioc, "HP SAS HBA: Subsystem ID: 0x%X\n",
 				 ioc->pdev->subsystem_device);

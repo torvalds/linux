@@ -71,7 +71,7 @@ static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
 	return 0;
 }
 
-struct dummy *livepatch_fix1_dummy_alloc(void)
+static struct dummy *livepatch_fix1_dummy_alloc(void)
 {
 	struct dummy *d;
 	void *leak;
@@ -113,7 +113,7 @@ static void livepatch_fix1_dummy_leak_dtor(void *obj, void *shadow_data)
 			 __func__, d, *shadow_leak);
 }
 
-void livepatch_fix1_dummy_free(struct dummy *d)
+static void livepatch_fix1_dummy_free(struct dummy *d)
 {
 	void **shadow_leak;
 
@@ -157,25 +157,13 @@ static struct klp_patch patch = {
 
 static int livepatch_shadow_fix1_init(void)
 {
-	int ret;
-
-	ret = klp_register_patch(&patch);
-	if (ret)
-		return ret;
-	ret = klp_enable_patch(&patch);
-	if (ret) {
-		WARN_ON(klp_unregister_patch(&patch));
-		return ret;
-	}
-	return 0;
+	return klp_enable_patch(&patch);
 }
 
 static void livepatch_shadow_fix1_exit(void)
 {
 	/* Cleanup any existing SV_LEAK shadow variables */
 	klp_shadow_free_all(SV_LEAK, livepatch_fix1_dummy_leak_dtor);
-
-	WARN_ON(klp_unregister_patch(&patch));
 }
 
 module_init(livepatch_shadow_fix1_init);

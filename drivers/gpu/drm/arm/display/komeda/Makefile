@@ -16,6 +16,7 @@ komeda-y := \
 	komeda_private_obj.o
 
 komeda-y += \
-	d71/d71_dev.o
+	d71/d71_dev.o \
+	d71/d71_component.o
 
 obj-$(CONFIG_DRM_KOMEDA) += komeda.o

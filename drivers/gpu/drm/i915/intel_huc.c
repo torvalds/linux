@@ -79,7 +79,7 @@ int intel_huc_auth(struct intel_huc *huc)
 	}
 
 	/* Check authentication status, it should be done by now */
-	ret = __intel_wait_for_register(i915,
+	ret = __intel_wait_for_register(&i915->uncore,
 					HUC_STATUS2,
 					HUC_FW_VERIFIED,
 					HUC_FW_VERIFIED,

@@ -31,29 +31,25 @@ mock_request(struct intel_engine_cs *engine,
 	     unsigned long delay)
 {
 	struct i915_request *request;
-	struct mock_request *mock;
 
 	/* NB the i915->requests slab cache is enlarged to fit mock_request */
 	request = i915_request_alloc(engine, context);
 	if (IS_ERR(request))
 		return NULL;
 
-	mock = container_of(request, typeof(*mock), base);
-	mock->delay = delay;
-
-	return &mock->base;
+	request->mock.delay = delay;
+	return request;
 }
 
 bool mock_cancel_request(struct i915_request *request)
 {
-	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
 		container_of(request->engine, typeof(*engine), base);
 	bool was_queued;
 
 	spin_lock_irq(&engine->hw_lock);
-	was_queued = !list_empty(&mock->link);
-	list_del_init(&mock->link);
+	was_queued = !list_empty(&request->mock.link);
+	list_del_init(&request->mock.link);
 	spin_unlock_irq(&engine->hw_lock);
 
 	if (was_queued)

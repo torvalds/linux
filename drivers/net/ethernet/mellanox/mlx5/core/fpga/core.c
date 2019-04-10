@@ -317,7 +317,6 @@ static int mlx5_fpga_event(struct mlx5_fpga_device *fdev,
 	const char *event_name;
 	bool teardown = false;
 	unsigned long flags;
-	u32 fpga_qpn;
 	u8 syndrome;
 
 	switch (event) {
@@ -328,7 +327,6 @@ static int mlx5_fpga_event(struct mlx5_fpga_device *fdev,
 	case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
 		syndrome = MLX5_GET(fpga_qp_error_event, data, syndrome);
 		event_name = mlx5_fpga_qp_syndrome_to_string(syndrome);
-		fpga_qpn = MLX5_GET(fpga_qp_error_event, data, fpga_qpn);
 		break;
 	default:
 		return NOTIFY_DONE;

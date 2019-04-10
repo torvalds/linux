@@ -378,6 +378,11 @@ static const struct resource_caps res_cap = {
 	.num_ddc = 6,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+	.supports_argb8888 = true,
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -1022,6 +1027,9 @@ static bool construct(
 	}
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))

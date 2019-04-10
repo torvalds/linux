@@ -29,72 +29,108 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 
+static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
+					    struct intel_crtc_state *crtc_state,
+					    struct drm_connector_state *conn_state,
+					    struct link_config_limits *limits)
+{
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
+	struct intel_dp *intel_dp = &intel_mst->primary->dp;
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+	void *port = connector->port;
+	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
+					   DP_DPCD_QUIRK_CONSTANT_N);
+	int bpp, slots = -EINVAL;
+
+	crtc_state->lane_count = limits->max_lane_count;
+	crtc_state->port_clock = limits->max_clock;
+
+	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		crtc_state->pipe_bpp = bpp;
+
+		crtc_state->pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock,
+						       crtc_state->pipe_bpp);
+
+		slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr,
+						      port, crtc_state->pbn);
+		if (slots == -EDEADLK)
+			return slots;
+		if (slots >= 0)
+			break;
+	}
+
+	if (slots < 0) {
+		DRM_DEBUG_KMS("failed finding vcpi slots:%d\n", slots);
+		return slots;
+	}
+
+	intel_link_compute_m_n(crtc_state->pipe_bpp,
+			       crtc_state->lane_count,
+			       adjusted_mode->crtc_clock,
+			       crtc_state->port_clock,
+			       &crtc_state->dp_m_n,
+			       constant_n);
+	crtc_state->dp_m_n.tu = slots;
+
+	return 0;
+}
+
 static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 				       struct intel_crtc_state *pipe_config,
 				       struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
-	struct intel_digital_port *intel_dig_port = intel_mst->primary;
-	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_connector *connector = conn_state->connector;
-	void *port = to_intel_connector(connector)->port;
-	struct drm_atomic_state *state = pipe_config->base.state;
-	struct drm_crtc *crtc = pipe_config->base.crtc;
-	struct drm_crtc_state *old_crtc_state =
-		drm_atomic_get_old_crtc_state(state, crtc);
-	int bpp;
-	int lane_count, slots =
-		to_intel_crtc_state(old_crtc_state)->dp_m_n.tu;
-	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int mst_pbn;
-	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
-					   DP_DPCD_QUIRK_CONSTANT_N);
+	struct intel_dp *intel_dp = &intel_mst->primary->dp;
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+	const struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+	void *port = connector->port;
+	struct link_config_limits limits;
+	int ret;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
-	bpp = 24;
-	if (intel_dp->compliance.test_data.bpc) {
-		bpp = intel_dp->compliance.test_data.bpc * 3;
-		DRM_DEBUG_KMS("Setting pipe bpp to %d\n",
-			      bpp);
-	}
+
+	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+		pipe_config->has_audio =
+			drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port);
+	else
+		pipe_config->has_audio =
+			intel_conn_state->force_audio == HDMI_AUDIO_ON;
+
 	/*
 	 * for MST we always configure max link bw - the spec doesn't
 	 * seem to suggest we should do otherwise.
 	 */
-	lane_count = intel_dp_max_lane_count(intel_dp);
+	limits.min_clock =
+	limits.max_clock = intel_dp_max_link_rate(intel_dp);
 
-	pipe_config->lane_count = lane_count;
+	limits.min_lane_count =
+	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	pipe_config->pipe_bpp = bpp;
+	limits.min_bpp = 6 * 3;
+	limits.max_bpp = pipe_config->pipe_bpp;
 
-	pipe_config->port_clock = intel_dp_max_link_rate(intel_dp);
+	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
 
-	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port))
-		pipe_config->has_audio = true;
+	ret = intel_dp_mst_compute_link_config(encoder, pipe_config,
+					       conn_state, &limits);
+	if (ret)
+		return ret;
 
-	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
-	pipe_config->pbn = mst_pbn;
-
-	slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr, port,
-					      mst_pbn);
-	if (slots < 0) {
-		DRM_DEBUG_KMS("failed finding vcpi slots:%d\n",
-			      slots);
-		return slots;
-	}
-
-	intel_link_compute_m_n(bpp, lane_count,
-			       adjusted_mode->crtc_clock,
-			       pipe_config->port_clock,
-			       &pipe_config->dp_m_n,
-			       constant_n);
-
-	pipe_config->dp_m_n.tu = slots;
+	pipe_config->limited_color_range =
+		intel_dp_limited_color_range(pipe_config, conn_state);
 
 	if (IS_GEN9_LP(dev_priv))
 		pipe_config->lane_lat_optim_mask =
@@ -117,7 +153,11 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	struct drm_crtc *new_crtc = new_conn_state->crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_dp_mst_topology_mgr *mgr;
-	int ret = 0;
+	int ret;
+
+	ret = intel_digital_connector_atomic_check(connector, new_conn_state);
+	if (ret)
+		return ret;
 
 	if (!old_conn_state->crtc)
 		return 0;
@@ -289,7 +329,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    DP_TP_STATUS(port),
 				    DP_TP_STATUS_ACT_SENT,
 				    DP_TP_STATUS_ACT_SENT,
@@ -354,11 +394,13 @@ intel_dp_mst_detect(struct drm_connector *connector, bool force)
 static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static int intel_dp_mst_get_modes(struct drm_connector *connector)
@@ -373,7 +415,6 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
-	int bpp = 24; /* MST uses fixed bpp */
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 
 	if (drm_connector_is_unregistered(connector))
@@ -386,7 +427,7 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	max_lanes = intel_dp_max_lane_count(intel_dp);
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
-	mode_rate = intel_dp_link_required(mode->clock, bpp);
+	mode_rate = intel_dp_link_required(mode->clock, 18);
 
 	/* TODO - validate mode against available PBN for link */
 	if (mode->clock < 10000)
@@ -486,6 +527,10 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	ret = drm_connector_set_path_property(connector, pathprop);
 	if (ret)
 		goto err;
+
+	intel_attach_force_audio_property(connector);
+	intel_attach_broadcast_rgb_property(connector);
+	drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	return connector;
 

@@ -89,6 +89,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
+#include <asm/mmu_context.h>
 #include <linux/uaccess.h>
 
 #define STR(x)	__STR(x)
@@ -2374,18 +2375,10 @@ sigbus:
 #ifdef CONFIG_DEBUG_FS
 static int __init debugfs_unaligned(void)
 {
-	struct dentry *d;
-
-	if (!mips_debugfs_dir)
-		return -ENODEV;
-	d = debugfs_create_u32("unaligned_instructions", S_IRUGO,
-			       mips_debugfs_dir, &unaligned_instructions);
-	if (!d)
-		return -ENOMEM;
-	d = debugfs_create_u32("unaligned_action", S_IRUGO | S_IWUSR,
-			       mips_debugfs_dir, &unaligned_action);
-	if (!d)
-		return -ENOMEM;
+	debugfs_create_u32("unaligned_instructions", S_IRUGO, mips_debugfs_dir,
+			   &unaligned_instructions);
+	debugfs_create_u32("unaligned_action", S_IRUGO | S_IWUSR,
+			   mips_debugfs_dir, &unaligned_action);
 	return 0;
 }
 arch_initcall(debugfs_unaligned);

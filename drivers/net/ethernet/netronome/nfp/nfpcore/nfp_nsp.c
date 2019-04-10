@@ -7,11 +7,13 @@
  *         Jason McMullan <jason.mcmullan@netronome.com>
  */
 
+#include <asm/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/overflow.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 
@@ -36,6 +38,7 @@
 #define NSP_COMMAND		0x08
 #define   NSP_COMMAND_OPTION	GENMASK_ULL(63, 32)
 #define   NSP_COMMAND_CODE	GENMASK_ULL(31, 16)
+#define   NSP_COMMAND_DMA_BUF	BIT_ULL(1)
 #define   NSP_COMMAND_START	BIT_ULL(0)
 
 /* CPP address to retrieve the data from */
@@ -48,7 +51,11 @@
 #define   NSP_DFLT_BUFFER_ADDRESS	GENMASK_ULL(39, 0)
 
 #define NSP_DFLT_BUFFER_CONFIG	0x20
+#define   NSP_DFLT_BUFFER_DMA_CHUNK_ORDER	GENMASK_ULL(63, 58)
+#define   NSP_DFLT_BUFFER_SIZE_4KB	GENMASK_ULL(15, 8)
 #define   NSP_DFLT_BUFFER_SIZE_MB	GENMASK_ULL(7, 0)
+
+#define NFP_CAP_CMD_DMA_SG	0x28
 
 #define NSP_MAGIC		0xab10
 #define NSP_MAJOR		0
@@ -61,6 +68,16 @@
 #define NFP_FW_LOAD_RET_MINOR	GENMASK(23, 16)
 
 #define NFP_HWINFO_LOOKUP_SIZE	GENMASK(11, 0)
+
+#define NFP_VERSIONS_SIZE	GENMASK(11, 0)
+#define NFP_VERSIONS_CNT_OFF	0
+#define NFP_VERSIONS_BSP_OFF	2
+#define NFP_VERSIONS_CPLD_OFF	6
+#define NFP_VERSIONS_APP_OFF	10
+#define NFP_VERSIONS_BUNDLE_OFF	14
+#define NFP_VERSIONS_UNDI_OFF	18
+#define NFP_VERSIONS_NCSI_OFF	22
+#define NFP_VERSIONS_CFGR_OFF	26
 
 enum nfp_nsp_cmd {
 	SPCODE_NOOP		= 0, /* No operation */
@@ -77,6 +94,17 @@ enum nfp_nsp_cmd {
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
 	SPCODE_FW_STORED	= 16, /* If no FW loaded, load flash app FW */
 	SPCODE_HWINFO_LOOKUP	= 17, /* Lookup HWinfo with overwrites etc. */
+	SPCODE_VERSIONS		= 21, /* Report FW versions */
+};
+
+struct nfp_nsp_dma_buf {
+	__le32 chunk_cnt;
+	__le32 reserved[3];
+	struct {
+		__le32 size;
+		__le32 reserved;
+		__le64 addr;
+	} descs[];
 };
 
 static const struct {
@@ -107,18 +135,18 @@ struct nfp_nsp {
 /**
  * struct nfp_nsp_command_arg - NFP command argument structure
  * @code:	NFP SP Command Code
+ * @dma:	@buf points to a host buffer, not NSP buffer
  * @timeout_sec:Timeout value to wait for completion in seconds
  * @option:	NFP SP Command Argument
- * @buff_cpp:	NFP SP Buffer CPP Address info
- * @buff_addr:	NFP SP Buffer Host address
+ * @buf:	NFP SP Buffer Address
  * @error_cb:	Callback for interpreting option if error occurred
  */
 struct nfp_nsp_command_arg {
 	u16 code;
+	bool dma;
 	unsigned int timeout_sec;
 	u32 option;
-	u32 buff_cpp;
-	u64 buff_addr;
+	u64 buf;
 	void (*error_cb)(struct nfp_nsp *state, u32 ret_val);
 };
 
@@ -332,22 +360,14 @@ __nfp_nsp_command(struct nfp_nsp *state, const struct nfp_nsp_command_arg *arg)
 	if (err)
 		return err;
 
-	if (!FIELD_FIT(NSP_BUFFER_CPP, arg->buff_cpp >> 8) ||
-	    !FIELD_FIT(NSP_BUFFER_ADDRESS, arg->buff_addr)) {
-		nfp_err(cpp, "Host buffer out of reach %08x %016llx\n",
-			arg->buff_cpp, arg->buff_addr);
-		return -EINVAL;
-	}
-
-	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_buffer,
-			     FIELD_PREP(NSP_BUFFER_CPP, arg->buff_cpp >> 8) |
-			     FIELD_PREP(NSP_BUFFER_ADDRESS, arg->buff_addr));
+	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_buffer, arg->buf);
 	if (err < 0)
 		return err;
 
 	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_command,
 			     FIELD_PREP(NSP_COMMAND_OPTION, arg->option) |
 			     FIELD_PREP(NSP_COMMAND_CODE, arg->code) |
+			     FIELD_PREP(NSP_COMMAND_DMA_BUF, arg->dma) |
 			     FIELD_PREP(NSP_COMMAND_START, 1));
 	if (err < 0)
 		return err;
@@ -399,35 +419,13 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code)
 }
 
 static int
-nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
+nfp_nsp_command_buf_def(struct nfp_nsp *nsp,
+			struct nfp_nsp_command_buf_arg *arg)
 {
 	struct nfp_cpp *cpp = nsp->cpp;
-	unsigned int max_size;
 	u64 reg, cpp_buf;
-	int ret, err;
+	int err, ret;
 	u32 cpp_id;
-
-	if (nsp->ver.minor < 13) {
-		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
-			arg->arg.code, nsp->ver.major, nsp->ver.minor);
-		return -EOPNOTSUPP;
-	}
-
-	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
-			    nfp_resource_address(nsp->res) +
-			    NSP_DFLT_BUFFER_CONFIG,
-			    &reg);
-	if (err < 0)
-		return err;
-
-	max_size = max(arg->in_size, arg->out_size);
-	if (FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M < max_size) {
-		nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%llu < %u)\n",
-			arg->arg.code,
-			FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M,
-			max_size);
-		return -EINVAL;
-	}
 
 	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
 			    nfp_resource_address(nsp->res) +
@@ -447,15 +445,21 @@ nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 	}
 	/* Zero out remaining part of the buffer */
 	if (arg->out_buf && arg->out_size && arg->out_size > arg->in_size) {
-		memset(arg->out_buf, 0, arg->out_size - arg->in_size);
 		err = nfp_cpp_write(cpp, cpp_id, cpp_buf + arg->in_size,
 				    arg->out_buf, arg->out_size - arg->in_size);
 		if (err < 0)
 			return err;
 	}
 
-	arg->arg.buff_cpp = cpp_id;
-	arg->arg.buff_addr = cpp_buf;
+	if (!FIELD_FIT(NSP_BUFFER_CPP, cpp_id >> 8) ||
+	    !FIELD_FIT(NSP_BUFFER_ADDRESS, cpp_buf)) {
+		nfp_err(cpp, "Buffer out of reach %08x %016llx\n",
+			cpp_id, cpp_buf);
+		return -EINVAL;
+	}
+
+	arg->arg.buf = FIELD_PREP(NSP_BUFFER_CPP, cpp_id >> 8) |
+		       FIELD_PREP(NSP_BUFFER_ADDRESS, cpp_buf);
 	ret = __nfp_nsp_command(nsp, &arg->arg);
 	if (ret < 0)
 		return ret;
@@ -468,6 +472,210 @@ nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 	}
 
 	return ret;
+}
+
+static int
+nfp_nsp_command_buf_dma_sg(struct nfp_nsp *nsp,
+			   struct nfp_nsp_command_buf_arg *arg,
+			   unsigned int max_size, unsigned int chunk_order,
+			   unsigned int dma_order)
+{
+	struct nfp_cpp *cpp = nsp->cpp;
+	struct nfp_nsp_dma_buf *desc;
+	struct {
+		dma_addr_t dma_addr;
+		unsigned long len;
+		void *chunk;
+	} *chunks;
+	size_t chunk_size, dma_size;
+	dma_addr_t dma_desc;
+	struct device *dev;
+	unsigned long off;
+	int i, ret, nseg;
+	size_t desc_sz;
+
+	chunk_size = BIT_ULL(chunk_order);
+	dma_size = BIT_ULL(dma_order);
+	nseg = DIV_ROUND_UP(max_size, chunk_size);
+
+	chunks = kzalloc(array_size(sizeof(*chunks), nseg), GFP_KERNEL);
+	if (!chunks)
+		return -ENOMEM;
+
+	off = 0;
+	ret = -ENOMEM;
+	for (i = 0; i < nseg; i++) {
+		unsigned long coff;
+
+		chunks[i].chunk = kmalloc(chunk_size,
+					  GFP_KERNEL | __GFP_NOWARN);
+		if (!chunks[i].chunk)
+			goto exit_free_prev;
+
+		chunks[i].len = min_t(u64, chunk_size, max_size - off);
+
+		coff = 0;
+		if (arg->in_size > off) {
+			coff = min_t(u64, arg->in_size - off, chunk_size);
+			memcpy(chunks[i].chunk, arg->in_buf + off, coff);
+		}
+		memset(chunks[i].chunk + coff, 0, chunk_size - coff);
+
+		off += chunks[i].len;
+	}
+
+	dev = nfp_cpp_device(cpp)->parent;
+
+	for (i = 0; i < nseg; i++) {
+		dma_addr_t addr;
+
+		addr = dma_map_single(dev, chunks[i].chunk, chunks[i].len,
+				      DMA_BIDIRECTIONAL);
+		chunks[i].dma_addr = addr;
+
+		ret = dma_mapping_error(dev, addr);
+		if (ret)
+			goto exit_unmap_prev;
+
+		if (WARN_ONCE(round_down(addr, dma_size) !=
+			      round_down(addr + chunks[i].len - 1, dma_size),
+			      "unaligned DMA address: %pad %lu %zd\n",
+			      &addr, chunks[i].len, dma_size)) {
+			ret = -EFAULT;
+			i++;
+			goto exit_unmap_prev;
+		}
+	}
+
+	desc_sz = struct_size(desc, descs, nseg);
+	desc = kmalloc(desc_sz, GFP_KERNEL);
+	if (!desc) {
+		ret = -ENOMEM;
+		goto exit_unmap_all;
+	}
+
+	desc->chunk_cnt = cpu_to_le32(nseg);
+	for (i = 0; i < nseg; i++) {
+		desc->descs[i].size = cpu_to_le32(chunks[i].len);
+		desc->descs[i].addr = cpu_to_le64(chunks[i].dma_addr);
+	}
+
+	dma_desc = dma_map_single(dev, desc, desc_sz, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_desc);
+	if (ret)
+		goto exit_free_desc;
+
+	arg->arg.dma = true;
+	arg->arg.buf = dma_desc;
+	ret = __nfp_nsp_command(nsp, &arg->arg);
+	if (ret < 0)
+		goto exit_unmap_desc;
+
+	i = 0;
+	off = 0;
+	while (off < arg->out_size) {
+		unsigned int len;
+
+		len = min_t(u64, chunks[i].len, arg->out_size - off);
+		memcpy(arg->out_buf + off, chunks[i].chunk, len);
+		off += len;
+		i++;
+	}
+
+exit_unmap_desc:
+	dma_unmap_single(dev, dma_desc, desc_sz, DMA_TO_DEVICE);
+exit_free_desc:
+	kfree(desc);
+exit_unmap_all:
+	i = nseg;
+exit_unmap_prev:
+	while (--i >= 0)
+		dma_unmap_single(dev, chunks[i].dma_addr, chunks[i].len,
+				 DMA_BIDIRECTIONAL);
+	i = nseg;
+exit_free_prev:
+	while (--i >= 0)
+		kfree(chunks[i].chunk);
+	kfree(chunks);
+	if (ret < 0)
+		nfp_err(cpp, "NSP: SG DMA failed for command 0x%04x: %d (sz:%d cord:%d)\n",
+			arg->arg.code, ret, max_size, chunk_order);
+	return ret;
+}
+
+static int
+nfp_nsp_command_buf_dma(struct nfp_nsp *nsp,
+			struct nfp_nsp_command_buf_arg *arg,
+			unsigned int max_size, unsigned int dma_order)
+{
+	unsigned int chunk_order, buf_order;
+	struct nfp_cpp *cpp = nsp->cpp;
+	bool sg_ok;
+	u64 reg;
+	int err;
+
+	buf_order = order_base_2(roundup_pow_of_two(max_size));
+
+	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
+			    nfp_resource_address(nsp->res) + NFP_CAP_CMD_DMA_SG,
+			    &reg);
+	if (err < 0)
+		return err;
+	sg_ok = reg & BIT_ULL(arg->arg.code - 1);
+
+	if (!sg_ok) {
+		if (buf_order > dma_order) {
+			nfp_err(cpp, "NSP: can't service non-SG DMA for command 0x%04x\n",
+				arg->arg.code);
+			return -ENOMEM;
+		}
+		chunk_order = buf_order;
+	} else {
+		chunk_order = min_t(unsigned int, dma_order, PAGE_SHIFT);
+	}
+
+	return nfp_nsp_command_buf_dma_sg(nsp, arg, max_size, chunk_order,
+					  dma_order);
+}
+
+static int
+nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
+{
+	unsigned int dma_order, def_size, max_size;
+	struct nfp_cpp *cpp = nsp->cpp;
+	u64 reg;
+	int err;
+
+	if (nsp->ver.minor < 13) {
+		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
+			arg->arg.code, nsp->ver.major, nsp->ver.minor);
+		return -EOPNOTSUPP;
+	}
+
+	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
+			    nfp_resource_address(nsp->res) +
+			    NSP_DFLT_BUFFER_CONFIG,
+			    &reg);
+	if (err < 0)
+		return err;
+
+	/* Zero out undefined part of the out buffer */
+	if (arg->out_buf && arg->out_size && arg->out_size > arg->in_size)
+		memset(arg->out_buf, 0, arg->out_size - arg->in_size);
+
+	max_size = max(arg->in_size, arg->out_size);
+	def_size = FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M +
+		   FIELD_GET(NSP_DFLT_BUFFER_SIZE_4KB, reg) * SZ_4K;
+	dma_order = FIELD_GET(NSP_DFLT_BUFFER_DMA_CHUNK_ORDER, reg);
+	if (def_size >= max_size) {
+		return nfp_nsp_command_buf_def(nsp, arg);
+	} else if (!dma_order) {
+		nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%u < %u)\n",
+			arg->arg.code, def_size, max_size);
+		return -EINVAL;
+	}
+
+	return nfp_nsp_command_buf_dma(nsp, arg, max_size, dma_order);
 }
 
 int nfp_nsp_wait(struct nfp_nsp *state)
@@ -591,10 +799,7 @@ int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw)
 		{
 			.code		= SPCODE_NSP_WRITE_FLASH,
 			.option		= fw->size,
-			/* The flash time is specified to take a maximum of 70s
-			 * so we add an additional factor to this spec time.
-			 */
-			.timeout_sec	= 2.5 * 70,
+			.timeout_sec	= 900,
 		},
 		.in_buf		= fw->data,
 		.in_size	= fw->size,
@@ -710,4 +915,53 @@ int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size)
 	}
 
 	return 0;
+}
+
+int nfp_nsp_versions(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	struct nfp_nsp_command_buf_arg versions = {
+		{
+			.code		= SPCODE_VERSIONS,
+			.option		= min_t(u32, size, NFP_VERSIONS_SIZE),
+		},
+		.out_buf	= buf,
+		.out_size	= min_t(u32, size, NFP_VERSIONS_SIZE),
+	};
+
+	return nfp_nsp_command_buf(state, &versions);
+}
+
+const char *nfp_nsp_versions_get(enum nfp_nsp_versions id, bool flash,
+				 const u8 *buf, unsigned int size)
+{
+	static const u32 id2off[] = {
+		[NFP_VERSIONS_BSP] =	NFP_VERSIONS_BSP_OFF,
+		[NFP_VERSIONS_CPLD] =	NFP_VERSIONS_CPLD_OFF,
+		[NFP_VERSIONS_APP] =	NFP_VERSIONS_APP_OFF,
+		[NFP_VERSIONS_BUNDLE] =	NFP_VERSIONS_BUNDLE_OFF,
+		[NFP_VERSIONS_UNDI] =	NFP_VERSIONS_UNDI_OFF,
+		[NFP_VERSIONS_NCSI] =	NFP_VERSIONS_NCSI_OFF,
+		[NFP_VERSIONS_CFGR] =	NFP_VERSIONS_CFGR_OFF,
+	};
+	unsigned int field, buf_field_cnt, buf_off;
+
+	if (id >= ARRAY_SIZE(id2off) || !id2off[id])
+		return ERR_PTR(-EINVAL);
+
+	field = id * 2 + flash;
+
+	buf_field_cnt = get_unaligned_le16(buf);
+	if (buf_field_cnt <= field)
+		return ERR_PTR(-ENOENT);
+
+	buf_off = get_unaligned_le16(buf + id2off[id] + flash * 2);
+	if (!buf_off)
+		return ERR_PTR(-ENOENT);
+
+	if (buf_off >= size)
+		return ERR_PTR(-EINVAL);
+	if (strnlen(&buf[buf_off], size - buf_off) == size - buf_off)
+		return ERR_PTR(-EINVAL);
+
+	return (const char *)&buf[buf_off];
 }

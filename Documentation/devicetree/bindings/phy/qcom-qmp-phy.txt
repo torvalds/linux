@@ -9,6 +9,8 @@ Required properties:
 	       "qcom,ipq8074-qmp-pcie-phy" for PCIe phy on IPQ8074
 	       "qcom,msm8996-qmp-pcie-phy" for 14nm PCIe phy on msm8996,
 	       "qcom,msm8996-qmp-usb3-phy" for 14nm USB3 phy on msm8996,
+	       "qcom,msm8998-qmp-usb3-phy" for USB3 QMP V3 phy on msm8998,
+	       "qcom,msm8998-qmp-ufs-phy" for UFS QMP phy on msm8998,
 	       "qcom,sdm845-qmp-usb3-phy" for USB3 QMP V3 phy on sdm845,
 	       "qcom,sdm845-qmp-usb3-uni-phy" for USB3 QMP V3 UNI phy on sdm845,
 	       "qcom,sdm845-qmp-ufs-phy" for UFS QMP phy on sdm845.
@@ -42,6 +44,10 @@ Required properties:
 			"aux", "cfg_ahb", "ref".
 		For "qcom,msm8996-qmp-usb3-phy" must contain:
 			"aux", "cfg_ahb", "ref".
+		For "qcom,msm8998-qmp-usb3-phy" must contain:
+			"aux", "cfg_ahb", "ref".
+		For "qcom,msm8998-qmp-ufs-phy" must contain:
+			"ref", "ref_aux".
 		For "qcom,sdm845-qmp-usb3-phy" must contain:
 			"aux", "cfg_ahb", "ref", "com_aux".
 		For "qcom,sdm845-qmp-usb3-uni-phy" must contain:
@@ -61,6 +67,9 @@ Required properties:
 			"phy", "common", "cfg".
 		For "qcom,msm8996-qmp-usb3-phy" must contain
 			"phy", "common".
+		For "qcom,msm8998-qmp-usb3-phy" must contain
+			"phy", "common".
+		For "qcom,msm8998-qmp-ufs-phy": no resets are listed.
 		For "qcom,sdm845-qmp-usb3-phy" must contain:
 			"phy", "common".
 		For "qcom,sdm845-qmp-usb3-uni-phy" must contain:

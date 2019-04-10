@@ -41,9 +41,12 @@ static const unsigned char min_reduction_table[13] = {
 static const unsigned char max_reduction_table[13] = {
 0xf5, 0xe5, 0xd9, 0xcd, 0xb1, 0xa5, 0xa5, 0x80, 0x65, 0x4d, 0x4d, 0x4d, 0x32};
 
-/* ABM 2.2 Min Reduction effectively disabled (100% for all configs)*/
+/* Possible ABM 2.2 Min Reduction configs from least aggressive to most aggressive
+ *  0    1     2     3     4     5     6     7     8     9     10    11   12
+ * 100  100   100   100   100   100   100   90.2  85.1  80.0  80.0  75.3  75.3 %
+ */
 static const unsigned char min_reduction_table_v_2_2[13] = {
-0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe6, 0xd9, 0xcc, 0xcc, 0xc0, 0xc0};
 
 /* Possible ABM 2.2 Max Reduction configs from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
@@ -408,9 +411,9 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	ram_table->flags = 0x0;
 
 	ram_table->deviation_gain[0] = 0xb3;
-	ram_table->deviation_gain[1] = 0xb3;
-	ram_table->deviation_gain[2] = 0xb3;
-	ram_table->deviation_gain[3] = 0xb3;
+	ram_table->deviation_gain[1] = 0xa8;
+	ram_table->deviation_gain[2] = 0x98;
+	ram_table->deviation_gain[3] = 0x68;
 
 	ram_table->min_reduction[0][0] = min_reduction_table_v_2_2[abm_config[set][0]];
 	ram_table->min_reduction[1][0] = min_reduction_table_v_2_2[abm_config[set][0]];
@@ -505,7 +508,7 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 
 	ram_table->contrastFactor[0] = 0x99;
 	ram_table->contrastFactor[1] = 0x99;
-	ram_table->contrastFactor[2] = 0x99;
+	ram_table->contrastFactor[2] = 0x90;
 	ram_table->contrastFactor[3] = 0x80;
 
 	ram_table->iir_curve[0] = 0x65;

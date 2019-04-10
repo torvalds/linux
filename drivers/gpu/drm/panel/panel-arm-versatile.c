@@ -191,7 +191,7 @@ static const struct versatile_panel_type versatile_panels[] = {
 			.vrefresh = 390,
 			.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 	},
 	/*
 	 * Sanyo ALR252RGT 240x320 portrait display found on the
@@ -215,7 +215,7 @@ static const struct versatile_panel_type versatile_panels[] = {
 			.vrefresh = 116,
 			.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 		.ib2 = true,
 	},
 };

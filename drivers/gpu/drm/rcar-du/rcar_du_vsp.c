@@ -10,6 +10,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -26,16 +27,19 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_vsp.h"
+#include "rcar_du_writeback.h"
 
-static void rcar_du_vsp_complete(void *private, bool completed, u32 crc)
+static void rcar_du_vsp_complete(void *private, unsigned int status, u32 crc)
 {
 	struct rcar_du_crtc *crtc = private;
 
 	if (crtc->vblank_enable)
 		drm_crtc_handle_vblank(&crtc->crtc);
 
-	if (completed)
+	if (status & VSP1_DU_STATUS_COMPLETE)
 		rcar_du_crtc_finish_page_flip(crtc);
+	if (status & VSP1_DU_STATUS_WRITEBACK)
+		rcar_du_writeback_complete(crtc);
 
 	drm_crtc_add_crc_entry(&crtc->crtc, false, 0, &crc);
 }
@@ -43,7 +47,7 @@ static void rcar_du_vsp_complete(void *private, bool completed, u32 crc)
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 {
 	const struct drm_display_mode *mode = &crtc->crtc.state->adjusted_mode;
-	struct rcar_du_device *rcdu = crtc->group->dev;
+	struct rcar_du_device *rcdu = crtc->dev;
 	struct vsp1_du_lif_config cfg = {
 		.width = mode->hdisplay,
 		.height = mode->vdisplay,
@@ -107,11 +111,12 @@ void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
 	state = to_rcar_crtc_state(crtc->crtc.state);
 	cfg.crc = state->crc;
 
+	rcar_du_writeback_setup(crtc, &cfg.writeback);
+
 	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }
 
-/* Keep the two tables in sync. */
-static const u32 formats_kms[] = {
+static const u32 rcar_du_vsp_formats[] = {
 	DRM_FORMAT_RGB332,
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_XRGB4444,
@@ -139,40 +144,13 @@ static const u32 formats_kms[] = {
 	DRM_FORMAT_YVU444,
 };
 
-static const u32 formats_v4l2[] = {
-	V4L2_PIX_FMT_RGB332,
-	V4L2_PIX_FMT_ARGB444,
-	V4L2_PIX_FMT_XRGB444,
-	V4L2_PIX_FMT_ARGB555,
-	V4L2_PIX_FMT_XRGB555,
-	V4L2_PIX_FMT_RGB565,
-	V4L2_PIX_FMT_RGB24,
-	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_ARGB32,
-	V4L2_PIX_FMT_XRGB32,
-	V4L2_PIX_FMT_ABGR32,
-	V4L2_PIX_FMT_XBGR32,
-	V4L2_PIX_FMT_UYVY,
-	V4L2_PIX_FMT_YUYV,
-	V4L2_PIX_FMT_YVYU,
-	V4L2_PIX_FMT_NV12M,
-	V4L2_PIX_FMT_NV21M,
-	V4L2_PIX_FMT_NV16M,
-	V4L2_PIX_FMT_NV61M,
-	V4L2_PIX_FMT_YUV420M,
-	V4L2_PIX_FMT_YVU420M,
-	V4L2_PIX_FMT_YUV422M,
-	V4L2_PIX_FMT_YVU422M,
-	V4L2_PIX_FMT_YUV444M,
-	V4L2_PIX_FMT_YVU444M,
-};
-
 static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 {
 	struct rcar_du_vsp_plane_state *state =
 		to_rcar_vsp_plane_state(plane->plane.state);
 	struct rcar_du_crtc *crtc = to_rcar_crtc(state->state.crtc);
 	struct drm_framebuffer *fb = plane->plane.state->fb;
+	const struct rcar_du_format_info *format;
 	struct vsp1_du_atomic_config cfg = {
 		.pixelformat = 0,
 		.pitch = fb->pitches[0],
@@ -195,37 +173,23 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 		cfg.mem[i] = sg_dma_address(state->sg_tables[i].sgl)
 			   + fb->offsets[i];
 
-	for (i = 0; i < ARRAY_SIZE(formats_kms); ++i) {
-		if (formats_kms[i] == state->format->fourcc) {
-			cfg.pixelformat = formats_v4l2[i];
-			break;
-		}
-	}
+	format = rcar_du_format_info(state->format->fourcc);
+	cfg.pixelformat = format->v4l2;
 
 	vsp1_du_atomic_update(plane->vsp->vsp, crtc->vsp_pipe,
 			      plane->index, &cfg);
 }
 
-static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
-					struct drm_plane_state *state)
+int rcar_du_vsp_map_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
+		       struct sg_table sg_tables[3])
 {
-	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
-	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
 	struct rcar_du_device *rcdu = vsp->dev;
 	unsigned int i;
 	int ret;
 
-	/*
-	 * There's no need to prepare (and unprepare) the framebuffer when the
-	 * plane is not visible, as it will not be displayed.
-	 */
-	if (!state->visible)
-		return 0;
-
-	for (i = 0; i < rstate->format->planes; ++i) {
-		struct drm_gem_cma_object *gem =
-			drm_fb_cma_get_gem_obj(state->fb, i);
-		struct sg_table *sgt = &rstate->sg_tables[i];
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, i);
+		struct sg_table *sgt = &sg_tables[i];
 
 		ret = dma_get_sgtable(rcdu->dev, sgt, gem->vaddr, gem->paddr,
 				      gem->base.size);
@@ -240,15 +204,11 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	ret = drm_gem_fb_prepare_fb(plane, state);
-	if (ret)
-		goto fail;
-
 	return 0;
 
 fail:
 	while (i--) {
-		struct sg_table *sgt = &rstate->sg_tables[i];
+		struct sg_table *sgt = &sg_tables[i];
 
 		vsp1_du_unmap_sg(vsp->vsp, sgt);
 		sg_free_table(sgt);
@@ -257,22 +217,50 @@ fail:
 	return ret;
 }
 
+static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
+					struct drm_plane_state *state)
+{
+	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
+	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
+	int ret;
+
+	/*
+	 * There's no need to prepare (and unprepare) the framebuffer when the
+	 * plane is not visible, as it will not be displayed.
+	 */
+	if (!state->visible)
+		return 0;
+
+	ret = rcar_du_vsp_map_fb(vsp, state->fb, rstate->sg_tables);
+	if (ret < 0)
+		return ret;
+
+	return drm_gem_fb_prepare_fb(plane, state);
+}
+
+void rcar_du_vsp_unmap_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
+			  struct sg_table sg_tables[3])
+{
+	unsigned int i;
+
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		struct sg_table *sgt = &sg_tables[i];
+
+		vsp1_du_unmap_sg(vsp->vsp, sgt);
+		sg_free_table(sgt);
+	}
+}
+
 static void rcar_du_vsp_plane_cleanup_fb(struct drm_plane *plane,
 					 struct drm_plane_state *state)
 {
 	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
 	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
-	unsigned int i;
 
 	if (!state->visible)
 		return;
 
-	for (i = 0; i < rstate->format->planes; ++i) {
-		struct sg_table *sgt = &rstate->sg_tables[i];
-
-		vsp1_du_unmap_sg(vsp->vsp, sgt);
-		sg_free_table(sgt);
-	}
+	rcar_du_vsp_unmap_fb(vsp, state->fb, rstate->sg_tables);
 }
 
 static int rcar_du_vsp_plane_atomic_check(struct drm_plane *plane,
@@ -395,8 +383,8 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 
 		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_vsp_plane_funcs,
-					       formats_kms,
-					       ARRAY_SIZE(formats_kms),
+					       rcar_du_vsp_formats,
+					       ARRAY_SIZE(rcar_du_vsp_formats),
 					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;

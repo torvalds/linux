@@ -124,12 +124,12 @@ ENTRY(swsusp_arch_resume)
 	lghi	%r2,1
 	brasl	%r14,arch_set_page_states
 
-	/* Deactivate DAT */
-	stnsm	__SF_EMPTY(%r15),0xfb
-
 	/* Set prefix page to zero */
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
 	spx	__SF_EMPTY(%r15)
+
+	/* Deactivate DAT */
+	stnsm	__SF_EMPTY(%r15),0xfb
 
 	/* Restore saved image */
 	larl	%r1,restore_pblist

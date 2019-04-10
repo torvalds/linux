@@ -1234,57 +1234,6 @@ static int nfp_net_set_channels(struct net_device *netdev,
 	return nfp_net_set_num_rings(nn, total_rx, total_tx);
 }
 
-static int
-nfp_net_flash_device(struct net_device *netdev, struct ethtool_flash *flash)
-{
-	const struct firmware *fw;
-	struct nfp_app *app;
-	struct nfp_nsp *nsp;
-	struct device *dev;
-	int err;
-
-	if (flash->region != ETHTOOL_FLASH_ALL_REGIONS)
-		return -EOPNOTSUPP;
-
-	app = nfp_app_from_netdev(netdev);
-	if (!app)
-		return -EOPNOTSUPP;
-
-	dev = &app->pdev->dev;
-
-	nsp = nfp_nsp_open(app->cpp);
-	if (IS_ERR(nsp)) {
-		err = PTR_ERR(nsp);
-		dev_err(dev, "Failed to access the NSP: %d\n", err);
-		return err;
-	}
-
-	err = request_firmware_direct(&fw, flash->data, dev);
-	if (err)
-		goto exit_close_nsp;
-
-	dev_info(dev, "Please be patient while writing flash image: %s\n",
-		 flash->data);
-	dev_hold(netdev);
-	rtnl_unlock();
-
-	err = nfp_nsp_write_flash(nsp, fw);
-	if (err < 0) {
-		dev_err(dev, "Flash write failed: %d\n", err);
-		goto exit_rtnl_lock;
-	}
-	dev_info(dev, "Finished writing flash image\n");
-
-exit_rtnl_lock:
-	rtnl_lock();
-	dev_put(netdev);
-	release_firmware(fw);
-
-exit_close_nsp:
-	nfp_nsp_close(nsp);
-	return err;
-}
-
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -1295,7 +1244,6 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_sset_count		= nfp_net_get_sset_count,
 	.get_rxnfc		= nfp_net_get_rxnfc,
 	.set_rxnfc		= nfp_net_set_rxnfc,
-	.flash_device		= nfp_net_flash_device,
 	.get_rxfh_indir_size	= nfp_net_get_rxfh_indir_size,
 	.get_rxfh_key_size	= nfp_net_get_rxfh_key_size,
 	.get_rxfh		= nfp_net_get_rxfh,
@@ -1321,7 +1269,6 @@ const struct ethtool_ops nfp_port_ethtool_ops = {
 	.get_strings		= nfp_port_get_strings,
 	.get_ethtool_stats	= nfp_port_get_stats,
 	.get_sset_count		= nfp_port_get_sset_count,
-	.flash_device		= nfp_net_flash_device,
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
 	.get_dump_data		= nfp_app_get_dump_data,

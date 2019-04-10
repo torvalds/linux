@@ -37,6 +37,47 @@ struct amdgpu_gtt_node {
 };
 
 /**
+ * DOC: mem_info_gtt_total
+ *
+ * The amdgpu driver provides a sysfs API for reporting current total size of
+ * the GTT.
+ * The file mem_info_gtt_total is used for this, and returns the total size of
+ * the GTT block, in bytes
+ */
+static ssize_t amdgpu_mem_info_gtt_total_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(adev->mman.bdev.man[TTM_PL_TT].size) * PAGE_SIZE);
+}
+
+/**
+ * DOC: mem_info_gtt_used
+ *
+ * The amdgpu driver provides a sysfs API for reporting current total amount of
+ * used GTT.
+ * The file mem_info_gtt_used is used for this, and returns the current used
+ * size of the GTT block, in bytes
+ */
+static ssize_t amdgpu_mem_info_gtt_used_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]));
+}
+
+static DEVICE_ATTR(mem_info_gtt_total, S_IRUGO,
+	           amdgpu_mem_info_gtt_total_show, NULL);
+static DEVICE_ATTR(mem_info_gtt_used, S_IRUGO,
+	           amdgpu_mem_info_gtt_used_show, NULL);
+
+/**
  * amdgpu_gtt_mgr_init - init GTT manager and DRM MM
  *
  * @man: TTM memory type manager
@@ -50,6 +91,7 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr;
 	uint64_t start, size;
+	int ret;
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
@@ -61,6 +103,18 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 	spin_lock_init(&mgr->lock);
 	atomic64_set(&mgr->available, p_size);
 	man->priv = mgr;
+
+	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_total);
+	if (ret) {
+		DRM_ERROR("Failed to create device file mem_info_gtt_total\n");
+		return ret;
+	}
+	ret = device_create_file(adev->dev, &dev_attr_mem_info_gtt_used);
+	if (ret) {
+		DRM_ERROR("Failed to create device file mem_info_gtt_used\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -74,12 +128,17 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
  */
 static int amdgpu_gtt_mgr_fini(struct ttm_mem_type_manager *man)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr = man->priv;
 	spin_lock(&mgr->lock);
 	drm_mm_takedown(&mgr->mm);
 	spin_unlock(&mgr->lock);
 	kfree(mgr);
 	man->priv = NULL;
+
+	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_total);
+	device_remove_file(adev->dev, &dev_attr_mem_info_gtt_used);
+
 	return 0;
 }
 

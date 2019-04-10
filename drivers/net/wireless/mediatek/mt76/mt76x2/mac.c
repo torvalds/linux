@@ -23,6 +23,9 @@ void mt76x2_mac_stop(struct mt76x02_dev *dev, bool force)
 	u32 rts_cfg;
 	int i;
 
+	mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+	mt76_clear(dev, MT_TXOP_HLDR_ET, MT_TXOP_HLDR_TX40M_BLK_EN);
+
 	mt76_wr(dev, MT_MAC_SYS_CTRL, 0);
 
 	rts_cfg = mt76_rr(dev, MT_TX_RTS_CFG);

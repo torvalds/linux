@@ -33,6 +33,9 @@
  * Note that the allocator is responsible for ordering things between free()
  * and alloc().
  *
+ * The decrements dec_and_test() and sub_and_test() also provide acquire
+ * ordering on success.
+ *
  */
 
 #include <linux/mutex.h>
@@ -164,8 +167,8 @@ EXPORT_SYMBOL(refcount_inc_checked);
  * at UINT_MAX.
  *
  * Provides release memory ordering, such that prior loads and stores are done
- * before, and provides a control dependency such that free() must come after.
- * See the comment on top.
+ * before, and provides an acquire ordering on success such that free()
+ * must come after.
  *
  * Use of this function is not recommended for the normal reference counting
  * use case in which references are taken and released one at a time.  In these
@@ -190,7 +193,12 @@ bool refcount_sub_and_test_checked(unsigned int i, refcount_t *r)
 
 	} while (!atomic_try_cmpxchg_release(&r->refs, &val, new));
 
-	return !new;
+	if (!new) {
+		smp_acquire__after_ctrl_dep();
+		return true;
+	}
+	return false;
+
 }
 EXPORT_SYMBOL(refcount_sub_and_test_checked);
 
@@ -202,8 +210,8 @@ EXPORT_SYMBOL(refcount_sub_and_test_checked);
  * decrement when saturated at UINT_MAX.
  *
  * Provides release memory ordering, such that prior loads and stores are done
- * before, and provides a control dependency such that free() must come after.
- * See the comment on top.
+ * before, and provides an acquire ordering on success such that free()
+ * must come after.
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */

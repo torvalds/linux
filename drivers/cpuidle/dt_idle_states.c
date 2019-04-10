@@ -22,16 +22,12 @@
 #include "dt_idle_states.h"
 
 static int init_state_node(struct cpuidle_state *idle_state,
-			   const struct of_device_id *matches,
+			   const struct of_device_id *match_id,
 			   struct device_node *state_node)
 {
 	int err;
-	const struct of_device_id *match_id;
 	const char *desc;
 
-	match_id = of_match_node(matches, state_node);
-	if (!match_id)
-		return -ENODEV;
 	/*
 	 * CPUidle drivers are expected to initialize the const void *data
 	 * pointer of the passed in struct of_device_id array to the idle
@@ -160,6 +156,7 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 {
 	struct cpuidle_state *idle_state;
 	struct device_node *state_node, *cpu_node;
+	const struct of_device_id *match_id;
 	int i, err = 0;
 	const cpumask_t *cpumask;
 	unsigned int state_idx = start_idx;
@@ -180,6 +177,12 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		if (!state_node)
 			break;
 
+		match_id = of_match_node(matches, state_node);
+		if (!match_id) {
+			err = -ENODEV;
+			break;
+		}
+
 		if (!of_device_is_available(state_node)) {
 			of_node_put(state_node);
 			continue;
@@ -198,7 +201,7 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		}
 
 		idle_state = &drv->states[state_idx++];
-		err = init_state_node(idle_state, matches, state_node);
+		err = init_state_node(idle_state, match_id, state_node);
 		if (err) {
 			pr_err("Parsing idle state node %pOF failed with err %d\n",
 			       state_node, err);

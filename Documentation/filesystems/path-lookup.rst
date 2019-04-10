@@ -1,3 +1,18 @@
+===============
+Pathname lookup
+===============
+
+This write-up is based on three articles published at lwn.net:
+
+- <https://lwn.net/Articles/649115/> Pathname lookup in Linux
+- <https://lwn.net/Articles/649729/> RCU-walk: faster pathname lookup in Linux
+- <https://lwn.net/Articles/650786/> A walk among the symlinks
+
+Written by Neil Brown with help from Al Viro and Jon Corbet.
+It has subsequently been updated to reflect changes in the kernel
+including:
+
+- per-directory parallel name lookup.
 
 Introduction to pathname lookup
 ===============================
@@ -344,7 +359,7 @@ In particular it is held while scanning chains in the dcache hash
 table, and the mount point hash table.
 
 Bringing it together with ``struct nameidata``
---------------------------------------------
+----------------------------------------------
 
 .. _First edition Unix: http://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
 
@@ -355,7 +370,7 @@ converts a "name" to an "inode".  ``struct nameidata`` contains (among
 other fields):
 
 ``struct path path``
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 A ``path`` contains a ``struct vfsmount`` (which is
 embedded in a ``struct mount``) and a ``struct dentry``.  Together these
@@ -366,13 +381,13 @@ step.  A reference through ``d_lockref`` and ``mnt_count`` is always
 held.
 
 ``struct qstr last``
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 This is a string together with a length (i.e. _not_ ``nul`` terminated)
 that is the "next" component in the pathname.
 
 ``int last_type``
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT``, ``LAST_DOTDOT``, or
 ``LAST_BIND``.  The ``last`` field is only valid if the type is
@@ -381,7 +396,7 @@ components of the symlink have been processed yet.  Others should be
 fairly self-explanatory.
 
 ``struct path root``
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 This is used to hold a reference to the effective root of the
 filesystem.  Often that reference won't be needed, so this field is
@@ -510,7 +525,7 @@ potentially interesting things about these dentries corresponding
 to three different flags that might be set in ``dentry->d_flags``:
 
 ``DCACHE_MANAGE_TRANSIT``
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If this flag has been set, then the filesystem has requested that the
 ``d_manage()`` dentry operation be called before handling any possible
@@ -529,7 +544,7 @@ filesystem, which will then give it a special pass through
 ``d_manage()`` by returning ``-EISDIR``.
 
 ``DCACHE_MOUNTED``
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 This flag is set on every dentry that is mounted on.  As Linux
 supports multiple filesystem namespaces, it is possible that the
@@ -542,7 +557,7 @@ If this flag is set, and ``d_manage()`` didn't return ``-EISDIR``,
 and a new ``dentry`` (both with counted references).
 
 ``DCACHE_NEED_AUTOMOUNT``
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If ``d_manage()`` allowed us to get this far, and ``lookup_mnt()`` didn't
 find a mount point, then this flag causes the ``d_automount()`` dentry
@@ -698,7 +713,7 @@ With that little refresher on seqlocks out of the way we can look at
 the bigger picture of how RCU-walk uses seqlocks.
 
 ``mount_lock`` and ``nd->m_seq``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We already met the ``mount_lock`` seqlock when REF-walk used it to
 ensure that crossing a mount point is performed safely.  RCU-walk uses
@@ -727,7 +742,7 @@ results would have been the same.  This ensures the invariant holds,
 at least for vfsmount structures.
 
 ``dentry->d_seq`` and ``nd->seq``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In place of taking a count or lock on ``d_reflock``, RCU-walk samples
 the per-dentry ``d_seq`` seqlock, and stores the sequence number in the
@@ -774,7 +789,7 @@ getting a counted reference to the new dentry before dropping that for
 the old dentry which we saw in REF-walk.
 
 No ``inode->i_rwsem`` or even ``rename_lock``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A semaphore is a fairly heavyweight lock that can only be taken when it is
 permissible to sleep.  As ``rcu_read_lock()`` forbids sleeping,
@@ -796,7 +811,7 @@ locking.  This neatly handles all cases, so adding extra checks on
 rename_lock would bring no significant value.
 
 ``unlazy walk()`` and ``complete_walk()``
--------------------------------------
+-----------------------------------------
 
 That "dropping down to REF-walk" typically involves a call to
 ``unlazy_walk()``, so named because "RCU-walk" is also sometimes

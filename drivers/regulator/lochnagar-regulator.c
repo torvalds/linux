@@ -194,7 +194,7 @@ static const struct regulator_desc lochnagar_regulators[] = {
 		.name = "VDDCORE",
 		.supply_name = "SYSVDD",
 		.type = REGULATOR_VOLTAGE,
-		.n_voltages = 57,
+		.n_voltages = 66,
 		.ops = &lochnagar_vddcore_ops,
 
 		.id = LOCHNAGAR_VDDCORE,
@@ -226,14 +226,15 @@ static const struct of_device_id lochnagar_of_match[] = {
 	},
 	{
 		.compatible = "cirrus,lochnagar2-mic2vdd",
-		.data = &lochnagar_regulators[LOCHNAGAR_MIC1VDD],
+		.data = &lochnagar_regulators[LOCHNAGAR_MIC2VDD],
 	},
 	{
 		.compatible = "cirrus,lochnagar2-vddcore",
 		.data = &lochnagar_regulators[LOCHNAGAR_VDDCORE],
 	},
-	{},
+	{}
 };
+MODULE_DEVICE_TABLE(of, lochnagar_of_match);
 
 static int lochnagar_regulator_probe(struct platform_device *pdev)
 {
