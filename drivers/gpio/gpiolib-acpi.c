@@ -444,8 +444,6 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 static enum gpiod_flags
 acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 {
-	bool pull_up = agpio->pin_config == ACPI_PIN_CONFIG_PULLUP;
-
 	switch (agpio->io_restriction) {
 	case ACPI_IO_RESTRICT_INPUT:
 		return GPIOD_IN;
@@ -454,16 +452,26 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 		 * ACPI GPIO resources don't contain an initial value for the
 		 * GPIO. Therefore we deduce that value from the pull field
 		 * instead. If the pin is pulled up we assume default to be
-		 * high, otherwise low.
+		 * high, if it is pulled down we assume default to be low,
+		 * otherwise we leave pin untouched.
 		 */
-		return pull_up ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+		switch (agpio->pin_config) {
+		case ACPI_PIN_CONFIG_PULLUP:
+			return GPIOD_OUT_HIGH;
+		case ACPI_PIN_CONFIG_PULLDOWN:
+			return GPIOD_OUT_LOW;
+		default:
+			break;
+		}
 	default:
-		/*
-		 * Assume that the BIOS has configured the direction and pull
-		 * accordingly.
-		 */
-		return GPIOD_ASIS;
+		break;
 	}
+
+	/*
+	 * Assume that the BIOS has configured the direction and pull
+	 * accordingly.
+	 */
+	return GPIOD_ASIS;
 }
 
 static int
