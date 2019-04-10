@@ -885,8 +885,8 @@ static int check_async_write(struct btrfs_inode *bi)
 }
 
 static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
-					  int mirror_num, unsigned long bio_flags,
-					  u64 bio_offset)
+					  int mirror_num,
+					  unsigned long bio_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int async = check_async_write(BTRFS_I(inode));

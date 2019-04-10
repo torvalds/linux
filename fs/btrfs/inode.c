@@ -1954,8 +1954,9 @@ static blk_status_t btrfs_submit_bio_start(void *private_data, struct bio *bio,
  *    c-3) otherwise:			async submit
  */
 static blk_status_t btrfs_submit_bio_hook(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags,
-				 u64 bio_offset)
+					  int mirror_num,
+					  unsigned long bio_flags)
+
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
