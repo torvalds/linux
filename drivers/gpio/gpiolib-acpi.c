@@ -1001,7 +1001,7 @@ acpi_gpiochip_parse_own_gpio(struct acpi_gpio_chip *achip,
 			     struct fwnode_handle *fwnode,
 			     const char **name,
 			     unsigned long *lflags,
-			     unsigned int *dflags)
+			     enum gpiod_flags *dflags)
 {
 	struct gpio_chip *chip = achip->chip;
 	struct gpio_desc *desc;
@@ -1045,7 +1045,7 @@ static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
 
 	device_for_each_child_node(chip->parent, fwnode) {
 		unsigned long lflags;
-		unsigned int dflags;
+		enum gpiod_flags dflags;
 		struct gpio_desc *desc;
 		const char *name;
 		int ret;
