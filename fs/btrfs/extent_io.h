@@ -95,9 +95,6 @@ struct btrfs_inode;
 struct btrfs_io_bio;
 struct io_failure_record;
 
-typedef	blk_status_t (extent_submit_bio_hook_t)(void *private_data, struct bio *bio,
-				       int mirror_num, unsigned long bio_flags,
-				       u64 bio_offset);
 
 typedef blk_status_t (extent_submit_bio_start_t)(void *private_data,
 		struct bio *bio, u64 bio_offset);
@@ -107,7 +104,9 @@ struct extent_io_ops {
 	 * The following callbacks must be always defined, the function
 	 * pointer will be called unconditionally.
 	 */
-	extent_submit_bio_hook_t *submit_bio_hook;
+	blk_status_t (*submit_bio_hook)(void *private_data, struct bio *bio,
+					int mirror_num, unsigned long bio_flags,
+					u64 bio_offset);
 	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
 				    struct page *page, u64 start, u64 end,
 				    int mirror);
