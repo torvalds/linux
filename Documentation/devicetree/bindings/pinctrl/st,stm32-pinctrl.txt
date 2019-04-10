@@ -57,6 +57,8 @@ Optional properties:
  - st,bank-ioport: should correspond to the EXTI IOport selection (EXTI line
    used to select GPIOs as interrupts).
  - hwlocks: reference to a phandle of a hardware spinlock provider node.
+ - st,package: Indicates the SOC package used.
+   More details in include/dt-bindings/pinctrl/stm32-pinfunc.h
 
 Example 1:
 #include <dt-bindings/pinctrl/stm32f429-pinfunc.h>
