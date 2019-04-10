@@ -369,24 +369,41 @@ static i915_reg_t gen6_pm_iir(struct drm_i915_private *dev_priv)
 	return INTEL_GEN(dev_priv) >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
 }
 
-static i915_reg_t gen6_pm_imr(struct drm_i915_private *dev_priv)
+static void write_pm_imr(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 11)
-		return GEN11_GPM_WGBOXPERF_INTR_MASK;
-	else if (INTEL_GEN(dev_priv) >= 8)
-		return GEN8_GT_IMR(2);
-	else
-		return GEN6_PMIMR;
+	i915_reg_t reg;
+	u32 mask = dev_priv->pm_imr;
+
+	if (INTEL_GEN(dev_priv) >= 11) {
+		reg = GEN11_GPM_WGBOXPERF_INTR_MASK;
+		/* pm is in upper half */
+		mask = mask << 16;
+	} else if (INTEL_GEN(dev_priv) >= 8) {
+		reg = GEN8_GT_IMR(2);
+	} else {
+		reg = GEN6_PMIMR;
+	}
+
+	I915_WRITE(reg, mask);
+	POSTING_READ(reg);
 }
 
-static i915_reg_t gen6_pm_ier(struct drm_i915_private *dev_priv)
+static void write_pm_ier(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 11)
-		return GEN11_GPM_WGBOXPERF_INTR_ENABLE;
-	else if (INTEL_GEN(dev_priv) >= 8)
-		return GEN8_GT_IER(2);
-	else
-		return GEN6_PMIER;
+	i915_reg_t reg;
+	u32 mask = dev_priv->pm_ier;
+
+	if (INTEL_GEN(dev_priv) >= 11) {
+		reg = GEN11_GPM_WGBOXPERF_INTR_ENABLE;
+		/* pm is in upper half */
+		mask = mask << 16;
+	} else if (INTEL_GEN(dev_priv) >= 8) {
+		reg = GEN8_GT_IER(2);
+	} else {
+		reg = GEN6_PMIER;
+	}
+
+	I915_WRITE(reg, mask);
 }
 
 /**
@@ -411,8 +428,7 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	if (new_val != dev_priv->pm_imr) {
 		dev_priv->pm_imr = new_val;
-		I915_WRITE(gen6_pm_imr(dev_priv), dev_priv->pm_imr);
-		POSTING_READ(gen6_pm_imr(dev_priv));
+		write_pm_imr(dev_priv);
 	}
 }
 
@@ -453,7 +469,7 @@ static void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, u32 enable_mas
 	lockdep_assert_held(&dev_priv->irq_lock);
 
 	dev_priv->pm_ier |= enable_mask;
-	I915_WRITE(gen6_pm_ier(dev_priv), dev_priv->pm_ier);
+	write_pm_ier(dev_priv);
 	gen6_unmask_pm_irq(dev_priv, enable_mask);
 	/* unmask_pm_irq provides an implicit barrier (POSTING_READ) */
 }
@@ -464,7 +480,7 @@ static void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, u32 disable_m
 
 	dev_priv->pm_ier &= ~disable_mask;
 	__gen6_mask_pm_irq(dev_priv, disable_mask);
-	I915_WRITE(gen6_pm_ier(dev_priv), dev_priv->pm_ier);
+	write_pm_ier(dev_priv);
 	/* though a barrier is missing here, but don't really need a one */
 }
 
@@ -4638,6 +4654,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev_priv->pm_rps_events = (GEN6_PM_RP_UP_THRESHOLD |
 					   GEN6_PM_RP_DOWN_THRESHOLD |
 					   GEN6_PM_RP_DOWN_TIMEOUT);
+
+	/* We share the register with other engine */
+	if (INTEL_GEN(dev_priv) > 9)
+		GEM_WARN_ON(dev_priv->pm_rps_events & 0xffff0000);
 
 	rps->pm_intrmsk_mbz = 0;
 

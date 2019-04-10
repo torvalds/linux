@@ -8704,6 +8704,11 @@ enum {
 #define GEN6_PMIER				_MMIO(0x4402C)
 #define  GEN6_PM_MBOX_EVENT			(1 << 25)
 #define  GEN6_PM_THERMAL_EVENT			(1 << 24)
+
+/*
+ * For Gen11 these are in the upper word of the GPM_WGBOXPERF
+ * registers. Shifting is handled on accessing the imr and ier.
+ */
 #define  GEN6_PM_RP_DOWN_TIMEOUT		(1 << 6)
 #define  GEN6_PM_RP_UP_THRESHOLD		(1 << 5)
 #define  GEN6_PM_RP_DOWN_THRESHOLD		(1 << 4)
