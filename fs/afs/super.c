@@ -33,6 +33,7 @@ static void afs_i_init_once(void *foo);
 static void afs_kill_super(struct super_block *sb);
 static struct inode *afs_alloc_inode(struct super_block *sb);
 static void afs_destroy_inode(struct inode *inode);
+static void afs_free_inode(struct inode *inode);
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int afs_show_devname(struct seq_file *m, struct dentry *root);
 static int afs_show_options(struct seq_file *m, struct dentry *root);
@@ -56,6 +57,7 @@ static const struct super_operations afs_super_ops = {
 	.alloc_inode	= afs_alloc_inode,
 	.drop_inode	= afs_drop_inode,
 	.destroy_inode	= afs_destroy_inode,
+	.free_inode	= afs_free_inode,
 	.evict_inode	= afs_evict_inode,
 	.show_devname	= afs_show_devname,
 	.show_options	= afs_show_options,
@@ -660,11 +662,9 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	return &vnode->vfs_inode;
 }
 
-static void afs_i_callback(struct rcu_head *head)
+static void afs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	kmem_cache_free(afs_inode_cachep, vnode);
+	kmem_cache_free(afs_inode_cachep, AFS_FS_I(inode));
 }
 
 /*
@@ -680,7 +680,6 @@ static void afs_destroy_inode(struct inode *inode)
 
 	ASSERTCMP(vnode->cb_interest, ==, NULL);
 
-	call_rcu(&inode->i_rcu, afs_i_callback);
 	atomic_dec(&afs_count_active_inodes);
 }
 
