@@ -3025,14 +3025,8 @@ gen11_gt_bank_handler(struct drm_i915_private * const i915,
 
 	intr_dw = raw_reg_read(regs, GEN11_GT_INTR_DW(bank));
 
-	if (unlikely(!intr_dw)) {
-		DRM_ERROR("GT_INTR_DW%u blank!\n", bank);
-		return;
-	}
-
 	for_each_set_bit(bit, &intr_dw, 32) {
-		const u32 ident = gen11_gt_engine_identity(i915,
-							   bank, bit);
+		const u32 ident = gen11_gt_engine_identity(i915, bank, bit);
 
 		gen11_gt_identity_handler(i915, ident);
 	}
