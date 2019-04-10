@@ -1836,7 +1836,7 @@ static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
 	struct pnv_ioda_pe *pe;
 
 	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
-		return -ENODEV;
+		return false;
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
 	if (pe->tce_bypass_enabled) {
@@ -1859,7 +1859,7 @@ static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
 		/* Configure the bypass mode */
 		s64 rc = pnv_pci_ioda_dma_64bit_bypass(pe);
 		if (rc)
-			return rc;
+			return false;
 		/* 4GB offset bypasses 32-bit space */
 		pdev->dev.archdata.dma_offset = (1ULL << 32);
 		return true;
