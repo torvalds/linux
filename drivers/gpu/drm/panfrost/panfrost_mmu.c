@@ -137,6 +137,14 @@ static void mmu_disable(struct panfrost_device *pfdev, u32 as_nr)
 	write_cmd(pfdev, as_nr, AS_COMMAND_UPDATE);
 }
 
+static size_t get_pgsize(u64 addr, size_t size)
+{
+	if (addr & (SZ_2M - 1) || size < SZ_2M)
+		return SZ_4K;
+
+	return SZ_2M;
+}
+
 int panfrost_mmu_map(struct panfrost_gem_object *bo)
 {
 	struct drm_gem_object *obj = &bo->base.base;
@@ -165,10 +173,12 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 		dev_dbg(pfdev->dev, "map: iova=%llx, paddr=%lx, len=%zx", iova, paddr, len);
 
 		while (len) {
-			ops->map(ops, iova, paddr, SZ_4K, IOMMU_WRITE | IOMMU_READ);
-			iova += SZ_4K;
-			paddr += SZ_4K;
-			len -= SZ_4K;
+			size_t pgsize = get_pgsize(iova | paddr, len);
+
+			ops->map(ops, iova, paddr, pgsize, IOMMU_WRITE | IOMMU_READ);
+			iova += pgsize;
+			paddr += pgsize;
+			len -= pgsize;
 		}
 	}
 
@@ -202,9 +212,15 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	mutex_lock(&pfdev->mmu->lock);
 
 	while (unmapped_len < len) {
-		ops->unmap(ops, iova, SZ_4K);
-		iova += SZ_4K;
-		unmapped_len += SZ_4K;
+		size_t unmapped_page;
+		size_t pgsize = get_pgsize(iova, len - unmapped_len);
+
+		unmapped_page = ops->unmap(ops, iova, pgsize);
+		if (!unmapped_page)
+			break;
+
+		iova += unmapped_page;
+		unmapped_len += unmapped_page;
 	}
 
 	mmu_hw_do_operation(pfdev, 0, bo->node.start << PAGE_SHIFT,
@@ -342,7 +358,7 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 	mmu_write(pfdev, MMU_INT_MASK, ~0);
 
 	pfdev->mmu->pgtbl_cfg = (struct io_pgtable_cfg) {
-		.pgsize_bitmap	= SZ_4K, // | SZ_2M | SZ_1G),
+		.pgsize_bitmap	= SZ_4K | SZ_2M,
 		.ias		= FIELD_GET(0xff, pfdev->features.mmu_features),
 		.oas		= FIELD_GET(0xff00, pfdev->features.mmu_features),
 		.tlb		= &mmu_tlb_ops,
