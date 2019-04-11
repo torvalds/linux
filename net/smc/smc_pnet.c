@@ -603,7 +603,8 @@ static int smc_pnet_flush(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
 
-	return smc_pnet_remove_by_pnetid(net, NULL);
+	smc_pnet_remove_by_pnetid(net, NULL);
+	return 0;
 }
 
 /* SMC_PNETID generic netlink operation definition */
