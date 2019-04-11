@@ -336,8 +336,7 @@ static void fl_mask_free_work(struct work_struct *work)
 	fl_mask_free(mask);
 }
 
-static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask,
-			bool async)
+static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask)
 {
 	if (!refcount_dec_and_test(&mask->refcnt))
 		return false;
@@ -348,10 +347,7 @@ static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask,
 	list_del_rcu(&mask->list);
 	spin_unlock(&head->masks_lock);
 
-	if (async)
-		tcf_queue_work(&mask->rwork, fl_mask_free_work);
-	else
-		fl_mask_free(mask);
+	tcf_queue_work(&mask->rwork, fl_mask_free_work);
 
 	return true;
 }
@@ -538,7 +534,6 @@ static int __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
 		       struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = fl_head_dereference(tp);
-	bool async = tcf_exts_get_net(&f->exts);
 
 	*last = false;
 
@@ -555,7 +550,7 @@ static int __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
 	list_del_rcu(&f->list);
 	spin_unlock(&tp->lock);
 
-	*last = fl_mask_put(head, f->mask, async);
+	*last = fl_mask_put(head, f->mask);
 	if (!tc_skip_hw(f->flags))
 		fl_hw_destroy_filter(tp, f, rtnl_held, extack);
 	tcf_unbind_filter(tp, &f->res);
@@ -1605,11 +1600,10 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 
 		spin_unlock(&tp->lock);
 
-		fl_mask_put(head, fold->mask, true);
+		fl_mask_put(head, fold->mask);
 		if (!tc_skip_hw(fold->flags))
 			fl_hw_destroy_filter(tp, fold, rtnl_held, NULL);
 		tcf_unbind_filter(tp, &fold->res);
-		tcf_exts_get_net(&fold->exts);
 		/* Caller holds reference to fold, so refcnt is always > 0
 		 * after this.
 		 */
@@ -1657,8 +1651,9 @@ errout_ht:
 		rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_node,
 				       fnew->mask->filter_ht_params);
 errout_mask:
-	fl_mask_put(head, fnew->mask, true);
+	fl_mask_put(head, fnew->mask);
 errout:
+	tcf_exts_get_net(&fnew->exts);
 	tcf_queue_work(&fnew->rwork, fl_destroy_filter_work);
 errout_tb:
 	kfree(tb);
