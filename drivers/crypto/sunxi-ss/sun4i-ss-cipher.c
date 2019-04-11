@@ -533,13 +533,12 @@ int sun4i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			 unsigned int keylen)
 {
 	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
-	struct sun4i_ss_ctx *ss = op->ss;
+	int err;
 
-	if (unlikely(keylen != 3 * DES_KEY_SIZE)) {
-		dev_err(ss->dev, "Invalid keylen %u\n", keylen);
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
+	err = des3_verify_key(tfm, key);
+	if (unlikely(err))
+		return err;
+
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
 	return 0;
