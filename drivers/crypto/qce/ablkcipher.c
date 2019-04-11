@@ -198,6 +198,25 @@ weakkey:
 	return -EINVAL;
 }
 
+static int qce_des3_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
+			   unsigned int keylen)
+{
+	struct qce_cipher_ctx *ctx = crypto_ablkcipher_ctx(ablk);
+	u32 flags;
+	int err;
+
+	flags = crypto_ablkcipher_get_flags(ablk);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(ablk, flags);
+		return err;
+	}
+
+	ctx->enc_keylen = keylen;
+	memcpy(ctx->enc_key, key, keylen);
+	return 0;
+}
+
 static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
 {
 	struct crypto_tfm *tfm =
@@ -363,7 +382,8 @@ static int qce_ablkcipher_register_one(const struct qce_ablkcipher_def *def,
 	alg->cra_ablkcipher.ivsize = def->ivsize;
 	alg->cra_ablkcipher.min_keysize = def->min_keysize;
 	alg->cra_ablkcipher.max_keysize = def->max_keysize;
-	alg->cra_ablkcipher.setkey = qce_ablkcipher_setkey;
+	alg->cra_ablkcipher.setkey = IS_3DES(def->flags) ?
+				     qce_des3_setkey : qce_ablkcipher_setkey;
 	alg->cra_ablkcipher.encrypt = qce_ablkcipher_encrypt;
 	alg->cra_ablkcipher.decrypt = qce_ablkcipher_decrypt;
 
