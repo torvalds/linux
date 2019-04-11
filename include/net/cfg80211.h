@@ -5578,7 +5578,7 @@ bool cfg80211_is_element_inherited(const struct element *element,
 size_t cfg80211_merge_profile(const u8 *ie, size_t ielen,
 			      const struct element *mbssid_elem,
 			      const struct element *sub_elem,
-			      u8 **merged_ie, size_t max_copy_len);
+			      u8 *merged_ie, size_t max_copy_len);
 
 /**
  * enum cfg80211_bss_frame_type - frame type that the BSS data came from

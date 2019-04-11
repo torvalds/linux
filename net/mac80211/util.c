@@ -1258,7 +1258,7 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 					    struct ieee802_11_elems *elems,
 					    u8 *transmitter_bssid,
 					    u8 *bss_bssid,
-					    u8 **nontransmitted_profile)
+					    u8 *nontransmitted_profile)
 {
 	const struct element *elem, *sub;
 	size_t profile_len = 0;
@@ -1290,7 +1290,7 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 				continue;
 			}
 
-			memset(*nontransmitted_profile, 0, len);
+			memset(nontransmitted_profile, 0, len);
 			profile_len = cfg80211_merge_profile(start, len,
 							     elem,
 							     sub,
@@ -1299,7 +1299,7 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 
 			/* found a Nontransmitted BSSID Profile */
 			index = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
-						 *nontransmitted_profile,
+						 nontransmitted_profile,
 						 profile_len);
 			if (!index || index[1] < 1 || index[2] == 0) {
 				/* Invalid MBSSID Index element */
@@ -1341,7 +1341,7 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			ieee802_11_find_bssid_profile(start, len, elems,
 						      transmitter_bssid,
 						      bss_bssid,
-						      &nontransmitted_profile);
+						      nontransmitted_profile);
 		non_inherit =
 			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
 					       nontransmitted_profile,
