@@ -958,7 +958,10 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
 	const bool is_bvec = iov_iter_is_bvec(iter);
-	unsigned short orig_vcnt = bio->bi_vcnt;
+	int ret;
+
+	if (WARN_ON_ONCE(bio->bi_vcnt))
+		return -EINVAL;
 
 	/*
 	 * If this is a BVEC iter, then the pages are kernel pages. Don't
@@ -968,19 +971,13 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 		bio_set_flag(bio, BIO_NO_PAGE_REF);
 
 	do {
-		int ret;
-
 		if (is_bvec)
 			ret = __bio_iov_bvec_add_pages(bio, iter);
 		else
 			ret = __bio_iov_iter_get_pages(bio, iter);
+	} while (!ret && iov_iter_count(iter) && !bio_full(bio));
 
-		if (unlikely(ret))
-			return bio->bi_vcnt > orig_vcnt ? 0 : ret;
-
-	} while (iov_iter_count(iter) && !bio_full(bio));
-
-	return 0;
+	return bio->bi_vcnt ? 0 : ret;
 }
 
 static void submit_bio_wait_endio(struct bio *bio)
