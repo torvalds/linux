@@ -288,24 +288,24 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 	tick = (unsigned long long)mc->tick * clk_get_rate(mc->clk);
 	do_div(tick, NSEC_PER_SEC);
 
-	value = readl(mc->regs + MC_EMEM_ARB_CFG);
+	value = mc_readl(mc, MC_EMEM_ARB_CFG);
 	value &= ~MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK;
 	value |= MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(tick);
-	writel(value, mc->regs + MC_EMEM_ARB_CFG);
+	mc_writel(mc, value, MC_EMEM_ARB_CFG);
 
 	/* write latency allowance defaults */
 	for (i = 0; i < mc->soc->num_clients; i++) {
 		const struct tegra_mc_la *la = &mc->soc->clients[i].la;
 		u32 value;
 
-		value = readl(mc->regs + la->reg);
+		value = mc_readl(mc, la->reg);
 		value &= ~(la->mask << la->shift);
 		value |= (la->def & la->mask) << la->shift;
-		writel(value, mc->regs + la->reg);
+		mc_writel(mc, value, la->reg);
 	}
 
 	/* latch new values */
-	writel(MC_TIMING_UPDATE, mc->regs + MC_TIMING_CONTROL);
+	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
 
 	return 0;
 }
