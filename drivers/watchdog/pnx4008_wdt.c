@@ -217,7 +217,8 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(&pnx4008_wdd, nowayout);
 	watchdog_set_restart_priority(&pnx4008_wdd, 128);
 
-	pnx4008_wdt_stop(&pnx4008_wdd);	/* disable for now */
+	if (readl(WDTIM_CTRL(wdt_base)) & COUNT_ENAB)
+		set_bit(WDOG_HW_RUNNING, &pnx4008_wdd.status);
 
 	ret = devm_watchdog_register_device(dev, &pnx4008_wdd);
 	if (ret < 0) {
