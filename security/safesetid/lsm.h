@@ -41,6 +41,7 @@ struct setuid_rule {
 
 struct setuid_ruleset {
 	DECLARE_HASHTABLE(rules, SETID_HASH_BITS);
+	char *policy_str;
 	struct rcu_head rcu;
 };
 

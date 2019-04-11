@@ -19,7 +19,7 @@
 
 #include "lsm.h"
 
-static DEFINE_SPINLOCK(policy_update_lock);
+static DEFINE_MUTEX(policy_update_lock);
 
 /*
  * In the case the input buffer contains one or more invalid UIDs, the kuid_t
@@ -67,6 +67,7 @@ static void __release_ruleset(struct rcu_head *rcu)
 
 	hash_for_each_safe(pol->rules, bucket, tmp, rule, next)
 		kfree(rule);
+	kfree(pol->policy_str);
 	kfree(pol);
 }
 
@@ -85,12 +86,18 @@ static ssize_t handle_policy_update(struct file *file,
 	pol = kmalloc(sizeof(struct setuid_ruleset), GFP_KERNEL);
 	if (!pol)
 		return -ENOMEM;
+	pol->policy_str = NULL;
 	hash_init(pol->rules);
 
 	p = buf = memdup_user_nul(ubuf, len);
 	if (IS_ERR(buf)) {
 		err = PTR_ERR(buf);
 		goto out_free_pol;
+	}
+	pol->policy_str = kstrdup(buf, GFP_KERNEL);
+	if (pol->policy_str == NULL) {
+		err = -ENOMEM;
+		goto out_free_buf;
 	}
 
 	/* policy lines, including the last one, end with \n */
@@ -135,10 +142,10 @@ out_free_rule:
 	 * What we really want here is an xchg() wrapper for RCU, but since that
 	 * doesn't currently exist, just use a spinlock for now.
 	 */
-	spin_lock(&policy_update_lock);
+	mutex_lock(&policy_update_lock);
 	rcu_swap_protected(safesetid_setuid_rules, pol,
 			   lockdep_is_held(&policy_update_lock));
-	spin_unlock(&policy_update_lock);
+	mutex_unlock(&policy_update_lock);
 	err = len;
 
 out_free_buf:
@@ -162,7 +169,27 @@ static ssize_t safesetid_file_write(struct file *file,
 	return handle_policy_update(file, buf, len);
 }
 
+static ssize_t safesetid_file_read(struct file *file, char __user *buf,
+				   size_t len, loff_t *ppos)
+{
+	ssize_t res = 0;
+	struct setuid_ruleset *pol;
+	const char *kbuf;
+
+	mutex_lock(&policy_update_lock);
+	pol = rcu_dereference_protected(safesetid_setuid_rules,
+					lockdep_is_held(&policy_update_lock));
+	if (pol) {
+		kbuf = pol->policy_str;
+		res = simple_read_from_buffer(buf, len, ppos,
+					      kbuf, strlen(kbuf));
+	}
+	mutex_unlock(&policy_update_lock);
+	return res;
+}
+
 static const struct file_operations safesetid_file_fops = {
+	.read = safesetid_file_read,
 	.write = safesetid_file_write,
 };
 
@@ -181,7 +208,7 @@ static int __init safesetid_init_securityfs(void)
 		goto error;
 	}
 
-	policy_file = securityfs_create_file("whitelist_policy", 0200,
+	policy_file = securityfs_create_file("whitelist_policy", 0600,
 			policy_dir, NULL, &safesetid_file_fops);
 	if (IS_ERR(policy_file)) {
 		ret = PTR_ERR(policy_file);
