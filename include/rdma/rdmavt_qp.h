@@ -83,7 +83,6 @@
  * RVT_S_WAIT_DMA - waiting for send DMA queue to drain before generating
  *                  next send completion entry not via send DMA
  * RVT_S_WAIT_PIO - waiting for a send buffer to be available
- * RVT_S_WAIT_PIO_DRAIN - waiting for a qp to drain pio packets
  * RVT_S_WAIT_TX - waiting for a struct verbs_txreq to be available
  * RVT_S_WAIT_DMA_DESC - waiting for DMA descriptors to be available
  * RVT_S_WAIT_KMEM - waiting for kernel memory to be available
