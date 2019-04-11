@@ -100,12 +100,10 @@ static void
 nouveau_dmem_free(struct hmm_devmem *devmem, struct page *page)
 {
 	struct nouveau_dmem_chunk *chunk;
-	struct nouveau_drm *drm;
 	unsigned long idx;
 
 	chunk = (void *)hmm_devmem_page_get_drvdata(page);
 	idx = page_to_pfn(page) - chunk->pfn_first;
-	drm = chunk->drm;
 
 	/*
 	 * FIXME:
@@ -456,11 +454,6 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
 	}
-	list_for_each_entry (chunk, &drm->dmem->chunk_empty, list) {
-		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
-		/* FIXME handle pin failure */
-		WARN_ON(ret);
-	}
 	mutex_unlock(&drm->dmem->mutex);
 }
 
@@ -477,9 +470,6 @@ nouveau_dmem_suspend(struct nouveau_drm *drm)
 		nouveau_bo_unpin(chunk->bo);
 	}
 	list_for_each_entry (chunk, &drm->dmem->chunk_full, list) {
-		nouveau_bo_unpin(chunk->bo);
-	}
-	list_for_each_entry (chunk, &drm->dmem->chunk_empty, list) {
 		nouveau_bo_unpin(chunk->bo);
 	}
 	mutex_unlock(&drm->dmem->mutex);
@@ -623,7 +613,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	 */
 	drm->dmem->devmem = hmm_devmem_add(&nouveau_dmem_devmem_ops,
 					   device, size);
-	if (drm->dmem->devmem == NULL) {
+	if (IS_ERR(drm->dmem->devmem)) {
 		kfree(drm->dmem);
 		drm->dmem = NULL;
 		return;

@@ -37,27 +37,27 @@
 	};
 
 	soc100 {
-		uart@FF100000 {
+		uart@ff100000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&pctl_uart0>;
 		};
-		ethernet@FE100000 {
+		ethernet@fe100000 {
 			phy-mode = "rgmii";
 		};
 
-		i2c0: i2c@FF120000 {
+		i2c0: i2c@ff120000 {
 			i2c-sda-hold-time-ns = <432>;
 		};
-		i2c1: i2c@FF121000 {
+		i2c1: i2c@ff121000 {
 			i2c-sda-hold-time-ns = <432>;
 		};
-		i2c2: i2c@FF122000 {
+		i2c2: i2c@ff122000 {
 			i2c-sda-hold-time-ns = <432>;
 		};
-		i2c3: i2c@FF123000 {
+		i2c3: i2c@ff123000 {
 			i2c-sda-hold-time-ns = <432>;
 		};
-		i2c4: i2c@FF124000 {
+		i2c4: i2c@ff124000 {
 			i2c-sda-hold-time-ns = <432>;
 		};
 

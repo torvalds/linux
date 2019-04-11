@@ -223,11 +223,11 @@ int wilco_ec_mailbox(struct wilco_ec_device *ec, struct wilco_ec_message *msg)
 		msg->command, msg->type, msg->flags, msg->response_size,
 		msg->request_size);
 
+	mutex_lock(&ec->mailbox_lock);
 	/* Prepare request packet */
 	rq = ec->data_buffer;
 	wilco_ec_prepare(msg, rq);
 
-	mutex_lock(&ec->mailbox_lock);
 	ret = wilco_ec_transfer(ec, msg, rq);
 	mutex_unlock(&ec->mailbox_lock);
 

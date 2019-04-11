@@ -208,6 +208,7 @@ static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
 {
 	struct fanotify_event_info_fid info = { };
 	struct file_handle handle = { };
+	unsigned char bounce[FANOTIFY_INLINE_FH_LEN], *fh;
 	size_t fh_len = event->fh_len;
 	size_t len = fanotify_event_info_len(event);
 
@@ -233,7 +234,16 @@ static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
 
 	buf += sizeof(handle);
 	len -= sizeof(handle);
-	if (copy_to_user(buf, fanotify_event_fh(event), fh_len))
+	/*
+	 * For an inline fh, copy through stack to exclude the copy from
+	 * usercopy hardening protections.
+	 */
+	fh = fanotify_event_fh(event);
+	if (fh_len <= FANOTIFY_INLINE_FH_LEN) {
+		memcpy(bounce, fh, fh_len);
+		fh = bounce;
+	}
+	if (copy_to_user(buf, fh, fh_len))
 		return -EFAULT;
 
 	/* Pad with 0's */

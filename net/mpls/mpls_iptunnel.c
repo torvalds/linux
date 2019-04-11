@@ -140,9 +140,15 @@ static int mpls_xmit(struct sk_buff *skb)
 	if (rt)
 		err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gateway,
 				 skb);
-	else if (rt6)
-		err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt6->rt6i_gateway,
-				 skb);
+	else if (rt6) {
+		if (ipv6_addr_v4mapped(&rt6->rt6i_gateway)) {
+			/* 6PE (RFC 4798) */
+			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt6->rt6i_gateway.s6_addr32[3],
+					 skb);
+		} else
+			err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt6->rt6i_gateway,
+					 skb);
+	}
 	if (err)
 		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
 				    __func__, err);

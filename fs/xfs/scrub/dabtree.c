@@ -574,6 +574,11 @@ xchk_da_btree(
 		/* Drill another level deeper. */
 		blkno = be32_to_cpu(key->before);
 		level++;
+		if (level >= XFS_DA_NODE_MAXDEPTH) {
+			/* Too deep! */
+			xchk_da_set_corrupt(&ds, level - 1);
+			break;
+		}
 		ds.tree_level--;
 		error = xchk_da_btree_block(&ds, level, blkno);
 		if (error)

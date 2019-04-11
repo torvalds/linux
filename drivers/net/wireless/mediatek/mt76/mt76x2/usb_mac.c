@@ -93,7 +93,6 @@ int mt76x2u_mac_reset(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_TX_LINK_CFG, 0x1020);
 	mt76_wr(dev, MT_AUTO_RSP_CFG, 0x13);
 	mt76_wr(dev, MT_MAX_LEN_CFG, 0x2f00);
-	mt76_wr(dev, MT_TX_RTS_CFG, 0x92b20);
 
 	mt76_wr(dev, MT_WMM_AIFSN, 0x2273);
 	mt76_wr(dev, MT_WMM_CWMIN, 0x2344);

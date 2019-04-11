@@ -105,8 +105,7 @@ static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 		 opcode, MLX5_CMD_OP_MODIFY_NIC_VPORT_CONTEXT);
 	MLX5_SET(modify_nic_vport_context_in, in, field_select.change_event, 1);
 	MLX5_SET(modify_nic_vport_context_in, in, vport_number, vport);
-	if (vport)
-		MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
+	MLX5_SET(modify_nic_vport_context_in, in, other_vport, 1);
 	nic_vport_ctx = MLX5_ADDR_OF(modify_nic_vport_context_in,
 				     in, nic_vport_context);
 
@@ -134,8 +133,7 @@ static int modify_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
 	MLX5_SET(modify_esw_vport_context_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_ESW_VPORT_CONTEXT);
 	MLX5_SET(modify_esw_vport_context_in, in, vport_number, vport);
-	if (vport)
-		MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
+	MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
 	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 
@@ -430,6 +428,8 @@ static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw)
 static int esw_create_legacy_table(struct mlx5_eswitch *esw)
 {
 	int err;
+
+	memset(&esw->fdb_table.legacy, 0, sizeof(struct legacy_fdb));
 
 	err = esw_create_legacy_vepa_table(esw);
 	if (err)
@@ -2157,6 +2157,7 @@ static int _mlx5_eswitch_set_vepa_locked(struct mlx5_eswitch *esw,
 
 	/* Star rule to forward all traffic to uplink vport */
 	memset(spec, 0, sizeof(*spec));
+	memset(&dest, 0, sizeof(dest));
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport.num = MLX5_VPORT_UPLINK;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;

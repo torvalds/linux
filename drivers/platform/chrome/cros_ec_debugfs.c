@@ -440,7 +440,7 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 
 	ret = cros_ec_create_pdinfo(debug_info);
 	if (ret)
-		goto remove_debugfs;
+		goto remove_log;
 
 	ec->debug_info = debug_info;
 
@@ -448,6 +448,8 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 
 	return 0;
 
+remove_log:
+	cros_ec_cleanup_console_log(debug_info);
 remove_debugfs:
 	debugfs_remove_recursive(debug_info->dir);
 	return ret;
@@ -467,7 +469,8 @@ static int __maybe_unused cros_ec_debugfs_suspend(struct device *dev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(dev);
 
-	cancel_delayed_work_sync(&ec->debug_info->log_poll_work);
+	if (ec->debug_info->log_buffer.buf)
+		cancel_delayed_work_sync(&ec->debug_info->log_poll_work);
 
 	return 0;
 }
@@ -476,7 +479,8 @@ static int __maybe_unused cros_ec_debugfs_resume(struct device *dev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(dev);
 
-	schedule_delayed_work(&ec->debug_info->log_poll_work, 0);
+	if (ec->debug_info->log_buffer.buf)
+		schedule_delayed_work(&ec->debug_info->log_poll_work, 0);
 
 	return 0;
 }
