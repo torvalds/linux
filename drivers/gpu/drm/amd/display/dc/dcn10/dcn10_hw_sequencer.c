@@ -1123,6 +1123,7 @@ static void dcn10_init_hw(struct dc *dc)
 			struct hubp *hubp = dc->res_pool->hubps[i];
 			struct dpp *dpp = dc->res_pool->dpps[i];
 
+			hubp->funcs->hubp_init(hubp);
 			dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
 			plane_atomic_power_down(dc, dpp, hubp);
 		}
