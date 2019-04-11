@@ -167,10 +167,9 @@ static int smc_release(struct socket *sock)
 
 	if (sk->sk_state == SMC_CLOSED) {
 		if (smc->clcsock) {
-			mutex_lock(&smc->clcsock_release_lock);
-			sock_release(smc->clcsock);
-			smc->clcsock = NULL;
-			mutex_unlock(&smc->clcsock_release_lock);
+			release_sock(sk);
+			smc_clcsock_release(smc);
+			lock_sock(sk);
 		}
 		if (!smc->use_fallback)
 			smc_conn_free(&smc->conn);
@@ -1037,13 +1036,13 @@ static void smc_listen_out(struct smc_sock *new_smc)
 	struct smc_sock *lsmc = new_smc->listen_smc;
 	struct sock *newsmcsk = &new_smc->sk;
 
-	lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
+		lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);
+		release_sock(&lsmc->sk);
 	} else { /* no longer listening */
 		smc_close_non_accepted(newsmcsk);
 	}
-	release_sock(&lsmc->sk);
 
 	/* Wake up accept */
 	lsmc->sk.sk_data_ready(&lsmc->sk);
@@ -1236,6 +1235,9 @@ static void smc_listen_work(struct work_struct *work)
 	int reason_code = 0;
 	int rc = 0;
 	u8 ibport;
+
+	if (new_smc->listen_smc->sk.sk_state != SMC_LISTEN)
+		return smc_listen_out_err(new_smc);
 
 	if (new_smc->use_fallback) {
 		smc_listen_out_connected(new_smc);
