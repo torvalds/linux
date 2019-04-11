@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -394,8 +395,12 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		pdata->irq = -1;
 	}
 
-	if (pdata->irq >= 0)
+	if (pdata->irq >= 0) {
 		device_init_wakeup(&pdev->dev, 1);
+		ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irq);
+		if (ret)
+			dev_err(&pdev->dev, "failed to enable irq wake\n");
+	}
 
 	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
 				  THIS_MODULE);
@@ -426,35 +431,10 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mxc_rtc_suspend(struct device *dev)
-{
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(pdata->irq);
-
-	return 0;
-}
-
-static int mxc_rtc_resume(struct device *dev)
-{
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		disable_irq_wake(pdata->irq);
-
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
-
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
 		   .of_match_table = of_match_ptr(imx_rtc_dt_ids),
-		   .pm		= &mxc_rtc_pm_ops,
 	},
 	.id_table = imx_rtc_devtype,
 	.probe = mxc_rtc_probe,
