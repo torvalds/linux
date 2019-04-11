@@ -216,7 +216,6 @@ struct registry_priv
 #define BSSID_SZ(field)   sizeof(((struct wlan_bssid_ex *) 0)->field)
 
 #include <drv_types_sdio.h>
-#define INTF_DATA SDIO_DATA
 
 #define is_primary_adapter(adapter) (1)
 #define get_iface_type(adapter) (IFACE_PORT0)
@@ -472,9 +471,8 @@ struct dvobj_priv
 
 /*-------- below is for SDIO INTERFACE --------*/
 
-#ifdef INTF_DATA
-	INTF_DATA intf_data;
-#endif
+struct sdio_data intf_data;
+
 };
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))

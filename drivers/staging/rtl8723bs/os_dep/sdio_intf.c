@@ -74,7 +74,7 @@ static void sd_sync_int_hdl(struct sdio_func *func)
 
 static int sdio_alloc_irq(struct dvobj_priv *dvobj)
 {
-	PSDIO_DATA psdio_data;
+	struct sdio_data *psdio_data;
 	struct sdio_func *func;
 	int err;
 
@@ -102,7 +102,7 @@ static int sdio_alloc_irq(struct dvobj_priv *dvobj)
 
 static void sdio_free_irq(struct dvobj_priv *dvobj)
 {
-    PSDIO_DATA psdio_data;
+    struct sdio_data *psdio_data;
     struct sdio_func *func;
     int err;
 
@@ -176,7 +176,7 @@ static void gpio_hostwakeup_free_irq(struct adapter *padapter)
 
 static u32 sdio_init(struct dvobj_priv *dvobj)
 {
-	PSDIO_DATA psdio_data;
+	struct sdio_data *psdio_data;
 	struct sdio_func *func;
 	int err;
 
@@ -248,7 +248,7 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 {
 	int status = _FAIL;
 	struct dvobj_priv *dvobj = NULL;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	dvobj = devobj_init();
 	if (dvobj == NULL) {
@@ -327,7 +327,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	int status = _FAIL;
 	struct net_device *pnetdev;
 	struct adapter *padapter = NULL;
-	PSDIO_DATA psdio = &dvobj->intf_data;
+	struct sdio_data *psdio = &dvobj->intf_data;
 
 	padapter = vzalloc(sizeof(*padapter));
 	if (padapter == NULL) {

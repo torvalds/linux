@@ -425,7 +425,7 @@ static u32 sdio_read_port(
 )
 {
 	struct adapter *adapter;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 	struct hal_com_data *hal;
 	u32 oldcnt;
 	s32 err;
@@ -473,7 +473,7 @@ static u32 sdio_write_port(
 )
 {
 	struct adapter *adapter;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 	s32 err;
 	struct xmit_buf *xmitbuf = (struct xmit_buf *)mem;
 
@@ -1207,7 +1207,7 @@ u8 RecvOnePkt(struct adapter *adapter, u32 size)
 {
 	struct recv_buf *recvbuf;
 	struct dvobj_priv *sddev;
-	PSDIO_DATA psdio_data;
+	struct sdio_data *psdio;
 	struct sdio_func *func;
 
 	u8 res = false;
