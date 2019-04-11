@@ -16,7 +16,7 @@
 ENTRY(armada_38x_scu_power_up)
 	mrc     p15, 4, r1, c15, c0	@ get SCU base address
 	orr	r1, r1, #0x8		@ SCU CPU Power Status Register
-	mrc	15, 0, r0, cr0, cr0, 5	@ get the CPU ID
+	mrc	p15, 0, r0, cr0, cr0, 5	@ get the CPU ID
 	and	r0, r0, #15
 	add	r1, r1, r0
 	mov	r0, #0x0
