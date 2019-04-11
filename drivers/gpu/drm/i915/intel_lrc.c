@@ -893,96 +893,6 @@ invalidate_csb_entries(const u32 *first, const u32 *last)
 	clflush((void *)last);
 }
 
-static void reset_csb_pointers(struct intel_engine_execlists *execlists)
-{
-	const unsigned int reset_value = execlists->csb_size - 1;
-
-	/*
-	 * After a reset, the HW starts writing into CSB entry [0]. We
-	 * therefore have to set our HEAD pointer back one entry so that
-	 * the *first* entry we check is entry 0. To complicate this further,
-	 * as we don't wait for the first interrupt after reset, we have to
-	 * fake the HW write to point back to the last entry so that our
-	 * inline comparison of our cached head position against the last HW
-	 * write works even before the first interrupt.
-	 */
-	execlists->csb_head = reset_value;
-	WRITE_ONCE(*execlists->csb_write, reset_value);
-
-	invalidate_csb_entries(&execlists->csb_status[0],
-			       &execlists->csb_status[GEN8_CSB_ENTRIES - 1]);
-}
-
-static void nop_submission_tasklet(unsigned long data)
-{
-	/* The driver is wedged; don't process any more events. */
-}
-
-static void execlists_cancel_requests(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct i915_request *rq, *rn;
-	struct rb_node *rb;
-	unsigned long flags;
-
-	GEM_TRACE("%s\n", engine->name);
-
-	/*
-	 * Before we call engine->cancel_requests(), we should have exclusive
-	 * access to the submission state. This is arranged for us by the
-	 * caller disabling the interrupt generation, the tasklet and other
-	 * threads that may then access the same state, giving us a free hand
-	 * to reset state. However, we still need to let lockdep be aware that
-	 * we know this state may be accessed in hardirq context, so we
-	 * disable the irq around this manipulation and we want to keep
-	 * the spinlock focused on its duties and not accidentally conflate
-	 * coverage to the submission's irq state. (Similarly, although we
-	 * shouldn't need to disable irq around the manipulation of the
-	 * submission's irq state, we also wish to remind ourselves that
-	 * it is irq state.)
-	 */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
-
-	/* Cancel the requests on the HW and clear the ELSP tracker. */
-	execlists_cancel_port_requests(execlists);
-	execlists_user_end(execlists);
-
-	/* Mark all executing requests as skipped. */
-	list_for_each_entry(rq, &engine->timeline.requests, link) {
-		if (!i915_request_signaled(rq))
-			dma_fence_set_error(&rq->fence, -EIO);
-
-		i915_request_mark_complete(rq);
-	}
-
-	/* Flush the queued requests to the timeline list (for retiring). */
-	while ((rb = rb_first_cached(&execlists->queue))) {
-		struct i915_priolist *p = to_priolist(rb);
-		int i;
-
-		priolist_for_each_request_consume(rq, rn, p, i) {
-			list_del_init(&rq->sched.link);
-			__i915_request_submit(rq);
-			dma_fence_set_error(&rq->fence, -EIO);
-			i915_request_mark_complete(rq);
-		}
-
-		rb_erase_cached(&p->node, &execlists->queue);
-		i915_priolist_free(p);
-	}
-
-	/* Remaining _unready_ requests will be nop'ed when submitted */
-
-	execlists->queue_priority_hint = INT_MIN;
-	execlists->queue = RB_ROOT_CACHED;
-	GEM_BUG_ON(port_isset(execlists->port));
-
-	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
-	execlists->tasklet.func = nop_submission_tasklet;
-
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
-}
-
 static inline bool
 reset_in_progress(const struct intel_engine_execlists *execlists)
 {
@@ -1152,7 +1062,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	 * the wash as hardware, working or not, will need to do the
 	 * invalidation before.
 	 */
-	invalidate_csb_entries(&buf[0], &buf[GEN8_CSB_ENTRIES - 1]);
+	invalidate_csb_entries(&buf[0], &buf[num_entries - 1]);
 }
 
 static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
@@ -1921,7 +1831,6 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 
 	/* And flush any current direct submission. */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-	process_csb(engine); /* drain preemption events */
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
@@ -1942,14 +1851,47 @@ static bool lrc_regs_ok(const struct i915_request *rq)
 	return true;
 }
 
-static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
+static void reset_csb_pointers(struct intel_engine_execlists *execlists)
+{
+	const unsigned int reset_value = execlists->csb_size - 1;
+
+	/*
+	 * After a reset, the HW starts writing into CSB entry [0]. We
+	 * therefore have to set our HEAD pointer back one entry so that
+	 * the *first* entry we check is entry 0. To complicate this further,
+	 * as we don't wait for the first interrupt after reset, we have to
+	 * fake the HW write to point back to the last entry so that our
+	 * inline comparison of our cached head position against the last HW
+	 * write works even before the first interrupt.
+	 */
+	execlists->csb_head = reset_value;
+	WRITE_ONCE(*execlists->csb_write, reset_value);
+
+	invalidate_csb_entries(&execlists->csb_status[0],
+			       &execlists->csb_status[reset_value]);
+}
+
+static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct intel_context *ce;
 	struct i915_request *rq;
-	unsigned long flags;
 	u32 *regs;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	process_csb(engine); /* drain preemption events */
+
+	/* Following the reset, we need to reload the CSB read/write pointers */
+	reset_csb_pointers(&engine->execlists);
+
+	/*
+	 * Save the currently executing context, even if we completed
+	 * its request, it was still running at the time of the
+	 * reset and will have been clobbered.
+	 */
+	if (!port_isset(execlists->port))
+		goto out_clear;
+
+	ce = port_request(execlists->port)->hw_context;
 
 	/*
 	 * Catch up with any missed context-switch interrupts.
@@ -1964,12 +1906,13 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 	/* Push back any incomplete requests for replay after the reset. */
 	rq = __unwind_incomplete_requests(engine);
-
-	/* Following the reset, we need to reload the CSB read/write pointers */
-	reset_csb_pointers(&engine->execlists);
-
 	if (!rq)
-		goto out_unlock;
+		goto out_replay;
+
+	if (rq->hw_context != ce) { /* caught just before a CS event */
+		rq = NULL;
+		goto out_replay;
+	}
 
 	/*
 	 * If this request hasn't started yet, e.g. it is waiting on a
@@ -1984,7 +1927,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * perfectly and we do not need to flag the result as being erroneous.
 	 */
 	if (!i915_request_started(rq) && lrc_regs_ok(rq))
-		goto out_unlock;
+		goto out_replay;
 
 	/*
 	 * If the request was innocent, we leave the request in the ELSP
@@ -1999,7 +1942,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 */
 	i915_reset_request(rq, stalled);
 	if (!stalled && lrc_regs_ok(rq))
-		goto out_unlock;
+		goto out_replay;
 
 	/*
 	 * We want a simple context + ring to execute the breadcrumb update.
@@ -2009,21 +1952,103 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	regs = rq->hw_context->lrc_reg_state;
+	regs = ce->lrc_reg_state;
 	if (engine->pinned_default_state) {
 		memcpy(regs, /* skip restoring the vanilla PPHWSP */
 		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
 		       engine->context_size - PAGE_SIZE);
 	}
+	execlists_init_reg_state(regs, ce, engine, ce->ring);
 
 	/* Rerun the request; its payload has been neutered (if guilty). */
-	rq->ring->head = intel_ring_wrap(rq->ring, rq->head);
-	intel_ring_update_space(rq->ring);
+out_replay:
+	ce->ring->head =
+		rq ? intel_ring_wrap(ce->ring, rq->head) : ce->ring->tail;
+	intel_ring_update_space(ce->ring);
+	__execlists_update_reg_state(ce, engine);
 
-	execlists_init_reg_state(regs, rq->hw_context, engine, rq->ring);
-	__execlists_update_reg_state(rq->hw_context, engine);
+out_clear:
+	execlists_clear_all_active(execlists);
+}
 
-out_unlock:
+static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
+{
+	unsigned long flags;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	__execlists_reset(engine, stalled);
+
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+static void nop_submission_tasklet(unsigned long data)
+{
+	/* The driver is wedged; don't process any more events. */
+}
+
+static void execlists_cancel_requests(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *rq, *rn;
+	struct rb_node *rb;
+	unsigned long flags;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	/*
+	 * Before we call engine->cancel_requests(), we should have exclusive
+	 * access to the submission state. This is arranged for us by the
+	 * caller disabling the interrupt generation, the tasklet and other
+	 * threads that may then access the same state, giving us a free hand
+	 * to reset state. However, we still need to let lockdep be aware that
+	 * we know this state may be accessed in hardirq context, so we
+	 * disable the irq around this manipulation and we want to keep
+	 * the spinlock focused on its duties and not accidentally conflate
+	 * coverage to the submission's irq state. (Similarly, although we
+	 * shouldn't need to disable irq around the manipulation of the
+	 * submission's irq state, we also wish to remind ourselves that
+	 * it is irq state.)
+	 */
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	__execlists_reset(engine, true);
+
+	/* Mark all executing requests as skipped. */
+	list_for_each_entry(rq, &engine->timeline.requests, link) {
+		if (!i915_request_signaled(rq))
+			dma_fence_set_error(&rq->fence, -EIO);
+
+		i915_request_mark_complete(rq);
+	}
+
+	/* Flush the queued requests to the timeline list (for retiring). */
+	while ((rb = rb_first_cached(&execlists->queue))) {
+		struct i915_priolist *p = to_priolist(rb);
+		int i;
+
+		priolist_for_each_request_consume(rq, rn, p, i) {
+			list_del_init(&rq->sched.link);
+			__i915_request_submit(rq);
+			dma_fence_set_error(&rq->fence, -EIO);
+			i915_request_mark_complete(rq);
+		}
+
+		rb_erase_cached(&p->node, &execlists->queue);
+		i915_priolist_free(p);
+	}
+
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	execlists->queue_priority_hint = INT_MIN;
+	execlists->queue = RB_ROOT_CACHED;
+	GEM_BUG_ON(port_isset(execlists->port));
+
+	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
+	execlists->tasklet.func = nop_submission_tasklet;
+
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
