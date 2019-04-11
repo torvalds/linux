@@ -2494,7 +2494,7 @@ qla2x00_logout_iocb(srb_t *sp, struct mbx_entry *mbx)
 	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
 	mbx->mb0 = cpu_to_le16(MBC_LOGOUT_FABRIC_PORT);
 	mbx->mb1 = HAS_EXTENDED_IDS(ha) ?
-	    cpu_to_le16(sp->fcport->loop_id):
+	    cpu_to_le16(sp->fcport->loop_id) :
 	    cpu_to_le16(sp->fcport->loop_id << 8);
 	mbx->mb2 = cpu_to_le16(sp->fcport->d_id.b.domain);
 	mbx->mb3 = cpu_to_le16(sp->fcport->d_id.b.area << 8 |

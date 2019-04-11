@@ -2033,7 +2033,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 
 		/* Passback COS information. */
 		fcport->supported_classes = (pd->options & BIT_4) ?
-		    FC_COS_CLASS2: FC_COS_CLASS3;
+		    FC_COS_CLASS2 : FC_COS_CLASS3;
 	}
 
 gpd_error_out:
@@ -3277,7 +3277,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 
 	/* Issue marker IOCB. */
 	rval2 = qla2x00_marker(vha, ha->base_qpair, fcport->loop_id, l,
-	    type == TCF_LUN_RESET ? MK_SYNC_ID_LUN: MK_SYNC_ID);
+	    type == TCF_LUN_RESET ? MK_SYNC_ID_LUN : MK_SYNC_ID);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1099,
 		    "Failed to issue marker IOCB (%x).\n", rval2);

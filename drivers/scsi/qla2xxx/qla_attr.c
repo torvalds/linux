@@ -888,7 +888,7 @@ do_read:
 		count = 0;
 	}
 
-	count = actual_size > count ? count: actual_size;
+	count = actual_size > count ? count : actual_size;
 	memcpy(buf, ha->xgmac_data, count);
 
 	return count;
@@ -2811,8 +2811,8 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	/* initialized vport states */
 	atomic_set(&vha->loop_state, LOOP_DOWN);
-	vha->vp_err_state=  VP_ERR_PORTDWN;
-	vha->vp_prev_err_state=  VP_ERR_UNKWN;
+	vha->vp_err_state = VP_ERR_PORTDWN;
+	vha->vp_prev_err_state = VP_ERR_UNKWN;
 	/* Check if physical ha port is Up */
 	if (atomic_read(&base_vha->loop_state) == LOOP_DOWN ||
 	    atomic_read(&base_vha->loop_state) == LOOP_DEAD) {

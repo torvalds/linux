@@ -987,7 +987,7 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 		ha->fdt_unprotect_sec_cmd = flash_conf_addr(ha, 0x0300 |
 		    fdt->unprotect_sec_cmd);
 		ha->fdt_protect_sec_cmd = fdt->protect_sec_cmd ?
-		    flash_conf_addr(ha, 0x0300 | fdt->protect_sec_cmd):
+		    flash_conf_addr(ha, 0x0300 | fdt->protect_sec_cmd) :
 		    flash_conf_addr(ha, 0x0336);
 	}
 	goto done;
