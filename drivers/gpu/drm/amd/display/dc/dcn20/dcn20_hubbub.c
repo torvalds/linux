@@ -294,7 +294,7 @@ bool hubbub2_get_dcc_compression_cap(struct hubbub *hubbub,
 	return true;
 }
 
-static void hubbub2_setup_vmid_ptb(struct hubbub *hubbub,
+void hubbub2_setup_vmid_ptb(struct hubbub *hubbub,
 		uint64_t ptb,
 		uint8_t vmid)
 {

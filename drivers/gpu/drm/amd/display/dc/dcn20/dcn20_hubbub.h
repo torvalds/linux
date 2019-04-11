@@ -102,4 +102,8 @@ void hubbub2_get_dchub_ref_freq(struct hubbub *hubbub,
 void hubbub2_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm);
 
+void hubbub2_setup_vmid_ptb(struct hubbub *hubbub,
+		uint64_t ptb,
+		uint8_t vmid);
+
 #endif
