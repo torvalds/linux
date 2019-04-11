@@ -630,7 +630,6 @@ static int mxsfb_restore_mode(struct fb_info *fb_info,
 			struct fb_videomode *vmode)
 {
 	struct mxsfb_info *host = fb_info->par;
-	unsigned line_count;
 	unsigned period;
 	unsigned long pa, fbsize;
 	int bits_per_pixel, ofs, ret = 0;
@@ -717,7 +716,6 @@ static int mxsfb_restore_mode(struct fb_info *fb_info,
 		writel(fb_info->fix.smem_start, host->base + host->devdata->next_buf);
 	}
 
-	line_count = fb_info->fix.smem_len / fb_info->fix.line_length;
 	fb_info->fix.ypanstep = 1;
 
 	clk_prepare_enable(host->clk);
