@@ -3476,6 +3476,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.kpp = __VECS(ecdh_tv_template)
 		}
 	}, {
+		.alg = "ecrdsa",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(ecrdsa_tv_template)
+		}
+	}, {
 		.alg = "gcm(aes)",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
