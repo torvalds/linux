@@ -1389,7 +1389,15 @@ smb2_ioctl_query_info(const unsigned int xid,
 		switch (qi.info_type & FSCTL_DEVICE_ACCESS_MASK) {
 		case FSCTL_DEVICE_ACCESS_FILE_READ_WRITE_ACCESS:
 			oparms.desired_access = FILE_READ_DATA | FILE_WRITE_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE;
-			;
+			break;
+		case FSCTL_DEVICE_ACCESS_FILE_ANY_ACCESS:
+			oparms.desired_access = GENERIC_ALL;
+			break;
+		case FSCTL_DEVICE_ACCESS_FILE_READ_ACCESS:
+			oparms.desired_access = GENERIC_READ;
+			break;
+		case FSCTL_DEVICE_ACCESS_FILE_WRITE_ACCESS:
+			oparms.desired_access = GENERIC_WRITE;
 			break;
 		}
 	}
