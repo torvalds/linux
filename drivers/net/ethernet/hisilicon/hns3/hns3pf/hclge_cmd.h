@@ -677,7 +677,6 @@ struct hclge_umv_spc_alc_cmd {
 #define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)
 #define HCLGE_MAC_MGR_MASK_MAC_B		BIT(1)
 #define HCLGE_MAC_MGR_MASK_ETHERTYPE_B		BIT(2)
-#define HCLGE_MAC_ETHERTYPE_LLDP		0x88cc
 
 struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      flags;
