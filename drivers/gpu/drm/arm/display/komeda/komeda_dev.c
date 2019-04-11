@@ -8,6 +8,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -248,6 +249,9 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		DRM_ERROR("assemble display pipelines failed.\n");
 		goto err_cleanup;
 	}
+
+	dev->dma_parms = &mdev->dma_parms;
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
 	err = sysfs_create_group(&dev->kobj, &komeda_sysfs_attr_group);
 	if (err) {
