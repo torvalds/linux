@@ -492,10 +492,6 @@ static int nv_common_early_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
-			AMD_CG_SUPPORT_GFX_MGLS |
-			AMD_CG_SUPPORT_GFX_RLC_LS |
-			AMD_CG_SUPPORT_GFX_CP_LS |
-			AMD_CG_SUPPORT_GFX_CGLS |
 			AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_IH_CG |
 			AMD_CG_SUPPORT_HDP_MGCG |
