@@ -201,6 +201,7 @@ fs/nfsd/*
 fs/nls/nls_cp437.ko
 fs/nls/nls_iso8859-1.ko
 fs/overlayfs/*
+fs/shiftfs.ko
 fs/squashfs/*
 fs/udf/*
 fs/ufs/*
