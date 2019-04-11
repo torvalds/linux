@@ -1466,9 +1466,9 @@ static int fl_ht_insert_unique(struct cls_fl_filter *fnew,
 	struct fl_flow_mask *mask = fnew->mask;
 	int err;
 
-	err = rhashtable_insert_fast(&mask->ht,
-				     &fnew->ht_node,
-				     mask->filter_ht_params);
+	err = rhashtable_lookup_insert_fast(&mask->ht,
+					    &fnew->ht_node,
+					    mask->filter_ht_params);
 	if (err) {
 		*in_ht = false;
 		/* It is okay if filter with same key exists when
