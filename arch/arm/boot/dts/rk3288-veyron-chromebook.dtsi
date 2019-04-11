@@ -229,6 +229,8 @@
 &pinctrl {
 	pinctrl-0 = <
 		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
 		&global_pwroff
 
 		/* Wake only */
@@ -236,6 +238,8 @@
 	>;
 	pinctrl-1 = <
 		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
 		&global_pwroff
 
 		/* Sleep only */
