@@ -683,7 +683,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		id->initiator_bits = SAS_PROTOCOL_ALL;
 		id->target_bits = phy->identify.target_port_protocols;
 	} else if (phy->phy_type & PORT_TYPE_SATA) {
-		/*Nothing*/
+		/* Nothing */
 	}
 
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
@@ -1739,7 +1739,7 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_tmf_task tmf_task;
-	int rc = TMF_RESP_FUNC_FAILED;
+	int rc;
 
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
 					  HISI_SAS_INT_ABT_DEV, 0);
@@ -2532,22 +2532,19 @@ int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 
 		if (device_property_read_u32(dev, "ctrl-reset-reg",
 					     &hisi_hba->ctrl_reset_reg)) {
-			dev_err(dev,
-				"could not get property ctrl-reset-reg\n");
+			dev_err(dev, "could not get property ctrl-reset-reg\n");
 			return -ENOENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-reset-sts-reg",
 					     &hisi_hba->ctrl_reset_sts_reg)) {
-			dev_err(dev,
-				"could not get property ctrl-reset-sts-reg\n");
+			dev_err(dev, "could not get property ctrl-reset-sts-reg\n");
 			return -ENOENT;
 		}
 
 		if (device_property_read_u32(dev, "ctrl-clock-ena-reg",
 					     &hisi_hba->ctrl_clock_ena_reg)) {
-			dev_err(dev,
-				"could not get property ctrl-clock-ena-reg\n");
+			dev_err(dev, "could not get property ctrl-clock-ena-reg\n");
 			return -ENOENT;
 		}
 	}
