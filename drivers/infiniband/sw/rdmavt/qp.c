@@ -624,10 +624,7 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 
 			rvt_put_swqe(wqe);
-
-			if (qp->ibqp.qp_type == IB_QPT_UD ||
-			    qp->ibqp.qp_type == IB_QPT_SMI ||
-			    qp->ibqp.qp_type == IB_QPT_GSI)
+			if (qp->allowed_ops == IB_OPCODE_UD)
 				atomic_dec(&ibah_to_rvtah(
 						wqe->ud_wr.ah)->refcount);
 			if (++qp->s_last >= qp->s_size)
@@ -2015,8 +2012,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	 * opportunity to adjust PSN values based on internal checks.
 	 */
 	log_pmtu = qp->log_pmtu;
-	if (qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_RC) {
+	if (qp->allowed_ops == IB_OPCODE_UD) {
 		struct rvt_ah *ah = ibah_to_rvtah(wqe->ud_wr.ah);
 
 		log_pmtu = ah->log_pmtu;
@@ -2064,8 +2060,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	return 0;
 
 bail_inval_free_ref:
-	if (qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_RC)
+	if (qp->allowed_ops == IB_OPCODE_UD)
 		atomic_dec(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 bail_inval_free:
 	/* release mr holds */
@@ -2689,9 +2684,7 @@ void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	/* See post_send() */
 	barrier();
 	rvt_put_swqe(wqe);
-	if (qp->ibqp.qp_type == IB_QPT_UD ||
-	    qp->ibqp.qp_type == IB_QPT_SMI ||
-	    qp->ibqp.qp_type == IB_QPT_GSI)
+	if (qp->allowed_ops == IB_OPCODE_UD)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
 	rvt_qp_swqe_complete(qp,
