@@ -104,11 +104,6 @@ static void __init lpc3250_machine_init(void)
 {
 	lpc32xx_serial_init();
 
-	/* Test clock needed for UDA1380 initial init */
-	__raw_writel(LPC32XX_CLKPWR_TESTCLK2_SEL_MOSC |
-		LPC32XX_CLKPWR_TESTCLK_TESTCLK2_EN,
-		LPC32XX_CLKPWR_TEST_CLK_SEL);
-
 	of_platform_default_populate(NULL, lpc32xx_auxdata_lookup, NULL);
 }
 
