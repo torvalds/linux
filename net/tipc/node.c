@@ -375,14 +375,15 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 		if (n->capabilities == capabilities)
 			goto exit;
 		/* Same node may come back with new capabilities */
-		write_lock_bh(&n->lock);
+		tipc_node_write_lock(n);
 		n->capabilities = capabilities;
 		for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
 			l = n->links[bearer_id].link;
 			if (l)
 				tipc_link_update_caps(l, capabilities);
 		}
-		write_unlock_bh(&n->lock);
+		tipc_node_write_unlock_fast(n);
+
 		/* Calculate cluster capabilities */
 		tn->capabilities = TIPC_NODE_CAPABILITIES;
 		list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
