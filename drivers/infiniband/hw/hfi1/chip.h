@@ -858,6 +858,9 @@ static inline int idx_from_vl(int vl)
 /* Per device counter indexes */
 enum {
 	C_RCV_OVF = 0,
+	C_RX_LEN_ERR,
+	C_RX_ICRC_ERR,
+	C_RX_EBP,
 	C_RX_TID_FULL,
 	C_RX_TID_INVALID,
 	C_RX_TID_FLGMS,
