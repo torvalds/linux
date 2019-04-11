@@ -724,7 +724,7 @@ static int dump_map_elem(int fd, void *key, void *value,
 	} else {
 		const char *msg = NULL;
 
-		if (errno == ENOENT)
+		if (lookup_errno == ENOENT)
 			msg = "<no entry>";
 		else if (lookup_errno == ENOSPC &&
 			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
