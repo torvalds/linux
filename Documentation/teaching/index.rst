@@ -33,6 +33,7 @@ To get started build the documentation from the sources:
 then point your browser at **Documentation/output/labs/index.html**.
 
 .. toctree::
+   :caption: Lectures
 
    lectures/so2.cs.pub.ro.rst
    lectures/intro.rst
@@ -41,6 +42,10 @@ then point your browser at **Documentation/output/labs/index.html**.
    lectures/smp.rst
    lectures/debugging.rst
    labs/vm.rst
+
+.. toctree::
+   :caption: Labs
+
    labs/exercises.rst
    labs/introduction.rst
    labs/kernel_modules.rst
