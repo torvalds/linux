@@ -204,37 +204,24 @@ void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 }
 
 
-/* amdgpu_amdkfd_remove_eviction_fence - Removes eviction fence(s) from BO's
+/* amdgpu_amdkfd_remove_eviction_fence - Removes eviction fence from BO's
  *  reservation object.
  *
  * @bo: [IN] Remove eviction fence(s) from this BO
- * @ef: [IN] If ef is specified, then this eviction fence is removed if it
+ * @ef: [IN] This eviction fence is removed if it
  *  is present in the shared list.
- * @ef_list: [OUT] Returns list of eviction fences. These fences are removed
- *  from BO's reservation object shared list.
- * @ef_count: [OUT] Number of fences in ef_list.
  *
- * NOTE: If called with ef_list, then amdgpu_amdkfd_add_eviction_fence must be
- *  called to restore the eviction fences and to avoid memory leak. This is
- *  useful for shared BOs.
  * NOTE: Must be called with BO reserved i.e. bo->tbo.resv->lock held.
  */
 static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
-					struct amdgpu_amdkfd_fence *ef,
-					struct amdgpu_amdkfd_fence ***ef_list,
-					unsigned int *ef_count)
+					struct amdgpu_amdkfd_fence *ef)
 {
 	struct reservation_object *resv = bo->tbo.resv;
 	struct reservation_object_list *old, *new;
 	unsigned int i, j, k;
 
-	if (!ef && !ef_list)
+	if (!ef)
 		return -EINVAL;
-
-	if (ef_list) {
-		*ef_list = NULL;
-		*ef_count = 0;
-	}
 
 	old = reservation_object_get_list(resv);
 	if (!old)
@@ -254,29 +241,13 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 		f = rcu_dereference_protected(old->shared[i],
 					      reservation_object_held(resv));
 
-		if ((ef && f->context == ef->base.context) ||
-		    (!ef && to_amdgpu_amdkfd_fence(f)))
+		if (f->context == ef->base.context)
 			RCU_INIT_POINTER(new->shared[--j], f);
 		else
 			RCU_INIT_POINTER(new->shared[k++], f);
 	}
 	new->shared_max = old->shared_max;
 	new->shared_count = k;
-
-	if (!ef) {
-		unsigned int count = old->shared_count - j;
-
-		/* Alloc memory for count number of eviction fence pointers.
-		 * Fill the ef_list array and ef_count
-		 */
-		*ef_list = kcalloc(count, sizeof(**ef_list), GFP_KERNEL);
-		*ef_count = count;
-
-		if (!*ef_list) {
-			kfree(new);
-			return -ENOMEM;
-		}
-	}
 
 	/* Install the new fence list, seqcount provides the barriers */
 	preempt_disable();
@@ -291,44 +262,11 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 
 		f = rcu_dereference_protected(new->shared[i],
 					      reservation_object_held(resv));
-		if (!ef)
-			(*ef_list)[k++] = to_amdgpu_amdkfd_fence(f);
-		else
-			dma_fence_put(f);
+		dma_fence_put(f);
 	}
 	kfree_rcu(old, rcu);
 
 	return 0;
-}
-
-/* amdgpu_amdkfd_add_eviction_fence - Adds eviction fence(s) back into BO's
- *  reservation object.
- *
- * @bo: [IN] Add eviction fences to this BO
- * @ef_list: [IN] List of eviction fences to be added
- * @ef_count: [IN] Number of fences in ef_list.
- *
- * NOTE: Must call amdgpu_amdkfd_remove_eviction_fence before calling this
- *  function.
- */
-static void amdgpu_amdkfd_add_eviction_fence(struct amdgpu_bo *bo,
-				struct amdgpu_amdkfd_fence **ef_list,
-				unsigned int ef_count)
-{
-	int i;
-
-	if (!ef_list || !ef_count)
-		return;
-
-	for (i = 0; i < ef_count; i++) {
-		amdgpu_bo_fence(bo, &ef_list[i]->base, true);
-		/* Re-adding the fence takes an additional reference. Drop that
-		 * reference.
-		 */
-		dma_fence_put(&ef_list[i]->base);
-	}
-
-	kfree(ef_list);
 }
 
 static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
@@ -346,18 +284,8 @@ static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
 		goto validate_fail;
-	if (wait) {
-		struct amdgpu_amdkfd_fence **ef_list;
-		unsigned int ef_count;
-
-		ret = amdgpu_amdkfd_remove_eviction_fence(bo, NULL, &ef_list,
-							  &ef_count);
-		if (ret)
-			goto validate_fail;
-
-		ttm_bo_wait(&bo->tbo, false, false);
-		amdgpu_amdkfd_add_eviction_fence(bo, ef_list, ef_count);
-	}
+	if (wait)
+		amdgpu_bo_sync_wait(bo, AMDGPU_FENCE_OWNER_KFD, false);
 
 validate_fail:
 	return ret;
@@ -444,7 +372,6 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 {
 	int ret;
 	struct kfd_bo_va_list *bo_va_entry;
-	struct amdgpu_bo *pd = vm->root.base.bo;
 	struct amdgpu_bo *bo = mem->bo;
 	uint64_t va = mem->va;
 	struct list_head *list_bo_va = &mem->bo_va_list;
@@ -484,14 +411,8 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 		*p_bo_va_entry = bo_va_entry;
 
 	/* Allocate new page tables if needed and validate
-	 * them. Clearing of new page tables and validate need to wait
-	 * on move fences. We don't want that to trigger the eviction
-	 * fence, so remove it temporarily.
+	 * them.
 	 */
-	amdgpu_amdkfd_remove_eviction_fence(pd,
-					vm->process_info->eviction_fence,
-					NULL, NULL);
-
 	ret = amdgpu_vm_alloc_pts(adev, vm, va, amdgpu_bo_size(bo));
 	if (ret) {
 		pr_err("Failed to allocate pts, err=%d\n", ret);
@@ -504,13 +425,9 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 		goto err_alloc_pts;
 	}
 
-	/* Add the eviction fence back */
-	amdgpu_bo_fence(pd, &vm->process_info->eviction_fence->base, true);
-
 	return 0;
 
 err_alloc_pts:
-	amdgpu_bo_fence(pd, &vm->process_info->eviction_fence->base, true);
 	amdgpu_vm_bo_rmv(adev, bo_va_entry->bo_va);
 	list_del(&bo_va_entry->bo_list);
 err_vmadd:
@@ -809,23 +726,10 @@ static int unmap_bo_from_gpuvm(struct amdgpu_device *adev,
 {
 	struct amdgpu_bo_va *bo_va = entry->bo_va;
 	struct amdgpu_vm *vm = bo_va->base.vm;
-	struct amdgpu_bo *pd = vm->root.base.bo;
 
-	/* Remove eviction fence from PD (and thereby from PTs too as
-	 * they share the resv. object). Otherwise during PT update
-	 * job (see amdgpu_vm_bo_update_mapping), eviction fence would
-	 * get added to job->sync object and job execution would
-	 * trigger the eviction fence.
-	 */
-	amdgpu_amdkfd_remove_eviction_fence(pd,
-					    vm->process_info->eviction_fence,
-					    NULL, NULL);
 	amdgpu_vm_bo_unmap(adev, bo_va, entry->va);
 
 	amdgpu_vm_clear_freed(adev, vm, &bo_va->last_pt_update);
-
-	/* Add the eviction fence back */
-	amdgpu_bo_fence(pd, &vm->process_info->eviction_fence->base, true);
 
 	amdgpu_sync_fence(NULL, sync, bo_va->last_pt_update, false);
 
@@ -1002,7 +906,7 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 		pr_err("validate_pt_pd_bos() failed\n");
 		goto validate_pd_fail;
 	}
-	ret = ttm_bo_wait(&vm->root.base.bo->tbo, false, false);
+	amdgpu_bo_sync_wait(vm->root.base.bo, AMDGPU_FENCE_OWNER_KFD, false);
 	if (ret)
 		goto wait_pd_fail;
 	amdgpu_bo_fence(vm->root.base.bo,
@@ -1389,8 +1293,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 * attached
 	 */
 	amdgpu_amdkfd_remove_eviction_fence(mem->bo,
-					process_info->eviction_fence,
-					NULL, NULL);
+					process_info->eviction_fence);
 	pr_debug("Release VA 0x%llx - 0x%llx\n", mem->va,
 		mem->va + bo_size * (1 + mem->aql_queue));
 
@@ -1617,8 +1520,7 @@ int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 	if (mem->mapped_to_gpu_memory == 0 &&
 	    !amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm) && !mem->bo->pin_count)
 		amdgpu_amdkfd_remove_eviction_fence(mem->bo,
-						process_info->eviction_fence,
-						    NULL, NULL);
+						process_info->eviction_fence);
 
 unreserve_out:
 	unreserve_bo_and_vms(&ctx, false, false);
@@ -1679,7 +1581,7 @@ int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_dev *kgd,
 	}
 
 	amdgpu_amdkfd_remove_eviction_fence(
-		bo, mem->process_info->eviction_fence, NULL, NULL);
+		bo, mem->process_info->eviction_fence);
 	list_del_init(&mem->validate_list.head);
 
 	if (size)
@@ -1790,7 +1692,7 @@ int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem,
 	evicted_bos = atomic_inc_return(&process_info->evicted_bos);
 	if (evicted_bos == 1) {
 		/* First eviction, stop the queues */
-		r = kgd2kfd->quiesce_mm(mm);
+		r = kgd2kfd_quiesce_mm(mm);
 		if (r)
 			pr_err("Failed to quiesce KFD\n");
 		schedule_delayed_work(&process_info->restore_userptr_work,
@@ -1945,16 +1847,6 @@ static int validate_invalid_user_pages(struct amdkfd_process_info *process_info)
 
 	amdgpu_sync_create(&sync);
 
-	/* Avoid triggering eviction fences when unmapping invalid
-	 * userptr BOs (waits for all fences, doesn't use
-	 * FENCE_OWNER_VM)
-	 */
-	list_for_each_entry(peer_vm, &process_info->vm_list_head,
-			    vm_list_node)
-		amdgpu_amdkfd_remove_eviction_fence(peer_vm->root.base.bo,
-						process_info->eviction_fence,
-						NULL, NULL);
-
 	ret = process_validate_vms(process_info);
 	if (ret)
 		goto unreserve_out;
@@ -2015,10 +1907,6 @@ static int validate_invalid_user_pages(struct amdkfd_process_info *process_info)
 	ret = process_update_pds(process_info, &sync);
 
 unreserve_out:
-	list_for_each_entry(peer_vm, &process_info->vm_list_head,
-			    vm_list_node)
-		amdgpu_bo_fence(peer_vm->root.base.bo,
-				&process_info->eviction_fence->base, true);
 	ttm_eu_backoff_reservation(&ticket, &resv_list);
 	amdgpu_sync_wait(&sync, false);
 	amdgpu_sync_free(&sync);
@@ -2082,7 +1970,7 @@ static void amdgpu_amdkfd_restore_userptr_worker(struct work_struct *work)
 	    evicted_bos)
 		goto unlock_out;
 	evicted_bos = 0;
-	if (kgd2kfd->resume_mm(mm)) {
+	if (kgd2kfd_resume_mm(mm)) {
 		pr_err("%s: Failed to resume KFD\n", __func__);
 		/* No recovery from this failure. Probably the CP is
 		 * hanging. No point trying again.

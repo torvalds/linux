@@ -276,7 +276,7 @@ _ti_clkctrl_clk_register(struct omap_clkctrl_provider *provider,
 	init.parent_names = parents;
 	init.num_parents = num_parents;
 	init.ops = ops;
-	init.flags = CLK_IS_BASIC;
+	init.flags = 0;
 
 	clk = ti_clk_register(NULL, clk_hw, init.name);
 	if (IS_ERR_OR_NULL(clk)) {
@@ -530,7 +530,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		 * Create default clkdm name, replace _cm from end of parent
 		 * node name with _clkdm
 		 */
-		provider->clkdm_name[strlen(provider->clkdm_name) - 5] = 0;
+		provider->clkdm_name[strlen(provider->clkdm_name) - 2] = 0;
 	} else {
 		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFn", node);
 		if (!provider->clkdm_name) {

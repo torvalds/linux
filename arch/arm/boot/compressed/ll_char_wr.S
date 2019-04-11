@@ -75,7 +75,7 @@ Lrow4bpplp:
 	tst	r1, #7				@ avoid using r7 directly after
 	str	r7, [r0, -r5]!
 	subne	r1, r1, #1
-	ldrneb	r7, [r6, r1]
+	ldrbne	r7, [r6, r1]
 	bne	Lrow4bpplp
 	ldmfd	sp!, {r4 - r7, pc}
 
@@ -103,7 +103,7 @@ Lrow8bpplp:
 	sub	r0, r0, r5			@ avoid ip
 	stmia	r0, {r4, ip}
 	subne	r1, r1, #1
-	ldrneb	r7, [r6, r1]
+	ldrbne	r7, [r6, r1]
 	bne	Lrow8bpplp
 	ldmfd	sp!, {r4 - r7, pc}
 

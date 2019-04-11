@@ -27,6 +27,7 @@
 
 extern int __pure nokaslr(void);
 extern int __pure is_quiet(void);
+extern int __pure novamap(void);
 
 #define pr_efi(sys_table, msg)		do {				\
 	if (!is_quiet()) efi_printk(sys_table, "EFI stub: "msg);	\
@@ -63,5 +64,16 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 efi_status_t check_platform_features(efi_system_table_t *sys_table_arg);
 
 efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg);
+
+/* Helper macros for the usual case of using simple C variables: */
+#ifndef fdt_setprop_inplace_var
+#define fdt_setprop_inplace_var(fdt, node_offset, name, var) \
+	fdt_setprop_inplace((fdt), (node_offset), (name), &(var), sizeof(var))
+#endif
+
+#ifndef fdt_setprop_var
+#define fdt_setprop_var(fdt, node_offset, name, var) \
+	fdt_setprop((fdt), (node_offset), (name), &(var), sizeof(var))
+#endif
 
 #endif

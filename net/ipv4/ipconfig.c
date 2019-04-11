@@ -85,7 +85,6 @@
 
 /* Define the friendly delay before and after opening net devices */
 #define CONF_POST_OPEN		10	/* After opening: 10 msecs */
-#define CONF_CARRIER_TIMEOUT	120000	/* Wait for carrier timeout */
 
 /* Define the timeout for waiting for a DHCP/BOOTP/RARP reply */
 #define CONF_OPEN_RETRIES 	2	/* (Re)open devices twice */
@@ -100,6 +99,9 @@
 
 #define NONE cpu_to_be32(INADDR_NONE)
 #define ANY cpu_to_be32(INADDR_ANY)
+
+/* Wait for carrier timeout default in seconds */
+static unsigned int carrier_timeout = 120;
 
 /*
  * Public IP configuration
@@ -268,9 +270,9 @@ static int __init ic_open_devs(void)
 
 	/* wait for a carrier on at least one device */
 	start = jiffies;
-	next_msg = start + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
+	next_msg = start + msecs_to_jiffies(20000);
 	while (time_before(jiffies, start +
-			   msecs_to_jiffies(CONF_CARRIER_TIMEOUT))) {
+			   msecs_to_jiffies(carrier_timeout * 1000))) {
 		int wait, elapsed;
 
 		for_each_netdev(&init_net, dev)
@@ -283,9 +285,9 @@ static int __init ic_open_devs(void)
 			continue;
 
 		elapsed = jiffies_to_msecs(jiffies - start);
-		wait = (CONF_CARRIER_TIMEOUT - elapsed + 500)/1000;
+		wait = (carrier_timeout * 1000 - elapsed + 500) / 1000;
 		pr_info("Waiting up to %d more seconds for network.\n", wait);
-		next_msg = jiffies + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
+		next_msg = jiffies + msecs_to_jiffies(20000);
 	}
 have_carrier:
 	rtnl_unlock();
@@ -1780,3 +1782,18 @@ static int __init vendor_class_identifier_setup(char *addrs)
 	return 1;
 }
 __setup("dhcpclass=", vendor_class_identifier_setup);
+
+static int __init set_carrier_timeout(char *str)
+{
+	ssize_t ret;
+
+	if (!str)
+		return 0;
+
+	ret = kstrtouint(str, 0, &carrier_timeout);
+	if (ret)
+		return 0;
+
+	return 1;
+}
+__setup("carrier_timeout=", set_carrier_timeout);

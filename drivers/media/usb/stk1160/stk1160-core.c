@@ -297,7 +297,7 @@ static int stk1160_probe(struct usb_interface *interface,
 		return -ENOMEM;
 
 	/*
-	 * Scan usb posibilities and populate alt_max_pkt_size array.
+	 * Scan usb possibilities and populate alt_max_pkt_size array.
 	 * Also, check if device speed is fast enough.
 	 */
 	rc = stk1160_scan_usb(interface, udev, alt_max_pkt_size);
@@ -426,7 +426,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/*
 	 * This calls stk1160_release if it's the last reference.
-	 * Otherwise, release is posponed until there are no users left.
+	 * Otherwise, release is postponed until there are no users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }

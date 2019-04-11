@@ -169,6 +169,9 @@ int		rpcb_v4_register(struct net *net, const u32 program,
 				 const char *netid);
 void		rpcb_getport_async(struct rpc_task *);
 
+void rpc_prepare_reply_pages(struct rpc_rqst *req, struct page **pages,
+			     unsigned int base, unsigned int len,
+			     unsigned int hdrsize);
 void		rpc_call_start(struct rpc_task *);
 int		rpc_call_async(struct rpc_clnt *clnt,
 			       const struct rpc_message *msg, int flags,

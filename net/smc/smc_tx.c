@@ -24,10 +24,11 @@
 #include "smc.h"
 #include "smc_wr.h"
 #include "smc_cdc.h"
+#include "smc_close.h"
 #include "smc_ism.h"
 #include "smc_tx.h"
 
-#define SMC_TX_WORK_DELAY	HZ
+#define SMC_TX_WORK_DELAY	0
 #define SMC_TX_CORK_DELAY	(HZ >> 2)	/* 250 ms */
 
 /***************************** sndbuf producer *******************************/
@@ -482,7 +483,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn,
  */
 static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
-	struct smc_cdc_producer_flags *pflags;
+	struct smc_cdc_producer_flags *pflags = &conn->local_tx_ctrl.prod_flags;
 	struct smc_rdma_wr *wr_rdma_buf;
 	struct smc_cdc_tx_pend *pend;
 	struct smc_wr_buf *wr_buf;
@@ -505,7 +506,7 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 	spin_lock_bh(&conn->send_lock);
-	if (!conn->local_tx_ctrl.prod_flags.urg_data_present) {
+	if (!pflags->urg_data_present) {
 		rc = smc_tx_rdma_writes(conn, wr_rdma_buf);
 		if (rc) {
 			smc_wr_tx_put_slot(&conn->lgr->lnk[SMC_SINGLE_LINK],
@@ -515,7 +516,6 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 	rc = smc_cdc_msg_send(conn, wr_buf, pend);
-	pflags = &conn->local_tx_ctrl.prod_flags;
 	if (!rc && pflags->urg_data_present) {
 		pflags->urg_data_pending = 0;
 		pflags->urg_data_present = 0;
@@ -554,6 +554,12 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 	else
 		rc = smcr_tx_sndbuf_nonempty(conn);
 
+	if (!rc) {
+		/* trigger socket release if connection is closing */
+		struct smc_sock *smc = container_of(conn, struct smc_sock,
+						    conn);
+		smc_close_wake_tx_prepared(smc);
+	}
 	return rc;
 }
 
@@ -610,9 +616,6 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 					      SMC_TX_WORK_DELAY);
 			return;
 		}
-		smc_curs_copy(&conn->rx_curs_confirmed,
-			      &conn->local_tx_ctrl.cons, conn);
-		conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
 	}
 	if (conn->local_rx_ctrl.prod_flags.write_blocked &&
 	    !atomic_read(&conn->bytes_to_rcv))

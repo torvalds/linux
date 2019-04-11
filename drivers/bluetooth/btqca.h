@@ -20,6 +20,7 @@
 
 #define EDL_PATCH_CMD_OPCODE		(0xFC00)
 #define EDL_NVM_ACCESS_OPCODE		(0xFC0B)
+#define EDL_WRITE_BD_ADDR_OPCODE	(0xFC14)
 #define EDL_PATCH_CMD_LEN		(1)
 #define EDL_PATCH_VER_REQ_CMD		(0x19)
 #define EDL_PATCH_TLV_REQ_CMD		(0x1E)
@@ -140,7 +141,7 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 		   enum qca_btsoc_type soc_type, u32 soc_ver);
 int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version);
-
+int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 #else
 
 static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
@@ -155,6 +156,11 @@ static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 }
 
 static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 {
 	return -EOPNOTSUPP;
 }

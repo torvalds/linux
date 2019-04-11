@@ -182,7 +182,7 @@ static inline void buffer_filled(struct cx231xx *dev,
 	cx231xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 
 	if (dev->USE_ISO)
 		dev->video_mode.isoc_ctl.buf = NULL;

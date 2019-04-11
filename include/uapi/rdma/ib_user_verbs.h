@@ -270,6 +270,8 @@ struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_tm_caps tm_caps;
 	struct ib_uverbs_cq_moderation_caps cq_moderation_caps;
 	__aligned_u64 max_dm_size;
+	__u32 xrc_odp_caps;
+	__u32 reserved;
 };
 
 struct ib_uverbs_query_port {

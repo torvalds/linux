@@ -218,7 +218,7 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 		return;
 	}
 
-	oops_in_progress = 1;
+	bust_spinlocks(1);
 
 	oops_enter();
 
@@ -396,7 +396,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 {
 	static DEFINE_SPINLOCK(terminate_lock);
 
-	oops_in_progress = 1;
+	bust_spinlocks(1);
 
 	set_eiem(0);
 	local_irq_disable();

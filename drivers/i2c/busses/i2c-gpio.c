@@ -7,17 +7,19 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
-#include <linux/platform_data/i2c-gpio.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_data/i2c-gpio.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 struct i2c_gpio_private_data {
 	struct gpio_desc *sda;
@@ -27,6 +29,9 @@ struct i2c_gpio_private_data {
 	struct i2c_gpio_platform_data pdata;
 #ifdef CONFIG_I2C_GPIO_FAULT_INJECTOR
 	struct dentry *debug_dir;
+	/* these must be protected by bus lock */
+	struct completion scl_irq_completion;
+	u64 scl_irq_data;
 #endif
 };
 
@@ -162,6 +167,96 @@ static int fops_incomplete_write_byte_set(void *data, u64 addr)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_write_byte, NULL, fops_incomplete_write_byte_set, "%llu\n");
 
+static int i2c_gpio_fi_act_on_scl_irq(struct i2c_gpio_private_data *priv,
+				       irqreturn_t handler(int, void*))
+{
+	int ret, irq = gpiod_to_irq(priv->scl);
+
+	if (irq < 0)
+		return irq;
+
+	i2c_lock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);
+
+	ret = gpiod_direction_input(priv->scl);
+	if (ret)
+		goto unlock;
+
+	reinit_completion(&priv->scl_irq_completion);
+
+	ret = request_irq(irq, handler, IRQF_TRIGGER_FALLING,
+			  "i2c_gpio_fault_injector_scl_irq", priv);
+	if (ret)
+		goto output;
+
+	wait_for_completion_interruptible(&priv->scl_irq_completion);
+
+	free_irq(irq, priv);
+ output:
+	ret = gpiod_direction_output(priv->scl, 1) ?: ret;
+ unlock:
+	i2c_unlock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);
+
+	return ret;
+}
+
+static irqreturn_t lose_arbitration_irq(int irq, void *dev_id)
+{
+	struct i2c_gpio_private_data *priv = dev_id;
+
+	setsda(&priv->bit_data, 0);
+	udelay(priv->scl_irq_data);
+	setsda(&priv->bit_data, 1);
+
+	complete(&priv->scl_irq_completion);
+
+	return IRQ_HANDLED;
+}
+
+static int fops_lose_arbitration_set(void *data, u64 duration)
+{
+	struct i2c_gpio_private_data *priv = data;
+
+	if (duration > 100 * 1000)
+		return -EINVAL;
+
+	priv->scl_irq_data = duration;
+	/*
+	 * Interrupt on falling SCL. This ensures that the master under test has
+	 * really started the transfer. Interrupt on falling SDA did only
+	 * exercise 'bus busy' detection on some HW but not 'arbitration lost'.
+	 * Note that the interrupt latency may cause the first bits to be
+	 * transmitted correctly.
+	 */
+	return i2c_gpio_fi_act_on_scl_irq(priv, lose_arbitration_irq);
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_lose_arbitration, NULL, fops_lose_arbitration_set, "%llu\n");
+
+static irqreturn_t inject_panic_irq(int irq, void *dev_id)
+{
+	struct i2c_gpio_private_data *priv = dev_id;
+
+	udelay(priv->scl_irq_data);
+	panic("I2C fault injector induced panic");
+
+	return IRQ_HANDLED;
+}
+
+static int fops_inject_panic_set(void *data, u64 duration)
+{
+	struct i2c_gpio_private_data *priv = data;
+
+	if (duration > 100 * 1000)
+		return -EINVAL;
+
+	priv->scl_irq_data = duration;
+	/*
+	 * Interrupt on falling SCL. This ensures that the master under test has
+	 * really started the transfer.
+	 */
+	return i2c_gpio_fi_act_on_scl_irq(priv, inject_panic_irq);
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_inject_panic, NULL, fops_inject_panic_set, "%llu\n");
+
 static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv = platform_get_drvdata(pdev);
@@ -181,12 +276,20 @@ static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 	if (!priv->debug_dir)
 		return;
 
-	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
-	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
+	init_completion(&priv->scl_irq_completion);
+
 	debugfs_create_file_unsafe("incomplete_address_phase", 0200, priv->debug_dir,
 				   priv, &fops_incomplete_addr_phase);
 	debugfs_create_file_unsafe("incomplete_write_byte", 0200, priv->debug_dir,
 				   priv, &fops_incomplete_write_byte);
+	if (priv->bit_data.getscl) {
+		debugfs_create_file_unsafe("inject_panic", 0200, priv->debug_dir,
+					   priv, &fops_inject_panic);
+		debugfs_create_file_unsafe("lose_arbitration", 0200, priv->debug_dir,
+					   priv, &fops_lose_arbitration);
+	}
+	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
+	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
 }
 
 static void i2c_gpio_fault_injector_exit(struct platform_device *pdev)
@@ -286,11 +389,11 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 
 	/*
 	 * First get the GPIO pins; if it fails, we'll defer the probe.
-	 * If the SDA line is marked from platform data or device tree as
-	 * "open drain" it means something outside of our control is making
-	 * this line being handled as open drain, and we should just handle
-	 * it as any other output. Else we enforce open drain as this is
-	 * required for an I2C bus.
+	 * If the SCL/SDA lines are marked "open drain" by platform data or
+	 * device tree then this means that something outside of our control is
+	 * marking these lines to be handled as open drain, and we should just
+	 * handle them as we handle any other output. Else we enforce open
+	 * drain as this is required for an I2C bus.
 	 */
 	if (pdata->sda_is_open_drain)
 		gflags = GPIOD_OUT_HIGH;
@@ -300,13 +403,6 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->sda))
 		return PTR_ERR(priv->sda);
 
-	/*
-	 * If the SCL line is marked from platform data or device tree as
-	 * "open drain" it means something outside of our control is making
-	 * this line being handled as open drain, and we should just handle
-	 * it as any other output. Else we enforce open drain as this is
-	 * required for an I2C bus.
-	 */
 	if (pdata->scl_is_open_drain)
 		gflags = GPIOD_OUT_HIGH;
 	else

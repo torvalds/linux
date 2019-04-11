@@ -820,6 +820,25 @@ config VIDEO_OV7740
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV7740 VGA camera sensor.
 
+config VIDEO_OV8856
+	tristate "OmniVision OV8856 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV8856 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov8856.
+
+config VIDEO_OV9640
+	tristate "OmniVision OV9640 sensor support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9640 camera sensor.
+
 config VIDEO_OV9650
 	tristate "OmniVision OV9650/OV9652 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -847,6 +866,14 @@ config VIDEO_VS6624
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vs6624.
+
+config VIDEO_MT9M001
+	tristate "mt9m001 support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This driver supports MT9M001 cameras from Micron, monochrome
+	  and colour models.
 
 config VIDEO_MT9M032
 	tristate "MT9M032 camera sensor support"
@@ -1100,17 +1127,10 @@ config VIDEO_I2C
 	  Enable the I2C transport video support which supports the
 	  following:
 	   * Panasonic AMG88xx Grid-Eye Sensors
+	   * Melexis MLX90640 Thermal Cameras
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called video-i2c
-
-endmenu
-
-menu "Sensors used on soc_camera driver"
-
-if SOC_CAMERA
-	source "drivers/media/i2c/soc_camera/Kconfig"
-endif
 
 endmenu
 

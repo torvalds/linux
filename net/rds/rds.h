@@ -19,10 +19,13 @@
  */
 #define RDS_PROTOCOL_3_0	0x0300
 #define RDS_PROTOCOL_3_1	0x0301
+#define RDS_PROTOCOL_4_0	0x0400
+#define RDS_PROTOCOL_4_1	0x0401
 #define RDS_PROTOCOL_VERSION	RDS_PROTOCOL_3_1
 #define RDS_PROTOCOL_MAJOR(v)	((v) >> 8)
 #define RDS_PROTOCOL_MINOR(v)	((v) & 255)
 #define RDS_PROTOCOL(maj, min)	(((maj) << 8) | min)
+#define RDS_PROTOCOL_COMPAT_VERSION	RDS_PROTOCOL_3_1
 
 /* The following ports, 16385, 18634, 18635, are registered with IANA as
  * the ports to be used for RDS over TCP and UDP.  Currently, only RDS over
@@ -151,8 +154,12 @@ struct rds_connection {
 	struct rds_cong_map	*c_fcong;
 
 	/* Protocol version */
+	unsigned int		c_proposed_version;
 	unsigned int		c_version;
 	possible_net_t		c_net;
+
+	/* TOS */
+	u8			c_tos;
 
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
@@ -567,6 +574,7 @@ struct rds_transport {
 	void (*free_mr)(void *trans_private, int invalidate);
 	void (*flush_mrs)(void);
 	bool (*t_unloading)(struct rds_connection *conn);
+	u8 (*get_tos_map)(u8 tos);
 };
 
 /* Bind hash table key length.  It is the sum of the size of a struct
@@ -648,6 +656,7 @@ struct rds_sock {
 	u8			rs_rx_traces;
 	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
 	struct rds_msg_zcopy_queue rs_zcookie_queue;
+	u8			rs_tos;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -756,13 +765,14 @@ void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(struct net *net,
 				       const struct in6_addr *laddr,
 				       const struct in6_addr *faddr,
-				       struct rds_transport *trans, gfp_t gfp,
+				       struct rds_transport *trans,
+				       u8 tos, gfp_t gfp,
 				       int dev_if);
 struct rds_connection *rds_conn_create_outgoing(struct net *net,
 						const struct in6_addr *laddr,
 						const struct in6_addr *faddr,
 						struct rds_transport *trans,
-						gfp_t gfp, int dev_if);
+						u8 tos, gfp_t gfp, int dev_if);
 void rds_conn_shutdown(struct rds_conn_path *cpath);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);

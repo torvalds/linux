@@ -1,21 +1,7 @@
-/*
- * cros_ec_debugfs - debug logs for Chrome OS EC
- *
- * Copyright 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Debug logs for the ChromeOS EC
+//
+// Copyright (C) 2015 Google, Inc.
 
 #include <linux/circ_buf.h>
 #include <linux/debugfs.h>
@@ -23,11 +9,15 @@
 #include <linux/fs.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
+
+#define DRV_NAME "cros-ec-debugfs"
 
 #define LOG_SHIFT		14
 #define LOG_SIZE		(1 << LOG_SHIFT)
@@ -423,8 +413,9 @@ static int cros_ec_create_pdinfo(struct cros_ec_debugfs *debug_info)
 	return 0;
 }
 
-int cros_ec_debugfs_init(struct cros_ec_dev *ec)
+static int cros_ec_debugfs_probe(struct platform_device *pd)
 {
+	struct cros_ec_dev *ec = dev_get_drvdata(pd->dev.parent);
 	struct cros_ec_platform *ec_platform = dev_get_platdata(ec->dev);
 	const char *name = ec_platform->ec_name;
 	struct cros_ec_debugfs *debug_info;
@@ -453,40 +444,57 @@ int cros_ec_debugfs_init(struct cros_ec_dev *ec)
 
 	ec->debug_info = debug_info;
 
+	dev_set_drvdata(&pd->dev, ec);
+
 	return 0;
 
 remove_debugfs:
 	debugfs_remove_recursive(debug_info->dir);
 	return ret;
 }
-EXPORT_SYMBOL(cros_ec_debugfs_init);
 
-void cros_ec_debugfs_remove(struct cros_ec_dev *ec)
+static int cros_ec_debugfs_remove(struct platform_device *pd)
 {
-	if (!ec->debug_info)
-		return;
+	struct cros_ec_dev *ec = dev_get_drvdata(pd->dev.parent);
 
 	debugfs_remove_recursive(ec->debug_info->dir);
 	cros_ec_cleanup_console_log(ec->debug_info);
-}
-EXPORT_SYMBOL(cros_ec_debugfs_remove);
 
-void cros_ec_debugfs_suspend(struct cros_ec_dev *ec)
-{
-	/*
-	 * cros_ec_debugfs_init() failures are non-fatal; it's also possible
-	 * that we initted things but decided that console log wasn't supported.
-	 * We'll use the same set of checks that cros_ec_debugfs_remove() +
-	 * cros_ec_cleanup_console_log() end up using to handle those cases.
-	 */
-	if (ec->debug_info && ec->debug_info->log_buffer.buf)
-		cancel_delayed_work_sync(&ec->debug_info->log_poll_work);
+	return 0;
 }
-EXPORT_SYMBOL(cros_ec_debugfs_suspend);
 
-void cros_ec_debugfs_resume(struct cros_ec_dev *ec)
+static int __maybe_unused cros_ec_debugfs_suspend(struct device *dev)
 {
-	if (ec->debug_info && ec->debug_info->log_buffer.buf)
-		schedule_delayed_work(&ec->debug_info->log_poll_work, 0);
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&ec->debug_info->log_poll_work);
+
+	return 0;
 }
-EXPORT_SYMBOL(cros_ec_debugfs_resume);
+
+static int __maybe_unused cros_ec_debugfs_resume(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	schedule_delayed_work(&ec->debug_info->log_poll_work, 0);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(cros_ec_debugfs_pm_ops,
+			 cros_ec_debugfs_suspend, cros_ec_debugfs_resume);
+
+static struct platform_driver cros_ec_debugfs_driver = {
+	.driver = {
+		.name = DRV_NAME,
+		.pm = &cros_ec_debugfs_pm_ops,
+	},
+	.probe = cros_ec_debugfs_probe,
+	.remove = cros_ec_debugfs_remove,
+};
+
+module_platform_driver(cros_ec_debugfs_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Debug logs for ChromeOS EC");
+MODULE_ALIAS("platform:" DRV_NAME);

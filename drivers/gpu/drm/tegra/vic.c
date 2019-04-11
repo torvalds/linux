@@ -26,6 +26,7 @@
 struct vic_config {
 	const char *firmware;
 	unsigned int version;
+	bool supports_sid;
 };
 
 struct vic {
@@ -105,6 +106,22 @@ static int vic_boot(struct vic *vic)
 	if (vic->booted)
 		return 0;
 
+	if (vic->config->supports_sid) {
+		struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
+		u32 value;
+
+		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) |
+			TRANSCFG_ATT(0, TRANSCFG_SID_HW);
+		vic_writel(vic, value, VIC_TFBIF_TRANSCFG);
+
+		if (spec && spec->num_ids > 0) {
+			value = spec->ids[0] & 0xffff;
+
+			vic_writel(vic, value, VIC_THI_STREAMID0);
+			vic_writel(vic, value, VIC_THI_STREAMID1);
+		}
+	}
+
 	/* setup clockgating registers */
 	vic_writel(vic, CG_IDLE_CG_DLY_CNT(4) |
 			CG_IDLE_CG_EN |
@@ -181,13 +198,6 @@ static int vic_init(struct host1x_client *client)
 		vic->domain = tegra->domain;
 	}
 
-	if (!vic->falcon.data) {
-		vic->falcon.data = tegra;
-		err = falcon_load_firmware(&vic->falcon);
-		if (err < 0)
-			goto detach;
-	}
-
 	vic->channel = host1x_channel_request(client->dev);
 	if (!vic->channel) {
 		err = -ENOMEM;
@@ -246,6 +256,30 @@ static const struct host1x_client_ops vic_client_ops = {
 	.exit = vic_exit,
 };
 
+static int vic_load_firmware(struct vic *vic)
+{
+	int err;
+
+	if (vic->falcon.data)
+		return 0;
+
+	vic->falcon.data = vic->client.drm;
+
+	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
+	if (err < 0)
+		goto cleanup;
+
+	err = falcon_load_firmware(&vic->falcon);
+	if (err < 0)
+		goto cleanup;
+
+	return 0;
+
+cleanup:
+	vic->falcon.data = NULL;
+	return err;
+}
+
 static int vic_open_channel(struct tegra_drm_client *client,
 			    struct tegra_drm_context *context)
 {
@@ -256,19 +290,25 @@ static int vic_open_channel(struct tegra_drm_client *client,
 	if (err < 0)
 		return err;
 
+	err = vic_load_firmware(vic);
+	if (err < 0)
+		goto rpm_put;
+
 	err = vic_boot(vic);
-	if (err < 0) {
-		pm_runtime_put(vic->dev);
-		return err;
-	}
+	if (err < 0)
+		goto rpm_put;
 
 	context->channel = host1x_channel_get(vic->channel);
 	if (!context->channel) {
-		pm_runtime_put(vic->dev);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto rpm_put;
 	}
 
 	return 0;
+
+rpm_put:
+	pm_runtime_put(vic->dev);
+	return err;
 }
 
 static void vic_close_channel(struct tegra_drm_context *context)
@@ -291,6 +331,7 @@ static const struct tegra_drm_client_ops vic_ops = {
 static const struct vic_config vic_t124_config = {
 	.firmware = NVIDIA_TEGRA_124_VIC_FIRMWARE,
 	.version = 0x40,
+	.supports_sid = false,
 };
 
 #define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic04_ucode.bin"
@@ -298,6 +339,7 @@ static const struct vic_config vic_t124_config = {
 static const struct vic_config vic_t210_config = {
 	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
 	.version = 0x21,
+	.supports_sid = false,
 };
 
 #define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic04_ucode.bin"
@@ -305,6 +347,7 @@ static const struct vic_config vic_t210_config = {
 static const struct vic_config vic_t186_config = {
 	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
 	.version = 0x18,
+	.supports_sid = true,
 };
 
 #define NVIDIA_TEGRA_194_VIC_FIRMWARE "nvidia/tegra194/vic.bin"
@@ -312,6 +355,7 @@ static const struct vic_config vic_t186_config = {
 static const struct vic_config vic_t194_config = {
 	.firmware = NVIDIA_TEGRA_194_VIC_FIRMWARE,
 	.version = 0x19,
+	.supports_sid = true,
 };
 
 static const struct of_device_id vic_match[] = {
@@ -372,10 +416,6 @@ static int vic_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
-	if (err < 0)
-		goto exit_falcon;
-
 	platform_set_drvdata(pdev, vic);
 
 	INIT_LIST_HEAD(&vic->client.base.list);
@@ -393,7 +433,6 @@ static int vic_probe(struct platform_device *pdev)
 	err = host1x_client_register(&vic->client.base);
 	if (err < 0) {
 		dev_err(dev, "failed to register host1x client: %d\n", err);
-		platform_set_drvdata(pdev, NULL);
 		goto exit_falcon;
 	}
 

@@ -27,6 +27,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
+#include <asm/cputype.h>
 #include <asm/debug-monitors.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
@@ -62,16 +63,8 @@
 	.endm
 
 /*
- * Enable and disable interrupts.
+ * Save/restore interrupts.
  */
-	.macro	disable_irq
-	msr	daifset, #2
-	.endm
-
-	.macro	enable_irq
-	msr	daifclr, #2
-	.endm
-
 	.macro	save_and_disable_irq, flags
 	mrs	\flags, daif
 	msr	daifset, #2
@@ -536,9 +529,9 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Return the current thread_info.
+ * Return the current task_struct.
  */
-	.macro	get_thread_info, rd
+	.macro	get_current_task, rd
 	mrs	\rd, sp_el0
 	.endm
 
@@ -602,6 +595,25 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 #else
 	and	\phys, \pte, #PTE_ADDR_MASK
 #endif
+	.endm
+
+/*
+ * tcr_clear_errata_bits - Clear TCR bits that trigger an errata on this CPU.
+ */
+	.macro	tcr_clear_errata_bits, tcr, tmp1, tmp2
+#ifdef CONFIG_FUJITSU_ERRATUM_010001
+	mrs	\tmp1, midr_el1
+
+	mov_q	\tmp2, MIDR_FUJITSU_ERRATUM_010001_MASK
+	and	\tmp1, \tmp1, \tmp2
+	mov_q	\tmp2, MIDR_FUJITSU_ERRATUM_010001
+	cmp	\tmp1, \tmp2
+	b.ne	10f
+
+	mov_q	\tmp2, TCR_CLEAR_FUJITSU_ERRATUM_010001
+	bic	\tcr, \tcr, \tmp2
+10:
+#endif /* CONFIG_FUJITSU_ERRATUM_010001 */
 	.endm
 
 /**
@@ -721,7 +733,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 
 	.macro		if_will_cond_yield_neon
 #ifdef CONFIG_PREEMPT
-	get_thread_info	x0
+	get_current_task	x0
 	ldr		x0, [x0, #TSK_TI_PREEMPT]
 	sub		x0, x0, #PREEMPT_DISABLE_OFFSET
 	cbz		x0, .Lyield_\@

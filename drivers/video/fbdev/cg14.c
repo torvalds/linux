@@ -486,8 +486,8 @@ static int cg14_probe(struct platform_device *op)
 					  info->var.xres);
 	info->fix.smem_len = PAGE_ALIGN(linebytes * info->var.yres);
 
-	if (!strcmp(dp->parent->name, "sbus") ||
-	    !strcmp(dp->parent->name, "sbi")) {
+	if (of_node_name_eq(dp->parent, "sbus") ||
+	    of_node_name_eq(dp->parent, "sbi")) {
 		info->fix.smem_start = op->resource[0].start;
 		par->iospace = op->resource[0].flags & IORESOURCE_BITS;
 	} else {

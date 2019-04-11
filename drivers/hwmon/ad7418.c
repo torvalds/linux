@@ -19,6 +19,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 
@@ -54,10 +55,11 @@ struct ad7418_data {
 	u16			in[4];
 };
 
-static struct ad7418_data *ad7418_update_device(struct device *dev)
+static int ad7418_update_device(struct device *dev)
 {
 	struct ad7418_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
+	s32 val;
 
 	mutex_lock(&data->lock);
 
@@ -67,47 +69,74 @@ static struct ad7418_data *ad7418_update_device(struct device *dev)
 		int i, ch;
 
 		/* read config register and clear channel bits */
-		cfg = i2c_smbus_read_byte_data(client, AD7418_REG_CONF);
+		val = i2c_smbus_read_byte_data(client, AD7418_REG_CONF);
+		if (val < 0)
+			goto abort;
+
+		cfg = val;
 		cfg &= 0x1F;
 
-		i2c_smbus_write_byte_data(client, AD7418_REG_CONF,
+		val = i2c_smbus_write_byte_data(client, AD7418_REG_CONF,
 						cfg | AD7418_CH_TEMP);
+		if (val < 0)
+			goto abort;
+
 		udelay(30);
 
 		for (i = 0; i < 3; i++) {
-			data->temp[i] =
-				i2c_smbus_read_word_swapped(client,
-						AD7418_REG_TEMP[i]);
+			val = i2c_smbus_read_word_swapped(client,
+							  AD7418_REG_TEMP[i]);
+			if (val < 0)
+				goto abort;
+
+			data->temp[i] = val;
 		}
 
 		for (i = 0, ch = 4; i < data->adc_max; i++, ch--) {
-			i2c_smbus_write_byte_data(client,
-					AD7418_REG_CONF,
+			val = i2c_smbus_write_byte_data(client, AD7418_REG_CONF,
 					cfg | AD7418_REG_ADC_CH(ch));
+			if (val < 0)
+				goto abort;
 
 			udelay(15);
-			data->in[data->adc_max - 1 - i] =
-				i2c_smbus_read_word_swapped(client,
-						AD7418_REG_ADC);
+			val = i2c_smbus_read_word_swapped(client,
+							  AD7418_REG_ADC);
+			if (val < 0)
+				goto abort;
+
+			data->in[data->adc_max - 1 - i] = val;
 		}
 
 		/* restore old configuration value */
-		i2c_smbus_write_word_swapped(client, AD7418_REG_CONF, cfg);
+		val = i2c_smbus_write_word_swapped(client, AD7418_REG_CONF,
+						   cfg);
+		if (val < 0)
+			goto abort;
 
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
 
 	mutex_unlock(&data->lock);
+	return 0;
 
-	return data;
+abort:
+	data->valid = 0;
+	mutex_unlock(&data->lock);
+	return val;
 }
 
 static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct ad7418_data *data = ad7418_update_device(dev);
+	struct ad7418_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ad7418_update_device(dev);
+	if (ret < 0)
+		return ret;
+
 	return sprintf(buf, "%d\n",
 		LM75_TEMP_FROM_REG(data->temp[attr->index]));
 }
@@ -116,7 +145,12 @@ static ssize_t adc_show(struct device *dev, struct device_attribute *devattr,
 			char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct ad7418_data *data = ad7418_update_device(dev);
+	struct ad7418_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ad7418_update_device(dev);
+	if (ret < 0)
+		return ret;
 
 	return sprintf(buf, "%d\n",
 		((data->in[attr->index] >> 6) * 2500 + 512) / 1024);
@@ -220,7 +254,10 @@ static int ad7418_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 	data->client = client;
-	data->type = id->driver_data;
+	if (dev->of_node)
+		data->type = (enum chips)of_device_get_match_data(dev);
+	else
+		data->type = id->driver_data;
 
 	switch (data->type) {
 	case ad7416:
@@ -258,9 +295,18 @@ static const struct i2c_device_id ad7418_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7418_id);
 
+static const struct of_device_id ad7418_dt_ids[] = {
+	{ .compatible = "adi,ad7416", .data = (void *)ad7416, },
+	{ .compatible = "adi,ad7417", .data = (void *)ad7417, },
+	{ .compatible = "adi,ad7418", .data = (void *)ad7418, },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ad7418_dt_ids);
+
 static struct i2c_driver ad7418_driver = {
 	.driver = {
 		.name	= "ad7418",
+		.of_match_table = ad7418_dt_ids,
 	},
 	.probe		= ad7418_probe,
 	.id_table	= ad7418_id,

@@ -910,9 +910,6 @@ static int core_alua_write_tpg_metadata(
 	return (ret < 0) ? -EIO : 0;
 }
 
-/*
- * Called with tg_pt_gp->tg_pt_gp_transition_mutex held
- */
 static int core_alua_update_tpg_primary_metadata(
 	struct t10_alua_tg_pt_gp *tg_pt_gp)
 {
@@ -920,6 +917,8 @@ static int core_alua_update_tpg_primary_metadata(
 	struct t10_wwn *wwn = &tg_pt_gp->tg_pt_gp_dev->t10_wwn;
 	char *path;
 	int len, rc;
+
+	lockdep_assert_held(&tg_pt_gp->tg_pt_gp_transition_mutex);
 
 	md_buf = kzalloc(ALUA_MD_BUF_LEN, GFP_KERNEL);
 	if (!md_buf) {

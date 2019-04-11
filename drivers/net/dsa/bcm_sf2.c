@@ -221,8 +221,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	return b53_enable_port(ds, port, phy);
 }
 
-static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
-				 struct phy_device *phy)
+static void bcm_sf2_port_disable(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 reg;
@@ -241,7 +240,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	if (priv->int_phy_mask & 1 << port && priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, false);
 
-	b53_disable_port(ds, port, phy);
+	b53_disable_port(ds, port);
 
 	/* Power down the port memory */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -692,7 +691,7 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	 */
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_user_port(ds, port) || dsa_is_cpu_port(ds, port))
-			bcm_sf2_port_disable(ds, port, NULL);
+			bcm_sf2_port_disable(ds, port);
 	}
 
 	return 0;
@@ -788,7 +787,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
 		else
-			bcm_sf2_port_disable(ds, port, NULL);
+			bcm_sf2_port_disable(ds, port);
 	}
 
 	b53_configure_vlan(ds);
@@ -896,12 +895,44 @@ static const struct b53_io_ops bcm_sf2_io_ops = {
 	.write64 = bcm_sf2_core_write64,
 };
 
+static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
+				   u32 stringset, uint8_t *data)
+{
+	int cnt = b53_get_sset_count(ds, port, stringset);
+
+	b53_get_strings(ds, port, stringset, data);
+	bcm_sf2_cfp_get_strings(ds, port, stringset,
+				data + cnt * ETH_GSTRING_LEN);
+}
+
+static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,
+					 uint64_t *data)
+{
+	int cnt = b53_get_sset_count(ds, port, ETH_SS_STATS);
+
+	b53_get_ethtool_stats(ds, port, data);
+	bcm_sf2_cfp_get_ethtool_stats(ds, port, data + cnt);
+}
+
+static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
+				     int sset)
+{
+	int cnt = b53_get_sset_count(ds, port, sset);
+
+	if (cnt < 0)
+		return cnt;
+
+	cnt += bcm_sf2_cfp_get_sset_count(ds, port, sset);
+
+	return cnt;
+}
+
 static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= bcm_sf2_sw_setup,
-	.get_strings		= b53_get_strings,
-	.get_ethtool_stats	= b53_get_ethtool_stats,
-	.get_sset_count		= b53_get_sset_count,
+	.get_strings		= bcm_sf2_sw_get_strings,
+	.get_ethtool_stats	= bcm_sf2_sw_get_ethtool_stats,
+	.get_sset_count		= bcm_sf2_sw_get_sset_count,
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.phylink_validate	= bcm_sf2_sw_validate,
@@ -1064,7 +1095,6 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, priv);
 
 	spin_lock_init(&priv->indir_lock);
-	mutex_init(&priv->stats_mutex);
 	mutex_init(&priv->cfp.lock);
 	INIT_LIST_HEAD(&priv->cfp.rules_list);
 

@@ -59,6 +59,8 @@ struct pci_epc_ops {
 			     enum pci_epc_irq_type type, u16 interrupt_num);
 	int	(*start)(struct pci_epc *epc);
 	void	(*stop)(struct pci_epc *epc);
+	const struct pci_epc_features* (*get_features)(struct pci_epc *epc,
+						       u8 func_no);
 	struct module *owner;
 };
 
@@ -97,16 +99,25 @@ struct pci_epc {
 	struct config_group		*group;
 	/* spinlock to protect against concurrent access of EP controller */
 	spinlock_t			lock;
-	unsigned int			features;
 };
 
-#define EPC_FEATURE_NO_LINKUP_NOTIFIER		BIT(0)
-#define EPC_FEATURE_BAR_MASK			(BIT(1) | BIT(2) | BIT(3))
-#define EPC_FEATURE_MSIX_AVAILABLE		BIT(4)
-#define EPC_FEATURE_SET_BAR(features, bar)	\
-		(features |= (EPC_FEATURE_BAR_MASK & (bar << 1)))
-#define EPC_FEATURE_GET_BAR(features)		\
-		((features & EPC_FEATURE_BAR_MASK) >> 1)
+/**
+ * struct pci_epc_features - features supported by a EPC device per function
+ * @linkup_notifier: indicate if the EPC device can notify EPF driver on link up
+ * @msi_capable: indicate if the endpoint function has MSI capability
+ * @msix_capable: indicate if the endpoint function has MSI-X capability
+ * @reserved_bar: bitmap to indicate reserved BAR unavailable to function driver
+ * @bar_fixed_64bit: bitmap to indicate fixed 64bit BARs
+ * @bar_fixed_size: Array specifying the size supported by each BAR
+ */
+struct pci_epc_features {
+	unsigned int	linkup_notifier : 1;
+	unsigned int	msi_capable : 1;
+	unsigned int	msix_capable : 1;
+	u8	reserved_bar;
+	u8	bar_fixed_64bit;
+	u64	bar_fixed_size[BAR_5 + 1];
+};
 
 #define to_pci_epc(device) container_of((device), struct pci_epc, dev)
 
@@ -158,6 +169,10 @@ int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no,
 		      enum pci_epc_irq_type type, u16 interrupt_num);
 int pci_epc_start(struct pci_epc *epc);
 void pci_epc_stop(struct pci_epc *epc);
+const struct pci_epc_features *pci_epc_get_features(struct pci_epc *epc,
+						    u8 func_no);
+unsigned int pci_epc_get_first_free_bar(const struct pci_epc_features
+					*epc_features);
 struct pci_epc *pci_epc_get(const char *epc_name);
 void pci_epc_put(struct pci_epc *epc);
 

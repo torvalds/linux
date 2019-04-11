@@ -14,7 +14,8 @@ struct dw_mipi_dsi;
 
 struct dw_mipi_dsi_phy_ops {
 	int (*init)(void *priv_data);
-	int (*get_lane_mbps)(void *priv_data, struct drm_display_mode *mode,
+	int (*get_lane_mbps)(void *priv_data,
+			     const struct drm_display_mode *mode,
 			     unsigned long mode_flags, u32 lanes, u32 format,
 			     unsigned int *lane_mbps);
 };

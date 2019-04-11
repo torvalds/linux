@@ -189,8 +189,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		if (ret == ACT_P_CREATED)
-			tcf_idr_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 
@@ -305,7 +304,7 @@ static int tcf_skbedit_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_skbedit_ops = {
 	.kind		=	"skbedit",
-	.type		=	TCA_ACT_SKBEDIT,
+	.id		=	TCA_ID_SKBEDIT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbedit_act,
 	.dump		=	tcf_skbedit_dump,

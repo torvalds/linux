@@ -19,9 +19,9 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/bridge/dw_mipi_dsi.h>
 #include <video/mipi_display.h>
 
@@ -248,7 +248,7 @@ static inline bool dw_mipi_is_dual_mode(struct dw_mipi_dsi *dsi)
  * The controller should generate 2 frames before
  * preparing the peripheral.
  */
-static void dw_mipi_dsi_wait_for_two_frames(struct drm_display_mode *mode)
+static void dw_mipi_dsi_wait_for_two_frames(const struct drm_display_mode *mode)
 {
 	int refresh, two_frames;
 
@@ -564,7 +564,7 @@ static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 }
 
 static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
-				   struct drm_display_mode *mode)
+				   const struct drm_display_mode *mode)
 {
 	u32 val = 0, color = 0;
 
@@ -607,7 +607,7 @@ static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 }
 
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
-					    struct drm_display_mode *mode)
+					    const struct drm_display_mode *mode)
 {
 	/*
 	 * TODO dw drv improvements
@@ -642,7 +642,7 @@ static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 
 /* Get lane byte clock cycles. */
 static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
-					   struct drm_display_mode *mode,
+					   const struct drm_display_mode *mode,
 					   u32 hcomponent)
 {
 	u32 frac, lbcc;
@@ -658,7 +658,7 @@ static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
 }
 
 static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi,
-					  struct drm_display_mode *mode)
+					  const struct drm_display_mode *mode)
 {
 	u32 htotal, hsa, hbp, lbcc;
 
@@ -681,7 +681,7 @@ static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi,
 }
 
 static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi,
-					       struct drm_display_mode *mode)
+					const struct drm_display_mode *mode)
 {
 	u32 vactive, vsa, vfp, vbp;
 
@@ -818,7 +818,7 @@ static unsigned int dw_mipi_dsi_get_lanes(struct dw_mipi_dsi *dsi)
 }
 
 static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
-				struct drm_display_mode *adjusted_mode)
+				 const struct drm_display_mode *adjusted_mode)
 {
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 	void *priv_data = dsi->plat_data->priv_data;
@@ -861,8 +861,8 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 }
 
 static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
-					struct drm_display_mode *mode,
-					struct drm_display_mode *adjusted_mode)
+					const struct drm_display_mode *mode,
+					const struct drm_display_mode *adjusted_mode)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 

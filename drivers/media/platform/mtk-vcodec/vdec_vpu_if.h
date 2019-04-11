@@ -62,7 +62,7 @@ int vpu_dec_start(struct vdec_vpu_inst *vpu, uint32_t *data, unsigned int len);
 /**
  * vpu_dec_end - end decoding, basically the function will be invoked once
  *               when HW decoding done interrupt received successfully. The
- *               decoder in VPU will continute to do referene frame management
+ *               decoder in VPU will continue to do reference frame management
  *               and check if there is a new decoded frame available to display.
  *
  * @vpu : instance for vdec_vpu_inst

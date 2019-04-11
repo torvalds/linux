@@ -64,7 +64,6 @@ config CAVIUM_PTP
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
 	depends on 64BIT && PCI
-	depends on MAY_USE_DEVLINK
 	depends on PCI
 	imply PTP_1588_CLOCK
 	select FW_LOADER

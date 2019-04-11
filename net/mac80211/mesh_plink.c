@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
+ * Copyright (C) 2019 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1214,6 +1215,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		if (baselen > len)
 			return;
 	}
-	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems);
+	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems,
+			       mgmt->bssid, NULL);
 	mesh_process_plink_frame(sdata, mgmt, &elems, rx_status);
 }

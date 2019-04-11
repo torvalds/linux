@@ -2029,7 +2029,6 @@ static const struct dev_pm_ops davinci_emac_pm_ops = {
 	.resume		= davinci_emac_resume,
 };
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct emac_platform_data am3517_emac_data = {
 	.version		= EMAC_VERSION_2,
 	.hw_ram_addr		= 0x01e20000,
@@ -2046,14 +2045,13 @@ static const struct of_device_id davinci_emac_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, davinci_emac_of_match);
-#endif
 
 /* davinci_emac_driver: EMAC platform driver structure */
 static struct platform_driver davinci_emac_driver = {
 	.driver = {
 		.name	 = "davinci_emac",
 		.pm	 = &davinci_emac_pm_ops,
-		.of_match_table = of_match_ptr(davinci_emac_of_match),
+		.of_match_table = davinci_emac_of_match,
 	},
 	.probe = davinci_emac_probe,
 	.remove = davinci_emac_remove,

@@ -738,7 +738,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 {
 	unsigned long numpages, pmask, psize, lpaddr, pfn, old_pfn;
 	pgprot_t old_prot, new_prot, req_prot, chk_prot;
-	pte_t new_pte, old_pte, *tmp;
+	pte_t new_pte, *tmp;
 	enum pg_level level;
 
 	/*
@@ -781,7 +781,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	 * Convert protection attributes to 4k-format, as cpa->mask* are set
 	 * up accordingly.
 	 */
-	old_pte = *kpte;
+
 	/* Clear PSE (aka _PAGE_PAT) and move PAT bit to correct position */
 	req_prot = pgprot_large_2_4k(old_prot);
 

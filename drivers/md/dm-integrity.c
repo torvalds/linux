@@ -1122,7 +1122,7 @@ static int dm_integrity_rw_tag(struct dm_integrity_c *ic, unsigned char *tag, se
 			return r;
 
 		data = dm_bufio_read(ic->bufio, *metadata_block, &b);
-		if (unlikely(IS_ERR(data)))
+		if (IS_ERR(data))
 			return PTR_ERR(data);
 
 		to_copy = min((1U << SECTOR_SHIFT << ic->log2_buffer_sectors) - *metadata_offset, total_size);
@@ -1368,8 +1368,8 @@ again:
 						checksums_ptr - checksums, !dio->write ? TAG_CMP : TAG_WRITE);
 			if (unlikely(r)) {
 				if (r > 0) {
-					DMERR("Checksum failed at sector 0x%llx",
-					      (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
+					DMERR_LIMIT("Checksum failed at sector 0x%llx",
+						    (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
 					r = -EILSEQ;
 					atomic64_inc(&ic->number_of_mismatches);
 				}
@@ -1561,8 +1561,8 @@ retry_kmap:
 
 					integrity_sector_checksum(ic, logical_sector, mem + bv.bv_offset, checksums_onstack);
 					if (unlikely(memcmp(checksums_onstack, journal_entry_tag(ic, je), ic->tag_size))) {
-						DMERR("Checksum failed when reading from journal, at sector 0x%llx",
-						      (unsigned long long)logical_sector);
+						DMERR_LIMIT("Checksum failed when reading from journal, at sector 0x%llx",
+							    (unsigned long long)logical_sector);
 					}
 				}
 #endif

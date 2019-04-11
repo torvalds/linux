@@ -46,11 +46,16 @@
 /* J9 */
 &pcie0 {
 	status = "okay";
+	phys = <&comphy1 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_reset_pins &pcie_clkreq_pins>;
 };
 
 /* J6 */
 &sata {
 	status = "okay";
+	phys = <&comphy2 0>;
+	phy-names = "sata-phy";
 };
 
 /* J1 */
@@ -156,6 +161,11 @@
 				reg = <0>;
 				label = "cpu";
 				ethernet = <&eth0>;
+				phy-mode = "rgmii-id";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 
 			port@1 {
@@ -196,6 +206,8 @@
 };
 
 &eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>, <&smi_pins>;
 	phy-mode = "rgmii-id";
 	status = "okay";
 

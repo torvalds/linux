@@ -4,6 +4,10 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include <linux/prime_numbers.h>
+
+#include "../i915_reset.h"
+
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
 #include "igt_spinner.h"
@@ -18,13 +22,14 @@ static int live_sanitycheck(void *arg)
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
 	struct igt_spinner spin;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_CONTEXTS(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin, i915))
 		goto err_unlock;
@@ -65,7 +70,7 @@ err_spin:
 	igt_spinner_fini(&spin);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -77,13 +82,14 @@ static int live_preempt(void *arg)
 	struct igt_spinner spin_hi, spin_lo;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -158,7 +164,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -171,13 +177,14 @@ static int live_late_preempt(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_sched_attr attr = {};
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -251,7 +258,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 
@@ -263,6 +270,243 @@ err_wedged:
 	goto err_ctx_lo;
 }
 
+struct preempt_client {
+	struct igt_spinner spin;
+	struct i915_gem_context *ctx;
+};
+
+static int preempt_client_init(struct drm_i915_private *i915,
+			       struct preempt_client *c)
+{
+	c->ctx = kernel_context(i915);
+	if (!c->ctx)
+		return -ENOMEM;
+
+	if (igt_spinner_init(&c->spin, i915))
+		goto err_ctx;
+
+	return 0;
+
+err_ctx:
+	kernel_context_close(c->ctx);
+	return -ENOMEM;
+}
+
+static void preempt_client_fini(struct preempt_client *c)
+{
+	igt_spinner_fini(&c->spin);
+	kernel_context_close(c->ctx);
+}
+
+static int live_suppress_self_preempt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct i915_sched_attr attr = {
+		.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX)
+	};
+	struct preempt_client a, b;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = -ENOMEM;
+
+	/*
+	 * Verify that if a preemption request does not cause a change in
+	 * the current execution order, the preempt-to-idle injection is
+	 * skipped and that we do not accidentally apply it after the CS
+	 * completion event.
+	 */
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
+		return 0;
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0; /* presume black blox */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
+	if (preempt_client_init(i915, &a))
+		goto err_unlock;
+	if (preempt_client_init(i915, &b))
+		goto err_client_a;
+
+	for_each_engine(engine, i915, id) {
+		struct i915_request *rq_a, *rq_b;
+		int depth;
+
+		engine->execlists.preempt_hang.count = 0;
+
+		rq_a = igt_spinner_create_request(&a.spin,
+						  a.ctx, engine,
+						  MI_NOOP);
+		if (IS_ERR(rq_a)) {
+			err = PTR_ERR(rq_a);
+			goto err_client_b;
+		}
+
+		i915_request_add(rq_a);
+		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
+			pr_err("First client failed to start\n");
+			goto err_wedged;
+		}
+
+		for (depth = 0; depth < 8; depth++) {
+			rq_b = igt_spinner_create_request(&b.spin,
+							  b.ctx, engine,
+							  MI_NOOP);
+			if (IS_ERR(rq_b)) {
+				err = PTR_ERR(rq_b);
+				goto err_client_b;
+			}
+			i915_request_add(rq_b);
+
+			GEM_BUG_ON(i915_request_completed(rq_a));
+			engine->schedule(rq_a, &attr);
+			igt_spinner_end(&a.spin);
+
+			if (!igt_wait_for_spinner(&b.spin, rq_b)) {
+				pr_err("Second client failed to start\n");
+				goto err_wedged;
+			}
+
+			swap(a, b);
+			rq_a = rq_b;
+		}
+		igt_spinner_end(&a.spin);
+
+		if (engine->execlists.preempt_hang.count) {
+			pr_err("Preemption recorded x%d, depth %d; should have been suppressed!\n",
+			       engine->execlists.preempt_hang.count,
+			       depth);
+			err = -EINVAL;
+			goto err_client_b;
+		}
+
+		if (igt_flush_test(i915, I915_WAIT_LOCKED))
+			goto err_wedged;
+	}
+
+	err = 0;
+err_client_b:
+	preempt_client_fini(&b);
+err_client_a:
+	preempt_client_fini(&a);
+err_unlock:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	intel_runtime_pm_put(i915, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+
+err_wedged:
+	igt_spinner_end(&b.spin);
+	igt_spinner_end(&a.spin);
+	i915_gem_set_wedged(i915);
+	err = -EIO;
+	goto err_client_b;
+}
+
+static int live_chain_preempt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct preempt_client hi, lo;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = -ENOMEM;
+
+	/*
+	 * Build a chain AB...BA between two contexts (A, B) and request
+	 * preemption of the last request. It should then complete before
+	 * the previously submitted spinner in B.
+	 */
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
+		return 0;
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
+	if (preempt_client_init(i915, &hi))
+		goto err_unlock;
+
+	if (preempt_client_init(i915, &lo))
+		goto err_client_hi;
+
+	for_each_engine(engine, i915, id) {
+		struct i915_sched_attr attr = {
+			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
+		};
+		int count, i;
+
+		for_each_prime_number_from(count, 1, 32) { /* must fit ring! */
+			struct i915_request *rq;
+
+			rq = igt_spinner_create_request(&hi.spin,
+							hi.ctx, engine,
+							MI_ARB_CHECK);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+			if (!igt_wait_for_spinner(&hi.spin, rq))
+				goto err_wedged;
+
+			rq = igt_spinner_create_request(&lo.spin,
+							lo.ctx, engine,
+							MI_ARB_CHECK);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+
+			for (i = 0; i < count; i++) {
+				rq = i915_request_alloc(engine, lo.ctx);
+				if (IS_ERR(rq))
+					goto err_wedged;
+				i915_request_add(rq);
+			}
+
+			rq = i915_request_alloc(engine, hi.ctx);
+			if (IS_ERR(rq))
+				goto err_wedged;
+			i915_request_add(rq);
+			engine->schedule(rq, &attr);
+
+			igt_spinner_end(&hi.spin);
+			if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+				struct drm_printer p =
+					drm_info_printer(i915->drm.dev);
+
+				pr_err("Failed to preempt over chain of %d\n",
+				       count);
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
+				goto err_wedged;
+			}
+			igt_spinner_end(&lo.spin);
+		}
+	}
+
+	err = 0;
+err_client_lo:
+	preempt_client_fini(&lo);
+err_client_hi:
+	preempt_client_fini(&hi);
+err_unlock:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	intel_runtime_pm_put(i915, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+
+err_wedged:
+	igt_spinner_end(&hi.spin);
+	igt_spinner_end(&lo.spin);
+	i915_gem_set_wedged(i915);
+	err = -EIO;
+	goto err_client_lo;
+}
+
 static int live_preempt_hang(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -270,6 +514,7 @@ static int live_preempt_hang(void *arg)
 	struct igt_spinner spin_hi, spin_lo;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
@@ -279,7 +524,7 @@ static int live_preempt_hang(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -374,7 +619,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -522,7 +767,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 
 	pr_info("Submitted %lu crescendo:%x requests across %d engines and %d contexts\n",
 		count, flags,
-		INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
+		RUNTIME_INFO(smoke->i915)->num_rings, smoke->ncontext);
 	return 0;
 }
 
@@ -550,7 +795,7 @@ static int smoke_random(struct preempt_smoke *smoke, unsigned int flags)
 
 	pr_info("Submitted %lu random:%x requests across %d engines and %d contexts\n",
 		count, flags,
-		INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
+		RUNTIME_INFO(smoke->i915)->num_rings, smoke->ncontext);
 	return 0;
 }
 
@@ -562,6 +807,7 @@ static int live_preempt_smoke(void *arg)
 		.ncontext = 1024,
 	};
 	const unsigned int phase[] = { 0, BATCH };
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 	u32 *cs;
 	int n;
@@ -576,7 +822,7 @@ static int live_preempt_smoke(void *arg)
 		return -ENOMEM;
 
 	mutex_lock(&smoke.i915->drm.struct_mutex);
-	intel_runtime_pm_get(smoke.i915);
+	wakeref = intel_runtime_pm_get(smoke.i915);
 
 	smoke.batch = i915_gem_object_create_internal(smoke.i915, PAGE_SIZE);
 	if (IS_ERR(smoke.batch)) {
@@ -627,7 +873,7 @@ err_ctx:
 err_batch:
 	i915_gem_object_put(smoke.batch);
 err_unlock:
-	intel_runtime_pm_put(smoke.i915);
+	intel_runtime_pm_put(smoke.i915, wakeref);
 	mutex_unlock(&smoke.i915->drm.struct_mutex);
 	kfree(smoke.contexts);
 
@@ -640,6 +886,8 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_sanitycheck),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
+		SUBTEST(live_suppress_self_preempt),
+		SUBTEST(live_chain_preempt),
 		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_smoke),
 	};

@@ -17,6 +17,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include <video/cirrus.h>
 
@@ -359,10 +360,70 @@ static const struct drm_crtc_helper_funcs cirrus_helper_funcs = {
 };
 
 /* CRTC setup */
+static const uint32_t cirrus_formats_16[] = {
+	DRM_FORMAT_RGB565,
+};
+
+static const uint32_t cirrus_formats_24[] = {
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
+};
+
+static const uint32_t cirrus_formats_32[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
+};
+
+static struct drm_plane *cirrus_primary_plane(struct drm_device *dev)
+{
+	const uint32_t *formats;
+	uint32_t nformats;
+	struct drm_plane *primary;
+	int ret;
+
+	switch (cirrus_bpp) {
+	case 16:
+		formats = cirrus_formats_16;
+		nformats = ARRAY_SIZE(cirrus_formats_16);
+		break;
+	case 24:
+		formats = cirrus_formats_24;
+		nformats = ARRAY_SIZE(cirrus_formats_24);
+		break;
+	case 32:
+		formats = cirrus_formats_32;
+		nformats = ARRAY_SIZE(cirrus_formats_32);
+		break;
+	default:
+		return NULL;
+	}
+
+	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
+	if (primary == NULL) {
+		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
+		return NULL;
+	}
+
+	ret = drm_universal_plane_init(dev, primary, 0,
+				       &drm_primary_helper_funcs,
+				       formats, nformats,
+				       NULL,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		kfree(primary);
+		primary = NULL;
+	}
+
+	return primary;
+}
+
 static void cirrus_crtc_init(struct drm_device *dev)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 	struct cirrus_crtc *cirrus_crtc;
+	struct drm_plane *primary;
 
 	cirrus_crtc = kzalloc(sizeof(struct cirrus_crtc) +
 			      (CIRRUSFB_CONN_LIMIT * sizeof(struct drm_connector *)),
@@ -371,7 +432,15 @@ static void cirrus_crtc_init(struct drm_device *dev)
 	if (cirrus_crtc == NULL)
 		return;
 
-	drm_crtc_init(dev, &cirrus_crtc->base, &cirrus_crtc_funcs);
+	primary = cirrus_primary_plane(dev);
+	if (primary == NULL) {
+		kfree(cirrus_crtc);
+		return;
+	}
+
+	drm_crtc_init_with_planes(dev, &cirrus_crtc->base,
+				  primary, NULL,
+				  &cirrus_crtc_funcs, NULL);
 
 	drm_mode_crtc_set_gamma_size(&cirrus_crtc->base, CIRRUS_LUT_SIZE);
 	cdev->mode_info.crtc = cirrus_crtc;

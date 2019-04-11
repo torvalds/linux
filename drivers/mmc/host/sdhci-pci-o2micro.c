@@ -60,6 +60,13 @@
 #define O2_SD_VENDOR_SETTING2	0x1C8
 #define O2_SD_HW_TUNING_DISABLE	BIT(4)
 
+#define O2_PLL_WDT_CONTROL1	0x1CC
+#define  O2_PLL_FORCE_ACTIVE	BIT(18)
+#define  O2_PLL_LOCK_STATUS	BIT(14)
+#define  O2_PLL_SOFT_RESET	BIT(12)
+
+#define O2_SD_DETECT_SETTING 0x324
+
 static void sdhci_o2_set_tuning_mode(struct sdhci_host *host)
 {
 	u16 reg;
@@ -283,6 +290,113 @@ static void sdhci_pci_o2_enable_msi(struct sdhci_pci_chip *chip,
 	host->irq = pci_irq_vector(chip->pdev, 0);
 }
 
+static void sdhci_o2_wait_card_detect_stable(struct sdhci_host *host)
+{
+	ktime_t timeout;
+	u32 scratch32;
+
+	/* Wait max 50 ms */
+	timeout = ktime_add_ms(ktime_get(), 50);
+	while (1) {
+		bool timedout = ktime_after(ktime_get(), timeout);
+
+		scratch32 = sdhci_readl(host, SDHCI_PRESENT_STATE);
+		if ((scratch32 & SDHCI_CARD_PRESENT) >> SDHCI_CARD_PRES_SHIFT
+		    == (scratch32 & SDHCI_CD_LVL) >> SDHCI_CD_LVL_SHIFT)
+			break;
+
+		if (timedout) {
+			pr_err("%s: Card Detect debounce never finished.\n",
+			       mmc_hostname(host->mmc));
+			sdhci_dumpregs(host);
+			return;
+		}
+		udelay(10);
+	}
+}
+
+static void sdhci_o2_enable_internal_clock(struct sdhci_host *host)
+{
+	ktime_t timeout;
+	u16 scratch;
+	u32 scratch32;
+
+	/* PLL software reset */
+	scratch32 = sdhci_readl(host, O2_PLL_WDT_CONTROL1);
+	scratch32 |= O2_PLL_SOFT_RESET;
+	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+	udelay(1);
+	scratch32 &= ~(O2_PLL_SOFT_RESET);
+	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+
+	/* PLL force active */
+	scratch32 |= O2_PLL_FORCE_ACTIVE;
+	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+
+	/* Wait max 20 ms */
+	timeout = ktime_add_ms(ktime_get(), 20);
+	while (1) {
+		bool timedout = ktime_after(ktime_get(), timeout);
+
+		scratch = sdhci_readw(host, O2_PLL_WDT_CONTROL1);
+		if (scratch & O2_PLL_LOCK_STATUS)
+			break;
+		if (timedout) {
+			pr_err("%s: Internal clock never stabilised.\n",
+			       mmc_hostname(host->mmc));
+			sdhci_dumpregs(host);
+			goto out;
+		}
+		udelay(10);
+	}
+
+	/* Wait for card detect finish */
+	udelay(1);
+	sdhci_o2_wait_card_detect_stable(host);
+
+out:
+	/* Cancel PLL force active */
+	scratch32 = sdhci_readl(host, O2_PLL_WDT_CONTROL1);
+	scratch32 &= ~O2_PLL_FORCE_ACTIVE;
+	sdhci_writel(host, scratch32, O2_PLL_WDT_CONTROL1);
+}
+
+static int sdhci_o2_get_cd(struct mmc_host *mmc)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+
+	sdhci_o2_enable_internal_clock(host);
+
+	return !!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
+}
+
+static void sdhci_o2_enable_clk(struct sdhci_host *host, u16 clk)
+{
+	/* Enable internal clock */
+	clk |= SDHCI_CLOCK_INT_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	if (sdhci_o2_get_cd(host->mmc)) {
+		clk |= SDHCI_CLOCK_CARD_EN;
+		sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+	}
+}
+
+void sdhci_pci_o2_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	u16 clk;
+
+	host->mmc->actual_clock = 0;
+
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
+	if (clock == 0)
+		return;
+
+	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
+	sdhci_o2_enable_clk(host, clk);
+}
+
 int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_pci_chip *chip;
@@ -314,9 +428,14 @@ int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 					mmc_hostname(host->mmc));
 				host->flags &= ~SDHCI_SIGNALING_330;
 				host->flags |= SDHCI_SIGNALING_180;
+				host->quirks2 |= SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD;
 				host->mmc->caps2 |= MMC_CAP2_NO_SD;
 				host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+				pci_write_config_dword(chip->pdev,
+						       O2_SD_DETECT_SETTING, 3);
 			}
+
+			slot->host->mmc_host_ops.get_cd = sdhci_o2_get_cd;
 		}
 
 		host->mmc_host_ops.execute_tuning = sdhci_o2_execute_tuning;
@@ -490,9 +609,6 @@ int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
 		break;
 	case PCI_DEVICE_ID_O2_SEABIRD0:
-		if (chip->pdev->revision == 0x01)
-			chip->quirks |= SDHCI_QUIRK_DELAY_AFTER_POWER;
-		/* fall through */
 	case PCI_DEVICE_ID_O2_SEABIRD1:
 		/* UnLock WP */
 		ret = pci_read_config_byte(chip->pdev,
@@ -550,3 +666,21 @@ int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip)
 	return sdhci_pci_resume_host(chip);
 }
 #endif
+
+static const struct sdhci_ops sdhci_pci_o2_ops = {
+	.set_clock = sdhci_pci_o2_set_clock,
+	.enable_dma = sdhci_pci_enable_dma,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
+};
+
+const struct sdhci_pci_fixes sdhci_o2 = {
+	.probe = sdhci_pci_o2_probe,
+	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.probe_slot = sdhci_pci_o2_probe_slot,
+#ifdef CONFIG_PM_SLEEP
+	.resume = sdhci_pci_o2_resume,
+#endif
+	.ops = &sdhci_pci_o2_ops,
+};

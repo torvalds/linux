@@ -398,8 +398,13 @@ wakeup:
 	if (old_state != sk->sk_state) {
 		sk->sk_state_change(sk);
 		if ((sk->sk_state == SMC_CLOSED) &&
-		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket))
+		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket)) {
 			smc_conn_free(conn);
+			if (smc->clcsock) {
+				sock_release(smc->clcsock);
+				smc->clcsock = NULL;
+			}
+		}
 	}
 	release_sock(sk);
 	sock_put(sk); /* sock_hold done by schedulers of close_work */

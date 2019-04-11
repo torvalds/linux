@@ -373,7 +373,7 @@ sys_syscall:
 		movhs	scno, #0
 		csdb
 #endif
-		stmloia	sp, {r5, r6}		@ shuffle args
+		stmialo	sp, {r5, r6}		@ shuffle args
 		movlo	r0, r1
 		movlo	r1, r2
 		movlo	r2, r3

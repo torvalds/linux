@@ -39,7 +39,7 @@ Description
 -----------
 
 CA_SET_DESCR is used for feeding descrambler CA slots with descrambling
-keys (refered as control words).
+keys (referred as control words).
 
 Return Value
 ------------

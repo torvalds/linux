@@ -1,10 +1,10 @@
-libperf-y += header.o
-libperf-y += sym-handling.o
-libperf-$(CONFIG_DWARF)     += dwarf-regs.o
-libperf-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
-libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+perf-y += header.o
+perf-y += sym-handling.o
+perf-$(CONFIG_DWARF)     += dwarf-regs.o
+perf-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
+perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 
-libperf-$(CONFIG_AUXTRACE) += ../../arm/util/pmu.o \
+perf-$(CONFIG_AUXTRACE) += ../../arm/util/pmu.o \
 			      ../../arm/util/auxtrace.o \
 			      ../../arm/util/cs-etm.o \
 			      arm-spe.o

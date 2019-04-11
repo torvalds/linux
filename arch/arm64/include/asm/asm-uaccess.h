@@ -24,7 +24,7 @@
 	.endm
 
 	.macro	__uaccess_ttbr0_enable, tmp1, tmp2
-	get_thread_info \tmp1
+	get_current_task \tmp1
 	ldr	\tmp1, [\tmp1, #TSK_TI_TTBR0]	// load saved TTBR0_EL1
 	mrs	\tmp2, ttbr1_el1
 	extr    \tmp2, \tmp2, \tmp1, #48

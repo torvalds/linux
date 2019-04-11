@@ -435,6 +435,19 @@ static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 	kvmppc_mmu_map_segment(vcpu, esid << SID_SHIFT);
 }
 
+static int kvmppc_mmu_book3s_64_slbfee(struct kvm_vcpu *vcpu, gva_t eaddr,
+				       ulong *ret_slb)
+{
+	struct kvmppc_slb *slbe = kvmppc_mmu_book3s_64_find_slbe(vcpu, eaddr);
+
+	if (slbe) {
+		*ret_slb = slbe->origv;
+		return 0;
+	}
+	*ret_slb = 0;
+	return -ENOENT;
+}
+
 static u64 kvmppc_mmu_book3s_64_slbmfee(struct kvm_vcpu *vcpu, u64 slb_nr)
 {
 	struct kvmppc_slb *slbe;
@@ -670,6 +683,7 @@ void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu)
 	mmu->slbmte = kvmppc_mmu_book3s_64_slbmte;
 	mmu->slbmfee = kvmppc_mmu_book3s_64_slbmfee;
 	mmu->slbmfev = kvmppc_mmu_book3s_64_slbmfev;
+	mmu->slbfee = kvmppc_mmu_book3s_64_slbfee;
 	mmu->slbie = kvmppc_mmu_book3s_64_slbie;
 	mmu->slbia = kvmppc_mmu_book3s_64_slbia;
 	mmu->xlate = kvmppc_mmu_book3s_64_xlate;

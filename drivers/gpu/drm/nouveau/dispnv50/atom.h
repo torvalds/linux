@@ -116,6 +116,12 @@ struct nv50_head_atom {
 		u8 depth:4;
 	} or;
 
+	/* Currently only used for MST */
+	struct {
+		int pbn;
+		u8 tu:6;
+	} dp;
+
 	union nv50_head_atom_mask {
 		struct {
 			bool olut:1;

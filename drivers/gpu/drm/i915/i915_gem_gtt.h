@@ -39,6 +39,7 @@
 #include <linux/pagevec.h>
 
 #include "i915_request.h"
+#include "i915_reset.h"
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 
@@ -288,6 +289,8 @@ struct i915_address_space {
 	bool closed;
 
 	struct mutex mutex; /* protects vma and our lists */
+#define VM_CLASS_GGTT 0
+#define VM_CLASS_PPGTT 1
 
 	u64 scratch_pte;
 	struct i915_page_dma scratch_page;
@@ -296,32 +299,12 @@ struct i915_address_space {
 	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */
 
 	/**
-	 * List of objects currently involved in rendering.
-	 *
-	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives. last_read_req
-	 * represents when the rendering involved will be completed.
-	 *
-	 * A reference is held on the buffer while on this list.
+	 * List of vma currently bound.
 	 */
-	struct list_head active_list;
+	struct list_head bound_list;
 
 	/**
-	 * LRU list of objects which are not in the ringbuffer and
-	 * are ready to unbind, but are still in the GTT.
-	 *
-	 * last_read_req is NULL while an object is in this list.
-	 *
-	 * A reference is not held on the buffer while on this list,
-	 * as merely being GTT-bound shouldn't prevent its being
-	 * freed, and we'll pull it off the list in the free path.
-	 */
-	struct list_head inactive_list;
-
-	/**
-	 * List of vma that have been unbound.
-	 *
-	 * A reference is not held on the buffer while on this list.
+	 * List of vma that are not unbound.
 	 */
 	struct list_head unbound_list;
 
@@ -413,8 +396,6 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory_pointer pdp;	/* GEN8+ */
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
-
-	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
 struct gen6_hw_ppgtt {
@@ -661,19 +642,19 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 
 /* Flags used by pin/bind&friends. */
 #define PIN_NONBLOCK		BIT_ULL(0)
-#define PIN_MAPPABLE		BIT_ULL(1)
-#define PIN_ZONE_4G		BIT_ULL(2)
-#define PIN_NONFAULT		BIT_ULL(3)
-#define PIN_NOEVICT		BIT_ULL(4)
+#define PIN_NONFAULT		BIT_ULL(1)
+#define PIN_NOEVICT		BIT_ULL(2)
+#define PIN_MAPPABLE		BIT_ULL(3)
+#define PIN_ZONE_4G		BIT_ULL(4)
+#define PIN_HIGH		BIT_ULL(5)
+#define PIN_OFFSET_BIAS		BIT_ULL(6)
+#define PIN_OFFSET_FIXED	BIT_ULL(7)
 
-#define PIN_MBZ			BIT_ULL(5) /* I915_VMA_PIN_OVERFLOW */
-#define PIN_GLOBAL		BIT_ULL(6) /* I915_VMA_GLOBAL_BIND */
-#define PIN_USER		BIT_ULL(7) /* I915_VMA_LOCAL_BIND */
-#define PIN_UPDATE		BIT_ULL(8)
+#define PIN_MBZ			BIT_ULL(8) /* I915_VMA_PIN_OVERFLOW */
+#define PIN_GLOBAL		BIT_ULL(9) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT_ULL(10) /* I915_VMA_LOCAL_BIND */
+#define PIN_UPDATE		BIT_ULL(11)
 
-#define PIN_HIGH		BIT_ULL(9)
-#define PIN_OFFSET_BIAS		BIT_ULL(10)
-#define PIN_OFFSET_FIXED	BIT_ULL(11)
 #define PIN_OFFSET_MASK		(-I915_GTT_PAGE_SIZE)
 
 #endif

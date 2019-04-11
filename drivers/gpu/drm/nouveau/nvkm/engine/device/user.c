@@ -365,16 +365,15 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	}
 
 	if (!sclass) {
-		switch (index) {
-		case 0: sclass = &nvkm_control_oclass; break;
-		case 1:
-			if (!device->mmu)
-				return -EINVAL;
+		if (index-- == 0)
+			sclass = &nvkm_control_oclass;
+		else if (device->mmu && index-- == 0)
 			sclass = &device->mmu->user;
-			break;
-		default:
+		else if (device->fault && index-- == 0)
+			sclass = &device->fault->user;
+		else
 			return -EINVAL;
-		}
+
 		oclass->base = sclass->base;
 	}
 

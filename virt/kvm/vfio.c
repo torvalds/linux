@@ -219,7 +219,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 			}
 		}
 
-		kvg = kzalloc(sizeof(*kvg), GFP_KERNEL);
+		kvg = kzalloc(sizeof(*kvg), GFP_KERNEL_ACCOUNT);
 		if (!kvg) {
 			mutex_unlock(&kv->lock);
 			kvm_vfio_group_put_external_user(vfio_group);
@@ -405,7 +405,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 		if (tmp->ops == &kvm_vfio_ops)
 			return -EBUSY;
 
-	kv = kzalloc(sizeof(*kv), GFP_KERNEL);
+	kv = kzalloc(sizeof(*kv), GFP_KERNEL_ACCOUNT);
 	if (!kv)
 		return -ENOMEM;
 

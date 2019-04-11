@@ -168,6 +168,16 @@ config CRYPTO_MANAGER_DISABLE_TESTS
 	  Disable run-time self tests that normally take place at
 	  algorithm registration.
 
+config CRYPTO_MANAGER_EXTRA_TESTS
+	bool "Enable extra run-time crypto self tests"
+	depends on DEBUG_KERNEL && !CRYPTO_MANAGER_DISABLE_TESTS
+	help
+	  Enable extra run-time self tests of registered crypto algorithms,
+	  including randomized fuzz tests.
+
+	  This is intended for developer use only, as these tests take much
+	  longer to run than the normal self tests.
+
 config CRYPTO_GF128MUL
 	tristate "GF(2^128) multiplication functions"
 	help
@@ -642,7 +652,7 @@ config CRYPTO_CRC32_PCLMUL
 	  From Intel Westmere and AMD Bulldozer processor with SSE4.2
 	  and PCLMULQDQ supported, the processor will support
 	  CRC32 PCLMULQDQ implementation using hardware accelerated PCLMULQDQ
-	  instruction. This option will create 'crc32-plcmul' module,
+	  instruction. This option will create 'crc32-pclmul' module,
 	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
 	  and gain better performance as compared with the table implementation.
 
@@ -671,7 +681,7 @@ config CRYPTO_CRCT10DIF_PCLMUL
 	  For x86_64 processors with SSE4.2 and PCLMULQDQ supported,
 	  CRC T10 DIF PCLMULQDQ computation can be hardware
 	  accelerated PCLMULQDQ instruction. This option will create
-	  'crct10dif-plcmul' module, which is faster when computing the
+	  'crct10dif-pclmul' module, which is faster when computing the
 	  crct10dif checksum as compared with the generic table implementation.
 
 config CRYPTO_CRCT10DIF_VPMSUM

@@ -400,7 +400,7 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 
 	chip->ptp_clock_info.owner = THIS_MODULE;
 	snprintf(chip->ptp_clock_info.name, sizeof(chip->ptp_clock_info.name),
-		 dev_name(chip->dev));
+		 "%s", dev_name(chip->dev));
 	chip->ptp_clock_info.max_adj	= 1000000;
 
 	chip->ptp_clock_info.n_ext_ts	= ptp_ops->n_ext_ts;

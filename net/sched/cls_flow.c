@@ -391,7 +391,8 @@ static void flow_destroy_filter_work(struct work_struct *work)
 static int flow_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       void **arg, bool ovr, struct netlink_ext_ack *extack)
+		       void **arg, bool ovr, bool rtnl_held,
+		       struct netlink_ext_ack *extack)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *fold, *fnew;
@@ -440,12 +441,12 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto err1;
 
-	err = tcf_exts_init(&fnew->exts, TCA_FLOW_ACT, TCA_FLOW_POLICE);
+	err = tcf_exts_init(&fnew->exts, net, TCA_FLOW_ACT, TCA_FLOW_POLICE);
 	if (err < 0)
 		goto err2;
 
 	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &fnew->exts, ovr,
-				extack);
+				true, extack);
 	if (err < 0)
 		goto err2;
 
@@ -566,7 +567,7 @@ err1:
 }
 
 static int flow_delete(struct tcf_proto *tp, void *arg, bool *last,
-		       struct netlink_ext_ack *extack)
+		       bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f = arg;
@@ -590,7 +591,8 @@ static int flow_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static void flow_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
+static void flow_destroy(struct tcf_proto *tp, bool rtnl_held,
+			 struct netlink_ext_ack *extack)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f, *next;
@@ -617,7 +619,7 @@ static void *flow_get(struct tcf_proto *tp, u32 handle)
 }
 
 static int flow_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		     struct sk_buff *skb, struct tcmsg *t)
+		     struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct flow_filter *f = fh;
 	struct nlattr *nest;
@@ -677,7 +679,8 @@ nla_put_failure:
 	return -1;
 }
 
-static void flow_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void flow_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+		      bool rtnl_held)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;

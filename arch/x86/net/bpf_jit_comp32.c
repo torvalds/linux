@@ -2072,7 +2072,18 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		case BPF_JMP | BPF_JSGT | BPF_X:
 		case BPF_JMP | BPF_JSLE | BPF_X:
 		case BPF_JMP | BPF_JSLT | BPF_X:
-		case BPF_JMP | BPF_JSGE | BPF_X: {
+		case BPF_JMP | BPF_JSGE | BPF_X:
+		case BPF_JMP32 | BPF_JEQ | BPF_X:
+		case BPF_JMP32 | BPF_JNE | BPF_X:
+		case BPF_JMP32 | BPF_JGT | BPF_X:
+		case BPF_JMP32 | BPF_JLT | BPF_X:
+		case BPF_JMP32 | BPF_JGE | BPF_X:
+		case BPF_JMP32 | BPF_JLE | BPF_X:
+		case BPF_JMP32 | BPF_JSGT | BPF_X:
+		case BPF_JMP32 | BPF_JSLE | BPF_X:
+		case BPF_JMP32 | BPF_JSLT | BPF_X:
+		case BPF_JMP32 | BPF_JSGE | BPF_X: {
+			bool is_jmp64 = BPF_CLASS(insn->code) == BPF_JMP;
 			u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 			u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 			u8 sreg_lo = sstk ? IA32_ECX : src_lo;
@@ -2081,25 +2092,35 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			if (dstk) {
 				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX),
 				      STACK_VAR(dst_lo));
-				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EDX),
-				      STACK_VAR(dst_hi));
+				if (is_jmp64)
+					EMIT3(0x8B,
+					      add_2reg(0x40, IA32_EBP,
+						       IA32_EDX),
+					      STACK_VAR(dst_hi));
 			}
 
 			if (sstk) {
 				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_ECX),
 				      STACK_VAR(src_lo));
-				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EBX),
-				      STACK_VAR(src_hi));
+				if (is_jmp64)
+					EMIT3(0x8B,
+					      add_2reg(0x40, IA32_EBP,
+						       IA32_EBX),
+					      STACK_VAR(src_hi));
 			}
 
-			/* cmp dreg_hi,sreg_hi */
-			EMIT2(0x39, add_2reg(0xC0, dreg_hi, sreg_hi));
-			EMIT2(IA32_JNE, 2);
+			if (is_jmp64) {
+				/* cmp dreg_hi,sreg_hi */
+				EMIT2(0x39, add_2reg(0xC0, dreg_hi, sreg_hi));
+				EMIT2(IA32_JNE, 2);
+			}
 			/* cmp dreg_lo,sreg_lo */
 			EMIT2(0x39, add_2reg(0xC0, dreg_lo, sreg_lo));
 			goto emit_cond_jmp;
 		}
-		case BPF_JMP | BPF_JSET | BPF_X: {
+		case BPF_JMP | BPF_JSET | BPF_X:
+		case BPF_JMP32 | BPF_JSET | BPF_X: {
+			bool is_jmp64 = BPF_CLASS(insn->code) == BPF_JMP;
 			u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 			u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 			u8 sreg_lo = sstk ? IA32_ECX : src_lo;
@@ -2108,15 +2129,21 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			if (dstk) {
 				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX),
 				      STACK_VAR(dst_lo));
-				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EDX),
-				      STACK_VAR(dst_hi));
+				if (is_jmp64)
+					EMIT3(0x8B,
+					      add_2reg(0x40, IA32_EBP,
+						       IA32_EDX),
+					      STACK_VAR(dst_hi));
 			}
 
 			if (sstk) {
 				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_ECX),
 				      STACK_VAR(src_lo));
-				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EBX),
-				      STACK_VAR(src_hi));
+				if (is_jmp64)
+					EMIT3(0x8B,
+					      add_2reg(0x40, IA32_EBP,
+						       IA32_EBX),
+					      STACK_VAR(src_hi));
 			}
 			/* and dreg_lo,sreg_lo */
 			EMIT2(0x23, add_2reg(0xC0, sreg_lo, dreg_lo));
@@ -2126,32 +2153,39 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			EMIT2(0x09, add_2reg(0xC0, dreg_lo, dreg_hi));
 			goto emit_cond_jmp;
 		}
-		case BPF_JMP | BPF_JSET | BPF_K: {
-			u32 hi;
+		case BPF_JMP | BPF_JSET | BPF_K:
+		case BPF_JMP32 | BPF_JSET | BPF_K: {
+			bool is_jmp64 = BPF_CLASS(insn->code) == BPF_JMP;
 			u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 			u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 			u8 sreg_lo = IA32_ECX;
 			u8 sreg_hi = IA32_EBX;
+			u32 hi;
 
 			if (dstk) {
 				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX),
 				      STACK_VAR(dst_lo));
-				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EDX),
-				      STACK_VAR(dst_hi));
+				if (is_jmp64)
+					EMIT3(0x8B,
+					      add_2reg(0x40, IA32_EBP,
+						       IA32_EDX),
+					      STACK_VAR(dst_hi));
 			}
-			hi = imm32 & (1<<31) ? (u32)~0 : 0;
 
 			/* mov ecx,imm32 */
-			EMIT2_off32(0xC7, add_1reg(0xC0, IA32_ECX), imm32);
-			/* mov ebx,imm32 */
-			EMIT2_off32(0xC7, add_1reg(0xC0, IA32_EBX), hi);
+			EMIT2_off32(0xC7, add_1reg(0xC0, sreg_lo), imm32);
 
 			/* and dreg_lo,sreg_lo */
 			EMIT2(0x23, add_2reg(0xC0, sreg_lo, dreg_lo));
-			/* and dreg_hi,sreg_hi */
-			EMIT2(0x23, add_2reg(0xC0, sreg_hi, dreg_hi));
-			/* or dreg_lo,dreg_hi */
-			EMIT2(0x09, add_2reg(0xC0, dreg_lo, dreg_hi));
+			if (is_jmp64) {
+				hi = imm32 & (1 << 31) ? (u32)~0 : 0;
+				/* mov ebx,imm32 */
+				EMIT2_off32(0xC7, add_1reg(0xC0, sreg_hi), hi);
+				/* and dreg_hi,sreg_hi */
+				EMIT2(0x23, add_2reg(0xC0, sreg_hi, dreg_hi));
+				/* or dreg_lo,dreg_hi */
+				EMIT2(0x09, add_2reg(0xC0, dreg_lo, dreg_hi));
+			}
 			goto emit_cond_jmp;
 		}
 		case BPF_JMP | BPF_JEQ | BPF_K:
@@ -2163,29 +2197,44 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		case BPF_JMP | BPF_JSGT | BPF_K:
 		case BPF_JMP | BPF_JSLE | BPF_K:
 		case BPF_JMP | BPF_JSLT | BPF_K:
-		case BPF_JMP | BPF_JSGE | BPF_K: {
-			u32 hi;
+		case BPF_JMP | BPF_JSGE | BPF_K:
+		case BPF_JMP32 | BPF_JEQ | BPF_K:
+		case BPF_JMP32 | BPF_JNE | BPF_K:
+		case BPF_JMP32 | BPF_JGT | BPF_K:
+		case BPF_JMP32 | BPF_JLT | BPF_K:
+		case BPF_JMP32 | BPF_JGE | BPF_K:
+		case BPF_JMP32 | BPF_JLE | BPF_K:
+		case BPF_JMP32 | BPF_JSGT | BPF_K:
+		case BPF_JMP32 | BPF_JSLE | BPF_K:
+		case BPF_JMP32 | BPF_JSLT | BPF_K:
+		case BPF_JMP32 | BPF_JSGE | BPF_K: {
+			bool is_jmp64 = BPF_CLASS(insn->code) == BPF_JMP;
 			u8 dreg_lo = dstk ? IA32_EAX : dst_lo;
 			u8 dreg_hi = dstk ? IA32_EDX : dst_hi;
 			u8 sreg_lo = IA32_ECX;
 			u8 sreg_hi = IA32_EBX;
+			u32 hi;
 
 			if (dstk) {
 				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX),
 				      STACK_VAR(dst_lo));
-				EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EDX),
-				      STACK_VAR(dst_hi));
+				if (is_jmp64)
+					EMIT3(0x8B,
+					      add_2reg(0x40, IA32_EBP,
+						       IA32_EDX),
+					      STACK_VAR(dst_hi));
 			}
 
-			hi = imm32 & (1<<31) ? (u32)~0 : 0;
 			/* mov ecx,imm32 */
 			EMIT2_off32(0xC7, add_1reg(0xC0, IA32_ECX), imm32);
-			/* mov ebx,imm32 */
-			EMIT2_off32(0xC7, add_1reg(0xC0, IA32_EBX), hi);
-
-			/* cmp dreg_hi,sreg_hi */
-			EMIT2(0x39, add_2reg(0xC0, dreg_hi, sreg_hi));
-			EMIT2(IA32_JNE, 2);
+			if (is_jmp64) {
+				hi = imm32 & (1 << 31) ? (u32)~0 : 0;
+				/* mov ebx,imm32 */
+				EMIT2_off32(0xC7, add_1reg(0xC0, IA32_EBX), hi);
+				/* cmp dreg_hi,sreg_hi */
+				EMIT2(0x39, add_2reg(0xC0, dreg_hi, sreg_hi));
+				EMIT2(IA32_JNE, 2);
+			}
 			/* cmp dreg_lo,sreg_lo */
 			EMIT2(0x39, add_2reg(0xC0, dreg_lo, sreg_lo));
 

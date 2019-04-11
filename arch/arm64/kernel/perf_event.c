@@ -810,7 +810,7 @@ static void armv8pmu_clear_event_idx(struct pmu_hw_events *cpuc,
 }
 
 /*
- * Add an event filter to a given event. This will only work for PMUv2 PMUs.
+ * Add an event filter to a given event.
  */
 static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 				     struct perf_event_attr *attr)

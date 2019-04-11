@@ -1749,11 +1749,6 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int sbp_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static void sbp_set_default_node_attrs(struct se_node_acl *nacl)
 {
 	return;
@@ -2329,7 +2324,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.release_cmd			= sbp_release_cmd,
 	.sess_get_index			= sbp_sess_get_index,
 	.write_pending			= sbp_write_pending,
-	.write_pending_status		= sbp_write_pending_status,
 	.set_default_node_attributes	= sbp_set_default_node_attrs,
 	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,

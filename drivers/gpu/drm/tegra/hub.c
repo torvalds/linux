@@ -19,7 +19,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "drm.h"
 #include "dc.h"
@@ -716,7 +716,7 @@ static int tegra_display_hub_init(struct host1x_client *client)
 	if (!state)
 		return -ENOMEM;
 
-	drm_atomic_private_obj_init(&hub->base, &state->base,
+	drm_atomic_private_obj_init(drm, &hub->base, &state->base,
 				    &tegra_display_hub_state_funcs);
 
 	tegra->hub = hub;

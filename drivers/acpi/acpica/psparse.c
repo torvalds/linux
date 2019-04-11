@@ -3,7 +3,7 @@
  *
  * Module Name: psparse - Parser top level AML parse routines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -523,12 +523,12 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			if (status == AE_ABORT_METHOD) {
 				acpi_ns_print_node_pathname(walk_state->
 							    method_node,
-							    "Method aborted:");
+							    "Aborting method");
 				acpi_os_printf("\n");
 			} else {
-				ACPI_ERROR_METHOD
-				    ("Method parse/execution failed",
-				     walk_state->method_node, NULL, status);
+				ACPI_ERROR_METHOD("Aborting method",
+						  walk_state->method_node, NULL,
+						  status);
 			}
 			acpi_ex_enter_interpreter();
 

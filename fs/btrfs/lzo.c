@@ -61,6 +61,28 @@ struct workspace {
 	struct list_head list;
 };
 
+static struct workspace_manager wsm;
+
+static void lzo_init_workspace_manager(void)
+{
+	btrfs_init_workspace_manager(&wsm, &btrfs_lzo_compress);
+}
+
+static void lzo_cleanup_workspace_manager(void)
+{
+	btrfs_cleanup_workspace_manager(&wsm);
+}
+
+static struct list_head *lzo_get_workspace(unsigned int level)
+{
+	return btrfs_get_workspace(&wsm, level);
+}
+
+static void lzo_put_workspace(struct list_head *ws)
+{
+	btrfs_put_workspace(&wsm, ws);
+}
+
 static void lzo_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -71,7 +93,7 @@ static void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *lzo_alloc_workspace(void)
+static struct list_head *lzo_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 
@@ -485,11 +507,16 @@ out:
 	return ret;
 }
 
-static void lzo_set_level(struct list_head *ws, unsigned int type)
+static unsigned int lzo_set_level(unsigned int level)
 {
+	return 0;
 }
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
+	.init_workspace_manager	= lzo_init_workspace_manager,
+	.cleanup_workspace_manager = lzo_cleanup_workspace_manager,
+	.get_workspace		= lzo_get_workspace,
+	.put_workspace		= lzo_put_workspace,
 	.alloc_workspace	= lzo_alloc_workspace,
 	.free_workspace		= lzo_free_workspace,
 	.compress_pages		= lzo_compress_pages,

@@ -1,6 +1,6 @@
 config MTK_MMC
 	tristate "MTK SD/MMC"
-	depends on !MTD_NAND_RALINK && MMC
+	depends on RALINK && MMC
 
 config MTK_AEE_KDUMP
 	bool "MTK AEE KDUMP"

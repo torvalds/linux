@@ -513,6 +513,10 @@ static void __init sn_init_pdas(char **cmdline_p)
 		nodepdaindr[cnode] =
 		    memblock_alloc_node(sizeof(nodepda_t), SMP_CACHE_BYTES,
 					cnode);
+		if (!nodepdaindr[cnode])
+			panic("%s: Failed to allocate %lu bytes align=0x%x nid=%d\n",
+			      __func__, sizeof(nodepda_t), SMP_CACHE_BYTES,
+			      cnode);
 		memset(nodepdaindr[cnode]->phys_cpuid, -1,
 		    sizeof(nodepdaindr[cnode]->phys_cpuid));
 		spin_lock_init(&nodepdaindr[cnode]->ptc_lock);
@@ -521,9 +525,15 @@ static void __init sn_init_pdas(char **cmdline_p)
 	/*
 	 * Allocate & initialize nodepda for TIOs.  For now, put them on node 0.
 	 */
-	for (cnode = num_online_nodes(); cnode < num_cnodes; cnode++)
+	for (cnode = num_online_nodes(); cnode < num_cnodes; cnode++) {
 		nodepdaindr[cnode] =
 		    memblock_alloc_node(sizeof(nodepda_t), SMP_CACHE_BYTES, 0);
+		if (!nodepdaindr[cnode])
+			panic("%s: Failed to allocate %lu bytes align=0x%x nid=%d\n",
+			      __func__, sizeof(nodepda_t), SMP_CACHE_BYTES,
+			      cnode);
+	}
+
 
 	/*
 	 * Now copy the array of nodepda pointers to each nodepda.

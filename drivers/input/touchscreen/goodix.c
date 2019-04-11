@@ -216,6 +216,7 @@ static const struct goodix_chip_data *goodix_get_chip_data(u16 id)
 {
 	switch (id) {
 	case 1151:
+	case 5688:
 		return &gt1x_chip_data;
 
 	case 911:
@@ -692,7 +693,9 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 	touchscreen_parse_properties(ts->input_dev, true, &ts->prop);
 
 	if (!ts->prop.max_x || !ts->prop.max_y || !ts->max_touch_num) {
-		dev_err(&ts->client->dev, "Invalid config, using defaults\n");
+		dev_err(&ts->client->dev,
+			"Invalid config (%d, %d, %d), using defaults\n",
+			ts->prop.max_x, ts->prop.max_y, ts->max_touch_num);
 		ts->prop.max_x = GOODIX_MAX_WIDTH - 1;
 		ts->prop.max_y = GOODIX_MAX_HEIGHT - 1;
 		ts->max_touch_num = GOODIX_MAX_CONTACTS;
@@ -942,6 +945,7 @@ MODULE_DEVICE_TABLE(acpi, goodix_acpi_match);
 #ifdef CONFIG_OF
 static const struct of_device_id goodix_of_match[] = {
 	{ .compatible = "goodix,gt1151" },
+	{ .compatible = "goodix,gt5688" },
 	{ .compatible = "goodix,gt911" },
 	{ .compatible = "goodix,gt9110" },
 	{ .compatible = "goodix,gt912" },

@@ -68,7 +68,7 @@ struct drm_modeset_acquire_ctx {
 /**
  * struct drm_modeset_lock - used for locking modeset resources.
  * @mutex: resource locking
- * @head: used to hold it's place on &drm_atomi_state.locked list when
+ * @head: used to hold its place on &drm_atomi_state.locked list when
  *    part of an atomic update
  *
  * Used for locking CRTCs and other modeset resources.

@@ -1269,7 +1269,7 @@ void blkcg_drain_queue(struct request_queue *q)
  * blkcg_exit_queue - exit and release blkcg part of request_queue
  * @q: request_queue being released
  *
- * Called from blk_release_queue().  Responsible for exiting blkcg part.
+ * Called from blk_exit_queue().  Responsible for exiting blkcg part.
  */
 void blkcg_exit_queue(struct request_queue *q)
 {

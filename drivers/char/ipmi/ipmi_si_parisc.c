@@ -15,7 +15,7 @@ static int __init ipmi_parisc_probe(struct parisc_device *dev)
 
 	io.si_type	= SI_KCS;
 	io.addr_source	= SI_DEVICETREE;
-	io.addr_type	= IPMI_MEM_ADDR_SPACE;
+	io.addr_space	= IPMI_MEM_ADDR_SPACE;
 	io.addr_data	= dev->hpa.start;
 	io.regsize	= 1;
 	io.regspacing	= 1;

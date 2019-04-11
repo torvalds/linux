@@ -16,9 +16,9 @@
 #define _CDN_DP_CORE_H
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 #include "rockchip_drm_drv.h"
 
 #define MAX_PHY		2

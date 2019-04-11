@@ -330,7 +330,6 @@ static struct fixed_voltage_config pandora_vwlan = {
 	.supply_name		= "vwlan",
 	.microvolts		= 1800000, /* 1.8V */
 	.startup_delay		= 50000, /* 50ms */
-	.enable_high		= 1,
 	.init_data		= &pandora_vmmc3,
 };
 

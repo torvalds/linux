@@ -299,7 +299,8 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	void *shadow_ring_buffer_va;
 	u32 *cs;
 
-	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915))
+	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915)
+		|| IS_COFFEELAKE(req->i915))
 		&& is_inhibit_context(req->hw_context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
@@ -957,9 +958,7 @@ static int workload_thread(void *priv)
 	struct intel_vgpu_workload *workload = NULL;
 	struct intel_vgpu *vgpu = NULL;
 	int ret;
-	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv)
-			|| IS_KABYLAKE(gvt->dev_priv)
-			|| IS_BROXTON(gvt->dev_priv);
+	bool need_force_wake = (INTEL_GEN(gvt->dev_priv) >= 9);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	kfree(p);
@@ -1015,7 +1014,7 @@ complete:
 			intel_uncore_forcewake_put(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
-		intel_runtime_pm_put(gvt->dev_priv);
+		intel_runtime_pm_put_unchecked(gvt->dev_priv);
 		if (ret && (vgpu_is_vm_unhealthy(ret)))
 			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
 	}
@@ -1472,7 +1471,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 		mutex_lock(&dev_priv->drm.struct_mutex);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
-		intel_runtime_pm_put(dev_priv);
+		intel_runtime_pm_put_unchecked(dev_priv);
 	}
 
 	if (ret && (vgpu_is_vm_unhealthy(ret))) {

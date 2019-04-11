@@ -401,10 +401,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->write_pending()\n");
 		return -EINVAL;
 	}
-	if (!tfo->write_pending_status) {
-		pr_err("Missing tfo->write_pending_status()\n");
-		return -EINVAL;
-	}
 	if (!tfo->set_default_node_attributes) {
 		pr_err("Missing tfo->set_default_node_attributes()\n");
 		return -EINVAL;

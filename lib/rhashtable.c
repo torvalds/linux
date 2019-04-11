@@ -682,7 +682,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_enter);
  * rhashtable_walk_exit - Free an iterator
  * @iter:	Hash table Iterator
  *
- * This function frees resources allocated by rhashtable_walk_init.
+ * This function frees resources allocated by rhashtable_walk_enter.
  */
 void rhashtable_walk_exit(struct rhashtable_iter *iter)
 {

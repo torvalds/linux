@@ -49,6 +49,8 @@
 #include <asm/pdcpat.h>		/* for is_pdc_pat() */
 #include <asm/parisc-device.h>
 
+#include "iommu.h"
+
 #define MODULE_NAME "SBA"
 
 /*

@@ -26,7 +26,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	real_pte_t rpte;
 	unsigned long vpn;
 	unsigned long old_pte, new_pte;
-	unsigned long rflags, pa, sz;
+	unsigned long rflags, pa;
 	long slot, offset;
 
 	BUG_ON(shift != mmu_psize_defs[mmu_psize].shift);
@@ -73,7 +73,6 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		offset = PTRS_PER_PMD;
 	rpte = __real_pte(__pte(old_pte), ptep, offset);
 
-	sz = ((1UL) << shift);
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		/* No CPU has hugepages but lacks no execute, so we
 		 * don't need to worry about that case */
@@ -120,4 +119,29 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	 */
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
+}
+
+pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
+				  unsigned long addr, pte_t *ptep)
+{
+	unsigned long pte_val;
+	/*
+	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
+	 * possible. Also keep the pte_present true so that we don't take
+	 * wrong fault.
+	 */
+	pte_val = pte_update(vma->vm_mm, addr, ptep,
+			     _PAGE_PRESENT, _PAGE_INVALID, 1);
+
+	return __pte(pte_val);
+}
+
+void huge_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
+				  pte_t *ptep, pte_t old_pte, pte_t pte)
+{
+
+	if (radix_enabled())
+		return radix__huge_ptep_modify_prot_commit(vma, addr, ptep,
+							   old_pte, pte);
+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
 }

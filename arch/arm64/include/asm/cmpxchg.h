@@ -110,10 +110,10 @@ __XCHG_GEN(_mb)
 })
 
 /* xchg */
-#define xchg_relaxed(...)	__xchg_wrapper(    , __VA_ARGS__)
-#define xchg_acquire(...)	__xchg_wrapper(_acq, __VA_ARGS__)
-#define xchg_release(...)	__xchg_wrapper(_rel, __VA_ARGS__)
-#define xchg(...)		__xchg_wrapper( _mb, __VA_ARGS__)
+#define arch_xchg_relaxed(...)	__xchg_wrapper(    , __VA_ARGS__)
+#define arch_xchg_acquire(...)	__xchg_wrapper(_acq, __VA_ARGS__)
+#define arch_xchg_release(...)	__xchg_wrapper(_rel, __VA_ARGS__)
+#define arch_xchg(...)		__xchg_wrapper( _mb, __VA_ARGS__)
 
 #define __CMPXCHG_GEN(sfx)						\
 static inline unsigned long __cmpxchg##sfx(volatile void *ptr,		\
@@ -154,18 +154,18 @@ __CMPXCHG_GEN(_mb)
 })
 
 /* cmpxchg */
-#define cmpxchg_relaxed(...)	__cmpxchg_wrapper(    , __VA_ARGS__)
-#define cmpxchg_acquire(...)	__cmpxchg_wrapper(_acq, __VA_ARGS__)
-#define cmpxchg_release(...)	__cmpxchg_wrapper(_rel, __VA_ARGS__)
-#define cmpxchg(...)		__cmpxchg_wrapper( _mb, __VA_ARGS__)
-#define cmpxchg_local		cmpxchg_relaxed
+#define arch_cmpxchg_relaxed(...)	__cmpxchg_wrapper(    , __VA_ARGS__)
+#define arch_cmpxchg_acquire(...)	__cmpxchg_wrapper(_acq, __VA_ARGS__)
+#define arch_cmpxchg_release(...)	__cmpxchg_wrapper(_rel, __VA_ARGS__)
+#define arch_cmpxchg(...)		__cmpxchg_wrapper( _mb, __VA_ARGS__)
+#define arch_cmpxchg_local		arch_cmpxchg_relaxed
 
 /* cmpxchg64 */
-#define cmpxchg64_relaxed	cmpxchg_relaxed
-#define cmpxchg64_acquire	cmpxchg_acquire
-#define cmpxchg64_release	cmpxchg_release
-#define cmpxchg64		cmpxchg
-#define cmpxchg64_local		cmpxchg_local
+#define arch_cmpxchg64_relaxed		arch_cmpxchg_relaxed
+#define arch_cmpxchg64_acquire		arch_cmpxchg_acquire
+#define arch_cmpxchg64_release		arch_cmpxchg_release
+#define arch_cmpxchg64			arch_cmpxchg
+#define arch_cmpxchg64_local		arch_cmpxchg_local
 
 /* cmpxchg_double */
 #define system_has_cmpxchg_double()     1
@@ -177,24 +177,24 @@ __CMPXCHG_GEN(_mb)
 	VM_BUG_ON((unsigned long *)(ptr2) - (unsigned long *)(ptr1) != 1);	\
 })
 
-#define cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2) \
-({\
-	int __ret;\
-	__cmpxchg_double_check(ptr1, ptr2); \
-	__ret = !__cmpxchg_double_mb((unsigned long)(o1), (unsigned long)(o2), \
-				     (unsigned long)(n1), (unsigned long)(n2), \
-				     ptr1); \
-	__ret; \
+#define arch_cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2)				\
+({										\
+	int __ret;								\
+	__cmpxchg_double_check(ptr1, ptr2);					\
+	__ret = !__cmpxchg_double_mb((unsigned long)(o1), (unsigned long)(o2),	\
+				     (unsigned long)(n1), (unsigned long)(n2),	\
+				     ptr1);					\
+	__ret;									\
 })
 
-#define cmpxchg_double_local(ptr1, ptr2, o1, o2, n1, n2) \
-({\
-	int __ret;\
-	__cmpxchg_double_check(ptr1, ptr2); \
-	__ret = !__cmpxchg_double((unsigned long)(o1), (unsigned long)(o2), \
-				  (unsigned long)(n1), (unsigned long)(n2), \
-				  ptr1); \
-	__ret; \
+#define arch_cmpxchg_double_local(ptr1, ptr2, o1, o2, n1, n2)			\
+({										\
+	int __ret;								\
+	__cmpxchg_double_check(ptr1, ptr2);					\
+	__ret = !__cmpxchg_double((unsigned long)(o1), (unsigned long)(o2),	\
+				  (unsigned long)(n1), (unsigned long)(n2),	\
+				  ptr1);					\
+	__ret;									\
 })
 
 #define __CMPWAIT_CASE(w, sfx, sz)					\

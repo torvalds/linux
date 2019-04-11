@@ -49,3 +49,26 @@ Contact:	Wim Van Sebroeck <wim@iguana.be>
 Description:
 		It is a read only file. It is read to know about current
 		value of timeout programmed.
+
+What:		/sys/class/watchdog/watchdogn/pretimeout
+Date:		December 2016
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It specifies the time in seconds before
+		timeout when the pretimeout interrupt is delivered.  Pretimeout
+		is an optional feature.
+
+What:		/sys/class/watchdog/watchdogn/pretimeout_avaialable_governors
+Date:		February 2017
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read only file. It shows the pretimeout governors
+		available for this watchdog.
+
+What:		/sys/class/watchdog/watchdogn/pretimeout_governor
+Date:		February 2017
+Contact:	Wim Van Sebroeck <wim@iguana.be>
+Description:
+		It is a read/write file. When read, the currently assigned
+		pretimeout governor is returned.  When written, it sets
+		the pretimeout governor.

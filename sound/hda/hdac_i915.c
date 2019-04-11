@@ -82,9 +82,11 @@ void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_set_bclk);
 
-static int i915_component_master_match(struct device *dev, void *data)
+static int i915_component_master_match(struct device *dev, int subcomponent,
+				       void *data)
 {
-	return !strcmp(dev->driver->name, "i915");
+	return !strcmp(dev->driver->name, "i915") &&
+	       subcomponent == I915_COMPONENT_AUDIO;
 }
 
 /* check whether intel graphics is present */

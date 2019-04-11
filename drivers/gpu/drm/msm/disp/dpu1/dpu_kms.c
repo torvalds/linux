@@ -405,35 +405,38 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 	}
 }
 
-static void _dpu_kms_initialize_dsi(struct drm_device *dev,
+static int _dpu_kms_initialize_dsi(struct drm_device *dev,
 				    struct msm_drm_private *priv,
 				    struct dpu_kms *dpu_kms)
 {
 	struct drm_encoder *encoder = NULL;
-	int i, rc;
+	int i, rc = 0;
+
+	if (!(priv->dsi[0] || priv->dsi[1]))
+		return rc;
 
 	/*TODO: Support two independent DSI connectors */
 	encoder = dpu_encoder_init(dev, DRM_MODE_ENCODER_DSI);
-	if (IS_ERR_OR_NULL(encoder)) {
+	if (IS_ERR(encoder)) {
 		DPU_ERROR("encoder init failed for dsi display\n");
-		return;
+		return PTR_ERR(encoder);
 	}
 
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	for (i = 0; i < ARRAY_SIZE(priv->dsi); i++) {
-		if (!priv->dsi[i]) {
-			DPU_DEBUG("invalid msm_dsi for ctrl %d\n", i);
-			return;
-		}
+		if (!priv->dsi[i])
+			continue;
 
 		rc = msm_dsi_modeset_init(priv->dsi[i], dev, encoder);
 		if (rc) {
 			DPU_ERROR("modeset_init failed for dsi[%d], rc = %d\n",
 				i, rc);
-			continue;
+			break;
 		}
 	}
+
+	return rc;
 }
 
 /**
@@ -444,16 +447,16 @@ static void _dpu_kms_initialize_dsi(struct drm_device *dev,
  * @dpu_kms:    Pointer to dpu kms structure
  * Returns:     Zero on success
  */
-static void _dpu_kms_setup_displays(struct drm_device *dev,
+static int _dpu_kms_setup_displays(struct drm_device *dev,
 				    struct msm_drm_private *priv,
 				    struct dpu_kms *dpu_kms)
 {
-	_dpu_kms_initialize_dsi(dev, priv, dpu_kms);
-
 	/**
 	 * Extend this function to initialize other
 	 * types of displays
 	 */
+
+	return _dpu_kms_initialize_dsi(dev, priv, dpu_kms);
 }
 
 static void _dpu_kms_drm_obj_destroy(struct dpu_kms *dpu_kms)
@@ -516,7 +519,9 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 	 * Create encoder and query display drivers to create
 	 * bridges and connectors
 	 */
-	_dpu_kms_setup_displays(dev, priv, dpu_kms);
+	ret = _dpu_kms_setup_displays(dev, priv, dpu_kms);
+	if (ret)
+		goto fail;
 
 	max_crtc_count = min(catalog->mixer_count, priv->num_encoders);
 
@@ -626,6 +631,10 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 	if (dpu_kms->vbif[VBIF_RT])
 		devm_iounmap(&dpu_kms->pdev->dev, dpu_kms->vbif[VBIF_RT]);
 	dpu_kms->vbif[VBIF_RT] = NULL;
+
+	if (dpu_kms->hw_mdp)
+		dpu_hw_mdp_destroy(dpu_kms->hw_mdp);
+	dpu_kms->hw_mdp = NULL;
 
 	if (dpu_kms->mmio)
 		devm_iounmap(&dpu_kms->pdev->dev, dpu_kms->mmio);
@@ -877,8 +886,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto power_error;
 	}
 
-	rc = dpu_rm_init(&dpu_kms->rm, dpu_kms->catalog, dpu_kms->mmio,
-			dpu_kms->dev);
+	rc = dpu_rm_init(&dpu_kms->rm, dpu_kms->catalog, dpu_kms->mmio);
 	if (rc) {
 		DPU_ERROR("rm init failed: %d\n", rc);
 		goto power_error;
@@ -886,11 +894,10 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	dpu_kms->rm_init = true;
 
-	dpu_kms->hw_mdp = dpu_rm_get_mdp(&dpu_kms->rm);
-	if (IS_ERR_OR_NULL(dpu_kms->hw_mdp)) {
+	dpu_kms->hw_mdp = dpu_hw_mdptop_init(MDP_TOP, dpu_kms->mmio,
+					     dpu_kms->catalog);
+	if (IS_ERR(dpu_kms->hw_mdp)) {
 		rc = PTR_ERR(dpu_kms->hw_mdp);
-		if (!dpu_kms->hw_mdp)
-			rc = -EINVAL;
 		DPU_ERROR("failed to get hw_mdp: %d\n", rc);
 		dpu_kms->hw_mdp = NULL;
 		goto power_error;
@@ -926,16 +933,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto hw_intr_init_err;
 	}
 
-	/*
-	 * _dpu_kms_drm_obj_init should create the DRM related objects
-	 * i.e. CRTCs, planes, encoders, connectors and so forth
-	 */
-	rc = _dpu_kms_drm_obj_init(dpu_kms);
-	if (rc) {
-		DPU_ERROR("modeset init failed: %d\n", rc);
-		goto drm_obj_init_err;
-	}
-
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
@@ -951,6 +948,16 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	 * Support format modifiers for compression etc.
 	 */
 	dev->mode_config.allow_fb_modifiers = true;
+
+	/*
+	 * _dpu_kms_drm_obj_init should create the DRM related objects
+	 * i.e. CRTCs, planes, encoders, connectors and so forth
+	 */
+	rc = _dpu_kms_drm_obj_init(dpu_kms);
+	if (rc) {
+		DPU_ERROR("modeset init failed: %d\n", rc);
+		goto drm_obj_init_err;
+	}
 
 	dpu_vbif_init_memtypes(dpu_kms);
 

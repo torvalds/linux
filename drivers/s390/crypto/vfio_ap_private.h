@@ -40,6 +40,7 @@ struct ap_matrix_dev {
 	struct ap_config_info info;
 	struct list_head mdev_list;
 	struct mutex lock;
+	struct ap_driver  *vfio_ap_drv;
 };
 
 extern struct ap_matrix_dev *matrix_dev;

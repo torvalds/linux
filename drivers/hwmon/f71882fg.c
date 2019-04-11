@@ -2455,7 +2455,7 @@ static int f71882fg_probe(struct platform_device *pdev)
 		case f71869a:
 			/* These always have signed auto point temps */
 			data->auto_point_temp_signed = 1;
-			/* Fall through to select correct fan/pwm reg bank! */
+			/* Fall through - to select correct fan/pwm reg bank! */
 		case f71889fg:
 		case f71889ed:
 		case f71889a:

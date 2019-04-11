@@ -267,8 +267,8 @@ mlxsw_sp_nve_mc_record_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nve_mc_record *mc_record;
 	int err;
 
-	mc_record = kzalloc(sizeof(*mc_record) + num_max_entries *
-			    sizeof(struct mlxsw_sp_nve_mc_entry), GFP_KERNEL);
+	mc_record = kzalloc(struct_size(mc_record, entries, num_max_entries),
+			    GFP_KERNEL);
 	if (!mc_record)
 		return ERR_PTR(-ENOMEM);
 
@@ -841,11 +841,9 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 
 	nve->config = config;
 
-	err = ops->fdb_replay(params->dev, params->vni);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Failed to offload the FDB");
+	err = ops->fdb_replay(params->dev, params->vni, extack);
+	if (err)
 		goto err_fdb_replay;
-	}
 
 	return 0;
 

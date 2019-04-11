@@ -2875,7 +2875,7 @@ static int qla4xxx_session_get_param(struct iscsi_cls_session *cls_sess,
 						chap_tbl.secret_len);
 			}
 		}
-		/* allow fall-through */
+		/* fall through */
 	default:
 		return iscsi_session_get_param(cls_sess, param, buf);
 	}

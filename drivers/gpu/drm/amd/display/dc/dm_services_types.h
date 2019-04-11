@@ -82,9 +82,17 @@ enum dm_pp_clock_type {
 #define DC_DECODE_PP_CLOCK_TYPE(clk_type) \
 	(clk_type) == DM_PP_CLOCK_TYPE_DISPLAY_CLK ? "Display" : \
 	(clk_type) == DM_PP_CLOCK_TYPE_ENGINE_CLK ? "Engine" : \
-	(clk_type) == DM_PP_CLOCK_TYPE_MEMORY_CLK ? "Memory" : "Invalid"
+	(clk_type) == DM_PP_CLOCK_TYPE_MEMORY_CLK ? "Memory" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DCFCLK ? "DCF" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DCEFCLK ? "DCEF" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_SOCCLK ? "SoC" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_PIXELCLK ? "Pixel" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DISPLAYPHYCLK ? "Display PHY" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DPPCLK ? "DPP" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_FCLK ? "F" : \
+	"Invalid"
 
-#define DM_PP_MAX_CLOCK_LEVELS 8
+#define DM_PP_MAX_CLOCK_LEVELS 16
 
 struct dm_pp_clock_levels {
 	uint32_t num_levels;

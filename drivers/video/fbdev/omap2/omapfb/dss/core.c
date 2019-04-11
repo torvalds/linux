@@ -110,19 +110,12 @@ DEFINE_SHOW_ATTRIBUTE(dss);
 
 static struct dentry *dss_debugfs_dir;
 
-static int dss_initialize_debugfs(void)
+static void dss_initialize_debugfs(void)
 {
 	dss_debugfs_dir = debugfs_create_dir("omapdss", NULL);
-	if (IS_ERR(dss_debugfs_dir)) {
-		int err = PTR_ERR(dss_debugfs_dir);
-		dss_debugfs_dir = NULL;
-		return err;
-	}
 
 	debugfs_create_file("clk", S_IRUGO, dss_debugfs_dir,
 			&dss_debug_dump_clocks, &dss_fops);
-
-	return 0;
 }
 
 static void dss_uninitialize_debugfs(void)
@@ -130,26 +123,19 @@ static void dss_uninitialize_debugfs(void)
 	debugfs_remove_recursive(dss_debugfs_dir);
 }
 
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
+void dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 {
-	struct dentry *d;
-
-	d = debugfs_create_file(name, S_IRUGO, dss_debugfs_dir,
-			write, &dss_fops);
-
-	return PTR_ERR_OR_ZERO(d);
+	debugfs_create_file(name, S_IRUGO, dss_debugfs_dir, write, &dss_fops);
 }
 #else /* CONFIG_FB_OMAP2_DSS_DEBUGFS */
-static inline int dss_initialize_debugfs(void)
+static inline void dss_initialize_debugfs(void)
 {
-	return 0;
 }
 static inline void dss_uninitialize_debugfs(void)
 {
 }
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
+void dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 {
-	return 0;
 }
 #endif /* CONFIG_FB_OMAP2_DSS_DEBUGFS */
 
@@ -182,15 +168,11 @@ static struct notifier_block omap_dss_pm_notif_block = {
 
 static int __init omap_dss_probe(struct platform_device *pdev)
 {
-	int r;
-
 	core.pdev = pdev;
 
 	dss_features_init(omapdss_get_version());
 
-	r = dss_initialize_debugfs();
-	if (r)
-		goto err_debugfs;
+	dss_initialize_debugfs();
 
 	if (def_disp_name)
 		core.default_display_name = def_disp_name;
@@ -198,10 +180,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	register_pm_notifier(&omap_dss_pm_notif_block);
 
 	return 0;
-
-err_debugfs:
-
-	return r;
 }
 
 static int omap_dss_remove(struct platform_device *pdev)

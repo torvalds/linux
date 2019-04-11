@@ -38,6 +38,11 @@ enum pipe_gating_control {
 	PIPE_GATING_CONTROL_INIT
 };
 
+enum vline_select {
+	VLINE0,
+	VLINE1
+};
+
 struct dce_hwseq_wa {
 	bool blnd_crtc_trigger;
 	bool DEGVIDCN10_253;
@@ -68,7 +73,13 @@ struct stream_resource;
 
 struct hw_sequencer_funcs {
 
+	void (*disable_stream_gating)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+	void (*enable_stream_gating)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
 	void (*init_hw)(struct dc *dc);
+
+	void (*init_pipes)(struct dc *dc, struct dc_state *context);
 
 	enum dc_status (*apply_ctx_to_hw)(
 			struct dc *dc, struct dc_state *context);
@@ -217,6 +228,9 @@ struct hw_sequencer_funcs {
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
 	void (*set_cursor_sdr_white_level)(struct pipe_ctx *pipe);
+
+	void (*setup_periodic_interrupt)(struct pipe_ctx *pipe_ctx, enum vline_select vline);
+	void (*setup_vupdate_interrupt)(struct pipe_ctx *pipe_ctx);
 
 };
 

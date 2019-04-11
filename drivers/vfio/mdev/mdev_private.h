@@ -28,7 +28,7 @@ struct mdev_parent {
 struct mdev_device {
 	struct device dev;
 	struct mdev_parent *parent;
-	uuid_le uuid;
+	guid_t uuid;
 	void *driver_data;
 	struct kref ref;
 	struct list_head next;
@@ -58,7 +58,8 @@ void parent_remove_sysfs_files(struct mdev_parent *parent);
 int  mdev_create_sysfs_files(struct device *dev, struct mdev_type *type);
 void mdev_remove_sysfs_files(struct device *dev, struct mdev_type *type);
 
-int  mdev_device_create(struct kobject *kobj, struct device *dev, uuid_le uuid);
+int  mdev_device_create(struct kobject *kobj,
+			struct device *dev, const guid_t *uuid);
 int  mdev_device_remove(struct device *dev, bool force_remove);
 
 #endif /* MDEV_PRIVATE_H */

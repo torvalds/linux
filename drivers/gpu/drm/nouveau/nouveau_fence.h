@@ -82,8 +82,6 @@ int nv50_fence_create(struct nouveau_drm *);
 int nv84_fence_create(struct nouveau_drm *);
 int nvc0_fence_create(struct nouveau_drm *);
 
-int nouveau_flip_complete(struct nvif_notify *);
-
 struct nv84_fence_chan {
 	struct nouveau_fence_chan base;
 	struct nouveau_vma *vma;

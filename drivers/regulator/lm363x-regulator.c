@@ -258,6 +258,9 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 	 * Register update is required if the pin is used.
 	 */
 	gpiod = lm363x_regulator_of_get_enable_gpio(dev, id);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
 	if (gpiod) {
 		cfg.ena_gpiod = gpiod;
 
@@ -265,8 +268,7 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 					 LM3632_EXT_EN_MASK,
 					 LM3632_EXT_EN_MASK);
 		if (ret) {
-			if (gpiod)
-				gpiod_put(gpiod);
+			gpiod_put(gpiod);
 			dev_err(dev, "External pin err: %d\n", ret);
 			return ret;
 		}

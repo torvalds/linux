@@ -528,7 +528,7 @@ static void vpfe_cleanup_modules(struct vpfe_device *vpfe_dev,
  * @vpfe_dev - ptr to vpfe capture device
  * @pdev - pointer to platform device
  *
- * intialize all v4l2 subdevs and media entities
+ * initialize all v4l2 subdevs and media entities
  */
 static int vpfe_initialize_modules(struct vpfe_device *vpfe_dev,
 				   struct platform_device *pdev)

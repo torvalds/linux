@@ -17,11 +17,11 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_probe_helper.h>
 
 #include "gem.h"
 #include "hub.h"
@@ -88,6 +88,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 struct tegra_drm_client {
 	struct host1x_client base;
 	struct list_head list;
+	struct tegra_drm *drm;
 
 	unsigned int version;
 	const struct tegra_drm_client_ops *ops;
@@ -124,7 +125,7 @@ struct tegra_output {
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
-	struct cec_notifier *notifier;
+	struct cec_notifier *cec;
 	unsigned int hpd_irq;
 	int hpd_gpio;
 	enum of_gpio_flags hpd_gpio_flags;

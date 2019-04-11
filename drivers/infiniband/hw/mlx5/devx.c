@@ -8,6 +8,7 @@
 #include <rdma/uverbs_types.h>
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
+#include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_std_types.h>
 #include <linux/mlx5/driver.h>
@@ -17,12 +18,28 @@
 #define UVERBS_MODULE_NAME mlx5_ib
 #include <rdma/uverbs_named_ioctl.h>
 
+enum devx_obj_flags {
+	DEVX_OBJ_FLAGS_INDIRECT_MKEY = 1 << 0,
+};
+
+struct devx_async_data {
+	struct mlx5_ib_dev *mdev;
+	struct list_head list;
+	struct ib_uobject *fd_uobj;
+	struct mlx5_async_work cb_work;
+	u16 cmd_out_len;
+	/* must be last field in this structure */
+	struct mlx5_ib_uapi_devx_async_cmd_hdr hdr;
+};
+
 #define MLX5_MAX_DESTROY_INBOX_SIZE_DW MLX5_ST_SZ_DW(delete_fte_in)
 struct devx_obj {
 	struct mlx5_core_dev	*mdev;
 	u64			obj_id;
 	u32			dinlen; /* destroy inbox length */
 	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
+	u32			flags;
+	struct mlx5_ib_devx_mr	devx_mr;
 };
 
 struct devx_umem {
@@ -1011,6 +1028,92 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 	}
 }
 
+static int devx_handle_mkey_indirect(struct devx_obj *obj,
+				     struct mlx5_ib_dev *dev,
+				     void *in, void *out)
+{
+	struct mlx5_mkey_table *table = &dev->mdev->priv.mkey_table;
+	struct mlx5_ib_devx_mr *devx_mr = &obj->devx_mr;
+	unsigned long flags;
+	struct mlx5_core_mkey *mkey;
+	void *mkc;
+	u8 key;
+	int err;
+
+	mkey = &devx_mr->mmkey;
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	key = MLX5_GET(mkc, mkc, mkey_7_0);
+	mkey->key = mlx5_idx_to_mkey(
+			MLX5_GET(create_mkey_out, out, mkey_index)) | key;
+	mkey->type = MLX5_MKEY_INDIRECT_DEVX;
+	mkey->iova = MLX5_GET64(mkc, mkc, start_addr);
+	mkey->size = MLX5_GET64(mkc, mkc, len);
+	mkey->pd = MLX5_GET(mkc, mkc, pd);
+	devx_mr->ndescs = MLX5_GET(mkc, mkc, translations_octword_size);
+
+	write_lock_irqsave(&table->lock, flags);
+	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mkey->key),
+				mkey);
+	write_unlock_irqrestore(&table->lock, flags);
+	return err;
+}
+
+static int devx_handle_mkey_create(struct mlx5_ib_dev *dev,
+				   struct devx_obj *obj,
+				   void *in, int in_len)
+{
+	int min_len = MLX5_BYTE_OFF(create_mkey_in, memory_key_mkey_entry) +
+			MLX5_FLD_SZ_BYTES(create_mkey_in,
+			memory_key_mkey_entry);
+	void *mkc;
+	u8 access_mode;
+
+	if (in_len < min_len)
+		return -EINVAL;
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+
+	access_mode = MLX5_GET(mkc, mkc, access_mode_1_0);
+	access_mode |= MLX5_GET(mkc, mkc, access_mode_4_2) << 2;
+
+	if (access_mode == MLX5_MKC_ACCESS_MODE_KLMS ||
+		access_mode == MLX5_MKC_ACCESS_MODE_KSM) {
+		if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
+			obj->flags |= DEVX_OBJ_FLAGS_INDIRECT_MKEY;
+		return 0;
+	}
+
+	MLX5_SET(create_mkey_in, in, mkey_umem_valid, 1);
+	return 0;
+}
+
+static void devx_free_indirect_mkey(struct rcu_head *rcu)
+{
+	kfree(container_of(rcu, struct devx_obj, devx_mr.rcu));
+}
+
+/* This function to delete from the radix tree needs to be called before
+ * destroying the underlying mkey. Otherwise a race might occur in case that
+ * other thread will get the same mkey before this one will be deleted,
+ * in that case it will fail via inserting to the tree its own data.
+ *
+ * Note:
+ * An error in the destroy is not expected unless there is some other indirect
+ * mkey which points to this one. In a kernel cleanup flow it will be just
+ * destroyed in the iterative destruction call. In a user flow, in case
+ * the application didn't close in the expected order it's its own problem,
+ * the mkey won't be part of the tree, in both cases the kernel is safe.
+ */
+static void devx_cleanup_mkey(struct devx_obj *obj)
+{
+	struct mlx5_mkey_table *table = &obj->mdev->priv.mkey_table;
+	unsigned long flags;
+
+	write_lock_irqsave(&table->lock, flags);
+	radix_tree_delete(&table->tree, mlx5_base_mkey(obj->devx_mr.mmkey.key));
+	write_unlock_irqrestore(&table->lock, flags);
+}
+
 static int devx_obj_cleanup(struct ib_uobject *uobject,
 			    enum rdma_remove_reason why)
 {
@@ -1018,9 +1121,20 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	struct devx_obj *obj = uobject->object;
 	int ret;
 
+	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
+		devx_cleanup_mkey(obj);
+
 	ret = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
+
+	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
+		struct mlx5_ib_dev *dev = to_mdev(uobject->context->device);
+
+		call_srcu(&dev->mr_srcu, &obj->devx_mr.rcu,
+			  devx_free_indirect_mkey);
+		return ret;
+	}
 
 	kfree(obj);
 	return ret;
@@ -1032,10 +1146,13 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN);
 	int cmd_out_len =  uverbs_attr_get_len(attrs,
 					MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT);
+	int cmd_in_len = uverbs_attr_get_len(attrs,
+					MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN);
 	void *cmd_out;
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_HANDLE);
-	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
+		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
 	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	struct devx_obj *obj;
@@ -1060,10 +1177,16 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 		return -ENOMEM;
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, uid);
-	devx_set_umem_valid(cmd_in);
+	if (opcode == MLX5_CMD_OP_CREATE_MKEY) {
+		err = devx_handle_mkey_create(dev, obj, cmd_in, cmd_in_len);
+		if (err)
+			goto obj_free;
+	} else {
+		devx_set_umem_valid(cmd_in);
+	}
 
 	err = mlx5_cmd_exec(dev->mdev, cmd_in,
-			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN),
+			    cmd_in_len,
 			    cmd_out, cmd_out_len);
 	if (err)
 		goto obj_free;
@@ -1074,13 +1197,22 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 				   &obj_id);
 	WARN_ON(obj->dinlen > MLX5_MAX_DESTROY_INBOX_SIZE_DW * sizeof(u32));
 
+	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
+		err = devx_handle_mkey_indirect(obj, dev, cmd_in, cmd_out);
+		if (err)
+			goto obj_destroy;
+	}
+
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
 	if (err)
-		goto obj_destroy;
+		goto err_copy;
 
 	obj->obj_id = get_enc_obj_id(opcode, obj_id);
 	return 0;
 
+err_copy:
+	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
+		devx_cleanup_mkey(obj);
 obj_destroy:
 	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
 obj_free:
@@ -1096,8 +1228,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(
 					MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT);
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 							  MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE);
-	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
-	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
+		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
+	struct mlx5_ib_dev *mdev = to_mdev(c->ibucontext.device);
 	void *cmd_out;
 	int err;
 	int uid;
@@ -1137,11 +1270,12 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 					      MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT);
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 							  MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE);
-	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
+		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
 	void *cmd_out;
 	int err;
 	int uid;
-	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	struct mlx5_ib_dev *mdev = to_mdev(c->ibucontext.device);
 
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
@@ -1166,6 +1300,154 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 
 	return uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT,
 			      cmd_out, cmd_out_len);
+}
+
+struct devx_async_event_queue {
+	spinlock_t		lock;
+	wait_queue_head_t	poll_wait;
+	struct list_head	event_list;
+	atomic_t		bytes_in_use;
+	u8			is_destroyed:1;
+};
+
+struct devx_async_cmd_event_file {
+	struct ib_uobject		uobj;
+	struct devx_async_event_queue	ev_queue;
+	struct mlx5_async_ctx		async_ctx;
+};
+
+static void devx_init_event_queue(struct devx_async_event_queue *ev_queue)
+{
+	spin_lock_init(&ev_queue->lock);
+	INIT_LIST_HEAD(&ev_queue->event_list);
+	init_waitqueue_head(&ev_queue->poll_wait);
+	atomic_set(&ev_queue->bytes_in_use, 0);
+	ev_queue->is_destroyed = 0;
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct devx_async_cmd_event_file *ev_file;
+
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_DEVX_ASYNC_CMD_FD_ALLOC_HANDLE);
+	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+
+	ev_file = container_of(uobj, struct devx_async_cmd_event_file,
+			       uobj);
+	devx_init_event_queue(&ev_file->ev_queue);
+	mlx5_cmd_init_async_ctx(mdev->mdev, &ev_file->async_ctx);
+	return 0;
+}
+
+static void devx_query_callback(int status, struct mlx5_async_work *context)
+{
+	struct devx_async_data *async_data =
+		container_of(context, struct devx_async_data, cb_work);
+	struct ib_uobject *fd_uobj = async_data->fd_uobj;
+	struct devx_async_cmd_event_file *ev_file;
+	struct devx_async_event_queue *ev_queue;
+	unsigned long flags;
+
+	ev_file = container_of(fd_uobj, struct devx_async_cmd_event_file,
+			       uobj);
+	ev_queue = &ev_file->ev_queue;
+
+	spin_lock_irqsave(&ev_queue->lock, flags);
+	list_add_tail(&async_data->list, &ev_queue->event_list);
+	spin_unlock_irqrestore(&ev_queue->lock, flags);
+
+	wake_up_interruptible(&ev_queue->poll_wait);
+	fput(fd_uobj->object);
+}
+
+#define MAX_ASYNC_BYTES_IN_USE (1024 * 1024) /* 1MB */
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY)(
+	struct uverbs_attr_bundle *attrs)
+{
+	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs,
+				MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_CMD_IN);
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+				attrs,
+				MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_HANDLE);
+	u16 cmd_out_len;
+	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
+		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
+	struct ib_uobject *fd_uobj;
+	int err;
+	int uid;
+	struct mlx5_ib_dev *mdev = to_mdev(c->ibucontext.device);
+	struct devx_async_cmd_event_file *ev_file;
+	struct devx_async_data *async_data;
+
+	uid = devx_get_uid(c, cmd_in);
+	if (uid < 0)
+		return uid;
+
+	if (!devx_is_obj_query_cmd(cmd_in))
+		return -EINVAL;
+
+	err = uverbs_get_const(&cmd_out_len, attrs,
+			       MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_OUT_LEN);
+	if (err)
+		return err;
+
+	if (!devx_is_valid_obj_id(uobj, cmd_in))
+		return -EINVAL;
+
+	fd_uobj = uverbs_attr_get_uobject(attrs,
+				MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_FD);
+	if (IS_ERR(fd_uobj))
+		return PTR_ERR(fd_uobj);
+
+	ev_file = container_of(fd_uobj, struct devx_async_cmd_event_file,
+			       uobj);
+
+	if (atomic_add_return(cmd_out_len, &ev_file->ev_queue.bytes_in_use) >
+			MAX_ASYNC_BYTES_IN_USE) {
+		atomic_sub(cmd_out_len, &ev_file->ev_queue.bytes_in_use);
+		return -EAGAIN;
+	}
+
+	async_data = kvzalloc(struct_size(async_data, hdr.out_data,
+					  cmd_out_len), GFP_KERNEL);
+	if (!async_data) {
+		err = -ENOMEM;
+		goto sub_bytes;
+	}
+
+	err = uverbs_copy_from(&async_data->hdr.wr_id, attrs,
+			       MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_WR_ID);
+	if (err)
+		goto free_async;
+
+	async_data->cmd_out_len = cmd_out_len;
+	async_data->mdev = mdev;
+	async_data->fd_uobj = fd_uobj;
+
+	get_file(fd_uobj->object);
+	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, uid);
+	err = mlx5_cmd_exec_cb(&ev_file->async_ctx, cmd_in,
+		    uverbs_attr_get_len(attrs,
+				MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_CMD_IN),
+		    async_data->hdr.out_data,
+		    async_data->cmd_out_len,
+		    devx_query_callback, &async_data->cb_work);
+
+	if (err)
+		goto cb_err;
+
+	return 0;
+
+cb_err:
+	fput(fd_uobj->object);
+free_async:
+	kvfree(async_data);
+sub_bytes:
+	atomic_sub(cmd_out_len, &ev_file->ev_queue.bytes_in_use);
+	return err;
 }
 
 static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
@@ -1195,7 +1477,7 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 	if (err)
 		return err;
 
-	obj->umem = ib_umem_get(ucontext, addr, size, access, 0);
+	obj->umem = ib_umem_get(&attrs->driver_udata, addr, size, access, 0);
 	if (IS_ERR(obj->umem))
 		return PTR_ERR(obj->umem);
 
@@ -1252,7 +1534,8 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE);
 	u32 obj_id;
-	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
+		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
 	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
 	int err;
 
@@ -1312,6 +1595,123 @@ static int devx_umem_cleanup(struct ib_uobject *uobject,
 	kfree(obj);
 	return 0;
 }
+
+static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
+					 size_t count, loff_t *pos)
+{
+	struct devx_async_cmd_event_file *comp_ev_file = filp->private_data;
+	struct devx_async_event_queue *ev_queue = &comp_ev_file->ev_queue;
+	struct devx_async_data *event;
+	int ret = 0;
+	size_t eventsz;
+
+	spin_lock_irq(&ev_queue->lock);
+
+	while (list_empty(&ev_queue->event_list)) {
+		spin_unlock_irq(&ev_queue->lock);
+
+		if (filp->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		if (wait_event_interruptible(
+			    ev_queue->poll_wait,
+			    (!list_empty(&ev_queue->event_list) ||
+			     ev_queue->is_destroyed))) {
+			return -ERESTARTSYS;
+		}
+
+		if (list_empty(&ev_queue->event_list) &&
+		    ev_queue->is_destroyed)
+			return -EIO;
+
+		spin_lock_irq(&ev_queue->lock);
+	}
+
+	event = list_entry(ev_queue->event_list.next,
+			   struct devx_async_data, list);
+	eventsz = event->cmd_out_len +
+			sizeof(struct mlx5_ib_uapi_devx_async_cmd_hdr);
+
+	if (eventsz > count) {
+		spin_unlock_irq(&ev_queue->lock);
+		return -ENOSPC;
+	}
+
+	list_del(ev_queue->event_list.next);
+	spin_unlock_irq(&ev_queue->lock);
+
+	if (copy_to_user(buf, &event->hdr, eventsz))
+		ret = -EFAULT;
+	else
+		ret = eventsz;
+
+	atomic_sub(event->cmd_out_len, &ev_queue->bytes_in_use);
+	kvfree(event);
+	return ret;
+}
+
+static int devx_async_cmd_event_close(struct inode *inode, struct file *filp)
+{
+	struct ib_uobject *uobj = filp->private_data;
+	struct devx_async_cmd_event_file *comp_ev_file = container_of(
+		uobj, struct devx_async_cmd_event_file, uobj);
+	struct devx_async_data *entry, *tmp;
+
+	spin_lock_irq(&comp_ev_file->ev_queue.lock);
+	list_for_each_entry_safe(entry, tmp,
+				 &comp_ev_file->ev_queue.event_list, list)
+		kvfree(entry);
+	spin_unlock_irq(&comp_ev_file->ev_queue.lock);
+
+	uverbs_close_fd(filp);
+	return 0;
+}
+
+static __poll_t devx_async_cmd_event_poll(struct file *filp,
+					      struct poll_table_struct *wait)
+{
+	struct devx_async_cmd_event_file *comp_ev_file = filp->private_data;
+	struct devx_async_event_queue *ev_queue = &comp_ev_file->ev_queue;
+	__poll_t pollflags = 0;
+
+	poll_wait(filp, &ev_queue->poll_wait, wait);
+
+	spin_lock_irq(&ev_queue->lock);
+	if (ev_queue->is_destroyed)
+		pollflags = EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
+	else if (!list_empty(&ev_queue->event_list))
+		pollflags = EPOLLIN | EPOLLRDNORM;
+	spin_unlock_irq(&ev_queue->lock);
+
+	return pollflags;
+}
+
+const struct file_operations devx_async_cmd_event_fops = {
+	.owner	 = THIS_MODULE,
+	.read	 = devx_async_cmd_event_read,
+	.poll    = devx_async_cmd_event_poll,
+	.release = devx_async_cmd_event_close,
+	.llseek	 = no_llseek,
+};
+
+static int devx_hot_unplug_async_cmd_event_file(struct ib_uobject *uobj,
+						   enum rdma_remove_reason why)
+{
+	struct devx_async_cmd_event_file *comp_ev_file =
+		container_of(uobj, struct devx_async_cmd_event_file,
+			     uobj);
+	struct devx_async_event_queue *ev_queue = &comp_ev_file->ev_queue;
+
+	spin_lock_irq(&ev_queue->lock);
+	ev_queue->is_destroyed = 1;
+	spin_unlock_irq(&ev_queue->lock);
+
+	if (why == RDMA_REMOVE_DRIVER_REMOVE)
+		wake_up_interruptible(&ev_queue->poll_wait);
+
+	mlx5_cmd_cleanup_async_ctx(&comp_ev_file->async_ctx);
+	return 0;
+};
 
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_DEVX_UMEM_REG,
@@ -1423,6 +1823,27 @@ DECLARE_UVERBS_NAMED_METHOD(
 		UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_out_cmd_hdr)),
 		UA_MANDATORY));
 
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE,
+			UVERBS_IDR_ANY_OBJECT,
+			UVERBS_ACCESS_READ,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(
+		MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN,
+		UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_in_cmd_hdr)),
+		UA_MANDATORY,
+		UA_ALLOC_AND_COPY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_OUT_LEN,
+		u16, UA_MANDATORY),
+	UVERBS_ATTR_FD(MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_FD,
+		MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
+		UVERBS_ACCESS_READ,
+		UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_OBJ_QUERY_ASYNC_WR_ID,
+		UVERBS_ATTR_TYPE(u64),
+		UA_MANDATORY));
+
 DECLARE_UVERBS_GLOBAL_METHODS(MLX5_IB_OBJECT_DEVX,
 			      &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OTHER),
 			      &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_QUERY_UAR),
@@ -1433,12 +1854,29 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_CREATE),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_DESTROY),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_MODIFY),
-			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY));
+			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_ASYNC_QUERY));
 
 DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM,
 			    UVERBS_TYPE_ALLOC_IDR(devx_umem_cleanup),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_REG),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_DEREG));
+
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC,
+	UVERBS_ATTR_FD(MLX5_IB_ATTR_DEVX_ASYNC_CMD_FD_ALLOC_HANDLE,
+			MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(
+	MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
+	UVERBS_TYPE_ALLOC_FD(sizeof(struct devx_async_cmd_event_file),
+			     devx_hot_unplug_async_cmd_event_file,
+			     &devx_async_cmd_event_fops, "[devx_async_cmd]",
+			     O_RDONLY),
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC));
 
 static bool devx_is_supported(struct ib_device *device)
 {
@@ -1456,6 +1894,9 @@ const struct uapi_definition mlx5_ib_devx_defs[] = {
 		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
 		MLX5_IB_OBJECT_DEVX_UMEM,
+		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
 		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
 	{},
 };

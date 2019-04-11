@@ -241,6 +241,18 @@ config EDAC_SKX
 	  system has non-volatile DIMMs you should also manually
 	  select CONFIG_ACPI_NFIT.
 
+config EDAC_I10NM
+	tristate "Intel 10nm server Integrated MC"
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
+	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_I10NM can't be y
+	select DMI
+	select ACPI_ADXL
+	help
+	  Support for error detection and correction the Intel
+	  10nm server Integrated Memory Controllers. If your
+	  system has non-volatile DIMMs you should also manually
+	  select CONFIG_ACPI_NFIT.
+
 config EDAC_PND2
 	tristate "Intel Pondicherry2"
 	depends on PCI && X86_64 && X86_MCE_INTEL
@@ -379,9 +391,17 @@ config EDAC_ALTERA
 	depends on EDAC=y && (ARCH_SOCFPGA || ARCH_STRATIX10)
 	help
 	  Support for error detection and correction on the
-	  Altera SOCs. This must be selected for SDRAM ECC.
-	  Note that the preloader must initialize the SDRAM
-	  before loading the kernel.
+	  Altera SOCs. This is the global enable for the
+	  various Altera peripherals.
+
+config EDAC_ALTERA_SDRAM
+	bool "Altera SDRAM ECC"
+	depends on EDAC_ALTERA=y
+	help
+	  Support for error detection and correction on the
+	  Altera SDRAM Memory for Altera SoCs. Note that the
+	  preloader must initialize the SDRAM before loading
+	  the kernel.
 
 config EDAC_ALTERA_L2C
 	bool "Altera L2 Cache ECC"
@@ -474,5 +494,14 @@ config EDAC_QCOM
 
 	  For debugging issues having to do with stability and overall system
 	  health, you should probably say 'Y' here.
+
+config EDAC_ASPEED
+	tristate "Aspeed AST 2500 SoC"
+	depends on MACH_ASPEED_G5
+	help
+	  Support for error detection and correction on the Aspeed AST 2500 SoC.
+
+	  First, ECC must be configured in the bootloader. Then, this driver
+	  will expose error counters via the EDAC kernel framework.
 
 endif # EDAC

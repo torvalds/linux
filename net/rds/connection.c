@@ -84,7 +84,7 @@ static struct rds_connection *rds_conn_lookup(struct net *net,
 					      const struct in6_addr *laddr,
 					      const struct in6_addr *faddr,
 					      struct rds_transport *trans,
-					      int dev_if)
+					      u8 tos, int dev_if)
 {
 	struct rds_connection *conn, *ret = NULL;
 
@@ -92,6 +92,7 @@ static struct rds_connection *rds_conn_lookup(struct net *net,
 		if (ipv6_addr_equal(&conn->c_faddr, faddr) &&
 		    ipv6_addr_equal(&conn->c_laddr, laddr) &&
 		    conn->c_trans == trans &&
+		    conn->c_tos == tos &&
 		    net == rds_conn_net(conn) &&
 		    conn->c_dev_if == dev_if) {
 			ret = conn;
@@ -139,6 +140,7 @@ static void __rds_conn_path_init(struct rds_connection *conn,
 	atomic_set(&cp->cp_state, RDS_CONN_DOWN);
 	cp->cp_send_gen = 0;
 	cp->cp_reconnect_jiffies = 0;
+	cp->cp_conn->c_proposed_version = RDS_PROTOCOL_VERSION;
 	INIT_DELAYED_WORK(&cp->cp_send_w, rds_send_worker);
 	INIT_DELAYED_WORK(&cp->cp_recv_w, rds_recv_worker);
 	INIT_DELAYED_WORK(&cp->cp_conn_w, rds_connect_worker);
@@ -159,7 +161,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 						const struct in6_addr *laddr,
 						const struct in6_addr *faddr,
 						struct rds_transport *trans,
-						gfp_t gfp,
+						gfp_t gfp, u8 tos,
 						int is_outgoing,
 						int dev_if)
 {
@@ -171,7 +173,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	int npaths = (trans->t_mp_capable ? RDS_MPATH_WORKERS : 1);
 
 	rcu_read_lock();
-	conn = rds_conn_lookup(net, head, laddr, faddr, trans, dev_if);
+	conn = rds_conn_lookup(net, head, laddr, faddr, trans, tos, dev_if);
 	if (conn &&
 	    conn->c_loopback &&
 	    conn->c_trans != &rds_loop_transport &&
@@ -205,6 +207,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	conn->c_isv6 = !ipv6_addr_v4mapped(laddr);
 	conn->c_faddr = *faddr;
 	conn->c_dev_if = dev_if;
+	conn->c_tos = tos;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	/* If the local address is link local, set c_bound_if to be the
@@ -297,7 +300,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		struct rds_connection *found;
 
 		found = rds_conn_lookup(net, head, laddr, faddr, trans,
-					dev_if);
+					tos, dev_if);
 		if (found) {
 			struct rds_conn_path *cp;
 			int i;
@@ -332,10 +335,10 @@ out:
 struct rds_connection *rds_conn_create(struct net *net,
 				       const struct in6_addr *laddr,
 				       const struct in6_addr *faddr,
-				       struct rds_transport *trans, gfp_t gfp,
-				       int dev_if)
+				       struct rds_transport *trans, u8 tos,
+				       gfp_t gfp, int dev_if)
 {
-	return __rds_conn_create(net, laddr, faddr, trans, gfp, 0, dev_if);
+	return __rds_conn_create(net, laddr, faddr, trans, gfp, tos, 0, dev_if);
 }
 EXPORT_SYMBOL_GPL(rds_conn_create);
 
@@ -343,9 +346,9 @@ struct rds_connection *rds_conn_create_outgoing(struct net *net,
 						const struct in6_addr *laddr,
 						const struct in6_addr *faddr,
 						struct rds_transport *trans,
-						gfp_t gfp, int dev_if)
+						u8 tos, gfp_t gfp, int dev_if)
 {
-	return __rds_conn_create(net, laddr, faddr, trans, gfp, 1, dev_if);
+	return __rds_conn_create(net, laddr, faddr, trans, gfp, tos, 1, dev_if);
 }
 EXPORT_SYMBOL_GPL(rds_conn_create_outgoing);
 

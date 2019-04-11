@@ -110,7 +110,7 @@ struct atmel_isi {
 	bool				enable_preview_path;
 
 	struct completion		complete;
-	/* ISI peripherial clock */
+	/* ISI peripheral clock */
 	struct clk			*pclk;
 	unsigned int			irq;
 
@@ -1078,7 +1078,7 @@ static void isi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 
 	dev_dbg(isi->dev, "Removing %s\n", video_device_node_name(isi->vdev));
 
-	/* Checks internaly if vdev have been init or not */
+	/* Checks internally if vdev have been init or not */
 	video_unregister_device(isi->vdev);
 }
 

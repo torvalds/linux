@@ -64,6 +64,16 @@ struct compressed_bio {
 	u32 sums;
 };
 
+static inline unsigned int btrfs_compress_type(unsigned int type_level)
+{
+	return (type_level & 0xF);
+}
+
+static inline unsigned int btrfs_compress_level(unsigned int type_level)
+{
+	return ((type_level & 0xF0) >> 4);
+}
+
 void __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
@@ -87,7 +97,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 
-unsigned btrfs_compress_str2level(const char *str);
+unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -97,8 +107,35 @@ enum btrfs_compression_type {
 	BTRFS_COMPRESS_TYPES = 3,
 };
 
+struct workspace_manager {
+	const struct btrfs_compress_op *ops;
+	struct list_head idle_ws;
+	spinlock_t ws_lock;
+	/* Number of free workspaces */
+	int free_ws;
+	/* Total number of allocated workspaces */
+	atomic_t total_ws;
+	/* Waiters for a free workspace */
+	wait_queue_head_t ws_wait;
+};
+
+void btrfs_init_workspace_manager(struct workspace_manager *wsm,
+				  const struct btrfs_compress_op *ops);
+struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
+				      unsigned int level);
+void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
+void btrfs_cleanup_workspace_manager(struct workspace_manager *wsm);
+
 struct btrfs_compress_op {
-	struct list_head *(*alloc_workspace)(void);
+	void (*init_workspace_manager)(void);
+
+	void (*cleanup_workspace_manager)(void);
+
+	struct list_head *(*get_workspace)(unsigned int level);
+
+	void (*put_workspace)(struct list_head *ws);
+
+	struct list_head *(*alloc_workspace)(unsigned int level);
 
 	void (*free_workspace)(struct list_head *workspace);
 
@@ -119,9 +156,18 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
-	void (*set_level)(struct list_head *ws, unsigned int type);
+	/*
+	 * This bounds the level set by the user to be within range of a
+	 * particular compression type.  It returns the level that will be used
+	 * if the level is out of bounds or the default if 0 is passed in.
+	 */
+	unsigned int (*set_level)(unsigned int level);
 };
 
+/* The heuristic workspaces are managed via the 0th workspace manager */
+#define BTRFS_NR_WORKSPACE_MANAGERS	(BTRFS_COMPRESS_TYPES + 1)
+
+extern const struct btrfs_compress_op btrfs_heuristic_compress;
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;

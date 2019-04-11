@@ -3282,7 +3282,7 @@ static int cxlflash_chr_open(struct inode *inode, struct file *file)
  *
  * Return: A string identifying the decoded host ioctl.
  */
-static char *decode_hioctl(int cmd)
+static char *decode_hioctl(unsigned int cmd)
 {
 	switch (cmd) {
 	case HT_CXLFLASH_LUN_PROVISION:

@@ -70,7 +70,7 @@ struct v4l2_decode_vbi_line {
  * device. These devices are usually audio/video muxers/encoders/decoders or
  * sensors and webcam controllers.
  *
- * Usually these devices are controlled through an i2c bus, but other busses
+ * Usually these devices are controlled through an i2c bus, but other buses
  * may also be used.
  *
  * The v4l2_subdev struct provides a way of accessing these devices in a
@@ -1093,13 +1093,14 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
 	({								\
+		struct v4l2_subdev *__sd = (sd);			\
 		int __result;						\
-		if (!(sd))						\
+		if (!__sd)						\
 			__result = -ENODEV;				\
-		else if (!((sd)->ops->o && (sd)->ops->o->f))		\
+		else if (!(__sd->ops->o && __sd->ops->o->f))		\
 			__result = -ENOIOCTLCMD;			\
 		else							\
-			__result = (sd)->ops->o->f((sd), ##args);	\
+			__result = __sd->ops->o->f(__sd, ##args);	\
 		__result;						\
 	})
 

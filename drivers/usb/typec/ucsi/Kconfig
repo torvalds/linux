@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config TYPEC_UCSI
 	tristate "USB Type-C Connector System Software Interface driver"
 	depends on !CPU_BIG_ENDIAN

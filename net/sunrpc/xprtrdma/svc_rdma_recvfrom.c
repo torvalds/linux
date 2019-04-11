@@ -272,11 +272,8 @@ bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma)
 			return false;
 		ctxt->rc_temp = true;
 		ret = __svc_rdma_post_recv(rdma, ctxt);
-		if (ret) {
-			pr_err("svcrdma: failure posting recv buffers: %d\n",
-			       ret);
+		if (ret)
 			return false;
-		}
 	}
 	return true;
 }
@@ -314,17 +311,14 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	spin_lock(&rdma->sc_rq_dto_lock);
 	list_add_tail(&ctxt->rc_list, &rdma->sc_rq_dto_q);
-	spin_unlock(&rdma->sc_rq_dto_lock);
+	/* Note the unlock pairs with the smp_rmb in svc_xprt_ready: */
 	set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
+	spin_unlock(&rdma->sc_rq_dto_lock);
 	if (!test_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags))
 		svc_xprt_enqueue(&rdma->sc_xprt);
 	goto out;
 
 flushed:
-	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_err("svcrdma: Recv: %s (%u/0x%x)\n",
-		       ib_wc_status_msg(wc->status),
-		       wc->status, wc->vendor_err);
 post_err:
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);

@@ -38,6 +38,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/hrtimer.h>
@@ -405,6 +406,7 @@ struct amdgpu_crtc {
 	struct amdgpu_flip_work *pflip_works;
 	enum amdgpu_flip_status pflip_status;
 	int deferred_flip_completion;
+	u64 last_flip_vblank;
 	/* pll sharing */
 	struct amdgpu_atom_ss ss;
 	bool ss_enabled;

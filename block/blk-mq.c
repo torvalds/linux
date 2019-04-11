@@ -331,7 +331,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	rq->nr_integrity_segments = 0;
 #endif
-	rq->special = NULL;
 	/* tag was already set */
 	rq->extra_len = 0;
 	WRITE_ONCE(rq->deadline, 0);
@@ -340,7 +339,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
-	rq->next_rq = NULL;
 
 	data->ctx->rq_dispatched[op_is_sync(op)]++;
 	refcount_set(&rq->ref, 1);
@@ -364,7 +362,7 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 	}
 	if (likely(!data->hctx))
 		data->hctx = blk_mq_map_queue(q, data->cmd_flags,
-						data->ctx->cpu);
+						data->ctx);
 	if (data->cmd_flags & REQ_NOWAIT)
 		data->flags |= BLK_MQ_REQ_NOWAIT;
 
@@ -550,8 +548,6 @@ inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 		rq_qos_done(rq->q, rq);
 		rq->end_io(rq, error);
 	} else {
-		if (unlikely(blk_bidi_rq(rq)))
-			blk_mq_free_request(rq->next_rq);
 		blk_mq_free_request(rq);
 	}
 }
@@ -2069,7 +2065,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 	struct blk_mq_tags *tags;
 	int node;
 
-	node = blk_mq_hw_queue_to_node(&set->map[0], hctx_idx);
+	node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], hctx_idx);
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 
@@ -2125,7 +2121,7 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 	size_t rq_size, left;
 	int node;
 
-	node = blk_mq_hw_queue_to_node(&set->map[0], hctx_idx);
+	node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], hctx_idx);
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 
@@ -2424,7 +2420,7 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	 * If the cpu isn't present, the cpu is mapped to first hctx.
 	 */
 	for_each_possible_cpu(i) {
-		hctx_idx = set->map[0].mq_map[i];
+		hctx_idx = set->map[HCTX_TYPE_DEFAULT].mq_map[i];
 		/* unmapped hw queue can be remapped after CPU topo changed */
 		if (!set->tags[hctx_idx] &&
 		    !__blk_mq_alloc_rq_map(set, hctx_idx)) {
@@ -2434,16 +2430,19 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 			 * case, remap the current ctx to hctx[0] which
 			 * is guaranteed to always have tags allocated
 			 */
-			set->map[0].mq_map[i] = 0;
+			set->map[HCTX_TYPE_DEFAULT].mq_map[i] = 0;
 		}
 
 		ctx = per_cpu_ptr(q->queue_ctx, i);
 		for (j = 0; j < set->nr_maps; j++) {
-			if (!set->map[j].nr_queues)
+			if (!set->map[j].nr_queues) {
+				ctx->hctxs[j] = blk_mq_map_queue_type(q,
+						HCTX_TYPE_DEFAULT, i);
 				continue;
+			}
 
 			hctx = blk_mq_map_queue_type(q, j, i);
-
+			ctx->hctxs[j] = hctx;
 			/*
 			 * If the CPU is already set in the mask, then we've
 			 * mapped this one already. This can happen if
@@ -2463,6 +2462,10 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 			 */
 			BUG_ON(!hctx->nr_ctx);
 		}
+
+		for (; j < HCTX_MAX_TYPES; j++)
+			ctx->hctxs[j] = blk_mq_map_queue_type(q,
+					HCTX_TYPE_DEFAULT, i);
 	}
 
 	mutex_unlock(&q->sysfs_lock);
@@ -2734,7 +2737,7 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 		int node;
 		struct blk_mq_hw_ctx *hctx;
 
-		node = blk_mq_hw_queue_to_node(&set->map[0], i);
+		node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], i);
 		/*
 		 * If the hw queue has been mapped to another numa node,
 		 * we need to realloc the hctx. If allocation fails, fallback
@@ -2837,9 +2840,6 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	if (set->nr_maps > HCTX_TYPE_POLL &&
 	    set->map[HCTX_TYPE_POLL].nr_queues)
 		blk_queue_flag_set(QUEUE_FLAG_POLL, q);
-
-	if (!(set->flags & BLK_MQ_F_SG_MERGE))
-		blk_queue_flag_set(QUEUE_FLAG_NO_SG_MERGE, q);
 
 	q->sg_reserved_size = INT_MAX;
 
@@ -2968,7 +2968,7 @@ static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 		return set->ops->map_queues(set);
 	} else {
 		BUG_ON(set->nr_maps > 1);
-		return blk_mq_map_queues(&set->map[0]);
+		return blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
 	}
 }
 
@@ -3089,6 +3089,9 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 
 	if (!set)
 		return -EINVAL;
+
+	if (q->nr_requests == nr)
+		return 0;
 
 	blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
@@ -3235,7 +3238,7 @@ fallback:
 			pr_warn("Increasing nr_hw_queues to %d fails, fallback to %d\n",
 					nr_hw_queues, prev_nr_hw_queues);
 			set->nr_hw_queues = prev_nr_hw_queues;
-			blk_mq_map_queues(&set->map[0]);
+			blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
 			goto fallback;
 		}
 		blk_mq_map_swqueue(q);

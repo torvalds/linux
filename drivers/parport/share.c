@@ -137,11 +137,19 @@ static struct bus_type parport_bus_type = {
 
 int parport_bus_init(void)
 {
-	return bus_register(&parport_bus_type);
+	int retval;
+
+	retval = bus_register(&parport_bus_type);
+	if (retval)
+		return retval;
+	daisy_drv_init();
+
+	return 0;
 }
 
 void parport_bus_exit(void)
 {
+	daisy_drv_exit();
 	bus_unregister(&parport_bus_type);
 }
 

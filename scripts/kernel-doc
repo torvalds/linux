@@ -1474,7 +1474,7 @@ sub push_parameter($$$$) {
 	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 		$parameterdescs{$param} = $undescribed;
 
-	        if (show_warnings($type, $declaration_name)) {
+	        if (show_warnings($type, $declaration_name) && $param !~ /\./) {
 			print STDERR
 			      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
 			++$warnings;

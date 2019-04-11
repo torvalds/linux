@@ -31,10 +31,10 @@ struct driver_data {
 
 	/* SPI framework hookup */
 	enum pxa_ssp_type ssp_type;
-	struct spi_controller *master;
+	struct spi_controller *controller;
 
 	/* PXA hookup */
-	struct pxa2xx_spi_master *master_info;
+	struct pxa2xx_spi_controller *controller_info;
 
 	/* SSP register addresses */
 	void __iomem *ioaddr;

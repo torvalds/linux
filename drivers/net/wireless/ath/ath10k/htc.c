@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "core.h"
@@ -53,7 +42,7 @@ static inline void ath10k_htc_restore_tx_skb(struct ath10k_htc *htc,
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
 
-	if (htc->ar->dev_type != ATH10K_DEV_TYPE_HL)
+	if (htc->ar->bus_param.dev_type != ATH10K_DEV_TYPE_HL)
 		dma_unmap_single(htc->ar->dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
 	skb_pull(skb, sizeof(struct ath10k_htc_hdr));
 }
@@ -88,7 +77,8 @@ static void ath10k_htc_prepare_tx_skb(struct ath10k_htc_ep *ep,
 	hdr->eid = ep->eid;
 	hdr->len = __cpu_to_le16(skb->len - sizeof(*hdr));
 	hdr->flags = 0;
-	hdr->flags |= ATH10K_HTC_FLAG_NEED_CREDIT_UPDATE;
+	if (ep->tx_credit_flow_enabled)
+		hdr->flags |= ATH10K_HTC_FLAG_NEED_CREDIT_UPDATE;
 
 	spin_lock_bh(&ep->htc->tx_lock);
 	hdr->seq_no = ep->seq_no++;
@@ -138,7 +128,7 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 	ath10k_htc_prepare_tx_skb(ep, skb);
 
 	skb_cb->eid = eid;
-	if (ar->dev_type != ATH10K_DEV_TYPE_HL) {
+	if (ar->bus_param.dev_type != ATH10K_DEV_TYPE_HL) {
 		skb_cb->paddr = dma_map_single(dev, skb->data, skb->len,
 					       DMA_TO_DEVICE);
 		ret = dma_mapping_error(dev, skb_cb->paddr);
@@ -161,7 +151,7 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 	return 0;
 
 err_unmap:
-	if (ar->dev_type != ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type != ATH10K_DEV_TYPE_HL)
 		dma_unmap_single(dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
 err_credits:
 	if (ep->tx_credit_flow_enabled) {

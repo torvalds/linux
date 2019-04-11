@@ -120,7 +120,7 @@ struct mdev_driver {
 
 extern void *mdev_get_drvdata(struct mdev_device *mdev);
 extern void mdev_set_drvdata(struct mdev_device *mdev, void *data);
-extern uuid_le mdev_uuid(struct mdev_device *mdev);
+extern const guid_t *mdev_uuid(struct mdev_device *mdev);
 
 extern struct bus_type mdev_bus_type;
 

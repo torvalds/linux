@@ -197,6 +197,7 @@
 				gpio-ranges = <&pinctrl 0 0 220>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			timer: timer@1e782000 {

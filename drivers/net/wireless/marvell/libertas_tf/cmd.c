@@ -256,7 +256,7 @@ static void lbtf_submit_command(struct lbtf_private *priv,
 		     command, le16_to_cpu(cmd->seqnum), cmdsize);
 	lbtf_deb_hex(LBTF_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
-	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
+	ret = priv->ops->hw_host_to_card(priv, MVMS_CMD, (u8 *)cmd, cmdsize);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (ret) {
@@ -737,10 +737,9 @@ int lbtf_process_rx_command(struct lbtf_private *priv)
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
-	if (net_ratelimit())
-		pr_info("libertastf: cmd response 0x%04x, seq %d, size %d\n",
-			respcmd, le16_to_cpu(resp->seqnum),
-			le16_to_cpu(resp->size));
+	lbtf_deb_cmd("libertastf: cmd response 0x%04x, seq %d, size %d\n",
+		     respcmd, le16_to_cpu(resp->seqnum),
+		     le16_to_cpu(resp->size));
 
 	if (resp->seqnum != priv->cur_cmd->cmdbuf->seqnum) {
 		spin_unlock_irqrestore(&priv->driver_lock, flags);

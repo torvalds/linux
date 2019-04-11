@@ -1,0 +1,38 @@
+MT9M001: 1/2-Inch Megapixel Digital Image Sensor
+
+The MT9M001 is an SXGA-format with a 1/2-inch CMOS active-pixel digital
+image sensor. It is programmable through I2C interface.
+
+Required Properties:
+
+- compatible: shall be "onnn,mt9m001".
+- clocks: reference to the master clock into sensor
+
+Optional Properties:
+
+- reset-gpios: GPIO handle which is connected to the reset pin of the chip.
+  Active low.
+- standby-gpios: GPIO handle which is connected to the standby pin of the chip.
+  Active high.
+
+The device node must contain one 'port' child node with one 'endpoint' child
+sub-node for its digital output video port, in accordance with the video
+interface bindings defined in:
+Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Example:
+
+	&i2c1 {
+		camera-sensor@5d {
+			compatible = "onnn,mt9m001";
+			reg = <0x5d>;
+			reset-gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+			standby-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+			clocks = <&camera_clk>;
+			port {
+				mt9m001_out: endpoint {
+					remote-endpoint = <&vcap_in>;
+				};
+			};
+		};
+	};

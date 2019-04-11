@@ -978,6 +978,8 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	get_monspecs(edid, specs);
 
 	specs->modedb = fb_create_modedb(edid, &specs->modedb_len, specs);
+	if (!specs->modedb)
+		return;
 
 	/*
 	 * Workaround for buggy EDIDs that sets that the first

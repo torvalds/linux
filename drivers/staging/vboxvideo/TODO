@@ -1,5 +1,8 @@
 TODO:
 -Get a full review from the drm-maintainers on dri-devel done on this driver
+-Drop all the logic around initial_mode_queried, the master_set and
+ master_drop callbacks and everything related to this. kms clients can handle
+ hotplugs.
 -Extend this TODO with the results of that review
 
 Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,

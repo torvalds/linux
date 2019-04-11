@@ -49,6 +49,9 @@ struct perf_evlist {
 	struct perf_evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
+	void (*trace_event_sample_raw)(struct perf_evlist *evlist,
+				       union perf_event *event,
+				       struct perf_sample *sample);
 	u64		first_sample_time;
 	u64		last_sample_time;
 };
@@ -162,7 +165,7 @@ unsigned long perf_event_mlock_kb_in_pages(void);
 
 int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 			 unsigned int auxtrace_pages,
-			 bool auxtrace_overwrite, int nr_cblocks);
+			 bool auxtrace_overwrite, int nr_cblocks, int affinity);
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages);
 void perf_evlist__munmap(struct perf_evlist *evlist);
 
@@ -314,5 +317,4 @@ void perf_evlist__force_leader(struct perf_evlist *evlist);
 
 struct perf_evsel *perf_evlist__reset_weak_group(struct perf_evlist *evlist,
 						 struct perf_evsel *evsel);
-
 #endif /* __PERF_EVLIST_H */

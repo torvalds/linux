@@ -175,7 +175,7 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size, boo
 size_t syscall_arg__scnprintf_ioctl_cmd(char *bf, size_t size, struct syscall_arg *arg)
 {
 	unsigned long cmd = arg->val;
-	unsigned int fd = syscall_arg__val(arg, 0);
+	int fd = syscall_arg__val(arg, 0);
 	struct file *file = thread__files_entry(arg->thread, fd);
 
 	if (file != NULL) {

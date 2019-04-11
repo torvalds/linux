@@ -333,19 +333,19 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 	 * on the BRx sink pad 0 and propagated inside the entity, not on the
 	 * source pad.
 	 */
-	format.pad = pipe->brx->source_pad;
+	format.pad = brx->source_pad;
 	format.format.width = drm_pipe->width;
 	format.format.height = drm_pipe->height;
 	format.format.field = V4L2_FIELD_NONE;
 
-	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&brx->subdev, pad, set_fmt, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 		__func__, format.format.width, format.format.height,
-		format.format.code, BRX_NAME(pipe->brx), pipe->brx->source_pad);
+		format.format.code, BRX_NAME(brx), brx->source_pad);
 
 	if (format.format.width != drm_pipe->width ||
 	    format.format.height != drm_pipe->height) {

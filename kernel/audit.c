@@ -396,10 +396,10 @@ static int audit_log_config_change(char *function_name, u32 new, u32 old,
 	struct audit_buffer *ab;
 	int rc = 0;
 
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return rc;
-	audit_log_format(ab, "%s=%u old=%u ", function_name, new, old);
+	audit_log_format(ab, "op=set %s=%u old=%u ", function_name, new, old);
 	audit_log_session_info(ab);
 	rc = audit_log_task_context(ab);
 	if (rc)
@@ -1053,7 +1053,8 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	return err;
 }
 
-static void audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
+static void audit_log_common_recv_msg(struct audit_context *context,
+					struct audit_buffer **ab, u16 msg_type)
 {
 	uid_t uid = from_kuid(&init_user_ns, current_uid());
 	pid_t pid = task_tgid_nr(current);
@@ -1063,12 +1064,18 @@ static void audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 		return;
 	}
 
-	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
+	*ab = audit_log_start(context, GFP_KERNEL, msg_type);
 	if (unlikely(!*ab))
 		return;
 	audit_log_format(*ab, "pid=%d uid=%u ", pid, uid);
 	audit_log_session_info(*ab);
 	audit_log_task_context(*ab);
+}
+
+static inline void audit_log_user_recv_msg(struct audit_buffer **ab,
+					   u16 msg_type)
+{
+	audit_log_common_recv_msg(NULL, ab, msg_type);
 }
 
 int is_audit_feature_set(int i)
@@ -1338,7 +1345,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				if (err)
 					break;
 			}
-			audit_log_common_recv_msg(&ab, msg_type);
+			audit_log_user_recv_msg(&ab, msg_type);
 			if (msg_type != AUDIT_USER_TTY)
 				audit_log_format(ab, " msg='%.*s'",
 						 AUDIT_MESSAGE_TEXT_MAX,
@@ -1361,8 +1368,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (nlmsg_len(nlh) < sizeof(struct audit_rule_data))
 			return -EINVAL;
 		if (audit_enabled == AUDIT_LOCKED) {
-			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
-			audit_log_format(ab, " audit_enabled=%d res=0", audit_enabled);
+			audit_log_common_recv_msg(audit_context(), &ab,
+						  AUDIT_CONFIG_CHANGE);
+			audit_log_format(ab, " op=%s audit_enabled=%d res=0",
+					 msg_type == AUDIT_ADD_RULE ?
+						"add_rule" : "remove_rule",
+					 audit_enabled);
 			audit_log_end(ab);
 			return -EPERM;
 		}
@@ -1373,7 +1384,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_TRIM:
 		audit_trim_trees();
-		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
+		audit_log_common_recv_msg(audit_context(), &ab,
+					  AUDIT_CONFIG_CHANGE);
 		audit_log_format(ab, " op=trim res=1");
 		audit_log_end(ab);
 		break;
@@ -1403,8 +1415,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		/* OK, here comes... */
 		err = audit_tag_tree(old, new);
 
-		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
-
+		audit_log_common_recv_msg(audit_context(), &ab,
+					  AUDIT_CONFIG_CHANGE);
 		audit_log_format(ab, " op=make_equiv old=");
 		audit_log_untrustedstring(ab, old);
 		audit_log_format(ab, " new=");
@@ -1471,7 +1483,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		old.enabled = t & AUDIT_TTY_ENABLE;
 		old.log_passwd = !!(t & AUDIT_TTY_LOG_PASSWD);
 
-		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
+		audit_log_common_recv_msg(audit_context(), &ab,
+					  AUDIT_CONFIG_CHANGE);
 		audit_log_format(ab, " op=tty_set old-enabled=%d new-enabled=%d"
 				 " old-log_passwd=%d new-log_passwd=%d res=%d",
 				 old.enabled, s.enabled, old.log_passwd,
@@ -2054,153 +2067,6 @@ void audit_log_key(struct audit_buffer *ab, char *key)
 		audit_log_format(ab, "(null)");
 }
 
-void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
-{
-	int i;
-
-	if (cap_isclear(*cap)) {
-		audit_log_format(ab, " %s=0", prefix);
-		return;
-	}
-	audit_log_format(ab, " %s=", prefix);
-	CAP_FOR_EACH_U32(i)
-		audit_log_format(ab, "%08x", cap->cap[CAP_LAST_U32 - i]);
-}
-
-static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
-{
-	audit_log_cap(ab, "cap_fp", &name->fcap.permitted);
-	audit_log_cap(ab, "cap_fi", &name->fcap.inheritable);
-	audit_log_format(ab, " cap_fe=%d cap_fver=%x",
-			 name->fcap.fE, name->fcap_ver);
-}
-
-static inline int audit_copy_fcaps(struct audit_names *name,
-				   const struct dentry *dentry)
-{
-	struct cpu_vfs_cap_data caps;
-	int rc;
-
-	if (!dentry)
-		return 0;
-
-	rc = get_vfs_caps_from_disk(dentry, &caps);
-	if (rc)
-		return rc;
-
-	name->fcap.permitted = caps.permitted;
-	name->fcap.inheritable = caps.inheritable;
-	name->fcap.fE = !!(caps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
-	name->fcap_ver = (caps.magic_etc & VFS_CAP_REVISION_MASK) >>
-				VFS_CAP_REVISION_SHIFT;
-
-	return 0;
-}
-
-/* Copy inode data into an audit_names. */
-void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
-		      struct inode *inode)
-{
-	name->ino   = inode->i_ino;
-	name->dev   = inode->i_sb->s_dev;
-	name->mode  = inode->i_mode;
-	name->uid   = inode->i_uid;
-	name->gid   = inode->i_gid;
-	name->rdev  = inode->i_rdev;
-	security_inode_getsecid(inode, &name->osid);
-	audit_copy_fcaps(name, dentry);
-}
-
-/**
- * audit_log_name - produce AUDIT_PATH record from struct audit_names
- * @context: audit_context for the task
- * @n: audit_names structure with reportable details
- * @path: optional path to report instead of audit_names->name
- * @record_num: record number to report when handling a list of names
- * @call_panic: optional pointer to int that will be updated if secid fails
- */
-void audit_log_name(struct audit_context *context, struct audit_names *n,
-		    const struct path *path, int record_num, int *call_panic)
-{
-	struct audit_buffer *ab;
-	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PATH);
-	if (!ab)
-		return;
-
-	audit_log_format(ab, "item=%d", record_num);
-
-	if (path)
-		audit_log_d_path(ab, " name=", path);
-	else if (n->name) {
-		switch (n->name_len) {
-		case AUDIT_NAME_FULL:
-			/* log the full path */
-			audit_log_format(ab, " name=");
-			audit_log_untrustedstring(ab, n->name->name);
-			break;
-		case 0:
-			/* name was specified as a relative path and the
-			 * directory component is the cwd */
-			audit_log_d_path(ab, " name=", &context->pwd);
-			break;
-		default:
-			/* log the name's directory component */
-			audit_log_format(ab, " name=");
-			audit_log_n_untrustedstring(ab, n->name->name,
-						    n->name_len);
-		}
-	} else
-		audit_log_format(ab, " name=(null)");
-
-	if (n->ino != AUDIT_INO_UNSET)
-		audit_log_format(ab, " inode=%lu"
-				 " dev=%02x:%02x mode=%#ho"
-				 " ouid=%u ogid=%u rdev=%02x:%02x",
-				 n->ino,
-				 MAJOR(n->dev),
-				 MINOR(n->dev),
-				 n->mode,
-				 from_kuid(&init_user_ns, n->uid),
-				 from_kgid(&init_user_ns, n->gid),
-				 MAJOR(n->rdev),
-				 MINOR(n->rdev));
-	if (n->osid != 0) {
-		char *ctx = NULL;
-		u32 len;
-		if (security_secid_to_secctx(
-			n->osid, &ctx, &len)) {
-			audit_log_format(ab, " osid=%u", n->osid);
-			if (call_panic)
-				*call_panic = 2;
-		} else {
-			audit_log_format(ab, " obj=%s", ctx);
-			security_release_secctx(ctx, len);
-		}
-	}
-
-	/* log the audit_names record type */
-	switch(n->type) {
-	case AUDIT_TYPE_NORMAL:
-		audit_log_format(ab, " nametype=NORMAL");
-		break;
-	case AUDIT_TYPE_PARENT:
-		audit_log_format(ab, " nametype=PARENT");
-		break;
-	case AUDIT_TYPE_CHILD_DELETE:
-		audit_log_format(ab, " nametype=DELETE");
-		break;
-	case AUDIT_TYPE_CHILD_CREATE:
-		audit_log_format(ab, " nametype=CREATE");
-		break;
-	default:
-		audit_log_format(ab, " nametype=UNKNOWN");
-		break;
-	}
-
-	audit_log_fcaps(ab, n);
-	audit_log_end(ab);
-}
-
 int audit_log_task_context(struct audit_buffer *ab)
 {
 	char *ctx = NULL;
@@ -2320,6 +2186,91 @@ void audit_log_link_denied(const char *operation)
 	audit_log_task_info(ab);
 	audit_log_format(ab, " res=0");
 	audit_log_end(ab);
+}
+
+/* global counter which is incremented every time something logs in */
+static atomic_t session_id = ATOMIC_INIT(0);
+
+static int audit_set_loginuid_perm(kuid_t loginuid)
+{
+	/* if we are unset, we don't need privs */
+	if (!audit_loginuid_set(current))
+		return 0;
+	/* if AUDIT_FEATURE_LOGINUID_IMMUTABLE means never ever allow a change*/
+	if (is_audit_feature_set(AUDIT_FEATURE_LOGINUID_IMMUTABLE))
+		return -EPERM;
+	/* it is set, you need permission */
+	if (!capable(CAP_AUDIT_CONTROL))
+		return -EPERM;
+	/* reject if this is not an unset and we don't allow that */
+	if (is_audit_feature_set(AUDIT_FEATURE_ONLY_UNSET_LOGINUID)
+				 && uid_valid(loginuid))
+		return -EPERM;
+	return 0;
+}
+
+static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
+				   unsigned int oldsessionid,
+				   unsigned int sessionid, int rc)
+{
+	struct audit_buffer *ab;
+	uid_t uid, oldloginuid, loginuid;
+	struct tty_struct *tty;
+
+	if (!audit_enabled)
+		return;
+
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
+	if (!ab)
+		return;
+
+	uid = from_kuid(&init_user_ns, task_uid(current));
+	oldloginuid = from_kuid(&init_user_ns, koldloginuid);
+	loginuid = from_kuid(&init_user_ns, kloginuid),
+	tty = audit_get_tty();
+
+	audit_log_format(ab, "pid=%d uid=%u", task_tgid_nr(current), uid);
+	audit_log_task_context(ab);
+	audit_log_format(ab, " old-auid=%u auid=%u tty=%s old-ses=%u ses=%u res=%d",
+			 oldloginuid, loginuid, tty ? tty_name(tty) : "(none)",
+			 oldsessionid, sessionid, !rc);
+	audit_put_tty(tty);
+	audit_log_end(ab);
+}
+
+/**
+ * audit_set_loginuid - set current task's loginuid
+ * @loginuid: loginuid value
+ *
+ * Returns 0.
+ *
+ * Called (set) from fs/proc/base.c::proc_loginuid_write().
+ */
+int audit_set_loginuid(kuid_t loginuid)
+{
+	unsigned int oldsessionid, sessionid = AUDIT_SID_UNSET;
+	kuid_t oldloginuid;
+	int rc;
+
+	oldloginuid = audit_get_loginuid(current);
+	oldsessionid = audit_get_sessionid(current);
+
+	rc = audit_set_loginuid_perm(loginuid);
+	if (rc)
+		goto out;
+
+	/* are we setting or clearing? */
+	if (uid_valid(loginuid)) {
+		sessionid = (unsigned int)atomic_inc_return(&session_id);
+		if (unlikely(sessionid == AUDIT_SID_UNSET))
+			sessionid = (unsigned int)atomic_inc_return(&session_id);
+	}
+
+	current->sessionid = sessionid;
+	current->loginuid = loginuid;
+out:
+	audit_log_set_loginuid(oldloginuid, loginuid, oldsessionid, sessionid, rc);
+	return rc;
 }
 
 /**

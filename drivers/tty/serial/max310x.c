@@ -248,6 +248,7 @@
 struct max310x_devtype {
 	char	name[9];
 	int	nr;
+	u8	mode1;
 	int	(*detect)(struct device *);
 	void	(*power)(struct uart_port *, int);
 };
@@ -410,6 +411,7 @@ static void max14830_power(struct uart_port *port, int on)
 static const struct max310x_devtype max3107_devtype = {
 	.name	= "MAX3107",
 	.nr	= 1,
+	.mode1	= MAX310X_MODE1_AUTOSLEEP_BIT | MAX310X_MODE1_IRQSEL_BIT,
 	.detect	= max3107_detect,
 	.power	= max310x_power,
 };
@@ -417,6 +419,7 @@ static const struct max310x_devtype max3107_devtype = {
 static const struct max310x_devtype max3108_devtype = {
 	.name	= "MAX3108",
 	.nr	= 1,
+	.mode1	= MAX310X_MODE1_AUTOSLEEP_BIT,
 	.detect	= max3108_detect,
 	.power	= max310x_power,
 };
@@ -424,6 +427,7 @@ static const struct max310x_devtype max3108_devtype = {
 static const struct max310x_devtype max3109_devtype = {
 	.name	= "MAX3109",
 	.nr	= 2,
+	.mode1	= MAX310X_MODE1_AUTOSLEEP_BIT,
 	.detect	= max3109_detect,
 	.power	= max310x_power,
 };
@@ -431,6 +435,7 @@ static const struct max310x_devtype max3109_devtype = {
 static const struct max310x_devtype max14830_devtype = {
 	.name	= "MAX14830",
 	.nr	= 4,
+	.mode1	= MAX310X_MODE1_IRQSEL_BIT,
 	.detect	= max14830_detect,
 	.power	= max14830_power,
 };
@@ -1197,8 +1202,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		return PTR_ERR(regmap);
 
 	/* Alloc port structure */
-	s = devm_kzalloc(dev, sizeof(*s) +
-			 sizeof(struct max310x_one) * devtype->nr, GFP_KERNEL);
+	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr), GFP_KERNEL);
 	if (!s) {
 		dev_err(dev, "Error allocating port structure\n");
 		return -ENOMEM;
@@ -1258,9 +1262,8 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 				    MAX310X_BRGDIVLSB_REG + offs, &ret);
 		} while (ret != 0x01);
 
-		regmap_update_bits(s->regmap, MAX310X_MODE1_REG + offs,
-				   MAX310X_MODE1_AUTOSLEEP_BIT,
-				   MAX310X_MODE1_AUTOSLEEP_BIT);
+		regmap_write(s->regmap, MAX310X_MODE1_REG + offs,
+			     devtype->mode1);
 	}
 
 	uartclk = max310x_set_ref_clk(dev, s, freq, xtal);
@@ -1294,10 +1297,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		max310x_port_write(&s->p[i].port, MAX310X_IRQEN_REG, 0);
 		/* Clear IRQ status register */
 		max310x_port_read(&s->p[i].port, MAX310X_IRQSTS_REG);
-		/* Enable IRQ pin */
-		max310x_port_update(&s->p[i].port, MAX310X_MODE1_REG,
-				    MAX310X_MODE1_IRQSEL_BIT,
-				    MAX310X_MODE1_IRQSEL_BIT);
 		/* Initialize queue for start TX */
 		INIT_WORK(&s->p[i].tx_work, max310x_wq_proc);
 		/* Initialize queue for changing LOOPBACK mode */
@@ -1467,10 +1466,10 @@ static int __init max310x_uart_init(void)
 		return ret;
 
 #ifdef CONFIG_SPI_MASTER
-	spi_register_driver(&max310x_spi_driver);
+	ret = spi_register_driver(&max310x_spi_driver);
 #endif
 
-	return 0;
+	return ret;
 }
 module_init(max310x_uart_init);
 

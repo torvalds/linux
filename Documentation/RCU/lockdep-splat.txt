@@ -14,9 +14,9 @@ being the real world and all that.
 So let's look at an example RCU lockdep splat from 3.0-rc5, one that
 has long since been fixed:
 
-===============================
-[ INFO: suspicious RCU usage. ]
--------------------------------
+=============================
+WARNING: suspicious RCU usage
+-----------------------------
 block/cfq-iosched.c:2776 suspicious rcu_dereference_protected() usage!
 
 other info that might help us debug this:
@@ -24,11 +24,11 @@ other info that might help us debug this:
 
 rcu_scheduler_active = 1, debug_locks = 0
 3 locks held by scsi_scan_6/1552:
- #0:  (&shost->scan_mutex){+.+.+.}, at: [<ffffffff8145efca>]
+ #0:  (&shost->scan_mutex){+.+.}, at: [<ffffffff8145efca>]
 scsi_scan_host_selected+0x5a/0x150
- #1:  (&eq->sysfs_lock){+.+...}, at: [<ffffffff812a5032>]
+ #1:  (&eq->sysfs_lock){+.+.}, at: [<ffffffff812a5032>]
 elevator_exit+0x22/0x60
- #2:  (&(&q->__queue_lock)->rlock){-.-...}, at: [<ffffffff812b6233>]
+ #2:  (&(&q->__queue_lock)->rlock){-.-.}, at: [<ffffffff812b6233>]
 cfq_exit_queue+0x43/0x190
 
 stack backtrace:

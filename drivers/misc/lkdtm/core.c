@@ -37,15 +37,8 @@
 #include <linux/kprobes.h>
 #include <linux/list.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/hrtimer.h>
 #include <linux/slab.h>
-#include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
-
-#ifdef CONFIG_IDE
-#include <linux/ide.h>
-#endif
 
 #define DEFAULT_COUNT 10
 
@@ -102,9 +95,7 @@ static struct crashpoint crashpoints[] = {
 	CRASHPOINT("MEM_SWAPOUT",	 "shrink_inactive_list"),
 	CRASHPOINT("TIMERADD",		 "hrtimer_start"),
 	CRASHPOINT("SCSI_DISPATCH_CMD",	 "scsi_dispatch_cmd"),
-# ifdef CONFIG_IDE
 	CRASHPOINT("IDE_CORE_CP",	 "generic_ide_ioctl"),
-# endif
 #endif
 };
 
@@ -152,7 +143,9 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(EXEC_VMALLOC),
 	CRASHTYPE(EXEC_RODATA),
 	CRASHTYPE(EXEC_USERSPACE),
+	CRASHTYPE(EXEC_NULL),
 	CRASHTYPE(ACCESS_USERSPACE),
+	CRASHTYPE(ACCESS_NULL),
 	CRASHTYPE(WRITE_RO),
 	CRASHTYPE(WRITE_RO_AFTER_INIT),
 	CRASHTYPE(WRITE_KERN),
@@ -347,9 +340,9 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	n = snprintf(buf, PAGE_SIZE, "Available crash types:\n");
+	n = scnprintf(buf, PAGE_SIZE, "Available crash types:\n");
 	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		n += snprintf(buf + n, PAGE_SIZE - n, "%s\n",
+		n += scnprintf(buf + n, PAGE_SIZE - n, "%s\n",
 			      crashtypes[i].name);
 	}
 	buf[n] = '\0';

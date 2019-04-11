@@ -117,7 +117,7 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 	}
 
-	perfmon = kzalloc(sizeof(*perfmon) + (req->ncounters * sizeof(u64)),
+	perfmon = kzalloc(struct_size(perfmon, counters, req->ncounters),
 			  GFP_KERNEL);
 	if (!perfmon)
 		return -ENOMEM;

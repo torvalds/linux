@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -556,6 +556,12 @@ struct ieee80211_if_managed {
 	 * get stuck in a downgraded situation and flush takes forever.
 	 */
 	struct delayed_work tx_tspec_wk;
+
+	/* Information elements from the last transmitted (Re)Association
+	 * Request frame.
+	 */
+	u8 *assoc_req_ies;
+	size_t assoc_req_ies_len;
 };
 
 struct ieee80211_if_ibss {
@@ -831,6 +837,8 @@ enum txq_info_flags {
  *	a fq_flow which is already owned by a different tin
  * @def_cvars: codel vars for @def_flow
  * @frags: used to keep fragments created after dequeue
+ * @schedule_order: used with ieee80211_local->active_txqs
+ * @schedule_round: counter to prevent infinite loops on TXQ scheduling
  */
 struct txq_info {
 	struct fq_tin tin;
@@ -838,6 +846,8 @@ struct txq_info {
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
 	struct sk_buff_head frags;
+	struct list_head schedule_order;
+	u16 schedule_round;
 	unsigned long flags;
 
 	/* keep last! */
@@ -1128,6 +1138,13 @@ struct ieee80211_local {
 	struct fq fq;
 	struct codel_vars *cvars;
 	struct codel_params cparams;
+
+	/* protects active_txqs and txqi->schedule_order */
+	spinlock_t active_txq_lock[IEEE80211_NUM_ACS];
+	struct list_head active_txqs[IEEE80211_NUM_ACS];
+	u16 schedule_round[IEEE80211_NUM_ACS];
+
+	u16 airtime_flags;
 
 	const struct ieee80211_ops *ops;
 
@@ -1436,6 +1453,7 @@ struct ieee80211_csa_ie {
 	u8 ttl;
 	u16 pre_value;
 	u16 reason_code;
+	u32 max_switch_time;
 };
 
 /* Parsed Information Elements */
@@ -1476,6 +1494,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
 	const struct ieee80211_ext_chansw_ie *ext_chansw_ie;
 	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
+	const u8 *max_channel_switch_time;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
 	const u8 *cisco_dtpc_elem;
@@ -1484,6 +1503,12 @@ struct ieee802_11_elems {
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
 	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
+	const struct ieee80211_multiple_bssid_configuration *mbssid_config_ie;
+	const struct ieee80211_bssid_index *bssid_index;
+	const u8 *nontransmitted_bssid_profile;
+	u8 max_bssid_indicator;
+	u8 dtim_count;
+	u8 dtim_period;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1502,6 +1527,7 @@ struct ieee802_11_elems {
 	u8 prep_len;
 	u8 perr_len;
 	u8 country_elem_len;
+	u8 bssid_index_len;
 
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;
@@ -1661,7 +1687,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
 			  struct ieee80211_mgmt *mgmt,
 			  size_t len,
-			  struct ieee802_11_elems *elems,
 			  struct ieee80211_channel *channel);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
@@ -1945,12 +1970,16 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 
 u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
-			       u64 filter, u32 crc);
+			       u64 filter, u32 crc, u8 *transmitter_bssid,
+			       u8 *bss_bssid);
 static inline void ieee802_11_parse_elems(const u8 *start, size_t len,
 					  bool action,
-					  struct ieee802_11_elems *elems)
+					  struct ieee802_11_elems *elems,
+					  u8 *transmitter_bssid,
+					  u8 *bss_bssid)
 {
-	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
+	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0,
+				   transmitter_bssid, bss_bssid);
 }
 
 

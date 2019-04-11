@@ -294,6 +294,18 @@ static void set_irte_sid(struct irte *irte, unsigned int svt,
 	irte->sid = sid;
 }
 
+/*
+ * Set an IRTE to match only the bus number. Interrupt requests that reference
+ * this IRTE must have a requester-id whose bus number is between or equal
+ * to the start_bus and end_bus arguments.
+ */
+static void set_irte_verify_bus(struct irte *irte, unsigned int start_bus,
+				unsigned int end_bus)
+{
+	set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
+		     (start_bus << 8) | end_bus);
+}
+
 static int set_ioapic_sid(struct irte *irte, int apic)
 {
 	int i;
@@ -356,6 +368,8 @@ static int set_hpet_sid(struct irte *irte, u8 id)
 struct set_msi_sid_data {
 	struct pci_dev *pdev;
 	u16 alias;
+	int count;
+	int busmatch_count;
 };
 
 static int set_msi_sid_cb(struct pci_dev *pdev, u16 alias, void *opaque)
@@ -364,6 +378,10 @@ static int set_msi_sid_cb(struct pci_dev *pdev, u16 alias, void *opaque)
 
 	data->pdev = pdev;
 	data->alias = alias;
+	data->count++;
+
+	if (PCI_BUS_NUM(alias) == pdev->bus->number)
+		data->busmatch_count++;
 
 	return 0;
 }
@@ -375,6 +393,8 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	if (!irte || !dev)
 		return -1;
 
+	data.count = 0;
+	data.busmatch_count = 0;
 	pci_for_each_dma_alias(dev, set_msi_sid_cb, &data);
 
 	/*
@@ -382,6 +402,11 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	 * where the it will return an alias on a different bus than the
 	 * device is the case of a PCIe-to-PCI bridge, where the alias is for
 	 * the subordinate bus.  In this case we can only verify the bus.
+	 *
+	 * If there are multiple aliases, all with the same bus number,
+	 * then all we can do is verify the bus. This is typical in NTB
+	 * hardware which use proxy IDs where the device will generate traffic
+	 * from multiple devfn numbers on the same bus.
 	 *
 	 * If the alias device is on a different bus than our source device
 	 * then we have a topology based alias, use it.
@@ -391,9 +416,10 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	 * original device.
 	 */
 	if (PCI_BUS_NUM(data.alias) != data.pdev->bus->number)
-		set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
-			     PCI_DEVID(PCI_BUS_NUM(data.alias),
-				       dev->bus->number));
+		set_irte_verify_bus(irte, PCI_BUS_NUM(data.alias),
+				    dev->bus->number);
+	else if (data.count >= 2 && data.busmatch_count == data.count)
+		set_irte_verify_bus(irte, dev->bus->number, dev->bus->number);
 	else if (data.pdev->bus->number != dev->bus->number)
 		set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16, data.alias);
 	else

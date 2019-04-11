@@ -21,11 +21,11 @@ config DRM_I915_DEBUG
         select DEBUG_FS
         select PREEMPT_COUNT
         select I2C_CHARDEV
+        select STACKDEPOT
         select DRM_DP_AUX_CHARDEV
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
-        select STACKDEPOT if DRM=y # for DRM_DEBUG_MM
 	select DRM_DEBUG_SELFTEST
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
@@ -173,6 +173,7 @@ config DRM_I915_DEBUG_RUNTIME_PM
 	bool "Enable extra state checking for runtime PM"
 	depends on DRM_I915
 	default n
+	select STACKDEPOT
 	help
 	  Choose this option to turn on extra state checking for the
 	  runtime PM functionality. This may introduce overhead during

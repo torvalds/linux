@@ -613,7 +613,7 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 	while ((skb = __skb_dequeue(&path->queue)))
 		dev_kfree_skb_irq(skb);
 
-	ipoib_dbg(ipoib_priv(dev), "path_free\n");
+	ipoib_dbg(ipoib_priv(dev), "%s\n", __func__);
 
 	/* remove all neigh connected to this path */
 	ipoib_del_neighs_by_gid(dev, path->pathrec.dgid.raw);
@@ -1641,7 +1641,7 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	ipoib_dbg(priv, "ipoib_neigh_hash_uninit\n");
+	ipoib_dbg(priv, "%s\n", __func__);
 	init_completion(&priv->ntbl.deleted);
 
 	cancel_delayed_work_sync(&priv->neigh_reap_task);
@@ -2411,7 +2411,7 @@ static ssize_t dev_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(dev_id);
 
-int ipoib_intercept_dev_id_attr(struct net_device *dev)
+static int ipoib_intercept_dev_id_attr(struct net_device *dev)
 {
 	device_remove_file(&dev->dev, &dev_attr_dev_id);
 	return device_create_file(&dev->dev, &dev_attr_dev_id);
@@ -2495,7 +2495,7 @@ static void ipoib_add_one(struct ib_device *device)
 	struct list_head *dev_list;
 	struct net_device *dev;
 	struct ipoib_dev_priv *priv;
-	int p;
+	unsigned int p;
 	int count = 0;
 
 	dev_list = kmalloc(sizeof(*dev_list), GFP_KERNEL);
@@ -2504,7 +2504,7 @@ static void ipoib_add_one(struct ib_device *device)
 
 	INIT_LIST_HEAD(dev_list);
 
-	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
+	rdma_for_each_port (device, p) {
 		if (!rdma_protocol_ib(device, p))
 			continue;
 		dev = ipoib_add_port("ib%d", device, p);
@@ -2577,9 +2577,7 @@ static int __init ipoib_init_module(void)
 	 */
 	BUILD_BUG_ON(IPOIB_CM_COPYBREAK > IPOIB_CM_HEAD_SIZE);
 
-	ret = ipoib_register_debugfs();
-	if (ret)
-		return ret;
+	ipoib_register_debugfs();
 
 	/*
 	 * We create a global workqueue here that is used for all flush

@@ -979,6 +979,131 @@ static int pac_mask_get(struct task_struct *target,
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &uregs, 0, -1);
 }
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+static __uint128_t pac_key_to_user(const struct ptrauth_key *key)
+{
+	return (__uint128_t)key->hi << 64 | key->lo;
+}
+
+static struct ptrauth_key pac_key_from_user(__uint128_t ukey)
+{
+	struct ptrauth_key key = {
+		.lo = (unsigned long)ukey,
+		.hi = (unsigned long)(ukey >> 64),
+	};
+
+	return key;
+}
+
+static void pac_address_keys_to_user(struct user_pac_address_keys *ukeys,
+				     const struct ptrauth_keys *keys)
+{
+	ukeys->apiakey = pac_key_to_user(&keys->apia);
+	ukeys->apibkey = pac_key_to_user(&keys->apib);
+	ukeys->apdakey = pac_key_to_user(&keys->apda);
+	ukeys->apdbkey = pac_key_to_user(&keys->apdb);
+}
+
+static void pac_address_keys_from_user(struct ptrauth_keys *keys,
+				       const struct user_pac_address_keys *ukeys)
+{
+	keys->apia = pac_key_from_user(ukeys->apiakey);
+	keys->apib = pac_key_from_user(ukeys->apibkey);
+	keys->apda = pac_key_from_user(ukeys->apdakey);
+	keys->apdb = pac_key_from_user(ukeys->apdbkey);
+}
+
+static int pac_address_keys_get(struct task_struct *target,
+				const struct user_regset *regset,
+				unsigned int pos, unsigned int count,
+				void *kbuf, void __user *ubuf)
+{
+	struct ptrauth_keys *keys = &target->thread.keys_user;
+	struct user_pac_address_keys user_keys;
+
+	if (!system_supports_address_auth())
+		return -EINVAL;
+
+	pac_address_keys_to_user(&user_keys, keys);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &user_keys, 0, -1);
+}
+
+static int pac_address_keys_set(struct task_struct *target,
+				const struct user_regset *regset,
+				unsigned int pos, unsigned int count,
+				const void *kbuf, const void __user *ubuf)
+{
+	struct ptrauth_keys *keys = &target->thread.keys_user;
+	struct user_pac_address_keys user_keys;
+	int ret;
+
+	if (!system_supports_address_auth())
+		return -EINVAL;
+
+	pac_address_keys_to_user(&user_keys, keys);
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &user_keys, 0, -1);
+	if (ret)
+		return ret;
+	pac_address_keys_from_user(keys, &user_keys);
+
+	return 0;
+}
+
+static void pac_generic_keys_to_user(struct user_pac_generic_keys *ukeys,
+				     const struct ptrauth_keys *keys)
+{
+	ukeys->apgakey = pac_key_to_user(&keys->apga);
+}
+
+static void pac_generic_keys_from_user(struct ptrauth_keys *keys,
+				       const struct user_pac_generic_keys *ukeys)
+{
+	keys->apga = pac_key_from_user(ukeys->apgakey);
+}
+
+static int pac_generic_keys_get(struct task_struct *target,
+				const struct user_regset *regset,
+				unsigned int pos, unsigned int count,
+				void *kbuf, void __user *ubuf)
+{
+	struct ptrauth_keys *keys = &target->thread.keys_user;
+	struct user_pac_generic_keys user_keys;
+
+	if (!system_supports_generic_auth())
+		return -EINVAL;
+
+	pac_generic_keys_to_user(&user_keys, keys);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &user_keys, 0, -1);
+}
+
+static int pac_generic_keys_set(struct task_struct *target,
+				const struct user_regset *regset,
+				unsigned int pos, unsigned int count,
+				const void *kbuf, const void __user *ubuf)
+{
+	struct ptrauth_keys *keys = &target->thread.keys_user;
+	struct user_pac_generic_keys user_keys;
+	int ret;
+
+	if (!system_supports_generic_auth())
+		return -EINVAL;
+
+	pac_generic_keys_to_user(&user_keys, keys);
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &user_keys, 0, -1);
+	if (ret)
+		return ret;
+	pac_generic_keys_from_user(keys, &user_keys);
+
+	return 0;
+}
+#endif /* CONFIG_CHECKPOINT_RESTORE */
 #endif /* CONFIG_ARM64_PTR_AUTH */
 
 enum aarch64_regset {
@@ -995,6 +1120,10 @@ enum aarch64_regset {
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH
 	REGSET_PAC_MASK,
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	REGSET_PACA_KEYS,
+	REGSET_PACG_KEYS,
+#endif
 #endif
 };
 
@@ -1074,6 +1203,24 @@ static const struct user_regset aarch64_regsets[] = {
 		.get = pac_mask_get,
 		/* this cannot be set dynamically */
 	},
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	[REGSET_PACA_KEYS] = {
+		.core_note_type = NT_ARM_PACA_KEYS,
+		.n = sizeof(struct user_pac_address_keys) / sizeof(__uint128_t),
+		.size = sizeof(__uint128_t),
+		.align = sizeof(__uint128_t),
+		.get = pac_address_keys_get,
+		.set = pac_address_keys_set,
+	},
+	[REGSET_PACG_KEYS] = {
+		.core_note_type = NT_ARM_PACG_KEYS,
+		.n = sizeof(struct user_pac_generic_keys) / sizeof(__uint128_t),
+		.size = sizeof(__uint128_t),
+		.align = sizeof(__uint128_t),
+		.get = pac_generic_keys_get,
+		.set = pac_generic_keys_set,
+	},
+#endif
 #endif
 };
 

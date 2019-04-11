@@ -103,9 +103,9 @@ parse_mf_symlink(const u8 *buf, unsigned int buf_len, unsigned int *_link_len,
 		return rc;
 	}
 
-	snprintf(md5_str2, sizeof(md5_str2),
-		 CIFS_MF_SYMLINK_MD5_FORMAT,
-		 CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
+	scnprintf(md5_str2, sizeof(md5_str2),
+		  CIFS_MF_SYMLINK_MD5_FORMAT,
+		  CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
 
 	if (strncmp(md5_str1, md5_str2, 17) != 0)
 		return -EINVAL;
@@ -142,10 +142,10 @@ format_mf_symlink(u8 *buf, unsigned int buf_len, const char *link_str)
 		return rc;
 	}
 
-	snprintf(buf, buf_len,
-		 CIFS_MF_SYMLINK_LEN_FORMAT CIFS_MF_SYMLINK_MD5_FORMAT,
-		 link_len,
-		 CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
+	scnprintf(buf, buf_len,
+		  CIFS_MF_SYMLINK_LEN_FORMAT CIFS_MF_SYMLINK_MD5_FORMAT,
+		  link_len,
+		  CIFS_MF_SYMLINK_MD5_ARGS(md5_hash));
 
 	ofs = CIFS_MF_SYMLINK_LINK_OFFSET;
 	memcpy(buf + ofs, link_str, link_len);

@@ -957,19 +957,22 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_umad_file *file;
-	int ret = -ENXIO;
+	int ret = 0;
 
 	port = container_of(inode->i_cdev, struct ib_umad_port, cdev);
 
 	mutex_lock(&port->file_mutex);
 
-	if (!port->ib_dev)
+	if (!port->ib_dev) {
+		ret = -ENXIO;
 		goto out;
+	}
 
-	ret = -ENOMEM;
-	file = kzalloc(sizeof *file, GFP_KERNEL);
-	if (!file)
+	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	if (!file) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	mutex_init(&file->mutex);
 	spin_lock_init(&file->send_lock);
@@ -982,14 +985,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 
 	list_add_tail(&file->port_list, &port->file_list);
 
-	ret = nonseekable_open(inode, filp);
-	if (ret) {
-		list_del(&file->port_list);
-		kfree(file);
-		goto out;
-	}
-
-	ib_umad_dev_get(port->umad_dev);
+	nonseekable_open(inode, filp);
 out:
 	mutex_unlock(&port->file_mutex);
 	return ret;
@@ -998,7 +994,6 @@ out:
 static int ib_umad_close(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_file *file = filp->private_data;
-	struct ib_umad_device *dev = file->port->umad_dev;
 	struct ib_umad_packet *packet, *tmp;
 	int already_dead;
 	int i;
@@ -1027,7 +1022,6 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 	mutex_unlock(&file->port->file_mutex);
 
 	kfree(file);
-	ib_umad_dev_put(dev);
 	return 0;
 }
 
@@ -1073,16 +1067,8 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = port;
 
-	ret = nonseekable_open(inode, filp);
-	if (ret)
-		goto err_clr_sm_cap;
-
-	ib_umad_dev_get(port->umad_dev);
+	nonseekable_open(inode, filp);
 	return 0;
-
-err_clr_sm_cap:
-	swap(props.set_port_cap_mask, props.clr_port_cap_mask);
-	ib_modify_port(port->ib_dev, port->port_num, 0, &props);
 
 err_up_sem:
 	up(&port->sm_sem);
@@ -1106,7 +1092,6 @@ static int ib_umad_sm_close(struct inode *inode, struct file *filp)
 
 	up(&port->sm_sem);
 
-	ib_umad_dev_put(port->umad_dev);
 	return ret;
 }
 
@@ -1283,10 +1268,12 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	mutex_unlock(&port->file_mutex);
 
 	cdev_device_del(&port->sm_cdev, &port->sm_dev);
-	put_device(&port->sm_dev);
 	cdev_device_del(&port->cdev, &port->dev);
-	put_device(&port->dev);
 	ida_free(&umad_ida, port->dev_num);
+
+	/* balances device_initialize() */
+	put_device(&port->sm_dev);
+	put_device(&port->dev);
 }
 
 static void ib_umad_add_one(struct ib_device *device)
@@ -1329,21 +1316,24 @@ err:
 		ib_umad_kill_port(&umad_dev->ports[i - s]);
 	}
 free:
+	/* balances kref_init */
 	ib_umad_dev_put(umad_dev);
 }
 
 static void ib_umad_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ib_umad_device *umad_dev = client_data;
-	int i;
+	unsigned int i;
 
 	if (!umad_dev)
 		return;
 
-	for (i = 0; i <= rdma_end_port(device) - rdma_start_port(device); ++i) {
-		if (rdma_cap_ib_mad(device, i + rdma_start_port(device)))
-			ib_umad_kill_port(&umad_dev->ports[i]);
+	rdma_for_each_port (device, i) {
+		if (rdma_cap_ib_mad(device, i))
+			ib_umad_kill_port(
+				&umad_dev->ports[i - rdma_start_port(device)]);
 	}
+	/* balances kref_init() */
 	ib_umad_dev_put(umad_dev);
 }
 

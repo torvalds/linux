@@ -14,10 +14,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include <linux/component.h>
 #include <linux/list.h>
@@ -43,28 +43,6 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00000107, 0x00000204, 0x00000064, 0x00000108,
 	0x00003f69, 0x00003ed6, 0x000001c1, 0x00000808,
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
-};
-
-/*
- * These coefficients are taken from the A33 BSP from Allwinner.
- *
- * The first three values of each row are coded as 13-bit signed fixed-point
- * numbers, with 10 bits for the fractional part. The fourth value is a
- * constant coded as a 14-bit signed fixed-point number with 4 bits for the
- * fractional part.
- *
- * The values in table order give the following colorspace translation:
- * G = 1.164 * Y - 0.391 * U - 0.813 * V + 135
- * R = 1.164 * Y + 1.596 * V - 222
- * B = 1.164 * Y + 2.018 * U + 276
- *
- * This seems to be a conversion from Y[16:235] UV[16:240] to RGB[0:255],
- * following the BT601 spec.
- */
-static const u32 sunxi_bt601_yuv2rgb_coef[12] = {
-	0x000004a7, 0x00001e6f, 0x00001cbf, 0x00000877,
-	0x000004a7, 0x00000000, 0x00000662, 0x00003211,
-	0x000004a7, 0x00000812, 0x00000000, 0x00002eb1,
 };
 
 static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
@@ -163,7 +141,6 @@ static const uint32_t sun4i_backend_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_BGRX8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_RGBA4444,
@@ -245,7 +222,8 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN);
 
 	/* TODO: Add support for the multi-planar YUV formats */
-	if (format->num_planes == 1)
+	if (drm_format_info_is_yuv_packed(format) &&
+	    drm_format_info_is_yuv_sampling_422(format))
 		val |= SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422;
 	else
 		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", fmt);
@@ -1033,6 +1011,10 @@ static const struct of_device_id sun4i_backend_of_table[] = {
 	{
 		.compatible = "allwinner,sun7i-a20-display-backend",
 		.data = &sun7i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-a23-display-backend",
+		.data = &sun8i_a33_backend_quirks,
 	},
 	{
 		.compatible = "allwinner,sun8i-a33-display-backend",

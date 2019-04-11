@@ -339,14 +339,14 @@ xfs_ag_init_headers(
 	{ /* BNO root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_BNO_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_allocbt_buf_ops,
+		.ops = &xfs_bnobt_buf_ops,
 		.work = &xfs_bnoroot_init,
 		.need_init = true
 	},
 	{ /* CNT root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_CNT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_allocbt_buf_ops,
+		.ops = &xfs_cntbt_buf_ops,
 		.work = &xfs_cntroot_init,
 		.need_init = true
 	},
@@ -361,7 +361,7 @@ xfs_ag_init_headers(
 	{ /* FINO root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_FIBT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_inobt_buf_ops,
+		.ops = &xfs_finobt_buf_ops,
 		.work = &xfs_btroot_init,
 		.type = XFS_BTNUM_FINO,
 		.need_init =  xfs_sb_version_hasfinobt(&mp->m_sb)

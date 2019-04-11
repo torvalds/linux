@@ -590,7 +590,8 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 	 * but it will at least behave sensibly when they are
 	 * in sequence.
 	 */
-	ret = filemap_write_and_wait_range(inode->i_mapping, off, off + len);
+	ret = filemap_write_and_wait_range(inode->i_mapping,
+					   off, off + len - 1);
 	if (ret < 0)
 		return ret;
 
@@ -929,14 +930,15 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	     (write ? "write" : "read"), file, pos, (unsigned)count,
 	     snapc, snapc->seq);
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + count);
+	ret = filemap_write_and_wait_range(inode->i_mapping,
+					   pos, pos + count - 1);
 	if (ret < 0)
 		return ret;
 
 	if (write) {
 		int ret2 = invalidate_inode_pages2_range(inode->i_mapping,
 					pos >> PAGE_SHIFT,
-					(pos + count) >> PAGE_SHIFT);
+					(pos + count - 1) >> PAGE_SHIFT);
 		if (ret2 < 0)
 			dout("invalidate_inode_pages2_range returned %d\n", ret2);
 
@@ -1132,13 +1134,14 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 	dout("sync_write on file %p %lld~%u snapc %p seq %lld\n",
 	     file, pos, (unsigned)count, snapc, snapc->seq);
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + count);
+	ret = filemap_write_and_wait_range(inode->i_mapping,
+					   pos, pos + count - 1);
 	if (ret < 0)
 		return ret;
 
 	ret = invalidate_inode_pages2_range(inode->i_mapping,
 					    pos >> PAGE_SHIFT,
-					    (pos + count) >> PAGE_SHIFT);
+					    (pos + count - 1) >> PAGE_SHIFT);
 	if (ret < 0)
 		dout("invalidate_inode_pages2_range returned %d\n", ret);
 

@@ -246,7 +246,7 @@ struct cx23885_i2c {
 	struct i2c_client          i2c_client;
 	u32                        i2c_rc;
 
-	/* 885 registers used for raw addess */
+	/* 885 registers used for raw address */
 	u32                        i2c_period;
 	u32                        reg_ctrl;
 	u32                        reg_stat;

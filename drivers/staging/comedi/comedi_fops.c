@@ -1605,9 +1605,8 @@ static int do_insn_ioctl(struct comedi_device *dev,
 	unsigned int n_data = MIN_SAMPLES;
 	int ret = 0;
 
-	if (copy_from_user(&insn, arg, sizeof(insn))) {
+	if (copy_from_user(&insn, arg, sizeof(insn)))
 		return -EFAULT;
-	}
 
 	n_data = max(n_data, insn.n);
 

@@ -46,7 +46,7 @@ static const struct v4l2_fwnode_bus_conv {
 	enum v4l2_fwnode_bus_type fwnode_bus_type;
 	enum v4l2_mbus_type mbus_type;
 	const char *name;
-} busses[] = {
+} buses[] = {
 	{
 		V4L2_FWNODE_BUS_TYPE_GUESS,
 		V4L2_MBUS_UNKNOWN,
@@ -83,9 +83,9 @@ get_v4l2_fwnode_bus_conv_by_fwnode_bus(enum v4l2_fwnode_bus_type type)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(busses); i++)
-		if (busses[i].fwnode_bus_type == type)
-			return &busses[i];
+	for (i = 0; i < ARRAY_SIZE(buses); i++)
+		if (buses[i].fwnode_bus_type == type)
+			return &buses[i];
 
 	return NULL;
 }
@@ -113,9 +113,9 @@ get_v4l2_fwnode_bus_conv_by_mbus(enum v4l2_mbus_type type)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(busses); i++)
-		if (busses[i].mbus_type == type)
-			return &busses[i];
+	for (i = 0; i < ARRAY_SIZE(buses); i++)
+		if (buses[i].mbus_type == type)
+			return &buses[i];
 
 	return NULL;
 }
@@ -809,7 +809,7 @@ error:
  * root node and the value of that property matching with the integer argument
  * of the reference, at the same index.
  *
- * The child fwnode reched at the end of the iteration is then returned to the
+ * The child fwnode reached at the end of the iteration is then returned to the
  * caller.
  *
  * The core reason for this is that you cannot refer to just any node in ACPI.

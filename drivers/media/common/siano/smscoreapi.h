@@ -750,7 +750,7 @@ struct sms_stats {
 	u32 num_of_corrected_mpe_tlbs;/* Number of MPE tables which were
 	corrected by MPE RS decoding */
 	/* Common params */
-	u32 ber_error_count;	/* Number of errornous SYNC bits. */
+	u32 ber_error_count;	/* Number of erroneous SYNC bits. */
 	u32 ber_bit_count;	/* Total number of SYNC bits. */
 
 	/* Interface information */

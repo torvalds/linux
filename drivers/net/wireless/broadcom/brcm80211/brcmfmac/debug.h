@@ -45,17 +45,30 @@
 #undef pr_fmt
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
-__printf(2, 3)
-void __brcmf_err(const char *func, const char *fmt, ...);
+struct brcmf_bus;
+
+__printf(3, 4)
+void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 /* Macro for error messages. When debugging / tracing the driver all error
  * messages are important to us.
  */
+#ifndef brcmf_err
 #define brcmf_err(fmt, ...)						\
 	do {								\
 		if (IS_ENABLED(CONFIG_BRCMDBG) ||			\
 		    IS_ENABLED(CONFIG_BRCM_TRACING) ||			\
 		    net_ratelimit())					\
-			__brcmf_err(__func__, fmt, ##__VA_ARGS__);	\
+			__brcmf_err(NULL, __func__, fmt, ##__VA_ARGS__);\
+	} while (0)
+#endif
+
+#define bphy_err(drvr, fmt, ...)					\
+	do {								\
+		if (IS_ENABLED(CONFIG_BRCMDBG) ||			\
+		    IS_ENABLED(CONFIG_BRCM_TRACING) ||			\
+		    net_ratelimit())					\
+			wiphy_err((drvr)->wiphy, "%s: " fmt, __func__,	\
+				  ##__VA_ARGS__);			\
 	} while (0)
 
 #if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)

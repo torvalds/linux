@@ -15,6 +15,7 @@
 #include <linux/ioctl.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -143,6 +144,15 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi,
 			break;
 		}
 		break;
+
+	case V4L2_PIX_FMT_RGB565:
+		return (mbus_code == MEDIA_BUS_FMT_RGB565_2X8_LE);
+	case V4L2_PIX_FMT_RGB565X:
+		return (mbus_code == MEDIA_BUS_FMT_RGB565_2X8_BE);
+
+	case V4L2_PIX_FMT_JPEG:
+		return (mbus_code == MEDIA_BUS_FMT_JPEG_1X8);
+
 	default:
 		dev_dbg(sdev->dev, "Unsupported pixformat: 0x%x\n", pixformat);
 		break;
@@ -154,6 +164,7 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi,
 int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 {
 	struct sun6i_csi_dev *sdev = sun6i_csi_to_dev(csi);
+	struct device *dev = sdev->dev;
 	struct regmap *regmap = sdev->regmap;
 	int ret;
 
@@ -161,6 +172,9 @@ int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 		regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN, 0);
 
 		clk_disable_unprepare(sdev->clk_ram);
+		if (of_device_is_compatible(dev->of_node,
+					    "allwinner,sun50i-a64-csi"))
+			clk_rate_exclusive_put(sdev->clk_mod);
 		clk_disable_unprepare(sdev->clk_mod);
 		reset_control_assert(sdev->rstc_bus);
 		return 0;
@@ -171,6 +185,9 @@ int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 		dev_err(sdev->dev, "Enable csi clk err %d\n", ret);
 		return ret;
 	}
+
+	if (of_device_is_compatible(dev->of_node, "allwinner,sun50i-a64-csi"))
+		clk_set_rate_exclusive(sdev->clk_mod, 300000000);
 
 	ret = clk_prepare_enable(sdev->clk_ram);
 	if (ret) {
@@ -191,6 +208,8 @@ int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 clk_ram_disable:
 	clk_disable_unprepare(sdev->clk_ram);
 clk_mod_disable:
+	if (of_device_is_compatible(dev->of_node, "allwinner,sun50i-a64-csi"))
+		clk_rate_exclusive_put(sdev->clk_mod);
 	clk_disable_unprepare(sdev->clk_mod);
 	return ret;
 }
@@ -198,8 +217,8 @@ clk_mod_disable:
 static enum csi_input_fmt get_csi_input_format(struct sun6i_csi_dev *sdev,
 					       u32 mbus_code, u32 pixformat)
 {
-	/* bayer */
-	if ((mbus_code & 0xF000) == 0x3000)
+	/* non-YUV */
+	if ((mbus_code & 0xF000) != 0x2000)
 		return CSI_INPUT_FORMAT_RAW;
 
 	switch (pixformat) {
@@ -268,6 +287,14 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 	case V4L2_PIX_FMT_YUV422P:
 		return buf_interlaced ? CSI_FRAME_PLANAR_YUV422 :
 					CSI_FIELD_PLANAR_YUV422;
+
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
+		return buf_interlaced ? CSI_FRAME_RGB565 : CSI_FIELD_RGB565;
+
+	case V4L2_PIX_FMT_JPEG:
+		return buf_interlaced ? CSI_FRAME_RAW_8 : CSI_FIELD_RAW_8;
+
 	default:
 		dev_warn(sdev->dev, "Unsupported pixformat: 0x%x\n", pixformat);
 		break;
@@ -279,6 +306,10 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_dev *sdev,
 					    u32 mbus_code, u32 pixformat)
 {
+	/* Input sequence does not apply to non-YUV formats */
+	if ((mbus_code & 0xF000) != 0x2000)
+		return 0;
+
 	switch (pixformat) {
 	case V4L2_PIX_FMT_HM12:
 	case V4L2_PIX_FMT_NV12:
@@ -793,7 +824,7 @@ static const struct regmap_config sun6i_csi_regmap_config = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
 	.val_bits       = 32,
-	.max_register	= 0x1000,
+	.max_register	= 0x9c,
 };
 
 static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
@@ -893,7 +924,9 @@ static int sun6i_csi_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun6i_csi_of_match[] = {
 	{ .compatible = "allwinner,sun6i-a31-csi", },
+	{ .compatible = "allwinner,sun8i-h3-csi", },
 	{ .compatible = "allwinner,sun8i-v3s-csi", },
+	{ .compatible = "allwinner,sun50i-a64-csi", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sun6i_csi_of_match);

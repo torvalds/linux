@@ -187,8 +187,8 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 			wqe_ctr = be16_to_cpu(cqe->wqe_counter);
 			wc->wr_id = srq->wrid[wqe_ctr];
 			mlx5_ib_free_srq_wqe(srq, wqe_ctr);
-			if (msrq && atomic_dec_and_test(&msrq->refcount))
-				complete(&msrq->free);
+			if (msrq)
+				mlx5_core_res_put(&msrq->common);
 		}
 	} else {
 		wq	  = &qp->rq;
@@ -707,15 +707,15 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 
 	*cqe_size = ucmd.cqe_size;
 
-	cq->buf.umem = ib_umem_get(context, ucmd.buf_addr,
-				   entries * ucmd.cqe_size,
-				   IB_ACCESS_LOCAL_WRITE, 1);
+	cq->buf.umem =
+		ib_umem_get(udata, ucmd.buf_addr, entries * ucmd.cqe_size,
+			    IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(cq->buf.umem)) {
 		err = PTR_ERR(cq->buf.umem);
 		return err;
 	}
 
-	err = mlx5_ib_db_map_user(to_mucontext(context), ucmd.db_addr,
+	err = mlx5_ib_db_map_user(to_mucontext(context), udata, ucmd.db_addr,
 				  &cq->db);
 	if (err)
 		goto err_umem;
@@ -1111,7 +1111,6 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	struct ib_umem *umem;
 	int err;
 	int npages;
-	struct ib_ucontext *context = cq->buf.umem->context;
 
 	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
 	if (err)
@@ -1124,7 +1123,7 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (ucmd.cqe_size && SIZE_MAX / ucmd.cqe_size <= entries - 1)
 		return -EINVAL;
 
-	umem = ib_umem_get(context, ucmd.buf_addr,
+	umem = ib_umem_get(udata, ucmd.buf_addr,
 			   (size_t)ucmd.cqe_size * entries,
 			   IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem)) {

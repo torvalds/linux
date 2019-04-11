@@ -39,7 +39,7 @@
 #include "igb.h"
 
 #define MAJ 5
-#define MIN 4
+#define MIN 6
 #define BUILD 0
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
@@ -1189,15 +1189,15 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 {
 	struct igb_q_vector *q_vector;
 	struct igb_ring *ring;
-	int ring_count, size;
+	int ring_count;
+	size_t size;
 
 	/* igb only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
 		return -ENOMEM;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct igb_q_vector) +
-	       (sizeof(struct igb_ring) * ring_count);
+	size = struct_size(q_vector, ring, ring_count);
 
 	/* allocate q_vector and rings */
 	q_vector = adapter->q_vector[v_idx];
@@ -2486,7 +2486,8 @@ static int igb_set_features(struct net_device *netdev,
 static int igb_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
 			   const unsigned char *addr, u16 vid,
-			   u16 flags)
+			   u16 flags,
+			   struct netlink_ext_ack *extack)
 {
 	/* guarantee we can provide a unique filter for the unicast address */
 	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr)) {
@@ -2580,9 +2581,11 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 				int traffic_class,
 				struct igb_nfc_filter *input)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = f->common.extack;
 
-	if (f->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
@@ -2592,78 +2595,60 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						 f->mask);
-
-		if (!is_zero_ether_addr(mask->dst)) {
-			if (!is_broadcast_ether_addr(mask->dst)) {
+		flow_rule_match_eth_addrs(rule, &match);
+		if (!is_zero_ether_addr(match.mask->dst)) {
+			if (!is_broadcast_ether_addr(match.mask->dst)) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full masks are supported for destination MAC address");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |=
 				IGB_FILTER_FLAG_DST_MAC_ADDR;
-			ether_addr_copy(input->filter.dst_addr, key->dst);
+			ether_addr_copy(input->filter.dst_addr, match.key->dst);
 		}
 
-		if (!is_zero_ether_addr(mask->src)) {
-			if (!is_broadcast_ether_addr(mask->src)) {
+		if (!is_zero_ether_addr(match.mask->src)) {
+			if (!is_broadcast_ether_addr(match.mask->src)) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full masks are supported for source MAC address");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |=
 				IGB_FILTER_FLAG_SRC_MAC_ADDR;
-			ether_addr_copy(input->filter.src_addr, key->src);
+			ether_addr_copy(input->filter.src_addr, match.key->src);
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_BASIC,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_BASIC,
-						 f->mask);
-
-		if (mask->n_proto) {
-			if (mask->n_proto != ETHER_TYPE_FULL_MASK) {
+		flow_rule_match_basic(rule, &match);
+		if (match.mask->n_proto) {
+			if (match.mask->n_proto != ETHER_TYPE_FULL_MASK) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full mask is supported for EtherType filter");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |= IGB_FILTER_FLAG_ETHER_TYPE;
-			input->filter.etype = key->n_proto;
+			input->filter.etype = match.key->n_proto;
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_VLAN,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_VLAN,
-						 f->mask);
-
-		if (mask->vlan_priority) {
-			if (mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
+		flow_rule_match_vlan(rule, &match);
+		if (match.mask->vlan_priority) {
+			if (match.mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full mask is supported for VLAN priority");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |= IGB_FILTER_FLAG_VLAN_TCI;
-			input->filter.vlan_tci = key->vlan_priority;
+			input->filter.vlan_tci = match.key->vlan_priority;
 		}
 	}
 

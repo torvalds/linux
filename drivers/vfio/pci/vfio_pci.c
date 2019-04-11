@@ -209,6 +209,57 @@ static bool vfio_pci_nointx(struct pci_dev *pdev)
 	return false;
 }
 
+static void vfio_pci_probe_power_state(struct vfio_pci_device *vdev)
+{
+	struct pci_dev *pdev = vdev->pdev;
+	u16 pmcsr;
+
+	if (!pdev->pm_cap)
+		return;
+
+	pci_read_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, &pmcsr);
+
+	vdev->needs_pm_restore = !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET);
+}
+
+/*
+ * pci_set_power_state() wrapper handling devices which perform a soft reset on
+ * D3->D0 transition.  Save state prior to D0/1/2->D3, stash it on the vdev,
+ * restore when returned to D0.  Saved separately from pci_saved_state for use
+ * by PM capability emulation and separately from pci_dev internal saved state
+ * to avoid it being overwritten and consumed around other resets.
+ */
+int vfio_pci_set_power_state(struct vfio_pci_device *vdev, pci_power_t state)
+{
+	struct pci_dev *pdev = vdev->pdev;
+	bool needs_restore = false, needs_save = false;
+	int ret;
+
+	if (vdev->needs_pm_restore) {
+		if (pdev->current_state < PCI_D3hot && state >= PCI_D3hot) {
+			pci_save_state(pdev);
+			needs_save = true;
+		}
+
+		if (pdev->current_state >= PCI_D3hot && state <= PCI_D0)
+			needs_restore = true;
+	}
+
+	ret = pci_set_power_state(pdev, state);
+
+	if (!ret) {
+		/* D3 might be unsupported via quirk, skip unless in D3 */
+		if (needs_save && pdev->current_state >= PCI_D3hot) {
+			vdev->pm_save = pci_store_saved_state(pdev);
+		} else if (needs_restore) {
+			pci_load_and_free_saved_state(pdev, &vdev->pm_save);
+			pci_restore_state(pdev);
+		}
+	}
+
+	return ret;
+}
+
 static int vfio_pci_enable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -216,7 +267,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	u16 cmd;
 	u8 msix_pos;
 
-	pci_set_power_state(pdev, PCI_D0);
+	vfio_pci_set_power_state(vdev, PCI_D0);
 
 	/* Don't allow our initial saved state to include busmaster */
 	pci_clear_master(pdev);
@@ -407,7 +458,7 @@ out:
 	vfio_pci_try_bus_reset(vdev);
 
 	if (!disable_idle_d3)
-		pci_set_power_state(pdev, PCI_D3hot);
+		vfio_pci_set_power_state(vdev, PCI_D3hot);
 }
 
 static void vfio_pci_release(void *device_data)
@@ -708,6 +759,7 @@ static long vfio_pci_ioctl(void *device_data,
 		{
 			void __iomem *io;
 			size_t size;
+			u16 orig_cmd;
 
 			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
 			info.flags = 0;
@@ -723,15 +775,23 @@ static long vfio_pci_ioctl(void *device_data,
 					break;
 			}
 
-			/* Is it really there? */
-			io = pci_map_rom(pdev, &size);
-			if (!io || !size) {
-				info.size = 0;
-				break;
-			}
-			pci_unmap_rom(pdev, io);
+			/*
+			 * Is it really there?  Enable memory decode for
+			 * implicit access in pci_map_rom().
+			 */
+			pci_read_config_word(pdev, PCI_COMMAND, &orig_cmd);
+			pci_write_config_word(pdev, PCI_COMMAND,
+					      orig_cmd | PCI_COMMAND_MEMORY);
 
-			info.flags = VFIO_REGION_INFO_FLAG_READ;
+			io = pci_map_rom(pdev, &size);
+			if (io) {
+				info.flags = VFIO_REGION_INFO_FLAG_READ;
+				pci_unmap_rom(pdev, io);
+			} else {
+				info.size = 0;
+			}
+
+			pci_write_config_word(pdev, PCI_COMMAND, orig_cmd);
 			break;
 		}
 		case VFIO_PCI_VGA_REGION_INDEX:
@@ -1286,6 +1346,8 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					vfio_pci_set_vga_decode(vdev, false));
 	}
 
+	vfio_pci_probe_power_state(vdev);
+
 	if (!disable_idle_d3) {
 		/*
 		 * pci-core sets the device power state to an unknown value at
@@ -1296,8 +1358,8 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		 * be able to get to D3.  Therefore first do a D0 transition
 		 * before going to D3.
 		 */
-		pci_set_power_state(pdev, PCI_D0);
-		pci_set_power_state(pdev, PCI_D3hot);
+		vfio_pci_set_power_state(vdev, PCI_D0);
+		vfio_pci_set_power_state(vdev, PCI_D3hot);
 	}
 
 	return ret;
@@ -1316,6 +1378,11 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	vfio_iommu_group_put(pdev->dev.iommu_group, &pdev->dev);
 	kfree(vdev->region);
 	mutex_destroy(&vdev->ioeventfds_lock);
+
+	if (!disable_idle_d3)
+		vfio_pci_set_power_state(vdev, PCI_D0);
+
+	kfree(vdev->pm_save);
 	kfree(vdev);
 
 	if (vfio_pci_is_vga(pdev)) {
@@ -1324,9 +1391,6 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 				VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM |
 				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
 	}
-
-	if (!disable_idle_d3)
-		pci_set_power_state(pdev, PCI_D0);
 }
 
 static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
@@ -1551,7 +1615,7 @@ put_devs:
 			tmp->needs_reset = false;
 
 			if (tmp != vdev && !disable_idle_d3)
-				pci_set_power_state(tmp->pdev, PCI_D3hot);
+				vfio_pci_set_power_state(tmp, PCI_D3hot);
 		}
 
 		vfio_device_put(devs.devices[i]);

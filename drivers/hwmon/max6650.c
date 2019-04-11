@@ -52,9 +52,9 @@ static int prescaler;
 /* clock: The clock frequency of the chip (max6651 can be clocked externally) */
 static int clock = 254000;
 
-module_param(fan_voltage, int, S_IRUGO);
-module_param(prescaler, int, S_IRUGO);
-module_param(clock, int, S_IRUGO);
+module_param(fan_voltage, int, 0444);
+module_param(prescaler, int, 0444);
+module_param(clock, int, 0444);
 
 /*
  * MAX 6650/6651 registers

@@ -956,51 +956,35 @@ void arch_teardown_msi_irq(unsigned int irq)
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
-static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
+/* ALI sound chips generate 31-bits of DMA, a special register
+ * determines what bit 31 is emitted as.
+ */
+int ali_sound_dma_hack(struct device *dev, u64 device_mask)
 {
+	struct iommu *iommu = dev->archdata.iommu;
 	struct pci_dev *ali_isa_bridge;
 	u8 val;
 
-	/* ALI sound chips generate 31-bits of DMA, a special register
-	 * determines what bit 31 is emitted as.
-	 */
+	if (!dev_is_pci(dev))
+		return 0;
+
+	if (to_pci_dev(dev)->vendor != PCI_VENDOR_ID_AL ||
+	    to_pci_dev(dev)->device != PCI_DEVICE_ID_AL_M5451 ||
+	    device_mask != 0x7fffffff)
+		return 0;
+
 	ali_isa_bridge = pci_get_device(PCI_VENDOR_ID_AL,
 					 PCI_DEVICE_ID_AL_M1533,
 					 NULL);
 
 	pci_read_config_byte(ali_isa_bridge, 0x7e, &val);
-	if (set_bit)
+	if (iommu->dma_addr_mask & 0x80000000)
 		val |= 0x01;
 	else
 		val &= ~0x01;
 	pci_write_config_byte(ali_isa_bridge, 0x7e, val);
 	pci_dev_put(ali_isa_bridge);
-}
-
-int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask)
-{
-	u64 dma_addr_mask;
-
-	if (pdev == NULL) {
-		dma_addr_mask = 0xffffffff;
-	} else {
-		struct iommu *iommu = pdev->dev.archdata.iommu;
-
-		dma_addr_mask = iommu->dma_addr_mask;
-
-		if (pdev->vendor == PCI_VENDOR_ID_AL &&
-		    pdev->device == PCI_DEVICE_ID_AL_M5451 &&
-		    device_mask == 0x7fffffff) {
-			ali_sound_dma_hack(pdev,
-					   (dma_addr_mask & 0x80000000) != 0);
-			return 1;
-		}
-	}
-
-	if (device_mask >= (1UL << 32UL))
-		return 0;
-
-	return (device_mask & dma_addr_mask) == dma_addr_mask;
+	return 1;
 }
 
 void pci_resource_to_user(const struct pci_dev *pdev, int bar,

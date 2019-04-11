@@ -39,8 +39,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
@@ -75,12 +75,6 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_ALPHA,
 	PLANE_PROP_PREMULTIPLIED,
 	PLANE_PROP_MAX_NUM
-};
-
-struct msm_vblank_ctrl {
-	struct kthread_work work;
-	struct list_head event_list;
-	spinlock_t lock;
 };
 
 #define MSM_GPU_MAX_RINGS 4
@@ -126,7 +120,7 @@ struct msm_display_topology {
 
 /**
  * struct msm_display_info - defines display properties
- * @intf_type:          DRM_MODE_CONNECTOR_ display type
+ * @intf_type:          DRM_MODE_ENCODER_ type
  * @capabilities:       Bitmask of display flags
  * @num_of_h_tiles:     Number of horizontal tiles in case of split interface
  * @h_tile_instance:    Controller instance used per tile. Number of elements is
@@ -199,7 +193,6 @@ struct msm_drm_private {
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[MAX_CRTCS];
 
-	struct msm_drm_thread disp_thread[MAX_CRTCS];
 	struct msm_drm_thread event_thread[MAX_CRTCS];
 
 	unsigned int num_encoders;
@@ -228,7 +221,6 @@ struct msm_drm_private {
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
 
-	struct msm_vblank_ctrl vblank_ctrl;
 	struct drm_atomic_state *pm_state;
 };
 

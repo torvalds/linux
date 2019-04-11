@@ -205,11 +205,11 @@ static const struct os_area_db_id os_area_db_id_rtc_diff = {
  *  3) The number of seconds from 1970 to 2000.
  */
 
-struct saved_params {
+static struct saved_params {
 	unsigned int valid;
 	s64 rtc_diff;
 	unsigned int av_multi_out;
-} static saved_params;
+} saved_params;
 
 static struct property property_rtc_diff = {
 	.name = "linux,rtc_diff",

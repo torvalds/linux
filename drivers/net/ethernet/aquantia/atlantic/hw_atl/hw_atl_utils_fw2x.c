@@ -20,15 +20,14 @@
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
 
-#define HW_ATL_FW2X_MPI_EFUSE_ADDR	0x364
-#define HW_ATL_FW2X_MPI_MBOX_ADDR	0x360
 #define HW_ATL_FW2X_MPI_RPC_ADDR        0x334
 
+#define HW_ATL_FW2X_MPI_MBOX_ADDR       0x360
+#define HW_ATL_FW2X_MPI_EFUSE_ADDR	0x364
 #define HW_ATL_FW2X_MPI_CONTROL_ADDR	0x368
 #define HW_ATL_FW2X_MPI_CONTROL2_ADDR	0x36C
-
 #define HW_ATL_FW2X_MPI_STATE_ADDR	0x370
-#define HW_ATL_FW2X_MPI_STATE2_ADDR	0x374
+#define HW_ATL_FW2X_MPI_STATE2_ADDR     0x374
 
 #define HW_ATL_FW2X_CAP_PAUSE            BIT(CAPS_HI_PAUSE)
 #define HW_ATL_FW2X_CAP_ASYM_PAUSE       BIT(CAPS_HI_ASYMMETRIC_PAUSE)
@@ -72,17 +71,24 @@ static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed);
 static int aq_fw2x_set_state(struct aq_hw_s *self,
 			     enum hal_atl_utils_fw_state_e state);
 
+static u32 aq_fw2x_mbox_get(struct aq_hw_s *self);
+static u32 aq_fw2x_rpc_get(struct aq_hw_s *self);
+static u32 aq_fw2x_state2_get(struct aq_hw_s *self);
+
 static int aq_fw2x_init(struct aq_hw_s *self)
 {
 	int err = 0;
 
 	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
-		       aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR)),
-		       1000U, 10U);
-	AQ_HW_WAIT_FOR(0U != (self->rpc_addr =
-		       aq_hw_read_reg(self, HW_ATL_FW2X_MPI_RPC_ADDR)),
-		       1000U, 100U);
+	err = readx_poll_timeout_atomic(aq_fw2x_mbox_get,
+					self, self->mbox_addr,
+					self->mbox_addr != 0U,
+					1000U, 10000U);
+
+	err = readx_poll_timeout_atomic(aq_fw2x_rpc_get,
+					self, self->rpc_addr,
+					self->rpc_addr != 0U,
+					1000U, 100000U);
 
 	return err;
 }
@@ -286,16 +292,18 @@ static int aq_fw2x_update_stats(struct aq_hw_s *self)
 	int err = 0;
 	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
 	u32 orig_stats_val = mpi_opts & BIT(CAPS_HI_STATISTICS);
+	u32 stats_val;
 
 	/* Toggle statistics bit for FW to update */
 	mpi_opts = mpi_opts ^ BIT(CAPS_HI_STATISTICS);
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
 
 	/* Wait FW to report back */
-	AQ_HW_WAIT_FOR(orig_stats_val !=
-		       (aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR) &
-			BIT(CAPS_HI_STATISTICS)),
-		       1U, 10000U);
+	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
+					self, stats_val,
+					orig_stats_val != (stats_val &
+					BIT(CAPS_HI_STATISTICS)),
+					1U, 10000U);
 	if (err)
 		return err;
 
@@ -309,6 +317,7 @@ static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
 	unsigned int rpc_size = 0U;
 	u32 mpi_opts;
 	int err = 0;
+	u32 val;
 
 	rpc_size = sizeof(rpc->msg_id) + sizeof(*cfg);
 
@@ -337,8 +346,10 @@ static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
 	mpi_opts |= HW_ATL_FW2X_CTRL_SLEEP_PROXY;
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
 
-	AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR) &
-			HW_ATL_FW2X_CTRL_SLEEP_PROXY), 1U, 10000U);
+	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
+					self, val,
+					val & HW_ATL_FW2X_CTRL_SLEEP_PROXY,
+					1U, 10000U);
 
 err_exit:
 	return err;
@@ -350,6 +361,7 @@ static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
 	struct fw2x_msg_wol *msg = NULL;
 	u32 mpi_opts;
 	int err = 0;
+	u32 val;
 
 	err = hw_atl_utils_fw_rpc_wait(self, &rpc);
 	if (err < 0)
@@ -374,8 +386,9 @@ static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
 	mpi_opts |= HW_ATL_FW2X_CTRL_WOL;
 	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
 
-	AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR) &
-			HW_ATL_FW2X_CTRL_WOL), 1U, 10000U);
+	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
+					self, val, val & HW_ATL_FW2X_CTRL_WOL,
+					1U, 10000U);
 
 err_exit:
 	return err;
@@ -425,7 +438,7 @@ static int aq_fw2x_get_eee_rate(struct aq_hw_s *self, u32 *rate,
 
 	*supported_rates = fw2x_to_eee_mask(caps_hi);
 
-	mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR);
+	mpi_state = aq_fw2x_state2_get(self);
 	*rate = fw2x_to_eee_mask(mpi_state);
 
 	return err;
@@ -455,7 +468,7 @@ static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
 
 static u32 aq_fw2x_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
 {
-	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR);
+	u32 mpi_state = aq_fw2x_state2_get(self);
 
 	if (mpi_state & HW_ATL_FW2X_CAP_PAUSE)
 		if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
@@ -469,6 +482,21 @@ static u32 aq_fw2x_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
 			*fcmode = 0;
 
 	return 0;
+}
+
+static u32 aq_fw2x_mbox_get(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR);
+}
+
+static u32 aq_fw2x_rpc_get(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_FW2X_MPI_RPC_ADDR);
+}
+
+static u32 aq_fw2x_state2_get(struct aq_hw_s *self)
+{
+	return aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR);
 }
 
 const struct aq_fw_ops aq_fw_2x_ops = {

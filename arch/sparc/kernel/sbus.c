@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/numa.h>
 
 #include <asm/page.h>
 #include <asm/io.h>
@@ -561,7 +562,7 @@ static void __init sbus_iommu_init(struct platform_device *op)
 
 	op->dev.archdata.iommu = iommu;
 	op->dev.archdata.stc = strbuf;
-	op->dev.archdata.numa_node = -1;
+	op->dev.archdata.numa_node = NUMA_NO_NODE;
 
 	reg_base = regs + SYSIO_IOMMUREG_BASE;
 	iommu->iommu_control = reg_base + IOMMU_CONTROL;

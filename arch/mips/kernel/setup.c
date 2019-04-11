@@ -384,7 +384,8 @@ static void __init bootmem_init(void)
 	init_initrd();
 	reserved_end = (unsigned long) PFN_UP(__pa_symbol(&_end));
 
-	memblock_reserve(PHYS_OFFSET, reserved_end << PAGE_SHIFT);
+	memblock_reserve(PHYS_OFFSET,
+			 (reserved_end << PAGE_SHIFT) - PHYS_OFFSET);
 
 	/*
 	 * max_low_pfn is not a number of pages. The number of pages
@@ -918,6 +919,9 @@ static void __init resource_init(void)
 			end = HIGHMEM_START - 1;
 
 		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct resource));
 
 		res->start = start;
 		res->end = end;
@@ -1010,12 +1014,7 @@ unsigned long fw_passed_dtb;
 struct dentry *mips_debugfs_dir;
 static int __init debugfs_mips(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_dir("mips", NULL);
-	if (!d)
-		return -ENOMEM;
-	mips_debugfs_dir = d;
+	mips_debugfs_dir = debugfs_create_dir("mips", NULL);
 	return 0;
 }
 arch_initcall(debugfs_mips);

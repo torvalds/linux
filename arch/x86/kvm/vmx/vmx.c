@@ -246,6 +246,10 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 
 	if (l1tf != VMENTER_L1D_FLUSH_NEVER && !vmx_l1d_flush_pages &&
 	    !boot_cpu_has(X86_FEATURE_FLUSH_L1D)) {
+		/*
+		 * This allocation for vmx_l1d_flush_pages is not tied to a VM
+		 * lifetime and so should not be charged to a memcg.
+		 */
 		page = alloc_pages(GFP_KERNEL, L1D_CACHE_ORDER);
 		if (!page)
 			return -ENOMEM;
@@ -2387,13 +2391,13 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	return 0;
 }
 
-struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu)
+struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu, gfp_t flags)
 {
 	int node = cpu_to_node(cpu);
 	struct page *pages;
 	struct vmcs *vmcs;
 
-	pages = __alloc_pages_node(node, GFP_KERNEL, vmcs_config.order);
+	pages = __alloc_pages_node(node, flags, vmcs_config.order);
 	if (!pages)
 		return NULL;
 	vmcs = page_address(pages);
@@ -2440,7 +2444,8 @@ int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 	loaded_vmcs_init(loaded_vmcs);
 
 	if (cpu_has_vmx_msr_bitmap()) {
-		loaded_vmcs->msr_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
+		loaded_vmcs->msr_bitmap = (unsigned long *)
+				__get_free_page(GFP_KERNEL_ACCOUNT);
 		if (!loaded_vmcs->msr_bitmap)
 			goto out_vmcs;
 		memset(loaded_vmcs->msr_bitmap, 0xff, PAGE_SIZE);
@@ -2481,7 +2486,7 @@ static __init int alloc_kvm_area(void)
 	for_each_possible_cpu(cpu) {
 		struct vmcs *vmcs;
 
-		vmcs = alloc_vmcs_cpu(false, cpu);
+		vmcs = alloc_vmcs_cpu(false, cpu, GFP_KERNEL);
 		if (!vmcs) {
 			free_kvm_area();
 			return -ENOMEM;
@@ -6360,150 +6365,15 @@ static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 	vmx->loaded_vmcs->hv_timer_armed = false;
 }
 
-static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
+void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp)
 {
-	unsigned long evmcs_rsp;
-
-	vmx->__launched = vmx->loaded_vmcs->launched;
-
-	evmcs_rsp = static_branch_unlikely(&enable_evmcs) ?
-		(unsigned long)&current_evmcs->host_rsp : 0;
-
-	if (static_branch_unlikely(&vmx_l1d_should_flush))
-		vmx_l1d_flush(vcpu);
-
-	asm(
-		/* Store host registers */
-		"push %%" _ASM_DX "; push %%" _ASM_BP ";"
-		"push %%" _ASM_CX " \n\t" /* placeholder for guest rcx */
-		"push %%" _ASM_CX " \n\t"
-		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
-		"cmp %%" _ASM_SP ", %c[host_rsp](%%" _ASM_CX ") \n\t"
-		"je 1f \n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%%" _ASM_CX ") \n\t"
-		/* Avoid VMWRITE when Enlightened VMCS is in use */
-		"test %%" _ASM_SI ", %%" _ASM_SI " \n\t"
-		"jz 2f \n\t"
-		"mov %%" _ASM_SP ", (%%" _ASM_SI ") \n\t"
-		"jmp 1f \n\t"
-		"2: \n\t"
-		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
-		"1: \n\t"
-		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
-
-		/* Reload cr2 if changed */
-		"mov %c[cr2](%%" _ASM_CX "), %%" _ASM_AX " \n\t"
-		"mov %%cr2, %%" _ASM_DX " \n\t"
-		"cmp %%" _ASM_AX ", %%" _ASM_DX " \n\t"
-		"je 3f \n\t"
-		"mov %%" _ASM_AX", %%cr2 \n\t"
-		"3: \n\t"
-		/* Check if vmlaunch or vmresume is needed */
-		"cmpl $0, %c[launched](%%" _ASM_CX ") \n\t"
-		/* Load guest registers.  Don't clobber flags. */
-		"mov %c[rax](%%" _ASM_CX "), %%" _ASM_AX " \n\t"
-		"mov %c[rbx](%%" _ASM_CX "), %%" _ASM_BX " \n\t"
-		"mov %c[rdx](%%" _ASM_CX "), %%" _ASM_DX " \n\t"
-		"mov %c[rsi](%%" _ASM_CX "), %%" _ASM_SI " \n\t"
-		"mov %c[rdi](%%" _ASM_CX "), %%" _ASM_DI " \n\t"
-		"mov %c[rbp](%%" _ASM_CX "), %%" _ASM_BP " \n\t"
-#ifdef CONFIG_X86_64
-		"mov %c[r8](%%" _ASM_CX "),  %%r8  \n\t"
-		"mov %c[r9](%%" _ASM_CX "),  %%r9  \n\t"
-		"mov %c[r10](%%" _ASM_CX "), %%r10 \n\t"
-		"mov %c[r11](%%" _ASM_CX "), %%r11 \n\t"
-		"mov %c[r12](%%" _ASM_CX "), %%r12 \n\t"
-		"mov %c[r13](%%" _ASM_CX "), %%r13 \n\t"
-		"mov %c[r14](%%" _ASM_CX "), %%r14 \n\t"
-		"mov %c[r15](%%" _ASM_CX "), %%r15 \n\t"
-#endif
-		/* Load guest RCX.  This kills the vmx_vcpu pointer! */
-		"mov %c[rcx](%%" _ASM_CX "), %%" _ASM_CX " \n\t"
-
-		/* Enter guest mode */
-		"call vmx_vmenter\n\t"
-
-		/* Save guest's RCX to the stack placeholder (see above) */
-		"mov %%" _ASM_CX ", %c[wordsize](%%" _ASM_SP ") \n\t"
-
-		/* Load host's RCX, i.e. the vmx_vcpu pointer */
-		"pop %%" _ASM_CX " \n\t"
-
-		/* Set vmx->fail based on EFLAGS.{CF,ZF} */
-		"setbe %c[fail](%%" _ASM_CX ")\n\t"
-
-		/* Save all guest registers, including RCX from the stack */
-		"mov %%" _ASM_AX ", %c[rax](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_BX ", %c[rbx](%%" _ASM_CX ") \n\t"
-		__ASM_SIZE(pop) " %c[rcx](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_DX ", %c[rdx](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_SI ", %c[rsi](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_DI ", %c[rdi](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_BP ", %c[rbp](%%" _ASM_CX ") \n\t"
-#ifdef CONFIG_X86_64
-		"mov %%r8,  %c[r8](%%" _ASM_CX ") \n\t"
-		"mov %%r9,  %c[r9](%%" _ASM_CX ") \n\t"
-		"mov %%r10, %c[r10](%%" _ASM_CX ") \n\t"
-		"mov %%r11, %c[r11](%%" _ASM_CX ") \n\t"
-		"mov %%r12, %c[r12](%%" _ASM_CX ") \n\t"
-		"mov %%r13, %c[r13](%%" _ASM_CX ") \n\t"
-		"mov %%r14, %c[r14](%%" _ASM_CX ") \n\t"
-		"mov %%r15, %c[r15](%%" _ASM_CX ") \n\t"
-		/*
-		* Clear host registers marked as clobbered to prevent
-		* speculative use.
-		*/
-		"xor %%r8d,  %%r8d \n\t"
-		"xor %%r9d,  %%r9d \n\t"
-		"xor %%r10d, %%r10d \n\t"
-		"xor %%r11d, %%r11d \n\t"
-		"xor %%r12d, %%r12d \n\t"
-		"xor %%r13d, %%r13d \n\t"
-		"xor %%r14d, %%r14d \n\t"
-		"xor %%r15d, %%r15d \n\t"
-#endif
-		"mov %%cr2, %%" _ASM_AX "   \n\t"
-		"mov %%" _ASM_AX ", %c[cr2](%%" _ASM_CX ") \n\t"
-
-		"xor %%eax, %%eax \n\t"
-		"xor %%ebx, %%ebx \n\t"
-		"xor %%esi, %%esi \n\t"
-		"xor %%edi, %%edi \n\t"
-		"pop  %%" _ASM_BP "; pop  %%" _ASM_DX " \n\t"
-	      : ASM_CALL_CONSTRAINT
-	      : "c"(vmx), "d"((unsigned long)HOST_RSP), "S"(evmcs_rsp),
-		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
-		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
-		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
-		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RAX])),
-		[rbx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBX])),
-		[rcx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RCX])),
-		[rdx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RDX])),
-		[rsi]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RSI])),
-		[rdi]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RDI])),
-		[rbp]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBP])),
-#ifdef CONFIG_X86_64
-		[r8]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R8])),
-		[r9]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R9])),
-		[r10]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R10])),
-		[r11]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R11])),
-		[r12]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R12])),
-		[r13]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R13])),
-		[r14]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R14])),
-		[r15]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R15])),
-#endif
-		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2)),
-		[wordsize]"i"(sizeof(ulong))
-	      : "cc", "memory"
-#ifdef CONFIG_X86_64
-		, "rax", "rbx", "rdi"
-		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
-#else
-		, "eax", "ebx", "edi"
-#endif
-	      );
+	if (unlikely(host_rsp != vmx->loaded_vmcs->host_state.rsp)) {
+		vmx->loaded_vmcs->host_state.rsp = host_rsp;
+		vmcs_writel(HOST_RSP, host_rsp);
+	}
 }
-STACK_FRAME_NON_STANDARD(__vmx_vcpu_run);
+
+bool __vmx_vcpu_run(struct vcpu_vmx *vmx, unsigned long *regs, bool launched);
 
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
@@ -6572,7 +6442,16 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	 */
 	x86_spec_ctrl_set_guest(vmx->spec_ctrl, 0);
 
-	__vmx_vcpu_run(vcpu, vmx);
+	if (static_branch_unlikely(&vmx_l1d_should_flush))
+		vmx_l1d_flush(vcpu);
+
+	if (vcpu->arch.cr2 != read_cr2())
+		write_cr2(vcpu->arch.cr2);
+
+	vmx->fail = __vmx_vcpu_run(vmx, (unsigned long *)&vcpu->arch.regs,
+				   vmx->loaded_vmcs->launched);
+
+	vcpu->arch.cr2 = read_cr2();
 
 	/*
 	 * We do not use IBRS in the kernel. If this vCPU has used the
@@ -6657,7 +6536,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 static struct kvm *vmx_vm_alloc(void)
 {
-	struct kvm_vmx *kvm_vmx = vzalloc(sizeof(struct kvm_vmx));
+	struct kvm_vmx *kvm_vmx = __vmalloc(sizeof(struct kvm_vmx),
+					    GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+					    PAGE_KERNEL);
 	return &kvm_vmx->kvm;
 }
 
@@ -6673,7 +6554,6 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	if (enable_pml)
 		vmx_destroy_pml_buffer(vmx);
 	free_vpid(vmx->vpid);
-	leave_guest_mode(vcpu);
 	nested_vmx_free_vcpu(vcpu);
 	free_loaded_vmcs(vmx->loaded_vmcs);
 	kfree(vmx->guest_msrs);
@@ -6685,14 +6565,16 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 {
 	int err;
-	struct vcpu_vmx *vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
+	struct vcpu_vmx *vmx;
 	unsigned long *msr_bitmap;
 	int cpu;
 
+	vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
 
-	vmx->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache, GFP_KERNEL);
+	vmx->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache,
+			GFP_KERNEL_ACCOUNT);
 	if (!vmx->vcpu.arch.guest_fpu) {
 		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
 		err = -ENOMEM;
@@ -6714,12 +6596,12 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	 * for the guest, etc.
 	 */
 	if (enable_pml) {
-		vmx->pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		vmx->pml_pg = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 		if (!vmx->pml_pg)
 			goto uninit_vcpu;
 	}
 
-	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL_ACCOUNT);
 	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
 		     > PAGE_SIZE);
 

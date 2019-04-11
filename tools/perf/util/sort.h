@@ -9,7 +9,8 @@
 #include <linux/list.h>
 #include "cache.h"
 #include <linux/rbtree.h>
-#include "symbol.h"
+#include "map_symbol.h"
+#include "symbol_conf.h"
 #include "string.h"
 #include "callchain.h"
 #include "values.h"
@@ -145,8 +146,8 @@ struct hist_entry {
 	union {
 		/* this is for hierarchical entry structure */
 		struct {
-			struct rb_root	hroot_in;
-			struct rb_root  hroot_out;
+			struct rb_root_cached	hroot_in;
+			struct rb_root_cached   hroot_out;
 		};				/* non-leaf entries */
 		struct rb_root	sorted_chain;	/* leaf entry has callchains */
 	};

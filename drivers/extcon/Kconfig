@@ -114,6 +114,14 @@ config EXTCON_PALMAS
 	  Say Y here to enable support for USB peripheral and USB host
 	  detection by palmas usb.
 
+config EXTCON_PTN5150
+	tristate "NXP PTN5150 CC LOGIC USB EXTCON support"
+	depends on I2C && GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for USB peripheral and USB host
+	  detection by NXP PTN5150 CC (Configuration Channel) logic chip.
+
 config EXTCON_QCOM_SPMI_MISC
 	tristate "Qualcomm USB extcon support"
 	depends on ARCH_QCOM || COMPILE_TEST

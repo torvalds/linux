@@ -182,7 +182,7 @@ static int ks_wlan_set_freq(struct net_device *dev,
 	/* for SLEEP MODE */
 	/* If setting by frequency, convert to a channel */
 	if ((fwrq->freq.e == 1) &&
-	    (fwrq->freq.m >= (int)2.412e8) && (fwrq->freq.m <= (int)2.487e8)) {
+	    (fwrq->freq.m >= 241200000) && (fwrq->freq.m <= 248700000)) {
 		int f = fwrq->freq.m / 100000;
 		int c = 0;
 

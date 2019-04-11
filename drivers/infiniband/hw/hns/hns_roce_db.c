@@ -8,7 +8,8 @@
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
 
-int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
+int hns_roce_db_map_user(struct hns_roce_ucontext *context,
+			 struct ib_udata *udata, unsigned long virt,
 			 struct hns_roce_db *db)
 {
 	struct hns_roce_user_db_page *page;
@@ -28,8 +29,7 @@ int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
 
 	refcount_set(&page->refcount, 1);
 	page->user_virt = (virt & PAGE_MASK);
-	page->umem = ib_umem_get(&context->ibucontext, virt & PAGE_MASK,
-				 PAGE_SIZE, 0, 0);
+	page->umem = ib_umem_get(udata, virt & PAGE_MASK, PAGE_SIZE, 0, 0);
 	if (IS_ERR(page->umem)) {
 		ret = PTR_ERR(page->umem);
 		kfree(page);

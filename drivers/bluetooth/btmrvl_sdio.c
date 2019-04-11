@@ -62,13 +62,14 @@ static const struct of_device_id btmrvl_sdio_of_match_table[] = {
 static irqreturn_t btmrvl_wake_irq_bt(int irq, void *priv)
 {
 	struct btmrvl_sdio_card *card = priv;
+	struct device *dev = &card->func->dev;
 	struct btmrvl_plt_wake_cfg *cfg = card->plt_wake_cfg;
 
-	pr_info("%s: wake by bt\n", __func__);
+	dev_info(dev, "wake by bt\n");
 	cfg->wake_by_bt = true;
 	disable_irq_nosync(irq);
 
-	pm_wakeup_event(&card->func->dev, 0);
+	pm_wakeup_event(dev, 0);
 	pm_system_wakeup();
 
 	return IRQ_HANDLED;
@@ -87,7 +88,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 
 	if (!dev->of_node ||
 	    !of_match_node(btmrvl_sdio_of_match_table, dev->of_node)) {
-		pr_err("sdio platform data not available\n");
+		dev_info(dev, "sdio device tree data not available\n");
 		return -1;
 	}
 
@@ -211,6 +212,29 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_8897 = {
 	.fw_dump_end = 0xea,
 };
 
+static const struct btmrvl_sdio_card_reg btmrvl_reg_8977 = {
+	.cfg = 0x00,
+	.host_int_mask = 0x08,
+	.host_intstatus = 0x0c,
+	.card_status = 0x5c,
+	.sq_read_base_addr_a0 = 0xf8,
+	.sq_read_base_addr_a1 = 0xf9,
+	.card_revision = 0xc8,
+	.card_fw_status0 = 0xe8,
+	.card_fw_status1 = 0xe9,
+	.card_rx_len = 0xea,
+	.card_rx_unit = 0xeb,
+	.io_port_0 = 0xe4,
+	.io_port_1 = 0xe5,
+	.io_port_2 = 0xe6,
+	.int_read_to_clear = true,
+	.host_int_rsr = 0x04,
+	.card_misc_cfg = 0xD8,
+	.fw_dump_ctrl = 0xf0,
+	.fw_dump_start = 0xf1,
+	.fw_dump_end = 0xf8,
+};
+
 static const struct btmrvl_sdio_card_reg btmrvl_reg_8997 = {
 	.cfg = 0x00,
 	.host_int_mask = 0x08,
@@ -279,6 +303,15 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.supports_fw_dump = true,
 };
 
+static const struct btmrvl_sdio_device btmrvl_sdio_sd8977 = {
+	.helper         = NULL,
+	.firmware       = "mrvl/sd8977_uapsta.bin",
+	.reg            = &btmrvl_reg_8977,
+	.support_pscan_win_report = true,
+	.sd_blksz_fw_dl = 256,
+	.supports_fw_dump = true,
+};
+
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8997 = {
 	.helper         = NULL,
 	.firmware       = "mrvl/sd8997_uapsta.bin",
@@ -307,6 +340,9 @@ static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8897 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912E),
 			.driver_data = (unsigned long)&btmrvl_sdio_sd8897 },
+	/* Marvell SD8977 Bluetooth device */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9146),
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8977 },
 	/* Marvell SD8997 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9142),
 			.driver_data = (unsigned long)&btmrvl_sdio_sd8997 },
@@ -1760,4 +1796,5 @@ MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8797_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8887_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8897_uapsta.bin");
+MODULE_FIRMWARE("mrvl/sd8977_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8997_uapsta.bin");

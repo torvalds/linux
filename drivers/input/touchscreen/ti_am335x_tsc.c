@@ -507,10 +507,8 @@ static int titsc_remove(struct platform_device *pdev)
 static int __maybe_unused titsc_suspend(struct device *dev)
 {
 	struct titsc *ts_dev = dev_get_drvdata(dev);
-	struct ti_tscadc_dev *tscadc_dev;
 	unsigned int idle;
 
-	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
 	if (device_may_wakeup(dev)) {
 		titsc_writel(ts_dev, REG_IRQSTATUS, TSC_IRQENB_MASK);
 		idle = titsc_readl(ts_dev, REG_IRQENABLE);
@@ -524,9 +522,7 @@ static int __maybe_unused titsc_suspend(struct device *dev)
 static int __maybe_unused titsc_resume(struct device *dev)
 {
 	struct titsc *ts_dev = dev_get_drvdata(dev);
-	struct ti_tscadc_dev *tscadc_dev;
 
-	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
 	if (device_may_wakeup(dev)) {
 		titsc_writel(ts_dev, REG_IRQWAKEUP,
 				0x00);

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "gtk.h"
+#include "util/sort.h"
 #include "util/debug.h"
 #include "util/annotate.h"
 #include "util/evsel.h"
+#include "util/map.h"
+#include "util/symbol.h"
 #include "ui/helpline.h"
 #include <inttypes.h>
 #include <signal.h>

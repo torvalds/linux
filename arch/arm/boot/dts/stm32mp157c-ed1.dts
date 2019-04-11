@@ -17,6 +17,7 @@
 	};
 
 	memory@c0000000 {
+		device_type = "memory";
 		reg = <0xC0000000 0x40000000>;
 	};
 
@@ -49,6 +50,10 @@
 	};
 };
 
+&dts {
+	status = "okay";
+};
+
 &i2c4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins_a>;
@@ -72,6 +77,9 @@
 
 &timers6 {
 	status = "okay";
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
 	timer@5 {
 		status = "okay";
 	};

@@ -367,13 +367,12 @@ static const int axp209_dcdc2_ldo3_slew_rates[] = {
 static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 {
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
-	const struct regulator_desc *desc = rdev->desc;
+	const struct regulator_desc *desc;
 	u8 reg, mask, enable, cfg = 0xff;
 	const int *slew_rates;
 	int rate_count = 0;
 
-	if (!rdev)
-		return -EINVAL;
+	desc = rdev->desc;
 
 	switch (axp20x->variant) {
 	case AXP209_ID:
@@ -436,10 +435,12 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 static int axp20x_regulator_enable_regmap(struct regulator_dev *rdev)
 {
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
-	const struct regulator_desc *desc = rdev->desc;
+	const struct regulator_desc *desc;
 
 	if (!rdev)
 		return -EINVAL;
+
+	desc = rdev->desc;
 
 	switch (axp20x->variant) {
 	case AXP209_ID:
@@ -573,7 +574,7 @@ static const struct regulator_desc axp22x_regulators[] = {
 		 AXP22X_DCDC3_V_OUT, AXP22X_DCDC3_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL1, AXP22X_PWR_OUT_DCDC3_MASK),
 	AXP_DESC(AXP22X, DCDC4, "dcdc4", "vin4", 600, 1540, 20,
-		 AXP22X_DCDC4_V_OUT, AXP22X_DCDC4_V_OUT,
+		 AXP22X_DCDC4_V_OUT, AXP22X_DCDC4_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL1, AXP22X_PWR_OUT_DCDC4_MASK),
 	AXP_DESC(AXP22X, DCDC5, "dcdc5", "vin5", 1000, 2550, 50,
 		 AXP22X_DCDC5_V_OUT, AXP22X_DCDC5_V_OUT_MASK,
@@ -719,7 +720,7 @@ static const struct regulator_desc axp803_regulators[] = {
 		 AXP22X_ALDO1_V_OUT, AXP22X_ALDO1_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL3, AXP806_PWR_OUT_ALDO1_MASK),
 	AXP_DESC(AXP803, ALDO2, "aldo2", "aldoin", 700, 3300, 100,
-		 AXP22X_ALDO2_V_OUT, AXP22X_ALDO2_V_OUT,
+		 AXP22X_ALDO2_V_OUT, AXP22X_ALDO2_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL3, AXP806_PWR_OUT_ALDO2_MASK),
 	AXP_DESC(AXP803, ALDO3, "aldo3", "aldoin", 700, 3300, 100,
 		 AXP22X_ALDO3_V_OUT, AXP22X_ALDO3_V_OUT_MASK,
@@ -729,7 +730,7 @@ static const struct regulator_desc axp803_regulators[] = {
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_DLDO1_MASK),
 	AXP_DESC_RANGES(AXP803, DLDO2, "dldo2", "dldoin",
 			axp803_dldo2_ranges, AXP803_DLDO2_NUM_VOLTAGES,
-			AXP22X_DLDO2_V_OUT, AXP22X_DLDO2_V_OUT,
+			AXP22X_DLDO2_V_OUT, AXP22X_DLDO2_V_OUT_MASK,
 			AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_DLDO2_MASK),
 	AXP_DESC(AXP803, DLDO3, "dldo3", "dldoin", 700, 3300, 100,
 		 AXP22X_DLDO3_V_OUT, AXP22X_DLDO3_V_OUT_MASK,
@@ -744,7 +745,7 @@ static const struct regulator_desc axp803_regulators[] = {
 		 AXP22X_ELDO2_V_OUT, AXP22X_ELDO2_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_ELDO2_MASK),
 	AXP_DESC(AXP803, ELDO3, "eldo3", "eldoin", 700, 1900, 50,
-		 AXP22X_ELDO3_V_OUT, AXP22X_ELDO3_V_OUT,
+		 AXP22X_ELDO3_V_OUT, AXP22X_ELDO3_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_ELDO3_MASK),
 	AXP_DESC(AXP803, FLDO1, "fldo1", "fldoin", 700, 1450, 50,
 		 AXP803_FLDO1_V_OUT, AXP803_FLDO1_V_OUT_MASK,
@@ -791,7 +792,7 @@ static const struct regulator_desc axp806_regulators[] = {
 			AXP806_DCDCA_V_CTRL, AXP806_DCDCA_V_CTRL_MASK,
 			AXP806_PWR_OUT_CTRL1, AXP806_PWR_OUT_DCDCA_MASK),
 	AXP_DESC(AXP806, DCDCB, "dcdcb", "vinb", 1000, 2550, 50,
-		 AXP806_DCDCB_V_CTRL, AXP806_DCDCB_V_CTRL,
+		 AXP806_DCDCB_V_CTRL, AXP806_DCDCB_V_CTRL_MASK,
 		 AXP806_PWR_OUT_CTRL1, AXP806_PWR_OUT_DCDCB_MASK),
 	AXP_DESC_RANGES(AXP806, DCDCC, "dcdcc", "vinc",
 			axp806_dcdca_ranges, AXP806_DCDCA_NUM_VOLTAGES,
@@ -817,7 +818,7 @@ static const struct regulator_desc axp806_regulators[] = {
 		 AXP806_BLDO1_V_CTRL, AXP806_BLDO1_V_CTRL_MASK,
 		 AXP806_PWR_OUT_CTRL2, AXP806_PWR_OUT_BLDO1_MASK),
 	AXP_DESC(AXP806, BLDO2, "bldo2", "bldoin", 700, 1900, 100,
-		 AXP806_BLDO2_V_CTRL, AXP806_BLDO2_V_CTRL,
+		 AXP806_BLDO2_V_CTRL, AXP806_BLDO2_V_CTRL_MASK,
 		 AXP806_PWR_OUT_CTRL2, AXP806_PWR_OUT_BLDO2_MASK),
 	AXP_DESC(AXP806, BLDO3, "bldo3", "bldoin", 700, 1900, 100,
 		 AXP806_BLDO3_V_CTRL, AXP806_BLDO3_V_CTRL_MASK,
@@ -952,7 +953,7 @@ static const struct regulator_desc axp813_regulators[] = {
 		 AXP22X_ALDO1_V_OUT, AXP22X_ALDO1_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL3, AXP806_PWR_OUT_ALDO1_MASK),
 	AXP_DESC(AXP813, ALDO2, "aldo2", "aldoin", 700, 3300, 100,
-		 AXP22X_ALDO2_V_OUT, AXP22X_ALDO2_V_OUT,
+		 AXP22X_ALDO2_V_OUT, AXP22X_ALDO2_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL3, AXP806_PWR_OUT_ALDO2_MASK),
 	AXP_DESC(AXP813, ALDO3, "aldo3", "aldoin", 700, 3300, 100,
 		 AXP22X_ALDO3_V_OUT, AXP22X_ALDO3_V_OUT_MASK,
@@ -962,7 +963,7 @@ static const struct regulator_desc axp813_regulators[] = {
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_DLDO1_MASK),
 	AXP_DESC_RANGES(AXP813, DLDO2, "dldo2", "dldoin",
 			axp803_dldo2_ranges, AXP803_DLDO2_NUM_VOLTAGES,
-			AXP22X_DLDO2_V_OUT, AXP22X_DLDO2_V_OUT,
+			AXP22X_DLDO2_V_OUT, AXP22X_DLDO2_V_OUT_MASK,
 			AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_DLDO2_MASK),
 	AXP_DESC(AXP813, DLDO3, "dldo3", "dldoin", 700, 3300, 100,
 		 AXP22X_DLDO3_V_OUT, AXP22X_DLDO3_V_OUT_MASK,
@@ -977,7 +978,7 @@ static const struct regulator_desc axp813_regulators[] = {
 		 AXP22X_ELDO2_V_OUT, AXP22X_ELDO2_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_ELDO2_MASK),
 	AXP_DESC(AXP813, ELDO3, "eldo3", "eldoin", 700, 1900, 50,
-		 AXP22X_ELDO3_V_OUT, AXP22X_ELDO3_V_OUT,
+		 AXP22X_ELDO3_V_OUT, AXP22X_ELDO3_V_OUT_MASK,
 		 AXP22X_PWR_OUT_CTRL2, AXP22X_PWR_OUT_ELDO3_MASK),
 	/* to do / check ... */
 	AXP_DESC(AXP813, FLDO1, "fldo1", "fldoin", 700, 1450, 50,

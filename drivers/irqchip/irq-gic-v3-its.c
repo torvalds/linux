@@ -1746,6 +1746,7 @@ static int its_setup_baser(struct its_node *its, struct its_baser *baser,
 	u64 type = GITS_BASER_TYPE(val);
 	u64 baser_phys, tmp;
 	u32 alloc_pages;
+	struct page *page;
 	void *base;
 
 retry_alloc_baser:
@@ -1758,10 +1759,11 @@ retry_alloc_baser:
 		order = get_order(GITS_BASER_PAGES_MAX * psz);
 	}
 
-	base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
-	if (!base)
+	page = alloc_pages_node(its->numa_node, GFP_KERNEL | __GFP_ZERO, order);
+	if (!page)
 		return -ENOMEM;
 
+	base = (void *)page_address(page);
 	baser_phys = virt_to_phys(base);
 
 	/* Check if the physical address of the memory is above 48bits */
@@ -1955,6 +1957,8 @@ static int its_alloc_tables(struct its_node *its)
 			indirect = its_parse_indirect_baser(its, baser,
 							    psz, &order,
 							    its->device_ids);
+			break;
+
 		case GITS_BASER_TYPE_VCPU:
 			indirect = its_parse_indirect_baser(its, baser,
 							    psz, &order,
@@ -2292,7 +2296,8 @@ static struct its_baser *its_get_baser(struct its_node *its, u32 type)
 	return NULL;
 }
 
-static bool its_alloc_table_entry(struct its_baser *baser, u32 id)
+static bool its_alloc_table_entry(struct its_node *its,
+				  struct its_baser *baser, u32 id)
 {
 	struct page *page;
 	u32 esz, idx;
@@ -2312,7 +2317,8 @@ static bool its_alloc_table_entry(struct its_baser *baser, u32 id)
 
 	/* Allocate memory for 2nd level table */
 	if (!table[idx]) {
-		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(baser->psz));
+		page = alloc_pages_node(its->numa_node, GFP_KERNEL | __GFP_ZERO,
+					get_order(baser->psz));
 		if (!page)
 			return false;
 
@@ -2343,7 +2349,7 @@ static bool its_alloc_device_table(struct its_node *its, u32 dev_id)
 	if (!baser)
 		return (ilog2(dev_id) < its->device_ids);
 
-	return its_alloc_table_entry(baser, dev_id);
+	return its_alloc_table_entry(its, baser, dev_id);
 }
 
 static bool its_alloc_vpe_table(u32 vpe_id)
@@ -2367,7 +2373,7 @@ static bool its_alloc_vpe_table(u32 vpe_id)
 		if (!baser)
 			return false;
 
-		if (!its_alloc_table_entry(baser, vpe_id))
+		if (!its_alloc_table_entry(its, baser, vpe_id))
 			return false;
 	}
 
@@ -2401,7 +2407,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	nr_ites = max(2, nvecs);
 	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
-	itt = kzalloc(sz, GFP_KERNEL);
+	itt = kzalloc_node(sz, GFP_KERNEL, its->numa_node);
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
@@ -3543,6 +3549,7 @@ static int __init its_probe_one(struct resource *res,
 	void __iomem *its_base;
 	u32 val, ctlr;
 	u64 baser, tmp, typer;
+	struct page *page;
 	int err;
 
 	its_base = ioremap(res->start, resource_size(res));
@@ -3599,12 +3606,13 @@ static int __init its_probe_one(struct resource *res,
 
 	its->numa_node = numa_node;
 
-	its->cmd_base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-						get_order(ITS_CMD_QUEUE_SZ));
-	if (!its->cmd_base) {
+	page = alloc_pages_node(its->numa_node, GFP_KERNEL | __GFP_ZERO,
+				get_order(ITS_CMD_QUEUE_SZ));
+	if (!page) {
 		err = -ENOMEM;
 		goto out_free_its;
 	}
+	its->cmd_base = (void *)page_address(page);
 	its->cmd_write = its->cmd_base;
 	its->fwnode_handle = handle;
 	its->get_msi_base = its_irq_get_msi_base;

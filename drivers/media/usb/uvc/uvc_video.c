@@ -676,6 +676,14 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	if (!uvc_hw_timestamps_param)
 		return;
 
+	/*
+	 * We will get called from __vb2_queue_cancel() if there are buffers
+	 * done but not dequeued by the user, but the sample array has already
+	 * been released at that time. Just bail out in that case.
+	 */
+	if (!clock->samples)
+		return;
+
 	spin_lock_irqsave(&clock->lock, flags);
 
 	if (clock->count < clock->size)
@@ -2000,7 +2008,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 
 	/* Set the streaming probe control with default streaming parameters
-	 * retrieved from the device. Webcams that don't suport GET_DEF
+	 * retrieved from the device. Webcams that don't support GET_DEF
 	 * requests on the probe control will just keep their current streaming
 	 * parameters.
 	 */

@@ -62,8 +62,6 @@ static const struct dce110_compressor_reg_offsets reg_offsets[] = {
 }
 };
 
-static const uint32_t dce11_one_lpt_channel_max_resolution = 2560 * 1600;
-
 static uint32_t align_to_chunks_number_per_line(uint32_t pixels)
 {
 	return 256 * ((pixels + 255) / 256);

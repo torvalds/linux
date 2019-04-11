@@ -363,4 +363,6 @@ int amdgpu_vm_add_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key)
 
 void amdgpu_vm_clear_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key);
 
+void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo);
+
 #endif

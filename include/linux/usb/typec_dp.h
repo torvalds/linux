@@ -92,4 +92,8 @@ enum {
 #define DP_CONF_PIN_ASSIGNEMENT_SHIFT	8
 #define DP_CONF_PIN_ASSIGNEMENT_MASK	GENMASK(15, 8)
 
+/* Helper for setting/getting the pin assignement value to the configuration */
+#define DP_CONF_SET_PIN_ASSIGN(_a_)	((_a_) << 8)
+#define DP_CONF_GET_PIN_ASSIGN(_conf_)	(((_conf_) & GENMASK(15, 8)) >> 8)
+
 #endif /* __USB_TYPEC_DP_H */

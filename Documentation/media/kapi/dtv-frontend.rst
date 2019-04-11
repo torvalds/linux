@@ -328,7 +328,7 @@ Statistics collect
 
 On almost all frontend hardware, the bit and byte counts are stored by
 the hardware after a certain amount of time or after the total bit/block
-counter reaches a certain value (usually programable), for example, on
+counter reaches a certain value (usually programmable), for example, on
 every 1000 ms or after receiving 1,000,000 bits.
 
 So, if you read the registers too soon, you'll end by reading the same
