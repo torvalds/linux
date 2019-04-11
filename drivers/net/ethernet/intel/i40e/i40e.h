@@ -295,8 +295,6 @@ struct i40e_cloud_filter {
 	u8 tunnel_type;
 };
 
-#define I40E_ETH_P_LLDP			0x88cc
-
 #define I40E_DCB_PRIO_TYPE_STRICT	0
 #define I40E_DCB_PRIO_TYPE_ETS		1
 #define I40E_DCB_STRICT_PRIO_CREDITS	127
