@@ -769,8 +769,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 		}
 		sas_put_local_phy(local_phy);
 		if (rc) {
-			dev_warn(dev, "SATA disk hardreset fail: 0x%x\n",
-				 rc);
+			dev_warn(dev, "SATA disk hardreset fail: %d\n", rc);
 			return rc;
 		}
 
