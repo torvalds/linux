@@ -101,6 +101,7 @@ static void i915_fence_release(struct dma_fence *fence)
 	 * caught trying to reuse dead objects.
 	 */
 	i915_sw_fence_fini(&rq->submit);
+	i915_sw_fence_fini(&rq->semaphore);
 
 	kmem_cache_free(global.slab_requests, rq);
 }
