@@ -856,14 +856,14 @@ static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	u32 txid_auto;
 
-	disable_phy_v3_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
 	if (phy->identify.device_type == SAS_END_DEVICE) {
 		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
 		hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
 					txid_auto | TX_HARDRST_MSK);
 	}
 	msleep(100);
-	start_phy_v3_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
 }
 
 static enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
@@ -882,7 +882,7 @@ static void phys_init_v3_hw(struct hisi_hba *hisi_hba)
 		if (!sas_phy->phy->enabled)
 			continue;
 
-		start_phy_v3_hw(hisi_hba, i);
+		hisi_sas_phy_enable(hisi_hba, i, 1);
 	}
 }
 
