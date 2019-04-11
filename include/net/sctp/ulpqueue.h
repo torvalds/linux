@@ -59,7 +59,7 @@ void sctp_ulpq_free(struct sctp_ulpq *);
 int sctp_ulpq_tail_data(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);
 
 /* Add a new event for propagation to the ULP. */
-int sctp_ulpq_tail_event(struct sctp_ulpq *, struct sctp_ulpevent *ev);
+int sctp_ulpq_tail_event(struct sctp_ulpq *, struct sk_buff_head *skb_list);
 
 /* Renege previously received chunks.  */
 void sctp_ulpq_renege(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);

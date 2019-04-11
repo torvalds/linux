@@ -1317,7 +1317,7 @@ static int do_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *even
 
 	skb_queue_head_init(&temp);
 	__skb_queue_tail(&temp, sctp_event2skb(event));
-	return sctp_ulpq_tail_event(ulpq, event);
+	return sctp_ulpq_tail_event(ulpq, &temp);
 }
 
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {

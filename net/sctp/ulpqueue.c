@@ -130,7 +130,7 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	 */
 	if (event) {
 		event_eor = (event->msg_flags & MSG_EOR) ? 1 : 0;
-		sctp_ulpq_tail_event(ulpq, event);
+		sctp_ulpq_tail_event(ulpq, &temp);
 	}
 
 	return event_eor;
@@ -194,18 +194,17 @@ static int sctp_ulpq_clear_pd(struct sctp_ulpq *ulpq)
 	return sctp_clear_pd(ulpq->asoc->base.sk, ulpq->asoc);
 }
 
-/* If the SKB of 'event' is on a list, it is the first such member
- * of that list.
- */
-int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
+int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sk_buff_head *skb_list)
 {
 	struct sock *sk = ulpq->asoc->base.sk;
 	struct sctp_sock *sp = sctp_sk(sk);
-	struct sk_buff_head *queue, *skb_list;
-	struct sk_buff *skb = sctp_event2skb(event);
+	struct sctp_ulpevent *event;
+	struct sk_buff_head *queue;
+	struct sk_buff *skb;
 	int clear_pd = 0;
 
-	skb_list = (struct sk_buff_head *) skb->prev;
+	skb = __skb_peek(skb_list);
+	event = sctp_skb2event(skb);
 
 	/* If the socket is just going to throw this away, do not
 	 * even try to deliver it.
@@ -258,13 +257,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		}
 	}
 
-	/* If we are harvesting multiple skbs they will be
-	 * collected on a list.
-	 */
-	if (skb_list)
-		skb_queue_splice_tail_init(skb_list, queue);
-	else
-		__skb_queue_tail(queue, skb);
+	skb_queue_splice_tail_init(skb_list, queue);
 
 	/* Did we just complete partial delivery and need to get
 	 * rolling again?  Move pending data to the receive
@@ -757,7 +750,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 		 * sctp_ulpevent for  very first SKB on the  temp' list.
 		 */
 		if (event)
-			sctp_ulpq_tail_event(ulpq, event);
+			sctp_ulpq_tail_event(ulpq, &temp);
 	}
 }
 
@@ -957,7 +950,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 	if (event) {
 		/* see if we have more ordered that we can deliver */
 		sctp_ulpq_retrieve_ordered(ulpq, event);
-		sctp_ulpq_tail_event(ulpq, event);
+		sctp_ulpq_tail_event(ulpq, &temp);
 	}
 }
 
@@ -1087,7 +1080,7 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 
 			skb_queue_head_init(&temp);
 			__skb_queue_tail(&temp, sctp_event2skb(event));
-			sctp_ulpq_tail_event(ulpq, event);
+			sctp_ulpq_tail_event(ulpq, &temp);
 			sctp_ulpq_set_pd(ulpq);
 			return;
 		}
