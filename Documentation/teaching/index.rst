@@ -46,7 +46,7 @@ then point your browser at **Documentation/output/labs/index.html**.
 .. toctree::
    :caption: Labs
 
-   labs/exercises.rst
+   labs/infrastructure.rst
    labs/introduction.rst
    labs/kernel_modules.rst
    labs/kernel_api.rst

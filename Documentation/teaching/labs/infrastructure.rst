@@ -1,5 +1,5 @@
-Exercises
-=========
+Infrastructure
+==============
 
 In order to facilitate learning each topic has a hands-on exercises
 section which will contain in-depth, incremental clues on how to solve
