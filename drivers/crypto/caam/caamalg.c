@@ -638,6 +638,39 @@ badkey:
 	return -EINVAL;
 }
 
+static int des3_aead_setkey(struct crypto_aead *aead, const u8 *key,
+			    unsigned int keylen)
+{
+	struct crypto_authenc_keys keys;
+	u32 flags;
+	int err;
+
+	err = crypto_authenc_extractkeys(&keys, key, keylen);
+	if (unlikely(err))
+		goto badkey;
+
+	err = -EINVAL;
+	if (keys.enckeylen != DES3_EDE_KEY_SIZE)
+		goto badkey;
+
+	flags = crypto_aead_get_flags(aead);
+	err = __des3_verify_key(&flags, keys.enckey);
+	if (unlikely(err)) {
+		crypto_aead_set_flags(aead, flags);
+		goto out;
+	}
+
+	err = aead_setkey(aead, key, keylen);
+
+out:
+	memzero_explicit(&keys, sizeof(keys));
+	return err;
+
+badkey:
+	crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	goto out;
+}
+
 static int gcm_setkey(struct crypto_aead *aead,
 		      const u8 *key, unsigned int keylen)
 {
@@ -2457,7 +2490,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2479,7 +2512,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2502,7 +2535,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2525,7 +2558,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2548,7 +2581,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2571,7 +2604,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2594,7 +2627,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2617,7 +2650,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2640,7 +2673,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2663,7 +2696,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2686,7 +2719,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
@@ -2709,7 +2742,7 @@ static struct caam_aead_alg driver_aeads[] = {
 						   "cbc-des3_ede-caam",
 				.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 			},
-			.setkey = aead_setkey,
+			.setkey = des3_aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
 			.decrypt = aead_decrypt,
