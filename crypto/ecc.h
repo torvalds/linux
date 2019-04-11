@@ -33,6 +33,41 @@
 #define ECC_DIGITS_TO_BYTES_SHIFT 3
 
 /**
+ * struct ecc_point - elliptic curve point in affine coordinates
+ *
+ * @x:		X coordinate in vli form.
+ * @y:		Y coordinate in vli form.
+ * @ndigits:	Length of vlis in u64 qwords.
+ */
+struct ecc_point {
+	u64 *x;
+	u64 *y;
+	u8 ndigits;
+};
+
+/**
+ * struct ecc_curve - definition of elliptic curve
+ *
+ * @name:	Short name of the curve.
+ * @g:		Generator point of the curve.
+ * @p:		Prime number, if Barrett's reduction is used for this curve
+ *		pre-calculated value 'mu' is appended to the @p after ndigits.
+ *		Use of Barrett's reduction is heuristically determined in
+ *		vli_mmod_fast().
+ * @n:		Order of the curve group.
+ * @a:		Curve parameter a.
+ * @b:		Curve parameter b.
+ */
+struct ecc_curve {
+	char *name;
+	struct ecc_point g;
+	u64 *p;
+	u64 *n;
+	u64 *a;
+	u64 *b;
+};
+
+/**
  * ecc_is_key_valid() - Validate a given ECDH private key
  *
  * @curve_id:		id representing the curve to use
@@ -91,4 +126,68 @@ int ecc_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 			      const u64 *private_key, const u64 *public_key,
 			      u64 *secret);
+
+/**
+ * ecc_is_pubkey_valid_partial() - Partial public key validation
+ *
+ * @curve:		elliptic curve domain parameters
+ * @pk:			public key as a point
+ *
+ * Valdiate public key according to SP800-56A section 5.6.2.3.4 ECC Partial
+ * Public-Key Validation Routine.
+ *
+ * Note: There is no check that the public key is in the correct elliptic curve
+ * subgroup.
+ *
+ * Return: 0 if validation is successful, -EINVAL if validation is failed.
+ */
+int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
+				struct ecc_point *pk);
+
+/**
+ * vli_is_zero() - Determine is vli is zero
+ *
+ * @vli:		vli to check.
+ * @ndigits:		length of the @vli
+ */
+bool vli_is_zero(const u64 *vli, unsigned int ndigits);
+
+/**
+ * vli_cmp() - compare left and right vlis
+ *
+ * @left:		vli
+ * @right:		vli
+ * @ndigits:		length of both vlis
+ *
+ * Returns sign of @left - @right, i.e. -1 if @left < @right,
+ * 0 if @left == @right, 1 if @left > @right.
+ */
+int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
+
+/**
+ * vli_sub() - Subtracts right from left
+ *
+ * @result:		where to write result
+ * @left:		vli
+ * @right		vli
+ * @ndigits:		length of all vlis
+ *
+ * Note: can modify in-place.
+ *
+ * Return: carry bit.
+ */
+u64 vli_sub(u64 *result, const u64 *left, const u64 *right,
+	    unsigned int ndigits);
+
+/**
+ * vli_mod_inv() - Modular inversion
+ *
+ * @result:		where to write vli number
+ * @input:		vli value to operate on
+ * @mod:		modulus
+ * @ndigits:		length of all vlis
+ */
+void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
+		 unsigned int ndigits);
+
 #endif
