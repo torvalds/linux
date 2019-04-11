@@ -93,6 +93,24 @@ enum OID {
 	OID_authorityKeyIdentifier,	/* 2.5.29.35 */
 	OID_extKeyUsage,		/* 2.5.29.37 */
 
+	/* EC-RDSA */
+	OID_gostCPSignA,		/* 1.2.643.2.2.35.1 */
+	OID_gostCPSignB,		/* 1.2.643.2.2.35.2 */
+	OID_gostCPSignC,		/* 1.2.643.2.2.35.3 */
+	OID_gost2012PKey256,		/* 1.2.643.7.1.1.1.1 */
+	OID_gost2012PKey512,		/* 1.2.643.7.1.1.1.2 */
+	OID_gost2012Digest256,		/* 1.2.643.7.1.1.2.2 */
+	OID_gost2012Digest512,		/* 1.2.643.7.1.1.2.3 */
+	OID_gost2012Signature256,	/* 1.2.643.7.1.1.3.2 */
+	OID_gost2012Signature512,	/* 1.2.643.7.1.1.3.3 */
+	OID_gostTC26Sign256A,		/* 1.2.643.7.1.2.1.1.1 */
+	OID_gostTC26Sign256B,		/* 1.2.643.7.1.2.1.1.2 */
+	OID_gostTC26Sign256C,		/* 1.2.643.7.1.2.1.1.3 */
+	OID_gostTC26Sign256D,		/* 1.2.643.7.1.2.1.1.4 */
+	OID_gostTC26Sign512A,		/* 1.2.643.7.1.2.1.2.1 */
+	OID_gostTC26Sign512B,		/* 1.2.643.7.1.2.1.2.2 */
+	OID_gostTC26Sign512C,		/* 1.2.643.7.1.2.1.2.3 */
+
 	OID__NR
 };
 

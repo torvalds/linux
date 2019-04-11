@@ -230,11 +230,24 @@ int x509_note_pkey_algo(void *context, size_t hdrlen,
 	case OID_sha224WithRSAEncryption:
 		ctx->cert->sig->hash_algo = "sha224";
 		goto rsa_pkcs1;
+
+	case OID_gost2012Signature256:
+		ctx->cert->sig->hash_algo = "streebog256";
+		goto ecrdsa;
+
+	case OID_gost2012Signature512:
+		ctx->cert->sig->hash_algo = "streebog512";
+		goto ecrdsa;
 	}
 
 rsa_pkcs1:
 	ctx->cert->sig->pkey_algo = "rsa";
 	ctx->cert->sig->encoding = "pkcs1";
+	ctx->algo_oid = ctx->last_oid;
+	return 0;
+ecrdsa:
+	ctx->cert->sig->pkey_algo = "ecrdsa";
+	ctx->cert->sig->encoding = "raw";
 	ctx->algo_oid = ctx->last_oid;
 	return 0;
 }
@@ -256,7 +269,8 @@ int x509_note_signature(void *context, size_t hdrlen,
 		return -EINVAL;
 	}
 
-	if (strcmp(ctx->cert->sig->pkey_algo, "rsa") == 0) {
+	if (strcmp(ctx->cert->sig->pkey_algo, "rsa") == 0 ||
+	    strcmp(ctx->cert->sig->pkey_algo, "ecrdsa") == 0) {
 		/* Discard the BIT STRING metadata */
 		if (vlen < 1 || *(const u8 *)value != 0)
 			return -EBADMSG;
@@ -440,10 +454,14 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	if (ctx->last_oid != OID_rsaEncryption)
+	ctx->key_algo = ctx->last_oid;
+	if (ctx->last_oid == OID_rsaEncryption)
+		ctx->cert->pub->pkey_algo = "rsa";
+	else if (ctx->last_oid == OID_gost2012PKey256 ||
+		 ctx->last_oid == OID_gost2012PKey512)
+		ctx->cert->pub->pkey_algo = "ecrdsa";
+	else
 		return -ENOPKG;
-
-	ctx->cert->pub->pkey_algo = "rsa";
 
 	/* Discard the BIT STRING metadata */
 	if (vlen < 1 || *(const u8 *)value != 0)

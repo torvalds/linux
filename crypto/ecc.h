@@ -26,9 +26,10 @@
 #ifndef _CRYPTO_ECC_H
 #define _CRYPTO_ECC_H
 
+/* One digit is u64 qword. */
 #define ECC_CURVE_NIST_P192_DIGITS  3
 #define ECC_CURVE_NIST_P256_DIGITS  4
-#define ECC_MAX_DIGITS              ECC_CURVE_NIST_P256_DIGITS
+#define ECC_MAX_DIGITS             (512 / 64)
 
 #define ECC_DIGITS_TO_BYTES_SHIFT 3
 
@@ -44,6 +45,8 @@ struct ecc_point {
 	u64 *y;
 	u8 ndigits;
 };
+
+#define ECC_POINT_INIT(x, y, ndigits)	(struct ecc_point) { x, y, ndigits }
 
 /**
  * struct ecc_curve - definition of elliptic curve
@@ -180,6 +183,24 @@ u64 vli_sub(u64 *result, const u64 *left, const u64 *right,
 	    unsigned int ndigits);
 
 /**
+ * vli_from_be64() - Load vli from big-endian u64 array
+ *
+ * @dest:		destination vli
+ * @src:		source array of u64 BE values
+ * @ndigits:		length of both vli and array
+ */
+void vli_from_be64(u64 *dest, const void *src, unsigned int ndigits);
+
+/**
+ * vli_from_le64() - Load vli from little-endian u64 array
+ *
+ * @dest:		destination vli
+ * @src:		source array of u64 LE values
+ * @ndigits:		length of both vli and array
+ */
+void vli_from_le64(u64 *dest, const void *src, unsigned int ndigits);
+
+/**
  * vli_mod_inv() - Modular inversion
  *
  * @result:		where to write vli number
@@ -190,4 +211,35 @@ u64 vli_sub(u64 *result, const u64 *left, const u64 *right,
 void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
 		 unsigned int ndigits);
 
+/**
+ * vli_mod_mult_slow() - Modular multiplication
+ *
+ * @result:		where to write result value
+ * @left:		vli number to multiply with @right
+ * @right:		vli number to multiply with @left
+ * @mod:		modulus
+ * @ndigits:		length of all vlis
+ *
+ * Note: Assumes that mod is big enough curve order.
+ */
+void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
+		       const u64 *mod, unsigned int ndigits);
+
+/**
+ * ecc_point_mult_shamir() - Add two points multiplied by scalars
+ *
+ * @result:		resulting point
+ * @x:			scalar to multiply with @p
+ * @p:			point to multiply with @x
+ * @y:			scalar to multiply with @q
+ * @q:			point to multiply with @y
+ * @curve:		curve
+ *
+ * Returns result = x * p + x * q over the curve.
+ * This works faster than two multiplications and addition.
+ */
+void ecc_point_mult_shamir(const struct ecc_point *result,
+			   const u64 *x, const struct ecc_point *p,
+			   const u64 *y, const struct ecc_point *q,
+			   const struct ecc_curve *curve);
 #endif
