@@ -1233,10 +1233,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 	int ret, i;
 	u32 tmp, nsels;
 
-	if (!of_get_property(np, "reg", &nsels))
-		return -EINVAL;
-
-	nsels /= sizeof(u32);
+	nsels = of_property_count_elems_of_size(np, "reg", sizeof(u32));
 	if (!nsels || nsels > MAX_CE_NUM) {
 		dev_err(dev, "invalid register property size\n");
 		return -EINVAL;
