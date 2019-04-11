@@ -469,26 +469,17 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 		struct scatterlist **sg)
 {
 	unsigned nbytes = bvec->bv_len;
-	unsigned nsegs = 0, total = 0, offset = 0;
+	unsigned nsegs = 0, total = 0;
 
 	while (nbytes > 0) {
-		unsigned seg_size;
-		struct page *pg;
-		unsigned idx;
+		unsigned offset = bvec->bv_offset + total;
+		unsigned len = min(get_max_segment_size(q, offset), nbytes);
 
 		*sg = blk_next_sg(sg, sglist);
+		sg_set_page(*sg, bvec->bv_page, len, offset);
 
-		seg_size = get_max_segment_size(q, bvec->bv_offset + total);
-		seg_size = min(nbytes, seg_size);
-
-		offset = (total + bvec->bv_offset) % PAGE_SIZE;
-		idx = (total + bvec->bv_offset) / PAGE_SIZE;
-		pg = bvec_nth_page(bvec->bv_page, idx);
-
-		sg_set_page(*sg, pg, seg_size, offset);
-
-		total += seg_size;
-		nbytes -= seg_size;
+		total += len;
+		nbytes -= len;
 		nsegs++;
 	}
 
