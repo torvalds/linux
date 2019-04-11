@@ -215,6 +215,10 @@ static int sof_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_sof_pcm *spcm;
 	int ret;
 
+	/* nothing to do for BE */
+	if (rtd->dai_link->no_pcm)
+		return 0;
+
 	spcm = snd_sof_find_spcm_dai(sdev, rtd);
 	if (!spcm)
 		return -EINVAL;
