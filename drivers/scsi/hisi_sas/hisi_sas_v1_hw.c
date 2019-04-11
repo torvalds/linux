@@ -1690,8 +1690,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		for (j = 0; j < HISI_SAS_PHY_INT_NR; j++, idx++) {
 			irq = platform_get_irq(pdev, idx);
 			if (!irq) {
-				dev_err(dev,
-					"irq init: fail map phy interrupt %d\n",
+				dev_err(dev, "irq init: fail map phy interrupt %d\n",
 					idx);
 				return -ENOENT;
 			}
@@ -1699,8 +1698,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 			rc = devm_request_irq(dev, irq, phy_interrupts[j], 0,
 					      DRV_NAME " phy", phy);
 			if (rc) {
-				dev_err(dev, "irq init: could not request "
-					"phy interrupt %d, rc=%d\n",
+				dev_err(dev, "irq init: could not request phy interrupt %d, rc=%d\n",
 					irq, rc);
 				return -ENOENT;
 			}
@@ -1737,8 +1735,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
 				      DRV_NAME " fatal", hisi_hba);
 		if (rc) {
-			dev_err(dev,
-				"irq init: could not request fatal interrupt %d, rc=%d\n",
+			dev_err(dev, "irq init: could not request fatal interrupt %d, rc=%d\n",
 				irq, rc);
 			return -ENOENT;
 		}
