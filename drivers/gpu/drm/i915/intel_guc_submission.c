@@ -872,6 +872,104 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 		flush_workqueue(engine->i915->guc.preempt_wq);
 }
 
+static void guc_reset(struct intel_engine_cs *engine, bool stalled)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *rq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	execlists_cancel_port_requests(execlists);
+
+	/* Push back any incomplete requests for replay after the reset. */
+	rq = execlists_unwind_incomplete_requests(execlists);
+	if (!rq)
+		goto out_unlock;
+
+	if (!i915_request_started(rq))
+		stalled = false;
+
+	i915_reset_request(rq, stalled);
+	intel_lr_context_reset(engine, rq->hw_context, rq->head, stalled);
+
+out_unlock:
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+static void guc_cancel_requests(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *rq, *rn;
+	struct rb_node *rb;
+	unsigned long flags;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	/*
+	 * Before we call engine->cancel_requests(), we should have exclusive
+	 * access to the submission state. This is arranged for us by the
+	 * caller disabling the interrupt generation, the tasklet and other
+	 * threads that may then access the same state, giving us a free hand
+	 * to reset state. However, we still need to let lockdep be aware that
+	 * we know this state may be accessed in hardirq context, so we
+	 * disable the irq around this manipulation and we want to keep
+	 * the spinlock focused on its duties and not accidentally conflate
+	 * coverage to the submission's irq state. (Similarly, although we
+	 * shouldn't need to disable irq around the manipulation of the
+	 * submission's irq state, we also wish to remind ourselves that
+	 * it is irq state.)
+	 */
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	/* Cancel the requests on the HW and clear the ELSP tracker. */
+	execlists_cancel_port_requests(execlists);
+
+	/* Mark all executing requests as skipped. */
+	list_for_each_entry(rq, &engine->timeline.requests, link) {
+		if (!i915_request_signaled(rq))
+			dma_fence_set_error(&rq->fence, -EIO);
+
+		i915_request_mark_complete(rq);
+	}
+
+	/* Flush the queued requests to the timeline list (for retiring). */
+	while ((rb = rb_first_cached(&execlists->queue))) {
+		struct i915_priolist *p = to_priolist(rb);
+		int i;
+
+		priolist_for_each_request_consume(rq, rn, p, i) {
+			list_del_init(&rq->sched.link);
+			__i915_request_submit(rq);
+			dma_fence_set_error(&rq->fence, -EIO);
+			i915_request_mark_complete(rq);
+		}
+
+		rb_erase_cached(&p->node, &execlists->queue);
+		i915_priolist_free(p);
+	}
+
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	execlists->queue_priority_hint = INT_MIN;
+	execlists->queue = RB_ROOT_CACHED;
+	GEM_BUG_ON(port_isset(execlists->port));
+
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+static void guc_reset_finish(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+
+	if (__tasklet_enable(&execlists->tasklet))
+		/* And kick in case we missed a new request submission. */
+		tasklet_hi_schedule(&execlists->tasklet);
+
+	GEM_TRACE("%s: depth->%d\n", engine->name,
+		  atomic_read(&execlists->tasklet.count));
+}
+
 /*
  * Everything below here is concerned with setup & teardown, and is
  * therefore not part of the somewhat time-critical batch-submission
@@ -1293,6 +1391,10 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 	engine->unpark = guc_submission_unpark;
 
 	engine->reset.prepare = guc_reset_prepare;
+	engine->reset.reset = guc_reset;
+	engine->reset.finish = guc_reset_finish;
+
+	engine->cancel_requests = guc_cancel_requests;
 
 	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
 }

@@ -429,13 +429,13 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	return active;
 }
 
-void
+struct i915_request *
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 {
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
 
-	__unwind_incomplete_requests(engine);
+	return __unwind_incomplete_requests(engine);
 }
 
 static inline void
@@ -2345,6 +2345,8 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->execlists.tasklet.func = execlists_submission_tasklet;
 
 	engine->reset.prepare = execlists_reset_prepare;
+	engine->reset.reset = execlists_reset;
+	engine->reset.finish = execlists_reset_finish;
 
 	engine->park = NULL;
 	engine->unpark = NULL;
@@ -2975,6 +2977,37 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 	}
 
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+void intel_lr_context_reset(struct intel_engine_cs *engine,
+			    struct intel_context *ce,
+			    u32 head,
+			    bool scrub)
+{
+	/*
+	 * We want a simple context + ring to execute the breadcrumb update.
+	 * We cannot rely on the context being intact across the GPU hang,
+	 * so clear it and rebuild just what we need for the breadcrumb.
+	 * All pending requests for this context will be zapped, and any
+	 * future request will be after userspace has had the opportunity
+	 * to recreate its own state.
+	 */
+	if (scrub) {
+		u32 *regs = ce->lrc_reg_state;
+
+		if (engine->pinned_default_state) {
+			memcpy(regs, /* skip restoring the vanilla PPHWSP */
+			       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
+			       engine->context_size - PAGE_SIZE);
+		}
+		execlists_init_reg_state(regs, ce, engine, ce->ring);
+	}
+
+	/* Rerun the request; its payload has been neutered (if guilty). */
+	ce->ring->head = head;
+	intel_ring_update_space(ce->ring);
+
+	__execlists_update_reg_state(ce, engine);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

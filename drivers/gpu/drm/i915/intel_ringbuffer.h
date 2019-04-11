@@ -165,7 +165,7 @@ void execlists_user_end(struct intel_engine_execlists *execlists);
 void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
 
-void
+struct i915_request *
 execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
 
 static inline unsigned int

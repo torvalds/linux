@@ -103,6 +103,11 @@ struct i915_gem_context;
 
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
 
+void intel_lr_context_reset(struct intel_engine_cs *engine,
+			    struct intel_context *ce,
+			    u32 head,
+			    bool scrub);
+
 void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,
 				   void (*show_request)(struct drm_printer *m,
