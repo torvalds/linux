@@ -650,6 +650,39 @@ setkey_error:
 	return rc;
 }
 
+static int cc_des3_aead_setkey(struct crypto_aead *aead, const u8 *key,
+			       unsigned int keylen)
+{
+	struct crypto_authenc_keys keys;
+	u32 flags;
+	int err;
+
+	err = crypto_authenc_extractkeys(&keys, key, keylen);
+	if (unlikely(err))
+		goto badkey;
+
+	err = -EINVAL;
+	if (keys.enckeylen != DES3_EDE_KEY_SIZE)
+		goto badkey;
+
+	flags = crypto_aead_get_flags(aead);
+	err = __des3_verify_key(&flags, keys.enckey);
+	if (unlikely(err)) {
+		crypto_aead_set_flags(aead, flags);
+		goto out;
+	}
+
+	err = cc_aead_setkey(aead, key, keylen);
+
+out:
+	memzero_explicit(&keys, sizeof(keys));
+	return err;
+
+badkey:
+	crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	goto out;
+}
+
 static int cc_rfc4309_ccm_setkey(struct crypto_aead *tfm, const u8 *key,
 				 unsigned int keylen)
 {
@@ -2372,7 +2405,7 @@ static struct cc_alg_template aead_algs[] = {
 		.driver_name = "authenc-hmac-sha1-cbc-des3-ccree",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
 		.template_aead = {
-			.setkey = cc_aead_setkey,
+			.setkey = cc_des3_aead_setkey,
 			.setauthsize = cc_aead_setauthsize,
 			.encrypt = cc_aead_encrypt,
 			.decrypt = cc_aead_decrypt,
@@ -2412,7 +2445,7 @@ static struct cc_alg_template aead_algs[] = {
 		.driver_name = "authenc-hmac-sha256-cbc-des3-ccree",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
 		.template_aead = {
-			.setkey = cc_aead_setkey,
+			.setkey = cc_des3_aead_setkey,
 			.setauthsize = cc_aead_setauthsize,
 			.encrypt = cc_aead_encrypt,
 			.decrypt = cc_aead_decrypt,
