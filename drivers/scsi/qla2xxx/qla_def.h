@@ -3189,7 +3189,7 @@ struct isp_operations {
 	int (*start_scsi) (srb_t *);
 	int (*start_scsi_mq) (srb_t *);
 	int (*abort_isp) (struct scsi_qla_host *);
-	int (*iospace_config)(struct qla_hw_data*);
+	int (*iospace_config)(struct qla_hw_data *);
 	int (*initialize_adapter)(struct scsi_qla_host *);
 };
 

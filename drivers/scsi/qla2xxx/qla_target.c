@@ -703,7 +703,7 @@ void qla24xx_do_nack_work(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		break;
 	}
 	qla24xx_async_notify_ack(vha, e->u.nack.fcport,
-	    (struct imm_ntfy_from_isp*)e->u.nack.iocb, e->u.nack.type);
+	    (struct imm_ntfy_from_isp *)e->u.nack.iocb, e->u.nack.type);
 }
 
 void qla24xx_delete_sess_fn(struct work_struct *work)

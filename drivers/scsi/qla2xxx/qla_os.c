@@ -1223,7 +1223,7 @@ qla2x00_wait_for_chip_reset(scsi_qla_host_t *vha)
 static int
 sp_get(struct srb *sp)
 {
-	if (!refcount_inc_not_zero((refcount_t*)&sp->ref_count))
+	if (!refcount_inc_not_zero((refcount_t *)&sp->ref_count))
 		/* kref get fail */
 		return ENXIO;
 	else
