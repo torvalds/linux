@@ -1298,6 +1298,15 @@ static void sctp_handle_iftsn(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk)
 			       ntohl(skip->mid), skip->flags);
 }
 
+static int do_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
+{
+	struct sk_buff_head temp;
+
+	skb_queue_head_init(&temp);
+	__skb_queue_tail(&temp, sctp_event2skb(event));
+	return sctp_ulpq_tail_event(ulpq, event);
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	.ftsn_chunk_len		= sizeof(struct sctp_fwdtsn_chunk),
@@ -1306,7 +1315,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.assign_number		= sctp_chunk_assign_ssn,
 	.validate_data		= sctp_validate_data,
 	.ulpevent_data		= sctp_ulpq_tail_data,
-	.enqueue_event		= sctp_ulpq_tail_event,
+	.enqueue_event		= do_ulpq_tail_event,
 	.renege_events		= sctp_ulpq_renege,
 	.start_pd		= sctp_ulpq_partial_delivery,
 	.abort_pd		= sctp_ulpq_abort_pd,
