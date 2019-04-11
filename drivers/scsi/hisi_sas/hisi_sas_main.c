@@ -1427,9 +1427,9 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 					sas_ha->notify_port_event(sas_phy,
 							PORTE_BROADCAST_RCVD);
 			}
-		} else if (old_state & (1 << phy_no))
-			/* PHY down but was up before */
+		} else {
 			hisi_sas_phy_down(hisi_hba, phy_no, 0);
+		}
 
 	}
 }
