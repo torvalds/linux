@@ -35,6 +35,33 @@
  * below). Additional detail on less common ones can be found in MS-FSCC
  * section 2.3.
  */
+
+/*
+ * FSCTL values are 32 bits and are constructed as
+ * <device 16bits> <access 2bits> <function 12bits> <method 2bits>
+ */
+/* Device */
+#define FSCTL_DEVICE_DFS                 (0x0006 << 16)
+#define FSCTL_DEVICE_FILE_SYSTEM         (0x0009 << 16)
+#define FSCTL_DEVICE_NAMED_PIPE          (0x0011 << 16)
+#define FSCTL_DEVICE_NETWORK_FILE_SYSTEM (0x0014 << 16)
+#define FSCTL_DEVICE_MASK                0xffff0000
+/* Access */
+#define FSCTL_DEVICE_ACCESS_FILE_ANY_ACCESS        (0x00 << 14)
+#define FSCTL_DEVICE_ACCESS_FILE_READ_ACCESS       (0x01 << 14)
+#define FSCTL_DEVICE_ACCESS_FILE_WRITE_ACCESS      (0x02 << 14)
+#define FSCTL_DEVICE_ACCESS_FILE_READ_WRITE_ACCESS (0x03 << 14)
+#define FSCTL_DEVICE_ACCESS_MASK                   0x0000c000
+/* Function */
+#define FSCTL_DEVICE_FUNCTION_MASK       0x00003ffc
+/* Method */
+#define FSCTL_DEVICE_METHOD_BUFFERED   0x00
+#define FSCTL_DEVICE_METHOD_IN_DIRECT  0x01
+#define FSCTL_DEVICE_METHOD_OUT_DIRECT 0x02
+#define FSCTL_DEVICE_METHOD_NEITHER    0x03
+#define FSCTL_DEVICE_METHOD_MASK       0x00000003
+
+
 #define FSCTL_DFS_GET_REFERRALS      0x00060194
 #define FSCTL_DFS_GET_REFERRALS_EX   0x000601B0
 #define FSCTL_REQUEST_OPLOCK_LEVEL_1 0x00090000
