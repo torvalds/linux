@@ -68,6 +68,7 @@ struct rcar_csi2;
 /* Field Detection Control */
 #define FLD_REG				0x1c
 #define FLD_FLD_NUM(n)			(((n) & 0xff) << 16)
+#define FLD_DET_SEL(n)			(((n) & 0x3) << 4)
 #define FLD_FLD_EN4			BIT(3)
 #define FLD_FLD_EN3			BIT(2)
 #define FLD_FLD_EN2			BIT(1)
@@ -478,7 +479,7 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp)
 static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 {
 	const struct rcar_csi2_format *format;
-	u32 phycnt, vcdt = 0, vcdt2 = 0;
+	u32 phycnt, vcdt = 0, vcdt2 = 0, fld = 0;
 	unsigned int i;
 	int mbps, ret;
 
@@ -508,6 +509,16 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 			vcdt |= vcdt_part << ((i % 2) * 16);
 		else
 			vcdt2 |= vcdt_part << ((i % 2) * 16);
+	}
+
+	if (priv->mf.field == V4L2_FIELD_ALTERNATE) {
+		fld = FLD_DET_SEL(1) | FLD_FLD_EN4 | FLD_FLD_EN3 | FLD_FLD_EN2
+			| FLD_FLD_EN;
+
+		if (priv->mf.height == 240)
+			fld |= FLD_FLD_NUM(0);
+		else
+			fld |= FLD_FLD_NUM(1);
 	}
 
 	phycnt = PHYCNT_ENABLECLK;
@@ -556,8 +567,7 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 	rcsi2_write(priv, PHYCNT_REG, phycnt);
 	rcsi2_write(priv, LINKCNT_REG, LINKCNT_MONITOR_EN |
 		    LINKCNT_REG_MONI_PACT_EN | LINKCNT_ICLK_NONSTOP);
-	rcsi2_write(priv, FLD_REG, FLD_FLD_NUM(2) | FLD_FLD_EN4 |
-		    FLD_FLD_EN3 | FLD_FLD_EN2 | FLD_FLD_EN);
+	rcsi2_write(priv, FLD_REG, fld);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ);
 	rcsi2_write(priv, PHYCNT_REG, phycnt | PHYCNT_SHUTDOWNZ | PHYCNT_RSTZ);
 
