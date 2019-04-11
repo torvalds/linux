@@ -745,7 +745,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 
 	while ((event = sctp_ulpq_retrieve_reassembled(ulpq)) != NULL) {
 		/* Do ordering if needed.  */
-		if ((event) && (event->msg_flags & MSG_EOR)) {
+		if (event->msg_flags & MSG_EOR) {
 			skb_queue_head_init(&temp);
 			__skb_queue_tail(&temp, sctp_event2skb(event));
 
