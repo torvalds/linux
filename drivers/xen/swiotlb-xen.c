@@ -452,48 +452,28 @@ static void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 	xen_unmap_single(hwdev, dev_addr, size, dir, attrs);
 }
 
-/*
- * Make physical memory consistent for a single streaming mode DMA translation
- * after a transfer.
- *
- * If you perform a xen_swiotlb_map_page() but wish to interrogate the buffer
- * using the cpu, yet do not wish to teardown the dma mapping, you must
- * call this function before doing so.  At the next point you give the dma
- * address back to the card, you must first perform a
- * xen_swiotlb_dma_sync_for_device, and then the device again owns the buffer
- */
 static void
-xen_swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
-			size_t size, enum dma_data_direction dir,
-			enum dma_sync_target target)
+xen_swiotlb_sync_single_for_cpu(struct device *dev, dma_addr_t dma_addr,
+		size_t size, enum dma_data_direction dir)
 {
-	phys_addr_t paddr = xen_bus_to_phys(dev_addr);
+	phys_addr_t paddr = xen_bus_to_phys(dma_addr);
 
-	BUG_ON(dir == DMA_NONE);
+	xen_dma_sync_single_for_cpu(dev, dma_addr, size, dir);
 
-	if (target == SYNC_FOR_CPU)
-		xen_dma_sync_single_for_cpu(hwdev, dev_addr, size, dir);
-
-	/* NOTE: We use dev_addr here, not paddr! */
-	if (is_xen_swiotlb_buffer(dev_addr))
-		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, target);
-
-	if (target == SYNC_FOR_DEVICE)
-		xen_dma_sync_single_for_device(hwdev, dev_addr, size, dir);
+	if (is_xen_swiotlb_buffer(dma_addr))
+		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_CPU);
 }
 
-void
-xen_swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-				size_t size, enum dma_data_direction dir)
+static void
+xen_swiotlb_sync_single_for_device(struct device *dev, dma_addr_t dma_addr,
+		size_t size, enum dma_data_direction dir)
 {
-	xen_swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_CPU);
-}
+	phys_addr_t paddr = xen_bus_to_phys(dma_addr);
 
-void
-xen_swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
-				   size_t size, enum dma_data_direction dir)
-{
-	xen_swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_DEVICE);
+	if (is_xen_swiotlb_buffer(dma_addr))
+		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_DEVICE);
+
+	xen_dma_sync_single_for_device(dev, dma_addr, size, dir);
 }
 
 /*
@@ -538,38 +518,30 @@ out_unmap:
 	return 0;
 }
 
-/*
- * Make physical memory consistent for a set of streaming mode DMA translations
- * after a transfer.
- *
- * The same as swiotlb_sync_single_* but for a scatter-gather list, same rules
- * and usage.
- */
 static void
-xen_swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sgl,
-		    int nelems, enum dma_data_direction dir,
-		    enum dma_sync_target target)
+xen_swiotlb_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
+			    int nelems, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
 	int i;
 
-	for_each_sg(sgl, sg, nelems, i)
-		xen_swiotlb_sync_single(hwdev, sg->dma_address,
-					sg_dma_len(sg), dir, target);
+	for_each_sg(sgl, sg, nelems, i) {
+		xen_swiotlb_sync_single_for_cpu(dev, sg->dma_address,
+				sg->length, dir);
+	}
 }
 
 static void
-xen_swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-			    int nelems, enum dma_data_direction dir)
-{
-	xen_swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_CPU);
-}
-
-static void
-xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
+xen_swiotlb_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
 			       int nelems, enum dma_data_direction dir)
 {
-	xen_swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_DEVICE);
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(sgl, sg, nelems, i) {
+		xen_swiotlb_sync_single_for_device(dev, sg->dma_address,
+				sg->length, dir);
+	}
 }
 
 /*
