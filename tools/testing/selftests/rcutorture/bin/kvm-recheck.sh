@@ -7,6 +7,8 @@
 #
 # Usage: kvm-recheck.sh resdir ...
 #
+# Returns status reflecting the success or not of the last run specified.
+#
 # Copyright (C) IBM Corporation, 2011
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
@@ -58,3 +60,4 @@ do
 		fi
 	done
 done
+EDITOR=echo kvm-find-errors.sh "${@: -1}" > /dev/null 2>&1
