@@ -4037,7 +4037,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 		return;
 	}
 
-	cmd = (struct qla_tgt_cmd *)qlt_ctio_to_cmd(vha, rsp, handle, ctio);
+	cmd = qlt_ctio_to_cmd(vha, rsp, handle, ctio);
 	if (cmd == NULL)
 		return;
 
@@ -5831,8 +5831,7 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 	struct qla_tgt_mgmt_cmd *mcmd;
 	struct qla_hw_data *ha = vha->hw;
 
-	mcmd = (struct qla_tgt_mgmt_cmd *)qlt_ctio_to_cmd(vha, rsp,
-	    pkt->handle, pkt);
+	mcmd = qlt_ctio_to_cmd(vha, rsp, pkt->handle, pkt);
 	if (mcmd == NULL && h != QLA_TGT_SKIP_HANDLE) {
 		ql_dbg(ql_dbg_async, vha, 0xe064,
 		    "qla_target(%d): ABTS Comp without mcmd\n",
