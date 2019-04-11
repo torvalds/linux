@@ -1287,8 +1287,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 			/* no error, but return the number of bytes of
 			 * underrun
 			 */
-			dev_warn(dev, "abort tmf: task to dev %016llx "
-				 "resp: 0x%x sts 0x%x underrun\n",
+			dev_warn(dev, "abort tmf: task to dev %016llx resp: 0x%x sts 0x%x underrun\n",
 				 SAS_ADDR(device->sas_addr),
 				 task->task_status.resp,
 				 task->task_status.stat);
@@ -1303,10 +1302,16 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 			break;
 		}
 
-		dev_warn(dev, "abort tmf: task to dev "
-			 "%016llx resp: 0x%x status 0x%x\n",
-			 SAS_ADDR(device->sas_addr), task->task_status.resp,
-			 task->task_status.stat);
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAS_OPEN_REJECT) {
+			dev_warn(dev, "abort tmf: open reject failed\n");
+			res = -EIO;
+		} else {
+			dev_warn(dev, "abort tmf: task to dev %016llx resp: 0x%x status 0x%x\n",
+				 SAS_ADDR(device->sas_addr),
+				 task->task_status.resp,
+				 task->task_status.stat);
+		}
 		sas_free_task(task);
 		task = NULL;
 	}
@@ -1826,7 +1831,7 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 
 	if (dev_is_sata(device)) {
 		rc = hisi_sas_softreset_ata_disk(device);
-		if (rc)
+		if (rc == TMF_RESP_FUNC_FAILED)
 			return TMF_RESP_FUNC_FAILED;
 	}
 
@@ -2123,10 +2128,8 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 
 exit:
-	dev_dbg(dev, "internal task abort: task to dev %016llx task=%p "
-		"resp: 0x%x sts 0x%x\n",
-		SAS_ADDR(device->sas_addr),
-		task,
+	dev_dbg(dev, "internal task abort: task to dev %016llx task=%p resp: 0x%x sts 0x%x\n",
+		SAS_ADDR(device->sas_addr), task,
 		task->task_status.resp, /* 0 is complete, -1 is undelivered */
 		task->task_status.stat);
 	sas_free_task(task);
