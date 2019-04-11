@@ -873,20 +873,19 @@ static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
 	len = min_t(size_t, bv->bv_len - iter->iov_offset, iter->count);
 	size = bio_add_page(bio, bv->bv_page, len,
 				bv->bv_offset + iter->iov_offset);
-	if (size == len) {
-		if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
-			struct page *page;
-			int i;
+	if (unlikely(size != len))
+		return -EINVAL;
 
-			mp_bvec_for_each_page(page, bv, i)
-				get_page(page);
-		}
+	if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
+		struct page *page;
+		int i;
 
-		iov_iter_advance(iter, size);
-		return 0;
+		mp_bvec_for_each_page(page, bv, i)
+			get_page(page);
 	}
 
-	return -EINVAL;
+	iov_iter_advance(iter, size);
+	return 0;
 }
 
 #define PAGE_PTRS_PER_BVEC     (sizeof(struct bio_vec) / sizeof(struct page *))
