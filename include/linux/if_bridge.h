@@ -56,9 +56,6 @@ struct br_ip_list {
 
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
 
-typedef int br_should_route_hook_t(struct sk_buff *skb);
-extern br_should_route_hook_t __rcu *br_should_route_hook;
-
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
 int br_multicast_list_adjacent(struct net_device *dev,
 			       struct list_head *br_ip_list);

@@ -24,10 +24,6 @@
 #include "br_private.h"
 #include "br_private_tunnel.h"
 
-/* Hook for brouter */
-br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
-EXPORT_SYMBOL(br_should_route_hook);
-
 static int
 br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -234,6 +230,10 @@ static int nf_hook_bridge_pre(struct sk_buff *skb, struct sk_buff **pskb)
 		verdict = nf_hook_entry_hookfn(&e->hooks[i], skb, &state);
 		switch (verdict & NF_VERDICT_MASK) {
 		case NF_ACCEPT:
+			if (BR_INPUT_SKB_CB(skb)->br_netfilter_broute) {
+				*pskb = skb;
+				return RX_HANDLER_PASS;
+			}
 			break;
 		case NF_DROP:
 			kfree_skb(skb);
@@ -265,7 +265,6 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 	struct net_bridge_port *p;
 	struct sk_buff *skb = *pskb;
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	br_should_route_hook_t *rhook;
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
@@ -341,15 +340,6 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 forward:
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
-		rhook = rcu_dereference(br_should_route_hook);
-		if (rhook) {
-			if ((*rhook)(skb)) {
-				*pskb = skb;
-				return RX_HANDLER_PASS;
-			}
-			dest = eth_hdr(skb)->h_dest;
-		}
-		/* fall through */
 	case BR_STATE_LEARNING:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;

@@ -433,6 +433,9 @@ struct br_input_skb_cb {
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	u8 vlan_filtered:1;
 #endif
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
+	u8 br_netfilter_broute:1;
+#endif
 
 #ifdef CONFIG_NET_SWITCHDEV
 	int offload_fwd_mark;
