@@ -56,7 +56,6 @@ ENDPROC(armada_38x_cpu_resume)
 
 /* The following code will be executed from SRAM */
 ENTRY(mvebu_boot_wa_start)
-mvebu_boot_wa_start:
 ARM_BE8(setend	be)
 	adr	r0, 1f
 	ldr	r0, [r0]		@ load the address of the
