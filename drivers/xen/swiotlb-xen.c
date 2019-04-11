@@ -501,9 +501,8 @@ xen_swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
  * concerning calls here are the same as for swiotlb_unmap_page() above.
  */
 static void
-xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-			   int nelems, enum dma_data_direction dir,
-			   unsigned long attrs)
+xen_swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -532,9 +531,8 @@ xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
  * same here.
  */
 static int
-xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-			 int nelems, enum dma_data_direction dir,
-			 unsigned long attrs)
+xen_swiotlb_map_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -559,8 +557,7 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
 				attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-				xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
-							   attrs);
+				xen_swiotlb_unmap_sg(hwdev, sgl, i, dir, attrs);
 				sg_dma_len(sgl) = 0;
 				return 0;
 			}
@@ -687,8 +684,8 @@ const struct dma_map_ops xen_swiotlb_dma_ops = {
 	.sync_single_for_device = xen_swiotlb_sync_single_for_device,
 	.sync_sg_for_cpu = xen_swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = xen_swiotlb_sync_sg_for_device,
-	.map_sg = xen_swiotlb_map_sg_attrs,
-	.unmap_sg = xen_swiotlb_unmap_sg_attrs,
+	.map_sg = xen_swiotlb_map_sg,
+	.unmap_sg = xen_swiotlb_unmap_sg,
 	.map_page = xen_swiotlb_map_page,
 	.unmap_page = xen_swiotlb_unmap_page,
 	.dma_supported = xen_swiotlb_dma_supported,
