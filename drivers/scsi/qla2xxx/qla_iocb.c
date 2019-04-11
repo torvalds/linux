@@ -1404,7 +1404,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
  * @tot_prot_dsds: Total number of segments with protection information
  * @fw_prot_opts: Protection options to be passed to firmware
  */
-inline int
+static inline int
 qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
     uint16_t tot_dsds, uint16_t tot_prot_dsds, uint16_t fw_prot_opts)
 {
