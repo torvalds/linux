@@ -2679,18 +2679,6 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 			return rc;
 		}
 
-	/*
-	 * Must check if file sparse since fallocate -z (zero range) assumes
-	 * non-sparse allocation
-	 */
-	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)) {
-		rc = -EOPNOTSUPP;
-		trace_smb3_zero_err(xid, cfile->fid.persistent_fid, tcon->tid,
-			      ses->Suid, offset, len, rc);
-		free_xid(xid);
-		return rc;
-	}
-
 	cifs_dbg(FYI, "offset %lld len %lld", offset, len);
 
 	fsctl_buf.FileOffset = cpu_to_le64(offset);
