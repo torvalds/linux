@@ -211,20 +211,6 @@ struct rvt_rq {
 };
 
 /*
- * This structure is used by rvt_mmap() to validate an offset
- * when an mmap() request is made.  The vm_area_struct then uses
- * this as its vm_private_data.
- */
-struct rvt_mmap_info {
-	struct list_head pending_mmaps;
-	struct ib_ucontext *context;
-	void *obj;
-	__u64 offset;
-	struct kref ref;
-	unsigned size;
-};
-
-/*
  * This structure holds the information that the send tasklet needs
  * to send a RDMA read response or atomic operation.
  */
@@ -397,6 +383,16 @@ struct rvt_srq {
 	/* send signal when number of RWQEs < limit */
 	u32 limit;
 };
+
+static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct rvt_srq, ibsrq);
+}
+
+static inline struct rvt_qp *ibqp_to_rvtqp(struct ib_qp *ibqp)
+{
+	return container_of(ibqp, struct rvt_qp, ibqp);
+}
 
 #define RVT_QPN_MAX                 BIT(24)
 #define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
@@ -675,6 +671,56 @@ static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
 		timeout = 31;
 
 	return usecs_to_jiffies(1U << timeout) * 4096UL / 1000UL;
+}
+
+/**
+ * rvt_lookup_qpn - return the QP with the given QPN
+ * @ibp: the ibport
+ * @qpn: the QP number to look up
+ *
+ * The caller must hold the rcu_read_lock(), and keep the lock until
+ * the returned qp is no longer in use.
+ */
+static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
+					    struct rvt_ibport *rvp,
+					    u32 qpn) __must_hold(RCU)
+{
+	struct rvt_qp *qp = NULL;
+
+	if (unlikely(qpn <= 1)) {
+		qp = rcu_dereference(rvp->qp[qpn]);
+	} else {
+		u32 n = hash_32(qpn, rdi->qp_dev->qp_table_bits);
+
+		for (qp = rcu_dereference(rdi->qp_dev->qp_table[n]); qp;
+			qp = rcu_dereference(qp->next))
+			if (qp->ibqp.qp_num == qpn)
+				break;
+	}
+	return qp;
+}
+
+/**
+ * rvt_mod_retry_timer - mod a retry timer
+ * @qp - the QP
+ * @shift - timeout shift to wait for multiple packets
+ * Modify a potentially already running retry timer
+ */
+static inline void rvt_mod_retry_timer_ext(struct rvt_qp *qp, u8 shift)
+{
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_TIMER;
+	/* 4.096 usec. * (1 << qp->timeout) */
+	mod_timer(&qp->s_timer, jiffies + rdi->busy_jiffies +
+		  (qp->timeout_jiffies << shift));
+}
+
+static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+{
+	return rvt_mod_retry_timer_ext(qp, 0);
 }
 
 extern const int  ib_rvt_state_ops[];

@@ -48,7 +48,7 @@
  *
  */
 
-#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 
 int rvt_driver_qp_init(struct rvt_dev_info *rdi);
 void rvt_qp_exit(struct rvt_dev_info *rdi);
