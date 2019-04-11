@@ -1380,6 +1380,7 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 		struct hisi_sas_initial_fis *initial_fis;
 		struct dev_to_host_fis *fis;
 		u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
+		struct Scsi_Host *shost = hisi_hba->shost;
 
 		dev_info(dev, "phyup: phy%d link_rate=%d(sata)\n", phy_no, link_rate);
 		initial_fis = &hisi_hba->initial_fis[phy_no];
@@ -1396,6 +1397,7 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 		sas_phy->oob_mode = SATA_OOB_MODE;
 		attached_sas_addr[0] = 0x50;
+		attached_sas_addr[6] = shost->host_no;
 		attached_sas_addr[7] = phy_no;
 		memcpy(sas_phy->attached_sas_addr,
 		       attached_sas_addr,
