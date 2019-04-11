@@ -706,11 +706,11 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 		return err;
 	}
 
-	/* data is bigger than max ipc size, chop to smaller pieces */
+	/* data is bigger than max ipc size, chop into smaller pieces */
 	dev_dbg(sdev->dev, "large ipc size %u, control size %u\n",
 		cdata->rhdr.hdr.size, scontrol->size);
 
-	/* large messages is only supported from abi 3.3.0 onwards */
+	/* large messages is only supported from ABI 3.3.0 onwards */
 	if (v->abi_version < SOF_ABI_VER(3, 3, 0)) {
 		dev_err(sdev->dev, "error: incompatible FW ABI version\n");
 		return -EINVAL;
@@ -800,7 +800,7 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	ipc->sdev = sdev;
 	msg = &ipc->msg;
 
-	/* Indicate, that we aren't sending a message ATM */
+	/* indicate that we aren't sending a message ATM */
 	msg->ipc_complete = true;
 
 	/* pre-allocate message data */

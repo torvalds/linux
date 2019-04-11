@@ -217,7 +217,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 			/* this is a PANIC message !! */
 			snd_sof_dsp_panic(sdev, HDA_DSP_PANIC_OFFSET(msg_ext));
 		} else {
-			/* normal message - process normally*/
+			/* normal message - process normally */
 			snd_sof_ipc_msgs_rx(sdev);
 		}
 
@@ -259,9 +259,7 @@ out:
 	return ret;
 }
 
-/*
- * IPC Firmware ready.
- */
+/* IPC Firmware ready */
 
 static void ipc_get_windows(struct snd_sof_dev *sdev)
 {
@@ -444,7 +442,7 @@ int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
 	hda_stream = container_of(hstream, struct sof_intel_hda_stream,
 				  hda_stream.hstream);
 
-	/* check if offset is overflow or it is not aligned */
+	/* check for unaligned offset or overflow */
 	if (posn_offset > sdev->stream_box.size ||
 	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0)
 		return -EINVAL;

@@ -1293,7 +1293,7 @@ static int sof_widget_load_pcm(struct snd_soc_component *scomp, int index,
 	if (!host)
 		return -ENOMEM;
 
-	/* configure mixer IPC message */
+	/* configure host comp IPC message */
 	host->comp.hdr.size = sizeof(*host);
 	host->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
 	host->comp.id = swidget->comp_id;
@@ -1562,7 +1562,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
-	/* configure dai IPC message */
+	/* configure volume IPC message */
 	volume->comp.hdr.size = sizeof(*volume);
 	volume->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
 	volume->comp.id = swidget->comp_id;
@@ -1618,7 +1618,7 @@ static int sof_widget_load_src(struct snd_soc_component *scomp, int index,
 	if (!src)
 		return -ENOMEM;
 
-	/* configure mixer IPC message */
+	/* configure src IPC message */
 	src->comp.hdr.size = sizeof(*src);
 	src->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
 	src->comp.id = swidget->comp_id;
@@ -1677,7 +1677,7 @@ static int sof_widget_load_siggen(struct snd_soc_component *scomp, int index,
 	if (!tone)
 		return -ENOMEM;
 
-	/* configure mixer IPC message */
+	/* configure siggen IPC message */
 	tone->comp.hdr.size = sizeof(*tone);
 	tone->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
 	tone->comp.id = swidget->comp_id;
@@ -2192,7 +2192,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
-	/* don't need to do anything for BEs atm */
+	/* nothing to do for BEs atm */
 	if (!pcm)
 		return 0;
 

@@ -188,7 +188,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 	dev_err(sdev->dev, "error: trace point %8.8x\n", tracep_code);
 
 out:
-	dev_err(sdev->dev, "error: panic happen at %s:%d\n",
+	dev_err(sdev->dev, "error: panic at %s:%d\n",
 		panic_info->filename, panic_info->linenum);
 	sof_oops(sdev, oops);
 	sof_stack(sdev, oops, stack, stack_words);
@@ -198,7 +198,7 @@ EXPORT_SYMBOL(snd_sof_get_status);
 /*
  * Generic buffer page table creation.
  * Take the each physical page address and drop the least significant unused
- * bites from each (based on PAGE_SIZE). Then pack valid page address bits
+ * bits from each (based on PAGE_SIZE). Then pack valid page address bits
  * into compressed page table.
  */
 

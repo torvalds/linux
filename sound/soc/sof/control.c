@@ -221,7 +221,7 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
-	/* get all the mixer data from DSP */
+	/* get all the enum data from DSP */
 	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 				      SOF_IPC_COMP_GET_VALUE,
 				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
@@ -267,7 +267,7 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 		cdata->chanv[i].channel = i;
 	}
 
-	/* notify DSP of mixer updates */
+	/* notify DSP of enum updates */
 	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 				      SOF_IPC_COMP_SET_VALUE,
 				      SOF_CTRL_TYPE_VALUE_CHAN_GET,
@@ -311,7 +311,7 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
-	/* get all the mixer data from DSP */
+	/* get all the binary data from DSP */
 	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 				      SOF_IPC_COMP_GET_DATA,
 				      SOF_CTRL_TYPE_DATA_GET,
@@ -377,7 +377,7 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	/* copy from kcontrol */
 	memcpy(data, ucontrol->value.bytes.data, data->size);
 
-	/* notify DSP of mixer updates */
+	/* notify DSP of byte control updates */
 	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 				      SOF_IPC_COMP_SET_DATA,
 				      SOF_CTRL_TYPE_DATA_SET,
@@ -461,7 +461,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
-	/* notify DSP of mixer updates */
+	/* notify DSP of byte control updates */
 	snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 				      SOF_IPC_COMP_SET_DATA,
 				      SOF_CTRL_TYPE_DATA_SET,

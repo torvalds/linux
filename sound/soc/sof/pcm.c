@@ -66,7 +66,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
 	int ret;
 
-	/* nothing todo for BE */
+	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
@@ -183,7 +183,7 @@ static int sof_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct sof_ipc_reply reply;
 	int ret;
 
-	/* nothing todo for BE */
+	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
@@ -254,7 +254,7 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct sof_ipc_reply reply;
 	int ret;
 
-	/* nothing todo for BE */
+	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
@@ -330,11 +330,11 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_sof_pcm *spcm;
 	snd_pcm_uframes_t host, dai;
 
-	/* nothing todo for BE */
+	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
-	/* if have dsp ops pointer callback, use that directly */
+	/* use dsp ops pointer callback directly if set */
 	if (sof_ops(sdev)->pcm_pointer)
 		return sof_ops(sdev)->pcm_pointer(sdev, substream);
 
@@ -366,7 +366,7 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	int ret;
 	int err;
 
-	/* nothing todo for BE */
+	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
@@ -377,7 +377,7 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	dev_dbg(sdev->dev, "pcm: open stream %d dir %d\n", spcm->pcm.pcm_id,
 		substream->stream);
 
-	/* Clear hw_params_upon_resume flag */
+	/* clear hw_params_upon_resume flag */
 	spcm->hw_params_upon_resume[substream->stream] = 0;
 
 	caps = &spcm->pcm.caps[substream->stream];
@@ -457,7 +457,7 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_sof_pcm *spcm;
 	int err;
 
-	/* nothing todo for BE */
+	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
@@ -634,7 +634,6 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 				dai->comp_dai.config.frame_fmt,
 				dai->dai_config->type);
 		}
-		/* TODO: add any other DMIC specific fixups */
 		break;
 	case SOF_DAI_INTEL_HDA:
 		/* do nothing for HDA dai_link */
@@ -675,7 +674,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 	/*
 	 * Some platforms in SOF, ex: BYT, may not have their platform PM
 	 * callbacks set. Increment the usage count so as to
-	 * prevent the device entering runtime suspend.
+	 * prevent the device from entering runtime suspend.
 	 */
 	if (!sof_ops(sdev)->runtime_suspend || !sof_ops(sdev)->runtime_resume)
 		pm_runtime_get_noresume(sdev->dev);
