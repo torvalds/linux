@@ -3599,6 +3599,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= host_attrs_v2_hw,
+	.host_reset		= hisi_sas_host_reset,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
