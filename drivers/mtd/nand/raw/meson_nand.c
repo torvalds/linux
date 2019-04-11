@@ -1242,8 +1242,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 		return -EINVAL;
 	}
 
-	meson_chip = devm_kzalloc(dev,
-				  sizeof(*meson_chip) + (nsels * sizeof(u8)),
+	meson_chip = devm_kzalloc(dev, struct_size(meson_chip, sels, nsels),
 				  GFP_KERNEL);
 	if (!meson_chip)
 		return -ENOMEM;
