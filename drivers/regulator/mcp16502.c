@@ -427,36 +427,15 @@ static const struct regmap_config mcp16502_regmap_config = {
 	.wr_table	= &mcp16502_yes_reg_table,
 };
 
-/*
- * set_up_regulators() - initialize all regulators
- */
-static int setup_regulators(struct mcp16502 *mcp, struct device *dev,
-			    struct regulator_config config)
-{
-	struct regulator_dev *rdev;
-	int i;
-
-	for (i = 0; i < NUM_REGULATORS; i++) {
-		rdev = devm_regulator_register(dev, &mcp16502_desc[i], &config);
-		if (IS_ERR(rdev)) {
-			dev_err(dev,
-				"failed to register %s regulator %ld\n",
-				mcp16502_desc[i].name, PTR_ERR(rdev));
-			return PTR_ERR(rdev);
-		}
-	}
-
-	return 0;
-}
-
 static int mcp16502_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	struct device *dev;
 	struct mcp16502 *mcp;
 	struct regmap *rmap;
-	int ret = 0;
+	int i, ret;
 
 	dev = &client->dev;
 	config.dev = dev;
@@ -482,9 +461,15 @@ static int mcp16502_probe(struct i2c_client *client,
 		return PTR_ERR(mcp->lpm);
 	}
 
-	ret = setup_regulators(mcp, dev, config);
-	if (ret != 0)
-		return ret;
+	for (i = 0; i < NUM_REGULATORS; i++) {
+		rdev = devm_regulator_register(dev, &mcp16502_desc[i], &config);
+		if (IS_ERR(rdev)) {
+			dev_err(dev,
+				"failed to register %s regulator %ld\n",
+				mcp16502_desc[i].name, PTR_ERR(rdev));
+			return PTR_ERR(rdev);
+		}
+	}
 
 	mcp16502_gpio_set_mode(mcp, MCP16502_OPMODE_ACTIVE);
 
