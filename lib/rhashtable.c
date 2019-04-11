@@ -175,8 +175,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	int i;
 	static struct lock_class_key __key;
 
-	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
-	tbl = kvzalloc(size, gfp);
+	tbl = kvzalloc(struct_size(tbl, buckets, nbuckets), gfp);
 
 	size = nbuckets;
 
