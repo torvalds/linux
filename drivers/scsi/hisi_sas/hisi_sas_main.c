@@ -754,7 +754,8 @@ static int hisi_sas_init_device(struct domain_device *device)
 		 * STP target port
 		 */
 		local_phy = sas_get_local_phy(device);
-		if (!scsi_is_sas_phy_local(local_phy)) {
+		if (!scsi_is_sas_phy_local(local_phy) &&
+		    !test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)) {
 			unsigned long deadline = ata_deadline(jiffies, 20000);
 			struct sata_device *sata_dev = &device->sata_dev;
 			struct ata_host *ata_host = sata_dev->ata_host;
