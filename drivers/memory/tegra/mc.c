@@ -74,7 +74,7 @@ static const struct of_device_id tegra_mc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_mc_of_match);
 
-static int terga_mc_block_dma_common(struct tegra_mc *mc,
+static int tegra_mc_block_dma_common(struct tegra_mc *mc,
 				     const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -90,13 +90,13 @@ static int terga_mc_block_dma_common(struct tegra_mc *mc,
 	return 0;
 }
 
-static bool terga_mc_dma_idling_common(struct tegra_mc *mc,
+static bool tegra_mc_dma_idling_common(struct tegra_mc *mc,
 				       const struct tegra_mc_reset *rst)
 {
 	return (mc_readl(mc, rst->status) & BIT(rst->bit)) != 0;
 }
 
-static int terga_mc_unblock_dma_common(struct tegra_mc *mc,
+static int tegra_mc_unblock_dma_common(struct tegra_mc *mc,
 				       const struct tegra_mc_reset *rst)
 {
 	unsigned long flags;
@@ -112,17 +112,17 @@ static int terga_mc_unblock_dma_common(struct tegra_mc *mc,
 	return 0;
 }
 
-static int terga_mc_reset_status_common(struct tegra_mc *mc,
+static int tegra_mc_reset_status_common(struct tegra_mc *mc,
 					const struct tegra_mc_reset *rst)
 {
 	return (mc_readl(mc, rst->control) & BIT(rst->bit)) != 0;
 }
 
-const struct tegra_mc_reset_ops terga_mc_reset_ops_common = {
-	.block_dma = terga_mc_block_dma_common,
-	.dma_idling = terga_mc_dma_idling_common,
-	.unblock_dma = terga_mc_unblock_dma_common,
-	.reset_status = terga_mc_reset_status_common,
+const struct tegra_mc_reset_ops tegra_mc_reset_ops_common = {
+	.block_dma = tegra_mc_block_dma_common,
+	.dma_idling = tegra_mc_dma_idling_common,
+	.unblock_dma = tegra_mc_unblock_dma_common,
+	.reset_status = tegra_mc_reset_status_common,
 };
 
 static inline struct tegra_mc *reset_to_mc(struct reset_controller_dev *rcdev)
