@@ -798,16 +798,11 @@ static void start_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	enable_phy_v1_hw(hisi_hba, phy_no);
 }
 
-static void stop_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
-{
-	disable_phy_v1_hw(hisi_hba, phy_no);
-}
-
 static void phy_hard_reset_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
-	stop_phy_v1_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
 	msleep(100);
-	start_phy_v1_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
 }
 
 static void start_phys_v1_hw(struct timer_list *t)
@@ -817,7 +812,7 @@ static void start_phys_v1_hw(struct timer_list *t)
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x12a);
-		start_phy_v1_hw(hisi_hba, i);
+		hisi_sas_phy_enable(hisi_hba, i, 1);
 	}
 }
 
