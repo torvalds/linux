@@ -659,8 +659,13 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
 		return false;
 	if (xen_domain() && !xen_biovec_phys_mergeable(bv, page))
 		return false;
-	if (same_page && (vec_end_addr & PAGE_MASK) != page_addr)
-		return false;
+
+	if ((vec_end_addr & PAGE_MASK) != page_addr) {
+		if (same_page)
+			return false;
+		if (pfn_to_page(PFN_DOWN(vec_end_addr)) + 1 != page)
+			return false;
+	}
 
 	return true;
 }

@@ -51,11 +51,6 @@ struct bvec_iter_all {
 	unsigned	done;
 };
 
-static inline struct page *bvec_nth_page(struct page *page, int idx)
-{
-	return idx == 0 ? page : nth_page(page, idx);
-}
-
 /*
  * various member access, note that bio_data should of course not be used
  * on highmem page vectors
@@ -92,8 +87,8 @@ static inline struct page *bvec_nth_page(struct page *page, int idx)
 	      PAGE_SIZE - bvec_iter_offset((bvec), (iter)))
 
 #define bvec_iter_page(bvec, iter)				\
-	bvec_nth_page(mp_bvec_iter_page((bvec), (iter)),		\
-		      mp_bvec_iter_page_idx((bvec), (iter)))
+	(mp_bvec_iter_page((bvec), (iter)) +			\
+	 mp_bvec_iter_page_idx((bvec), (iter)))
 
 #define bvec_iter_bvec(bvec, iter)				\
 ((struct bio_vec) {						\
@@ -157,7 +152,7 @@ static inline void mp_bvec_next_segment(const struct bio_vec *bvec,
 	struct bio_vec *bv = &iter_all->bv;
 
 	if (bv->bv_page) {
-		bv->bv_page = nth_page(bv->bv_page, 1);
+		bv->bv_page++;
 		bv->bv_offset = 0;
 	} else {
 		bv->bv_page = bvec->bv_page;
@@ -177,7 +172,7 @@ static inline void mp_bvec_last_segment(const struct bio_vec *bvec,
 	unsigned total = bvec->bv_offset + bvec->bv_len;
 	unsigned last_page = (total - 1) / PAGE_SIZE;
 
-	seg->bv_page = bvec_nth_page(bvec->bv_page, last_page);
+	seg->bv_page = bvec->bv_page + last_page;
 
 	/* the whole segment is inside the last page */
 	if (bvec->bv_offset >= last_page * PAGE_SIZE) {
