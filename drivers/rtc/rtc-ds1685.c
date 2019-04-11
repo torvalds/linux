@@ -1004,7 +1004,7 @@ static ssize_t
 ds1685_rtc_sysfs_battery_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev->parent);
 	u8 ctrld;
 
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
@@ -1024,7 +1024,7 @@ static ssize_t
 ds1685_rtc_sysfs_auxbatt_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev->parent);
 	u8 ctrl4a;
 
 	ds1685_rtc_switch_to_bank1(rtc);
@@ -1046,7 +1046,7 @@ static ssize_t
 ds1685_rtc_sysfs_serial_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct ds1685_priv *rtc = dev_get_drvdata(dev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev->parent);
 	u8 ssn[8];
 
 	ds1685_rtc_switch_to_bank1(rtc);
