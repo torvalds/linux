@@ -1893,6 +1893,13 @@ set_fan_speed_rpm_failed:
 	return ret;
 }
 
+static int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
+				     uint32_t pstate)
+{
+	/* send msg to SMU to set pstate */
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1947,6 +1954,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_fan_speed_percent = smu_v11_0_get_fan_speed_percent,
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
 	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
+	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
@@ -1954,7 +1962,6 @@ void smu_v11_0_set_smu_funcs(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 
 	smu->funcs = &smu_v11_0_funcs;
-
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		vega20_set_ppt_funcs(smu);

@@ -540,6 +540,8 @@ struct smu_funcs
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
+	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
+
 };
 
 #define smu_init_microcode(smu) \
@@ -723,6 +725,8 @@ struct smu_funcs
 	((smu)->funcs->get_sclk ? (smu)->funcs->get_sclk((smu), (low)) : 0)
 #define smu_get_mclk(smu, low) \
 	((smu)->funcs->get_mclk ? (smu)->funcs->get_mclk((smu), (low)) : 0)
+#define smu_set_xgmi_pstate(smu, pstate) \
+		((smu)->funcs->set_xgmi_pstate ? (smu)->funcs->set_xgmi_pstate((smu), (pstate)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
