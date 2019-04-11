@@ -930,7 +930,7 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	if (cr3 != kvm_read_cr3(vcpu) || (!nested_ept && pdptrs_changed(vcpu))) {
 		if (!nested_cr3_valid(vcpu, cr3)) {
 			*entry_failure_code = ENTRY_FAIL_DEFAULT;
-			return 1;
+			return -EINVAL;
 		}
 
 		/*
@@ -941,7 +941,7 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 		    !nested_ept) {
 			if (!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3)) {
 				*entry_failure_code = ENTRY_FAIL_PDPTE;
-				return 1;
+				return -EINVAL;
 			}
 		}
 	}
@@ -2373,13 +2373,13 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	 */
 	if (vmx->emulation_required) {
 		*entry_failure_code = ENTRY_FAIL_DEFAULT;
-		return 1;
+		return -EINVAL;
 	}
 
 	/* Shadow page tables on either EPT or shadow page tables. */
 	if (nested_vmx_load_cr3(vcpu, vmcs12->guest_cr3, nested_cpu_has_ept(vmcs12),
 				entry_failure_code))
-		return 1;
+		return -EINVAL;
 
 	if (!enable_ept)
 		vcpu->arch.walk_mmu->inject_page_fault = vmx_inject_page_fault_nested;
@@ -2685,15 +2685,15 @@ static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
 
 	if (!nested_guest_cr0_valid(vcpu, vmcs12->guest_cr0) ||
 	    !nested_guest_cr4_valid(vcpu, vmcs12->guest_cr4))
-		return 1;
+		return -EINVAL;
 
 	if ((vmcs12->vm_entry_controls & VM_ENTRY_LOAD_IA32_PAT) &&
 	    !kvm_pat_valid(vmcs12->guest_ia32_pat))
-		return 1;
+		return -EINVAL;
 
 	if (nested_vmx_check_vmcs_link_ptr(vcpu, vmcs12)) {
 		*exit_qual = ENTRY_FAIL_VMCS_LINK_PTR;
-		return 1;
+		return -EINVAL;
 	}
 
 	/*
@@ -2712,16 +2712,16 @@ static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
 		    ia32e != !!(vmcs12->guest_ia32_efer & EFER_LMA) ||
 		    ((vmcs12->guest_cr0 & X86_CR0_PG) &&
 		     ia32e != !!(vmcs12->guest_ia32_efer & EFER_LME)))
-			return 1;
+			return -EINVAL;
 	}
 
 	if ((vmcs12->vm_entry_controls & VM_ENTRY_LOAD_BNDCFGS) &&
-		(is_noncanonical_address(vmcs12->guest_bndcfgs & PAGE_MASK, vcpu) ||
-		(vmcs12->guest_bndcfgs & MSR_IA32_BNDCFGS_RSVD)))
-			return 1;
+	    (is_noncanonical_address(vmcs12->guest_bndcfgs & PAGE_MASK, vcpu) ||
+	     (vmcs12->guest_bndcfgs & MSR_IA32_BNDCFGS_RSVD)))
+		return -EINVAL;
 
 	if (nested_check_guest_non_reg_state(vmcs12))
-		return 1;
+		return -EINVAL;
 
 	return 0;
 }
