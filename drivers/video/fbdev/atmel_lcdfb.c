@@ -1252,12 +1252,10 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct atmel_lcdfb_info *sinfo;
-	struct atmel_lcdfb_pdata *pdata;
 
 	if (!info || !info->par)
 		return 0;
 	sinfo = info->par;
-	pdata = &sinfo->pdata;
 
 	cancel_work_sync(&sinfo->task);
 	exit_backlight(sinfo);
