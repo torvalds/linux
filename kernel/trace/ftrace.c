@@ -6260,6 +6260,9 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 	preempt_disable_notrace();
 
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		/* Stub functions don't need to be called nor tested */
+		if (op->flags & FTRACE_OPS_FL_STUB)
+			continue;
 		/*
 		 * Check the following for each ops before calling their func:
 		 *  if RCU flag is set, then rcu_is_watching() must be true
