@@ -762,10 +762,17 @@ static int stm32_cryp_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 static int stm32_cryp_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 				  unsigned int keylen)
 {
-	if (keylen != (3 * DES_KEY_SIZE))
-		return -EINVAL;
-	else
-		return stm32_cryp_setkey(tfm, key, keylen);
+	u32 flags;
+	int err;
+
+	flags = crypto_ablkcipher_get_flags(tfm);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(tfm, flags);
+		return err;
+	}
+
+	return stm32_cryp_setkey(tfm, key, keylen);
 }
 
 static int stm32_cryp_aes_aead_setkey(struct crypto_aead *tfm, const u8 *key,
