@@ -796,8 +796,8 @@ static int intel_prop_read(struct sdw_bus *bus)
 
 	/* BIOS is not giving some values correctly. So, lets override them */
 	bus->prop.num_freq = 1;
-	bus->prop.freq = devm_kcalloc(bus->dev, sizeof(*bus->prop.freq),
-					bus->prop.num_freq, GFP_KERNEL);
+	bus->prop.freq = devm_kcalloc(bus->dev, bus->prop.num_freq,
+				      sizeof(*bus->prop.freq), GFP_KERNEL);
 	if (!bus->prop.freq)
 		return -ENOMEM;
 
