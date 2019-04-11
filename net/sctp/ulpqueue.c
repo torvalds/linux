@@ -738,19 +738,19 @@ void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 fwd_tsn)
 static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 {
 	struct sctp_ulpevent *event = NULL;
-	struct sk_buff_head temp;
 
 	if (skb_queue_empty(&ulpq->reasm))
 		return;
 
 	while ((event = sctp_ulpq_retrieve_reassembled(ulpq)) != NULL) {
-		/* Do ordering if needed.  */
-		if (event->msg_flags & MSG_EOR) {
-			skb_queue_head_init(&temp);
-			__skb_queue_tail(&temp, sctp_event2skb(event));
+		struct sk_buff_head temp;
 
+		skb_queue_head_init(&temp);
+		__skb_queue_tail(&temp, sctp_event2skb(event));
+
+		/* Do ordering if needed.  */
+		if (event->msg_flags & MSG_EOR)
 			event = sctp_ulpq_order(ulpq, event);
-		}
 
 		/* Send event to the ULP.  'event' is the
 		 * sctp_ulpevent for  very first SKB on the  temp' list.
@@ -1082,6 +1082,10 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 		event = sctp_ulpq_retrieve_first(ulpq);
 		/* Send event to the ULP.   */
 		if (event) {
+			struct sk_buff_head temp;
+
+			skb_queue_head_init(&temp);
+			__skb_queue_tail(&temp, sctp_event2skb(event));
 			sctp_ulpq_tail_event(ulpq, event);
 			sctp_ulpq_set_pd(ulpq);
 			return;
