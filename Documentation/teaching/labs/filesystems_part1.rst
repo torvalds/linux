@@ -493,13 +493,13 @@ The error message we get shows that we have not implemented the operations that 
 2. Completing myfs superblock
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To be able to mount the file system, we need to complete its superblock, that is, a generic VFS structure of type :c:type:`struct super_block`.
+To be able to mount the file system, we need to fill its superblock's fields, that is, a generic VFS structure of type :c:type:`struct super_block`.
 We will fill out the structure within the :c:func:`myfs_fill_super` function; the superblock is represented by the variable ``sb`` passed as an argument to the function.
 Follow the hints marked with ``TODO 2``.
 
 .. note::
 
-  To complete the ``myfs_fill_super`` function, you can start from the example in the section :ref:`FillSuperSection`.
+  To fill the ``myfs_fill_super`` function, you can start from the example in the section :ref:`FillSuperSection`.
 
   For the superblock structure fields, use the macros defined within the code skeleton wherever possible.
 
@@ -531,7 +531,7 @@ To successfully complete mounting the file system, you will need to fill the ``m
 
 .. note::
 
-  To initialize ``uid`` ,``gid`` and ``mode`` , you can use the :c:func:`inode_init_owner` function as it is used in :c:func:`ramfs_get_inode`.
+  To initialize ``uid``, ``gid`` and ``mode`` , you can use the :c:func:`inode_init_owner` function as it is used in :c:func:`ramfs_get_inode`.
   When you call :c:func:`inode_init_owner`, use ``NULL`` as the second parameter because there is no parent directory for the created inode.
 
   Initialize the ``i_atime``, ``i_atime``, and ``i_mtime`` of the VFS inode to the value returned by the :c:func:`current_time` function.
