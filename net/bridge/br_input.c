@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/netfilter_bridge.h>
+#include <net/netfilter/nf_queue.h>
 #include <linux/neighbour.h>
 #include <net/arp.h>
 #include <linux/export.h>
@@ -206,6 +207,55 @@ static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_bu
 	return 0;
 }
 
+static int nf_hook_bridge_pre(struct sk_buff *skb, struct sk_buff **pskb)
+{
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
+	struct nf_hook_entries *e = NULL;
+	struct nf_hook_state state;
+	unsigned int verdict, i;
+	struct net *net;
+	int ret;
+
+	net = dev_net(skb->dev);
+#ifdef HAVE_JUMP_LABEL
+	if (!static_key_false(&nf_hooks_needed[NFPROTO_BRIDGE][NF_BR_PRE_ROUTING]))
+		goto frame_finish;
+#endif
+
+	e = rcu_dereference(net->nf.hooks_bridge[NF_BR_PRE_ROUTING]);
+	if (!e)
+		goto frame_finish;
+
+	nf_hook_state_init(&state, NF_BR_PRE_ROUTING,
+			   NFPROTO_BRIDGE, skb->dev, NULL, NULL,
+			   net, br_handle_frame_finish);
+
+	for (i = 0; i < e->num_hook_entries; i++) {
+		verdict = nf_hook_entry_hookfn(&e->hooks[i], skb, &state);
+		switch (verdict & NF_VERDICT_MASK) {
+		case NF_ACCEPT:
+			break;
+		case NF_DROP:
+			kfree_skb(skb);
+			return RX_HANDLER_CONSUMED;
+		case NF_QUEUE:
+			ret = nf_queue(skb, &state, e, i, verdict);
+			if (ret == 1)
+				continue;
+			return RX_HANDLER_CONSUMED;
+		default: /* STOLEN */
+			return RX_HANDLER_CONSUMED;
+		}
+	}
+frame_finish:
+	net = dev_net(skb->dev);
+	br_handle_frame_finish(net, NULL, skb);
+#else
+	br_handle_frame_finish(dev_net(skb->dev), NULL, skb);
+#endif
+	return RX_HANDLER_CONSUMED;
+}
+
 /*
  * Return NULL if skb is handled
  * note: already called with rcu_read_lock
@@ -304,10 +354,7 @@ forward:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
-		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
-			dev_net(skb->dev), NULL, skb, skb->dev, NULL,
-			br_handle_frame_finish);
-		break;
+		return nf_hook_bridge_pre(skb, pskb);
 	default:
 drop:
 		kfree_skb(skb);

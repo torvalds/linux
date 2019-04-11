@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/rcupdate.h>
 #include <net/net_namespace.h>
+#include <net/netfilter/nf_queue.h>
 #include <net/sock.h>
 
 #include "nf_internals.h"
