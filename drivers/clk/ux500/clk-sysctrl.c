@@ -42,7 +42,8 @@ static int clk_sysctrl_prepare(struct clk_hw *hw)
 				clk->reg_bits[0]);
 
 	if (!ret && clk->enable_delay_us)
-		usleep_range(clk->enable_delay_us, clk->enable_delay_us);
+		usleep_range(clk->enable_delay_us, clk->enable_delay_us +
+			     (clk->enable_delay_us >> 2));
 
 	return ret;
 }
