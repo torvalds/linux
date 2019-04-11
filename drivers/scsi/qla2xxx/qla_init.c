@@ -1620,21 +1620,21 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
  */
 void qla_rscn_replay(fc_port_t *fcport)
 {
-       struct event_arg ea;
+	struct event_arg ea;
 
-       switch (fcport->disc_state) {
-       case DSC_DELETE_PEND:
-               return;
-       default:
-               break;
-       }
+	switch (fcport->disc_state) {
+	case DSC_DELETE_PEND:
+		return;
+	default:
+		break;
+	}
 
-       if (fcport->scan_needed) {
-               memset(&ea, 0, sizeof(ea));
-               ea.event = FCME_RSCN;
-               ea.id = fcport->d_id;
-               ea.id.b.rsvd_1 = RSCN_PORT_ADDR;
-               qla2x00_fcport_event_handler(fcport->vha, &ea);
+	if (fcport->scan_needed) {
+		memset(&ea, 0, sizeof(ea));
+		ea.event = FCME_RSCN;
+		ea.id = fcport->d_id;
+		ea.id.b.rsvd_1 = RSCN_PORT_ADDR;
+		qla2x00_fcport_event_handler(fcport->vha, &ea);
 	}
 }
 

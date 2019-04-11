@@ -1518,18 +1518,18 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	switch (scsi_get_prot_op(GET_CMD_SP(sp))) {
 	case SCSI_PROT_READ_INSERT:
 	case SCSI_PROT_WRITE_STRIP:
-	    total_bytes = data_bytes;
-	    data_bytes += dif_bytes;
-	    break;
+		total_bytes = data_bytes;
+		data_bytes += dif_bytes;
+		break;
 
 	case SCSI_PROT_READ_STRIP:
 	case SCSI_PROT_WRITE_INSERT:
 	case SCSI_PROT_READ_PASS:
 	case SCSI_PROT_WRITE_PASS:
-	    total_bytes = data_bytes + dif_bytes;
-	    break;
+		total_bytes = data_bytes + dif_bytes;
+		break;
 	default:
-	    BUG();
+		BUG();
 	}
 
 	if (!qla2x00_hba_err_chk_enabled(sp))
