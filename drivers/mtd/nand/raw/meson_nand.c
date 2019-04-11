@@ -470,15 +470,15 @@ static int meson_nfc_ecc_correct(struct nand_chip *nand, u32 *bitflips,
 	return ret;
 }
 
-static int meson_nfc_dma_buffer_setup(struct nand_chip *nand, u8 *databuf,
-				      int datalen, u8 *infobuf, int infolen,
+static int meson_nfc_dma_buffer_setup(struct nand_chip *nand, void *databuf,
+				      int datalen, void *infobuf, int infolen,
 				      enum dma_data_direction dir)
 {
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	u32 cmd;
 	int ret = 0;
 
-	nfc->daddr = dma_map_single(nfc->dev, (void *)databuf, datalen, dir);
+	nfc->daddr = dma_map_single(nfc->dev, databuf, datalen, dir);
 	ret = dma_mapping_error(nfc->dev, nfc->daddr);
 	if (ret) {
 		dev_err(nfc->dev, "DMA mapping error\n");
@@ -645,7 +645,7 @@ static int meson_nfc_write_page_sub(struct nand_chip *nand,
 		return ret;
 
 	ret = meson_nfc_dma_buffer_setup(nand, meson_chip->data_buf,
-					 data_len, (u8 *)meson_chip->info_buf,
+					 data_len, meson_chip->info_buf,
 					 info_len, DMA_TO_DEVICE);
 	if (ret)
 		return ret;
@@ -729,7 +729,7 @@ static int meson_nfc_read_page_sub(struct nand_chip *nand,
 		return ret;
 
 	ret = meson_nfc_dma_buffer_setup(nand, meson_chip->data_buf,
-					 data_len, (u8 *)meson_chip->info_buf,
+					 data_len, meson_chip->info_buf,
 					 info_len, DMA_FROM_DEVICE);
 	if (ret)
 		return ret;
