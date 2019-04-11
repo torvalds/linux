@@ -2628,18 +2628,6 @@ static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-/*
- * Checks related to Guest Non-register State
- */
-static int nested_check_guest_non_reg_state(struct vmcs12 *vmcs12)
-{
-	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
-	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
 					    struct vmcs12 *vmcs12)
 {
@@ -2650,9 +2638,6 @@ static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
 
 	if (nested_check_host_control_regs(vcpu, vmcs12))
 		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
-
-	if (nested_check_guest_non_reg_state(vmcs12))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	return 0;
 }
@@ -2682,6 +2667,18 @@ static int nested_vmx_check_vmcs_link_ptr(struct kvm_vcpu *vcpu,
 	kunmap(page);
 	kvm_release_page_clean(page);
 	return r;
+}
+
+/*
+ * Checks related to Guest Non-register State
+ */
+static int nested_check_guest_non_reg_state(struct vmcs12 *vmcs12)
+{
+	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
+	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int nested_vmx_check_vmentry_postreqs(struct kvm_vcpu *vcpu,
@@ -2728,6 +2725,9 @@ static int nested_vmx_check_vmentry_postreqs(struct kvm_vcpu *vcpu,
 		(is_noncanonical_address(vmcs12->guest_bndcfgs & PAGE_MASK, vcpu) ||
 		(vmcs12->guest_bndcfgs & MSR_IA32_BNDCFGS_RSVD)))
 			return 1;
+
+	if (nested_check_guest_non_reg_state(vmcs12))
+		return 1;
 
 	return 0;
 }
