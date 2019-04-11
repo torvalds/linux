@@ -2607,6 +2607,13 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			goto free;
 		}
 		band = chanctx_conf->def.chan->band;
+
+		/* For injected frames, fill RA right away as nexthop lookup
+		 * will be skipped.
+		 */
+		if ((ctrl_flags & IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP) &&
+		    is_zero_ether_addr(hdr.addr1))
+			memcpy(hdr.addr1, skb->data, ETH_ALEN);
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
@@ -5087,6 +5094,35 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 
 	local_bh_disable();
 	__ieee80211_subif_start_xmit(skb, skb->dev, flags, 0);
+	local_bh_enable();
+
+	return 0;
+}
+
+int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
+			      const u8 *buf, size_t len)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len +
+			    30 + /* header size */
+			    18); /* 11s header size */
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_put_data(skb, buf, len);
+
+	skb->dev = dev;
+	skb->protocol = htons(ETH_P_802_3);
+	skb_reset_network_header(skb);
+	skb_reset_mac_header(skb);
+
+	local_bh_disable();
+	__ieee80211_subif_start_xmit(skb, skb->dev, 0,
+				     IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP);
 	local_bh_enable();
 
 	return 0;
