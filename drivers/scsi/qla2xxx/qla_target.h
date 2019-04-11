@@ -890,8 +890,6 @@ struct qla_tgt_cmd {
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
 	unsigned int aborted:1;
-	unsigned int data_work:1;
-	unsigned int data_work_free:1;
 	unsigned int released:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */

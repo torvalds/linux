@@ -499,9 +499,7 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 		return;
 	}
 
-	cmd->data_work = 1;
 	if (cmd->aborted) {
-		cmd->data_work_free = 1;
 		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
 		tcm_qla2xxx_free_cmd(cmd);
