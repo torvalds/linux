@@ -839,7 +839,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 		peer = get_net_ns_by_fd(nla_get_u32(tb[NETNSA_FD]));
 		nla = tb[NETNSA_FD];
 	} else if (tb[NETNSA_NSID]) {
-		peer = get_net_ns_by_id(net, nla_get_u32(tb[NETNSA_NSID]));
+		peer = get_net_ns_by_id(net, nla_get_s32(tb[NETNSA_NSID]));
 		if (!peer)
 			peer = ERR_PTR(-ENOENT);
 		nla = tb[NETNSA_NSID];
