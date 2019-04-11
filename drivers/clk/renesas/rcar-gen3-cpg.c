@@ -383,7 +383,6 @@ static struct clk * __init cpg_sd_clk_register(const char *name,
 	struct clk_init_data init;
 	struct sd_clock *clock;
 	struct clk *clk;
-	unsigned int i;
 	u32 val;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
