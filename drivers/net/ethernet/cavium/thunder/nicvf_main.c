@@ -1554,6 +1554,15 @@ static int nicvf_change_mtu(struct net_device *netdev, int new_mtu)
 	struct nicvf *nic = netdev_priv(netdev);
 	int orig_mtu = netdev->mtu;
 
+	/* For now just support only the usual MTU sized frames,
+	 * plus some headroom for VLAN, QinQ.
+	 */
+	if (nic->xdp_prog && new_mtu > MAX_XDP_MTU) {
+		netdev_warn(netdev, "Jumbo frames not yet supported with XDP, current MTU %d.\n",
+			    netdev->mtu);
+		return -EINVAL;
+	}
+
 	netdev->mtu = new_mtu;
 
 	if (!netif_running(netdev))
