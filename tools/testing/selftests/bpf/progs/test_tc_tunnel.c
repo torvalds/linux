@@ -157,7 +157,7 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, __u8 encap_proto,
 				       bpf_ntohs(h_outer.ip.tot_len));
 	h_outer.ip.protocol = encap_proto;
 
-	set_ipv4_csum(&h_outer.ip);
+	set_ipv4_csum((void *)&h_outer.ip);
 
 	/* store new outer network header */
 	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
