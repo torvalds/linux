@@ -400,7 +400,7 @@ static int meson_nfc_queue_rb(struct meson_nfc *nfc, int timeout_ms)
 	cfg |= NFC_RB_IRQ_EN;
 	writel(cfg, nfc->reg_base + NFC_REG_CFG);
 
-	init_completion(&nfc->completion);
+	reinit_completion(&nfc->completion);
 
 	/* use the max erase time as the maximum clock for waiting R/B */
 	cmd = NFC_CMD_RB | NFC_CMD_RB_INT
@@ -1380,6 +1380,7 @@ static int meson_nfc_probe(struct platform_device *pdev)
 
 	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
+	init_completion(&nfc->completion);
 
 	nfc->dev = dev;
 
