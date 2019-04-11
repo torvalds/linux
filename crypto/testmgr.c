@@ -2595,7 +2595,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	struct crypto_wait wait;
 	unsigned int out_len_max, out_len = 0;
 	int err = -ENOMEM;
-	struct scatterlist src, dst, src_tab[2];
+	struct scatterlist src, dst, src_tab[3];
 	const char *m, *c;
 	unsigned int m_size, c_size;
 	const char *op;
@@ -2618,13 +2618,12 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	if (err)
 		goto free_req;
 
-	err = -ENOMEM;
-	out_len_max = crypto_akcipher_maxsize(tfm);
-
 	/*
 	 * First run test which do not require a private key, such as
 	 * encrypt or verify.
 	 */
+	err = -ENOMEM;
+	out_len_max = crypto_akcipher_maxsize(tfm);
 	outbuf_enc = kzalloc(out_len_max, GFP_KERNEL);
 	if (!outbuf_enc)
 		goto free_req;
@@ -2650,12 +2649,20 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		goto free_all;
 	memcpy(xbuf[0], m, m_size);
 
-	sg_init_table(src_tab, 2);
+	sg_init_table(src_tab, 3);
 	sg_set_buf(&src_tab[0], xbuf[0], 8);
 	sg_set_buf(&src_tab[1], xbuf[0] + 8, m_size - 8);
-	sg_init_one(&dst, outbuf_enc, out_len_max);
-	akcipher_request_set_crypt(req, src_tab, &dst, m_size,
-				   out_len_max);
+	if (vecs->siggen_sigver_test) {
+		if (WARN_ON(c_size > PAGE_SIZE))
+			goto free_all;
+		memcpy(xbuf[1], c, c_size);
+		sg_set_buf(&src_tab[2], xbuf[1], c_size);
+		akcipher_request_set_crypt(req, src_tab, NULL, m_size, c_size);
+	} else {
+		sg_init_one(&dst, outbuf_enc, out_len_max);
+		akcipher_request_set_crypt(req, src_tab, &dst, m_size,
+					   out_len_max);
+	}
 	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				      crypto_req_done, &wait);
 
@@ -2668,18 +2675,21 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		pr_err("alg: akcipher: %s test failed. err %d\n", op, err);
 		goto free_all;
 	}
-	if (req->dst_len != c_size) {
-		pr_err("alg: akcipher: %s test failed. Invalid output len\n",
-		       op);
-		err = -EINVAL;
-		goto free_all;
-	}
-	/* verify that encrypted message is equal to expected */
-	if (memcmp(c, outbuf_enc, c_size)) {
-		pr_err("alg: akcipher: %s test failed. Invalid output\n", op);
-		hexdump(outbuf_enc, c_size);
-		err = -EINVAL;
-		goto free_all;
+	if (!vecs->siggen_sigver_test) {
+		if (req->dst_len != c_size) {
+			pr_err("alg: akcipher: %s test failed. Invalid output len\n",
+			       op);
+			err = -EINVAL;
+			goto free_all;
+		}
+		/* verify that encrypted message is equal to expected */
+		if (memcmp(c, outbuf_enc, c_size) != 0) {
+			pr_err("alg: akcipher: %s test failed. Invalid output\n",
+			       op);
+			hexdump(outbuf_enc, c_size);
+			err = -EINVAL;
+			goto free_all;
+		}
 	}
 
 	/*

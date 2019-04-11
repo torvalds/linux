@@ -744,12 +744,11 @@ static int tpm_key_verify_signature(const struct key *key,
 	struct crypto_wait cwait;
 	struct crypto_akcipher *tfm;
 	struct akcipher_request *req;
-	struct scatterlist sig_sg, digest_sg;
+	struct scatterlist src_sg[2];
 	char alg_name[CRYPTO_MAX_ALG_NAME];
 	uint8_t der_pub_key[PUB_KEY_BUF_SIZE];
 	uint32_t der_pub_key_len;
-	void *output;
-	unsigned int outlen;
+	void *digest;
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
@@ -782,35 +781,22 @@ static int tpm_key_verify_signature(const struct key *key,
 		goto error_free_tfm;
 
 	ret = -ENOMEM;
-	outlen = crypto_akcipher_maxsize(tfm);
-	output = kmalloc(outlen, GFP_KERNEL);
-	if (!output)
+	digest = kmemdup(sig->digest, sig->digest_size, GFP_KERNEL);
+	if (!digest)
 		goto error_free_req;
 
-	sg_init_one(&sig_sg, sig->s, sig->s_size);
-	sg_init_one(&digest_sg, output, outlen);
-	akcipher_request_set_crypt(req, &sig_sg, &digest_sg, sig->s_size,
-				   outlen);
+	sg_init_table(src_sg, 2);
+	sg_set_buf(&src_sg[0], sig->s, sig->s_size);
+	sg_set_buf(&src_sg[1], digest, sig->digest_size);
+	akcipher_request_set_crypt(req, src_sg, NULL, sig->s_size,
+				   sig->digest_size);
 	crypto_init_wait(&cwait);
 	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
 				      CRYPTO_TFM_REQ_MAY_SLEEP,
 				      crypto_req_done, &cwait);
-
-	/* Perform the verification calculation.  This doesn't actually do the
-	 * verification, but rather calculates the hash expected by the
-	 * signature and returns that to us.
-	 */
 	ret = crypto_wait_req(crypto_akcipher_verify(req), &cwait);
-	if (ret)
-		goto out_free_output;
 
-	/* Do the actual verification step. */
-	if (req->dst_len != sig->digest_size ||
-	    memcmp(sig->digest, output, sig->digest_size) != 0)
-		ret = -EKEYREJECTED;
-
-out_free_output:
-	kfree(output);
+	kfree(digest);
 error_free_req:
 	akcipher_request_free(req);
 error_free_tfm:
