@@ -3050,14 +3050,17 @@ static int sof_manifest(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_manifest *man)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size;
+
+	size = le32_to_cpu(man->priv.size);
 
 	/* backward compatible with tplg without ABI info */
-	if (!man->priv.size) {
+	if (!size) {
 		dev_dbg(sdev->dev, "No topology ABI info\n");
 		return 0;
 	}
 
-	if (man->priv.size == SOF_TPLG_ABI_SIZE) {
+	if (size == SOF_TPLG_ABI_SIZE) {
 		dev_info(sdev->dev,
 			 "Topology: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
 			 man->priv.data[0], man->priv.data[1],
