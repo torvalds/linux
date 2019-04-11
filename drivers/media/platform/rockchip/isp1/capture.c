@@ -282,7 +282,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
 	}, {
-		.fourcc = V4L2_PIX_FMT_SRGGB8,
+		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
