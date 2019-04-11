@@ -861,6 +861,26 @@ int bio_add_page(struct bio *bio, struct page *page,
 }
 EXPORT_SYMBOL(bio_add_page);
 
+static void bio_get_pages(struct bio *bio)
+{
+	struct bvec_iter_all iter_all;
+	struct bio_vec *bvec;
+	int i;
+
+	bio_for_each_segment_all(bvec, bio, i, iter_all)
+		get_page(bvec->bv_page);
+}
+
+static void bio_release_pages(struct bio *bio)
+{
+	struct bvec_iter_all iter_all;
+	struct bio_vec *bvec;
+	int i;
+
+	bio_for_each_segment_all(bvec, bio, i, iter_all)
+		put_page(bvec->bv_page);
+}
+
 static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
 {
 	const struct bio_vec *bv = iter->bvec;
@@ -875,15 +895,6 @@ static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
 				bv->bv_offset + iter->iov_offset);
 	if (unlikely(size != len))
 		return -EINVAL;
-
-	if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
-		struct page *page;
-		int i;
-
-		mp_bvec_for_each_page(page, bv, i)
-			get_page(page);
-	}
-
 	iov_iter_advance(iter, size);
 	return 0;
 }
@@ -963,19 +974,17 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	if (WARN_ON_ONCE(bio->bi_vcnt))
 		return -EINVAL;
 
-	/*
-	 * If this is a BVEC iter, then the pages are kernel pages. Don't
-	 * release them on IO completion, if the caller asked us to.
-	 */
-	if (is_bvec && iov_iter_bvec_no_ref(iter))
-		bio_set_flag(bio, BIO_NO_PAGE_REF);
-
 	do {
 		if (is_bvec)
 			ret = __bio_iov_bvec_add_pages(bio, iter);
 		else
 			ret = __bio_iov_iter_get_pages(bio, iter);
 	} while (!ret && iov_iter_count(iter) && !bio_full(bio));
+
+	if (iov_iter_bvec_no_ref(iter))
+		bio_set_flag(bio, BIO_NO_PAGE_REF);
+	else
+		bio_get_pages(bio);
 
 	return bio->bi_vcnt ? 0 : ret;
 }
@@ -1668,16 +1677,6 @@ void bio_set_pages_dirty(struct bio *bio)
 		if (!PageCompound(bvec->bv_page))
 			set_page_dirty_lock(bvec->bv_page);
 	}
-}
-
-static void bio_release_pages(struct bio *bio)
-{
-	struct bio_vec *bvec;
-	int i;
-	struct bvec_iter_all iter_all;
-
-	bio_for_each_segment_all(bvec, bio, i, iter_all)
-		put_page(bvec->bv_page);
 }
 
 /*

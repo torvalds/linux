@@ -189,9 +189,4 @@ static inline void mp_bvec_last_segment(const struct bio_vec *bvec,
 	}
 }
 
-#define mp_bvec_for_each_page(pg, bv, i)				\
-	for (i = (bv)->bv_offset / PAGE_SIZE;				\
-		(i <= (((bv)->bv_offset + (bv)->bv_len - 1) / PAGE_SIZE)) && \
-		(pg = bvec_nth_page((bv)->bv_page, i)); i += 1)
-
 #endif /* __LINUX_BVEC_ITER_H */
