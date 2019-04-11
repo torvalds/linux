@@ -130,6 +130,7 @@ Register and unregister filesystems
 ===================================
 
 In the current version, the Linux kernel supports about 50 file systems, including:
+
   * ext2/ ext4
   * reiserfs
   * xfs
@@ -199,6 +200,7 @@ Functions mount, kill_sb
 ------------------------
 
 When mounting  the file system, the kernel calls the mount function defined within the structure :c:type:`file_system_type`. The function makes a set of initializations and returns a dentry (the structure :c:type:`struct dentry`) that represents the mount point directory. Usually :c:func:`mount` is a simple function that calls one of the functions:
+
   * :c:func:`mount_bdev`, which mounts a file system stored on a block device
   * :c:func:`mount_single`, which mounts a file system that shares an instance between all mount operations
   * :c:func:`mount_nodev`, which mounts a file system that is not on a physical device
@@ -207,6 +209,7 @@ When mounting  the file system, the kernel calls the mount function defined with
 These functions get as parameter a pointer to a function :c:func:`fill_super` that will be called after the superblock initialization to finish the its initialization it by the driver. An example of such a function can be found in the ``fill_super`` section.
 
 When unmounting the file system, the kernel calls :c:func:`kill_sb`, which performs cleanup operations and invokes one of the functions:
+
   * :c:func:`kill_block_super`, which unmounts a file system on a block device
   * :c:func:`kill_anon_super`, which unmounts a virtual file system (information is generated when requested)
   * :c:func:`kill_litter_super`, which unmounts a file system that is not on a physical device (the information is kept in memory)
