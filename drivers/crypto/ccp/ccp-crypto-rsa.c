@@ -213,8 +213,6 @@ static void ccp_rsa_exit_tfm(struct crypto_akcipher *tfm)
 static struct akcipher_alg ccp_rsa_defaults = {
 	.encrypt = ccp_rsa_encrypt,
 	.decrypt = ccp_rsa_decrypt,
-	.sign = ccp_rsa_decrypt,
-	.verify = ccp_rsa_encrypt,
 	.set_pub_key = ccp_rsa_setpubkey,
 	.set_priv_key = ccp_rsa_setprivkey,
 	.max_size = ccp_rsa_maxsize,
