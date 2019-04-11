@@ -483,14 +483,6 @@ typedef u32 (*bpf_convert_ctx_access_t)(enum bpf_access_type type,
 u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy);
 
-int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
-			  union bpf_attr __user *uattr);
-int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
-			  union bpf_attr __user *uattr);
-int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
-				     const union bpf_attr *kattr,
-				     union bpf_attr __user *uattr);
-
 /* an array of programs to be executed under rcu_lock.
  *
  * Typical usage:
@@ -681,6 +673,13 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
 int array_map_alloc_check(union bpf_attr *attr);
 
+int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+				     const union bpf_attr *kattr,
+				     union bpf_attr __user *uattr);
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
@@ -791,6 +790,27 @@ static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,
 				enum bpf_prog_type type)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int bpf_prog_test_run_xdp(struct bpf_prog *prog,
+					const union bpf_attr *kattr,
+					union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
+}
+
+static inline int bpf_prog_test_run_skb(struct bpf_prog *prog,
+					const union bpf_attr *kattr,
+					union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
+}
+
+static inline int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+						   const union bpf_attr *kattr,
+						   union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
 }
 #endif /* CONFIG_BPF_SYSCALL */
 
