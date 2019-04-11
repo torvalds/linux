@@ -260,10 +260,9 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (plat_data->fw)
 		return 0;
 
-	fw_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
-				     "%s/%s",
-				     plat_data->fw_filename_prefix,
-				     plat_data->fw_filename);
+	fw_filename = kasprintf(GFP_KERNEL, "%s/%s",
+				plat_data->fw_filename_prefix,
+				plat_data->fw_filename);
 	if (!fw_filename)
 		return -ENOMEM;
 
@@ -273,6 +272,9 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
 	}
+
+	kfree(fw_filename);
+
 	return ret;
 }
 EXPORT_SYMBOL(snd_sof_load_firmware_raw);
