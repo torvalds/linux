@@ -551,4 +551,20 @@ config SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH
 
 endif ## SND_SOC_SOF_JASPERLAKE
 
+if SND_SOC_SOF_INTEL_SOUNDWIRE
+
+config SND_SOC_INTEL_SOUNDWIRE_RT700_MACH
+	tristate "SoundWire with RT700 codec"
+        depends on SOUNDWIRE && ACPI
+	select SND_SOC_RT700_SDW
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI if SND_SOC_SOF_HDA_LINK
+        help
+	  Add support for Intel SoundWire-based platforms connected to RT700
+	  on link 0 or 1
+	  If unsure select "N"
+
+endif
+
+
 endif ## SND_SOC_INTEL_MACH
