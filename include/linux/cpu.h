@@ -140,7 +140,12 @@ extern void enable_nonboot_cpus(void);
 
 static inline int suspend_disable_secondary_cpus(void)
 {
-	return freeze_secondary_cpus(0);
+	int cpu = 0;
+
+	if (IS_ENABLED(CONFIG_PM_SLEEP_SMP_NONZERO_CPU))
+		cpu = -1;
+
+	return freeze_secondary_cpus(cpu);
 }
 static inline void suspend_enable_secondary_cpus(void)
 {
