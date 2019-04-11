@@ -229,7 +229,6 @@ int public_key_verify_signature(const struct public_key *pkey,
 	struct akcipher_request *req;
 	struct scatterlist src_sg[2];
 	char alg_name[CRYPTO_MAX_ALG_NAME];
-	void *digest;
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
@@ -262,14 +261,9 @@ int public_key_verify_signature(const struct public_key *pkey,
 	if (ret)
 		goto error_free_req;
 
-	ret = -ENOMEM;
-	digest = kmemdup(sig->digest, sig->digest_size, GFP_KERNEL);
-	if (!digest)
-		goto error_free_req;
-
 	sg_init_table(src_sg, 2);
 	sg_set_buf(&src_sg[0], sig->s, sig->s_size);
-	sg_set_buf(&src_sg[1], digest, sig->digest_size);
+	sg_set_buf(&src_sg[1], sig->digest, sig->digest_size);
 	akcipher_request_set_crypt(req, src_sg, NULL, sig->s_size,
 				   sig->digest_size);
 	crypto_init_wait(&cwait);
@@ -278,7 +272,6 @@ int public_key_verify_signature(const struct public_key *pkey,
 				      crypto_req_done, &cwait);
 	ret = crypto_wait_req(crypto_akcipher_verify(req), &cwait);
 
-	kfree(digest);
 error_free_req:
 	akcipher_request_free(req);
 error_free_tfm:
