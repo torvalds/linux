@@ -1450,7 +1450,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 						KBD_UNICODE, &param);
 		if (rc != NOTIFY_STOP)
 			if (down && !raw_mode)
-				to_utf8(vc, keysym);
+				k_unicode(vc, keysym, !down);
 		return;
 	}
 
