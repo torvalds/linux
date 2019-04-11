@@ -779,7 +779,7 @@ static int shiftfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	inode_lock(loweri);
 	oldcred = shiftfs_override_creds(dentry->d_sb);
-	err = notify_change(lowerd, attr, NULL);
+	err = notify_change(lowerd, &newattr, NULL);
 	revert_creds(oldcred);
 	inode_unlock(loweri);
 
