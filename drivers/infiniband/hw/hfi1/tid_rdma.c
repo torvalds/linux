@@ -2920,7 +2920,7 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 
 	trace_hfi1_msg_handle_kdeth_eflags(NULL, "Kdeth error: rhf ",
 					   packet->rhf);
-	if (packet->rhf & (RHF_VCRC_ERR | RHF_ICRC_ERR))
+	if (packet->rhf & RHF_ICRC_ERR)
 		return ret;
 
 	packet->ohdr = &hdr->u.oth;
