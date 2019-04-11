@@ -146,7 +146,7 @@ static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
 
 static int queue_count_set(const char *val, const struct kernel_param *kp)
 {
-	int n = 0, ret;
+	int n, ret;
 
 	ret = kstrtoint(val, 10, &n);
 	if (ret)
