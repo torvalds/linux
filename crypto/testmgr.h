@@ -25,6 +25,8 @@
 #ifndef _CRYPTO_TESTMGR_H
 #define _CRYPTO_TESTMGR_H
 
+#include <linux/oid_registry.h>
+
 #define MAX_IVLEN		32
 
 /*
@@ -135,13 +137,16 @@ struct drbg_testvec {
 
 struct akcipher_testvec {
 	const unsigned char *key;
+	const unsigned char *params;
 	const unsigned char *m;
 	const unsigned char *c;
 	unsigned int key_len;
+	unsigned int param_len;
 	unsigned int m_size;
 	unsigned int c_size;
 	bool public_key_vec;
 	bool siggen_sigver_test;
+	enum OID algo;
 };
 
 struct kpp_testvec {

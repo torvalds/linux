@@ -26,6 +26,9 @@ struct x509_parse_context {
 	const void	*cert_start;		/* Start of cert content */
 	const void	*key;			/* Key data */
 	size_t		key_size;		/* Size of key data */
+	const void	*params;		/* Key parameters */
+	size_t		params_size;		/* Size of key parameters */
+	enum OID	key_algo;		/* Public key algorithm */
 	enum OID	last_oid;		/* Last OID encountered */
 	enum OID	algo_oid;		/* Algorithm OID */
 	unsigned char	nr_mpi;			/* Number of MPIs stored */
@@ -108,6 +111,13 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		goto error_decode;
 
 	cert->pub->keylen = ctx->key_size;
+
+	cert->pub->params = kmemdup(ctx->params, ctx->params_size, GFP_KERNEL);
+	if (!cert->pub->params)
+		goto error_decode;
+
+	cert->pub->paramlen = ctx->params_size;
+	cert->pub->algo = ctx->key_algo;
 
 	/* Grab the signature bits */
 	ret = x509_get_sig_params(cert);
@@ -398,6 +408,27 @@ int x509_note_subject(void *context, size_t hdrlen,
 	ctx->cert->raw_subject = value;
 	ctx->cert->raw_subject_size = vlen;
 	return x509_fabricate_name(ctx, hdrlen, tag, &ctx->cert->subject, vlen);
+}
+
+/*
+ * Extract the parameters for the public key
+ */
+int x509_note_params(void *context, size_t hdrlen,
+		     unsigned char tag,
+		     const void *value, size_t vlen)
+{
+	struct x509_parse_context *ctx = context;
+
+	/*
+	 * AlgorithmIdentifier is used three times in the x509, we should skip
+	 * first and ignore third, using second one which is after subject and
+	 * before subjectPublicKey.
+	 */
+	if (!ctx->cert->raw_subject || ctx->key)
+		return 0;
+	ctx->params = value - hdrlen;
+	ctx->params_size = vlen + hdrlen;
+	return 0;
 }
 
 /*

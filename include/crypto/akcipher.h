@@ -74,10 +74,10 @@ struct crypto_akcipher {
  *		operation
  * @set_pub_key: Function invokes the algorithm specific set public key
  *		function, which knows how to decode and interpret
- *		the BER encoded public key
+ *		the BER encoded public key and parameters
  * @set_priv_key: Function invokes the algorithm specific set private key
  *		function, which knows how to decode and interpret
- *		the BER encoded private key
+ *		the BER encoded private key and parameters
  * @max_size:	Function returns dest buffer size required for a given key.
  * @init:	Initialize the cryptographic transformation object.
  *		This function is used to initialize the cryptographic
@@ -379,11 +379,12 @@ static inline int crypto_akcipher_verify(struct akcipher_request *req)
  * crypto_akcipher_set_pub_key() - Invoke set public key operation
  *
  * Function invokes the algorithm specific set key function, which knows
- * how to decode and interpret the encoded key
+ * how to decode and interpret the encoded key and parameters
  *
  * @tfm:	tfm handle
- * @key:	BER encoded public key
- * @keylen:	length of the key
+ * @key:	BER encoded public key, algo OID, paramlen, BER encoded
+ *		parameters
+ * @keylen:	length of the key (not including other data)
  *
  * Return: zero on success; error code in case of error
  */
@@ -400,11 +401,12 @@ static inline int crypto_akcipher_set_pub_key(struct crypto_akcipher *tfm,
  * crypto_akcipher_set_priv_key() - Invoke set private key operation
  *
  * Function invokes the algorithm specific set key function, which knows
- * how to decode and interpret the encoded key
+ * how to decode and interpret the encoded key and parameters
  *
  * @tfm:	tfm handle
- * @key:	BER encoded private key
- * @keylen:	length of the key
+ * @key:	BER encoded private key, algo OID, paramlen, BER encoded
+ *		parameters
+ * @keylen:	length of the key (not including other data)
  *
  * Return: zero on success; error code in case of error
  */

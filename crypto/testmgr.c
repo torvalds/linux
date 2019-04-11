@@ -2585,6 +2585,12 @@ static int alg_test_kpp(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
+static u8 *test_pack_u32(u8 *dst, u32 val)
+{
+	memcpy(dst, &val, sizeof(val));
+	return dst + sizeof(val);
+}
+
 static int test_akcipher_one(struct crypto_akcipher *tfm,
 			     const struct akcipher_testvec *vecs)
 {
@@ -2599,6 +2605,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	const char *m, *c;
 	unsigned int m_size, c_size;
 	const char *op;
+	u8 *key, *ptr;
 
 	if (testmgr_alloc_buf(xbuf))
 		return err;
@@ -2609,12 +2616,20 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 
 	crypto_init_wait(&wait);
 
+	key = kmalloc(vecs->key_len + sizeof(u32) * 2 + vecs->param_len,
+		      GFP_KERNEL);
+	if (!key)
+		goto free_xbuf;
+	memcpy(key, vecs->key, vecs->key_len);
+	ptr = key + vecs->key_len;
+	ptr = test_pack_u32(ptr, vecs->algo);
+	ptr = test_pack_u32(ptr, vecs->param_len);
+	memcpy(ptr, vecs->params, vecs->param_len);
+
 	if (vecs->public_key_vec)
-		err = crypto_akcipher_set_pub_key(tfm, vecs->key,
-						  vecs->key_len);
+		err = crypto_akcipher_set_pub_key(tfm, key, vecs->key_len);
 	else
-		err = crypto_akcipher_set_priv_key(tfm, vecs->key,
-						   vecs->key_len);
+		err = crypto_akcipher_set_priv_key(tfm, key, vecs->key_len);
 	if (err)
 		goto free_req;
 
@@ -2744,6 +2759,7 @@ free_all:
 	kfree(outbuf_enc);
 free_req:
 	akcipher_request_free(req);
+	kfree(key);
 free_xbuf:
 	testmgr_free_buf(xbuf);
 	return err;

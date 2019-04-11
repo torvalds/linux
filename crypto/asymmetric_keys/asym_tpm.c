@@ -276,6 +276,10 @@ static int tpm_sign(struct tpm_buf *tb,
 
 	return datalen;
 }
+
+/* Room to fit two u32 zeros for algo id and parameters length. */
+#define SETKEY_PARAMS_SIZE (sizeof(u32) * 2)
+
 /*
  * Maximum buffer size for the BER/DER encoded public key.  The public key
  * is of the form SEQUENCE { INTEGER n, INTEGER e } where n is a maximum 2048
@@ -286,8 +290,9 @@ static int tpm_sign(struct tpm_buf *tb,
  *     - 257 bytes of n
  *   - max 2 bytes for INTEGER e type/length
  *     - 3 bytes of e
+ * - 4+4 of zeros for set_pub_key parameters (SETKEY_PARAMS_SIZE)
  */
-#define PUB_KEY_BUF_SIZE (4 + 4 + 257 + 2 + 3)
+#define PUB_KEY_BUF_SIZE (4 + 4 + 257 + 2 + 3 + SETKEY_PARAMS_SIZE)
 
 /*
  * Provide a part of a description of the key for /proc/keys.
@@ -364,6 +369,8 @@ static uint32_t derive_pub_key(const void *pub_key, uint32_t len, uint8_t *buf)
 	cur = encode_tag_length(cur, 0x02, sizeof(e));
 	memcpy(cur, e, sizeof(e));
 	cur += sizeof(e);
+	/* Zero parameters to satisfy set_pub_key ABI. */
+	memset(cur, 0, SETKEY_PARAMS_SIZE);
 
 	return cur - buf;
 }
