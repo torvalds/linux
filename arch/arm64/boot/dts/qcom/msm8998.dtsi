@@ -874,6 +874,75 @@
 				<GIC_SPI 369 IRQ_TYPE_EDGE_RISING>;
 		};
 
+		pcie0: pci@1c00000 {
+			compatible = "qcom,pcie-msm8996";
+			reg =	<0x01c00000 0x2000>,
+				<0x1b000000 0xf1d>,
+				<0x1b000f20 0xa8>,
+				<0x1b100000 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "config";
+			device_type = "pci";
+			linux,pci-domain = <0>;
+			bus-range = <0x00 0xff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			num-lanes = <1>;
+			phys = <&pciephy>;
+			phy-names = "pciephy";
+
+			ranges = <0x01000000 0x0 0x1b200000 0x1b200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x1b300000 0x1b300000 0x0 0xd00000>;
+
+			#interrupt-cells = <1>;
+			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi";
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map =	<0 0 0 1 &intc 0 135 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 136 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 138 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 139 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>,
+				 <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_0_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_0_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_0_AUX_CLK>;
+			clock-names = "pipe", "bus_master", "bus_slave", "cfg", "aux";
+
+			power-domains = <&gcc PCIE_0_GDSC>;
+			iommu-map = <0x100 &anoc1_smmu 0x1480 1>;
+			perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
+		};
+
+		phy@1c06000 {
+			compatible = "qcom,msm8998-qmp-pcie-phy";
+			reg = <0x01c06000 0x18c>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clocks = <&gcc GCC_PCIE_PHY_AUX_CLK>,
+				 <&gcc GCC_PCIE_0_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_CLKREF_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref";
+
+			resets = <&gcc GCC_PCIE_0_PHY_BCR>, <&gcc GCC_PCIE_PHY_BCR>;
+			reset-names = "phy", "common";
+
+			vdda-phy-supply = <&vreg_l1a_0p875>;
+			vdda-pll-supply = <&vreg_l2a_1p2>;
+
+			pciephy: lane@1c06800 {
+				reg = <0x01c06200 0x128>, <0x01c06400 0x1fc>, <0x01c06800 0x20c>;
+				#phy-cells = <0>;
+
+				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
+				clock-names = "pipe0";
+				clock-output-names = "pcie_0_pipe_clk_src";
+				#clock-cells = <0>;
+			};
+		};
+
 		tcsr_mutex_regs: syscon@1f40000 {
 			compatible = "syscon";
 			reg = <0x1f40000 0x20000>;
