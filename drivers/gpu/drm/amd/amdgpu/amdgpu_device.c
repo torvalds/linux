@@ -3707,43 +3707,6 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	return r;
 }
 
-static void amdgpu_device_get_min_pci_speed_width(struct amdgpu_device *adev,
-						  enum pci_bus_speed *speed,
-						  enum pcie_link_width *width)
-{
-	struct pci_dev *pdev = adev->pdev;
-	enum pci_bus_speed cur_speed;
-	enum pcie_link_width cur_width;
-	u32 ret = 1;
-
-	*speed = PCI_SPEED_UNKNOWN;
-	*width = PCIE_LNK_WIDTH_UNKNOWN;
-
-	while (pdev) {
-		cur_speed = pcie_get_speed_cap(pdev);
-		cur_width = pcie_get_width_cap(pdev);
-		ret = pcie_bandwidth_available(adev->pdev, NULL,
-						       NULL, &cur_width);
-		if (!ret)
-			cur_width = PCIE_LNK_WIDTH_RESRV;
-
-		if (cur_speed != PCI_SPEED_UNKNOWN) {
-			if (*speed == PCI_SPEED_UNKNOWN)
-				*speed = cur_speed;
-			else if (cur_speed < *speed)
-				*speed = cur_speed;
-		}
-
-		if (cur_width != PCIE_LNK_WIDTH_UNKNOWN) {
-			if (*width == PCIE_LNK_WIDTH_UNKNOWN)
-				*width = cur_width;
-			else if (cur_width < *width)
-				*width = cur_width;
-		}
-		pdev = pci_upstream_bridge(pdev);
-	}
-}
-
 /**
  * amdgpu_device_get_pcie_info - fence pcie info about the PCIE slot
  *
@@ -3777,8 +3740,8 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 	if (adev->pm.pcie_gen_mask && adev->pm.pcie_mlw_mask)
 		return;
 
-	amdgpu_device_get_min_pci_speed_width(adev, &platform_speed_cap,
-					      &platform_link_width);
+	pcie_bandwidth_available(adev->pdev, NULL,
+				 &platform_speed_cap, &platform_link_width);
 
 	if (adev->pm.pcie_gen_mask == 0) {
 		/* asic caps */
