@@ -84,6 +84,9 @@ struct rcar_csi2;
 
 /* Interrupt Enable */
 #define INTEN_REG			0x30
+#define INTEN_INT_AFIFO_OF		BIT(27)
+#define INTEN_INT_ERRSOTHS		BIT(4)
+#define INTEN_INT_ERRSOTSYNCHS		BIT(3)
 
 /* Interrupt Source Mask */
 #define INTCLOSE_REG			0x34
@@ -514,6 +517,10 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 	if (mbps < 0)
 		return mbps;
 
+	/* Enable interrupts. */
+	rcsi2_write(priv, INTEN_REG, INTEN_INT_AFIFO_OF | INTEN_INT_ERRSOTHS
+		    | INTEN_INT_ERRSOTSYNCHS);
+
 	/* Init */
 	rcsi2_write(priv, TREF_REG, TREF_TREF);
 	rcsi2_write(priv, PHTC_REG, 0);
@@ -674,6 +681,43 @@ static const struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
 	.video	= &rcar_csi2_video_ops,
 	.pad	= &rcar_csi2_pad_ops,
 };
+
+static irqreturn_t rcsi2_irq(int irq, void *data)
+{
+	struct rcar_csi2 *priv = data;
+	u32 status, err_status;
+
+	status = rcsi2_read(priv, INTSTATE_REG);
+	err_status = rcsi2_read(priv, INTERRSTATE_REG);
+
+	if (!status)
+		return IRQ_HANDLED;
+
+	rcsi2_write(priv, INTSTATE_REG, status);
+
+	if (!err_status)
+		return IRQ_HANDLED;
+
+	rcsi2_write(priv, INTERRSTATE_REG, err_status);
+
+	dev_info(priv->dev, "Transfer error, restarting CSI-2 receiver\n");
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t rcsi2_irq_thread(int irq, void *data)
+{
+	struct rcar_csi2 *priv = data;
+
+	mutex_lock(&priv->lock);
+	rcsi2_stop(priv);
+	usleep_range(1000, 2000);
+	if (rcsi2_start(priv))
+		dev_warn(priv->dev, "Failed to restart CSI-2 receiver\n");
+	mutex_unlock(&priv->lock);
+
+	return IRQ_HANDLED;
+}
 
 /* -----------------------------------------------------------------------------
  * Async handling and registration of subdevices and links.
@@ -947,7 +991,7 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 				 struct platform_device *pdev)
 {
 	struct resource *res;
-	int irq;
+	int irq, ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
@@ -957,6 +1001,12 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
+
+	ret = devm_request_threaded_irq(&pdev->dev, irq, rcsi2_irq,
+					rcsi2_irq_thread, IRQF_SHARED,
+					KBUILD_MODNAME, priv);
+	if (ret)
+		return ret;
 
 	priv->rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc))
