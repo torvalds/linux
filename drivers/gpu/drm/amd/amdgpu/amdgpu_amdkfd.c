@@ -519,6 +519,13 @@ uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd)
 	return adev->gmc.xgmi.hive_id;
 }
 
+uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	return adev->rmmio_remap.bus_addr;
+}
+
 int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
 				uint32_t *ib_cmd, uint32_t ib_len)

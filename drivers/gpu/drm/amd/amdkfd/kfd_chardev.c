@@ -1272,6 +1272,12 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		if (args->size != kfd_doorbell_process_slice(dev))
 			return -EINVAL;
 		offset = kfd_get_process_doorbells(dev, p);
+	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		if (args->size != PAGE_SIZE)
+			return -EINVAL;
+		offset = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+		if (!offset)
+			return -ENOMEM;
 	}
 
 	mutex_lock(&p->mutex);
