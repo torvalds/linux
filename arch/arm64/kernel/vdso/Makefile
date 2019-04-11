@@ -17,9 +17,8 @@ obj-vdso := vgettimeofday.o note.o sigreturn.o
 targets := $(obj-vdso) vdso.so vdso.so.dbg
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ccflags-y := -shared -fno-common -fno-builtin
-ccflags-y += -nostdlib -Wl,-soname=linux-vdso.so.1 \
-		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
+ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 \
+		$(call ld-option, --hash-style=sysv) -n -T
 ccflags-y += $(DISABLE_LTO)
 
 CFLAGS_REMOVE_vgettimeofday.o += $(CC_FLAGS_SCS)
@@ -52,10 +51,6 @@ endif
 # Disable gcov profiling for VDSO code
 GCOV_PROFILE := n
 
-# Workaround for bare-metal (ELF) toolchains that neglect to pass -shared
-# down to collect2, resulting in silent corruption of the vDSO image.
-ccflags-y += -Wl,-shared
-
 obj-y += vdso.o
 extra-y += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
@@ -65,8 +60,7 @@ $(obj)/vdso.o : $(obj)/vdso.so
 
 # Link rule for the .so file, .lds has to be first
 $(obj)/vdso.so.dbg: $(src)/vdso.lds $(obj-vdso)
-	$(call if_changed,vdsold)
-	$(call if_changed,vdso_check)
+	$(call if_changed,ld)
 
 # Strip rule for the .so file
 $(obj)/%.so: OBJCOPYFLAGS := -S
@@ -84,10 +78,8 @@ include/generated/vdso-offsets.h: $(obj)/vdso.so.dbg FORCE
 	$(call if_changed,vdsosym)
 
 # Actual build commands
-quiet_cmd_vdsold = VDSOL   $@
-      cmd_vdsold = $(CC) $(c_flags) -Wl,-n -Wl,-T $^ -o $@
-quiet_cmd_vdsold_and_vdso_check = LD      $@
-      cmd_vdsold_and_vdso_check = $(cmd_ld); $(cmd_vdso_check)
+quiet_cmd_vdsoas = VDSOA   $@
+      cmd_vdsoas = $(CC) $(a_flags) -c -o $@ $<
 
 # Install commands for the unstripped file
 quiet_cmd_vdso_install = INSTALL $@
