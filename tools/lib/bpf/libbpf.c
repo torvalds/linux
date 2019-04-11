@@ -824,7 +824,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, struct bpf_map *map,
 static int
 bpf_object__init_maps(struct bpf_object *obj, int flags)
 {
-	int i, map_idx, map_def_sz, nr_syms, nr_maps = 0, nr_maps_glob = 0;
+	int i, map_idx, map_def_sz = 0, nr_syms, nr_maps = 0, nr_maps_glob = 0;
 	bool strict = !(flags & MAPS_RELAX_COMPAT);
 	Elf_Data *symbols = obj->efile.symbols;
 	Elf_Data *data = NULL;
