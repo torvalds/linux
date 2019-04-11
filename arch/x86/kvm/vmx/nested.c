@@ -2589,6 +2589,17 @@ static int nested_check_vm_entry_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int nested_vmx_check_controls(struct kvm_vcpu *vcpu,
+				     struct vmcs12 *vmcs12)
+{
+	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
+	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
+	    nested_check_vm_entry_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	return 0;
+}
+
 /*
  * Checks related to Host Control Registers and MSRs
  */
@@ -2628,14 +2639,9 @@ static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
-					    struct vmcs12 *vmcs12)
+static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
+				       struct vmcs12 *vmcs12)
 {
-	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
-	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
-	    nested_check_vm_entry_controls(vcpu, vmcs12))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
-
 	if (nested_check_host_control_regs(vcpu, vmcs12))
 		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
 
@@ -2681,9 +2687,9 @@ static int nested_check_guest_non_reg_state(struct vmcs12 *vmcs12)
 	return 0;
 }
 
-static int nested_vmx_check_vmentry_postreqs(struct kvm_vcpu *vcpu,
-					     struct vmcs12 *vmcs12,
-					     u32 *exit_qual)
+static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
+					struct vmcs12 *vmcs12,
+					u32 *exit_qual)
 {
 	bool ia32e;
 
@@ -3008,7 +3014,7 @@ int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 			return -1;
 		}
 
-		if (nested_vmx_check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
+		if (nested_vmx_check_guest_state(vcpu, vmcs12, &exit_qual))
 			goto vmentry_fail_vmexit;
 	}
 
@@ -3153,7 +3159,11 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 			launch ? VMXERR_VMLAUNCH_NONCLEAR_VMCS
 			       : VMXERR_VMRESUME_NONLAUNCHED_VMCS);
 
-	ret = nested_vmx_check_vmentry_prereqs(vcpu, vmcs12);
+	ret = nested_vmx_check_controls(vcpu, vmcs12);
+	if (ret)
+		return nested_vmx_failValid(vcpu, ret);
+
+	ret = nested_vmx_check_host_state(vcpu, vmcs12);
 	if (ret)
 		return nested_vmx_failValid(vcpu, ret);
 
@@ -5488,8 +5498,9 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 	}
 
-	if (nested_vmx_check_vmentry_prereqs(vcpu, vmcs12) ||
-	    nested_vmx_check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
+	if (nested_vmx_check_controls(vcpu, vmcs12) ||
+	    nested_vmx_check_host_state(vcpu, vmcs12) ||
+	    nested_vmx_check_guest_state(vcpu, vmcs12, &exit_qual))
 		return -EINVAL;
 
 	vmx->nested.dirty_vmcs12 = true;
