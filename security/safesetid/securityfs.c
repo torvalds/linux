@@ -76,6 +76,37 @@ static void release_ruleset(struct setuid_ruleset *pol)
 	call_rcu(&pol->rcu, __release_ruleset);
 }
 
+static void insert_rule(struct setuid_ruleset *pol, struct setuid_rule *rule)
+{
+	hash_add(pol->rules, &rule->next, __kuid_val(rule->src_uid));
+}
+
+static int verify_ruleset(struct setuid_ruleset *pol)
+{
+	int bucket;
+	struct setuid_rule *rule, *nrule;
+	int res = 0;
+
+	hash_for_each(pol->rules, bucket, rule, next) {
+		if (_setuid_policy_lookup(pol, rule->dst_uid, INVALID_UID) ==
+		    SIDPOL_DEFAULT) {
+			pr_warn("insecure policy detected: uid %d is constrained but transitively unconstrained through uid %d\n",
+				__kuid_val(rule->src_uid),
+				__kuid_val(rule->dst_uid));
+			res = -EINVAL;
+
+			/* fix it up */
+			nrule = kmalloc(sizeof(struct setuid_rule), GFP_KERNEL);
+			if (!nrule)
+				return -ENOMEM;
+			nrule->src_uid = rule->dst_uid;
+			nrule->dst_uid = rule->dst_uid;
+			insert_rule(pol, nrule);
+		}
+	}
+	return res;
+}
+
 static ssize_t handle_policy_update(struct file *file,
 				    const char __user *ubuf, size_t len)
 {
@@ -128,7 +159,7 @@ static ssize_t handle_policy_update(struct file *file,
 			goto out_free_rule;
 		}
 
-		hash_add(pol->rules, &rule->next, __kuid_val(rule->src_uid));
+		insert_rule(pol, rule);
 		p = end + 1;
 		continue;
 
@@ -136,6 +167,11 @@ out_free_rule:
 		kfree(rule);
 		goto out_free_buf;
 	}
+
+	err = verify_ruleset(pol);
+	/* bogus policy falls through after fixing it up */
+	if (err && err != -EINVAL)
+		goto out_free_buf;
 
 	/*
 	 * Everything looks good, apply the policy and release the old one.

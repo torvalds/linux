@@ -144,7 +144,9 @@ static void write_policies(void)
 {
 	static char *policy_str =
 		"1:2\n"
-		"1:3\n";
+		"1:3\n"
+		"2:2\n"
+		"3:3\n";
 	ssize_t written;
 	int fd;
 
