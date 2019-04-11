@@ -840,6 +840,7 @@ skip_rio:
 				if (ha->flags.fawwpn_enabled &&
 				    (ha->current_topology == ISP_CFG_F)) {
 					void *wwpn = ha->init_cb->port_name;
+
 					memcpy(vha->port_name, wwpn, WWN_SIZE);
 					fc_host_port_name(vha->host) =
 					    wwn_to_u64(vha->port_name);
@@ -2250,6 +2251,7 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 	struct fc_bsg_reply *bsg_reply;
 	sts_entry_t *sts;
 	struct sts_entry_24xx *sts24;
+
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
 
@@ -3085,6 +3087,7 @@ process_err:
 	/* Adjust ring index */
 	if (IS_P3P_TYPE(ha)) {
 		struct device_reg_82xx __iomem *reg = &ha->iobase->isp82;
+
 		WRT_REG_DWORD(&reg->rsp_q_out[0], rsp->ring_index);
 	} else {
 		WRT_REG_DWORD(rsp->rsp_q_out, rsp->ring_index);

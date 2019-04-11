@@ -1107,6 +1107,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 
 	if (sp) {
 		struct scsi_cmnd *cmd = GET_CMD_SP(sp);
+
 		sgl = scsi_prot_sglist(cmd);
 		vha = sp->vha;
 		difctx = sp->u.scmd.ctx;
@@ -3385,6 +3386,7 @@ sufficient_dsds:
 		cmd_pkt->entry_status = (uint8_t) rsp->id;
 	} else {
 		struct cmd_type_7 *cmd_pkt;
+
 		req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 		if (req->cnt < (req_cnt + 2)) {
 			cnt = (uint16_t)RD_REG_DWORD_RELAXED(

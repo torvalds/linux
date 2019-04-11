@@ -357,6 +357,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	if (unlikely(!fd->sqid)) {
 		struct nvme_fc_cmd_iu *cmd = fd->cmdaddr;
+
 		if (cmd->sqe.common.opcode == nvme_admin_async_event) {
 			nvme->u.nvme.aen_op = 1;
 			atomic_inc(&ha->nvme_active_aen_cnt);

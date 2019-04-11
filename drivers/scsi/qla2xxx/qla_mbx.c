@@ -5730,6 +5730,7 @@ qla8044_md_get_template(scsi_qla_host_t *vha)
 	mbx_cmd_t *mcp = &mc;
 	int rval = QLA_FUNCTION_FAILED;
 	int offset = 0, size = MINIDUMP_SIZE_36K;
+
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0xb11f,
 	    "Entered %s.\n", __func__);
 

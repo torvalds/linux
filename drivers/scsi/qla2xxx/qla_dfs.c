@@ -41,6 +41,7 @@ static int
 qla2x00_dfs_tgt_sess_open(struct inode *inode, struct file *file)
 {
 	scsi_qla_host_t *vha = inode->i_private;
+
 	return single_open(file, qla2x00_dfs_tgt_sess_show, vha);
 }
 
@@ -161,6 +162,7 @@ static int
 qla_dfs_fw_resource_cnt_open(struct inode *inode, struct file *file)
 {
 	struct scsi_qla_host *vha = inode->i_private;
+
 	return single_open(file, qla_dfs_fw_resource_cnt_show, vha);
 }
 
@@ -250,6 +252,7 @@ static int
 qla_dfs_tgt_counters_open(struct inode *inode, struct file *file)
 {
 	struct scsi_qla_host *vha = inode->i_private;
+
 	return single_open(file, qla_dfs_tgt_counters_show, vha);
 }
 

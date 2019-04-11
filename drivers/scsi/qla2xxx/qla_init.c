@@ -1482,6 +1482,7 @@ int qla24xx_post_newsess_work(struct scsi_qla_host *vha, port_id_t *id,
     u8 *port_name, u8 *node_name, void *pla, u8 fc4_type)
 {
 	struct qla_work_evt *e;
+
 	e = qla2x00_alloc_work(vha, QLA_EVT_NEW_SESS);
 	if (!e)
 		return QLA_FUNCTION_FAILED;
@@ -1558,6 +1559,7 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 			return;
 		{
 			unsigned long flags;
+
 			fcport = qla2x00_find_fcport_by_nportid
 				(vha, &ea->id, 1);
 			if (fcport) {
@@ -4844,6 +4846,7 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	int  rval;
 	unsigned long flags, save_flags;
 	struct qla_hw_data *ha = vha->hw;
+
 	rval = QLA_SUCCESS;
 
 	/* Get Initiator ID */
@@ -6406,6 +6409,7 @@ qla83xx_initiating_reset(scsi_qla_host_t *vha)
 		qla83xx_idc_audit(vha, IDC_AUDIT_TIMESTAMP);
 	} else {
 		const char *state = qla83xx_dev_state_to_string(dev_state);
+
 		ql_log(ql_log_info, vha, 0xb057, "HW State: %s.\n", state);
 
 		/* SV: XXX: Is timeout required here? */
@@ -8210,6 +8214,7 @@ void
 qla84xx_put_chip(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
 	if (ha->cs84xx)
 		kref_put(&ha->cs84xx->kref, __qla84xx_chip_release);
 }

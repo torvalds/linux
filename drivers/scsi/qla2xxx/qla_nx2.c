@@ -3007,10 +3007,9 @@ qla8044_minidump_process_rddfe(struct scsi_qla_host *vha,
 	uint16_t count;
 	uint32_t poll, mask, modify_mask;
 	uint32_t wait_count = 0;
-
 	uint32_t *data_ptr = *d_ptr;
-
 	struct qla8044_minidump_entry_rddfe *rddfe;
+
 	rddfe = (struct qla8044_minidump_entry_rddfe *) entry_hdr;
 
 	addr1 = rddfe->addr_1;
