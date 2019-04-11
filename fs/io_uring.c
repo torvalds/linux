@@ -241,6 +241,7 @@ struct io_ring_ctx {
 		unsigned		cq_mask;
 		struct wait_queue_head	cq_wait;
 		struct fasync_struct	*cq_fasync;
+		struct eventfd_ctx	*cq_ev_fd;
 	} ____cacheline_aligned_in_smp;
 
 	/*
@@ -516,6 +517,8 @@ static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 		wake_up(&ctx->wait);
 	if (waitqueue_active(&ctx->sqo_wait))
 		wake_up(&ctx->sqo_wait);
+	if (ctx->cq_ev_fd)
+		eventfd_signal(ctx->cq_ev_fd, 1);
 }
 
 static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 user_data,
@@ -2757,6 +2760,38 @@ err:
 	return ret;
 }
 
+static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg)
+{
+	__s32 __user *fds = arg;
+	int fd;
+
+	if (ctx->cq_ev_fd)
+		return -EBUSY;
+
+	if (copy_from_user(&fd, fds, sizeof(*fds)))
+		return -EFAULT;
+
+	ctx->cq_ev_fd = eventfd_ctx_fdget(fd);
+	if (IS_ERR(ctx->cq_ev_fd)) {
+		int ret = PTR_ERR(ctx->cq_ev_fd);
+		ctx->cq_ev_fd = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int io_eventfd_unregister(struct io_ring_ctx *ctx)
+{
+	if (ctx->cq_ev_fd) {
+		eventfd_ctx_put(ctx->cq_ev_fd);
+		ctx->cq_ev_fd = NULL;
+		return 0;
+	}
+
+	return -ENXIO;
+}
+
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_finish_async(ctx);
@@ -2766,6 +2801,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_iopoll_reap_events(ctx);
 	io_sqe_buffer_unregister(ctx);
 	io_sqe_files_unregister(ctx);
+	io_eventfd_unregister(ctx);
 
 #if defined(CONFIG_UNIX)
 	if (ctx->ring_sock)
@@ -3178,6 +3214,18 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (arg || nr_args)
 			break;
 		ret = io_sqe_files_unregister(ctx);
+		break;
+	case IORING_REGISTER_EVENTFD:
+		ret = -EINVAL;
+		if (nr_args != 1)
+			break;
+		ret = io_eventfd_register(ctx, arg);
+		break;
+	case IORING_UNREGISTER_EVENTFD:
+		ret = -EINVAL;
+		if (arg || nr_args)
+			break;
+		ret = io_eventfd_unregister(ctx);
 		break;
 	default:
 		ret = -EINVAL;
