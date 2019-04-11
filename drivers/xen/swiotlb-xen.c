@@ -388,13 +388,8 @@ static dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (dma_capable(dev, dev_addr, size) &&
 	    !range_straddles_page_boundary(phys, size) &&
 		!xen_arch_need_swiotlb(dev, phys, dev_addr) &&
-		(swiotlb_force != SWIOTLB_FORCE)) {
-		/* we are not interested in the dma_addr returned by
-		 * xen_dma_map_page, only in the potential cache flushes executed
-		 * by the function. */
-		xen_dma_map_page(dev, page, dev_addr, offset, size, dir, attrs);
-		return dev_addr;
-	}
+		swiotlb_force != SWIOTLB_FORCE)
+		goto done;
 
 	/*
 	 * Oh well, have to allocate and map a bounce buffer.
@@ -407,19 +402,25 @@ static dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 		return DMA_MAPPING_ERROR;
 
 	dev_addr = xen_phys_to_bus(map);
-	xen_dma_map_page(dev, pfn_to_page(map >> PAGE_SHIFT),
-					dev_addr, map & ~PAGE_MASK, size, dir, attrs);
 
 	/*
 	 * Ensure that the address returned is DMA'ble
 	 */
-	if (dma_capable(dev, dev_addr, size))
-		return dev_addr;
+	if (unlikely(!dma_capable(dev, dev_addr, size))) {
+		swiotlb_tbl_unmap_single(dev, map, size, dir,
+				attrs | DMA_ATTR_SKIP_CPU_SYNC);
+		return DMA_MAPPING_ERROR;
+	}
 
-	attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-	swiotlb_tbl_unmap_single(dev, map, size, dir, attrs);
-
-	return DMA_MAPPING_ERROR;
+	page = pfn_to_page(map >> PAGE_SHIFT);
+	offset = map & ~PAGE_MASK;
+done:
+	/*
+	 * we are not interested in the dma_addr returned by xen_dma_map_page,
+	 * only in the potential cache flushes executed by the function.
+	 */
+	xen_dma_map_page(dev, page, dev_addr, offset, size, dir, attrs);
+	return dev_addr;
 }
 
 /*
