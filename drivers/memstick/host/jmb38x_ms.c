@@ -368,7 +368,6 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 {
 	struct jmb38x_ms_host *host = memstick_priv(msh);
-	unsigned char *data;
 	unsigned int data_len, cmd, t_val;
 
 	if (!(STATUS_HAS_MEDIA & readl(host->addr + STATUS))) {
@@ -399,8 +398,6 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 		else
 			cmd |= TPC_WAIT_INT;
 	}
-
-	data = host->req->data;
 
 	if (!no_dma)
 		host->cmd_flags |= DMA_DATA;
