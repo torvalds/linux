@@ -70,8 +70,13 @@ static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = btrfs_setxattr_trans(trans, inode, handler->xattr_name,
-					   NULL, 0, flags);
+		if (trans)
+			ret = btrfs_setxattr(trans, inode, handler->xattr_name,
+					     NULL, 0, flags);
+		else
+			ret = btrfs_setxattr_trans(NULL, inode,
+						   handler->xattr_name, NULL, 0,
+						   flags);
 		if (ret)
 			return ret;
 
@@ -84,14 +89,23 @@ static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 	ret = handler->validate(value, value_len);
 	if (ret)
 		return ret;
-	ret = btrfs_setxattr_trans(trans, inode, handler->xattr_name,
-				   value, value_len, flags);
+	if (trans)
+		ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
+				     value_len, flags);
+	else
+		ret = btrfs_setxattr_trans(NULL, inode, handler->xattr_name,
+					   value, value_len, flags);
+
 	if (ret)
 		return ret;
 	ret = handler->apply(inode, value, value_len);
 	if (ret) {
-		btrfs_setxattr_trans(trans, inode, handler->xattr_name,
-				     NULL, 0, flags);
+		if (trans)
+			btrfs_setxattr(trans, inode, handler->xattr_name, NULL,
+				       0, flags);
+		else
+			btrfs_setxattr_trans(NULL, inode, handler->xattr_name,
+					     NULL, 0, flags);
 		return ret;
 	}
 
@@ -358,13 +372,13 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		if (ret)
 			return ret;
 
-		ret = btrfs_setxattr_trans(trans, inode, h->xattr_name, value,
-					   strlen(value), 0);
+		ret = btrfs_setxattr(trans, inode, h->xattr_name, value,
+				     strlen(value), 0);
 		if (!ret) {
 			ret = h->apply(inode, value, strlen(value));
 			if (ret)
-				btrfs_setxattr_trans(trans, inode, h->xattr_name,
-						     NULL, 0, 0);
+				btrfs_setxattr(trans, inode, h->xattr_name,
+					       NULL, 0, 0);
 			else
 				set_bit(BTRFS_INODE_HAS_PROPS,
 					&BTRFS_I(inode)->runtime_flags);

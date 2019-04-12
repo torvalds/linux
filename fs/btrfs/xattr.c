@@ -86,6 +86,8 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 	size_t name_len = strlen(name);
 	int ret = 0;
 
+	ASSERT(trans);
+
 	if (name_len + size > BTRFS_MAX_XATTR_SIZE(root->fs_info))
 		return -ENOSPC;
 
@@ -437,8 +439,8 @@ static int btrfs_initxattrs(struct inode *inode,
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
-		err = btrfs_setxattr_trans(trans, inode, name, xattr->value,
-					   xattr->value_len, 0);
+		err = btrfs_setxattr(trans, inode, name, xattr->value,
+				     xattr->value_len, 0);
 		kfree(name);
 		if (err < 0)
 			break;
