@@ -180,14 +180,11 @@ insert_queue(struct seq_oss_devinfo *dp, union evrec *rec, struct file *opt)
 		return 0; /* invalid event - no need to insert queue */
 
 	event.time.tick = snd_seq_oss_timer_cur_tick(dp->timer);
-	if (dp->timer->realtime || !dp->timer->running) {
+	if (dp->timer->realtime || !dp->timer->running)
 		snd_seq_oss_dispatch(dp, &event, 0, 0);
-	} else {
-		if (is_nonblock_mode(dp->file_mode))
-			rc = snd_seq_kernel_client_enqueue(dp->cseq, &event, 0, 0);
-		else
-			rc = snd_seq_kernel_client_enqueue_blocking(dp->cseq, &event, opt, 0, 0);
-	}
+	else
+		rc = snd_seq_kernel_client_enqueue(dp->cseq, &event, opt,
+						   !is_nonblock_mode(dp->file_mode));
 	return rc;
 }
 		

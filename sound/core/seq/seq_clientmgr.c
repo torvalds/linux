@@ -2218,12 +2218,13 @@ int snd_seq_delete_kernel_client(int client)
 }
 EXPORT_SYMBOL(snd_seq_delete_kernel_client);
 
-/* skeleton to enqueue event, called from snd_seq_kernel_client_enqueue
- * and snd_seq_kernel_client_enqueue_blocking
+/*
+ * exported, called by kernel clients to enqueue events (w/o blocking)
+ *
+ * RETURN VALUE: zero if succeed, negative if error
  */
-static int kernel_client_enqueue(int client, struct snd_seq_event *ev,
-				 struct file *file, int blocking,
-				 int atomic, int hop)
+int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event *ev,
+				  struct file *file, bool blocking)
 {
 	struct snd_seq_client *cptr;
 	int result;
@@ -2250,36 +2251,12 @@ static int kernel_client_enqueue(int client, struct snd_seq_event *ev,
 		result = -EPERM;
 	else /* send it */
 		result = snd_seq_client_enqueue_event(cptr, ev, file, blocking,
-						      atomic, hop, NULL);
+						      false, 0, NULL);
 
 	snd_seq_client_unlock(cptr);
 	return result;
 }
-
-/*
- * exported, called by kernel clients to enqueue events (w/o blocking)
- *
- * RETURN VALUE: zero if succeed, negative if error
- */
-int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event * ev,
-				  int atomic, int hop)
-{
-	return kernel_client_enqueue(client, ev, NULL, 0, atomic, hop);
-}
 EXPORT_SYMBOL(snd_seq_kernel_client_enqueue);
-
-/*
- * exported, called by kernel clients to enqueue events (with blocking)
- *
- * RETURN VALUE: zero if succeed, negative if error
- */
-int snd_seq_kernel_client_enqueue_blocking(int client, struct snd_seq_event * ev,
-					   struct file *file,
-					   int atomic, int hop)
-{
-	return kernel_client_enqueue(client, ev, file, 1, atomic, hop);
-}
-EXPORT_SYMBOL(snd_seq_kernel_client_enqueue_blocking);
 
 /* 
  * exported, called by kernel clients to dispatch events directly to other
