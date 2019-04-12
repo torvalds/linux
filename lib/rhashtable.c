@@ -259,7 +259,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht,
 		rcu_assign_pointer(*pprev, next);
 	else
 		/* Need to preserved the bit lock. */
-		rcu_assign_pointer(*bkt, rht_ptr_locked(next));
+		rht_assign_locked(bkt, next);
 
 out:
 	return err;
@@ -517,7 +517,7 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 			rcu_assign_pointer(*pprev, obj);
 		else
 			/* Need to preserve the bit lock */
-			rcu_assign_pointer(*bkt, rht_ptr_locked(obj));
+			rht_assign_locked(bkt, obj);
 
 		return NULL;
 	}
@@ -570,7 +570,7 @@ static struct bucket_table *rhashtable_insert_one(struct rhashtable *ht,
 	/* bkt is always the head of the list, so it holds
 	 * the lock, which we need to preserve
 	 */
-	rcu_assign_pointer(*bkt, rht_ptr_locked(obj));
+	rht_assign_locked(bkt, obj);
 
 	atomic_inc(&ht->nelems);
 	if (rht_grow_above_75(ht, tbl))

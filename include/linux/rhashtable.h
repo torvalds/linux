@@ -316,6 +316,7 @@ static inline struct rhash_lock_head __rcu **rht_bucket_insert(
  * local_bh. For that we have rht_assign_unlock().  As rcu_assign_pointer()
  * provides the same release semantics that bit_spin_unlock() provides,
  * this is safe.
+ * When we write to a bucket without unlocking, we use rht_assign_locked().
  */
 
 static inline void rht_lock(struct bucket_table *tbl,
@@ -369,10 +370,12 @@ static inline struct rhash_head *rht_ptr_exclusive(
 	return (void *)(((unsigned long)p) & ~BIT(1));
 }
 
-static inline struct rhash_lock_head __rcu *rht_ptr_locked(const
-							   struct rhash_head *p)
+static inline void rht_assign_locked(struct rhash_lock_head __rcu **bkt,
+				     struct rhash_head *obj)
 {
-	return (void *)(((unsigned long)p) | BIT(1));
+	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
+
+	rcu_assign_pointer(*p, (void *)((unsigned long)obj | BIT(1)));
 }
 
 static inline void rht_assign_unlock(struct bucket_table *tbl,
