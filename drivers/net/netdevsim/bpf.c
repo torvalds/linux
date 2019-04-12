@@ -65,8 +65,8 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	struct nsim_bpf_bound_prog *state;
 
 	state = env->prog->aux->offload->dev_priv;
-	if (state->ns->bpf_bind_verifier_delay && !insn_idx)
-		msleep(state->ns->bpf_bind_verifier_delay);
+	if (state->ns->sdev->bpf_bind_verifier_delay && !insn_idx)
+		msleep(state->ns->sdev->bpf_bind_verifier_delay);
 
 	if (insn_idx == env->prog->len - 1)
 		pr_vlog(env, "Hello from netdevsim!\n");
@@ -250,7 +250,7 @@ static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
 {
 	struct netdevsim *ns = bpf_offload_dev_priv(prog->aux->offload->offdev);
 
-	if (!ns->bpf_bind_accept)
+	if (!ns->sdev->bpf_bind_accept)
 		return -EOPNOTSUPP;
 
 	return nsim_bpf_create_prog(ns, prog);
@@ -594,6 +594,12 @@ int nsim_bpf_init(struct netdevsim *ns)
 		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
 		if (err)
 			return err;
+
+		ns->sdev->bpf_bind_accept = true;
+		debugfs_create_bool("bpf_bind_accept", 0600, ns->sdev->ddir,
+				    &ns->sdev->bpf_bind_accept);
+		debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->sdev->ddir,
+				   &ns->sdev->bpf_bind_verifier_delay);
 	}
 
 	err = bpf_offload_dev_netdev_register(ns->sdev->bpf_dev, ns->netdev);
@@ -602,12 +608,6 @@ int nsim_bpf_init(struct netdevsim *ns)
 
 	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
-
-	ns->bpf_bind_accept = true;
-	debugfs_create_bool("bpf_bind_accept", 0600, ns->ddir,
-			    &ns->bpf_bind_accept);
-	debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->ddir,
-			   &ns->bpf_bind_verifier_delay);
 
 	ns->bpf_tc_accept = true;
 	debugfs_create_bool("bpf_tc_accept", 0600, ns->ddir,
