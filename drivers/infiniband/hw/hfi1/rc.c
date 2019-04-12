@@ -1834,7 +1834,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		rvt_put_swqe(wqe);
+		rvt_put_qp_swqe(qp, wqe);
 		rvt_qp_swqe_complete(qp,
 				     wqe,
 				     ib_hfi1_wc_opcode[wqe->wr.opcode],
@@ -1882,7 +1882,7 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		u32 s_last;
 
 		trdma_clean_swqe(qp, wqe);
-		rvt_put_swqe(wqe);
+		rvt_put_qp_swqe(qp, wqe);
 		rvt_qp_wqe_unreserve(qp, wqe);
 		s_last = qp->s_last;
 		trace_hfi1_qp_send_completion(qp, wqe, s_last);

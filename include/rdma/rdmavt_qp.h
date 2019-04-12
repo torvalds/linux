@@ -723,6 +723,20 @@ static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
 	return rvt_mod_retry_timer_ext(qp, 0);
 }
 
+/**
+ * rvt_put_qp_swqe - drop refs held by swqe
+ * @qp: the send qp
+ * @wqe: the send wqe
+ *
+ * This drops any references held by the swqe
+ */
+static inline void rvt_put_qp_swqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
+{
+	rvt_put_swqe(wqe);
+	if (qp->allowed_ops == IB_OPCODE_UD)
+		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;

@@ -623,10 +623,7 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 		while (qp->s_last != qp->s_head) {
 			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 
-			rvt_put_swqe(wqe);
-			if (qp->allowed_ops == IB_OPCODE_UD)
-				atomic_dec(&ibah_to_rvtah(
-						wqe->ud_wr.ah)->refcount);
+			rvt_put_qp_swqe(qp, wqe);
 			if (++qp->s_last >= qp->s_size)
 				qp->s_last = 0;
 			smp_wmb(); /* see qp_set_savail */
@@ -2683,9 +2680,7 @@ void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
-	rvt_put_swqe(wqe);
-	if (qp->allowed_ops == IB_OPCODE_UD)
-		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
+	rvt_put_qp_swqe(qp, wqe);
 
 	rvt_qp_swqe_complete(qp,
 			     wqe,
