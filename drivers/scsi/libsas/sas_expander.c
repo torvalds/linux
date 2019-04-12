@@ -826,9 +826,14 @@ static struct domain_device *sas_ex_discover_end_dev(
 #ifdef CONFIG_SCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
 		if (child->linkrate > parent->min_linkrate) {
+			struct sas_phy *cphy = child->phy;
+			enum sas_linkrate min_prate = cphy->minimum_linkrate,
+				parent_min_lrate = parent->min_linkrate,
+				min_linkrate = (min_prate > parent_min_lrate) ?
+					       parent_min_lrate : 0;
 			struct sas_phy_linkrates rates = {
 				.maximum_linkrate = parent->min_linkrate,
-				.minimum_linkrate = parent->min_linkrate,
+				.minimum_linkrate = min_linkrate,
 			};
 			int ret;
 
