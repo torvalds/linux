@@ -1,6 +1,6 @@
 menuconfig SND_SOC_INTEL_MACH
 	bool "Intel Machine drivers"
-	depends on SND_SOC_INTEL_SST_TOPLEVEL
+	depends on SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
 	help
          Intel ASoC Machine Drivers. If you have a Intel machine that
          has an audio controller with a DSP and I2S or DMIC port, then
@@ -24,6 +24,10 @@ config SND_SOC_INTEL_HASWELL_MACH
 	  Say Y or m if you have such a device.
 	  If unsure select "N".
 
+endif ## SND_SOC_INTEL_HASWELL
+
+if SND_SOC_INTEL_HASWELL || SND_SOC_SOF_BROADWELL
+
 config SND_SOC_INTEL_BDW_RT5677_MACH
 	tristate "Broadwell with RT5677 codec"
 	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM && GPIOLIB
@@ -43,7 +47,7 @@ config SND_SOC_INTEL_BROADWELL_MACH
 	  Ultrabook platforms.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
-endif ## SND_SOC_INTEL_HASWELL
+endif ## SND_SOC_INTEL_HASWELL || SND_SOC_SOF_BROADWELL
 
 if SND_SOC_INTEL_BAYTRAIL
 
@@ -68,7 +72,7 @@ config SND_SOC_INTEL_BYT_RT5640_MACH
 
 endif ## SND_SOC_INTEL_BAYTRAIL
 
-if SND_SST_ATOM_HIFI2_PLATFORM
+if SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
 
 config SND_SOC_INTEL_BYTCR_RT5640_MACH
 	tristate "Baytrail and Baytrail-CR with RT5640 codec"
@@ -157,6 +161,10 @@ config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	  Cherrytrail platforms with ES8316 audio codec.
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
+
+endif ## SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
+
+if SND_SST_ATOM_HIFI2_PLATFORM
 
 config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 	tristate "Baytrail & Cherrytrail platform with no codec (MinnowBoard MAX, Up)"
@@ -314,7 +322,7 @@ config SND_SOC_INTEL_KBL_RT5660_MACH
 
 endif ## SND_SOC_INTEL_KBL
 
-if SND_SOC_INTEL_GLK
+if SND_SOC_INTEL_GLK || (SND_SOC_SOF_GEMINILAKE  && SND_SOC_SOF_HDA_LINK)
 
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
@@ -330,9 +338,9 @@ config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
-endif ## SND_SOC_INTEL_GLK
+endif ## SND_SOC_INTEL_GLK || (SND_SOC_SOF_GEMINILAKE  && SND_SOC_SOF_HDA_LINK)
 
-if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
+if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
 config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
 	tristate "SKL/KBL/BXT/APL with HDA Codecs"
@@ -344,6 +352,6 @@ config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
           Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
-endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
+endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
 endif ## SND_SOC_INTEL_MACH
