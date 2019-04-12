@@ -6221,6 +6221,22 @@ static bool states_equal(struct bpf_verifier_env *env,
 	return true;
 }
 
+static int propagate_liveness_reg(struct bpf_verifier_env *env,
+				  struct bpf_reg_state *reg,
+				  struct bpf_reg_state *parent_reg)
+{
+	int err;
+
+	if (parent_reg->live & REG_LIVE_READ || !(reg->live & REG_LIVE_READ))
+		return 0;
+
+	err = mark_reg_read(env, reg, parent_reg);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /* A write screens off any subsequent reads; but write marks come from the
  * straight-line code between a state and its parent.  When we arrive at an
  * equivalent state (jump target or such) we didn't arrive by the straight-line
@@ -6250,11 +6266,8 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 		state_reg = state->regs;
 		/* We don't need to worry about FP liveness, it's read-only */
 		for (i = frame < vstate->curframe ? BPF_REG_6 : 0; i < BPF_REG_FP; i++) {
-			if (parent_reg[i].live & REG_LIVE_READ)
-				continue;
-			if (!(state_reg[i].live & REG_LIVE_READ))
-				continue;
-			err = mark_reg_read(env, &state_reg[i], &parent_reg[i]);
+			err = propagate_liveness_reg(env, &state_reg[i],
+						     &parent_reg[i]);
 			if (err)
 				return err;
 		}
@@ -6264,11 +6277,8 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 			    i < parent->allocated_stack / BPF_REG_SIZE; i++) {
 			parent_reg = &parent->stack[i].spilled_ptr;
 			state_reg = &state->stack[i].spilled_ptr;
-			if (parent_reg->live & REG_LIVE_READ)
-				continue;
-			if (!(state_reg->live & REG_LIVE_READ))
-				continue;
-			err = mark_reg_read(env, state_reg, parent_reg);
+			err = propagate_liveness_reg(env, state_reg,
+						     parent_reg);
 			if (err)
 				return err;
 		}
