@@ -2,7 +2,7 @@
 #include <test_progs.h>
 
 #define CHECK_FLOW_KEYS(desc, got, expected)				\
-	CHECK(memcmp(&got, &expected, sizeof(got)) != 0,		\
+	CHECK_ATTR(memcmp(&got, &expected, sizeof(got)) != 0,		\
 	      desc,							\
 	      "nhoff=%u/%u "						\
 	      "thoff=%u/%u "						\
@@ -10,6 +10,7 @@
 	      "is_frag=%u/%u "						\
 	      "is_first_frag=%u/%u "					\
 	      "is_encap=%u/%u "						\
+	      "ip_proto=0x%x/0x%x "					\
 	      "n_proto=0x%x/0x%x "					\
 	      "sport=%u/%u "						\
 	      "dport=%u/%u\n",						\
@@ -19,53 +20,32 @@
 	      got.is_frag, expected.is_frag,				\
 	      got.is_first_frag, expected.is_first_frag,		\
 	      got.is_encap, expected.is_encap,				\
+	      got.ip_proto, expected.ip_proto,				\
 	      got.n_proto, expected.n_proto,				\
 	      got.sport, expected.sport,				\
 	      got.dport, expected.dport)
 
-static struct bpf_flow_keys pkt_v4_flow_keys = {
-	.nhoff = 0,
-	.thoff = sizeof(struct iphdr),
-	.addr_proto = ETH_P_IP,
-	.ip_proto = IPPROTO_TCP,
-	.n_proto = __bpf_constant_htons(ETH_P_IP),
-};
+struct ipv4_pkt {
+	struct ethhdr eth;
+	struct iphdr iph;
+	struct tcphdr tcp;
+} __packed;
 
-static struct bpf_flow_keys pkt_v6_flow_keys = {
-	.nhoff = 0,
-	.thoff = sizeof(struct ipv6hdr),
-	.addr_proto = ETH_P_IPV6,
-	.ip_proto = IPPROTO_TCP,
-	.n_proto = __bpf_constant_htons(ETH_P_IPV6),
-};
-
-#define VLAN_HLEN	4
-
-static struct {
+struct svlan_ipv4_pkt {
 	struct ethhdr eth;
 	__u16 vlan_tci;
 	__u16 vlan_proto;
 	struct iphdr iph;
 	struct tcphdr tcp;
-} __packed pkt_vlan_v4 = {
-	.eth.h_proto = __bpf_constant_htons(ETH_P_8021Q),
-	.vlan_proto = __bpf_constant_htons(ETH_P_IP),
-	.iph.ihl = 5,
-	.iph.protocol = IPPROTO_TCP,
-	.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
-	.tcp.urg_ptr = 123,
-	.tcp.doff = 5,
-};
+} __packed;
 
-static struct bpf_flow_keys pkt_vlan_v4_flow_keys = {
-	.nhoff = VLAN_HLEN,
-	.thoff = VLAN_HLEN + sizeof(struct iphdr),
-	.addr_proto = ETH_P_IP,
-	.ip_proto = IPPROTO_TCP,
-	.n_proto = __bpf_constant_htons(ETH_P_IP),
-};
+struct ipv6_pkt {
+	struct ethhdr eth;
+	struct ipv6hdr iph;
+	struct tcphdr tcp;
+} __packed;
 
-static struct {
+struct dvlan_ipv6_pkt {
 	struct ethhdr eth;
 	__u16 vlan_tci;
 	__u16 vlan_proto;
@@ -73,31 +53,97 @@ static struct {
 	__u16 vlan_proto2;
 	struct ipv6hdr iph;
 	struct tcphdr tcp;
-} __packed pkt_vlan_v6 = {
-	.eth.h_proto = __bpf_constant_htons(ETH_P_8021AD),
-	.vlan_proto = __bpf_constant_htons(ETH_P_8021Q),
-	.vlan_proto2 = __bpf_constant_htons(ETH_P_IPV6),
-	.iph.nexthdr = IPPROTO_TCP,
-	.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
-	.tcp.urg_ptr = 123,
-	.tcp.doff = 5,
+} __packed;
+
+struct test {
+	const char *name;
+	union {
+		struct ipv4_pkt ipv4;
+		struct svlan_ipv4_pkt svlan_ipv4;
+		struct ipv6_pkt ipv6;
+		struct dvlan_ipv6_pkt dvlan_ipv6;
+	} pkt;
+	struct bpf_flow_keys keys;
 };
 
-static struct bpf_flow_keys pkt_vlan_v6_flow_keys = {
-	.nhoff = VLAN_HLEN * 2,
-	.thoff = VLAN_HLEN * 2 + sizeof(struct ipv6hdr),
-	.addr_proto = ETH_P_IPV6,
-	.ip_proto = IPPROTO_TCP,
-	.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+#define VLAN_HLEN	4
+
+struct test tests[] = {
+	{
+		.name = "ipv4",
+		.pkt.ipv4 = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
+			.iph.ihl = 5,
+			.iph.protocol = IPPROTO_TCP,
+			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+			.tcp.doff = 5,
+		},
+		.keys = {
+			.nhoff = 0,
+			.thoff = sizeof(struct iphdr),
+			.addr_proto = ETH_P_IP,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IP),
+		},
+	},
+	{
+		.name = "ipv6",
+		.pkt.ipv6 = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.iph.nexthdr = IPPROTO_TCP,
+			.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
+			.tcp.doff = 5,
+		},
+		.keys = {
+			.nhoff = 0,
+			.thoff = sizeof(struct ipv6hdr),
+			.addr_proto = ETH_P_IPV6,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+		},
+	},
+	{
+		.name = "802.1q-ipv4",
+		.pkt.svlan_ipv4 = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_8021Q),
+			.vlan_proto = __bpf_constant_htons(ETH_P_IP),
+			.iph.ihl = 5,
+			.iph.protocol = IPPROTO_TCP,
+			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+			.tcp.doff = 5,
+		},
+		.keys = {
+			.nhoff = VLAN_HLEN,
+			.thoff = VLAN_HLEN + sizeof(struct iphdr),
+			.addr_proto = ETH_P_IP,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IP),
+		},
+	},
+	{
+		.name = "802.1ad-ipv6",
+		.pkt.dvlan_ipv6 = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_8021AD),
+			.vlan_proto = __bpf_constant_htons(ETH_P_8021Q),
+			.vlan_proto2 = __bpf_constant_htons(ETH_P_IPV6),
+			.iph.nexthdr = IPPROTO_TCP,
+			.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
+			.tcp.doff = 5,
+		},
+		.keys = {
+			.nhoff = VLAN_HLEN * 2,
+			.thoff = VLAN_HLEN * 2 + sizeof(struct ipv6hdr),
+			.addr_proto = ETH_P_IPV6,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+		},
+	},
 };
 
 void test_flow_dissector(void)
 {
-	struct bpf_flow_keys flow_keys;
 	struct bpf_object *obj;
-	__u32 duration, retval;
 	int err, prog_fd;
-	__u32 size;
 
 	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
 			    "jmp_table", &prog_fd);
@@ -106,35 +152,24 @@ void test_flow_dissector(void)
 		return;
 	}
 
-	err = bpf_prog_test_run(prog_fd, 10, &pkt_v4, sizeof(pkt_v4),
-				&flow_keys, &size, &retval, &duration);
-	CHECK(size != sizeof(flow_keys) || err || retval != 1, "ipv4",
-	      "err %d errno %d retval %d duration %d size %u/%lu\n",
-	      err, errno, retval, duration, size, sizeof(flow_keys));
-	CHECK_FLOW_KEYS("ipv4_flow_keys", flow_keys, pkt_v4_flow_keys);
+	for (int i = 0; i < ARRAY_SIZE(tests); i++) {
+		struct bpf_flow_keys flow_keys;
+		struct bpf_prog_test_run_attr tattr = {
+			.prog_fd = prog_fd,
+			.data_in = &tests[i].pkt,
+			.data_size_in = sizeof(tests[i].pkt),
+			.data_out = &flow_keys,
+		};
 
-	err = bpf_prog_test_run(prog_fd, 10, &pkt_v6, sizeof(pkt_v6),
-				&flow_keys, &size, &retval, &duration);
-	CHECK(size != sizeof(flow_keys) || err || retval != 1, "ipv6",
-	      "err %d errno %d retval %d duration %d size %u/%lu\n",
-	      err, errno, retval, duration, size, sizeof(flow_keys));
-	CHECK_FLOW_KEYS("ipv6_flow_keys", flow_keys, pkt_v6_flow_keys);
-
-	err = bpf_prog_test_run(prog_fd, 10, &pkt_vlan_v4, sizeof(pkt_vlan_v4),
-				&flow_keys, &size, &retval, &duration);
-	CHECK(size != sizeof(flow_keys) || err || retval != 1, "vlan_ipv4",
-	      "err %d errno %d retval %d duration %d size %u/%lu\n",
-	      err, errno, retval, duration, size, sizeof(flow_keys));
-	CHECK_FLOW_KEYS("vlan_ipv4_flow_keys", flow_keys,
-			pkt_vlan_v4_flow_keys);
-
-	err = bpf_prog_test_run(prog_fd, 10, &pkt_vlan_v6, sizeof(pkt_vlan_v6),
-				&flow_keys, &size, &retval, &duration);
-	CHECK(size != sizeof(flow_keys) || err || retval != 1, "vlan_ipv6",
-	      "err %d errno %d retval %d duration %d size %u/%lu\n",
-	      err, errno, retval, duration, size, sizeof(flow_keys));
-	CHECK_FLOW_KEYS("vlan_ipv6_flow_keys", flow_keys,
-			pkt_vlan_v6_flow_keys);
+		err = bpf_prog_test_run_xattr(&tattr);
+		CHECK_ATTR(tattr.data_size_out != sizeof(flow_keys) ||
+			   err || tattr.retval != 1,
+			   tests[i].name,
+			   "err %d errno %d retval %d duration %d size %u/%lu\n",
+			   err, errno, tattr.retval, tattr.duration,
+			   tattr.data_size_out, sizeof(flow_keys));
+		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+	}
 
 	bpf_object__close(obj);
 }
