@@ -52,7 +52,7 @@ xfs_compat_ioc_fsgeometry_v1(
 	struct xfs_mount	  *mp,
 	compat_xfs_fsop_geom_v1_t __user *arg32)
 {
-	xfs_fsop_geom_t		  fsgeo;
+	struct xfs_fsop_geom	  fsgeo;
 	int			  error;
 
 	error = xfs_fs_geometry(&mp->m_sb, &fsgeo, 3);
@@ -561,6 +561,7 @@ xfs_file_compat_ioctl(
 	switch (cmd) {
 	/* No size or alignment issues on any arch */
 	case XFS_IOC_DIOINFO:
+	case XFS_IOC_FSGEOMETRY_V4:
 	case XFS_IOC_FSGEOMETRY:
 	case XFS_IOC_FSGETXATTR:
 	case XFS_IOC_FSSETXATTR:

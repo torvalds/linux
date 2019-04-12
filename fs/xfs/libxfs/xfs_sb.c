@@ -1166,6 +1166,11 @@ xfs_fs_geometry(
 
 	geo->logsunit = sbp->sb_logsunit;
 
+	if (struct_version < 5)
+		return 0;
+
+	geo->version = XFS_FSOP_GEOM_VERSION_V5;
+
 	return 0;
 }
 
