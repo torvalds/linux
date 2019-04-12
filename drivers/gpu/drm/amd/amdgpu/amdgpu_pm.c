@@ -327,6 +327,18 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		goto fail;
 	}
 
+        if (amdgpu_sriov_vf(adev)) {
+                if (amdgim_is_hwperf(adev) &&
+                    adev->virt.ops->force_dpm_level) {
+                        mutex_lock(&adev->pm.mutex);
+                        adev->virt.ops->force_dpm_level(adev, level);
+                        mutex_unlock(&adev->pm.mutex);
+                        return count;
+                } else {
+                        return -EINVAL;
+		}
+        }
+
 	if (current_level == level)
 		return count;
 
@@ -789,6 +801,10 @@ static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (amdgpu_sriov_vf(adev) && amdgim_is_hwperf(adev) &&
+	    adev->virt.ops->get_pp_clk)
+		return adev->virt.ops->get_pp_clk(adev, PP_SCLK, buf);
 
 	if (is_support_sw_smu(adev))
 		return smu_print_clk_levels(&adev->smu, PP_SCLK, buf);

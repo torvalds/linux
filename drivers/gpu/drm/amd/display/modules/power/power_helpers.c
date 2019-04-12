@@ -43,10 +43,10 @@ static const unsigned char max_reduction_table[13] = {
 
 /* Possible ABM 2.2 Min Reduction configs from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
- * 100  100   100   100   100   100   100   90.2  85.1  80.0  80.0  75.3  75.3 %
+ * 100  100   100   100   100   100   100   100  100  92.2  83.1  75.3  75.3 %
  */
 static const unsigned char min_reduction_table_v_2_2[13] = {
-0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe6, 0xd9, 0xcc, 0xcc, 0xc0, 0xc0};
+0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xeb, 0xd4, 0xc0, 0xc0};
 
 /* Possible ABM 2.2 Max Reduction configs from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12

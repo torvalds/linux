@@ -1533,69 +1533,6 @@ static bool decide_fallback_link_setting(
 	return true;
 }
 
-static uint32_t bandwidth_in_kbps_from_timing(
-	const struct dc_crtc_timing *timing)
-{
-	uint32_t bits_per_channel = 0;
-	uint32_t kbps;
-
-	switch (timing->display_color_depth) {
-	case COLOR_DEPTH_666:
-		bits_per_channel = 6;
-		break;
-	case COLOR_DEPTH_888:
-		bits_per_channel = 8;
-		break;
-	case COLOR_DEPTH_101010:
-		bits_per_channel = 10;
-		break;
-	case COLOR_DEPTH_121212:
-		bits_per_channel = 12;
-		break;
-	case COLOR_DEPTH_141414:
-		bits_per_channel = 14;
-		break;
-	case COLOR_DEPTH_161616:
-		bits_per_channel = 16;
-		break;
-	default:
-		break;
-	}
-
-	ASSERT(bits_per_channel != 0);
-
-	kbps = timing->pix_clk_100hz / 10;
-	kbps *= bits_per_channel;
-
-	if (timing->flags.Y_ONLY != 1) {
-		/*Only YOnly make reduce bandwidth by 1/3 compares to RGB*/
-		kbps *= 3;
-		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-			kbps /= 2;
-		else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-			kbps = kbps * 2 / 3;
-	}
-
-	return kbps;
-
-}
-
-static uint32_t bandwidth_in_kbps_from_link_settings(
-	const struct dc_link_settings *link_setting)
-{
-	uint32_t link_rate_in_kbps = link_setting->link_rate *
-		LINK_RATE_REF_FREQ_IN_KHZ;
-
-	uint32_t lane_count  = link_setting->lane_count;
-	uint32_t kbps = link_rate_in_kbps;
-
-	kbps *= lane_count;
-	kbps *= 8;   /* 8 bits per byte*/
-
-	return kbps;
-
-}
-
 bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing)
@@ -1612,7 +1549,7 @@ bool dp_validate_mode_timing(
 		return true;
 
 	/* We always use verified link settings */
-	link_setting = &link->verified_link_cap;
+	link_setting = dc_link_get_verified_link_cap(link);
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&
@@ -1620,8 +1557,8 @@ bool dp_validate_mode_timing(
 		link_setting = &link->verified_link_cap;
 	*/
 
-	req_bw = bandwidth_in_kbps_from_timing(timing);
-	max_bw = bandwidth_in_kbps_from_link_settings(link_setting);
+	req_bw = dc_bandwidth_in_kbps_from_timing(timing);
+	max_bw = dc_link_bandwidth_kbps(link, link_setting);
 
 	if (req_bw <= max_bw) {
 		/* remember the biggest mode here, during
@@ -1656,7 +1593,8 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
-		link_bw = bandwidth_in_kbps_from_link_settings(
+		link_bw = dc_link_bandwidth_kbps(
+				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
 			*link_setting = current_link_setting;
@@ -1707,7 +1645,8 @@ static bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settin
 	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
-		link_bw = bandwidth_in_kbps_from_link_settings(
+		link_bw = dc_link_bandwidth_kbps(
+				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
 			*link_setting = current_link_setting;
@@ -1739,7 +1678,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link *link;
 	uint32_t req_bw;
 
-	req_bw = bandwidth_in_kbps_from_timing(&stream->timing);
+	req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 
 	link = stream->link;
 
@@ -2304,8 +2243,8 @@ static void get_active_converter_info(
 					hdmi_caps = {.raw = det_caps[3] };
 				union dwnstream_port_caps_byte2
 					hdmi_color_caps = {.raw = det_caps[2] };
-				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk =
-					det_caps[1] * 25000;
+				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk_in_khz =
+					det_caps[1] * 2500;
 
 				link->dpcd_caps.dongle_caps.is_dp_hdmi_s3d_converter =
 					hdmi_caps.bits.FRAME_SEQ_TO_FRAME_PACK;
@@ -2322,7 +2261,7 @@ static void get_active_converter_info(
 					translate_dpcd_max_bpc(
 						hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT);
 
-				if (link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk != 0)
+				if (link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk_in_khz != 0)
 					link->dpcd_caps.dongle_caps.extendedCapValid = true;
 			}
 

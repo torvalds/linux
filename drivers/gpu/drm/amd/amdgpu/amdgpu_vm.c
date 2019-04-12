@@ -769,14 +769,17 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	addr = 0;
 	if (ats_entries) {
-		uint64_t ats_value;
+		uint64_t value = 0, flags;
 
-		ats_value = AMDGPU_PTE_DEFAULT_ATC;
-		if (level != AMDGPU_VM_PTB)
-			ats_value |= AMDGPU_PDE_PTE;
+		flags = AMDGPU_PTE_DEFAULT_ATC;
+		if (level != AMDGPU_VM_PTB) {
+			/* Handle leaf PDEs as PTEs */
+			flags |= AMDGPU_PDE_PTE;
+			amdgpu_gmc_get_vm_pde(adev, level, &value, &flags);
+		}
 
 		r = vm->update_funcs->update(&params, bo, addr, 0, ats_entries,
-					     0, ats_value);
+					     value, flags);
 		if (r)
 			return r;
 
@@ -784,15 +787,22 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	}
 
 	if (entries) {
-		uint64_t value = 0;
+		uint64_t value = 0, flags = 0;
 
-		/* Workaround for fault priority problem on GMC9 */
-		if (level == AMDGPU_VM_PTB &&
-		    adev->asic_type >= CHIP_VEGA10)
-			value = AMDGPU_PTE_EXECUTABLE;
+		if (adev->asic_type >= CHIP_VEGA10) {
+			if (level != AMDGPU_VM_PTB) {
+				/* Handle leaf PDEs as PTEs */
+				flags |= AMDGPU_PDE_PTE;
+				amdgpu_gmc_get_vm_pde(adev, level,
+						      &value, &flags);
+			} else {
+				/* Workaround for fault priority problem on GMC9 */
+				flags = AMDGPU_PTE_EXECUTABLE;
+			}
+		}
 
 		r = vm->update_funcs->update(&params, bo, addr, 0, entries,
-					     0, value);
+					     value, flags);
 		if (r)
 			return r;
 	}
@@ -2027,7 +2037,8 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->valids);
 	INIT_LIST_HEAD(&bo_va->invalids);
 
-	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev))) {
+	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev)) &&
+	    (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)) {
 		bo_va->is_xgmi = true;
 		mutex_lock(&adev->vm_manager.lock_pstate);
 		/* Power up XGMI if it can be potentially used */

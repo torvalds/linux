@@ -773,11 +773,11 @@ bool dce100_validate_bandwidth(
 
 	if (at_least_one_pipe) {
 		/* TODO implement when needed but for now hardcode max value*/
-		context->bw.dce.dispclk_khz = 681000;
-		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
+		context->bw_ctx.bw.dce.dispclk_khz = 681000;
+		context->bw_ctx.bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
 	} else {
-		context->bw.dce.dispclk_khz = 0;
-		context->bw.dce.yclk_khz = 0;
+		context->bw_ctx.bw.dce.dispclk_khz = 0;
+		context->bw_ctx.bw.dce.yclk_khz = 0;
 	}
 
 	return true;

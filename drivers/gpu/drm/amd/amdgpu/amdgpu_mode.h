@@ -58,7 +58,7 @@ struct amdgpu_hpd;
 #define to_amdgpu_encoder(x) container_of(x, struct amdgpu_encoder, base)
 #define to_amdgpu_framebuffer(x) container_of(x, struct amdgpu_framebuffer, base)
 
-#define to_dm_plane_state(x)	container_of(x, struct dm_plane_state, base);
+#define to_dm_plane_state(x)	container_of(x, struct dm_plane_state, base)
 
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
@@ -406,7 +406,7 @@ struct amdgpu_crtc {
 	struct amdgpu_flip_work *pflip_works;
 	enum amdgpu_flip_status pflip_status;
 	int deferred_flip_completion;
-	u64 last_flip_vblank;
+	u32 last_flip_vblank;
 	/* pll sharing */
 	struct amdgpu_atom_ss ss;
 	bool ss_enabled;

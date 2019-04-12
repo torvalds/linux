@@ -1460,62 +1460,6 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v11_0_set_activity_monitor_coeff(struct smu_context *smu,
-				      uint8_t *table, uint16_t workload_type)
-{
-	int ret = 0;
-	memcpy(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].cpu_addr,
-	       table, smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].size);
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
-					  upper_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
-	if (ret) {
-		pr_err("[%s] Attempt to Set Dram Addr High Failed!", __func__);
-		return ret;
-	}
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
-					  lower_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
-	if (ret) {
-		pr_err("[%s] Attempt to Set Dram Addr Low Failed!", __func__);
-		return ret;
-	}
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_TransferTableSmu2Dram,
-					  TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16));
-	if (ret) {
-		pr_err("[%s] Attempt to Transfer Table From SMU Failed!", __func__);
-		return ret;
-	}
-
-	return ret;
-}
-
-static int smu_v11_0_get_activity_monitor_coeff(struct smu_context *smu,
-				      uint8_t *table, uint16_t workload_type)
-{
-	int ret = 0;
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
-					  upper_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
-	if (ret) {
-		pr_err("[%s] Attempt to Set Dram Addr High Failed!", __func__);
-		return ret;
-	}
-
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
-					  lower_32_bits(smu->smu_table.tables[TABLE_ACTIVITY_MONITOR_COEFF].mc_address));
-	if (ret) {
-		pr_err("[%s] Attempt to Set Dram Addr Low Failed!", __func__);
-		return ret;
-	}
-
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_TransferTableSmu2Dram,
-					  TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16));
-	if (ret) {
-		pr_err("[%s] Attempt to Transfer Table From SMU Failed!", __func__);
-		return ret;
-	}
-
-	return ret;
-}
-
 static int smu_v11_0_conv_power_profile_to_pplib_workload(int power_profile)
 {
 	int pplib_workload = 0;
@@ -1584,9 +1528,8 @@ static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 		workload_type = smu_v11_0_conv_power_profile_to_pplib_workload(i);
-		result = smu_v11_0_get_activity_monitor_coeff(smu,
-							      (uint8_t *)(&activity_monitor),
-							      workload_type);
+		result = smu_update_table_with_arg(smu, TABLE_ACTIVITY_MONITOR_COEFF,
+						   workload_type, &activity_monitor, false);
 		if (result) {
 			pr_err("[%s] Failed to get activity monitor!", __func__);
 			return result;
@@ -1658,7 +1601,7 @@ static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
 static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
-	int workload_type, ret = 0;
+	int workload_type = 0, ret = 0;
 
 	smu->power_profile_mode = input[size];
 
@@ -1668,9 +1611,8 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 	}
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		ret = smu_v11_0_get_activity_monitor_coeff(smu,
-							   (uint8_t *)(&activity_monitor),
-							   WORKLOAD_PPLIB_CUSTOM_BIT);
+		ret = smu_update_table_with_arg(smu, TABLE_ACTIVITY_MONITOR_COEFF,
+						WORKLOAD_PPLIB_CUSTOM_BIT, &activity_monitor, false);
 		if (ret) {
 			pr_err("[%s] Failed to get activity monitor!", __func__);
 			return ret;
@@ -1723,9 +1665,8 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 			break;
 		}
 
-		ret = smu_v11_0_set_activity_monitor_coeff(smu,
-							   (uint8_t *)(&activity_monitor),
-							   WORKLOAD_PPLIB_CUSTOM_BIT);
+		ret = smu_update_table_with_arg(smu, TABLE_ACTIVITY_MONITOR_COEFF,
+						WORKLOAD_PPLIB_COMPUTE_BIT, &activity_monitor, true);
 		if (ret) {
 			pr_err("[%s] Failed to set activity monitor!", __func__);
 			return ret;
@@ -1994,8 +1935,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_sclk = smu_v11_0_dpm_get_sclk,
 	.get_mclk = smu_v11_0_dpm_get_mclk,
 	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
-	.get_activity_monitor_coeff = smu_v11_0_get_activity_monitor_coeff,
-	.set_activity_monitor_coeff = smu_v11_0_set_activity_monitor_coeff,
 	.conv_power_profile_to_pplib_workload = smu_v11_0_conv_power_profile_to_pplib_workload,
 	.get_power_profile_mode = smu_v11_0_get_power_profile_mode,
 	.set_power_profile_mode = smu_v11_0_set_power_profile_mode,

@@ -246,10 +246,18 @@ void dc_link_set_test_pattern(struct dc_link *link,
 			const struct link_training_settings *p_link_settings,
 			const unsigned char *p_custom_pattern,
 			unsigned int cust_pattern_size);
+uint32_t dc_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_setting);
+
+const struct dc_link_settings *dc_link_get_verified_link_cap(
+		const struct dc_link *link);
 
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
 		struct i2c_command *cmd);
 
+uint32_t dc_bandwidth_in_kbps_from_timing(
+	const struct dc_crtc_timing *timing);
 #endif /* DC_LINK_H_ */

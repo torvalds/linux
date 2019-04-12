@@ -3568,7 +3568,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	int r;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
-		amdgpu_ras_feature_enable(adev, &ras_block, 0);
+		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
 		return 0;
 	}
 
@@ -3581,7 +3581,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 
 	**ras_if = ras_block;
 
-	r = amdgpu_ras_feature_enable(adev, *ras_if, 1);
+	r = amdgpu_ras_feature_enable_on_boot(adev, *ras_if, 1);
 	if (r)
 		goto feature;
 
@@ -4840,10 +4840,16 @@ static int gfx_v9_0_cp_ecc_error_irq(struct amdgpu_device *adev,
 				  struct amdgpu_irq_src *source,
 				  struct amdgpu_iv_entry *entry)
 {
+	struct ras_common_if *ras_if = adev->gfx.ras_if;
 	struct ras_dispatch_if ih_data = {
-		.head = *adev->gfx.ras_if,
 		.entry = entry,
 	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+
 	DRM_ERROR("CP ECC ERROR IRQ\n");
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;

@@ -187,13 +187,13 @@ static int psp_tmr_init(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * Allocate 3M memory aligned to 1M from Frame Buffer (local
-	 * physical).
+	 * According to HW engineer, they prefer the TMR address be "naturally
+	 * aligned" , e.g. the start address be an integer divide of TMR size.
 	 *
 	 * Note: this memory need be reserved till the driver
 	 * uninitializes.
 	 */
-	ret = amdgpu_bo_create_kernel(psp->adev, PSP_TMR_SIZE, 0x100000,
+	ret = amdgpu_bo_create_kernel(psp->adev, PSP_TMR_SIZE, PSP_TMR_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
 

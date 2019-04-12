@@ -111,7 +111,8 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector);
 
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				struct drm_plane *plane,
-				unsigned long possible_crtcs);
+				unsigned long possible_crtcs,
+				const struct dc_plane_cap *plane_cap);
 static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       struct drm_plane *plane,
 			       uint32_t link_index);
@@ -251,12 +252,22 @@ get_crtc_by_otg_inst(struct amdgpu_device *adev,
 	return NULL;
 }
 
+static inline bool amdgpu_dm_vrr_active(struct dm_crtc_state *dm_state)
+{
+	return dm_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE ||
+	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
+}
+
 static void dm_pflip_high_irq(void *interrupt_params)
 {
 	struct amdgpu_crtc *amdgpu_crtc;
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
 	unsigned long flags;
+	struct drm_pending_vblank_event *e;
+	struct dm_crtc_state *acrtc_state;
+	uint32_t vpos, hpos, v_blank_start, v_blank_end;
+	bool vrr_active;
 
 	amdgpu_crtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_PFLIP);
 
@@ -279,26 +290,98 @@ static void dm_pflip_high_irq(void *interrupt_params)
 		return;
 	}
 
-	/* Update to correct count(s) if racing with vblank irq */
-	amdgpu_crtc->last_flip_vblank = drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
+	/* page flip completed. */
+	e = amdgpu_crtc->event;
+	amdgpu_crtc->event = NULL;
 
-	/* wake up userspace */
-	if (amdgpu_crtc->event) {
-		drm_crtc_send_vblank_event(&amdgpu_crtc->base, amdgpu_crtc->event);
-
-		/* page flip completed. clean up */
-		amdgpu_crtc->event = NULL;
-
-	} else
+	if (!e)
 		WARN_ON(1);
+
+	acrtc_state = to_dm_crtc_state(amdgpu_crtc->base.state);
+	vrr_active = amdgpu_dm_vrr_active(acrtc_state);
+
+	/* Fixed refresh rate, or VRR scanout position outside front-porch? */
+	if (!vrr_active ||
+	    !dc_stream_get_scanoutpos(acrtc_state->stream, &v_blank_start,
+				      &v_blank_end, &hpos, &vpos) ||
+	    (vpos < v_blank_start)) {
+		/* Update to correct count and vblank timestamp if racing with
+		 * vblank irq. This also updates to the correct vblank timestamp
+		 * even in VRR mode, as scanout is past the front-porch atm.
+		 */
+		drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
+
+		/* Wake up userspace by sending the pageflip event with proper
+		 * count and timestamp of vblank of flip completion.
+		 */
+		if (e) {
+			drm_crtc_send_vblank_event(&amdgpu_crtc->base, e);
+
+			/* Event sent, so done with vblank for this flip */
+			drm_crtc_vblank_put(&amdgpu_crtc->base);
+		}
+	} else if (e) {
+		/* VRR active and inside front-porch: vblank count and
+		 * timestamp for pageflip event will only be up to date after
+		 * drm_crtc_handle_vblank() has been executed from late vblank
+		 * irq handler after start of back-porch (vline 0). We queue the
+		 * pageflip event for send-out by drm_crtc_handle_vblank() with
+		 * updated timestamp and count, once it runs after us.
+		 *
+		 * We need to open-code this instead of using the helper
+		 * drm_crtc_arm_vblank_event(), as that helper would
+		 * call drm_crtc_accurate_vblank_count(), which we must
+		 * not call in VRR mode while we are in front-porch!
+		 */
+
+		/* sequence will be replaced by real count during send-out. */
+		e->sequence = drm_crtc_vblank_count(&amdgpu_crtc->base);
+		e->pipe = amdgpu_crtc->crtc_id;
+
+		list_add_tail(&e->base.link, &adev->ddev->vblank_event_list);
+		e = NULL;
+	}
+
+	/* Keep track of vblank of this flip for flip throttling. We use the
+	 * cooked hw counter, as that one incremented at start of this vblank
+	 * of pageflip completion, so last_flip_vblank is the forbidden count
+	 * for queueing new pageflips if vsync + VRR is enabled.
+	 */
+	amdgpu_crtc->last_flip_vblank = amdgpu_get_vblank_counter_kms(adev->ddev,
+							amdgpu_crtc->crtc_id);
 
 	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
-	DRM_DEBUG_DRIVER("%s - crtc :%d[%p], pflip_stat:AMDGPU_FLIP_NONE\n",
-					__func__, amdgpu_crtc->crtc_id, amdgpu_crtc);
+	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_NONE, vrr[%d]-fp %d\n",
+			 amdgpu_crtc->crtc_id, amdgpu_crtc,
+			 vrr_active, (int) !e);
+}
 
-	drm_crtc_vblank_put(&amdgpu_crtc->base);
+static void dm_vupdate_high_irq(void *interrupt_params)
+{
+	struct common_irq_params *irq_params = interrupt_params;
+	struct amdgpu_device *adev = irq_params->adev;
+	struct amdgpu_crtc *acrtc;
+	struct dm_crtc_state *acrtc_state;
+
+	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VUPDATE);
+
+	if (acrtc) {
+		acrtc_state = to_dm_crtc_state(acrtc->base.state);
+
+		DRM_DEBUG_DRIVER("crtc:%d, vupdate-vrr:%d\n", acrtc->crtc_id,
+				 amdgpu_dm_vrr_active(acrtc_state));
+
+		/* Core vblank handling is done here after end of front-porch in
+		 * vrr mode, as vblank timestamping will give valid results
+		 * while now done after front-porch. This will also deliver
+		 * page-flip completion events that have been queued to us
+		 * if a pageflip happened inside front-porch.
+		 */
+		if (amdgpu_dm_vrr_active(acrtc_state))
+			drm_crtc_handle_vblank(&acrtc->base);
+	}
 }
 
 static void dm_crtc_high_irq(void *interrupt_params)
@@ -311,10 +394,23 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
 
 	if (acrtc) {
-		drm_crtc_handle_vblank(&acrtc->base);
-		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
-
 		acrtc_state = to_dm_crtc_state(acrtc->base.state);
+
+		DRM_DEBUG_DRIVER("crtc:%d, vupdate-vrr:%d\n", acrtc->crtc_id,
+				 amdgpu_dm_vrr_active(acrtc_state));
+
+		/* Core vblank handling at start of front-porch is only possible
+		 * in non-vrr mode, as only there vblank timestamping will give
+		 * valid results while done in front-porch. Otherwise defer it
+		 * to dm_vupdate_high_irq after end of front-porch.
+		 */
+		if (!amdgpu_dm_vrr_active(acrtc_state))
+			drm_crtc_handle_vblank(&acrtc->base);
+
+		/* Following stuff must happen at start of vblank, for crc
+		 * computation and below-the-range btr support in vrr mode.
+		 */
+		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
 
 		if (acrtc_state->stream &&
 		    acrtc_state->vrr_params.supported &&
@@ -888,8 +984,15 @@ static int dm_resume(void *handle)
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct dm_plane_state *dm_new_plane_state;
+	struct dm_atomic_state *dm_state = to_dm_atomic_state(dm->atomic_obj.state);
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	int i;
+
+	/* Recreate dc_state - DC invalidates it when setting power state to S3. */
+	dc_release_state(dm_state->context);
+	dm_state->context = dc_create_state(dm->dc);
+	/* TODO: Remove dc_state->dccg, use dc->dccg directly. */
+	dc_resource_state_construct(dm->dc, dm_state->context);
 
 	/* power on hardware */
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
@@ -1433,6 +1536,27 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 				dm_crtc_high_irq, c_irq_params);
 	}
 
+	/* Use VUPDATE interrupt */
+	for (i = VISLANDS30_IV_SRCID_D1_V_UPDATE_INT; i <= VISLANDS30_IV_SRCID_D6_V_UPDATE_INT; i += 2) {
+		r = amdgpu_irq_add_id(adev, client_id, i, &adev->vupdate_irq);
+		if (r) {
+			DRM_ERROR("Failed to add vupdate irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_vupdate_high_irq, c_irq_params);
+	}
+
 	/* Use GRPH_PFLIP interrupt */
 	for (i = VISLANDS30_IV_SRCID_D1_GRPH_PFLIP;
 			i <= VISLANDS30_IV_SRCID_D6_GRPH_PFLIP; i += 2) {
@@ -1516,6 +1640,34 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 
 		amdgpu_dm_irq_register_interrupt(adev, &int_params,
 				dm_crtc_high_irq, c_irq_params);
+	}
+
+	/* Use VUPDATE_NO_LOCK interrupt on DCN, which seems to correspond to
+	 * the regular VUPDATE interrupt on DCE. We want DC_IRQ_SOURCE_VUPDATEx
+	 * to trigger at end of each vblank, regardless of state of the lock,
+	 * matching DCE behaviour.
+	 */
+	for (i = DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT;
+	     i <= DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT + adev->mode_info.num_crtc - 1;
+	     i++) {
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->vupdate_irq);
+
+		if (r) {
+			DRM_ERROR("Failed to add vupdate irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_vupdate_high_irq, c_irq_params);
 	}
 
 	/* Use GRPH_PFLIP interrupt */
@@ -1629,16 +1781,15 @@ dm_atomic_duplicate_state(struct drm_private_obj *obj)
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &new_state->base);
 
-	new_state->context = dc_create_state();
+	old_state = to_dm_atomic_state(obj->state);
+
+	if (old_state && old_state->context)
+		new_state->context = dc_copy_state(old_state->context);
+
 	if (!new_state->context) {
 		kfree(new_state);
 		return NULL;
 	}
-
-	old_state = to_dm_atomic_state(obj->state);
-	if (old_state && old_state->context)
-		dc_resource_state_copy_construct(old_state->context,
-						 new_state->context);
 
 	return &new_state->base;
 }
@@ -1683,7 +1834,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	if (!state)
 		return -ENOMEM;
 
-	state->context = dc_create_state();
+	state->context = dc_create_state(adev->dm.dc);
 	if (!state->context) {
 		kfree(state);
 		return -ENOMEM;
@@ -1811,7 +1962,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 
 static int initialize_plane(struct amdgpu_display_manager *dm,
 			    struct amdgpu_mode_info *mode_info, int plane_id,
-			    enum drm_plane_type plane_type)
+			    enum drm_plane_type plane_type,
+			    const struct dc_plane_cap *plane_cap)
 {
 	struct drm_plane *plane;
 	unsigned long possible_crtcs;
@@ -1834,7 +1986,7 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 	if (plane_id >= dm->dc->caps.max_streams)
 		possible_crtcs = 0xff;
 
-	ret = amdgpu_dm_plane_init(dm, plane, possible_crtcs);
+	ret = amdgpu_dm_plane_init(dm, plane, possible_crtcs, plane_cap);
 
 	if (ret) {
 		DRM_ERROR("KMS: Failed to initialize plane\n");
@@ -1887,32 +2039,15 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
-	int32_t overlay_planes, primary_planes;
+	int32_t primary_planes;
 	enum dc_connection_type new_connection_type = dc_connection_none;
+	const struct dc_plane_cap *plane;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
 		DRM_ERROR("DM: Failed to initialize mode config\n");
 		return -EINVAL;
 	}
-
-	/*
-	 * Determine the number of overlay planes supported.
-	 * Only support DCN for now, and cap so we don't encourage
-	 * userspace to use up all the planes.
-	 */
-	overlay_planes = 0;
-
-	for (i = 0; i < dm->dc->caps.max_planes; ++i) {
-		struct dc_plane_cap *plane = &dm->dc->caps.planes[i];
-
-		if (plane->type == DC_PLANE_TYPE_DCN_UNIVERSAL &&
-		    plane->blends_with_above && plane->blends_with_below &&
-		    plane->supports_argb8888)
-			overlay_planes += 1;
-	}
-
-	overlay_planes = min(overlay_planes, 1);
 
 	/* There is one primary plane per CRTC */
 	primary_planes = dm->dc->caps.max_streams;
@@ -1923,8 +2058,10 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	 * Order is reversed to match iteration order in atomic check.
 	 */
 	for (i = (primary_planes - 1); i >= 0; i--) {
+		plane = &dm->dc->caps.planes[i];
+
 		if (initialize_plane(dm, mode_info, i,
-				     DRM_PLANE_TYPE_PRIMARY)) {
+				     DRM_PLANE_TYPE_PRIMARY, plane)) {
 			DRM_ERROR("KMS: Failed to initialize primary plane\n");
 			goto fail;
 		}
@@ -1935,13 +2072,30 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	 * These planes have a higher DRM index than the primary planes since
 	 * they should be considered as having a higher z-order.
 	 * Order is reversed to match iteration order in atomic check.
+	 *
+	 * Only support DCN for now, and only expose one so we don't encourage
+	 * userspace to use up all the pipes.
 	 */
-	for (i = (overlay_planes - 1); i >= 0; i--) {
+	for (i = 0; i < dm->dc->caps.max_planes; ++i) {
+		struct dc_plane_cap *plane = &dm->dc->caps.planes[i];
+
+		if (plane->type != DC_PLANE_TYPE_DCN_UNIVERSAL)
+			continue;
+
+		if (!plane->blends_with_above || !plane->blends_with_below)
+			continue;
+
+		if (!plane->supports_argb8888)
+			continue;
+
 		if (initialize_plane(dm, NULL, primary_planes + i,
-				     DRM_PLANE_TYPE_OVERLAY)) {
+				     DRM_PLANE_TYPE_OVERLAY, plane)) {
 			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
 			goto fail;
 		}
+
+		/* Only create one overlay plane. */
+		break;
 	}
 
 	for (i = 0; i < dm->dc->caps.max_streams; i++)
@@ -2601,6 +2755,50 @@ fill_blending_from_plane_state(struct drm_plane_state *plane_state,
 	}
 }
 
+static int
+fill_plane_color_attributes(const struct drm_plane_state *plane_state,
+			    const struct dc_plane_state *dc_plane_state,
+			    enum dc_color_space *color_space)
+{
+	bool full_range;
+
+	*color_space = COLOR_SPACE_SRGB;
+
+	/* DRM color properties only affect non-RGB formats. */
+	if (dc_plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+		return 0;
+
+	full_range = (plane_state->color_range == DRM_COLOR_YCBCR_FULL_RANGE);
+
+	switch (plane_state->color_encoding) {
+	case DRM_COLOR_YCBCR_BT601:
+		if (full_range)
+			*color_space = COLOR_SPACE_YCBCR601;
+		else
+			*color_space = COLOR_SPACE_YCBCR601_LIMITED;
+		break;
+
+	case DRM_COLOR_YCBCR_BT709:
+		if (full_range)
+			*color_space = COLOR_SPACE_YCBCR709;
+		else
+			*color_space = COLOR_SPACE_YCBCR709_LIMITED;
+		break;
+
+	case DRM_COLOR_YCBCR_BT2020:
+		if (full_range)
+			*color_space = COLOR_SPACE_2020_YCBCR;
+		else
+			return -EINVAL;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int fill_plane_attributes(struct amdgpu_device *adev,
 				 struct dc_plane_state *dc_plane_state,
 				 struct drm_plane_state *plane_state,
@@ -2619,6 +2817,11 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 		dc_plane_state,
 		amdgpu_fb);
 
+	if (ret)
+		return ret;
+
+	ret = fill_plane_color_attributes(plane_state, dc_plane_state,
+					  &dc_plane_state->color_space);
 	if (ret)
 		return ret;
 
@@ -3210,12 +3413,41 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &state->base;
 }
 
+static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
+{
+	enum dc_irq_source irq_source;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+	int rc;
+
+	irq_source = IRQ_TYPE_VUPDATE + acrtc->otg_inst;
+
+	rc = dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
+
+	DRM_DEBUG_DRIVER("crtc %d - vupdate irq %sabling: r=%d\n",
+			 acrtc->crtc_id, enable ? "en" : "dis", rc);
+	return rc;
+}
 
 static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 {
 	enum dc_irq_source irq_source;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
+	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
+	int rc = 0;
+
+	if (enable) {
+		/* vblank irq on -> Only need vupdate irq in vrr mode */
+		if (amdgpu_dm_vrr_active(acrtc_state))
+			rc = dm_set_vupdate_irq(crtc, true);
+	} else {
+		/* vblank irq off -> vupdate irq off */
+		rc = dm_set_vupdate_irq(crtc, false);
+	}
+
+	if (rc)
+		return rc;
 
 	irq_source = IRQ_TYPE_VBLANK + acrtc->otg_inst;
 	return dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
@@ -3891,7 +4123,8 @@ static const u32 cursor_formats[] = {
 
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				struct drm_plane *plane,
-				unsigned long possible_crtcs)
+				unsigned long possible_crtcs,
+				const struct dc_plane_cap *plane_cap)
 {
 	int res = -EPERM;
 
@@ -3928,8 +4161,8 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		break;
 	}
 
-	/* TODO: Check DC plane caps explicitly here for adding propertes */
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
+	if (plane->type == DRM_PLANE_TYPE_OVERLAY &&
+	    plane_cap && plane_cap->per_pixel_alpha) {
 		unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 					  BIT(DRM_MODE_BLEND_PREMULTI);
 
@@ -3961,7 +4194,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 		goto fail;
 
 	cursor_plane->type = DRM_PLANE_TYPE_CURSOR;
-	res = amdgpu_dm_plane_init(dm, cursor_plane, 0);
+	res = amdgpu_dm_plane_init(dm, cursor_plane, 0, NULL);
 
 	acrtc = kzalloc(sizeof(struct amdgpu_crtc), GFP_KERNEL);
 	if (!acrtc)
@@ -4646,7 +4879,6 @@ static void update_freesync_state_on_stream(
 {
 	struct mod_vrr_params vrr_params = new_crtc_state->vrr_params;
 	struct dc_info_packet vrr_infopacket = {0};
-	struct mod_freesync_config config = new_crtc_state->freesync_config;
 
 	if (!new_stream)
 		return;
@@ -4658,20 +4890,6 @@ static void update_freesync_state_on_stream(
 
 	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
 		return;
-
-	if (new_crtc_state->vrr_supported &&
-	    config.min_refresh_in_uhz &&
-	    config.max_refresh_in_uhz) {
-		config.state = new_crtc_state->base.vrr_enabled ?
-			VRR_STATE_ACTIVE_VARIABLE :
-			VRR_STATE_INACTIVE;
-	} else {
-		config.state = VRR_STATE_UNSUPPORTED;
-	}
-
-	mod_freesync_build_vrr_params(dm->freesync_module,
-				      new_stream,
-				      &config, &vrr_params);
 
 	if (surface) {
 		mod_freesync_handle_preflip(
@@ -4713,6 +4931,76 @@ static void update_freesync_state_on_stream(
 			      (int)vrr_params.state);
 }
 
+static void pre_update_freesync_state_on_stream(
+	struct amdgpu_display_manager *dm,
+	struct dm_crtc_state *new_crtc_state)
+{
+	struct dc_stream_state *new_stream = new_crtc_state->stream;
+	struct mod_vrr_params vrr_params = new_crtc_state->vrr_params;
+	struct mod_freesync_config config = new_crtc_state->freesync_config;
+
+	if (!new_stream)
+		return;
+
+	/*
+	 * TODO: Determine why min/max totals and vrefresh can be 0 here.
+	 * For now it's sufficient to just guard against these conditions.
+	 */
+	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
+		return;
+
+	if (new_crtc_state->vrr_supported &&
+	    config.min_refresh_in_uhz &&
+	    config.max_refresh_in_uhz) {
+		config.state = new_crtc_state->base.vrr_enabled ?
+			VRR_STATE_ACTIVE_VARIABLE :
+			VRR_STATE_INACTIVE;
+	} else {
+		config.state = VRR_STATE_UNSUPPORTED;
+	}
+
+	mod_freesync_build_vrr_params(dm->freesync_module,
+				      new_stream,
+				      &config, &vrr_params);
+
+	new_crtc_state->freesync_timing_changed |=
+		(memcmp(&new_crtc_state->vrr_params.adjust,
+			&vrr_params.adjust,
+			sizeof(vrr_params.adjust)) != 0);
+
+	new_crtc_state->vrr_params = vrr_params;
+}
+
+static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
+					    struct dm_crtc_state *new_state)
+{
+	bool old_vrr_active = amdgpu_dm_vrr_active(old_state);
+	bool new_vrr_active = amdgpu_dm_vrr_active(new_state);
+
+	if (!old_vrr_active && new_vrr_active) {
+		/* Transition VRR inactive -> active:
+		 * While VRR is active, we must not disable vblank irq, as a
+		 * reenable after disable would compute bogus vblank/pflip
+		 * timestamps if it likely happened inside display front-porch.
+		 *
+		 * We also need vupdate irq for the actual core vblank handling
+		 * at end of vblank.
+		 */
+		dm_set_vupdate_irq(new_state->base.crtc, true);
+		drm_crtc_vblank_get(new_state->base.crtc);
+		DRM_DEBUG_DRIVER("%s: crtc=%u VRR off->on: Get vblank ref\n",
+				 __func__, new_state->base.crtc->base.id);
+	} else if (old_vrr_active && !new_vrr_active) {
+		/* Transition VRR active -> inactive:
+		 * Allow vblank irq disable again for fixed refresh rate.
+		 */
+		dm_set_vupdate_irq(new_state->base.crtc, false);
+		drm_crtc_vblank_put(new_state->base.crtc);
+		DRM_DEBUG_DRIVER("%s: crtc=%u VRR on->off: Drop vblank ref\n",
+				 __func__, new_state->base.crtc->base.id);
+	}
+}
+
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct dc_state *dc_state,
 				    struct drm_device *dev,
@@ -4734,11 +5022,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	unsigned long flags;
 	struct amdgpu_bo *abo;
 	uint64_t tiling_flags;
-	uint32_t target, target_vblank;
-	uint64_t last_flip_vblank;
-	bool vrr_active = acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE;
+	uint32_t target_vblank, last_flip_vblank;
+	bool vrr_active = amdgpu_dm_vrr_active(acrtc_state);
 	bool pflip_present = false;
-
 	struct {
 		struct dc_surface_update surface_updates[MAX_SURFACES];
 		struct dc_plane_info plane_infos[MAX_SURFACES];
@@ -4790,8 +5076,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		bundle->scaling_infos[planes_count].clip_rect = dc_plane->clip_rect;
 		bundle->surface_updates[planes_count].scaling_info = &bundle->scaling_infos[planes_count];
 
+		fill_plane_color_attributes(
+			new_plane_state, dc_plane,
+			&bundle->plane_infos[planes_count].color_space);
 
-		bundle->plane_infos[planes_count].color_space = dc_plane->color_space;
 		bundle->plane_infos[planes_count].format = dc_plane->format;
 		bundle->plane_infos[planes_count].plane_size = dc_plane->plane_size;
 		bundle->plane_infos[planes_count].rotation = dc_plane->rotation;
@@ -4880,7 +5168,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			 * clients using the GLX_OML_sync_control extension or
 			 * DRI3/Present extension with defined target_msc.
 			 */
-			last_flip_vblank = drm_crtc_vblank_count(pcrtc);
+			last_flip_vblank = amdgpu_get_vblank_counter_kms(dm->ddev, acrtc_attach->crtc_id);
 		}
 		else {
 			/* For variable refresh rate mode only:
@@ -4896,11 +5184,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
 
-		target = (uint32_t)last_flip_vblank + wait_for_vblank;
-
-		/* Prepare wait for target vblank early - before the fence-waits */
-		target_vblank = target - (uint32_t)drm_crtc_vblank_count(pcrtc) +
-				amdgpu_get_vblank_counter_kms(pcrtc->dev, acrtc_attach->crtc_id);
+		target_vblank = last_flip_vblank + wait_for_vblank;
 
 		/*
 		 * Wait until we're out of the vertical blank period before the one
@@ -5065,7 +5349,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		dc_state = dm_state->context;
 	} else {
 		/* No state changes, retain current state. */
-		dc_state_temp = dc_create_state();
+		dc_state_temp = dc_create_state(dm->dc);
 		ASSERT(dc_state_temp);
 		dc_state = dc_state_temp;
 		dc_resource_state_copy_construct_current(dm->dc, dc_state);
@@ -5234,6 +5518,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_unlock(&dm->dc_lock);
 	}
 
+	/* Update freesync state before amdgpu_dm_handle_vrr_transition(). */
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
+	}
+
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
 			new_crtc_state, i) {
 		/*
@@ -5247,6 +5537,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+
+		/* Handle vrr on->off / off->on transitions */
+		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
+						dm_new_crtc_state);
+
 		modeset_needed = modeset_required(
 				new_crtc_state,
 				dm_new_crtc_state->stream,
@@ -5891,7 +6186,9 @@ dm_determine_update_type_for_commit(struct dc *dc,
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		struct dc_stream_update stream_update = { 0 };
+		struct dc_stream_update stream_update;
+
+		memset(&stream_update, 0, sizeof(stream_update));
 
 		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
