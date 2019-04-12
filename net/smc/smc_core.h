@@ -235,6 +235,7 @@ struct smc_init_info {
 	u8			is_smcd;
 	unsigned short		vlan_id;
 	int			srv_first_contact;
+	int			cln_first_contact;
 	/* SMC-R */
 	struct smc_clc_msg_local *ib_lcl;
 	struct smc_ib_device	*ib_dev;

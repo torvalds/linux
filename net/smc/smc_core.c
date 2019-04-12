@@ -204,14 +204,15 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	int i;
 
 	if (ini->is_smcd && ini->vlan_id) {
-		rc = smc_ism_get_vlan(ini->ism_dev, ini->vlan_id);
-		if (rc)
+		if (smc_ism_get_vlan(ini->ism_dev, ini->vlan_id)) {
+			rc = SMC_CLC_DECL_ISMVLANERR;
 			goto out;
+		}
 	}
 
 	lgr = kzalloc(sizeof(*lgr), GFP_KERNEL);
 	if (!lgr) {
-		rc = -ENOMEM;
+		rc = SMC_CLC_DECL_MEM;
 		goto out;
 	}
 	lgr->is_smcd = ini->is_smcd;
@@ -289,6 +290,12 @@ clear_llc_lnk:
 free_lgr:
 	kfree(lgr);
 out:
+	if (rc < 0) {
+		if (rc == -ENOMEM)
+			rc = SMC_CLC_DECL_MEM;
+		else
+			rc = SMC_CLC_DECL_INTERR;
+	}
 	return rc;
 }
 
@@ -597,11 +604,11 @@ static bool smcd_lgr_match(struct smc_link_group *lgr,
 int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 {
 	struct smc_connection *conn = &smc->conn;
-	int local_contact = SMC_FIRST_CONTACT;
 	struct smc_link_group *lgr;
 	enum smc_lgr_role role;
 	int rc = 0;
 
+	ini->cln_first_contact = SMC_FIRST_CONTACT;
 	role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
 	if (role == SMC_CLNT && ini->srv_first_contact)
 		/* create new link group as well */
@@ -619,7 +626,7 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		    (role == SMC_CLNT ||
 		     lgr->conns_num < SMC_RMBS_PER_LGR_MAX)) {
 			/* link group found */
-			local_contact = SMC_REUSE_CONTACT;
+			ini->cln_first_contact = SMC_REUSE_CONTACT;
 			conn->lgr = lgr;
 			smc_lgr_register_conn(conn); /* add smc conn to lgr */
 			if (delayed_work_pending(&lgr->free_work))
@@ -632,16 +639,16 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	spin_unlock_bh(&smc_lgr_list.lock);
 
 	if (role == SMC_CLNT && !ini->srv_first_contact &&
-	    local_contact == SMC_FIRST_CONTACT) {
+	    ini->cln_first_contact == SMC_FIRST_CONTACT) {
 		/* Server reuses a link group, but Client wants to start
 		 * a new one
 		 * send out_of_sync decline, reason synchr. error
 		 */
-		return -ENOLINK;
+		return SMC_CLC_DECL_SYNCERR;
 	}
 
 create:
-	if (local_contact == SMC_FIRST_CONTACT) {
+	if (ini->cln_first_contact == SMC_FIRST_CONTACT) {
 		rc = smc_lgr_create(smc, ini);
 		if (rc)
 			goto out;
@@ -659,7 +666,7 @@ create:
 #endif
 
 out:
-	return rc ? rc : local_contact;
+	return rc;
 }
 
 /* convert the RMB size into the compressed notation - minimum 16K.
