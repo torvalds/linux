@@ -280,6 +280,18 @@ static int cpu_map_kthread_run(void *data)
 		 * consume side valid as no-resize allowed of queue.
 		 */
 		n = ptr_ring_consume_batched(rcpu->queue, frames, CPUMAP_BATCH);
+
+		for (i = 0; i < n; i++) {
+			void *f = frames[i];
+			struct page *page = virt_to_page(f);
+
+			/* Bring struct page memory area to curr CPU. Read by
+			 * build_skb_around via page_is_pfmemalloc(), and when
+			 * freed written by page_frag_free call.
+			 */
+			prefetchw(page);
+		}
+
 		m = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, n, skbs);
 		if (unlikely(m == 0)) {
 			for (i = 0; i < n; i++)
