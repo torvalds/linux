@@ -1,3 +1,16 @@
+What:		/sys/kernel/debug/wilco_ec/h1_gpio
+Date:		April 2019
+KernelVersion:	5.2
+Description:
+		As part of Chrome OS's FAFT (Fully Automated Firmware Testing)
+		tests, we need to ensure that the H1 chip is properly setting
+		some GPIO lines. The h1_gpio attribute exposes the state
+		of the lines:
+		- ENTRY_TO_FACT_MODE in BIT(0)
+		- SPI_CHROME_SEL in BIT(1)
+
+		Output will formatted with "0x%02x\n".
+
 What:		/sys/kernel/debug/wilco_ec/raw
 Date:		January 2019
 KernelVersion:	5.1

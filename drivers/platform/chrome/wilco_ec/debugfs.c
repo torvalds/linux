@@ -164,6 +164,51 @@ static const struct file_operations fops_raw = {
 	.llseek = no_llseek,
 };
 
+#define CMD_KB_CHROME		0x88
+#define SUB_CMD_H1_GPIO		0x0A
+
+struct h1_gpio_status_request {
+	u8 cmd;		/* Always CMD_KB_CHROME */
+	u8 reserved;
+	u8 sub_cmd;	/* Always SUB_CMD_H1_GPIO */
+} __packed;
+
+struct hi_gpio_status_response {
+	u8 status;	/* 0 if allowed */
+	u8 val;		/* BIT(0)=ENTRY_TO_FACT_MODE, BIT(1)=SPI_CHROME_SEL */
+} __packed;
+
+static int h1_gpio_get(void *arg, u64 *val)
+{
+	struct wilco_ec_device *ec = arg;
+	struct h1_gpio_status_request rq;
+	struct hi_gpio_status_response rs;
+	struct wilco_ec_message msg;
+	int ret;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.cmd = CMD_KB_CHROME;
+	rq.sub_cmd = SUB_CMD_H1_GPIO;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.type = WILCO_EC_MSG_LEGACY;
+	msg.request_data = &rq;
+	msg.request_size = sizeof(rq);
+	msg.response_data = &rs;
+	msg.response_size = sizeof(rs);
+	ret = wilco_ec_mailbox(ec, &msg);
+	if (ret < 0)
+		return ret;
+	if (rs.status)
+		return -EIO;
+
+	*val = rs.val;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_h1_gpio, h1_gpio_get, NULL, "0x%02llx\n");
+
 /**
  * wilco_ec_debugfs_probe() - Create the debugfs node
  * @pdev: The platform device, probably created in core.c
@@ -185,6 +230,8 @@ static int wilco_ec_debugfs_probe(struct platform_device *pdev)
 	if (!debug_info->dir)
 		return 0;
 	debugfs_create_file("raw", 0644, debug_info->dir, NULL, &fops_raw);
+	debugfs_create_file("h1_gpio", 0444, debug_info->dir, ec,
+			    &fops_h1_gpio);
 
 	return 0;
 }
