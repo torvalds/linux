@@ -264,3 +264,59 @@ xfs_inode_measure_sickness(
 	*checked = ip->i_checked;
 	spin_unlock(&ip->i_flags_lock);
 }
+
+/* Mappings between internal sick masks and ioctl sick masks. */
+
+struct ioctl_sick_map {
+	unsigned int		sick_mask;
+	unsigned int		ioctl_mask;
+};
+
+static const struct ioctl_sick_map fs_map[] = {
+	{ XFS_SICK_FS_COUNTERS,	XFS_FSOP_GEOM_SICK_COUNTERS},
+	{ XFS_SICK_FS_UQUOTA,	XFS_FSOP_GEOM_SICK_UQUOTA },
+	{ XFS_SICK_FS_GQUOTA,	XFS_FSOP_GEOM_SICK_GQUOTA },
+	{ XFS_SICK_FS_PQUOTA,	XFS_FSOP_GEOM_SICK_PQUOTA },
+	{ 0, 0 },
+};
+
+static const struct ioctl_sick_map rt_map[] = {
+	{ XFS_SICK_RT_BITMAP,	XFS_FSOP_GEOM_SICK_RT_BITMAP },
+	{ XFS_SICK_RT_SUMMARY,	XFS_FSOP_GEOM_SICK_RT_SUMMARY },
+	{ 0, 0 },
+};
+
+static inline void
+xfgeo_health_tick(
+	struct xfs_fsop_geom		*geo,
+	unsigned int			sick,
+	unsigned int			checked,
+	const struct ioctl_sick_map	*m)
+{
+	if (checked & m->sick_mask)
+		geo->checked |= m->ioctl_mask;
+	if (sick & m->sick_mask)
+		geo->sick |= m->ioctl_mask;
+}
+
+/* Fill out fs geometry health info. */
+void
+xfs_fsop_geom_health(
+	struct xfs_mount		*mp,
+	struct xfs_fsop_geom		*geo)
+{
+	const struct ioctl_sick_map	*m;
+	unsigned int			sick;
+	unsigned int			checked;
+
+	geo->sick = 0;
+	geo->checked = 0;
+
+	xfs_fs_measure_sickness(mp, &sick, &checked);
+	for (m = fs_map; m->sick_mask; m++)
+		xfgeo_health_tick(geo, sick, checked, m);
+
+	xfs_rt_measure_sickness(mp, &sick, &checked);
+	for (m = rt_map; m->sick_mask; m++)
+		xfgeo_health_tick(geo, sick, checked, m);
+}

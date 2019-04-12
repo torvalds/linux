@@ -34,6 +34,7 @@
 #include "scrub/xfs_scrub.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
+#include "xfs_health.h"
 
 #include <linux/capability.h>
 #include <linux/cred.h>
@@ -797,8 +798,10 @@ xfs_ioc_fsgeometry(
 		len = sizeof(struct xfs_fsop_geom_v1);
 	else if (struct_version == 4)
 		len = sizeof(struct xfs_fsop_geom_v4);
-	else
+	else {
+		xfs_fsop_geom_health(mp, &fsgeo);
 		len = sizeof(fsgeo);
+	}
 
 	if (copy_to_user(arg, &fsgeo, len))
 		return -EFAULT;
