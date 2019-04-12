@@ -3448,7 +3448,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	 * The enabling order will be from lower to higher indexed wells,
 	 * the disabling order is reversed.
 	 */
-	if (IS_ICELAKE(dev_priv)) {
+	if (IS_GEN(dev_priv, 11)) {
 		err = set_power_wells(power_domains, icl_power_wells);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		err = set_power_wells(power_domains, cnl_power_wells);
@@ -4061,7 +4061,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 
 	power_domains->initializing = true;
 
-	if (IS_ICELAKE(i915)) {
+	if (INTEL_GEN(i915) >= 11) {
 		icl_display_core_init(i915, resume);
 	} else if (IS_CANNONLAKE(i915)) {
 		cnl_display_core_init(i915, resume);
@@ -4209,7 +4209,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 		intel_power_domains_verify_state(i915);
 	}
 
-	if (IS_ICELAKE(i915))
+	if (INTEL_GEN(i915) >= 11)
 		icl_display_core_uninit(i915);
 	else if (IS_CANNONLAKE(i915))
 		cnl_display_core_uninit(i915);

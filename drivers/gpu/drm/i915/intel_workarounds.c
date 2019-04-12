@@ -569,7 +569,7 @@ void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 
 	wa_init_start(wal, "context");
 
-	if (IS_ICELAKE(i915))
+	if (IS_GEN(i915, 11))
 		icl_ctx_workarounds_init(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_ctx_workarounds_init(engine);
@@ -867,7 +867,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	if (IS_ICELAKE(i915))
+	if (IS_GEN(i915, 11))
 		icl_gt_workarounds_init(i915, wal);
 	else if (IS_CANNONLAKE(i915))
 		cnl_gt_workarounds_init(i915, wal);
@@ -1064,7 +1064,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 	wa_init_start(w, "whitelist");
 
-	if (IS_ICELAKE(i915))
+	if (IS_GEN(i915, 11))
 		icl_whitelist_build(w);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(w);
@@ -1112,7 +1112,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (IS_ICELAKE(i915)) {
+	if (IS_GEN(i915, 11)) {
 		/* This is not an Wa. Enable for better image quality */
 		wa_masked_en(wal,
 			     _3D_CHICKEN3,
