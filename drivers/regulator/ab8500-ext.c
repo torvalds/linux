@@ -733,6 +733,7 @@ static struct ab8500_ext_regulator_info
 	[AB8500_EXT_SUPPLY1] = {
 		.desc = {
 			.name		= "VEXTSUPPLY1",
+			.of_match	= of_match_ptr("ab8500_ext1"),
 			.ops		= &ab8500_ext_regulator_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8500_EXT_SUPPLY1,
@@ -750,6 +751,7 @@ static struct ab8500_ext_regulator_info
 	[AB8500_EXT_SUPPLY2] = {
 		.desc = {
 			.name		= "VEXTSUPPLY2",
+			.of_match	= of_match_ptr("ab8500_ext2"),
 			.ops		= &ab8500_ext_regulator_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8500_EXT_SUPPLY2,
@@ -767,6 +769,7 @@ static struct ab8500_ext_regulator_info
 	[AB8500_EXT_SUPPLY3] = {
 		.desc = {
 			.name		= "VEXTSUPPLY3",
+			.of_match	= of_match_ptr("ab8500_ext3"),
 			.ops		= &ab8500_ext_regulator_ops,
 			.type		= REGULATOR_VOLTAGE,
 			.id		= AB8500_EXT_SUPPLY3,
@@ -783,31 +786,13 @@ static struct ab8500_ext_regulator_info
 	},
 };
 
-static struct of_regulator_match ab8500_ext_regulator_match[] = {
-	{ .name = "ab8500_ext1", .driver_data = (void *) AB8500_EXT_SUPPLY1, },
-	{ .name = "ab8500_ext2", .driver_data = (void *) AB8500_EXT_SUPPLY2, },
-	{ .name = "ab8500_ext3", .driver_data = (void *) AB8500_EXT_SUPPLY3, },
-};
-
 static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_regulator_platform_data *pdata = &ab8500_regulator_plat_data;
-	struct device_node *np = pdev->dev.of_node;
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
-	int i, err;
-
-	if (np) {
-		err = of_regulator_match(&pdev->dev, np,
-					 ab8500_ext_regulator_match,
-					 ARRAY_SIZE(ab8500_ext_regulator_match));
-		if (err < 0) {
-			dev_err(&pdev->dev,
-				"Error parsing regulator init data: %d\n", err);
-			return err;
-		}
-	}
+	int i;
 
 	if (!ab8500) {
 		dev_err(&pdev->dev, "null mfd parent\n");
@@ -843,10 +828,7 @@ static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 
 		config.dev = &pdev->dev;
 		config.driver_data = info;
-		config.of_node = ab8500_ext_regulator_match[i].of_node;
-		config.init_data = (np) ?
-			ab8500_ext_regulator_match[i].init_data :
-			&pdata->ext_regulator[i];
+		config.init_data = &pdata->ext_regulator[i];
 
 		/* register regulator with framework */
 		rdev = devm_regulator_register(&pdev->dev, &info->desc,
