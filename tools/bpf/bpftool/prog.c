@@ -323,7 +323,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	}
 
 	if (info->btf_id)
-		printf("\n\tbtf_id %d\n", info->btf_id);
+		printf("\n\tbtf_id %d", info->btf_id);
 
 	printf("\n");
 }
