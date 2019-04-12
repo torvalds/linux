@@ -178,7 +178,7 @@ drivers/xen/*
 ! find sound/core -name oss -prune -o -name *.ko -print
 fs/9p/*
 fs/aufs/aufs.ko
-fs/autofs4/autofs4.ko
+fs/autofs/autofs4.ko
 fs/binfmt_misc.ko
 fs/btrfs/*
 fs/cachefiles/cachefiles.ko
