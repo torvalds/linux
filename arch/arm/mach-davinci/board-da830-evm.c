@@ -58,6 +58,7 @@ static struct gpiod_lookup_table da830_evm_usb_gpio_lookup = {
 	.table = {
 		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_DRV, "vbus", 0),
 		GPIO_LOOKUP("davinci_gpio", ON_BD_USB_OVC, "oc", 0),
+		{ }
 	},
 };
 
@@ -156,6 +157,7 @@ static struct gpiod_lookup_table mmc_gpios_table = {
 			    GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("davinci_gpio", DA830_MMCSD_WP_PIN, "wp",
 			    GPIO_ACTIVE_LOW),
+		{ }
 	},
 };
 
