@@ -381,6 +381,7 @@ dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-kp-ddc.dtb \
 	imx53-kp-hsc.dtb \
 	imx53-m53evk.dtb \
+	imx53-m53menlo.dtb \
 	imx53-mba53.dtb \
 	imx53-ppd.dtb \
 	imx53-qsb.dtb \
