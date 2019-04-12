@@ -20,6 +20,7 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
+#include "xfs_health.h"
 
 static struct xfs_buf *
 xfs_get_aghdr_buf(
@@ -505,6 +506,7 @@ xfs_ag_get_geometry(
 		   pag->pagf_btreeblks -
 		   xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE);
 	ageo->ag_freeblks = freeblks;
+	xfs_ag_geom_health(pag, ageo);
 
 	/* Release resources. */
 	xfs_perag_put(pag);

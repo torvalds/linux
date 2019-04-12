@@ -320,3 +320,39 @@ xfs_fsop_geom_health(
 	for (m = rt_map; m->sick_mask; m++)
 		xfgeo_health_tick(geo, sick, checked, m);
 }
+
+static const struct ioctl_sick_map ag_map[] = {
+	{ XFS_SICK_AG_SB,	XFS_AG_GEOM_SICK_SB },
+	{ XFS_SICK_AG_AGF,	XFS_AG_GEOM_SICK_AGF },
+	{ XFS_SICK_AG_AGFL,	XFS_AG_GEOM_SICK_AGFL },
+	{ XFS_SICK_AG_AGI,	XFS_AG_GEOM_SICK_AGI },
+	{ XFS_SICK_AG_BNOBT,	XFS_AG_GEOM_SICK_BNOBT },
+	{ XFS_SICK_AG_CNTBT,	XFS_AG_GEOM_SICK_CNTBT },
+	{ XFS_SICK_AG_INOBT,	XFS_AG_GEOM_SICK_INOBT },
+	{ XFS_SICK_AG_FINOBT,	XFS_AG_GEOM_SICK_FINOBT },
+	{ XFS_SICK_AG_RMAPBT,	XFS_AG_GEOM_SICK_RMAPBT },
+	{ XFS_SICK_AG_REFCNTBT,	XFS_AG_GEOM_SICK_REFCNTBT },
+	{ 0, 0 },
+};
+
+/* Fill out ag geometry health info. */
+void
+xfs_ag_geom_health(
+	struct xfs_perag		*pag,
+	struct xfs_ag_geometry		*ageo)
+{
+	const struct ioctl_sick_map	*m;
+	unsigned int			sick;
+	unsigned int			checked;
+
+	ageo->ag_sick = 0;
+	ageo->ag_checked = 0;
+
+	xfs_ag_measure_sickness(pag, &sick, &checked);
+	for (m = ag_map; m->sick_mask; m++) {
+		if (checked & m->sick_mask)
+			ageo->ag_checked |= m->ioctl_mask;
+		if (sick & m->sick_mask)
+			ageo->ag_sick |= m->ioctl_mask;
+	}
+}
