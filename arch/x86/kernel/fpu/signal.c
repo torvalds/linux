@@ -175,20 +175,21 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			(struct _fpstate_32 __user *) buf) ? -1 : 1;
 
 	/*
-	 * If we do not need to load the FPU registers at return to userspace
-	 * then the CPU has the current state. Try to save it directly to
-	 * userland's stack frame if it does not cause a pagefault. If it does,
-	 * try the slowpath.
+	 * Load the FPU registers if they are not valid for the current task.
+	 * With a valid FPU state we can attempt to save the state directly to
+	 * userland's stack frame which will likely succeed. If it does not, do
+	 * the slowpath.
 	 */
 	fpregs_lock();
-	if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
-		pagefault_disable();
-		ret = copy_fpregs_to_sigframe(buf_fx);
-		pagefault_enable();
-		if (ret)
-			copy_fpregs_to_fpstate(fpu);
-		set_thread_flag(TIF_NEED_FPU_LOAD);
-	}
+	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+		__fpregs_load_activate();
+
+	pagefault_disable();
+	ret = copy_fpregs_to_sigframe(buf_fx);
+	pagefault_enable();
+	if (ret && !test_thread_flag(TIF_NEED_FPU_LOAD))
+		copy_fpregs_to_fpstate(fpu);
+	set_thread_flag(TIF_NEED_FPU_LOAD);
 	fpregs_unlock();
 
 	if (ret) {
