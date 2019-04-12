@@ -370,7 +370,6 @@ config SERIAL_MAX310X
 	depends on SPI_MASTER
 	select SERIAL_CORE
 	select REGMAP_SPI if SPI_MASTER
-	default n
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
 	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
@@ -653,7 +652,6 @@ config SERIAL_MUX_CONSOLE
 config PDC_CONSOLE
 	bool "PDC software console support"
 	depends on PARISC && !SERIAL_MUX && VT
-	default n
 	help
 	  Saying Y here will enable the software based PDC console to be 
 	  used as the system console.  This is useful for machines in 
@@ -1110,7 +1108,6 @@ config SERIAL_QE
 	depends on QUICC_ENGINE
 	select SERIAL_CORE
 	select FW_LOADER
-	default n
 	help
 	  This driver supports the QE serial ports on Freescale embedded
 	  PowerPC that contain a QUICC Engine.
