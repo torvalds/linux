@@ -74,6 +74,18 @@ void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
 }
 
 /*
+ * Mark the specified rcu_segcblist structure as offloaded.  This
+ * structure must be empty.
+ */
+void rcu_segcblist_offload(struct rcu_segcblist *rsclp)
+{
+	WARN_ON_ONCE(!rcu_segcblist_empty(rsclp));
+	WARN_ON_ONCE(rcu_segcblist_n_cbs(rsclp));
+	WARN_ON_ONCE(rcu_segcblist_n_lazy_cbs(rsclp));
+	rsclp->offloaded = 1;
+}
+
+/*
  * Does the specified rcu_segcblist structure contain callbacks that
  * are ready to be invoked?
  */

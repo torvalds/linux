@@ -71,6 +71,7 @@ struct rcu_segcblist {
 	long len;
 	long len_lazy;
 	u8 enabled;
+	u8 offloaded;
 };
 
 #define RCU_SEGCBLIST_INITIALIZER(n) \

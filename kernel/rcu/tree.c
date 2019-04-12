@@ -2858,10 +2858,11 @@ void rcu_barrier(void)
 	 * corresponding CPU's preceding callbacks have been invoked.
 	 */
 	for_each_possible_cpu(cpu) {
-		if (!cpu_online(cpu) && !rcu_is_nocb_cpu(cpu))
-			continue;
 		rdp = per_cpu_ptr(&rcu_data, cpu);
-		if (rcu_is_nocb_cpu(cpu)) {
+		if (!cpu_online(cpu) &&
+		    !rcu_segcblist_is_offloaded(&rdp->cblist))
+			continue;
+		if (rcu_segcblist_is_offloaded(&rdp->cblist)) {
 			if (!rcu_nocb_cpu_needs_barrier(cpu)) {
 				rcu_barrier_trace(TPS("OfflineNoCB"), cpu,
 						   rcu_state.barrier_sequence);
@@ -3155,7 +3156,8 @@ void rcutree_migrate_callbacks(int cpu)
 	struct rcu_node *rnp_root = rcu_get_root();
 	bool needwake;
 
-	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
+	if (rcu_segcblist_is_offloaded(&rdp->cblist) ||
+	    rcu_segcblist_empty(&rdp->cblist))
 		return;  /* No callbacks to migrate. */
 
 	local_irq_save(flags);
