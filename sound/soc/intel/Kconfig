@@ -196,13 +196,18 @@ config SND_SOC_INTEL_SKYLAKE_COMMON
 
 endif ## SND_SOC_INTEL_SKYLAKE_FAMILY
 
+endif ## SND_SOC_INTEL_SST_TOPLEVEL
+
+if SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
+
 config SND_SOC_ACPI_INTEL_MATCH
 	tristate
 	select SND_SOC_ACPI if ACPI
 	# this option controls the compilation of ACPI matching tables and
 	# helpers and is not meant to be selected by the user.
 
-endif ## SND_SOC_INTEL_SST_TOPLEVEL
+endif ## SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
+
 
 # ASoC codec drivers
 source "sound/soc/intel/boards/Kconfig"
