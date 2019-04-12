@@ -3614,7 +3614,6 @@ cluster_corrupt_out:
 	 * inode buffer and shut down the filesystem.
 	 */
 	rcu_read_unlock();
-	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 
 	/*
 	 * We'll always have an inode attached to the buffer for completion
@@ -3624,10 +3623,13 @@ cluster_corrupt_out:
 	 * xfs_buf_submit().
 	 */
 	ASSERT(bp->b_iodone);
+	bp->b_flags |= XBF_ASYNC;
 	bp->b_flags &= ~XBF_DONE;
 	xfs_buf_stale(bp);
 	xfs_buf_ioerror(bp, -EIO);
 	xfs_buf_ioend(bp);
+
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 
 	/* abort the corrupt inode, as it was not attached to the buffer */
 	xfs_iflush_abort(cip, false);
