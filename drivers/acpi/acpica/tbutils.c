@@ -332,9 +332,9 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 							&table_index);
 
 		if (ACPI_SUCCESS(status) &&
-		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.
-				      tables[table_index].signature,
-				      ACPI_SIG_FADT)) {
+		    ACPI_COMPARE_NAMESEG(&acpi_gbl_root_table_list.
+					 tables[table_index].signature,
+					 ACPI_SIG_FADT)) {
 			acpi_gbl_fadt_index = table_index;
 			acpi_tb_parse_fadt();
 		}

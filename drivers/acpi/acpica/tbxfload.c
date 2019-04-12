@@ -118,7 +118,7 @@ acpi_status acpi_tb_load_namespace(void)
 	table = &acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index];
 
 	if (!acpi_gbl_root_table_list.current_table_count ||
-	    !ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_DSDT) ||
+	    !ACPI_COMPARE_NAMESEG(table->signature.ascii, ACPI_SIG_DSDT) ||
 	    ACPI_FAILURE(acpi_tb_validate_table(table))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
@@ -170,11 +170,12 @@ acpi_status acpi_tb_load_namespace(void)
 		table = &acpi_gbl_root_table_list.tables[i];
 
 		if (!table->address ||
-		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_PSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_OSDT))
+		    (!ACPI_COMPARE_NAMESEG
+		     (table->signature.ascii, ACPI_SIG_SSDT)
+		     && !ACPI_COMPARE_NAMESEG(table->signature.ascii,
+					      ACPI_SIG_PSDT)
+		     && !ACPI_COMPARE_NAMESEG(table->signature.ascii,
+					      ACPI_SIG_OSDT))
 		    || ACPI_FAILURE(acpi_tb_validate_table(table))) {
 			continue;
 		}
@@ -364,7 +365,7 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 		 * only these types can contain AML and thus are the only types
 		 * that can create namespace objects.
 		 */
-		if (ACPI_COMPARE_NAME
+		if (ACPI_COMPARE_NAMESEG
 		    (acpi_gbl_root_table_list.tables[i].signature.ascii,
 		     ACPI_SIG_DSDT)) {
 			status = AE_TYPE;

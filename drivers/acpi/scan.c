@@ -2260,7 +2260,7 @@ int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
 
 	mutex_lock(&acpi_probe_mutex);
 	for (ape = ap_head; nr; ape++, nr--) {
-		if (ACPI_COMPARE_NAME(ACPI_SIG_MADT, ape->id)) {
+		if (ACPI_COMPARE_NAMESEG(ACPI_SIG_MADT, ape->id)) {
 			acpi_probe_count = 0;
 			acpi_table_parse_madt(ape->type, acpi_match_madt, 0);
 			count += acpi_probe_count;
