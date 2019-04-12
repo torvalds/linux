@@ -1104,7 +1104,7 @@ static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
 }
 
 /* listen worker: check prefixes */
-static int smc_listen_rdma_check(struct smc_sock *new_smc,
+static int smc_listen_prfx_check(struct smc_sock *new_smc,
 				 struct smc_clc_msg_proposal *pclc)
 {
 	struct smc_clc_msg_proposal_prefix *pclc_prfx;
@@ -1112,7 +1112,7 @@ static int smc_listen_rdma_check(struct smc_sock *new_smc,
 
 	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
 	if (smc_clc_prfx_match(newclcsock, pclc_prfx))
-		return SMC_CLC_DECL_CNFERR;
+		return SMC_CLC_DECL_DIFFPREFIX;
 
 	return 0;
 }
@@ -1272,6 +1272,13 @@ static void smc_listen_work(struct work_struct *work)
 		return;
 	}
 
+	/* check for matching IP prefix and subnet length */
+	rc = smc_listen_prfx_check(new_smc, pclc);
+	if (rc) {
+		smc_listen_decline(new_smc, rc, 0);
+		return;
+	}
+
 	mutex_lock(&smc_server_lgr_pending);
 	smc_close_init(new_smc);
 	smc_rx_init(new_smc);
@@ -1289,7 +1296,6 @@ static void smc_listen_work(struct work_struct *work)
 	    ((pclc->hdr.path != SMC_TYPE_R && pclc->hdr.path != SMC_TYPE_B) ||
 	     smc_vlan_by_tcpsk(new_smc->clcsock, &vlan) ||
 	     smc_check_rdma(new_smc, &ibdev, &ibport, vlan, NULL) ||
-	     smc_listen_rdma_check(new_smc, pclc) ||
 	     smc_listen_rdma_init(new_smc, pclc, ibdev, ibport,
 				  &local_contact) ||
 	     smc_listen_rdma_reg(new_smc, local_contact))) {
