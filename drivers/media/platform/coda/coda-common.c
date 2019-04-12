@@ -1416,7 +1416,7 @@ static int coda_job_ready(void *m2m_priv)
 		return 0;
 	}
 
-	coda_dbg(1, ctx, "job ready\n");
+	coda_dbg(2, ctx, "job ready\n");
 
 	return 1;
 }
