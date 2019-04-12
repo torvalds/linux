@@ -35,7 +35,7 @@
  * the least significant bit set but otherwise stores the address of
  * the hash bucket.  This allows us to be be sure we've found the end
  * of the right list.
- * The value stored in the hash bucket has BIT(2) used as a lock bit.
+ * The value stored in the hash bucket has BIT(0) used as a lock bit.
  * This bit must be atomically set before any changes are made to
  * the chain.  To avoid dereferencing this pointer without clearing
  * the bit first, we use an opaque 'struct rhash_lock_head *' for the
@@ -91,15 +91,19 @@ struct bucket_table {
  * NULLS_MARKER() expects a hash value with the low
  * bits mostly likely to be significant, and it discards
  * the msb.
- * We git it an address, in which the bottom 2 bits are
+ * We give it an address, in which the bottom bit is
  * always 0, and the msb might be significant.
  * So we shift the address down one bit to align with
  * expectations and avoid losing a significant bit.
+ *
+ * We never store the NULLS_MARKER in the hash table
+ * itself as we need the lsb for locking.
+ * Instead we store a NULL
  */
 #define	RHT_NULLS_MARKER(ptr)	\
 	((void *)NULLS_MARKER(((unsigned long) (ptr)) >> 1))
 #define INIT_RHT_NULLS_HEAD(ptr)	\
-	((ptr) = RHT_NULLS_MARKER(&(ptr)))
+	((ptr) = NULL)
 
 static inline bool rht_is_a_nulls(const struct rhash_head *ptr)
 {
@@ -302,8 +306,9 @@ static inline struct rhash_lock_head __rcu **rht_bucket_insert(
 }
 
 /*
- * We lock a bucket by setting BIT(1) in the pointer - this is always
- * zero in real pointers and in the nulls marker.
+ * We lock a bucket by setting BIT(0) in the pointer - this is always
+ * zero in real pointers.  The NULLS mark is never stored in the bucket,
+ * rather we store NULL if the bucket is empty.
  * bit_spin_locks do not handle contention well, but the whole point
  * of the hashtable design is to achieve minimum per-bucket contention.
  * A nested hash table might not have a bucket pointer.  In that case
@@ -323,7 +328,7 @@ static inline void rht_lock(struct bucket_table *tbl,
 			    struct rhash_lock_head **bkt)
 {
 	local_bh_disable();
-	bit_spin_lock(1, (unsigned long *)bkt);
+	bit_spin_lock(0, (unsigned long *)bkt);
 	lock_map_acquire(&tbl->dep_map);
 }
 
@@ -332,7 +337,7 @@ static inline void rht_lock_nested(struct bucket_table *tbl,
 				   unsigned int subclass)
 {
 	local_bh_disable();
-	bit_spin_lock(1, (unsigned long *)bucket);
+	bit_spin_lock(0, (unsigned long *)bucket);
 	lock_acquire_exclusive(&tbl->dep_map, subclass, 0, NULL, _THIS_IP_);
 }
 
@@ -340,7 +345,7 @@ static inline void rht_unlock(struct bucket_table *tbl,
 			      struct rhash_lock_head **bkt)
 {
 	lock_map_release(&tbl->dep_map);
-	bit_spin_unlock(1, (unsigned long *)bkt);
+	bit_spin_unlock(0, (unsigned long *)bkt);
 	local_bh_enable();
 }
 
@@ -358,7 +363,9 @@ static inline struct rhash_head *rht_ptr(
 	const struct rhash_lock_head *p =
 		rht_dereference_bucket_rcu(*bkt, tbl, hash);
 
-	return (void *)(((unsigned long)p) & ~BIT(1));
+	if ((((unsigned long)p) & ~BIT(0)) == 0)
+		return RHT_NULLS_MARKER(bkt);
+	return (void *)(((unsigned long)p) & ~BIT(0));
 }
 
 static inline struct rhash_head *rht_ptr_exclusive(
@@ -367,7 +374,9 @@ static inline struct rhash_head *rht_ptr_exclusive(
 	const struct rhash_lock_head *p =
 		rcu_dereference_protected(*bkt, 1);
 
-	return (void *)(((unsigned long)p) & ~BIT(1));
+	if (!p)
+		return RHT_NULLS_MARKER(bkt);
+	return (void *)(((unsigned long)p) & ~BIT(0));
 }
 
 static inline void rht_assign_locked(struct rhash_lock_head __rcu **bkt,
@@ -375,7 +384,9 @@ static inline void rht_assign_locked(struct rhash_lock_head __rcu **bkt,
 {
 	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
 
-	rcu_assign_pointer(*p, (void *)((unsigned long)obj | BIT(1)));
+	if (rht_is_a_nulls(obj))
+		obj = NULL;
+	rcu_assign_pointer(*p, (void *)((unsigned long)obj | BIT(0)));
 }
 
 static inline void rht_assign_unlock(struct bucket_table *tbl,
@@ -384,6 +395,8 @@ static inline void rht_assign_unlock(struct bucket_table *tbl,
 {
 	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
 
+	if (rht_is_a_nulls(obj))
+		obj = NULL;
 	lock_map_release(&tbl->dep_map);
 	rcu_assign_pointer(*p, obj);
 	preempt_enable();

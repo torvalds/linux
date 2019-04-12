@@ -59,7 +59,7 @@ int lockdep_rht_bucket_is_held(const struct bucket_table *tbl, u32 hash)
 		return 1;
 	if (unlikely(tbl->nest))
 		return 1;
-	return bit_spin_is_locked(1, (unsigned long *)&tbl->buckets[hash]);
+	return bit_spin_is_locked(0, (unsigned long *)&tbl->buckets[hash]);
 }
 EXPORT_SYMBOL_GPL(lockdep_rht_bucket_is_held);
 #else
