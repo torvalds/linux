@@ -160,12 +160,12 @@ static void cpu_map_kthread_stop(struct work_struct *work)
 }
 
 static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
-					 struct xdp_frame *xdpf)
+					 struct xdp_frame *xdpf,
+					 struct sk_buff *skb)
 {
 	unsigned int hard_start_headroom;
 	unsigned int frame_size;
 	void *pkt_data_start;
-	struct sk_buff *skb;
 
 	/* Part of headroom was reserved to xdpf */
 	hard_start_headroom = sizeof(struct xdp_frame) +  xdpf->headroom;
@@ -191,8 +191,8 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	pkt_data_start = xdpf->data - hard_start_headroom;
-	skb = build_skb(pkt_data_start, frame_size);
-	if (!skb)
+	skb = build_skb_around(skb, pkt_data_start, frame_size);
+	if (unlikely(!skb))
 		return NULL;
 
 	skb_reserve(skb, hard_start_headroom);
@@ -256,7 +256,9 @@ static int cpu_map_kthread_run(void *data)
 	while (!kthread_should_stop() || !__ptr_ring_empty(rcpu->queue)) {
 		unsigned int drops = 0, sched = 0;
 		void *frames[CPUMAP_BATCH];
-		int i, n;
+		void *skbs[CPUMAP_BATCH];
+		gfp_t gfp = __GFP_ZERO | GFP_ATOMIC;
+		int i, n, m;
 
 		/* Release CPU reschedule checks */
 		if (__ptr_ring_empty(rcpu->queue)) {
@@ -278,14 +280,20 @@ static int cpu_map_kthread_run(void *data)
 		 * consume side valid as no-resize allowed of queue.
 		 */
 		n = ptr_ring_consume_batched(rcpu->queue, frames, CPUMAP_BATCH);
+		m = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, n, skbs);
+		if (unlikely(m == 0)) {
+			for (i = 0; i < n; i++)
+				skbs[i] = NULL; /* effect: xdp_return_frame */
+			drops = n;
+		}
 
 		local_bh_disable();
 		for (i = 0; i < n; i++) {
 			struct xdp_frame *xdpf = frames[i];
-			struct sk_buff *skb;
+			struct sk_buff *skb = skbs[i];
 			int ret;
 
-			skb = cpu_map_build_skb(rcpu, xdpf);
+			skb = cpu_map_build_skb(rcpu, xdpf, skb);
 			if (!skb) {
 				xdp_return_frame(xdpf);
 				continue;
