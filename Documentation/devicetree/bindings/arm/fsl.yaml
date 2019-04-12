@@ -74,6 +74,7 @@ properties:
               - fsl,imx53-evk
               - fsl,imx53-qsb
               - fsl,imx53-smd
+              - menlo,m53menlo
           - const: fsl,imx53
 
       - description: i.MX6Q based Boards
