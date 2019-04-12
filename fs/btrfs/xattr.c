@@ -226,9 +226,6 @@ int btrfs_setxattr_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-
 	if (trans)
 		return btrfs_setxattr(trans, inode, name, value, size, flags);
 
