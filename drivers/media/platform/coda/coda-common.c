@@ -78,7 +78,7 @@ MODULE_PARM_DESC(enable_bwb, "Enable BWB unit for decoding, may crash on certain
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
-	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
+	v4l2_dbg(3, coda_debug, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
 	writel(data, dev->regs_base + reg);
 }
@@ -88,7 +88,7 @@ unsigned int coda_read(struct coda_dev *dev, u32 reg)
 	u32 data;
 
 	data = readl(dev->regs_base + reg);
-	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
+	v4l2_dbg(3, coda_debug, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
 	return data;
 }
