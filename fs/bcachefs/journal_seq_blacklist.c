@@ -136,7 +136,7 @@ static int journal_seq_blacklist_table_cmp(const void *_l,
 	const struct journal_seq_blacklist_table_entry *l = _l;
 	const struct journal_seq_blacklist_table_entry *r = _r;
 
-	return (l->start > r->start) - (l->start < r->start);
+	return cmp_int(l->start, r->start);
 }
 
 bool bch2_journal_seq_is_blacklisted(struct bch_fs *c, u64 seq,

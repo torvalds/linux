@@ -743,4 +743,6 @@ static inline void acc_u64s_percpu(u64 *acc, const u64 __percpu *src,
 
 u64 *bch2_acc_percpu_u64s(u64 __percpu *, unsigned);
 
+#define cmp_int(l, r)		((l > r) - (l < r))
+
 #endif /* _BCACHEFS_UTIL_H */

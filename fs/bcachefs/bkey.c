@@ -1024,7 +1024,7 @@ static inline int __bkey_cmp_bits(const u64 *l, const u64 *r,
 		r_v = *r;
 	}
 
-	return (l_v > r_v) - (l_v < r_v);
+	return cmp_int(l_v, r_v);
 }
 #endif
 

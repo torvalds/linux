@@ -54,7 +54,7 @@ struct bch_inode_info {
 
 static inline int ptrcmp(void *l, void *r)
 {
-	return (l > r) - (l < r);
+	return cmp_int(l, r);
 }
 
 #define __bch2_lock_inodes(_lock, ...)					\

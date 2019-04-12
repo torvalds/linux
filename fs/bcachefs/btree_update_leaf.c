@@ -55,7 +55,7 @@ static void btree_trans_unlock_write(struct btree_trans *trans)
 static inline int btree_trans_cmp(struct btree_insert_entry l,
 				  struct btree_insert_entry r)
 {
-	return (l.deferred > r.deferred) - (l.deferred < r.deferred) ?:
+	return cmp_int(l.deferred, r.deferred) ?:
 		btree_iter_cmp(l.iter, r.iter);
 }
 

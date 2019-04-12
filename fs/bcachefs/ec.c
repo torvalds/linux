@@ -951,7 +951,7 @@ static int unsigned_cmp(const void *_l, const void *_r)
 	unsigned l = *((const unsigned *) _l);
 	unsigned r = *((const unsigned *) _r);
 
-	return (l > r) - (l < r);
+	return cmp_int(l, r);
 }
 
 /* pick most common bucket size: */

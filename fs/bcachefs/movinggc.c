@@ -54,7 +54,7 @@ static inline int sectors_used_cmp(copygc_heap *heap,
 				   struct copygc_heap_entry l,
 				   struct copygc_heap_entry r)
 {
-	return (l.sectors > r.sectors) - (l.sectors < r.sectors);
+	return cmp_int(l.sectors, r.sectors);
 }
 
 static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
@@ -62,7 +62,7 @@ static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
 	const struct copygc_heap_entry *l = _l;
 	const struct copygc_heap_entry *r = _r;
 
-	return (l->offset > r->offset) - (l->offset < r->offset);
+	return cmp_int(l->offset, r->offset);
 }
 
 static bool __copygc_pred(struct bch_dev *ca,

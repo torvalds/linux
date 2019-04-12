@@ -12,7 +12,7 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *,
 
 static inline int u8_cmp(u8 l, u8 r)
 {
-	return (l > r) - (l < r);
+	return cmp_int(l, r);
 }
 
 static void verify_replicas_entry_sorted(struct bch_replicas_entry *e)

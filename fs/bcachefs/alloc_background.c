@@ -687,16 +687,16 @@ static inline int bucket_alloc_cmp(alloc_heap *h,
 				   struct alloc_heap_entry l,
 				   struct alloc_heap_entry r)
 {
-	return (l.key > r.key) - (l.key < r.key) ?:
-		(l.nr < r.nr)  - (l.nr  > r.nr) ?:
-		(l.bucket > r.bucket) - (l.bucket < r.bucket);
+	return  cmp_int(l.key, r.key) ?:
+		cmp_int(r.nr, l.nr) ?:
+		cmp_int(l.bucket, r.bucket);
 }
 
 static inline int bucket_idx_cmp(const void *_l, const void *_r)
 {
 	const struct alloc_heap_entry *l = _l, *r = _r;
 
-	return (l->bucket > r->bucket) - (l->bucket < r->bucket);
+	return cmp_int(l->bucket, r->bucket);
 }
 
 static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)

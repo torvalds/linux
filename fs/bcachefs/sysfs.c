@@ -751,10 +751,10 @@ static unsigned bucket_oldest_gen_fn(struct bch_fs *c, struct bch_dev *ca,
 
 static int unsigned_cmp(const void *_l, const void *_r)
 {
-	unsigned l = *((unsigned *) _l);
-	unsigned r = *((unsigned *) _r);
+	const unsigned *l = _l;
+	const unsigned *r = _r;
 
-	return (l > r) - (l < r);
+	return cmp_int(*l, *r);
 }
 
 static ssize_t show_quantiles(struct bch_fs *c, struct bch_dev *ca,

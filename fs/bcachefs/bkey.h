@@ -217,8 +217,8 @@ void bch2_bkey_swab_key(const struct bkey_format *, struct bkey_packed *);
 
 static __always_inline int bversion_cmp(struct bversion l, struct bversion r)
 {
-	return  (l.hi > r.hi) - (l.hi < r.hi) ?:
-		(l.lo > r.lo) - (l.lo < r.lo);
+	return  cmp_int(l.hi, r.hi) ?:
+		cmp_int(l.lo, r.lo);
 }
 
 #define ZERO_VERSION	((struct bversion) { .hi = 0, .lo = 0 })
