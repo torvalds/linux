@@ -21,7 +21,9 @@
  *
  */
 
+#include <linux/firmware.h>
 #include "amdgpu.h"
+#include "soc15_common.h"
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
@@ -101,6 +103,38 @@ static void mes_v10_1_free_microcode(struct amdgpu_device *adev)
 {
 	release_firmware(adev->mes.fw);
 	adev->mes.fw = NULL;
+}
+
+static int mes_v10_1_allocate_ucode_buffer(struct amdgpu_device *adev)
+{
+	int r;
+	const struct mes_firmware_header_v1_0 *mes_hdr;
+	const __le32 *fw_data;
+	unsigned fw_size;
+
+	mes_hdr = (const struct mes_firmware_header_v1_0 *)
+		adev->mes.fw->data;
+
+	fw_data = (const __le32 *)(adev->mes.fw->data +
+		   le32_to_cpu(mes_hdr->mes_ucode_offset_bytes));
+	fw_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
+
+	r = amdgpu_bo_create_reserved(adev, fw_size,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+				      &adev->mes.ucode_fw_obj,
+				      &adev->mes.ucode_fw_gpu_addr,
+				      (void **)&adev->mes.ucode_fw_ptr);
+	if (r) {
+		dev_err(adev->dev, "(%d) failed to create mes fw bo\n", r);
+		return r;
+	}
+
+	memcpy(adev->mes.ucode_fw_ptr, fw_data, fw_size);
+
+	amdgpu_bo_kunmap(adev->mes.ucode_fw_obj);
+	amdgpu_bo_unreserve(adev->mes.ucode_fw_obj);
+
+	return 0;
 }
 
 static int mes_v10_1_sw_init(void *handle)
