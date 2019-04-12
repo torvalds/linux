@@ -696,6 +696,7 @@ void __run_test(struct __test_metadata *t)
 	t->passed = 1;
 	t->trigger = 0;
 	printf("[ RUN      ] %s\n", t->name);
+	alarm(30);
 	child_pid = fork();
 	if (child_pid < 0) {
 		printf("ERROR SPAWNING TEST CHILD\n");
@@ -744,6 +745,7 @@ void __run_test(struct __test_metadata *t)
 		}
 	}
 	printf("[     %4s ] %s\n", (t->passed ? "OK" : "FAIL"), t->name);
+	alarm(0);
 }
 
 static int test_harness_run(int __attribute__((unused)) argc,
