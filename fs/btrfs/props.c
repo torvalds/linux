@@ -74,9 +74,8 @@ static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 			ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 					     NULL, 0, flags);
 		else
-			ret = btrfs_setxattr_trans(NULL, inode,
-						   handler->xattr_name, NULL, 0,
-						   flags);
+			ret = btrfs_setxattr_trans(inode, handler->xattr_name,
+						   NULL, 0, flags);
 		if (ret)
 			return ret;
 
@@ -93,8 +92,8 @@ static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
 				     value_len, flags);
 	else
-		ret = btrfs_setxattr_trans(NULL, inode, handler->xattr_name,
-					   value, value_len, flags);
+		ret = btrfs_setxattr_trans(inode, handler->xattr_name, value,
+					   value_len, flags);
 
 	if (ret)
 		return ret;
@@ -104,8 +103,8 @@ static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 			btrfs_setxattr(trans, inode, handler->xattr_name, NULL,
 				       0, flags);
 		else
-			btrfs_setxattr_trans(NULL, inode, handler->xattr_name,
-					     NULL, 0, flags);
+			btrfs_setxattr_trans(inode, handler->xattr_name, NULL,
+					     0, flags);
 		return ret;
 	}
 

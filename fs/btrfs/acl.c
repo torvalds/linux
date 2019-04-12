@@ -96,7 +96,7 @@ static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 	if (trans)
 		ret = btrfs_setxattr(trans, inode, name, value, size, 0);
 	else
-		ret = btrfs_setxattr_trans(NULL, inode, name, value, size, 0);
+		ret = btrfs_setxattr_trans(inode, name, value, size, 0);
 
 out:
 	kfree(value);

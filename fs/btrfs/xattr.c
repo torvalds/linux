@@ -221,15 +221,12 @@ out:
 /*
  * @value: "" makes the attribute to empty, NULL removes it
  */
-int btrfs_setxattr_trans(struct btrfs_trans_handle *trans,
-			 struct inode *inode, const char *name,
+int btrfs_setxattr_trans(struct inode *inode, const char *name,
 			 const void *value, size_t size, int flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
 	int ret;
-
-	if (trans)
-		return btrfs_setxattr(trans, inode, name, value, size, flags);
 
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
@@ -368,7 +365,7 @@ static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
 				   size_t size, int flags)
 {
 	name = xattr_full_name(handler, name);
-	return btrfs_setxattr_trans(NULL, inode, name, buffer, size, flags);
+	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
