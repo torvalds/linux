@@ -45,6 +45,14 @@ typedef struct xfs_inode {
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_mmaplock;	/* inode mmap IO lock */
 	atomic_t		i_pincount;	/* inode pin count */
+
+	/*
+	 * Bitsets of inode metadata that have been checked and/or are sick.
+	 * Callers must hold i_flags_lock before accessing this field.
+	 */
+	uint16_t		i_checked;
+	uint16_t		i_sick;
+
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
 	/* Miscellaneous state. */
 	unsigned long		i_flags;	/* see defined flags below */

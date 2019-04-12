@@ -70,6 +70,8 @@ xfs_inode_alloc(
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
 	memset(&ip->i_d, 0, sizeof(ip->i_d));
+	ip->i_sick = 0;
+	ip->i_checked = 0;
 
 	return ip;
 }
@@ -446,6 +448,8 @@ xfs_iget_cache_hit(
 		ip->i_flags |= XFS_INEW;
 		xfs_inode_clear_reclaim_tag(pag, ip->i_ino);
 		inode->i_state = I_NEW;
+		ip->i_sick = 0;
+		ip->i_checked = 0;
 
 		ASSERT(!rwsem_is_locked(&inode->i_rwsem));
 		init_rwsem(&inode->i_rwsem);
