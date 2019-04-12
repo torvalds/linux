@@ -73,7 +73,7 @@ struct cipher_testvec {
 	const char *ptext;
 	const char *ctext;
 	unsigned char wk; /* weak key flag */
-	unsigned char klen;
+	unsigned short klen;
 	unsigned short len;
 	bool fips_skip;
 	bool generates_iv;
