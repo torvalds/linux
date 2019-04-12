@@ -479,7 +479,6 @@ static struct ab8500_regulator_platform_data ab8500_regulator_plat_data = {
  * struct ab8500_ext_regulator_info - ab8500 regulator information
  * @dev: device pointer
  * @desc: regulator description
- * @rdev: regulator device
  * @cfg: regulator configuration (extension of regulator FW configuration)
  * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
@@ -495,7 +494,6 @@ static struct ab8500_regulator_platform_data ab8500_regulator_plat_data = {
 struct ab8500_ext_regulator_info {
 	struct device *dev;
 	struct regulator_desc desc;
-	struct regulator_dev *rdev;
 	struct ab8500_ext_regulator_cfg *cfg;
 	u8 update_bank;
 	u8 update_reg;
@@ -530,7 +528,7 @@ static int ab8500_ext_regulator_enable(struct regulator_dev *rdev)
 		info->update_bank, info->update_reg,
 		info->update_mask, regval);
 	if (ret < 0) {
-		dev_err(rdev_get_dev(info->rdev),
+		dev_err(rdev_get_dev(rdev),
 			"couldn't set enable bits for regulator\n");
 		return ret;
 	}
@@ -566,7 +564,7 @@ static int ab8500_ext_regulator_disable(struct regulator_dev *rdev)
 		info->update_bank, info->update_reg,
 		info->update_mask, regval);
 	if (ret < 0) {
-		dev_err(rdev_get_dev(info->rdev),
+		dev_err(rdev_get_dev(rdev),
 			"couldn't set disable bits for regulator\n");
 		return ret;
 	}
@@ -797,6 +795,7 @@ static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 	struct ab8500_regulator_platform_data *pdata = &ab8500_regulator_plat_data;
 	struct device_node *np = pdev->dev.of_node;
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	int i, err;
 
 	if (np) {
@@ -850,17 +849,15 @@ static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 			&pdata->ext_regulator[i];
 
 		/* register regulator with framework */
-		info->rdev = devm_regulator_register(&pdev->dev, &info->desc,
-						     &config);
-		if (IS_ERR(info->rdev)) {
-			err = PTR_ERR(info->rdev);
+		rdev = devm_regulator_register(&pdev->dev, &info->desc,
+					       &config);
+		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 					info->desc.name);
-			return err;
+			return PTR_ERR(rdev);
 		}
 
-		dev_dbg(rdev_get_dev(info->rdev),
-			"%s-probed\n", info->desc.name);
+		dev_dbg(&pdev->dev, "%s-probed\n", info->desc.name);
 	}
 
 	return 0;
