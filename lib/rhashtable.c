@@ -231,7 +231,8 @@ static int rhashtable_rehash_one(struct rhashtable *ht,
 
 	err = -ENOENT;
 
-	rht_for_each_from(entry, rht_ptr(*bkt), old_tbl, old_hash) {
+	rht_for_each_from(entry, rht_ptr(bkt, old_tbl, old_hash),
+			  old_tbl, old_hash) {
 		err = 0;
 		next = rht_dereference_bucket(entry->next, old_tbl, old_hash);
 
@@ -248,8 +249,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht,
 
 	rht_lock_nested(new_tbl, &new_tbl->buckets[new_hash], SINGLE_DEPTH_NESTING);
 
-	head = rht_ptr(rht_dereference_bucket(new_tbl->buckets[new_hash],
-					      new_tbl, new_hash));
+	head = rht_ptr(new_tbl->buckets + new_hash, new_tbl, new_hash);
 
 	RCU_INIT_POINTER(entry->next, head);
 
@@ -491,7 +491,7 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 	int elasticity;
 
 	elasticity = RHT_ELASTICITY;
-	rht_for_each_from(head, rht_ptr(*bkt), tbl, hash) {
+	rht_for_each_from(head, rht_ptr(bkt, tbl, hash), tbl, hash) {
 		struct rhlist_head *list;
 		struct rhlist_head *plist;
 
@@ -557,7 +557,7 @@ static struct bucket_table *rhashtable_insert_one(struct rhashtable *ht,
 	if (unlikely(rht_grow_above_100(ht, tbl)))
 		return ERR_PTR(-EAGAIN);
 
-	head = rht_ptr(rht_dereference_bucket(*bkt, tbl, hash));
+	head = rht_ptr(bkt, tbl, hash);
 
 	RCU_INIT_POINTER(obj->next, head);
 	if (ht->rhlist) {
@@ -1139,7 +1139,7 @@ restart:
 			struct rhash_head *pos, *next;
 
 			cond_resched();
-			for (pos = rht_ptr(rht_dereference(*rht_bucket(tbl, i), ht)),
+			for (pos = rht_ptr_exclusive(rht_bucket(tbl, i)),
 			     next = !rht_is_a_nulls(pos) ?
 					rht_dereference(pos->next, ht) : NULL;
 			     !rht_is_a_nulls(pos);
