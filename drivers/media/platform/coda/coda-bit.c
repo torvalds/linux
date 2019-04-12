@@ -1456,6 +1456,13 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	return 0;
 }
 
+static char coda_frame_type_char(u32 flags)
+{
+	return (flags & V4L2_BUF_FLAG_KEYFRAME) ? 'I' :
+	       (flags & V4L2_BUF_FLAG_PFRAME) ? 'P' :
+	       (flags & V4L2_BUF_FLAG_BFRAME) ? 'B' : '?';
+}
+
 static void coda_finish_encode(struct coda_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
@@ -1512,8 +1519,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 		ctx->gopcounter = ctx->params.gop_size - 1;
 
 	coda_dbg(1, ctx, "job finished: encoded %c frame (%d)\n",
-		 (dst_buf->flags & V4L2_BUF_FLAG_KEYFRAME) ? 'I' : 'P',
-		 dst_buf->sequence);
+		 coda_frame_type_char(dst_buf->flags), dst_buf->sequence);
 }
 
 static void coda_seq_end_work(struct work_struct *work)
@@ -2241,8 +2247,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_DONE);
 
 		coda_dbg(1, ctx, "job finished: decoded %c frame (%u/%u)\n",
-			 (dst_buf->flags & V4L2_BUF_FLAG_KEYFRAME) ? 'I' :
-			 ((dst_buf->flags & V4L2_BUF_FLAG_PFRAME) ? 'P' : 'B'),
+			 coda_frame_type_char(dst_buf->flags),
 			 dst_buf->sequence, ctx->qsequence);
 	} else {
 		coda_dbg(1, ctx, "job finished: no frame decoded (%u/%u)\n",
