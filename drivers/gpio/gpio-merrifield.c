@@ -385,7 +385,7 @@ static const char *mrfld_gpio_get_pinctrl_dev_name(struct mrfld_gpio *priv)
 	adev = acpi_dev_get_first_match_dev("INTC1002", NULL, -1);
 	if (adev) {
 		name = devm_kstrdup(priv->dev, acpi_dev_name(adev), GFP_KERNEL);
-		put_device(&adev->dev);
+		acpi_dev_put(adev);
 	} else {
 		name = "pinctrl-merrifield";
 	}
