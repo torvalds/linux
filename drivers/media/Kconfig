@@ -113,7 +113,6 @@ config MEDIA_CONTROLLER_DVB
 config MEDIA_CONTROLLER_REQUEST_API
 	bool "Enable Media controller Request API (EXPERIMENTAL)"
 	depends on MEDIA_CONTROLLER && STAGING_MEDIA
-	default n
 	help
 	  DO NOT ENABLE THIS OPTION UNLESS YOU KNOW WHAT YOU'RE DOING.
 
@@ -163,7 +162,6 @@ config DVB_MMAP
 	depends on DVB_CORE
 	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
 	select VIDEOBUF2_VMALLOC
-	default n
 	help
 	  This option enables DVB experimental memory-mapped API, which
 	  reduces the number of context switches to read DVB buffers, as
@@ -189,7 +187,6 @@ config DVB_NET
 config TTPCI_EEPROM
 	tristate
 	depends on I2C
-	default n
 
 source "drivers/media/dvb-core/Kconfig"
 
