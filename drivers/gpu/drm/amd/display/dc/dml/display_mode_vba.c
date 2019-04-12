@@ -306,7 +306,6 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.WritebackInterfaceBufferSize = ip->writeback_interface_buffer_size_kbytes;
 	mode_lib->vba.WritebackLineBufferSize = ip->writeback_line_buffer_buffer_size;
-	mode_lib->vba.WritebackSupportInterleaveAndUsingWholeBufferForASingleStream = false;
 	mode_lib->vba.MinVoltageLevel = 0;
 	mode_lib->vba.MaxVoltageLevel = 5;
 
@@ -323,6 +322,7 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.WritebackMinVSCLRatio = ip->writeback_min_vscl_ratio;
 	mode_lib->vba.WritebackMaxHSCLTaps = ip->writeback_max_hscl_taps;
 	mode_lib->vba.WritebackMaxVSCLTaps = ip->writeback_max_vscl_taps;
+	mode_lib->vba.WritebackConfiguration = dm_normal;
 	mode_lib->vba.GPUVMMaxPageTableLevels = ip->gpuvm_max_page_table_levels;
 	mode_lib->vba.HostVMMaxNonCachedPageTableLevels = ip->hostvm_max_page_table_levels;
 	mode_lib->vba.HostVMMaxPageTableLevels = ip->hostvm_max_page_table_levels;

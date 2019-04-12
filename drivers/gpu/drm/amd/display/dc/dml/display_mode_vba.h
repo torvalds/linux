@@ -237,6 +237,7 @@ struct vba_vars_st {
 	unsigned int WritebackInterfaceLumaBufferSize;
 	unsigned int WritebackInterfaceChromaBufferSize;
 	unsigned int WritebackChromaLineBufferWidth;
+	enum writeback_config WritebackConfiguration;
 	double MaxDCHUBToPSCLThroughput;
 	double MaxPSCLToLBThroughput;
 	unsigned int PTEBufferSizeInRequestsLuma;

@@ -152,6 +152,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int writeback_line_buffer_luma_buffer_size;
 	unsigned int writeback_line_buffer_chroma_buffer_size;
 #endif
+
 	unsigned int max_page_table_levels;
 	unsigned int max_num_dpp;
 	unsigned int max_num_otg;
