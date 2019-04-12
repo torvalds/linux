@@ -128,6 +128,7 @@ struct kpp_test_suite {
 
 struct alg_test_desc {
 	const char *alg;
+	const char *generic_driver;
 	int (*test)(const struct alg_test_desc *desc, const char *driver,
 		    u32 type, u32 mask);
 	int fips_allowed;	/* set if alg is allowed in fips mode */
@@ -745,6 +746,91 @@ static int build_cipher_test_sglists(struct cipher_test_sglists *tsgls,
 }
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+
+/* Generate a random length in range [0, max_len], but prefer smaller values */
+static unsigned int generate_random_length(unsigned int max_len)
+{
+	unsigned int len = prandom_u32() % (max_len + 1);
+
+	switch (prandom_u32() % 4) {
+	case 0:
+		return len % 64;
+	case 1:
+		return len % 256;
+	case 2:
+		return len % 1024;
+	default:
+		return len;
+	}
+}
+
+/* Sometimes make some random changes to the given data buffer */
+static void mutate_buffer(u8 *buf, size_t count)
+{
+	size_t num_flips;
+	size_t i;
+	size_t pos;
+
+	/* Sometimes flip some bits */
+	if (prandom_u32() % 4 == 0) {
+		num_flips = min_t(size_t, 1 << (prandom_u32() % 8), count * 8);
+		for (i = 0; i < num_flips; i++) {
+			pos = prandom_u32() % (count * 8);
+			buf[pos / 8] ^= 1 << (pos % 8);
+		}
+	}
+
+	/* Sometimes flip some bytes */
+	if (prandom_u32() % 4 == 0) {
+		num_flips = min_t(size_t, 1 << (prandom_u32() % 8), count);
+		for (i = 0; i < num_flips; i++)
+			buf[prandom_u32() % count] ^= 0xff;
+	}
+}
+
+/* Randomly generate 'count' bytes, but sometimes make them "interesting" */
+static void generate_random_bytes(u8 *buf, size_t count)
+{
+	u8 b;
+	u8 increment;
+	size_t i;
+
+	if (count == 0)
+		return;
+
+	switch (prandom_u32() % 8) { /* Choose a generation strategy */
+	case 0:
+	case 1:
+		/* All the same byte, plus optional mutations */
+		switch (prandom_u32() % 4) {
+		case 0:
+			b = 0x00;
+			break;
+		case 1:
+			b = 0xff;
+			break;
+		default:
+			b = (u8)prandom_u32();
+			break;
+		}
+		memset(buf, b, count);
+		mutate_buffer(buf, count);
+		break;
+	case 2:
+		/* Ascending or descending bytes, plus optional mutations */
+		increment = (u8)prandom_u32();
+		b = (u8)prandom_u32();
+		for (i = 0; i < count; i++, b += increment)
+			buf[i] = b;
+		mutate_buffer(buf, count);
+		break;
+	default:
+		/* Fully random bytes */
+		for (i = 0; i < count; i++)
+			buf[i] = (u8)prandom_u32();
+	}
+}
+
 static char *generate_random_sgl_divisions(struct test_sg_division *divs,
 					   size_t max_divs, char *p, char *end,
 					   bool gen_flushes, u32 req_flags)
@@ -898,6 +984,48 @@ static void crypto_reenable_simd_for_test(void)
 {
 	__this_cpu_write(crypto_simd_disabled_for_test, false);
 	preempt_enable();
+}
+
+/*
+ * Given an algorithm name, build the name of the generic implementation of that
+ * algorithm, assuming the usual naming convention.  Specifically, this appends
+ * "-generic" to every part of the name that is not a template name.  Examples:
+ *
+ *	aes => aes-generic
+ *	cbc(aes) => cbc(aes-generic)
+ *	cts(cbc(aes)) => cts(cbc(aes-generic))
+ *	rfc7539(chacha20,poly1305) => rfc7539(chacha20-generic,poly1305-generic)
+ *
+ * Return: 0 on success, or -ENAMETOOLONG if the generic name would be too long
+ */
+static int build_generic_driver_name(const char *algname,
+				     char driver_name[CRYPTO_MAX_ALG_NAME])
+{
+	const char *in = algname;
+	char *out = driver_name;
+	size_t len = strlen(algname);
+
+	if (len >= CRYPTO_MAX_ALG_NAME)
+		goto too_long;
+	do {
+		const char *in_saved = in;
+
+		while (*in && *in != '(' && *in != ')' && *in != ',')
+			*out++ = *in++;
+		if (*in != '(' && in > in_saved) {
+			len += 8;
+			if (len >= CRYPTO_MAX_ALG_NAME)
+				goto too_long;
+			memcpy(out, "-generic", 8);
+			out += 8;
+		}
+	} while ((*out++ = *in++) != '\0');
+	return 0;
+
+too_long:
+	pr_err("alg: generic driver name for \"%s\" would be too long\n",
+	       algname);
+	return -ENAMETOOLONG;
 }
 #else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 static void crypto_disable_simd_for_test(void)
