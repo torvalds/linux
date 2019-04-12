@@ -281,7 +281,7 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {
-			pr_debug("report phy sata to %016llx:0x%x returned 0x%x\n",
+			pr_debug("report phy sata to %016llx:%02d returned 0x%x\n",
 				 SAS_ADDR(dev->parent->sas_addr),
 				 phy->phy_id, res);
 			return res;

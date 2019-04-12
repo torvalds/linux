@@ -122,11 +122,10 @@ static void sas_phye_shutdown(struct work_struct *work)
 		phy->enabled = 0;
 		ret = i->dft->lldd_control_phy(phy, PHY_FUNC_DISABLE, NULL);
 		if (ret)
-			pr_notice("lldd disable phy%02d returned %d\n",
-				  phy->id, ret);
+			pr_notice("lldd disable phy%d returned %d\n", phy->id,
+				  ret);
 	} else
-		pr_notice("phy%02d is not enabled, cannot shutdown\n",
-			  phy->id);
+		pr_notice("phy%d is not enabled, cannot shutdown\n", phy->id);
 }
 
 /* ---------- Phy class registration ---------- */
