@@ -699,9 +699,10 @@ static int __smc_connect(struct smc_sock *smc)
 	if (using_ipsec(smc))
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC);
 
-	/* check for VLAN ID */
+	/* get vlan id from IP device */
 	if (smc_vlan_by_tcpsk(smc->clcsock, &ini))
-		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_CNFERR);
+		return smc_connect_decline_fallback(smc,
+						    SMC_CLC_DECL_GETVLANERR);
 
 	/* check if there is an ism device available */
 	if (!smc_check_ism(smc, &ini) &&
@@ -1264,6 +1265,12 @@ static void smc_listen_work(struct work_struct *work)
 	rc = smc_listen_prfx_check(new_smc, pclc);
 	if (rc) {
 		smc_listen_decline(new_smc, rc, 0);
+		return;
+	}
+
+	/* get vlan id from IP device */
+	if (smc_vlan_by_tcpsk(new_smc->clcsock, &ini)) {
+		smc_listen_decline(new_smc, SMC_CLC_DECL_GETVLANERR, 0);
 		return;
 	}
 

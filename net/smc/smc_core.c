@@ -603,10 +603,6 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	int rc = 0;
 
 	role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-	rc = smc_vlan_by_tcpsk(smc->clcsock, ini);
-	if (rc)
-		return rc;
-
 	if (role == SMC_CLNT && ini->srv_first_contact)
 		/* create new link group as well */
 		goto create;
