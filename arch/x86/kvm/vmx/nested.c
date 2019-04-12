@@ -2595,16 +2595,13 @@ static int nested_vmx_check_controls(struct kvm_vcpu *vcpu,
 	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
 	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
 	    nested_check_vm_entry_controls(vcpu, vmcs12))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+		return -EINVAL;
 
 	return 0;
 }
 
-/*
- * Checks related to Host Control Registers and MSRs
- */
-static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
-                                          struct vmcs12 *vmcs12)
+static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
+				       struct vmcs12 *vmcs12)
 {
 	bool ia32e;
 
@@ -2635,15 +2632,6 @@ static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
 			return -EINVAL;
 	}
-
-	return 0;
-}
-
-static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
-				       struct vmcs12 *vmcs12)
-{
-	if (nested_check_host_control_regs(vcpu, vmcs12))
-		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
 
 	return 0;
 }
@@ -3159,13 +3147,11 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 			launch ? VMXERR_VMLAUNCH_NONCLEAR_VMCS
 			       : VMXERR_VMRESUME_NONLAUNCHED_VMCS);
 
-	ret = nested_vmx_check_controls(vcpu, vmcs12);
-	if (ret)
-		return nested_vmx_failValid(vcpu, ret);
+	if (nested_vmx_check_controls(vcpu, vmcs12))
+		return nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 
-	ret = nested_vmx_check_host_state(vcpu, vmcs12);
-	if (ret)
-		return nested_vmx_failValid(vcpu, ret);
+	if (nested_vmx_check_host_state(vcpu, vmcs12))
+		return nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_HOST_STATE_FIELD);
 
 	/*
 	 * We're finally done with prerequisite checking, and can start with
