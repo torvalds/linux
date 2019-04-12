@@ -1857,11 +1857,16 @@ static const struct vb2_ops coda_qops = {
 
 static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	const char * const *val_names = v4l2_ctrl_get_menu(ctrl->id);
 	struct coda_ctx *ctx =
 			container_of(ctrl->handler, struct coda_ctx, ctrls);
 
-	coda_dbg(2, ctx, "s_ctrl: id = 0x%x, name = \"%s\", val = %d\n",
-		 ctrl->id, ctrl->name, ctrl->val);
+	if (val_names)
+		coda_dbg(2, ctx, "s_ctrl: id = 0x%x, name = \"%s\", val = %d (\"%s\")\n",
+			 ctrl->id, ctrl->name, ctrl->val, val_names[ctrl->val]);
+	else
+		coda_dbg(2, ctx, "s_ctrl: id = 0x%x, name = \"%s\", val = %d\n",
+			 ctrl->id, ctrl->name, ctrl->val);
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
