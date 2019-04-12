@@ -349,12 +349,24 @@ typedef struct xfs_bstat {
 #define	bs_projid	bs_projid_lo	/* (previously just bs_projid)	*/
 	__u16		bs_forkoff;	/* inode fork offset in bytes	*/
 	__u16		bs_projid_hi;	/* higher part of project id	*/
-	unsigned char	bs_pad[6];	/* pad space, unused		*/
+	uint16_t	bs_sick;	/* sick inode metadata		*/
+	uint16_t	bs_checked;	/* checked inode metadata	*/
+	unsigned char	bs_pad[2];	/* pad space, unused		*/
 	__u32		bs_cowextsize;	/* cow extent size		*/
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
 	__u16		bs_dmstate;	/* DMIG state info		*/
 	__u16		bs_aextents;	/* attribute number of extents	*/
 } xfs_bstat_t;
+
+/* bs_sick flags */
+#define XFS_BS_SICK_INODE	(1 << 0)  /* inode core */
+#define XFS_BS_SICK_BMBTD	(1 << 1)  /* data fork */
+#define XFS_BS_SICK_BMBTA	(1 << 2)  /* attr fork */
+#define XFS_BS_SICK_BMBTC	(1 << 3)  /* cow fork */
+#define XFS_BS_SICK_DIR		(1 << 4)  /* directory */
+#define XFS_BS_SICK_XATTR	(1 << 5)  /* extended attributes */
+#define XFS_BS_SICK_SYMLINK	(1 << 6)  /* symbolic link remote target */
+#define XFS_BS_SICK_PARENT	(1 << 7)  /* parent pointers */
 
 /*
  * Project quota id helpers (previously projid was 16bit only

@@ -356,3 +356,37 @@ xfs_ag_geom_health(
 			ageo->ag_sick |= m->ioctl_mask;
 	}
 }
+
+static const struct ioctl_sick_map ino_map[] = {
+	{ XFS_SICK_INO_CORE,	XFS_BS_SICK_INODE },
+	{ XFS_SICK_INO_BMBTD,	XFS_BS_SICK_BMBTD },
+	{ XFS_SICK_INO_BMBTA,	XFS_BS_SICK_BMBTA },
+	{ XFS_SICK_INO_BMBTC,	XFS_BS_SICK_BMBTC },
+	{ XFS_SICK_INO_DIR,	XFS_BS_SICK_DIR },
+	{ XFS_SICK_INO_XATTR,	XFS_BS_SICK_XATTR },
+	{ XFS_SICK_INO_SYMLINK,	XFS_BS_SICK_SYMLINK },
+	{ XFS_SICK_INO_PARENT,	XFS_BS_SICK_PARENT },
+	{ 0, 0 },
+};
+
+/* Fill out bulkstat health info. */
+void
+xfs_bulkstat_health(
+	struct xfs_inode		*ip,
+	struct xfs_bstat		*bs)
+{
+	const struct ioctl_sick_map	*m;
+	unsigned int			sick;
+	unsigned int			checked;
+
+	bs->bs_sick = 0;
+	bs->bs_checked = 0;
+
+	xfs_inode_measure_sickness(ip, &sick, &checked);
+	for (m = ino_map; m->sick_mask; m++) {
+		if (checked & m->sick_mask)
+			bs->bs_checked |= m->ioctl_mask;
+		if (sick & m->sick_mask)
+			bs->bs_sick |= m->ioctl_mask;
+	}
+}
