@@ -88,77 +88,6 @@ struct bucket_table {
 };
 
 /*
- * We lock a bucket by setting BIT(1) in the pointer - this is always
- * zero in real pointers and in the nulls marker.
- * bit_spin_locks do not handle contention well, but the whole point
- * of the hashtable design is to achieve minimum per-bucket contention.
- * A nested hash table might not have a bucket pointer.  In that case
- * we cannot get a lock.  For remove and replace the bucket cannot be
- * interesting and doesn't need locking.
- * For insert we allocate the bucket if this is the last bucket_table,
- * and then take the lock.
- * Sometimes we unlock a bucket by writing a new pointer there.  In that
- * case we don't need to unlock, but we do need to reset state such as
- * local_bh. For that we have rht_assign_unlock().  As rcu_assign_pointer()
- * provides the same release semantics that bit_spin_unlock() provides,
- * this is safe.
- */
-
-static inline void rht_lock(struct bucket_table *tbl,
-			    struct rhash_lock_head **bkt)
-{
-	local_bh_disable();
-	bit_spin_lock(1, (unsigned long *)bkt);
-	lock_map_acquire(&tbl->dep_map);
-}
-
-static inline void rht_lock_nested(struct bucket_table *tbl,
-				   struct rhash_lock_head **bucket,
-				   unsigned int subclass)
-{
-	local_bh_disable();
-	bit_spin_lock(1, (unsigned long *)bucket);
-	lock_acquire_exclusive(&tbl->dep_map, subclass, 0, NULL, _THIS_IP_);
-}
-
-static inline void rht_unlock(struct bucket_table *tbl,
-			      struct rhash_lock_head **bkt)
-{
-	lock_map_release(&tbl->dep_map);
-	bit_spin_unlock(1, (unsigned long *)bkt);
-	local_bh_enable();
-}
-
-static inline void rht_assign_unlock(struct bucket_table *tbl,
-				     struct rhash_lock_head __rcu **bkt,
-				     struct rhash_head *obj)
-{
-	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
-
-	lock_map_release(&tbl->dep_map);
-	rcu_assign_pointer(*p, obj);
-	preempt_enable();
-	__release(bitlock);
-	local_bh_enable();
-}
-
-/*
- * If 'p' is a bucket head and might be locked:
- *   rht_ptr() returns the address without the lock bit.
- *   rht_ptr_locked() returns the address WITH the lock bit.
- */
-static inline struct rhash_head __rcu *rht_ptr(const struct rhash_lock_head *p)
-{
-	return (void *)(((unsigned long)p) & ~BIT(1));
-}
-
-static inline struct rhash_lock_head __rcu *rht_ptr_locked(const
-							   struct rhash_head *p)
-{
-	return (void *)(((unsigned long)p) | BIT(1));
-}
-
-/*
  * NULLS_MARKER() expects a hash value with the low
  * bits mostly likely to be significant, and it discards
  * the msb.
@@ -370,6 +299,77 @@ static inline struct rhash_lock_head __rcu **rht_bucket_insert(
 {
 	return unlikely(tbl->nest) ? rht_bucket_nested_insert(ht, tbl, hash) :
 				     &tbl->buckets[hash];
+}
+
+/*
+ * We lock a bucket by setting BIT(1) in the pointer - this is always
+ * zero in real pointers and in the nulls marker.
+ * bit_spin_locks do not handle contention well, but the whole point
+ * of the hashtable design is to achieve minimum per-bucket contention.
+ * A nested hash table might not have a bucket pointer.  In that case
+ * we cannot get a lock.  For remove and replace the bucket cannot be
+ * interesting and doesn't need locking.
+ * For insert we allocate the bucket if this is the last bucket_table,
+ * and then take the lock.
+ * Sometimes we unlock a bucket by writing a new pointer there.  In that
+ * case we don't need to unlock, but we do need to reset state such as
+ * local_bh. For that we have rht_assign_unlock().  As rcu_assign_pointer()
+ * provides the same release semantics that bit_spin_unlock() provides,
+ * this is safe.
+ */
+
+static inline void rht_lock(struct bucket_table *tbl,
+			    struct rhash_lock_head **bkt)
+{
+	local_bh_disable();
+	bit_spin_lock(1, (unsigned long *)bkt);
+	lock_map_acquire(&tbl->dep_map);
+}
+
+static inline void rht_lock_nested(struct bucket_table *tbl,
+				   struct rhash_lock_head **bucket,
+				   unsigned int subclass)
+{
+	local_bh_disable();
+	bit_spin_lock(1, (unsigned long *)bucket);
+	lock_acquire_exclusive(&tbl->dep_map, subclass, 0, NULL, _THIS_IP_);
+}
+
+static inline void rht_unlock(struct bucket_table *tbl,
+			      struct rhash_lock_head **bkt)
+{
+	lock_map_release(&tbl->dep_map);
+	bit_spin_unlock(1, (unsigned long *)bkt);
+	local_bh_enable();
+}
+
+/*
+ * If 'p' is a bucket head and might be locked:
+ *   rht_ptr() returns the address without the lock bit.
+ *   rht_ptr_locked() returns the address WITH the lock bit.
+ */
+static inline struct rhash_head __rcu *rht_ptr(const struct rhash_lock_head *p)
+{
+	return (void *)(((unsigned long)p) & ~BIT(1));
+}
+
+static inline struct rhash_lock_head __rcu *rht_ptr_locked(const
+							   struct rhash_head *p)
+{
+	return (void *)(((unsigned long)p) | BIT(1));
+}
+
+static inline void rht_assign_unlock(struct bucket_table *tbl,
+				     struct rhash_lock_head __rcu **bkt,
+				     struct rhash_head *obj)
+{
+	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
+
+	lock_map_release(&tbl->dep_map);
+	rcu_assign_pointer(*p, obj);
+	preempt_enable();
+	__release(bitlock);
+	local_bh_enable();
 }
 
 /**
