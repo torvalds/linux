@@ -610,6 +610,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 	bool stalled = false;
 	u64 rtt;
 	u32 life, last_life;
+	bool rxrpc_complete = false;
 
 	DECLARE_WAITQUEUE(myself, current);
 
@@ -621,7 +622,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 		rtt2 = 2;
 
 	timeout = rtt2;
-	last_life = rxrpc_kernel_check_life(call->net->socket, call->rxcall);
+	rxrpc_kernel_check_life(call->net->socket, call->rxcall, &last_life);
 
 	add_wait_queue(&call->waitq, &myself);
 	for (;;) {
@@ -639,7 +640,12 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 		if (afs_check_call_state(call, AFS_CALL_COMPLETE))
 			break;
 
-		life = rxrpc_kernel_check_life(call->net->socket, call->rxcall);
+		if (!rxrpc_kernel_check_life(call->net->socket, call->rxcall, &life)) {
+			/* rxrpc terminated the call. */
+			rxrpc_complete = true;
+			break;
+		}
+
 		if (timeout == 0 &&
 		    life == last_life && signal_pending(current)) {
 			if (stalled)
@@ -663,12 +669,16 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 	remove_wait_queue(&call->waitq, &myself);
 	__set_current_state(TASK_RUNNING);
 
-	/* Kill off the call if it's still live. */
 	if (!afs_check_call_state(call, AFS_CALL_COMPLETE)) {
-		_debug("call interrupted");
-		if (rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
-					    RX_USER_ABORT, -EINTR, "KWI"))
-			afs_set_call_complete(call, -EINTR, 0);
+		if (rxrpc_complete) {
+			afs_set_call_complete(call, call->error, call->abort_code);
+		} else {
+			/* Kill off the call if it's still live. */
+			_debug("call interrupted");
+			if (rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
+						    RX_USER_ABORT, -EINTR, "KWI"))
+				afs_set_call_complete(call, -EINTR, 0);
+		}
 	}
 
 	spin_lock_bh(&call->state_lock);
