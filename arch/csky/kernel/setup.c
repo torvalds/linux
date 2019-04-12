@@ -145,7 +145,8 @@ void __init setup_arch(char **cmdline_p)
 unsigned long phys_offset;
 EXPORT_SYMBOL(phys_offset);
 
-asmlinkage __visible void __init csky_start(unsigned int unused, void *param)
+asmlinkage __visible void __init csky_start(unsigned int unused,
+					    void *dtb_start)
 {
 	/* Clean up bss section */
 	memset(__bss_start, 0, __bss_stop - __bss_start);
@@ -155,10 +156,10 @@ asmlinkage __visible void __init csky_start(unsigned int unused, void *param)
 	pre_trap_init();
 	pre_mmu_init();
 
-	if (param == NULL)
+	if (dtb_start == NULL)
 		early_init_dt_scan(__dtb_start);
 	else
-		early_init_dt_scan(param);
+		early_init_dt_scan(dtb_start);
 
 	start_kernel();
 

@@ -143,7 +143,12 @@
 	cpwcr   \rx, cpcr8
 .endm
 
-.macro SETUP_MMU rx
+.macro SETUP_MMU
+	/* Init psr and enable ee */
+	lrw	r6, DEFAULT_PSR_VALUE
+	mtcr    r6, psr
+	psrset  ee
+
 	/* Select MMU as co-processor */
 	cpseti	cp15
 
@@ -152,17 +157,17 @@
 	 * 31 - 29 | 28 - 4 | 3 | 2 | 1 | 0
 	 *   BA     Reserved  C   D   V
 	 */
-	cprcr	\rx, cpcr30
-	lsri	\rx, 28
-	lsli	\rx, 28
-	addi	\rx, 0xe
-	cpwcr	\rx, cpcr30
+	cprcr	r6, cpcr30
+	lsri	r6, 28
+	lsli	r6, 28
+	addi	r6, 0xe
+	cpwcr	r6, cpcr30
 
-	lsri	\rx, 28
-	addi	\rx, 2
-	lsli	\rx, 28
-	addi	\rx, 0xe
-	cpwcr	\rx, cpcr31
+	lsri	r6, 28
+	addi	r6, 2
+	lsli	r6, 28
+	addi	r6, 0xe
+	cpwcr	r6, cpcr31
 .endm
 
 .macro ANDI_R3 rx, imm
