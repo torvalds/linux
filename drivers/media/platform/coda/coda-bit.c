@@ -102,6 +102,8 @@ static int coda_command_sync(struct coda_ctx *ctx, int cmd)
 	struct coda_dev *dev = ctx->dev;
 	int ret;
 
+	lockdep_assert_held(&dev->coda_mutex);
+
 	coda_command_async(ctx, cmd);
 	ret = coda_wait_timeout(dev);
 	trace_coda_bit_done(ctx);
@@ -115,6 +117,8 @@ int coda_hw_reset(struct coda_ctx *ctx)
 	unsigned long timeout;
 	unsigned int idx;
 	int ret;
+
+	lockdep_assert_held(&dev->coda_mutex);
 
 	if (!dev->rstc)
 		return -ENOENT;
@@ -1675,6 +1679,8 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	u32 src_fourcc, dst_fourcc;
 	u32 val;
 	int ret;
+
+	lockdep_assert_held(&dev->coda_mutex);
 
 	coda_dbg(1, ctx, "Video Data Order Adapter: %s\n",
 		 ctx->use_vdoa ? "Enabled" : "Disabled");
