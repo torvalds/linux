@@ -162,18 +162,6 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static int veth_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
-{
-	info->so_timestamping =
-		SOF_TIMESTAMPING_TX_SOFTWARE |
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE;
-	info->phc_index = -1;
-
-	return 0;
-}
-
 static const struct ethtool_ops veth_ethtool_ops = {
 	.get_drvinfo		= veth_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -181,7 +169,7 @@ static const struct ethtool_ops veth_ethtool_ops = {
 	.get_sset_count		= veth_get_sset_count,
 	.get_ethtool_stats	= veth_get_ethtool_stats,
 	.get_link_ksettings	= veth_get_link_ksettings,
-	.get_ts_info		= veth_get_ts_info,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 /* general routines */
