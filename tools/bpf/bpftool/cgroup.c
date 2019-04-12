@@ -248,6 +248,13 @@ static int do_show_tree_fn(const char *fpath, const struct stat *sb,
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++)
 		show_attached_bpf_progs(cgroup_fd, type, ftw->level);
 
+	if (errno == EINVAL)
+		/* Last attach type does not support query.
+		 * Do not report an error for this, especially because batch
+		 * mode would stop processing commands.
+		 */
+		errno = 0;
+
 	if (json_output) {
 		jsonw_end_array(json_wtr);
 		jsonw_end_object(json_wtr);
