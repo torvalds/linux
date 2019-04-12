@@ -578,6 +578,22 @@ config VIDEO_MESON_AO_CEC
 	  generic CEC framework interface.
 	  CEC bus is present in the HDMI connector and enables communication
 
+config VIDEO_MESON_G12A_AO_CEC
+	tristate "Amlogic Meson G12A AO CEC driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK && OF
+	select REGMAP
+	select REGMAP_MMIO
+	select CEC_CORE
+	select CEC_NOTIFIER
+	---help---
+	  This is a driver for Amlogic Meson G12A SoCs AO CEC interface.
+	  This driver if for the new AO-CEC module found in G12A SoCs,
+	  usually named AO_CEC_B in documentation.
+	  It uses the generic CEC framework interface.
+	  CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
+
 config CEC_GPIO
 	tristate "Generic GPIO-based CEC driver"
 	depends on PREEMPT || COMPILE_TEST
