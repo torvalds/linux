@@ -559,6 +559,13 @@
 						mux {
 							groups = "pwm_ao_d_e";
 							function = "pwm_ao_d";
+						};
+					};
+
+					remote_input_ao_pins: remote-input-ao {
+						mux {
+							groups = "remote_ao_input";
+							function = "remote_ao_input";
 							bias-disable;
 						};
 					};
@@ -620,6 +627,13 @@
 				compatible = "amlogic,meson-g12a-ao-pwm-ab";
 				reg = <0x0 0x7000 0x0 0x20>;
 				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			ir: ir@8000 {
+				compatible = "amlogic,meson-gxbb-ir";
+				reg = <0x0 0x8000 0x0 0x20>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 
