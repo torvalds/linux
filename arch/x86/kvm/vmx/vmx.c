@@ -6410,6 +6410,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		vmx_set_interrupt_shadow(vcpu, 0);
 
+	kvm_load_guest_xcr0(vcpu);
+
 	if (static_cpu_has(X86_FEATURE_PKU) &&
 	    kvm_read_cr4_bits(vcpu, X86_CR4_PKE) &&
 	    vcpu->arch.pkru != vmx->host_pkru)
@@ -6505,6 +6507,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		if (vcpu->arch.pkru != vmx->host_pkru)
 			__write_pkru(vmx->host_pkru);
 	}
+
+	kvm_put_guest_xcr0(vcpu);
 
 	vmx->nested.nested_run_pending = 0;
 	vmx->idt_vectoring_info = 0;
