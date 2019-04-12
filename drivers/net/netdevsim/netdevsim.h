@@ -46,6 +46,13 @@ struct netdevsim_shared_dev {
 	struct list_head bpf_bound_maps;
 };
 
+struct netdevsim;
+
+struct netdevsim_shared_dev *nsim_sdev_get(struct netdevsim *joinns);
+void nsim_sdev_put(struct netdevsim_shared_dev *sdev);
+int nsim_sdev_init(void);
+void nsim_sdev_exit(void);
+
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
 
