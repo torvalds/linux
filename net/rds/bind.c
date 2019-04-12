@@ -173,6 +173,8 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	/* We allow an RDS socket to be bound to either IPv4 or IPv6
 	 * address.
 	 */
+	if (addr_len < offsetofend(struct sockaddr, sa_family))
+		return -EINVAL;
 	if (uaddr->sa_family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
 
