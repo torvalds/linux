@@ -36,6 +36,8 @@
  * @digest:	Pointer to expected digest
  * @psize:	Length of source data in bytes
  * @ksize:	Length of @key in bytes (0 if no key)
+ * @setkey_error: Expected error from setkey()
+ * @digest_error: Expected error from digest()
  */
 struct hash_testvec {
 	const char *key;
@@ -43,6 +45,8 @@ struct hash_testvec {
 	const char *digest;
 	unsigned short psize;
 	unsigned short ksize;
+	int setkey_error;
+	int digest_error;
 };
 
 /*
@@ -54,12 +58,13 @@ struct hash_testvec {
  * @ptext:	Pointer to plaintext
  * @ctext:	Pointer to ciphertext
  * @len:	Length of @ptext and @ctext in bytes
- * @fail:	If set to one, the test need to fail
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  * 		( e.g. test needs to fail due to a weak key )
  * @fips_skip:	Skip the test vector in FIPS mode
  * @generates_iv: Encryption should ignore the given IV, and output @iv_out.
  *		  Decryption takes @iv_out.  Needed for AES Keywrap ("kw(aes)").
+ * @setkey_error: Expected error from setkey()
+ * @crypt_error: Expected error from encrypt() and decrypt()
  */
 struct cipher_testvec {
 	const char *key;
@@ -67,12 +72,13 @@ struct cipher_testvec {
 	const char *iv_out;
 	const char *ptext;
 	const char *ctext;
-	bool fail;
 	unsigned char wk; /* weak key flag */
 	unsigned char klen;
 	unsigned short len;
 	bool fips_skip;
 	bool generates_iv;
+	int setkey_error;
+	int crypt_error;
 };
 
 /*
@@ -84,7 +90,6 @@ struct cipher_testvec {
  * @ctext:	Pointer to the full authenticated ciphertext.  For AEADs that
  *		produce a separate "ciphertext" and "authentication tag", these
  *		two parts are concatenated: ciphertext || tag.
- * @fail:	setkey() failure expected?
  * @novrfy:	Decryption verification failure expected?
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  *		(e.g. setkey() needs to fail due to a weak key)
@@ -92,6 +97,9 @@ struct cipher_testvec {
  * @plen:	Length of @ptext in bytes
  * @alen:	Length of @assoc in bytes
  * @clen:	Length of @ctext in bytes
+ * @setkey_error: Expected error from setkey()
+ * @setauthsize_error: Expected error from setauthsize()
+ * @crypt_error: Expected error from encrypt() and decrypt()
  */
 struct aead_testvec {
 	const char *key;
@@ -99,13 +107,15 @@ struct aead_testvec {
 	const char *ptext;
 	const char *assoc;
 	const char *ctext;
-	bool fail;
 	unsigned char novrfy;
 	unsigned char wk;
 	unsigned char klen;
 	unsigned short plen;
 	unsigned short clen;
 	unsigned short alen;
+	int setkey_error;
+	int setauthsize_error;
+	int crypt_error;
 };
 
 struct cprng_testvec {
@@ -7201,7 +7211,7 @@ static const struct cipher_testvec des_tv_template[] = {
 			  "\xb4\x99\x26\xf7\x1f\xe1\xd4\x90",
 		.len	= 24,
 	}, { /* Weak key */
-		.fail	= true,
+		.setkey_error = -EINVAL,
 		.wk	= 1,
 		.key	= "\x01\x01\x01\x01\x01\x01\x01\x01",
 		.klen	= 8,

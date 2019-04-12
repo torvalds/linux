@@ -971,10 +971,17 @@ static int test_hash_vec_cfg(const char *driver,
 	if (vec->ksize) {
 		err = crypto_ahash_setkey(tfm, vec->key, vec->ksize);
 		if (err) {
-			pr_err("alg: hash: %s setkey failed with err %d on test vector %u; flags=%#x\n",
-			       driver, err, vec_num,
+			if (err == vec->setkey_error)
+				return 0;
+			pr_err("alg: hash: %s setkey failed on test vector %u; expected_error=%d, actual_error=%d, flags=%#x\n",
+			       driver, vec_num, vec->setkey_error, err,
 			       crypto_ahash_get_flags(tfm));
 			return err;
+		}
+		if (vec->setkey_error) {
+			pr_err("alg: hash: %s setkey unexpectedly succeeded on test vector %u; expected_error=%d\n",
+			       driver, vec_num, vec->setkey_error);
+			return -EINVAL;
 		}
 	}
 
@@ -995,16 +1002,25 @@ static int test_hash_vec_cfg(const char *driver,
 	testmgr_poison(req->__ctx, crypto_ahash_reqsize(tfm));
 	testmgr_poison(result, digestsize + TESTMGR_POISON_LEN);
 
-	if (cfg->finalization_type == FINALIZATION_TYPE_DIGEST) {
+	if (cfg->finalization_type == FINALIZATION_TYPE_DIGEST ||
+	    vec->digest_error) {
 		/* Just using digest() */
 		ahash_request_set_callback(req, req_flags, crypto_req_done,
 					   &wait);
 		ahash_request_set_crypt(req, tsgl->sgl, result, vec->psize);
 		err = do_ahash_op(crypto_ahash_digest, req, &wait, cfg->nosimd);
 		if (err) {
-			pr_err("alg: hash: %s digest() failed with err %d on test vector %u, cfg=\"%s\"\n",
-			       driver, err, vec_num, cfg->name);
+			if (err == vec->digest_error)
+				return 0;
+			pr_err("alg: hash: %s digest() failed on test vector %u; expected_error=%d, actual_error=%d, cfg=\"%s\"\n",
+			       driver, vec_num, vec->digest_error, err,
+			       cfg->name);
 			return err;
+		}
+		if (vec->digest_error) {
+			pr_err("alg: hash: %s digest() unexpectedly succeeded on test vector %u; expected_error=%d, cfg=\"%s\"\n",
+			       driver, vec_num, vec->digest_error, cfg->name);
+			return -EINVAL;
 		}
 		goto result_ready;
 	}
@@ -1262,6 +1278,7 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 		 cfg->iv_offset +
 		 (cfg->iv_offset_relative_to_alignmask ? alignmask : 0);
 	struct kvec input[2];
+	int expected_error;
 	int err;
 
 	/* Set the key */
@@ -1270,26 +1287,33 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	else
 		crypto_aead_clear_flags(tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 	err = crypto_aead_setkey(tfm, vec->key, vec->klen);
-	if (err) {
-		if (vec->fail) /* expectedly failed to set key? */
-			return 0;
-		pr_err("alg: aead: %s setkey failed with err %d on test vector %u; flags=%#x\n",
-		       driver, err, vec_num, crypto_aead_get_flags(tfm));
+	if (err && err != vec->setkey_error) {
+		pr_err("alg: aead: %s setkey failed on test vector %u; expected_error=%d, actual_error=%d, flags=%#x\n",
+		       driver, vec_num, vec->setkey_error, err,
+		       crypto_aead_get_flags(tfm));
 		return err;
 	}
-	if (vec->fail) {
-		pr_err("alg: aead: %s setkey unexpectedly succeeded on test vector %u\n",
-		       driver, vec_num);
+	if (!err && vec->setkey_error) {
+		pr_err("alg: aead: %s setkey unexpectedly succeeded on test vector %u; expected_error=%d\n",
+		       driver, vec_num, vec->setkey_error);
 		return -EINVAL;
 	}
 
 	/* Set the authentication tag size */
 	err = crypto_aead_setauthsize(tfm, authsize);
-	if (err) {
-		pr_err("alg: aead: %s setauthsize failed with err %d on test vector %u\n",
-		       driver, err, vec_num);
+	if (err && err != vec->setauthsize_error) {
+		pr_err("alg: aead: %s setauthsize failed on test vector %u; expected_error=%d, actual_error=%d\n",
+		       driver, vec_num, vec->setauthsize_error, err);
 		return err;
 	}
+	if (!err && vec->setauthsize_error) {
+		pr_err("alg: aead: %s setauthsize unexpectedly succeeded on test vector %u; expected_error=%d\n",
+		       driver, vec_num, vec->setauthsize_error);
+		return -EINVAL;
+	}
+
+	if (vec->setkey_error || vec->setauthsize_error)
+		return 0;
 
 	/* The IV must be copied to a buffer, as the algorithm may modify it */
 	if (WARN_ON(ivsize > MAX_IVLEN))
@@ -1328,18 +1352,6 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	if (cfg->nosimd)
 		crypto_reenable_simd_for_test();
 	err = crypto_wait_req(err, &wait);
-	if (err) {
-		if (err == -EBADMSG && vec->novrfy)
-			return 0;
-		pr_err("alg: aead: %s %s failed with err %d on test vector %u, cfg=\"%s\"\n",
-		       driver, op, err, vec_num, cfg->name);
-		return err;
-	}
-	if (vec->novrfy) {
-		pr_err("alg: aead: %s %s unexpectedly succeeded on test vector %u, cfg=\"%s\"\n",
-		       driver, op, vec_num, cfg->name);
-		return -EINVAL;
-	}
 
 	/* Check that the algorithm didn't overwrite things it shouldn't have */
 	if (req->cryptlen != (enc ? vec->plen : vec->clen) ||
@@ -1382,6 +1394,21 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	    is_test_sglist_corrupted(&tsgls->dst)) {
 		pr_err("alg: aead: %s %s corrupted dst sgl on test vector %u, cfg=\"%s\"\n",
 		       driver, op, vec_num, cfg->name);
+		return -EINVAL;
+	}
+
+	/* Check for success or failure */
+	expected_error = vec->novrfy ? -EBADMSG : vec->crypt_error;
+	if (err) {
+		if (err == expected_error)
+			return 0;
+		pr_err("alg: aead: %s %s failed on test vector %u; expected_error=%d, actual_error=%d, cfg=\"%s\"\n",
+		       driver, op, vec_num, expected_error, err, cfg->name);
+		return err;
+	}
+	if (expected_error) {
+		pr_err("alg: aead: %s %s unexpectedly succeeded on test vector %u; expected_error=%d, cfg=\"%s\"\n",
+		       driver, op, vec_num, expected_error, cfg->name);
 		return -EINVAL;
 	}
 
@@ -1550,13 +1577,20 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 
 		ret = crypto_cipher_setkey(tfm, template[i].key,
 					   template[i].klen);
-		if (template[i].fail == !ret) {
-			printk(KERN_ERR "alg: cipher: setkey failed "
-			       "on test %d for %s: flags=%x\n", j,
-			       algo, crypto_cipher_get_flags(tfm));
+		if (ret) {
+			if (ret == template[i].setkey_error)
+				continue;
+			pr_err("alg: cipher: %s setkey failed on test vector %u; expected_error=%d, actual_error=%d, flags=%#x\n",
+			       algo, j, template[i].setkey_error, ret,
+			       crypto_cipher_get_flags(tfm));
 			goto out;
-		} else if (ret)
-			continue;
+		}
+		if (template[i].setkey_error) {
+			pr_err("alg: cipher: %s setkey unexpectedly succeeded on test vector %u; expected_error=%d\n",
+			       algo, j, template[i].setkey_error);
+			ret = -EINVAL;
+			goto out;
+		}
 
 		for (k = 0; k < template[i].len;
 		     k += crypto_cipher_blocksize(tfm)) {
@@ -1614,15 +1648,16 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 					    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 	err = crypto_skcipher_setkey(tfm, vec->key, vec->klen);
 	if (err) {
-		if (vec->fail) /* expectedly failed to set key? */
+		if (err == vec->setkey_error)
 			return 0;
-		pr_err("alg: skcipher: %s setkey failed with err %d on test vector %u; flags=%#x\n",
-		       driver, err, vec_num, crypto_skcipher_get_flags(tfm));
+		pr_err("alg: skcipher: %s setkey failed on test vector %u; expected_error=%d, actual_error=%d, flags=%#x\n",
+		       driver, vec_num, vec->setkey_error, err,
+		       crypto_skcipher_get_flags(tfm));
 		return err;
 	}
-	if (vec->fail) {
-		pr_err("alg: skcipher: %s setkey unexpectedly succeeded on test vector %u\n",
-		       driver, vec_num);
+	if (vec->setkey_error) {
+		pr_err("alg: skcipher: %s setkey unexpectedly succeeded on test vector %u; expected_error=%d\n",
+		       driver, vec_num, vec->setkey_error);
 		return -EINVAL;
 	}
 
@@ -1667,11 +1702,6 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	if (cfg->nosimd)
 		crypto_reenable_simd_for_test();
 	err = crypto_wait_req(err, &wait);
-	if (err) {
-		pr_err("alg: skcipher: %s %s failed with err %d on test vector %u, cfg=\"%s\"\n",
-		       driver, op, err, vec_num, cfg->name);
-		return err;
-	}
 
 	/* Check that the algorithm didn't overwrite things it shouldn't have */
 	if (req->cryptlen != vec->len ||
@@ -1711,6 +1741,20 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	    is_test_sglist_corrupted(&tsgls->dst)) {
 		pr_err("alg: skcipher: %s %s corrupted dst sgl on test vector %u, cfg=\"%s\"\n",
 		       driver, op, vec_num, cfg->name);
+		return -EINVAL;
+	}
+
+	/* Check for success or failure */
+	if (err) {
+		if (err == vec->crypt_error)
+			return 0;
+		pr_err("alg: skcipher: %s %s failed on test vector %u; expected_error=%d, actual_error=%d, cfg=\"%s\"\n",
+		       driver, op, vec_num, vec->crypt_error, err, cfg->name);
+		return err;
+	}
+	if (vec->crypt_error) {
+		pr_err("alg: skcipher: %s %s unexpectedly succeeded on test vector %u; expected_error=%d, cfg=\"%s\"\n",
+		       driver, op, vec_num, vec->crypt_error, cfg->name);
 		return -EINVAL;
 	}
 
