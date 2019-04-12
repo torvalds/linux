@@ -439,6 +439,7 @@ static int db8500_regulator_probe(struct platform_device *pdev)
 	struct regulator_init_data *db8500_init_data;
 	struct dbx500_regulator_info *info;
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	int err, i;
 
 	db8500_init_data = dev_get_platdata(&pdev->dev);
@@ -446,17 +447,16 @@ static int db8500_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(dbx500_regulator_info); i++) {
 		/* assign per-regulator data */
 		info = &dbx500_regulator_info[i];
-		info->dev = &pdev->dev;
 
 		config.driver_data = info;
 		config.dev = &pdev->dev;
 		if (db8500_init_data)
 			config.init_data = &db8500_init_data[i];
 
-		info->rdev = devm_regulator_register(&pdev->dev, &info->desc,
-						     &config);
-		if (IS_ERR(info->rdev)) {
-			err = PTR_ERR(info->rdev);
+		rdev = devm_regulator_register(&pdev->dev, &info->desc,
+					       &config);
+		if (IS_ERR(rdev)) {
+			err = PTR_ERR(rdev);
 			dev_err(&pdev->dev, "failed to register %s: err %i\n",
 				info->desc.name, err);
 			return err;
