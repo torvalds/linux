@@ -33,6 +33,7 @@
 #include "xfs_fsmap.h"
 #include "scrub/xfs_scrub.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 
 #include <linux/capability.h>
 #include <linux/cred.h>
@@ -800,6 +801,26 @@ xfs_ioc_fsgeometry(
 		len = sizeof(fsgeo);
 
 	if (copy_to_user(arg, &fsgeo, len))
+		return -EFAULT;
+	return 0;
+}
+
+STATIC int
+xfs_ioc_ag_geometry(
+	struct xfs_mount	*mp,
+	void			__user *arg)
+{
+	struct xfs_ag_geometry	ageo;
+	int			error;
+
+	if (copy_from_user(&ageo, arg, sizeof(ageo)))
+		return -EFAULT;
+
+	error = xfs_ag_get_geometry(mp, ageo.ag_number, &ageo);
+	if (error)
+		return error;
+
+	if (copy_to_user(arg, &ageo, sizeof(ageo)))
 		return -EFAULT;
 	return 0;
 }
@@ -1929,6 +1950,9 @@ xfs_file_ioctl(
 		return xfs_ioc_fsgeometry(mp, arg, 4);
 	case XFS_IOC_FSGEOMETRY:
 		return xfs_ioc_fsgeometry(mp, arg, 5);
+
+	case XFS_IOC_AG_GEOMETRY:
+		return xfs_ioc_ag_geometry(mp, arg);
 
 	case XFS_IOC_GETVERSION:
 		return put_user(inode->i_generation, (int __user *)arg);
