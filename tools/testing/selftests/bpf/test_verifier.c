@@ -208,6 +208,76 @@ static void bpf_fill_rand_ld_dw(struct bpf_test *self)
 	self->retval = (uint32_t)res;
 }
 
+/* test the sequence of 1k jumps */
+static void bpf_fill_scale1(struct bpf_test *self)
+{
+	struct bpf_insn *insn = self->fill_insns;
+	int i = 0, k = 0;
+
+	insn[i++] = BPF_MOV64_REG(BPF_REG_6, BPF_REG_1);
+	/* test to check that the sequence of 1024 jumps is acceptable */
+	while (k++ < 1024) {
+		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+					 BPF_FUNC_get_prandom_u32);
+		insn[i++] = BPF_JMP_IMM(BPF_JGT, BPF_REG_0, bpf_semi_rand_get(), 2);
+		insn[i++] = BPF_MOV64_REG(BPF_REG_1, BPF_REG_10);
+		insn[i++] = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6,
+					-8 * (k % 64 + 1));
+	}
+	/* every jump adds 1024 steps to insn_processed, so to stay exactly
+	 * within 1m limit add MAX_TEST_INSNS - 1025 MOVs and 1 EXIT
+	 */
+	while (i < MAX_TEST_INSNS - 1025)
+		insn[i++] = BPF_ALU32_IMM(BPF_MOV, BPF_REG_0, 42);
+	insn[i] = BPF_EXIT_INSN();
+	self->prog_len = i + 1;
+	self->retval = 42;
+}
+
+/* test the sequence of 1k jumps in inner most function (function depth 8)*/
+static void bpf_fill_scale2(struct bpf_test *self)
+{
+	struct bpf_insn *insn = self->fill_insns;
+	int i = 0, k = 0;
+
+#define FUNC_NEST 7
+	for (k = 0; k < FUNC_NEST; k++) {
+		insn[i++] = BPF_CALL_REL(1);
+		insn[i++] = BPF_EXIT_INSN();
+	}
+	insn[i++] = BPF_MOV64_REG(BPF_REG_6, BPF_REG_1);
+	/* test to check that the sequence of 1024 jumps is acceptable */
+	while (k++ < 1024) {
+		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+					 BPF_FUNC_get_prandom_u32);
+		insn[i++] = BPF_JMP_IMM(BPF_JGT, BPF_REG_0, bpf_semi_rand_get(), 2);
+		insn[i++] = BPF_MOV64_REG(BPF_REG_1, BPF_REG_10);
+		insn[i++] = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6,
+					-8 * (k % (64 - 4 * FUNC_NEST) + 1));
+	}
+	/* every jump adds 1024 steps to insn_processed, so to stay exactly
+	 * within 1m limit add MAX_TEST_INSNS - 1025 MOVs and 1 EXIT
+	 */
+	while (i < MAX_TEST_INSNS - 1025)
+		insn[i++] = BPF_ALU32_IMM(BPF_MOV, BPF_REG_0, 42);
+	insn[i] = BPF_EXIT_INSN();
+	self->prog_len = i + 1;
+	self->retval = 42;
+}
+
+static void bpf_fill_scale(struct bpf_test *self)
+{
+	switch (self->retval) {
+	case 1:
+		return bpf_fill_scale1(self);
+	case 2:
+		return bpf_fill_scale2(self);
+	default:
+		self->prog_len = 0;
+		break;
+	}
+}
+
 /* BPF_SK_LOOKUP contains 13 instructions, if you need to fix up maps */
 #define BPF_SK_LOOKUP(func)						\
 	/* struct bpf_sock_tuple tuple = {} */				\
