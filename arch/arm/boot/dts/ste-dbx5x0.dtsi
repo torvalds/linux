@@ -1196,6 +1196,30 @@
 			status = "disabled";
 		};
 
+		gpu@a0300000 {
+			/*
+			 * This block is referred to as "Smart Graphics Adapter SGA500"
+			 * in documentation but is in practice a pretty straight-forward
+			 * MALI-400 GPU block.
+			 */
+			compatible = "stericsson,db8500-mali", "arm,mali-400";
+			reg = <0xa0300000 0x10000>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gp",
+					  "gpmmu",
+					  "pp0",
+					  "ppmmu0",
+					  "combined";
+			clocks = <&prcmu_clk PRCMU_ACLK>, <&prcmu_clk PRCMU_SGACLK>;
+			clock-names = "bus", "core";
+			mali-supply = <&db8500_sga_reg>;
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
 		mcde@a0350000 {
 			compatible = "stericsson,mcde";
 			reg = <0xa0350000 0x1000>, /* MCDE */
