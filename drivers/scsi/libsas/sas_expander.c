@@ -1876,10 +1876,12 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 		if (phy_id != -1) {
 			*src_dev = dev;
 			ex->ex_change_count = ex_change_count;
-			pr_info("Expander phy change count has changed\n");
+			pr_info("ex %016llx phy%d change count has changed\n",
+				SAS_ADDR(dev->sas_addr), phy_id);
 			return res;
 		} else
-			pr_info("Expander phys DID NOT change\n");
+			pr_info("ex %016llx phys DID NOT change\n",
+				SAS_ADDR(dev->sas_addr));
 	}
 	list_for_each_entry(ch, &ex->children, siblings) {
 		if (ch->dev_type == SAS_EDGE_EXPANDER_DEVICE || ch->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
@@ -2028,13 +2030,21 @@ static bool dev_type_flutter(enum sas_device_type new, enum sas_device_type old)
 	return false;
 }
 
-static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
+static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
+			      bool last, int sibling)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
 	enum sas_device_type type = SAS_PHY_UNUSED;
 	u8 sas_addr[SAS_ADDR_SIZE];
+	char msg[80] = "";
 	int res;
+
+	if (!last)
+		sprintf(msg, ", part of a wide port with phy%d", sibling);
+
+	pr_debug("ex %016llx rediscovering phy%d%s\n", SAS_ADDR(dev->sas_addr),
+		 phy_id, msg);
 
 	memset(sas_addr, 0, SAS_ADDR_SIZE);
 	res = sas_get_phy_attached_dev(dev, phy_id, sas_addr, &type);
@@ -2115,13 +2125,11 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
 				continue;
 			if (SAS_ADDR(phy->attached_sas_addr) ==
 			    SAS_ADDR(changed_phy->attached_sas_addr)) {
-				pr_debug("phy%d part of wide port with phy%d\n",
-					 phy_id, i);
 				last = false;
 				break;
 			}
 		}
-		res = sas_rediscover_dev(dev, phy_id, last);
+		res = sas_rediscover_dev(dev, phy_id, last, i);
 	} else
 		res = sas_discover_new(dev, phy_id);
 	return res;
