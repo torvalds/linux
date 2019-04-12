@@ -12,7 +12,7 @@
 #include "debug.h"
 #include "ec.h"
 #include "error.h"
-#include "journal_io.h"
+#include "recovery.h"
 #include "trace.h"
 
 #include <linux/kthread.h>
@@ -261,13 +261,13 @@ static void bch2_alloc_read_key(struct bch_fs *c, struct bkey_s_c k)
 	percpu_up_read(&c->mark_lock);
 }
 
-int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
+int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
-	struct journal_replay *r;
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bch_dev *ca;
+	struct journal_key *j;
 	unsigned i;
 	int ret;
 
@@ -282,14 +282,9 @@ int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(r, journal_replay_list, list) {
-		struct bkey_i *k, *n;
-		struct jset_entry *entry;
-
-		for_each_jset_key(k, n, entry, &r->j)
-			if (entry->btree_id == BTREE_ID_ALLOC)
-				bch2_alloc_read_key(c, bkey_i_to_s_c(k));
-	}
+	for_each_journal_key(*journal_keys, j)
+		if (j->btree_id == BTREE_ID_ALLOC)
+			bch2_alloc_read_key(c, bkey_i_to_s_c(j->k));
 
 	percpu_down_write(&c->mark_lock);
 	bch2_dev_usage_from_buckets(c);

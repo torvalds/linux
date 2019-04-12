@@ -12,8 +12,8 @@
 #include "ec.h"
 #include "error.h"
 #include "io.h"
-#include "journal_io.h"
 #include "keylist.h"
+#include "recovery.h"
 #include "super-io.h"
 #include "util.h"
 
@@ -1235,9 +1235,9 @@ static void bch2_stripe_read_key(struct bch_fs *c, struct bkey_s_c k)
 	bch2_mark_key(c, k, true, 0, NULL, 0, 0);
 }
 
-int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)
+int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
-	struct journal_replay *r;
+	struct journal_key *i;
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
@@ -1258,14 +1258,9 @@ int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(r, journal_replay_list, list) {
-		struct bkey_i *k, *n;
-		struct jset_entry *entry;
-
-		for_each_jset_key(k, n, entry, &r->j)
-			if (entry->btree_id == BTREE_ID_EC)
-				bch2_stripe_read_key(c, bkey_i_to_s_c(k));
-	}
+	for_each_journal_key(*journal_keys, i)
+		if (i->btree_id == BTREE_ID_EC)
+			bch2_stripe_read_key(c, bkey_i_to_s_c(i->k));
 
 	return 0;
 }

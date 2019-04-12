@@ -150,7 +150,8 @@ void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 
 void bch2_ec_flush_new_stripes(struct bch_fs *);
 
-int bch2_stripes_read(struct bch_fs *, struct list_head *);
+struct journal_keys;
+int bch2_stripes_read(struct bch_fs *, struct journal_keys *);
 int bch2_stripes_write(struct bch_fs *, unsigned, bool *);
 
 int bch2_ec_mem_alloc(struct bch_fs *, bool);

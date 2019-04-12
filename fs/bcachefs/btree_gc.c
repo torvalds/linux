@@ -19,9 +19,9 @@
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
-#include "journal_io.h"
 #include "keylist.h"
 #include "move.h"
+#include "recovery.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "trace.h"
@@ -273,7 +273,7 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 		(int) btree_id_to_gc_phase(r);
 }
 
-static int bch2_gc_btrees(struct bch_fs *c, struct list_head *journal,
+static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 			  bool initial, bool metadata_only)
 {
 	enum btree_id ids[BTREE_ID_NR];
@@ -292,22 +292,18 @@ static int bch2_gc_btrees(struct bch_fs *c, struct list_head *journal,
 		if (ret)
 			return ret;
 
-		if (journal && !metadata_only &&
+		if (journal_keys && !metadata_only &&
 		    btree_node_type_needs_gc(type)) {
-			struct bkey_i *k, *n;
-			struct jset_entry *j;
-			struct journal_replay *r;
+			struct journal_key *j;
 			int ret;
 
-			list_for_each_entry(r, journal, list)
-				for_each_jset_key(k, n, j, &r->j) {
-					if (type == __btree_node_type(j->level, j->btree_id)) {
-						ret = bch2_gc_mark_key(c,
-							bkey_i_to_s_c(k),
-							&max_stale, initial);
-						if (ret)
-							return ret;
-					}
+			for_each_journal_key(*journal_keys, j)
+				if (j->btree_id == id) {
+					ret = bch2_gc_mark_key(c,
+						bkey_i_to_s_c(j->k),
+						&max_stale, initial);
+					if (ret)
+						return ret;
 				}
 		}
 	}
@@ -695,7 +691,7 @@ static int bch2_gc_start(struct bch_fs *c,
  *    move around - if references move backwards in the ordering GC
  *    uses, GC could skip past them
  */
-int bch2_gc(struct bch_fs *c, struct list_head *journal,
+int bch2_gc(struct bch_fs *c, struct journal_keys *journal_keys,
 	    bool initial, bool metadata_only)
 {
 	struct bch_dev *ca;
@@ -716,7 +712,7 @@ again:
 
 	bch2_mark_superblocks(c);
 
-	ret = bch2_gc_btrees(c, journal, initial, metadata_only);
+	ret = bch2_gc_btrees(c, journal_keys, initial, metadata_only);
 	if (ret)
 		goto out;
 

@@ -25,7 +25,8 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_alloc_to_text,		\
 }
 
-int bch2_alloc_read(struct bch_fs *, struct list_head *);
+struct journal_keys;
+int bch2_alloc_read(struct bch_fs *, struct journal_keys *);
 int bch2_alloc_replay_key(struct bch_fs *, struct bkey_i *);
 
 static inline void bch2_wake_allocator(struct bch_dev *ca)

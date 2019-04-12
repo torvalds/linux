@@ -5,7 +5,9 @@
 #include "btree_types.h"
 
 void bch2_coalesce(struct bch_fs *);
-int bch2_gc(struct bch_fs *, struct list_head *, bool, bool);
+
+struct journal_keys;
+int bch2_gc(struct bch_fs *, struct journal_keys *, bool, bool);
 void bch2_gc_thread_stop(struct bch_fs *);
 int bch2_gc_thread_start(struct bch_fs *);
 void bch2_mark_dev_superblock(struct bch_fs *, struct bch_dev *, unsigned);
