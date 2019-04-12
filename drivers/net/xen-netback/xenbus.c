@@ -22,22 +22,6 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 
-struct backend_info {
-	struct xenbus_device *dev;
-	struct xenvif *vif;
-
-	/* This is the state that will be reflected in xenstore when any
-	 * active hotplug script completes.
-	 */
-	enum xenbus_state state;
-
-	enum xenbus_state frontend_state;
-	struct xenbus_watch hotplug_status_watch;
-	u8 have_hotplug_status_watch:1;
-
-	const char *hotplug_script;
-};
-
 static int connect_data_rings(struct backend_info *be,
 			      struct xenvif_queue *queue);
 static void connect(struct backend_info *be);
@@ -472,6 +456,7 @@ static int backend_create_xenvif(struct backend_info *be)
 		return err;
 	}
 	be->vif = vif;
+	vif->be = be;
 
 	kobject_uevent(&dev->dev.kobj, KOBJ_ONLINE);
 	return 0;
