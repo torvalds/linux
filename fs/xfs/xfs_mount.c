@@ -34,6 +34,7 @@
 #include "xfs_refcount_btree.h"
 #include "xfs_reflink.h"
 #include "xfs_extent_busy.h"
+#include "xfs_health.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -645,7 +646,7 @@ xfs_check_summary_counts(
 	    (mp->m_sb.sb_fdblocks > mp->m_sb.sb_dblocks ||
 	     !xfs_verify_icount(mp, mp->m_sb.sb_icount) ||
 	     mp->m_sb.sb_ifree > mp->m_sb.sb_icount))
-		mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
 
 	/*
 	 * We can safely re-initialise incore superblock counters from the
@@ -660,7 +661,7 @@ xfs_check_summary_counts(
 	 */
 	if ((!xfs_sb_version_haslazysbcount(&mp->m_sb) ||
 	     XFS_LAST_UNMOUNT_WAS_CLEAN(mp)) &&
-	    !(mp->m_flags & XFS_MOUNT_BAD_SUMMARY))
+	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
 		return 0;
 
 	return xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
@@ -1446,7 +1447,5 @@ xfs_force_summary_recalc(
 	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return;
 
-	spin_lock(&mp->m_sb_lock);
-	mp->m_flags |= XFS_MOUNT_BAD_SUMMARY;
-	spin_unlock(&mp->m_sb_lock);
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
 }
