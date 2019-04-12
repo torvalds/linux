@@ -8263,14 +8263,14 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 	return val;
 }
 
-static struct drm_i915_private *i915_mch_dev;
+static struct drm_i915_private __rcu *i915_mch_dev;
 
 static struct drm_i915_private *mchdev_get(void)
 {
 	struct drm_i915_private *i915;
 
 	rcu_read_lock();
-	i915 = i915_mch_dev;
+	i915 = rcu_dereference(i915_mch_dev);
 	if (!kref_get_unless_zero(&i915->drm.ref))
 		i915 = NULL;
 	rcu_read_unlock();
