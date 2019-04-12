@@ -299,6 +299,7 @@ struct rcu_torture_ops {
 	int irq_capable;
 	int can_boost;
 	int extendables;
+	int slow_gps;
 	const char *name;
 };
 
@@ -667,6 +668,7 @@ static struct rcu_torture_ops tasks_ops = {
 	.fqs		= NULL,
 	.stats		= NULL,
 	.irq_capable	= 1,
+	.slow_gps	= 1,
 	.name		= "tasks"
 };
 
@@ -1011,7 +1013,8 @@ rcu_torture_writer(void *arg)
 		}
 		rcu_torture_writer_state = RTWS_STUTTER;
 		if (stutter_wait("rcu_torture_writer") &&
-		    !READ_ONCE(rcu_fwd_cb_nodelay))
+		    !READ_ONCE(rcu_fwd_cb_nodelay) &&
+		    !cur_ops->slow_gps)
 			for (i = 0; i < ARRAY_SIZE(rcu_tortures); i++)
 				if (list_empty(&rcu_tortures[i].rtort_free) &&
 				    rcu_access_pointer(rcu_torture_current) !=
