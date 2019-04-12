@@ -7720,8 +7720,6 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 
 		dcode = fwdt->template;
 		qla24xx_read_flash_data(vha, dcode, faddr, risc_size);
-		for (i = 0; i < risc_size; i++)
-			dcode[i] = le32_to_cpu(dcode[i]);
 
 		if (!qla27xx_fwdt_template_valid(dcode)) {
 			ql_log(ql_log_warn, vha, 0x0165,
@@ -7887,20 +7885,9 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	}
 
 	fwcode = (void *)blob->fw->data;
-	dcode = fwcode + 4;
+	dcode = fwcode;
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x0093,
-		    "Unable to verify integrity of firmware image (%zd).\n",
-		    blob->fw->size);
-		return QLA_FUNCTION_FAILED;
-	}
-	for (i = 0; i < 4; i++)
-		dcode[i] = be32_to_cpu(fwcode[i + 4]);
-	if ((dcode[0] == 0xffffffff && dcode[1] == 0xffffffff &&
-	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
-	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
-		dcode[3] == 0)) {
-		ql_log(ql_log_fatal, vha, 0x0094,
 		    "Unable to verify integrity of firmware image (%zd).\n",
 		    blob->fw->size);
 		ql_log(ql_log_fatal, vha, 0x0095,
@@ -7925,7 +7912,6 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 
 		dlen = ha->fw_transfer_size >> 2;
 		for (fragment = 0; risc_size; fragment++) {
-			dlen = (uint32_t)(ha->fw_transfer_size >> 2);
 			if (dlen > risc_size)
 				dlen = risc_size;
 
