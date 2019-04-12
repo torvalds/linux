@@ -1895,6 +1895,8 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	struct vb2_queue *q = &isc->vb2_vidq;
 	int ret;
 
+	INIT_WORK(&isc->awb_work, isc_awb_work);
+
 	ret = v4l2_device_register_subdev_nodes(&isc->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(&isc->v4l2_dev, "Failed to register subdev nodes\n");
@@ -1947,8 +1949,6 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 		v4l2_err(&isc->v4l2_dev, "Init isc ctrols failed: %d\n", ret);
 		return ret;
 	}
-
-	INIT_WORK(&isc->awb_work, isc_awb_work);
 
 	/* Register video device */
 	strlcpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
