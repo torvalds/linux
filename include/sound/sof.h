@@ -12,6 +12,7 @@
 #define __INCLUDE_SOUND_SOF_H
 
 #include <linux/pci.h>
+#include <sound/soc.h>
 #include <sound/soc-acpi.h>
 
 struct snd_sof_dsp_ops;
@@ -91,4 +92,9 @@ struct sof_dev_desc {
 	const struct sof_arch_ops *arch_ops;
 };
 
+int sof_nocodec_setup(struct device *dev,
+		      struct snd_sof_pdata *sof_pdata,
+		      struct snd_soc_acpi_mach *mach,
+		      const struct sof_dev_desc *desc,
+		      const struct snd_sof_dsp_ops *ops);
 #endif
