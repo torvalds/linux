@@ -27,7 +27,7 @@
 	bpf_verifier_log_write(env, "[netdevsim] " fmt, ##__VA_ARGS__)
 
 struct nsim_bpf_bound_prog {
-	struct netdevsim *ns;
+	struct netdevsim_shared_dev *sdev;
 	struct bpf_prog *prog;
 	struct dentry *ddir;
 	const char *state;
@@ -65,8 +65,8 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	struct nsim_bpf_bound_prog *state;
 
 	state = env->prog->aux->offload->dev_priv;
-	if (state->ns->bpf_bind_verifier_delay && !insn_idx)
-		msleep(state->ns->bpf_bind_verifier_delay);
+	if (state->sdev->bpf_bind_verifier_delay && !insn_idx)
+		msleep(state->sdev->bpf_bind_verifier_delay);
 
 	if (insn_idx == env->prog->len - 1)
 		pr_vlog(env, "Hello from netdevsim!\n");
@@ -213,7 +213,8 @@ nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf,
 	return 0;
 }
 
-static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
+static int nsim_bpf_create_prog(struct netdevsim_shared_dev *sdev,
+				struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
 	char name[16];
@@ -222,13 +223,13 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	if (!state)
 		return -ENOMEM;
 
-	state->ns = ns;
+	state->sdev = sdev;
 	state->prog = prog;
 	state->state = "verify";
 
 	/* Program id is not populated yet when we create the state. */
-	sprintf(name, "%u", ns->sdev->prog_id_gen++);
-	state->ddir = debugfs_create_dir(name, ns->sdev->ddir_bpf_bound_progs);
+	sprintf(name, "%u", sdev->prog_id_gen++);
+	state->ddir = debugfs_create_dir(name, sdev->ddir_bpf_bound_progs);
 	if (IS_ERR_OR_NULL(state->ddir)) {
 		kfree(state);
 		return -ENOMEM;
@@ -239,7 +240,7 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 			    &state->state, &nsim_bpf_string_fops);
 	debugfs_create_bool("loaded", 0400, state->ddir, &state->is_loaded);
 
-	list_add_tail(&state->l, &ns->sdev->bpf_bound_progs);
+	list_add_tail(&state->l, &sdev->bpf_bound_progs);
 
 	prog->aux->offload->dev_priv = state;
 
@@ -248,12 +249,13 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 
 static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct netdevsim *ns = bpf_offload_dev_priv(prog->aux->offload->offdev);
+	struct netdevsim_shared_dev *sdev =
+			bpf_offload_dev_priv(prog->aux->offload->offdev);
 
-	if (!ns->bpf_bind_accept)
+	if (!sdev->bpf_bind_accept)
 		return -EOPNOTSUPP;
 
-	return nsim_bpf_create_prog(ns, prog);
+	return nsim_bpf_create_prog(sdev, prog);
 }
 
 static int nsim_bpf_translate(struct bpf_prog *prog)
@@ -576,38 +578,54 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	}
 }
 
+static int nsim_bpf_sdev_init(struct netdevsim_shared_dev *sdev)
+{
+	int err;
+
+	INIT_LIST_HEAD(&sdev->bpf_bound_progs);
+	INIT_LIST_HEAD(&sdev->bpf_bound_maps);
+
+	sdev->ddir_bpf_bound_progs =
+		debugfs_create_dir("bpf_bound_progs", sdev->ddir);
+	if (IS_ERR_OR_NULL(sdev->ddir_bpf_bound_progs))
+		return -ENOMEM;
+
+	sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops, sdev);
+	err = PTR_ERR_OR_ZERO(sdev->bpf_dev);
+	if (err)
+		return err;
+
+	sdev->bpf_bind_accept = true;
+	debugfs_create_bool("bpf_bind_accept", 0600, sdev->ddir,
+			    &sdev->bpf_bind_accept);
+	debugfs_create_u32("bpf_bind_verifier_delay", 0600, sdev->ddir,
+			   &sdev->bpf_bind_verifier_delay);
+	return 0;
+}
+
+static void nsim_bpf_sdev_uninit(struct netdevsim_shared_dev *sdev)
+{
+	WARN_ON(!list_empty(&sdev->bpf_bound_progs));
+	WARN_ON(!list_empty(&sdev->bpf_bound_maps));
+	bpf_offload_dev_destroy(sdev->bpf_dev);
+}
+
 int nsim_bpf_init(struct netdevsim *ns)
 {
 	int err;
 
 	if (ns->sdev->refcnt == 1) {
-		INIT_LIST_HEAD(&ns->sdev->bpf_bound_progs);
-		INIT_LIST_HEAD(&ns->sdev->bpf_bound_maps);
-
-		ns->sdev->ddir_bpf_bound_progs =
-			debugfs_create_dir("bpf_bound_progs", ns->sdev->ddir);
-		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
-			return -ENOMEM;
-
-		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops,
-							   ns);
-		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
+		err = nsim_bpf_sdev_init(ns->sdev);
 		if (err)
 			return err;
 	}
 
 	err = bpf_offload_dev_netdev_register(ns->sdev->bpf_dev, ns->netdev);
 	if (err)
-		goto err_destroy_bdev;
+		goto err_bpf_sdev_uninit;
 
 	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
-
-	ns->bpf_bind_accept = true;
-	debugfs_create_bool("bpf_bind_accept", 0600, ns->ddir,
-			    &ns->bpf_bind_accept);
-	debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->ddir,
-			   &ns->bpf_bind_verifier_delay);
 
 	ns->bpf_tc_accept = true;
 	debugfs_create_bool("bpf_tc_accept", 0600, ns->ddir,
@@ -627,9 +645,9 @@ int nsim_bpf_init(struct netdevsim *ns)
 
 	return 0;
 
-err_destroy_bdev:
+err_bpf_sdev_uninit:
 	if (ns->sdev->refcnt == 1)
-		bpf_offload_dev_destroy(ns->sdev->bpf_dev);
+		nsim_bpf_sdev_uninit(ns->sdev);
 	return err;
 }
 
@@ -640,9 +658,6 @@ void nsim_bpf_uninit(struct netdevsim *ns)
 	WARN_ON(ns->bpf_offloaded);
 	bpf_offload_dev_netdev_unregister(ns->sdev->bpf_dev, ns->netdev);
 
-	if (ns->sdev->refcnt == 1) {
-		WARN_ON(!list_empty(&ns->sdev->bpf_bound_progs));
-		WARN_ON(!list_empty(&ns->sdev->bpf_bound_maps));
-		bpf_offload_dev_destroy(ns->sdev->bpf_dev);
-	}
+	if (ns->sdev->refcnt == 1)
+		nsim_bpf_sdev_uninit(ns->sdev);
 }

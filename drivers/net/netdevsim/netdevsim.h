@@ -39,12 +39,22 @@ struct netdevsim_shared_dev {
 
 	struct bpf_offload_dev *bpf_dev;
 
+	bool bpf_bind_accept;
+	u32 bpf_bind_verifier_delay;
+
 	struct dentry *ddir_bpf_bound_progs;
 	u32 prog_id_gen;
 
 	struct list_head bpf_bound_progs;
 	struct list_head bpf_bound_maps;
 };
+
+struct netdevsim;
+
+struct netdevsim_shared_dev *nsim_sdev_get(struct netdevsim *joinns);
+void nsim_sdev_put(struct netdevsim_shared_dev *sdev);
+int nsim_sdev_init(void);
+void nsim_sdev_exit(void);
 
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
@@ -87,9 +97,6 @@ struct netdevsim {
 
 	struct xdp_attachment_info xdp;
 	struct xdp_attachment_info xdp_hw;
-
-	bool bpf_bind_accept;
-	u32 bpf_bind_verifier_delay;
 
 	bool bpf_tc_accept;
 	bool bpf_tc_non_bound_accept;

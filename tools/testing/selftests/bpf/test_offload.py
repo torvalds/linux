@@ -1055,7 +1055,7 @@ try:
 
     start_test("Test if netdev removal waits for translation...")
     delay_msec = 500
-    sim.dfs["bpf_bind_verifier_delay"] = delay_msec
+    sim.dfs["sdev/bpf_bind_verifier_delay"] = delay_msec
     start = time.time()
     cmd_line = "tc filter add dev %s ingress bpf %s da skip_sw" % \
                (sim['ifname'], obj)

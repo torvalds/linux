@@ -3,7 +3,7 @@
 obj-$(CONFIG_NETDEVSIM) += netdevsim.o
 
 netdevsim-objs := \
-	netdev.o devlink.o fib.o \
+	netdev.o devlink.o fib.o sdev.o \
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 netdevsim-objs += \
