@@ -37,6 +37,25 @@
 #define ISC_PFG_CFG0_BPS_TWELVE (0x0 << 28)
 #define ISC_PFE_CFG0_BPS_MASK   GENMASK(30, 28)
 
+#define ISC_PFE_CFG0_COLEN	BIT(12)
+#define ISC_PFE_CFG0_ROWEN	BIT(13)
+
+/* ISC Parallel Front End Configuration 1 Register */
+#define ISC_PFE_CFG1    0x00000010
+
+#define ISC_PFE_CFG1_COLMIN(v)		((v))
+#define ISC_PFE_CFG1_COLMIN_MASK	GENMASK(15, 0)
+#define ISC_PFE_CFG1_COLMAX(v)		((v) << 16)
+#define ISC_PFE_CFG1_COLMAX_MASK	GENMASK(31, 16)
+
+/* ISC Parallel Front End Configuration 2 Register */
+#define ISC_PFE_CFG2    0x00000014
+
+#define ISC_PFE_CFG2_ROWMIN(v)		((v))
+#define ISC_PFE_CFG2_ROWMIN_MASK	GENMASK(15, 0)
+#define ISC_PFE_CFG2_ROWMAX(v)		((v) << 16)
+#define ISC_PFE_CFG2_ROWMAX_MASK	GENMASK(31, 16)
+
 /* ISC Clock Enable Register */
 #define ISC_CLKEN               0x00000018
 

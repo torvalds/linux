@@ -721,6 +721,40 @@ static void isc_start_dma(struct isc_device *isc)
 	u32 sizeimage = isc->fmt.fmt.pix.sizeimage;
 	u32 dctrl_dview;
 	dma_addr_t addr0;
+	u32 h, w;
+
+	h = isc->fmt.fmt.pix.height;
+	w = isc->fmt.fmt.pix.width;
+
+	/*
+	 * In case the sensor is not RAW, it will output a pixel (12-16 bits)
+	 * with two samples on the ISC Data bus (which is 8-12)
+	 * ISC will count each sample, so, we need to multiply these values
+	 * by two, to get the real number of samples for the required pixels.
+	 */
+	if (!ISC_IS_FORMAT_RAW(isc->config.sd_format->mbus_code)) {
+		h <<= 1;
+		w <<= 1;
+	}
+
+	/*
+	 * We limit the column/row count that the ISC will output according
+	 * to the configured resolution that we want.
+	 * This will avoid the situation where the sensor is misconfigured,
+	 * sending more data, and the ISC will just take it and DMA to memory,
+	 * causing corruption.
+	 */
+	regmap_write(regmap, ISC_PFE_CFG1,
+		     (ISC_PFE_CFG1_COLMIN(0) & ISC_PFE_CFG1_COLMIN_MASK) |
+		     (ISC_PFE_CFG1_COLMAX(w - 1) & ISC_PFE_CFG1_COLMAX_MASK));
+
+	regmap_write(regmap, ISC_PFE_CFG2,
+		     (ISC_PFE_CFG2_ROWMIN(0) & ISC_PFE_CFG2_ROWMIN_MASK) |
+		     (ISC_PFE_CFG2_ROWMAX(h - 1) & ISC_PFE_CFG2_ROWMAX_MASK));
+
+	regmap_update_bits(regmap, ISC_PFE_CFG0,
+			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN,
+			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN);
 
 	addr0 = vb2_dma_contig_plane_dma_addr(&isc->cur_frm->vb.vb2_buf, 0);
 	regmap_write(regmap, ISC_DAD0, addr0);
