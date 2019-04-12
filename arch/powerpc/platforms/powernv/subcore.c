@@ -183,7 +183,7 @@ static void unsplit_core(void)
 	cpu = smp_processor_id();
 	if (cpu_thread_in_core(cpu) != 0) {
 		while (mfspr(SPRN_HID0) & mask)
-			power7_idle_insn(PNV_THREAD_NAP);
+			power7_idle_type(PNV_THREAD_NAP);
 
 		per_cpu(split_state, cpu).step = SYNC_STEP_UNSPLIT;
 		return;
