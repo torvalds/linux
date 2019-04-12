@@ -621,7 +621,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 		rtt2 = 2;
 
 	timeout = rtt2;
-	last_life = rxrpc_kernel_check_life(call->net->socket, call->rxcall);
+	rxrpc_kernel_check_life(call->net->socket, call->rxcall, &last_life);
 
 	add_wait_queue(&call->waitq, &myself);
 	for (;;) {
@@ -639,7 +639,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 		if (afs_check_call_state(call, AFS_CALL_COMPLETE))
 			break;
 
-		life = rxrpc_kernel_check_life(call->net->socket, call->rxcall);
+		rxrpc_kernel_check_life(call->net->socket, call->rxcall, &life);
 		if (timeout == 0 &&
 		    life == last_life && signal_pending(current)) {
 			if (stalled)
