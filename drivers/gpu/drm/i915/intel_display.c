@@ -126,7 +126,7 @@ static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_sta
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state);
-static void haswell_set_pipemisc(const struct intel_crtc_state *crtc_state);
+static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
@@ -6043,7 +6043,8 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (!transcoder_is_dsi(cpu_transcoder))
 		haswell_set_pipeconf(pipe_config);
 
-	haswell_set_pipemisc(pipe_config);
+	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
+		bdw_set_pipemisc(pipe_config);
 
 	intel_crtc->active = true;
 
@@ -8890,45 +8891,42 @@ static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	POSTING_READ(PIPECONF(cpu_transcoder));
 }
 
-static void haswell_set_pipemisc(const struct intel_crtc_state *crtc_state)
+static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 val = 0;
 
-	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
-		u32 val = 0;
-
-		switch (crtc_state->pipe_bpp) {
-		case 18:
-			val |= PIPEMISC_DITHER_6_BPC;
-			break;
-		case 24:
-			val |= PIPEMISC_DITHER_8_BPC;
-			break;
-		case 30:
-			val |= PIPEMISC_DITHER_10_BPC;
-			break;
-		case 36:
-			val |= PIPEMISC_DITHER_12_BPC;
-			break;
-		default:
-			/* Case prevented by pipe_config_set_bpp. */
-			BUG();
-		}
-
-		if (crtc_state->dither)
-			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
-
-		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
-		    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
-			val |= PIPEMISC_OUTPUT_COLORSPACE_YUV;
-
-		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-			val |= PIPEMISC_YUV420_ENABLE |
-				PIPEMISC_YUV420_MODE_FULL_BLEND;
-
-		I915_WRITE(PIPEMISC(intel_crtc->pipe), val);
+	switch (crtc_state->pipe_bpp) {
+	case 18:
+		val |= PIPEMISC_DITHER_6_BPC;
+		break;
+	case 24:
+		val |= PIPEMISC_DITHER_8_BPC;
+		break;
+	case 30:
+		val |= PIPEMISC_DITHER_10_BPC;
+		break;
+	case 36:
+		val |= PIPEMISC_DITHER_12_BPC;
+		break;
+	default:
+		MISSING_CASE(crtc_state->pipe_bpp);
+		break;
 	}
+
+	if (crtc_state->dither)
+		val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
+
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
+	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+		val |= PIPEMISC_OUTPUT_COLORSPACE_YUV;
+
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		val |= PIPEMISC_YUV420_ENABLE |
+			PIPEMISC_YUV420_MODE_FULL_BLEND;
+
+	I915_WRITE(PIPEMISC(crtc->pipe), val);
 }
 
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
