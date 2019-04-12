@@ -85,6 +85,15 @@ static int mlb_set_state_oneshot(struct clock_event_device *clk)
 	return 0;
 }
 
+static int mlb_set_state_shutdown(struct clock_event_device *clk)
+{
+	struct timer_of *to = to_timer_of(clk);
+	u32 val = MLB_TMR_TMCSR_CSL_DIV2;
+
+	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+	return 0;
+}
+
 static int mlb_clkevt_next_event(unsigned long event,
 				   struct clock_event_device *clk)
 {
@@ -125,6 +134,7 @@ static struct timer_of to = {
 		.features = CLOCK_EVT_FEAT_DYNIRQ | CLOCK_EVT_FEAT_ONESHOT,
 		.set_state_oneshot = mlb_set_state_oneshot,
 		.set_state_periodic = mlb_set_state_periodic,
+		.set_state_shutdown = mlb_set_state_shutdown,
 		.set_next_event = mlb_clkevt_next_event,
 	},
 
