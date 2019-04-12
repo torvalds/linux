@@ -1873,8 +1873,10 @@ Parameters: struct kvm_one_reg (in)
 Returns: 0 on success, negative value on failure
 Errors:
   ENOENT:   no such register
-  EPERM:    register access forbidden for architecture-dependent reasons
-  EINVAL:   other errors, such as bad size encoding for a known register
+  EINVAL:   invalid register ID, or no such register
+  EPERM:    (arm64) register access not allowed before vcpu finalization
+(These error codes are indicative only: do not rely on a specific error
+code being returned in a specific situation.)
 
 struct kvm_one_reg {
        __u64 id;
@@ -2260,10 +2262,12 @@ Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_one_reg (in and out)
 Returns: 0 on success, negative value on failure
-Errors:
+Errors include:
   ENOENT:   no such register
-  EPERM:    register access forbidden for architecture-dependent reasons
-  EINVAL:   other errors, such as bad size encoding for a known register
+  EINVAL:   invalid register ID, or no such register
+  EPERM:    (arm64) register access not allowed before vcpu finalization
+(These error codes are indicative only: do not rely on a specific error
+code being returned in a specific situation.)
 
 This ioctl allows to receive the value of a single register implemented
 in a vcpu. The register to read is indicated by the "id" field of the
