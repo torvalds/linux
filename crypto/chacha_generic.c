@@ -201,7 +201,7 @@ static void __exit chacha_generic_mod_fini(void)
 	crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
-module_init(chacha_generic_mod_init);
+subsys_initcall(chacha_generic_mod_init);
 module_exit(chacha_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

@@ -386,7 +386,7 @@ static void __exit rmd320_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(rmd320_mod_init);
+subsys_initcall(rmd320_mod_init);
 module_exit(rmd320_mod_fini);
 
 MODULE_LICENSE("GPL");

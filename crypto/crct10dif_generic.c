@@ -112,7 +112,7 @@ static void __exit crct10dif_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(crct10dif_mod_init);
+subsys_initcall(crct10dif_mod_init);
 module_exit(crct10dif_mod_fini);
 
 MODULE_AUTHOR("Tim Chen <tim.c.chen@linux.intel.com>");

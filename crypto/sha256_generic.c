@@ -301,7 +301,7 @@ static void __exit sha256_generic_mod_fini(void)
 	crypto_unregister_shashes(sha256_algs, ARRAY_SIZE(sha256_algs));
 }
 
-module_init(sha256_generic_mod_init);
+subsys_initcall(sha256_generic_mod_init);
 module_exit(sha256_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

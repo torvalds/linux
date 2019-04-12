@@ -203,7 +203,7 @@ static void __exit salsa20_generic_mod_fini(void)
 	crypto_unregister_skcipher(&alg);
 }
 
-module_init(salsa20_generic_mod_init);
+subsys_initcall(salsa20_generic_mod_init);
 module_exit(salsa20_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

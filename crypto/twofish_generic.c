@@ -205,7 +205,7 @@ static void __exit twofish_mod_fini(void)
 	crypto_unregister_alg(&alg);
 }
 
-module_init(twofish_mod_init);
+subsys_initcall(twofish_mod_init);
 module_exit(twofish_mod_fini);
 
 MODULE_LICENSE("GPL");

@@ -318,7 +318,7 @@ static void __exit rmd128_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(rmd128_mod_init);
+subsys_initcall(rmd128_mod_init);
 module_exit(rmd128_mod_fini);
 
 MODULE_LICENSE("GPL");
