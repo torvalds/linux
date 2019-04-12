@@ -35,7 +35,7 @@
  *
  * So if the user changes his CONFIG_HIS_DRIVER option, only the objects
  * which depend on "include/config/his/driver.h" will be rebuilt,
- * so most likely only his driver ;-)
+ * so most likely only their driver ;-)
  *
  * The idea above dates, by the way, back to Michael E Chastain, AFAIK.
  *
