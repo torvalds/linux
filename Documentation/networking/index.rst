@@ -25,6 +25,7 @@ Contents:
    device_drivers/intel/i40e
    device_drivers/intel/iavf
    device_drivers/intel/ice
+   dsa/index
    devlink-info-versions
    ieee802154
    kapi

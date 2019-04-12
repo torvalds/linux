@@ -1,3 +1,4 @@
+==============================
 LAN9303 Ethernet switch driver
 ==============================
 
@@ -9,10 +10,9 @@ host master network interface (e.g. fixed link).
 Driver details
 ==============
 
-The driver is implemented as a DSA driver, see
-Documentation/networking/dsa/dsa.txt.
+The driver is implemented as a DSA driver, see ``Documentation/networking/dsa/dsa.rst``.
 
-See Documentation/devicetree/bindings/net/dsa/lan9303.txt for device tree
+See ``Documentation/devicetree/bindings/net/dsa/lan9303.txt`` for device tree
 binding.
 
 The LAN9303 can be managed both via MDIO and I2C, both supported by this driver.
