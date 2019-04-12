@@ -324,14 +324,15 @@ static struct clk_core *clk_core_lookup(const char *name)
 }
 
 /**
- * clk_core_get - Find the parent of a clk using a clock specifier in DT
+ * clk_core_get - Find the clk_core parent of a clk
  * @core: clk to find parent of
- * @name: name to search for in 'clock-names' of device providing clk
+ * @name: name to search for
  *
  * This is the preferred method for clk providers to find the parent of a
  * clk when that parent is external to the clk controller. The parent_names
  * array is indexed and treated as a local name matching a string in the device
- * node's 'clock-names' property. This allows clk providers to use their own
+ * node's 'clock-names' property or as the 'con_id' matching the device's
+ * dev_name() in a clk_lookup. This allows clk providers to use their own
  * namespace instead of looking for a globally unique parent string.
  *
  * For example the following DT snippet would allow a clock registered by the
@@ -359,15 +360,23 @@ static struct clk_core *clk_core_lookup(const char *name)
  */
 static struct clk_core *clk_core_get(struct clk_core *core, const char *name)
 {
-	struct clk_hw *hw;
+	struct clk_hw *hw = ERR_PTR(-ENOENT);
+	struct device *dev = core->dev;
+	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct device_node *np = core->of_node;
 
-	if (!np)
-		return ERR_PTR(-ENOENT);
+	if (np)
+		hw = of_clk_get_hw(np, -1, name);
 
-	/* TODO: Support clkdev clk_lookups */
-	hw = of_clk_get_hw(np, -1, name);
-	if (IS_ERR_OR_NULL(hw))
+	/*
+	 * If the DT search above couldn't find the provider or the provider
+	 * didn't know about this clk, fallback to looking up via clkdev based
+	 * clk_lookups
+	 */
+	if (PTR_ERR(hw) == -ENOENT)
+		hw = clk_find_hw(dev_id, name);
+
+	if (IS_ERR(hw))
 		return ERR_CAST(hw);
 
 	return hw->core;

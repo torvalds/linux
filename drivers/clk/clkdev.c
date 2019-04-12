@@ -72,7 +72,7 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 	return cl;
 }
 
-static struct clk_hw *clk_find_hw(const char *dev_id, const char *con_id)
+struct clk_hw *clk_find_hw(const char *dev_id, const char *con_id)
 {
 	struct clk_lookup *cl;
 	struct clk_hw *hw = ERR_PTR(-ENOENT);
