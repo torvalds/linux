@@ -1814,6 +1814,17 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 					  (top_bottom & 0x3ff);
 	}
 
+	if (dev->devtype->product != CODA_DX6) {
+		u8 profile, level;
+
+		val = coda_read(dev, CODA7_RET_DEC_SEQ_HEADER_REPORT);
+		profile = val & 0xff;
+		level = (val >> 8) & 0x7f;
+
+		if (profile || level)
+			coda_update_profile_level_ctrls(ctx, profile, level);
+	}
+
 	ret = coda_alloc_framebuffers(ctx, q_data_dst, src_fourcc);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to allocate framebuffers\n");
