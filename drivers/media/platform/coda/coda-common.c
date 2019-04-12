@@ -1860,7 +1860,7 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct coda_ctx *ctx =
 			container_of(ctrl->handler, struct coda_ctx, ctrls);
 
-	coda_dbg(1, ctx, "s_ctrl: id = 0x%x, name = \"%s\", val = %d\n",
+	coda_dbg(2, ctx, "s_ctrl: id = 0x%x, name = \"%s\", val = %d\n",
 		 ctrl->id, ctrl->name, ctrl->val);
 
 	switch (ctrl->id) {
