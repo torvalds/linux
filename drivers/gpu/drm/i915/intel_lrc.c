@@ -1866,6 +1866,7 @@ static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 	 */
 	execlists->csb_head = reset_value;
 	WRITE_ONCE(*execlists->csb_write, reset_value);
+	wmb(); /* Make sure this is visible to HW (paranoia?) */
 
 	invalidate_csb_entries(&execlists->csb_status[0],
 			       &execlists->csb_status[reset_value]);
