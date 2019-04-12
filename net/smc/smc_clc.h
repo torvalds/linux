@@ -34,7 +34,10 @@
 #define SMC_CLC_DECL_CNFERR	0x03000000  /* configuration error            */
 #define SMC_CLC_DECL_PEERNOSMC	0x03010000  /* peer did not indicate SMC      */
 #define SMC_CLC_DECL_IPSEC	0x03020000  /* IPsec usage		      */
-#define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* no SMC device found	      */
+#define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* no SMC device found (R or D)   */
+#define SMC_CLC_DECL_NOSMCDDEV	0x03030001  /* no SMC-D device found	      */
+#define SMC_CLC_DECL_NOSMCRDEV	0x03030002  /* no SMC-R device found	      */
+#define SMC_CLC_DECL_SMCDNOTALK	0x03030003  /* SMC-D dev can't talk to peer   */
 #define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do not match (R or D)*/
 #define SMC_CLC_DECL_RMBE_EC	0x03050000  /* peer has eyecatcher in RMBE    */
 #define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt not supported */
