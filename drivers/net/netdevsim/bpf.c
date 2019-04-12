@@ -578,35 +578,51 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	}
 }
 
+static int nsim_bpf_sdev_init(struct netdevsim_shared_dev *sdev)
+{
+	int err;
+
+	INIT_LIST_HEAD(&sdev->bpf_bound_progs);
+	INIT_LIST_HEAD(&sdev->bpf_bound_maps);
+
+	sdev->ddir_bpf_bound_progs =
+		debugfs_create_dir("bpf_bound_progs", sdev->ddir);
+	if (IS_ERR_OR_NULL(sdev->ddir_bpf_bound_progs))
+		return -ENOMEM;
+
+	sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops, sdev);
+	err = PTR_ERR_OR_ZERO(sdev->bpf_dev);
+	if (err)
+		return err;
+
+	sdev->bpf_bind_accept = true;
+	debugfs_create_bool("bpf_bind_accept", 0600, sdev->ddir,
+			    &sdev->bpf_bind_accept);
+	debugfs_create_u32("bpf_bind_verifier_delay", 0600, sdev->ddir,
+			   &sdev->bpf_bind_verifier_delay);
+	return 0;
+}
+
+static void nsim_bpf_sdev_uninit(struct netdevsim_shared_dev *sdev)
+{
+	WARN_ON(!list_empty(&sdev->bpf_bound_progs));
+	WARN_ON(!list_empty(&sdev->bpf_bound_maps));
+	bpf_offload_dev_destroy(sdev->bpf_dev);
+}
+
 int nsim_bpf_init(struct netdevsim *ns)
 {
 	int err;
 
 	if (ns->sdev->refcnt == 1) {
-		INIT_LIST_HEAD(&ns->sdev->bpf_bound_progs);
-		INIT_LIST_HEAD(&ns->sdev->bpf_bound_maps);
-
-		ns->sdev->ddir_bpf_bound_progs =
-			debugfs_create_dir("bpf_bound_progs", ns->sdev->ddir);
-		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
-			return -ENOMEM;
-
-		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops,
-							   ns->sdev);
-		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
+		err = nsim_bpf_sdev_init(ns->sdev);
 		if (err)
 			return err;
-
-		ns->sdev->bpf_bind_accept = true;
-		debugfs_create_bool("bpf_bind_accept", 0600, ns->sdev->ddir,
-				    &ns->sdev->bpf_bind_accept);
-		debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->sdev->ddir,
-				   &ns->sdev->bpf_bind_verifier_delay);
 	}
 
 	err = bpf_offload_dev_netdev_register(ns->sdev->bpf_dev, ns->netdev);
 	if (err)
-		goto err_destroy_bdev;
+		goto err_bpf_sdev_uninit;
 
 	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
@@ -629,9 +645,9 @@ int nsim_bpf_init(struct netdevsim *ns)
 
 	return 0;
 
-err_destroy_bdev:
+err_bpf_sdev_uninit:
 	if (ns->sdev->refcnt == 1)
-		bpf_offload_dev_destroy(ns->sdev->bpf_dev);
+		nsim_bpf_sdev_uninit(ns->sdev);
 	return err;
 }
 
@@ -642,9 +658,6 @@ void nsim_bpf_uninit(struct netdevsim *ns)
 	WARN_ON(ns->bpf_offloaded);
 	bpf_offload_dev_netdev_unregister(ns->sdev->bpf_dev, ns->netdev);
 
-	if (ns->sdev->refcnt == 1) {
-		WARN_ON(!list_empty(&ns->sdev->bpf_bound_progs));
-		WARN_ON(!list_empty(&ns->sdev->bpf_bound_maps));
-		bpf_offload_dev_destroy(ns->sdev->bpf_dev);
-	}
+	if (ns->sdev->refcnt == 1)
+		nsim_bpf_sdev_uninit(ns->sdev);
 }
