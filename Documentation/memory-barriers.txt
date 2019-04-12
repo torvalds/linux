@@ -2523,27 +2523,37 @@ guarantees:
 	ioremap()), the ordering guarantees are as follows:
 
 	1. All readX() and writeX() accesses to the same peripheral are ordered
-	   with respect to each other. This ensures that MMIO register writes by
-	   the CPU to a particular device will arrive in program order.
+	   with respect to each other. This ensures that MMIO register accesses
+	   by the same CPU thread to a particular device will arrive in program
+	   order.
 
-	2. A writeX() by the CPU to the peripheral will first wait for the
-	   completion of all prior CPU writes to memory. This ensures that
-	   writes by the CPU to an outbound DMA buffer allocated by
-	   dma_alloc_coherent() will be visible to a DMA engine when the CPU
-	   writes to its MMIO control register to trigger the transfer.
+	2. A writeX() issued by a CPU thread holding a spinlock is ordered
+	   before a writeX() to the same peripheral from another CPU thread
+	   issued after a later acquisition of the same spinlock. This ensures
+	   that MMIO register writes to a particular device issued while holding
+	   a spinlock will arrive in an order consistent with acquisitions of
+	   the lock.
 
-	3. A readX() by the CPU from the peripheral will complete before any
-	   subsequent CPU reads from memory can begin. This ensures that reads
-	   by the CPU from an incoming DMA buffer allocated by
-	   dma_alloc_coherent() will not see stale data after reading from the
-	   DMA engine's MMIO status register to establish that the DMA transfer
-	   has completed.
+	3. A writeX() by a CPU thread to the peripheral will first wait for the
+	   completion of all prior writes to memory either issued by, or
+	   propagated to, the same thread. This ensures that writes by the CPU
+	   to an outbound DMA buffer allocated by dma_alloc_coherent() will be
+	   visible to a DMA engine when the CPU writes to its MMIO control
+	   register to trigger the transfer.
 
-	4. A readX() by the CPU from the peripheral will complete before any
-	   subsequent delay() loop can begin execution. This ensures that two
-	   MMIO register writes by the CPU to a peripheral will arrive at least
-	   1us apart if the first write is immediately read back with readX()
-	   and udelay(1) is called prior to the second writeX():
+	4. A readX() by a CPU thread from the peripheral will complete before
+	   any subsequent reads from memory by the same thread can begin. This
+	   ensures that reads by the CPU from an incoming DMA buffer allocated
+	   by dma_alloc_coherent() will not see stale data after reading from
+	   the DMA engine's MMIO status register to establish that the DMA
+	   transfer has completed.
+
+	5. A readX() by a CPU thread from the peripheral will complete before
+	   any subsequent delay() loop can begin execution on the same thread.
+	   This ensures that two MMIO register writes by the CPU to a peripheral
+	   will arrive at least 1us apart if the first write is immediately read
+	   back with readX() and udelay(1) is called prior to the second
+	   writeX():
 
 		writel(42, DEVICE_REGISTER_0); // Arrives at the device...
 		readl(DEVICE_REGISTER_0);
@@ -2559,10 +2569,11 @@ guarantees:
 
 	These are similar to readX() and writeX(), but provide weaker memory
 	ordering guarantees. Specifically, they do not guarantee ordering with
-	respect to normal memory accesses or delay() loops (i.e. bullets 2-4
-	above) but they are still guaranteed to be ordered with respect to other
-	accesses to the same peripheral when operating on __iomem pointers
-	mapped with the default I/O attributes.
+	respect to locking, normal memory accesses or delay() loops (i.e.
+	bullets 2-5 above) but they are still guaranteed to be ordered with
+	respect to other accesses from the same CPU thread to the same
+	peripheral when operating on __iomem pointers mapped with the default
+	I/O attributes.
 
  (*) readsX(), writesX():
 
@@ -2600,8 +2611,10 @@ guarantees:
 	These will perform appropriately for the type of access they're actually
 	doing, be it inX()/outX() or readX()/writeX().
 
-All of these accessors assume that the underlying peripheral is little-endian,
-and will therefore perform byte-swapping operations on big-endian architectures.
+With the exception of the string accessors (insX(), outsX(), readsX() and
+writesX()), all of the above assume that the underlying peripheral is
+little-endian and will therefore perform byte-swapping operations on big-endian
+architectures.
 
 
 ========================================
