@@ -2,7 +2,7 @@ Kernel driver ir35221
 =====================
 
 Supported chips:
-  * Infinion IR35221
+  * Infineon IR35221
     Prefix: 'ir35221'
     Addresses scanned: -
     Datasheet: Datasheet is not publicly available.
