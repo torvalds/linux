@@ -496,40 +496,34 @@ static int smc_connect_abort(struct smc_sock *smc, int reason_code,
 
 /* check if there is a rdma device available for this connection. */
 /* called for connect and listen */
-static int smc_check_rdma(struct smc_sock *smc, struct smc_ib_device **ibdev,
-			  u8 *ibport, unsigned short vlan_id, u8 gid[])
+static int smc_check_rdma(struct smc_sock *smc, struct smc_init_info *ini)
 {
-	int reason_code = 0;
-
 	/* PNET table look up: search active ib_device and port
 	 * within same PNETID that also contains the ethernet device
 	 * used for the internal TCP socket
 	 */
-	smc_pnet_find_roce_resource(smc->clcsock->sk, ibdev, ibport, vlan_id,
-				    gid);
-	if (!(*ibdev))
-		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
-
-	return reason_code;
+	smc_pnet_find_roce_resource(smc->clcsock->sk, ini);
+	if (!(ini->ib_dev))
+		return SMC_CLC_DECL_CNFERR; /* configuration error */
+	return 0;
 }
 
 /* check if there is an ISM device available for this connection. */
 /* called for connect and listen */
-static int smc_check_ism(struct smc_sock *smc, struct smcd_dev **ismdev)
+static int smc_check_ism(struct smc_sock *smc, struct smc_init_info *ini)
 {
 	/* Find ISM device with same PNETID as connecting interface  */
-	smc_pnet_find_ism_resource(smc->clcsock->sk, ismdev);
-	if (!(*ismdev))
+	smc_pnet_find_ism_resource(smc->clcsock->sk, ini);
+	if (!ini->ism_dev)
 		return SMC_CLC_DECL_CNFERR; /* configuration error */
 	return 0;
 }
 
 /* Check for VLAN ID and register it on ISM device just for CLC handshake */
 static int smc_connect_ism_vlan_setup(struct smc_sock *smc,
-				      struct smcd_dev *ismdev,
-				      unsigned short vlan_id)
+				      struct smc_init_info *ini)
 {
-	if (vlan_id && smc_ism_get_vlan(ismdev, vlan_id))
+	if (ini->vlan_id && smc_ism_get_vlan(ini->ism_dev, ini->vlan_id))
 		return SMC_CLC_DECL_CNFERR;
 	return 0;
 }
@@ -538,12 +532,11 @@ static int smc_connect_ism_vlan_setup(struct smc_sock *smc,
  * used, the VLAN ID will be registered again during the connection setup.
  */
 static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc, bool is_smcd,
-					struct smcd_dev *ismdev,
-					unsigned short vlan_id)
+					struct smc_init_info *ini)
 {
 	if (!is_smcd)
 		return 0;
-	if (vlan_id && smc_ism_put_vlan(ismdev, vlan_id))
+	if (ini->vlan_id && smc_ism_put_vlan(ini->ism_dev, ini->vlan_id))
 		return SMC_CLC_DECL_CNFERR;
 	return 0;
 }
@@ -551,13 +544,12 @@ static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc, bool is_smcd,
 /* CLC handshake during connect */
 static int smc_connect_clc(struct smc_sock *smc, int smc_type,
 			   struct smc_clc_msg_accept_confirm *aclc,
-			   struct smc_ib_device *ibdev, u8 ibport,
-			   u8 gid[], struct smcd_dev *ismdev)
+			   struct smc_init_info *ini)
 {
 	int rc = 0;
 
 	/* do inband token exchange */
-	rc = smc_clc_send_proposal(smc, smc_type, ibdev, ibport, gid, ismdev);
+	rc = smc_clc_send_proposal(smc, smc_type, ini);
 	if (rc)
 		return rc;
 	/* receive SMC Accept CLC message */
@@ -568,16 +560,19 @@ static int smc_connect_clc(struct smc_sock *smc, int smc_type,
 /* setup for RDMA connection of client */
 static int smc_connect_rdma(struct smc_sock *smc,
 			    struct smc_clc_msg_accept_confirm *aclc,
-			    struct smc_ib_device *ibdev, u8 ibport)
+			    struct smc_init_info *ini)
 {
 	int local_contact = SMC_FIRST_CONTACT;
 	struct smc_link *link;
 	int reason_code = 0;
 
+	ini->is_smcd = false;
+	ini->ib_lcl = &aclc->lcl;
+	ini->ib_clcqpn = ntoh24(aclc->qpn);
+	ini->srv_first_contact = aclc->hdr.flag;
+
 	mutex_lock(&smc_client_lgr_pending);
-	local_contact = smc_conn_create(smc, false, aclc->hdr.flag, ibdev,
-					ibport, ntoh24(aclc->qpn), &aclc->lcl,
-					NULL, 0);
+	local_contact = smc_conn_create(smc, ini);
 	if (local_contact < 0) {
 		if (local_contact == -ENOMEM)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
@@ -643,15 +638,18 @@ static int smc_connect_rdma(struct smc_sock *smc,
 /* setup for ISM connection of client */
 static int smc_connect_ism(struct smc_sock *smc,
 			   struct smc_clc_msg_accept_confirm *aclc,
-			   struct smcd_dev *ismdev)
+			   struct smc_init_info *ini)
 {
 	int local_contact = SMC_FIRST_CONTACT;
 	int rc = 0;
 
+	ini->is_smcd = true;
+	ini->ism_gid = aclc->gid;
+	ini->srv_first_contact = aclc->hdr.flag;
+
 	/* there is only one lgr role for SMC-D; use server lock */
 	mutex_lock(&smc_server_lgr_pending);
-	local_contact = smc_conn_create(smc, true, aclc->hdr.flag, NULL, 0, 0,
-					NULL, ismdev, aclc->gid);
+	local_contact = smc_conn_create(smc, ini);
 	if (local_contact < 0) {
 		mutex_unlock(&smc_server_lgr_pending);
 		return SMC_CLC_DECL_MEM;
@@ -684,13 +682,9 @@ static int __smc_connect(struct smc_sock *smc)
 {
 	bool ism_supported = false, rdma_supported = false;
 	struct smc_clc_msg_accept_confirm aclc;
-	struct smc_ib_device *ibdev;
-	struct smcd_dev *ismdev;
-	u8 gid[SMC_GID_SIZE];
-	unsigned short vlan;
+	struct smc_init_info ini = {0};
 	int smc_type;
 	int rc = 0;
-	u8 ibport;
 
 	sock_hold(&smc->sk); /* sock put in passive closing */
 
@@ -706,19 +700,19 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC);
 
 	/* check for VLAN ID */
-	if (smc_vlan_by_tcpsk(smc->clcsock, &vlan))
+	if (smc_vlan_by_tcpsk(smc->clcsock, &ini))
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_CNFERR);
 
 	/* check if there is an ism device available */
-	if (!smc_check_ism(smc, &ismdev) &&
-	    !smc_connect_ism_vlan_setup(smc, ismdev, vlan)) {
+	if (!smc_check_ism(smc, &ini) &&
+	    !smc_connect_ism_vlan_setup(smc, &ini)) {
 		/* ISM is supported for this connection */
 		ism_supported = true;
 		smc_type = SMC_TYPE_D;
 	}
 
 	/* check if there is a rdma device available */
-	if (!smc_check_rdma(smc, &ibdev, &ibport, vlan, gid)) {
+	if (!smc_check_rdma(smc, &ini)) {
 		/* RDMA is supported for this connection */
 		rdma_supported = true;
 		if (ism_supported)
@@ -732,25 +726,25 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_NOSMCDEV);
 
 	/* perform CLC handshake */
-	rc = smc_connect_clc(smc, smc_type, &aclc, ibdev, ibport, gid, ismdev);
+	rc = smc_connect_clc(smc, smc_type, &aclc, &ini);
 	if (rc) {
-		smc_connect_ism_vlan_cleanup(smc, ism_supported, ismdev, vlan);
+		smc_connect_ism_vlan_cleanup(smc, ism_supported, &ini);
 		return smc_connect_decline_fallback(smc, rc);
 	}
 
 	/* depending on previous steps, connect using rdma or ism */
 	if (rdma_supported && aclc.hdr.path == SMC_TYPE_R)
-		rc = smc_connect_rdma(smc, &aclc, ibdev, ibport);
+		rc = smc_connect_rdma(smc, &aclc, &ini);
 	else if (ism_supported && aclc.hdr.path == SMC_TYPE_D)
-		rc = smc_connect_ism(smc, &aclc, ismdev);
+		rc = smc_connect_ism(smc, &aclc, &ini);
 	else
 		rc = SMC_CLC_DECL_MODEUNSUPP;
 	if (rc) {
-		smc_connect_ism_vlan_cleanup(smc, ism_supported, ismdev, vlan);
+		smc_connect_ism_vlan_cleanup(smc, ism_supported, &ini);
 		return smc_connect_decline_fallback(smc, rc);
 	}
 
-	smc_connect_ism_vlan_cleanup(smc, ism_supported, ismdev, vlan);
+	smc_connect_ism_vlan_cleanup(smc, ism_supported, &ini);
 	return 0;
 }
 
@@ -1119,13 +1113,10 @@ static int smc_listen_prfx_check(struct smc_sock *new_smc,
 
 /* listen worker: initialize connection and buffers */
 static int smc_listen_rdma_init(struct smc_sock *new_smc,
-				struct smc_clc_msg_proposal *pclc,
-				struct smc_ib_device *ibdev, u8 ibport,
-				int *local_contact)
+				struct smc_init_info *ini, int *local_contact)
 {
 	/* allocate connection / link group */
-	*local_contact = smc_conn_create(new_smc, false, 0, ibdev, ibport, 0,
-					 &pclc->lcl, NULL, 0);
+	*local_contact = smc_conn_create(new_smc, ini);
 	if (*local_contact < 0) {
 		if (*local_contact == -ENOMEM)
 			return SMC_CLC_DECL_MEM;/* insufficient memory*/
@@ -1142,14 +1133,14 @@ static int smc_listen_rdma_init(struct smc_sock *new_smc,
 /* listen worker: initialize connection and buffers for SMC-D */
 static int smc_listen_ism_init(struct smc_sock *new_smc,
 			       struct smc_clc_msg_proposal *pclc,
-			       struct smcd_dev *ismdev,
+			       struct smc_init_info *ini,
 			       int *local_contact)
 {
 	struct smc_clc_msg_smcd *pclc_smcd;
 
 	pclc_smcd = smc_get_clc_msg_smcd(pclc);
-	*local_contact = smc_conn_create(new_smc, true, 0, NULL, 0, 0, NULL,
-					 ismdev, pclc_smcd->gid);
+	ini->ism_gid = pclc_smcd->gid;
+	*local_contact = smc_conn_create(new_smc, ini);
 	if (*local_contact < 0) {
 		if (*local_contact == -ENOMEM)
 			return SMC_CLC_DECL_MEM;/* insufficient memory*/
@@ -1232,15 +1223,12 @@ static void smc_listen_work(struct work_struct *work)
 	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_clc_msg_accept_confirm cclc;
 	struct smc_clc_msg_proposal *pclc;
-	struct smc_ib_device *ibdev;
+	struct smc_init_info ini = {0};
 	bool ism_supported = false;
-	struct smcd_dev *ismdev;
 	u8 buf[SMC_CLC_MAX_LEN];
 	int local_contact = 0;
-	unsigned short vlan;
 	int reason_code = 0;
 	int rc = 0;
-	u8 ibport;
 
 	if (new_smc->use_fallback) {
 		smc_listen_out_connected(new_smc);
@@ -1284,20 +1272,26 @@ static void smc_listen_work(struct work_struct *work)
 	smc_rx_init(new_smc);
 	smc_tx_init(new_smc);
 
+	/* prepare ISM check */
+	ini.is_smcd = true;
 	/* check if ISM is available */
 	if ((pclc->hdr.path == SMC_TYPE_D || pclc->hdr.path == SMC_TYPE_B) &&
-	    !smc_check_ism(new_smc, &ismdev) &&
-	    !smc_listen_ism_init(new_smc, pclc, ismdev, &local_contact)) {
+	    !smc_check_ism(new_smc, &ini) &&
+	    !smc_listen_ism_init(new_smc, pclc, &ini, &local_contact)) {
 		ism_supported = true;
+	} else {
+		/* prepare RDMA check */
+		memset(&ini, 0, sizeof(ini));
+		ini.is_smcd = false;
+		ini.ib_lcl = &pclc->lcl;
 	}
 
 	/* check if RDMA is available */
 	if (!ism_supported &&
 	    ((pclc->hdr.path != SMC_TYPE_R && pclc->hdr.path != SMC_TYPE_B) ||
-	     smc_vlan_by_tcpsk(new_smc->clcsock, &vlan) ||
-	     smc_check_rdma(new_smc, &ibdev, &ibport, vlan, NULL) ||
-	     smc_listen_rdma_init(new_smc, pclc, ibdev, ibport,
-				  &local_contact) ||
+	     smc_vlan_by_tcpsk(new_smc->clcsock, &ini) ||
+	     smc_check_rdma(new_smc, &ini) ||
+	     smc_listen_rdma_init(new_smc, &ini, &local_contact) ||
 	     smc_listen_rdma_reg(new_smc, local_contact))) {
 		/* SMC not supported, decline */
 		mutex_unlock(&smc_server_lgr_pending);

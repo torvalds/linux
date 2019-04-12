@@ -180,6 +180,7 @@ smc_get_clc_msg_smcd(struct smc_clc_msg_proposal *prop)
 }
 
 struct smcd_dev;
+struct smc_init_info;
 
 int smc_clc_prfx_match(struct socket *clcsock,
 		       struct smc_clc_msg_proposal_prefix *prop);
@@ -187,8 +188,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type, unsigned long timeout);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
 int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_ib_device *smcibdev, u8 ibport, u8 gid[],
-			  struct smcd_dev *ismdev);
+			  struct smc_init_info *ini);
 int smc_clc_send_confirm(struct smc_sock *smc);
 int smc_clc_send_accept(struct smc_sock *smc, int srv_first_contact);
 
