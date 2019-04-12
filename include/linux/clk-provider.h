@@ -255,11 +255,13 @@ struct clk_ops {
  * @hw: parent clk_hw pointer (used for clk providers with internal clks)
  * @fw_name: parent name local to provider registering clk
  * @name: globally unique parent name (used as a fallback)
+ * @index: parent index local to provider registering clk (if @fw_name absent)
  */
 struct clk_parent_data {
 	const struct clk_hw	*hw;
 	const char		*fw_name;
 	const char		*name;
+	int			index;
 };
 
 /**

@@ -44,6 +44,7 @@ struct clk_parent_map {
 	struct clk_core		*core;
 	const char		*fw_name;
 	const char		*name;
+	int			index;
 };
 
 struct clk_core {
@@ -326,7 +327,8 @@ static struct clk_core *clk_core_lookup(const char *name)
 /**
  * clk_core_get - Find the clk_core parent of a clk
  * @core: clk to find parent of
- * @name: name to search for
+ * @name: name to search for (if string based)
+ * @index: index to use for search (if DT index based)
  *
  * This is the preferred method for clk providers to find the parent of a
  * clk when that parent is external to the clk controller. The parent_names
@@ -358,22 +360,23 @@ static struct clk_core *clk_core_lookup(const char *name)
  * provider knows about the clk but it isn't provided on this system.
  * A valid clk_core pointer when the clk can be found in the provider.
  */
-static struct clk_core *clk_core_get(struct clk_core *core, const char *name)
+static struct clk_core *clk_core_get(struct clk_core *core, const char *name,
+				     int index)
 {
 	struct clk_hw *hw = ERR_PTR(-ENOENT);
 	struct device *dev = core->dev;
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct device_node *np = core->of_node;
 
-	if (np)
-		hw = of_clk_get_hw(np, -1, name);
+	if (np && index >= 0)
+		hw = of_clk_get_hw(np, index, name);
 
 	/*
 	 * If the DT search above couldn't find the provider or the provider
 	 * didn't know about this clk, fallback to looking up via clkdev based
 	 * clk_lookups
 	 */
-	if (PTR_ERR(hw) == -ENOENT)
+	if (PTR_ERR(hw) == -ENOENT && name)
 		hw = clk_find_hw(dev_id, name);
 
 	if (IS_ERR(hw))
@@ -397,8 +400,7 @@ static void clk_core_fill_parent_index(struct clk_core *core, u8 index)
 		if (!parent)
 			parent = ERR_PTR(-EPROBE_DEFER);
 	} else {
-		if (entry->fw_name)
-			parent = clk_core_get(core, entry->fw_name);
+		parent = clk_core_get(core, entry->fw_name, entry->index);
 		if (IS_ERR(parent) && PTR_ERR(parent) == -ENOENT)
 			parent = clk_core_lookup(entry->name);
 	}
@@ -3443,6 +3445,7 @@ static int clk_core_populate_parent_map(struct clk_core *core)
 
 	/* Copy everything over because it might be __initdata */
 	for (i = 0, parent = parents; i < num_parents; i++, parent++) {
+		parent->index = -1;
 		if (parent_names) {
 			/* throw a WARN if any entries are NULL */
 			WARN(!parent_names[i],
@@ -3452,6 +3455,7 @@ static int clk_core_populate_parent_map(struct clk_core *core)
 					   true);
 		} else if (parent_data) {
 			parent->hw = parent_data[i].hw;
+			parent->index = parent_data[i].index;
 			ret = clk_cpy_name(&parent->fw_name,
 					   parent_data[i].fw_name, false);
 			if (!ret)
