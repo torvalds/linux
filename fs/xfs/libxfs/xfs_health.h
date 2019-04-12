@@ -118,6 +118,8 @@ void xfs_inode_mark_healthy(struct xfs_inode *ip, unsigned int mask);
 void xfs_inode_measure_sickness(struct xfs_inode *ip, unsigned int *sick,
 		unsigned int *checked);
 
+void xfs_health_unmount(struct xfs_mount *mp);
+
 /* Now some helpers. */
 
 static inline bool

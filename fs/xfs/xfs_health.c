@@ -19,6 +19,80 @@
 #include "xfs_trace.h"
 #include "xfs_health.h"
 
+/*
+ * Warn about metadata corruption that we detected but haven't fixed, and
+ * make sure we're not sitting on anything that would get in the way of
+ * recovery.
+ */
+void
+xfs_health_unmount(
+	struct xfs_mount	*mp)
+{
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno;
+	unsigned int		sick = 0;
+	unsigned int		checked = 0;
+	bool			warn = false;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return;
+
+	/* Measure AG corruption levels. */
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		pag = xfs_perag_get(mp, agno);
+		xfs_ag_measure_sickness(pag, &sick, &checked);
+		if (sick) {
+			trace_xfs_ag_unfixed_corruption(mp, agno, sick);
+			warn = true;
+		}
+		xfs_perag_put(pag);
+	}
+
+	/* Measure realtime volume corruption levels. */
+	xfs_rt_measure_sickness(mp, &sick, &checked);
+	if (sick) {
+		trace_xfs_rt_unfixed_corruption(mp, sick);
+		warn = true;
+	}
+
+	/*
+	 * Measure fs corruption and keep the sample around for the warning.
+	 * See the note below for why we exempt FS_COUNTERS.
+	 */
+	xfs_fs_measure_sickness(mp, &sick, &checked);
+	if (sick & ~XFS_SICK_FS_COUNTERS) {
+		trace_xfs_fs_unfixed_corruption(mp, sick);
+		warn = true;
+	}
+
+	if (warn) {
+		xfs_warn(mp,
+"Uncorrected metadata errors detected; please run xfs_repair.");
+
+		/*
+		 * We discovered uncorrected metadata problems at some point
+		 * during this filesystem mount and have advised the
+		 * administrator to run repair once the unmount completes.
+		 *
+		 * However, we must be careful -- when FSCOUNTERS are flagged
+		 * unhealthy, the unmount procedure omits writing the clean
+		 * unmount record to the log so that the next mount will run
+		 * recovery and recompute the summary counters.  In other
+		 * words, we leave a dirty log to get the counters fixed.
+		 *
+		 * Unfortunately, xfs_repair cannot recover dirty logs, so if
+		 * there were filesystem problems, FSCOUNTERS was flagged, and
+		 * the administrator takes our advice to run xfs_repair,
+		 * they'll have to zap the log before repairing structures.
+		 * We don't really want to encourage this, so we mark the
+		 * FSCOUNTERS healthy so that a subsequent repair run won't see
+		 * a dirty log.
+		 */
+		if (sick & XFS_SICK_FS_COUNTERS)
+			xfs_fs_mark_healthy(mp, XFS_SICK_FS_COUNTERS);
+	}
+}
+
 /* Mark unhealthy per-fs metadata. */
 void
 xfs_fs_mark_sick(
