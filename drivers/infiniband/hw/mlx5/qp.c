@@ -3276,7 +3276,7 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		flow_rule = create_flow_rule_vport_sq(dev, sq,
 						      raw_qp_param->port);
 		if (IS_ERR(flow_rule))
-			return err;
+			return PTR_ERR(flow_rule);
 
 		err = modify_raw_packet_qp_sq(dev->mdev, sq, sq_state,
 					      raw_qp_param, qp->ibqp.pd);
