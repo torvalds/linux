@@ -1585,7 +1585,7 @@
 			Format: { "off" | "enforce" | "fix" | "log" }
 			default: "enforce"
 
-	ima_appraise_tcb [IMA]
+	ima_appraise_tcb [IMA] Deprecated.  Use ima_policy= instead.
 			The builtin appraise policy appraises all files
 			owned by uid=0.
 
@@ -1612,8 +1612,7 @@
 			uid=0.
 
 			The "appraise_tcb" policy appraises the integrity of
-			all files owned by root. (This is the equivalent
-			of ima_appraise_tcb.)
+			all files owned by root.
 
 			The "secure_boot" policy appraises the integrity
 			of files (eg. kexec kernel image, kernel modules,
