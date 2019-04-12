@@ -6254,10 +6254,8 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 					return err;
 			}
 		}
-	}
 
-	/* ... and stack slots */
-	for (frame = 0; frame <= vstate->curframe; frame++) {
+		/* Propagate stack slots. */
 		state = vstate->frame[frame];
 		parent = vparent->frame[frame];
 		for (i = 0; i < state->allocated_stack / BPF_REG_SIZE &&
