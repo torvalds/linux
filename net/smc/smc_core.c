@@ -195,10 +195,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 }
 
 /* create a new SMC link group */
-static int smc_lgr_create(struct smc_sock *smc, bool is_smcd,
-			  struct smc_ib_device *smcibdev, u8 ibport,
-			  char *peer_systemid, unsigned short vlan_id,
-			  struct smcd_dev *smcismdev, u64 peer_gid)
+static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 {
 	struct smc_link_group *lgr;
 	struct smc_link *lnk;
@@ -206,20 +203,21 @@ static int smc_lgr_create(struct smc_sock *smc, bool is_smcd,
 	int rc = 0;
 	int i;
 
-	if (is_smcd && vlan_id) {
-		rc = smc_ism_get_vlan(smcismdev, vlan_id);
-		if (rc)
+	if (ini->is_smcd && ini->vlan_id) {
+		if (smc_ism_get_vlan(ini->ism_dev, ini->vlan_id)) {
+			rc = SMC_CLC_DECL_ISMVLANERR;
 			goto out;
+		}
 	}
 
 	lgr = kzalloc(sizeof(*lgr), GFP_KERNEL);
 	if (!lgr) {
-		rc = -ENOMEM;
+		rc = SMC_CLC_DECL_MEM;
 		goto out;
 	}
-	lgr->is_smcd = is_smcd;
+	lgr->is_smcd = ini->is_smcd;
 	lgr->sync_err = 0;
-	lgr->vlan_id = vlan_id;
+	lgr->vlan_id = ini->vlan_id;
 	rwlock_init(&lgr->sndbufs_lock);
 	rwlock_init(&lgr->rmbs_lock);
 	rwlock_init(&lgr->conns_lock);
@@ -231,29 +229,32 @@ static int smc_lgr_create(struct smc_sock *smc, bool is_smcd,
 	memcpy(&lgr->id, (u8 *)&smc_lgr_list.num, SMC_LGR_ID_SIZE);
 	INIT_DELAYED_WORK(&lgr->free_work, smc_lgr_free_work);
 	lgr->conns_all = RB_ROOT;
-	if (is_smcd) {
+	if (ini->is_smcd) {
 		/* SMC-D specific settings */
-		lgr->peer_gid = peer_gid;
-		lgr->smcd = smcismdev;
+		lgr->peer_gid = ini->ism_gid;
+		lgr->smcd = ini->ism_dev;
 	} else {
 		/* SMC-R specific settings */
 		lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-		memcpy(lgr->peer_systemid, peer_systemid, SMC_SYSTEMID_LEN);
+		memcpy(lgr->peer_systemid, ini->ib_lcl->id_for_peer,
+		       SMC_SYSTEMID_LEN);
 
 		lnk = &lgr->lnk[SMC_SINGLE_LINK];
 		/* initialize link */
 		lnk->state = SMC_LNK_ACTIVATING;
 		lnk->link_id = SMC_SINGLE_LINK;
-		lnk->smcibdev = smcibdev;
-		lnk->ibport = ibport;
-		lnk->path_mtu = smcibdev->pattr[ibport - 1].active_mtu;
-		if (!smcibdev->initialized)
-			smc_ib_setup_per_ibdev(smcibdev);
+		lnk->smcibdev = ini->ib_dev;
+		lnk->ibport = ini->ib_port;
+		lnk->path_mtu =
+			ini->ib_dev->pattr[ini->ib_port - 1].active_mtu;
+		if (!ini->ib_dev->initialized)
+			smc_ib_setup_per_ibdev(ini->ib_dev);
 		get_random_bytes(rndvec, sizeof(rndvec));
 		lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) +
 			(rndvec[2] << 16);
 		rc = smc_ib_determine_gid(lnk->smcibdev, lnk->ibport,
-					  vlan_id, lnk->gid, &lnk->sgid_index);
+					  ini->vlan_id, lnk->gid,
+					  &lnk->sgid_index);
 		if (rc)
 			goto free_lgr;
 		rc = smc_llc_link_init(lnk);
@@ -289,6 +290,12 @@ clear_llc_lnk:
 free_lgr:
 	kfree(lgr);
 out:
+	if (rc < 0) {
+		if (rc == -ENOMEM)
+			rc = SMC_CLC_DECL_MEM;
+		else
+			rc = SMC_CLC_DECL_INTERR;
+	}
 	return rc;
 }
 
@@ -528,13 +535,13 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 /* Determine vlan of internal TCP socket.
  * @vlan_id: address to store the determined vlan id into
  */
-int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id)
+int smc_vlan_by_tcpsk(struct socket *clcsock, struct smc_init_info *ini)
 {
 	struct dst_entry *dst = sk_dst_get(clcsock->sk);
 	struct net_device *ndev;
 	int i, nest_lvl, rc = 0;
 
-	*vlan_id = 0;
+	ini->vlan_id = 0;
 	if (!dst) {
 		rc = -ENOTCONN;
 		goto out;
@@ -546,7 +553,7 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id)
 
 	ndev = dst->dev;
 	if (is_vlan_dev(ndev)) {
-		*vlan_id = vlan_dev_vlan_id(ndev);
+		ini->vlan_id = vlan_dev_vlan_id(ndev);
 		goto out_rel;
 	}
 
@@ -560,7 +567,7 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id)
 		lower = lower->next;
 		ndev = (struct net_device *)netdev_lower_get_next(ndev, &lower);
 		if (is_vlan_dev(ndev)) {
-			*vlan_id = vlan_dev_vlan_id(ndev);
+			ini->vlan_id = vlan_dev_vlan_id(ndev);
 			break;
 		}
 	}
@@ -594,24 +601,16 @@ static bool smcd_lgr_match(struct smc_link_group *lgr,
 }
 
 /* create a new SMC connection (and a new link group if necessary) */
-int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
-		    struct smc_ib_device *smcibdev, u8 ibport, u32 clcqpn,
-		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
-		    u64 peer_gid)
+int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 {
 	struct smc_connection *conn = &smc->conn;
-	int local_contact = SMC_FIRST_CONTACT;
 	struct smc_link_group *lgr;
-	unsigned short vlan_id;
 	enum smc_lgr_role role;
 	int rc = 0;
 
+	ini->cln_first_contact = SMC_FIRST_CONTACT;
 	role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
-	rc = smc_vlan_by_tcpsk(smc->clcsock, &vlan_id);
-	if (rc)
-		return rc;
-
-	if ((role == SMC_CLNT) && srv_first_contact)
+	if (role == SMC_CLNT && ini->srv_first_contact)
 		/* create new link group as well */
 		goto create;
 
@@ -619,14 +618,15 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 	spin_lock_bh(&smc_lgr_list.lock);
 	list_for_each_entry(lgr, &smc_lgr_list.list, list) {
 		write_lock_bh(&lgr->conns_lock);
-		if ((is_smcd ? smcd_lgr_match(lgr, smcd, peer_gid) :
-		     smcr_lgr_match(lgr, lcl, role, clcqpn)) &&
+		if ((ini->is_smcd ?
+		     smcd_lgr_match(lgr, ini->ism_dev, ini->ism_gid) :
+		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
-		    lgr->vlan_id == vlan_id &&
+		    lgr->vlan_id == ini->vlan_id &&
 		    (role == SMC_CLNT ||
 		     lgr->conns_num < SMC_RMBS_PER_LGR_MAX)) {
 			/* link group found */
-			local_contact = SMC_REUSE_CONTACT;
+			ini->cln_first_contact = SMC_REUSE_CONTACT;
 			conn->lgr = lgr;
 			smc_lgr_register_conn(conn); /* add smc conn to lgr */
 			if (delayed_work_pending(&lgr->free_work))
@@ -638,19 +638,18 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 	}
 	spin_unlock_bh(&smc_lgr_list.lock);
 
-	if (role == SMC_CLNT && !srv_first_contact &&
-	    (local_contact == SMC_FIRST_CONTACT)) {
+	if (role == SMC_CLNT && !ini->srv_first_contact &&
+	    ini->cln_first_contact == SMC_FIRST_CONTACT) {
 		/* Server reuses a link group, but Client wants to start
 		 * a new one
 		 * send out_of_sync decline, reason synchr. error
 		 */
-		return -ENOLINK;
+		return SMC_CLC_DECL_SYNCERR;
 	}
 
 create:
-	if (local_contact == SMC_FIRST_CONTACT) {
-		rc = smc_lgr_create(smc, is_smcd, smcibdev, ibport,
-				    lcl->id_for_peer, vlan_id, smcd, peer_gid);
+	if (ini->cln_first_contact == SMC_FIRST_CONTACT) {
+		rc = smc_lgr_create(smc, ini);
 		if (rc)
 			goto out;
 		smc_lgr_register_conn(conn); /* add smc conn to lgr */
@@ -658,7 +657,7 @@ create:
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
 	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;
 	conn->urg_state = SMC_URG_READ;
-	if (is_smcd) {
+	if (ini->is_smcd) {
 		conn->rx_off = sizeof(struct smcd_cdc_msg);
 		smcd_cdc_rx_init(conn); /* init tasklet for this conn */
 	}
@@ -667,7 +666,7 @@ create:
 #endif
 
 out:
-	return rc ? rc : local_contact;
+	return rc;
 }
 
 /* convert the RMB size into the compressed notation - minimum 16K.
