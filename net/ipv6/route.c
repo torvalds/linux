@@ -2471,8 +2471,6 @@ restart:
 			continue;
 		if (rt->fib6_flags & RTF_REJECT)
 			break;
-		if (fl6->flowi6_oif != rt->fib6_nh.fib_nh_dev->ifindex)
-			continue;
 		if (ip6_redirect_nh_match(rt, &rt->fib6_nh, fl6,
 					  &rdfl->gateway, &ret))
 			goto out;
