@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
+#include <linux/mm.h>
 #include <linux/sync_file.h>
 #include <linux/pfn_t.h>
 

@@ -31,6 +31,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_rect.h>
@@ -566,7 +567,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 			goto out_free;
 	}
 
-	tinydrm_xrgb8888_to_gray8(buf, cma_obj->vaddr, fb, &clip);
+	drm_fb_xrgb8888_to_gray8(buf, cma_obj->vaddr, fb, &clip);
 
 	if (import_attach) {
 		ret = dma_buf_end_cpu_access(import_attach->dmabuf,

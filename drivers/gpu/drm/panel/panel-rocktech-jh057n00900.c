@@ -123,7 +123,7 @@ static int jh057n_init_sequence(struct jh057n *ctx)
 
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to exit sleep mode");
+		DRM_DEV_ERROR(dev, "Failed to exit sleep mode\n");
 		return ret;
 	}
 	/* Panel is operational 120 msec after reset */
@@ -132,7 +132,7 @@ static int jh057n_init_sequence(struct jh057n *ctx)
 	if (ret)
 		return ret;
 
-	DRM_DEV_DEBUG_DRIVER(dev, "Panel init sequence done");
+	DRM_DEV_DEBUG_DRIVER(dev, "Panel init sequence done\n");
 	return 0;
 }
 
@@ -172,7 +172,7 @@ static int jh057n_prepare(struct drm_panel *panel)
 	if (ctx->prepared)
 		return 0;
 
-	DRM_DEV_DEBUG_DRIVER(ctx->dev, "Resetting the panel.");
+	DRM_DEV_DEBUG_DRIVER(ctx->dev, "Resetting the panel\n");
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	usleep_range(20, 40);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
@@ -180,7 +180,8 @@ static int jh057n_prepare(struct drm_panel *panel)
 
 	ret = jh057n_init_sequence(ctx);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "Panel init sequence failed: %d", ret);
+		DRM_DEV_ERROR(ctx->dev, "Panel init sequence failed: %d\n",
+			      ret);
 		return ret;
 	}
 
@@ -212,7 +213,7 @@ static int jh057n_get_modes(struct drm_panel *panel)
 
 	mode = drm_mode_duplicate(panel->drm, &default_mode);
 	if (!mode) {
-		DRM_DEV_ERROR(ctx->dev, "Failed to add mode %ux%u@%u",
+		DRM_DEV_ERROR(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			      default_mode.hdisplay, default_mode.vdisplay,
 			      default_mode.vrefresh);
 		return -ENOMEM;
@@ -241,7 +242,7 @@ static int allpixelson_set(void *data, u64 val)
 	struct jh057n *ctx = data;
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
-	DRM_DEV_DEBUG_DRIVER(ctx->dev, "Setting all pixels on");
+	DRM_DEV_DEBUG_DRIVER(ctx->dev, "Setting all pixels on\n");
 	dsi_generic_write_seq(dsi, ST7703_CMD_ALL_PIXEL_ON);
 	msleep(val * 1000);
 	/* Reset the panel to get video back */
@@ -290,7 +291,7 @@ static int jh057n_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset gpio");
+		DRM_DEV_ERROR(dev, "cannot get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
@@ -315,12 +316,12 @@ static int jh057n_probe(struct mipi_dsi_device *dsi)
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "mipi_dsi_attach failed. Is host ready?");
+		DRM_DEV_ERROR(dev, "mipi_dsi_attach failed. Is host ready?\n");
 		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
 
-	DRM_DEV_INFO(dev, "%ux%u@%u %ubpp dsi %udl - ready",
+	DRM_DEV_INFO(dev, "%ux%u@%u %ubpp dsi %udl - ready\n",
 		     default_mode.hdisplay, default_mode.vdisplay,
 		     default_mode.vrefresh,
 		     mipi_dsi_pixel_format_to_bpp(dsi->format), dsi->lanes);

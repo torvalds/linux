@@ -444,6 +444,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "amlogic,meson-gxbb-vpu" },
 	{ .compatible = "amlogic,meson-gxl-vpu" },
 	{ .compatible = "amlogic,meson-gxm-vpu" },
+	{ .compatible = "amlogic,meson-g12a-vpu" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
