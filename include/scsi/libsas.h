@@ -245,9 +245,9 @@ static inline struct sas_discovery_event *to_sas_discovery_event(struct work_str
 struct sas_discovery {
 	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
 	unsigned long    pending;
-	u8     fanout_sas_addr[8];
-	u8     eeds_a[8];
-	u8     eeds_b[8];
+	u8     fanout_sas_addr[SAS_ADDR_SIZE];
+	u8     eeds_a[SAS_ADDR_SIZE];
+	u8     eeds_b[SAS_ADDR_SIZE];
 	int    max_level;
 };
 
