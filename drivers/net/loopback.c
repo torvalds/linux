@@ -128,21 +128,9 @@ static u32 always_on(struct net_device *dev)
 	return 1;
 }
 
-static int loopback_get_ts_info(struct net_device *netdev,
-				struct ethtool_ts_info *ts_info)
-{
-	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				   SOF_TIMESTAMPING_RX_SOFTWARE |
-				   SOF_TIMESTAMPING_SOFTWARE;
-
-	ts_info->phc_index = -1;
-
-	return 0;
-};
-
 static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_link		= always_on,
-	.get_ts_info		= loopback_get_ts_info,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static int loopback_dev_init(struct net_device *dev)
