@@ -1506,12 +1506,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 		dst_buf->flags &= ~V4L2_BUF_FLAG_KEYFRAME;
 	}
 
-	dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
-	dst_buf->field = src_buf->field;
-	dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	dst_buf->flags |=
-		src_buf->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	dst_buf->timecode = src_buf->timecode;
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
 
 	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 
