@@ -3986,9 +3986,6 @@ int nfp_net_init(struct nfp_net *nn)
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
 
-	if (nn->dp.netdev)
-		nfp_net_netdev_init(nn);
-
 	/* Stash the re-configuration queue away.  First odd queue in TX Bar */
 	nn->qcp_cfg = nn->tx_bar + NFP_QCP_QUEUE_ADDR_SZ;
 
@@ -4000,6 +3997,9 @@ int nfp_net_init(struct nfp_net *nn)
 				   NFP_NET_CFG_UPDATE_GEN);
 	if (err)
 		return err;
+
+	if (nn->dp.netdev)
+		nfp_net_netdev_init(nn);
 
 	nfp_net_vecs_init(nn);
 
