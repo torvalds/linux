@@ -226,7 +226,7 @@ static struct phy_driver meson_gxl_phy[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x01814400),
 		.name		= "Meson GXL Internal PHY",
-		.features	= PHY_BASIC_FEATURES,
+		/* PHY_BASIC_FEATURES */
 		.flags		= PHY_IS_INTERNAL,
 		.soft_reset     = genphy_soft_reset,
 		.config_init	= meson_gxl_config_init,
@@ -238,7 +238,7 @@ static struct phy_driver meson_gxl_phy[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x01803301),
 		.name		= "Meson G12A Internal PHY",
-		.features	= PHY_BASIC_FEATURES,
+		/* PHY_BASIC_FEATURES */
 		.flags		= PHY_IS_INTERNAL,
 		.soft_reset     = genphy_soft_reset,
 		.ack_interrupt	= meson_gxl_ack_interrupt,

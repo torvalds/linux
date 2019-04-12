@@ -1882,7 +1882,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.phy_id		= PHY_ID_VSC8530,
 	.name		= "Microsemi FE VSC8530",
 	.phy_id_mask	= 0xfffffff0,
-	.features	= PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.soft_reset	= &genphy_soft_reset,
 	.config_init	= &vsc85xx_config_init,
 	.config_aneg    = &vsc85xx_config_aneg,
@@ -1907,7 +1907,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.phy_id		= PHY_ID_VSC8531,
 	.name		= "Microsemi VSC8531",
 	.phy_id_mask    = 0xfffffff0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.soft_reset	= &genphy_soft_reset,
 	.config_init    = &vsc85xx_config_init,
 	.config_aneg    = &vsc85xx_config_aneg,
@@ -1932,7 +1932,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.phy_id		= PHY_ID_VSC8540,
 	.name		= "Microsemi FE VSC8540 SyncE",
 	.phy_id_mask	= 0xfffffff0,
-	.features	= PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.soft_reset	= &genphy_soft_reset,
 	.config_init	= &vsc85xx_config_init,
 	.config_aneg	= &vsc85xx_config_aneg,
@@ -1957,7 +1957,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.phy_id		= PHY_ID_VSC8541,
 	.name		= "Microsemi VSC8541 SyncE",
 	.phy_id_mask    = 0xfffffff0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.soft_reset	= &genphy_soft_reset,
 	.config_init    = &vsc85xx_config_init,
 	.config_aneg    = &vsc85xx_config_aneg,
@@ -1982,7 +1982,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.phy_id		= PHY_ID_VSC8574,
 	.name		= "Microsemi GE VSC8574 SyncE",
 	.phy_id_mask	= 0xfffffff0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.soft_reset	= &genphy_soft_reset,
 	.config_init    = &vsc8584_config_init,
 	.config_aneg    = &vsc85xx_config_aneg,
@@ -2008,7 +2008,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.phy_id		= PHY_ID_VSC8584,
 	.name		= "Microsemi GE VSC8584 SyncE",
 	.phy_id_mask	= 0xfffffff0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.soft_reset	= &genphy_soft_reset,
 	.config_init    = &vsc8584_config_init,
 	.config_aneg    = &vsc85xx_config_aneg,

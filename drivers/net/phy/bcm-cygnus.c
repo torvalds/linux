@@ -254,7 +254,7 @@ static struct phy_driver bcm_cygnus_phy_driver[] = {
 	.phy_id        = PHY_ID_BCM_CYGNUS,
 	.phy_id_mask   = 0xfffffff0,
 	.name          = "Broadcom Cygnus PHY",
-	.features      = PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.config_init   = bcm_cygnus_config_init,
 	.ack_interrupt = bcm_phy_ack_intr,
 	.config_intr   = bcm_phy_config_intr,
@@ -264,7 +264,7 @@ static struct phy_driver bcm_cygnus_phy_driver[] = {
 	.phy_id		= PHY_ID_BCM_OMEGA,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom Omega Combo GPHY",
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.flags		= PHY_IS_INTERNAL,
 	.config_init	= bcm_omega_config_init,
 	.suspend	= genphy_suspend,

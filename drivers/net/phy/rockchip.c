@@ -175,7 +175,7 @@ static struct phy_driver rockchip_phy_driver[] = {
 	.phy_id			= INTERNAL_EPHY_ID,
 	.phy_id_mask		= 0xfffffff0,
 	.name			= "Rockchip integrated EPHY",
-	.features		= PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.flags			= 0,
 	.link_change_notify	= rockchip_link_change_notify,
 	.soft_reset		= genphy_soft_reset,

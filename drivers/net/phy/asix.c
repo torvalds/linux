@@ -43,7 +43,7 @@ static struct phy_driver asix_driver[] = { {
 	.phy_id		= PHY_ID_ASIX_AX88796B,
 	.name		= "Asix Electronics AX88796B",
 	.phy_id_mask	= 0xfffffff0,
-	.features	= PHY_BASIC_FEATURES,
+	/* PHY_BASIC_FEATURES */
 	.soft_reset	= asix_soft_reset,
 } };
 
