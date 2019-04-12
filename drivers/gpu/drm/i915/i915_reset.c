@@ -495,7 +495,17 @@ static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 	int ret;
 
 	ack = intel_uncore_read_fw(uncore, reg);
-	if (!(ack & RESET_CTL_READY_TO_RESET)) {
+	if (ack & RESET_CTL_CAT_ERROR) {
+		/*
+		 * For catastrophic errors, ready-for-reset sequence
+		 * needs to be bypassed: HAS#396813
+		 */
+		request = RESET_CTL_CAT_ERROR;
+		mask = RESET_CTL_CAT_ERROR;
+
+		/* Catastrophic errors need to be cleared by HW */
+		ack = 0;
+	} else if (!(ack & RESET_CTL_READY_TO_RESET)) {
 		request = RESET_CTL_REQUEST_RESET;
 		mask = RESET_CTL_READY_TO_RESET;
 		ack = RESET_CTL_READY_TO_RESET;
