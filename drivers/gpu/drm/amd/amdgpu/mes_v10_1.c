@@ -169,6 +169,17 @@ static int mes_v10_1_allocate_ucode_data_buffer(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void mes_v10_1_free_ucode_buffers(struct amdgpu_device *adev)
+{
+	amdgpu_bo_free_kernel(&adev->mes.data_fw_obj,
+			      &adev->mes.data_fw_gpu_addr,
+			      (void **)&adev->mes.data_fw_ptr);
+
+	amdgpu_bo_free_kernel(&adev->mes.ucode_fw_obj,
+			      &adev->mes.ucode_fw_gpu_addr,
+			      (void **)&adev->mes.ucode_fw_ptr);
+}
+
 static int mes_v10_1_sw_init(void *handle)
 {
 	return 0;
