@@ -1574,8 +1574,13 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	flags &= ~AMDGPU_PTE_EXECUTABLE;
 	flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
 
-	flags &= ~AMDGPU_PTE_MTYPE_MASK;
-	flags |= (mapping->flags & AMDGPU_PTE_MTYPE_MASK);
+	if (adev->asic_type == CHIP_NAVI10) {
+		flags &= ~AMDGPU_PTE_MTYPE_NV10_MASK;
+		flags |= (mapping->flags & AMDGPU_PTE_MTYPE_NV10_MASK);
+	} else {
+		flags &= ~AMDGPU_PTE_MTYPE_MASK;
+		flags |= (mapping->flags & AMDGPU_PTE_MTYPE_MASK);
+	}
 
 	if ((mapping->flags & AMDGPU_PTE_PRT) &&
 	    (adev->asic_type >= CHIP_VEGA10)) {
