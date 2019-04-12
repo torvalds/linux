@@ -76,9 +76,9 @@ out:
 	return ret;
 }
 
-static int do_setxattr(struct btrfs_trans_handle *trans,
-		       struct inode *inode, const char *name,
-		       const void *value, size_t size, int flags)
+static int btrfs_setxattr(struct btrfs_trans_handle *trans,
+			  struct inode *inode, const char *name,
+			  const void *value, size_t size, int flags)
 {
 	struct btrfs_dir_item *di = NULL;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -231,13 +231,13 @@ int btrfs_setxattr_trans(struct btrfs_trans_handle *trans,
 		return -EROFS;
 
 	if (trans)
-		return do_setxattr(trans, inode, name, value, size, flags);
+		return btrfs_setxattr(trans, inode, name, value, size, flags);
 
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = do_setxattr(trans, inode, name, value, size, flags);
+	ret = btrfs_setxattr(trans, inode, name, value, size, flags);
 	if (ret)
 		goto out;
 
