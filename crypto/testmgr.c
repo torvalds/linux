@@ -1290,9 +1290,169 @@ static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
 	return 0;
 }
 
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+/*
+ * Generate a hash test vector from the given implementation.
+ * Assumes the buffers in 'vec' were already allocated.
+ */
+static void generate_random_hash_testvec(struct crypto_shash *tfm,
+					 struct hash_testvec *vec,
+					 unsigned int maxkeysize,
+					 unsigned int maxdatasize,
+					 char *name, size_t max_namelen)
+{
+	SHASH_DESC_ON_STACK(desc, tfm);
+
+	/* Data */
+	vec->psize = generate_random_length(maxdatasize);
+	generate_random_bytes((u8 *)vec->plaintext, vec->psize);
+
+	/*
+	 * Key: length in range [1, maxkeysize], but usually choose maxkeysize.
+	 * If algorithm is unkeyed, then maxkeysize == 0 and set ksize = 0.
+	 */
+	vec->setkey_error = 0;
+	vec->ksize = 0;
+	if (maxkeysize) {
+		vec->ksize = maxkeysize;
+		if (prandom_u32() % 4 == 0)
+			vec->ksize = 1 + (prandom_u32() % maxkeysize);
+		generate_random_bytes((u8 *)vec->key, vec->ksize);
+
+		vec->setkey_error = crypto_shash_setkey(tfm, vec->key,
+							vec->ksize);
+		/* If the key couldn't be set, no need to continue to digest. */
+		if (vec->setkey_error)
+			goto done;
+	}
+
+	/* Digest */
+	desc->tfm = tfm;
+	desc->flags = 0;
+	vec->digest_error = crypto_shash_digest(desc, vec->plaintext,
+						vec->psize, (u8 *)vec->digest);
+done:
+	snprintf(name, max_namelen, "\"random: psize=%u ksize=%u\"",
+		 vec->psize, vec->ksize);
+}
+
+/*
+ * Test the hash algorithm represented by @req against the corresponding generic
+ * implementation, if one is available.
+ */
+static int test_hash_vs_generic_impl(const char *driver,
+				     const char *generic_driver,
+				     unsigned int maxkeysize,
+				     struct ahash_request *req,
+				     struct test_sglist *tsgl,
+				     u8 *hashstate)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	const unsigned int digestsize = crypto_ahash_digestsize(tfm);
+	const unsigned int blocksize = crypto_ahash_blocksize(tfm);
+	const unsigned int maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
+	const char *algname = crypto_hash_alg_common(tfm)->base.cra_name;
+	char _generic_driver[CRYPTO_MAX_ALG_NAME];
+	struct crypto_shash *generic_tfm = NULL;
+	unsigned int i;
+	struct hash_testvec vec = { 0 };
+	char vec_name[64];
+	struct testvec_config cfg;
+	char cfgname[TESTVEC_CONFIG_NAMELEN];
+	int err;
+
+	if (noextratests)
+		return 0;
+
+	if (!generic_driver) { /* Use default naming convention? */
+		err = build_generic_driver_name(algname, _generic_driver);
+		if (err)
+			return err;
+		generic_driver = _generic_driver;
+	}
+
+	if (strcmp(generic_driver, driver) == 0) /* Already the generic impl? */
+		return 0;
+
+	generic_tfm = crypto_alloc_shash(generic_driver, 0, 0);
+	if (IS_ERR(generic_tfm)) {
+		err = PTR_ERR(generic_tfm);
+		if (err == -ENOENT) {
+			pr_warn("alg: hash: skipping comparison tests for %s because %s is unavailable\n",
+				driver, generic_driver);
+			return 0;
+		}
+		pr_err("alg: hash: error allocating %s (generic impl of %s): %d\n",
+		       generic_driver, algname, err);
+		return err;
+	}
+
+	/* Check the algorithm properties for consistency. */
+
+	if (digestsize != crypto_shash_digestsize(generic_tfm)) {
+		pr_err("alg: hash: digestsize for %s (%u) doesn't match generic impl (%u)\n",
+		       driver, digestsize,
+		       crypto_shash_digestsize(generic_tfm));
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (blocksize != crypto_shash_blocksize(generic_tfm)) {
+		pr_err("alg: hash: blocksize for %s (%u) doesn't match generic impl (%u)\n",
+		       driver, blocksize, crypto_shash_blocksize(generic_tfm));
+		err = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * Now generate test vectors using the generic implementation, and test
+	 * the other implementation against them.
+	 */
+
+	vec.key = kmalloc(maxkeysize, GFP_KERNEL);
+	vec.plaintext = kmalloc(maxdatasize, GFP_KERNEL);
+	vec.digest = kmalloc(digestsize, GFP_KERNEL);
+	if (!vec.key || !vec.plaintext || !vec.digest) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < fuzz_iterations * 8; i++) {
+		generate_random_hash_testvec(generic_tfm, &vec,
+					     maxkeysize, maxdatasize,
+					     vec_name, sizeof(vec_name));
+		generate_random_testvec_config(&cfg, cfgname, sizeof(cfgname));
+
+		err = test_hash_vec_cfg(driver, &vec, vec_name, &cfg,
+					req, tsgl, hashstate);
+		if (err)
+			goto out;
+		cond_resched();
+	}
+	err = 0;
+out:
+	kfree(vec.key);
+	kfree(vec.plaintext);
+	kfree(vec.digest);
+	crypto_free_shash(generic_tfm);
+	return err;
+}
+#else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
+static int test_hash_vs_generic_impl(const char *driver,
+				     const char *generic_driver,
+				     unsigned int maxkeysize,
+				     struct ahash_request *req,
+				     struct test_sglist *tsgl,
+				     u8 *hashstate)
+{
+	return 0;
+}
+#endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
+
 static int __alg_test_hash(const struct hash_testvec *vecs,
 			   unsigned int num_vecs, const char *driver,
-			   u32 type, u32 mask)
+			   u32 type, u32 mask,
+			   const char *generic_driver, unsigned int maxkeysize)
 {
 	struct crypto_ahash *tfm;
 	struct ahash_request *req = NULL;
@@ -1340,7 +1500,8 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 		if (err)
 			goto out;
 	}
-	err = 0;
+	err = test_hash_vs_generic_impl(driver, generic_driver, maxkeysize, req,
+					tsgl, hashstate);
 out:
 	kfree(hashstate);
 	if (tsgl) {
@@ -1358,6 +1519,7 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	const struct hash_testvec *template = desc->suite.hash.vecs;
 	unsigned int tcount = desc->suite.hash.count;
 	unsigned int nr_unkeyed, nr_keyed;
+	unsigned int maxkeysize = 0;
 	int err;
 
 	/*
@@ -1376,16 +1538,20 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 			       "unkeyed ones must come first\n", desc->alg);
 			return -EINVAL;
 		}
+		maxkeysize = max_t(unsigned int, maxkeysize,
+				   template[nr_unkeyed + nr_keyed].ksize);
 	}
 
 	err = 0;
 	if (nr_unkeyed) {
-		err = __alg_test_hash(template, nr_unkeyed, driver, type, mask);
+		err = __alg_test_hash(template, nr_unkeyed, driver, type, mask,
+				      desc->generic_driver, maxkeysize);
 		template += nr_unkeyed;
 	}
 
 	if (!err && nr_keyed)
-		err = __alg_test_hash(template, nr_keyed, driver, type, mask);
+		err = __alg_test_hash(template, nr_keyed, driver, type, mask,
+				      desc->generic_driver, maxkeysize);
 
 	return err;
 }
