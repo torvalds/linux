@@ -44,7 +44,6 @@ struct ab8500_shared_mode {
  * struct ab8500_regulator_info - ab8500 regulator information
  * @dev: device pointer
  * @desc: regulator description
- * @regulator_dev: regulator device
  * @shared_mode: used when mode is shared between two regulators
  * @load_lp_uA: maximum load in idle (low power) mode
  * @update_bank: bank to control on/off
@@ -65,7 +64,6 @@ struct ab8500_shared_mode {
 struct ab8500_regulator_info {
 	struct device		*dev;
 	struct regulator_desc	desc;
-	struct regulator_dev	*regulator;
 	struct ab8500_shared_mode *shared_mode;
 	int load_lp_uA;
 	u8 update_bank;
@@ -1600,6 +1598,7 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_regulator_info *info = NULL;
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 
 	/* assign per-regulator data */
 	info = &abx500_regulator.info[id];
@@ -1621,12 +1620,11 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	}
 
 	/* register regulator with framework */
-	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
-						&config);
-	if (IS_ERR(info->regulator)) {
+	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
+	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
-		return PTR_ERR(info->regulator);
+		return PTR_ERR(rdev);
 	}
 
 	return 0;
