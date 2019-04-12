@@ -328,7 +328,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	ret = pwm_apply_state(ctx->pwm, &state);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to configure PWM\n");
+		dev_err(&pdev->dev, "Failed to configure PWM: %d\n", ret);
 		goto err_reg_disable;
 	}
 
@@ -346,7 +346,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, ctx->irq, pulse_handler, 0,
 				       pdev->name, ctx);
 		if (ret) {
-			dev_err(&pdev->dev, "Can't get interrupt working.\n");
+			dev_err(&pdev->dev,
+				"Failed to request interrupt: %d\n", ret);
 			goto err_pwm_disable;
 		}
 		ctx->sample_start = ktime_get();
@@ -356,8 +357,9 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	hwmon = devm_hwmon_device_register_with_groups(&pdev->dev, "pwmfan",
 						       ctx, pwm_fan_groups);
 	if (IS_ERR(hwmon)) {
-		dev_err(&pdev->dev, "Failed to register hwmon device\n");
 		ret = PTR_ERR(hwmon);
+		dev_err(&pdev->dev,
+			"Failed to register hwmon device: %d\n", ret);
 		goto err_del_timer;
 	}
 
@@ -371,9 +373,10 @@ static int pwm_fan_probe(struct platform_device *pdev)
 							  "pwm-fan", ctx,
 							  &pwm_fan_cooling_ops);
 		if (IS_ERR(cdev)) {
-			dev_err(&pdev->dev,
-				"Failed to register pwm-fan as cooling device");
 			ret = PTR_ERR(cdev);
+			dev_err(&pdev->dev,
+				"Failed to register pwm-fan as cooling device: %d\n",
+				ret);
 			goto err_del_timer;
 		}
 		ctx->cdev = cdev;
