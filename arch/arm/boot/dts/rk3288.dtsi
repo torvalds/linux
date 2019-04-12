@@ -64,6 +64,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
+			dynamic-power-coefficient = <370>;
 		};
 		cpu1: cpu@501 {
 			device_type = "cpu";
@@ -74,6 +75,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
+			dynamic-power-coefficient = <370>;
 		};
 		cpu2: cpu@502 {
 			device_type = "cpu";
@@ -84,6 +86,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
+			dynamic-power-coefficient = <370>;
 		};
 		cpu3: cpu@503 {
 			device_type = "cpu";
@@ -94,6 +97,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
+			dynamic-power-coefficient = <370>;
 		};
 	};
 
