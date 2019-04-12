@@ -75,7 +75,7 @@ static int db8500_regulator_is_enabled(struct regulator_dev *rdev)
 }
 
 /* db8500 regulator operations */
-static struct regulator_ops db8500_regulator_ops = {
+static const struct regulator_ops db8500_regulator_ops = {
 	.enable			= db8500_regulator_enable,
 	.disable		= db8500_regulator_disable,
 	.is_enabled		= db8500_regulator_is_enabled,
@@ -200,7 +200,7 @@ static int db8500_regulator_switch_is_enabled(struct regulator_dev *rdev)
 	return info->is_enabled;
 }
 
-static struct regulator_ops db8500_regulator_switch_ops = {
+static const struct regulator_ops db8500_regulator_switch_ops = {
 	.enable			= db8500_regulator_switch_enable,
 	.disable		= db8500_regulator_switch_disable,
 	.is_enabled		= db8500_regulator_switch_is_enabled,
