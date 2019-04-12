@@ -40,7 +40,6 @@ struct da8xx_ohci_hcd {
 	struct phy *usb11_phy;
 	struct regulator *vbus_reg;
 	struct notifier_block nb;
-	struct gpio_desc *vbus_gpio;
 	struct gpio_desc *oc_gpio;
 };
 
@@ -91,11 +90,6 @@ static int ohci_da8xx_set_power(struct usb_hcd *hcd, int on)
 	struct device *dev = hcd->self.controller;
 	int ret;
 
-	if (da8xx_ohci->vbus_gpio) {
-		gpiod_set_value_cansleep(da8xx_ohci->vbus_gpio, on);
-		return 0;
-	}
-
 	if (!da8xx_ohci->vbus_reg)
 		return 0;
 
@@ -119,9 +113,6 @@ static int ohci_da8xx_set_power(struct usb_hcd *hcd, int on)
 static int ohci_da8xx_get_power(struct usb_hcd *hcd)
 {
 	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
-
-	if (da8xx_ohci->vbus_gpio)
-		return gpiod_get_value_cansleep(da8xx_ohci->vbus_gpio);
 
 	if (da8xx_ohci->vbus_reg)
 		return regulator_is_enabled(da8xx_ohci->vbus_reg);
@@ -154,9 +145,6 @@ static int ohci_da8xx_get_oci(struct usb_hcd *hcd)
 static int ohci_da8xx_has_set_power(struct usb_hcd *hcd)
 {
 	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
-
-	if (da8xx_ohci->vbus_gpio)
-		return 1;
 
 	if (da8xx_ohci->vbus_reg)
 		return 1;
@@ -208,16 +196,11 @@ static irqreturn_t ohci_da8xx_oc_thread(int irq, void *data)
 	struct device *dev = da8xx_ohci->hcd->self.controller;
 	int ret;
 
-	if (gpiod_get_value_cansleep(da8xx_ohci->oc_gpio)) {
-		if (da8xx_ohci->vbus_gpio) {
-			gpiod_set_value_cansleep(da8xx_ohci->vbus_gpio, 0);
-		} else if (da8xx_ohci->vbus_reg) {
-			ret = regulator_disable(da8xx_ohci->vbus_reg);
-			if (ret)
-				dev_err(dev,
-					"Failed to disable regulator: %d\n",
-					ret);
-		}
+	if (gpiod_get_value_cansleep(da8xx_ohci->oc_gpio) &&
+	    da8xx_ohci->vbus_reg) {
+		ret = regulator_disable(da8xx_ohci->vbus_reg);
+		if (ret)
+			dev_err(dev, "Failed to disable regulator: %d\n", ret);
 	}
 
 	return IRQ_HANDLED;
@@ -430,11 +413,6 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 			goto err;
 		}
 	}
-
-	da8xx_ohci->vbus_gpio = devm_gpiod_get_optional(dev, "vbus",
-							GPIOD_OUT_HIGH);
-	if (IS_ERR(da8xx_ohci->vbus_gpio))
-		goto err;
 
 	da8xx_ohci->oc_gpio = devm_gpiod_get_optional(dev, "oc", GPIOD_IN);
 	if (IS_ERR(da8xx_ohci->oc_gpio))
