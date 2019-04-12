@@ -63,7 +63,7 @@ static inline long rcu_segcblist_n_nonlazy_cbs(struct rcu_segcblist *rsclp)
  */
 static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
 {
-	return !!rsclp->tails[RCU_NEXT_TAIL];
+	return rsclp->enabled;
 }
 
 /*

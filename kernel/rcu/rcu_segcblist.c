@@ -58,6 +58,7 @@ void rcu_segcblist_init(struct rcu_segcblist *rsclp)
 		rsclp->tails[i] = &rsclp->head;
 	rsclp->len = 0;
 	rsclp->len_lazy = 0;
+	rsclp->enabled = 1;
 }
 
 /*
@@ -69,7 +70,7 @@ void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
 	WARN_ON_ONCE(!rcu_segcblist_empty(rsclp));
 	WARN_ON_ONCE(rcu_segcblist_n_cbs(rsclp));
 	WARN_ON_ONCE(rcu_segcblist_n_lazy_cbs(rsclp));
-	rsclp->tails[RCU_NEXT_TAIL] = NULL;
+	rsclp->enabled = 0;
 }
 
 /*

@@ -14,6 +14,9 @@
 #ifndef __INCLUDE_LINUX_RCU_SEGCBLIST_H
 #define __INCLUDE_LINUX_RCU_SEGCBLIST_H
 
+#include <linux/types.h>
+#include <linux/atomic.h>
+
 /* Simple unsegmented callback lists. */
 struct rcu_cblist {
 	struct rcu_head *head;
@@ -67,6 +70,7 @@ struct rcu_segcblist {
 	unsigned long gp_seq[RCU_CBLIST_NSEGS];
 	long len;
 	long len_lazy;
+	u8 enabled;
 };
 
 #define RCU_SEGCBLIST_INITIALIZER(n) \
