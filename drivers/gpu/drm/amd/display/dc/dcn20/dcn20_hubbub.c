@@ -493,6 +493,28 @@ void hubbub2_get_dchub_ref_freq(struct hubbub *hubbub,
 	}
 }
 
+static void hubbub2_program_watermarks(
+		struct hubbub *hubbub,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+	/*
+	 * Need to clamp to max of the register values (i.e. no wrap)
+	 * for dcn1, all wm registers are 21-bit wide
+	 */
+	hubbub1_program_urgent_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
+	hubbub1_program_stutter_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
+	hubbub1_program_pstate_watermarks(hubbub, watermarks, refclk_mhz, safe_to_lower);
+
+	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
+			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
+	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 180);
+
+	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
+}
+
 static const struct hubbub_funcs hubbub2_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub = hubbub2_init_dchub,
@@ -502,7 +524,7 @@ static const struct hubbub_funcs hubbub2_funcs = {
 	.get_dcc_compression_cap = hubbub2_get_dcc_compression_cap,
 	.wm_read_state = hubbub2_wm_read_state,
 	.get_dchub_ref_freq = hubbub2_get_dchub_ref_freq,
-	.program_watermarks = hubbub1_program_watermarks,
+	.program_watermarks = hubbub2_program_watermarks,
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,
