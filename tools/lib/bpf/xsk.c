@@ -259,7 +259,8 @@ out_umem_alloc:
 
 static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 {
-	char bpf_log_buf[BPF_LOG_BUF_SIZE];
+	static const int log_buf_size = 16 * 1024;
+	char log_buf[log_buf_size];
 	int err, prog_fd;
 
 	/* This is the C-program:
@@ -308,10 +309,10 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
 	prog_fd = bpf_load_program(BPF_PROG_TYPE_XDP, prog, insns_cnt,
-				   "LGPL-2.1 or BSD-2-Clause", 0, bpf_log_buf,
-				   BPF_LOG_BUF_SIZE);
+				   "LGPL-2.1 or BSD-2-Clause", 0, log_buf,
+				   log_buf_size);
 	if (prog_fd < 0) {
-		pr_warning("BPF log buffer:\n%s", bpf_log_buf);
+		pr_warning("BPF log buffer:\n%s", log_buf);
 		return prog_fd;
 	}
 

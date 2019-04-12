@@ -34,6 +34,11 @@ static void print_ksym(__u64 addr)
 	if (!addr)
 		return;
 	sym = ksym_search(addr);
+	if (!sym) {
+		printf("ksym not found. Is kallsyms loaded?\n");
+		return;
+	}
+
 	printf("%s;", sym->name);
 	if (!strcmp(sym->name, "sys_read"))
 		sys_read_seen = true;

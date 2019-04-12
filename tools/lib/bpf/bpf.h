@@ -92,7 +92,7 @@ struct bpf_load_program_attr {
 #define MAPS_RELAX_COMPAT	0x01
 
 /* Recommend log buffer size */
-#define BPF_LOG_BUF_SIZE (256 * 1024)
+#define BPF_LOG_BUF_SIZE (16 * 1024 * 1024) /* verifier maximum in kernels <= 5.1 */
 LIBBPF_API int
 bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 		       char *log_buf, size_t log_buf_sz);
@@ -117,6 +117,7 @@ LIBBPF_API int bpf_map_lookup_and_delete_elem(int fd, const void *key,
 					      void *value);
 LIBBPF_API int bpf_map_delete_elem(int fd, const void *key);
 LIBBPF_API int bpf_map_get_next_key(int fd, const void *key, void *next_key);
+LIBBPF_API int bpf_map_freeze(int fd);
 LIBBPF_API int bpf_obj_pin(int fd, const char *pathname);
 LIBBPF_API int bpf_obj_get(const char *pathname);
 LIBBPF_API int bpf_prog_attach(int prog_fd, int attachable_fd,
@@ -135,6 +136,11 @@ struct bpf_prog_test_run_attr {
 			      * out: length of data_out */
 	__u32 retval;        /* out: return code of the BPF program */
 	__u32 duration;      /* out: average per repetition in ns */
+	const void *ctx_in; /* optional */
+	__u32 ctx_size_in;
+	void *ctx_out;      /* optional */
+	__u32 ctx_size_out; /* in: max length of ctx_out
+			     * out: length of cxt_out */
 };
 
 LIBBPF_API int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr);

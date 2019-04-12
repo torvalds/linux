@@ -79,7 +79,6 @@ static inline int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size)
 
 int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 {
-	__u32 name_len = create_attr->name ? strlen(create_attr->name) : 0;
 	union bpf_attr attr;
 
 	memset(&attr, '\0', sizeof(attr));
@@ -89,8 +88,9 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	attr.value_size = create_attr->value_size;
 	attr.max_entries = create_attr->max_entries;
 	attr.map_flags = create_attr->map_flags;
-	memcpy(attr.map_name, create_attr->name,
-	       min(name_len, BPF_OBJ_NAME_LEN - 1));
+	if (create_attr->name)
+		memcpy(attr.map_name, create_attr->name,
+		       min(strlen(create_attr->name), BPF_OBJ_NAME_LEN - 1));
 	attr.numa_node = create_attr->numa_node;
 	attr.btf_fd = create_attr->btf_fd;
 	attr.btf_key_type_id = create_attr->btf_key_type_id;
@@ -155,7 +155,6 @@ int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
 			       int key_size, int inner_map_fd, int max_entries,
 			       __u32 map_flags, int node)
 {
-	__u32 name_len = name ? strlen(name) : 0;
 	union bpf_attr attr;
 
 	memset(&attr, '\0', sizeof(attr));
@@ -166,7 +165,9 @@ int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
 	attr.inner_map_fd = inner_map_fd;
 	attr.max_entries = max_entries;
 	attr.map_flags = map_flags;
-	memcpy(attr.map_name, name, min(name_len, BPF_OBJ_NAME_LEN - 1));
+	if (name)
+		memcpy(attr.map_name, name,
+		       min(strlen(name), BPF_OBJ_NAME_LEN - 1));
 
 	if (node >= 0) {
 		attr.map_flags |= BPF_F_NUMA_NODE;
@@ -216,17 +217,14 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	void *finfo = NULL, *linfo = NULL;
 	union bpf_attr attr;
 	__u32 log_level;
-	__u32 name_len;
 	int fd;
 
 	if (!load_attr || !log_buf != !log_buf_sz)
 		return -EINVAL;
 
 	log_level = load_attr->log_level;
-	if (log_level > 2 || (log_level && !log_buf))
+	if (log_level > (4 | 2 | 1) || (log_level && !log_buf))
 		return -EINVAL;
-
-	name_len = load_attr->name ? strlen(load_attr->name) : 0;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = load_attr->prog_type;
@@ -253,8 +251,9 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.line_info_rec_size = load_attr->line_info_rec_size;
 	attr.line_info_cnt = load_attr->line_info_cnt;
 	attr.line_info = ptr_to_u64(load_attr->line_info);
-	memcpy(attr.prog_name, load_attr->name,
-	       min(name_len, BPF_OBJ_NAME_LEN - 1));
+	if (load_attr->name)
+		memcpy(attr.prog_name, load_attr->name,
+		       min(strlen(load_attr->name), BPF_OBJ_NAME_LEN - 1));
 
 	fd = sys_bpf_prog_load(&attr, sizeof(attr));
 	if (fd >= 0)
@@ -429,6 +428,16 @@ int bpf_map_get_next_key(int fd, const void *key, void *next_key)
 	return sys_bpf(BPF_MAP_GET_NEXT_KEY, &attr, sizeof(attr));
 }
 
+int bpf_map_freeze(int fd)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.map_fd = fd;
+
+	return sys_bpf(BPF_MAP_FREEZE, &attr, sizeof(attr));
+}
+
 int bpf_obj_pin(int fd, const char *pathname)
 {
 	union bpf_attr attr;
@@ -545,10 +554,15 @@ int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr)
 	attr.test.data_out = ptr_to_u64(test_attr->data_out);
 	attr.test.data_size_in = test_attr->data_size_in;
 	attr.test.data_size_out = test_attr->data_size_out;
+	attr.test.ctx_in = ptr_to_u64(test_attr->ctx_in);
+	attr.test.ctx_out = ptr_to_u64(test_attr->ctx_out);
+	attr.test.ctx_size_in = test_attr->ctx_size_in;
+	attr.test.ctx_size_out = test_attr->ctx_size_out;
 	attr.test.repeat = test_attr->repeat;
 
 	ret = sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
 	test_attr->data_size_out = attr.test.data_size_out;
+	test_attr->ctx_size_out = attr.test.ctx_size_out;
 	test_attr->retval = attr.test.retval;
 	test_attr->duration = attr.test.duration;
 	return ret;
