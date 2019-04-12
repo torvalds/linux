@@ -2246,12 +2246,36 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		else
 			coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_DONE);
 
-		coda_dbg(1, ctx, "job finished: decoded %c frame (%u/%u)\n",
-			 coda_frame_type_char(dst_buf->flags),
-			 dst_buf->sequence, ctx->qsequence);
+		if (decoded_idx >= 0 &&
+		    decoded_idx < ctx->num_internal_frames) {
+			coda_dbg(1, ctx, "job finished: decoded %c frame %u, returned %c frame %u (%u/%u)%s\n",
+				 coda_frame_type_char(ctx->frame_types[decoded_idx]),
+				 ctx->frame_metas[decoded_idx].sequence,
+				 coda_frame_type_char(dst_buf->flags),
+				 ctx->frame_metas[ctx->display_idx].sequence,
+				 dst_buf->sequence, ctx->qsequence,
+				 (dst_buf->flags & V4L2_BUF_FLAG_LAST) ?
+				 " (last)" : "");
+		} else {
+			coda_dbg(1, ctx, "job finished: no frame decoded (%d), returned %c frame %u (%u/%u)%s\n",
+				 decoded_idx,
+				 coda_frame_type_char(dst_buf->flags),
+				 ctx->frame_metas[ctx->display_idx].sequence,
+				 dst_buf->sequence, ctx->qsequence,
+				 (dst_buf->flags & V4L2_BUF_FLAG_LAST) ?
+				 " (last)" : "");
+		}
 	} else {
-		coda_dbg(1, ctx, "job finished: no frame decoded (%u/%u)\n",
-			 ctx->osequence, ctx->qsequence);
+		if (decoded_idx >= 0 &&
+		    decoded_idx < ctx->num_internal_frames) {
+			coda_dbg(1, ctx, "job finished: decoded %c frame %u, no frame returned (%d)\n",
+				 coda_frame_type_char(ctx->frame_types[decoded_idx]),
+				 ctx->frame_metas[decoded_idx].sequence,
+				 ctx->display_idx);
+		} else {
+			coda_dbg(1, ctx, "job finished: no frame decoded (%d) or returned (%d)\n",
+				 decoded_idx, ctx->display_idx);
+		}
 	}
 
 	/* The rotator will copy the current display frame next time */
