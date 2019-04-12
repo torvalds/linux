@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
-#include "alloc_background.h"
 #include "alloc_foreground.h"
-#include "btree_gc.h"
-#include "btree_update.h"
 #include "buckets.h"
 #include "checksum.h"
 #include "error.h"
@@ -642,18 +639,6 @@ err:
 	goto out;
 }
 
-void bch2_journal_entries_free(struct list_head *list)
-{
-
-	while (!list_empty(list)) {
-		struct journal_replay *i =
-			list_first_entry(list, struct journal_replay, list);
-		list_del(&i->list);
-		kvpfree(i, offsetof(struct journal_replay, j) +
-			vstruct_bytes(&i->j));
-	}
-}
-
 int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 {
 	struct journal_list jlist;
@@ -730,121 +715,6 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 			 keys, entries, le64_to_cpu(i->j.seq));
 	}
 fsck_err:
-	return ret;
-}
-
-/* journal replay: */
-
-static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	/*
-	 * We might cause compressed extents to be
-	 * split, so we need to pass in a
-	 * disk_reservation:
-	 */
-	struct disk_reservation disk_res =
-		bch2_disk_reservation_init(c, 0);
-	BKEY_PADDED(k) split;
-	int ret;
-
-	bch2_trans_init(&trans, c);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-				   bkey_start_pos(&k->k),
-				   BTREE_ITER_INTENT);
-	do {
-		ret = bch2_btree_iter_traverse(iter);
-		if (ret)
-			break;
-
-		bkey_copy(&split.k, k);
-		bch2_cut_front(iter->pos, &split.k);
-		bch2_extent_trim_atomic(&split.k, iter);
-
-		ret = bch2_disk_reservation_add(c, &disk_res,
-				split.k.k.size *
-				bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&split.k)),
-				BCH_DISK_RESERVATION_NOFAIL);
-		BUG_ON(ret);
-
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &split.k));
-		ret = bch2_trans_commit(&trans, &disk_res, NULL,
-					BTREE_INSERT_ATOMIC|
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW|
-					BTREE_INSERT_JOURNAL_REPLAY);
-	} while ((!ret || ret == -EINTR) &&
-		 bkey_cmp(k->k.p, iter->pos));
-
-	bch2_disk_reservation_put(c, &disk_res);
-
-	/*
-	 * This isn't strictly correct - we should only be relying on the btree
-	 * node lock for synchronization with gc when we've got a write lock
-	 * held.
-	 *
-	 * but - there are other correctness issues if btree gc were to run
-	 * before journal replay finishes
-	 */
-	BUG_ON(c->gc_pos.phase);
-
-	bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
-		      NULL, 0, 0);
-	bch2_trans_exit(&trans);
-
-	return ret;
-}
-
-int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
-{
-	struct journal *j = &c->journal;
-	struct bkey_i *k, *_n;
-	struct jset_entry *entry;
-	struct journal_replay *i, *n;
-	int ret = 0;
-
-	list_for_each_entry_safe(i, n, list, list) {
-		j->replay_journal_seq = le64_to_cpu(i->j.seq);
-
-		for_each_jset_key(k, _n, entry, &i->j) {
-			switch (entry->btree_id) {
-			case BTREE_ID_ALLOC:
-				ret = bch2_alloc_replay_key(c, k);
-				break;
-			case BTREE_ID_EXTENTS:
-				ret = bch2_extent_replay_key(c, k);
-				break;
-			default:
-				ret = bch2_btree_insert(c, entry->btree_id, k,
-						NULL, NULL,
-						BTREE_INSERT_NOFAIL|
-						BTREE_INSERT_LAZY_RW|
-						BTREE_INSERT_JOURNAL_REPLAY|
-						BTREE_INSERT_NOMARK);
-				break;
-			}
-
-			if (ret) {
-				bch_err(c, "journal replay: error %d while replaying key",
-					ret);
-				goto err;
-			}
-
-			cond_resched();
-		}
-
-		bch2_journal_pin_put(j, j->replay_journal_seq);
-	}
-
-	j->replay_journal_seq = 0;
-
-	bch2_journal_set_replay_done(j);
-	bch2_journal_flush_all_pins(j);
-	ret = bch2_journal_error(j);
-err:
-	bch2_journal_entries_free(list);
 	return ret;
 }
 

@@ -984,9 +984,9 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	u64 last_seq = cur_seq, nr, seq;
 
 	if (!list_empty(journal_entries))
-		last_seq = le64_to_cpu(list_last_entry(journal_entries,
-						       struct journal_replay,
-						       list)->j.last_seq);
+		last_seq = le64_to_cpu(list_first_entry(journal_entries,
+							struct journal_replay,
+							list)->j.seq);
 
 	nr = cur_seq - last_seq;
 
@@ -999,6 +999,8 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 		}
 	}
 
+	j->replay_journal_seq	= last_seq;
+	j->replay_journal_seq_end = cur_seq;
 	j->last_seq_ondisk	= last_seq;
 	j->pin.front		= last_seq;
 	j->pin.back		= cur_seq;
@@ -1007,7 +1009,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	fifo_for_each_entry_ptr(p, &j->pin, seq) {
 		INIT_LIST_HEAD(&p->list);
 		INIT_LIST_HEAD(&p->flushed);
-		atomic_set(&p->count, 0);
+		atomic_set(&p->count, 1);
 		p->devs.nr = 0;
 	}
 
@@ -1016,10 +1018,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 
 		BUG_ON(seq < last_seq || seq >= cur_seq);
 
-		p = journal_seq_pin(j, seq);
-
-		atomic_set(&p->count, 1);
-		p->devs = i->devs;
+		journal_seq_pin(j, seq)->devs = i->devs;
 	}
 
 	spin_lock(&j->lock);
