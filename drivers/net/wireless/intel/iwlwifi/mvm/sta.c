@@ -1399,7 +1399,9 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 
 		iwl_mvm_sta_alloc_queue(mvm, txq->sta, txq->ac, tid);
 		list_del_init(&mvmtxq->list);
+		local_bh_disable();
 		iwl_mvm_mac_itxq_xmit(mvm->hw, txq);
+		local_bh_enable();
 	}
 
 	mutex_unlock(&mvm->mutex);
