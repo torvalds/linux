@@ -76,9 +76,8 @@ out:
 	return ret;
 }
 
-static int btrfs_setxattr(struct btrfs_trans_handle *trans,
-			  struct inode *inode, const char *name,
-			  const void *value, size_t size, int flags)
+int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
+		   const char *name, const void *value, size_t size, int flags)
 {
 	struct btrfs_dir_item *di = NULL;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
