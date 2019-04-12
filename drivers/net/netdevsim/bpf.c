@@ -27,7 +27,7 @@
 	bpf_verifier_log_write(env, "[netdevsim] " fmt, ##__VA_ARGS__)
 
 struct nsim_bpf_bound_prog {
-	struct netdevsim *ns;
+	struct netdevsim_shared_dev *sdev;
 	struct bpf_prog *prog;
 	struct dentry *ddir;
 	const char *state;
@@ -65,8 +65,8 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	struct nsim_bpf_bound_prog *state;
 
 	state = env->prog->aux->offload->dev_priv;
-	if (state->ns->sdev->bpf_bind_verifier_delay && !insn_idx)
-		msleep(state->ns->sdev->bpf_bind_verifier_delay);
+	if (state->sdev->bpf_bind_verifier_delay && !insn_idx)
+		msleep(state->sdev->bpf_bind_verifier_delay);
 
 	if (insn_idx == env->prog->len - 1)
 		pr_vlog(env, "Hello from netdevsim!\n");
@@ -213,7 +213,8 @@ nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf,
 	return 0;
 }
 
-static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
+static int nsim_bpf_create_prog(struct netdevsim_shared_dev *sdev,
+				struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
 	char name[16];
@@ -222,13 +223,13 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	if (!state)
 		return -ENOMEM;
 
-	state->ns = ns;
+	state->sdev = sdev;
 	state->prog = prog;
 	state->state = "verify";
 
 	/* Program id is not populated yet when we create the state. */
-	sprintf(name, "%u", ns->sdev->prog_id_gen++);
-	state->ddir = debugfs_create_dir(name, ns->sdev->ddir_bpf_bound_progs);
+	sprintf(name, "%u", sdev->prog_id_gen++);
+	state->ddir = debugfs_create_dir(name, sdev->ddir_bpf_bound_progs);
 	if (IS_ERR_OR_NULL(state->ddir)) {
 		kfree(state);
 		return -ENOMEM;
@@ -239,7 +240,7 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 			    &state->state, &nsim_bpf_string_fops);
 	debugfs_create_bool("loaded", 0400, state->ddir, &state->is_loaded);
 
-	list_add_tail(&state->l, &ns->sdev->bpf_bound_progs);
+	list_add_tail(&state->l, &sdev->bpf_bound_progs);
 
 	prog->aux->offload->dev_priv = state;
 
@@ -248,12 +249,13 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 
 static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct netdevsim *ns = bpf_offload_dev_priv(prog->aux->offload->offdev);
+	struct netdevsim_shared_dev *sdev =
+			bpf_offload_dev_priv(prog->aux->offload->offdev);
 
-	if (!ns->sdev->bpf_bind_accept)
+	if (!sdev->bpf_bind_accept)
 		return -EOPNOTSUPP;
 
-	return nsim_bpf_create_prog(ns, prog);
+	return nsim_bpf_create_prog(sdev, prog);
 }
 
 static int nsim_bpf_translate(struct bpf_prog *prog)
@@ -590,7 +592,7 @@ int nsim_bpf_init(struct netdevsim *ns)
 			return -ENOMEM;
 
 		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops,
-							   ns);
+							   ns->sdev);
 		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
 		if (err)
 			return err;
