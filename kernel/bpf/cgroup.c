@@ -839,7 +839,7 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 		 * buffer bigger than provided by user.
 		 */
 		ctx.new_val = kmalloc_track_caller(PAGE_SIZE, GFP_KERNEL);
-		ctx.new_len = min(PAGE_SIZE, *pcount);
+		ctx.new_len = min_t(size_t, PAGE_SIZE, *pcount);
 		if (!ctx.new_val ||
 		    copy_from_user(ctx.new_val, buf, ctx.new_len))
 			/* Let BPF program decide how to proceed. */
