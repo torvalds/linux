@@ -750,10 +750,11 @@ static bool verify_gt_engine_wa(struct drm_i915_private *i915,
 	enum intel_engine_id id;
 	bool ok = true;
 
-	ok &= wa_list_verify(i915, &lists->gt_wa_list, str);
+	ok &= wa_list_verify(&i915->uncore, &lists->gt_wa_list, str);
 
 	for_each_engine(engine, i915, id)
-		ok &= wa_list_verify(i915, &lists->engine[id].wa_list, str);
+		ok &= wa_list_verify(engine->uncore,
+				     &lists->engine[id].wa_list, str);
 
 	return ok;
 }
