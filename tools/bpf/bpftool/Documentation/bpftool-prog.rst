@@ -56,6 +56,14 @@ DESCRIPTION
 		  Output will start with program ID followed by program type and
 		  zero or more named attributes (depending on kernel version).
 
+		  Since Linux 5.1 the kernel can collect statistics on BPF
+		  programs (such as the total time spent running the program,
+		  and the number of times it was run). If available, bpftool
+		  shows such statistics. However, the kernel does not collect
+		  them by defaults, as it slightly impacts performance on each
+		  program run. Activation or deactivation of the feature is
+		  performed via the **kernel.bpf_stats_enabled** sysctl knob.
+
 	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
 		  Dump eBPF instructions of the program from the kernel. By
 		  default, eBPF will be disassembled and printed to standard
