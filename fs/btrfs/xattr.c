@@ -220,9 +220,9 @@ out:
 /*
  * @value: "" makes the attribute to empty, NULL removes it
  */
-int btrfs_setxattr(struct btrfs_trans_handle *trans,
-		     struct inode *inode, const char *name,
-		     const void *value, size_t size, int flags)
+int btrfs_setxattr_trans(struct btrfs_trans_handle *trans,
+			 struct inode *inode, const char *name,
+			 const void *value, size_t size, int flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
@@ -370,7 +370,7 @@ static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
 				   size_t size, int flags)
 {
 	name = xattr_full_name(handler, name);
-	return btrfs_setxattr(NULL, inode, name, buffer, size, flags);
+	return btrfs_setxattr_trans(NULL, inode, name, buffer, size, flags);
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
@@ -441,8 +441,8 @@ static int btrfs_initxattrs(struct inode *inode,
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
-		err = btrfs_setxattr(trans, inode, name, xattr->value,
-				xattr->value_len, 0);
+		err = btrfs_setxattr_trans(trans, inode, name, xattr->value,
+					   xattr->value_len, 0);
 		kfree(name);
 		if (err < 0)
 			break;
