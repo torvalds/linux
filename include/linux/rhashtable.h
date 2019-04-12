@@ -40,7 +40,7 @@
  * the chain.  To avoid dereferencing this pointer without clearing
  * the bit first, we use an opaque 'struct rhash_lock_head *' for the
  * pointer stored in the bucket.  This struct needs to be defined so
- * that rcu_derefernce() works on it, but it has no content so a
+ * that rcu_dereference() works on it, but it has no content so a
  * cast is needed for it to be useful.  This ensures it isn't
  * used by mistake with clearing the lock bit first.
  */
@@ -130,10 +130,10 @@ static inline void rht_unlock(struct bucket_table *tbl,
 }
 
 static inline void rht_assign_unlock(struct bucket_table *tbl,
-				     struct rhash_lock_head **bkt,
+				     struct rhash_lock_head __rcu **bkt,
 				     struct rhash_head *obj)
 {
-	struct rhash_head **p = (struct rhash_head **)bkt;
+	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
 
 	lock_map_release(&tbl->dep_map);
 	rcu_assign_pointer(*p, obj);
@@ -556,6 +556,7 @@ static inline struct rhash_head *__rhashtable_lookup(
 	};
 	struct rhash_lock_head __rcu * const *bkt;
 	struct bucket_table *tbl;
+	struct rhash_head __rcu *head;
 	struct rhash_head *he;
 	unsigned int hash;
 
@@ -564,8 +565,8 @@ restart:
 	hash = rht_key_hashfn(ht, tbl, key, params);
 	bkt = rht_bucket(tbl, hash);
 	do {
-		he = rht_ptr(rht_dereference_bucket_rcu(*bkt, tbl, hash));
-		rht_for_each_rcu_from(he, he, tbl, hash) {
+		head = rht_ptr(rht_dereference_bucket_rcu(*bkt, tbl, hash));
+		rht_for_each_rcu_from(he, head, tbl, hash) {
 			if (params.obj_cmpfn ?
 			    params.obj_cmpfn(&arg, rht_obj(ht, he)) :
 			    rhashtable_compare(&arg, rht_obj(ht, he)))

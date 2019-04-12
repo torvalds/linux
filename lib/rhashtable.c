@@ -223,7 +223,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht,
 	struct bucket_table *new_tbl = rhashtable_last_table(ht, old_tbl);
 	int err = -EAGAIN;
 	struct rhash_head *head, *next, *entry;
-	struct rhash_head **pprev = NULL;
+	struct rhash_head __rcu **pprev = NULL;
 	unsigned int new_hash;
 
 	if (new_tbl->nest)
@@ -486,7 +486,7 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 		.ht = ht,
 		.key = key,
 	};
-	struct rhash_head **pprev = NULL;
+	struct rhash_head __rcu **pprev = NULL;
 	struct rhash_head *head;
 	int elasticity;
 
