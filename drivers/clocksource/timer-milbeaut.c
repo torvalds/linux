@@ -80,6 +80,8 @@ static int mlb_set_state_oneshot(struct clock_event_device *clk)
 	u32 val = MLB_TMR_TMCSR_CSL_DIV2;
 
 	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+	val |= MLB_TMR_TMCSR_CNTE | MLB_TMR_TMCSR_TRG | MLB_TMR_TMCSR_INTE;
+	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
 	return 0;
 }
 
