@@ -88,8 +88,7 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 	      FIELD_PREP(MT_TXD1_PKT_FMT, pkt_fmt);
 	txd[1] = cpu_to_le32(val);
 
-	mcu_txd->len = cpu_to_le16(skb->len -
-				   sizeof_field(struct mt7615_mcu_txd, txd));
+	mcu_txd->len = cpu_to_le16(skb->len - sizeof(mcu_txd->txd));
 	mcu_txd->pq_id = cpu_to_le16(MCU_PQ_ID(MT_TX_PORT_IDX_MCU, q_idx));
 	mcu_txd->pkt_type = MCU_PKT_ID;
 	mcu_txd->seq = seq;
