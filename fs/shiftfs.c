@@ -765,7 +765,7 @@ static int shiftfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct dentry *lowerd = dentry->d_fsdata;
 	struct inode *loweri = lowerd->d_inode;
-	struct iattr newattr = *attr;
+	struct iattr newattr;
 	const struct cred *oldcred;
 	struct super_block *sb = dentry->d_sb;
 	int err;
@@ -774,8 +774,16 @@ static int shiftfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
+	newattr = *attr;
 	newattr.ia_uid = KUIDT_INIT(from_kuid(sb->s_user_ns, attr->ia_uid));
 	newattr.ia_gid = KGIDT_INIT(from_kgid(sb->s_user_ns, attr->ia_gid));
+
+	/*
+	 * mode change is for clearing setuid/setgid bits. Allow lower fs
+	 * to interpret this in its own way.
+	 */
+	if (newattr.ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
+		newattr.ia_valid &= ~ATTR_MODE;
 
 	inode_lock(loweri);
 	oldcred = shiftfs_override_creds(dentry->d_sb);
