@@ -124,6 +124,14 @@
 		io-channels = <&saradc 8>;
 	};
 
+	rtc32k_xtal: rtc32k-xtal-clk {
+		/* X3 in the schematics */
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "RTC32K";
+		#clock-cells = <0>;
+	};
+
 	vcc_1v8: regulator-vcc-1v8 {
 		/*
 		 * RICHTEK RT9179 configured for a fixed output voltage of
@@ -343,6 +351,12 @@
 	pinctrl-names = "default";
 	clocks = <&clkc CLKID_XTAL>;
 	clock-names = "clkin0";
+};
+
+&rtc {
+	/* needs to be enabled manually when a battery is connected */
+	clocks = <&rtc32k_xtal>;
+	vdd-supply = <&vdd_rtc>;
 };
 
 &uart_AO {
