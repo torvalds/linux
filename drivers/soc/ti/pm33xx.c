@@ -141,7 +141,7 @@ static int __init am43xx_map_gic(void)
 }
 
 #ifdef CONFIG_SUSPEND
-struct wkup_m3_wakeup_src rtc_wake_src(void)
+static struct wkup_m3_wakeup_src rtc_wake_src(void)
 {
 	u32 i;
 
@@ -157,7 +157,7 @@ struct wkup_m3_wakeup_src rtc_wake_src(void)
 	return rtc_ext_wakeup;
 }
 
-int am33xx_rtc_only_idle(unsigned long wfi_flags)
+static int am33xx_rtc_only_idle(unsigned long wfi_flags)
 {
 	omap_rtc_power_off_program(&omap_rtc->dev);
 	am33xx_do_wfi_sram(wfi_flags);
