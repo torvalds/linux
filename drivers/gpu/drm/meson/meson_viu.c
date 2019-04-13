@@ -90,8 +90,8 @@ static int eotf_bypass_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_RIGHTSHIFT /* right shift */
 };
 
-void meson_viu_set_g12a_osd1_matrix(struct meson_drm *priv, int *m,
-				   bool csc_on)
+static void meson_viu_set_g12a_osd1_matrix(struct meson_drm *priv,
+					   int *m, bool csc_on)
 {
 	/* VPP WRAP OSD1 matrix */
 	writel(((m[0] & 0xfff) << 16) | (m[1] & 0xfff),
@@ -118,8 +118,8 @@ void meson_viu_set_g12a_osd1_matrix(struct meson_drm *priv, int *m,
 		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL));
 }
 
-void meson_viu_set_osd_matrix(struct meson_drm *priv,
-			      enum viu_matrix_sel_e m_select,
+static void meson_viu_set_osd_matrix(struct meson_drm *priv,
+				     enum viu_matrix_sel_e m_select,
 			      int *m, bool csc_on)
 {
 	if (m_select == VIU_MATRIX_OSD) {
@@ -187,10 +187,10 @@ void meson_viu_set_osd_matrix(struct meson_drm *priv,
 #define OSD_EOTF_LUT_SIZE 33
 #define OSD_OETF_LUT_SIZE 41
 
-void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
-			   unsigned int *r_map, unsigned int *g_map,
-			   unsigned int *b_map,
-			   bool csc_on)
+static void
+meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
+		      unsigned int *r_map, unsigned int *g_map,
+		      unsigned int *b_map, bool csc_on)
 {
 	unsigned int addr_port;
 	unsigned int data_port;
