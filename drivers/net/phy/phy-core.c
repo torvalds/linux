@@ -35,6 +35,8 @@ const char *phy_speed_to_str(int speed)
 		return "56Gbps";
 	case SPEED_100000:
 		return "100Gbps";
+	case SPEED_200000:
+		return "200Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
@@ -63,11 +65,22 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 			       .bit = ETHTOOL_LINK_MODE_ ## b ## _BIT}
 
 static const struct phy_setting settings[] = {
+	/* 200G */
+	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseLR4_ER4_FR4_Full	),
+	PHY_SETTING( 200000, FULL, 200000baseDR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseSR4_Full		),
 	/* 100G */
 	PHY_SETTING( 100000, FULL, 100000baseCR4_Full		),
 	PHY_SETTING( 100000, FULL, 100000baseKR4_Full		),
 	PHY_SETTING( 100000, FULL, 100000baseLR4_ER4_Full	),
 	PHY_SETTING( 100000, FULL, 100000baseSR4_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseCR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseKR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseLR2_ER2_FR2_Full	),
+	PHY_SETTING( 100000, FULL, 100000baseDR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseSR2_Full		),
 	/* 56G */
 	PHY_SETTING(  56000, FULL,  56000baseCR4_Full	  	),
 	PHY_SETTING(  56000, FULL,  56000baseKR4_Full	  	),
@@ -77,6 +90,11 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING(  50000, FULL,  50000baseCR2_Full		),
 	PHY_SETTING(  50000, FULL,  50000baseKR2_Full		),
 	PHY_SETTING(  50000, FULL,  50000baseSR2_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseCR_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseKR_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseLR_ER_FR_Full	),
+	PHY_SETTING(  50000, FULL,  50000baseDR_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseSR_Full		),
 	/* 40G */
 	PHY_SETTING(  40000, FULL,  40000baseCR4_Full		),
 	PHY_SETTING(  40000, FULL,  40000baseKR4_Full		),
