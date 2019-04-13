@@ -11,3 +11,4 @@ generic-y += preempt.h
 generic-y += rwsem.h
 generic-y += vtime.h
 generic-y += msi.h
+generic-y += simd.h

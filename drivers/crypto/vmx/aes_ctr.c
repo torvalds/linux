@@ -23,9 +23,10 @@
 #include <linux/err.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
-#include <linux/hardirq.h>
+#include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/internal/simd.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
 
@@ -119,7 +120,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 	struct p8_aes_ctr_ctx *ctx =
 		crypto_tfm_ctx(crypto_blkcipher_tfm(desc->tfm));
 
-	if (in_interrupt()) {
+	if (!crypto_simd_usable()) {
 		SYNC_SKCIPHER_REQUEST_ON_STACK(req, ctx->fallback);
 		skcipher_request_set_sync_tfm(req, ctx->fallback);
 		skcipher_request_set_callback(req, desc->flags, NULL, NULL);

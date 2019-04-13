@@ -23,9 +23,10 @@
 #include <linux/err.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
-#include <linux/hardirq.h>
+#include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/internal/simd.h>
 
 #include "aesp8-ppc.h"
 
@@ -92,7 +93,7 @@ static void p8_aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct p8_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (in_interrupt()) {
+	if (!crypto_simd_usable()) {
 		crypto_cipher_encrypt_one(ctx->fallback, dst, src);
 	} else {
 		preempt_disable();
@@ -109,7 +110,7 @@ static void p8_aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct p8_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (in_interrupt()) {
+	if (!crypto_simd_usable()) {
 		crypto_cipher_decrypt_one(ctx->fallback, dst, src);
 	} else {
 		preempt_disable();
