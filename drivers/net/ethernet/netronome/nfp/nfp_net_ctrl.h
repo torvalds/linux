@@ -389,7 +389,6 @@
 #define NFP_NET_CFG_MBOX_SIMPLE_CMD	0x0
 #define NFP_NET_CFG_MBOX_SIMPLE_RET	0x4
 #define NFP_NET_CFG_MBOX_SIMPLE_VAL	0x8
-#define NFP_NET_CFG_MBOX_SIMPLE_LEN	12
 
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
@@ -495,10 +494,4 @@ struct nfp_net_tlv_caps {
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			   struct nfp_net_tlv_caps *caps);
-
-static inline bool nfp_net_has_mbox(struct nfp_net_tlv_caps *caps)
-{
-	return caps->mbox_len >= NFP_NET_CFG_MBOX_SIMPLE_LEN;
-}
-
 #endif /* _NFP_NET_CTRL_H_ */

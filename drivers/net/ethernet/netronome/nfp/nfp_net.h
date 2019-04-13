@@ -539,12 +539,17 @@ struct nfp_net_dp {
  * @shared_handler:     Handler for shared interrupts
  * @shared_name:        Name for shared interrupt
  * @me_freq_mhz:        ME clock_freq (MHz)
- * @reconfig_lock:	Protects HW reconfiguration request regs/machinery
+ * @reconfig_lock:	Protects @reconfig_posted, @reconfig_timer_active,
+ *			@reconfig_sync_present and HW reconfiguration request
+ *			regs/machinery from async requests (sync must take
+ *			@bar_lock)
  * @reconfig_posted:	Pending reconfig bits coming from async sources
  * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
  * @reconfig_sync_present:  Some thread is performing synchronous reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
  * @reconfig_in_progress_update:	Update FW is processing now (debug only)
+ * @bar_lock:		vNIC config BAR access lock, protects: update,
+ *			mailbox area
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -614,6 +619,8 @@ struct nfp_net {
 	bool reconfig_sync_present;
 	struct timer_list reconfig_timer;
 	u32 reconfig_in_progress_update;
+
+	struct mutex bar_lock;
 
 	u32 rx_coalesce_usecs;
 	u32 rx_coalesce_max_frames;
@@ -839,6 +846,16 @@ static inline void nfp_ctrl_unlock(struct nfp_net *nn)
 	spin_unlock_bh(&nn->r_vecs[0].lock);
 }
 
+static inline void nn_ctrl_bar_lock(struct nfp_net *nn)
+{
+	mutex_lock(&nn->bar_lock);
+}
+
+static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
+{
+	mutex_unlock(&nn->bar_lock);
+}
+
 /* Globals */
 extern const char nfp_driver_version[];
 
@@ -871,7 +888,9 @@ unsigned int nfp_net_rss_key_sz(struct nfp_net *nn);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
 void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
-int nfp_net_reconfig_mbox(struct nfp_net *nn, u32 mbox_cmd);
+int nfp_net_mbox_lock(struct nfp_net *nn, unsigned int data_size);
+int nfp_net_mbox_reconfig(struct nfp_net *nn, u32 mbox_cmd);
+int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd);
 
 unsigned int
 nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,

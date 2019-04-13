@@ -442,13 +442,15 @@ static int nfp_bpf_init(struct nfp_app *app)
 	bpf->app = app;
 	app->priv = bpf;
 
-	skb_queue_head_init(&bpf->cmsg_replies);
-	init_waitqueue_head(&bpf->cmsg_wq);
 	INIT_LIST_HEAD(&bpf->map_list);
+
+	err = nfp_ccm_init(&bpf->ccm, app);
+	if (err)
+		goto err_free_bpf;
 
 	err = rhashtable_init(&bpf->maps_neutral, &nfp_bpf_maps_neutral_params);
 	if (err)
-		goto err_free_bpf;
+		goto err_clean_ccm;
 
 	nfp_bpf_init_capabilities(bpf);
 
@@ -474,6 +476,8 @@ static int nfp_bpf_init(struct nfp_app *app)
 
 err_free_neutral_maps:
 	rhashtable_destroy(&bpf->maps_neutral);
+err_clean_ccm:
+	nfp_ccm_clean(&bpf->ccm);
 err_free_bpf:
 	kfree(bpf);
 	return err;
@@ -484,7 +488,7 @@ static void nfp_bpf_clean(struct nfp_app *app)
 	struct nfp_app_bpf *bpf = app->priv;
 
 	bpf_offload_dev_destroy(bpf->bpf_dev);
-	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
+	nfp_ccm_clean(&bpf->ccm);
 	WARN_ON(!list_empty(&bpf->map_list));
 	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);
 	rhashtable_free_and_destroy(&bpf->maps_neutral,
