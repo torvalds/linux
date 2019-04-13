@@ -161,9 +161,9 @@ mt7603_mcu_start_firmware(struct mt7603_dev *dev, u32 addr)
 }
 
 static int
-mt7603_mcu_restart(struct mt7603_dev *dev)
+mt7603_mcu_restart(struct mt76_dev *dev)
 {
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_RESTART_DL_REQ,
+	return __mt76_mcu_send_msg(dev, -MCU_CMD_RESTART_DL_REQ,
 				   NULL, 0, true);
 }
 
@@ -269,6 +269,7 @@ int mt7603_mcu_init(struct mt7603_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7603_mcu_ops = {
 		.mcu_send_msg = mt7603_mcu_msg_send,
+		.mcu_restart = mt7603_mcu_restart,
 	};
 
 	dev->mt76.mcu_ops = &mt7603_mcu_ops;
@@ -277,7 +278,7 @@ int mt7603_mcu_init(struct mt7603_dev *dev)
 
 void mt7603_mcu_exit(struct mt7603_dev *dev)
 {
-	mt7603_mcu_restart(dev);
+	__mt76_mcu_restart(&dev->mt76);
 	skb_queue_purge(&dev->mt76.mmio.mcu.res_q);
 }
 
