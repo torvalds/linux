@@ -8,6 +8,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/soundwire/sdw_intel.h>
 #include "intel.h"

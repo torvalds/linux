@@ -7,6 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <sound/pcm_params.h>
