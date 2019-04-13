@@ -862,9 +862,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	min_backoff = iwl_mvm_min_backoff(mvm);
 	iwl_mvm_thermal_initialize(mvm, min_backoff);
 
-	err = iwl_mvm_dbgfs_register(mvm, dbgfs_dir);
-	if (err)
-		goto out_unregister;
+	iwl_mvm_dbgfs_register(mvm, dbgfs_dir);
 
 	if (!iwl_mvm_has_new_rx_stats_api(mvm))
 		memset(&mvm->rx_stats_v3, 0,
@@ -881,14 +879,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	return op_mode;
 
- out_unregister:
-	if (iwlmvm_mod_params.init_dbg)
-		return op_mode;
-
-	ieee80211_unregister_hw(mvm->hw);
-	mvm->hw_registered = false;
-	iwl_mvm_leds_exit(mvm);
-	iwl_mvm_thermal_exit(mvm);
  out_free:
 	iwl_fw_flush_dump(&mvm->fwrt);
 	iwl_fw_runtime_free(&mvm->fwrt);
@@ -1291,8 +1281,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * can't recover this since we're already half suspended.
 	 */
 	if (!mvm->fw_restart && fw_error) {
-		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
-					false, 0);
+		iwl_fw_error_collect(&mvm->fwrt);
 	} else if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		struct iwl_mvm_reprobe *reprobe;
 
@@ -1340,8 +1329,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 			}
 		}
 
-		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
-					false, 0);
+		iwl_fw_error_collect(&mvm->fwrt);
+
 		if (fw_error && mvm->fw_restart > 0)
 			mvm->fw_restart--;
 		set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);

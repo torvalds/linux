@@ -2442,9 +2442,8 @@ void iwl_pcie_dump_csr(struct iwl_trans *trans)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, trans,		\
-				 &iwl_dbgfs_##name##_ops))		\
-		goto err;						\
+	debugfs_create_file(#name, mode, parent, trans,			\
+			    &iwl_dbgfs_##name##_ops);			\
 } while (0)
 
 /* file operation */
@@ -2847,7 +2846,7 @@ static const struct file_operations iwl_dbgfs_monitor_data_ops = {
 };
 
 /* Create the debugfs files and directories */
-int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
+void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 {
 	struct dentry *dir = trans->dbgfs_dir;
 
@@ -2858,11 +2857,6 @@ int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(fh_reg, dir, 0400);
 	DEBUGFS_ADD_FILE(rfkill, dir, 0600);
 	DEBUGFS_ADD_FILE(monitor_data, dir, 0400);
-	return 0;
-
-err:
-	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
-	return -ENOMEM;
 }
 
 static void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans)

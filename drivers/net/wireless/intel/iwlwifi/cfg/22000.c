@@ -180,7 +180,11 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x400000,				\
 	.d3_debug_data_base_addr = 0x401000,				\
-	.d3_debug_data_length = 60 * 1024
+	.d3_debug_data_length = 60 * 1024,				\
+	.fw_mon_smem_write_ptr_addr = 0xa0c16c,				\
+	.fw_mon_smem_write_ptr_msk = 0xfffff,				\
+	.fw_mon_smem_cycle_cnt_ptr_addr = 0xa0c174,			\
+	.fw_mon_smem_cycle_cnt_ptr_msk = 0xfffff
 
 #define IWL_DEVICE_AX200_COMMON						\
 	IWL_DEVICE_22000_COMMON,					\
@@ -190,7 +194,8 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	IWL_DEVICE_22000_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_22000,			\
 	.base_params = &iwl_22000_base_params,				\
-	.csr = &iwl_csr_v1
+	.csr = &iwl_csr_v1,						\
+	.gp2_reg_addr = 0xa02c68
 
 #define IWL_DEVICE_22560						\
 	IWL_DEVICE_22000_COMMON,					\
@@ -203,7 +208,9 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.device_family = IWL_DEVICE_FAMILY_AX210,			\
 	.base_params = &iwl_22000_base_params,				\
 	.csr = &iwl_csr_v1,						\
-	.min_txq_size = 128
+	.min_txq_size = 128,						\
+	.gp2_reg_addr = 0xd02c68,					\
+	.min_256_ba_txq_size = 512
 
 const struct iwl_cfg iwl22000_2ac_cfg_hr = {
 	.name = "Intel(R) Dual Band Wireless AC 22000",

@@ -458,4 +458,14 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 /* This bit is used to differentiate the legacy dump from the ini dump */
 #define INI_DUMP_BIT BIT(31)
 
+static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->trans->ini_valid && fwrt->trans->hw_error) {
+		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
+		fwrt->trans->hw_error = false;
+	} else {
+		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
+	}
+}
+
 #endif  /* __iwl_fw_dbg_h__ */

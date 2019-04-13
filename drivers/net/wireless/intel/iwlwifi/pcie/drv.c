@@ -959,12 +959,9 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x2723, 0x008C, iwl22260_2ax_cfg)},
 	{IWL_PCI_DEVICE(0x2723, 0x1653, killer1650w_2ax_cfg)},
 	{IWL_PCI_DEVICE(0x2723, 0x1654, killer1650x_2ax_cfg)},
+	{IWL_PCI_DEVICE(0x2723, 0x2080, iwl22260_2ax_cfg)},
 	{IWL_PCI_DEVICE(0x2723, 0x4080, iwl22260_2ax_cfg)},
 	{IWL_PCI_DEVICE(0x2723, 0x4088, iwl22260_2ax_cfg)},
-
-	{IWL_PCI_DEVICE(0x1a56, 0x1653, killer1650w_2ax_cfg)},
-	{IWL_PCI_DEVICE(0x1a56, 0x1654, killer1650x_2ax_cfg)},
-
 	{IWL_PCI_DEVICE(0x2725, 0x0090, iwlax210_2ax_cfg_so_hr_a0)},
 	{IWL_PCI_DEVICE(0x7A70, 0x0090, iwlax210_2ax_cfg_so_hr_a0)},
 	{IWL_PCI_DEVICE(0x7A70, 0x0310, iwlax210_2ax_cfg_so_hr_a0)},
@@ -1046,9 +1043,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* register transport layer debugfs here */
-	ret = iwl_trans_pcie_dbgfs_register(iwl_trans);
-	if (ret)
-		goto out_free_drv;
+	iwl_trans_pcie_dbgfs_register(iwl_trans);
 
 	/* if RTPM is in use, enable it in our device */
 	if (iwl_trans->runtime_pm_mode != IWL_PLAT_PM_MODE_DISABLED) {
@@ -1077,8 +1072,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-out_free_drv:
-	iwl_drv_stop(iwl_trans->drv);
 out_free_trans:
 	iwl_trans_pcie_free(iwl_trans);
 	return ret;

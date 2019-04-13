@@ -768,6 +768,7 @@ struct iwl_self_init_dram {
  * @umac_error_event_table: addr of umac error table
  * @error_event_table_tlv_status: bitmap that indicates what error table
  *	pointers was recevied via TLV. use enum &iwl_error_event_table_status
+ * @hw_error: equals true if hw error interrupt was received from the FW
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -831,6 +832,7 @@ struct iwl_trans {
 	u32 umac_error_event_table;
 	unsigned int error_event_table_tlv_status;
 	wait_queue_head_t fw_halt_waitq;
+	bool hw_error;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
