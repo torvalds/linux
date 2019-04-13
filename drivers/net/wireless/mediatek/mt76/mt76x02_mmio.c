@@ -480,7 +480,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	mt76_set(dev, 0x734, 0x3);
 
 	if (restart)
-		dev->mt76.mcu_ops->mcu_restart(&dev->mt76);
+		mt76_mcu_restart(dev);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_tx); i++)
 		mt76_queue_tx_cleanup(dev, i, true);
