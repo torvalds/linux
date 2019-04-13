@@ -22,9 +22,6 @@ __mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb,
 	struct mt7603_mcu_txd *txd;
 	u8 seq;
 
-	if (!skb)
-		return -EINVAL;
-
 	seq = ++mdev->mmio.mcu.msg_seq & 0xf;
 	if (!seq)
 		seq = ++mdev->mmio.mcu.msg_seq & 0xf;
@@ -57,12 +54,18 @@ __mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb,
 }
 
 static int
-mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb, int cmd)
+mt7603_mcu_msg_send(struct mt7603_dev *dev, int cmd, const void *data,
+		    int len, bool wait_resp)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	unsigned long expires = jiffies + 3 * HZ;
 	struct mt7603_mcu_rxd *rxd;
+	struct sk_buff *skb;
 	int ret, seq;
+
+	skb = mt7603_mcu_msg_alloc(data, len);
+	if (!skb)
+		return -ENOMEM;
 
 	mutex_lock(&mdev->mmio.mcu.mutex);
 
@@ -70,7 +73,7 @@ mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb, int cmd)
 	if (ret)
 		goto out;
 
-	while (1) {
+	while (wait_resp) {
 		bool check_seq = false;
 
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
@@ -111,9 +114,9 @@ mt7603_mcu_init_download(struct mt7603_dev *dev, u32 addr, u32 len)
 		.len = cpu_to_le32(len),
 		.mode = cpu_to_le32(BIT(31)),
 	};
-	struct sk_buff *skb = mt7603_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7603_mcu_msg_send(dev, skb, -MCU_CMD_TARGET_ADDRESS_LEN_REQ);
+	return mt7603_mcu_msg_send(dev, -MCU_CMD_TARGET_ADDRESS_LEN_REQ,
+				   &req, sizeof(req), true);
 }
 
 static int
@@ -152,17 +155,16 @@ mt7603_mcu_start_firmware(struct mt7603_dev *dev, u32 addr)
 		.override = cpu_to_le32(addr ? 1 : 0),
 		.addr = cpu_to_le32(addr),
 	};
-	struct sk_buff *skb = mt7603_mcu_msg_alloc(&req, sizeof(req));
 
-	return mt7603_mcu_msg_send(dev, skb, -MCU_CMD_FW_START_REQ);
+	return mt7603_mcu_msg_send(dev, -MCU_CMD_FW_START_REQ,
+				   &req, sizeof(req), true);
 }
 
 static int
 mt7603_mcu_restart(struct mt7603_dev *dev)
 {
-	struct sk_buff *skb = mt7603_mcu_msg_alloc(NULL, 0);
-
-	return mt7603_mcu_msg_send(dev, skb, -MCU_CMD_RESTART_DL_REQ);
+	return mt7603_mcu_msg_send(dev, -MCU_CMD_RESTART_DL_REQ,
+				   NULL, 0, true);
 }
 
 int mt7603_load_firmware(struct mt7603_dev *dev)
@@ -343,30 +345,24 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 		u8 buffer_mode;
 		u8 len;
 		u8 pad[2];
-	} req_hdr = {
+		struct req_data data[255];
+	} req = {
 		.buffer_mode = 1,
 		.len = ARRAY_SIZE(req_fields) - 1,
 	};
-	struct sk_buff *skb;
-	struct req_data *data;
-	const int size = 0xff * sizeof(struct req_data);
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(req_fields) * sizeof(*data) > size);
-
-	skb = mt7603_mcu_msg_alloc(NULL, size + sizeof(req_hdr));
-	memcpy(skb_put(skb, sizeof(req_hdr)), &req_hdr, sizeof(req_hdr));
-	data = (struct req_data *)skb_put(skb, size);
-	memset(data, 0, size);
+	BUILD_BUG_ON(ARRAY_SIZE(req_fields) > ARRAY_SIZE(req.data));
 
 	for (i = 0; i < ARRAY_SIZE(req_fields); i++) {
-		data[i].addr = cpu_to_le16(req_fields[i]);
-		data[i].val = eep[req_fields[i]];
-		data[i].pad = 0;
+		req.data[i].addr = cpu_to_le16(req_fields[i]);
+		req.data[i].val = eep[req_fields[i]];
+		req.data[i].pad = 0;
 	}
 
-	return mt7603_mcu_msg_send(dev, skb, MCU_EXT_CMD_EFUSE_BUFFER_MODE);
+	return mt7603_mcu_msg_send(dev, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
+				   &req, sizeof(req), true);
 }
 
 static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
@@ -401,7 +397,6 @@ static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
 		},
 #undef EEP_VAL
 	};
-	struct sk_buff *skb;
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 
 	memcpy(req.rate_power_delta, eep + MT_EE_TX_POWER_CCK,
@@ -410,8 +405,8 @@ static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
 	memcpy(req.temp_comp_power, eep + MT_EE_STEP_NUM_NEG_6_7,
 	       sizeof(req.temp_comp_power));
 
-	skb = mt7603_mcu_msg_alloc(&req, sizeof(req));
-	return mt7603_mcu_msg_send(dev, skb, MCU_EXT_CMD_SET_TX_POWER_CTRL);
+	return mt7603_mcu_msg_send(dev, MCU_EXT_CMD_SET_TX_POWER_CTRL,
+				   &req, sizeof(req), true);
 }
 
 int mt7603_mcu_set_channel(struct mt7603_dev *dev)
@@ -435,10 +430,8 @@ int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 		.tx_streams = n_chains,
 		.rx_streams = n_chains,
 	};
-	struct sk_buff *skb;
 	s8 tx_power;
-	int ret;
-	int i;
+	int i, ret;
 
 	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_40) {
 		req.bw = MT_BW_40;
@@ -458,8 +451,8 @@ int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(req.txpower); i++)
 		req.txpower[i] = tx_power;
 
-	skb = mt7603_mcu_msg_alloc(&req, sizeof(req));
-	ret = mt7603_mcu_msg_send(dev, skb, MCU_EXT_CMD_CHANNEL_SWITCH);
+	ret = mt7603_mcu_msg_send(dev, MCU_EXT_CMD_CHANNEL_SWITCH,
+				  &req, sizeof(req), true);
 	if (ret)
 		return ret;
 
