@@ -1920,6 +1920,10 @@ static int io_sq_thread(void *data)
 		unuse_mm(cur_mm);
 		mmput(cur_mm);
 	}
+
+	if (kthread_should_park())
+		kthread_parkme();
+
 	return 0;
 }
 
@@ -2054,6 +2058,7 @@ static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 	if (ctx->sqo_thread) {
 		ctx->sqo_stop = 1;
 		mb();
+		kthread_park(ctx->sqo_thread);
 		kthread_stop(ctx->sqo_thread);
 		ctx->sqo_thread = NULL;
 	}
