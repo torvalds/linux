@@ -572,12 +572,16 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -ENODATA:
 		case -EBADMSG:
 		case -EMSGSIZE:
-		default:
 			abort_code = RXGEN_CC_UNMARSHAL;
 			if (state != AFS_CALL_CL_AWAIT_REPLY)
 				abort_code = RXGEN_SS_UNMARSHAL;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
 						abort_code, ret, "KUM");
+			goto local_abort;
+		default:
+			abort_code = RX_USER_ABORT;
+			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
+						abort_code, ret, "KER");
 			goto local_abort;
 		}
 	}
