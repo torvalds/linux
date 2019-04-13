@@ -290,4 +290,7 @@
 /* Socionext Milbeaut UART */
 #define PORT_MLB_USIO	119
 
+/* SiFive UART */
+#define PORT_SIFIVE_V0	120
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
