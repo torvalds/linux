@@ -16,7 +16,9 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/netfilter_bridge.h>
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 #include <net/netfilter/nf_queue.h>
+#endif
 #include <linux/neighbour.h>
 #include <net/arp.h>
 #include <linux/export.h>
