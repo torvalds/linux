@@ -682,11 +682,9 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 		list_add_tail(&req->list, &ctx->poll_list);
 }
 
-static void io_file_put(struct io_submit_state *state, struct file *file)
+static void io_file_put(struct io_submit_state *state)
 {
-	if (!state) {
-		fput(file);
-	} else if (state->file) {
+	if (state->file) {
 		int diff = state->has_refs - state->used_refs;
 
 		if (diff)
@@ -711,7 +709,7 @@ static struct file *io_file_get(struct io_submit_state *state, int fd)
 			state->ios_left--;
 			return state->file;
 		}
-		io_file_put(state, NULL);
+		io_file_put(state);
 	}
 	state->file = fget_many(fd, state->ios_left);
 	if (!state->file)
@@ -1671,7 +1669,7 @@ out:
 static void io_submit_state_end(struct io_submit_state *state)
 {
 	blk_finish_plug(&state->plug);
-	io_file_put(state, NULL);
+	io_file_put(state);
 	if (state->free_reqs)
 		kmem_cache_free_bulk(req_cachep, state->free_reqs,
 					&state->reqs[state->cur_req]);
