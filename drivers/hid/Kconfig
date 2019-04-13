@@ -1007,6 +1007,7 @@ config HID_U2FZERO
 	tristate "U2F Zero LED and RNG support"
 	depends on USB_HID
 	depends on LEDS_CLASS
+	depends on HW_RANDOM
 	help
 	  Support for the LED of the U2F Zero device.
 
