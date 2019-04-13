@@ -282,7 +282,6 @@ struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
 }
 EXPORT_SYMBOL_GPL(cxgbi_device_find_by_netdev_rcu);
 
-#if IS_ENABLED(CONFIG_IPV6)
 static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 						     int *port)
 {
@@ -315,7 +314,6 @@ static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 		  ndev, ndev->name);
 	return NULL;
 }
-#endif
 
 void cxgbi_hbas_remove(struct cxgbi_device *cdev)
 {
@@ -653,6 +651,8 @@ cxgbi_check_route(struct sockaddr *dst_addr, int ifindex)
 	}
 
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
+	if (!cdev)
+		cdev = cxgbi_device_find_by_mac(ndev, &port);
 	if (!cdev) {
 		pr_info("dst %pI4, %s, NOT cxgbi device.\n",
 			&daddr->sin_addr.s_addr, ndev->name);
