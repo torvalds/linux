@@ -8,6 +8,11 @@
 
 const char *phy_speed_to_str(int speed)
 {
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 67,
+		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
+		"If a speed or mode has been added please update phy_speed_to_str "
+		"and the PHY settings array.\n");
+
 	switch (speed) {
 	case SPEED_10:
 		return "10Mbps";
