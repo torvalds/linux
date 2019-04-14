@@ -396,7 +396,7 @@ static inline unsigned long cpu_kernelmode_gs_base(int cpu)
 	return (unsigned long)per_cpu(irq_stack_union.gs_base, cpu);
 }
 
-DECLARE_PER_CPU(char *, irq_stack_ptr);
+DECLARE_PER_CPU(char *, hardirq_stack_ptr);
 DECLARE_PER_CPU(unsigned int, irq_count);
 extern asmlinkage void ignore_sysret(void);
 

@@ -56,7 +56,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	    regs->sp <= curbase + THREAD_SIZE)
 		return;
 
-	irq_stack_top = (u64)__this_cpu_read(irq_stack_ptr);
+	irq_stack_top = (u64)__this_cpu_read(hardirq_stack_ptr);
 	irq_stack_bottom = irq_stack_top - IRQ_STACK_SIZE + STACK_MARGIN;
 	if (regs->sp >= irq_stack_bottom && regs->sp <= irq_stack_top)
 		return;
