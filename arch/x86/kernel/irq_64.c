@@ -87,3 +87,18 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 	generic_handle_irq_desc(desc);
 	return true;
 }
+
+static int map_irq_stack(unsigned int cpu)
+{
+	void *va = per_cpu_ptr(irq_stack_union.irq_stack, cpu);
+
+	per_cpu(hardirq_stack_ptr, cpu) = va + IRQ_STACK_SIZE;
+	return 0;
+}
+
+int irq_init_percpu_irqstack(unsigned int cpu)
+{
+	if (per_cpu(hardirq_stack_ptr, cpu))
+		return 0;
+	return map_irq_stack(cpu);
+}

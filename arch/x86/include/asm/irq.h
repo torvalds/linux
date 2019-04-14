@@ -16,11 +16,7 @@ static inline int irq_canonicalize(int irq)
 	return ((irq == 2) ? 9 : irq);
 }
 
-#ifdef CONFIG_X86_32
 extern int irq_init_percpu_irqstack(unsigned int cpu);
-#else
-static inline int irq_init_percpu_irqstack(unsigned int cpu) { return 0; }
-#endif
 
 #define __ARCH_HAS_DO_SOFTIRQ
 
