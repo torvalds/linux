@@ -222,7 +222,10 @@ static int emc_set_timing(struct tegra_clk_emc *tegra,
 
 	if (emc_get_parent(&tegra->hw) == timing->parent_index &&
 	    clk_get_rate(timing->parent) != timing->parent_rate) {
-		BUG();
+		WARN_ONCE(1, "parent %s rate mismatch %lu %lu\n",
+			  __clk_get_name(timing->parent),
+			  clk_get_rate(timing->parent),
+			  timing->parent_rate);
 		return -EINVAL;
 	}
 
