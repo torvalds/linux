@@ -1549,17 +1549,7 @@ void syscall_init(void)
 	       X86_EFLAGS_IOPL|X86_EFLAGS_AC|X86_EFLAGS_NT);
 }
 
-static DEFINE_PER_CPU(unsigned long, debug_stack_addr);
 DEFINE_PER_CPU(int, debug_stack_usage);
-
-int is_debug_stack(unsigned long addr)
-{
-	return __this_cpu_read(debug_stack_usage) ||
-		(addr <= __this_cpu_read(debug_stack_addr) &&
-		 addr > (__this_cpu_read(debug_stack_addr) - DEBUG_STKSZ));
-}
-NOKPROBE_SYMBOL(is_debug_stack);
-
 DEFINE_PER_CPU(u32, debug_idt_ctr);
 
 void debug_stack_set_zero(void)
@@ -1735,7 +1725,6 @@ void cpu_init(void)
 		t->x86_tss.ist[IST_INDEX_NMI] = __this_cpu_ist_top_va(NMI);
 		t->x86_tss.ist[IST_INDEX_DB] = __this_cpu_ist_top_va(DB);
 		t->x86_tss.ist[IST_INDEX_MCE] = __this_cpu_ist_top_va(MCE);
-		per_cpu(debug_stack_addr, cpu) = t->x86_tss.ist[IST_INDEX_DB];
 	}
 
 	t->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;

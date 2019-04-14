@@ -19,16 +19,18 @@
 #include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
 
-static const char *exception_stack_names[N_EXCEPTION_STACKS] = {
+static const char * const exception_stack_names[] = {
 		[ ESTACK_DF	]	= "#DF",
 		[ ESTACK_NMI	]	= "NMI",
+		[ ESTACK_DB2	]	= "#DB2",
+		[ ESTACK_DB1	]	= "#DB1",
 		[ ESTACK_DB	]	= "#DB",
 		[ ESTACK_MCE	]	= "#MC",
 };
 
 const char *stack_type_name(enum stack_type type)
 {
-	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
+	BUILD_BUG_ON(N_EXCEPTION_STACKS != 6);
 
 	if (type == STACK_TYPE_IRQ)
 		return "IRQ";
@@ -58,9 +60,11 @@ struct estack_layout {
 	.end	= offsetof(struct cea_exception_stacks, x## _stack_guard) \
 	}
 
-static const struct estack_layout layout[N_EXCEPTION_STACKS] = {
+static const struct estack_layout layout[] = {
 	[ ESTACK_DF	]	= ESTACK_ENTRY(DF),
 	[ ESTACK_NMI	]	= ESTACK_ENTRY(NMI),
+	[ ESTACK_DB2	]	= { .begin = 0, .end = 0},
+	[ ESTACK_DB1	]	= ESTACK_ENTRY(DB1),
 	[ ESTACK_DB	]	= ESTACK_ENTRY(DB),
 	[ ESTACK_MCE	]	= ESTACK_ENTRY(MCE),
 };
@@ -71,7 +75,7 @@ static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 	struct pt_regs *regs;
 	unsigned int k;
 
-	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
+	BUILD_BUG_ON(N_EXCEPTION_STACKS != 6);
 
 	estacks = (unsigned long)__this_cpu_read(cea_exception_stacks);
 

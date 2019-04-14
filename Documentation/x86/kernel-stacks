@@ -76,7 +76,7 @@ The currently assigned IST stacks are :-
   middle of switching stacks.  Using IST for NMI events avoids making
   assumptions about the previous state of the kernel stack.
 
-* ESTACK_DB.  DEBUG_STKSZ
+* ESTACK_DB.  EXCEPTION_STKSZ (PAGE_SIZE).
 
   Used for hardware debug interrupts (interrupt 1) and for software
   debug interrupts (INT3).
@@ -85,6 +85,11 @@ The currently assigned IST stacks are :-
   software) can occur at any time.  Using IST for these interrupts
   avoids making assumptions about the previous state of the kernel
   stack.
+
+  To handle nested #DB correctly there exist two instances of DB stacks. On
+  #DB entry the IST stackpointer for #DB is switched to the second instance
+  so a nested #DB starts from a clean stack. The nested #DB switches
+  the IST stackpointer to a guard hole to catch triple nesting.
 
 * ESTACK_MCE.  EXCEPTION_STKSZ (PAGE_SIZE).
 

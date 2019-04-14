@@ -98,10 +98,12 @@ static void __init percpu_setup_exception_stacks(unsigned int cpu)
 
 	/*
 	 * The exceptions stack mappings in the per cpu area are protected
-	 * by guard pages so each stack must be mapped separately.
+	 * by guard pages so each stack must be mapped separately. DB2 is
+	 * not mapped; it just exists to catch triple nesting of #DB.
 	 */
 	cea_map_stack(DF);
 	cea_map_stack(NMI);
+	cea_map_stack(DB1);
 	cea_map_stack(DB);
 	cea_map_stack(MCE);
 }

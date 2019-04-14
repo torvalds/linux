@@ -879,7 +879,7 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
  * @paranoid == 2 is special: the stub will never switch stacks.  This is for
  * #DF: if the thread stack is somehow unusable, we'll still get a useful OOPS.
  */
-.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1
+.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1 ist_offset=0
 ENTRY(\sym)
 	UNWIND_HINT_IRET_REGS offset=\has_error_code*8
 
@@ -925,13 +925,13 @@ ENTRY(\sym)
 	.endif
 
 	.if \shift_ist != -1
-	subq	$EXCEPTION_STKSZ, CPU_TSS_IST(\shift_ist)
+	subq	$\ist_offset, CPU_TSS_IST(\shift_ist)
 	.endif
 
 	call	\do_sym
 
 	.if \shift_ist != -1
-	addq	$EXCEPTION_STKSZ, CPU_TSS_IST(\shift_ist)
+	addq	$\ist_offset, CPU_TSS_IST(\shift_ist)
 	.endif
 
 	/* these procedures expect "no swapgs" flag in ebx */
@@ -1129,7 +1129,7 @@ apicinterrupt3 HYPERV_STIMER0_VECTOR \
 	hv_stimer0_callback_vector hv_stimer0_vector_handler
 #endif /* CONFIG_HYPERV */
 
-idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=IST_INDEX_DB
+idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=IST_INDEX_DB ist_offset=DB_STACK_OFFSET
 idtentry int3			do_int3			has_error_code=0
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
