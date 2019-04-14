@@ -427,7 +427,7 @@ static int max8998_set_voltage_buck_time_sel(struct regulator_dev *rdev,
 	return 0;
 }
 
-static struct regulator_ops max8998_ldo_ops = {
+static const struct regulator_ops max8998_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= max8998_ldo_is_enabled,
@@ -437,7 +437,7 @@ static struct regulator_ops max8998_ldo_ops = {
 	.set_voltage_sel	= max8998_set_voltage_ldo_sel,
 };
 
-static struct regulator_ops max8998_buck_ops = {
+static const struct regulator_ops max8998_buck_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= max8998_ldo_is_enabled,
@@ -448,7 +448,7 @@ static struct regulator_ops max8998_buck_ops = {
 	.set_voltage_time_sel	= max8998_set_voltage_buck_time_sel,
 };
 
-static struct regulator_ops max8998_others_ops = {
+static const struct regulator_ops max8998_others_ops = {
 	.is_enabled		= max8998_ldo_is_enabled,
 	.enable			= max8998_ldo_enable,
 	.disable		= max8998_ldo_disable,
