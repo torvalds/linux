@@ -18,6 +18,8 @@
 #include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/sched/task_stack.h>
+
+#include <asm/cpu_entry_area.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 
@@ -43,10 +45,9 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 {
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 #define STACK_MARGIN	128
-	struct orig_ist *oist;
-	u64 irq_stack_top, irq_stack_bottom;
-	u64 estack_top, estack_bottom;
+	u64 irq_stack_top, irq_stack_bottom, estack_top, estack_bottom;
 	u64 curbase = (u64)task_stack_page(current);
+	struct cea_exception_stacks *estacks;
 
 	if (user_mode(regs))
 		return;
@@ -60,9 +61,9 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	if (regs->sp >= irq_stack_bottom && regs->sp <= irq_stack_top)
 		return;
 
-	oist = this_cpu_ptr(&orig_ist);
-	estack_top = (u64)oist->ist[ESTACK_DB];
-	estack_bottom = estack_top - DEBUG_STKSZ + STACK_MARGIN;
+	estacks = __this_cpu_read(cea_exception_stacks);
+	estack_top = CEA_ESTACK_TOP(estacks, DB);
+	estack_bottom = CEA_ESTACK_BOT(estacks, DB) + STACK_MARGIN;
 	if (regs->sp >= estack_bottom && regs->sp <= estack_top)
 		return;
 
