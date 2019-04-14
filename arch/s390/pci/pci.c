@@ -25,6 +25,7 @@
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
+#include <linux/jump_label.h>
 #include <linux/pci.h>
 
 #include <asm/isc.h>
@@ -49,6 +50,8 @@ static DEFINE_SPINLOCK(zpci_iomap_lock);
 static unsigned long *zpci_iomap_bitmap;
 struct zpci_iomap_entry *zpci_iomap_start;
 EXPORT_SYMBOL_GPL(zpci_iomap_start);
+
+DEFINE_STATIC_KEY_FALSE(have_mio);
 
 static struct kmem_cache *zdev_fmb_cache;
 
@@ -223,17 +226,47 @@ void __iowrite64_copy(void __iomem *to, const void *from, size_t count)
        zpci_memcpy_toio(to, from, count);
 }
 
+void __iomem *ioremap(unsigned long ioaddr, unsigned long size)
+{
+	struct vm_struct *area;
+	unsigned long offset;
+
+	if (!size)
+		return NULL;
+
+	if (!static_branch_unlikely(&have_mio))
+		return (void __iomem *) ioaddr;
+
+	offset = ioaddr & ~PAGE_MASK;
+	ioaddr &= PAGE_MASK;
+	size = PAGE_ALIGN(size + offset);
+	area = get_vm_area(size, VM_IOREMAP);
+	if (!area)
+		return NULL;
+
+	if (ioremap_page_range((unsigned long) area->addr,
+			       (unsigned long) area->addr + size,
+			       ioaddr, PAGE_KERNEL)) {
+		vunmap(area->addr);
+		return NULL;
+	}
+	return (void __iomem *) ((unsigned long) area->addr + offset);
+}
+EXPORT_SYMBOL(ioremap);
+
+void iounmap(volatile void __iomem *addr)
+{
+	if (static_branch_likely(&have_mio))
+		vunmap((__force void *) ((unsigned long) addr & PAGE_MASK));
+}
+EXPORT_SYMBOL(iounmap);
+
 /* Create a virtual mapping cookie for a PCI BAR */
-void __iomem *pci_iomap_range(struct pci_dev *pdev,
-			      int bar,
-			      unsigned long offset,
-			      unsigned long max)
+static void __iomem *pci_iomap_range_fh(struct pci_dev *pdev, int bar,
+					unsigned long offset, unsigned long max)
 {
 	struct zpci_dev *zdev =	to_zpci(pdev);
 	int idx;
-
-	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
-		return NULL;
 
 	idx = zdev->bars[bar].map_idx;
 	spin_lock(&zpci_iomap_lock);
@@ -245,6 +278,30 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 
 	return (void __iomem *) ZPCI_ADDR(idx) + offset;
 }
+
+static void __iomem *pci_iomap_range_mio(struct pci_dev *pdev, int bar,
+					 unsigned long offset,
+					 unsigned long max)
+{
+	unsigned long barsize = pci_resource_len(pdev, bar);
+	struct zpci_dev *zdev = to_zpci(pdev);
+	void __iomem *iova;
+
+	iova = ioremap((unsigned long) zdev->bars[bar].mio_wt, barsize);
+	return iova ? iova + offset : iova;
+}
+
+void __iomem *pci_iomap_range(struct pci_dev *pdev, int bar,
+			      unsigned long offset, unsigned long max)
+{
+	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
+		return NULL;
+
+	if (static_branch_likely(&have_mio))
+		return pci_iomap_range_mio(pdev, bar, offset, max);
+	else
+		return pci_iomap_range_fh(pdev, bar, offset, max);
+}
 EXPORT_SYMBOL(pci_iomap_range);
 
 void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
@@ -253,7 +310,37 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 }
 EXPORT_SYMBOL(pci_iomap);
 
-void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
+static void __iomem *pci_iomap_wc_range_mio(struct pci_dev *pdev, int bar,
+					    unsigned long offset, unsigned long max)
+{
+	unsigned long barsize = pci_resource_len(pdev, bar);
+	struct zpci_dev *zdev = to_zpci(pdev);
+	void __iomem *iova;
+
+	iova = ioremap((unsigned long) zdev->bars[bar].mio_wb, barsize);
+	return iova ? iova + offset : iova;
+}
+
+void __iomem *pci_iomap_wc_range(struct pci_dev *pdev, int bar,
+				 unsigned long offset, unsigned long max)
+{
+	if (!pci_resource_len(pdev, bar) || bar >= PCI_BAR_COUNT)
+		return NULL;
+
+	if (static_branch_likely(&have_mio))
+		return pci_iomap_wc_range_mio(pdev, bar, offset, max);
+	else
+		return pci_iomap_range_fh(pdev, bar, offset, max);
+}
+EXPORT_SYMBOL(pci_iomap_wc_range);
+
+void __iomem *pci_iomap_wc(struct pci_dev *dev, int bar, unsigned long maxlen)
+{
+	return pci_iomap_wc_range(dev, bar, 0, maxlen);
+}
+EXPORT_SYMBOL(pci_iomap_wc);
+
+static void pci_iounmap_fh(struct pci_dev *pdev, void __iomem *addr)
 {
 	unsigned int idx = ZPCI_IDX(addr);
 
@@ -265,6 +352,19 @@ void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
 		zpci_iomap_start[idx].bar = 0;
 	}
 	spin_unlock(&zpci_iomap_lock);
+}
+
+static void pci_iounmap_mio(struct pci_dev *pdev, void __iomem *addr)
+{
+	iounmap(addr);
+}
+
+void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
+{
+	if (static_branch_likely(&have_mio))
+		pci_iounmap_mio(pdev, addr);
+	else
+		pci_iounmap_fh(pdev, addr);
 }
 EXPORT_SYMBOL(pci_iounmap);
 
@@ -312,6 +412,7 @@ static struct resource iov_res = {
 
 static void zpci_map_resources(struct pci_dev *pdev)
 {
+	struct zpci_dev *zdev = to_zpci(pdev);
 	resource_size_t len;
 	int i;
 
@@ -319,8 +420,13 @@ static void zpci_map_resources(struct pci_dev *pdev)
 		len = pci_resource_len(pdev, i);
 		if (!len)
 			continue;
-		pdev->resource[i].start =
-			(resource_size_t __force) pci_iomap(pdev, i, 0);
+
+		if (static_branch_likely(&have_mio))
+			pdev->resource[i].start =
+				(resource_size_t __force) zdev->bars[i].mio_wb;
+		else
+			pdev->resource[i].start =
+				(resource_size_t __force) pci_iomap(pdev, i, 0);
 		pdev->resource[i].end = pdev->resource[i].start + len - 1;
 	}
 
@@ -340,6 +446,9 @@ static void zpci_unmap_resources(struct pci_dev *pdev)
 {
 	resource_size_t len;
 	int i;
+
+	if (static_branch_likely(&have_mio))
+		return;
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
 		len = pci_resource_len(pdev, i);
@@ -771,6 +880,9 @@ static int __init pci_base_init(void)
 
 	if (!test_facility(69) || !test_facility(71))
 		return 0;
+
+	if (test_facility(153))
+		static_branch_enable(&have_mio);
 
 	rc = zpci_debug_init();
 	if (rc)

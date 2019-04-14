@@ -2,6 +2,8 @@
 #ifndef _ASM_S390_PCI_INSN_H
 #define _ASM_S390_PCI_INSN_H
 
+#include <linux/jump_label.h>
+
 /* Load/Store status codes */
 #define ZPCI_PCI_ST_FUNC_NOT_ENABLED		4
 #define ZPCI_PCI_ST_FUNC_IN_ERR			8
@@ -122,6 +124,8 @@ union zpci_sic_iib {
 	struct zpci_cdiib cdiib;
 };
 
+DECLARE_STATIC_KEY_FALSE(have_mio);
+
 u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status);
 int zpci_refresh_trans(u64 fn, u64 addr, u64 range);
 int __zpci_load(u64 *data, u64 req, u64 offset);
@@ -129,6 +133,7 @@ int zpci_load(u64 *data, const volatile void __iomem *addr, unsigned long len);
 int __zpci_store(u64 data, u64 req, u64 offset);
 int zpci_store(const volatile void __iomem *addr, u64 data, unsigned long len);
 int __zpci_store_block(const u64 *data, u64 req, u64 offset);
+void zpci_barrier(void);
 int __zpci_set_irq_ctrl(u16 ctl, u8 isc, union zpci_sic_iib *iib);
 
 static inline int zpci_set_irq_ctrl(u16 ctl, u8 isc)

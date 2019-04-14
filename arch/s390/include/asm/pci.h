@@ -86,6 +86,8 @@ enum zpci_state {
 
 struct zpci_bar_struct {
 	struct resource *res;		/* bus resource */
+	void __iomem	*mio_wb;
+	void __iomem	*mio_wt;
 	u32		val;		/* bar start & 3 flag bits */
 	u16		map_idx;	/* index into bar mapping array */
 	u8		size;		/* order 2 exponent */
@@ -135,6 +137,7 @@ struct zpci_dev {
 	struct iommu_device iommu_dev;  /* IOMMU core handle */
 
 	char res_name[16];
+	bool mio_capable;
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
 
 	u64		start_dma;	/* Start of available DMA addresses */
