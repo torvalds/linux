@@ -245,6 +245,27 @@ static int hclgevf_get_tc_info(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static int hclgevf_get_port_base_vlan_filter_state(struct hclgevf_dev *hdev)
+{
+	struct hnae3_handle *nic = &hdev->nic;
+	u8 resp_msg;
+	int ret;
+
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+				   HCLGE_MBX_GET_PORT_BASE_VLAN_STATE,
+				   NULL, 0, true, &resp_msg, sizeof(u8));
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"VF request to get port based vlan state failed %d",
+			ret);
+		return ret;
+	}
+
+	nic->port_base_vlan_state = resp_msg;
+
+	return 0;
+}
+
 static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_TQPS_RSS_INFO_LEN	6
@@ -1834,6 +1855,11 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 {
 	int ret;
 
+	/* get current port based vlan state from PF */
+	ret = hclgevf_get_port_base_vlan_filter_state(hdev);
+	if (ret)
+		return ret;
+
 	/* get queue configuration from PF */
 	ret = hclgevf_get_queue_info(hdev);
 	if (ret)
@@ -2788,6 +2814,31 @@ static void hclgevf_get_regs(struct hnae3_handle *handle, u32 *version,
 		for (i = 0; i < separator_num; i++)
 			*reg++ = SEPARATOR_VALUE;
 	}
+}
+
+void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
+					u8 *port_base_vlan_info, u8 data_size)
+{
+	struct hnae3_handle *nic = &hdev->nic;
+
+	rtnl_lock();
+	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	rtnl_unlock();
+
+	/* send msg to PF and wait update port based vlan info */
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_VLAN,
+			     HCLGE_MBX_PORT_BASE_VLAN_CFG,
+			     port_base_vlan_info, data_size,
+			     false, NULL, 0);
+
+	if (state == HNAE3_PORT_BASE_VLAN_DISABLE)
+		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_DISABLE;
+	else
+		nic->port_base_vlan_state = HNAE3_PORT_BASE_VLAN_ENABLE;
+
+	rtnl_lock();
+	hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	rtnl_unlock();
 }
 
 static const struct hnae3_ae_ops hclgevf_ops = {
