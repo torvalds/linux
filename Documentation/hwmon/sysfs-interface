@@ -756,6 +756,24 @@ intrusion[0-*]_beep
 		1: enable
 		RW
 
+********************************
+* Average sample configuration *
+********************************
+
+Devices allowing for reading {in,power,curr,temp}_average values may export
+attributes for controlling number of samples used to compute average.
+
+samples		Sets number of average samples for all types of measurements.
+		RW
+
+in_samples
+power_samples
+curr_samples
+temp_samples    Sets number of average samples for specific type of measurements.
+		Note that on some devices it won't be possible to set all of them
+		to different values so changing one might also change some others.
+		RW
+
 
 sysfs attribute writes interpretation
 -------------------------------------
