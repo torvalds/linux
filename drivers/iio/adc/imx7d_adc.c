@@ -461,6 +461,24 @@ static int imx7d_adc_enable(struct device *dev)
 	return 0;
 }
 
+static int imx7d_adc_disable(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct imx7d_adc *info = iio_priv(indio_dev);
+
+	imx7d_adc_power_down(info);
+
+	clk_disable_unprepare(info->clk);
+	regulator_disable(info->vref);
+
+	return 0;
+}
+
+static void __imx7d_adc_disable(void *data)
+{
+	imx7d_adc_disable(data);
+}
+
 static int imx7d_adc_probe(struct platform_device *pdev)
 {
 	struct imx7d_adc *info;
@@ -531,11 +549,13 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(dev, __imx7d_adc_disable,
+				       &indio_dev->dev);
+	if (ret)
+		return ret;
+
 	ret = iio_device_register(indio_dev);
 	if (ret) {
-		imx7d_adc_power_down(info);
-		clk_disable_unprepare(info->clk);
-		regulator_disable(info->vref);
 		dev_err(&pdev->dev, "Couldn't register the device.\n");
 		return ret;
 	}
@@ -546,32 +566,14 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 static int imx7d_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct imx7d_adc *info = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 
-	imx7d_adc_power_down(info);
-
-	clk_disable_unprepare(info->clk);
-	regulator_disable(info->vref);
-
 	return 0;
 }
 
-static int __maybe_unused imx7d_adc_suspend(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct imx7d_adc *info = iio_priv(indio_dev);
 
-	imx7d_adc_power_down(info);
-
-	clk_disable_unprepare(info->clk);
-	regulator_disable(info->vref);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_suspend, imx7d_adc_enable);
+static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_disable, imx7d_adc_enable);
 
 static struct platform_driver imx7d_adc_driver = {
 	.probe		= imx7d_adc_probe,
