@@ -7,6 +7,51 @@
 #include <asm/processor.h>
 #include <asm/intel_ds.h>
 
+#ifdef CONFIG_X86_64
+
+/* Macro to enforce the same ordering and stack sizes */
+#define ESTACKS_MEMBERS(guardsize)		\
+	char	DF_stack_guard[guardsize];	\
+	char	DF_stack[EXCEPTION_STKSZ];	\
+	char	NMI_stack_guard[guardsize];	\
+	char	NMI_stack[EXCEPTION_STKSZ];	\
+	char	DB_stack_guard[guardsize];	\
+	char	DB_stack[DEBUG_STKSZ];		\
+	char	MCE_stack_guard[guardsize];	\
+	char	MCE_stack[EXCEPTION_STKSZ];	\
+	char	IST_top_guard[guardsize];	\
+
+/* The exception stacks' physical storage. No guard pages required */
+struct exception_stacks {
+	ESTACKS_MEMBERS(0)
+};
+
+/*
+ * The effective cpu entry area mapping with guard pages. Guard size is
+ * zero until the code which makes assumptions about linear mappings is
+ * cleaned up.
+ */
+struct cea_exception_stacks {
+	ESTACKS_MEMBERS(0)
+};
+
+#define CEA_ESTACK_SIZE(st)					\
+	sizeof(((struct cea_exception_stacks *)0)->st## _stack)
+
+#define CEA_ESTACK_BOT(ceastp, st)				\
+	((unsigned long)&(ceastp)->st## _stack)
+
+#define CEA_ESTACK_TOP(ceastp, st)				\
+	(CEA_ESTACK_BOT(ceastp, st) + CEA_ESTACK_SIZE(st))
+
+#define CEA_ESTACK_OFFS(st)					\
+	offsetof(struct cea_exception_stacks, st## _stack)
+
+#define CEA_ESTACK_PAGES					\
+	(sizeof(struct cea_exception_stacks) / PAGE_SIZE)
+
+#endif
+
 /*
  * cpu_entry_area is a percpu region that contains things needed by the CPU
  * and early entry/exit code.  Real types aren't used for all fields here
@@ -32,12 +77,9 @@ struct cpu_entry_area {
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Exception stacks used for IST entries.
-	 *
-	 * In the future, this should have a separate slot for each stack
-	 * with guard pages between them.
+	 * Exception stacks used for IST entries with guard pages.
 	 */
-	char exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ];
+	struct cea_exception_stacks estacks;
 #endif
 #ifdef CONFIG_CPU_SUP_INTEL
 	/*
