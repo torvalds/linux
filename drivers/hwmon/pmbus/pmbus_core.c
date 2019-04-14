@@ -1901,6 +1901,112 @@ static int pmbus_add_fan_attributes(struct i2c_client *client,
 	return 0;
 }
 
+struct pmbus_samples_attr {
+	int reg;
+	char *name;
+};
+
+struct pmbus_samples_reg {
+	int page;
+	struct pmbus_samples_attr *attr;
+	struct device_attribute dev_attr;
+};
+
+static struct pmbus_samples_attr pmbus_samples_registers[] = {
+	{
+		.reg = PMBUS_VIRT_SAMPLES,
+		.name = "samples",
+	}, {
+		.reg = PMBUS_VIRT_IN_SAMPLES,
+		.name = "in_samples",
+	}, {
+		.reg = PMBUS_VIRT_CURR_SAMPLES,
+		.name = "curr_samples",
+	}, {
+		.reg = PMBUS_VIRT_POWER_SAMPLES,
+		.name = "power_samples",
+	}, {
+		.reg = PMBUS_VIRT_TEMP_SAMPLES,
+		.name = "temp_samples",
+	}
+};
+
+#define to_samples_reg(x) container_of(x, struct pmbus_samples_reg, dev_attr)
+
+static ssize_t pmbus_show_samples(struct device *dev,
+				  struct device_attribute *devattr, char *buf)
+{
+	int val;
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
+
+	val = _pmbus_read_word_data(client, reg->page, reg->attr->reg);
+	if (val < 0)
+		return val;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t pmbus_set_samples(struct device *dev,
+				 struct device_attribute *devattr,
+				 const char *buf, size_t count)
+{
+	int ret;
+	long val;
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
+
+	if (kstrtol(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	ret = _pmbus_write_word_data(client, reg->page, reg->attr->reg, val);
+
+	return ret ? : count;
+}
+
+static int pmbus_add_samples_attr(struct pmbus_data *data, int page,
+				  struct pmbus_samples_attr *attr)
+{
+	struct pmbus_samples_reg *reg;
+
+	reg = devm_kzalloc(data->dev, sizeof(*reg), GFP_KERNEL);
+	if (!reg)
+		return -ENOMEM;
+
+	reg->attr = attr;
+	reg->page = page;
+
+	pmbus_dev_attr_init(&reg->dev_attr, attr->name, 0644,
+			    pmbus_show_samples, pmbus_set_samples);
+
+	return pmbus_add_attribute(data, &reg->dev_attr.attr);
+}
+
+static int pmbus_add_samples_attributes(struct i2c_client *client,
+					struct pmbus_data *data)
+{
+	const struct pmbus_driver_info *info = data->info;
+	int s;
+
+	if (!(info->func[0] & PMBUS_HAVE_SAMPLES))
+		return 0;
+
+	for (s = 0; s < ARRAY_SIZE(pmbus_samples_registers); s++) {
+		struct pmbus_samples_attr *attr;
+		int ret;
+
+		attr = &pmbus_samples_registers[s];
+		if (!pmbus_check_word_register(client, 0, attr->reg))
+			continue;
+
+		ret = pmbus_add_samples_attr(data, 0, attr);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int pmbus_find_attributes(struct i2c_client *client,
 				 struct pmbus_data *data)
 {
@@ -1932,6 +2038,10 @@ static int pmbus_find_attributes(struct i2c_client *client,
 
 	/* Fans */
 	ret = pmbus_add_fan_attributes(client, data);
+	if (ret)
+		return ret;
+
+	ret = pmbus_add_samples_attributes(client, data);
 	return ret;
 }
 
