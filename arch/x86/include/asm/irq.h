@@ -17,9 +17,9 @@ static inline int irq_canonicalize(int irq)
 }
 
 #ifdef CONFIG_X86_32
-extern void irq_ctx_init(int cpu);
+extern int irq_init_percpu_irqstack(unsigned int cpu);
 #else
-# define irq_ctx_init(cpu) do { } while (0)
+static inline int irq_init_percpu_irqstack(unsigned int cpu) { return 0; }
 #endif
 
 #define __ARCH_HAS_DO_SOFTIRQ

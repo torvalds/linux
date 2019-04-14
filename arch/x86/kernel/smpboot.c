@@ -935,20 +935,27 @@ out:
 	return boot_error;
 }
 
-void common_cpu_up(unsigned int cpu, struct task_struct *idle)
+int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
+	int ret;
+
 	/* Just in case we booted with a single CPU. */
 	alternatives_enable_smp();
 
 	per_cpu(current_task, cpu) = idle;
 
+	/* Initialize the interrupt stack(s) */
+	ret = irq_init_percpu_irqstack(cpu);
+	if (ret)
+		return ret;
+
 #ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
-	irq_ctx_init(cpu);
 	per_cpu(cpu_current_top_of_stack, cpu) = task_top_of_stack(idle);
 #else
 	initial_gs = per_cpu_offset(cpu);
 #endif
+	return 0;
 }
 
 /*
@@ -1106,7 +1113,9 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	/* the FPU context is blank, nobody can own it */
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 
-	common_cpu_up(cpu, tidle);
+	err = common_cpu_up(cpu, tidle);
+	if (err)
+		return err;
 
 	err = do_boot_cpu(apicid, cpu, tidle, &cpu0_nmi_registered);
 	if (err) {

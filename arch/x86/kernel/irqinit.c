@@ -91,7 +91,7 @@ void __init init_IRQ(void)
 	for (i = 0; i < nr_legacy_irqs(); i++)
 		per_cpu(vector_irq, 0)[ISA_IRQ_VECTOR(i)] = irq_to_desc(i);
 
-	irq_ctx_init(smp_processor_id());
+	BUG_ON(irq_init_percpu_irqstack(smp_processor_id()));
 
 	x86_init.irqs.intr_init();
 }

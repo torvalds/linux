@@ -107,28 +107,28 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 }
 
 /*
- * allocate per-cpu stacks for hardirq and for softirq processing
+ * Allocate per-cpu stacks for hardirq and softirq processing
  */
-void irq_ctx_init(int cpu)
+int irq_init_percpu_irqstack(unsigned int cpu)
 {
-	struct irq_stack *irqstk;
+	int node = cpu_to_node(cpu);
+	struct page *ph, *ps;
 
 	if (per_cpu(hardirq_stack_ptr, cpu))
-		return;
+		return 0;
 
-	irqstk = page_address(alloc_pages_node(cpu_to_node(cpu),
-					       THREADINFO_GFP,
-					       THREAD_SIZE_ORDER));
-	per_cpu(hardirq_stack_ptr, cpu) = irqstk;
+	ph = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
+	if (!ph)
+		return -ENOMEM;
+	ps = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
+	if (!ps) {
+		__free_pages(ph, THREAD_SIZE_ORDER);
+		return -ENOMEM;
+	}
 
-	irqstk = page_address(alloc_pages_node(cpu_to_node(cpu),
-					       THREADINFO_GFP,
-					       THREAD_SIZE_ORDER));
-	per_cpu(softirq_stack_ptr, cpu) = irqstk;
-
-	pr_debug("CPU %u irqstacks, hard=%p soft=%p\n",
-		 cpu, per_cpu(hardirq_stack_ptr, cpu),
-		 per_cpu(softirq_stack_ptr, cpu));
+	per_cpu(hardirq_stack_ptr, cpu) = page_address(ph);
+	per_cpu(softirq_stack_ptr, cpu) = page_address(ps);
+	return 0;
 }
 
 void do_softirq_own_stack(void)
