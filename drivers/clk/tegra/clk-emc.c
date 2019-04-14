@@ -532,7 +532,5 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 	/* Allow debugging tools to see the EMC clock */
 	clk_register_clkdev(clk, "emc", "tegra-clk-debug");
 
-	clk_prepare_enable(clk);
-
 	return clk;
 };
