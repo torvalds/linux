@@ -378,6 +378,9 @@ static int qed_db_rec_flush_queue(struct qed_hwfn *p_hwfn,
 	u32 count = QED_DB_REC_COUNT;
 	u32 usage = 1;
 
+	/* Flush any pending (e)dpms as they may never arrive */
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_DPM_FORCE_ABORT, 0x1);
+
 	/* wait for usage to zero or count to run out. This is necessary since
 	 * EDPM doorbell transactions can take multiple 64b cycles, and as such
 	 * can "split" over the pci. Possibly, the doorbell drop can happen with
@@ -406,22 +409,23 @@ static int qed_db_rec_flush_queue(struct qed_hwfn *p_hwfn,
 
 int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 overflow;
+	u32 attn_ovfl, cur_ovfl;
 	int rc;
 
-	overflow = qed_rd(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY);
-	DP_NOTICE(p_hwfn, "PF Overflow sticky 0x%x\n", overflow);
-	if (!overflow)
+	attn_ovfl = test_and_clear_bit(QED_OVERFLOW_BIT,
+				       &p_hwfn->db_recovery_info.overflow);
+	cur_ovfl = qed_rd(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY);
+	if (!cur_ovfl && !attn_ovfl)
 		return 0;
 
-	if (qed_edpm_enabled(p_hwfn)) {
+	DP_NOTICE(p_hwfn, "PF Overflow sticky: attn %u current %u\n",
+		  attn_ovfl, cur_ovfl);
+
+	if (cur_ovfl && !p_hwfn->db_bar_no_edpm) {
 		rc = qed_db_rec_flush_queue(p_hwfn, p_ptt);
 		if (rc)
 			return rc;
 	}
-
-	/* Flush any pending (e)dpm as they may never arrive */
-	qed_wr(p_hwfn, p_ptt, DORQ_REG_DPM_FORCE_ABORT, 0x1);
 
 	/* Release overflow sticky indication (stop silently dropping everything) */
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY, 0x0);
@@ -432,13 +436,35 @@ int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return 0;
 }
 
-static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
+static void qed_dorq_attn_overflow(struct qed_hwfn *p_hwfn)
+{
+	struct qed_ptt *p_ptt = p_hwfn->p_dpc_ptt;
+	u32 overflow;
+	int rc;
+
+	overflow = qed_rd(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY);
+	if (!overflow)
+		goto out;
+
+	/* Run PF doorbell recovery in next periodic handler */
+	set_bit(QED_OVERFLOW_BIT, &p_hwfn->db_recovery_info.overflow);
+
+	if (!p_hwfn->db_bar_no_edpm) {
+		rc = qed_db_rec_flush_queue(p_hwfn, p_ptt);
+		if (rc)
+			goto out;
+	}
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY, 0x0);
+out:
+	/* Schedule the handler even if overflow was not detected */
+	qed_periodic_db_rec_start(p_hwfn);
+}
+
+static int qed_dorq_attn_int_sts(struct qed_hwfn *p_hwfn)
 {
 	u32 int_sts, first_drop_reason, details, address, all_drops_reason;
 	struct qed_ptt *p_ptt = p_hwfn->p_dpc_ptt;
-	int rc;
-
-	p_hwfn->db_recovery_info.dorq_attn = true;
 
 	/* int_sts may be zero since all PFs were interrupted for doorbell
 	 * overflow but another one already handled it. Can abort here. If
@@ -477,11 +503,6 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 			  GET_FIELD(details, QED_DORQ_ATTENTION_SIZE) * 4,
 			  first_drop_reason, all_drops_reason);
 
-		rc = qed_db_rec_handler(p_hwfn, p_ptt);
-		qed_periodic_db_rec_start(p_hwfn);
-		if (rc)
-			return rc;
-
 		/* Clear the doorbell drop details and prepare for next drop */
 		qed_wr(p_hwfn, p_ptt, DORQ_REG_DB_DROP_DETAILS_REL, 0);
 
@@ -505,6 +526,14 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 	DP_INFO(p_hwfn, "DORQ fatal attention\n");
 
 	return -EINVAL;
+}
+
+static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
+{
+	p_hwfn->db_recovery_info.dorq_attn = true;
+	qed_dorq_attn_overflow(p_hwfn);
+
+	return qed_dorq_attn_int_sts(p_hwfn);
 }
 
 static void qed_dorq_attn_handler(struct qed_hwfn *p_hwfn)

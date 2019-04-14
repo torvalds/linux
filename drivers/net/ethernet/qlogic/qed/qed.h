@@ -431,6 +431,8 @@ struct qed_qm_info {
 	u8 num_pf_rls;
 };
 
+#define QED_OVERFLOW_BIT	1
+
 struct qed_db_recovery_info {
 	struct list_head list;
 
@@ -438,6 +440,7 @@ struct qed_db_recovery_info {
 	spinlock_t lock;
 	bool dorq_attn;
 	u32 db_recovery_counter;
+	unsigned long overflow;
 };
 
 struct storm_stats {
