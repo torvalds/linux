@@ -307,7 +307,7 @@ int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc)
 
 	if (nbytes &&
 	    (sg = req->src, offset = sg->offset,
-	     nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset))) {
+	     nbytes <= min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset))) {
 		void *data;
 
 		data = kmap_atomic(sg_page(sg));
