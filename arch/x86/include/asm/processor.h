@@ -425,8 +425,8 @@ struct irq_stack {
 	char			stack[IRQ_STACK_SIZE];
 } __aligned(IRQ_STACK_SIZE);
 
-DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
-DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
+DECLARE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
+DECLARE_PER_CPU(struct irq_stack *, softirq_stack_ptr);
 #endif	/* X86_64 */
 
 extern unsigned int fpu_kernel_xstate_size;
