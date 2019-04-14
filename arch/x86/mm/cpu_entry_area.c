@@ -77,6 +77,34 @@ static void __init percpu_setup_debug_store(unsigned int cpu)
 #endif
 }
 
+#ifdef CONFIG_X86_64
+
+#define cea_map_stack(name) do {					\
+	npages = sizeof(estacks->name## _stack) / PAGE_SIZE;		\
+	cea_map_percpu_pages(cea->estacks.name## _stack,		\
+			estacks->name## _stack, npages, PAGE_KERNEL);	\
+	} while (0)
+
+static void __init percpu_setup_exception_stacks(unsigned int cpu)
+{
+	struct exception_stacks *estacks = per_cpu_ptr(&exception_stacks, cpu);
+	struct cpu_entry_area *cea = get_cpu_entry_area(cpu);
+	unsigned int npages;
+
+	BUILD_BUG_ON(sizeof(exception_stacks) % PAGE_SIZE != 0);
+	/*
+	 * The exceptions stack mappings in the per cpu area are protected
+	 * by guard pages so each stack must be mapped separately.
+	 */
+	cea_map_stack(DF);
+	cea_map_stack(NMI);
+	cea_map_stack(DB);
+	cea_map_stack(MCE);
+}
+#else
+static inline void percpu_setup_exception_stacks(unsigned int cpu) {}
+#endif
+
 /* Setup the fixmap mappings only once per-processor */
 static void __init setup_cpu_entry_area(unsigned int cpu)
 {
@@ -134,13 +162,8 @@ static void __init setup_cpu_entry_area(unsigned int cpu)
 	per_cpu(cpu_entry_area, cpu) = cea;
 #endif
 
-#ifdef CONFIG_X86_64
-	BUILD_BUG_ON(sizeof(exception_stacks) % PAGE_SIZE != 0);
-	BUILD_BUG_ON(sizeof(exception_stacks) !=
-		     sizeof(((struct cpu_entry_area *)0)->estacks));
-	cea_map_percpu_pages(&cea->estacks, &per_cpu(exception_stacks, cpu),
-			     sizeof(exception_stacks) / PAGE_SIZE, PAGE_KERNEL);
-#endif
+	percpu_setup_exception_stacks(cpu);
+
 	percpu_setup_debug_store(cpu);
 }
 
