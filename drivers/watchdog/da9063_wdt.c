@@ -208,18 +208,20 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	wdd->min_timeout = DA9063_WDT_MIN_TIMEOUT;
 	wdd->max_timeout = DA9063_WDT_MAX_TIMEOUT;
 	wdd->min_hw_heartbeat_ms = DA9063_RESET_PROTECTION_MS;
-	wdd->timeout = DA9063_WDG_TIMEOUT;
 	wdd->parent = dev;
-
 	wdd->status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 
 	watchdog_set_restart_priority(wdd, 128);
-
 	watchdog_set_drvdata(wdd, da9063);
+
+	/* Set default timeout, maybe override it with DT value, scale it */
+	wdd->timeout = DA9063_WDG_TIMEOUT;
+	watchdog_init_timeout(wdd, 0, dev);
+	da9063_wdt_set_timeout(wdd, wdd->timeout);
 
 	/* Change the timeout to the default value if the watchdog is running */
 	if (da9063_wdt_is_running(da9063)) {
-		da9063_wdt_update_timeout(da9063, DA9063_WDG_TIMEOUT);
+		da9063_wdt_update_timeout(da9063, wdd->timeout);
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
