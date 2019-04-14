@@ -289,9 +289,25 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 	return 0;
 }
 
+int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,
+				      u16 state, u16 vlan_tag, u16 qos,
+				      u16 vlan_proto)
+{
+#define MSG_DATA_SIZE	8
+
+	u8 msg_data[MSG_DATA_SIZE];
+
+	memcpy(&msg_data[0], &state, sizeof(u16));
+	memcpy(&msg_data[2], &vlan_proto, sizeof(u16));
+	memcpy(&msg_data[4], &qos, sizeof(u16));
+	memcpy(&msg_data[6], &vlan_tag, sizeof(u16));
+
+	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+				  HLCGE_MBX_PUSH_VLAN_INFO, vfid);
+}
+
 static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
-				 struct hclge_mbx_vf_to_pf_cmd *mbx_req,
-				 bool gen_resp)
+				 struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
 	int status = 0;
 
@@ -310,10 +326,21 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 		bool en = mbx_req->msg[2] ? true : false;
 
 		status = hclge_en_hw_strip_rxvtag(handle, en);
-	}
+	} else if (mbx_req->msg[1] == HCLGE_MBX_PORT_BASE_VLAN_CFG) {
+		struct hclge_vlan_info *vlan_info;
+		u16 *state;
 
-	if (gen_resp)
-		status = hclge_gen_resp_to_vf(vport, mbx_req, status, NULL, 0);
+		state = (u16 *)&mbx_req->msg[2];
+		vlan_info = (struct hclge_vlan_info *)&mbx_req->msg[4];
+		status = hclge_update_port_base_vlan_cfg(vport, *state,
+							 vlan_info);
+	} else if (mbx_req->msg[1] == HCLGE_MBX_GET_PORT_BASE_VLAN_STATE) {
+		u8 state;
+
+		state = vport->port_base_vlan_cfg.state;
+		status = hclge_gen_resp_to_vf(vport, mbx_req, 0, &state,
+					      sizeof(u8));
+	}
 
 	return status;
 }
@@ -584,7 +611,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					ret);
 			break;
 		case HCLGE_MBX_SET_VLAN:
-			ret = hclge_set_vf_vlan_cfg(vport, req, false);
+			ret = hclge_set_vf_vlan_cfg(vport, req);
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"PF failed(%d) to config VF's VLAN\n",

@@ -7067,7 +7067,16 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 		return ret;
 	}
 
-	return -EOPNOTSUPP;
+	if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state)) {
+		return hclge_update_port_base_vlan_cfg(vport, state,
+						       &vlan_info);
+	} else {
+		ret = hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
+							(u8)vfid, state,
+							vlan, qos,
+							ntohs(proto));
+		return ret;
+	}
 }
 
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
