@@ -438,16 +438,18 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 	struct qed_ptt *p_ptt = p_hwfn->p_dpc_ptt;
 	int rc;
 
-	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
-	DP_NOTICE(p_hwfn->cdev, "DORQ attention. int_sts was %x\n", int_sts);
+	p_hwfn->db_recovery_info.dorq_attn = true;
 
 	/* int_sts may be zero since all PFs were interrupted for doorbell
 	 * overflow but another one already handled it. Can abort here. If
 	 * This PF also requires overflow recovery we will be interrupted again.
 	 * The masked almost full indication may also be set. Ignoring.
 	 */
+	int_sts = qed_rd(p_hwfn, p_ptt, DORQ_REG_INT_STS);
 	if (!(int_sts & ~DORQ_REG_INT_STS_DORQ_FIFO_AFULL))
 		return 0;
+
+	DP_NOTICE(p_hwfn->cdev, "DORQ attention. int_sts was %x\n", int_sts);
 
 	/* check if db_drop or overflow happened */
 	if (int_sts & (DORQ_REG_INT_STS_DB_DROP |
@@ -503,6 +505,17 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 	DP_INFO(p_hwfn, "DORQ fatal attention\n");
 
 	return -EINVAL;
+}
+
+static void qed_dorq_attn_handler(struct qed_hwfn *p_hwfn)
+{
+	if (p_hwfn->db_recovery_info.dorq_attn)
+		goto out;
+
+	/* Call DORQ callback if the attention was missed */
+	qed_dorq_attn_cb(p_hwfn);
+out:
+	p_hwfn->db_recovery_info.dorq_attn = false;
 }
 
 /* Instead of major changes to the data-structure, we have a some 'special'
@@ -1077,6 +1090,9 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			}
 		}
 	}
+
+	/* Handle missed DORQ attention */
+	qed_dorq_attn_handler(p_hwfn);
 
 	/* Clear IGU indication for the deasserted bits */
 	DIRECT_REG_WR((u8 __iomem *)p_hwfn->regview +

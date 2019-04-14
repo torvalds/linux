@@ -436,6 +436,7 @@ struct qed_db_recovery_info {
 
 	/* Lock to protect the doorbell recovery mechanism list */
 	spinlock_t lock;
+	bool dorq_attn;
 	u32 db_recovery_counter;
 };
 
