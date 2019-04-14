@@ -411,10 +411,8 @@ int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	overflow = qed_rd(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY);
 	DP_NOTICE(p_hwfn, "PF Overflow sticky 0x%x\n", overflow);
-	if (!overflow) {
-		qed_db_recovery_execute(p_hwfn, DB_REC_ONCE);
+	if (!overflow)
 		return 0;
-	}
 
 	if (qed_edpm_enabled(p_hwfn)) {
 		rc = qed_db_rec_flush_queue(p_hwfn, p_ptt);
@@ -429,7 +427,7 @@ int qed_db_rec_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_OVFL_STICKY, 0x0);
 
 	/* Repeat all last doorbells (doorbell drop recovery) */
-	qed_db_recovery_execute(p_hwfn, DB_REC_REAL_DEAL);
+	qed_db_recovery_execute(p_hwfn);
 
 	return 0;
 }

@@ -300,26 +300,19 @@ void qed_db_recovery_dp(struct qed_hwfn *p_hwfn)
 
 /* Ring the doorbell of a single doorbell recovery entry */
 static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
-				 struct qed_db_recovery_entry *db_entry,
-				 enum qed_db_rec_exec db_exec)
+				 struct qed_db_recovery_entry *db_entry)
 {
-	if (db_exec != DB_REC_ONCE) {
-		/* Print according to width */
-		if (db_entry->db_width == DB_REC_WIDTH_32B) {
-			DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-				   "%s doorbell address %p data %x\n",
-				   db_exec == DB_REC_DRY_RUN ?
-				   "would have rung" : "ringing",
-				   db_entry->db_addr,
-				   *(u32 *)db_entry->db_data);
-		} else {
-			DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-				   "%s doorbell address %p data %llx\n",
-				   db_exec == DB_REC_DRY_RUN ?
-				   "would have rung" : "ringing",
-				   db_entry->db_addr,
-				   *(u64 *)(db_entry->db_data));
-		}
+	/* Print according to width */
+	if (db_entry->db_width == DB_REC_WIDTH_32B) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+			   "ringing doorbell address %p data %x\n",
+			   db_entry->db_addr,
+			   *(u32 *)db_entry->db_data);
+	} else {
+		DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+			   "ringing doorbell address %p data %llx\n",
+			   db_entry->db_addr,
+			   *(u64 *)(db_entry->db_data));
 	}
 
 	/* Sanity */
@@ -334,14 +327,12 @@ static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
 	wmb();
 
 	/* Ring the doorbell */
-	if (db_exec == DB_REC_REAL_DEAL || db_exec == DB_REC_ONCE) {
-		if (db_entry->db_width == DB_REC_WIDTH_32B)
-			DIRECT_REG_WR(db_entry->db_addr,
-				      *(u32 *)(db_entry->db_data));
-		else
-			DIRECT_REG_WR64(db_entry->db_addr,
-					*(u64 *)(db_entry->db_data));
-	}
+	if (db_entry->db_width == DB_REC_WIDTH_32B)
+		DIRECT_REG_WR(db_entry->db_addr,
+			      *(u32 *)(db_entry->db_data));
+	else
+		DIRECT_REG_WR64(db_entry->db_addr,
+				*(u64 *)(db_entry->db_data));
 
 	/* Flush the write combined buffer. Next doorbell may come from a
 	 * different entity to the same address...
@@ -350,29 +341,21 @@ static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
 }
 
 /* Traverse the doorbell recovery entry list and ring all the doorbells */
-void qed_db_recovery_execute(struct qed_hwfn *p_hwfn,
-			     enum qed_db_rec_exec db_exec)
+void qed_db_recovery_execute(struct qed_hwfn *p_hwfn)
 {
 	struct qed_db_recovery_entry *db_entry = NULL;
 
-	if (db_exec != DB_REC_ONCE) {
-		DP_NOTICE(p_hwfn,
-			  "Executing doorbell recovery. Counter was %d\n",
-			  p_hwfn->db_recovery_info.db_recovery_counter);
+	DP_NOTICE(p_hwfn, "Executing doorbell recovery. Counter was %d\n",
+		  p_hwfn->db_recovery_info.db_recovery_counter);
 
-		/* Track amount of times recovery was executed */
-		p_hwfn->db_recovery_info.db_recovery_counter++;
-	}
+	/* Track amount of times recovery was executed */
+	p_hwfn->db_recovery_info.db_recovery_counter++;
 
 	/* Protect the list */
 	spin_lock_bh(&p_hwfn->db_recovery_info.lock);
 	list_for_each_entry(db_entry,
-			    &p_hwfn->db_recovery_info.list, list_entry) {
-		qed_db_recovery_ring(p_hwfn, db_entry, db_exec);
-		if (db_exec == DB_REC_ONCE)
-			break;
-	}
-
+			    &p_hwfn->db_recovery_info.list, list_entry)
+		qed_db_recovery_ring(p_hwfn, db_entry);
 	spin_unlock_bh(&p_hwfn->db_recovery_info.lock);
 }
 
