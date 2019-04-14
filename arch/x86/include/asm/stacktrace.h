@@ -9,6 +9,8 @@
 
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
+
+#include <asm/cpu_entry_area.h>
 #include <asm/switch_to.h>
 
 enum stack_type {

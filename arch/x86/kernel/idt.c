@@ -183,11 +183,11 @@ gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
  * cpu_init() when the TSS has been initialized.
  */
 static const __initconst struct idt_data ist_idts[] = {
-	ISTG(X86_TRAP_DB,	debug,		ESTACK_DB),
-	ISTG(X86_TRAP_NMI,	nmi,		ESTACK_NMI),
-	ISTG(X86_TRAP_DF,	double_fault,	ESTACK_DF),
+	ISTG(X86_TRAP_DB,	debug,		IST_INDEX_DB),
+	ISTG(X86_TRAP_NMI,	nmi,		IST_INDEX_NMI),
+	ISTG(X86_TRAP_DF,	double_fault,	IST_INDEX_DF),
 #ifdef CONFIG_X86_MCE
-	ISTG(X86_TRAP_MC,	&machine_check,	ESTACK_MCE),
+	ISTG(X86_TRAP_MC,	&machine_check,	IST_INDEX_MCE),
 #endif
 };
 

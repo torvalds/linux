@@ -35,6 +35,17 @@ struct cea_exception_stacks {
 	ESTACKS_MEMBERS(0)
 };
 
+/*
+ * The exception stack ordering in [cea_]exception_stacks
+ */
+enum exception_stack_ordering {
+	ESTACK_DF,
+	ESTACK_NMI,
+	ESTACK_DB,
+	ESTACK_MCE,
+	N_EXCEPTION_STACKS
+};
+
 #define CEA_ESTACK_SIZE(st)					\
 	sizeof(((struct cea_exception_stacks *)0)->st## _stack)
 
