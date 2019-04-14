@@ -422,7 +422,7 @@ DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
  * per-CPU IRQ handling stacks
  */
 struct irq_stack {
-	u32			stack[IRQ_STACK_SIZE / sizeof(u32)];
+	char			stack[IRQ_STACK_SIZE];
 } __aligned(IRQ_STACK_SIZE);
 
 DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
