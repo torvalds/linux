@@ -730,6 +730,7 @@ sha256_s390
 sha3_generic
 sha512_s390
 sha_common
+shiftfs
 siox-bus-gpio
 siox-core
 sit
