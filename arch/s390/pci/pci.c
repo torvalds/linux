@@ -188,7 +188,7 @@ static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 	u64 data;
 	int rc;
 
-	rc = zpci_load(&data, req, offset);
+	rc = __zpci_load(&data, req, offset);
 	if (!rc) {
 		data = le64_to_cpu((__force __le64) data);
 		data >>= (8 - len) * 8;
@@ -206,7 +206,7 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 
 	data <<= (8 - len) * 8;
 	data = (__force u64) cpu_to_le64(data);
-	rc = zpci_store(data, req, offset);
+	rc = __zpci_store(data, req, offset);
 	return rc;
 }
 

@@ -124,9 +124,11 @@ union zpci_sic_iib {
 
 u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status);
 int zpci_refresh_trans(u64 fn, u64 addr, u64 range);
-int zpci_load(u64 *data, u64 req, u64 offset);
-int zpci_store(u64 data, u64 req, u64 offset);
-int zpci_store_block(const u64 *data, u64 req, u64 offset);
+int __zpci_load(u64 *data, u64 req, u64 offset);
+int zpci_load(u64 *data, const volatile void __iomem *addr, unsigned long len);
+int __zpci_store(u64 data, u64 req, u64 offset);
+int zpci_store(const volatile void __iomem *addr, u64 data, unsigned long len);
+int __zpci_store_block(const u64 *data, u64 req, u64 offset);
 int __zpci_set_irq_ctrl(u16 ctl, u8 isc, union zpci_sic_iib *iib);
 
 static inline int zpci_set_irq_ctrl(u16 ctl, u8 isc)

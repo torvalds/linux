@@ -215,7 +215,7 @@ static inline int __ism_move(struct ism_dev *ism, u64 dmb_req, void *data,
 	struct zpci_dev *zdev = to_zpci(ism->pdev);
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, size);
 
-	return zpci_write_block(req, data, dmb_req);
+	return __zpci_store_block(data, req, dmb_req);
 }
 
 #endif /* S390_ISM_H */

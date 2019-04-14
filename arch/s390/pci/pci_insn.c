@@ -11,6 +11,7 @@
 #include <asm/facility.h>
 #include <asm/pci_insn.h>
 #include <asm/pci_debug.h>
+#include <asm/pci_io.h>
 #include <asm/processor.h>
 
 #define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */
@@ -142,7 +143,7 @@ static inline int __pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 	return cc;
 }
 
-int zpci_load(u64 *data, u64 req, u64 offset)
+int __zpci_load(u64 *data, u64 req, u64 offset)
 {
 	u8 status;
 	int cc;
@@ -157,6 +158,15 @@ int zpci_load(u64 *data, u64 req, u64 offset)
 		zpci_err_insn(cc, status, req, offset);
 
 	return (cc > 0) ? -EIO : cc;
+}
+EXPORT_SYMBOL_GPL(__zpci_load);
+
+int zpci_load(u64 *data, const volatile void __iomem *addr, unsigned long len)
+{
+	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(addr)];
+	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, len);
+
+	return __zpci_load(data, req, ZPCI_OFFSET(addr));
 }
 EXPORT_SYMBOL_GPL(zpci_load);
 
@@ -180,7 +190,7 @@ static inline int __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 	return cc;
 }
 
-int zpci_store(u64 data, u64 req, u64 offset)
+int __zpci_store(u64 data, u64 req, u64 offset)
 {
 	u8 status;
 	int cc;
@@ -195,6 +205,15 @@ int zpci_store(u64 data, u64 req, u64 offset)
 		zpci_err_insn(cc, status, req, offset);
 
 	return (cc > 0) ? -EIO : cc;
+}
+EXPORT_SYMBOL_GPL(__zpci_store);
+
+int zpci_store(const volatile void __iomem *addr, u64 data, unsigned long len)
+{
+	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(addr)];
+	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, len);
+
+	return __zpci_store(data, req, ZPCI_OFFSET(addr));
 }
 EXPORT_SYMBOL_GPL(zpci_store);
 
@@ -216,7 +235,7 @@ static inline int __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
 	return cc;
 }
 
-int zpci_store_block(const u64 *data, u64 req, u64 offset)
+int __zpci_store_block(const u64 *data, u64 req, u64 offset)
 {
 	u8 status;
 	int cc;
@@ -232,4 +251,15 @@ int zpci_store_block(const u64 *data, u64 req, u64 offset)
 
 	return (cc > 0) ? -EIO : cc;
 }
-EXPORT_SYMBOL_GPL(zpci_store_block);
+EXPORT_SYMBOL_GPL(__zpci_store_block);
+
+int zpci_write_block(volatile void __iomem *dst,
+		     const void *src, unsigned long len)
+{
+	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(dst)];
+	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, len);
+	u64 offset = ZPCI_OFFSET(dst);
+
+	return __zpci_store_block(src, req, offset);
+}
+EXPORT_SYMBOL_GPL(zpci_write_block);
