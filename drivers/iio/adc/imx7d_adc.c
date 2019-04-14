@@ -434,6 +434,33 @@ static void imx7d_adc_power_down(struct imx7d_adc *info)
 	writel(adc_cfg, info->regs + IMX7D_REG_ADC_ADC_CFG);
 }
 
+static int imx7d_adc_enable(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct imx7d_adc *info = iio_priv(indio_dev);
+	int ret;
+
+	ret = regulator_enable(info->vref);
+	if (ret) {
+		dev_err(info->dev,
+			"Can't enable adc reference top voltage, err = %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(info->clk);
+	if (ret) {
+		dev_err(info->dev,
+			"Could not prepare or enable clock.\n");
+		regulator_disable(info->vref);
+		return ret;
+	}
+
+	imx7d_adc_hw_init(info);
+
+	return 0;
+}
+
 static int imx7d_adc_probe(struct platform_device *pdev)
 {
 	struct imx7d_adc *info;
@@ -479,14 +506,6 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = regulator_enable(info->vref);
-	if (ret) {
-		dev_err(dev,
-			"Can't enable adc reference top voltage, err = %d\n",
-			ret);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, indio_dev);
 
 	init_completion(&info->completion);
@@ -498,38 +517,30 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = imx7d_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(imx7d_adc_iio_channels);
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(dev, "Could not prepare or enable the clock.\n");
-		goto error_adc_clk_enable;
-	}
-
 	ret = devm_request_irq(dev, irq,
 			       imx7d_adc_isr, 0,
 			       dev_name(dev), info);
 	if (ret < 0) {
 		dev_err(dev, "Failed requesting irq, irq = %d\n", irq);
-		goto error_iio_device_register;
+		return ret;
 	}
 
 	imx7d_adc_feature_config(info);
-	imx7d_adc_hw_init(info);
+
+	ret = imx7d_adc_enable(&indio_dev->dev);
+	if (ret)
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		imx7d_adc_power_down(info);
+		clk_disable_unprepare(info->clk);
+		regulator_disable(info->vref);
 		dev_err(&pdev->dev, "Couldn't register the device.\n");
-		goto error_iio_device_register;
+		return ret;
 	}
 
 	return 0;
-
-error_iio_device_register:
-	clk_disable_unprepare(info->clk);
-error_adc_clk_enable:
-	regulator_disable(info->vref);
-
-	return ret;
 }
 
 static int imx7d_adc_remove(struct platform_device *pdev)
@@ -560,34 +571,7 @@ static int __maybe_unused imx7d_adc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx7d_adc_resume(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct imx7d_adc *info = iio_priv(indio_dev);
-	int ret;
-
-	ret = regulator_enable(info->vref);
-	if (ret) {
-		dev_err(info->dev,
-			"Can't enable adc reference top voltage, err = %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(info->dev,
-			"Could not prepare or enable clock.\n");
-		regulator_disable(info->vref);
-		return ret;
-	}
-
-	imx7d_adc_hw_init(info);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_suspend, imx7d_adc_resume);
+static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_suspend, imx7d_adc_enable);
 
 static struct platform_driver imx7d_adc_driver = {
 	.probe		= imx7d_adc_probe,
