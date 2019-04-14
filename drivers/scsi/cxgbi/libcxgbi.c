@@ -2562,13 +2562,9 @@ struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 			pr_info("shost 0x%p, priv NULL.\n", shost);
 			goto err_out;
 		}
-
-		rtnl_lock();
-		if (!vlan_uses_dev(hba->ndev))
-			ifindex = hba->ndev->ifindex;
-		rtnl_unlock();
 	}
 
+check_route:
 	if (dst_addr->sa_family == AF_INET) {
 		csk = cxgbi_check_route(dst_addr, ifindex);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -2589,6 +2585,13 @@ struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 	if (!hba)
 		hba = csk->cdev->hbas[csk->port_id];
 	else if (hba != csk->cdev->hbas[csk->port_id]) {
+		if (ifindex != hba->ndev->ifindex) {
+			cxgbi_sock_put(csk);
+			cxgbi_sock_closed(csk);
+			ifindex = hba->ndev->ifindex;
+			goto check_route;
+		}
+
 		pr_info("Could not connect through requested host %u"
 			"hba 0x%p != 0x%p (%u).\n",
 			shost->host_no, hba,
