@@ -471,8 +471,9 @@
 	nop
 	LDREG		0(\ptp),\pte
 	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
+	LDCW		0(\tmp),\tmp1
 	b		\fault
-	stw,ma		\spc,0(\tmp)
+	stw		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 2:	LDREG		0(\ptp),\pte
@@ -481,20 +482,22 @@
 	.endm
 
 	/* Release pa_tlb_lock lock without reloading lock address. */
-	.macro		tlb_unlock0	spc,tmp
+	.macro		tlb_unlock0	spc,tmp,tmp1
 #ifdef CONFIG_SMP
 98:	or,COND(=)	%r0,\spc,%r0
-	stw,ma		\spc,0(\tmp)
+	LDCW		0(\tmp),\tmp1
+	or,COND(=)	%r0,\spc,%r0
+	stw		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
-	.macro		tlb_unlock1	spc,tmp
+	.macro		tlb_unlock1	spc,tmp,tmp1
 #ifdef CONFIG_SMP
 98:	load_pa_tlb_lock \tmp
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-	tlb_unlock0	\spc,\tmp
+	tlb_unlock0	\spc,\tmp,\tmp1
 #endif
 	.endm
 
@@ -1177,7 +1180,7 @@ dtlb_miss_20w:
 	
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1203,7 +1206,7 @@ nadtlb_miss_20w:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1237,7 +1240,7 @@ dtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1270,7 +1273,7 @@ nadtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1299,7 +1302,7 @@ dtlb_miss_20:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1327,7 +1330,7 @@ nadtlb_miss_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1434,7 +1437,7 @@ itlb_miss_20w:
 	
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1458,7 +1461,7 @@ naitlb_miss_20w:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1492,7 +1495,7 @@ itlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1516,7 +1519,7 @@ naitlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1546,7 +1549,7 @@ itlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1566,7 +1569,7 @@ naitlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1596,7 +1599,7 @@ dbit_trap_20w:
 		
 	idtlbt          pte,prot
 
-	tlb_unlock0	spc,t0
+	tlb_unlock0	spc,t0,t1
 	rfir
 	nop
 #else
@@ -1622,7 +1625,7 @@ dbit_trap_11:
 
 	mtsp            t1, %sr1     /* Restore sr1 */
 
-	tlb_unlock0	spc,t0
+	tlb_unlock0	spc,t0,t1
 	rfir
 	nop
 
@@ -1642,7 +1645,7 @@ dbit_trap_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock0	spc,t0
+	tlb_unlock0	spc,t0,t1
 	rfir
 	nop
 #endif
