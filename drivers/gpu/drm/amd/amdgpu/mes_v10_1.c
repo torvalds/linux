@@ -183,6 +183,39 @@ static void mes_v10_1_free_ucode_buffers(struct amdgpu_device *adev)
 			      (void **)&adev->mes.ucode_fw_ptr);
 }
 
+static void mes_v10_1_enable(struct amdgpu_device *adev, bool enable)
+{
+	uint32_t data = 0;
+
+	if (enable) {
+		data = RREG32_SOC15(GC, 0, mmCP_MES_CNTL);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
+		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
+
+		/* set ucode start address */
+		WREG32_SOC15(GC, 0, mmCP_MES_PRGRM_CNTR_START,
+			     (uint32_t)(adev->mes.uc_start_addr) >> 2);
+
+		/* clear BYPASS_UNCACHED to avoid hangs after interrupt. */
+		data = RREG32_SOC15(GC, 0, mmCP_MES_DC_OP_CNTL);
+		data = REG_SET_FIELD(data, CP_MES_DC_OP_CNTL,
+				     BYPASS_UNCACHED, 0);
+		WREG32_SOC15(GC, 0, mmCP_MES_DC_OP_CNTL, data);
+
+		/* unhalt MES and activate pipe0 */
+		data = REG_SET_FIELD(0, CP_MES_CNTL, MES_PIPE0_ACTIVE, 1);
+		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
+	} else {
+		data = RREG32_SOC15(GC, 0, mmCP_MES_CNTL);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_ACTIVE, 0);
+		data = REG_SET_FIELD(data, CP_MES_CNTL,
+				     MES_INVALIDATE_ICACHE, 1);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_HALT, 1);
+		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
+	}
+}
+
 /* This function is for backdoor MES firmware */
 static int mes_v10_1_load_microcode(struct amdgpu_device *adev)
 {
