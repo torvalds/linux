@@ -121,7 +121,7 @@ static int emc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 	struct tegra_clk_emc *tegra;
 	u8 ram_code = tegra_read_ram_code();
 	struct emc_timing *timing = NULL;
-	int i, k;
+	int i, k, t;
 
 	tegra = container_of(hw, struct tegra_clk_emc, hw);
 
@@ -130,11 +130,16 @@ static int emc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 			break;
 	}
 
-	for (i = k; i < tegra->num_timings; i++) {
-		if (tegra->timings[i].ram_code != ram_code)
+	for (t = k; t < tegra->num_timings; t++) {
+		if (tegra->timings[t].ram_code != ram_code)
 			break;
+	}
 
+	for (i = k; i < t; i++) {
 		timing = tegra->timings + i;
+
+		if (timing->rate < req->rate && i != t - 1)
+			continue;
 
 		if (timing->rate > req->max_rate) {
 			i = max(i, k + 1);
@@ -145,10 +150,8 @@ static int emc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 		if (timing->rate < req->min_rate)
 			continue;
 
-		if (timing->rate >= req->rate) {
-			req->rate = timing->rate;
-			return 0;
-		}
+		req->rate = timing->rate;
+		return 0;
 	}
 
 	if (timing) {
