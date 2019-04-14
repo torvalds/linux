@@ -507,19 +507,6 @@ void load_percpu_segment(int cpu)
 DEFINE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 #endif
 
-#ifdef CONFIG_X86_64
-/*
- * Special IST stacks which the CPU switches to when it calls
- * an IST-marked descriptor entry. Up to 7 stacks (hardware
- * limit), all of them are 4K, except the debug stack which
- * is 8K.
- */
-static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {
-	  [0 ... N_EXCEPTION_STACKS - 1]	= EXCEPTION_STKSZ,
-	  [ESTACK_DB]				= DEBUG_STKSZ
-};
-#endif
-
 /* Load the original GDT from the per-cpu structure */
 void load_direct_gdt(int cpu)
 {
@@ -1690,17 +1677,14 @@ static void setup_getcpu(int cpu)
  * initialized (naturally) in the bootstrap process, such as the GDT
  * and IDT. We reload them nevertheless, this function acts as a
  * 'CPU state barrier', nothing should get across.
- * A lot of state is already set up in PDA init for 64 bit
  */
 #ifdef CONFIG_X86_64
 
 void cpu_init(void)
 {
-	struct orig_ist *oist;
+	int cpu = raw_smp_processor_id();
 	struct task_struct *me;
 	struct tss_struct *t;
-	unsigned long v;
-	int cpu = raw_smp_processor_id();
 	int i;
 
 	wait_for_master_cpu(cpu);
@@ -1715,7 +1699,6 @@ void cpu_init(void)
 		load_ucode_ap();
 
 	t = &per_cpu(cpu_tss_rw, cpu);
-	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
 	if (this_cpu_read(numa_node) == 0 &&
@@ -1753,16 +1736,12 @@ void cpu_init(void)
 	/*
 	 * set up and load the per-CPU TSS
 	 */
-	if (!oist->ist[0]) {
-		char *estacks = (char *)&get_cpu_entry_area(cpu)->estacks;
-
-		for (v = 0; v < N_EXCEPTION_STACKS; v++) {
-			estacks += exception_stack_sizes[v];
-			oist->ist[v] = t->x86_tss.ist[v] =
-					(unsigned long)estacks;
-			if (v == ESTACK_DB)
-				per_cpu(debug_stack_addr, cpu) = (unsigned long)estacks;
-		}
+	if (!t->x86_tss.ist[0]) {
+		t->x86_tss.ist[ESTACK_DF] = __this_cpu_ist_top_va(DF);
+		t->x86_tss.ist[ESTACK_NMI] = __this_cpu_ist_top_va(NMI);
+		t->x86_tss.ist[ESTACK_DB] = __this_cpu_ist_top_va(DB);
+		t->x86_tss.ist[ESTACK_MCE] = __this_cpu_ist_top_va(MCE);
+		per_cpu(debug_stack_addr, cpu) = t->x86_tss.ist[ESTACK_DB];
 	}
 
 	t->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
