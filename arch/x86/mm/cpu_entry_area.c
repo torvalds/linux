@@ -52,10 +52,10 @@ cea_map_percpu_pages(void *cea_vaddr, void *ptr, int pages, pgprot_t prot)
 		cea_set_pte(cea_vaddr, per_cpu_ptr_to_phys(ptr), prot);
 }
 
-static void __init percpu_setup_debug_store(int cpu)
+static void __init percpu_setup_debug_store(unsigned int cpu)
 {
 #ifdef CONFIG_CPU_SUP_INTEL
-	int npages;
+	unsigned int npages;
 	void *cea;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
@@ -79,8 +79,9 @@ static void __init percpu_setup_debug_store(int cpu)
 }
 
 /* Setup the fixmap mappings only once per-processor */
-static void __init setup_cpu_entry_area(int cpu)
+static void __init setup_cpu_entry_area(unsigned int cpu)
 {
+	struct cpu_entry_area *cea = get_cpu_entry_area(cpu);
 #ifdef CONFIG_X86_64
 	/* On 64-bit systems, we use a read-only fixmap GDT and TSS. */
 	pgprot_t gdt_prot = PAGE_KERNEL_RO;
@@ -101,10 +102,9 @@ static void __init setup_cpu_entry_area(int cpu)
 	pgprot_t tss_prot = PAGE_KERNEL;
 #endif
 
-	cea_set_pte(&get_cpu_entry_area(cpu)->gdt, get_cpu_gdt_paddr(cpu),
-		    gdt_prot);
+	cea_set_pte(&cea->gdt, get_cpu_gdt_paddr(cpu), gdt_prot);
 
-	cea_map_percpu_pages(&get_cpu_entry_area(cpu)->entry_stack_page,
+	cea_map_percpu_pages(&cea->entry_stack_page,
 			     per_cpu_ptr(&entry_stack_storage, cpu), 1,
 			     PAGE_KERNEL);
 
@@ -128,19 +128,18 @@ static void __init setup_cpu_entry_area(int cpu)
 	BUILD_BUG_ON((offsetof(struct tss_struct, x86_tss) ^
 		      offsetofend(struct tss_struct, x86_tss)) & PAGE_MASK);
 	BUILD_BUG_ON(sizeof(struct tss_struct) % PAGE_SIZE != 0);
-	cea_map_percpu_pages(&get_cpu_entry_area(cpu)->tss,
-			     &per_cpu(cpu_tss_rw, cpu),
+	cea_map_percpu_pages(&cea->tss, &per_cpu(cpu_tss_rw, cpu),
 			     sizeof(struct tss_struct) / PAGE_SIZE, tss_prot);
 
 #ifdef CONFIG_X86_32
-	per_cpu(cpu_entry_area, cpu) = get_cpu_entry_area(cpu);
+	per_cpu(cpu_entry_area, cpu) = cea;
 #endif
 
 #ifdef CONFIG_X86_64
 	BUILD_BUG_ON(sizeof(exception_stacks) % PAGE_SIZE != 0);
 	BUILD_BUG_ON(sizeof(exception_stacks) !=
 		     sizeof(((struct cpu_entry_area *)0)->exception_stacks));
-	cea_map_percpu_pages(&get_cpu_entry_area(cpu)->exception_stacks,
+	cea_map_percpu_pages(&cea->exception_stacks,
 			     &per_cpu(exception_stacks, cpu),
 			     sizeof(exception_stacks) / PAGE_SIZE, PAGE_KERNEL);
 #endif
