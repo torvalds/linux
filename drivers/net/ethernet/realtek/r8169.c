@@ -699,6 +699,8 @@ struct rtl8169_private {
 	u32 ocp_base;
 };
 
+typedef void (*rtl_generic_fct)(struct rtl8169_private *tp);
+
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param_named(debug, debug.msg_enable, int, 0);
@@ -3988,131 +3990,65 @@ static void rtl8106e_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl_hw_phy_config(struct net_device *dev)
 {
+	static const rtl_generic_fct phy_configs[] = {
+		/* PCI devices. */
+		[RTL_GIGA_MAC_VER_01] = NULL,
+		[RTL_GIGA_MAC_VER_02] = rtl8169s_hw_phy_config,
+		[RTL_GIGA_MAC_VER_03] = rtl8169s_hw_phy_config,
+		[RTL_GIGA_MAC_VER_04] = rtl8169sb_hw_phy_config,
+		[RTL_GIGA_MAC_VER_05] = rtl8169scd_hw_phy_config,
+		[RTL_GIGA_MAC_VER_06] = rtl8169sce_hw_phy_config,
+		/* PCI-E devices. */
+		[RTL_GIGA_MAC_VER_07] = rtl8102e_hw_phy_config,
+		[RTL_GIGA_MAC_VER_08] = rtl8102e_hw_phy_config,
+		[RTL_GIGA_MAC_VER_09] = rtl8102e_hw_phy_config,
+		[RTL_GIGA_MAC_VER_10] = NULL,
+		[RTL_GIGA_MAC_VER_11] = rtl8168bb_hw_phy_config,
+		[RTL_GIGA_MAC_VER_12] = rtl8168bef_hw_phy_config,
+		[RTL_GIGA_MAC_VER_13] = NULL,
+		[RTL_GIGA_MAC_VER_14] = NULL,
+		[RTL_GIGA_MAC_VER_15] = NULL,
+		[RTL_GIGA_MAC_VER_16] = NULL,
+		[RTL_GIGA_MAC_VER_17] = rtl8168bef_hw_phy_config,
+		[RTL_GIGA_MAC_VER_18] = rtl8168cp_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_19] = rtl8168c_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_20] = rtl8168c_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_21] = rtl8168c_3_hw_phy_config,
+		[RTL_GIGA_MAC_VER_22] = rtl8168c_4_hw_phy_config,
+		[RTL_GIGA_MAC_VER_23] = rtl8168cp_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_24] = rtl8168cp_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_25] = rtl8168d_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_26] = rtl8168d_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_27] = rtl8168d_3_hw_phy_config,
+		[RTL_GIGA_MAC_VER_28] = rtl8168d_4_hw_phy_config,
+		[RTL_GIGA_MAC_VER_29] = rtl8105e_hw_phy_config,
+		[RTL_GIGA_MAC_VER_30] = rtl8105e_hw_phy_config,
+		[RTL_GIGA_MAC_VER_31] = NULL,
+		[RTL_GIGA_MAC_VER_32] = rtl8168e_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_33] = rtl8168e_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_34] = rtl8168e_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_35] = rtl8168f_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_36] = rtl8168f_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_37] = rtl8402_hw_phy_config,
+		[RTL_GIGA_MAC_VER_38] = rtl8411_hw_phy_config,
+		[RTL_GIGA_MAC_VER_39] = rtl8106e_hw_phy_config,
+		[RTL_GIGA_MAC_VER_40] = rtl8168g_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_41] = NULL,
+		[RTL_GIGA_MAC_VER_42] = rtl8168g_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_43] = rtl8168g_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_44] = rtl8168g_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_45] = rtl8168h_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_46] = rtl8168h_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_47] = rtl8168h_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_48] = rtl8168h_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_49] = rtl8168ep_1_hw_phy_config,
+		[RTL_GIGA_MAC_VER_50] = rtl8168ep_2_hw_phy_config,
+		[RTL_GIGA_MAC_VER_51] = rtl8168ep_2_hw_phy_config,
+	};
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_01:
-		break;
-	case RTL_GIGA_MAC_VER_02:
-	case RTL_GIGA_MAC_VER_03:
-		rtl8169s_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_04:
-		rtl8169sb_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_05:
-		rtl8169scd_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_06:
-		rtl8169sce_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_07:
-	case RTL_GIGA_MAC_VER_08:
-	case RTL_GIGA_MAC_VER_09:
-		rtl8102e_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_11:
-		rtl8168bb_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_12:
-		rtl8168bef_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_17:
-		rtl8168bef_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_18:
-		rtl8168cp_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_19:
-		rtl8168c_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_20:
-		rtl8168c_2_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_21:
-		rtl8168c_3_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_22:
-		rtl8168c_4_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_23:
-	case RTL_GIGA_MAC_VER_24:
-		rtl8168cp_2_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_25:
-		rtl8168d_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_26:
-		rtl8168d_2_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_27:
-		rtl8168d_3_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_28:
-		rtl8168d_4_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_29:
-	case RTL_GIGA_MAC_VER_30:
-		rtl8105e_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_31:
-		/* None. */
-		break;
-	case RTL_GIGA_MAC_VER_32:
-	case RTL_GIGA_MAC_VER_33:
-		rtl8168e_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_34:
-		rtl8168e_2_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_35:
-		rtl8168f_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_36:
-		rtl8168f_2_hw_phy_config(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_37:
-		rtl8402_hw_phy_config(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_38:
-		rtl8411_hw_phy_config(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_39:
-		rtl8106e_hw_phy_config(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_40:
-		rtl8168g_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_42:
-	case RTL_GIGA_MAC_VER_43:
-	case RTL_GIGA_MAC_VER_44:
-		rtl8168g_2_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_45:
-	case RTL_GIGA_MAC_VER_47:
-		rtl8168h_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_46:
-	case RTL_GIGA_MAC_VER_48:
-		rtl8168h_2_hw_phy_config(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_49:
-		rtl8168ep_1_hw_phy_config(tp);
-		break;
-	case RTL_GIGA_MAC_VER_50:
-	case RTL_GIGA_MAC_VER_51:
-		rtl8168ep_2_hw_phy_config(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_41:
-	default:
-		break;
-	}
+	if (phy_configs[tp->mac_version])
+		phy_configs[tp->mac_version](tp);
 }
 
 static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
@@ -5445,122 +5381,6 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
-static void rtl_hw_start_8168(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
-
-	/* Work around for RxFIFO overflow. */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
-		tp->irq_mask |= RxFIFOOver;
-		tp->irq_mask &= ~RxOverflow;
-	}
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_11:
-		rtl_hw_start_8168bb(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_12:
-	case RTL_GIGA_MAC_VER_17:
-		rtl_hw_start_8168bef(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_18:
-		rtl_hw_start_8168cp_1(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_19:
-		rtl_hw_start_8168c_1(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_20:
-		rtl_hw_start_8168c_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_21:
-		rtl_hw_start_8168c_3(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_22:
-		rtl_hw_start_8168c_4(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_23:
-		rtl_hw_start_8168cp_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_24:
-		rtl_hw_start_8168cp_3(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_25:
-	case RTL_GIGA_MAC_VER_26:
-	case RTL_GIGA_MAC_VER_27:
-		rtl_hw_start_8168d(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_28:
-		rtl_hw_start_8168d_4(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_31:
-		rtl_hw_start_8168dp(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_32:
-	case RTL_GIGA_MAC_VER_33:
-		rtl_hw_start_8168e_1(tp);
-		break;
-	case RTL_GIGA_MAC_VER_34:
-		rtl_hw_start_8168e_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_35:
-	case RTL_GIGA_MAC_VER_36:
-		rtl_hw_start_8168f_1(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_38:
-		rtl_hw_start_8411(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_40:
-	case RTL_GIGA_MAC_VER_41:
-		rtl_hw_start_8168g_1(tp);
-		break;
-	case RTL_GIGA_MAC_VER_42:
-		rtl_hw_start_8168g_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_44:
-		rtl_hw_start_8411_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_45:
-	case RTL_GIGA_MAC_VER_46:
-		rtl_hw_start_8168h_1(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_49:
-		rtl_hw_start_8168ep_1(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_50:
-		rtl_hw_start_8168ep_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_51:
-		rtl_hw_start_8168ep_3(tp);
-		break;
-
-	default:
-		netif_err(tp, drv, tp->dev,
-			  "unknown chipset (mac_version = %d)\n",
-			  tp->mac_version);
-		break;
-	}
-}
-
 static void rtl_hw_start_8102e_1(struct rtl8169_private *tp)
 {
 	static const struct ephy_info e_info_8102e_1[] = {
@@ -5686,6 +5506,73 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
+static void rtl_hw_config(struct rtl8169_private *tp)
+{
+	static const rtl_generic_fct hw_configs[] = {
+		[RTL_GIGA_MAC_VER_07] = rtl_hw_start_8102e_1,
+		[RTL_GIGA_MAC_VER_08] = rtl_hw_start_8102e_3,
+		[RTL_GIGA_MAC_VER_09] = rtl_hw_start_8102e_2,
+		[RTL_GIGA_MAC_VER_10] = NULL,
+		[RTL_GIGA_MAC_VER_11] = rtl_hw_start_8168bb,
+		[RTL_GIGA_MAC_VER_12] = rtl_hw_start_8168bef,
+		[RTL_GIGA_MAC_VER_13] = NULL,
+		[RTL_GIGA_MAC_VER_14] = NULL,
+		[RTL_GIGA_MAC_VER_15] = NULL,
+		[RTL_GIGA_MAC_VER_16] = NULL,
+		[RTL_GIGA_MAC_VER_17] = rtl_hw_start_8168bef,
+		[RTL_GIGA_MAC_VER_18] = rtl_hw_start_8168cp_1,
+		[RTL_GIGA_MAC_VER_19] = rtl_hw_start_8168c_1,
+		[RTL_GIGA_MAC_VER_20] = rtl_hw_start_8168c_2,
+		[RTL_GIGA_MAC_VER_21] = rtl_hw_start_8168c_3,
+		[RTL_GIGA_MAC_VER_22] = rtl_hw_start_8168c_4,
+		[RTL_GIGA_MAC_VER_23] = rtl_hw_start_8168cp_2,
+		[RTL_GIGA_MAC_VER_24] = rtl_hw_start_8168cp_3,
+		[RTL_GIGA_MAC_VER_25] = rtl_hw_start_8168d,
+		[RTL_GIGA_MAC_VER_26] = rtl_hw_start_8168d,
+		[RTL_GIGA_MAC_VER_27] = rtl_hw_start_8168d,
+		[RTL_GIGA_MAC_VER_28] = rtl_hw_start_8168d_4,
+		[RTL_GIGA_MAC_VER_29] = rtl_hw_start_8105e_1,
+		[RTL_GIGA_MAC_VER_30] = rtl_hw_start_8105e_2,
+		[RTL_GIGA_MAC_VER_31] = rtl_hw_start_8168dp,
+		[RTL_GIGA_MAC_VER_32] = rtl_hw_start_8168e_1,
+		[RTL_GIGA_MAC_VER_33] = rtl_hw_start_8168e_1,
+		[RTL_GIGA_MAC_VER_34] = rtl_hw_start_8168e_2,
+		[RTL_GIGA_MAC_VER_35] = rtl_hw_start_8168f_1,
+		[RTL_GIGA_MAC_VER_36] = rtl_hw_start_8168f_1,
+		[RTL_GIGA_MAC_VER_37] = rtl_hw_start_8402,
+		[RTL_GIGA_MAC_VER_38] = rtl_hw_start_8411,
+		[RTL_GIGA_MAC_VER_39] = rtl_hw_start_8106,
+		[RTL_GIGA_MAC_VER_40] = rtl_hw_start_8168g_1,
+		[RTL_GIGA_MAC_VER_41] = rtl_hw_start_8168g_1,
+		[RTL_GIGA_MAC_VER_42] = rtl_hw_start_8168g_2,
+		[RTL_GIGA_MAC_VER_43] = rtl_hw_start_8168g_2,
+		[RTL_GIGA_MAC_VER_44] = rtl_hw_start_8411_2,
+		[RTL_GIGA_MAC_VER_45] = rtl_hw_start_8168h_1,
+		[RTL_GIGA_MAC_VER_46] = rtl_hw_start_8168h_1,
+		[RTL_GIGA_MAC_VER_47] = rtl_hw_start_8168h_1,
+		[RTL_GIGA_MAC_VER_48] = rtl_hw_start_8168h_1,
+		[RTL_GIGA_MAC_VER_49] = rtl_hw_start_8168ep_1,
+		[RTL_GIGA_MAC_VER_50] = rtl_hw_start_8168ep_2,
+		[RTL_GIGA_MAC_VER_51] = rtl_hw_start_8168ep_3,
+	};
+
+	if (hw_configs[tp->mac_version])
+		hw_configs[tp->mac_version](tp);
+}
+
+static void rtl_hw_start_8168(struct rtl8169_private *tp)
+{
+	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
+
+	/* Workaround for RxFIFO overflow. */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
+		tp->irq_mask |= RxFIFOOver;
+		tp->irq_mask &= ~RxOverflow;
+	}
+
+	rtl_hw_config(tp);
+}
+
 static void rtl_hw_start_8101(struct rtl8169_private *tp)
 {
 	if (tp->mac_version >= RTL_GIGA_MAC_VER_30)
@@ -5701,41 +5588,7 @@ static void rtl_hw_start_8101(struct rtl8169_private *tp)
 	tp->cp_cmd &= CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_07:
-		rtl_hw_start_8102e_1(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_08:
-		rtl_hw_start_8102e_3(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_09:
-		rtl_hw_start_8102e_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_29:
-		rtl_hw_start_8105e_1(tp);
-		break;
-	case RTL_GIGA_MAC_VER_30:
-		rtl_hw_start_8105e_2(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_37:
-		rtl_hw_start_8402(tp);
-		break;
-
-	case RTL_GIGA_MAC_VER_39:
-		rtl_hw_start_8106(tp);
-		break;
-	case RTL_GIGA_MAC_VER_43:
-		rtl_hw_start_8168g_2(tp);
-		break;
-	case RTL_GIGA_MAC_VER_47:
-	case RTL_GIGA_MAC_VER_48:
-		rtl_hw_start_8168h_1(tp);
-		break;
-	}
+	rtl_hw_config(tp);
 }
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
