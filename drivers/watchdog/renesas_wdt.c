@@ -151,7 +151,6 @@ static const struct soc_device_attribute rwdt_quirks_match[] = {
 		.data = (void *)1,	/* needs single CPU */
 	}, {
 		.soc_id = "r8a7792",
-		.revision = "*",
 		.data = (void *)0,	/* needs SMP disabled */
 	},
 	{ /* sentinel */ }
