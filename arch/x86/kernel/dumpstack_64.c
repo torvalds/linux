@@ -50,52 +50,72 @@ const char *stack_type_name(enum stack_type type)
 	return NULL;
 }
 
-struct estack_layout {
-	unsigned int	begin;
-	unsigned int	end;
+/**
+ * struct estack_pages - Page descriptor for exception stacks
+ * @offs:	Offset from the start of the exception stack area
+ * @size:	Size of the exception stack
+ * @type:	Type to store in the stack_info struct
+ */
+struct estack_pages {
+	u32	offs;
+	u16	size;
+	u16	type;
 };
 
-#define	ESTACK_ENTRY(x)	{						  \
-	.begin	= offsetof(struct cea_exception_stacks, x## _stack),	  \
-	.end	= offsetof(struct cea_exception_stacks, x## _stack_guard) \
-	}
+#define EPAGERANGE(st)							\
+	[PFN_DOWN(CEA_ESTACK_OFFS(st)) ...				\
+	 PFN_DOWN(CEA_ESTACK_OFFS(st) + CEA_ESTACK_SIZE(st) - 1)] = {	\
+		.offs	= CEA_ESTACK_OFFS(st),				\
+		.size	= CEA_ESTACK_SIZE(st),				\
+		.type	= STACK_TYPE_EXCEPTION + ESTACK_ ##st, }
 
-static const struct estack_layout layout[] = {
-	[ ESTACK_DF	]	= ESTACK_ENTRY(DF),
-	[ ESTACK_NMI	]	= ESTACK_ENTRY(NMI),
-	[ ESTACK_DB2	]	= { .begin = 0, .end = 0},
-	[ ESTACK_DB1	]	= ESTACK_ENTRY(DB1),
-	[ ESTACK_DB	]	= ESTACK_ENTRY(DB),
-	[ ESTACK_MCE	]	= ESTACK_ENTRY(MCE),
+/*
+ * Array of exception stack page descriptors. If the stack is larger than
+ * PAGE_SIZE, all pages covering a particular stack will have the same
+ * info. The guard pages including the not mapped DB2 stack are zeroed
+ * out.
+ */
+static const
+struct estack_pages estack_pages[CEA_ESTACK_PAGES] ____cacheline_aligned = {
+	EPAGERANGE(DF),
+	EPAGERANGE(NMI),
+	EPAGERANGE(DB1),
+	EPAGERANGE(DB),
+	EPAGERANGE(MCE),
 };
 
 static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 {
-	unsigned long estacks, begin, end, stk = (unsigned long)stack;
+	unsigned long begin, end, stk = (unsigned long)stack;
+	const struct estack_pages *ep;
 	struct pt_regs *regs;
 	unsigned int k;
 
 	BUILD_BUG_ON(N_EXCEPTION_STACKS != 6);
 
-	estacks = (unsigned long)__this_cpu_read(cea_exception_stacks);
+	begin = (unsigned long)__this_cpu_read(cea_exception_stacks);
+	end = begin + sizeof(struct cea_exception_stacks);
+	/* Bail if @stack is outside the exception stack area. */
+	if (stk < begin || stk >= end)
+		return false;
 
-	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
-		begin = estacks + layout[k].begin;
-		end   = estacks + layout[k].end;
-		regs  = (struct pt_regs *)end - 1;
+	/* Calc page offset from start of exception stacks */
+	k = (stk - begin) >> PAGE_SHIFT;
+	/* Lookup the page descriptor */
+	ep = &estack_pages[k];
+	/* Guard page? */
+	if (!ep->size)
+		return false;
 
-		if (stk < begin || stk >= end)
-			continue;
+	begin += (unsigned long)ep->offs;
+	end = begin + (unsigned long)ep->size;
+	regs = (struct pt_regs *)end - 1;
 
-		info->type	= STACK_TYPE_EXCEPTION + k;
-		info->begin	= (unsigned long *)begin;
-		info->end	= (unsigned long *)end;
-		info->next_sp	= (unsigned long *)regs->sp;
-
-		return true;
-	}
-
-	return false;
+	info->type	= ep->type;
+	info->begin	= (unsigned long *)begin;
+	info->end	= (unsigned long *)end;
+	info->next_sp	= (unsigned long *)regs->sp;
+	return true;
 }
 
 static bool in_irq_stack(unsigned long *stack, struct stack_info *info)
