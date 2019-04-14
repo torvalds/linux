@@ -16,6 +16,7 @@
 #include <linux/bug.h>
 #include <linux/nmi.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
 
 static const char *exception_stack_names[N_EXCEPTION_STACKS] = {
@@ -23,11 +24,6 @@ static const char *exception_stack_names[N_EXCEPTION_STACKS] = {
 		[ ESTACK_NMI	]	= "NMI",
 		[ ESTACK_DB	]	= "#DB",
 		[ ESTACK_MCE	]	= "#MC",
-};
-
-static const unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
-	[0 ... N_EXCEPTION_STACKS - 1]		= EXCEPTION_STKSZ,
-	[ESTACK_DB]				= DEBUG_STKSZ
 };
 
 const char *stack_type_name(enum stack_type type)
@@ -52,25 +48,44 @@ const char *stack_type_name(enum stack_type type)
 	return NULL;
 }
 
+struct estack_layout {
+	unsigned int	begin;
+	unsigned int	end;
+};
+
+#define	ESTACK_ENTRY(x)	{						  \
+	.begin	= offsetof(struct cea_exception_stacks, x## _stack),	  \
+	.end	= offsetof(struct cea_exception_stacks, x## _stack_guard) \
+	}
+
+static const struct estack_layout layout[N_EXCEPTION_STACKS] = {
+	[ ESTACK_DF	]	= ESTACK_ENTRY(DF),
+	[ ESTACK_NMI	]	= ESTACK_ENTRY(NMI),
+	[ ESTACK_DB	]	= ESTACK_ENTRY(DB),
+	[ ESTACK_MCE	]	= ESTACK_ENTRY(MCE),
+};
+
 static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 {
-	unsigned long *begin, *end;
+	unsigned long estacks, begin, end, stk = (unsigned long)stack;
 	struct pt_regs *regs;
-	unsigned k;
+	unsigned int k;
 
 	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
 
+	estacks = (unsigned long)__this_cpu_read(cea_exception_stacks);
+
 	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
-		end   = (unsigned long *)raw_cpu_ptr(&orig_ist)->ist[k];
-		begin = end - (exception_stack_sizes[k] / sizeof(long));
+		begin = estacks + layout[k].begin;
+		end   = estacks + layout[k].end;
 		regs  = (struct pt_regs *)end - 1;
 
-		if (stack < begin || stack >= end)
+		if (stk < begin || stk >= end)
 			continue;
 
 		info->type	= STACK_TYPE_EXCEPTION + k;
-		info->begin	= begin;
-		info->end	= end;
+		info->begin	= (unsigned long *)begin;
+		info->end	= (unsigned long *)end;
 		info->next_sp	= (unsigned long *)regs->sp;
 
 		return true;
