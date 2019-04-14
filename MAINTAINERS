@@ -2218,7 +2218,7 @@ F:	drivers/*/*s3c64xx*
 F:	drivers/*/*s5pv210*
 F:	drivers/memory/samsung/*
 F:	drivers/soc/samsung/*
-F:	Documentation/arm/Samsung/
+F:	Documentation/arm/samsung/
 F:	Documentation/devicetree/bindings/arm/samsung/
 F:	Documentation/devicetree/bindings/sram/samsung-sram.txt
 F:	Documentation/devicetree/bindings/power/pd-samsung.txt
@@ -11571,7 +11571,7 @@ L:	linux-omap@vger.kernel.org
 L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/fbdev/omap2/
-F:	Documentation/arm/OMAP/DSS
+F:	Documentation/arm/omap/dss.rst
 
 OMAP FRAMEBUFFER SUPPORT
 L:	linux-fbdev@vger.kernel.org
