@@ -1,8 +1,10 @@
-		       initramfs buffer format
-		       -----------------------
+=======================
+initramfs buffer format
+=======================
 
-		       Al Viro, H. Peter Anvin
-		      Last revision: 2002-01-13
+Al Viro, H. Peter Anvin
+
+Last revision: 2002-01-13
 
 Starting with kernel 2.5.x, the old "initial ramdisk" protocol is
 getting {replaced/complemented} with the new "initial ramfs"
@@ -18,7 +20,8 @@ archive can be compressed using gzip(1).  One valid version of an
 initramfs buffer is thus a single .cpio.gz file.
 
 The full format of the initramfs buffer is defined by the following
-grammar, where:
+grammar, where::
+
 	*	is used to indicate "0 or more occurrences of"
 	(|)	indicates alternatives
 	+	indicates concatenation
@@ -49,7 +52,9 @@ hexadecimal ASCII numbers fully padded with '0' on the left to the
 full width of the field, for example, the integer 4780 is represented
 by the ASCII string "000012ac"):
 
+============= ================== ==============================================
 Field name    Field size	 Meaning
+============= ================== ==============================================
 c_magic	      6 bytes		 The string "070701" or "070702"
 c_ino	      8 bytes		 File inode number
 c_mode	      8 bytes		 File mode and permissions
@@ -65,6 +70,7 @@ c_rmin	      8 bytes		 Minor part of device node reference
 c_namesize    8 bytes		 Length of filename, including final \0
 c_chksum      8 bytes		 Checksum of data field if c_magic is 070702;
 				 otherwise zero
+============= ================== ==============================================
 
 The c_mode field matches the contents of st_mode returned by stat(2)
 on Linux, and encodes the file type and file permissions.
@@ -82,7 +88,8 @@ If the filename is "TRAILER!!!" this is actually an end-of-archive
 marker; the c_filesize for an end-of-archive marker must be zero.
 
 
-*** Handling of hard links
+Handling of hard links
+======================
 
 When a nondirectory with c_nlink > 1 is seen, the (c_maj,c_min,c_ino)
 tuple is looked up in a tuple buffer.  If not found, it is entered in

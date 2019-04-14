@@ -1,3 +1,4 @@
+=======================
 Early userspace support
 =======================
 
@@ -26,6 +27,7 @@ archive to be used as the image or have the kernel build process build
 the image from specifications.
 
 CPIO ARCHIVE method
+-------------------
 
 You can create a cpio archive that contains the early userspace image.
 Your cpio archive should be specified in CONFIG_INITRAMFS_SOURCE and it
@@ -34,6 +36,7 @@ CONFIG_INITRAMFS_SOURCE and directory and file names are not allowed in
 combination with a cpio archive.
 
 IMAGE BUILDING method
+---------------------
 
 The kernel build process can also build an early userspace image from
 source parts rather than supplying a cpio archive.  This method provides
