@@ -24,6 +24,9 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "soc15_common.h"
+#include "nv.h"
+#include "gc/gc_10_1_0_offset.h"
+#include "gc/gc_10_1_0_sh_mask.h"
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
@@ -178,6 +181,70 @@ static void mes_v10_1_free_ucode_buffers(struct amdgpu_device *adev)
 	amdgpu_bo_free_kernel(&adev->mes.ucode_fw_obj,
 			      &adev->mes.ucode_fw_gpu_addr,
 			      (void **)&adev->mes.ucode_fw_ptr);
+}
+
+/* This function is for backdoor MES firmware */
+static int mes_v10_1_load_microcode(struct amdgpu_device *adev)
+{
+	int r;
+	uint32_t data;
+
+	if (!adev->mes.fw)
+		return -EINVAL;
+
+	r = mes_v10_1_allocate_ucode_buffer(adev);
+	if (r)
+		return r;
+
+	r = mes_v10_1_allocate_ucode_data_buffer(adev);
+	if (r) {
+		mes_v10_1_free_ucode_buffers(adev);
+		return r;
+	}
+
+	WREG32_SOC15(GC, 0, mmCP_MES_IC_BASE_CNTL, 0);
+
+	mutex_lock(&adev->srbm_mutex);
+	/* me=3, pipe=0, queue=0 */
+	nv_grbm_select(adev, 3, 0, 0, 0);
+
+	/* set ucode start address */
+	WREG32_SOC15(GC, 0, mmCP_MES_PRGRM_CNTR_START,
+		     (uint32_t)(adev->mes.uc_start_addr) >> 2);
+
+	/* set ucode fimrware address */
+	WREG32_SOC15(GC, 0, mmCP_MES_IC_BASE_LO,
+		     lower_32_bits(adev->mes.ucode_fw_gpu_addr));
+	WREG32_SOC15(GC, 0, mmCP_MES_IC_BASE_HI,
+		     upper_32_bits(adev->mes.ucode_fw_gpu_addr));
+
+	/* set ucode instruction cache boundary to 2M-1 */
+	WREG32_SOC15(GC, 0, mmCP_MES_MIBOUND_LO, 0x1FFFFF);
+
+	/* set ucode data firmware address */
+	WREG32_SOC15(GC, 0, mmCP_MES_MDBASE_LO,
+		     lower_32_bits(adev->mes.data_fw_gpu_addr));
+	WREG32_SOC15(GC, 0, mmCP_MES_MDBASE_HI,
+		     upper_32_bits(adev->mes.data_fw_gpu_addr));
+
+	/* Set 0x3FFFF (256K-1) to CP_MES_MDBOUND_LO */
+	WREG32_SOC15(GC, 0, mmCP_MES_MDBOUND_LO, 0x3FFFF);
+
+	/* invalidate ICACHE */
+	data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL);
+	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
+	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
+	WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL, data);
+
+	/* prime the ICACHE. */
+	data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL);
+	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
+	WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL, data);
+
+	nv_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+
+	return 0;
 }
 
 static int mes_v10_1_sw_init(void *handle)
