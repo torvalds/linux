@@ -91,6 +91,35 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 	return true;
 }
 
+#ifdef CONFIG_VMAP_STACK
+/*
+ * VMAP the backing store with guard pages
+ */
+static int map_irq_stack(unsigned int cpu)
+{
+	char *stack = (char *)per_cpu_ptr(&irq_stack_backing_store, cpu);
+	struct page *pages[IRQ_STACK_SIZE / PAGE_SIZE];
+	void *va;
+	int i;
+
+	for (i = 0; i < IRQ_STACK_SIZE / PAGE_SIZE; i++) {
+		phys_addr_t pa = per_cpu_ptr_to_phys(stack + (i << PAGE_SHIFT));
+
+		pages[i] = pfn_to_page(pa >> PAGE_SHIFT);
+	}
+
+	va = vmap(pages, IRQ_STACK_SIZE / PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL);
+	if (!va)
+		return -ENOMEM;
+
+	per_cpu(hardirq_stack_ptr, cpu) = va + IRQ_STACK_SIZE;
+	return 0;
+}
+#else
+/*
+ * If VMAP stacks are disabled due to KASAN, just use the per cpu
+ * backing store without guard pages.
+ */
 static int map_irq_stack(unsigned int cpu)
 {
 	void *va = per_cpu_ptr(&irq_stack_backing_store, cpu);
@@ -98,6 +127,7 @@ static int map_irq_stack(unsigned int cpu)
 	per_cpu(hardirq_stack_ptr, cpu) = va + IRQ_STACK_SIZE;
 	return 0;
 }
+#endif
 
 int irq_init_percpu_irqstack(unsigned int cpu)
 {
