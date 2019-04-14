@@ -61,7 +61,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 		return;
 
 	oist = this_cpu_ptr(&orig_ist);
-	estack_top = (u64)oist->ist[DEBUG_STACK];
+	estack_top = (u64)oist->ist[ESTACK_DB];
 	estack_bottom = estack_top - DEBUG_STKSZ + STACK_MARGIN;
 	if (regs->sp >= estack_bottom && regs->sp <= estack_top)
 		return;

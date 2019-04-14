@@ -18,16 +18,16 @@
 
 #include <asm/stacktrace.h>
 
-static char *exception_stack_names[N_EXCEPTION_STACKS] = {
-		[ DOUBLEFAULT_STACK-1	]	= "#DF",
-		[ NMI_STACK-1		]	= "NMI",
-		[ DEBUG_STACK-1		]	= "#DB",
-		[ MCE_STACK-1		]	= "#MC",
+static const char *exception_stack_names[N_EXCEPTION_STACKS] = {
+		[ ESTACK_DF	]	= "#DF",
+		[ ESTACK_NMI	]	= "NMI",
+		[ ESTACK_DB	]	= "#DB",
+		[ ESTACK_MCE	]	= "#MC",
 };
 
-static unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
+static const unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
 	[0 ... N_EXCEPTION_STACKS - 1]		= EXCEPTION_STKSZ,
-	[DEBUG_STACK - 1]			= DEBUG_STKSZ
+	[ESTACK_DB]				= DEBUG_STKSZ
 };
 
 const char *stack_type_name(enum stack_type type)
