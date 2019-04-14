@@ -73,7 +73,7 @@ int main(void)
 	BLANK();
 
 #ifdef CONFIG_STACKPROTECTOR
-	DEFINE(stack_canary_offset, offsetof(union irq_stack_union, stack_canary));
+	DEFINE(stack_canary_offset, offsetof(struct fixed_percpu_data, stack_canary));
 	BLANK();
 #endif
 

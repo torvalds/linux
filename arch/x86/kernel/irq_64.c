@@ -23,6 +23,9 @@
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 
+DEFINE_PER_CPU_PAGE_ALIGNED(struct irq_stack, irq_stack_backing_store) __visible;
+DECLARE_INIT_PER_CPU(irq_stack_backing_store);
+
 int sysctl_panic_on_stackoverflow;
 
 /*
@@ -90,7 +93,7 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 
 static int map_irq_stack(unsigned int cpu)
 {
-	void *va = per_cpu_ptr(irq_stack_union.irq_stack, cpu);
+	void *va = per_cpu_ptr(&irq_stack_backing_store, cpu);
 
 	per_cpu(hardirq_stack_ptr, cpu) = va + IRQ_STACK_SIZE;
 	return 0;
