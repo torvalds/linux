@@ -1432,17 +1432,6 @@ static int hclge_get_tc_num(struct hclge_dev *hdev)
 	return cnt;
 }
 
-static int hclge_get_pfc_enalbe_num(struct hclge_dev *hdev)
-{
-	int i, cnt = 0;
-
-	for (i = 0; i < HCLGE_MAX_TC_NUM; i++)
-		if (hdev->hw_tc_map & BIT(i) &&
-		    hdev->tm_info.hw_pfc_map & BIT(i))
-			cnt++;
-	return cnt;
-}
-
 /* Get the number of pfc enabled TCs, which have private buffer */
 static int hclge_get_pfc_priv_num(struct hclge_dev *hdev,
 				  struct hclge_pkt_buf_alloc *buf_alloc)
@@ -1507,13 +1496,11 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 				u32 rx_all)
 {
 	u32 shared_buf_min, shared_buf_tc, shared_std;
-	int tc_num, pfc_enable_num;
+	int tc_num = hclge_get_tc_num(hdev);
 	u32 shared_buf, aligned_mps;
 	u32 rx_priv;
 	int i;
 
-	tc_num = hclge_get_tc_num(hdev);
-	pfc_enable_num = hclge_get_pfc_enalbe_num(hdev);
 	aligned_mps = roundup(hdev->mps, HCLGE_BUF_SIZE_UNIT);
 
 	if (hnae3_dev_dcb_supported(hdev))
@@ -1522,9 +1509,7 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 		shared_buf_min = aligned_mps + HCLGE_NON_DCB_ADDITIONAL_BUF
 					+ hdev->dv_buf_size;
 
-	shared_buf_tc = pfc_enable_num * aligned_mps +
-			(tc_num - pfc_enable_num) * aligned_mps / 2 +
-			aligned_mps;
+	shared_buf_tc = tc_num * aligned_mps + aligned_mps;
 	shared_std = roundup(max_t(u32, shared_buf_min, shared_buf_tc),
 			     HCLGE_BUF_SIZE_UNIT);
 
@@ -1546,14 +1531,8 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 	}
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
-		if ((hdev->hw_tc_map & BIT(i)) &&
-		    (hdev->tm_info.hw_pfc_map & BIT(i))) {
-			buf_alloc->s_buf.tc_thrd[i].low = aligned_mps;
-			buf_alloc->s_buf.tc_thrd[i].high = 2 * aligned_mps;
-		} else {
-			buf_alloc->s_buf.tc_thrd[i].low = 0;
-			buf_alloc->s_buf.tc_thrd[i].high = aligned_mps;
-		}
+		buf_alloc->s_buf.tc_thrd[i].low = aligned_mps;
+		buf_alloc->s_buf.tc_thrd[i].high = 2 * aligned_mps;
 	}
 
 	return true;
