@@ -102,11 +102,15 @@ static void qed_db_recovery_dp_entry(struct qed_hwfn *p_hwfn,
 
 /* Doorbell address sanity (address within doorbell bar range) */
 static bool qed_db_rec_sanity(struct qed_dev *cdev,
-			      void __iomem *db_addr, void *db_data)
+			      void __iomem *db_addr,
+			      enum qed_db_rec_width db_width,
+			      void *db_data)
 {
+	u32 width = (db_width == DB_REC_WIDTH_32B) ? 32 : 64;
+
 	/* Make sure doorbell address is within the doorbell bar */
 	if (db_addr < cdev->doorbells ||
-	    (u8 __iomem *)db_addr >
+	    (u8 __iomem *)db_addr + width >
 	    (u8 __iomem *)cdev->doorbells + cdev->db_size) {
 		WARN(true,
 		     "Illegal doorbell address: %p. Legal range for doorbell addresses is [%p..%p]\n",
@@ -159,7 +163,7 @@ int qed_db_recovery_add(struct qed_dev *cdev,
 	}
 
 	/* Sanitize doorbell address */
-	if (!qed_db_rec_sanity(cdev, db_addr, db_data))
+	if (!qed_db_rec_sanity(cdev, db_addr, db_width, db_data))
 		return -EINVAL;
 
 	/* Obtain hwfn from doorbell address */
@@ -204,10 +208,6 @@ int qed_db_recovery_del(struct qed_dev *cdev,
 			   QED_MSG_IOV, "db recovery - skipping VF doorbell\n");
 		return 0;
 	}
-
-	/* Sanitize doorbell address */
-	if (!qed_db_rec_sanity(cdev, db_addr, db_data))
-		return -EINVAL;
 
 	/* Obtain hwfn from doorbell address */
 	p_hwfn = qed_db_rec_find_hwfn(cdev, db_addr);
@@ -317,7 +317,7 @@ static void qed_db_recovery_ring(struct qed_hwfn *p_hwfn,
 
 	/* Sanity */
 	if (!qed_db_rec_sanity(p_hwfn->cdev, db_entry->db_addr,
-			       db_entry->db_data))
+			       db_entry->db_width, db_entry->db_data))
 		return;
 
 	/* Flush the write combined buffer. Since there are multiple doorbelling
