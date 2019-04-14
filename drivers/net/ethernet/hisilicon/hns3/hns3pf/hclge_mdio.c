@@ -121,12 +121,18 @@ static int hclge_mdio_read(struct mii_bus *bus, int phyid, int regnum)
 
 int hclge_mac_mdio_config(struct hclge_dev *hdev)
 {
+#define PHY_INEXISTENT	255
+
 	struct hclge_mac *mac = &hdev->hw.mac;
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
 	int ret;
 
-	if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR) {
+	if (hdev->hw.mac.phy_addr == PHY_INEXISTENT) {
+		dev_info(&hdev->pdev->dev,
+			 "no phy device is connected to mdio bus\n");
+		return 0;
+	} else if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR) {
 		dev_err(&hdev->pdev->dev, "phy_addr(%d) is too large.\n",
 			hdev->hw.mac.phy_addr);
 		return -EINVAL;
