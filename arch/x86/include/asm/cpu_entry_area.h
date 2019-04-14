@@ -26,13 +26,9 @@ struct exception_stacks {
 	ESTACKS_MEMBERS(0)
 };
 
-/*
- * The effective cpu entry area mapping with guard pages. Guard size is
- * zero until the code which makes assumptions about linear mappings is
- * cleaned up.
- */
+/* The effective cpu entry area mapping with guard pages. */
 struct cea_exception_stacks {
-	ESTACKS_MEMBERS(0)
+	ESTACKS_MEMBERS(PAGE_SIZE)
 };
 
 /*
