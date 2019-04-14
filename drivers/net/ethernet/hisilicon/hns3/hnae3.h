@@ -147,6 +147,13 @@ enum hnae3_flr_state {
 	HNAE3_FLR_DONE,
 };
 
+enum hnae3_port_base_vlan_state {
+	HNAE3_PORT_BASE_VLAN_DISABLE,
+	HNAE3_PORT_BASE_VLAN_ENABLE,
+	HNAE3_PORT_BASE_VLAN_MODIFY,
+	HNAE3_PORT_BASE_VLAN_NOCHANGE,
+};
+
 struct hnae3_vector_info {
 	u8 __iomem *io_addr;
 	int vector;
