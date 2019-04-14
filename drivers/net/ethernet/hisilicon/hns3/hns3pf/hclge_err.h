@@ -112,6 +112,7 @@ struct hclge_hw_blk {
 struct hclge_hw_error {
 	u32 int_msk;
 	const char *msg;
+	enum hnae3_reset_type reset_level;
 };
 
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state);
