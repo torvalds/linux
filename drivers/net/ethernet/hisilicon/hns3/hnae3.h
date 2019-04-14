@@ -585,6 +585,8 @@ struct hnae3_handle {
 
 	u32 numa_node_mask;	/* for multi-chip support */
 
+	enum hnae3_port_base_vlan_state port_base_vlan_state;
+
 	u8 netdev_flags;
 	struct dentry *hnae3_dbgfs;
 };

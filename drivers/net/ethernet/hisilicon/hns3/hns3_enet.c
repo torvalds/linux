@@ -963,6 +963,16 @@ static int hns3_fill_desc_vtags(struct sk_buff *skb,
 {
 #define HNS3_TX_VLAN_PRIO_SHIFT 13
 
+	struct hnae3_handle *handle = tx_ring->tqp->handle;
+
+	/* Since HW limitation, if port based insert VLAN enabled, only one VLAN
+	 * header is allowed in skb, otherwise it will cause RAS error.
+	 */
+	if (unlikely(skb_vlan_tagged_multi(skb) &&
+		     handle->port_base_vlan_state ==
+		     HNAE3_PORT_BASE_VLAN_ENABLE))
+		return -EINVAL;
+
 	if (skb->protocol == htons(ETH_P_8021Q) &&
 	    !(tx_ring->tqp->handle->kinfo.netdev->features &
 	    NETIF_F_HW_VLAN_CTAG_TX)) {
@@ -984,8 +994,16 @@ static int hns3_fill_desc_vtags(struct sk_buff *skb,
 		 * and use inner_vtag in one tag case.
 		 */
 		if (skb->protocol == htons(ETH_P_8021Q)) {
-			hns3_set_field(*out_vlan_flag, HNS3_TXD_OVLAN_B, 1);
-			*out_vtag = vlan_tag;
+			if (handle->port_base_vlan_state ==
+			    HNAE3_PORT_BASE_VLAN_DISABLE){
+				hns3_set_field(*out_vlan_flag,
+					       HNS3_TXD_OVLAN_B, 1);
+				*out_vtag = vlan_tag;
+			} else {
+				hns3_set_field(*inner_vlan_flag,
+					       HNS3_TXD_VLAN_B, 1);
+				*inner_vtag = vlan_tag;
+			}
 		} else {
 			hns3_set_field(*inner_vlan_flag, HNS3_TXD_VLAN_B, 1);
 			*inner_vtag = vlan_tag;
@@ -2390,6 +2408,7 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 				struct hns3_desc *desc, u32 l234info,
 				u16 *vlan_tag)
 {
+	struct hnae3_handle *handle = ring->tqp->handle;
 	struct pci_dev *pdev = ring->tqp->handle->pdev;
 
 	if (pdev->revision == 0x20) {
@@ -2402,14 +2421,35 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 
 #define HNS3_STRP_OUTER_VLAN	0x1
 #define HNS3_STRP_INNER_VLAN	0x2
+#define HNS3_STRP_BOTH		0x3
 
+	/* Hardware always insert VLAN tag into RX descriptor when
+	 * remove the tag from packet, driver needs to determine
+	 * reporting which tag to stack.
+	 */
 	switch (hnae3_get_field(l234info, HNS3_RXD_STRP_TAGP_M,
 				HNS3_RXD_STRP_TAGP_S)) {
 	case HNS3_STRP_OUTER_VLAN:
+		if (handle->port_base_vlan_state !=
+				HNAE3_PORT_BASE_VLAN_DISABLE)
+			return false;
+
 		*vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
 		return true;
 	case HNS3_STRP_INNER_VLAN:
+		if (handle->port_base_vlan_state !=
+				HNAE3_PORT_BASE_VLAN_DISABLE)
+			return false;
+
 		*vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+		return true;
+	case HNS3_STRP_BOTH:
+		if (handle->port_base_vlan_state ==
+				HNAE3_PORT_BASE_VLAN_DISABLE)
+			*vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
+		else
+			*vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+
 		return true;
 	default:
 		return false;
