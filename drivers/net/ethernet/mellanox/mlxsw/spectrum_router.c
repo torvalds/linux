@@ -2444,7 +2444,13 @@ mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 			return;
 	} else {
 		WARN_ON_ONCE(1);
+		return;
 	}
+
+	if (adding)
+		neigh_entry->key.n->flags |= NTF_OFFLOADED;
+	else
+		neigh_entry->key.n->flags &= ~NTF_OFFLOADED;
 }
 
 void
