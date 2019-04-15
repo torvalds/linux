@@ -400,7 +400,7 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 	u32 clkdiv;
 
 	if (mode->clock == 0) {
-		DRM_INFO("Mode has zero clock value.\n");
+		DRM_ERROR("Mode has zero clock value.\n");
 		return -EINVAL;
 	}
 
@@ -416,7 +416,7 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 
 	lcd_rate = clk_get_rate(ctx->lcd_clk);
 	if (2 * lcd_rate < ideal_clk) {
-		DRM_INFO("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
+		DRM_ERROR("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
 			 lcd_rate, ideal_clk);
 		return -EINVAL;
 	}
@@ -424,7 +424,7 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 	/* Find the clock divider value that gets us closest to ideal_clk */
 	clkdiv = DIV_ROUND_CLOSEST(lcd_rate, ideal_clk);
 	if (clkdiv >= 0x200) {
-		DRM_INFO("requested pixel clock(%lu) too low\n", ideal_clk);
+		DRM_ERROR("requested pixel clock(%lu) too low\n", ideal_clk);
 		return -EINVAL;
 	}
 
