@@ -5603,7 +5603,7 @@ static void vmx_dump_dtsel(char *name, uint32_t limit)
 	       vmcs_readl(limit + GUEST_GDTR_BASE - GUEST_GDTR_LIMIT));
 }
 
-static void dump_vmcs(void)
+void dump_vmcs(void)
 {
 	u32 vmentry_ctl = vmcs_read32(VM_ENTRY_CONTROLS);
 	u32 vmexit_ctl = vmcs_read32(VM_EXIT_CONTROLS);

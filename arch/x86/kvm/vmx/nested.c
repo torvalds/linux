@@ -2873,20 +2873,27 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 		/*
 		 * If translation failed, VM entry will fail because
 		 * prepare_vmcs02 set VIRTUAL_APIC_PAGE_ADDR to -1ull.
-		 * Failing the vm entry is _not_ what the processor
-		 * does but it's basically the only possibility we
-		 * have.  We could still enter the guest if CR8 load
-		 * exits are enabled, CR8 store exits are enabled, and
-		 * virtualize APIC access is disabled; in this case
-		 * the processor would never use the TPR shadow and we
-		 * could simply clear the bit from the execution
-		 * control.  But such a configuration is useless, so
-		 * let's keep the code simple.
 		 */
 		if (!is_error_page(page)) {
 			vmx->nested.virtual_apic_page = page;
 			hpa = page_to_phys(vmx->nested.virtual_apic_page);
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, hpa);
+		} else if (nested_cpu_has(vmcs12, CPU_BASED_CR8_LOAD_EXITING) &&
+		           nested_cpu_has(vmcs12, CPU_BASED_CR8_STORE_EXITING) &&
+			   !nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
+			/*
+			 * The processor will never use the TPR shadow, simply
+			 * clear the bit from the execution control.  Such a
+			 * configuration is useless, but it happens in tests.
+			 * For any other configuration, failing the vm entry is
+			 * _not_ what the processor does but it's basically the
+			 * only possibility we have.
+			 */
+			vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
+					CPU_BASED_TPR_SHADOW);
+		} else {
+			printk("bad virtual-APIC page address\n");
+			dump_vmcs();
 		}
 	}
 
