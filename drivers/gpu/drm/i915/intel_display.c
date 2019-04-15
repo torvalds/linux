@@ -125,8 +125,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
-static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
+static void intel_begin_crtc_commit(struct intel_atomic_state *, struct intel_crtc *);
+static void intel_finish_crtc_commit(struct intel_atomic_state *, struct intel_crtc *);
 static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 				    struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state);
@@ -13274,14 +13274,14 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 	else if (new_plane_state)
 		intel_fbc_enable(intel_crtc, pipe_config, new_plane_state);
 
-	intel_begin_crtc_commit(crtc, old_crtc_state);
+	intel_begin_crtc_commit(to_intel_atomic_state(state), intel_crtc);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		skl_update_planes_on_crtc(to_intel_atomic_state(state), intel_crtc);
 	else
 		i9xx_update_planes_on_crtc(to_intel_atomic_state(state), intel_crtc);
 
-	intel_finish_crtc_commit(crtc, old_crtc_state);
+	intel_finish_crtc_commit(to_intel_atomic_state(state), intel_crtc);
 }
 
 static void intel_update_crtcs(struct drm_atomic_state *state)
@@ -14071,39 +14071,35 @@ skl_max_scale(const struct intel_crtc_state *crtc_state,
 	return max_scale;
 }
 
-static void intel_begin_crtc_commit(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+static void intel_begin_crtc_commit(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *old_intel_cstate =
-		to_intel_crtc_state(old_crtc_state);
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_crtc_state->state);
-	struct intel_crtc_state *intel_cstate =
-		intel_atomic_get_new_crtc_state(old_intel_state, intel_crtc);
-	bool modeset = needs_modeset(&intel_cstate->base);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	bool modeset = needs_modeset(&new_crtc_state->base);
 
 	/* Perform vblank evasion around commit operation */
-	intel_pipe_update_start(intel_cstate);
+	intel_pipe_update_start(new_crtc_state);
 
 	if (modeset)
 		goto out;
 
-	if (intel_cstate->base.color_mgmt_changed ||
-	    intel_cstate->update_pipe)
-		intel_color_commit(intel_cstate);
+	if (new_crtc_state->base.color_mgmt_changed ||
+	    new_crtc_state->update_pipe)
+		intel_color_commit(new_crtc_state);
 
-	if (intel_cstate->update_pipe)
-		intel_update_pipe_config(old_intel_cstate, intel_cstate);
+	if (new_crtc_state->update_pipe)
+		intel_update_pipe_config(old_crtc_state, new_crtc_state);
 	else if (INTEL_GEN(dev_priv) >= 9)
-		skl_detach_scalers(intel_cstate);
+		skl_detach_scalers(new_crtc_state);
 
 out:
 	if (dev_priv->display.atomic_update_watermarks)
-		dev_priv->display.atomic_update_watermarks(old_intel_state,
-							   intel_cstate);
+		dev_priv->display.atomic_update_watermarks(state,
+							   new_crtc_state);
 }
 
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
@@ -14122,21 +14118,20 @@ void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 	}
 }
 
-static void intel_finish_crtc_commit(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_crtc_state)
+static void intel_finish_crtc_commit(struct intel_atomic_state *state,
+				     struct intel_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_crtc_state->state);
+	struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(old_intel_state, intel_crtc);
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	intel_pipe_update_end(new_crtc_state);
 
 	if (new_crtc_state->update_pipe &&
 	    !needs_modeset(&new_crtc_state->base) &&
-	    old_crtc_state->mode.private_flags & I915_MODE_FLAG_INHERITED)
-		intel_crtc_arm_fifo_underrun(intel_crtc, new_crtc_state);
+	    old_crtc_state->base.mode.private_flags & I915_MODE_FLAG_INHERITED)
+		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
 
 /**
