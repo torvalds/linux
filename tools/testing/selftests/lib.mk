@@ -3,7 +3,16 @@
 CC := $(CROSS_COMPILE)gcc
 
 ifeq (0,$(MAKELEVEL))
-OUTPUT := $(shell pwd)
+    ifneq ($(O),)
+	OUTPUT := $(O)
+    else
+	ifneq ($(KBUILD_OUTPUT),)
+		OUTPUT := $(KBUILD_OUTPUT)
+	else
+		OUTPUT := $(shell pwd)
+		DEFAULT_INSTALL_HDR_PATH := 1
+	endif
+    endif
 endif
 
 # The following are built by lib.mk common compile rules.
@@ -21,9 +30,34 @@ top_srcdir ?= ../../../..
 include $(top_srcdir)/scripts/subarch.include
 ARCH		?= $(SUBARCH)
 
+# set default goal to all, so make without a target runs all, even when
+# all isn't the first target in the file.
+.DEFAULT_GOAL := all
+
+# Invoke headers install with --no-builtin-rules to avoid circular
+# dependency in "make kselftest" case. In this case, second level
+# make inherits builtin-rules which will use the rule generate
+# Makefile.o and runs into
+# "Circular Makefile.o <- prepare dependency dropped."
+# and headers_install fails and test compile fails.
+# O= KBUILD_OUTPUT cases don't run into this error, since main Makefile
+# invokes them as sub-makes and --no-builtin-rules is not necessary,
+# but doesn't cause any failures. Keep it simple and use the same
+# flags in both cases.
+# Note that the support to install headers from lib.mk is necessary
+# when test Makefile is run directly with "make -C".
+# When local build is done, headers are installed in the default
+# INSTALL_HDR_PATH usr/include.
 .PHONY: khdr
 khdr:
-	make ARCH=$(ARCH) -C $(top_srcdir) headers_install
+ifndef KSFT_KHDR_INSTALL_DONE
+ifeq (1,$(DEFAULT_INSTALL_HDR_PATH))
+	make --no-builtin-rules ARCH=$(ARCH) -C $(top_srcdir) headers_install
+else
+	make --no-builtin-rules INSTALL_HDR_PATH=$$OUTPUT/usr \
+		ARCH=$(ARCH) -C $(top_srcdir) headers_install
+endif
+endif
 
 all: khdr $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 else
