@@ -115,8 +115,6 @@
 
 			xusbxti: clock@0 {
 				compatible = "fixed-clock";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 				clock-frequency = <0>;
 				#clock-cells = <0>;
