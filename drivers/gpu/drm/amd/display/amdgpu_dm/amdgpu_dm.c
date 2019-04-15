@@ -5207,11 +5207,16 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		abo = gem_to_amdgpu_bo(fb->obj[0]);
 
-		/* Wait for all fences on this FB */
+		/*
+		 * Wait for all fences on this FB. Do limited wait to avoid
+		 * deadlock during GPU reset when this fence will not signal
+		 * but we hold reservation lock for the BO.
+		 */
 		r = reservation_object_wait_timeout_rcu(abo->tbo.resv, true,
 							false,
-							MAX_SCHEDULE_TIMEOUT);
-		WARN_ON(r < 0);
+							msecs_to_jiffies(5000));
+		if (unlikely(r <= 0))
+			DRM_ERROR("Waiting for fences timed out or interrupted!");
 
 		/*
 		 * TODO This might fail and hence better not used, wait
@@ -5220,10 +5225,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * blocking commit to as per framework helpers
 		 */
 		r = amdgpu_bo_reserve(abo, true);
-		if (unlikely(r != 0)) {
+		if (unlikely(r != 0))
 			DRM_ERROR("failed to reserve buffer before flip\n");
-			WARN_ON(1);
-		}
 
 		amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 
