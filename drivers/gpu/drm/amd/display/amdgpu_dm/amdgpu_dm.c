@@ -5487,10 +5487,6 @@ static void amdgpu_dm_enable_crtc_interrupts(struct drm_device *dev,
 		if (!run_pass)
 			continue;
 
-		/* Handle vrr on->off / off->on transitions */
-		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
-						dm_new_crtc_state);
-
 		if (!dm_new_crtc_state->interrupts_enabled)
 			continue;
 
@@ -5780,17 +5776,22 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_unlock(&dm->dc_lock);
 	}
 
-	/* Update freesync state before amdgpu_dm_handle_vrr_transition(). */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
-	}
-
 	/* Count number of newly disabled CRTCs for dropping PM refs later. */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
-				      new_crtc_state, i)
+				      new_crtc_state, i) {
 		if (old_crtc_state->active && !new_crtc_state->active)
 			crtc_disable_count++;
+
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+
+		/* Update freesync active state. */
+		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
+
+		/* Handle vrr on->off / off->on transitions */
+		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
+						dm_new_crtc_state);
+	}
 
 	/* Enable interrupts for CRTCs going through a modeset. */
 	amdgpu_dm_enable_crtc_interrupts(dev, state, true);
