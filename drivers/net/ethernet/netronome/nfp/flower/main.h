@@ -140,6 +140,7 @@ struct nfp_fl_internal_ports {
  * @flow_table:		Hash table used to store flower rules
  * @stats:		Stored stats updates for flower rules
  * @stats_lock:		Lock for flower rule stats updates
+ * @stats_ctx_table:	Hash table to map stats contexts to its flow rule
  * @cmsg_work:		Workqueue for control messages processing
  * @cmsg_skbs_high:	List of higher priority skbs for control message
  *			processing
@@ -170,6 +171,7 @@ struct nfp_flower_priv {
 	struct rhashtable flow_table;
 	struct nfp_fl_stats *stats;
 	spinlock_t stats_lock; /* lock stats */
+	struct rhashtable stats_ctx_table;
 	struct work_struct cmsg_work;
 	struct sk_buff_head cmsg_skbs_high;
 	struct sk_buff_head cmsg_skbs_low;
@@ -303,6 +305,8 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
 			   struct net_device *netdev);
+struct nfp_fl_payload *
+nfp_flower_get_fl_payload_from_ctx(struct nfp_app *app, u32 ctx_id);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
