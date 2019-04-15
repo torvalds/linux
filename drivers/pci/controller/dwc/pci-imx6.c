@@ -723,21 +723,6 @@ static int imx6_setup_phy_mpll(struct imx6_pcie *imx6_pcie)
 	return 0;
 }
 
-static int imx6_pcie_wait_for_link(struct imx6_pcie *imx6_pcie)
-{
-	struct dw_pcie *pci = imx6_pcie->pci;
-	struct device *dev = pci->dev;
-
-	/* check if the link is up or not */
-	if (!dw_pcie_wait_for_link(pci))
-		return 0;
-
-	dev_dbg(dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R0),
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R1));
-	return -ETIMEDOUT;
-}
-
 static int imx6_pcie_wait_for_speed_change(struct imx6_pcie *imx6_pcie)
 {
 	struct dw_pcie *pci = imx6_pcie->pci;
@@ -796,7 +781,7 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	/* Start LTSSM. */
 	imx6_pcie_ltssm_enable(dev);
 
-	ret = imx6_pcie_wait_for_link(imx6_pcie);
+	ret = dw_pcie_wait_for_link(pci);
 	if (ret)
 		goto err_reset_phy;
 
@@ -834,7 +819,7 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 		}
 
 		/* Make sure link training is finished as well! */
-		ret = imx6_pcie_wait_for_link(imx6_pcie);
+		ret = dw_pcie_wait_for_link(pci);
 		if (ret) {
 			dev_err(dev, "Failed to bring link up!\n");
 			goto err_reset_phy;
