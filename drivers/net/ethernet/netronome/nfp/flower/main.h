@@ -117,6 +117,16 @@ struct nfp_fl_lag {
 };
 
 /**
+ * struct nfp_fl_internal_ports - Flower APP priv data for additional ports
+ * @port_ids:	Assignment of ids to any additional ports
+ * @lock:	Lock for extra ports list
+ */
+struct nfp_fl_internal_ports {
+	struct idr port_ids;
+	spinlock_t lock;
+};
+
+/**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
  * @app:		Back pointer to app
  * @nn:			Pointer to vNIC
@@ -145,6 +155,7 @@ struct nfp_fl_lag {
  * @non_repr_priv:	List of offloaded non-repr ports and their priv data
  * @active_mem_unit:	Current active memory unit for flower rules
  * @total_mem_units:	Total number of available memory units for flower rules
+ * @internal_ports:	Internal port ids used in offloaded rules
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -171,6 +182,7 @@ struct nfp_flower_priv {
 	struct list_head non_repr_priv;
 	unsigned int active_mem_unit;
 	unsigned int total_mem_units;
+	struct nfp_fl_internal_ports internal_ports;
 };
 
 /**
@@ -249,6 +261,22 @@ struct nfp_fl_stats_frame {
 	__be64 stats_cookie;
 };
 
+static inline bool
+nfp_flower_internal_port_can_offload(struct nfp_app *app,
+				     struct net_device *netdev)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+
+	if (!(app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE))
+		return false;
+	if (!netdev->rtnl_link_ops)
+		return false;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
+		return true;
+
+	return false;
+}
+
 int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 			     unsigned int host_ctx_split);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
@@ -313,4 +341,6 @@ void
 __nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv);
 void
 nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
+u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
+				       struct net_device *netdev);
 #endif

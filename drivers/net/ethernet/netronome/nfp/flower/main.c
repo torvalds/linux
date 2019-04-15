@@ -22,6 +22,9 @@
 
 #define NFP_FLOWER_ALLOWED_VER 0x0001000000010000UL
 
+#define NFP_MIN_INT_PORT_ID	1
+#define NFP_MAX_INT_PORT_ID	256
+
 static const char *nfp_flower_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 {
 	return "FLOWER";
@@ -30,6 +33,100 @@ static const char *nfp_flower_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 static enum devlink_eswitch_mode eswitch_mode_get(struct nfp_app *app)
 {
 	return DEVLINK_ESWITCH_MODE_SWITCHDEV;
+}
+
+static int
+nfp_flower_lookup_internal_port_id(struct nfp_flower_priv *priv,
+				   struct net_device *netdev)
+{
+	struct net_device *entry;
+	int i, id = 0;
+
+	rcu_read_lock();
+	idr_for_each_entry(&priv->internal_ports.port_ids, entry, i)
+		if (entry == netdev) {
+			id = i;
+			break;
+		}
+	rcu_read_unlock();
+
+	return id;
+}
+
+static int
+nfp_flower_get_internal_port_id(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	int id;
+
+	id = nfp_flower_lookup_internal_port_id(priv, netdev);
+	if (id > 0)
+		return id;
+
+	idr_preload(GFP_ATOMIC);
+	spin_lock_bh(&priv->internal_ports.lock);
+	id = idr_alloc(&priv->internal_ports.port_ids, netdev,
+		       NFP_MIN_INT_PORT_ID, NFP_MAX_INT_PORT_ID, GFP_ATOMIC);
+	spin_unlock_bh(&priv->internal_ports.lock);
+	idr_preload_end();
+
+	return id;
+}
+
+u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
+				       struct net_device *netdev)
+{
+	int ext_port;
+
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		return nfp_repr_get_port_id(netdev);
+	} else if (nfp_flower_internal_port_can_offload(app, netdev)) {
+		ext_port = nfp_flower_get_internal_port_id(app, netdev);
+		if (ext_port < 0)
+			return 0;
+
+		return nfp_flower_internal_port_get_port_id(ext_port);
+	}
+
+	return 0;
+}
+
+static void
+nfp_flower_free_internal_port_id(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	int id;
+
+	id = nfp_flower_lookup_internal_port_id(priv, netdev);
+	if (!id)
+		return;
+
+	spin_lock_bh(&priv->internal_ports.lock);
+	idr_remove(&priv->internal_ports.port_ids, id);
+	spin_unlock_bh(&priv->internal_ports.lock);
+}
+
+static int
+nfp_flower_internal_port_event_handler(struct nfp_app *app,
+				       struct net_device *netdev,
+				       unsigned long event)
+{
+	if (event == NETDEV_UNREGISTER &&
+	    nfp_flower_internal_port_can_offload(app, netdev))
+		nfp_flower_free_internal_port_id(app, netdev);
+
+	return NOTIFY_OK;
+}
+
+static void nfp_flower_internal_port_init(struct nfp_flower_priv *priv)
+{
+	spin_lock_init(&priv->internal_ports.lock);
+	idr_init(&priv->internal_ports.port_ids);
+}
+
+static void nfp_flower_internal_port_cleanup(struct nfp_flower_priv *priv)
+{
+	idr_destroy(&priv->internal_ports.port_ids);
 }
 
 static struct nfp_flower_non_repr_priv *
@@ -645,12 +742,14 @@ static int nfp_flower_init(struct nfp_app *app)
 		/* Tell the firmware that the driver supports flow merging. */
 		err = nfp_rtsym_write_le(app->pf->rtbl,
 					 "_abi_flower_merge_hint_enable", 1);
-		if (!err)
+		if (!err) {
 			app_priv->flower_ext_feats |= NFP_FL_FEATS_FLOW_MERGE;
-		else if (err == -ENOENT)
+			nfp_flower_internal_port_init(app_priv);
+		} else if (err == -ENOENT) {
 			nfp_warn(app->cpp, "Flow merge not supported by FW.\n");
-		else
+		} else {
 			goto err_lag_clean;
+		}
 	} else {
 		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
 	}
@@ -680,6 +779,9 @@ static void nfp_flower_clean(struct nfp_app *app)
 
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
 		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE)
+		nfp_flower_internal_port_cleanup(app_priv);
 
 	nfp_flower_metadata_cleanup(app);
 	vfree(app->priv);
@@ -776,6 +878,10 @@ nfp_flower_netdev_event(struct nfp_app *app, struct net_device *netdev,
 	}
 
 	ret = nfp_flower_reg_indir_block_handler(app, netdev, event);
+	if (ret & NOTIFY_STOP_MASK)
+		return ret;
+
+	ret = nfp_flower_internal_port_event_handler(app, netdev, event);
 	if (ret & NOTIFY_STOP_MASK)
 		return ret;
 

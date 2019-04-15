@@ -474,6 +474,13 @@ enum nfp_flower_cmsg_port_vnic_type {
 #define NFP_FLOWER_CMSG_PORT_PCIE_Q		GENMASK(5, 0)
 #define NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM	GENMASK(7, 0)
 
+static inline u32 nfp_flower_internal_port_get_port_id(u8 internal_port)
+{
+	return FIELD_PREP(NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM, internal_port) |
+		FIELD_PREP(NFP_FLOWER_CMSG_PORT_TYPE,
+			   NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT);
+}
+
 static inline u32 nfp_flower_cmsg_phys_port(u8 phys_port)
 {
 	return FIELD_PREP(NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM, phys_port) |
