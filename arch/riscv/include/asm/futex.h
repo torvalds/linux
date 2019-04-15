@@ -7,18 +7,6 @@
 #ifndef _ASM_FUTEX_H
 #define _ASM_FUTEX_H
 
-#ifndef CONFIG_RISCV_ISA_A
-/*
- * Use the generic interrupt disabling versions if the A extension
- * is not supported.
- */
-#ifdef CONFIG_SMP
-#error "Can't support generic futex calls without A extension on SMP"
-#endif
-#include <asm-generic/futex.h>
-
-#else /* CONFIG_RISCV_ISA_A */
-
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <linux/errno.h>
@@ -124,5 +112,4 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	return ret;
 }
 
-#endif /* CONFIG_RISCV_ISA_A */
 #endif /* _ASM_FUTEX_H */
