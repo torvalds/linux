@@ -1462,12 +1462,19 @@ smb2_ioctl_query_info(const unsigned int xid,
 		io_rsp = (struct smb2_ioctl_rsp *)rsp_iov[1].iov_base;
 		if (le32_to_cpu(io_rsp->OutputCount) < qi.input_buffer_length)
 			qi.input_buffer_length = le32_to_cpu(io_rsp->OutputCount);
+		if (qi.input_buffer_length > 0 &&
+		    le32_to_cpu(io_rsp->OutputOffset) + qi.input_buffer_length > rsp_iov[1].iov_len) {
+			rc = -EFAULT;
+			goto iqinf_exit;
+		}
 		if (copy_to_user(&pqi->input_buffer_length, &qi.input_buffer_length,
 				 sizeof(qi.input_buffer_length))) {
 			rc = -EFAULT;
 			goto iqinf_exit;
 		}
-		if (copy_to_user(pqi + 1, &io_rsp[1], qi.input_buffer_length)) {
+		if (copy_to_user((void __user *)pqi + sizeof(struct smb_query_info),
+				 (const void *)io_rsp + le32_to_cpu(io_rsp->OutputOffset),
+				 qi.input_buffer_length)) {
 			rc = -EFAULT;
 			goto iqinf_exit;
 		}
