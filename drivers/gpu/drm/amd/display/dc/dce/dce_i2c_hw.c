@@ -306,6 +306,8 @@ static bool setup_engine(
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	uint32_t  reset_length = 0;
 #endif
+	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
 	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
