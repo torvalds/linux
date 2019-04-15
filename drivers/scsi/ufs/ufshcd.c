@@ -4704,10 +4704,10 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 				"Reject UPIU not fully implemented\n");
 			break;
 		default:
-			result = DID_ERROR << 16;
 			dev_err(hba->dev,
 				"Unexpected request response code = %x\n",
 				result);
+			result = DID_ERROR << 16;
 			break;
 		}
 		break;
