@@ -72,8 +72,8 @@ static void esw_cleanup_vepa_rules(struct mlx5_eswitch *esw);
 			    MC_ADDR_CHANGE | \
 			    PROMISC_CHANGE)
 
-static struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
-						 u16 vport_num)
+struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
+					  u16 vport_num)
 {
 	u16 idx = mlx5_eswitch_vport_num_to_index(esw, vport_num);
 
@@ -1916,7 +1916,7 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 		return -EINVAL;
 
 	mutex_lock(&esw->state_lock);
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 
 	if (evport->info.spoofchk && !is_valid_ether_addr(mac))
 		mlx5_core_warn(esw->dev,
@@ -1960,7 +1960,7 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 		return -EINVAL;
 
 	mutex_lock(&esw->state_lock);
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 
 	err = mlx5_modify_vport_admin_state(esw->dev,
 					    MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
@@ -1989,7 +1989,7 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	if (!LEGAL_VPORT(esw, vport))
 		return -EINVAL;
 
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 
 	memset(ivi, 0, sizeof(*ivi));
 	ivi->vf = vport - 1;
@@ -2020,7 +2020,7 @@ int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 		return -EINVAL;
 
 	mutex_lock(&esw->state_lock);
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 
 	err = modify_esw_vport_cvlan(esw->dev, vport, vlan, qos, set_flags);
 	if (err)
@@ -2064,7 +2064,7 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 		return -EINVAL;
 
 	mutex_lock(&esw->state_lock);
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 	pschk = evport->info.spoofchk;
 	evport->info.spoofchk = spoofchk;
 	if (pschk && !is_valid_ether_addr(evport->info.mac))
@@ -2213,7 +2213,7 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 		return -EINVAL;
 
 	mutex_lock(&esw->state_lock);
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 	evport->info.trusted = setting;
 	if (evport->enabled)
 		esw_vport_change_handle_locked(evport);
@@ -2299,7 +2299,7 @@ int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&esw->state_lock);
-	evport = &esw->vports[vport];
+	evport = mlx5_eswitch_get_vport(esw, vport);
 
 	if (min_rate == evport->info.min_rate)
 		goto set_max_rate;
