@@ -193,6 +193,7 @@ static void dma_fence_chain_release(struct dma_fence *fence)
 }
 
 const struct dma_fence_ops dma_fence_chain_ops = {
+	.use_64bit_seqno = true,
 	.get_driver_name = dma_fence_chain_get_driver_name,
 	.get_timeline_name = dma_fence_chain_get_timeline_name,
 	.enable_signaling = dma_fence_chain_enable_signaling,
@@ -225,7 +226,7 @@ void dma_fence_chain_init(struct dma_fence_chain *chain,
 	init_irq_work(&chain->work, dma_fence_chain_irq_work);
 
 	/* Try to reuse the context of the previous chain node. */
-	if (prev_chain && __dma_fence_is_later(seqno, prev->seqno)) {
+	if (prev_chain && __dma_fence_is_later(seqno, prev->seqno, prev->ops)) {
 		context = prev->context;
 		chain->prev_seqno = prev->seqno;
 	} else {
