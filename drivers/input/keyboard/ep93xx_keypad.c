@@ -137,10 +137,7 @@ static void ep93xx_keypad_config(struct ep93xx_keypad *keypad)
 	struct ep93xx_keypad_platform_data *pdata = keypad->pdata;
 	unsigned int val = 0;
 
-	if (pdata->flags & EP93XX_KEYPAD_KDIV)
-		clk_set_rate(keypad->clk, EP93XX_KEYTCHCLK_DIV4);
-	else
-		clk_set_rate(keypad->clk, EP93XX_KEYTCHCLK_DIV16);
+	clk_set_rate(keypad->clk, pdata->clk_rate);
 
 	if (pdata->flags & EP93XX_KEYPAD_DISABLE_3_KEY)
 		val |= KEY_INIT_DIS3KY;
