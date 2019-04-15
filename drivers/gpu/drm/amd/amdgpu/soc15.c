@@ -470,6 +470,12 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 		soc15_asic_get_baco_capability(adev, &baco_reset);
 		break;
+	case CHIP_VEGA20:
+		if (adev->psp.sos_fw_version >= 0x80067)
+			soc15_asic_get_baco_capability(adev, &baco_reset);
+		else
+			baco_reset = false;
+		break;
 	default:
 		baco_reset = false;
 		break;
