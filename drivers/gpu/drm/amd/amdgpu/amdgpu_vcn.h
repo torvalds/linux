@@ -145,6 +145,12 @@ struct amdgpu_vcn_reg{
 	unsigned	data1;
 	unsigned	cmd;
 	unsigned	nop;
+	unsigned	context_id;
+	unsigned	ib_vmid;
+	unsigned	ib_bar_low;
+	unsigned	ib_bar_high;
+	unsigned	ib_size;
+	unsigned	gp_scratch8;
 	unsigned	scratch9;
 	unsigned	jpeg_pitch;
 };
