@@ -1667,6 +1667,17 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 }
 
+// Give the scheduler a chance, even on nohz_full CPUs.
+static void rcu_torture_fwd_prog_cond_resched(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT) && IS_ENABLED(CONFIG_NO_HZ_FULL)) {
+		if (need_resched())
+			schedule();
+	} else {
+		cond_resched();
+	}
+}
+
 /*
  * Free all callbacks on the rcu_fwd_cb_head list, either because the
  * test is over or because we hit an OOM event.
@@ -1690,7 +1701,7 @@ static unsigned long rcu_torture_fwd_prog_cbfree(void)
 		spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 		kfree(rfcp);
 		freed++;
-		cond_resched();
+		rcu_torture_fwd_prog_cond_resched();
 	}
 	return freed;
 }
@@ -1734,7 +1745,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 		udelay(10);
 		cur_ops->readunlock(idx);
 		if (!fwd_progress_need_resched || need_resched())
-			cond_resched();
+			rcu_torture_fwd_prog_cond_resched();
 	}
 	(*tested_tries)++;
 	if (!time_before(jiffies, stopat) &&
@@ -1817,7 +1828,7 @@ static void rcu_torture_fwd_prog_cr(void)
 			rfcp->rfc_gps = 0;
 		}
 		cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
-		cond_resched();
+		rcu_torture_fwd_prog_cond_resched();
 	}
 	stoppedat = jiffies;
 	n_launders_cb_snap = READ_ONCE(n_launders_cb);
