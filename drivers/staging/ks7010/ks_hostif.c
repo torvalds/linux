@@ -219,7 +219,6 @@ michael_mic(u8 *key, u8 *data, unsigned int len, u8 priority, u8 *result)
 	}
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	ret = crypto_shash_init(desc);
 	if (ret < 0)

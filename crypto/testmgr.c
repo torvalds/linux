@@ -1328,7 +1328,6 @@ static void generate_random_hash_testvec(struct crypto_shash *tfm,
 
 	/* Digest */
 	desc->tfm = tfm;
-	desc->flags = 0;
 	vec->digest_error = crypto_shash_digest(desc, vec->plaintext,
 						vec->psize, (u8 *)vec->digest);
 done:
@@ -3027,7 +3026,6 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 		u32 *ctx = (u32 *)shash_desc_ctx(shash);
 
 		shash->tfm = tfm;
-		shash->flags = 0;
 
 		*ctx = 420553207;
 		err = crypto_shash_final(shash, (u8 *)&val);

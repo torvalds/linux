@@ -293,8 +293,6 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (key_len > block_size) {
 		/* Must hash the input key */
 		sdesc->tfm = shash;
-		sdesc->flags = crypto_ahash_get_flags(tfm) &
-			CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		ret = crypto_shash_digest(sdesc, key, key_len,
 					  ctx->u.sha.key);

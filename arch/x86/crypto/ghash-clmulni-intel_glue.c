@@ -172,7 +172,6 @@ static int ghash_async_init(struct ahash_request *req)
 	struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
 
 	desc->tfm = child;
-	desc->flags = req->base.flags;
 	return crypto_shash_init(desc);
 }
 
@@ -252,7 +251,6 @@ static int ghash_async_digest(struct ahash_request *req)
 		struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
 
 		desc->tfm = child;
-		desc->flags = req->base.flags;
 		return shash_ahash_digest(req, desc);
 	}
 }

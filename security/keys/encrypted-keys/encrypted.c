@@ -333,7 +333,6 @@ static int calc_hash(struct crypto_shash *tfm, u8 *digest,
 	int err;
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	err = crypto_shash_digest(desc, buf, buflen, digest);
 	shash_desc_zero(desc);

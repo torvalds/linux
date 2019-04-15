@@ -265,7 +265,6 @@ static int adiantum_hash_message(struct skcipher_request *req,
 	int err;
 
 	hash_desc->tfm = tctx->hash;
-	hash_desc->flags = 0;
 
 	err = crypto_shash_init(hash_desc);
 	if (err)

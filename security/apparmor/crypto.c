@@ -43,7 +43,6 @@ char *aa_calc_hash(void *data, size_t len)
 		goto fail;
 
 	desc->tfm = apparmor_tfm;
-	desc->flags = 0;
 
 	error = crypto_shash_init(desc);
 	if (error)
@@ -81,7 +80,6 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 		goto fail;
 
 	desc->tfm = apparmor_tfm;
-	desc->flags = 0;
 
 	error = crypto_shash_init(desc);
 	if (error)

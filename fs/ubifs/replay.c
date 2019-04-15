@@ -576,7 +576,6 @@ static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_h
 	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 
 	hash_desc->tfm = c->hash_tfm;
-	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ubifs_shash_copy_state(c, log_hash, hash_desc);
 	return crypto_shash_final(hash_desc, hash);
@@ -587,7 +586,6 @@ static int authenticate_sleb_hmac(struct ubifs_info *c, u8 *hash, u8 *hmac)
 	SHASH_DESC_ON_STACK(hmac_desc, c->hmac_tfm);
 
 	hmac_desc->tfm = c->hmac_tfm;
-	hmac_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_digest(hmac_desc, hash, c->hash_len, hmac);
 }

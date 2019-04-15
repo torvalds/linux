@@ -252,7 +252,6 @@ static int chap_server_compute_md5(
 	}
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	ret = crypto_shash_init(desc);
 	if (ret < 0) {

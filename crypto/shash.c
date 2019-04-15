@@ -238,7 +238,6 @@ static int shash_async_init(struct ahash_request *req)
 	struct shash_desc *desc = ahash_request_ctx(req);
 
 	desc->tfm = *ctx;
-	desc->flags = req->base.flags;
 
 	return crypto_shash_init(desc);
 }
@@ -293,7 +292,6 @@ static int shash_async_finup(struct ahash_request *req)
 	struct shash_desc *desc = ahash_request_ctx(req);
 
 	desc->tfm = *ctx;
-	desc->flags = req->base.flags;
 
 	return shash_ahash_finup(req, desc);
 }
@@ -328,7 +326,6 @@ static int shash_async_digest(struct ahash_request *req)
 	struct shash_desc *desc = ahash_request_ctx(req);
 
 	desc->tfm = *ctx;
-	desc->flags = req->base.flags;
 
 	return shash_ahash_digest(req, desc);
 }
@@ -344,7 +341,6 @@ static int shash_async_import(struct ahash_request *req, const void *in)
 	struct shash_desc *desc = ahash_request_ctx(req);
 
 	desc->tfm = *ctx;
-	desc->flags = req->base.flags;
 
 	return crypto_shash_import(desc, in);
 }

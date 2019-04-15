@@ -126,7 +126,6 @@ nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 		SHASH_DESC_ON_STACK(desc, tfm);
 
 		desc->tfm = tfm;
-		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		status = crypto_shash_digest(desc, clname->data, clname->len,
 					     cksum.data);

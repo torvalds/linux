@@ -545,7 +545,6 @@ static void cryptd_hash_init(struct crypto_async_request *req_async, int err)
 		goto out;
 
 	desc->tfm = child;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(desc);
 
@@ -637,7 +636,6 @@ static void cryptd_hash_digest(struct crypto_async_request *req_async, int err)
 		goto out;
 
 	desc->tfm = child;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = shash_ahash_digest(req, desc);
 
@@ -666,7 +664,6 @@ static int cryptd_hash_import(struct ahash_request *req, const void *in)
 	struct shash_desc *desc = cryptd_shash_desc(req);
 
 	desc->tfm = ctx->child;
-	desc->flags = req->base.flags;
 
 	return crypto_shash_import(desc, in);
 }

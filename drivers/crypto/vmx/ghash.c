@@ -101,7 +101,6 @@ static int p8_ghash_init(struct shash_desc *desc)
 	dctx->bytes = 0;
 	memset(dctx->shash, 0, GHASH_DIGEST_SIZE);
 	dctx->fallback_desc.tfm = ctx->fallback;
-	dctx->fallback_desc.flags = desc->flags;
 	return crypto_shash_init(&dctx->fallback_desc);
 }
 
