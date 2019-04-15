@@ -885,7 +885,8 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);
 	if (ret) {
-		DRM_ERROR("mixer_resources_init failed ret=%d\n", ret);
+		DRM_DEV_ERROR(mixer_ctx->dev,
+			      "mixer_resources_init failed ret=%d\n", ret);
 		return ret;
 	}
 
@@ -893,7 +894,8 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		/* acquire vp resources: regs, irqs, clocks */
 		ret = vp_resources_init(mixer_ctx);
 		if (ret) {
-			DRM_ERROR("vp_resources_init failed ret=%d\n", ret);
+			DRM_DEV_ERROR(mixer_ctx->dev,
+				      "vp_resources_init failed ret=%d\n", ret);
 			return ret;
 		}
 	}
@@ -1227,7 +1229,7 @@ static int mixer_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		DRM_ERROR("failed to alloc mixer context.\n");
+		DRM_DEV_ERROR(dev, "failed to alloc mixer context.\n");
 		return -ENOMEM;
 	}
 
@@ -1282,27 +1284,33 @@ static int __maybe_unused exynos_mixer_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->mixer);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the mixer clk [%d]\n", ret);
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to prepare_enable the mixer clk [%d]\n",
+			      ret);
 		return ret;
 	}
 	ret = clk_prepare_enable(ctx->hdmi);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the hdmi clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the hdmi clk [%d]\n",
+			      ret);
 		return ret;
 	}
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags)) {
 		ret = clk_prepare_enable(ctx->vp);
 		if (ret < 0) {
-			DRM_ERROR("Failed to prepare_enable the vp clk [%d]\n",
-				  ret);
+			DRM_DEV_ERROR(dev,
+				      "Failed to prepare_enable the vp clk [%d]\n",
+				      ret);
 			return ret;
 		}
 		if (test_bit(MXR_BIT_HAS_SCLK, &ctx->flags)) {
 			ret = clk_prepare_enable(ctx->sclk_mixer);
 			if (ret < 0) {
-				DRM_ERROR("Failed to prepare_enable the " \
+				DRM_DEV_ERROR(dev,
+					   "Failed to prepare_enable the " \
 					   "sclk_mixer clk [%d]\n",
-					  ret);
+					   ret);
 				return ret;
 			}
 		}

@@ -398,7 +398,7 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 	u32 clkdiv;
 
 	if (mode->clock == 0) {
-		DRM_ERROR("Mode has zero clock value.\n");
+		DRM_DEV_ERROR(ctx->dev, "Mode has zero clock value.\n");
 		return -EINVAL;
 	}
 
@@ -414,15 +414,17 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 
 	lcd_rate = clk_get_rate(ctx->lcd_clk);
 	if (2 * lcd_rate < ideal_clk) {
-		DRM_ERROR("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
-			 lcd_rate, ideal_clk);
+		DRM_DEV_ERROR(ctx->dev,
+			      "sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
+			      lcd_rate, ideal_clk);
 		return -EINVAL;
 	}
 
 	/* Find the clock divider value that gets us closest to ideal_clk */
 	clkdiv = DIV_ROUND_CLOSEST(lcd_rate, ideal_clk);
 	if (clkdiv >= 0x200) {
-		DRM_ERROR("requested pixel clock(%lu) too low\n", ideal_clk);
+		DRM_DEV_ERROR(ctx->dev, "requested pixel clock(%lu) too low\n",
+			      ideal_clk);
 		return -EINVAL;
 	}
 
@@ -479,7 +481,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 					driver_data->lcdblk_offset,
 					0x3 << driver_data->lcdblk_vt_shift,
 					0x1 << driver_data->lcdblk_vt_shift)) {
-			DRM_ERROR("Failed to update sysreg for I80 i/f.\n");
+			DRM_DEV_ERROR(ctx->dev,
+				      "Failed to update sysreg for I80 i/f.\n");
 			return;
 		}
 	} else {
@@ -523,7 +526,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				driver_data->lcdblk_offset,
 				0x1 << driver_data->lcdblk_bypass_shift,
 				0x1 << driver_data->lcdblk_bypass_shift)) {
-		DRM_ERROR("Failed to update sysreg for bypass setting.\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to update sysreg for bypass setting.\n");
 		return;
 	}
 
@@ -535,7 +539,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				driver_data->lcdblk_offset,
 				0x1 << driver_data->lcdblk_mic_bypass_shift,
 				0x1 << driver_data->lcdblk_mic_bypass_shift)) {
-		DRM_ERROR("Failed to update sysreg for bypass mic.\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to update sysreg for bypass mic.\n");
 		return;
 	}
 
@@ -1250,13 +1255,17 @@ static int exynos_fimd_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->bus_clk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the bus clk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->lcd_clk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the lcd clk [%d]\n",
+			      ret);
 		return ret;
 	}
 

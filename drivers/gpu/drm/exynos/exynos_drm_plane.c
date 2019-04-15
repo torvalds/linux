@@ -181,6 +181,7 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 			      struct exynos_drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->base.fb;
+	struct drm_device *dev = fb->dev;
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_SAMSUNG_64_32_TILE:
@@ -192,7 +193,7 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 		break;
 
 	default:
-		DRM_ERROR("unsupported pixel format modifier");
+		DRM_DEV_ERROR(dev->dev, "unsupported pixel format modifier");
 		return -ENOTSUPP;
 	}
 
@@ -310,7 +311,7 @@ int exynos_plane_init(struct drm_device *dev,
 				       config->num_pixel_formats,
 				       NULL, config->type, NULL);
 	if (err) {
-		DRM_ERROR("failed to initialize plane\n");
+		DRM_DEV_ERROR(dev->dev, "failed to initialize plane\n");
 		return err;
 	}
 

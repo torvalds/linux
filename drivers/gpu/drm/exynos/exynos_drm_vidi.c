@@ -339,7 +339,8 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	ret = drm_connector_init(ctx->drm_dev, connector,
 			&vidi_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
+		DRM_DEV_ERROR(ctx->drm_dev->dev,
+			      "Failed to initialize connector with drm\n");
 		return ret;
 	}
 
@@ -402,7 +403,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 			EXYNOS_DISPLAY_TYPE_VIDI, &vidi_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
-		DRM_ERROR("failed to create crtc.\n");
+		DRM_DEV_ERROR(dev, "failed to create crtc.\n");
 		return PTR_ERR(ctx->crtc);
 	}
 
@@ -417,7 +418,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = vidi_create_connector(encoder);
 	if (ret) {
-		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		DRM_DEV_ERROR(dev, "failed to create connector ret = %d\n",
+			      ret);
 		drm_encoder_cleanup(encoder);
 		return ret;
 	}
@@ -457,7 +459,8 @@ static int vidi_probe(struct platform_device *pdev)
 
 	ret = device_create_file(&pdev->dev, &dev_attr_connection);
 	if (ret < 0) {
-		DRM_ERROR("failed to create connection sysfs.\n");
+		DRM_DEV_ERROR(&pdev->dev,
+			      "failed to create connection sysfs.\n");
 		return ret;
 	}
 

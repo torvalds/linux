@@ -232,8 +232,9 @@ static bool fimc_check_ovf(struct fimc_context *ctx)
 			EXYNOS_CIWDOFST_CLROVFIY | EXYNOS_CIWDOFST_CLROVFICB |
 			EXYNOS_CIWDOFST_CLROVFICR);
 
-		dev_err(ctx->dev, "occurred overflow at %d, status 0x%x.\n",
-			ctx->id, status);
+		DRM_DEV_ERROR(ctx->dev,
+			      "occurred overflow at %d, status 0x%x.\n",
+			      ctx->id, status);
 		return true;
 	}
 
@@ -273,7 +274,7 @@ static int fimc_get_buf_id(struct fimc_context *ctx)
 		EXYNOS_CISTATUS2_GET_FRAMECOUNT_BEFORE(cfg));
 
 	if (frame_cnt == 0) {
-		DRM_ERROR("failed to get frame count.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get frame count.\n");
 		return -EIO;
 	}
 

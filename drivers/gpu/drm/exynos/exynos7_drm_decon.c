@@ -620,7 +620,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	ret = decon_ctx_initialize(ctx, drm_dev);
 	if (ret) {
-		DRM_ERROR("decon_ctx_initialize failed.\n");
+		DRM_DEV_ERROR(dev, "decon_ctx_initialize failed.\n");
 		return ret;
 	}
 
@@ -800,25 +800,29 @@ static int exynos7_decon_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->pclk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the pclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the pclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->aclk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the aclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the aclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->eclk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the eclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the eclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->vclk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the vclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the vclk [%d]\n",
+			      ret);
 		return ret;
 	}
 

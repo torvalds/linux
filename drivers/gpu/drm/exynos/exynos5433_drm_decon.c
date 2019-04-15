@@ -188,7 +188,7 @@ static void decon_setup_trigger(struct decon_context *ctx)
 
 	if (regmap_update_bits(ctx->sysreg, DSD_CFG_MUX,
 			       DSD_CFG_MUX_TE_UNMASK_GLOBAL, ~0))
-		DRM_ERROR("Cannot update sysreg.\n");
+		DRM_DEV_ERROR(ctx->dev, "Cannot update sysreg.\n");
 }
 
 static void decon_commit(struct exynos_drm_crtc *crtc)

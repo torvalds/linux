@@ -395,7 +395,7 @@ static int gsc_sw_reset(struct gsc_context *ctx)
 	}
 
 	if (cfg) {
-		DRM_ERROR("failed to reset gsc h/w.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to reset gsc h/w.\n");
 		return -EBUSY;
 	}
 
@@ -706,12 +706,13 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 	gsc_write(cfg, GSC_OUT_CON);
 }
 
-static int gsc_get_ratio_shift(u32 src, u32 dst, u32 *ratio)
+static int gsc_get_ratio_shift(struct gsc_context *ctx, u32 src, u32 dst,
+			       u32 *ratio)
 {
 	DRM_DEBUG_KMS("src[%d]dst[%d]\n", src, dst);
 
 	if (src >= dst * 8) {
-		DRM_ERROR("failed to make ratio and shift.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to make ratio and shift.\n");
 		return -EINVAL;
 	} else if (src >= dst * 4)
 		*ratio = 4;
@@ -759,15 +760,15 @@ static int gsc_set_prescaler(struct gsc_context *ctx, struct gsc_scaler *sc,
 		dst_h = dst->h;
 	}
 
-	ret = gsc_get_ratio_shift(src_w, dst_w, &sc->pre_hratio);
+	ret = gsc_get_ratio_shift(ctx, src_w, dst_w, &sc->pre_hratio);
 	if (ret) {
-		dev_err(ctx->dev, "failed to get ratio horizontal.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get ratio horizontal.\n");
 		return ret;
 	}
 
-	ret = gsc_get_ratio_shift(src_h, dst_h, &sc->pre_vratio);
+	ret = gsc_get_ratio_shift(ctx, src_h, dst_h, &sc->pre_vratio);
 	if (ret) {
-		dev_err(ctx->dev, "failed to get ratio vertical.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get ratio vertical.\n");
 		return ret;
 	}
 
@@ -979,7 +980,7 @@ static int gsc_get_src_buf_index(struct gsc_context *ctx)
 		curr_index, buf_id);
 
 	if (buf_id == GSC_MAX_SRC) {
-		DRM_ERROR("failed to get in buffer index.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get in buffer index.\n");
 		return -EINVAL;
 	}
 
@@ -1006,7 +1007,7 @@ static int gsc_get_dst_buf_index(struct gsc_context *ctx)
 	}
 
 	if (buf_id == GSC_MAX_DST) {
-		DRM_ERROR("failed to get out buffer index.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get out buffer index.\n");
 		return -EINVAL;
 	}
 

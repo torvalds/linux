@@ -61,7 +61,7 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 	exynos_gem->pages = kvmalloc_array(nr_pages, sizeof(struct page *),
 			GFP_KERNEL | __GFP_ZERO);
 	if (!exynos_gem->pages) {
-		DRM_ERROR("failed to allocate pages.\n");
+		DRM_DEV_ERROR(to_dma_dev(dev), "failed to allocate pages.\n");
 		return -ENOMEM;
 	}
 
@@ -69,7 +69,7 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 					     &exynos_gem->dma_addr, GFP_KERNEL,
 					     exynos_gem->dma_attrs);
 	if (!exynos_gem->cookie) {
-		DRM_ERROR("failed to allocate buffer.\n");
+		DRM_DEV_ERROR(to_dma_dev(dev), "failed to allocate buffer.\n");
 		goto err_free;
 	}
 
@@ -77,13 +77,13 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 				    exynos_gem->dma_addr, exynos_gem->size,
 				    exynos_gem->dma_attrs);
 	if (ret < 0) {
-		DRM_ERROR("failed to get sgtable.\n");
+		DRM_DEV_ERROR(to_dma_dev(dev), "failed to get sgtable.\n");
 		goto err_dma_free;
 	}
 
 	if (drm_prime_sg_to_page_addr_arrays(&sgt, exynos_gem->pages, NULL,
 					     nr_pages)) {
-		DRM_ERROR("invalid sgtable.\n");
+		DRM_DEV_ERROR(to_dma_dev(dev), "invalid sgtable.\n");
 		ret = -EINVAL;
 		goto err_sgt_free;
 	}
@@ -186,7 +186,7 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 
 	ret = drm_gem_object_init(dev, obj, size);
 	if (ret < 0) {
-		DRM_ERROR("failed to initialize gem object\n");
+		DRM_DEV_ERROR(dev->dev, "failed to initialize gem object\n");
 		kfree(exynos_gem);
 		return ERR_PTR(ret);
 	}
@@ -211,12 +211,13 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 	int ret;
 
 	if (flags & ~(EXYNOS_BO_MASK)) {
-		DRM_ERROR("invalid GEM buffer flags: %u\n", flags);
+		DRM_DEV_ERROR(dev->dev,
+			      "invalid GEM buffer flags: %u\n", flags);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!size) {
-		DRM_ERROR("invalid GEM buffer size: %lu\n", size);
+		DRM_DEV_ERROR(dev->dev, "invalid GEM buffer size: %lu\n", size);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -325,7 +326,7 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
-		DRM_ERROR("failed to lookup gem object.\n");
+		DRM_DEV_ERROR(dev->dev, "failed to lookup gem object.\n");
 		return -EINVAL;
 	}
 

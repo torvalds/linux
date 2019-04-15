@@ -947,7 +947,8 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	ret = drm_connector_init(hdata->drm_dev, connector,
 			&hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
 	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
+		DRM_DEV_ERROR(hdata->dev,
+			      "Failed to initialize connector with drm\n");
 		return ret;
 	}
 
@@ -957,7 +958,7 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	if (hdata->bridge) {
 		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);
 		if (ret)
-			DRM_ERROR("Failed to attach bridge\n");
+			DRM_DEV_ERROR(hdata->dev, "Failed to attach bridge\n");
 	}
 
 	return ret;
@@ -1175,7 +1176,7 @@ static void hdmiphy_wait_for_pll(struct hdmi_context *hdata)
 		usleep_range(10, 20);
 	}
 
-	DRM_ERROR("PLL could not reach steady state\n");
+	DRM_DEV_ERROR(hdata->dev, "PLL could not reach steady state\n");
 }
 
 static void hdmi_v13_mode_apply(struct hdmi_context *hdata)
@@ -1411,7 +1412,7 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 
 	ret = hdmi_find_phy_conf(hdata, m->clock * 1000);
 	if (ret < 0) {
-		DRM_ERROR("failed to find hdmiphy conf\n");
+		DRM_DEV_ERROR(hdata->dev, "failed to find hdmiphy conf\n");
 		return;
 	}
 	phy_conf = hdata->drv_data->phy_confs.data[ret].conf;
@@ -1423,7 +1424,7 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 	hdmiphy_enable_mode_set(hdata, true);
 	ret = hdmiphy_reg_write_buf(hdata, 0, phy_conf, 32);
 	if (ret) {
-		DRM_ERROR("failed to configure hdmiphy\n");
+		DRM_DEV_ERROR(hdata->dev, "failed to configure hdmiphy\n");
 		return;
 	}
 	hdmiphy_enable_mode_set(hdata, false);
@@ -1734,7 +1735,7 @@ static int hdmi_bridge_init(struct hdmi_context *hdata)
 	np = of_graph_get_remote_port_parent(ep);
 	of_node_put(ep);
 	if (!np) {
-		DRM_ERROR("failed to get remote port parent");
+		DRM_DEV_ERROR(dev, "failed to get remote port parent");
 		return -EINVAL;
 	}
 
@@ -1756,13 +1757,13 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	hdata->hpd_gpio = devm_gpiod_get(dev, "hpd", GPIOD_IN);
 	if (IS_ERR(hdata->hpd_gpio)) {
-		DRM_ERROR("cannot get hpd gpio property\n");
+		DRM_DEV_ERROR(dev, "cannot get hpd gpio property\n");
 		return PTR_ERR(hdata->hpd_gpio);
 	}
 
 	hdata->irq = gpiod_to_irq(hdata->hpd_gpio);
 	if (hdata->irq < 0) {
-		DRM_ERROR("failed to get GPIO irq\n");
+		DRM_DEV_ERROR(dev, "failed to get GPIO irq\n");
 		return  hdata->irq;
 	}
 
@@ -1780,7 +1781,7 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), hdata->regul_bulk);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
-			DRM_ERROR("failed to get regulators\n");
+			DRM_DEV_ERROR(dev, "failed to get regulators\n");
 		return ret;
 	}
 
@@ -1792,7 +1793,8 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 		ret = regulator_enable(hdata->reg_hdmi_en);
 		if (ret) {
-			DRM_ERROR("failed to enable hdmi-en regulator\n");
+			DRM_DEV_ERROR(dev,
+				      "failed to enable hdmi-en regulator\n");
 			return ret;
 		}
 	}
@@ -1845,7 +1847,8 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = hdmi_create_connector(encoder);
 	if (ret) {
-		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		DRM_DEV_ERROR(dev, "failed to create connector ret = %d\n",
+			      ret);
 		drm_encoder_cleanup(encoder);
 		return ret;
 	}
@@ -1875,7 +1878,8 @@ static int hdmi_get_ddc_adapter(struct hdmi_context *hdata)
 		np = of_parse_phandle(hdata->dev->of_node, "ddc", 0);
 
 	if (!np) {
-		DRM_ERROR("Failed to find ddc node in device tree\n");
+		DRM_DEV_ERROR(hdata->dev,
+			      "Failed to find ddc node in device tree\n");
 		return -ENODEV;
 	}
 
@@ -1902,7 +1906,8 @@ static int hdmi_get_phy_io(struct hdmi_context *hdata)
 	if (!np) {
 		np = of_parse_phandle(hdata->dev->of_node, "phy", 0);
 		if (!np) {
-			DRM_ERROR("Failed to find hdmiphy node in device tree\n");
+			DRM_DEV_ERROR(hdata->dev,
+				      "Failed to find hdmiphy node in device tree\n");
 			return -ENODEV;
 		}
 	}
@@ -1910,7 +1915,8 @@ static int hdmi_get_phy_io(struct hdmi_context *hdata)
 	if (hdata->drv_data->is_apb_phy) {
 		hdata->regs_hdmiphy = of_iomap(np, 0);
 		if (!hdata->regs_hdmiphy) {
-			DRM_ERROR("failed to ioremap hdmi phy\n");
+			DRM_DEV_ERROR(hdata->dev,
+				      "failed to ioremap hdmi phy\n");
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -1951,7 +1957,7 @@ static int hdmi_probe(struct platform_device *pdev)
 	ret = hdmi_resources_init(hdata);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
-			DRM_ERROR("hdmi_resources_init failed\n");
+			DRM_DEV_ERROR(dev, "hdmi_resources_init failed\n");
 		return ret;
 	}
 
@@ -1977,14 +1983,14 @@ static int hdmi_probe(struct platform_device *pdev)
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"hdmi", hdata);
 	if (ret) {
-		DRM_ERROR("failed to register hdmi interrupt\n");
+		DRM_DEV_ERROR(dev, "failed to register hdmi interrupt\n");
 		goto err_hdmiphy;
 	}
 
 	hdata->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
 			"samsung,syscon-phandle");
 	if (IS_ERR(hdata->pmureg)) {
-		DRM_ERROR("syscon regmap lookup failed.\n");
+		DRM_DEV_ERROR(dev, "syscon regmap lookup failed.\n");
 		ret = -EPROBE_DEFER;
 		goto err_hdmiphy;
 	}
@@ -1993,7 +1999,7 @@ static int hdmi_probe(struct platform_device *pdev)
 		hdata->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
 				"samsung,sysreg-phandle");
 		if (IS_ERR(hdata->sysreg)) {
-			DRM_ERROR("sysreg regmap lookup failed.\n");
+			DRM_DEV_ERROR(dev, "sysreg regmap lookup failed.\n");
 			ret = -EPROBE_DEFER;
 			goto err_hdmiphy;
 		}
