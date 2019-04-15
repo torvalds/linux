@@ -797,7 +797,7 @@ static int xgene_dma_alloc_chan_resources(struct dma_chan *dchan)
 		return -ENOMEM;
 	}
 
-	chan_dbg(chan, "Allocate descripto pool\n");
+	chan_dbg(chan, "Allocate descriptor pool\n");
 
 	return 1;
 }
