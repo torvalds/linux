@@ -1063,7 +1063,9 @@ static int iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
 }
 
 /*
- * Sets the fields in the Tx cmd that are crypto related
+ * Sets the fields in the Tx cmd that are crypto related.
+ *
+ * This function must be called with BHs disabled.
  */
 static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			   struct ieee80211_tx_info *info,
