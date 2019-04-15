@@ -1872,9 +1872,10 @@ got_it:
 									true);
 			if (PageWriteback(page))
 				end_page_writeback(page);
+		} else {
+			set_inode_flag(inode, FI_UPDATE_WRITE);
 		}
 		trace_f2fs_do_write_data_page(fio->page, IPU);
-		set_inode_flag(inode, FI_UPDATE_WRITE);
 		return err;
 	}
 
