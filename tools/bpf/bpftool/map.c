@@ -719,6 +719,9 @@ static int dump_map_elem(int fd, void *key, void *value,
 
 		if (errno == ENOENT)
 			msg = "<no entry>";
+		else if (lookup_errno == ENOSPC &&
+			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
+			msg = "<cannot read>";
 
 		print_entry_error(map_info, key,
 				  msg ? : strerror(lookup_errno));
@@ -775,6 +778,10 @@ static int do_dump(int argc, char **argv)
 			}
 		}
 
+	if (info.type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY &&
+	    info.value_size != 8)
+		p_info("Warning: cannot read values from %s map with value_size != 8",
+		       map_type_name[info.type]);
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
