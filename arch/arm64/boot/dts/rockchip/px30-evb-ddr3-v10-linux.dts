@@ -673,7 +673,7 @@
 &io_domains {
 	status = "okay";
 
-	vccio1-supply = <&vcc1v8_soc>;
+	vccio1-supply = <&vcc_3v0>;
 	vccio2-supply = <&vccio_sd>;
 	vccio3-supply = <&vcc_3v0>;
 	vccio4-supply = <&vcc3v0_pmu>;
