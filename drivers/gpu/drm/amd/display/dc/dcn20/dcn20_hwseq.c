@@ -1704,13 +1704,10 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 void dcn20_setup_vupdate_interrupt(struct pipe_ctx *pipe_ctx)
 {
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-	int start_position = get_vupdate_offset_from_vsync(pipe_ctx);
-	uint32_t start_line;
+	int start_line = get_vupdate_offset_from_vsync(pipe_ctx);
 
-	if (start_position < 0)
-		start_line = pipe_ctx->stream->timing.v_total + start_position - 1;
-	else
-		start_line = start_position;
+	if (start_line < 0)
+		start_line = 0;
 
 	if (tg->funcs->setup_vertical_interrupt2)
 		tg->funcs->setup_vertical_interrupt2(tg, start_line);
