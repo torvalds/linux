@@ -251,14 +251,23 @@ void dscl2_calc_lb_num_partitions(
 		int *num_part_y,
 		int *num_part_c)
 {
+	int memory_line_size_y, memory_line_size_c, memory_line_size_a,
+	lb_memory_size, lb_memory_size_c, lb_memory_size_a, num_partitions_a;
+
 	int line_size = scl_data->viewport.width < scl_data->recout.width ?
 			scl_data->viewport.width : scl_data->recout.width;
 	int line_size_c = scl_data->viewport_c.width < scl_data->recout.width ?
 			scl_data->viewport_c.width : scl_data->recout.width;
-	int memory_line_size_y = (line_size + 5) / 6; /* +5 to ceil */
-	int memory_line_size_c = (line_size_c + 5) / 6; /* +5 to ceil */
-	int memory_line_size_a = (line_size + 5) / 6; /* +5 to ceil */
-	int lb_memory_size, lb_memory_size_c, lb_memory_size_a, num_partitions_a;
+
+	if (line_size == 0)
+		line_size = 1;
+
+	if (line_size_c == 0)
+		line_size_c = 1;
+
+	memory_line_size_y = (line_size + 5) / 6; /* +5 to ceil */
+	memory_line_size_c = (line_size_c + 5) / 6; /* +5 to ceil */
+	memory_line_size_a = (line_size + 5) / 6; /* +5 to ceil */
 
 	if (lb_config == LB_MEMORY_CONFIG_1) {
 		lb_memory_size = 970;
