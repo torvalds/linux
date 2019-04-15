@@ -513,7 +513,7 @@
 	vccio1-supply = <&vcc1v8_soc>;
 	vccio2-supply = <&vccio_sd>;
 	vccio3-supply = <&vcc1v8_dvp>;
-	vccio4-supply = <&vcc1v8_soc>;
+	vccio4-supply = <&vcc_3v0>;
 	vccio5-supply = <&vcc_3v0>;
 };
 
