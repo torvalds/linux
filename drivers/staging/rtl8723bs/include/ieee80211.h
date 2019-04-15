@@ -242,11 +242,11 @@ typedef struct ieee_param {
 	} u;
 }ieee_param;
 
-typedef struct ieee_param_ex {
+struct ieee_param_ex {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
 	u8 data[0];
-}ieee_param_ex;
+};
 
 struct sta_data{
 	u16 aid;
