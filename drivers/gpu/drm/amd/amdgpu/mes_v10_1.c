@@ -97,6 +97,12 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void mes_v10_1_free_microcode(struct amdgpu_device *adev)
+{
+	release_firmware(adev->mes.fw);
+	adev->mes.fw = NULL;
+}
+
 static int mes_v10_1_sw_init(void *handle)
 {
 	return 0;
