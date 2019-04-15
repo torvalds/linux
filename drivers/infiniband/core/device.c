@@ -201,6 +201,9 @@ static struct notifier_block ibdev_lsm_nb = {
 	.notifier_call = ib_security_change,
 };
 
+static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
+				 struct net *net);
+
 /* Pointer to the RCU head at the start of the ib_port_data array */
 struct ib_port_data_rcu {
 	struct rcu_head rcu_head;
@@ -861,6 +864,8 @@ static int add_compat_devs(struct ib_device *device)
 	unsigned long index;
 	int ret = 0;
 
+	lockdep_assert_held(&devices_rwsem);
+
 	down_read(&rdma_nets_rwsem);
 	xa_for_each (&rdma_nets, index, rnet) {
 		ret = add_one_compat_dev(device, rnet);
@@ -977,6 +982,11 @@ static void rdma_dev_exit_net(struct net *net)
 		up_read(&devices_rwsem);
 
 		remove_one_compat_dev(dev, rnet->id);
+
+		/*
+		 * If the real device is in the NS then move it back to init.
+		 */
+		rdma_dev_change_netns(dev, net, &init_net);
 
 		put_device(&dev->dev);
 		down_read(&devices_rwsem);
@@ -1427,6 +1437,73 @@ void ib_unregister_device_queued(struct ib_device *ib_dev)
 		put_device(&ib_dev->dev);
 }
 EXPORT_SYMBOL(ib_unregister_device_queued);
+
+/*
+ * The caller must pass in a device that has the kref held and the refcount
+ * released. If the device is in cur_net and still registered then it is moved
+ * into net.
+ */
+static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
+				 struct net *net)
+{
+	int ret2 = -EINVAL;
+	int ret;
+
+	mutex_lock(&device->unregistration_lock);
+
+	/*
+	 * If a device not under ib_device_get() or the unregistration_lock
+	 * the namespace can be changed, or it can be unregistered. Check
+	 * again under the lock.
+	 */
+	if (refcount_read(&device->refcount) == 0 ||
+	    !net_eq(cur_net, read_pnet(&device->coredev.rdma_net))) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	kobject_uevent(&device->dev.kobj, KOBJ_REMOVE);
+	disable_device(device);
+
+	/*
+	 * At this point no one can be using the device, so it is safe to
+	 * change the namespace.
+	 */
+	write_pnet(&device->coredev.rdma_net, net);
+
+	/*
+	 * Currently rdma devices are system wide unique. So the device name
+	 * is guaranteed free in the new namespace. Publish the new namespace
+	 * at the sysfs level.
+	 */
+	down_read(&devices_rwsem);
+	ret = device_rename(&device->dev, dev_name(&device->dev));
+	up_read(&devices_rwsem);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "%s: Couldn't rename device after namespace change\n",
+			 __func__);
+		/* Try and put things back and re-enable the device */
+		write_pnet(&device->coredev.rdma_net, cur_net);
+	}
+
+	ret2 = enable_device_and_get(device);
+	if (ret2)
+		/*
+		 * This shouldn't really happen, but if it does, let the user
+		 * retry at later point. So don't disable the device.
+		 */
+		dev_warn(&device->dev,
+			 "%s: Couldn't re-enable device after namespace change\n",
+			 __func__);
+	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
+	ib_device_put(device);
+out:
+	mutex_unlock(&device->unregistration_lock);
+	if (ret)
+		return ret;
+	return ret2;
+}
 
 static struct pernet_operations rdma_dev_net_ops = {
 	.init = rdma_dev_init_net,
