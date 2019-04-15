@@ -3790,8 +3790,18 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 	vmx_set_cr4(vcpu, vmcs_readl(CR4_READ_SHADOW));
 
 	nested_ept_uninit_mmu_context(vcpu);
-	vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
-	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
+
+	/*
+	 * This is only valid if EPT is in use, otherwise the vmcs01 GUEST_CR3
+	 * points to shadow pages!  Fortunately we only get here after a WARN_ON
+	 * if EPT is disabled, so a VMabort is perfectly fine.
+	 */
+	if (enable_ept) {
+		vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
+		__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
+	} else {
+		nested_vmx_abort(vcpu, VMX_ABORT_VMCS_CORRUPTED);
+	}
 
 	/*
 	 * Use ept_save_pdptrs(vcpu) to load the MMU's cached PDPTRs
@@ -5738,6 +5748,14 @@ void nested_vmx_hardware_unsetup(void)
 __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 {
 	int i;
+
+	/*
+	 * Without EPT it is not possible to restore L1's CR3 and PDPTR on
+	 * VMfail, because they are not available in vmcs01.  Just always
+	 * use hardware checks.
+	 */
+	if (!enable_ept)
+		nested_early_check = 1;
 
 	if (!cpu_has_vmx_shadow_vmcs())
 		enable_shadow_vmcs = 0;
