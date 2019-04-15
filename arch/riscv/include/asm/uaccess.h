@@ -39,8 +39,10 @@
  * For historical reasons, these macros are grossly misnamed.
  */
 
-#define KERNEL_DS	(~0UL)
-#define USER_DS		(TASK_SIZE)
+#define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
+
+#define KERNEL_DS	MAKE_MM_SEG(~0UL)
+#define USER_DS		MAKE_MM_SEG(TASK_SIZE)
 
 #define get_fs()	(current_thread_info()->addr_limit)
 
@@ -49,9 +51,9 @@ static inline void set_fs(mm_segment_t fs)
 	current_thread_info()->addr_limit = fs;
 }
 
-#define segment_eq(a, b) ((a) == (b))
+#define segment_eq(a, b) ((a).seg == (b).seg)
 
-#define user_addr_max()	(get_fs())
+#define user_addr_max()	(get_fs().seg)
 
 
 /**
@@ -83,7 +85,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 {
 	const mm_segment_t fs = get_fs();
 
-	return (size <= fs) && (addr <= (fs - size));
+	return size <= fs.seg && addr <= fs.seg - size;
 }
 
 /*
