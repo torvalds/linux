@@ -171,7 +171,7 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 	for (i = 0; i < count; i++) {
 		ipv4_addr = payload->tun_info[i].ipv4;
 		port = be32_to_cpu(payload->tun_info[i].egress_port);
-		netdev = nfp_app_repr_get(app, port);
+		netdev = nfp_app_dev_get(app, port, NULL);
 		if (!netdev)
 			continue;
 
@@ -366,7 +366,7 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb)
 
 	payload = nfp_flower_cmsg_get_data(skb);
 
-	netdev = nfp_app_repr_get(app, be32_to_cpu(payload->ingress_port));
+	netdev = nfp_app_dev_get(app, be32_to_cpu(payload->ingress_port), NULL);
 	if (!netdev)
 		goto route_fail_warning;
 

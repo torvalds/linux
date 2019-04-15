@@ -216,7 +216,7 @@ nfp_flower_repr_get_type_and_port(struct nfp_app *app, u32 port_id, u8 *port)
 }
 
 static struct net_device *
-nfp_flower_repr_get(struct nfp_app *app, u32 port_id)
+nfp_flower_repr_get(struct nfp_app *app, u32 port_id, bool *redir_egress)
 {
 	enum nfp_repr_type repr_type;
 	struct nfp_reprs *reprs;
@@ -923,7 +923,7 @@ const struct nfp_app_type app_flower = {
 	.sriov_disable	= nfp_flower_sriov_disable,
 
 	.eswitch_mode_get  = eswitch_mode_get,
-	.repr_get	= nfp_flower_repr_get,
+	.dev_get	= nfp_flower_repr_get,
 
 	.setup_tc	= nfp_flower_setup_tc,
 };

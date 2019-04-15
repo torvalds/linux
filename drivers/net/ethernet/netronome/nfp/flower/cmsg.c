@@ -159,7 +159,7 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 
 	rtnl_lock();
 	rcu_read_lock();
-	netdev = nfp_app_repr_get(app, be32_to_cpu(msg->portnum));
+	netdev = nfp_app_dev_get(app, be32_to_cpu(msg->portnum), NULL);
 	rcu_read_unlock();
 	if (!netdev) {
 		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
@@ -192,7 +192,7 @@ nfp_flower_cmsg_portreify_rx(struct nfp_app *app, struct sk_buff *skb)
 	msg = nfp_flower_cmsg_get_data(skb);
 
 	rcu_read_lock();
-	exists = !!nfp_app_repr_get(app, be32_to_cpu(msg->portnum));
+	exists = !!nfp_app_dev_get(app, be32_to_cpu(msg->portnum), NULL);
 	rcu_read_unlock();
 	if (!exists) {
 		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
