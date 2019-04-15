@@ -870,13 +870,6 @@ static inline int is_zero_mac_addr(const u8 *addr)
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
 
-typedef struct tx_pending_t{
-	int frag;
-	struct ieee80211_txb *txb;
-}tx_pending_t;
-
-
-
 #define MAXTID	16
 
 #define IEEE_A            (1<<0)
