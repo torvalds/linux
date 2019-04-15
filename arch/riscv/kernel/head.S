@@ -22,8 +22,9 @@
 
 __INIT
 ENTRY(_start)
-	/* Mask all interrupts */
+	/* Mask and clear all interrupts */
 	csrw sie, zero
+	csrw sip, zero
 
 	/* Load the global pointer */
 .option push
