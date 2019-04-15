@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
