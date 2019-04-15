@@ -2371,7 +2371,7 @@ static enum mlxsw_reg_rauht_op mlxsw_sp_rauht_op(bool adding)
 			MLXSW_REG_RAUHT_OP_WRITE_DELETE;
 }
 
-static void
+static int
 mlxsw_sp_router_neigh_entry_op4(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_neigh_entry *neigh_entry,
 				enum mlxsw_reg_rauht_op op)
@@ -2385,10 +2385,10 @@ mlxsw_sp_router_neigh_entry_op4(struct mlxsw_sp *mlxsw_sp,
 	if (neigh_entry->counter_valid)
 		mlxsw_reg_rauht_pack_counter(rauht_pl,
 					     neigh_entry->counter_index);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
 }
 
-static void
+static int
 mlxsw_sp_router_neigh_entry_op6(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_neigh_entry *neigh_entry,
 				enum mlxsw_reg_rauht_op op)
@@ -2402,7 +2402,7 @@ mlxsw_sp_router_neigh_entry_op6(struct mlxsw_sp *mlxsw_sp,
 	if (neigh_entry->counter_valid)
 		mlxsw_reg_rauht_pack_counter(rauht_pl,
 					     neigh_entry->counter_index);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
 }
 
 bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry)
@@ -2424,20 +2424,33 @@ mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_neigh_entry *neigh_entry,
 			    bool adding)
 {
+	enum mlxsw_reg_rauht_op op = mlxsw_sp_rauht_op(adding);
+	int err;
+
 	if (!adding && !neigh_entry->connected)
 		return;
 	neigh_entry->connected = adding;
 	if (neigh_entry->key.n->tbl->family == AF_INET) {
-		mlxsw_sp_router_neigh_entry_op4(mlxsw_sp, neigh_entry,
-						mlxsw_sp_rauht_op(adding));
+		err = mlxsw_sp_router_neigh_entry_op4(mlxsw_sp, neigh_entry,
+						      op);
+		if (err)
+			return;
 	} else if (neigh_entry->key.n->tbl->family == AF_INET6) {
 		if (mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
 			return;
-		mlxsw_sp_router_neigh_entry_op6(mlxsw_sp, neigh_entry,
-						mlxsw_sp_rauht_op(adding));
+		err = mlxsw_sp_router_neigh_entry_op6(mlxsw_sp, neigh_entry,
+						      op);
+		if (err)
+			return;
 	} else {
 		WARN_ON_ONCE(1);
+		return;
 	}
+
+	if (adding)
+		neigh_entry->key.n->flags |= NTF_OFFLOADED;
+	else
+		neigh_entry->key.n->flags &= ~NTF_OFFLOADED;
 }
 
 void
