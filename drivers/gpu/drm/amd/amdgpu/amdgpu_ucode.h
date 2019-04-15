@@ -105,6 +105,21 @@ struct gfx_firmware_header_v1_0 {
 };
 
 /* version_major=1, version_minor=0 */
+struct mes_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t mes_ucode_version;
+	uint32_t mes_ucode_size_bytes;
+	uint32_t mes_ucode_offset_bytes;
+	uint32_t mes_ucode_data_version;
+	uint32_t mes_ucode_data_size_bytes;
+	uint32_t mes_ucode_data_offset_bytes;
+	uint32_t mes_uc_start_addr_lo;
+	uint32_t mes_uc_start_addr_hi;
+	uint32_t mes_data_start_addr_lo;
+	uint32_t mes_data_start_addr_hi;
+};
+
+/* version_major=1, version_minor=0 */
 struct rlc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
