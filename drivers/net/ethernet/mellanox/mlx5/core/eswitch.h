@@ -488,8 +488,9 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 #define mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, nvfs)	\
 	for ((vport) = (nvfs); (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
 
-struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
-					  u16 vport_num);
+struct mlx5_vport *__must_check
+mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
