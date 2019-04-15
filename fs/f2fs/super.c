@@ -2454,7 +2454,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	/* Currently, support only 4KB page cache size */
 	if (F2FS_BLKSIZE != PAGE_SIZE) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid page_cache_size (%lu), supports only 4KB\n",
+			"Invalid page_cache_size (%lu), supports only 4KB",
 			PAGE_SIZE);
 		return 1;
 	}
@@ -2463,7 +2463,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	blocksize = 1 << le32_to_cpu(raw_super->log_blocksize);
 	if (blocksize != F2FS_BLKSIZE) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid blocksize (%u), supports only 4KB\n",
+			"Invalid blocksize (%u), supports only 4KB",
 			blocksize);
 		return 1;
 	}
@@ -2471,7 +2471,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 	/* check log blocks per segment */
 	if (le32_to_cpu(raw_super->log_blocks_per_seg) != 9) {
 		f2fs_msg(sb, KERN_INFO,
-			"Invalid log blocks per segment (%u)\n",
+			"Invalid log blocks per segment (%u)",
 			le32_to_cpu(raw_super->log_blocks_per_seg));
 		return 1;
 	}
@@ -3113,7 +3113,7 @@ try_onemore:
 #ifndef CONFIG_BLK_DEV_ZONED
 	if (f2fs_sb_has_blkzoned(sbi)) {
 		f2fs_msg(sb, KERN_ERR,
-			 "Zoned block device support is not enabled\n");
+			 "Zoned block device support is not enabled");
 		err = -EOPNOTSUPP;
 		goto free_sb_buf;
 	}
