@@ -1,5 +1,5 @@
 /*
- * hsr_prp_debugfs code
+ * hsr_debugfs code
  * Copyright (C) 2017 Texas Instruments Incorporated
  *
  * Author(s):
@@ -26,9 +26,9 @@ static void print_mac_address(struct seq_file *sfp, unsigned char *mac)
 		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-/* hsr_prp_node_table_show - Formats and prints node_table entries */
+/* hsr_node_table_show - Formats and prints node_table entries */
 static int
-hsr_prp_node_table_show(struct seq_file *sfp, void *data)
+hsr_node_table_show(struct seq_file *sfp, void *data)
 {
 	struct hsr_priv *priv = (struct hsr_priv *)sfp->private;
 	struct hsr_node *node;
@@ -52,40 +52,40 @@ hsr_prp_node_table_show(struct seq_file *sfp, void *data)
 	return 0;
 }
 
-/* hsr_prp_node_table_open - Open the node_table file
+/* hsr_node_table_open - Open the node_table file
  *
  * Description:
  * This routine opens a debugfs file node_table of specific hsr device
  */
 static int
-hsr_prp_node_table_open(struct inode *inode, struct file *filp)
+hsr_node_table_open(struct inode *inode, struct file *filp)
 {
-	return single_open(filp, hsr_prp_node_table_show, inode->i_private);
+	return single_open(filp, hsr_node_table_show, inode->i_private);
 }
 
-static const struct file_operations hsr_prp_fops = {
+static const struct file_operations hsr_fops = {
 	.owner	= THIS_MODULE,
-	.open	= hsr_prp_node_table_open,
+	.open	= hsr_node_table_open,
 	.read	= seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-/* hsr_prp_debugfs_init - create hsr-prp node_table file for dumping
+/* hsr_debugfs_init - create hsr node_table file for dumping
  * the node table
  *
  * Description:
  * When debugfs is configured this routine sets up the node_table file per
- * hsr/prp device for dumping the node_table entries
+ * hsr device for dumping the node_table entries
  */
-int hsr_prp_debugfs_init(struct hsr_priv *priv)
+int hsr_debugfs_init(struct hsr_priv *priv)
 {
 	int rc = -1;
 	struct dentry *de = NULL;
 
 	de = debugfs_create_dir("hsr", NULL);
 	if (!de) {
-		pr_err("Cannot create hsr-prp debugfs root\n");
+		pr_err("Cannot create hsr debugfs root\n");
 		return rc;
 	}
 
@@ -93,9 +93,9 @@ int hsr_prp_debugfs_init(struct hsr_priv *priv)
 
 	de = debugfs_create_file("node_table", S_IFREG | 0444,
 				 priv->node_tbl_root, priv,
-				 &hsr_prp_fops);
+				 &hsr_fops);
 	if (!de) {
-		pr_err("Cannot create hsr-prp node_table directory\n");
+		pr_err("Cannot create hsr node_table directory\n");
 		return rc;
 	}
 	priv->node_tbl_file = de;
@@ -104,14 +104,14 @@ int hsr_prp_debugfs_init(struct hsr_priv *priv)
 	return rc;
 }
 
-/* hsr_prp_debugfs_term - Tear down debugfs intrastructure
+/* hsr_debugfs_term - Tear down debugfs intrastructure
  *
  * Description:
  * When Debufs is configured this routine removes debugfs file system
- * elements that are specific to hsr-prp
+ * elements that are specific to hsr
  */
 void
-hsr_prp_debugfs_term(struct hsr_priv *priv)
+hsr_debugfs_term(struct hsr_priv *priv)
 {
 	debugfs_remove(priv->node_tbl_file);
 	priv->node_tbl_file = NULL;
