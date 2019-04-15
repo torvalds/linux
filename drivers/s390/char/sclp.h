@@ -367,14 +367,14 @@ sclp_ascebc(unsigned char ch)
 
 /* translate string from EBCDIC to ASCII */
 static inline void
-sclp_ebcasc_str(unsigned char *str, int nr)
+sclp_ebcasc_str(char *str, int nr)
 {
 	(MACHINE_IS_VM) ? EBCASC(str, nr) : EBCASC_500(str, nr);
 }
 
 /* translate string from ASCII to EBCDIC */
 static inline void
-sclp_ascebc_str(unsigned char *str, int nr)
+sclp_ascebc_str(char *str, int nr)
 {
 	(MACHINE_IS_VM) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
 }

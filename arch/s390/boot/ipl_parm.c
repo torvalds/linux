@@ -56,7 +56,7 @@ void store_ipl_parmblock(void)
 		ipl_block_valid = 1;
 }
 
-static size_t scpdata_length(const char *buf, size_t count)
+static size_t scpdata_length(const u8 *buf, size_t count)
 {
 	while (count) {
 		if (buf[count - 1] != '\0' && buf[count - 1] != ' ')
