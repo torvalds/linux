@@ -169,9 +169,14 @@ static bool create_links(
 		link = link_create(&link_init_params);
 
 		if (link) {
-			dc->links[dc->link_count] = link;
-			link->dc = dc;
-			++dc->link_count;
+			if (dc->config.edp_not_connected &&
+					link->connector_signal == SIGNAL_TYPE_EDP) {
+				link_destroy(&link);
+			} else {
+				dc->links[dc->link_count] = link;
+				link->dc = dc;
+				++dc->link_count;
+			}
 		}
 	}
 
