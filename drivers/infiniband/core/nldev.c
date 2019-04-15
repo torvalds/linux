@@ -119,6 +119,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_SYS_ATTR_NETNS_MODE]	= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DEV_PROTOCOL]		= { .type = NLA_NUL_STRING,
 				    .len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
+	[RDMA_NLDEV_NET_NS_FD]			= { .type = NLA_U32 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -691,9 +692,20 @@ static int nldev_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nla_strlcpy(name, tb[RDMA_NLDEV_ATTR_DEV_NAME],
 			    IB_DEVICE_NAME_MAX);
 		err = ib_device_rename(device, name);
+		goto done;
 	}
 
+	if (tb[RDMA_NLDEV_NET_NS_FD]) {
+		u32 ns_fd;
+
+		ns_fd = nla_get_u32(tb[RDMA_NLDEV_NET_NS_FD]);
+		err = ib_device_set_netns_put(skb, device, ns_fd);
+		goto put_done;
+	}
+
+done:
 	ib_device_put(device);
+put_done:
 	return err;
 }
 
@@ -909,7 +921,6 @@ static int _nldev_res_get_dumpit(struct ib_device *device,
 		nlmsg_cancel(skb, nlh);
 		goto out;
 	}
-
 	nlmsg_end(skb, nlh);
 
 	idx++;

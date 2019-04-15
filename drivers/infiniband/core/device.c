@@ -1452,9 +1452,9 @@ static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
 	mutex_lock(&device->unregistration_lock);
 
 	/*
-	 * If a device not under ib_device_get() or the unregistration_lock
-	 * the namespace can be changed, or it can be unregistered. Check
-	 * again under the lock.
+	 * If a device not under ib_device_get() or if the unregistration_lock
+	 * is not held, the namespace can be changed, or it can be unregistered.
+	 * Check again under the lock.
 	 */
 	if (refcount_read(&device->refcount) == 0 ||
 	    !net_eq(cur_net, read_pnet(&device->coredev.rdma_net))) {
@@ -1471,12 +1471,12 @@ static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
 	 */
 	write_pnet(&device->coredev.rdma_net, net);
 
+	down_read(&devices_rwsem);
 	/*
 	 * Currently rdma devices are system wide unique. So the device name
 	 * is guaranteed free in the new namespace. Publish the new namespace
 	 * at the sysfs level.
 	 */
-	down_read(&devices_rwsem);
 	ret = device_rename(&device->dev, dev_name(&device->dev));
 	up_read(&devices_rwsem);
 	if (ret) {
@@ -1488,7 +1488,7 @@ static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
 	}
 
 	ret2 = enable_device_and_get(device);
-	if (ret2)
+	if (ret2) {
 		/*
 		 * This shouldn't really happen, but if it does, let the user
 		 * retry at later point. So don't disable the device.
@@ -1496,13 +1496,59 @@ static int rdma_dev_change_netns(struct ib_device *device, struct net *cur_net,
 		dev_warn(&device->dev,
 			 "%s: Couldn't re-enable device after namespace change\n",
 			 __func__);
+	}
 	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
+
 	ib_device_put(device);
 out:
 	mutex_unlock(&device->unregistration_lock);
 	if (ret)
 		return ret;
 	return ret2;
+}
+
+int ib_device_set_netns_put(struct sk_buff *skb,
+			    struct ib_device *dev, u32 ns_fd)
+{
+	struct net *net;
+	int ret;
+
+	net = get_net_ns_by_fd(ns_fd);
+	if (IS_ERR(net)) {
+		ret = PTR_ERR(net);
+		goto net_err;
+	}
+
+	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN)) {
+		ret = -EPERM;
+		goto ns_err;
+	}
+
+	/*
+	 * Currently supported only for those providers which support
+	 * disassociation and don't do port specific sysfs init. Once a
+	 * port_cleanup infrastructure is implemented, this limitation will be
+	 * removed.
+	 */
+	if (!dev->ops.disassociate_ucontext || dev->ops.init_port ||
+	    ib_devices_shared_netns) {
+		ret = -EOPNOTSUPP;
+		goto ns_err;
+	}
+
+	get_device(&dev->dev);
+	ib_device_put(dev);
+	ret = rdma_dev_change_netns(dev, current->nsproxy->net_ns, net);
+	put_device(&dev->dev);
+
+	put_net(net);
+	return ret;
+
+ns_err:
+	put_net(net);
+net_err:
+	ib_device_put(dev);
+	return ret;
 }
 
 static struct pernet_operations rdma_dev_net_ops = {

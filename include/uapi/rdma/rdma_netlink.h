@@ -469,11 +469,15 @@ enum rdma_nldev_attr {
 	 * either shared or exclusive among multiple net namespaces.
 	 */
 	RDMA_NLDEV_SYS_ATTR_NETNS_MODE,		/* u8 */
-
 	/*
 	 * Device protocol, e.g. ib, iw, usnic, roce and opa
 	 */
 	RDMA_NLDEV_ATTR_DEV_PROTOCOL,		/* string */
+
+	/*
+	 * File descriptor handle of the net namespace object
+	 */
+	RDMA_NLDEV_NET_NS_FD,			/* u32 */
 
 	/*
 	 * Always the end
