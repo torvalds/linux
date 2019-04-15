@@ -40,8 +40,8 @@
 
 struct vidi_context {
 	struct drm_encoder		encoder;
-	struct platform_device		*pdev;
 	struct drm_device		*drm_dev;
+	struct device			*dev;
 	struct exynos_drm_crtc		*crtc;
 	struct drm_connector		connector;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
@@ -123,7 +123,7 @@ static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 		return;
 
 	addr = exynos_drm_fb_dma_addr(state->fb, 0);
-	DRM_DEV_DEBUG_KMS(&ctx->pdev->dev, "dma_addr = %pad\n", &addr);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "dma_addr = %pad\n", &addr);
 }
 
 static void vidi_enable(struct exynos_drm_crtc *crtc)
@@ -226,19 +226,19 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	struct drm_exynos_vidi_connection *vidi = data;
 
 	if (!vidi) {
-		DRM_DEV_DEBUG_KMS(&ctx->pdev->dev,
+		DRM_DEV_DEBUG_KMS(ctx->dev,
 				  "user data for vidi is null.\n");
 		return -EINVAL;
 	}
 
 	if (vidi->connection > 1) {
-		DRM_DEV_DEBUG_KMS(&ctx->pdev->dev,
+		DRM_DEV_DEBUG_KMS(ctx->dev,
 				  "connection should be 0 or 1.\n");
 		return -EINVAL;
 	}
 
 	if (ctx->connected == vidi->connection) {
-		DRM_DEV_DEBUG_KMS(&ctx->pdev->dev,
+		DRM_DEV_DEBUG_KMS(ctx->dev,
 				  "same connection request.\n");
 		return -EINVAL;
 	}
@@ -248,13 +248,13 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 
 		raw_edid = (struct edid *)(unsigned long)vidi->edid;
 		if (!drm_edid_is_valid(raw_edid)) {
-			DRM_DEV_DEBUG_KMS(&ctx->pdev->dev,
+			DRM_DEV_DEBUG_KMS(ctx->dev,
 					  "edid data is invalid.\n");
 			return -EINVAL;
 		}
 		ctx->raw_edid = drm_edid_duplicate(raw_edid);
 		if (!ctx->raw_edid) {
-			DRM_DEV_DEBUG_KMS(&ctx->pdev->dev,
+			DRM_DEV_DEBUG_KMS(ctx->dev,
 					  "failed to allocate raw_edid.\n");
 			return -ENOMEM;
 		}
@@ -313,14 +313,14 @@ static int vidi_get_modes(struct drm_connector *connector)
 	 * to ctx->raw_edid through specific ioctl.
 	 */
 	if (!ctx->raw_edid) {
-		DRM_DEV_DEBUG_KMS(&ctx->pdev->dev, "raw_edid is null.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "raw_edid is null.\n");
 		return -EFAULT;
 	}
 
 	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
 	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
 	if (!edid) {
-		DRM_DEV_DEBUG_KMS(&ctx->pdev->dev, "failed to allocate edid\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "failed to allocate edid\n");
 		return -ENOMEM;
 	}
 
@@ -344,7 +344,7 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	ret = drm_connector_init(ctx->drm_dev, connector,
 			&vidi_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
-		DRM_DEV_ERROR(ctx->drm_dev->dev,
+		DRM_DEV_ERROR(ctx->dev,
 			      "Failed to initialize connector with drm\n");
 		return ret;
 	}
@@ -448,13 +448,14 @@ static const struct component_ops vidi_component_ops = {
 static int vidi_probe(struct platform_device *pdev)
 {
 	struct vidi_context *ctx;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->pdev = pdev;
+	ctx->dev = dev;
 
 	timer_setup(&ctx->timer, vidi_fake_vblank_timer, 0);
 
@@ -462,21 +463,21 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = device_create_file(&pdev->dev, &dev_attr_connection);
+	ret = device_create_file(dev, &dev_attr_connection);
 	if (ret < 0) {
-		DRM_DEV_ERROR(&pdev->dev,
+		DRM_DEV_ERROR(dev,
 			      "failed to create connection sysfs.\n");
 		return ret;
 	}
 
-	ret = component_add(&pdev->dev, &vidi_component_ops);
+	ret = component_add(dev, &vidi_component_ops);
 	if (ret)
 		goto err_remove_file;
 
 	return ret;
 
 err_remove_file:
-	device_remove_file(&pdev->dev, &dev_attr_connection);
+	device_remove_file(dev, &dev_attr_connection);
 
 	return ret;
 }
