@@ -23,14 +23,6 @@ config NF_TABLES_IPV6
 
 if NF_TABLES_IPV6
 
-config NFT_CHAIN_ROUTE_IPV6
-	tristate "IPv6 nf_tables route chain support"
-	help
-	  This option enables the "route" chain for IPv6 in nf_tables. This
-	  chain type is used to force packet re-routing after mangling header
-	  fields such as the source, destination, flowlabel, hop-limit and
-	  the packet mark.
-
 config NFT_REJECT_IPV6
 	select NF_REJECT_IPV6
 	default NFT_REJECT
@@ -278,15 +270,10 @@ if IP6_NF_NAT
 
 config IP6_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	select NF_NAT_MASQUERADE
+	select NETFILTER_XT_TARGET_MASQUERADE
 	help
-	  Masquerading is a special case of NAT: all outgoing connections are
-	  changed to seem to come from a particular interface's address, and
-	  if the interface goes down, those connections are lost.  This is
-	  only useful for dialup accounts with dynamic IP address (ie. your IP
-	  address will be different on next dialup).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	  This is a backwards-compat option for the user's convenience
+	  (e.g. when running oldconfig). It selects NETFILTER_XT_TARGET_MASQUERADE.
 
 config IP6_NF_TARGET_NPT
 	tristate "NPT (Network Prefix translation) target support"

@@ -48,7 +48,7 @@ struct nf_conntrack_expect {
 	/* Expectation class */
 	unsigned int class;
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 	union nf_inet_addr saved_addr;
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */

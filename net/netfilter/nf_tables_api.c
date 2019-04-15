@@ -3193,9 +3193,7 @@ static int nf_msecs_to_jiffies64(const struct nlattr *nla, u64 *result)
 
 static __be64 nf_jiffies64_to_msecs(u64 input)
 {
-	u64 ms = jiffies64_to_nsecs(input);
-
-	return cpu_to_be64(div_u64(ms, NSEC_PER_MSEC));
+	return cpu_to_be64(jiffies64_to_msecs(input));
 }
 
 static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
@@ -3438,8 +3436,7 @@ err:
 	return err;
 }
 
-static int nf_tables_set_desc_parse(const struct nft_ctx *ctx,
-				    struct nft_set_desc *desc,
+static int nf_tables_set_desc_parse(struct nft_set_desc *desc,
 				    const struct nlattr *nla)
 {
 	struct nlattr *da[NFTA_SET_DESC_MAX + 1];
@@ -3565,7 +3562,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 		policy = ntohl(nla_get_be32(nla[NFTA_SET_POLICY]));
 
 	if (nla[NFTA_SET_DESC] != NULL) {
-		err = nf_tables_set_desc_parse(&ctx, &desc, nla[NFTA_SET_DESC]);
+		err = nf_tables_set_desc_parse(&desc, nla[NFTA_SET_DESC]);
 		if (err < 0)
 			return err;
 	}
@@ -3785,8 +3782,8 @@ bind:
 }
 EXPORT_SYMBOL_GPL(nf_tables_bind_set);
 
-void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
-			  struct nft_set_binding *binding, bool event)
+static void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
+				 struct nft_set_binding *binding, bool event)
 {
 	list_del_rcu(&binding->list);
 
@@ -3797,7 +3794,6 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
 					     GFP_KERNEL);
 	}
 }
-EXPORT_SYMBOL_GPL(nf_tables_unbind_set);
 
 void nf_tables_deactivate_set(const struct nft_ctx *ctx, struct nft_set *set,
 			      struct nft_set_binding *binding,
@@ -7533,6 +7529,7 @@ static int __init nf_tables_module_init(void)
 	if (err < 0)
 		goto err5;
 
+	nft_chain_route_init();
 	return err;
 err5:
 	rhltable_destroy(&nft_objname_ht);
@@ -7552,6 +7549,7 @@ static void __exit nf_tables_module_exit(void)
 	nfnetlink_subsys_unregister(&nf_tables_subsys);
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
 	nft_chain_filter_fini();
+	nft_chain_route_fini();
 	unregister_pernet_subsys(&nf_tables_net_ops);
 	cancel_work_sync(&trans_destroy_work);
 	rcu_barrier();

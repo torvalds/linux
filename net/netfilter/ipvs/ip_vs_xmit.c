@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>                  /* for tcphdr */
 #include <net/ip.h>
+#include <net/gue.h>
 #include <net/tcp.h>                    /* for csum_tcpudp_magic */
 #include <net/udp.h>
 #include <net/icmp.h>                   /* for icmp_send */
@@ -382,6 +383,10 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		mtu = dst_mtu(&rt->dst);
 	} else {
 		mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr);
+		if (!dest)
+			goto err_put;
+		if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+			mtu -= sizeof(struct udphdr) + sizeof(struct guehdr);
 		if (mtu < 68) {
 			IP_VS_DBG_RL("%s(): mtu less than 68\n", __func__);
 			goto err_put;
@@ -533,6 +538,10 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		mtu = dst_mtu(&rt->dst);
 	else {
 		mtu = dst_mtu(&rt->dst) - sizeof(struct ipv6hdr);
+		if (!dest)
+			goto err_put;
+		if (dest->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+			mtu -= sizeof(struct udphdr) + sizeof(struct guehdr);
 		if (mtu < IPV6_MIN_MTU) {
 			IP_VS_DBG_RL("%s(): mtu less than %d\n", __func__,
 				     IPV6_MIN_MTU);
@@ -989,6 +998,41 @@ static inline int __tun_gso_type_mask(int encaps_af, int orig_af)
 	}
 }
 
+static int
+ipvs_gue_encap(struct net *net, struct sk_buff *skb,
+	       struct ip_vs_conn *cp, __u8 *next_protocol)
+{
+	__be16 dport;
+	__be16 sport = udp_flow_src_port(net, skb, 0, 0, false);
+	struct udphdr  *udph;	/* Our new UDP header */
+	struct guehdr  *gueh;	/* Our new GUE header */
+
+	skb_push(skb, sizeof(struct guehdr));
+
+	gueh = (struct guehdr *)skb->data;
+
+	gueh->control = 0;
+	gueh->version = 0;
+	gueh->hlen = 0;
+	gueh->flags = 0;
+	gueh->proto_ctype = *next_protocol;
+
+	skb_push(skb, sizeof(struct udphdr));
+	skb_reset_transport_header(skb);
+
+	udph = udp_hdr(skb);
+
+	dport = cp->dest->tun_port;
+	udph->dest = dport;
+	udph->source = sport;
+	udph->len = htons(skb->len);
+	udph->check = 0;
+
+	*next_protocol = IPPROTO_UDP;
+
+	return 0;
+}
+
 /*
  *   IP Tunneling transmitter
  *
@@ -1025,6 +1069,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct iphdr  *iph;			/* Our new IP header */
 	unsigned int max_headroom;		/* The extra header space needed */
 	int ret, local;
+	int tun_type, gso_type;
 
 	EnterFunction(10);
 
@@ -1046,6 +1091,11 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 */
 	max_headroom = LL_RESERVED_SPACE(tdev) + sizeof(struct iphdr);
 
+	tun_type = cp->dest->tun_type;
+
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+		max_headroom += sizeof(struct udphdr) + sizeof(struct guehdr);
+
 	/* We only care about the df field if sysctl_pmtu_disc(ipvs) is set */
 	dfp = sysctl_pmtu_disc(ipvs) ? &df : NULL;
 	skb = ip_vs_prepare_tunneled_skb(skb, cp->af, max_headroom,
@@ -1054,10 +1104,19 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (IS_ERR(skb))
 		goto tx_error;
 
-	if (iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET, cp->af)))
+	gso_type = __tun_gso_type_mask(AF_INET, cp->af);
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+		gso_type |= SKB_GSO_UDP_TUNNEL;
+
+	if (iptunnel_handle_offloads(skb, gso_type))
 		goto tx_error;
 
 	skb->transport_header = skb->network_header;
+
+	skb_set_inner_ipproto(skb, next_protocol);
+
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+		ipvs_gue_encap(net, skb, cp, &next_protocol);
 
 	skb_push(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
@@ -1102,6 +1161,8 @@ int
 ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		     struct ip_vs_protocol *pp, struct ip_vs_iphdr *ipvsh)
 {
+	struct netns_ipvs *ipvs = cp->ipvs;
+	struct net *net = ipvs->net;
 	struct rt6_info *rt;		/* Route to the other host */
 	struct in6_addr saddr;		/* Source for tunnel */
 	struct net_device *tdev;	/* Device to other host */
@@ -1112,10 +1173,11 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct ipv6hdr  *iph;		/* Our new IP header */
 	unsigned int max_headroom;	/* The extra header space needed */
 	int ret, local;
+	int tun_type, gso_type;
 
 	EnterFunction(10);
 
-	local = __ip_vs_get_out_rt_v6(cp->ipvs, cp->af, skb, cp->dest,
+	local = __ip_vs_get_out_rt_v6(ipvs, cp->af, skb, cp->dest,
 				      &cp->daddr.in6,
 				      &saddr, ipvsh, 1,
 				      IP_VS_RT_MODE_LOCAL |
@@ -1134,16 +1196,30 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 */
 	max_headroom = LL_RESERVED_SPACE(tdev) + sizeof(struct ipv6hdr);
 
+	tun_type = cp->dest->tun_type;
+
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+		max_headroom += sizeof(struct udphdr) + sizeof(struct guehdr);
+
 	skb = ip_vs_prepare_tunneled_skb(skb, cp->af, max_headroom,
 					 &next_protocol, &payload_len,
 					 &dsfield, &ttl, NULL);
 	if (IS_ERR(skb))
 		goto tx_error;
 
-	if (iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET6, cp->af)))
+	gso_type = __tun_gso_type_mask(AF_INET6, cp->af);
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+		gso_type |= SKB_GSO_UDP_TUNNEL;
+
+	if (iptunnel_handle_offloads(skb, gso_type))
 		goto tx_error;
 
 	skb->transport_header = skb->network_header;
+
+	skb_set_inner_ipproto(skb, next_protocol);
+
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+		ipvs_gue_encap(net, skb, cp, &next_protocol);
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
@@ -1167,7 +1243,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	ret = ip_vs_tunnel_xmit_prepare(skb, cp);
 	if (ret == NF_ACCEPT)
-		ip6_local_out(cp->ipvs->net, skb->sk, skb);
+		ip6_local_out(net, skb->sk, skb);
 	else if (ret == NF_DROP)
 		kfree_skb(skb);
 
