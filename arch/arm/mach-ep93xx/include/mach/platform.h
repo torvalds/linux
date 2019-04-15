@@ -5,6 +5,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/platform_data/eth-ep93xx.h>
 #include <linux/reboot.h>
 
 struct device;
@@ -14,12 +15,6 @@ struct platform_device;
 struct ep93xxfb_mach_info;
 struct ep93xx_keypad_platform_data;
 struct ep93xx_spi_info;
-
-struct ep93xx_eth_data
-{
-	unsigned char	dev_addr[6];
-	unsigned char	phy_id;
-};
 
 void ep93xx_map_io(void);
 void ep93xx_init_irq(void);
