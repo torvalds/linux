@@ -65,6 +65,11 @@ typedef struct xfs_inode {
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
+
+	/* pending io completions */
+	spinlock_t		i_ioend_lock;
+	struct work_struct	i_ioend_work;
+	struct list_head	i_ioend_list;
 } xfs_inode_t;
 
 /* Convert from vfs inode to xfs inode */
@@ -510,5 +515,7 @@ bool xfs_inode_verify_forks(struct xfs_inode *ip);
 
 int xfs_iunlink_init(struct xfs_perag *pag);
 void xfs_iunlink_destroy(struct xfs_perag *pag);
+
+void xfs_end_io(struct work_struct *work);
 
 #endif	/* __XFS_INODE_H__ */

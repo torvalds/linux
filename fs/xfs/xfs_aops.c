@@ -234,11 +234,9 @@ xfs_setfilesize_ioend(
  * IO write completion.
  */
 STATIC void
-xfs_end_io(
-	struct work_struct *work)
+xfs_end_ioend(
+	struct xfs_ioend	*ioend)
 {
-	struct xfs_ioend	*ioend =
-		container_of(work, struct xfs_ioend, io_work);
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
@@ -278,19 +276,49 @@ done:
 	xfs_destroy_ioend(ioend, error);
 }
 
+/* Finish all pending io completions. */
+void
+xfs_end_io(
+	struct work_struct	*work)
+{
+	struct xfs_inode	*ip;
+	struct xfs_ioend	*ioend;
+	struct list_head	completion_list;
+	unsigned long		flags;
+
+	ip = container_of(work, struct xfs_inode, i_ioend_work);
+
+	spin_lock_irqsave(&ip->i_ioend_lock, flags);
+	list_replace_init(&ip->i_ioend_list, &completion_list);
+	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
+
+	while (!list_empty(&completion_list)) {
+		ioend = list_first_entry(&completion_list, struct xfs_ioend,
+				io_list);
+		list_del_init(&ioend->io_list);
+		xfs_end_ioend(ioend);
+	}
+}
+
 STATIC void
 xfs_end_bio(
 	struct bio		*bio)
 {
 	struct xfs_ioend	*ioend = bio->bi_private;
-	struct xfs_mount	*mp = XFS_I(ioend->io_inode)->i_mount;
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	unsigned long		flags;
 
 	if (ioend->io_fork == XFS_COW_FORK ||
-	    ioend->io_state == XFS_EXT_UNWRITTEN)
-		queue_work(mp->m_unwritten_workqueue, &ioend->io_work);
-	else if (ioend->io_append_trans)
-		queue_work(mp->m_data_workqueue, &ioend->io_work);
-	else
+	    ioend->io_state == XFS_EXT_UNWRITTEN ||
+	    ioend->io_append_trans != NULL) {
+		spin_lock_irqsave(&ip->i_ioend_lock, flags);
+		if (list_empty(&ip->i_ioend_list))
+			WARN_ON_ONCE(!queue_work(mp->m_unwritten_workqueue,
+						 &ip->i_ioend_work));
+		list_add_tail(&ioend->io_list, &ip->i_ioend_list);
+		spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
+	} else
 		xfs_destroy_ioend(ioend, blk_status_to_errno(bio->bi_status));
 }
 
@@ -594,7 +622,6 @@ xfs_alloc_ioend(
 	ioend->io_inode = inode;
 	ioend->io_size = 0;
 	ioend->io_offset = offset;
-	INIT_WORK(&ioend->io_work, xfs_end_io);
 	ioend->io_append_trans = NULL;
 	ioend->io_bio = bio;
 	return ioend;
