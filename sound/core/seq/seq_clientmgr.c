@@ -191,6 +191,7 @@ bool snd_seq_client_ioctl_lock(int clientid)
 	if (!client)
 		return false;
 	mutex_lock(&client->ioctl_mutex);
+	/* The client isn't unrefed here; see snd_seq_client_ioctl_unlock() */
 	return true;
 }
 EXPORT_SYMBOL_GPL(snd_seq_client_ioctl_lock);
@@ -204,7 +205,11 @@ void snd_seq_client_ioctl_unlock(int clientid)
 	if (WARN_ON(!client))
 		return;
 	mutex_unlock(&client->ioctl_mutex);
-	snd_use_lock_free(&client->use_lock);
+	/* The doubly unrefs below are intentional; the first one releases the
+	 * leftover from snd_seq_client_ioctl_lock() above, and the second one
+	 * is for releasing snd_seq_client_use_ptr() in this function
+	 */
+	snd_seq_client_unlock(client);
 	snd_seq_client_unlock(client);
 }
 EXPORT_SYMBOL_GPL(snd_seq_client_ioctl_unlock);
