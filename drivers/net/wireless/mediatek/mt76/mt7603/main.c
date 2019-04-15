@@ -372,7 +372,7 @@ mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 	struct mt7603_sta *msta = (struct mt7603_sta *)sta->drv_priv;
 	struct sk_buff_head list;
 
-	mt76_stop_tx_queues(&dev->mt76, sta, false);
+	mt76_stop_tx_queues(&dev->mt76, sta, true);
 	mt7603_wtbl_set_ps(dev, msta, ps);
 	if (ps)
 		return;
@@ -584,13 +584,13 @@ mt7603_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		mtxq->aggr = true;
 		mtxq->send_bar = false;
-		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, *ssn, ba_size);
+		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, ba_size);
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mtxq->aggr = false;
 		ieee80211_send_bar(vif, sta->addr, tid, mtxq->agg_ssn);
-		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, *ssn, -1);
+		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, -1);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		mtxq->agg_ssn = *ssn << 4;
@@ -598,7 +598,7 @@ mt7603_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		break;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 		mtxq->aggr = false;
-		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, *ssn, -1);
+		mt7603_mac_tx_ba_reset(dev, msta->wcid.idx, tid, -1);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	}

@@ -76,7 +76,6 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 	fwrt->ops_ctx = ops_ctx;
 	INIT_DELAYED_WORK(&fwrt->dump.wk, iwl_fw_error_dump_wk);
 	iwl_fwrt_dbgfs_register(fwrt, dbgfs_dir);
-	init_waitqueue_head(&fwrt->trans->fw_halt_waitq);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_runtime_init);
 
