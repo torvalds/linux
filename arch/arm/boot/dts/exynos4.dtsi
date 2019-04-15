@@ -675,7 +675,7 @@
 			status = "disabled";
 		};
 
-		amba {
+		amba: amba {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
