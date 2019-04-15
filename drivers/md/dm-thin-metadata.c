@@ -1225,7 +1225,12 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	 * We commit to ensure the btree roots which we increment in a
 	 * moment are up to date.
 	 */
-	__commit_transaction(pmd);
+	r = __commit_transaction(pmd);
+	if (r < 0) {
+		DMWARN("%s: __commit_transaction() failed, error = %d",
+		       __func__, r);
+		return r;
+	}
 
 	/*
 	 * Copy the superblock.
