@@ -129,20 +129,6 @@ static void nvme_loop_execute_work(struct work_struct *work)
 	nvmet_req_execute(&iod->req);
 }
 
-static enum blk_eh_timer_return
-nvme_loop_timeout(struct request *rq, bool reserved)
-{
-	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(rq);
-
-	/* queue error recovery */
-	nvme_reset_ctrl(&iod->queue->ctrl->ctrl);
-
-	/* fail with DNR on admin cmd timeout */
-	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
-
-	return BLK_EH_DONE;
-}
-
 static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -253,7 +239,6 @@ static const struct blk_mq_ops nvme_loop_mq_ops = {
 	.complete	= nvme_loop_complete_rq,
 	.init_request	= nvme_loop_init_request,
 	.init_hctx	= nvme_loop_init_hctx,
-	.timeout	= nvme_loop_timeout,
 };
 
 static const struct blk_mq_ops nvme_loop_admin_mq_ops = {
@@ -261,7 +246,6 @@ static const struct blk_mq_ops nvme_loop_admin_mq_ops = {
 	.complete	= nvme_loop_complete_rq,
 	.init_request	= nvme_loop_init_request,
 	.init_hctx	= nvme_loop_init_admin_hctx,
-	.timeout	= nvme_loop_timeout,
 };
 
 static void nvme_loop_destroy_admin_queue(struct nvme_loop_ctrl *ctrl)
