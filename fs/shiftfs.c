@@ -28,7 +28,7 @@ struct shiftfs_super_info {
 	const struct cred *creator_cred;
 	bool mark;
 	unsigned int passthrough;
-	struct shiftfs_super_info *info_mark;
+	unsigned int passthrough_mark;
 };
 
 struct shiftfs_file_info {
@@ -52,20 +52,12 @@ static inline bool shiftfs_passthrough_ioctls(struct shiftfs_super_info *info)
 	if (!(info->passthrough & SHIFTFS_PASSTHROUGH_IOCTL))
 		return false;
 
-	if (info->info_mark &&
-	    !(info->info_mark->passthrough & SHIFTFS_PASSTHROUGH_IOCTL))
-		return false;
-
 	return true;
 }
 
 static inline bool shiftfs_passthrough_statfs(struct shiftfs_super_info *info)
 {
 	if (!(info->passthrough & SHIFTFS_PASSTHROUGH_STAT))
-		return false;
-
-	if (info->info_mark &&
-	    !(info->info_mark->passthrough & SHIFTFS_PASSTHROUGH_STAT))
 		return false;
 
 	return true;
@@ -1824,7 +1816,7 @@ static int shiftfs_remount(struct super_block *sb, int *flags, char *data)
 
 	if (info->passthrough != new.passthrough) {
 		/* Don't allow exceeding passthrough options of mark mount. */
-		if (!passthrough_is_subset(info->info_mark->passthrough,
+		if (!passthrough_is_subset(info->passthrough_mark,
 					   info->passthrough))
 			return -EPERM;
 
@@ -1926,9 +1918,19 @@ static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 
 			sbinfo->mnt = mntget(sbinfo_mp->mnt);
 			dentry = dget(path.dentry->d_fsdata);
+			/*
+			 * Copy up the passthrough mount options from the
+			 * parent mark mountpoint.
+			 */
+			sbinfo->passthrough_mark = sbinfo_mp->passthrough_mark;
 		} else {
 			sbinfo->mnt = mntget(path.mnt);
 			dentry = dget(path.dentry);
+			/*
+			 * For a new mark passthrough_mark and passthrough
+			 * are identical.
+			 */
+			sbinfo->passthrough_mark = sbinfo->passthrough;
 		}
 
 		sbinfo->creator_cred = prepare_creds();
@@ -1956,7 +1958,12 @@ static int shiftfs_fill_super(struct super_block *sb, void *raw_data,
 		sbinfo->mnt = mntget(sbinfo_mp->mnt);
 		sbinfo->creator_cred = get_cred(sbinfo_mp->creator_cred);
 		dentry = dget(path.dentry->d_fsdata);
-		sbinfo->info_mark = sbinfo_mp;
+		/*
+		 * Copy up passthrough settings from mark mountpoint so we can
+		 * verify when the overlay wants to remount with different
+		 * passthrough settings.
+		 */
+		sbinfo->passthrough_mark = sbinfo_mp->passthrough;
 	}
 
 	sb->s_stack_depth = dentry->d_sb->s_stack_depth + 1;
