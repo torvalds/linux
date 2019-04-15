@@ -72,8 +72,7 @@ clear_bss_done:
 	la sp, init_thread_union + THREAD_SIZE
 
 	/* Start the kernel */
-	mv a0, s0
-	mv a1, s1
+	mv a0, s1
 	call parse_dtb
 	tail start_kernel
 
