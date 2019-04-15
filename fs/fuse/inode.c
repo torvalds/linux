@@ -107,33 +107,29 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	return inode;
 }
 
-static void fuse_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kmem_cache_free(fuse_inode_cachep, inode);
-}
-
-static void fuse_destroy_inode(struct inode *inode)
+static void fuse_free_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
-		WARN_ON(!list_empty(&fi->write_files));
-		WARN_ON(!list_empty(&fi->queued_writes));
-	}
+
 	mutex_destroy(&fi->mutex);
 	kfree(fi->forget);
-	call_rcu(&inode->i_rcu, fuse_i_callback);
+	kmem_cache_free(fuse_inode_cachep, fi);
 }
 
 static void fuse_evict_inode(struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (inode->i_sb->s_flags & SB_ACTIVE) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
-		struct fuse_inode *fi = get_fuse_inode(inode);
 		fuse_queue_forget(fc, fi->forget, fi->nodeid, fi->nlookup);
 		fi->forget = NULL;
+	}
+	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
+		WARN_ON(!list_empty(&fi->write_files));
+		WARN_ON(!list_empty(&fi->queued_writes));
 	}
 }
 
@@ -814,7 +810,7 @@ static const struct export_operations fuse_export_operations = {
 
 static const struct super_operations fuse_super_operations = {
 	.alloc_inode    = fuse_alloc_inode,
-	.destroy_inode  = fuse_destroy_inode,
+	.free_inode     = fuse_free_inode,
 	.evict_inode	= fuse_evict_inode,
 	.write_inode	= fuse_write_inode,
 	.drop_inode	= generic_delete_inode,
