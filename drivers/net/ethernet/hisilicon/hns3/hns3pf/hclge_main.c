@@ -6964,7 +6964,8 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 
 	if (state == HNAE3_PORT_BASE_VLAN_MODIFY) {
 		/* add new VLAN tag */
-		ret = hclge_set_vlan_filter_hw(hdev, vlan_info->vlan_proto,
+		ret = hclge_set_vlan_filter_hw(hdev,
+					       htons(vlan_info->vlan_proto),
 					       vport->vport_id,
 					       vlan_info->vlan_tag,
 					       vlan_info->qos, false);
@@ -6972,7 +6973,8 @@ int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
 			return ret;
 
 		/* remove old VLAN tag */
-		ret = hclge_set_vlan_filter_hw(hdev, old_vlan_info->vlan_proto,
+		ret = hclge_set_vlan_filter_hw(hdev,
+					       htons(old_vlan_info->vlan_proto),
 					       vport->vport_id,
 					       old_vlan_info->vlan_tag,
 					       old_vlan_info->qos, true);
