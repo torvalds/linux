@@ -72,15 +72,9 @@ static void cros_ec_console_log_work(struct work_struct *__work)
 	int buf_space;
 	int ret;
 
-	ret = cros_ec_cmd_xfer(ec->ec_dev, &snapshot_msg);
-	if (ret < 0) {
-		dev_err(ec->dev, "EC communication failed\n");
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, &snapshot_msg);
+	if (ret < 0)
 		goto resched;
-	}
-	if (snapshot_msg.result != EC_RES_SUCCESS) {
-		dev_err(ec->dev, "EC failed to snapshot the console log\n");
-		goto resched;
-	}
 
 	/* Loop until we have read everything, or there's an error. */
 	mutex_lock(&debug_info->log_mutex);
@@ -95,16 +89,10 @@ static void cros_ec_console_log_work(struct work_struct *__work)
 
 		memset(read_params, '\0', sizeof(*read_params));
 		read_params->subcmd = CONSOLE_READ_RECENT;
-		ret = cros_ec_cmd_xfer(ec->ec_dev, debug_info->read_msg);
-		if (ret < 0) {
-			dev_err(ec->dev, "EC communication failed\n");
+		ret = cros_ec_cmd_xfer_status(ec->ec_dev,
+					      debug_info->read_msg);
+		if (ret < 0)
 			break;
-		}
-		if (debug_info->read_msg->result != EC_RES_SUCCESS) {
-			dev_err(ec->dev,
-				"EC failed to read the console log\n");
-			break;
-		}
 
 		/* If the buffer is empty, we're done here. */
 		if (ret == 0 || ec_buffer[0] == '\0')
@@ -290,9 +278,8 @@ static int ec_read_version_supported(struct cros_ec_dev *ec)
 	params->cmd = EC_CMD_CONSOLE_READ;
 	response = (struct ec_response_get_cmd_versions *)msg->data;
 
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg) >= 0 &&
-		msg->result == EC_RES_SUCCESS &&
-		(response->version_mask & EC_VER_MASK(1));
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg) >= 0 &&
+	      response->version_mask & EC_VER_MASK(1);
 
 	kfree(msg);
 
@@ -372,9 +359,8 @@ static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
 	msg->command = EC_CMD_GET_PANIC_INFO;
 	msg->insize = insize;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
 	if (ret < 0) {
-		dev_warn(debug_info->ec->dev, "Cannot read panicinfo.\n");
 		ret = 0;
 		goto free;
 	}
