@@ -1,0 +1,51 @@
+[
+    {
+        "id": "319a",
+        "name": "Add pedit action that mangles IP TTL",
+        "category": [
+            "actions",
+            "pedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge ip ttl set 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*index 1 ref.*key #0  at ipv4\\+8: val 0a000000 mask 00ffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "7e67",
+        "name": "Replace pedit action with invalid goto chain",
+        "category": [
+            "actions",
+            "pedit"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action pedit ex munge ip ttl set 10 pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action pedit ex munge ip ttl set 10 goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*index 90 ref.*key #0  at ipv4\\+8: val 0a000000 mask 00ffffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    }
+]

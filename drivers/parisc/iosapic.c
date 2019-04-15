@@ -157,8 +157,12 @@
 #define DBG_IRT(x...)
 #endif
 
+#ifdef CONFIG_64BIT
+#define COMPARE_IRTE_ADDR(irte, hpa)	((irte)->dest_iosapic_addr == (hpa))
+#else
 #define COMPARE_IRTE_ADDR(irte, hpa)	\
-		((irte)->dest_iosapic_addr == F_EXTEND(hpa))
+		((irte)->dest_iosapic_addr == ((hpa) | 0xffffffff00000000ULL))
+#endif
 
 #define IOSAPIC_REG_SELECT              0x00
 #define IOSAPIC_REG_WINDOW              0x10

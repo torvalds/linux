@@ -1105,10 +1105,12 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 
 		dom = __iommu_domain_alloc(dev->bus, iommu_def_domain_type);
 		if (!dom && iommu_def_domain_type != IOMMU_DOMAIN_DMA) {
-			dev_warn(dev,
-				 "failed to allocate default IOMMU domain of type %u; falling back to IOMMU_DOMAIN_DMA",
-				 iommu_def_domain_type);
 			dom = __iommu_domain_alloc(dev->bus, IOMMU_DOMAIN_DMA);
+			if (dom) {
+				dev_warn(dev,
+					 "failed to allocate default IOMMU domain of type %u; falling back to IOMMU_DOMAIN_DMA",
+					 iommu_def_domain_type);
+			}
 		}
 
 		group->default_domain = dom;

@@ -730,10 +730,10 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 		status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
 
 		/* Link ON & Not select default PHY & not ghost PHY */
-		 if ((status & MII_STAT_LINK) && !default_phy &&
-					(phy->phy_types != UNKNOWN))
-		 	default_phy = phy;
-		 else {
+		if ((status & MII_STAT_LINK) && !default_phy &&
+		    (phy->phy_types != UNKNOWN)) {
+			default_phy = phy;
+		} else {
 			status = mdio_read(net_dev, phy->phy_addr, MII_CONTROL);
 			mdio_write(net_dev, phy->phy_addr, MII_CONTROL,
 				status | MII_CNTL_AUTO | MII_CNTL_ISOLATE);
@@ -741,7 +741,7 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 				phy_home = phy;
 			else if(phy->phy_types == LAN)
 				phy_lan = phy;
-		 }
+		}
 	}
 
 	if (!default_phy && phy_home)

@@ -1521,7 +1521,7 @@ static void update_stats(int ioaddr, struct net_device *dev)
 static void set_rx_mode(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
-	short new_mode;
+	unsigned short new_mode;
 
 	if (dev->flags & IFF_PROMISC) {
 		if (corkscrew_debug > 3)

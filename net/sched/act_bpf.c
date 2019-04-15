@@ -17,6 +17,7 @@
 
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_bpf.h>
 #include <net/tc_act/tc_bpf.h>
@@ -278,10 +279,11 @@ static void tcf_bpf_prog_fill_cfg(const struct tcf_bpf *prog,
 static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act,
 			int replace, int bind, bool rtnl_held,
-			struct netlink_ext_ack *extack)
+			struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, bpf_net_id);
 	struct nlattr *tb[TCA_ACT_BPF_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tcf_bpf_cfg cfg, old;
 	struct tc_act_bpf *parm;
 	struct tcf_bpf *prog;
@@ -323,12 +325,16 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		return ret;
 	}
 
+	ret = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (ret < 0)
+		goto release_idr;
+
 	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
 	is_ebpf = tb[TCA_ACT_BPF_FD];
 
 	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf)) {
 		ret = -EINVAL;
-		goto out;
+		goto put_chain;
 	}
 
 	memset(&cfg, 0, sizeof(cfg));
@@ -336,7 +342,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	ret = is_bpf ? tcf_bpf_init_from_ops(tb, &cfg) :
 		       tcf_bpf_init_from_efd(tb, &cfg);
 	if (ret < 0)
-		goto out;
+		goto put_chain;
 
 	prog = to_bpf(*act);
 
@@ -350,9 +356,12 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	if (cfg.bpf_num_ops)
 		prog->bpf_num_ops = cfg.bpf_num_ops;
 
-	prog->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*act, parm->action, goto_ch);
 	rcu_assign_pointer(prog->filter, cfg.filter);
 	spin_unlock_bh(&prog->tcf_lock);
+
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (res == ACT_P_CREATED) {
 		tcf_idr_insert(tn, *act);
@@ -363,9 +372,13 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	}
 
 	return res;
-out:
-	tcf_idr_release(*act, bind);
 
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+
+release_idr:
+	tcf_idr_release(*act, bind);
 	return ret;
 }
 

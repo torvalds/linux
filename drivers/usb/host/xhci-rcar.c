@@ -246,6 +246,7 @@ int xhci_rcar_init_quirk(struct usb_hcd *hcd)
 	if (!xhci_rcar_wait_for_pll_active(hcd))
 		return -ETIMEDOUT;
 
+	xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	return xhci_rcar_download_firmware(hcd);
 }
 

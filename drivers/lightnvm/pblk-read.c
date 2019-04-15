@@ -231,14 +231,14 @@ static void pblk_end_partial_read(struct nvm_rq *rqd)
 	struct pblk_sec_meta *meta;
 	struct bio *new_bio = rqd->bio;
 	struct bio *bio = pr_ctx->orig_bio;
-	struct bio_vec src_bv, dst_bv;
 	void *meta_list = rqd->meta_list;
-	int bio_init_idx = pr_ctx->bio_init_idx;
 	unsigned long *read_bitmap = pr_ctx->bitmap;
+	struct bvec_iter orig_iter = BVEC_ITER_ALL_INIT;
+	struct bvec_iter new_iter = BVEC_ITER_ALL_INIT;
 	int nr_secs = pr_ctx->orig_nr_secs;
 	int nr_holes = nr_secs - bitmap_weight(read_bitmap, nr_secs);
 	void *src_p, *dst_p;
-	int hole, i;
+	int bit, i;
 
 	if (unlikely(nr_holes == 1)) {
 		struct ppa_addr ppa;
@@ -257,33 +257,39 @@ static void pblk_end_partial_read(struct nvm_rq *rqd)
 
 	/* Fill the holes in the original bio */
 	i = 0;
-	hole = find_first_zero_bit(read_bitmap, nr_secs);
-	do {
-		struct pblk_line *line;
+	for (bit = 0; bit < nr_secs; bit++) {
+		if (!test_bit(bit, read_bitmap)) {
+			struct bio_vec dst_bv, src_bv;
+			struct pblk_line *line;
 
-		line = pblk_ppa_to_line(pblk, rqd->ppa_list[i]);
-		kref_put(&line->ref, pblk_line_put);
+			line = pblk_ppa_to_line(pblk, rqd->ppa_list[i]);
+			kref_put(&line->ref, pblk_line_put);
 
-		meta = pblk_get_meta(pblk, meta_list, hole);
-		meta->lba = cpu_to_le64(pr_ctx->lba_list_media[i]);
+			meta = pblk_get_meta(pblk, meta_list, bit);
+			meta->lba = cpu_to_le64(pr_ctx->lba_list_media[i]);
 
-		src_bv = new_bio->bi_io_vec[i++];
-		dst_bv = bio->bi_io_vec[bio_init_idx + hole];
+			dst_bv = bio_iter_iovec(bio, orig_iter);
+			src_bv = bio_iter_iovec(new_bio, new_iter);
 
-		src_p = kmap_atomic(src_bv.bv_page);
-		dst_p = kmap_atomic(dst_bv.bv_page);
+			src_p = kmap_atomic(src_bv.bv_page);
+			dst_p = kmap_atomic(dst_bv.bv_page);
 
-		memcpy(dst_p + dst_bv.bv_offset,
-			src_p + src_bv.bv_offset,
-			PBLK_EXPOSED_PAGE_SIZE);
+			memcpy(dst_p + dst_bv.bv_offset,
+				src_p + src_bv.bv_offset,
+				PBLK_EXPOSED_PAGE_SIZE);
 
-		kunmap_atomic(src_p);
-		kunmap_atomic(dst_p);
+			kunmap_atomic(src_p);
+			kunmap_atomic(dst_p);
 
-		mempool_free(src_bv.bv_page, &pblk->page_bio_pool);
+			flush_dcache_page(dst_bv.bv_page);
+			mempool_free(src_bv.bv_page, &pblk->page_bio_pool);
 
-		hole = find_next_zero_bit(read_bitmap, nr_secs, hole + 1);
-	} while (hole < nr_secs);
+			bio_advance_iter(new_bio, &new_iter,
+					PBLK_EXPOSED_PAGE_SIZE);
+			i++;
+		}
+		bio_advance_iter(bio, &orig_iter, PBLK_EXPOSED_PAGE_SIZE);
+	}
 
 	bio_put(new_bio);
 	kfree(pr_ctx);

@@ -960,14 +960,14 @@ static struct clk_regmap g12a_sd_emmc_c_clk0 = {
 /* VPU Clock */
 
 static const char * const g12a_vpu_parent_names[] = {
-	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7",
+	"fclk_div3", "fclk_div4", "fclk_div5", "fclk_div7",
 	"mpll1", "vid_pll", "hifi_pll", "gp0_pll",
 };
 
 static struct clk_regmap g12a_vpu_0_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_VPU_CLK_CNTL,
-		.mask = 0x3,
+		.mask = 0x7,
 		.shift = 9,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -1011,7 +1011,7 @@ static struct clk_regmap g12a_vpu_0 = {
 static struct clk_regmap g12a_vpu_1_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_VPU_CLK_CNTL,
-		.mask = 0x3,
+		.mask = 0x7,
 		.shift = 25,
 	},
 	.hw.init = &(struct clk_init_data){

@@ -3878,10 +3878,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 * wake up the thread.
 	 */
 	spin_lock(&lpfc_cmd->buf_lock);
-	if (unlikely(lpfc_cmd->cur_iocbq.iocb_flag & LPFC_DRIVER_ABORTED)) {
-		lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
-		if (lpfc_cmd->waitq)
-			wake_up(lpfc_cmd->waitq);
+	lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
+	if (lpfc_cmd->waitq) {
+		wake_up(lpfc_cmd->waitq);
 		lpfc_cmd->waitq = NULL;
 	}
 	spin_unlock(&lpfc_cmd->buf_lock);

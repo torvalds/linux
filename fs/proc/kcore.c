@@ -615,7 +615,7 @@ static void __init proc_kcore_text_init(void)
 /*
  * MODULES_VADDR has no intersection with VMALLOC_ADDR.
  */
-struct kcore_list kcore_modules;
+static struct kcore_list kcore_modules;
 static void __init add_modules_range(void)
 {
 	if (MODULES_VADDR != VMALLOC_START && MODULES_END != VMALLOC_END) {

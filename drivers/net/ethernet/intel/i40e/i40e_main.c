@@ -3064,6 +3064,26 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 }
 
 /**
+ * i40e_xsk_umem - Retrieve the AF_XDP ZC if XDP and ZC is enabled
+ * @ring: The Tx or Rx ring
+ *
+ * Returns the UMEM or NULL.
+ **/
+static struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
+{
+	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
+	int qid = ring->queue_index;
+
+	if (ring_is_xdp(ring))
+		qid -= ring->vsi->alloc_queue_pairs;
+
+	if (!xdp_on || !test_bit(qid, ring->vsi->af_xdp_zc_qps))
+		return NULL;
+
+	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
+}
+
+/**
  * i40e_configure_tx_ring - Configure a transmit ring context and rest
  * @ring: The Tx ring to configure
  *
@@ -10064,6 +10084,12 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	hash_init(vsi->mac_filter_hash);
 	vsi->irqs_ready = false;
 
+	if (type == I40E_VSI_MAIN) {
+		vsi->af_xdp_zc_qps = bitmap_zalloc(pf->num_lan_qps, GFP_KERNEL);
+		if (!vsi->af_xdp_zc_qps)
+			goto err_rings;
+	}
+
 	ret = i40e_set_num_rings_in_vsi(vsi);
 	if (ret)
 		goto err_rings;
@@ -10082,6 +10108,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	goto unlock_pf;
 
 err_rings:
+	bitmap_free(vsi->af_xdp_zc_qps);
 	pf->next_vsi = i - 1;
 	kfree(vsi);
 unlock_pf:
@@ -10162,6 +10189,7 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 	i40e_put_lump(pf->qp_pile, vsi->base_queue, vsi->idx);
 	i40e_put_lump(pf->irq_pile, vsi->base_vector, vsi->idx);
 
+	bitmap_free(vsi->af_xdp_zc_qps);
 	i40e_vsi_free_arrays(vsi, true);
 	i40e_clear_rss_config_user(vsi);
 

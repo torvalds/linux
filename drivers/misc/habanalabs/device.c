@@ -11,6 +11,8 @@
 #include <linux/sched/signal.h>
 #include <linux/hwmon.h>
 
+#define HL_PLDM_PENDING_RESET_PER_SEC	(HL_PENDING_RESET_PER_SEC * 10)
+
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
 {
 	if ((hdev->disabled) || (atomic_read(&hdev->in_reset)))
@@ -216,6 +218,7 @@ static int device_early_init(struct hl_device *hdev)
 	spin_lock_init(&hdev->hw_queues_mirror_lock);
 	atomic_set(&hdev->in_reset, 0);
 	atomic_set(&hdev->fd_open_cnt, 0);
+	atomic_set(&hdev->cs_active_cnt, 0);
 
 	return 0;
 
@@ -413,6 +416,27 @@ int hl_device_suspend(struct hl_device *hdev)
 
 	pci_save_state(hdev->pdev);
 
+	/* Block future CS/VM/JOB completion operations */
+	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
+	if (rc) {
+		dev_err(hdev->dev, "Can't suspend while in reset\n");
+		return -EIO;
+	}
+
+	/* This blocks all other stuff that is not blocked by in_reset */
+	hdev->disabled = true;
+
+	/*
+	 * Flush anyone that is inside the critical section of enqueue
+	 * jobs to the H/W
+	 */
+	hdev->asic_funcs->hw_queues_lock(hdev);
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	/* Flush processes that are sending message to CPU */
+	mutex_lock(&hdev->send_cpu_message_lock);
+	mutex_unlock(&hdev->send_cpu_message_lock);
+
 	rc = hdev->asic_funcs->suspend(hdev);
 	if (rc)
 		dev_err(hdev->dev,
@@ -440,21 +464,38 @@ int hl_device_resume(struct hl_device *hdev)
 
 	pci_set_power_state(hdev->pdev, PCI_D0);
 	pci_restore_state(hdev->pdev);
-	rc = pci_enable_device(hdev->pdev);
+	rc = pci_enable_device_mem(hdev->pdev);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to enable PCI device in resume\n");
 		return rc;
 	}
 
+	pci_set_master(hdev->pdev);
+
 	rc = hdev->asic_funcs->resume(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to enable PCI access from device CPU\n");
-		return rc;
+		dev_err(hdev->dev, "Failed to resume device after suspend\n");
+		goto disable_device;
+	}
+
+
+	hdev->disabled = false;
+	atomic_set(&hdev->in_reset, 0);
+
+	rc = hl_device_reset(hdev, true, false);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to reset device during resume\n");
+		goto disable_device;
 	}
 
 	return 0;
+
+disable_device:
+	pci_clear_master(hdev->pdev);
+	pci_disable_device(hdev->pdev);
+
+	return rc;
 }
 
 static void hl_device_hard_reset_pending(struct work_struct *work)
@@ -462,8 +503,15 @@ static void hl_device_hard_reset_pending(struct work_struct *work)
 	struct hl_device_reset_work *device_reset_work =
 		container_of(work, struct hl_device_reset_work, reset_work);
 	struct hl_device *hdev = device_reset_work->hdev;
-	u16 pending_cnt = HL_PENDING_RESET_PER_SEC;
+	u16 pending_total, pending_cnt;
 	struct task_struct *task = NULL;
+
+	if (hdev->pldm)
+		pending_total = HL_PLDM_PENDING_RESET_PER_SEC;
+	else
+		pending_total = HL_PENDING_RESET_PER_SEC;
+
+	pending_cnt = pending_total;
 
 	/* Flush all processes that are inside hl_open */
 	mutex_lock(&hdev->fd_open_cnt_lock);
@@ -488,6 +536,19 @@ static void hl_device_hard_reset_pending(struct work_struct *work)
 			put_task_struct(task);
 		}
 	}
+
+	pending_cnt = pending_total;
+
+	while ((atomic_read(&hdev->fd_open_cnt)) && (pending_cnt)) {
+
+		pending_cnt--;
+
+		ssleep(1);
+	}
+
+	if (atomic_read(&hdev->fd_open_cnt))
+		dev_crit(hdev->dev,
+			"Going to hard reset with open user contexts\n");
 
 	mutex_unlock(&hdev->fd_open_cnt_lock);
 

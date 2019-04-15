@@ -115,6 +115,7 @@ struct mapped_device {
 	struct srcu_struct io_barrier;
 };
 
+void disable_discard(struct mapped_device *md);
 void disable_write_same(struct mapped_device *md);
 void disable_write_zeroes(struct mapped_device *md);
 

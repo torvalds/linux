@@ -59,26 +59,19 @@ static inline void syscall_set_return_value(struct task_struct *task,
 }
 
 extern void ia64_syscall_get_set_arguments(struct task_struct *task,
-	struct pt_regs *regs, unsigned int i, unsigned int n,
-	unsigned long *args, int rw);
+	struct pt_regs *regs, unsigned long *args, int rw);
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-
-	ia64_syscall_get_set_arguments(task, regs, i, n, args, 0);
+	ia64_syscall_get_set_arguments(task, regs, args, 0);
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-
-	ia64_syscall_get_set_arguments(task, regs, i, n, args, 1);
+	ia64_syscall_get_set_arguments(task, regs, args, 1);
 }
 
 static inline int syscall_get_arch(void)

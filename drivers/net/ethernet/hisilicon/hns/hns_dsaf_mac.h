@@ -187,7 +187,7 @@ struct mac_statistics {
 /*mac para struct ,mac get param from nic or dsaf when initialize*/
 struct mac_params {
 	char addr[ETH_ALEN];
-	void *vaddr; /*virtual address*/
+	u8 __iomem *vaddr; /*virtual address*/
 	struct device *dev;
 	u8 mac_id;
 	/**< Ethernet operation mode (MAC-PHY interface and speed) */
@@ -402,7 +402,7 @@ struct mac_driver {
 	enum mac_mode mac_mode;
 	u8 mac_id;
 	struct hns_mac_cb *mac_cb;
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 	unsigned int mac_en_flg;/*you'd better don't enable mac twice*/
 	unsigned int virt_dev_num;
 	struct device *dev;

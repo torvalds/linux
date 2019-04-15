@@ -508,6 +508,7 @@ void drm_dev_unplug(struct drm_device *dev)
 	synchronize_srcu(&drm_unplug_srcu);
 
 	drm_dev_unregister(dev);
+	drm_dev_put(dev);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 

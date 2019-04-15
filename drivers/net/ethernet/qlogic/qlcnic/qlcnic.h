@@ -497,7 +497,7 @@ struct qlcnic_hardware_context {
 	u16 board_type;
 	u16 supported_type;
 
-	u16 link_speed;
+	u32 link_speed;
 	u16 link_duplex;
 	u16 link_autoneg;
 	u16 module_type;

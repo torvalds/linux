@@ -26,7 +26,7 @@ typedef __kernel_sa_family_t	sa_family_t;
 /*
  *	1003.1g requires sa_family_t and that sa_data is char.
  */
- 
+
 struct sockaddr {
 	sa_family_t	sa_family;	/* address family, AF_xxx	*/
 	char		sa_data[14];	/* 14 bytes of protocol address	*/
@@ -44,7 +44,7 @@ struct linger {
  *	system, not 4.3. Thus msg_accrights(len) are now missing. They
  *	belong in an obscure libc emulation or the bin.
  */
- 
+
 struct msghdr {
 	void		*msg_name;	/* ptr to socket address structure */
 	int		msg_namelen;	/* size of socket address structure */
@@ -54,7 +54,7 @@ struct msghdr {
 	unsigned int	msg_flags;	/* flags on received message */
 	struct kiocb	*msg_iocb;	/* ptr to iocb for async requests */
 };
- 
+
 struct user_msghdr {
 	void		__user *msg_name;	/* ptr to socket address structure */
 	int		msg_namelen;		/* size of socket address structure */
@@ -122,7 +122,7 @@ struct cmsghdr {
  *	inside range, given by msg->msg_controllen before using
  *	ancillary object DATA.				--ANK (980731)
  */
- 
+
 static inline struct cmsghdr * __cmsg_nxthdr(void *__ctl, __kernel_size_t __size,
 					       struct cmsghdr *__cmsg)
 {
@@ -264,10 +264,10 @@ struct ucred {
 /* Maximum queue length specifiable by listen.  */
 #define SOMAXCONN	128
 
-/* Flags we can use with send/ and recv. 
+/* Flags we can use with send/ and recv.
    Added those for 1003.1g not all are supported yet
  */
- 
+
 #define MSG_OOB		1
 #define MSG_PEEK	2
 #define MSG_DONTROUTE	4

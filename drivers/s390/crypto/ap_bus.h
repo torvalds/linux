@@ -91,6 +91,7 @@ enum ap_state {
 	AP_STATE_WORKING,
 	AP_STATE_QUEUE_FULL,
 	AP_STATE_SUSPEND_WAIT,
+	AP_STATE_REMOVE,	/* about to be removed from driver */
 	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
 	AP_STATE_BORKED,	/* broken */
 	NR_AP_STATES
@@ -252,6 +253,7 @@ void ap_bus_force_rescan(void);
 
 void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);
 struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type);
+void ap_queue_prepare_remove(struct ap_queue *aq);
 void ap_queue_remove(struct ap_queue *aq);
 void ap_queue_suspend(struct ap_device *ap_dev);
 void ap_queue_resume(struct ap_device *ap_dev);
