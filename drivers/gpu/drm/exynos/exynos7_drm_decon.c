@@ -107,8 +107,6 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 	struct decon_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	/* Check if any channel is enabled. */
 	for (win = 0; win < WINDOWS_NR; win++) {
 		u32 val = readl(ctx->regs + WINCON(win));

@@ -350,8 +350,6 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	/* Hardware is in unknown state, so ensure it gets enabled properly */
 	pm_runtime_get_sync(ctx->dev);
 
