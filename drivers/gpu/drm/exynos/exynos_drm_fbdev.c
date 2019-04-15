@@ -122,9 +122,10 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	unsigned long size;
 	int ret;
 
-	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d\n",
-			sizes->surface_width, sizes->surface_height,
-			sizes->surface_bpp);
+	DRM_DEV_DEBUG_KMS(dev->dev,
+			  "surface width(%d), height(%d) and bpp(%d\n",
+			  sizes->surface_width, sizes->surface_height,
+			  sizes->surface_bpp);
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;

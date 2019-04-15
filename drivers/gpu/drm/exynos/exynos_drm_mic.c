@@ -192,7 +192,7 @@ static void mic_set_output_timing(struct exynos_mic *mic)
 	struct videomode vm = mic->vm;
 	u32 reg, bs_size_2d;
 
-	DRM_DEBUG("w: %u, h: %u\n", vm.hactive, vm.vactive);
+	DRM_DEV_DEBUG(mic->dev, "w: %u, h: %u\n", vm.hactive, vm.vactive);
 	bs_size_2d = ((vm.hactive >> 2) << 1) + (vm.vactive % 4);
 	reg = MIC_BS_SIZE_2D(bs_size_2d);
 	writel(reg, mic->reg + MIC_2D_OUTPUT_TIMING_2);
@@ -433,7 +433,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_pm;
 
-	DRM_DEBUG_KMS("MIC has been probed\n");
+	DRM_DEV_DEBUG_KMS(dev, "MIC has been probed\n");
 
 	return 0;
 

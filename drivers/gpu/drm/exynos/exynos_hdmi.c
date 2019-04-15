@@ -885,9 +885,9 @@ static int hdmi_get_modes(struct drm_connector *connector)
 		return -ENODEV;
 
 	hdata->dvi_mode = !drm_detect_hdmi_monitor(edid);
-	DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
-		(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
-		edid->width_cm, edid->height_cm);
+	DRM_DEV_DEBUG_KMS(hdata->dev, "%s : width[%d] x height[%d]\n",
+			  (hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
+			  edid->width_cm, edid->height_cm);
 
 	drm_connector_update_edid_property(connector, edid);
 	cec_notifier_set_phys_addr_from_edid(hdata->notifier, edid);
@@ -908,7 +908,8 @@ static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
 		if (confs->data[i].pixel_clock == pixel_clock)
 			return i;
 
-	DRM_DEBUG_KMS("Could not find phy config for %d\n", pixel_clock);
+	DRM_DEV_DEBUG_KMS(hdata->dev, "Could not find phy config for %d\n",
+			  pixel_clock);
 	return -EINVAL;
 }
 
@@ -918,10 +919,11 @@ static int hdmi_mode_valid(struct drm_connector *connector,
 	struct hdmi_context *hdata = connector_to_hdmi(connector);
 	int ret;
 
-	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
-		mode->hdisplay, mode->vdisplay, mode->vrefresh,
-		(mode->flags & DRM_MODE_FLAG_INTERLACE) ? true :
-		false, mode->clock * 1000);
+	DRM_DEV_DEBUG_KMS(hdata->dev,
+			  "xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
+			  mode->hdisplay, mode->vdisplay, mode->vrefresh,
+			  (mode->flags & DRM_MODE_FLAG_INTERLACE) ? true :
+			  false, mode->clock * 1000);
 
 	ret = hdmi_find_phy_conf(hdata, mode->clock * 1000);
 	if (ret < 0)
@@ -1003,8 +1005,10 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 			DRM_INFO("desired mode doesn't exist so\n");
 			DRM_INFO("use the most suitable mode among modes.\n");
 
-			DRM_DEBUG_KMS("Adjusted Mode: [%d]x[%d] [%d]Hz\n",
-				m->hdisplay, m->vdisplay, m->vrefresh);
+			DRM_DEV_DEBUG_KMS(dev->dev,
+					  "Adjusted Mode: [%d]x[%d] [%d]Hz\n",
+					  m->hdisplay, m->vdisplay,
+					  m->vrefresh);
 
 			drm_mode_copy(adjusted_mode, m);
 			break;
@@ -1170,7 +1174,9 @@ static void hdmiphy_wait_for_pll(struct hdmi_context *hdata)
 		u32 val = hdmi_reg_read(hdata, HDMI_PHY_STATUS);
 
 		if (val & HDMI_PHY_STATUS_READY) {
-			DRM_DEBUG_KMS("PLL stabilized after %d tries\n", tries);
+			DRM_DEV_DEBUG_KMS(hdata->dev,
+					  "PLL stabilized after %d tries\n",
+					  tries);
 			return;
 		}
 		usleep_range(10, 20);
@@ -1461,7 +1467,8 @@ static void hdmiphy_enable(struct hdmi_context *hdata)
 	pm_runtime_get_sync(hdata->dev);
 
 	if (regulator_bulk_enable(ARRAY_SIZE(supply), hdata->regul_bulk))
-		DRM_DEBUG_KMS("failed to enable regulator bulk\n");
+		DRM_DEV_DEBUG_KMS(hdata->dev,
+				  "failed to enable regulator bulk\n");
 
 	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
 			PMU_HDMI_PHY_ENABLE_BIT, 1);
@@ -1753,7 +1760,7 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	struct device *dev = hdata->dev;
 	int i, ret;
 
-	DRM_DEBUG_KMS("HDMI resource init\n");
+	DRM_DEV_DEBUG_KMS(dev, "HDMI resource init\n");
 
 	hdata->hpd_gpio = devm_gpiod_get(dev, "hpd", GPIOD_IN);
 	if (IS_ERR(hdata->hpd_gpio)) {

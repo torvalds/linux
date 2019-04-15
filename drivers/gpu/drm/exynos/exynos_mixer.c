@@ -228,8 +228,8 @@ static void mixer_regs_dump(struct mixer_context *ctx)
 {
 #define DUMPREG(reg_id) \
 do { \
-	DRM_DEBUG_KMS(#reg_id " = %08x\n", \
-		(u32)readl(ctx->mixer_regs + reg_id)); \
+	DRM_DEV_DEBUG_KMS(ctx->dev, #reg_id " = %08x\n", \
+			 (u32)readl(ctx->mixer_regs + reg_id)); \
 } while (0)
 
 	DUMPREG(MXR_STATUS);
@@ -260,8 +260,8 @@ static void vp_regs_dump(struct mixer_context *ctx)
 {
 #define DUMPREG(reg_id) \
 do { \
-	DRM_DEBUG_KMS(#reg_id " = %08x\n", \
-		(u32) readl(ctx->vp_regs + reg_id)); \
+	DRM_DEV_DEBUG_KMS(ctx->dev, #reg_id " = %08x\n", \
+			 (u32) readl(ctx->vp_regs + reg_id)); \
 } while (0)
 
 	DUMPREG(VP_ENABLE);
@@ -954,7 +954,7 @@ static void mixer_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
-	DRM_DEBUG_KMS("win: %d\n", plane->index);
+	DRM_DEV_DEBUG_KMS(mixer_ctx->dev, "win: %d\n", plane->index);
 
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
@@ -971,7 +971,7 @@ static void mixer_disable_plane(struct exynos_drm_crtc *crtc,
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	unsigned long flags;
 
-	DRM_DEBUG_KMS("win: %d\n", plane->index);
+	DRM_DEV_DEBUG_KMS(mixer_ctx->dev, "win: %d\n", plane->index);
 
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
@@ -1048,8 +1048,9 @@ static int mixer_mode_valid(struct exynos_drm_crtc *crtc,
 	struct mixer_context *ctx = crtc->ctx;
 	u32 w = mode->hdisplay, h = mode->vdisplay;
 
-	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%d\n", w, h,
-		mode->vrefresh, !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
+	DRM_DEV_DEBUG_KMS(ctx->dev, "xres=%d, yres=%d, refresh=%d, intl=%d\n",
+			  w, h, mode->vrefresh,
+			  !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184)
 		return MODE_OK;

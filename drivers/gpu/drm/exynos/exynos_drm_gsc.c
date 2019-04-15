@@ -422,8 +422,8 @@ static void gsc_handle_irq(struct gsc_context *ctx, bool enable,
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("enable[%d]overflow[%d]level[%d]\n",
-			enable, overflow, done);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "enable[%d]overflow[%d]level[%d]\n",
+			  enable, overflow, done);
 
 	cfg = gsc_read(GSC_IRQ);
 	cfg |= (GSC_IRQ_OR_MASK | GSC_IRQ_FRMDONE_MASK);
@@ -451,7 +451,7 @@ static void gsc_src_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "fmt[0x%x]\n", fmt);
 
 	cfg = gsc_read(GSC_IN_CON);
 	cfg &= ~(GSC_IN_RGB_TYPE_MASK | GSC_IN_YUV422_1P_ORDER_MASK |
@@ -638,7 +638,7 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "fmt[0x%x]\n", fmt);
 
 	cfg = gsc_read(GSC_OUT_CON);
 	cfg &= ~(GSC_OUT_RGB_TYPE_MASK | GSC_OUT_YUV422_1P_ORDER_MASK |
@@ -709,7 +709,7 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 static int gsc_get_ratio_shift(struct gsc_context *ctx, u32 src, u32 dst,
 			       u32 *ratio)
 {
-	DRM_DEBUG_KMS("src[%d]dst[%d]\n", src, dst);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "src[%d]dst[%d]\n", src, dst);
 
 	if (src >= dst * 8) {
 		DRM_DEV_ERROR(ctx->dev, "failed to make ratio and shift.\n");
@@ -772,19 +772,19 @@ static int gsc_set_prescaler(struct gsc_context *ctx, struct gsc_scaler *sc,
 		return ret;
 	}
 
-	DRM_DEBUG_KMS("pre_hratio[%d]pre_vratio[%d]\n",
-		sc->pre_hratio, sc->pre_vratio);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "pre_hratio[%d]pre_vratio[%d]\n",
+			  sc->pre_hratio, sc->pre_vratio);
 
 	sc->main_hratio = (src_w << 16) / dst_w;
 	sc->main_vratio = (src_h << 16) / dst_h;
 
-	DRM_DEBUG_KMS("main_hratio[%ld]main_vratio[%ld]\n",
-		sc->main_hratio, sc->main_vratio);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "main_hratio[%ld]main_vratio[%ld]\n",
+			  sc->main_hratio, sc->main_vratio);
 
 	gsc_get_prescaler_shfactor(sc->pre_hratio, sc->pre_vratio,
 		&sc->pre_shfactor);
 
-	DRM_DEBUG_KMS("pre_shfactor[%d]\n", sc->pre_shfactor);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "pre_shfactor[%d]\n", sc->pre_shfactor);
 
 	cfg = (GSC_PRESC_SHFACTOR(sc->pre_shfactor) |
 		GSC_PRESC_H_RATIO(sc->pre_hratio) |
@@ -850,8 +850,8 @@ static void gsc_set_scaler(struct gsc_context *ctx, struct gsc_scaler *sc)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("main_hratio[%ld]main_vratio[%ld]\n",
-		sc->main_hratio, sc->main_vratio);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "main_hratio[%ld]main_vratio[%ld]\n",
+			  sc->main_hratio, sc->main_vratio);
 
 	gsc_set_h_coef(ctx, sc->main_hratio);
 	cfg = GSC_MAIN_H_RATIO_VALUE(sc->main_hratio);
@@ -917,7 +917,7 @@ static int gsc_dst_get_buf_seq(struct gsc_context *ctx)
 		if (cfg & (mask << i))
 			buf_num--;
 
-	DRM_DEBUG_KMS("buf_num[%d]\n", buf_num);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "buf_num[%d]\n", buf_num);
 
 	return buf_num;
 }
@@ -964,7 +964,7 @@ static int gsc_get_src_buf_index(struct gsc_context *ctx)
 	u32 cfg, curr_index, i;
 	u32 buf_id = GSC_MAX_SRC;
 
-	DRM_DEBUG_KMS("gsc id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "gsc id[%d]\n", ctx->id);
 
 	cfg = gsc_read(GSC_IN_BASE_ADDR_Y_MASK);
 	curr_index = GSC_IN_CURR_GET_INDEX(cfg);
@@ -976,8 +976,8 @@ static int gsc_get_src_buf_index(struct gsc_context *ctx)
 		}
 	}
 
-	DRM_DEBUG_KMS("cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
-		curr_index, buf_id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
+			  curr_index, buf_id);
 
 	if (buf_id == GSC_MAX_SRC) {
 		DRM_DEV_ERROR(ctx->dev, "failed to get in buffer index.\n");
@@ -994,7 +994,7 @@ static int gsc_get_dst_buf_index(struct gsc_context *ctx)
 	u32 cfg, curr_index, i;
 	u32 buf_id = GSC_MAX_DST;
 
-	DRM_DEBUG_KMS("gsc id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "gsc id[%d]\n", ctx->id);
 
 	cfg = gsc_read(GSC_OUT_BASE_ADDR_Y_MASK);
 	curr_index = GSC_OUT_CURR_GET_INDEX(cfg);
@@ -1013,8 +1013,8 @@ static int gsc_get_dst_buf_index(struct gsc_context *ctx)
 
 	gsc_dst_set_buf_seq(ctx, buf_id, false);
 
-	DRM_DEBUG_KMS("cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
-		curr_index, buf_id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
+			  curr_index, buf_id);
 
 	return buf_id;
 }
@@ -1025,7 +1025,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 	u32 status;
 	int err = 0;
 
-	DRM_DEBUG_KMS("gsc id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "gsc id[%d]\n", ctx->id);
 
 	status = gsc_read(GSC_IRQ);
 	if (status & GSC_IRQ_STATUS_OR_IRQ) {
@@ -1043,8 +1043,8 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 		src_buf_id = gsc_get_src_buf_index(ctx);
 		dst_buf_id = gsc_get_dst_buf_index(ctx);
 
-		DRM_DEBUG_KMS("buf_id_src[%d]buf_id_dst[%d]\n",	src_buf_id,
-			      dst_buf_id);
+		DRM_DEV_DEBUG_KMS(ctx->dev, "buf_id_src[%d]buf_id_dst[%d]\n",
+				  src_buf_id, dst_buf_id);
 
 		if (src_buf_id < 0 || dst_buf_id < 0)
 			err = -EINVAL;
@@ -1325,7 +1325,7 @@ static int __maybe_unused gsc_runtime_suspend(struct device *dev)
 	struct gsc_context *ctx = get_gsc_context(dev);
 	int i;
 
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(dev, "id[%d]\n", ctx->id);
 
 	for (i = ctx->num_clocks - 1; i >= 0; i--)
 		clk_disable_unprepare(ctx->clocks[i]);
@@ -1338,7 +1338,7 @@ static int __maybe_unused gsc_runtime_resume(struct device *dev)
 	struct gsc_context *ctx = get_gsc_context(dev);
 	int i, ret;
 
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(dev, "id[%d]\n", ctx->id);
 
 	for (i = 0; i < ctx->num_clocks; i++) {
 		ret = clk_prepare_enable(ctx->clocks[i]);

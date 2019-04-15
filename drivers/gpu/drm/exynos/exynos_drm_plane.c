@@ -119,9 +119,10 @@ static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
 	exynos_state->crtc.w = actual_w;
 	exynos_state->crtc.h = actual_h;
 
-	DRM_DEBUG_KMS("plane : offset_x/y(%d,%d), width/height(%d,%d)",
-			exynos_state->crtc.x, exynos_state->crtc.y,
-			exynos_state->crtc.w, exynos_state->crtc.h);
+	DRM_DEV_DEBUG_KMS(crtc->dev->dev,
+			  "plane : offset_x/y(%d,%d), width/height(%d,%d)",
+			  exynos_state->crtc.x, exynos_state->crtc.y,
+			  exynos_state->crtc.w, exynos_state->crtc.h);
 }
 
 static void exynos_drm_plane_reset(struct drm_plane *plane)
@@ -204,6 +205,7 @@ static int
 exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 			    struct exynos_drm_plane_state *state)
 {
+	struct drm_crtc *crtc = state->base.crtc;
 	bool width_ok = false, height_ok = false;
 
 	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_SCALE)
@@ -226,7 +228,7 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 	if (width_ok && height_ok)
 		return 0;
 
-	DRM_DEBUG_KMS("scaling mode is not supported");
+	DRM_DEV_DEBUG_KMS(crtc->dev->dev, "scaling mode is not supported");
 	return -ENOTSUPP;
 }
 
