@@ -91,6 +91,19 @@ u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
 	return 0;
 }
 
+static struct net_device *
+nfp_flower_get_netdev_from_internal_port_id(struct nfp_app *app, int port_id)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct net_device *netdev;
+
+	rcu_read_lock();
+	netdev = idr_find(&priv->internal_ports.port_ids, port_id);
+	rcu_read_unlock();
+
+	return netdev;
+}
+
 static void
 nfp_flower_free_internal_port_id(struct nfp_app *app, struct net_device *netdev)
 {
@@ -216,11 +229,20 @@ nfp_flower_repr_get_type_and_port(struct nfp_app *app, u32 port_id, u8 *port)
 }
 
 static struct net_device *
-nfp_flower_repr_get(struct nfp_app *app, u32 port_id, bool *redir_egress)
+nfp_flower_dev_get(struct nfp_app *app, u32 port_id, bool *redir_egress)
 {
 	enum nfp_repr_type repr_type;
 	struct nfp_reprs *reprs;
 	u8 port = 0;
+
+	/* Check if the port is internal. */
+	if (FIELD_GET(NFP_FLOWER_CMSG_PORT_TYPE, port_id) ==
+	    NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT) {
+		if (redir_egress)
+			*redir_egress = true;
+		port = FIELD_GET(NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM, port_id);
+		return nfp_flower_get_netdev_from_internal_port_id(app, port);
+	}
 
 	repr_type = nfp_flower_repr_get_type_and_port(app, port_id, &port);
 	if (repr_type > NFP_REPR_TYPE_MAX)
@@ -923,7 +945,7 @@ const struct nfp_app_type app_flower = {
 	.sriov_disable	= nfp_flower_sriov_disable,
 
 	.eswitch_mode_get  = eswitch_mode_get,
-	.dev_get	= nfp_flower_repr_get,
+	.dev_get	= nfp_flower_dev_get,
 
 	.setup_tc	= nfp_flower_setup_tc,
 };
