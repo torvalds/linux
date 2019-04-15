@@ -74,6 +74,12 @@ static bool dsc_line_buff_depth_from_dpcd(int dpcd_line_buff_bit_depth, int *lin
 static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 {
 	switch (dpcd_throughput) {
+	case DP_DSC_THROUGHPUT_MODE_0_UPSUPPORTED:
+		*throughput = 0;
+		break;
+	case DP_DSC_THROUGHPUT_MODE_0_170:
+		*throughput = 170;
+		break;
 	case DP_DSC_THROUGHPUT_MODE_0_340:
 		*throughput = 340;
 		break;
@@ -170,7 +176,7 @@ static void get_dsc_enc_caps(
 /* Returns 'false' if no intersection was found for at least one capablity.
  * It also implicitly validates some sink caps against invalid value of zero.
  */
-static bool dc_intersect_dsc_caps(
+static bool intersect_dsc_caps(
 	const struct dsc_dec_dpcd_caps *dsc_sink_caps,
 	const struct dsc_enc_caps *dsc_enc_caps,
 	enum dc_pixel_encoding pixel_encoding,
@@ -537,7 +543,7 @@ static bool setup_dsc_config(
 		goto done;
 
 	// Intersect decoder with encoder DSC caps and validate DSC settings
-	is_dsc_possible = dc_intersect_dsc_caps(dsc_sink_caps, dsc_enc_caps, timing->pixel_encoding, &dsc_common_caps);
+	is_dsc_possible = intersect_dsc_caps(dsc_sink_caps, dsc_enc_caps, timing->pixel_encoding, &dsc_common_caps);
 	if (!is_dsc_possible)
 		goto done;
 

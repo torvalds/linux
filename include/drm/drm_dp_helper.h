@@ -249,6 +249,7 @@
 #define DP_DSC_PEAK_THROUGHPUT              0x06B
 # define DP_DSC_THROUGHPUT_MODE_0_MASK      (0xf << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_SHIFT     0
+# define DP_DSC_THROUGHPUT_MODE_0_UPSUPPORTED 0
 # define DP_DSC_THROUGHPUT_MODE_0_340       (1 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_400       (2 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_450       (3 << 0)
@@ -263,8 +264,10 @@
 # define DP_DSC_THROUGHPUT_MODE_0_900       (12 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_950       (13 << 0)
 # define DP_DSC_THROUGHPUT_MODE_0_1000      (14 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_170       (15 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_MASK      (0xf << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_SHIFT     4
+# define DP_DSC_THROUGHPUT_MODE_1_UPSUPPORTED 0
 # define DP_DSC_THROUGHPUT_MODE_1_340       (1 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_400       (2 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_450       (3 << 4)
@@ -279,6 +282,7 @@
 # define DP_DSC_THROUGHPUT_MODE_1_900       (12 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_950       (13 << 4)
 # define DP_DSC_THROUGHPUT_MODE_1_1000      (14 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_170       (15 << 4)
 
 #define DP_DSC_MAX_SLICE_WIDTH              0x06C
 #define DP_DSC_MIN_SLICE_WIDTH_VALUE        2560
