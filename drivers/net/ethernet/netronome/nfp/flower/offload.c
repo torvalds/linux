@@ -389,6 +389,24 @@ err_free_flow:
 }
 
 /**
+ * nfp_flower_merge_offloaded_flows() - Merge 2 existing flows to single flow.
+ * @app:	Pointer to the APP handle
+ * @sub_flow1:	Initial flow matched to produce merge hint
+ * @sub_flow2:	Post recirculation flow matched in merge hint
+ *
+ * Combines 2 flows (if valid) to a single flow, removing the initial from hw
+ * and offloading the new, merged flow.
+ *
+ * Return: negative value on error, 0 in success.
+ */
+int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
+				     struct nfp_fl_payload *sub_flow1,
+				     struct nfp_fl_payload *sub_flow2)
+{
+	return -EOPNOTSUPP;
+}
+
+/**
  * nfp_flower_add_offload() - Adds a new flow to hardware.
  * @app:	Pointer to the APP handle
  * @netdev:	netdev structure.

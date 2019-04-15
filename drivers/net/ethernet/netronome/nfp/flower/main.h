@@ -285,6 +285,9 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
+int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
+				     struct nfp_fl_payload *sub_flow1,
+				     struct nfp_fl_payload *sub_flow2);
 int nfp_flower_compile_flow_match(struct nfp_app *app,
 				  struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,

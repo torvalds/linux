@@ -452,6 +452,16 @@ struct nfp_flower_cmsg_portreify {
 
 #define NFP_FLOWER_CMSG_PORTREIFY_INFO_EXIST	BIT(0)
 
+/* NFP_FLOWER_CMSG_TYPE_FLOW_MERGE_HINT */
+struct nfp_flower_cmsg_merge_hint {
+	u8 reserved[3];
+	u8 count;
+	struct {
+		__be32 host_ctx;
+		__be64 host_cookie;
+	} __packed flow[0];
+};
+
 enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
 	NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT =	0x1,
