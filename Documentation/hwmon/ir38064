@@ -8,9 +8,6 @@ Supported chips:
     Datasheet: Publicly available at the Infineon webiste
       https://www.infineon.com/dgdl/Infineon-IR38064MTRPBF-DS-v03_07-EN.pdf?fileId=5546d462584d1d4a0158db0d9efb67ca
 
-Datasheet is not publicly available.
-
-
 Authors:
         Maxim Sloyko <maxims@google.com>
         Patrick Venture <venture@google.com>
