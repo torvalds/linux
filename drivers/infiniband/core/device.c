@@ -1152,9 +1152,6 @@ static void disable_device(struct ib_device *device)
 	 * devices and before device is disabled.
 	 */
 	remove_compat_devs(device);
-
-	/* Expedite removing unregistered pointers from the hash table */
-	free_netdevs(device);
 }
 
 /*
@@ -1297,6 +1294,10 @@ static void __ib_unregister_device(struct ib_device *ib_dev)
 		goto out;
 
 	disable_device(ib_dev);
+
+	/* Expedite removing unregistered pointers from the hash table */
+	free_netdevs(ib_dev);
+
 	ib_device_unregister_sysfs(ib_dev);
 	device_del(&ib_dev->dev);
 	ib_device_unregister_rdmacg(ib_dev);
