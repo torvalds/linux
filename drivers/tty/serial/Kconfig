@@ -1580,6 +1580,32 @@ config SERIAL_RDA_CONSOLE
 	  Say 'Y' here if you wish to use the RDA8810PL UART as the system
 	  console. Only earlycon is implemented currently.
 
+config SERIAL_MILBEAUT_USIO
+	tristate "Milbeaut USIO/UART serial port support"
+	depends on ARCH_MILBEAUT || (COMPILE_TEST && OF)
+	default ARCH_MILBEAUT
+	select SERIAL_CORE
+	help
+	  This selects the USIO/UART IP found in Socionext Milbeaut SoCs.
+
+config SERIAL_MILBEAUT_USIO_PORTS
+	int "Maximum number of CSIO/UART ports (1-8)"
+	range 1 8
+	depends on SERIAL_MILBEAUT_USIO
+	default "4"
+
+config SERIAL_MILBEAUT_USIO_CONSOLE
+	bool "Support for console on MILBEAUT USIO/UART serial port"
+	depends on SERIAL_MILBEAUT_USIO=y
+	default y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Say 'Y' here if you wish to use a USIO/UART of Socionext Milbeaut
+	  SoCs as the system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows logins in
+	  single user mode).
+
 endmenu
 
 config SERIAL_MCTRL_GPIO

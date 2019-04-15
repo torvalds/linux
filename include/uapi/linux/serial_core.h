@@ -287,4 +287,7 @@
 /* RDA UART */
 #define PORT_RDA	118
 
+/* Socionext Milbeaut UART */
+#define PORT_MLB_USIO	119
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
