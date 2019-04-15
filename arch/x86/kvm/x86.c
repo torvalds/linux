@@ -1170,6 +1170,7 @@ static u32 emulated_msrs[] = {
 	MSR_PLATFORM_INFO,
 	MSR_MISC_FEATURES_ENABLES,
 	MSR_AMD64_VIRT_SPEC_CTRL,
+	MSR_IA32_POWER_CTL,
 };
 
 static unsigned num_emulated_msrs;
