@@ -827,13 +827,15 @@
 			assigned-clocks = <&clk IMX8MQ_CLK_GPU_CORE_SRC>,
 			                  <&clk IMX8MQ_CLK_GPU_SHADER_SRC>,
 			                  <&clk IMX8MQ_CLK_GPU_AXI>,
-			                  <&clk IMX8MQ_CLK_GPU_AHB>;
+			                  <&clk IMX8MQ_CLK_GPU_AHB>,
+			                  <&clk IMX8MQ_GPU_PLL_BYPASS>;
 			assigned-clock-parents = <&clk IMX8MQ_GPU_PLL_OUT>,
 			                         <&clk IMX8MQ_GPU_PLL_OUT>,
 			                         <&clk IMX8MQ_GPU_PLL_OUT>,
-			                         <&clk IMX8MQ_GPU_PLL_OUT>;
+			                         <&clk IMX8MQ_GPU_PLL_OUT>,
+			                         <&clk IMX8MQ_GPU_PLL>;
 			assigned-clock-rates = <800000000>, <800000000>,
-			                       <800000000>, <800000000>;
+			                       <800000000>, <800000000>, <0>;
 			power-domains = <&pgc_gpu>;
 		};
 
