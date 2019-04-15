@@ -276,9 +276,6 @@ nfp_check_mask_remove(struct nfp_app *app, char *mask_data, u32 mask_len,
 	if (!mask_entry)
 		return false;
 
-	if (meta_flags)
-		*meta_flags &= ~NFP_FL_META_FLAG_MANAGE_MASK;
-
 	*mask_id = mask_entry->mask_id;
 	mask_entry->ref_cnt--;
 	if (!mask_entry->ref_cnt) {
@@ -367,6 +364,14 @@ err_release_stats:
 	return err;
 }
 
+void __nfp_modify_flow_metadata(struct nfp_flower_priv *priv,
+				struct nfp_fl_payload *nfp_flow)
+{
+	nfp_flow->meta.flags &= ~NFP_FL_META_FLAG_MANAGE_MASK;
+	nfp_flow->meta.flow_version = cpu_to_be64(priv->flower_version);
+	priv->flower_version++;
+}
+
 int nfp_modify_flow_metadata(struct nfp_app *app,
 			     struct nfp_fl_payload *nfp_flow)
 {
@@ -375,12 +380,11 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 	u8 new_mask_id = 0;
 	u32 temp_ctx_id;
 
+	__nfp_modify_flow_metadata(priv, nfp_flow);
+
 	nfp_check_mask_remove(app, nfp_flow->mask_data,
 			      nfp_flow->meta.mask_len, &nfp_flow->meta.flags,
 			      &new_mask_id);
-
-	nfp_flow->meta.flow_version = cpu_to_be64(priv->flower_version);
-	priv->flower_version++;
 
 	/* Update flow payload with mask ids. */
 	nfp_flow->unmasked_data[NFP_FL_MASK_ID_LOCATION] = new_mask_id;

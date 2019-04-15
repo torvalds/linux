@@ -348,7 +348,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 				break;
 
 			case cpu_to_be16(ETH_P_IPV6):
-				key_layer |= NFP_FLOWER_LAYER_IPV6;
+					key_layer |= NFP_FLOWER_LAYER_IPV6;
 				key_size += sizeof(struct nfp_flower_ipv6);
 				break;
 
@@ -399,6 +399,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
 	INIT_LIST_HEAD(&flow_pay->linked_flows);
+	flow_pay->in_hw = false;
 
 	return flow_pay;
 
@@ -769,6 +770,8 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2)
 {
+	struct tc_cls_flower_offload merge_tc_off;
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *merge_flow;
 	struct nfp_fl_key_ls merge_key_ls;
 	int err;
@@ -810,8 +813,34 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	if (err)
 		goto err_unlink_sub_flow1;
 
-	err = -EOPNOTSUPP;
+	merge_tc_off.cookie = merge_flow->tc_flower_cookie;
+	err = nfp_compile_flow_metadata(app, &merge_tc_off, merge_flow,
+					merge_flow->ingress_dev);
+	if (err)
+		goto err_unlink_sub_flow2;
 
+	err = rhashtable_insert_fast(&priv->flow_table, &merge_flow->fl_node,
+				     nfp_flower_table_params);
+	if (err)
+		goto err_release_metadata;
+
+	err = nfp_flower_xmit_flow(app, merge_flow,
+				   NFP_FLOWER_CMSG_TYPE_FLOW_MOD);
+	if (err)
+		goto err_remove_rhash;
+
+	merge_flow->in_hw = true;
+	sub_flow1->in_hw = false;
+
+	return 0;
+
+err_remove_rhash:
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &merge_flow->fl_node,
+					    nfp_flower_table_params));
+err_release_metadata:
+	nfp_modify_flow_metadata(app, merge_flow);
+err_unlink_sub_flow2:
 	nfp_flower_unlink_flows(merge_flow, sub_flow2);
 err_unlink_sub_flow1:
 	nfp_flower_unlink_flows(merge_flow, sub_flow1);
@@ -889,6 +918,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (port)
 		port->tc_offload_cnt++;
 
+	flow_pay->in_hw = true;
+
 	/* Deallocate flow payload when flower rule has been destroyed. */
 	kfree(key_layer);
 
@@ -910,6 +941,75 @@ err_free_key_ls:
 	return err;
 }
 
+static void
+nfp_flower_remove_merge_flow(struct nfp_app *app,
+			     struct nfp_fl_payload *del_sub_flow,
+			     struct nfp_fl_payload *merge_flow)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_payload_link *link, *temp;
+	struct nfp_fl_payload *origin;
+	bool mod = false;
+	int err;
+
+	link = list_first_entry(&merge_flow->linked_flows,
+				struct nfp_fl_payload_link, merge_flow.list);
+	origin = link->sub_flow.flow;
+
+	/* Re-add rule the merge had overwritten if it has not been deleted. */
+	if (origin != del_sub_flow)
+		mod = true;
+
+	err = nfp_modify_flow_metadata(app, merge_flow);
+	if (err) {
+		nfp_flower_cmsg_warn(app, "Metadata fail for merge flow delete.\n");
+		goto err_free_links;
+	}
+
+	if (!mod) {
+		err = nfp_flower_xmit_flow(app, merge_flow,
+					   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
+		if (err) {
+			nfp_flower_cmsg_warn(app, "Failed to delete merged flow.\n");
+			goto err_free_links;
+		}
+	} else {
+		__nfp_modify_flow_metadata(priv, origin);
+		err = nfp_flower_xmit_flow(app, origin,
+					   NFP_FLOWER_CMSG_TYPE_FLOW_MOD);
+		if (err)
+			nfp_flower_cmsg_warn(app, "Failed to revert merge flow.\n");
+		origin->in_hw = true;
+	}
+
+err_free_links:
+	/* Clean any links connected with the merged flow. */
+	list_for_each_entry_safe(link, temp, &merge_flow->linked_flows,
+				 merge_flow.list)
+		nfp_flower_unlink_flow(link);
+
+	kfree(merge_flow->action_data);
+	kfree(merge_flow->mask_data);
+	kfree(merge_flow->unmasked_data);
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &merge_flow->fl_node,
+					    nfp_flower_table_params));
+	kfree_rcu(merge_flow, rcu);
+}
+
+static void
+nfp_flower_del_linked_merge_flows(struct nfp_app *app,
+				  struct nfp_fl_payload *sub_flow)
+{
+	struct nfp_fl_payload_link *link, *temp;
+
+	/* Remove any merge flow formed from the deleted sub_flow. */
+	list_for_each_entry_safe(link, temp, &sub_flow->linked_flows,
+				 sub_flow.list)
+		nfp_flower_remove_merge_flow(app, sub_flow,
+					     link->merge_flow.flow);
+}
+
 /**
  * nfp_flower_del_offload() - Removes a flow from hardware.
  * @app:	Pointer to the APP handle
@@ -917,7 +1017,7 @@ err_free_key_ls:
  * @flow:	TC flower classifier offload structure
  *
  * Removes a flow from the repeated hash structure and clears the
- * action payload.
+ * action payload. Any flows merged from this are also deleted.
  *
  * Return: negative value on error, 0 if removed successfully.
  */
@@ -939,17 +1039,22 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 
 	err = nfp_modify_flow_metadata(app, nfp_flow);
 	if (err)
-		goto err_free_flow;
+		goto err_free_merge_flow;
 
 	if (nfp_flow->nfp_tun_ipv4_addr)
 		nfp_tunnel_del_ipv4_off(app, nfp_flow->nfp_tun_ipv4_addr);
 
+	if (!nfp_flow->in_hw) {
+		err = 0;
+		goto err_free_merge_flow;
+	}
+
 	err = nfp_flower_xmit_flow(app, nfp_flow,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
-	if (err)
-		goto err_free_flow;
+	/* Fall through on error. */
 
-err_free_flow:
+err_free_merge_flow:
+	nfp_flower_del_linked_merge_flows(app, nfp_flow);
 	if (port)
 		port->tc_offload_cnt--;
 	kfree(nfp_flow->action_data);

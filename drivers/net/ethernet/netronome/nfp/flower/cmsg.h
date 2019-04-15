@@ -402,6 +402,7 @@ struct nfp_flower_cmsg_hdr {
 /* Types defined for port related control messages  */
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
+	NFP_FLOWER_CMSG_TYPE_FLOW_MOD =		1,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
 	NFP_FLOWER_CMSG_TYPE_LAG_CONFIG =	4,
 	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
