@@ -6431,7 +6431,6 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		if (list_empty(&cache->dirty_list)) {
 			list_add_tail(&cache->dirty_list,
 				      &trans->transaction->dirty_bgs);
-			trans->transaction->num_dirty_bgs++;
 			trans->delayed_ref_updates++;
 			btrfs_get_block_group(cache);
 		}
