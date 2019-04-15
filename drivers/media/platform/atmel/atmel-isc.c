@@ -1487,7 +1487,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, set_fmt,
 			       &pad_cfg, &format);
 	if (ret < 0)
-		goto isc_try_fmt_err;
+		goto isc_try_fmt_subdev_err;
 
 	v4l2_fill_pix_format(pixfmt, &format.format);
 
@@ -1502,6 +1502,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 
 isc_try_fmt_err:
 	v4l2_err(&isc->v4l2_dev, "Could not find any possible format for a working pipeline\n");
+isc_try_fmt_subdev_err:
 	memset(&isc->try_config, 0, sizeof(isc->try_config));
 
 	return ret;
