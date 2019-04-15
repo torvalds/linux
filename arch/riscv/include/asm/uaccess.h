@@ -101,15 +101,8 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
  * on our cache or tlb entries.
  */
 
-#if defined(__LITTLE_ENDIAN)
-#define __MSW	1
 #define __LSW	0
-#elif defined(__BIG_ENDIAN)
-#define __MSW	0
-#define	__LSW	1
-#else
-#error "Unknown endianness"
-#endif
+#define __MSW	1
 
 /*
  * The "__xxx" versions of the user access functions do not verify the address

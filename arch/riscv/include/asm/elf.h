@@ -27,13 +27,7 @@
 #define ELF_CLASS	ELFCLASS32
 #endif
 
-#if defined(__LITTLE_ENDIAN)
 #define ELF_DATA	ELFDATA2LSB
-#elif defined(__BIG_ENDIAN)
-#define ELF_DATA	ELFDATA2MSB
-#else
-#error "Unknown endianness"
-#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
