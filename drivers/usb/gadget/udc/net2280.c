@@ -1058,7 +1058,7 @@ net2280_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			/* PIO ... stuff the fifo, or unblock it.  */
 			if (ep->is_in)
 				write_fifo(ep, _req);
-			else if (list_empty(&ep->queue)) {
+			else {
 				u32	s;
 
 				/* OUT FIFO might have packet(s) buffered */
