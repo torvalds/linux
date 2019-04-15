@@ -273,11 +273,40 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 		(int) btree_id_to_gc_phase(r);
 }
 
+static int mark_journal_key(struct bch_fs *c, enum btree_id id,
+			    struct bkey_i *insert)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	u8 max_stale;
+	int ret = 0;
+
+	ret = bch2_gc_mark_key(c, bkey_i_to_s_c(insert), &max_stale, true);
+	if (ret)
+		return ret;
+
+	bch2_trans_init(&trans, c);
+
+	for_each_btree_key(&trans, iter, id, bkey_start_pos(&insert->k),
+			   BTREE_ITER_SLOTS, k) {
+		percpu_down_read(&c->mark_lock);
+		ret = bch2_mark_overwrite(&trans, iter, k, insert, NULL,
+					 BCH_BUCKET_MARK_GC|
+					 BCH_BUCKET_MARK_NOATOMIC);
+		percpu_up_read(&c->mark_lock);
+
+		if (!ret)
+			break;
+	}
+
+	return bch2_trans_exit(&trans);
+}
+
 static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 			  bool initial, bool metadata_only)
 {
 	enum btree_id ids[BTREE_ID_NR];
-	u8 max_stale;
 	unsigned i;
 
 	for (i = 0; i < BTREE_ID_NR; i++)
@@ -299,9 +328,7 @@ static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 
 			for_each_journal_key(*journal_keys, j)
 				if (j->btree_id == id) {
-					ret = bch2_gc_mark_key(c,
-						bkey_i_to_s_c(j->k),
-						&max_stale, initial);
+					ret = mark_journal_key(c, id, j->k);
 					if (ret)
 						return ret;
 				}

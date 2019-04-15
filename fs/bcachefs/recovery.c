@@ -203,63 +203,94 @@ static void replay_now_at(struct journal *j, u64 seq)
 static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 {
 	struct btree_trans trans;
-	struct btree_iter *iter;
+	struct btree_iter *iter, *split_iter;
 	/*
-	 * We might cause compressed extents to be
-	 * split, so we need to pass in a
-	 * disk_reservation:
+	 * We might cause compressed extents to be split, so we need to pass in
+	 * a disk_reservation:
 	 */
 	struct disk_reservation disk_res =
 		bch2_disk_reservation_init(c, 0);
-	BKEY_PADDED(k) split;
+	struct bkey_i *split;
+	bool split_compressed = false;
+	unsigned flags = BTREE_INSERT_ATOMIC|
+		BTREE_INSERT_NOFAIL|
+		BTREE_INSERT_LAZY_RW|
+		BTREE_INSERT_JOURNAL_REPLAY|
+		BTREE_INSERT_NOMARK;
 	int ret;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
+retry:
+	bch2_trans_begin(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
+
 	do {
 		ret = bch2_btree_iter_traverse(iter);
 		if (ret)
-			break;
+			goto err;
 
-		bkey_copy(&split.k, k);
-		bch2_cut_front(iter->pos, &split.k);
-		bch2_extent_trim_atomic(&split.k, iter);
+		split_iter = bch2_trans_copy_iter(&trans, iter);
+		ret = PTR_ERR_OR_ZERO(split_iter);
+		if (ret)
+			goto err;
 
-		ret = bch2_disk_reservation_add(c, &disk_res,
-				split.k.k.size *
-				bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&split.k)),
-				BCH_DISK_RESERVATION_NOFAIL);
-		BUG_ON(ret);
+		split = bch2_trans_kmalloc(&trans, bkey_bytes(&k->k));
+		ret = PTR_ERR_OR_ZERO(split);
+		if (ret)
+			goto err;
 
-		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &split.k));
-		ret = bch2_trans_commit(&trans, &disk_res, NULL,
-					BTREE_INSERT_ATOMIC|
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW|
-					BTREE_INSERT_JOURNAL_REPLAY);
-	} while ((!ret || ret == -EINTR) &&
-		 bkey_cmp(k->k.p, iter->pos));
+		if (!split_compressed &&
+		    bch2_extent_is_compressed(bkey_i_to_s_c(k)) &&
+		    !bch2_extent_is_atomic(k, split_iter)) {
+			ret = bch2_disk_reservation_add(c, &disk_res,
+					k->k.size *
+					bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(k)),
+					BCH_DISK_RESERVATION_NOFAIL);
+			BUG_ON(ret);
+
+			flags &= ~BTREE_INSERT_JOURNAL_REPLAY;
+			flags &= ~BTREE_INSERT_NOMARK;
+			flags |=  BTREE_INSERT_NOMARK_OVERWRITES;
+			split_compressed = true;
+		}
+
+		bkey_copy(split, k);
+		bch2_cut_front(split_iter->pos, split);
+		bch2_extent_trim_atomic(split, split_iter);
+
+		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(split_iter, split));
+		bch2_btree_iter_set_pos(iter, split->k.p);
+	} while (bkey_cmp(iter->pos, k->k.p) < 0);
+
+	ret = bch2_trans_commit(&trans, &disk_res, NULL, flags);
+	if (ret)
+		goto err;
+
+	if (split_compressed) {
+		/*
+		 * This isn't strictly correct - we should only be relying on
+		 * the btree node lock for synchronization with gc when we've
+		 * got a write lock held.
+		 *
+		 * but - there are other correctness issues if btree gc were to
+		 * run before journal replay finishes
+		 */
+		BUG_ON(c->gc_pos.phase);
+
+		bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
+			      NULL, 0, 0);
+	}
+err:
+	if (ret == -EINTR)
+		goto retry;
 
 	bch2_disk_reservation_put(c, &disk_res);
 
-	/*
-	 * This isn't strictly correct - we should only be relying on the btree
-	 * node lock for synchronization with gc when we've got a write lock
-	 * held.
-	 *
-	 * but - there are other correctness issues if btree gc were to run
-	 * before journal replay finishes
-	 */
-	BUG_ON(c->gc_pos.phase);
-
-	bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
-		      NULL, 0, 0);
-	bch2_trans_exit(&trans);
-
-	return ret;
+	return bch2_trans_exit(&trans) ?: ret;
 }
 
 static int bch2_journal_replay(struct bch_fs *c,

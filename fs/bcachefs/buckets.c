@@ -1035,6 +1035,56 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	return ret;
 }
 
+inline bool bch2_mark_overwrite(struct btree_trans *trans,
+				struct btree_iter *iter,
+				struct bkey_s_c old,
+				struct bkey_i *new,
+				struct bch_fs_usage *fs_usage,
+				unsigned flags)
+{
+	struct bch_fs		*c = trans->c;
+	struct btree		*b = iter->l[0].b;
+	s64			sectors = 0;
+
+	if (btree_node_is_extents(b)
+	    ? bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0
+	    : bkey_cmp(new->k.p, old.k->p))
+		return false;
+
+	if (btree_node_is_extents(b)) {
+		switch (bch2_extent_overlap(&new->k, old.k)) {
+		case BCH_EXTENT_OVERLAP_ALL:
+			sectors = -((s64) old.k->size);
+			break;
+		case BCH_EXTENT_OVERLAP_BACK:
+			sectors = bkey_start_offset(&new->k) -
+				old.k->p.offset;
+			break;
+		case BCH_EXTENT_OVERLAP_FRONT:
+			sectors = bkey_start_offset(old.k) -
+				new->k.p.offset;
+			break;
+		case BCH_EXTENT_OVERLAP_MIDDLE:
+			sectors = old.k->p.offset - new->k.p.offset;
+			BUG_ON(sectors <= 0);
+
+			bch2_mark_key_locked(c, old, true, sectors,
+				fs_usage, trans->journal_res.seq,
+				flags);
+
+			sectors = bkey_start_offset(&new->k) -
+				old.k->p.offset;
+			break;
+		}
+
+		BUG_ON(sectors >= 0);
+	}
+
+	bch2_mark_key_locked(c, old, false, sectors,
+		fs_usage, trans->journal_res.seq, flags);
+	return true;
+}
+
 void bch2_mark_update(struct btree_trans *trans,
 		      struct btree_insert_entry *insert,
 		      struct bch_fs_usage *fs_usage,
@@ -1049,56 +1099,22 @@ void bch2_mark_update(struct btree_trans *trans,
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return;
 
-	if (!(trans->flags & BTREE_INSERT_NOMARK))
-		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
-			bpos_min(insert->k->k.p, b->key.k.p).offset -
-			bkey_start_offset(&insert->k->k),
-			fs_usage, trans->journal_res.seq, flags);
+	bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
+		bpos_min(insert->k->k.p, b->key.k.p).offset -
+		bkey_start_offset(&insert->k->k),
+		fs_usage, trans->journal_res.seq, flags);
+
+	if (unlikely(trans->flags & BTREE_INSERT_NOMARK_OVERWRITES))
+		return;
 
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
 						      KEY_TYPE_discard))) {
 		struct bkey		unpacked;
-		struct bkey_s_c		k;
-		s64			sectors = 0;
+		struct bkey_s_c		k = bkey_disassemble(b, _k, &unpacked);
 
-		k = bkey_disassemble(b, _k, &unpacked);
-
-		if (btree_node_is_extents(b)
-		    ? bkey_cmp(insert->k->k.p, bkey_start_pos(k.k)) <= 0
-		    : bkey_cmp(insert->k->k.p, k.k->p))
+		if (!bch2_mark_overwrite(trans, iter, k, insert->k,
+					 fs_usage, flags))
 			break;
-
-		if (btree_node_is_extents(b)) {
-			switch (bch2_extent_overlap(&insert->k->k, k.k)) {
-			case BCH_EXTENT_OVERLAP_ALL:
-				sectors = -((s64) k.k->size);
-				break;
-			case BCH_EXTENT_OVERLAP_BACK:
-				sectors = bkey_start_offset(&insert->k->k) -
-					k.k->p.offset;
-				break;
-			case BCH_EXTENT_OVERLAP_FRONT:
-				sectors = bkey_start_offset(k.k) -
-					insert->k->k.p.offset;
-				break;
-			case BCH_EXTENT_OVERLAP_MIDDLE:
-				sectors = k.k->p.offset - insert->k->k.p.offset;
-				BUG_ON(sectors <= 0);
-
-				bch2_mark_key_locked(c, k, true, sectors,
-					fs_usage, trans->journal_res.seq,
-					flags);
-
-				sectors = bkey_start_offset(&insert->k->k) -
-					k.k->p.offset;
-				break;
-			}
-
-			BUG_ON(sectors >= 0);
-		}
-
-		bch2_mark_key_locked(c, k, false, sectors,
-			fs_usage, trans->journal_res.seq, flags);
 
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}
