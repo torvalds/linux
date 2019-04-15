@@ -68,43 +68,43 @@ static const struct vm_special_mapping aarch32_vdso_spec[C_PAGES] = {
 	},
 };
 
-static int __init aarch32_alloc_vdso_pages(void)
+static int aarch32_alloc_kuser_vdso_page(void)
 {
 	extern char __kuser_helper_start[], __kuser_helper_end[];
-	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
-
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
-	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
-	unsigned long vdso_pages[C_PAGES];
+	unsigned long vdso_page;
 
-	vdso_pages[C_VECTORS] = get_zeroed_page(GFP_ATOMIC);
-	if (!vdso_pages[C_VECTORS])
+	vdso_page = get_zeroed_page(GFP_ATOMIC);
+	if (!vdso_page)
 		return -ENOMEM;
 
-	vdso_pages[C_SIGPAGE] = get_zeroed_page(GFP_ATOMIC);
-	if (!vdso_pages[C_SIGPAGE]) {
-		free_page(vdso_pages[C_VECTORS]);
-		return -ENOMEM;
-	}
-
-	/* kuser helpers */
-	memcpy((void *)(vdso_pages[C_VECTORS] + 0x1000 - kuser_sz),
-	       __kuser_helper_start,
+	memcpy((void *)(vdso_page + 0x1000 - kuser_sz), __kuser_helper_start,
 	       kuser_sz);
-
-	/* sigreturn code */
-	memcpy((void *)vdso_pages[C_SIGPAGE], __aarch32_sigret_code_start,
-	       sigret_sz);
-
-	flush_icache_range(vdso_pages[C_VECTORS],
-			   vdso_pages[C_VECTORS] + PAGE_SIZE);
-	flush_icache_range(vdso_pages[C_SIGPAGE],
-			   vdso_pages[C_SIGPAGE] + PAGE_SIZE);
-
-	aarch32_vdso_pages[C_VECTORS] = virt_to_page(vdso_pages[C_VECTORS]);
-	aarch32_vdso_pages[C_SIGPAGE] = virt_to_page(vdso_pages[C_SIGPAGE]);
-
+	aarch32_vdso_pages[C_VECTORS] = virt_to_page(vdso_page);
+	flush_dcache_page(aarch32_vdso_pages[C_VECTORS]);
 	return 0;
+}
+
+static int __init aarch32_alloc_vdso_pages(void)
+{
+	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
+	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
+	unsigned long sigpage;
+	int ret;
+
+	sigpage = get_zeroed_page(GFP_ATOMIC);
+	if (!sigpage)
+		return -ENOMEM;
+
+	memcpy((void *)sigpage, __aarch32_sigret_code_start, sigret_sz);
+	aarch32_vdso_pages[C_SIGPAGE] = virt_to_page(sigpage);
+	flush_dcache_page(aarch32_vdso_pages[C_SIGPAGE]);
+
+	ret = aarch32_alloc_kuser_vdso_page();
+	if (ret)
+		free_page(sigpage);
+
+	return ret;
 }
 arch_initcall(aarch32_alloc_vdso_pages);
 
