@@ -23,6 +23,8 @@
 
 #include "amdgpu.h"
 
+MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
+
 static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 				  struct mes_add_queue_input *input)
 {
@@ -53,6 +55,47 @@ static const struct amdgpu_mes_funcs mes_v10_1_funcs = {
 	.suspend_gang = mes_v10_1_suspend_gang,
 	.resume_gang = mes_v10_1_resume_gang,
 };
+
+static int mes_v10_1_init_microcode(struct amdgpu_device *adev)
+{
+	const char *chip_name;
+	char fw_name[30];
+	int err;
+	const struct mes_firmware_header_v1_0 *mes_hdr;
+
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+		chip_name = "navi10";
+		break;
+	default:
+		BUG();
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mes.bin", chip_name);
+	err = request_firmware(&adev->mes.fw, fw_name, adev->dev);
+	if (err)
+		return err;
+
+	err = amdgpu_ucode_validate(adev->mes.fw);
+	if (err) {
+		release_firmware(adev->mes.fw);
+		adev->mes.fw = NULL;
+		return err;
+	}
+
+	mes_hdr = (const struct mes_firmware_header_v1_0 *)adev->mes.fw->data;
+	adev->mes.ucode_fw_version = le32_to_cpu(mes_hdr->mes_ucode_version);
+	adev->mes.ucode_fw_version =
+		le32_to_cpu(mes_hdr->mes_ucode_data_version);
+	adev->mes.uc_start_addr =
+		le32_to_cpu(mes_hdr->mes_uc_start_addr_lo) |
+		((uint64_t)(le32_to_cpu(mes_hdr->mes_uc_start_addr_hi)) << 32);
+	adev->mes.data_start_addr =
+		le32_to_cpu(mes_hdr->mes_data_start_addr_lo) |
+		((uint64_t)(le32_to_cpu(mes_hdr->mes_data_start_addr_hi)) << 32);
+
+	return 0;
+}
 
 static int mes_v10_1_sw_init(void *handle)
 {
