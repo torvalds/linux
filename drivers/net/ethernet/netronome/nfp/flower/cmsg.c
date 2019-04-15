@@ -222,6 +222,10 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 	case NFP_FLOWER_CMSG_TYPE_PORT_MOD:
 		nfp_flower_cmsg_portmod_rx(app, skb);
 		break;
+	case NFP_FLOWER_CMSG_TYPE_MERGE_HINT:
+		if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE)
+			break;
+		goto err_default;
 	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH:
 		nfp_tunnel_request_route(app, skb);
 		break;
@@ -235,6 +239,7 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		}
 		/* fall through */
 	default:
+err_default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
 				     type);
 		goto out;

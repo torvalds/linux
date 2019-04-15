@@ -641,11 +641,28 @@ static int nfp_flower_init(struct nfp_app *app)
 		goto err_cleanup_metadata;
 	}
 
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MOD) {
+		/* Tell the firmware that the driver supports flow merging. */
+		err = nfp_rtsym_write_le(app->pf->rtbl,
+					 "_abi_flower_merge_hint_enable", 1);
+		if (!err)
+			app_priv->flower_ext_feats |= NFP_FL_FEATS_FLOW_MERGE;
+		else if (err == -ENOENT)
+			nfp_warn(app->cpp, "Flow merge not supported by FW.\n");
+		else
+			goto err_lag_clean;
+	} else {
+		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
+	}
+
 	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
 	INIT_LIST_HEAD(&app_priv->non_repr_priv);
 
 	return 0;
 
+err_lag_clean:
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
 err_cleanup_metadata:
 	nfp_flower_metadata_cleanup(app);
 err_free_app_priv:
