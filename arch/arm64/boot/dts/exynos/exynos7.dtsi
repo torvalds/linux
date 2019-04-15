@@ -38,6 +38,13 @@
 				     <&cpu_atlas2>, <&cpu_atlas3>;
 	};
 
+	fin_pll: clock {
+		/* XXTI */
+		compatible = "fixed-clock";
+		clock-output-names = "fin_pll";
+		#clock-cells = <0>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -85,12 +92,6 @@
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
-		};
-
-		fin_pll: xxti {
-			compatible = "fixed-clock";
-			clock-output-names = "fin_pll";
-			#clock-cells = <0>;
 		};
 
 		gic: interrupt-controller@11001000 {

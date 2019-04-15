@@ -41,6 +41,13 @@
 		interrupt-affinity = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
 	};
 
+	xxti: clock {
+		/* XXTI */
+		compatible = "fixed-clock";
+		clock-output-names = "oscclk";
+		#clock-cells = <0>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -258,12 +265,6 @@
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
-		};
-
-		xxti: xxti {
-			compatible = "fixed-clock";
-			clock-output-names = "oscclk";
-			#clock-cells = <0>;
 		};
 
 		cmu_top: clock-controller@10030000 {
