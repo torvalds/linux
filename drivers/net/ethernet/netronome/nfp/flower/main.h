@@ -279,6 +279,15 @@ nfp_flower_internal_port_can_offload(struct nfp_app *app,
 	return false;
 }
 
+/* The address of the merged flow acts as its cookie.
+ * Cookies supplied to us by TC flower are also addresses to allocated
+ * memory and thus this scheme should not generate any collisions.
+ */
+static inline bool nfp_flower_is_merge_flow(struct nfp_fl_payload *flow_pay)
+{
+	return flow_pay->tc_flower_cookie == (unsigned long)flow_pay;
+}
+
 int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 			     unsigned int host_ctx_split);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);

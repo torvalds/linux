@@ -610,6 +610,112 @@ nfp_flower_can_merge(struct nfp_fl_payload *sub_flow1,
 	return 0;
 }
 
+static unsigned int
+nfp_flower_copy_pre_actions(char *act_dst, char *act_src, int len,
+			    bool *tunnel_act)
+{
+	unsigned int act_off = 0, act_len;
+	struct nfp_fl_act_head *a;
+	u8 act_id = 0;
+
+	while (act_off < len) {
+		a = (struct nfp_fl_act_head *)&act_src[act_off];
+		act_len = a->len_lw << NFP_FL_LW_SIZ;
+		act_id = a->jump_id;
+
+		switch (act_id) {
+		case NFP_FL_ACTION_OPCODE_PRE_TUNNEL:
+			if (tunnel_act)
+				*tunnel_act = true;
+		case NFP_FL_ACTION_OPCODE_PRE_LAG:
+			memcpy(act_dst + act_off, act_src + act_off, act_len);
+			break;
+		default:
+			return act_off;
+		}
+
+		act_off += act_len;
+	}
+
+	return act_off;
+}
+
+static int nfp_fl_verify_post_tun_acts(char *acts, int len)
+{
+	struct nfp_fl_act_head *a;
+	unsigned int act_off = 0;
+
+	while (act_off < len) {
+		a = (struct nfp_fl_act_head *)&acts[act_off];
+		if (a->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT)
+			return -EOPNOTSUPP;
+
+		act_off += a->len_lw << NFP_FL_LW_SIZ;
+	}
+
+	return 0;
+}
+
+static int
+nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
+			struct nfp_fl_payload *sub_flow2,
+			struct nfp_fl_payload *merge_flow)
+{
+	unsigned int sub1_act_len, sub2_act_len, pre_off1, pre_off2;
+	bool tunnel_act = false;
+	char *merge_act;
+	int err;
+
+	/* The last action of sub_flow1 must be output - do not merge this. */
+	sub1_act_len = sub_flow1->meta.act_len - sizeof(struct nfp_fl_output);
+	sub2_act_len = sub_flow2->meta.act_len;
+
+	if (!sub2_act_len)
+		return -EINVAL;
+
+	if (sub1_act_len + sub2_act_len > NFP_FL_MAX_A_SIZ)
+		return -EINVAL;
+
+	/* A shortcut can only be applied if there is a single action. */
+	if (sub1_act_len)
+		merge_flow->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);
+	else
+		merge_flow->meta.shortcut = sub_flow2->meta.shortcut;
+
+	merge_flow->meta.act_len = sub1_act_len + sub2_act_len;
+	merge_act = merge_flow->action_data;
+
+	/* Copy any pre-actions to the start of merge flow action list. */
+	pre_off1 = nfp_flower_copy_pre_actions(merge_act,
+					       sub_flow1->action_data,
+					       sub1_act_len, &tunnel_act);
+	merge_act += pre_off1;
+	sub1_act_len -= pre_off1;
+	pre_off2 = nfp_flower_copy_pre_actions(merge_act,
+					       sub_flow2->action_data,
+					       sub2_act_len, NULL);
+	merge_act += pre_off2;
+	sub2_act_len -= pre_off2;
+
+	/* FW does a tunnel push when egressing, therefore, if sub_flow 1 pushes
+	 * a tunnel, sub_flow 2 can only have output actions for a valid merge.
+	 */
+	if (tunnel_act) {
+		char *post_tun_acts = &sub_flow2->action_data[pre_off2];
+
+		err = nfp_fl_verify_post_tun_acts(post_tun_acts, sub2_act_len);
+		if (err)
+			return err;
+	}
+
+	/* Copy remaining actions from sub_flows 1 and 2. */
+	memcpy(merge_act, sub_flow1->action_data + pre_off1, sub1_act_len);
+	merge_act += sub1_act_len;
+	memcpy(merge_act, sub_flow2->action_data + pre_off2, sub2_act_len);
+
+	return 0;
+}
+
 /**
  * nfp_flower_merge_offloaded_flows() - Merge 2 existing flows to single flow.
  * @app:	Pointer to the APP handle
@@ -625,13 +731,47 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2)
 {
+	struct nfp_fl_payload *merge_flow;
+	struct nfp_fl_key_ls merge_key_ls;
 	int err;
+
+	ASSERT_RTNL();
+
+	if (sub_flow1 == sub_flow2 ||
+	    nfp_flower_is_merge_flow(sub_flow1) ||
+	    nfp_flower_is_merge_flow(sub_flow2))
+		return -EINVAL;
 
 	err = nfp_flower_can_merge(sub_flow1, sub_flow2);
 	if (err)
 		return err;
 
-	return -EOPNOTSUPP;
+	merge_key_ls.key_size = sub_flow1->meta.key_len;
+
+	merge_flow = nfp_flower_allocate_new(&merge_key_ls);
+	if (!merge_flow)
+		return -ENOMEM;
+
+	merge_flow->tc_flower_cookie = (unsigned long)merge_flow;
+	merge_flow->ingress_dev = sub_flow1->ingress_dev;
+
+	memcpy(merge_flow->unmasked_data, sub_flow1->unmasked_data,
+	       sub_flow1->meta.key_len);
+	memcpy(merge_flow->mask_data, sub_flow1->mask_data,
+	       sub_flow1->meta.mask_len);
+
+	err = nfp_flower_merge_action(sub_flow1, sub_flow2, merge_flow);
+	if (err)
+		goto err_destroy_merge_flow;
+
+	err = -EOPNOTSUPP;
+
+err_destroy_merge_flow:
+	kfree(merge_flow->action_data);
+	kfree(merge_flow->mask_data);
+	kfree(merge_flow->unmasked_data);
+	kfree(merge_flow);
+	return err;
 }
 
 /**
