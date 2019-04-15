@@ -2049,6 +2049,48 @@ DEFINE_EVENT(btrfs_sleep_tree_lock, btrfs_tree_lock,
 	TP_ARGS(eb, start_ns)
 );
 
+DECLARE_EVENT_CLASS(btrfs_locking_events,
+	TP_PROTO(const struct extent_buffer *eb),
+
+	TP_ARGS(eb),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	block		)
+		__field(	u64,	generation	)
+		__field(	u64,	owner		)
+		__field(	int,	is_log_tree	)
+	),
+
+	TP_fast_assign_btrfs(eb->fs_info,
+		__entry->block		= eb->start;
+		__entry->generation	= btrfs_header_generation(eb);
+		__entry->owner		= btrfs_header_owner(eb);
+		__entry->is_log_tree	= (eb->log_index >= 0);
+	),
+
+	TP_printk_btrfs("block=%llu generation=%llu owner=%llu is_log_tree=%d",
+		__entry->block, __entry->generation,
+		__entry->owner, __entry->is_log_tree)
+);
+
+#define DEFINE_BTRFS_LOCK_EVENT(name)				\
+DEFINE_EVENT(btrfs_locking_events, name,			\
+		TP_PROTO(const struct extent_buffer *eb),	\
+								\
+		TP_ARGS(eb)					\
+)
+
+DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_unlock);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_unlock);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_unlock_blocking);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_set_lock_blocking_read);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_set_lock_blocking_write);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_clear_lock_blocking_read);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_clear_lock_blocking_write);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_try_tree_read_lock);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_try_tree_write_lock);
+DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_lock_atomic);
+
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */
