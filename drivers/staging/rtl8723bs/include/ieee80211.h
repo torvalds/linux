@@ -202,7 +202,7 @@ enum NETWORK_TYPE
 #define IsSupportedVHT(NetType) (((NetType) & (WIRELESS_11AC)) ? true : false)
 
 
-typedef struct ieee_param {
+struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
 	union {
@@ -240,7 +240,7 @@ typedef struct ieee_param {
 			u8 buf[0];
 		} bcn_ie;
 	} u;
-}ieee_param;
+};
 
 struct ieee_param_ex {
 	u32 cmd;
