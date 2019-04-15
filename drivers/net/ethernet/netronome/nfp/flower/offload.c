@@ -55,6 +55,28 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
 
+#define NFP_FLOWER_MERGE_FIELDS \
+	(NFP_FLOWER_LAYER_PORT | \
+	 NFP_FLOWER_LAYER_MAC | \
+	 NFP_FLOWER_LAYER_TP | \
+	 NFP_FLOWER_LAYER_IPV4 | \
+	 NFP_FLOWER_LAYER_IPV6)
+
+struct nfp_flower_merge_check {
+	union {
+		struct {
+			__be16 tci;
+			struct nfp_flower_mac_mpls l2;
+			struct nfp_flower_tp_ports l4;
+			union {
+				struct nfp_flower_ipv4 ipv4;
+				struct nfp_flower_ipv6 ipv6;
+			};
+		};
+		unsigned long vals[8];
+	};
+};
+
 static int
 nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 		     u8 mtype)
@@ -388,6 +410,206 @@ err_free_flow:
 	return NULL;
 }
 
+static int
+nfp_flower_update_merge_with_actions(struct nfp_fl_payload *flow,
+				     struct nfp_flower_merge_check *merge,
+				     u8 *last_act_id, int *act_out)
+{
+	struct nfp_fl_set_ipv6_tc_hl_fl *ipv6_tc_hl_fl;
+	struct nfp_fl_set_ip4_ttl_tos *ipv4_ttl_tos;
+	struct nfp_fl_set_ip4_addrs *ipv4_add;
+	struct nfp_fl_set_ipv6_addr *ipv6_add;
+	struct nfp_fl_push_vlan *push_vlan;
+	struct nfp_fl_set_tport *tport;
+	struct nfp_fl_set_eth *eth;
+	struct nfp_fl_act_head *a;
+	unsigned int act_off = 0;
+	u8 act_id = 0;
+	u8 *ports;
+	int i;
+
+	while (act_off < flow->meta.act_len) {
+		a = (struct nfp_fl_act_head *)&flow->action_data[act_off];
+		act_id = a->jump_id;
+
+		switch (act_id) {
+		case NFP_FL_ACTION_OPCODE_OUTPUT:
+			if (act_out)
+				(*act_out)++;
+			break;
+		case NFP_FL_ACTION_OPCODE_PUSH_VLAN:
+			push_vlan = (struct nfp_fl_push_vlan *)a;
+			if (push_vlan->vlan_tci)
+				merge->tci = cpu_to_be16(0xffff);
+			break;
+		case NFP_FL_ACTION_OPCODE_POP_VLAN:
+			merge->tci = cpu_to_be16(0);
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL:
+			/* New tunnel header means l2 to l4 can be matched. */
+			eth_broadcast_addr(&merge->l2.mac_dst[0]);
+			eth_broadcast_addr(&merge->l2.mac_src[0]);
+			memset(&merge->l4, 0xff,
+			       sizeof(struct nfp_flower_tp_ports));
+			memset(&merge->ipv4, 0xff,
+			       sizeof(struct nfp_flower_ipv4));
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_ETHERNET:
+			eth = (struct nfp_fl_set_eth *)a;
+			for (i = 0; i < ETH_ALEN; i++)
+				merge->l2.mac_dst[i] |= eth->eth_addr_mask[i];
+			for (i = 0; i < ETH_ALEN; i++)
+				merge->l2.mac_src[i] |=
+					eth->eth_addr_mask[ETH_ALEN + i];
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS:
+			ipv4_add = (struct nfp_fl_set_ip4_addrs *)a;
+			merge->ipv4.ipv4_src |= ipv4_add->ipv4_src_mask;
+			merge->ipv4.ipv4_dst |= ipv4_add->ipv4_dst_mask;
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_IPV4_TTL_TOS:
+			ipv4_ttl_tos = (struct nfp_fl_set_ip4_ttl_tos *)a;
+			merge->ipv4.ip_ext.ttl |= ipv4_ttl_tos->ipv4_ttl_mask;
+			merge->ipv4.ip_ext.tos |= ipv4_ttl_tos->ipv4_tos_mask;
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_IPV6_SRC:
+			ipv6_add = (struct nfp_fl_set_ipv6_addr *)a;
+			for (i = 0; i < 4; i++)
+				merge->ipv6.ipv6_src.in6_u.u6_addr32[i] |=
+					ipv6_add->ipv6[i].mask;
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_IPV6_DST:
+			ipv6_add = (struct nfp_fl_set_ipv6_addr *)a;
+			for (i = 0; i < 4; i++)
+				merge->ipv6.ipv6_dst.in6_u.u6_addr32[i] |=
+					ipv6_add->ipv6[i].mask;
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_IPV6_TC_HL_FL:
+			ipv6_tc_hl_fl = (struct nfp_fl_set_ipv6_tc_hl_fl *)a;
+			merge->ipv6.ip_ext.ttl |=
+				ipv6_tc_hl_fl->ipv6_hop_limit_mask;
+			merge->ipv6.ip_ext.tos |= ipv6_tc_hl_fl->ipv6_tc_mask;
+			merge->ipv6.ipv6_flow_label_exthdr |=
+				ipv6_tc_hl_fl->ipv6_label_mask;
+			break;
+		case NFP_FL_ACTION_OPCODE_SET_UDP:
+		case NFP_FL_ACTION_OPCODE_SET_TCP:
+			tport = (struct nfp_fl_set_tport *)a;
+			ports = (u8 *)&merge->l4.port_src;
+			for (i = 0; i < 4; i++)
+				ports[i] |= tport->tp_port_mask[i];
+			break;
+		case NFP_FL_ACTION_OPCODE_PRE_TUNNEL:
+		case NFP_FL_ACTION_OPCODE_PRE_LAG:
+		case NFP_FL_ACTION_OPCODE_PUSH_GENEVE:
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+
+		act_off += a->len_lw << NFP_FL_LW_SIZ;
+	}
+
+	if (last_act_id)
+		*last_act_id = act_id;
+
+	return 0;
+}
+
+static int
+nfp_flower_populate_merge_match(struct nfp_fl_payload *flow,
+				struct nfp_flower_merge_check *merge,
+				bool extra_fields)
+{
+	struct nfp_flower_meta_tci *meta_tci;
+	u8 *mask = flow->mask_data;
+	u8 key_layer, match_size;
+
+	memset(merge, 0, sizeof(struct nfp_flower_merge_check));
+
+	meta_tci = (struct nfp_flower_meta_tci *)mask;
+	key_layer = meta_tci->nfp_flow_key_layer;
+
+	if (key_layer & ~NFP_FLOWER_MERGE_FIELDS && !extra_fields)
+		return -EOPNOTSUPP;
+
+	merge->tci = meta_tci->tci;
+	mask += sizeof(struct nfp_flower_meta_tci);
+
+	if (key_layer & NFP_FLOWER_LAYER_EXT_META)
+		mask += sizeof(struct nfp_flower_ext_meta);
+
+	mask += sizeof(struct nfp_flower_in_port);
+
+	if (key_layer & NFP_FLOWER_LAYER_MAC) {
+		match_size = sizeof(struct nfp_flower_mac_mpls);
+		memcpy(&merge->l2, mask, match_size);
+		mask += match_size;
+	}
+
+	if (key_layer & NFP_FLOWER_LAYER_TP) {
+		match_size = sizeof(struct nfp_flower_tp_ports);
+		memcpy(&merge->l4, mask, match_size);
+		mask += match_size;
+	}
+
+	if (key_layer & NFP_FLOWER_LAYER_IPV4) {
+		match_size = sizeof(struct nfp_flower_ipv4);
+		memcpy(&merge->ipv4, mask, match_size);
+	}
+
+	if (key_layer & NFP_FLOWER_LAYER_IPV6) {
+		match_size = sizeof(struct nfp_flower_ipv6);
+		memcpy(&merge->ipv6, mask, match_size);
+	}
+
+	return 0;
+}
+
+static int
+nfp_flower_can_merge(struct nfp_fl_payload *sub_flow1,
+		     struct nfp_fl_payload *sub_flow2)
+{
+	/* Two flows can be merged if sub_flow2 only matches on bits that are
+	 * either matched by sub_flow1 or set by a sub_flow1 action. This
+	 * ensures that every packet that hits sub_flow1 and recirculates is
+	 * guaranteed to hit sub_flow2.
+	 */
+	struct nfp_flower_merge_check sub_flow1_merge, sub_flow2_merge;
+	int err, act_out = 0;
+	u8 last_act_id = 0;
+
+	err = nfp_flower_populate_merge_match(sub_flow1, &sub_flow1_merge,
+					      true);
+	if (err)
+		return err;
+
+	err = nfp_flower_populate_merge_match(sub_flow2, &sub_flow2_merge,
+					      false);
+	if (err)
+		return err;
+
+	err = nfp_flower_update_merge_with_actions(sub_flow1, &sub_flow1_merge,
+						   &last_act_id, &act_out);
+	if (err)
+		return err;
+
+	/* Must only be 1 output action and it must be the last in sequence. */
+	if (act_out != 1 || last_act_id != NFP_FL_ACTION_OPCODE_OUTPUT)
+		return -EOPNOTSUPP;
+
+	/* Reject merge if sub_flow2 matches on something that is not matched
+	 * on or set in an action by sub_flow1.
+	 */
+	err = bitmap_andnot(sub_flow2_merge.vals, sub_flow2_merge.vals,
+			    sub_flow1_merge.vals,
+			    sizeof(struct nfp_flower_merge_check) * 8);
+	if (err)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * nfp_flower_merge_offloaded_flows() - Merge 2 existing flows to single flow.
  * @app:	Pointer to the APP handle
@@ -403,6 +625,12 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 				     struct nfp_fl_payload *sub_flow1,
 				     struct nfp_fl_payload *sub_flow2)
 {
+	int err;
+
+	err = nfp_flower_can_merge(sub_flow1, sub_flow2);
+	if (err)
+		return err;
+
 	return -EOPNOTSUPP;
 }
 
