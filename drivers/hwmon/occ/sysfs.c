@@ -42,16 +42,16 @@ static ssize_t occ_sysfs_show(struct device *dev,
 		val = !!(header->status & OCC_STAT_ACTIVE);
 		break;
 	case 2:
-		val = !!(header->status & OCC_EXT_STAT_DVFS_OT);
+		val = !!(header->ext_status & OCC_EXT_STAT_DVFS_OT);
 		break;
 	case 3:
-		val = !!(header->status & OCC_EXT_STAT_DVFS_POWER);
+		val = !!(header->ext_status & OCC_EXT_STAT_DVFS_POWER);
 		break;
 	case 4:
-		val = !!(header->status & OCC_EXT_STAT_MEM_THROTTLE);
+		val = !!(header->ext_status & OCC_EXT_STAT_MEM_THROTTLE);
 		break;
 	case 5:
-		val = !!(header->status & OCC_EXT_STAT_QUICK_DROP);
+		val = !!(header->ext_status & OCC_EXT_STAT_QUICK_DROP);
 		break;
 	case 6:
 		val = header->occ_state;
