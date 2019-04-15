@@ -23,6 +23,7 @@
 #include <linux/compiler.h>
 #include <linux/thread_info.h>
 #include <asm/byteorder.h>
+#include <asm/extable.h>
 #include <asm/asm.h>
 
 #define __enable_user_access()							\
@@ -97,12 +98,6 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
  * we don't even have to jump over them.  Further, they do not intrude
  * on our cache or tlb entries.
  */
-
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
-
-extern int fixup_exception(struct pt_regs *state);
 
 #if defined(__LITTLE_ENDIAN)
 #define __MSW	1
