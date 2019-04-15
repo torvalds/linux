@@ -235,6 +235,8 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev)
 		return r;
 	}
 
+	mes_v10_1_enable(adev, false);
+
 	WREG32_SOC15(GC, 0, mmCP_MES_IC_BASE_CNTL, 0);
 
 	mutex_lock(&adev->srbm_mutex);
@@ -282,21 +284,55 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev)
 
 static int mes_v10_1_sw_init(void *handle)
 {
+	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	r = mes_v10_1_init_microcode(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
 static int mes_v10_1_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	mes_v10_1_free_microcode(adev);
+
 	return 0;
 }
 
 static int mes_v10_1_hw_init(void *handle)
 {
+	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		r = mes_v10_1_load_microcode(adev);
+		if (r) {
+			DRM_ERROR("failed to MES fw, r=%d\n", r);
+			return r;
+		}
+	} else {
+		DRM_ERROR("only support direct fw loading on MES\n");
+		return -EINVAL;
+	}
+
+	mes_v10_1_enable(adev, true);
+
 	return 0;
 }
 
 static int mes_v10_1_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	mes_v10_1_enable(adev, false);
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
+		mes_v10_1_free_ucode_buffers(adev);
+
 	return 0;
 }
 
