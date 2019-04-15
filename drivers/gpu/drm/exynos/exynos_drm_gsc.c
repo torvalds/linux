@@ -1170,9 +1170,10 @@ static int gsc_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
 	ctx->drm_dev = drm_dev;
+	ctx->drm_dev = drm_dev;
 	exynos_drm_register_dma(drm_dev, dev);
 
-	exynos_drm_ipp_register(drm_dev, ipp, &ipp_funcs,
+	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
 			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
 			DRM_EXYNOS_IPP_CAP_SCALE | DRM_EXYNOS_IPP_CAP_CONVERT,
 			ctx->formats, ctx->num_formats, "gsc");
@@ -1189,7 +1190,7 @@ static void gsc_unbind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
-	exynos_drm_ipp_unregister(drm_dev, ipp);
+	exynos_drm_ipp_unregister(dev, ipp);
 	exynos_drm_unregister_dma(drm_dev, dev);
 }
 
