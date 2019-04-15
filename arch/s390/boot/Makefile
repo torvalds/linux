@@ -12,18 +12,24 @@ KBUILD_AFLAGS := $(KBUILD_AFLAGS_DECOMPRESSOR)
 KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
 
 #
-# Use -march=z900 for als.c to be able to print an error
+# Use minimum architecture for als.c to be able to print an error
 # message if the kernel is started on a machine which is too old
 #
-ifneq ($(CC_FLAGS_MARCH),-march=z900)
+ifndef CONFIG_CC_IS_CLANG
+CC_FLAGS_MARCH_MINIMUM := -march=z900
+else
+CC_FLAGS_MARCH_MINIMUM := -march=z10
+endif
+
+ifneq ($(CC_FLAGS_MARCH),$(CC_FLAGS_MARCH_MINIMUM))
 AFLAGS_REMOVE_head.o		+= $(CC_FLAGS_MARCH)
-AFLAGS_head.o			+= -march=z900
+AFLAGS_head.o			+= $(CC_FLAGS_MARCH_MINIMUM)
 AFLAGS_REMOVE_mem.o		+= $(CC_FLAGS_MARCH)
-AFLAGS_mem.o			+= -march=z900
+AFLAGS_mem.o			+= $(CC_FLAGS_MARCH_MINIMUM)
 CFLAGS_REMOVE_als.o		+= $(CC_FLAGS_MARCH)
-CFLAGS_als.o			+= -march=z900
+CFLAGS_als.o			+= $(CC_FLAGS_MARCH_MINIMUM)
 CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_MARCH)
-CFLAGS_sclp_early_core.o	+= -march=z900
+CFLAGS_sclp_early_core.o	+= $(CC_FLAGS_MARCH_MINIMUM)
 endif
 
 CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char

@@ -241,6 +241,7 @@ choice
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"
+	depends on !CC_IS_CLANG
 	select HAVE_MARCH_Z900_FEATURES
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
@@ -249,6 +250,7 @@ config MARCH_Z900
 
 config MARCH_Z990
 	bool "IBM zSeries model z890 and z990"
+	depends on !CC_IS_CLANG
 	select HAVE_MARCH_Z990_FEATURES
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
@@ -257,6 +259,7 @@ config MARCH_Z990
 
 config MARCH_Z9_109
 	bool "IBM System z9"
+	depends on !CC_IS_CLANG
 	select HAVE_MARCH_Z9_109_FEATURES
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
@@ -348,12 +351,15 @@ config TUNE_DEFAULT
 
 config TUNE_Z900
 	bool "IBM zSeries model z800 and z900"
+	depends on !CC_IS_CLANG
 
 config TUNE_Z990
 	bool "IBM zSeries model z890 and z990"
+	depends on !CC_IS_CLANG
 
 config TUNE_Z9_109
 	bool "IBM System z9"
+	depends on !CC_IS_CLANG
 
 config TUNE_Z10
 	bool "IBM System z10"
