@@ -1683,6 +1683,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		struct nfp_net_rx_buf *rxbuf;
 		struct nfp_net_rx_desc *rxd;
 		struct nfp_meta_parsed meta;
+		bool redir_egress = false;
 		struct net_device *netdev;
 		dma_addr_t new_dma_addr;
 		u32 meta_len_xdp = 0;
@@ -1818,13 +1819,16 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			struct nfp_net *nn;
 
 			nn = netdev_priv(dp->netdev);
-			netdev = nfp_app_repr_get(nn->app, meta.portid);
+			netdev = nfp_app_dev_get(nn->app, meta.portid,
+						 &redir_egress);
 			if (unlikely(!netdev)) {
 				nfp_net_rx_drop(dp, r_vec, rx_ring, rxbuf,
 						NULL);
 				continue;
 			}
-			nfp_repr_inc_rx_stats(netdev, pkt_len);
+
+			if (nfp_netdev_is_nfp_repr(netdev))
+				nfp_repr_inc_rx_stats(netdev, pkt_len);
 		}
 
 		skb = build_skb(rxbuf->frag, true_bufsz);
@@ -1859,7 +1863,13 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		if (meta_len_xdp)
 			skb_metadata_set(skb, meta_len_xdp);
 
-		napi_gro_receive(&rx_ring->r_vec->napi, skb);
+		if (likely(!redir_egress)) {
+			napi_gro_receive(&rx_ring->r_vec->napi, skb);
+		} else {
+			skb->dev = netdev;
+			__skb_push(skb, ETH_HLEN);
+			dev_queue_xmit(skb);
+		}
 	}
 
 	if (xdp_prog) {

@@ -402,11 +402,13 @@ struct nfp_flower_cmsg_hdr {
 /* Types defined for port related control messages  */
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
+	NFP_FLOWER_CMSG_TYPE_FLOW_MOD =		1,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
 	NFP_FLOWER_CMSG_TYPE_LAG_CONFIG =	4,
 	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
+	NFP_FLOWER_CMSG_TYPE_MERGE_HINT =	9,
 	NFP_FLOWER_CMSG_TYPE_NO_NEIGH =		10,
 	NFP_FLOWER_CMSG_TYPE_TUN_MAC =		11,
 	NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS =	12,
@@ -451,6 +453,16 @@ struct nfp_flower_cmsg_portreify {
 
 #define NFP_FLOWER_CMSG_PORTREIFY_INFO_EXIST	BIT(0)
 
+/* NFP_FLOWER_CMSG_TYPE_FLOW_MERGE_HINT */
+struct nfp_flower_cmsg_merge_hint {
+	u8 reserved[3];
+	u8 count;
+	struct {
+		__be32 host_ctx;
+		__be64 host_cookie;
+	} __packed flow[0];
+};
+
 enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
 	NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT =	0x1,
@@ -472,6 +484,13 @@ enum nfp_flower_cmsg_port_vnic_type {
 #define NFP_FLOWER_CMSG_PORT_VNIC		GENMASK(11, 6)
 #define NFP_FLOWER_CMSG_PORT_PCIE_Q		GENMASK(5, 0)
 #define NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM	GENMASK(7, 0)
+
+static inline u32 nfp_flower_internal_port_get_port_id(u8 internal_port)
+{
+	return FIELD_PREP(NFP_FLOWER_CMSG_PORT_PHYS_PORT_NUM, internal_port) |
+		FIELD_PREP(NFP_FLOWER_CMSG_PORT_TYPE,
+			   NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT);
+}
 
 static inline u32 nfp_flower_cmsg_phys_port(u8 phys_port)
 {
