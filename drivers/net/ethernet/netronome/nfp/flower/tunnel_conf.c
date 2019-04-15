@@ -270,9 +270,10 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		    struct flowi4 *flow, struct neighbour *neigh, gfp_t flag)
 {
 	struct nfp_tun_neigh payload;
+	u32 port_id;
 
-	/* Only offload representor IPv4s for now. */
-	if (!nfp_netdev_is_nfp_repr(netdev))
+	port_id = nfp_flower_get_port_id_from_netdev(app, netdev);
+	if (!port_id)
 		return;
 
 	memset(&payload, 0, sizeof(struct nfp_tun_neigh));
@@ -290,7 +291,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 	payload.src_ipv4 = flow->saddr;
 	ether_addr_copy(payload.src_addr, netdev->dev_addr);
 	neigh_ha_snapshot(payload.dst_addr, neigh, netdev);
-	payload.port_id = cpu_to_be32(nfp_repr_get_port_id(netdev));
+	payload.port_id = cpu_to_be32(port_id);
 	/* Add destination of new route to NFP cache. */
 	nfp_tun_add_route_to_cache(app, payload.dst_ipv4);
 
