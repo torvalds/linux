@@ -74,6 +74,9 @@ static int aarch32_alloc_kuser_vdso_page(void)
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
 	unsigned long vdso_page;
 
+	if (!IS_ENABLED(CONFIG_KUSER_HELPERS))
+		return 0;
+
 	vdso_page = get_zeroed_page(GFP_ATOMIC);
 	if (!vdso_page)
 		return -ENOMEM;
@@ -111,6 +114,9 @@ arch_initcall(aarch32_alloc_vdso_pages);
 static int aarch32_kuser_helpers_setup(struct mm_struct *mm)
 {
 	void *ret;
+
+	if (!IS_ENABLED(CONFIG_KUSER_HELPERS))
+		return 0;
 
 	/*
 	 * Avoid VM_MAYWRITE for compatibility with arch/arm/, where it's
