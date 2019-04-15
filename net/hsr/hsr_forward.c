@@ -359,6 +359,13 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 		goto out_drop;
 	hsr_register_frame_in(frame.node_src, port, frame.sequence_nr);
 	hsr_forward_do(&frame);
+	/* Gets called for ingress frames as well as egress from master port.
+	 * So check and increment stats for master port only here.
+	 */
+	if (port->type == HSR_PT_MASTER) {
+		port->dev->stats.tx_packets++;
+		port->dev->stats.tx_bytes += skb->len;
+	}
 
 	if (frame.skb_hsr)
 		kfree_skb(frame.skb_hsr);
