@@ -54,7 +54,8 @@ asmlinkage void __irq_entry do_IRQ(struct pt_regs *regs)
 		handle_arch_irq(regs);
 		break;
 	default:
-		panic("unexpected interrupt cause");
+		pr_alert("unexpected interrupt cause 0x%lx", regs->scause);
+		BUG();
 	}
 	irq_exit();
 
