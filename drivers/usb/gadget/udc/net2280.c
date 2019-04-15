@@ -789,8 +789,7 @@ static int read_fifo(struct net2280_ep *ep, struct net2280_request *req)
 		(void) readl(&ep->regs->ep_rsp);
 	}
 
-	return is_short || ((req->req.actual == req->req.length) &&
-			!req->req.zero);
+	return is_short || req->req.actual == req->req.length;
 }
 
 /* fill out dma descriptor to match a given request */
