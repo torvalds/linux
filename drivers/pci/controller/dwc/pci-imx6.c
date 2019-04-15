@@ -52,6 +52,7 @@ enum imx6_pcie_variants {
 
 #define IMX6_PCIE_FLAG_IMX6_PHY			BIT(0)
 #define IMX6_PCIE_FLAG_IMX6_SPEED_CHANGE	BIT(1)
+#define IMX6_PCIE_FLAG_SUPPORTS_SUSPEND		BIT(2)
 
 struct imx6_pcie_drvdata {
 	enum imx6_pcie_variants variant;
@@ -965,17 +966,11 @@ static void imx6_pcie_clk_disable(struct imx6_pcie *imx6_pcie)
 	}
 }
 
-static inline bool imx6_pcie_supports_suspend(struct imx6_pcie *imx6_pcie)
-{
-	return (imx6_pcie->drvdata->variant == IMX7D ||
-		imx6_pcie->drvdata->variant == IMX6SX);
-}
-
 static int imx6_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 
-	if (!imx6_pcie_supports_suspend(imx6_pcie))
+	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
 	imx6_pcie_pm_turnoff(imx6_pcie);
@@ -991,7 +986,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 	struct pcie_port *pp = &imx6_pcie->pci->pp;
 
-	if (!imx6_pcie_supports_suspend(imx6_pcie))
+	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
 	imx6_pcie_assert_core_reset(imx6_pcie);
@@ -1221,7 +1216,8 @@ static const struct imx6_pcie_drvdata drvdata[] = {
 	[IMX6SX] = {
 		.variant = IMX6SX,
 		.flags = IMX6_PCIE_FLAG_IMX6_PHY |
-			 IMX6_PCIE_FLAG_IMX6_SPEED_CHANGE,
+			 IMX6_PCIE_FLAG_IMX6_SPEED_CHANGE |
+			 IMX6_PCIE_FLAG_SUPPORTS_SUSPEND,
 	},
 	[IMX6QP] = {
 		.variant = IMX6QP,
@@ -1230,6 +1226,7 @@ static const struct imx6_pcie_drvdata drvdata[] = {
 	},
 	[IMX7D] = {
 		.variant = IMX7D,
+		.flags = IMX6_PCIE_FLAG_SUPPORTS_SUSPEND,
 	},
 	[IMX8MQ] = {
 		.variant = IMX8MQ,
