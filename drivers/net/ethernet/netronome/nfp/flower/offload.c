@@ -398,6 +398,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 
 	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
+	INIT_LIST_HEAD(&flow_pay->linked_flows);
 
 	return flow_pay;
 
@@ -716,6 +717,43 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 	return 0;
 }
 
+/* Flow link code should only be accessed under RTNL. */
+static void nfp_flower_unlink_flow(struct nfp_fl_payload_link *link)
+{
+	list_del(&link->merge_flow.list);
+	list_del(&link->sub_flow.list);
+	kfree(link);
+}
+
+static void nfp_flower_unlink_flows(struct nfp_fl_payload *merge_flow,
+				    struct nfp_fl_payload *sub_flow)
+{
+	struct nfp_fl_payload_link *link;
+
+	list_for_each_entry(link, &merge_flow->linked_flows, merge_flow.list)
+		if (link->sub_flow.flow == sub_flow) {
+			nfp_flower_unlink_flow(link);
+			return;
+		}
+}
+
+static int nfp_flower_link_flows(struct nfp_fl_payload *merge_flow,
+				 struct nfp_fl_payload *sub_flow)
+{
+	struct nfp_fl_payload_link *link;
+
+	link = kmalloc(sizeof(*link), GFP_KERNEL);
+	if (!link)
+		return -ENOMEM;
+
+	link->merge_flow.flow = merge_flow;
+	list_add_tail(&link->merge_flow.list, &merge_flow->linked_flows);
+	link->sub_flow.flow = sub_flow;
+	list_add_tail(&link->sub_flow.list, &sub_flow->linked_flows);
+
+	return 0;
+}
+
 /**
  * nfp_flower_merge_offloaded_flows() - Merge 2 existing flows to single flow.
  * @app:	Pointer to the APP handle
@@ -764,8 +802,19 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	if (err)
 		goto err_destroy_merge_flow;
 
+	err = nfp_flower_link_flows(merge_flow, sub_flow1);
+	if (err)
+		goto err_destroy_merge_flow;
+
+	err = nfp_flower_link_flows(merge_flow, sub_flow2);
+	if (err)
+		goto err_unlink_sub_flow1;
+
 	err = -EOPNOTSUPP;
 
+	nfp_flower_unlink_flows(merge_flow, sub_flow2);
+err_unlink_sub_flow1:
+	nfp_flower_unlink_flows(merge_flow, sub_flow1);
 err_destroy_merge_flow:
 	kfree(merge_flow->action_data);
 	kfree(merge_flow->mask_data);
@@ -913,6 +962,52 @@ err_free_flow:
 	return err;
 }
 
+static void
+__nfp_flower_update_merge_stats(struct nfp_app *app,
+				struct nfp_fl_payload *merge_flow)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_payload_link *link;
+	struct nfp_fl_payload *sub_flow;
+	u64 pkts, bytes, used;
+	u32 ctx_id;
+
+	ctx_id = be32_to_cpu(merge_flow->meta.host_ctx_id);
+	pkts = priv->stats[ctx_id].pkts;
+	/* Do not cycle subflows if no stats to distribute. */
+	if (!pkts)
+		return;
+	bytes = priv->stats[ctx_id].bytes;
+	used = priv->stats[ctx_id].used;
+
+	/* Reset stats for the merge flow. */
+	priv->stats[ctx_id].pkts = 0;
+	priv->stats[ctx_id].bytes = 0;
+
+	/* The merge flow has received stats updates from firmware.
+	 * Distribute these stats to all subflows that form the merge.
+	 * The stats will collected from TC via the subflows.
+	 */
+	list_for_each_entry(link, &merge_flow->linked_flows, merge_flow.list) {
+		sub_flow = link->sub_flow.flow;
+		ctx_id = be32_to_cpu(sub_flow->meta.host_ctx_id);
+		priv->stats[ctx_id].pkts += pkts;
+		priv->stats[ctx_id].bytes += bytes;
+		max_t(u64, priv->stats[ctx_id].used, used);
+	}
+}
+
+static void
+nfp_flower_update_merge_stats(struct nfp_app *app,
+			      struct nfp_fl_payload *sub_flow)
+{
+	struct nfp_fl_payload_link *link;
+
+	/* Get merge flows that the subflow forms to distribute their stats. */
+	list_for_each_entry(link, &sub_flow->linked_flows, sub_flow.list)
+		__nfp_flower_update_merge_stats(app, link->merge_flow.flow);
+}
+
 /**
  * nfp_flower_get_stats() - Populates flow stats obtained from hardware.
  * @app:	Pointer to the APP handle
@@ -939,6 +1034,10 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
 
 	spin_lock_bh(&priv->stats_lock);
+	/* If request is for a sub_flow, update stats from merged flows. */
+	if (!list_empty(&nfp_flow->linked_flows))
+		nfp_flower_update_merge_stats(app, nfp_flow);
+
 	flow_stats_update(&flow->stats, priv->stats[ctx_id].bytes,
 			  priv->stats[ctx_id].pkts, priv->stats[ctx_id].used);
 

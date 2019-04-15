@@ -252,6 +252,24 @@ struct nfp_fl_payload {
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
+	struct list_head linked_flows;
+};
+
+struct nfp_fl_payload_link {
+	/* A link contains a pointer to a merge flow and an associated sub_flow.
+	 * Each merge flow will feature in 2 links to its underlying sub_flows.
+	 * A sub_flow will have at least 1 link to a merge flow or more if it
+	 * has been used to create multiple merge flows.
+	 *
+	 * For a merge flow, 'linked_flows' in its nfp_fl_payload struct lists
+	 * all links to sub_flows (sub_flow.flow) via merge.list.
+	 * For a sub_flow, 'linked_flows' gives all links to merge flows it has
+	 * formed (merge_flow.flow) via sub_flow.list.
+	 */
+	struct {
+		struct list_head list;
+		struct nfp_fl_payload *flow;
+	} merge_flow, sub_flow;
 };
 
 extern const struct rhashtable_params nfp_flower_table_params;
