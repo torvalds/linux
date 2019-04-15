@@ -261,20 +261,20 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 }
 
 static void print_entry_error(struct bpf_map_info *info, unsigned char *key,
-			      const char *value)
+			      const char *error_msg)
 {
-	int value_size = strlen(value);
+	int msg_size = strlen(error_msg);
 	bool single_line, break_names;
 
-	break_names = info->key_size > 16 || value_size > 16;
-	single_line = info->key_size + value_size <= 24 && !break_names;
+	break_names = info->key_size > 16 || msg_size > 16;
+	single_line = info->key_size + msg_size <= 24 && !break_names;
 
 	printf("key:%c", break_names ? '\n' : ' ');
 	fprint_hex(stdout, key, info->key_size, " ");
 
 	printf(single_line ? "  " : "\n");
 
-	printf("value:%c%s", break_names ? '\n' : ' ', value);
+	printf("value:%c%s", break_names ? '\n' : ' ', error_msg);
 
 	printf("\n");
 }
@@ -298,11 +298,7 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 
 		if (info->value_size) {
 			printf("value:%c", break_names ? '\n' : ' ');
-			if (value)
-				fprint_hex(stdout, value, info->value_size,
-					   " ");
-			else
-				printf("<no entry>");
+			fprint_hex(stdout, value, info->value_size, " ");
 		}
 
 		printf("\n");
@@ -321,11 +317,8 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 			for (i = 0; i < n; i++) {
 				printf("value (CPU %02d):%c",
 				       i, info->value_size > 16 ? '\n' : ' ');
-				if (value)
-					fprint_hex(stdout, value + i * step,
-						   info->value_size, " ");
-				else
-					printf("<no entry>");
+				fprint_hex(stdout, value + i * step,
+					   info->value_size, " ");
 				printf("\n");
 			}
 		}
@@ -722,11 +715,13 @@ static int dump_map_elem(int fd, void *key, void *value,
 		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
 		jsonw_end_object(json_wtr);
 	} else {
+		const char *msg = NULL;
+
 		if (errno == ENOENT)
-			print_entry_plain(map_info, key, NULL);
-		else
-			print_entry_error(map_info, key,
-					  strerror(lookup_errno));
+			msg = "<no entry>";
+
+		print_entry_error(map_info, key,
+				  msg ? : strerror(lookup_errno));
 	}
 
 	return 0;
