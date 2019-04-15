@@ -456,7 +456,8 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 			fio->encrypted_page : fio->page;
 
 	if (!f2fs_is_valid_blkaddr(fio->sbi, fio->new_blkaddr,
-			__is_meta_io(fio) ? META_GENERIC : DATA_GENERIC))
+			fio->is_por ? META_POR :
+			(__is_meta_io(fio) ? META_GENERIC : DATA_GENERIC)))
 		return -EFAULT;
 
 	trace_f2fs_submit_page_bio(page, fio);
