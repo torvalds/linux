@@ -27,8 +27,7 @@
 #include <linux/io.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
-
-#include <mach/hardware.h>
+#include <linux/soc/cirrus/ep93xx.h>
 #include <linux/platform_data/keypad-ep93xx.h>
 
 /*

@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/clkdev.h>
+#include <linux/soc/cirrus/ep93xx.h>
 
 #include <mach/hardware.h>
 

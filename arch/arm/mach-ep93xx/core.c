@@ -43,6 +43,8 @@
 #include <linux/platform_data/video-ep93xx.h>
 #include <linux/platform_data/keypad-ep93xx.h>
 #include <linux/platform_data/spi-ep93xx.h>
+#include <linux/soc/cirrus/ep93xx.h>
+
 #include <mach/gpio-ep93xx.h>
 
 #include <asm/mach/arch.h>

@@ -13,13 +13,13 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/soc/cirrus/ep93xx.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 
 static struct snd_soc_dai_link simone_dai = {
 	.name		= "AC97",
