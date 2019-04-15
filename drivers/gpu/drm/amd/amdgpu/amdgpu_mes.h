@@ -29,6 +29,22 @@ struct amdgpu_mes_funcs;
 struct amdgpu_mes {
 	struct amdgpu_adev *adev;
 
+	const struct firmware           *fw;
+
+	/* mes ucode */
+	struct amdgpu_bo		*ucode_fw_obj;
+	uint64_t			ucode_fw_gpu_addr;
+	uint32_t			*ucode_fw_ptr;
+	uint32_t                        ucode_fw_version;
+	uint64_t                        uc_start_addr;
+
+	/* mes ucode data */
+	struct amdgpu_bo		*data_fw_obj;
+	uint64_t			data_fw_gpu_addr;
+	uint32_t			*data_fw_ptr;
+	uint32_t                        data_fw_version;
+	uint64_t                        data_start_addr;
+
 	/* ip specific functions */
 	struct amdgpu_mes_funcs *funcs;
 };
