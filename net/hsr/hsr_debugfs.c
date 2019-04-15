@@ -1,9 +1,9 @@
 /*
  * hsr_debugfs code
- * Copyright (C) 2017 Texas Instruments Incorporated
+ * Copyright (C) 2019 Texas Instruments Incorporated
  *
  * Author(s):
- *	Murali Karicheri <m-karicheri2@ti.com?
+ *	Murali Karicheri <m-karicheri2@ti.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -78,12 +78,12 @@ static const struct file_operations hsr_fops = {
  * When debugfs is configured this routine sets up the node_table file per
  * hsr device for dumping the node_table entries
  */
-int hsr_debugfs_init(struct hsr_priv *priv)
+int hsr_debugfs_init(struct hsr_priv *priv, struct net_device *hsr_dev)
 {
 	int rc = -1;
 	struct dentry *de = NULL;
 
-	de = debugfs_create_dir("hsr", NULL);
+	de = debugfs_create_dir(hsr_dev->name, NULL);
 	if (!de) {
 		pr_err("Cannot create hsr debugfs root\n");
 		return rc;
@@ -99,9 +99,8 @@ int hsr_debugfs_init(struct hsr_priv *priv)
 		return rc;
 	}
 	priv->node_tbl_file = de;
-	rc = 0;
 
-	return rc;
+	return 0;
 }
 
 /* hsr_debugfs_term - Tear down debugfs intrastructure
