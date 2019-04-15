@@ -6642,6 +6642,51 @@ const struct btf_dedup_test dedup_tests[] = {
 		.dont_resolve_fwds = false,
 	},
 },
+{
+	.descr = "dedup: datasec and vars pass-through",
+	.input = {
+		.raw_types = {
+			/* int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			/* static int t */
+			BTF_VAR_ENC(NAME_NTH(2), 1, 0),			/* [2] */
+			/* .bss section */				/* [3] */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+			BTF_VAR_SECINFO_ENC(2, 0, 4),
+			/* int, referenced from [5] */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [4] */
+			/* another static int t */
+			BTF_VAR_ENC(NAME_NTH(2), 4, 0),			/* [5] */
+			/* another .bss section */			/* [6] */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+			BTF_VAR_SECINFO_ENC(5, 0, 4),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0.bss\0t"),
+	},
+	.expect = {
+		.raw_types = {
+			/* int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			/* static int t */
+			BTF_VAR_ENC(NAME_NTH(2), 1, 0),			/* [2] */
+			/* .bss section */				/* [3] */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+			BTF_VAR_SECINFO_ENC(2, 0, 4),
+			/* another static int t */
+			BTF_VAR_ENC(NAME_NTH(2), 1, 0),			/* [4] */
+			/* another .bss section */			/* [5] */
+			BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+			BTF_VAR_SECINFO_ENC(4, 0, 4),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0.bss\0t"),
+	},
+	.opts = {
+		.dont_resolve_fwds = false,
+		.dedup_table_size = 1
+	},
+},
 
 };
 
@@ -6671,6 +6716,10 @@ static int btf_type_size(const struct btf_type *t)
 		return base_size + vlen * sizeof(struct btf_member);
 	case BTF_KIND_FUNC_PROTO:
 		return base_size + vlen * sizeof(struct btf_param);
+	case BTF_KIND_VAR:
+		return base_size + sizeof(struct btf_var);
+	case BTF_KIND_DATASEC:
+		return base_size + vlen * sizeof(struct btf_var_secinfo);
 	default:
 		fprintf(stderr, "Unsupported BTF_KIND:%u\n", kind);
 		return -EINVAL;
