@@ -634,8 +634,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 						gfp_t gfp)
 {
 	struct sctp_ulpevent *event = NULL;
-	struct sk_buff *skb;
-	size_t padding, len;
+	struct sk_buff *skb = chunk->skb;
+	struct sock *sk = asoc->base.sk;
+	size_t padding, datalen;
 	int rx_count;
 
 	/*
@@ -646,15 +647,12 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	if (asoc->ep->rcvbuf_policy)
 		rx_count = atomic_read(&asoc->rmem_alloc);
 	else
-		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
+		rx_count = atomic_read(&sk->sk_rmem_alloc);
 
-	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
+	datalen = ntohs(chunk->chunk_hdr->length);
 
-		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
-		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb,
-				       chunk->skb->truesize)))
-			goto fail;
-	}
+	if (rx_count >= sk->sk_rcvbuf || !sk_rmem_schedule(sk, skb, datalen))
+		goto fail;
 
 	/* Clone the original skb, sharing the data.  */
 	skb = skb_clone(chunk->skb, gfp);
@@ -681,8 +679,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 * The sender should never pad with more than 3 bytes.  The receiver
 	 * MUST ignore the padding bytes.
 	 */
-	len = ntohs(chunk->chunk_hdr->length);
-	padding = SCTP_PAD4(len) - len;
+	padding = SCTP_PAD4(datalen) - datalen;
 
 	/* Fixup cloned skb with just this chunks data.  */
 	skb_trim(skb, chunk->chunk_end - padding - skb->data);
