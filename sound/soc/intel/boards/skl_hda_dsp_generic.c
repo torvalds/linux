@@ -131,7 +131,7 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 		}
 	} else if (codec_count == 2 && codec_mask & IDISP_CODEC_MASK) {
 		num_links = ARRAY_SIZE(skl_hda_be_dai_links);
-		num_route = ARRAY_SIZE(skl_hda_map),
+		num_route = ARRAY_SIZE(skl_hda_map);
 		card->dapm_widgets = skl_hda_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
 	} else {
