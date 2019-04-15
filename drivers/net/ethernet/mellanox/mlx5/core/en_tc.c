@@ -2158,6 +2158,52 @@ static bool csum_offload_supported(struct mlx5e_priv *priv,
 	return true;
 }
 
+struct ip_ttl_word {
+	__u8	ttl;
+	__u8	protocol;
+	__sum16	check;
+};
+
+struct ipv6_hoplimit_word {
+	__be16	payload_len;
+	__u8	nexthdr;
+	__u8	hop_limit;
+};
+
+static bool is_action_keys_supported(const struct flow_action_entry *act)
+{
+	u32 mask, offset;
+	u8 htype;
+
+	htype = act->mangle.htype;
+	offset = act->mangle.offset;
+	mask = ~act->mangle.mask;
+	/* For IPv4 & IPv6 header check 4 byte word,
+	 * to determine that modified fields
+	 * are NOT ttl & hop_limit only.
+	 */
+	if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP4) {
+		struct ip_ttl_word *ttl_word =
+			(struct ip_ttl_word *)&mask;
+
+		if (offset != offsetof(struct iphdr, ttl) ||
+		    ttl_word->protocol ||
+		    ttl_word->check) {
+			return true;
+		}
+	} else if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP6) {
+		struct ipv6_hoplimit_word *hoplimit_word =
+			(struct ipv6_hoplimit_word *)&mask;
+
+		if (offset != offsetof(struct ipv6hdr, payload_len) ||
+		    hoplimit_word->payload_len ||
+		    hoplimit_word->nexthdr) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
 					  struct flow_action *flow_action,
 					  u32 actions,
@@ -2165,9 +2211,9 @@ static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
 {
 	const struct flow_action_entry *act;
 	bool modify_ip_header;
-	u8 htype, ip_proto;
 	void *headers_v;
 	u16 ethertype;
+	u8 ip_proto;
 	int i;
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_DECAP)
@@ -2187,9 +2233,7 @@ static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
 		    act->id != FLOW_ACTION_ADD)
 			continue;
 
-		htype = act->mangle.htype;
-		if (htype == FLOW_ACT_MANGLE_HDR_TYPE_IP4 ||
-		    htype == FLOW_ACT_MANGLE_HDR_TYPE_IP6) {
+		if (is_action_keys_supported(act)) {
 			modify_ip_header = true;
 			break;
 		}
@@ -2340,15 +2384,22 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static inline int cmp_encap_info(struct ip_tunnel_key *a,
-				 struct ip_tunnel_key *b)
+struct encap_key {
+	struct ip_tunnel_key *ip_tun_key;
+	int tunnel_type;
+};
+
+static inline int cmp_encap_info(struct encap_key *a,
+				 struct encap_key *b)
 {
-	return memcmp(a, b, sizeof(*a));
+	return memcmp(a->ip_tun_key, b->ip_tun_key, sizeof(*a->ip_tun_key)) ||
+	       a->tunnel_type != b->tunnel_type;
 }
 
-static inline int hash_encap_info(struct ip_tunnel_key *key)
+static inline int hash_encap_info(struct encap_key *key)
 {
-	return jhash(key, sizeof(*key), 0);
+	return jhash(key->ip_tun_key, sizeof(*key->ip_tun_key),
+		     key->tunnel_type);
 }
 
 
@@ -2379,7 +2430,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct ip_tunnel_info *tun_info;
-	struct ip_tunnel_key *key;
+	struct encap_key key, e_key;
 	struct mlx5e_encap_entry *e;
 	unsigned short family;
 	uintptr_t hash_key;
@@ -2389,13 +2440,16 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	parse_attr = attr->parse_attr;
 	tun_info = &parse_attr->tun_info[out_index];
 	family = ip_tunnel_info_af(tun_info);
-	key = &tun_info->key;
+	key.ip_tun_key = &tun_info->key;
+	key.tunnel_type = mlx5e_tc_tun_get_type(mirred_dev);
 
-	hash_key = hash_encap_info(key);
+	hash_key = hash_encap_info(&key);
 
 	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
 				   encap_hlist, hash_key) {
-		if (!cmp_encap_info(&e->tun_info.key, key)) {
+		e_key.ip_tun_key = &e->tun_info.key;
+		e_key.tunnel_type = e->tunnel_type;
+		if (!cmp_encap_info(&e_key, &key)) {
 			found = true;
 			break;
 		}
@@ -2657,7 +2711,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
 	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
-		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_KERNEL,
+		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_FDB,
 					    parse_attr, hdrs, extack);
 		if (err)
 			return err;

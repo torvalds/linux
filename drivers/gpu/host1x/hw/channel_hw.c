@@ -114,7 +114,7 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 
 static void host1x_channel_set_streamid(struct host1x_channel *channel)
 {
-#if HOST1X_HW >= 6
+#if IS_ENABLED(CONFIG_IOMMU_API) &&  HOST1X_HW >= 6
 	struct iommu_fwspec *spec = dev_iommu_fwspec_get(channel->dev->parent);
 	u32 sid = spec ? spec->ids[0] & 0xffff : 0x7f;
 

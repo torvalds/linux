@@ -1486,8 +1486,9 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 		intel_runtime_pm_put_unchecked(dev_priv);
 	}
 
-	if (ret && (vgpu_is_vm_unhealthy(ret))) {
-		enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
+	if (ret) {
+		if (vgpu_is_vm_unhealthy(ret))
+			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
 		intel_vgpu_destroy_workload(workload);
 		return ERR_PTR(ret);
 	}

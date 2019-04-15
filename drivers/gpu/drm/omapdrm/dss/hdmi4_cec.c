@@ -175,6 +175,7 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		REG_FLD_MOD(core->base, HDMI_CORE_SYS_INTR_UNMASK4, 0, 3, 3);
 		hdmi_wp_clear_irqenable(core->wp, HDMI_IRQ_CORE);
 		hdmi_wp_set_irqstatus(core->wp, HDMI_IRQ_CORE);
+		REG_FLD_MOD(core->wp->base, HDMI_WP_CLK, 0, 5, 0);
 		hdmi4_core_disable(core);
 		return 0;
 	}
@@ -182,16 +183,24 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	if (err)
 		return err;
 
+	/*
+	 * Initialize CEC clock divider: CEC needs 2MHz clock hence
+	 * set the divider to 24 to get 48/24=2MHz clock
+	 */
+	REG_FLD_MOD(core->wp->base, HDMI_WP_CLK, 0x18, 5, 0);
+
 	/* Clear TX FIFO */
 	if (!hdmi_cec_clear_tx_fifo(adap)) {
 		pr_err("cec-%s: could not clear TX FIFO\n", adap->name);
-		return -EIO;
+		err = -EIO;
+		goto err_disable_clk;
 	}
 
 	/* Clear RX FIFO */
 	if (!hdmi_cec_clear_rx_fifo(adap)) {
 		pr_err("cec-%s: could not clear RX FIFO\n", adap->name);
-		return -EIO;
+		err = -EIO;
+		goto err_disable_clk;
 	}
 
 	/* Clear CEC interrupts */
@@ -236,6 +245,12 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		hdmi_write_reg(core->base, HDMI_CEC_INT_STATUS_1, temp);
 	}
 	return 0;
+
+err_disable_clk:
+	REG_FLD_MOD(core->wp->base, HDMI_WP_CLK, 0, 5, 0);
+	hdmi4_core_disable(core);
+
+	return err;
 }
 
 static int hdmi_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
@@ -333,11 +348,8 @@ int hdmi4_cec_init(struct platform_device *pdev, struct hdmi_core_data *core,
 		return ret;
 	core->wp = wp;
 
-	/*
-	 * Initialize CEC clock divider: CEC needs 2MHz clock hence
-	 * set the devider to 24 to get 48/24=2MHz clock
-	 */
-	REG_FLD_MOD(core->wp->base, HDMI_WP_CLK, 0x18, 5, 0);
+	/* Disable clock initially, hdmi_cec_adap_enable() manages it */
+	REG_FLD_MOD(core->wp->base, HDMI_WP_CLK, 0, 5, 0);
 
 	ret = cec_register_adapter(core->adap, &pdev->dev);
 	if (ret < 0) {

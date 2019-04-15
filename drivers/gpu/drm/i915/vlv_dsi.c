@@ -256,6 +256,28 @@ static void band_gap_reset(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static int bdw_get_pipemisc_bpp(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 tmp;
+
+	tmp = I915_READ(PIPEMISC(crtc->pipe));
+
+	switch (tmp & PIPEMISC_DITHER_BPC_MASK) {
+	case PIPEMISC_DITHER_6_BPC:
+		return 18;
+	case PIPEMISC_DITHER_8_BPC:
+		return 24;
+	case PIPEMISC_DITHER_10_BPC:
+		return 30;
+	case PIPEMISC_DITHER_12_BPC:
+		return 36;
+	default:
+		MISSING_CASE(tmp);
+		return 0;
+	}
+}
+
 static int intel_dsi_compute_config(struct intel_encoder *encoder,
 				    struct intel_crtc_state *pipe_config,
 				    struct drm_connector_state *conn_state)
@@ -1070,6 +1092,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	fmt = I915_READ(MIPI_DSI_FUNC_PRG(port)) & VID_MODE_FORMAT_MASK;
 	bpp = mipi_dsi_pixel_format_to_bpp(
 			pixel_format_from_register_bits(fmt));
+
+	pipe_config->pipe_bpp = bdw_get_pipemisc_bpp(crtc);
 
 	/* Enable Frame time stamo based scanline reporting */
 	adjusted_mode->private_flags |=

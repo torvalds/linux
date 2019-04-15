@@ -865,19 +865,18 @@ static int ahash_update_ctx(struct ahash_request *req)
 		if (ret)
 			goto unmap_ctx;
 
-		if (mapped_nents) {
+		if (mapped_nents)
 			sg_to_sec4_sg_last(req->src, mapped_nents,
 					   edesc->sec4_sg + sec4_sg_src_index,
 					   0);
-			if (*next_buflen)
-				scatterwalk_map_and_copy(next_buf, req->src,
-							 to_hash - *buflen,
-							 *next_buflen, 0);
-		} else {
+		else
 			sg_to_sec4_set_last(edesc->sec4_sg + sec4_sg_src_index -
 					    1);
-		}
 
+		if (*next_buflen)
+			scatterwalk_map_and_copy(next_buf, req->src,
+						 to_hash - *buflen,
+						 *next_buflen, 0);
 		desc = edesc->hw_desc;
 
 		edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,

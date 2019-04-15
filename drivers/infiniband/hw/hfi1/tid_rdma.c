@@ -5017,24 +5017,14 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	    make_tid_rdma_ack(qp, ohdr, ps))
 		return 1;
 
-	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
-		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
-			goto bail;
-		/* We are in the error state, flush the work request. */
-		if (qp->s_last == READ_ONCE(qp->s_head))
-			goto bail;
-		/* If DMAs are in progress, we can't flush immediately. */
-		if (iowait_sdma_pending(&priv->s_iowait)) {
-			qp->s_flags |= RVT_S_WAIT_DMA;
-			goto bail;
-		}
-		clear_ahg(qp);
-		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-		hfi1_trdma_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
-					 IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
-		/* will get called again */
-		goto done_free_tx;
-	}
+	/*
+	 * Bail out if we can't send data.
+	 * Be reminded that this check must been done after the call to
+	 * make_tid_rdma_ack() because the responding QP could be in
+	 * RTR state where it can send TID RDMA ACK, not TID RDMA WRITE DATA.
+	 */
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK))
+		goto bail;
 
 	if (priv->s_flags & RVT_S_WAIT_ACK)
 		goto bail;
@@ -5144,11 +5134,6 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	hfi1_make_ruc_header(qp, ohdr, (opcode << 24), bth1, bth2,
 			     middle, ps);
 	return 1;
-done_free_tx:
-	hfi1_put_txreq(ps->s_txreq);
-	ps->s_txreq = NULL;
-	return 1;
-
 bail:
 	hfi1_put_txreq(ps->s_txreq);
 bail_no_tx:

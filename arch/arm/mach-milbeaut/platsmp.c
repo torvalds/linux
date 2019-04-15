@@ -65,6 +65,7 @@ static void m10v_smp_init(unsigned int max_cpus)
 		writel(KERNEL_UNBOOT_FLAG, m10v_smp_base + cpu * 4);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void m10v_cpu_die(unsigned int l_cpu)
 {
 	gic_cpu_if_down(0);
@@ -83,12 +84,15 @@ static int m10v_cpu_kill(unsigned int l_cpu)
 
 	return 1;
 }
+#endif
 
 static struct smp_operations m10v_smp_ops __initdata = {
 	.smp_prepare_cpus	= m10v_smp_init,
 	.smp_boot_secondary	= m10v_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= m10v_cpu_die,
 	.cpu_kill		= m10v_cpu_kill,
+#endif
 };
 CPU_METHOD_OF_DECLARE(m10v_smp, "socionext,milbeaut-m10v-smp", &m10v_smp_ops);
 
