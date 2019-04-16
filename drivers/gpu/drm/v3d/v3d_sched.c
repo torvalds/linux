@@ -48,6 +48,12 @@ to_tfu_job(struct drm_sched_job *sched_job)
 	return container_of(sched_job, struct v3d_tfu_job, base.base);
 }
 
+static struct v3d_csd_job *
+to_csd_job(struct drm_sched_job *sched_job)
+{
+	return container_of(sched_job, struct v3d_csd_job, base.base);
+}
+
 static void
 v3d_job_free(struct drm_sched_job *sched_job)
 {
@@ -243,6 +249,48 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 	return fence;
 }
 
+static struct dma_fence *
+v3d_csd_job_run(struct drm_sched_job *sched_job)
+{
+	struct v3d_csd_job *job = to_csd_job(sched_job);
+	struct v3d_dev *v3d = job->base.v3d;
+	struct drm_device *dev = &v3d->drm;
+	struct dma_fence *fence;
+	int i;
+
+	v3d->csd_job = job;
+
+	v3d_invalidate_caches(v3d);
+
+	fence = v3d_fence_create(v3d, V3D_CSD);
+	if (IS_ERR(fence))
+		return NULL;
+
+	if (job->base.irq_fence)
+		dma_fence_put(job->base.irq_fence);
+	job->base.irq_fence = dma_fence_get(fence);
+
+	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqno);
+
+	for (i = 1; i <= 6; i++)
+		V3D_CORE_WRITE(0, V3D_CSD_QUEUED_CFG0 + 4 * i, job->args.cfg[i]);
+	/* CFG0 write kicks off the job. */
+	V3D_CORE_WRITE(0, V3D_CSD_QUEUED_CFG0, job->args.cfg[0]);
+
+	return fence;
+}
+
+static struct dma_fence *
+v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
+{
+	struct v3d_job *job = to_v3d_job(sched_job);
+	struct v3d_dev *v3d = job->v3d;
+
+	v3d_clean_caches(v3d);
+
+	return NULL;
+}
+
 static void
 v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 {
@@ -313,11 +361,29 @@ v3d_render_job_timedout(struct drm_sched_job *sched_job)
 }
 
 static void
-v3d_tfu_job_timedout(struct drm_sched_job *sched_job)
+v3d_generic_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
 	v3d_gpu_reset_for_timeout(job->v3d, sched_job);
+}
+
+static void
+v3d_csd_job_timedout(struct drm_sched_job *sched_job)
+{
+	struct v3d_csd_job *job = to_csd_job(sched_job);
+	struct v3d_dev *v3d = job->base.v3d;
+	u32 batches = V3D_CORE_READ(0, V3D_CSD_CURRENT_CFG4);
+
+	/* If we've made progress, skip reset and let the timer get
+	 * rearmed.
+	 */
+	if (job->timedout_batches != batches) {
+		job->timedout_batches = batches;
+		return;
+	}
+
+	v3d_gpu_reset_for_timeout(v3d, sched_job);
 }
 
 static const struct drm_sched_backend_ops v3d_bin_sched_ops = {
@@ -337,8 +403,22 @@ static const struct drm_sched_backend_ops v3d_render_sched_ops = {
 static const struct drm_sched_backend_ops v3d_tfu_sched_ops = {
 	.dependency = v3d_job_dependency,
 	.run_job = v3d_tfu_job_run,
-	.timedout_job = v3d_tfu_job_timedout,
+	.timedout_job = v3d_generic_job_timedout,
 	.free_job = v3d_job_free,
+};
+
+static const struct drm_sched_backend_ops v3d_csd_sched_ops = {
+	.dependency = v3d_job_dependency,
+	.run_job = v3d_csd_job_run,
+	.timedout_job = v3d_csd_job_timedout,
+	.free_job = v3d_job_free
+};
+
+static const struct drm_sched_backend_ops v3d_cache_clean_sched_ops = {
+	.dependency = v3d_job_dependency,
+	.run_job = v3d_cache_clean_job_run,
+	.timedout_job = v3d_generic_job_timedout,
+	.free_job = v3d_job_free
 };
 
 int
@@ -367,7 +447,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	if (ret) {
 		dev_err(v3d->dev, "Failed to create render scheduler: %d.",
 			ret);
-		drm_sched_fini(&v3d->queue[V3D_BIN].sched);
+		v3d_sched_fini(v3d);
 		return ret;
 	}
 
@@ -379,9 +459,34 @@ v3d_sched_init(struct v3d_dev *v3d)
 	if (ret) {
 		dev_err(v3d->dev, "Failed to create TFU scheduler: %d.",
 			ret);
-		drm_sched_fini(&v3d->queue[V3D_RENDER].sched);
-		drm_sched_fini(&v3d->queue[V3D_BIN].sched);
+		v3d_sched_fini(v3d);
 		return ret;
+	}
+
+	if (v3d_has_csd(v3d)) {
+		ret = drm_sched_init(&v3d->queue[V3D_CSD].sched,
+				     &v3d_csd_sched_ops,
+				     hw_jobs_limit, job_hang_limit,
+				     msecs_to_jiffies(hang_limit_ms),
+				     "v3d_csd");
+		if (ret) {
+			dev_err(v3d->dev, "Failed to create CSD scheduler: %d.",
+				ret);
+			v3d_sched_fini(v3d);
+			return ret;
+		}
+
+		ret = drm_sched_init(&v3d->queue[V3D_CACHE_CLEAN].sched,
+				     &v3d_cache_clean_sched_ops,
+				     hw_jobs_limit, job_hang_limit,
+				     msecs_to_jiffies(hang_limit_ms),
+				     "v3d_cache_clean");
+		if (ret) {
+			dev_err(v3d->dev, "Failed to create CACHE_CLEAN scheduler: %d.",
+				ret);
+			v3d_sched_fini(v3d);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -392,6 +497,8 @@ v3d_sched_fini(struct v3d_dev *v3d)
 {
 	enum v3d_queue q;
 
-	for (q = 0; q < V3D_MAX_QUEUES; q++)
-		drm_sched_fini(&v3d->queue[q].sched);
+	for (q = 0; q < V3D_MAX_QUEUES; q++) {
+		if (v3d->queue[q].sched.ready)
+			drm_sched_fini(&v3d->queue[q].sched);
+	}
 }

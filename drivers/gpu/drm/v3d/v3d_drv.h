@@ -16,9 +16,11 @@ enum v3d_queue {
 	V3D_BIN,
 	V3D_RENDER,
 	V3D_TFU,
+	V3D_CSD,
+	V3D_CACHE_CLEAN,
 };
 
-#define V3D_MAX_QUEUES (V3D_TFU + 1)
+#define V3D_MAX_QUEUES (V3D_CACHE_CLEAN + 1)
 
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
@@ -70,6 +72,7 @@ struct v3d_dev {
 	struct v3d_bin_job *bin_job;
 	struct v3d_render_job *render_job;
 	struct v3d_tfu_job *tfu_job;
+	struct v3d_csd_job *csd_job;
 
 	struct v3d_queue_state queue[V3D_MAX_QUEUES];
 
@@ -92,6 +95,12 @@ struct v3d_dev {
 	 */
 	struct mutex sched_lock;
 
+	/* Lock taken during a cache clean and when initiating an L2
+	 * flush, to keep L2 flushes from interfering with the
+	 * synchronous L2 cleans.
+	 */
+	struct mutex cache_clean_lock;
+
 	struct {
 		u32 num_allocated;
 		u32 pages_allocated;
@@ -102,6 +111,12 @@ static inline struct v3d_dev *
 to_v3d_dev(struct drm_device *dev)
 {
 	return (struct v3d_dev *)dev->dev_private;
+}
+
+static inline bool
+v3d_has_csd(struct v3d_dev *v3d)
+{
+	return v3d->ver >= 41;
 }
 
 /* The per-fd struct, which tracks the MMU mappings. */
@@ -222,6 +237,14 @@ struct v3d_tfu_job {
 	struct drm_v3d_submit_tfu args;
 };
 
+struct v3d_csd_job {
+	struct v3d_job base;
+
+	u32 timedout_batches;
+
+	struct drm_v3d_submit_csd args;
+};
+
 /**
  * _wait_for - magic (register) wait macro
  *
@@ -283,11 +306,14 @@ int v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
+int v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 int v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 void v3d_job_put(struct v3d_job *job);
 void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);
+void v3d_clean_caches(struct v3d_dev *v3d);
 
 /* v3d_irq.c */
 int v3d_irq_init(struct v3d_dev *v3d);

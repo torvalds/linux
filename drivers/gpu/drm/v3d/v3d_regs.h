@@ -238,8 +238,11 @@
 #define V3D_CTL_L2TCACTL                               0x00030
 # define V3D_L2TCACTL_TMUWCF                           BIT(8)
 # define V3D_L2TCACTL_L2T_NO_WM                        BIT(4)
+/* Invalidates cache lines. */
 # define V3D_L2TCACTL_FLM_FLUSH                        0
+/* Removes cachelines without writing dirty lines back. */
 # define V3D_L2TCACTL_FLM_CLEAR                        1
+/* Writes out dirty cachelines and marks them clean, but doesn't invalidate. */
 # define V3D_L2TCACTL_FLM_CLEAN                        2
 # define V3D_L2TCACTL_FLM_MASK                         V3D_MASK(2, 1)
 # define V3D_L2TCACTL_FLM_SHIFT                        1
@@ -255,6 +258,8 @@
 #define V3D_CTL_INT_MSK_CLR                            0x00064
 # define V3D_INT_QPU_MASK                              V3D_MASK(27, 16)
 # define V3D_INT_QPU_SHIFT                             16
+# define V3D_INT_CSDDONE                               BIT(7)
+# define V3D_INT_PCTR                                  BIT(6)
 # define V3D_INT_GMPV                                  BIT(5)
 # define V3D_INT_TRFB                                  BIT(4)
 # define V3D_INT_SPILLUSE                              BIT(3)
@@ -373,5 +378,73 @@
 #define V3D_GMP_CLEAR_LOAD                             0x00814
 #define V3D_GMP_PRESERVE_LOAD                          0x00818
 #define V3D_GMP_VALID_LINES                            0x00820
+
+#define V3D_CSD_STATUS                                 0x00900
+# define V3D_CSD_STATUS_NUM_COMPLETED_MASK             V3D_MASK(11, 4)
+# define V3D_CSD_STATUS_NUM_COMPLETED_SHIFT            4
+# define V3D_CSD_STATUS_NUM_ACTIVE_MASK                V3D_MASK(3, 2)
+# define V3D_CSD_STATUS_NUM_ACTIVE_SHIFT               2
+# define V3D_CSD_STATUS_HAVE_CURRENT_DISPATCH          BIT(1)
+# define V3D_CSD_STATUS_HAVE_QUEUED_DISPATCH           BIT(0)
+
+#define V3D_CSD_QUEUED_CFG0                            0x00904
+# define V3D_CSD_QUEUED_CFG0_NUM_WGS_X_MASK            V3D_MASK(31, 16)
+# define V3D_CSD_QUEUED_CFG0_NUM_WGS_X_SHIFT           16
+# define V3D_CSD_QUEUED_CFG0_WG_X_OFFSET_MASK          V3D_MASK(15, 0)
+# define V3D_CSD_QUEUED_CFG0_WG_X_OFFSET_SHIFT         0
+
+#define V3D_CSD_QUEUED_CFG1                            0x00908
+# define V3D_CSD_QUEUED_CFG1_NUM_WGS_Y_MASK            V3D_MASK(31, 16)
+# define V3D_CSD_QUEUED_CFG1_NUM_WGS_Y_SHIFT           16
+# define V3D_CSD_QUEUED_CFG1_WG_Y_OFFSET_MASK          V3D_MASK(15, 0)
+# define V3D_CSD_QUEUED_CFG1_WG_Y_OFFSET_SHIFT         0
+
+#define V3D_CSD_QUEUED_CFG2                            0x0090c
+# define V3D_CSD_QUEUED_CFG2_NUM_WGS_Z_MASK            V3D_MASK(31, 16)
+# define V3D_CSD_QUEUED_CFG2_NUM_WGS_Z_SHIFT           16
+# define V3D_CSD_QUEUED_CFG2_WG_Z_OFFSET_MASK          V3D_MASK(15, 0)
+# define V3D_CSD_QUEUED_CFG2_WG_Z_OFFSET_SHIFT         0
+
+#define V3D_CSD_QUEUED_CFG3                            0x00910
+# define V3D_CSD_QUEUED_CFG3_OVERLAP_WITH_PREV         BIT(26)
+# define V3D_CSD_QUEUED_CFG3_MAX_SG_ID_MASK            V3D_MASK(25, 20)
+# define V3D_CSD_QUEUED_CFG3_MAX_SG_ID_SHIFT           20
+# define V3D_CSD_QUEUED_CFG3_BATCHES_PER_SG_M1_MASK    V3D_MASK(19, 12)
+# define V3D_CSD_QUEUED_CFG3_BATCHES_PER_SG_M1_SHIFT   12
+# define V3D_CSD_QUEUED_CFG3_WGS_PER_SG_MASK           V3D_MASK(11, 8)
+# define V3D_CSD_QUEUED_CFG3_WGS_PER_SG_SHIFT          8
+# define V3D_CSD_QUEUED_CFG3_WG_SIZE_MASK              V3D_MASK(7, 0)
+# define V3D_CSD_QUEUED_CFG3_WG_SIZE_SHIFT             0
+
+/* Number of batches, minus 1 */
+#define V3D_CSD_QUEUED_CFG4                            0x00914
+
+/* Shader address, pnan, singleseg, threading, like a shader record. */
+#define V3D_CSD_QUEUED_CFG5                            0x00918
+
+/* Uniforms address (4 byte aligned) */
+#define V3D_CSD_QUEUED_CFG6                            0x0091c
+
+#define V3D_CSD_CURRENT_CFG0                          0x00920
+#define V3D_CSD_CURRENT_CFG1                          0x00924
+#define V3D_CSD_CURRENT_CFG2                          0x00928
+#define V3D_CSD_CURRENT_CFG3                          0x0092c
+#define V3D_CSD_CURRENT_CFG4                          0x00930
+#define V3D_CSD_CURRENT_CFG5                          0x00934
+#define V3D_CSD_CURRENT_CFG6                          0x00938
+
+#define V3D_CSD_CURRENT_ID0                            0x0093c
+# define V3D_CSD_CURRENT_ID0_WG_X_MASK                 V3D_MASK(31, 16)
+# define V3D_CSD_CURRENT_ID0_WG_X_SHIFT                16
+# define V3D_CSD_CURRENT_ID0_WG_IN_SG_MASK             V3D_MASK(11, 8)
+# define V3D_CSD_CURRENT_ID0_WG_IN_SG_SHIFT            8
+# define V3D_CSD_CURRENT_ID0_L_IDX_MASK                V3D_MASK(7, 0)
+# define V3D_CSD_CURRENT_ID0_L_IDX_SHIFT               0
+
+#define V3D_CSD_CURRENT_ID1                            0x00940
+# define V3D_CSD_CURRENT_ID0_WG_Z_MASK                 V3D_MASK(31, 16)
+# define V3D_CSD_CURRENT_ID0_WG_Z_SHIFT                16
+# define V3D_CSD_CURRENT_ID0_WG_Y_MASK                 V3D_MASK(15, 0)
+# define V3D_CSD_CURRENT_ID0_WG_Y_SHIFT                0
 
 #endif /* V3D_REGS_H */

@@ -162,10 +162,52 @@ v3d_flush_l2t(struct v3d_dev *v3d, int core)
 	/* While there is a busy bit (V3D_L2TCACTL_L2TFLS), we don't
 	 * need to wait for completion before dispatching the job --
 	 * L2T accesses will be stalled until the flush has completed.
+	 * However, we do need to make sure we don't try to trigger a
+	 * new flush while the L2_CLEAN queue is trying to
+	 * synchronously clean after a job.
 	 */
+	mutex_lock(&v3d->cache_clean_lock);
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL,
 		       V3D_L2TCACTL_L2TFLS |
 		       V3D_SET_FIELD(V3D_L2TCACTL_FLM_FLUSH, V3D_L2TCACTL_FLM));
+	mutex_unlock(&v3d->cache_clean_lock);
+}
+
+/* Cleans texture L1 and L2 cachelines (writing back dirty data).
+ *
+ * For cleaning, which happens from the CACHE_CLEAN queue after CSD has
+ * executed, we need to make sure that the clean is done before
+ * signaling job completion.  So, we synchronously wait before
+ * returning, and we make sure that L2 invalidates don't happen in the
+ * meantime to confuse our are-we-done checks.
+ */
+void
+v3d_clean_caches(struct v3d_dev *v3d)
+{
+	struct drm_device *dev = &v3d->drm;
+	int core = 0;
+
+	trace_v3d_cache_clean_begin(dev);
+
+	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL, V3D_L2TCACTL_TMUWCF);
+	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
+		       V3D_L2TCACTL_L2TFLS), 100)) {
+		DRM_ERROR("Timeout waiting for L1T write combiner flush\n");
+	}
+
+	mutex_lock(&v3d->cache_clean_lock);
+	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL,
+		       V3D_L2TCACTL_L2TFLS |
+		       V3D_SET_FIELD(V3D_L2TCACTL_FLM_CLEAN, V3D_L2TCACTL_FLM));
+
+	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
+		       V3D_L2TCACTL_L2TFLS), 100)) {
+		DRM_ERROR("Timeout waiting for L2T clean\n");
+	}
+
+	mutex_unlock(&v3d->cache_clean_lock);
+
+	trace_v3d_cache_clean_end(dev);
 }
 
 /* Invalidates the slice caches.  These are read-only caches. */
@@ -429,7 +471,8 @@ static void
 v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 					 struct v3d_job *job,
 					 struct ww_acquire_ctx *acquire_ctx,
-					 u32 out_sync)
+					 u32 out_sync,
+					 struct dma_fence *done_fence)
 {
 	struct drm_syncobj *sync_out;
 	int i;
@@ -445,7 +488,7 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 	/* Update the return sync object for the job */
 	sync_out = drm_syncobj_find(file_priv, out_sync);
 	if (sync_out) {
-		drm_syncobj_replace_fence(sync_out, job->done_fence);
+		drm_syncobj_replace_fence(sync_out, done_fence);
 		drm_syncobj_put(sync_out);
 	}
 }
@@ -541,8 +584,10 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&v3d->sched_lock);
 
 	v3d_attach_fences_and_unlock_reservation(file_priv,
-						 &render->base, &acquire_ctx,
-						 args->out_sync);
+						 &render->base,
+						 &acquire_ctx,
+						 args->out_sync,
+						 render->base.done_fence);
 
 	if (bin)
 		v3d_job_put(&bin->base);
@@ -641,7 +686,8 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	v3d_attach_fences_and_unlock_reservation(file_priv,
 						 &job->base, &acquire_ctx,
-						 args->out_sync);
+						 args->out_sync,
+						 job->base.done_fence);
 
 	v3d_job_put(&job->base);
 
@@ -653,6 +699,105 @@ fail_unreserve:
 				    &acquire_ctx);
 fail:
 	v3d_job_put(&job->base);
+
+	return ret;
+}
+
+/**
+ * v3d_submit_csd_ioctl() - Submits a CSD (texture formatting) job to the V3D.
+ * @dev: DRM device
+ * @data: ioctl argument
+ * @file_priv: DRM file for this fd
+ *
+ * Userspace provides the register setup for the CSD, which we don't
+ * need to validate since the CSD is behind the MMU.
+ */
+int
+v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
+		     struct drm_file *file_priv)
+{
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
+	struct drm_v3d_submit_csd *args = data;
+	struct v3d_csd_job *job;
+	struct v3d_job *clean_job;
+	struct ww_acquire_ctx acquire_ctx;
+	int ret;
+
+	trace_v3d_submit_csd_ioctl(&v3d->drm, args->cfg[5], args->cfg[6]);
+
+	if (!v3d_has_csd(v3d)) {
+		DRM_DEBUG("Attempting CSD submit on non-CSD hardware\n");
+		return -EINVAL;
+	}
+
+	job = kcalloc(1, sizeof(*job), GFP_KERNEL);
+	if (!job)
+		return -ENOMEM;
+
+	ret = v3d_job_init(v3d, file_priv, &job->base,
+			   v3d_job_free, args->in_sync);
+	if (ret) {
+		kfree(job);
+		return ret;
+	}
+
+	clean_job = kcalloc(1, sizeof(*clean_job), GFP_KERNEL);
+	if (!clean_job) {
+		v3d_job_put(&job->base);
+		kfree(job);
+		return -ENOMEM;
+	}
+
+	ret = v3d_job_init(v3d, file_priv, clean_job, v3d_job_free, 0);
+	if (ret) {
+		v3d_job_put(&job->base);
+		kfree(clean_job);
+		return ret;
+	}
+
+	job->args = *args;
+
+	ret = v3d_lookup_bos(dev, file_priv, clean_job,
+			     args->bo_handles, args->bo_handle_count);
+	if (ret)
+		goto fail;
+
+	ret = v3d_lock_bo_reservations(clean_job->base.bo,
+				       clean_job->base.bo_count,
+				       &acquire_ctx);
+	if (ret)
+		goto fail;
+
+	mutex_lock(&v3d->sched_lock);
+	ret = v3d_push_job(v3d_priv, &job->base, V3D_CSD);
+	if (ret)
+		goto fail_unreserve;
+
+	clean_job->in_fence = dma_fence_get(job->base.done_fence);
+	ret = v3d_push_job(v3d_priv, clean_job, V3D_CACHE_CLEAN);
+	if (ret)
+		goto fail_unreserve;
+	mutex_unlock(&v3d->sched_lock);
+
+	v3d_attach_fences_and_unlock_reservation(file_priv,
+						 clean_job,
+						 &acquire_ctx,
+						 args->out_sync,
+						 clean_job->done_fence);
+
+	v3d_job_put(&job->base);
+	v3d_job_put(clean_job);
+
+	return 0;
+
+fail_unreserve:
+	mutex_unlock(&v3d->sched_lock);
+	drm_gem_unlock_reservations(clean_job->bo, clean_job->bo_count,
+				    &acquire_ctx);
+fail:
+	v3d_job_put(&job->base);
+	v3d_job_put(clean_job);
 
 	return ret;
 }
@@ -672,6 +817,7 @@ v3d_gem_init(struct drm_device *dev)
 	mutex_init(&v3d->bo_lock);
 	mutex_init(&v3d->reset_lock);
 	mutex_init(&v3d->sched_lock);
+	mutex_init(&v3d->cache_clean_lock);
 
 	/* Note: We don't allocate address 0.  Various bits of HW
 	 * treat 0 as special, such as the occlusion query counters
