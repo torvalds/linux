@@ -272,17 +272,11 @@ static struct inode *ubifs_alloc_inode(struct super_block *sb)
 	return &ui->vfs_inode;
 };
 
-static void ubifs_i_callback(struct rcu_head *head)
+static void ubifs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	kfree(ui->data);
 	kmem_cache_free(ubifs_inode_slab, ui);
-}
-
-static void ubifs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, ubifs_i_callback);
 }
 
 /*
@@ -1977,7 +1971,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 const struct super_operations ubifs_super_operations = {
 	.alloc_inode   = ubifs_alloc_inode,
-	.destroy_inode = ubifs_destroy_inode,
+	.free_inode    = ubifs_free_inode,
 	.put_super     = ubifs_put_super,
 	.write_inode   = ubifs_write_inode,
 	.evict_inode   = ubifs_evict_inode,
