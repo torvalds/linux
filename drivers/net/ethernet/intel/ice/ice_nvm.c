@@ -119,7 +119,7 @@ ice_read_sr_word_aq(struct ice_hw *hw, u16 offset, u16 *data)
 
 	status = ice_read_sr_aq(hw, offset, 1, data, true);
 	if (!status)
-		*data = le16_to_cpu(*(__le16 *)data);
+		*data = le16_to_cpu(*(__force __le16 *)data);
 
 	return status;
 }
@@ -174,7 +174,7 @@ ice_read_sr_buf_aq(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 	} while (words_read < *words);
 
 	for (i = 0; i < *words; i++)
-		data[i] = le16_to_cpu(((__le16 *)data)[i]);
+		data[i] = le16_to_cpu(((__force __le16 *)data)[i]);
 
 read_nvm_buf_aq_exit:
 	*words = words_read;

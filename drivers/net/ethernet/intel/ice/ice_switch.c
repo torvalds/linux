@@ -799,7 +799,7 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		daddr = f_info->l_data.ethertype_mac.mac_addr;
 		/* fall-through */
 	case ICE_SW_LKUP_ETHERTYPE:
-		off = (__be16 *)(eth_hdr + ICE_ETH_ETHTYPE_OFFSET);
+		off = (__force __be16 *)(eth_hdr + ICE_ETH_ETHTYPE_OFFSET);
 		*off = cpu_to_be16(f_info->l_data.ethertype_mac.ethertype);
 		break;
 	case ICE_SW_LKUP_MAC_VLAN:
@@ -829,7 +829,7 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		ether_addr_copy(eth_hdr + ICE_ETH_DA_OFFSET, daddr);
 
 	if (!(vlan_id > ICE_MAX_VLAN_ID)) {
-		off = (__be16 *)(eth_hdr + ICE_ETH_VLAN_TCI_OFFSET);
+		off = (__force __be16 *)(eth_hdr + ICE_ETH_VLAN_TCI_OFFSET);
 		*off = cpu_to_be16(vlan_id);
 	}
 
