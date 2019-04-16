@@ -27,10 +27,14 @@
 #include <linux/cpu.h>
 #include <linux/audit.h>
 #include <linux/rhashtable.h>
+#include <linux/if_tunnel.h>
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+#include <net/mip6.h>
+#endif
 #ifdef CONFIG_XFRM_STATISTICS
 #include <net/snmp.h>
 #endif
@@ -3256,20 +3260,229 @@ xfrm_policy_ok(const struct xfrm_tmpl *tmpl, const struct sec_path *sp, int star
 	return start;
 }
 
+static void
+decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
+{
+	const struct iphdr *iph = ip_hdr(skb);
+	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
+	struct flowi4 *fl4 = &fl->u.ip4;
+	int oif = 0;
+
+	if (skb_dst(skb))
+		oif = skb_dst(skb)->dev->ifindex;
+
+	memset(fl4, 0, sizeof(struct flowi4));
+	fl4->flowi4_mark = skb->mark;
+	fl4->flowi4_oif = reverse ? skb->skb_iif : oif;
+
+	if (!ip_is_fragment(iph)) {
+		switch (iph->protocol) {
+		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
+		case IPPROTO_TCP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			if (xprth + 4 < skb->data ||
+			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
+				__be16 *ports;
+
+				xprth = skb_network_header(skb) + iph->ihl * 4;
+				ports = (__be16 *)xprth;
+
+				fl4->fl4_sport = ports[!!reverse];
+				fl4->fl4_dport = ports[!reverse];
+			}
+			break;
+		case IPPROTO_ICMP:
+			if (xprth + 2 < skb->data ||
+			    pskb_may_pull(skb, xprth + 2 - skb->data)) {
+				u8 *icmp;
+
+				xprth = skb_network_header(skb) + iph->ihl * 4;
+				icmp = xprth;
+
+				fl4->fl4_icmp_type = icmp[0];
+				fl4->fl4_icmp_code = icmp[1];
+			}
+			break;
+		case IPPROTO_ESP:
+			if (xprth + 4 < skb->data ||
+			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
+				__be32 *ehdr;
+
+				xprth = skb_network_header(skb) + iph->ihl * 4;
+				ehdr = (__be32 *)xprth;
+
+				fl4->fl4_ipsec_spi = ehdr[0];
+			}
+			break;
+		case IPPROTO_AH:
+			if (xprth + 8 < skb->data ||
+			    pskb_may_pull(skb, xprth + 8 - skb->data)) {
+				__be32 *ah_hdr;
+
+				xprth = skb_network_header(skb) + iph->ihl * 4;
+				ah_hdr = (__be32 *)xprth;
+
+				fl4->fl4_ipsec_spi = ah_hdr[1];
+			}
+			break;
+		case IPPROTO_COMP:
+			if (xprth + 4 < skb->data ||
+			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
+				__be16 *ipcomp_hdr;
+
+				xprth = skb_network_header(skb) + iph->ihl * 4;
+				ipcomp_hdr = (__be16 *)xprth;
+
+				fl4->fl4_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
+			}
+			break;
+		case IPPROTO_GRE:
+			if (xprth + 12 < skb->data ||
+			    pskb_may_pull(skb, xprth + 12 - skb->data)) {
+				__be16 *greflags;
+				__be32 *gre_hdr;
+
+				xprth = skb_network_header(skb) + iph->ihl * 4;
+				greflags = (__be16 *)xprth;
+				gre_hdr = (__be32 *)xprth;
+
+				if (greflags[0] & GRE_KEY) {
+					if (greflags[0] & GRE_CSUM)
+						gre_hdr++;
+					fl4->fl4_gre_key = gre_hdr[1];
+				}
+			}
+			break;
+		default:
+			fl4->fl4_ipsec_spi = 0;
+			break;
+		}
+	}
+	fl4->flowi4_proto = iph->protocol;
+	fl4->daddr = reverse ? iph->saddr : iph->daddr;
+	fl4->saddr = reverse ? iph->daddr : iph->saddr;
+	fl4->flowi4_tos = iph->tos;
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void
+decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
+{
+	struct flowi6 *fl6 = &fl->u.ip6;
+	int onlyproto = 0;
+	const struct ipv6hdr *hdr = ipv6_hdr(skb);
+	u32 offset = sizeof(*hdr);
+	struct ipv6_opt_hdr *exthdr;
+	const unsigned char *nh = skb_network_header(skb);
+	u16 nhoff = IP6CB(skb)->nhoff;
+	int oif = 0;
+	u8 nexthdr;
+
+	if (!nhoff)
+		nhoff = offsetof(struct ipv6hdr, nexthdr);
+
+	nexthdr = nh[nhoff];
+
+	if (skb_dst(skb))
+		oif = skb_dst(skb)->dev->ifindex;
+
+	memset(fl6, 0, sizeof(struct flowi6));
+	fl6->flowi6_mark = skb->mark;
+	fl6->flowi6_oif = reverse ? skb->skb_iif : oif;
+
+	fl6->daddr = reverse ? hdr->saddr : hdr->daddr;
+	fl6->saddr = reverse ? hdr->daddr : hdr->saddr;
+
+	while (nh + offset + sizeof(*exthdr) < skb->data ||
+	       pskb_may_pull(skb, nh + offset + sizeof(*exthdr) - skb->data)) {
+		nh = skb_network_header(skb);
+		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
+
+		switch (nexthdr) {
+		case NEXTHDR_FRAGMENT:
+			onlyproto = 1;
+			/* fall through */
+		case NEXTHDR_ROUTING:
+		case NEXTHDR_HOP:
+		case NEXTHDR_DEST:
+			offset += ipv6_optlen(exthdr);
+			nexthdr = exthdr->nexthdr;
+			exthdr = (struct ipv6_opt_hdr *)(nh + offset);
+			break;
+		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
+		case IPPROTO_TCP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			if (!onlyproto && (nh + offset + 4 < skb->data ||
+			     pskb_may_pull(skb, nh + offset + 4 - skb->data))) {
+				__be16 *ports;
+
+				nh = skb_network_header(skb);
+				ports = (__be16 *)(nh + offset);
+				fl6->fl6_sport = ports[!!reverse];
+				fl6->fl6_dport = ports[!reverse];
+			}
+			fl6->flowi6_proto = nexthdr;
+			return;
+		case IPPROTO_ICMPV6:
+			if (!onlyproto && (nh + offset + 2 < skb->data ||
+			    pskb_may_pull(skb, nh + offset + 2 - skb->data))) {
+				u8 *icmp;
+
+				nh = skb_network_header(skb);
+				icmp = (u8 *)(nh + offset);
+				fl6->fl6_icmp_type = icmp[0];
+				fl6->fl6_icmp_code = icmp[1];
+			}
+			fl6->flowi6_proto = nexthdr;
+			return;
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+		case IPPROTO_MH:
+			offset += ipv6_optlen(exthdr);
+			if (!onlyproto && (nh + offset + 3 < skb->data ||
+			    pskb_may_pull(skb, nh + offset + 3 - skb->data))) {
+				struct ip6_mh *mh;
+
+				nh = skb_network_header(skb);
+				mh = (struct ip6_mh *)(nh + offset);
+				fl6->fl6_mh_type = mh->ip6mh_type;
+			}
+			fl6->flowi6_proto = nexthdr;
+			return;
+#endif
+		/* XXX Why are there these headers? */
+		case IPPROTO_AH:
+		case IPPROTO_ESP:
+		case IPPROTO_COMP:
+		default:
+			fl6->fl6_ipsec_spi = 0;
+			fl6->flowi6_proto = nexthdr;
+			return;
+		}
+	}
+}
+#endif
+
 int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
-	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	int err;
-
-	if (unlikely(afinfo == NULL))
+	switch (family) {
+	case AF_INET:
+		decode_session4(skb, fl, reverse);
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		decode_session6(skb, fl, reverse);
+		break;
+#endif
+	default:
 		return -EAFNOSUPPORT;
+	}
 
-	afinfo->decode_session(skb, fl, reverse);
-
-	err = security_xfrm_decode_session(skb, &fl->flowi_secid);
-	rcu_read_unlock();
-	return err;
+	return security_xfrm_decode_session(skb, &fl->flowi_secid);
 }
 EXPORT_SYMBOL(__xfrm_decode_session);
 

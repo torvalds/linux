@@ -326,9 +326,6 @@ struct xfrm_policy_afinfo {
 					     xfrm_address_t *saddr,
 					     xfrm_address_t *daddr,
 					     u32 mark);
-	void			(*decode_session)(struct sk_buff *skb,
-						  struct flowi *fl,
-						  int reverse);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev,
 					    const struct flowi *fl);
