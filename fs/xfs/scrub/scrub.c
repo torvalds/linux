@@ -476,7 +476,6 @@ xfs_scrub_metadata(
 		},
 	};
 	struct xfs_mount		*mp = ip->i_mount;
-	bool				already_fixed = false;
 	int				error = 0;
 
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
@@ -521,7 +520,8 @@ retry_op:
 	} else if (error)
 		goto out_teardown;
 
-	if ((sc.sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) && !already_fixed) {
+	if ((sc.sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) &&
+	    !(sc.flags & XREP_ALREADY_FIXED)) {
 		bool needs_fix;
 
 		/* Let debug users force us into the repair routines. */
@@ -544,7 +544,7 @@ retry_op:
 		 * If it's broken, userspace wants us to fix it, and we haven't
 		 * already tried to fix it, then attempt a repair.
 		 */
-		error = xrep_attempt(ip, &sc, &already_fixed);
+		error = xrep_attempt(ip, &sc);
 		if (error == -EAGAIN) {
 			/*
 			 * Either the repair function succeeded or it couldn't

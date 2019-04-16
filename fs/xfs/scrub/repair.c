@@ -46,8 +46,7 @@
 int
 xrep_attempt(
 	struct xfs_inode	*ip,
-	struct xfs_scrub	*sc,
-	bool			*fixed)
+	struct xfs_scrub	*sc)
 {
 	int			error = 0;
 
@@ -66,7 +65,7 @@ xrep_attempt(
 		 * scrub so that we can tell userspace if we fixed the problem.
 		 */
 		sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-		*fixed = true;
+		sc->flags |= XREP_ALREADY_FIXED;
 		return -EAGAIN;
 	case -EDEADLOCK:
 	case -EAGAIN:

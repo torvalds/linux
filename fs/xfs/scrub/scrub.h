@@ -63,16 +63,17 @@ struct xfs_scrub {
 	void				*buf;
 	uint				ilock_flags;
 
-	/* See the XCHK state flags below. */
+	/* See the XCHK/XREP state flags below. */
 	unsigned int			flags;
 
 	/* State tracking for single-AG operations. */
 	struct xchk_ag			sa;
 };
 
-/* XCHK state flags */
+/* XCHK state flags grow up from zero, XREP state flags grown down from 2^31 */
 #define XCHK_TRY_HARDER		(1 << 0)  /* can't get resources, try again */
 #define XCHK_HAS_QUOTAOFFLOCK	(1 << 1)  /* we hold the quotaoff lock */
+#define XREP_ALREADY_FIXED	(1 << 31) /* checking our repair work */
 
 /* Metadata scrubbers */
 int xchk_tester(struct xfs_scrub *sc);
