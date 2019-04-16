@@ -1214,7 +1214,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 			unsigned long hw_error_code,
 			unsigned long address)
 {
-	struct vm_area_struct *vma;
+	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	vm_fault_t fault;
@@ -1297,6 +1297,16 @@ void do_user_addr_fault(struct pt_regs *regs,
 			return;
 	}
 #endif
+
+	/*
+	 * Do not try to do a speculative page fault if the fault was due to
+	 * protection keys since it can't be resolved.
+	 */
+	if (!(hw_error_code & X86_PF_PK)) {
+		fault = handle_speculative_fault(mm, address, flags, &vma);
+		if (fault != VM_FAULT_RETRY)
+			goto done;
+	}
 
 	/*
 	 * Kernel-mode access to the user address space should only occur
@@ -1391,6 +1401,8 @@ good_area:
 	}
 
 	mmap_read_unlock(mm);
+
+done:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, hw_error_code, address, fault);
 		return;
