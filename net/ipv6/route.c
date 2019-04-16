@@ -1439,22 +1439,23 @@ static unsigned int fib6_mtu(const struct fib6_info *rt)
 }
 
 static int rt6_insert_exception(struct rt6_info *nrt,
-				struct fib6_info *ort)
+				const struct fib6_result *res)
 {
 	struct net *net = dev_net(nrt->dst.dev);
 	struct rt6_exception_bucket *bucket;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
+	struct fib6_info *f6i = res->f6i;
 	int err = 0;
 
 	spin_lock_bh(&rt6_exception_lock);
 
-	if (ort->exception_bucket_flushed) {
+	if (f6i->exception_bucket_flushed) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	bucket = rcu_dereference_protected(ort->rt6i_exception_bucket,
+	bucket = rcu_dereference_protected(f6i->rt6i_exception_bucket,
 					lockdep_is_held(&rt6_exception_lock));
 	if (!bucket) {
 		bucket = kcalloc(FIB6_EXCEPTION_BUCKET_SIZE, sizeof(*bucket),
@@ -1463,24 +1464,24 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 			err = -ENOMEM;
 			goto out;
 		}
-		rcu_assign_pointer(ort->rt6i_exception_bucket, bucket);
+		rcu_assign_pointer(f6i->rt6i_exception_bucket, bucket);
 	}
 
 #ifdef CONFIG_IPV6_SUBTREES
-	/* rt6i_src.plen != 0 indicates ort is in subtree
+	/* fib6_src.plen != 0 indicates f6i is in subtree
 	 * and exception table is indexed by a hash of
-	 * both rt6i_dst and rt6i_src.
+	 * both fib6_dst and fib6_src.
 	 * Otherwise, the exception table is indexed by
-	 * a hash of only rt6i_dst.
+	 * a hash of only fib6_dst.
 	 */
-	if (ort->fib6_src.plen)
+	if (f6i->fib6_src.plen)
 		src_key = &nrt->rt6i_src.addr;
 #endif
-	/* rt6_mtu_change() might lower mtu on ort.
+	/* rt6_mtu_change() might lower mtu on f6i.
 	 * Only insert this exception route if its mtu
-	 * is less than ort's mtu value.
+	 * is less than f6i's mtu value.
 	 */
-	if (dst_metric_raw(&nrt->dst, RTAX_MTU) >= fib6_mtu(ort)) {
+	if (dst_metric_raw(&nrt->dst, RTAX_MTU) >= fib6_mtu(res->f6i)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -1509,9 +1510,9 @@ out:
 
 	/* Update fn->fn_sernum to invalidate all cached dst */
 	if (!err) {
-		spin_lock_bh(&ort->fib6_table->tb6_lock);
-		fib6_update_sernum(net, ort);
-		spin_unlock_bh(&ort->fib6_table->tb6_lock);
+		spin_lock_bh(&f6i->fib6_table->tb6_lock);
+		fib6_update_sernum(net, f6i);
+		spin_unlock_bh(&f6i->fib6_table->tb6_lock);
 		fib6_force_start_gc(net);
 	}
 
@@ -2352,7 +2353,7 @@ static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 		nrt6 = ip6_rt_cache_alloc(&res, daddr, saddr);
 		if (nrt6) {
 			rt6_do_update_pmtu(nrt6, mtu);
-			if (rt6_insert_exception(nrt6, res.f6i))
+			if (rt6_insert_exception(nrt6, &res))
 				dst_release_immediate(&nrt6->dst);
 		}
 		rcu_read_unlock();
@@ -3486,7 +3487,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	 * a cached route because rt6_insert_exception() will
 	 * takes care of it
 	 */
-	if (rt6_insert_exception(nrt, res.f6i)) {
+	if (rt6_insert_exception(nrt, &res)) {
 		dst_release_immediate(&nrt->dst);
 		goto out;
 	}
