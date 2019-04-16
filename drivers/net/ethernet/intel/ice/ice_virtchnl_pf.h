@@ -55,8 +55,8 @@ struct ice_vf {
 	struct virtchnl_version_info vf_ver;
 	struct virtchnl_ether_addr dflt_lan_addr;
 	u16 port_vlan_id;
-	u8 pf_set_mac;			/* VF MAC address set by VMM admin */
-	u8 trusted;
+	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
+	u8 trusted:1;
 	u16 lan_vsi_idx;		/* index into PF struct */
 	u16 lan_vsi_num;		/* ID as used by firmware */
 	u64 num_mdd_events;		/* number of MDD events detected */
@@ -65,9 +65,9 @@ struct ice_vf {
 	unsigned long vf_caps;		/* VF's adv. capabilities */
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
-	u8 link_forced;
-	u8 link_up;			/* only valid if VF link is forced */
-	u8 spoofchk;
+	u8 link_forced:1;
+	u8 link_up:1;			/* only valid if VF link is forced */
+	u8 spoofchk:1;
 	u16 num_mac;
 	u16 num_vlan;
 	u16 num_vf_qs;			/* num of queue configured per VF */

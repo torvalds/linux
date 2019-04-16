@@ -277,10 +277,10 @@ struct ice_vsi {
 	struct list_head tmp_sync_list;		/* MAC filters to be synced */
 	struct list_head tmp_unsync_list;	/* MAC filters to be unsynced */
 
-	u8 irqs_ready;
-	u8 current_isup;		 /* Sync 'link up' logging */
-	u8 stat_offsets_loaded;
-	u8 vlan_ena;
+	u8 irqs_ready:1;
+	u8 current_isup:1;		 /* Sync 'link up' logging */
+	u8 stat_offsets_loaded:1;
+	u8 vlan_ena:1;
 
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
@@ -384,7 +384,7 @@ struct ice_pf {
 	struct ice_hw_port_stats stats;
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
-	u8 stat_prev_loaded;	/* has previous stats been loaded */
+	u8 stat_prev_loaded:1; /* has previous stats been loaded */
 #ifdef CONFIG_DCB
 	u16 dcbx_cap;
 #endif /* CONFIG_DCB */
