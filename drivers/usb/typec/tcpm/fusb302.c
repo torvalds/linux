@@ -882,10 +882,20 @@ static int tcpm_start_toggling(struct tcpc_dev *dev,
 {
 	struct fusb302_chip *chip = container_of(dev, struct fusb302_chip,
 						 tcpc_dev);
+	enum toggling_mode mode = TOGGLING_MODE_OFF;
 	int ret = 0;
 
-	if (port_type != TYPEC_PORT_DRP)
-		return -EOPNOTSUPP;
+	switch (port_type) {
+	case TYPEC_PORT_SRC:
+		mode = TOGGLING_MODE_SRC;
+		break;
+	case TYPEC_PORT_SNK:
+		mode = TOGGLING_MODE_SNK;
+		break;
+	case TYPEC_PORT_DRP:
+		mode = TOGGLING_MODE_DRP;
+		break;
+	}
 
 	mutex_lock(&chip->lock);
 	ret = fusb302_set_src_current(chip, cc_src_current[cc]);
@@ -894,7 +904,7 @@ static int tcpm_start_toggling(struct tcpc_dev *dev,
 			    typec_cc_status_name[cc], ret);
 		goto done;
 	}
-	ret = fusb302_set_toggling(chip, TOGGLING_MODE_DRP);
+	ret = fusb302_set_toggling(chip, mode);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "unable to start drp toggling, ret=%d", ret);
