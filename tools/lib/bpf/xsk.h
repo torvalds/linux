@@ -36,6 +36,10 @@ struct name { \
 DEFINE_XSK_RING(xsk_ring_prod);
 DEFINE_XSK_RING(xsk_ring_cons);
 
+/* For a detailed explanation on the memory barriers associated with the
+ * ring, please take a look at net/xdp/xsk_queue.h.
+ */
+
 struct xsk_umem;
 struct xsk_socket;
 
@@ -116,8 +120,8 @@ static inline size_t xsk_ring_prod__reserve(struct xsk_ring_prod *prod,
 
 static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, size_t nb)
 {
-	/* Make sure everything has been written to the ring before signalling
-	 * this to the kernel.
+	/* Make sure everything has been written to the ring before indicating
+	 * this to the kernel by writing the producer pointer.
 	 */
 	smp_wmb();
 
@@ -144,6 +148,11 @@ static inline size_t xsk_ring_cons__peek(struct xsk_ring_cons *cons,
 
 static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, size_t nb)
 {
+	/* Make sure data has been read before indicating we are done
+	 * with the entries by updating the consumer pointer.
+	 */
+	smp_mb();
+
 	*cons->consumer += nb;
 }
 
