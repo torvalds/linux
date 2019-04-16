@@ -31,6 +31,7 @@
 #include "jfs_extent.h"
 #include "jfs_unicode.h"
 #include "jfs_debug.h"
+#include "jfs_dmap.h"
 
 
 struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
@@ -150,6 +151,8 @@ int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 void jfs_evict_inode(struct inode *inode)
 {
+	struct jfs_inode_info *ji = JFS_IP(inode);
+
 	jfs_info("In jfs_evict_inode, inode = 0x%p", inode);
 
 	if (!inode->i_nlink && !is_bad_inode(inode)) {
@@ -173,6 +176,16 @@ void jfs_evict_inode(struct inode *inode)
 	}
 	clear_inode(inode);
 	dquot_drop(inode);
+
+	BUG_ON(!list_empty(&ji->anon_inode_list));
+
+	spin_lock_irq(&ji->ag_lock);
+	if (ji->active_ag != -1) {
+		struct bmap *bmap = JFS_SBI(inode->i_sb)->bmap;
+		atomic_dec(&bmap->db_active[ji->active_ag]);
+		ji->active_ag = -1;
+	}
+	spin_unlock_irq(&ji->ag_lock);
 }
 
 void jfs_dirty_inode(struct inode *inode, int flags)
