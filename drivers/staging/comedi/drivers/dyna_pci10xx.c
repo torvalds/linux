@@ -196,7 +196,7 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
+	s->n_chan = 1;
 	s->maxdata = 0x0FFF;
 	s->range_table = &range_unipolar10;
 	s->insn_write = dyna_pci10xx_insn_write_ao;
