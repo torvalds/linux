@@ -88,12 +88,14 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 	if (bo->gem_base.import_attach)
 		drm_prime_gem_destroy(&bo->gem_base, bo->tbo.sg);
 	drm_gem_object_release(&bo->gem_base);
-	amdgpu_bo_unref(&bo->parent);
+	/* in case amdgpu_device_recover_vram got NULL of bo->parent */
 	if (!list_empty(&bo->shadow_list)) {
 		mutex_lock(&adev->shadow_list_lock);
 		list_del_init(&bo->shadow_list);
 		mutex_unlock(&adev->shadow_list_lock);
 	}
+	amdgpu_bo_unref(&bo->parent);
+
 	kfree(bo->metadata);
 	kfree(bo);
 }
