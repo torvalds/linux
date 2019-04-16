@@ -104,6 +104,8 @@ properties:
           - isil,isl29028
             # Intersil ISL29030 Ambient Light and Proximity Sensor
           - isil,isl29030
+            # Intersil ISL68137 Digital Output Configurable PWM Controller
+          - isil,isl68137
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
