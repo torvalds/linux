@@ -85,6 +85,10 @@ static struct inode *minfs_iget(struct super_block *s, unsigned long ino)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	/* Return inode from cache */
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
 	/* TODO 4/2: Read block with inodes. It's the second block on
 	 * the device, i.e. the block with the index 1. This is the index
 	 * to be passed to sb_bread().
