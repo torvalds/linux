@@ -514,7 +514,6 @@ static void extend_sampling_buffer(struct sf_buffer *sfb,
 				    sfb_pending_allocs(sfb, hwc));
 }
 
-
 /* Number of perf events counting hardware events */
 static atomic_t num_events;
 /* Used to avoid races in calling reserve/release_cpumf_hardware */
@@ -923,9 +922,10 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	lpp(&S390_lowcore.lpp);
 
 	debug_sprintf_event(sfdbg, 6, "pmu_enable: es=%i cs=%i ed=%i cd=%i "
-			    "tear=%p dear=%p\n", cpuhw->lsctl.es, cpuhw->lsctl.cs,
-			    cpuhw->lsctl.ed, cpuhw->lsctl.cd,
-			    (void *) cpuhw->lsctl.tear, (void *) cpuhw->lsctl.dear);
+			    "tear=%p dear=%p\n", cpuhw->lsctl.es,
+			    cpuhw->lsctl.cs, cpuhw->lsctl.ed, cpuhw->lsctl.cd,
+			    (void *) cpuhw->lsctl.tear,
+			    (void *) cpuhw->lsctl.dear);
 }
 
 static void cpumsf_pmu_disable(struct pmu *pmu)
@@ -1083,7 +1083,8 @@ static void debug_sample_entry(struct hws_basic_entry *sample,
 			       struct hws_trailer_entry *te)
 {
 	debug_sprintf_event(sfdbg, 4, "hw_collect_samples: Found unknown "
-			    "sampling data entry: te->f=%i basic.def=%04x (%p)\n",
+			    "sampling data entry: te->f=%i basic.def=%04x "
+			    "(%p)\n",
 			    te->f, sample->def, sample);
 }
 
@@ -1216,7 +1217,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 
 		/* Timestamps are valid for full sample-data-blocks only */
 		debug_sprintf_event(sfdbg, 6, "hw_perf_event_update: sdbt=%p "
-				    "overflow=%llu timestamp=0x%llx\n",
+				    "overflow=%llu timestamp=%#llx\n",
 				    sdbt, te->overflow,
 				    (te->f) ? trailer_timestamp(te) : 0ULL);
 
@@ -1879,10 +1880,12 @@ static struct attribute_group cpumsf_pmu_events_group = {
 	.name = "events",
 	.attrs = cpumsf_pmu_events_attr,
 };
+
 static struct attribute_group cpumsf_pmu_format_group = {
 	.name = "format",
 	.attrs = cpumsf_pmu_format_attr,
 };
+
 static const struct attribute_group *cpumsf_pmu_attr_groups[] = {
 	&cpumsf_pmu_events_group,
 	&cpumsf_pmu_format_group,
@@ -1938,7 +1941,8 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/* Report measurement alerts only for non-PRA codes */
 	if (alert != CPU_MF_INT_SF_PRA)
-		debug_sprintf_event(sfdbg, 6, "measurement alert: 0x%x\n", alert);
+		debug_sprintf_event(sfdbg, 6, "measurement alert: %#x\n",
+				    alert);
 
 	/* Sampling authorization change request */
 	if (alert & CPU_MF_INT_SF_SACA)
@@ -1959,6 +1963,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 		sf_disable();
 	}
 }
+
 static int cpusf_pmu_setup(unsigned int cpu, int flags)
 {
 	/* Ignore the notification if no events are scheduled on the PMU.
@@ -2096,5 +2101,6 @@ static int __init init_cpum_sampling_pmu(void)
 out:
 	return err;
 }
+
 arch_initcall(init_cpum_sampling_pmu);
 core_param(cpum_sfb_size, CPUM_SF_MAX_SDB, sfb_size, 0640);
