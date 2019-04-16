@@ -2170,6 +2170,29 @@ ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
 }
 
 /**
+ * ice_aq_set_mac_loopback
+ * @hw: pointer to the HW struct
+ * @ena_lpbk: Enable or Disable loopback
+ * @cd: pointer to command details structure or NULL
+ *
+ * Enable/disable loopback on a given port
+ */
+enum ice_status
+ice_aq_set_mac_loopback(struct ice_hw *hw, bool ena_lpbk, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_mac_lb *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_mac_lb;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_mac_lb);
+	if (ena_lpbk)
+		cmd->lb_mode = ICE_AQ_MAC_LB_EN;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
  * ice_aq_set_port_id_led
  * @pi: pointer to the port information
  * @is_orig_mode: is this LED set to original mode (by the net-list)

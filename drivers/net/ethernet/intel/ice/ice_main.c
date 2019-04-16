@@ -1430,6 +1430,11 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
 
+	if (oicr & PFINT_OICR_SWINT_M) {
+		ena_mask &= ~PFINT_OICR_SWINT_M;
+		pf->sw_int_count++;
+	}
+
 	if (oicr & PFINT_OICR_MAL_DETECT_M) {
 		ena_mask &= ~PFINT_OICR_MAL_DETECT_M;
 		set_bit(__ICE_MDD_EVENT_PENDING, pf->state);
@@ -1803,13 +1808,27 @@ void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
  * @pf: board private structure
  * @pi: pointer to the port_info instance
  *
- * Returns pointer to the successfully allocated VSI sw struct on success,
- * otherwise returns NULL on failure.
+ * Returns pointer to the successfully allocated VSI software struct
+ * on success, otherwise returns NULL on failure.
  */
 static struct ice_vsi *
 ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
 	return ice_vsi_setup(pf, pi, ICE_VSI_PF, ICE_INVAL_VFID);
+}
+
+/**
+ * ice_lb_vsi_setup - Set up a loopback VSI
+ * @pf: board private structure
+ * @pi: pointer to the port_info instance
+ *
+ * Returns pointer to the successfully allocated VSI software struct
+ * on success, otherwise returns NULL on failure.
+ */
+struct ice_vsi *
+ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
+{
+	return ice_vsi_setup(pf, pi, ICE_VSI_LB, ICE_INVAL_VFID);
 }
 
 /**
@@ -2908,7 +2927,7 @@ static int ice_vsi_vlan_setup(struct ice_vsi *vsi)
  *
  * Return 0 on success and negative value on error
  */
-static int ice_vsi_cfg(struct ice_vsi *vsi)
+int ice_vsi_cfg(struct ice_vsi *vsi)
 {
 	int err;
 
@@ -3463,7 +3482,7 @@ int ice_down(struct ice_vsi *vsi)
  *
  * Return 0 on success, negative on failure
  */
-static int ice_vsi_setup_tx_rings(struct ice_vsi *vsi)
+int ice_vsi_setup_tx_rings(struct ice_vsi *vsi)
 {
 	int i, err = 0;
 
@@ -3489,7 +3508,7 @@ static int ice_vsi_setup_tx_rings(struct ice_vsi *vsi)
  *
  * Return 0 on success, negative on failure
  */
-static int ice_vsi_setup_rx_rings(struct ice_vsi *vsi)
+int ice_vsi_setup_rx_rings(struct ice_vsi *vsi)
 {
 	int i, err = 0;
 
@@ -4248,7 +4267,7 @@ static void ice_tx_timeout(struct net_device *netdev)
  *
  * Returns 0 on success, negative value on failure
  */
-static int ice_open(struct net_device *netdev)
+int ice_open(struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -4285,7 +4304,7 @@ static int ice_open(struct net_device *netdev)
  *
  * Returns success only - not allowed to fail
  */
-static int ice_stop(struct net_device *netdev)
+int ice_stop(struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;

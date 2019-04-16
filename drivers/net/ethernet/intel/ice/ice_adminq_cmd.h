@@ -1112,6 +1112,14 @@ struct ice_aqc_set_event_mask {
 	u8	reserved1[6];
 };
 
+/* Set MAC Loopback command (direct 0x0620) */
+struct ice_aqc_set_mac_lb {
+	u8 lb_mode;
+#define ICE_AQ_MAC_LB_EN		BIT(0)
+#define ICE_AQ_MAC_LB_OSC_CLK		BIT(1)
+	u8 reserved[15];
+};
+
 /* Set Port Identification LED (direct, 0x06E9) */
 struct ice_aqc_set_port_id_led {
 	u8 lport_num;
@@ -1143,6 +1151,17 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_ERASE_LEN	0xFFFF
 	__le32 addr_high;
 	__le32 addr_low;
+};
+
+/* NVM Checksum Command (direct, 0x0706) */
+struct ice_aqc_nvm_checksum {
+	u8 flags;
+#define ICE_AQC_NVM_CHECKSUM_VERIFY	BIT(0)
+#define ICE_AQC_NVM_CHECKSUM_RECALC	BIT(1)
+	u8 rsvd;
+	__le16 checksum; /* Used only by response */
+#define ICE_AQC_NVM_CHECKSUM_CORRECT	0xBABA
+	u8 rsvd2[12];
 };
 
 /**
@@ -1539,6 +1558,7 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_query_port_ets port_ets;
 		struct ice_aqc_nvm nvm;
+		struct ice_aqc_nvm_checksum nvm_checksum;
 		struct ice_aqc_pf_vf_msg virt;
 		struct ice_aqc_lldp_get_mib lldp_get_mib;
 		struct ice_aqc_lldp_set_mib_change lldp_set_event;
@@ -1554,6 +1574,7 @@ struct ice_aq_desc {
 		struct ice_aqc_add_update_free_vsi_resp add_update_free_vsi_res;
 		struct ice_aqc_fw_logging fw_logging;
 		struct ice_aqc_get_clear_fw_log get_clear_fw_log;
+		struct ice_aqc_set_mac_lb set_mac_lb;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
@@ -1642,10 +1663,12 @@ enum ice_adminq_opc {
 	ice_aqc_opc_restart_an				= 0x0605,
 	ice_aqc_opc_get_link_status			= 0x0607,
 	ice_aqc_opc_set_event_mask			= 0x0613,
+	ice_aqc_opc_set_mac_lb				= 0x0620,
 	ice_aqc_opc_set_port_id_led			= 0x06E9,
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
+	ice_aqc_opc_nvm_checksum			= 0x0706,
 
 	/* PF/VF mailbox commands */
 	ice_mbx_opc_send_msg_to_pf			= 0x0801,

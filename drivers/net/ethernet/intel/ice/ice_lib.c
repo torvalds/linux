@@ -137,6 +137,8 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	 * for PF or EMP this field should be set to zero
 	 */
 	switch (vsi->type) {
+	case ICE_VSI_LB:
+		/* fall through */
 	case ICE_VSI_PF:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
 		break;
@@ -251,6 +253,10 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	if (!vsi->rx_rings)
 		goto err_rxrings;
 
+	/* There is no need to allocate q_vectors for a loopback VSI. */
+	if (vsi->type == ICE_VSI_LB)
+		return 0;
+
 	/* allocate memory for q_vector pointers */
 	vsi->q_vectors = devm_kcalloc(&pf->pdev->dev, vsi->num_q_vectors,
 				      sizeof(*vsi->q_vectors), GFP_KERNEL);
@@ -275,6 +281,8 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 {
 	switch (vsi->type) {
 	case ICE_VSI_PF:
+		/* fall through */
+	case ICE_VSI_LB:
 		vsi->num_rx_desc = ICE_DFLT_NUM_RX_DESC;
 		vsi->num_tx_desc = ICE_DFLT_NUM_TX_DESC;
 		break;
@@ -317,6 +325,10 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		 * count
 		 */
 		vsi->num_q_vectors = pf->num_vf_msix - 1;
+		break;
+	case ICE_VSI_LB:
+		vsi->alloc_txq = 1;
+		vsi->alloc_rxq = 1;
 		break;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
@@ -513,6 +525,10 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 		vsi->irq_handler = ice_msix_clean_rings;
 		break;
 	case ICE_VSI_VF:
+		if (ice_vsi_alloc_arrays(vsi))
+			goto err_rings;
+		break;
+	case ICE_VSI_LB:
 		if (ice_vsi_alloc_arrays(vsi))
 			goto err_rings;
 		break;
@@ -732,6 +748,8 @@ static void ice_vsi_set_rss_params(struct ice_vsi *vsi)
 				      BIT(cap->rss_table_entry_width));
 		vsi->rss_lut_type = ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI;
 		break;
+	case ICE_VSI_LB:
+		break;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n",
 			 vsi->type);
@@ -924,6 +942,9 @@ static void ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctxt, struct ice_vsi *vsi)
 		lut_type = ICE_AQ_VSI_Q_OPT_RSS_LUT_VSI;
 		hash_type = ICE_AQ_VSI_Q_OPT_RSS_TPLZ;
 		break;
+	case ICE_VSI_LB:
+		dev_dbg(&pf->pdev->dev, "Unsupported VSI type %d\n", vsi->type);
+		return;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
 		return;
@@ -955,6 +976,8 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 
 	ctxt->info = vsi->info;
 	switch (vsi->type) {
+	case ICE_VSI_LB:
+		/* fall through */
 	case ICE_VSI_PF:
 		ctxt->flags = ICE_AQ_VSI_TYPE_PF;
 		break;
@@ -2071,8 +2094,7 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			break;
 
 		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
-			if (!rings || !rings[q_idx] ||
-			    !rings[q_idx]->q_vector) {
+			if (!rings || !rings[q_idx]) {
 				err = -EINVAL;
 				goto err_out;
 			}
@@ -2092,9 +2114,13 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			/* trigger a software interrupt for the vector
 			 * associated to the queue to schedule NAPI handler
 			 */
-			wr32(hw, GLINT_DYN_CTL(rings[i]->q_vector->reg_idx),
-			     GLINT_DYN_CTL_SWINT_TRIG_M |
-			     GLINT_DYN_CTL_INTENA_MSK_M);
+			if (rings[q_idx]->q_vector) {
+				int reg_idx = rings[i]->q_vector->reg_idx;
+
+				wr32(hw, GLINT_DYN_CTL(reg_idx),
+				     GLINT_DYN_CTL_SWINT_TRIG_M |
+				     GLINT_DYN_CTL_INTENA_MSK_M);
+			}
 			q_idx++;
 		}
 		status = ice_dis_vsi_txq(vsi->port_info, vsi->idx, tc,
@@ -2407,6 +2433,11 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 
 		pf->q_left_tx -= vsi->alloc_txq;
 		pf->q_left_rx -= vsi->alloc_rxq;
+		break;
+	case ICE_VSI_LB:
+		ret = ice_vsi_alloc_rings(vsi);
+		if (ret)
+			goto unroll_vsi_init;
 		break;
 	default:
 		/* clean up the resources and exit */
@@ -2768,7 +2799,8 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		ice_rss_clean(vsi);
 
 	/* Disable VSI and free resources */
-	ice_vsi_dis_irq(vsi);
+	if (vsi->type != ICE_VSI_LB)
+		ice_vsi_dis_irq(vsi);
 	ice_vsi_close(vsi);
 
 	/* reclaim interrupt vectors back to PF */

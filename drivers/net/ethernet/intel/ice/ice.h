@@ -189,6 +189,7 @@ struct ice_sw {
 };
 
 enum ice_state {
+	__ICE_TESTING,
 	__ICE_DOWN,
 	__ICE_NEEDS_RESTART,
 	__ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
@@ -399,6 +400,7 @@ struct ice_pf {
 	unsigned long tx_timeout_last_recovery;
 	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
+	u32 sw_int_count;
 };
 
 struct ice_netdev_priv {
@@ -451,9 +453,13 @@ ice_find_vsi_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 	return NULL;
 }
 
+int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
+int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
 int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
+int ice_vsi_cfg(struct ice_vsi *vsi);
+struct ice_vsi *ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi);
 int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
@@ -462,5 +468,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked);
 void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked);
 #endif /* CONFIG_DCB */
+int ice_open(struct net_device *netdev);
+int ice_stop(struct net_device *netdev);
 
 #endif /* _ICE_H_ */
