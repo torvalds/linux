@@ -141,8 +141,7 @@ void rvt_destroy_ah(struct ib_ah *ibah, u32 destroy_flags)
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);
 	unsigned long flags;
 
-	if (atomic_read(&ah->refcount) != 0)
-		return;
+	WARN_ON_ONCE(atomic_read(&ah->refcount));
 
 	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	dev->n_ahs_allocated--;
