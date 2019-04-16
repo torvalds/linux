@@ -443,6 +443,9 @@ static void recover_worker(struct work_struct *work)
 	if (submit) {
 		struct task_struct *task;
 
+		/* Increment the fault count */
+		gpu->global_faults++;
+
 		task = get_pid_task(submit->pid, PIDTYPE_PID);
 		if (task) {
 			comm = kstrdup(task->comm, GFP_KERNEL);

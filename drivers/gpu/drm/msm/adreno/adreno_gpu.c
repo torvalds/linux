@@ -66,6 +66,9 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	case MSM_PARAM_PP_PGTABLE:
 		*value = 0;
 		return 0;
+	case MSM_PARAM_FAULTS:
+		*value = gpu->global_faults;
+		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
 		return -EINVAL;
