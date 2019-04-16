@@ -738,6 +738,31 @@ static int ksz8873mll_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int ksz9031_get_features(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_read_abilities(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* Silicon Errata Sheet (DS80000691D or DS80000692D):
+	 * Whenever the device's Asymmetric Pause capability is set to 1,
+	 * link-up may fail after a link-up to link-down transition.
+	 *
+	 * Workaround:
+	 * Do not enable the Asymmetric Pause capability bit.
+	 */
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported);
+
+	/* We force setting the Pause capability as the core will force the
+	 * Asymmetric Pause capability to 1 otherwise.
+	 */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
+
+	return 0;
+}
+
 static int ksz9031_read_status(struct phy_device *phydev)
 {
 	int err;
@@ -1052,9 +1077,9 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_KSZ9031,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ9031 Gigabit PHY",
-	/* PHY_GBIT_FEATURES */
 	.driver_data	= &ksz9021_type,
 	.probe		= kszphy_probe,
+	.get_features	= ksz9031_get_features,
 	.config_init	= ksz9031_config_init,
 	.soft_reset	= genphy_soft_reset,
 	.read_status	= ksz9031_read_status,
