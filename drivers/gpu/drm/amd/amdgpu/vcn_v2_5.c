@@ -530,6 +530,104 @@ static void vcn_v2_5_enable_clock_gating(struct amdgpu_device *adev)
 	WREG32_SOC15(VCN, 0, mmUVD_SUVD_CGC_CTRL, data);
 }
 
+/**
+ * jpeg_v2_5_start - start JPEG block
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Setup and start the JPEG block
+ */
+static int jpeg_v2_5_start(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring = &adev->vcn.ring_jpeg;
+	uint32_t tmp;
+
+	/* disable anti hang mechanism */
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_POWER_STATUS), 0,
+		~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
+
+	/* JPEG disable CGC */
+	tmp = RREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL);
+	tmp |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	tmp |= 1 << JPEG_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
+	tmp |= 4 << JPEG_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
+	WREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL, tmp);
+
+	tmp = RREG32_SOC15(VCN, 0, mmJPEG_CGC_GATE);
+	tmp &= ~(JPEG_CGC_GATE__JPEG_DEC_MASK
+		| JPEG_CGC_GATE__JPEG2_DEC_MASK
+		| JPEG_CGC_GATE__JMCIF_MASK
+		| JPEG_CGC_GATE__JRBBM_MASK);
+	WREG32_SOC15(VCN, 0, mmJPEG_CGC_GATE, tmp);
+
+	tmp = RREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL);
+	tmp &= ~(JPEG_CGC_CTRL__JPEG_DEC_MODE_MASK
+		| JPEG_CGC_CTRL__JPEG2_DEC_MODE_MASK
+		| JPEG_CGC_CTRL__JMCIF_MODE_MASK
+		| JPEG_CGC_CTRL__JRBBM_MODE_MASK);
+	WREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL, tmp);
+
+	/* MJPEG global tiling registers */
+	WREG32_SOC15(UVD, 0, mmJPEG_DEC_GFX8_ADDR_CONFIG,
+		adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmJPEG_DEC_GFX10_ADDR_CONFIG,
+		adev->gfx.config.gb_addr_config);
+
+	/* enable JMI channel */
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_JMI_CNTL), 0,
+		~UVD_JMI_CNTL__SOFT_RESET_MASK);
+
+	/* enable System Interrupt for JRBC */
+	WREG32_P(SOC15_REG_OFFSET(VCN, 0, mmJPEG_SYS_INT_EN),
+		JPEG_SYS_INT_EN__DJRBC_MASK,
+		~JPEG_SYS_INT_EN__DJRBC_MASK);
+
+	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
+	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
+		lower_32_bits(ring->gpu_addr));
+	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
+		upper_32_bits(ring->gpu_addr));
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, 0);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, 0);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000002L);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_SIZE, ring->ring_size / 4);
+	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
+
+	return 0;
+}
+
+/**
+ * jpeg_v2_5_stop - stop JPEG block
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * stop the JPEG block
+ */
+static int jpeg_v2_5_stop(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* reset JMI */
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_JMI_CNTL),
+		UVD_JMI_CNTL__SOFT_RESET_MASK,
+		~UVD_JMI_CNTL__SOFT_RESET_MASK);
+
+	tmp = RREG32_SOC15(VCN, 0, mmJPEG_CGC_GATE);
+	tmp |= (JPEG_CGC_GATE__JPEG_DEC_MASK
+		|JPEG_CGC_GATE__JPEG2_DEC_MASK
+		|JPEG_CGC_GATE__JMCIF_MASK
+		|JPEG_CGC_GATE__JRBBM_MASK);
+	WREG32_SOC15(VCN, 0, mmJPEG_CGC_GATE, tmp);
+
+	/* enable anti hang mechanism */
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_POWER_STATUS),
+		UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK,
+		~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
+
+	return 0;
+}
+
 static int vcn_v2_5_start(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
@@ -688,6 +786,8 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 	WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 	WREG32_SOC15(UVD, 0, mmUVD_RB_SIZE2, ring->ring_size / 4);
 
+	r = jpeg_v2_5_start(adev);
+
 	return r;
 }
 
@@ -695,6 +795,10 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
 	int r;
+
+	r = jpeg_v2_5_stop(adev);
+	if (r)
+		return r;
 
 	/* wait for vcn idle */
 	SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, UVD_STATUS__IDLE, 0x7, r);
