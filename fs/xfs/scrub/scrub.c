@@ -186,8 +186,10 @@ xchk_teardown(
 			xfs_irele(sc->ip);
 		sc->ip = NULL;
 	}
-	if (sc->has_quotaofflock)
+	if (sc->has_quotaofflock) {
 		mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
+		sc->has_quotaofflock = false;
+	}
 	if (sc->buf) {
 		kmem_free(sc->buf);
 		sc->buf = NULL;
@@ -466,9 +468,14 @@ xfs_scrub_metadata(
 	struct xfs_inode		*ip,
 	struct xfs_scrub_metadata	*sm)
 {
-	struct xfs_scrub		sc;
+	struct xfs_scrub		sc = {
+		.mp			= ip->i_mount,
+		.sm			= sm,
+		.sa			= {
+			.agno		= NULLAGNUMBER,
+		},
+	};
 	struct xfs_mount		*mp = ip->i_mount;
-	bool				try_harder = false;
 	bool				already_fixed = false;
 	int				error = 0;
 
@@ -491,21 +498,16 @@ xfs_scrub_metadata(
 
 	xchk_experimental_warning(mp);
 
+	sc.ops = &meta_scrub_ops[sm->sm_type];
 retry_op:
 	/* Set up for the operation. */
-	memset(&sc, 0, sizeof(sc));
-	sc.mp = ip->i_mount;
-	sc.sm = sm;
-	sc.ops = &meta_scrub_ops[sm->sm_type];
-	sc.try_harder = try_harder;
-	sc.sa.agno = NULLAGNUMBER;
 	error = sc.ops->setup(&sc, ip);
 	if (error)
 		goto out_teardown;
 
 	/* Scrub for errors. */
 	error = sc.ops->scrub(&sc);
-	if (!try_harder && error == -EDEADLOCK) {
+	if (!sc.try_harder && error == -EDEADLOCK) {
 		/*
 		 * Scrubbers return -EDEADLOCK to mean 'try harder'.
 		 * Tear down everything we hold, then set up again with
@@ -514,7 +516,7 @@ retry_op:
 		error = xchk_teardown(&sc, ip, 0);
 		if (error)
 			goto out;
-		try_harder = true;
+		sc.try_harder = true;
 		goto retry_op;
 	} else if (error)
 		goto out_teardown;
@@ -544,8 +546,11 @@ retry_op:
 		 */
 		error = xrep_attempt(ip, &sc, &already_fixed);
 		if (error == -EAGAIN) {
-			if (sc.try_harder)
-				try_harder = true;
+			/*
+			 * Either the repair function succeeded or it couldn't
+			 * get all the resources it needs; either way, we go
+			 * back to the beginning and call the scrub function.
+			 */
 			error = xchk_teardown(&sc, ip, 0);
 			if (error) {
 				xrep_failure(mp);
