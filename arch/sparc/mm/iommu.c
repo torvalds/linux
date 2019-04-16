@@ -291,30 +291,23 @@ static int sbus_iommu_map_sg_pflush(struct device *dev, struct scatterlist *sgl,
 	return nents;
 }
 
-static void iommu_release_one(struct device *dev, u32 busa, int npages)
+static void sbus_iommu_unmap_page(struct device *dev, dma_addr_t dma_addr,
+		size_t len, enum dma_data_direction dir, unsigned long attrs)
 {
 	struct iommu_struct *iommu = dev->archdata.iommu;
-	int ioptex;
-	int i;
+	unsigned int busa = dma_addr & PAGE_MASK;
+	unsigned long off = dma_addr & ~PAGE_MASK;
+	unsigned int npages = (off + len + PAGE_SIZE-1) >> PAGE_SHIFT;
+	unsigned int ioptex = (busa - iommu->start) >> PAGE_SHIFT;
+	unsigned int i;
 
 	BUG_ON(busa < iommu->start);
-	ioptex = (busa - iommu->start) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		iopte_val(iommu->page_table[ioptex + i]) = 0;
 		iommu_invalidate_page(iommu->regs, busa);
 		busa += PAGE_SIZE;
 	}
 	bit_map_clear(&iommu->usemap, ioptex, npages);
-}
-
-static void sbus_iommu_unmap_page(struct device *dev, dma_addr_t dma_addr,
-		size_t len, enum dma_data_direction dir, unsigned long attrs)
-{
-	unsigned long off = dma_addr & ~PAGE_MASK;
-	int npages;
-
-	npages = (off + len + PAGE_SIZE-1) >> PAGE_SHIFT;
-	iommu_release_one(dev, dma_addr & PAGE_MASK, npages);
 }
 
 static void sbus_iommu_unmap_sg(struct device *dev, struct scatterlist *sgl,
