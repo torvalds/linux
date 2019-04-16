@@ -629,6 +629,7 @@ nfp_flower_copy_pre_actions(char *act_dst, char *act_src, int len,
 		case NFP_FL_ACTION_OPCODE_PRE_TUNNEL:
 			if (tunnel_act)
 				*tunnel_act = true;
+			/* fall through */
 		case NFP_FL_ACTION_OPCODE_PRE_LAG:
 			memcpy(act_dst + act_off, act_src + act_off, act_len);
 			break;
