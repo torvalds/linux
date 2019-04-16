@@ -69,4 +69,4 @@ https://www.contributor-covenant.org/version/1/4/code-of-conduct.html 获取。
 解释
 ====
 
-有关Linux内核社区如何解释此文档，请参阅 :ref:`code_of_conduct_interpretation`
+有关Linux内核社区如何解释此文档，请参阅 :ref:`cn_code_of_conduct_interpretation`
