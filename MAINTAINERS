@@ -5340,6 +5340,7 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
+R:	Sam Ravnborg <sam@ravnborg.org>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
