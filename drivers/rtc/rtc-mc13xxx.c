@@ -285,7 +285,14 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	priv->mc13xxx = mc13xxx;
 	priv->valid = 1;
 
+	priv->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(priv->rtc))
+		return PTR_ERR(priv->rtc);
 	platform_set_drvdata(pdev, priv);
+
+	priv->rtc->ops = &mc13xxx_rtc_ops;
+	/* 15bit days + hours, minutes, seconds */
+	priv->rtc->range_max = (timeu64_t)(1 << 15) * SEC_PER_DAY - 1;
 
 	mc13xxx_lock(mc13xxx);
 
@@ -303,8 +310,9 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	mc13xxx_unlock(mc13xxx);
 
-	priv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					     &mc13xxx_rtc_ops, THIS_MODULE);
+	ret = rtc_register_device(priv->rtc);
+	if (ret)
+		goto err_irq_request;
 
 	return 0;
 
