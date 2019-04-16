@@ -504,18 +504,18 @@
 				bias-pull-up;
 			};
 
-			mmc2_8bit_pins: mmc2-8bit-pins {
+			mmc2_4bit_pc_pins: mmc2-4bit-pc-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
-				       "PC10", "PC11", "PC12", "PC13",
-				       "PC14", "PC15";
+				       "PC10", "PC11";
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;
 			};
 
-			mmc2_4bit_pc_pins: mmc2-4bit-pc-pins {
+			mmc2_8bit_pins: mmc2-8bit-pins {
 				pins = "PC6", "PC7", "PC8", "PC9",
-				       "PC10", "PC11";
+				       "PC10", "PC11", "PC12", "PC13",
+				       "PC14", "PC15";
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;
@@ -537,6 +537,11 @@
 			nand_rb0_pin: nand-rb0-pin {
 				pins = "PC6";
 				function = "nand0";
+			};
+
+			pwm0_pin: pwm0-pin {
+				pins = "PB2";
+				function = "pwm";
 			};
 
 			spi2_pe_pins: spi2-pe-pins {
@@ -577,11 +582,6 @@
 			uart3_cts_rts_pg_pins: uart3-cts-rts-pg-pins {
 				pins = "PG11", "PG12";
 				function = "uart3";
-			};
-
-			pwm0_pin: pwm0-pin {
-				pins = "PB2";
-				function = "pwm";
 			};
 		};
 
