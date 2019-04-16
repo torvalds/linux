@@ -254,8 +254,10 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 /*
  * This function sets the internal RTC time based on tm in Gregorian date.
  */
-static int mxc_rtc_set_mmss(struct device *dev, time64_t time)
+static int mxc_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	time64_t time = rtc_tm_to_time64(tm);
+
 	/* Avoid roll-over from reading the different registers */
 	do {
 		set_alarm_or_time(dev, MXC_RTC_TIME, time);
@@ -298,7 +300,7 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 /* RTC layer */
 static const struct rtc_class_ops mxc_rtc_ops = {
 	.read_time		= mxc_rtc_read_time,
-	.set_mmss64		= mxc_rtc_set_mmss,
+	.set_time		= mxc_rtc_set_time,
 	.read_alarm		= mxc_rtc_read_alarm,
 	.set_alarm		= mxc_rtc_set_alarm,
 	.alarm_irq_enable	= mxc_rtc_alarm_irq_enable,
