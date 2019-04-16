@@ -175,14 +175,34 @@ static void iommu_flush_iotlb(iopte_t *iopte, unsigned int niopte)
 	}
 }
 
-static u32 iommu_get_one(struct device *dev, phys_addr_t paddr, int npages)
+static dma_addr_t __sbus_iommu_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t len, bool per_page_flush)
 {
 	struct iommu_struct *iommu = dev->archdata.iommu;
-	int ioptex;
-	iopte_t *iopte, *iopte0;
-	unsigned int busa, busa0;
+	phys_addr_t paddr = page_to_phys(page) + offset;
+	unsigned long off = paddr & ~PAGE_MASK;
+	unsigned long npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned long pfn = __phys_to_pfn(paddr);
-	int i;
+	unsigned int busa, busa0;
+	iopte_t *iopte, *iopte0;
+	int ioptex, i;
+
+	/* XXX So what is maxphys for us and how do drivers know it? */
+	if (!len || len > 256 * 1024)
+		return DMA_MAPPING_ERROR;
+
+	/*
+	 * We expect unmapped highmem pages to be not in the cache.
+	 * XXX Is this a good assumption?
+	 * XXX What if someone else unmaps it here and races us?
+	 */
+	if (per_page_flush && !PageHighMem(page)) {
+		unsigned long vaddr, p;
+
+		vaddr = (unsigned long)page_address(page) + offset;
+		for (p = vaddr & PAGE_MASK; p < vaddr + len; p += PAGE_SIZE)
+			flush_page_for_dma(p);
+	}
 
 	/* page color = pfn of page */
 	ioptex = bit_map_string_get(&iommu->usemap, npages, pfn);
@@ -202,35 +222,7 @@ static u32 iommu_get_one(struct device *dev, phys_addr_t paddr, int npages)
 	}
 
 	iommu_flush_iotlb(iopte0, npages);
-
-	return busa0;
-}
-
-static dma_addr_t __sbus_iommu_map_page(struct device *dev, struct page *page,
-		unsigned long offset, size_t len, bool per_page_flush)
-{
-	phys_addr_t paddr = page_to_phys(page) + offset;
-	unsigned long off = paddr & ~PAGE_MASK;
-	unsigned long npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	/* XXX So what is maxphys for us and how do drivers know it? */
-	if (!len || len > 256 * 1024)
-		return DMA_MAPPING_ERROR;
-
-	/*
-	 * We expect unmapped highmem pages to be not in the cache.
-	 * XXX Is this a good assumption?
-	 * XXX What if someone else unmaps it here and races us?
-	 */
-	if (per_page_flush && !PageHighMem(page)) {
-		unsigned long vaddr, p;
-
-		vaddr = (unsigned long)page_address(page) + offset;
-		for (p = vaddr & PAGE_MASK; p < vaddr + len; p += PAGE_SIZE)
-			flush_page_for_dma(p);
-	}
-
-	return iommu_get_one(dev, paddr, npages) + off;
+	return busa0 + off;
 }
 
 static dma_addr_t sbus_iommu_map_page_gflush(struct device *dev,
