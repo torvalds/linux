@@ -1879,33 +1879,37 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		 * tracked for this PF.
 		 */
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
-			int itr_idx = q_vector->tx.itr_idx;
+			int itr_idx = (q_vector->tx.itr_idx <<
+				       QINT_TQCTL_ITR_INDX_S) &
+				QINT_TQCTL_ITR_INDX_M;
 			u32 val;
 
 			if (vsi->type == ICE_VSI_VF)
-				val = QINT_TQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
-				      ((i + 1) << QINT_TQCTL_MSIX_INDX_S);
+				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
+				      (((i + 1) << QINT_TQCTL_MSIX_INDX_S) &
+				       QINT_TQCTL_MSIX_INDX_M);
 			else
-				val = QINT_TQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
-				      (reg_idx << QINT_TQCTL_MSIX_INDX_S);
+				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
+				      ((reg_idx << QINT_TQCTL_MSIX_INDX_S) &
+				       QINT_TQCTL_MSIX_INDX_M);
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
 			txq++;
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
-			int itr_idx = q_vector->rx.itr_idx;
+			int itr_idx = (q_vector->rx.itr_idx <<
+				       QINT_RQCTL_ITR_INDX_S) &
+				QINT_RQCTL_ITR_INDX_M;
 			u32 val;
 
 			if (vsi->type == ICE_VSI_VF)
-				val = QINT_RQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
-				      ((i + 1) << QINT_RQCTL_MSIX_INDX_S);
+				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
+					(((i + 1) << QINT_RQCTL_MSIX_INDX_S) &
+					 QINT_RQCTL_MSIX_INDX_M);
 			else
-				val = QINT_RQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
-				      (reg_idx << QINT_RQCTL_MSIX_INDX_S);
+				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
+					((reg_idx << QINT_RQCTL_MSIX_INDX_S) &
+					 QINT_RQCTL_MSIX_INDX_M);
 			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
 			rxq++;
 		}
