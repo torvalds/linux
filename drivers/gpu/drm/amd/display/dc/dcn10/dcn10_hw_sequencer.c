@@ -2957,6 +2957,18 @@ static void dcn10_unblank_stream(struct pipe_ctx *pipe_ctx,
 	}
 }
 
+static void dcn10_send_immediate_sdp_message(struct pipe_ctx *pipe_ctx,
+				const uint8_t *custom_sdp_message,
+				unsigned int sdp_message_size)
+{
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		pipe_ctx->stream_res.stream_enc->funcs->send_immediate_sdp_message(
+				pipe_ctx->stream_res.stream_enc,
+				custom_sdp_message,
+				sdp_message_size);
+	}
+}
+
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = dcn10_init_hw,
@@ -2976,6 +2988,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,
 	.enable_per_frame_crtc_position_reset = dcn10_enable_per_frame_crtc_position_reset,
 	.update_info_frame = dce110_update_info_frame,
+	.send_immediate_sdp_message = dcn10_send_immediate_sdp_message,
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dcn10_unblank_stream,

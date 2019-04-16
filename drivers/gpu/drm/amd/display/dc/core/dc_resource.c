@@ -2446,21 +2446,6 @@ static void set_spd_info_packet(
 	*info_packet = stream->vrr_infopacket;
 }
 
-static void set_dp_sdp_info_packet(
-		struct dc_info_packet *info_packet,
-		struct dc_stream_state *stream)
-{
-	/* SPD info packet for custom sdp message */
-
-	/* Return if false. If true,
-	 * set the corresponding bit in the info packet
-	 */
-	if (!stream->dpsdp_infopacket.valid)
-		return;
-
-	*info_packet = stream->dpsdp_infopacket;
-}
-
 static void set_hdr_static_info_packet(
 		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
@@ -2557,7 +2542,6 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->spd.valid = false;
 	info->hdrsmd.valid = false;
 	info->vsc.valid = false;
-	info->dpsdp.valid = false;
 
 	signal = pipe_ctx->stream->signal;
 
@@ -2577,8 +2561,6 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 
 		set_hdr_static_info_packet(&info->hdrsmd, pipe_ctx->stream);
-
-		set_dp_sdp_info_packet(&info->dpsdp, pipe_ctx->stream);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);

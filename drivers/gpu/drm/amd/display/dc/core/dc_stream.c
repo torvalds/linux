@@ -371,42 +371,12 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 	return 0;
 }
 
-static void build_dp_sdp_info_frame(struct pipe_ctx *pipe_ctx,
-		const uint8_t  *custom_sdp_message,
-		unsigned int sdp_message_size)
-{
-	uint8_t i;
-	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
-
-	/* set valid info */
-	info->dpsdp.valid = true;
-
-	/* set sdp message header */
-	info->dpsdp.hb0 = custom_sdp_message[0]; /* package id */
-	info->dpsdp.hb1 = custom_sdp_message[1]; /* package type */
-	info->dpsdp.hb2 = custom_sdp_message[2]; /* package specific byte 0 any data */
-	info->dpsdp.hb3 = custom_sdp_message[3]; /* package specific byte 0 any data */
-
-	/* set sdp message data */
-	for (i = 0; i < 32; i++)
-		info->dpsdp.sb[i] = (custom_sdp_message[i+4]);
-
-}
-
-static void invalid_dp_sdp_info_frame(struct pipe_ctx *pipe_ctx)
-{
-	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
-
-	/* in-valid info */
-	info->dpsdp.valid = false;
-}
-
 bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		const uint8_t *custom_sdp_message,
 		unsigned int sdp_message_size)
 {
 	int i;
-	struct dc  *core_dc;
+	struct dc  *dc;
 	struct resource_context *res_ctx;
 
 	if (stream == NULL) {
@@ -414,8 +384,8 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		return false;
 	}
 
-	core_dc = stream->ctx->dc;
-	res_ctx = &core_dc->current_state->res_ctx;
+	dc = stream->ctx->dc;
+	res_ctx = &dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -423,11 +393,14 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		if (pipe_ctx->stream != stream)
 			continue;
 
-		build_dp_sdp_info_frame(pipe_ctx, custom_sdp_message, sdp_message_size);
+		if (dc->hwss.send_immediate_sdp_message != NULL)
+			dc->hwss.send_immediate_sdp_message(pipe_ctx,
+								custom_sdp_message,
+								sdp_message_size);
+		else
+			DC_LOG_WARNING("%s:send_immediate_sdp_message not implemented on this ASIC\n",
+			__func__);
 
-		core_dc->hwss.update_info_frame(pipe_ctx);
-
-		invalid_dp_sdp_info_frame(pipe_ctx);
 	}
 
 	return true;

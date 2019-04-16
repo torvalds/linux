@@ -727,11 +727,9 @@ void enc1_stream_encoder_update_dp_info_packets(
 				3,  /* packetIndex */
 				&info_frame->hdrsmd);
 
-	if (info_frame->dpsdp.valid)
-		enc1_update_generic_info_packet(
-				enc1,
-				4,/* packetIndex */
-				&info_frame->dpsdp);
+	/* packetIndex 4 is used for send immediate sdp message, and please
+	 * use other packetIndex (such as 5,6) for other info packet
+	 */
 
 	/* enable/disable transmission of packet(s).
 	 * If enabled, packet transmission begins on the next frame
@@ -739,7 +737,101 @@ void enc1_stream_encoder_update_dp_info_packets(
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP0_ENABLE, info_frame->vsc.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, info_frame->spd.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, info_frame->hdrsmd.valid);
-	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP4_ENABLE, info_frame->dpsdp.valid);
+
+
+	/* This bit is the master enable bit.
+	 * When enabling secondary stream engine,
+	 * this master bit must also be set.
+	 * This register shared with audio info frame.
+	 * Therefore we need to enable master bit
+	 * if at least on of the fields is not 0
+	 */
+	value = REG_READ(DP_SEC_CNTL);
+	if (value)
+		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
+}
+
+void enc1_stream_encoder_send_immediate_sdp_message(
+	struct stream_encoder *enc,
+	const uint8_t *custom_sdp_message,
+	unsigned int sdp_message_size)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t value = 0;
+
+	/* TODOFPGA Figure out a proper number for max_retries polling for lock
+	 * use 50 for now.
+	 */
+	uint32_t max_retries = 50;
+
+	/* check if GSP4 is transmitted */
+	REG_WAIT(DP_SEC_CNTL2, DP_SEC_GSP4_SEND_PENDING,
+		0, 10, max_retries);
+
+	/* disable GSP4 transmitting */
+	REG_UPDATE(DP_SEC_CNTL2, DP_SEC_GSP4_SEND, 0);
+
+	/* transmit GSP4 at the earliest time in a frame */
+	REG_UPDATE(DP_SEC_CNTL2, DP_SEC_GSP4_SEND_ANY_LINE, 1);
+
+	/*we need turn on clock before programming AFMT block*/
+	REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
+
+	/* check if HW reading GSP memory */
+	REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT,
+			0, 10, max_retries);
+
+	/* HW does is not reading GSP memory not reading too long ->
+	 * something wrong. clear GPS memory access and notify?
+	 * hw SW is writing to GSP memory
+	 */
+	REG_UPDATE(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT_CLR, 1);
+
+	/* use generic packet 4 for immediate sdp message */
+	REG_UPDATE(AFMT_VBI_PACKET_CONTROL,
+			AFMT_GENERIC_INDEX, 4);
+
+	/* write generic packet header
+	 * (4th byte is for GENERIC0 only)
+	 */
+	REG_SET_4(AFMT_GENERIC_HDR, 0,
+			AFMT_GENERIC_HB0, custom_sdp_message[0],
+			AFMT_GENERIC_HB1, custom_sdp_message[1],
+			AFMT_GENERIC_HB2, custom_sdp_message[2],
+			AFMT_GENERIC_HB3, custom_sdp_message[3]);
+
+	/* write generic packet contents
+	 * (we never use last 4 bytes)
+	 * there are 8 (0-7) mmDIG0_AFMT_GENERIC0_x registers
+	 */
+	{
+		const uint32_t *content =
+			(const uint32_t *) &custom_sdp_message[4];
+
+		REG_WRITE(AFMT_GENERIC_0, *content++);
+		REG_WRITE(AFMT_GENERIC_1, *content++);
+		REG_WRITE(AFMT_GENERIC_2, *content++);
+		REG_WRITE(AFMT_GENERIC_3, *content++);
+		REG_WRITE(AFMT_GENERIC_4, *content++);
+		REG_WRITE(AFMT_GENERIC_5, *content++);
+		REG_WRITE(AFMT_GENERIC_6, *content++);
+		REG_WRITE(AFMT_GENERIC_7, *content);
+	}
+
+	/* check whether GENERIC4 registers double buffer update in immediate mode
+	 * is pending
+	 */
+	REG_WAIT(AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC4_IMMEDIATE_UPDATE_PENDING,
+			0, 10, max_retries);
+
+	/* atomically update double-buffered GENERIC4 registers in immediate mode
+	 * (update immediately)
+	 */
+	REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
+			AFMT_GENERIC4_IMMEDIATE_UPDATE, 1);
+
+	/* enable GSP4 transmitting */
+	REG_UPDATE(DP_SEC_CNTL2, DP_SEC_GSP4_SEND, 1);
 
 	/* This bit is the master enable bit.
 	 * When enabling secondary stream engine,
@@ -1463,6 +1555,8 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 		enc1_stream_encoder_stop_hdmi_info_packets,
 	.update_dp_info_packets =
 		enc1_stream_encoder_update_dp_info_packets,
+	.send_immediate_sdp_message =
+		enc1_stream_encoder_send_immediate_sdp_message,
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
 	.dp_blank =
