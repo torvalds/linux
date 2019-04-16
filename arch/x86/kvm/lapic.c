@@ -1680,9 +1680,6 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 	if (!kvm_x86_ops->set_hv_timer)
 		return false;
 
-	if (!apic_lvtt_period(apic) && atomic_read(&ktimer->pending))
-		return false;
-
 	if (!ktimer->tscdeadline)
 		return false;
 
@@ -1735,8 +1732,13 @@ static void start_sw_timer(struct kvm_lapic *apic)
 static void restart_apic_timer(struct kvm_lapic *apic)
 {
 	preempt_disable();
+
+	if (!apic_lvtt_period(apic) && atomic_read(&apic->lapic_timer.pending))
+		goto out;
+
 	if (!start_hv_timer(apic))
 		start_sw_timer(apic);
+out:
 	preempt_enable();
 }
 
