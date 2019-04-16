@@ -141,6 +141,7 @@ static int occ_poll(struct occ *occ)
 	/* mutex should already be locked if necessary */
 	rc = occ->send_cmd(occ, cmd);
 	if (rc) {
+		occ->last_error = rc;
 		if (occ->error_count++ > OCC_ERROR_COUNT_THRESHOLD)
 			occ->error = rc;
 
@@ -149,6 +150,7 @@ static int occ_poll(struct occ *occ)
 
 	/* clear error since communication was successful */
 	occ->error_count = 0;
+	occ->last_error = 0;
 	occ->error = 0;
 
 	/* check for safe state */
@@ -210,6 +212,8 @@ int occ_update_response(struct occ *occ)
 	if (time_after(jiffies, occ->last_update + OCC_UPDATE_FREQUENCY)) {
 		rc = occ_poll(occ);
 		occ->last_update = jiffies;
+	} else {
+		rc = occ->last_error;
 	}
 
 	mutex_unlock(&occ->lock);
