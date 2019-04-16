@@ -9,8 +9,10 @@ config SENSORS_OCC_P8_I2C
 	select SENSORS_OCC
 	help
 	 This option enables support for monitoring sensors provided by the
-	 On-Chip Controller (OCC) on a POWER8 processor. Communications with
-	 the OCC are established through I2C bus.
+	 On-Chip Controller (OCC) on a POWER8 processor. However, this driver
+	 can only run on a baseboard management controller (BMC) connected to
+	 the P8, not the POWER processor itself. Communications with the OCC are
+	 established through I2C bus.
 
 	 This driver can also be built as a module. If so, the module will be
 	 called occ-p8-hwmon.
@@ -22,8 +24,10 @@ config SENSORS_OCC_P9_SBE
 	select SENSORS_OCC
 	help
 	 This option enables support for monitoring sensors provided by the
-	 On-Chip Controller (OCC) on a POWER9 processor. Communications with
-	 the OCC are established through SBE fifo on an FSI bus.
+	 On-Chip Controller (OCC) on a POWER9 processor. However, this driver
+	 can only run on a baseboard management controller (BMC) connected to
+	 the P9, not the POWER processor itself. Communications with the OCC are
+	 established through SBE fifo on an FSI bus.
 
 	 This driver can also be built as a module. If so, the module will be
 	 called occ-p9-hwmon.
