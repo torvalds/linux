@@ -1673,7 +1673,8 @@ static void cancel_hv_timer(struct kvm_lapic *apic)
 static bool start_hv_timer(struct kvm_lapic *apic)
 {
 	struct kvm_timer *ktimer = &apic->lapic_timer;
-	int r;
+	struct kvm_vcpu *vcpu = apic->vcpu;
+	bool expired;
 
 	WARN_ON(preemptible());
 	if (!kvm_x86_ops->set_hv_timer)
@@ -1685,8 +1686,7 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 	if (!ktimer->tscdeadline)
 		return false;
 
-	r = kvm_x86_ops->set_hv_timer(apic->vcpu, ktimer->tscdeadline);
-	if (r < 0)
+	if (kvm_x86_ops->set_hv_timer(vcpu, ktimer->tscdeadline, &expired))
 		return false;
 
 	ktimer->hv_timer_in_use = true;
@@ -1704,13 +1704,13 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 		 */
 		if (atomic_read(&ktimer->pending)) {
 			cancel_hv_timer(apic);
-		} else if (r) {
+		} else if (expired) {
 			apic_timer_expired(apic);
 			cancel_hv_timer(apic);
 		}
 	}
 
-	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id, ktimer->hv_timer_in_use);
+	trace_kvm_hv_timer_state(vcpu->vcpu_id, ktimer->hv_timer_in_use);
 
 	return true;
 }
