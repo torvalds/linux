@@ -182,6 +182,7 @@ static struct resource latch1_resources[] = {
 
 static struct bgpio_pdata latch1_pdata = {
 	.label	= LATCH1_LABEL,
+	.base	= -1,
 	.ngpio	= LATCH1_NGPIO,
 };
 
@@ -219,6 +220,7 @@ static struct resource latch2_resources[] = {
 
 static struct bgpio_pdata latch2_pdata = {
 	.label	= LATCH2_LABEL,
+	.base	= -1,
 	.ngpio	= LATCH2_NGPIO,
 };
 

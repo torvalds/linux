@@ -15986,8 +15986,6 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		u64 get_domains;
-		enum intel_display_power_domain domain;
 		struct intel_crtc_state *crtc_state;
 
 		if (!encoder->get_power_domains)
@@ -16001,9 +15999,7 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
 			continue;
 
 		crtc_state = to_intel_crtc_state(encoder->base.crtc->state);
-		get_domains = encoder->get_power_domains(encoder, crtc_state);
-		for_each_power_domain(domain, get_domains)
-			intel_display_power_get(dev_priv, domain);
+		encoder->get_power_domains(encoder, crtc_state);
 	}
 }
 

@@ -233,8 +233,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	q->flags = ctl->flags;
 	q->limit = ctl->limit;
 	if (child) {
-		qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
-					  q->qdisc->qstats.backlog);
+		qdisc_tree_flush_backlog(q->qdisc);
 		old_child = q->qdisc;
 		q->qdisc = child;
 	}

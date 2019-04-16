@@ -150,7 +150,6 @@ out_buffer_fail:
 /* free desc along with its attached buffer */
 static void hnae_free_desc(struct hnae_ring *ring)
 {
-	hnae_free_buffers(ring);
 	dma_unmap_single(ring_to_dev(ring), ring->desc_dma_addr,
 			 ring->desc_num * sizeof(ring->desc[0]),
 			 ring_to_dma_dir(ring));
@@ -183,6 +182,9 @@ static int hnae_alloc_desc(struct hnae_ring *ring)
 /* fini ring, also free the buffer for the ring */
 static void hnae_fini_ring(struct hnae_ring *ring)
 {
+	if (is_rx_ring(ring))
+		hnae_free_buffers(ring);
+
 	hnae_free_desc(ring);
 	kfree(ring->desc_cb);
 	ring->desc_cb = NULL;

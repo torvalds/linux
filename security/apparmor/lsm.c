@@ -1336,9 +1336,16 @@ module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR);
 bool aa_g_paranoid_load = true;
 module_param_named(paranoid_load, aa_g_paranoid_load, aabool, S_IRUGO);
 
+static int param_get_aaintbool(char *buffer, const struct kernel_param *kp);
+static int param_set_aaintbool(const char *val, const struct kernel_param *kp);
+#define param_check_aaintbool param_check_int
+static const struct kernel_param_ops param_ops_aaintbool = {
+	.set = param_set_aaintbool,
+	.get = param_get_aaintbool
+};
 /* Boot time disable flag */
 static int apparmor_enabled __lsm_ro_after_init = 1;
-module_param_named(enabled, apparmor_enabled, int, 0444);
+module_param_named(enabled, apparmor_enabled, aaintbool, 0444);
 
 static int __init apparmor_enabled_setup(char *str)
 {
@@ -1411,6 +1418,46 @@ static int param_get_aauint(char *buffer, const struct kernel_param *kp)
 	if (apparmor_initialized && !policy_view_capable(NULL))
 		return -EPERM;
 	return param_get_uint(buffer, kp);
+}
+
+/* Can only be set before AppArmor is initialized (i.e. on boot cmdline). */
+static int param_set_aaintbool(const char *val, const struct kernel_param *kp)
+{
+	struct kernel_param kp_local;
+	bool value;
+	int error;
+
+	if (apparmor_initialized)
+		return -EPERM;
+
+	/* Create local copy, with arg pointing to bool type. */
+	value = !!*((int *)kp->arg);
+	memcpy(&kp_local, kp, sizeof(kp_local));
+	kp_local.arg = &value;
+
+	error = param_set_bool(val, &kp_local);
+	if (!error)
+		*((int *)kp->arg) = *((bool *)kp_local.arg);
+	return error;
+}
+
+/*
+ * To avoid changing /sys/module/apparmor/parameters/enabled from Y/N to
+ * 1/0, this converts the "int that is actually bool" back to bool for
+ * display in the /sys filesystem, while keeping it "int" for the LSM
+ * infrastructure.
+ */
+static int param_get_aaintbool(char *buffer, const struct kernel_param *kp)
+{
+	struct kernel_param kp_local;
+	bool value;
+
+	/* Create local copy, with arg pointing to bool type. */
+	value = !!*((int *)kp->arg);
+	memcpy(&kp_local, kp, sizeof(kp_local));
+	kp_local.arg = &value;
+
+	return param_get_bool(buffer, &kp_local);
 }
 
 static int param_get_audit(char *buffer, const struct kernel_param *kp)

@@ -1150,28 +1150,9 @@ void hubp1_cursor_set_position(
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 
-	//account for cases where we see negative offset relative to overlay plane
-	if (src_x_offset < 0 && src_y_offset < 0) {
-		REG_SET_2(CURSOR_POSITION, 0,
-			CURSOR_X_POSITION, 0,
-			CURSOR_Y_POSITION, 0);
-		x_hotspot -= src_x_offset;
-		y_hotspot -= src_y_offset;
-	} else if (src_x_offset < 0) {
-		REG_SET_2(CURSOR_POSITION, 0,
-			CURSOR_X_POSITION, 0,
-			CURSOR_Y_POSITION, pos->y);
-		x_hotspot -= src_x_offset;
-	} else if (src_y_offset < 0) {
-		REG_SET_2(CURSOR_POSITION, 0,
+	REG_SET_2(CURSOR_POSITION, 0,
 			CURSOR_X_POSITION, pos->x,
-			CURSOR_Y_POSITION, 0);
-		y_hotspot -= src_y_offset;
-	} else {
-		REG_SET_2(CURSOR_POSITION, 0,
-				CURSOR_X_POSITION, pos->x,
-				CURSOR_Y_POSITION, pos->y);
-	}
+			CURSOR_Y_POSITION, pos->y);
 
 	REG_SET_2(CURSOR_HOT_SPOT, 0,
 			CURSOR_HOT_SPOT_X, x_hotspot,

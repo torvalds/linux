@@ -559,6 +559,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 			tcon->ses->server->echo_interval / HZ);
 	if (tcon->snapshot_time)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
+	if (tcon->handle_timeout)
+		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
 	/* convert actimeo and display it in seconds */
 	seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
 
