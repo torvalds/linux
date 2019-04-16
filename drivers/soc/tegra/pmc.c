@@ -272,6 +272,14 @@ static const char * const tegra30_reset_sources[] = {
 	"WATCHDOG",
 	"SENSOR",
 	"SW_MAIN",
+	"LP0"
+};
+
+static const char * const tegra210_reset_sources[] = {
+	"POWER_ON_RESET",
+	"WATCHDOG",
+	"SENSOR",
+	"SW_MAIN",
 	"LP0",
 	"AOTAG"
 };
@@ -1736,13 +1744,16 @@ static int tegra_pmc_pinctrl_init(struct tegra_pmc *pmc)
 static ssize_t reset_reason_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	u32 value, rst_src;
+	u32 value;
 
 	value = tegra_pmc_readl(pmc, pmc->soc->regs->rst_status);
-	rst_src = (value & pmc->soc->regs->rst_source_mask) >>
-			pmc->soc->regs->rst_source_shift;
+	value &= pmc->soc->regs->rst_source_mask;
+	value >>= pmc->soc->regs->rst_source_shift;
 
-	return sprintf(buf, "%s\n", pmc->soc->reset_sources[rst_src]);
+	if (WARN_ON(value >= pmc->soc->num_reset_sources))
+		return sprintf(buf, "%s\n", "UNKNOWN");
+
+	return sprintf(buf, "%s\n", pmc->soc->reset_sources[value]);
 }
 
 static DEVICE_ATTR_RO(reset_reason);
@@ -1750,13 +1761,16 @@ static DEVICE_ATTR_RO(reset_reason);
 static ssize_t reset_level_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	u32 value, rst_lvl;
+	u32 value;
 
 	value = tegra_pmc_readl(pmc, pmc->soc->regs->rst_status);
-	rst_lvl = (value & pmc->soc->regs->rst_level_mask) >>
-			pmc->soc->regs->rst_level_shift;
+	value &= pmc->soc->regs->rst_level_mask;
+	value >>= pmc->soc->regs->rst_level_shift;
 
-	return sprintf(buf, "%s\n", pmc->soc->reset_levels[rst_lvl]);
+	if (WARN_ON(value >= pmc->soc->num_reset_levels))
+		return sprintf(buf, "%s\n", "UNKNOWN");
+
+	return sprintf(buf, "%s\n", pmc->soc->reset_levels[value]);
 }
 
 static DEVICE_ATTR_RO(reset_level);
@@ -2212,7 +2226,7 @@ static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
 	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2263,7 +2277,7 @@ static const struct tegra_pmc_soc tegra114_pmc_soc = {
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
 	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2374,7 +2388,7 @@ static const struct tegra_pmc_soc tegra124_pmc_soc = {
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
 	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2479,8 +2493,8 @@ static const struct tegra_pmc_soc tegra210_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
-	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.reset_sources = tegra210_reset_sources,
+	.num_reset_sources = ARRAY_SIZE(tegra210_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2605,9 +2619,9 @@ static const struct tegra_pmc_soc tegra186_pmc_soc = {
 	.init = NULL,
 	.setup_irq_polarity = tegra186_pmc_setup_irq_polarity,
 	.reset_sources = tegra186_reset_sources,
-	.num_reset_sources = 14,
+	.num_reset_sources = ARRAY_SIZE(tegra186_reset_sources),
 	.reset_levels = tegra186_reset_levels,
-	.num_reset_levels = 3,
+	.num_reset_levels = ARRAY_SIZE(tegra186_reset_levels),
 	.num_wake_events = ARRAY_SIZE(tegra186_wake_events),
 	.wake_events = tegra186_wake_events,
 };
