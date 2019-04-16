@@ -190,7 +190,6 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 0x0FFF;
 	s->range_table = &range_pci1050_ai;
-	s->len_chanlist = 16;
 	s->insn_read = dyna_pci10xx_insn_read_ai;
 
 	/* analog output */
@@ -200,7 +199,6 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 0x0FFF;
 	s->range_table = &range_unipolar10;
-	s->len_chanlist = 16;
 	s->insn_write = dyna_pci10xx_insn_write_ao;
 
 	/* digital input */
@@ -210,7 +208,6 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->len_chanlist = 16;
 	s->insn_bits = dyna_pci10xx_di_insn_bits;
 
 	/* digital output */
@@ -220,7 +217,6 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->len_chanlist = 16;
 	s->state = 0;
 	s->insn_bits = dyna_pci10xx_do_insn_bits;
 
