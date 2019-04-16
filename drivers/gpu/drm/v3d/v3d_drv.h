@@ -189,7 +189,7 @@ struct v3d_exec_info {
 	struct kref refcount;
 
 	/* This is the array of BOs that were looked up at the start of exec. */
-	struct v3d_bo **bo;
+	struct drm_gem_object **bo;
 	u32 bo_count;
 
 	/* List of overflow BOs used in the job that need to be
@@ -217,7 +217,7 @@ struct v3d_tfu_job {
 	struct kref refcount;
 
 	/* This is the array of BOs that were looked up at the start of exec. */
-	struct v3d_bo *bo[4];
+	struct drm_gem_object *bo[4];
 };
 
 /**

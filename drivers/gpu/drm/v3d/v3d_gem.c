@@ -194,25 +194,15 @@ v3d_invalidate_caches(struct v3d_dev *v3d)
 }
 
 static void
-v3d_attach_object_fences(struct v3d_bo **bos, int bo_count,
+v3d_attach_object_fences(struct drm_gem_object **bos, int bo_count,
 			 struct dma_fence *fence)
 {
 	int i;
 
 	for (i = 0; i < bo_count; i++) {
 		/* XXX: Use shared fences for read-only objects. */
-		reservation_object_add_excl_fence(bos[i]->base.base.resv,
-						  fence);
+		reservation_object_add_excl_fence(bos[i]->resv, fence);
 	}
-}
-
-static void
-v3d_unlock_bo_reservations(struct v3d_bo **bos,
-			   int bo_count,
-			   struct ww_acquire_ctx *acquire_ctx)
-{
-	drm_gem_unlock_reservations((struct drm_gem_object **)bos, bo_count,
-				    acquire_ctx);
 }
 
 /* Takes the reservation lock on all the BOs being referenced, so that
@@ -223,14 +213,13 @@ v3d_unlock_bo_reservations(struct v3d_bo **bos,
  * to v3d, so we don't attach dma-buf fences to them.
  */
 static int
-v3d_lock_bo_reservations(struct v3d_bo **bos,
+v3d_lock_bo_reservations(struct drm_gem_object **bos,
 			 int bo_count,
 			 struct ww_acquire_ctx *acquire_ctx)
 {
 	int i, ret;
 
-	ret = drm_gem_lock_reservations((struct drm_gem_object **)bos,
-					bo_count, acquire_ctx);
+	ret = drm_gem_lock_reservations(bos, bo_count, acquire_ctx);
 	if (ret)
 		return ret;
 
@@ -238,11 +227,10 @@ v3d_lock_bo_reservations(struct v3d_bo **bos,
 	 * before we commit the CL to the hardware.
 	 */
 	for (i = 0; i < bo_count; i++) {
-		ret = reservation_object_reserve_shared(bos[i]->base.base.resv,
-							1);
+		ret = reservation_object_reserve_shared(bos[i]->resv, 1);
 		if (ret) {
-			v3d_unlock_bo_reservations(bos, bo_count,
-						   acquire_ctx);
+			drm_gem_unlock_reservations(bos, bo_count,
+						    acquire_ctx);
 			return ret;
 		}
 	}
@@ -319,7 +307,7 @@ v3d_cl_lookup_bos(struct drm_device *dev,
 			goto fail;
 		}
 		drm_gem_object_get(bo);
-		exec->bo[i] = to_v3d_bo(bo);
+		exec->bo[i] = bo;
 	}
 	spin_unlock(&file_priv->table_lock);
 
@@ -347,7 +335,7 @@ v3d_exec_cleanup(struct kref *ref)
 	dma_fence_put(exec->render_done_fence);
 
 	for (i = 0; i < exec->bo_count; i++)
-		drm_gem_object_put_unlocked(&exec->bo[i]->base.base);
+		drm_gem_object_put_unlocked(exec->bo[i]);
 	kvfree(exec->bo);
 
 	list_for_each_entry_safe(bo, save, &exec->unref_list, unref_head) {
@@ -378,7 +366,7 @@ v3d_tfu_job_cleanup(struct kref *ref)
 
 	for (i = 0; i < ARRAY_SIZE(job->bo); i++) {
 		if (job->bo[i])
-			drm_gem_object_put_unlocked(&job->bo[i]->base.base);
+			drm_gem_object_put_unlocked(job->bo[i]);
 	}
 
 	pm_runtime_mark_last_busy(v3d->dev);
@@ -532,7 +520,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	v3d_attach_object_fences(exec->bo, exec->bo_count,
 				 exec->render_done_fence);
 
-	v3d_unlock_bo_reservations(exec->bo, exec->bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(exec->bo, exec->bo_count, &acquire_ctx);
 
 	/* Update the return sync object for the */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
@@ -547,7 +535,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 fail_unreserve:
 	mutex_unlock(&v3d->sched_lock);
-	v3d_unlock_bo_reservations(exec->bo, exec->bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(exec->bo, exec->bo_count, &acquire_ctx);
 fail:
 	v3d_exec_put(exec);
 
@@ -616,7 +604,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 			goto fail;
 		}
 		drm_gem_object_get(bo);
-		job->bo[bo_count] = to_v3d_bo(bo);
+		job->bo[bo_count] = bo;
 	}
 	spin_unlock(&file_priv->table_lock);
 
@@ -639,7 +627,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	v3d_attach_object_fences(job->bo, bo_count, sched_done_fence);
 
-	v3d_unlock_bo_reservations(job->bo, bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(job->bo, bo_count, &acquire_ctx);
 
 	/* Update the return sync object */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
@@ -655,7 +643,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 fail_unreserve:
 	mutex_unlock(&v3d->sched_lock);
-	v3d_unlock_bo_reservations(job->bo, bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(job->bo, bo_count, &acquire_ctx);
 fail:
 	v3d_tfu_job_put(job);
 
