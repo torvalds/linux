@@ -606,19 +606,16 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 			    FUSB_REG_SWITCHES0_CC2_PU_EN |
 			    FUSB_REG_SWITCHES0_CC1_PD_EN |
 			    FUSB_REG_SWITCHES0_CC2_PD_EN;
-	u8 switches0_data = 0x00;
+	u8 rd_mda, switches0_data = 0x00;
 	int ret = 0;
-	enum toggling_mode mode;
 
 	mutex_lock(&chip->lock);
 	switch (cc) {
 	case TYPEC_CC_OPEN:
-		mode = TOGGLING_MODE_OFF;
 		break;
 	case TYPEC_CC_RD:
 		switches0_data |= FUSB_REG_SWITCHES0_CC1_PD_EN |
 				  FUSB_REG_SWITCHES0_CC2_PD_EN;
-		mode = TOGGLING_MODE_SNK;
 		break;
 	case TYPEC_CC_RP_DEF:
 	case TYPEC_CC_RP_1_5:
@@ -626,7 +623,6 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		switches0_data |= (chip->cc_polarity == TYPEC_POLARITY_CC1) ?
 				  FUSB_REG_SWITCHES0_CC1_PU_EN :
 				  FUSB_REG_SWITCHES0_CC2_PU_EN;
-		mode = TOGGLING_MODE_SRC;
 		break;
 	default:
 		fusb302_log(chip, "unsupported cc value %s",
@@ -636,6 +632,12 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 	}
 
 	fusb302_log(chip, "cc := %s", typec_cc_status_name[cc]);
+
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
+	if (ret < 0) {
+		fusb302_log(chip, "cannot set toggling mode, ret=%d", ret);
+		goto done;
+	}
 
 	ret = fusb302_i2c_mask_write(chip, FUSB_REG_SWITCHES0,
 				     switches0_mask, switches0_data);
@@ -655,10 +657,45 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		goto done;
 	}
 
-	ret = fusb302_set_toggling(chip, mode);
-	if (ret < 0)
-		fusb302_log(chip, "cannot set toggling mode, ret=%d", ret);
-
+	/* enable/disable interrupts, BC_LVL for SNK and COMP_CHNG for SRC */
+	switch (cc) {
+	case TYPEC_CC_RP_DEF:
+	case TYPEC_CC_RP_1_5:
+	case TYPEC_CC_RP_3_0:
+		rd_mda = rd_mda_value[cc_src_current[cc]];
+		ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, rd_mda);
+		if (ret < 0) {
+			fusb302_log(chip,
+				    "cannot set SRC measure value, ret=%d",
+				    ret);
+			goto done;
+		}
+		ret = fusb302_i2c_mask_write(chip, FUSB_REG_MASK,
+					     FUSB_REG_MASK_BC_LVL |
+					     FUSB_REG_MASK_COMP_CHNG,
+					     FUSB_REG_MASK_COMP_CHNG);
+		if (ret < 0) {
+			fusb302_log(chip, "cannot set SRC interrupt, ret=%d",
+				    ret);
+			goto done;
+		}
+		chip->intr_comp_chng = true;
+		break;
+	case TYPEC_CC_RD:
+		ret = fusb302_i2c_mask_write(chip, FUSB_REG_MASK,
+					     FUSB_REG_MASK_BC_LVL |
+					     FUSB_REG_MASK_COMP_CHNG,
+					     FUSB_REG_MASK_BC_LVL);
+		if (ret < 0) {
+			fusb302_log(chip, "cannot set SRC interrupt, ret=%d",
+				    ret);
+			goto done;
+		}
+		chip->intr_bc_lvl = true;
+		break;
+	default:
+		break;
+	}
 done:
 	mutex_unlock(&chip->lock);
 
