@@ -1807,16 +1807,16 @@ error_param:
 static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 {
 	enum virtchnl_status_code v_ret = VIRTCHNL_STATUS_SUCCESS;
-	struct virtchnl_irq_map_info *irqmap_info =
-	    (struct virtchnl_irq_map_info *)msg;
+	struct virtchnl_irq_map_info *irqmap_info;
 	u16 vsi_id, vsi_q_id, vector_id;
 	struct virtchnl_vector_map *map;
-	struct ice_vsi *vsi = NULL;
 	struct ice_pf *pf = vf->pf;
+	struct ice_vsi *vsi;
 	unsigned long qmap;
 	u16 num_q_vectors;
 	int i;
 
+	irqmap_info = (struct virtchnl_irq_map_info *)msg;
 	num_q_vectors = irqmap_info->num_vectors - ICE_NONQ_VECS_VF;
 	vsi = pf->vsi[vf->lan_vsi_idx];
 
