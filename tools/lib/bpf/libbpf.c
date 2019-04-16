@@ -817,7 +817,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, struct bpf_map *map,
 		memcpy(*data_buff, data->d_buf, data->d_size);
 	}
 
-	pr_debug("map %ld is \"%s\"\n", map - obj->maps, map->name);
+	pr_debug("map %td is \"%s\"\n", map - obj->maps, map->name);
 	return 0;
 }
 
