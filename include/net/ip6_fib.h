@@ -190,6 +190,11 @@ struct rt6_info {
 	unsigned short			rt6i_nfheader_len;
 };
 
+struct fib6_result {
+	struct fib6_nh		*nh;
+	struct fib6_info	*f6i;
+};
+
 #define for_each_fib6_node_rt_rcu(fn)					\
 	for (rt = rcu_dereference((fn)->leaf); rt;			\
 	     rt = rcu_dereference(rt->fib6_next))
@@ -391,11 +396,9 @@ struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
 				    int oif, struct flowi6 *fl6, int strict);
 
-struct fib6_info *fib6_multipath_select(const struct net *net,
-					struct fib6_info *match,
-					struct flowi6 *fl6, int oif,
-					const struct sk_buff *skb, int strict);
-
+void fib6_select_path(const struct net *net, struct fib6_result *res,
+		      struct flowi6 *fl6, int oif, bool have_oif_match,
+		      const struct sk_buff *skb, int strict);
 struct fib6_node *fib6_node_lookup(struct fib6_node *root,
 				   const struct in6_addr *daddr,
 				   const struct in6_addr *saddr);

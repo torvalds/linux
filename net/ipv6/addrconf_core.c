@@ -158,12 +158,11 @@ eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 	return NULL;
 }
 
-static struct fib6_info *
-eafnosupport_fib6_multipath_select(const struct net *net, struct fib6_info *f6i,
-				   struct flowi6 *fl6, int oif,
-				   const struct sk_buff *skb, int strict)
+static void
+eafnosupport_fib6_select_path(const struct net *net, struct fib6_result *res,
+			      struct flowi6 *fl6, int oif, bool have_oif_match,
+			      const struct sk_buff *skb, int strict)
 {
-	return f6i;
 }
 
 static u32
@@ -187,7 +186,7 @@ const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
 	.fib6_get_table    = eafnosupport_fib6_get_table,
 	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
 	.fib6_lookup       = eafnosupport_fib6_lookup,
-	.fib6_multipath_select = eafnosupport_fib6_multipath_select,
+	.fib6_select_path  = eafnosupport_fib6_select_path,
 	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
 	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
 };
