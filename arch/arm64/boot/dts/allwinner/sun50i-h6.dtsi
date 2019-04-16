@@ -101,7 +101,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		display-engine@1000000 {
+		bus@1000000 {
 			compatible = "allwinner,sun50i-h6-de3",
 				     "allwinner,sun50i-a64-de2";
 			reg = <0x1000000 0x400000>;

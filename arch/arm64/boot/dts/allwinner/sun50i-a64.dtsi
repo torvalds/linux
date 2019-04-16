@@ -217,7 +217,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		de2@1000000 {
+		bus@1000000 {
 			compatible = "allwinner,sun50i-a64-de2";
 			reg = <0x1000000 0x400000>;
 			allwinner,sram = <&de2_sram 1>;
