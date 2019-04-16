@@ -7063,10 +7063,9 @@ static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc,
 
 	/* Convert to host delta tsc if tsc scaling is enabled */
 	if (vcpu->arch.tsc_scaling_ratio != kvm_default_tsc_scaling_ratio &&
-			u64_shl_div_u64(delta_tsc,
+	    delta_tsc && u64_shl_div_u64(delta_tsc,
 				kvm_tsc_scaling_ratio_frac_bits,
-				vcpu->arch.tsc_scaling_ratio,
-				&delta_tsc))
+				vcpu->arch.tsc_scaling_ratio, &delta_tsc))
 		return -ERANGE;
 
 	/*
