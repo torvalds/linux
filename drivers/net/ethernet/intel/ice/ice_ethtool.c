@@ -1205,6 +1205,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags)) {
 			enum ice_status status;
 
+			/* Disable FW LLDP engine */
 			status = ice_aq_cfg_lldp_mib_change(&pf->hw, false,
 							    NULL);
 			/* If unregistering for LLDP events fails, this is
@@ -1229,6 +1230,11 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
 				dev_warn(&pf->pdev->dev, "Fail to init DCB\n");
+
+			/* Forward LLDP packets to default VSI so that they
+			 * are passed up the stack
+			 */
+			ice_cfg_sw_lldp(vsi, false, true);
 		} else {
 			enum ice_status status;
 			bool dcbx_agent_status;
@@ -1262,6 +1268,11 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
 				dev_dbg(&pf->pdev->dev, "Fail to init DCB\n");
+
+			/* Remove rule to direct LLDP packets to default VSI.
+			 * The FW LLDP engine will now be consuming them.
+			 */
+			ice_cfg_sw_lldp(vsi, false, false);
 		}
 	}
 	clear_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);

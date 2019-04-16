@@ -1973,6 +1973,10 @@ ice_add_vlan(struct ice_hw *hw, struct list_head *v_list)
  * ice_add_eth_mac - Add ethertype and MAC based filter rule
  * @hw: pointer to the hardware structure
  * @em_list: list of ether type MAC filter, MAC is optional
+ *
+ * This function requires the caller to populate the entries in
+ * the filter list with the necessary fields (including flags to
+ * indicate Tx or Rx rules).
  */
 enum ice_status
 ice_add_eth_mac(struct ice_hw *hw, struct list_head *em_list)
@@ -1990,7 +1994,6 @@ ice_add_eth_mac(struct ice_hw *hw, struct list_head *em_list)
 		    l_type != ICE_SW_LKUP_ETHERTYPE)
 			return ICE_ERR_PARAM;
 
-		em_list_itr->fltr_info.flag = ICE_FLTR_TX;
 		em_list_itr->status = ice_add_rule_internal(hw, l_type,
 							    em_list_itr);
 		if (em_list_itr->status)

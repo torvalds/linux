@@ -2345,6 +2345,56 @@ ice_vsi_add_rem_eth_mac(struct ice_vsi *vsi, bool add_rule)
 	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 }
 
+#define ICE_ETH_P_LLDP	0x88CC
+
+/**
+ * ice_cfg_sw_lldp - Config switch rules for LLDP packet handling
+ * @vsi: the VSI being configured
+ * @tx: bool to determine Tx or Rx rule
+ * @create: bool to determine create or remove Rule
+ */
+void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
+{
+	struct ice_fltr_list_entry *list;
+	struct ice_pf *pf = vsi->back;
+	LIST_HEAD(tmp_add_list);
+	enum ice_status status;
+
+	list = devm_kzalloc(&pf->pdev->dev, sizeof(*list), GFP_KERNEL);
+	if (!list)
+		return;
+
+	list->fltr_info.lkup_type = ICE_SW_LKUP_ETHERTYPE;
+	list->fltr_info.vsi_handle = vsi->idx;
+	list->fltr_info.l_data.ethertype_mac.ethertype = ICE_ETH_P_LLDP;
+
+	if (tx) {
+		list->fltr_info.fltr_act = ICE_DROP_PACKET;
+		list->fltr_info.flag = ICE_FLTR_TX;
+		list->fltr_info.src_id = ICE_SRC_ID_VSI;
+	} else {
+		list->fltr_info.fltr_act = ICE_FWD_TO_VSI;
+		list->fltr_info.flag = ICE_FLTR_RX;
+		list->fltr_info.src_id = ICE_SRC_ID_LPORT;
+	}
+
+	INIT_LIST_HEAD(&list->list_entry);
+	list_add(&list->list_entry, &tmp_add_list);
+
+	if (create)
+		status = ice_add_eth_mac(&pf->hw, &tmp_add_list);
+	else
+		status = ice_remove_eth_mac(&pf->hw, &tmp_add_list);
+
+	if (status)
+		dev_err(&pf->pdev->dev,
+			"Fail %s %s LLDP rule on VSI %i error: %d\n",
+			create ? "adding" : "removing", tx ? "TX" : "RX",
+			vsi->vsi_num, status);
+
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+}
+
 /**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
@@ -2487,9 +2537,21 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	 * out PAUSE or PFC frames. If enabled, FW can still send FC frames.
 	 * The rule is added once for PF VSI in order to create appropriate
 	 * recipe, since VSI/VSI list is ignored with drop action...
+	 * Also add rules to handle LLDP Tx and Rx packets.  Tx LLDP packets
+	 * need to be dropped so that VFs cannot send LLDP packets to reconfig
+	 * DCB settings in the HW.  Also, if the FW DCBx engine is not running
+	 * then Rx LLDP packets need to be redirected up the stack.
 	 */
-	if (vsi->type == ICE_VSI_PF)
+	if (vsi->type == ICE_VSI_PF) {
 		ice_vsi_add_rem_eth_mac(vsi, true);
+
+		/* Tx LLDP packets */
+		ice_cfg_sw_lldp(vsi, true, true);
+
+		/* Rx LLDP packets */
+		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags))
+			ice_cfg_sw_lldp(vsi, false, true);
+	}
 
 	return vsi;
 
@@ -2829,8 +2891,15 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		pf->num_avail_sw_msix += vsi->num_q_vectors;
 	}
 
-	if (vsi->type == ICE_VSI_PF)
+	if (vsi->type == ICE_VSI_PF) {
 		ice_vsi_add_rem_eth_mac(vsi, false);
+		ice_cfg_sw_lldp(vsi, true, false);
+		/* The Rx rule will only exist to remove if the LLDP FW
+		 * engine is currently stopped
+		 */
+		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags))
+			ice_cfg_sw_lldp(vsi, false, false);
+	}
 
 	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);

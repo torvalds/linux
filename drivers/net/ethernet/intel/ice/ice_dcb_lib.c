@@ -387,10 +387,8 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
 	}
 
-	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
-		sw_default = 1;
+	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED)
 		dev_info(&pf->pdev->dev, "DCBX not started\n");
-	}
 
 	if (sw_default) {
 		err = ice_dcb_sw_dflt_cfg(pf, locked);
