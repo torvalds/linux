@@ -1709,16 +1709,6 @@ static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 				   -atomic_long_read(&rdp->nocb_q_count_lazy),
 				   -rcu_get_n_cbs_nocb_cpu(rdp));
 
-	/*
-	 * If called from an extended quiescent state with interrupts
-	 * disabled, invoke the RCU core in order to allow the idle-entry
-	 * deferred-wakeup check to function.
-	 */
-	if (irqs_disabled_flags(flags) &&
-	    !rcu_is_watching() &&
-	    cpu_online(smp_processor_id()))
-		invoke_rcu_core();
-
 	return true;
 }
 
