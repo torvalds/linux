@@ -22,6 +22,7 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 
 #define INA3221_DRIVER_NAME		"ina3221"
 
@@ -51,6 +52,9 @@
 #define INA3221_CONFIG_VBUS_CT_SHIFT	6
 #define INA3221_CONFIG_VBUS_CT_MASK	GENMASK(8, 6)
 #define INA3221_CONFIG_VBUS_CT(x)	(((x) & GENMASK(8, 6)) >> 6)
+#define INA3221_CONFIG_AVG_SHIFT	9
+#define INA3221_CONFIG_AVG_MASK		GENMASK(11, 9)
+#define INA3221_CONFIG_AVG(x)		(((x) & GENMASK(11, 9)) >> 9)
 #define INA3221_CONFIG_CHs_EN_MASK	GENMASK(14, 12)
 #define INA3221_CONFIG_CHx_EN(x)	BIT(14 - (x))
 
@@ -135,17 +139,24 @@ static const u16 ina3221_conv_time[] = {
 	140, 204, 332, 588, 1100, 2116, 4156, 8244,
 };
 
+/* Lookup table for number of samples using in averaging mode */
+static const int ina3221_avg_samples[] = {
+	1, 4, 16, 64, 128, 256, 512, 1024,
+};
+
 static inline int ina3221_wait_for_data(struct ina3221_data *ina)
 {
 	u32 channels = hweight16(ina->reg_config & INA3221_CONFIG_CHs_EN_MASK);
 	u32 vbus_ct_idx = INA3221_CONFIG_VBUS_CT(ina->reg_config);
 	u32 vsh_ct_idx = INA3221_CONFIG_VSH_CT(ina->reg_config);
+	u32 samples_idx = INA3221_CONFIG_AVG(ina->reg_config);
+	u32 samples = ina3221_avg_samples[samples_idx];
 	u32 vbus_ct = ina3221_conv_time[vbus_ct_idx];
 	u32 vsh_ct = ina3221_conv_time[vsh_ct_idx];
 	u32 wait, cvrf;
 
 	/* Calculate total conversion time */
-	wait = channels * (vbus_ct + vsh_ct);
+	wait = channels * (vbus_ct + vsh_ct) * samples;
 
 	/* Polling the CVRF bit to make sure read data is ready */
 	return regmap_field_read_poll_timeout(ina->fields[F_CVRF],
@@ -175,6 +186,21 @@ static const u8 ina3221_in_reg[] = {
 	INA3221_SHUNT2,
 	INA3221_SHUNT3,
 };
+
+static int ina3221_read_chip(struct device *dev, u32 attr, long *val)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int regval;
+
+	switch (attr) {
+	case hwmon_chip_samples:
+		regval = INA3221_CONFIG_AVG(ina->reg_config);
+		*val = ina3221_avg_samples[regval];
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
 static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 {
@@ -279,6 +305,30 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 	}
 }
 
+static int ina3221_write_chip(struct device *dev, u32 attr, long val)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int ret, idx;
+
+	switch (attr) {
+	case hwmon_chip_samples:
+		idx = find_closest(val, ina3221_avg_samples,
+				   ARRAY_SIZE(ina3221_avg_samples));
+
+		ret = regmap_update_bits(ina->regmap, INA3221_CONFIG,
+					 INA3221_CONFIG_AVG_MASK,
+					 idx << INA3221_CONFIG_AVG_SHIFT);
+		if (ret)
+			return ret;
+
+		/* Update reg_config accordingly */
+		return regmap_read(ina->regmap, INA3221_CONFIG,
+				   &ina->reg_config);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int ina3221_write_curr(struct device *dev, u32 attr,
 			      int channel, long val)
 {
@@ -361,6 +411,9 @@ static int ina3221_read(struct device *dev, enum hwmon_sensor_types type,
 	mutex_lock(&ina->lock);
 
 	switch (type) {
+	case hwmon_chip:
+		ret = ina3221_read_chip(dev, attr, val);
+		break;
 	case hwmon_in:
 		/* 0-align channel ID */
 		ret = ina3221_read_in(dev, attr, channel - 1, val);
@@ -387,6 +440,9 @@ static int ina3221_write(struct device *dev, enum hwmon_sensor_types type,
 	mutex_lock(&ina->lock);
 
 	switch (type) {
+	case hwmon_chip:
+		ret = ina3221_write_chip(dev, attr, val);
+		break;
 	case hwmon_in:
 		/* 0-align channel ID */
 		ret = ina3221_write_enable(dev, channel - 1, val);
@@ -423,6 +479,13 @@ static umode_t ina3221_is_visible(const void *drvdata,
 	const struct ina3221_input *input = NULL;
 
 	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_samples:
+			return 0644;
+		default:
+			return 0;
+		}
 	case hwmon_in:
 		/* Ignore in0_ */
 		if (channel == 0)
@@ -463,6 +526,8 @@ static umode_t ina3221_is_visible(const void *drvdata,
 				   HWMON_C_MAX | HWMON_C_MAX_ALARM)
 
 static const struct hwmon_channel_info *ina3221_info[] = {
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_SAMPLES),
 	HWMON_CHANNEL_INFO(in,
 			   /* 0: dummy, skipped in is_visible */
 			   HWMON_I_INPUT,
