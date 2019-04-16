@@ -411,21 +411,21 @@ static int __bch2_alloc_write_key(struct btree_trans *trans, struct bch_dev *ca,
 
 int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 {
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bucket_array *buckets;
 	struct bch_dev *ca;
 	unsigned i;
+	size_t b;
 	int ret = 0;
 
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+
 	for_each_rw_member(ca, c, i) {
-		struct btree_trans trans;
-		struct btree_iter *iter;
-		struct bucket_array *buckets;
-		size_t b;
-
-		bch2_trans_init(&trans, c);
-
-		iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
-					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-
+relock:
 		down_read(&ca->bucket_lock);
 		buckets = bucket_array(ca);
 
@@ -434,6 +434,17 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 		     b++) {
 			if (!buckets->b[b].mark.dirty)
 				continue;
+
+			if ((flags & BTREE_INSERT_LAZY_RW) &&
+			    percpu_ref_is_zero(&c->writes)) {
+				up_read(&ca->bucket_lock);
+				bch2_trans_unlock(&trans);
+
+				ret = bch2_fs_read_write_early(c);
+				if (ret)
+					goto out;
+				goto relock;
+			}
 
 			ret = __bch2_alloc_write_key(&trans, ca, b,
 						     iter, flags);
@@ -444,14 +455,14 @@ int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
 			*wrote = true;
 		}
 		up_read(&ca->bucket_lock);
-
-		bch2_trans_exit(&trans);
-
+out:
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);
 			break;
 		}
 	}
+
+	bch2_trans_exit(&trans);
 
 	return ret;
 }
