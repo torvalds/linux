@@ -42,6 +42,8 @@ Refer to phy/phy-bindings.txt for generic phy consumer properties
 - g-rx-fifo-size: size of rx fifo size in gadget mode.
 - g-np-tx-fifo-size: size of non-periodic tx fifo size in gadget mode.
 - g-tx-fifo-size: size of periodic tx fifo per endpoint (except ep0) in gadget mode.
+- snps,reset-phy-on-wake: If present indicates that we need to reset the PHY when
+                          we detect a wakeup.  This is due to a hardware errata.
 
 Deprecated properties:
 - g-use-dma: gadget DMA mode is automatically detected
