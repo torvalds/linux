@@ -1499,7 +1499,7 @@ config X86_CPA_STATISTICS
 	depends on DEBUG_FS
 	---help---
 	  Expose statistics about the Change Page Attribute mechanims, which
-	  helps to determine the effectivness of preserving large and huge
+	  helps to determine the effectiveness of preserving large and huge
 	  page mappings when mapping protections are changed.
 
 config ARCH_HAS_MEM_ENCRYPT
