@@ -326,6 +326,8 @@ struct ice_port_info {
 	u8 port_state;
 #define ICE_SCHED_PORT_STATE_INIT	0x0
 #define ICE_SCHED_PORT_STATE_READY	0x1
+	u8 lport;
+#define ICE_LPORT_MASK			0xff
 	u16 dflt_tx_vsi_rule_id;
 	u16 dflt_tx_vsi_num;
 	u16 dflt_rx_vsi_rule_id;
@@ -339,11 +341,9 @@ struct ice_port_info {
 	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
 	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
 	/* LLDP/DCBX Status */
-	u8 dcbx_status;
-	u8 is_sw_lldp;
-	u8 lport;
-#define ICE_LPORT_MASK		0xff
-	u8 is_vf;
+	u8 dcbx_status:3;		/* see ICE_DCBX_STATUS_DIS */
+	u8 is_sw_lldp:1;
+	u8 is_vf:1;
 };
 
 struct ice_switch_info {
