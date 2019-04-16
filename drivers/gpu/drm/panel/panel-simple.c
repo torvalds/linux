@@ -1210,6 +1210,33 @@ static const struct panel_desc edt_etm0700g0bdh6 = {
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 };
 
+static const struct display_timing evervision_vgg804821_timing = {
+	.pixelclock = { 27600000, 33300000, 50000000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 40, 66, 70 },
+	.hback_porch = { 40, 67, 70 },
+	.hsync_len = { 40, 67, 70 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 6, 10, 10 },
+	.vback_porch = { 7, 11, 11 },
+	.vsync_len = { 7, 11, 11 },
+	.flags = DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH |
+		 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE |
+		 DISPLAY_FLAGS_SYNC_NEGEDGE,
+};
+
+static const struct panel_desc evervision_vgg804821 = {
+	.timings = &evervision_vgg804821_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 108,
+		.height = 64,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+};
+
 static const struct drm_display_mode foxlink_fl500wvr00_a0t_mode = {
 	.clock = 32260,
 	.hdisplay = 800,
@@ -2767,6 +2794,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "edt,etm0700g0edh6",
 		.data = &edt_etm0700g0bdh6,
+	}, {
+		.compatible = "evervision,vgg804821",
+		.data = &evervision_vgg804821,
 	}, {
 		.compatible = "foxlink,fl500wvr00-a0t",
 		.data = &foxlink_fl500wvr00_a0t,
