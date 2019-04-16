@@ -2060,22 +2060,22 @@ static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
 					struct vm_area_struct *vma,
 					struct mlx5_ib_ucontext *context)
 {
-	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+	if ((vma->vm_end - vma->vm_start != PAGE_SIZE) ||
+	    !(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
 	if (get_index(vma->vm_pgoff) != MLX5_IB_CLOCK_INFO_V1)
 		return -EOPNOTSUPP;
 
-	if (vma->vm_flags & VM_WRITE)
+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
 		return -EPERM;
-	vma->vm_flags &= ~VM_MAYWRITE;
+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
 
 	if (!dev->mdev->clock_info)
 		return -EOPNOTSUPP;
 
-	return rdma_user_mmap_page(&context->ibucontext, vma,
-				   virt_to_page(dev->mdev->clock_info),
-				   PAGE_SIZE);
+	return vm_insert_page(vma, vma->vm_start,
+			      virt_to_page(dev->mdev->clock_info));
 }
 
 static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,

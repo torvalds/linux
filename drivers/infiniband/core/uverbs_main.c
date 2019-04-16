@@ -926,31 +926,6 @@ static const struct vm_operations_struct rdma_umap_ops = {
 	.fault = rdma_umap_fault,
 };
 
-static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
-						 struct vm_area_struct *vma,
-						 unsigned long size)
-{
-	struct ib_uverbs_file *ufile = ucontext->ufile;
-	struct rdma_umap_priv *priv;
-
-	if (!(vma->vm_flags & VM_SHARED))
-		return ERR_PTR(-EINVAL);
-
-	if (vma->vm_end - vma->vm_start != size)
-		return ERR_PTR(-EINVAL);
-
-	/* Driver is using this wrong, must be called by ib_uverbs_mmap */
-	if (WARN_ON(!vma->vm_file ||
-		    vma->vm_file->private_data != ufile))
-		return ERR_PTR(-EINVAL);
-	lockdep_assert_held(&ufile->device->disassociate_srcu);
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return ERR_PTR(-ENOMEM);
-	return priv;
-}
-
 /*
  * Map IO memory into a process. This is to be called by drivers as part of
  * their mmap() functions if they wish to send something like PCI-E BAR memory
@@ -959,10 +934,24 @@ static struct rdma_umap_priv *rdma_user_mmap_pre(struct ib_ucontext *ucontext,
 int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 		      unsigned long pfn, unsigned long size, pgprot_t prot)
 {
-	struct rdma_umap_priv *priv = rdma_user_mmap_pre(ucontext, vma, size);
+	struct ib_uverbs_file *ufile = ucontext->ufile;
+	struct rdma_umap_priv *priv;
 
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (vma->vm_end - vma->vm_start != size)
+		return -EINVAL;
+
+	/* Driver is using this wrong, must be called by ib_uverbs_mmap */
+	if (WARN_ON(!vma->vm_file ||
+		    vma->vm_file->private_data != ufile))
+		return -EINVAL;
+	lockdep_assert_held(&ufile->device->disassociate_srcu);
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	vma->vm_page_prot = prot;
 	if (io_remap_pfn_range(vma, vma->vm_start, pfn, size, prot)) {
@@ -974,35 +963,6 @@ int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 	return 0;
 }
 EXPORT_SYMBOL(rdma_user_mmap_io);
-
-/*
- * The page case is here for a slightly different reason, the driver expects
- * to be able to free the page it is sharing to user space when it destroys
- * its ucontext, which means we need to zap the user space references.
- *
- * We could handle this differently by providing an API to allocate a shared
- * page and then only freeing the shared page when the last ufile is
- * destroyed.
- */
-int rdma_user_mmap_page(struct ib_ucontext *ucontext,
-			struct vm_area_struct *vma, struct page *page,
-			unsigned long size)
-{
-	struct rdma_umap_priv *priv = rdma_user_mmap_pre(ucontext, vma, size);
-
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
-
-	if (remap_pfn_range(vma, vma->vm_start, page_to_pfn(page), size,
-			    vma->vm_page_prot)) {
-		kfree(priv);
-		return -EAGAIN;
-	}
-
-	rdma_umap_priv_init(priv, vma);
-	return 0;
-}
-EXPORT_SYMBOL(rdma_user_mmap_page);
 
 void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 {
