@@ -2692,12 +2692,15 @@ static int config_cls_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
 }
 
 /* Size of the Rx flow classification key */
-int dpaa2_eth_cls_key_size(void)
+int dpaa2_eth_cls_key_size(u64 fields)
 {
 	int i, size = 0;
 
-	for (i = 0; i < ARRAY_SIZE(dist_fields); i++)
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
+		if (!(fields & dist_fields[i].id))
+			continue;
 		size += dist_fields[i].size;
+	}
 
 	return size;
 }
@@ -2716,6 +2719,24 @@ int dpaa2_eth_cls_fld_off(int prot, int field)
 
 	WARN_ONCE(1, "Unsupported header field used for Rx flow cls\n");
 	return 0;
+}
+
+/* Prune unused fields from the classification rule.
+ * Used when masking is not supported
+ */
+void dpaa2_eth_cls_trim_rule(void *key_mem, u64 fields)
+{
+	int off = 0, new_off = 0;
+	int i, size;
+
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
+		size = dist_fields[i].size;
+		if (dist_fields[i].id & fields) {
+			memcpy(key_mem + new_off, key_mem + off, size);
+			new_off += size;
+		}
+		off += size;
+	}
 }
 
 /* Set Rx distribution (hash or flow classification) key
@@ -2739,14 +2760,13 @@ static int dpaa2_eth_set_dist_key(struct net_device *net_dev,
 		struct dpkg_extract *key =
 			&cls_cfg.extracts[cls_cfg.num_extracts];
 
-		/* For Rx hashing key we set only the selected fields.
-		 * For Rx flow classification key we set all supported fields
+		/* For both Rx hashing and classification keys
+		 * we set only the selected fields.
 		 */
-		if (type == DPAA2_ETH_RX_DIST_HASH) {
-			if (!(flags & dist_fields[i].id))
-				continue;
+		if (!(flags & dist_fields[i].id))
+			continue;
+		if (type == DPAA2_ETH_RX_DIST_HASH)
 			rx_hash_fields |= dist_fields[i].rxnfc_field;
-		}
 
 		if (cls_cfg.num_extracts >= DPKG_MAX_NUM_OF_EXTRACTS) {
 			dev_err(dev, "error adding key extraction rule, too many rules?\n");
@@ -2814,7 +2834,12 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	return dpaa2_eth_set_dist_key(net_dev, DPAA2_ETH_RX_DIST_HASH, key);
 }
 
-static int dpaa2_eth_set_cls(struct dpaa2_eth_priv *priv)
+int dpaa2_eth_set_cls(struct net_device *net_dev, u64 flags)
+{
+	return dpaa2_eth_set_dist_key(net_dev, DPAA2_ETH_RX_DIST_CLS, flags);
+}
+
+static int dpaa2_eth_set_default_cls(struct dpaa2_eth_priv *priv)
 {
 	struct device *dev = priv->net_dev->dev.parent;
 	int err;
@@ -2825,7 +2850,7 @@ static int dpaa2_eth_set_cls(struct dpaa2_eth_priv *priv)
 		return -EOPNOTSUPP;
 	}
 
-	if (!dpaa2_eth_fs_enabled(priv) || !dpaa2_eth_fs_mask_enabled(priv)) {
+	if (!dpaa2_eth_fs_enabled(priv)) {
 		dev_dbg(dev, "Rx cls disabled in DPNI options\n");
 		return -EOPNOTSUPP;
 	}
@@ -2835,10 +2860,18 @@ static int dpaa2_eth_set_cls(struct dpaa2_eth_priv *priv)
 		return -EOPNOTSUPP;
 	}
 
-	err = dpaa2_eth_set_dist_key(priv->net_dev, DPAA2_ETH_RX_DIST_CLS, 0);
+	/* If there is no support for masking in the classification table,
+	 * we don't set a default key, as it will depend on the rules
+	 * added by the user at runtime.
+	 */
+	if (!dpaa2_eth_fs_mask_enabled(priv))
+		goto out;
+
+	err = dpaa2_eth_set_cls(priv->net_dev, DPAA2_ETH_DIST_ALL);
 	if (err)
 		return err;
 
+out:
 	priv->rx_cls_enabled = 1;
 
 	return 0;
@@ -2876,7 +2909,7 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 	/* Configure the flow classification key; it includes all
 	 * supported header fields and cannot be modified at runtime
 	 */
-	err = dpaa2_eth_set_cls(priv);
+	err = dpaa2_eth_set_default_cls(priv);
 	if (err && err != -EOPNOTSUPP)
 		dev_err(dev, "Failed to configure Rx classification key\n");
 
