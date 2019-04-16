@@ -24,6 +24,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/iio/consumer.h>
+#include <linux/workqueue.h>
 
 #define DRVNAME "axp20x-usb-power-supply"
 
@@ -46,6 +47,12 @@
 
 #define AXP20X_VBUS_MON_VBUS_VALID	BIT(3)
 
+/*
+ * Note do not raise the debounce time, we must report Vusb high within
+ * 100ms otherwise we get Vbus errors in musb.
+ */
+#define DEBOUNCE_TIME			msecs_to_jiffies(50)
+
 struct axp20x_usb_power {
 	struct device_node *np;
 	struct regmap *regmap;
@@ -53,6 +60,8 @@ struct axp20x_usb_power {
 	enum axp20x_variants axp20x_id;
 	struct iio_channel *vbus_v;
 	struct iio_channel *vbus_i;
+	struct delayed_work vbus_detect;
+	unsigned int old_status;
 };
 
 static irqreturn_t axp20x_usb_power_irq(int irq, void *devid)
@@ -62,6 +71,35 @@ static irqreturn_t axp20x_usb_power_irq(int irq, void *devid)
 	power_supply_changed(power->supply);
 
 	return IRQ_HANDLED;
+}
+
+static void axp20x_usb_power_poll_vbus(struct work_struct *work)
+{
+	struct axp20x_usb_power *power =
+		container_of(work, struct axp20x_usb_power, vbus_detect.work);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(power->regmap, AXP20X_PWR_INPUT_STATUS, &val);
+	if (ret)
+		goto out;
+
+	val &= (AXP20X_PWR_STATUS_VBUS_PRESENT | AXP20X_PWR_STATUS_VBUS_USED);
+	if (val != power->old_status)
+		power_supply_changed(power->supply);
+
+	power->old_status = val;
+
+out:
+	mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+}
+
+static bool axp20x_usb_vbus_needs_polling(struct axp20x_usb_power *power)
+{
+	if (power->axp20x_id >= AXP221_ID)
+		return true;
+
+	return false;
 }
 
 static int axp20x_usb_power_get_property(struct power_supply *psy,
@@ -357,6 +395,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	if (!power)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, power);
 	power->axp20x_id = (enum axp20x_variants)of_device_get_match_data(
 								&pdev->dev);
 
@@ -415,6 +454,19 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 				 irq_names[i], ret);
 	}
 
+	INIT_DELAYED_WORK(&power->vbus_detect, axp20x_usb_power_poll_vbus);
+	if (axp20x_usb_vbus_needs_polling(power))
+		queue_delayed_work(system_wq, &power->vbus_detect, 0);
+
+	return 0;
+}
+
+static int axp20x_usb_power_remove(struct platform_device *pdev)
+{
+	struct axp20x_usb_power *power = platform_get_drvdata(pdev);
+
+	cancel_delayed_work_sync(&power->vbus_detect);
+
 	return 0;
 }
 
@@ -434,6 +486,7 @@ MODULE_DEVICE_TABLE(of, axp20x_usb_power_match);
 
 static struct platform_driver axp20x_usb_power_driver = {
 	.probe = axp20x_usb_power_probe,
+	.remove = axp20x_usb_power_remove,
 	.driver = {
 		.name = DRVNAME,
 		.of_match_table = axp20x_usb_power_match,
