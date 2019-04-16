@@ -63,14 +63,21 @@ static ssize_t occ_sysfs_show(struct device *dev,
 		else
 			val = 1;
 		break;
-	case 8:
-		val = occ->error;
-		break;
 	default:
 		return -EINVAL;
 	}
 
 	return snprintf(buf, PAGE_SIZE - 1, "%d\n", val);
+}
+
+static ssize_t occ_error_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct occ *occ = dev_get_drvdata(dev);
+
+	occ_update_response(occ);
+
+	return snprintf(buf, PAGE_SIZE - 1, "%d\n", occ->error);
 }
 
 static SENSOR_DEVICE_ATTR(occ_master, 0444, occ_sysfs_show, NULL, 0);
@@ -81,7 +88,7 @@ static SENSOR_DEVICE_ATTR(occ_mem_throttle, 0444, occ_sysfs_show, NULL, 4);
 static SENSOR_DEVICE_ATTR(occ_quick_pwr_drop, 0444, occ_sysfs_show, NULL, 5);
 static SENSOR_DEVICE_ATTR(occ_state, 0444, occ_sysfs_show, NULL, 6);
 static SENSOR_DEVICE_ATTR(occs_present, 0444, occ_sysfs_show, NULL, 7);
-static SENSOR_DEVICE_ATTR(occ_error, 0444, occ_sysfs_show, NULL, 8);
+static DEVICE_ATTR_RO(occ_error);
 
 static struct attribute *occ_attributes[] = {
 	&sensor_dev_attr_occ_master.dev_attr.attr,
@@ -92,7 +99,7 @@ static struct attribute *occ_attributes[] = {
 	&sensor_dev_attr_occ_quick_pwr_drop.dev_attr.attr,
 	&sensor_dev_attr_occ_state.dev_attr.attr,
 	&sensor_dev_attr_occs_present.dev_attr.attr,
-	&sensor_dev_attr_occ_error.dev_attr.attr,
+	&dev_attr_occ_error.attr,
 	NULL
 };
 
@@ -156,7 +163,7 @@ void occ_sysfs_poll_done(struct occ *occ)
 	}
 
 	if (occ->error && occ->error != occ->prev_error) {
-		name = sensor_dev_attr_occ_error.dev_attr.attr.name;
+		name = dev_attr_occ_error.attr.name;
 		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
 	}
 
