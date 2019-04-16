@@ -641,18 +641,10 @@ static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
 	unsigned long now;
-	unsigned long alarm_time;
 	int rc;
 
-	alarm_time = rtc_tm_to_time64(&alarm->time);
-
-	/* don't allow setting alarm in the past */
-	now = readl(imxdi->ioaddr + DTCMR);
-	if (alarm_time < now)
-		return -EINVAL;
-
 	/* write the new alarm time */
-	rc = di_write_wait(imxdi, (u32)alarm_time, DCAMR);
+	rc = di_write_wait(imxdi, rtc_tm_to_time64(&alarm->time), DCAMR);
 	if (rc)
 		return rc;
 
