@@ -51,9 +51,6 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
  */
 void ice_dev_onetime_setup(struct ice_hw *hw)
 {
-	/* configure Rx - set non pxe mode */
-	wr32(hw, GLLAN_RCTL_0, 0x1);
-
 #define MBX_PF_VT_PFALLOC	0x00231E80
 	/* set VFs per PF */
 	wr32(hw, MBX_PF_VT_PFALLOC, rd32(hw, PF_VT_PFALLOC_HIF));
