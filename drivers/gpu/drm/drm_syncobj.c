@@ -740,7 +740,7 @@ drm_syncobj_transfer_ioctl(struct drm_device *dev, void *data,
 	struct drm_syncobj_transfer *args = data;
 	int ret;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
 		return -EOPNOTSUPP;
 
 	if (args->pad)
@@ -1091,7 +1091,7 @@ drm_syncobj_timeline_wait_ioctl(struct drm_device *dev, void *data,
 	struct drm_syncobj **syncobjs;
 	int ret = 0;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
 		return -EOPNOTSUPP;
 
 	if (args->flags & ~(DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
@@ -1195,7 +1195,7 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 	uint32_t i, j;
 	int ret;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
 		return -EOPNOTSUPP;
 
 	if (args->pad != 0)
@@ -1266,8 +1266,8 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 	uint32_t i;
 	int ret;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
-		return -ENODEV;
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
+		return -EOPNOTSUPP;
 
 	if (args->pad != 0)
 		return -EINVAL;

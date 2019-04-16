@@ -91,6 +91,13 @@ enum drm_driver_feature {
 	 * submission.
 	 */
 	DRIVER_SYNCOBJ                  = BIT(5),
+	/**
+	 * @DRIVER_SYNCOBJ_TIMELINE:
+	 *
+	 * Driver supports the timeline flavor of &drm_syncobj for explicit
+	 * synchronization of command submission.
+	 */
+	DRIVER_SYNCOBJ_TIMELINE         = BIT(6),
 
 	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
 
