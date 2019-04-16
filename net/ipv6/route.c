@@ -1839,11 +1839,10 @@ void rt6_age_exceptions(struct fib6_info *rt,
 }
 
 /* must be called with rcu lock held */
-struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
-				    int oif, struct flowi6 *fl6, int strict)
+int fib6_table_lookup(struct net *net, struct fib6_table *table, int oif,
+		      struct flowi6 *fl6, struct fib6_result *res, int strict)
 {
 	struct fib6_node *fn, *saved_fn;
-	struct fib6_result res;
 
 	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 	saved_fn = fn;
@@ -1852,8 +1851,8 @@ struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
 		oif = 0;
 
 redo_rt6_select:
-	rt6_select(net, fn, oif, &res, strict);
-	if (res.f6i == net->ipv6.fib6_null_entry) {
+	rt6_select(net, fn, oif, res, strict);
+	if (res->f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
 			goto redo_rt6_select;
@@ -1865,9 +1864,9 @@ redo_rt6_select:
 		}
 	}
 
-	trace_fib6_table_lookup(net, &res, table, fl6);
+	trace_fib6_table_lookup(net, res, table, fl6);
 
-	return res.f6i;
+	return 0;
 }
 
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
@@ -1885,7 +1884,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 
 	rcu_read_lock();
 
-	res.f6i = fib6_table_lookup(net, table, oif, fl6, strict);
+	fib6_table_lookup(net, table, oif, fl6, &res, strict);
 	if (res.f6i == net->ipv6.fib6_null_entry) {
 		rt = net->ipv6.ip6_null_entry;
 		rcu_read_unlock();

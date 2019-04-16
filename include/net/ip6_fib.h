@@ -389,12 +389,13 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 /* called with rcu lock held; can return error pointer
  * caller needs to select path
  */
-struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
-			      int flags);
+int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+		struct fib6_result *res, int flags);
 
 /* called with rcu lock held; caller needs to select path */
-struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
-				    int oif, struct flowi6 *fl6, int strict);
+int fib6_table_lookup(struct net *net, struct fib6_table *table,
+		      int oif, struct flowi6 *fl6, struct fib6_result *res,
+		      int strict);
 
 void fib6_select_path(const struct net *net, struct fib6_result *res,
 		      struct flowi6 *fl6, int oif, bool have_oif_match,

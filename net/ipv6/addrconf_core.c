@@ -144,18 +144,19 @@ static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
 	return NULL;
 }
 
-static struct fib6_info *
+static int
 eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
-			       int oif, struct flowi6 *fl6, int flags)
+			       int oif, struct flowi6 *fl6,
+			       struct fib6_result *res, int flags)
 {
-	return NULL;
+	return -EAFNOSUPPORT;
 }
 
-static struct fib6_info *
+static int
 eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
-			 int flags)
+			 struct fib6_result *res, int flags)
 {
-	return NULL;
+	return -EAFNOSUPPORT;
 }
 
 static void

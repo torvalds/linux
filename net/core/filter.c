@@ -4684,7 +4684,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	struct inet6_dev *idev;
 	struct flowi6 fl6;
 	int strict = 0;
-	int oif;
+	int oif, err;
 	u32 mtu;
 
 	/* link local addresses are never forwarded */
@@ -4726,18 +4726,18 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 		if (unlikely(!tb))
 			return BPF_FIB_LKUP_RET_NOT_FWDED;
 
-		res.f6i = ipv6_stub->fib6_table_lookup(net, tb, oif, &fl6,
-						       strict);
+		err = ipv6_stub->fib6_table_lookup(net, tb, oif, &fl6, &res,
+						   strict);
 	} else {
 		fl6.flowi6_mark = 0;
 		fl6.flowi6_secid = 0;
 		fl6.flowi6_tun_key.tun_id = 0;
 		fl6.flowi6_uid = sock_net_uid(net, NULL);
 
-		res.f6i = ipv6_stub->fib6_lookup(net, oif, &fl6, strict);
+		err = ipv6_stub->fib6_lookup(net, oif, &fl6, &res, strict);
 	}
 
-	if (unlikely(IS_ERR_OR_NULL(res.f6i) ||
+	if (unlikely(err || IS_ERR_OR_NULL(res.f6i) ||
 		     res.f6i == net->ipv6.fib6_null_entry))
 		return BPF_FIB_LKUP_RET_NOT_FWDED;
 

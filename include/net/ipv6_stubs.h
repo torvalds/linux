@@ -29,12 +29,11 @@ struct ipv6_stub {
 	int (*ipv6_route_input)(struct sk_buff *skb);
 
 	struct fib6_table *(*fib6_get_table)(struct net *net, u32 id);
-	struct fib6_info *(*fib6_lookup)(struct net *net, int oif,
-					 struct flowi6 *fl6, int flags);
-	struct fib6_info *(*fib6_table_lookup)(struct net *net,
-					      struct fib6_table *table,
-					      int oif, struct flowi6 *fl6,
-					      int flags);
+	int (*fib6_lookup)(struct net *net, int oif, struct flowi6 *fl6,
+			   struct fib6_result *res, int flags);
+	int (*fib6_table_lookup)(struct net *net, struct fib6_table *table,
+				 int oif, struct flowi6 *fl6,
+				 struct fib6_result *res, int flags);
 	void (*fib6_select_path)(const struct net *net, struct fib6_result *res,
 				 struct flowi6 *fl6, int oif, bool oif_match,
 				 const struct sk_buff *skb, int strict);
