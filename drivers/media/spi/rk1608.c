@@ -806,6 +806,7 @@ static int rk1608_power_on(struct rk1608_state *pdata)
 	/* After Reset pull-up, CSn should keep low for 2ms+ */
 	usleep_range(3000, 3500);
 	rk1608_cs_set_value(pdata, 1);
+	rk1608_set_spi_speed(pdata, pdata->min_speed_hz);
 	rk1608_lsb_w32(spi, SPI_ENR, 0);
 	rk1608_lsb_w32(spi, SPI_CTRL0,
 		       OPM_SLAVE_MODE | RSD_SEL_2CYC | DFS_SEL_16BIT);
