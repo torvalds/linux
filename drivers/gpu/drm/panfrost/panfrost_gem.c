@@ -14,7 +14,7 @@
 /* Called DRM core on the last userspace/kernel unreference of the
  * BO.
  */
-void panfrost_gem_free_object(struct drm_gem_object *obj)
+static void panfrost_gem_free_object(struct drm_gem_object *obj)
 {
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
