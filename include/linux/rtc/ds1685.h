@@ -48,8 +48,6 @@ struct ds1685_priv {
 	u32 regstep;
 	resource_size_t baseaddr;
 	size_t size;
-	spinlock_t lock;
-	struct work_struct work;
 	int irq_num;
 	bool bcd_mode;
 	bool no_irq;
