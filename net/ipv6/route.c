@@ -491,29 +491,40 @@ static bool __rt6_device_match(struct net *net, const struct fib6_nh *nh,
 	return false;
 }
 
-static inline struct fib6_info *rt6_device_match(struct net *net,
-						 struct fib6_info *rt,
-						    const struct in6_addr *saddr,
-						    int oif,
-						    int flags)
+static void rt6_device_match(struct net *net, struct fib6_result *res,
+			     const struct in6_addr *saddr, int oif, int flags)
 {
-	const struct fib6_nh *nh;
-	struct fib6_info *sprt;
+	struct fib6_info *f6i = res->f6i;
+	struct fib6_info *spf6i;
+	struct fib6_nh *nh;
 
-	if (!oif && ipv6_addr_any(saddr) &&
-	    !(rt->fib6_nh.fib_nh_flags & RTNH_F_DEAD))
-		return rt;
-
-	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->fib6_next)) {
-		nh = &sprt->fib6_nh;
-		if (__rt6_device_match(net, nh, saddr, oif, flags))
-			return sprt;
+	if (!oif && ipv6_addr_any(saddr)) {
+		nh = &f6i->fib6_nh;
+		if (!(nh->fib_nh_flags & RTNH_F_DEAD)) {
+			res->nh = nh;
+			return;
+		}
 	}
 
-	if (oif && flags & RT6_LOOKUP_F_IFACE)
-		return net->ipv6.fib6_null_entry;
+	for (spf6i = f6i; spf6i; spf6i = rcu_dereference(spf6i->fib6_next)) {
+		nh = &spf6i->fib6_nh;
+		if (__rt6_device_match(net, nh, saddr, oif, flags)) {
+			res->f6i = spf6i;
+			res->nh = nh;
+		}
+	}
 
-	return rt->fib6_nh.fib_nh_flags & RTNH_F_DEAD ? net->ipv6.fib6_null_entry : rt;
+	if (oif && flags & RT6_LOOKUP_F_IFACE) {
+		res->f6i = net->ipv6.fib6_null_entry;
+		res->nh = &res->f6i->fib6_nh;
+		return;
+	}
+
+	res->nh = &f6i->fib6_nh;
+	if (res->nh->fib_nh_flags & RTNH_F_DEAD) {
+		res->f6i = net->ipv6.fib6_null_entry;
+		res->nh = &res->f6i->fib6_nh;
+	}
 }
 
 #ifdef CONFIG_IPV6_ROUTER_PREF
@@ -1089,8 +1100,8 @@ restart:
 	if (!res.f6i)
 		res.f6i = net->ipv6.fib6_null_entry;
 	else
-		res.f6i = rt6_device_match(net, res.f6i, &fl6->saddr,
-					   fl6->flowi6_oif, flags);
+		rt6_device_match(net, &res, &fl6->saddr, fl6->flowi6_oif,
+				 flags);
 
 	if (res.f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
