@@ -152,7 +152,7 @@ static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, size_t nb)
 	/* Make sure data has been read before indicating we are done
 	 * with the entries by updating the consumer pointer.
 	 */
-	libbpf_smp_mb();
+	libbpf_smp_rwmb();
 
 	*cons->consumer += nb;
 }
