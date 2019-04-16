@@ -1038,22 +1038,24 @@ static bool ip6_hold_safe(struct net *net, struct rt6_info **prt)
 }
 
 /* called with rcu_lock held */
-static struct rt6_info *ip6_create_rt_rcu(struct fib6_info *rt)
+static struct rt6_info *ip6_create_rt_rcu(const struct fib6_result *res)
 {
-	unsigned short flags = fib6_info_dst_flags(rt);
-	struct net_device *dev = rt->fib6_nh.fib_nh_dev;
+	struct net_device *dev = res->nh->fib_nh_dev;
+	struct fib6_info *f6i = res->f6i;
+	unsigned short flags;
 	struct rt6_info *nrt;
 
-	if (!fib6_info_hold_safe(rt))
+	if (!fib6_info_hold_safe(f6i))
 		goto fallback;
 
+	flags = fib6_info_dst_flags(f6i);
 	nrt = ip6_dst_alloc(dev_net(dev), dev, flags);
 	if (!nrt) {
-		fib6_info_release(rt);
+		fib6_info_release(f6i);
 		goto fallback;
 	}
 
-	ip6_rt_copy_init(nrt, rt);
+	ip6_rt_copy_init(nrt, f6i);
 	return nrt;
 
 fallback:
@@ -1104,7 +1106,7 @@ restart:
 		if (ip6_hold_safe(net, &rt))
 			dst_use_noref(&rt->dst, jiffies);
 	} else {
-		rt = ip6_create_rt_rcu(res.f6i);
+		rt = ip6_create_rt_rcu(&res);
 	}
 
 out:
@@ -2417,12 +2419,13 @@ void ip6_sk_dst_store_flow(struct sock *sk, struct dst_entry *dst,
 		      NULL);
 }
 
-static bool ip6_redirect_nh_match(struct fib6_info *f6i,
-				  struct fib6_nh *nh,
+static bool ip6_redirect_nh_match(const struct fib6_result *res,
 				  struct flowi6 *fl6,
 				  const struct in6_addr *gw,
 				  struct rt6_info **ret)
 {
+	const struct fib6_nh *nh = res->nh;
+
 	if (nh->fib_nh_flags & RTNH_F_DEAD || !nh->fib_nh_gw_family ||
 	    fl6->flowi6_oif != nh->fib_nh_dev->ifindex)
 		return false;
@@ -2433,12 +2436,9 @@ static bool ip6_redirect_nh_match(struct fib6_info *f6i,
 	 * is different.
 	 */
 	if (!ipv6_addr_equal(gw, &nh->fib_nh_gw6)) {
-		struct fib6_result res = {
-			.f6i = f6i,
-		};
 		struct rt6_info *rt_cache;
 
-		rt_cache = rt6_find_cached_rt(&res, &fl6->daddr, &fl6->saddr);
+		rt_cache = rt6_find_cached_rt(res, &fl6->daddr, &fl6->saddr);
 		if (rt_cache &&
 		    ipv6_addr_equal(gw, &rt_cache->rt6i_gateway)) {
 			*ret = rt_cache;
@@ -2463,6 +2463,7 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 {
 	struct ip6rd_flowi *rdfl = (struct ip6rd_flowi *)fl6;
 	struct rt6_info *ret = NULL;
+	struct fib6_result res = {};
 	struct fib6_info *rt;
 	struct fib6_node *fn;
 
@@ -2480,12 +2481,14 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	for_each_fib6_node_rt_rcu(fn) {
+		res.f6i = rt;
+		res.nh = &rt->fib6_nh;
+
 		if (fib6_check_expired(rt))
 			continue;
 		if (rt->fib6_flags & RTF_REJECT)
 			break;
-		if (ip6_redirect_nh_match(rt, &rt->fib6_nh, fl6,
-					  &rdfl->gateway, &ret))
+		if (ip6_redirect_nh_match(&res, fl6, &rdfl->gateway, &ret))
 			goto out;
 	}
 
@@ -2502,11 +2505,13 @@ restart:
 			goto restart;
 	}
 
+	res.f6i = rt;
+	res.nh = &rt->fib6_nh;
 out:
 	if (ret)
 		ip6_hold_safe(net, &ret);
 	else
-		ret = ip6_create_rt_rcu(rt);
+		ret = ip6_create_rt_rcu(&res);
 
 	rcu_read_unlock();
 
