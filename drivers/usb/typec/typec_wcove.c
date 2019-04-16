@@ -416,11 +416,15 @@ static int wcove_pd_transmit(struct tcpc_dev *tcpc,
 	return regmap_write(wcove->regmap, USBC_TXCMD, cmd | USBC_TXCMD_START);
 }
 
-static int wcove_start_drp_toggling(struct tcpc_dev *tcpc,
-				    enum typec_cc_status cc)
+static int wcove_start_toggling(struct tcpc_dev *tcpc,
+				enum typec_port_type port_type,
+				enum typec_cc_status cc)
 {
 	struct wcove_typec *wcove = tcpc_to_wcove(tcpc);
 	unsigned int usbc_ctrl;
+
+	if (port_type != TYPEC_PORT_DRP)
+		return -EOPNOTSUPP;
 
 	usbc_ctrl = USBC_CONTROL1_MODE_DRP | USBC_CONTROL1_DRPTOGGLE_RANDOM;
 
@@ -642,7 +646,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 	wcove->tcpc.set_polarity = wcove_set_polarity;
 	wcove->tcpc.set_vconn = wcove_set_vconn;
 	wcove->tcpc.set_current_limit = wcove_set_current_limit;
-	wcove->tcpc.start_drp_toggling = wcove_start_drp_toggling;
+	wcove->tcpc.start_toggling = wcove_start_toggling;
 
 	wcove->tcpc.set_pd_rx = wcove_set_pd_rx;
 	wcove->tcpc.set_roles = wcove_set_roles;
