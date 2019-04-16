@@ -210,7 +210,8 @@ static long rcu_get_n_cbs_cpu(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 
-	if (rcu_segcblist_is_enabled(&rdp->cblist)) /* Online normal CPU? */
+	if (rcu_segcblist_is_enabled(&rdp->cblist) &&
+	    !rcu_segcblist_is_offloaded(&rdp->cblist)) /* Online normal CPU? */
 		return rcu_segcblist_n_cbs(&rdp->cblist);
 	return rcu_get_n_cbs_nocb_cpu(rdp); /* Works for offline, too. */
 }
@@ -2081,6 +2082,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	struct rcu_cblist rcl = RCU_CBLIST_INITIALIZER(rcl);
 	long bl, count;
 
+	WARN_ON_ONCE(rdp->cblist.offloaded);
 	/* If no callbacks are ready, just return. */
 	if (!rcu_segcblist_ready_cbs(&rdp->cblist)) {
 		trace_rcu_batch_start(rcu_state.name,
@@ -2299,7 +2301,8 @@ static __latent_entropy void rcu_core(void)
 
 	/* No grace period and unregistered callbacks? */
 	if (!rcu_gp_in_progress() &&
-	    rcu_segcblist_is_enabled(&rdp->cblist)) {
+	    rcu_segcblist_is_enabled(&rdp->cblist) &&
+	    !rcu_segcblist_is_offloaded(&rdp->cblist)) {
 		local_irq_save(flags);
 		if (!rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
 			rcu_accelerate_cbs_unlocked(rnp, rdp);
@@ -2514,7 +2517,8 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
 	rdp = this_cpu_ptr(&rcu_data);
 
 	/* Add the callback to our list. */
-	if (unlikely(!rcu_segcblist_is_enabled(&rdp->cblist)) || cpu != -1) {
+	if (unlikely(!rcu_segcblist_is_enabled(&rdp->cblist)) ||
+	    rcu_segcblist_is_offloaded(&rdp->cblist) || cpu != -1) {
 		int offline;
 
 		if (cpu != -1)
@@ -2750,6 +2754,7 @@ static int rcu_pending(void)
 	/* Has RCU gone idle with this CPU needing another grace period? */
 	if (!rcu_gp_in_progress() &&
 	    rcu_segcblist_is_enabled(&rdp->cblist) &&
+	    !rcu_segcblist_is_offloaded(&rdp->cblist) &&
 	    !rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
 		return 1;
 
