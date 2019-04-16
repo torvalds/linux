@@ -19,6 +19,14 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_msix(struct ice_vsi *vsi);
 
+#ifdef CONFIG_PCI_IOV
+void
+ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx);
+
+void
+ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx);
+#endif /* CONFIG_PCI_IOV */
+
 int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid);
 
 int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid);

@@ -1955,24 +1955,33 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 	u16 vsi_id, vsi_q_id, vector_id;
 	struct virtchnl_vector_map *map;
 	struct ice_pf *pf = vf->pf;
+	u16 num_q_vectors_mapped;
 	struct ice_vsi *vsi;
 	unsigned long qmap;
-	u16 num_q_vectors;
 	int i;
 
 	irqmap_info = (struct virtchnl_irq_map_info *)msg;
-	num_q_vectors = irqmap_info->num_vectors - ICE_NONQ_VECS_VF;
-	vsi = pf->vsi[vf->lan_vsi_idx];
+	num_q_vectors_mapped = irqmap_info->num_vectors;
 
-	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states) ||
-	    !vsi || vsi->num_q_vectors < num_q_vectors ||
-	    irqmap_info->num_vectors == 0) {
+	vsi = pf->vsi[vf->lan_vsi_idx];
+	if (!vsi) {
 		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto error_param;
 	}
 
-	for (i = 0; i < num_q_vectors; i++) {
-		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+	/* Check to make sure number of VF vectors mapped is not greater than
+	 * number of VF vectors originally allocated, and check that
+	 * there is actually at least a single VF queue vector mapped
+	 */
+	if (!test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states) ||
+	    pf->num_vf_msix < num_q_vectors_mapped ||
+	    !irqmap_info->num_vectors) {
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto error_param;
+	}
+
+	for (i = 0; i < num_q_vectors_mapped; i++) {
+		struct ice_q_vector *q_vector;
 
 		map = &irqmap_info->vecmap[i];
 
@@ -1980,7 +1989,21 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 		vsi_id = map->vsi_id;
 		/* validate msg params */
 		if (!(vector_id < pf->hw.func_caps.common_cap
-		    .num_msix_vectors) || !ice_vc_isvalid_vsi_id(vf, vsi_id)) {
+		    .num_msix_vectors) || !ice_vc_isvalid_vsi_id(vf, vsi_id) ||
+		    (!vector_id && (map->rxq_map || map->txq_map))) {
+			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+			goto error_param;
+		}
+
+		/* No need to map VF miscellaneous or rogue vector */
+		if (!vector_id)
+			continue;
+
+		/* Subtract non queue vector from vector_id passed by VF
+		 * to get actual number of VSI queue vector array index
+		 */
+		q_vector = vsi->q_vectors[vector_id - ICE_NONQ_VECS_VF];
+		if (!q_vector) {
 			v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 			goto error_param;
 		}
@@ -1996,6 +2019,8 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 			q_vector->num_ring_rx++;
 			q_vector->rx.itr_idx = map->rxitr_idx;
 			vsi->rx_rings[vsi_q_id]->q_vector = q_vector;
+			ice_cfg_rxq_interrupt(vsi, vsi_q_id, vector_id,
+					      q_vector->rx.itr_idx);
 		}
 
 		qmap = map->txq_map;
@@ -2008,11 +2033,11 @@ static int ice_vc_cfg_irq_map_msg(struct ice_vf *vf, u8 *msg)
 			q_vector->num_ring_tx++;
 			q_vector->tx.itr_idx = map->txitr_idx;
 			vsi->tx_rings[vsi_q_id]->q_vector = q_vector;
+			ice_cfg_txq_interrupt(vsi, vsi_q_id, vector_id,
+					      q_vector->tx.itr_idx);
 		}
 	}
 
-	if (vsi)
-		ice_vsi_cfg_msix(vsi);
 error_param:
 	/* send the response to the VF */
 	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_CONFIG_IRQ_MAP, v_ret,

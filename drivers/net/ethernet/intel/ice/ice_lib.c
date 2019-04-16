@@ -321,10 +321,10 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		vsi->alloc_rxq = vf->num_vf_qs;
 		/* pf->num_vf_msix includes (VF miscellaneous vector +
 		 * data queue interrupts). Since vsi->num_q_vectors is number
-		 * of queues vectors, subtract 1 from the original vector
-		 * count
+		 * of queues vectors, subtract 1 (ICE_NONQ_VECS_VF) from the
+		 * original vector count
 		 */
-		vsi->num_q_vectors = pf->num_vf_msix - 1;
+		vsi->num_q_vectors = pf->num_vf_msix - ICE_NONQ_VECS_VF;
 		break;
 	case ICE_VSI_LB:
 		vsi->alloc_txq = 1;
@@ -1836,8 +1836,73 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector)
 }
 
 /**
+ * ice_cfg_txq_interrupt - configure interrupt on Tx queue
+ * @vsi: the VSI being configured
+ * @txq: Tx queue being mapped to MSI-X vector
+ * @msix_idx: MSI-X vector index within the function
+ * @itr_idx: ITR index of the interrupt cause
+ *
+ * Configure interrupt on Tx queue by associating Tx queue to MSI-X vector
+ * within the function space.
+ */
+#ifdef CONFIG_PCI_IOV
+void
+ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx)
+#else
+static void
+ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx)
+#endif /* CONFIG_PCI_IOV */
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	u32 val;
+
+	itr_idx = (itr_idx << QINT_TQCTL_ITR_INDX_S) & QINT_TQCTL_ITR_INDX_M;
+
+	val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
+	      ((msix_idx << QINT_TQCTL_MSIX_INDX_S) & QINT_TQCTL_MSIX_INDX_M);
+
+	wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
+}
+
+/**
+ * ice_cfg_rxq_interrupt - configure interrupt on Rx queue
+ * @vsi: the VSI being configured
+ * @rxq: Rx queue being mapped to MSI-X vector
+ * @msix_idx: MSI-X vector index within the function
+ * @itr_idx: ITR index of the interrupt cause
+ *
+ * Configure interrupt on Rx queue by associating Rx queue to MSI-X vector
+ * within the function space.
+ */
+#ifdef CONFIG_PCI_IOV
+void
+ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
+#else
+static void
+ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
+#endif /* CONFIG_PCI_IOV */
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	u32 val;
+
+	itr_idx = (itr_idx << QINT_RQCTL_ITR_INDX_S) & QINT_RQCTL_ITR_INDX_M;
+
+	val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
+	      ((msix_idx << QINT_RQCTL_MSIX_INDX_S) & QINT_RQCTL_MSIX_INDX_M);
+
+	wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
+
+	ice_flush(hw);
+}
+
+/**
  * ice_vsi_cfg_msix - MSIX mode Interrupt Config in the HW
  * @vsi: the VSI being configured
+ *
+ * This configures MSIX mode interrupts for the PF VSI, and should not be used
+ * for the VF VSI.
  */
 void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 {
@@ -1850,8 +1915,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 		u16 reg_idx = q_vector->reg_idx;
 
-		if (vsi->type != ICE_VSI_VF)
-			ice_cfg_itr(hw, q_vector);
+		ice_cfg_itr(hw, q_vector);
 
 		wr32(hw, GLINT_RATE(reg_idx),
 		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
@@ -1868,43 +1932,17 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		 * tracked for this PF.
 		 */
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
-			int itr_idx = (q_vector->tx.itr_idx <<
-				       QINT_TQCTL_ITR_INDX_S) &
-				QINT_TQCTL_ITR_INDX_M;
-			u32 val;
-
-			if (vsi->type == ICE_VSI_VF)
-				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
-				      (((i + 1) << QINT_TQCTL_MSIX_INDX_S) &
-				       QINT_TQCTL_MSIX_INDX_M);
-			else
-				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
-				      ((reg_idx << QINT_TQCTL_MSIX_INDX_S) &
-				       QINT_TQCTL_MSIX_INDX_M);
-			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
+			ice_cfg_txq_interrupt(vsi, txq, reg_idx,
+					      q_vector->tx.itr_idx);
 			txq++;
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
-			int itr_idx = (q_vector->rx.itr_idx <<
-				       QINT_RQCTL_ITR_INDX_S) &
-				QINT_RQCTL_ITR_INDX_M;
-			u32 val;
-
-			if (vsi->type == ICE_VSI_VF)
-				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
-					(((i + 1) << QINT_RQCTL_MSIX_INDX_S) &
-					 QINT_RQCTL_MSIX_INDX_M);
-			else
-				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
-					((reg_idx << QINT_RQCTL_MSIX_INDX_S) &
-					 QINT_RQCTL_MSIX_INDX_M);
-			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
+			ice_cfg_rxq_interrupt(vsi, rxq, reg_idx,
+					      q_vector->rx.itr_idx);
 			rxq++;
 		}
 	}
-
-	ice_flush(hw);
 }
 
 /**
