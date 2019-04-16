@@ -1220,34 +1220,35 @@ static struct rt6_info *ip6_rt_cache_alloc(const struct fib6_result *res,
 	return rt;
 }
 
-static struct rt6_info *ip6_rt_pcpu_alloc(struct fib6_info *rt)
+static struct rt6_info *ip6_rt_pcpu_alloc(const struct fib6_result *res)
 {
-	unsigned short flags = fib6_info_dst_flags(rt);
+	struct fib6_info *f6i = res->f6i;
+	unsigned short flags = fib6_info_dst_flags(f6i);
 	struct net_device *dev;
 	struct rt6_info *pcpu_rt;
 
-	if (!fib6_info_hold_safe(rt))
+	if (!fib6_info_hold_safe(f6i))
 		return NULL;
 
 	rcu_read_lock();
-	dev = ip6_rt_get_dev_rcu(rt);
+	dev = ip6_rt_get_dev_rcu(f6i);
 	pcpu_rt = ip6_dst_alloc(dev_net(dev), dev, flags);
 	rcu_read_unlock();
 	if (!pcpu_rt) {
-		fib6_info_release(rt);
+		fib6_info_release(f6i);
 		return NULL;
 	}
-	ip6_rt_copy_init(pcpu_rt, rt);
+	ip6_rt_copy_init(pcpu_rt, f6i);
 	pcpu_rt->rt6i_flags |= RTF_PCPU;
 	return pcpu_rt;
 }
 
 /* It should be called with rcu_read_lock() acquired */
-static struct rt6_info *rt6_get_pcpu_route(struct fib6_info *rt)
+static struct rt6_info *rt6_get_pcpu_route(const struct fib6_result *res)
 {
 	struct rt6_info *pcpu_rt, **p;
 
-	p = this_cpu_ptr(rt->rt6i_pcpu);
+	p = this_cpu_ptr(res->f6i->rt6i_pcpu);
 	pcpu_rt = *p;
 
 	if (pcpu_rt)
@@ -1257,18 +1258,18 @@ static struct rt6_info *rt6_get_pcpu_route(struct fib6_info *rt)
 }
 
 static struct rt6_info *rt6_make_pcpu_route(struct net *net,
-					    struct fib6_info *rt)
+					    const struct fib6_result *res)
 {
 	struct rt6_info *pcpu_rt, *prev, **p;
 
-	pcpu_rt = ip6_rt_pcpu_alloc(rt);
+	pcpu_rt = ip6_rt_pcpu_alloc(res);
 	if (!pcpu_rt) {
 		dst_hold(&net->ipv6.ip6_null_entry->dst);
 		return net->ipv6.ip6_null_entry;
 	}
 
 	dst_hold(&pcpu_rt->dst);
-	p = this_cpu_ptr(rt->rt6i_pcpu);
+	p = this_cpu_ptr(res->f6i->rt6i_pcpu);
 	prev = cmpxchg(p, NULL, pcpu_rt);
 	BUG_ON(prev);
 
@@ -1911,10 +1912,10 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 		struct rt6_info *pcpu_rt;
 
 		local_bh_disable();
-		pcpu_rt = rt6_get_pcpu_route(res.f6i);
+		pcpu_rt = rt6_get_pcpu_route(&res);
 
 		if (!pcpu_rt)
-			pcpu_rt = rt6_make_pcpu_route(net, res.f6i);
+			pcpu_rt = rt6_make_pcpu_route(net, &res);
 
 		local_bh_enable();
 		rcu_read_unlock();
