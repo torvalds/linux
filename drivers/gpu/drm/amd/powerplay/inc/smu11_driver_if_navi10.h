@@ -4,7 +4,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x2E
+#define SMU11_DRIVER_IF_VERSION 0x2F
 
 #define PPTABLE_NV10_SMU_VERSION 8
 
@@ -689,8 +689,11 @@ typedef struct {
   // BTC Setting
   uint32_t     BtcConfig;
   
+  uint16_t     SsFmin[10]; // PPtable value to function similar to VFTFmin for SS Curve; Size is PPCLK_COUNT rounded to nearest multiple of 2
+  uint16_t     DcBtcGb[AVFS_VOLTAGE_COUNT];
+
   // SECTION: Board Reserved
-  uint32_t     Reserved[14];
+  uint32_t     Reserved[8];
 
   // SECTION: BOARD PARAMETERS
   // I2C Control
@@ -1027,17 +1030,9 @@ typedef struct {
 
 //RLC Pace Table total number of levels
 #define RLC_PACE_TABLE_NUM_LEVELS 16
-#define RLC_PACE_RATIO_NUM_LEVELS 8
 
 typedef struct {
-  uint8_t ByteRatioLow;
-  uint8_t FlopsRatioLow;
-  uint8_t ByteRatioHigh;
-  uint8_t FlopsRatioHigh;
-} RlcPaceFlopsPerByte_t;
-
-typedef struct {
-  RlcPaceFlopsPerByte_t FlopsPerByteTable[RLC_PACE_RATIO_NUM_LEVELS];
+  float FlopsPerByteTable[RLC_PACE_TABLE_NUM_LEVELS];
   
   uint32_t     MmHubPadding[8]; // SMU internal use  
 } RlcPaceFlopsPerByteOverride_t;
