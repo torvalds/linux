@@ -207,7 +207,7 @@ void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_reset);
 
 /**
- * usb_ep_autoconfig_by_name - Used to pick the endpoint by name. eg ep1in-gsi
+ * usb_ep_autoconfig_by_name - Used to pick the endpoint by name. eg gsi-epin1
  * @gadget: The device to which the endpoint must belong.
  * @desc: Endpoint descriptor, with endpoint direction and transfer mode
  *	initialized.
@@ -223,8 +223,12 @@ struct usb_ep *usb_ep_autoconfig_by_name(
 	struct usb_ep	*ep;
 	bool ep_found = false;
 
+	if (!ep_name || !strlen(ep_name))
+		goto err;
+
 	list_for_each_entry(ep, &gadget->ep_list, ep_list)
-		if (strcmp(ep->name, ep_name) == 0 && !ep->driver_data) {
+		if (strncmp(ep->name, ep_name, strlen(ep_name)) == 0 &&
+				!ep->driver_data) {
 			ep_found = true;
 			break;
 		}
@@ -239,6 +243,7 @@ struct usb_ep *usb_ep_autoconfig_by_name(
 		return ep;
 	}
 
+err:
 	pr_err("%s:error finding ep %s\n", __func__, ep_name);
 	return NULL;
 }
