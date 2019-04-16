@@ -89,14 +89,14 @@ static int mc13xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int mc13xxx_rtc_set_mmss(struct device *dev, time64_t secs)
+static int mc13xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct mc13xxx_rtc *priv = dev_get_drvdata(dev);
 	unsigned int seconds, days;
 	unsigned int alarmseconds;
 	int ret;
 
-	days = div_s64_rem(secs, SEC_PER_DAY, &seconds);
+	days = div_s64_rem(rtc_tm_to_time64(tm), SEC_PER_DAY, &seconds);
 
 	mc13xxx_lock(priv->mc13xxx);
 
@@ -253,7 +253,7 @@ static irqreturn_t mc13xxx_rtc_alarm_handler(int irq, void *dev)
 
 static const struct rtc_class_ops mc13xxx_rtc_ops = {
 	.read_time = mc13xxx_rtc_read_time,
-	.set_mmss64 = mc13xxx_rtc_set_mmss,
+	.set_time = mc13xxx_rtc_set_time,
 	.read_alarm = mc13xxx_rtc_read_alarm,
 	.set_alarm = mc13xxx_rtc_set_alarm,
 	.alarm_irq_enable = mc13xxx_rtc_alarm_irq_enable,
