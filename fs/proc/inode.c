@@ -72,15 +72,9 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void proc_i_callback(struct rcu_head *head)
+static void proc_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
-}
-
-static void proc_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, proc_i_callback);
 }
 
 static void init_once(void *foo)
@@ -123,7 +117,7 @@ static int proc_show_options(struct seq_file *seq, struct dentry *root)
 
 const struct super_operations proc_sops = {
 	.alloc_inode	= proc_alloc_inode,
-	.destroy_inode	= proc_destroy_inode,
+	.free_inode	= proc_free_inode,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= proc_evict_inode,
 	.statfs		= simple_statfs,
