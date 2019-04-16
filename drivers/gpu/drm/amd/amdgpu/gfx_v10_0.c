@@ -3544,8 +3544,9 @@ static int gfx_v10_0_hw_init(void *handle)
 static int gfx10_0_disable_kgq(struct amdgpu_device *adev)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	struct amdgpu_ring *kiq_ring = &kiq->ring;
-	int i;
+	struct amdgpu_ring *ring, *kiq_ring = &kiq->ring;
+	struct v10_gfx_mqd *mqd;
+	int r, i, j;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
@@ -3554,9 +3555,33 @@ static int gfx10_0_disable_kgq(struct amdgpu_device *adev)
 					adev->gfx.num_gfx_rings))
 		return -ENOMEM;
 
-	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.gfx_ring[i],
-					   RESET_QUEUES, 0, 0);
+	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+		ring = &adev->gfx.gfx_ring[i];
+
+		r = amdgpu_bo_reserve(ring->mqd_obj, false);
+		if (unlikely(r != 0))
+			return r;
+
+		r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr);
+		if (!r) {
+			kiq->pmf->kiq_unmap_queues(kiq_ring, ring,
+						   PREEMPT_QUEUES, 0, 0);
+			mqd = ring->mqd_ptr;
+
+			for (j = 0; j < adev->usec_timeout; j++) {
+				if (!mqd->cp_gfx_hqd_active)
+					break;
+				udelay(1);
+			}
+
+			if (j == adev->usec_timeout)
+				DRM_ERROR("failed to wait for gfx inactive\n");
+
+			amdgpu_bo_kunmap(ring->mqd_obj);
+			ring->mqd_ptr = NULL;
+		}
+		amdgpu_bo_unreserve(ring->mqd_obj);
+	}
 
 	return amdgpu_ring_test_ring(kiq_ring);
 }
