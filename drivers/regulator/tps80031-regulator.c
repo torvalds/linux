@@ -85,7 +85,6 @@ struct tps80031_regulator_info {
 
 struct tps80031_regulator {
 	struct device			*dev;
-	struct regulator_dev		*rdev;
 	struct tps80031_regulator_info	*rinfo;
 
 	u8				device_flags;
@@ -736,7 +735,6 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
 					ri->rinfo->desc.name);
 			return PTR_ERR(rdev);
 		}
-		ri->rdev = rdev;
 	}
 
 	platform_set_drvdata(pdev, pmic);
