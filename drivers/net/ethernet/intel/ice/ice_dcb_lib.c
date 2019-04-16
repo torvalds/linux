@@ -120,12 +120,14 @@ static void ice_pf_dcb_recfg(struct ice_pf *pf)
 			tc_map = ICE_DFLT_TRAFFIC_CLASS;
 
 		ret = ice_vsi_cfg_tc(pf->vsi[v], tc_map);
-		if (ret)
+		if (ret) {
 			dev_err(&pf->pdev->dev,
 				"Failed to config TC for VSI index: %d\n",
 				pf->vsi[v]->idx);
-		else
-			ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+			continue;
+		}
+
+		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
 	}
 }
 
