@@ -392,7 +392,7 @@ ifdef CONFIG_MODULES
 	$(Q)if [ "$(srctree)" = "$(objtree)" ]; then $(MAKE) modules; fi
 endif
 
-ifdef CONFIG_FB
+ifdef CONFIG_DRM
 LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
 LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
 endif
