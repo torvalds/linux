@@ -311,7 +311,7 @@ static void lima_sched_free_job(struct drm_sched_job *job)
 	kmem_cache_free(pipe->task_slab, task);
 }
 
-const struct drm_sched_backend_ops lima_sched_ops = {
+static const struct drm_sched_backend_ops lima_sched_ops = {
 	.dependency = lima_sched_dependency,
 	.run_job = lima_sched_run_job,
 	.timedout_job = lima_sched_timedout_job,
