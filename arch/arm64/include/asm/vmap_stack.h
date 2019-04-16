@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2017 Arm Ltd.
 #ifndef __ASM_VMAP_STACK_H
 #define __ASM_VMAP_STACK_H
