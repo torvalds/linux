@@ -598,6 +598,9 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 	unsigned long gc_count = c->gc_count;
 	int ret = 0;
 
+	ca->allocator_state = ALLOCATOR_BLOCKED;
+	closure_wake_up(&c->freelist_wait);
+
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop()) {
@@ -620,6 +623,9 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 	}
 
 	__set_current_state(TASK_RUNNING);
+	ca->allocator_state = ALLOCATOR_RUNNING;
+	closure_wake_up(&c->freelist_wait);
+
 	return ret;
 }
 
@@ -1119,14 +1125,14 @@ static int push_invalidated_bucket(struct bch_fs *c, struct bch_dev *ca, size_t 
 				fifo_pop(&ca->free_inc, bucket);
 
 				closure_wake_up(&c->freelist_wait);
-				ca->allocator_blocked_full = false;
+				ca->allocator_state = ALLOCATOR_RUNNING;
 
 				spin_unlock(&c->freelist_lock);
 				goto out;
 			}
 
-		if (!ca->allocator_blocked_full) {
-			ca->allocator_blocked_full = true;
+		if (ca->allocator_state != ALLOCATOR_BLOCKED_FULL) {
+			ca->allocator_state = ALLOCATOR_BLOCKED_FULL;
 			closure_wake_up(&c->freelist_wait);
 		}
 
@@ -1184,6 +1190,7 @@ static int bch2_allocator_thread(void *arg)
 	int ret;
 
 	set_freezable();
+	ca->allocator_state = ALLOCATOR_RUNNING;
 
 	while (1) {
 		cond_resched();
@@ -1242,9 +1249,6 @@ static int bch2_allocator_thread(void *arg)
 			if (!nr ||
 			    (nr < ALLOC_SCAN_BATCH(ca) &&
 			     !fifo_full(&ca->free[RESERVE_MOVINGGC]))) {
-				ca->allocator_blocked = true;
-				closure_wake_up(&c->freelist_wait);
-
 				ret = wait_buckets_available(c, ca);
 				if (ret) {
 					up_read(&c->gc_lock);
@@ -1253,7 +1257,6 @@ static int bch2_allocator_thread(void *arg)
 			}
 		} while (!nr);
 
-		ca->allocator_blocked = false;
 		up_read(&c->gc_lock);
 
 		pr_debug("%zu buckets to invalidate", nr);
@@ -1266,6 +1269,8 @@ static int bch2_allocator_thread(void *arg)
 
 stop:
 	pr_debug("alloc thread stopping (ret %i)", ret);
+	ca->allocator_state = ALLOCATOR_STOPPED;
+	closure_wake_up(&c->freelist_wait);
 	return 0;
 }
 
@@ -1457,7 +1462,8 @@ void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 void bch2_dev_allocator_quiesce(struct bch_fs *c, struct bch_dev *ca)
 {
 	if (ca->alloc_thread)
-		closure_wait_event(&c->freelist_wait, ca->allocator_blocked_full);
+		closure_wait_event(&c->freelist_wait,
+				   ca->allocator_state != ALLOCATOR_RUNNING);
 }
 
 /* stop allocator thread: */
