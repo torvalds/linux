@@ -1856,7 +1856,8 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 		u16 reg_idx = q_vector->reg_idx;
 
-		ice_cfg_itr(hw, q_vector);
+		if (vsi->type != ICE_VSI_VF)
+			ice_cfg_itr(hw, q_vector);
 
 		wr32(hw, GLINT_RATE(reg_idx),
 		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
