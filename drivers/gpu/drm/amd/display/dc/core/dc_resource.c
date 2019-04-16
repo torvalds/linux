@@ -1184,24 +1184,27 @@ static int acquire_first_split_pipe(
 	int i;
 
 	for (i = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+		struct pipe_ctx *split_pipe = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->top_pipe &&
-				pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state) {
-			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
-			if (pipe_ctx->bottom_pipe)
-				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
+		if (split_pipe->top_pipe && !dc_res_is_odm_head_pipe(split_pipe) &&
+				split_pipe->top_pipe->plane_state == split_pipe->plane_state) {
+			split_pipe->top_pipe->bottom_pipe = split_pipe->bottom_pipe;
+			if (split_pipe->bottom_pipe)
+				split_pipe->bottom_pipe->top_pipe = split_pipe->top_pipe;
 
-			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-			pipe_ctx->stream_res.tg = pool->timing_generators[i];
-			pipe_ctx->plane_res.hubp = pool->hubps[i];
-			pipe_ctx->plane_res.ipp = pool->ipps[i];
-			pipe_ctx->plane_res.dpp = pool->dpps[i];
-			pipe_ctx->stream_res.opp = pool->opps[i];
-			pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
-			pipe_ctx->pipe_idx = i;
+			if (split_pipe->top_pipe->plane_state)
+				resource_build_scaling_params(split_pipe->top_pipe);
 
-			pipe_ctx->stream = stream;
+			memset(split_pipe, 0, sizeof(*split_pipe));
+			split_pipe->stream_res.tg = pool->timing_generators[i];
+			split_pipe->plane_res.hubp = pool->hubps[i];
+			split_pipe->plane_res.ipp = pool->ipps[i];
+			split_pipe->plane_res.dpp = pool->dpps[i];
+			split_pipe->stream_res.opp = pool->opps[i];
+			split_pipe->plane_res.mpcc_inst = pool->dpps[i]->inst;
+			split_pipe->pipe_idx = i;
+
+			split_pipe->stream = stream;
 			return i;
 		}
 	}
