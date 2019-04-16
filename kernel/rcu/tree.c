@@ -3157,8 +3157,8 @@ void rcutree_migrate_callbacks(int cpu)
 {
 	unsigned long flags;
 	struct rcu_data *my_rdp;
+	struct rcu_node *my_rnp;
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	struct rcu_node *rnp_root = rcu_get_root();
 	bool needwake;
 
 	if (rcu_segcblist_is_offloaded(&rdp->cblist) ||
@@ -3167,18 +3167,19 @@ void rcutree_migrate_callbacks(int cpu)
 
 	local_irq_save(flags);
 	my_rdp = this_cpu_ptr(&rcu_data);
+	my_rnp = my_rdp->mynode;
 	if (rcu_nocb_adopt_orphan_cbs(my_rdp, rdp, flags)) {
 		local_irq_restore(flags);
 		return;
 	}
-	raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
+	raw_spin_lock_rcu_node(my_rnp); /* irqs already disabled. */
 	/* Leverage recent GPs and set GP for new callbacks. */
-	needwake = rcu_advance_cbs(rnp_root, rdp) ||
-		   rcu_advance_cbs(rnp_root, my_rdp);
+	needwake = rcu_advance_cbs(my_rnp, rdp) ||
+		   rcu_advance_cbs(my_rnp, my_rdp);
 	rcu_segcblist_merge(&my_rdp->cblist, &rdp->cblist);
 	WARN_ON_ONCE(rcu_segcblist_empty(&my_rdp->cblist) !=
 		     !rcu_segcblist_n_cbs(&my_rdp->cblist));
-	raw_spin_unlock_irqrestore_rcu_node(rnp_root, flags);
+	raw_spin_unlock_irqrestore_rcu_node(my_rnp, flags);
 	if (needwake)
 		rcu_gp_kthread_wake();
 	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
