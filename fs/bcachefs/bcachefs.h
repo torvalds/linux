@@ -838,7 +838,7 @@ static inline s64 bch2_current_time(struct bch_fs *c)
 {
 	struct timespec64 now;
 
-	ktime_get_real_ts64(&now);
+	ktime_get_coarse_real_ts64(&now);
 	return timespec_to_bch2_time(c, now);
 }
 
