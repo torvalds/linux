@@ -340,6 +340,13 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
+	rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	pdata->rtc = rtc;
+	rtc->ops = &mxc_rtc_ops;
+
 	pdata->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(pdata->clk_ipg)) {
 		dev_err(&pdev->dev, "unable to get ipg clock!\n");
@@ -402,14 +409,9 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to enable irq wake\n");
 	}
 
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
-				  THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
+	ret = rtc_register_device(rtc);
+	if (ret)
 		goto exit_put_clk_ref;
-	}
-
-	pdata->rtc = rtc;
 
 	return 0;
 
