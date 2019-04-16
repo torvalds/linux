@@ -391,11 +391,9 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 	if (unlikely(!genpd->set_performance_state))
 		return -EINVAL;
 
-	if (unlikely(!dev->power.subsys_data ||
-		     !dev->power.subsys_data->domain_data)) {
-		WARN_ON(1);
+	if (WARN_ON(!dev->power.subsys_data ||
+		     !dev->power.subsys_data->domain_data))
 		return -EINVAL;
-	}
 
 	genpd_lock(genpd);
 
