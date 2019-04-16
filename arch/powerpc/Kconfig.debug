@@ -117,6 +117,14 @@ config XMON_DISASSEMBLY
 	  to say Y here, unless you're building for a memory-constrained
 	  system.
 
+config XMON_DEFAULT_RO_MODE
+	bool "Restrict xmon to read-only operations by default"
+	depends on XMON
+	default y
+	help
+          Operate xmon in read-only mode. The cmdline options 'xmon=rw' and
+          'xmon=ro' override this default.
+
 config DEBUGGER
 	bool
 	depends on KGDB || XMON
