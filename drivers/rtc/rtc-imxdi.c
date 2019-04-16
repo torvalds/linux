@@ -796,6 +796,10 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 
 	mutex_init(&imxdi->write_mutex);
 
+	imxdi->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(imxdi->rtc))
+		return PTR_ERR(imxdi->rtc);
+
 	imxdi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imxdi->clk))
 		return PTR_ERR(imxdi->clk);
@@ -829,12 +833,13 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, imxdi);
-	imxdi->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &dryice_rtc_ops, THIS_MODULE);
-	if (IS_ERR(imxdi->rtc)) {
-		rc = PTR_ERR(imxdi->rtc);
+
+	imxdi->rtc->ops = &dryice_rtc_ops;
+	imxdi->rtc->range_max = U32_MAX;
+
+	rc = rtc_register_device(imxdi->rtc);
+	if (rc)
 		goto err;
-	}
 
 	return 0;
 
