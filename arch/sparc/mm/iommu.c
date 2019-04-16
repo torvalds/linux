@@ -217,6 +217,11 @@ static dma_addr_t __sbus_iommu_map_page(struct device *dev, struct page *page,
 	if (!len || len > 256 * 1024)
 		return DMA_MAPPING_ERROR;
 
+	/*
+	 * We expect unmapped highmem pages to be not in the cache.
+	 * XXX Is this a good assumption?
+	 * XXX What if someone else unmaps it here and races us?
+	 */
 	if (per_page_flush && !PageHighMem(page)) {
 		unsigned long vaddr, p;
 
@@ -247,30 +252,14 @@ static int __sbus_iommu_map_sg(struct device *dev, struct scatterlist *sgl,
 		int nents, enum dma_data_direction dir, unsigned long attrs,
 		bool per_page_flush)
 {
-	unsigned long page, oldpage = 0;
 	struct scatterlist *sg;
-	int i, j, n;
+	int j;
 
 	for_each_sg(sgl, sg, nents, j) {
-		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-
-		/*
-		 * We expect unmapped highmem pages to be not in the cache.
-		 * XXX Is this a good assumption?
-		 * XXX What if someone else unmaps it here and races us?
-		 */
-		if (per_page_flush && !PageHighMem(sg_page(sg))) {
-			page = (unsigned long)page_address(sg_page(sg));
-			for (i = 0; i < n; i++) {
-				if (page != oldpage) {	/* Already flushed? */
-					flush_page_for_dma(page);
-					oldpage = page;
-				}
-				page += PAGE_SIZE;
-			}
-		}
-
-		sg->dma_address = iommu_get_one(dev, sg_phys(sg), n) + sg->offset;
+		sg->dma_address =__sbus_iommu_map_page(dev, sg_page(sg),
+				sg->offset, sg->length, per_page_flush);
+		if (sg->dma_address == DMA_MAPPING_ERROR)
+			return 0;
 		sg->dma_length = sg->length;
 	}
 
