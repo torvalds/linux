@@ -69,11 +69,6 @@ static int xfrm4_get_saddr(struct net *net, int oif,
 	return 0;
 }
 
-static int xfrm4_get_tos(const struct flowi *fl)
-{
-	return IPTOS_RT_MASK & fl->u.ip4.flowi4_tos; /* Strip ECN bits */
-}
-
 static int xfrm4_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 			   int nfheader_len)
 {
@@ -272,7 +267,6 @@ static const struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
 	.decode_session =	_decode_session4,
-	.get_tos =		xfrm4_get_tos,
 	.init_path =		xfrm4_init_path,
 	.fill_dst =		xfrm4_fill_dst,
 	.blackhole_route =	ipv4_blackhole_route,
