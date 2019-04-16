@@ -2539,7 +2539,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	 * recipe, since VSI/VSI list is ignored with drop action...
 	 * Also add rules to handle LLDP Tx and Rx packets.  Tx LLDP packets
 	 * need to be dropped so that VFs cannot send LLDP packets to reconfig
-	 * DCB settings in the HW.  Also, if the FW DCBx engine is not running
+	 * DCB settings in the HW.  Also, if the FW DCBX engine is not running
 	 * then Rx LLDP packets need to be redirected up the stack.
 	 */
 	if (vsi->type == ICE_VSI_PF) {
@@ -3059,7 +3059,7 @@ err_vsi:
 
 /**
  * ice_is_reset_in_progress - check for a reset in progress
- * @state: pf state field
+ * @state: PF state field
  */
 bool ice_is_reset_in_progress(unsigned long *state)
 {

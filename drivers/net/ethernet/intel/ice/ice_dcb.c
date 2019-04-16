@@ -669,7 +669,7 @@ ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 /**
  * ice_aq_get_dcb_cfg
  * @hw: pointer to the HW struct
- * @mib_type: mib type for the query
+ * @mib_type: MIB type for the query
  * @bridgetype: bridge type for the query (remote)
  * @dcbcfg: store for LLDPDU data
  *
@@ -700,13 +700,13 @@ ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
 }
 
 /**
- * ice_aq_start_stop_dcbx - Start/Stop DCBx service in FW
+ * ice_aq_start_stop_dcbx - Start/Stop DCBX service in FW
  * @hw: pointer to the HW struct
- * @start_dcbx_agent: True if DCBx Agent needs to be started
- *		      False if DCBx Agent needs to be stopped
- * @dcbx_agent_status: FW indicates back the DCBx agent status
- *		       True if DCBx Agent is active
- *		       False if DCBx Agent is stopped
+ * @start_dcbx_agent: True if DCBX Agent needs to be started
+ *		      False if DCBX Agent needs to be stopped
+ * @dcbx_agent_status: FW indicates back the DCBX agent status
+ *		       True if DCBX Agent is active
+ *		       False if DCBX Agent is stopped
  * @cd: pointer to command details structure or NULL
  *
  * Start/Stop the embedded dcbx Agent. In case that this wrapper function

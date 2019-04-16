@@ -154,7 +154,7 @@ static void ice_free_vf_res(struct ice_vf *vf)
 	 */
 	clear_bit(ICE_VF_STATE_INIT, vf->vf_states);
 
-	/* free vsi & disconnect it from the parent uplink */
+	/* free VSI and disconnect it from the parent uplink */
 	if (vf->lan_vsi_idx) {
 		ice_vsi_release(pf->vsi[vf->lan_vsi_idx]);
 		vf->lan_vsi_idx = 0;
@@ -514,7 +514,6 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 	vf->first_vector_idx = ice_calc_vf_first_vector_idx(pf, vf);
 
 	vsi = ice_vf_vsi_setup(pf, pf->hw.port_info, vf->vf_id);
-
 	if (!vsi) {
 		dev_err(&pf->pdev->dev, "Failed to create VF VSI\n");
 		return -ENOMEM;
@@ -1312,8 +1311,8 @@ err_unroll_intr:
 }
 
 /**
- * ice_pf_state_is_nominal - checks the pf for nominal state
- * @pf: pointer to pf to check
+ * ice_pf_state_is_nominal - checks the PF for nominal state
+ * @pf: pointer to PF to check
  *
  * Check the PF's state for a collection of bits that would indicate
  * the PF is in a state that would inhibit normal operation for
@@ -1640,7 +1639,7 @@ static void ice_vc_reset_vf_msg(struct ice_vf *vf)
 
 /**
  * ice_find_vsi_from_id
- * @pf: the pf structure to search for the VSI
+ * @pf: the PF structure to search for the VSI
  * @id: ID of the VSI it is searching for
  *
  * searches for the VSI with the given ID

@@ -283,7 +283,7 @@ dcb_error:
 
 /**
  * ice_dcb_init_cfg - set the initial DCB config in SW
- * @pf: pf to apply config to
+ * @pf: PF to apply config to
  * @locked: Is the RTNL held
  */
 static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
@@ -311,7 +311,7 @@ static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 
 /**
  * ice_dcb_sw_default_config - Apply a default DCB config
- * @pf: pf to apply config to
+ * @pf: PF to apply config to
  * @locked: was this function called with RTNL held
  */
 static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
@@ -356,7 +356,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 
 /**
  * ice_init_pf_dcb - initialize DCB for a PF
- * @pf: pf to initiialize DCB for
+ * @pf: PF to initialize DCB for
  * @locked: Was function called with RTNL held
  */
 int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
@@ -371,7 +371,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 
 	err = ice_init_dcb(hw);
 	if (err) {
-		/* FW LLDP is not active, default to SW DCBx/LLDP */
+		/* FW LLDP is not active, default to SW DCBX/LLDP */
 		dev_info(&pf->pdev->dev, "FW LLDP is not active\n");
 		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
 		hw->port_info->is_sw_lldp = true;
@@ -604,10 +604,10 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	/* store the old configuration */
 	tmp_dcbx_cfg = pf->hw.port_info->local_dcbx_cfg;
 
-	/* Reset the old DCBx configuration data */
+	/* Reset the old DCBX configuration data */
 	memset(&pi->local_dcbx_cfg, 0, sizeof(pi->local_dcbx_cfg));
 
-	/* Get updated DCBx data from firmware */
+	/* Get updated DCBX data from firmware */
 	ret = ice_get_dcb_cfg(pf->hw.port_info);
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Failed to get DCB config\n");

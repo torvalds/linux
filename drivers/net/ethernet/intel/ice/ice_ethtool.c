@@ -1247,7 +1247,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 				dev_warn(&pf->pdev->dev,
 					 "Fail to start LLDP Agent\n");
 
-			/* AQ command to start FW DCBx agent will fail if
+			/* AQ command to start FW DCBX agent will fail if
 			 * the agent is already started
 			 */
 			status = ice_aq_start_stop_dcbx(&pf->hw, true,

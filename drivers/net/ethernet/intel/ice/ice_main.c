@@ -112,7 +112,7 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
  * ice_init_mac_fltr - Set initial MAC filters
  * @pf: board private structure
  *
- * Set initial set of mac filters for PF VSI; configure filters for permanent
+ * Set initial set of MAC filters for PF VSI; configure filters for permanent
  * address and broadcast address. If an error is encountered, netdevice will be
  * unregistered.
  */
@@ -682,13 +682,13 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 
 	switch (vsi->port_info->fc.current_mode) {
 	case ICE_FC_FULL:
-		fc = "RX/TX";
+		fc = "Rx/Tx";
 		break;
 	case ICE_FC_TX_PAUSE:
-		fc = "TX";
+		fc = "Tx";
 		break;
 	case ICE_FC_RX_PAUSE:
-		fc = "RX";
+		fc = "Rx";
 		break;
 	case ICE_FC_NONE:
 		fc = "None";
@@ -770,7 +770,7 @@ static void ice_vsi_link_event(struct ice_vsi *vsi, bool link_up)
 
 /**
  * ice_link_event - process the link event
- * @pf: pf that the link event is associated with
+ * @pf: PF that the link event is associated with
  * @pi: port_info for the port that the link event is associated with
  * @link_up: true if the physical link is up and false if it is down
  * @link_speed: current link speed received from the link event
@@ -880,7 +880,7 @@ static int ice_init_link_events(struct ice_port_info *pi)
 
 /**
  * ice_handle_link_event - handle link event via ARQ
- * @pf: pf that the link event is associated with
+ * @pf: PF that the link event is associated with
  * @event: event structure containing link status info
  */
 static int
@@ -2301,7 +2301,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	if (!pf)
 		return -ENOMEM;
 
-	/* set up for high or low dma */
+	/* set up for high or low DMA */
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (err)
 		err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -2417,7 +2417,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	err = ice_setup_pf_sw(pf);
 	if (err) {
-		dev_err(dev, "probe failed due to setup pf switch:%d\n", err);
+		dev_err(dev, "probe failed due to setup PF switch:%d\n", err);
 		goto err_alloc_sw_unroll;
 	}
 
@@ -2674,7 +2674,7 @@ static int __init ice_module_init(void)
 
 	status = pci_register_driver(&ice_driver);
 	if (status) {
-		pr_err("failed to register pci driver, err %d\n", status);
+		pr_err("failed to register PCI driver, err %d\n", status);
 		destroy_workqueue(ice_wq);
 	}
 
@@ -2774,21 +2774,21 @@ free_lists:
 	ice_free_fltr_list(&pf->pdev->dev, &a_mac_list);
 
 	if (err) {
-		netdev_err(netdev, "can't set mac %pM. filter update failed\n",
+		netdev_err(netdev, "can't set MAC %pM. filter update failed\n",
 			   mac);
 		return err;
 	}
 
 	/* change the netdev's MAC address */
 	memcpy(netdev->dev_addr, mac, netdev->addr_len);
-	netdev_dbg(vsi->netdev, "updated mac address to %pM\n",
+	netdev_dbg(vsi->netdev, "updated MAC address to %pM\n",
 		   netdev->dev_addr);
 
 	/* write new MAC address to the firmware */
 	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
 	status = ice_aq_manage_mac_write(hw, mac, flags, NULL);
 	if (status) {
-		netdev_err(netdev, "can't set mac %pM. write to firmware failed.\n",
+		netdev_err(netdev, "can't set MAC %pM. write to firmware failed.\n",
 			   mac);
 	}
 	return 0;
@@ -3714,7 +3714,7 @@ static int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
 }
 
 /**
- * ice_vsi_rebuild_all - rebuild all VSIs in pf
+ * ice_vsi_rebuild_all - rebuild all VSIs in PF
  * @pf: the PF
  */
 static int ice_vsi_rebuild_all(struct ice_pf *pf)
@@ -3784,7 +3784,7 @@ static int ice_vsi_replay_all(struct ice_pf *pf)
 
 /**
  * ice_rebuild - rebuild after reset
- * @pf: pf to rebuild
+ * @pf: PF to rebuild
  */
 static void ice_rebuild(struct ice_pf *pf)
 {
@@ -3796,7 +3796,7 @@ static void ice_rebuild(struct ice_pf *pf)
 	if (test_bit(__ICE_DOWN, pf->state))
 		goto clear_recovery;
 
-	dev_dbg(dev, "rebuilding pf\n");
+	dev_dbg(dev, "rebuilding PF\n");
 
 	ret = ice_init_all_ctrlq(hw);
 	if (ret) {
@@ -3907,16 +3907,16 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	u8 count = 0;
 
 	if (new_mtu == netdev->mtu) {
-		netdev_warn(netdev, "mtu is already %u\n", netdev->mtu);
+		netdev_warn(netdev, "MTU is already %u\n", netdev->mtu);
 		return 0;
 	}
 
 	if (new_mtu < netdev->min_mtu) {
-		netdev_err(netdev, "new mtu invalid. min_mtu is %d\n",
+		netdev_err(netdev, "new MTU invalid. min_mtu is %d\n",
 			   netdev->min_mtu);
 		return -EINVAL;
 	} else if (new_mtu > netdev->max_mtu) {
-		netdev_err(netdev, "new mtu invalid. max_mtu is %d\n",
+		netdev_err(netdev, "new MTU invalid. max_mtu is %d\n",
 			   netdev->min_mtu);
 		return -EINVAL;
 	}
@@ -3932,7 +3932,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	} while (count < 100);
 
 	if (count == 100) {
-		netdev_err(netdev, "can't change mtu. Device is busy\n");
+		netdev_err(netdev, "can't change MTU. Device is busy\n");
 		return -EBUSY;
 	}
 
@@ -3944,13 +3944,13 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 
 		err = ice_down(vsi);
 		if (err) {
-			netdev_err(netdev, "change mtu if_up err %d\n", err);
+			netdev_err(netdev, "change MTU if_up err %d\n", err);
 			return err;
 		}
 
 		err = ice_up(vsi);
 		if (err) {
-			netdev_err(netdev, "change mtu if_up err %d\n", err);
+			netdev_err(netdev, "change MTU if_up err %d\n", err);
 			return err;
 		}
 	}

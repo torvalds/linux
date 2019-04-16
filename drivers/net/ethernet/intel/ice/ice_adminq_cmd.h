@@ -1273,7 +1273,7 @@ struct ice_aqc_get_cee_dcb_cfg_resp {
 };
 
 /* Set Local LLDP MIB (indirect 0x0A08)
- * Used to replace the local MIB of a given LLDP agent. e.g. DCBx
+ * Used to replace the local MIB of a given LLDP agent. e.g. DCBX
  */
 struct ice_aqc_lldp_set_local_mib {
 	u8 type;
@@ -1290,7 +1290,7 @@ struct ice_aqc_lldp_set_local_mib {
 };
 
 /* Stop/Start LLDP Agent (direct 0x0A09)
- * Used for stopping/starting specific LLDP agent. e.g. DCBx.
+ * Used for stopping/starting specific LLDP agent. e.g. DCBX.
  * The same structure is used for the response, with the command field
  * being used as the status field.
  */

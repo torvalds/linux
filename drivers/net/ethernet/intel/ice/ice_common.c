@@ -499,7 +499,7 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
 	if (!status) {
 		u16 i;
 
-		/* Save fw logging information into the hw structure */
+		/* Save FW logging information into the HW structure */
 		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
 			u16 v, m, flgs;
 
@@ -691,7 +691,7 @@ void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
  * ice_get_itr_intrl_gran - determine int/intrl granularity
  * @hw: pointer to the HW struct
  *
- * Determines the itr/intrl granularities based on the maximum aggregate
+ * Determines the ITR/intrl granularities based on the maximum aggregate
  * bandwidth according to the device's configuration during power-on.
  */
 static void ice_get_itr_intrl_gran(struct ice_hw *hw)
@@ -2699,7 +2699,7 @@ do_aq:
 			ice_debug(hw, ICE_DBG_SCHED, "VM%d disable failed %d\n",
 				  vmvf_num, hw->adminq.sq_last_status);
 		else
-			ice_debug(hw, ICE_DBG_SCHED, "disable Q %d failed %d\n",
+			ice_debug(hw, ICE_DBG_SCHED, "disable queue %d failed %d\n",
 				  le16_to_cpu(qg_list[0].q_id[0]),
 				  hw->adminq.sq_last_status);
 	}
