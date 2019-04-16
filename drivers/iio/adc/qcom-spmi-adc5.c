@@ -664,6 +664,7 @@ static const struct of_device_id adc5_match_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, adc5_match_table);
 
 static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 {
