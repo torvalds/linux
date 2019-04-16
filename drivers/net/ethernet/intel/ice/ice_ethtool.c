@@ -2255,49 +2255,60 @@ ice_get_rc_coalesce(struct ethtool_coalesce *ec, enum ice_container_type c_type,
 }
 
 /**
+ * ice_get_q_coalesce - get a queue's ITR/INTRL (coalesce) settings
+ * @vsi: VSI associated to the queue for getting ITR/INTRL (coalesce) settings
+ * @ec: coalesce settings to program the device with
+ * @q_num: update ITR/INTRL (coalesce) settings for this queue number/index
+ *
+ * Return 0 on success, and negative under the following conditions:
+ * 1. Getting Tx or Rx ITR/INTRL (coalesce) settings failed.
+ * 2. The q_num passed in is not a valid number/index for Tx and Rx rings.
+ */
+static int
+ice_get_q_coalesce(struct ice_vsi *vsi, struct ethtool_coalesce *ec, int q_num)
+{
+	if (q_num < vsi->num_rxq && q_num < vsi->num_txq) {
+		if (ice_get_rc_coalesce(ec, ICE_RX_CONTAINER,
+					&vsi->rx_rings[q_num]->q_vector->rx))
+			return -EINVAL;
+		if (ice_get_rc_coalesce(ec, ICE_TX_CONTAINER,
+					&vsi->tx_rings[q_num]->q_vector->tx))
+			return -EINVAL;
+	} else if (q_num < vsi->num_rxq) {
+		if (ice_get_rc_coalesce(ec, ICE_RX_CONTAINER,
+					&vsi->rx_rings[q_num]->q_vector->rx))
+			return -EINVAL;
+	} else if (q_num < vsi->num_txq) {
+		if (ice_get_rc_coalesce(ec, ICE_TX_CONTAINER,
+					&vsi->tx_rings[q_num]->q_vector->tx))
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * __ice_get_coalesce - get ITR/INTRL values for the device
  * @netdev: pointer to the netdev associated with this query
  * @ec: ethtool structure to fill with driver's coalesce settings
  * @q_num: queue number to get the coalesce settings for
+ *
+ * If the caller passes in a negative q_num then we return coalesce settings
+ * based on queue number 0, else use the actual q_num passed in.
  */
 static int
 __ice_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 		   int q_num)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	int tx = -EINVAL, rx = -EINVAL;
 	struct ice_vsi *vsi = np->vsi;
 
-	if (q_num < 0) {
-		rx = ice_get_rc_coalesce(ec, ICE_RX_CONTAINER,
-					 &vsi->rx_rings[0]->q_vector->rx);
-		tx = ice_get_rc_coalesce(ec, ICE_TX_CONTAINER,
-					 &vsi->tx_rings[0]->q_vector->tx);
+	if (q_num < 0)
+		q_num = 0;
 
-		goto update_coalesced_frames;
-	}
-
-	if (q_num < vsi->num_rxq && q_num < vsi->num_txq) {
-		rx = ice_get_rc_coalesce(ec, ICE_RX_CONTAINER,
-					 &vsi->rx_rings[q_num]->q_vector->rx);
-		tx = ice_get_rc_coalesce(ec, ICE_TX_CONTAINER,
-					 &vsi->tx_rings[q_num]->q_vector->tx);
-	} else if (q_num < vsi->num_rxq) {
-		rx = ice_get_rc_coalesce(ec, ICE_RX_CONTAINER,
-					 &vsi->rx_rings[q_num]->q_vector->rx);
-	} else if (q_num < vsi->num_txq) {
-		tx = ice_get_rc_coalesce(ec, ICE_TX_CONTAINER,
-					 &vsi->tx_rings[q_num]->q_vector->tx);
-	} else {
-		/* q_num is invalid for both Rx and Tx queues */
-		return -EINVAL;
-	}
-
-update_coalesced_frames:
-	/* either q_num is invalid for both Rx and Tx queues or setting coalesce
-	 * failed completely
-	 */
-	if (tx && rx)
+	if (ice_get_q_coalesce(vsi, ec, q_num))
 		return -EINVAL;
 
 	if (q_num < vsi->num_txq)
@@ -2423,54 +2434,77 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 	return 0;
 }
 
+/**
+ * ice_set_q_coalesce - set a queue's ITR/INTRL (coalesce) settings
+ * @vsi: VSI associated to the queue that need updating
+ * @ec: coalesce settings to program the device with
+ * @q_num: update ITR/INTRL (coalesce) settings for this queue number/index
+ *
+ * Return 0 on success, and negative under the following conditions:
+ * 1. Setting Tx or Rx ITR/INTRL (coalesce) settings failed.
+ * 2. The q_num passed in is not a valid number/index for Tx and Rx rings.
+ */
+static int
+ice_set_q_coalesce(struct ice_vsi *vsi, struct ethtool_coalesce *ec, int q_num)
+{
+	if (q_num < vsi->num_rxq && q_num < vsi->num_txq) {
+		if (ice_set_rc_coalesce(ICE_RX_CONTAINER, ec,
+					&vsi->rx_rings[q_num]->q_vector->rx,
+					vsi))
+			return -EINVAL;
+
+		if (ice_set_rc_coalesce(ICE_TX_CONTAINER, ec,
+					&vsi->tx_rings[q_num]->q_vector->tx,
+					vsi))
+			return -EINVAL;
+	} else if (q_num < vsi->num_rxq) {
+		if (ice_set_rc_coalesce(ICE_RX_CONTAINER, ec,
+					&vsi->rx_rings[q_num]->q_vector->rx,
+					vsi))
+			return -EINVAL;
+	} else if (q_num < vsi->num_txq) {
+		if (ice_set_rc_coalesce(ICE_TX_CONTAINER, ec,
+					&vsi->tx_rings[q_num]->q_vector->tx,
+					vsi))
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * __ice_set_coalesce - set ITR/INTRL values for the device
+ * @netdev: pointer to the netdev associated with this query
+ * @ec: ethtool structure to fill with driver's coalesce settings
+ * @q_num: queue number to get the coalesce settings for
+ *
+ * If the caller passes in a negative q_num then we set the coalesce settings
+ * for all Tx/Rx queues, else use the actual q_num passed in.
+ */
 static int
 __ice_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 		   int q_num)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	int rx = -EINVAL, tx = -EINVAL;
 	struct ice_vsi *vsi = np->vsi;
 
 	if (q_num < 0) {
 		int i;
 
 		ice_for_each_q_vector(vsi, i) {
-			struct ice_q_vector *q_vector = vsi->q_vectors[i];
-
-			if (ice_set_rc_coalesce(ICE_RX_CONTAINER, ec,
-						&q_vector->rx, vsi) ||
-			    ice_set_rc_coalesce(ICE_TX_CONTAINER, ec,
-						&q_vector->tx, vsi))
+			if (ice_set_q_coalesce(vsi, ec, i))
 				return -EINVAL;
 		}
-
 		goto set_work_lmt;
 	}
 
-	if (q_num < vsi->num_rxq && q_num < vsi->num_txq) {
-		rx = ice_set_rc_coalesce(ICE_RX_CONTAINER, ec,
-					 &vsi->rx_rings[q_num]->q_vector->rx,
-					 vsi);
-		tx = ice_set_rc_coalesce(ICE_TX_CONTAINER, ec,
-					 &vsi->tx_rings[q_num]->q_vector->tx,
-					 vsi);
-	} else if (q_num < vsi->num_rxq) {
-		rx = ice_set_rc_coalesce(ICE_RX_CONTAINER, ec,
-					 &vsi->rx_rings[q_num]->q_vector->rx,
-					 vsi);
-	} else if (q_num < vsi->num_txq) {
-		tx  = ice_set_rc_coalesce(ICE_TX_CONTAINER, ec,
-					  &vsi->tx_rings[q_num]->q_vector->tx,
-					  vsi);
-	}
-
-	/* either q_num is invalid for both Rx and Tx queues or setting coalesce
-	 * failed completely
-	 */
-	if (rx && tx)
+	if (ice_set_q_coalesce(vsi, ec, q_num))
 		return -EINVAL;
 
 set_work_lmt:
+
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
 		vsi->work_lmt = max(ec->tx_max_coalesced_frames_irq,
 				    ec->rx_max_coalesced_frames_irq);
