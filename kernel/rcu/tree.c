@@ -2739,6 +2739,10 @@ static int rcu_pending(void)
 	/* Check for CPU stalls, if enabled. */
 	check_cpu_stall(rdp);
 
+	/* Does this CPU need a deferred NOCB wakeup? */
+	if (rcu_nocb_need_deferred_wakeup(rdp))
+		return 1;
+
 	/* Is this CPU a NO_HZ_FULL CPU that should ignore RCU? */
 	if (rcu_nohz_full_cpu())
 		return 0;
@@ -2761,10 +2765,6 @@ static int rcu_pending(void)
 	/* Have RCU grace period completed or started?  */
 	if (rcu_seq_current(&rnp->gp_seq) != rdp->gp_seq ||
 	    unlikely(READ_ONCE(rdp->gpwrap))) /* outside lock */
-		return 1;
-
-	/* Does this CPU need a deferred NOCB wakeup? */
-	if (rcu_nocb_need_deferred_wakeup(rdp))
 		return 1;
 
 	/* nothing to do */
