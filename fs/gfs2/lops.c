@@ -203,8 +203,9 @@ static void gfs2_end_log_write(struct bio *bio)
 	struct bvec_iter_all iter_all;
 
 	if (bio->bi_status) {
-		fs_err(sdp, "Error %d writing to journal, jid=%u\n",
-		       bio->bi_status, sdp->sd_jdesc->jd_jid);
+		if (!cmpxchg(&sdp->sd_log_error, 0, (int)bio->bi_status))
+			fs_err(sdp, "Error %d writing to journal, jid=%u\n",
+			       bio->bi_status, sdp->sd_jdesc->jd_jid);
 		wake_up(&sdp->sd_logd_waitq);
 	}
 
