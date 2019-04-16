@@ -79,13 +79,13 @@ Linux最引人注目的特性之一是这些开发人员可以访问它；任何
 致谢
 ----
 
-本文件由jonathan corbet撰写，corbet@lwn.net。以下人员的建议使之更为完善：
+本文件由Jonathan Corbet撰写，corbet@lwn.net。以下人员的建议使之更为完善：
 Johannes Berg, James Berry, Alex Chiang, Roland Dreier, Randy Dunlap,
 Jake Edge, Jiri Kosina, Matt Mackall, Arthur Marsh, Amanda McPherson,
 Andrew Morton, Andrew Price, Tsugikazu Shibata, 和 Jochen Voß.
 
-这项工作得到了Linux基金会的支持，特别感谢Amanda McPherson，他看到了这香工作
-的价值并使之发生。
+这项工作得到了Linux基金会的支持，特别感谢Amanda McPherson，他看到了这项工作
+的价值并把它变成现实。
 
 代码进入主线的重要性
 --------------------
