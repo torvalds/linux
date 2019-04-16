@@ -561,7 +561,7 @@ static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm)
  * set the seconds portion of dryice time counter and clear the
  * fractional part.
  */
-static int dryice_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int dryice_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
 	u32 dcr, dsr;
@@ -588,7 +588,7 @@ static int dryice_rtc_set_mmss(struct device *dev, unsigned long secs)
 	if (rc != 0)
 		return rc;
 
-	rc = di_write_wait(imxdi, secs, DTCMR);
+	rc = di_write_wait(imxdi, rtc_tm_to_time64(tm), DTCMR);
 	if (rc != 0)
 		return rc;
 
@@ -666,7 +666,7 @@ static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static const struct rtc_class_ops dryice_rtc_ops = {
 	.read_time		= dryice_rtc_read_time,
-	.set_mmss		= dryice_rtc_set_mmss,
+	.set_time		= dryice_rtc_set_time,
 	.alarm_irq_enable	= dryice_rtc_alarm_irq_enable,
 	.read_alarm		= dryice_rtc_read_alarm,
 	.set_alarm		= dryice_rtc_set_alarm,
