@@ -95,7 +95,7 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 				/* Trigger sw interrupt to revive the queue */
 				v_idx = tx_ring->q_vector->v_idx;
 				wr32(&vsi->back->hw,
-				     GLINT_DYN_CTL(vsi->hw_base_vector + v_idx),
+				     GLINT_DYN_CTL(vsi->base_vector + v_idx),
 				     (itr << GLINT_DYN_CTL_ITR_INDX_S) |
 				     GLINT_DYN_CTL_SWINT_TRIG_M |
 				     GLINT_DYN_CTL_INTENA_MSK_M);
@@ -1327,7 +1327,7 @@ static int ice_vsi_req_irq_msix(struct ice_vsi *vsi, char *basename)
 {
 	int q_vectors = vsi->num_q_vectors;
 	struct ice_pf *pf = vsi->back;
-	int base = vsi->sw_base_vector;
+	int base = vsi->base_vector;
 	int rx_int_idx = 0;
 	int tx_int_idx = 0;
 	int vector, err;
@@ -1408,7 +1408,7 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	wr32(hw, PFINT_OICR_ENA, val);
 
 	/* SW_ITR_IDX = 0, but don't change INTENA */
-	wr32(hw, GLINT_DYN_CTL(pf->hw_oicr_idx),
+	wr32(hw, GLINT_DYN_CTL(pf->oicr_idx),
 	     GLINT_DYN_CTL_SW_ITR_INDX_M | GLINT_DYN_CTL_INTENA_MSK_M);
 }
 
@@ -1561,15 +1561,13 @@ static void ice_free_irq_msix_misc(struct ice_pf *pf)
 	ice_flush(hw);
 
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags) && pf->msix_entries) {
-		synchronize_irq(pf->msix_entries[pf->sw_oicr_idx].vector);
+		synchronize_irq(pf->msix_entries[pf->oicr_idx].vector);
 		devm_free_irq(&pf->pdev->dev,
-			      pf->msix_entries[pf->sw_oicr_idx].vector, pf);
+			      pf->msix_entries[pf->oicr_idx].vector, pf);
 	}
 
 	pf->num_avail_sw_msix += 1;
-	ice_free_res(pf->sw_irq_tracker, pf->sw_oicr_idx, ICE_RES_MISC_VEC_ID);
-	pf->num_avail_hw_msix += 1;
-	ice_free_res(pf->hw_irq_tracker, pf->hw_oicr_idx, ICE_RES_MISC_VEC_ID);
+	ice_free_res(pf->irq_tracker, pf->oicr_idx, ICE_RES_MISC_VEC_ID);
 }
 
 /**
@@ -1623,43 +1621,31 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 	if (ice_is_reset_in_progress(pf->state))
 		goto skip_req_irq;
 
-	/* reserve one vector in sw_irq_tracker for misc interrupts */
-	oicr_idx = ice_get_res(pf, pf->sw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+	/* reserve one vector in irq_tracker for misc interrupts */
+	oicr_idx = ice_get_res(pf, pf->irq_tracker, 1, ICE_RES_MISC_VEC_ID);
 	if (oicr_idx < 0)
 		return oicr_idx;
 
 	pf->num_avail_sw_msix -= 1;
-	pf->sw_oicr_idx = oicr_idx;
-
-	/* reserve one vector in hw_irq_tracker for misc interrupts */
-	oicr_idx = ice_get_res(pf, pf->hw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
-	if (oicr_idx < 0) {
-		ice_free_res(pf->sw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
-		pf->num_avail_sw_msix += 1;
-		return oicr_idx;
-	}
-	pf->num_avail_hw_msix -= 1;
-	pf->hw_oicr_idx = oicr_idx;
+	pf->oicr_idx = oicr_idx;
 
 	err = devm_request_irq(&pf->pdev->dev,
-			       pf->msix_entries[pf->sw_oicr_idx].vector,
+			       pf->msix_entries[pf->oicr_idx].vector,
 			       ice_misc_intr, 0, pf->int_name, pf);
 	if (err) {
 		dev_err(&pf->pdev->dev,
 			"devm_request_irq for %s failed: %d\n",
 			pf->int_name, err);
-		ice_free_res(pf->sw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+		ice_free_res(pf->irq_tracker, 1, ICE_RES_MISC_VEC_ID);
 		pf->num_avail_sw_msix += 1;
-		ice_free_res(pf->hw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
-		pf->num_avail_hw_msix += 1;
 		return err;
 	}
 
 skip_req_irq:
 	ice_ena_misc_vector(pf);
 
-	ice_ena_ctrlq_interrupts(hw, pf->hw_oicr_idx);
-	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->hw_oicr_idx),
+	ice_ena_ctrlq_interrupts(hw, pf->oicr_idx);
+	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->oicr_idx),
 	     ITR_REG_ALIGN(ICE_ITR_8K) >> ICE_ITR_GRAN_S);
 
 	ice_flush(hw);
@@ -2168,14 +2154,9 @@ static void ice_clear_interrupt_scheme(struct ice_pf *pf)
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 		ice_dis_msix(pf);
 
-	if (pf->sw_irq_tracker) {
-		devm_kfree(&pf->pdev->dev, pf->sw_irq_tracker);
-		pf->sw_irq_tracker = NULL;
-	}
-
-	if (pf->hw_irq_tracker) {
-		devm_kfree(&pf->pdev->dev, pf->hw_irq_tracker);
-		pf->hw_irq_tracker = NULL;
+	if (pf->irq_tracker) {
+		devm_kfree(&pf->pdev->dev, pf->irq_tracker);
+		pf->irq_tracker = NULL;
 	}
 }
 
@@ -2185,7 +2166,7 @@ static void ice_clear_interrupt_scheme(struct ice_pf *pf)
  */
 static int ice_init_interrupt_scheme(struct ice_pf *pf)
 {
-	int vectors = 0, hw_vectors = 0;
+	int vectors;
 
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 		vectors = ice_ena_msix_range(pf);
@@ -2196,31 +2177,18 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 		return vectors;
 
 	/* set up vector assignment tracking */
-	pf->sw_irq_tracker =
-		devm_kzalloc(&pf->pdev->dev, sizeof(*pf->sw_irq_tracker) +
+	pf->irq_tracker =
+		devm_kzalloc(&pf->pdev->dev, sizeof(*pf->irq_tracker) +
 			     (sizeof(u16) * vectors), GFP_KERNEL);
-	if (!pf->sw_irq_tracker) {
+	if (!pf->irq_tracker) {
 		ice_dis_msix(pf);
 		return -ENOMEM;
 	}
 
 	/* populate SW interrupts pool with number of OS granted IRQs. */
 	pf->num_avail_sw_msix = vectors;
-	pf->sw_irq_tracker->num_entries = vectors;
-
-	/* set up HW vector assignment tracking */
-	hw_vectors = pf->hw.func_caps.common_cap.num_msix_vectors;
-	pf->hw_irq_tracker =
-		devm_kzalloc(&pf->pdev->dev, sizeof(*pf->hw_irq_tracker) +
-			     (sizeof(u16) * hw_vectors), GFP_KERNEL);
-	if (!pf->hw_irq_tracker) {
-		ice_clear_interrupt_scheme(pf);
-		return -ENOMEM;
-	}
-
-	/* populate HW interrupts pool with number of HW supported irqs. */
-	pf->num_avail_hw_msix = hw_vectors;
-	pf->hw_irq_tracker->num_entries = hw_vectors;
+	pf->irq_tracker->num_entries = vectors;
+	pf->irq_tracker->end = pf->irq_tracker->num_entries;
 
 	return 0;
 }
@@ -3793,12 +3761,6 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_sched_init_port;
 
 	ice_dcb_rebuild(pf);
-
-	/* reset search_hint of irq_trackers to 0 since interrupts are
-	 * reclaimed and could be allocated from beginning during VSI rebuild
-	 */
-	pf->sw_irq_tracker->search_hint = 0;
-	pf->hw_irq_tracker->search_hint = 0;
 
 	err = ice_vsi_rebuild_all(pf);
 	if (err) {

@@ -772,7 +772,7 @@ static u64 ice_intr_test(struct net_device *netdev)
 
 	netdev_info(netdev, "interrupt test\n");
 
-	wr32(&pf->hw, GLINT_DYN_CTL(pf->sw_oicr_idx),
+	wr32(&pf->hw, GLINT_DYN_CTL(pf->oicr_idx),
 	     GLINT_DYN_CTL_SW_ITR_INDX_M |
 	     GLINT_DYN_CTL_INTENA_MSK_M |
 	     GLINT_DYN_CTL_SWINT_TRIG_M);
@@ -2987,8 +2987,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 
 		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl) {
 			rc->ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
-			wr32(&pf->hw, GLINT_RATE(vsi->hw_base_vector +
-						 rc->ring->q_vector->v_idx),
+			wr32(&pf->hw, GLINT_RATE(rc->ring->q_vector->reg_idx),
 			     ice_intrl_usec_to_reg(ec->rx_coalesce_usecs_high,
 						   pf->hw.intrl_gran));
 		}

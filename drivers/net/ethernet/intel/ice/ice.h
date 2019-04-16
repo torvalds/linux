@@ -167,7 +167,7 @@ struct ice_tc_cfg {
 
 struct ice_res_tracker {
 	u16 num_entries;
-	u16 search_hint;
+	u16 end;
 	u16 list[1];
 };
 
@@ -252,8 +252,7 @@ struct ice_vsi {
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 	int num_q_vectors;
-	int sw_base_vector;		/* Irq base for OS reserved vectors */
-	int hw_base_vector;		/* HW (absolute) index of a vector */
+	int base_vector;		/* IRQ base for OS reserved vectors */
 	enum ice_vsi_type type;
 	u16 vsi_num;			/* HW (absolute) index of this VSI */
 	u16 idx;			/* software index in pf->vsi[] */
@@ -348,10 +347,12 @@ struct ice_pf {
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
-	struct ice_res_tracker *sw_irq_tracker;
-
-	/* HW reserved Interrupts for this PF */
-	struct ice_res_tracker *hw_irq_tracker;
+	struct ice_res_tracker *irq_tracker;
+	/* First MSIX vector used by SR-IOV VFs. Calculated by subtracting the
+	 * number of MSIX vectors needed for all SR-IOV VFs from the number of
+	 * MSIX vectors allowed on this PF.
+	 */
+	u16 sriov_base_vector;
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
@@ -373,10 +374,8 @@ struct ice_pf {
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	u32 msg_enable;
 	u32 hw_csum_rx_error;
-	u32 sw_oicr_idx;	/* Other interrupt cause SW vector index */
+	u32 oicr_idx;		/* Other interrupt cause MSIX vector index */
 	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
-	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
-	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
 	u16 num_lan_tx;		/* num LAN Tx queues setup */
 	u16 num_lan_rx;		/* num LAN Rx queues setup */
@@ -418,7 +417,7 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 		    struct ice_q_vector *q_vector)
 {
 	u32 vector = (vsi && q_vector) ? q_vector->reg_idx :
-				((struct ice_pf *)hw->back)->hw_oicr_idx;
+				((struct ice_pf *)hw->back)->oicr_idx;
 	int itr = ICE_ITR_NONE;
 	u32 val;
 
