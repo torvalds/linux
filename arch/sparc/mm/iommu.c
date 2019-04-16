@@ -209,24 +209,23 @@ static u32 iommu_get_one(struct device *dev, phys_addr_t paddr, int npages)
 static dma_addr_t __sbus_iommu_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t len, bool per_page_flush)
 {
-	void *vaddr = page_address(page) + offset;
-	unsigned long off = (unsigned long)vaddr & ~PAGE_MASK;
+	phys_addr_t paddr = page_to_phys(page) + offset;
+	unsigned long off = paddr & ~PAGE_MASK;
 	unsigned long npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	/* XXX So what is maxphys for us and how do drivers know it? */
 	if (!len || len > 256 * 1024)
 		return DMA_MAPPING_ERROR;
 
-	if (per_page_flush) {
-		unsigned long p = (unsigned long)vaddr & PAGE_MASK;
+	if (per_page_flush && !PageHighMem(page)) {
+		unsigned long vaddr, p;
 
-		while (p < (unsigned long)vaddr + len) {
+		vaddr = (unsigned long)page_address(page) + offset;
+		for (p = vaddr & PAGE_MASK; p < vaddr + len; p += PAGE_SIZE)
 			flush_page_for_dma(p);
-			p += PAGE_SIZE;
-		}
 	}
 
-	return iommu_get_one(dev, virt_to_phys(vaddr), npages) + off;
+	return iommu_get_one(dev, paddr, npages) + off;
 }
 
 static dma_addr_t sbus_iommu_map_page_gflush(struct device *dev,
