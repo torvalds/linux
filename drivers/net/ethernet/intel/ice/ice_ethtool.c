@@ -1080,12 +1080,6 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 * registration/init failed but do not return error
 			 * state to ethtool
 			 */
-			status = ice_aq_cfg_lldp_mib_change(&pf->hw, false,
-							    NULL);
-			if (status)
-				dev_dbg(&pf->pdev->dev,
-					"Fail to reg for MIB change\n");
-
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
 				dev_dbg(&pf->pdev->dev, "Fail to init DCB\n");
