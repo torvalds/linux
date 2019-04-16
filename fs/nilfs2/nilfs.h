@@ -252,7 +252,6 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *, struct nilfs_argv *,
 void nilfs_inode_add_blocks(struct inode *inode, int n);
 void nilfs_inode_sub_blocks(struct inode *inode, int n);
 extern struct inode *nilfs_new_inode(struct inode *, umode_t);
-extern void nilfs_free_inode(struct inode *);
 extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
@@ -289,7 +288,6 @@ static inline int nilfs_mark_inode_dirty_sync(struct inode *inode)
 
 /* super.c */
 extern struct inode *nilfs_alloc_inode(struct super_block *);
-extern void nilfs_destroy_inode(struct inode *);
 
 extern __printf(3, 4)
 void __nilfs_msg(struct super_block *sb, const char *level,
