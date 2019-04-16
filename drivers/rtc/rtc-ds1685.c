@@ -192,42 +192,6 @@ ds1685_rtc_end_data_access(struct ds1685_priv *rtc)
 }
 
 /**
- * ds1685_rtc_begin_ctrl_access - prepare the rtc for ctrl access.
- * @rtc: pointer to the ds1685 rtc structure.
- * @flags: irq flags variable for spin_lock_irqsave.
- *
- * This takes several steps to prepare the rtc for access to read just the
- * control registers:
- *  - Sets a spinlock on the rtc IRQ.
- *  - Switches the rtc to bank 1.  This allows access to the two extended
- *    control registers.
- *
- * Only use this where you are certain another lock will not be held.
- */
-static inline void
-ds1685_rtc_begin_ctrl_access(struct ds1685_priv *rtc, unsigned long *flags)
-{
-	spin_lock_irqsave(&rtc->lock, *flags);
-	ds1685_rtc_switch_to_bank1(rtc);
-}
-
-/**
- * ds1685_rtc_end_ctrl_access - end ctrl access on the rtc.
- * @rtc: pointer to the ds1685 rtc structure.
- * @flags: irq flags variable for spin_unlock_irqrestore.
- *
- * This ends what was started by ds1685_rtc_begin_ctrl_access:
- *  - Switches the rtc back to bank 0.
- *  - Unsets the spinlock on the rtc IRQ.
- */
-static inline void
-ds1685_rtc_end_ctrl_access(struct ds1685_priv *rtc, unsigned long flags)
-{
-	ds1685_rtc_switch_to_bank0(rtc);
-	spin_unlock_irqrestore(&rtc->lock, flags);
-}
-
-/**
  * ds1685_rtc_get_ssn - retrieve the silicon serial number.
  * @rtc: pointer to the ds1685 rtc structure.
  * @ssn: u8 array to hold the bits of the silicon serial number.
