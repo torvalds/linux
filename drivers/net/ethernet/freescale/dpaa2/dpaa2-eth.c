@@ -2810,8 +2810,7 @@ static int dpaa2_eth_set_cls(struct dpaa2_eth_priv *priv)
 		return -EOPNOTSUPP;
 	}
 
-	if (priv->dpni_attrs.options & DPNI_OPT_NO_FS ||
-	    !(priv->dpni_attrs.options & DPNI_OPT_HAS_KEY_MASKING)) {
+	if (!dpaa2_eth_fs_enabled(priv) || !dpaa2_eth_fs_mask_enabled(priv)) {
 		dev_dbg(dev, "Rx cls disabled in DPNI options\n");
 		return -EOPNOTSUPP;
 	}
