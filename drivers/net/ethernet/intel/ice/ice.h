@@ -255,6 +255,8 @@ struct ice_vsi {
 
 	s16 vf_id;			/* VF ID for SR-IOV VSIs */
 
+	u16 ethtype;			/* Ethernet protocol for pause frame */
+
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */
 	u16 rss_size;		/* Allocated RSS queues */

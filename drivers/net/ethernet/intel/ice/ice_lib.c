@@ -2251,6 +2251,46 @@ clear_reg_idx:
 }
 
 /**
+ * ice_vsi_add_rem_eth_mac - Program VSI ethertype based filter with rule
+ * @vsi: the VSI being configured
+ * @add_rule: boolean value to add or remove ethertype filter rule
+ */
+static void
+ice_vsi_add_rem_eth_mac(struct ice_vsi *vsi, bool add_rule)
+{
+	struct ice_fltr_list_entry *list;
+	struct ice_pf *pf = vsi->back;
+	LIST_HEAD(tmp_add_list);
+	enum ice_status status;
+
+	list = devm_kzalloc(&pf->pdev->dev, sizeof(*list), GFP_KERNEL);
+	if (!list)
+		return;
+
+	list->fltr_info.lkup_type = ICE_SW_LKUP_ETHERTYPE;
+	list->fltr_info.fltr_act = ICE_DROP_PACKET;
+	list->fltr_info.flag = ICE_FLTR_TX;
+	list->fltr_info.src_id = ICE_SRC_ID_VSI;
+	list->fltr_info.vsi_handle = vsi->idx;
+	list->fltr_info.l_data.ethertype_mac.ethertype = vsi->ethtype;
+
+	INIT_LIST_HEAD(&list->list_entry);
+	list_add(&list->list_entry, &tmp_add_list);
+
+	if (add_rule)
+		status = ice_add_eth_mac(&pf->hw, &tmp_add_list);
+	else
+		status = ice_remove_eth_mac(&pf->hw, &tmp_add_list);
+
+	if (status)
+		dev_err(&pf->pdev->dev,
+			"Failure Adding or Removing Ethertype on VSI %i error: %d\n",
+			vsi->vsi_num, status);
+
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+}
+
+/**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
  * @pi: pointer to the port_info instance
@@ -2285,6 +2325,9 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 
 	vsi->port_info = pi;
 	vsi->vsw = pf->first_sw;
+	if (vsi->type == ICE_VSI_PF)
+		vsi->ethtype = ETH_P_PAUSE;
+
 	if (vsi->type == ICE_VSI_VF)
 		vsi->vf_id = vf_id;
 
@@ -2381,6 +2424,15 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 			vsi->vsi_num, ret);
 		goto unroll_vector_base;
 	}
+
+	/* Add switch rule to drop all Tx Flow Control Frames, of look up
+	 * type ETHERTYPE from VSIs, and restrict malicious VF from sending
+	 * out PAUSE or PFC frames. If enabled, FW can still send FC frames.
+	 * The rule is added once for PF VSI in order to create appropriate
+	 * recipe, since VSI/VSI list is ignored with drop action...
+	 */
+	if (vsi->type == ICE_VSI_PF)
+		ice_vsi_add_rem_eth_mac(vsi, true);
 
 	return vsi;
 
@@ -2739,6 +2791,9 @@ int ice_vsi_release(struct ice_vsi *vsi)
 			     vsi->idx);
 		pf->num_avail_hw_msix += pf->num_vf_msix;
 	}
+
+	if (vsi->type == ICE_VSI_PF)
+		ice_vsi_add_rem_eth_mac(vsi, false);
 
 	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);

@@ -1970,6 +1970,65 @@ ice_add_vlan(struct ice_hw *hw, struct list_head *v_list)
 }
 
 /**
+ * ice_add_eth_mac - Add ethertype and MAC based filter rule
+ * @hw: pointer to the hardware structure
+ * @em_list: list of ether type MAC filter, MAC is optional
+ */
+enum ice_status
+ice_add_eth_mac(struct ice_hw *hw, struct list_head *em_list)
+{
+	struct ice_fltr_list_entry *em_list_itr;
+
+	if (!em_list || !hw)
+		return ICE_ERR_PARAM;
+
+	list_for_each_entry(em_list_itr, em_list, list_entry) {
+		enum ice_sw_lkup_type l_type =
+			em_list_itr->fltr_info.lkup_type;
+
+		if (l_type != ICE_SW_LKUP_ETHERTYPE_MAC &&
+		    l_type != ICE_SW_LKUP_ETHERTYPE)
+			return ICE_ERR_PARAM;
+
+		em_list_itr->fltr_info.flag = ICE_FLTR_TX;
+		em_list_itr->status = ice_add_rule_internal(hw, l_type,
+							    em_list_itr);
+		if (em_list_itr->status)
+			return em_list_itr->status;
+	}
+	return 0;
+}
+
+/**
+ * ice_remove_eth_mac - Remove an ethertype (or MAC) based filter rule
+ * @hw: pointer to the hardware structure
+ * @em_list: list of ethertype or ethertype MAC entries
+ */
+enum ice_status
+ice_remove_eth_mac(struct ice_hw *hw, struct list_head *em_list)
+{
+	struct ice_fltr_list_entry *em_list_itr, *tmp;
+
+	if (!em_list || !hw)
+		return ICE_ERR_PARAM;
+
+	list_for_each_entry_safe(em_list_itr, tmp, em_list, list_entry) {
+		enum ice_sw_lkup_type l_type =
+			em_list_itr->fltr_info.lkup_type;
+
+		if (l_type != ICE_SW_LKUP_ETHERTYPE_MAC &&
+		    l_type != ICE_SW_LKUP_ETHERTYPE)
+			return ICE_ERR_PARAM;
+
+		em_list_itr->status = ice_remove_rule_internal(hw, l_type,
+							       em_list_itr);
+		if (em_list_itr->status)
+			return em_list_itr->status;
+	}
+	return 0;
+}
+
+/**
  * ice_rem_sw_rule_info
  * @hw: pointer to the hardware structure
  * @rule_head: pointer to the switch list structure that we want to delete
