@@ -155,7 +155,7 @@ out:
 static int mc13xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct mc13xxx_rtc *priv = dev_get_drvdata(dev);
-	unsigned seconds, days;
+	unsigned int seconds, days;
 	time64_t s1970;
 	int enabled, pending;
 	int ret;
