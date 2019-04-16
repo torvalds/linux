@@ -61,6 +61,7 @@ static unsigned int prng_reseed_limit;
 module_param_named(reseed_limit, prng_reseed_limit, int, 0);
 MODULE_PARM_DESC(prng_reseed_limit, "PRNG reseed limit");
 
+static bool trng_available;
 
 /*
  * Any one who considers arithmetical methods of producing random digits is,
@@ -366,7 +367,7 @@ static int __init prng_sha512_selftest(void)
 
 static int __init prng_sha512_instantiate(void)
 {
-	int ret, datalen;
+	int ret, datalen, seedlen;
 	u8 seed[128 + 16];
 
 	pr_debug("prng runs in SHA-512 mode "
@@ -390,21 +391,35 @@ static int __init prng_sha512_instantiate(void)
 	if (ret)
 		goto outfree;
 
-	/*
-	 * generate initial seed bytestring, we need at least
-	 * 256 + 128 bits entropy. However, the generate_entropy()
-	 * function anyway works in 64 byte junks so we pull
-	 * 2*64 bytes here.
-	 */
-	ret = generate_entropy(seed, 128);
-	if (ret != 128)
-		goto outfree;
-	/* followed by 16 bytes of unique nonce */
-	get_tod_clock_ext(seed + 128);
+	/* generate initial seed, we need at least  256 + 128 bits entropy. */
+	if (trng_available) {
+		/*
+		 * Trng available, so use it. The trng works in chunks of
+		 * 32 bytes and produces 100% entropy. So we pull 64 bytes
+		 * which gives us 512 bits entropy.
+		 */
+		seedlen = 2 * 32;
+		cpacf_trng(NULL, 0, seed, seedlen);
+	} else {
+		/*
+		 * No trng available, so use the generate_entropy() function.
+		 * This function works in 64 byte junks and produces
+		 * 50% entropy. So we pull 2*64 bytes which gives us 512 bits
+		 * of entropy.
+		 */
+		seedlen = 2 * 64;
+		ret = generate_entropy(seed, seedlen);
+		if (ret != seedlen)
+			goto outfree;
+	}
 
-	/* initial seed of the prno drng */
+	/* append the seed by 16 bytes of unique nonce */
+	get_tod_clock_ext(seed + seedlen);
+	seedlen += 16;
+
+	/* now initial seed of the prno drng */
 	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, sizeof(seed));
+		   &prng_data->prnows, NULL, 0, seed, seedlen);
 	memzero_explicit(seed, sizeof(seed));
 
 	/* if fips mode is enabled, generate a first block of random
@@ -433,17 +448,25 @@ static void prng_sha512_deinstantiate(void)
 
 static int prng_sha512_reseed(void)
 {
-	int ret;
+	int ret, seedlen;
 	u8 seed[64];
 
-	/* fetch 256 bits of fresh entropy */
-	ret = generate_entropy(seed, sizeof(seed));
-	if (ret != sizeof(seed))
-		return ret;
+	/* We need at least 256 bits of fresh entropy for reseeding */
+	if (trng_available) {
+		/* trng produces 256 bits entropy in 32 bytes */
+		seedlen = 32;
+		cpacf_trng(NULL, 0, seed, seedlen);
+	} else {
+		/* generate_entropy() produces 256 bits entropy in 64 bytes */
+		seedlen = 64;
+		ret = generate_entropy(seed, seedlen);
+		if (ret != sizeof(seed))
+			return ret;
+	}
 
 	/* do a reseed of the prno drng with this bytestring */
 	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, sizeof(seed));
+		   &prng_data->prnows, NULL, 0, seed, seedlen);
 	memzero_explicit(seed, sizeof(seed));
 
 	return 0;
@@ -802,6 +825,10 @@ static int __init prng_init(void)
 	/* check if the CPU has a PRNG */
 	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG))
 		return -EOPNOTSUPP;
+
+	/* check if TRNG subfunction is available */
+	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
+		trng_available = true;
 
 	/* choose prng mode */
 	if (prng_mode != PRNG_MODE_TDES) {
