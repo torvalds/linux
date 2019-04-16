@@ -1144,7 +1144,15 @@ static int shiftfs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static loff_t shiftfs_llseek(struct file *file, loff_t offset, int whence)
+static loff_t shiftfs_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct shiftfs_file_info *file_info = file->private_data;
+	struct file *realfile = file_info->realfile;
+
+	return vfs_llseek(realfile, offset, whence);
+}
+
+static loff_t shiftfs_file_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *realinode = file_inode(file)->i_private;
 
@@ -1653,7 +1661,7 @@ static int shiftfs_iterate_shared(struct file *file, struct dir_context *ctx)
 const struct file_operations shiftfs_file_operations = {
 	.open			= shiftfs_open,
 	.release		= shiftfs_release,
-	.llseek			= shiftfs_llseek,
+	.llseek			= shiftfs_file_llseek,
 	.read_iter		= shiftfs_read_iter,
 	.write_iter		= shiftfs_write_iter,
 	.fsync			= shiftfs_fsync,
@@ -1670,7 +1678,7 @@ const struct file_operations shiftfs_dir_operations = {
 	.compat_ioctl		= shiftfs_compat_ioctl,
 	.fsync			= shiftfs_fsync,
 	.iterate_shared		= shiftfs_iterate_shared,
-	.llseek			= shiftfs_llseek,
+	.llseek			= shiftfs_dir_llseek,
 	.open			= shiftfs_open,
 	.read			= generic_read_dir,
 	.release		= shiftfs_release,
