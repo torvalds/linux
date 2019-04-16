@@ -1694,6 +1694,7 @@ enum ice_adminq_opc {
 
 	/* debug commands */
 	ice_aqc_opc_fw_logging				= 0xFF09,
+	ice_aqc_opc_fw_logging_info			= 0xFF10,
 };
 
 #endif /* _ICE_ADMINQ_CMD_H_ */

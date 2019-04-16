@@ -473,6 +473,49 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 	ICE_FW_LOG_DESC_SIZE(ICE_AQC_FW_LOG_ID_MAX)
 
 /**
+ * ice_get_fw_log_cfg - get FW logging configuration
+ * @hw: pointer to the HW struct
+ */
+static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
+{
+	struct ice_aqc_fw_logging_data *config;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+	u16 size;
+
+	size = ICE_FW_LOG_DESC_SIZE_MAX;
+	config = devm_kzalloc(ice_hw_to_dev(hw), size, GFP_KERNEL);
+	if (!config)
+		return ICE_ERR_NO_MEMORY;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging_info);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	status = ice_aq_send_cmd(hw, &desc, config, size, NULL);
+	if (!status) {
+		u16 i;
+
+		/* Save fw logging information into the hw structure */
+		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
+			u16 v, m, flgs;
+
+			v = le16_to_cpu(config->entry[i]);
+			m = (v & ICE_AQC_FW_LOG_ID_M) >> ICE_AQC_FW_LOG_ID_S;
+			flgs = (v & ICE_AQC_FW_LOG_EN_M) >> ICE_AQC_FW_LOG_EN_S;
+
+			if (m < ICE_AQC_FW_LOG_ID_MAX)
+				hw->fw_log.evnts[m].cur = flgs;
+		}
+	}
+
+	devm_kfree(ice_hw_to_dev(hw), config);
+
+	return status;
+}
+
+/**
  * ice_cfg_fw_log - configure FW logging
  * @hw: pointer to the HW struct
  * @enable: enable certain FW logging events if true, disable all if false
@@ -525,6 +568,11 @@ static enum ice_status ice_cfg_fw_log(struct ice_hw *hw, bool enable)
 	if (!enable &&
 	    (!hw->fw_log.actv_evnts || !ice_check_sq_alive(hw, &hw->adminq)))
 		return 0;
+
+	/* Get current FW log settings */
+	status = ice_get_fw_log_cfg(hw);
+	if (status)
+		return status;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging);
 	cmd = &desc.params.fw_logging;
