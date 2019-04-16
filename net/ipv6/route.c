@@ -871,17 +871,18 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
  */
 
 /* called with rcu_lock held */
-static struct net_device *ip6_rt_get_dev_rcu(struct fib6_info *rt)
+static struct net_device *ip6_rt_get_dev_rcu(const struct fib6_result *res)
 {
-	struct net_device *dev = rt->fib6_nh.fib_nh_dev;
+	struct net_device *dev = res->nh->fib_nh_dev;
+	const struct fib6_info *f6i = res->f6i;
 
-	if (rt->fib6_flags & (RTF_LOCAL | RTF_ANYCAST)) {
+	if (f6i->fib6_flags & (RTF_LOCAL | RTF_ANYCAST)) {
 		/* for copies of local routes, dst->dev needs to be the
 		 * device if it is a master device, the master device if
 		 * device is enslaved, and the loopback as the default
 		 */
 		if (netif_is_l3_slave(dev) &&
-		    !rt6_need_strict(&rt->fib6_dst.addr))
+		    !rt6_need_strict(&f6i->fib6_dst.addr))
 			dev = l3mdev_master_dev_rcu(dev);
 		else if (!netif_is_l3_master(dev))
 			dev = dev_net(dev)->loopback_dev;
@@ -949,8 +950,10 @@ static void ip6_rt_init_dst_reject(struct rt6_info *rt, struct fib6_info *ort)
 	}
 }
 
-static void ip6_rt_init_dst(struct rt6_info *rt, struct fib6_info *ort)
+static void ip6_rt_init_dst(struct rt6_info *rt, const struct fib6_result *res)
 {
+	struct fib6_info *ort = res->f6i;
+
 	if (ort->fib6_flags & RTF_REJECT) {
 		ip6_rt_init_dst_reject(rt, ort);
 		return;
@@ -967,8 +970,8 @@ static void ip6_rt_init_dst(struct rt6_info *rt, struct fib6_info *ort)
 		rt->dst.input = ip6_forward;
 	}
 
-	if (ort->fib6_nh.fib_nh_lws) {
-		rt->dst.lwtstate = lwtstate_get(ort->fib6_nh.fib_nh_lws);
+	if (res->nh->fib_nh_lws) {
+		rt->dst.lwtstate = lwtstate_get(res->nh->fib_nh_lws);
 		lwtunnel_set_redirect(&rt->dst);
 	}
 
@@ -983,23 +986,25 @@ static void rt6_set_from(struct rt6_info *rt, struct fib6_info *from)
 	ip_dst_init_metrics(&rt->dst, from->fib6_metrics);
 }
 
-/* Caller must already hold reference to @ort */
-static void ip6_rt_copy_init(struct rt6_info *rt, struct fib6_info *ort)
+/* Caller must already hold reference to f6i in result */
+static void ip6_rt_copy_init(struct rt6_info *rt, const struct fib6_result *res)
 {
-	struct net_device *dev = fib6_info_nh_dev(ort);
+	const struct fib6_nh *nh = res->nh;
+	const struct net_device *dev = nh->fib_nh_dev;
+	struct fib6_info *f6i = res->f6i;
 
-	ip6_rt_init_dst(rt, ort);
+	ip6_rt_init_dst(rt, res);
 
-	rt->rt6i_dst = ort->fib6_dst;
+	rt->rt6i_dst = f6i->fib6_dst;
 	rt->rt6i_idev = dev ? in6_dev_get(dev) : NULL;
-	rt->rt6i_flags = ort->fib6_flags;
-	if (ort->fib6_nh.fib_nh_gw_family) {
-		rt->rt6i_gateway = ort->fib6_nh.fib_nh_gw6;
+	rt->rt6i_flags = f6i->fib6_flags;
+	if (nh->fib_nh_gw_family) {
+		rt->rt6i_gateway = nh->fib_nh_gw6;
 		rt->rt6i_flags |= RTF_GATEWAY;
 	}
-	rt6_set_from(rt, ort);
+	rt6_set_from(rt, f6i);
 #ifdef CONFIG_IPV6_SUBTREES
-	rt->rt6i_src = ort->fib6_src;
+	rt->rt6i_src = f6i->fib6_src;
 #endif
 }
 
@@ -1055,7 +1060,7 @@ static struct rt6_info *ip6_create_rt_rcu(const struct fib6_result *res)
 		goto fallback;
 	}
 
-	ip6_rt_copy_init(nrt, f6i);
+	ip6_rt_copy_init(nrt, res);
 	return nrt;
 
 fallback:
@@ -1192,14 +1197,14 @@ static struct rt6_info *ip6_rt_cache_alloc(const struct fib6_result *res,
 	if (!fib6_info_hold_safe(f6i))
 		return NULL;
 
-	dev = ip6_rt_get_dev_rcu(f6i);
+	dev = ip6_rt_get_dev_rcu(res);
 	rt = ip6_dst_alloc(dev_net(dev), dev, 0);
 	if (!rt) {
 		fib6_info_release(f6i);
 		return NULL;
 	}
 
-	ip6_rt_copy_init(rt, res->f6i);
+	ip6_rt_copy_init(rt, res);
 	rt->rt6i_flags |= RTF_CACHE;
 	rt->dst.flags |= DST_HOST;
 	rt->rt6i_dst.addr = *daddr;
@@ -1231,14 +1236,14 @@ static struct rt6_info *ip6_rt_pcpu_alloc(const struct fib6_result *res)
 		return NULL;
 
 	rcu_read_lock();
-	dev = ip6_rt_get_dev_rcu(f6i);
+	dev = ip6_rt_get_dev_rcu(res);
 	pcpu_rt = ip6_dst_alloc(dev_net(dev), dev, flags);
 	rcu_read_unlock();
 	if (!pcpu_rt) {
 		fib6_info_release(f6i);
 		return NULL;
 	}
-	ip6_rt_copy_init(pcpu_rt, f6i);
+	ip6_rt_copy_init(pcpu_rt, res);
 	pcpu_rt->rt6i_flags |= RTF_PCPU;
 	return pcpu_rt;
 }
