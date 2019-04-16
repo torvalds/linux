@@ -1251,7 +1251,7 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
  */
 static void
 ice_get_settings_link_down(struct ethtool_link_ksettings *ks,
-			   struct net_device __always_unused *netdev)
+			   struct net_device *netdev)
 {
 	/* link is down and the driver needs to fall back on
 	 * supported PHY types to figure out what info to display
