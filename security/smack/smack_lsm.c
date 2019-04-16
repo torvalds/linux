@@ -59,6 +59,7 @@ DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
 #endif
 static struct kmem_cache *smack_inode_cache;
+struct kmem_cache *smack_rule_cache;
 int smack_enabled;
 
 #define A(s) {"smack"#s, sizeof("smack"#s) - 1, Opt_##s}
@@ -354,7 +355,7 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	int rc = 0;
 
 	list_for_each_entry_rcu(orp, ohead, list) {
-		nrp = kzalloc(sizeof(struct smack_rule), gfp);
+		nrp = kmem_cache_zalloc(smack_rule_cache, gfp);
 		if (nrp == NULL) {
 			rc = -ENOMEM;
 			break;
@@ -1931,7 +1932,7 @@ static void smack_cred_free(struct cred *cred)
 	list_for_each_safe(l, n, &tsp->smk_rules) {
 		rp = list_entry(l, struct smack_rule, list);
 		list_del(&rp->list);
-		kfree(rp);
+		kmem_cache_free(smack_rule_cache, rp);
 	}
 }
 
@@ -3906,6 +3907,8 @@ access_check:
 #ifdef SMACK_IPV6_SECMARK_LABELING
 		if (skb && skb->secmark != 0)
 			skp = smack_from_secid(skb->secmark);
+		else if (smk_ipv6_localhost(&sadd))
+			break;
 		else
 			skp = smack_ipv6host_label(&sadd);
 		if (skp == NULL)
@@ -4757,6 +4760,12 @@ static __init int smack_init(void)
 	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
 	if (!smack_inode_cache)
 		return -ENOMEM;
+
+	smack_rule_cache = KMEM_CACHE(smack_rule, 0);
+	if (!smack_rule_cache) {
+		kmem_cache_destroy(smack_inode_cache);
+		return -ENOMEM;
+	}
 
 	/*
 	 * Set the security state for the initial task.

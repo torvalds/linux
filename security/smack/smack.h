@@ -348,6 +348,7 @@ extern struct list_head smack_onlycap_list;
 
 #define SMACK_HASH_SLOTS 16
 extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
+extern struct kmem_cache *smack_rule_cache;
 
 static inline struct task_smack *smack_cred(const struct cred *cred)
 {
