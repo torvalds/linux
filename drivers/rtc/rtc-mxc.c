@@ -256,19 +256,6 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
  */
 static int mxc_rtc_set_mmss(struct device *dev, time64_t time)
 {
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	/*
-	 * TTC_DAYR register is 9-bit in MX1 SoC, save time and day of year only
-	 */
-	if (is_imx1_rtc(pdata)) {
-		struct rtc_time tm;
-
-		rtc_time64_to_tm(time, &tm);
-		tm.tm_year = 70;
-		time = rtc_tm_to_time64(&tm);
-	}
-
 	/* Avoid roll-over from reading the different registers */
 	do {
 		set_alarm_or_time(dev, MXC_RTC_TIME, time);
@@ -346,6 +333,23 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc = rtc;
 	rtc->ops = &mxc_rtc_ops;
+	if (is_imx1_rtc(pdata)) {
+		struct rtc_time tm;
+
+		/* 9bit days + hours minutes seconds */
+		rtc->range_max = (1 << 9) * 86400 - 1;
+
+		/*
+		 * Set the start date as beginning of the current year. This can
+		 * be overridden using device tree.
+		 */
+		rtc_time64_to_tm(ktime_get_real_seconds(), &tm);
+		rtc->start_secs =  mktime64(tm.tm_year, 1, 1, 0, 0, 0);
+		rtc->set_start_time = true;
+	} else {
+		/* 16bit days + hours minutes seconds */
+		rtc->range_max = (1 << 16) * 86400ULL - 1;
+	}
 
 	pdata->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(pdata->clk_ipg)) {
