@@ -53,7 +53,7 @@ static struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
 	return container_of(event->pmu, struct imc_pmu, pmu);
 }
 
-PMU_FORMAT_ATTR(event, "config:0-40");
+PMU_FORMAT_ATTR(event, "config:0-61");
 PMU_FORMAT_ATTR(offset, "config:0-31");
 PMU_FORMAT_ATTR(rvalue, "config:32");
 PMU_FORMAT_ATTR(mode, "config:33-40");
@@ -68,6 +68,25 @@ static struct attribute *imc_format_attrs[] = {
 static struct attribute_group imc_format_group = {
 	.name = "format",
 	.attrs = imc_format_attrs,
+};
+
+/* Format attribute for imc trace-mode */
+PMU_FORMAT_ATTR(cpmc_reserved, "config:0-19");
+PMU_FORMAT_ATTR(cpmc_event, "config:20-27");
+PMU_FORMAT_ATTR(cpmc_samplesel, "config:28-29");
+PMU_FORMAT_ATTR(cpmc_load, "config:30-61");
+static struct attribute *trace_imc_format_attrs[] = {
+	&format_attr_event.attr,
+	&format_attr_cpmc_reserved.attr,
+	&format_attr_cpmc_event.attr,
+	&format_attr_cpmc_samplesel.attr,
+	&format_attr_cpmc_load.attr,
+	NULL,
+};
+
+static struct attribute_group trace_imc_format_group = {
+.name = "format",
+.attrs = trace_imc_format_attrs,
 };
 
 /* Get the cpumask printed to a buffer "buf" */
@@ -1113,6 +1132,182 @@ static int trace_imc_cpu_init(void)
 			  ppc_trace_imc_cpu_offline);
 }
 
+static u64 get_trace_imc_event_base_addr(void)
+{
+	return (u64)per_cpu(trace_imc_mem, smp_processor_id());
+}
+
+/*
+ * Function to parse trace-imc data obtained
+ * and to prepare the perf sample.
+ */
+static int trace_imc_prepare_sample(struct trace_imc_data *mem,
+				    struct perf_sample_data *data,
+				    u64 *prev_tb,
+				    struct perf_event_header *header,
+				    struct perf_event *event)
+{
+	/* Sanity checks for a valid record */
+	if (be64_to_cpu(READ_ONCE(mem->tb1)) > *prev_tb)
+		*prev_tb = be64_to_cpu(READ_ONCE(mem->tb1));
+	else
+		return -EINVAL;
+
+	if ((be64_to_cpu(READ_ONCE(mem->tb1)) & IMC_TRACE_RECORD_TB1_MASK) !=
+			 be64_to_cpu(READ_ONCE(mem->tb2)))
+		return -EINVAL;
+
+	/* Prepare perf sample */
+	data->ip =  be64_to_cpu(READ_ONCE(mem->ip));
+	data->period = event->hw.last_period;
+
+	header->type = PERF_RECORD_SAMPLE;
+	header->size = sizeof(*header) + event->header_size;
+	header->misc = 0;
+
+	if (is_kernel_addr(data->ip))
+		header->misc |= PERF_RECORD_MISC_KERNEL;
+	else
+		header->misc |= PERF_RECORD_MISC_USER;
+
+	perf_event_header__init_id(header, data, event);
+
+	return 0;
+}
+
+static void dump_trace_imc_data(struct perf_event *event)
+{
+	struct trace_imc_data *mem;
+	int i, ret;
+	u64 prev_tb = 0;
+
+	mem = (struct trace_imc_data *)get_trace_imc_event_base_addr();
+	for (i = 0; i < (trace_imc_mem_size / sizeof(struct trace_imc_data));
+		i++, mem++) {
+		struct perf_sample_data data;
+		struct perf_event_header header;
+
+		ret = trace_imc_prepare_sample(mem, &data, &prev_tb, &header, event);
+		if (ret) /* Exit, if not a valid record */
+			break;
+		else {
+			/* If this is a valid record, create the sample */
+			struct perf_output_handle handle;
+
+			if (perf_output_begin(&handle, event, header.size))
+				return;
+
+			perf_output_sample(&handle, &header, &data, event);
+			perf_output_end(&handle);
+		}
+	}
+}
+
+static int trace_imc_event_add(struct perf_event *event, int flags)
+{
+	int core_id = smp_processor_id() / threads_per_core;
+	struct imc_pmu_ref *ref = NULL;
+	u64 local_mem, ldbar_value;
+
+	/* Set trace-imc bit in ldbar and load ldbar with per-thread memory address */
+	local_mem = get_trace_imc_event_base_addr();
+	ldbar_value = ((u64)local_mem & THREAD_IMC_LDBAR_MASK) | TRACE_IMC_ENABLE;
+
+	if (core_imc_refc)
+		ref = &core_imc_refc[core_id];
+	if (!ref) {
+		/* If core-imc is not enabled, use trace-imc reference count */
+		if (trace_imc_refc)
+			ref = &trace_imc_refc[core_id];
+		if (!ref)
+			return -EINVAL;
+	}
+	mtspr(SPRN_LDBAR, ldbar_value);
+	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		if (opal_imc_counters_start(OPAL_IMC_COUNTERS_TRACE,
+				get_hard_smp_processor_id(smp_processor_id()))) {
+			mutex_unlock(&ref->lock);
+			pr_err("trace-imc: Unable to start the counters for core %d\n", core_id);
+			mtspr(SPRN_LDBAR, 0);
+			return -EINVAL;
+		}
+	}
+	++ref->refc;
+	mutex_unlock(&ref->lock);
+
+	return 0;
+}
+
+static void trace_imc_event_read(struct perf_event *event)
+{
+	return;
+}
+
+static void trace_imc_event_stop(struct perf_event *event, int flags)
+{
+	u64 local_mem = get_trace_imc_event_base_addr();
+	dump_trace_imc_data(event);
+	memset((void *)local_mem, 0, sizeof(u64));
+}
+
+static void trace_imc_event_start(struct perf_event *event, int flags)
+{
+	return;
+}
+
+static void trace_imc_event_del(struct perf_event *event, int flags)
+{
+	int core_id = smp_processor_id() / threads_per_core;
+	struct imc_pmu_ref *ref = NULL;
+
+	if (core_imc_refc)
+		ref = &core_imc_refc[core_id];
+	if (!ref) {
+		/* If core-imc is not enabled, use trace-imc reference count */
+		if (trace_imc_refc)
+			ref = &trace_imc_refc[core_id];
+		if (!ref)
+			return;
+	}
+	mtspr(SPRN_LDBAR, 0);
+	mutex_lock(&ref->lock);
+	ref->refc--;
+	if (ref->refc == 0) {
+		if (opal_imc_counters_stop(OPAL_IMC_COUNTERS_TRACE,
+				get_hard_smp_processor_id(smp_processor_id()))) {
+			mutex_unlock(&ref->lock);
+			pr_err("trace-imc: Unable to stop the counters for core %d\n", core_id);
+			return;
+		}
+	} else if (ref->refc < 0) {
+		ref->refc = 0;
+	}
+	mutex_unlock(&ref->lock);
+	trace_imc_event_stop(event, flags);
+}
+
+static int trace_imc_event_init(struct perf_event *event)
+{
+	struct task_struct *target;
+
+	if (event->attr.type != event->pmu->type)
+		return -ENOENT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	/* Return if this is a couting event */
+	if (event->attr.sample_period == 0)
+		return -ENOENT;
+
+	event->hw.idx = -1;
+	target = event->hw.target;
+
+	event->pmu->task_ctx_nr = perf_hw_context;
+	return 0;
+}
+
 /* update_pmu_ops : Populate the appropriate operations for "pmu" */
 static int update_pmu_ops(struct imc_pmu *pmu)
 {
@@ -1143,6 +1338,14 @@ static int update_pmu_ops(struct imc_pmu *pmu)
 		pmu->pmu.cancel_txn = thread_imc_pmu_cancel_txn;
 		pmu->pmu.commit_txn = thread_imc_pmu_commit_txn;
 		break;
+	case IMC_DOMAIN_TRACE:
+		pmu->pmu.event_init = trace_imc_event_init;
+		pmu->pmu.add = trace_imc_event_add;
+		pmu->pmu.del = trace_imc_event_del;
+		pmu->pmu.start = trace_imc_event_start;
+		pmu->pmu.stop = trace_imc_event_stop;
+		pmu->pmu.read = trace_imc_event_read;
+		pmu->attr_groups[IMC_FORMAT_ATTR] = &trace_imc_format_group;
 	default:
 		break;
 	}
