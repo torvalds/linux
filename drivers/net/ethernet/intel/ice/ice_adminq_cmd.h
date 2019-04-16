@@ -35,8 +35,8 @@ struct ice_aqc_get_ver {
 
 /* Queue Shutdown (direct 0x0003) */
 struct ice_aqc_q_shutdown {
-#define ICE_AQC_DRIVER_UNLOADING	BIT(0)
 	__le32 driver_unloading;
+#define ICE_AQC_DRIVER_UNLOADING	BIT(0)
 	u8 reserved[12];
 };
 
