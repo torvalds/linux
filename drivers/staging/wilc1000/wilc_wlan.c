@@ -316,7 +316,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	if (wilc->quit)
 		return 0;
 
-	tqe = kmalloc(sizeof(*tqe), GFP_KERNEL);
+	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 
 	if (!tqe)
 		return 0;
