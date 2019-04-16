@@ -157,7 +157,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 	edp->bridge = msm_edp_bridge_init(edp);
 	if (IS_ERR(edp->bridge)) {
 		ret = PTR_ERR(edp->bridge);
-		dev_err(dev->dev, "failed to create eDP bridge: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to create eDP bridge: %d\n", ret);
 		edp->bridge = NULL;
 		goto fail;
 	}
@@ -165,7 +165,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 	edp->connector = msm_edp_connector_init(edp);
 	if (IS_ERR(edp->connector)) {
 		ret = PTR_ERR(edp->connector);
-		dev_err(dev->dev, "failed to create eDP connector: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to create eDP connector: %d\n", ret);
 		edp->connector = NULL;
 		goto fail;
 	}
@@ -173,7 +173,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 	edp->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (edp->irq < 0) {
 		ret = edp->irq;
-		dev_err(dev->dev, "failed to get IRQ: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get IRQ: %d\n", ret);
 		goto fail;
 	}
 
@@ -181,7 +181,7 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 			edp_irq, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 			"edp_isr", edp);
 	if (ret < 0) {
-		dev_err(dev->dev, "failed to request IRQ%u: %d\n",
+		DRM_DEV_ERROR(dev->dev, "failed to request IRQ%u: %d\n",
 				edp->irq, ret);
 		goto fail;
 	}

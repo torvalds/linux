@@ -56,7 +56,9 @@ endif
 
 ifeq ($(CONFIG_NFP_APP_ABM_NIC),y)
 nfp-objs += \
+	    abm/cls.o \
 	    abm/ctrl.o \
+	    abm/qdisc.o \
 	    abm/main.o
 endif
 

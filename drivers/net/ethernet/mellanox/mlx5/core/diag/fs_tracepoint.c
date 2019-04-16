@@ -161,10 +161,10 @@ static void print_misc_parameters_hdrs(struct trace_seq *p,
 	PRINT_MASKED_VAL(name, p, format);		   \
 }
 	DECLARE_MASK_VAL(u64, gre_key) = {
-		.m = MLX5_GET(fte_match_set_misc, mask, gre_key_h) << 8 |
-		     MLX5_GET(fte_match_set_misc, mask, gre_key_l),
-		.v = MLX5_GET(fte_match_set_misc, value, gre_key_h) << 8 |
-		     MLX5_GET(fte_match_set_misc, value, gre_key_l)};
+		.m = MLX5_GET(fte_match_set_misc, mask, gre_key.nvgre.hi) << 8 |
+		     MLX5_GET(fte_match_set_misc, mask, gre_key.nvgre.lo),
+		.v = MLX5_GET(fte_match_set_misc, value, gre_key.nvgre.hi) << 8 |
+		     MLX5_GET(fte_match_set_misc, value, gre_key.nvgre.lo)};
 
 	PRINT_MASKED_VAL(gre_key, p, "%llu");
 	PRINT_MASKED_VAL_MISC(u32, source_sqn, source_sqn, p, "%u");
@@ -258,6 +258,8 @@ const char *parse_fs_dst(struct trace_seq *p,
 	return ret;
 }
 
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_add_ft);
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_del_ft);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_add_fg);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_del_fg);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_set_fte);

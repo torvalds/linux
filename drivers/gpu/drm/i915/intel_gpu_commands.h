@@ -105,14 +105,18 @@
 #define MI_SEMAPHORE_SIGNAL	MI_INSTR(0x1b, 0) /* GEN8+ */
 #define   MI_SEMAPHORE_TARGET(engine)	((engine)<<15)
 #define MI_SEMAPHORE_WAIT	MI_INSTR(0x1c, 2) /* GEN8+ */
-#define   MI_SEMAPHORE_POLL		(1<<15)
-#define   MI_SEMAPHORE_SAD_GTE_SDD	(1<<12)
+#define   MI_SEMAPHORE_POLL		(1 << 15)
+#define   MI_SEMAPHORE_SAD_GT_SDD	(0 << 12)
+#define   MI_SEMAPHORE_SAD_GTE_SDD	(1 << 12)
+#define   MI_SEMAPHORE_SAD_LT_SDD	(2 << 12)
+#define   MI_SEMAPHORE_SAD_LTE_SDD	(3 << 12)
+#define   MI_SEMAPHORE_SAD_EQ_SDD	(4 << 12)
+#define   MI_SEMAPHORE_SAD_NEQ_SDD	(5 << 12)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define MI_STORE_DWORD_IMM_GEN4	MI_INSTR(0x20, 2)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 945,g33,965 */
 #define   MI_USE_GGTT		(1 << 22) /* g4x+ */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
-#define   MI_STORE_DWORD_INDEX_SHIFT 2
 /*
  * Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
  * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw

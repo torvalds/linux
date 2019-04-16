@@ -42,6 +42,8 @@ struct smc_ib_device {				/* ib-device infos for smc */
 						/* mac address per port*/
 	u8			pnetid[SMC_MAX_PORTS][SMC_MAX_PNETID_LEN];
 						/* pnetid per port */
+	bool			pnetid_by_user[SMC_MAX_PORTS];
+						/* pnetid defined by user? */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
 	struct work_struct	port_event_work;
 	unsigned long		port_event_mask;

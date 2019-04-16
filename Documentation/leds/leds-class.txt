@@ -15,7 +15,7 @@ existing subsystems with minimal additional code. Examples are the disk-activity
 nand-disk and sharpsl-charge triggers. With led triggers disabled, the code
 optimises away.
 
-Complex triggers whilst available to all LEDs have LED specific
+Complex triggers while available to all LEDs have LED specific
 parameters and work on a per LED basis. The timer trigger is an example.
 The timer trigger will periodically change the LED brightness between
 LED_OFF and the current brightness setting. The "on" and "off" time can

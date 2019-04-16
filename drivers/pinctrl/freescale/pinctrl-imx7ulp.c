@@ -256,46 +256,8 @@ static const struct pinctrl_pin_desc imx7ulp_pinctrl_pads[] = {
 
 #define BM_OBE_ENABLED		BIT(17)
 #define BM_IBE_ENABLED		BIT(16)
-#define BM_LK_ENABLED		BIT(15)
 #define BM_MUX_MODE		0xf00
 #define BP_MUX_MODE		8
-#define BM_PULL_ENABLED		BIT(1)
-
-static const struct imx_cfg_params_decode imx7ulp_cfg_decodes[] = {
-	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_DRIVE_STRENGTH, 		BIT(6), 6),
-	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_DRIVE_PUSH_PULL,		BIT(5), 5),
-	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_SLEW_RATE,			BIT(2), 2),
-	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_BIAS_DISABLE,			BIT(1), 1),
-	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_BIAS_PULL_UP,			BIT(0), 0),
-
-	IMX_CFG_PARAMS_DECODE_INVERT(PIN_CONFIG_DRIVE_OPEN_DRAIN,	BIT(5), 5),
-	IMX_CFG_PARAMS_DECODE_INVERT(PIN_CONFIG_BIAS_PULL_DOWN,		BIT(0), 0),
-};
-
-static void imx7ulp_cfg_params_fixup(unsigned long *configs,
-				    unsigned int num_configs,
-				    u32 *raw_config)
-{
-	enum pin_config_param param;
-	u32 param_val;
-	int i;
-
-	/* lock field disabled */
-	*raw_config &= ~BM_LK_ENABLED;
-
-	for (i = 0; i < num_configs; i++) {
-		param = pinconf_to_config_param(configs[i]);
-		param_val = pinconf_to_config_argument(configs[i]);
-
-		if ((param == PIN_CONFIG_BIAS_PULL_UP) ||
-		    (param == PIN_CONFIG_BIAS_PULL_DOWN)) {
-			/* pull enabled */
-			*raw_config |= BM_PULL_ENABLED;
-
-			return;
-		}
-	}
-}
 
 static int imx7ulp_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 					  struct pinctrl_gpio_range *range,
@@ -326,10 +288,6 @@ static const struct imx_pinctrl_soc_info imx7ulp_pinctrl_info = {
 	.gpio_set_direction = imx7ulp_pmx_gpio_set_direction,
 	.mux_mask = BM_MUX_MODE,
 	.mux_shift = BP_MUX_MODE,
-	.generic_pinconf = true,
-	.decodes = imx7ulp_cfg_decodes,
-	.num_decodes = ARRAY_SIZE(imx7ulp_cfg_decodes),
-	.fixup = imx7ulp_cfg_params_fixup,
 };
 
 static const struct of_device_id imx7ulp_pinctrl_of_match[] = {

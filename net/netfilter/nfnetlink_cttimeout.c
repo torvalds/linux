@@ -122,7 +122,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		return -EBUSY;
 	}
 
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	/* This protocol is not supportted, skip. */
 	if (l4proto->l4proto != l4num) {
@@ -152,7 +152,6 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 err:
 	kfree(timeout);
 err_proto_put:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -302,7 +301,6 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 	if (refcount_dec_if_one(&timeout->refcnt)) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
-		nf_ct_l4proto_put(timeout->timeout.l4proto);
 		nf_ct_untimeout(net, &timeout->timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
@@ -359,7 +357,7 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 		return -EINVAL;
 
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	/* This protocol is not supported, skip. */
 	if (l4proto->l4proto != l4num) {
@@ -372,10 +370,8 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 	if (ret < 0)
 		goto err;
 
-	nf_ct_l4proto_put(l4proto);
 	return 0;
 err:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -442,7 +438,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 
 	l3num = ntohs(nla_get_be16(cda[CTA_TIMEOUT_L3PROTO]));
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	err = -EOPNOTSUPP;
 	if (l4proto->l4proto != l4num)
@@ -455,7 +451,8 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 	case IPPROTO_TCP:
 		timeouts = nf_tcp_pernet(net)->timeouts;
 		break;
-	case IPPROTO_UDP:
+	case IPPROTO_UDP: /* fallthrough */
+	case IPPROTO_UDPLITE:
 		timeouts = nf_udp_pernet(net)->timeouts;
 		break;
 	case IPPROTO_DCCP:
@@ -471,11 +468,16 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 		timeouts = nf_sctp_pernet(net)->timeouts;
 #endif
 		break;
+	case IPPROTO_GRE:
+#ifdef CONFIG_NF_CT_PROTO_GRE
+		timeouts = nf_gre_pernet(net)->timeouts;
+#endif
+		break;
 	case 255:
 		timeouts = &nf_generic_pernet(net)->timeout;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Missing timeouts for proto %d", l4proto->l4proto);
 		break;
 	}
 
@@ -505,7 +507,6 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 	/* this avoids a loop in nfnetlink. */
 	return ret == -EAGAIN ? -ENOBUFS : ret;
 err:
-	nf_ct_l4proto_put(l4proto);
 	return err;
 }
 
@@ -586,7 +587,6 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 
 	list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list, head) {
 		list_del_rcu(&cur->head);
-		nf_ct_l4proto_put(cur->timeout.l4proto);
 
 		if (refcount_dec_and_test(&cur->refcnt))
 			kfree_rcu(cur, rcu_head);

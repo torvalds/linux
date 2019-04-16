@@ -299,14 +299,14 @@ xrep_calc_ag_resblks(
 /* Allocate a block in an AG. */
 int
 xrep_alloc_ag_block(
-	struct xfs_scrub	*sc,
-	struct xfs_owner_info	*oinfo,
-	xfs_fsblock_t		*fsbno,
-	enum xfs_ag_resv_type	resv)
+	struct xfs_scrub		*sc,
+	const struct xfs_owner_info	*oinfo,
+	xfs_fsblock_t			*fsbno,
+	enum xfs_ag_resv_type		resv)
 {
-	struct xfs_alloc_arg	args = {0};
-	xfs_agblock_t		bno;
-	int			error;
+	struct xfs_alloc_arg		args = {0};
+	xfs_agblock_t			bno;
+	int				error;
 
 	switch (resv) {
 	case XFS_AG_RESV_AGFL:
@@ -505,7 +505,6 @@ xrep_put_freelist(
 	struct xfs_scrub	*sc,
 	xfs_agblock_t		agbno)
 {
-	struct xfs_owner_info	oinfo;
 	int			error;
 
 	/* Make sure there's space on the freelist. */
@@ -518,9 +517,8 @@ xrep_put_freelist(
 	 * create an rmap for the block prior to merging it or else other
 	 * parts will break.
 	 */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	error = xfs_rmap_alloc(sc->tp, sc->sa.agf_bp, sc->sa.agno, agbno, 1,
-			&oinfo);
+			&XFS_RMAP_OINFO_AG);
 	if (error)
 		return error;
 
@@ -538,17 +536,17 @@ xrep_put_freelist(
 /* Dispose of a single block. */
 STATIC int
 xrep_reap_block(
-	struct xfs_scrub	*sc,
-	xfs_fsblock_t		fsbno,
-	struct xfs_owner_info	*oinfo,
-	enum xfs_ag_resv_type	resv)
+	struct xfs_scrub		*sc,
+	xfs_fsblock_t			fsbno,
+	const struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type		resv)
 {
-	struct xfs_btree_cur	*cur;
-	struct xfs_buf		*agf_bp = NULL;
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
-	bool			has_other_rmap;
-	int			error;
+	struct xfs_btree_cur		*cur;
+	struct xfs_buf			*agf_bp = NULL;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	bool				has_other_rmap;
+	int				error;
 
 	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
@@ -612,15 +610,15 @@ out_free:
 /* Dispose of every block of every extent in the bitmap. */
 int
 xrep_reap_extents(
-	struct xfs_scrub	*sc,
-	struct xfs_bitmap	*bitmap,
-	struct xfs_owner_info	*oinfo,
-	enum xfs_ag_resv_type	type)
+	struct xfs_scrub		*sc,
+	struct xfs_bitmap		*bitmap,
+	const struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type		type)
 {
-	struct xfs_bitmap_range	*bmr;
-	struct xfs_bitmap_range	*n;
-	xfs_fsblock_t		fsbno;
-	int			error = 0;
+	struct xfs_bitmap_range		*bmr;
+	struct xfs_bitmap_range		*n;
+	xfs_fsblock_t			fsbno;
+	int				error = 0;
 
 	ASSERT(xfs_sb_version_hasrmapbt(&sc->mp->m_sb));
 
@@ -745,7 +743,8 @@ xrep_findroot_block(
 
 	/* Ensure the block magic matches the btree type we're looking for. */
 	btblock = XFS_BUF_TO_BLOCK(bp);
-	if (be32_to_cpu(btblock->bb_magic) != fab->magic)
+	ASSERT(fab->buf_ops->magic[1] != 0);
+	if (btblock->bb_magic != fab->buf_ops->magic[1])
 		goto out;
 
 	/*
@@ -770,18 +769,23 @@ xrep_findroot_block(
 		if (!uuid_equal(&btblock->bb_u.s.bb_uuid,
 				&mp->m_sb.sb_meta_uuid))
 			goto out;
+		/*
+		 * Read verifiers can reference b_ops, so we set the pointer
+		 * here.  If the verifier fails we'll reset the buffer state
+		 * to what it was before we touched the buffer.
+		 */
+		bp->b_ops = fab->buf_ops;
 		fab->buf_ops->verify_read(bp);
 		if (bp->b_error) {
+			bp->b_ops = NULL;
 			bp->b_error = 0;
 			goto out;
 		}
 
 		/*
 		 * Some read verifiers will (re)set b_ops, so we must be
-		 * careful not to blow away any such assignment.
+		 * careful not to change b_ops after running the verifier.
 		 */
-		if (!bp->b_ops)
-			bp->b_ops = fab->buf_ops;
 	}
 
 	/*

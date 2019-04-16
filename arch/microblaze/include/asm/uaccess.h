@@ -42,7 +42,6 @@
 #  define USER_DS	MAKE_MM_SEG(TASK_SIZE - 1)
 #  endif
 
-# define get_ds()	(KERNEL_DS)
 # define get_fs()	(current_thread_info()->addr_limit)
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
 
@@ -60,26 +59,25 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 #define __range_ok(addr, size) \
 		___range_ok((unsigned long)(addr), (unsigned long)(size))
 
-#define access_ok(type, addr, size) (__range_ok((addr), (size)) == 0)
+#define access_ok(addr, size) (__range_ok((addr), (size)) == 0)
 
 #else
 
-static inline int access_ok(int type, const void __user *addr,
-							unsigned long size)
+static inline int access_ok(const void __user *addr, unsigned long size)
 {
 	if (!size)
 		goto ok;
 
 	if ((get_fs().seg < ((unsigned long)addr)) ||
 			(get_fs().seg < ((unsigned long)addr + size - 1))) {
-		pr_devel("ACCESS fail: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
-			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
+		pr_devel("ACCESS fail at 0x%08x (size 0x%x), seg 0x%08x\n",
+			(__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 		return 0;
 	}
 ok:
-	pr_devel("ACCESS OK: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
-			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
+	pr_devel("ACCESS OK at 0x%08x (size 0x%x), seg 0x%08x\n",
+			(__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 	return 1;
 }
@@ -120,7 +118,7 @@ static inline unsigned long __must_check clear_user(void __user *to,
 							unsigned long n)
 {
 	might_fault();
-	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
+	if (unlikely(!access_ok(to, n)))
 		return n;
 
 	return __clear_user(to, n);
@@ -174,7 +172,7 @@ extern long __user_bad(void);
 	const typeof(*(ptr)) __user *__gu_addr = (ptr);			\
 	int __gu_err = 0;						\
 									\
-	if (access_ok(VERIFY_READ, __gu_addr, size)) {			\
+	if (access_ok(__gu_addr, size)) {			\
 		switch (size) {						\
 		case 1:							\
 			__get_user_asm("lbu", __gu_addr, __gu_val,	\
@@ -286,7 +284,7 @@ extern long __user_bad(void);
 	typeof(*(ptr)) __user *__pu_addr = (ptr);			\
 	int __pu_err = 0;						\
 									\
-	if (access_ok(VERIFY_WRITE, __pu_addr, size)) {			\
+	if (access_ok(__pu_addr, size)) {			\
 		switch (size) {						\
 		case 1:							\
 			__put_user_asm("sb", __pu_addr, __pu_val,	\
@@ -358,7 +356,7 @@ extern int __strncpy_user(char *to, const char __user *from, int len);
 static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 	return __strncpy_user(dst, src, count);
 }
@@ -372,7 +370,7 @@ extern int __strnlen_user(const char __user *sstr, int len);
 
 static inline long strnlen_user(const char __user *src, long n)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return 0;
 	return __strnlen_user(src, n);
 }

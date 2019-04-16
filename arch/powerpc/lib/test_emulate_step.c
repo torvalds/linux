@@ -1,5 +1,5 @@
 /*
- * Simple sanity test for emulate_step load/store instructions.
+ * Simple sanity tests for instruction emulation infrastructure.
  *
  * Copyright IBM Corp. 2016
  *
@@ -14,6 +14,7 @@
 #include <linux/ptrace.h>
 #include <asm/sstep.h>
 #include <asm/ppc-opcode.h>
+#include <asm/code-patching.h>
 
 #define IMM_L(i)		((uintptr_t)(i) & 0xffff)
 
@@ -48,7 +49,20 @@
 					___PPC_RA(a) | ___PPC_RB(b))
 #define TEST_LXVD2X(s, a, b)	(PPC_INST_LXVD2X | VSX_XX1((s), R##a, R##b))
 #define TEST_STXVD2X(s, a, b)	(PPC_INST_STXVD2X | VSX_XX1((s), R##a, R##b))
+#define TEST_ADD(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
+					___PPC_RA(a) | ___PPC_RB(b))
+#define TEST_ADD_DOT(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
+					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
+#define TEST_ADDC(t, a, b)	(PPC_INST_ADDC | ___PPC_RT(t) |		\
+					___PPC_RA(a) | ___PPC_RB(b))
+#define TEST_ADDC_DOT(t, a, b)	(PPC_INST_ADDC | ___PPC_RT(t) |		\
+					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
 
+#define MAX_SUBTESTS	16
+
+#define IGNORE_GPR(n)	(0x1UL << (n))
+#define IGNORE_XER	(0x1UL << 32)
+#define IGNORE_CCR	(0x1UL << 33)
 
 static void __init init_pt_regs(struct pt_regs *regs)
 {
@@ -72,9 +86,15 @@ static void __init init_pt_regs(struct pt_regs *regs)
 	msr_cached = true;
 }
 
-static void __init show_result(char *ins, char *result)
+static void __init show_result(char *mnemonic, char *result)
 {
-	pr_info("%-14s : %s\n", ins, result);
+	pr_info("%-14s : %s\n", mnemonic, result);
+}
+
+static void __init show_result_with_descr(char *mnemonic, char *descr,
+					  char *result)
+{
+	pr_info("%-14s : %-50s %s\n", mnemonic, descr, result);
 }
 
 static void __init test_ld(void)
@@ -426,7 +446,7 @@ static void __init test_lxvd2x_stxvd2x(void)
 }
 #endif /* CONFIG_VSX */
 
-static int __init test_emulate_step(void)
+static void __init run_tests_load_store(void)
 {
 	test_ld();
 	test_lwz();
@@ -437,6 +457,513 @@ static int __init test_emulate_step(void)
 	test_lfdx_stfdx();
 	test_lvx_stvx();
 	test_lxvd2x_stxvd2x();
+}
+
+struct compute_test {
+	char *mnemonic;
+	struct {
+		char *descr;
+		unsigned long flags;
+		unsigned int instr;
+		struct pt_regs regs;
+	} subtests[MAX_SUBTESTS + 1];
+};
+
+static struct compute_test compute_tests[] = {
+	{
+		.mnemonic = "nop",
+		.subtests = {
+			{
+				.descr = "R0 = LONG_MAX",
+				.instr = PPC_INST_NOP,
+				.regs = {
+					.gpr[0] = LONG_MAX,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "add",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, RB = LONG_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MAX,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = 0x1",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MIN",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, RB = INT_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MAX,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = UINT_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = 0x1",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = 0x1,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "add.",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.flags = IGNORE_CCR,
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, RB = LONG_MAX",
+				.flags = IGNORE_CCR,
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MAX,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = 0x1",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MIN",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, RB = INT_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MAX,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = UINT_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = 0x1",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = 0x1,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "addc",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, RB = LONG_MAX",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MAX,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = 0x1",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MIN",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MAX",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, RB = INT_MAX",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MAX,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = UINT_MAX",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = 0x1",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN | INT_MIN, RB = LONG_MIN | INT_MIN",
+				.instr = TEST_ADDC(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN | (uint)INT_MIN,
+					.gpr[22] = LONG_MIN | (uint)INT_MIN,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "addc.",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.flags = IGNORE_CCR,
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, RB = LONG_MAX",
+				.flags = IGNORE_CCR,
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MAX,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = 0x1",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MIN",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MAX",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, RB = INT_MAX",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MAX,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = UINT_MAX",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = 0x1",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN | INT_MIN, RB = LONG_MIN | INT_MIN",
+				.instr = TEST_ADDC_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN | (uint)INT_MIN,
+					.gpr[22] = LONG_MIN | (uint)INT_MIN,
+				}
+			}
+		}
+	}
+};
+
+static int __init emulate_compute_instr(struct pt_regs *regs,
+					unsigned int instr)
+{
+	struct instruction_op op;
+
+	if (!regs || !instr)
+		return -EINVAL;
+
+	if (analyse_instr(&op, regs, instr) != 1 ||
+	    GETTYPE(op.type) != COMPUTE) {
+		pr_info("emulation failed, instruction = 0x%08x\n", instr);
+		return -EFAULT;
+	}
+
+	emulate_update_regs(regs, &op);
+	return 0;
+}
+
+static int __init execute_compute_instr(struct pt_regs *regs,
+					unsigned int instr)
+{
+	extern int exec_instr(struct pt_regs *regs);
+	extern s32 patch__exec_instr;
+
+	if (!regs || !instr)
+		return -EINVAL;
+
+	/* Patch the NOP with the actual instruction */
+	patch_instruction_site(&patch__exec_instr, instr);
+	if (exec_instr(regs)) {
+		pr_info("execution failed, instruction = 0x%08x\n", instr);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+#define gpr_mismatch(gprn, exp, got)	\
+	pr_info("GPR%u mismatch, exp = 0x%016lx, got = 0x%016lx\n",	\
+		gprn, exp, got)
+
+#define reg_mismatch(name, exp, got)	\
+	pr_info("%s mismatch, exp = 0x%016lx, got = 0x%016lx\n",	\
+		name, exp, got)
+
+static void __init run_tests_compute(void)
+{
+	unsigned long flags;
+	struct compute_test *test;
+	struct pt_regs *regs, exp, got;
+	unsigned int i, j, k, instr;
+	bool ignore_gpr, ignore_xer, ignore_ccr, passed;
+
+	for (i = 0; i < ARRAY_SIZE(compute_tests); i++) {
+		test = &compute_tests[i];
+
+		for (j = 0; j < MAX_SUBTESTS && test->subtests[j].descr; j++) {
+			instr = test->subtests[j].instr;
+			flags = test->subtests[j].flags;
+			regs = &test->subtests[j].regs;
+			ignore_xer = flags & IGNORE_XER;
+			ignore_ccr = flags & IGNORE_CCR;
+			passed = true;
+
+			memcpy(&exp, regs, sizeof(struct pt_regs));
+			memcpy(&got, regs, sizeof(struct pt_regs));
+
+			/*
+			 * Set a compatible MSR value explicitly to ensure
+			 * that XER and CR bits are updated appropriately
+			 */
+			exp.msr = MSR_KERNEL;
+			got.msr = MSR_KERNEL;
+
+			if (emulate_compute_instr(&got, instr) ||
+			    execute_compute_instr(&exp, instr)) {
+				passed = false;
+				goto print;
+			}
+
+			/* Verify GPR values */
+			for (k = 0; k < 32; k++) {
+				ignore_gpr = flags & IGNORE_GPR(k);
+				if (!ignore_gpr && exp.gpr[k] != got.gpr[k]) {
+					passed = false;
+					gpr_mismatch(k, exp.gpr[k], got.gpr[k]);
+				}
+			}
+
+			/* Verify LR value */
+			if (exp.link != got.link) {
+				passed = false;
+				reg_mismatch("LR", exp.link, got.link);
+			}
+
+			/* Verify XER value */
+			if (!ignore_xer && exp.xer != got.xer) {
+				passed = false;
+				reg_mismatch("XER", exp.xer, got.xer);
+			}
+
+			/* Verify CR value */
+			if (!ignore_ccr && exp.ccr != got.ccr) {
+				passed = false;
+				reg_mismatch("CR", exp.ccr, got.ccr);
+			}
+
+print:
+			show_result_with_descr(test->mnemonic,
+					       test->subtests[j].descr,
+					       passed ? "PASS" : "FAIL");
+		}
+	}
+}
+
+static int __init test_emulate_step(void)
+{
+	printk(KERN_INFO "Running instruction emulation self-tests ...\n");
+	run_tests_load_store();
+	run_tests_compute();
 
 	return 0;
 }

@@ -7,7 +7,7 @@ limitations.
 Current Binding
 ---------------
 
-Switches are true Linux devices and can be probes by any means. Once
+Switches are true Linux devices and can be probed by any means. Once
 probed, they register to the DSA framework, passing a node
 pointer. This node is expected to fulfil the following binding, and
 may contain additional properties as required by the device it is
@@ -71,6 +71,10 @@ properties, described in binding documents:
 			  Documentation/devicetree/bindings/net/fixed-link.txt
 			  for details.
 
+- local-mac-address	: See
+			  Documentation/devicetree/bindings/net/ethernet.txt
+			  for details.
+
 Example
 
 The following example shows three switches on three MDIO busses,
@@ -97,6 +101,7 @@ linked into one DSA cluster.
 			port@1 {
 				reg = <1>;
 				label = "lan1";
+				local-mac-address = [00 00 00 00 00 00];
 			};
 
 			port@2 {

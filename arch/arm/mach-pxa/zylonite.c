@@ -19,7 +19,7 @@
 #include <linux/leds.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
@@ -227,33 +227,68 @@ static inline void zylonite_init_lcd(void) {}
 static struct pxamci_platform_data zylonite_mci_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect = EXT_GPIO(0),
-	.gpio_card_ro	= EXT_GPIO(2),
-	.gpio_power	= -1,
+};
+
+#define PCA9539A_MCI_CD 0
+#define PCA9539A_MCI1_CD 1
+#define PCA9539A_MCI_WP 2
+#define PCA9539A_MCI1_WP 3
+#define PCA9539A_MCI3_CD 30
+#define PCA9539A_MCI3_WP 31
+
+static struct gpiod_lookup_table zylonite_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("i2c-pca9539-a", PCA9539A_MCI_CD,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("i2c-pca9539-a", PCA9539A_MCI_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct pxamci_platform_data zylonite_mci2_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect = EXT_GPIO(1),
-	.gpio_card_ro	= EXT_GPIO(3),
-	.gpio_power	= -1,
+};
+
+static struct gpiod_lookup_table zylonite_mci2_gpio_table = {
+	.dev_id = "pxa2xx-mci.1",
+	.table = {
+		GPIO_LOOKUP("i2c-pca9539-a", PCA9539A_MCI1_CD,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("i2c-pca9539-a", PCA9539A_MCI1_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct pxamci_platform_data zylonite_mci3_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect = EXT_GPIO(30),
-	.gpio_card_ro	= EXT_GPIO(31),
-	.gpio_power	= -1,
+};
+
+static struct gpiod_lookup_table zylonite_mci3_gpio_table = {
+	.dev_id = "pxa2xx-mci.2",
+	.table = {
+		GPIO_LOOKUP("i2c-pca9539-a", PCA9539A_MCI3_CD,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("i2c-pca9539-a", PCA9539A_MCI3_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init zylonite_init_mmc(void)
 {
+	gpiod_add_lookup_table(&zylonite_mci_gpio_table);
 	pxa_set_mci_info(&zylonite_mci_platform_data);
+	gpiod_add_lookup_table(&zylonite_mci2_gpio_table);
 	pxa3xx_set_mci2_info(&zylonite_mci2_platform_data);
-	if (cpu_is_pxa310())
+	if (cpu_is_pxa310()) {
+		gpiod_add_lookup_table(&zylonite_mci3_gpio_table);
 		pxa3xx_set_mci3_info(&zylonite_mci3_platform_data);
+	}
 }
 #else
 static inline void zylonite_init_mmc(void) {}

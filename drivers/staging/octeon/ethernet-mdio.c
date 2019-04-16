@@ -21,7 +21,6 @@
 #include "ethernet-util.h"
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
@@ -171,7 +170,7 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 		return -ENODEV;
 
 	priv->last_link = 0;
-	phy_start_aneg(phydev);
+	phy_start(phydev);
 
 	return 0;
 no_phy:

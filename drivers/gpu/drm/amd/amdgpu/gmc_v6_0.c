@@ -46,6 +46,7 @@ MODULE_FIRMWARE("amdgpu/tahiti_mc.bin");
 MODULE_FIRMWARE("amdgpu/pitcairn_mc.bin");
 MODULE_FIRMWARE("amdgpu/verde_mc.bin");
 MODULE_FIRMWARE("amdgpu/oland_mc.bin");
+MODULE_FIRMWARE("amdgpu/hainan_mc.bin");
 MODULE_FIRMWARE("amdgpu/si58_mc.bin");
 
 #define MC_SEQ_MISC0__MT__MASK   0xf0000000
@@ -885,7 +886,7 @@ static int gmc_v6_0_sw_init(void *handle)
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
 		dev_warn(adev->dev, "amdgpu: No coherent DMA available.\n");
 	}
-	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+	adev->need_swiotlb = drm_need_swiotlb(dma_bits);
 
 	r = gmc_v6_0_init_microcode(adev);
 	if (r) {

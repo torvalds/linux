@@ -257,6 +257,10 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 			acpi_ut_delete_object_desc(second_desc);
 		}
+		if (object->field.internal_pcc_buffer) {
+			ACPI_FREE(object->field.internal_pcc_buffer);
+		}
+
 		break;
 
 	case ACPI_TYPE_BUFFER_FIELD:

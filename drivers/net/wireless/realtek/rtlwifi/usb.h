@@ -1,25 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL_USB_H__
 #define __RTL_USB_H__
@@ -36,7 +16,6 @@
 
 #define USB_HIGH_SPEED_BULK_SIZE	512
 #define USB_FULL_SPEED_BULK_SIZE	64
-
 
 #define RTL_USB_MAX_TXQ_NUM		4		/* max tx queue */
 #define RTL_USB_MAX_EP_NUM		6		/* max ep number */
@@ -73,10 +52,10 @@ static inline void _rtl_install_trx_info(struct rtl_usb *rtlusb,
 					 u32 ep_num)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
 	info->rate_driver_data[0] = rtlusb;
 	info->rate_driver_data[1] = (void *)(__kernel_size_t)ep_num;
 }
-
 
 /*  Add suspend/resume later */
 enum rtl_usb_state {
@@ -104,7 +83,7 @@ struct rtl_usb {
 	/* Bcn control register setting */
 	u32 reg_bcn_ctrl_val;
 	/* for 88/92cu card disable */
-	u8	disableHWSM;
+	u8	disablehwsm;
 	/*QOS & EDCA */
 	enum acm_method acm_method;
 	/* irq  . HIMR,HIMR_EX */
@@ -152,8 +131,6 @@ struct rtl_usb_priv {
 
 #define rtl_usbpriv(hw)	 (((struct rtl_usb_priv *)(rtl_priv(hw))->priv))
 #define rtl_usbdev(usbpriv)	(&((usbpriv)->dev))
-
-
 
 int rtl_usb_probe(struct usb_interface *intf,
 		  const struct usb_device_id *id,

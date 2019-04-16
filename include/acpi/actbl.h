@@ -3,7 +3,7 @@
  *
  * Name: actbl.h - Basic ACPI Table Definitions
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -38,6 +38,7 @@
 #define ACPI_SIG_XSDT           "XSDT"	/* Extended  System Description Table */
 #define ACPI_SIG_SSDT           "SSDT"	/* Secondary System Description Table */
 #define ACPI_RSDP_NAME          "RSDP"	/* Short name for RSDP, not signature */
+#define ACPI_OEM_NAME           "OEM"	/* Short name for OEM, not signature */
 
 /*
  * All tables and structures must be byte-packed to match the ACPI

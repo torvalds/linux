@@ -130,16 +130,12 @@ static int ak5558_hw_params(struct snd_pcm_substream *substream,
 	u8 bits;
 	int pcm_width = max(params_physical_width(params), ak5558->slot_width);
 
-	/* set master/slave audio interface */
-	bits = snd_soc_component_read32(component, AK5558_02_CONTROL1);
-	bits &= ~AK5558_BITS;
-
 	switch (pcm_width) {
 	case 16:
-		bits |= AK5558_DIF_24BIT_MODE;
+		bits = AK5558_DIF_24BIT_MODE;
 		break;
 	case 32:
-		bits |= AK5558_DIF_32BIT_MODE;
+		bits = AK5558_DIF_32BIT_MODE;
 		break;
 	default:
 		return -EINVAL;
@@ -168,18 +164,15 @@ static int ak5558_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	/* set master/slave audio interface */
-	format = snd_soc_component_read32(component, AK5558_02_CONTROL1);
-	format &= ~AK5558_DIF;
-
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		format |= AK5558_DIF_I2S_MODE;
+		format = AK5558_DIF_I2S_MODE;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		format |= AK5558_DIF_MSB_MODE;
+		format = AK5558_DIF_MSB_MODE;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		format |= AK5558_DIF_MSB_MODE;
+		format = AK5558_DIF_MSB_MODE;
 		break;
 	default:
 		return -EINVAL;
@@ -246,7 +239,7 @@ static int ak5558_startup(struct snd_pcm_substream *substream,
 					  &ak5558_rate_constraints);
 }
 
-static struct snd_soc_dai_ops ak5558_dai_ops = {
+static const struct snd_soc_dai_ops ak5558_dai_ops = {
 	.startup        = ak5558_startup,
 	.hw_params	= ak5558_hw_params,
 

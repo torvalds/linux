@@ -206,8 +206,8 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 	hid->bus = BUS_INTEL_ISHTP;
 	hid->dev.parent = &client_data->cl_device->dev;
 	hid->version = le16_to_cpu(ISH_HID_VERSION);
-	hid->vendor = le16_to_cpu(ISH_HID_VENDOR);
-	hid->product = le16_to_cpu(ISH_HID_PRODUCT);
+	hid->vendor = le16_to_cpu(client_data->hid_devices[cur_hid_dev].vid);
+	hid->product = le16_to_cpu(client_data->hid_devices[cur_hid_dev].pid);
 	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X", "hid-ishtp",
 		hid->vendor, hid->product);
 
@@ -222,7 +222,7 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 err_hid_device:
 	kfree(hid_data);
 err_hid_data:
-	kfree(hid);
+	hid_destroy_device(hid);
 	return rv;
 }
 

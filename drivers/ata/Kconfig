@@ -963,6 +963,18 @@ config PATA_GAYLE
 
 	  If unsure, say N.
 
+config PATA_BUDDHA
+	tristate "Buddha/Catweasel/X-Surf PATA support"
+	depends on ZORRO
+	help
+	  This option enables support for the IDE interfaces
+	  on the Buddha, Catweasel and X-Surf expansion boards
+	  on the Zorro expansion bus. It supports up to two
+	  interfaces on the Buddha, three on the Catweasel and
+	  two on the X-Surf.
+
+	  If unsure, say N.
+
 config PATA_ISAPNP
 	tristate "ISA Plug and Play PATA support"
 	depends on ISAPNP
@@ -1091,7 +1103,7 @@ comment "Generic fallback / legacy drivers"
 
 config PATA_ACPI
 	tristate "ACPI firmware driver for PATA"
-	depends on ATA_ACPI && ATA_BMDMA
+	depends on ATA_ACPI && ATA_BMDMA && PCI
 	help
 	  This option enables an ACPI method driver which drives
 	  motherboard PATA controller interfaces through the ACPI

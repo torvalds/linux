@@ -41,8 +41,8 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 		data += 4;
 
 		if (length % NFP_NET_CFG_TLV_LENGTH_INC) {
-			dev_err(dev, "TLV size not multiple of %u len:%u\n",
-				NFP_NET_CFG_TLV_LENGTH_INC, length);
+			dev_err(dev, "TLV size not multiple of %u offset:%u len:%u\n",
+				NFP_NET_CFG_TLV_LENGTH_INC, offset, length);
 			return -EINVAL;
 		}
 		if (data + length > end) {
@@ -61,14 +61,14 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			if (!length)
 				return 0;
 
-			dev_err(dev, "END TLV should be empty, has len:%d\n",
-				length);
+			dev_err(dev, "END TLV should be empty, has offset:%u len:%d\n",
+				offset, length);
 			return -EINVAL;
 		case NFP_NET_CFG_TLV_TYPE_ME_FREQ:
 			if (length != 4) {
 				dev_err(dev,
-					"ME FREQ TLV should be 4B, is %dB\n",
-					length);
+					"ME FREQ TLV should be 4B, is %dB offset:%u\n",
+					length, offset);
 				return -EINVAL;
 			}
 
@@ -89,6 +89,15 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 				 "experimental TLV type:%u offset:%u len:%u\n",
 				 FIELD_GET(NFP_NET_CFG_TLV_HEADER_TYPE, hdr),
 				 offset, length);
+			break;
+		case NFP_NET_CFG_TLV_TYPE_REPR_CAP:
+			if (length < 4) {
+				dev_err(dev, "REPR CAP TLV short %dB < 4B offset:%u\n",
+					length, offset);
+				return -EINVAL;
+			}
+
+			caps->repr_cap = readl(data);
 			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))

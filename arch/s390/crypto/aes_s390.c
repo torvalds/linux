@@ -137,7 +137,7 @@ static int fallback_init_cip(struct crypto_tfm *tfm)
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	sctx->fallback.cip = crypto_alloc_cipher(name, 0,
-			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+						 CRYPTO_ALG_NEED_FALLBACK);
 
 	if (IS_ERR(sctx->fallback.cip)) {
 		pr_err("Allocating AES fallback algorithm %s failed\n",

@@ -164,6 +164,12 @@ static int wl12xx_sdio_power_on(struct wl12xx_sdio_glue *glue)
 	}
 
 	sdio_claim_host(func);
+	/*
+	 * To guarantee that the SDIO card is power cycled, as required to make
+	 * the FW programming to succeed, let's do a brute force HW reset.
+	 */
+	mmc_hw_reset(card->host);
+
 	sdio_enable_func(func);
 	sdio_release_host(func);
 
@@ -174,20 +180,13 @@ static int wl12xx_sdio_power_off(struct wl12xx_sdio_glue *glue)
 {
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 	struct mmc_card *card = func->card;
-	int error;
 
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
 	/* Let runtime PM know the card is powered off */
-	error = pm_runtime_put(&card->dev);
-	if (error < 0 && error != -EBUSY) {
-		dev_err(&card->dev, "%s failed: %i\n", __func__, error);
-
-		return error;
-	}
-
+	pm_runtime_put(&card->dev);
 	return 0;
 }
 
@@ -285,7 +284,7 @@ static int wl1271_probe(struct sdio_func *func,
 	struct resource res[2];
 	mmc_pm_flag_t mmcflags;
 	int ret = -ENOMEM;
-	int irq, wakeirq;
+	int irq, wakeirq, num_irqs;
 	const char *chip_family;
 
 	/* We are only able to handle the wlan function */
@@ -353,12 +352,17 @@ static int wl1271_probe(struct sdio_func *func,
 		       irqd_get_trigger_type(irq_get_irq_data(irq));
 	res[0].name = "irq";
 
-	res[1].start = wakeirq;
-	res[1].flags = IORESOURCE_IRQ |
-		       irqd_get_trigger_type(irq_get_irq_data(wakeirq));
-	res[1].name = "wakeirq";
 
-	ret = platform_device_add_resources(glue->core, res, ARRAY_SIZE(res));
+	if (wakeirq > 0) {
+		res[1].start = wakeirq;
+		res[1].flags = IORESOURCE_IRQ |
+			       irqd_get_trigger_type(irq_get_irq_data(wakeirq));
+		res[1].name = "wakeirq";
+		num_irqs = 2;
+	} else {
+		num_irqs = 1;
+	}
+	ret = platform_device_add_resources(glue->core, res, num_irqs);
 	if (ret) {
 		dev_err(glue->dev, "can't add resources\n");
 		goto out_dev_put;

@@ -62,7 +62,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 
 /**
  * copy_oldmem_page_encrypted - same as copy_oldmem_page() above but ioremap the
- * memory with the encryption mask set to accomodate kdump on SME-enabled
+ * memory with the encryption mask set to accommodate kdump on SME-enabled
  * machines.
  */
 ssize_t copy_oldmem_page_encrypted(unsigned long pfn, char *buf, size_t csize,

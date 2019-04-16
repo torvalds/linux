@@ -34,6 +34,7 @@
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 
+#include "i915_active.h"
 #include "i915_request.h"
 
 enum i915_cache_level;
@@ -71,34 +72,45 @@ struct i915_vma {
 	unsigned int open_count;
 	unsigned long flags;
 	/**
-	 * How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, execbuffer
-	 * (objects are not allowed multiple times for the same batchbuffer),
-	 * and the framebuffer code. When switching/pageflipping, the
-	 * framebuffer code has at most two buffers pinned per crtc.
+	 * How many users have pinned this object in GTT space.
 	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits.
+	 * This is a tightly bound, fairly small number of users, so we
+	 * stuff inside the flags field so that we can both check for overflow
+	 * and detect a no-op i915_vma_pin() in a single check, while also
+	 * pinning the vma.
+	 *
+	 * The worst case display setup would have the same vma pinned for
+	 * use on each plane on each crtc, while also building the next atomic
+	 * state and holding a pin for the length of the cleanup queue. In the
+	 * future, the flip queue may be increased from 1.
+	 * Estimated worst case: 3 [qlen] * 4 [max crtcs] * 7 [max planes] = 84
+	 *
+	 * For GEM, the number of concurrent users for pwrite/pread is
+	 * unbounded. For execbuffer, it is currently one but will in future
+	 * be extended to allow multiple clients to pin vma concurrently.
+	 *
+	 * We also use suballocated pages, with each suballocation claiming
+	 * its own pin on the shared vma. At present, this is limited to
+	 * exclusive cachelines of a single page, so a maximum of 64 possible
+	 * users.
 	 */
-#define I915_VMA_PIN_MASK 0xf
-#define I915_VMA_PIN_OVERFLOW	BIT(5)
+#define I915_VMA_PIN_MASK 0xff
+#define I915_VMA_PIN_OVERFLOW	BIT(8)
 
 	/** Flags and address space this VMA is bound to */
-#define I915_VMA_GLOBAL_BIND	BIT(6)
-#define I915_VMA_LOCAL_BIND	BIT(7)
+#define I915_VMA_GLOBAL_BIND	BIT(9)
+#define I915_VMA_LOCAL_BIND	BIT(10)
 #define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND | I915_VMA_PIN_OVERFLOW)
 
-#define I915_VMA_GGTT		BIT(8)
-#define I915_VMA_CAN_FENCE	BIT(9)
-#define I915_VMA_CLOSED		BIT(10)
-#define I915_VMA_USERFAULT_BIT	11
+#define I915_VMA_GGTT		BIT(11)
+#define I915_VMA_CAN_FENCE	BIT(12)
+#define I915_VMA_CLOSED		BIT(13)
+#define I915_VMA_USERFAULT_BIT	14
 #define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
-#define I915_VMA_GGTT_WRITE	BIT(12)
+#define I915_VMA_GGTT_WRITE	BIT(15)
 
-	unsigned int active_count;
-	struct rb_root active;
-	struct i915_gem_active last_active;
-	struct i915_gem_active last_fence;
+	struct i915_active active;
+	struct i915_active_request last_fence;
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -141,9 +153,9 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 void i915_vma_unpin_and_release(struct i915_vma **p_vma, unsigned int flags);
 #define I915_VMA_RELEASE_MAP BIT(0)
 
-static inline bool i915_vma_is_active(struct i915_vma *vma)
+static inline bool i915_vma_is_active(const struct i915_vma *vma)
 {
-	return vma->active_count;
+	return !i915_active_is_idle(&vma->active);
 }
 
 int __must_check i915_vma_move_to_active(struct i915_vma *vma,
@@ -425,7 +437,10 @@ void i915_vma_parked(struct drm_i915_private *i915);
  * or the list is empty ofc.
  */
 #define for_each_ggtt_vma(V, OBJ) \
-	list_for_each_entry(V, &(OBJ)->vma_list, obj_link)		\
+	list_for_each_entry(V, &(OBJ)->vma.list, obj_link)		\
 		for_each_until(!i915_vma_is_ggtt(V))
+
+struct i915_vma *i915_vma_alloc(void);
+void i915_vma_free(struct i915_vma *vma);
 
 #endif

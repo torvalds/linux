@@ -317,7 +317,7 @@ void phydm_get_nhm_result(void *dm_void)
 		ccx_info->NHM_result[10] = (u8)((value32 & MASKBYTE2) >> 16);
 		ccx_info->NHM_result[11] = (u8)((value32 & MASKBYTE3) >> 24);
 
-		/*Get NHM duration*/
+		/* Get NHM duration */
 		value32 = odm_read_4byte(dm, ODM_REG_NHM_CNT10_TO_CNT11_11N);
 		ccx_info->NHM_duration = (u16)(value32 & MASKLWORD);
 	}
@@ -331,14 +331,15 @@ bool phydm_check_nhm_ready(void *dm_void)
 	bool ret = false;
 
 	if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
-		value32 =
-			odm_get_bb_reg(dm, ODM_REG_CLM_RESULT_11AC, MASKDWORD);
+		value32 = odm_get_bb_reg(dm,
+					 ODM_REG_CLM_RESULT_11AC,
+					 MASKDWORD);
 
 		for (i = 0; i < 200; i++) {
 			ODM_delay_ms(1);
 			if (odm_get_bb_reg(dm, ODM_REG_NHM_DUR_READY_11AC,
 					   BIT(17))) {
-				ret = 1;
+				ret = true;
 				break;
 			}
 		}
@@ -351,7 +352,7 @@ bool phydm_check_nhm_ready(void *dm_void)
 			ODM_delay_ms(1);
 			if (odm_get_bb_reg(dm, ODM_REG_NHM_DUR_READY_11AC,
 					   BIT(17))) {
-				ret = 1;
+				ret = true;
 				break;
 			}
 		}

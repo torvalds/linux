@@ -51,52 +51,6 @@ void meson_vpp_setup_mux(struct meson_drm *priv, unsigned int mux)
 	writel(mux, priv->io_base + _REG(VPU_VIU_VENC_MUX_CTRL));
 }
 
-/*
- * When the output is interlaced, the OSD must switch between
- * each field using the INTERLACE_SEL_ODD (0) of VIU_OSD1_BLK0_CFG_W0
- * at each vsync.
- * But the vertical scaler can provide such funtionnality if
- * is configured for 2:1 scaling with interlace options enabled.
- */
-void meson_vpp_setup_interlace_vscaler_osd1(struct meson_drm *priv,
-					    struct drm_rect *input)
-{
-	writel_relaxed(BIT(3) /* Enable scaler */ |
-		       BIT(2), /* Select OSD1 */
-			priv->io_base + _REG(VPP_OSD_SC_CTRL0));
-
-	writel_relaxed(((drm_rect_width(input) - 1) << 16) |
-		       (drm_rect_height(input) - 1),
-			priv->io_base + _REG(VPP_OSD_SCI_WH_M1));
-	/* 2:1 scaling */
-	writel_relaxed(((input->x1) << 16) | (input->x2),
-			priv->io_base + _REG(VPP_OSD_SCO_H_START_END));
-	writel_relaxed(((input->y1 >> 1) << 16) | (input->y2 >> 1),
-			priv->io_base + _REG(VPP_OSD_SCO_V_START_END));
-
-	/* 2:1 scaling values */
-	writel_relaxed(BIT(16), priv->io_base + _REG(VPP_OSD_VSC_INI_PHASE));
-	writel_relaxed(BIT(25), priv->io_base + _REG(VPP_OSD_VSC_PHASE_STEP));
-
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
-
-	writel_relaxed((4 << 0) /* osd_vsc_bank_length */ |
-		       (4 << 3) /* osd_vsc_top_ini_rcv_num0 */ |
-		       (1 << 8) /* osd_vsc_top_rpt_p0_num0 */ |
-		       (6 << 11) /* osd_vsc_bot_ini_rcv_num0 */ |
-		       (2 << 16) /* osd_vsc_bot_rpt_p0_num0 */ |
-		       BIT(23)	/* osd_prog_interlace */ |
-		       BIT(24), /* Enable vertical scaler */
-			priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
-}
-
-void meson_vpp_disable_interlace_vscaler_osd1(struct meson_drm *priv)
-{
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_SC_CTRL0));
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
-}
-
 static unsigned int vpp_filter_coefs_4point_bspline[] = {
 	0x15561500, 0x14561600, 0x13561700, 0x12561800,
 	0x11551a00, 0x11541b00, 0x10541c00, 0x0f541d00,
@@ -120,6 +74,31 @@ static void meson_vpp_write_scaling_filter_coefs(struct meson_drm *priv,
 	for (i = 0; i < 33; i++)
 		writel_relaxed(coefs[i],
 				priv->io_base + _REG(VPP_OSD_SCALE_COEF));
+}
+
+static const uint32_t vpp_filter_coefs_bicubic[] = {
+	0x00800000, 0x007f0100, 0xff7f0200, 0xfe7f0300,
+	0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
+	0xfa7b0b00, 0xfa7a0dff, 0xf9790fff, 0xf97711ff,
+	0xf87613ff, 0xf87416fe, 0xf87218fe, 0xf8701afe,
+	0xf76f1dfd, 0xf76d1ffd, 0xf76b21fd, 0xf76824fd,
+	0xf76627fc, 0xf76429fc, 0xf7612cfc, 0xf75f2ffb,
+	0xf75d31fb, 0xf75a34fb, 0xf75837fa, 0xf7553afa,
+	0xf8523cfa, 0xf8503ff9, 0xf84d42f9, 0xf84a45f9,
+	0xf84848f8
+};
+
+static void meson_vpp_write_vd_scaling_filter_coefs(struct meson_drm *priv,
+						    const unsigned int *coefs,
+						    bool is_horizontal)
+{
+	int i;
+
+	writel_relaxed(is_horizontal ? BIT(8) : 0,
+			priv->io_base + _REG(VPP_SCALE_COEF_IDX));
+	for (i = 0; i < 33; i++)
+		writel_relaxed(coefs[i],
+				priv->io_base + _REG(VPP_SCALE_COEF));
 }
 
 void meson_vpp_init(struct meson_drm *priv)
@@ -150,17 +129,34 @@ void meson_vpp_init(struct meson_drm *priv)
 
 	/* Force all planes off */
 	writel_bits_relaxed(VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND |
-			    VPP_VD1_POSTBLEND | VPP_VD2_POSTBLEND, 0,
+			    VPP_VD1_POSTBLEND | VPP_VD2_POSTBLEND |
+			    VPP_VD1_PREBLEND | VPP_VD2_PREBLEND, 0,
 			    priv->io_base + _REG(VPP_MISC));
+
+	/* Setup default VD settings */
+	writel_relaxed(4096,
+			priv->io_base + _REG(VPP_PREBLEND_VD1_H_START_END));
+	writel_relaxed(4096,
+			priv->io_base + _REG(VPP_BLEND_VD2_H_START_END));
 
 	/* Disable Scalers */
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_SC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
+	writel_relaxed(4 | (4 << 8) | BIT(15),
+		       priv->io_base + _REG(VPP_SC_MISC));
+
+	writel_relaxed(1, priv->io_base + _REG(VPP_VADJ_CTRL));
 
 	/* Write in the proper filter coefficients. */
 	meson_vpp_write_scaling_filter_coefs(priv,
 				vpp_filter_coefs_4point_bspline, false);
 	meson_vpp_write_scaling_filter_coefs(priv,
 				vpp_filter_coefs_4point_bspline, true);
+
+	/* Write the VD proper filter coefficients. */
+	meson_vpp_write_vd_scaling_filter_coefs(priv, vpp_filter_coefs_bicubic,
+						false);
+	meson_vpp_write_vd_scaling_filter_coefs(priv, vpp_filter_coefs_bicubic,
+						true);
 }

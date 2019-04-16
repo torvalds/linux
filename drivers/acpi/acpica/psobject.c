@@ -3,7 +3,7 @@
  *
  * Module Name: psobject - Support for parse objects
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -600,8 +600,7 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			 * because there could be correct AML beyond the parts that caused
 			 * the runtime error.
 			 */
-			ACPI_ERROR((AE_INFO,
-				    "Ignore error and continue table load"));
+			ACPI_INFO(("Ignoring error and continuing table load"));
 			return_ACPI_STATUS(AE_OK);
 		}
 		return_ACPI_STATUS(status);

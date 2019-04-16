@@ -18,7 +18,7 @@
  */
 
 static int gbaudio_request_jack(struct gbaudio_module_info *module,
-				  struct gb_audio_jack_event_request *req)
+				struct gb_audio_jack_event_request *req)
 {
 	int report;
 	struct snd_jack *jack = module->headset_jack.jack;
@@ -26,8 +26,8 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 
 	if (!jack) {
 		dev_err_ratelimited(module->dev,
-			"Invalid jack event received:type: %u, event: %u\n",
-			req->jack_attribute, req->event);
+				    "Invalid jack event received:type: %u, event: %u\n",
+				    req->jack_attribute, req->event);
 		return -EINVAL;
 	}
 
@@ -50,8 +50,8 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 	report = req->jack_attribute & module->jack_mask;
 	if (!report) {
 		dev_err_ratelimited(module->dev,
-			"Invalid jack event received:type: %u, event: %u\n",
-			req->jack_attribute, req->event);
+				    "Invalid jack event received:type: %u, event: %u\n",
+				    req->jack_attribute, req->event);
 		return -EINVAL;
 	}
 
@@ -74,8 +74,8 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 
 	if (!btn_jack) {
 		dev_err_ratelimited(module->dev,
-			"Invalid button event received:type: %u, event: %u\n",
-			req->button_id, req->event);
+				    "Invalid button event received:type: %u, event: %u\n",
+				    req->button_id, req->event);
 		return -EINVAL;
 	}
 
@@ -210,8 +210,8 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 		return -ENOMEM;
 
 	connection = gb_connection_create_offloaded(bundle,
-					le16_to_cpu(cport_desc->id),
-					GB_CONNECTION_FLAG_CSD);
+						    le16_to_cpu(cport_desc->id),
+						    GB_CONNECTION_FLAG_CSD);
 	if (IS_ERR(connection)) {
 		devm_kfree(gbmodule->dev, dai);
 		return PTR_ERR(connection);
@@ -317,7 +317,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	ret = gbaudio_tplg_parse_data(gbmodule, topology);
 	if (ret) {
 		dev_err(dev, "%d:Error while parsing topology data\n",
-			  ret);
+			ret);
 		goto free_topology;
 	}
 	gbmodule->topology = topology;

@@ -276,7 +276,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		switch (ide_req(rq)->type) {
 		case ATA_PRIV_MISC:
 		case ATA_PRIV_SENSE:
-			pc = (struct ide_atapi_pc *)rq->special;
+			pc = (struct ide_atapi_pc *)ide_req(rq)->special;
 			break;
 		default:
 			BUG();
@@ -427,7 +427,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 				 * (maintains previous driver behaviour)
 				 */
 				break;
-			/* else: fall through */
+			/* fall through */
 		case CAPACITY_CURRENT:
 			/* Normal Zip/LS-120 disks */
 			if (memcmp(cap_desc, &floppy->cap_desc, 8))

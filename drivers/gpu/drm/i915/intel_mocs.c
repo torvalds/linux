@@ -28,48 +28,60 @@
 struct drm_i915_mocs_entry {
 	u32 control_value;
 	u16 l3cc_value;
+	u16 used;
 };
 
 struct drm_i915_mocs_table {
-	u32 size;
+	unsigned int size;
+	unsigned int n_entries;
 	const struct drm_i915_mocs_entry *table;
 };
 
 /* Defines for the tables (XXX_MOCS_0 - XXX_MOCS_63) */
-#define LE_CACHEABILITY(value)	((value) << 0)
-#define LE_TGT_CACHE(value)	((value) << 2)
+#define _LE_CACHEABILITY(value)	((value) << 0)
+#define _LE_TGT_CACHE(value)	((value) << 2)
 #define LE_LRUM(value)		((value) << 4)
 #define LE_AOM(value)		((value) << 6)
 #define LE_RSC(value)		((value) << 7)
 #define LE_SCC(value)		((value) << 8)
 #define LE_PFM(value)		((value) << 11)
 #define LE_SCF(value)		((value) << 14)
+#define LE_COS(value)		((value) << 15)
+#define LE_SSE(value)		((value) << 17)
 
 /* Defines for the tables (LNCFMOCS0 - LNCFMOCS31) - two entries per word */
 #define L3_ESC(value)		((value) << 0)
 #define L3_SCC(value)		((value) << 1)
-#define L3_CACHEABILITY(value)	((value) << 4)
+#define _L3_CACHEABILITY(value)	((value) << 4)
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	62  /* 62 out of 64 - 63 & 64 are reserved. */
+#define GEN11_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 
 /* (e)LLC caching options */
-#define LE_PAGETABLE		0
-#define LE_UC			1
-#define LE_WT			2
-#define LE_WB			3
-
-/* L3 caching options */
-#define L3_DIRECT		0
-#define L3_UC			1
-#define L3_RESERVED		2
-#define L3_WB			3
+#define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
+#define LE_1_UC			_LE_CACHEABILITY(1)
+#define LE_2_WT			_LE_CACHEABILITY(2)
+#define LE_3_WB			_LE_CACHEABILITY(3)
 
 /* Target cache */
-#define LE_TC_PAGETABLE		0
-#define LE_TC_LLC		1
-#define LE_TC_LLC_ELLC		2
-#define LE_TC_LLC_ELLC_ALT	3
+#define LE_TC_0_PAGETABLE	_LE_TGT_CACHE(0)
+#define LE_TC_1_LLC		_LE_TGT_CACHE(1)
+#define LE_TC_2_LLC_ELLC	_LE_TGT_CACHE(2)
+#define LE_TC_3_LLC_ELLC_ALT	_LE_TGT_CACHE(3)
+
+/* L3 caching options */
+#define L3_0_DIRECT		_L3_CACHEABILITY(0)
+#define L3_1_UC			_L3_CACHEABILITY(1)
+#define L3_2_RESERVED		_L3_CACHEABILITY(2)
+#define L3_3_WB			_L3_CACHEABILITY(3)
+
+#define MOCS_ENTRY(__idx, __control_value, __l3cc_value) \
+	[__idx] = { \
+		.control_value = __control_value, \
+		.l3cc_value = __l3cc_value, \
+		.used = 1, \
+	}
 
 /*
  * MOCS tables
@@ -80,85 +92,147 @@ struct drm_i915_mocs_table {
  * LNCFCMOCS0 - LNCFCMOCS32 registers.
  *
  * These tables are intended to be kept reasonably consistent across
- * platforms. However some of the fields are not applicable to all of
- * them.
+ * HW platforms, and for ICL+, be identical across OSes. To achieve
+ * that, for Icelake and above, list of entries is published as part
+ * of bspec.
  *
  * Entries not part of the following tables are undefined as far as
  * userspace is concerned and shouldn't be relied upon.  For the time
- * being they will be implicitly initialized to the strictest caching
- * configuration (uncached) to guarantee forwards compatibility with
- * userspace programs written against more recent kernels providing
- * additional MOCS entries.
+ * being they will be initialized to PTE.
  *
- * NOTE: These tables MUST start with being uncached and the length
- *       MUST be less than 63 as the last two registers are reserved
- *       by the hardware.  These tables are part of the kernel ABI and
- *       may only be updated incrementally by adding entries at the
- *       end.
+ * The last two entries are reserved by the hardware. For ICL+ they
+ * should be initialized according to bspec and never used, for older
+ * platforms they should never be written to.
+ *
+ * NOTE: These tables are part of bspec and defined as part of hardware
+ *       interface for ICL+. For older platforms, they are part of kernel
+ *       ABI. It is expected that, for specific hardware platform, existing
+ *       entries will remain constant and the table will only be updated by
+ *       adding new entries, filling unused positions.
  */
-static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
-	[I915_MOCS_UNCACHED] = {
-	  /* 0x00000009 */
-	  .control_value = LE_CACHEABILITY(LE_UC) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(0) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
+#define GEN9_MOCS_ENTRIES \
+	MOCS_ENTRY(I915_MOCS_UNCACHED, \
+		   LE_1_UC | LE_TC_2_LLC_ELLC, \
+		   L3_1_UC), \
+	MOCS_ENTRY(I915_MOCS_PTE, \
+		   LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
+		   L3_3_WB)
 
-	  /* 0x0010 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC),
-	},
-	[I915_MOCS_PTE] = {
-	  /* 0x00000038 */
-	  .control_value = LE_CACHEABILITY(LE_PAGETABLE) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-	  /* 0x0030 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
-	},
-	[I915_MOCS_CACHED] = {
-	  /* 0x0000003b */
-	  .control_value = LE_CACHEABILITY(LE_WB) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-	  /* 0x0030 */
-	  .l3cc_value =   L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
-	},
+static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
+	GEN9_MOCS_ENTRIES,
+	MOCS_ENTRY(I915_MOCS_CACHED,
+		   LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
+		   L3_3_WB)
 };
 
 /* NOTE: the LE_TGT_CACHE is not used on Broxton */
 static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
-	[I915_MOCS_UNCACHED] = {
-	  /* 0x00000009 */
-	  .control_value = LE_CACHEABILITY(LE_UC) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(0) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
+	GEN9_MOCS_ENTRIES,
+	MOCS_ENTRY(I915_MOCS_CACHED,
+		   LE_1_UC | LE_TC_2_LLC_ELLC | LE_LRUM(3),
+		   L3_3_WB)
+};
 
-	  /* 0x0010 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC),
-	},
-	[I915_MOCS_PTE] = {
-	  /* 0x00000038 */
-	  .control_value = LE_CACHEABILITY(LE_PAGETABLE) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
+#define GEN11_MOCS_ENTRIES \
+	/* Base - Uncached (Deprecated) */ \
+	MOCS_ENTRY(I915_MOCS_UNCACHED, \
+		   LE_1_UC | LE_TC_1_LLC, \
+		   L3_1_UC), \
+	/* Base - L3 + LeCC:PAT (Deprecated) */ \
+	MOCS_ENTRY(I915_MOCS_PTE, \
+		   LE_0_PAGETABLE | LE_TC_1_LLC, \
+		   L3_3_WB), \
+	/* Base - L3 + LLC */ \
+	MOCS_ENTRY(2, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_3_WB), \
+	/* Base - Uncached */ \
+	MOCS_ENTRY(3, \
+		   LE_1_UC | LE_TC_1_LLC, \
+		   L3_1_UC), \
+	/* Base - L3 */ \
+	MOCS_ENTRY(4, \
+		   LE_1_UC | LE_TC_1_LLC, \
+		   L3_3_WB), \
+	/* Base - LLC */ \
+	MOCS_ENTRY(5, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_1_UC), \
+	/* Age 0 - LLC */ \
+	MOCS_ENTRY(6, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1), \
+		   L3_1_UC), \
+	/* Age 0 - L3 + LLC */ \
+	MOCS_ENTRY(7, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1), \
+		   L3_3_WB), \
+	/* Age: Don't Chg. - LLC */ \
+	MOCS_ENTRY(8, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2), \
+		   L3_1_UC), \
+	/* Age: Don't Chg. - L3 + LLC */ \
+	MOCS_ENTRY(9, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2), \
+		   L3_3_WB), \
+	/* No AOM - LLC */ \
+	MOCS_ENTRY(10, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1), \
+		   L3_1_UC), \
+	/* No AOM - L3 + LLC */ \
+	MOCS_ENTRY(11, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* No AOM; Age 0 - LLC */ \
+	MOCS_ENTRY(12, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1), \
+		   L3_1_UC), \
+	/* No AOM; Age 0 - L3 + LLC */ \
+	MOCS_ENTRY(13, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* No AOM; Age:DC - LLC */ \
+	MOCS_ENTRY(14, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
+		   L3_1_UC), \
+	/* No AOM; Age:DC - L3 + LLC */ \
+	MOCS_ENTRY(15, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* Self-Snoop - L3 + LLC */ \
+	MOCS_ENTRY(18, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SSE(3), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(12.5%) */ \
+	MOCS_ENTRY(19, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(7), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(25%) */ \
+	MOCS_ENTRY(20, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(3), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(50%) */ \
+	MOCS_ENTRY(21, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(1), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(75%) */ \
+	MOCS_ENTRY(22, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(3), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(87.5%) */ \
+	MOCS_ENTRY(23, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(7), \
+		   L3_3_WB), \
+	/* HW Reserved - SW program but never use */ \
+	MOCS_ENTRY(62, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_1_UC), \
+	/* HW Reserved - SW program but never use */ \
+	MOCS_ENTRY(63, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_1_UC)
 
-	  /* 0x0030 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
-	},
-	[I915_MOCS_CACHED] = {
-	  /* 0x00000039 */
-	  .control_value = LE_CACHEABILITY(LE_UC) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-
-	  /* 0x0030 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
-	},
+static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+	GEN11_MOCS_ENTRIES
 };
 
 /**
@@ -178,13 +252,19 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 {
 	bool result = false;
 
-	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv) ||
-	    IS_ICELAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		table->size  = ARRAY_SIZE(icelake_mocs_table);
+		table->table = icelake_mocs_table;
+		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		result = true;
+	} else if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
+		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = skylake_mocs_table;
 		result = true;
 	} else if (IS_GEN9_LP(dev_priv)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
+		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = broxton_mocs_table;
 		result = true;
 	} else {
@@ -193,7 +273,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 	}
 
 	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
-	if (IS_GEN9(dev_priv)) {
+	if (IS_GEN(dev_priv, 9)) {
 		int i;
 
 		for (i = 0; i < table->size; i++)
@@ -208,22 +288,35 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
 {
 	switch (engine_id) {
-	case RCS:
+	case RCS0:
 		return GEN9_GFX_MOCS(index);
-	case VCS:
+	case VCS0:
 		return GEN9_MFX0_MOCS(index);
-	case BCS:
+	case BCS0:
 		return GEN9_BLT_MOCS(index);
-	case VECS:
+	case VECS0:
 		return GEN9_VEBOX_MOCS(index);
-	case VCS2:
+	case VCS1:
 		return GEN9_MFX1_MOCS(index);
-	case VCS3:
+	case VCS2:
 		return GEN11_MFX2_MOCS(index);
 	default:
 		MISSING_CASE(engine_id);
 		return INVALID_MMIO_REG;
 	}
+}
+
+/*
+ * Get control_value from MOCS entry taking into account when it's not used:
+ * I915_MOCS_PTE's value is returned in this case.
+ */
+static u32 get_entry_control(const struct drm_i915_mocs_table *table,
+			     unsigned int index)
+{
+	if (table->table[index].used)
+		return table->table[index].control_value;
+
+	return table->table[I915_MOCS_PTE].control_value;
 }
 
 /**
@@ -238,27 +331,23 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
+	u32 unused_value;
 
 	if (!get_mocs_settings(dev_priv, &table))
 		return;
 
-	GEM_BUG_ON(table.size > GEN9_NUM_MOCS_ENTRIES);
+	/* Set unused values to PTE */
+	unused_value = table.table[I915_MOCS_PTE].control_value;
 
-	for (index = 0; index < table.size; index++)
-		I915_WRITE(mocs_register(engine->id, index),
-			   table.table[index].control_value);
+	for (index = 0; index < table.size; index++) {
+		u32 value = get_entry_control(&table, index);
 
-	/*
-	 * Ok, now set the unused entries to uncached. These entries
-	 * are officially undefined and no contract for the contents
-	 * and settings is given for these entries.
-	 *
-	 * Entry 0 in the table is uncached - so we are just writing
-	 * that value to all the used entries.
-	 */
-	for (; index < GEN9_NUM_MOCS_ENTRIES; index++)
-		I915_WRITE(mocs_register(engine->id, index),
-			   table.table[0].control_value);
+		I915_WRITE(mocs_register(engine->id, index), value);
+	}
+
+	/* All remaining entries are also unused */
+	for (; index < table.n_entries; index++)
+		I915_WRITE(mocs_register(engine->id, index), unused_value);
 }
 
 /**
@@ -276,33 +365,32 @@ static int emit_mocs_control_table(struct i915_request *rq,
 {
 	enum intel_engine_id engine = rq->engine->id;
 	unsigned int index;
+	u32 unused_value;
 	u32 *cs;
 
-	if (WARN_ON(table->size > GEN9_NUM_MOCS_ENTRIES))
+	if (GEM_WARN_ON(table->size > table->n_entries))
 		return -ENODEV;
 
-	cs = intel_ring_begin(rq, 2 + 2 * GEN9_NUM_MOCS_ENTRIES);
+	/* Set unused values to PTE */
+	unused_value = table->table[I915_MOCS_PTE].control_value;
+
+	cs = intel_ring_begin(rq, 2 + 2 * table->n_entries);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES);
+	*cs++ = MI_LOAD_REGISTER_IMM(table->n_entries);
 
 	for (index = 0; index < table->size; index++) {
+		u32 value = get_entry_control(table, index);
+
 		*cs++ = i915_mmio_reg_offset(mocs_register(engine, index));
-		*cs++ = table->table[index].control_value;
+		*cs++ = value;
 	}
 
-	/*
-	 * Ok, now set the unused entries to uncached. These entries
-	 * are officially undefined and no contract for the contents
-	 * and settings is given for these entries.
-	 *
-	 * Entry 0 in the table is uncached - so we are just writing
-	 * that value to all the used entries.
-	 */
-	for (; index < GEN9_NUM_MOCS_ENTRIES; index++) {
+	/* All remaining entries are also unused */
+	for (; index < table->n_entries; index++) {
 		*cs++ = i915_mmio_reg_offset(mocs_register(engine, index));
-		*cs++ = table->table[0].control_value;
+		*cs++ = unused_value;
 	}
 
 	*cs++ = MI_NOOP;
@@ -311,12 +399,24 @@ static int emit_mocs_control_table(struct i915_request *rq,
 	return 0;
 }
 
+/*
+ * Get l3cc_value from MOCS entry taking into account when it's not used:
+ * I915_MOCS_PTE's value is returned in this case.
+ */
+static u16 get_entry_l3cc(const struct drm_i915_mocs_table *table,
+			  unsigned int index)
+{
+	if (table->table[index].used)
+		return table->table[index].l3cc_value;
+
+	return table->table[I915_MOCS_PTE].l3cc_value;
+}
+
 static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 			       u16 low,
 			       u16 high)
 {
-	return table->table[low].l3cc_value |
-	       table->table[high].l3cc_value << 16;
+	return low | high << 16;
 }
 
 /**
@@ -333,38 +433,43 @@ static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 static int emit_mocs_l3cc_table(struct i915_request *rq,
 				const struct drm_i915_mocs_table *table)
 {
+	u16 unused_value;
 	unsigned int i;
 	u32 *cs;
 
-	if (WARN_ON(table->size > GEN9_NUM_MOCS_ENTRIES))
+	if (GEM_WARN_ON(table->size > table->n_entries))
 		return -ENODEV;
 
-	cs = intel_ring_begin(rq, 2 + GEN9_NUM_MOCS_ENTRIES);
+	/* Set unused values to PTE */
+	unused_value = table->table[I915_MOCS_PTE].l3cc_value;
+
+	cs = intel_ring_begin(rq, 2 + table->n_entries);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES / 2);
+	*cs++ = MI_LOAD_REGISTER_IMM(table->n_entries / 2);
 
-	for (i = 0; i < table->size/2; i++) {
+	for (i = 0; i < table->size / 2; i++) {
+		u16 low = get_entry_l3cc(table, 2 * i);
+		u16 high = get_entry_l3cc(table, 2 * i + 1);
+
 		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(i));
-		*cs++ = l3cc_combine(table, 2 * i, 2 * i + 1);
+		*cs++ = l3cc_combine(table, low, high);
 	}
 
+	/* Odd table size - 1 left over */
 	if (table->size & 0x01) {
-		/* Odd table size - 1 left over */
+		u16 low = get_entry_l3cc(table, 2 * i);
+
 		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(i));
-		*cs++ = l3cc_combine(table, 2 * i, 0);
+		*cs++ = l3cc_combine(table, low, unused_value);
 		i++;
 	}
 
-	/*
-	 * Now set the rest of the table to uncached - use entry 0 as
-	 * this will be uncached. Leave the last pair uninitialised as
-	 * they are reserved by the hardware.
-	 */
-	for (; i < GEN9_NUM_MOCS_ENTRIES / 2; i++) {
+	/* All remaining entries are also unused */
+	for (; i < table->n_entries / 2; i++) {
 		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(i));
-		*cs++ = l3cc_combine(table, 0, 0);
+		*cs++ = l3cc_combine(table, unused_value, unused_value);
 	}
 
 	*cs++ = MI_NOOP;
@@ -391,26 +496,35 @@ void intel_mocs_init_l3cc_table(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_mocs_table table;
 	unsigned int i;
+	u16 unused_value;
 
 	if (!get_mocs_settings(dev_priv, &table))
 		return;
 
-	for (i = 0; i < table.size/2; i++)
-		I915_WRITE(GEN9_LNCFCMOCS(i), l3cc_combine(&table, 2*i, 2*i+1));
+	/* Set unused values to PTE */
+	unused_value = table.table[I915_MOCS_PTE].l3cc_value;
+
+	for (i = 0; i < table.size / 2; i++) {
+		u16 low = get_entry_l3cc(&table, 2 * i);
+		u16 high = get_entry_l3cc(&table, 2 * i + 1);
+
+		I915_WRITE(GEN9_LNCFCMOCS(i),
+			   l3cc_combine(&table, low, high));
+	}
 
 	/* Odd table size - 1 left over */
 	if (table.size & 0x01) {
-		I915_WRITE(GEN9_LNCFCMOCS(i), l3cc_combine(&table, 2*i, 0));
+		u16 low = get_entry_l3cc(&table, 2 * i);
+
+		I915_WRITE(GEN9_LNCFCMOCS(i),
+			   l3cc_combine(&table, low, unused_value));
 		i++;
 	}
 
-	/*
-	 * Now set the rest of the table to uncached - use entry 0 as
-	 * this will be uncached. Leave the last pair as initialised as
-	 * they are reserved by the hardware.
-	 */
-	for (; i < (GEN9_NUM_MOCS_ENTRIES / 2); i++)
-		I915_WRITE(GEN9_LNCFCMOCS(i), l3cc_combine(&table, 0, 0));
+	/* All remaining entries are also unused */
+	for (; i < table.n_entries / 2; i++)
+		I915_WRITE(GEN9_LNCFCMOCS(i),
+			   l3cc_combine(&table, unused_value, unused_value));
 }
 
 /**

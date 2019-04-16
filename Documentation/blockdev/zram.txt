@@ -156,19 +156,23 @@ Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 A brief description of exported device attributes. For more details please
 read Documentation/ABI/testing/sysfs-block-zram.
 
-Name            access            description
-----            ------            -----------
-disksize          RW    show and set the device's disk size
-initstate         RO    shows the initialization state of the device
-reset             WO    trigger device reset
-mem_used_max      WO    reset the `mem_used_max' counter (see later)
-mem_limit         WO    specifies the maximum amount of memory ZRAM can use
-                        to store the compressed data
-max_comp_streams  RW    the number of possible concurrent compress operations
-comp_algorithm    RW    show and change the compression algorithm
-compact           WO    trigger memory compaction
-debug_stat        RO    this file is used for zram debugging purposes
-backing_dev	  RW	set up backend storage for zram to write out
+Name            	access            description
+----            	------            -----------
+disksize          	RW	show and set the device's disk size
+initstate         	RO	shows the initialization state of the device
+reset             	WO	trigger device reset
+mem_used_max      	WO	reset the `mem_used_max' counter (see later)
+mem_limit         	WO	specifies the maximum amount of memory ZRAM can use
+				to store the compressed data
+writeback_limit   	WO	specifies the maximum amount of write IO zram can
+				write out to backing device as 4KB unit
+writeback_limit_enable  RW	show and set writeback_limit feature
+max_comp_streams  	RW	the number of possible concurrent compress operations
+comp_algorithm    	RW	show and change the compression algorithm
+compact           	WO	trigger memory compaction
+debug_stat        	RO	this file is used for zram debugging purposes
+backing_dev	  	RW	set up backend storage for zram to write out
+idle		  	WO	mark allocated slot as idle
 
 
 User space is advised to use the following files to read the device statistics.
@@ -220,6 +224,17 @@ line of text and contains the following stats separated by whitespace:
  pages_compacted  the number of pages freed during compaction
  huge_pages	  the number of incompressible pages
 
+File /sys/block/zram<id>/bd_stat
+
+The stat file represents device's backing device statistics. It consists of
+a single line of text and contains the following stats separated by whitespace:
+ bd_count	size of data written in backing device.
+		Unit: 4K bytes
+ bd_reads	the number of reads from backing device
+		Unit: 4K bytes
+ bd_writes	the number of writes to backing device
+		Unit: 4K bytes
+
 9) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1
@@ -237,11 +252,79 @@ line of text and contains the following stats separated by whitespace:
 
 = writeback
 
-With incompressible pages, there is no memory saving with zram.
-Instead, with CONFIG_ZRAM_WRITEBACK, zram can write incompressible page
+With CONFIG_ZRAM_WRITEBACK, zram can write idle/incompressible page
 to backing storage rather than keeping it in memory.
-User should set up backing device via /sys/block/zramX/backing_dev
-before disksize setting.
+To use the feature, admin should set up backing device via
+
+	"echo /dev/sda5 > /sys/block/zramX/backing_dev"
+
+before disksize setting. It supports only partition at this moment.
+If admin want to use incompressible page writeback, they could do via
+
+	"echo huge > /sys/block/zramX/write"
+
+To use idle page writeback, first, user need to declare zram pages
+as idle.
+
+	"echo all > /sys/block/zramX/idle"
+
+From now on, any pages on zram are idle pages. The idle mark
+will be removed until someone request access of the block.
+IOW, unless there is access request, those pages are still idle pages.
+
+Admin can request writeback of those idle pages at right timing via
+
+	"echo idle > /sys/block/zramX/writeback"
+
+With the command, zram writeback idle pages from memory to the storage.
+
+If there are lots of write IO with flash device, potentially, it has
+flash wearout problem so that admin needs to design write limitation
+to guarantee storage health for entire product life.
+
+To overcome the concern, zram supports "writeback_limit" feature.
+The "writeback_limit_enable"'s default value is 0 so that it doesn't limit
+any writeback. IOW, if admin want to apply writeback budget, he should
+enable writeback_limit_enable via
+
+	$ echo 1 > /sys/block/zramX/writeback_limit_enable
+
+Once writeback_limit_enable is set, zram doesn't allow any writeback
+until admin set the budget via /sys/block/zramX/writeback_limit.
+
+(If admin doesn't enable writeback_limit_enable, writeback_limit's value
+assigned via /sys/block/zramX/writeback_limit is meaninless.)
+
+If admin want to limit writeback as per-day 400M, he could do it
+like below.
+
+	$ MB_SHIFT=20
+	$ 4K_SHIFT=12
+	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
+		/sys/block/zram0/writeback_limit.
+	$ echo 1 > /sys/block/zram0/writeback_limit_enable
+
+If admin want to allow further write again once the bugdet is exausted,
+he could do it like below
+
+	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
+		/sys/block/zram0/writeback_limit
+
+If admin want to see remaining writeback budget since he set,
+
+	$ cat /sys/block/zramX/writeback_limit
+
+If admin want to disable writeback limit, he could do
+
+	$ echo 0 > /sys/block/zramX/writeback_limit_enable
+
+The writeback_limit count will reset whenever you reset zram(e.g.,
+system reboot, echo 1 > /sys/block/zramX/reset) so keeping how many of
+writeback happened until you reset the zram to allocate extra writeback
+budget in next setting is user's job.
+
+If admin want to measure writeback count in a certain period, he could
+know it via /sys/block/zram0/bd_stat's 3rd column.
 
 = memory tracking
 
@@ -251,16 +334,17 @@ pages of the process with*pagemap.
 If you enable the feature, you could see block state via
 /sys/kernel/debug/zram/zram0/block_state". The output is as follows,
 
-	  300    75.033841 .wh
-	  301    63.806904 s..
-	  302    63.806919 ..h
+	  300    75.033841 .wh.
+	  301    63.806904 s...
+	  302    63.806919 ..hi
 
 First column is zram's block index.
 Second column is access time since the system was booted
 Third column is state of the block.
 (s: same page
 w: written page to backing store
-h: huge page)
+h: huge page
+i: idle page)
 
 First line of above example says 300th block is accessed at 75.033841sec
 and the block's state is huge so it is written back to the backing

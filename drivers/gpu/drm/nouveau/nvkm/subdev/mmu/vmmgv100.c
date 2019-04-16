@@ -66,6 +66,8 @@ gv100_vmm = {
 	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = gp100_vmm_flush,
+	.mthd = gp100_vmm_mthd,
+	.invalidate_pdb = gp100_vmm_invalidate_pdb,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
 		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
@@ -78,10 +80,10 @@ gv100_vmm = {
 };
 
 int
-gv100_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+gv100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&gv100_vmm, mmu, 0, addr, size,
-			     argv, argc, key, name, pvmm);
+	return gp100_vmm_new_(&gv100_vmm, mmu, managed, addr, size,
+			      argv, argc, key, name, pvmm);
 }

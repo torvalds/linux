@@ -109,4 +109,5 @@ const struct dsa_device_ops mtk_netdev_ops = {
 	.xmit		= mtk_tag_xmit,
 	.rcv		= mtk_tag_rcv,
 	.flow_dissect	= mtk_tag_flow_dissect,
+	.overhead	= MTK_HDR_LEN,
 };

@@ -23,6 +23,7 @@
 
 */
 
+#include <linux/cordic.h>
 #include <linux/slab.h>
 
 #include "b43.h"
@@ -1780,9 +1781,9 @@ static void lpphy_start_tx_tone(struct b43_wldev *dev, s32 freq, u16 max)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 buf[64];
-	int i, samples = 0, angle = 0;
+	int i, samples = 0, theta = 0;
 	int rotation = (((36 * freq) / 20) << 16) / 100;
-	struct b43_c32 sample;
+	struct cordic_iq sample;
 
 	lpphy->tx_tone_freq = freq;
 
@@ -1798,10 +1799,10 @@ static void lpphy_start_tx_tone(struct b43_wldev *dev, s32 freq, u16 max)
 	}
 
 	for (i = 0; i < samples; i++) {
-		sample = b43_cordic(angle);
-		angle += rotation;
-		buf[i] = CORDIC_CONVERT((sample.i * max) & 0xFF) << 8;
-		buf[i] |= CORDIC_CONVERT((sample.q * max) & 0xFF);
+		sample = cordic_calc_iq(CORDIC_FIXED(theta));
+		theta += rotation;
+		buf[i] = CORDIC_FLOAT((sample.i * max) & 0xFF) << 8;
+		buf[i] |= CORDIC_FLOAT((sample.q * max) & 0xFF);
 	}
 
 	b43_lptab_write_bulk(dev, B43_LPTAB16(5, 0), samples, buf);

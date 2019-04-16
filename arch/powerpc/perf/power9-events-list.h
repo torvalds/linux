@@ -97,3 +97,27 @@ EVENT(PM_MRK_DTLB_MISS_64K,			0x3d156)
 EVENT(PM_DTLB_MISS_16M,				0x4c056)
 EVENT(PM_DTLB_MISS_1G,				0x4c05a)
 EVENT(PM_MRK_DTLB_MISS_16M,			0x4c15e)
+
+/*
+ * Memory Access Events
+ *
+ * Primary PMU event used here is PM_MRK_INST_CMPL (0x401e0)
+ * To enable capturing of memory profiling, these MMCRA bits
+ * needs to be programmed and corresponding raw event format
+ * encoding.
+ *
+ * MMCRA bits encoding needed are
+ *     SM (Sampling Mode)
+ *     EM (Eligibility for Random Sampling)
+ *     TECE (Threshold Event Counter Event)
+ *     TS (Threshold Start Event)
+ *     TE (Threshold End Event)
+ *
+ * Corresponding Raw Encoding bits:
+ *     sample [EM,SM]
+ *     thresh_sel (TECE)
+ *     thresh start (TS)
+ *     thresh end (TE)
+ */
+EVENT(MEM_LOADS,				0x34340401e0)
+EVENT(MEM_STORES,				0x343c0401e0)

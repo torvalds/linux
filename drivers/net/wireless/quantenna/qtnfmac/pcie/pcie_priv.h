@@ -23,9 +23,14 @@
 struct qtnf_pcie_bus_priv {
 	struct pci_dev *pdev;
 
+	int (*probe_cb)(struct qtnf_bus *bus, unsigned int tx_bd_size);
+	void (*remove_cb)(struct qtnf_bus *bus);
+	int (*suspend_cb)(struct qtnf_bus *bus);
+	int (*resume_cb)(struct qtnf_bus *bus);
+	u64 (*dma_mask_get_cb)(void);
+
 	spinlock_t tx_reclaim_lock;
 	spinlock_t tx_lock;
-	int mps;
 
 	struct workqueue_struct *workqueue;
 	struct tasklet_struct reclaim_tq;
@@ -43,6 +48,8 @@ struct qtnf_pcie_bus_priv {
 	struct sk_buff **tx_skb;
 	struct sk_buff **rx_skb;
 
+	unsigned int fw_blksize;
+
 	u32 rx_bd_w_index;
 	u32 rx_bd_r_index;
 
@@ -58,21 +65,18 @@ struct qtnf_pcie_bus_priv {
 
 	u8 msi_enabled;
 	u8 tx_stopped;
+	bool flashboot;
 };
 
 int qtnf_pcie_control_tx(struct qtnf_bus *bus, struct sk_buff *skb);
 int qtnf_pcie_alloc_skb_array(struct qtnf_pcie_bus_priv *priv);
-void qtnf_pcie_bringup_fw_async(struct qtnf_bus *bus);
-void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success,
-			    const char *drv_name);
+void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success);
 void qtnf_pcie_init_shm_ipc(struct qtnf_pcie_bus_priv *priv,
 			    struct qtnf_shm_ipc_region __iomem *ipc_tx_reg,
 			    struct qtnf_shm_ipc_region __iomem *ipc_rx_reg,
 			    const struct qtnf_shm_ipc_int *ipc_int);
-int qtnf_pcie_probe(struct pci_dev *pdev, size_t priv_size,
-		    const struct qtnf_bus_ops *bus_ops, u64 dma_mask,
-		    bool use_msi);
-void qtnf_pcie_remove(struct qtnf_bus *bus, struct qtnf_pcie_bus_priv *priv);
+struct qtnf_bus *qtnf_pcie_pearl_alloc(struct pci_dev *pdev);
+struct qtnf_bus *qtnf_pcie_topaz_alloc(struct pci_dev *pdev);
 
 static inline void qtnf_non_posted_write(u32 val, void __iomem *basereg)
 {

@@ -83,13 +83,14 @@ int v3d_mmu_set_page_table(struct v3d_dev *v3d)
 
 void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 {
-	struct v3d_dev *v3d = to_v3d_dev(bo->base.dev);
+	struct drm_gem_shmem_object *shmem_obj = &bo->base;
+	struct v3d_dev *v3d = to_v3d_dev(shmem_obj->base.dev);
 	u32 page = bo->node.start;
 	u32 page_prot = V3D_PTE_WRITEABLE | V3D_PTE_VALID;
 	unsigned int count;
 	struct scatterlist *sgl;
 
-	for_each_sg(bo->sgt->sgl, sgl, bo->sgt->nents, count) {
+	for_each_sg(shmem_obj->sgt->sgl, sgl, shmem_obj->sgt->nents, count) {
 		u32 page_address = sg_dma_address(sgl) >> V3D_MMU_PAGE_SHIFT;
 		u32 pte = page_prot | page_address;
 		u32 i;
@@ -102,7 +103,7 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 	}
 
 	WARN_ON_ONCE(page - bo->node.start !=
-		     bo->base.size >> V3D_MMU_PAGE_SHIFT);
+		     shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT);
 
 	if (v3d_mmu_flush_all(v3d))
 		dev_err(v3d->dev, "MMU flush timeout\n");
@@ -110,8 +111,8 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 
 void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 {
-	struct v3d_dev *v3d = to_v3d_dev(bo->base.dev);
-	u32 npages = bo->base.size >> V3D_MMU_PAGE_SHIFT;
+	struct v3d_dev *v3d = to_v3d_dev(bo->base.base.dev);
+	u32 npages = bo->base.base.size >> V3D_MMU_PAGE_SHIFT;
 	u32 page;
 
 	for (page = bo->node.start; page < bo->node.start + npages; page++)

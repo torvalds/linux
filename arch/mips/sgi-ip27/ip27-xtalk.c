@@ -99,7 +99,7 @@ static int xbow_probe(nasid_t nasid)
 	return 0;
 }
 
-void xtalk_probe_node(cnodeid_t nid)
+static void xtalk_probe_node(cnodeid_t nid)
 {
 	volatile u64		hubreg;
 	nasid_t			nasid;
@@ -133,3 +133,14 @@ void xtalk_probe_node(cnodeid_t nid)
 		break;
 	}
 }
+
+static int __init xtalk_init(void)
+{
+	cnodeid_t cnode;
+
+	for_each_online_node(cnode)
+		xtalk_probe_node(cnode);
+
+	return 0;
+}
+arch_initcall(xtalk_init);

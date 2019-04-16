@@ -163,6 +163,14 @@ C. Boot options
 	be preserved until there actually is some text is output to the console.
 	This option causes fbcon to bind immediately to the fbdev device.
 
+7. fbcon=logo-pos:<location>
+
+	The only possible 'location' is 'center' (without quotes), and when
+	given, the bootup logo is moved from the default top-left corner
+	location to the center of the framebuffer. If more than one logo is
+	displayed due to multiple CPUs, the collected line of logos is moved
+	as a whole.
+
 C. Attaching, Detaching and Unloading
 
 Before going on to how to attach, detach and unload the framebuffer console, an

@@ -288,12 +288,12 @@ static bool lspcon_parade_fw_ready(struct drm_dp_aux *aux)
 }
 
 static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
-						  uint8_t *avi_buf)
+						  u8 *avi_buf)
 {
 	u8 avi_if_ctrl;
 	u8 block_count = 0;
 	u8 *data;
-	uint16_t reg;
+	u16 reg;
 	ssize_t ret;
 
 	while (block_count < 4) {
@@ -335,10 +335,10 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 }
 
 static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
-					       const uint8_t *frame,
+					       const u8 *frame,
 					       ssize_t len)
 {
-	uint8_t avi_if[LSPCON_PARADE_AVI_IF_DATA_SIZE] = {1, };
+	u8 avi_if[LSPCON_PARADE_AVI_IF_DATA_SIZE] = {1, };
 
 	/*
 	 * Parade's frames contains 32 bytes of data, divided
@@ -367,13 +367,13 @@ static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
 }
 
 static bool _lspcon_write_avi_infoframe_mca(struct drm_dp_aux *aux,
-					    const uint8_t *buffer, ssize_t len)
+					    const u8 *buffer, ssize_t len)
 {
 	int ret;
-	uint32_t val = 0;
-	uint32_t retry;
-	uint16_t reg;
-	const uint8_t *data = buffer;
+	u32 val = 0;
+	u32 retry;
+	u16 reg;
+	const u8 *data = buffer;
 
 	reg = LSPCON_MCA_AVI_IF_WRITE_OFFSET;
 	while (val < len) {
@@ -452,6 +452,14 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 	DRM_DEBUG_DRIVER("AVI infoframes updated successfully\n");
 }
 
+void lspcon_read_infoframe(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state,
+			   unsigned int type,
+			   void *frame, ssize_t len)
+{
+	/* FIXME implement this */
+}
+
 void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   bool enable,
 			   const struct intel_crtc_state *crtc_state,
@@ -459,21 +467,22 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 {
 	ssize_t ret;
 	union hdmi_infoframe frame;
-	uint8_t buf[VIDEO_DIP_DATA_SIZE];
+	u8 buf[VIDEO_DIP_DATA_SIZE];
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
-	struct intel_dp *intel_dp = &dig_port->dp;
-	struct drm_connector *connector = &intel_dp->attached_connector->base;
-	const struct drm_display_mode *mode = &crtc_state->base.adjusted_mode;
-	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 
 	if (!lspcon->active) {
 		DRM_ERROR("Writing infoframes while LSPCON disabled ?\n");
 		return;
 	}
 
+	/* FIXME precompute infoframes */
+
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       mode, is_hdmi2_sink);
+						       conn_state->connector,
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
@@ -488,11 +497,12 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi, mode,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   conn_state->connector,
+					   adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
-					   HDMI_QUANTIZATION_RANGE_FULL,
-					   false, is_hdmi2_sink);
+					   HDMI_QUANTIZATION_RANGE_FULL);
 
 	ret = hdmi_infoframe_pack(&frame, buf, sizeof(buf));
 	if (ret < 0) {
@@ -504,9 +514,10 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 				  buf, ret);
 }
 
-bool lspcon_infoframe_enabled(struct intel_encoder *encoder,
+u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
+	/* FIXME actually read this from the hw */
 	return enc_to_intel_lspcon(&encoder->base)->active;
 }
 

@@ -39,6 +39,7 @@
 #include <inttypes.h>
 #include <linux/errqueue.h>
 #include <linux/if_ether.h>
+#include <linux/ipv6.h>
 #include <linux/net_tstamp.h>
 #include <netdb.h>
 #include <net/if.h>
@@ -69,15 +70,67 @@ static int do_ipv4 = 1;
 static int do_ipv6 = 1;
 static int cfg_payload_len = 10;
 static int cfg_poll_timeout = 100;
+static int cfg_delay_snd;
+static int cfg_delay_ack;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
 static bool cfg_loop_nodata;
 static bool cfg_no_delay;
+static bool cfg_use_cmsg;
+static bool cfg_use_pf_packet;
+static bool cfg_do_listen;
 static uint16_t dest_port = 9000;
 
 static struct sockaddr_in daddr;
 static struct sockaddr_in6 daddr6;
-static struct timespec ts_prev;
+static struct timespec ts_usr;
+
+static int saved_tskey = -1;
+static int saved_tskey_type = -1;
+
+static bool test_failed;
+
+static int64_t timespec_to_us64(struct timespec *ts)
+{
+	return ts->tv_sec * 1000 * 1000 + ts->tv_nsec / 1000;
+}
+
+static void validate_key(int tskey, int tstype)
+{
+	int stepsize;
+
+	/* compare key for each subsequent request
+	 * must only test for one type, the first one requested
+	 */
+	if (saved_tskey == -1)
+		saved_tskey_type = tstype;
+	else if (saved_tskey_type != tstype)
+		return;
+
+	stepsize = cfg_proto == SOCK_STREAM ? cfg_payload_len : 1;
+	if (tskey != saved_tskey + stepsize) {
+		fprintf(stderr, "ERROR: key %d, expected %d\n",
+				tskey, saved_tskey + stepsize);
+		test_failed = true;
+	}
+
+	saved_tskey = tskey;
+}
+
+static void validate_timestamp(struct timespec *cur, int min_delay)
+{
+	int max_delay = min_delay + 500 /* processing time upper bound */;
+	int64_t cur64, start64;
+
+	cur64 = timespec_to_us64(cur);
+	start64 = timespec_to_us64(&ts_usr);
+
+	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
+		fprintf(stderr, "ERROR: delay %lu expected between %d and %d\n",
+				cur64 - start64, min_delay, max_delay);
+		test_failed = true;
+	}
+}
 
 static void __print_timestamp(const char *name, struct timespec *cur,
 			      uint32_t key, int payload_len)
@@ -89,32 +142,19 @@ static void __print_timestamp(const char *name, struct timespec *cur,
 			name, cur->tv_sec, cur->tv_nsec / 1000,
 			key, payload_len);
 
-	if ((ts_prev.tv_sec | ts_prev.tv_nsec)) {
-		int64_t cur_ms, prev_ms;
+	if (cur != &ts_usr)
+		fprintf(stderr, "  (USR %+" PRId64 " us)",
+			timespec_to_us64(cur) - timespec_to_us64(&ts_usr));
 
-		cur_ms = (long) cur->tv_sec * 1000 * 1000;
-		cur_ms += cur->tv_nsec / 1000;
-
-		prev_ms = (long) ts_prev.tv_sec * 1000 * 1000;
-		prev_ms += ts_prev.tv_nsec / 1000;
-
-		fprintf(stderr, "  (%+" PRId64 " us)", cur_ms - prev_ms);
-	}
-
-	ts_prev = *cur;
 	fprintf(stderr, "\n");
 }
 
 static void print_timestamp_usr(void)
 {
-	struct timespec ts;
-	struct timeval tv;	/* avoid dependency on -lrt */
+	if (clock_gettime(CLOCK_REALTIME, &ts_usr))
+		error(1, errno, "clock_gettime");
 
-	gettimeofday(&tv, NULL);
-	ts.tv_sec = tv.tv_sec;
-	ts.tv_nsec = tv.tv_usec * 1000;
-
-	__print_timestamp("  USR", &ts, 0, 0);
+	__print_timestamp("  USR", &ts_usr, 0, 0);
 }
 
 static void print_timestamp(struct scm_timestamping *tss, int tstype,
@@ -122,15 +162,20 @@ static void print_timestamp(struct scm_timestamping *tss, int tstype,
 {
 	const char *tsname;
 
+	validate_key(tskey, tstype);
+
 	switch (tstype) {
 	case SCM_TSTAMP_SCHED:
 		tsname = "  ENQ";
+		validate_timestamp(&tss->ts[0], 0);
 		break;
 	case SCM_TSTAMP_SND:
 		tsname = "  SND";
+		validate_timestamp(&tss->ts[0], cfg_delay_snd);
 		break;
 	case SCM_TSTAMP_ACK:
 		tsname = "  ACK";
+		validate_timestamp(&tss->ts[0], cfg_delay_ack);
 		break;
 	default:
 		error(1, 0, "unknown timestamp type: %u",
@@ -194,7 +239,9 @@ static void __recv_errmsg_cmsg(struct msghdr *msg, int payload_len)
 		} else if ((cm->cmsg_level == SOL_IP &&
 			    cm->cmsg_type == IP_RECVERR) ||
 			   (cm->cmsg_level == SOL_IPV6 &&
-			    cm->cmsg_type == IPV6_RECVERR)) {
+			    cm->cmsg_type == IPV6_RECVERR) ||
+			   (cm->cmsg_level == SOL_PACKET &&
+			    cm->cmsg_type == PACKET_TX_TIMESTAMP)) {
 			serr = (void *) CMSG_DATA(cm);
 			if (serr->ee_errno != ENOMSG ||
 			    serr->ee_origin != SO_EE_ORIGIN_TIMESTAMPING) {
@@ -269,31 +316,123 @@ static int recv_errmsg(int fd)
 	return ret == -1;
 }
 
-static void do_test(int family, unsigned int opt)
+static uint16_t get_ip_csum(const uint16_t *start, int num_words,
+			    unsigned long sum)
 {
+	int i;
+
+	for (i = 0; i < num_words; i++)
+		sum += start[i];
+
+	while (sum >> 16)
+		sum = (sum & 0xFFFF) + (sum >> 16);
+
+	return ~sum;
+}
+
+static uint16_t get_udp_csum(const struct udphdr *udph, int alen)
+{
+	unsigned long pseudo_sum, csum_len;
+	const void *csum_start = udph;
+
+	pseudo_sum = htons(IPPROTO_UDP);
+	pseudo_sum += udph->len;
+
+	/* checksum ip(v6) addresses + udp header + payload */
+	csum_start -= alen * 2;
+	csum_len = ntohs(udph->len) + alen * 2;
+
+	return get_ip_csum(csum_start, csum_len >> 1, pseudo_sum);
+}
+
+static int fill_header_ipv4(void *p)
+{
+	struct iphdr *iph = p;
+
+	memset(iph, 0, sizeof(*iph));
+
+	iph->ihl	= 5;
+	iph->version	= 4;
+	iph->ttl	= 2;
+	iph->saddr	= daddr.sin_addr.s_addr;	/* set for udp csum calc */
+	iph->daddr	= daddr.sin_addr.s_addr;
+	iph->protocol	= IPPROTO_UDP;
+
+	/* kernel writes saddr, csum, len */
+
+	return sizeof(*iph);
+}
+
+static int fill_header_ipv6(void *p)
+{
+	struct ipv6hdr *ip6h = p;
+
+	memset(ip6h, 0, sizeof(*ip6h));
+
+	ip6h->version		= 6;
+	ip6h->payload_len	= htons(sizeof(struct udphdr) + cfg_payload_len);
+	ip6h->nexthdr		= IPPROTO_UDP;
+	ip6h->hop_limit		= 64;
+
+	ip6h->saddr             = daddr6.sin6_addr;
+	ip6h->daddr		= daddr6.sin6_addr;
+
+	/* kernel does not write saddr in case of ipv6 */
+
+	return sizeof(*ip6h);
+}
+
+static void fill_header_udp(void *p, bool is_ipv4)
+{
+	struct udphdr *udph = p;
+
+	udph->source = ntohs(dest_port + 1);	/* spoof */
+	udph->dest   = ntohs(dest_port);
+	udph->len    = ntohs(sizeof(*udph) + cfg_payload_len);
+	udph->check  = 0;
+
+	udph->check  = get_udp_csum(udph, is_ipv4 ? sizeof(struct in_addr) :
+						    sizeof(struct in6_addr));
+}
+
+static void do_test(int family, unsigned int report_opt)
+{
+	char control[CMSG_SPACE(sizeof(uint32_t))];
+	struct sockaddr_ll laddr;
+	unsigned int sock_opt;
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	struct iovec iov;
 	char *buf;
 	int fd, i, val = 1, total_len;
 
-	if (family == AF_INET6 && cfg_proto != SOCK_STREAM) {
-		/* due to lack of checksum generation code */
-		fprintf(stderr, "test: skipping datagram over IPv6\n");
-		return;
-	}
-
 	total_len = cfg_payload_len;
-	if (cfg_proto == SOCK_RAW) {
+	if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
 		total_len += sizeof(struct udphdr);
-		if (cfg_ipproto == IPPROTO_RAW)
-			total_len += sizeof(struct iphdr);
+		if (cfg_use_pf_packet || cfg_ipproto == IPPROTO_RAW)
+			if (family == PF_INET)
+				total_len += sizeof(struct iphdr);
+			else
+				total_len += sizeof(struct ipv6hdr);
+
+		/* special case, only rawv6_sendmsg:
+		 * pass proto in sin6_port if not connected
+		 * also see ANK comment in net/ipv4/raw.c
+		 */
+		daddr6.sin6_port = htons(cfg_ipproto);
 	}
 
 	buf = malloc(total_len);
 	if (!buf)
 		error(1, 0, "malloc");
 
-	fd = socket(family, cfg_proto, cfg_ipproto);
+	fd = socket(cfg_use_pf_packet ? PF_PACKET : family,
+		    cfg_proto, cfg_ipproto);
 	if (fd < 0)
 		error(1, errno, "socket");
+
+	/* reset expected key on each new socket */
+	saved_tskey = -1;
 
 	if (cfg_proto == SOCK_STREAM) {
 		if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
@@ -321,54 +460,80 @@ static void do_test(int family, unsigned int opt)
 		}
 	}
 
-	opt |= SOF_TIMESTAMPING_SOFTWARE |
-	       SOF_TIMESTAMPING_OPT_CMSG |
-	       SOF_TIMESTAMPING_OPT_ID;
+	sock_opt = SOF_TIMESTAMPING_SOFTWARE |
+		   SOF_TIMESTAMPING_OPT_CMSG |
+		   SOF_TIMESTAMPING_OPT_ID;
+
+	if (!cfg_use_cmsg)
+		sock_opt |= report_opt;
+
 	if (cfg_loop_nodata)
-		opt |= SOF_TIMESTAMPING_OPT_TSONLY;
+		sock_opt |= SOF_TIMESTAMPING_OPT_TSONLY;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
-		       (char *) &opt, sizeof(opt)))
+		       (char *) &sock_opt, sizeof(sock_opt)))
 		error(1, 0, "setsockopt timestamping");
 
 	for (i = 0; i < cfg_num_pkts; i++) {
-		memset(&ts_prev, 0, sizeof(ts_prev));
+		memset(&msg, 0, sizeof(msg));
 		memset(buf, 'a' + i, total_len);
 
-		if (cfg_proto == SOCK_RAW) {
-			struct udphdr *udph;
+		if (cfg_use_pf_packet || cfg_proto == SOCK_RAW) {
 			int off = 0;
 
-			if (cfg_ipproto == IPPROTO_RAW) {
-				struct iphdr *iph = (void *) buf;
-
-				memset(iph, 0, sizeof(*iph));
-				iph->ihl      = 5;
-				iph->version  = 4;
-				iph->ttl      = 2;
-				iph->daddr    = daddr.sin_addr.s_addr;
-				iph->protocol = IPPROTO_UDP;
-				/* kernel writes saddr, csum, len */
-
-				off = sizeof(*iph);
+			if (cfg_use_pf_packet || cfg_ipproto == IPPROTO_RAW) {
+				if (family == PF_INET)
+					off = fill_header_ipv4(buf);
+				else
+					off = fill_header_ipv6(buf);
 			}
 
-			udph = (void *) buf + off;
-			udph->source = ntohs(9000); 	/* random spoof */
-			udph->dest   = ntohs(dest_port);
-			udph->len    = ntohs(sizeof(*udph) + cfg_payload_len);
-			udph->check  = 0;	/* not allowed for IPv6 */
+			fill_header_udp(buf + off, family == PF_INET);
 		}
 
 		print_timestamp_usr();
+
+		iov.iov_base = buf;
+		iov.iov_len = total_len;
+
 		if (cfg_proto != SOCK_STREAM) {
-			if (family == PF_INET)
-				val = sendto(fd, buf, total_len, 0, (void *) &daddr, sizeof(daddr));
-			else
-				val = sendto(fd, buf, total_len, 0, (void *) &daddr6, sizeof(daddr6));
-		} else {
-			val = send(fd, buf, cfg_payload_len, 0);
+			if (cfg_use_pf_packet) {
+				memset(&laddr, 0, sizeof(laddr));
+
+				laddr.sll_family	= AF_PACKET;
+				laddr.sll_ifindex	= 1;
+				laddr.sll_protocol	= htons(family == AF_INET ? ETH_P_IP : ETH_P_IPV6);
+				laddr.sll_halen		= ETH_ALEN;
+
+				msg.msg_name = (void *)&laddr;
+				msg.msg_namelen = sizeof(laddr);
+			} else if (family == PF_INET) {
+				msg.msg_name = (void *)&daddr;
+				msg.msg_namelen = sizeof(daddr);
+			} else {
+				msg.msg_name = (void *)&daddr6;
+				msg.msg_namelen = sizeof(daddr6);
+			}
 		}
+
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+
+		if (cfg_use_cmsg) {
+			memset(control, 0, sizeof(control));
+
+			msg.msg_control = control;
+			msg.msg_controllen = sizeof(control);
+
+			cmsg = CMSG_FIRSTHDR(&msg);
+			cmsg->cmsg_level = SOL_SOCKET;
+			cmsg->cmsg_type = SO_TIMESTAMPING;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(uint32_t));
+
+			*((uint32_t *) CMSG_DATA(cmsg)) = report_opt;
+		}
+
+		val = sendmsg(fd, &msg, 0);
 		if (val != total_len)
 			error(1, errno, "send");
 
@@ -385,7 +550,7 @@ static void do_test(int family, unsigned int opt)
 		error(1, errno, "close");
 
 	free(buf);
-	usleep(400 * 1000);
+	usleep(100 * 1000);
 }
 
 static void __attribute__((noreturn)) usage(const char *filepath)
@@ -396,15 +561,20 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -6:   only IPv6\n"
 			"  -h:   show this message\n"
 			"  -c N: number of packets for each test\n"
+			"  -C:   use cmsg to set tstamp recording options\n"
 			"  -D:   no delay between packets\n"
 			"  -F:   poll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
+			"  -L    listen on hostname and port\n"
 			"  -n:   set no-payload option\n"
+			"  -p N: connect to port N\n"
+			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
 			"  -R:   use raw (IP_HDRINCL)\n"
-			"  -p N: connect to port N\n"
 			"  -u:   use udp\n"
+			"  -v:   validate SND delay (usec)\n"
+			"  -V:   validate ACK delay (usec)\n"
 			"  -x:   show payload (up to 70 bytes)\n",
 			filepath);
 	exit(1);
@@ -413,9 +583,9 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 static void parse_opt(int argc, char **argv)
 {
 	int proto_count = 0;
-	char c;
+	int c;
 
-	while ((c = getopt(argc, argv, "46c:DFhIl:np:rRux")) != -1) {
+	while ((c = getopt(argc, argv, "46c:CDFhIl:Lnp:PrRuv:V:x")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
@@ -426,6 +596,9 @@ static void parse_opt(int argc, char **argv)
 		case 'c':
 			cfg_num_pkts = strtoul(optarg, NULL, 10);
 			break;
+		case 'C':
+			cfg_use_cmsg = true;
+			break;
 		case 'D':
 			cfg_no_delay = true;
 			break;
@@ -435,8 +608,23 @@ static void parse_opt(int argc, char **argv)
 		case 'I':
 			cfg_do_pktinfo = true;
 			break;
+		case 'l':
+			cfg_payload_len = strtoul(optarg, NULL, 10);
+			break;
+		case 'L':
+			cfg_do_listen = true;
+			break;
 		case 'n':
 			cfg_loop_nodata = true;
+			break;
+		case 'p':
+			dest_port = strtoul(optarg, NULL, 10);
+			break;
+		case 'P':
+			proto_count++;
+			cfg_use_pf_packet = true;
+			cfg_proto = SOCK_DGRAM;
+			cfg_ipproto = 0;
 			break;
 		case 'r':
 			proto_count++;
@@ -453,11 +641,11 @@ static void parse_opt(int argc, char **argv)
 			cfg_proto = SOCK_DGRAM;
 			cfg_ipproto = IPPROTO_UDP;
 			break;
-		case 'l':
-			cfg_payload_len = strtoul(optarg, NULL, 10);
+		case 'v':
+			cfg_delay_snd = strtoul(optarg, NULL, 10);
 			break;
-		case 'p':
-			dest_port = strtoul(optarg, NULL, 10);
+		case 'V':
+			cfg_delay_ack = strtoul(optarg, NULL, 10);
 			break;
 		case 'x':
 			cfg_show_payload = true;
@@ -475,7 +663,9 @@ static void parse_opt(int argc, char **argv)
 	if (!do_ipv4 && !do_ipv6)
 		error(1, 0, "pass -4 or -6, not both");
 	if (proto_count > 1)
-		error(1, 0, "pass -r, -R or -u, not multiple");
+		error(1, 0, "pass -P, -r, -R or -u, not multiple");
+	if (cfg_do_pktinfo && cfg_use_pf_packet)
+		error(1, 0, "cannot ask for pktinfo over pf_packet");
 
 	if (optind != argc - 1)
 		error(1, 0, "missing required hostname argument");
@@ -483,10 +673,12 @@ static void parse_opt(int argc, char **argv)
 
 static void resolve_hostname(const char *hostname)
 {
+	struct addrinfo hints = { .ai_family = do_ipv4 ? AF_INET : AF_INET6 };
 	struct addrinfo *addrs, *cur;
 	int have_ipv4 = 0, have_ipv6 = 0;
 
-	if (getaddrinfo(hostname, NULL, NULL, &addrs))
+retry:
+	if (getaddrinfo(hostname, NULL, &hints, &addrs))
 		error(1, errno, "getaddrinfo");
 
 	cur = addrs;
@@ -506,14 +698,41 @@ static void resolve_hostname(const char *hostname)
 	if (addrs)
 		freeaddrinfo(addrs);
 
+	if (do_ipv6 && hints.ai_family != AF_INET6) {
+		hints.ai_family = AF_INET6;
+		goto retry;
+	}
+
 	do_ipv4 &= have_ipv4;
 	do_ipv6 &= have_ipv6;
 }
 
+static void do_listen(int family, void *addr, int alen)
+{
+	int fd, type;
+
+	type = cfg_proto == SOCK_RAW ? SOCK_DGRAM : cfg_proto;
+
+	fd = socket(family, type, 0);
+	if (fd == -1)
+		error(1, errno, "socket rx");
+
+	if (bind(fd, addr, alen))
+		error(1, errno, "bind rx");
+
+	if (type == SOCK_STREAM && listen(fd, 10))
+		error(1, errno, "listen rx");
+
+	/* leave fd open, will be closed on process exit.
+	 * this enables connect() to succeed and avoids icmp replies
+	 */
+}
+
 static void do_main(int family)
 {
-	fprintf(stderr, "family:       %s\n",
-			family == PF_INET ? "INET" : "INET6");
+	fprintf(stderr, "family:       %s %s\n",
+			family == PF_INET ? "INET" : "INET6",
+			cfg_use_pf_packet ? "(PF_PACKET)" : "");
 
 	fprintf(stderr, "test SND\n");
 	do_test(family, SOF_TIMESTAMPING_TX_SOFTWARE);
@@ -555,10 +774,17 @@ int main(int argc, char **argv)
 	fprintf(stderr, "server port:  %u\n", dest_port);
 	fprintf(stderr, "\n");
 
-	if (do_ipv4)
+	if (do_ipv4) {
+		if (cfg_do_listen)
+			do_listen(PF_INET, &daddr, sizeof(daddr));
 		do_main(PF_INET);
-	if (do_ipv6)
-		do_main(PF_INET6);
+	}
 
-	return 0;
+	if (do_ipv6) {
+		if (cfg_do_listen)
+			do_listen(PF_INET6, &daddr6, sizeof(daddr6));
+		do_main(PF_INET6);
+	}
+
+	return test_failed;
 }

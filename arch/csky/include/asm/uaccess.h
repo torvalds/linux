@@ -16,10 +16,7 @@
 #include <linux/version.h>
 #include <asm/segment.h>
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
-static inline int access_ok(int type, const void *addr, unsigned long size)
+static inline int access_ok(const void *addr, unsigned long size)
 {
 	unsigned long limit = current_thread_info()->addr_limit.seg;
 
@@ -27,12 +24,7 @@ static inline int access_ok(int type, const void *addr, unsigned long size)
 		((unsigned long)(addr + size) < limit));
 }
 
-static inline int verify_area(int type, const void *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
-#define __addr_ok(addr) (access_ok(VERIFY_READ, addr, 0))
+#define __addr_ok(addr) (access_ok(addr, 0))
 
 extern int __put_user_bad(void);
 
@@ -91,7 +83,7 @@ extern int __put_user_bad(void);
 	long __pu_err = -EFAULT;					\
 	typeof(*(ptr)) *__pu_addr = (ptr);				\
 	typeof(*(ptr)) __pu_val = (typeof(*(ptr)))(x);			\
-	if (access_ok(VERIFY_WRITE, __pu_addr, size) && __pu_addr)	\
+	if (access_ok(__pu_addr, size) && __pu_addr)	\
 		__put_user_size(__pu_val, __pu_addr, (size), __pu_err);	\
 	__pu_err;							\
 })
@@ -217,7 +209,7 @@ do {								\
 ({								\
 	int __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);	\
-	if (access_ok(VERIFY_READ, __gu_ptr, size) && __gu_ptr)	\
+	if (access_ok(__gu_ptr, size) && __gu_ptr)	\
 		__get_user_size(x, __gu_ptr, size, __gu_err);	\
 	__gu_err;						\
 })

@@ -1,0 +1,17 @@
+* Freescale i.MX8MQ USB3 PHY binding
+
+Required properties:
+- compatible:	Should be "fsl,imx8mq-usb-phy"
+- #phys-cells:	must be 0 (see phy-bindings.txt in this directory)
+- reg:		The base address and length of the registers
+- clocks:	phandles to the clocks for each clock listed in clock-names
+- clock-names:	must contain "phy"
+
+Example:
+	usb3_phy0: phy@381f0040 {
+		compatible = "fsl,imx8mq-usb-phy";
+		reg = <0x381f0040 0x40>;
+		clocks = <&clk IMX8MQ_CLK_USB1_PHY_ROOT>;
+		clock-names = "phy";
+		#phy-cells = <0>;
+	};

@@ -15,12 +15,15 @@
 #include <linux/delay.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
 
 /*
  * MT9M111, MT9M112 and MT9M131:
@@ -101,6 +104,7 @@
 #define MT9M111_REDUCER_XSIZE_A		0x1a7
 #define MT9M111_REDUCER_YZOOM_A		0x1a9
 #define MT9M111_REDUCER_YSIZE_A		0x1aa
+#define MT9M111_EFFECTS_MODE		0x1e2
 
 #define MT9M111_OUTPUT_FORMAT_CTRL2_A	0x13a
 #define MT9M111_OUTPUT_FORMAT_CTRL2_B	0x19b
@@ -126,6 +130,9 @@
 #define MT9M111_OUTFMT_SWAP_YCbCr_C_Y_RGB_EVEN	(1 << 1)
 #define MT9M111_OUTFMT_SWAP_YCbCr_Cb_Cr_RGB_R_B	(1 << 0)
 #define MT9M111_TPG_SEL_MASK		GENMASK(2, 0)
+#define MT9M111_EFFECTS_MODE_MASK	GENMASK(2, 0)
+#define MT9M111_RM_PWR_MASK		BIT(10)
+#define MT9M111_RM_SKIP2_MASK		GENMASK(3, 2)
 
 /*
  * Camera control register addresses (0x200..0x2ff not implemented)
@@ -204,6 +211,23 @@ static const struct mt9m111_datafmt mt9m111_colour_fmts[] = {
 	{MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
 };
 
+enum mt9m111_mode_id {
+	MT9M111_MODE_SXGA_8FPS,
+	MT9M111_MODE_SXGA_15FPS,
+	MT9M111_MODE_QSXGA_30FPS,
+	MT9M111_NUM_MODES,
+};
+
+struct mt9m111_mode_info {
+	unsigned int sensor_w;
+	unsigned int sensor_h;
+	unsigned int max_image_w;
+	unsigned int max_image_h;
+	unsigned int max_fps;
+	unsigned int reg_val;
+	unsigned int reg_mask;
+};
+
 struct mt9m111 {
 	struct v4l2_subdev subdev;
 	struct v4l2_ctrl_handler hdl;
@@ -213,13 +237,49 @@ struct mt9m111 {
 	struct v4l2_clk *clk;
 	unsigned int width;	/* output */
 	unsigned int height;	/* sizes */
+	struct v4l2_fract frame_interval;
+	const struct mt9m111_mode_info *current_mode;
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+	bool is_streaming;
+	/* user point of view - 0: falling 1: rising edge */
+	unsigned int pclk_sample:1;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
 #endif
+};
+
+static const struct mt9m111_mode_info mt9m111_mode_data[MT9M111_NUM_MODES] = {
+	[MT9M111_MODE_SXGA_8FPS] = {
+		.sensor_w = 1280,
+		.sensor_h = 1024,
+		.max_image_w = 1280,
+		.max_image_h = 1024,
+		.max_fps = 8,
+		.reg_val = MT9M111_RM_LOW_POWER_RD,
+		.reg_mask = MT9M111_RM_PWR_MASK | MT9M111_RM_SKIP2_MASK,
+	},
+	[MT9M111_MODE_SXGA_15FPS] = {
+		.sensor_w = 1280,
+		.sensor_h = 1024,
+		.max_image_w = 1280,
+		.max_image_h = 1024,
+		.max_fps = 15,
+		.reg_val = MT9M111_RM_FULL_POWER_RD,
+		.reg_mask = MT9M111_RM_PWR_MASK | MT9M111_RM_SKIP2_MASK,
+	},
+	[MT9M111_MODE_QSXGA_30FPS] = {
+		.sensor_w = 1280,
+		.sensor_h = 1024,
+		.max_image_w = 640,
+		.max_image_h = 512,
+		.max_fps = 30,
+		.reg_val = MT9M111_RM_LOW_POWER_RD | MT9M111_RM_COL_SKIP_2X |
+			   MT9M111_RM_ROW_SKIP_2X,
+		.reg_mask = MT9M111_RM_PWR_MASK | MT9M111_RM_SKIP2_MASK,
+	},
 };
 
 /* Find a data format by a pixel code */
@@ -468,11 +528,24 @@ static int mt9m111_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mf = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		format->format = *mf;
+		return 0;
+#else
+		return -ENOTTY;
+#endif
+	}
+
 	mf->width	= mt9m111->width;
 	mf->height	= mt9m111->height;
 	mf->code	= mt9m111->fmt->code;
 	mf->colorspace	= mt9m111->fmt->colorspace;
 	mf->field	= V4L2_FIELD_NONE;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization	= V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	return 0;
 }
@@ -538,6 +611,10 @@ static int mt9m111_set_pixfmt(struct mt9m111 *mt9m111,
 		return -EINVAL;
 	}
 
+	/* receiver samples on falling edge, chip-hw default is rising */
+	if (mt9m111->pclk_sample == 0)
+		mask_outfmt2 |= MT9M111_OUTFMT_INV_PIX_CLOCK;
+
 	ret = mt9m111_reg_mask(client, context_a.output_fmt_ctrl2,
 			       data_outfmt2, mask_outfmt2);
 	if (!ret)
@@ -558,6 +635,9 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_rect *rect = &mt9m111->rect;
 	bool bayer;
 	int ret;
+
+	if (mt9m111->is_streaming)
+		return -EBUSY;
 
 	if (format->pad)
 		return -EINVAL;
@@ -593,6 +673,10 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 
 	mf->code = fmt->code;
 	mf->colorspace = fmt->colorspace;
+	mf->field	= V4L2_FIELD_NONE;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization	= V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		cfg->try_fmt = *mf;
@@ -609,6 +693,61 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	return ret;
+}
+
+static const struct mt9m111_mode_info *
+mt9m111_find_mode(struct mt9m111 *mt9m111, unsigned int req_fps,
+		  unsigned int width, unsigned int height)
+{
+	const struct mt9m111_mode_info *mode;
+	struct v4l2_rect *sensor_rect = &mt9m111->rect;
+	unsigned int gap, gap_best = (unsigned int) -1;
+	int i, best_gap_idx = MT9M111_MODE_SXGA_15FPS;
+	bool skip_30fps = false;
+
+	/*
+	 * The fps selection is based on the row, column skipping mechanism.
+	 * So ensure that the sensor window is set to default else the fps
+	 * aren't calculated correctly within the sensor hw.
+	 */
+	if (sensor_rect->width != MT9M111_MAX_WIDTH ||
+	    sensor_rect->height != MT9M111_MAX_HEIGHT) {
+		dev_info(mt9m111->subdev.dev,
+			 "Framerate selection is not supported for cropped "
+			 "images\n");
+		return NULL;
+	}
+
+	/* 30fps only supported for images not exceeding 640x512 */
+	if (width > MT9M111_MAX_WIDTH / 2 || height > MT9M111_MAX_HEIGHT / 2) {
+		dev_dbg(mt9m111->subdev.dev,
+			"Framerates > 15fps are supported only for images "
+			"not exceeding 640x512\n");
+		skip_30fps = true;
+	}
+
+	/* find best matched fps */
+	for (i = 0; i < MT9M111_NUM_MODES; i++) {
+		unsigned int fps = mt9m111_mode_data[i].max_fps;
+
+		if (fps == 30 && skip_30fps)
+			continue;
+
+		gap = abs(fps - req_fps);
+		if (gap < gap_best) {
+			best_gap_idx = i;
+			gap_best = gap;
+		}
+	}
+
+	/*
+	 * Use context a/b default timing values instead of calculate blanking
+	 * timing values.
+	 */
+	mode = &mt9m111_mode_data[best_gap_idx];
+	mt9m111->ctx = (best_gap_idx == MT9M111_MODE_QSXGA_30FPS) ? &context_a :
+								    &context_b;
+	return mode;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -726,6 +865,29 @@ static int mt9m111_set_test_pattern(struct mt9m111 *mt9m111, int val)
 				MT9M111_TPG_SEL_MASK);
 }
 
+static int mt9m111_set_colorfx(struct mt9m111 *mt9m111, int val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
+	static const struct v4l2_control colorfx[] = {
+		{ V4L2_COLORFX_NONE,		0 },
+		{ V4L2_COLORFX_BW,		1 },
+		{ V4L2_COLORFX_SEPIA,		2 },
+		{ V4L2_COLORFX_NEGATIVE,	3 },
+		{ V4L2_COLORFX_SOLARIZATION,	4 },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(colorfx); i++) {
+		if (colorfx[i].id == val) {
+			return mt9m111_reg_mask(client, MT9M111_EFFECTS_MODE,
+						colorfx[i].value,
+						MT9M111_EFFECTS_MODE_MASK);
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int mt9m111_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9m111 *mt9m111 = container_of(ctrl->handler,
@@ -746,6 +908,8 @@ static int mt9m111_s_ctrl(struct v4l2_ctrl *ctrl)
 		return mt9m111_set_autowhitebalance(mt9m111, ctrl->val);
 	case V4L2_CID_TEST_PATTERN:
 		return mt9m111_set_test_pattern(mt9m111, ctrl->val);
+	case V4L2_CID_COLORFX:
+		return mt9m111_set_colorfx(mt9m111, ctrl->val);
 	}
 
 	return -EINVAL;
@@ -771,11 +935,16 @@ static int mt9m111_suspend(struct mt9m111 *mt9m111)
 
 static void mt9m111_restore_state(struct mt9m111 *mt9m111)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
+
 	mt9m111_set_context(mt9m111, mt9m111->ctx);
 	mt9m111_set_pixfmt(mt9m111, mt9m111->fmt->code);
 	mt9m111_setup_geometry(mt9m111, &mt9m111->rect,
 			mt9m111->width, mt9m111->height, mt9m111->fmt->code);
 	v4l2_ctrl_handler_setup(&mt9m111->hdl);
+	mt9m111_reg_mask(client, mt9m111->ctx->read_mode,
+			 mt9m111->current_mode->reg_val,
+			 mt9m111->current_mode->reg_mask);
 }
 
 static int mt9m111_resume(struct mt9m111 *mt9m111)
@@ -862,11 +1031,61 @@ static const struct v4l2_ctrl_ops mt9m111_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 	.s_power	= mt9m111_s_power,
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9m111_g_register,
 	.s_register	= mt9m111_s_register,
 #endif
 };
+
+static int mt9m111_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+
+	fi->interval = mt9m111->frame_interval;
+
+	return 0;
+}
+
+static int mt9m111_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+	const struct mt9m111_mode_info *mode;
+	struct v4l2_fract *fract = &fi->interval;
+	int fps;
+
+	if (mt9m111->is_streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		fract->denominator = 30;
+		fract->numerator = 1;
+	}
+
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+
+	/* Find best fitting mode. Do not update the mode if no one was found. */
+	mode = mt9m111_find_mode(mt9m111, fps, mt9m111->width, mt9m111->height);
+	if (!mode)
+		return 0;
+
+	if (mode->max_fps != fps) {
+		fract->denominator = mode->max_fps;
+		fract->numerator = 1;
+	}
+
+	mt9m111->current_mode = mode;
+	mt9m111->frame_interval = fi->interval;
+
+	return 0;
+}
 
 static int mt9m111_enum_mbus_code(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
@@ -879,12 +1098,45 @@ static int mt9m111_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int mt9m111_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+
+	mt9m111->is_streaming = !!enable;
+	return 0;
+}
+
+static int mt9m111_init_cfg(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg)
+{
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *format =
+		v4l2_subdev_get_try_format(sd, cfg, 0);
+
+	format->width	= MT9M111_MAX_WIDTH;
+	format->height	= MT9M111_MAX_HEIGHT;
+	format->code	= mt9m111_colour_fmts[0].code;
+	format->colorspace	= mt9m111_colour_fmts[0].colorspace;
+	format->field	= V4L2_FIELD_NONE;
+	format->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	format->quantization	= V4L2_QUANTIZATION_DEFAULT;
+	format->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
+#endif
+	return 0;
+}
+
 static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
-	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
+	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+
+	cfg->flags = V4L2_MBUS_MASTER |
 		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 		V4L2_MBUS_DATA_ACTIVE_HIGH;
+
+	cfg->flags |= mt9m111->pclk_sample ? V4L2_MBUS_PCLK_SAMPLE_RISING :
+		V4L2_MBUS_PCLK_SAMPLE_FALLING;
+
 	cfg->type = V4L2_MBUS_PARALLEL;
 
 	return 0;
@@ -892,9 +1144,13 @@ static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.g_mbus_config	= mt9m111_g_mbus_config,
+	.s_stream	= mt9m111_s_stream,
+	.g_frame_interval = mt9m111_g_frame_interval,
+	.s_frame_interval = mt9m111_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
+	.init_cfg	= mt9m111_init_cfg,
 	.enum_mbus_code = mt9m111_enum_mbus_code,
 	.get_selection	= mt9m111_get_selection,
 	.set_selection	= mt9m111_set_selection,
@@ -951,6 +1207,30 @@ done:
 	return ret;
 }
 
+static int mt9m111_probe_fw(struct i2c_client *client, struct mt9m111 *mt9m111)
+{
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_PARALLEL
+	};
+	struct fwnode_handle *np;
+	int ret;
+
+	np = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	if (!np)
+		return -EINVAL;
+
+	ret = v4l2_fwnode_endpoint_parse(np, &bus_cfg);
+	if (ret)
+		goto out_put_fw;
+
+	mt9m111->pclk_sample = !!(bus_cfg.bus.parallel.flags &
+				  V4L2_MBUS_PCLK_SAMPLE_RISING);
+
+out_put_fw:
+	fwnode_handle_put(np);
+	return ret;
+}
+
 static int mt9m111_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
@@ -968,6 +1248,10 @@ static int mt9m111_probe(struct i2c_client *client,
 	if (!mt9m111)
 		return -ENOMEM;
 
+	ret = mt9m111_probe_fw(client, mt9m111);
+	if (ret)
+		return ret;
+
 	mt9m111->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(mt9m111->clk))
 		return PTR_ERR(mt9m111->clk);
@@ -976,9 +1260,10 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->ctx = &context_b;
 
 	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
-	mt9m111->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	mt9m111->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+				 V4L2_SUBDEV_FL_HAS_EVENTS;
 
-	v4l2_ctrl_handler_init(&mt9m111->hdl, 5);
+	v4l2_ctrl_handler_init(&mt9m111->hdl, 7);
 	v4l2_ctrl_new_std(&mt9m111->hdl, &mt9m111_ctrl_ops,
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&mt9m111->hdl, &mt9m111_ctrl_ops,
@@ -994,6 +1279,14 @@ static int mt9m111_probe(struct i2c_client *client,
 			&mt9m111_ctrl_ops, V4L2_CID_TEST_PATTERN,
 			ARRAY_SIZE(mt9m111_test_pattern_menu) - 1, 0, 0,
 			mt9m111_test_pattern_menu);
+	v4l2_ctrl_new_std_menu(&mt9m111->hdl, &mt9m111_ctrl_ops,
+			V4L2_CID_COLORFX, V4L2_COLORFX_SOLARIZATION,
+			~(BIT(V4L2_COLORFX_NONE) |
+				BIT(V4L2_COLORFX_BW) |
+				BIT(V4L2_COLORFX_SEPIA) |
+				BIT(V4L2_COLORFX_NEGATIVE) |
+				BIT(V4L2_COLORFX_SOLARIZATION)),
+			V4L2_COLORFX_NONE);
 	mt9m111->subdev.ctrl_handler = &mt9m111->hdl;
 	if (mt9m111->hdl.error) {
 		ret = mt9m111->hdl.error;
@@ -1008,11 +1301,17 @@ static int mt9m111_probe(struct i2c_client *client,
 		goto out_hdlfree;
 #endif
 
+	mt9m111->current_mode = &mt9m111_mode_data[MT9M111_MODE_SXGA_15FPS];
+	mt9m111->frame_interval.numerator = 1;
+	mt9m111->frame_interval.denominator = mt9m111->current_mode->max_fps;
+
 	/* Second stage probe - when a capture adapter is there */
 	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
 	mt9m111->rect.top	= MT9M111_MIN_DARK_ROWS;
 	mt9m111->rect.width	= MT9M111_MAX_WIDTH;
 	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
+	mt9m111->width		= mt9m111->rect.width;
+	mt9m111->height		= mt9m111->rect.height;
 	mt9m111->fmt		= &mt9m111_colour_fmts[0];
 	mt9m111->lastpage	= -1;
 	mutex_init(&mt9m111->power_lock);

@@ -33,16 +33,16 @@
  */
 
 #define SAVE_CP_REGS(x)							\
-	.align 4;							\
-	.Lsave_cp_regs_cp##x:						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.align 4;						\
+	.Lsave_cp_regs_cp##x:						\
 		xchal_cp##x##_store a2 a4 a5 a6 a7;			\
-	.endif;								\
-	jx	a0
+		jx	a0;						\
+	.endif
 
 #define SAVE_CP_REGS_TAB(x)						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
-		.long .Lsave_cp_regs_cp##x - .Lsave_cp_regs_jump_table;	\
+		.long .Lsave_cp_regs_cp##x;				\
 	.else;								\
 		.long 0;						\
 	.endif;								\
@@ -50,16 +50,16 @@
 
 
 #define LOAD_CP_REGS(x)							\
-	.align 4;							\
-	.Lload_cp_regs_cp##x:						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.align 4;						\
+	.Lload_cp_regs_cp##x:						\
 		xchal_cp##x##_load a2 a4 a5 a6 a7;			\
-	.endif;								\
-	jx	a0
+		jx	a0;						\
+	.endif
 
 #define LOAD_CP_REGS_TAB(x)						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
-		.long .Lload_cp_regs_cp##x - .Lload_cp_regs_jump_table; \
+		.long .Lload_cp_regs_cp##x;				\
 	.else;								\
 		.long 0;						\
 	.endif;								\
@@ -83,6 +83,7 @@
 	LOAD_CP_REGS(6)
 	LOAD_CP_REGS(7)
 
+	.section ".rodata", "a"
 	.align 4
 .Lsave_cp_regs_jump_table:
 	SAVE_CP_REGS_TAB(0)
@@ -104,63 +105,19 @@
 	LOAD_CP_REGS_TAB(6)
 	LOAD_CP_REGS_TAB(7)
 
-/*
- * coprocessor_save(buffer, index) 
- *                    a2      a3
- * coprocessor_load(buffer, index)
- *                    a2      a3
- *
- * Save or load coprocessor registers for coprocessor 'index'. 
- * The register values are saved to or loaded from them 'buffer' address.
- *
- * Note that these functions don't update the coprocessor_owner information!
- *
- */
-
-ENTRY(coprocessor_save)
-
-	entry	a1, 32
-	s32i	a0, a1, 0
-	movi	a0, .Lsave_cp_regs_jump_table
-	addx8	a3, a3, a0
-	l32i	a3, a3, 0
-	beqz	a3, 1f
-	add	a0, a0, a3
-	callx0	a0
-1:	l32i	a0, a1, 0
-	retw
-
-ENDPROC(coprocessor_save)
-
-ENTRY(coprocessor_load)
-
-	entry	a1, 32
-	s32i	a0, a1, 0
-	movi	a0, .Lload_cp_regs_jump_table
-	addx4	a3, a3, a0
-	l32i	a3, a3, 0
-	beqz	a3, 1f
-	add	a0, a0, a3
-	callx0	a0
-1:	l32i	a0, a1, 0
-	retw
-
-ENDPROC(coprocessor_load)
+	.previous
 
 /*
- * coprocessor_flush(struct task_info*, index)
+ * coprocessor_flush(struct thread_info*, index)
  *                             a2        a3
- * coprocessor_restore(struct task_info*, index)
- *                              a2         a3
  *
- * Save or load coprocessor registers for coprocessor 'index'. 
+ * Save coprocessor registers for coprocessor 'index'.
  * The register values are saved to or loaded from the coprocessor area 
  * inside the task_info structure.
  *
- * Note that these functions don't update the coprocessor_owner information!
+ * Note that this function doesn't update the coprocessor_owner information!
  *
  */
-
 
 ENTRY(coprocessor_flush)
 
@@ -172,28 +129,11 @@ ENTRY(coprocessor_flush)
 	l32i	a3, a3, 0
 	add	a2, a2, a4
 	beqz	a3, 1f
-	add	a0, a0, a3
-	callx0	a0
+	callx0	a3
 1:	l32i	a0, a1, 0
 	retw
 
 ENDPROC(coprocessor_flush)
-
-ENTRY(coprocessor_restore)
-	entry	a1, 32
-	s32i	a0, a1, 0
-	movi	a0, .Lload_cp_regs_jump_table
-	addx4	a3, a3, a0
-	l32i	a4, a3, 4
-	l32i	a3, a3, 0
-	add	a2, a2, a4
-	beqz	a3, 1f
-	add	a0, a0, a3
-	callx0	a0
-1:	l32i	a0, a1, 0
-	retw
-
-ENDPROC(coprocessor_restore)
 
 /*
  * Entry condition:
@@ -274,10 +214,9 @@ ENTRY(fast_coprocessor)
 	movi	a0, 2f			# a0: 'return' address
 	addx8	a3, a3, a5		# a3: coprocessor number
 	l32i	a2, a3, 4		# a2: xtregs offset
-	l32i	a3, a3, 0		# a3: jump offset
+	l32i	a3, a3, 0		# a3: jump address
 	add	a2, a2, a4
-	add	a4, a3, a5		# a4: address of save routine
-	jx	a4
+	jx	a3
 
 	/* Note that only a0 and a1 were preserved. */
 
@@ -297,10 +236,9 @@ ENTRY(fast_coprocessor)
 	movi	a0, 1f
 	addx8	a3, a3, a5
 	l32i	a2, a3, 4		# a2: xtregs offset
-	l32i	a3, a3, 0		# a3: jump offset
+	l32i	a3, a3, 0		# a3: jump address
 	add	a2, a2, a4
-	add	a4, a3, a5
-	jx	a4
+	jx	a3
 
 	/* Restore all registers and return from exception handler. */
 

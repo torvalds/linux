@@ -315,7 +315,7 @@ static int brcmf_sdiod_skbuff_read(struct brcmf_sdio_dev *sdiodev,
 		/* bail out as things are really fishy here */
 		WARN(1, "invalid sdio function number: %d\n", func->num);
 		err = -ENOMEDIUM;
-	};
+	}
 
 	if (err == -ENOMEDIUM)
 		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
@@ -342,6 +342,37 @@ static int brcmf_sdiod_skbuff_write(struct brcmf_sdio_dev *sdiodev,
 	return err;
 }
 
+static int mmc_submit_one(struct mmc_data *md, struct mmc_request *mr,
+			  struct mmc_command *mc, int sg_cnt, int req_sz,
+			  int func_blk_sz, u32 *addr,
+			  struct brcmf_sdio_dev *sdiodev,
+			  struct sdio_func *func, int write)
+{
+	int ret;
+
+	md->sg_len = sg_cnt;
+	md->blocks = req_sz / func_blk_sz;
+	mc->arg |= (*addr & 0x1FFFF) << 9;	/* address */
+	mc->arg |= md->blocks & 0x1FF;	/* block count */
+	/* incrementing addr for function 1 */
+	if (func->num == 1)
+		*addr += req_sz;
+
+	mmc_set_data_timeout(md, func->card);
+	mmc_wait_for_req(func->card->host, mr);
+
+	ret = mc->error ? mc->error : md->error;
+	if (ret == -ENOMEDIUM) {
+		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
+	} else if (ret != 0) {
+		brcmf_err("CMD53 sg block %s failed %d\n",
+			  write ? "write" : "read", ret);
+		ret = -EIO;
+	}
+
+	return ret;
+}
+
 /**
  * brcmf_sdiod_sglist_rw - SDIO interface function for block data access
  * @sdiodev: brcmfmac sdio device
@@ -360,11 +391,11 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
 				 struct sk_buff_head *pktlist)
 {
 	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
-	unsigned int max_req_sz, orig_offset, dst_offset;
-	unsigned short max_seg_cnt, seg_sz;
+	unsigned int max_req_sz, src_offset, dst_offset;
 	unsigned char *pkt_data, *orig_data, *dst_data;
-	struct sk_buff *pkt_next = NULL, *local_pkt_next;
 	struct sk_buff_head local_list, *target_list;
+	struct sk_buff *pkt_next = NULL, *src;
+	unsigned short max_seg_cnt;
 	struct mmc_request mmc_req;
 	struct mmc_command mmc_cmd;
 	struct mmc_data mmc_dat;
@@ -404,9 +435,6 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
 	max_req_sz = sdiodev->max_request_size;
 	max_seg_cnt = min_t(unsigned short, sdiodev->max_segment_count,
 			    target_list->qlen);
-	seg_sz = target_list->qlen;
-	pkt_offset = 0;
-	pkt_next = target_list->next;
 
 	memset(&mmc_req, 0, sizeof(struct mmc_request));
 	memset(&mmc_cmd, 0, sizeof(struct mmc_command));
@@ -425,12 +453,12 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
 	mmc_req.cmd = &mmc_cmd;
 	mmc_req.data = &mmc_dat;
 
-	while (seg_sz) {
-		req_sz = 0;
-		sg_cnt = 0;
-		sgl = sdiodev->sgtable.sgl;
-		/* prep sg table */
-		while (pkt_next != (struct sk_buff *)target_list) {
+	req_sz = 0;
+	sg_cnt = 0;
+	sgl = sdiodev->sgtable.sgl;
+	skb_queue_walk(target_list, pkt_next) {
+		pkt_offset = 0;
+		while (pkt_offset < pkt_next->len) {
 			pkt_data = pkt_next->data + pkt_offset;
 			sg_data_sz = pkt_next->len - pkt_offset;
 			if (sg_data_sz > sdiodev->max_segment_size)
@@ -439,72 +467,55 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
 				sg_data_sz = max_req_sz - req_sz;
 
 			sg_set_buf(sgl, pkt_data, sg_data_sz);
-
 			sg_cnt++;
+
 			sgl = sg_next(sgl);
 			req_sz += sg_data_sz;
 			pkt_offset += sg_data_sz;
-			if (pkt_offset == pkt_next->len) {
-				pkt_offset = 0;
-				pkt_next = pkt_next->next;
+			if (req_sz >= max_req_sz || sg_cnt >= max_seg_cnt) {
+				ret = mmc_submit_one(&mmc_dat, &mmc_req, &mmc_cmd,
+						     sg_cnt, req_sz, func_blk_sz,
+						     &addr, sdiodev, func, write);
+				if (ret)
+					goto exit_queue_walk;
+				req_sz = 0;
+				sg_cnt = 0;
+				sgl = sdiodev->sgtable.sgl;
 			}
-
-			if (req_sz >= max_req_sz || sg_cnt >= max_seg_cnt)
-				break;
-		}
-		seg_sz -= sg_cnt;
-
-		if (req_sz % func_blk_sz != 0) {
-			brcmf_err("sg request length %u is not %u aligned\n",
-				  req_sz, func_blk_sz);
-			ret = -ENOTBLK;
-			goto exit;
-		}
-
-		mmc_dat.sg_len = sg_cnt;
-		mmc_dat.blocks = req_sz / func_blk_sz;
-		mmc_cmd.arg |= (addr & 0x1FFFF) << 9;	/* address */
-		mmc_cmd.arg |= mmc_dat.blocks & 0x1FF;	/* block count */
-		/* incrementing addr for function 1 */
-		if (func->num == 1)
-			addr += req_sz;
-
-		mmc_set_data_timeout(&mmc_dat, func->card);
-		mmc_wait_for_req(func->card->host, &mmc_req);
-
-		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
-		if (ret == -ENOMEDIUM) {
-			brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
-			break;
-		} else if (ret != 0) {
-			brcmf_err("CMD53 sg block %s failed %d\n",
-				  write ? "write" : "read", ret);
-			ret = -EIO;
-			break;
 		}
 	}
-
+	if (sg_cnt)
+		ret = mmc_submit_one(&mmc_dat, &mmc_req, &mmc_cmd,
+				     sg_cnt, req_sz, func_blk_sz,
+				     &addr, sdiodev, func, write);
+exit_queue_walk:
 	if (!write && sdiodev->settings->bus.sdio.broken_sg_support) {
-		local_pkt_next = local_list.next;
-		orig_offset = 0;
+		src = __skb_peek(&local_list);
+		src_offset = 0;
 		skb_queue_walk(pktlist, pkt_next) {
 			dst_offset = 0;
-			do {
-				req_sz = local_pkt_next->len - orig_offset;
-				req_sz = min_t(uint, pkt_next->len - dst_offset,
-					       req_sz);
-				orig_data = local_pkt_next->data + orig_offset;
+
+			/* This is safe because we must have enough SKB data
+			 * in the local list to cover everything in pktlist.
+			 */
+			while (1) {
+				req_sz = pkt_next->len - dst_offset;
+				if (req_sz > src->len - src_offset)
+					req_sz = src->len - src_offset;
+
+				orig_data = src->data + src_offset;
 				dst_data = pkt_next->data + dst_offset;
 				memcpy(dst_data, orig_data, req_sz);
-				orig_offset += req_sz;
-				dst_offset += req_sz;
-				if (orig_offset == local_pkt_next->len) {
-					orig_offset = 0;
-					local_pkt_next = local_pkt_next->next;
+
+				src_offset += req_sz;
+				if (src_offset == src->len) {
+					src_offset = 0;
+					src = skb_peek_next(src, &local_list);
 				}
+				dst_offset += req_sz;
 				if (dst_offset == pkt_next->len)
 					break;
-			} while (!skb_queue_empty(&local_list));
+			}
 		}
 	}
 
@@ -972,6 +983,7 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4354),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4356),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_CYPRESS_4373),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_CYPRESS_43012),
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);

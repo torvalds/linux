@@ -50,6 +50,8 @@ static const struct usb_device_id appledisplay_table[] = {
 	{ APPLEDISPLAY_DEVICE(0x9219) },
 	{ APPLEDISPLAY_DEVICE(0x921c) },
 	{ APPLEDISPLAY_DEVICE(0x921d) },
+	{ APPLEDISPLAY_DEVICE(0x9222) },
+	{ APPLEDISPLAY_DEVICE(0x9226) },
 	{ APPLEDISPLAY_DEVICE(0x9236) },
 
 	/* Terminating entry */
@@ -67,7 +69,6 @@ struct appledisplay {
 
 	struct delayed_work work;
 	int button_pressed;
-	spinlock_t lock;
 	struct mutex sysfslock;		/* concurrent read and write */
 };
 
@@ -77,7 +78,6 @@ static void appledisplay_complete(struct urb *urb)
 {
 	struct appledisplay *pdata = urb->context;
 	struct device *dev = &pdata->udev->dev;
-	unsigned long flags;
 	int status = urb->status;
 	int retval;
 
@@ -103,8 +103,6 @@ static void appledisplay_complete(struct urb *urb)
 		goto exit;
 	}
 
-	spin_lock_irqsave(&pdata->lock, flags);
-
 	switch(pdata->urbdata[1]) {
 	case ACD_BTN_BRIGHT_UP:
 	case ACD_BTN_BRIGHT_DOWN:
@@ -116,8 +114,6 @@ static void appledisplay_complete(struct urb *urb)
 		pdata->button_pressed = 0;
 		break;
 	}
-
-	spin_unlock_irqrestore(&pdata->lock, flags);
 
 exit:
 	retval = usb_submit_urb(pdata->urb, GFP_ATOMIC);
@@ -227,7 +223,6 @@ static int appledisplay_probe(struct usb_interface *iface,
 
 	pdata->udev = udev;
 
-	spin_lock_init(&pdata->lock);
 	INIT_DELAYED_WORK(&pdata->work, appledisplay_work);
 	mutex_init(&pdata->sysfslock);
 
@@ -259,6 +254,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 		usb_rcvintpipe(udev, int_in_endpointAddr),
 		pdata->urbdata, ACD_URB_BUFFER_LEN, appledisplay_complete,
 		pdata, 1);
+	pdata->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(pdata->urb, GFP_KERNEL)) {
 		retval = -EIO;
 		dev_err(&iface->dev, "Submitting URB failed\n");

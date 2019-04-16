@@ -1215,7 +1215,7 @@ pkt_session_set_property_4xx(struct hfi_session_set_property_pkt *pkt,
 	}
 	case HFI_PROPERTY_CONFIG_VENC_MAX_BITRATE:
 		/* not implemented on Venus 4xx */
-		break;
+		return -ENOTSUPP;
 	default:
 		return pkt_session_set_property_3xx(pkt, cookie, ptype, pdata);
 	}

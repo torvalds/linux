@@ -16,14 +16,17 @@
 #include <linux/slab.h>
 
 #include <linux/phy/phy.h>
+#include <linux/phy/phy-mipi-dphy.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
+#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
+#include "sun4i_tcon.h"
 #include "sun6i_mipi_dsi.h"
 
 #include <video/mipi_display.h>
@@ -32,6 +35,8 @@
 #define SUN6I_DSI_CTL_EN			BIT(0)
 
 #define SUN6I_DSI_BASIC_CTL_REG		0x00c
+#define SUN6I_DSI_BASIC_CTL_TRAIL_INV(n)		(((n) & 0xf) << 4)
+#define SUN6I_DSI_BASIC_CTL_TRAIL_FILL		BIT(3)
 #define SUN6I_DSI_BASIC_CTL_HBP_DIS		BIT(2)
 #define SUN6I_DSI_BASIC_CTL_HSA_HSE_DIS		BIT(1)
 #define SUN6I_DSI_BASIC_CTL_VIDEO_BURST		BIT(0)
@@ -151,6 +156,8 @@
 #define SUN6I_DSI_DEBUG_DATA_REG	0x2f8
 
 #define SUN6I_DSI_CMD_TX_REG(n)		(0x300 + (n) * 0x04)
+
+#define SUN6I_DSI_SYNC_POINT		40
 
 enum sun6i_dsi_start_inst {
 	DSI_START_LPRX,
@@ -357,7 +364,54 @@ static void sun6i_dsi_inst_init(struct sun6i_dsi *dsi,
 static u16 sun6i_dsi_get_video_start_delay(struct sun6i_dsi *dsi,
 					   struct drm_display_mode *mode)
 {
-	return mode->vtotal - (mode->vsync_end - mode->vdisplay) + 1;
+	u16 start = clamp(mode->vtotal - mode->vdisplay - 10, 8, 100);
+	u16 delay = mode->vtotal - (mode->vsync_end - mode->vdisplay) + start;
+
+	if (delay > mode->vtotal)
+		delay = delay % mode->vtotal;
+
+	return max_t(u16, delay, 1);
+}
+
+static u16 sun6i_dsi_get_line_num(struct sun6i_dsi *dsi,
+				  struct drm_display_mode *mode)
+{
+	struct mipi_dsi_device *device = dsi->device;
+	unsigned int Bpp = mipi_dsi_pixel_format_to_bpp(device->format) / 8;
+
+	return mode->htotal * Bpp / device->lanes;
+}
+
+static u16 sun6i_dsi_get_drq_edge0(struct sun6i_dsi *dsi,
+				   struct drm_display_mode *mode,
+				   u16 line_num, u16 edge1)
+{
+	u16 edge0 = edge1;
+
+	edge0 += (mode->hdisplay + 40) * SUN6I_DSI_TCON_DIV / 8;
+
+	if (edge0 > line_num)
+		return edge0 - line_num;
+
+	return 1;
+}
+
+static u16 sun6i_dsi_get_drq_edge1(struct sun6i_dsi *dsi,
+				   struct drm_display_mode *mode,
+				   u16 line_num)
+{
+	struct mipi_dsi_device *device = dsi->device;
+	unsigned int Bpp = mipi_dsi_pixel_format_to_bpp(device->format) / 8;
+	unsigned int hbp = mode->htotal - mode->hsync_end;
+	u16 edge1;
+
+	edge1 = SUN6I_DSI_SYNC_POINT;
+	edge1 += (mode->hdisplay + hbp + 20) * Bpp / device->lanes;
+
+	if (edge1 > line_num)
+		return line_num;
+
+	return edge1;
 }
 
 static void sun6i_dsi_setup_burst(struct sun6i_dsi *dsi,
@@ -366,7 +420,23 @@ static void sun6i_dsi_setup_burst(struct sun6i_dsi *dsi,
 	struct mipi_dsi_device *device = dsi->device;
 	u32 val = 0;
 
-	if ((mode->hsync_end - mode->hdisplay) > 20) {
+	if (device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
+		u16 line_num = sun6i_dsi_get_line_num(dsi, mode);
+		u16 edge0, edge1;
+
+		edge1 = sun6i_dsi_get_drq_edge1(dsi, mode, line_num);
+		edge0 = sun6i_dsi_get_drq_edge0(dsi, mode, line_num, edge1);
+
+		regmap_write(dsi->regs, SUN6I_DSI_BURST_DRQ_REG,
+			     SUN6I_DSI_BURST_DRQ_EDGE0(edge0) |
+			     SUN6I_DSI_BURST_DRQ_EDGE1(edge1));
+
+		regmap_write(dsi->regs, SUN6I_DSI_BURST_LINE_REG,
+			     SUN6I_DSI_BURST_LINE_NUM(line_num) |
+			     SUN6I_DSI_BURST_LINE_SYNC_POINT(SUN6I_DSI_SYNC_POINT));
+
+		val = SUN6I_DSI_TCON_DRQ_ENABLE_MODE;
+	} else if ((mode->hsync_end - mode->hdisplay) > 20) {
 		/* Maaaaaagic */
 		u16 drq = (mode->hsync_end - mode->hdisplay) - 20;
 
@@ -383,7 +453,18 @@ static void sun6i_dsi_setup_burst(struct sun6i_dsi *dsi,
 static void sun6i_dsi_setup_inst_loop(struct sun6i_dsi *dsi,
 				      struct drm_display_mode *mode)
 {
+	struct mipi_dsi_device *device = dsi->device;
 	u16 delay = 50 - 1;
+
+	if (device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
+		delay = (mode->htotal - mode->hdisplay) * 150;
+		delay /= (mode->clock / 1000) * 8;
+		delay -= 50;
+	}
+
+	regmap_write(dsi->regs, SUN6I_DSI_INST_LOOP_SEL_REG,
+		     2 << (4 * DSI_INST_ID_LP11) |
+		     3 << (4 * DSI_INST_ID_DLY));
 
 	regmap_write(dsi->regs, SUN6I_DSI_INST_LOOP_NUM_REG(0),
 		     SUN6I_DSI_INST_LOOP_NUM_N0(50 - 1) |
@@ -450,49 +531,68 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 {
 	struct mipi_dsi_device *device = dsi->device;
 	unsigned int Bpp = mipi_dsi_pixel_format_to_bpp(device->format) / 8;
-	u16 hbp, hfp, hsa, hblk, vblk;
+	u16 hbp = 0, hfp = 0, hsa = 0, hblk = 0, vblk = 0;
+	u32 basic_ctl = 0;
 	size_t bytes;
 	u8 *buffer;
 
 	/* Do all timing calculations up front to allocate buffer space */
 
-	/*
-	 * A sync period is composed of a blanking packet (4 bytes +
-	 * payload + 2 bytes) and a sync event packet (4 bytes). Its
-	 * minimal size is therefore 10 bytes
-	 */
+	if (device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
+		hblk = mode->hdisplay * Bpp;
+		basic_ctl = SUN6I_DSI_BASIC_CTL_VIDEO_BURST |
+			    SUN6I_DSI_BASIC_CTL_HSA_HSE_DIS |
+			    SUN6I_DSI_BASIC_CTL_HBP_DIS;
+
+		if (device->lanes == 4)
+			basic_ctl |= SUN6I_DSI_BASIC_CTL_TRAIL_FILL |
+				     SUN6I_DSI_BASIC_CTL_TRAIL_INV(0xc);
+	} else {
+		/*
+		 * A sync period is composed of a blanking packet (4
+		 * bytes + payload + 2 bytes) and a sync event packet
+		 * (4 bytes). Its minimal size is therefore 10 bytes
+		 */
 #define HSA_PACKET_OVERHEAD	10
-	hsa = max((unsigned int)HSA_PACKET_OVERHEAD,
-		  (mode->hsync_end - mode->hsync_start) * Bpp - HSA_PACKET_OVERHEAD);
+		hsa = max((unsigned int)HSA_PACKET_OVERHEAD,
+			  (mode->hsync_end - mode->hsync_start) * Bpp - HSA_PACKET_OVERHEAD);
 
-	/*
-	 * The backporch is set using a blanking packet (4 bytes +
-	 * payload + 2 bytes). Its minimal size is therefore 6 bytes
-	 */
+		/*
+		 * The backporch is set using a blanking packet (4
+		 * bytes + payload + 2 bytes). Its minimal size is
+		 * therefore 6 bytes
+		 */
 #define HBP_PACKET_OVERHEAD	6
-	hbp = max((unsigned int)HBP_PACKET_OVERHEAD,
-		  (mode->hsync_start - mode->hdisplay) * Bpp - HBP_PACKET_OVERHEAD);
+		hbp = max((unsigned int)HBP_PACKET_OVERHEAD,
+			  (mode->htotal - mode->hsync_end) * Bpp - HBP_PACKET_OVERHEAD);
 
-	/*
-	 * The frontporch is set using a blanking packet (4 bytes +
-	 * payload + 2 bytes). Its minimal size is therefore 6 bytes
-	 */
+		/*
+		 * The frontporch is set using a blanking packet (4
+		 * bytes + payload + 2 bytes). Its minimal size is
+		 * therefore 6 bytes
+		 */
 #define HFP_PACKET_OVERHEAD	6
-	hfp = max((unsigned int)HFP_PACKET_OVERHEAD,
-		  (mode->htotal - mode->hsync_end) * Bpp - HFP_PACKET_OVERHEAD);
+		hfp = max((unsigned int)HFP_PACKET_OVERHEAD,
+			  (mode->hsync_start - mode->hdisplay) * Bpp - HFP_PACKET_OVERHEAD);
 
-	/*
-	 * hblk seems to be the line + porches length.
-	 */
-	hblk = mode->htotal * Bpp - hsa;
+		/*
+		 * The blanking is set using a sync event (4 bytes)
+		 * and a blanking packet (4 bytes + payload + 2
+		 * bytes). Its minimal size is therefore 10 bytes.
+		 */
+#define HBLK_PACKET_OVERHEAD	10
+		hblk = max((unsigned int)HBLK_PACKET_OVERHEAD,
+			   (mode->htotal - (mode->hsync_end - mode->hsync_start)) * Bpp -
+			   HBLK_PACKET_OVERHEAD);
 
-	/*
-	 * And I'm not entirely sure what vblk is about. The driver in
-	 * Allwinner BSP is using a rather convoluted calculation
-	 * there only for 4 lanes. However, using 0 (the !4 lanes
-	 * case) even with a 4 lanes screen seems to work...
-	 */
-	vblk = 0;
+		/*
+		 * And I'm not entirely sure what vblk is about. The driver in
+		 * Allwinner BSP is using a rather convoluted calculation
+		 * there only for 4 lanes. However, using 0 (the !4 lanes
+		 * case) even with a 4 lanes screen seems to work...
+		 */
+		vblk = 0;
+	}
 
 	/* How many bytes do we need to send all payloads? */
 	bytes = max_t(size_t, max(max(hfp, hblk), max(hsa, hbp)), vblk);
@@ -500,7 +600,7 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 	if (WARN_ON(!buffer))
 		return;
 
-	regmap_write(dsi->regs, SUN6I_DSI_BASIC_CTL_REG, 0);
+	regmap_write(dsi->regs, SUN6I_DSI_BASIC_CTL_REG, basic_ctl);
 
 	regmap_write(dsi->regs, SUN6I_DSI_SYNC_HSS_REG,
 		     sun6i_dsi_build_sync_pkt(MIPI_DSI_H_SYNC_START,
@@ -525,8 +625,8 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 	regmap_write(dsi->regs, SUN6I_DSI_BASIC_SIZE0_REG,
 		     SUN6I_DSI_BASIC_SIZE0_VSA(mode->vsync_end -
 					       mode->vsync_start) |
-		     SUN6I_DSI_BASIC_SIZE0_VBP(mode->vsync_start -
-					       mode->vdisplay));
+		     SUN6I_DSI_BASIC_SIZE0_VBP(mode->vtotal -
+					       mode->vsync_end));
 
 	regmap_write(dsi->regs, SUN6I_DSI_BASIC_SIZE1_REG,
 		     SUN6I_DSI_BASIC_SIZE1_VACT(mode->vdisplay) |
@@ -616,6 +716,8 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct sun6i_dsi *dsi = encoder_to_sun6i_dsi(encoder);
 	struct mipi_dsi_device *device = dsi->device;
+	union phy_configure_opts opts = { 0 };
+	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
 	u16 delay;
 
 	DRM_DEBUG_DRIVER("Enabling DSI output\n");
@@ -634,8 +736,15 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	sun6i_dsi_setup_format(dsi, mode);
 	sun6i_dsi_setup_timings(dsi, mode);
 
-	sun6i_dphy_init(dsi->dphy, device->lanes);
-	sun6i_dphy_power_on(dsi->dphy, device->lanes);
+	phy_init(dsi->dphy);
+
+	phy_mipi_dphy_get_default_config(mode->clock * 1000,
+					 mipi_dsi_pixel_format_to_bpp(device->format),
+					 device->lanes, cfg);
+
+	phy_set_mode(dsi->dphy, PHY_MODE_MIPI_DPHY);
+	phy_configure(dsi->dphy, &opts);
+	phy_power_on(dsi->dphy);
 
 	if (!IS_ERR(dsi->panel))
 		drm_panel_prepare(dsi->panel);
@@ -673,8 +782,8 @@ static void sun6i_dsi_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(dsi->panel);
 	}
 
-	sun6i_dphy_power_off(dsi->dphy);
-	sun6i_dphy_exit(dsi->dphy);
+	phy_power_off(dsi->dphy);
+	phy_exit(dsi->dphy);
 
 	pm_runtime_put(dsi->dev);
 }
@@ -967,7 +1076,6 @@ static const struct component_ops sun6i_dsi_ops = {
 static int sun6i_dsi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dphy_node;
 	struct sun6i_dsi *dsi;
 	struct resource *res;
 	void __iomem *base;
@@ -1013,11 +1121,10 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	 */
 	clk_set_rate_exclusive(dsi->mod_clk, 297000000);
 
-	dphy_node = of_parse_phandle(dev->of_node, "phys", 0);
-	ret = sun6i_dphy_probe(dsi, dphy_node);
-	of_node_put(dphy_node);
-	if (ret) {
+	dsi->dphy = devm_phy_get(dev, "dphy");
+	if (IS_ERR(dsi->dphy)) {
 		dev_err(dev, "Couldn't get the MIPI D-PHY\n");
+		ret = PTR_ERR(dsi->dphy);
 		goto err_unprotect_clk;
 	}
 
@@ -1026,7 +1133,7 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	ret = mipi_dsi_host_register(&dsi->host);
 	if (ret) {
 		dev_err(dev, "Couldn't register MIPI-DSI host\n");
-		goto err_remove_phy;
+		goto err_pm_disable;
 	}
 
 	ret = component_add(&pdev->dev, &sun6i_dsi_ops);
@@ -1039,9 +1146,8 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 
 err_remove_dsi_host:
 	mipi_dsi_host_unregister(&dsi->host);
-err_remove_phy:
+err_pm_disable:
 	pm_runtime_disable(dev);
-	sun6i_dphy_remove(dsi);
 err_unprotect_clk:
 	clk_rate_exclusive_put(dsi->mod_clk);
 	return ret;
@@ -1055,7 +1161,6 @@ static int sun6i_dsi_remove(struct platform_device *pdev)
 	component_del(&pdev->dev, &sun6i_dsi_ops);
 	mipi_dsi_host_unregister(&dsi->host);
 	pm_runtime_disable(dev);
-	sun6i_dphy_remove(dsi);
 	clk_rate_exclusive_put(dsi->mod_clk);
 
 	return 0;

@@ -77,10 +77,6 @@ static void guc_fw_select(struct intel_uc_fw *guc_fw)
 		guc_fw->path = I915_KBL_GUC_UCODE;
 		guc_fw->major_ver_wanted = KBL_FW_MAJOR;
 		guc_fw->minor_ver_wanted = KBL_FW_MINOR;
-	} else {
-		dev_info(dev_priv->drm.dev,
-			 "%s: No firmware known for this platform!\n",
-			 intel_uc_fw_type_repr(guc_fw->type));
 	}
 }
 
@@ -115,7 +111,7 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 	else
 		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
-	if (IS_GEN9(dev_priv)) {
+	if (IS_GEN(dev_priv, 9)) {
 		/* DOP Clock Gating Enable for GuC clocks */
 		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
 					    I915_READ(GEN7_MISCCPCTL)));
@@ -245,7 +241,7 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 
 	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	guc_prepare_xfer(guc);
 
@@ -258,7 +254,7 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 
 	ret = guc_xfer_ucode(guc, vma);
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }

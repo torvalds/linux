@@ -27,7 +27,7 @@ KBUILD_LDFLAGS += $(ldflags-y)
 CHECKFLAGS += -msize-long
 
 ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE := h8300-unknown-linux-
+CROSS_COMPILE := $(call cc-cross-prefix, h8300-unknown-linux- h8300-linux-)
 endif
 
 core-y	+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/
@@ -36,8 +36,6 @@ core-y	+= arch/$(ARCH)/boot/dts/
 libs-y	+= arch/$(ARCH)/lib/
 
 boot := arch/h8300/boot
-
-archmrproper:
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

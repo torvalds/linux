@@ -17,6 +17,7 @@
 	compatible = "rex,imx6q-rex-pro", "fsl,imx6q";
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x80000000>;
 	};
 };

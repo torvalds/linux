@@ -31,6 +31,7 @@ struct strlist;
 
 int mkdir_p(char *path, mode_t mode);
 int rm_rf(const char *path);
+int rm_rf_perf_data(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
@@ -59,6 +60,10 @@ int fetch_kernel_version(unsigned int *puint,
 
 const char *perf_tip(const char *dirpath);
 
+#ifndef HAVE_GET_CURRENT_DIR_NAME
+char *get_current_dir_name(void);
+#endif
+
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
 #endif
@@ -71,6 +76,8 @@ extern bool perf_singlethreaded;
 
 void perf_set_singlethreaded(void);
 void perf_set_multithreaded(void);
+
+char *perf_exe(char *buf, int len);
 
 #ifndef O_CLOEXEC
 #ifdef __sparc__

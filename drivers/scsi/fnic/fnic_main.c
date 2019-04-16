@@ -69,6 +69,11 @@ unsigned int fnic_log_level;
 module_param(fnic_log_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_log_level, "bit mask of fnic logging levels");
 
+
+unsigned int io_completions = FNIC_DFLT_IO_COMPLETIONS;
+module_param(io_completions, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(io_completions, "Max CQ entries to process at a time");
+
 unsigned int fnic_trace_max_pages = 16;
 module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
@@ -115,7 +120,6 @@ static struct scsi_host_template fnic_host_template = {
 	.this_id = -1,
 	.cmd_per_lun = 3,
 	.can_queue = FNIC_DFLT_IO_REQ,
-	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = FNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0xffff,
 	.shost_attrs = fnic_attrs,
@@ -178,6 +182,9 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 	switch (port_speed) {
 	case DCEM_PORTSPEED_10G:
 		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+		break;
+	case DCEM_PORTSPEED_20G:
+		fc_host_speed(shost) = FC_PORTSPEED_20GBIT;
 		break;
 	case DCEM_PORTSPEED_25G:
 		fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
@@ -501,7 +508,7 @@ static int fnic_cleanup(struct fnic *fnic)
 	}
 
 	/* Clean up completed IOs and FCS frames */
-	fnic_wq_copy_cmpl_handler(fnic, -1);
+	fnic_wq_copy_cmpl_handler(fnic, io_completions);
 	fnic_wq_cmpl_handler(fnic, -1);
 	fnic_rq_cmpl_handler(fnic, -1);
 
@@ -579,12 +586,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
-	err = fnic_stats_debugfs_init(fnic);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-				"Failed to initialize debugfs for stats\n");
-		fnic_stats_debugfs_remove(fnic);
-	}
+	fnic_stats_debugfs_init(fnic);
 
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);
@@ -651,12 +653,20 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
+	err = vnic_dev_cmd_init(fnic->vdev);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+				"vnic_dev_cmd_init() returns %d, aborting\n",
+				err);
+		goto err_out_vnic_unregister;
+	}
+
 	err = fnic_dev_wait(fnic->vdev, vnic_dev_open,
-			    vnic_dev_open_done, 0);
+			    vnic_dev_open_done, CMD_OPENF_RQ_ENABLE_THEN_POST);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "vNIC dev open failed, aborting.\n");
-		goto err_out_vnic_unregister;
+		goto err_out_dev_cmd_deinit;
 	}
 
 	err = vnic_dev_init(fnic->vdev, 0);
@@ -797,6 +807,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* allocate RQ buffers and post them to RQ*/
 	for (i = 0; i < fnic->rq_count; i++) {
+		vnic_rq_enable(&fnic->rq[i]);
 		err = vnic_rq_fill(&fnic->rq[i], fnic_alloc_rq_frame);
 		if (err) {
 			shost_printk(KERN_ERR, fnic->lport->host,
@@ -871,14 +882,10 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Enable all queues */
 	for (i = 0; i < fnic->raw_wq_count; i++)
 		vnic_wq_enable(&fnic->wq[i]);
-	for (i = 0; i < fnic->rq_count; i++)
-		vnic_rq_enable(&fnic->rq[i]);
 	for (i = 0; i < fnic->wq_copy_count; i++)
 		vnic_wq_copy_enable(&fnic->wq_copy[i]);
 
 	fc_fabric_login(lp);
-
-	vnic_dev_enable(fnic->vdev);
 
 	err = fnic_request_intr(fnic);
 	if (err) {
@@ -886,6 +893,8 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     "Unable to request irq.\n");
 		goto err_out_free_exch_mgr;
 	}
+
+	vnic_dev_enable(fnic->vdev);
 
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_unmask(&fnic->intr[i]);
@@ -915,6 +924,7 @@ err_out_clear_intr:
 	fnic_clear_intr_mode(fnic);
 err_out_dev_close:
 	vnic_dev_close(fnic->vdev);
+err_out_dev_cmd_deinit:
 err_out_vnic_unregister:
 	vnic_dev_unregister(fnic->vdev);
 err_out_iounmap:

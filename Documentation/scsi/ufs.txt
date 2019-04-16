@@ -147,6 +147,17 @@ send SG_IO with the applicable sg_io_v4:
 	io_hdr_v4.max_response_len = reply_len;
 	io_hdr_v4.request_len = request_len;
 	io_hdr_v4.request = (__u64)request_upiu;
+	if (dir == SG_DXFER_TO_DEV) {
+		io_hdr_v4.dout_xfer_len = (uint32_t)byte_cnt;
+		io_hdr_v4.dout_xferp = (uintptr_t)(__u64)buff;
+	} else {
+		io_hdr_v4.din_xfer_len = (uint32_t)byte_cnt;
+		io_hdr_v4.din_xferp = (uintptr_t)(__u64)buff;
+	}
+
+If you wish to read or write a descriptor, use the appropriate xferp of
+sg_io_v4.
+
 
 UFS Specifications can be found at,
 UFS - http://www.jedec.org/sites/default/files/docs/JESD220.pdf

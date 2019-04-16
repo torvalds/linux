@@ -23,8 +23,10 @@
 #define __CRYPTO4XX_CORE_H__
 
 #include <linux/ratelimit.h>
+#include <linux/mutex.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/aead.h>
+#include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_sa.h"
@@ -119,6 +121,7 @@ struct crypto4xx_core_device {
 	u32 irq;
 	struct tasklet_struct tasklet;
 	spinlock_t lock;
+	struct mutex rng_lock;
 };
 
 struct crypto4xx_ctx {
@@ -143,6 +146,7 @@ struct crypto4xx_alg_common {
 		struct skcipher_alg cipher;
 		struct ahash_alg hash;
 		struct aead_alg aead;
+		struct rng_alg rng;
 	} u;
 };
 

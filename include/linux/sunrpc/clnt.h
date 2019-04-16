@@ -66,6 +66,7 @@ struct rpc_clnt {
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
 	const struct rpc_program *cl_program;
+	const char *		cl_principal;	/* use for machine cred */
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
@@ -127,8 +128,8 @@ struct rpc_create_args {
 };
 
 struct rpc_add_xprt_test {
-	int (*add_xprt_test)(struct rpc_clnt *,
-		struct rpc_xprt *,
+	void (*add_xprt_test)(struct rpc_clnt *clnt,
+		struct rpc_xprt *xprt,
 		void *calldata);
 	void *data;
 };
@@ -168,6 +169,9 @@ int		rpcb_v4_register(struct net *net, const u32 program,
 				 const char *netid);
 void		rpcb_getport_async(struct rpc_task *);
 
+void rpc_prepare_reply_pages(struct rpc_rqst *req, struct page **pages,
+			     unsigned int base, unsigned int len,
+			     unsigned int hdrsize);
 void		rpc_call_start(struct rpc_task *);
 int		rpc_call_async(struct rpc_clnt *clnt,
 			       const struct rpc_message *msg, int flags,

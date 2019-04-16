@@ -29,6 +29,7 @@
 #define SWITCHTEC_EVENT_EN_IRQ   BIT(3)
 #define SWITCHTEC_EVENT_FATAL    BIT(4)
 
+#define SWITCHTEC_DMA_MRPC_EN	BIT(0)
 enum {
 	SWITCHTEC_GAS_MRPC_OFFSET       = 0x0000,
 	SWITCHTEC_GAS_TOP_CFG_OFFSET    = 0x1000,
@@ -46,6 +47,10 @@ struct mrpc_regs {
 	u32 cmd;
 	u32 status;
 	u32 ret_value;
+	u32 dma_en;
+	u64 dma_addr;
+	u32 dma_vector;
+	u32 dma_ver;
 } __packed;
 
 enum mrpc_status {
@@ -243,9 +248,13 @@ struct ntb_ctrl_regs {
 		u32 win_size;
 		u64 xlate_addr;
 	} bar_entry[6];
-	u32 reserved2[216];
-	u32 req_id_table[256];
-	u32 reserved3[512];
+	struct {
+		u32 win_size;
+		u32 reserved[3];
+	} bar_ext_entry[6];
+	u32 reserved2[192];
+	u32 req_id_table[512];
+	u32 reserved3[256];
 	u64 lut_entry[512];
 } __packed;
 
@@ -342,6 +351,14 @@ struct pff_csr_regs {
 
 struct switchtec_ntb;
 
+struct dma_mrpc_output {
+	u32 status;
+	u32 cmd_id;
+	u32 rtn_code;
+	u32 output_size;
+	u8 data[SWITCHTEC_MRPC_PAYLOAD_SIZE];
+};
+
 struct switchtec_dev {
 	struct pci_dev *pdev;
 	struct device dev;
@@ -381,6 +398,9 @@ struct switchtec_dev {
 	u8 link_event_count[SWITCHTEC_MAX_PFF_CSR];
 
 	struct switchtec_ntb *sndev;
+
+	struct dma_mrpc_output *dma_mrpc;
+	dma_addr_t dma_mrpc_dma_addr;
 };
 
 static inline struct switchtec_dev *to_stdev(struct device *dev)

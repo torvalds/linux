@@ -59,8 +59,32 @@
 
 /* Tuning Block Control Register */
 #define ESDHC_TBCTL			0x120
+#define ESDHC_HS400_WNDW_ADJUST		0x00000040
+#define ESDHC_HS400_MODE		0x00000010
 #define ESDHC_TB_EN			0x00000004
 #define ESDHC_TBPTR			0x128
+
+/* SD Clock Control Register */
+#define ESDHC_SDCLKCTL			0x144
+#define ESDHC_LPBK_CLK_SEL		0x80000000
+#define ESDHC_CMD_CLK_CTL		0x00008000
+
+/* SD Timing Control Register */
+#define ESDHC_SDTIMNGCTL		0x148
+#define ESDHC_FLW_CTL_BG		0x00008000
+
+/* DLL Config 0 Register */
+#define ESDHC_DLLCFG0			0x160
+#define ESDHC_DLL_ENABLE		0x80000000
+#define ESDHC_DLL_FREQ_SEL		0x08000000
+
+/* DLL Config 1 Register */
+#define ESDHC_DLLCFG1			0x164
+#define ESDHC_DLL_PD_PULSE_STRETCH_SEL	0x80000000
+
+/* DLL Status 0 Register */
+#define ESDHC_DLLSTAT0			0x170
+#define ESDHC_DLL_STS_SLV_LOCK		0x08000000
 
 /* Control Register for DMA transfer */
 #define ESDHC_DMA_SYSCTL		0x40c

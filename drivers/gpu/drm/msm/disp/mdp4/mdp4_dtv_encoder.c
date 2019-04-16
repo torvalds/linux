@@ -16,7 +16,7 @@
  */
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mdp4_kms.h"
 
@@ -45,7 +45,7 @@ static void bs_init(struct mdp4_dtv_encoder *mdp4_dtv_encoder)
 	struct lcdc_platform_data *dtv_pdata = mdp4_find_pdata("dtv.0");
 
 	if (!dtv_pdata) {
-		dev_err(dev->dev, "could not find dtv pdata\n");
+		DRM_DEV_ERROR(dev->dev, "could not find dtv pdata\n");
 		return;
 	}
 
@@ -104,14 +104,7 @@ static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 
 	mode = adjusted_mode;
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
 	mdp4_dtv_encoder->pixclock = mode->clock * 1000;
 
@@ -209,16 +202,16 @@ static void mdp4_dtv_encoder_enable(struct drm_encoder *encoder)
 
 	ret = clk_set_rate(mdp4_dtv_encoder->mdp_clk, pc);
 	if (ret)
-		dev_err(dev->dev, "failed to set mdp_clk to %lu: %d\n",
+		DRM_DEV_ERROR(dev->dev, "failed to set mdp_clk to %lu: %d\n",
 			pc, ret);
 
 	ret = clk_prepare_enable(mdp4_dtv_encoder->mdp_clk);
 	if (ret)
-		dev_err(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to enabled mdp_clk: %d\n", ret);
 
 	ret = clk_prepare_enable(mdp4_dtv_encoder->hdmi_clk);
 	if (ret)
-		dev_err(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to enable hdmi_clk: %d\n", ret);
 
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 1);
 
@@ -258,14 +251,14 @@ struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev)
 
 	mdp4_dtv_encoder->hdmi_clk = devm_clk_get(dev->dev, "hdmi_clk");
 	if (IS_ERR(mdp4_dtv_encoder->hdmi_clk)) {
-		dev_err(dev->dev, "failed to get hdmi_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get hdmi_clk\n");
 		ret = PTR_ERR(mdp4_dtv_encoder->hdmi_clk);
 		goto fail;
 	}
 
 	mdp4_dtv_encoder->mdp_clk = devm_clk_get(dev->dev, "tv_clk");
 	if (IS_ERR(mdp4_dtv_encoder->mdp_clk)) {
-		dev_err(dev->dev, "failed to get tv_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get tv_clk\n");
 		ret = PTR_ERR(mdp4_dtv_encoder->mdp_clk);
 		goto fail;
 	}

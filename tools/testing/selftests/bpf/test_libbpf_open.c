@@ -34,23 +34,16 @@ static void usage(char *argv[])
 	printf("\n");
 }
 
-#define DEFINE_PRINT_FN(name, enabled) \
-static int libbpf_##name(const char *fmt, ...)  	\
-{							\
-        va_list args;					\
-        int ret;					\
-							\
-        va_start(args, fmt);				\
-	if (enabled) {					\
-		fprintf(stderr, "[" #name "] ");	\
-		ret = vfprintf(stderr, fmt, args);	\
-	}						\
-        va_end(args);					\
-        return ret;					\
+static bool debug = 0;
+static int libbpf_debug_print(enum libbpf_print_level level,
+			      const char *fmt, va_list args)
+{
+	if (level == LIBBPF_DEBUG && !debug)
+		return 0;
+
+	fprintf(stderr, "[%d] ", level);
+	return vfprintf(stderr, fmt, args);
 }
-DEFINE_PRINT_FN(warning, 1)
-DEFINE_PRINT_FN(info, 1)
-DEFINE_PRINT_FN(debug, 1)
 
 #define EXIT_FAIL_LIBBPF EXIT_FAILURE
 #define EXIT_FAIL_OPTION 2
@@ -74,7 +67,7 @@ int test_walk_maps(struct bpf_object *obj, bool verbose)
 	struct bpf_map *map;
 	int cnt = 0;
 
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		cnt++;
 		if (verbose)
 			printf("Map (count:%d) name: %s\n", cnt,
@@ -120,15 +113,14 @@ int main(int argc, char **argv)
 	int longindex = 0;
 	int opt;
 
-	libbpf_set_print(libbpf_warning, libbpf_info, NULL);
+	libbpf_set_print(libbpf_debug_print);
 
 	/* Parse commands line args */
 	while ((opt = getopt_long(argc, argv, "hDq",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'D':
-			libbpf_set_print(libbpf_warning, libbpf_info,
-					 libbpf_debug);
+			debug = 1;
 			break;
 		case 'q': /* Use in scripting mode */
 			verbose = 0;

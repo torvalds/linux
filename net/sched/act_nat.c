@@ -304,7 +304,7 @@ static int tcf_nat_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
-	.type		=	TCA_ACT_NAT,
+	.id		=	TCA_ID_NAT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_nat_act,
 	.dump		=	tcf_nat_dump,

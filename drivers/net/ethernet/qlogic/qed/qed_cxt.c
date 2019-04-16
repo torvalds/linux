@@ -936,9 +936,9 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 		u32 size = min_t(u32, total_size, psz);
 		void **p_virt = &p_mngr->t2[i].p_virt;
 
-		*p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
-					      size, &p_mngr->t2[i].p_phys,
-					      GFP_KERNEL);
+		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					     &p_mngr->t2[i].p_phys,
+					     GFP_KERNEL);
 		if (!p_mngr->t2[i].p_virt) {
 			rc = -ENOMEM;
 			goto t2_fail;
@@ -1054,8 +1054,8 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		u32 size;
 
 		size = min_t(u32, sz_left, p_blk->real_size_in_page);
-		p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev, size,
-					     &p_phys, GFP_KERNEL);
+		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					    &p_phys, GFP_KERNEL);
 		if (!p_virt)
 			return -ENOMEM;
 
@@ -2129,17 +2129,18 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       rdma_tasks);
 		/* no need for break since RoCE coexist with Ethernet */
 	}
+	/* fall through */
 	case QED_PCI_ETH:
 	{
 		struct qed_eth_pf_params *p_params =
 		    &p_hwfn->pf_params.eth_pf_params;
 
-			if (!p_params->num_vf_cons)
-				p_params->num_vf_cons =
-				    ETH_PF_PARAMS_VF_CONS_DEFAULT;
-			qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
-						    p_params->num_cons,
-						    p_params->num_vf_cons);
+		if (!p_params->num_vf_cons)
+			p_params->num_vf_cons =
+			    ETH_PF_PARAMS_VF_CONS_DEFAULT;
+		qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
+					    p_params->num_cons,
+					    p_params->num_vf_cons);
 		p_hwfn->p_cxt_mngr->arfs_count = p_params->num_arfs_filters;
 		break;
 	}
@@ -2306,9 +2307,9 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		goto out0;
 	}
 
-	p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
-				     p_blk->real_size_in_page, &p_phys,
-				     GFP_KERNEL);
+	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+				    p_blk->real_size_in_page, &p_phys,
+				    GFP_KERNEL);
 	if (!p_virt) {
 		rc = -ENOMEM;
 		goto out1;

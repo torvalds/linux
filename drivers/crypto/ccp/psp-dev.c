@@ -1,7 +1,7 @@
 /*
  * AMD Platform Security Processor (PSP) interface
  *
- * Copyright (C) 2016-2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2018 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  *
@@ -364,7 +364,7 @@ static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
 		goto cmd;
 
 	/* allocate a physically contiguous buffer to store the CSR blob */
-	if (!access_ok(VERIFY_WRITE, input.address, input.length) ||
+	if (!access_ok(input.address, input.length) ||
 	    input.length > SEV_FW_BLOB_MAX_SIZE) {
 		ret = -EFAULT;
 		goto e_free;
@@ -437,6 +437,7 @@ static int sev_get_api_version(void)
 	psp_master->api_major = status->api_major;
 	psp_master->api_minor = status->api_minor;
 	psp_master->build = status->build;
+	psp_master->sev_state = status->state;
 
 	return 0;
 }
@@ -644,14 +645,14 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 
 	/* Allocate a physically contiguous buffer to store the PDH blob. */
 	if ((input.pdh_cert_len > SEV_FW_BLOB_MAX_SIZE) ||
-	    !access_ok(VERIFY_WRITE, input.pdh_cert_address, input.pdh_cert_len)) {
+	    !access_ok(input.pdh_cert_address, input.pdh_cert_len)) {
 		ret = -EFAULT;
 		goto e_free;
 	}
 
 	/* Allocate a physically contiguous buffer to store the cert chain blob. */
 	if ((input.cert_chain_len > SEV_FW_BLOB_MAX_SIZE) ||
-	    !access_ok(VERIFY_WRITE, input.cert_chain_address, input.cert_chain_len)) {
+	    !access_ok(input.cert_chain_address, input.cert_chain_len)) {
 		ret = -EFAULT;
 		goto e_free;
 	}
@@ -857,15 +858,15 @@ static int sev_misc_init(struct psp_device *psp)
 	return 0;
 }
 
-static int sev_init(struct psp_device *psp)
+static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
 	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
-		dev_dbg(psp->dev, "device does not support SEV\n");
-		return 1;
+		dev_dbg(psp->dev, "psp does not support SEV\n");
+		return -ENODEV;
 	}
 
-	return sev_misc_init(psp);
+	return 0;
 }
 
 int psp_dev_init(struct sp_device *sp)
@@ -890,6 +891,10 @@ int psp_dev_init(struct sp_device *sp)
 
 	psp->io_regs = sp->io_map;
 
+	ret = psp_check_sev_support(psp);
+	if (ret)
+		goto e_disable;
+
 	/* Disable and clear interrupts until ready */
 	iowrite32(0, psp->io_regs + psp->vdata->inten_reg);
 	iowrite32(-1, psp->io_regs + psp->vdata->intsts_reg);
@@ -901,7 +906,7 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	ret = sev_init(psp);
+	ret = sev_misc_init(psp);
 	if (ret)
 		goto e_irq;
 
@@ -921,6 +926,11 @@ e_err:
 	sp->psp_data = NULL;
 
 	dev_notice(dev, "psp initialization failed\n");
+
+	return ret;
+
+e_disable:
+	sp->psp_data = NULL;
 
 	return ret;
 }
@@ -963,6 +973,21 @@ void psp_pci_init(void)
 
 	if (sev_get_api_version())
 		goto err;
+
+	/*
+	 * If platform is not in UNINIT state then firmware upgrade and/or
+	 * platform INIT command will fail. These command require UNINIT state.
+	 *
+	 * In a normal boot we should never run into case where the firmware
+	 * is not in UNINIT state on boot. But in case of kexec boot, a reboot
+	 * may not go through a typical shutdown sequence and may leave the
+	 * firmware in INIT or WORKING state.
+	 */
+
+	if (psp_master->sev_state != SEV_STATE_UNINIT) {
+		sev_platform_shutdown(NULL);
+		psp_master->sev_state = SEV_STATE_UNINIT;
+	}
 
 	if (SEV_VERSION_GREATER_OR_EQUAL(0, 15) &&
 	    sev_update_firmware(psp_master->dev) == 0)

@@ -34,13 +34,33 @@
 		};
 	};
 
+	wkup_pmx0: pinmux@4301c000 {
+		compatible = "pinctrl-single";
+		reg = <0x4301c000 0x118>;
+		#pinctrl-cells = <1>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+	};
+
 	wkup_uart0: serial@42300000 {
 		compatible = "ti,am654-uart";
-		reg = <0x00 0x42300000 0x00 0x100>;
+		reg = <0x42300000 0x100>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 697 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
+		power-domains = <&k3_pds 150>;
+	};
+
+	wkup_i2c0: i2c@42120000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x42120000 0x100>;
+		interrupts = <GIC_SPI 696 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 115 1>;
+		power-domains = <&k3_pds 115>;
 	};
 };

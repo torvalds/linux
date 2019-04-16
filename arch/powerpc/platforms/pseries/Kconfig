@@ -5,7 +5,7 @@ config PPC_PSERIES
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
 	select OF_DYNAMIC
-	select PCI
+	select FORCE_PCI
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_XIVE_SPAPR
@@ -140,8 +140,7 @@ config IBMEBUS
 	  Bus device driver for GX bus based adapters.
 
 config PAPR_SCM
-	depends on PPC_PSERIES && MEMORY_HOTPLUG
-	select LIBNVDIMM
+	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
 	tristate "Support for the PAPR Storage Class Memory interface"
 	help
 	  Enable access to hypervisor provided storage class memory.

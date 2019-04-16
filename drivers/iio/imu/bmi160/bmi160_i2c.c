@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * BMI160 - Bosch IMU, I2C bits
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * 7-bit I2C slave address is:
  *      - 0x68 if SDO is pulled to GND
@@ -38,13 +35,6 @@ static int bmi160_i2c_probe(struct i2c_client *client,
 	return bmi160_core_probe(&client->dev, regmap, name, false);
 }
 
-static int bmi160_i2c_remove(struct i2c_client *client)
-{
-	bmi160_core_remove(&client->dev);
-
-	return 0;
-}
-
 static const struct i2c_device_id bmi160_i2c_id[] = {
 	{"bmi160", 0},
 	{}
@@ -72,7 +62,6 @@ static struct i2c_driver bmi160_i2c_driver = {
 		.of_match_table		= of_match_ptr(bmi160_of_match),
 	},
 	.probe		= bmi160_i2c_probe,
-	.remove		= bmi160_i2c_remove,
 	.id_table	= bmi160_i2c_id,
 };
 module_i2c_driver(bmi160_i2c_driver);

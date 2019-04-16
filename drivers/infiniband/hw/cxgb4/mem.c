@@ -502,10 +502,9 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			       u64 virt, int acc, struct ib_udata *udata)
 {
 	__be64 *pages;
-	int shift, n, len;
-	int i, k, entry;
+	int shift, n, i;
 	int err = -ENOMEM;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
 	struct c4iw_mr *mhp;
@@ -537,11 +536,11 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mhp->rhp = rhp;
 
-	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc, 0);
+	mhp->umem = ib_umem_get(udata, start, length, acc, 0);
 	if (IS_ERR(mhp->umem))
 		goto err_free_skb;
 
-	shift = mhp->umem->page_shift;
+	shift = PAGE_SHIFT;
 
 	n = mhp->umem->nmap;
 	err = alloc_pbl(mhp, n);
@@ -556,21 +555,16 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	i = n = 0;
 
-	for_each_sg(mhp->umem->sg_head.sgl, sg, mhp->umem->nmap, entry) {
-		len = sg_dma_len(sg) >> shift;
-		for (k = 0; k < len; ++k) {
-			pages[i++] = cpu_to_be64(sg_dma_address(sg) +
-						 (k << shift));
-			if (i == PAGE_SIZE / sizeof *pages) {
-				err = write_pbl(&mhp->rhp->rdev,
-				      pages,
-				      mhp->attr.pbl_addr + (n << 3), i,
-				      mhp->wr_waitp);
-				if (err)
-					goto pbl_done;
-				n += i;
-				i = 0;
-			}
+	for_each_sg_dma_page(mhp->umem->sg_head.sgl, &sg_iter, mhp->umem->nmap, 0) {
+		pages[i++] = cpu_to_be64(sg_page_iter_dma_address(&sg_iter));
+		if (i == PAGE_SIZE / sizeof(*pages)) {
+			err = write_pbl(&mhp->rhp->rdev, pages,
+					mhp->attr.pbl_addr + (n << 3), i,
+					mhp->wr_waitp);
+			if (err)
+				goto pbl_done;
+			n += i;
+			i = 0;
 		}
 	}
 
@@ -684,8 +678,8 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 			  mhp->wr_waitp);
 	kfree_skb(mhp->dereg_skb);
 	c4iw_put_wr_wait(mhp->wr_waitp);
-	kfree(mhp);
 	pr_debug("ib_mw %p mmid 0x%x ptr %p\n", mw, mmid, mhp);
+	kfree(mhp);
 	return 0;
 }
 

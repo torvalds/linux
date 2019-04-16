@@ -22,6 +22,12 @@
 #include <linux/videodev2.h>
 #include <media/media-request.h>
 
+/*
+ * Include the mpeg2 stateless codec compound control definitions.
+ * This will move to the public headers once this API is fully stable.
+ */
+#include <media/mpeg2-ctrls.h>
+
 /* forward references */
 struct file;
 struct v4l2_ctrl_handler;
@@ -642,7 +648,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(struct v4l2_ctrl_handler *hdl,
  * @def:	The control's default value.
  * @qmenu_int:	The control's menu entries.
  *
- * Same as v4l2_ctrl_new_std_menu(), but @mask is set to 0 and it additionaly
+ * Same as v4l2_ctrl_new_std_menu(), but @mask is set to 0 and it additionally
  * takes as an argument an array of integers determining the menu items.
  *
  * If @id refers to a non-integer-menu control, then this function will

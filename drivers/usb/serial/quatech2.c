@@ -500,7 +500,6 @@ static void qt2_process_read_urb(struct urb *urb)
 	struct usb_serial *serial;
 	struct qt2_serial_private *serial_priv;
 	struct usb_serial_port *port;
-	struct qt2_port_private *port_priv;
 	bool escapeflag;
 	unsigned char *ch;
 	int i;
@@ -514,7 +513,6 @@ static void qt2_process_read_urb(struct urb *urb)
 	serial = urb->context;
 	serial_priv = usb_get_serial_data(serial);
 	port = serial->port[serial_priv->current_port];
-	port_priv = usb_get_serial_port_data(port);
 
 	for (i = 0; i < urb->actual_length; i++) {
 		ch = (unsigned char *)urb->transfer_buffer + i;
@@ -566,7 +564,6 @@ static void qt2_process_read_urb(struct urb *urb)
 
 				serial_priv->current_port = newport;
 				port = serial->port[serial_priv->current_port];
-				port_priv = usb_get_serial_port_data(port);
 				i += 3;
 				escapeflag = true;
 				break;

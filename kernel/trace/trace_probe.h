@@ -32,6 +32,7 @@
 #define MAX_TRACE_ARGS		128
 #define MAX_ARGSTR_LEN		63
 #define MAX_ARRAY_LEN		64
+#define MAX_ARG_NAME_LEN	32
 #define MAX_STRING_SIZE		PATH_MAX
 
 /* Reserved field names */
@@ -272,16 +273,15 @@ find_event_file_link(struct trace_probe *tp, struct trace_event_file *file)
 #define TPARG_FL_FENTRY BIT(2)
 #define TPARG_FL_MASK	GENMASK(2, 0)
 
-extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-		   struct probe_arg *parg, unsigned int flags);
-
-extern int traceprobe_conflict_field_name(const char *name,
-			       struct probe_arg *args, int narg);
+extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
+				char *arg, unsigned int flags);
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
+extern int traceprobe_parse_event_name(const char **pevent,
+				       const char **pgroup, char *buf);
 
 extern int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return);
 

@@ -147,7 +147,7 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 
 	rcar_du_group_setup_pins(rgrp);
 
-	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS)) {
+	if (rcdu->info->gen >= 2) {
 		rcar_du_group_setup_defr8(rgrp);
 		rcar_du_group_setup_didsr(rgrp);
 	}
@@ -202,10 +202,25 @@ void rcar_du_group_put(struct rcar_du_group *rgrp)
 
 static void __rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 {
-	struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+	struct rcar_du_device *rcdu = rgrp->dev;
 
-	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
-				   start ? DSYSR_DEN : DSYSR_DRES);
+	/*
+	 * Group start/stop is controlled by the DRES and DEN bits of DSYSR0
+	 * for the first group and DSYSR2 for the second group. On most DU
+	 * instances, this maps to the first CRTC of the group, and we can just
+	 * use rcar_du_crtc_dsysr_clr_set() to access the correct DSYSR. On
+	 * M3-N, however, DU2 doesn't exist, but DSYSR2 does. We thus need to
+	 * access the register directly using group read/write.
+	 */
+	if (rcdu->info->channels_mask & BIT(rgrp->index * 2)) {
+		struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+
+		rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
+					   start ? DSYSR_DEN : DSYSR_DRES);
+	} else {
+		rcar_du_group_write(rgrp, DSYSR,
+				    start ? DSYSR_DEN : DSYSR_DRES);
+	}
 }
 
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
@@ -247,7 +262,7 @@ int rcar_du_set_dpad0_vsp1_routing(struct rcar_du_device *rcdu)
 	unsigned int index;
 	int ret;
 
-	if (!rcar_du_has(rcdu, RCAR_DU_FEATURE_EXT_CTRL_REGS))
+	if (rcdu->info->gen < 2)
 		return 0;
 
 	/*
@@ -272,9 +287,50 @@ int rcar_du_set_dpad0_vsp1_routing(struct rcar_du_device *rcdu)
 	return 0;
 }
 
+static void rcar_du_group_set_dpad_levels(struct rcar_du_group *rgrp)
+{
+	static const u32 doflr_values[2] = {
+		DOFLR_HSYCFL0 | DOFLR_VSYCFL0 | DOFLR_ODDFL0 |
+		DOFLR_DISPFL0 | DOFLR_CDEFL0  | DOFLR_RGBFL0,
+		DOFLR_HSYCFL1 | DOFLR_VSYCFL1 | DOFLR_ODDFL1 |
+		DOFLR_DISPFL1 | DOFLR_CDEFL1  | DOFLR_RGBFL1,
+	};
+	static const u32 dpad_mask = BIT(RCAR_DU_OUTPUT_DPAD1)
+				   | BIT(RCAR_DU_OUTPUT_DPAD0);
+	struct rcar_du_device *rcdu = rgrp->dev;
+	u32 doflr = DOFLR_CODE;
+	unsigned int i;
+
+	if (rcdu->info->gen < 2)
+		return;
+
+	/*
+	 * The DPAD outputs can't be controlled directly. However, the parallel
+	 * output of the DU channels routed to DPAD can be set to fixed levels
+	 * through the DOFLR group register. Use this to turn the DPAD on or off
+	 * by driving fixed low-level signals at the output of any DU channel
+	 * not routed to a DPAD output. This doesn't affect the DU output
+	 * signals going to other outputs, such as the internal LVDS and HDMI
+	 * encoders.
+	 */
+
+	for (i = 0; i < rgrp->num_crtcs; ++i) {
+		struct rcar_du_crtc_state *rstate;
+		struct rcar_du_crtc *rcrtc;
+
+		rcrtc = &rcdu->crtcs[rgrp->index * 2 + i];
+		rstate = to_rcar_crtc_state(rcrtc->crtc.state);
+
+		if (!(rstate->outputs & dpad_mask))
+			doflr |= doflr_values[i];
+	}
+
+	rcar_du_group_write(rgrp, DOFLR, doflr);
+}
+
 int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 {
-	struct rcar_du_crtc *crtc0 = &rgrp->dev->crtcs[rgrp->index * 2];
+	struct rcar_du_device *rcdu = rgrp->dev;
 	u32 dorcr = rcar_du_group_read(rgrp, DORCR);
 
 	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
@@ -284,12 +340,14 @@ int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DPAD0 and DPAD1
 	 * by default.
 	 */
-	if (crtc0->outputs & BIT(RCAR_DU_OUTPUT_DPAD1))
+	if (rcdu->dpad1_source == rgrp->index * 2)
 		dorcr |= DORCR_PG2D_DS1;
 	else
 		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;
 
 	rcar_du_group_write(rgrp, DORCR, dorcr);
+
+	rcar_du_group_set_dpad_levels(rgrp);
 
 	return rcar_du_set_dpad0_vsp1_routing(rgrp->dev);
 }

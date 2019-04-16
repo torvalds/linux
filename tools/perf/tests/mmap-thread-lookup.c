@@ -11,6 +11,7 @@
 #include "tests.h"
 #include "machine.h"
 #include "thread_map.h"
+#include "map.h"
 #include "symbol.h"
 #include "thread.h"
 #include "util.h"
@@ -132,7 +133,7 @@ static int synth_all(struct machine *machine)
 {
 	return perf_event__synthesize_threads(NULL,
 					      perf_event__process,
-					      machine, 0, 500, 1);
+					      machine, 0, 1);
 }
 
 static int synth_process(struct machine *machine)
@@ -144,7 +145,7 @@ static int synth_process(struct machine *machine)
 
 	err = perf_event__synthesize_thread_map(NULL, map,
 						perf_event__process,
-						machine, 0, 500);
+						machine, 0);
 
 	thread_map__put(map);
 	return err;

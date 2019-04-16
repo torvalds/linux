@@ -46,7 +46,7 @@ static const struct v4l2_fwnode_bus_conv {
 	enum v4l2_fwnode_bus_type fwnode_bus_type;
 	enum v4l2_mbus_type mbus_type;
 	const char *name;
-} busses[] = {
+} buses[] = {
 	{
 		V4L2_FWNODE_BUS_TYPE_GUESS,
 		V4L2_MBUS_UNKNOWN,
@@ -83,9 +83,9 @@ get_v4l2_fwnode_bus_conv_by_fwnode_bus(enum v4l2_fwnode_bus_type type)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(busses); i++)
-		if (busses[i].fwnode_bus_type == type)
-			return &busses[i];
+	for (i = 0; i < ARRAY_SIZE(buses); i++)
+		if (buses[i].fwnode_bus_type == type)
+			return &buses[i];
 
 	return NULL;
 }
@@ -113,9 +113,9 @@ get_v4l2_fwnode_bus_conv_by_mbus(enum v4l2_mbus_type type)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(busses); i++)
-		if (busses[i].mbus_type == type)
-			return &busses[i];
+	for (i = 0; i < ARRAY_SIZE(buses); i++)
+		if (buses[i].mbus_type == type)
+			return &buses[i];
 
 	return NULL;
 }
@@ -310,8 +310,8 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-active", &v)) {
-		flags &= ~(V4L2_MBUS_PCLK_SAMPLE_RISING |
-			   V4L2_MBUS_PCLK_SAMPLE_FALLING);
+		flags &= ~(V4L2_MBUS_DATA_ACTIVE_HIGH |
+			   V4L2_MBUS_DATA_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ACTIVE_HIGH :
 			V4L2_MBUS_DATA_ACTIVE_LOW;
 		pr_debug("data-active %s\n", v ? "high" : "low");
@@ -564,8 +564,7 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *__fwnode,
 	fwnode = fwnode_get_parent(__fwnode);
 	fwnode_property_read_u32(fwnode, port_prop, &link->local_port);
 	fwnode = fwnode_get_next_parent(fwnode);
-	if (is_of_node(fwnode) &&
-	    of_node_cmp(to_of_node(fwnode)->name, "ports") == 0)
+	if (is_of_node(fwnode) && of_node_name_eq(to_of_node(fwnode), "ports"))
 		fwnode = fwnode_get_next_parent(fwnode);
 	link->local_node = fwnode;
 
@@ -578,8 +577,7 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *__fwnode,
 	fwnode = fwnode_get_parent(fwnode);
 	fwnode_property_read_u32(fwnode, port_prop, &link->remote_port);
 	fwnode = fwnode_get_next_parent(fwnode);
-	if (is_of_node(fwnode) &&
-	    of_node_cmp(to_of_node(fwnode)->name, "ports") == 0)
+	if (is_of_node(fwnode) && of_node_name_eq(to_of_node(fwnode), "ports"))
 		fwnode = fwnode_get_next_parent(fwnode);
 	link->remote_node = fwnode;
 
@@ -613,7 +611,7 @@ v4l2_async_notifier_fwnode_parse_endpoint(struct device *dev,
 	asd->match.fwnode =
 		fwnode_graph_get_remote_port_parent(endpoint);
 	if (!asd->match.fwnode) {
-		dev_warn(dev, "bad remote port parent\n");
+		dev_dbg(dev, "no remote endpoint found\n");
 		ret = -ENOTCONN;
 		goto out_err;
 	}
@@ -811,7 +809,7 @@ error:
  * root node and the value of that property matching with the integer argument
  * of the reference, at the same index.
  *
- * The child fwnode reched at the end of the iteration is then returned to the
+ * The child fwnode reached at the end of the iteration is then returned to the
  * caller.
  *
  * The core reason for this is that you cannot refer to just any node in ACPI.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.0+
 /*
  * Copyright (C) 1993, 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
  * This file is part of the GNU C Library.

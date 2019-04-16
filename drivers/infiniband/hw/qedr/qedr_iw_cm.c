@@ -349,7 +349,7 @@ qedr_iw_event_handler(void *context, struct qed_iwarp_cm_event_params *params)
 	default:
 		DP_NOTICE(dev, "Unknown event received %d\n", params->event);
 		break;
-	};
+	}
 	return 0;
 }
 
@@ -492,6 +492,8 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int i;
 
 	qp = idr_find(&dev->qpidr.idr, conn_param->qpn);
+	if (unlikely(!qp))
+		return -EINVAL;
 
 	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
 	raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;

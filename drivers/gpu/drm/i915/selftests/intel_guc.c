@@ -111,7 +111,7 @@ static int validate_client(struct intel_guc_client *client,
 			dev_priv->preempt_context : dev_priv->kernel_context;
 
 	if (client->owner != ctx_owner ||
-	    client->engines != INTEL_INFO(dev_priv)->ring_mask ||
+	    client->engines != INTEL_INFO(dev_priv)->engine_mask ||
 	    client->priority != client_priority ||
 	    client->doorbell_id == GUC_DOORBELL_INVALID)
 		return -EINVAL;
@@ -137,12 +137,13 @@ static bool client_doorbell_in_sync(struct intel_guc_client *client)
 static int igt_guc_clients(void *args)
 {
 	struct drm_i915_private *dev_priv = args;
+	intel_wakeref_t wakeref;
 	struct intel_guc *guc;
 	int err = 0;
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	guc = &dev_priv->guc;
 	if (!guc) {
@@ -225,7 +226,7 @@ out:
 	guc_clients_create(guc);
 	guc_clients_enable(guc);
 unlock:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }
@@ -238,13 +239,14 @@ unlock:
 static int igt_guc_doorbells(void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
+	intel_wakeref_t wakeref;
 	struct intel_guc *guc;
 	int i, err = 0;
 	u16 db_id;
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(dev_priv);
 
 	guc = &dev_priv->guc;
 	if (!guc) {
@@ -259,7 +261,7 @@ static int igt_guc_doorbells(void *arg)
 
 	for (i = 0; i < ATTEMPTS; i++) {
 		clients[i] = guc_client_alloc(dev_priv,
-					      INTEL_INFO(dev_priv)->ring_mask,
+					      INTEL_INFO(dev_priv)->engine_mask,
 					      i % GUC_CLIENT_PRIORITY_NUM,
 					      dev_priv->kernel_context);
 
@@ -337,7 +339,7 @@ out:
 			guc_client_free(clients[i]);
 		}
 unlock:
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }

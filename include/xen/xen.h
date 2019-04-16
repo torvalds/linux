@@ -29,6 +29,9 @@ extern bool xen_pvh;
 
 extern uint32_t xen_start_flags;
 
+#include <xen/interface/hvm/start_info.h>
+extern struct hvm_start_info pvh_start_info;
+
 #ifdef CONFIG_XEN_DOM0
 #include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>
@@ -42,5 +45,9 @@ extern uint32_t xen_start_flags;
 struct bio_vec;
 bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 		const struct bio_vec *vec2);
+
+#if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_XEN_BALLOON)
+extern u64 xen_saved_max_mem_size;
+#endif
 
 #endif	/* _XEN_XEN_H */

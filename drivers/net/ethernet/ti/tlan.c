@@ -69,7 +69,9 @@ MODULE_AUTHOR("Maintainer: Samuel Chessman <chessman@tux.org>");
 MODULE_DESCRIPTION("Driver for TI ThunderLAN based ethernet PCI adapters");
 MODULE_LICENSE("GPL");
 
-/* Turn on debugging. See Documentation/networking/tlan.txt for details */
+/* Turn on debugging.
+ * See Documentation/networking/device_drivers/ti/tlan.txt for details
+ */
 static  int		debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "ThunderLAN debug mask");

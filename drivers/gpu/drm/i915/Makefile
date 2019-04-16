@@ -22,6 +22,7 @@ subdir-ccflags-y += $(call cc-disable-warning, unused-but-set-variable)
 subdir-ccflags-y += $(call cc-disable-warning, sign-compare)
 subdir-ccflags-y += $(call cc-disable-warning, sometimes-uninitialized)
 subdir-ccflags-y += $(call cc-disable-warning, initializer-overrides)
+subdir-ccflags-y += $(call cc-disable-warning, uninitialized)
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
 # Fine grained warnings disable
@@ -40,10 +41,12 @@ i915-y := i915_drv.o \
 	  i915_mm.o \
 	  i915_params.o \
 	  i915_pci.o \
-          i915_suspend.o \
-	  i915_syncmap.o \
+	  i915_reset.o \
+	  i915_suspend.o \
 	  i915_sw_fence.o \
+	  i915_syncmap.o \
 	  i915_sysfs.o \
+	  i915_user_extensions.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pm.o \
@@ -54,8 +57,21 @@ i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
+# Test the headers are compilable as standalone units
+i915-$(CONFIG_DRM_I915_WERROR) += \
+	test_i915_active_types_standalone.o \
+	test_i915_gem_context_types_standalone.o \
+	test_i915_priolist_types_standalone.o \
+	test_i915_scheduler_types_standalone.o \
+	test_i915_timeline_types_standalone.o \
+	test_intel_context_types_standalone.o \
+	test_intel_engine_types_standalone.o \
+	test_intel_workarounds_types_standalone.o
+
 # GEM code
-i915-y += i915_cmd_parser.o \
+i915-y += \
+	  i915_active.o \
+	  i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
 	  i915_gem_clflush.o \
 	  i915_gem_context.o \
@@ -73,6 +89,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
 	  i915_gemfs.o \
+	  i915_globals.o \
 	  i915_query.o \
 	  i915_request.o \
 	  i915_scheduler.o \
@@ -80,6 +97,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
 	  intel_breadcrumbs.o \
+	  intel_context.o \
 	  intel_engine_cs.o \
 	  intel_hangcheck.o \
 	  intel_lrc.o \
@@ -166,6 +184,7 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
 	selftests/igt_flush_test.o \
+	selftests/igt_live_test.o \
 	selftests/igt_reset.o \
 	selftests/igt_spinner.o
 

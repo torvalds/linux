@@ -119,7 +119,7 @@ static struct wmi_driver wmi_bmof_driver = {
 
 module_wmi_driver(wmi_bmof_driver);
 
-MODULE_ALIAS("wmi:" WMI_BMOF_GUID);
+MODULE_DEVICE_TABLE(wmi, wmi_bmof_id_table);
 MODULE_AUTHOR("Andrew Lutomirski <luto@kernel.org>");
 MODULE_DESCRIPTION("WMI embedded Binary MOF driver");
 MODULE_LICENSE("GPL");

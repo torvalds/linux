@@ -39,6 +39,22 @@ to_uio_pci_generic_dev(struct uio_info *info)
 	return container_of(info, struct uio_pci_generic_dev, info);
 }
 
+static int release(struct uio_info *info, struct inode *inode)
+{
+	struct uio_pci_generic_dev *gdev = to_uio_pci_generic_dev(info);
+
+	/*
+	 * This driver is insecure when used with devices doing DMA, but some
+	 * people (mis)use it with such devices.
+	 * Let's at least make sure DMA isn't left enabled after the userspace
+	 * driver closes the fd.
+	 * Note that there's a non-zero chance doing this will wedge the device
+	 * at least until reset.
+	 */
+	pci_clear_master(gdev->pdev);
+	return 0;
+}
+
 /* Interrupt handler. Read/modify/write the command register to disable
  * the interrupt. */
 static irqreturn_t irqhandler(int irq, struct uio_info *info)
@@ -78,6 +94,7 @@ static int probe(struct pci_dev *pdev,
 
 	gdev->info.name = "uio_pci_generic";
 	gdev->info.version = DRIVER_VERSION;
+	gdev->info.release = release;
 	gdev->pdev = pdev;
 	if (pdev->irq) {
 		gdev->info.irq = pdev->irq;

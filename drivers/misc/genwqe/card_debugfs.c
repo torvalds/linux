@@ -33,19 +33,6 @@
 #include "card_base.h"
 #include "card_ddcb.h"
 
-#define GENWQE_DEBUGFS_RO(_name, _showfn)				\
-	static int genwqe_debugfs_##_name##_open(struct inode *inode,	\
-						 struct file *file)	\
-	{								\
-		return single_open(file, _showfn, inode->i_private);	\
-	}								\
-	static const struct file_operations genwqe_##_name##_fops = {	\
-		.open = genwqe_debugfs_##_name##_open,			\
-		.read = seq_read,					\
-		.llseek = seq_lseek,					\
-		.release = single_release,				\
-	}
-
 static void dbg_uidn_show(struct seq_file *s, struct genwqe_reg *regs,
 			  int entries)
 {
@@ -87,26 +74,26 @@ static int curr_dbg_uidn_show(struct seq_file *s, void *unused, int uid)
 	return 0;
 }
 
-static int genwqe_curr_dbg_uid0_show(struct seq_file *s, void *unused)
+static int curr_dbg_uid0_show(struct seq_file *s, void *unused)
 {
 	return curr_dbg_uidn_show(s, unused, 0);
 }
 
-GENWQE_DEBUGFS_RO(curr_dbg_uid0, genwqe_curr_dbg_uid0_show);
+DEFINE_SHOW_ATTRIBUTE(curr_dbg_uid0);
 
-static int genwqe_curr_dbg_uid1_show(struct seq_file *s, void *unused)
+static int curr_dbg_uid1_show(struct seq_file *s, void *unused)
 {
 	return curr_dbg_uidn_show(s, unused, 1);
 }
 
-GENWQE_DEBUGFS_RO(curr_dbg_uid1, genwqe_curr_dbg_uid1_show);
+DEFINE_SHOW_ATTRIBUTE(curr_dbg_uid1);
 
-static int genwqe_curr_dbg_uid2_show(struct seq_file *s, void *unused)
+static int curr_dbg_uid2_show(struct seq_file *s, void *unused)
 {
 	return curr_dbg_uidn_show(s, unused, 2);
 }
 
-GENWQE_DEBUGFS_RO(curr_dbg_uid2, genwqe_curr_dbg_uid2_show);
+DEFINE_SHOW_ATTRIBUTE(curr_dbg_uid2);
 
 static int prev_dbg_uidn_show(struct seq_file *s, void *unused, int uid)
 {
@@ -116,28 +103,28 @@ static int prev_dbg_uidn_show(struct seq_file *s, void *unused, int uid)
 	return 0;
 }
 
-static int genwqe_prev_dbg_uid0_show(struct seq_file *s, void *unused)
+static int prev_dbg_uid0_show(struct seq_file *s, void *unused)
 {
 	return prev_dbg_uidn_show(s, unused, 0);
 }
 
-GENWQE_DEBUGFS_RO(prev_dbg_uid0, genwqe_prev_dbg_uid0_show);
+DEFINE_SHOW_ATTRIBUTE(prev_dbg_uid0);
 
-static int genwqe_prev_dbg_uid1_show(struct seq_file *s, void *unused)
+static int prev_dbg_uid1_show(struct seq_file *s, void *unused)
 {
 	return prev_dbg_uidn_show(s, unused, 1);
 }
 
-GENWQE_DEBUGFS_RO(prev_dbg_uid1, genwqe_prev_dbg_uid1_show);
+DEFINE_SHOW_ATTRIBUTE(prev_dbg_uid1);
 
-static int genwqe_prev_dbg_uid2_show(struct seq_file *s, void *unused)
+static int prev_dbg_uid2_show(struct seq_file *s, void *unused)
 {
 	return prev_dbg_uidn_show(s, unused, 2);
 }
 
-GENWQE_DEBUGFS_RO(prev_dbg_uid2, genwqe_prev_dbg_uid2_show);
+DEFINE_SHOW_ATTRIBUTE(prev_dbg_uid2);
 
-static int genwqe_curr_regs_show(struct seq_file *s, void *unused)
+static int curr_regs_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
 	unsigned int i;
@@ -164,9 +151,9 @@ static int genwqe_curr_regs_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-GENWQE_DEBUGFS_RO(curr_regs, genwqe_curr_regs_show);
+DEFINE_SHOW_ATTRIBUTE(curr_regs);
 
-static int genwqe_prev_regs_show(struct seq_file *s, void *unused)
+static int prev_regs_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
 	unsigned int i;
@@ -188,9 +175,9 @@ static int genwqe_prev_regs_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-GENWQE_DEBUGFS_RO(prev_regs, genwqe_prev_regs_show);
+DEFINE_SHOW_ATTRIBUTE(prev_regs);
 
-static int genwqe_jtimer_show(struct seq_file *s, void *unused)
+static int jtimer_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
 	unsigned int vf_num;
@@ -209,9 +196,9 @@ static int genwqe_jtimer_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-GENWQE_DEBUGFS_RO(jtimer, genwqe_jtimer_show);
+DEFINE_SHOW_ATTRIBUTE(jtimer);
 
-static int genwqe_queue_working_time_show(struct seq_file *s, void *unused)
+static int queue_working_time_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
 	unsigned int vf_num;
@@ -227,9 +214,9 @@ static int genwqe_queue_working_time_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-GENWQE_DEBUGFS_RO(queue_working_time, genwqe_queue_working_time_show);
+DEFINE_SHOW_ATTRIBUTE(queue_working_time);
 
-static int genwqe_ddcb_info_show(struct seq_file *s, void *unused)
+static int ddcb_info_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
 	unsigned int i;
@@ -300,9 +287,9 @@ static int genwqe_ddcb_info_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-GENWQE_DEBUGFS_RO(ddcb_info, genwqe_ddcb_info_show);
+DEFINE_SHOW_ATTRIBUTE(ddcb_info);
 
-static int genwqe_info_show(struct seq_file *s, void *unused)
+static int info_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
 	u64 app_id, slu_id, bitstream = -1;
@@ -335,7 +322,7 @@ static int genwqe_info_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-GENWQE_DEBUGFS_RO(info, genwqe_info_show);
+DEFINE_SHOW_ATTRIBUTE(info);
 
 int genwqe_init_debugfs(struct genwqe_dev *cd)
 {
@@ -356,14 +343,14 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 
 	/* non privileged interfaces are done here */
 	file = debugfs_create_file("ddcb_info", S_IRUGO, root, cd,
-				   &genwqe_ddcb_info_fops);
+				   &ddcb_info_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("info", S_IRUGO, root, cd,
-				   &genwqe_info_fops);
+				   &info_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
@@ -396,56 +383,56 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	}
 
 	file = debugfs_create_file("curr_regs", S_IRUGO, root, cd,
-				   &genwqe_curr_regs_fops);
+				   &curr_regs_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("curr_dbg_uid0", S_IRUGO, root, cd,
-				   &genwqe_curr_dbg_uid0_fops);
+				   &curr_dbg_uid0_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("curr_dbg_uid1", S_IRUGO, root, cd,
-				   &genwqe_curr_dbg_uid1_fops);
+				   &curr_dbg_uid1_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("curr_dbg_uid2", S_IRUGO, root, cd,
-				   &genwqe_curr_dbg_uid2_fops);
+				   &curr_dbg_uid2_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("prev_regs", S_IRUGO, root, cd,
-				   &genwqe_prev_regs_fops);
+				   &prev_regs_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("prev_dbg_uid0", S_IRUGO, root, cd,
-				   &genwqe_prev_dbg_uid0_fops);
+				   &prev_dbg_uid0_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("prev_dbg_uid1", S_IRUGO, root, cd,
-				   &genwqe_prev_dbg_uid1_fops);
+				   &prev_dbg_uid1_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("prev_dbg_uid2", S_IRUGO, root, cd,
-				   &genwqe_prev_dbg_uid2_fops);
+				   &prev_dbg_uid2_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
@@ -463,14 +450,14 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	}
 
 	file = debugfs_create_file("jobtimer", S_IRUGO, root, cd,
-				   &genwqe_jtimer_fops);
+				   &jtimer_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("queue_working_time", S_IRUGO, root, cd,
-				   &genwqe_queue_working_time_fops);
+				   &queue_working_time_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;

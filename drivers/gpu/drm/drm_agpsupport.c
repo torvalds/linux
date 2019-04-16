@@ -348,7 +348,7 @@ int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device is present and has been acquired and looks up the
- * AGP memory entry. If the memory it's currently bound, unbind it via
+ * AGP memory entry. If the memory is currently bound, unbind it via
  * unbind_agp(). Frees it via free_agp() as well as the entry itself
  * and unlinks from the doubly linked list it's inserted in.
  */

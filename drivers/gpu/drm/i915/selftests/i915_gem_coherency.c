@@ -202,7 +202,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	rq = i915_request_alloc(i915->engine[RCS], i915->kernel_context);
+	rq = i915_request_alloc(i915->engine[RCS0], i915->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -248,15 +248,15 @@ static bool always_valid(struct drm_i915_private *i915)
 
 static bool needs_fence_registers(struct drm_i915_private *i915)
 {
-	return !i915_terminally_wedged(&i915->gpu_error);
+	return !i915_terminally_wedged(i915);
 }
 
 static bool needs_mi_store_dword(struct drm_i915_private *i915)
 {
-	if (i915_terminally_wedged(&i915->gpu_error))
+	if (i915_terminally_wedged(i915))
 		return false;
 
-	return intel_engine_can_store_dword(i915->engine[RCS]);
+	return intel_engine_can_store_dword(i915->engine[RCS0]);
 }
 
 static const struct igt_coherency_mode {
@@ -279,6 +279,7 @@ static int igt_gem_coherency(void *arg)
 	struct drm_i915_private *i915 = arg;
 	const struct igt_coherency_mode *read, *write, *over;
 	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref;
 	unsigned long count, n;
 	u32 *offsets, *values;
 	int err = 0;
@@ -298,7 +299,7 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
 			continue;
@@ -376,7 +377,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	kfree(offsets);
 	return err;

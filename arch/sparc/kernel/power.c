@@ -41,8 +41,8 @@ static int power_probe(struct platform_device *op)
 
 	power_reg = of_ioremap(res, 0, 0x4, "power");
 
-	printk(KERN_INFO "%s: Control reg at %llx\n",
-	       op->dev.of_node->name, res->start);
+	printk(KERN_INFO "%pOFn: Control reg at %llx\n",
+	       op->dev.of_node, res->start);
 
 	if (has_button_interrupt(irq, op->dev.of_node)) {
 		if (request_irq(irq,

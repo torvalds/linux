@@ -255,35 +255,12 @@ static long efi_rtc_ioctl(struct file *file, unsigned int cmd,
 }
 
 /*
- *	We enforce only one user at a time here with the open/close.
- *	Also clear the previous interrupt data on an open, and clean
- *	up things on a close.
- */
-
-static int efi_rtc_open(struct inode *inode, struct file *file)
-{
-	/*
-	 * nothing special to do here
-	 * We do accept multiple open files at the same time as we
-	 * synchronize on the per call operation.
-	 */
-	return 0;
-}
-
-static int efi_rtc_close(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-/*
  *	The various file operations we support.
  */
 
 static const struct file_operations efi_rtc_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= efi_rtc_ioctl,
-	.open		= efi_rtc_open,
-	.release	= efi_rtc_close,
 	.llseek		= no_llseek,
 };
 

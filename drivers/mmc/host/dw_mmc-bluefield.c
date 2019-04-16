@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2018 Mellanox Technologies.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitfield.h>
@@ -52,16 +47,7 @@ MODULE_DEVICE_TABLE(of, dw_mci_bluefield_match);
 
 static int dw_mci_bluefield_probe(struct platform_device *pdev)
 {
-	const struct dw_mci_drv_data *drv_data = NULL;
-	const struct of_device_id *match;
-
-	if (pdev->dev.of_node) {
-		match = of_match_node(dw_mci_bluefield_match,
-				      pdev->dev.of_node);
-		drv_data = match->data;
-	}
-
-	return dw_mci_pltfm_register(pdev, drv_data);
+	return dw_mci_pltfm_register(pdev, &bluefield_drv_data);
 }
 
 static struct platform_driver dw_mci_bluefield_pltfm_driver = {

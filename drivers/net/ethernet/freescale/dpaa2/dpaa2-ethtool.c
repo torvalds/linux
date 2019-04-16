@@ -45,6 +45,16 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] dequeue portal busy",
 	"[drv] channel pull errors",
 	"[drv] cdan",
+	"[drv] xdp drop",
+	"[drv] xdp tx",
+	"[drv] xdp tx errors",
+	"[drv] xdp redirect",
+	/* FQ stats */
+	"[qbman] rx pending frames",
+	"[qbman] rx pending bytes",
+	"[qbman] tx conf pending frames",
+	"[qbman] tx conf pending bytes",
+	"[qbman] buffer count",
 };
 
 #define DPAA2_ETH_NUM_EXTRA_STATS	ARRAY_SIZE(dpaa2_ethtool_extras)
@@ -174,8 +184,10 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	int j, k, err;
 	int num_cnt;
 	union dpni_statistics dpni_stats;
-	u64 cdan = 0;
-	u64 portal_busy = 0, pull_err = 0;
+	u32 fcnt, bcnt;
+	u32 fcnt_rx_total = 0, fcnt_tx_total = 0;
+	u32 bcnt_rx_total = 0, bcnt_tx_total = 0;
+	u32 buf_cnt;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpaa2_eth_drv_stats *extras;
 	struct dpaa2_eth_ch_stats *ch_stats;
@@ -212,16 +224,43 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	}
 	i += j;
 
-	for (j = 0; j < priv->num_channels; j++) {
-		ch_stats = &priv->channel[j]->stats;
-		cdan += ch_stats->cdan;
-		portal_busy += ch_stats->dequeue_portal_busy;
-		pull_err += ch_stats->pull_err;
+	/* Per-channel stats */
+	for (k = 0; k < priv->num_channels; k++) {
+		ch_stats = &priv->channel[k]->stats;
+		for (j = 0; j < sizeof(*ch_stats) / sizeof(__u64); j++)
+			*((__u64 *)data + i + j) += *((__u64 *)ch_stats + j);
+	}
+	i += j;
+
+	for (j = 0; j < priv->num_fqs; j++) {
+		/* Print FQ instantaneous counts */
+		err = dpaa2_io_query_fq_count(NULL, priv->fq[j].fqid,
+					      &fcnt, &bcnt);
+		if (err) {
+			netdev_warn(net_dev, "FQ query error %d", err);
+			return;
+		}
+
+		if (priv->fq[j].type == DPAA2_TX_CONF_FQ) {
+			fcnt_tx_total += fcnt;
+			bcnt_tx_total += bcnt;
+		} else {
+			fcnt_rx_total += fcnt;
+			bcnt_rx_total += bcnt;
+		}
 	}
 
-	*(data + i++) = portal_busy;
-	*(data + i++) = pull_err;
-	*(data + i++) = cdan;
+	*(data + i++) = fcnt_rx_total;
+	*(data + i++) = bcnt_rx_total;
+	*(data + i++) = fcnt_tx_total;
+	*(data + i++) = bcnt_tx_total;
+
+	err = dpaa2_io_query_bp_count(NULL, priv->bpid, &buf_cnt);
+	if (err) {
+		netdev_warn(net_dev, "Buffer count query error %d\n", err);
+		return;
+	}
+	*(data + i++) = buf_cnt;
 }
 
 static int prep_eth_rule(struct ethhdr *eth_value, struct ethhdr *eth_mask,

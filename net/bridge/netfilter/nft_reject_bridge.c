@@ -125,13 +125,10 @@ static void nft_reject_br_send_v4_unreach(struct net *net,
 	if (pskb_trim_rcsum(oldskb, ntohs(ip_hdr(oldskb)->tot_len)))
 		return;
 
-	if (ip_hdr(oldskb)->protocol == IPPROTO_TCP ||
-	    ip_hdr(oldskb)->protocol == IPPROTO_UDP)
-		proto = ip_hdr(oldskb)->protocol;
-	else
-		proto = 0;
+	proto = ip_hdr(oldskb)->protocol;
 
 	if (!skb_csum_unnecessary(oldskb) &&
+	    nf_reject_verify_csum(proto) &&
 	    nf_ip_checksum(oldskb, hook, ip_hdrlen(oldskb), proto))
 		return;
 
@@ -229,9 +226,13 @@ static bool reject6_br_csum_ok(struct sk_buff *skb, int hook)
 	    pskb_trim_rcsum(skb, ntohs(ip6h->payload_len) + sizeof(*ip6h)))
 		return false;
 
+	ip6h = ipv6_hdr(skb);
 	thoff = ipv6_skip_exthdr(skb, ((u8*)(ip6h+1) - skb->data), &proto, &fo);
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;
+
+	if (!nf_reject_verify_csum(proto))
+		return true;
 
 	return nf_ip6_checksum(skb, hook, thoff, proto) == 0;
 }

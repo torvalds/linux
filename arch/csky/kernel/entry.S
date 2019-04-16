@@ -122,16 +122,6 @@ ENTRY(csky_systemcall)
 
 	psrset  ee, ie
 
-	/* Stack frame for syscall, origin call set_esp0 */
-	mov     r12, sp
-
-	bmaski  r11, 13
-	andn    r12, r11
-	bgeni   r11, 9
-	addi    r11, 32
-	addu    r12, r11
-	st      sp, (r12, 0)
-
 	lrw     r11, __NR_syscalls
 	cmphs   syscallid, r11		/* Check nr of syscall */
 	bt      ret_from_exception
@@ -183,18 +173,10 @@ ENTRY(csky_systemcall)
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
-	movi	a0, 1			/* leave system call */
-	mov	a1, sp			/* sp = pt_regs pointer */
-	jbsr	syscall_trace
-
-syscall_exit_work:
-	ld	syscallid, (sp, LSAVE_PSR)
-	btsti	syscallid, 31
-	bt	2f
-
-	jmpi	resume_userspace
-
-2:      RESTORE_ALL
+	movi    a0, 1                   /* leave system call */
+	mov     a1, sp                  /* right now, sp --> pt_regs */
+	jbsr    syscall_trace
+	br	ret_from_exception
 
 ENTRY(ret_from_kernel_thread)
 	jbsr	schedule_tail
@@ -238,8 +220,6 @@ resume_userspace:
 1:  RESTORE_ALL
 
 exit_work:
-	mov	a0, sp			/* Stack address is arg[0] */
-	jbsr	set_esp0		/* Call C level */
 	btsti	r8, TIF_NEED_RESCHED
 	bt	work_resched
 	/* If thread_info->flag is empty, RESTORE_ALL */
@@ -354,33 +334,11 @@ ENTRY(__switch_to)
 
 	stw	sp, (a3, THREAD_KSP)
 
-#ifdef CONFIG_CPU_HAS_HILO
-	lrw	r10, THREAD_DSPHI
-	add	r10, a3
-	mfhi	r6
-	mflo	r7
-	stw	r6, (r10, 0)		/* THREAD_DSPHI */
-	stw	r7, (r10, 4)		/* THREAD_DSPLO */
-	mfcr	r6, cr14
-	stw	r6, (r10, 8)		/* THREAD_DSPCSR */
-#endif
-
 	/* Set up next process to run */
 	lrw	a3, TASK_THREAD
 	addu	a3, a1
 
 	ldw	sp, (a3, THREAD_KSP)	/* Set next kernel sp */
-
-#ifdef CONFIG_CPU_HAS_HILO
-	lrw	r10, THREAD_DSPHI
-	add	r10, a3
-	ldw	r6, (r10, 8)		/* THREAD_DSPCSR */
-	mtcr	r6, cr14
-	ldw	r6, (r10, 0)		/* THREAD_DSPHI */
-	ldw	r7, (r10, 4)		/* THREAD_DSPLO */
-	mthi	r6
-	mtlo	r7
-#endif
 
 	ldw	a2, (a3, THREAD_SR)	/* Set next PSR */
 	mtcr	a2, psr

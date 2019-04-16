@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -216,26 +217,6 @@ static void msdc_tasklet_card(struct work_struct *work)
 	spin_unlock(&host->lock);
 }
 
-static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
-{
-	u32 val;
-
-	BUG_ON(clksrc > 3);
-
-	val = readl(host->base + MSDC_CLKSRC_REG);
-	if (readl(host->base + MSDC_ECO_VER) >= 4) {
-		val &= ~(0x3  << clk_src_bit[host->id]);
-		val |= clksrc << clk_src_bit[host->id];
-	} else {
-		val &= ~0x3; val |= clksrc;
-	}
-	writel(val, host->base + MSDC_CLKSRC_REG);
-
-	host->hclk = hclks[clksrc];
-	host->hw->clk_src = clksrc;
-}
-#endif /* end of --- */
-
 static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 {
 	//struct msdc_hw *hw = host->hw;
@@ -318,9 +299,9 @@ static void msdc_abort_data(struct msdc_host *host)
 
 #ifdef CONFIG_PM
 /*
-   register as callback function of WIFI(combo_sdio_register_pm) .
-   can called by msdc_drv_suspend/resume too.
-*/
+ *   register as callback function of WIFI(combo_sdio_register_pm) .
+ *  can called by msdc_drv_suspend/resume too.
+ */
 static void msdc_pm(pm_message_t state, void *data)
 {
 	struct msdc_host *host = (struct msdc_host *)data;
@@ -351,7 +332,6 @@ static void msdc_pm(pm_message_t state, void *data)
 
 		host->suspend = 0;
 		host->pm_state = state;
-
 	}
 }
 #endif
@@ -685,7 +665,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		if (read) {
 			if ((host->timeout_ns != data->timeout_ns) ||
-				(host->timeout_clks != data->timeout_clks)) {
+			    (host->timeout_clks != data->timeout_clks)) {
 				msdc_set_timeout(host, data->timeout_ns, data->timeout_clks);
 			}
 		}
@@ -711,7 +691,8 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			goto done;
 
 		/* for read, the data coming too fast, then CRC error
-		   start DMA no business with CRC. */
+		 *  start DMA no business with CRC.
+		 */
 		//init_completion(&host->xfer_done);
 		msdc_dma_start(host);
 
@@ -794,9 +775,10 @@ static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 	u32 skip = 1;
 
 	/* ==== don't support 3.0 now ====
-	   1: R_SMPL[1]
-	   2: PAD_CMD_RESP_RXDLY[26:22]
-	   ==========================*/
+	 *  1: R_SMPL[1]
+	 *  2: PAD_CMD_RESP_RXDLY[26:22]
+	 *  ==========================
+	 */
 
 	// save the previous tune result
 	sdr_get_field(host->base + MSDC_IOCON, MSDC_IOCON_RSPL, &orig_rsmpl);
@@ -1188,8 +1170,6 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock(&host->lock);
 
 	mmc_request_done(mmc, mrq);
-
-	return;
 }
 
 /* called by ops.set_ios */
@@ -1223,19 +1203,19 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	u32 ddr = 0;
 
 #ifdef MT6575_SD_DEBUG
-	static char *vdd[] = {
+	static const char * const vdd[] = {
 		"1.50v", "1.55v", "1.60v", "1.65v", "1.70v", "1.80v", "1.90v",
 		"2.00v", "2.10v", "2.20v", "2.30v", "2.40v", "2.50v", "2.60v",
 		"2.70v", "2.80v", "2.90v", "3.00v", "3.10v", "3.20v", "3.30v",
 		"3.40v", "3.50v", "3.60v"
 	};
-	static char *power_mode[] = {
+	static const char * const power_mode[] = {
 		"OFF", "UP", "ON"
 	};
-	static char *bus_mode[] = {
+	static const char * const bus_mode[] = {
 		"UNKNOWN", "OPENDRAIN", "PUSHPULL"
 	};
-	static char *timing[] = {
+	static const char * const timing[] = {
 		"LEGACY", "MMC_HS", "SD_HS"
 	};
 
@@ -1398,7 +1378,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	/* command interrupts */
 	if (cmd && (intsts & cmdsts)) {
 		if ((intsts & MSDC_INT_CMDRDY) || (intsts & MSDC_INT_ACMDRDY) ||
-			(intsts & MSDC_INT_ACMD19_DONE)) {
+		    (intsts & MSDC_INT_ACMD19_DONE)) {
 			u32 *rsp = &cmd->resp[0];
 
 			switch (host->cmd_rsp) {
@@ -1431,13 +1411,13 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	/* mmc irq interrupts */
 	if (intsts & MSDC_INT_MMCIRQ)
 		dev_info(mmc_dev(host->mmc), "msdc[%d] MMCIRQ: SDC_CSTS=0x%.8x\r\n",
-			host->id, readl(host->base + SDC_CSTS));
+			 host->id, readl(host->base + SDC_CSTS));
 
 	return IRQ_HANDLED;
 }
 
 /*--------------------------------------------------------------------------*/
-/* platform_driver members                                                      */
+/* platform_driver members                                                  */
 /*--------------------------------------------------------------------------*/
 /* called by msdc_drv_probe/remove */
 static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
@@ -1446,11 +1426,11 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 
 	/* for sdio, not set */
 	if ((hw->flags & MSDC_CD_PIN_EN) == 0) {
-		/* Pull down card detection pin since it is not avaiable */
+		/* Pull down card detection pin since it is not available */
 		/*
-		  if (hw->config_gpio_pin)
-		  hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
-		*/
+		 * if (hw->config_gpio_pin)
+		 * hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
+		 */
 		sdr_clr_bits(host->base + MSDC_PS, MSDC_PS_CDEN);
 		sdr_clr_bits(host->base + MSDC_INTEN, MSDC_INTEN_CDSC);
 		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_INSWKUP);
@@ -1490,7 +1470,6 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 /* called by msdc_drv_probe */
 static void msdc_init_hw(struct msdc_host *host)
 {
-
 	/* Configure to MMC/SD mode */
 	sdr_set_field(host->base + MSDC_CFG, MSDC_CFG_MODE, MSDC_SDMMC);
 
@@ -1538,12 +1517,13 @@ static void msdc_init_hw(struct msdc_host *host)
 #endif
 
 	/* for safety, should clear SDC_CFG.SDIO_INT_DET_EN & set SDC_CFG.SDIO in
-	   pre-loader,uboot,kernel drivers. and SDC_CFG.SDIO_INT_DET_EN will be only
-	   set when kernel driver wants to use SDIO bus interrupt */
+	 *  pre-loader,uboot,kernel drivers. and SDC_CFG.SDIO_INT_DET_EN will be only
+	 *  set when kernel driver wants to use SDIO bus interrupt
+	 */
 	/* Configure to enable SDIO mode. it's must otherwise sdio cmd5 failed */
 	sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
 
-	/* disable detect SDIO device interupt function */
+	/* disable detect SDIO device interrupt function */
 	sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIOIDE);
 
 	/* eneable SMT for glitch filter */
@@ -1693,7 +1673,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	host->mrq = NULL;
 	//init_MUTEX(&host->sem); /* we don't need to support multiple threads access */
 
-	mmc_dev(mmc)->dma_mask = NULL;
+	dma_coerce_mask_and_coherent(mmc_dev(mmc), DMA_BIT_MASK(32));
 
 	/* using dma_alloc_coherent*/  /* todo: using 1, for all 4 slots */
 	host->dma.gpd = dma_alloc_coherent(&pdev->dev,
@@ -1797,6 +1777,7 @@ static void msdc_drv_pm(struct platform_device *pdev, pm_message_t state)
 
 	if (mmc) {
 		struct msdc_host *host = mmc_priv(mmc);
+
 		msdc_pm(state, (void *)host);
 	}
 }

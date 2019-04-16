@@ -830,10 +830,12 @@ static bool carl9170_tx_rts_check(struct ar9170 *ar,
 	case CARL9170_ERP_AUTO:
 		if (ampdu)
 			break;
+		/* fall through */
 
 	case CARL9170_ERP_MAC80211:
 		if (!(rate->flags & IEEE80211_TX_RC_USE_RTS_CTS))
 			break;
+		/* fall through */
 
 	case CARL9170_ERP_RTS:
 		if (likely(!multi))
@@ -854,6 +856,7 @@ static bool carl9170_tx_cts_check(struct ar9170 *ar,
 	case CARL9170_ERP_MAC80211:
 		if (!(rate->flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
 			break;
+		/* fall through */
 
 	case CARL9170_ERP_CTS:
 		return true;

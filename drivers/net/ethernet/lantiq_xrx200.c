@@ -335,7 +335,6 @@ static const struct net_device_ops xrx200_netdev_ops = {
 	.ndo_start_xmit		= xrx200_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static irqreturn_t xrx200_dma_irq(int irq, void *ptr)
@@ -512,7 +511,8 @@ static int xrx200_probe(struct platform_device *pdev)
 	err = register_netdev(net_dev);
 	if (err)
 		goto err_unprepare_clk;
-	return err;
+
+	return 0;
 
 err_unprepare_clk:
 	clk_disable_unprepare(priv->clk);
@@ -520,7 +520,7 @@ err_unprepare_clk:
 err_uninit_dma:
 	xrx200_hw_cleanup(priv);
 
-	return 0;
+	return err;
 }
 
 static int xrx200_remove(struct platform_device *pdev)

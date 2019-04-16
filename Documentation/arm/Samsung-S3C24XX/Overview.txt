@@ -17,7 +17,7 @@ Introduction
   versions.
 
   The S3C2416 and S3C2450 devices are very similar and S3C2450 support is
-  included under the arch/arm/mach-s3c2416 directory. Note, whilst core
+  included under the arch/arm/mach-s3c2416 directory. Note, while core
   support for these SoCs is in, work on some of the extra peripherals
   and extra interrupts is still ongoing.
 

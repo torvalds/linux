@@ -120,6 +120,35 @@ void gfs2_revoke_clean(struct gfs2_jdesc *jd)
 	}
 }
 
+int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
+		     unsigned int blkno, struct gfs2_log_header_host *head)
+{
+	u32 hash, crc;
+
+	if (lh->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
+	    lh->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH) ||
+	    (blkno && be32_to_cpu(lh->lh_blkno) != blkno))
+		return 1;
+
+	hash = crc32(~0, lh, LH_V1_SIZE - 4);
+	hash = ~crc32_le_shift(hash, 4); /* assume lh_hash is zero */
+
+	if (be32_to_cpu(lh->lh_hash) != hash)
+		return 1;
+
+	crc = crc32c(~0, (void *)lh + LH_V1_SIZE + 4,
+		     sdp->sd_sb.sb_bsize - LH_V1_SIZE - 4);
+
+	if ((lh->lh_crc != 0 && be32_to_cpu(lh->lh_crc) != crc))
+		return 1;
+
+	head->lh_sequence = be64_to_cpu(lh->lh_sequence);
+	head->lh_flags = be32_to_cpu(lh->lh_flags);
+	head->lh_tail = be32_to_cpu(lh->lh_tail);
+	head->lh_blkno = be32_to_cpu(lh->lh_blkno);
+
+	return 0;
+}
 /**
  * get_log_header - read the log header for a given segment
  * @jd: the journal
@@ -137,36 +166,18 @@ void gfs2_revoke_clean(struct gfs2_jdesc *jd)
 static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 			  struct gfs2_log_header_host *head)
 {
-	struct gfs2_log_header *lh;
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct buffer_head *bh;
-	u32 hash, crc;
 	int error;
 
 	error = gfs2_replay_read_block(jd, blk, &bh);
 	if (error)
 		return error;
-	lh = (void *)bh->b_data;
 
-	hash = crc32(~0, lh, LH_V1_SIZE - 4);
-	hash = ~crc32_le_shift(hash, 4);  /* assume lh_hash is zero */
-
-	crc = crc32c(~0, (void *)lh + LH_V1_SIZE + 4,
-		     bh->b_size - LH_V1_SIZE - 4);
-
-	error = lh->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
-		lh->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH) ||
-		be32_to_cpu(lh->lh_blkno) != blk ||
-		be32_to_cpu(lh->lh_hash) != hash ||
-		(lh->lh_crc != 0 && be32_to_cpu(lh->lh_crc) != crc);
-
+	error = __get_log_header(sdp, (const struct gfs2_log_header *)bh->b_data,
+				 blk, head);
 	brelse(bh);
 
-	if (!error) {
-		head->lh_sequence = be64_to_cpu(lh->lh_sequence);
-		head->lh_flags = be32_to_cpu(lh->lh_flags);
-		head->lh_tail = be32_to_cpu(lh->lh_tail);
-		head->lh_blkno = be32_to_cpu(lh->lh_blkno);
-	}
 	return error;
 }
 
@@ -460,6 +471,8 @@ void gfs2_recover_func(struct work_struct *work)
 	if (error)
 		goto fail_gunlock_ji;
 	t_jhd = ktime_get();
+	fs_info(sdp, "jid=%u: Journal head lookup took %lldms\n", jd->jd_jid,
+		ktime_ms_delta(t_jhd, t_jlck));
 
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
 		fs_info(sdp, "jid=%u: Acquiring the transaction lock...\n",

@@ -35,7 +35,7 @@
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   0
+#define HBM_MINOR_VERSION                   1
 #define HBM_MAJOR_VERSION                   2
 
 /*
@@ -206,6 +206,7 @@ enum  mei_cl_disconnect_status {
  * @dma_ring: message is on dma ring
  * @internal: message is internal
  * @msg_complete: last packet of the message
+ * @extension: extension of the header
  */
 struct mei_msg_hdr {
 	u32 me_addr:8;
@@ -215,7 +216,10 @@ struct mei_msg_hdr {
 	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
+	u32 extension[0];
 } __packed;
+
+#define MEI_MSG_HDR_MAX 2
 
 struct mei_bus_message {
 	u8 hbm_cmd;
@@ -307,7 +311,8 @@ struct mei_client_properties {
 	u8 protocol_version;
 	u8 max_number_of_connections;
 	u8 fixed_address;
-	u8 single_recv_buf;
+	u8 single_recv_buf:1;
+	u8 reserved:7;
 	u32 max_msg_length;
 } __packed;
 
@@ -510,6 +515,29 @@ struct hbm_dma_setup_response {
 	u8 hbm_cmd;
 	u8 status;
 	u8 reserved[2];
+} __packed;
+
+/**
+ * struct mei_dma_ring_ctrl - dma ring control block
+ *
+ * @hbuf_wr_idx: host circular buffer write index in slots
+ * @reserved1: reserved for alignment
+ * @hbuf_rd_idx: host circular buffer read index in slots
+ * @reserved2: reserved for alignment
+ * @dbuf_wr_idx: device circular buffer write index in slots
+ * @reserved3: reserved for alignment
+ * @dbuf_rd_idx: device circular buffer read index in slots
+ * @reserved4: reserved for alignment
+ */
+struct hbm_dma_ring_ctrl {
+	u32 hbuf_wr_idx;
+	u32 reserved1;
+	u32 hbuf_rd_idx;
+	u32 reserved2;
+	u32 dbuf_wr_idx;
+	u32 reserved3;
+	u32 dbuf_rd_idx;
+	u32 reserved4;
 } __packed;
 
 #endif

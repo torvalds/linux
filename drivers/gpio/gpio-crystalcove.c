@@ -1,28 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * gpio-crystalcove.c - Intel Crystal Cove GPIO Driver
+ * Intel Crystal Cove GPIO Driver
  *
  * Copyright (C) 2012, 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Author: Yang, Bin <bin.yang@intel.com>
  */
 
+#include <linux/bitops.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/intel_soc_pmic.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio/driver.h>
-#include <linux/seq_file.h>
-#include <linux/bitops.h>
 #include <linux/regmap.h>
-#include <linux/mfd/intel_soc_pmic.h>
+#include <linux/seq_file.h>
 
 #define CRYSTALCOVE_GPIO_NUM	16
 #define CRYSTALCOVE_VGPIO_NUM	95
@@ -279,8 +271,8 @@ static struct irq_chip crystalcove_irqchip = {
 static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 {
 	struct crystalcove_gpio *cg = data;
+	unsigned long pending;
 	unsigned int p0, p1;
-	int pending;
 	int gpio;
 	unsigned int virq;
 
@@ -293,11 +285,9 @@ static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 
 	pending = p0 | p1 << 8;
 
-	for (gpio = 0; gpio < CRYSTALCOVE_GPIO_NUM; gpio++) {
-		if (pending & BIT(gpio)) {
-			virq = irq_find_mapping(cg->chip.irq.domain, gpio);
-			handle_nested_irq(virq);
-		}
+	for_each_set_bit(gpio, &pending, CRYSTALCOVE_GPIO_NUM) {
+		virq = irq_find_mapping(cg->chip.irq.domain, gpio);
+		handle_nested_irq(virq);
 	}
 
 	return IRQ_HANDLED;

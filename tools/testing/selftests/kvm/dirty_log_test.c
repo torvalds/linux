@@ -51,10 +51,17 @@ static uint64_t random_array[TEST_PAGES_PER_LOOP];
 static uint64_t iteration;
 
 /*
- * GPA offset of the testing memory slot. Must be bigger than
- * DEFAULT_GUEST_PHY_PAGES.
+ * Guest physical memory offset of the testing memory slot.
+ * This will be set to the topmost valid physical address minus
+ * the test memory size.
  */
-static uint64_t guest_test_mem = DEFAULT_GUEST_TEST_MEM;
+static uint64_t guest_test_phys_mem;
+
+/*
+ * Guest virtual memory offset of the testing memory slot.
+ * Must not conflict with identity mapped test code.
+ */
+static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
 /*
  * Continuously write to the first 8 bytes of a random pages within
@@ -66,7 +73,7 @@ static void guest_code(void)
 
 	while (true) {
 		for (i = 0; i < TEST_PAGES_PER_LOOP; i++) {
-			uint64_t addr = guest_test_mem;
+			uint64_t addr = guest_test_virt_mem;
 			addr += (READ_ONCE(random_array[i]) % guest_num_pages)
 				* guest_page_size;
 			addr &= ~(host_page_size - 1);
@@ -209,12 +216,14 @@ static void vm_dirty_log_verify(unsigned long *bmap)
 }
 
 static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
-				uint64_t extra_mem_pages, void *guest_code)
+				uint64_t extra_mem_pages, void *guest_code,
+				unsigned long type)
 {
 	struct kvm_vm *vm;
 	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
-	vm = vm_create(mode, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+	vm = _vm_create(mode, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
+			O_RDWR, type);
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 #ifdef __x86_64__
 	vm_create_irqchip(vm);
@@ -224,13 +233,14 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
 }
 
 static void run_test(enum vm_guest_mode mode, unsigned long iterations,
-		     unsigned long interval, bool top_offset)
+		     unsigned long interval, uint64_t phys_offset)
 {
 	unsigned int guest_pa_bits, guest_page_shift;
 	pthread_t vcpu_thread;
 	struct kvm_vm *vm;
 	uint64_t max_gfn;
 	unsigned long *bmap;
+	unsigned long type = 0;
 
 	switch (mode) {
 	case VM_MODE_P52V48_4K:
@@ -239,6 +249,14 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		break;
 	case VM_MODE_P52V48_64K:
 		guest_pa_bits = 52;
+		guest_page_shift = 16;
+		break;
+	case VM_MODE_P48V48_4K:
+		guest_pa_bits = 48;
+		guest_page_shift = 12;
+		break;
+	case VM_MODE_P48V48_64K:
+		guest_pa_bits = 48;
 		guest_page_shift = 16;
 		break;
 	case VM_MODE_P40V48_4K:
@@ -255,6 +273,19 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	DEBUG("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
+#ifdef __x86_64__
+	/*
+	 * FIXME
+	 * The x86_64 kvm selftests framework currently only supports a
+	 * single PML4 which restricts the number of physical address
+	 * bits we can change to 39.
+	 */
+	guest_pa_bits = 39;
+#endif
+#ifdef __aarch64__
+	if (guest_pa_bits != 40)
+		type = KVM_VM_TYPE_ARM_IPA_SIZE(guest_pa_bits);
+#endif
 	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
 	guest_page_size = (1ul << guest_page_shift);
 	/* 1G of guest page sized pages */
@@ -263,31 +294,41 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
 
-	if (top_offset) {
-		guest_test_mem = (max_gfn - guest_num_pages) * guest_page_size;
-		guest_test_mem &= ~(host_page_size - 1);
+	if (!phys_offset) {
+		guest_test_phys_mem = (max_gfn - guest_num_pages) * guest_page_size;
+		guest_test_phys_mem &= ~(host_page_size - 1);
+	} else {
+		guest_test_phys_mem = phys_offset;
 	}
 
-	DEBUG("guest test mem offset: 0x%lx\n", guest_test_mem);
+	DEBUG("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	bmap = bitmap_alloc(host_num_pages);
 	host_bmap_track = bitmap_alloc(host_num_pages);
 
-	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code);
+	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code, type);
+
+#ifdef USE_CLEAR_DIRTY_LOG
+	struct kvm_enable_cap cap = {};
+
+	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT;
+	cap.args[0] = 1;
+	vm_enable_cap(vm, &cap);
+#endif
 
 	/* Add an extra memory slot for testing dirty logging */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-				    guest_test_mem,
+				    guest_test_phys_mem,
 				    TEST_MEM_SLOT_INDEX,
 				    guest_num_pages,
 				    KVM_MEM_LOG_DIRTY_PAGES);
 
-	/* Do 1:1 mapping for the dirty track memory slot */
-	virt_map(vm, guest_test_mem, guest_test_mem,
+	/* Do mapping for the dirty track memory slot */
+	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem,
 		 guest_num_pages * guest_page_size, 0);
 
 	/* Cache the HVA pointer of the region */
-	host_test_mem = addr_gpa2hva(vm, (vm_paddr_t)guest_test_mem);
+	host_test_mem = addr_gpa2hva(vm, (vm_paddr_t)guest_test_phys_mem);
 
 #ifdef __x86_64__
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
@@ -299,7 +340,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	/* Export the shared variables to the guest */
 	sync_global_to_guest(vm, host_page_size);
 	sync_global_to_guest(vm, guest_page_size);
-	sync_global_to_guest(vm, guest_test_mem);
+	sync_global_to_guest(vm, guest_test_virt_mem);
 	sync_global_to_guest(vm, guest_num_pages);
 
 	/* Start the iterations */
@@ -316,6 +357,10 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		/* Give the vcpu thread some time to dirty some pages */
 		usleep(interval * 1000);
 		kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
+#ifdef USE_CLEAR_DIRTY_LOG
+		kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
+				       DIV_ROUND_UP(host_num_pages, 64) * 64);
+#endif
 		vm_dirty_log_verify(bmap);
 		iteration++;
 		sync_global_to_guest(vm, iteration);
@@ -335,23 +380,16 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	kvm_vm_free(vm);
 }
 
-static struct vm_guest_modes {
-	enum vm_guest_mode mode;
+struct vm_guest_mode_params {
 	bool supported;
 	bool enabled;
-} vm_guest_modes[NUM_VM_MODES] = {
-#if defined(__x86_64__)
-	{ VM_MODE_P52V48_4K,	1, 1, },
-	{ VM_MODE_P52V48_64K,	0, 0, },
-	{ VM_MODE_P40V48_4K,	0, 0, },
-	{ VM_MODE_P40V48_64K,	0, 0, },
-#elif defined(__aarch64__)
-	{ VM_MODE_P52V48_4K,	0, 0, },
-	{ VM_MODE_P52V48_64K,	0, 0, },
-	{ VM_MODE_P40V48_4K,	1, 1, },
-	{ VM_MODE_P40V48_64K,	1, 1, },
-#endif
 };
+struct vm_guest_mode_params vm_guest_mode_params[NUM_VM_MODES];
+
+#define vm_guest_mode_params_init(mode, supported, enabled)					\
+({												\
+	vm_guest_mode_params[mode] = (struct vm_guest_mode_params){ supported, enabled };	\
+})
 
 static void help(char *name)
 {
@@ -359,25 +397,21 @@ static void help(char *name)
 
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-I interval] "
-	       "[-o offset] [-t] [-m mode]\n", name);
+	       "[-p offset] [-m mode]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
 	printf(" -I: specify interval in ms (default: %"PRIu64" ms)\n",
 	       TEST_HOST_LOOP_INTERVAL);
-	printf(" -o: guest test memory offset (default: 0x%lx)\n",
-	       DEFAULT_GUEST_TEST_MEM);
-	printf(" -t: map guest test memory at the top of the allowed "
-	       "physical address range\n");
+	printf(" -p: specify guest physical test memory offset\n"
+	       "     Warning: a low offset can conflict with the loaded test code.\n");
 	printf(" -m: specify the guest mode ID to test "
 	       "(default: test all supported modes)\n"
 	       "     This option may be used multiple times.\n"
 	       "     Guest mode IDs:\n");
 	for (i = 0; i < NUM_VM_MODES; ++i) {
-		printf("         %d:    %s%s\n",
-		       vm_guest_modes[i].mode,
-		       vm_guest_mode_string(vm_guest_modes[i].mode),
-		       vm_guest_modes[i].supported ? " (supported)" : "");
+		printf("         %d:    %s%s\n", i, vm_guest_mode_string(i),
+		       vm_guest_mode_params[i].supported ? " (supported)" : "");
 	}
 	puts("");
 	exit(0);
@@ -388,11 +422,34 @@ int main(int argc, char *argv[])
 	unsigned long iterations = TEST_HOST_LOOP_N;
 	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
 	bool mode_selected = false;
-	bool top_offset = false;
-	unsigned int mode;
+	uint64_t phys_offset = 0;
+	unsigned int mode, host_ipa_limit;
 	int opt, i;
 
-	while ((opt = getopt(argc, argv, "hi:I:o:tm:")) != -1) {
+#ifdef USE_CLEAR_DIRTY_LOG
+	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT)) {
+		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG not available, skipping tests\n");
+		exit(KSFT_SKIP);
+	}
+#endif
+
+#ifdef __x86_64__
+	vm_guest_mode_params_init(VM_MODE_P52V48_4K, true, true);
+#endif
+#ifdef __aarch64__
+	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
+	vm_guest_mode_params_init(VM_MODE_P40V48_64K, true, true);
+
+	host_ipa_limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
+	if (host_ipa_limit >= 52)
+		vm_guest_mode_params_init(VM_MODE_P52V48_64K, true, true);
+	if (host_ipa_limit >= 48) {
+		vm_guest_mode_params_init(VM_MODE_P48V48_4K, true, true);
+		vm_guest_mode_params_init(VM_MODE_P48V48_64K, true, true);
+	}
+#endif
+
+	while ((opt = getopt(argc, argv, "hi:I:p:m:")) != -1) {
 		switch (opt) {
 		case 'i':
 			iterations = strtol(optarg, NULL, 10);
@@ -400,22 +457,19 @@ int main(int argc, char *argv[])
 		case 'I':
 			interval = strtol(optarg, NULL, 10);
 			break;
-		case 'o':
-			guest_test_mem = strtoull(optarg, NULL, 0);
-			break;
-		case 't':
-			top_offset = true;
+		case 'p':
+			phys_offset = strtoull(optarg, NULL, 0);
 			break;
 		case 'm':
 			if (!mode_selected) {
 				for (i = 0; i < NUM_VM_MODES; ++i)
-					vm_guest_modes[i].enabled = 0;
+					vm_guest_mode_params[i].enabled = false;
 				mode_selected = true;
 			}
 			mode = strtoul(optarg, NULL, 10);
 			TEST_ASSERT(mode < NUM_VM_MODES,
 				    "Guest mode ID %d too big", mode);
-			vm_guest_modes[mode].enabled = 1;
+			vm_guest_mode_params[mode].enabled = true;
 			break;
 		case 'h':
 		default:
@@ -426,8 +480,6 @@ int main(int argc, char *argv[])
 
 	TEST_ASSERT(iterations > 2, "Iterations must be greater than two");
 	TEST_ASSERT(interval > 0, "Interval must be greater than zero");
-	TEST_ASSERT(!top_offset || guest_test_mem == DEFAULT_GUEST_TEST_MEM,
-		    "Cannot use both -o [offset] and -t at the same time");
 
 	DEBUG("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
 	      iterations, interval);
@@ -435,13 +487,12 @@ int main(int argc, char *argv[])
 	srandom(time(0));
 
 	for (i = 0; i < NUM_VM_MODES; ++i) {
-		if (!vm_guest_modes[i].enabled)
+		if (!vm_guest_mode_params[i].enabled)
 			continue;
-		TEST_ASSERT(vm_guest_modes[i].supported,
+		TEST_ASSERT(vm_guest_mode_params[i].supported,
 			    "Guest mode ID %d (%s) not supported.",
-			    vm_guest_modes[i].mode,
-			    vm_guest_mode_string(vm_guest_modes[i].mode));
-		run_test(vm_guest_modes[i].mode, iterations, interval, top_offset);
+			    i, vm_guest_mode_string(i));
+		run_test(i, iterations, interval, phys_offset);
 	}
 
 	return 0;

@@ -20,7 +20,7 @@ struct udmabuf {
 	struct page **pages;
 };
 
-static int udmabuf_vm_fault(struct vm_fault *vmf)
+static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct udmabuf *ubuf = vma->vm_private_data;
@@ -184,6 +184,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 	exp_info.ops  = &udmabuf_ops;
 	exp_info.size = ubuf->pagecount << PAGE_SHIFT;
 	exp_info.priv = ubuf;
+	exp_info.flags = O_RDWR;
 
 	buf = dma_buf_export(&exp_info);
 	if (IS_ERR(buf)) {

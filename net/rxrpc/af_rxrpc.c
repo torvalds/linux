@@ -375,15 +375,34 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * getting ACKs from the server.  Returns a number representing the life state
  * which can be compared to that returned by a previous call.
  *
- * If this is a client call, ping ACKs will be sent to the server to find out
- * whether it's still responsive and whether the call is still alive on the
- * server.
+ * If the life state stalls, rxrpc_kernel_probe_life() should be called and
+ * then 2RTT waited.
  */
-u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
+u32 rxrpc_kernel_check_life(const struct socket *sock,
+			    const struct rxrpc_call *call)
 {
 	return call->acks_latest;
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
+ * rxrpc_kernel_probe_life - Poke the peer to see if it's still alive
+ * @sock: The socket the call is on
+ * @call: The call to check
+ *
+ * In conjunction with rxrpc_kernel_check_life(), allow a kernel service to
+ * find out whether a call is still alive by pinging it.  This should cause the
+ * life state to be bumped in about 2*RTT.
+ *
+ * The must be called in TASK_RUNNING state on pain of might_sleep() objecting.
+ */
+void rxrpc_kernel_probe_life(struct socket *sock, struct rxrpc_call *call)
+{
+	rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+			  rxrpc_propose_ack_ping_for_check_life);
+	rxrpc_send_ack_packet(call, true, NULL);
+}
+EXPORT_SYMBOL(rxrpc_kernel_probe_life);
 
 /**
  * rxrpc_kernel_get_epoch - Retrieve the epoch value from a call.
@@ -398,76 +417,6 @@ u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
 	return call->conn->proto.epoch;
 }
 EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
-
-/**
- * rxrpc_kernel_check_call - Check a call's state
- * @sock: The socket the call is on
- * @call: The call to check
- * @_compl: Where to store the completion state
- * @_abort_code: Where to store any abort code
- *
- * Allow a kernel service to query the state of a call and find out the manner
- * of its termination if it has completed.  Returns -EINPROGRESS if the call is
- * still going, 0 if the call finished successfully, -ECONNABORTED if the call
- * was aborted and an appropriate error if the call failed in some other way.
- */
-int rxrpc_kernel_check_call(struct socket *sock, struct rxrpc_call *call,
-			    enum rxrpc_call_completion *_compl, u32 *_abort_code)
-{
-	if (call->state != RXRPC_CALL_COMPLETE)
-		return -EINPROGRESS;
-	smp_rmb();
-	*_compl = call->completion;
-	*_abort_code = call->abort_code;
-	return call->error;
-}
-EXPORT_SYMBOL(rxrpc_kernel_check_call);
-
-/**
- * rxrpc_kernel_retry_call - Allow a kernel service to retry a call
- * @sock: The socket the call is on
- * @call: The call to retry
- * @srx: The address of the peer to contact
- * @key: The security context to use (defaults to socket setting)
- *
- * Allow a kernel service to try resending a client call that failed due to a
- * network error to a new address.  The Tx queue is maintained intact, thereby
- * relieving the need to re-encrypt any request data that has already been
- * buffered.
- */
-int rxrpc_kernel_retry_call(struct socket *sock, struct rxrpc_call *call,
-			    struct sockaddr_rxrpc *srx, struct key *key)
-{
-	struct rxrpc_conn_parameters cp;
-	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	int ret;
-
-	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
-
-	if (!key)
-		key = rx->key;
-	if (key && !key->payload.data[0])
-		key = NULL; /* a no-security key */
-
-	memset(&cp, 0, sizeof(cp));
-	cp.local		= rx->local;
-	cp.key			= key;
-	cp.security_level	= 0;
-	cp.exclusive		= false;
-	cp.service_id		= srx->srx_service;
-
-	mutex_lock(&call->user_mutex);
-
-	ret = rxrpc_prepare_call_for_retry(rx, call);
-	if (ret == 0)
-		ret = rxrpc_retry_client_call(rx, call, &cp, srx, GFP_KERNEL);
-
-	mutex_unlock(&call->user_mutex);
-	rxrpc_put_peer(cp.peer);
-	_leave(" = %d", ret);
-	return ret;
-}
-EXPORT_SYMBOL(rxrpc_kernel_retry_call);
 
 /**
  * rxrpc_kernel_new_call_notification - Get notifications of new calls

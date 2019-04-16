@@ -11,7 +11,7 @@
 
 #include <linux/io.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -35,25 +35,6 @@ struct spi_clps711x_data {
 	unsigned int		bpw;
 	int			len;
 };
-
-static int spi_clps711x_setup(struct spi_device *spi)
-{
-	if (!spi->controller_state) {
-		int ret;
-
-		ret = devm_gpio_request(&spi->master->dev, spi->cs_gpio,
-					dev_name(&spi->master->dev));
-		if (ret)
-			return ret;
-
-		spi->controller_state = spi;
-	}
-
-	/* We are expect that SPI-device is not selected */
-	gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-
-	return 0;
-}
 
 static int spi_clps711x_prepare_message(struct spi_master *master,
 					struct spi_message *msg)
@@ -125,11 +106,11 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
+	master->use_gpio_descriptors = true;
 	master->bus_num = -1;
 	master->mode_bits = SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask =  SPI_BPW_RANGE_MASK(1, 8);
 	master->dev.of_node = pdev->dev.of_node;
-	master->setup = spi_clps711x_setup;
 	master->prepare_message = spi_clps711x_prepare_message;
 	master->transfer_one = spi_clps711x_transfer_one;
 

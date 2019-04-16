@@ -397,13 +397,13 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	}
 
 	if (op & ETNA_PREP_NOSYNC) {
-		if (!reservation_object_test_signaled_rcu(etnaviv_obj->resv,
+		if (!reservation_object_test_signaled_rcu(obj->resv,
 							  write))
 			return -EBUSY;
 	} else {
 		unsigned long remain = etnaviv_timeout_to_jiffies(timeout);
 
-		ret = reservation_object_wait_timeout_rcu(etnaviv_obj->resv,
+		ret = reservation_object_wait_timeout_rcu(obj->resv,
 							  write, true, remain);
 		if (ret <= 0)
 			return ret == 0 ? -ETIMEDOUT : ret;
@@ -449,7 +449,7 @@ static void etnaviv_gem_describe_fence(struct dma_fence *fence,
 	const char *type, struct seq_file *m)
 {
 	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		seq_printf(m, "\t%9s: %s %s seq %u\n",
+		seq_printf(m, "\t%9s: %s %s seq %llu\n",
 			   type,
 			   fence->ops->get_driver_name(fence),
 			   fence->ops->get_timeline_name(fence),
@@ -459,7 +459,7 @@ static void etnaviv_gem_describe_fence(struct dma_fence *fence,
 static void etnaviv_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-	struct reservation_object *robj = etnaviv_obj->resv;
+	struct reservation_object *robj = obj->resv;
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence;
 	unsigned long off = drm_vma_node_start(&obj->vma_node);
@@ -549,8 +549,6 @@ void etnaviv_gem_free_object(struct drm_gem_object *obj)
 
 	drm_gem_free_mmap_offset(obj);
 	etnaviv_obj->ops->release(etnaviv_obj);
-	if (etnaviv_obj->resv == &etnaviv_obj->_resv)
-		reservation_object_fini(&etnaviv_obj->_resv);
 	drm_gem_object_release(obj);
 
 	kfree(etnaviv_obj);
@@ -596,12 +594,8 @@ static int etnaviv_gem_new_impl(struct drm_device *dev, u32 size, u32 flags,
 
 	etnaviv_obj->flags = flags;
 	etnaviv_obj->ops = ops;
-	if (robj) {
-		etnaviv_obj->resv = robj;
-	} else {
-		etnaviv_obj->resv = &etnaviv_obj->_resv;
-		reservation_object_init(&etnaviv_obj->_resv);
-	}
+	if (robj)
+		etnaviv_obj->base.resv = robj;
 
 	mutex_init(&etnaviv_obj->lock);
 	INIT_LIST_HEAD(&etnaviv_obj->vram_list);

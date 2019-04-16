@@ -247,28 +247,15 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		mb->chans[i].msg = NULL;
 	}
 
-	ret = mbox_controller_register(&mb->mbox);
+	ret = devm_mbox_controller_register(&pdev->dev, &mb->mbox);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to register mailbox: %d\n", ret);
 
 	return ret;
 }
 
-static int rockchip_mbox_remove(struct platform_device *pdev)
-{
-	struct rockchip_mbox *mb = platform_get_drvdata(pdev);
-
-	if (!mb)
-		return -EINVAL;
-
-	mbox_controller_unregister(&mb->mbox);
-
-	return 0;
-}
-
 static struct platform_driver rockchip_mbox_driver = {
 	.probe	= rockchip_mbox_probe,
-	.remove	= rockchip_mbox_remove,
 	.driver = {
 		.name = "rockchip-mailbox",
 		.of_match_table = of_match_ptr(rockchip_mbox_of_match),

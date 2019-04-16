@@ -17,9 +17,9 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -32,6 +32,18 @@ struct vc4_ctm_state {
 static struct vc4_ctm_state *to_vc4_ctm_state(struct drm_private_state *priv)
 {
 	return container_of(priv, struct vc4_ctm_state, base);
+}
+
+struct vc4_load_tracker_state {
+	struct drm_private_state base;
+	u64 hvs_load;
+	u64 membus_load;
+};
+
+static struct vc4_load_tracker_state *
+to_vc4_load_tracker_state(struct drm_private_state *priv)
+{
+	return container_of(priv, struct vc4_load_tracker_state, base);
 }
 
 static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_state *state,
@@ -138,6 +150,16 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc;
+	int i;
+
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		if (!state->crtcs[i].ptr || !state->crtcs[i].commit)
+			continue;
+
+		vc4_crtc = to_vc4_crtc(state->crtcs[i].ptr);
+		vc4_hvs_mask_underrun(dev, vc4_crtc->channel);
+	}
 
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 
@@ -214,6 +236,12 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
+	/* We know for sure we don't want an async update here. Set
+	 * state->legacy_cursor_update to false to prevent
+	 * drm_atomic_helper_setup_commit() from auto-completing
+	 * commit->flip_done.
+	 */
+	state->legacy_cursor_update = false;
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
@@ -379,6 +407,85 @@ vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	return 0;
 }
 
+static int vc4_load_tracker_atomic_check(struct drm_atomic_state *state)
+{
+	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct vc4_dev *vc4 = to_vc4_dev(state->dev);
+	struct vc4_load_tracker_state *load_state;
+	struct drm_private_state *priv_state;
+	struct drm_plane *plane;
+	int i;
+
+	priv_state = drm_atomic_get_private_obj_state(state,
+						      &vc4->load_tracker);
+	if (IS_ERR(priv_state))
+		return PTR_ERR(priv_state);
+
+	load_state = to_vc4_load_tracker_state(priv_state);
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state,
+				       new_plane_state, i) {
+		struct vc4_plane_state *vc4_plane_state;
+
+		if (old_plane_state->fb && old_plane_state->crtc) {
+			vc4_plane_state = to_vc4_plane_state(old_plane_state);
+			load_state->membus_load -= vc4_plane_state->membus_load;
+			load_state->hvs_load -= vc4_plane_state->hvs_load;
+		}
+
+		if (new_plane_state->fb && new_plane_state->crtc) {
+			vc4_plane_state = to_vc4_plane_state(new_plane_state);
+			load_state->membus_load += vc4_plane_state->membus_load;
+			load_state->hvs_load += vc4_plane_state->hvs_load;
+		}
+	}
+
+	/* Don't check the load when the tracker is disabled. */
+	if (!vc4->load_tracker_enabled)
+		return 0;
+
+	/* The absolute limit is 2Gbyte/sec, but let's take a margin to let
+	 * the system work when other blocks are accessing the memory.
+	 */
+	if (load_state->membus_load > SZ_1G + SZ_512M)
+		return -ENOSPC;
+
+	/* HVS clock is supposed to run @ 250Mhz, let's take a margin and
+	 * consider the maximum number of cycles is 240M.
+	 */
+	if (load_state->hvs_load > 240000000ULL)
+		return -ENOSPC;
+
+	return 0;
+}
+
+static struct drm_private_state *
+vc4_load_tracker_duplicate_state(struct drm_private_obj *obj)
+{
+	struct vc4_load_tracker_state *state;
+
+	state = kmemdup(obj->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
+
+	return &state->base;
+}
+
+static void vc4_load_tracker_destroy_state(struct drm_private_obj *obj,
+					   struct drm_private_state *state)
+{
+	struct vc4_load_tracker_state *load_state;
+
+	load_state = to_vc4_load_tracker_state(state);
+	kfree(load_state);
+}
+
+static const struct drm_private_state_funcs vc4_load_tracker_state_funcs = {
+	.atomic_duplicate_state = vc4_load_tracker_duplicate_state,
+	.atomic_destroy_state = vc4_load_tracker_destroy_state,
+};
+
 static int
 vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
@@ -388,7 +495,11 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	if (ret < 0)
 		return ret;
 
-	return drm_atomic_helper_check(dev, state);
+	ret = drm_atomic_helper_check(dev, state);
+	if (ret)
+		return ret;
+
+	return vc4_load_tracker_atomic_check(state);
 }
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
@@ -401,7 +512,13 @@ int vc4_kms_load(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_ctm_state *ctm_state;
+	struct vc4_load_tracker_state *load_state;
 	int ret;
+
+	/* Start with the load tracker enabled. Can be disabled through the
+	 * debugfs load_tracker file.
+	 */
+	vc4->load_tracker_enabled = true;
 
 	sema_init(&vc4->async_modeset, 1);
 
@@ -426,8 +543,18 @@ int vc4_kms_load(struct drm_device *dev)
 	ctm_state = kzalloc(sizeof(*ctm_state), GFP_KERNEL);
 	if (!ctm_state)
 		return -ENOMEM;
-	drm_atomic_private_obj_init(&vc4->ctm_manager, &ctm_state->base,
+
+	drm_atomic_private_obj_init(dev, &vc4->ctm_manager, &ctm_state->base,
 				    &vc4_ctm_state_funcs);
+
+	load_state = kzalloc(sizeof(*load_state), GFP_KERNEL);
+	if (!load_state) {
+		drm_atomic_private_obj_fini(&vc4->ctm_manager);
+		return -ENOMEM;
+	}
+
+	drm_atomic_private_obj_init(dev, &vc4->load_tracker, &load_state->base,
+				    &vc4_load_tracker_state_funcs);
 
 	drm_mode_config_reset(dev);
 

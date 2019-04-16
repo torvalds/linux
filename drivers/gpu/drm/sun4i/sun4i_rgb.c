@@ -14,9 +14,9 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sun4i_crtc.h"
 #include "sun4i_tcon.h"
@@ -27,6 +27,8 @@ struct sun4i_rgb {
 	struct drm_encoder	encoder;
 
 	struct sun4i_tcon	*tcon;
+	struct drm_panel	*panel;
+	struct drm_bridge	*bridge;
 };
 
 static inline struct sun4i_rgb *
@@ -47,10 +49,17 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 {
 	struct sun4i_rgb *rgb =
 		drm_connector_to_sun4i_rgb(connector);
-	struct sun4i_tcon *tcon = rgb->tcon;
 
-	return drm_panel_get_modes(tcon->panel);
+	return drm_panel_get_modes(rgb->panel);
 }
+
+/*
+ * VESA DMT defines a tolerance of 0.5% on the pixel clock, while the
+ * CVT spec reuses that tolerance in its examples, so it looks to be a
+ * good default tolerance for the EDID-based modes. Define it to 5 per
+ * mille to avoid floating point operations.
+ */
+#define SUN4I_RGB_DOTCLOCK_TOLERANCE_PER_MILLE	5
 
 static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 						 const struct drm_display_mode *mode)
@@ -59,8 +68,9 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	struct sun4i_tcon *tcon = rgb->tcon;
 	u32 hsync = mode->hsync_end - mode->hsync_start;
 	u32 vsync = mode->vsync_end - mode->vsync_start;
-	unsigned long rate = mode->clock * 1000;
-	long rounded_rate;
+	unsigned long long rate = mode->clock * 1000;
+	unsigned long long lowest, highest;
+	unsigned long long rounded_rate;
 
 	DRM_DEBUG_DRIVER("Validating modes...\n");
 
@@ -92,15 +102,39 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 
 	DRM_DEBUG_DRIVER("Vertical parameters OK\n");
 
+	/*
+	 * TODO: We should use the struct display_timing if available
+	 * and / or trying to stretch the timings within that
+	 * tolerancy to take care of panels that we wouldn't be able
+	 * to have a exact match for.
+	 */
+	if (rgb->panel) {
+		DRM_DEBUG_DRIVER("RGB panel used, skipping clock rate checks");
+		goto out;
+	}
+
+	/*
+	 * That shouldn't ever happen unless something is really wrong, but it
+	 * doesn't harm to check.
+	 */
+	if (!rgb->bridge)
+		goto out;
+
 	tcon->dclk_min_div = 6;
 	tcon->dclk_max_div = 127;
 	rounded_rate = clk_round_rate(tcon->dclk, rate);
-	if (rounded_rate < rate)
+
+	lowest = rate * (1000 - SUN4I_RGB_DOTCLOCK_TOLERANCE_PER_MILLE);
+	do_div(lowest, 1000);
+	if (rounded_rate < lowest)
 		return MODE_CLOCK_LOW;
 
-	if (rounded_rate > rate)
+	highest = rate * (1000 + SUN4I_RGB_DOTCLOCK_TOLERANCE_PER_MILLE);
+	do_div(highest, 1000);
+	if (rounded_rate > highest)
 		return MODE_CLOCK_HIGH;
 
+out:
 	DRM_DEBUG_DRIVER("Clock rate OK\n");
 
 	return MODE_OK;
@@ -114,9 +148,8 @@ static void
 sun4i_rgb_connector_destroy(struct drm_connector *connector)
 {
 	struct sun4i_rgb *rgb = drm_connector_to_sun4i_rgb(connector);
-	struct sun4i_tcon *tcon = rgb->tcon;
 
-	drm_panel_detach(tcon->panel);
+	drm_panel_detach(rgb->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -131,26 +164,24 @@ static const struct drm_connector_funcs sun4i_rgb_con_funcs = {
 static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
-	struct sun4i_tcon *tcon = rgb->tcon;
 
 	DRM_DEBUG_DRIVER("Enabling RGB output\n");
 
-	if (tcon->panel) {
-		drm_panel_prepare(tcon->panel);
-		drm_panel_enable(tcon->panel);
+	if (rgb->panel) {
+		drm_panel_prepare(rgb->panel);
+		drm_panel_enable(rgb->panel);
 	}
 }
 
 static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
-	struct sun4i_tcon *tcon = rgb->tcon;
 
 	DRM_DEBUG_DRIVER("Disabling RGB output\n");
 
-	if (tcon->panel) {
-		drm_panel_disable(tcon->panel);
-		drm_panel_unprepare(tcon->panel);
+	if (rgb->panel) {
+		drm_panel_disable(rgb->panel);
+		drm_panel_unprepare(rgb->panel);
 	}
 }
 
@@ -172,7 +203,6 @@ static struct drm_encoder_funcs sun4i_rgb_enc_funcs = {
 int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 {
 	struct drm_encoder *encoder;
-	struct drm_bridge *bridge;
 	struct sun4i_rgb *rgb;
 	int ret;
 
@@ -183,7 +213,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	encoder = &rgb->encoder;
 
 	ret = drm_of_find_panel_or_bridge(tcon->dev->of_node, 1, 0,
-					  &tcon->panel, &bridge);
+					  &rgb->panel, &rgb->bridge);
 	if (ret) {
 		dev_info(drm->dev, "No panel or bridge found... RGB output disabled\n");
 		return 0;
@@ -204,7 +234,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	/* The RGB encoder can only work with the TCON channel 0 */
 	rgb->encoder.possible_crtcs = drm_crtc_mask(&tcon->crtc->crtc);
 
-	if (tcon->panel) {
+	if (rgb->panel) {
 		drm_connector_helper_add(&rgb->connector,
 					 &sun4i_rgb_con_helper_funcs);
 		ret = drm_connector_init(drm, &rgb->connector,
@@ -218,15 +248,15 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 		drm_connector_attach_encoder(&rgb->connector,
 						  &rgb->encoder);
 
-		ret = drm_panel_attach(tcon->panel, &rgb->connector);
+		ret = drm_panel_attach(rgb->panel, &rgb->connector);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our panel\n");
 			goto err_cleanup_connector;
 		}
 	}
 
-	if (bridge) {
-		ret = drm_bridge_attach(encoder, bridge, NULL);
+	if (rgb->bridge) {
+		ret = drm_bridge_attach(encoder, rgb->bridge, NULL);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our bridge\n");
 			goto err_cleanup_connector;

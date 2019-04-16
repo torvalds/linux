@@ -1,9 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
-
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/export.h>
@@ -33,6 +28,17 @@ struct clk *devm_clk_get(struct device *dev, const char *id)
 	return clk;
 }
 EXPORT_SYMBOL(devm_clk_get);
+
+struct clk *devm_clk_get_optional(struct device *dev, const char *id)
+{
+	struct clk *clk = devm_clk_get(dev, id);
+
+	if (clk == ERR_PTR(-ENOENT))
+		return NULL;
+
+	return clk;
+}
+EXPORT_SYMBOL(devm_clk_get_optional);
 
 struct clk_bulk_devres {
 	struct clk_bulk_data *clks;

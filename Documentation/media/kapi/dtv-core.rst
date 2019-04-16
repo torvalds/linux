@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Digital TV (DVB) devices
 ------------------------
 
@@ -10,7 +12,7 @@ Digital TV devices are implemented by several different drivers:
 - Frontend drivers that are usually implemented as two separate drivers:
 
   - A tuner driver that implements the logic with commands the part of the
-    hardware with is reponsible to tune into a digital TV transponder or
+    hardware with is responsible to tune into a digital TV transponder or
     physical channel. The output of a tuner is usually a baseband or
     Intermediate Frequency (IF) signal;
 

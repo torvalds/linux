@@ -3,10 +3,12 @@
  * Copyright (C) 2015-2018 Etnaviv Project
  */
 
+#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/thermal.h>
 
 #include "etnaviv_cmdbuf.h"
@@ -976,7 +978,6 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
 {
-	unsigned long flags;
 	unsigned int i = 0;
 
 	dev_err(gpu->dev, "recover hung GPU!\n");
@@ -989,15 +990,13 @@ void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
 	etnaviv_hw_reset(gpu);
 
 	/* complete all events, the GPU won't do it after the reset */
-	spin_lock_irqsave(&gpu->event_spinlock, flags);
+	spin_lock(&gpu->event_spinlock);
 	for_each_set_bit_from(i, gpu->event_bitmap, ETNA_NR_EVENTS)
 		complete(&gpu->event_free);
 	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
-	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
-	gpu->completed_fence = gpu->active_fence;
+	spin_unlock(&gpu->event_spinlock);
 
 	etnaviv_gpu_hw_init(gpu);
-	gpu->lastctx = NULL;
 	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
@@ -1032,7 +1031,7 @@ static bool etnaviv_fence_signaled(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
 
-	return fence_completed(f->gpu, f->base.seqno);
+	return (s32)(f->gpu->completed_fence - f->base.seqno) >= 0;
 }
 
 static void etnaviv_fence_release(struct dma_fence *fence)
@@ -1071,6 +1070,12 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 	return &f->base;
 }
 
+/* returns true if fence a comes after fence b */
+static inline bool fence_after(u32 a, u32 b)
+{
+	return (s32)(a - b) > 0;
+}
+
 /*
  * event management:
  */
@@ -1078,7 +1083,7 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 	unsigned int *events)
 {
-	unsigned long flags, timeout = msecs_to_jiffies(10 * 10000);
+	unsigned long timeout = msecs_to_jiffies(10 * 10000);
 	unsigned i, acquired = 0;
 
 	for (i = 0; i < nr_events; i++) {
@@ -1095,7 +1100,7 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 		timeout = ret;
 	}
 
-	spin_lock_irqsave(&gpu->event_spinlock, flags);
+	spin_lock(&gpu->event_spinlock);
 
 	for (i = 0; i < nr_events; i++) {
 		int event = find_first_zero_bit(gpu->event_bitmap, ETNA_NR_EVENTS);
@@ -1105,7 +1110,7 @@ static int event_alloc(struct etnaviv_gpu *gpu, unsigned nr_events,
 		set_bit(event, gpu->event_bitmap);
 	}
 
-	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
+	spin_unlock(&gpu->event_spinlock);
 
 	return 0;
 
@@ -1118,18 +1123,11 @@ out:
 
 static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpu->event_spinlock, flags);
-
 	if (!test_bit(event, gpu->event_bitmap)) {
 		dev_warn(gpu->dev, "event %u is already marked as free",
 			 event);
-		spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	} else {
 		clear_bit(event, gpu->event_bitmap);
-		spin_unlock_irqrestore(&gpu->event_spinlock, flags);
-
 		complete(&gpu->event_free);
 	}
 }
@@ -1305,8 +1303,6 @@ struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit)
 
 		goto out_unlock;
 	}
-
-	gpu->active_fence = gpu_fence->seqno;
 
 	if (submit->nr_pmrs) {
 		gpu->event[event[1]].sync_point = &sync_point_perfmon_sample_pre;
@@ -1549,7 +1545,6 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 	etnaviv_gpu_update_clock(gpu);
 	etnaviv_gpu_hw_init(gpu);
 
-	gpu->lastctx = NULL;
 	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
@@ -1806,8 +1801,8 @@ static int etnaviv_gpu_rpm_suspend(struct device *dev)
 	struct etnaviv_gpu *gpu = dev_get_drvdata(dev);
 	u32 idle, mask;
 
-	/* If we have outstanding fences, we're not idle */
-	if (gpu->completed_fence != gpu->active_fence)
+	/* If there are any jobs in the HW queue, we're not idle */
+	if (atomic_read(&gpu->sched.hw_rq_count))
 		return -EBUSY;
 
 	/* Check whether the hardware (except FE) is idle */

@@ -244,6 +244,21 @@ static void dce120_update_dchub(
 	dh_data->dchub_info_valid = false;
 }
 
+/**
+ * dce121_xgmi_enabled() - Check if xGMI is enabled
+ * @hws: DCE hardware sequencer object
+ *
+ * Return true if xGMI is enabled. False otherwise.
+ */
+bool dce121_xgmi_enabled(struct dce_hwseq *hws)
+{
+	uint32_t pf_max_region;
+
+	REG_GET(MC_VM_XGMI_LFB_CNTL, PF_MAX_REGION, &pf_max_region);
+	/* PF_MAX_REGION == 0 means xgmi is disabled */
+	return !!pf_max_region;
+}
+
 void dce120_hw_sequencer_construct(struct dc *dc)
 {
 	/* All registers used by dce11.2 match those in dce11 in offset and

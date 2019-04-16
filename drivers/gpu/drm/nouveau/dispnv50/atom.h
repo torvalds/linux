@@ -54,9 +54,10 @@ struct nv50_head_atom {
 		u64 offset:40;
 		u8 buffer:1;
 		u8 mode:4;
-		u8 size:2;
+		u16 size:11;
 		u8 range:2;
 		u8 output_mode:2;
+		void (*load)(struct drm_color_lut *, int size, void __iomem *);
 	} olut;
 
 	struct {
@@ -115,6 +116,12 @@ struct nv50_head_atom {
 		u8 depth:4;
 	} or;
 
+	/* Currently only used for MST */
+	struct {
+		int pbn;
+		u8 tu:6;
+	} dp;
+
 	union nv50_head_atom_mask {
 		struct {
 			bool olut:1;
@@ -169,9 +176,11 @@ struct nv50_wndw_atom {
 			u8  buffer:1;
 			u8  enable:2;
 			u8  mode:4;
-			u8  size:2;
+			u16 size:11;
 			u8  range:2;
 			u8  output_mode:2;
+			void (*load)(struct drm_color_lut *, int size,
+				     void __iomem *);
 		} i;
 	} xlut;
 

@@ -355,9 +355,9 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 		goto err_sq_db;
 	}
 
-	ci_addr_base = dma_zalloc_coherent(&pdev->dev, CI_TABLE_SIZE(num_qps),
-					   &func_to_io->ci_dma_base,
-					   GFP_KERNEL);
+	ci_addr_base = dma_alloc_coherent(&pdev->dev, CI_TABLE_SIZE(num_qps),
+					  &func_to_io->ci_dma_base,
+					  GFP_KERNEL);
 	if (!ci_addr_base) {
 		dev_err(&pdev->dev, "Failed to allocate CI area\n");
 		err = -ENOMEM;

@@ -121,9 +121,24 @@ struct zfcp_fc_rspn_req {
 /**
  * struct zfcp_fc_req - Container for FC ELS and CT requests sent from zfcp
  * @ct_els: data required for issuing fsf command
- * @sg_req: scatterlist entry for request data
- * @sg_rsp: scatterlist entry for response data
- * @u: request specific data
+ * @sg_req: scatterlist entry for request data, refers to embedded @u submember
+ * @sg_rsp: scatterlist entry for response data, refers to embedded @u submember
+ * @u: request and response specific data
+ * @u.adisc: ADISC specific data
+ * @u.adisc.req: ADISC request
+ * @u.adisc.rsp: ADISC response
+ * @u.gid_pn: GID_PN specific data
+ * @u.gid_pn.req: GID_PN request
+ * @u.gid_pn.rsp: GID_PN response
+ * @u.gpn_ft: GPN_FT specific data
+ * @u.gpn_ft.sg_rsp2: GPN_FT response, not embedded here, allocated elsewhere
+ * @u.gpn_ft.req: GPN_FT request
+ * @u.gspn: GSPN specific data
+ * @u.gspn.req: GSPN request
+ * @u.gspn.rsp: GSPN response
+ * @u.rspn: RSPN specific data
+ * @u.rspn.req: RSPN request
+ * @u.rspn.rsp: RSPN response
  */
 struct zfcp_fc_req {
 	struct zfcp_fsf_ct_els				ct_els;

@@ -26,7 +26,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
@@ -39,31 +38,21 @@ I915_SELFTEST_DECLARE(static struct igt_evict_ctl {
 
 static bool ggtt_is_idle(struct drm_i915_private *i915)
 {
-       struct intel_engine_cs *engine;
-       enum intel_engine_id id;
-
-       if (i915->gt.active_requests)
-	       return false;
-
-       for_each_engine(engine, i915, id) {
-	       if (!intel_engine_has_kernel_context(engine))
-		       return false;
-       }
-
-       return true;
+	return !i915->gt.active_requests;
 }
 
 static int ggtt_flush(struct drm_i915_private *i915)
 {
 	int err;
 
-	/* Not everything in the GGTT is tracked via vma (otherwise we
+	/*
+	 * Not everything in the GGTT is tracked via vma (otherwise we
 	 * could evict as required with minimal stalling) so we are forced
 	 * to idle the GPU and explicitly retire outstanding requests in
 	 * the hopes that we can then remove contexts and the like only
 	 * bound by their active reference.
 	 */
-	err = i915_gem_switch_to_kernel_context(i915);
+	err = i915_gem_switch_to_kernel_context(i915, i915->gt.active_engines);
 	if (err)
 		return err;
 
@@ -127,31 +116,25 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct drm_i915_private *dev_priv = vm->i915;
 	struct drm_mm_scan scan;
 	struct list_head eviction_list;
-	struct list_head *phases[] = {
-		&vm->inactive_list,
-		&vm->active_list,
-		NULL,
-	}, **phase;
 	struct i915_vma *vma, *next;
 	struct drm_mm_node *node;
 	enum drm_mm_insert_mode mode;
+	struct i915_vma *active;
 	int ret;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
 	trace_i915_gem_evict(vm, min_size, alignment, flags);
 
 	/*
-	 * The goal is to evict objects and amalgamate space in LRU order.
-	 * The oldest idle objects reside on the inactive list, which is in
-	 * retirement order. The next objects to retire are those in flight,
-	 * on the active list, again in retirement order.
+	 * The goal is to evict objects and amalgamate space in rough LRU order.
+	 * Since both active and inactive objects reside on the same list,
+	 * in a mix of creation and last scanned order, as we process the list
+	 * we sort it into inactive/active, which keeps the active portion
+	 * in a rough MRU order.
 	 *
 	 * The retirement sequence is thus:
-	 *   1. Inactive objects (already retired)
-	 *   2. Active objects (will stall on unbinding)
-	 *
-	 * On each list, the oldest objects lie at the HEAD with the freshest
-	 * object on the TAIL.
+	 *   1. Inactive objects (already retired, random order)
+	 *   2. Active objects (will stall on unbinding, oldest scanned first)
 	 */
 	mode = DRM_MM_INSERT_BEST;
 	if (flags & PIN_HIGH)
@@ -170,17 +153,46 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	 */
 	if (!(flags & PIN_NONBLOCK))
 		i915_retire_requests(dev_priv);
-	else
-		phases[1] = NULL;
 
 search_again:
+	active = NULL;
 	INIT_LIST_HEAD(&eviction_list);
-	phase = phases;
-	do {
-		list_for_each_entry(vma, *phase, vm_link)
-			if (mark_free(&scan, vma, flags, &eviction_list))
-				goto found;
-	} while (*++phase);
+	list_for_each_entry_safe(vma, next, &vm->bound_list, vm_link) {
+		/*
+		 * We keep this list in a rough least-recently scanned order
+		 * of active elements (inactive elements are cheap to reap).
+		 * New entries are added to the end, and we move anything we
+		 * scan to the end. The assumption is that the working set
+		 * of applications is either steady state (and thanks to the
+		 * userspace bo cache it almost always is) or volatile and
+		 * frequently replaced after a frame, which are self-evicting!
+		 * Given that assumption, the MRU order of the scan list is
+		 * fairly static, and keeping it in least-recently scan order
+		 * is suitable.
+		 *
+		 * To notice when we complete one full cycle, we record the
+		 * first active element seen, before moving it to the tail.
+		 */
+		if (i915_vma_is_active(vma)) {
+			if (vma == active) {
+				if (flags & PIN_NONBLOCK)
+					break;
+
+				active = ERR_PTR(-EAGAIN);
+			}
+
+			if (active != ERR_PTR(-EAGAIN)) {
+				if (!active)
+					active = vma;
+
+				list_move_tail(&vma->vm_link, &vm->bound_list);
+				continue;
+			}
+		}
+
+		if (mark_free(&scan, vma, flags, &eviction_list))
+			goto found;
+	}
 
 	/* Nothing found, clean up and bail out! */
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
@@ -389,11 +401,6 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
  */
 int i915_gem_evict_vm(struct i915_address_space *vm)
 {
-	struct list_head *phases[] = {
-		&vm->inactive_list,
-		&vm->active_list,
-		NULL
-	}, **phase;
 	struct list_head eviction_list;
 	struct i915_vma *vma, *next;
 	int ret;
@@ -413,16 +420,15 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 	}
 
 	INIT_LIST_HEAD(&eviction_list);
-	phase = phases;
-	do {
-		list_for_each_entry(vma, *phase, vm_link) {
-			if (i915_vma_is_pinned(vma))
-				continue;
+	mutex_lock(&vm->mutex);
+	list_for_each_entry(vma, &vm->bound_list, vm_link) {
+		if (i915_vma_is_pinned(vma))
+			continue;
 
-			__i915_vma_pin(vma);
-			list_add(&vma->evict_link, &eviction_list);
-		}
-	} while (*++phase);
+		__i915_vma_pin(vma);
+		list_add(&vma->evict_link, &eviction_list);
+	}
+	mutex_unlock(&vm->mutex);
 
 	ret = 0;
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {

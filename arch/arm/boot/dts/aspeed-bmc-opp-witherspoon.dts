@@ -56,6 +56,11 @@
 		};
 	};
 
+	iio-hwmon-battery {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 12>;
+	};
+
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
 		#address-cells = <1>;
@@ -581,5 +586,9 @@
 };
 
 &ibt {
+	status = "okay";
+};
+
+&adc {
 	status = "okay";
 };

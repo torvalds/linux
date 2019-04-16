@@ -134,43 +134,9 @@ static int mt76x2u_init_eeprom(struct mt76x02_dev *dev)
 	return 0;
 }
 
-struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
-{
-	static const struct mt76_driver_ops drv_ops = {
-		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
-		.tx_complete_skb = mt76x02u_tx_complete_skb,
-		.tx_status_data = mt76x02_tx_status_data,
-		.rx_skb = mt76x02_queue_rx_skb,
-	};
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
-
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2u_ops);
-	if (!mdev)
-		return NULL;
-
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mdev->dev = pdev;
-	mdev->drv = &drv_ops;
-
-	return dev;
-}
-
-static void mt76x2u_init_beacon_offsets(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_BCN_OFFSET(0), 0x18100800);
-	mt76_wr(dev, MT_BCN_OFFSET(1), 0x38302820);
-	mt76_wr(dev, MT_BCN_OFFSET(2), 0x58504840);
-	mt76_wr(dev, MT_BCN_OFFSET(3), 0x78706860);
-}
-
 int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 {
-	const struct mt76_wcid_addr addr = {
-		.macaddr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-		.ba_mask = 0,
-	};
-	int i, err;
+	int i, k, err;
 
 	mt76x2_reset_wlan(dev, true);
 	mt76x2u_power_on(dev);
@@ -191,9 +157,6 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
-	mt76_wr(dev, MT_HEADER_TRANS_CTRL_REG, 0);
-	mt76_wr(dev, MT_TSO_CTRL, 0);
-
 	mt76x2u_init_dma(dev);
 
 	err = mt76x2u_mcu_init(dev);
@@ -207,27 +170,20 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 	mt76x02_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
-	mt76x2u_init_beacon_offsets(dev);
-
 	if (!mt76x02_wait_for_txrx_idle(&dev->mt76))
 		return -ETIMEDOUT;
 
 	/* reset wcid table */
-	for (i = 0; i < 254; i++)
-		mt76_wr_copy(dev, MT_WCID_ADDR(i), &addr,
-			     sizeof(struct mt76_wcid_addr));
+	for (i = 0; i < 256; i++)
+		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
 
 	/* reset shared key table and pairwise key table */
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_SKEY_MODE_BASE_0 + 4 * i, 0);
-	for (i = 0; i < 256; i++)
-		mt76_wr(dev, MT_WCID_ATTR(i), 1);
+	for (i = 0; i < 16; i++) {
+		for (k = 0; k < 4; k++)
+			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
+	}
 
-	mt76_clear(dev, MT_BEACON_TIME_CFG,
-		   MT_BEACON_TIME_CFG_TIMER_EN |
-		   MT_BEACON_TIME_CFG_SYNC_MODE |
-		   MT_BEACON_TIME_CFG_TBTT_EN |
-		   MT_BEACON_TIME_CFG_BEACON_TX);
+	mt76x02_init_beacon_config(dev);
 
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
@@ -245,11 +201,10 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 int mt76x2u_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	struct wiphy *wiphy = hw->wiphy;
 	int err;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2u_phy_calibrate);
-	mt76x2_init_device(dev);
+	mt76x02_init_device(dev);
 
 	err = mt76x2u_init_eeprom(dev);
 	if (err < 0)
@@ -259,15 +214,9 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto fail;
 
-	err = mt76u_mcu_init_rx(&dev->mt76);
-	if (err < 0)
-		goto fail;
-
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)
 		goto fail;
-
-	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	err = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));
@@ -275,14 +224,14 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 		goto fail;
 
 	/* check hw sg support in order to enable AMSDU */
-	if (mt76u_check_sg(&dev->mt76))
+	if (dev->mt76.usb.sg_en)
 		hw->max_tx_fragments = MT_SG_MAX_SIZE;
 	else
 		hw->max_tx_fragments = 1;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 
-	mt76x2_init_debugfs(dev);
+	mt76x02_init_debugfs(dev);
 	mt76x2_init_txpower(dev, &dev->mt76.sband_2g.sband);
 	mt76x2_init_txpower(dev, &dev->mt76.sband_5g.sband);
 
@@ -297,13 +246,13 @@ void mt76x2u_stop_hw(struct mt76x02_dev *dev)
 {
 	mt76u_stop_stat_wk(&dev->mt76);
 	cancel_delayed_work_sync(&dev->cal_work);
+	cancel_delayed_work_sync(&dev->mac_work);
 	mt76x2u_mac_stop(dev);
 }
 
 void mt76x2u_cleanup(struct mt76x02_dev *dev)
 {
-	mt76x02_mcu_set_radio_state(dev, false, false);
+	mt76x02_mcu_set_radio_state(dev, false);
 	mt76x2u_stop_hw(dev);
 	mt76u_queues_deinit(&dev->mt76);
-	mt76u_mcu_deinit(&dev->mt76);
 }

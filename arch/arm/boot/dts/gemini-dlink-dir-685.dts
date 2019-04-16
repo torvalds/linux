@@ -28,7 +28,7 @@
 		compatible = "gpio-keys";
 
 		button-esc {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
@@ -36,7 +36,7 @@
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
 		};
 		button-eject {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
 			label = "unmount";
@@ -64,7 +64,6 @@
 		gpio-sck = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		gpio-miso = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 7 GPIO_ACTIVE_HIGH>;
-		/* Collides with pflash CE1, not so cool */
 		cs-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 
@@ -253,15 +252,18 @@
 	soc {
 		flash@30000000 {
 			/*
-			 * Flash access is by default disabled, because it
-			 * collides with the Chip Enable signal for the display
-			 * panel, that reuse the parallel flash Chip Select 1
-			 * (CS1). Enabling flash makes graphics stop working.
-			 *
-			 * We might be able to hack around this by letting
-			 * GPIO poke around in the flash controller registers.
+			 * Flash access collides with the Chip Enable signal for
+			 * the display panel, that reuse the parallel flash Chip
+			 * Select 1 (CS1). We switch the pin control state so we
+			 * enable these pins for flash access only when we need
+			 * then, and when disabled they can be used for GPIO which
+			 * is what the display panel needs.
 			 */
-			/* status = "okay"; */
+			status = "okay";
+			pinctrl-names = "enabled", "disabled";
+			pinctrl-0 = <&pflash_default_pins>;
+			pinctrl-1 = <&pflash_disabled_pins>;
+
 			/* 32MB of flash */
 			reg = <0x30000000 0x02000000>;
 
@@ -274,20 +276,16 @@
 				read-only;
 			};
 			/*
-			 * Between the boot loader and the rootfs is the kernel
-			 * in a custom Storlink format flashed from the boot
-			 * menu. The rootfs is in squashfs format.
+			 * This firmware image contains the kernel catenated
+			 * with the squashfs root filesystem. For some reason
+			 * this is called "upgrade" on the vendor system.
 			 */
-			partition@1800c0 {
-				label = "rootfs";
-				reg = <0x001800c0 0x01dbff40>;
-				read-only;
-			};
-			partition@1f40000 {
+			partition@40000 {
 				label = "upgrade";
-				reg = <0x01f40000 0x00040000>;
+				reg = <0x00040000 0x01f40000>;
 				read-only;
 			};
+			/* RGDB, Residental Gateway Database? */
 			partition@1f80000 {
 				label = "rgdb";
 				reg = <0x01f80000 0x00040000>;
@@ -331,7 +329,6 @@
 						"gpio0cgrp",
 						"gpio0egrp",
 						"gpio0fgrp",
-						"gpio0ggrp",
 						"gpio0hgrp";
 					};
 				};
@@ -344,6 +341,18 @@
 					mux {
 						function = "gpio1";
 						groups = "gpio1bgrp";
+					};
+				};
+				/*
+				 * These GPIO groups will be mapped in over some
+				 * of the flash pins when the flash is not in
+				 * active use.
+				 */
+				pflash_disabled_pins: pinctrl-pflash-disabled {
+					mux {
+						function = "gpio0";
+						groups = "gpio0ggrp", "gpio0igrp", "gpio0jgrp",
+							 "gpio0kgrp";
 					};
 				};
 				pinctrl-gmii {
@@ -442,6 +451,14 @@
 					remote-endpoint = <&panel_in>;
 				};
 			};
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
 		};
 	};
 };

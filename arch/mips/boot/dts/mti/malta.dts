@@ -87,6 +87,11 @@
 		reg = <0x1f000000 0x1000>;
 		native-endian;
 
+		lcd@410 {
+			compatible = "mti,malta-lcd";
+			offset = <0x410>;
+		};
+
 		reboot {
 			compatible = "syscon-reboot";
 			regmap = <&fpga_regs>;

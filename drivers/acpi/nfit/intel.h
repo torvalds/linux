@@ -35,4 +35,80 @@ struct nd_intel_smart {
 	};
 } __packed;
 
+extern const struct nvdimm_security_ops *intel_security_ops;
+
+#define ND_INTEL_STATUS_SIZE		4
+#define ND_INTEL_PASSPHRASE_SIZE	32
+
+#define ND_INTEL_STATUS_NOT_SUPPORTED	1
+#define ND_INTEL_STATUS_RETRY		5
+#define ND_INTEL_STATUS_NOT_READY	9
+#define ND_INTEL_STATUS_INVALID_STATE	10
+#define ND_INTEL_STATUS_INVALID_PASS	11
+#define ND_INTEL_STATUS_OVERWRITE_UNSUPPORTED	0x10007
+#define ND_INTEL_STATUS_OQUERY_INPROGRESS	0x10007
+#define ND_INTEL_STATUS_OQUERY_SEQUENCE_ERR	0x20007
+
+#define ND_INTEL_SEC_STATE_ENABLED	0x02
+#define ND_INTEL_SEC_STATE_LOCKED	0x04
+#define ND_INTEL_SEC_STATE_FROZEN	0x08
+#define ND_INTEL_SEC_STATE_PLIMIT	0x10
+#define ND_INTEL_SEC_STATE_UNSUPPORTED	0x20
+#define ND_INTEL_SEC_STATE_OVERWRITE	0x40
+
+#define ND_INTEL_SEC_ESTATE_ENABLED	0x01
+#define ND_INTEL_SEC_ESTATE_PLIMIT	0x02
+
+struct nd_intel_get_security_state {
+	u32 status;
+	u8 extended_state;
+	u8 reserved[3];
+	u8 state;
+	u8 reserved1[3];
+} __packed;
+
+struct nd_intel_set_passphrase {
+	u8 old_pass[ND_INTEL_PASSPHRASE_SIZE];
+	u8 new_pass[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
+
+struct nd_intel_unlock_unit {
+	u8 passphrase[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
+
+struct nd_intel_disable_passphrase {
+	u8 passphrase[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
+
+struct nd_intel_freeze_lock {
+	u32 status;
+} __packed;
+
+struct nd_intel_secure_erase {
+	u8 passphrase[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
+
+struct nd_intel_overwrite {
+	u8 passphrase[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
+
+struct nd_intel_query_overwrite {
+	u32 status;
+} __packed;
+
+struct nd_intel_set_master_passphrase {
+	u8 old_pass[ND_INTEL_PASSPHRASE_SIZE];
+	u8 new_pass[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
+
+struct nd_intel_master_secure_erase {
+	u8 passphrase[ND_INTEL_PASSPHRASE_SIZE];
+	u32 status;
+} __packed;
 #endif

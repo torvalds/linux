@@ -185,7 +185,7 @@ static struct emc2103_data *emc2103_update_device(struct device *dev)
 }
 
 static ssize_t
-show_temp(struct device *dev, struct device_attribute *da, char *buf)
+temp_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = emc2103_update_device(dev);
@@ -195,7 +195,7 @@ show_temp(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 static ssize_t
-show_temp_min(struct device *dev, struct device_attribute *da, char *buf)
+temp_min_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = emc2103_update_device(dev);
@@ -204,7 +204,7 @@ show_temp_min(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 static ssize_t
-show_temp_max(struct device *dev, struct device_attribute *da, char *buf)
+temp_max_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = emc2103_update_device(dev);
@@ -213,7 +213,7 @@ show_temp_max(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 static ssize_t
-show_temp_fault(struct device *dev, struct device_attribute *da, char *buf)
+temp_fault_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = emc2103_update_device(dev);
@@ -222,7 +222,8 @@ show_temp_fault(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 static ssize_t
-show_temp_min_alarm(struct device *dev, struct device_attribute *da, char *buf)
+temp_min_alarm_show(struct device *dev, struct device_attribute *da,
+		    char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = emc2103_update_device(dev);
@@ -231,7 +232,8 @@ show_temp_min_alarm(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 static ssize_t
-show_temp_max_alarm(struct device *dev, struct device_attribute *da, char *buf)
+temp_max_alarm_show(struct device *dev, struct device_attribute *da,
+		    char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = emc2103_update_device(dev);
@@ -239,8 +241,8 @@ show_temp_max_alarm(struct device *dev, struct device_attribute *da, char *buf)
 	return sprintf(buf, "%d\n", alarm ? 1 : 0);
 }
 
-static ssize_t set_temp_min(struct device *dev, struct device_attribute *da,
-			    const char *buf, size_t count)
+static ssize_t temp_min_store(struct device *dev, struct device_attribute *da,
+			      const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = dev_get_drvdata(dev);
@@ -261,8 +263,8 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
-static ssize_t set_temp_max(struct device *dev, struct device_attribute *da,
-			    const char *buf, size_t count)
+static ssize_t temp_max_store(struct device *dev, struct device_attribute *da,
+			      const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct emc2103_data *data = dev_get_drvdata(dev);
@@ -470,49 +472,33 @@ err:
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO | S_IWUSR, show_temp_min,
-	set_temp_min, 0);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR, show_temp_max,
-	set_temp_max, 0);
-static SENSOR_DEVICE_ATTR(temp1_fault, S_IRUGO, show_temp_fault, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_temp_min_alarm,
-	NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_temp_max_alarm,
-	NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp_min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp_max, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_fault, temp_fault, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_alarm, temp_min_alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, temp_max_alarm, 0);
 
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_min, S_IRUGO | S_IWUSR, show_temp_min,
-	set_temp_min, 1);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO | S_IWUSR, show_temp_max,
-	set_temp_max, 1);
-static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_temp_fault, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_temp_min_alarm,
-	NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_temp_max_alarm,
-	NULL, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_min, temp_min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, temp_max, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_fault, temp_fault, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_min_alarm, temp_min_alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_max_alarm, temp_max_alarm, 1);
 
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_min, S_IRUGO | S_IWUSR, show_temp_min,
-	set_temp_min, 2);
-static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO | S_IWUSR, show_temp_max,
-	set_temp_max, 2);
-static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_temp_fault, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_min_alarm, S_IRUGO, show_temp_min_alarm,
-	NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_max_alarm, S_IRUGO, show_temp_max_alarm,
-	NULL, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_min, temp_min, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_max, temp_max, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_fault, temp_fault, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_min_alarm, temp_min_alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_max_alarm, temp_max_alarm, 2);
 
-static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, show_temp, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_min, S_IRUGO | S_IWUSR, show_temp_min,
-	set_temp_min, 3);
-static SENSOR_DEVICE_ATTR(temp4_max, S_IRUGO | S_IWUSR, show_temp_max,
-	set_temp_max, 3);
-static SENSOR_DEVICE_ATTR(temp4_fault, S_IRUGO, show_temp_fault, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_min_alarm, S_IRUGO, show_temp_min_alarm,
-	NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_max_alarm, S_IRUGO, show_temp_max_alarm,
-	NULL, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_input, temp, 3);
+static SENSOR_DEVICE_ATTR_RW(temp4_min, temp_min, 3);
+static SENSOR_DEVICE_ATTR_RW(temp4_max, temp_max, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_fault, temp_fault, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_min_alarm, temp_min_alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_max_alarm, temp_max_alarm, 3);
 
 static DEVICE_ATTR_RO(fan1_input);
 static DEVICE_ATTR_RW(fan1_div);

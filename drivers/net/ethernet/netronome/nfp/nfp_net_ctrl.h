@@ -392,10 +392,12 @@
 #define NFP_NET_CFG_MBOX_SIMPLE_CMD	0x0
 #define NFP_NET_CFG_MBOX_SIMPLE_RET	0x4
 #define NFP_NET_CFG_MBOX_SIMPLE_VAL	0x8
-#define NFP_NET_CFG_MBOX_SIMPLE_LEN	0x12
+#define NFP_NET_CFG_MBOX_SIMPLE_LEN	12
 
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
+
+#define NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET	5
 
 /**
  * VLAN filtering using general use mailbox
@@ -464,6 +466,10 @@
  * Variable, experimental IDs.  IDs designated for internal development and
  * experiments before a stable TLV ID has been allocated to a feature.  Should
  * never be present in production firmware.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_REPR_CAP:
+ * Single word, equivalent of %NFP_NET_CFG_CAP for representors, features which
+ * can be used on representors.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
@@ -472,6 +478,7 @@
 #define NFP_NET_CFG_TLV_TYPE_MBOX		4
 #define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL0	5
 #define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL1	6
+#define NFP_NET_CFG_TLV_TYPE_REPR_CAP		7
 
 struct device;
 
@@ -480,11 +487,13 @@ struct device;
  * @me_freq_mhz:	ME clock_freq (MHz)
  * @mbox_off:		vNIC mailbox area offset
  * @mbox_len:		vNIC mailbox area length
+ * @repr_cap:		capabilities for representors
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
 	unsigned int mbox_off;
 	unsigned int mbox_len;
+	u32 repr_cap;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,

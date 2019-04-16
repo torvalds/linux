@@ -148,9 +148,9 @@ config AD5686_SPI
 	depends on SPI
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5672R, AD5676,
-	  AD5676R, AD5684, AD5684R, AD5684R, AD5685R, AD5686, AD5686R.
-	  Voltage Output Digital to Analog Converter.
+	  Say yes here to build support for Analog Devices AD5672R, AD5674R,
+	  AD5676, AD5676R, AD5679R, AD5684, AD5684R, AD5684R, AD5685R, AD5686,
+	  AD5686R Voltage Output Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5686.
@@ -365,6 +365,25 @@ config TI_DAC5571
 	  DAC6573, DAC7573, DAC8571, DAC8574.
 
 	  If compiled as a module, it will be called ti-dac5571.
+
+config TI_DAC7311
+	tristate "Texas Instruments 8/10/12-bit 1-channel DAC driver"
+	depends on SPI
+	help
+	  Driver for the Texas Instruments
+	  DAC7311, DAC6311, DAC5311.
+
+	  If compiled as a module, it will be called ti-dac7311.
+
+config TI_DAC7612
+	tristate "Texas Instruments 12-bit 2-channel DAC driver"
+	depends on SPI_MASTER && GPIOLIB
+	help
+	  Driver for the Texas Instruments DAC7612, DAC7612U, DAC7612UB
+	  The driver hand drive the load pin automatically, otherwise
+	  it needs to be toggled manually.
+
+	  If compiled as a module, it will be called ti-dac7612.
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"

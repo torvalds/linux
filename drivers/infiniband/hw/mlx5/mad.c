@@ -36,6 +36,7 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_pma.h>
 #include "mlx5_ib.h"
+#include "cmd.h"
 
 enum {
 	MLX5_IB_VENDOR_CLASS1 = 0x9,
@@ -51,9 +52,10 @@ static bool can_do_mad_ifc(struct mlx5_ib_dev *dev, u8 port_num,
 	return dev->mdev->port_caps[port_num - 1].has_smi;
 }
 
-int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
-		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		 const void *in_mad, void *response_mad)
+static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
+			int ignore_bkey, u8 port, const struct ib_wc *in_wc,
+			const struct ib_grh *in_grh, const void *in_mad,
+			void *response_mad)
 {
 	u8 op_modifier = 0;
 
@@ -68,7 +70,8 @@ int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 	if (ignore_bkey || !in_wc)
 		op_modifier |= 0x2;
 
-	return mlx5_core_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier, port);
+	return mlx5_cmd_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier,
+				port);
 }
 
 static int process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
@@ -526,11 +529,6 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	int ext_active_speed;
 	int err = -ENOMEM;
 
-	if (port < 1 || port > dev->num_ports) {
-		mlx5_ib_warn(dev, "invalid port number %d\n", port);
-		return -EINVAL;
-	}
-
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!in_mad || !out_mad)
@@ -568,6 +566,14 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	props->max_vl_num	= out_mad->data[37] >> 4;
 	props->init_type_reply	= out_mad->data[41] >> 4;
 
+	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP) {
+		props->port_cap_flags2 =
+			be16_to_cpup((__be16 *)(out_mad->data + 60));
+
+		if (props->port_cap_flags2 & IB_PORT_LINK_WIDTH_2X_SUP)
+			props->active_width = out_mad->data[31] & 0x1f;
+	}
+
 	/* Check if extended speeds (EDR/FDR/...) are supported */
 	if (props->port_cap_flags & IB_PORT_EXTENDED_SPEEDS_SUP) {
 		ext_active_speed = out_mad->data[62] >> 4;
@@ -578,6 +584,11 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			break;
 		case 2:
 			props->active_speed = 32; /* EDR */
+			break;
+		case 4:
+			if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP &&
+			    props->port_cap_flags2 & IB_PORT_LINK_SPEED_HDR_SUP)
+				props->active_speed = IB_SPEED_HDR;
 			break;
 		}
 	}

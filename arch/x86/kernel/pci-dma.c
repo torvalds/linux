@@ -17,7 +17,7 @@
 
 static bool disable_dac_quirk __read_mostly;
 
-const struct dma_map_ops *dma_ops = &dma_direct_ops;
+const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 #ifdef CONFIG_IOMMU_DEBUG

@@ -3,7 +3,7 @@
  *
  * Module Name: dswload2 - Dispatcher second pass namespace load callbacks
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -24,7 +24,7 @@ ACPI_MODULE_NAME("dswload2")
  * FUNCTION:    acpi_ds_load2_begin_op
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              out_op          - Wher to return op if a new one is created
+ *              out_op          - Where to return op if a new one is created
  *
  * RETURN:      Status
  *
@@ -296,6 +296,14 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		}
 #endif
 
+		/*
+		 * For name creation opcodes, the full namepath prefix must
+		 * exist, except for the final (new) nameseg.
+		 */
+		if (walk_state->op_info->flags & AML_NAMED) {
+			flags |= ACPI_NS_PREFIX_MUST_EXIST;
+		}
+
 		/* Add new entry or lookup existing entry */
 
 		status =
@@ -363,10 +371,8 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *arg;
 	struct acpi_namespace_node *new_node;
-#ifndef ACPI_NO_METHOD_EXECUTION
 	u32 i;
 	u8 region_space;
-#endif
 
 	ACPI_FUNCTION_TRACE(ds_load2_end_op);
 
@@ -453,7 +459,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	arg = op->common.value.arg;
 
 	switch (walk_state->op_info->type) {
-#ifndef ACPI_NO_METHOD_EXECUTION
 
 	case AML_TYPE_CREATE_FIELD:
 		/*
@@ -550,12 +555,10 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		}
 
 		break;
-#endif				/* ACPI_NO_METHOD_EXECUTION */
 
 	case AML_TYPE_NAMED_COMPLEX:
 
 		switch (op->common.aml_opcode) {
-#ifndef ACPI_NO_METHOD_EXECUTION
 		case AML_REGION_OP:
 		case AML_DATA_REGION_OP:
 
@@ -642,8 +645,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				}
 			}
 			break;
-
-#endif				/* ACPI_NO_METHOD_EXECUTION */
 
 		default:
 

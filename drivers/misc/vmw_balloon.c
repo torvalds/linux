@@ -34,7 +34,6 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.5.0.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -73,14 +72,25 @@ enum vmwballoon_capabilities {
 	VMW_BALLOON_BATCHED_CMDS		= (1 << 2),
 	VMW_BALLOON_BATCHED_2M_CMDS		= (1 << 3),
 	VMW_BALLOON_SIGNALLED_WAKEUP_CMD	= (1 << 4),
+	VMW_BALLOON_64_BIT_TARGET		= (1 << 5)
 };
 
-#define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_BASIC_CMDS \
+#define VMW_BALLOON_CAPABILITIES_COMMON	(VMW_BALLOON_BASIC_CMDS \
 					| VMW_BALLOON_BATCHED_CMDS \
 					| VMW_BALLOON_BATCHED_2M_CMDS \
 					| VMW_BALLOON_SIGNALLED_WAKEUP_CMD)
 
 #define VMW_BALLOON_2M_ORDER		(PMD_SHIFT - PAGE_SHIFT)
+
+/*
+ * 64-bit targets are only supported in 64-bit
+ */
+#ifdef CONFIG_64BIT
+#define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_CAPABILITIES_COMMON \
+					| VMW_BALLOON_64_BIT_TARGET)
+#else
+#define VMW_BALLOON_CAPABILITIES	VMW_BALLOON_CAPABILITIES_COMMON
+#endif
 
 enum vmballoon_page_size_type {
 	VMW_BALLOON_4K_PAGE,
@@ -557,6 +567,36 @@ vmballoon_page_in_frames(enum vmballoon_page_size_type page_size)
 }
 
 /**
+ * vmballoon_mark_page_offline() - mark a page as offline
+ * @page: pointer for the page.
+ * @page_size: the size of the page.
+ */
+static void
+vmballoon_mark_page_offline(struct page *page,
+			    enum vmballoon_page_size_type page_size)
+{
+	int i;
+
+	for (i = 0; i < vmballoon_page_in_frames(page_size); i++)
+		__SetPageOffline(page + i);
+}
+
+/**
+ * vmballoon_mark_page_online() - mark a page as online
+ * @page: pointer for the page.
+ * @page_size: the size of the page.
+ */
+static void
+vmballoon_mark_page_online(struct page *page,
+			   enum vmballoon_page_size_type page_size)
+{
+	int i;
+
+	for (i = 0; i < vmballoon_page_in_frames(page_size); i++)
+		__ClearPageOffline(page + i);
+}
+
+/**
  * vmballoon_send_get_target() - Retrieve desired balloon size from the host.
  *
  * @b: pointer to the balloon.
@@ -570,10 +610,11 @@ static int vmballoon_send_get_target(struct vmballoon *b)
 	unsigned long status;
 	unsigned long limit;
 
-	limit = totalram_pages;
+	limit = totalram_pages();
 
-	/* Ensure limit fits in 32-bits */
-	if (limit != (u32)limit)
+	/* Ensure limit fits in 32-bits if 64-bit targets are not supported */
+	if (!(b->capabilities & VMW_BALLOON_64_BIT_TARGET) &&
+	    limit != (u32)limit)
 		return -EINVAL;
 
 	status = vmballoon_cmd(b, VMW_BALLOON_CMD_GET_TARGET, limit, 0);
@@ -612,6 +653,7 @@ static int vmballoon_alloc_page_list(struct vmballoon *b,
 					 ctl->page_size);
 
 		if (page) {
+			vmballoon_mark_page_offline(page, ctl->page_size);
 			/* Success. Add the page to the list and continue. */
 			list_add(&page->lru, &ctl->pages);
 			continue;
@@ -850,6 +892,7 @@ static void vmballoon_release_page_list(struct list_head *page_list,
 
 	list_for_each_entry_safe(page, tmp, page_list, lru) {
 		list_del(&page->lru);
+		vmballoon_mark_page_online(page, page_size);
 		__free_pages(page, vmballoon_page_order(page_size));
 	}
 
@@ -1287,7 +1330,7 @@ static void vmballoon_reset(struct vmballoon *b)
 	vmballoon_pop(b);
 
 	if (vmballoon_send_start(b, VMW_BALLOON_CAPABILITIES))
-		return;
+		goto unlock;
 
 	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
 		if (vmballoon_init_batching(b)) {
@@ -1298,7 +1341,7 @@ static void vmballoon_reset(struct vmballoon *b)
 			 * The guest will retry in one second.
 			 */
 			vmballoon_send_start(b, 0);
-			return;
+			goto unlock;
 		}
 	} else if ((b->capabilities & VMW_BALLOON_BASIC_CMDS) != 0) {
 		vmballoon_deinit_batching(b);
@@ -1314,6 +1357,7 @@ static void vmballoon_reset(struct vmballoon *b)
 	if (vmballoon_send_guest_id(b))
 		pr_err("failed to send guest ID to the host\n");
 
+unlock:
 	up_write(&b->conf_sem);
 }
 
@@ -1470,18 +1514,7 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-static int vmballoon_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vmballoon_debug_show, inode->i_private);
-}
-
-static const struct file_operations vmballoon_debug_fops = {
-	.owner		= THIS_MODULE,
-	.open		= vmballoon_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(vmballoon_debug);
 
 static int __init vmballoon_debugfs_init(struct vmballoon *b)
 {

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 V4L2 sub-devices
 ----------------
 
@@ -21,7 +23,7 @@ device data.
 
 You also need a way to go from the low-level struct to :c:type:`v4l2_subdev`.
 For the common i2c_client struct the i2c_set_clientdata() call is used to store
-a :c:type:`v4l2_subdev` pointer, for other busses you may have to use other
+a :c:type:`v4l2_subdev` pointer, for other buses you may have to use other
 methods.
 
 Bridges might also need to store per-subdev private data, such as a pointer to
@@ -31,7 +33,7 @@ provides host private data for that purpose that can be accessed with
 
 From the bridge driver perspective, you load the sub-device module and somehow
 obtain the :c:type:`v4l2_subdev` pointer. For i2c devices this is easy: you call
-``i2c_get_clientdata()``. For other busses something similar needs to be done.
+``i2c_get_clientdata()``. For other buses something similar needs to be done.
 Helper functions exists for sub-devices on an I2C bus that do most of this
 tricky work for you.
 

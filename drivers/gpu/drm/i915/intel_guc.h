@@ -32,6 +32,7 @@
 #include "intel_guc_log.h"
 #include "intel_guc_reg.h"
 #include "intel_uc_fw.h"
+#include "i915_utils.h"
 #include "i915_vma.h"
 
 struct guc_preempt_work {
@@ -164,7 +165,8 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 void intel_guc_to_host_event_handler(struct intel_guc *guc);
 void intel_guc_to_host_event_handler_nop(struct intel_guc *guc);
 void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc);
-void intel_guc_to_host_process_recv_msg(struct intel_guc *guc, u32 msg);
+int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
+				       const u32 *payload, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);
@@ -191,5 +193,8 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 	guc->msg_enabled_mask &= ~mask;
 	spin_unlock_irq(&guc->irq_lock);
 }
+
+int intel_guc_reset_engine(struct intel_guc *guc,
+			   struct intel_engine_cs *engine);
 
 #endif

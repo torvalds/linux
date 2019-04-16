@@ -97,8 +97,8 @@ DECLARE_EVENT_CLASS(coda_buf_meta_class,
 	TP_fast_assign(
 		__entry->minor = ctx->fh.vdev->minor;
 		__entry->index = buf->vb2_buf.index;
-		__entry->start = meta->start;
-		__entry->end = meta->end;
+		__entry->start = meta->start & ctx->bitstream_fifo.kfifo.mask;
+		__entry->end = meta->end & ctx->bitstream_fifo.kfifo.mask;
 		__entry->ctx = ctx->idx;
 	),
 
@@ -127,8 +127,10 @@ DECLARE_EVENT_CLASS(coda_meta_class,
 
 	TP_fast_assign(
 		__entry->minor = ctx->fh.vdev->minor;
-		__entry->start = meta ? meta->start : 0;
-		__entry->end = meta ? meta->end : 0;
+		__entry->start = meta ? (meta->start &
+					 ctx->bitstream_fifo.kfifo.mask) : 0;
+		__entry->end = meta ? (meta->end &
+				       ctx->bitstream_fifo.kfifo.mask) : 0;
 		__entry->ctx = ctx->idx;
 	),
 

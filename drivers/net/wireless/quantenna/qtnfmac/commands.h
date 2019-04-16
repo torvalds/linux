@@ -1,17 +1,5 @@
-/*
- * Copyright (c) 2016 Quantenna Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* Copyright (c) 2016 Quantenna Communications. All rights reserved. */
 
 #ifndef QLINK_COMMANDS_H_
 #define QLINK_COMMANDS_H_
@@ -26,9 +14,11 @@ void qtnf_cmd_send_deinit_fw(struct qtnf_bus *bus);
 int qtnf_cmd_get_hw_info(struct qtnf_bus *bus);
 int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac);
 int qtnf_cmd_send_add_intf(struct qtnf_vif *vif, enum nl80211_iftype iftype,
-			   u8 *mac_addr);
+			   int use4addr, u8 *mac_addr);
 int qtnf_cmd_send_change_intf_type(struct qtnf_vif *vif,
-				   enum nl80211_iftype iftype, u8 *mac_addr);
+				   enum nl80211_iftype iftype,
+				   int use4addr,
+				   u8 *mac_addr);
 int qtnf_cmd_send_del_intf(struct qtnf_vif *vif);
 int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 			   struct ieee80211_supported_band *band);
@@ -61,6 +51,8 @@ int qtnf_cmd_send_del_sta(struct qtnf_vif *vif,
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac);
 int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 			  struct cfg80211_connect_params *sme);
+int qtnf_cmd_send_external_auth(struct qtnf_vif *vif,
+				struct cfg80211_external_auth_params *auth);
 int qtnf_cmd_send_disconnect(struct qtnf_vif *vif,
 			     u16 reason_code);
 int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif,

@@ -41,16 +41,35 @@ u64 i915_prandom_u64_state(struct rnd_state *rnd)
 	return x;
 }
 
+void i915_prandom_shuffle(void *arr, size_t elsz, size_t count,
+			  struct rnd_state *state)
+{
+	char stack[128];
+
+	if (WARN_ON(elsz > sizeof(stack) || count > U32_MAX))
+		return;
+
+	if (!elsz || !count)
+		return;
+
+	/* Fisher-Yates shuffle courtesy of Knuth */
+	while (--count) {
+		size_t swp;
+
+		swp = i915_prandom_u32_max_state(count + 1, state);
+		if (swp == count)
+			continue;
+
+		memcpy(stack, arr + count * elsz, elsz);
+		memcpy(arr + count * elsz, arr + swp * elsz, elsz);
+		memcpy(arr + swp * elsz, stack, elsz);
+	}
+}
+
 void i915_random_reorder(unsigned int *order, unsigned int count,
 			 struct rnd_state *state)
 {
-	unsigned int i, j;
-
-	for (i = 0; i < count; i++) {
-		BUILD_BUG_ON(sizeof(unsigned int) > sizeof(u32));
-		j = i915_prandom_u32_max_state(count, state);
-		swap(order[i], order[j]);
-	}
+	i915_prandom_shuffle(order, sizeof(*order), count, state);
 }
 
 unsigned int *i915_random_order(unsigned int count, struct rnd_state *state)

@@ -230,9 +230,8 @@ static int ADT7X10_REG_TO_TEMP(struct adt7x10_data *data, s16 reg)
 
 /* sysfs attributes for hwmon */
 
-static ssize_t adt7x10_show_temp(struct device *dev,
-				 struct device_attribute *da,
-				 char *buf)
+static ssize_t adt7x10_temp_show(struct device *dev,
+				 struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct adt7x10_data *data = dev_get_drvdata(dev);
@@ -250,9 +249,9 @@ static ssize_t adt7x10_show_temp(struct device *dev,
 		       data->temp[attr->index]));
 }
 
-static ssize_t adt7x10_set_temp(struct device *dev,
-				struct device_attribute *da,
-				const char *buf, size_t count)
+static ssize_t adt7x10_temp_store(struct device *dev,
+				  struct device_attribute *da,
+				  const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct adt7x10_data *data = dev_get_drvdata(dev);
@@ -273,9 +272,8 @@ static ssize_t adt7x10_set_temp(struct device *dev,
 	return count;
 }
 
-static ssize_t adt7x10_show_t_hyst(struct device *dev,
-				   struct device_attribute *da,
-				   char *buf)
+static ssize_t adt7x10_t_hyst_show(struct device *dev,
+				   struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct adt7x10_data *data = dev_get_drvdata(dev);
@@ -294,9 +292,9 @@ static ssize_t adt7x10_show_t_hyst(struct device *dev,
 		       ADT7X10_REG_TO_TEMP(data, data->temp[nr]) - hyst);
 }
 
-static ssize_t adt7x10_set_t_hyst(struct device *dev,
-				  struct device_attribute *da,
-				  const char *buf, size_t count)
+static ssize_t adt7x10_t_hyst_store(struct device *dev,
+				    struct device_attribute *da,
+				    const char *buf, size_t count)
 {
 	struct adt7x10_data *data = dev_get_drvdata(dev);
 	int limit, ret;
@@ -317,9 +315,8 @@ static ssize_t adt7x10_set_t_hyst(struct device *dev,
 	return count;
 }
 
-static ssize_t adt7x10_show_alarm(struct device *dev,
-				  struct device_attribute *da,
-				  char *buf)
+static ssize_t adt7x10_alarm_show(struct device *dev,
+				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	int ret;
@@ -339,25 +336,19 @@ static ssize_t name_show(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%s\n", data->name);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, adt7x10_show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
-			  adt7x10_show_temp, adt7x10_set_temp, 1);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO,
-			  adt7x10_show_temp, adt7x10_set_temp, 2);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO,
-			  adt7x10_show_temp, adt7x10_set_temp, 3);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
-			  adt7x10_show_t_hyst, adt7x10_set_t_hyst, 1);
-static SENSOR_DEVICE_ATTR(temp1_min_hyst, S_IRUGO,
-			  adt7x10_show_t_hyst, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO,
-			  adt7x10_show_t_hyst, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, adt7x10_show_alarm,
-			  NULL, ADT7X10_STAT_T_LOW);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, adt7x10_show_alarm,
-			  NULL, ADT7X10_STAT_T_HIGH);
-static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, adt7x10_show_alarm,
-			  NULL, ADT7X10_STAT_T_CRIT);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, adt7x10_temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, adt7x10_temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, adt7x10_temp, 2);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit, adt7x10_temp, 3);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, adt7x10_t_hyst, 1);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_hyst, adt7x10_t_hyst, 2);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit_hyst, adt7x10_t_hyst, 3);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_alarm, adt7x10_alarm,
+			     ADT7X10_STAT_T_LOW);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, adt7x10_alarm,
+			     ADT7X10_STAT_T_HIGH);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, adt7x10_alarm,
+			     ADT7X10_STAT_T_CRIT);
 static DEVICE_ATTR_RO(name);
 
 static struct attribute *adt7x10_attributes[] = {

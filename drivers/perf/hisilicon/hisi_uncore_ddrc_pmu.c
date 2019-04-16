@@ -30,8 +30,8 @@
 #define DDRC_FLUX_RCMD          0x38c
 #define DDRC_PRE_CMD            0x3c0
 #define DDRC_ACT_CMD            0x3c4
-#define DDRC_BNK_CHG            0x3c8
 #define DDRC_RNK_CHG            0x3cc
+#define DDRC_RW_CHG             0x3d0
 #define DDRC_EVENT_CTRL         0x6C0
 #define DDRC_INT_MASK		0x6c8
 #define DDRC_INT_STATUS		0x6cc
@@ -51,7 +51,7 @@
 
 static const u32 ddrc_reg_off[] = {
 	DDRC_FLUX_WR, DDRC_FLUX_RD, DDRC_FLUX_WCMD, DDRC_FLUX_RCMD,
-	DDRC_PRE_CMD, DDRC_ACT_CMD, DDRC_BNK_CHG, DDRC_RNK_CHG
+	DDRC_PRE_CMD, DDRC_ACT_CMD, DDRC_RNK_CHG, DDRC_RW_CHG
 };
 
 /*
@@ -396,6 +396,7 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 		.stop		= hisi_uncore_pmu_stop,
 		.read		= hisi_uncore_pmu_read,
 		.attr_groups	= hisi_ddrc_pmu_attr_groups,
+		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
 	ret = perf_pmu_register(&ddrc_pmu->pmu, name, -1);

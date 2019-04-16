@@ -36,6 +36,12 @@ struct node_cpuid_s node_cpuid[NR_CPUS] =
  */
 u8 numa_slit[MAX_NUMNODES * MAX_NUMNODES];
 
+int __node_distance(int from, int to)
+{
+	return slit_distance(from, to);
+}
+EXPORT_SYMBOL(__node_distance);
+
 /* Identify which cnode a physical address resides on */
 int
 paddr_to_nid(unsigned long paddr)

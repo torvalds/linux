@@ -692,6 +692,8 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 	buf_sizes[0x1] = dpb_size;
 	buf_sizes[0x2] = image_size;
 	buf_sizes[0x4] = min_ctx_size;
+	/* store image width to adjust nb memory pstate */
+	adev->uvd.decode_image_width = width;
 	return 0;
 }
 

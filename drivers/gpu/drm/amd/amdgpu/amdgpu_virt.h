@@ -63,8 +63,8 @@ struct amdgpu_virt_ops {
  * Firmware Reserve Frame buffer
  */
 struct amdgpu_virt_fw_reserve {
-	struct amdgim_pf2vf_info_header *p_pf2vf;
-	struct amdgim_vf2pf_info_header *p_vf2pf;
+	struct amd_sriov_msg_pf2vf_info_header *p_pf2vf;
+	struct amd_sriov_msg_vf2pf_info_header *p_vf2pf;
 	unsigned int checksum_key;
 };
 /*
@@ -85,15 +85,17 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_GIM_FLR_VRAMLOST = 0x4,
 };
 
-struct amdgim_pf2vf_info_header {
+struct amd_sriov_msg_pf2vf_info_header {
 	/* the total structure size in byte. */
 	uint32_t size;
 	/* version of this structure, written by the GIM */
 	uint32_t version;
+	/* reserved */
+	uint32_t reserved[2];
 } __aligned(4);
 struct  amdgim_pf2vf_info_v1 {
 	/* header contains size and version */
-	struct amdgim_pf2vf_info_header header;
+	struct amd_sriov_msg_pf2vf_info_header header;
 	/* max_width * max_height */
 	unsigned int uvd_enc_max_pixels_count;
 	/* 16x16 pixels/sec, codec independent */
@@ -112,7 +114,7 @@ struct  amdgim_pf2vf_info_v1 {
 
 struct  amdgim_pf2vf_info_v2 {
 	/* header contains size and version */
-	struct amdgim_pf2vf_info_header header;
+	struct amd_sriov_msg_pf2vf_info_header header;
 	/* use private key from mailbox 2 to create chueksum */
 	uint32_t checksum;
 	/* The features flags of the GIM driver supports. */
@@ -137,20 +139,22 @@ struct  amdgim_pf2vf_info_v2 {
 	uint64_t vcefw_kboffset;
 	/* VCE FW size in KB */
 	uint32_t vcefw_ksize;
-	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 0, 0, (9 + sizeof(struct amdgim_pf2vf_info_header)/sizeof(uint32_t)), 3)];
+	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 0, 0, (9 + sizeof(struct amd_sriov_msg_pf2vf_info_header)/sizeof(uint32_t)), 3)];
 } __aligned(4);
 
 
-struct amdgim_vf2pf_info_header {
+struct amd_sriov_msg_vf2pf_info_header {
 	/* the total structure size in byte. */
 	uint32_t size;
 	/*version of this structure, written by the guest */
 	uint32_t version;
+	/* reserved */
+	uint32_t reserved[2];
 } __aligned(4);
 
 struct amdgim_vf2pf_info_v1 {
 	/* header contains size and version */
-	struct amdgim_vf2pf_info_header header;
+	struct amd_sriov_msg_vf2pf_info_header header;
 	/* driver version */
 	char driver_version[64];
 	/* driver certification, 1=WHQL, 0=None */
@@ -180,7 +184,7 @@ struct amdgim_vf2pf_info_v1 {
 
 struct amdgim_vf2pf_info_v2 {
 	/* header contains size and version */
-	struct amdgim_vf2pf_info_header header;
+	struct amd_sriov_msg_vf2pf_info_header header;
 	uint32_t checksum;
 	/* driver version */
 	uint8_t driver_version[64];
@@ -206,7 +210,7 @@ struct amdgim_vf2pf_info_v2 {
 	uint32_t uvd_enc_usage;
 	/* guest uvd engine usage percentage. 0xffff means N/A. */
 	uint32_t uvd_enc_health;
-	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 64, 0, (12 + sizeof(struct amdgim_vf2pf_info_header)/sizeof(uint32_t)), 0)];
+	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 64, 0, (12 + sizeof(struct amd_sriov_msg_vf2pf_info_header)/sizeof(uint32_t)), 0)];
 } __aligned(4);
 
 #define AMDGPU_FW_VRAM_VF2PF_VER 2

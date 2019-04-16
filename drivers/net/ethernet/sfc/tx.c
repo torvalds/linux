@@ -471,7 +471,7 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 	if (IS_ERR(segments))
 		return PTR_ERR(segments);
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	skb = segments;
 
 	while (skb) {
@@ -553,13 +553,10 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	if (!data_mapped && (efx_tx_map_data(tx_queue, skb, segments)))
 		goto err;
 
-	/* Update BQL */
-	netdev_tx_sent_queue(tx_queue->core_txq, skb_len);
-
 	efx_tx_maybe_stop_queue(tx_queue);
 
 	/* Pass off to hardware */
-	if (!xmit_more || netif_xmit_stopped(tx_queue->core_txq)) {
+	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb_len, xmit_more)) {
 		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
 
 		/* There could be packets left on the partner queue if those

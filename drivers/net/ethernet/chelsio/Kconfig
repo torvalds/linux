@@ -24,7 +24,8 @@ config CHELSIO_T1
 	---help---
 	  This driver supports Chelsio gigabit and 10-gigabit
 	  Ethernet cards. More information about adapter features and
-	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
+	  performance tuning is in
+	  <file:Documentation/networking/device_drivers/chelsio/cxgb.txt>.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.
@@ -67,7 +68,6 @@ config CHELSIO_T3
 config CHELSIO_T4
 	tristate "Chelsio Communications T4/T5/T6 Ethernet support"
 	depends on PCI && (IPV6 || IPV6=n)
-	depends on THERMAL || !THERMAL
 	select FW_LOADER
 	select MDIO
 	select ZLIB_DEFLATE

@@ -105,8 +105,6 @@ struct cedrus_dev {
 
 	/* Device file mutex */
 	struct mutex		dev_mutex;
-	/* Interrupt spinlock */
-	spinlock_t		irq_lock;
 
 	void __iomem		*base;
 
@@ -142,11 +140,14 @@ static inline dma_addr_t cedrus_buf_addr(struct vb2_buffer *buf,
 }
 
 static inline dma_addr_t cedrus_dst_buf_addr(struct cedrus_ctx *ctx,
-					     unsigned int index,
-					     unsigned int plane)
+					     int index, unsigned int plane)
 {
-	struct vb2_buffer *buf = ctx->dst_bufs[index];
+	struct vb2_buffer *buf;
 
+	if (index < 0)
+		return 0;
+
+	buf = ctx->dst_bufs[index];
 	return buf ? cedrus_buf_addr(buf, &ctx->dst_fmt, plane) : 0;
 }
 

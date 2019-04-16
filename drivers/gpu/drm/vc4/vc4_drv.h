@@ -7,8 +7,8 @@
  */
 
 #include <linux/mm_types.h>
-#include <linux/reservation.h>
 #include <drm/drmP.h>
+#include <drm/drm_util.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_atomic.h>
@@ -184,9 +184,19 @@ struct vc4_dev {
 	/* Bitmask of the current bin_alloc used for overflow memory. */
 	uint32_t bin_alloc_overflow;
 
+	/* Incremented when an underrun error happened after an atomic commit.
+	 * This is particularly useful to detect when a specific modeset is too
+	 * demanding in term of memory or HVS bandwidth which is hard to guess
+	 * at atomic check time.
+	 */
+	atomic_t underrun;
+
 	struct work_struct overflow_mem_work;
 
 	int power_refcount;
+
+	/* Set to true when the load tracker is active. */
+	bool load_tracker_enabled;
 
 	/* Mutex controlling the power refcount. */
 	struct mutex power_lock;
@@ -200,6 +210,7 @@ struct vc4_dev {
 
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
+	struct drm_private_obj load_tracker;
 };
 
 static inline struct vc4_dev *
@@ -238,10 +249,6 @@ struct vc4_bo {
 	 * DRM_IOCTL_VC4_CREATE_SHADER_BO.
 	 */
 	struct vc4_validated_shader_info *validated_shader;
-
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
 
 	/* One of enum vc4_kernel_bo_type, or VC4_BO_TYPE_COUNT + i
 	 * for user-allocated labels.
@@ -338,6 +345,7 @@ struct vc4_plane_state {
 	u32 pos0_offset;
 	u32 pos2_offset;
 	u32 ptr0_offset;
+	u32 lbm_offset;
 
 	/* Offset where the plane's dlist was last stored in the
 	 * hardware at vc4_crtc_atomic_flush() time.
@@ -369,6 +377,21 @@ struct vc4_plane_state {
 	 * to enable background color fill.
 	 */
 	bool needs_bg_fill;
+
+	/* Mark the dlist as initialized. Useful to avoid initializing it twice
+	 * when async update is not possible.
+	 */
+	bool dlist_initialized;
+
+	/* Load of this plane on the HVS block. The load is expressed in HVS
+	 * cycles/sec.
+	 */
+	u64 hvs_load;
+
+	/* Memory bandwidth needed for this plane. This is expressed in
+	 * bytes/sec.
+	 */
+	u64 membus_load;
 };
 
 static inline struct vc4_plane_state *
@@ -678,7 +701,6 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 vm_fault_t vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
-struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
@@ -701,6 +723,9 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     const struct drm_display_mode *mode);
 void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
 void vc4_crtc_txp_armed(struct drm_crtc_state *state);
+void vc4_crtc_get_margins(struct drm_crtc_state *state,
+			  unsigned int *right, unsigned int *left,
+			  unsigned int *top, unsigned int *bottom);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
@@ -763,6 +788,9 @@ void vc4_irq_reset(struct drm_device *dev);
 extern struct platform_driver vc4_hvs_driver;
 void vc4_hvs_dump_state(struct drm_device *dev);
 int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused);
+int vc4_hvs_debugfs_underrun(struct seq_file *m, void *unused);
+void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel);
+void vc4_hvs_mask_underrun(struct drm_device *dev, int channel);
 
 /* vc4_kms.c */
 int vc4_kms_load(struct drm_device *dev);

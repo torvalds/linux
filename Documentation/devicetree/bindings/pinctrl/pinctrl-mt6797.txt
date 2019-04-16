@@ -1,0 +1,83 @@
+* MediaTek MT6797 Pin Controller
+
+The MediaTek's MT6797 Pin controller is used to control SoC pins.
+
+Required properties:
+- compatible: Value should be one of the following.
+              "mediatek,mt6797-pinctrl", compatible with mt6797 pinctrl.
+- reg:        Should contain address and size for gpio, iocfgl, iocfgb,
+              iocfgr and iocfgt register bases.
+- reg-names:  An array of strings describing the "reg" entries. Must
+              contain "gpio", "iocfgl", "iocfgb", "iocfgr", "iocfgt".
+- gpio-controller: Marks the device node as a gpio controller.
+- #gpio-cells: Should be two. The first cell is the gpio pin number
+               and the second cell is used for optional parameters.
+
+Optional properties:
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Should be two.
+- interrupts : The interrupt outputs from the controller.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices.
+
+Subnode format
+A pinctrl node should contain at least one subnodes representing the
+pinctrl groups available on the machine. Each subnode will list the
+pins it needs, and how they should be configured, with regard to muxer
+configuration, pullups, drive strength, input enable/disable and input schmitt.
+
+    node {
+        pinmux = <PIN_NUMBER_PINMUX>;
+        GENERIC_PINCONFIG;
+    };
+
+Required properties:
+- pinmux: Integer array, represents gpio pin number and mux setting.
+    Supported pin number and mux varies for different SoCs, and are defined
+    as macros in dt-bindings/pinctrl/<soc>-pinfunc.h directly.
+
+Optional properties:
+- GENERIC_PINCONFIG: is the generic pinconfig options to use, bias-disable,
+    bias-pull, bias-pull-down, input-enable, input-schmitt-enable,
+    input-schmitt-disable, output-enable output-low, output-high,
+    drive-strength, and slew-rate are valid.
+
+    Valid arguments for 'slew-rate' are '0' for no slew rate controlled and
+    '1' for slower slew rate respectively. Valid arguments for 'drive-strength'
+    is limited, such as 2, 4, 8, 12, or 16 in mA.
+
+    Some optional vendor properties as defined are valid to specify in a
+    pinconf subnode:
+    - mediatek,tdsel: An integer describing the steps for output level shifter
+      duty cycle when asserted (high pulse width adjustment). Valid arguments
+      are from 0 to 15.
+    - mediatek,rdsel: An integer describing the steps for input level shifter
+      duty cycle when asserted (high pulse width adjustment). Valid arguments
+      are from 0 to 63.
+    - mediatek,pull-up-adv: An integer describing the code R1R0 as 0, 1, 2
+      or 3 for the advanced pull-up resistors.
+    - mediatek,pull-down-adv: An integer describing the code R1R0 as 0, 1, 2,
+      or 3 for the advanced pull-down resistors.
+
+Examples:
+
+        pio: pinctrl@10005000 {
+                compatible = "mediatek,mt6797-pinctrl";
+                reg = <0 0x10005000 0 0x1000>,
+                      <0 0x10002000 0 0x400>,
+                      <0 0x10002400 0 0x400>,
+                      <0 0x10002800 0 0x400>,
+                      <0 0x10002C00 0 0x400>;
+                reg-names = "gpio", "iocfgl", "iocfgb",
+                            "iocfgr", "iocfgt";
+                gpio-controller;
+                #gpio-cells = <2>;
+
+                uart1_pins_a: uart1 {
+                        pins1 {
+                                pinmux = <MT6797_GPIO232__FUNC_URXD1>,
+                                         <MT6797_GPIO233__FUNC_UTXD1>;
+                        };
+                };
+        };

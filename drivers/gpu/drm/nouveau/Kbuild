@@ -30,6 +30,8 @@ nouveau-y += nouveau_vga.o
 # DRM - memory management
 nouveau-y += nouveau_bo.o
 nouveau-y += nouveau_gem.o
+nouveau-$(CONFIG_DRM_NOUVEAU_SVM) += nouveau_svm.o
+nouveau-$(CONFIG_DRM_NOUVEAU_SVM) += nouveau_dmem.o
 nouveau-y += nouveau_mem.o
 nouveau-y += nouveau_prime.o
 nouveau-y += nouveau_sgdma.o

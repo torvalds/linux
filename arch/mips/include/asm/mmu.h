@@ -7,9 +7,12 @@
 #include <linux/wait.h>
 
 typedef struct {
-	unsigned long asid[NR_CPUS];
+	union {
+		u64 asid[NR_CPUS];
+		atomic64_t mmid;
+	};
+
 	void *vdso;
-	atomic_t fp_mode_switching;
 
 	/* lock to be held whilst modifying fp_bd_emupage_allocmap */
 	spinlock_t bd_emupage_lock;

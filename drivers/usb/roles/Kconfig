@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config USB_ROLE_SWITCH
+	tristate "USB Role Switch Support"
+	help
+	  USB Role Switch is a device that can select the USB role - host or
+	  device - for a USB port (connector). In most cases dual-role capable
+	  USB controller will also represent the switch, but on some platforms
+	  multiplexer/demultiplexer switch is used to route the data lines on
+	  the USB connector between separate USB host and device controllers.
+
+	  Say Y here if your USB connectors support both device and host roles.
+	  To compile the driver as module, choose M here: the module will be
+	  called roles.ko.
+
 if USB_ROLE_SWITCH
 
 config USB_ROLES_INTEL_XHCI

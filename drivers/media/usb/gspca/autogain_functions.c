@@ -98,7 +98,7 @@ EXPORT_SYMBOL(gspca_expo_autogain);
    80 %) and if that does not help, only then changes exposure. This leads
    to a much more stable image then using the knee algorithm which at
    certain points of the knee graph will only try to adjust exposure,
-   which leads to oscilating as one exposure step is huge.
+   which leads to oscillating as one exposure step is huge.
 
    Returns 0 if no changes were made, 1 if the gain and or exposure settings
    where changed. */

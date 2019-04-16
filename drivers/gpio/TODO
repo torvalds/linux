@@ -1,0 +1,109 @@
+This is a place for planning the ongoing long-term work in the GPIO
+subsystem.
+
+
+GPIO descriptors
+
+Starting with commit 79a9becda894 the GPIO subsystem embarked on a journey
+to move away from the global GPIO numberspace and toward a decriptor-based
+approach. This means that GPIO consumers, drivers and machine descriptions
+ideally have no use or idea of the global GPIO numberspace that has/was
+used in the inception of the GPIO subsystem.
+
+Work items:
+
+- Convert all GPIO device drivers to only #include <linux/gpio/driver.h>
+
+- Convert all consumer drivers to only #include <linux/gpio/consumer.h>
+
+- Convert all machine descriptors in "boardfiles" to only
+  #include <linux/gpio/machine.h>, the other option being to convert it
+  to a machine description such as device tree, ACPI or fwnode that
+  implicitly does not use global GPIO numbers.
+
+- When this work is complete (will require some of the items in the
+  following ongoing work as well) we can delete the old global
+  numberspace accessors from <linux/gpio.h> and eventually delete
+  <linux/gpio.h> altogether.
+
+
+Get rid of <linux/of_gpio.h>
+
+This header and helpers appeared at one point when there was no proper
+driver infrastructure for doing simpler MMIO GPIO devices and there was
+no core support for parsing device tree GPIOs from the core library with
+the [devm_]gpiod_get() calls we have today that will implicitly go into
+the device tree back-end.
+
+Work items:
+
+- Get rid of struct of_mm_gpio_chip altogether: use the generic  MMIO
+  GPIO for all current users (see below). Delete struct of_mm_gpio_chip,
+  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_add()
+  of_mm_gpiochip_remove() from the kernel.
+
+- Change all consumer drivers that #include <linux/of_gpio.h> to
+  #include <linux/gpio/consumer.h> and stop doing custom parsing of the
+  GPIO lines from the device tree. This can be tricky and often ivolves
+  changing boardfiles, etc.
+
+- Pull semantics for legacy device tree (OF) GPIO lookups into
+  gpiolib-of.c: in some cases subsystems are doing custom flags and
+  lookups for polarity inversion, open drain and what not. As we now
+  handle this with generic OF bindings, pull all legacy handling into
+  gpiolib so the library API becomes narrow and deep and handle all
+  legacy bindings internally. (See e.g. commits 6953c57ab172,
+  6a537d48461d etc)
+
+- Delete <linux/of_gpio.h> when all the above is complete and everything
+  uses <linux/gpio/consumer.h> or <linux/gpio/driver.h> instead.
+
+
+Collect drivers
+
+Collect GPIO drivers from arch/* and other places that should be placed
+in drivers/gpio/gpio-*. Augment platforms to create platform devices or
+similar and probe a proper driver in the gpiolib subsystem.
+
+In some cases it makes sense to create a GPIO chip from the local driver
+for a few GPIOs. Those should stay where they are.
+
+
+Generic MMIO GPIO
+
+The GPIO drivers can utilize the generic MMIO helper library in many
+cases, and the helper library should be as helpful as possible for MMIO
+drivers. (drivers/gpio/gpio-mmio.c)
+
+Work items:
+
+- Look over and identify any remaining easily converted drivers and
+  dry-code conversions to MMIO GPIO for maintainers to test
+
+- Expand the MMIO GPIO or write a new library for port-mapped I/O
+  helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
+  this with dry-coding and sending to maintainers to test
+
+
+GPIOLIB irqchip
+
+The GPIOLIB irqchip is a helper irqchip for "simple cases" that should
+try to cover any generic kind of irqchip cascaded from a GPIO.
+
+- Look over and identify any remaining easily converted drivers and
+  dry-code conversions to gpiolib irqchip for maintainers to test
+
+- Support generic hierarchical GPIO interrupts: these are for the
+  non-cascading case where there is one IRQ per GPIO line, there is
+  currently no common infrastructure for this.
+
+
+Increase integration with pin control
+
+There are already ways to use pin control as back-end for GPIO and
+it may make sense to bring these subsystems closer. One reason for
+creating pin control as its own subsystem was that we could avoid any
+use of the global GPIO numbers. Once the above is complete, it may
+make sense to simply join the subsystems into one and make pin
+multiplexing, pin configuration, GPIO, etc selectable options in one
+and the same pin control and GPIO subsystem.

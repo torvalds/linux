@@ -26,7 +26,7 @@ config NVMEM_IMX_IIM
 
 config NVMEM_IMX_OCOTP
 	tristate "i.MX6 On-Chip OTP Controller support"
-	depends on SOC_IMX6 || COMPILE_TEST
+	depends on SOC_IMX6 || SOC_IMX7D || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
@@ -191,5 +191,15 @@ config SC27XX_EFUSE
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-sc27xx-efuse.
+
+config NVMEM_ZYNQMP
+	bool "Xilinx ZYNQMP SoC nvmem firmware support"
+	depends on ARCH_ZYNQMP
+	help
+	  This is a driver to access hardware related data like
+	  soc revision, IDCODE... etc by using the firmware
+	  interface.
+
+	  If sure, say yes. If unsure, say no.
 
 endif

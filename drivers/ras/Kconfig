@@ -30,6 +30,6 @@ menuconfig RAS
 
 if RAS
 
-source arch/x86/ras/Kconfig
+source "arch/x86/ras/Kconfig"
 
 endif

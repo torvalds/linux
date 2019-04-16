@@ -15,7 +15,15 @@
 #define DESC_AHASH_FINAL_LEN		(DESC_AHASH_BASE + 5 * CAAM_CMD_SZ)
 #define DESC_AHASH_DIGEST_LEN		(DESC_AHASH_BASE + 4 * CAAM_CMD_SZ)
 
+static inline bool is_xcbc_aes(u32 algtype)
+{
+	return (algtype & (OP_ALG_ALGSEL_MASK | OP_ALG_AAI_MASK)) ==
+	       (OP_ALG_ALGSEL_AES | OP_ALG_AAI_XCBC_MAC);
+}
+
 void cnstr_shdsc_ahash(u32 * const desc, struct alginfo *adata, u32 state,
 		       int digestsize, int ctx_len, bool import_ctx, int era);
 
+void cnstr_shdsc_sk_hash(u32 * const desc, struct alginfo *adata, u32 state,
+			 int digestsize, int ctx_len, dma_addr_t key_dma);
 #endif /* _CAAMHASH_DESC_H_ */

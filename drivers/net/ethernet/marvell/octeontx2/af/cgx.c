@@ -31,6 +31,7 @@
  * @resp:		command response
  * @link_info:		link related information
  * @event_cb:		callback for linkchange events
+ * @event_cb_lock:	lock for serializing callback with unregister
  * @cmd_pend:		flag set before new command is started
  *			flag cleared after command response is received
  * @cgx:		parent cgx port
@@ -43,6 +44,7 @@ struct lmac {
 	u64 resp;
 	struct cgx_link_user_info link_info;
 	struct cgx_event_cb event_cb;
+	spinlock_t event_cb_lock;
 	bool cmd_pend;
 	struct cgx *cgx;
 	u8 lmac_id;
@@ -55,6 +57,8 @@ struct cgx {
 	u8			cgx_id;
 	u8			lmac_count;
 	struct lmac		*lmac_idmap[MAX_LMAC_PER_CGX];
+	struct			work_struct cgx_cmd_work;
+	struct			workqueue_struct *cgx_cmd_workq;
 	struct list_head	cgx_list;
 };
 
@@ -65,6 +69,9 @@ static u32 cgx_speed_mbps[CGX_LINK_SPEED_MAX];
 
 /* Convert firmware lmac type encoding to string */
 static char *cgx_lmactype_string[LMAC_MODE_MAX];
+
+/* CGX PHY management internal APIs */
+static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool en);
 
 /* Supported devices */
 static const struct pci_device_id cgx_id_table[] = {
@@ -92,17 +99,21 @@ static inline struct lmac *lmac_pdata(u8 lmac_id, struct cgx *cgx)
 	return cgx->lmac_idmap[lmac_id];
 }
 
-int cgx_get_cgx_cnt(void)
+int cgx_get_cgxcnt_max(void)
 {
 	struct cgx *cgx_dev;
-	int count = 0;
+	int idmax = -ENODEV;
 
 	list_for_each_entry(cgx_dev, &cgx_list, cgx_list)
-		count++;
+		if (cgx_dev->cgx_id > idmax)
+			idmax = cgx_dev->cgx_id;
 
-	return count;
+	if (idmax < 0)
+		return 0;
+
+	return idmax + 1;
 }
-EXPORT_SYMBOL(cgx_get_cgx_cnt);
+EXPORT_SYMBOL(cgx_get_cgxcnt_max);
 
 int cgx_get_lmac_cnt(void *cgxd)
 {
@@ -445,6 +456,9 @@ static inline void cgx_link_change_handler(u64 lstat,
 	lmac->link_info = event.link_uinfo;
 	linfo = &lmac->link_info;
 
+	/* Ensure callback doesn't get unregistered until we finish it */
+	spin_lock(&lmac->event_cb_lock);
+
 	if (!lmac->event_cb.notify_link_chg) {
 		dev_dbg(dev, "cgx port %d:%d Link change handler null",
 			cgx->cgx_id, lmac->lmac_id);
@@ -455,11 +469,13 @@ static inline void cgx_link_change_handler(u64 lstat,
 		dev_info(dev, "cgx port %d:%d Link is %s %d Mbps\n",
 			 cgx->cgx_id, lmac->lmac_id,
 			 linfo->link_up ? "UP" : "DOWN", linfo->speed);
-		return;
+		goto err;
 	}
 
 	if (lmac->event_cb.notify_link_chg(&event, lmac->event_cb.data))
 		dev_err(dev, "event notification failure\n");
+err:
+	spin_unlock(&lmac->event_cb_lock);
 }
 
 static inline bool cgx_cmdresp_is_linkevent(u64 event)
@@ -481,6 +497,60 @@ static inline bool cgx_event_is_linkevent(u64 event)
 	else
 		return false;
 }
+
+static inline int cgx_fwi_get_mkex_prfl_sz(u64 *prfl_sz,
+					   struct cgx *cgx)
+{
+	u64 req = 0;
+	u64 resp;
+	int err;
+
+	req = FIELD_SET(CMDREG_ID, CGX_CMD_GET_MKEX_PRFL_SIZE, req);
+	err = cgx_fwi_cmd_generic(req, &resp, cgx, 0);
+	if (!err)
+		*prfl_sz = FIELD_GET(RESP_MKEX_PRFL_SIZE, resp);
+
+	return err;
+}
+
+static inline int cgx_fwi_get_mkex_prfl_addr(u64 *prfl_addr,
+					     struct cgx *cgx)
+{
+	u64 req = 0;
+	u64 resp;
+	int err;
+
+	req = FIELD_SET(CMDREG_ID, CGX_CMD_GET_MKEX_PRFL_ADDR, req);
+	err = cgx_fwi_cmd_generic(req, &resp, cgx, 0);
+	if (!err)
+		*prfl_addr = FIELD_GET(RESP_MKEX_PRFL_ADDR, resp);
+
+	return err;
+}
+
+int cgx_get_mkex_prfl_info(u64 *addr, u64 *size)
+{
+	struct cgx *cgx_dev;
+	int err;
+
+	if (!addr || !size)
+		return -EINVAL;
+
+	cgx_dev = list_first_entry(&cgx_list, struct cgx, cgx_list);
+	if (!cgx_dev)
+		return -ENXIO;
+
+	err = cgx_fwi_get_mkex_prfl_sz(size, cgx_dev);
+	if (err)
+		return -EIO;
+
+	err = cgx_fwi_get_mkex_prfl_addr(addr, cgx_dev);
+	if (err)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_get_mkex_prfl_info);
 
 static irqreturn_t cgx_fwi_event_handler(int irq, void *data)
 {
@@ -548,6 +618,38 @@ int cgx_lmac_evh_register(struct cgx_event_cb *cb, void *cgxd, int lmac_id)
 }
 EXPORT_SYMBOL(cgx_lmac_evh_register);
 
+int cgx_lmac_evh_unregister(void *cgxd, int lmac_id)
+{
+	struct lmac *lmac;
+	unsigned long flags;
+	struct cgx *cgx = cgxd;
+
+	lmac = lmac_pdata(lmac_id, cgx);
+	if (!lmac)
+		return -ENODEV;
+
+	spin_lock_irqsave(&lmac->event_cb_lock, flags);
+	lmac->event_cb.notify_link_chg = NULL;
+	lmac->event_cb.data = NULL;
+	spin_unlock_irqrestore(&lmac->event_cb_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_evh_unregister);
+
+static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool enable)
+{
+	u64 req = 0;
+	u64 resp;
+
+	if (enable)
+		req = FIELD_SET(CMDREG_ID, CGX_CMD_LINK_BRING_UP, req);
+	else
+		req = FIELD_SET(CMDREG_ID, CGX_CMD_LINK_BRING_DOWN, req);
+
+	return cgx_fwi_cmd_generic(req, &resp, cgx, lmac_id);
+}
+
 static inline int cgx_fwi_read_version(u64 *resp, struct cgx *cgx)
 {
 	u64 req = 0;
@@ -581,6 +683,34 @@ static int cgx_lmac_verify_fwi_version(struct cgx *cgx)
 		return 0;
 }
 
+static void cgx_lmac_linkup_work(struct work_struct *work)
+{
+	struct cgx *cgx = container_of(work, struct cgx, cgx_cmd_work);
+	struct device *dev = &cgx->pdev->dev;
+	int i, err;
+
+	/* Do Link up for all the lmacs */
+	for (i = 0; i < cgx->lmac_count; i++) {
+		err = cgx_fwi_link_change(cgx, i, true);
+		if (err)
+			dev_info(dev, "cgx port %d:%d Link up command failed\n",
+				 cgx->cgx_id, i);
+	}
+}
+
+int cgx_lmac_linkup_start(void *cgxd)
+{
+	struct cgx *cgx = cgxd;
+
+	if (!cgx)
+		return -ENODEV;
+
+	queue_work(cgx->cgx_cmd_workq, &cgx->cgx_cmd_work);
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_linkup_start);
+
 static int cgx_lmac_init(struct cgx *cgx)
 {
 	struct lmac *lmac;
@@ -602,6 +732,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 		lmac->cgx = cgx;
 		init_waitqueue_head(&lmac->wq_cmd_cmplt);
 		mutex_init(&lmac->cmd_lock);
+		spin_lock_init(&lmac->event_cb_lock);
 		err = request_irq(pci_irq_vector(cgx->pdev,
 						 CGX_LMAC_FWI + i * 9),
 				   cgx_fwi_event_handler, 0, lmac->name, lmac);
@@ -623,6 +754,12 @@ static int cgx_lmac_exit(struct cgx *cgx)
 {
 	struct lmac *lmac;
 	int i;
+
+	if (cgx->cgx_cmd_workq) {
+		flush_workqueue(cgx->cgx_cmd_workq);
+		destroy_workqueue(cgx->cgx_cmd_workq);
+		cgx->cgx_cmd_workq = NULL;
+	}
 
 	/* Free all lmac related resources */
 	for (i = 0; i < cgx->lmac_count; i++) {
@@ -679,8 +816,19 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_release_regions;
 	}
 
+	cgx->cgx_id = (pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM) >> 24)
+		& CGX_ID_MASK;
+
+	/* init wq for processing linkup requests */
+	INIT_WORK(&cgx->cgx_cmd_work, cgx_lmac_linkup_work);
+	cgx->cgx_cmd_workq = alloc_workqueue("cgx_cmd_workq", 0, 0);
+	if (!cgx->cgx_cmd_workq) {
+		dev_err(dev, "alloc workqueue failed for cgx cmd");
+		err = -ENOMEM;
+		goto err_free_irq_vectors;
+	}
+
 	list_add(&cgx->cgx_list, &cgx_list);
-	cgx->cgx_id = cgx_get_cgx_cnt() - 1;
 
 	cgx_link_usertable_init();
 
@@ -693,6 +841,8 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_release_lmac:
 	cgx_lmac_exit(cgx);
 	list_del(&cgx->cgx_list);
+err_free_irq_vectors:
+	pci_free_irq_vectors(pdev);
 err_release_regions:
 	pci_release_regions(pdev);
 err_disable_device:

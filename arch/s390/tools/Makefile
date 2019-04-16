@@ -20,13 +20,10 @@ HOSTCFLAGS_gen_opcode_table.o += -Wall $(LINUXINCLUDE)
 # Ensure output directory exists
 _dummy := $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)')
 
-define filechk_facility-defs.h
-	$(obj)/gen_facilities
-endef
+filechk_facility-defs.h = $(obj)/gen_facilities
 
-define filechk_dis-defs.h
-	( $(obj)/gen_opcode_table < $(srctree)/arch/$(ARCH)/tools/opcodes.txt )
-endef
+filechk_dis-defs.h = \
+	$(obj)/gen_opcode_table < $(srctree)/arch/$(ARCH)/tools/opcodes.txt
 
 $(kapi)/facility-defs.h: $(obj)/gen_facilities FORCE
 	$(call filechk,facility-defs.h)

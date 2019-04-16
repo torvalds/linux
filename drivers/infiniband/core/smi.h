@@ -67,7 +67,7 @@ static inline enum smi_action smi_check_local_smp(struct ib_smp *smp,
 {
 	/* C14-9:3 -- We're at the end of the DR segment of path */
 	/* C14-9:4 -- Hop Pointer = Hop Count + 1 -> give to SMA/SM */
-	return ((device->process_mad &&
+	return ((device->ops.process_mad &&
 		!ib_get_smp_direction(smp) &&
 		(smp->hop_ptr == smp->hop_cnt + 1)) ?
 		IB_SMI_HANDLE : IB_SMI_DISCARD);
@@ -82,7 +82,7 @@ static inline enum smi_action smi_check_local_returning_smp(struct ib_smp *smp,
 {
 	/* C14-13:3 -- We're at the end of the DR segment of path */
 	/* C14-13:4 -- Hop Pointer == 0 -> give to SM */
-	return ((device->process_mad &&
+	return ((device->ops.process_mad &&
 		ib_get_smp_direction(smp) &&
 		!smp->hop_ptr) ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 }

@@ -59,7 +59,6 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 				struct ipv6hdr *iph)
 {
 	const struct net_device *dev = NULL;
-	const struct nf_ipv6_ops *v6ops;
 	int route_err, addrtype;
 	struct rt6_info *rt;
 	struct flowi6 fl6 = {
@@ -68,10 +67,6 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 	};
 	u32 ret = 0;
 
-	v6ops = nf_get_ipv6_ops();
-	if (!v6ops)
-		return RTN_UNREACHABLE;
-
 	if (priv->flags & NFTA_FIB_F_IIF)
 		dev = nft_in(pkt);
 	else if (priv->flags & NFTA_FIB_F_OIF)
@@ -79,10 +74,10 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 
 	nft_fib6_flowi_init(&fl6, priv, pkt, dev, iph);
 
-	if (dev && v6ops->chk_addr(nft_net(pkt), &fl6.daddr, dev, true))
+	if (dev && nf_ipv6_chk_addr(nft_net(pkt), &fl6.daddr, dev, true))
 		ret = RTN_LOCAL;
 
-	route_err = v6ops->route(nft_net(pkt), (struct dst_entry **)&rt,
+	route_err = nf_ip6_route(nft_net(pkt), (struct dst_entry **)&rt,
 				 flowi6_to_flowi(&fl6), false);
 	if (route_err)
 		goto err;

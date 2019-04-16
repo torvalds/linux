@@ -10,6 +10,8 @@
 
 #include <asm/hw_irq.h>
 #include <asm/desc.h>
+#include <asm/trace/exceptions.h>
+#include <asm/trace/irq_vectors.h>
 
 DEFINE_STATIC_KEY_FALSE(trace_pagefault_key);
 

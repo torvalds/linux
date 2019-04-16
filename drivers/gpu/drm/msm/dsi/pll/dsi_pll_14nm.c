@@ -783,7 +783,7 @@ static int dsi_pll_14nm_enable_seq(struct msm_dsi_pll *pll)
 					 POLL_TIMEOUT_US);
 
 	if (unlikely(!locked))
-		dev_err(&pll_14nm->pdev->dev, "DSI PLL lock failed\n");
+		DRM_DEV_ERROR(&pll_14nm->pdev->dev, "DSI PLL lock failed\n");
 	else
 		DBG("DSI PLL lock success");
 
@@ -829,7 +829,7 @@ static int dsi_pll_14nm_restore_state(struct msm_dsi_pll *pll)
 	ret = dsi_pll_14nm_vco_set_rate(&pll->clk_hw,
 					cached_state->vco_rate, 0);
 	if (ret) {
-		dev_err(&pll_14nm->pdev->dev,
+		DRM_DEV_ERROR(&pll_14nm->pdev->dev,
 			"restore vco rate failed. ret=%d\n", ret);
 		return ret;
 	}
@@ -1039,7 +1039,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
 				     pll_14nm->hw_data);
 	if (ret) {
-		dev_err(dev, "failed to register clk provider: %d\n", ret);
+		DRM_DEV_ERROR(dev, "failed to register clk provider: %d\n", ret);
 		return ret;
 	}
 
@@ -1067,13 +1067,13 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 
 	pll_14nm->phy_cmn_mmio = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR_OR_NULL(pll_14nm->phy_cmn_mmio)) {
-		dev_err(&pdev->dev, "failed to map CMN PHY base\n");
+		DRM_DEV_ERROR(&pdev->dev, "failed to map CMN PHY base\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
 	pll_14nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_14nm->mmio)) {
-		dev_err(&pdev->dev, "failed to map PLL base\n");
+		DRM_DEV_ERROR(&pdev->dev, "failed to map PLL base\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1096,7 +1096,7 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 
 	ret = pll_14nm_register(pll_14nm);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register PLL: %d\n", ret);
+		DRM_DEV_ERROR(&pdev->dev, "failed to register PLL: %d\n", ret);
 		return ERR_PTR(ret);
 	}
 

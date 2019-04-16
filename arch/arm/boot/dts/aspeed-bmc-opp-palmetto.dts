@@ -26,6 +26,16 @@
 			no-map;
 			reg = <0x5f000000 0x01000000>; /* 16M */
 		};
+
+		coldfire_memory: codefire_memory@5ee00000 {
+			reg = <0x5ee00000 0x00200000>;
+			no-map;
+		};
+
+		flash_memory: region@98000000 {
+			no-map;
+			reg = <0x98000000 0x01000000>; /* 16MB */
+		};
 	};
 
 	leds {
@@ -42,6 +52,22 @@
 		identify {
 			gpios = <&gpio ASPEED_GPIO(A, 2) GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	fsi: gpio-fsi {
+		compatible = "aspeed,ast2400-cf-fsi-master", "fsi-master";
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		memory-region = <&coldfire_memory>;
+		aspeed,sram = <&sram>;
+		aspeed,cvic = <&cvic>;
+
+		clock-gpios = <&gpio ASPEED_GPIO(A, 4) GPIO_ACTIVE_HIGH>;
+		data-gpios = <&gpio ASPEED_GPIO(A, 5) GPIO_ACTIVE_HIGH>;
+		mux-gpios = <&gpio ASPEED_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
+		trans-gpios = <&gpio ASPEED_GPIO(H, 6) GPIO_ACTIVE_HIGH>;
 	};
 
 	gpio-keys {
@@ -143,6 +169,11 @@
 
 &i2c3 {
 	status = "okay";
+
+	occ-hwmon@50 {
+		compatible = "ibm,p8-occ-hwmon";
+		reg = <0x50>;
+	};
 };
 
 &i2c4 {
@@ -167,6 +198,12 @@
 
 &ibt {
 	status = "okay";
+};
+
+&lpc_ctrl {
+	status = "okay";
+	memory-region = <&flash_memory>;
+	flash = <&spi>;
 };
 
 &gpio {
@@ -301,13 +338,6 @@
 		gpios = <ASPEED_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "SYS_PWROK_BMC";
-	};
-
-	pin_gpio_h6 {
-		gpio-hog;
-		gpios = <ASPEED_GPIO(H, 6) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "SCM1_FSI0_DATA_EN";
 	};
 
 	pin_gpio_h7 {

@@ -70,6 +70,8 @@ struct malidp_layer {
 	s16 yuv2rgb_offset;	/* offset to the YUV->RGB matrix entries */
 	u16 mmu_ctrl_offset;    /* offset to the MMU control register */
 	enum rotation_features rot;	/* type of rotation supported */
+	/* address offset for the AFBC decoder registers */
+	u16 afbc_decoder_offset;
 };
 
 enum malidp_scaling_coeff_set {
@@ -93,7 +95,10 @@ struct malidp_se_config {
 };
 
 /* regmap features */
-#define MALIDP_REGMAP_HAS_CLEARIRQ	(1 << 0)
+#define MALIDP_REGMAP_HAS_CLEARIRQ				BIT(0)
+#define MALIDP_DEVICE_AFBC_SUPPORT_SPLIT			BIT(1)
+#define MALIDP_DEVICE_AFBC_YUV_420_10_SUPPORT_SPLIT		BIT(2)
+#define MALIDP_DEVICE_AFBC_YUYV_USE_422_P2			BIT(3)
 
 struct malidp_hw_regmap {
 	/* address offset of the DE register bank */
@@ -179,7 +184,8 @@ struct malidp_hw {
 	 * Calculate the required rotation memory given the active area
 	 * and the buffer format.
 	 */
-	int (*rotmem_required)(struct malidp_hw_device *hwdev, u16 w, u16 h, u32 fmt);
+	int (*rotmem_required)(struct malidp_hw_device *hwdev, u16 w, u16 h,
+			       u32 fmt, bool has_modifier);
 
 	int (*se_set_scaling_coeffs)(struct malidp_hw_device *hwdev,
 				     struct malidp_se_config *se_config,
@@ -319,7 +325,9 @@ int malidp_se_irq_init(struct drm_device *drm, int irq);
 void malidp_se_irq_fini(struct malidp_hw_device *hwdev);
 
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
-			   u8 layer_id, u32 format);
+			   u8 layer_id, u32 format, bool has_modifier);
+
+int malidp_format_get_bpp(u32 fmt);
 
 static inline u8 malidp_hw_get_pitch_align(struct malidp_hw_device *hwdev, bool rotated)
 {
@@ -388,9 +396,18 @@ static inline void malidp_se_set_enh_coeffs(struct malidp_hw_device *hwdev)
 
 #define MALIDP_GAMMA_LUT_SIZE		4096
 
-#define AFBC_MOD_VALID_BITS (AFBC_FORMAT_MOD_BLOCK_SIZE_MASK | \
-			AFBC_FORMAT_MOD_YTR | AFBC_FORMAT_MOD_SPLIT | \
-			AFBC_FORMAT_MOD_SPARSE | AFBC_FORMAT_MOD_CBR | \
-			AFBC_FORMAT_MOD_TILED | AFBC_FORMAT_MOD_SC)
+#define AFBC_SIZE_MASK		AFBC_FORMAT_MOD_BLOCK_SIZE_MASK
+#define AFBC_SIZE_16X16		AFBC_FORMAT_MOD_BLOCK_SIZE_16x16
+#define AFBC_YTR		AFBC_FORMAT_MOD_YTR
+#define AFBC_SPARSE		AFBC_FORMAT_MOD_SPARSE
+#define AFBC_CBR		AFBC_FORMAT_MOD_CBR
+#define AFBC_SPLIT		AFBC_FORMAT_MOD_SPLIT
+#define AFBC_TILED		AFBC_FORMAT_MOD_TILED
+#define AFBC_SC			AFBC_FORMAT_MOD_SC
+
+#define AFBC_MOD_VALID_BITS	(AFBC_SIZE_MASK | AFBC_YTR | AFBC_SPLIT | \
+				 AFBC_SPARSE | AFBC_CBR | AFBC_TILED | AFBC_SC)
+
+extern const u64 malidp_format_modifiers[];
 
 #endif  /* __MALIDP_HW_H__ */

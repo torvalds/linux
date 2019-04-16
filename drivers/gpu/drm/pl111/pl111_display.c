@@ -188,7 +188,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 			tim2 |= TIM2_IOE;
 
 		if (connector->display_info.bus_flags &
-		    DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+		    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 			tim2 |= TIM2_IPC;
 	}
 

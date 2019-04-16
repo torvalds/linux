@@ -19,7 +19,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
-#include "exynos_drm_iommu.h"
 
 static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 {

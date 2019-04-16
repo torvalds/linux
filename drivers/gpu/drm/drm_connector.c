@@ -245,6 +245,7 @@ int drm_connector_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&connector->modes);
 	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
+	connector->tile_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
 	connector->display_info.panel_orientation =
 		DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
@@ -271,6 +272,9 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_object_attach_property(&connector->base,
 				   config->non_desktop_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   config->tile_property,
 				   0);
 
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
@@ -826,6 +830,33 @@ static struct drm_prop_enum_list drm_cp_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
 
+static const struct drm_prop_enum_list hdmi_colorspaces[] = {
+	/* For Default case, driver will set the colorspace */
+	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
+	/* Standard Definition Colorimetry based on CEA 861 */
+	{ DRM_MODE_COLORIMETRY_SMPTE_170M_YCC, "SMPTE_170M_YCC" },
+	{ DRM_MODE_COLORIMETRY_BT709_YCC, "BT709_YCC" },
+	/* Standard Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_601, "XVYCC_601" },
+	/* High Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_709, "XVYCC_709" },
+	/* Colorimetry based on IEC 61966-2-1/Amendment 1 */
+	{ DRM_MODE_COLORIMETRY_SYCC_601, "SYCC_601" },
+	/* Colorimetry based on IEC 61966-2-5 [33] */
+	{ DRM_MODE_COLORIMETRY_OPYCC_601, "opYCC_601" },
+	/* Colorimetry based on IEC 61966-2-5 */
+	{ DRM_MODE_COLORIMETRY_OPRGB, "opRGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_CYCC, "BT2020_CYCC" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_RGB, "BT2020_RGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_YCC, "BT2020_YCC" },
+	/* Added as part of Additional Colorimetry Extension in 861.G */
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER, "DCI-P3_RGB_Theater" },
+};
+
 /**
  * DOC: standard connector properties
  *
@@ -1066,7 +1097,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  *
  * content type (HDMI specific):
  *	Indicates content type setting to be used in HDMI infoframes to indicate
- *	content type for the external device, so that it adjusts it's display
+ *	content type for the external device, so that it adjusts its display
  *	settings accordingly.
  *
  *	The value of this property can be one of the following:
@@ -1138,7 +1169,71 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
 
 /**
- * drm_create_tv_properties - create TV specific connector properties
+ * drm_mode_attach_tv_margin_properties - attach TV connector margin properties
+ * @connector: DRM connector
+ *
+ * Called by a driver when it needs to attach TV margin props to a connector.
+ * Typically used on SDTV and HDMI connectors.
+ */
+void drm_connector_attach_tv_margin_properties(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_left_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_right_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_top_margin_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.tv_bottom_margin_property,
+				   0);
+}
+EXPORT_SYMBOL(drm_connector_attach_tv_margin_properties);
+
+/**
+ * drm_mode_create_tv_margin_properties - create TV connector margin properties
+ * @dev: DRM device
+ *
+ * Called by a driver's HDMI connector initialization routine, this function
+ * creates the TV margin properties for a given device. No need to call this
+ * function for an SDTV connector, it's already called from
+ * drm_mode_create_tv_properties().
+ */
+int drm_mode_create_tv_margin_properties(struct drm_device *dev)
+{
+	if (dev->mode_config.tv_left_margin_property)
+		return 0;
+
+	dev->mode_config.tv_left_margin_property =
+		drm_property_create_range(dev, 0, "left margin", 0, 100);
+	if (!dev->mode_config.tv_left_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_right_margin_property =
+		drm_property_create_range(dev, 0, "right margin", 0, 100);
+	if (!dev->mode_config.tv_right_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_top_margin_property =
+		drm_property_create_range(dev, 0, "top margin", 0, 100);
+	if (!dev->mode_config.tv_top_margin_property)
+		return -ENOMEM;
+
+	dev->mode_config.tv_bottom_margin_property =
+		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
+	if (!dev->mode_config.tv_bottom_margin_property)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_tv_margin_properties);
+
+/**
+ * drm_mode_create_tv_properties - create TV specific connector properties
  * @dev: DRM device
  * @num_modes: number of different TV formats (modes) supported
  * @modes: array of pointers to strings containing name of each format
@@ -1183,24 +1278,7 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 	/*
 	 * Other, TV specific properties: margins & TV modes.
 	 */
-	dev->mode_config.tv_left_margin_property =
-		drm_property_create_range(dev, 0, "left margin", 0, 100);
-	if (!dev->mode_config.tv_left_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_right_margin_property =
-		drm_property_create_range(dev, 0, "right margin", 0, 100);
-	if (!dev->mode_config.tv_right_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_top_margin_property =
-		drm_property_create_range(dev, 0, "top margin", 0, 100);
-	if (!dev->mode_config.tv_top_margin_property)
-		goto nomem;
-
-	dev->mode_config.tv_bottom_margin_property =
-		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
-	if (!dev->mode_config.tv_bottom_margin_property)
+	if (drm_mode_create_tv_margin_properties(dev))
 		goto nomem;
 
 	dev->mode_config.tv_mode_property =
@@ -1277,6 +1355,105 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
+
+/**
+ * DOC: Variable refresh properties
+ *
+ * Variable refresh rate capable displays can dynamically adjust their
+ * refresh rate by extending the duration of their vertical front porch
+ * until page flip or timeout occurs. This can reduce or remove stuttering
+ * and latency in scenarios where the page flip does not align with the
+ * vblank interval.
+ *
+ * An example scenario would be an application flipping at a constant rate
+ * of 48Hz on a 60Hz display. The page flip will frequently miss the vblank
+ * interval and the same contents will be displayed twice. This can be
+ * observed as stuttering for content with motion.
+ *
+ * If variable refresh rate was active on a display that supported a
+ * variable refresh range from 35Hz to 60Hz no stuttering would be observable
+ * for the example scenario. The minimum supported variable refresh rate of
+ * 35Hz is below the page flip frequency and the vertical front porch can
+ * be extended until the page flip occurs. The vblank interval will be
+ * directly aligned to the page flip rate.
+ *
+ * Not all userspace content is suitable for use with variable refresh rate.
+ * Large and frequent changes in vertical front porch duration may worsen
+ * perceived stuttering for input sensitive applications.
+ *
+ * Panel brightness will also vary with vertical front porch duration. Some
+ * panels may have noticeable differences in brightness between the minimum
+ * vertical front porch duration and the maximum vertical front porch duration.
+ * Large and frequent changes in vertical front porch duration may produce
+ * observable flickering for such panels.
+ *
+ * Userspace control for variable refresh rate is supported via properties
+ * on the &drm_connector and &drm_crtc objects.
+ *
+ * "vrr_capable":
+ *	Optional &drm_connector boolean property that drivers should attach
+ *	with drm_connector_attach_vrr_capable_property() on connectors that
+ *	could support variable refresh rates. Drivers should update the
+ *	property value by calling drm_connector_set_vrr_capable_property().
+ *
+ *	Absence of the property should indicate absence of support.
+ *
+ * "VRR_ENABLED":
+ *	Default &drm_crtc boolean property that notifies the driver that the
+ *	content on the CRTC is suitable for variable refresh rate presentation.
+ *	The driver will take this property as a hint to enable variable
+ *	refresh rate support if the receiver supports it, ie. if the
+ *	"vrr_capable" property is true on the &drm_connector object. The
+ *	vertical front porch duration will be extended until page-flip or
+ *	timeout when enabled.
+ *
+ *	The minimum vertical front porch duration is defined as the vertical
+ *	front porch duration for the current mode.
+ *
+ *	The maximum vertical front porch duration is greater than or equal to
+ *	the minimum vertical front porch duration. The duration is derived
+ *	from the minimum supported variable refresh rate for the connector.
+ *
+ *	The driver may place further restrictions within these minimum
+ *	and maximum bounds.
+ *
+ *	The semantics for the vertical blank timestamp differ when
+ *	variable refresh rate is active. The vertical blank timestamp
+ *	is defined to be an estimate using the current mode's fixed
+ *	refresh rate timings. The semantics for the page-flip event
+ *	timestamp remain the same.
+ */
+
+/**
+ * drm_connector_attach_vrr_capable_property - creates the
+ * vrr_capable property
+ * @connector: connector to create the vrr_capable property on.
+ *
+ * This is used by atomic drivers to add support for querying
+ * variable refresh rate capability for a connector.
+ *
+ * Returns:
+ * Zero on success, negative errono on failure.
+ */
+int drm_connector_attach_vrr_capable_property(
+	struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	if (!connector->vrr_capable_property) {
+		prop = drm_property_create_bool(dev, DRM_MODE_PROP_IMMUTABLE,
+			"vrr_capable");
+		if (!prop)
+			return -ENOMEM;
+
+		connector->vrr_capable_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_vrr_capable_property);
 
 /**
  * drm_connector_attach_scaling_mode_property - attach atomic scaling mode property
@@ -1402,6 +1579,57 @@ int drm_mode_create_aspect_ratio_property(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
 
 /**
+ * DOC: standard connector properties
+ *
+ * Colorspace:
+ *     drm_mode_create_colorspace_property - create colorspace property
+ *     This property helps select a suitable colorspace based on the sink
+ *     capability. Modern sink devices support wider gamut like BT2020.
+ *     This helps switch to BT2020 mode if the BT2020 encoded video stream
+ *     is being played by the user, same for any other colorspace. Thereby
+ *     giving a good visual experience to users.
+ *
+ *     The expectation from userspace is that it should parse the EDID
+ *     and get supported colorspaces. Use this property and switch to the
+ *     one supported. Sink supported colorspaces should be retrieved by
+ *     userspace from EDID and driver will not explicitly expose them.
+ *
+ *     Basically the expectation from userspace is:
+ *      - Set up CRTC DEGAMMA/CTM/GAMMA to convert to some sink
+ *        colorspace
+ *      - Set this new property to let the sink know what it
+ *        converted the CRTC output to.
+ *      - This property is just to inform sink what colorspace
+ *        source is trying to drive.
+ *
+ * Called by a driver the first time it's needed, must be attached to desired
+ * connectors.
+ */
+int drm_mode_create_colorspace_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
+						"Colorspace",
+						hdmi_colorspaces,
+						ARRAY_SIZE(hdmi_colorspaces));
+		if (!prop)
+			return -ENOMEM;
+	} else {
+		DRM_DEBUG_KMS("Colorspace property not supported\n");
+		return 0;
+	}
+
+	connector->colorspace_property = prop;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_colorspace_property);
+
+/**
  * drm_mode_create_content_type_property - create content type property
  * @dev: DRM device
  *
@@ -1488,6 +1716,8 @@ EXPORT_SYMBOL(drm_connector_set_path_property);
  * This looks up the tile information for a connector, and creates a
  * property for userspace to parse if it exists. The property is of
  * the form of 8 integers using ':' as a separator.
+ * This is used for dual port tiled displays with DisplayPort SST
+ * or DisplayPort MST connectors.
  *
  * Returns:
  * Zero on success, errno on failure.
@@ -1531,6 +1761,9 @@ EXPORT_SYMBOL(drm_connector_set_tile_property);
  *
  * This function creates a new blob modeset object and assigns its id to the
  * connector's edid property.
+ * Since we also parse tile information from EDID's displayID block, we also
+ * set the connector's tile property here. See drm_connector_set_tile_property()
+ * for more details.
  *
  * Returns:
  * Zero on success, negative errno on failure.
@@ -1572,7 +1805,9 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 	                                       edid,
 	                                       &connector->base,
 	                                       dev->mode_config.edid_property);
-	return ret;
+	if (ret)
+		return ret;
+	return drm_connector_set_tile_property(connector);
 }
 EXPORT_SYMBOL(drm_connector_update_edid_property);
 
@@ -1639,6 +1874,24 @@ int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_max_bpc_property);
+
+/**
+ * drm_connector_set_vrr_capable_property - sets the variable refresh rate
+ * capable property for a connector
+ * @connector: drm connector
+ * @capable: True if the connector is variable refresh rate capable
+ *
+ * Should be used by atomic drivers to update the indicated support for
+ * variable refresh rate over a connector.
+ */
+void drm_connector_set_vrr_capable_property(
+		struct drm_connector *connector, bool capable)
+{
+	drm_object_property_set_value(&connector->base,
+				      connector->vrr_capable_property,
+				      capable);
+}
+EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
 
 /**
  * drm_connector_init_panel_orientation_property -
@@ -1960,7 +2213,7 @@ EXPORT_SYMBOL(drm_mode_get_tile_group);
  * identifier for the tile group.
  *
  * RETURNS:
- * new tile group or error.
+ * new tile group or NULL.
  */
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 						  char topology[8])
@@ -1970,7 +2223,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	kref_init(&tg->refcount);
 	memcpy(tg->group_data, topology, 8);
@@ -1982,7 +2235,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 		tg->id = ret;
 	} else {
 		kfree(tg);
-		tg = ERR_PTR(ret);
+		tg = NULL;
 	}
 
 	mutex_unlock(&dev->mode_config.idr_mutex);

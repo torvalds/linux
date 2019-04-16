@@ -441,15 +441,16 @@ static int cx18_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 	return cx18_get_input(cx, vin->index, vin);
 }
 
-static int cx18_cropcap(struct file *file, void *fh,
-			struct v4l2_cropcap *cropcap)
+static int cx18_g_pixelaspect(struct file *file, void *fh,
+			      int type, struct v4l2_fract *f)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	cropcap->pixelaspect.numerator = cx->is_50hz ? 54 : 11;
-	cropcap->pixelaspect.denominator = cx->is_50hz ? 59 : 10;
+
+	f->numerator = cx->is_50hz ? 54 : 11;
+	f->denominator = cx->is_50hz ? 59 : 10;
 	return 0;
 }
 
@@ -1079,7 +1080,7 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_g_audio                 = cx18_g_audio,
 	.vidioc_enumaudio               = cx18_enumaudio,
 	.vidioc_enum_input              = cx18_enum_input,
-	.vidioc_cropcap                 = cx18_cropcap,
+	.vidioc_g_pixelaspect           = cx18_g_pixelaspect,
 	.vidioc_g_selection             = cx18_g_selection,
 	.vidioc_g_input                 = cx18_g_input,
 	.vidioc_s_input                 = cx18_s_input,

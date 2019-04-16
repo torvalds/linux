@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Read-Copy Update module-based torture test facility
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright (C) IBM Corporation, 2005, 2006
  *
- * Authors: Paul E. McKenney <paulmck@us.ibm.com>
+ * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  *	  Josh Triplett <josh@joshtriplett.org>
  *
  * See also:  Documentation/RCU/torture.txt
@@ -56,11 +43,12 @@
 #include <linux/vmalloc.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/sysctl.h>
+#include <linux/oom.h>
 
 #include "rcu.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
 
 /* Bits for ->extendables field, extendables param, and related definitions. */
@@ -80,13 +68,6 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@jos
 					/* Must be power of two minus one. */
 #define RCUTORTURE_RDR_MAX_SEGS (RCUTORTURE_RDR_MAX_LOOPS + 3)
 
-torture_param(int, cbflood_inter_holdoff, HZ,
-	      "Holdoff between floods (jiffies)");
-torture_param(int, cbflood_intra_holdoff, 1,
-	      "Holdoff between bursts (jiffies)");
-torture_param(int, cbflood_n_burst, 3, "# bursts in flood, zero to disable");
-torture_param(int, cbflood_n_per_burst, 20000,
-	      "# callbacks per burst in flood");
 torture_param(int, extendables, RCUTORTURE_MAX_EXTEND,
 	      "Extend readers by disabling bh (1), irqs (2), or preempt (4)");
 torture_param(int, fqs_duration, 0,
@@ -138,12 +119,10 @@ module_param(torture_type, charp, 0444);
 MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, srcu, ...)");
 
 static int nrealreaders;
-static int ncbflooders;
 static struct task_struct *writer_task;
 static struct task_struct **fakewriter_tasks;
 static struct task_struct **reader_tasks;
 static struct task_struct *stats_task;
-static struct task_struct **cbflood_task;
 static struct task_struct *fqs_task;
 static struct task_struct *boost_tasks[NR_CPUS];
 static struct task_struct *stall_task;
@@ -181,7 +160,6 @@ static long n_rcu_torture_boosts;
 static atomic_long_t n_rcu_torture_timers;
 static long n_barrier_attempts;
 static long n_barrier_successes; /* did rcu_barrier test succeed? */
-static atomic_long_t n_cbfloods;
 static struct list_head rcu_torture_removed;
 
 static int rcu_torture_writer_state;
@@ -258,6 +236,8 @@ static bool barrier_phase;		/* Test phase. */
 static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
+
+static bool rcu_fwd_cb_nodelay;		/* Short rcu_torture_delay() delays. */
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -348,7 +328,8 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
+	if (!rcu_fwd_cb_nodelay &&
+	    !(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
 		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
 		if (preempt_count() & (SOFTIRQ_MASK | HARDIRQ_MASK))
@@ -867,59 +848,6 @@ checkwait:	stutter_wait("rcu_torture_boost");
 	}
 	destroy_rcu_head_on_stack(&rbi.rcu);
 	torture_kthread_stopping("rcu_torture_boost");
-	return 0;
-}
-
-static void rcu_torture_cbflood_cb(struct rcu_head *rhp)
-{
-}
-
-/*
- * RCU torture callback-flood kthread.  Repeatedly induces bursts of calls
- * to call_rcu() or analogous, increasing the probability of occurrence
- * of callback-overflow corner cases.
- */
-static int
-rcu_torture_cbflood(void *arg)
-{
-	int err = 1;
-	int i;
-	int j;
-	struct rcu_head *rhp;
-
-	if (cbflood_n_per_burst > 0 &&
-	    cbflood_inter_holdoff > 0 &&
-	    cbflood_intra_holdoff > 0 &&
-	    cur_ops->call &&
-	    cur_ops->cb_barrier) {
-		rhp = vmalloc(array3_size(cbflood_n_burst,
-					  cbflood_n_per_burst,
-					  sizeof(*rhp)));
-		err = !rhp;
-	}
-	if (err) {
-		VERBOSE_TOROUT_STRING("rcu_torture_cbflood disabled: Bad args or OOM");
-		goto wait_for_stop;
-	}
-	VERBOSE_TOROUT_STRING("rcu_torture_cbflood task started");
-	do {
-		schedule_timeout_interruptible(cbflood_inter_holdoff);
-		atomic_long_inc(&n_cbfloods);
-		WARN_ON(signal_pending(current));
-		for (i = 0; i < cbflood_n_burst; i++) {
-			for (j = 0; j < cbflood_n_per_burst; j++) {
-				cur_ops->call(&rhp[i * cbflood_n_per_burst + j],
-					      rcu_torture_cbflood_cb);
-			}
-			schedule_timeout_interruptible(cbflood_intra_holdoff);
-			WARN_ON(signal_pending(current));
-		}
-		cur_ops->cb_barrier();
-		stutter_wait("rcu_torture_cbflood");
-	} while (!torture_must_stop());
-	vfree(rhp);
-wait_for_stop:
-	torture_kthread_stopping("rcu_torture_cbflood");
 	return 0;
 }
 
@@ -1457,11 +1385,10 @@ rcu_torture_stats_print(void)
 		n_rcu_torture_boosts,
 		atomic_long_read(&n_rcu_torture_timers));
 	torture_onoff_stats();
-	pr_cont("barrier: %ld/%ld:%ld ",
+	pr_cont("barrier: %ld/%ld:%ld\n",
 		n_barrier_successes,
 		n_barrier_attempts,
 		n_rcu_torture_barrier_error);
-	pr_cont("cbflood: %ld\n", atomic_long_read(&n_cbfloods));
 
 	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
 	if (atomic_read(&n_rcu_torture_mberror) != 0 ||
@@ -1674,8 +1601,104 @@ static void rcu_torture_fwd_prog_cb(struct rcu_head *rhp)
 	cur_ops->call(&fcsp->rh, rcu_torture_fwd_prog_cb);
 }
 
-/* Carry out grace-period forward-progress testing. */
-static int rcu_torture_fwd_prog(void *args)
+/* State for continuous-flood RCU callbacks. */
+struct rcu_fwd_cb {
+	struct rcu_head rh;
+	struct rcu_fwd_cb *rfc_next;
+	int rfc_gps;
+};
+static DEFINE_SPINLOCK(rcu_fwd_lock);
+static struct rcu_fwd_cb *rcu_fwd_cb_head;
+static struct rcu_fwd_cb **rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+static long n_launders_cb;
+static unsigned long rcu_fwd_startat;
+static bool rcu_fwd_emergency_stop;
+#define MAX_FWD_CB_JIFFIES	(8 * HZ) /* Maximum CB test duration. */
+#define MIN_FWD_CB_LAUNDERS	3	/* This many CB invocations to count. */
+#define MIN_FWD_CBS_LAUNDERED	100	/* Number of counted CBs. */
+#define FWD_CBS_HIST_DIV	10	/* Histogram buckets/second. */
+struct rcu_launder_hist {
+	long n_launders;
+	unsigned long launder_gp_seq;
+};
+#define N_LAUNDERS_HIST (2 * MAX_FWD_CB_JIFFIES / (HZ / FWD_CBS_HIST_DIV))
+static struct rcu_launder_hist n_launders_hist[N_LAUNDERS_HIST];
+static unsigned long rcu_launder_gp_seq_start;
+
+static void rcu_torture_fwd_cb_hist(void)
+{
+	unsigned long gps;
+	unsigned long gps_old;
+	int i;
+	int j;
+
+	for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
+		if (n_launders_hist[i].n_launders > 0)
+			break;
+	pr_alert("%s: Callback-invocation histogram (duration %lu jiffies):",
+		 __func__, jiffies - rcu_fwd_startat);
+	gps_old = rcu_launder_gp_seq_start;
+	for (j = 0; j <= i; j++) {
+		gps = n_launders_hist[j].launder_gp_seq;
+		pr_cont(" %ds/%d: %ld:%ld",
+			j + 1, FWD_CBS_HIST_DIV, n_launders_hist[j].n_launders,
+			rcutorture_seq_diff(gps, gps_old));
+		gps_old = gps;
+	}
+	pr_cont("\n");
+}
+
+/* Callback function for continuous-flood RCU callbacks. */
+static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
+{
+	unsigned long flags;
+	int i;
+	struct rcu_fwd_cb *rfcp = container_of(rhp, struct rcu_fwd_cb, rh);
+	struct rcu_fwd_cb **rfcpp;
+
+	rfcp->rfc_next = NULL;
+	rfcp->rfc_gps++;
+	spin_lock_irqsave(&rcu_fwd_lock, flags);
+	rfcpp = rcu_fwd_cb_tail;
+	rcu_fwd_cb_tail = &rfcp->rfc_next;
+	WRITE_ONCE(*rfcpp, rfcp);
+	WRITE_ONCE(n_launders_cb, n_launders_cb + 1);
+	i = ((jiffies - rcu_fwd_startat) / (HZ / FWD_CBS_HIST_DIV));
+	if (i >= ARRAY_SIZE(n_launders_hist))
+		i = ARRAY_SIZE(n_launders_hist) - 1;
+	n_launders_hist[i].n_launders++;
+	n_launders_hist[i].launder_gp_seq = cur_ops->get_gp_seq();
+	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+}
+
+/*
+ * Free all callbacks on the rcu_fwd_cb_head list, either because the
+ * test is over or because we hit an OOM event.
+ */
+static unsigned long rcu_torture_fwd_prog_cbfree(void)
+{
+	unsigned long flags;
+	unsigned long freed = 0;
+	struct rcu_fwd_cb *rfcp;
+
+	for (;;) {
+		spin_lock_irqsave(&rcu_fwd_lock, flags);
+		rfcp = rcu_fwd_cb_head;
+		if (!rfcp)
+			break;
+		rcu_fwd_cb_head = rfcp->rfc_next;
+		if (!rcu_fwd_cb_head)
+			rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+		spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+		kfree(rfcp);
+		freed++;
+	}
+	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+	return freed;
+}
+
+/* Carry out need_resched()/cond_resched() forward-progress testing. */
+static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 {
 	unsigned long cver;
 	unsigned long dur;
@@ -1686,56 +1709,187 @@ static int rcu_torture_fwd_prog(void *args)
 	int sd4;
 	bool selfpropcb = false;
 	unsigned long stopat;
-	int tested = 0;
-	int tested_tries = 0;
 	static DEFINE_TORTURE_RANDOM(trs);
 
-	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
-	if (!IS_ENABLED(CONFIG_SMP) || !IS_ENABLED(CONFIG_RCU_BOOST))
-		set_user_nice(current, MAX_NICE);
 	if  (cur_ops->call && cur_ops->sync && cur_ops->cb_barrier) {
 		init_rcu_head_on_stack(&fcs.rh);
 		selfpropcb = true;
 	}
-	do {
-		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
-		if  (selfpropcb) {
-			WRITE_ONCE(fcs.stop, 0);
-			cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
-		}
-		cver = READ_ONCE(rcu_torture_current_version);
-		gps = cur_ops->get_gp_seq();
-		sd = cur_ops->stall_dur() + 1;
-		sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
-		dur = sd4 + torture_random(&trs) % (sd - sd4);
-		stopat = jiffies + dur;
-		while (time_before(jiffies, stopat) && !torture_must_stop()) {
-			idx = cur_ops->readlock();
-			udelay(10);
-			cur_ops->readunlock(idx);
-			if (!fwd_progress_need_resched || need_resched())
-				cond_resched();
-		}
-		tested_tries++;
-		if (!time_before(jiffies, stopat) && !torture_must_stop()) {
-			tested++;
-			cver = READ_ONCE(rcu_torture_current_version) - cver;
-			gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
-			WARN_ON(!cver && gps < 2);
-			pr_alert("%s: Duration %ld cver %ld gps %ld\n", __func__, dur, cver, gps);
-		}
-		if (selfpropcb) {
-			WRITE_ONCE(fcs.stop, 1);
-			cur_ops->sync(); /* Wait for running CB to complete. */
-			cur_ops->cb_barrier(); /* Wait for queued callbacks. */
-		}
-		/* Avoid slow periods, better to test when busy. */
-		stutter_wait("rcu_torture_fwd_prog");
-	} while (!torture_must_stop());
+
+	/* Tight loop containing cond_resched(). */
+	if  (selfpropcb) {
+		WRITE_ONCE(fcs.stop, 0);
+		cur_ops->call(&fcs.rh, rcu_torture_fwd_prog_cb);
+	}
+	cver = READ_ONCE(rcu_torture_current_version);
+	gps = cur_ops->get_gp_seq();
+	sd = cur_ops->stall_dur() + 1;
+	sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
+	dur = sd4 + torture_random(&trs) % (sd - sd4);
+	WRITE_ONCE(rcu_fwd_startat, jiffies);
+	stopat = rcu_fwd_startat + dur;
+	while (time_before(jiffies, stopat) &&
+	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
+		idx = cur_ops->readlock();
+		udelay(10);
+		cur_ops->readunlock(idx);
+		if (!fwd_progress_need_resched || need_resched())
+			cond_resched();
+	}
+	(*tested_tries)++;
+	if (!time_before(jiffies, stopat) &&
+	    !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
+		(*tested)++;
+		cver = READ_ONCE(rcu_torture_current_version) - cver;
+		gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+		WARN_ON(!cver && gps < 2);
+		pr_alert("%s: Duration %ld cver %ld gps %ld\n", __func__, dur, cver, gps);
+	}
+	if (selfpropcb) {
+		WRITE_ONCE(fcs.stop, 1);
+		cur_ops->sync(); /* Wait for running CB to complete. */
+		cur_ops->cb_barrier(); /* Wait for queued callbacks. */
+	}
+
 	if (selfpropcb) {
 		WARN_ON(READ_ONCE(fcs.stop) != 2);
 		destroy_rcu_head_on_stack(&fcs.rh);
 	}
+}
+
+/* Carry out call_rcu() forward-progress testing. */
+static void rcu_torture_fwd_prog_cr(void)
+{
+	unsigned long cver;
+	unsigned long gps;
+	int i;
+	long n_launders;
+	long n_launders_cb_snap;
+	long n_launders_sa;
+	long n_max_cbs;
+	long n_max_gps;
+	struct rcu_fwd_cb *rfcp;
+	struct rcu_fwd_cb *rfcpn;
+	unsigned long stopat;
+	unsigned long stoppedat;
+
+	if (READ_ONCE(rcu_fwd_emergency_stop))
+		return; /* Get out of the way quickly, no GP wait! */
+
+	/* Loop continuously posting RCU callbacks. */
+	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	cur_ops->sync(); /* Later readers see above write. */
+	WRITE_ONCE(rcu_fwd_startat, jiffies);
+	stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
+	n_launders = 0;
+	n_launders_cb = 0;
+	n_launders_sa = 0;
+	n_max_cbs = 0;
+	n_max_gps = 0;
+	for (i = 0; i < ARRAY_SIZE(n_launders_hist); i++)
+		n_launders_hist[i].n_launders = 0;
+	cver = READ_ONCE(rcu_torture_current_version);
+	gps = cur_ops->get_gp_seq();
+	rcu_launder_gp_seq_start = gps;
+	while (time_before(jiffies, stopat) &&
+	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
+		rfcp = READ_ONCE(rcu_fwd_cb_head);
+		rfcpn = NULL;
+		if (rfcp)
+			rfcpn = READ_ONCE(rfcp->rfc_next);
+		if (rfcpn) {
+			if (rfcp->rfc_gps >= MIN_FWD_CB_LAUNDERS &&
+			    ++n_max_gps >= MIN_FWD_CBS_LAUNDERED)
+				break;
+			rcu_fwd_cb_head = rfcpn;
+			n_launders++;
+			n_launders_sa++;
+		} else {
+			rfcp = kmalloc(sizeof(*rfcp), GFP_KERNEL);
+			if (WARN_ON_ONCE(!rfcp)) {
+				schedule_timeout_interruptible(1);
+				continue;
+			}
+			n_max_cbs++;
+			n_launders_sa = 0;
+			rfcp->rfc_gps = 0;
+		}
+		cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
+		cond_resched();
+	}
+	stoppedat = jiffies;
+	n_launders_cb_snap = READ_ONCE(n_launders_cb);
+	cver = READ_ONCE(rcu_torture_current_version) - cver;
+	gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
+	(void)rcu_torture_fwd_prog_cbfree();
+
+	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop)) {
+		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
+		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
+			 __func__,
+			 stoppedat - rcu_fwd_startat, jiffies - stoppedat,
+			 n_launders + n_max_cbs - n_launders_cb_snap,
+			 n_launders, n_launders_sa,
+			 n_max_gps, n_max_cbs, cver, gps);
+		rcu_torture_fwd_cb_hist();
+	}
+}
+
+
+/*
+ * OOM notifier, but this only prints diagnostic information for the
+ * current forward-progress test.
+ */
+static int rcutorture_oom_notify(struct notifier_block *self,
+				 unsigned long notused, void *nfreed)
+{
+	WARN(1, "%s invoked upon OOM during forward-progress testing.\n",
+	     __func__);
+	rcu_torture_fwd_cb_hist();
+	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat) / 2));
+	WRITE_ONCE(rcu_fwd_emergency_stop, true);
+	smp_mb(); /* Emergency stop before free and wait to avoid hangs. */
+	pr_info("%s: Freed %lu RCU callbacks.\n",
+		__func__, rcu_torture_fwd_prog_cbfree());
+	rcu_barrier();
+	pr_info("%s: Freed %lu RCU callbacks.\n",
+		__func__, rcu_torture_fwd_prog_cbfree());
+	rcu_barrier();
+	pr_info("%s: Freed %lu RCU callbacks.\n",
+		__func__, rcu_torture_fwd_prog_cbfree());
+	smp_mb(); /* Frees before return to avoid redoing OOM. */
+	(*(unsigned long *)nfreed)++; /* Forward progress CBs freed! */
+	pr_info("%s returning after OOM processing.\n", __func__);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rcutorture_oom_nb = {
+	.notifier_call = rcutorture_oom_notify
+};
+
+/* Carry out grace-period forward-progress testing. */
+static int rcu_torture_fwd_prog(void *args)
+{
+	int tested = 0;
+	int tested_tries = 0;
+
+	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
+	rcu_bind_current_to_nocb();
+	if (!IS_ENABLED(CONFIG_SMP) || !IS_ENABLED(CONFIG_RCU_BOOST))
+		set_user_nice(current, MAX_NICE);
+	do {
+		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
+		WRITE_ONCE(rcu_fwd_emergency_stop, false);
+		register_oom_notifier(&rcutorture_oom_nb);
+		rcu_torture_fwd_prog_nr(&tested, &tested_tries);
+		rcu_torture_fwd_prog_cr();
+		unregister_oom_notifier(&rcutorture_oom_nb);
+
+		/* Avoid slow periods, better to test when busy. */
+		stutter_wait("rcu_torture_fwd_prog");
+	} while (!torture_must_stop());
 	/* Short runs might not contain a valid forward-progress attempt. */
 	WARN_ON(!tested && tested_tries >= 5);
 	pr_alert("%s: tested %d tested_tries %d\n", __func__, tested, tested_tries);
@@ -1748,7 +1902,8 @@ static int __init rcu_torture_fwd_prog_init(void)
 {
 	if (!fwd_progress)
 		return 0; /* Not requested, so don't do it. */
-	if (!cur_ops->stall_dur || cur_ops->stall_dur() <= 0) {
+	if (!cur_ops->stall_dur || cur_ops->stall_dur() <= 0 ||
+	    cur_ops == &rcu_busted_ops) {
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, unsupported by RCU flavor under test");
 		return 0;
 	}
@@ -1968,8 +2123,6 @@ rcu_torture_cleanup(void)
 		 cur_ops->name, gp_seq, flags);
 	torture_stop_kthread(rcu_torture_stats, stats_task);
 	torture_stop_kthread(rcu_torture_fqs, fqs_task);
-	for (i = 0; i < ncbflooders; i++)
-		torture_stop_kthread(rcu_torture_cbflood, cbflood_task[i]);
 	if (rcu_torture_can_boost())
 		cpuhp_remove_state(rcutor_hp);
 
@@ -2075,6 +2228,14 @@ static void rcu_test_debug_objects(void)
 #else /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 	pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n", KBUILD_MODNAME);
 #endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+}
+
+static void rcutorture_sync(void)
+{
+	static unsigned long n;
+
+	if (cur_ops->sync && !(++n & 0xfff))
+		cur_ops->sync();
 }
 
 static int __init
@@ -2238,7 +2399,8 @@ rcu_torture_init(void)
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)
 		goto unwind;
-	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval);
+	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval,
+				      rcutorture_sync);
 	if (firsterr)
 		goto unwind;
 	firsterr = rcu_torture_stall_init();
@@ -2252,24 +2414,6 @@ rcu_torture_init(void)
 		goto unwind;
 	if (object_debug)
 		rcu_test_debug_objects();
-	if (cbflood_n_burst > 0) {
-		/* Create the cbflood threads */
-		ncbflooders = (num_online_cpus() + 3) / 4;
-		cbflood_task = kcalloc(ncbflooders, sizeof(*cbflood_task),
-				       GFP_KERNEL);
-		if (!cbflood_task) {
-			VERBOSE_TOROUT_ERRSTRING("out of memory");
-			firsterr = -ENOMEM;
-			goto unwind;
-		}
-		for (i = 0; i < ncbflooders; i++) {
-			firsterr = torture_create_kthread(rcu_torture_cbflood,
-							  NULL,
-							  cbflood_task[i]);
-			if (firsterr)
-				goto unwind;
-		}
-	}
 	torture_init_end();
 	return 0;
 

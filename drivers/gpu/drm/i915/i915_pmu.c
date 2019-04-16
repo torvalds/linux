@@ -5,6 +5,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/pm_runtime.h>
 #include "i915_pmu.h"
 #include "intel_ringbuffer.h"
 #include "i915_drv.h"
@@ -101,7 +102,7 @@ static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 	 *
 	 * Use RCS as proxy for all engines.
 	 */
-	else if (intel_engine_supports_stats(i915->engine[RCS]))
+	else if (intel_engine_supports_stats(i915->engine[RCS0]))
 		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*
@@ -148,14 +149,6 @@ void i915_pmu_gt_unparked(struct drm_i915_private *i915)
 	spin_unlock_irq(&i915->pmu.lock);
 }
 
-static bool grab_forcewake(struct drm_i915_private *i915, bool fw)
-{
-	if (!fw)
-		intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
-
-	return true;
-}
-
 static void
 add_sample(struct i915_pmu_sample *sample, u32 val)
 {
@@ -167,50 +160,51 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	bool fw = false;
+	intel_wakeref_t wakeref;
+	unsigned long flags;
 
 	if ((dev_priv->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
 
-	if (!dev_priv->gt.awake)
+	wakeref = 0;
+	if (READ_ONCE(dev_priv->gt.awake))
+		wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	if (!wakeref)
 		return;
 
-	if (!intel_runtime_pm_get_if_in_use(dev_priv))
-		return;
-
+	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
 	for_each_engine(engine, dev_priv, id) {
-		u32 current_seqno = intel_engine_get_seqno(engine);
-		u32 last_seqno = intel_engine_last_submit(engine);
+		struct intel_engine_pmu *pmu = &engine->pmu;
+		bool busy;
 		u32 val;
 
-		val = !i915_seqno_passed(current_seqno, last_seqno);
-
-		if (val)
-			add_sample(&engine->pmu.sample[I915_SAMPLE_BUSY],
-				   period_ns);
-
-		if (val && (engine->pmu.enable &
-		    (BIT(I915_SAMPLE_WAIT) | BIT(I915_SAMPLE_SEMA)))) {
-			fw = grab_forcewake(dev_priv, fw);
-
-			val = I915_READ_FW(RING_CTL(engine->mmio_base));
-		} else {
-			val = 0;
-		}
+		val = I915_READ_FW(RING_CTL(engine->mmio_base));
+		if (val == 0) /* powerwell off => engine idle */
+			continue;
 
 		if (val & RING_WAIT)
-			add_sample(&engine->pmu.sample[I915_SAMPLE_WAIT],
-				   period_ns);
-
+			add_sample(&pmu->sample[I915_SAMPLE_WAIT], period_ns);
 		if (val & RING_WAIT_SEMAPHORE)
-			add_sample(&engine->pmu.sample[I915_SAMPLE_SEMA],
-				   period_ns);
+			add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
+
+		/*
+		 * While waiting on a semaphore or event, MI_MODE reports the
+		 * ring as idle. However, previously using the seqno, and with
+		 * execlists sampling, we account for the ring waiting as the
+		 * engine being busy. Therefore, we record the sample as being
+		 * busy if either waiting or !idle.
+		 */
+		busy = val & (RING_WAIT_SEMAPHORE | RING_WAIT);
+		if (!busy) {
+			val = I915_READ_FW(RING_MI_MODE(engine->mmio_base));
+			busy = !(val & MODE_IDLE);
+		}
+		if (busy)
+			add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
 	}
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 
-	if (fw)
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, wakeref);
 }
 
 static void
@@ -227,11 +221,12 @@ frequency_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 		u32 val;
 
 		val = dev_priv->gt_pm.rps.cur_freq;
-		if (dev_priv->gt.awake &&
-		    intel_runtime_pm_get_if_in_use(dev_priv)) {
-			val = intel_get_cagf(dev_priv,
-					     I915_READ_NOTRACE(GEN6_RPSTAT1));
-			intel_runtime_pm_put(dev_priv);
+		if (dev_priv->gt.awake) {
+			intel_wakeref_t wakeref;
+
+			with_intel_runtime_pm_if_in_use(dev_priv, wakeref)
+				val = intel_get_cagf(dev_priv,
+						     I915_READ_NOTRACE(GEN6_RPSTAT1));
 		}
 
 		add_sample_mult(&dev_priv->pmu.sample[__I915_SAMPLE_FREQ_ACT],
@@ -443,12 +438,14 @@ static u64 __get_rc6(struct drm_i915_private *i915)
 static u64 get_rc6(struct drm_i915_private *i915)
 {
 #if IS_ENABLED(CONFIG_PM)
+	intel_wakeref_t wakeref;
 	unsigned long flags;
 	u64 val;
 
-	if (intel_runtime_pm_get_if_in_use(i915)) {
+	wakeref = intel_runtime_pm_get_if_in_use(i915);
+	if (wakeref) {
 		val = __get_rc6(i915);
-		intel_runtime_pm_put(i915);
+		intel_runtime_pm_put(i915, wakeref);
 
 		/*
 		 * If we are coming back from being runtime suspended we must
@@ -478,7 +475,6 @@ static u64 get_rc6(struct drm_i915_private *i915)
 		 * counter value.
 		 */
 		spin_lock_irqsave(&i915->pmu.lock, flags);
-		spin_lock(&kdev->power.lock);
 
 		/*
 		 * After the above branch intel_runtime_pm_get_if_in_use failed
@@ -491,16 +487,13 @@ static u64 get_rc6(struct drm_i915_private *i915)
 		 * suspended and if not we cannot do better than report the last
 		 * known RC6 value.
 		 */
-		if (kdev->power.runtime_status == RPM_SUSPENDED) {
+		if (pm_runtime_status_suspended(kdev)) {
+			val = pm_runtime_suspended_time(kdev);
+
 			if (!i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur)
-				i915->pmu.suspended_jiffies_last =
-						  kdev->power.suspended_jiffies;
+				i915->pmu.suspended_time_last = val;
 
-			val = kdev->power.suspended_jiffies -
-			      i915->pmu.suspended_jiffies_last;
-			val += jiffies - kdev->power.accounting_timestamp;
-
-			val = jiffies_to_nsecs(val);
+			val -= i915->pmu.suspended_time_last;
 			val += i915->pmu.sample[__I915_SAMPLE_RC6].cur;
 
 			i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
@@ -510,7 +503,6 @@ static u64 get_rc6(struct drm_i915_private *i915)
 			val = i915->pmu.sample[__I915_SAMPLE_RC6].cur;
 		}
 
-		spin_unlock(&kdev->power.lock);
 		spin_unlock_irqrestore(&i915->pmu.lock, flags);
 	}
 
@@ -594,7 +586,8 @@ static void i915_pmu_enable(struct perf_event *event)
 	 * Update the bitmask of enabled events and increment
 	 * the event reference counter.
 	 */
-	GEM_BUG_ON(bit >= I915_PMU_MASK_BITS);
+	BUILD_BUG_ON(ARRAY_SIZE(i915->pmu.enable_count) != I915_PMU_MASK_BITS);
+	GEM_BUG_ON(bit >= ARRAY_SIZE(i915->pmu.enable_count));
 	GEM_BUG_ON(i915->pmu.enable_count[bit] == ~0);
 	i915->pmu.enable |= BIT_ULL(bit);
 	i915->pmu.enable_count[bit]++;
@@ -615,11 +608,16 @@ static void i915_pmu_enable(struct perf_event *event)
 		engine = intel_engine_lookup_user(i915,
 						  engine_event_class(event),
 						  engine_event_instance(event));
-		GEM_BUG_ON(!engine);
-		engine->pmu.enable |= BIT(sample);
 
-		GEM_BUG_ON(sample >= I915_PMU_SAMPLE_BITS);
+		BUILD_BUG_ON(ARRAY_SIZE(engine->pmu.enable_count) !=
+			     I915_ENGINE_SAMPLE_COUNT);
+		BUILD_BUG_ON(ARRAY_SIZE(engine->pmu.sample) !=
+			     I915_ENGINE_SAMPLE_COUNT);
+		GEM_BUG_ON(sample >= ARRAY_SIZE(engine->pmu.enable_count));
+		GEM_BUG_ON(sample >= ARRAY_SIZE(engine->pmu.sample));
 		GEM_BUG_ON(engine->pmu.enable_count[sample] == ~0);
+
+		engine->pmu.enable |= BIT(sample);
 		engine->pmu.enable_count[sample]++;
 	}
 
@@ -649,9 +647,11 @@ static void i915_pmu_disable(struct perf_event *event)
 		engine = intel_engine_lookup_user(i915,
 						  engine_event_class(event),
 						  engine_event_instance(event));
-		GEM_BUG_ON(!engine);
-		GEM_BUG_ON(sample >= I915_PMU_SAMPLE_BITS);
+
+		GEM_BUG_ON(sample >= ARRAY_SIZE(engine->pmu.enable_count));
+		GEM_BUG_ON(sample >= ARRAY_SIZE(engine->pmu.sample));
 		GEM_BUG_ON(engine->pmu.enable_count[sample] == 0);
+
 		/*
 		 * Decrement the reference count and clear the enabled
 		 * bitmask when the last listener on an event goes away.
@@ -660,7 +660,7 @@ static void i915_pmu_disable(struct perf_event *event)
 			engine->pmu.enable &= ~BIT(sample);
 	}
 
-	GEM_BUG_ON(bit >= I915_PMU_MASK_BITS);
+	GEM_BUG_ON(bit >= ARRAY_SIZE(i915->pmu.enable_count));
 	GEM_BUG_ON(i915->pmu.enable_count[bit] == 0);
 	/*
 	 * Decrement the reference count and clear the enabled

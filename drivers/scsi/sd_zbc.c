@@ -142,10 +142,12 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 		return -EOPNOTSUPP;
 
 	/*
-	 * Get a reply buffer for the number of requested zones plus a header.
-	 * For ATA, buffers must be aligned to 512B.
+	 * Get a reply buffer for the number of requested zones plus a header,
+	 * without exceeding the device maximum command size. For ATA disks,
+	 * buffers must be aligned to 512B.
 	 */
-	buflen = roundup((nrz + 1) * 64, 512);
+	buflen = min(queue_max_hw_sectors(disk->queue) << 9,
+		     roundup((nrz + 1) * 64, 512));
 	buf = kmalloc(buflen, gfp_mask);
 	if (!buf)
 		return -ENOMEM;
@@ -185,7 +187,7 @@ static inline sector_t sd_zbc_zone_sectors(struct scsi_disk *sdkp)
  *
  * Called from sd_init_command() for a REQ_OP_ZONE_RESET request.
  */
-int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
+blk_status_t sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 {
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
@@ -194,14 +196,14 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 
 	if (!sd_is_zoned(sdkp))
 		/* Not a zoned device */
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
 	if (sdkp->device->changed)
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
 	if (sector & (sd_zbc_zone_sectors(sdkp) - 1))
 		/* Unaligned request */
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
 	cmd->cmd_len = 16;
 	memset(cmd->cmnd, 0, cmd->cmd_len);
@@ -214,7 +216,7 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	cmd->transfersize = 0;
 	cmd->allowed = 0;
 
-	return BLKPREP_OK;
+	return BLK_STS_OK;
 }
 
 /**
@@ -462,12 +464,16 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	sdkp->device->use_10_for_rw = 0;
 
 	/*
-	 * If something changed, revalidate the disk zone bitmaps once we have
-	 * the capacity, that is on the second revalidate execution during disk
-	 * scan and always during normal revalidate.
+	 * Revalidate the disk zone bitmaps once the block device capacity is
+	 * set on the second revalidate execution during disk scan and if
+	 * something changed when executing a normal revalidate.
 	 */
-	if (sdkp->first_scan)
+	if (sdkp->first_scan) {
+		sdkp->zone_blocks = zone_blocks;
+		sdkp->nr_zones = nr_zones;
 		return 0;
+	}
+
 	if (sdkp->zone_blocks != zone_blocks ||
 	    sdkp->nr_zones != nr_zones ||
 	    disk->queue->nr_zones != nr_zones) {

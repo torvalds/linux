@@ -190,16 +190,26 @@ A few EV_REL codes have special meanings:
 * REL_WHEEL, REL_HWHEEL:
 
   - These codes are used for vertical and horizontal scroll wheels,
-    respectively. The value is the number of "notches" moved on the wheel, the
-    physical size of which varies by device. For high-resolution wheels (which
-    report multiple events for each notch of movement, or do not have notches)
-    this may be an approximation based on the high-resolution scroll events.
+    respectively. The value is the number of detents moved on the wheel, the
+    physical size of which varies by device. For high-resolution wheels
+    this may be an approximation based on the high-resolution scroll events,
+    see REL_WHEEL_HI_RES. These event codes are legacy codes and
+    REL_WHEEL_HI_RES and REL_HWHEEL_HI_RES should be preferred where
+    available.
 
-* REL_WHEEL_HI_RES:
+* REL_WHEEL_HI_RES, REL_HWHEEL_HI_RES:
 
-  - If a vertical scroll wheel supports high-resolution scrolling, this code
-    will be emitted in addition to REL_WHEEL. The value is the (approximate)
-    distance travelled by the user's finger, in microns.
+  - High-resolution scroll wheel data. The accumulated value 120 represents
+    movement by one detent. For devices that do not provide high-resolution
+    scrolling, the value is always a multiple of 120. For devices with
+    high-resolution scrolling, the value may be a fraction of 120.
+
+    If a vertical scroll wheel supports high-resolution scrolling, this code
+    will be emitted in addition to REL_WHEEL or REL_HWHEEL. The REL_WHEEL
+    and REL_HWHEEL may be an approximation based on the high-resolution
+    scroll events. There is no guarantee that the high-resolution data
+    is a multiple of 120 at the time of an emulated REL_WHEEL or REL_HWHEEL
+    event.
 
 EV_ABS
 ------

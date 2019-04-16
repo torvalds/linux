@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TPM handling.
  *
@@ -5,9 +6,6 @@
  * Copyright (C) 2017 Google, Inc.
  *     Matthew Garrett <mjg59@google.com>
  *     Thiebaud Weksteen <tweek@google.com>
- *
- * This file is part of the Linux kernel, and is made available under the
- * terms of the GNU General Public License version 2.
  */
 #include <linux/efi.h>
 #include <linux/tpm_eventlog.h>

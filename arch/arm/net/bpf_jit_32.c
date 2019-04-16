@@ -1083,12 +1083,17 @@ static inline void emit_ldx_r(const s8 dst[], const s8 src,
 
 /* Arithmatic Operation */
 static inline void emit_ar_r(const u8 rd, const u8 rt, const u8 rm,
-			     const u8 rn, struct jit_ctx *ctx, u8 op) {
+			     const u8 rn, struct jit_ctx *ctx, u8 op,
+			     bool is_jmp64) {
 	switch (op) {
 	case BPF_JSET:
-		emit(ARM_AND_R(ARM_IP, rt, rn), ctx);
-		emit(ARM_AND_R(ARM_LR, rd, rm), ctx);
-		emit(ARM_ORRS_R(ARM_IP, ARM_LR, ARM_IP), ctx);
+		if (is_jmp64) {
+			emit(ARM_AND_R(ARM_IP, rt, rn), ctx);
+			emit(ARM_AND_R(ARM_LR, rd, rm), ctx);
+			emit(ARM_ORRS_R(ARM_IP, ARM_LR, ARM_IP), ctx);
+		} else {
+			emit(ARM_ANDS_R(ARM_IP, rt, rn), ctx);
+		}
 		break;
 	case BPF_JEQ:
 	case BPF_JNE:
@@ -1096,18 +1101,25 @@ static inline void emit_ar_r(const u8 rd, const u8 rt, const u8 rm,
 	case BPF_JGE:
 	case BPF_JLE:
 	case BPF_JLT:
-		emit(ARM_CMP_R(rd, rm), ctx);
-		_emit(ARM_COND_EQ, ARM_CMP_R(rt, rn), ctx);
+		if (is_jmp64) {
+			emit(ARM_CMP_R(rd, rm), ctx);
+			/* Only compare low halve if high halve are equal. */
+			_emit(ARM_COND_EQ, ARM_CMP_R(rt, rn), ctx);
+		} else {
+			emit(ARM_CMP_R(rt, rn), ctx);
+		}
 		break;
 	case BPF_JSLE:
 	case BPF_JSGT:
 		emit(ARM_CMP_R(rn, rt), ctx);
-		emit(ARM_SBCS_R(ARM_IP, rm, rd), ctx);
+		if (is_jmp64)
+			emit(ARM_SBCS_R(ARM_IP, rm, rd), ctx);
 		break;
 	case BPF_JSLT:
 	case BPF_JSGE:
 		emit(ARM_CMP_R(rt, rn), ctx);
-		emit(ARM_SBCS_R(ARM_IP, rd, rm), ctx);
+		if (is_jmp64)
+			emit(ARM_SBCS_R(ARM_IP, rd, rm), ctx);
 		break;
 	}
 }
@@ -1615,6 +1627,17 @@ exit:
 	case BPF_JMP | BPF_JLT | BPF_X:
 	case BPF_JMP | BPF_JSLT | BPF_X:
 	case BPF_JMP | BPF_JSLE | BPF_X:
+	case BPF_JMP32 | BPF_JEQ | BPF_X:
+	case BPF_JMP32 | BPF_JGT | BPF_X:
+	case BPF_JMP32 | BPF_JGE | BPF_X:
+	case BPF_JMP32 | BPF_JNE | BPF_X:
+	case BPF_JMP32 | BPF_JSGT | BPF_X:
+	case BPF_JMP32 | BPF_JSGE | BPF_X:
+	case BPF_JMP32 | BPF_JSET | BPF_X:
+	case BPF_JMP32 | BPF_JLE | BPF_X:
+	case BPF_JMP32 | BPF_JLT | BPF_X:
+	case BPF_JMP32 | BPF_JSLT | BPF_X:
+	case BPF_JMP32 | BPF_JSLE | BPF_X:
 		/* Setup source registers */
 		rm = arm_bpf_get_reg32(src_hi, tmp2[0], ctx);
 		rn = arm_bpf_get_reg32(src_lo, tmp2[1], ctx);
@@ -1641,6 +1664,17 @@ exit:
 	case BPF_JMP | BPF_JLE | BPF_K:
 	case BPF_JMP | BPF_JSLT | BPF_K:
 	case BPF_JMP | BPF_JSLE | BPF_K:
+	case BPF_JMP32 | BPF_JEQ | BPF_K:
+	case BPF_JMP32 | BPF_JGT | BPF_K:
+	case BPF_JMP32 | BPF_JGE | BPF_K:
+	case BPF_JMP32 | BPF_JNE | BPF_K:
+	case BPF_JMP32 | BPF_JSGT | BPF_K:
+	case BPF_JMP32 | BPF_JSGE | BPF_K:
+	case BPF_JMP32 | BPF_JSET | BPF_K:
+	case BPF_JMP32 | BPF_JLT | BPF_K:
+	case BPF_JMP32 | BPF_JLE | BPF_K:
+	case BPF_JMP32 | BPF_JSLT | BPF_K:
+	case BPF_JMP32 | BPF_JSLE | BPF_K:
 		if (off == 0)
 			break;
 		rm = tmp2[0];
@@ -1652,7 +1686,8 @@ go_jmp:
 		rd = arm_bpf_get_reg64(dst, tmp, ctx);
 
 		/* Check for the condition */
-		emit_ar_r(rd[0], rd[1], rm, rn, ctx, BPF_OP(code));
+		emit_ar_r(rd[0], rd[1], rm, rn, ctx, BPF_OP(code),
+			  BPF_CLASS(code) == BPF_JMP);
 
 		/* Setup JUMP instruction */
 		jmp_offset = bpf2a32_offset(i+off, i, ctx);

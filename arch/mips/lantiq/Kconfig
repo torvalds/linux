@@ -19,7 +19,7 @@ config SOC_AMAZON_SE
 config SOC_XWAY
 	bool "XWAY"
 	select SOC_TYPE_XWAY
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select MFD_SYSCON
 	select MFD_CORE
 
@@ -51,9 +51,5 @@ endchoice
 config PCI_LANTIQ
 	bool "PCI Support"
 	depends on SOC_XWAY && PCI
-
-config XRX200_PHY_FW
-	bool "XRX200 PHY firmware loader"
-	depends on SOC_XWAY
 
 endif

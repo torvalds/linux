@@ -104,6 +104,13 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  %s (%s)\n", "   Enter evaluation",
+			      &info->full_pathname[1],
+			      acpi_ut_get_type_name(info->node->type)));
+
 	/* Count the number of arguments being passed in */
 
 	info->param_count = 0;
@@ -289,6 +296,12 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 			  info->relative_pathname));
 
 cleanup:
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  %s\n", "   Exit evaluation",
+			      &info->full_pathname[1]));
+
 	/*
 	 * Namespace was unlocked by the handling acpi_ns* function, so we
 	 * just free the pathname and return

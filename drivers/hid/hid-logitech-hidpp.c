@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/kfifo.h>
 #include <linux/input/mt.h>
 #include <linux/workqueue.h>
@@ -136,6 +137,25 @@ struct hidpp_battery {
 	bool online;
 };
 
+/**
+ * struct hidpp_scroll_counter - Utility class for processing high-resolution
+ *                             scroll events.
+ * @dev: the input device for which events should be reported.
+ * @wheel_multiplier: the scalar multiplier to be applied to each wheel event
+ * @remainder: counts the number of high-resolution units moved since the last
+ *             low-resolution event (REL_WHEEL or REL_HWHEEL) was sent. Should
+ *             only be used by class methods.
+ * @direction: direction of last movement (1 or -1)
+ * @last_time: last event time, used to reset remainder after inactivity
+ */
+struct hidpp_scroll_counter {
+	struct input_dev *dev;
+	int wheel_multiplier;
+	int remainder;
+	int direction;
+	unsigned long long last_time;
+};
+
 struct hidpp_device {
 	struct hid_device *hid_dev;
 	struct mutex send_mutex;
@@ -157,7 +177,7 @@ struct hidpp_device {
 	unsigned long capabilities;
 
 	struct hidpp_battery battery;
-	struct hid_scroll_counter vertical_wheel_counter;
+	struct hidpp_scroll_counter vertical_wheel_counter;
 };
 
 /* HID++ 1.0 error codes */
@@ -398,6 +418,67 @@ static void hidpp_prefix_name(char **name, int name_length)
 	kfree(*name);
 
 	*name = new_name;
+}
+
+/**
+ * hidpp_scroll_counter_handle_scroll() - Send high- and low-resolution scroll
+ *                                        events given a high-resolution wheel
+ *                                        movement.
+ * @counter: a hid_scroll_counter struct describing the wheel.
+ * @hi_res_value: the movement of the wheel, in the mouse's high-resolution
+ *                units.
+ *
+ * Given a high-resolution movement, this function converts the movement into
+ * fractions of 120 and emits high-resolution scroll events for the input
+ * device. It also uses the multiplier from &struct hid_scroll_counter to
+ * emit low-resolution scroll events when appropriate for
+ * backwards-compatibility with userspace input libraries.
+ */
+static void hidpp_scroll_counter_handle_scroll(struct hidpp_scroll_counter *counter,
+					       int hi_res_value)
+{
+	int low_res_value, remainder, direction;
+	unsigned long long now, previous;
+
+	hi_res_value = hi_res_value * 120/counter->wheel_multiplier;
+	input_report_rel(counter->dev, REL_WHEEL_HI_RES, hi_res_value);
+
+	remainder = counter->remainder;
+	direction = hi_res_value > 0 ? 1 : -1;
+
+	now = sched_clock();
+	previous = counter->last_time;
+	counter->last_time = now;
+	/*
+	 * Reset the remainder after a period of inactivity or when the
+	 * direction changes. This prevents the REL_WHEEL emulation point
+	 * from sliding for devices that don't always provide the same
+	 * number of movements per detent.
+	 */
+	if (now - previous > 1000000000 || direction != counter->direction)
+		remainder = 0;
+
+	counter->direction = direction;
+	remainder += hi_res_value;
+
+	/* Some wheels will rest 7/8ths of a detent from the previous detent
+	 * after slow movement, so we want the threshold for low-res events to
+	 * be in the middle between two detents (e.g. after 4/8ths) as
+	 * opposed to on the detents themselves (8/8ths).
+	 */
+	if (abs(remainder) >= 60) {
+		/* Add (or subtract) 1 because we want to trigger when the wheel
+		 * is half-way to the next detent (i.e. scroll 1 detent after a
+		 * 1/2 detent movement, 2 detents after a 1 1/2 detent movement,
+		 * etc.).
+		 */
+		low_res_value = remainder / 120;
+		if (low_res_value == 0)
+			low_res_value = (hi_res_value > 0 ? 1 : -1);
+		input_report_rel(counter->dev, REL_WHEEL, low_res_value);
+		remainder -= low_res_value * 120;
+	}
+	counter->remainder = remainder;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1232,8 +1313,7 @@ static int hidpp_hrw_get_wheel_capability(struct hidpp_device *hidpp,
 	return 0;
 return_default:
 	hid_warn(hidpp->hid_dev,
-		 "Couldn't get wheel multiplier (error %d), assuming %d.\n",
-		 ret, *multiplier);
+		 "Couldn't get wheel multiplier (error %d)\n", ret);
 	return ret;
 }
 
@@ -1589,7 +1669,7 @@ struct hidpp_ff_work_data {
 	u8 size;
 };
 
-static const signed short hiddpp_ff_effects[] = {
+static const signed short hidpp_ff_effects[] = {
 	FF_CONSTANT,
 	FF_PERIODIC,
 	FF_SINE,
@@ -1604,7 +1684,7 @@ static const signed short hiddpp_ff_effects[] = {
 	-1
 };
 
-static const signed short hiddpp_ff_effects_v2[] = {
+static const signed short hidpp_ff_effects_v2[] = {
 	FF_RAMP,
 	FF_FRICTION,
 	FF_INERTIA,
@@ -1997,11 +2077,11 @@ static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 	version = bcdDevice & 255;
 
 	/* Set supported force feedback capabilities */
-	for (j = 0; hiddpp_ff_effects[j] >= 0; j++)
-		set_bit(hiddpp_ff_effects[j], dev->ffbit);
+	for (j = 0; hidpp_ff_effects[j] >= 0; j++)
+		set_bit(hidpp_ff_effects[j], dev->ffbit);
 	if (version > 1)
-		for (j = 0; hiddpp_ff_effects_v2[j] >= 0; j++)
-			set_bit(hiddpp_ff_effects_v2[j], dev->ffbit);
+		for (j = 0; hidpp_ff_effects_v2[j] >= 0; j++)
+			set_bit(hidpp_ff_effects_v2[j], dev->ffbit);
 
 	/* Read number of slots available in device */
 	error = hidpp_send_fap_command_sync(hidpp, feature_index,
@@ -2511,10 +2591,15 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 		input_report_key(mydata->input, BTN_RIGHT,
 			!!(data[1] & M560_MOUSE_BTN_RIGHT));
 
-		if (data[1] & M560_MOUSE_BTN_WHEEL_LEFT)
+		if (data[1] & M560_MOUSE_BTN_WHEEL_LEFT) {
 			input_report_rel(mydata->input, REL_HWHEEL, -1);
-		else if (data[1] & M560_MOUSE_BTN_WHEEL_RIGHT)
+			input_report_rel(mydata->input, REL_HWHEEL_HI_RES,
+					 -120);
+		} else if (data[1] & M560_MOUSE_BTN_WHEEL_RIGHT) {
 			input_report_rel(mydata->input, REL_HWHEEL, 1);
+			input_report_rel(mydata->input, REL_HWHEEL_HI_RES,
+					 120);
+		}
 
 		v = hid_snto32(hid_field_extract(hdev, data+3, 0, 12), 12);
 		input_report_rel(mydata->input, REL_X, v);
@@ -2523,7 +2608,7 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 		input_report_rel(mydata->input, REL_Y, v);
 
 		v = hid_snto32(data[6], 8);
-		hid_scroll_counter_handle_scroll(
+		hidpp_scroll_counter_handle_scroll(
 				&hidpp->vertical_wheel_counter, v);
 
 		input_sync(mydata->input);
@@ -2551,6 +2636,8 @@ static void m560_populate_input(struct hidpp_device *hidpp,
 	__set_bit(REL_Y, mydata->input->relbit);
 	__set_bit(REL_WHEEL, mydata->input->relbit);
 	__set_bit(REL_HWHEEL, mydata->input->relbit);
+	__set_bit(REL_WHEEL_HI_RES, mydata->input->relbit);
+	__set_bit(REL_HWHEEL_HI_RES, mydata->input->relbit);
 }
 
 static int m560_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -2656,65 +2743,30 @@ static int g920_get_config(struct hidpp_device *hidpp)
 /* High-resolution scroll wheels                                              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * struct hi_res_scroll_info - Stores info on a device's high-res scroll wheel.
- * @product_id: the HID product ID of the device being described.
- * @microns_per_hi_res_unit: the distance moved by the user's finger for each
- *                         high-resolution unit reported by the device, in
- *                         256ths of a millimetre.
- */
-struct hi_res_scroll_info {
-	__u32 product_id;
-	int microns_per_hi_res_unit;
-};
-
-static struct hi_res_scroll_info hi_res_scroll_devices[] = {
-	{ /* Anywhere MX */
-	  .product_id = 0x1017, .microns_per_hi_res_unit = 445 },
-	{ /* Performance MX */
-	  .product_id = 0x101a, .microns_per_hi_res_unit = 406 },
-	{ /* M560 */
-	  .product_id = 0x402d, .microns_per_hi_res_unit = 435 },
-	{ /* MX Master 2S */
-	  .product_id = 0x4069, .microns_per_hi_res_unit = 406 },
-};
-
-static int hi_res_scroll_look_up_microns(__u32 product_id)
-{
-	int i;
-	int num_devices = sizeof(hi_res_scroll_devices)
-			  / sizeof(hi_res_scroll_devices[0]);
-	for (i = 0; i < num_devices; i++) {
-		if (hi_res_scroll_devices[i].product_id == product_id)
-			return hi_res_scroll_devices[i].microns_per_hi_res_unit;
-	}
-	/* We don't have a value for this device, so use a sensible default. */
-	return 406;
-}
-
 static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 {
 	int ret;
-	u8 multiplier = 8;
+	u8 multiplier = 1;
 
 	if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_X2121) {
 		ret = hidpp_hrw_set_wheel_mode(hidpp, false, true, false);
-		hidpp_hrw_get_wheel_capability(hidpp, &multiplier);
+		if (ret == 0)
+			ret = hidpp_hrw_get_wheel_capability(hidpp, &multiplier);
 	} else if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_X2120) {
 		ret = hidpp_hrs_set_highres_scrolling_mode(hidpp, true,
 							   &multiplier);
-	} else /* if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_1P0) */
+	} else /* if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_1P0) */ {
 		ret = hidpp10_enable_scrolling_acceleration(hidpp);
-
+		multiplier = 8;
+	}
 	if (ret)
 		return ret;
 
-	hidpp->vertical_wheel_counter.resolution_multiplier = multiplier;
-	hidpp->vertical_wheel_counter.microns_per_hi_res_unit =
-		hi_res_scroll_look_up_microns(hidpp->hid_dev->product);
-	hid_info(hidpp->hid_dev, "multiplier = %d, microns = %d\n",
-		 multiplier,
-		 hidpp->vertical_wheel_counter.microns_per_hi_res_unit);
+	if (multiplier == 0)
+		multiplier = 1;
+
+	hidpp->vertical_wheel_counter.wheel_multiplier = multiplier;
+	hid_info(hidpp->hid_dev, "multiplier = %d\n", multiplier);
 	return 0;
 }
 
@@ -2764,10 +2816,8 @@ static void hidpp_populate_input(struct hidpp_device *hidpp,
 	else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560)
 		m560_populate_input(hidpp, input, origin_is_hid_core);
 
-	if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL) {
-		input_set_capability(input, EV_REL, REL_WHEEL_HI_RES);
+	if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL)
 		hidpp->vertical_wheel_counter.dev = input;
-	}
 }
 
 static int hidpp_input_configured(struct hid_device *hdev,
@@ -2893,17 +2943,17 @@ static int hidpp_event(struct hid_device *hdev, struct hid_field *field,
 	 * restriction imposed in hidpp_usages.
 	 */
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
-	struct hid_scroll_counter *counter = &hidpp->vertical_wheel_counter;
+	struct hidpp_scroll_counter *counter = &hidpp->vertical_wheel_counter;
 	/* A scroll event may occur before the multiplier has been retrieved or
 	 * the input device set, or high-res scroll enabling may fail. In such
 	 * cases we must return early (falling back to default behaviour) to
-	 * avoid a crash in hid_scroll_counter_handle_scroll.
+	 * avoid a crash in hidpp_scroll_counter_handle_scroll.
 	 */
 	if (!(hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL) || value == 0
-	    || counter->dev == NULL || counter->resolution_multiplier == 0)
+	    || counter->dev == NULL || counter->wheel_multiplier == 0)
 		return 0;
 
-	hid_scroll_counter_handle_scroll(counter, value);
+	hidpp_scroll_counter_handle_scroll(counter, value);
 	return 1;
 }
 
@@ -3372,7 +3422,7 @@ static const struct hid_device_id hidpp_devices[] = {
 MODULE_DEVICE_TABLE(hid, hidpp_devices);
 
 static const struct hid_usage_id hidpp_usages[] = {
-	{ HID_GD_WHEEL, EV_REL, REL_WHEEL },
+	{ HID_GD_WHEEL, EV_REL, REL_WHEEL_HI_RES },
 	{ HID_ANY_ID - 1, HID_ANY_ID - 1, HID_ANY_ID - 1}
 };
 

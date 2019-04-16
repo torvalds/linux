@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/realtek.c
  *
@@ -6,12 +7,6 @@
  * Author: Johnson Leung <r58129@freescale.com>
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <linux/bitops.h>
 #include <linux/phy.h>
@@ -213,17 +208,13 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 
 static struct phy_driver realtek_drvs[] = {
 	{
-		.phy_id         = 0x00008201,
+		PHY_ID_MATCH_EXACT(0x00008201),
 		.name           = "RTL8201CP Ethernet",
-		.phy_id_mask    = 0x0000ffff,
 		.features       = PHY_BASIC_FEATURES,
-		.flags          = PHY_HAS_INTERRUPT,
 	}, {
-		.phy_id		= 0x001cc816,
+		PHY_ID_MATCH_EXACT(0x001cc816),
 		.name		= "RTL8201F Fast Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_BASIC_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
 		.ack_interrupt	= &rtl8201_ack_interrupt,
 		.config_intr	= &rtl8201_config_intr,
 		.suspend	= genphy_suspend,
@@ -231,19 +222,16 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 	}, {
-		.phy_id		= 0x001cc910,
+		PHY_ID_MATCH_EXACT(0x001cc910),
 		.name		= "RTL8211 Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_GBIT_FEATURES,
 		.config_aneg	= rtl8211_config_aneg,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
 	}, {
-		.phy_id		= 0x001cc912,
+		PHY_ID_MATCH_EXACT(0x001cc912),
 		.name		= "RTL8211B Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_GBIT_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211b_config_intr,
 		.read_mmd	= &genphy_read_mmd_unsupported,
@@ -251,39 +239,32 @@ static struct phy_driver realtek_drvs[] = {
 		.suspend	= rtl8211b_suspend,
 		.resume		= rtl8211b_resume,
 	}, {
-		.phy_id		= 0x001cc913,
+		PHY_ID_MATCH_EXACT(0x001cc913),
 		.name		= "RTL8211C Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_GBIT_FEATURES,
 		.config_init	= rtl8211c_config_init,
 		.read_mmd	= &genphy_read_mmd_unsupported,
 		.write_mmd	= &genphy_write_mmd_unsupported,
 	}, {
-		.phy_id		= 0x001cc914,
+		PHY_ID_MATCH_EXACT(0x001cc914),
 		.name		= "RTL8211DN Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_GBIT_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
 		.ack_interrupt	= rtl821x_ack_interrupt,
 		.config_intr	= rtl8211e_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	}, {
-		.phy_id		= 0x001cc915,
+		PHY_ID_MATCH_EXACT(0x001cc915),
 		.name		= "RTL8211E Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_GBIT_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211e_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	}, {
-		.phy_id		= 0x001cc916,
+		PHY_ID_MATCH_EXACT(0x001cc916),
 		.name		= "RTL8211F Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
 		.features	= PHY_GBIT_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
 		.config_init	= &rtl8211f_config_init,
 		.ack_interrupt	= &rtl8211f_ack_interrupt,
 		.config_intr	= &rtl8211f_config_intr,
@@ -292,12 +273,26 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 	}, {
-		.phy_id		= 0x001cc961,
-		.name		= "RTL8366RB Gigabit Ethernet",
-		.phy_id_mask	= 0x001fffff,
+		PHY_ID_MATCH_EXACT(0x001cc800),
+		.name		= "Generic Realtek PHY",
 		.features	= PHY_GBIT_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
+		.config_init	= genphy_config_init,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001cc961),
+		.name		= "RTL8366RB Gigabit Ethernet",
+		.features	= PHY_GBIT_FEATURES,
 		.config_init	= &rtl8366rb_config_init,
+		/* These interrupts are handled by the irq controller
+		 * embedded inside the RTL8366RB, they get unmasked when the
+		 * irq is requested and ACKed by reading the status register,
+		 * which is done by the irqchip code.
+		 */
+		.ack_interrupt	= genphy_no_ack_interrupt,
+		.config_intr	= genphy_no_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	},
@@ -305,15 +300,8 @@ static struct phy_driver realtek_drvs[] = {
 
 module_phy_driver(realtek_drvs);
 
-static struct mdio_device_id __maybe_unused realtek_tbl[] = {
-	{ 0x001cc816, 0x001fffff },
-	{ 0x001cc910, 0x001fffff },
-	{ 0x001cc912, 0x001fffff },
-	{ 0x001cc913, 0x001fffff },
-	{ 0x001cc914, 0x001fffff },
-	{ 0x001cc915, 0x001fffff },
-	{ 0x001cc916, 0x001fffff },
-	{ 0x001cc961, 0x001fffff },
+static const struct mdio_device_id __maybe_unused realtek_tbl[] = {
+	{ PHY_ID_MATCH_VENDOR(0x001cc800) },
 	{ }
 };
 

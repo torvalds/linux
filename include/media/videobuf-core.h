@@ -43,7 +43,7 @@ struct videobuf_queue;
  * (which v4l2 uses).
  *
  * If there is a valid mapping for a buffer, buffer->baddr/bsize holds
- * userspace address + size which can be feeded into the
+ * userspace address + size which can be fed into the
  * videobuf_dma_init_user function listed above.
  *
  */
@@ -80,7 +80,7 @@ struct videobuf_buffer {
 	struct list_head        queue;
 	wait_queue_head_t       done;
 	unsigned int            field_count;
-	struct timeval          ts;
+	u64			ts;
 
 	/* Memory type */
 	enum v4l2_memory        memory;

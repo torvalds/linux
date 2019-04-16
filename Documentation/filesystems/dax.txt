@@ -75,7 +75,7 @@ exposure of uninitialized data through mmap.
 
 These filesystems may be used for inspiration:
 - ext2: see Documentation/filesystems/ext2.txt
-- ext4: see Documentation/filesystems/ext4/ext4.rst
+- ext4: see Documentation/filesystems/ext4/
 - xfs:  see Documentation/filesystems/xfs.txt
 
 

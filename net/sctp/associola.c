@@ -101,7 +101,7 @@ static struct sctp_association *sctp_association_init(
 	 * socket values.
 	 */
 	asoc->max_retrans = sp->assocparams.sasoc_asocmaxrxt;
-	asoc->pf_retrans  = net->sctp.pf_retrans;
+	asoc->pf_retrans  = sp->pf_retrans;
 
 	asoc->rto_initial = msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	asoc->rto_max = msecs_to_jiffies(sp->rtoinfo.srto_max);
@@ -118,9 +118,6 @@ static struct sctp_association *sctp_association_init(
 	asoc->flowlabel = sp->flowlabel;
 	asoc->dscp = sp->dscp;
 
-	/* Initialize default path MTU. */
-	asoc->pathmtu = sp->pathmtu;
-
 	/* Set association default SACK delay */
 	asoc->sackdelay = msecs_to_jiffies(sp->sackdelay);
 	asoc->sackfreq = sp->sackfreq;
@@ -134,6 +131,8 @@ static struct sctp_association *sctp_association_init(
 	 * in a burst.
 	 */
 	asoc->max_burst = sp->max_burst;
+
+	asoc->subscribe = sp->subscribe;
 
 	/* initialize association timers */
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] = asoc->rto_initial;
@@ -251,6 +250,10 @@ static struct sctp_association *sctp_association_init(
 	if (sctp_stream_init(&asoc->stream, asoc->c.sinit_num_ostreams,
 			     0, gfp))
 		goto fail_init;
+
+	/* Initialize default path MTU. */
+	asoc->pathmtu = sp->pathmtu;
+	sctp_assoc_update_frag_point(asoc);
 
 	/* Assume that peer would support both address types unless we are
 	 * told otherwise.
@@ -434,7 +437,7 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 
 	WARN_ON(atomic_read(&asoc->rmem_alloc));
 
-	kfree(asoc);
+	kfree_rcu(asoc, rcu);
 	SCTP_DBG_OBJCNT_DEC(assoc);
 }
 
@@ -1648,8 +1651,11 @@ int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 	if (preload)
 		idr_preload(gfp);
 	spin_lock_bh(&sctp_assocs_id_lock);
-	/* 0 is not a valid assoc_id, must be >= 1 */
-	ret = idr_alloc_cyclic(&sctp_assocs_id, asoc, 1, 0, GFP_NOWAIT);
+	/* 0, 1, 2 are used as SCTP_FUTURE_ASSOC, SCTP_CURRENT_ASSOC and
+	 * SCTP_ALL_ASSOC, so an available id must be > SCTP_ALL_ASSOC.
+	 */
+	ret = idr_alloc_cyclic(&sctp_assocs_id, asoc, SCTP_ALL_ASSOC + 1, 0,
+			       GFP_NOWAIT);
 	spin_unlock_bh(&sctp_assocs_id_lock);
 	if (preload)
 		idr_preload_end();

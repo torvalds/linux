@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/delay.h>
 
 #include <linux/platform_data/rtc-v3020.h>
@@ -288,14 +289,23 @@ static inline void cmx270_init_ohci(void) {}
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static struct pxamci_platform_data cmx270_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO83_MMC_IRQ,
-	.gpio_card_ro		= -1,
-	.gpio_power		= GPIO105_MMC_POWER,
-	.gpio_power_invert	= 1,
+};
+
+static struct gpiod_lookup_table cmx270_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 83 */
+		GPIO_LOOKUP("gpio-pxa", GPIO83_MMC_IRQ, "cd", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 105 */
+		GPIO_LOOKUP("gpio-pxa", GPIO105_MMC_POWER,
+			    "power", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init cmx270_init_mmc(void)
 {
+	gpiod_add_lookup_table(&cmx270_mci_gpio_table);
 	pxa_set_mci_info(&cmx270_mci_platform_data);
 }
 #else
@@ -303,7 +313,7 @@ static inline void cmx270_init_mmc(void) {}
 #endif
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static struct pxa2xx_spi_master cm_x270_spi_info = {
+static struct pxa2xx_spi_controller cm_x270_spi_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };

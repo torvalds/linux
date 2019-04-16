@@ -1311,13 +1311,13 @@ static int tsi108_open(struct net_device *dev)
 		       data->id, dev->irq, dev->name);
 	}
 
-	data->rxring = dma_zalloc_coherent(&data->pdev->dev, rxring_size,
-			&data->rxdma, GFP_KERNEL);
+	data->rxring = dma_alloc_coherent(&data->pdev->dev, rxring_size,
+					  &data->rxdma, GFP_KERNEL);
 	if (!data->rxring)
 		return -ENOMEM;
 
-	data->txring = dma_zalloc_coherent(&data->pdev->dev, txring_size,
-			&data->txdma, GFP_KERNEL);
+	data->txring = dma_alloc_coherent(&data->pdev->dev, txring_size,
+					  &data->txdma, GFP_KERNEL);
 	if (!data->txring) {
 		dma_free_coherent(&data->pdev->dev, rxring_size, data->rxring,
 				    data->rxdma);

@@ -197,12 +197,15 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	case NVKM_SUBDEV_PMU:
 		debug_reg = 0xc08;
 		break;
-	case NVKM_ENGINE_NVDEC:
+	case NVKM_ENGINE_NVDEC0:
 		debug_reg = 0xd00;
 		break;
 	case NVKM_ENGINE_SEC2:
 		debug_reg = 0x408;
 		falcon->has_emem = true;
+		break;
+	case NVKM_SUBDEV_GSP:
+		debug_reg = 0x0; /*XXX*/
 		break;
 	default:
 		nvkm_warn(subdev, "unsupported falcon %s!\n",

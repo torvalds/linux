@@ -3,12 +3,24 @@ NXP LPC18xx/43xx GPIO controller Device Tree Bindings
 
 Required properties:
 - compatible		: Should be "nxp,lpc1850-gpio"
-- reg			: Address and length of the register set for the device
-- clocks		: Clock specifier (see clock bindings for details)
-- gpio-controller	: Marks the device node as a GPIO controller.
-- #gpio-cells 		: Should be two
-			  - First cell is the GPIO line number
-			  - Second cell is used to specify polarity
+- reg			: List of addresses and lengths of the GPIO controller
+			  register sets
+- reg-names		: Should be "gpio", "gpio-pin-ic", "gpio-group0-ic" and
+			  "gpio-gpoup1-ic"
+- clocks		: Phandle and clock specifier pair for GPIO controller
+- resets		: Phandle and reset specifier pair for GPIO controller
+- gpio-controller	: Marks the device node as a GPIO controller
+- #gpio-cells 		: Should be two:
+			  - The first cell is the GPIO line number
+			  - The second cell is used to specify polarity
+- interrupt-controller	: Marks the device node as an interrupt controller
+- #interrupt-cells	: Should be two:
+			  - The first cell is an interrupt number within
+			    0..9 range, for GPIO pin interrupts it is equal
+			    to 'nxp,gpio-pin-interrupt' property value of
+			    GPIO pin configuration, 8 is for GPIO GROUP0
+			    interrupt, 9 is for GPIO GROUP1 interrupt
+			  - The second cell is used to specify interrupt type
 
 Optional properties:
 - gpio-ranges		: Mapping between GPIO and pinctrl
@@ -19,21 +31,29 @@ Example:
 
 gpio: gpio@400f4000 {
 	compatible = "nxp,lpc1850-gpio";
-	reg = <0x400f4000 0x4000>;
+	reg = <0x400f4000 0x4000>, <0x40087000 0x1000>,
+	      <0x40088000 0x1000>, <0x40089000 0x1000>;
+	reg-names = "gpio", "gpio-pin-ic",
+		    "gpio-group0-ic", "gpio-gpoup1-ic";
 	clocks = <&ccu1 CLK_CPU_GPIO>;
+	resets = <&rgu 28>;
 	gpio-controller;
 	#gpio-cells = <2>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
 	gpio-ranges =	<&pinctrl LPC_GPIO(0,0)  LPC_PIN(0,0)  2>,
 			...
 			<&pinctrl LPC_GPIO(7,19) LPC_PIN(f,5)  7>;
 };
 
 gpio_joystick {
-	compatible = "gpio-keys-polled";
+	compatible = "gpio-keys";
 	...
 
-	button@0 {
+	button0 {
 		...
+		interrupt-parent = <&gpio>;
+		interrupts = <1 IRQ_TYPE_EDGE_BOTH>;
 		gpios = <&gpio LPC_GPIO(4,8) GPIO_ACTIVE_LOW>;
 	};
 };

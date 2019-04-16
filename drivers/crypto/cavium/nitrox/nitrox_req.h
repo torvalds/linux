@@ -7,6 +7,9 @@
 
 #include "nitrox_dev.h"
 
+#define PENDING_SIG	0xFFFFFFFFFFFFFFFFUL
+#define PRIO 4001
+
 /**
  * struct gphdr - General purpose Header
  * @param0: first parameter.
@@ -46,13 +49,6 @@ union se_req_ctrl {
 	} s;
 };
 
-struct nitrox_sglist {
-	u16 len;
-	u16 raz0;
-	u32 raz1;
-	dma_addr_t dma;
-};
-
 #define MAX_IV_LEN 16
 
 /**
@@ -62,8 +58,10 @@ struct nitrox_sglist {
  * @ctx_handle: Crypto context handle.
  * @gph: GP Header
  * @ctrl: Request Information.
- * @in: Input sglist
- * @out: Output sglist
+ * @orh: ORH address
+ * @comp: completion address
+ * @src: Input sglist
+ * @dst: Output sglist
  */
 struct se_crypto_request {
 	u8 opcode;
@@ -73,9 +71,8 @@ struct se_crypto_request {
 
 	struct gphdr gph;
 	union se_req_ctrl ctrl;
-
-	u8 iv[MAX_IV_LEN];
-	u16 ivsize;
+	u64 *orh;
+	u64 *comp;
 
 	struct scatterlist *src;
 	struct scatterlist *dst;
@@ -110,6 +107,18 @@ enum flexi_cipher {
 	CIPHER_INVALID
 };
 
+enum flexi_auth {
+	AUTH_NULL = 0,
+	AUTH_MD5,
+	AUTH_SHA1,
+	AUTH_SHA2_SHA224,
+	AUTH_SHA2_SHA256,
+	AUTH_SHA2_SHA384,
+	AUTH_SHA2_SHA512,
+	AUTH_GMAC,
+	AUTH_INVALID
+};
+
 /**
  * struct crypto_keys - Crypto keys
  * @key: Encryption key or KEY1 for AES-XTS
@@ -136,6 +145,32 @@ struct auth_keys {
 	u8 opad[64];
 };
 
+union fc_ctx_flags {
+	__be64 f;
+	struct {
+#if defined(__BIG_ENDIAN_BITFIELD)
+		u64 cipher_type	: 4;
+		u64 reserved_59	: 1;
+		u64 aes_keylen : 2;
+		u64 iv_source : 1;
+		u64 hash_type : 4;
+		u64 reserved_49_51 : 3;
+		u64 auth_input_type: 1;
+		u64 mac_len : 8;
+		u64 reserved_0_39 : 40;
+#else
+		u64 reserved_0_39 : 40;
+		u64 mac_len : 8;
+		u64 auth_input_type: 1;
+		u64 reserved_49_51 : 3;
+		u64 hash_type : 4;
+		u64 iv_source : 1;
+		u64 aes_keylen : 2;
+		u64 reserved_59	: 1;
+		u64 cipher_type	: 4;
+#endif
+	} w0;
+};
 /**
  * struct flexi_crypto_context - Crypto context
  * @cipher_type: Encryption cipher type
@@ -150,35 +185,15 @@ struct auth_keys {
  * @auth: Authentication keys
  */
 struct flexi_crypto_context {
-	union {
-		__be64 flags;
-		struct {
-#if defined(__BIG_ENDIAN_BITFIELD)
-			u64 cipher_type	: 4;
-			u64 reserved_59	: 1;
-			u64 aes_keylen : 2;
-			u64 iv_source : 1;
-			u64 hash_type : 4;
-			u64 reserved_49_51 : 3;
-			u64 auth_input_type: 1;
-			u64 mac_len : 8;
-			u64 reserved_0_39 : 40;
-#else
-			u64 reserved_0_39 : 40;
-			u64 mac_len : 8;
-			u64 auth_input_type: 1;
-			u64 reserved_49_51 : 3;
-			u64 hash_type : 4;
-			u64 iv_source : 1;
-			u64 aes_keylen : 2;
-			u64 reserved_59	: 1;
-			u64 cipher_type	: 4;
-#endif
-		} w0;
-	};
-
+	union fc_ctx_flags flags;
 	struct crypto_keys crypto;
 	struct auth_keys auth;
+};
+
+struct crypto_ctx_hdr {
+	struct dma_pool *pool;
+	dma_addr_t dma;
+	void *vaddr;
 };
 
 struct nitrox_crypto_ctx {
@@ -187,12 +202,13 @@ struct nitrox_crypto_ctx {
 		u64 ctx_handle;
 		struct flexi_crypto_context *fctx;
 	} u;
+	struct crypto_ctx_hdr *chdr;
 };
 
 struct nitrox_kcrypt_request {
 	struct se_crypto_request creq;
-	struct nitrox_crypto_ctx *nctx;
-	struct skcipher_request *skreq;
+	u8 *src;
+	u8 *dst;
 };
 
 /**
@@ -369,26 +385,19 @@ struct nitrox_sgcomp {
 
 /*
  * strutct nitrox_sgtable - SG list information
- * @map_cnt: Number of buffers mapped
- * @nr_comp: Number of sglist components
+ * @sgmap_cnt: Number of buffers mapped
  * @total_bytes: Total bytes in sglist.
- * @len: Total sglist components length.
- * @dma: DMA address of sglist component.
- * @dir: DMA direction.
- * @buf: crypto request buffer.
- * @sglist: SG list of input/output buffers.
+ * @sgcomp_len: Total sglist components length.
+ * @sgcomp_dma: DMA address of sglist component.
+ * @sg: crypto request buffer.
  * @sgcomp: sglist component for NITROX.
  */
 struct nitrox_sgtable {
-	u8 map_bufs_cnt;
-	u8 nr_sgcomp;
+	u8 sgmap_cnt;
 	u16 total_bytes;
-	u32 len;
-	dma_addr_t dma;
-	enum dma_data_direction dir;
-
-	struct scatterlist *buf;
-	struct nitrox_sglist *sglist;
+	u32 sgcomp_len;
+	dma_addr_t sgcomp_dma;
+	struct scatterlist *sg;
 	struct nitrox_sgcomp *sgcomp;
 };
 
@@ -398,13 +407,11 @@ struct nitrox_sgtable {
 #define COMP_HLEN	8
 
 struct resp_hdr {
-	u64 orh;
-	dma_addr_t orh_dma;
-	u64 completion;
-	dma_addr_t completion_dma;
+	u64 *orh;
+	u64 *completion;
 };
 
-typedef void (*completion_t)(struct skcipher_request *skreq, int err);
+typedef void (*completion_t)(void *arg, int err);
 
 /**
  * struct nitrox_softreq - Represents the NIROX Request.
@@ -427,7 +434,6 @@ struct nitrox_softreq {
 	u32 flags;
 	gfp_t gfp;
 	atomic_t status;
-	bool inplace;
 
 	struct nitrox_device *ndev;
 	struct nitrox_cmdq *cmdq;
@@ -440,7 +446,201 @@ struct nitrox_softreq {
 	unsigned long tstamp;
 
 	completion_t callback;
-	struct skcipher_request *skreq;
+	void *cb_arg;
 };
+
+static inline int flexi_aes_keylen(int keylen)
+{
+	int aes_keylen;
+
+	switch (keylen) {
+	case AES_KEYSIZE_128:
+		aes_keylen = 1;
+		break;
+	case AES_KEYSIZE_192:
+		aes_keylen = 2;
+		break;
+	case AES_KEYSIZE_256:
+		aes_keylen = 3;
+		break;
+	default:
+		aes_keylen = -EINVAL;
+		break;
+	}
+	return aes_keylen;
+}
+
+static inline void *alloc_req_buf(int nents, int extralen, gfp_t gfp)
+{
+	size_t size;
+
+	size = sizeof(struct scatterlist) * nents;
+	size += extralen;
+
+	return kzalloc(size, gfp);
+}
+
+/**
+ * create_single_sg - Point SG entry to the data
+ * @sg:		Destination SG list
+ * @buf:	Data
+ * @buflen:	Data length
+ *
+ * Returns next free entry in the destination SG list
+ **/
+static inline struct scatterlist *create_single_sg(struct scatterlist *sg,
+						   void *buf, int buflen)
+{
+	sg_set_buf(sg, buf, buflen);
+	sg++;
+	return sg;
+}
+
+/**
+ * create_multi_sg - Create multiple sg entries with buflen data length from
+ *		     source sglist
+ * @to_sg:	Destination SG list
+ * @from_sg:	Source SG list
+ * @buflen:	Data length
+ *
+ * Returns next free entry in the destination SG list
+ **/
+static inline struct scatterlist *create_multi_sg(struct scatterlist *to_sg,
+						  struct scatterlist *from_sg,
+						  int buflen)
+{
+	struct scatterlist *sg = to_sg;
+	unsigned int sglen;
+
+	for (; buflen; buflen -= sglen) {
+		sglen = from_sg->length;
+		if (sglen > buflen)
+			sglen = buflen;
+
+		sg_set_buf(sg, sg_virt(from_sg), sglen);
+		from_sg = sg_next(from_sg);
+		sg++;
+	}
+
+	return sg;
+}
+
+static inline void set_orh_value(u64 *orh)
+{
+	WRITE_ONCE(*orh, PENDING_SIG);
+}
+
+static inline void set_comp_value(u64 *comp)
+{
+	WRITE_ONCE(*comp, PENDING_SIG);
+}
+
+static inline int alloc_src_req_buf(struct nitrox_kcrypt_request *nkreq,
+				    int nents, int ivsize)
+{
+	struct se_crypto_request *creq = &nkreq->creq;
+
+	nkreq->src = alloc_req_buf(nents, ivsize, creq->gfp);
+	if (!nkreq->src)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline void nitrox_creq_copy_iv(char *dst, char *src, int size)
+{
+	memcpy(dst, src, size);
+}
+
+static inline struct scatterlist *nitrox_creq_src_sg(char *iv, int ivsize)
+{
+	return (struct scatterlist *)(iv + ivsize);
+}
+
+static inline void nitrox_creq_set_src_sg(struct nitrox_kcrypt_request *nkreq,
+					  int nents, int ivsize,
+					  struct scatterlist *src, int buflen)
+{
+	char *iv = nkreq->src;
+	struct scatterlist *sg;
+	struct se_crypto_request *creq = &nkreq->creq;
+
+	creq->src = nitrox_creq_src_sg(iv, ivsize);
+	sg = creq->src;
+	sg_init_table(sg, nents);
+
+	/* Input format:
+	 * +----+----------------+
+	 * | IV | SRC sg entries |
+	 * +----+----------------+
+	 */
+
+	/* IV */
+	sg = create_single_sg(sg, iv, ivsize);
+	/* SRC entries */
+	create_multi_sg(sg, src, buflen);
+}
+
+static inline int alloc_dst_req_buf(struct nitrox_kcrypt_request *nkreq,
+				    int nents)
+{
+	int extralen = ORH_HLEN + COMP_HLEN;
+	struct se_crypto_request *creq = &nkreq->creq;
+
+	nkreq->dst = alloc_req_buf(nents, extralen, creq->gfp);
+	if (!nkreq->dst)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline void nitrox_creq_set_orh(struct nitrox_kcrypt_request *nkreq)
+{
+	struct se_crypto_request *creq = &nkreq->creq;
+
+	creq->orh = (u64 *)(nkreq->dst);
+	set_orh_value(creq->orh);
+}
+
+static inline void nitrox_creq_set_comp(struct nitrox_kcrypt_request *nkreq)
+{
+	struct se_crypto_request *creq = &nkreq->creq;
+
+	creq->comp = (u64 *)(nkreq->dst + ORH_HLEN);
+	set_comp_value(creq->comp);
+}
+
+static inline struct scatterlist *nitrox_creq_dst_sg(char *dst)
+{
+	return (struct scatterlist *)(dst + ORH_HLEN + COMP_HLEN);
+}
+
+static inline void nitrox_creq_set_dst_sg(struct nitrox_kcrypt_request *nkreq,
+					  int nents, int ivsize,
+					  struct scatterlist *dst, int buflen)
+{
+	struct se_crypto_request *creq = &nkreq->creq;
+	struct scatterlist *sg;
+	char *iv = nkreq->src;
+
+	creq->dst = nitrox_creq_dst_sg(nkreq->dst);
+	sg = creq->dst;
+	sg_init_table(sg, nents);
+
+	/* Output format:
+	 * +-----+----+----------------+-----------------+
+	 * | ORH | IV | DST sg entries | COMPLETION Bytes|
+	 * +-----+----+----------------+-----------------+
+	 */
+
+	/* ORH */
+	sg = create_single_sg(sg, creq->orh, ORH_HLEN);
+	/* IV */
+	sg = create_single_sg(sg, iv, ivsize);
+	/* DST entries */
+	sg = create_multi_sg(sg, dst, buflen);
+	/* COMPLETION Bytes */
+	create_single_sg(sg, creq->comp, COMP_HLEN);
+}
 
 #endif /* __NITROX_REQ_H */

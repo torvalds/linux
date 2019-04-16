@@ -12,12 +12,12 @@ Table of Contents:
 4. Livepatch module
    4.1. New functions
    4.2. Metadata
-   4.3. Livepatch module handling
 5. Livepatch life-cycle
-   5.1. Registration
+   5.1. Loading
    5.2. Enabling
-   5.3. Disabling
-   5.4. Unregistration
+   5.3. Replacing
+   5.4. Disabling
+   5.5. Removing
 6. Sysfs
 7. Limitations
 
@@ -143,9 +143,9 @@ without HAVE_RELIABLE_STACKTRACE are not considered fully supported by
 the kernel livepatching.
 
 The /sys/kernel/livepatch/<patch>/transition file shows whether a patch
-is in transition.  Only a single patch (the topmost patch on the stack)
-can be in transition at a given time.  A patch can remain in transition
-indefinitely, if any of the tasks are stuck in the initial patch state.
+is in transition.  Only a single patch can be in transition at a given
+time.  A patch can remain in transition indefinitely, if any of the tasks
+are stuck in the initial patch state.
 
 A transition can be reversed and effectively canceled by writing the
 opposite value to the /sys/kernel/livepatch/<patch>/enabled file while
@@ -158,12 +158,11 @@ If a patch is in transition, this file shows 0 to indicate the task is
 unpatched and 1 to indicate it's patched.  Otherwise, if no patch is in
 transition, it shows -1.  Any tasks which are blocking the transition
 can be signaled with SIGSTOP and SIGCONT to force them to change their
-patched state. This may be harmful to the system though.
-/sys/kernel/livepatch/<patch>/signal attribute provides a better alternative.
-Writing 1 to the attribute sends a fake signal to all remaining blocking
-tasks. No proper signal is actually delivered (there is no data in signal
-pending structures). Tasks are interrupted or woken up, and forced to change
-their patched state.
+patched state. This may be harmful to the system though. Sending a fake signal
+to all remaining blocking tasks is a better alternative. No proper signal is
+actually delivered (there is no data in signal pending structures). Tasks are
+interrupted or woken up, and forced to change their patched state. The fake
+signal is automatically sent every 15 seconds.
 
 Administrator can also affect a transition through
 /sys/kernel/livepatch/<patch>/force attribute. Writing 1 there clears
@@ -298,117 +297,110 @@ into three levels:
     see the "Consistency model" section.
 
 
-4.3. Livepatch module handling
-------------------------------
-
-The usual behavior is that the new functions will get used when
-the livepatch module is loaded. For this, the module init() function
-has to register the patch (struct klp_patch) and enable it. See the
-section "Livepatch life-cycle" below for more details about these
-two operations.
-
-Module removal is only safe when there are no users of the underlying
-functions. This is the reason why the force feature permanently disables
-the removal. The forced tasks entered the functions but we cannot say
-that they returned back.  Therefore it cannot be decided when the
-livepatch module can be safely removed. When the system is successfully
-transitioned to a new patch state (patched/unpatched) without being
-forced it is guaranteed that no task sleeps or runs in the old code.
-
-
 5. Livepatch life-cycle
 =======================
 
-Livepatching defines four basic operations that define the life cycle of each
-live patch: registration, enabling, disabling and unregistration.  There are
-several reasons why it is done this way.
+Livepatching can be described by five basic operations:
+loading, enabling, replacing, disabling, removing.
 
-First, the patch is applied only when all patched symbols for already
-loaded objects are found. The error handling is much easier if this
-check is done before particular functions get redirected.
-
-Second, it might take some time until the entire system is migrated with
-the hybrid consistency model being used. The patch revert might block
-the livepatch module removal for too long. Therefore it is useful to
-revert the patch using a separate operation that might be called
-explicitly. But it does not make sense to remove all information until
-the livepatch module is really removed.
+Where the replacing and the disabling operations are mutually
+exclusive. They have the same result for the given patch but
+not for the system.
 
 
-5.1. Registration
------------------
+5.1. Loading
+------------
 
-Each patch first has to be registered using klp_register_patch(). This makes
-the patch known to the livepatch framework. Also it does some preliminary
-computing and checks.
+The only reasonable way is to enable the patch when the livepatch kernel
+module is being loaded. For this, klp_enable_patch() has to be called
+in the module_init() callback. There are two main reasons:
 
-In particular, the patch is added into the list of known patches. The
-addresses of the patched functions are found according to their names.
-The special relocations, mentioned in the section "New functions", are
-applied. The relevant entries are created under
-/sys/kernel/livepatch/<name>. The patch is rejected when any operation
-fails.
+First, only the module has an easy access to the related struct klp_patch.
+
+Second, the error code might be used to refuse loading the module when
+the patch cannot get enabled.
 
 
 5.2. Enabling
 -------------
 
-Registered patches might be enabled either by calling klp_enable_patch() or
-by writing '1' to /sys/kernel/livepatch/<name>/enabled. The system will
-start using the new implementation of the patched functions at this stage.
+The livepatch gets enabled by calling klp_enable_patch() from
+the module_init() callback. The system will start using the new
+implementation of the patched functions at this stage.
 
-When a patch is enabled, livepatch enters into a transition state where
-tasks are converging to the patched state.  This is indicated by a value
-of '1' in /sys/kernel/livepatch/<name>/transition.  Once all tasks have
-been patched, the 'transition' value changes to '0'.  For more
-information about this process, see the "Consistency model" section.
+First, the addresses of the patched functions are found according to their
+names. The special relocations, mentioned in the section "New functions",
+are applied. The relevant entries are created under
+/sys/kernel/livepatch/<name>. The patch is rejected when any above
+operation fails.
 
-If an original function is patched for the first time, a function
-specific struct klp_ops is created and an universal ftrace handler is
-registered.
+Second, livepatch enters into a transition state where tasks are converging
+to the patched state. If an original function is patched for the first
+time, a function specific struct klp_ops is created and an universal
+ftrace handler is registered[*]. This stage is indicated by a value of '1'
+in /sys/kernel/livepatch/<name>/transition. For more information about
+this process, see the "Consistency model" section.
 
-Functions might be patched multiple times. The ftrace handler is registered
-only once for the given function. Further patches just add an entry to the
-list (see field `func_stack`) of the struct klp_ops. The last added
-entry is chosen by the ftrace handler and becomes the active function
-replacement.
+Finally, once all tasks have been patched, the 'transition' value changes
+to '0'.
 
-Note that the patches might be enabled in a different order than they were
-registered.
+[*] Note that functions might be patched multiple times. The ftrace handler
+    is registered only once for a given function. Further patches just add
+    an entry to the list (see field `func_stack`) of the struct klp_ops.
+    The right implementation is selected by the ftrace handler, see
+    the "Consistency model" section.
+
+    That said, it is highly recommended to use cumulative livepatches
+    because they help keeping the consistency of all changes. In this case,
+    functions might be patched two times only during the transition period.
 
 
-5.3. Disabling
+5.3. Replacing
 --------------
 
-Enabled patches might get disabled either by calling klp_disable_patch() or
-by writing '0' to /sys/kernel/livepatch/<name>/enabled. At this stage
-either the code from the previously enabled patch or even the original
-code gets used.
+All enabled patches might get replaced by a cumulative patch that
+has the .replace flag set.
 
-When a patch is disabled, livepatch enters into a transition state where
-tasks are converging to the unpatched state.  This is indicated by a
-value of '1' in /sys/kernel/livepatch/<name>/transition.  Once all tasks
-have been unpatched, the 'transition' value changes to '0'.  For more
-information about this process, see the "Consistency model" section.
+Once the new patch is enabled and the 'transition' finishes then
+all the functions (struct klp_func) associated with the replaced
+patches are removed from the corresponding struct klp_ops. Also
+the ftrace handler is unregistered and the struct klp_ops is
+freed when the related function is not modified by the new patch
+and func_stack list becomes empty.
 
-Here all the functions (struct klp_func) associated with the to-be-disabled
+See Documentation/livepatch/cumulative-patches.txt for more details.
+
+
+5.4. Disabling
+--------------
+
+Enabled patches might get disabled by writing '0' to
+/sys/kernel/livepatch/<name>/enabled.
+
+First, livepatch enters into a transition state where tasks are converging
+to the unpatched state. The system starts using either the code from
+the previously enabled patch or even the original one. This stage is
+indicated by a value of '1' in /sys/kernel/livepatch/<name>/transition.
+For more information about this process, see the "Consistency model"
+section.
+
+Second, once all tasks have been unpatched, the 'transition' value changes
+to '0'. All the functions (struct klp_func) associated with the to-be-disabled
 patch are removed from the corresponding struct klp_ops. The ftrace handler
 is unregistered and the struct klp_ops is freed when the func_stack list
 becomes empty.
 
-Patches must be disabled in exactly the reverse order in which they were
-enabled. It makes the problem and the implementation much easier.
+Third, the sysfs interface is destroyed.
 
 
-5.4. Unregistration
--------------------
+5.5. Removing
+-------------
 
-Disabled patches might be unregistered by calling klp_unregister_patch().
-This can be done only when the patch is disabled and the code is no longer
-used. It must be called before the livepatch module gets unloaded.
-
-At this stage, all the relevant sys-fs entries are removed and the patch
-is removed from the list of known patches.
+Module removal is only safe when there are no users of functions provided
+by the module. This is the reason why the force feature permanently
+disables the removal. Only when the system is successfully transitioned
+to a new patch state (patched/unpatched) without being forced it is
+guaranteed that no task sleeps or runs in the old code.
 
 
 6. Sysfs
@@ -418,8 +410,8 @@ Information about the registered patches can be found under
 /sys/kernel/livepatch. The patches could be enabled and disabled
 by writing there.
 
-/sys/kernel/livepatch/<patch>/signal and /sys/kernel/livepatch/<patch>/force
-attributes allow administrator to affect a patching operation.
+/sys/kernel/livepatch/<patch>/force attributes allow administrator to affect a
+patching operation.
 
 See Documentation/ABI/testing/sysfs-kernel-livepatch for more details.
 

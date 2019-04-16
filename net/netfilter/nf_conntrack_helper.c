@@ -42,67 +42,6 @@ module_param_named(nf_conntrack_helper, nf_ct_auto_assign_helper, bool, 0644);
 MODULE_PARM_DESC(nf_conntrack_helper,
 		 "Enable automatic conntrack helper assignment (default 0)");
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table helper_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_helper",
-		.data		= &init_net.ct.sysctl_auto_assign_helper,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{}
-};
-
-static int nf_conntrack_helper_init_sysctl(struct net *net)
-{
-	struct ctl_table *table;
-
-	table = kmemdup(helper_sysctl_table, sizeof(helper_sysctl_table),
-			GFP_KERNEL);
-	if (!table)
-		goto out;
-
-	table[0].data = &net->ct.sysctl_auto_assign_helper;
-
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
-
-	net->ct.helper_sysctl_header =
-		register_net_sysctl(net, "net/netfilter", table);
-
-	if (!net->ct.helper_sysctl_header) {
-		pr_err("nf_conntrack_helper: can't register to sysctl.\n");
-		goto out_register;
-	}
-	return 0;
-
-out_register:
-	kfree(table);
-out:
-	return -ENOMEM;
-}
-
-static void nf_conntrack_helper_fini_sysctl(struct net *net)
-{
-	struct ctl_table *table;
-
-	table = net->ct.helper_sysctl_header->ctl_table_arg;
-	unregister_net_sysctl_table(net->ct.helper_sysctl_header);
-	kfree(table);
-}
-#else
-static int nf_conntrack_helper_init_sysctl(struct net *net)
-{
-	return 0;
-}
-
-static void nf_conntrack_helper_fini_sysctl(struct net *net)
-{
-}
-#endif /* CONFIG_SYSCTL */
-
 /* Stupid hash, but collision free for the default registrations of the
  * helpers currently in the kernel. */
 static unsigned int helper_hash(const struct nf_conntrack_tuple *tuple)
@@ -533,16 +472,10 @@ static const struct nf_ct_ext_type helper_extend = {
 	.id	= NF_CT_EXT_HELPER,
 };
 
-int nf_conntrack_helper_pernet_init(struct net *net)
+void nf_conntrack_helper_pernet_init(struct net *net)
 {
 	net->ct.auto_assign_helper_warned = false;
 	net->ct.sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
-	return nf_conntrack_helper_init_sysctl(net);
-}
-
-void nf_conntrack_helper_pernet_fini(struct net *net)
-{
-	nf_conntrack_helper_fini_sysctl(net);
 }
 
 int nf_conntrack_helper_init(void)

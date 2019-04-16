@@ -69,6 +69,7 @@
 #define LINUX_HMM_H
 
 #include <linux/kconfig.h>
+#include <asm/pgtable.h>
 
 #if IS_ENABLED(CONFIG_HMM)
 
@@ -467,7 +468,7 @@ struct hmm_devmem_ops {
 	 * Note that mmap semaphore is held in read mode at least when this
 	 * callback occurs, hence the vma is valid upon callback entry.
 	 */
-	int (*fault)(struct hmm_devmem *devmem,
+	vm_fault_t (*fault)(struct hmm_devmem *devmem,
 		     struct vm_area_struct *vma,
 		     unsigned long addr,
 		     const struct page *page,
@@ -486,6 +487,7 @@ struct hmm_devmem_ops {
  * @device: device to bind resource to
  * @ops: memory operations callback
  * @ref: per CPU refcount
+ * @page_fault: callback when CPU fault on an unaddressable device page
  *
  * This an helper structure for device drivers that do not wish to implement
  * the gory details related to hotplugging new memoy and allocating struct
@@ -493,7 +495,28 @@ struct hmm_devmem_ops {
  *
  * Device drivers can directly use ZONE_DEVICE memory on their own if they
  * wish to do so.
+ *
+ * The page_fault() callback must migrate page back, from device memory to
+ * system memory, so that the CPU can access it. This might fail for various
+ * reasons (device issues,  device have been unplugged, ...). When such error
+ * conditions happen, the page_fault() callback must return VM_FAULT_SIGBUS and
+ * set the CPU page table entry to "poisoned".
+ *
+ * Note that because memory cgroup charges are transferred to the device memory,
+ * this should never fail due to memory restrictions. However, allocation
+ * of a regular system page might still fail because we are out of memory. If
+ * that happens, the page_fault() callback must return VM_FAULT_OOM.
+ *
+ * The page_fault() callback can also try to migrate back multiple pages in one
+ * chunk, as an optimization. It must, however, prioritize the faulting address
+ * over all the others.
  */
+typedef vm_fault_t (*dev_page_fault_t)(struct vm_area_struct *vma,
+				unsigned long addr,
+				const struct page *page,
+				unsigned int flags,
+				pmd_t *pmdp);
+
 struct hmm_devmem {
 	struct completion		completion;
 	unsigned long			pfn_first;
@@ -503,6 +526,7 @@ struct hmm_devmem {
 	struct dev_pagemap		pagemap;
 	const struct hmm_devmem_ops	*ops;
 	struct percpu_ref		ref;
+	dev_page_fault_t		page_fault;
 };
 
 /*
@@ -512,8 +536,7 @@ struct hmm_devmem {
  * enough and allocate struct page for it.
  *
  * The device driver can wrap the hmm_devmem struct inside a private device
- * driver struct. The device driver must call hmm_devmem_remove() before the
- * device goes away and before freeing the hmm_devmem struct memory.
+ * driver struct.
  */
 struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
 				  struct device *device,
@@ -521,7 +544,6 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
 struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
 					   struct device *device,
 					   struct resource *res);
-void hmm_devmem_remove(struct hmm_devmem *devmem);
 
 /*
  * hmm_devmem_page_set_drvdata - set per-page driver data field

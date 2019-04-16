@@ -54,8 +54,6 @@
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_mid2407>;
 		reset-gpios = <&r_pio 0 6 GPIO_ACTIVE_LOW>; /* PL6 */
 		/* The esp8089 needs 200 ms after driving wifi-en high */
 		post-power-on-delay-ms = <200>;
@@ -71,7 +69,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
+	pinctrl-0 = <&mmc1_pg_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
@@ -82,17 +80,6 @@
 		compatible = "esp,esp8089";
 		reg = <1>;
 		esp,crystal-26M-en = <2>;
-	};
-};
-
-&mmc1_pins_a {
-	bias-pull-up;
-};
-
-&r_pio {
-	wifi_pwrseq_pin_mid2407: wifi_pwrseq_pin@0 {
-		pins = "PL6";
-		function = "gpio_out";
 	};
 };
 

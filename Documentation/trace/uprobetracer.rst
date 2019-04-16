@@ -18,6 +18,10 @@ current_tracer. Instead of that, add probe points via
 However unlike kprobe-event tracer, the uprobe event interface expects the
 user to calculate the offset of the probepoint in the object.
 
+You can also use /sys/kernel/debug/tracing/dynamic_events instead of
+uprobe_events. That interface will provide unified access to other
+dynamic events too.
+
 Synopsis of uprobe_tracer
 -------------------------
 ::
@@ -69,10 +73,9 @@ For $comm, the default type is "string"; any other type is invalid.
 
 Event Profiling
 ---------------
-You can check the total number of probe hits and probe miss-hits via
-/sys/kernel/debug/tracing/uprobe_profile.
-The first column is event name, the second is the number of probe hits,
-the third is the number of probe miss-hits.
+You can check the total number of probe hits per event via
+/sys/kernel/debug/tracing/uprobe_profile. The first column is the filename,
+the second is the event name, the third is the number of probe hits.
 
 Usage examples
 --------------

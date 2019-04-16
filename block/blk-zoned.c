@@ -378,7 +378,7 @@ static struct blk_zone *blk_alloc_zones(int node, unsigned int *nr_zones)
 	struct page *page;
 	int order;
 
-	for (order = get_order(size); order > 0; order--) {
+	for (order = get_order(size); order >= 0; order--) {
 		page = alloc_pages_node(node, GFP_NOIO | __GFP_ZERO, order);
 		if (page) {
 			*nr_zones = min_t(unsigned int, *nr_zones,
@@ -421,7 +421,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	 * BIO based queues do not use a scheduler so only q->nr_zones
 	 * needs to be updated so that the sysfs exposed value is correct.
 	 */
-	if (!queue_is_rq_based(q)) {
+	if (!queue_is_mq(q)) {
 		q->nr_zones = nr_zones;
 		return 0;
 	}

@@ -74,4 +74,6 @@ ENTRY(memcpy)
 #include "copy_template.S"
 	ret
 ENDPIPROC(memcpy)
+EXPORT_SYMBOL(memcpy)
 ENDPROC(__memcpy)
+EXPORT_SYMBOL(__memcpy)

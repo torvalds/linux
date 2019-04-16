@@ -64,17 +64,19 @@ static int ci_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 
 static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 {
-	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 2;
-	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 0;
-	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO] = 1;
-	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VR] = 3;
-	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 4;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT] = 0;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 1;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 2;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO] = 3;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VR] = 4;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 5;
 
-	hwmgr->workload_setting[0] = PP_SMC_POWER_PROFILE_POWERSAVING;
-	hwmgr->workload_setting[1] = PP_SMC_POWER_PROFILE_VIDEO;
-	hwmgr->workload_setting[2] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
-	hwmgr->workload_setting[3] = PP_SMC_POWER_PROFILE_VR;
-	hwmgr->workload_setting[4] = PP_SMC_POWER_PROFILE_COMPUTE;
+	hwmgr->workload_setting[0] = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	hwmgr->workload_setting[1] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	hwmgr->workload_setting[2] = PP_SMC_POWER_PROFILE_POWERSAVING;
+	hwmgr->workload_setting[3] = PP_SMC_POWER_PROFILE_VIDEO;
+	hwmgr->workload_setting[4] = PP_SMC_POWER_PROFILE_VR;
+	hwmgr->workload_setting[5] = PP_SMC_POWER_PROFILE_COMPUTE;
 }
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr)
@@ -271,7 +273,7 @@ int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 
 	phm_stop_thermal_controller(hwmgr);
 	psm_set_boot_states(hwmgr);
-	psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+	psm_adjust_power_state_dynamic(hwmgr, true, NULL);
 	phm_disable_dynamic_state_management(hwmgr);
 	phm_disable_clock_power_gatings(hwmgr);
 
@@ -293,7 +295,7 @@ int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 	ret = psm_set_boot_states(hwmgr);
 	if (ret)
 		return ret;
-	ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+	ret = psm_adjust_power_state_dynamic(hwmgr, true, NULL);
 	if (ret)
 		return ret;
 	ret = phm_power_down_asic(hwmgr);
@@ -323,7 +325,7 @@ int hwmgr_resume(struct pp_hwmgr *hwmgr)
 	if (ret)
 		return ret;
 
-	ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+	ret = psm_adjust_power_state_dynamic(hwmgr, true, NULL);
 
 	return ret;
 }
@@ -352,6 +354,9 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
+		ret = phm_pre_display_configuration_changed(hwmgr);
+		if (ret)
+			return ret;
 		ret = phm_set_cpu_power_state(hwmgr);
 		if (ret)
 			return ret;
@@ -374,12 +379,12 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 		ret = psm_set_user_performance_state(hwmgr, requested_ui_label, &requested_ps);
 		if (ret)
 			return ret;
-		ret = psm_adjust_power_state_dynamic(hwmgr, false, requested_ps);
+		ret = psm_adjust_power_state_dynamic(hwmgr, true, requested_ps);
 		break;
 	}
 	case AMD_PP_TASK_COMPLETE_INIT:
 	case AMD_PP_TASK_READJUST_POWER_STATE:
-		ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+		ret = psm_adjust_power_state_dynamic(hwmgr, true, NULL);
 		break;
 	default:
 		break;

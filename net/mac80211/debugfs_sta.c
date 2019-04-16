@@ -4,7 +4,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -181,9 +181,9 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 			       txqi->tin.tx_bytes,
 			       txqi->tin.tx_packets,
 			       txqi->flags,
-			       txqi->flags & (1<<IEEE80211_TXQ_STOP) ? "STOP" : "RUN",
-			       txqi->flags & (1<<IEEE80211_TXQ_AMPDU) ? " AMPDU" : "",
-			       txqi->flags & (1<<IEEE80211_TXQ_NO_AMSDU) ? " NO-AMSDU" : "");
+			       test_bit(IEEE80211_TXQ_STOP, &txqi->flags) ? "STOP" : "RUN",
+			       test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags) ? " AMPDU" : "",
+			       test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags) ? " NO-AMSDU" : "");
 	}
 
 	rcu_read_unlock();
@@ -194,6 +194,64 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 	return rv;
 }
 STA_OPS(aqm);
+
+static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_local *local = sta->sdata->local;
+	size_t bufsz = 200;
+	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
+	u64 rx_airtime = 0, tx_airtime = 0;
+	s64 deficit[IEEE80211_NUM_ACS];
+	ssize_t rv;
+	int ac;
+
+	if (!buf)
+		return -ENOMEM;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		spin_lock_bh(&local->active_txq_lock[ac]);
+		rx_airtime += sta->airtime[ac].rx_airtime;
+		tx_airtime += sta->airtime[ac].tx_airtime;
+		deficit[ac] = sta->airtime[ac].deficit;
+		spin_unlock_bh(&local->active_txq_lock[ac]);
+	}
+
+	p += scnprintf(p, bufsz + buf - p,
+		"RX: %llu us\nTX: %llu us\nWeight: %u\n"
+		"Deficit: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n",
+		rx_airtime,
+		tx_airtime,
+		sta->airtime_weight,
+		deficit[0],
+		deficit[1],
+		deficit[2],
+		deficit[3]);
+
+	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return rv;
+}
+
+static ssize_t sta_airtime_write(struct file *file, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_local *local = sta->sdata->local;
+	int ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		spin_lock_bh(&local->active_txq_lock[ac]);
+		sta->airtime[ac].rx_airtime = 0;
+		sta->airtime[ac].tx_airtime = 0;
+		sta->airtime[ac].deficit = sta->airtime_weight;
+		spin_unlock_bh(&local->active_txq_lock[ac]);
+	}
+
+	return count;
+}
+STA_OPS_RW(airtime);
 
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
@@ -627,6 +685,9 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	      "SUBCHAN-SELECVITE-TRANSMISSION");
 	PFLAG(MAC, 5, UL_2x996_TONE_RU, "UL-2x996-TONE-RU");
 	PFLAG(MAC, 5, OM_CTRL_UL_MU_DATA_DIS_RX, "OM-CTRL-UL-MU-DATA-DIS-RX");
+	PFLAG(MAC, 5, HE_DYNAMIC_SM_PS, "HE-DYNAMIC-SM-PS");
+	PFLAG(MAC, 5, PUNCTURED_SOUNDING, "PUNCTURED-SOUNDING");
+	PFLAG(MAC, 5, HT_VHT_TRIG_FRAME_RX, "HT-VHT-TRIG-FRAME-RX");
 
 	cap = hec->he_cap_elem.phy_cap_info;
 	p += scnprintf(p, buf_sz + buf - p,
@@ -761,18 +822,18 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 8, MIDAMBLE_RX_TX_2X_AND_1XLTF,
 	      "MIDAMBLE-RX-TX-2X-AND-1XLTF");
 
-	switch (cap[8] & IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_MASK) {
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_20MHZ:
-		PRINT("DDCM-MAX-BW-20MHZ");
+	switch (cap[8] & IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_MASK) {
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242:
+		PRINT("DCM-MAX-RU-242");
 		break;
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_40MHZ:
-		PRINT("DCM-MAX-BW-40MHZ");
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_484:
+		PRINT("DCM-MAX-RU-484");
 		break;
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_80MHZ:
-		PRINT("DCM-MAX-BW-80MHZ");
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_996:
+		PRINT("DCM-MAX-RU-996");
 		break;
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_160_OR_80P80_MHZ:
-		PRINT("DCM-MAX-BW-160-OR-80P80-MHZ");
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_2x996:
+		PRINT("DCM-MAX-RU-2x996");
 		break;
 	}
 
@@ -789,28 +850,40 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 9, RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB,
 	      "RX-FULL-BW-SU-USING-MU-WITH-NON-COMP-SIGB");
 
+	switch (cap[9] & IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) {
+	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_0US:
+		PRINT("NOMINAL-PACKET-PADDING-0US");
+		break;
+	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_8US:
+		PRINT("NOMINAL-PACKET-PADDING-8US");
+		break;
+	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US:
+		PRINT("NOMINAL-PACKET-PADDING-16US");
+		break;
+	}
+
 #undef PFLAG_RANGE_DEFAULT
 #undef PFLAG_RANGE
 #undef PFLAG
 
 #define PRINT_NSS_SUPP(f, n)						\
 	do {								\
-		int i;							\
+		int _i;							\
 		u16 v = le16_to_cpu(nss->f);				\
 		p += scnprintf(p, buf_sz + buf - p, n ": %#.4x\n", v);	\
-		for (i = 0; i < 8; i += 2) {				\
-			switch ((v >> i) & 0x3) {			\
+		for (_i = 0; _i < 8; _i += 2) {				\
+			switch ((v >> _i) & 0x3) {			\
 			case 0:						\
-				PRINT(n "-%d-SUPPORT-0-7", i / 2);	\
+				PRINT(n "-%d-SUPPORT-0-7", _i / 2);	\
 				break;					\
 			case 1:						\
-				PRINT(n "-%d-SUPPORT-0-9", i / 2);	\
+				PRINT(n "-%d-SUPPORT-0-9", _i / 2);	\
 				break;					\
 			case 2:						\
-				PRINT(n "-%d-SUPPORT-0-11", i / 2);	\
+				PRINT(n "-%d-SUPPORT-0-11", _i / 2);	\
 				break;					\
 			case 3:						\
-				PRINT(n "-%d-NOT-SUPPORTED", i / 2);	\
+				PRINT(n "-%d-NOT-SUPPORTED", _i / 2);	\
 				break;					\
 			}						\
 		}							\
@@ -905,6 +978,10 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	if (local->ops->wake_tx_queue)
 		DEBUGFS_ADD(aqm);
+
+	if (wiphy_ext_feature_isset(local->hw.wiphy,
+				    NL80211_EXT_FEATURE_AIRTIME_FAIRNESS))
+		DEBUGFS_ADD(airtime);
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
 		debugfs_create_x32("driver_buffered_tids", 0400,

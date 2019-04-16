@@ -27,7 +27,7 @@
 #include "registers.h"
 #include "hw.h"
 
-#define IOAT_DMA_VERSION  "4.00"
+#define IOAT_DMA_VERSION  "5.00"
 
 #define IOAT_DMA_DCA_ANY_CPU		~0
 

@@ -122,7 +122,7 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (dma_fence_is_signaled(f))
 		return true;
 
-	if (!kgd2kfd->schedule_evict_and_restore_process(fence->mm, f))
+	if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, f))
 		return true;
 
 	return false;

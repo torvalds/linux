@@ -10,69 +10,6 @@
 #include "i40e_xsk.h"
 
 /**
- * i40e_alloc_xsk_umems - Allocate an array to store per ring UMEMs
- * @vsi: Current VSI
- *
- * Returns 0 on success, <0 on failure
- **/
-static int i40e_alloc_xsk_umems(struct i40e_vsi *vsi)
-{
-	if (vsi->xsk_umems)
-		return 0;
-
-	vsi->num_xsk_umems_used = 0;
-	vsi->num_xsk_umems = vsi->alloc_queue_pairs;
-	vsi->xsk_umems = kcalloc(vsi->num_xsk_umems, sizeof(*vsi->xsk_umems),
-				 GFP_KERNEL);
-	if (!vsi->xsk_umems) {
-		vsi->num_xsk_umems = 0;
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-/**
- * i40e_add_xsk_umem - Store an UMEM for a certain ring/qid
- * @vsi: Current VSI
- * @umem: UMEM to store
- * @qid: Ring/qid to associate with the UMEM
- *
- * Returns 0 on success, <0 on failure
- **/
-static int i40e_add_xsk_umem(struct i40e_vsi *vsi, struct xdp_umem *umem,
-			     u16 qid)
-{
-	int err;
-
-	err = i40e_alloc_xsk_umems(vsi);
-	if (err)
-		return err;
-
-	vsi->xsk_umems[qid] = umem;
-	vsi->num_xsk_umems_used++;
-
-	return 0;
-}
-
-/**
- * i40e_remove_xsk_umem - Remove an UMEM for a certain ring/qid
- * @vsi: Current VSI
- * @qid: Ring/qid associated with the UMEM
- **/
-static void i40e_remove_xsk_umem(struct i40e_vsi *vsi, u16 qid)
-{
-	vsi->xsk_umems[qid] = NULL;
-	vsi->num_xsk_umems_used--;
-
-	if (vsi->num_xsk_umems == 0) {
-		kfree(vsi->xsk_umems);
-		vsi->xsk_umems = NULL;
-		vsi->num_xsk_umems = 0;
-	}
-}
-
-/**
  * i40e_xsk_umem_dma_map - DMA maps all UMEM memory for the netdev
  * @vsi: Current VSI
  * @umem: UMEM to DMA map
@@ -130,7 +67,7 @@ static void i40e_xsk_umem_dma_unmap(struct i40e_vsi *vsi, struct xdp_umem *umem)
 }
 
 /**
- * i40e_xsk_umem_enable - Enable/associate an UMEM to a certain ring/qid
+ * i40e_xsk_umem_enable - Enable/associate a UMEM to a certain ring/qid
  * @vsi: Current VSI
  * @umem: UMEM
  * @qid: Rx ring to associate UMEM to
@@ -140,6 +77,7 @@ static void i40e_xsk_umem_dma_unmap(struct i40e_vsi *vsi, struct xdp_umem *umem)
 static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 				u16 qid)
 {
+	struct net_device *netdev = vsi->netdev;
 	struct xdp_umem_fq_reuse *reuseq;
 	bool if_running;
 	int err;
@@ -150,12 +88,9 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 	if (qid >= vsi->num_queue_pairs)
 		return -EINVAL;
 
-	if (vsi->xsk_umems) {
-		if (qid >= vsi->num_xsk_umems)
-			return -EINVAL;
-		if (vsi->xsk_umems[qid])
-			return -EBUSY;
-	}
+	if (qid >= netdev->real_num_rx_queues ||
+	    qid >= netdev->real_num_tx_queues)
+		return -EINVAL;
 
 	reuseq = xsk_reuseq_prepare(vsi->rx_rings[0]->count);
 	if (!reuseq)
@@ -173,14 +108,13 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 		err = i40e_queue_pair_disable(vsi, qid);
 		if (err)
 			return err;
-	}
 
-	err = i40e_add_xsk_umem(vsi, umem, qid);
-	if (err)
-		return err;
-
-	if (if_running) {
 		err = i40e_queue_pair_enable(vsi, qid);
+		if (err)
+			return err;
+
+		/* Kick start the NAPI context so that receiving will start */
+		err = i40e_xsk_async_xmit(vsi->netdev, qid);
 		if (err)
 			return err;
 	}
@@ -189,7 +123,7 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 }
 
 /**
- * i40e_xsk_umem_disable - Diassociate an UMEM from a certain ring/qid
+ * i40e_xsk_umem_disable - Disassociate a UMEM from a certain ring/qid
  * @vsi: Current VSI
  * @qid: Rx ring to associate UMEM to
  *
@@ -197,11 +131,13 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
  **/
 static int i40e_xsk_umem_disable(struct i40e_vsi *vsi, u16 qid)
 {
+	struct net_device *netdev = vsi->netdev;
+	struct xdp_umem *umem;
 	bool if_running;
 	int err;
 
-	if (!vsi->xsk_umems || qid >= vsi->num_xsk_umems ||
-	    !vsi->xsk_umems[qid])
+	umem = xdp_get_umem_from_qid(netdev, qid);
+	if (!umem)
 		return -EINVAL;
 
 	if_running = netif_running(vsi->netdev) && i40e_enabled_xdp_vsi(vsi);
@@ -212,8 +148,7 @@ static int i40e_xsk_umem_disable(struct i40e_vsi *vsi, u16 qid)
 			return err;
 	}
 
-	i40e_xsk_umem_dma_unmap(vsi, vsi->xsk_umems[qid]);
-	i40e_remove_xsk_umem(vsi, qid);
+	i40e_xsk_umem_dma_unmap(vsi, umem);
 
 	if (if_running) {
 		err = i40e_queue_pair_enable(vsi, qid);
@@ -225,42 +160,12 @@ static int i40e_xsk_umem_disable(struct i40e_vsi *vsi, u16 qid)
 }
 
 /**
- * i40e_xsk_umem_query - Queries a certain ring/qid for its UMEM
- * @vsi: Current VSI
- * @umem: UMEM associated to the ring, if any
- * @qid: Rx ring to associate UMEM to
- *
- * This function will store, if any, the UMEM associated to certain ring.
- *
- * Returns 0 on success, <0 on failure
- **/
-int i40e_xsk_umem_query(struct i40e_vsi *vsi, struct xdp_umem **umem,
-			u16 qid)
-{
-	if (vsi->type != I40E_VSI_MAIN)
-		return -EINVAL;
-
-	if (qid >= vsi->num_queue_pairs)
-		return -EINVAL;
-
-	if (vsi->xsk_umems) {
-		if (qid >= vsi->num_xsk_umems)
-			return -EINVAL;
-		*umem = vsi->xsk_umems[qid];
-		return 0;
-	}
-
-	*umem = NULL;
-	return 0;
-}
-
-/**
- * i40e_xsk_umem_query - Queries a certain ring/qid for its UMEM
+ * i40e_xsk_umem_setup - Enable/disassociate a UMEM to/from a ring/qid
  * @vsi: Current VSI
  * @umem: UMEM to enable/associate to a ring, or NULL to disable
  * @qid: Rx ring to (dis)associate UMEM (from)to
  *
- * This function enables or disables an UMEM to a certain ring.
+ * This function enables or disables a UMEM to a certain ring.
  *
  * Returns 0 on success, <0 on failure
  **/
@@ -276,7 +181,7 @@ int i40e_xsk_umem_setup(struct i40e_vsi *vsi, struct xdp_umem *umem,
  * @rx_ring: Rx ring
  * @xdp: xdp_buff used as input to the XDP program
  *
- * This function enables or disables an UMEM to a certain ring.
+ * This function enables or disables a UMEM to a certain ring.
  *
  * Returns any of I40E_XDP_{PASS, CONSUMED, TX, REDIR}
  **/
@@ -634,8 +539,6 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		struct i40e_rx_buffer *bi;
 		union i40e_rx_desc *rx_desc;
 		unsigned int size;
-		u16 vlan_tag;
-		u8 rx_ptype;
 		u64 qword;
 
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
@@ -713,14 +616,8 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-			   I40E_RXD_QW1_PTYPE_SHIFT;
-		i40e_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
-
-		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
-			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
-		i40e_receive_skb(rx_ring, skb, vlan_tag);
+		i40e_process_skb_fields(rx_ring, rx_desc, skb);
+		napi_gro_receive(&rx_ring->q_vector->napi, skb);
 	}
 
 	i40e_finalize_xdp_rx(rx_ring, xdp_xmit);
@@ -953,13 +850,11 @@ void i40e_xsk_clean_tx_ring(struct i40e_ring *tx_ring)
  **/
 bool i40e_xsk_any_rx_ring_enabled(struct i40e_vsi *vsi)
 {
+	struct net_device *netdev = vsi->netdev;
 	int i;
 
-	if (!vsi->xsk_umems)
-		return false;
-
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		if (vsi->xsk_umems[i])
+		if (xdp_get_umem_from_qid(netdev, i))
 			return true;
 	}
 

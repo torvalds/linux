@@ -7,16 +7,6 @@
 #define __XFS_RMAP_H__
 
 static inline void
-xfs_rmap_ag_owner(
-	struct xfs_owner_info	*oi,
-	uint64_t		owner)
-{
-	oi->oi_owner = owner;
-	oi->oi_offset = 0;
-	oi->oi_flags = 0;
-}
-
-static inline void
 xfs_rmap_ino_bmbt_owner(
 	struct xfs_owner_info	*oi,
 	xfs_ino_t		ino,
@@ -43,25 +33,11 @@ xfs_rmap_ino_owner(
 		oi->oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
 }
 
-static inline void
-xfs_rmap_skip_owner_update(
-	struct xfs_owner_info	*oi)
-{
-	xfs_rmap_ag_owner(oi, XFS_RMAP_OWN_NULL);
-}
-
 static inline bool
 xfs_rmap_should_skip_owner_update(
-	struct xfs_owner_info	*oi)
+	const struct xfs_owner_info	*oi)
 {
 	return oi->oi_owner == XFS_RMAP_OWN_NULL;
-}
-
-static inline void
-xfs_rmap_any_owner_update(
-	struct xfs_owner_info	*oi)
-{
-	xfs_rmap_ag_owner(oi, XFS_RMAP_OWN_UNKNOWN);
 }
 
 /* Reverse mapping functions. */
@@ -103,12 +79,12 @@ xfs_rmap_irec_offset_unpack(
 
 static inline void
 xfs_owner_info_unpack(
-	struct xfs_owner_info	*oinfo,
-	uint64_t		*owner,
-	uint64_t		*offset,
-	unsigned int		*flags)
+	const struct xfs_owner_info	*oinfo,
+	uint64_t			*owner,
+	uint64_t			*offset,
+	unsigned int			*flags)
 {
-	unsigned int		r = 0;
+	unsigned int			r = 0;
 
 	*owner = oinfo->oi_owner;
 	*offset = oinfo->oi_offset;
@@ -137,10 +113,10 @@ xfs_owner_info_pack(
 
 int xfs_rmap_alloc(struct xfs_trans *tp, struct xfs_buf *agbp,
 		   xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
-		   struct xfs_owner_info *oinfo);
+		   const struct xfs_owner_info *oinfo);
 int xfs_rmap_free(struct xfs_trans *tp, struct xfs_buf *agbp,
 		  xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
-		  struct xfs_owner_info *oinfo);
+		  const struct xfs_owner_info *oinfo);
 
 int xfs_rmap_lookup_le(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, uint64_t owner, uint64_t offset,
@@ -218,11 +194,21 @@ int xfs_rmap_btrec_to_irec(union xfs_btree_rec *rec,
 int xfs_rmap_has_record(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		xfs_extlen_t len, bool *exists);
 int xfs_rmap_record_exists(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-		xfs_extlen_t len, struct xfs_owner_info *oinfo,
+		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
 		bool *has_rmap);
 int xfs_rmap_has_other_keys(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-		xfs_extlen_t len, struct xfs_owner_info *oinfo,
+		xfs_extlen_t len, const struct xfs_owner_info *oinfo,
 		bool *has_rmap);
 int xfs_rmap_map_raw(struct xfs_btree_cur *cur, struct xfs_rmap_irec *rmap);
+
+extern const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_ANY_OWNER;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_FS;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_LOG;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_AG;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_INOBT;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_INODES;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_REFC;
+extern const struct xfs_owner_info XFS_RMAP_OINFO_COW;
 
 #endif	/* __XFS_RMAP_H__ */

@@ -648,14 +648,23 @@ static const struct of_device_id of_imx_thermal_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
+#ifdef CONFIG_CPU_FREQ
 /*
  * Create cooling device in case no #cooling-cells property is available in
  * CPU node
  */
 static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 {
-	struct device_node *np = of_get_cpu_node(data->policy->cpu, NULL);
+	struct device_node *np;
 	int ret;
+
+	data->policy = cpufreq_cpu_get(0);
+	if (!data->policy) {
+		pr_debug("%s: CPUFreq policy not found\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	np = of_get_cpu_node(data->policy->cpu, NULL);
 
 	if (!np || !of_find_property(np, "#cooling-cells", NULL)) {
 		data->cdev = cpufreq_cooling_register(data->policy);
@@ -668,6 +677,24 @@ static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 
 	return 0;
 }
+
+static void imx_thermal_unregister_legacy_cooling(struct imx_thermal_data *data)
+{
+	cpufreq_cooling_unregister(data->cdev);
+	cpufreq_cpu_put(data->policy);
+}
+
+#else
+
+static inline int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
+{
+	return 0;
+}
+
+static inline void imx_thermal_unregister_legacy_cooling(struct imx_thermal_data *data)
+{
+}
+#endif
 
 static int imx_thermal_probe(struct platform_device *pdev)
 {
@@ -715,9 +742,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	if (of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
 		ret = imx_init_from_nvmem_cells(pdev);
-		if (ret == -EPROBE_DEFER)
-			return ret;
 		if (ret) {
+			if (ret == -EPROBE_DEFER)
+				return ret;
+
 			dev_err(&pdev->dev, "failed to init from nvmem: %d\n",
 				ret);
 			return ret;
@@ -743,14 +771,11 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	regmap_write(map, data->socdata->sensor_ctrl + REG_SET,
 		     data->socdata->power_down_mask);
 
-	data->policy = cpufreq_cpu_get(0);
-	if (!data->policy) {
-		pr_debug("%s: CPUFreq policy not found\n", __func__);
-		return -EPROBE_DEFER;
-	}
-
 	ret = imx_thermal_register_legacy_cooling(data);
 	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
 		dev_err(&pdev->dev,
 			"failed to register cpufreq cooling device: %d\n", ret);
 		return ret;
@@ -762,7 +787,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev,
 				"failed to get thermal clk: %d\n", ret);
-		goto cpufreq_put;
+		goto legacy_cleanup;
 	}
 
 	/*
@@ -775,7 +800,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(data->thermal_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
-		goto cpufreq_put;
+		goto legacy_cleanup;
 	}
 
 	data->tz = thermal_zone_device_register("imx_thermal_zone",
@@ -829,9 +854,8 @@ thermal_zone_unregister:
 	thermal_zone_device_unregister(data->tz);
 clk_disable:
 	clk_disable_unprepare(data->thermal_clk);
-cpufreq_put:
-	cpufreq_cooling_unregister(data->cdev);
-	cpufreq_cpu_put(data->policy);
+legacy_cleanup:
+	imx_thermal_unregister_legacy_cooling(data);
 
 	return ret;
 }

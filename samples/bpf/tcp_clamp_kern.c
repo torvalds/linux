@@ -9,7 +9,7 @@
  * the same datacenter. For his example, we assume they are within the same
  * datacenter when the first 5.5 bytes of their IPv6 addresses are the same.
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>

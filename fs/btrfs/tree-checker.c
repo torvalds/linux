@@ -27,10 +27,10 @@
  *
  * @type:	leaf or node
  * @identifier:	the necessary info to locate the leaf/node.
- * 		It's recommened to decode key.objecitd/offset if it's
+ * 		It's recommended to decode key.objecitd/offset if it's
  * 		meaningful.
  * @reason:	describe the error
- * @bad_value:	optional, it's recommened to output bad value and its
+ * @bad_value:	optional, it's recommended to output bad value and its
  *		expected value (range).
  *
  * Since comma is used to separate the components, only space is allowed
@@ -130,7 +130,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 	}
 
 	/*
-	 * Support for new compression/encrption must introduce incompat flag,
+	 * Support for new compression/encryption must introduce incompat flag,
 	 * and must be caught in open_ctree().
 	 */
 	if (btrfs_file_extent_compression(leaf, fi) > BTRFS_COMPRESS_TYPES) {
@@ -389,13 +389,11 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * Here we don't really care about alignment since extent allocator can
-	 * handle it.  We care more about the size, as if one block group is
-	 * larger than maximum size, it's must be some obvious corruption.
+	 * handle it.  We care more about the size.
 	 */
-	if (key->offset > BTRFS_MAX_DATA_CHUNK_SIZE || key->offset == 0) {
+	if (key->offset == 0) {
 		block_group_err(fs_info, leaf, slot,
-			"invalid block group size, have %llu expect (0, %llu]",
-				key->offset, BTRFS_MAX_DATA_CHUNK_SIZE);
+				"invalid block group size 0");
 		return -EUCLEAN;
 	}
 

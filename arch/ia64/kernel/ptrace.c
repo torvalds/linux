@@ -836,7 +836,7 @@ ptrace_getregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 	char nat = 0;
 	int i;
 
-	if (!access_ok(VERIFY_WRITE, ppr, sizeof(struct pt_all_user_regs)))
+	if (!access_ok(ppr, sizeof(struct pt_all_user_regs)))
 		return -EIO;
 
 	pt = task_pt_regs(child);
@@ -981,7 +981,7 @@ ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 
 	memset(&fpval, 0, sizeof(fpval));
 
-	if (!access_ok(VERIFY_READ, ppr, sizeof(struct pt_all_user_regs)))
+	if (!access_ok(ppr, sizeof(struct pt_all_user_regs)))
 		return -EIO;
 
 	pt = task_pt_regs(child);

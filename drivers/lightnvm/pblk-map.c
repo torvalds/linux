@@ -22,7 +22,7 @@
 static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 			      struct ppa_addr *ppa_list,
 			      unsigned long *lun_bitmap,
-			      struct pblk_sec_meta *meta_list,
+			      void *meta_list,
 			      unsigned int valid_secs)
 {
 	struct pblk_line *line = pblk_line_get_data(pblk);
@@ -33,6 +33,9 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 	int nr_secs = pblk->min_write_pgs;
 	int i;
 
+	if (!line)
+		return -ENOSPC;
+
 	if (pblk_line_is_full(line)) {
 		struct pblk_line *prev_line = line;
 
@@ -42,8 +45,11 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 		line = pblk_line_replace_data(pblk);
 		pblk_line_close_meta(pblk, prev_line);
 
-		if (!line)
-			return -EINTR;
+		if (!line) {
+			pblk_pipeline_stop(pblk);
+			return -ENOSPC;
+		}
+
 	}
 
 	emeta = line->emeta;
@@ -52,6 +58,7 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 	paddr = pblk_alloc_page(pblk, line, nr_secs);
 
 	for (i = 0; i < nr_secs; i++, paddr++) {
+		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
 		__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
 
 		/* ppa to be sent to the device */
@@ -66,16 +73,18 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 		 */
 		if (i < valid_secs) {
 			kref_get(&line->ref);
+			atomic_inc(&line->sec_to_update);
 			w_ctx = pblk_rb_w_ctx(&pblk->rwb, sentry + i);
 			w_ctx->ppa = ppa_list[i];
-			meta_list[i].lba = cpu_to_le64(w_ctx->lba);
+			meta->lba = cpu_to_le64(w_ctx->lba);
 			lba_list[paddr] = cpu_to_le64(w_ctx->lba);
 			if (lba_list[paddr] != addr_empty)
 				line->nr_valid_lbas++;
 			else
 				atomic64_inc(&pblk->pad_wa);
 		} else {
-			lba_list[paddr] = meta_list[i].lba = addr_empty;
+			lba_list[paddr] = addr_empty;
+			meta->lba = addr_empty;
 			__pblk_map_invalidate(pblk, line, paddr);
 		}
 	}
@@ -84,50 +93,57 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 	return 0;
 }
 
-void pblk_map_rq(struct pblk *pblk, struct nvm_rq *rqd, unsigned int sentry,
+int pblk_map_rq(struct pblk *pblk, struct nvm_rq *rqd, unsigned int sentry,
 		 unsigned long *lun_bitmap, unsigned int valid_secs,
 		 unsigned int off)
 {
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	void *meta_list = pblk_get_meta_for_writes(pblk, rqd);
+	void *meta_buffer;
 	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	unsigned int map_secs;
 	int min = pblk->min_write_pgs;
 	int i;
+	int ret;
 
 	for (i = off; i < rqd->nr_ppas; i += min) {
 		map_secs = (i + min > valid_secs) ? (valid_secs % min) : min;
-		if (pblk_map_page_data(pblk, sentry + i, &ppa_list[i],
-					lun_bitmap, &meta_list[i], map_secs)) {
-			bio_put(rqd->bio);
-			pblk_free_rqd(pblk, rqd, PBLK_WRITE);
-			pblk_pipeline_stop(pblk);
-		}
+		meta_buffer = pblk_get_meta(pblk, meta_list, i);
+
+		ret = pblk_map_page_data(pblk, sentry + i, &ppa_list[i],
+					lun_bitmap, meta_buffer, map_secs);
+		if (ret)
+			return ret;
 	}
+
+	return 0;
 }
 
 /* only if erase_ppa is set, acquire erase semaphore */
-void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
+int pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		       unsigned int sentry, unsigned long *lun_bitmap,
 		       unsigned int valid_secs, struct ppa_addr *erase_ppa)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_meta *lm = &pblk->lm;
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	void *meta_list = pblk_get_meta_for_writes(pblk, rqd);
+	void *meta_buffer;
 	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	struct pblk_line *e_line, *d_line;
 	unsigned int map_secs;
 	int min = pblk->min_write_pgs;
 	int i, erase_lun;
+	int ret;
+
 
 	for (i = 0; i < rqd->nr_ppas; i += min) {
 		map_secs = (i + min > valid_secs) ? (valid_secs % min) : min;
-		if (pblk_map_page_data(pblk, sentry + i, &ppa_list[i],
-					lun_bitmap, &meta_list[i], map_secs)) {
-			bio_put(rqd->bio);
-			pblk_free_rqd(pblk, rqd, PBLK_WRITE);
-			pblk_pipeline_stop(pblk);
-		}
+		meta_buffer = pblk_get_meta(pblk, meta_list, i);
+
+		ret = pblk_map_page_data(pblk, sentry + i, &ppa_list[i],
+					lun_bitmap, meta_buffer, map_secs);
+		if (ret)
+			return ret;
 
 		erase_lun = pblk_ppa_to_pos(geo, ppa_list[i]);
 
@@ -163,7 +179,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	 */
 	e_line = pblk_line_get_erase(pblk);
 	if (!e_line)
-		return;
+		return -ENOSPC;
 
 	/* Erase blocks that are bad in this line but might not be in next */
 	if (unlikely(pblk_ppa_empty(*erase_ppa)) &&
@@ -174,7 +190,7 @@ retry:
 		bit = find_next_bit(d_line->blk_bitmap,
 						lm->blk_per_line, bit + 1);
 		if (bit >= lm->blk_per_line)
-			return;
+			return 0;
 
 		spin_lock(&e_line->lock);
 		if (test_bit(bit, e_line->erase_bitmap)) {
@@ -188,4 +204,6 @@ retry:
 		*erase_ppa = pblk->luns[bit].bppa; /* set ch and lun */
 		erase_ppa->a.blk = e_line->id;
 	}
+
+	return 0;
 }

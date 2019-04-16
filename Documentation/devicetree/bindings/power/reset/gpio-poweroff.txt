@@ -27,6 +27,8 @@ Optional properties:
   it to an output when the power-off handler is called. If this optional
   property is not specified, the GPIO is initialized as an output in its
   inactive state.
+- active-delay-ms: Delay (default 100) to wait after driving gpio active
+- inactive-delay-ms: Delay (default 100) to wait after driving gpio inactive
 - timeout-ms: Time to wait before asserting a WARN_ON(1). If nothing is
               specified, 3000 ms is used.
 

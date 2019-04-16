@@ -38,6 +38,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/dmi.h>
 
 #define WATCHDOG_NAME "w83627hf/thf/hg/dhg WDT"
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
@@ -46,6 +47,8 @@ static int wdt_io;
 static int cr_wdt_timeout;	/* WDT timeout register */
 static int cr_wdt_control;	/* WDT control register */
 static int cr_wdt_csr;		/* WDT control & status register */
+static int wdt_cfg_enter = 0x87;/* key to unlock configuration space */
+static int wdt_cfg_leave = 0xAA;/* key to lock configuration space */
 
 enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
 	     w83687thf, w83627ehf, w83627dhg, w83627uhg, w83667hg, w83627dhg_p,
@@ -130,8 +133,8 @@ static int superio_enter(void)
 	if (!request_muxed_region(wdt_io, 2, WATCHDOG_NAME))
 		return -EBUSY;
 
-	outb_p(0x87, WDT_EFER); /* Enter extended function mode */
-	outb_p(0x87, WDT_EFER); /* Again according to manual */
+	outb_p(wdt_cfg_enter, WDT_EFER); /* Enter extended function mode */
+	outb_p(wdt_cfg_enter, WDT_EFER); /* Again according to manual */
 
 	return 0;
 }
@@ -143,7 +146,7 @@ static void superio_select(int ld)
 
 static void superio_exit(void)
 {
-	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
+	outb_p(wdt_cfg_leave, WDT_EFER); /* Leave extended function mode */
 	release_region(wdt_io, 2);
 }
 
@@ -430,6 +433,32 @@ static int wdt_find(int addr)
 	return ret;
 }
 
+/*
+ * On some systems, the NCT6791D comes with a companion chip and the
+ * watchdog function is in this companion chip. We must use a different
+ * unlocking sequence to access the companion chip.
+ */
+static int __init wdt_use_alt_key(const struct dmi_system_id *d)
+{
+	wdt_cfg_enter = 0x88;
+	wdt_cfg_leave = 0xBB;
+
+	return 0;
+}
+
+static const struct dmi_system_id wdt_dmi_table[] __initconst = {
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "INVES"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CTS"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "INVES"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SHARKBAY"),
+		},
+		.callback = wdt_use_alt_key,
+	},
+	{}
+};
+
 static int __init wdt_init(void)
 {
 	int ret;
@@ -458,6 +487,9 @@ static int __init wdt_init(void)
 		"NCT6796",
 		"NCT6102",
 	};
+
+	/* Apply system-specific quirks */
+	dmi_check_system(wdt_dmi_table);
 
 	wdt_io = 0x2e;
 	chip = wdt_find(0x2e);

@@ -115,12 +115,12 @@ static struct spi_board_info mcp251x_board_info[] = {
 	}
 };
 
-static struct pxa2xx_spi_master pxa_ssp3_spi_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp3_spi_master_info = {
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };
 
-static struct pxa2xx_spi_master pxa_ssp4_spi_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp4_spi_master_info = {
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };

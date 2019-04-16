@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 
 	/* Create a cgroup, get fd, and join it */
 	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (!cgroup_fd) {
+	if (cgroup_fd < 0) {
 		printf("Failed to create test cgroup\n");
 		goto err;
 	}
@@ -81,7 +81,10 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	assert(system("ping localhost -6 -c 10000 -f -q > /dev/null") == 0);
+	if (system("which ping6 &>/dev/null") == 0)
+		assert(!system("ping6 localhost -c 10000 -f -q > /dev/null"));
+	else
+		assert(!system("ping -6 localhost -c 10000 -f -q > /dev/null"));
 
 	if (bpf_prog_query(cgroup_fd, BPF_CGROUP_INET_EGRESS, 0, NULL, NULL,
 			   &prog_cnt)) {

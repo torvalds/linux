@@ -3,7 +3,7 @@
  *
  * Module Name: exserial - field_unit support for serial address spaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("exserial")
  * FUNCTION:    acpi_ex_read_gpio
  *
  * PARAMETERS:  obj_desc            - The named field to read
- *              buffer              - Where the return data is returnd
+ *              buffer              - Where the return data is returned
  *
  * RETURN:      Status
  *
@@ -282,14 +282,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	case ACPI_ADR_SPACE_SMBUS:
 
 		buffer_length = ACPI_SMBUS_BUFFER_SIZE;
-		data_length = ACPI_SMBUS_DATA_SIZE;
 		function = ACPI_WRITE | (obj_desc->field.attribute << 16);
 		break;
 
 	case ACPI_ADR_SPACE_IPMI:
 
 		buffer_length = ACPI_IPMI_BUFFER_SIZE;
-		data_length = ACPI_IPMI_DATA_SIZE;
 		function = ACPI_WRITE;
 		break;
 
@@ -310,27 +308,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 		/* Add header length to get the full size of the buffer */
 
 		buffer_length += ACPI_SERIAL_HEADER_SIZE;
-		data_length = source_desc->buffer.pointer[1];
 		function = ACPI_WRITE | (accessor_type << 16);
 		break;
 
 	default:
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
-
-#if 0
-	OBSOLETE ?
-	    /* Check for possible buffer overflow */
-	    if (data_length > source_desc->buffer.length) {
-		ACPI_ERROR((AE_INFO,
-			    "Length in buffer header (%u)(%u) is greater than "
-			    "the physical buffer length (%u) and will overflow",
-			    data_length, buffer_length,
-			    source_desc->buffer.length));
-
-		return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
-	}
-#endif
 
 	/* Create the transfer/bidirectional/return buffer */
 
@@ -342,6 +325,8 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	/* Copy the input buffer data to the transfer buffer */
 
 	buffer = buffer_desc->buffer.pointer;
+	data_length = (buffer_length < source_desc->buffer.length ?
+		       buffer_length : source_desc->buffer.length);
 	memcpy(buffer, source_desc->buffer.pointer, data_length);
 
 	/* Lock entire transaction if requested */

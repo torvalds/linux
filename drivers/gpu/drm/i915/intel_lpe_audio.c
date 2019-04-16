@@ -65,6 +65,7 @@
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_device.h>
 
 #include "i915_drv.h"
 #include <linux/delay.h>

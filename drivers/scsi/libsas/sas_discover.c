@@ -128,7 +128,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 					  SAS_FANOUT_EXPANDER_DEVICE);
 		break;
 	default:
-		printk("ERROR: Unidentified device type %d\n", dev->dev_type);
+		pr_warn("ERROR: Unidentified device type %d\n", dev->dev_type);
 		rphy = NULL;
 		break;
 	}
@@ -186,10 +186,9 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 
 	res = i->dft->lldd_dev_found(dev);
 	if (res) {
-		printk("sas: driver on pcidev %s cannot handle "
-		       "device %llx, error:%d\n",
-		       dev_name(sas_ha->dev),
-		       SAS_ADDR(dev->sas_addr), res);
+		pr_warn("driver on host %s cannot handle device %llx, error:%d\n",
+			dev_name(sas_ha->dev),
+			SAS_ADDR(dev->sas_addr), res);
 	}
 	set_bit(SAS_DEV_FOUND, &dev->state);
 	kref_get(&dev->kref);
@@ -456,8 +455,8 @@ static void sas_discover_domain(struct work_struct *work)
 		return;
 	dev = port->port_dev;
 
-	SAS_DPRINTK("DOING DISCOVERY on port %d, pid:%d\n", port->id,
-		    task_pid_nr(current));
+	pr_debug("DOING DISCOVERY on port %d, pid:%d\n", port->id,
+		 task_pid_nr(current));
 
 	switch (dev->dev_type) {
 	case SAS_END_DEVICE:
@@ -473,12 +472,12 @@ static void sas_discover_domain(struct work_struct *work)
 		error = sas_discover_sata(dev);
 		break;
 #else
-		SAS_DPRINTK("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
+		pr_notice("ATA device seen but CONFIG_SCSI_SAS_ATA=N so cannot attach\n");
 		/* Fall through */
 #endif
 	default:
 		error = -ENXIO;
-		SAS_DPRINTK("unhandled device %d\n", dev->dev_type);
+		pr_err("unhandled device %d\n", dev->dev_type);
 		break;
 	}
 
@@ -495,8 +494,8 @@ static void sas_discover_domain(struct work_struct *work)
 
 	sas_probe_devices(port);
 
-	SAS_DPRINTK("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
-		    task_pid_nr(current), error);
+	pr_debug("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
+		 task_pid_nr(current), error);
 }
 
 static void sas_revalidate_domain(struct work_struct *work)
@@ -510,22 +509,22 @@ static void sas_revalidate_domain(struct work_struct *work)
 	/* prevent revalidation from finding sata links in recovery */
 	mutex_lock(&ha->disco_mutex);
 	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)) {
-		SAS_DPRINTK("REVALIDATION DEFERRED on port %d, pid:%d\n",
-			    port->id, task_pid_nr(current));
+		pr_debug("REVALIDATION DEFERRED on port %d, pid:%d\n",
+			 port->id, task_pid_nr(current));
 		goto out;
 	}
 
 	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
-	SAS_DPRINTK("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
-		    task_pid_nr(current));
+	pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
+		 task_pid_nr(current));
 
 	if (ddev && (ddev->dev_type == SAS_FANOUT_EXPANDER_DEVICE ||
 		     ddev->dev_type == SAS_EDGE_EXPANDER_DEVICE))
 		res = sas_ex_revalidate_domain(ddev);
 
-	SAS_DPRINTK("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
-		    port->id, task_pid_nr(current), res);
+	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
+		 port->id, task_pid_nr(current), res);
  out:
 	mutex_unlock(&ha->disco_mutex);
 

@@ -320,21 +320,10 @@ static void tpo_td043_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int tpo_td043_enable(struct omap_dss_device *dssdev)
+static void tpo_td043_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 	int r;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	/*
 	 * If we are resuming from system suspend, SPI clocks might not be
@@ -343,38 +332,27 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	if (!ddata->spi_suspended) {
 		r = tpo_td043_power_on(ddata);
 		if (r) {
-			src->ops->disable(src);
-			return r;
+			dev_err(&ddata->spi->dev, "%s: power on failed (%d)\n",
+				__func__, r);
+			return;
 		}
 	}
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void tpo_td043_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
-	src->ops->disable(src);
 
 	if (!ddata->spi_suspended)
 		tpo_td043_power_off(ddata);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
+static int tpo_td043_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops tpo_td043_ops = {
@@ -384,7 +362,7 @@ static const struct omap_dss_device_ops tpo_td043_ops = {
 	.enable		= tpo_td043_enable,
 	.disable	= tpo_td043_disable,
 
-	.get_timings	= tpo_td043_get_timings,
+	.get_modes	= tpo_td043_get_modes,
 };
 
 static int tpo_td043_probe(struct spi_device *spi)
@@ -442,15 +420,18 @@ static int tpo_td043_probe(struct spi_device *spi)
 	dssdev->dev = &spi->dev;
 	dssdev->ops = &tpo_td043_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 
 	/*
 	 * Note: According to the panel documentation:
 	 * SYNC needs to be driven on the FALLING edge
 	 */
-	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
-			  | DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);
@@ -467,7 +448,8 @@ static int tpo_td043_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	tpo_td043_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		tpo_td043_disable(dssdev);
 
 	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
 

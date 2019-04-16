@@ -176,6 +176,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  *
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
+ * If the buffer is imported and the virtual address is set, it is released.
  * Drivers using the CMA helpers should set this as their
  * &drm_driver.gem_free_object_unlocked callback.
  */
@@ -189,6 +190,8 @@ void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 		dma_free_wc(gem_obj->dev->dev, cma_obj->base.size,
 			    cma_obj->vaddr, cma_obj->paddr);
 	} else if (gem_obj->import_attach) {
+		if (cma_obj->vaddr)
+			dma_buf_vunmap(gem_obj->import_attach->dmabuf, cma_obj->vaddr);
 		drm_prime_gem_destroy(gem_obj, cma_obj->sgt);
 	}
 
@@ -575,3 +578,86 @@ void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	/* Nothing to do */
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vunmap);
+
+static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
+	.free = drm_gem_cma_free_object,
+	.print_info = drm_gem_cma_print_info,
+	.get_sg_table = drm_gem_cma_prime_get_sg_table,
+	.vmap = drm_gem_cma_prime_vmap,
+	.vm_ops = &drm_gem_cma_vm_ops,
+};
+
+/**
+ * drm_cma_gem_create_object_default_funcs - Create a CMA GEM object with a
+ *                                           default function table
+ * @dev: DRM device
+ * @size: Size of the object to allocate
+ *
+ * This sets the GEM object functions to the default CMA helper functions.
+ * This function can be used as the &drm_driver.gem_create_object callback.
+ *
+ * Returns:
+ * A pointer to a allocated GEM object or an error pointer on failure.
+ */
+struct drm_gem_object *
+drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
+{
+	struct drm_gem_cma_object *cma_obj;
+
+	cma_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
+	if (!cma_obj)
+		return NULL;
+
+	cma_obj->base.funcs = &drm_cma_gem_default_funcs;
+
+	return &cma_obj->base;
+}
+EXPORT_SYMBOL(drm_cma_gem_create_object_default_funcs);
+
+/**
+ * drm_gem_cma_prime_import_sg_table_vmap - PRIME import another driver's
+ *	scatter/gather table and get the virtual address of the buffer
+ * @dev: DRM device
+ * @attach: DMA-BUF attachment
+ * @sgt: Scatter/gather table of pinned pages
+ *
+ * This function imports a scatter/gather table using
+ * drm_gem_cma_prime_import_sg_table() and uses dma_buf_vmap() to get the kernel
+ * virtual address. This ensures that a CMA GEM object always has its virtual
+ * address set. This address is released when the object is freed.
+ *
+ * This function can be used as the &drm_driver.gem_prime_import_sg_table
+ * callback. The DRM_GEM_CMA_VMAP_DRIVER_OPS() macro provides a shortcut to set
+ * the necessary DRM driver operations.
+ *
+ * Returns:
+ * A pointer to a newly created GEM object or an ERR_PTR-encoded negative
+ * error code on failure.
+ */
+struct drm_gem_object *
+drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *dev,
+				       struct dma_buf_attachment *attach,
+				       struct sg_table *sgt)
+{
+	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_object *obj;
+	void *vaddr;
+
+	vaddr = dma_buf_vmap(attach->dmabuf);
+	if (!vaddr) {
+		DRM_ERROR("Failed to vmap PRIME buffer\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
+	if (IS_ERR(obj)) {
+		dma_buf_vunmap(attach->dmabuf, vaddr);
+		return obj;
+	}
+
+	cma_obj = to_drm_gem_cma_obj(obj);
+	cma_obj->vaddr = vaddr;
+
+	return obj;
+}
+EXPORT_SYMBOL(drm_gem_cma_prime_import_sg_table_vmap);

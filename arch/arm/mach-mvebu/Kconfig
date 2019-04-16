@@ -124,7 +124,7 @@ config MACH_KIRKWOOD
 	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
-	select PCI
+	select FORCE_PCI
 	select PCI_QUIRKS
 	select PINCTRL_KIRKWOOD
 	help

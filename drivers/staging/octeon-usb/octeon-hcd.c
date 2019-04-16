@@ -50,6 +50,7 @@
 #include <linux/module.h>
 #include <linux/usb/hcd.h>
 #include <linux/prefetch.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 
 #include <asm/octeon/octeon.h>
@@ -3606,8 +3607,9 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	 * Set the DMA mask to 64bits so we get buffers already translated for
 	 * DMA.
 	 */
-	dev->coherent_dma_mask = ~0;
-	dev->dma_mask = &dev->coherent_dma_mask;
+	i = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (i)
+		return i;
 
 	/*
 	 * Only cn52XX and cn56XX have DWC_OTG USB hardware and the

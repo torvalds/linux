@@ -126,7 +126,7 @@ tagged list.
 The boot loader must pass at a minimum the size and location of the
 system memory, and the root filesystem location.  The dtb must be
 placed in a region of memory where the kernel decompressor will not
-overwrite it, whilst remaining within the region which will be covered
+overwrite it, while remaining within the region which will be covered
 by the kernel's low-memory mapping.
 
 A safe location is just above the 128MiB boundary from start of RAM.

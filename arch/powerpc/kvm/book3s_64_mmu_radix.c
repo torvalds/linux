@@ -29,6 +29,103 @@
  */
 static int p9_supported_radix_bits[4] = { 5, 9, 9, 13 };
 
+unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
+					      gva_t eaddr, void *to, void *from,
+					      unsigned long n)
+{
+	int uninitialized_var(old_pid), old_lpid;
+	unsigned long quadrant, ret = n;
+	bool is_load = !!to;
+
+	/* Can't access quadrants 1 or 2 in non-HV mode, call the HV to do it */
+	if (kvmhv_on_pseries())
+		return plpar_hcall_norets(H_COPY_TOFROM_GUEST, lpid, pid, eaddr,
+					  __pa(to), __pa(from), n);
+
+	quadrant = 1;
+	if (!pid)
+		quadrant = 2;
+	if (is_load)
+		from = (void *) (eaddr | (quadrant << 62));
+	else
+		to = (void *) (eaddr | (quadrant << 62));
+
+	preempt_disable();
+
+	/* switch the lpid first to avoid running host with unallocated pid */
+	old_lpid = mfspr(SPRN_LPID);
+	if (old_lpid != lpid)
+		mtspr(SPRN_LPID, lpid);
+	if (quadrant == 1) {
+		old_pid = mfspr(SPRN_PID);
+		if (old_pid != pid)
+			mtspr(SPRN_PID, pid);
+	}
+	isync();
+
+	pagefault_disable();
+	if (is_load)
+		ret = raw_copy_from_user(to, from, n);
+	else
+		ret = raw_copy_to_user(to, from, n);
+	pagefault_enable();
+
+	/* switch the pid first to avoid running host with unallocated pid */
+	if (quadrant == 1 && pid != old_pid)
+		mtspr(SPRN_PID, old_pid);
+	if (lpid != old_lpid)
+		mtspr(SPRN_LPID, old_lpid);
+	isync();
+
+	preempt_enable();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__kvmhv_copy_tofrom_guest_radix);
+
+static long kvmhv_copy_tofrom_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr,
+					  void *to, void *from, unsigned long n)
+{
+	int lpid = vcpu->kvm->arch.lpid;
+	int pid = vcpu->arch.pid;
+
+	/* This would cause a data segment intr so don't allow the access */
+	if (eaddr & (0x3FFUL << 52))
+		return -EINVAL;
+
+	/* Should we be using the nested lpid */
+	if (vcpu->arch.nested)
+		lpid = vcpu->arch.nested->shadow_lpid;
+
+	/* If accessing quadrant 3 then pid is expected to be 0 */
+	if (((eaddr >> 62) & 0x3) == 0x3)
+		pid = 0;
+
+	eaddr &= ~(0xFFFUL << 52);
+
+	return __kvmhv_copy_tofrom_guest_radix(lpid, pid, eaddr, to, from, n);
+}
+
+long kvmhv_copy_from_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr, void *to,
+				 unsigned long n)
+{
+	long ret;
+
+	ret = kvmhv_copy_tofrom_guest_radix(vcpu, eaddr, to, NULL, n);
+	if (ret > 0)
+		memset(to + (n - ret), 0, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kvmhv_copy_from_guest_radix);
+
+long kvmhv_copy_to_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr, void *from,
+			       unsigned long n)
+{
+	return kvmhv_copy_tofrom_guest_radix(vcpu, eaddr, NULL, from, n);
+}
+EXPORT_SYMBOL_GPL(kvmhv_copy_to_guest_radix);
+
 int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 			       struct kvmppc_pte *gpte, u64 root,
 			       u64 *pte_ret_p)
@@ -197,8 +294,8 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return 0;
 }
 
-static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
-				    unsigned int pshift, unsigned int lpid)
+void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
+			     unsigned int pshift, unsigned int lpid)
 {
 	unsigned long psize = PAGE_SIZE;
 	int psi;
@@ -284,7 +381,8 @@ static void kvmppc_pmd_free(pmd_t *pmdp)
 
 /* Called with kvm->mmu_lock held */
 void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
-		      unsigned int shift, struct kvm_memory_slot *memslot,
+		      unsigned int shift,
+		      const struct kvm_memory_slot *memslot,
 		      unsigned int lpid)
 
 {
@@ -305,8 +403,13 @@ void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
 		if (!memslot)
 			return;
 	}
-	if (shift)
+	if (shift) { /* 1GB or 2MB page */
 		page_size = 1ul << shift;
+		if (shift == PMD_SHIFT)
+			kvm->stat.num_2M_pages--;
+		else if (shift == PUD_SHIFT)
+			kvm->stat.num_1G_pages--;
+	}
 
 	gpa &= ~(page_size - 1);
 	hpa = old & PTE_RPN_MASK;
@@ -683,6 +786,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	pte_t pte, *ptep;
 	unsigned int shift, level;
 	int ret;
+	bool large_enable;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -732,12 +836,15 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	pte = *ptep;
 	local_irq_enable();
 
+	/* If we're logging dirty pages, always map single pages */
+	large_enable = !(memslot->flags & KVM_MEM_LOG_DIRTY_PAGES);
+
 	/* Get pte level from shift/size */
-	if (shift == PUD_SHIFT &&
+	if (large_enable && shift == PUD_SHIFT &&
 	    (gpa & (PUD_SIZE - PAGE_SIZE)) ==
 	    (hva & (PUD_SIZE - PAGE_SIZE))) {
 		level = 2;
-	} else if (shift == PMD_SHIFT &&
+	} else if (large_enable && shift == PMD_SHIFT &&
 		   (gpa & (PMD_SIZE - PAGE_SIZE)) ==
 		   (hva & (PMD_SIZE - PAGE_SIZE))) {
 		level = 1;
@@ -774,6 +881,14 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 		if (!ret && (pte_val(pte) & _PAGE_WRITE))
 			set_page_dirty_lock(page);
 		put_page(page);
+	}
+
+	/* Increment number of large pages if we (successfully) inserted one */
+	if (!ret) {
+		if (level == 1)
+			kvm->stat.num_2M_pages++;
+		else if (level == 2)
+			kvm->stat.num_1G_pages++;
 	}
 
 	return ret;
@@ -857,7 +972,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-/* Called with kvm->lock held */
+/* Called with kvm->mmu_lock held */
 int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		    unsigned long gfn)
 {
@@ -872,7 +987,7 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return 0;				
 }
 
-/* Called with kvm->lock held */
+/* Called with kvm->mmu_lock held */
 int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		  unsigned long gfn)
 {
@@ -880,18 +995,24 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
 	int ref = 0;
+	unsigned long old, *rmapp;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
-		kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
-					gpa, shift);
+		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
+					      gpa, shift);
 		/* XXX need to flush tlb here? */
+		/* Also clear bit in ptes in shadow pgtable for nested guests */
+		rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
+		kvmhv_update_nest_rmap_rc_list(kvm, rmapp, _PAGE_ACCESSED, 0,
+					       old & PTE_RPN_MASK,
+					       1UL << shift);
 		ref = 1;
 	}
 	return ref;
 }
 
-/* Called with kvm->lock held */
+/* Called with kvm->mmu_lock held */
 int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		       unsigned long gfn)
 {
@@ -915,15 +1036,23 @@ static int kvm_radix_test_clear_dirty(struct kvm *kvm,
 	pte_t *ptep;
 	unsigned int shift;
 	int ret = 0;
+	unsigned long old, *rmapp;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
 		ret = 1;
 		if (shift)
 			ret = 1 << (shift - PAGE_SHIFT);
-		kvmppc_radix_update_pte(kvm, ptep, _PAGE_DIRTY, 0,
-					gpa, shift);
+		spin_lock(&kvm->mmu_lock);
+		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_DIRTY, 0,
+					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift, kvm->arch.lpid);
+		/* Also clear bit in ptes in shadow pgtable for nested guests */
+		rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
+		kvmhv_update_nest_rmap_rc_list(kvm, rmapp, _PAGE_DIRTY, 0,
+					       old & PTE_RPN_MASK,
+					       1UL << shift);
+		spin_unlock(&kvm->mmu_lock);
 	}
 	return ret;
 }
@@ -951,6 +1080,26 @@ long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 		}
 	}
 	return 0;
+}
+
+void kvmppc_radix_flush_memslot(struct kvm *kvm,
+				const struct kvm_memory_slot *memslot)
+{
+	unsigned long n;
+	pte_t *ptep;
+	unsigned long gpa;
+	unsigned int shift;
+
+	gpa = memslot->base_gfn << PAGE_SHIFT;
+	spin_lock(&kvm->mmu_lock);
+	for (n = memslot->npages; n; --n) {
+		ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
+		if (ptep && pte_present(*ptep))
+			kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot,
+					 kvm->arch.lpid);
+		gpa += PAGE_SIZE;
+	}
+	spin_unlock(&kvm->mmu_lock);
 }
 
 static void add_rmmu_ap_encoding(struct kvm_ppc_rmmu_info *info,

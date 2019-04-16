@@ -80,6 +80,7 @@ base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	asyw->xlut.i.mode = 7;
 	asyw->xlut.i.enable = 2;
+	asyw->xlut.i.load = head907d_olut_load;
 }
 
 const struct nv50_wndw_func

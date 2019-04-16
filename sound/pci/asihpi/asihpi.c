@@ -1183,7 +1183,7 @@ static int snd_card_asihpi_capture_prepare(struct snd_pcm_substream *substream)
 static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 					u32 h_stream)
 {
-  struct hpi_format hpi_format;
+	struct hpi_format hpi_format;
 	u16 format;
 	u16 err;
 	u32 h_control;
@@ -2782,10 +2782,8 @@ snd_asihpi_proc_read(struct snd_info_entry *entry,
 
 static void snd_asihpi_proc_init(struct snd_card_asihpi *asihpi)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(asihpi->card, "info", &entry))
-		snd_info_set_text_ops(entry, asihpi, snd_asihpi_proc_read);
+	snd_card_ro_proc_new(asihpi->card, "info", asihpi,
+			     snd_asihpi_proc_read);
 }
 
 /*------------------------------------------------------------

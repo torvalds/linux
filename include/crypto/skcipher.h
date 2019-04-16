@@ -39,19 +39,6 @@ struct skcipher_request {
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
-/**
- *	struct skcipher_givcrypt_request - Crypto request with IV generation
- *	@seq: Sequence number for IV generation
- *	@giv: Space for generated IV
- *	@creq: The crypto request itself
- */
-struct skcipher_givcrypt_request {
-	u64 seq;
-	u8 *giv;
-
-	struct ablkcipher_request creq;
-};
-
 struct crypto_skcipher {
 	int (*setkey)(struct crypto_skcipher *tfm, const u8 *key,
 	              unsigned int keylen);
@@ -486,32 +473,6 @@ static inline struct crypto_sync_skcipher *crypto_sync_skcipher_reqtfm(
 	return container_of(tfm, struct crypto_sync_skcipher, base);
 }
 
-static inline void crypto_stat_skcipher_encrypt(struct skcipher_request *req,
-						int ret, struct crypto_alg *alg)
-{
-#ifdef CONFIG_CRYPTO_STATS
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&alg->cipher_err_cnt);
-	} else {
-		atomic_inc(&alg->encrypt_cnt);
-		atomic64_add(req->cryptlen, &alg->encrypt_tlen);
-	}
-#endif
-}
-
-static inline void crypto_stat_skcipher_decrypt(struct skcipher_request *req,
-						int ret, struct crypto_alg *alg)
-{
-#ifdef CONFIG_CRYPTO_STATS
-	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&alg->cipher_err_cnt);
-	} else {
-		atomic_inc(&alg->decrypt_cnt);
-		atomic64_add(req->cryptlen, &alg->decrypt_tlen);
-	}
-#endif
-}
-
 /**
  * crypto_skcipher_encrypt() - encrypt plaintext
  * @req: reference to the skcipher_request handle that holds all information
@@ -526,13 +487,16 @@ static inline void crypto_stat_skcipher_decrypt(struct skcipher_request *req,
 static inline int crypto_skcipher_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
 	int ret;
 
+	crypto_stats_get(alg);
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
 		ret = tfm->encrypt(req);
-	crypto_stat_skcipher_encrypt(req, ret, tfm->base.__crt_alg);
+	crypto_stats_skcipher_encrypt(cryptlen, ret, alg);
 	return ret;
 }
 
@@ -550,13 +514,16 @@ static inline int crypto_skcipher_encrypt(struct skcipher_request *req)
 static inline int crypto_skcipher_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
 	int ret;
 
+	crypto_stats_get(alg);
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
 		ret = tfm->decrypt(req);
-	crypto_stat_skcipher_decrypt(req, ret, tfm->base.__crt_alg);
+	crypto_stats_skcipher_decrypt(cryptlen, ret, alg);
 	return ret;
 }
 

@@ -10,6 +10,8 @@
 #include <asm/pat.h>
 #include <asm/processor.h>
 
+#include "cpu.h"
+
 /* leaf 0xb SMT level */
 #define SMT_LEVEL	0
 

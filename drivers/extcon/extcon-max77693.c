@@ -1072,6 +1072,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	struct max77693_reg_data *init_data;
 	int num_init_data;
 	int delay_jiffies;
+	int cable_type;
+	bool attached;
 	int ret;
 	int i;
 	unsigned int id;
@@ -1212,8 +1214,18 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 	}
 
-	/* Set initial path for UART */
-	 max77693_muic_set_path(info, info->path_uart, true);
+	/* Set initial path for UART when JIG is connected to get serial logs */
+	ret = regmap_bulk_read(info->max77693->regmap_muic,
+			MAX77693_MUIC_REG_STATUS1, info->status, 2);
+	if (ret) {
+		dev_err(info->dev, "failed to read MUIC register\n");
+		return ret;
+	}
+	cable_type = max77693_muic_get_cable_type(info,
+					   MAX77693_CABLE_GROUP_ADC, &attached);
+	if (attached && (cable_type == MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON ||
+			 cable_type == MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF))
+		max77693_muic_set_path(info, info->path_uart, true);
 
 	/* Check revision number of MUIC device*/
 	ret = regmap_read(info->max77693->regmap_muic,

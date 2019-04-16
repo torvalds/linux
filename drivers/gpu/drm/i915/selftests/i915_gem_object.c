@@ -238,6 +238,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		u32 *cpu;
 
 		GEM_BUG_ON(view.partial.size > nreal);
+		cond_resched();
 
 		err = i915_gem_object_set_to_gtt_domain(obj, true);
 		if (err) {
@@ -307,6 +308,7 @@ static int igt_partial_tiling(void *arg)
 	const unsigned int nreal = 1 << 12; /* largest tile row x2 */
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref;
 	int tiling;
 	int err;
 
@@ -332,7 +334,7 @@ static int igt_partial_tiling(void *arg)
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (1) {
 		IGT_TIMEOUT(end);
@@ -443,7 +445,7 @@ next_tiling: ;
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:
@@ -466,7 +468,7 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	rq = i915_request_alloc(i915->engine[RCS], i915->kernel_context);
+	rq = i915_request_alloc(i915->engine[RCS0], i915->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -505,11 +507,13 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	if (!i915->gt.active_requests++) {
-		intel_runtime_pm_get(i915);
-		i915_gem_unpark(i915);
-		intel_runtime_pm_put(i915);
+		intel_wakeref_t wakeref;
+
+		with_intel_runtime_pm(i915, wakeref)
+			i915_gem_unpark(i915);
 	}
 	mutex_unlock(&i915->drm.struct_mutex);
+
 	cancel_delayed_work_sync(&i915->gt.retire_work);
 	cancel_delayed_work_sync(&i915->gt.idle_work);
 }
@@ -577,7 +581,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 	/* Now fill with busy dead objects that we expect to reap */
 	for (loop = 0; loop < 3; loop++) {
-		if (i915_terminally_wedged(&i915->gpu_error))
+		intel_wakeref_t wakeref;
+
+		if (i915_terminally_wedged(i915))
 			break;
 
 		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
@@ -586,10 +592,10 @@ static int igt_mmap_offset_exhaustion(void *arg)
 			goto out;
 		}
 
+		err = 0;
 		mutex_lock(&i915->drm.struct_mutex);
-		intel_runtime_pm_get(i915);
-		err = make_obj_busy(obj);
-		intel_runtime_pm_put(i915);
+		with_intel_runtime_pm(i915, wakeref)
+			err = make_obj_busy(obj);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);

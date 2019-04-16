@@ -2081,24 +2081,18 @@ static void vpfe_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&vpfe->dma_queue_lock, flags);
 }
 
-static int vpfe_cropcap(struct file *file, void *priv,
-			struct v4l2_cropcap *crop)
+static int vpfe_g_pixelaspect(struct file *file, void *priv,
+			      int type, struct v4l2_fract *f)
 {
 	struct vpfe_device *vpfe = video_drvdata(file);
 
-	vpfe_dbg(2, vpfe, "vpfe_cropcap\n");
+	vpfe_dbg(2, vpfe, "vpfe_g_pixelaspect\n");
 
-	if (vpfe->std_index >= ARRAY_SIZE(vpfe_standards))
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	    vpfe->std_index >= ARRAY_SIZE(vpfe_standards))
 		return -EINVAL;
 
-	memset(crop, 0, sizeof(struct v4l2_cropcap));
-
-	crop->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	crop->defrect.width = vpfe_standards[vpfe->std_index].width;
-	crop->bounds.width = crop->defrect.width;
-	crop->defrect.height = vpfe_standards[vpfe->std_index].height;
-	crop->bounds.height = crop->defrect.height;
-	crop->pixelaspect = vpfe_standards[vpfe->std_index].pixelaspect;
+	*f = vpfe_standards[vpfe->std_index].pixelaspect;
 
 	return 0;
 }
@@ -2108,12 +2102,17 @@ vpfe_g_selection(struct file *file, void *fh, struct v4l2_selection *s)
 {
 	struct vpfe_device *vpfe = video_drvdata(file);
 
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	    vpfe->std_index >= ARRAY_SIZE(vpfe_standards))
+		return -EINVAL;
+
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		s->r.left = s->r.top = 0;
-		s->r.width = vpfe->crop.width;
-		s->r.height = vpfe->crop.height;
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = vpfe_standards[vpfe->std_index].width;
+		s->r.height = vpfe_standards[vpfe->std_index].height;
 		break;
 
 	case V4L2_SEL_TGT_CROP:
@@ -2282,7 +2281,7 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 
-	.vidioc_cropcap			= vpfe_cropcap,
+	.vidioc_g_pixelaspect		= vpfe_g_pixelaspect,
 	.vidioc_g_selection		= vpfe_g_selection,
 	.vidioc_s_selection		= vpfe_s_selection,
 

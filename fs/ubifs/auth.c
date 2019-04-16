@@ -269,8 +269,7 @@ int ubifs_init_authentication(struct ubifs_info *c)
 		goto out;
 	}
 
-	c->hash_tfm = crypto_alloc_shash(c->auth_hash_name, 0,
-					 CRYPTO_ALG_ASYNC);
+	c->hash_tfm = crypto_alloc_shash(c->auth_hash_name, 0, 0);
 	if (IS_ERR(c->hash_tfm)) {
 		err = PTR_ERR(c->hash_tfm);
 		ubifs_err(c, "Can not allocate %s: %d",
@@ -286,7 +285,7 @@ int ubifs_init_authentication(struct ubifs_info *c)
 		goto out_free_hash;
 	}
 
-	c->hmac_tfm = crypto_alloc_shash(hmac_name, 0, CRYPTO_ALG_ASYNC);
+	c->hmac_tfm = crypto_alloc_shash(hmac_name, 0, 0);
 	if (IS_ERR(c->hmac_tfm)) {
 		err = PTR_ERR(c->hmac_tfm);
 		ubifs_err(c, "Can not allocate %s: %d", hmac_name, err);

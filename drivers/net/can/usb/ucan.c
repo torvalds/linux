@@ -35,10 +35,6 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#include <linux/can.h>
-#include <linux/can/dev.h>
-#include <linux/can/error.h>
-
 #define UCAN_DRIVER_NAME "ucan"
 #define UCAN_MAX_RX_URBS 8
 /* the CAN controller needs a while to enable/disable the bus */
@@ -719,7 +715,7 @@ static void ucan_read_bulk_callback(struct urb *urb)
 				  up->in_ep_size,
 				  urb->transfer_buffer,
 				  urb->transfer_dma);
-		netdev_dbg(up->netdev, "not resumbmitting urb; status: %d\n",
+		netdev_dbg(up->netdev, "not resubmitting urb; status: %d\n",
 			   urb->status);
 		return;
 	default:
@@ -1575,10 +1571,7 @@ err_firmware_needs_update:
 /* disconnect the device */
 static void ucan_disconnect(struct usb_interface *intf)
 {
-	struct usb_device *udev;
 	struct ucan_priv *up = usb_get_intfdata(intf);
-
-	udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, NULL);
 

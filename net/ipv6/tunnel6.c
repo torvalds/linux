@@ -134,24 +134,28 @@ drop:
 	return 0;
 }
 
-static void tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+static int tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			u8 type, u8 code, int offset, __be32 info)
 {
 	struct xfrm6_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnel6_handlers, handler)
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 
-static void tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+static int tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			 u8 type, u8 code, int offset, __be32 info)
 {
 	struct xfrm6_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnel46_handlers, handler)
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 
 static const struct inet6_protocol tunnel6_protocol = {

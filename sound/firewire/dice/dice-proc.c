@@ -285,12 +285,8 @@ static void add_node(struct snd_dice *dice, struct snd_info_entry *root,
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(dice->card, name, root);
-	if (!entry)
-		return;
-
-	snd_info_set_text_ops(entry, dice, op);
-	if (snd_info_register(entry) < 0)
-		snd_info_free_entry(entry);
+	if (entry)
+		snd_info_set_text_ops(entry, dice, op);
 }
 
 void snd_dice_create_proc(struct snd_dice *dice)
@@ -306,10 +302,6 @@ void snd_dice_create_proc(struct snd_dice *dice)
 	if (!root)
 		return;
 	root->mode = S_IFDIR | 0555;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
 
 	add_node(dice, root, "dice", dice_proc_read);
 	add_node(dice, root, "formation", dice_proc_read_formation);

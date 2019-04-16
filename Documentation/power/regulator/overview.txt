@@ -22,7 +22,7 @@ Nomenclature
 Some terms used in this document:-
 
   o Regulator    - Electronic device that supplies power to other devices.
-                   Most regulators can enable and disable their output whilst
+                   Most regulators can enable and disable their output while
                    some can control their output voltage and or current.
 
                    Input Voltage -> Regulator -> Output Voltage

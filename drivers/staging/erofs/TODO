@@ -23,13 +23,14 @@ TODO List:
 
  - data deduplication and other useful features.
 
-erofs-mkfs (preview version) binaries for i386 / x86_64 are available at:
+The following git tree provides the file system user-space
+tools under development (ex, formatting tool mkfs.erofs):
+>> git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git
 
-   https://github.com/hsiangkao/erofs_mkfs_binary
-
-It is still in progress opening mkfs source code to public,
-in any case an open-source mkfs will be released in the near future.
-
+The open-source development of erofs-utils is at the early stage.
+Contact the original author Li Guifu <bluce.liguifu@huawei.com> and
+the co-maintainer Fang Wei <fangwei1@huawei.com> for the latest news
+and more details.
 
 Code, suggestions, etc, are welcome. Please feel free to
 ask and send patches,

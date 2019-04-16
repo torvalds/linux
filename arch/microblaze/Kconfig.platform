@@ -65,6 +65,6 @@ config XILINX_MICROBLAZE0_USE_FPU
 
 config XILINX_MICROBLAZE0_HW_VER
 	string "Core version number"
-	default 7.10.d
+	default "7.10.d"
 
 endmenu

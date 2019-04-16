@@ -1761,10 +1761,11 @@ tx_only:
 	if (vsi->back->flags & IAVF_TXR_FLAGS_WB_ON_ITR)
 		q_vector->arm_wb_state = false;
 
-	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete_done(napi, work_done);
-
-	iavf_update_enable_itr(vsi, q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		iavf_update_enable_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }
@@ -2343,6 +2344,8 @@ static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->cmd_type_offset_bsz =
 			build_ctob(td_cmd, td_offset, size, td_tag);
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
 	 *
@@ -2460,8 +2463,6 @@ static netdev_tx_t iavf_xmit_frame_ring(struct sk_buff *skb,
 				  tx_ring, &cd_tunneling);
 	if (tso < 0)
 		goto out_drop;
-
-	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */
 	td_cmd |= IAVF_TX_DESC_CMD_ICRC;

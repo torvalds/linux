@@ -85,6 +85,38 @@ ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid)
 }
 
 /**
+ * ice_aqc_send_sched_elem_cmd - send scheduling elements cmd
+ * @hw: pointer to the hw struct
+ * @cmd_opc: cmd opcode
+ * @elems_req: number of elements to request
+ * @buf: pointer to buffer
+ * @buf_size: buffer size in bytes
+ * @elems_resp: returns total number of elements response
+ * @cd: pointer to command details structure or NULL
+ *
+ * This function sends a scheduling elements cmd (cmd_opc)
+ */
+static enum ice_status
+ice_aqc_send_sched_elem_cmd(struct ice_hw *hw, enum ice_adminq_opc cmd_opc,
+			    u16 elems_req, void *buf, u16 buf_size,
+			    u16 *elems_resp, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_sched_elem_cmd *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.sched_elem_cmd;
+	ice_fill_dflt_direct_cmd_desc(&desc, cmd_opc);
+	cmd->num_elem_req = cpu_to_le16(elems_req);
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+	if (!status && elems_resp)
+		*elems_resp = le16_to_cpu(cmd->num_elem_resp);
+
+	return status;
+}
+
+/**
  * ice_aq_query_sched_elems - query scheduler elements
  * @hw: pointer to the hw struct
  * @elems_req: number of elements to query
@@ -100,19 +132,9 @@ ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 			 struct ice_aqc_get_elem *buf, u16 buf_size,
 			 u16 *elems_ret, struct ice_sq_cd *cd)
 {
-	struct ice_aqc_get_cfg_elem *cmd;
-	struct ice_aq_desc desc;
-	enum ice_status status;
-
-	cmd = &desc.params.get_update_elem;
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_sched_elems);
-	cmd->num_elem_req = cpu_to_le16(elems_req);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-	if (!status && elems_ret)
-		*elems_ret = le16_to_cpu(cmd->num_elem_resp);
-
-	return status;
+	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_get_sched_elems,
+					   elems_req, (void *)buf, buf_size,
+					   elems_ret, cd);
 }
 
 /**
@@ -218,20 +240,9 @@ ice_aq_delete_sched_elems(struct ice_hw *hw, u16 grps_req,
 			  struct ice_aqc_delete_elem *buf, u16 buf_size,
 			  u16 *grps_del, struct ice_sq_cd *cd)
 {
-	struct ice_aqc_add_move_delete_elem *cmd;
-	struct ice_aq_desc desc;
-	enum ice_status status;
-
-	cmd = &desc.params.add_move_delete_elem;
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_delete_sched_elems);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-	cmd->num_grps_req = cpu_to_le16(grps_req);
-
-	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-	if (!status && grps_del)
-		*grps_del = le16_to_cpu(cmd->num_grps_updated);
-
-	return status;
+	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_delete_sched_elems,
+					   grps_req, (void *)buf, buf_size,
+					   grps_del, cd);
 }
 
 /**
@@ -442,52 +453,9 @@ ice_aq_add_sched_elems(struct ice_hw *hw, u16 grps_req,
 		       struct ice_aqc_add_elem *buf, u16 buf_size,
 		       u16 *grps_added, struct ice_sq_cd *cd)
 {
-	struct ice_aqc_add_move_delete_elem *cmd;
-	struct ice_aq_desc desc;
-	enum ice_status status;
-
-	cmd = &desc.params.add_move_delete_elem;
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_sched_elems);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-
-	cmd->num_grps_req = cpu_to_le16(grps_req);
-	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-	if (!status && grps_added)
-		*grps_added = le16_to_cpu(cmd->num_grps_updated);
-
-	return status;
-}
-
-/**
- * ice_suspend_resume_elems - suspend/resume scheduler elements
- * @hw: pointer to the hw struct
- * @elems_req: number of elements to suspend
- * @buf: pointer to buffer
- * @buf_size: buffer size in bytes
- * @elems_ret: returns total number of elements suspended
- * @cd: pointer to command details structure or NULL
- * @cmd_code: command code for suspend or resume
- *
- * suspend/resume scheduler elements
- */
-static enum ice_status
-ice_suspend_resume_elems(struct ice_hw *hw, u16 elems_req,
-			 struct ice_aqc_suspend_resume_elem *buf, u16 buf_size,
-			 u16 *elems_ret, struct ice_sq_cd *cd,
-			 enum ice_adminq_opc cmd_code)
-{
-	struct ice_aqc_get_cfg_elem *cmd;
-	struct ice_aq_desc desc;
-	enum ice_status status;
-
-	cmd = &desc.params.get_update_elem;
-	ice_fill_dflt_direct_cmd_desc(&desc, cmd_code);
-	cmd->num_elem_req = cpu_to_le16(elems_req);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-	if (!status && elems_ret)
-		*elems_ret = le16_to_cpu(cmd->num_elem_resp);
-	return status;
+	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_add_sched_elems,
+					   grps_req, (void *)buf, buf_size,
+					   grps_added, cd);
 }
 
 /**
@@ -506,8 +474,9 @@ ice_aq_suspend_sched_elems(struct ice_hw *hw, u16 elems_req,
 			   struct ice_aqc_suspend_resume_elem *buf,
 			   u16 buf_size, u16 *elems_ret, struct ice_sq_cd *cd)
 {
-	return ice_suspend_resume_elems(hw, elems_req, buf, buf_size, elems_ret,
-					cd, ice_aqc_opc_suspend_sched_elems);
+	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_suspend_sched_elems,
+					   elems_req, (void *)buf, buf_size,
+					   elems_ret, cd);
 }
 
 /**
@@ -526,8 +495,9 @@ ice_aq_resume_sched_elems(struct ice_hw *hw, u16 elems_req,
 			  struct ice_aqc_suspend_resume_elem *buf,
 			  u16 buf_size, u16 *elems_ret, struct ice_sq_cd *cd)
 {
-	return ice_suspend_resume_elems(hw, elems_req, buf, buf_size, elems_ret,
-					cd, ice_aqc_opc_resume_sched_elems);
+	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_resume_sched_elems,
+					   elems_req, (void *)buf, buf_size,
+					   elems_ret, cd);
 }
 
 /**
@@ -591,23 +561,18 @@ ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
 }
 
 /**
- * ice_sched_clear_tx_topo - clears the schduler tree nodes
- * @pi: port information structure
+ * ice_sched_clear_agg - clears the agg related information
+ * @hw: pointer to the hardware structure
  *
- * This function removes all the nodes from HW as well as from SW DB.
+ * This function removes agg list and free up agg related memory
+ * previously allocated.
  */
-static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
+void ice_sched_clear_agg(struct ice_hw *hw)
 {
 	struct ice_sched_agg_info *agg_info;
 	struct ice_sched_agg_info *atmp;
-	struct ice_hw *hw;
 
-	if (!pi)
-		return;
-
-	hw = pi->hw;
-
-	list_for_each_entry_safe(agg_info, atmp, &pi->agg_list, list_entry) {
+	list_for_each_entry_safe(agg_info, atmp, &hw->agg_list, list_entry) {
 		struct ice_sched_agg_vsi_info *agg_vsi_info;
 		struct ice_sched_agg_vsi_info *vtmp;
 
@@ -616,8 +581,21 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 			list_del(&agg_vsi_info->list_entry);
 			devm_kfree(ice_hw_to_dev(hw), agg_vsi_info);
 		}
+		list_del(&agg_info->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), agg_info);
 	}
+}
 
+/**
+ * ice_sched_clear_tx_topo - clears the scheduler tree nodes
+ * @pi: port information structure
+ *
+ * This function removes all the nodes from HW as well as from SW DB.
+ */
+static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
+{
+	if (!pi)
+		return;
 	if (pi->root) {
 		ice_free_sched_node(pi, pi->root);
 		pi->root = NULL;
@@ -630,7 +608,7 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
  *
  * Cleanup scheduling elements from SW DB
  */
-static void ice_sched_clear_port(struct ice_port_info *pi)
+void ice_sched_clear_port(struct ice_port_info *pi)
 {
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return;
@@ -894,8 +872,7 @@ static u8 ice_sched_get_vsi_layer(struct ice_hw *hw)
  * This function removes the leaf node that was created by the FW
  * during initialization
  */
-static void
-ice_rm_dflt_leaf_node(struct ice_port_info *pi)
+static void ice_rm_dflt_leaf_node(struct ice_port_info *pi)
 {
 	struct ice_sched_node *node;
 
@@ -923,8 +900,7 @@ ice_rm_dflt_leaf_node(struct ice_port_info *pi)
  * This function frees all the nodes except root and TC that were created by
  * the FW during initialization
  */
-static void
-ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
+static void ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
 {
 	struct ice_sched_node *node;
 
@@ -1037,7 +1013,6 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 	/* initialize the port for handling the scheduler tree */
 	pi->port_state = ICE_SCHED_PORT_STATE_READY;
 	mutex_init(&pi->sched_lock);
-	INIT_LIST_HEAD(&pi->agg_list);
 
 err_init_port:
 	if (status && pi->root) {
@@ -1091,11 +1066,10 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 		hw->max_children[i] = le16_to_cpu(max_sibl);
 	}
 
-	hw->layer_info = (struct ice_aqc_layer_props *)
-			  devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
-				       (hw->num_tx_sched_layers *
-					sizeof(*hw->layer_info)),
-				       GFP_KERNEL);
+	hw->layer_info = devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
+				      (hw->num_tx_sched_layers *
+				       sizeof(*hw->layer_info)),
+				      GFP_KERNEL);
 	if (!hw->layer_info) {
 		status = ICE_ERR_NO_MEMORY;
 		goto sched_query_out;
@@ -1339,7 +1313,7 @@ ice_sched_rm_vsi_child_nodes(struct ice_port_info *pi,
  * @num_nodes: pointer to num nodes array
  *
  * This function calculates the number of supported nodes needed to add this
- * VSI into tx tree including the VSI, parent and intermediate nodes in below
+ * VSI into Tx tree including the VSI, parent and intermediate nodes in below
  * layers
  */
 static void
@@ -1369,20 +1343,25 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 				node = node->sibling;
 			}
 
+			/* tree has one intermediate node to add this new VSI.
+			 * So no need to calculate supported nodes for below
+			 * layers.
+			 */
+			if (node)
+				break;
 			/* all the nodes are full, allocate a new one */
-			if (!node)
-				num_nodes[i]++;
+			num_nodes[i]++;
 		}
 }
 
 /**
- * ice_sched_add_vsi_support_nodes - add VSI supported nodes into tx tree
+ * ice_sched_add_vsi_support_nodes - add VSI supported nodes into Tx tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc_node: pointer to TC node
  * @num_nodes: pointer to num nodes array
  *
- * This function adds the VSI supported nodes into tx tree including the
+ * This function adds the VSI supported nodes into Tx tree including the
  * VSI, its parent and intermediate nodes in below layers
  */
 static enum ice_status
@@ -1527,7 +1506,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 }
 
 /**
- * ice_sched_cfg_vsi - configure the new/exisiting VSI
+ * ice_sched_cfg_vsi - configure the new/existing VSI
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc: TC number
@@ -1604,4 +1583,134 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 	}
 
 	return status;
+}
+
+/**
+ * ice_sched_rm_agg_vsi_entry - remove agg related VSI info entry
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ *
+ * This function removes single aggregator VSI info entry from
+ * aggregator list.
+ */
+static void
+ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
+{
+	struct ice_sched_agg_info *agg_info;
+	struct ice_sched_agg_info *atmp;
+
+	list_for_each_entry_safe(agg_info, atmp, &pi->hw->agg_list,
+				 list_entry) {
+		struct ice_sched_agg_vsi_info *agg_vsi_info;
+		struct ice_sched_agg_vsi_info *vtmp;
+
+		list_for_each_entry_safe(agg_vsi_info, vtmp,
+					 &agg_info->agg_vsi_list, list_entry)
+			if (agg_vsi_info->vsi_handle == vsi_handle) {
+				list_del(&agg_vsi_info->list_entry);
+				devm_kfree(ice_hw_to_dev(pi->hw),
+					   agg_vsi_info);
+				return;
+			}
+	}
+}
+
+/**
+ * ice_sched_is_leaf_node_present - check for a leaf node in the sub-tree
+ * @node: pointer to the sub-tree node
+ *
+ * This function checks for a leaf node presence in a given sub-tree node.
+ */
+static bool ice_sched_is_leaf_node_present(struct ice_sched_node *node)
+{
+	u8 i;
+
+	for (i = 0; i < node->num_children; i++)
+		if (ice_sched_is_leaf_node_present(node->children[i]))
+			return true;
+	/* check for a leaf node */
+	return (node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF);
+}
+
+/**
+ * ice_sched_rm_vsi_cfg - remove the VSI and its children nodes
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ * @owner: LAN or RDMA
+ *
+ * This function removes the VSI and its LAN or RDMA children nodes from the
+ * scheduler tree.
+ */
+static enum ice_status
+ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
+{
+	enum ice_status status = ICE_ERR_PARAM;
+	struct ice_vsi_ctx *vsi_ctx;
+	u8 i, j = 0;
+
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return status;
+	mutex_lock(&pi->sched_lock);
+	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+	if (!vsi_ctx)
+		goto exit_sched_rm_vsi_cfg;
+
+	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+		struct ice_sched_node *vsi_node, *tc_node;
+
+		tc_node = ice_sched_get_tc_node(pi, i);
+		if (!tc_node)
+			continue;
+
+		vsi_node = ice_sched_get_vsi_node(pi->hw, tc_node, vsi_handle);
+		if (!vsi_node)
+			continue;
+
+		if (ice_sched_is_leaf_node_present(vsi_node)) {
+			ice_debug(pi->hw, ICE_DBG_SCHED,
+				  "VSI has leaf nodes in TC %d\n", i);
+			status = ICE_ERR_IN_USE;
+			goto exit_sched_rm_vsi_cfg;
+		}
+		while (j < vsi_node->num_children) {
+			if (vsi_node->children[j]->owner == owner) {
+				ice_free_sched_node(pi, vsi_node->children[j]);
+
+				/* reset the counter again since the num
+				 * children will be updated after node removal
+				 */
+				j = 0;
+			} else {
+				j++;
+			}
+		}
+		/* remove the VSI if it has no children */
+		if (!vsi_node->num_children) {
+			ice_free_sched_node(pi, vsi_node);
+			vsi_ctx->sched.vsi_node[i] = NULL;
+
+			/* clean up agg related vsi info if any */
+			ice_sched_rm_agg_vsi_info(pi, vsi_handle);
+		}
+		if (owner == ICE_SCHED_NODE_OWNER_LAN)
+			vsi_ctx->sched.max_lanq[i] = 0;
+	}
+	status = 0;
+
+exit_sched_rm_vsi_cfg:
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_rm_vsi_lan_cfg - remove VSI and its LAN children nodes
+ * @pi: port information structure
+ * @vsi_handle: software VSI handle
+ *
+ * This function clears the VSI and its LAN children nodes from scheduler tree
+ * for all TCs.
+ */
+enum ice_status ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle)
+{
+	return ice_sched_rm_vsi_cfg(pi, vsi_handle, ICE_SCHED_NODE_OWNER_LAN);
 }

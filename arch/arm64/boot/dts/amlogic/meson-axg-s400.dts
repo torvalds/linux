@@ -60,7 +60,7 @@
 		serial1 = &uart_A;
 	};
 
-	linein: audio-codec@0 {
+	linein: audio-codec-0 {
 		#sound-dai-cells = <0>;
 		compatible = "everest,es7241";
 		VDDA-supply = <&vcc_3v3>;
@@ -70,7 +70,7 @@
 		sound-name-prefix = "Linein";
 	};
 
-	lineout: audio-codec@1 {
+	lineout: audio-codec-1 {
 		#sound-dai-cells = <0>;
 		compatible = "everest,es7154";
 		VDD-supply = <&vcc_3v3>;
@@ -79,20 +79,27 @@
 		sound-name-prefix = "Lineout";
 	};
 
-	spdif_dit: audio-codec@2 {
+	spdif_dit: audio-codec-2 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
 		status = "okay";
 		sound-name-prefix = "DIT";
 	};
 
-	dmics: audio-codec@3 {
+	dmics: audio-codec-3 {
 		#sound-dai-cells = <0>;
 		compatible = "dmic-codec";
 		num-channels = <7>;
 		wakeup-delay-ms = <50>;
 		status = "okay";
 		sound-name-prefix = "MIC";
+	};
+
+	spdif_dir: audio-codec-4 {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dir";
+		status = "okay";
+		sound-name-prefix = "DIR";
 	};
 
 	emmc_pwrseq: emmc-pwrseq {
@@ -249,6 +256,9 @@
 				"TODDR_A IN 2", "TDMIN_C OUT",
 				"TODDR_B IN 2", "TDMIN_C OUT",
 				"TODDR_C IN 2", "TDMIN_C OUT",
+				"TODDR_A IN 3", "SPDIFIN Capture",
+				"TODDR_B IN 3", "SPDIFIN Capture",
+				"TODDR_C IN 3", "SPDIFIN Capture",
 				"TODDR_A IN 4", "PDM Capture",
 				"TODDR_B IN 4", "PDM Capture",
 				"TODDR_C IN 4", "PDM Capture",
@@ -272,31 +282,31 @@
 				       <393216000>;
 		status = "okay";
 
-		dai-link@0 {
+		dai-link-0 {
 			sound-dai = <&frddr_a>;
 		};
 
-		dai-link@1 {
+		dai-link-1 {
 			sound-dai = <&frddr_b>;
 		};
 
-		dai-link@2 {
+		dai-link-2 {
 			sound-dai = <&frddr_c>;
 		};
 
-		dai-link@3 {
+		dai-link-3 {
 			sound-dai = <&toddr_a>;
 		};
 
-		dai-link@4 {
+		dai-link-4 {
 			sound-dai = <&toddr_b>;
 		};
 
-		dai-link@5 {
+		dai-link-5 {
 			sound-dai = <&toddr_c>;
 		};
 
-		dai-link@6 {
+		dai-link-6 {
 			sound-dai = <&tdmif_c>;
 			dai-format = "i2s";
 			dai-tdm-slot-tx-mask-2 = <1 1>;
@@ -317,7 +327,7 @@
 
 		};
 
-		dai-link@7 {
+		dai-link-7 {
 			sound-dai = <&spdifout>;
 
 			codec {
@@ -325,7 +335,15 @@
 			};
 		};
 
-		dai-link@8 {
+		dai-link-8 {
+			sound-dai = <&spdifin>;
+
+			codec {
+				sound-dai = <&spdif_dir>;
+			};
+		};
+
+		dai-link-9 {
 			sound-dai = <&pdm>;
 
 			codec {
@@ -357,6 +375,8 @@
 		eth_phy0: ethernet-phy@0 {
 			/* Realtek RTL8211F (0x001cc916) */
 			reg = <0>;
+			interrupt-parent = <&gpio_intc>;
+			interrupts = <98 IRQ_TYPE_LEVEL_LOW>;
 			eee-broken-1000t;
 		};
 	};
@@ -444,7 +464,8 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	sd-uhs-sdr104;
+	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
 
@@ -467,9 +488,8 @@
 	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
-	cap-sd-highspeed;
 	cap-mmc-highspeed;
-	max-frequency = <180000000>;
+	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
 	mmc-ddr-1_8v;
@@ -479,6 +499,12 @@
 
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vddio_boot>;
+};
+
+&spdifin {
+	pinctrl-0 = <&spdif_in_a19_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &spdifout {
@@ -543,8 +569,14 @@
 
 &uart_A {
 	status = "okay";
-	pinctrl-0 = <&uart_a_pins>;
+	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
 	pinctrl-names = "default";
+	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		shutdown-gpios = <&gpio GPIOX_21 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &uart_AO {

@@ -30,6 +30,9 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifsfs.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 #ifdef CONFIG_CIFS_SMB_DIRECT
 #include "smbdirect.h"
 #endif
@@ -112,7 +115,12 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " type: CDROM ");
 	else
 		seq_printf(m, " type: %d ", dev_type);
-	if (tcon->seal)
+
+	seq_printf(m, "Serial Number: 0x%x", tcon->vol_serial_number);
+
+	if ((tcon->seal) ||
+	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
+	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
 		seq_printf(m, " Encrypted");
 	if (tcon->nocase)
 		seq_printf(m, " nocase");
@@ -249,6 +257,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, ",ACL");
 #endif
 	seq_putc(m, '\n');
+	seq_printf(m, "CIFSMaxBufSize: %d\n", CIFSMaxBufSize);
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);
 	seq_printf(m, "Servers:");
 
@@ -367,6 +376,10 @@ skip_rdma:
 				atomic_read(&server->in_send),
 				atomic_read(&server->num_waiters));
 #endif
+			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
+				seq_puts(m, " encrypted");
+			if (ses->sign)
+				seq_puts(m, " signed");
 
 			seq_puts(m, "\n\tShares:");
 			j = 0;
@@ -629,6 +642,11 @@ cifs_proc_init(void)
 		    &cifs_security_flags_proc_fops);
 	proc_create("LookupCacheEnabled", 0644, proc_fs_cifs,
 		    &cifs_lookup_cache_proc_fops);
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	proc_create("dfscache", 0644, proc_fs_cifs, &dfscache_proc_fops);
+#endif
+
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	proc_create("rdma_readwrite_threshold", 0644, proc_fs_cifs,
 		&cifs_rdma_readwrite_threshold_proc_fops);
@@ -663,6 +681,10 @@ cifs_proc_clean(void)
 	remove_proc_entry("SecurityFlags", proc_fs_cifs);
 	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	remove_proc_entry("dfscache", proc_fs_cifs);
+#endif
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	remove_proc_entry("rdma_readwrite_threshold", proc_fs_cifs);
 	remove_proc_entry("smbd_max_frmr_depth", proc_fs_cifs);

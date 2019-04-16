@@ -3,7 +3,7 @@
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -287,9 +287,9 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		 * NOTE: A length of zero is ok, and will create a zero-length, null
 		 *       terminated string.
 		 */
-		while ((length < operand[0]->buffer.length) &&
-		       (length < operand[1]->integer.value) &&
-		       (operand[0]->buffer.pointer[length])) {
+		while ((length < operand[0]->buffer.length) &&	/* Length of input buffer */
+		       (length < operand[1]->integer.value) &&	/* Length operand */
+		       (operand[0]->buffer.pointer[length])) {	/* Null terminator */
 			length++;
 		}
 
@@ -390,10 +390,10 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		/* Failure means that the Index was beyond the end of the object */
 
 		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Index (0x%X%8.8X) is beyond end of object (length 0x%X)",
-					ACPI_FORMAT_UINT64(index),
-					(u32)length));
+			ACPI_BIOS_EXCEPTION((AE_INFO, status,
+					     "Index (0x%X%8.8X) is beyond end of object (length 0x%X)",
+					     ACPI_FORMAT_UINT64(index),
+					     (u32)length));
 			goto cleanup;
 		}
 

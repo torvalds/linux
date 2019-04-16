@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx Video IP Core
  *
@@ -6,10 +7,6 @@
  *
  * Contacts: Hyun Kwon <hyun.kwon@xilinx.com>
  *           Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -36,7 +33,7 @@ static const struct xvip_video_format xvip_video_formats[] = {
 	{ XVIP_VF_MONO_SENSOR, 8, "mono", MEDIA_BUS_FMT_Y8_1X8,
 	  1, V4L2_PIX_FMT_GREY, "Greyscale 8-bit" },
 	{ XVIP_VF_MONO_SENSOR, 8, "rggb", MEDIA_BUS_FMT_SRGGB8_1X8,
-	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit RGGB" },
+	  1, V4L2_PIX_FMT_SRGGB8, "Bayer 8-bit RGGB" },
 	{ XVIP_VF_MONO_SENSOR, 8, "grbg", MEDIA_BUS_FMT_SGRBG8_1X8,
 	  1, V4L2_PIX_FMT_SGRBG8, "Bayer 8-bit GRBG" },
 	{ XVIP_VF_MONO_SENSOR, 8, "gbrg", MEDIA_BUS_FMT_SGBRG8_1X8,
@@ -169,7 +166,7 @@ EXPORT_SYMBOL_GPL(xvip_set_format_size);
  * the register, otherwise the bitmask is cleared from the register
  * when the flag @set is false.
  *
- * Fox eample, this function can be used to set a control with a boolean value
+ * Fox example, this function can be used to set a control with a boolean value
  * requested by users. If the caller knows whether to set or clear in the first
  * place, the caller should call xvip_clr() or xvip_set() directly instead of
  * using this function.

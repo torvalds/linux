@@ -97,7 +97,7 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev, struct qxl_bo *bo, int pa
 void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev, struct qxl_bo *bo, void *map);
 extern struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo);
 extern void qxl_bo_unref(struct qxl_bo **bo);
-extern int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr);
+extern int qxl_bo_pin(struct qxl_bo *bo);
 extern int qxl_bo_unpin(struct qxl_bo *bo);
 extern void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned);
 extern bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo);

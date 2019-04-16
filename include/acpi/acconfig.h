@@ -3,7 +3,7 @@
  *
  * Name: acconfig.h - Global configuration constants
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -141,7 +141,7 @@
 
 /*
  * Maximal number of elements the Result Stack can contain,
- * it may be an arbitray value not exceeding the types of
+ * it may be an arbitrary value not exceeding the types of
  * result_size and result_count (now u8).
  */
 #define ACPI_RESULTS_OBJ_NUM_MAX        255

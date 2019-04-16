@@ -365,23 +365,18 @@ static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_blkcipher rblkcipher;
 
-	strncpy(rblkcipher.type, "ablkcipher", sizeof(rblkcipher.type));
-	strncpy(rblkcipher.geniv, alg->cra_ablkcipher.geniv ?: "<default>",
-		sizeof(rblkcipher.geniv));
-	rblkcipher.geniv[sizeof(rblkcipher.geniv) - 1] = '\0';
+	memset(&rblkcipher, 0, sizeof(rblkcipher));
+
+	strscpy(rblkcipher.type, "ablkcipher", sizeof(rblkcipher.type));
+	strscpy(rblkcipher.geniv, "<default>", sizeof(rblkcipher.geniv));
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = alg->cra_ablkcipher.min_keysize;
 	rblkcipher.max_keysize = alg->cra_ablkcipher.max_keysize;
 	rblkcipher.ivsize = alg->cra_ablkcipher.ivsize;
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
+		       sizeof(rblkcipher), &rblkcipher);
 }
 #else
 static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
@@ -403,7 +398,7 @@ static void crypto_ablkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
 	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
-	seq_printf(m, "geniv        : %s\n", ablkcipher->geniv ?: "<default>");
+	seq_printf(m, "geniv        : <default>\n");
 }
 
 const struct crypto_type crypto_ablkcipher_type = {
@@ -415,78 +410,3 @@ const struct crypto_type crypto_ablkcipher_type = {
 	.report = crypto_ablkcipher_report,
 };
 EXPORT_SYMBOL_GPL(crypto_ablkcipher_type);
-
-static int crypto_init_givcipher_ops(struct crypto_tfm *tfm, u32 type,
-				      u32 mask)
-{
-	struct ablkcipher_alg *alg = &tfm->__crt_alg->cra_ablkcipher;
-	struct ablkcipher_tfm *crt = &tfm->crt_ablkcipher;
-
-	if (alg->ivsize > PAGE_SIZE / 8)
-		return -EINVAL;
-
-	crt->setkey = tfm->__crt_alg->cra_flags & CRYPTO_ALG_GENIV ?
-		      alg->setkey : setkey;
-	crt->encrypt = alg->encrypt;
-	crt->decrypt = alg->decrypt;
-	crt->base = __crypto_ablkcipher_cast(tfm);
-	crt->ivsize = alg->ivsize;
-
-	return 0;
-}
-
-#ifdef CONFIG_NET
-static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_report_blkcipher rblkcipher;
-
-	strncpy(rblkcipher.type, "givcipher", sizeof(rblkcipher.type));
-	strncpy(rblkcipher.geniv, alg->cra_ablkcipher.geniv ?: "<built-in>",
-		sizeof(rblkcipher.geniv));
-	rblkcipher.geniv[sizeof(rblkcipher.geniv) - 1] = '\0';
-
-	rblkcipher.blocksize = alg->cra_blocksize;
-	rblkcipher.min_keysize = alg->cra_ablkcipher.min_keysize;
-	rblkcipher.max_keysize = alg->cra_ablkcipher.max_keysize;
-	rblkcipher.ivsize = alg->cra_ablkcipher.ivsize;
-
-	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
-}
-#else
-static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
-
-static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
-{
-	struct ablkcipher_alg *ablkcipher = &alg->cra_ablkcipher;
-
-	seq_printf(m, "type         : givcipher\n");
-	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
-					     "yes" : "no");
-	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
-	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
-	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
-	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
-	seq_printf(m, "geniv        : %s\n", ablkcipher->geniv ?: "<built-in>");
-}
-
-const struct crypto_type crypto_givcipher_type = {
-	.ctxsize = crypto_ablkcipher_ctxsize,
-	.init = crypto_init_givcipher_ops,
-#ifdef CONFIG_PROC_FS
-	.show = crypto_givcipher_show,
-#endif
-	.report = crypto_givcipher_report,
-};
-EXPORT_SYMBOL_GPL(crypto_givcipher_type);

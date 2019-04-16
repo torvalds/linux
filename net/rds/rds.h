@@ -19,10 +19,13 @@
  */
 #define RDS_PROTOCOL_3_0	0x0300
 #define RDS_PROTOCOL_3_1	0x0301
+#define RDS_PROTOCOL_4_0	0x0400
+#define RDS_PROTOCOL_4_1	0x0401
 #define RDS_PROTOCOL_VERSION	RDS_PROTOCOL_3_1
 #define RDS_PROTOCOL_MAJOR(v)	((v) >> 8)
 #define RDS_PROTOCOL_MINOR(v)	((v) & 255)
 #define RDS_PROTOCOL(maj, min)	(((maj) << 8) | min)
+#define RDS_PROTOCOL_COMPAT_VERSION	RDS_PROTOCOL_3_1
 
 /* The following ports, 16385, 18634, 18635, are registered with IANA as
  * the ports to be used for RDS over TCP and UDP.  Currently, only RDS over
@@ -47,10 +50,6 @@ void rdsdebug(char *fmt, ...)
 {
 }
 #endif
-
-/* XXX is there one of these somewhere? */
-#define ceil(x, y) \
-	({ unsigned long __x = (x), __y = (y); (__x + __y - 1) / __y; })
 
 #define RDS_FRAG_SHIFT	12
 #define RDS_FRAG_SIZE	((unsigned int)(1 << RDS_FRAG_SHIFT))
@@ -155,8 +154,12 @@ struct rds_connection {
 	struct rds_cong_map	*c_fcong;
 
 	/* Protocol version */
+	unsigned int		c_proposed_version;
 	unsigned int		c_version;
 	possible_net_t		c_net;
+
+	/* TOS */
+	u8			c_tos;
 
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
@@ -386,6 +389,18 @@ static inline void rds_message_zcopy_queue_init(struct rds_msg_zcopy_queue *q)
 	INIT_LIST_HEAD(&q->zcookie_head);
 }
 
+struct rds_iov_vector {
+	struct rds_iovec *iov;
+	int               len;
+};
+
+struct rds_iov_vector_arr {
+	struct rds_iov_vector *vec;
+	int                    len;
+	int                    indx;
+	int                    incr;
+};
+
 struct rds_message {
 	refcount_t		m_refcount;
 	struct list_head	m_sock_item;
@@ -559,6 +574,7 @@ struct rds_transport {
 	void (*free_mr)(void *trans_private, int invalidate);
 	void (*flush_mrs)(void);
 	bool (*t_unloading)(struct rds_connection *conn);
+	u8 (*get_tos_map)(u8 tos);
 };
 
 /* Bind hash table key length.  It is the sum of the size of a struct
@@ -640,6 +656,7 @@ struct rds_sock {
 	u8			rs_rx_traces;
 	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
 	struct rds_msg_zcopy_queue rs_zcookie_queue;
+	u8			rs_tos;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -748,13 +765,14 @@ void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(struct net *net,
 				       const struct in6_addr *laddr,
 				       const struct in6_addr *faddr,
-				       struct rds_transport *trans, gfp_t gfp,
+				       struct rds_transport *trans,
+				       u8 tos, gfp_t gfp,
 				       int dev_if);
 struct rds_connection *rds_conn_create_outgoing(struct net *net,
 						const struct in6_addr *laddr,
 						const struct in6_addr *faddr,
 						struct rds_transport *trans,
-						gfp_t gfp, int dev_if);
+						u8 tos, gfp_t gfp, int dev_if);
 void rds_conn_shutdown(struct rds_conn_path *cpath);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);
@@ -827,7 +845,8 @@ rds_conn_connecting(struct rds_connection *conn)
 
 /* message.c */
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp);
-struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents);
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents,
+					  int *ret);
 int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
 			       bool zcopy);
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len);
@@ -904,13 +923,13 @@ int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen);
 int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen);
 int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen);
 void rds_rdma_drop_keys(struct rds_sock *rs);
-int rds_rdma_extra_size(struct rds_rdma_args *args);
-int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
-			  struct cmsghdr *cmsg);
+int rds_rdma_extra_size(struct rds_rdma_args *args,
+			struct rds_iov_vector *iov);
 int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg);
 int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
-			  struct cmsghdr *cmsg);
+			  struct cmsghdr *cmsg,
+			  struct rds_iov_vector *vec);
 int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg);
 void rds_rdma_free_op(struct rm_rdma_op *ro);

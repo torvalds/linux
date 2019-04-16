@@ -153,6 +153,8 @@ int __init db1200_board_setup(void)
 
 /******************************************************************************/
 
+static u64 au1200_all_dmamask = DMA_BIT_MASK(32);
+
 static struct mtd_partition db1200_spiflash_parts[] = {
 	{
 		.name	= "spi_flash",
@@ -324,13 +326,11 @@ static struct resource db1200_ide_res[] = {
 	},
 };
 
-static u64 au1200_ide_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device db1200_ide_dev = {
 	.name		= "pata_platform",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1200_ide_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_ide_info,
 	},
@@ -566,13 +566,11 @@ static struct resource au1200_mmc0_resources[] = {
 	}
 };
 
-static u64 au1xxx_mmc_dmamask =	 DMA_BIT_MASK(32);
-
 static struct platform_device db1200_mmc0_dev = {
 	.name		= "au1xxx-mmc",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_mmc_platdata[0],
 	},
@@ -607,7 +605,7 @@ static struct platform_device pb1200_mmc1_dev = {
 	.name		= "au1xxx-mmc",
 	.id		= 1,
 	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_mmc_platdata[1],
 	},
@@ -657,13 +655,11 @@ static struct resource au1200_lcd_res[] = {
 	}
 };
 
-static u64 au1200_lcd_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device au1200_lcd_dev = {
 	.name		= "au1200-lcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1200_lcd_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200fb_pd,
 	},
@@ -717,11 +713,9 @@ static struct au1550_spi_info db1200_spi_platdata = {
 	.activate_cs	= db1200_spi_cs_en,
 };
 
-static u64 spi_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device db1200_spi_dev = {
 	.dev	= {
-		.dma_mask		= &spi_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_spi_platdata,
 	},
@@ -766,6 +760,10 @@ static struct platform_device db1200_audio_dev = {
 static struct platform_device db1200_sound_dev = {
 	/* name assigned later based on switch setting */
 	.id		= 1,	/* PSC ID */
+	.dev = {
+		.dma_mask		= &au1200_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 static struct platform_device db1200_stac_dev = {

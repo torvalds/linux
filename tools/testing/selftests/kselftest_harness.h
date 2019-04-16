@@ -168,8 +168,8 @@
 #define __TEST_IMPL(test_name, _signal) \
 	static void test_name(struct __test_metadata *_metadata); \
 	static struct __test_metadata _##test_name##_object = \
-		{ name: "global." #test_name, \
-		  fn: &test_name, termsig: _signal }; \
+		{ .name = "global." #test_name, \
+		  .fn = &test_name, .termsig = _signal }; \
 	static void __attribute__((constructor)) _register_##test_name(void) \
 	{ \
 		__register_test(&_##test_name##_object); \
@@ -304,9 +304,9 @@
 	} \
 	static struct __test_metadata \
 		      _##fixture_name##_##test_name##_object = { \
-		name: #fixture_name "." #test_name, \
-		fn: &wrapper_##fixture_name##_##test_name, \
-		termsig: signal, \
+		.name = #fixture_name "." #test_name, \
+		.fn = &wrapper_##fixture_name##_##test_name, \
+		.termsig = signal, \
 	 }; \
 	static void __attribute__((constructor)) \
 			_register_##fixture_name##_##test_name(void) \
@@ -354,7 +354,7 @@
  * ASSERT_EQ(expected, measured): expected == measured
  */
 #define ASSERT_EQ(expected, seen) \
-	__EXPECT(expected, seen, ==, 1)
+	__EXPECT(expected, #expected, seen, #seen, ==, 1)
 
 /**
  * ASSERT_NE(expected, seen)
@@ -365,7 +365,7 @@
  * ASSERT_NE(expected, measured): expected != measured
  */
 #define ASSERT_NE(expected, seen) \
-	__EXPECT(expected, seen, !=, 1)
+	__EXPECT(expected, #expected, seen, #seen, !=, 1)
 
 /**
  * ASSERT_LT(expected, seen)
@@ -376,7 +376,7 @@
  * ASSERT_LT(expected, measured): expected < measured
  */
 #define ASSERT_LT(expected, seen) \
-	__EXPECT(expected, seen, <, 1)
+	__EXPECT(expected, #expected, seen, #seen, <, 1)
 
 /**
  * ASSERT_LE(expected, seen)
@@ -387,7 +387,7 @@
  * ASSERT_LE(expected, measured): expected <= measured
  */
 #define ASSERT_LE(expected, seen) \
-	__EXPECT(expected, seen, <=, 1)
+	__EXPECT(expected, #expected, seen, #seen, <=, 1)
 
 /**
  * ASSERT_GT(expected, seen)
@@ -398,7 +398,7 @@
  * ASSERT_GT(expected, measured): expected > measured
  */
 #define ASSERT_GT(expected, seen) \
-	__EXPECT(expected, seen, >, 1)
+	__EXPECT(expected, #expected, seen, #seen, >, 1)
 
 /**
  * ASSERT_GE(expected, seen)
@@ -409,7 +409,7 @@
  * ASSERT_GE(expected, measured): expected >= measured
  */
 #define ASSERT_GE(expected, seen) \
-	__EXPECT(expected, seen, >=, 1)
+	__EXPECT(expected, #expected, seen, #seen, >=, 1)
 
 /**
  * ASSERT_NULL(seen)
@@ -419,7 +419,7 @@
  * ASSERT_NULL(measured): NULL == measured
  */
 #define ASSERT_NULL(seen) \
-	__EXPECT(NULL, seen, ==, 1)
+	__EXPECT(NULL, "NULL", seen, #seen, ==, 1)
 
 /**
  * ASSERT_TRUE(seen)
@@ -429,7 +429,7 @@
  * ASSERT_TRUE(measured): measured != 0
  */
 #define ASSERT_TRUE(seen) \
-	ASSERT_NE(0, seen)
+	__EXPECT(0, "0", seen, #seen, !=, 1)
 
 /**
  * ASSERT_FALSE(seen)
@@ -439,7 +439,7 @@
  * ASSERT_FALSE(measured): measured == 0
  */
 #define ASSERT_FALSE(seen) \
-	ASSERT_EQ(0, seen)
+	__EXPECT(0, "0", seen, #seen, ==, 1)
 
 /**
  * ASSERT_STREQ(expected, seen)
@@ -472,7 +472,7 @@
  * EXPECT_EQ(expected, measured): expected == measured
  */
 #define EXPECT_EQ(expected, seen) \
-	__EXPECT(expected, seen, ==, 0)
+	__EXPECT(expected, #expected, seen, #seen, ==, 0)
 
 /**
  * EXPECT_NE(expected, seen)
@@ -483,7 +483,7 @@
  * EXPECT_NE(expected, measured): expected != measured
  */
 #define EXPECT_NE(expected, seen) \
-	__EXPECT(expected, seen, !=, 0)
+	__EXPECT(expected, #expected, seen, #seen, !=, 0)
 
 /**
  * EXPECT_LT(expected, seen)
@@ -494,7 +494,7 @@
  * EXPECT_LT(expected, measured): expected < measured
  */
 #define EXPECT_LT(expected, seen) \
-	__EXPECT(expected, seen, <, 0)
+	__EXPECT(expected, #expected, seen, #seen, <, 0)
 
 /**
  * EXPECT_LE(expected, seen)
@@ -505,7 +505,7 @@
  * EXPECT_LE(expected, measured): expected <= measured
  */
 #define EXPECT_LE(expected, seen) \
-	__EXPECT(expected, seen, <=, 0)
+	__EXPECT(expected, #expected, seen, #seen, <=, 0)
 
 /**
  * EXPECT_GT(expected, seen)
@@ -516,7 +516,7 @@
  * EXPECT_GT(expected, measured): expected > measured
  */
 #define EXPECT_GT(expected, seen) \
-	__EXPECT(expected, seen, >, 0)
+	__EXPECT(expected, #expected, seen, #seen, >, 0)
 
 /**
  * EXPECT_GE(expected, seen)
@@ -527,7 +527,7 @@
  * EXPECT_GE(expected, measured): expected >= measured
  */
 #define EXPECT_GE(expected, seen) \
-	__EXPECT(expected, seen, >=, 0)
+	__EXPECT(expected, #expected, seen, #seen, >=, 0)
 
 /**
  * EXPECT_NULL(seen)
@@ -537,7 +537,7 @@
  * EXPECT_NULL(measured): NULL == measured
  */
 #define EXPECT_NULL(seen) \
-	__EXPECT(NULL, seen, ==, 0)
+	__EXPECT(NULL, "NULL", seen, #seen, ==, 0)
 
 /**
  * EXPECT_TRUE(seen)
@@ -547,7 +547,7 @@
  * EXPECT_TRUE(measured): 0 != measured
  */
 #define EXPECT_TRUE(seen) \
-	EXPECT_NE(0, seen)
+	__EXPECT(0, "0", seen, #seen, !=, 0)
 
 /**
  * EXPECT_FALSE(seen)
@@ -557,7 +557,7 @@
  * EXPECT_FALSE(measured): 0 == measured
  */
 #define EXPECT_FALSE(seen) \
-	EXPECT_EQ(0, seen)
+	__EXPECT(0, "0", seen, #seen, ==, 0)
 
 /**
  * EXPECT_STREQ(expected, seen)
@@ -597,7 +597,7 @@
 	if (_metadata->passed && _metadata->step < 255) \
 		_metadata->step++;
 
-#define __EXPECT(_expected, _seen, _t, _assert) do { \
+#define __EXPECT(_expected, _expected_str, _seen, _seen_str, _t, _assert) do { \
 	/* Avoid multiple evaluation of the cases */ \
 	__typeof__(_expected) __exp = (_expected); \
 	__typeof__(_seen) __seen = (_seen); \
@@ -606,8 +606,8 @@
 		unsigned long long __exp_print = (uintptr_t)__exp; \
 		unsigned long long __seen_print = (uintptr_t)__seen; \
 		__TH_LOG("Expected %s (%llu) %s %s (%llu)", \
-			 #_expected, __exp_print, #_t, \
-			 #_seen, __seen_print); \
+			 _expected_str, __exp_print, #_t, \
+			 _seen_str, __seen_print); \
 		_metadata->passed = 0; \
 		/* Ensure the optional handler is triggered */ \
 		_metadata->trigger = 1; \

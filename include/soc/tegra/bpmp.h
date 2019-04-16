@@ -23,6 +23,7 @@
 #include <soc/tegra/bpmp-abi.h>
 
 struct tegra_bpmp_clk;
+struct tegra_bpmp_ops;
 
 struct tegra_bpmp_soc {
 	struct {
@@ -32,6 +33,8 @@ struct tegra_bpmp_soc {
 			unsigned int timeout;
 		} cpu_tx, thread, cpu_rx;
 	} channels;
+
+	const struct tegra_bpmp_ops *ops;
 	unsigned int num_resets;
 };
 
@@ -47,6 +50,7 @@ struct tegra_bpmp_channel {
 	struct tegra_bpmp_mb_data *ob;
 	struct completion completion;
 	struct tegra_ivc *ivc;
+	unsigned int index;
 };
 
 typedef void (*tegra_bpmp_mrq_handler_t)(unsigned int mrq,
@@ -63,12 +67,7 @@ struct tegra_bpmp_mrq {
 struct tegra_bpmp {
 	const struct tegra_bpmp_soc *soc;
 	struct device *dev;
-
-	struct {
-		struct gen_pool *pool;
-		dma_addr_t phys;
-		void *virt;
-	} tx, rx;
+	void *priv;
 
 	struct {
 		struct mbox_client client;
@@ -129,6 +128,7 @@ int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 			   tegra_bpmp_mrq_handler_t handler, void *data);
 void tegra_bpmp_free_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 			 void *data);
+bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq);
 #else
 static inline struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 {
@@ -164,7 +164,15 @@ static inline void tegra_bpmp_free_mrq(struct tegra_bpmp *bpmp,
 				       unsigned int mrq, void *data)
 {
 }
+
+static inline bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp,
+					      unsigned int mrq)
+{
+	return false;
+}
 #endif
+
+void tegra_bpmp_handle_rx(struct tegra_bpmp *bpmp);
 
 #if IS_ENABLED(CONFIG_CLK_TEGRA_BPMP)
 int tegra_bpmp_init_clocks(struct tegra_bpmp *bpmp);

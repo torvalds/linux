@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config TYPEC_TCPM
 	tristate "USB Type-C Port Controller Manager"
 	depends on USB

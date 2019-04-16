@@ -12,7 +12,7 @@ config BAMBOO
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 440EP
-	select PCI
+	select FORCE_PCI
 	help
 	  This option enables support for the IBM PPC440EP evaluation board.
 
@@ -21,7 +21,7 @@ config BLUESTONE
 	depends on 44x
 	select PPC44x_SIMPLE
 	select APM821xx
-	select PCI
+	select FORCE_PCI
 	select PCI_MSI
 	select PPC4xx_MSI
 	select PPC4xx_PCI_EXPRESS
@@ -34,7 +34,7 @@ config EBONY
 	depends on 44x
 	default y
 	select 440GP
-	select PCI
+	select FORCE_PCI
 	select OF_RTC
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
@@ -43,7 +43,7 @@ config SAM440EP
         bool "Sam440ep"
 	depends on 44x
         select 440EP
-        select PCI
+        select FORCE_PCI
         help
           This option enables support for the ACube Sam440ep board.
 
@@ -60,7 +60,7 @@ config TAISHAN
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 440GX
-	select PCI
+	select FORCE_PCI
 	help
 	  This option enables support for the AMCC PPC440GX "Taishan"
 	  evaluation board.
@@ -70,7 +70,7 @@ config KATMAI
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 440SPe
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
 	select PPC4xx_MSI
@@ -82,7 +82,7 @@ config RAINIER
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 440GRX
-	select PCI
+	select FORCE_PCI
 	help
 	  This option enables support for the AMCC PPC440GRX evaluation board.
 
@@ -103,7 +103,7 @@ config ARCHES
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 460EX # Odd since it uses 460GT but the effects are the same
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	help
 	  This option enables support for the AMCC Dual PPC460GT evaluation board.
@@ -112,7 +112,7 @@ config CANYONLANDS
 	bool "Canyonlands"
 	depends on 44x
 	select 460EX
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
 	select PPC4xx_MSI
@@ -126,7 +126,7 @@ config GLACIER
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 460EX # Odd since it uses 460GT but the effects are the same
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select IBM_EMAC_RGMII if IBM_EMAC
 	select IBM_EMAC_ZMII if IBM_EMAC
@@ -138,7 +138,7 @@ config REDWOOD
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 460SX
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PCI_MSI
 	select PPC4xx_MSI
@@ -150,7 +150,7 @@ config EIGER
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 460SX
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select IBM_EMAC_RGMII if IBM_EMAC
 	help
@@ -161,7 +161,7 @@ config YOSEMITE
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 440EP
-	select PCI
+	select FORCE_PCI
 	help
 	  This option enables support for the AMCC PPC440EP evaluation board.
 
@@ -180,6 +180,7 @@ config CURRITUCK
 	depends on PPC_47x
 	select SWIOTLB
 	select 476FPE
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	help
 	  This option enables support for the IBM Currituck (476fpe) evaluation board
@@ -201,7 +202,7 @@ config AKEBONO
 	select SWIOTLB
 	select 476FPE
 	select PPC4xx_PCI_EXPRESS
-	select PCI
+	select FORCE_PCI
 	select PCI_MSI
 	select PPC4xx_HSTA_MSI
 	select I2C
@@ -226,7 +227,7 @@ config ICON
 	depends on 44x
 	select PPC44x_SIMPLE
 	select 440SPe
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	help
 	  This option enables support for the AMCC PPC440SPe evaluation board.
@@ -250,7 +251,7 @@ config XILINX_VIRTEX440_GENERIC_BOARD
 config XILINX_ML510
 	bool "Xilinx ML510 extra support"
 	depends on XILINX_VIRTEX440_GENERIC_BOARD
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select XILINX_PCI if PCI
 	select PPC_INDIRECT_PCI if PCI
 	select PPC_I8259 if PCI

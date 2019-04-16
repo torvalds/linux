@@ -142,7 +142,7 @@ characterised by the following graph:
 
 The graph is split in two parts delimited by time 1ms on the X-axis.
 The graph curve with X-axis values = { x | 0 < x < 1ms } has a steep slope
-and denotes the energy costs incurred whilst entering and leaving the idle
+and denotes the energy costs incurred while entering and leaving the idle
 state.
 The graph curve in the area delimited by X-axis values = {x | x > 1ms } has
 shallower slope and essentially represents the energy consumption of the idle
@@ -684,7 +684,7 @@ cpus {
 ===========================================
 
 [1] ARM Linux Kernel documentation - CPUs bindings
-    Documentation/devicetree/bindings/arm/cpus.txt
+    Documentation/devicetree/bindings/arm/cpus.yaml
 
 [2] ARM Linux Kernel documentation - PSCI bindings
     Documentation/devicetree/bindings/arm/psci.txt

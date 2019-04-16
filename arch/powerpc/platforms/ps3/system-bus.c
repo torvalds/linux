@@ -37,12 +37,12 @@ static struct device ps3_system_bus = {
 };
 
 /* FIXME: need device usage counters! */
-struct {
+static struct {
 	struct mutex mutex;
 	int sb_11; /* usb 0 */
 	int sb_12; /* usb 0 */
 	int gpu;
-} static usage_hack;
+} usage_hack;
 
 static int ps3_is_device(struct ps3_system_bus_device *dev, u64 bus_id,
 			 u64 dev_id)

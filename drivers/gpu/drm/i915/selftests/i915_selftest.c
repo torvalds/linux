@@ -133,7 +133,7 @@ static int __run_selftests(const char *name,
 		if (signal_pending(current))
 			return -EINTR;
 
-		pr_debug(DRIVER_NAME ": Running %s\n", st->name);
+		pr_info(DRIVER_NAME ": Running %s\n", st->name);
 		if (data)
 			err = st->live(data);
 		else
@@ -197,6 +197,49 @@ int i915_live_selftests(struct pci_dev *pdev)
 	return 0;
 }
 
+static bool apply_subtest_filter(const char *caller, const char *name)
+{
+	char *filter, *sep, *tok;
+	bool result = true;
+
+	filter = kstrdup(i915_selftest.filter, GFP_KERNEL);
+	for (sep = filter; (tok = strsep(&sep, ","));) {
+		bool allow = true;
+		char *sl;
+
+		if (*tok == '!') {
+			allow = false;
+			tok++;
+		}
+
+		if (*tok == '\0')
+			continue;
+
+		sl = strchr(tok, '/');
+		if (sl) {
+			*sl++ = '\0';
+			if (strcmp(tok, caller)) {
+				if (allow)
+					result = false;
+				continue;
+			}
+			tok = sl;
+		}
+
+		if (strcmp(tok, name)) {
+			if (allow)
+				result = false;
+			continue;
+		}
+
+		result = allow;
+		break;
+	}
+	kfree(filter);
+
+	return result;
+}
+
 int __i915_subtests(const char *caller,
 		    const struct i915_subtest *st,
 		    unsigned int count,
@@ -209,7 +252,10 @@ int __i915_subtests(const char *caller,
 		if (signal_pending(current))
 			return -EINTR;
 
-		pr_debug(DRIVER_NAME ": Running %s/%s\n", caller, st->name);
+		if (!apply_subtest_filter(caller, st->name))
+			continue;
+
+		pr_info(DRIVER_NAME ": Running %s/%s\n", caller, st->name);
 		GEM_TRACE("Running %s/%s\n", caller, st->name);
 
 		err = st->func(data);
@@ -244,6 +290,7 @@ bool __igt_timeout(unsigned long timeout, const char *fmt, ...)
 
 module_param_named(st_random_seed, i915_selftest.random_seed, uint, 0400);
 module_param_named(st_timeout, i915_selftest.timeout_ms, uint, 0400);
+module_param_named(st_filter, i915_selftest.filter, charp, 0400);
 
 module_param_named_unsafe(mock_selftests, i915_selftest.mock, int, 0400);
 MODULE_PARM_DESC(mock_selftests, "Run selftests before loading, using mock hardware (0:disabled [default], 1:run tests then load driver, -1:run tests then exit module)");

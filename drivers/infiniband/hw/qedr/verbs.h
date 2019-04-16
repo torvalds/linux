@@ -43,13 +43,13 @@ int qedr_iw_query_gid(struct ib_device *ibdev, u8 port,
 
 int qedr_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
 
-struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *, struct ib_udata *);
-int qedr_dealloc_ucontext(struct ib_ucontext *);
+int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
+void qedr_dealloc_ucontext(struct ib_ucontext *uctx);
 
 int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
-struct ib_pd *qedr_alloc_pd(struct ib_device *,
-			    struct ib_ucontext *, struct ib_udata *);
-int qedr_dealloc_pd(struct ib_pd *pd);
+int qedr_alloc_pd(struct ib_pd *pd, struct ib_ucontext *uctx,
+		  struct ib_udata *udata);
+void qedr_dealloc_pd(struct ib_pd *pd);
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
@@ -76,8 +76,8 @@ int qedr_destroy_srq(struct ib_srq *ibsrq);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
 struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata);
-int qedr_destroy_ah(struct ib_ah *ibah);
+			     u32 flags, struct ib_udata *udata);
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
 int qedr_dereg_mr(struct ib_mr *);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);

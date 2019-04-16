@@ -98,21 +98,23 @@ static noinline void nft_update_chain_stats(const struct nft_chain *chain,
 					    const struct nft_pktinfo *pkt)
 {
 	struct nft_base_chain *base_chain;
+	struct nft_stats __percpu *pstats;
 	struct nft_stats *stats;
 
 	base_chain = nft_base_chain(chain);
-	if (!base_chain->stats)
-		return;
 
-	local_bh_disable();
-	stats = this_cpu_ptr(rcu_dereference(base_chain->stats));
-	if (stats) {
+	rcu_read_lock();
+	pstats = READ_ONCE(base_chain->stats);
+	if (pstats) {
+		local_bh_disable();
+		stats = this_cpu_ptr(pstats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->pkts++;
 		stats->bytes += pkt->skb->len;
 		u64_stats_update_end(&stats->syncp);
+		local_bh_enable();
 	}
-	local_bh_enable();
+	rcu_read_unlock();
 }
 
 struct nft_jumpstack {
@@ -124,14 +126,25 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 			       struct nft_regs *regs,
 			       struct nft_pktinfo *pkt)
 {
+#ifdef CONFIG_RETPOLINE
 	unsigned long e = (unsigned long)expr->ops->eval;
+#define X(e, fun) \
+	do { if ((e) == (unsigned long)(fun)) \
+		return fun(expr, regs, pkt); } while (0)
 
-	if (e == (unsigned long)nft_meta_get_eval)
-		nft_meta_get_eval(expr, regs, pkt);
-	else if (e == (unsigned long)nft_lookup_eval)
-		nft_lookup_eval(expr, regs, pkt);
-	else
-		expr->ops->eval(expr, regs, pkt);
+	X(e, nft_payload_eval);
+	X(e, nft_cmp_eval);
+	X(e, nft_meta_get_eval);
+	X(e, nft_lookup_eval);
+	X(e, nft_range_eval);
+	X(e, nft_immediate_eval);
+	X(e, nft_byteorder_eval);
+	X(e, nft_dynset_eval);
+	X(e, nft_rt_get_eval);
+	X(e, nft_bitwise_eval);
+#undef  X
+#endif /* CONFIG_RETPOLINE */
+	expr->ops->eval(expr, regs, pkt);
 }
 
 unsigned int
@@ -210,7 +223,6 @@ next_rule:
 		chain = regs.verdict.chain;
 		goto do_chain;
 	case NFT_CONTINUE:
-		/* fall through */
 	case NFT_RETURN:
 		nft_trace_packet(&info, chain, rule,
 				 NFT_TRACETYPE_RETURN);

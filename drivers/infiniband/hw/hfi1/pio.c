@@ -742,6 +742,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	spin_lock_init(&sc->alloc_lock);
 	spin_lock_init(&sc->release_lock);
 	spin_lock_init(&sc->credit_ctrl_lock);
+	seqlock_init(&sc->waitlock);
 	INIT_LIST_HEAD(&sc->piowait);
 	INIT_WORK(&sc->halt_work, sc_halted);
 	init_waitqueue_head(&sc->halt_wait);
@@ -1593,14 +1594,12 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
 static void sc_piobufavail(struct send_context *sc)
 {
 	struct hfi1_devdata *dd = sc->dd;
-	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct list_head *list;
 	struct rvt_qp *qps[PIO_WAIT_BATCH_SIZE];
 	struct rvt_qp *qp;
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
-	uint i, n = 0, max_idx = 0;
-	u8 max_starved_cnt = 0;
+	uint i, n = 0, top_idx = 0;
 
 	if (dd->send_contexts[sc->sw_index].type != SC_KERNEL &&
 	    dd->send_contexts[sc->sw_index].type != SC_VL15)
@@ -1612,18 +1611,25 @@ static void sc_piobufavail(struct send_context *sc)
 	 * could end up with QPs on the wait list with the interrupt
 	 * disabled.
 	 */
-	write_seqlock_irqsave(&dev->iowait_lock, flags);
+	write_seqlock_irqsave(&sc->waitlock, flags);
 	while (!list_empty(list)) {
 		struct iowait *wait;
 
 		if (n == ARRAY_SIZE(qps))
 			break;
 		wait = list_first_entry(list, struct iowait, list);
+		iowait_get_priority(wait);
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
 		priv->s_iowait.lock = NULL;
-		iowait_starve_find_max(wait, &max_starved_cnt, n, &max_idx);
+		if (n) {
+			priv = qps[top_idx]->priv;
+			top_idx = iowait_priority_update_top(wait,
+							     &priv->s_iowait,
+							     n, top_idx);
+		}
+
 		/* refcount held until actual wake up */
 		qps[n++] = qp;
 	}
@@ -1636,14 +1642,14 @@ static void sc_piobufavail(struct send_context *sc)
 		if (!list_empty(list))
 			hfi1_sc_wantpiobuf_intr(sc, 1);
 	}
-	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
+	write_sequnlock_irqrestore(&sc->waitlock, flags);
 
-	/* Wake up the most starved one first */
+	/* Wake up the top-priority one first */
 	if (n)
-		hfi1_qp_wakeup(qps[max_idx],
+		hfi1_qp_wakeup(qps[top_idx],
 			       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 	for (i = 0; i < n; i++)
-		if (i != max_idx)
+		if (i != top_idx)
 			hfi1_qp_wakeup(qps[i],
 				       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 }
@@ -2098,11 +2104,10 @@ int init_credit_return(struct hfi1_devdata *dd)
 		int bytes = TXE_NUM_CONTEXTS * sizeof(struct credit_return);
 
 		set_dev_node(&dd->pcidev->dev, i);
-		dd->cr_base[i].va = dma_zalloc_coherent(
-					&dd->pcidev->dev,
-					bytes,
-					&dd->cr_base[i].dma,
-					GFP_KERNEL);
+		dd->cr_base[i].va = dma_alloc_coherent(&dd->pcidev->dev,
+						       bytes,
+						       &dd->cr_base[i].dma,
+						       GFP_KERNEL);
 		if (!dd->cr_base[i].va) {
 			set_dev_node(&dd->pcidev->dev, dd->node);
 			dd_dev_err(dd,
@@ -2136,4 +2141,29 @@ void free_credit_return(struct hfi1_devdata *dd)
 	}
 	kfree(dd->cr_base);
 	dd->cr_base = NULL;
+}
+
+void seqfile_dump_sci(struct seq_file *s, u32 i,
+		      struct send_context_info *sci)
+{
+	struct send_context *sc = sci->sc;
+	u64 reg;
+
+	seq_printf(s, "SCI %u: type %u base %u credits %u\n",
+		   i, sci->type, sci->base, sci->credits);
+	seq_printf(s, "  flags 0x%x sw_inx %u hw_ctxt %u grp %u\n",
+		   sc->flags,  sc->sw_index, sc->hw_context, sc->group);
+	seq_printf(s, "  sr_size %u credits %u sr_head %u sr_tail %u\n",
+		   sc->sr_size, sc->credits, sc->sr_head, sc->sr_tail);
+	seq_printf(s, "  fill %lu free %lu fill_wrap %u alloc_free %lu\n",
+		   sc->fill, sc->free, sc->fill_wrap, sc->alloc_free);
+	seq_printf(s, "  credit_intr_count %u credit_ctrl 0x%llx\n",
+		   sc->credit_intr_count, sc->credit_ctrl);
+	reg = read_kctxt_csr(sc->dd, sc->hw_context, SC(CREDIT_STATUS));
+	seq_printf(s, "  *hw_free %llu CurrentFree %llu LastReturned %llu\n",
+		   (le64_to_cpu(*sc->hw_free) & CR_COUNTER_SMASK) >>
+		    CR_COUNTER_SHIFT,
+		   (reg >> SC(CREDIT_STATUS_CURRENT_FREE_COUNTER_SHIFT)) &
+		    SC(CREDIT_STATUS_CURRENT_FREE_COUNTER_MASK),
+		   reg & SC(CREDIT_STATUS_LAST_RETURNED_COUNTER_SMASK));
 }

@@ -27,7 +27,6 @@
 #include <linux/i2c.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
-#include <drm/drmP.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
 
@@ -89,12 +88,18 @@ void intel_connector_destroy(struct drm_connector *connector)
 
 	kfree(intel_connector->detect_edid);
 
+	intel_hdcp_cleanup(intel_connector);
+
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
 	intel_panel_fini(&intel_connector->panel);
 
 	drm_connector_cleanup(connector);
+
+	if (intel_connector->port)
+		drm_dp_mst_put_port_malloc(intel_connector->port);
+
 	kfree(connector);
 }
 
@@ -261,4 +266,12 @@ intel_attach_aspect_ratio_property(struct drm_connector *connector)
 		drm_object_attach_property(&connector->base,
 			connector->dev->mode_config.aspect_ratio_property,
 			DRM_MODE_PICTURE_ASPECT_NONE);
+}
+
+void
+intel_attach_colorspace_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_colorspace_property(connector))
+		drm_object_attach_property(&connector->base,
+					   connector->colorspace_property, 0);
 }

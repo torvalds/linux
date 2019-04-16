@@ -141,9 +141,9 @@ enum {
 
 struct intel_vgpu_submission_ops {
 	const char *name;
-	int (*init)(struct intel_vgpu *vgpu, unsigned long engine_mask);
-	void (*clean)(struct intel_vgpu *vgpu, unsigned long engine_mask);
-	void (*reset)(struct intel_vgpu *vgpu, unsigned long engine_mask);
+	int (*init)(struct intel_vgpu *vgpu, intel_engine_mask_t engine_mask);
+	void (*clean)(struct intel_vgpu *vgpu, intel_engine_mask_t engine_mask);
+	void (*reset)(struct intel_vgpu *vgpu, intel_engine_mask_t engine_mask);
 };
 
 struct intel_vgpu_submission {
@@ -481,7 +481,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_release_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
-				 unsigned int engine_mask);
+				 intel_engine_mask_t engine_mask);
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu);
@@ -589,7 +589,7 @@ static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
 
 static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 /**

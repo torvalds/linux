@@ -62,6 +62,8 @@ struct snd_fw_async_midi_port {
 	int consume_bytes;
 };
 
+#define SND_TSCM_QUEUE_COUNT	16
+
 struct snd_tscm {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -89,6 +91,13 @@ struct snd_tscm {
 
 	/* For MIDI message outgoing transactions. */
 	struct snd_fw_async_midi_port out_ports[TSCM_MIDI_OUT_PORT_MAX];
+
+	// A cache of status information in tx isoc packets.
+	__be32 state[SNDRV_FIREWIRE_TASCAM_STATE_COUNT];
+	struct snd_hwdep *hwdep;
+	struct snd_firewire_tascam_change queue[SND_TSCM_QUEUE_COUNT];
+	unsigned int pull_pos;
+	unsigned int push_pos;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull

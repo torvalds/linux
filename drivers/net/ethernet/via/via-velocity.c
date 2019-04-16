@@ -1740,7 +1740,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr,
 		dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
 				 le16_to_cpu(pktlen), DMA_TO_DEVICE);
 	}
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 	tdinfo->skb = NULL;
 }
 
@@ -3605,7 +3605,7 @@ static const char velocity_gstrings[][ETH_GSTRING_LEN] = {
 	"tx_jumbo",
 	"rx_mac_control_frames",
 	"tx_mac_control_frames",
-	"rx_frame_alignement_errors",
+	"rx_frame_alignment_errors",
 	"rx_long_ok",
 	"rx_long_err",
 	"tx_sqe_errors",

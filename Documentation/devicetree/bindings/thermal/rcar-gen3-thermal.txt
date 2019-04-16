@@ -21,8 +21,7 @@ Required properties:
 
 Optional properties:
 
-- interrupts		: interrupts routed to the TSC (3 for H3, M3-W, M3-N,
-			  and V3H)
+- interrupts		: interrupts routed to the TSC (must be 3).
 - power-domain		: Must contain a reference to the power domain. This
 			  property is mandatory if the thermal sensor instance
 			  is part of a controllable power domain.

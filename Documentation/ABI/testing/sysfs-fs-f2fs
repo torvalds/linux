@@ -86,11 +86,27 @@ Description:
 		The unit size is one block, now only support configuring in range
 		of [1, 512].
 
+What:          /sys/fs/f2fs/<disk>/umount_discard_timeout
+Date:          January 2019
+Contact:       "Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		Set timeout to issue discard commands during umount.
+		Default: 5 secs
+
 What:		/sys/fs/f2fs/<disk>/max_victim_search
 Date:		January 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:
 		 Controls the number of trials to find a victim segment.
+
+What:		/sys/fs/f2fs/<disk>/migration_granularity
+Date:		October 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Description:
+		 Controls migration granularity of garbage collection on large
+		 section, it can let GC move partial segment{s} of one section
+		 in one GC cycle, so that dispersing heavy overhead GC to
+		 multiple lightweight one.
 
 What:		/sys/fs/f2fs/<disk>/dir_level
 Date:		March 2014

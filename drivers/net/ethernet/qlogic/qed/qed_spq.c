@@ -252,9 +252,9 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 			   struct qed_spq *p_spq, struct qed_spq_entry *p_ent)
 {
 	struct qed_chain *p_chain = &p_hwfn->p_spq->chain;
+	struct core_db_data *p_db_data = &p_spq->db_data;
 	u16 echo = qed_chain_get_prod_idx(p_chain);
 	struct slow_path_element	*elem;
-	struct core_db_data		db;
 
 	p_ent->elem.hdr.echo	= cpu_to_le16(echo);
 	elem = qed_chain_produce(p_chain);
@@ -266,27 +266,22 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 	*elem = p_ent->elem; /* struct assignment */
 
 	/* send a doorbell on the slow hwfn session */
-	memset(&db, 0, sizeof(db));
-	SET_FIELD(db.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
-	SET_FIELD(db.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
-	SET_FIELD(db.params, CORE_DB_DATA_AGG_VAL_SEL,
-		  DQ_XCM_CORE_SPQ_PROD_CMD);
-	db.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-	db.spq_prod = cpu_to_le16(qed_chain_get_prod_idx(p_chain));
+	p_db_data->spq_prod = cpu_to_le16(qed_chain_get_prod_idx(p_chain));
 
 	/* make sure the SPQE is updated before the doorbell */
 	wmb();
 
-	DOORBELL(p_hwfn, qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY), *(u32 *)&db);
+	DOORBELL(p_hwfn, p_spq->db_addr_offset, *(u32 *)p_db_data);
 
 	/* make sure doorbell is rang */
 	wmb();
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Doorbelled [0x%08x, CID 0x%08x] with Flags: %02x agg_params: %02x, prod: %04x\n",
-		   qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY),
-		   p_spq->cid, db.params, db.agg_flags,
-		   qed_chain_get_prod_idx(p_chain));
+		   p_spq->db_addr_offset,
+		   p_spq->cid,
+		   p_db_data->params,
+		   p_db_data->agg_flags, qed_chain_get_prod_idx(p_chain));
 
 	return 0;
 }
@@ -402,6 +397,11 @@ int qed_eq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 
 	qed_eq_prod_update(p_hwfn, qed_chain_get_prod_idx(p_chain));
 
+	/* Attempt to post pending requests */
+	spin_lock_bh(&p_hwfn->p_spq->lock);
+	rc = qed_spq_pend_post(p_hwfn);
+	spin_unlock_bh(&p_hwfn->p_spq->lock);
+
 	return rc;
 }
 
@@ -490,8 +490,11 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
 	struct qed_spq_entry *p_virt = NULL;
+	struct core_db_data *p_db_data;
+	void __iomem *db_addr;
 	dma_addr_t p_phys = 0;
 	u32 i, capacity;
+	int rc;
 
 	INIT_LIST_HEAD(&p_spq->pending);
 	INIT_LIST_HEAD(&p_spq->completion_pending);
@@ -528,6 +531,25 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 
 	/* reset the chain itself */
 	qed_chain_reset(&p_spq->chain);
+
+	/* Initialize the address/data of the SPQ doorbell */
+	p_spq->db_addr_offset = qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY);
+	p_db_data = &p_spq->db_data;
+	memset(p_db_data, 0, sizeof(*p_db_data));
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_MAX);
+	SET_FIELD(p_db_data->params, CORE_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_CORE_SPQ_PROD_CMD);
+	p_db_data->agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
+
+	/* Register the SPQ doorbell with the doorbell recovery mechanism */
+	db_addr = (void __iomem *)((u8 __iomem *)p_hwfn->doorbells +
+				   p_spq->db_addr_offset);
+	rc = qed_db_recovery_add(p_hwfn->cdev, db_addr, &p_spq->db_data,
+				 DB_REC_WIDTH_32B, DB_REC_KERNEL);
+	if (rc)
+		DP_INFO(p_hwfn,
+			"Failed to register the SPQ doorbell with the doorbell recovery mechanism\n");
 }
 
 int qed_spq_alloc(struct qed_hwfn *p_hwfn)
@@ -575,10 +597,16 @@ spq_allocate_fail:
 void qed_spq_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
+	void __iomem *db_addr;
 	u32 capacity;
 
 	if (!p_spq)
 		return;
+
+	/* Delete the SPQ doorbell from the doorbell recovery mechanism */
+	db_addr = (void __iomem *)((u8 __iomem *)p_hwfn->doorbells +
+				   p_spq->db_addr_offset);
+	qed_db_recovery_del(p_hwfn->cdev, db_addr, &p_spq->db_data);
 
 	if (p_spq->p_virt) {
 		capacity = qed_chain_get_capacity(&p_spq->chain);
@@ -744,7 +772,7 @@ static int qed_spq_post_list(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
+int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
 	struct qed_spq_entry *p_ent = NULL;
@@ -765,6 +793,17 @@ static int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
 
 	return qed_spq_post_list(p_hwfn, &p_spq->pending,
 				 SPQ_HIGH_PRI_RESERVE_DEFAULT);
+}
+
+static void qed_spq_recov_set_ret_code(struct qed_spq_entry *p_ent,
+				       u8 *fw_return_code)
+{
+	if (!fw_return_code)
+		return;
+
+	if (p_ent->elem.hdr.protocol_id == PROTOCOLID_ROCE ||
+	    p_ent->elem.hdr.protocol_id == PROTOCOLID_IWARP)
+		*fw_return_code = RDMA_RETURN_OK;
 }
 
 /* Avoid overriding of SPQ entries when getting out-of-order completions, by
@@ -800,6 +839,17 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	if (!p_ent) {
 		DP_NOTICE(p_hwfn, "Got a NULL pointer\n");
 		return -EINVAL;
+	}
+
+	if (p_hwfn->cdev->recov_in_prog) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SPQ,
+			   "Recovery is in progress. Skip spq post [cmd %02x protocol %02x]\n",
+			   p_ent->elem.hdr.cmd_id, p_ent->elem.hdr.protocol_id);
+
+		/* Let the flow complete w/o any error handling */
+		qed_spq_recov_set_ret_code(p_ent, fw_return_code);
+		return 0;
 	}
 
 	/* Complete the entry */
@@ -882,7 +932,6 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry	*p_ent = NULL;
 	struct qed_spq_entry	*tmp;
 	struct qed_spq_entry	*found = NULL;
-	int			rc;
 
 	if (!p_hwfn)
 		return -EINVAL;
@@ -940,12 +989,7 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 		 */
 		qed_spq_return_entry(p_hwfn, found);
 
-	/* Attempt to post pending requests */
-	spin_lock_bh(&p_spq->lock);
-	rc = qed_spq_pend_post(p_hwfn);
-	spin_unlock_bh(&p_spq->lock);
-
-	return rc;
+	return 0;
 }
 
 int qed_consq_alloc(struct qed_hwfn *p_hwfn)

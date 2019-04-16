@@ -233,20 +233,6 @@
 				interrupt-parent = <&gpio2>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
-				P10 {
-					gpio-hog;
-					gpios = <8 0>;
-					output-low;
-					line-name = "PCA9539-P10";
-				};
-
-				P11 {
-					gpio-hog;
-					gpios = <9 0>;
-					output-low;
-					line-name = "PCA9539-P11";
-				};
-
 				P12 {
 					gpio-hog;
 					gpios = <10 0>;

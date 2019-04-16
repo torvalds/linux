@@ -189,7 +189,7 @@ retry:
 		 */
 		if (!err)
 			return 0;
-		else if (err != -EEXIST)
+		else if (err != -EBUSY)
 			goto failed_unlock;
 
 		err = invalidate_inode_pages2_range(btnc, newkey, newkey);
@@ -266,9 +266,7 @@ void nilfs_btnode_abort_change_key(struct address_space *btnc,
 		return;
 
 	if (nbh == NULL) {	/* blocksize == pagesize */
-		xa_lock_irq(&btnc->i_pages);
-		__xa_erase(&btnc->i_pages, newkey);
-		xa_unlock_irq(&btnc->i_pages);
+		xa_erase_irq(&btnc->i_pages, newkey);
 		unlock_page(ctxt->bh->b_page);
 	} else
 		brelse(nbh);

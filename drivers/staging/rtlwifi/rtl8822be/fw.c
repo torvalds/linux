@@ -486,6 +486,8 @@ bool rtl8822b_halmac_cb_write_data_h2c(struct rtl_priv *rtlpriv, u8 *buf,
 
 	/* without GFP_DMA, pci_map_single() may not work */
 	skb = __netdev_alloc_skb(NULL, size, GFP_ATOMIC | GFP_DMA);
+	if (!skb)
+		return false;
 	memcpy((u8 *)skb_put(skb, size), buf, size);
 
 	return _rtl8822be_send_bcn_or_cmd_packet(rtlpriv->hw, skb, H2C_QUEUE);

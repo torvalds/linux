@@ -8,7 +8,7 @@
  * Various counters maintained by the scheduler and fork(),
  * exposed via /proc, sys.c or used by drivers via these APIs.
  *
- * ( Note that all these values are aquired without locking,
+ * ( Note that all these values are acquired without locking,
  *   so they can only be relied on in narrow circumstances. )
  */
 

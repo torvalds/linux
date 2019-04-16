@@ -769,7 +769,7 @@ static int cosa_net_tx_done(struct channel_data *chan, int size)
 		chan->netdev->stats.tx_aborted_errors++;
 		return 1;
 	}
-	dev_kfree_skb_irq(chan->tx_skb);
+	dev_consume_skb_irq(chan->tx_skb);
 	chan->tx_skb = NULL;
 	chan->netdev->stats.tx_packets++;
 	chan->netdev->stats.tx_bytes += size;

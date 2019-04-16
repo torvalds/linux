@@ -66,6 +66,7 @@
 	};
 
 	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0>; /* will be filled in by U-Boot */
 	};
 

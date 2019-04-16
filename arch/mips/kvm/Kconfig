@@ -18,6 +18,7 @@ if VIRTUALIZATION
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM
+	depends on MIPS_FP_SUPPORT
 	select EXPORT_UASM
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
@@ -72,6 +73,6 @@ config KVM_MIPS_DEBUG_COP0_COUNTERS
 
 	  If unsure, say N.
 
-source drivers/vhost/Kconfig
+source "drivers/vhost/Kconfig"
 
 endif # VIRTUALIZATION

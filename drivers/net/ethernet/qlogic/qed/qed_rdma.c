@@ -140,22 +140,34 @@ static u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
 	return FEAT_NUM((struct qed_hwfn *)p_hwfn, QED_PF_L2_QUE) + rel_sb_id;
 }
 
-static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt,
-			  struct qed_rdma_start_in_params *params)
+int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_info *p_rdma_info;
+
+	p_rdma_info = kzalloc(sizeof(*p_rdma_info), GFP_KERNEL);
+	if (!p_rdma_info)
+		return -ENOMEM;
+
+	spin_lock_init(&p_rdma_info->lock);
+
+	p_hwfn->p_rdma_info = p_rdma_info;
+	return 0;
+}
+
+void qed_rdma_info_free(struct qed_hwfn *p_hwfn)
+{
+	kfree(p_hwfn->p_rdma_info);
+	p_hwfn->p_rdma_info = NULL;
+}
+
+static int qed_rdma_alloc(struct qed_hwfn *p_hwfn)
+{
+	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
 	u32 num_cons, num_tasks;
 	int rc = -ENOMEM;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocating RDMA\n");
 
-	/* Allocate a struct with current pf rdma info */
-	p_rdma_info = kzalloc(sizeof(*p_rdma_info), GFP_KERNEL);
-	if (!p_rdma_info)
-		return rc;
-
-	p_hwfn->p_rdma_info = p_rdma_info;
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
 		p_rdma_info->proto = PROTOCOLID_IWARP;
 	else
@@ -183,7 +195,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	/* Allocate a struct with device params and fill it */
 	p_rdma_info->dev = kzalloc(sizeof(*p_rdma_info->dev), GFP_KERNEL);
 	if (!p_rdma_info->dev)
-		goto free_rdma_info;
+		return rc;
 
 	/* Allocate a struct with port params and fill it */
 	p_rdma_info->port = kzalloc(sizeof(*p_rdma_info->port), GFP_KERNEL);
@@ -298,8 +310,6 @@ free_rdma_port:
 	kfree(p_rdma_info->port);
 free_rdma_dev:
 	kfree(p_rdma_info->dev);
-free_rdma_info:
-	kfree(p_rdma_info);
 
 	return rc;
 }
@@ -370,8 +380,6 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 
 	kfree(p_rdma_info->port);
 	kfree(p_rdma_info->dev);
-
-	kfree(p_rdma_info);
 }
 
 static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
@@ -679,8 +687,6 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "RDMA setup\n");
 
-	spin_lock_init(&p_hwfn->p_rdma_info->lock);
-
 	qed_rdma_init_devinfo(p_hwfn, params);
 	qed_rdma_init_port(p_hwfn);
 	qed_rdma_init_events(p_hwfn, params);
@@ -727,7 +733,7 @@ static int qed_rdma_stop(void *rdma_cxt)
 	/* Disable RoCE search */
 	qed_wr(p_hwfn, p_ptt, p_hwfn->rdma_prs_search_reg, 0);
 	p_hwfn->b_rdma_enabled_in_prs = false;
-
+	p_hwfn->p_rdma_info->active = 0;
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ROCE_DEST_QP_MAX_PF, 0);
 
 	ll2_ethertype_en = qed_rd(p_hwfn, p_ptt, PRS_REG_LIGHT_L2_ETHERTYPE_EN);
@@ -1236,7 +1242,8 @@ qed_rdma_create_qp(void *rdma_cxt,
 	u8 max_stats_queues;
 	int rc;
 
-	if (!rdma_cxt || !in_params || !out_params || !p_hwfn->p_rdma_info) {
+	if (!rdma_cxt || !in_params || !out_params ||
+	    !p_hwfn->p_rdma_info->active) {
 		DP_ERR(p_hwfn->cdev,
 		       "qed roce create qp failed due to NULL entry (rdma_cxt=%p, in=%p, out=%p, roce_info=?\n",
 		       rdma_cxt, in_params, out_params);
@@ -1802,8 +1809,8 @@ bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn)
 {
 	bool result;
 
-	/* if rdma info has not been allocated, naturally there are no qps */
-	if (!p_hwfn->p_rdma_info)
+	/* if rdma wasn't activated yet, naturally there are no qps */
+	if (!p_hwfn->p_rdma_info->active)
 		return false;
 
 	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
@@ -1849,7 +1856,7 @@ static int qed_rdma_start(void *rdma_cxt,
 	if (!p_ptt)
 		goto err;
 
-	rc = qed_rdma_alloc(p_hwfn, p_ptt, params);
+	rc = qed_rdma_alloc(p_hwfn);
 	if (rc)
 		goto err1;
 
@@ -1858,6 +1865,7 @@ static int qed_rdma_start(void *rdma_cxt,
 		goto err2;
 
 	qed_ptt_release(p_hwfn, p_ptt);
+	p_hwfn->p_rdma_info->active = 1;
 
 	return rc;
 

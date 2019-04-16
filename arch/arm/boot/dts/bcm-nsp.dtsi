@@ -34,12 +34,20 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-nsp.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,nsp";
 	model = "Broadcom Northstar Plus SoC";
 	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		ethernet0 = &amac0;
+		ethernet1 = &amac1;
+		ethernet2 = &amac2;
+	};
 
 	cpus {
 		#address-cells = <1>;

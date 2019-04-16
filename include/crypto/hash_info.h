@@ -15,6 +15,7 @@
 
 #include <crypto/sha.h>
 #include <crypto/md5.h>
+#include <crypto/streebog.h>
 
 #include <uapi/linux/hash_info.h>
 

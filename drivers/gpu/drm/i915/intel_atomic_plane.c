@@ -31,9 +31,10 @@
  * prepare/check/commit/cleanup steps.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+
 #include "intel_drv.h"
 
 struct intel_plane *intel_plane_alloc(void)
@@ -111,41 +112,44 @@ intel_plane_destroy_state(struct drm_plane *plane,
 }
 
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
-					struct intel_crtc_state *crtc_state,
+					struct intel_crtc_state *new_crtc_state,
 					const struct intel_plane_state *old_plane_state,
-					struct intel_plane_state *intel_state)
+					struct intel_plane_state *new_plane_state)
 {
-	struct drm_plane *plane = intel_state->base.plane;
-	struct drm_plane_state *state = &intel_state->base;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct intel_plane *plane = to_intel_plane(new_plane_state->base.plane);
 	int ret;
 
-	crtc_state->active_planes &= ~BIT(intel_plane->id);
-	crtc_state->nv12_planes &= ~BIT(intel_plane->id);
-	intel_state->base.visible = false;
+	new_crtc_state->active_planes &= ~BIT(plane->id);
+	new_crtc_state->nv12_planes &= ~BIT(plane->id);
+	new_crtc_state->c8_planes &= ~BIT(plane->id);
+	new_plane_state->base.visible = false;
 
-	/* If this is a cursor plane, no further checks are needed. */
-	if (!intel_state->base.crtc && !old_plane_state->base.crtc)
+	if (!new_plane_state->base.crtc && !old_plane_state->base.crtc)
 		return 0;
 
-	ret = intel_plane->check_plane(crtc_state, intel_state);
+	ret = plane->check_plane(new_crtc_state, new_plane_state);
 	if (ret)
 		return ret;
 
 	/* FIXME pre-g4x don't work like this */
-	if (state->visible)
-		crtc_state->active_planes |= BIT(intel_plane->id);
+	if (new_plane_state->base.visible)
+		new_crtc_state->active_planes |= BIT(plane->id);
 
-	if (state->visible && state->fb->format->format == DRM_FORMAT_NV12)
-		crtc_state->nv12_planes |= BIT(intel_plane->id);
+	if (new_plane_state->base.visible &&
+	    is_planar_yuv_format(new_plane_state->base.fb->format->format))
+		new_crtc_state->nv12_planes |= BIT(plane->id);
 
-	if (state->visible || old_plane_state->base.visible)
-		crtc_state->update_planes |= BIT(intel_plane->id);
+	if (new_plane_state->base.visible &&
+	    new_plane_state->base.fb->format->format == DRM_FORMAT_C8)
+		new_crtc_state->c8_planes |= BIT(plane->id);
+
+	if (new_plane_state->base.visible || old_plane_state->base.visible)
+		new_crtc_state->update_planes |= BIT(plane->id);
 
 	return intel_plane_atomic_calc_changes(old_crtc_state,
-					       &crtc_state->base,
+					       &new_crtc_state->base,
 					       old_plane_state,
-					       state);
+					       &new_plane_state->base);
 }
 
 static int intel_plane_atomic_check(struct drm_plane *plane,
@@ -215,6 +219,35 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	return NULL;
 }
 
+void intel_update_plane(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	trace_intel_update_plane(&plane->base, crtc);
+	plane->update_plane(plane, crtc_state, plane_state);
+}
+
+void intel_update_slave(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	trace_intel_update_plane(&plane->base, crtc);
+	plane->update_slave(plane, crtc_state, plane_state);
+}
+
+void intel_disable_plane(struct intel_plane *plane,
+			 const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	trace_intel_disable_plane(&plane->base, crtc);
+	plane->disable_plane(plane, crtc_state);
+}
+
 void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc)
 {
@@ -239,8 +272,7 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 			intel_atomic_get_new_plane_state(state, plane);
 
 		if (new_plane_state->base.visible) {
-			trace_intel_update_plane(&plane->base, crtc);
-			plane->update_plane(plane, new_crtc_state, new_plane_state);
+			intel_update_plane(plane, new_crtc_state, new_plane_state);
 		} else if (new_plane_state->slave) {
 			struct intel_plane *master =
 				new_plane_state->linked_plane;
@@ -257,11 +289,9 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 			new_plane_state =
 				intel_atomic_get_new_plane_state(state, master);
 
-			trace_intel_update_plane(&plane->base, crtc);
-			plane->update_slave(plane, new_crtc_state, new_plane_state);
+			intel_update_slave(plane, new_crtc_state, new_plane_state);
 		} else {
-			trace_intel_disable_plane(&plane->base, crtc);
-			plane->disable_plane(plane, new_crtc_state);
+			intel_disable_plane(plane, new_crtc_state);
 		}
 	}
 }
@@ -281,13 +311,10 @@ void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
-		if (new_plane_state->base.visible) {
-			trace_intel_update_plane(&plane->base, crtc);
-			plane->update_plane(plane, new_crtc_state, new_plane_state);
-		} else {
-			trace_intel_disable_plane(&plane->base, crtc);
-			plane->disable_plane(plane, new_crtc_state);
-		}
+		if (new_plane_state->base.visible)
+			intel_update_plane(plane, new_crtc_state, new_plane_state);
+		else
+			intel_disable_plane(plane, new_crtc_state);
 	}
 }
 
@@ -312,7 +339,7 @@ int
 intel_plane_atomic_get_property(struct drm_plane *plane,
 				const struct drm_plane_state *state,
 				struct drm_property *property,
-				uint64_t *val)
+				u64 *val)
 {
 	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
 		      property->base.id, property->name);
@@ -335,7 +362,7 @@ int
 intel_plane_atomic_set_property(struct drm_plane *plane,
 				struct drm_plane_state *state,
 				struct drm_property *property,
-				uint64_t val)
+				u64 val)
 {
 	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
 		      property->base.id, property->name);

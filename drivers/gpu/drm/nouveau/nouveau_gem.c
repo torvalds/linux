@@ -41,7 +41,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct ttm_buffer_object *bo = &nvbo->bo;
 	struct device *dev = drm->dev->dev;
 	int ret;
 
@@ -56,7 +55,7 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 
 	/* reset filp so nouveau_bo_del_ttm() can test for it */
 	gem->filp = NULL;
-	ttm_bo_unref(&bo);
+	ttm_bo_put(&nvbo->bo);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -69,10 +68,11 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct device *dev = drm->dev->dev;
+	struct nouveau_vmm *vmm = cli->svm.cli ? &cli->svm : &cli->vmm;
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (cli->vmm.vmm.object.oclass < NVIF_CLASS_VMM_NV50)
+	if (vmm->vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return 0;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
@@ -83,7 +83,7 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (ret < 0 && ret != -EACCES)
 		goto out;
 
-	ret = nouveau_vma_new(nvbo, &cli->vmm, &vma);
+	ret = nouveau_vma_new(nvbo, vmm, &vma);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 out:
@@ -143,17 +143,18 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct device *dev = drm->dev->dev;
+	struct nouveau_vmm *vmm = cli->svm.cli ? &cli->svm : & cli->vmm;
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (cli->vmm.vmm.object.oclass < NVIF_CLASS_VMM_NV50)
+	if (vmm->vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return;
 
-	vma = nouveau_vma_find(nvbo, &cli->vmm);
+	vma = nouveau_vma_find(nvbo, vmm);
 	if (vma) {
 		if (--vma->refs == 0) {
 			ret = pm_runtime_get_sync(dev);
@@ -220,6 +221,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_vmm *vmm = cli->svm.cli ? &cli->svm : &cli->vmm;
 	struct nouveau_vma *vma;
 
 	if (is_power_of_2(nvbo->valid_domains))
@@ -229,8 +231,8 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 	else
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 	rep->offset = nvbo->bo.offset;
-	if (cli->vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
-		vma = nouveau_vma_find(nvbo, &cli->vmm);
+	if (vmm->vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+		vma = nouveau_vma_find(nvbo, vmm);
 		if (!vma)
 			return -EINVAL;
 
@@ -322,7 +324,8 @@ struct validate_op {
 };
 
 static void
-validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
+validate_fini_no_ticket(struct validate_op *op, struct nouveau_channel *chan,
+			struct nouveau_fence *fence,
 			struct drm_nouveau_gem_pushbuf_bo *pbbo)
 {
 	struct nouveau_bo *nvbo;
@@ -333,13 +336,11 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
 		b = &pbbo[nvbo->pbbo_index];
 
 		if (likely(fence)) {
-			struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-			struct nouveau_vma *vma;
-
 			nouveau_bo_fence(nvbo, fence, !!b->write_domains);
 
-			if (drm->client.vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
-				vma = (void *)(unsigned long)b->user_priv;
+			if (chan->vmm->vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+				struct nouveau_vma *vma =
+					(void *)(unsigned long)b->user_priv;
 				nouveau_fence_unref(&vma->fence);
 				dma_fence_get(&fence->base);
 				vma->fence = fence;
@@ -359,10 +360,11 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
 }
 
 static void
-validate_fini(struct validate_op *op, struct nouveau_fence *fence,
+validate_fini(struct validate_op *op, struct nouveau_channel *chan,
+	      struct nouveau_fence *fence,
 	      struct drm_nouveau_gem_pushbuf_bo *pbbo)
 {
-	validate_fini_no_ticket(op, fence, pbbo);
+	validate_fini_no_ticket(op, chan, fence, pbbo);
 	ww_acquire_fini(&op->ticket);
 }
 
@@ -417,7 +419,7 @@ retry:
 			list_splice_tail_init(&vram_list, &op->list);
 			list_splice_tail_init(&gart_list, &op->list);
 			list_splice_tail_init(&both_list, &op->list);
-			validate_fini_no_ticket(op, NULL, NULL);
+			validate_fini_no_ticket(op, chan, NULL, NULL);
 			if (unlikely(ret == -EDEADLK)) {
 				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
 							      &op->ticket);
@@ -431,8 +433,8 @@ retry:
 			}
 		}
 
-		if (cli->vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
-			struct nouveau_vmm *vmm = &cli->vmm;
+		if (chan->vmm->vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+			struct nouveau_vmm *vmm = chan->vmm;
 			struct nouveau_vma *vma = nouveau_vma_find(nvbo, vmm);
 			if (!vma) {
 				NV_PRINTK(err, cli, "vma not found!\n");
@@ -472,7 +474,7 @@ retry:
 	list_splice_tail(&gart_list, &op->list);
 	list_splice_tail(&both_list, &op->list);
 	if (ret)
-		validate_fini(op, NULL, NULL);
+		validate_fini(op, chan, NULL, NULL);
 	return ret;
 
 }
@@ -564,7 +566,7 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
 			NV_PRINTK(err, cli, "validating bo list\n");
-		validate_fini(op, NULL, NULL);
+		validate_fini(op, chan, NULL, NULL);
 		return ret;
 	}
 	*apply_relocs = ret;
@@ -843,7 +845,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 out:
-	validate_fini(&op, fence, bo);
+	validate_fini(&op, chan, fence, bo);
 	nouveau_fence_unref(&fence);
 
 out_prevalid:

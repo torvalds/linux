@@ -361,8 +361,8 @@ struct qdio_initialize {
 					  unsigned long);
 	int scan_threshold;
 	unsigned long int_parm;
-	void **input_sbal_addr_array;
-	void **output_sbal_addr_array;
+	struct qdio_buffer **input_sbal_addr_array;
+	struct qdio_buffer **output_sbal_addr_array;
 	struct qdio_outbuf_state *output_sbal_state_array;
 };
 

@@ -61,10 +61,12 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 	}
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	mmio_hw_access_pre(dev_priv);
 	ret = i915_gem_gtt_insert(&dev_priv->ggtt.vm, node,
 				  size, I915_GTT_PAGE_SIZE,
 				  I915_COLOR_UNEVICTABLE,
 				  start, end, flags);
+	mmio_hw_access_post(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (ret)
 		gvt_err("fail to alloc %s gm space from host\n",
@@ -178,7 +180,7 @@ static void free_vgpu_fence(struct intel_vgpu *vgpu)
 	}
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
@@ -204,7 +206,7 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 	_clear_vgpu_fence(vgpu);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	return 0;
 out_free_fence:
 	gvt_vgpu_err("Failed to alloc fences\n");
@@ -217,7 +219,7 @@ out_free_fence:
 		vgpu->fence.regs[i] = NULL;
 	}
 	mutex_unlock(&dev_priv->drm.struct_mutex);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 	return -ENOSPC;
 }
 
@@ -315,7 +317,7 @@ void intel_vgpu_reset_resource(struct intel_vgpu *vgpu)
 
 	intel_runtime_pm_get(dev_priv);
 	_clear_vgpu_fence(vgpu);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 /**

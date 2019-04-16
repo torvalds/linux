@@ -12,15 +12,17 @@
 #ifndef __LINUX_MIPI_DBI_H
 #define __LINUX_MIPI_DBI_H
 
-#include <drm/tinydrm/tinydrm.h>
+#include <linux/mutex.h>
+#include <drm/drm_device.h>
+#include <drm/drm_simple_kms_helper.h>
 
+struct drm_rect;
 struct spi_device;
 struct gpio_desc;
 struct regulator;
 
 /**
  * struct mipi_dbi - MIPI DBI controller
- * @tinydrm: tinydrm base
  * @spi: SPI device
  * @enabled: Pipeline is enabled
  * @cmdlock: Command lock
@@ -38,11 +40,20 @@ struct regulator;
  * @regulator: power regulator (optional)
  */
 struct mipi_dbi {
-	struct tinydrm_device tinydrm;
+	/**
+	 * @drm: DRM device
+	 */
+	struct drm_device drm;
+
+	/**
+	 * @pipe: Display pipe structure
+	 */
+	struct drm_simple_display_pipe pipe;
+
 	struct spi_device *spi;
 	bool enabled;
 	struct mutex cmdlock;
-	int (*command)(struct mipi_dbi *mipi, u8 cmd, u8 *param, size_t num);
+	int (*command)(struct mipi_dbi *mipi, u8 *cmd, u8 *param, size_t num);
 	const u8 *read_commands;
 	struct gpio_desc *dc;
 	u16 *tx_buf;
@@ -55,18 +66,19 @@ struct mipi_dbi {
 	struct regulator *regulator;
 };
 
-static inline struct mipi_dbi *
-mipi_dbi_from_tinydrm(struct tinydrm_device *tdev)
+static inline struct mipi_dbi *drm_to_mipi_dbi(struct drm_device *drm)
 {
-	return container_of(tdev, struct mipi_dbi, tinydrm);
+	return container_of(drm, struct mipi_dbi, drm);
 }
 
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 		      struct gpio_desc *dc);
-int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
-		  const struct drm_simple_display_pipe_funcs *pipe_funcs,
-		  struct drm_driver *driver,
+int mipi_dbi_init(struct mipi_dbi *mipi,
+		  const struct drm_simple_display_pipe_funcs *funcs,
 		  const struct drm_display_mode *mode, unsigned int rotation);
+void mipi_dbi_release(struct drm_device *drm);
+void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
+			  struct drm_plane_state *old_state);
 void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
@@ -79,8 +91,9 @@ u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 
 int mipi_dbi_command_read(struct mipi_dbi *mipi, u8 cmd, u8 *val);
 int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
+int mipi_dbi_command_stackbuf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
-		      struct drm_clip_rect *clip, bool swap);
+		      struct drm_rect *clip, bool swap);
 /**
  * mipi_dbi_command - MIPI DCS command with optional parameter(s)
  * @mipi: MIPI structure
@@ -96,7 +109,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 #define mipi_dbi_command(mipi, cmd, seq...) \
 ({ \
 	u8 d[] = { seq }; \
-	mipi_dbi_command_buf(mipi, cmd, d, ARRAY_SIZE(d)); \
+	mipi_dbi_command_stackbuf(mipi, cmd, d, ARRAY_SIZE(d)); \
 })
 
 #ifdef CONFIG_DEBUG_FS

@@ -10,7 +10,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_gem.h>
 
 #include <linux/of_device.h>
@@ -19,6 +19,7 @@
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 
+#include <xen/xen-front-pgdir-shbuf.h>
 #include <xen/interface/io/displif.h>
 
 #include "xen_drm_front.h"
@@ -26,28 +27,20 @@
 #include "xen_drm_front_evtchnl.h"
 #include "xen_drm_front_gem.h"
 #include "xen_drm_front_kms.h"
-#include "xen_drm_front_shbuf.h"
 
 struct xen_drm_front_dbuf {
 	struct list_head list;
 	u64 dbuf_cookie;
 	u64 fb_cookie;
-	struct xen_drm_front_shbuf *shbuf;
+
+	struct xen_front_pgdir_shbuf shbuf;
 };
 
-static int dbuf_add_to_list(struct xen_drm_front_info *front_info,
-			    struct xen_drm_front_shbuf *shbuf, u64 dbuf_cookie)
+static void dbuf_add_to_list(struct xen_drm_front_info *front_info,
+			     struct xen_drm_front_dbuf *dbuf, u64 dbuf_cookie)
 {
-	struct xen_drm_front_dbuf *dbuf;
-
-	dbuf = kzalloc(sizeof(*dbuf), GFP_KERNEL);
-	if (!dbuf)
-		return -ENOMEM;
-
 	dbuf->dbuf_cookie = dbuf_cookie;
-	dbuf->shbuf = shbuf;
 	list_add(&dbuf->list, &front_info->dbuf_list);
-	return 0;
 }
 
 static struct xen_drm_front_dbuf *dbuf_get(struct list_head *dbuf_list,
@@ -62,15 +55,6 @@ static struct xen_drm_front_dbuf *dbuf_get(struct list_head *dbuf_list,
 	return NULL;
 }
 
-static void dbuf_flush_fb(struct list_head *dbuf_list, u64 fb_cookie)
-{
-	struct xen_drm_front_dbuf *buf, *q;
-
-	list_for_each_entry_safe(buf, q, dbuf_list, list)
-		if (buf->fb_cookie == fb_cookie)
-			xen_drm_front_shbuf_flush(buf->shbuf);
-}
-
 static void dbuf_free(struct list_head *dbuf_list, u64 dbuf_cookie)
 {
 	struct xen_drm_front_dbuf *buf, *q;
@@ -78,8 +62,8 @@ static void dbuf_free(struct list_head *dbuf_list, u64 dbuf_cookie)
 	list_for_each_entry_safe(buf, q, dbuf_list, list)
 		if (buf->dbuf_cookie == dbuf_cookie) {
 			list_del(&buf->list);
-			xen_drm_front_shbuf_unmap(buf->shbuf);
-			xen_drm_front_shbuf_free(buf->shbuf);
+			xen_front_pgdir_shbuf_unmap(&buf->shbuf);
+			xen_front_pgdir_shbuf_free(&buf->shbuf);
 			kfree(buf);
 			break;
 		}
@@ -91,8 +75,8 @@ static void dbuf_free_all(struct list_head *dbuf_list)
 
 	list_for_each_entry_safe(buf, q, dbuf_list, list) {
 		list_del(&buf->list);
-		xen_drm_front_shbuf_unmap(buf->shbuf);
-		xen_drm_front_shbuf_free(buf->shbuf);
+		xen_front_pgdir_shbuf_unmap(&buf->shbuf);
+		xen_front_pgdir_shbuf_free(&buf->shbuf);
 		kfree(buf);
 	}
 }
@@ -171,9 +155,9 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 			      u32 bpp, u64 size, struct page **pages)
 {
 	struct xen_drm_front_evtchnl *evtchnl;
-	struct xen_drm_front_shbuf *shbuf;
+	struct xen_drm_front_dbuf *dbuf;
 	struct xendispl_req *req;
-	struct xen_drm_front_shbuf_cfg buf_cfg;
+	struct xen_front_pgdir_shbuf_cfg buf_cfg;
 	unsigned long flags;
 	int ret;
 
@@ -181,28 +165,29 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	if (unlikely(!evtchnl))
 		return -EIO;
 
+	dbuf = kzalloc(sizeof(*dbuf), GFP_KERNEL);
+	if (!dbuf)
+		return -ENOMEM;
+
+	dbuf_add_to_list(front_info, dbuf, dbuf_cookie);
+
 	memset(&buf_cfg, 0, sizeof(buf_cfg));
 	buf_cfg.xb_dev = front_info->xb_dev;
+	buf_cfg.num_pages = DIV_ROUND_UP(size, PAGE_SIZE);
 	buf_cfg.pages = pages;
-	buf_cfg.size = size;
+	buf_cfg.pgdir = &dbuf->shbuf;
 	buf_cfg.be_alloc = front_info->cfg.be_alloc;
 
-	shbuf = xen_drm_front_shbuf_alloc(&buf_cfg);
-	if (IS_ERR(shbuf))
-		return PTR_ERR(shbuf);
-
-	ret = dbuf_add_to_list(front_info, shbuf, dbuf_cookie);
-	if (ret < 0) {
-		xen_drm_front_shbuf_free(shbuf);
-		return ret;
-	}
+	ret = xen_front_pgdir_shbuf_alloc(&buf_cfg);
+	if (ret < 0)
+		goto fail_shbuf_alloc;
 
 	mutex_lock(&evtchnl->u.req.req_io_lock);
 
 	spin_lock_irqsave(&front_info->io_lock, flags);
 	req = be_prepare_req(evtchnl, XENDISPL_OP_DBUF_CREATE);
 	req->op.dbuf_create.gref_directory =
-			xen_drm_front_shbuf_get_dir_start(shbuf);
+			xen_front_pgdir_shbuf_get_dir_start(&dbuf->shbuf);
 	req->op.dbuf_create.buffer_sz = size;
 	req->op.dbuf_create.dbuf_cookie = dbuf_cookie;
 	req->op.dbuf_create.width = width;
@@ -221,7 +206,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	if (ret < 0)
 		goto fail;
 
-	ret = xen_drm_front_shbuf_map(shbuf);
+	ret = xen_front_pgdir_shbuf_map(&dbuf->shbuf);
 	if (ret < 0)
 		goto fail;
 
@@ -230,6 +215,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 
 fail:
 	mutex_unlock(&evtchnl->u.req.req_io_lock);
+fail_shbuf_alloc:
 	dbuf_free(&front_info->dbuf_list, dbuf_cookie);
 	return ret;
 }
@@ -358,7 +344,6 @@ int xen_drm_front_page_flip(struct xen_drm_front_info *front_info,
 	if (unlikely(conn_idx >= front_info->num_evt_pairs))
 		return -EINVAL;
 
-	dbuf_flush_fb(&front_info->dbuf_list, fb_cookie);
 	evtchnl = &front_info->evt_pairs[conn_idx].req;
 
 	mutex_lock(&evtchnl->u.req.req_io_lock);
@@ -597,6 +582,7 @@ static void xen_drm_drv_fini(struct xen_drm_front_info *front_info)
 
 	drm_kms_helper_poll_fini(dev);
 	drm_dev_unplug(dev);
+	drm_dev_put(dev);
 
 	front_info->drm_info = NULL;
 

@@ -1,3 +1,4 @@
+LIST "SPDX-License-Identifier: GPL-2.0"
 LIST "partner-jet-setup.txt"
 LIST "(C) Copyright 2009 Renesas Solutions Corp"
 LIST "Kuninori Morimoto <morimoto.kuninori@renesas.com>"

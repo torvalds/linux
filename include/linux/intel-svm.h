@@ -20,7 +20,7 @@ struct device;
 
 struct svm_dev_ops {
 	void (*fault_cb)(struct device *dev, int pasid, u64 address,
-			 u32 private, int rwxp, int response);
+			 void *private, int rwxp, int response);
 };
 
 /* Values for rxwp in fault_cb callback */

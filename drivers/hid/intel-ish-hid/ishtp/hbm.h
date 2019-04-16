@@ -149,7 +149,7 @@ struct hbm_host_enum_response {
 } __packed;
 
 struct ishtp_client_properties {
-	uuid_le protocol_name;
+	guid_t protocol_name;
 	uint8_t protocol_version;
 	uint8_t max_number_of_connections;
 	uint8_t fixed_address;

@@ -147,12 +147,10 @@ static void hns_ae_put_handle(struct hnae_handle *handle)
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	int i;
 
-	vf_cb->mac_cb	 = NULL;
-
-	kfree(vf_cb);
-
 	for (i = 0; i < handle->q_num; i++)
 		hns_ae_get_ring_pair(handle->qs[i])->used_by_vf = 0;
+
+	kfree(vf_cb);
 }
 
 static int hns_ae_wait_flow_down(struct hnae_handle *handle)
@@ -378,6 +376,9 @@ static void hns_ae_stop(struct hnae_handle *handle)
 	usleep_range(10000, 20000);
 
 	hns_ae_ring_enable_all(handle, 0);
+
+	/* clean rx fbd. */
+	hns_rcb_wait_fbd_clean(handle->qs, handle->q_num, RCB_INT_FLAG_RX);
 
 	(void)hns_mac_vm_config_bc_en(mac_cb, 0, false);
 }

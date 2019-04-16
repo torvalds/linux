@@ -6,11 +6,11 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -54,7 +54,7 @@
 #define SN_AUX_ADDR_7_0_REG			0x76
 #define SN_AUX_LENGTH_REG			0x77
 #define SN_AUX_CMD_REG				0x78
-#define  AUX_CMD_SEND				BIT(1)
+#define  AUX_CMD_SEND				BIT(0)
 #define  AUX_CMD_REQ(x)				((x) << 4)
 #define SN_AUX_RDATA_REG(x)			(0x79 + (x))
 #define SN_SSC_CONFIG_REG			0x93

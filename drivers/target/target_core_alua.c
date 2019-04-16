@@ -451,7 +451,7 @@ static inline void set_ascq(struct se_cmd *cmd, u8 alua_ascq)
 	pr_debug("[%s]: ALUA TG Port not available, "
 		"SenseKey: NOT_READY, ASC/ASCQ: "
 		"0x04/0x%02x\n",
-		cmd->se_tfo->get_fabric_name(), alua_ascq);
+		cmd->se_tfo->fabric_name, alua_ascq);
 
 	cmd->scsi_asc = 0x04;
 	cmd->scsi_ascq = alua_ascq;
@@ -910,9 +910,6 @@ static int core_alua_write_tpg_metadata(
 	return (ret < 0) ? -EIO : 0;
 }
 
-/*
- * Called with tg_pt_gp->tg_pt_gp_transition_mutex held
- */
 static int core_alua_update_tpg_primary_metadata(
 	struct t10_alua_tg_pt_gp *tg_pt_gp)
 {
@@ -920,6 +917,8 @@ static int core_alua_update_tpg_primary_metadata(
 	struct t10_wwn *wwn = &tg_pt_gp->tg_pt_gp_dev->t10_wwn;
 	char *path;
 	int len, rc;
+
+	lockdep_assert_held(&tg_pt_gp->tg_pt_gp_transition_mutex);
 
 	md_buf = kzalloc(ALUA_MD_BUF_LEN, GFP_KERNEL);
 	if (!md_buf) {
@@ -1229,13 +1228,13 @@ static int core_alua_update_tpg_secondary_metadata(struct se_lun *lun)
 
 	if (se_tpg->se_tpg_tfo->tpg_get_tag != NULL) {
 		path = kasprintf(GFP_KERNEL, "%s/alua/%s/%s+%hu/lun_%llu",
-				db_root, se_tpg->se_tpg_tfo->get_fabric_name(),
+				db_root, se_tpg->se_tpg_tfo->fabric_name,
 				se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg),
 				se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg),
 				lun->unpacked_lun);
 	} else {
 		path = kasprintf(GFP_KERNEL, "%s/alua/%s/%s/lun_%llu",
-				db_root, se_tpg->se_tpg_tfo->get_fabric_name(),
+				db_root, se_tpg->se_tpg_tfo->fabric_name,
 				se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg),
 				lun->unpacked_lun);
 	}

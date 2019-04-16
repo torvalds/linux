@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <net/protocol.h>
 #include <net/gre.h>
+#include <net/erspan.h>
 
 #include <net/icmp.h>
 #include <net/route.h>
@@ -119,6 +120,22 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			hdr_len += 4;
 	}
 	tpi->hdr_len = hdr_len;
+
+	/* ERSPAN ver 1 and 2 protocol sets GRE key field
+	 * to 0 and sets the configured key in the
+	 * inner erspan header field
+	 */
+	if (greh->protocol == htons(ETH_P_ERSPAN) ||
+	    greh->protocol == htons(ETH_P_ERSPAN2)) {
+		struct erspan_base_hdr *ershdr;
+
+		if (!pskb_may_pull(skb, nhs + hdr_len + sizeof(*ershdr)))
+			return -EINVAL;
+
+		ershdr = (struct erspan_base_hdr *)options;
+		tpi->key = cpu_to_be32(get_session_id(ershdr));
+	}
+
 	return hdr_len;
 }
 EXPORT_SYMBOL(gre_parse_header);
@@ -151,20 +168,25 @@ drop:
 	return NET_RX_DROP;
 }
 
-static void gre_err(struct sk_buff *skb, u32 info)
+static int gre_err(struct sk_buff *skb, u32 info)
 {
 	const struct gre_protocol *proto;
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	u8 ver = skb->data[(iph->ihl<<2) + 1]&0x7f;
+	int err = 0;
 
 	if (ver >= GREPROTO_MAX)
-		return;
+		return -EINVAL;
 
 	rcu_read_lock();
 	proto = rcu_dereference(gre_proto[ver]);
 	if (proto && proto->err_handler)
 		proto->err_handler(skb, info);
+	else
+		err = -EPROTONOSUPPORT;
 	rcu_read_unlock();
+
+	return err;
 }
 
 static const struct net_protocol net_gre_protocol = {

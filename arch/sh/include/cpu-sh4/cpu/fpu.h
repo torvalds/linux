@@ -1,11 +1,9 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * linux/arch/sh/kernel/cpu/sh4/sh4_fpu.h
  *
  * Copyright (C) 2006 STMicroelectronics Limited
  * Author: Carl Shaw <carl.shaw@st.com>
- *
- * May be copied or modified under the terms of the GNU General Public
- * License Version 2.  See linux/COPYING for more information.
  *
  * Definitions for SH4 FPU operations
  */

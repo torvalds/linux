@@ -90,9 +90,9 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	 * Allocate space for DMA descriptors
 	 * (add an extra element for link descriptor)
 	 */
-	bd_ptr = dma_zalloc_coherent(dev,
-				(bd_num + 1) * sizeof(struct tsi721_dma_desc),
-				&bd_phys, GFP_ATOMIC);
+	bd_ptr = dma_alloc_coherent(dev,
+				    (bd_num + 1) * sizeof(struct tsi721_dma_desc),
+				    &bd_phys, GFP_ATOMIC);
 	if (!bd_ptr)
 		return -ENOMEM;
 
@@ -108,7 +108,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	sts_size = ((bd_num + 1) >= TSI721_DMA_MINSTSSZ) ?
 					(bd_num + 1) : TSI721_DMA_MINSTSSZ;
 	sts_size = roundup_pow_of_two(sts_size);
-	sts_ptr = dma_zalloc_coherent(dev,
+	sts_ptr = dma_alloc_coherent(dev,
 				     sts_size * sizeof(struct tsi721_dma_sts),
 				     &sts_phys, GFP_ATOMIC);
 	if (!sts_ptr) {

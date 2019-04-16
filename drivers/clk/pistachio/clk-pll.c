@@ -298,7 +298,7 @@ static unsigned long pll_gf40lp_frac_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static struct clk_ops pll_gf40lp_frac_ops = {
+static const struct clk_ops pll_gf40lp_frac_ops = {
 	.enable = pll_gf40lp_frac_enable,
 	.disable = pll_gf40lp_frac_disable,
 	.is_enabled = pll_gf40lp_frac_is_enabled,
@@ -307,7 +307,7 @@ static struct clk_ops pll_gf40lp_frac_ops = {
 	.set_rate = pll_gf40lp_frac_set_rate,
 };
 
-static struct clk_ops pll_gf40lp_frac_fixed_ops = {
+static const struct clk_ops pll_gf40lp_frac_fixed_ops = {
 	.enable = pll_gf40lp_frac_enable,
 	.disable = pll_gf40lp_frac_disable,
 	.is_enabled = pll_gf40lp_frac_is_enabled,
@@ -430,7 +430,7 @@ static unsigned long pll_gf40lp_laint_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static struct clk_ops pll_gf40lp_laint_ops = {
+static const struct clk_ops pll_gf40lp_laint_ops = {
 	.enable = pll_gf40lp_laint_enable,
 	.disable = pll_gf40lp_laint_disable,
 	.is_enabled = pll_gf40lp_laint_is_enabled,
@@ -439,7 +439,7 @@ static struct clk_ops pll_gf40lp_laint_ops = {
 	.set_rate = pll_gf40lp_laint_set_rate,
 };
 
-static struct clk_ops pll_gf40lp_laint_fixed_ops = {
+static const struct clk_ops pll_gf40lp_laint_fixed_ops = {
 	.enable = pll_gf40lp_laint_enable,
 	.disable = pll_gf40lp_laint_disable,
 	.is_enabled = pll_gf40lp_laint_is_enabled,

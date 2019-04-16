@@ -3803,14 +3803,15 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 
 	adapter->clean_rx(adapter, &adapter->rx_ring[0], &work_done, budget);
 
-	if (!tx_clean_complete)
-		work_done = budget;
+	if (!tx_clean_complete || work_done == budget)
+		return budget;
 
-	/* If budget not fully consumed, exit the polling mode */
-	if (work_done < budget) {
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done))) {
 		if (likely(adapter->itr_setting & 3))
 			e1000_set_itr(adapter);
-		napi_complete_done(napi, work_done);
 		if (!test_bit(__E1000_DOWN, &adapter->flags))
 			e1000_irq_enable(adapter);
 	}

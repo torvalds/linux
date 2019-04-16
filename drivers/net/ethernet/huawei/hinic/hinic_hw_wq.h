@@ -39,7 +39,8 @@ struct hinic_wq {
 	u16             q_depth;
 	u16             max_wqe_size;
 	u16             num_wqebbs_per_page;
-
+	u16		wqebbs_per_page_shift;
+	u16		wqebb_size_shift;
 	/* The addresses are 64 bit in the HW */
 	u64             block_paddr;
 	void            **shadow_block_vaddr;

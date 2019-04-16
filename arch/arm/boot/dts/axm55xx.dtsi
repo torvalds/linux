@@ -12,9 +12,9 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/lsi,axm5516-clks.h>
 
-#include "skeleton64.dtsi"
-
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	aliases {

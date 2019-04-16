@@ -114,21 +114,6 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 		spin_unlock(&se_cmd->t_state_lock);
 		return false;
 	}
-	if (se_cmd->transport_state & CMD_T_PRE_EXECUTE) {
-		if (se_cmd->scsi_status) {
-			pr_debug("Attempted to abort io tag: %llu early failure"
-				 " status: 0x%02x\n", se_cmd->tag,
-				 se_cmd->scsi_status);
-			spin_unlock(&se_cmd->t_state_lock);
-			return false;
-		}
-	}
-	if (sess->sess_tearing_down) {
-		pr_debug("Attempted to abort io tag: %llu already shutdown,"
-			" skipping\n", se_cmd->tag);
-		spin_unlock(&se_cmd->t_state_lock);
-		return false;
-	}
 	se_cmd->transport_state |= CMD_T_ABORTED;
 
 	if ((tmr_sess != se_cmd->se_sess) && tas)
@@ -163,18 +148,23 @@ void core_tmr_abort_task(
 			continue;
 
 		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
-			se_cmd->se_tfo->get_fabric_name(), ref_tag);
+			se_cmd->se_tfo->fabric_name, ref_tag);
 
-		if (!__target_check_io_state(se_cmd, se_sess, 0))
+		if (!__target_check_io_state(se_cmd, se_sess,
+					     dev->dev_attrib.emulate_tas))
 			continue;
 
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
-		cancel_work_sync(&se_cmd->work);
-		transport_wait_for_tasks(se_cmd);
+		/*
+		 * Ensure that this ABORT request is visible to the LU RESET
+		 * code.
+		 */
+		if (!tmr->tmr_dev)
+			WARN_ON_ONCE(transport_lookup_tmr_lun(tmr->task_cmd,
+						se_cmd->orig_fe_lun) < 0);
 
-		if (!transport_cmd_finish_abort(se_cmd))
-			target_put_sess_cmd(se_cmd);
+		target_put_cmd_and_wait(se_cmd);
 
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
 				" ref_tag: %llu\n", ref_tag);
@@ -227,33 +217,13 @@ static void core_tmr_drain_tmr_list(
 			continue;
 
 		spin_lock(&sess->sess_cmd_lock);
-		spin_lock(&cmd->t_state_lock);
-		if (!(cmd->transport_state & CMD_T_ACTIVE) ||
-		     (cmd->transport_state & CMD_T_FABRIC_STOP)) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		if (cmd->t_state == TRANSPORT_ISTATE_PROCESSING) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		if (sess->sess_tearing_down) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		cmd->transport_state |= CMD_T_ABORTED;
-		spin_unlock(&cmd->t_state_lock);
+		rc = __target_check_io_state(cmd, sess, 0);
+		spin_unlock(&sess->sess_cmd_lock);
 
-		rc = kref_get_unless_zero(&cmd->cmd_kref);
 		if (!rc) {
 			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
-			spin_unlock(&sess->sess_cmd_lock);
 			continue;
 		}
-		spin_unlock(&sess->sess_cmd_lock);
 
 		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
 	}
@@ -268,14 +238,28 @@ static void core_tmr_drain_tmr_list(
 			(preempt_and_abort_list) ? "Preempt" : "", tmr_p,
 			tmr_p->function, tmr_p->response, cmd->t_state);
 
-		cancel_work_sync(&cmd->work);
-		transport_wait_for_tasks(cmd);
-
-		if (!transport_cmd_finish_abort(cmd))
-			target_put_sess_cmd(cmd);
+		target_put_cmd_and_wait(cmd);
 	}
 }
 
+/**
+ * core_tmr_drain_state_list() - abort SCSI commands associated with a device
+ *
+ * @dev:       Device for which to abort outstanding SCSI commands.
+ * @prout_cmd: Pointer to the SCSI PREEMPT AND ABORT if this function is called
+ *             to realize the PREEMPT AND ABORT functionality.
+ * @tmr_sess:  Session through which the LUN RESET has been received.
+ * @tas:       Task Aborted Status (TAS) bit from the SCSI control mode page.
+ *             A quote from SPC-4, paragraph "7.5.10 Control mode page":
+ *             "A task aborted status (TAS) bit set to zero specifies that
+ *             aborted commands shall be terminated by the device server
+ *             without any response to the application client. A TAS bit set
+ *             to one specifies that commands aborted by the actions of an I_T
+ *             nexus other than the I_T nexus on which the command was
+ *             received shall be completed with TASK ABORTED status."
+ * @preempt_and_abort_list: For the PREEMPT AND ABORT functionality, a list
+ *             with registrations that will be preempted.
+ */
 static void core_tmr_drain_state_list(
 	struct se_device *dev,
 	struct se_cmd *prout_cmd,
@@ -350,18 +334,7 @@ static void core_tmr_drain_state_list(
 			 cmd->tag, (preempt_and_abort_list) ? "preempt" : "",
 			 cmd->pr_res_key);
 
-		/*
-		 * If the command may be queued onto a workqueue cancel it now.
-		 *
-		 * This is equivalent to removal from the execute queue in the
-		 * loop above, but we do it down here given that
-		 * cancel_work_sync may block.
-		 */
-		cancel_work_sync(&cmd->work);
-		transport_wait_for_tasks(cmd);
-
-		if (!transport_cmd_finish_abort(cmd))
-			target_put_sess_cmd(cmd);
+		target_put_cmd_and_wait(cmd);
 	}
 }
 
@@ -398,7 +371,7 @@ int core_tmr_lun_reset(
 		if (tmr_nacl && tmr_tpg) {
 			pr_debug("LUN_RESET: TMR caller fabric: %s"
 				" initiator port %s\n",
-				tmr_tpg->se_tpg_tfo->get_fabric_name(),
+				tmr_tpg->se_tpg_tfo->fabric_name,
 				tmr_nacl->initiatorname);
 		}
 	}

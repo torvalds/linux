@@ -129,8 +129,8 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		}
 	}
 
-	err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO, &ec_cell, 1,
-			      NULL, ec_dev->irq, NULL);
+	err = devm_mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO, &ec_cell,
+				   1, NULL, ec_dev->irq, NULL);
 	if (err) {
 		dev_err(dev,
 			"Failed to register Embedded Controller subdevice %d\n",
@@ -147,7 +147,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		 * - the EC is responsive at init time (it is not true for a
 		 *   sensor hub.
 		 */
-		err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO,
+		err = devm_mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO,
 				      &ec_pd_cell, 1, NULL, ec_dev->irq, NULL);
 		if (err) {
 			dev_err(dev,
@@ -180,14 +180,6 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_register);
-
-int cros_ec_remove(struct cros_ec_device *ec_dev)
-{
-	mfd_remove_devices(ec_dev->dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(cros_ec_remove);
 
 #ifdef CONFIG_PM_SLEEP
 int cros_ec_suspend(struct cros_ec_device *ec_dev)

@@ -6,11 +6,21 @@ The interfaces for receiving network packages timestamps are:
 * SO_TIMESTAMP
   Generates a timestamp for each incoming packet in (not necessarily
   monotonic) system time. Reports the timestamp via recvmsg() in a
-  control message as struct timeval (usec resolution).
+  control message in usec resolution.
+  SO_TIMESTAMP is defined as SO_TIMESTAMP_NEW or SO_TIMESTAMP_OLD
+  based on the architecture type and time_t representation of libc.
+  Control message format is in struct __kernel_old_timeval for
+  SO_TIMESTAMP_OLD and in struct __kernel_sock_timeval for
+  SO_TIMESTAMP_NEW options respectively.
 
 * SO_TIMESTAMPNS
   Same timestamping mechanism as SO_TIMESTAMP, but reports the
-  timestamp as struct timespec (nsec resolution).
+  timestamp as struct timespec in nsec resolution.
+  SO_TIMESTAMPNS is defined as SO_TIMESTAMPNS_NEW or SO_TIMESTAMPNS_OLD
+  based on the architecture type and time_t representation of libc.
+  Control message format is in struct timespec for SO_TIMESTAMPNS_OLD
+  and in struct __kernel_timespec for SO_TIMESTAMPNS_NEW options
+  respectively.
 
 * IP_MULTICAST_LOOP + SO_TIMESTAMP[NS]
   Only for multicast:approximate transmit timestamp obtained by
@@ -22,7 +32,7 @@ The interfaces for receiving network packages timestamps are:
   timestamps for stream sockets.
 
 
-1.1 SO_TIMESTAMP:
+1.1 SO_TIMESTAMP (also SO_TIMESTAMP_OLD and SO_TIMESTAMP_NEW):
 
 This socket option enables timestamping of datagrams on the reception
 path. Because the destination socket, if any, is not known early in
@@ -31,15 +41,25 @@ same is true for all early receive timestamp options.
 
 For interface details, see `man 7 socket`.
 
+Always use SO_TIMESTAMP_NEW timestamp to always get timestamp in
+struct __kernel_sock_timeval format.
 
-1.2 SO_TIMESTAMPNS:
+SO_TIMESTAMP_OLD returns incorrect timestamps after the year 2038
+on 32 bit machines.
+
+1.2 SO_TIMESTAMPNS (also SO_TIMESTAMPNS_OLD and SO_TIMESTAMPNS_NEW):
 
 This option is identical to SO_TIMESTAMP except for the returned data type.
 Its struct timespec allows for higher resolution (ns) timestamps than the
 timeval of SO_TIMESTAMP (ms).
 
+Always use SO_TIMESTAMPNS_NEW timestamp to always get timestamp in
+struct __kernel_timespec format.
 
-1.3 SO_TIMESTAMPING:
+SO_TIMESTAMPNS_OLD returns incorrect timestamps after the year 2038
+on 32 bit machines.
+
+1.3 SO_TIMESTAMPING (also SO_TIMESTAMPING_OLD and SO_TIMESTAMPING_NEW):
 
 Supports multiple types of timestamp requests. As a result, this
 socket option takes a bitmap of flags, not a boolean. In
@@ -323,9 +343,22 @@ SO_TIMESTAMP and SO_TIMESTAMPNS records can be retrieved.
 These timestamps are returned in a control message with cmsg_level
 SOL_SOCKET, cmsg_type SCM_TIMESTAMPING, and payload of type
 
+For SO_TIMESTAMPING_OLD:
+
 struct scm_timestamping {
 	struct timespec ts[3];
 };
+
+For SO_TIMESTAMPING_NEW:
+
+struct scm_timestamping64 {
+	struct __kernel_timespec ts[3];
+
+Always use SO_TIMESTAMPING_NEW timestamp to always get timestamp in
+struct scm_timestamping64 format.
+
+SO_TIMESTAMPING_OLD returns incorrect timestamps after the year 2038
+on 32 bit machines.
 
 The structure can return up to three timestamps. This is a legacy
 feature. At least one field is non-zero at any time. Most timestamps
@@ -417,7 +450,7 @@ is again deprecated and ts[2] holds a hardware timestamp if set.
 
 Hardware time stamping must also be initialized for each device driver
 that is expected to do hardware time stamping. The parameter is defined in
-/include/linux/net_tstamp.h as:
+include/uapi/linux/net_tstamp.h as:
 
 struct hwtstamp_config {
 	int flags;	/* no flags defined right now, must be zero */
@@ -487,7 +520,7 @@ enum {
 	HWTSTAMP_FILTER_PTP_V1_L4_EVENT,
 
 	/* for the complete list of values, please check
-	 * the include file /include/linux/net_tstamp.h
+	 * the include file include/uapi/linux/net_tstamp.h
 	 */
 };
 

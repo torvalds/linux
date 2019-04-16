@@ -1675,6 +1675,12 @@ int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
 	if (!ubifs_authenticated(c))
 		return 0;
 
+	if (!c->nroot) {
+		err = ubifs_read_nnode(c, NULL, 0);
+		if (err)
+			return err;
+	}
+
 	desc = ubifs_hash_get_desc(c);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
@@ -1683,12 +1689,6 @@ int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
 	if (!buf) {
 		err = -ENOMEM;
 		goto out;
-	}
-
-	if (!c->nroot) {
-		err = ubifs_read_nnode(c, NULL, 0);
-		if (err)
-			return err;
 	}
 
 	cnode = (struct ubifs_cnode *)c->nroot;

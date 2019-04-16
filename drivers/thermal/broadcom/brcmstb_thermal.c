@@ -299,7 +299,7 @@ static int brcmstb_set_trips(void *data, int low, int high)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops of_ops = {
+static const struct thermal_zone_of_device_ops of_ops = {
 	.get_temp	= brcmstb_get_temp,
 	.set_trips	= brcmstb_set_trips,
 };
@@ -329,7 +329,8 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	platform_set_drvdata(pdev, priv);
 
-	thermal = thermal_zone_of_sensor_register(&pdev->dev, 0, priv, &of_ops);
+	thermal = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, priv,
+						       &of_ops);
 	if (IS_ERR(thermal)) {
 		ret = PTR_ERR(thermal);
 		dev_err(&pdev->dev, "could not register sensor: %d\n", ret);
@@ -341,40 +342,23 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "could not get IRQ\n");
-		ret = irq;
-		goto err;
+		return irq;
 	}
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					brcmstb_tmon_irq_thread, IRQF_ONESHOT,
 					DRV_NAME, priv);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	dev_info(&pdev->dev, "registered AVS TMON of-sensor driver\n");
-
-	return 0;
-
-err:
-	thermal_zone_of_sensor_unregister(&pdev->dev, thermal);
-	return ret;
-}
-
-static int brcmstb_thermal_exit(struct platform_device *pdev)
-{
-	struct brcmstb_thermal_priv *priv = platform_get_drvdata(pdev);
-	struct thermal_zone_device *thermal = priv->thermal;
-
-	if (thermal)
-		thermal_zone_of_sensor_unregister(&pdev->dev, priv->thermal);
 
 	return 0;
 }
 
 static struct platform_driver brcmstb_thermal_driver = {
 	.probe = brcmstb_thermal_probe,
-	.remove = brcmstb_thermal_exit,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = brcmstb_thermal_id_table,

@@ -153,8 +153,6 @@ static int wd719x_direct_cmd(struct wd719x *wd, u8 opcode, u8 dev, u8 lun,
 
 static void wd719x_destroy(struct wd719x *wd)
 {
-	struct wd719x_scb *scb;
-
 	/* stop the RISC */
 	if (wd719x_direct_cmd(wd, WD719X_CMD_SLEEP, 0, 0, 0, 0,
 			      WD719X_WAIT_FOR_RISC))
@@ -162,37 +160,35 @@ static void wd719x_destroy(struct wd719x *wd)
 	/* disable RISC */
 	wd719x_writeb(wd, WD719X_PCI_MODE_SELECT, 0);
 
-	/* free all SCBs */
-	list_for_each_entry(scb, &wd->active_scbs, list)
-		pci_free_consistent(wd->pdev, sizeof(struct wd719x_scb), scb,
-				    scb->phys);
-	list_for_each_entry(scb, &wd->free_scbs, list)
-		pci_free_consistent(wd->pdev, sizeof(struct wd719x_scb), scb,
-				    scb->phys);
+	WARN_ON_ONCE(!list_empty(&wd->active_scbs));
+
 	/* free internal buffers */
-	pci_free_consistent(wd->pdev, wd->fw_size, wd->fw_virt, wd->fw_phys);
+	dma_free_coherent(&wd->pdev->dev, wd->fw_size, wd->fw_virt,
+			  wd->fw_phys);
 	wd->fw_virt = NULL;
-	pci_free_consistent(wd->pdev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
-			    wd->hash_phys);
+	dma_free_coherent(&wd->pdev->dev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
+			  wd->hash_phys);
 	wd->hash_virt = NULL;
-	pci_free_consistent(wd->pdev, sizeof(struct wd719x_host_param),
-			    wd->params, wd->params_phys);
+	dma_free_coherent(&wd->pdev->dev, sizeof(struct wd719x_host_param),
+			  wd->params, wd->params_phys);
 	wd->params = NULL;
 	free_irq(wd->pdev->irq, wd);
 }
 
-/* finish a SCSI command, mark SCB (if any) as free, unmap buffers */
-static void wd719x_finish_cmd(struct scsi_cmnd *cmd, int result)
+/* finish a SCSI command, unmap buffers */
+static void wd719x_finish_cmd(struct wd719x_scb *scb, int result)
 {
+	struct scsi_cmnd *cmd = scb->cmd;
 	struct wd719x *wd = shost_priv(cmd->device->host);
-	struct wd719x_scb *scb = (struct wd719x_scb *) cmd->host_scribble;
 
-	if (scb) {
-		list_move(&scb->list, &wd->free_scbs);
-		dma_unmap_single(&wd->pdev->dev, cmd->SCp.dma_handle,
-				 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
-		scsi_dma_unmap(cmd);
-	}
+	list_del(&scb->list);
+
+	dma_unmap_single(&wd->pdev->dev, scb->phys,
+			sizeof(struct wd719x_scb), DMA_BIDIRECTIONAL);
+	scsi_dma_unmap(cmd);
+	dma_unmap_single(&wd->pdev->dev, cmd->SCp.dma_handle,
+			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+
 	cmd->result = result << 16;
 	cmd->scsi_done(cmd);
 }
@@ -202,36 +198,10 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 {
 	int i, count_sg;
 	unsigned long flags;
-	struct wd719x_scb *scb;
+	struct wd719x_scb *scb = scsi_cmd_priv(cmd);
 	struct wd719x *wd = shost_priv(sh);
-	dma_addr_t phys;
 
-	cmd->host_scribble = NULL;
-
-	/* get a free SCB - either from existing ones or allocate a new one */
-	spin_lock_irqsave(wd->sh->host_lock, flags);
-	scb = list_first_entry_or_null(&wd->free_scbs, struct wd719x_scb, list);
-	if (scb) {
-		list_del(&scb->list);
-		phys = scb->phys;
-	} else {
-		spin_unlock_irqrestore(wd->sh->host_lock, flags);
-		scb = pci_alloc_consistent(wd->pdev, sizeof(struct wd719x_scb),
-					   &phys);
-		spin_lock_irqsave(wd->sh->host_lock, flags);
-		if (!scb) {
-			dev_err(&wd->pdev->dev, "unable to allocate SCB\n");
-			wd719x_finish_cmd(cmd, DID_ERROR);
-			spin_unlock_irqrestore(wd->sh->host_lock, flags);
-			return 0;
-		}
-	}
-	memset(scb, 0, sizeof(struct wd719x_scb));
-	list_add(&scb->list, &wd->active_scbs);
-
-	scb->phys = phys;
 	scb->cmd = cmd;
-	cmd->host_scribble = (char *) scb;
 
 	scb->CDB_tag = 0;	/* Tagged queueing not supported yet */
 	scb->devid = cmd->device->id;
@@ -240,10 +210,19 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	/* copy the command */
 	memcpy(scb->CDB, cmd->cmnd, cmd->cmd_len);
 
+	/* map SCB */
+	scb->phys = dma_map_single(&wd->pdev->dev, scb, sizeof(*scb),
+				   DMA_BIDIRECTIONAL);
+
+	if (dma_mapping_error(&wd->pdev->dev, scb->phys))
+		goto out_error;
+
 	/* map sense buffer */
 	scb->sense_buf_length = SCSI_SENSE_BUFFERSIZE;
 	cmd->SCp.dma_handle = dma_map_single(&wd->pdev->dev, cmd->sense_buffer,
 			SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&wd->pdev->dev, cmd->SCp.dma_handle))
+		goto out_unmap_scb;
 	scb->sense_buf = cpu_to_le32(cmd->SCp.dma_handle);
 
 	/* request autosense */
@@ -258,11 +237,8 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	/* Scather/gather */
 	count_sg = scsi_dma_map(cmd);
-	if (count_sg < 0) {
-		wd719x_finish_cmd(cmd, DID_ERROR);
-		spin_unlock_irqrestore(wd->sh->host_lock, flags);
-		return 0;
-	}
+	if (count_sg < 0)
+		goto out_unmap_sense;
 	BUG_ON(count_sg > WD719X_SG);
 
 	if (count_sg) {
@@ -283,11 +259,15 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		scb->data_p = 0;
 	}
 
+	spin_lock_irqsave(wd->sh->host_lock, flags);
+
 	/* check if the Command register is free */
 	if (wd719x_readb(wd, WD719X_AMR_COMMAND) != WD719X_CMD_READY) {
 		spin_unlock_irqrestore(wd->sh->host_lock, flags);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
+
+	list_add(&scb->list, &wd->active_scbs);
 
 	/* write pointer to the AMR */
 	wd719x_writel(wd, WD719X_AMR_SCB_IN, scb->phys);
@@ -295,7 +275,17 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	wd719x_writeb(wd, WD719X_AMR_COMMAND, WD719X_CMD_PROCESS_SCB);
 
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
+	return 0;
 
+out_unmap_sense:
+	dma_unmap_single(&wd->pdev->dev, cmd->SCp.dma_handle,
+			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+out_unmap_scb:
+	dma_unmap_single(&wd->pdev->dev, scb->phys, sizeof(*scb),
+			 DMA_BIDIRECTIONAL);
+out_error:
+	cmd->result = DID_ERROR << 16;
+	cmd->scsi_done(cmd);
 	return 0;
 }
 
@@ -327,8 +317,8 @@ static int wd719x_chip_init(struct wd719x *wd)
 	wd->fw_size = ALIGN(fw_wcs->size, 4) + fw_risc->size;
 
 	if (!wd->fw_virt)
-		wd->fw_virt = pci_alloc_consistent(wd->pdev, wd->fw_size,
-						   &wd->fw_phys);
+		wd->fw_virt = dma_alloc_coherent(&wd->pdev->dev, wd->fw_size,
+						 &wd->fw_phys, GFP_KERNEL);
 	if (!wd->fw_virt) {
 		ret = -ENOMEM;
 		goto wd719x_init_end;
@@ -464,7 +454,7 @@ static int wd719x_abort(struct scsi_cmnd *cmd)
 {
 	int action, result;
 	unsigned long flags;
-	struct wd719x_scb *scb = (struct wd719x_scb *)cmd->host_scribble;
+	struct wd719x_scb *scb = scsi_cmd_priv(cmd);
 	struct wd719x *wd = shost_priv(cmd->device->host);
 
 	dev_info(&wd->pdev->dev, "abort command, tag: %x\n", cmd->tag);
@@ -526,10 +516,8 @@ static int wd719x_host_reset(struct scsi_cmnd *cmd)
 		result = FAILED;
 
 	/* flush all SCBs */
-	list_for_each_entry_safe(scb, tmp, &wd->active_scbs, list) {
-		struct scsi_cmnd *tmp_cmd = scb->cmd;
-		wd719x_finish_cmd(tmp_cmd, result);
-	}
+	list_for_each_entry_safe(scb, tmp, &wd->active_scbs, list)
+		wd719x_finish_cmd(scb, result);
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 
 	return result;
@@ -555,7 +543,6 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 					union wd719x_regs regs,
 					struct wd719x_scb *scb)
 {
-	struct scsi_cmnd *cmd;
 	int result;
 
 	/* now have to find result from card */
@@ -643,9 +630,8 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 		result = DID_ERROR;
 		break;
 	}
-	cmd = scb->cmd;
 
-	wd719x_finish_cmd(cmd, result);
+	wd719x_finish_cmd(scb, result);
 }
 
 static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
@@ -809,7 +795,6 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 	int ret;
 
 	INIT_LIST_HEAD(&wd->active_scbs);
-	INIT_LIST_HEAD(&wd->free_scbs);
 
 	sh->base = pci_resource_start(wd->pdev, 0);
 
@@ -820,17 +805,18 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 	wd->fw_virt = NULL;
 
 	/* memory area for host (EEPROM) parameters */
-	wd->params = pci_alloc_consistent(wd->pdev,
-					  sizeof(struct wd719x_host_param),
-					  &wd->params_phys);
+	wd->params = dma_alloc_coherent(&wd->pdev->dev,
+					sizeof(struct wd719x_host_param),
+					&wd->params_phys, GFP_KERNEL);
 	if (!wd->params) {
 		dev_warn(&wd->pdev->dev, "unable to allocate parameter buffer\n");
 		return -ENOMEM;
 	}
 
 	/* memory area for the RISC for hash table of outstanding requests */
-	wd->hash_virt = pci_alloc_consistent(wd->pdev, WD719X_HASH_TABLE_SIZE,
-					     &wd->hash_phys);
+	wd->hash_virt = dma_alloc_coherent(&wd->pdev->dev,
+					   WD719X_HASH_TABLE_SIZE,
+					   &wd->hash_phys, GFP_KERNEL);
 	if (!wd->hash_virt) {
 		dev_warn(&wd->pdev->dev, "unable to allocate hash buffer\n");
 		ret = -ENOMEM;
@@ -862,10 +848,10 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 fail_free_irq:
 	free_irq(wd->pdev->irq, wd);
 fail_free_hash:
-	pci_free_consistent(wd->pdev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
+	dma_free_coherent(&wd->pdev->dev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
 			    wd->hash_phys);
 fail_free_params:
-	pci_free_consistent(wd->pdev, sizeof(struct wd719x_host_param),
+	dma_free_coherent(&wd->pdev->dev, sizeof(struct wd719x_host_param),
 			    wd->params, wd->params_phys);
 
 	return ret;
@@ -874,6 +860,7 @@ fail_free_params:
 static struct scsi_host_template wd719x_template = {
 	.module				= THIS_MODULE,
 	.name				= "Western Digital 719x",
+	.cmd_size			= sizeof(struct wd719x_scb),
 	.queuecommand			= wd719x_queuecommand,
 	.eh_abort_handler		= wd719x_abort,
 	.eh_device_reset_handler	= wd719x_dev_reset,
@@ -884,7 +871,6 @@ static struct scsi_host_template wd719x_template = {
 	.can_queue			= 255,
 	.this_id			= 7,
 	.sg_tablesize			= WD719X_SG,
-	.use_clustering			= ENABLE_CLUSTERING,
 };
 
 static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)
@@ -897,7 +883,7 @@ static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)
 	if (err)
 		goto fail;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		dev_warn(&pdev->dev, "Unable to set 32-bit DMA mask\n");
 		goto disable_device;
 	}

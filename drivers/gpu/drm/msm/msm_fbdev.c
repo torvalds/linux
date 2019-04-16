@@ -91,7 +91,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 			sizes->surface_height, pitch, format);
 
 	if (IS_ERR(fb)) {
-		dev_err(dev->dev, "failed to allocate fb\n");
+		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");
 		return PTR_ERR(fb);
 	}
 
@@ -104,15 +104,15 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
 	 * buffer now:
 	 */
-	ret = msm_gem_get_iova(bo, priv->kms->aspace, &paddr);
+	ret = msm_gem_get_and_pin_iova(bo, priv->kms->aspace, &paddr);
 	if (ret) {
-		dev_err(dev->dev, "failed to get buffer obj iova: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get buffer obj iova: %d\n", ret);
 		goto fail_unlock;
 	}
 
 	fbi = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(fbi)) {
-		dev_err(dev->dev, "failed to allocate fb info\n");
+		DRM_DEV_ERROR(dev->dev, "failed to allocate fb info\n");
 		ret = PTR_ERR(fbi);
 		goto fail_unlock;
 	}
@@ -176,7 +176,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
 	if (ret) {
-		dev_err(dev->dev, "could not init fbdev: ret=%d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could not init fbdev: ret=%d\n", ret);
 		goto fail;
 	}
 

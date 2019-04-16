@@ -1,11 +1,11 @@
 config QTNFMAC
 	tristate
-	depends on QTNFMAC_PEARL_PCIE
-	default m if QTNFMAC_PEARL_PCIE=m
-	default y if QTNFMAC_PEARL_PCIE=y
+	depends on QTNFMAC_PCIE
+	default m if QTNFMAC_PCIE=m
+	default y if QTNFMAC_PCIE=y
 
-config QTNFMAC_PEARL_PCIE
-	tristate "Quantenna QSR10g PCIe support"
+config QTNFMAC_PCIE
+	tristate "Quantenna QSR1000/QSR2000/QSR10g PCIe support"
 	default n
 	depends on PCI && CFG80211
 	select QTNFMAC
@@ -13,7 +13,8 @@ config QTNFMAC_PEARL_PCIE
 	select CRC32
 	help
 	  This option adds support for wireless adapters based on Quantenna
-	  802.11ac QSR10g (aka Pearl) FullMAC chipset running over PCIe.
+	  802.11ac QSR10g (aka Pearl) and QSR1000/QSR2000 (aka Topaz)
+	  FullMAC chipsets running over PCIe.
 
 	  If you choose to build it as a module, two modules will be built:
-	  qtnfmac.ko and qtnfmac_pearl_pcie.ko.
+	  qtnfmac.ko and qtnfmac_pcie.ko.

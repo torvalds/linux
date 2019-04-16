@@ -17,6 +17,11 @@ extern const struct regmap_config pcm3060_regmap;
 #define PCM3060_DAI_ID_ADC	1
 #define PCM3060_DAI_IDS_NUM	2
 
+/* ADC and DAC can be clocked from separate or same sources CLK1 and CLK2 */
+#define PCM3060_CLK_DEF	0 /* default: CLK1->ADC, CLK2->DAC */
+#define PCM3060_CLK1		1
+#define PCM3060_CLK2		2
+
 struct pcm3060_priv_dai {
 	bool is_master;
 	unsigned int sclk_freq;
@@ -25,6 +30,7 @@ struct pcm3060_priv_dai {
 struct pcm3060_priv {
 	struct regmap *regmap;
 	struct pcm3060_priv_dai dai[PCM3060_DAI_IDS_NUM];
+	u8 out_se: 1;
 };
 
 int pcm3060_probe(struct device *dev);
@@ -36,7 +42,9 @@ int pcm3060_remove(struct device *dev);
 #define PCM3060_REG_MRST		0x80
 #define PCM3060_REG_SRST		0x40
 #define PCM3060_REG_ADPSV		0x20
+#define PCM3060_REG_SHIFT_ADPSV	0x05
 #define PCM3060_REG_DAPSV		0x10
+#define PCM3060_REG_SHIFT_DAPSV	0x04
 #define PCM3060_REG_SE			0x01
 
 #define PCM3060_REG65			0x41

@@ -262,7 +262,7 @@
 #define MIN_AUTH_SG			1 /* IV */
 #define MIN_GCM_SG			1 /* IV */
 #define MIN_DIGEST_SG			1 /*Partial Buffer*/
-#define MIN_CCM_SG			2 /*IV+B0*/
+#define MIN_CCM_SG			1 /*IV+B0*/
 #define CIP_SPACE_LEFT(len) \
 	((SGE_MAX_WR_LEN - CIP_WR_MIN_LEN - (len)))
 #define HASH_SPACE_LEFT(len) \

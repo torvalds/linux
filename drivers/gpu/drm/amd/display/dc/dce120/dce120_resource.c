@@ -62,6 +62,8 @@
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
 #include "nbio/nbio_6_1_offset.h"
+#include "mmhub/mmhub_9_4_0_offset.h"
+#include "mmhub/mmhub_9_4_0_sh_mask.h"
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"
@@ -138,6 +140,17 @@ static const struct dce110_timing_generator_offsets dce120_tg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = BASE(mm ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 					mm ## block ## id ## _ ## reg_name
+
+/* MMHUB */
+#define MMHUB_BASE_INNER(seg) \
+	MMHUB_BASE__INST0_SEG ## seg
+
+#define MMHUB_BASE(seg) \
+	MMHUB_BASE_INNER(seg)
+
+#define MMHUB_SR(reg_name)\
+		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
+					mm ## reg_name
 
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
@@ -378,7 +391,7 @@ struct output_pixel_processor *dce120_opp_create(
 			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
 	return &opp->base;
 }
-struct aux_engine *dce120_aux_engine_create(
+struct dce_aux *dce120_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -429,6 +442,7 @@ struct dce_i2c_hw *dce120_i2c_hw_create(
 	return dce_i2c_hw;
 }
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3 + NBIO_BASE(mmBIOS_SCRATCH_3_BASE_IDX),
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6 + NBIO_BASE(mmBIOS_SCRATCH_6_BASE_IDX)
 };
 
@@ -681,6 +695,19 @@ static const struct dce_hwseq_mask hwseq_mask = {
 		HWSEQ_DCE12_MASK_SH_LIST(_MASK)
 };
 
+/* HWSEQ regs for VG20 */
+static const struct dce_hwseq_registers dce121_hwseq_reg = {
+		HWSEQ_VG20_REG_LIST()
+};
+
+static const struct dce_hwseq_shift dce121_hwseq_shift = {
+		HWSEQ_VG20_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_hwseq_mask dce121_hwseq_mask = {
+		HWSEQ_VG20_MASK_SH_LIST(_MASK)
+};
+
 static struct dce_hwseq *dce120_hwseq_create(
 	struct dc_context *ctx)
 {
@@ -695,12 +722,34 @@ static struct dce_hwseq *dce120_hwseq_create(
 	return hws;
 }
 
+static struct dce_hwseq *dce121_hwseq_create(
+	struct dc_context *ctx)
+{
+	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+
+	if (hws) {
+		hws->ctx = ctx;
+		hws->regs = &dce121_hwseq_reg;
+		hws->shifts = &dce121_hwseq_shift;
+		hws->masks = &dce121_hwseq_mask;
+	}
+	return hws;
+}
+
 static const struct resource_create_funcs res_create_funcs = {
 	.read_dce_straps = read_dce_straps,
 	.create_audio = create_audio,
 	.create_stream_encoder = dce120_stream_encoder_create,
 	.create_hwseq = dce120_hwseq_create,
 };
+
+static const struct resource_create_funcs dce121_res_create_funcs = {
+	.read_dce_straps = read_dce_straps,
+	.create_audio = create_audio,
+	.create_stream_encoder = dce120_stream_encoder_create,
+	.create_hwseq = dce121_hwseq_create,
+};
+
 
 #define mi_inst_regs(id) { MI_DCE12_REG_LIST(id) }
 static const struct dce_mem_input_registers mi_regs[] = {
@@ -911,7 +960,8 @@ static bool construct(
 	int j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data irq_init_data;
-	bool harvest_enabled = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
+	static const struct resource_create_funcs *res_funcs;
+	bool is_vg20 = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
 	uint32_t pipe_fuses;
 
 	ctx->dc_bios->regs = &bios_regs;
@@ -975,7 +1025,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
+	if (is_vg20)
+		pool->base.clk_mgr = dce121_clk_mgr_create(ctx);
+	else
+		pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
+
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
@@ -1008,14 +1062,14 @@ static bool construct(
 	if (!pool->base.irqs)
 		goto irqs_create_fail;
 
-	/* retrieve valid pipe fuses */
-	if (harvest_enabled)
+	/* VG20: Pipe harvesting enabled, retrieve valid pipe fuses */
+	if (is_vg20)
 		pipe_fuses = read_pipe_fuses(ctx);
 
 	/* index to valid pipe resource */
 	j = 0;
 	for (i = 0; i < pool->base.pipe_count; i++) {
-		if (harvest_enabled) {
+		if (is_vg20) {
 			if ((pipe_fuses & (1 << i)) != 0) {
 				dm_error("DC: skip invalid pipe %d!\n", i);
 				continue;
@@ -1093,9 +1147,23 @@ static bool construct(
 	pool->base.pipe_count = j;
 	pool->base.timing_generator_count = j;
 
-	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			 &res_create_funcs))
+	if (is_vg20)
+		res_funcs = &dce121_res_create_funcs;
+	else
+		res_funcs = &res_create_funcs;
+
+	if (!resource_construct(num_virtual_links, dc, &pool->base, res_funcs))
 		goto res_create_fail;
+
+	/*
+	 * This is a bit of a hack. The xGMI enabled info is used to determine
+	 * if audio and display clocks need to be adjusted with the WAFL link's
+	 * SS info. This is a responsiblity of the clk_mgr. But since MMHUB is
+	 * under hwseq, and the relevant register is in MMHUB, we have to do it
+	 * here.
+	 */
+	if (is_vg20 && dce121_xgmi_enabled(dc->hwseq))
+		dce121_clock_patch_xgmi_ss_info(pool->base.clk_mgr);
 
 	/* Create hardware sequencer */
 	if (!dce120_hw_sequencer_create(dc))

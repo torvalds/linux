@@ -783,7 +783,7 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 
 		if ((buf[0] & 0x02) == 0x00)
 			*status |= FE_HAS_SYNC;
-		if ((buf[0] & 0xfd) == 0x01)
+		if ((buf[0] & 0x01) == 0x01)
 			*status |= FE_HAS_VITERBI | FE_HAS_LOCK;
 		break;
 	default:

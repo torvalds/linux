@@ -282,7 +282,12 @@ static int cedrus_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
 	struct cedrus_dev *dev = ctx->dev;
+	struct vb2_queue *vq;
 	int ret;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	if (vb2_is_busy(vq))
+		return -EBUSY;
 
 	ret = cedrus_try_fmt_vid_cap(file, priv, f);
 	if (ret)
@@ -299,7 +304,12 @@ static int cedrus_s_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
+	struct vb2_queue *vq;
 	int ret;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	if (vb2_is_busy(vq))
+		return -EBUSY;
 
 	ret = cedrus_try_fmt_vid_out(file, priv, f);
 	if (ret)
@@ -380,17 +390,12 @@ static void cedrus_queue_cleanup(struct vb2_queue *vq, u32 state)
 {
 	struct cedrus_ctx *ctx = vb2_get_drv_priv(vq);
 	struct vb2_v4l2_buffer *vbuf;
-	unsigned long flags;
 
 	for (;;) {
-		spin_lock_irqsave(&ctx->dev->irq_lock, flags);
-
 		if (V4L2_TYPE_IS_OUTPUT(vq->type))
 			vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		else
 			vbuf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-
-		spin_unlock_irqrestore(&ctx->dev->irq_lock, flags);
 
 		if (!vbuf)
 			return;
@@ -419,6 +424,14 @@ static void cedrus_buf_cleanup(struct vb2_buffer *vb)
 
 	if (!V4L2_TYPE_IS_OUTPUT(vq->type))
 		ctx->dst_bufs[vb->index] = NULL;
+}
+
+static int cedrus_buf_out_validate(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	vbuf->field = V4L2_FIELD_NONE;
+	return 0;
 }
 
 static int cedrus_buf_prepare(struct vb2_buffer *vb)
@@ -498,6 +511,7 @@ static struct vb2_ops cedrus_qops = {
 	.buf_init		= cedrus_buf_init,
 	.buf_cleanup		= cedrus_buf_cleanup,
 	.buf_queue		= cedrus_buf_queue,
+	.buf_out_validate	= cedrus_buf_out_validate,
 	.buf_request_complete	= cedrus_buf_request_complete,
 	.start_streaming	= cedrus_start_streaming,
 	.stop_streaming		= cedrus_stop_streaming,

@@ -43,8 +43,8 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/i2c.h>
@@ -109,7 +109,6 @@ struct vc4_hdmi_encoder {
 	struct vc4_encoder base;
 	bool hdmi_monitor;
 	bool limited_rgb_range;
-	bool rgb_range_selectable;
 };
 
 static inline struct vc4_hdmi_encoder *
@@ -280,11 +279,6 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	vc4_encoder->hdmi_monitor = drm_detect_hdmi_monitor(edid);
 
-	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
-		vc4_encoder->rgb_range_selectable =
-			drm_rgb_quant_range_selectable(edid);
-	}
-
 	drm_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
@@ -310,6 +304,7 @@ static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector;
 	struct vc4_hdmi_connector *hdmi_connector;
+	int ret;
 
 	hdmi_connector = devm_kzalloc(dev->dev, sizeof(*hdmi_connector),
 				      GFP_KERNEL);
@@ -322,6 +317,13 @@ static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 	drm_connector_init(dev, connector, &vc4_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &vc4_hdmi_connector_helper_funcs);
+
+	/* Create and attach TV margin props to this connector. */
+	ret = drm_mode_create_tv_margin_properties(dev);
+	if (ret)
+		return ERR_PTR(ret);
+
+	drm_connector_attach_tv_margin_properties(connector);
 
 	connector->polled = (DRM_CONNECTOR_POLL_CONNECT |
 			     DRM_CONNECTOR_POLL_DISCONNECT);
@@ -408,23 +410,31 @@ static void vc4_hdmi_write_infoframe(struct drm_encoder *encoder,
 static void vc4_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 {
 	struct vc4_hdmi_encoder *vc4_encoder = to_vc4_hdmi_encoder(encoder);
+	struct vc4_dev *vc4 = encoder->dev->dev_private;
+	struct vc4_hdmi *hdmi = vc4->hdmi;
+	struct drm_connector_state *cstate = hdmi->connector->state;
 	struct drm_crtc *crtc = encoder->crtc;
 	const struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	union hdmi_infoframe frame;
 	int ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						       hdmi->connector, mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi, mode,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   hdmi->connector, mode,
 					   vc4_encoder->limited_rgb_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
-					   HDMI_QUANTIZATION_RANGE_FULL,
-					   vc4_encoder->rgb_range_selectable,
-					   false);
+					   HDMI_QUANTIZATION_RANGE_FULL);
+
+	frame.avi.right_bar = cstate->tv.margins.right;
+	frame.avi.left_bar = cstate->tv.margins.left;
+	frame.avi.top_bar = cstate->tv.margins.top;
+	frame.avi.bottom_bar = cstate->tv.margins.bottom;
 
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }

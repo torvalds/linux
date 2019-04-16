@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Renesas R-Car Fine Display Processor (FDP1) Driver
 ==================================================
 

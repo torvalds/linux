@@ -5,6 +5,7 @@ config XFRM
        bool
        depends on NET
        select GRO_CELLS
+       select SKB_EXTENSIONS
 
 config XFRM_OFFLOAD
        bool

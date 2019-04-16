@@ -341,7 +341,7 @@ static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
 				  enum dpio_phy phy)
 {
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    BXT_PORT_REF_DW3(phy),
 				    GRC_DONE, GRC_DONE,
 				    10))
@@ -383,7 +383,8 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	 * The flag should get set in 100us according to the HW team, but
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
-	if (intel_wait_for_register_fw(dev_priv, BXT_PORT_CL1CM_DW0(phy),
+	if (intel_wait_for_register_fw(&dev_priv->uncore,
+				       BXT_PORT_CL1CM_DW0(phy),
 				       PHY_RESERVED | PHY_POWER_GOOD,
 				       PHY_POWER_GOOD,
 				       1))
@@ -413,7 +414,7 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	}
 
 	if (phy_info->rcomp_phy != -1) {
-		uint32_t grc_code;
+		u32 grc_code;
 
 		bxt_phy_wait_grc_done(dev_priv, phy_info->rcomp_phy);
 
@@ -445,7 +446,7 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	const struct bxt_ddi_phy_info *phy_info;
-	uint32_t val;
+	u32 val;
 
 	phy_info = bxt_get_phy_info(dev_priv, phy);
 
@@ -515,7 +516,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			      enum dpio_phy phy)
 {
 	const struct bxt_ddi_phy_info *phy_info;
-	uint32_t mask;
+	u32 mask;
 	bool ok;
 
 	phy_info = bxt_get_phy_info(dev_priv, phy);
@@ -567,8 +568,8 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 #undef _CHK
 }
 
-uint8_t
-bxt_ddi_phy_calc_lane_lat_optim_mask(uint8_t lane_count)
+u8
+bxt_ddi_phy_calc_lane_lat_optim_mask(u8 lane_count)
 {
 	switch (lane_count) {
 	case 1:
@@ -585,7 +586,7 @@ bxt_ddi_phy_calc_lane_lat_optim_mask(uint8_t lane_count)
 }
 
 void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
-				     uint8_t lane_lat_optim_mask)
+				     u8 lane_lat_optim_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
@@ -610,7 +611,7 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 	}
 }
 
-uint8_t
+u8
 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -618,7 +619,7 @@ bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 	int lane;
-	uint8_t mask;
+	u8 mask;
 
 	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
@@ -739,7 +740,7 @@ void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum pipe pipe = crtc->pipe;
-	uint32_t val;
+	u32 val;
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW0(ch));
 	if (reset)

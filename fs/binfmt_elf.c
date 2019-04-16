@@ -57,8 +57,6 @@
 #endif
 
 static int load_elf_binary(struct linux_binprm *bprm);
-static unsigned long elf_map(struct file *, unsigned long, struct elf_phdr *,
-				int, int, unsigned long);
 
 #ifdef CONFIG_USELIB
 static int load_elf_library(struct file *);
@@ -347,7 +345,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 #ifndef elf_map
 
 static unsigned long elf_map(struct file *filep, unsigned long addr,
-		struct elf_phdr *eppnt, int prot, int type,
+		const struct elf_phdr *eppnt, int prot, int type,
 		unsigned long total_size)
 {
 	unsigned long map_addr;
@@ -387,7 +385,7 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
 
 #endif /* !elf_map */
 
-static unsigned long total_mapping_size(struct elf_phdr *cmds, int nr)
+static unsigned long total_mapping_size(const struct elf_phdr *cmds, int nr)
 {
 	int i, first_idx = -1, last_idx = -1;
 
@@ -414,12 +412,13 @@ static unsigned long total_mapping_size(struct elf_phdr *cmds, int nr)
  * header pointed to by elf_ex, into a newly allocated array. The caller is
  * responsible for freeing the allocated data. Returns an ERR_PTR upon failure.
  */
-static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
+static struct elf_phdr *load_elf_phdrs(const struct elfhdr *elf_ex,
 				       struct file *elf_file)
 {
 	struct elf_phdr *elf_phdata = NULL;
-	int retval, size, err = -1;
+	int retval, err = -1;
 	loff_t pos = elf_ex->e_phoff;
+	unsigned int size;
 
 	/*
 	 * If the size of this structure has changed, then punt, since
@@ -429,13 +428,9 @@ static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
 		goto out;
 
 	/* Sanity check the number of program headers... */
-	if (elf_ex->e_phnum < 1 ||
-		elf_ex->e_phnum > 65536U / sizeof(struct elf_phdr))
-		goto out;
-
 	/* ...and their total size. */
 	size = sizeof(struct elf_phdr) * elf_ex->e_phnum;
-	if (size > ELF_MIN_ALIGN)
+	if (size == 0 || size > 65536 || size > ELF_MIN_ALIGN)
 		goto out;
 
 	elf_phdata = kmalloc(size, GFP_KERNEL);
@@ -2033,7 +2028,6 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 			  struct elf_note_info *info,
 			  const kernel_siginfo_t *siginfo, struct pt_regs *regs)
 {
-	struct list_head *t;
 	struct core_thread *ct;
 	struct elf_thread_status *ets;
 
@@ -2050,10 +2044,9 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		list_add(&ets->list, &info->thread_list);
 	}
 
-	list_for_each(t, &info->thread_list) {
+	list_for_each_entry(ets, &info->thread_list, list) {
 		int sz;
 
-		ets = list_entry(t, struct elf_thread_status, list);
 		sz = elf_dump_thread_status(siginfo->si_signo, ets);
 		info->thread_status_size += sz;
 	}
@@ -2117,20 +2110,17 @@ static size_t get_note_info_size(struct elf_note_info *info)
 static int write_note_info(struct elf_note_info *info,
 			   struct coredump_params *cprm)
 {
+	struct elf_thread_status *ets;
 	int i;
-	struct list_head *t;
 
 	for (i = 0; i < info->numnote; i++)
 		if (!writenote(info->notes + i, cprm))
 			return 0;
 
 	/* write out the thread status notes section */
-	list_for_each(t, &info->thread_list) {
-		struct elf_thread_status *tmp =
-				list_entry(t, struct elf_thread_status, list);
-
-		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], cprm))
+	list_for_each_entry(ets, &info->thread_list, list) {
+		for (i = 0; i < ets->num_notes; i++)
+			if (!writenote(&ets->notes[i], cprm))
 				return 0;
 	}
 

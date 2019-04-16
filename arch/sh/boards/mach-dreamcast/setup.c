@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/boards/dreamcast/setup.c
  *
@@ -7,8 +8,6 @@
  * Copyright (c) 2002, 2003, 2004 Paul Mundt <lethal@linux-sh.org>
  *
  * This file is part of the LinuxDC project (www.linuxdc.org)
- *
- * Released under the terms of the GNU GPL v2.0.
  *
  * This file originally bore the message (with enclosed-$):
  *	Id: setup_dc.c,v 1.5 2001/05/24 05:09:16 mrbrown Exp
@@ -30,7 +29,6 @@
 
 static void __init dreamcast_setup(char **cmdline_p)
 {
-	board_time_init = aica_time_init;
 }
 
 static struct sh_machine_vector mv_dreamcast __initmv = {
