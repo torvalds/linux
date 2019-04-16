@@ -284,6 +284,9 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 		case IMC_TYPE_THREAD:
 			domain = IMC_DOMAIN_THREAD;
 			break;
+		case IMC_TYPE_TRACE:
+			domain = IMC_DOMAIN_TRACE;
+			break;
 		default:
 			pr_warn("IMC Unknown Device type \n");
 			domain = -1;

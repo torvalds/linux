@@ -43,6 +43,11 @@ static DEFINE_PER_CPU(u64 *, thread_imc_mem);
 static struct imc_pmu *thread_imc_pmu;
 static int thread_imc_mem_size;
 
+/* Trace IMC data structures */
+static DEFINE_PER_CPU(u64 *, trace_imc_mem);
+static struct imc_pmu_ref *trace_imc_refc;
+static int trace_imc_mem_size;
+
 static struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
 {
 	return container_of(event->pmu, struct imc_pmu, pmu);
@@ -1055,6 +1060,59 @@ static void thread_imc_event_del(struct perf_event *event, int flags)
 	imc_event_update(event);
 }
 
+/*
+ * Allocate a page of memory for each cpu, and load LDBAR with 0.
+ */
+static int trace_imc_mem_alloc(int cpu_id, int size)
+{
+	u64 *local_mem = per_cpu(trace_imc_mem, cpu_id);
+	int phys_id = cpu_to_node(cpu_id), rc = 0;
+	int core_id = (cpu_id / threads_per_core);
+
+	if (!local_mem) {
+		local_mem = page_address(alloc_pages_node(phys_id,
+					GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+					__GFP_NOWARN, get_order(size)));
+		if (!local_mem)
+			return -ENOMEM;
+		per_cpu(trace_imc_mem, cpu_id) = local_mem;
+
+		/* Initialise the counters for trace mode */
+		rc = opal_imc_counters_init(OPAL_IMC_COUNTERS_TRACE, __pa((void *)local_mem),
+					    get_hard_smp_processor_id(cpu_id));
+		if (rc) {
+			pr_info("IMC:opal init failed for trace imc\n");
+			return rc;
+		}
+	}
+
+	/* Init the mutex, if not already */
+	trace_imc_refc[core_id].id = core_id;
+	mutex_init(&trace_imc_refc[core_id].lock);
+
+	mtspr(SPRN_LDBAR, 0);
+	return 0;
+}
+
+static int ppc_trace_imc_cpu_online(unsigned int cpu)
+{
+	return trace_imc_mem_alloc(cpu, trace_imc_mem_size);
+}
+
+static int ppc_trace_imc_cpu_offline(unsigned int cpu)
+{
+	mtspr(SPRN_LDBAR, 0);
+	return 0;
+}
+
+static int trace_imc_cpu_init(void)
+{
+	return cpuhp_setup_state(CPUHP_AP_PERF_POWERPC_TRACE_IMC_ONLINE,
+			  "perf/powerpc/imc_trace:online",
+			  ppc_trace_imc_cpu_online,
+			  ppc_trace_imc_cpu_offline);
+}
+
 /* update_pmu_ops : Populate the appropriate operations for "pmu" */
 static int update_pmu_ops(struct imc_pmu *pmu)
 {
@@ -1177,6 +1235,18 @@ static void cleanup_all_thread_imc_memory(void)
 	}
 }
 
+static void cleanup_all_trace_imc_memory(void)
+{
+	int i, order = get_order(trace_imc_mem_size);
+
+	for_each_online_cpu(i) {
+		if (per_cpu(trace_imc_mem, i))
+			free_pages((u64)per_cpu(trace_imc_mem, i), order);
+
+	}
+	kfree(trace_imc_refc);
+}
+
 /* Function to free the attr_groups which are dynamically allocated */
 static void imc_common_mem_free(struct imc_pmu *pmu_ptr)
 {
@@ -1217,6 +1287,11 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	if (pmu_ptr->domain == IMC_DOMAIN_THREAD) {
 		cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_THREAD_IMC_ONLINE);
 		cleanup_all_thread_imc_memory();
+	}
+
+	if (pmu_ptr->domain == IMC_DOMAIN_TRACE) {
+		cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_TRACE_IMC_ONLINE);
+		cleanup_all_trace_imc_memory();
 	}
 }
 
@@ -1300,6 +1375,27 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 
 		thread_imc_pmu = pmu_ptr;
 		break;
+	case IMC_DOMAIN_TRACE:
+		/* Update the pmu name */
+		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s", s, "_imc");
+		if (!pmu_ptr->pmu.name)
+			return -ENOMEM;
+
+		nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
+		trace_imc_refc = kcalloc(nr_cores, sizeof(struct imc_pmu_ref),
+								GFP_KERNEL);
+		if (!trace_imc_refc)
+			return -ENOMEM;
+
+		trace_imc_mem_size = pmu_ptr->counter_mem_size;
+		for_each_online_cpu(cpu) {
+			res = trace_imc_mem_alloc(cpu, trace_imc_mem_size);
+			if (res) {
+				cleanup_all_trace_imc_memory();
+				goto err;
+			}
+		}
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1369,6 +1465,14 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 		ret = thread_imc_cpu_init();
 		if (ret) {
 			cleanup_all_thread_imc_memory();
+			goto err_free_mem;
+		}
+
+		break;
+	case IMC_DOMAIN_TRACE:
+		ret = trace_imc_cpu_init();
+		if (ret) {
+			cleanup_all_trace_imc_memory();
 			goto err_free_mem;
 		}
 
