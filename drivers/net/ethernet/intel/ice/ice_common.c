@@ -1998,36 +1998,37 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
  */
 enum ice_status ice_update_link_info(struct ice_port_info *pi)
 {
-	struct ice_aqc_get_phy_caps_data *pcaps;
-	struct ice_phy_info *phy_info;
+	struct ice_link_status *li;
 	enum ice_status status;
-	struct ice_hw *hw;
 
 	if (!pi)
 		return ICE_ERR_PARAM;
 
-	hw = pi->hw;
+	li = &pi->phy.link_info;
 
-	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
-	if (!pcaps)
-		return ICE_ERR_NO_MEMORY;
-
-	phy_info = &pi->phy;
 	status = ice_aq_get_link_info(pi, true, NULL, NULL);
 	if (status)
-		goto out;
+		return status;
 
-	if (phy_info->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
+	if (li->link_info & ICE_AQ_MEDIA_AVAILABLE) {
+		struct ice_aqc_get_phy_caps_data *pcaps;
+		struct ice_hw *hw;
+
+		hw = pi->hw;
+		pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps),
+				     GFP_KERNEL);
+		if (!pcaps)
+			return ICE_ERR_NO_MEMORY;
+
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
 					     pcaps, NULL);
-		if (status)
-			goto out;
+		if (!status)
+			memcpy(li->module_type, &pcaps->module_type,
+			       sizeof(li->module_type));
 
-		memcpy(phy_info->link_info.module_type, &pcaps->module_type,
-		       sizeof(phy_info->link_info.module_type));
+		devm_kfree(ice_hw_to_dev(hw), pcaps);
 	}
-out:
-	devm_kfree(ice_hw_to_dev(hw), pcaps);
+
 	return status;
 }
 
