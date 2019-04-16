@@ -134,7 +134,7 @@ static int ocfs2_get_sector(struct super_block *sb,
 			    int block,
 			    int sect_size);
 static struct inode *ocfs2_alloc_inode(struct super_block *sb);
-static void ocfs2_destroy_inode(struct inode *inode);
+static void ocfs2_free_inode(struct inode *inode);
 static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend);
 static int ocfs2_enable_quotas(struct ocfs2_super *osb);
 static void ocfs2_disable_quotas(struct ocfs2_super *osb);
@@ -147,7 +147,7 @@ static struct dquot **ocfs2_get_dquots(struct inode *inode)
 static const struct super_operations ocfs2_sops = {
 	.statfs		= ocfs2_statfs,
 	.alloc_inode	= ocfs2_alloc_inode,
-	.destroy_inode	= ocfs2_destroy_inode,
+	.free_inode	= ocfs2_free_inode,
 	.drop_inode	= ocfs2_drop_inode,
 	.evict_inode	= ocfs2_evict_inode,
 	.sync_fs	= ocfs2_sync_fs,
@@ -575,15 +575,9 @@ static struct inode *ocfs2_alloc_inode(struct super_block *sb)
 	return &oi->vfs_inode;
 }
 
-static void ocfs2_i_callback(struct rcu_head *head)
+static void ocfs2_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(ocfs2_inode_cachep, OCFS2_I(inode));
-}
-
-static void ocfs2_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, ocfs2_i_callback);
 }
 
 static unsigned long long ocfs2_max_file_offset(unsigned int bbits,
