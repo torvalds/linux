@@ -321,11 +321,11 @@ static void sbus_iommu_unmap_sg(struct device *dev, struct scatterlist *sgl,
 		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	struct scatterlist *sg;
-	int i, n;
+	int i;
 
 	for_each_sg(sgl, sg, nents, i) {
-		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
-		iommu_release_one(dev, sg->dma_address & PAGE_MASK, n);
+		sbus_iommu_unmap_page(dev, sg->dma_address, sg->length, dir,
+				attrs);
 		sg->dma_address = 0x21212121;
 	}
 }
