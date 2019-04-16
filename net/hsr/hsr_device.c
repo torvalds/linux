@@ -354,7 +354,7 @@ static void hsr_dev_destroy(struct net_device *hsr_dev)
 
 	hsr = netdev_priv(hsr_dev);
 
-	hsr_prp_debugfs_term(hsr);
+	hsr_debugfs_term(hsr);
 
 	rtnl_lock();
 	hsr_for_each_port(hsr, port)
@@ -485,7 +485,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		goto fail;
 
 	mod_timer(&hsr->prune_timer, jiffies + msecs_to_jiffies(PRUNE_PERIOD));
-	res = hsr_prp_debugfs_init(hsr);
+	res = hsr_debugfs_init(hsr, hsr_dev);
 	if (res)
 		goto fail;
 
