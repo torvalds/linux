@@ -3493,7 +3493,7 @@ static int __init caam_algapi_init(void)
 	u32 aes_vid, aes_inst, des_inst, md_vid, md_inst, ccha_inst, ptha_inst;
 	u32 arc4_inst;
 	unsigned int md_limit = SHA512_DIGEST_SIZE;
-	bool registered = false;
+	bool registered = false, gcm_support;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node) {
@@ -3526,7 +3526,7 @@ static int __init caam_algapi_init(void)
 	 * First, detect presence and attributes of DES, AES, and MD blocks.
 	 */
 	if (priv->era < 10) {
-		u32 cha_vid, cha_inst;
+		u32 cha_vid, cha_inst, aes_rn;
 
 		cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
 		aes_vid = cha_vid & CHA_ID_LS_AES_MASK;
@@ -3541,6 +3541,10 @@ static int __init caam_algapi_init(void)
 			    CHA_ID_LS_ARC4_SHIFT;
 		ccha_inst = 0;
 		ptha_inst = 0;
+
+		aes_rn = rd_reg32(&priv->ctrl->perfmon.cha_rev_ls) &
+			 CHA_ID_LS_AES_MASK;
+		gcm_support = !(aes_vid == CHA_VER_VID_AES_LP && aes_rn < 8);
 	} else {
 		u32 aesa, mdha;
 
@@ -3556,6 +3560,8 @@ static int __init caam_algapi_init(void)
 		ccha_inst = rd_reg32(&priv->ctrl->vreg.ccha) & CHA_VER_NUM_MASK;
 		ptha_inst = rd_reg32(&priv->ctrl->vreg.ptha) & CHA_VER_NUM_MASK;
 		arc4_inst = rd_reg32(&priv->ctrl->vreg.afha) & CHA_VER_NUM_MASK;
+
+		gcm_support = aesa & CHA_VER_MISC_AES_GCM;
 	}
 
 	/* If MD is present, limit digest size based on LP256 */
@@ -3628,11 +3634,9 @@ static int __init caam_algapi_init(void)
 		if (c2_alg_sel == OP_ALG_ALGSEL_POLY1305 && !ptha_inst)
 			continue;
 
-		/*
-		 * Check support for AES algorithms not available
-		 * on LP devices.
-		 */
-		if (aes_vid  == CHA_VER_VID_AES_LP && alg_aai == OP_ALG_AAI_GCM)
+		/* Skip GCM algorithms if not supported by device */
+		if (c1_alg_sel == OP_ALG_ALGSEL_AES &&
+		    alg_aai == OP_ALG_AAI_GCM && !gcm_support)
 			continue;
 
 		/*
