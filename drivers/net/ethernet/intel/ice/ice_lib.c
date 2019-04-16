@@ -232,12 +232,11 @@ static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
 /**
  * ice_vsi_alloc_arrays - Allocate queue and vector pointer arrays for the VSI
  * @vsi: VSI pointer
- * @alloc_qvectors: a bool to specify if q_vectors need to be allocated.
  *
  * On error: returns error code (negative)
  * On success: returns 0
  */
-static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
+static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 
@@ -252,15 +251,11 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
 	if (!vsi->rx_rings)
 		goto err_rxrings;
 
-	if (alloc_qvectors) {
-		/* allocate memory for q_vector pointers */
-		vsi->q_vectors = devm_kcalloc(&pf->pdev->dev,
-					      vsi->num_q_vectors,
-					      sizeof(*vsi->q_vectors),
-					      GFP_KERNEL);
-		if (!vsi->q_vectors)
-			goto err_vectors;
-	}
+	/* allocate memory for q_vector pointers */
+	vsi->q_vectors = devm_kcalloc(&pf->pdev->dev, vsi->num_q_vectors,
+				      sizeof(*vsi->q_vectors), GFP_KERNEL);
+	if (!vsi->q_vectors)
+		goto err_vectors;
 
 	return 0;
 
@@ -389,16 +384,15 @@ void ice_vsi_delete(struct ice_vsi *vsi)
 }
 
 /**
- * ice_vsi_free_arrays - clean up VSI resources
+ * ice_vsi_free_arrays - De-allocate queue and vector pointer arrays for the VSI
  * @vsi: pointer to VSI being cleared
- * @free_qvectors: bool to specify if q_vectors should be deallocated
  */
-static void ice_vsi_free_arrays(struct ice_vsi *vsi, bool free_qvectors)
+static void ice_vsi_free_arrays(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 
 	/* free the ring and vector containers */
-	if (free_qvectors && vsi->q_vectors) {
+	if (vsi->q_vectors) {
 		devm_kfree(&pf->pdev->dev, vsi->q_vectors);
 		vsi->q_vectors = NULL;
 	}
@@ -446,7 +440,7 @@ int ice_vsi_clear(struct ice_vsi *vsi)
 	if (vsi->idx < pf->next_vsi)
 		pf->next_vsi = vsi->idx;
 
-	ice_vsi_free_arrays(vsi, true);
+	ice_vsi_free_arrays(vsi);
 	mutex_unlock(&pf->sw_mutex);
 	devm_kfree(&pf->pdev->dev, vsi);
 
@@ -512,14 +506,14 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
-		if (ice_vsi_alloc_arrays(vsi, true))
+		if (ice_vsi_alloc_arrays(vsi))
 			goto err_rings;
 
 		/* Setup default MSIX irq handler for VSI */
 		vsi->irq_handler = ice_msix_clean_rings;
 		break;
 	case ICE_VSI_VF:
-		if (ice_vsi_alloc_arrays(vsi, true))
+		if (ice_vsi_alloc_arrays(vsi))
 			goto err_rings;
 		break;
 	default:
@@ -2809,7 +2803,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	vsi->hw_base_vector = 0;
 
 	ice_vsi_clear_rings(vsi);
-	ice_vsi_free_arrays(vsi, false);
+	ice_vsi_free_arrays(vsi);
 	ice_dev_onetime_setup(&pf->hw);
 	if (vsi->type == ICE_VSI_VF)
 		ice_vsi_set_num_qs(vsi, vf->vf_id);
@@ -2822,7 +2816,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	if (ret < 0)
 		goto err_vsi;
 
-	ret = ice_vsi_alloc_arrays(vsi, false);
+	ret = ice_vsi_alloc_arrays(vsi);
 	if (ret < 0)
 		goto err_vsi;
 
