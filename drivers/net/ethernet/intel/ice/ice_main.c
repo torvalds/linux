@@ -109,6 +109,67 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 }
 
 /**
+ * ice_init_mac_fltr - Set initial MAC filters
+ * @pf: board private structure
+ *
+ * Set initial set of mac filters for PF VSI; configure filters for permanent
+ * address and broadcast address. If an error is encountered, netdevice will be
+ * unregistered.
+ */
+static int ice_init_mac_fltr(struct ice_pf *pf)
+{
+	LIST_HEAD(tmp_add_list);
+	u8 broadcast[ETH_ALEN];
+	struct ice_vsi *vsi;
+	int status;
+
+	vsi = ice_find_vsi_by_type(pf, ICE_VSI_PF);
+	if (!vsi)
+		return -EINVAL;
+
+	/* To add a MAC filter, first add the MAC to a list and then
+	 * pass the list to ice_add_mac.
+	 */
+
+	 /* Add a unicast MAC filter so the VSI can get its packets */
+	status = ice_add_mac_to_list(vsi, &tmp_add_list,
+				     vsi->port_info->mac.perm_addr);
+	if (status)
+		goto unregister;
+
+	/* VSI needs to receive broadcast traffic, so add the broadcast
+	 * MAC address to the list as well.
+	 */
+	eth_broadcast_addr(broadcast);
+	status = ice_add_mac_to_list(vsi, &tmp_add_list, broadcast);
+	if (status)
+		goto free_mac_list;
+
+	/* Program MAC filters for entries in tmp_add_list */
+	status = ice_add_mac(&pf->hw, &tmp_add_list);
+	if (status)
+		status = -ENOMEM;
+
+free_mac_list:
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+
+unregister:
+	/* We aren't useful with no MAC filters, so unregister if we
+	 * had an error
+	 */
+	if (status && vsi->netdev->reg_state == NETREG_REGISTERED) {
+		dev_err(&pf->pdev->dev,
+			"Could not add MAC filters error %d. Unregistering device\n",
+			status);
+		unregister_netdev(vsi->netdev);
+		free_netdev(vsi->netdev);
+		vsi->netdev = NULL;
+	}
+
+	return status;
+}
+
+/**
  * ice_add_mac_to_sync_list - creates list of MAC addresses to be synced
  * @netdev: the net device on which the sync is happening
  * @addr: MAC address to sync
@@ -1650,21 +1711,6 @@ skip_req_irq:
 }
 
 /**
- * ice_napi_del - Remove NAPI handler for the VSI
- * @vsi: VSI for which NAPI handler is to be removed
- */
-static void ice_napi_del(struct ice_vsi *vsi)
-{
-	int v_idx;
-
-	if (!vsi->netdev)
-		return;
-
-	ice_for_each_q_vector(vsi, v_idx)
-		netif_napi_del(&vsi->q_vectors[v_idx]->napi);
-}
-
-/**
  * ice_napi_add - register NAPI handler for the VSI
  * @vsi: VSI for which NAPI handler is to be registered
  *
@@ -1900,8 +1946,6 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
  */
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
-	LIST_HEAD(tmp_add_list);
-	u8 broadcast[ETH_ALEN];
 	struct ice_vsi *vsi;
 	int status = 0;
 
@@ -1926,37 +1970,11 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	 */
 	ice_napi_add(vsi);
 
-	/* To add a MAC filter, first add the MAC to a list and then
-	 * pass the list to ice_add_mac.
-	 */
-
-	 /* Add a unicast MAC filter so the VSI can get its packets */
-	status = ice_add_mac_to_list(vsi, &tmp_add_list,
-				     vsi->port_info->mac.perm_addr);
+	status = ice_init_mac_fltr(pf);
 	if (status)
 		goto unroll_napi_add;
 
-	/* VSI needs to receive broadcast traffic, so add the broadcast
-	 * MAC address to the list as well.
-	 */
-	eth_broadcast_addr(broadcast);
-	status = ice_add_mac_to_list(vsi, &tmp_add_list, broadcast);
-	if (status)
-		goto free_mac_list;
-
-	/* program MAC filters for entries in tmp_add_list */
-	status = ice_add_mac(&pf->hw, &tmp_add_list);
-	if (status) {
-		dev_err(&pf->pdev->dev, "Could not add MAC filters\n");
-		status = -ENOMEM;
-		goto free_mac_list;
-	}
-
-	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 	return status;
-
-free_mac_list:
-	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 
 unroll_napi_add:
 	if (vsi) {
