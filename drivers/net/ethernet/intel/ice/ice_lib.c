@@ -2365,6 +2365,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct device *dev = &pf->pdev->dev;
+	enum ice_status status;
 	struct ice_vsi *vsi;
 	int ret, i;
 
@@ -2472,12 +2473,12 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = pf->num_lan_tx;
 
-	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
-			      max_txqs);
-	if (ret) {
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+	if (status) {
 		dev_err(&pf->pdev->dev,
 			"VSI %d failed lan queue config, error %d\n",
-			vsi->vsi_num, ret);
+			vsi->vsi_num, status);
 		goto unroll_vector_base;
 	}
 
@@ -2868,6 +2869,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct ice_vf *vf = NULL;
+	enum ice_status status;
 	struct ice_pf *pf;
 	int ret, i;
 
@@ -2961,12 +2963,12 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = pf->num_lan_tx;
 
-	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
-			      max_txqs);
-	if (ret) {
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+	if (status) {
 		dev_err(&pf->pdev->dev,
 			"VSI %d failed lan queue config, error %d\n",
-			vsi->vsi_num, ret);
+			vsi->vsi_num, status);
 		goto err_vectors;
 	}
 	return 0;
