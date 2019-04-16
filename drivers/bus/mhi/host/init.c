@@ -876,6 +876,9 @@ static int parse_config(struct mhi_controller *mhi_cntrl,
 	if (!mhi_cntrl->timeout_ms)
 		mhi_cntrl->timeout_ms = MHI_TIMEOUT_MS;
 
+	if (config->bhie_offset)
+		mhi_cntrl->bhie = mhi_cntrl->regs + config->bhie_offset;
+
 	mhi_cntrl->bounce_buf = config->use_bounce_buf;
 	mhi_cntrl->buffer_len = config->buf_len;
 	if (!mhi_cntrl->buffer_len)
@@ -910,6 +913,10 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	    !mhi_cntrl->write_reg || !mhi_cntrl->nr_irqs ||
 	    !mhi_cntrl->irq || !mhi_cntrl->reg_len)
 		return -EINVAL;
+
+	/* Initialise BHI and BHIe Offsets*/
+	mhi_cntrl->bhi = NULL;
+	mhi_cntrl->bhie = NULL;
 
 	ret = parse_config(mhi_cntrl, config);
 	if (ret)
@@ -1131,7 +1138,7 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 	}
 	mhi_cntrl->bhi = mhi_cntrl->regs + bhi_off;
 
-	if (mhi_cntrl->fbc_download || mhi_cntrl->rddm_size) {
+	if (!mhi_cntrl->bhie && (mhi_cntrl->fbc_download || mhi_cntrl->rddm_size)) {
 		ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIEOFF,
 				   &bhie_off);
 		if (ret) {
@@ -1191,9 +1198,6 @@ void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
 {
 	if (mhi_cntrl->rddm_image)
 		mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image);
-
-	mhi_cntrl->bhi = NULL;
-	mhi_cntrl->bhie = NULL;
 
 	mhi_deinit_dev_ctxt(mhi_cntrl);
 }
