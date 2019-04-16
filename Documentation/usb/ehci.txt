@@ -1,3 +1,7 @@
+﻿===========
+EHCI driver
+===========
+
 27-Dec-2002
 
 The EHCI driver is used to talk to high speed USB 2.0 devices using
@@ -40,7 +44,8 @@ APIs exposed to USB device drivers.
   <dbrownell@users.sourceforge.net>
 
 
-FUNCTIONALITY
+Functionality
+=============
 
 This driver is regularly tested on x86 hardware, and has also been
 used on PPC hardware so big/little endianness issues should be gone.
@@ -48,6 +53,7 @@ It's believed to do all the right PCI magic so that I/O works even on
 systems with interesting DMA mapping issues.
 
 Transfer Types
+--------------
 
 At this writing the driver should comfortably handle all control, bulk,
 and interrupt transfers, including requests to USB 1.1 devices through
@@ -63,6 +69,7 @@ since EHCI represents these with a different data structure.  So for now,
 most USB audio and video devices can't be connected to high speed buses.
 
 Driver Behavior
+---------------
 
 Transfers of all types can be queued.  This means that control transfers
 from a driver on one interface (or through usbfs) won't interfere with
@@ -83,14 +90,15 @@ limits on the number of periodic transactions that can be scheduled,
 and prevent use of polling intervals of less than one frame.
 
 
-USE BY
+Use by
+======
 
 Assuming you have an EHCI controller (on a PCI card or motherboard)
-and have compiled this driver as a module, load this like:
+and have compiled this driver as a module, load this like::
 
     # modprobe ehci-hcd
 
-and remove it by:
+and remove it by::
 
     # rmmod ehci-hcd
 
@@ -112,13 +120,16 @@ If you're using this driver on a 2.5 kernel, and you've enabled USB
 debugging support, you'll see three files in the "sysfs" directory for
 any EHCI controller:
 
-	"async" dumps the asynchronous schedule, used for control
+	"async"
+		dumps the asynchronous schedule, used for control
 		and bulk transfers.  Shows each active qh and the qtds
 		pending, usually one qtd per urb.  (Look at it with
 		usb-storage doing disk I/O; watch the request queues!)
-	"periodic" dumps the periodic schedule, used for interrupt
+	"periodic"
+		dumps the periodic schedule, used for interrupt
 		and isochronous transfers.  Doesn't show qtds.
-	"registers" show controller register state, and
+	"registers"
+		show controller register state, and
 
 The contents of those files can help identify driver problems.
 
@@ -136,7 +147,8 @@ transaction translators are in use; some drivers have been seen to behave
 badly when they see different faults than OHCI or UHCI report.
 
 
-PERFORMANCE
+Performance
+===========
 
 USB 2.0 throughput is gated by two main factors:  how fast the host
 controller can process requests, and how fast devices can respond to
@@ -156,6 +168,7 @@ hardware and device driver software allow it.  Periodic transfer modes
 approach the quoted 480 MBit/sec transfer rate.
 
 Hardware Performance
+--------------------
 
 At this writing, individual USB 2.0 devices tend to max out at around
 20 MByte/sec transfer rates.  This is of course subject to change;
@@ -183,6 +196,7 @@ you issue a control or bulk request you can often expect to learn that
 it completed in less than 250 usec (depending on transfer size).
 
 Software Performance
+--------------------
 
 To get even 20 MByte/sec transfer rates, Linux-USB device drivers will
 need to keep the EHCI queue full.  That means issuing large requests,
@@ -206,9 +220,11 @@ mapping (which might apply an IOMMU) and IRQ reduction, all of which will
 help make high speed transfers run as fast as they can.
 
 
-TBD:  Interrupt and ISO transfer performance issues.  Those periodic
-transfers are fully scheduled, so the main issue is likely to be how
-to trigger "high bandwidth" modes.
+TBD:
+   Interrupt and ISO transfer performance issues.  Those periodic
+   transfers are fully scheduled, so the main issue is likely to be how
+   to trigger "high bandwidth" modes.
 
-TBD:  More than standard 80% periodic bandwidth allocation is possible
-through sysfs uframe_periodic_max parameter. Describe that.
+TBD:
+   More than standard 80% periodic bandwidth allocation is possible
+   through sysfs uframe_periodic_max parameter. Describe that.

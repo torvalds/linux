@@ -1,4 +1,9 @@
-* Overview
+=========================
+Mass Storage Gadget (MSG)
+=========================
+
+Overview
+========
 
   Mass Storage Gadget (or MSG) acts as a USB Mass Storage device,
   appearing to the host as a disk or a CD-ROM drive.  It supports
@@ -24,7 +29,8 @@
   (which is no longer included in Linux).  It will talk only briefly
   about how to use MSF within composite gadgets.
 
-* Module parameters
+Module parameters
+=================
 
   The mass storage gadget accepts the following mass storage specific
   module parameters:
@@ -146,7 +152,8 @@
   - iProduct      -- USB Product string (string)
   - iSerialNumber -- SerialNumber string (sting)
 
-* sysfs entries
+sysfs entries
+=============
 
   For each logical unit, the gadget creates a directory in the sysfs
   hierarchy.  Inside of it the following three files are created:
@@ -177,7 +184,8 @@
   Other then those, as usual, the values of module parameters can be
   read from /sys/module/g_mass_storage/parameters/* files.
 
-* Other gadgets using mass storage function
+Other gadgets using mass storage function
+=========================================
 
   The Mass Storage Gadget uses the Mass Storage Function to handle
   mass storage protocol.  As a composite function, MSF may be used by
@@ -193,7 +201,8 @@
   may take a look at mass_storage.c, acm_ms.c and multi.c (sorted by
   complexity).
 
-* Relation to file storage gadget
+Relation to file storage gadget
+===============================
 
   The Mass Storage Function and thus the Mass Storage Gadget has been
   based on the File Storage Gadget.  The difference between the two is
