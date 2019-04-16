@@ -1693,17 +1693,25 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 	hrtimer_cancel(&ktimer->timer);
 
 	/*
-	 * Also recheck ktimer->pending, in case the sw timer triggered in
-	 * the window.  For periodic timer, leave the hv timer running for
-	 * simplicity, and the deadline will be recomputed on the next vmexit.
+	 * To simplify handling the periodic timer, leave the hv timer running
+	 * even if the deadline timer has expired, i.e. rely on the resulting
+	 * VM-Exit to recompute the periodic timer's target expiration.
 	 */
-	if (!apic_lvtt_period(apic) && (r || atomic_read(&ktimer->pending))) {
-		if (r)
+	if (!apic_lvtt_period(apic)) {
+		/*
+		 * Cancel the hv timer if the sw timer fired while the hv timer
+		 * was being programmed, or if the hv timer itself expired.
+		 */
+		if (atomic_read(&ktimer->pending)) {
+			cancel_hv_timer(apic);
+		} else if (r) {
 			apic_timer_expired(apic);
-		return false;
+			cancel_hv_timer(apic);
+		}
 	}
 
-	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id, true);
+	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id, ktimer->hv_timer_in_use);
+
 	return true;
 }
 
