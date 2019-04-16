@@ -360,33 +360,10 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 
 	port_info = hw->port_info;
 
-	/* check if device is DCB capable */
-	if (!hw->func_caps.common_cap.dcb) {
-		dev_dbg(dev, "DCB not supported\n");
-		return -EOPNOTSUPP;
-	}
-
-	/* Best effort to put DCBx and LLDP into a good state */
-	port_info->dcbx_status = ice_get_dcbx_status(hw);
-	if (port_info->dcbx_status != ICE_DCBX_STATUS_DONE &&
-	    port_info->dcbx_status != ICE_DCBX_STATUS_IN_PROGRESS) {
-		bool dcbx_status;
-
-		/* Attempt to start LLDP engine. Ignore errors
-		 * as this will error if it is already started
-		 */
-		ice_aq_start_lldp(hw, NULL);
-
-		/* Attempt to start DCBX. Ignore errors as this
-		 * will error if it is already started
-		 */
-		ice_aq_start_stop_dcbx(hw, true, &dcbx_status, NULL);
-	}
-
 	err = ice_init_dcb(hw);
 	if (err) {
-		/* FW LLDP not in usable state, default to SW DCBx/LLDP */
-		dev_info(&pf->pdev->dev, "FW LLDP not in usable state\n");
+		/* FW LLDP is not active, default to SW DCBx/LLDP */
+		dev_info(&pf->pdev->dev, "FW LLDP is not active\n");
 		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
 		hw->port_info->is_sw_lldp = true;
 	}
@@ -398,6 +375,9 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 	if (port_info->is_sw_lldp) {
 		sw_default = 1;
 		dev_info(&pf->pdev->dev, "DCBx/LLDP in SW mode.\n");
+		clear_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
+	} else {
+		set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
 	}
 
 	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {

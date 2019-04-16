@@ -82,12 +82,14 @@ ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
  * @hw: pointer to the HW struct
  * @shutdown_lldp_agent: True if LLDP Agent needs to be Shutdown
  *			 False if LLDP Agent needs to be Stopped
+ * @persist: True if Stop/Shutdown of LLDP Agent needs to be persistent across
+ *	     reboots
  * @cd: pointer to command details structure or NULL
  *
  * Stop or Shutdown the embedded LLDP Agent (0x0A05)
  */
 enum ice_status
-ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
+ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 		 struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_stop *cmd;
@@ -100,17 +102,22 @@ ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
 	if (shutdown_lldp_agent)
 		cmd->command |= ICE_AQ_LLDP_AGENT_SHUTDOWN;
 
+	if (persist)
+		cmd->command |= ICE_AQ_LLDP_AGENT_PERSIST_DIS;
+
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**
  * ice_aq_start_lldp
  * @hw: pointer to the HW struct
+ * @persist: True if Start of LLDP Agent needs to be persistent across reboots
  * @cd: pointer to command details structure or NULL
  *
  * Start the embedded LLDP Agent on all ports. (0x0A06)
  */
-enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd)
+enum ice_status
+ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_start *cmd;
 	struct ice_aq_desc desc;
@@ -120,6 +127,9 @@ enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd)
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_start);
 
 	cmd->command = ICE_AQ_LLDP_AGENT_START;
+
+	if (persist)
+		cmd->command |= ICE_AQ_LLDP_AGENT_PERSIST_ENA;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
@@ -163,7 +173,7 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
  *
  * Get the DCBX status from the Firmware
  */
-u8 ice_get_dcbx_status(struct ice_hw *hw)
+static u8 ice_get_dcbx_status(struct ice_hw *hw)
 {
 	u32 reg;
 
