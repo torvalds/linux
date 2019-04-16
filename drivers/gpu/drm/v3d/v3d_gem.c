@@ -253,18 +253,6 @@ v3d_lock_bo_reservations(struct drm_gem_object **bos,
 	if (ret)
 		return ret;
 
-	/* Reserve space for our shared (read-only) fence references,
-	 * before we commit the CL to the hardware.
-	 */
-	for (i = 0; i < bo_count; i++) {
-		ret = reservation_object_reserve_shared(bos[i]->resv, 1);
-		if (ret) {
-			drm_gem_unlock_reservations(bos, bo_count,
-						    acquire_ctx);
-			return ret;
-		}
-	}
-
 	return 0;
 }
 
