@@ -695,66 +695,68 @@ out:
 	return rc;
 }
 
-static void __find_rr_leaf(struct fib6_info *rt_start,
+static void __find_rr_leaf(struct fib6_info *f6i_start,
 			   struct fib6_info *nomatch, u32 metric,
-			   struct fib6_info **match, struct fib6_info **cont,
+			   struct fib6_result *res, struct fib6_info **cont,
 			   int oif, int strict, bool *do_rr, int *mpri)
 {
-	struct fib6_info *rt;
+	struct fib6_info *f6i;
 
-	for (rt = rt_start;
-	     rt && rt != nomatch;
-	     rt = rcu_dereference(rt->fib6_next)) {
+	for (f6i = f6i_start;
+	     f6i && f6i != nomatch;
+	     f6i = rcu_dereference(f6i->fib6_next)) {
 		struct fib6_nh *nh;
 
-		if (cont && rt->fib6_metric != metric) {
-			*cont = rt;
+		if (cont && f6i->fib6_metric != metric) {
+			*cont = f6i;
 			return;
 		}
 
-		if (fib6_check_expired(rt))
+		if (fib6_check_expired(f6i))
 			continue;
 
-		nh = &rt->fib6_nh;
-		if (find_match(nh, rt->fib6_flags, oif, strict, mpri, do_rr))
-			*match = rt;
+		nh = &f6i->fib6_nh;
+		if (find_match(nh, f6i->fib6_flags, oif, strict, mpri, do_rr)) {
+			res->f6i = f6i;
+			res->nh = nh;
+		}
 	}
 }
 
-static struct fib6_info *find_rr_leaf(struct fib6_node *fn,
-				      struct fib6_info *leaf,
-				      struct fib6_info *rr_head,
-				      u32 metric, int oif, int strict,
-				      bool *do_rr)
+static void find_rr_leaf(struct fib6_node *fn, struct fib6_info *leaf,
+			 struct fib6_info *rr_head, int oif, int strict,
+			 bool *do_rr, struct fib6_result *res)
 {
-	struct fib6_info *match = NULL, *cont = NULL;
+	u32 metric = rr_head->fib6_metric;
+	struct fib6_info *cont = NULL;
 	int mpri = -1;
 
-	__find_rr_leaf(rr_head, NULL, metric, &match, &cont,
+	__find_rr_leaf(rr_head, NULL, metric, res, &cont,
 		       oif, strict, do_rr, &mpri);
 
-	__find_rr_leaf(leaf, rr_head, metric, &match, &cont,
+	__find_rr_leaf(leaf, rr_head, metric, res, &cont,
 		       oif, strict, do_rr, &mpri);
 
-	if (match || !cont)
-		return match;
+	if (res->f6i || !cont)
+		return;
 
-	__find_rr_leaf(cont, NULL, metric, &match, NULL,
+	__find_rr_leaf(cont, NULL, metric, res, NULL,
 		       oif, strict, do_rr, &mpri);
-
-	return match;
 }
 
-static struct fib6_info *rt6_select(struct net *net, struct fib6_node *fn,
-				   int oif, int strict)
+static void rt6_select(struct net *net, struct fib6_node *fn, int oif,
+		       struct fib6_result *res, int strict)
 {
 	struct fib6_info *leaf = rcu_dereference(fn->leaf);
-	struct fib6_info *match, *rt0;
+	struct fib6_info *rt0;
 	bool do_rr = false;
 	int key_plen;
 
+	/* make sure this function or its helpers sets f6i */
+	res->f6i = NULL;
+
 	if (!leaf || leaf == net->ipv6.fib6_null_entry)
-		return net->ipv6.fib6_null_entry;
+		goto out;
 
 	rt0 = rcu_dereference(fn->rr_ptr);
 	if (!rt0)
@@ -771,11 +773,9 @@ static struct fib6_info *rt6_select(struct net *net, struct fib6_node *fn,
 		key_plen = rt0->fib6_src.plen;
 #endif
 	if (fn->fn_bit != key_plen)
-		return net->ipv6.fib6_null_entry;
+		goto out;
 
-	match = find_rr_leaf(fn, leaf, rt0, rt0->fib6_metric, oif, strict,
-			     &do_rr);
-
+	find_rr_leaf(fn, leaf, rt0, oif, strict, &do_rr, res);
 	if (do_rr) {
 		struct fib6_info *next = rcu_dereference(rt0->fib6_next);
 
@@ -792,7 +792,11 @@ static struct fib6_info *rt6_select(struct net *net, struct fib6_node *fn,
 		}
 	}
 
-	return match ? match : net->ipv6.fib6_null_entry;
+out:
+	if (!res->f6i) {
+		res->f6i = net->ipv6.fib6_null_entry;
+		res->nh = &res->f6i->fib6_nh;
+	}
 }
 
 static bool rt6_is_gw_or_nonexthop(const struct fib6_result *res)
@@ -1839,7 +1843,7 @@ struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
 				    int oif, struct flowi6 *fl6, int strict)
 {
 	struct fib6_node *fn, *saved_fn;
-	struct fib6_info *f6i;
+	struct fib6_result res;
 
 	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 	saved_fn = fn;
@@ -1848,8 +1852,8 @@ struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
 		oif = 0;
 
 redo_rt6_select:
-	f6i = rt6_select(net, fn, oif, strict);
-	if (f6i == net->ipv6.fib6_null_entry) {
+	rt6_select(net, fn, oif, &res, strict);
+	if (res.f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
 			goto redo_rt6_select;
@@ -1861,9 +1865,9 @@ redo_rt6_select:
 		}
 	}
 
-	trace_fib6_table_lookup(net, f6i, table, fl6);
+	trace_fib6_table_lookup(net, res.f6i, table, fl6);
 
-	return f6i;
+	return res.f6i;
 }
 
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
