@@ -154,7 +154,7 @@ static int tps80031_reg_disable(struct regulator_dev *rdev)
 }
 
 /* DCDC voltages for the selector of 58 to 63 */
-static int tps80031_dcdc_voltages[4][5] = {
+static const int tps80031_dcdc_voltages[4][5] = {
 	{ 1350, 1500, 1800, 1900, 2100},
 	{ 1350, 1500, 1800, 1900, 2100},
 	{ 2084, 2315, 2778, 2932, 3241},
@@ -377,7 +377,7 @@ static int tps80031_vbus_disable(struct regulator_dev *rdev)
 	return ret;
 }
 
-static struct regulator_ops tps80031_dcdc_ops = {
+static const struct regulator_ops tps80031_dcdc_ops = {
 	.list_voltage		= tps80031_dcdc_list_voltage,
 	.set_voltage_sel	= tps80031_dcdc_set_voltage_sel,
 	.get_voltage_sel	= tps80031_dcdc_get_voltage_sel,
@@ -386,7 +386,7 @@ static struct regulator_ops tps80031_dcdc_ops = {
 	.is_enabled	= tps80031_reg_is_enabled,
 };
 
-static struct regulator_ops tps80031_ldo_ops = {
+static const struct regulator_ops tps80031_ldo_ops = {
 	.list_voltage		= tps80031_ldo_list_voltage,
 	.map_voltage		= tps80031_ldo_map_voltage,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
@@ -396,18 +396,18 @@ static struct regulator_ops tps80031_ldo_ops = {
 	.is_enabled		= tps80031_reg_is_enabled,
 };
 
-static struct regulator_ops tps80031_vbus_sw_ops = {
+static const struct regulator_ops tps80031_vbus_sw_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_vbus_enable,
 	.disable	= tps80031_vbus_disable,
 	.is_enabled	= tps80031_vbus_is_enabled,
 };
 
-static struct regulator_ops tps80031_vbus_hw_ops = {
+static const struct regulator_ops tps80031_vbus_hw_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 };
 
-static struct regulator_ops tps80031_ext_reg_ops = {
+static const struct regulator_ops tps80031_ext_reg_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_reg_enable,
 	.disable	= tps80031_reg_disable,
