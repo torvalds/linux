@@ -388,7 +388,7 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
 void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
 
-bool intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
+void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
 static inline void
@@ -397,7 +397,7 @@ intel_engine_queue_breadcrumbs(struct intel_engine_cs *engine)
 	irq_work_queue(&engine->breadcrumbs.irq_work);
 }
 
-bool intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
+void intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
