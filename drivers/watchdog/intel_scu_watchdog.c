@@ -224,7 +224,7 @@ static int intel_scu_set_heartbeat(u32 t)
 		 watchdog_device.timer_tbl_ptr->freq_hz);
 	pr_debug("set_heartbeat: timer_set is %x (hex)\n",
 		 watchdog_device.timer_set);
-	pr_debug("set_hearbeat: timer_margin is %x (hex)\n", timer_margin);
+	pr_debug("set_heartbeat: timer_margin is %x (hex)\n", timer_margin);
 	pr_debug("set_heartbeat: threshold is %x (hex)\n",
 		 watchdog_device.threshold);
 	pr_debug("set_heartbeat: soft_threshold is %x (hex)\n",
