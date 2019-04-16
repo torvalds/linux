@@ -133,8 +133,10 @@ static void ice_pf_dcb_recfg(struct ice_pf *pf)
  * ice_pf_dcb_cfg - Apply new DCB configuration
  * @pf: pointer to the PF struct
  * @new_cfg: DCBX config to apply
+ * @locked: is the RTNL held
  */
-static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
+static
+int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 {
 	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
 	struct ice_aqc_port_ets_elem buf = { 0 };
@@ -163,7 +165,8 @@ static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
 	/* avoid race conditions by holding the lock while disabling and
 	 * re-enabling the VSI
 	 */
-	rtnl_lock();
+	if (!locked)
+		rtnl_lock();
 	ice_pf_dis_all_vsi(pf, true);
 
 	memcpy(curr_cfg, new_cfg, sizeof(*curr_cfg));
@@ -192,7 +195,8 @@ static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
 
 out:
 	ice_pf_ena_all_vsi(pf, true);
-	rtnl_unlock();
+	if (!locked)
+		rtnl_unlock();
 	devm_kfree(&pf->pdev->dev, old_cfg);
 	return ret;
 }
@@ -271,15 +275,16 @@ dcb_error:
 	prev_cfg->etscfg.tcbwtable[0] = ICE_TC_MAX_BW;
 	prev_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 	memcpy(&prev_cfg->etsrec, &prev_cfg->etscfg, sizeof(prev_cfg->etsrec));
-	ice_pf_dcb_cfg(pf, prev_cfg);
+	ice_pf_dcb_cfg(pf, prev_cfg, false);
 	devm_kfree(&pf->pdev->dev, prev_cfg);
 }
 
 /**
  * ice_dcb_init_cfg - set the initial DCB config in SW
  * @pf: pf to apply config to
+ * @locked: Is the RTNL held
  */
-static int ice_dcb_init_cfg(struct ice_pf *pf)
+static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 {
 	struct ice_dcbx_cfg *newcfg;
 	struct ice_port_info *pi;
@@ -294,7 +299,7 @@ static int ice_dcb_init_cfg(struct ice_pf *pf)
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*newcfg));
 
 	dev_info(&pf->pdev->dev, "Configuring initial DCB values\n");
-	if (ice_pf_dcb_cfg(pf, newcfg))
+	if (ice_pf_dcb_cfg(pf, newcfg, locked))
 		ret = -EINVAL;
 
 	devm_kfree(&pf->pdev->dev, newcfg);
@@ -305,8 +310,9 @@ static int ice_dcb_init_cfg(struct ice_pf *pf)
 /**
  * ice_dcb_sw_default_config - Apply a default DCB config
  * @pf: pf to apply config to
+ * @locked: was this function called with RTNL held
  */
-static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
+static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 {
 	struct ice_aqc_port_ets_elem buf = { 0 };
 	struct ice_dcbx_cfg *dcbcfg;
@@ -338,7 +344,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
 	dcbcfg->app[0].priority = 3;
 	dcbcfg->app[0].prot_id = ICE_APP_PROT_ID_FCOE;
 
-	ret = ice_pf_dcb_cfg(pf, dcbcfg);
+	ret = ice_pf_dcb_cfg(pf, dcbcfg, locked);
 	devm_kfree(&pf->pdev->dev, dcbcfg);
 	if (ret)
 		return ret;
@@ -349,8 +355,9 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
 /**
  * ice_init_pf_dcb - initialize DCB for a PF
  * @pf: pf to initiialize DCB for
+ * @locked: Was function called with RTNL held
  */
-int ice_init_pf_dcb(struct ice_pf *pf)
+int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 {
 	struct device *dev = &pf->pdev->dev;
 	struct ice_port_info *port_info;
@@ -386,7 +393,7 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 	}
 
 	if (sw_default) {
-		err = ice_dcb_sw_dflt_cfg(pf);
+		err = ice_dcb_sw_dflt_cfg(pf, locked);
 		if (err) {
 			dev_err(&pf->pdev->dev,
 				"Failed to set local DCB config %d\n", err);
@@ -405,7 +412,7 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 
 	set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 
-	err = ice_dcb_init_cfg(pf);
+	err = ice_dcb_init_cfg(pf, locked);
 	if (err)
 		goto dcb_init_err;
 
@@ -515,7 +522,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 
 		err = ice_lldp_to_dcb_cfg(event->msg_buf, dcbcfg);
 		if (!err)
-			ice_pf_dcb_cfg(pf, dcbcfg);
+			ice_pf_dcb_cfg(pf, dcbcfg, false);
 
 		devm_kfree(&pf->pdev->dev, dcbcfg);
 

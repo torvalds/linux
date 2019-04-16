@@ -458,7 +458,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			 * will likely not need DCB, so failure to init is
 			 * not a concern of ethtool
 			 */
-			status = ice_init_pf_dcb(pf);
+			status = ice_init_pf_dcb(pf, true);
 			if (status)
 				dev_warn(&pf->pdev->dev, "Fail to init DCB\n");
 		} else {
@@ -497,7 +497,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 				dev_dbg(&pf->pdev->dev,
 					"Fail to reg for MIB change\n");
 
-			status = ice_init_pf_dcb(pf);
+			status = ice_init_pf_dcb(pf, true);
 			if (status)
 				dev_dbg(&pf->pdev->dev, "Fail to init DCB\n");
 		}
