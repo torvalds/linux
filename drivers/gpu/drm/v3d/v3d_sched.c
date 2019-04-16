@@ -74,47 +74,15 @@ v3d_job_dependency(struct drm_sched_job *sched_job,
 		   struct drm_sched_entity *s_entity)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
-	struct dma_fence *fence;
-
-	fence = job->in_fence;
-	if (fence) {
-		job->in_fence = NULL;
-		return fence;
-	}
 
 	/* XXX: Wait on a fence for switching the GMP if necessary,
 	 * and then do so.
 	 */
 
+	if (!xa_empty(&job->deps))
+		return xa_erase(&job->deps, job->last_dep++);
+
 	return NULL;
-}
-
-/**
- * Returns the fences that the render job depends on, one by one.
- * v3d_job_run() won't be called until all of them have been signaled.
- */
-static struct dma_fence *
-v3d_render_job_dependency(struct drm_sched_job *sched_job,
-			  struct drm_sched_entity *s_entity)
-{
-	struct v3d_render_job *job = to_render_job(sched_job);
-	struct dma_fence *fence;
-
-	fence = v3d_job_dependency(sched_job, s_entity);
-	if (fence)
-		return fence;
-
-	/* If we had a bin job, the render job definitely depends on
-	 * it. We first have to wait for bin to be scheduled, so that
-	 * its done_fence is created.
-	 */
-	fence = job->bin_done_fence;
-	if (fence) {
-		job->bin_done_fence = NULL;
-		return fence;
-	}
-
-	return fence;
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
@@ -394,7 +362,7 @@ static const struct drm_sched_backend_ops v3d_bin_sched_ops = {
 };
 
 static const struct drm_sched_backend_ops v3d_render_sched_ops = {
-	.dependency = v3d_render_job_dependency,
+	.dependency = v3d_job_dependency,
 	.run_job = v3d_render_job_run,
 	.timedout_job = v3d_render_job_timedout,
 	.free_job = v3d_job_free,

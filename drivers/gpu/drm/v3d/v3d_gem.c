@@ -243,15 +243,24 @@ v3d_invalidate_caches(struct v3d_dev *v3d)
  * to v3d, so we don't attach dma-buf fences to them.
  */
 static int
-v3d_lock_bo_reservations(struct drm_gem_object **bos,
-			 int bo_count,
+v3d_lock_bo_reservations(struct v3d_job *job,
 			 struct ww_acquire_ctx *acquire_ctx)
 {
 	int i, ret;
 
-	ret = drm_gem_lock_reservations(bos, bo_count, acquire_ctx);
+	ret = drm_gem_lock_reservations(job->bo, job->bo_count, acquire_ctx);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < job->bo_count; i++) {
+		ret = drm_gem_fence_array_add_implicit(&job->deps,
+						       job->bo[i], true);
+		if (ret) {
+			drm_gem_unlock_reservations(job->bo, job->bo_count,
+						    acquire_ctx);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -339,6 +348,8 @@ static void
 v3d_job_free(struct kref *ref)
 {
 	struct v3d_job *job = container_of(ref, struct v3d_job, refcount);
+	unsigned long index;
+	struct dma_fence *fence;
 	int i;
 
 	for (i = 0; i < job->bo_count; i++) {
@@ -347,7 +358,11 @@ v3d_job_free(struct kref *ref)
 	}
 	kvfree(job->bo);
 
-	dma_fence_put(job->in_fence);
+	xa_for_each(&job->deps, index, fence) {
+		dma_fence_put(fence);
+	}
+	xa_destroy(&job->deps);
+
 	dma_fence_put(job->irq_fence);
 	dma_fence_put(job->done_fence);
 
@@ -414,6 +429,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	     struct v3d_job *job, void (*free)(struct kref *ref),
 	     u32 in_sync)
 {
+	struct dma_fence *in_fence = NULL;
 	int ret;
 
 	job->v3d = v3d;
@@ -423,15 +439,23 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	if (ret < 0)
 		return ret;
 
-	ret = drm_syncobj_find_fence(file_priv, in_sync, 0, 0, &job->in_fence);
-	if (ret == -EINVAL) {
-		pm_runtime_put_autosuspend(v3d->dev);
-		return ret;
-	}
+	xa_init_flags(&job->deps, XA_FLAGS_ALLOC);
+
+	ret = drm_syncobj_find_fence(file_priv, in_sync, 0, 0, &in_fence);
+	if (ret == -EINVAL)
+		goto fail;
+
+	ret = drm_gem_fence_array_add(&job->deps, in_fence);
+	if (ret)
+		goto fail;
 
 	kref_init(&job->refcount);
 
 	return 0;
+fail:
+	xa_destroy(&job->deps);
+	pm_runtime_put_autosuspend(v3d->dev);
+	return ret;
 }
 
 static int
@@ -552,8 +576,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
-	ret = v3d_lock_bo_reservations(render->base.bo, render->base.bo_count,
-				       &acquire_ctx);
+	ret = v3d_lock_bo_reservations(&render->base, &acquire_ctx);
 	if (ret)
 		goto fail;
 
@@ -563,7 +586,10 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 		if (ret)
 			goto fail_unreserve;
 
-		render->bin_done_fence = dma_fence_get(bin->base.done_fence);
+		ret = drm_gem_fence_array_add(&render->base.deps,
+					      dma_fence_get(bin->base.done_fence));
+		if (ret)
+			goto fail_unreserve;
 	}
 
 	ret = v3d_push_job(v3d_priv, &render->base, V3D_RENDER);
@@ -661,8 +687,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	}
 	spin_unlock(&file_priv->table_lock);
 
-	ret = v3d_lock_bo_reservations(job->base.bo, job->base.bo_count,
-				       &acquire_ctx);
+	ret = v3d_lock_bo_reservations(&job->base, &acquire_ctx);
 	if (ret)
 		goto fail;
 
@@ -751,9 +776,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
-	ret = v3d_lock_bo_reservations(clean_job->base.bo,
-				       clean_job->base.bo_count,
-				       &acquire_ctx);
+	ret = v3d_lock_bo_reservations(clean_job, &acquire_ctx);
 	if (ret)
 		goto fail;
 
@@ -762,7 +785,11 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail_unreserve;
 
-	clean_job->in_fence = dma_fence_get(job->base.done_fence);
+	ret = drm_gem_fence_array_add(&clean_job->deps,
+				      dma_fence_get(job->base.done_fence));
+	if (ret)
+		goto fail_unreserve;
+
 	ret = v3d_push_job(v3d_priv, clean_job, V3D_CACHE_CLEAN);
 	if (ret)
 		goto fail_unreserve;
