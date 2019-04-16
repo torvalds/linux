@@ -317,42 +317,22 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	    test_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags)) {
 		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
 		if (vsi->current_netdev_flags & IFF_PROMISC) {
-			/* Apply Tx filter rule to get traffic from VMs */
-			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
-						  ICE_FLTR_TX);
-			if (status) {
-				netdev_err(netdev, "Error setting default VSI %i tx rule\n",
-					   vsi->vsi_num);
-				vsi->current_netdev_flags &= ~IFF_PROMISC;
-				err = -EIO;
-				goto out_promisc;
-			}
 			/* Apply Rx filter rule to get traffic from wire */
 			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_RX);
 			if (status) {
-				netdev_err(netdev, "Error setting default VSI %i rx rule\n",
+				netdev_err(netdev, "Error setting default VSI %i Rx rule\n",
 					   vsi->vsi_num);
 				vsi->current_netdev_flags &= ~IFF_PROMISC;
 				err = -EIO;
 				goto out_promisc;
 			}
 		} else {
-			/* Clear Tx filter rule to stop traffic from VMs */
-			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
-						  ICE_FLTR_TX);
-			if (status) {
-				netdev_err(netdev, "Error clearing default VSI %i tx rule\n",
-					   vsi->vsi_num);
-				vsi->current_netdev_flags |= IFF_PROMISC;
-				err = -EIO;
-				goto out_promisc;
-			}
 			/* Clear Rx filter to remove traffic from wire */
 			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_RX);
 			if (status) {
-				netdev_err(netdev, "Error clearing default VSI %i rx rule\n",
+				netdev_err(netdev, "Error clearing default VSI %i Rx rule\n",
 					   vsi->vsi_num);
 				vsi->current_netdev_flags |= IFF_PROMISC;
 				err = -EIO;
