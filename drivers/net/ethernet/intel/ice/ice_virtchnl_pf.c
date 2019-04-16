@@ -103,7 +103,7 @@ ice_set_pfe_link_forced(struct ice_vf *vf, struct virtchnl_pf_event *pfe,
 	u16 link_speed;
 
 	if (link_up)
-		link_speed = ICE_AQ_LINK_SPEED_40GB;
+		link_speed = ICE_AQ_LINK_SPEED_100GB;
 	else
 		link_speed = ICE_AQ_LINK_SPEED_UNKNOWN;
 
