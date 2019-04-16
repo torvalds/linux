@@ -141,25 +141,13 @@ static void ice_vc_notify_vf_link_state(struct ice_vf *vf)
 }
 
 /**
- * ice_get_vf_vector - get VF interrupt vector register offset
- * @vf_msix: number of MSIx vector per VF on a PF
- * @vf_id: VF identifier
- * @i: index of MSIx vector
- */
-static u32 ice_get_vf_vector(int vf_msix, int vf_id, int i)
-{
-	return ((i == 0) ? VFINT_DYN_CTLN(vf_id) :
-		 VFINT_DYN_CTLN(((vf_msix - 1) * (vf_id)) + (i - 1)));
-}
-
-/**
  * ice_free_vf_res - Free a VF's resources
  * @vf: pointer to the VF info
  */
 static void ice_free_vf_res(struct ice_vf *vf)
 {
 	struct ice_pf *pf = vf->pf;
-	int i, pf_vf_msix;
+	int i, last_vector_idx;
 
 	/* First, disable VF's configuration API to prevent OS from
 	 * accessing the VF's VSI after it's freed or invalidated.
@@ -174,13 +162,10 @@ static void ice_free_vf_res(struct ice_vf *vf)
 		vf->num_mac = 0;
 	}
 
-	pf_vf_msix = pf->num_vf_msix;
+	last_vector_idx = vf->first_vector_idx + pf->num_vf_msix - 1;
 	/* Disable interrupts so that VF starts in a known state */
-	for (i = 0; i < pf_vf_msix; i++) {
-		u32 reg_idx;
-
-		reg_idx = ice_get_vf_vector(pf_vf_msix, vf->vf_id, i);
-		wr32(&pf->hw, reg_idx, VFINT_DYN_CTLN_CLEARPBA_M);
+	for (i = vf->first_vector_idx; i <= last_vector_idx; i++) {
+		wr32(&pf->hw, GLINT_DYN_CTL(i), GLINT_DYN_CTL_CLEARPBA_M);
 		ice_flush(&pf->hw);
 	}
 	/* reset some of the state variables keeping track of the resources */
@@ -281,15 +266,6 @@ void ice_free_vfs(struct ice_pf *pf)
 	while (test_and_set_bit(__ICE_VF_DIS, pf->state))
 		usleep_range(1000, 2000);
 
-	/* Disable IOV before freeing resources. This lets any VF drivers
-	 * running in the host get themselves cleaned up before we yank
-	 * the carpet out from underneath their feet.
-	 */
-	if (!pci_vfs_assigned(pf->pdev))
-		pci_disable_sriov(pf->pdev);
-	else
-		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
-
 	/* Avoid wait time by stopping all VFs at the same time */
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
 		struct ice_vsi *vsi;
@@ -304,6 +280,15 @@ void ice_free_vfs(struct ice_pf *pf)
 
 		clear_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states);
 	}
+
+	/* Disable IOV before freeing resources. This lets any VF drivers
+	 * running in the host get themselves cleaned up before we yank
+	 * the carpet out from underneath their feet.
+	 */
+	if (!pci_vfs_assigned(pf->pdev))
+		pci_disable_sriov(pf->pdev);
+	else
+		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
 
 	tmp = pf->num_alloc_vfs;
 	pf->num_vf_qps = 0;
