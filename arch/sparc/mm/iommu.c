@@ -273,7 +273,8 @@ static int sbus_iommu_map_sg_pflush(struct device *dev, struct scatterlist *sgl,
 		 * XXX Is this a good assumption?
 		 * XXX What if someone else unmaps it here and races us?
 		 */
-		if ((page = (unsigned long) page_address(sg_page(sg))) != 0) {
+		if (!PageHighMem(sg_page(sg))) {
+			page = (unsigned long)page_address(sg_page(sg));
 			for (i = 0; i < n; i++) {
 				if (page != oldpage) {	/* Already flushed? */
 					flush_page_for_dma(page);
