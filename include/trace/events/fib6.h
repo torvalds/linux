@@ -39,7 +39,7 @@ TRACE_EVENT(fib6_table_lookup,
 		struct in6_addr *in6;
 
 		__entry->tb_id = table->tb6_id;
-		__entry->err = ip6_rt_type_to_error(res->f6i->fib6_type);
+		__entry->err = ip6_rt_type_to_error(res->fib6_type);
 		__entry->oif = flp->flowi6_oif;
 		__entry->iif = flp->flowi6_iif;
 		__entry->tos = ip6_tclass(flp->flowlabel);
