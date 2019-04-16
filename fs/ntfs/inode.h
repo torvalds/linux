@@ -278,7 +278,7 @@ extern struct inode *ntfs_index_iget(struct inode *base_vi, ntfschar *name,
 		u32 name_len);
 
 extern struct inode *ntfs_alloc_big_inode(struct super_block *sb);
-extern void ntfs_destroy_big_inode(struct inode *inode);
+extern void ntfs_free_big_inode(struct inode *inode);
 extern void ntfs_evict_big_inode(struct inode *vi);
 
 extern void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni);
