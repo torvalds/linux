@@ -2040,7 +2040,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_powergate_debugfs_init();
 		if (err < 0)
-			return err;
+			goto cleanup_sysfs;
 	}
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
@@ -2071,6 +2071,9 @@ cleanup_restart_handler:
 	unregister_restart_handler(&tegra_pmc_restart_handler);
 cleanup_debugfs:
 	debugfs_remove(pmc->debugfs);
+cleanup_sysfs:
+	device_remove_file(&pdev->dev, &dev_attr_reset_reason);
+	device_remove_file(&pdev->dev, &dev_attr_reset_level);
 	return err;
 }
 
