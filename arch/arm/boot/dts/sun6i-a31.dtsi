@@ -543,7 +543,6 @@
 			clocks = <&ccu CLK_AHB1_EHCI0>;
 			resets = <&ccu RST_AHB1_EHCI0>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -554,7 +553,6 @@
 			clocks = <&ccu CLK_AHB1_OHCI0>, <&ccu CLK_USB_OHCI0>;
 			resets = <&ccu RST_AHB1_OHCI0>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -565,7 +563,6 @@
 			clocks = <&ccu CLK_AHB1_EHCI1>;
 			resets = <&ccu RST_AHB1_EHCI1>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -576,7 +573,6 @@
 			clocks = <&ccu CLK_AHB1_OHCI1>, <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_AHB1_OHCI1>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
