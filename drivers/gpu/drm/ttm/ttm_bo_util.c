@@ -516,9 +516,11 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
-	fbo->base.base.resv = &fbo->base.base._resv;
-	dma_resv_init(fbo->base.base.resv);
-	ret = dma_resv_trylock(fbo->base.base.resv);
+	if (bo->base.resv == &bo->base._resv)
+		fbo->base.base.resv = &fbo->base.base._resv;
+
+	dma_resv_init(&fbo->base.base._resv);
+	ret = dma_resv_trylock(&fbo->base.base._resv);
 	WARN_ON(!ret);
 
 	*new_obj = &fbo->base;
@@ -715,7 +717,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		dma_resv_add_excl_fence(ghost_obj->base.resv, fence);
+		dma_resv_add_excl_fence(&ghost_obj->base._resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
@@ -728,7 +730,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		else
 			bo->ttm = NULL;
 
-		ttm_bo_unreserve(ghost_obj);
+		dma_resv_unlock(&ghost_obj->base._resv);
 		ttm_bo_put(ghost_obj);
 	}
 
@@ -771,7 +773,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		dma_resv_add_excl_fence(ghost_obj->base.resv, fence);
+		dma_resv_add_excl_fence(&ghost_obj->base._resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
@@ -784,7 +786,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		else
 			bo->ttm = NULL;
 
-		ttm_bo_unreserve(ghost_obj);
+		dma_resv_unlock(&ghost_obj->base._resv);
 		ttm_bo_put(ghost_obj);
 
 	} else if (from->flags & TTM_MEMTYPE_FLAG_FIXED) {
@@ -840,7 +842,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	if (ret)
 		return ret;
 
-	ret = dma_resv_copy_fences(ghost->base.resv, bo->base.resv);
+	ret = dma_resv_copy_fences(&ghost->base._resv, bo->base.resv);
 	/* Last resort, wait for the BO to be idle when we are OOM */
 	if (ret)
 		ttm_bo_wait(bo, false, false);
@@ -849,7 +851,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	bo->mem.mem_type = TTM_PL_SYSTEM;
 	bo->ttm = NULL;
 
-	ttm_bo_unreserve(ghost);
+	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);
 
 	return 0;
