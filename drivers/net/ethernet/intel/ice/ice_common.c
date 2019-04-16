@@ -862,6 +862,10 @@ err_unroll_cqinit:
 /**
  * ice_deinit_hw - unroll initialization operations done by ice_init_hw
  * @hw: pointer to the hardware structure
+ *
+ * This should be called only during nominal operation, not as a result of
+ * ice_init_hw() failing since ice_init_hw() will take care of unrolling
+ * applicable initializations if it fails for any reason.
  */
 void ice_deinit_hw(struct ice_hw *hw)
 {
