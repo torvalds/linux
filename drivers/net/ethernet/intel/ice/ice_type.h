@@ -61,6 +61,13 @@ enum ice_fc_mode {
 	ICE_FC_DFLT
 };
 
+enum ice_fec_mode {
+	ICE_FEC_NONE = 0,
+	ICE_FEC_RS,
+	ICE_FEC_BASER,
+	ICE_FEC_AUTO
+};
+
 enum ice_set_fc_aq_failures {
 	ICE_SET_FC_AQ_FAIL_NONE = 0,
 	ICE_SET_FC_AQ_FAIL_GET,
@@ -93,6 +100,7 @@ struct ice_link_status {
 	/* Refer to ice_aq_phy_type for bits definition */
 	u64 phy_type_low;
 	u64 phy_type_high;
+	u8 topo_media_conflict;
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
@@ -100,6 +108,7 @@ struct ice_link_status {
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
+	u8 fec_info;
 	u8 pacing;
 	/* Refer to #define from module_type[ICE_MODULE_TYPE_TOTAL_BYTE] of
 	 * ice_aqc_get_phy_caps structure

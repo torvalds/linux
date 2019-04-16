@@ -304,6 +304,8 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	hw_link_info->an_info = link_data.an_info;
 	hw_link_info->ext_info = link_data.ext_info;
 	hw_link_info->max_frame_size = le16_to_cpu(link_data.max_frame_size);
+	hw_link_info->fec_info = link_data.cfg & ICE_AQ_FEC_MASK;
+	hw_link_info->topo_media_conflict = link_data.topo_media_conflict;
 	hw_link_info->pacing = link_data.cfg & ICE_AQ_CFG_PACING_M;
 
 	/* update fc info */
@@ -2127,6 +2129,74 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 out:
 	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	return status;
+}
+
+/**
+ * ice_copy_phy_caps_to_cfg - Copy PHY ability data to configuration data
+ * @caps: PHY ability structure to copy date from
+ * @cfg: PHY configuration structure to copy data to
+ *
+ * Helper function to copy AQC PHY get ability data to PHY set configuration
+ * data structure
+ */
+void
+ice_copy_phy_caps_to_cfg(struct ice_aqc_get_phy_caps_data *caps,
+			 struct ice_aqc_set_phy_cfg_data *cfg)
+{
+	if (!caps || !cfg)
+		return;
+
+	cfg->phy_type_low = caps->phy_type_low;
+	cfg->phy_type_high = caps->phy_type_high;
+	cfg->caps = caps->caps;
+	cfg->low_power_ctrl = caps->low_power_ctrl;
+	cfg->eee_cap = caps->eee_cap;
+	cfg->eeer_value = caps->eeer_value;
+	cfg->link_fec_opt = caps->link_fec_options;
+}
+
+/**
+ * ice_cfg_phy_fec - Configure PHY FEC data based on FEC mode
+ * @cfg: PHY configuration data to set FEC mode
+ * @fec: FEC mode to configure
+ *
+ * Caller should copy ice_aqc_get_phy_caps_data.caps ICE_AQC_PHY_EN_AUTO_FEC
+ * (bit 7) and ice_aqc_get_phy_caps_data.link_fec_options to cfg.caps
+ * ICE_AQ_PHY_ENA_AUTO_FEC (bit 7) and cfg.link_fec_options before calling.
+ */
+void
+ice_cfg_phy_fec(struct ice_aqc_set_phy_cfg_data *cfg, enum ice_fec_mode fec)
+{
+	switch (fec) {
+	case ICE_FEC_BASER:
+		/* Clear auto FEC and RS bits, and AND BASE-R ability
+		 * bits and OR request bits.
+		 */
+		cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt &= ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN |
+				     ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN;
+		cfg->link_fec_opt |= ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ |
+				     ICE_AQC_PHY_FEC_25G_KR_REQ;
+		break;
+	case ICE_FEC_RS:
+		/* Clear auto FEC and BASE-R bits, and AND RS ability
+		 * bits and OR request bits.
+		 */
+		cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt &= ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN;
+		cfg->link_fec_opt |= ICE_AQC_PHY_FEC_25G_RS_528_REQ |
+				     ICE_AQC_PHY_FEC_25G_RS_544_REQ;
+		break;
+	case ICE_FEC_NONE:
+		/* Clear auto FEC and all FEC option bits. */
+		cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt &= ~ICE_AQC_PHY_FEC_MASK;
+		break;
+	case ICE_FEC_AUTO:
+		/* AND auto FEC bit, and all caps bits. */
+		cfg->caps &= ICE_AQC_PHY_CAPS_MASK;
+		break;
+	}
 }
 
 /**

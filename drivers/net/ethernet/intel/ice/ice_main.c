@@ -624,7 +624,11 @@ static void ice_reset_subtask(struct ice_pf *pf)
  */
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 {
+	struct ice_aqc_get_phy_caps_data *caps;
+	enum ice_status status;
+	const char *fec_req;
 	const char *speed;
+	const char *fec;
 	const char *fc;
 
 	if (!vsi)
@@ -688,8 +692,47 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		break;
 	}
 
-	netdev_info(vsi->netdev, "NIC Link is up %sbps, Flow Control: %s\n",
-		    speed, fc);
+	/* Get FEC mode based on negotiated link info */
+	switch (vsi->port_info->phy.link_info.fec_info) {
+	case ICE_AQ_LINK_25G_RS_528_FEC_EN:
+		/* fall through */
+	case ICE_AQ_LINK_25G_RS_544_FEC_EN:
+		fec = "RS-FEC";
+		break;
+	case ICE_AQ_LINK_25G_KR_FEC_EN:
+		fec = "FC-FEC/BASE-R";
+		break;
+	default:
+		fec = "NONE";
+		break;
+	}
+
+	/* Get FEC mode requested based on PHY caps last SW configuration */
+	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	if (!caps) {
+		fec_req = "Unknown";
+		goto done;
+	}
+
+	status = ice_aq_get_phy_caps(vsi->port_info, false,
+				     ICE_AQC_REPORT_SW_CFG, caps, NULL);
+	if (status)
+		netdev_info(vsi->netdev, "Get phy capability failed.\n");
+
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_528_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_544_REQ)
+		fec_req = "RS-FEC";
+	else if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ ||
+		 caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_REQ)
+		fec_req = "FC-FEC/BASE-R";
+	else
+		fec_req = "NONE";
+
+	devm_kfree(&vsi->back->pdev->dev, caps);
+
+done:
+	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Flow Control: %s\n",
+		    speed, fec_req, fec, fc);
 }
 
 /**

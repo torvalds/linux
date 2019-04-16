@@ -960,6 +960,185 @@ ice_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 }
 
 /**
+ * ice_set_fec_cfg - Set link FEC options
+ * @netdev: network interface device structure
+ * @req_fec: FEC mode to configure
+ */
+static int ice_set_fec_cfg(struct net_device *netdev, enum ice_fec_mode req_fec)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_aqc_set_phy_cfg_data config = { 0 };
+	struct ice_aqc_get_phy_caps_data *caps;
+	struct ice_vsi *vsi = np->vsi;
+	u8 sw_cfg_caps, sw_cfg_fec;
+	struct ice_port_info *pi;
+	enum ice_status status;
+	int err = 0;
+
+	pi = vsi->port_info;
+	if (!pi)
+		return -EOPNOTSUPP;
+
+	/* Changing the FEC parameters is not supported if not the PF VSI */
+	if (vsi->type != ICE_VSI_PF) {
+		netdev_info(netdev, "Changing FEC parameters only supported for PF VSI\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* Get last SW configuration */
+	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	if (!caps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
+				     caps, NULL);
+	if (status) {
+		err = -EAGAIN;
+		goto done;
+	}
+
+	/* Copy SW configuration returned from PHY caps to PHY config */
+	ice_copy_phy_caps_to_cfg(caps, &config);
+	sw_cfg_caps = caps->caps;
+	sw_cfg_fec = caps->link_fec_options;
+
+	/* Get toloplogy caps, then copy PHY FEC topoloy caps to PHY config */
+	memset(caps, 0, sizeof(*caps));
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
+				     caps, NULL);
+	if (status) {
+		err = -EAGAIN;
+		goto done;
+	}
+
+	config.caps |= (caps->caps & ICE_AQC_PHY_EN_AUTO_FEC);
+	config.link_fec_opt = caps->link_fec_options;
+
+	ice_cfg_phy_fec(&config, req_fec);
+
+	/* If FEC mode has changed, then set PHY configuration and enable AN. */
+	if ((config.caps & ICE_AQ_PHY_ENA_AUTO_FEC) !=
+	    (sw_cfg_caps & ICE_AQC_PHY_EN_AUTO_FEC) ||
+	    config.link_fec_opt != sw_cfg_fec) {
+		if (caps->caps & ICE_AQC_PHY_AN_MODE)
+			config.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
+
+		status = ice_aq_set_phy_cfg(pi->hw, pi->lport, &config, NULL);
+
+		if (status)
+			err = -EAGAIN;
+	}
+
+done:
+	devm_kfree(&vsi->back->pdev->dev, caps);
+	return err;
+}
+
+/**
+ * ice_set_fecparam - Set FEC link options
+ * @netdev: network interface device structure
+ * @fecparam: Ethtool structure to retrieve FEC parameters
+ */
+static int
+ice_set_fecparam(struct net_device *netdev, struct ethtool_fecparam *fecparam)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	enum ice_fec_mode fec;
+
+	switch (fecparam->fec) {
+	case ETHTOOL_FEC_AUTO:
+		fec = ICE_FEC_AUTO;
+		break;
+	case ETHTOOL_FEC_RS:
+		fec = ICE_FEC_RS;
+		break;
+	case ETHTOOL_FEC_BASER:
+		fec = ICE_FEC_BASER;
+		break;
+	case ETHTOOL_FEC_OFF:
+	case ETHTOOL_FEC_NONE:
+		fec = ICE_FEC_NONE;
+		break;
+	default:
+		dev_warn(&vsi->back->pdev->dev, "Unsupported FEC mode: %d\n",
+			 fecparam->fec);
+		return -EINVAL;
+	}
+
+	return ice_set_fec_cfg(netdev, fec);
+}
+
+/**
+ * ice_get_fecparam - Get link FEC options
+ * @netdev: network interface device structure
+ * @fecparam: Ethtool structure to retrieve FEC parameters
+ */
+static int
+ice_get_fecparam(struct net_device *netdev, struct ethtool_fecparam *fecparam)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_aqc_get_phy_caps_data *caps;
+	struct ice_link_status *link_info;
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_port_info *pi;
+	enum ice_status status;
+	int err = 0;
+
+	pi = vsi->port_info;
+
+	if (!pi)
+		return -EOPNOTSUPP;
+	link_info = &pi->phy.link_info;
+
+	/* Set FEC mode based on negotiated link info */
+	switch (link_info->fec_info) {
+	case ICE_AQ_LINK_25G_KR_FEC_EN:
+		fecparam->active_fec = ETHTOOL_FEC_BASER;
+		break;
+	case ICE_AQ_LINK_25G_RS_528_FEC_EN:
+		/* fall through */
+	case ICE_AQ_LINK_25G_RS_544_FEC_EN:
+		fecparam->active_fec = ETHTOOL_FEC_RS;
+		break;
+	default:
+		fecparam->active_fec = ETHTOOL_FEC_OFF;
+		break;
+	}
+
+	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	if (!caps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
+				     caps, NULL);
+	if (status) {
+		err = -EAGAIN;
+		goto done;
+	}
+
+	/* Set supported/configured FEC modes based on PHY capability */
+	if (caps->caps & ICE_AQC_PHY_EN_AUTO_FEC)
+		fecparam->fec |= ETHTOOL_FEC_AUTO;
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_REQ)
+		fecparam->fec |= ETHTOOL_FEC_BASER;
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_528_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_544_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN)
+		fecparam->fec |= ETHTOOL_FEC_RS;
+	if (caps->link_fec_options == 0)
+		fecparam->fec |= ETHTOOL_FEC_OFF;
+
+done:
+	devm_kfree(&vsi->back->pdev->dev, caps);
+	return err;
+}
+
+/**
  * ice_get_priv_flags - report device private flags
  * @netdev: network interface device structure
  *
@@ -1885,6 +2064,7 @@ ice_get_link_ksettings(struct net_device *netdev,
 		       struct ethtool_link_ksettings *ks)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_aqc_get_phy_caps_data *caps;
 	struct ice_link_status *hw_link_info;
 	struct ice_vsi *vsi = np->vsi;
 
@@ -1955,6 +2135,40 @@ ice_get_link_ksettings(struct net_device *netdev,
 		break;
 	}
 
+	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	if (!caps)
+		goto done;
+
+	if (ice_aq_get_phy_caps(vsi->port_info, false, ICE_AQC_REPORT_TOPO_CAP,
+				caps, NULL))
+		netdev_info(netdev, "Get phy capability failed.\n");
+
+	/* Set supported FEC modes based on PHY capability */
+	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
+
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN)
+		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN)
+		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
+
+	if (ice_aq_get_phy_caps(vsi->port_info, false, ICE_AQC_REPORT_SW_CFG,
+				caps, NULL))
+		netdev_info(netdev, "Get phy capability failed.\n");
+
+	/* Set advertised FEC modes based on PHY capability */
+	ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_NONE);
+
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_REQ)
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     FEC_BASER);
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_528_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_544_REQ)
+		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
+
+done:
+	devm_kfree(&vsi->back->pdev->dev, caps);
 	return 0;
 }
 
@@ -3167,6 +3381,8 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_per_queue_coalesce = ice_get_per_q_coalesce,
 	.set_per_queue_coalesce = ice_set_per_q_coalesce,
+	.get_fecparam		= ice_get_fecparam,
+	.set_fecparam		= ice_set_fecparam,
 };
 
 /**
