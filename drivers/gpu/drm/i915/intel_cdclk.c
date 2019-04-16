@@ -2034,7 +2034,7 @@ static void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
  */
 void intel_cdclk_init(struct drm_i915_private *i915)
 {
-	if (IS_ICELAKE(i915))
+	if (INTEL_GEN(i915) >= 11)
 		icl_init_cdclk(i915);
 	else if (IS_CANNONLAKE(i915))
 		cnl_init_cdclk(i915);
@@ -2053,7 +2053,7 @@ void intel_cdclk_init(struct drm_i915_private *i915)
  */
 void intel_cdclk_uninit(struct drm_i915_private *i915)
 {
-	if (IS_ICELAKE(i915))
+	if (INTEL_GEN(i915) >= 11)
 		icl_uninit_cdclk(i915);
 	else if (IS_CANNONLAKE(i915))
 		cnl_uninit_cdclk(i915);
