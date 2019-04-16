@@ -120,7 +120,9 @@ struct ice_cee_app_prio {
 	u8 prio_map;
 } __packed;
 
-enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg);
+enum ice_status
+ice_aq_get_dcb_cfg(struct ice_hw *hw, u8 mib_type, u8 bridgetype,
+		   struct ice_dcbx_cfg *dcbcfg);
 enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi);
 enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi);
 enum ice_status ice_init_dcb(struct ice_hw *hw);
