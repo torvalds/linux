@@ -161,15 +161,9 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void udf_i_callback(struct rcu_head *head)
+static void udf_free_in_core_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
-}
-
-static void udf_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, udf_i_callback);
 }
 
 static void init_once(void *foo)
@@ -206,7 +200,7 @@ static void destroy_inodecache(void)
 /* Superblock operations */
 static const struct super_operations udf_sb_ops = {
 	.alloc_inode	= udf_alloc_inode,
-	.destroy_inode	= udf_destroy_inode,
+	.free_inode	= udf_free_in_core_inode,
 	.write_inode	= udf_write_inode,
 	.evict_inode	= udf_evict_inode,
 	.put_super	= udf_put_super,
