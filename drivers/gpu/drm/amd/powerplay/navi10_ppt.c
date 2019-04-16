@@ -275,6 +275,9 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_SS_BIT)
 				| FEATURE_MASK(FEATURE_GFXOFF_BIT);
 
+	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_VCN_PG_BIT);
+
 	return 0;
 }
 
