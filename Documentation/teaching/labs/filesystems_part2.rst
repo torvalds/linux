@@ -14,7 +14,7 @@ Inode
 
 The inode is an essential component of a UNIX file system and, at the same time, an important component of VFS. An inode is a metadata (it has information about information).
 An inode uniquely identifies a file on disk and holds information about it (uid, gid, access rights, access times, pointers to data blocks, etc.).
-An important aspect is that an inode does not have information about the file name (it is retained by the associated ``dentry`` structure).
+An important aspect is that an inode does not have information about the file name (it is retained by the associated :c:type:`struct dentry` structure).
 
 The inode refers to a file on the disk. To refer an open file (associated with a file descriptor within a process), the :c:type:`struct file` structure is used.
 An inode can have any number of (zero or more) ``file`` structures associated (multiple processes can open the same file, or a process can open the same file several times).
@@ -26,12 +26,12 @@ Like the other structures in VFS, :c:type:`struct inode` is a generic structure 
 The inode structure
 -------------------
 
-The inode structure is the same for all file systems. In general, file systems also have particular information. These are referenced through the ``i_private`` field of the structure.
+The inode structure is the same for all file systems. In general, file systems also have private information. These are referenced through the ``i_private`` field of the structure.
 Conventionally, the structure that keeps that particular information is called ``<fsname>_inode_info``, where ``fsname`` represents the file system name. For example, minix and ext4 filesystems store particular information in structures :c:type:`struct minix_inode_info`, or :c:type:`struct ext4_inode_info`.
 
 Some of the important fields of :c:type:`struct inode` are:
 
-  * ``i_sb`` : The superblock structure of the file system to which the inode belongs to.
+  * ``i_sb`` : The superblock structure of the file system the inode belongs to.
   * ``i_rdev``: the device on which this file system is mounted
   * ``i_ino`` : the number of the inode (uniquely identifies the inode within the file system)
   * ``i_blkbits``: number of bits used for the block size == log\ :sub:`2`\ (block size)
@@ -39,8 +39,8 @@ Some of the important fields of :c:type:`struct inode` are:
 
   * ``i_size``: file/directory/etc. size in bytes
   * ``i_mtime``, ``i_atime``, ``i_ctime``: change, access, and creation time
-  * ``i_nlink``: the number of names entries (dentries) that use this inode; for file systems without links (either hard or symbolic) is always set to 1
-  * ``i_blocks``: the number of blocks used by the file (all blocks, not just data); is only used by the quota subsystem
+  * ``i_nlink``: the number of names entries (dentries) that use this inode; for file systems without links (either hard or symbolic) this is always set to 1
+  * ``i_blocks``: the number of blocks used by the file (all blocks, not just data); this is only used by the quota subsystem
   * ``i_op``, ``i_fop``: pointers to operations structures: c:type:`struct inode_operations` and :c:type:`struct file_operations`; ``i_mapping->a_ops`` contains a pointer to :c:type:`struct address_space_operations`.
   * ``i_count``: the inode counter indicating how many kernel components use it.
 
@@ -51,7 +51,7 @@ Some functions that can be used to work with inodes:
 
     .. warning::
 
-      An inode created with :c:func:`new_inode` is not in the hash table, and unless you have serious reasons, you must enter it in the hash table;
+      An inode created with :c:func:`new_inode` is not in the hash table, and unless you have serious reasons not to, you must enter it in the hash table;
 
   * :c:func:`mark_inode_dirty`: marks the inode as dirty; at a later moment, it will be written on the disc;
   * :c:func:`iget_locked`: loads the inode with the given number from the disk, if it is not already loaded;
@@ -68,7 +68,7 @@ Getting an inode
 One of the main inode operations is obtaining an inode (the :c:type:`struct inode` in VFS).
 Until version ``2.6.24`` of the Linux kernel, the developer defined a ``read_inode`` function.
 Starting with version ``2.6.25``, the developer must define a ``<fsname>_iget`` where ``<fsname>`` is the name of the file system.
-This function is responsible for finding the VFS inode if it exists or creating a new one and filling it with the information from the disk.
+This function is responsible with finding the VFS inode if it exists or creating a new one and filling it with the information from the disk.
 
 Generally, this function will call :c:func:`iget_locked` to get the inode structure from VFS. If the inode is newly created then it will need to read the inode from the disk (using :c:func:`sb_bread`) and fill in the useful information.
 
@@ -112,7 +112,7 @@ Otherwise, the function calls the :c:func:`V1_minix_iget` function that will rea
 Superoperations
 ^^^^^^^^^^^^^^^
 
-Many of the superoperations (components of the :c:type:`struct super_operations` structure used by the superbloc) are used when working with inodes. These operations are described next:
+Many of the superoperations (components of the :c:type:`struct super_operations` structure used by the superblock) are used when working with inodes. These operations are described next:
 
   * ``alloc_inode``: allocates an inode.
     Usually, this funcion allocates a :c:type:`struct <fsname>_inode_info` structure and performs basic VFS inode initialization (using :c:func:`inode_init_once`);
@@ -130,8 +130,8 @@ Many of the superoperations (components of the :c:type:`struct super_operations`
   * ``evict_inode``: removes any information about the inode with the number received in the ``i_ino`` field from the disk and memory (both the inode on the disk and the associated data blocks). This involves performing the following operations:
 
     * delete the inode from the disk;
-    * updates disk bitmaps (if any)
-    * delete the inode the page cache by calling :c:func:`truncate_inode_pages`;
+    * updates disk bitmaps (if any);
+    * delete the inode from the page cache by calling :c:func:`truncate_inode_pages`;
     * delete the inode from memory by calling :c:func:`clear_inode` ;
     * an example is the :c:func:`minix_evict_inode` function from the minix file system.
 
@@ -151,12 +151,12 @@ The operations of an inode are initialized and accessed using the ``i_op`` field
 The file structure
 ==================
 
-The ``file`` structure corresponds to a file open by a process and exists only in memory, being associated with an inode
-It is the VFS entity closest to user-space; the structure fields contain familiar information of a user-space file (access mode, file position, etc.) and the operations with it are known system calls (``read``, ``write`` , etc.).
+The ``file`` structure corresponds to a file open by a process and exists only in memory, being associated with an inode.
+It is the closest VFS entity to user-space; the structure fields contain familiar information of a user-space file (access mode, file position, etc.) and the operations with it are performed by known system calls (``read``, ``write`` , etc.).
 
 The file operations are described by the :c:type:`struct file_operations` structure.
 
-To file operations for a file system are initialozed using the ``i_fop`` field of the :c:type:`struct inode` structure.
+The file operations for a file system are initialized using the ``i_fop`` field of the :c:type:`struct inode` structure.
 When opening a file, the VFS initializes the ``f_op`` field of the :c:type:`struct file` structure with address of ``inode->i_fop``, such that subsequent system calls use the value stored in the ``file->f_op``.
 
 .. _FileInodes:
@@ -313,10 +313,10 @@ Most of the specific functions are very easy to implement, as follows:
            return generic_block_bmap(mapping, block, minix_get_block);
   }
 
-All that needs to be done is implement :c:type:`minix_get_block`, which has to translate a block of a file into a block on the device.
+All that needs to be done is to implement :c:type:`minix_get_block`, which has to translate a block of a file into a block on the device.
 If the flag ``create`` received as a parameter is set, a new block must be allocated.
 In case a new block is created, the bit map must be updated accordingly.
-To notify the kernel not to read the block from the disk, ``bh`` must be marked bh with :c:func:`set_buffer_new`. The buffer must be associated with the block through :c:func:`map_bh`.
+To notify the kernel not to read the block from the disk, ``bh`` must be marked with :c:func:`set_buffer_new`. The buffer must be associated with the block through :c:func:`map_bh`.
 
 Dentry structure
 ================
@@ -357,12 +357,12 @@ The most commonly operations applied to dentries are:
 
   * ``d_make_root``: allocates the root dentry. It is generally used in the function that is called to read the superblock (``fill_super``), which must initialize the root directory.
     So the root inode is obtained from the superblock and is used as an argument to this function, to fill the ``s_root`` field from the :c:type:`struct super_block` structure.
-  * ``d_add``: associates a dentry with an inode; the dentry received as a parameter in the calls discussed above signifies the entry (name, length) that needs to be created. This function will be used when creating/loading a new inode that does not have a dentry associated with it and has not yet been introduced to the hash (at ``lookup``);
-  * ``d_instantiate``: The lighter version of the previous call, in which the dentry was previously added in hash.
+  * ``d_add``: associates a dentry with an inode; the dentry received as a parameter in the calls discussed above signifies the entry (name, length) that needs to be created. This function will be used when creating/loading a new inode that does not have a dentry associated with it and has not yet been introduced to the hash table of inodes (at ``lookup``);
+  * ``d_instantiate``: The lighter version of the previous call, in which the dentry was previously added in the hash table.
 
 .. warning::
 
-  ``d_instantiate`` must be used for create calls (``mkdir``, ``mknod``, ``rename``, ``symlink``) and  NOT ``d_add``.
+  ``d_instantiate`` must be used to implement create calls (``mkdir``, ``mknod``, ``rename``, ``symlink``) and  NOT ``d_add``.
 
 .. _DirectoryInodes:
 
@@ -413,7 +413,7 @@ The inode creation function is indicated by the field ``create`` in the ``inode_
 In the minix case, the function is :c:func:`minix_create`.
 This function is called by the ``open`` and ``creat`` system calls. Such a function performs the following operations:
 
-  #. Introduces a new entry into the physical structure on the disk; the update of the bit maps on the disk must bot be forgotten.
+  #. Introduces a new entry into the physical structure on the disk; the update of the bit maps on the disk must not be forgotten.
   #. Configures access rights to those received as a parameter.
   #. Marks the inode as dirty with the :c:func:`mark_inode_dirty` function.
   #. Instantiates the directory entry (``dentry``) with the ``d_instantiate`` function.
@@ -661,7 +661,7 @@ To begin, just define the structure ``myfs_dir_inode_operations``; you will defi
 
   As a model, you are following the ``ramfs_dir_inode_operations`` structure.
 
-Implement the ``mkdir`` and ``creatr`` operations inside ``myfs_mkdir`` and ``myfs_create``.
+Implement the ``mkdir``, ``mknod`` and ``create`` operations inside ``myfs_mkdir``, ``myfs_mkdir`` and ``myfs_create``.
 These operations will allow you to create directories and files in the file system.
 
 .. tip::
@@ -1037,7 +1037,7 @@ For this, you will iterate over the directory data block and you will find the f
 .. tip::
 
   In order to work with the directory, get the inode of type ``struct minfs_inode_info`` corresponding to the parent directory (the **dir** inode).
-  Do not use the variable ``inode`` to get ``struct_minfs_inode_info``; that inode belongs to the file, not to the parent directory inside which you want to add the link /dentry.
+  Do not use the variable ``inode`` to get ``struct_minfs_inode_info``; that inode belongs to the file, not to the parent directory inside which you want to add the link/dentry.
   To get the ``struct minfs_inode_info`` structure, use :c:func:`container_of`.
 
   The structure ``struct minfs_inode_info`` is useful for finding the directory data block (the one indicated by the ``dentry->d_parent->d_inode``, which is the ``dir`` variable).
