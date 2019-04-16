@@ -46,13 +46,20 @@ extern const char ice_drv_ver[];
 #define ICE_REQ_DESC_MULTIPLE	32
 #define ICE_MIN_NUM_DESC	ICE_REQ_DESC_MULTIPLE
 #define ICE_MAX_NUM_DESC	8160
-/* set default number of Rx/Tx descriptors to the minimum between
- * ICE_MAX_NUM_DESC and the number of descriptors to fill up an entire page
+#define ICE_DFLT_MIN_RX_DESC	512
+/* if the default number of Rx descriptors between ICE_MAX_NUM_DESC and the
+ * number of descriptors to fill up an entire page is greater than or equal to
+ * ICE_DFLT_MIN_RX_DESC set it based on page size, otherwise set it to
+ * ICE_DFLT_MIN_RX_DESC
  */
-#define ICE_DFLT_NUM_RX_DESC	min_t(u16, ICE_MAX_NUM_DESC, \
-				      ALIGN(PAGE_SIZE / \
-					    sizeof(union ice_32byte_rx_desc), \
-					    ICE_REQ_DESC_MULTIPLE))
+#define ICE_DFLT_NUM_RX_DESC \
+	min_t(u16, ICE_MAX_NUM_DESC, \
+	      max_t(u16, ALIGN(PAGE_SIZE / sizeof(union ice_32byte_rx_desc), \
+			       ICE_REQ_DESC_MULTIPLE), \
+		    ICE_DFLT_MIN_RX_DESC))
+/* set default number of Tx descriptors to the minimum between ICE_MAX_NUM_DESC
+ * and the number of descriptors to fill up an entire page
+ */
 #define ICE_DFLT_NUM_TX_DESC	min_t(u16, ICE_MAX_NUM_DESC, \
 				      ALIGN(PAGE_SIZE / \
 					    sizeof(struct ice_tx_desc), \
