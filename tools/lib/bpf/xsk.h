@@ -109,7 +109,7 @@ static inline __u32 xsk_cons_nb_avail(struct xsk_ring_cons *r, __u32 nb)
 static inline size_t xsk_ring_prod__reserve(struct xsk_ring_prod *prod,
 					    size_t nb, __u32 *idx)
 {
-	if (unlikely(xsk_prod_nb_free(prod, nb) < nb))
+	if (xsk_prod_nb_free(prod, nb) < nb)
 		return 0;
 
 	*idx = prod->cached_prod;
@@ -133,7 +133,7 @@ static inline size_t xsk_ring_cons__peek(struct xsk_ring_cons *cons,
 {
 	size_t entries = xsk_cons_nb_avail(cons, nb);
 
-	if (likely(entries > 0)) {
+	if (entries > 0) {
 		/* Make sure we do not speculatively read the data before
 		 * we have received the packet buffers from the ring.
 		 */
