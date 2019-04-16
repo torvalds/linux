@@ -1,0 +1,9 @@
+config HMS_ANYBUSS_BUS
+	tristate "HMS Anybus-S Bus Support"
+	select REGMAP
+	depends on OF && FIELDBUS_DEV
+	help
+	  Driver for the HMS Industrial Networks Anybus-S bus.
+	  You can attach a single Anybus-S compatible card to it, which
+	  typically provides fieldbus and industrial ethernet
+	  functionality.
