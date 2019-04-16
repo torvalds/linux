@@ -2149,6 +2149,10 @@ static int phy_probe(struct device *dev)
 	if (err)
 		goto out;
 
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			       phydev->supported))
+		phydev->autoneg = 0;
+
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 			      phydev->supported))
 		phydev->is_gigabit_capable = 1;
