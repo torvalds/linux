@@ -61,9 +61,10 @@ static u32 ice_get_tx_pending(struct ice_ring *ring)
 static void ice_check_for_hang_subtask(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = NULL;
+	struct ice_hw *hw;
 	unsigned int i;
-	u32 v, v_idx;
 	int packets;
+	u32 v;
 
 	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v] && pf->vsi[v]->type == ICE_VSI_PF) {
@@ -77,12 +78,12 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 	if (!(vsi->netdev && netif_carrier_ok(vsi->netdev)))
 		return;
 
+	hw = &vsi->back->hw;
+
 	for (i = 0; i < vsi->num_txq; i++) {
 		struct ice_ring *tx_ring = vsi->tx_rings[i];
 
 		if (tx_ring && tx_ring->desc) {
-			int itr = ICE_ITR_NONE;
-
 			/* If packet counter has not changed the queue is
 			 * likely stalled, so force an interrupt for this
 			 * queue.
@@ -93,12 +94,7 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 			packets = tx_ring->stats.pkts & INT_MAX;
 			if (tx_ring->tx_stats.prev_pkt == packets) {
 				/* Trigger sw interrupt to revive the queue */
-				v_idx = tx_ring->q_vector->v_idx;
-				wr32(&vsi->back->hw,
-				     GLINT_DYN_CTL(vsi->base_vector + v_idx),
-				     (itr << GLINT_DYN_CTL_ITR_INDX_S) |
-				     GLINT_DYN_CTL_SWINT_TRIG_M |
-				     GLINT_DYN_CTL_INTENA_MSK_M);
+				ice_trigger_sw_intr(hw, tx_ring->q_vector);
 				continue;
 			}
 

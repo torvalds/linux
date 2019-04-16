@@ -2019,6 +2019,19 @@ int ice_vsi_stop_rx_rings(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_trigger_sw_intr - trigger a software interrupt
+ * @hw: pointer to the HW structure
+ * @q_vector: interrupt vector to trigger the software interrupt for
+ */
+void ice_trigger_sw_intr(struct ice_hw *hw, struct ice_q_vector *q_vector)
+{
+	wr32(hw, GLINT_DYN_CTL(q_vector->reg_idx),
+	     (ICE_ITR_NONE << GLINT_DYN_CTL_ITR_INDX_S) |
+	     GLINT_DYN_CTL_SWINT_TRIG_M |
+	     GLINT_DYN_CTL_INTENA_M);
+}
+
+/**
  * ice_vsi_stop_tx_rings - Disable Tx rings
  * @vsi: the VSI being configured
  * @rst_src: reset source
@@ -2065,6 +2078,8 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			break;
 
 		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
+			struct ice_q_vector *q_vector;
+
 			if (!rings || !rings[q_idx]) {
 				err = -EINVAL;
 				goto err_out;
@@ -2085,13 +2100,10 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			/* trigger a software interrupt for the vector
 			 * associated to the queue to schedule NAPI handler
 			 */
-			if (rings[q_idx]->q_vector) {
-				int reg_idx = rings[i]->q_vector->reg_idx;
+			q_vector = rings[i]->q_vector;
+			if (q_vector)
+				ice_trigger_sw_intr(hw, q_vector);
 
-				wr32(hw, GLINT_DYN_CTL(reg_idx),
-				     GLINT_DYN_CTL_SWINT_TRIG_M |
-				     GLINT_DYN_CTL_INTENA_MSK_M);
-			}
 			q_idx++;
 		}
 		status = ice_dis_vsi_txq(vsi->port_info, vsi->idx, tc,

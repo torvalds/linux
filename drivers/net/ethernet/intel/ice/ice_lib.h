@@ -64,6 +64,8 @@ bool ice_is_reset_in_progress(unsigned long *state);
 
 void ice_vsi_free_q_vectors(struct ice_vsi *vsi);
 
+void ice_trigger_sw_intr(struct ice_hw *hw, struct ice_q_vector *q_vector);
+
 void ice_vsi_put_qs(struct ice_vsi *vsi);
 
 #ifdef CONFIG_DCB
