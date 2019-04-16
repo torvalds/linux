@@ -71,8 +71,8 @@ xrep_attempt(
 	case -EDEADLOCK:
 	case -EAGAIN:
 		/* Tell the caller to try again having grabbed all the locks. */
-		if (!sc->try_harder) {
-			sc->try_harder = true;
+		if (!(sc->flags & XCHK_TRY_HARDER)) {
+			sc->flags |= XCHK_TRY_HARDER;
 			return -EAGAIN;
 		}
 		/*

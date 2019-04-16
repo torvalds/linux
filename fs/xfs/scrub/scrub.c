@@ -186,9 +186,9 @@ xchk_teardown(
 			xfs_irele(sc->ip);
 		sc->ip = NULL;
 	}
-	if (sc->has_quotaofflock) {
+	if (sc->flags & XCHK_HAS_QUOTAOFFLOCK) {
 		mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
-		sc->has_quotaofflock = false;
+		sc->flags &= ~XCHK_HAS_QUOTAOFFLOCK;
 	}
 	if (sc->buf) {
 		kmem_free(sc->buf);
@@ -507,7 +507,7 @@ retry_op:
 
 	/* Scrub for errors. */
 	error = sc.ops->scrub(&sc);
-	if (!sc.try_harder && error == -EDEADLOCK) {
+	if (!(sc.flags & XCHK_TRY_HARDER) && error == -EDEADLOCK) {
 		/*
 		 * Scrubbers return -EDEADLOCK to mean 'try harder'.
 		 * Tear down everything we hold, then set up again with
@@ -516,7 +516,7 @@ retry_op:
 		error = xchk_teardown(&sc, ip, 0);
 		if (error)
 			goto out;
-		sc.try_harder = true;
+		sc.flags |= XCHK_TRY_HARDER;
 		goto retry_op;
 	} else if (error)
 		goto out_teardown;

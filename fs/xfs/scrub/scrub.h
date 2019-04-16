@@ -62,12 +62,17 @@ struct xfs_scrub {
 	struct xfs_inode		*ip;
 	void				*buf;
 	uint				ilock_flags;
-	bool				try_harder;
-	bool				has_quotaofflock;
+
+	/* See the XCHK state flags below. */
+	unsigned int			flags;
 
 	/* State tracking for single-AG operations. */
 	struct xchk_ag			sa;
 };
+
+/* XCHK state flags */
+#define XCHK_TRY_HARDER		(1 << 0)  /* can't get resources, try again */
+#define XCHK_HAS_QUOTAOFFLOCK	(1 << 1)  /* we hold the quotaoff lock */
 
 /* Metadata scrubbers */
 int xchk_tester(struct xfs_scrub *sc);
