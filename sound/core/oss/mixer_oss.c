@@ -1403,24 +1403,32 @@ static int snd_mixer_oss_notify_handler(struct snd_card *card, int cmd)
 
 static int __init alsa_mixer_oss_init(void)
 {
+	struct snd_card *card;
 	int idx;
 	
 	snd_mixer_oss_notify_callback = snd_mixer_oss_notify_handler;
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
-		if (snd_cards[idx])
-			snd_mixer_oss_notify_handler(snd_cards[idx], SND_MIXER_OSS_NOTIFY_REGISTER);
+		card = snd_card_ref(idx);
+		if (card) {
+			snd_mixer_oss_notify_handler(card, SND_MIXER_OSS_NOTIFY_REGISTER);
+			snd_card_unref(card);
+		}
 	}
 	return 0;
 }
 
 static void __exit alsa_mixer_oss_exit(void)
 {
+	struct snd_card *card;
 	int idx;
 
 	snd_mixer_oss_notify_callback = NULL;
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
-		if (snd_cards[idx])
-			snd_mixer_oss_notify_handler(snd_cards[idx], SND_MIXER_OSS_NOTIFY_FREE);
+		card = snd_card_ref(idx);
+		if (card) {
+			snd_mixer_oss_notify_handler(card, SND_MIXER_OSS_NOTIFY_FREE);
+			snd_card_unref(card);
+		}
 	}
 }
 
