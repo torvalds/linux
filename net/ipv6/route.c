@@ -784,9 +784,10 @@ static struct fib6_info *rt6_select(struct net *net, struct fib6_node *fn,
 	return match ? match : net->ipv6.fib6_null_entry;
 }
 
-static bool rt6_is_gw_or_nonexthop(const struct fib6_info *rt)
+static bool rt6_is_gw_or_nonexthop(const struct fib6_result *res)
 {
-	return (rt->fib6_flags & RTF_NONEXTHOP) || rt->fib6_nh.fib_nh_gw_family;
+	return (res->f6i->fib6_flags & RTF_NONEXTHOP) ||
+	       res->nh->fib_nh_gw_family;
 }
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
@@ -1174,10 +1175,11 @@ int ip6_ins_rt(struct net *net, struct fib6_info *rt)
 	return __ip6_ins_rt(rt, &info, NULL);
 }
 
-static struct rt6_info *ip6_rt_cache_alloc(struct fib6_info *ort,
+static struct rt6_info *ip6_rt_cache_alloc(const struct fib6_result *res,
 					   const struct in6_addr *daddr,
 					   const struct in6_addr *saddr)
 {
+	struct fib6_info *f6i = res->f6i;
 	struct net_device *dev;
 	struct rt6_info *rt;
 
@@ -1185,25 +1187,25 @@ static struct rt6_info *ip6_rt_cache_alloc(struct fib6_info *ort,
 	 *	Clone the route.
 	 */
 
-	if (!fib6_info_hold_safe(ort))
+	if (!fib6_info_hold_safe(f6i))
 		return NULL;
 
-	dev = ip6_rt_get_dev_rcu(ort);
+	dev = ip6_rt_get_dev_rcu(f6i);
 	rt = ip6_dst_alloc(dev_net(dev), dev, 0);
 	if (!rt) {
-		fib6_info_release(ort);
+		fib6_info_release(f6i);
 		return NULL;
 	}
 
-	ip6_rt_copy_init(rt, ort);
+	ip6_rt_copy_init(rt, res->f6i);
 	rt->rt6i_flags |= RTF_CACHE;
 	rt->dst.flags |= DST_HOST;
 	rt->rt6i_dst.addr = *daddr;
 	rt->rt6i_dst.plen = 128;
 
-	if (!rt6_is_gw_or_nonexthop(ort)) {
-		if (ort->fib6_dst.plen != 128 &&
-		    ipv6_addr_equal(&ort->fib6_dst.addr, daddr))
+	if (!rt6_is_gw_or_nonexthop(res)) {
+		if (f6i->fib6_dst.plen != 128 &&
+		    ipv6_addr_equal(&f6i->fib6_dst.addr, daddr))
 			rt->rt6i_flags |= RTF_ANYCAST;
 #ifdef CONFIG_IPV6_SUBTREES
 		if (rt->rt6i_src.plen && saddr) {
@@ -1885,7 +1887,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 		 */
 		struct rt6_info *uncached_rt;
 
-		uncached_rt = ip6_rt_cache_alloc(res.f6i, &fl6->daddr, NULL);
+		uncached_rt = ip6_rt_cache_alloc(&res, &fl6->daddr, NULL);
 
 		rcu_read_unlock();
 
@@ -2329,19 +2331,20 @@ static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 		if (rt6->rt6i_flags & RTF_CACHE)
 			rt6_update_exception_stamp_rt(rt6);
 	} else if (daddr) {
-		struct fib6_info *from;
+		struct fib6_result res = {};
 		struct rt6_info *nrt6;
 
 		rcu_read_lock();
-		from = rcu_dereference(rt6->from);
-		if (!from) {
+		res.f6i = rcu_dereference(rt6->from);
+		if (!res.f6i) {
 			rcu_read_unlock();
 			return;
 		}
-		nrt6 = ip6_rt_cache_alloc(from, daddr, saddr);
+		res.nh = &res.f6i->fib6_nh;
+		nrt6 = ip6_rt_cache_alloc(&res, daddr, saddr);
 		if (nrt6) {
 			rt6_do_update_pmtu(nrt6, mtu);
-			if (rt6_insert_exception(nrt6, from))
+			if (rt6_insert_exception(nrt6, res.f6i))
 				dst_release_immediate(&nrt6->dst);
 		}
 		rcu_read_unlock();
@@ -3364,10 +3367,10 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 {
 	struct netevent_redirect netevent;
 	struct rt6_info *rt, *nrt = NULL;
+	struct fib6_result res = {};
 	struct ndisc_options ndopts;
 	struct inet6_dev *in6_dev;
 	struct neighbour *neigh;
-	struct fib6_info *from;
 	struct rd_msg *msg;
 	int optlen, on_link;
 	u8 *lladdr;
@@ -3450,14 +3453,15 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 		     NDISC_REDIRECT, &ndopts);
 
 	rcu_read_lock();
-	from = rcu_dereference(rt->from);
+	res.f6i = rcu_dereference(rt->from);
 	/* This fib6_info_hold() is safe here because we hold reference to rt
 	 * and rt already holds reference to fib6_info.
 	 */
-	fib6_info_hold(from);
+	fib6_info_hold(res.f6i);
 	rcu_read_unlock();
 
-	nrt = ip6_rt_cache_alloc(from, &msg->dest, NULL);
+	res.nh = &res.f6i->fib6_nh;
+	nrt = ip6_rt_cache_alloc(&res, &msg->dest, NULL);
 	if (!nrt)
 		goto out;
 
@@ -3471,7 +3475,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	 * a cached route because rt6_insert_exception() will
 	 * takes care of it
 	 */
-	if (rt6_insert_exception(nrt, from)) {
+	if (rt6_insert_exception(nrt, res.f6i)) {
 		dst_release_immediate(&nrt->dst);
 		goto out;
 	}
@@ -3483,7 +3487,7 @@ static void rt6_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_bu
 	call_netevent_notifiers(NETEVENT_REDIRECT, &netevent);
 
 out:
-	fib6_info_release(from);
+	fib6_info_release(res.f6i);
 	neigh_release(neigh);
 }
 
