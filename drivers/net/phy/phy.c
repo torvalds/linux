@@ -214,10 +214,6 @@ static void phy_sanitize_settings(struct phy_device *phydev)
 {
 	const struct phy_setting *setting;
 
-	/* Sanitize settings based on PHY capabilities */
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported))
-		phydev->autoneg = AUTONEG_DISABLE;
-
 	setting = phy_find_valid(phydev->speed, phydev->duplex,
 				 phydev->supported);
 	if (setting) {
