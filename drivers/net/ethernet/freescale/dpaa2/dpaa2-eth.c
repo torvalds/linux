@@ -2571,10 +2571,12 @@ static const struct dpaa2_eth_dist_fields dist_fields[] = {
 		.rxnfc_field = RXH_L2DA,
 		.cls_prot = NET_PROT_ETH,
 		.cls_field = NH_FLD_ETH_DA,
+		.id = DPAA2_ETH_DIST_ETHDST,
 		.size = 6,
 	}, {
 		.cls_prot = NET_PROT_ETH,
 		.cls_field = NH_FLD_ETH_SA,
+		.id = DPAA2_ETH_DIST_ETHSRC,
 		.size = 6,
 	}, {
 		/* This is the last ethertype field parsed:
@@ -2583,28 +2585,33 @@ static const struct dpaa2_eth_dist_fields dist_fields[] = {
 		 */
 		.cls_prot = NET_PROT_ETH,
 		.cls_field = NH_FLD_ETH_TYPE,
+		.id = DPAA2_ETH_DIST_ETHTYPE,
 		.size = 2,
 	}, {
 		/* VLAN header */
 		.rxnfc_field = RXH_VLAN,
 		.cls_prot = NET_PROT_VLAN,
 		.cls_field = NH_FLD_VLAN_TCI,
+		.id = DPAA2_ETH_DIST_VLAN,
 		.size = 2,
 	}, {
 		/* IP header */
 		.rxnfc_field = RXH_IP_SRC,
 		.cls_prot = NET_PROT_IP,
 		.cls_field = NH_FLD_IP_SRC,
+		.id = DPAA2_ETH_DIST_IPSRC,
 		.size = 4,
 	}, {
 		.rxnfc_field = RXH_IP_DST,
 		.cls_prot = NET_PROT_IP,
 		.cls_field = NH_FLD_IP_DST,
+		.id = DPAA2_ETH_DIST_IPDST,
 		.size = 4,
 	}, {
 		.rxnfc_field = RXH_L3_PROTO,
 		.cls_prot = NET_PROT_IP,
 		.cls_field = NH_FLD_IP_PROTO,
+		.id = DPAA2_ETH_DIST_IPPROTO,
 		.size = 1,
 	}, {
 		/* Using UDP ports, this is functionally equivalent to raw
@@ -2613,11 +2620,13 @@ static const struct dpaa2_eth_dist_fields dist_fields[] = {
 		.rxnfc_field = RXH_L4_B_0_1,
 		.cls_prot = NET_PROT_UDP,
 		.cls_field = NH_FLD_UDP_PORT_SRC,
+		.id = DPAA2_ETH_DIST_L4SRC,
 		.size = 2,
 	}, {
 		.rxnfc_field = RXH_L4_B_2_3,
 		.cls_prot = NET_PROT_UDP,
 		.cls_field = NH_FLD_UDP_PORT_DST,
+		.id = DPAA2_ETH_DIST_L4DST,
 		.size = 2,
 	},
 };
@@ -2734,7 +2743,7 @@ static int dpaa2_eth_set_dist_key(struct net_device *net_dev,
 		 * For Rx flow classification key we set all supported fields
 		 */
 		if (type == DPAA2_ETH_RX_DIST_HASH) {
-			if (!(flags & dist_fields[i].rxnfc_field))
+			if (!(flags & dist_fields[i].id))
 				continue;
 			rx_hash_fields |= dist_fields[i].rxnfc_field;
 		}
@@ -2792,11 +2801,17 @@ free_key:
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	u64 key = 0;
+	int i;
 
 	if (!dpaa2_eth_hash_enabled(priv))
 		return -EOPNOTSUPP;
 
-	return dpaa2_eth_set_dist_key(net_dev, DPAA2_ETH_RX_DIST_HASH, flags);
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++)
+		if (dist_fields[i].rxnfc_field & flags)
+			key |= dist_fields[i].id;
+
+	return dpaa2_eth_set_dist_key(net_dev, DPAA2_ETH_RX_DIST_HASH, key);
 }
 
 static int dpaa2_eth_set_cls(struct dpaa2_eth_priv *priv)

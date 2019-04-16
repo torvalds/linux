@@ -342,6 +342,7 @@ struct dpaa2_eth_dist_fields {
 	enum net_prot cls_prot;
 	int cls_field;
 	int size;
+	u64 id;
 };
 
 struct dpaa2_eth_cls_rule {
@@ -454,6 +455,18 @@ enum dpaa2_eth_rx_dist {
 	DPAA2_ETH_RX_DIST_HASH,
 	DPAA2_ETH_RX_DIST_CLS
 };
+
+/* Unique IDs for the supported Rx classification header fields */
+#define DPAA2_ETH_DIST_ETHDST		BIT(0)
+#define DPAA2_ETH_DIST_ETHSRC		BIT(1)
+#define DPAA2_ETH_DIST_ETHTYPE		BIT(2)
+#define DPAA2_ETH_DIST_VLAN		BIT(3)
+#define DPAA2_ETH_DIST_IPSRC		BIT(4)
+#define DPAA2_ETH_DIST_IPDST		BIT(5)
+#define DPAA2_ETH_DIST_IPPROTO		BIT(6)
+#define DPAA2_ETH_DIST_L4SRC		BIT(7)
+#define DPAA2_ETH_DIST_L4DST		BIT(8)
+#define DPAA2_ETH_DIST_ALL		(~0U)
 
 static inline
 unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
