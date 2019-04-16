@@ -235,7 +235,6 @@ static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, u32 *sbuf,
  * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
- * @dstclip: Clip destination too.
  *
  * Drivers can use this function for RGB888 devices that don't natively
  * support XRGB8888.
