@@ -86,10 +86,8 @@ even on a UP system.  So do not do it!  Even on a UP system, the RCU
 infrastructure -must- respect grace periods, and -must- invoke callbacks
 from a known environment in which no locks are held.
 
-It -is- safe for synchronize_sched() and synchronize_rcu_bh() to return
-immediately on an UP system.  It is also safe for synchronize_rcu()
-to return immediately on UP systems, except when running preemptable
-RCU.
+Note that it -is- safe for synchronize_rcu() to return immediately on
+UP systems, including !PREEMPT SMP builds running on UP systems.
 
 Quick Quiz #3: Why can't synchronize_rcu() return immediately on
 	UP systems running preemptable RCU?

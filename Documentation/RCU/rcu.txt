@@ -52,10 +52,10 @@ o	If I am running on a uniprocessor kernel, which can only do one
 o	How can I see where RCU is currently used in the Linux kernel?
 
 	Search for "rcu_read_lock", "rcu_read_unlock", "call_rcu",
-	"rcu_read_lock_bh", "rcu_read_unlock_bh", "call_rcu_bh",
-	"srcu_read_lock", "srcu_read_unlock", "synchronize_rcu",
-	"synchronize_net", "synchronize_srcu", and the other RCU
-	primitives.  Or grab one of the cscope databases from:
+	"rcu_read_lock_bh", "rcu_read_unlock_bh", "srcu_read_lock",
+	"srcu_read_unlock", "synchronize_rcu", "synchronize_net",
+	"synchronize_srcu", and the other RCU primitives.  Or grab one
+	of the cscope databases from:
 
 	http://www.rdrop.com/users/paulmck/RCU/linuxusage/rculocktab.html
 

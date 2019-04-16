@@ -310,7 +310,7 @@ reader, updater, and reclaimer.
 
 
 	    rcu_assign_pointer()
-	    			    +--------+
+	                            +--------+
 	    +---------------------->| reader |---------+
 	    |                       +--------+         |
 	    |                           |              |
@@ -318,12 +318,12 @@ reader, updater, and reclaimer.
 	    |                           |              | rcu_read_lock()
 	    |                           |              | rcu_read_unlock()
 	    |        rcu_dereference()  |              |
-       +---------+                      |              |
-       | updater |<---------------------+              |
-       +---------+                                     V
+	    +---------+                 |              |
+	    | updater |<----------------+              |
+	    +---------+                                V
 	    |                                    +-----------+
 	    +----------------------------------->| reclaimer |
-	    				         +-----------+
+	                                         +-----------+
 	      Defer:
 	      synchronize_rcu() & call_rcu()
 
