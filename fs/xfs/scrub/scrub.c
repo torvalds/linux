@@ -40,6 +40,7 @@
 #include "scrub/trace.h"
 #include "scrub/btree.h"
 #include "scrub/repair.h"
+#include "scrub/health.h"
 
 /*
  * Online Scrub and Repair
@@ -498,6 +499,7 @@ xfs_scrub_metadata(
 	xchk_experimental_warning(mp);
 
 	sc.ops = &meta_scrub_ops[sm->sm_type];
+	sc.sick_mask = xchk_health_mask_for_scrub_type(sm->sm_type);
 retry_op:
 	/* Set up for the operation. */
 	error = sc.ops->setup(&sc, ip);
@@ -519,6 +521,8 @@ retry_op:
 		goto retry_op;
 	} else if (error)
 		goto out_teardown;
+
+	xchk_update_health(&sc);
 
 	if ((sc.sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) &&
 	    !(sc.flags & XREP_ALREADY_FIXED)) {

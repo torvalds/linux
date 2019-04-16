@@ -66,6 +66,13 @@ struct xfs_scrub {
 	/* See the XCHK/XREP state flags below. */
 	unsigned int			flags;
 
+	/*
+	 * The XFS_SICK_* flags that correspond to the metadata being scrubbed
+	 * or repaired.  We will use this mask to update the in-core fs health
+	 * status with whatever we find.
+	 */
+	unsigned int			sick_mask;
+
 	/* State tracking for single-AG operations. */
 	struct xchk_ag			sa;
 };
