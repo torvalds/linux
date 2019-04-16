@@ -71,19 +71,6 @@ static int xfrm6_get_saddr(struct net *net, int oif,
 	return 0;
 }
 
-static int xfrm6_init_path(struct xfrm_dst *path, struct dst_entry *dst,
-			   int nfheader_len)
-{
-	if (dst->ops->family == AF_INET6) {
-		struct rt6_info *rt = (struct rt6_info *)dst;
-		path->path_cookie = rt6_get_cookie(rt);
-	}
-
-	path->u.rt6.rt6i_nfheader_len = nfheader_len;
-
-	return 0;
-}
-
 static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 			  const struct flowi *fl)
 {
@@ -287,7 +274,6 @@ static const struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr =		xfrm6_get_saddr,
 	.decode_session =	_decode_session6,
-	.init_path =		xfrm6_init_path,
 	.fill_dst =		xfrm6_fill_dst,
 	.blackhole_route =	ip6_blackhole_route,
 };

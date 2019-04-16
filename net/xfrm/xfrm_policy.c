@@ -2491,21 +2491,14 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	return xdst;
 }
 
-static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
-				 int nfheader_len)
+static void xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
+			   int nfheader_len)
 {
-	const struct xfrm_policy_afinfo *afinfo =
-		xfrm_policy_get_afinfo(dst->ops->family);
-	int err;
-
-	if (!afinfo)
-		return -EINVAL;
-
-	err = afinfo->init_path(path, dst, nfheader_len);
-
-	rcu_read_unlock();
-
-	return err;
+	if (dst->ops->family == AF_INET6) {
+		struct rt6_info *rt = (struct rt6_info *)dst;
+		path->path_cookie = rt6_get_cookie(rt);
+		path->u.rt6.rt6i_nfheader_len = nfheader_len;
+	}
 }
 
 static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,

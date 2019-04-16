@@ -329,9 +329,6 @@ struct xfrm_policy_afinfo {
 	void			(*decode_session)(struct sk_buff *skb,
 						  struct flowi *fl,
 						  int reverse);
-	int			(*init_path)(struct xfrm_dst *path,
-					     struct dst_entry *dst,
-					     int nfheader_len);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev,
 					    const struct flowi *fl);
