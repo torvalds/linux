@@ -2402,7 +2402,17 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			}
 		}
 	} else {
-		for (i = 0; i < vfl->num_elements; i++) {
+		/* In case of non_trusted VF, number of VLAN elements passed
+		 * to PF for removal might be greater than number of VLANs
+		 * filter programmed for that VF - So, use actual number of
+		 * VLANS added earlier with add VLAN opcode. In order to avoid
+		 * removing VLAN that doesn't exist, which result to sending
+		 * erroneous failed message back to the VF
+		 */
+		int num_vf_vlan;
+
+		num_vf_vlan = vf->num_vlan;
+		for (i = 0; i < vfl->num_elements && i < num_vf_vlan; i++) {
 			u16 vid = vfl->vlan_id[i];
 
 			/* Make sure ice_vsi_kill_vlan is successful before

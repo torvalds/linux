@@ -1616,7 +1616,11 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	list_add(&list->list_entry, &tmp_add_list);
 
 	status = ice_remove_vlan(&pf->hw, &tmp_add_list);
-	if (status) {
+	if (status == ICE_ERR_DOES_NOT_EXIST) {
+		dev_dbg(&pf->pdev->dev,
+			"Failed to remove VLAN %d on VSI %i, it does not exist, status: %d\n",
+			vid, vsi->vsi_num, status);
+	} else if (status) {
 		dev_err(&pf->pdev->dev,
 			"Error removing VLAN %d on vsi %i error: %d\n",
 			vid, vsi->vsi_num, status);
