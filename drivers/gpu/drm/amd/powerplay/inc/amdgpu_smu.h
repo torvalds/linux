@@ -589,6 +589,9 @@ struct pptable_funcs {
 					    uint32_t *value);
 	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
 				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
+	int (*get_current_clk_freq_by_table)(struct smu_context *smu,
+					     enum smu_clk_type clk_type,
+					     uint32_t *value);
 };
 
 struct smu_funcs
@@ -881,6 +884,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_ppfeature_status ? (smu)->ppt_funcs->get_ppfeature_status((smu), (buf)) : -EINVAL)
 #define smu_set_watermarks_table(smu, tab, clock_ranges) \
 	((smu)->ppt_funcs->set_watermarks_table ? (smu)->ppt_funcs->set_watermarks_table((smu), (tab), (clock_ranges)) : 0)
+#define smu_get_current_clk_freq_by_table(smu, clk_type, value) \
+	((smu)->ppt_funcs->get_current_clk_freq_by_table ? (smu)->ppt_funcs->get_current_clk_freq_by_table((smu), (clk_type), (value)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

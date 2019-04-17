@@ -500,6 +500,29 @@ static int navi10_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	return 0;
 }
 
+static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
+				       enum smu_clk_type clk_type,
+				       uint32_t *value)
+{
+	static SmuMetrics_t metrics = {0};
+	int ret = 0, clk_id = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return clk_id;
+
+	*value = metrics.CurrClock[clk_id];
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -514,6 +537,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 	.dpm_set_uvd_enable = navi10_dpm_set_uvd_enable,
+	.get_current_clk_freq_by_table = navi10_get_current_clk_freq_by_table,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
