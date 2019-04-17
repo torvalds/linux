@@ -1012,8 +1012,6 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 
 	ov7740->gain = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 				       V4L2_CID_GAIN, 0, 1023, 1, 500);
-	if (ov7740->gain)
-		ov7740->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	ov7740->auto_gain = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					    V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
