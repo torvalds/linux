@@ -74,7 +74,7 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_TX_THRESH	(DMA_TX_SIZE / 4)
 #define STMMAC_RX_THRESH	(DMA_RX_SIZE / 4)
 
-static int flow_ctrl = FLOW_OFF;
+static int flow_ctrl = FLOW_AUTO;
 module_param(flow_ctrl, int, 0644);
 MODULE_PARM_DESC(flow_ctrl, "Flow control ability [on/off]");
 
