@@ -298,6 +298,7 @@ union ns_mem {
  * The structure which describes all the internal simulator data.
  */
 struct nandsim {
+	struct nand_chip chip;
 	struct mtd_partition partitions[CONFIG_NANDSIM_MAX_PARTS];
 	unsigned int nbparts;
 
@@ -2216,7 +2217,7 @@ static const struct nand_controller_ops ns_controller_ops = {
 static int __init ns_init_module(void)
 {
 	struct nand_chip *chip;
-	struct nandsim *nand;
+	struct nandsim *ns;
 	int retval = -ENOMEM, i;
 
 	if (bus_width != 8 && bus_width != 16) {
@@ -2224,16 +2225,14 @@ static int __init ns_init_module(void)
 		return -EINVAL;
 	}
 
-	/* Allocate and initialize mtd_info, nand_chip and nandsim structures */
-	chip = kzalloc(sizeof(struct nand_chip) + sizeof(struct nandsim),
-		       GFP_KERNEL);
-	if (!chip) {
+	ns = kzalloc(sizeof(struct nandsim), GFP_KERNEL);
+	if (!ns) {
 		NS_ERR("unable to allocate core structures.\n");
 		return -ENOMEM;
 	}
+	chip	    = &ns->chip;
 	nsmtd       = nand_to_mtd(chip);
-	nand        = (struct nandsim *)(chip + 1);
-	nand_set_controller_data(chip, (void *)nand);
+	nand_set_controller_data(chip, (void *)ns);
 
 	/*
 	 * Register simulator's callbacks.
@@ -2268,19 +2267,19 @@ static int __init ns_init_module(void)
 	 * the initial ID read command correctly
 	 */
 	if (id_bytes[6] != 0xFF || id_bytes[7] != 0xFF)
-		nand->geom.idbytes = 8;
+		ns->geom.idbytes = 8;
 	else if (id_bytes[4] != 0xFF || id_bytes[5] != 0xFF)
-		nand->geom.idbytes = 6;
+		ns->geom.idbytes = 6;
 	else if (id_bytes[2] != 0xFF || id_bytes[3] != 0xFF)
-		nand->geom.idbytes = 4;
+		ns->geom.idbytes = 4;
 	else
-		nand->geom.idbytes = 2;
-	nand->regs.status = NS_STATUS_OK(nand);
-	nand->nxstate = STATE_UNKNOWN;
-	nand->options |= OPT_PAGE512; /* temporary value */
-	memcpy(nand->ids, id_bytes, sizeof(nand->ids));
+		ns->geom.idbytes = 2;
+	ns->regs.status = NS_STATUS_OK(ns);
+	ns->nxstate = STATE_UNKNOWN;
+	ns->options |= OPT_PAGE512; /* temporary value */
+	memcpy(ns->ids, id_bytes, sizeof(ns->ids));
 	if (bus_width == 16) {
-		nand->busw = 16;
+		ns->busw = 16;
 		chip->options |= NAND_BUSWIDTH_16;
 	}
 
@@ -2332,27 +2331,27 @@ static int __init ns_init_module(void)
 	if ((retval = nand_create_bbt(chip)) != 0)
 		goto err_exit;
 
-	if ((retval = parse_badblocks(nand, nsmtd)) != 0)
+	if ((retval = parse_badblocks(ns, nsmtd)) != 0)
 		goto err_exit;
 
 	/* Register NAND partitions */
-	retval = mtd_device_register(nsmtd, &nand->partitions[0],
-				     nand->nbparts);
+	retval = mtd_device_register(nsmtd, &ns->partitions[0],
+				     ns->nbparts);
 	if (retval != 0)
 		goto err_exit;
 
-	if ((retval = nandsim_debugfs_create(nand)) != 0)
+	if ((retval = nandsim_debugfs_create(ns)) != 0)
 		goto err_exit;
 
         return 0;
 
 err_exit:
-	free_nandsim(nand);
+	free_nandsim(ns);
 	nand_release(chip);
-	for (i = 0;i < ARRAY_SIZE(nand->partitions); ++i)
-		kfree(nand->partitions[i].name);
+	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
+		kfree(ns->partitions[i].name);
 error:
-	kfree(chip);
+	kfree(ns);
 	free_lists();
 
 	return retval;
@@ -2373,7 +2372,7 @@ static void __exit ns_cleanup_module(void)
 	nand_release(chip); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
 		kfree(ns->partitions[i].name);
-	kfree(mtd_to_nand(nsmtd));        /* Free other structures */
+	kfree(ns);        /* Free other structures */
 	free_lists();
 }
 
