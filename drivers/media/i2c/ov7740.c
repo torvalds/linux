@@ -561,16 +561,16 @@ static int ov7740_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_AUTOGAIN:
 		if (!ctrl->val)
-			return ov7740_set_gain(regmap, ov7740->gain->val);
-
-		ret = ov7740_set_autogain(regmap, ctrl->val);
+			ret = ov7740_set_gain(regmap, ov7740->gain->val);
+		else
+			ret = ov7740_set_autogain(regmap, ctrl->val);
 		break;
 
 	case V4L2_CID_EXPOSURE_AUTO:
 		if (ctrl->val == V4L2_EXPOSURE_MANUAL)
-			return ov7740_set_exp(regmap, ov7740->exposure->val);
-
-		ret = ov7740_set_autoexp(regmap, ctrl->val);
+			ret = ov7740_set_exp(regmap, ov7740->exposure->val);
+		else
+			ret = ov7740_set_autoexp(regmap, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
