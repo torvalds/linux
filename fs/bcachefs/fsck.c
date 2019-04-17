@@ -499,8 +499,7 @@ retry:
 						BTREE_INSERT_NOFAIL|
 						BTREE_INSERT_LAZY_RW);
 			if (ret) {
-				bch_err(c, "error in fs gc: error %i "
-					"updating inode", ret);
+				bch_err(c, "error in fsck: error %i updating inode", ret);
 				goto err;
 			}
 
@@ -1064,7 +1063,7 @@ static void inc_link(struct bch_fs *c, nlink_table *links,
 
 	link = genradix_ptr_alloc(links, inum - range_start, GFP_KERNEL);
 	if (!link) {
-		bch_verbose(c, "allocation failed during fs gc - will need another pass");
+		bch_verbose(c, "allocation failed during fsck - will need another pass");
 		*range_end = inum;
 		return;
 	}
@@ -1111,7 +1110,7 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 	}
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
-		bch_err(c, "error in fs gc: btree error %i while walking dirents", ret);
+		bch_err(c, "error in fsck: btree error %i while walking dirents", ret);
 
 	return ret;
 }
@@ -1252,8 +1251,7 @@ static int check_inode(struct btree_trans *trans,
 
 		ret = bch2_inode_rm(c, u.bi_inum);
 		if (ret)
-			bch_err(c, "error in fs gc: error %i "
-				"while deleting inode", ret);
+			bch_err(c, "error in fsck: error %i while deleting inode", ret);
 		return ret;
 	}
 
@@ -1270,8 +1268,7 @@ static int check_inode(struct btree_trans *trans,
 
 		ret = bch2_inode_truncate(c, u.bi_inum, u.bi_size);
 		if (ret) {
-			bch_err(c, "error in fs gc: error %i "
-				"truncating inode", ret);
+			bch_err(c, "error in fsck: error %i truncating inode", ret);
 			return ret;
 		}
 
@@ -1296,8 +1293,7 @@ static int check_inode(struct btree_trans *trans,
 
 		sectors = bch2_count_inode_sectors(trans, u.bi_inum);
 		if (sectors < 0) {
-			bch_err(c, "error in fs gc: error %i "
-				"recounting inode sectors",
+			bch_err(c, "error in fsck: error %i recounting inode sectors",
 				(int) sectors);
 			return sectors;
 		}
@@ -1317,7 +1313,7 @@ static int check_inode(struct btree_trans *trans,
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_LAZY_RW);
 		if (ret && ret != -EINTR)
-			bch_err(c, "error in fs gc: error %i "
+			bch_err(c, "error in fsck: error %i "
 				"updating inode", ret);
 	}
 fsck_err:
@@ -1388,7 +1384,7 @@ fsck_err:
 	bch2_trans_exit(&trans);
 
 	if (ret2)
-		bch_err(c, "error in fs gc: btree error %i while walking inodes", ret2);
+		bch_err(c, "error in fsck: btree error %i while walking inodes", ret2);
 
 	return ret ?: ret2;
 }
@@ -1429,8 +1425,33 @@ static int check_inode_nlinks(struct bch_fs *c,
 	return ret;
 }
 
-noinline_for_stack
-static int check_inodes_fast(struct bch_fs *c)
+/*
+ * Checks for inconsistencies that shouldn't happen, unless we have a bug.
+ * Doesn't fix them yet, mainly because they haven't yet been observed:
+ */
+int bch2_fsck_full(struct bch_fs *c)
+{
+	struct bch_inode_unpacked root_inode, lostfound_inode;
+
+	return  check_extents(c) ?:
+		check_dirents(c) ?:
+		check_xattrs(c) ?:
+		check_root(c, &root_inode) ?:
+		check_lostfound(c, &root_inode, &lostfound_inode) ?:
+		check_directory_structure(c, &lostfound_inode) ?:
+		check_inode_nlinks(c, &lostfound_inode);
+}
+
+int bch2_fsck_inode_nlink(struct bch_fs *c)
+{
+	struct bch_inode_unpacked root_inode, lostfound_inode;
+
+	return  check_root(c, &root_inode) ?:
+		check_lostfound(c, &root_inode, &lostfound_inode) ?:
+		check_inode_nlinks(c, &lostfound_inode);
+}
+
+int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -1460,70 +1481,4 @@ static int check_inodes_fast(struct bch_fs *c)
 	BUG_ON(ret == -EINTR);
 
 	return bch2_trans_exit(&trans) ?: ret;
-}
-
-/*
- * Checks for inconsistencies that shouldn't happen, unless we have a bug.
- * Doesn't fix them yet, mainly because they haven't yet been observed:
- */
-static int bch2_fsck_full(struct bch_fs *c)
-{
-	struct bch_inode_unpacked root_inode, lostfound_inode;
-	int ret;
-
-	bch_verbose(c, "starting fsck:");
-	ret =   check_extents(c) ?:
-		check_dirents(c) ?:
-		check_xattrs(c) ?:
-		check_root(c, &root_inode) ?:
-		check_lostfound(c, &root_inode, &lostfound_inode) ?:
-		check_directory_structure(c, &lostfound_inode) ?:
-		check_inode_nlinks(c, &lostfound_inode);
-
-	bch2_flush_fsck_errs(c);
-	bch_verbose(c, "fsck done");
-
-	return ret;
-}
-
-static int bch2_fsck_inode_nlink(struct bch_fs *c)
-{
-	struct bch_inode_unpacked root_inode, lostfound_inode;
-	int ret;
-
-	bch_verbose(c, "checking inode link counts:");
-	ret =   check_root(c, &root_inode) ?:
-		check_lostfound(c, &root_inode, &lostfound_inode) ?:
-		check_inode_nlinks(c, &lostfound_inode);
-
-	bch2_flush_fsck_errs(c);
-	bch_verbose(c, "done");
-
-	return ret;
-}
-
-static int bch2_fsck_walk_inodes_only(struct bch_fs *c)
-{
-	int ret;
-
-	bch_verbose(c, "walking inodes:");
-	ret = check_inodes_fast(c);
-
-	bch2_flush_fsck_errs(c);
-	bch_verbose(c, "done");
-
-	return ret;
-}
-
-int bch2_fsck(struct bch_fs *c)
-{
-	if (c->opts.fsck)
-		return bch2_fsck_full(c);
-
-	if (c->sb.clean)
-		return 0;
-
-	return c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK)
-		? bch2_fsck_walk_inodes_only(c)
-		: bch2_fsck_inode_nlink(c);
 }

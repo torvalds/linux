@@ -224,7 +224,7 @@ int bch2_fs_read_write_early(struct bch_fs *);
 
 void bch2_fs_stop(struct bch_fs *);
 
-const char *bch2_fs_start(struct bch_fs *);
+int bch2_fs_start(struct bch_fs *);
 struct bch_fs *bch2_fs_open(char * const *, unsigned, struct bch_opts);
 const char *bch2_fs_open_incremental(const char *path);
 

@@ -267,7 +267,8 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 		down_write(&sb->s_umount);
 		sb->s_flags |= SB_RDONLY;
-		bch2_fs_emergency_read_only(c);
+		if (bch2_fs_emergency_read_only(c))
+			bch_err(c, "emergency read only due to ioctl");
 		up_write(&sb->s_umount);
 		return 0;
 

@@ -1834,12 +1834,15 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_INO);
 	if (IS_ERR(vinode)) {
+		bch_err(c, "error mounting: error getting root inode %i",
+			(int) PTR_ERR(vinode));
 		ret = PTR_ERR(vinode);
 		goto err_put_super;
 	}
 
 	sb->s_root = d_make_root(vinode);
 	if (!sb->s_root) {
+		bch_err(c, "error mounting: error allocating root dentry");
 		ret = -ENOMEM;
 		goto err_put_super;
 	}

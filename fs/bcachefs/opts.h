@@ -233,16 +233,11 @@ enum opt_type {
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Super read only mode - no writes at all will be issued,\n"\
 			"even if we have to replay the journal")	\
-	x(noreplay,			u8,				\
-	  OPT_MOUNT,							\
-	  OPT_BOOL(),							\
-	  NO_SB_OPT,			false,				\
-	  NULL,		"Don't replay the journal (only for internal tools)")\
 	x(norecovery,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
-	  NULL,		NULL)						\
+	  NULL,		"Don't replay the journal")			\
 	x(noexcl,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\

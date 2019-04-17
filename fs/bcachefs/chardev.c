@@ -158,7 +158,7 @@ static long bch2_ioctl_start(struct bch_fs *c, struct bch_ioctl_start arg)
 	if (arg.flags || arg.pad)
 		return -EINVAL;
 
-	return bch2_fs_start(c) ? -EIO : 0;
+	return bch2_fs_start(c);
 }
 
 static long bch2_ioctl_stop(struct bch_fs *c)

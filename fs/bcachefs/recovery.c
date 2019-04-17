@@ -714,8 +714,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	if (!c->sb.clean) {
 		ret = bch2_journal_seq_blacklist_add(c,
-				journal_seq,
-				journal_seq + 4);
+						     journal_seq,
+						     journal_seq + 4);
 		if (ret) {
 			bch_err(c, "error creating new journal seq blacklist entry");
 			goto err;
@@ -763,7 +763,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		 * journal; after an unclean shutdown we have to walk all
 		 * pointers to metadata:
 		 */
-		bch_verbose(c, "starting metadata mark and sweep:");
+		bch_info(c, "starting metadata mark and sweep");
 		err = "error in mark and sweep";
 		ret = bch2_gc(c, NULL, true, true);
 		if (ret)
@@ -774,7 +774,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->opts.fsck ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
-		bch_verbose(c, "starting mark and sweep:");
+		bch_info(c, "starting mark and sweep");
 		err = "error in mark and sweep";
 		ret = bch2_gc(c, &journal_keys, true, false);
 		if (ret)
@@ -792,36 +792,63 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->sb.encryption_type && !c->sb.clean)
 		atomic64_add(1 << 16, &c->key_version);
 
-	if (c->opts.noreplay)
+	if (c->opts.norecovery)
 		goto out;
 
-	bch_verbose(c, "starting journal replay:");
+	bch_verbose(c, "starting journal replay");
 	err = "journal replay failed";
 	ret = bch2_journal_replay(c, journal_keys);
 	if (ret)
 		goto err;
 	bch_verbose(c, "journal replay done");
 
-	bch_verbose(c, "writing allocation info:");
-	err = "error writing out alloc info";
-	ret = bch2_stripes_write(c, BTREE_INSERT_LAZY_RW, &wrote) ?:
-		bch2_alloc_write(c, BTREE_INSERT_LAZY_RW, &wrote);
-	if (ret) {
-		bch_err(c, "error writing alloc info");
-		goto err;
+	if (!c->opts.nochanges) {
+		/*
+		 * note that even when filesystem was clean there might be work
+		 * to do here, if we ran gc (because of fsck) which recalculated
+		 * oldest_gen:
+		 */
+		bch_verbose(c, "writing allocation info");
+		err = "error writing out alloc info";
+		ret = bch2_stripes_write(c, BTREE_INSERT_LAZY_RW, &wrote) ?:
+			bch2_alloc_write(c, BTREE_INSERT_LAZY_RW, &wrote);
+		if (ret) {
+			bch_err(c, "error writing alloc info");
+			goto err;
+		}
+		bch_verbose(c, "alloc write done");
 	}
-	bch_verbose(c, "alloc write done");
 
-	if (c->opts.norecovery)
-		goto out;
+	if (!c->sb.clean) {
+		if (!(c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK))) {
+			bch_info(c, "checking inode link counts");
+			err = "error in recovery";
+			ret = bch2_fsck_inode_nlink(c);
+			if (ret)
+				goto err;
+			bch_verbose(c, "check inodes done");
 
-	err = "error in fsck";
-	ret = bch2_fsck(c);
-	if (ret)
-		goto err;
+		} else {
+			bch_verbose(c, "checking for deleted inodes");
+			err = "error in recovery";
+			ret = bch2_fsck_walk_inodes_only(c);
+			if (ret)
+				goto err;
+			bch_verbose(c, "check inodes done");
+		}
+	}
+
+	if (c->opts.fsck) {
+		bch_info(c, "starting fsck");
+		err = "error in fsck";
+		ret = bch2_fsck_full(c);
+		if (ret)
+			goto err;
+		bch_verbose(c, "fsck done");
+	}
 
 	if (enabled_qtypes(c)) {
-		bch_verbose(c, "reading quotas:");
+		bch_verbose(c, "reading quotas");
 		ret = bch2_fs_quota_read(c);
 		if (ret)
 			goto err;
@@ -857,14 +884,18 @@ int bch2_fs_recovery(struct bch_fs *c)
 	    c->journal_seq_blacklist_table->nr > 128)
 		queue_work(system_long_wq, &c->journal_seq_blacklist_gc_work);
 out:
+	ret = 0;
+err:
+fsck_err:
+	bch2_flush_fsck_errs(c);
 	journal_keys_free(&journal_keys);
 	journal_entries_free(&journal_entries);
 	kfree(clean);
+	if (ret)
+		bch_err(c, "Error in recovery: %s (%i)", err, ret);
+	else
+		bch_verbose(c, "ret %i", ret);
 	return ret;
-err:
-fsck_err:
-	bch_err(c, "Error in recovery: %s (%i)", err, ret);
-	goto out;
 }
 
 int bch2_fs_initialize(struct bch_fs *c)
