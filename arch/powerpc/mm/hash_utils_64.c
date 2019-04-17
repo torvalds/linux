@@ -1150,6 +1150,9 @@ static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 	u32 spp = 0;
 	u32 **sbpm, *sbpp;
 
+	if (!spt)
+		return 0;
+
 	if (ea >= spt->maxaddr)
 		return 0;
 	if (ea < 0x100000000UL) {

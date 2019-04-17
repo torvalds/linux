@@ -687,10 +687,8 @@ struct subpage_prot_table {
 #define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
 
 extern void subpage_prot_free(struct mm_struct *mm);
-extern void subpage_prot_init_new_context(struct mm_struct *mm);
 #else
 static inline void subpage_prot_free(struct mm_struct *mm) {}
-static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
 
 /*
@@ -720,7 +718,7 @@ struct hash_mm_context {
 #endif
 
 #ifdef CONFIG_PPC_SUBPAGE_PROT
-	struct subpage_prot_table spt;
+	struct subpage_prot_table *spt;
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
 };
 

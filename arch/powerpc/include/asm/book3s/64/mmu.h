@@ -206,7 +206,7 @@ static inline struct slice_mask *mm_ctx_slice_mask_16g(mm_context_t *ctx)
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
 {
-	return &ctx->hash_context->spt;
+	return ctx->hash_context->spt;
 }
 #endif
 

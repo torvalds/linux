@@ -29,6 +29,9 @@ void subpage_prot_free(struct mm_struct *mm)
 	unsigned long i, j, addr;
 	u32 **p;
 
+	if (!spt)
+		return;
+
 	for (i = 0; i < 4; ++i) {
 		if (spt->low_prot[i]) {
 			free_page((unsigned long)spt->low_prot[i]);
@@ -48,13 +51,7 @@ void subpage_prot_free(struct mm_struct *mm)
 		free_page((unsigned long)p);
 	}
 	spt->maxaddr = 0;
-}
-
-void subpage_prot_init_new_context(struct mm_struct *mm)
-{
-	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
-
-	memset(spt, 0, sizeof(*spt));
+	kfree(spt);
 }
 
 static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
@@ -98,6 +95,9 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 	unsigned long i;
 	size_t nw;
 	unsigned long next, limit;
+
+	if (!spt)
+		return ;
 
 	down_write(&mm->mmap_sem);
 	limit = addr + len;
@@ -218,6 +218,20 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		return -EFAULT;
 
 	down_write(&mm->mmap_sem);
+
+	if (!spt) {
+		/*
+		 * Allocate subpage prot table if not already done.
+		 * Do this with mmap_sem held
+		 */
+		spt = kzalloc(sizeof(struct subpage_prot_table), GFP_KERNEL);
+		if (!spt) {
+			err = -ENOMEM;
+			goto out;
+		}
+		mm->context.hash_context->spt = spt;
+	}
+
 	subpage_mark_vma_nohuge(mm, addr, len);
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);

@@ -63,7 +63,8 @@ static int hash__init_new_context(struct mm_struct *mm)
 	if (index < 0)
 		return index;
 
-	mm->context.hash_context = kmalloc(sizeof(struct hash_mm_context), GFP_KERNEL);
+	mm->context.hash_context = kmalloc(sizeof(struct hash_mm_context),
+					   GFP_KERNEL);
 	if (!mm->context.hash_context) {
 		ida_free(&mmu_context_ida, index);
 		return -ENOMEM;
@@ -89,10 +90,20 @@ static int hash__init_new_context(struct mm_struct *mm)
 	} else {
 		/* This is fork. Copy hash_context details from current->mm */
 		memcpy(mm->context.hash_context, current->mm->context.hash_context, sizeof(struct hash_mm_context));
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+		/* inherit subpage prot detalis if we have one. */
+		if (current->mm->context.hash_context->spt) {
+			mm->context.hash_context->spt = kmalloc(sizeof(struct subpage_prot_table),
+								GFP_KERNEL);
+			if (!mm->context.hash_context->spt) {
+				ida_free(&mmu_context_ida, index);
+				kfree(mm->context.hash_context);
+				return -ENOMEM;
+			}
+		}
+#endif
 
 	}
-
-	subpage_prot_init_new_context(mm);
 
 	pkey_mm_init(mm);
 	return index;
