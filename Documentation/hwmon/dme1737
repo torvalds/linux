@@ -2,21 +2,37 @@ Kernel driver dme1737
 =====================
 
 Supported chips:
+
   * SMSC DME1737 and compatibles (like Asus A8000)
+
     Prefix: 'dme1737'
+
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+
     Datasheet: Provided by SMSC upon request and under NDA
+
   * SMSC SCH3112, SCH3114, SCH3116
+
     Prefix: 'sch311x'
+
     Addresses scanned: none, address read from Super-I/O config space
+
     Datasheet: Available on the Internet
+
   * SMSC SCH5027
+
     Prefix: 'sch5027'
+
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+
     Datasheet: Provided by SMSC upon request and under NDA
+
   * SMSC SCH5127
+
     Prefix: 'sch5127'
+
     Addresses scanned: none, address read from Super-I/O config space
+
     Datasheet: Provided by SMSC upon request and under NDA
 
 Authors:
@@ -26,11 +42,14 @@ Authors:
 Module Parameters
 -----------------
 
-* force_start: bool	Enables the monitoring of voltage, fan and temp inputs
+* force_start: bool
+			Enables the monitoring of voltage, fan and temp inputs
 			and PWM output control functions. Using this parameter
 			shouldn't be required since the BIOS usually takes care
 			of this.
-* probe_all_addr: bool	Include non-standard LPC addresses 0x162e and 0x164e
+
+* probe_all_addr: bool
+			Include non-standard LPC addresses 0x162e and 0x164e
 			when probing for ISA devices. This is required for the
 			following boards:
 			- VIA EPIA SN18000
@@ -70,7 +89,8 @@ scaling resistors. The values returned by the driver therefore reflect true
 millivolts and don't need scaling. The voltage inputs are mapped as follows
 (the last column indicates the input ranges):
 
-DME1737, A8000:
+DME1737, A8000::
+
 	in0: +5VTR	(+5V standby)		0V - 6.64V
 	in1: Vccp	(processor core)	0V - 3V
 	in2: VCC	(internal +3.3V)	0V - 4.38V
@@ -79,7 +99,8 @@ DME1737, A8000:
 	in5: VTR	(+3.3V standby)		0V - 4.38V
 	in6: Vbat	(+3.0V)			0V - 4.38V
 
-SCH311x:
+SCH311x::
+
 	in0: +2.5V				0V - 3.32V
 	in1: Vccp	(processor core)	0V - 2V
 	in2: VCC	(internal +3.3V)	0V - 4.38V
@@ -88,7 +109,8 @@ SCH311x:
 	in5: VTR	(+3.3V standby)		0V - 4.38V
 	in6: Vbat	(+3.0V)			0V - 4.38V
 
-SCH5027:
+SCH5027::
+
 	in0: +5VTR	(+5V standby)		0V - 6.64V
 	in1: Vccp	(processor core)	0V - 3V
 	in2: VCC	(internal +3.3V)	0V - 4.38V
@@ -97,7 +119,8 @@ SCH5027:
 	in5: VTR	(+3.3V standby)		0V - 4.38V
 	in6: Vbat	(+3.0V)			0V - 4.38V
 
-SCH5127:
+SCH5127::
+
 	in0: +2.5				0V - 3.32V
 	in1: Vccp	(processor core)	0V - 3V
 	in2: VCC	(internal +3.3V)	0V - 4.38V
@@ -119,7 +142,7 @@ Celsius. The chip also features offsets for all 3 temperature inputs which -
 when programmed - get added to the input readings. The chip does all the
 scaling by itself and the driver therefore reports true temperatures that don't
 need any user-space adjustments. The temperature inputs are mapped as follows
-(the last column indicates the input ranges):
+(the last column indicates the input ranges)::
 
 	temp1: Remote diode 1 (3904 type) temperature	-127C - +127C
 	temp2: DME1737 internal temperature		-127C - +127C
@@ -171,6 +194,7 @@ pwm[1-3]_auto_pwm_min, respectively. The thermal thresholds of the zones are
 programmed via zone[1-3]_auto_point[1-3]_temp and
 zone[1-3]_auto_point1_temp_hyst:
 
+	=============================== =======================================
 	pwm[1-3]_auto_point2_pwm	full-speed duty-cycle (255, i.e., 100%)
 	pwm[1-3]_auto_point1_pwm	low-speed duty-cycle
 	pwm[1-3]_auto_pwm_min		min-speed duty-cycle
@@ -179,6 +203,7 @@ zone[1-3]_auto_point1_temp_hyst:
 	zone[1-3]_auto_point2_temp	full-speed temp
 	zone[1-3]_auto_point1_temp	low-speed temp
 	zone[1-3]_auto_point1_temp_hyst	min-speed temp
+	=============================== =======================================
 
 The chip adjusts the output duty-cycle linearly in the range of auto_point1_pwm
 to auto_point2_pwm if the temperature of the associated zone is between
@@ -192,17 +217,21 @@ all PWM outputs are set to 100% duty-cycle.
 Following is another representation of how the chip sets the output duty-cycle
 based on the temperature of the associated thermal zone:
 
-			Duty-Cycle	Duty-Cycle
-	Temperature	Rising Temp	Falling Temp
-	-----------	-----------	------------
+	=============== =============== =================
+	Temperature	Duty-Cycle	Duty-Cycle
+			Rising Temp	Falling Temp
+	=============== =============== =================
 	full-speed	full-speed	full-speed
 
-			< linearly adjusted duty-cycle >
+	-		< linearly	-
+			adjusted
+			duty-cycle >
 
 	low-speed	low-speed	low-speed
-			min-speed	low-speed
+	-		min-speed	low-speed
 	min-speed	min-speed	min-speed
-			min-speed	min-speed
+	-		min-speed	min-speed
+	=============== =============== =================
 
 
 Sysfs Attributes
@@ -211,8 +240,9 @@ Sysfs Attributes
 Following is a list of all sysfs attributes that the driver provides, their
 permissions and a short description:
 
+=============================== ======= =======================================
 Name				Perm	Description
-----				----	-----------
+=============================== ======= =======================================
 cpu0_vid			RO	CPU core reference voltage in
 					millivolts.
 vrm				RW	Voltage regulator module version
@@ -242,9 +272,10 @@ temp[1-3]_fault			RO	Temp input fault. Returns 1 if the chip
 zone[1-3]_auto_channels_temp	RO	Temperature zone to temperature input
 					mapping. This attribute is a bitfield
 					and supports the following values:
-						1: temp1
-						2: temp2
-						4: temp3
+
+						- 1: temp1
+						- 2: temp2
+						- 4: temp3
 zone[1-3]_auto_point1_temp_hyst	RW	Auto PWM temp point1 hysteresis. The
 					output of the corresponding PWM is set
 					to the pwm_auto_min value if the temp
@@ -275,9 +306,10 @@ pmw[1-3,5-6]			RO/RW	Duty-cycle of PWM output. Supported
 					manual mode.
 pwm[1-3]_enable			RW	Enable of PWM outputs 1-3. Supported
 					values are:
-						 0: turned off (output @ 100%)
-						 1: manual mode
-						 2: automatic mode
+
+						- 0: turned off (output @ 100%)
+						- 1: manual mode
+						- 2: automatic mode
 pwm[5-6]_enable			RO	Enable of PWM outputs 5-6. Always
 					returns 1 since these 2 outputs are
 					hard-wired to manual mode.
@@ -294,11 +326,12 @@ pmw[1-3]_ramp_rate		RW	Ramp rate of PWM output. Determines how
 pwm[1-3]_auto_channels_zone	RW	PWM output to temperature zone mapping.
 					This attribute is a bitfield and
 					supports the following values:
-						1: zone1
-						2: zone2
-						4: zone3
-						6: highest of zone[2-3]
-						7: highest of zone[1-3]
+
+						- 1: zone1
+						- 2: zone2
+						- 4: zone3
+						- 6: highest of zone[2-3]
+						- 7: highest of zone[1-3]
 pwm[1-3]_auto_pwm_min		RW	Auto PWM min pwm. Minimum PWM duty-
 					cycle. Supported values are 0 or
 					auto_point1_pwm.
@@ -307,12 +340,14 @@ pwm[1-3]_auto_point1_pwm	RW	Auto PWM pwm point. Auto_point1 is the
 pwm[1-3]_auto_point2_pwm	RO	Auto PWM pwm point. Auto_point2 is the
 					full-speed duty-cycle which is hard-
 					wired to 255 (100% duty-cycle).
+=============================== ======= =======================================
 
 Chip Differences
 ----------------
 
+======================= ======= ======= ======= =======
 Feature			dme1737	sch311x	sch5027	sch5127
--------------------------------------------------------
+======================= ======= ======= ======= =======
 temp[1-3]_offset	yes	yes
 vid			yes
 zone3			yes	yes	yes
@@ -326,3 +361,4 @@ pwm5			opt		opt
 fan6			opt		opt
 pwm6			opt		opt
 in7						yes
+======================= ======= ======= ======= =======
