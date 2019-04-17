@@ -138,7 +138,6 @@ typedef struct {
 	/* NPU NMMU context */
 	struct npu_context *npu_context;
 
-#ifdef CONFIG_PPC_MM_SLICES
 	 /* SLB page size encodings*/
 	unsigned char low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
@@ -151,9 +150,6 @@ typedef struct {
 	struct slice_mask mask_16m;
 	struct slice_mask mask_16g;
 # endif
-#else
-	u16 sllp;		/* SLB page size encoding */
-#endif
 	unsigned long vdso_base;
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 	struct subpage_prot_table spt;
