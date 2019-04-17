@@ -4680,28 +4680,37 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	if (ha->mctp_dump)
 		dma_free_coherent(&ha->pdev->dev, MCTP_DUMP_SIZE, ha->mctp_dump,
 		    ha->mctp_dump_dma);
+	ha->mctp_dump = NULL;
 
 	mempool_destroy(ha->srb_mempool);
+	ha->srb_mempool = NULL;
 
 	if (ha->dcbx_tlv)
 		dma_free_coherent(&ha->pdev->dev, DCBX_TLV_DATA_SIZE,
 		    ha->dcbx_tlv, ha->dcbx_tlv_dma);
+	ha->dcbx_tlv = NULL;
 
 	if (ha->xgmac_data)
 		dma_free_coherent(&ha->pdev->dev, XGMAC_DATA_SIZE,
 		    ha->xgmac_data, ha->xgmac_data_dma);
+	ha->xgmac_data = NULL;
 
 	if (ha->sns_cmd)
 		dma_free_coherent(&ha->pdev->dev, sizeof(struct sns_cmd_pkt),
 		ha->sns_cmd, ha->sns_cmd_dma);
+	ha->sns_cmd = NULL;
+	ha->sns_cmd_dma = 0;
 
 	if (ha->ct_sns)
 		dma_free_coherent(&ha->pdev->dev, sizeof(struct ct_sns_pkt),
 		ha->ct_sns, ha->ct_sns_dma);
+	ha->ct_sns = NULL;
+	ha->ct_sns_dma = 0;
 
 	if (ha->sfp_data)
 		dma_free_coherent(&ha->pdev->dev, SFP_DEV_SIZE, ha->sfp_data,
 		    ha->sfp_data_dma);
+	ha->sfp_data = NULL;
 
 	if (ha->flt)
 		dma_free_coherent(&ha->pdev->dev, SFP_DEV_SIZE,
@@ -4709,19 +4718,28 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
+	ha->ms_iocb = NULL;
+	ha->ms_iocb_dma = 0;
 
 	if (ha->ex_init_cb)
 		dma_pool_free(ha->s_dma_pool,
 			ha->ex_init_cb, ha->ex_init_cb_dma);
+	ha->ex_init_cb = NULL;
+	ha->ex_init_cb_dma = 0;
 
 	if (ha->async_pd)
 		dma_pool_free(ha->s_dma_pool, ha->async_pd, ha->async_pd_dma);
+	ha->async_pd = NULL;
+	ha->async_pd_dma = 0;
 
 	dma_pool_destroy(ha->s_dma_pool);
+	ha->s_dma_pool = NULL;
 
 	if (ha->gid_list)
 		dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
 		ha->gid_list, ha->gid_list_dma);
+	ha->gid_list = NULL;
+	ha->gid_list_dma = 0;
 
 	if (IS_QLA82XX(ha)) {
 		if (!list_empty(&ha->gbl_dsd_list)) {
@@ -4739,10 +4757,13 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	}
 
 	dma_pool_destroy(ha->dl_dma_pool);
+	ha->dl_dma_pool = NULL;
 
 	dma_pool_destroy(ha->fcp_cmnd_dma_pool);
+	ha->fcp_cmnd_dma_pool = NULL;
 
 	mempool_destroy(ha->ctx_mempool);
+	ha->ctx_mempool = NULL;
 
 	if (ql2xenabledif) {
 		struct dsd_dma *dsd, *nxt;
@@ -4775,47 +4796,19 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	if (ha->init_cb)
 		dma_free_coherent(&ha->pdev->dev, ha->init_cb_size,
 			ha->init_cb, ha->init_cb_dma);
-
-	vfree(ha->optrom_buffer);
-	kfree(ha->nvram);
-	kfree(ha->npiv_info);
-	kfree(ha->swl);
-	kfree(ha->loop_id_map);
-
-	ha->srb_mempool = NULL;
-	ha->ctx_mempool = NULL;
-	ha->sns_cmd = NULL;
-	ha->sns_cmd_dma = 0;
-	ha->ct_sns = NULL;
-	ha->ct_sns_dma = 0;
-	ha->ms_iocb = NULL;
-	ha->ms_iocb_dma = 0;
 	ha->init_cb = NULL;
 	ha->init_cb_dma = 0;
-	ha->ex_init_cb = NULL;
-	ha->ex_init_cb_dma = 0;
-	ha->async_pd = NULL;
-	ha->async_pd_dma = 0;
-	ha->loop_id_map = NULL;
-	ha->npiv_info = NULL;
+
+	vfree(ha->optrom_buffer);
 	ha->optrom_buffer = NULL;
-	ha->swl = NULL;
+	kfree(ha->nvram);
 	ha->nvram = NULL;
-	ha->mctp_dump = NULL;
-	ha->dcbx_tlv = NULL;
-	ha->xgmac_data = NULL;
-	ha->sfp_data = NULL;
-
-	ha->s_dma_pool = NULL;
-	ha->dl_dma_pool = NULL;
-	ha->fcp_cmnd_dma_pool = NULL;
-
-	ha->gid_list = NULL;
-	ha->gid_list_dma = 0;
-
-	ha->tgt.atio_ring = NULL;
-	ha->tgt.atio_dma = 0;
-	ha->tgt.tgt_vp_map = NULL;
+	kfree(ha->npiv_info);
+	ha->npiv_info = NULL;
+	kfree(ha->swl);
+	ha->swl = NULL;
+	kfree(ha->loop_id_map);
+	ha->loop_id_map = NULL;
 }
 
 struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,

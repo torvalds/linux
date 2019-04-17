@@ -7347,7 +7347,10 @@ qlt_mem_free(struct qla_hw_data *ha)
 		    sizeof(struct atio_from_isp), ha->tgt.atio_ring,
 		    ha->tgt.atio_dma);
 	}
+	ha->tgt.atio_ring = NULL;
+	ha->tgt.atio_dma = 0;
 	kfree(ha->tgt.tgt_vp_map);
+	ha->tgt.tgt_vp_map = NULL;
 }
 
 /* vport_slock to be held by the caller */
