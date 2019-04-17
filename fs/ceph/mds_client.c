@@ -2288,9 +2288,9 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		(!!req->r_inode_drop + !!req->r_dentry_drop +
 		 !!req->r_old_inode_drop + !!req->r_old_dentry_drop);
 	if (req->r_dentry_drop)
-		len += req->r_dentry->d_name.len;
+		len += pathlen1;
 	if (req->r_old_dentry_drop)
-		len += req->r_old_dentry->d_name.len;
+		len += pathlen2;
 
 	msg = ceph_msg_new2(CEPH_MSG_CLIENT_REQUEST, len, 1, GFP_NOFS, false);
 	if (!msg) {
