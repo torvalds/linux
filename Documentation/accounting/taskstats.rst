@@ -1,5 +1,6 @@
+=============================
 Per-task statistics interface
------------------------------
+=============================
 
 
 Taskstats is a netlink-based interface for sending per-task and
@@ -65,7 +66,7 @@ taskstats.h file.
 
 The data exchanged between user and kernel space is a netlink message belonging
 to the NETLINK_GENERIC family and using the netlink attributes interface.
-The messages are in the format
+The messages are in the format::
 
     +----------+- - -+-------------+-------------------+
     | nlmsghdr | Pad |  genlmsghdr | taskstats payload |
@@ -167,15 +168,13 @@ extended and the number of cpus grows large.
 To avoid losing statistics, userspace should do one or more of the following:
 
 - increase the receive buffer sizes for the netlink sockets opened by
-listeners to receive exit data.
+  listeners to receive exit data.
 
 - create more listeners and reduce the number of cpus being listened to by
-each listener. In the extreme case, there could be one listener for each cpu.
-Users may also consider setting the cpu affinity of the listener to the subset
-of cpus to which it listens, especially if they are listening to just one cpu.
+  each listener. In the extreme case, there could be one listener for each cpu.
+  Users may also consider setting the cpu affinity of the listener to the subset
+  of cpus to which it listens, especially if they are listening to just one cpu.
 
 Despite these measures, if the userspace receives ENOBUFS error messages
 indicated overflow of receive buffers, it should take measures to handle the
 loss of data.
-
-----

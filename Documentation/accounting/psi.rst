@@ -35,14 +35,14 @@ Pressure interface
 Pressure information for each resource is exported through the
 respective file in /proc/pressure/ -- cpu, memory, and io.
 
-The format for CPU is as such:
+The format for CPU is as such::
 
-some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+	some avg10=0.00 avg60=0.00 avg300=0.00 total=0
 
-and for memory and IO:
+and for memory and IO::
 
-some avg10=0.00 avg60=0.00 avg300=0.00 total=0
-full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+	some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+	full avg10=0.00 avg60=0.00 avg300=0.00 total=0
 
 The "some" line indicates the share of time in which at least some
 tasks are stalled on a given resource.
@@ -77,9 +77,9 @@ To register a trigger user has to open psi interface file under
 /proc/pressure/ representing the resource to be monitored and write the
 desired threshold and time window. The open file descriptor should be
 used to wait for trigger events using select(), poll() or epoll().
-The following format is used:
+The following format is used::
 
-<some|full> <stall amount in us> <time window in us>
+	<some|full> <stall amount in us> <time window in us>
 
 For example writing "some 150000 1000000" into /proc/pressure/memory
 would add 150ms threshold for partial memory stall measured within
@@ -115,18 +115,20 @@ trigger  is closed.
 Userspace monitor usage example
 ===============================
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <poll.h>
-#include <string.h>
-#include <unistd.h>
+::
 
-/*
- * Monitor memory partial stall with 1s tracking window size
- * and 150ms threshold.
- */
-int main() {
+  #include <errno.h>
+  #include <fcntl.h>
+  #include <stdio.h>
+  #include <poll.h>
+  #include <string.h>
+  #include <unistd.h>
+
+  /*
+   * Monitor memory partial stall with 1s tracking window size
+   * and 150ms threshold.
+   */
+  int main() {
 	const char trig[] = "some 150000 1000000";
 	struct pollfd fds;
 	int n;
@@ -165,7 +167,7 @@ int main() {
 	}
 
 	return 0;
-}
+  }
 
 Cgroup2 interface
 =================

@@ -1,3 +1,7 @@
+==================
+Control Groupstats
+==================
+
 Control Groupstats is inspired by the discussion at
 http://lkml.org/lkml/2007/4/11/187 and implements per cgroup statistics as
 suggested by Andrew Morton in http://lkml.org/lkml/2007/4/11/263.
@@ -19,9 +23,9 @@ about tasks blocked on I/O. If CONFIG_TASK_DELAY_ACCT is disabled, this
 information will not be available.
 
 To extract cgroup statistics a utility very similar to getdelays.c
-has been developed, the sample output of the utility is shown below
+has been developed, the sample output of the utility is shown below::
 
-~/balbir/cgroupstats # ./getdelays  -C "/sys/fs/cgroup/a"
-sleeping 1, blocked 0, running 1, stopped 0, uninterruptible 0
-~/balbir/cgroupstats # ./getdelays  -C "/sys/fs/cgroup"
-sleeping 155, blocked 0, running 1, stopped 0, uninterruptible 2
+  ~/balbir/cgroupstats # ./getdelays  -C "/sys/fs/cgroup/a"
+  sleeping 1, blocked 0, running 1, stopped 0, uninterruptible 0
+  ~/balbir/cgroupstats # ./getdelays  -C "/sys/fs/cgroup"
+  sleeping 155, blocked 0, running 1, stopped 0, uninterruptible 2

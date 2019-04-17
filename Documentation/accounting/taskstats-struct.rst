@@ -1,5 +1,6 @@
+====================
 The struct taskstats
---------------------
+====================
 
 This document contains an explanation of the struct taskstats fields.
 
@@ -10,16 +11,24 @@ There are three different groups of fields in the struct taskstats:
     the common fields and basic accounting fields are collected for
     delivery at do_exit() of a task.
 2) Delay accounting fields
-    These fields are placed between
-    /* Delay accounting fields start */
-    and
-    /* Delay accounting fields end */
+    These fields are placed between::
+
+	/* Delay accounting fields start */
+
+    and::
+
+	/* Delay accounting fields end */
+
     Their values are collected if CONFIG_TASK_DELAY_ACCT is set.
 3) Extended accounting fields
-    These fields are placed between
-    /* Extended accounting fields start */
-    and
-    /* Extended accounting fields end */
+    These fields are placed between::
+
+	/* Extended accounting fields start */
+
+    and::
+
+	/* Extended accounting fields end */
+
     Their values are collected if CONFIG_TASK_XACCT is set.
 
 4) Per-task and per-thread context switch count statistics
@@ -31,31 +40,33 @@ There are three different groups of fields in the struct taskstats:
 Future extension should add fields to the end of the taskstats struct, and
 should not change the relative position of each field within the struct.
 
+::
 
-struct taskstats {
+  struct taskstats {
 
-1) Common and basic accounting fields:
+1) Common and basic accounting fields::
+
 	/* The version number of this struct. This field is always set to
 	 * TAKSTATS_VERSION, which is defined in <linux/taskstats.h>.
 	 * Each time the struct is changed, the value should be incremented.
 	 */
 	__u16	version;
 
-  	/* The exit code of a task. */
+	/* The exit code of a task. */
 	__u32	ac_exitcode;		/* Exit status */
 
-  	/* The accounting flags of a task as defined in <linux/acct.h>
+	/* The accounting flags of a task as defined in <linux/acct.h>
 	 * Defined values are AFORK, ASU, ACOMPAT, ACORE, and AXSIG.
 	 */
 	__u8	ac_flag;		/* Record flags */
 
-  	/* The value of task_nice() of a task. */
+	/* The value of task_nice() of a task. */
 	__u8	ac_nice;		/* task_nice */
 
-  	/* The name of the command that started this task. */
+	/* The name of the command that started this task. */
 	char	ac_comm[TS_COMM_LEN];	/* Command name */
 
-  	/* The scheduling discipline as set in task->policy field. */
+	/* The scheduling discipline as set in task->policy field. */
 	__u8	ac_sched;		/* Scheduling discipline */
 
 	__u8	ac_pad[3];
@@ -64,26 +75,27 @@ struct taskstats {
 	__u32	ac_pid;			/* Process ID */
 	__u32	ac_ppid;		/* Parent process ID */
 
-  	/* The time when a task begins, in [secs] since 1970. */
+	/* The time when a task begins, in [secs] since 1970. */
 	__u32	ac_btime;		/* Begin time [sec since 1970] */
 
-  	/* The elapsed time of a task, in [usec]. */
+	/* The elapsed time of a task, in [usec]. */
 	__u64	ac_etime;		/* Elapsed time [usec] */
 
-  	/* The user CPU time of a task, in [usec]. */
+	/* The user CPU time of a task, in [usec]. */
 	__u64	ac_utime;		/* User CPU time [usec] */
 
-  	/* The system CPU time of a task, in [usec]. */
+	/* The system CPU time of a task, in [usec]. */
 	__u64	ac_stime;		/* System CPU time [usec] */
 
-  	/* The minor page fault count of a task, as set in task->min_flt. */
+	/* The minor page fault count of a task, as set in task->min_flt. */
 	__u64	ac_minflt;		/* Minor Page Fault Count */
 
 	/* The major page fault count of a task, as set in task->maj_flt. */
 	__u64	ac_majflt;		/* Major Page Fault Count */
 
 
-2) Delay accounting fields:
+2) Delay accounting fields::
+
 	/* Delay accounting fields start
 	 *
 	 * All values, until the comment "Delay accounting fields end" are
@@ -134,7 +146,8 @@ struct taskstats {
 	/* version 1 ends here */
 
 
-3) Extended accounting fields
+3) Extended accounting fields::
+
 	/* Extended accounting fields start */
 
 	/* Accumulated RSS usage in duration of a task, in MBytes-usecs.
@@ -145,15 +158,15 @@ struct taskstats {
 	 */
 	__u64	coremem;		/* accumulated RSS usage in MB-usec */
 
-  	/* Accumulated virtual memory usage in duration of a task.
+	/* Accumulated virtual memory usage in duration of a task.
 	 * Same as acct_rss_mem1 above except that we keep track of VM usage.
 	 */
 	__u64	virtmem;		/* accumulated VM usage in MB-usec */
 
-  	/* High watermark of RSS usage in duration of a task, in KBytes. */
+	/* High watermark of RSS usage in duration of a task, in KBytes. */
 	__u64	hiwater_rss;		/* High-watermark of RSS usage */
 
-  	/* High watermark of VM  usage in duration of a task, in KBytes. */
+	/* High watermark of VM  usage in duration of a task, in KBytes. */
 	__u64	hiwater_vm;		/* High-water virtual memory usage */
 
 	/* The following four fields are I/O statistics of a task. */
@@ -164,17 +177,23 @@ struct taskstats {
 
 	/* Extended accounting fields end */
 
-4) Per-task and per-thread statistics
+4) Per-task and per-thread statistics::
+
 	__u64	nvcsw;			/* Context voluntary switch counter */
 	__u64	nivcsw;			/* Context involuntary switch counter */
 
-5) Time accounting for SMT machines
+5) Time accounting for SMT machines::
+
 	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
 	__u64	ac_stimescaled;		/* stime scaled on frequency etc */
 	__u64	cpu_scaled_run_real_total; /* scaled cpu_run_real_total */
 
-6) Extended delay accounting fields for memory reclaim
+6) Extended delay accounting fields for memory reclaim::
+
 	/* Delay waiting for memory reclaim */
 	__u64	freepages_count;
 	__u64	freepages_delay_total;
-}
+
+::
+
+  }
