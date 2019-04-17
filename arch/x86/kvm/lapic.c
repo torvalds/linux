@@ -70,7 +70,6 @@
 #define APIC_BROADCAST			0xFF
 #define X2APIC_BROADCAST		0xFFFFFFFFul
 
-static bool lapic_timer_advance_adjust_done = false;
 #define LAPIC_TIMER_ADVANCE_ADJUST_DONE 100
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
@@ -1482,6 +1481,7 @@ static bool lapic_timer_int_injected(struct kvm_vcpu *vcpu)
 void wait_lapic_expire(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
+	u32 timer_advance_ns = apic->lapic_timer.timer_advance_ns;
 	u64 guest_tsc, tsc_deadline, ns;
 
 	if (!lapic_in_kernel(vcpu))
@@ -1501,34 +1501,36 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 	/* __delay is delay_tsc whenever the hardware has TSC, thus always.  */
 	if (guest_tsc < tsc_deadline)
 		__delay(min(tsc_deadline - guest_tsc,
-			nsec_to_cycles(vcpu, lapic_timer_advance_ns)));
+			nsec_to_cycles(vcpu, timer_advance_ns)));
 
-	if (!lapic_timer_advance_adjust_done) {
+	if (!apic->lapic_timer.timer_advance_adjust_done) {
 		/* too early */
 		if (guest_tsc < tsc_deadline) {
 			ns = (tsc_deadline - guest_tsc) * 1000000ULL;
 			do_div(ns, vcpu->arch.virtual_tsc_khz);
-			lapic_timer_advance_ns -= min((unsigned int)ns,
-				lapic_timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+			timer_advance_ns -= min((u32)ns,
+				timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
 		} else {
 		/* too late */
 			ns = (guest_tsc - tsc_deadline) * 1000000ULL;
 			do_div(ns, vcpu->arch.virtual_tsc_khz);
-			lapic_timer_advance_ns += min((unsigned int)ns,
-				lapic_timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+			timer_advance_ns += min((u32)ns,
+				timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
 		}
 		if (abs(guest_tsc - tsc_deadline) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
-			lapic_timer_advance_adjust_done = true;
-		if (unlikely(lapic_timer_advance_ns > 5000)) {
-			lapic_timer_advance_ns = 0;
-			lapic_timer_advance_adjust_done = true;
+			apic->lapic_timer.timer_advance_adjust_done = true;
+		if (unlikely(timer_advance_ns > 5000)) {
+			timer_advance_ns = 0;
+			apic->lapic_timer.timer_advance_adjust_done = true;
 		}
+		apic->lapic_timer.timer_advance_ns = timer_advance_ns;
 	}
 }
 
 static void start_sw_tscdeadline(struct kvm_lapic *apic)
 {
-	u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
+	struct kvm_timer *ktimer = &apic->lapic_timer;
+	u64 guest_tsc, tscdeadline = ktimer->tscdeadline;
 	u64 ns = 0;
 	ktime_t expire;
 	struct kvm_vcpu *vcpu = apic->vcpu;
@@ -1548,11 +1550,10 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 	do_div(ns, this_tsc_khz);
 
 	if (likely(tscdeadline > guest_tsc) &&
-	    likely(ns > lapic_timer_advance_ns)) {
+	    likely(ns > apic->lapic_timer.timer_advance_ns)) {
 		expire = ktime_add_ns(now, ns);
-		expire = ktime_sub_ns(expire, lapic_timer_advance_ns);
-		hrtimer_start(&apic->lapic_timer.timer,
-				expire, HRTIMER_MODE_ABS_PINNED);
+		expire = ktime_sub_ns(expire, ktimer->timer_advance_ns);
+		hrtimer_start(&ktimer->timer, expire, HRTIMER_MODE_ABS_PINNED);
 	} else
 		apic_timer_expired(apic);
 
@@ -2259,7 +2260,7 @@ static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
 		return HRTIMER_NORESTART;
 }
 
-int kvm_create_lapic(struct kvm_vcpu *vcpu)
+int kvm_create_lapic(struct kvm_vcpu *vcpu, u32 timer_advance_ns)
 {
 	struct kvm_lapic *apic;
 
@@ -2283,6 +2284,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_ABS_PINNED);
 	apic->lapic_timer.timer.function = apic_timer_fn;
+	apic->lapic_timer.timer_advance_ns = timer_advance_ns;
 
 	/*
 	 * APIC is created enabled. This will prevent kvm_lapic_set_base from
