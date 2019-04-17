@@ -4,7 +4,7 @@
 #include "iavf_status.h"
 #include "iavf_type.h"
 #include "iavf_register.h"
-#include "i40e_adminq.h"
+#include "iavf_adminq.h"
 #include "iavf_prototype.h"
 
 /**

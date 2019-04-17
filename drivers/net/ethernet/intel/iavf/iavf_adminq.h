@@ -6,7 +6,7 @@
 
 #include "iavf_osdep.h"
 #include "iavf_status.h"
-#include "i40e_adminq_cmd.h"
+#include "iavf_adminq_cmd.h"
 
 #define IAVF_ADMINQ_DESC(R, i)   \
 	(&(((struct i40e_aq_desc *)((R).desc_buf.va))[i]))

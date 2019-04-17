@@ -2,7 +2,7 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "iavf_type.h"
-#include "i40e_adminq.h"
+#include "iavf_adminq.h"
 #include "iavf_prototype.h"
 #include <linux/avf/virtchnl.h>
 
