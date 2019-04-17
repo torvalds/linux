@@ -1,10 +1,15 @@
+=====================
 Kernel driver asc7621
-==================
+=====================
 
 Supported chips:
+
     Andigilog aSC7621 and aSC7621a
+
     Prefix: 'asc7621'
+
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+
     Datasheet: http://www.fairview5.com/linux/asc7621/asc7621.pdf
 
 Author:
@@ -73,8 +78,10 @@ Finally, we have added a tach disable function that turns off the tach
 measurement system for individual tachs in order to save power. That is
 in register 75h.
 
---
+--------------------------------------------------------------------------
+
 aSC7621 Product Description
+===========================
 
 The aSC7621 has a two wire digital interface compatible with SMBus 2.0.
 Using a 10-bit ADC, the aSC7621 measures the temperature of two remote diode
@@ -102,6 +109,8 @@ System voltages of VCCP, 2.5V, 3.3V, 5.0V, and 12V motherboard power are
 monitored efficiently with internal scaling resistors.
 
 Features
+--------
+
 - Supports PECI interface and monitors internal and remote thermal diodes
 - 2-wire, SMBus 2.0 compliant, serial interface
 - 10-bit ADC
@@ -110,7 +119,7 @@ Features
 - Noise filtering of temperature reading for fan speed control
 - 0.25C digital temperature sensor resolution
 - 3 PWM fan speed control outputs for 2-, 3- or 4-wire fans and up to 4 fan
-	tachometer inputs
+  tachometer inputs
 - Enhanced measured temperature to Temperature Zone assignment.
 - Provides high and low PWM frequency ranges
 - 3 GPIO pins for custom use
@@ -123,17 +132,20 @@ Except where noted below, the sysfs entries created by this driver follow
 the standards defined in "sysfs-interface".
 
 temp1_source
+	=	===============================================
 	0 	(default) peci_legacy = 0, Remote 1 Temperature
-			peci_legacy = 1, PECI Processor Temperature 0
+		peci_legacy = 1, PECI Processor Temperature 0
 	1 	Remote 1 Temperature
 	2 	Remote 2 Temperature
 	3 	Internal Temperature
 	4 	PECI Processor Temperature 0
 	5 	PECI Processor Temperature 1
 	6 	PECI Processor Temperature 2
-	7  PECI Processor Temperature 3
+	7	PECI Processor Temperature 3
+	=	===============================================
 
 temp2_source
+	=	===============================================
 	0 	(default) Internal Temperature
 	1 	Remote 1 Temperature
 	2 	Remote 2 Temperature
@@ -142,8 +154,10 @@ temp2_source
 	5 	PECI Processor Temperature 1
 	6 	PECI Processor Temperature 2
 	7 	PECI Processor Temperature 3
+	=	===============================================
 
 temp3_source
+	=	===============================================
 	0 	(default) Remote 2 Temperature
 	1 	Remote 1 Temperature
 	2 	Remote 2 Temperature
@@ -152,10 +166,12 @@ temp3_source
 	5 	PECI Processor Temperature 1
 	6 	PECI Processor Temperature 2
 	7 	PECI Processor Temperature 3
+	=	===============================================
 
 temp4_source
+	=	===============================================
 	0 	(default) peci_legacy = 0, PECI Processor Temperature 0
-			peci_legacy = 1, Remote 1 Temperature
+		peci_legacy = 1, Remote 1 Temperature
 	1 	Remote 1 Temperature
 	2 	Remote 2 Temperature
 	3 	Internal Temperature
@@ -163,58 +179,65 @@ temp4_source
 	5 	PECI Processor Temperature 1
 	6 	PECI Processor Temperature 2
 	7 	PECI Processor Temperature 3
+	=	===============================================
 
-temp[1-4]_smoothing_enable
-temp[1-4]_smoothing_time
+temp[1-4]_smoothing_enable / temp[1-4]_smoothing_time
 	Smooths spikes in temp readings caused by noise.
 	Valid values in milliseconds are:
-	35000
-	17600
-	11800
-	 7000
-	 4400
-	 3000
-	 1600
-	  800
+
+	* 35000
+	* 17600
+	* 11800
+	*  7000
+	*  4400
+	*  3000
+	*  1600
+	*   800
 
 temp[1-4]_crit
 	When the corresponding zone temperature reaches this value,
 	ALL pwm outputs will got to 100%.
 
-temp[5-8]_input
-temp[5-8]_enable
+temp[5-8]_input / temp[5-8]_enable
 	The aSC7621 can also read temperatures provided by the processor
 	via the PECI bus.  Usually these are "core" temps and are relative
 	to the point where the automatic thermal control circuit starts
 	throttling.  This means that these are usually negative numbers.
 
 pwm[1-3]_enable
+	=============== ========================================================
 	0		Fan off.
 	1		Fan on manual control.
 	2		Fan on automatic control and will run at the minimum pwm
-				if the temperature for the zone is below the minimum.
-	3		Fan on automatic control but will be off if the temperature
-				for the zone is below the minimum.
-	4-254	Ignored.
+			if the temperature for the zone is below the minimum.
+	3		Fan on automatic control but will be off if the
+			temperature for the zone is below the minimum.
+	4-254		Ignored.
 	255		Fan on full.
+	=============== ========================================================
 
 pwm[1-3]_auto_channels
 	Bitmap as described in sysctl-interface with the following
 	exceptions...
+
 	Only the following combination of zones (and their corresponding masks)
 	are valid:
-	1
-	2
-	3
-	2,3
-	1,2,3
-	4
-	1,2,3,4
 
-	Special values:
-	0			Disabled.
-	16		Fan on manual control.
-	31		Fan on full.
+	* 1
+	* 2
+	* 3
+	* 2,3
+	* 1,2,3
+	* 4
+	* 1,2,3,4
+
+	* Special values:
+
+	  ==		======================
+	  0		Disabled.
+	  16		Fan on manual control.
+	  31		Fan on full.
+	  ==		======================
 
 
 pwm[1-3]_invert
@@ -226,22 +249,22 @@ pwm[1-3]_freq
 	PWM frequency in Hz
 	Valid values in Hz are:
 
-	10
-	15
-	23
-	30  (default)
-	38
-	47
-	62
-	94
-	23000
-	24000
-	25000
-	26000
-	27000
-	28000
-	29000
-	30000
+	* 10
+	* 15
+	* 23
+	* 30  (default)
+	* 38
+	* 47
+	* 62
+	* 94
+	* 23000
+	* 24000
+	* 25000
+	* 26000
+	* 27000
+	* 28000
+	* 29000
+	* 30000
 
 	Setting any other value will be ignored.
 
@@ -251,17 +274,17 @@ peci_enable
 peci_avg
 	Input filter average time.
 
-	0 	0 Sec. (no Smoothing) (default)
-	1 	0.25 Sec.
-	2 	0.5 Sec.
-	3 	1.0 Sec.
-	4 	2.0 Sec.
-	5 	4.0 Sec.
-	6 	8.0 Sec.
-	7 	0.0 Sec.
+	* 0 	0 Sec. (no Smoothing) (default)
+	* 1 	0.25 Sec.
+	* 2 	0.5 Sec.
+	* 3 	1.0 Sec.
+	* 4 	2.0 Sec.
+	* 5 	4.0 Sec.
+	* 6 	8.0 Sec.
+	* 7 	0.0 Sec.
 
 peci_legacy
-
+	=	============================================
 	0	Standard Mode (default)
 		Remote Diode 1 reading is associated with
 		Temperature Zone 1, PECI is associated with
@@ -270,10 +293,12 @@ peci_legacy
 	1	Legacy Mode
 		PECI is associated with Temperature Zone 1,
 		Remote Diode 1 is associated with Zone 4
+	=	============================================
 
 peci_diode
 	Diode filter
 
+	=	====================
 	0	0.25 Sec.
 	1 	1.1 Sec.
 	2 	2.4 Sec.  (default)
@@ -282,15 +307,20 @@ peci_diode
 	5 	6.8 Sec.
 	6 	10.2 Sec.
 	7 	16.4 Sec.
+	=	====================
 
 peci_4domain
 	Four domain enable
 
+	=	===============================================
 	0 	1 or 2 Domains for enabled processors (default)
 	1 	3 or 4 Domains for enabled processors
+	=	===============================================
 
 peci_domain
 	Domain
 
+	=	==================================================
 	0 	Processor contains a single domain (0) 	 (default)
 	1 	Processor contains two domains (0,1)
+	=	==================================================
