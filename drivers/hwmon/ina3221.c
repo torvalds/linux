@@ -309,21 +309,22 @@ static int ina3221_write_chip(struct device *dev, u32 attr, long val)
 {
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret, idx;
+	u32 tmp;
 
 	switch (attr) {
 	case hwmon_chip_samples:
 		idx = find_closest(val, ina3221_avg_samples,
 				   ARRAY_SIZE(ina3221_avg_samples));
 
-		ret = regmap_update_bits(ina->regmap, INA3221_CONFIG,
-					 INA3221_CONFIG_AVG_MASK,
-					 idx << INA3221_CONFIG_AVG_SHIFT);
+		tmp = (ina->reg_config & ~INA3221_CONFIG_AVG_MASK) |
+		      (idx << INA3221_CONFIG_AVG_SHIFT);
+		ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
 		if (ret)
 			return ret;
 
 		/* Update reg_config accordingly */
-		return regmap_read(ina->regmap, INA3221_CONFIG,
-				   &ina->reg_config);
+		ina->reg_config = tmp;
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -359,6 +360,7 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	u16 config, mask = INA3221_CONFIG_CHx_EN(channel);
 	u16 config_old = ina->reg_config & mask;
+	u32 tmp;
 	int ret;
 
 	config = enable ? mask : 0;
@@ -377,14 +379,13 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 	}
 
 	/* Enable or disable the channel */
-	ret = regmap_update_bits(ina->regmap, INA3221_CONFIG, mask, config);
+	tmp = (ina->reg_config & ~mask) | (config & mask);
+	ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
 	if (ret)
 		goto fail;
 
 	/* Cache the latest config register value */
-	ret = regmap_read(ina->regmap, INA3221_CONFIG, &ina->reg_config);
-	if (ret)
-		goto fail;
+	ina->reg_config = tmp;
 
 	/* For disabling routine, decrease refcount or suspend() at last */
 	if (!enable)
