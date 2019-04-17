@@ -2,14 +2,23 @@ Kernel driver ad7314
 ====================
 
 Supported chips:
+
    * Analog Devices AD7314
+
      Prefix: 'ad7314'
+
      Datasheet: Publicly available at Analog Devices website.
+
    * Analog Devices ADT7301
+
      Prefix: 'adt7301'
+
      Datasheet: Publicly available at Analog Devices website.
+
    * Analog Devices ADT7302
+
      Prefix: 'adt7302'
+
      Datasheet: Publicly available at Analog Devices website.
 
 Description

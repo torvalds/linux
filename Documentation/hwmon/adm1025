@@ -2,23 +2,32 @@ Kernel driver adm1025
 =====================
 
 Supported chips:
+
   * Analog Devices ADM1025, ADM1025A
+
     Prefix: 'adm1025'
+
     Addresses scanned: I2C 0x2c - 0x2e
+
     Datasheet: Publicly available at the Analog Devices website
+
   * Philips NE1619
+
     Prefix: 'ne1619'
+
     Addresses scanned: I2C 0x2c - 0x2d
+
     Datasheet: Publicly available at the Philips website
 
 The NE1619 presents some differences with the original ADM1025:
+
   * Only two possible addresses (0x2c - 0x2d).
   * No temperature offset register, but we don't use it anyway.
   * No INT mode for pin 16. We don't play with it anyway.
 
 Authors:
-        Chen-Yuan Wu <gwu@esoft.com>,
-        Jean Delvare <jdelvare@suse.de>
+	- Chen-Yuan Wu <gwu@esoft.com>,
+	- Jean Delvare <jdelvare@suse.de>
 
 Description
 -----------

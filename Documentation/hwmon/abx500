@@ -2,14 +2,18 @@ Kernel driver abx500
 ====================
 
 Supported chips:
+
   * ST-Ericsson ABx500 series
+
     Prefix: 'abx500'
+
     Addresses scanned: -
+
     Datasheet: http://www.stericsson.com/developers/documentation.jsp
 
 Authors:
-        Martin Persson <martin.persson@stericsson.com>
-        Hongbo Zhang <hongbo.zhang@linaro.org>
+	Martin Persson <martin.persson@stericsson.com>
+	Hongbo Zhang <hongbo.zhang@linaro.org>
 
 Description
 -----------

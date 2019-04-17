@@ -2,8 +2,11 @@ Kernel driver scpi-hwmon
 ========================
 
 Supported chips:
+
  * Chips based on ARM System Control Processor Interface
+
    Addresses scanned: -
+
    Datasheet: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0922b/index.html
 
 Author: Punit Agrawal <punit.agrawal@arm.com>
@@ -14,7 +17,7 @@ Description
 This driver supports hardware monitoring for SoC's based on the ARM
 System Control Processor (SCP) implementing the System Control
 Processor Interface (SCPI). The following sensor types are supported
-by the SCP -
+by the SCP:
 
   * temperature
   * voltage

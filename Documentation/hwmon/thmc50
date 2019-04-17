@@ -2,30 +2,41 @@ Kernel driver thmc50
 =====================
 
 Supported chips:
+
   * Analog Devices ADM1022
+
     Prefix: 'adm1022'
+
     Addresses scanned: I2C 0x2c - 0x2e
+
     Datasheet: http://www.analog.com/en/prod/0,2877,ADM1022,00.html
+
   * Texas Instruments THMC50
+
     Prefix: 'thmc50'
+
     Addresses scanned: I2C 0x2c - 0x2e
-    Datasheet: http://www.ti.com/ 
+
+    Datasheet: http://www.ti.com/
+
 
 Author: Krzysztof Helt <krzysztof.h1@wp.pl>
 
 This driver was derived from the 2.4 kernel thmc50.c source file.
 
 Credits:
+
   thmc50.c (2.4 kernel):
-	Frodo Looijaard <frodol@dds.nl>
-	Philip Edelbrock <phil@netroedge.com>
+
+	- Frodo Looijaard <frodol@dds.nl>
+	- Philip Edelbrock <phil@netroedge.com>
 
 Module Parameters
 -----------------
 
 * adm1022_temp3: short array
-  List of adapter,address pairs to force chips into ADM1022 mode with
-  second remote temperature. This does not work for original THMC50 chips.
+    List of adapter,address pairs to force chips into ADM1022 mode with
+    second remote temperature. This does not work for original THMC50 chips.
 
 Description
 -----------
@@ -59,12 +70,17 @@ Driver Features
 
 The driver provides up to three temperatures:
 
-temp1		-- internal
-temp2		-- remote
-temp3		-- 2nd remote only for ADM1022
+temp1
+	- internal
+temp2
+	- remote
+temp3
+	- 2nd remote only for ADM1022
 
-pwm1		-- fan speed (0 = stop, 255 = full)
-pwm1_mode	-- always 0 (DC mode)
+pwm1
+	- fan speed (0 = stop, 255 = full)
+pwm1_mode
+	- always 0 (DC mode)
 
 The value of 0 for pwm1 also forces FAN_OFF signal from the chip,
 so it stops fans even if the value 0 into the ANALOG_OUT register does not.

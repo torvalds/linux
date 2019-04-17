@@ -1,17 +1,26 @@
 Kernel driver MCP3021
-======================
+=====================
 
 Supported chips:
+
   * Microchip Technology MCP3021
+
     Prefix: 'mcp3021'
+
     Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/21805a.pdf
+
   * Microchip Technology MCP3221
+
     Prefix: 'mcp3221'
+
     Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/21732c.pdf
 
+
+
 Authors:
-   Mingkai Hu
-   Sven Schuchmann <schuchmann@schleissheimer.de>
+
+   - Mingkai Hu
+   - Sven Schuchmann <schuchmann@schleissheimer.de>
 
 Description
 -----------

@@ -2,16 +2,21 @@ Kernel driver pcf8591
 =====================
 
 Supported chips:
+
   * Philips/NXP PCF8591
+
     Prefix: 'pcf8591'
+
     Addresses scanned: none
+
     Datasheet: Publicly available at the NXP website
-               http://www.nxp.com/pip/PCF8591_6.html
+
+	       http://www.nxp.com/pip/PCF8591_6.html
 
 Authors:
-        Aurelien Jarno <aurelien@aurel32.net>
-        valuable contributions by Jan M. Sendler <sendler@sendler.de>,
-        Jean Delvare <jdelvare@suse.de>
+      - Aurelien Jarno <aurelien@aurel32.net>
+      - valuable contributions by Jan M. Sendler <sendler@sendler.de>,
+      - Jean Delvare <jdelvare@suse.de>
 
 
 Description
@@ -22,24 +27,25 @@ analog output) for the I2C bus produced by Philips Semiconductors (now NXP).
 It is designed to provide a byte I2C interface to up to 4 separate devices.
 
 The PCF8591 has 4 analog inputs programmable as single-ended or
-differential inputs :
+differential inputs:
+
 - mode 0 : four single ended inputs
-        Pins AIN0 to AIN3 are single ended inputs for channels 0 to 3
+	Pins AIN0 to AIN3 are single ended inputs for channels 0 to 3
 
 - mode 1 : three differential inputs
-        Pins AIN3 is the common negative differential input
-        Pins AIN0 to AIN2 are positive differential inputs for channels 0 to 2
+	Pins AIN3 is the common negative differential input
+	Pins AIN0 to AIN2 are positive differential inputs for channels 0 to 2
 
 - mode 2 : single ended and differential mixed
-        Pins AIN0 and AIN1 are single ended inputs for channels 0 and 1
-        Pins AIN2 is the positive differential input for channel 3
-        Pins AIN3 is the negative differential input for channel 3
+	Pins AIN0 and AIN1 are single ended inputs for channels 0 and 1
+	Pins AIN2 is the positive differential input for channel 3
+	Pins AIN3 is the negative differential input for channel 3
 
 - mode 3 : two differential inputs
-        Pins AIN0 is the positive differential input for channel 0
-        Pins AIN1 is the negative differential input for channel 0
-        Pins AIN2 is the positive differential input for channel 1
-        Pins AIN3 is the negative differential input for channel 1
+	Pins AIN0 is the positive differential input for channel 0
+	Pins AIN1 is the negative differential input for channel 0
+	Pins AIN2 is the positive differential input for channel 1
+	Pins AIN3 is the negative differential input for channel 1
 
 See the datasheet for details.
 
@@ -49,10 +55,11 @@ Module parameters
 * input_mode int
 
     Analog input mode:
-         0 = four single ended inputs
-         1 = three differential inputs
-         2 = single ended and differential mixed
-         3 = two differential inputs
+
+	 - 0 = four single ended inputs
+	 - 1 = three differential inputs
+	 - 2 = single ended and differential mixed
+	 - 3 = two differential inputs
 
 
 Accessing PCF8591 via /sys interface
@@ -67,11 +74,12 @@ for details.
 Directories are being created for each instantiated PCF8591:
 
 /sys/bus/i2c/devices/<0>-<1>/
-where <0> is the bus the chip is connected to (e. g. i2c-0)
-and <1> the chip address ([48..4f])
+   where <0> is the bus the chip is connected to (e. g. i2c-0)
+   and <1> the chip address ([48..4f])
 
 Inside these directories, there are such files:
-in0_input, in1_input, in2_input, in3_input, out0_enable, out0_output, name
+
+   in0_input, in1_input, in2_input, in3_input, out0_enable, out0_output, name
 
 Name contains chip name.
 

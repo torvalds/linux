@@ -2,14 +2,19 @@ Kernel driver w83l785ts
 =======================
 
 Supported chips:
+
   * Winbond W83L785TS-S
+
     Prefix: 'w83l785ts'
+
     Addresses scanned: I2C 0x2e
+
     Datasheet: Publicly available at the Winbond USA website
-               http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/W83L785TS-S.pdf
+
+	       http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/W83L785TS-S.pdf
 
 Authors:
-        Jean Delvare <jdelvare@suse.de>
+	Jean Delvare <jdelvare@suse.de>
 
 Description
 -----------

@@ -2,11 +2,16 @@ Kernel driver hih6130
 =====================
 
 Supported chips:
+
   * Honeywell HIH-6130 / HIH-6131
+
     Prefix: 'hih6130'
+
     Addresses scanned: none
+
     Datasheet: Publicly available at the Honeywell website
-    http://sensing.honeywell.com/index.php?ci_id=3106&la_id=1&defId=44872
+
+	http://sensing.honeywell.com/index.php?ci_id=3106&la_id=1&defId=44872
 
 Author:
   Iain Paton <ipaton0@gmail.com>
@@ -28,8 +33,11 @@ instantiate I2C devices.
 sysfs-Interface
 ---------------
 
-temp1_input - temperature input
-humidity1_input - humidity input
+temp1_input
+	temperature input
+
+humidity1_input
+	humidity input
 
 Notes
 -----

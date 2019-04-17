@@ -2,9 +2,13 @@ Kernel driver g760a
 ===================
 
 Supported chips:
+
   * Global Mixed-mode Technology Inc. G760A
+
     Prefix: 'g760a'
+
     Datasheet: Publicly available at the GMT website
+
       http://www.gmt.com.tw/product/datasheet/EDS-760A.pdf
 
 Author: Herbert Valerio Riedel <hvr@gnu.org>

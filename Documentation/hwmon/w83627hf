@@ -20,10 +20,10 @@ Supported chips:
     Datasheet: Provided by Winbond on request(http://www.winbond.com/hq/enu)
 
 Authors:
-        Frodo Looijaard <frodol@dds.nl>,
-        Philip Edelbrock <phil@netroedge.com>,
-        Mark Studebaker <mdsxyz123@yahoo.com>,
-        Bernhard C. Schrenk <clemy@clemy.org>
+	Frodo Looijaard <frodol@dds.nl>,
+	Philip Edelbrock <phil@netroedge.com>,
+	Mark Studebaker <mdsxyz123@yahoo.com>,
+	Bernhard C. Schrenk <clemy@clemy.org>
 
 Module Parameters
 -----------------
@@ -52,8 +52,8 @@ If you really want i2c accesses for these Super I/O chips,
 use the w83781d driver. However this is not the preferred method
 now that this ISA driver has been developed.
 
-The w83627_HF_ uses pins 110-106 as VID0-VID4. The w83627_THF_ uses the
-same pins as GPIO[0:4]. Technically, the w83627_THF_ does not support a
+The `w83627_HF_` uses pins 110-106 as VID0-VID4. The `w83627_THF_` uses the
+same pins as GPIO[0:4]. Technically, the `w83627_THF_` does not support a
 VID reading. However the two chips have the identical 128 pin package. So,
 it is possible or even likely for a w83627thf to have the VID signals routed
 to these pins despite their not being labeled for that purpose. Therefore,
@@ -75,19 +75,23 @@ module parameter is gone for technical reasons. If you need this feature,
 you can obtain the same result by using the isaset tool (part of
 lm-sensors) before loading the driver:
 
-# Enter the Super I/O config space
-isaset -y -f 0x2e 0x87
-isaset -y -f 0x2e 0x87
+# Enter the Super I/O config space::
 
-# Select the hwmon logical device
-isaset -y 0x2e 0x2f 0x07 0x0b
+	isaset -y -f 0x2e 0x87
+	isaset -y -f 0x2e 0x87
 
-# Set the base I/O address (to 0x290 in this example)
-isaset -y 0x2e 0x2f 0x60 0x02
-isaset -y 0x2e 0x2f 0x61 0x90
+# Select the hwmon logical device::
 
-# Exit the Super-I/O config space
-isaset -y -f 0x2e 0xaa
+	isaset -y 0x2e 0x2f 0x07 0x0b
+
+# Set the base I/O address (to 0x290 in this example)::
+
+	isaset -y 0x2e 0x2f 0x60 0x02
+	isaset -y 0x2e 0x2f 0x61 0x90
+
+# Exit the Super-I/O config space::
+
+	isaset -y -f 0x2e 0xaa
 
 The above sequence assumes a Super-I/O config space at 0x2e/0x2f, but
 0x4e/0x4f is also possible.
@@ -97,18 +101,23 @@ Voltage pin mapping
 
 Here is a summary of the voltage pin mapping for the W83627THF. This
 can be useful to convert data provided by board manufacturers into
-working libsensors configuration statements.
+working libsensors configuration statements:
 
-    W83627THF		|
-  Pin	| Name		| Register	| Sysfs attribute
------------------------------------------------------
-  100	| CPUVCORE	| 20h		| in0
-   99	| VIN0		| 21h		| in1
-   98	| VIN1		| 22h		| in2
-   97	| VIN2		| 24h		| in4
-  114	| AVCC		| 23h		| in3
-   61	| 5VSB		| 50h (bank 5)	| in7
-   74	| VBAT		| 51h (bank 5)	| in8
+
+- W83627THF
+
+
+  ======== =============== =============== ===============
+  Pin	   Name		   Register	   Sysfs attribute
+  ======== =============== =============== ===============
+    100	   CPUVCORE	   20h		   in0
+     99	   VIN0		   21h		   in1
+     98	   VIN1		   22h		   in2
+     97	   VIN2		   24h		   in4
+    114	   AVCC		   23h		   in3
+     61	   5VSB		   50h (bank 5)	   in7
+     74	   VBAT		   51h (bank 5)	   in8
+  ======== =============== =============== ===============
 
 For other supported devices, you'll have to take the hard path and
 look up the information in the datasheet yourself (and then add it

@@ -2,12 +2,17 @@ Kernel driver tmp108
 ====================
 
 Supported chips:
+
   * Texas Instruments TMP108
+
     Prefix: 'tmp108'
+
     Addresses scanned: none
+
     Datasheet: http://www.ti.com/product/tmp108
 
 Author:
+
 	John Muir <john@jmuir.com>
 
 Description

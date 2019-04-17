@@ -2,23 +2,32 @@ Kernel driver lm87
 ==================
 
 Supported chips:
+
   * National Semiconductor LM87
+
     Prefix: 'lm87'
+
     Addresses scanned: I2C 0x2c - 0x2e
+
     Datasheet: http://www.national.com/pf/LM/LM87.html
+
   * Analog Devices ADM1024
+
     Prefix: 'adm1024'
+
     Addresses scanned: I2C 0x2c - 0x2e
+
     Datasheet: http://www.analog.com/en/prod/0,2877,ADM1024,00.html
 
+
 Authors:
-        Frodo Looijaard <frodol@dds.nl>,
-        Philip Edelbrock <phil@netroedge.com>,
-        Mark Studebaker <mdsxyz123@yahoo.com>,
-        Stephen Rousset <stephen.rousset@rocketlogix.com>,
-        Dan Eaton <dan.eaton@rocketlogix.com>,
-        Jean Delvare <jdelvare@suse.de>,
-        Original 2.6 port Jeff Oliver
+	- Frodo Looijaard <frodol@dds.nl>,
+	- Philip Edelbrock <phil@netroedge.com>,
+	- Mark Studebaker <mdsxyz123@yahoo.com>,
+	- Stephen Rousset <stephen.rousset@rocketlogix.com>,
+	- Dan Eaton <dan.eaton@rocketlogix.com>,
+	- Jean Delvare <jdelvare@suse.de>,
+	- Original 2.6 port Jeff Oliver
 
 Description
 -----------

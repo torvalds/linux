@@ -2,12 +2,17 @@ Kernel driver tmp102
 ====================
 
 Supported chips:
+
   * Texas Instruments TMP102
+
     Prefix: 'tmp102'
+
     Addresses scanned: none
+
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp102.html
 
 Author:
+
 	Steven King <sfking@fdwdc.com>
 
 Description

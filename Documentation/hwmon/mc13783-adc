@@ -2,16 +2,25 @@ Kernel driver mc13783-adc
 =========================
 
 Supported chips:
+
   * Freescale MC13783
+
     Prefix: 'mc13783'
+
     Datasheet: https://www.nxp.com/docs/en/data-sheet/MC13783.pdf
+
   * Freescale MC13892
+
     Prefix: 'mc13892'
+
     Datasheet: https://www.nxp.com/docs/en/data-sheet/MC13892.pdf
 
+
+
 Authors:
-    Sascha Hauer <s.hauer@pengutronix.de>
-    Luotao Fu <l.fu@pengutronix.de>
+
+   - Sascha Hauer <s.hauer@pengutronix.de>
+   - Luotao Fu <l.fu@pengutronix.de>
 
 Description
 -----------
@@ -30,9 +39,11 @@ the General Purpose inputs and touchscreen.
 See the following tables for the meaning of the different channels and their
 chip internal scaling:
 
-MC13783:
+- MC13783:
+
+======= =============================================== =============== =======
 Channel	Signal						Input Range	Scaling
--------------------------------------------------------------------------------
+======= =============================================== =============== =======
 0	Battery Voltage (BATT)				2.50 - 4.65V	-2.40V
 1	Battery Current (BATT - BATTISNS)		-50 - 50 mV	x20
 2	Application Supply (BP)				2.50 - 4.65V	-2.40V
@@ -52,10 +63,13 @@ Channel	Signal						Input Range	Scaling
 13	General Purpose TSX2 / Touchscreen X-plate 2	0 - 2.30V	No
 14	General Purpose TSY1 / Touchscreen Y-plate 1	0 - 2.30V	No
 15	General Purpose TSY2 / Touchscreen Y-plate 2	0 - 2.30V	No
+======= =============================================== =============== =======
 
-MC13892:
+- MC13892:
+
+======= =============================================== =============== =======
 Channel	Signal						Input Range	Scaling
--------------------------------------------------------------------------------
+======= =============================================== =============== =======
 0	Battery Voltage (BATT)				0 - 4.8V	/2
 1	Battery Current (BATT - BATTISNSCC)		-60 - 60 mV	x20
 2	Application Supply (BPSNS)			0 - 4.8V	/2
@@ -72,3 +86,4 @@ Channel	Signal						Input Range	Scaling
 13	General Purpose TSX2 / Touchscreen X-plate 2	0 - 2.4V	No
 14	General Purpose TSY1 / Touchscreen Y-plate 1	0 - 2.4V	No
 15	General Purpose TSY2 / Touchscreen Y-plate 2	0 - 2.4V	No
+======= =============================================== =============== =======

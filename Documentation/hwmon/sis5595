@@ -2,49 +2,67 @@ Kernel driver sis5595
 =====================
 
 Supported chips:
+
   * Silicon Integrated Systems Corp. SiS5595 Southbridge Hardware Monitor
+
     Prefix: 'sis5595'
+
     Addresses scanned: ISA in PCI-space encoded address
+
     Datasheet: Publicly available at the Silicon Integrated Systems Corp. site.
 
+
+
 Authors:
-        Kyösti Mälkki <kmalkki@cc.hut.fi>,
-        Mark D. Studebaker <mdsxyz123@yahoo.com>,
-        Aurelien Jarno <aurelien@aurel32.net> 2.6 port
+
+      - Kyösti Mälkki <kmalkki@cc.hut.fi>,
+      - Mark D. Studebaker <mdsxyz123@yahoo.com>,
+      - Aurelien Jarno <aurelien@aurel32.net> 2.6 port
 
    SiS southbridge has a LM78-like chip integrated on the same IC.
    This driver is a customized copy of lm78.c
 
    Supports following revisions:
+
+       =============== =============== ==============
        Version         PCI ID          PCI Revision
+       =============== =============== ==============
        1               1039/0008       AF or less
        2               1039/0008       B0 or greater
+       =============== =============== ==============
 
    Note: these chips contain a 0008 device which is incompatible with the
-        5595. We recognize these by the presence of the listed
-        "blacklist" PCI ID and refuse to load.
+	5595. We recognize these by the presence of the listed
+	"blacklist" PCI ID and refuse to load.
 
+   =================== =============== ================
    NOT SUPPORTED       PCI ID          BLACKLIST PCI ID
-        540            0008            0540
-        550            0008            0550
+   =================== =============== ================
+	540            0008            0540
+	550            0008            0550
        5513            0008            5511
        5581            0008            5597
        5582            0008            5597
        5597            0008            5597
-        630            0008            0630
-        645            0008            0645
-        730            0008            0730
-        735            0008            0735
+	630            0008            0630
+	645            0008            0645
+	730            0008            0730
+	735            0008            0735
+   =================== =============== ================
 
 
 Module Parameters
 -----------------
+
+======================= =====================================================
 force_addr=0xaddr	Set the I/O base address. Useful for boards
 			that don't set the address in the BIOS. Does not do a
 			PCI force; the device must still be present in lspci.
 			Don't use this unless the driver complains that the
 			base address is not set.
+
 			Example: 'modprobe sis5595 force_addr=0x290'
+======================= =====================================================
 
 
 Description

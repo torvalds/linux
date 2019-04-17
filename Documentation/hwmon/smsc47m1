@@ -2,30 +2,53 @@ Kernel driver smsc47m1
 ======================
 
 Supported chips:
+
   * SMSC LPC47B27x, LPC47M112, LPC47M10x, LPC47M13x, LPC47M14x,
+
     LPC47M15x and LPC47M192
+
     Addresses scanned: none, address read from Super I/O config space
+
     Prefix: 'smsc47m1'
+
     Datasheets:
-        http://www.smsc.com/media/Downloads_Public/Data_Sheets/47b272.pdf
-        http://www.smsc.com/media/Downloads_Public/Data_Sheets/47m10x.pdf
-        http://www.smsc.com/media/Downloads_Public/Data_Sheets/47m112.pdf
-        http://www.smsc.com/
+
+	http://www.smsc.com/media/Downloads_Public/Data_Sheets/47b272.pdf
+
+	http://www.smsc.com/media/Downloads_Public/Data_Sheets/47m10x.pdf
+
+	http://www.smsc.com/media/Downloads_Public/Data_Sheets/47m112.pdf
+
+	http://www.smsc.com/
+
   * SMSC LPC47M292
+
     Addresses scanned: none, address read from Super I/O config space
+
     Prefix: 'smsc47m2'
+
     Datasheet: Not public
+
   * SMSC LPC47M997
+
     Addresses scanned: none, address read from Super I/O config space
+
     Prefix: 'smsc47m1'
+
     Datasheet: none
 
+
+
 Authors:
-        Mark D. Studebaker <mdsxyz123@yahoo.com>,
-        With assistance from Bruce Allen <ballen@uwm.edu>, and his
-        fan.c program: http://www.lsc-group.phys.uwm.edu/%7Eballen/driver/
-        Gabriele Gorla <gorlik@yahoo.com>,
-        Jean Delvare <jdelvare@suse.de>
+
+     - Mark D. Studebaker <mdsxyz123@yahoo.com>,
+     - With assistance from Bruce Allen <ballen@uwm.edu>, and his
+       fan.c program:
+
+       - http://www.lsc-group.phys.uwm.edu/%7Eballen/driver/
+
+     - Gabriele Gorla <gorlik@yahoo.com>,
+     - Jean Delvare <jdelvare@suse.de>
 
 Description
 -----------
@@ -57,7 +80,7 @@ hardware registers are read whenever any data is read (unless it is less
 than 1.5 seconds since the last update). This means that you can easily
 miss once-only alarms.
 
+------------------------------------------------------------------
 
-**********************
 The lm_sensors project gratefully acknowledges the support of
 Intel in the development of this driver.

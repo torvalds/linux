@@ -2,17 +2,29 @@ Kernel driver shtc1
 ===================
 
 Supported chips:
+
   * Sensirion SHTC1
+
     Prefix: 'shtc1'
+
     Addresses scanned: none
+
     Datasheet: http://www.sensirion.com/file/datasheet_shtc1
 
+
+
   * Sensirion SHTW1
+
     Prefix: 'shtw1'
+
     Addresses scanned: none
+
     Datasheet: Not publicly available
 
+
+
 Author:
+
   Johannes Winkelmann <johannes.winkelmann@sensirion.com>
 
 Description
@@ -28,6 +40,7 @@ address 0x70. See Documentation/i2c/instantiating-devices for methods to
 instantiate the device.
 
 There are two options configurable by means of shtc1_platform_data:
+
 1. blocking (pull the I2C clock line down while performing the measurement) or
    non-blocking mode. Blocking mode will guarantee the fastest result but
    the I2C bus will be busy during that time. By default, non-blocking mode
@@ -39,5 +52,7 @@ There are two options configurable by means of shtc1_platform_data:
 sysfs-Interface
 ---------------
 
-temp1_input - temperature input
-humidity1_input - humidity input
+temp1_input
+	- temperature input
+humidity1_input
+	- humidity input

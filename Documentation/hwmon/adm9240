@@ -2,30 +2,43 @@ Kernel driver adm9240
 =====================
 
 Supported chips:
+
   * Analog Devices ADM9240
+
     Prefix: 'adm9240'
+
     Addresses scanned: I2C 0x2c - 0x2f
+
     Datasheet: Publicly available at the Analog Devices website
-    http://www.analog.com/UploadedFiles/Data_Sheets/79857778ADM9240_0.pdf
+
+	http://www.analog.com/UploadedFiles/Data_Sheets/79857778ADM9240_0.pdf
 
   * Dallas Semiconductor DS1780
+
     Prefix: 'ds1780'
+
     Addresses scanned: I2C 0x2c - 0x2f
+
     Datasheet: Publicly available at the Dallas Semiconductor (Maxim) website
-    http://pdfserv.maxim-ic.com/en/ds/DS1780.pdf
+
+	http://pdfserv.maxim-ic.com/en/ds/DS1780.pdf
 
   * National Semiconductor LM81
+
     Prefix: 'lm81'
+
     Addresses scanned: I2C 0x2c - 0x2f
+
     Datasheet: Publicly available at the National Semiconductor website
-    http://www.national.com/ds.cgi/LM/LM81.pdf
+
+	http://www.national.com/ds.cgi/LM/LM81.pdf
 
 Authors:
-    Frodo Looijaard <frodol@dds.nl>,
-    Philip Edelbrock <phil@netroedge.com>,
-    Michiel Rook <michiel@grendelproject.nl>,
-    Grant Coady <gcoady.lk@gmail.com> with guidance
-        from Jean Delvare <jdelvare@suse.de>
+    - Frodo Looijaard <frodol@dds.nl>,
+    - Philip Edelbrock <phil@netroedge.com>,
+    - Michiel Rook <michiel@grendelproject.nl>,
+    - Grant Coady <gcoady.lk@gmail.com> with guidance
+      from Jean Delvare <jdelvare@suse.de>
 
 Interface
 ---------
@@ -87,11 +100,13 @@ rpm = (22500 * 60) / (count * divider)
 Automatic fan clock divider
 
   * User sets 0 to fan_min limit
+
     - low speed alarm is disabled
     - fan clock divider not changed
     - auto fan clock adjuster enabled for valid fan speed reading
 
   * User sets fan_min limit too low
+
     - low speed alarm is enabled
     - fan clock divider set to max
     - fan_min set to register value 254 which corresponds
@@ -101,18 +116,20 @@ Automatic fan clock divider
     - auto fan clock adjuster disabled
 
   * User sets reasonable fan speed
+
     - low speed alarm is enabled
     - fan clock divider set to suit fan_min
     - auto fan clock adjuster enabled: adjusts fan_min
 
   * User sets unreasonably high low fan speed limit
+
     - resolution of the low speed limit may be reduced
     - alarm will be asserted
     - auto fan clock adjuster enabled: adjusts fan_min
 
-    * fan speed may be displayed as zero until the auto fan clock divider
-      adjuster brings fan speed clock divider back into chip measurement
-      range, this will occur within a few measurement cycles.
+  * fan speed may be displayed as zero until the auto fan clock divider
+    adjuster brings fan speed clock divider back into chip measurement
+    range, this will occur within a few measurement cycles.
 
 Analog Output
 -------------
@@ -122,16 +139,21 @@ power up or reset. This doesn't do much on the test Intel SE440BX-2.
 
 Voltage Monitor
 
+^^^^^^^^^^^^^^^
+
 Voltage (IN) measurement is internally scaled:
 
+    === =========== =========== ========= ==========
     nr  label       nominal     maximum   resolution
-                      mV          mV         mV
+		      mV          mV         mV
+    === =========== =========== ========= ==========
     0   +2.5V        2500        3320       13.0
     1   Vccp1        2700        3600       14.1
     2   +3.3V        3300        4380       17.2
     3     +5V        5000        6640       26.0
     4    +12V       12000       15940       62.5
     5   Vccp2        2700        3600       14.1
+    === =========== =========== ========= ==========
 
 The reading is an unsigned 8-bit value, nominal voltage measurement is
 represented by a reading of 192, being 3/4 of the measurement range.
@@ -159,8 +181,9 @@ Clear the CI latch by writing value 0 to the sysfs intrusion0_alarm file.
 
 Alarm flags reported as 16-bit word
 
+    ===     =============       ==========================
     bit     label               comment
-    ---     -------------       --------------------------
+    ===     =============       ==========================
      0      +2.5 V_Error        high or low limit exceeded
      1      VCCP_Error          high or low limit exceeded
      2      +3.3 V_Error        high or low limit exceeded
@@ -171,6 +194,7 @@ Alarm flags reported as 16-bit word
      8      +12 V_Error         high or low limit exceeded
      9      VCCP2_Error         high or low limit exceeded
     12      Chassis_Error       CI pin went high
+    ===     =============       ==========================
 
 Remaining bits are reserved and thus undefined. It is important to note
 that alarm bits may be cleared on read, user-space may latch alarms and

@@ -2,105 +2,179 @@ Kernel driver it87
 ==================
 
 Supported chips:
+
   * IT8603E/IT8623E
+
     Prefix: 'it8603'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8620E
+
     Prefix: 'it8620'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
   * IT8628E
+
     Prefix: 'it8628'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8705F
+
     Prefix: 'it87'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Once publicly available at the ITE website, but no longer
+
   * IT8712F
+
     Prefix: 'it8712'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Once publicly available at the ITE website, but no longer
+
   * IT8716F/IT8726F
+
     Prefix: 'it8716'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Once publicly available at the ITE website, but no longer
+
   * IT8718F
+
     Prefix: 'it8718'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Once publicly available at the ITE website, but no longer
+
   * IT8720F
+
     Prefix: 'it8720'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8721F/IT8758E
+
     Prefix: 'it8721'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8728F
+
     Prefix: 'it8728'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8732F
+
     Prefix: 'it8732'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8771E
+
     Prefix: 'it8771'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8772E
+
     Prefix: 'it8772'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8781F
+
     Prefix: 'it8781'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8782F
+
     Prefix: 'it8782'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8783E/F
+
     Prefix: 'it8783'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8786E
+
     Prefix: 'it8786'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * IT8790E
+
     Prefix: 'it8790'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: Not publicly available
+
   * SiS950   [clone of IT8705F]
+
     Prefix: 'it87'
+
     Addresses scanned: from Super I/O config space (8 I/O ports)
+
     Datasheet: No longer be available
 
+
 Authors:
-    Christophe Gauthron
-    Jean Delvare <jdelvare@suse.de>
+    - Christophe Gauthron
+    - Jean Delvare <jdelvare@suse.de>
 
 
 Module Parameters
 -----------------
 
 * update_vbat: int
-
-  0 if vbat should report power on value, 1 if vbat should be updated after
-  each read. Default is 0. On some boards the battery voltage is provided
-  by either the battery or the onboard power supply. Only the first reading
-  at power on will be the actual battery voltage (which the chip does
-  automatically). On other boards the battery voltage is always fed to
-  the chip so can be read at any time. Excessive reading may decrease
-  battery life but no information is given in the datasheet.
+    0 if vbat should report power on value, 1 if vbat should be updated after
+    each read. Default is 0. On some boards the battery voltage is provided
+    by either the battery or the onboard power supply. Only the first reading
+    at power on will be the actual battery voltage (which the chip does
+    automatically). On other boards the battery voltage is always fed to
+    the chip so can be read at any time. Excessive reading may decrease
+    battery life but no information is given in the datasheet.
 
 * fix_pwm_polarity int
-
-  Force PWM polarity to active high (DANGEROUS). Some chips are
-  misconfigured by BIOS - PWM values would be inverted. This option tries
-  to fix this. Please contact your BIOS manufacturer and ask him for fix.
+    Force PWM polarity to active high (DANGEROUS). Some chips are
+    misconfigured by BIOS - PWM values would be inverted. This option tries
+    to fix this. Please contact your BIOS manufacturer and ask him for fix.
 
 
 Hardware Interfaces

@@ -2,9 +2,13 @@ Kernel driver max31790
 ======================
 
 Supported chips:
+
   * Maxim MAX31790
+
     Prefix: 'max31790'
+
     Addresses scanned: -
+
     Datasheet: http://pdfserv.maximintegrated.com/en/ds/MAX31790.pdf
 
 Author: Il Han <corone.il.han@gmail.com>
@@ -30,8 +34,10 @@ also be configured to serve as tachometer inputs.
 Sysfs entries
 -------------
 
+================== === =======================================================
 fan[1-12]_input    RO  fan tachometer speed in RPM
 fan[1-12]_fault    RO  fan experienced fault
 fan[1-6]_target    RW  desired fan speed in RPM
 pwm[1-6]_enable    RW  regulator mode, 0=disabled, 1=manual mode, 2=rpm mode
 pwm[1-6]           RW  fan target duty cycle (0-255)
+================== === =======================================================

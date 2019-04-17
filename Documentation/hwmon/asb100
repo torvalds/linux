@@ -2,9 +2,13 @@ Kernel driver asb100
 ====================
 
 Supported Chips:
+
   * Asus ASB100 and ASB100-A "Bach"
+
     Prefix: 'asb100'
+
     Addresses scanned: I2C 0x2d
+
     Datasheet: none released
 
 Author: Mark M. Hoffman <mhoffman@lightlink.com>
@@ -41,32 +45,30 @@ processor itself. It is a value in volts.
 
 Alarms: (TODO question marks indicate may or may not work)
 
-0x0001 => in0 (?)
-0x0002 => in1 (?)
-0x0004 => in2
-0x0008 => in3
-0x0010 => temp1 (1)
-0x0020 => temp2
-0x0040 => fan1
-0x0080 => fan2
-0x0100 => in4
-0x0200 => in5 (?) (2)
-0x0400 => in6 (?) (2)
-0x0800 => fan3
-0x1000 => chassis switch
-0x2000 => temp3
+- 0x0001 => in0 (?)
+- 0x0002 => in1 (?)
+- 0x0004 => in2
+- 0x0008 => in3
+- 0x0010 => temp1 [1]_
+- 0x0020 => temp2
+- 0x0040 => fan1
+- 0x0080 => fan2
+- 0x0100 => in4
+- 0x0200 => in5 (?) [2]_
+- 0x0400 => in6 (?) [2]_
+- 0x0800 => fan3
+- 0x1000 => chassis switch
+- 0x2000 => temp3
 
-Alarm Notes:
+.. [1]	This alarm will only trigger if the hysteresis value is 127C.
+	I.e. it behaves the same as w83781d.
 
-(1) This alarm will only trigger if the hysteresis value is 127C.
-I.e. it behaves the same as w83781d.
-
-(2) The min and max registers for these values appear to
-be read-only or otherwise stuck at 0x00.
+.. [2]	The min and max registers for these values appear to
+	be read-only or otherwise stuck at 0x00.
 
 TODO:
-* Experiment with fan divisors > 8.
-* Experiment with temp. sensor types.
-* Are there really 13 voltage inputs? Probably not...
-* Cleanups, no doubt...
+  * Experiment with fan divisors > 8.
+  * Experiment with temp. sensor types.
+  * Are there really 13 voltage inputs? Probably not...
+  * Cleanups, no doubt...
 

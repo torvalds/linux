@@ -2,22 +2,35 @@ Kernel driver lm92
 ==================
 
 Supported chips:
+
   * National Semiconductor LM92
+
     Prefix: 'lm92'
+
     Addresses scanned: I2C 0x48 - 0x4b
+
     Datasheet: http://www.national.com/pf/LM/LM92.html
+
   * National Semiconductor LM76
+
     Prefix: 'lm92'
+
     Addresses scanned: none, force parameter needed
+
     Datasheet: http://www.national.com/pf/LM/LM76.html
+
   * Maxim MAX6633/MAX6634/MAX6635
+
     Prefix: 'max6635'
+
     Addresses scanned: none, force parameter needed
+
     Datasheet: http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3074
 
+
 Authors:
-        Abraham van der Merwe <abraham@2d3d.co.za>
-        Jean Delvare <jdelvare@suse.de>
+       - Abraham van der Merwe <abraham@2d3d.co.za>
+       - Jean Delvare <jdelvare@suse.de>
 
 
 Description

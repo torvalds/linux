@@ -2,14 +2,23 @@ Kernel driver nsa320_hwmon
 ==========================
 
 Supported chips:
+
   * Holtek HT46R065 microcontroller with onboard firmware that configures
+
 	it to act as a hardware monitor.
+
     Prefix: 'nsa320'
+
     Addresses scanned: none
+
     Datasheet: Not available, driver was reverse engineered based upon the
+
 	Zyxel kernel source
 
+
+
 Author:
+
   Adam Baker <linux@baker-net.org.uk>
 
 Description
@@ -31,8 +40,10 @@ tenths of a degree.
 sysfs-Interface
 ---------------
 
-temp1_input - temperature input
-fan1_input - fan speed
+============= =================
+temp1_input   temperature input
+fan1_input    fan speed
+============= =================
 
 Notes
 -----

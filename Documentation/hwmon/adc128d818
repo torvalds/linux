@@ -2,11 +2,14 @@ Kernel driver adc128d818
 ========================
 
 Supported chips:
+
   * Texas Instruments ADC818D818
+
     Prefix: 'adc818d818'
+
     Addresses scanned: I2C 0x1d, 0x1e, 0x1f, 0x2d, 0x2e, 0x2f
-    Datasheet: Publicly available at the TI website
-               http://www.ti.com/
+
+    Datasheet: Publicly available at the TI website http://www.ti.com/
 
 Author: Guenter Roeck
 

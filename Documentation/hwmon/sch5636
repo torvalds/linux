@@ -2,8 +2,11 @@ Kernel driver sch5636
 =====================
 
 Supported chips:
+
   * SMSC SCH5636
+
     Prefix: 'sch5636'
+
     Addresses scanned: none, address read from Super I/O config space
 
 Author: Hans de Goede <hdegoede@redhat.com>

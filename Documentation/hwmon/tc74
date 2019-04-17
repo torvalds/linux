@@ -2,8 +2,11 @@ Kernel driver tc74
 ====================
 
 Supported chips:
+
    * Microchip TC74
+
      Prefix: 'tc74'
+
      Datasheet: Publicly available at Microchip website.
 
 Description

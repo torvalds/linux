@@ -1,16 +1,23 @@
 Kernel driver lm95245
-==================
+=====================
 
 Supported chips:
-  * TI LM95235
-    Addresses scanned: I2C 0x18, 0x29, 0x4c
-    Datasheet: Publicly available at the TI website
-               http://www.ti.com/lit/ds/symlink/lm95235.pdf
-  * TI / National Semiconductor LM95245
-    Addresses scanned: I2C 0x18, 0x19, 0x29, 0x4c, 0x4d
-    Datasheet: Publicly available at the TI website
-               http://www.ti.com/lit/ds/symlink/lm95245.pdf
 
+  * TI LM95235
+
+    Addresses scanned: I2C 0x18, 0x29, 0x4c
+
+    Datasheet: Publicly available at the TI website
+
+	       http://www.ti.com/lit/ds/symlink/lm95235.pdf
+
+  * TI / National Semiconductor LM95245
+
+    Addresses scanned: I2C 0x18, 0x19, 0x29, 0x4c, 0x4d
+
+    Datasheet: Publicly available at the TI website
+
+	       http://www.ti.com/lit/ds/symlink/lm95245.pdf
 
 Author: Alexander Stein <alexander.stein@systec-electronic.com>
 

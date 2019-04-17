@@ -2,12 +2,17 @@ Kernel driver tmp103
 ====================
 
 Supported chips:
+
   * Texas Instruments TMP103
+
     Prefix: 'tmp103'
+
     Addresses scanned: none
+
     Product info and datasheet: http://www.ti.com/product/tmp103
 
 Author:
+
 	Heiko Schocher <hs@denx.de>
 
 Description

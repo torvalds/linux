@@ -2,26 +2,43 @@ Kernel driver lm63
 ==================
 
 Supported chips:
+
   * National Semiconductor LM63
+
     Prefix: 'lm63'
+
     Addresses scanned: I2C 0x4c
+
     Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM63.html
+
+	       http://www.national.com/pf/LM/LM63.html
+
   * National Semiconductor LM64
+
     Prefix: 'lm64'
+
     Addresses scanned: I2C 0x18 and 0x4e
+
     Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM64.html
+
+	       http://www.national.com/pf/LM/LM64.html
+
   * National Semiconductor LM96163
+
     Prefix: 'lm96163'
+
     Addresses scanned: I2C 0x4c
+
     Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM96163.html
+
+	       http://www.national.com/pf/LM/LM96163.html
+
 
 Author: Jean Delvare <jdelvare@suse.de>
 
 Thanks go to Tyan and especially Alex Buckingham for setting up a remote
 access to their S4882 test platform for this driver.
+
   http://www.tyan.com/
 
 Description
@@ -32,6 +49,7 @@ and control.
 
 The LM63 is basically an LM86 with fan speed monitoring and control
 capabilities added. It misses some of the LM86 features though:
+
  - No low limit for local temperature.
  - No critical limit for local temperature.
  - Critical limit for remote temperature can be changed only once. We

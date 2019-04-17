@@ -2,11 +2,17 @@ Kernel driver lm77
 ==================
 
 Supported chips:
+
   * National Semiconductor LM77
+
     Prefix: 'lm77'
+
     Addresses scanned: I2C 0x48 - 0x4b
+
     Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/
+
+	       http://www.national.com/
+
 
 Author: Andras BALI <drewie@freemail.hu>
 
@@ -25,6 +31,7 @@ register on the chip, which means that the relative difference between
 the limit and its hysteresis is always the same for all 3 limits.
 
 This implementation detail implies the following:
+
 * When setting a limit, its hysteresis will automatically follow, the
   difference staying unchanged. For example, if the old critical limit
   was 80 degrees C, and the hysteresis was 75 degrees C, and you change

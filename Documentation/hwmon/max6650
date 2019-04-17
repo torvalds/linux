@@ -2,19 +2,27 @@ Kernel driver max6650
 =====================
 
 Supported chips:
+
   * Maxim MAX6650
+
     Prefix: 'max6650'
+
     Addresses scanned: none
+
     Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
+
   * Maxim MAX6651
+
     Prefix: 'max6651'
+
     Addresses scanned: none
+
     Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
 
 Authors:
-    Hans J. Koch <hjk@hansjkoch.de>
-    John Morris <john.morris@spirentcom.com>
-    Claus Gindhart <claus.gindhart@kontron.com>
+    - Hans J. Koch <hjk@hansjkoch.de>
+    - John Morris <john.morris@spirentcom.com>
+    - Claus Gindhart <claus.gindhart@kontron.com>
 
 Description
 -----------
@@ -28,6 +36,7 @@ The driver is not able to distinguish between the 2 devices.
 
 The driver provides the following sensor accesses in sysfs:
 
+=============== ======= =======================================================
 fan1_input	ro	fan tachometer speed in RPM
 fan2_input	ro	"
 fan3_input	ro	"
@@ -40,6 +49,7 @@ pwm1		rw	relative speed (0-255), 255=max. speed.
 fan1_div	rw	sets the speed range the inputs can handle. Legal
 			values are 1, 2, 4, and 8. Use lower values for
 			faster fans.
+=============== ======= =======================================================
 
 Usage notes
 -----------

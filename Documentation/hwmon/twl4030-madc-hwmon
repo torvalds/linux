@@ -1,8 +1,10 @@
 Kernel driver twl4030-madc
-=========================
+==========================
 
 Supported chips:
+
 	* Texas Instruments TWL4030
+
 	Prefix: 'twl4030-madc'
 
 
@@ -19,8 +21,9 @@ channels which can be used in different modes.
 
 See this table for the meaning of the different channels
 
+======= ==========================================================
 Channel Signal
-------------------------------------------
+======= ==========================================================
 0	Battery type(BTYPE)
 1	BCI: Battery temperature (BTEMP)
 2	GP analog input
@@ -37,6 +40,7 @@ Channel Signal
 13	Reserved
 14	Reserved
 15	VRUSB Supply/Speaker left/Speaker right polarization level
+======= ==========================================================
 
 
 The Sysfs nodes will represent the voltage in the units of mV,

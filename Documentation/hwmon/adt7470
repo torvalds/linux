@@ -2,9 +2,13 @@ Kernel driver adt7470
 =====================
 
 Supported chips:
+
   * Analog Devices ADT7470
+
     Prefix: 'adt7470'
+
     Addresses scanned: I2C 0x2C, 0x2E, 0x2F
+
     Datasheet: Publicly available at the Analog Devices website
 
 Author: Darrick J. Wong
@@ -56,8 +60,8 @@ Besides standard interfaces driver adds the following:
 * pwm#_auto_point1_pwm and pwm#_auto_point1_temp and
 * pwm#_auto_point2_pwm and pwm#_auto_point2_temp -
 
-point1: Set the pwm speed at a lower temperature bound.
-point2: Set the pwm speed at a higher temperature bound.
+  - point1: Set the pwm speed at a lower temperature bound.
+  - point2: Set the pwm speed at a higher temperature bound.
 
 The ADT7470 will scale the pwm between the lower and higher pwm speed when
 the temperature is between the two temperature boundaries.  PWM values range

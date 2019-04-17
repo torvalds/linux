@@ -2,27 +2,34 @@ Kernel driver gl518sm
 =====================
 
 Supported chips:
+
   * Genesys Logic GL518SM release 0x00
+
     Prefix: 'gl518sm'
+
     Addresses scanned: I2C 0x2c and 0x2d
+
   * Genesys Logic GL518SM release 0x80
+
     Prefix: 'gl518sm'
+
     Addresses scanned: I2C 0x2c and 0x2d
+
     Datasheet: http://www.genesyslogic.com/
 
 Authors:
-        Frodo Looijaard <frodol@dds.nl>,
-        Kyösti Mälkki <kmalkki@cc.hut.fi>
-        Hong-Gunn Chew <hglinux@gunnet.org>
-        Jean Delvare <jdelvare@suse.de>
+       - Frodo Looijaard <frodol@dds.nl>,
+       - Kyösti Mälkki <kmalkki@cc.hut.fi>
+       - Hong-Gunn Chew <hglinux@gunnet.org>
+       - Jean Delvare <jdelvare@suse.de>
 
 Description
 -----------
 
-IMPORTANT:
+.. important::
 
-For the revision 0x00 chip, the in0, in1, and in2  values (+5V, +3V,
-and +12V) CANNOT be read. This is a limitation of the chip, not the driver.
+   For the revision 0x00 chip, the in0, in1, and in2  values (+5V, +3V,
+   and +12V) CANNOT be read. This is a limitation of the chip, not the driver.
 
 This driver supports the Genesys Logic GL518SM chip. There are at least
 two revision of this chip, which we call revision 0x00 and 0x80. Revision

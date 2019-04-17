@@ -3,28 +3,36 @@ Kernel driver adm1026
 
 Supported chips:
   * Analog Devices ADM1026
+
     Prefix: 'adm1026'
+
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+
     Datasheet: Publicly available at the Analog Devices website
-               http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026
+
+	       http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026
 
 Authors:
-        Philip Pokorny <ppokorny@penguincomputing.com> for Penguin Computing
-        Justin Thiessen <jthiessen@penguincomputing.com>
+	- Philip Pokorny <ppokorny@penguincomputing.com> for Penguin Computing
+	- Justin Thiessen <jthiessen@penguincomputing.com>
 
 Module Parameters
 -----------------
 
 * gpio_input: int array (min = 1, max = 17)
-  List of GPIO pins (0-16) to program as inputs
+    List of GPIO pins (0-16) to program as inputs
+
 * gpio_output: int array (min = 1, max = 17)
-  List of GPIO pins (0-16) to program as outputs
+    List of GPIO pins (0-16) to program as outputs
+
 * gpio_inverted: int array (min = 1, max = 17)
-  List of GPIO pins (0-16) to program as inverted
+    List of GPIO pins (0-16) to program as inverted
+
 * gpio_normal: int array (min = 1, max = 17)
-  List of GPIO pins (0-16) to program as normal/non-inverted
+    List of GPIO pins (0-16) to program as normal/non-inverted
+
 * gpio_fan: int array (min = 1, max = 8)
-  List of GPIO pins (0-7) to program as fan tachs
+    List of GPIO pins (0-7) to program as fan tachs
 
 
 Description

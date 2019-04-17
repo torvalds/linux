@@ -1,16 +1,22 @@
-Maxim MAX197 driver
-===================
+Kernel driver max197
+====================
 
 Author:
+
   * Vivien Didelot <vivien.didelot@savoirfairelinux.com>
 
 Supported chips:
+
   * Maxim MAX197
+
     Prefix: 'max197'
+
     Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX197.pdf
 
   * Maxim MAX199
+
     Prefix: 'max199'
+
     Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX199.pdf
 
 Description
@@ -26,7 +32,7 @@ Platform data
 -------------
 
 The MAX197 platform data (defined in linux/platform_data/max197.h) should be
-filled with a pointer to a conversion function, defined like:
+filled with a pointer to a conversion function, defined like::
 
     int convert(u8 ctrl);
 
@@ -36,25 +42,29 @@ or a negative error code otherwise.
 
 Control byte format:
 
+======= ========== ============================================
 Bit     Name       Description
 7,6     PD1,PD0    Clock and Power-Down modes
 5       ACQMOD     Internal or External Controlled Acquisition
 4       RNG        Full-scale voltage magnitude at the input
 3       BIP        Unipolar or Bipolar conversion mode
 2,1,0   A2,A1,A0   Channel
+======= ========== ============================================
 
 Sysfs interface
 ---------------
 
-* in[0-7]_input: The conversion value for the corresponding channel.
-                 RO
+  ============== ==============================================================
+  in[0-7]_input  The conversion value for the corresponding channel.
+		 RO
 
-* in[0-7]_min:   The lower limit (in mV) for the corresponding channel.
-                 For the MAX197, it will be adjusted to -10000, -5000, or 0.
-                 For the MAX199, it will be adjusted to -4000, -2000, or 0.
-                 RW
+  in[0-7]_min    The lower limit (in mV) for the corresponding channel.
+		 For the MAX197, it will be adjusted to -10000, -5000, or 0.
+		 For the MAX199, it will be adjusted to -4000, -2000, or 0.
+		 RW
 
-* in[0-7]_max:   The higher limit (in mV) for the corresponding channel.
-                 For the MAX197, it will be adjusted to 0, 5000, or 10000.
-                 For the MAX199, it will be adjusted to 0, 2000, or 4000.
-                 RW
+  in[0-7]_max    The higher limit (in mV) for the corresponding channel.
+		 For the MAX197, it will be adjusted to 0, 5000, or 10000.
+		 For the MAX199, it will be adjusted to 0, 2000, or 4000.
+		 RW
+  ============== ==============================================================

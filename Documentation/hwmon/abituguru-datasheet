@@ -1,3 +1,4 @@
+===============
 uGuru datasheet
 ===============
 
@@ -168,34 +169,35 @@ This bank contains 0 sensors, iow the sensor address is ignored (but must be
 written) just use 0. Bank 0x20 contains 3 bytes:
 
 Byte 0:
-This byte holds the alarm flags for sensor 0-7 of Sensor Bank1, with bit 0
-corresponding to sensor 0, 1 to 1, etc.
+  This byte holds the alarm flags for sensor 0-7 of Sensor Bank1, with bit 0
+  corresponding to sensor 0, 1 to 1, etc.
 
 Byte 1:
-This byte holds the alarm flags for sensor 8-15 of Sensor Bank1, with bit 0
-corresponding to sensor 8, 1 to 9, etc.
+  This byte holds the alarm flags for sensor 8-15 of Sensor Bank1, with bit 0
+  corresponding to sensor 8, 1 to 9, etc.
 
 Byte 2:
-This byte holds the alarm flags for sensor 0-5 of Sensor Bank2, with bit 0
-corresponding to sensor 0, 1 to 1, etc.
+  This byte holds the alarm flags for sensor 0-5 of Sensor Bank2, with bit 0
+  corresponding to sensor 0, 1 to 1, etc.
 
 
 Bank 0x21 Sensor Bank1 Values / Readings (R)
 --------------------------------------------
 This bank contains 16 sensors, for each sensor it contains 1 byte.
 So far the following sensors are known to be available on all motherboards:
-Sensor  0 CPU temp
-Sensor  1 SYS temp
-Sensor  3 CPU core volt
-Sensor  4 DDR volt
-Sensor 10 DDR Vtt volt
-Sensor 15 PWM temp
+
+- Sensor  0 CPU temp
+- Sensor  1 SYS temp
+- Sensor  3 CPU core volt
+- Sensor  4 DDR volt
+- Sensor 10 DDR Vtt volt
+- Sensor 15 PWM temp
 
 Byte 0:
-This byte holds the reading from the sensor. Sensors in Bank1 can be both
-volt and temp sensors, this is motherboard specific. The uGuru however does
-seem to know (be programmed with) what kindoff sensor is attached see Sensor
-Bank1 Settings description.
+  This byte holds the reading from the sensor. Sensors in Bank1 can be both
+  volt and temp sensors, this is motherboard specific. The uGuru however does
+  seem to know (be programmed with) what kindoff sensor is attached see Sensor
+  Bank1 Settings description.
 
 Volt sensors use a linear scale, a reading 0 corresponds with 0 volt and a
 reading of 255 with 3494 mV. The sensors for higher voltages however are
@@ -207,96 +209,118 @@ Temp sensors also use a linear scale, a reading of 0 corresponds with 0 degree
 Celsius and a reading of 255 with a reading of 255 degrees Celsius.
 
 
-Bank 0x22 Sensor Bank1 Settings (R)
-Bank 0x23 Sensor Bank1 Settings (W)
------------------------------------
+Bank 0x22 Sensor Bank1 Settings (R) and Bank 0x23 Sensor Bank1 Settings (W)
+---------------------------------------------------------------------------
 
-This bank contains 16 sensors, for each sensor it contains 3 bytes. Each
+Those banks contain 16 sensors, for each sensor it contains 3 bytes. Each
 set of 3 bytes contains the settings for the sensor with the same sensor
 address in Bank 0x21 .
 
 Byte 0:
-Alarm behaviour for the selected sensor. A 1 enables the described behaviour.
-Bit 0: Give an alarm if measured temp is over the warning threshold	(RW) *
-Bit 1: Give an alarm if measured volt is over the max threshold		(RW) **
-Bit 2: Give an alarm if measured volt is under the min threshold	(RW) **
-Bit 3: Beep if alarm							(RW)
-Bit 4: 1 if alarm cause measured temp is over the warning threshold	(R)
-Bit 5: 1 if alarm cause measured volt is over the max threshold		(R)
-Bit 6: 1 if alarm cause measured volt is under the min threshold	(R)
-Bit 7: Volt sensor: Shutdown if alarm persist for more than 4 seconds	(RW)
-       Temp sensor: Shutdown if temp is over the shutdown threshold	(RW)
+  Alarm behaviour for the selected sensor. A 1 enables the described
+  behaviour.
 
-*  This bit is only honored/used by the uGuru if a temp sensor is connected
-** This bit is only honored/used by the uGuru if a volt sensor is connected
-Note with some trickery this can be used to find out what kinda sensor is
-detected see the Linux kernel driver for an example with many comments on
-how todo this.
+Bit 0:
+  Give an alarm if measured temp is over the warning threshold		(RW) [1]_
+
+Bit 1:
+  Give an alarm if measured volt is over the max threshold		(RW) [2]_
+
+Bit 2:
+  Give an alarm if measured volt is under the min threshold		(RW) [2]_
+
+Bit 3:
+  Beep if alarm								(RW)
+
+Bit 4:
+  1 if alarm cause measured temp is over the warning threshold		(R)
+
+Bit 5:
+  1 if alarm cause measured volt is over the max threshold		(R)
+
+Bit 6:
+  1 if alarm cause measured volt is under the min threshold		(R)
+
+Bit 7:
+  - Volt sensor: Shutdown if alarm persist for more than 4 seconds	(RW)
+  - Temp sensor: Shutdown if temp is over the shutdown threshold	(RW)
+
+.. [1] This bit is only honored/used by the uGuru if a temp sensor is connected
+
+.. [2] This bit is only honored/used by the uGuru if a volt sensor is connected
+       Note with some trickery this can be used to find out what kinda sensor
+       is detected see the Linux kernel driver for an example with many
+       comments on how todo this.
 
 Byte 1:
-Temp sensor: warning threshold  (scale as bank 0x21)
-Volt sensor: min threshold      (scale as bank 0x21)
+  - Temp sensor: warning threshold  (scale as bank 0x21)
+  - Volt sensor: min threshold      (scale as bank 0x21)
 
 Byte 2:
-Temp sensor: shutdown threshold (scale as bank 0x21)
-Volt sensor: max threshold      (scale as bank 0x21)
+  - Temp sensor: shutdown threshold (scale as bank 0x21)
+  - Volt sensor: max threshold      (scale as bank 0x21)
 
 
-Bank 0x24 PWM outputs for FAN's (R)
-Bank 0x25 PWM outputs for FAN's (W)
------------------------------------
+Bank 0x24 PWM outputs for FAN's (R) and Bank 0x25 PWM outputs for FAN's (W)
+---------------------------------------------------------------------------
 
-This bank contains 3 "sensors", for each sensor it contains 5 bytes.
-Sensor 0 usually controls the CPU fan
-Sensor 1 usually controls the NB (or chipset for single chip) fan
-Sensor 2 usually controls the System fan
+Those banks contain 3 "sensors", for each sensor it contains 5 bytes.
+  - Sensor 0 usually controls the CPU fan
+  - Sensor 1 usually controls the NB (or chipset for single chip) fan
+  - Sensor 2 usually controls the System fan
 
 Byte 0:
-Flag 0x80 to enable control, Fan runs at 100% when disabled.
-low nibble (temp)sensor address at bank 0x21 used for control.
+  Flag 0x80 to enable control, Fan runs at 100% when disabled.
+  low nibble (temp)sensor address at bank 0x21 used for control.
 
 Byte 1:
-0-255 = 0-12v (linear), specify voltage at which fan will rotate when under
-low threshold temp (specified in byte 3)
+  0-255 = 0-12v (linear), specify voltage at which fan will rotate when under
+  low threshold temp (specified in byte 3)
 
 Byte 2:
-0-255 = 0-12v (linear), specify voltage at which fan will rotate when above
-high threshold temp (specified in byte 4)
+  0-255 = 0-12v (linear), specify voltage at which fan will rotate when above
+  high threshold temp (specified in byte 4)
 
 Byte 3:
-Low threshold temp  (scale as bank 0x21)
+  Low threshold temp  (scale as bank 0x21)
 
 byte 4:
-High threshold temp (scale as bank 0x21)
+  High threshold temp (scale as bank 0x21)
 
 
 Bank 0x26 Sensors Bank2 Values / Readings (R)
 ---------------------------------------------
 
 This bank contains 6 sensors (AFAIK), for each sensor it contains 1 byte.
+
 So far the following sensors are known to be available on all motherboards:
-Sensor 0: CPU fan speed
-Sensor 1: NB (or chipset for single chip) fan speed
-Sensor 2: SYS fan speed
+  - Sensor 0: CPU fan speed
+  - Sensor 1: NB (or chipset for single chip) fan speed
+  - Sensor 2: SYS fan speed
 
 Byte 0:
-This byte holds the reading from the sensor. 0-255 = 0-15300 (linear)
+  This byte holds the reading from the sensor. 0-255 = 0-15300 (linear)
 
 
-Bank 0x27 Sensors Bank2 Settings (R)
-Bank 0x28 Sensors Bank2 Settings (W)
-------------------------------------
+Bank 0x27 Sensors Bank2 Settings (R) and Bank 0x28 Sensors Bank2 Settings (W)
+-----------------------------------------------------------------------------
 
-This bank contains 6 sensors (AFAIK), for each sensor it contains 2 bytes.
+Those banks contain 6 sensors (AFAIK), for each sensor it contains 2 bytes.
 
 Byte 0:
-Alarm behaviour for the selected sensor. A 1 enables the described behaviour.
-Bit 0: Give an alarm if measured rpm is under the min threshold	(RW)
-Bit 3: Beep if alarm						(RW)
-Bit 7: Shutdown if alarm persist for more than 4 seconds	(RW)
+  Alarm behaviour for the selected sensor. A 1 enables the described behaviour.
+
+Bit 0:
+  Give an alarm if measured rpm is under the min threshold	(RW)
+
+Bit 3:
+  Beep if alarm							(RW)
+
+Bit 7:
+  Shutdown if alarm persist for more than 4 seconds		(RW)
 
 Byte 1:
-min threshold (scale as bank 0x26)
+  min threshold (scale as bank 0x26)
 
 
 Warning for the adventurous

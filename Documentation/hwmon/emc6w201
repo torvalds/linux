@@ -2,9 +2,13 @@ Kernel driver emc6w201
 ======================
 
 Supported chips:
+
   * SMSC EMC6W201
+
     Prefix: 'emc6w201'
+
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+
     Datasheet: Not public
 
 Author: Jean Delvare <jdelvare@suse.de>
@@ -38,5 +42,6 @@ Known Systems With EMC6W201
 
 The EMC6W201 is a rare device, only found on a few systems, made in
 2005 and 2006. Known systems with this device:
+
 * Dell Precision 670 workstation
 * Gigabyte 2CEWH mainboard

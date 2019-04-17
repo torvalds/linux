@@ -1,12 +1,17 @@
 Kernel driver powr1220
-==================
+======================
 
 Supported chips:
+
   * Lattice POWR1220AT8
+
     Prefix: 'powr1220'
+
     Addresses scanned: none
+
     Datasheet: Publicly available at the Lattice website
-               http://www.latticesemi.com/
+
+	       http://www.latticesemi.com/
 
 Author: Scott Kanowitz <scott.kanowitz@gmail.com>
 
@@ -26,7 +31,9 @@ value over the low measurement range maximum of 2 V.
 
 The input naming convention is as follows:
 
+============== ========
 driver name    pin name
+============== ========
 in0            VMON1
 in1            VMON2
 in2            VMON3
@@ -41,5 +48,6 @@ in10           VMON11
 in11           VMON12
 in12           VCCA
 in13           VCCINP
+============== ========
 
 The ADC readings are updated on request with a minimum period of 1s.

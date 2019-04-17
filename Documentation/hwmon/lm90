@@ -2,132 +2,256 @@ Kernel driver lm90
 ==================
 
 Supported chips:
-  * National Semiconductor LM90
-    Prefix: 'lm90'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM90.html
-  * National Semiconductor LM89
-    Prefix: 'lm89' (no auto-detection)
-    Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/mpf/LM/LM89.html
-  * National Semiconductor LM99
-    Prefix: 'lm99'
-    Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM99.html
-  * National Semiconductor LM86
-    Prefix: 'lm86'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/mpf/LM/LM86.html
-  * Analog Devices ADM1032
-    Prefix: 'adm1032'
-    Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the ON Semiconductor website
-               http://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
-  * Analog Devices ADT7461
-    Prefix: 'adt7461'
-    Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the ON Semiconductor website
-               http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
-  * Analog Devices ADT7461A
-    Prefix: 'adt7461a'
-    Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the ON Semiconductor website
-               http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
-  * ON Semiconductor NCT1008
-    Prefix: 'nct1008'
-    Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the ON Semiconductor website
-               http://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
-  * Maxim MAX6646
-    Prefix: 'max6646'
-    Addresses scanned: I2C 0x4d
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
-  * Maxim MAX6647
-    Prefix: 'max6646'
-    Addresses scanned: I2C 0x4e
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
-  * Maxim MAX6648
-    Prefix: 'max6646'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
-  * Maxim MAX6649
-    Prefix: 'max6646'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
-  * Maxim MAX6657
-    Prefix: 'max6657'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
-  * Maxim MAX6658
-    Prefix: 'max6657'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
-  * Maxim MAX6659
-    Prefix: 'max6659'
-    Addresses scanned: I2C 0x4c, 0x4d, 0x4e
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
-  * Maxim MAX6680
-    Prefix: 'max6680'
-    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
-                           0x4c, 0x4d and 0x4e
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
-  * Maxim MAX6681
-    Prefix: 'max6680'
-    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
-                           0x4c, 0x4d and 0x4e
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
-  * Maxim MAX6692
-    Prefix: 'max6646'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
-  * Maxim MAX6695
-    Prefix: 'max6695'
-    Addresses scanned: I2C 0x18
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/datasheet/index.mvp/id/4199
-  * Maxim MAX6696
-    Prefix: 'max6695'
-    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
-                           0x4c, 0x4d and 0x4e
-    Datasheet: Publicly available at the Maxim website
-               http://www.maxim-ic.com/datasheet/index.mvp/id/4199
-  * Winbond/Nuvoton W83L771W/G
-    Prefix: 'w83l771'
-    Addresses scanned: I2C 0x4c
-    Datasheet: No longer available
-  * Winbond/Nuvoton W83L771AWG/ASG
-    Prefix: 'w83l771'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Not publicly available, can be requested from Nuvoton
-  * Philips/NXP SA56004X
-    Prefix: 'sa56004'
-    Addresses scanned: I2C 0x48 through 0x4F
-    Datasheet: Publicly available at NXP website
-               http://ics.nxp.com/products/interface/datasheet/sa56004x.pdf
-  * GMT G781
-    Prefix: 'g781'
-    Addresses scanned: I2C 0x4c, 0x4d
-    Datasheet: Not publicly available from GMT
-  * Texas Instruments TMP451
-    Prefix: 'tmp451'
-    Addresses scanned: I2C 0x4c
-    Datasheet: Publicly available at TI website
-               http://www.ti.com/litv/pdf/sbos686
 
+  * National Semiconductor LM90
+
+    Prefix: 'lm90'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the National Semiconductor website
+
+	       http://www.national.com/pf/LM/LM90.html
+
+  * National Semiconductor LM89
+
+    Prefix: 'lm89' (no auto-detection)
+
+    Addresses scanned: I2C 0x4c and 0x4d
+
+    Datasheet: Publicly available at the National Semiconductor website
+
+	       http://www.national.com/mpf/LM/LM89.html
+
+  * National Semiconductor LM99
+
+    Prefix: 'lm99'
+
+    Addresses scanned: I2C 0x4c and 0x4d
+
+    Datasheet: Publicly available at the National Semiconductor website
+
+	       http://www.national.com/pf/LM/LM99.html
+
+  * National Semiconductor LM86
+
+    Prefix: 'lm86'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the National Semiconductor website
+
+	       http://www.national.com/mpf/LM/LM86.html
+
+  * Analog Devices ADM1032
+
+    Prefix: 'adm1032'
+
+    Addresses scanned: I2C 0x4c and 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       http://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
+
+  * Analog Devices ADT7461
+
+    Prefix: 'adt7461'
+
+    Addresses scanned: I2C 0x4c and 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
+
+  * Analog Devices ADT7461A
+
+    Prefix: 'adt7461a'
+
+    Addresses scanned: I2C 0x4c and 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
+
+  * ON Semiconductor NCT1008
+
+    Prefix: 'nct1008'
+
+    Addresses scanned: I2C 0x4c and 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       http://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
+
+  * Maxim MAX6646
+
+    Prefix: 'max6646'
+
+    Addresses scanned: I2C 0x4d
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+
+  * Maxim MAX6647
+
+    Prefix: 'max6646'
+
+    Addresses scanned: I2C 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+
+  * Maxim MAX6648
+
+    Prefix: 'max6646'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+
+  * Maxim MAX6649
+
+    Prefix: 'max6646'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+
+  * Maxim MAX6657
+
+    Prefix: 'max6657'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+
+  * Maxim MAX6658
+
+    Prefix: 'max6657'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+
+  * Maxim MAX6659
+
+    Prefix: 'max6659'
+
+    Addresses scanned: I2C 0x4c, 0x4d, 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+
+  * Maxim MAX6680
+
+    Prefix: 'max6680'
+
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+
+			   0x4c, 0x4d and 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
+
+  * Maxim MAX6681
+
+    Prefix: 'max6680'
+
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+
+			   0x4c, 0x4d and 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
+
+  * Maxim MAX6692
+
+    Prefix: 'max6646'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+
+  * Maxim MAX6695
+
+    Prefix: 'max6695'
+
+    Addresses scanned: I2C 0x18
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+
+  * Maxim MAX6696
+
+    Prefix: 'max6695'
+
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+
+			   0x4c, 0x4d and 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+
+  * Winbond/Nuvoton W83L771W/G
+
+    Prefix: 'w83l771'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: No longer available
+
+  * Winbond/Nuvoton W83L771AWG/ASG
+
+    Prefix: 'w83l771'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Not publicly available, can be requested from Nuvoton
+
+  * Philips/NXP SA56004X
+
+    Prefix: 'sa56004'
+
+    Addresses scanned: I2C 0x48 through 0x4F
+
+    Datasheet: Publicly available at NXP website
+
+	       http://ics.nxp.com/products/interface/datasheet/sa56004x.pdf
+
+  * GMT G781
+
+    Prefix: 'g781'
+
+    Addresses scanned: I2C 0x4c, 0x4d
+
+    Datasheet: Not publicly available from GMT
+
+  * Texas Instruments TMP451
+
+    Prefix: 'tmp451'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at TI website
+
+	       http://www.ti.com/litv/pdf/sbos686
 
 Author: Jean Delvare <jdelvare@suse.de>
 

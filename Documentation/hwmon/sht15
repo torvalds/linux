@@ -2,29 +2,37 @@ Kernel driver sht15
 ===================
 
 Authors:
+
   * Wouter Horre
   * Jonathan Cameron
   * Vivien Didelot <vivien.didelot@savoirfairelinux.com>
   * Jerome Oufella <jerome.oufella@savoirfairelinux.com>
 
 Supported chips:
+
   * Sensirion SHT10
+
     Prefix: 'sht10'
 
   * Sensirion SHT11
+
     Prefix: 'sht11'
 
   * Sensirion SHT15
+
     Prefix: 'sht15'
 
   * Sensirion SHT71
+
     Prefix: 'sht71'
 
   * Sensirion SHT75
+
     Prefix: 'sht75'
 
 Datasheet: Publicly available at the Sensirion website
-http://www.sensirion.ch/en/pdf/product_information/Datasheet-humidity-sensor-SHT1x.pdf
+
+	http://www.sensirion.ch/en/pdf/product_information/Datasheet-humidity-sensor-SHT1x.pdf
 
 Description
 -----------
@@ -63,11 +71,13 @@ Platform data
 Sysfs interface
 ---------------
 
-* temp1_input:     temperature input
-* humidity1_input: humidity input
-* heater_enable:   write 1 in this attribute to enable the on-chip heater,
-                   0 to disable it. Be careful not to enable the heater
-                   for too long.
-* temp1_fault:     if 1, this means that the voltage is low (below 2.47V) and
-                   measurement may be invalid.
-* humidity1_fault: same as temp1_fault.
+================== ==========================================================
+temp1_input        temperature input
+humidity1_input    humidity input
+heater_enable      write 1 in this attribute to enable the on-chip heater,
+		   0 to disable it. Be careful not to enable the heater
+		   for too long.
+temp1_fault        if 1, this means that the voltage is low (below 2.47V) and
+		   measurement may be invalid.
+humidity1_fault    same as temp1_fault.
+================== ==========================================================

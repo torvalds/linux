@@ -2,26 +2,45 @@ Kernel driver adt7410
 =====================
 
 Supported chips:
+
   * Analog Devices ADT7410
+
     Prefix: 'adt7410'
+
     Addresses scanned: None
+
     Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/static/imported-files/data_sheets/ADT7410.pdf
+
+	       http://www.analog.com/static/imported-files/data_sheets/ADT7410.pdf
   * Analog Devices ADT7420
+
     Prefix: 'adt7420'
+
     Addresses scanned: None
+
     Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/static/imported-files/data_sheets/ADT7420.pdf
+
+	       http://www.analog.com/static/imported-files/data_sheets/ADT7420.pdf
+
   * Analog Devices ADT7310
+
     Prefix: 'adt7310'
+
     Addresses scanned: None
+
     Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/static/imported-files/data_sheets/ADT7310.pdf
+
+	       http://www.analog.com/static/imported-files/data_sheets/ADT7310.pdf
+
   * Analog Devices ADT7320
+
     Prefix: 'adt7320'
+
     Addresses scanned: None
+
     Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/static/imported-files/data_sheets/ADT7320.pdf
+
+	       http://www.analog.com/static/imported-files/data_sheets/ADT7320.pdf
 
 Author: Hartmut Knaack <knaack.h@gmx.de>
 
@@ -61,13 +80,15 @@ The device is set to 16 bit resolution and comparator mode.
 sysfs-Interface
 ---------------
 
-temp#_input		- temperature input
-temp#_min		- temperature minimum setpoint
-temp#_max		- temperature maximum setpoint
-temp#_crit		- critical temperature setpoint
-temp#_min_hyst		- hysteresis for temperature minimum (read-only)
-temp#_max_hyst		- hysteresis for temperature maximum (read/write)
-temp#_crit_hyst		- hysteresis for critical temperature (read-only)
-temp#_min_alarm		- temperature minimum alarm flag
-temp#_max_alarm		- temperature maximum alarm flag
-temp#_crit_alarm	- critical temperature alarm flag
+======================== ====================================================
+temp#_input		 temperature input
+temp#_min		 temperature minimum setpoint
+temp#_max		 temperature maximum setpoint
+temp#_crit		 critical temperature setpoint
+temp#_min_hyst		 hysteresis for temperature minimum (read-only)
+temp#_max_hyst		 hysteresis for temperature maximum (read/write)
+temp#_crit_hyst		 hysteresis for critical temperature (read-only)
+temp#_min_alarm		 temperature minimum alarm flag
+temp#_max_alarm		 temperature maximum alarm flag
+temp#_crit_alarm	 critical temperature alarm flag
+======================== ====================================================

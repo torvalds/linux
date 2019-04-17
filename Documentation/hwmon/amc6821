@@ -2,9 +2,13 @@ Kernel driver amc6821
 =====================
 
 Supported chips:
+
 	Texas Instruments AMC6821
+
 	Prefix: 'amc6821'
+
 	Addresses scanned: 0x18, 0x19, 0x1a, 0x2c, 0x2d, 0x2e, 0x4c, 0x4d, 0x4e
+
 	Datasheet: http://focus.ti.com/docs/prod/folders/print/amc6821.html
 
 Authors:
@@ -21,10 +25,11 @@ The pwm can be controlled either from software or automatically.
 
 The driver provides the following sensor accesses in sysfs:
 
+======================= ==      ===============================================
 temp1_input		ro	on-chip temperature
 temp1_min		rw	"
 temp1_max		rw	"
-temp1_crit	 	rw	"
+temp1_crit		rw	"
 temp1_min_alarm		ro	"
 temp1_max_alarm		ro	"
 temp1_crit_alarm	ro	"
@@ -32,16 +37,16 @@ temp1_crit_alarm	ro	"
 temp2_input		ro	remote temperature
 temp2_min		rw	"
 temp2_max		rw	"
-temp2_crit	 	rw	"
+temp2_crit		rw	"
 temp2_min_alarm		ro	"
 temp2_max_alarm		ro	"
 temp2_crit_alarm	ro	"
 temp2_fault		ro	"
 
-fan1_input	 	ro	tachometer speed
+fan1_input		ro	tachometer speed
 fan1_min		rw	"
 fan1_max		rw	"
-fan1_fault	 	ro	"
+fan1_fault		ro	"
 fan1_div		rw	Fan divisor can be either 2 or 4.
 
 pwm1			rw	pwm1
@@ -87,6 +92,7 @@ temp2_auto_point3_temp	rw	Above this temperature fan runs at maximum
 				values which depend on temp2_auto_point2_temp
 				and pwm1_auto_point2_pwm. Read it out after
 				writing to get actual value.
+======================= ==      ===============================================
 
 
 Module parameters
@@ -97,6 +103,7 @@ load the module with: init=0.
 
 If your board BIOS doesn't initialize the chip, or you want
 different settings, you can set the following parameters:
-init=1,
-pwminv: 0 default pwm output, 1 inverts pwm output.
+
+- init=1,
+- pwminv: 0 default pwm output, 1 inverts pwm output.
 

@@ -2,17 +2,29 @@ Kernel driver f71805f
 =====================
 
 Supported chips:
+
   * Fintek F71805F/FG
+
     Prefix: 'f71805f'
+
     Addresses scanned: none, address read from Super I/O config space
+
     Datasheet: Available from the Fintek website
+
   * Fintek F71806F/FG
+
     Prefix: 'f71872f'
+
     Addresses scanned: none, address read from Super I/O config space
+
     Datasheet: Available from the Fintek website
+
   * Fintek F71872F/FG
+
     Prefix: 'f71872f'
+
     Addresses scanned: none, address read from Super I/O config space
+
     Datasheet: Available from the Fintek website
 
 Author: Jean Delvare <jdelvare@suse.de>
@@ -64,24 +76,26 @@ you can only set the limits in steps of 32 mV (before scaling).
 
 The wirings and resistor values suggested by Fintek are as follow:
 
-        pin                                           expected
-        name    use           R1      R2     divider  raw val.
-
+======= ======= =========== ==== ======= ============ ==============
+in      pin                                           expected
+	name    use           R1      R2     divider  raw val.
+======= ======= =========== ==== ======= ============ ==============
 in0     VCC     VCC3.3V     int.    int.        2.00    1.65 V
 in1     VIN1    VTT1.2V      10K       -        1.00    1.20 V
-in2     VIN2    VRAM        100K    100K        2.00   ~1.25 V (1)
-in3     VIN3    VCHIPSET     47K    100K        1.47    2.24 V (2)
+in2     VIN2    VRAM        100K    100K        2.00   ~1.25 V [1]_
+in3     VIN3    VCHIPSET     47K    100K        1.47    2.24 V [2]_
 in4     VIN4    VCC5V       200K     47K        5.25    0.95 V
 in5     VIN5    +12V        200K     20K       11.00    1.05 V
 in6     VIN6    VCC1.5V      10K       -        1.00    1.50 V
-in7     VIN7    VCORE        10K       -        1.00   ~1.40 V (1)
+in7     VIN7    VCORE        10K       -        1.00   ~1.40 V [1]_
 in8     VIN8    VSB5V       200K     47K        1.00    0.95 V
-in10    VSB     VSB3.3V     int.    int.        2.00    1.65 V (3)
-in9     VBAT    VBATTERY    int.    int.        2.00    1.50 V (3)
+in10    VSB     VSB3.3V     int.    int.        2.00    1.65 V [3]_
+in9     VBAT    VBATTERY    int.    int.        2.00    1.50 V [3]_
+======= ======= =========== ==== ======= ============ ==============
 
-(1) Depends on your hardware setup.
-(2) Obviously not correct, swapping R1 and R2 would make more sense.
-(3) F71872F/FG only.
+.. [1] Depends on your hardware setup.
+.. [2] Obviously not correct, swapping R1 and R2 would make more sense.
+.. [3] F71872F/FG only.
 
 These values can be used as hints at best, as motherboard manufacturers
 are free to use a completely different setup. As a matter of fact, the

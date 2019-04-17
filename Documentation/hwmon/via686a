@@ -2,29 +2,35 @@ Kernel driver via686a
 =====================
 
 Supported chips:
+
   * Via VT82C686A, VT82C686B  Southbridge Integrated Hardware Monitor
+
     Prefix: 'via686a'
+
     Addresses scanned: ISA in PCI-space encoded address
+
     Datasheet: On request through web form (http://www.via.com.tw/en/resources/download-center/)
 
 Authors:
-        Kyösti Mälkki <kmalkki@cc.hut.fi>,
-        Mark D. Studebaker <mdsxyz123@yahoo.com>
-        Bob Dougherty <bobd@stanford.edu>
-        (Some conversion-factor data were contributed by
-        Jonathan Teh Soon Yew <j.teh@iname.com>
-        and Alex van Kaam <darkside@chello.nl>.)
+	- Kyösti Mälkki <kmalkki@cc.hut.fi>,
+	- Mark D. Studebaker <mdsxyz123@yahoo.com>
+	- Bob Dougherty <bobd@stanford.edu>
+	- (Some conversion-factor data were contributed by
+	- Jonathan Teh Soon Yew <j.teh@iname.com>
+	- and Alex van Kaam <darkside@chello.nl>.)
 
 Module Parameters
 -----------------
 
+======================= =======================================================
 force_addr=0xaddr       Set the I/O base address. Useful for boards that
-                        don't set the address in the BIOS. Look for a BIOS
-                        upgrade before resorting to this. Does not do a
-                        PCI force; the via686a must still be present in lspci.
-                        Don't use this unless the driver complains that the
-                        base address is not set.
-                        Example: 'modprobe via686a force_addr=0x6000'
+			don't set the address in the BIOS. Look for a BIOS
+			upgrade before resorting to this. Does not do a
+			PCI force; the via686a must still be present in lspci.
+			Don't use this unless the driver complains that the
+			base address is not set.
+			Example: 'modprobe via686a force_addr=0x6000'
+======================= =======================================================
 
 Description
 -----------

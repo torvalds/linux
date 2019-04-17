@@ -1,5 +1,5 @@
-	How to Get Your Patch Accepted Into the Hwmon Subsystem
-	-------------------------------------------------------
+How to Get Your Patch Accepted Into the Hwmon Subsystem
+=======================================================
 
 This text is a collection of suggestions for people writing patches or
 drivers for the hwmon subsystem. Following these suggestions will greatly
@@ -9,11 +9,12 @@ increase the chances of your change being accepted.
 1. General
 ----------
 
-* It should be unnecessary to mention, but please read and follow
-    Documentation/process/submit-checklist.rst
-    Documentation/process/submitting-drivers.rst
-    Documentation/process/submitting-patches.rst
-    Documentation/process/coding-style.rst
+* It should be unnecessary to mention, but please read and follow:
+
+    - Documentation/process/submit-checklist.rst
+    - Documentation/process/submitting-drivers.rst
+    - Documentation/process/submitting-patches.rst
+    - Documentation/process/coding-style.rst
 
 * Please run your patch through 'checkpatch --strict'. There should be no
   errors, no warnings, and few if any check messages. If there are any

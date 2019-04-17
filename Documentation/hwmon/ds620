@@ -2,15 +2,19 @@ Kernel driver ds620
 ===================
 
 Supported chips:
+
   * Dallas Semiconductor DS620
+
     Prefix: 'ds620'
+
     Datasheet: Publicly available at the Dallas Semiconductor website
-               http://www.dalsemi.com/
+
+	       http://www.dalsemi.com/
 
 Authors:
-        Roland Stigge <stigge@antcom.de>
-        based on ds1621.c by
-        Christian W. Zuckschwerdt <zany@triq.net>
+	Roland Stigge <stigge@antcom.de>
+	based on ds1621.c by
+	Christian W. Zuckschwerdt <zany@triq.net>
 
 Description
 -----------

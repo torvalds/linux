@@ -2,9 +2,13 @@ Kernel driver w83792d
 =====================
 
 Supported chips:
+
   * Winbond W83792D
+
     Prefix: 'w83792d'
+
     Addresses scanned: I2C 0x2c - 0x2f
+
     Datasheet: http://www.winbond.com.tw
 
 Author: Shane Huang (Winbond)
@@ -15,15 +19,16 @@ Module Parameters
 -----------------
 
 * init int
-  (default 1)
-  Use 'init=0' to bypass initializing the chip.
-  Try this if your computer crashes when you load the module.
+    (default 1)
+
+    Use 'init=0' to bypass initializing the chip.
+    Try this if your computer crashes when you load the module.
 
 * force_subclients=bus,caddr,saddr,saddr
-  This is used to force the i2c addresses for subclients of
-  a certain chip. Example usage is `force_subclients=0,0x2f,0x4a,0x4b'
-  to force the subclients of chip 0x2f on bus 0 to i2c addresses
-  0x4a and 0x4b.
+    This is used to force the i2c addresses for subclients of
+    a certain chip. Example usage is `force_subclients=0,0x2f,0x4a,0x4b`
+    to force the subclients of chip 0x2f on bus 0 to i2c addresses
+    0x4a and 0x4b.
 
 
 Description
@@ -67,31 +72,34 @@ or maximum limit.
 Alarms are provided as output from "realtime status register". Following bits
 are defined:
 
-bit - alarm on:
-0  - in0
-1  - in1
-2  - temp1
-3  - temp2
-4  - temp3
-5  - fan1
-6  - fan2
-7  - fan3
-8  - in2
-9  - in3
-10 - in4
-11 - in5
-12 - in6
-13 - VID change
-14 - chassis
-15 - fan7
-16 - tart1
-17 - tart2
-18 - tart3
-19 - in7
-20 - in8
-21 - fan4
-22 - fan5
-23 - fan6
+==== ==========
+bit   alarm on
+==== ==========
+0    in0
+1    in1
+2    temp1
+3    temp2
+4    temp3
+5    fan1
+6    fan2
+7    fan3
+8    in2
+9    in3
+10   in4
+11   in5
+12   in6
+13   VID change
+14   chassis
+15   fan7
+16   tart1
+17   tart2
+18   tart3
+19   in7
+20   in8
+21   fan4
+22   fan5
+23   fan6
+==== ==========
 
 Tart will be asserted while target temperature cannot be achieved after 3 minutes
 of full speed rotation of corresponding fan.
@@ -114,7 +122,7 @@ Known problems:
 	  by CR[0x49h].
 	- The function of vid and vrm has not been finished, because I'm NOT
 	  very familiar with them. Adding support is welcome.
- 	- The function of chassis open detection needs more tests.
+	- The function of chassis open detection needs more tests.
 	- If you have ASUS server board and chip was not found: Then you will
 	  need to upgrade to latest (or beta) BIOS. If it does not help please
 	  contact us.
@@ -165,17 +173,27 @@ for each fan.
 /sys files
 ----------
 
-pwm[1-7] - this file stores PWM duty cycle or DC value (fan speed) in range:
-	0 (stop) to 255 (full)
-pwm[1-3]_enable - this file controls mode of fan/temperature control:
-            * 0 Disabled
-            * 1 Manual mode
-            * 2 Smart Fan II
-            * 3 Thermal Cruise
-pwm[1-7]_mode - Select PWM or DC mode
-            * 0 DC
-            * 1 PWM
-thermal_cruise[1-3] - Selects the desired temperature for cruise (degC)
-tolerance[1-3] - Value in degrees of Celsius (degC) for +- T
-sf2_point[1-4]_fan[1-3] - four temperature points for each fan for Smart Fan II
-sf2_level[1-3]_fan[1-3] - three PWM/DC levels for each fan for Smart Fan II
+pwm[1-7]
+	- this file stores PWM duty cycle or DC value (fan speed) in range:
+
+	    0 (stop) to 255 (full)
+pwm[1-3]_enable
+	- this file controls mode of fan/temperature control:
+
+	    * 0 Disabled
+	    * 1 Manual mode
+	    * 2 Smart Fan II
+	    * 3 Thermal Cruise
+pwm[1-7]_mode
+	- Select PWM or DC mode
+
+	    * 0 DC
+	    * 1 PWM
+thermal_cruise[1-3]
+	- Selects the desired temperature for cruise (degC)
+tolerance[1-3]
+	- Value in degrees of Celsius (degC) for +- T
+sf2_point[1-4]_fan[1-3]
+	- four temperature points for each fan for Smart Fan II
+sf2_level[1-3]_fan[1-3]
+	- three PWM/DC levels for each fan for Smart Fan II

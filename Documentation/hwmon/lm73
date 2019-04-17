@@ -2,13 +2,20 @@ Kernel driver lm73
 ==================
 
 Supported chips:
+
   * Texas Instruments LM73
+
     Prefix: 'lm73'
+
     Addresses scanned: I2C 0x48, 0x49, 0x4a, 0x4c, 0x4d, and 0x4e
+
     Datasheet: Publicly available at the Texas Instruments website
-               http://www.ti.com/product/lm73
+
+	       http://www.ti.com/product/lm73
+
 
 Author: Guillaume Ligneul <guillaume.ligneul@gmail.com>
+
 Documentation: Chris Verges <kg4ysn@gmail.com>
 
 
@@ -29,17 +36,18 @@ conversion time via the 'update_interval' sysfs attribute for the
 device.  This attribute will normalize ranges of input values to the
 maximum times defined for the resolution in the datasheet.
 
+    ============= ============= ============
     Resolution    Conv. Time    Input Range
     (C/LSB)       (msec)        (msec)
-    --------------------------------------
+    ============= ============= ============
     0.25          14             0..14
     0.125         28            15..28
     0.0625        56            29..56
     0.03125       112           57..infinity
-    --------------------------------------
+    ============= ============= ============
 
 The following examples show how the 'update_interval' attribute can be
-used to change the conversion time:
+used to change the conversion time::
 
     $ echo 0 > update_interval
     $ cat update_interval

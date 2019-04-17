@@ -1,10 +1,14 @@
 Kernel driver adt7462
-======================
+=====================
 
 Supported chips:
+
   * Analog Devices ADT7462
+
     Prefix: 'adt7462'
+
     Addresses scanned: I2C 0x58, 0x5C
+
     Datasheet: Publicly available at the Analog Devices website
 
 Author: Darrick J. Wong
@@ -57,8 +61,8 @@ Besides standard interfaces driver adds the following:
 * pwm#_auto_point1_pwm and temp#_auto_point1_temp and
 * pwm#_auto_point2_pwm and temp#_auto_point2_temp -
 
-point1: Set the pwm speed at a lower temperature bound.
-point2: Set the pwm speed at a higher temperature bound.
+  - point1: Set the pwm speed at a lower temperature bound.
+  - point2: Set the pwm speed at a higher temperature bound.
 
 The ADT7462 will scale the pwm between the lower and higher pwm speed when
 the temperature is between the two temperature boundaries.  PWM values range

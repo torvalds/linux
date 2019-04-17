@@ -2,11 +2,16 @@ Kernel driver ltc4245
 =====================
 
 Supported chips:
+
   * Linear Technology LTC4245
+
     Prefix: 'ltc4245'
+
     Addresses scanned: 0x20-0x3f
+
     Datasheet:
-        http://www.linear.com/pc/downloadDocument.do?navId=H0,C1,C1003,C1006,C1140,P19392,D13517
+
+	http://www.linear.com/pc/downloadDocument.do?navId=H0,C1,C1003,C1006,C1140,P19392,D13517
 
 Author: Ira W. Snyder <iws@ovro.caltech.edu>
 
@@ -27,9 +32,10 @@ of the possible addresses are unfriendly to probing. You will have to
 instantiate the devices explicitly.
 
 Example: the following will load the driver for an LTC4245 at address 0x23
-on I2C bus #1:
-$ modprobe ltc4245
-$ echo ltc4245 0x23 > /sys/bus/i2c/devices/i2c-1/new_device
+on I2C bus #1::
+
+	$ modprobe ltc4245
+	$ echo ltc4245 0x23 > /sys/bus/i2c/devices/i2c-1/new_device
 
 
 Sysfs entries
@@ -42,6 +48,7 @@ This driver uses the values in the datasheet to change the register values
 into the values specified in the sysfs-interface document. The current readings
 rely on the sense resistors listed in Table 2: "Sense Resistor Values".
 
+======================= =======================================================
 in1_input		12v input voltage (mV)
 in2_input		5v  input voltage (mV)
 in3_input		3v  input voltage (mV)
@@ -80,6 +87,7 @@ power1_input		12v power usage (mW)
 power2_input		5v  power usage (mW)
 power3_input		3v  power usage (mW)
 power4_input		Vee (-12v) power usage (mW)
+======================= =======================================================
 
 
 Note 1
@@ -96,6 +104,7 @@ slowly, -EAGAIN will be returned when you read the sysfs attribute containing
 the sensor reading.
 
 The LTC4245 chip can be configured to sample all GPIO pins with two methods:
+
 1) platform data -- see include/linux/platform_data/ltc4245.h
 2) OF device tree -- add the "ltc4245,use-extra-gpios" property to each chip
 

@@ -2,9 +2,13 @@ Kernel driver adt7411
 =====================
 
 Supported chips:
+
   * Analog Devices ADT7411
+
     Prefix: 'adt7411'
+
     Addresses scanned: 0x48, 0x4a, 0x4b
+
     Datasheet: Publicly available at the Analog Devices website
 
 Author: Wolfram Sang (based on adt7470 by Darrick J. Wong)
@@ -26,15 +30,19 @@ Check the datasheet for details.
 sysfs-Interface
 ---------------
 
-in0_input	- vdd voltage input
-in[1-8]_input	- analog 1-8 input
-temp1_input	- temperature input
+================ =================
+in0_input	 vdd voltage input
+in[1-8]_input	 analog 1-8 input
+temp1_input	 temperature input
+================ =================
 
 Besides standard interfaces, this driver adds (0 = off, 1 = on):
 
-  adc_ref_vdd	- Use vdd as reference instead of 2.25 V
-  fast_sampling	- Sample at 22.5 kHz instead of 1.4 kHz, but drop filters
-  no_average	- Turn off averaging over 16 samples
+  ============== =======================================================
+  adc_ref_vdd	 Use vdd as reference instead of 2.25 V
+  fast_sampling	 Sample at 22.5 kHz instead of 1.4 kHz, but drop filters
+  no_average	 Turn off averaging over 16 samples
+  ============== =======================================================
 
 Notes
 -----
