@@ -1059,12 +1059,12 @@ int comedi_auto_config(struct device *hardware_device,
 	ret = driver->auto_attach(dev, context);
 	if (ret >= 0)
 		ret = comedi_device_postconfig(dev);
-	mutex_unlock(&dev->mutex);
 
 	if (ret < 0) {
 		dev_warn(hardware_device,
 			 "driver '%s' failed to auto-configure device.\n",
 			 driver->driver_name);
+		mutex_unlock(&dev->mutex);
 		comedi_release_hardware_device(hardware_device);
 	} else {
 		/*
@@ -1074,6 +1074,7 @@ int comedi_auto_config(struct device *hardware_device,
 		dev_info(dev->class_dev,
 			 "driver '%s' has successfully auto-configured '%s'.\n",
 			 driver->driver_name, dev->board_name);
+		mutex_unlock(&dev->mutex);
 	}
 	return ret;
 }
