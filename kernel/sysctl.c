@@ -3326,6 +3326,11 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
     return -ENOSYS;
 }
 
+int proc_do_large_bitmap(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
 
 #endif /* CONFIG_PROC_SYSCTL */
 
@@ -3366,3 +3371,4 @@ EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
+EXPORT_SYMBOL(proc_do_large_bitmap);

@@ -1913,10 +1913,25 @@ enhanced_dad - BOOLEAN
 
 icmp/*:
 ratelimit - INTEGER
-	Limit the maximal rates for sending ICMPv6 packets.
+	Limit the maximal rates for sending ICMPv6 messages.
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
 	Default: 1000
+
+ratemask - list of comma separated ranges
+	For ICMPv6 message types matching the ranges in the ratemask, limit
+	the sending of the message according to ratelimit parameter.
+
+	The format used for both input and output is a comma separated
+	list of ranges (e.g. "0-127,129" for ICMPv6 message type 0 to 127 and
+	129). Writing to the file will clear all previous ranges of ICMPv6
+	message types and update the current list with the input.
+
+	Refer to: https://www.iana.org/assignments/icmpv6-parameters/icmpv6-parameters.xhtml
+	for numerical values of ICMPv6 message types, e.g. echo request is 128
+	and echo reply is 129.
+
+	Default: 0-1,3-127 (rate limit ICMPv6 errors except Packet Too Big)
 
 echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
