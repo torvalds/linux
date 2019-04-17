@@ -684,9 +684,8 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	u8 madc, nadc, mdac, ndac, max_nadc, min_mdac, max_ndac;
 	u8 dosr_increment;
 	u16 max_dosr, min_dosr;
-	unsigned long mclk_rate, adc_clock_rate, dac_clock_rate;
+	unsigned long adc_clock_rate, dac_clock_rate;
 	int ret;
-	struct clk *mclk;
 
 	struct clk_bulk_data clocks[] = {
 		{ .id = "pll" },
@@ -699,9 +698,6 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	ret = devm_clk_bulk_get(component->dev, ARRAY_SIZE(clocks), clocks);
 	if (ret)
 		return ret;
-
-	mclk = clk_get_parent(clocks[1].clk);
-	mclk_rate = clk_get_rate(mclk);
 
 	if (sample_rate <= 48000) {
 		aosr = 128;
