@@ -3707,31 +3707,6 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 EXPORT_SYMBOL(pci_request_region);
 
 /**
- *	pci_request_region_exclusive - Reserved PCI I/O and memory resource
- *	@pdev: PCI device whose resources are to be reserved
- *	@bar: BAR to be reserved
- *	@res_name: Name to be associated with resource.
- *
- *	Mark the PCI region associated with PCI device @pdev BR @bar as
- *	being reserved by owner @res_name.  Do not access any
- *	address inside the PCI regions unless this call returns
- *	successfully.
- *
- *	Returns 0 on success, or %EBUSY on error.  A warning
- *	message is also printed on failure.
- *
- *	The key difference that _exclusive makes it that userspace is
- *	explicitly not allowed to map the resource via /dev/mem or
- *	sysfs.
- */
-int pci_request_region_exclusive(struct pci_dev *pdev, int bar,
-				 const char *res_name)
-{
-	return __pci_request_region(pdev, bar, res_name, IORESOURCE_EXCLUSIVE);
-}
-EXPORT_SYMBOL(pci_request_region_exclusive);
-
-/**
  * pci_release_selected_regions - Release selected PCI I/O and memory resources
  * @pdev: PCI device whose resources were previously reserved
  * @bars: Bitmask of BARs to be released
