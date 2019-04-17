@@ -1107,6 +1107,15 @@ void bch2_mark_update(struct btree_trans *trans,
 	if (unlikely(trans->flags & BTREE_INSERT_NOMARK_OVERWRITES))
 		return;
 
+	/*
+	 * For non extents, we only mark the new key, not the key being
+	 * overwritten - unless we're actually deleting:
+	 */
+	if ((iter->btree_id == BTREE_ID_ALLOC ||
+	     iter->btree_id == BTREE_ID_EC) &&
+	    !bkey_deleted(&insert->k->k))
+		return;
+
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
 						      KEY_TYPE_discard))) {
 		struct bkey		unpacked;
