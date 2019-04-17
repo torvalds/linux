@@ -588,7 +588,8 @@ extern void slb_set_size(u16 size);
 #endif
 
 #define MAX_VMALLOC_CTX_CNT	1
-#define MAX_MEMMAP_CTX_CNT	1
+#define MAX_IO_CTX_CNT		1
+#define MAX_VMEMMAP_CTX_CNT	1
 
 /*
  * 256MB segment
@@ -601,13 +602,10 @@ extern void slb_set_size(u16 size);
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
  * because of the modulo operation in vsid scramble.
  *
- * We add one extra context to MIN_USER_CONTEXT so that we can map kernel
- * context easily. The +1 is to map the unused 0xe region mapping.
  */
 #define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
 #define MIN_USER_CONTEXT	(MAX_KERNEL_CTX_CNT + MAX_VMALLOC_CTX_CNT + \
-				 MAX_MEMMAP_CTX_CNT + 2)
-
+				 MAX_IO_CTX_CNT + MAX_VMEMMAP_CTX_CNT)
 /*
  * For platforms that support on 65bit VA we limit the context bits
  */
@@ -776,7 +774,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
-	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
+	if ((ea & EA_MASK)  >= H_PGTABLE_RANGE)
 		return 0;
 
 	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
@@ -803,28 +801,29 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
  * 0x00002 -  [ 0xc002000000000000 - 0xc003ffffffffffff]
  * 0x00003 -  [ 0xc004000000000000 - 0xc005ffffffffffff]
  * 0x00004 -  [ 0xc006000000000000 - 0xc007ffffffffffff]
-
- * 0x00005 -  [ 0xd000000000000000 - 0xd001ffffffffffff ]
- * 0x00006 -  Not used - Can map 0xe000000000000000 range.
- * 0x00007 -  [ 0xf000000000000000 - 0xf001ffffffffffff ]
  *
- * So we can compute the context from the region (top nibble) by
- * subtracting 11, or 0xc - 1.
+ * vmap, IO, vmemap
+ *
+ * 0x00005 -  [ 0xc008000000000000 - 0xc009ffffffffffff]
+ * 0x00006 -  [ 0xc00a000000000000 - 0xc00bffffffffffff]
+ * 0x00007 -  [ 0xc00c000000000000 - 0xc00dffffffffffff]
+ *
  */
 static inline unsigned long get_kernel_context(unsigned long ea)
 {
-	unsigned long region_id = REGION_ID(ea);
+	unsigned long region_id = get_region_id(ea);
 	unsigned long ctx;
 	/*
-	 * For linear mapping we do support multiple context
+	 * Depending on Kernel config, kernel region can have one context
+	 * or more.
 	 */
 	if (region_id == KERNEL_REGION_ID) {
 		/*
 		 * We already verified ea to be not beyond the addr limit.
 		 */
-		ctx =  1 + ((ea & ~REGION_MASK) >> MAX_EA_BITS_PER_CONTEXT);
+		ctx =  1 + ((ea & EA_MASK) >> MAX_EA_BITS_PER_CONTEXT);
 	} else
-		ctx = (region_id - 0xc) + MAX_KERNEL_CTX_CNT;
+		ctx = region_id + MAX_KERNEL_CTX_CNT - 2;
 	return ctx;
 }
 

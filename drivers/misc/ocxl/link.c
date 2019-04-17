@@ -163,7 +163,7 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 		if (fault->dsisr & SPA_XSL_S)
 			access |= _PAGE_WRITE;
 
-		if (REGION_ID(fault->dar) != USER_REGION_ID)
+		if (get_region_id(fault->dar) != USER_REGION_ID)
 			access |= _PAGE_PRIVILEGED;
 
 		local_irq_save(flags);

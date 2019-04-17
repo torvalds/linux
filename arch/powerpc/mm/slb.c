@@ -694,7 +694,7 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 	if (id == KERNEL_REGION_ID) {
 
 		/* We only support upto MAX_PHYSMEM_BITS */
-		if ((ea & ~REGION_MASK) > (1UL << MAX_PHYSMEM_BITS))
+		if ((ea & EA_MASK) > (1UL << MAX_PHYSMEM_BITS))
 			return -EFAULT;
 
 		flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_linear_psize].sllp;
@@ -702,20 +702,25 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	} else if (id == VMEMMAP_REGION_ID) {
 
-		if ((ea & ~REGION_MASK) >= (1ULL << MAX_EA_BITS_PER_CONTEXT))
+		if (ea >= H_VMEMMAP_END)
 			return -EFAULT;
 
 		flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_vmemmap_psize].sllp;
 #endif
 	} else if (id == VMALLOC_REGION_ID) {
 
-		if ((ea & ~REGION_MASK) >= (1ULL << MAX_EA_BITS_PER_CONTEXT))
+		if (ea >= H_VMALLOC_END)
 			return -EFAULT;
 
-		if (ea < H_VMALLOC_END)
-			flags = local_paca->vmalloc_sllp;
-		else
-			flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_io_psize].sllp;
+		flags = local_paca->vmalloc_sllp;
+
+	} else if (id == IO_REGION_ID) {
+
+		if (ea >= H_KERN_IO_END)
+			return -EFAULT;
+
+		flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_io_psize].sllp;
+
 	} else {
 		return -EFAULT;
 	}
@@ -725,6 +730,7 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 		ssize = MMU_SEGSIZE_256M;
 
 	context = get_kernel_context(ea);
+
 	return slb_insert_entry(ea, context, flags, ssize, true);
 }
 
@@ -761,7 +767,7 @@ static long slb_allocate_user(struct mm_struct *mm, unsigned long ea)
 
 long do_slb_fault(struct pt_regs *regs, unsigned long ea)
 {
-	unsigned long id = REGION_ID(ea);
+	unsigned long id = get_region_id(ea);
 
 	/* IRQs are not reconciled here, so can't check irqs_disabled */
 	VM_WARN_ON(mfmsr() & MSR_EE);

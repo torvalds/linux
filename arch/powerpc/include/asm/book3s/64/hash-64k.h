@@ -15,6 +15,17 @@
 #define MAX_EA_BITS_PER_CONTEXT		49
 
 /*
+ * We use one context for each MAP area.
+ */
+#define H_KERN_MAP_SIZE		(1UL << MAX_EA_BITS_PER_CONTEXT)
+
+/*
+ * Define the address range of the kernel non-linear virtual area
+ * 2PB
+ */
+#define H_KERN_VIRT_START	ASM_CONST(0xc008000000000000)
+
+/*
  * 64k aligned address free up few of the lower bits of RPN for us
  * We steal that here. For more deatils look at pte_pfn/pfn_pte()
  */

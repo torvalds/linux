@@ -139,7 +139,8 @@ static inline bool pfn_valid(unsigned long pfn)
  * return true for some vmalloc addresses, which is incorrect. So explicitly
  * check that the address is in the kernel region.
  */
-#define virt_addr_valid(kaddr) (REGION_ID(kaddr) == KERNEL_REGION_ID && \
+/* may be can drop get_region_id */
+#define virt_addr_valid(kaddr) (get_region_id((unsigned long)kaddr) == KERNEL_REGION_ID && \
 				pfn_valid(virt_to_pfn(kaddr)))
 #else
 #define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))

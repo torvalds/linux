@@ -136,6 +136,10 @@ static int __map_kernel_page(unsigned long ea, unsigned long pa,
 	 */
 	BUILD_BUG_ON(TASK_SIZE_USER64 > RADIX_PGTABLE_RANGE);
 
+#ifdef CONFIG_PPC_64K_PAGES
+	BUILD_BUG_ON(RADIX_KERN_MAP_SIZE != (1UL << MAX_EA_BITS_PER_CONTEXT));
+#endif
+
 	if (unlikely(!slab_is_available()))
 		return early_map_kernel_page(ea, pa, flags, map_page_size,
 						nid, region_start, region_end);
@@ -601,12 +605,11 @@ void __init radix__early_init_mmu(void)
 	__pgd_val_bits = RADIX_PGD_VAL_BITS;
 
 	__kernel_virt_start = RADIX_KERN_VIRT_START;
-	__kernel_virt_size = RADIX_KERN_VIRT_SIZE;
 	__vmalloc_start = RADIX_VMALLOC_START;
 	__vmalloc_end = RADIX_VMALLOC_END;
 	__kernel_io_start = RADIX_KERN_IO_START;
 	__kernel_io_end = RADIX_KERN_IO_END;
-	vmemmap = (struct page *)RADIX_VMEMMAP_BASE;
+	vmemmap = (struct page *)RADIX_VMEMMAP_START;
 	ioremap_bot = IOREMAP_BASE;
 
 #ifdef CONFIG_PCI

@@ -1009,12 +1009,11 @@ void __init hash__early_init_mmu(void)
 	__pgd_val_bits = HASH_PGD_VAL_BITS;
 
 	__kernel_virt_start = H_KERN_VIRT_START;
-	__kernel_virt_size = H_KERN_VIRT_SIZE;
 	__vmalloc_start = H_VMALLOC_START;
 	__vmalloc_end = H_VMALLOC_END;
 	__kernel_io_start = H_KERN_IO_START;
 	__kernel_io_end = H_KERN_IO_END;
-	vmemmap = (struct page *)H_VMEMMAP_BASE;
+	vmemmap = (struct page *)H_VMEMMAP_START;
 	ioremap_bot = IOREMAP_BASE;
 
 #ifdef CONFIG_PCI
@@ -1241,7 +1240,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	trace_hash_fault(ea, access, trap);
 
 	/* Get region & vsid */
- 	switch (REGION_ID(ea)) {
+	switch (get_region_id(ea)) {
 	case USER_REGION_ID:
 		user_region = 1;
 		if (! mm) {
@@ -1255,10 +1254,13 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		break;
 	case VMALLOC_REGION_ID:
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
-		if (ea < VMALLOC_END)
-			psize = mmu_vmalloc_psize;
-		else
-			psize = mmu_io_psize;
+		psize = mmu_vmalloc_psize;
+		ssize = mmu_kernel_ssize;
+		break;
+
+	case IO_REGION_ID:
+		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
+		psize = mmu_io_psize;
 		ssize = mmu_kernel_ssize;
 		break;
 	default:
@@ -1424,7 +1426,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 	unsigned long flags = 0;
 	struct mm_struct *mm = current->mm;
 
-	if (REGION_ID(ea) == VMALLOC_REGION_ID)
+	if ((get_region_id(ea) == VMALLOC_REGION_ID) ||
+	    (get_region_id(ea) == IO_REGION_ID))
 		mm = &init_mm;
 
 	if (dsisr & DSISR_NOHPTE)
@@ -1440,8 +1443,9 @@ int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 	unsigned long access = _PAGE_PRESENT | _PAGE_READ;
 	unsigned long flags = 0;
 	struct mm_struct *mm = current->mm;
+	unsigned int region_id = get_region_id(ea);
 
-	if (REGION_ID(ea) == VMALLOC_REGION_ID)
+	if ((region_id == VMALLOC_REGION_ID) || (region_id == IO_REGION_ID))
 		mm = &init_mm;
 
 	if (dsisr & DSISR_NOHPTE)
@@ -1458,7 +1462,7 @@ int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 	 * 2) user space access kernel space.
 	 */
 	access |= _PAGE_PRIVILEGED;
-	if ((msr & MSR_PR) || (REGION_ID(ea) == USER_REGION_ID))
+	if ((msr & MSR_PR) || (region_id == USER_REGION_ID))
 		access &= ~_PAGE_PRIVILEGED;
 
 	if (trap == 0x400)
@@ -1502,7 +1506,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	int rc, ssize, update_flags = 0;
 	unsigned long access = _PAGE_PRESENT | _PAGE_READ | (is_exec ? _PAGE_EXEC : 0);
 
-	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
+	BUG_ON(get_region_id(ea) != USER_REGION_ID);
 
 	if (!should_hash_preload(mm, ea))
 		return;

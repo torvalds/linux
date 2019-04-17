@@ -90,8 +90,6 @@ unsigned long __pgd_val_bits;
 EXPORT_SYMBOL(__pgd_val_bits);
 unsigned long __kernel_virt_start;
 EXPORT_SYMBOL(__kernel_virt_start);
-unsigned long __kernel_virt_size;
-EXPORT_SYMBOL(__kernel_virt_size);
 unsigned long __vmalloc_start;
 EXPORT_SYMBOL(__vmalloc_start);
 unsigned long __vmalloc_end;

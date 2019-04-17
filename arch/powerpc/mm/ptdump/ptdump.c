@@ -303,8 +303,9 @@ static void populate_markers(void)
 	address_markers[i++].start_address = PHB_IO_END;
 	address_markers[i++].start_address = IOREMAP_BASE;
 	address_markers[i++].start_address = IOREMAP_END;
+	/* What is the ifdef about? */
 #ifdef CONFIG_PPC_BOOK3S_64
-	address_markers[i++].start_address =  H_VMEMMAP_BASE;
+	address_markers[i++].start_address =  H_VMEMMAP_START;
 #else
 	address_markers[i++].start_address =  VMEMMAP_BASE;
 #endif

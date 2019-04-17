@@ -279,7 +279,6 @@ extern unsigned long __kernel_virt_size;
 extern unsigned long __kernel_io_start;
 extern unsigned long __kernel_io_end;
 #define KERN_VIRT_START __kernel_virt_start
-#define KERN_VIRT_SIZE  __kernel_virt_size
 #define KERN_IO_START  __kernel_io_start
 #define KERN_IO_END __kernel_io_end
 
