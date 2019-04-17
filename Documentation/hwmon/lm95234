@@ -2,15 +2,22 @@ Kernel driver lm95234
 =====================
 
 Supported chips:
-  * National Semiconductor / Texas Instruments LM95233
-    Addresses scanned: I2C 0x18, 0x2a, 0x2b
-    Datasheet: Publicly available at the Texas Instruments website
-               http://www.ti.com/product/lm95233
-  * National Semiconductor / Texas Instruments LM95234
-    Addresses scanned: I2C 0x18, 0x4d, 0x4e
-    Datasheet: Publicly available at the Texas Instruments website
-               http://www.ti.com/product/lm95234
 
+  * National Semiconductor / Texas Instruments LM95233
+
+    Addresses scanned: I2C 0x18, 0x2a, 0x2b
+
+    Datasheet: Publicly available at the Texas Instruments website
+
+	       http://www.ti.com/product/lm95233
+
+  * National Semiconductor / Texas Instruments LM95234
+
+    Addresses scanned: I2C 0x18, 0x4d, 0x4e
+
+    Datasheet: Publicly available at the Texas Instruments website
+
+	       http://www.ti.com/product/lm95234
 
 Author: Guenter Roeck <linux@roeck-us.net>
 

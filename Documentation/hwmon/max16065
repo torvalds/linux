@@ -1,28 +1,48 @@
 Kernel driver max16065
 ======================
 
-Supported chips:
-  * Maxim MAX16065, MAX16066
-    Prefixes: 'max16065', 'max16066'
-    Addresses scanned: -
-    Datasheet:
-	http://datasheets.maxim-ic.com/en/ds/MAX16065-MAX16066.pdf
- *  Maxim MAX16067
-    Prefix: 'max16067'
-    Addresses scanned: -
-    Datasheet:
-	http://datasheets.maxim-ic.com/en/ds/MAX16067.pdf
- *  Maxim MAX16068
-    Prefix: 'max16068'
-    Addresses scanned: -
-    Datasheet:
-	http://datasheets.maxim-ic.com/en/ds/MAX16068.pdf
- *  Maxim MAX16070/MAX16071
-    Prefixes: 'max16070', 'max16071'
-    Addresses scanned: -
-    Datasheet:
-	http://datasheets.maxim-ic.com/en/ds/MAX16070-MAX16071.pdf
 
+Supported chips:
+
+  * Maxim MAX16065, MAX16066
+
+    Prefixes: 'max16065', 'max16066'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	http://datasheets.maxim-ic.com/en/ds/MAX16065-MAX16066.pdf
+
+ *  Maxim MAX16067
+
+    Prefix: 'max16067'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	http://datasheets.maxim-ic.com/en/ds/MAX16067.pdf
+
+ *  Maxim MAX16068
+
+    Prefix: 'max16068'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	http://datasheets.maxim-ic.com/en/ds/MAX16068.pdf
+
+ *  Maxim MAX16070/MAX16071
+
+    Prefixes: 'max16070', 'max16071'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	http://datasheets.maxim-ic.com/en/ds/MAX16070-MAX16071.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
 
@@ -73,6 +93,7 @@ turn into a brick.
 Sysfs entries
 -------------
 
+======================= ========================================================
 in[0-11]_input		Input voltage measurements.
 
 in12_input		Voltage on CSP (Current Sense Positive) pin.
@@ -103,3 +124,4 @@ curr1_input		Current sense input; only if the chip supports current
 
 curr1_alarm		Overcurrent alarm; only if the chip supports current
 			sensing and if current sensing is enabled.
+======================= ========================================================

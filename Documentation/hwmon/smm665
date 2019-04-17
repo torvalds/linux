@@ -2,31 +2,57 @@ Kernel driver smm665
 ====================
 
 Supported chips:
+
   * Summit Microelectronics SMM465
+
     Prefix: 'smm465'
+
     Addresses scanned: -
+
     Datasheet:
+
       http://www.summitmicro.com/prod_select/summary/SMM465/SMM465DS.pdf
+
   * Summit Microelectronics SMM665, SMM665B
+
     Prefix: 'smm665'
+
     Addresses scanned: -
+
     Datasheet:
+
       http://www.summitmicro.com/prod_select/summary/SMM665/SMM665B_2089_20.pdf
+
   * Summit Microelectronics SMM665C
+
     Prefix: 'smm665c'
+
     Addresses scanned: -
+
     Datasheet:
+
       http://www.summitmicro.com/prod_select/summary/SMM665C/SMM665C_2125.pdf
+
   * Summit Microelectronics SMM764
+
     Prefix: 'smm764'
+
     Addresses scanned: -
+
     Datasheet:
+
       http://www.summitmicro.com/prod_select/summary/SMM764/SMM764_2098.pdf
+
   * Summit Microelectronics SMM766, SMM766B
+
     Prefix: 'smm766'
+
     Addresses scanned: -
+
     Datasheets:
+
       http://www.summitmicro.com/prod_select/summary/SMM766/SMM766_2086.pdf
+
       http://www.summitmicro.com/prod_select/summary/SMM766B/SMM766B_2122.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
@@ -36,9 +62,10 @@ Module Parameters
 -----------------
 
 * vref: int
-  Default: 1250 (mV)
-  Reference voltage on VREF_ADC pin in mV. It should not be necessary to set
-  this parameter unless a non-default reference voltage is used.
+    Default: 1250 (mV)
+
+    Reference voltage on VREF_ADC pin in mV. It should not be necessary to set
+    this parameter unless a non-default reference voltage is used.
 
 
 Description
@@ -64,9 +91,10 @@ the devices explicitly. When instantiating the device, you have to specify
 its configuration register address.
 
 Example: the following will load the driver for an SMM665 at address 0x57
-on I2C bus #1:
-$ modprobe smm665
-$ echo smm665 0x57 > /sys/bus/i2c/devices/i2c-1/new_device
+on I2C bus #1::
+
+	$ modprobe smm665
+	$ echo smm665 0x57 > /sys/bus/i2c/devices/i2c-1/new_device
 
 
 Sysfs entries
@@ -84,6 +112,7 @@ max otherwise. For details please see the SMM665 datasheet.
 
 For SMM465 and SMM764, values for Channel E and F are reported but undefined.
 
+======================= =======================================================
 in1_input		12V input voltage (mV)
 in2_input		3.3V (VDD) input voltage (mV)
 in3_input		Channel A voltage (mV)
@@ -155,3 +184,4 @@ temp1_min		Mimimum chip temperature
 temp1_max		Maximum chip temperature
 temp1_crit		Critical chip temperature
 temp1_crit_alarm	Temperature critical alarm
+======================= =======================================================

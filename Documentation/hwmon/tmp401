@@ -2,33 +2,59 @@ Kernel driver tmp401
 ====================
 
 Supported chips:
+
   * Texas Instruments TMP401
+
     Prefix: 'tmp401'
+
     Addresses scanned: I2C 0x4c
+
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp401.html
+
   * Texas Instruments TMP411
+
     Prefix: 'tmp411'
+
     Addresses scanned: I2C 0x4c, 0x4d, 0x4e
+
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp411.html
+
   * Texas Instruments TMP431
+
     Prefix: 'tmp431'
+
     Addresses scanned: I2C 0x4c, 0x4d
+
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp431.html
+
   * Texas Instruments TMP432
+
     Prefix: 'tmp432'
+
     Addresses scanned: I2C 0x4c, 0x4d
+
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp432.html
+
   * Texas Instruments TMP435
+
     Prefix: 'tmp435'
+
     Addresses scanned: I2C 0x48 - 0x4f
+
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp435.html
+
   * Texas Instruments TMP461
+
     Prefix: 'tmp461'
+
     Datasheet: http://www.ti.com/product/tmp461
 
+
+
 Authors:
-         Hans de Goede <hdegoede@redhat.com>
-	 Andre Prendel <andre.prendel@gmx.de>
+
+	- Hans de Goede <hdegoede@redhat.com>
+	- Andre Prendel <andre.prendel@gmx.de>
 
 Description
 -----------

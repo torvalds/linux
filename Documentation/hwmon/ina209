@@ -1,16 +1,21 @@
 Kernel driver ina209
-=====================
+====================
 
 Supported chips:
-  * Burr-Brown / Texas Instruments INA209
-    Prefix: 'ina209'
-    Addresses scanned: -
-    Datasheet:
-        http://www.ti.com/lit/gpn/ina209
 
-Author: Paul Hays <Paul.Hays@cattail.ca>
-Author: Ira W. Snyder <iws@ovro.caltech.edu>
-Author: Guenter Roeck <linux@roeck-us.net>
+  * Burr-Brown / Texas Instruments INA209
+
+    Prefix: 'ina209'
+
+    Addresses scanned: -
+
+    Datasheet:
+	http://www.ti.com/lit/gpn/ina209
+
+Author:
+	- Paul Hays <Paul.Hays@cattail.ca>
+	- Ira W. Snyder <iws@ovro.caltech.edu>
+	- Guenter Roeck <linux@roeck-us.net>
 
 
 Description
@@ -31,7 +36,7 @@ the I2C bus. See the datasheet for details.
 This tries to expose most monitoring features of the hardware via
 sysfs. It does not support every feature of this chip.
 
-
+======================= =======================================================
 in0_input		shunt voltage (mV)
 in0_input_highest	shunt voltage historical maximum reading (mV)
 in0_input_lowest	shunt voltage historical minimum reading (mV)
@@ -70,6 +75,7 @@ curr1_input		current measurement (mA)
 
 update_interval		data conversion time; affects number of samples used
 			to average results for shunt and bus voltages.
+======================= =======================================================
 
 General Remarks
 ---------------
