@@ -137,8 +137,7 @@ static void qla_nvme_sp_ls_done(void *ptr, int res)
 		return;
 	}
 
-	if (!atomic_dec_and_test(&sp->ref_count))
-		return;
+	atomic_dec(&sp->ref_count);
 
 	if (res)
 		res = -EINVAL;
@@ -161,8 +160,7 @@ static void qla_nvme_sp_done(void *ptr, int res)
 	nvme = &sp->u.iocb_cmd;
 	fd = nvme->u.nvme.desc;
 
-	if (!atomic_dec_and_test(&sp->ref_count))
-		return;
+	atomic_dec(&sp->ref_count);
 
 	if (res == QLA_SUCCESS) {
 		fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
@@ -598,34 +596,6 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.lsrqst_priv_sz = sizeof(struct nvme_private),
 	.fcprqst_priv_sz = sizeof(struct nvme_private),
 };
-
-#define NVME_ABORT_POLLING_PERIOD    2
-static int qla_nvme_wait_on_command(srb_t *sp)
-{
-	int ret = QLA_SUCCESS;
-
-	wait_event_timeout(sp->nvme_ls_waitq, (atomic_read(&sp->ref_count) > 1),
-	    NVME_ABORT_POLLING_PERIOD*HZ);
-
-	if (atomic_read(&sp->ref_count) > 1)
-		ret = QLA_FUNCTION_FAILED;
-
-	return ret;
-}
-
-void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp, int res)
-{
-	int rval;
-
-	if (ha->flags.fw_started) {
-		rval = ha->isp_ops->abort_command(sp);
-		if (!rval && !qla_nvme_wait_on_command(sp))
-			ql_log(ql_log_warn, NULL, 0x2112,
-			    "timed out waiting on sp=%p\n", sp);
-	} else {
-		sp->done(sp, res);
-	}
-}
 
 static void qla_nvme_unregister_remote_port(struct work_struct *work)
 {

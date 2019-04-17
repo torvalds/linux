@@ -714,7 +714,7 @@ qla2x00_sp_compl(void *ptr, int res)
 {
 	srb_t *sp = ptr;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	wait_queue_head_t *cwaitq = sp->cwaitq;
+	struct completion *comp = sp->comp;
 
 	if (atomic_read(&sp->ref_count) == 0) {
 		ql_dbg(ql_dbg_io, sp->vha, 0x3015,
@@ -724,15 +724,15 @@ qla2x00_sp_compl(void *ptr, int res)
 			WARN_ON(atomic_read(&sp->ref_count) == 0);
 		return;
 	}
-	if (!atomic_dec_and_test(&sp->ref_count))
-		return;
+
+	atomic_dec(&sp->ref_count);
 
 	sp->free(sp);
 	cmd->result = res;
 	CMD_SP(cmd) = NULL;
 	cmd->scsi_done(cmd);
-	if (cwaitq)
-		wake_up(cwaitq);
+	if (comp)
+		complete(comp);
 	qla2x00_rel_sp(sp);
 }
 
@@ -825,7 +825,7 @@ qla2xxx_qpair_sp_compl(void *ptr, int res)
 {
 	srb_t *sp = ptr;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	wait_queue_head_t *cwaitq = sp->cwaitq;
+	struct completion *comp = sp->comp;
 
 	if (atomic_read(&sp->ref_count) == 0) {
 		ql_dbg(ql_dbg_io, sp->fcport->vha, 0x3079,
@@ -835,15 +835,15 @@ qla2xxx_qpair_sp_compl(void *ptr, int res)
 			WARN_ON(atomic_read(&sp->ref_count) == 0);
 		return;
 	}
-	if (!atomic_dec_and_test(&sp->ref_count))
-		return;
+
+	atomic_dec(&sp->ref_count);
 
 	sp->free(sp);
 	cmd->result = res;
 	CMD_SP(cmd) = NULL;
 	cmd->scsi_done(cmd);
-	if (cwaitq)
-		wake_up(cwaitq);
+	if (comp)
+		complete(comp);
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }
 
@@ -1286,7 +1286,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	unsigned int id;
 	uint64_t lun;
 	unsigned long flags;
-	int rval, wait = 0;
+	int rval;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair;
 
@@ -1299,7 +1299,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	ret = fc_block_scsi_eh(cmd);
 	if (ret != 0)
 		return ret;
-	ret = SUCCESS;
 
 	sp = (srb_t *) CMD_SP(cmd);
 	if (!sp)
@@ -1310,7 +1309,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		return SUCCESS;
 
 	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
-	if (!CMD_SP(cmd)) {
+	if (sp->type != SRB_SCSI_CMD || GET_CMD_SP(sp) != cmd) {
 		/* there's a chance an interrupt could clear
 		   the ptr as part of done & free */
 		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
@@ -1331,66 +1330,31 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	    "Aborting from RISC nexus=%ld:%d:%llu sp=%p cmd=%p handle=%x\n",
 	    vha->host_no, id, lun, sp, cmd, sp->handle);
 
-	/* Get a reference to the sp and drop the lock.*/
 	rval = ha->isp_ops->abort_command(sp);
-	if (rval) {
-		if (rval == QLA_FUNCTION_PARAMETER_ERROR)
-			ret = SUCCESS;
-		else
-			ret = FAILED;
+	ql_dbg(ql_dbg_taskm, vha, 0x8003,
+	       "Abort command mbx cmd=%p, rval=%x.\n", cmd, rval);
 
-		ql_dbg(ql_dbg_taskm, vha, 0x8003,
-		    "Abort command mbx failed cmd=%p, rval=%x.\n", cmd, rval);
-	} else {
-		ql_dbg(ql_dbg_taskm, vha, 0x8004,
-		    "Abort command mbx success cmd=%p.\n", cmd);
-		wait = 1;
-	}
-
-	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
-
-	/*
-	 * Releasing of the SRB and associated command resources
-	 * is managed through ref_count.
-	 * Whether we need to wait for the abort completion or complete
-	 * the abort handler should be based on the ref_count.
-	 */
-	if (atomic_read(&sp->ref_count) > 1) {
+	switch (rval) {
+	case QLA_SUCCESS:
 		/*
-		 * The command is not yet completed. We need to wait for either
-		 * command completion or abort completion.
+		 * The command has been aborted. That means that the firmware
+		 * won't report a completion.
 		 */
-		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(eh_waitq);
-		uint32_t ratov = ha->r_a_tov/10;
-
-		/* Go ahead and release the extra ref_count obtained earlier */
-		sp->done(sp, DID_RESET << 16);
-		sp->cwaitq = &eh_waitq;
-
-		if (!wait_event_lock_irq_timeout(eh_waitq,
-		    CMD_SP(cmd) == NULL, *qpair->qp_lock_ptr,
-		    msecs_to_jiffies(4 * ratov * 1000))) {
-			/*
-			 * The abort got dropped, LOGO will be sent and the
-			 * original command will be completed with CS_TIMEOUT
-			 * completion
-			 */
-			ql_dbg(ql_dbg_taskm, vha, 0xffff,
-			    "%s: Abort wait timer (4 * R_A_TOV[%d]) expired\n",
-			    __func__, ha->r_a_tov);
-			sp->cwaitq = NULL;
-			ret = FAILED;
-			goto end;
-		}
-	} else {
-		/* Command completed while processing the abort */
-		sp->done(sp, DID_RESET << 16);
+		sp->done(sp, DID_ABORT << 16);
+		ret = SUCCESS;
+		break;
+	default:
+		/*
+		 * Either abort failed or abort and completion raced. Let
+		 * the SCSI core retry the abort in the former case.
+		 */
+		ret = FAILED;
+		break;
 	}
-end:
-	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+
 	ql_log(ql_log_info, vha, 0x801c,
-	    "Abort command issued nexus=%ld:%d:%llu --  %d %x.\n",
-	    vha->host_no, id, lun, wait, ret);
+	    "Abort command issued nexus=%ld:%d:%llu -- %x.\n",
+	    vha->host_no, id, lun, ret);
 
 	return ret;
 }
@@ -1766,42 +1730,34 @@ static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
 	__releases(qp->qp_lock_ptr)
 	__acquires(qp->qp_lock_ptr)
 {
+	DECLARE_COMPLETION_ONSTACK(comp);
 	scsi_qla_host_t *vha = qp->vha;
 	struct qla_hw_data *ha = vha->hw;
+	int rval;
 
-	if (sp->type == SRB_NVME_CMD || sp->type == SRB_NVME_LS) {
-		if (!sp_get(sp)) {
-			/* got sp */
-			spin_unlock_irqrestore(qp->qp_lock_ptr, *flags);
-			qla_nvme_abort(ha, sp, res);
-			spin_lock_irqsave(qp->qp_lock_ptr, *flags);
-		}
-	} else if (GET_CMD_SP(sp) && !ha->flags.eeh_busy &&
-		   !test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) &&
-		   !qla2x00_isp_reg_stat(ha) && sp->type == SRB_SCSI_CMD) {
-		/*
-		 * Don't abort commands in adapter during EEH recovery as it's
-		 * not accessible/responding.
-		 *
-		 * Get a reference to the sp and drop the lock. The reference
-		 * ensures this sp->done() call and not the call in
-		 * qla2xxx_eh_abort() ends the SCSI cmd (with result 'res').
-		 */
-		if (!sp_get(sp)) {
-			int status;
+	if (sp_get(sp))
+		return;
 
-			spin_unlock_irqrestore(qp->qp_lock_ptr, *flags);
-			status = qla2xxx_eh_abort(GET_CMD_SP(sp));
-			spin_lock_irqsave(qp->qp_lock_ptr, *flags);
-			/*
-			 * Get rid of extra reference caused
-			 * by early exit from qla2xxx_eh_abort
-			 */
-			if (status == FAST_IO_FAIL)
-				atomic_dec(&sp->ref_count);
+	if (sp->type == SRB_NVME_CMD || sp->type == SRB_NVME_LS ||
+	    (sp->type == SRB_SCSI_CMD && !ha->flags.eeh_busy &&
+	     !test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) &&
+	     !qla2x00_isp_reg_stat(ha))) {
+		sp->comp = &comp;
+		rval = ha->isp_ops->abort_command(sp);
+		spin_unlock_irqrestore(qp->qp_lock_ptr, *flags);
+
+		switch (rval) {
+		case QLA_SUCCESS:
+			sp->done(sp, res);
+			break;
+		case QLA_FUNCTION_PARAMETER_ERROR:
+			wait_for_completion(&comp);
+			break;
 		}
+
+		spin_lock_irqsave(qp->qp_lock_ptr, *flags);
+		sp->comp = NULL;
 	}
-	sp->done(sp, res);
 }
 
 static void
