@@ -913,6 +913,20 @@ wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 	return fw;
 }
 
+static bool
+wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
+{
+	if ((cur ^ wa->val) & wa->mask) {
+		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x, mask=%x)\n",
+			  name, from, i915_mmio_reg_offset(wa->reg), cur,
+			  cur & wa->mask, wa->val, wa->mask);
+
+		return false;
+	}
+
+	return true;
+}
+
 static void
 wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 {
@@ -931,6 +945,10 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
 		intel_uncore_rmw_fw(uncore, wa->reg, wa->mask, wa->val);
+		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+			wa_verify(wa,
+				  intel_uncore_read_fw(uncore, wa->reg),
+				  wal->name, "application");
 	}
 
 	intel_uncore_forcewake_put__locked(uncore, fw);
@@ -940,20 +958,6 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 void intel_gt_apply_workarounds(struct drm_i915_private *i915)
 {
 	wa_list_apply(&i915->uncore, &i915->gt_wa_list);
-}
-
-static bool
-wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
-{
-	if ((cur ^ wa->val) & wa->mask) {
-		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x, mask=%x)\n",
-			  name, from, i915_mmio_reg_offset(wa->reg), cur,
-			  cur & wa->mask, wa->val, wa->mask);
-
-		return false;
-	}
-
-	return true;
 }
 
 static bool wa_list_verify(struct intel_uncore *uncore,
