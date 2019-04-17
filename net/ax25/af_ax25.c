@@ -1714,14 +1714,6 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-	case SIOCGSTAMP:
-		res = sock_get_timestamp(sk, argp);
-		break;
-
-	case SIOCGSTAMPNS:
-		res = sock_get_timestampns(sk, argp);
-		break;
-
 	case SIOCAX25ADDUID:	/* Add a uid to the uid/call map table */
 	case SIOCAX25DELUID:	/* Delete a uid from the uid/call map table */
 	case SIOCAX25GETUID: {
@@ -1950,6 +1942,7 @@ static const struct proto_ops ax25_proto_ops = {
 	.getname	= ax25_getname,
 	.poll		= datagram_poll,
 	.ioctl		= ax25_ioctl,
+	.gettstamp	= sock_gettstamp,
 	.listen		= ax25_listen,
 	.shutdown	= ax25_shutdown,
 	.setsockopt	= ax25_setsockopt,

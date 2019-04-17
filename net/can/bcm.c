@@ -1689,6 +1689,7 @@ static const struct proto_ops bcm_ops = {
 	.getname       = sock_no_getname,
 	.poll          = datagram_poll,
 	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
+	.gettstamp     = sock_gettstamp,
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,
 	.setsockopt    = sock_no_setsockopt,

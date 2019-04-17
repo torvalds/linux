@@ -915,12 +915,6 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	struct rtentry rt;
 
 	switch (cmd) {
-	case SIOCGSTAMP:
-		err = sock_get_timestamp(sk, (struct timeval __user *)arg);
-		break;
-	case SIOCGSTAMPNS:
-		err = sock_get_timestampns(sk, (struct timespec __user *)arg);
-		break;
 	case SIOCADDRT:
 	case SIOCDELRT:
 		if (copy_from_user(&rt, p, sizeof(struct rtentry)))
@@ -992,6 +986,7 @@ const struct proto_ops inet_stream_ops = {
 	.getname	   = inet_getname,
 	.poll		   = tcp_poll,
 	.ioctl		   = inet_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = inet_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
@@ -1027,6 +1022,7 @@ const struct proto_ops inet_dgram_ops = {
 	.getname	   = inet_getname,
 	.poll		   = udp_poll,
 	.ioctl		   = inet_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
@@ -1059,6 +1055,7 @@ static const struct proto_ops inet_sockraw_ops = {
 	.getname	   = inet_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,

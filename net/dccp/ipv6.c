@@ -1075,6 +1075,7 @@ static const struct proto_ops inet6_dccp_ops = {
 	.getname	   = inet6_getname,
 	.poll		   = dccp_poll,
 	.ioctl		   = inet6_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = inet_dccp_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,

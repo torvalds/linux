@@ -1614,6 +1614,8 @@ int sock_setsockopt(struct socket *sock, int level, int op,
 
 int sock_getsockopt(struct socket *sock, int level, int op,
 		    char __user *optval, int __user *optlen);
+int sock_gettstamp(struct socket *sock, void __user *userstamp,
+		   bool timeval, bool time32);
 struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 				    int noblock, int *errcode);
 struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
@@ -2503,8 +2505,6 @@ static inline bool sk_listener(const struct sock *sk)
 }
 
 void sock_enable_timestamp(struct sock *sk, int flag);
-int sock_get_timestamp(struct sock *, struct timeval __user *);
-int sock_get_timestampns(struct sock *, struct timespec __user *);
 int sock_recv_errqueue(struct sock *sk, struct msghdr *msg, int len, int level,
 		       int type);
 
