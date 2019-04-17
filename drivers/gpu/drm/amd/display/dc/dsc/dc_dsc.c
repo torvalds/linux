@@ -252,7 +252,7 @@ struct dc_dsc_policy {
 	int min_target_bpp; // Minimum target bits per pixel
 };
 
-static inline uint32_t dsc_round_up(uint32_t value)
+static inline uint32_t dsc_div_by_10_round_up(uint32_t value)
 {
 	return (value + 9) / 10;
 }
@@ -304,7 +304,7 @@ static void get_dsc_bandwidth_range(
 	range->stream_kbps = dc_bandwidth_in_kbps_from_timing(timing);
 
 	/* max dsc target bpp */
-	range->max_kbps = dsc_round_up(max_bpp * timing->pix_clk_100hz);
+	range->max_kbps = dsc_div_by_10_round_up(max_bpp * timing->pix_clk_100hz);
 	range->max_target_bpp_x16 = max_bpp * 16;
 	if (range->max_kbps > range->stream_kbps) {
 		/* max dsc target bpp is capped to native bandwidth */
@@ -313,7 +313,7 @@ static void get_dsc_bandwidth_range(
 	}
 
 	/* min dsc target bpp */
-	range->min_kbps = dsc_round_up(min_bpp * timing->pix_clk_100hz);
+	range->min_kbps = dsc_div_by_10_round_up(min_bpp * timing->pix_clk_100hz);
 	range->min_target_bpp_x16 = min_bpp * 16;
 	if (range->min_kbps > range->max_kbps) {
 		/* min dsc target bpp is capped to max dsc bandwidth*/
@@ -532,14 +532,21 @@ static bool setup_dsc_config(
 	int pic_width;
 	int slice_width;
 	int target_bpp;
-	int sink_per_slice_throughput;
+	int sink_per_slice_throughput_mps;
+	int branch_max_throughput_mps = 0;
 	bool is_dsc_possible = false;
 	int num_slices_v;
 	int pic_height;
 
 	memset(dsc_cfg, 0, sizeof(struct dc_dsc_config));
 
+	pic_width = timing->h_addressable + timing->h_border_left + timing->h_border_right;
+	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
+
 	if (!dsc_sink_caps->is_dsc_supported)
+		goto done;
+
+	if (dsc_sink_caps->branch_max_line_width && dsc_sink_caps->branch_max_line_width < pic_width)
 		goto done;
 
 	// Intersect decoder with encoder DSC caps and validate DSC settings
@@ -554,38 +561,45 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	sink_per_slice_throughput = 0;
+	sink_per_slice_throughput_mps = 0;
 
 	// Validate available DSC settings against the mode timing
 
-	// Color format
+	// Validate color format (and pick up the throughput values)
 	dsc_cfg->ycbcr422_simple = false;
 	switch (timing->pixel_encoding)	{
 	case PIXEL_ENCODING_RGB:
 		is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.RGB;
-		sink_per_slice_throughput = dsc_sink_caps->throughput_mode_0_mps;
+		sink_per_slice_throughput_mps = dsc_sink_caps->throughput_mode_0_mps;
+		branch_max_throughput_mps = dsc_sink_caps->branch_overall_throughput_0_mps;
 		break;
 	case PIXEL_ENCODING_YCBCR444:
 		is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.YCBCR_444;
-		sink_per_slice_throughput = dsc_sink_caps->throughput_mode_0_mps;
+		sink_per_slice_throughput_mps = dsc_sink_caps->throughput_mode_0_mps;
+		branch_max_throughput_mps = dsc_sink_caps->branch_overall_throughput_0_mps;
 		break;
-	case PIXEL_ENCODING_YCBCR422: {
-			is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.YCBCR_NATIVE_422;
-			sink_per_slice_throughput = dsc_sink_caps->throughput_mode_1_mps;
-			if (!is_dsc_possible) {
-				is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.YCBCR_SIMPLE_422;
-				dsc_cfg->ycbcr422_simple = is_dsc_possible;
-				sink_per_slice_throughput = dsc_sink_caps->throughput_mode_0_mps;
-			}
+	case PIXEL_ENCODING_YCBCR422:
+		is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.YCBCR_NATIVE_422;
+		sink_per_slice_throughput_mps = dsc_sink_caps->throughput_mode_1_mps;
+		branch_max_throughput_mps = dsc_sink_caps->branch_overall_throughput_1_mps;
+		if (!is_dsc_possible) {
+			is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.YCBCR_SIMPLE_422;
+			dsc_cfg->ycbcr422_simple = is_dsc_possible;
+			sink_per_slice_throughput_mps = dsc_sink_caps->throughput_mode_0_mps;
 		}
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		is_dsc_possible = (bool)dsc_common_caps.color_formats.bits.YCBCR_NATIVE_420;
-		sink_per_slice_throughput = dsc_sink_caps->throughput_mode_1_mps;
+		sink_per_slice_throughput_mps = dsc_sink_caps->throughput_mode_1_mps;
+		branch_max_throughput_mps = dsc_sink_caps->branch_overall_throughput_1_mps;
 		break;
 	default:
 		is_dsc_possible = false;
 	}
+
+	// Validate branch's maximum throughput
+	if (branch_max_throughput_mps && dsc_div_by_10_round_up(timing->pix_clk_100hz) > branch_max_throughput_mps * 1000)
+		is_dsc_possible = false;
 
 	if (!is_dsc_possible)
 		goto done;
@@ -611,7 +625,6 @@ static bool setup_dsc_config(
 	// DSC slicing
 	max_slices_h = get_max_dsc_slices(dsc_common_caps.slice_caps);
 
-	pic_width = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	while (max_slices_h > 0) {
 		if (pic_width % max_slices_h == 0)
 			break;
@@ -630,7 +643,8 @@ static bool setup_dsc_config(
 	min_slices_h = fit_num_slices_up(dsc_common_caps.slice_caps, min_slices_h);
 
 	while (min_slices_h <= max_slices_h) {
-		if (dsc_round_up(timing->pix_clk_100hz) / (min_slices_h) <= sink_per_slice_throughput * 1000)
+		int pix_clk_per_slice_khz = dsc_div_by_10_round_up(timing->pix_clk_100hz) / min_slices_h;
+		if (pix_clk_per_slice_khz <= sink_per_slice_throughput_mps * 1000)
 			break;
 
 		min_slices_h = inc_num_slices(dsc_common_caps.slice_caps, min_slices_h);
@@ -673,7 +687,6 @@ static bool setup_dsc_config(
 
 	// Vertical number of slices: start from policy and pick the first one that height is divisible by.
 	// For 4:2:0 make sure the slice height is divisible by 2 as well.
-	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 	num_slices_v = dsc_policy.num_slices_v;
 	if (num_slices_v < 1)
 		num_slices_v = 1;
@@ -710,41 +723,41 @@ done:
 	return is_dsc_possible;
 }
 
-bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
+bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
 {
-	dsc_sink_caps->is_dsc_supported = (dpcd_dsc_data[DP_DSC_SUPPORT - DP_DSC_SUPPORT] & DP_DSC_DECOMPRESSION_IS_SUPPORTED) != 0;
+	dsc_sink_caps->is_dsc_supported = (dpcd_dsc_basic_data[DP_DSC_SUPPORT - DP_DSC_SUPPORT] & DP_DSC_DECOMPRESSION_IS_SUPPORTED) != 0;
 	if (!dsc_sink_caps->is_dsc_supported)
 		return true;
 
-	dsc_sink_caps->dsc_version = dpcd_dsc_data[DP_DSC_REV - DP_DSC_SUPPORT];
+	dsc_sink_caps->dsc_version = dpcd_dsc_basic_data[DP_DSC_REV - DP_DSC_SUPPORT];
 
 	{
 		int buff_block_size;
 		int buff_size;
 
-		if (!dsc_buff_block_size_from_dpcd(dpcd_dsc_data[DP_DSC_RC_BUF_BLK_SIZE - DP_DSC_SUPPORT], &buff_block_size))
+		if (!dsc_buff_block_size_from_dpcd(dpcd_dsc_basic_data[DP_DSC_RC_BUF_BLK_SIZE - DP_DSC_SUPPORT], &buff_block_size))
 			return false;
 
-		buff_size = dpcd_dsc_data[DP_DSC_RC_BUF_SIZE - DP_DSC_SUPPORT] + 1;
+		buff_size = dpcd_dsc_basic_data[DP_DSC_RC_BUF_SIZE - DP_DSC_SUPPORT] + 1;
 		dsc_sink_caps->rc_buffer_size = buff_size * buff_block_size;
 	}
 
-	dsc_sink_caps->slice_caps1.raw = dpcd_dsc_data[DP_DSC_SLICE_CAP_1 - DP_DSC_SUPPORT];
-	if (!dsc_line_buff_depth_from_dpcd(dpcd_dsc_data[DP_DSC_LINE_BUF_BIT_DEPTH - DP_DSC_SUPPORT], &dsc_sink_caps->lb_bit_depth))
+	dsc_sink_caps->slice_caps1.raw = dpcd_dsc_basic_data[DP_DSC_SLICE_CAP_1 - DP_DSC_SUPPORT];
+	if (!dsc_line_buff_depth_from_dpcd(dpcd_dsc_basic_data[DP_DSC_LINE_BUF_BIT_DEPTH - DP_DSC_SUPPORT], &dsc_sink_caps->lb_bit_depth))
 		return false;
 
 	dsc_sink_caps->is_block_pred_supported =
-		(dpcd_dsc_data[DP_DSC_BLK_PREDICTION_SUPPORT - DP_DSC_SUPPORT] & DP_DSC_BLK_PREDICTION_IS_SUPPORTED) != 0;
+		(dpcd_dsc_basic_data[DP_DSC_BLK_PREDICTION_SUPPORT - DP_DSC_SUPPORT] & DP_DSC_BLK_PREDICTION_IS_SUPPORTED) != 0;
 
 	dsc_sink_caps->edp_max_bits_per_pixel =
-		dpcd_dsc_data[DP_DSC_MAX_BITS_PER_PIXEL_LOW - DP_DSC_SUPPORT] |
-		dpcd_dsc_data[DP_DSC_MAX_BITS_PER_PIXEL_HI - DP_DSC_SUPPORT] << 8;
+		dpcd_dsc_basic_data[DP_DSC_MAX_BITS_PER_PIXEL_LOW - DP_DSC_SUPPORT] |
+		dpcd_dsc_basic_data[DP_DSC_MAX_BITS_PER_PIXEL_HI - DP_DSC_SUPPORT] << 8;
 
-	dsc_sink_caps->color_formats.raw = dpcd_dsc_data[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT];
-	dsc_sink_caps->color_depth.raw = dpcd_dsc_data[DP_DSC_DEC_COLOR_DEPTH_CAP - DP_DSC_SUPPORT];
+	dsc_sink_caps->color_formats.raw = dpcd_dsc_basic_data[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT];
+	dsc_sink_caps->color_depth.raw = dpcd_dsc_basic_data[DP_DSC_DEC_COLOR_DEPTH_CAP - DP_DSC_SUPPORT];
 
 	{
-		int dpcd_throughput = dpcd_dsc_data[DP_DSC_PEAK_THROUGHPUT - DP_DSC_SUPPORT];
+		int dpcd_throughput = dpcd_dsc_basic_data[DP_DSC_PEAK_THROUGHPUT - DP_DSC_SUPPORT];
 
 		if (!dsc_throughput_from_dpcd(dpcd_throughput & DP_DSC_THROUGHPUT_MODE_0_MASK, &dsc_sink_caps->throughput_mode_0_mps))
 			return false;
@@ -754,11 +767,42 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_data, struct dsc_dec_dpcd_cap
 			return false;
 	}
 
-	dsc_sink_caps->max_slice_width = dpcd_dsc_data[DP_DSC_MAX_SLICE_WIDTH - DP_DSC_SUPPORT] * 320;
-	dsc_sink_caps->slice_caps2.raw = dpcd_dsc_data[DP_DSC_SLICE_CAP_2 - DP_DSC_SUPPORT];
+	dsc_sink_caps->max_slice_width = dpcd_dsc_basic_data[DP_DSC_MAX_SLICE_WIDTH - DP_DSC_SUPPORT] * 320;
+	dsc_sink_caps->slice_caps2.raw = dpcd_dsc_basic_data[DP_DSC_SLICE_CAP_2 - DP_DSC_SUPPORT];
 
-	if (!dsc_bpp_increment_div_from_dpcd(dpcd_dsc_data[DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT], &dsc_sink_caps->bpp_increment_div))
+	if (!dsc_bpp_increment_div_from_dpcd(dpcd_dsc_basic_data[DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT], &dsc_sink_caps->bpp_increment_div))
 		return false;
+
+	/* Extended caps */
+	if (dpcd_dsc_ext_data == NULL) { // Extended DPCD DSC data can be null, e.g. because it doesn't apply to SST
+		dsc_sink_caps->branch_overall_throughput_0_mps = 0;
+		dsc_sink_caps->branch_overall_throughput_1_mps = 0;
+		dsc_sink_caps->branch_max_line_width = 0;
+		return true;
+	}
+
+	dsc_sink_caps->branch_overall_throughput_0_mps = dpcd_dsc_ext_data[DP_DSC_BRANCH_OVERALL_THROUGHPUT_0 - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0];
+	if (dsc_sink_caps->branch_overall_throughput_0_mps == 0)
+		dsc_sink_caps->branch_overall_throughput_0_mps = 0;
+	else if (dsc_sink_caps->branch_overall_throughput_0_mps == 1)
+		dsc_sink_caps->branch_overall_throughput_0_mps = 680;
+	else {
+		dsc_sink_caps->branch_overall_throughput_0_mps *= 50;
+		dsc_sink_caps->branch_overall_throughput_0_mps += 600;
+	}
+
+	dsc_sink_caps->branch_overall_throughput_1_mps = dpcd_dsc_ext_data[DP_DSC_BRANCH_OVERALL_THROUGHPUT_1 - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0];
+	if (dsc_sink_caps->branch_overall_throughput_1_mps == 0)
+		dsc_sink_caps->branch_overall_throughput_1_mps = 0;
+	else if (dsc_sink_caps->branch_overall_throughput_1_mps == 1)
+		dsc_sink_caps->branch_overall_throughput_1_mps = 680;
+	else {
+		dsc_sink_caps->branch_overall_throughput_1_mps *= 50;
+		dsc_sink_caps->branch_overall_throughput_1_mps += 600;
+	}
+
+	dsc_sink_caps->branch_max_line_width = dpcd_dsc_ext_data[DP_DSC_BRANCH_MAX_LINE_WIDTH - DP_DSC_BRANCH_OVERALL_THROUGHPUT_0] * 320;
+	ASSERT(dsc_sink_caps->branch_max_line_width == 0 || dsc_sink_caps->branch_max_line_width >= 5120);
 
 	return true;
 }

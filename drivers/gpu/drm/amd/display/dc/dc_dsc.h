@@ -34,7 +34,8 @@ struct dc_dsc_bw_range {
 };
 
 
-bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_data,
+bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data,
+		const uint8_t *dpcd_dsc_ext_data,
 		struct dsc_dec_dpcd_caps *dsc_sink_caps);
 
 bool dc_dsc_compute_bandwidth_range(

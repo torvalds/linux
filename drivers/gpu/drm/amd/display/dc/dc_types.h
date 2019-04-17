@@ -773,6 +773,11 @@ struct dsc_dec_dpcd_caps {
 	int32_t throughput_mode_1_mps; /* In MPs */
 	int32_t max_slice_width;
 	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+
+	/* Extended DSC caps */
+	uint32_t branch_overall_throughput_0_mps; /* In MPs */
+	uint32_t branch_overall_throughput_1_mps; /* In MPs */
+	uint32_t branch_max_line_width;
 };
 #endif
 #endif /* DC_TYPES_H_ */

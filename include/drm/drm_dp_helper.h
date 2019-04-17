@@ -356,6 +356,11 @@
 # define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
 # define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
 
+/* DP Extended DSC Capabilities */
+#define DP_DSC_BRANCH_OVERALL_THROUGHPUT_0  0x0a0   /* DP 1.4a SCR */
+#define DP_DSC_BRANCH_OVERALL_THROUGHPUT_1  0x0a1
+#define DP_DSC_BRANCH_MAX_LINE_WIDTH        0x0a2
+
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */

@@ -2383,8 +2383,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	uint8_t dsc_data[16];
-	struct dsc_dec_dpcd_caps *dsc_caps;
+	uint8_t dsc_data[16]; /* DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16 */
+	struct dsc_dec_dpcd_caps *dsc_dec_caps;
 #endif
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
@@ -2558,8 +2558,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 		sizeof(dp_hw_fw_revision.ieee_fw_rev));
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	dsc_caps = &link->dpcd_caps.dsc_sink_caps;
-	memset(dsc_caps, '\0', sizeof(*dsc_caps));
+	dsc_dec_caps = &link->dpcd_caps.dsc_sink_caps;
+	memset(dsc_dec_caps, '\0', sizeof(*dsc_dec_caps));
 	memset(&link->dpcd_caps.dsc_sink_caps, '\0',
 			sizeof(link->dpcd_caps.dsc_sink_caps));
 	memset(&link->dpcd_caps.fec_cap, '\0', sizeof(link->dpcd_caps.fec_cap));
@@ -2571,7 +2571,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 				dsc_data,
 				sizeof(dsc_data));
 		if (status == DC_OK) {
-			DC_LOG_DSC("DSC capability read at link %d:",
+			DC_LOG_DSC("DSC DPCD capability read at link %d:",
 					link->link_index);
 			DC_LOG_DSC("\t%02x %02x %02x %02x",
 					dsc_data[0], dsc_data[1],
@@ -2590,37 +2590,43 @@ static bool retrieve_link_cap(struct dc_link *link)
 			return false;
 		}
 
-		if (dc_dsc_parse_dsc_dpcd(dsc_data,
-				dsc_caps)) {
-			DC_LOG_DSC("DSC capability parsed at link %d:",
+		if (dc_dsc_parse_dsc_dpcd(dsc_data, NULL,
+				dsc_dec_caps)) {
+			DC_LOG_DSC("DSC DPCD capabilities parsed at link %d:",
 					link->link_index);
 			DC_LOG_DSC("\tis_dsc_supported:\t%d",
-					dsc_caps->is_dsc_supported);
-			DC_LOG_DSC("\tdsc_version:\t%d", dsc_caps->dsc_version);
+					dsc_dec_caps->is_dsc_supported);
+			DC_LOG_DSC("\tdsc_version:\t%d", dsc_dec_caps->dsc_version);
 			DC_LOG_DSC("\trc_buffer_size:\t%d",
-					dsc_caps->rc_buffer_size);
+					dsc_dec_caps->rc_buffer_size);
 			DC_LOG_DSC("\tslice_caps1:\t0x%x20",
-					dsc_caps->slice_caps1.raw);
+					dsc_dec_caps->slice_caps1.raw);
 			DC_LOG_DSC("\tslice_caps2:\t0x%x20",
-					dsc_caps->slice_caps2.raw);
+					dsc_dec_caps->slice_caps2.raw);
 			DC_LOG_DSC("\tlb_bit_depth:\t%d",
-					dsc_caps->lb_bit_depth);
+					dsc_dec_caps->lb_bit_depth);
 			DC_LOG_DSC("\tis_block_pred_supported:\t%d",
-					dsc_caps->is_block_pred_supported);
+					dsc_dec_caps->is_block_pred_supported);
 			DC_LOG_DSC("\tedp_max_bits_per_pixel:\t%d",
-					dsc_caps->edp_max_bits_per_pixel);
+					dsc_dec_caps->edp_max_bits_per_pixel);
 			DC_LOG_DSC("\tcolor_formats:\t%d",
-					dsc_caps->color_formats.raw);
+					dsc_dec_caps->color_formats.raw);
 			DC_LOG_DSC("\tcolor_depth:\t%d",
-					dsc_caps->color_depth.raw);
+					dsc_dec_caps->color_depth.raw);
 			DC_LOG_DSC("\tthroughput_mode_0_mps:\t%d",
-					dsc_caps->throughput_mode_0_mps);
+					dsc_dec_caps->throughput_mode_0_mps);
 			DC_LOG_DSC("\tthroughput_mode_1_mps:\t%d",
-					dsc_caps->throughput_mode_1_mps);
+					dsc_dec_caps->throughput_mode_1_mps);
 			DC_LOG_DSC("\tmax_slice_width:\t%d",
-					dsc_caps->max_slice_width);
+					dsc_dec_caps->max_slice_width);
 			DC_LOG_DSC("\tbpp_increment_div:\t%d",
-					dsc_caps->bpp_increment_div);
+					dsc_dec_caps->bpp_increment_div);
+			DC_LOG_DSC("\tbranch_overall_throughput_0_mps:\t%d",
+					dsc_dec_caps->branch_overall_throughput_0_mps);
+			DC_LOG_DSC("\tbranch_overall_throughput_1_mps:\t%d",
+					dsc_dec_caps->branch_overall_throughput_1_mps);
+			DC_LOG_DSC("\tbranch_max_line_width:\t%d",
+					dsc_dec_caps->branch_max_line_width);
 		} else {
 			/* Some sinks return bogus DSC DPCD data
 			 * when they don't support DSC.
