@@ -433,6 +433,8 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 {
 	struct hdac_bus *bus = context;
+	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
+	u32 stream_mask;
 	u32 status;
 
 	if (!pm_runtime_active(bus->dev))
@@ -441,7 +443,10 @@ irqreturn_t hda_dsp_stream_interrupt(int irq, void *context)
 	spin_lock(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
-	if (status == 0 || status == 0xffffffff) {
+	stream_mask = GENMASK(sof_hda->stream_max - 1, 0) | AZX_INT_CTRL_EN;
+
+	/* Not stream interrupt or register inaccessible, ignore it.*/
+	if (!(status & stream_mask) || status == 0xffffffff) {
 		spin_unlock(&bus->reg_lock);
 		return IRQ_NONE;
 	}
