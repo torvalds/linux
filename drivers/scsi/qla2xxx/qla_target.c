@@ -3651,33 +3651,11 @@ static int __qlt_send_term_imm_notif(struct scsi_qla_host *vha,
 static void qlt_send_term_imm_notif(struct scsi_qla_host *vha,
 	struct imm_ntfy_from_isp *imm, int ha_locked)
 {
-	unsigned long flags = 0;
 	int rc;
 
-	if (ha_locked) {
-		rc = __qlt_send_term_imm_notif(vha, imm);
-
-#if 0	/* Todo  */
-		if (rc == -ENOMEM)
-			qlt_alloc_qfull_cmd(vha, imm, 0, 0);
-#else
-		if (rc) {
-		}
-#endif
-		goto done;
-	}
-
-	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+	WARN_ON_ONCE(!ha_locked);
 	rc = __qlt_send_term_imm_notif(vha, imm);
-
-#if 0	/* Todo */
-	if (rc == -ENOMEM)
-		qlt_alloc_qfull_cmd(vha, imm, 0, 0);
-#endif
-
-done:
-	if (!ha_locked)
-		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+	pr_debug("rc = %d\n", rc);
 }
 
 /*
