@@ -2260,7 +2260,7 @@ static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
 		return HRTIMER_NORESTART;
 }
 
-int kvm_create_lapic(struct kvm_vcpu *vcpu, u32 timer_advance_ns)
+int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 {
 	struct kvm_lapic *apic;
 
@@ -2284,7 +2284,14 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, u32 timer_advance_ns)
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_ABS_PINNED);
 	apic->lapic_timer.timer.function = apic_timer_fn;
-	apic->lapic_timer.timer_advance_ns = timer_advance_ns;
+	if (timer_advance_ns == -1) {
+		apic->lapic_timer.timer_advance_ns = 1000;
+		apic->lapic_timer.timer_advance_adjust_done = false;
+	} else {
+		apic->lapic_timer.timer_advance_ns = timer_advance_ns;
+		apic->lapic_timer.timer_advance_adjust_done = true;
+	}
+
 
 	/*
 	 * APIC is created enabled. This will prevent kvm_lapic_set_base from
