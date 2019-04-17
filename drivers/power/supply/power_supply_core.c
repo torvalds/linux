@@ -598,10 +598,12 @@ int power_supply_get_battery_info(struct power_supply *psy,
 
 	err = of_property_read_string(battery_np, "compatible", &value);
 	if (err)
-		return err;
+		goto out_put_node;
 
-	if (strcmp("simple-battery", value))
-		return -ENODEV;
+	if (strcmp("simple-battery", value)) {
+		err = -ENODEV;
+		goto out_put_node;
+	}
 
 	/* The property and field names below must correspond to elements
 	 * in enum power_supply_property. For reasoning, see
@@ -629,10 +631,12 @@ int power_supply_get_battery_info(struct power_supply *psy,
 
 	len = of_property_count_u32_elems(battery_np, "ocv-capacity-celsius");
 	if (len < 0 && len != -EINVAL) {
-		return len;
+		err = len;
+		goto out_put_node;
 	} else if (len > POWER_SUPPLY_OCV_TEMP_MAX) {
 		dev_err(&psy->dev, "Too many temperature values\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_put_node;
 	} else if (len > 0) {
 		of_property_read_u32_array(battery_np, "ocv-capacity-celsius",
 					   info->ocv_temp, len);
@@ -650,7 +654,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			dev_err(&psy->dev, "failed to get %s\n", propname);
 			kfree(propname);
 			power_supply_put_battery_info(psy, info);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_put_node;
 		}
 
 		kfree(propname);
@@ -661,7 +666,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			devm_kcalloc(&psy->dev, tab_len, sizeof(*table), GFP_KERNEL);
 		if (!info->ocv_table[index]) {
 			power_supply_put_battery_info(psy, info);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto out_put_node;
 		}
 
 		for (i = 0; i < tab_len; i++) {
@@ -670,7 +676,9 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		}
 	}
 
-	return 0;
+out_put_node:
+	of_node_put(battery_np);
+	return err;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
 
