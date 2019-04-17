@@ -162,6 +162,13 @@ struct pp_states_info {
 	uint32_t states[16];
 };
 
+enum PP_HWMON_TEMP {
+	PP_TEMP_EDGE = 0,
+	PP_TEMP_JUNCTION,
+	PP_TEMP_MEM,
+	PP_TEMP_MAX
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 

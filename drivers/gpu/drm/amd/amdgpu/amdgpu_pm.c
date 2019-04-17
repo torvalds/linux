@@ -67,6 +67,15 @@ static const struct cg_flag_name clocks[] = {
 	{0, NULL},
 };
 
+static const struct hwmon_temp_label {
+	enum PP_HWMON_TEMP channel;
+	const char *label;
+} temp_label[] = {
+	{PP_TEMP_EDGE, "edge"},
+	{PP_TEMP_JUNCTION, "junction"},
+	{PP_TEMP_MEM, "mem"},
+};
+
 void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 {
 	if (adev->pm.dpm_enabled) {
@@ -1468,6 +1477,18 @@ static ssize_t amdgpu_hwmon_show_mem_temp_thresh(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
 }
 
+static ssize_t amdgpu_hwmon_show_temp_label(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	int channel = to_sensor_dev_attr(attr)->index;
+
+	if (channel >= PP_TEMP_MAX)
+		return -EINVAL;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", temp_label[channel].label);
+}
+
 static ssize_t amdgpu_hwmon_show_temp_emergency(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
@@ -2066,6 +2087,9 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  * - temp[1-3]_input: the on die GPU temperature in millidegrees Celsius
  *   - temp2_input and temp3_input are supported on SOC15 dGPUs only
  *
+ * - temp[1-3]_label: temperature channel label
+ *   - temp2_label and temp3_label are supported on SOC15 dGPUs only
+ *
  * - temp[1-3]_crit: temperature critical max value in millidegrees Celsius
  *   - temp2_crit and temp3_crit are supported on SOC15 dGPUs only
  *
@@ -2133,6 +2157,9 @@ static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, PP
 static SENSOR_DEVICE_ATTR(temp3_crit, S_IRUGO, amdgpu_hwmon_show_mem_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO, amdgpu_hwmon_show_mem_temp_thresh, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp3_emergency, S_IRUGO, amdgpu_hwmon_show_temp_emergency, NULL, PP_TEMP_MEM);
+static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, amdgpu_hwmon_show_temp_label, NULL, PP_TEMP_EDGE);
+static SENSOR_DEVICE_ATTR(temp2_label, S_IRUGO, amdgpu_hwmon_show_temp_label, NULL, PP_TEMP_JUNCTION);
+static SENSOR_DEVICE_ATTR(temp3_label, S_IRUGO, amdgpu_hwmon_show_temp_label, NULL, PP_TEMP_MEM);
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, amdgpu_hwmon_get_pwm1, amdgpu_hwmon_set_pwm1, 0);
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR, amdgpu_hwmon_get_pwm1_enable, amdgpu_hwmon_set_pwm1_enable, 0);
 static SENSOR_DEVICE_ATTR(pwm1_min, S_IRUGO, amdgpu_hwmon_get_pwm1_min, NULL, 0);
@@ -2168,6 +2195,9 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_emergency.dev_attr.attr,
 	&sensor_dev_attr_temp2_emergency.dev_attr.attr,
 	&sensor_dev_attr_temp3_emergency.dev_attr.attr,
+	&sensor_dev_attr_temp1_label.dev_attr.attr,
+	&sensor_dev_attr_temp2_label.dev_attr.attr,
+	&sensor_dev_attr_temp3_label.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
@@ -2301,7 +2331,9 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
 		return 0;
 
 	return effective_mode;
