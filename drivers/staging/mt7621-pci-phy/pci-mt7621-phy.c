@@ -308,11 +308,10 @@ static struct phy *mt7621_pcie_phy_of_xlate(struct device *dev,
 static int mt7621_pci_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child_np;
 	struct phy_provider *provider;
 	struct mt7621_pci_phy *phy;
 	struct resource *res;
-	int port, ret;
+	int port;
 	void __iomem *port_base;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
@@ -345,18 +344,15 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 		struct phy *pphy;
 
 		instance = devm_kzalloc(dev, sizeof(*instance), GFP_KERNEL);
-		if (!instance) {
-			ret = -ENOMEM;
-			goto put_child;
-		}
+		if (!instance)
+			return -ENOMEM;
 
 		phy->phys[port] = instance;
 
 		pphy = devm_phy_create(dev, dev->of_node, &mt7621_pci_phy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
-			ret = PTR_ERR(phy);
-			goto put_child;
+			return PTR_ERR(phy);
 		}
 
 		instance->port_base = port_base;
@@ -368,10 +364,6 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 	provider = devm_of_phy_provider_register(dev, mt7621_pcie_phy_of_xlate);
 
 	return PTR_ERR_OR_ZERO(provider);
-
-put_child:
-	of_node_put(child_np);
-	return ret;
 }
 
 static const struct of_device_id mt7621_pci_phy_ids[] = {
