@@ -1511,7 +1511,7 @@ char *ip_addr_string(char *buf, char *end, const void *ptr,
 		case AF_INET6:
 			return ip6_addr_string_sa(buf, end, &sa->v6, spec, fmt);
 		default:
-			return string_nocheck(buf, end, "(invalid address)", spec);
+			return string_nocheck(buf, end, "(einval)", spec);
 		}}
 	}
 

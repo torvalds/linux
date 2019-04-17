@@ -64,6 +64,7 @@ might be printed instead of the unreachable information::
 
 	(null)	 data on plain NULL address
 	(efault) data on invalid address
+	(einval) invalid data on a valid address
 
 Plain Pointers
 --------------
