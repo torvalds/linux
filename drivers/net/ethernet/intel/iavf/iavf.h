@@ -109,7 +109,7 @@ struct iavf_q_vector {
 
 /* Helper macros to switch between ints/sec and what the register uses.
  * And yes, it's the same math going both ways.  The lowest value
- * supported by all of the i40e hardware is 8.
+ * supported by all of the iavf hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
 	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
@@ -351,7 +351,7 @@ struct iavf_adapter {
 /* Ethtool Private Flags */
 
 /* lan device, used by client interface */
-struct i40e_device {
+struct iavf_device {
 	struct list_head list;
 	struct iavf_adapter *vf;
 };

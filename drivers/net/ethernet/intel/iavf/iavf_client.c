@@ -11,7 +11,7 @@
 static
 const char iavf_client_interface_version_str[] = IAVF_CLIENT_VERSION_STR;
 static struct iavf_client *vf_registered_client;
-static LIST_HEAD(i40e_devices);
+static LIST_HEAD(iavf_devices);
 static DEFINE_MUTEX(iavf_device_mutex);
 
 static u32 iavf_client_virtchnl_send(struct iavf_info *ldev,
@@ -291,11 +291,11 @@ void iavf_client_subtask(struct iavf_adapter *adapter)
  **/
 int iavf_lan_add_device(struct iavf_adapter *adapter)
 {
-	struct i40e_device *ldev;
+	struct iavf_device *ldev;
 	int ret = 0;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
+	list_for_each_entry(ldev, &iavf_devices, list) {
 		if (ldev->vf == adapter) {
 			ret = -EEXIST;
 			goto out;
@@ -308,7 +308,7 @@ int iavf_lan_add_device(struct iavf_adapter *adapter)
 	}
 	ldev->vf = adapter;
 	INIT_LIST_HEAD(&ldev->list);
-	list_add(&ldev->list, &i40e_devices);
+	list_add(&ldev->list, &iavf_devices);
 	dev_info(&adapter->pdev->dev, "Added LAN device bus=0x%02x dev=0x%02x func=0x%02x\n",
 		 adapter->hw.bus.bus_id, adapter->hw.bus.device,
 		 adapter->hw.bus.func);
@@ -331,11 +331,11 @@ out:
  **/
 int iavf_lan_del_device(struct iavf_adapter *adapter)
 {
-	struct i40e_device *ldev, *tmp;
+	struct iavf_device *ldev, *tmp;
 	int ret = -ENODEV;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
+	list_for_each_entry_safe(ldev, tmp, &iavf_devices, list) {
 		if (ldev->vf == adapter) {
 			dev_info(&adapter->pdev->dev,
 				 "Deleted LAN device bus=0x%02x dev=0x%02x func=0x%02x\n",
@@ -360,11 +360,11 @@ int iavf_lan_del_device(struct iavf_adapter *adapter)
 static void iavf_client_release(struct iavf_client *client)
 {
 	struct iavf_client_instance *cinst;
-	struct i40e_device *ldev;
+	struct iavf_device *ldev;
 	struct iavf_adapter *adapter;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
+	list_for_each_entry(ldev, &iavf_devices, list) {
 		adapter = ldev->vf;
 		cinst = adapter->cinst;
 		if (!cinst)
@@ -394,11 +394,11 @@ static void iavf_client_release(struct iavf_client *client)
  **/
 static void iavf_client_prepare(struct iavf_client *client)
 {
-	struct i40e_device *ldev;
+	struct iavf_device *ldev;
 	struct iavf_adapter *adapter;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
+	list_for_each_entry(ldev, &iavf_devices, list) {
 		adapter = ldev->vf;
 		/* Signal the watchdog to service the client */
 		adapter->flags |= IAVF_FLAG_SERVICE_CLIENT_REQUESTED;
