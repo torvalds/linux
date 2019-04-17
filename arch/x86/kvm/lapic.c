@@ -1519,6 +1519,10 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 		}
 		if (abs(guest_tsc - tsc_deadline) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
 			lapic_timer_advance_adjust_done = true;
+		if (unlikely(lapic_timer_advance_ns > 5000)) {
+			lapic_timer_advance_ns = 0;
+			lapic_timer_advance_adjust_done = true;
+		}
 	}
 }
 
