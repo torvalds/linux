@@ -532,7 +532,7 @@ static int ov7740_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = v4l2_get_subdevdata(&ov7740->subdev);
 	struct regmap *regmap = ov7740->regmap;
 	int ret;
-	u8 val = 0;
+	u8 val;
 
 	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
@@ -551,6 +551,7 @@ static int ov7740_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov7740_set_contrast(regmap, ctrl->val);
 		break;
 	case V4L2_CID_VFLIP:
+		val = ctrl->val ? REG0C_IMG_FLIP : 0x00;
 		ret = regmap_update_bits(regmap, REG_REG0C,
 					 REG0C_IMG_FLIP, val);
 		break;
@@ -1030,7 +1031,6 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_gain, 0, true);
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_exposure,
 			       V4L2_EXPOSURE_MANUAL, true);
-	v4l2_ctrl_cluster(2, &ov7740->hflip);
 
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
