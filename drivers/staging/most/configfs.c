@@ -31,7 +31,7 @@ struct mdev_link {
 	char comp_params[PAGE_SIZE];
 };
 
-struct list_head mdev_link_list;
+static struct list_head mdev_link_list;
 
 static int set_cfg_buffer_size(struct mdev_link *link)
 {
