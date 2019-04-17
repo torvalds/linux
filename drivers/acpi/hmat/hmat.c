@@ -411,7 +411,7 @@ static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
 		return -EINVAL;
 
 	switch (hdr->type) {
-	case ACPI_HMAT_TYPE_ADDRESS_RANGE:
+	case ACPI_HMAT_TYPE_PROXIMITY:
 		return hmat_parse_proximity_domain(header, end);
 	case ACPI_HMAT_TYPE_LOCALITY:
 		return hmat_parse_locality(header, end);
@@ -649,7 +649,7 @@ static __init int hmat_init(void)
 		goto out_put;
 	}
 
-	for (i = ACPI_HMAT_TYPE_ADDRESS_RANGE; i < ACPI_HMAT_TYPE_RESERVED; i++) {
+	for (i = ACPI_HMAT_TYPE_PROXIMITY; i < ACPI_HMAT_TYPE_RESERVED; i++) {
 		if (acpi_table_parse_entries(ACPI_SIG_HMAT,
 					     sizeof(struct acpi_table_hmat), i,
 					     hmat_parse_subtable, 0) < 0) {
