@@ -13087,7 +13087,7 @@ lpfc_io_resume(struct pci_dev *pdev)
  * is destroyed.
  *
  **/
-void
+static void
 lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 {
 
