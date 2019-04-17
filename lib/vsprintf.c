@@ -1432,6 +1432,35 @@ char *ip4_addr_string_sa(char *buf, char *end, const struct sockaddr_in *sa,
 }
 
 static noinline_for_stack
+char *ip_addr_string(char *buf, char *end, const void *ptr,
+		     struct printf_spec spec, const char *fmt)
+{
+	switch (fmt[1]) {
+	case '6':
+		return ip6_addr_string(buf, end, ptr, spec, fmt);
+	case '4':
+		return ip4_addr_string(buf, end, ptr, spec, fmt);
+	case 'S': {
+		const union {
+			struct sockaddr		raw;
+			struct sockaddr_in	v4;
+			struct sockaddr_in6	v6;
+		} *sa = ptr;
+
+		switch (sa->raw.sa_family) {
+		case AF_INET:
+			return ip4_addr_string_sa(buf, end, &sa->v4, spec, fmt);
+		case AF_INET6:
+			return ip6_addr_string_sa(buf, end, &sa->v6, spec, fmt);
+		default:
+			return string_nocheck(buf, end, "(invalid address)", spec);
+		}}
+	}
+
+	return ptr_to_id(buf, end, ptr, spec);
+}
+
+static noinline_for_stack
 char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 		     const char *fmt)
 {
@@ -2011,28 +2040,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 					 * 4:	001.002.003.004
 					 * 6:   000102...0f
 					 */
-		switch (fmt[1]) {
-		case '6':
-			return ip6_addr_string(buf, end, ptr, spec, fmt);
-		case '4':
-			return ip4_addr_string(buf, end, ptr, spec, fmt);
-		case 'S': {
-			const union {
-				struct sockaddr		raw;
-				struct sockaddr_in	v4;
-				struct sockaddr_in6	v6;
-			} *sa = ptr;
-
-			switch (sa->raw.sa_family) {
-			case AF_INET:
-				return ip4_addr_string_sa(buf, end, &sa->v4, spec, fmt);
-			case AF_INET6:
-				return ip6_addr_string_sa(buf, end, &sa->v6, spec, fmt);
-			default:
-				return string_nocheck(buf, end, "(invalid address)", spec);
-			}}
-		}
-		break;
+		return ip_addr_string(buf, end, ptr, spec, fmt);
 	case 'E':
 		return escaped_string(buf, end, ptr, spec, fmt);
 	case 'U':
