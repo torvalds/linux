@@ -887,14 +887,21 @@ static u32 aspeed_smc_default_read(struct aspeed_smc_chip *chip)
 	 */
 	u32 ctl_mask = chip->controller->info == &spi_2400_info ?
 		 CONTROL_IO_ADDRESS_4B : 0;
+	u8 cmd = chip->nor.addr_width == 4 ? SPINOR_OP_READ_4B :
+		SPINOR_OP_READ;
 
+	/*
+	 * Use the "read command" mode to customize the opcode. In
+	 * normal command mode, the value is necessarily READ (0x3) on
+	 * the AST2400/2500 SoCs.
+	 */
 	return (chip->ctl_val[smc_read] & ctl_mask) |
 		(0x00 << 28) | /* Single bit */
 		(0x00 << 24) | /* CE# max */
-		(0x03 << 16) | /* use normal reads */
+		(cmd  << 16) | /* use read mode to support 4B opcode */
 		(0x00 <<  8) | /* HCLK/16 */
 		(0x00 <<  6) | /* no dummy cycle */
-		(0x00);        /* normal mode */
+		(0x01);        /* read mode */
 }
 
 static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
