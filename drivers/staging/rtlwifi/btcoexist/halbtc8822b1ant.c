@@ -4730,7 +4730,7 @@ void ex_btc8822b1ant_media_status_notify(struct btc_coexist *btcoexist, u8 type)
 		if (wifi_under_b_mode) {
 			RT_TRACE(
 				rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				"[BTCoex], ********** (media status notity under b mode) **********\n");
+				"[BTCoex], ********** (media status notify under b mode) **********\n");
 			btcoexist->btc_write_1byte(btcoexist, 0x6cd,
 						   0x00); /* CCK Tx */
 			btcoexist->btc_write_1byte(btcoexist, 0x6cf,
@@ -4738,7 +4738,7 @@ void ex_btc8822b1ant_media_status_notify(struct btc_coexist *btcoexist, u8 type)
 		} else {
 			RT_TRACE(
 				rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				"[BTCoex], ********** (media status notity not under b mode) **********\n");
+				"[BTCoex], ********** (media status notify not under b mode) **********\n");
 			btcoexist->btc_write_1byte(btcoexist, 0x6cd,
 						   0x00); /* CCK Tx */
 			btcoexist->btc_write_1byte(btcoexist, 0x6cf,
