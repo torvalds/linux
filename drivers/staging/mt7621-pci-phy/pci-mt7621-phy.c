@@ -11,11 +11,11 @@
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/sys_soc.h>
 #include <mt7621.h>
 #include <ralink_regs.h>
 
 #define RALINK_CLKCFG1				0x30
-#define CHIP_REV_MT7621_E2			0x0101
 
 #define PCIE_PORT_CLK_EN(x)			BIT(24 + (x))
 
@@ -97,11 +97,14 @@ struct mt7621_pci_phy_instance {
  * @dev: pointer to device
  * @phys: pointer to Mt7621 PHY device
  * @nphys: number of PHY devices for this core
+ * @bypass_pipe_rst: mark if 'mt7621_bypass_pipe_rst'
+ * needs to be executed. Depends on chip revision.
  */
 struct mt7621_pci_phy {
 	struct device *dev;
 	struct mt7621_pci_phy_instance **phys;
 	int nphys;
+	bool bypass_pipe_rst;
 };
 
 static inline u32 phy_read(struct mt7621_pci_phy_instance *instance, u32 reg)
@@ -232,9 +235,8 @@ static int mt7621_pci_phy_init(struct phy *phy)
 {
 	struct mt7621_pci_phy_instance *instance = phy_get_drvdata(phy);
 	struct mt7621_pci_phy *mphy = dev_get_drvdata(phy->dev.parent);
-	u32 chip_rev_id = rt_sysc_r32(SYSC_REG_CHIP_REV);
 
-	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
+	if (mphy->bypass_pipe_rst)
 		mt7621_bypass_pipe_rst(mphy, instance);
 
 	mt7621_set_phy_for_ssc(mphy, instance);
@@ -305,9 +307,14 @@ static struct phy *mt7621_pcie_phy_of_xlate(struct device *dev,
 	return mt7621_phy->phys[args->args[0]]->phy;
 }
 
+static const struct soc_device_attribute mt7621_pci_quirks_match[] = {
+	{ .soc_id = "mt7621", .revision = "E2" }
+};
+
 static int mt7621_pci_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	const struct soc_device_attribute *attr;
 	struct phy_provider *provider;
 	struct mt7621_pci_phy *phy;
 	struct resource *res;
@@ -323,6 +330,10 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 				 sizeof(*phy->phys), GFP_KERNEL);
 	if (!phy->phys)
 		return -ENOMEM;
+
+	attr = soc_device_match(mt7621_pci_quirks_match);
+	if (attr)
+		phy->bypass_pipe_rst = true;
 
 	phy->dev = dev;
 	platform_set_drvdata(pdev, phy);
