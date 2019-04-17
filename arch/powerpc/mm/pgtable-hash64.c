@@ -112,9 +112,16 @@ int __meminit hash__vmemmap_create_mapping(unsigned long start,
 				       unsigned long page_size,
 				       unsigned long phys)
 {
-	int rc = htab_bolt_mapping(start, start + page_size, phys,
-				   pgprot_val(PAGE_KERNEL),
-				   mmu_vmemmap_psize, mmu_kernel_ssize);
+	int rc;
+
+	if ((start + page_size) >= H_VMEMMAP_END) {
+		pr_warn("Outisde the supported range\n");
+		return -1;
+	}
+
+	rc = htab_bolt_mapping(start, start + page_size, phys,
+			       pgprot_val(PAGE_KERNEL),
+			       mmu_vmemmap_psize, mmu_kernel_ssize);
 	if (rc < 0) {
 		int rc2 = htab_remove_mapping(start, start + page_size,
 					      mmu_vmemmap_psize,
