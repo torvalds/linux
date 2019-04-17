@@ -410,13 +410,11 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* NVME RSP IU */
 	cmd_pkt->nvme_rsp_dsd_len = cpu_to_le16(fd->rsplen);
-	cmd_pkt->nvme_rsp_dseg_address[0] = cpu_to_le32(LSD(fd->rspdma));
-	cmd_pkt->nvme_rsp_dseg_address[1] = cpu_to_le32(MSD(fd->rspdma));
+	put_unaligned_le64(fd->rspdma, &cmd_pkt->nvme_rsp_dseg_address);
 
 	/* NVME CNMD IU */
 	cmd_pkt->nvme_cmnd_dseg_len = cpu_to_le16(fd->cmdlen);
-	cmd_pkt->nvme_cmnd_dseg_address[0] = cpu_to_le32(LSD(fd->cmddma));
-	cmd_pkt->nvme_cmnd_dseg_address[1] = cpu_to_le32(MSD(fd->cmddma));
+	cmd_pkt->nvme_cmnd_dseg_address = cpu_to_le64(fd->cmddma);
 
 	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
 	cmd_pkt->byte_count = cpu_to_le32(fd->payload_length);

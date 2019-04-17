@@ -65,8 +65,8 @@ struct cmd_nvme {
 #define CF_WRITE_DATA                   BIT_0
 
 	uint16_t nvme_cmnd_dseg_len;             /* Data segment length. */
-	uint32_t nvme_cmnd_dseg_address[2];      /* Data segment address. */
-	uint32_t nvme_rsp_dseg_address[2];       /* Data segment address. */
+	__le64	 nvme_cmnd_dseg_address __packed;/* Data segment address. */
+	__le64	 nvme_rsp_dseg_address __packed; /* Data segment address. */
 
 	uint32_t byte_count;            /* Total byte count. */
 

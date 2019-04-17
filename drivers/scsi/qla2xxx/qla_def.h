@@ -1329,8 +1329,8 @@ typedef struct {
 	uint16_t response_q_inpointer;
 	uint16_t request_q_length;
 	uint16_t response_q_length;
-	uint32_t request_q_address[2];
-	uint32_t response_q_address[2];
+	__le64   request_q_address __packed;
+	__le64   response_q_address __packed;
 
 	uint16_t lun_enables;
 	uint8_t  command_resource_count;
@@ -3031,7 +3031,7 @@ struct sns_cmd_pkt {
 		struct {
 			uint16_t buffer_length;
 			uint16_t reserved_1;
-			uint32_t buffer_address[2];
+			__le64	 buffer_address __packed;
 			uint16_t subcommand_length;
 			uint16_t reserved_2;
 			uint16_t subcommand;

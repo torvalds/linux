@@ -996,8 +996,7 @@ qla2x00_prep_sns_cmd(scsi_qla_host_t *vha, uint16_t cmd, uint16_t scmd_len,
 	memset(sns_cmd, 0, sizeof(struct sns_cmd_pkt));
 	wc = data_size / 2;			/* Size in 16bit words. */
 	sns_cmd->p.cmd.buffer_length = cpu_to_le16(wc);
-	sns_cmd->p.cmd.buffer_address[0] = cpu_to_le32(LSD(ha->sns_cmd_dma));
-	sns_cmd->p.cmd.buffer_address[1] = cpu_to_le32(MSD(ha->sns_cmd_dma));
+	put_unaligned_le64(ha->sns_cmd_dma, &sns_cmd->p.cmd.buffer_address);
 	sns_cmd->p.cmd.subcommand_length = cpu_to_le16(scmd_len);
 	sns_cmd->p.cmd.subcommand = cpu_to_le16(cmd);
 	wc = (data_size - 16) / 4;		/* Size in 32bit words. */

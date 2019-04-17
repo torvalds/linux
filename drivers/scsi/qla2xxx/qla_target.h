@@ -519,10 +519,10 @@ struct ctio_crc2_to_fw {
 	uint32_t reserved5;
 	__le32 transfer_length;		/* total fc transfer length */
 	uint32_t reserved6;
-	__le32 crc_context_address[2];/* Data segment address. */
+	__le64	 crc_context_address __packed; /* Data segment address. */
 	uint16_t crc_context_len;	/* Data segment length. */
 	uint16_t reserved_1;		/* MUST be set to 0. */
-} __packed;
+};
 
 /* CTIO Type CRC_x Status IOCB */
 struct ctio_crc_from_fw {

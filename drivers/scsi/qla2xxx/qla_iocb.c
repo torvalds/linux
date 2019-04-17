@@ -1445,8 +1445,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	qla24xx_set_t10dif_tags(sp, (struct fw_dif_context *)
 	    &crc_ctx_pkt->ref_tag, tot_prot_dsds);
 
-	cmd_pkt->crc_context_address[0] = cpu_to_le32(LSD(crc_ctx_dma));
-	cmd_pkt->crc_context_address[1] = cpu_to_le32(MSD(crc_ctx_dma));
+	put_unaligned_le64(crc_ctx_dma, &cmd_pkt->crc_context_address);
 	cmd_pkt->crc_context_len = CRC_CONTEXT_LEN_FW;
 
 	/* Determine SCSI command length -- align to 4 byte boundary */
@@ -1473,10 +1472,8 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	int_to_scsilun(cmd->device->lun, &fcp_cmnd->lun);
 	memcpy(fcp_cmnd->cdb, cmd->cmnd, cmd->cmd_len);
 	cmd_pkt->fcp_cmnd_dseg_len = cpu_to_le16(fcp_cmnd_len);
-	cmd_pkt->fcp_cmnd_dseg_address[0] = cpu_to_le32(
-	    LSD(crc_ctx_dma + CRC_CONTEXT_FCPCMND_OFF));
-	cmd_pkt->fcp_cmnd_dseg_address[1] = cpu_to_le32(
-	    MSD(crc_ctx_dma + CRC_CONTEXT_FCPCMND_OFF));
+	put_unaligned_le64(crc_ctx_dma + CRC_CONTEXT_FCPCMND_OFF,
+			   &cmd_pkt->fcp_cmnd_dseg_address);
 	fcp_cmnd->task_management = 0;
 	fcp_cmnd->task_attribute = TSK_SIMPLE;
 
@@ -2707,18 +2704,13 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	if (elsio->u.els_logo.els_cmd == ELS_DCMD_PLOGI) {
 		els_iocb->tx_byte_count = els_iocb->tx_len =
 			sizeof(struct els_plogi_payload);
-		els_iocb->tx_address[0] =
-			cpu_to_le32(LSD(elsio->u.els_plogi.els_plogi_pyld_dma));
-		els_iocb->tx_address[1] =
-			cpu_to_le32(MSD(elsio->u.els_plogi.els_plogi_pyld_dma));
-
+		put_unaligned_le64(elsio->u.els_plogi.els_plogi_pyld_dma,
+				   &els_iocb->tx_address);
 		els_iocb->rx_dsd_count = 1;
 		els_iocb->rx_byte_count = els_iocb->rx_len =
 			sizeof(struct els_plogi_payload);
-		els_iocb->rx_address[0] =
-			cpu_to_le32(LSD(elsio->u.els_plogi.els_resp_pyld_dma));
-		els_iocb->rx_address[1] =
-			cpu_to_le32(MSD(elsio->u.els_plogi.els_resp_pyld_dma));
+		put_unaligned_le64(elsio->u.els_plogi.els_resp_pyld_dma,
+				   &els_iocb->rx_address);
 
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3073,
 		    "PLOGI ELS IOCB:\n");
@@ -2726,15 +2718,12 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 		    (uint8_t *)els_iocb, 0x70);
 	} else {
 		els_iocb->tx_byte_count = sizeof(struct els_logo_payload);
-		els_iocb->tx_address[0] =
-		    cpu_to_le32(LSD(elsio->u.els_logo.els_logo_pyld_dma));
-		els_iocb->tx_address[1] =
-		    cpu_to_le32(MSD(elsio->u.els_logo.els_logo_pyld_dma));
+		put_unaligned_le64(elsio->u.els_logo.els_logo_pyld_dma,
+				   &els_iocb->tx_address);
 		els_iocb->tx_len = cpu_to_le32(sizeof(struct els_logo_payload));
 
 		els_iocb->rx_byte_count = 0;
-		els_iocb->rx_address[0] = 0;
-		els_iocb->rx_address[1] = 0;
+		els_iocb->rx_address = 0;
 		els_iocb->rx_len = 0;
 	}
 
@@ -2957,17 +2946,13 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
         els_iocb->tx_byte_count =
             cpu_to_le32(bsg_job->request_payload.payload_len);
 
-        els_iocb->tx_address[0] = cpu_to_le32(LSD(sg_dma_address
-            (bsg_job->request_payload.sg_list)));
-        els_iocb->tx_address[1] = cpu_to_le32(MSD(sg_dma_address
-            (bsg_job->request_payload.sg_list)));
+	put_unaligned_le64(sg_dma_address(bsg_job->request_payload.sg_list),
+			   &els_iocb->tx_address);
         els_iocb->tx_len = cpu_to_le32(sg_dma_len
             (bsg_job->request_payload.sg_list));
 
-        els_iocb->rx_address[0] = cpu_to_le32(LSD(sg_dma_address
-            (bsg_job->reply_payload.sg_list)));
-        els_iocb->rx_address[1] = cpu_to_le32(MSD(sg_dma_address
-            (bsg_job->reply_payload.sg_list)));
+	put_unaligned_le64(sg_dma_address(bsg_job->reply_payload.sg_list),
+			   &els_iocb->rx_address);
         els_iocb->rx_len = cpu_to_le32(sg_dma_len
             (bsg_job->reply_payload.sg_list));
 
@@ -3004,12 +2989,12 @@ qla2x00_ct_iocb(srb_t *sp, ms_iocb_entry_t *ct_iocb)
 	ct_iocb->rsp_bytecount =
 	    cpu_to_le32(bsg_job->reply_payload.payload_len);
 
-	ct_iocb->req_dsd.address =
-		cpu_to_le64(sg_dma_address(bsg_job->request_payload.sg_list));
+	put_unaligned_le64(sg_dma_address(bsg_job->request_payload.sg_list),
+			   &ct_iocb->req_dsd.address);
 	ct_iocb->req_dsd.length = ct_iocb->req_bytecount;
 
-	ct_iocb->rsp_dsd.address =
-		cpu_to_le64(sg_dma_address(bsg_job->reply_payload.sg_list));
+	put_unaligned_le64(sg_dma_address(bsg_job->reply_payload.sg_list),
+			   &ct_iocb->rsp_dsd.address);
 	ct_iocb->rsp_dsd.length = ct_iocb->rsp_bytecount;
 
 	avail_dsds = 1;
@@ -3332,10 +3317,8 @@ sufficient_dsds:
 		*fcp_dl = htonl((uint32_t)scsi_bufflen(cmd));
 
 		cmd_pkt->fcp_cmnd_dseg_len = cpu_to_le16(ctx->fcp_cmnd_len);
-		cmd_pkt->fcp_cmnd_dseg_address[0] =
-		    cpu_to_le32(LSD(ctx->fcp_cmnd_dma));
-		cmd_pkt->fcp_cmnd_dseg_address[1] =
-		    cpu_to_le32(MSD(ctx->fcp_cmnd_dma));
+		put_unaligned_le64(ctx->fcp_cmnd_dma,
+				   &cmd_pkt->fcp_cmnd_dseg_address);
 
 		sp->flags |= SRB_FCP_CMND_DMA_VALID;
 		cmd_pkt->byte_count = cpu_to_le32((uint32_t)scsi_bufflen(cmd));

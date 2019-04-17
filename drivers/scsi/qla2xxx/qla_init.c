@@ -3941,10 +3941,8 @@ qla2x00_config_rings(struct scsi_qla_host *vha)
 	ha->init_cb->response_q_inpointer = cpu_to_le16(0);
 	ha->init_cb->request_q_length = cpu_to_le16(req->length);
 	ha->init_cb->response_q_length = cpu_to_le16(rsp->length);
-	ha->init_cb->request_q_address[0] = cpu_to_le32(LSD(req->dma));
-	ha->init_cb->request_q_address[1] = cpu_to_le32(MSD(req->dma));
-	ha->init_cb->response_q_address[0] = cpu_to_le32(LSD(rsp->dma));
-	ha->init_cb->response_q_address[1] = cpu_to_le32(MSD(rsp->dma));
+	put_unaligned_le64(req->dma, &ha->init_cb->request_q_address);
+	put_unaligned_le64(rsp->dma, &ha->init_cb->response_q_address);
 
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), 0);
 	WRT_REG_WORD(ISP_REQ_Q_OUT(ha, reg), 0);
@@ -3971,16 +3969,13 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 	icb->response_q_inpointer = cpu_to_le16(0);
 	icb->request_q_length = cpu_to_le16(req->length);
 	icb->response_q_length = cpu_to_le16(rsp->length);
-	icb->request_q_address[0] = cpu_to_le32(LSD(req->dma));
-	icb->request_q_address[1] = cpu_to_le32(MSD(req->dma));
-	icb->response_q_address[0] = cpu_to_le32(LSD(rsp->dma));
-	icb->response_q_address[1] = cpu_to_le32(MSD(rsp->dma));
+	put_unaligned_le64(req->dma, &icb->request_q_address);
+	put_unaligned_le64(rsp->dma, &icb->response_q_address);
 
 	/* Setup ATIO queue dma pointers for target mode */
 	icb->atio_q_inpointer = cpu_to_le16(0);
 	icb->atio_q_length = cpu_to_le16(ha->tgt.atio_q_length);
-	icb->atio_q_address[0] = cpu_to_le32(LSD(ha->tgt.atio_dma));
-	icb->atio_q_address[1] = cpu_to_le32(MSD(ha->tgt.atio_dma));
+	put_unaligned_le64(ha->tgt.atio_dma, &icb->atio_q_address);
 
 	if (IS_SHADOW_REG_CAPABLE(ha))
 		icb->firmware_options_2 |= cpu_to_le32(BIT_30|BIT_29);

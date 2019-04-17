@@ -3278,8 +3278,8 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.req_dsdcnt = cpu_to_le16(1);
 			fx_iocb.req_xfrcnt =
 			    cpu_to_le16(fxio->u.fxiocb.req_len);
-			fx_iocb.dseg_rq.address =
-			    cpu_to_le64(fxio->u.fxiocb.req_dma_handle);
+			put_unaligned_le64(fxio->u.fxiocb.req_dma_handle,
+					   &fx_iocb.dseg_rq.address);
 			fx_iocb.dseg_rq.length =
 			    cpu_to_le32(fxio->u.fxiocb.req_len);
 		}
@@ -3288,8 +3288,8 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 			fx_iocb.rsp_dsdcnt = cpu_to_le16(1);
 			fx_iocb.rsp_xfrcnt =
 			    cpu_to_le16(fxio->u.fxiocb.rsp_len);
-			fx_iocb.dseg_rsp.address =
-			    cpu_to_le64(fxio->u.fxiocb.rsp_dma_handle);
+			put_unaligned_le64(fxio->u.fxiocb.rsp_dma_handle,
+					   &fx_iocb.dseg_rsp.address);
 			fx_iocb.dseg_rsp.length =
 			    cpu_to_le32(fxio->u.fxiocb.rsp_len);
 		}

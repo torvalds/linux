@@ -1788,10 +1788,8 @@ void qla82xx_config_rings(struct scsi_qla_host *vha)
 	icb->response_q_inpointer = cpu_to_le16(0);
 	icb->request_q_length = cpu_to_le16(req->length);
 	icb->response_q_length = cpu_to_le16(rsp->length);
-	icb->request_q_address[0] = cpu_to_le32(LSD(req->dma));
-	icb->request_q_address[1] = cpu_to_le32(MSD(req->dma));
-	icb->response_q_address[0] = cpu_to_le32(LSD(rsp->dma));
-	icb->response_q_address[1] = cpu_to_le32(MSD(rsp->dma));
+	put_unaligned_le64(req->dma, &icb->request_q_address);
+	put_unaligned_le64(rsp->dma, &icb->response_q_address);
 
 	WRT_REG_DWORD(&reg->req_q_out[0], 0);
 	WRT_REG_DWORD(&reg->rsp_q_in[0], 0);

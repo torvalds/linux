@@ -3175,8 +3175,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 
 	qla_tgt_set_dif_tags(cmd, crc_ctx_pkt, &fw_prot_opts);
 
-	pkt->crc_context_address[0] = cpu_to_le32(LSD(crc_ctx_dma));
-	pkt->crc_context_address[1] = cpu_to_le32(MSD(crc_ctx_dma));
+	put_unaligned_le64(crc_ctx_dma, &pkt->crc_context_address);
 	pkt->crc_context_len = CRC_CONTEXT_LEN_FW;
 
 	if (!bundling) {
