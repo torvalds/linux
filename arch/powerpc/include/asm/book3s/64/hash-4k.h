@@ -13,12 +13,14 @@
  */
 #define MAX_EA_BITS_PER_CONTEXT		46
 
+#define REGION_SHIFT		(MAX_EA_BITS_PER_CONTEXT - 2)
+
 /*
  * Our page table limit us to 64TB. Hence for the kernel mapping,
  * each MAP area is limited to 16 TB.
  * The four map areas are:  linear mapping, vmap, IO and vmemmap
  */
-#define H_KERN_MAP_SIZE		(ASM_CONST(1) << (MAX_EA_BITS_PER_CONTEXT - 2))
+#define H_KERN_MAP_SIZE		(ASM_CONST(1) << REGION_SHIFT)
 
 /*
  * Define the address range of the kernel non-linear virtual area

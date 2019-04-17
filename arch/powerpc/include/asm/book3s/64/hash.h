@@ -83,25 +83,25 @@
 #define H_VMEMMAP_SIZE		H_KERN_MAP_SIZE
 #define H_VMEMMAP_END		(H_VMEMMAP_START + H_VMEMMAP_SIZE)
 
+#define NON_LINEAR_REGION_ID(ea)	((((unsigned long)ea - H_KERN_VIRT_START) >> REGION_SHIFT) + 2)
+
 /*
  * Region IDs
  */
-#define USER_REGION_ID		1
-#define KERNEL_REGION_ID	2
-#define VMALLOC_REGION_ID	3
-#define IO_REGION_ID		4
-#define VMEMMAP_REGION_ID	5
+#define USER_REGION_ID		0
+#define KERNEL_REGION_ID	1
+#define VMALLOC_REGION_ID	NON_LINEAR_REGION_ID(H_VMALLOC_START)
+#define IO_REGION_ID		NON_LINEAR_REGION_ID(H_KERN_IO_START)
+#define VMEMMAP_REGION_ID	NON_LINEAR_REGION_ID(H_VMEMMAP_START)
 
 /*
  * Defines the address of the vmemap area, in its own region on
  * hash table CPUs.
  */
-
 #ifdef CONFIG_PPC_MM_SLICES
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 #endif /* CONFIG_PPC_MM_SLICES */
-
 
 /* PTEIDX nibble */
 #define _PTEIDX_SECONDARY	0x8
@@ -113,22 +113,21 @@
 #ifndef __ASSEMBLY__
 static inline int get_region_id(unsigned long ea)
 {
+	int region_id;
 	int id = (ea >> 60UL);
 
 	if (id == 0)
 		return USER_REGION_ID;
 
+	if (ea < H_KERN_VIRT_START)
+		return KERNEL_REGION_ID;
+
 	VM_BUG_ON(id != 0xc);
-	VM_BUG_ON(ea >= H_VMEMMAP_END);
+	BUILD_BUG_ON(NON_LINEAR_REGION_ID(H_VMALLOC_START) != 2);
 
-	if (ea >= H_VMEMMAP_START)
-		return VMEMMAP_REGION_ID;
-	else if (ea >= H_KERN_IO_START)
-		return IO_REGION_ID;
-	else if (ea >= H_VMALLOC_START)
-		return VMALLOC_REGION_ID;
-
-	return KERNEL_REGION_ID;
+	region_id = NON_LINEAR_REGION_ID(ea);
+	VM_BUG_ON(region_id > VMEMMAP_REGION_ID);
+	return region_id;
 }
 
 #define	hash__pmd_bad(pmd)		(pmd_val(pmd) & H_PMD_BAD_BITS)

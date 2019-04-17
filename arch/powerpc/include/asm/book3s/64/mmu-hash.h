@@ -823,7 +823,7 @@ static inline unsigned long get_kernel_context(unsigned long ea)
 		 */
 		ctx =  1 + ((ea & EA_MASK) >> MAX_EA_BITS_PER_CONTEXT);
 	} else
-		ctx = region_id + MAX_KERNEL_CTX_CNT - 2;
+		ctx = region_id + MAX_KERNEL_CTX_CNT - 1;
 	return ctx;
 }
 

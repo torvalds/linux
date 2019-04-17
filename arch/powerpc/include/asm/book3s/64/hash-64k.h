@@ -13,6 +13,7 @@
  * is handled in the hotpath.
  */
 #define MAX_EA_BITS_PER_CONTEXT		49
+#define REGION_SHIFT		MAX_EA_BITS_PER_CONTEXT
 
 /*
  * We use one context for each MAP area.
