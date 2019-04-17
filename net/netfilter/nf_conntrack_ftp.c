@@ -29,11 +29,13 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_ftp.h>
 
+#define HELPER_NAME "ftp"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp connection tracking helper");
 MODULE_ALIAS("ip_conntrack_ftp");
-MODULE_ALIAS_NFCT_HELPER("ftp");
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 /* This is slow, but it's simple. --RR */
 static char *ftp_buffer;
@@ -588,12 +590,14 @@ static int __init nf_conntrack_ftp_init(void)
 	/* FIXME should be configurable whether IPv4 and IPv6 FTP connections
 		 are tracked or not - YK */
 	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP, "ftp",
-				  FTP_PORT, ports[i], ports[i], &ftp_exp_policy,
-				  0, help, nf_ct_ftp_from_nlattr, THIS_MODULE);
-		nf_ct_helper_init(&ftp[2 * i + 1], AF_INET6, IPPROTO_TCP, "ftp",
-				  FTP_PORT, ports[i], ports[i], &ftp_exp_policy,
-				  0, help, nf_ct_ftp_from_nlattr, THIS_MODULE);
+		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP,
+				  HELPER_NAME, FTP_PORT, ports[i], ports[i],
+				  &ftp_exp_policy, 0, help,
+				  nf_ct_ftp_from_nlattr, THIS_MODULE);
+		nf_ct_helper_init(&ftp[2 * i + 1], AF_INET6, IPPROTO_TCP,
+				  HELPER_NAME, FTP_PORT, ports[i], ports[i],
+				  &ftp_exp_policy, 0, help,
+				  nf_ct_ftp_from_nlattr, THIS_MODULE);
 	}
 
 	ret = nf_conntrack_helpers_register(ftp, ports_c * 2);
