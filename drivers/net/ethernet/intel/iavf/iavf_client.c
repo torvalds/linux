@@ -498,7 +498,7 @@ out:
 }
 
 /**
- * iavf_register_client - Register a i40e client driver with the L2 driver
+ * iavf_register_client - Register a iavf client driver with the L2 driver
  * @client: pointer to the iavf_client struct
  *
  * Returns 0 on success or non-0 on error
@@ -549,7 +549,7 @@ out:
 EXPORT_SYMBOL(iavf_register_client);
 
 /**
- * iavf_unregister_client - Unregister a i40e client driver with the L2 driver
+ * iavf_unregister_client - Unregister a iavf client driver with the L2 driver
  * @client: pointer to the iavf_client struct
  *
  * Returns 0 on success or non-0 on error
