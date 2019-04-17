@@ -190,9 +190,6 @@ static int onenand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	if (!bbm->bbt)
 		return -ENOMEM;
 
-	/* Set the bad block position */
-	bbm->badblockpos = ONENAND_BADBLOCK_POS;
-
 	/* Set erase shift */
 	bbm->bbt_erase_shift = this->erase_shift;
 
