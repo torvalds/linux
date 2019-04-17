@@ -132,19 +132,7 @@ static inline bool pfn_valid(unsigned long pfn)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
-#ifdef CONFIG_PPC_BOOK3S_64
-/*
- * On hash the vmalloc and other regions alias to the kernel region when passed
- * through __pa(), which virt_to_pfn() uses. That means virt_addr_valid() can
- * return true for some vmalloc addresses, which is incorrect. So explicitly
- * check that the address is in the kernel region.
- */
-/* may be can drop get_region_id */
-#define virt_addr_valid(kaddr) (get_region_id((unsigned long)kaddr) == KERNEL_REGION_ID && \
-				pfn_valid(virt_to_pfn(kaddr)))
-#else
 #define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
-#endif
 
 /*
  * On Book-E parts we need __va to parse the device tree and we can't
