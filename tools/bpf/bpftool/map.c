@@ -597,15 +597,16 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	}
 	close(fd);
 
-	printf("\n");
 	if (!hash_empty(map_table.table)) {
 		struct pinned_obj *obj;
 
 		hash_for_each_possible(map_table.table, obj, hash, info->id) {
 			if (obj->id == info->id)
-				printf("\tpinned %s\n", obj->path);
+				printf("\n\tpinned %s", obj->path);
 		}
 	}
+
+	printf("\n");
 	return 0;
 }
 
