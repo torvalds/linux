@@ -338,7 +338,7 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 	tail = ctx->cached_cq_tail;
 	/* See comment at the top of the file */
 	smp_rmb();
-	if (tail + 1 == READ_ONCE(ring->r.head))
+	if (tail - READ_ONCE(ring->r.head) == ring->ring_entries)
 		return NULL;
 
 	ctx->cached_cq_tail++;
