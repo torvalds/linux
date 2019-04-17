@@ -476,6 +476,7 @@ static const struct intel_limit intel_limits_bxt = {
 	.p2 = { .p2_slow = 1, .p2_fast = 20 },
 };
 
+/* WA Display #0827: Gen9:all */
 static void
 skl_wa_827(struct drm_i915_private *dev_priv, int pipe, bool enable)
 {
@@ -487,6 +488,19 @@ skl_wa_827(struct drm_i915_private *dev_priv, int pipe, bool enable)
 		I915_WRITE(CLKGATE_DIS_PSL(pipe),
 			   I915_READ(CLKGATE_DIS_PSL(pipe)) &
 			   ~(DUPS1_GATING_DIS | DUPS2_GATING_DIS));
+}
+
+/* Wa_2006604312:icl */
+static void
+icl_wa_scalerclkgating(struct drm_i915_private *dev_priv, enum pipe pipe,
+		       bool enable)
+{
+	if (enable)
+		I915_WRITE(CLKGATE_DIS_PSL(pipe),
+			   I915_READ(CLKGATE_DIS_PSL(pipe)) | DPFR_GATING_DIS);
+	else
+		I915_WRITE(CLKGATE_DIS_PSL(pipe),
+			   I915_READ(CLKGATE_DIS_PSL(pipe)) & ~DPFR_GATING_DIS);
 }
 
 static bool
@@ -5527,6 +5541,16 @@ static bool needs_nv12_wa(struct drm_i915_private *dev_priv,
 	return false;
 }
 
+static bool needs_scalerclk_wa(struct drm_i915_private *dev_priv,
+			       const struct intel_crtc_state *crtc_state)
+{
+	/* Wa_2006604312:icl */
+	if (crtc_state->scaler_state.scaler_users > 0 && IS_ICELAKE(dev_priv))
+		return true;
+
+	return false;
+}
+
 static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
@@ -5560,11 +5584,13 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 			intel_post_enable_primary(&crtc->base, pipe_config);
 	}
 
-	/* Display WA 827 */
 	if (needs_nv12_wa(dev_priv, old_crtc_state) &&
-	    !needs_nv12_wa(dev_priv, pipe_config)) {
+	    !needs_nv12_wa(dev_priv, pipe_config))
 		skl_wa_827(dev_priv, crtc->pipe, false);
-	}
+
+	if (needs_scalerclk_wa(dev_priv, old_crtc_state) &&
+	    !needs_scalerclk_wa(dev_priv, pipe_config))
+		icl_wa_scalerclkgating(dev_priv, crtc->pipe, false);
 }
 
 static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
@@ -5601,9 +5627,13 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 
 	/* Display WA 827 */
 	if (!needs_nv12_wa(dev_priv, old_crtc_state) &&
-	    needs_nv12_wa(dev_priv, pipe_config)) {
+	    needs_nv12_wa(dev_priv, pipe_config))
 		skl_wa_827(dev_priv, crtc->pipe, true);
-	}
+
+	/* Wa_2006604312:icl */
+	if (!needs_scalerclk_wa(dev_priv, old_crtc_state) &&
+	    needs_scalerclk_wa(dev_priv, pipe_config))
+		icl_wa_scalerclkgating(dev_priv, crtc->pipe, true);
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
