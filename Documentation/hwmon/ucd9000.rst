@@ -57,7 +57,7 @@ system-health monitor. The device integrates a 12-bit ADC for monitoring up to
 13 power-supply voltage, current, or temperature inputs.
 
 This driver is a client driver to the core PMBus driver. Please see
-Documentation/hwmon/pmbus for details on PMBus client drivers.
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
 Usage Notes
@@ -72,7 +72,7 @@ Platform data support
 ---------------------
 
 The driver supports standard PMBus driver platform data. Please see
-Documentation/hwmon/pmbus for details.
+Documentation/hwmon/pmbus.rst for details.
 
 
 Sysfs entries

@@ -78,7 +78,7 @@ refer to the Documentation/devicetree/bindings/hwmon/ina2xx.txt for bindings
 if the device tree is used.
 
 Additionally ina226 supports update_interval attribute as described in
-Documentation/hwmon/sysfs-interface. Internally the interval is the sum of
+Documentation/hwmon/sysfs-interface.rst. Internally the interval is the sum of
 bus and shunt voltage conversion times multiplied by the averaging rate. We
 don't touch the conversion times and only modify the number of averages. The
 lower limit of the update_interval is 2 ms, the upper limit is 2253 ms.

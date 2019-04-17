@@ -39,7 +39,7 @@ increase the chances of your change being accepted.
 2. Adding functionality to existing drivers
 -------------------------------------------
 
-* Make sure the documentation in Documentation/hwmon/<driver_name> is up to
+* Make sure the documentation in Documentation/hwmon/<driver_name>.rst is up to
   date.
 
 * Make sure the information in Kconfig is up to date.
@@ -61,7 +61,7 @@ increase the chances of your change being accepted.
 
 * Consider adding yourself to MAINTAINERS.
 
-* Document the driver in Documentation/hwmon/<driver_name>.
+* Document the driver in Documentation/hwmon/<driver_name>.rst.
 
 * Add the driver to Kconfig and Makefile in alphabetical order.
 
@@ -134,7 +134,7 @@ increase the chances of your change being accepted.
   non-standard attributes, or you believe you do, discuss it on the mailing list
   first. Either case, provide a detailed explanation why you need the
   non-standard attribute(s).
-  Standard attributes are specified in Documentation/hwmon/sysfs-interface.
+  Standard attributes are specified in Documentation/hwmon/sysfs-interface.rst.
 
 * When deciding which sysfs attributes to support, look at the chip's
   capabilities. While we do not expect your driver to support everything the

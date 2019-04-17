@@ -7,7 +7,7 @@ modes - PWM or DC - are supported by the device.
 
 For additional information, a detailed datasheet is available at
 http://natisbad.org/NAS/ref/GMT_EDS-762_763-080710-0.2.pdf. sysfs
-bindings are described in Documentation/hwmon/sysfs-interface.
+bindings are described in Documentation/hwmon/sysfs-interface.rst.
 
 The following entries are available to the user in a subdirectory of
 /sys/bus/i2c/drivers/g762/ to control the operation of the device.

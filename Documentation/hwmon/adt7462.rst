@@ -68,4 +68,3 @@ The ADT7462 will scale the pwm between the lower and higher pwm speed when
 the temperature is between the two temperature boundaries.  PWM values range
 from 0 (off) to 255 (full speed).  Fan speed will be set to maximum when the
 temperature sensor associated with the PWM control exceeds temp#_max.
-

@@ -28,4 +28,4 @@ The TMP102 has a programmable update rate that can select between 8, 4, 1, and
 0.5 Hz. (Currently the driver only supports the default of 4 Hz).
 
 The driver provides the common sysfs-interface for temperatures (see
-Documentation/hwmon/sysfs-interface under Temperatures).
+Documentation/hwmon/sysfs-interface.rst under Temperatures).

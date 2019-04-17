@@ -68,7 +68,7 @@ supported by the driver so far, so using the default resolution of 0.5
 degree).
 
 The driver provides the common sysfs-interface for temperatures (see
-Documentation/hwmon/sysfs-interface under Temperatures).
+Documentation/hwmon/sysfs-interface.rst under Temperatures).
 
 The TMP411 and TMP431 chips are compatible with TMP401. TMP411 provides
 some additional features.

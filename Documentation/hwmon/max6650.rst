@@ -72,4 +72,3 @@ clock: The clock frequency in Hz of the chip the driver should assume [254000]
 
 Please have a look at the MAX6650/6651 data sheet and make sure that you fully
 understand the meaning of these parameters before you attempt to change them.
-

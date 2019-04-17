@@ -12,10 +12,10 @@ drivers that want to use the hardware monitoring framework.
 This document does not describe what a hardware monitoring (hwmon) Driver or
 Device is. It also does not describe the API which can be used by user space
 to communicate with a hardware monitoring device. If you want to know this
-then please read the following file: Documentation/hwmon/sysfs-interface.
+then please read the following file: Documentation/hwmon/sysfs-interface.rst.
 
 For additional guidelines on how to write and improve hwmon drivers, please
-also read Documentation/hwmon/submitting-patches.
+also read Documentation/hwmon/submitting-patches.rst.
 
 The API
 -------

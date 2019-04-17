@@ -113,7 +113,7 @@ This driver supports hardware monitoring for Intersil / Zilker Labs ZL6100 and
 compatible digital DC-DC controllers.
 
 The driver is a client driver to the core PMBus driver. Please see
-Documentation/hwmon/pmbus and Documentation.hwmon/pmbus-core for details
+Documentation/hwmon/pmbus.rst and Documentation.hwmon/pmbus-core for details
 on PMBus client drivers.
 
 

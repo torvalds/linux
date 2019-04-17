@@ -33,7 +33,7 @@ dedicated circuitry for DC/DC loop management with flash memory and a serial
 interface to support configuration, monitoring and management.
 
 This driver is a client driver to the core PMBus driver. Please see
-Documentation/hwmon/pmbus for details on PMBus client drivers.
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
 Usage Notes
@@ -48,7 +48,7 @@ Platform data support
 ---------------------
 
 The driver supports standard PMBus driver platform data. Please see
-Documentation/hwmon/pmbus for details.
+Documentation/hwmon/pmbus.rst for details.
 
 
 Sysfs entries

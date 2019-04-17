@@ -87,4 +87,3 @@ so it stops fans even if the value 0 into the ANALOG_OUT register does not.
 
 The driver was tested on Compaq AP550 with two ADM1022 chips (one works
 in the temp3 mode), five temperature readings and two fans.
-

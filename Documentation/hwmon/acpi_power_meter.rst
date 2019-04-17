@@ -21,7 +21,7 @@ the ACPI 4.0 spec (Chapter 10.4).  These devices have a simple set of
 features--a power meter that returns average power use over a configurable
 interval, an optional capping mechanism, and a couple of trip points.  The
 sysfs interface conforms with the specification outlined in the "Power" section
-of Documentation/hwmon/sysfs-interface.
+of Documentation/hwmon/sysfs-interface.rst.
 
 Special Features
 ----------------

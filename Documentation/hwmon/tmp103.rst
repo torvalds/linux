@@ -27,7 +27,7 @@ Resolution: 8 Bits
 Accuracy: ±1°C Typ (–10°C to +100°C)
 
 The driver provides the common sysfs-interface for temperatures (see
-Documentation/hwmon/sysfs-interface under Temperatures).
+Documentation/hwmon/sysfs-interface.rst under Temperatures).
 
 Please refer how to instantiate this driver:
 Documentation/i2c/instantiating-devices

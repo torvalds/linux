@@ -102,7 +102,7 @@ This file is used for both legacy and new code.
 
 The sysfs interface to the beep bitmask has migrated from the original legacy
 method of a single sysfs beep_mask file to a newer method using multiple
-`*_beep` files as described in `Documentation/hwmon/sysfs-interface`.
+`*_beep` files as described in `Documentation/hwmon/sysfs-interface.rst`.
 
 A similar change has occurred for the bitmap corresponding to the alarms. The
 original legacy method used a single sysfs alarms file containing a bitmap

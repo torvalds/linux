@@ -23,7 +23,7 @@ This driver supports MAX20751 Multiphase Master with PMBus Interface
 and Internal Buck Converter.
 
 The driver is a client driver to the core PMBus driver.
-Please see Documentation/hwmon/pmbus for details on PMBus client drivers.
+Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
 Usage Notes

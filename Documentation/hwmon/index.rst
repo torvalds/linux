@@ -1,0 +1,179 @@
+=========================
+Linux Hardware Monitoring
+=========================
+
+.. toctree::
+   :maxdepth: 1
+
+   hwmon-kernel-api.rst
+   pmbus-core.rst
+   submitting-patches.rst
+   sysfs-interface.rst
+   userspace-tools.rst
+
+Hardware Monitoring Kernel Drivers
+==================================
+
+.. toctree::
+   :maxdepth: 1
+
+   ab8500.rst
+   abituguru.rst
+   abituguru3.rst
+   abx500.rst
+   acpi_power_meter.rst
+   ad7314.rst
+   adc128d818.rst
+   adm1021.rst
+   adm1025.rst
+   adm1026.rst
+   adm1031.rst
+   adm1275.rst
+   adm9240.rst
+   ads1015.rst
+   ads7828.rst
+   adt7410.rst
+   adt7411.rst
+   adt7462.rst
+   adt7470.rst
+   adt7475.rst
+   amc6821.rst
+   asb100.rst
+   asc7621.rst
+   aspeed-pwm-tacho.rst
+   coretemp.rst
+   da9052.rst
+   da9055.rst
+   dme1737.rst
+   ds1621.rst
+   ds620.rst
+   emc1403.rst
+   emc2103.rst
+   emc6w201.rst
+   f71805f.rst
+   f71882fg.rst
+   fam15h_power.rst
+   ftsteutates.rst
+   g760a.rst
+   g762.rst
+   gl518sm.rst
+   hih6130.rst
+   ibmaem.rst
+   ibm-cffps.rst
+   ibmpowernv.rst
+   ina209.rst
+   ina2xx.rst
+   ina3221.rst
+   ir35221.rst
+   it87.rst
+   jc42.rst
+   k10temp.rst
+   k8temp.rst
+   lineage-pem.rst
+   lm25066.rst
+   lm63.rst
+   lm70.rst
+   lm73.rst
+   lm75.rst
+   lm77.rst
+   lm78.rst
+   lm80.rst
+   lm83.rst
+   lm85.rst
+   lm87.rst
+   lm90.rst
+   lm92.rst
+   lm93.rst
+   lm95234.rst
+   lm95245.rst
+   ltc2945.rst
+   ltc2978.rst
+   ltc2990.rst
+   ltc3815.rst
+   ltc4151.rst
+   ltc4215.rst
+   ltc4245.rst
+   ltc4260.rst
+   ltc4261.rst
+   max16064.rst
+   max16065.rst
+   max1619.rst
+   max1668.rst
+   max197.rst
+   max20751.rst
+   max31722.rst
+   max31785.rst
+   max31790.rst
+   max34440.rst
+   max6639.rst
+   max6642.rst
+   max6650.rst
+   max6697.rst
+   max8688.rst
+   mc13783-adc.rst
+   mcp3021.rst
+   menf21bmc.rst
+   mlxreg-fan.rst
+   nct6683.rst
+   nct6775.rst
+   nct7802.rst
+   nct7904.rst
+   npcm750-pwm-fan.rst
+   nsa320.rst
+   ntc_thermistor.rst
+   occ.rst
+   pc87360.rst
+   pc87427.rst
+   pcf8591.rst
+   pmbus.rst
+   powr1220.rst
+   pwm-fan.rst
+   raspberrypi-hwmon.rst
+   sch5627.rst
+   sch5636.rst
+   scpi-hwmon.rst
+   sht15.rst
+   sht21.rst
+   sht3x.rst
+   shtc1.rst
+   sis5595.rst
+   smm665.rst
+   smsc47b397.rst
+   smsc47m192.rst
+   smsc47m1.rst
+   tc654.rst
+   tc74.rst
+   thmc50.rst
+   tmp102.rst
+   tmp103.rst
+   tmp108.rst
+   tmp401.rst
+   tmp421.rst
+   tps40422.rst
+   twl4030-madc-hwmon.rst
+   ucd9000.rst
+   ucd9200.rst
+   vexpress.rst
+   via686a.rst
+   vt1211.rst
+   w83627ehf.rst
+   w83627hf.rst
+   w83773g.rst
+   w83781d.rst
+   w83791d.rst
+   w83792d.rst
+   w83793.rst
+   w83795.rst
+   w83l785ts.rst
+   w83l786ng.rst
+   wm831x.rst
+   wm8350.rst
+   xgene-hwmon.rst
+   zl6100.rst
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`

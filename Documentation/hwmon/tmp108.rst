@@ -38,4 +38,4 @@ and then the device is shut down automatically. (This driver only supports
 continuous mode.)
 
 The driver provides the common sysfs-interface for temperatures (see
-Documentation/hwmon/sysfs-interface under Temperatures).
+Documentation/hwmon/sysfs-interface.rst under Temperatures).

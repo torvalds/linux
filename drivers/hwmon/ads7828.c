@@ -8,7 +8,7 @@
  *
  * ADS7830 support, by Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
  *
- * For further information, see the Documentation/hwmon/ads7828 file.
+ * For further information, see the Documentation/hwmon/ads7828.rst file.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

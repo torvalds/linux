@@ -121,4 +121,3 @@ Problems
 --------
 Some chips refuse to be enabled. We don't know why.
 The driver will recognize this and print a message in dmesg.
-

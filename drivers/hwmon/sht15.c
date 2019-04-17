@@ -10,7 +10,7 @@
  *
  * Copyright (c) 2007 Wouter Horre
  *
- * For further information, see the Documentation/hwmon/sht15 file.
+ * For further information, see the Documentation/hwmon/sht15.rst file.
  */
 
 #include <linux/interrupt.h>

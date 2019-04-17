@@ -83,6 +83,7 @@ needed).
    media/index
    networking/index
    input/index
+   hwmon/index
    gpu/index
    security/index
    sound/index
