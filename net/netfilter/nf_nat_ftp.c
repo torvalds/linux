@@ -24,7 +24,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp NAT helper");
-MODULE_ALIAS("ip_nat_ftp");
+MODULE_ALIAS_NF_NAT_HELPER("ftp");
 
 /* FIXME: Time out? --RR */
 

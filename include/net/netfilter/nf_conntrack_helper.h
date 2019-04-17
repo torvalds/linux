@@ -15,6 +15,10 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 
+#define NF_NAT_HELPER_NAME(name)	"ip_nat_" name
+#define MODULE_ALIAS_NF_NAT_HELPER(name) \
+	MODULE_ALIAS(NF_NAT_HELPER_NAME(name))
+
 struct module;
 
 enum nf_ct_helper_flags {

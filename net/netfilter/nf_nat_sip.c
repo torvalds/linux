@@ -27,7 +27,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP NAT helper");
-MODULE_ALIAS("ip_nat_sip");
+MODULE_ALIAS_NF_NAT_HELPER("sip");
 
 
 static unsigned int mangle_packet(struct sk_buff *skb, unsigned int protoff,
