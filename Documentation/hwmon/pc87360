@@ -2,14 +2,19 @@ Kernel driver pc87360
 =====================
 
 Supported chips:
+
   * National Semiconductor PC87360, PC87363, PC87364, PC87365 and PC87366
+
     Prefixes: 'pc87360', 'pc87363', 'pc87364', 'pc87365', 'pc87366'
+
     Addresses scanned: none, address read from Super I/O config space
+
     Datasheets: No longer available
 
 Authors: Jean Delvare <jdelvare@suse.de>
 
 Thanks to Sandeep Mehta, Tonko de Rooy and Daniel Ceregatti for testing.
+
 Thanks to Rudolf Marek for helping me investigate conversion issues.
 
 
@@ -17,11 +22,13 @@ Module Parameters
 -----------------
 
 * init int
-  Chip initialization level:
-   0: None
-  *1: Forcibly enable internal voltage and temperature channels, except in9
-   2: Forcibly enable all voltage and temperature channels, except in9
-   3: Forcibly enable all voltage and temperature channels, including in9
+    Chip initialization level:
+
+    - 0: None
+    - **1**: Forcibly enable internal voltage and temperature channels,
+      except in9
+    - 2: Forcibly enable all voltage and temperature channels, except in9
+    - 3: Forcibly enable all voltage and temperature channels, including in9
 
 Note that this parameter has no effect for the PC87360, PC87363 and PC87364
 chips.
@@ -43,13 +50,15 @@ hardware monitoring chipsets, not only controlling and monitoring three fans,
 but also monitoring eleven voltage inputs and two (PC87365) or up to four
 (PC87366) temperatures.
 
+  =========== ======= ======= ======= ======= =====
   Chip        #vin    #fan    #pwm    #temp   devid
-
+  =========== ======= ======= ======= ======= =====
   PC87360     -       2       2       -       0xE1
   PC87363     -       2       2       -       0xE8
   PC87364     -       3       3       -       0xE4
   PC87365     11      3       3       2       0xE5
   PC87366     11      3       3       3-4     0xE9
+  =========== ======= ======= ======= ======= =====
 
 The driver assumes that no more than one chip is present, and one of the
 standard Super I/O addresses is used (0x2E/0x2F or 0x4E/0x4F)
@@ -68,18 +77,23 @@ have to care no more.
 
 For reference, here are a few values about clock dividers:
 
-                slowest         accuracy        highest
-                measurable      around 3000     accurate
+    =========== =============== =============== ===========
+		slowest         accuracy        highest
+		measurable      around 3000     accurate
     divider     speed (RPM)     RPM (RPM)       speed (RPM)
-         1        1882              18           6928
-         2         941              37           4898
-         4         470              74           3464
-         8         235             150           2449
+    =========== =============== =============== ===========
+	 1        1882              18           6928
+	 2         941              37           4898
+	 4         470              74           3464
+	 8         235             150           2449
+    =========== =============== =============== ===========
 
 For the curious, here is how the values above were computed:
+
  * slowest measurable speed: clock/(255*divider)
  * accuracy around 3000 RPM: 3000^2/clock
  * highest accurate speed: sqrt(clock*100)
+
 The clock speed for the PC87360 family is 480 kHz. I arbitrarily chose 100
 RPM as the lowest acceptable accuracy.
 
