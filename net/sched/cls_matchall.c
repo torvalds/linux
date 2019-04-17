@@ -126,6 +126,11 @@ static void mall_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 
 static void *mall_get(struct tcf_proto *tp, u32 handle)
 {
+	struct cls_mall_head *head = rtnl_dereference(tp->root);
+
+	if (head && head->handle == handle)
+		return head;
+
 	return NULL;
 }
 

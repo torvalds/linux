@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/firmware.h>
 #include <linux/prefetch.h>
+#include <linux/pci-aspm.h>
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
 
@@ -5417,7 +5418,7 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 	tp->cp_cmd |= PktCntrDisable | INTT_1;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
-	RTL_W16(tp, IntrMitigate, 0x5151);
+	RTL_W16(tp, IntrMitigate, 0x5100);
 
 	/* Work around for RxFIFO overflow. */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
@@ -7323,6 +7324,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (rc)
 			return rc;
 	}
+
+	/* Disable ASPM completely as that cause random device stop working
+	 * problems as well as full system hangs for some PCIe devices users.
+	 */
+	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);

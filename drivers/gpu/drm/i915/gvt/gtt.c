@@ -1940,7 +1940,7 @@ void _intel_vgpu_mm_release(struct kref *mm_ref)
  */
 void intel_vgpu_unpin_mm(struct intel_vgpu_mm *mm)
 {
-	atomic_dec(&mm->pincount);
+	atomic_dec_if_positive(&mm->pincount);
 }
 
 /**

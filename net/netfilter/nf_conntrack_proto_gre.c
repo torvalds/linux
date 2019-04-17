@@ -43,24 +43,12 @@
 #include <linux/netfilter/nf_conntrack_proto_gre.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 
-enum grep_conntrack {
-	GRE_CT_UNREPLIED,
-	GRE_CT_REPLIED,
-	GRE_CT_MAX
-};
-
 static const unsigned int gre_timeouts[GRE_CT_MAX] = {
 	[GRE_CT_UNREPLIED]	= 30*HZ,
 	[GRE_CT_REPLIED]	= 180*HZ,
 };
 
 static unsigned int proto_gre_net_id __read_mostly;
-struct netns_proto_gre {
-	struct nf_proto_net	nf;
-	rwlock_t		keymap_lock;
-	struct list_head	keymap_list;
-	unsigned int		gre_timeouts[GRE_CT_MAX];
-};
 
 static inline struct netns_proto_gre *gre_pernet(struct net *net)
 {
@@ -407,6 +395,8 @@ static struct pernet_operations proto_gre_net_ops = {
 static int __init nf_ct_proto_gre_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(offsetof(struct netns_proto_gre, nf) != 0);
 
 	ret = register_pernet_subsys(&proto_gre_net_ops);
 	if (ret < 0)
