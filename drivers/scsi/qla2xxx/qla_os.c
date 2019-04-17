@@ -859,7 +859,8 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	uint32_t tag;
 	uint16_t hwq;
 
-	if (unlikely(test_bit(UNLOADING, &base_vha->dpc_flags))) {
+	if (unlikely(test_bit(UNLOADING, &base_vha->dpc_flags)) ||
+	    WARN_ON_ONCE(!rport)) {
 		cmd->result = DID_NO_CONNECT << 16;
 		goto qc24_fail_command;
 	}
@@ -982,7 +983,7 @@ qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
 	srb_t *sp;
 	int rval;
 
-	rval = fc_remote_port_chkready(rport);
+	rval = rport ? fc_remote_port_chkready(rport) : FC_PORTSTATE_OFFLINE;
 	if (rval) {
 		cmd->result = rval;
 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3076,
