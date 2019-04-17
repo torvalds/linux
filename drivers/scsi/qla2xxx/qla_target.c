@@ -7372,6 +7372,9 @@ int __init qlt_init(void)
 {
 	int ret;
 
+	BUILD_BUG_ON(sizeof(struct ctio7_to_24xx) != 64);
+	BUILD_BUG_ON(sizeof(struct ctio_to_2xxx) != 64);
+
 	if (!qlt_parse_ini_mode()) {
 		ql_log(ql_log_fatal, NULL, 0xe06b,
 		    "qlt_parse_ini_mode() failed\n");
