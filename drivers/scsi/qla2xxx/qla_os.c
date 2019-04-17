@@ -1837,15 +1837,10 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 					continue;
 				}
 				cmd = (struct qla_tgt_cmd *)sp;
-				qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
+				cmd->aborted = 1;
 				break;
 			case TYPE_TGT_TMCMD:
-				/*
-				 * Currently, only ABTS response gets on the
-				 * outstanding_cmds[]
-				 */
-				ha->tgt.tgt_ops->free_mcmd(
-				   (struct qla_tgt_mgmt_cmd *)sp);
+				/* Skip task management functions. */
 				break;
 			default:
 				break;

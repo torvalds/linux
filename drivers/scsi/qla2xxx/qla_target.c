@@ -3268,7 +3268,6 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	if (!qpair->fw_started || (cmd->reset_count != qpair->chip_reset) ||
 	    (cmd->sess && cmd->sess->deleted)) {
 		cmd->state = QLA_TGT_STATE_PROCESSED;
-		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
 		return 0;
 	}
 
@@ -3297,7 +3296,6 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 		 * previous life, just abort the processing.
 		 */
 		cmd->state = QLA_TGT_STATE_PROCESSED;
-		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
 		ql_dbg_qp(ql_dbg_async, qpair, 0xe101,
 			"RESET-RSP online/active/old-count/new-count = %d/%d/%d/%d.\n",
 			vha->flags.online, qla2x00_reset_active(vha),
@@ -3438,8 +3436,10 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 		 * Either the port is not online or this request was from
 		 * previous life, just abort the processing.
 		 */
-		cmd->state = QLA_TGT_STATE_NEED_DATA;
-		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
+		cmd->aborted = 1;
+		cmd->write_data_transferred = 0;
+		cmd->state = QLA_TGT_STATE_DATA_IN;
+		vha->hw->tgt.tgt_ops->handle_data(cmd);
 		ql_dbg_qp(ql_dbg_async, qpair, 0xe102,
 			"RESET-XFR online/active/old-count/new-count = %d/%d/%d/%d.\n",
 			vha->flags.online, qla2x00_reset_active(vha),
@@ -3959,39 +3959,6 @@ static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 	}
 
 	return cmd;
-}
-
-/* hardware_lock should be held by caller. */
-void
-qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
-{
-	struct qla_hw_data *ha = vha->hw;
-
-	if (cmd->sg_mapped)
-		qlt_unmap_sg(vha, cmd);
-
-	/* TODO: fix debug message type and ids. */
-	if (cmd->state == QLA_TGT_STATE_PROCESSED) {
-		ql_dbg(ql_dbg_io, vha, 0xff00,
-		    "HOST-ABORT: state=PROCESSED.\n");
-	} else if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
-		cmd->write_data_transferred = 0;
-		cmd->state = QLA_TGT_STATE_DATA_IN;
-
-		ql_dbg(ql_dbg_io, vha, 0xff01,
-		    "HOST-ABORT: state=DATA_IN.\n");
-
-		ha->tgt.tgt_ops->handle_data(cmd);
-		return;
-	} else {
-		ql_dbg(ql_dbg_io, vha, 0xff03,
-		    "HOST-ABORT: state=BAD(%d).\n",
-		    cmd->state);
-		dump_stack();
-	}
-
-	cmd->trc_flags |= TRC_FLUSH;
-	ha->tgt.tgt_ops->free_cmd(cmd);
 }
 
 /*

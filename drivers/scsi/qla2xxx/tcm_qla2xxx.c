@@ -504,7 +504,8 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 	if (cmd->aborted) {
 		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
-		tcm_qla2xxx_free_cmd(cmd);
+		transport_generic_request_failure(&cmd->se_cmd,
+			TCM_CHECK_CONDITION_ABORT_CMD);
 		return;
 	}
 	spin_unlock_irqrestore(&cmd->cmd_lock, flags);
