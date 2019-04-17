@@ -271,7 +271,7 @@ static enum iavf_status i40e_config_asq_regs(struct iavf_hw *hw)
 	/* Check one register to verify that config was applied */
 	reg = rd32(hw, hw->aq.asq.bal);
 	if (reg != lower_32_bits(hw->aq.asq.desc_buf.pa))
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = IAVF_ERR_ADMIN_QUEUE_ERROR;
 
 	return ret_code;
 }
@@ -303,7 +303,7 @@ static enum iavf_status i40e_config_arq_regs(struct iavf_hw *hw)
 	/* Check one register to verify that config was applied */
 	reg = rd32(hw, hw->aq.arq.bal);
 	if (reg != lower_32_bits(hw->aq.arq.desc_buf.pa))
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = IAVF_ERR_ADMIN_QUEUE_ERROR;
 
 	return ret_code;
 }
@@ -327,14 +327,14 @@ static enum iavf_status i40e_init_asq(struct iavf_hw *hw)
 
 	if (hw->aq.asq.count > 0) {
 		/* queue already initialized */
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = IAVF_ERR_NOT_READY;
 		goto init_adminq_exit;
 	}
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_asq_entries == 0) ||
 	    (hw->aq.asq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = IAVF_ERR_CONFIG;
 		goto init_adminq_exit;
 	}
 
@@ -386,14 +386,14 @@ static enum iavf_status i40e_init_arq(struct iavf_hw *hw)
 
 	if (hw->aq.arq.count > 0) {
 		/* queue already initialized */
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = IAVF_ERR_NOT_READY;
 		goto init_adminq_exit;
 	}
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
 	    (hw->aq.arq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = IAVF_ERR_CONFIG;
 		goto init_adminq_exit;
 	}
 
@@ -439,7 +439,7 @@ static enum iavf_status i40e_shutdown_asq(struct iavf_hw *hw)
 	mutex_lock(&hw->aq.asq_mutex);
 
 	if (hw->aq.asq.count == 0) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = IAVF_ERR_NOT_READY;
 		goto shutdown_asq_out;
 	}
 
@@ -473,7 +473,7 @@ static enum iavf_status i40e_shutdown_arq(struct iavf_hw *hw)
 	mutex_lock(&hw->aq.arq_mutex);
 
 	if (hw->aq.arq.count == 0) {
-		ret_code = I40E_ERR_NOT_READY;
+		ret_code = IAVF_ERR_NOT_READY;
 		goto shutdown_arq_out;
 	}
 
@@ -514,7 +514,7 @@ enum iavf_status iavf_init_adminq(struct iavf_hw *hw)
 	    (hw->aq.num_asq_entries == 0) ||
 	    (hw->aq.arq_buf_size == 0) ||
 	    (hw->aq.asq_buf_size == 0)) {
-		ret_code = I40E_ERR_CONFIG;
+		ret_code = IAVF_ERR_CONFIG;
 		goto init_adminq_exit;
 	}
 
@@ -648,7 +648,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 	if (hw->aq.asq.count == 0) {
 		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
 			   "AQTX: Admin queue not initialized.\n");
-		status = I40E_ERR_QUEUE_EMPTY;
+		status = IAVF_ERR_QUEUE_EMPTY;
 		goto asq_send_command_error;
 	}
 
@@ -658,7 +658,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 	if (val >= hw->aq.num_asq_entries) {
 		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
 			   "AQTX: head overrun at %d\n", val);
-		status = I40E_ERR_QUEUE_EMPTY;
+		status = IAVF_ERR_QUEUE_EMPTY;
 		goto asq_send_command_error;
 	}
 
@@ -689,7 +689,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
 			   "AQTX: Invalid buffer size: %d.\n",
 			   buff_size);
-		status = I40E_ERR_INVALID_SIZE;
+		status = IAVF_ERR_INVALID_SIZE;
 		goto asq_send_command_error;
 	}
 
@@ -697,7 +697,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		iavf_debug(hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
 			   "AQTX: Async flag not set along with postpone flag");
-		status = I40E_ERR_PARAM;
+		status = IAVF_ERR_PARAM;
 		goto asq_send_command_error;
 	}
 
@@ -712,7 +712,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		iavf_debug(hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
 			   "AQTX: Error queue is full.\n");
-		status = I40E_ERR_ADMIN_QUEUE_FULL;
+		status = IAVF_ERR_ADMIN_QUEUE_FULL;
 		goto asq_send_command_error;
 	}
 
@@ -784,9 +784,9 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		if ((enum iavf_admin_queue_err)retval == IAVF_AQ_RC_OK)
 			status = 0;
 		else if ((enum iavf_admin_queue_err)retval == IAVF_AQ_RC_EBUSY)
-			status = I40E_ERR_NOT_READY;
+			status = IAVF_ERR_NOT_READY;
 		else
-			status = I40E_ERR_ADMIN_QUEUE_ERROR;
+			status = IAVF_ERR_ADMIN_QUEUE_ERROR;
 		hw->aq.asq_last_status = (enum iavf_admin_queue_err)retval;
 	}
 
@@ -804,11 +804,11 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		if (rd32(hw, hw->aq.asq.len) & IAVF_VF_ATQLEN1_ATQCRIT_MASK) {
 			iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
 				   "AQTX: AQ Critical error.\n");
-			status = I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
+			status = IAVF_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
 		} else {
 			iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
 				   "AQTX: Writeback timeout.\n");
-			status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
+			status = IAVF_ERR_ADMIN_QUEUE_TIMEOUT;
 		}
 	}
 
@@ -864,7 +864,7 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	if (hw->aq.arq.count == 0) {
 		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
 			   "AQRX: Admin queue not initialized.\n");
-		ret_code = I40E_ERR_QUEUE_EMPTY;
+		ret_code = IAVF_ERR_QUEUE_EMPTY;
 		goto clean_arq_element_err;
 	}
 
@@ -872,7 +872,7 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	ntu = rd32(hw, hw->aq.arq.head) & IAVF_VF_ARQH1_ARQH_MASK;
 	if (ntu == ntc) {
 		/* nothing to do - shouldn't need to update ring's values */
-		ret_code = I40E_ERR_ADMIN_QUEUE_NO_WORK;
+		ret_code = IAVF_ERR_ADMIN_QUEUE_NO_WORK;
 		goto clean_arq_element_out;
 	}
 
@@ -884,7 +884,7 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 		(enum iavf_admin_queue_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
 	if (flags & IAVF_AQ_FLAG_ERR) {
-		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
+		ret_code = IAVF_ERR_ADMIN_QUEUE_ERROR;
 		iavf_debug(hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",

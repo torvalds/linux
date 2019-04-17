@@ -73,7 +73,7 @@ enum iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
 	if (!mem)
-		return I40E_ERR_PARAM;
+		return IAVF_ERR_PARAM;
 
 	mem->size = ALIGN(size, alignment);
 	mem->va = dma_alloc_coherent(&adapter->pdev->dev, mem->size,
@@ -81,7 +81,7 @@ enum iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
 	if (mem->va)
 		return 0;
 	else
-		return I40E_ERR_NO_MEMORY;
+		return IAVF_ERR_NO_MEMORY;
 }
 
 /**
@@ -95,7 +95,7 @@ enum iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw,
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
 	if (!mem || !mem->va)
-		return I40E_ERR_PARAM;
+		return IAVF_ERR_PARAM;
 	dma_free_coherent(&adapter->pdev->dev, mem->size,
 			  mem->va, (dma_addr_t)mem->pa);
 	return 0;
@@ -111,7 +111,7 @@ enum iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
 					  struct iavf_virt_mem *mem, u32 size)
 {
 	if (!mem)
-		return I40E_ERR_PARAM;
+		return IAVF_ERR_PARAM;
 
 	mem->size = size;
 	mem->va = kzalloc(size, GFP_KERNEL);
@@ -119,7 +119,7 @@ enum iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
 	if (mem->va)
 		return 0;
 	else
-		return I40E_ERR_NO_MEMORY;
+		return IAVF_ERR_NO_MEMORY;
 }
 
 /**
@@ -131,7 +131,7 @@ enum iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw,
 				      struct iavf_virt_mem *mem)
 {
 	if (!mem)
-		return I40E_ERR_PARAM;
+		return IAVF_ERR_PARAM;
 
 	/* it's ok to kfree a NULL pointer */
 	kfree(mem->va);
@@ -2510,7 +2510,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad ether dest mask %pM\n",
 					match.mask->dst);
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 
@@ -2520,7 +2520,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad ether src mask %pM\n",
 					match.mask->src);
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 
@@ -2555,7 +2555,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad vlan mask %u\n",
 					match.mask->vlan_id);
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 		vf->mask.tcp_spec.vlan_id |= cpu_to_be16(0xffff);
@@ -2579,7 +2579,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad ip dst mask 0x%08x\n",
 					be32_to_cpu(match.mask->dst));
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 
@@ -2589,13 +2589,13 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad ip src mask 0x%08x\n",
 					be32_to_cpu(match.mask->dst));
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 
 		if (field_flags & IAVF_CLOUD_FIELD_TEN_ID) {
 			dev_info(&adapter->pdev->dev, "Tenant id not allowed for ip filter\n");
-			return I40E_ERR_CONFIG;
+			return IAVF_ERR_CONFIG;
 		}
 		if (match.key->dst) {
 			vf->mask.tcp_spec.dst_ip[0] |= cpu_to_be32(0xffffffff);
@@ -2616,7 +2616,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 		if (ipv6_addr_any(&match.mask->dst)) {
 			dev_err(&adapter->pdev->dev, "Bad ipv6 dst mask 0x%02x\n",
 				IPV6_ADDR_ANY);
-			return I40E_ERR_CONFIG;
+			return IAVF_ERR_CONFIG;
 		}
 
 		/* src and dest IPv6 address should not be LOOPBACK
@@ -2626,7 +2626,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 		    ipv6_addr_loopback(&match.key->src)) {
 			dev_err(&adapter->pdev->dev,
 				"ipv6 addr should not be loopback\n");
-			return I40E_ERR_CONFIG;
+			return IAVF_ERR_CONFIG;
 		}
 		if (!ipv6_addr_any(&match.mask->dst) ||
 		    !ipv6_addr_any(&match.mask->src))
@@ -2651,7 +2651,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad src port mask %u\n",
 					be16_to_cpu(match.mask->src));
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 
@@ -2661,7 +2661,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 			} else {
 				dev_err(&adapter->pdev->dev, "Bad dst port mask %u\n",
 					be16_to_cpu(match.mask->dst));
-				return I40E_ERR_CONFIG;
+				return IAVF_ERR_CONFIG;
 			}
 		}
 		if (match.key->dst) {
@@ -3404,7 +3404,7 @@ static void iavf_init_task(struct work_struct *work)
 		/* aq msg sent, awaiting reply */
 		err = iavf_verify_api_ver(adapter);
 		if (err) {
-			if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
+			if (err == IAVF_ERR_ADMIN_QUEUE_NO_WORK)
 				err = iavf_send_api_ver(adapter);
 			else
 				dev_err(&pdev->dev, "Unsupported PF API version %d.%d, expected %d.%d\n",
@@ -3432,10 +3432,10 @@ static void iavf_init_task(struct work_struct *work)
 				goto err;
 		}
 		err = iavf_get_vf_config(adapter);
-		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
+		if (err == IAVF_ERR_ADMIN_QUEUE_NO_WORK) {
 			err = iavf_send_vf_config_msg(adapter);
 			goto err;
-		} else if (err == I40E_ERR_PARAM) {
+		} else if (err == IAVF_ERR_PARAM) {
 			/* We only get ERR_PARAM if the device is in a very bad
 			 * state or if we've been disabled for previous bad
 			 * behavior. Either way, we're done now.

@@ -142,7 +142,7 @@ static int iavf_client_release_qvlist(struct i40e_info *ldev)
 
 	err = iavf_aq_send_msg_to_pf(&adapter->hw,
 				     VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
-				     I40E_SUCCESS, NULL, 0, NULL);
+				     IAVF_SUCCESS, NULL, 0, NULL);
 
 	if (err)
 		dev_err(&adapter->pdev->dev,
@@ -426,7 +426,7 @@ static u32 iavf_client_virtchnl_send(struct i40e_info *ldev,
 		return -EAGAIN;
 
 	err = iavf_aq_send_msg_to_pf(&adapter->hw, VIRTCHNL_OP_IWARP,
-				     I40E_SUCCESS, msg, len, NULL);
+				     IAVF_SUCCESS, msg, len, NULL);
 	if (err)
 		dev_err(&adapter->pdev->dev, "Unable to send iWarp message to PF, error %d, aq status %d\n",
 			err, adapter->hw.aq.asq_last_status);
@@ -474,7 +474,7 @@ static int iavf_client_setup_qvlist(struct i40e_info *ldev,
 
 	adapter->client_pending |= BIT(VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP);
 	err = iavf_aq_send_msg_to_pf(&adapter->hw,
-				VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP, I40E_SUCCESS,
+				VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP, IAVF_SUCCESS,
 				(u8 *)v_qvlist_info, msg_size, NULL);
 
 	if (err) {
