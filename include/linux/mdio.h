@@ -40,6 +40,7 @@ struct mdio_device {
 	int addr;
 	int flags;
 	struct gpio_desc *reset;
+	struct reset_control *reset_ctrl;
 	unsigned int reset_assert_delay;
 	unsigned int reset_deassert_delay;
 };
