@@ -881,7 +881,15 @@ static const uint32_t aspeed_smc_hclk_divs[] = {
 
 static u32 aspeed_smc_default_read(struct aspeed_smc_chip *chip)
 {
-	return (chip->ctl_val[smc_read] & 0x2000) |
+	/*
+	 * Keep the 4Byte address mode on the AST2400 SPI controller.
+	 * Other controllers set the 4Byte mode in the CE Control
+	 * Register
+	 */
+	u32 ctl_mask = chip->controller->info == &spi_2400_info ?
+		 CONTROL_IO_ADDRESS_4B : 0;
+
+	return (chip->ctl_val[smc_read] & ctl_mask) |
 		(0x00 << 28) | /* Single bit */
 		(0x00 << 24) | /* CE# max */
 		(0x03 << 16) | /* use normal reads */
