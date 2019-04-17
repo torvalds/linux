@@ -1435,6 +1435,8 @@ static noinline_for_stack
 char *ip_addr_string(char *buf, char *end, const void *ptr,
 		     struct printf_spec spec, const char *fmt)
 {
+	char *err_fmt_msg;
+
 	switch (fmt[1]) {
 	case '6':
 		return ip6_addr_string(buf, end, ptr, spec, fmt);
@@ -1457,7 +1459,8 @@ char *ip_addr_string(char *buf, char *end, const void *ptr,
 		}}
 	}
 
-	return ptr_to_id(buf, end, ptr, spec);
+	err_fmt_msg = fmt[0] == 'i' ? "(%pi?)" : "(%pI?)";
+	return string_nocheck(buf, end, err_fmt_msg, spec);
 }
 
 static noinline_for_stack
@@ -1585,7 +1588,7 @@ char *netdev_bits(char *buf, char *end, const void *addr,
 		size = sizeof(netdev_features_t);
 		break;
 	default:
-		return ptr_to_id(buf, end, addr, spec);
+		return string_nocheck(buf, end, "(%pN?)", spec);
 	}
 
 	return special_hex_number(buf, end, num, size);
@@ -1689,7 +1692,7 @@ char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 	case 'R':
 		return rtc_str(buf, end, (const struct rtc_time *)ptr, fmt);
 	default:
-		return ptr_to_id(buf, end, ptr, spec);
+		return string_nocheck(buf, end, "(%ptR?)", spec);
 	}
 }
 
@@ -1697,7 +1700,10 @@ static noinline_for_stack
 char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 	    const char *fmt)
 {
-	if (!IS_ENABLED(CONFIG_HAVE_CLK) || !clk)
+	if (!IS_ENABLED(CONFIG_HAVE_CLK))
+		return string_nocheck(buf, end, "(%pC?)", spec);
+
+	if (!clk)
 		return string(buf, end, NULL, spec);
 
 	switch (fmt[1]) {
@@ -1706,7 +1712,7 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 #ifdef CONFIG_COMMON_CLK
 		return string(buf, end, __clk_get_name(clk), spec);
 #else
-		return ptr_to_id(buf, end, clk, spec);
+		return string_nocheck(buf, end, "(%pC?)", spec);
 #endif
 	}
 }
@@ -1739,7 +1745,8 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 }
 
 static noinline_for_stack
-char *flags_string(char *buf, char *end, void *flags_ptr, const char *fmt)
+char *flags_string(char *buf, char *end, void *flags_ptr,
+		   struct printf_spec spec, const char *fmt)
 {
 	unsigned long flags;
 	const struct trace_print_flags *names;
@@ -1760,8 +1767,7 @@ char *flags_string(char *buf, char *end, void *flags_ptr, const char *fmt)
 		names = gfpflag_names;
 		break;
 	default:
-		WARN_ONCE(1, "Unsupported flags modifier: %c\n", fmt[1]);
-		return buf;
+		return string_nocheck(buf, end, "(%pG?)", spec);
 	}
 
 	return format_flags(buf, end, flags, names);
@@ -1817,7 +1823,7 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	str_spec.field_width = -1;
 
 	if (!IS_ENABLED(CONFIG_OF))
-		return string_nocheck(buf, end, "(!OF)", spec);
+		return string_nocheck(buf, end, "(%pOF?)", spec);
 
 	if ((unsigned long)dn < PAGE_SIZE)
 		return string_nocheck(buf, end, "(null)", spec);
@@ -1896,7 +1902,7 @@ static char *kobject_string(char *buf, char *end, void *ptr,
 		return device_node_string(buf, end, ptr, spec, fmt + 1);
 	}
 
-	return ptr_to_id(buf, end, ptr, spec);
+	return string_nocheck(buf, end, "(%pO?)", spec);
 }
 
 /*
@@ -2091,7 +2097,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 #endif
 
 	case 'G':
-		return flags_string(buf, end, ptr, fmt);
+		return flags_string(buf, end, ptr, spec, fmt);
 	case 'O':
 		return kobject_string(buf, end, ptr, spec, fmt);
 	case 'x':

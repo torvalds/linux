@@ -462,8 +462,7 @@ struct_rtc_time(void)
 		.tm_year = 118,
 	};
 
-	test_hashed("%pt", &tm);
-
+	test("(%ptR?)", "%pt", &tm);
 	test("2018-11-26T05:35:43", "%ptR", &tm);
 	test("0118-10-26T05:35:43", "%ptRr", &tm);
 	test("05:35:43|2018-11-26", "%ptRt|%ptRd", &tm, &tm);
