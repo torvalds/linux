@@ -239,6 +239,7 @@ plain_format(void)
 #define PTR ((void *)0x456789ab)
 #define PTR_STR "456789ab"
 #define PTR_VAL_NO_CRNG "(ptrval)"
+#define ZEROS ""
 
 static int __init
 plain_format(void)
@@ -267,7 +268,6 @@ plain_hash_to_buffer(const void *p, char *buf, size_t len)
 
 	return 0;
 }
-
 
 static int __init
 plain_hash(void)
@@ -323,6 +323,24 @@ test_hashed(const char *fmt, const void *p)
 		return;
 
 	test(buf, fmt, p);
+}
+
+static void __init
+null_pointer(void)
+{
+	test_hashed("%p", NULL);
+	test(ZEROS "00000000", "%px", NULL);
+	test("(null)", "%pE", NULL);
+}
+
+#define PTR_INVALID ((void *)0x000000ab)
+
+static void __init
+invalid_pointer(void)
+{
+	test_hashed("%p", PTR_INVALID);
+	test(ZEROS "000000ab", "%px", PTR_INVALID);
+	test("(efault)", "%pE", PTR_INVALID);
 }
 
 static void __init
@@ -571,6 +589,8 @@ static void __init
 test_pointer(void)
 {
 	plain();
+	null_pointer();
+	invalid_pointer();
 	symbol_ptr();
 	kernel_ptr();
 	struct_resource();
