@@ -2036,7 +2036,6 @@ static void qeth_l3_fixup_headers(struct sk_buff *skb)
 static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 			struct qeth_qdio_out_q *queue, int ipv, int cast_type)
 {
-	unsigned char eth_hdr[ETH_HLEN];
 	unsigned int hw_hdr_len;
 	int rc;
 
@@ -2046,17 +2045,10 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 	rc = skb_cow_head(skb, hw_hdr_len - ETH_HLEN);
 	if (rc)
 		return rc;
-	skb_copy_from_linear_data(skb, eth_hdr, ETH_HLEN);
 	skb_pull(skb, ETH_HLEN);
 
 	qeth_l3_fixup_headers(skb);
-	rc = qeth_xmit(card, skb, queue, ipv, cast_type, qeth_l3_fill_header);
-	if (rc == -EBUSY) {
-		/* roll back to ETH header */
-		skb_push(skb, ETH_HLEN);
-		skb_copy_to_linear_data(skb, eth_hdr, ETH_HLEN);
-	}
-	return rc;
+	return qeth_xmit(card, skb, queue, ipv, cast_type, qeth_l3_fill_header);
 }
 
 static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
@@ -2091,8 +2083,6 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (cast_type == RTN_BROADCAST && !card->info.broadcast_capable)
 		goto tx_drop;
 
-	netif_stop_subqueue(dev, txq);
-
 	if (ipv == 4 || IS_IQD(card))
 		rc = qeth_l3_xmit(card, skb, queue, ipv, cast_type);
 	else
@@ -2102,16 +2092,12 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (!rc) {
 		QETH_TXQ_STAT_INC(queue, tx_packets);
 		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
-		netif_wake_subqueue(dev, txq);
 		return NETDEV_TX_OK;
-	} else if (rc == -EBUSY) {
-		return NETDEV_TX_BUSY;
-	} /* else fall through */
+	}
 
 tx_drop:
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	kfree_skb(skb);
-	netif_wake_subqueue(dev, txq);
 	return NETDEV_TX_OK;
 }
 

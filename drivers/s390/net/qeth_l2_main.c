@@ -607,11 +607,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	int rc;
 
 	if (IS_IQD(card))
-		queue = card->qdio.out_qs[qeth_iqd_translate_txq(dev, txq)];
-	else
-		queue = card->qdio.out_qs[txq];
-
-	netif_stop_subqueue(dev, txq);
+		txq = qeth_iqd_translate_txq(dev, txq);
+	queue = card->qdio.out_qs[txq];
 
 	if (IS_OSN(card))
 		rc = qeth_l2_xmit_osn(card, skb, queue);
@@ -622,15 +619,11 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (!rc) {
 		QETH_TXQ_STAT_INC(queue, tx_packets);
 		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
-		netif_wake_subqueue(dev, txq);
 		return NETDEV_TX_OK;
-	} else if (rc == -EBUSY) {
-		return NETDEV_TX_BUSY;
-	} /* else fall through */
+	}
 
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	kfree_skb(skb);
-	netif_wake_subqueue(dev, txq);
 	return NETDEV_TX_OK;
 }
 

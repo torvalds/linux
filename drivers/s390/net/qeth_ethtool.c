@@ -38,6 +38,7 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("linearized+error skbs", skbs_linearized_fail),
 	QETH_TXQ_STAT("TSO bytes", tso_bytes),
 	QETH_TXQ_STAT("Packing mode switches", packing_mode_switch),
+	QETH_TXQ_STAT("Queue stopped", stopped),
 };
 
 static const struct qeth_stats card_stats[] = {

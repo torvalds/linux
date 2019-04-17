@@ -3367,7 +3367,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 	if (atomic_read(&queue->set_pci_flags_count))
 		qdio_flags |= QDIO_FLAG_PCI_OUT;
-	atomic_add(count, &queue->used_buffers);
 	rc = do_QDIO(CARD_DDEV(queue->card), qdio_flags,
 		     queue->queue_no, index, count);
 	if (rc) {
@@ -3407,7 +3406,6 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 			 * do_send_packet. So, we check if there is a
 			 * packing buffer to be flushed here.
 			 */
-			netif_stop_subqueue(queue->card->dev, queue->queue_no);
 			index = queue->next_buf_to_fill;
 			q_was_packing = queue->do_pack;
 			/* queue->do_pack may change */
@@ -3535,7 +3533,7 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs[__queue];
 	struct qeth_qdio_out_buffer *buffer;
 	struct net_device *dev = card->dev;
-	u16 txq;
+	struct netdev_queue *txq;
 	int i;
 
 	QETH_CARD_TEXT(card, 6, "qdouhdl");
@@ -3590,8 +3588,15 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	if (card->info.type != QETH_CARD_TYPE_IQD)
 		qeth_check_outbound_queue(queue);
 
-	txq = IS_IQD(card) ? qeth_iqd_translate_txq(dev, __queue) : __queue;
-	netif_wake_subqueue(dev, txq);
+	if (IS_IQD(card))
+		__queue = qeth_iqd_translate_txq(dev, __queue);
+	txq = netdev_get_tx_queue(dev, __queue);
+	/* xmit may have observed the full-condition, but not yet stopped the
+	 * txq. In which case the code below won't trigger. So before returning,
+	 * xmit will re-check the txq's fill level and wake it up if needed.
+	 */
+	if (netif_tx_queue_stopped(txq) && !qeth_out_queue_is_full(queue))
+		netif_tx_wake_queue(txq);
 }
 
 /**
@@ -3845,11 +3850,13 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
  *		from qeth_core_header_cache.
  * @offset:	when mapping the skb, start at skb->data + offset
  * @hd_len:	if > 0, build a dedicated header element of this size
+ * flush:	Prepare the buffer to be flushed, regardless of its fill level.
  */
 static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 			    struct qeth_qdio_out_buffer *buf,
 			    struct sk_buff *skb, struct qeth_hdr *hdr,
-			    unsigned int offset, unsigned int hd_len)
+			    unsigned int offset, unsigned int hd_len,
+			    bool flush)
 {
 	struct qdio_buffer *buffer = buf->buffer;
 	bool is_first_elem = true;
@@ -3878,8 +3885,8 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 
 		QETH_TXQ_STAT_INC(queue, skbs_pack);
 		/* If the buffer still has free elements, keep using it. */
-		if (buf->next_element_to_fill <
-		    QETH_MAX_BUFFER_ELEMENTS(queue->card))
+		if (!flush && buf->next_element_to_fill <
+			      QETH_MAX_BUFFER_ELEMENTS(queue->card))
 			return 0;
 	}
 
@@ -3896,15 +3903,31 @@ static int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue,
 {
 	int index = queue->next_buf_to_fill;
 	struct qeth_qdio_out_buffer *buffer = queue->bufs[index];
+	struct netdev_queue *txq;
+	bool stopped = false;
 
-	/*
-	 * check if buffer is empty to make sure that we do not 'overtake'
-	 * ourselves and try to fill a buffer that is already primed
+	/* Just a sanity check, the wake/stop logic should ensure that we always
+	 * get a free buffer.
 	 */
 	if (atomic_read(&buffer->state) != QETH_QDIO_BUF_EMPTY)
 		return -EBUSY;
-	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
+
+	txq = netdev_get_tx_queue(queue->card->dev, skb_get_queue_mapping(skb));
+
+	if (atomic_inc_return(&queue->used_buffers) >= QDIO_MAX_BUFFERS_PER_Q) {
+		/* If a TX completion happens right _here_ and misses to wake
+		 * the txq, then our re-check below will catch the race.
+		 */
+		QETH_TXQ_STAT_INC(queue, stopped);
+		netif_tx_stop_queue(txq);
+		stopped = true;
+	}
+
+	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len, stopped);
 	qeth_flush_buffers(queue, index, 1);
+
+	if (stopped && !qeth_out_queue_is_full(queue))
+		netif_tx_start_queue(txq);
 	return 0;
 }
 
@@ -3914,6 +3937,8 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			int elements_needed)
 {
 	struct qeth_qdio_out_buffer *buffer;
+	struct netdev_queue *txq;
+	bool stopped = false;
 	int start_index;
 	int flush_count = 0;
 	int do_pack = 0;
@@ -3925,14 +3950,17 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			      QETH_OUT_Q_LOCKED) != QETH_OUT_Q_UNLOCKED);
 	start_index = queue->next_buf_to_fill;
 	buffer = queue->bufs[queue->next_buf_to_fill];
-	/*
-	 * check if buffer is empty to make sure that we do not 'overtake'
-	 * ourselves and try to fill a buffer that is already primed
+
+	/* Just a sanity check, the wake/stop logic should ensure that we always
+	 * get a free buffer.
 	 */
 	if (atomic_read(&buffer->state) != QETH_QDIO_BUF_EMPTY) {
 		atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
 		return -EBUSY;
 	}
+
+	txq = netdev_get_tx_queue(card->dev, skb_get_queue_mapping(skb));
+
 	/* check if we need to switch packing state of this queue */
 	qeth_switch_to_packing_if_needed(queue);
 	if (queue->do_pack) {
@@ -3947,8 +3975,8 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 				(queue->next_buf_to_fill + 1) %
 				QDIO_MAX_BUFFERS_PER_Q;
 			buffer = queue->bufs[queue->next_buf_to_fill];
-			/* we did a step forward, so check buffer state
-			 * again */
+
+			/* We stepped forward, so sanity-check again: */
 			if (atomic_read(&buffer->state) !=
 			    QETH_QDIO_BUF_EMPTY) {
 				qeth_flush_buffers(queue, start_index,
@@ -3961,8 +3989,18 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 		}
 	}
 
-	flush_count += qeth_fill_buffer(queue, buffer, skb, hdr, offset,
-					hd_len);
+	if (buffer->next_element_to_fill == 0 &&
+	    atomic_inc_return(&queue->used_buffers) >= QDIO_MAX_BUFFERS_PER_Q) {
+		/* If a TX completion happens right _here_ and misses to wake
+		 * the txq, then our re-check below will catch the race.
+		 */
+		QETH_TXQ_STAT_INC(queue, stopped);
+		netif_tx_stop_queue(txq);
+		stopped = true;
+	}
+
+	flush_count += qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len,
+					stopped);
 	if (flush_count)
 		qeth_flush_buffers(queue, start_index, flush_count);
 	else if (!atomic_read(&queue->set_pci_flags_count))
@@ -3993,6 +4031,8 @@ out:
 	if (do_pack)
 		QETH_TXQ_STAT_ADD(queue, bufs_pack, flush_count);
 
+	if (stopped && !qeth_out_queue_is_full(queue))
+		netif_tx_start_queue(txq);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_do_send_packet);
@@ -4079,9 +4119,6 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 	} else {
 		if (!push_len)
 			kmem_cache_free(qeth_core_header_cache, hdr);
-		if (rc == -EBUSY)
-			/* roll back to ETH header */
-			skb_pull(skb, push_len);
 	}
 	return rc;
 }

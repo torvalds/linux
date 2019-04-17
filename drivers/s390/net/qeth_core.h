@@ -481,6 +481,7 @@ struct qeth_out_q_stats {
 	u64 skbs_linearized_fail;
 	u64 tso_bytes;
 	u64 packing_mode_switch;
+	u64 stopped;
 
 	/* rtnl_link_stats64 */
 	u64 tx_packets;
@@ -510,6 +511,11 @@ struct qeth_qdio_out_q {
 	/* indicates whether PCI flag must be set (or if one is outstanding) */
 	atomic_t set_pci_flags_count;
 };
+
+static inline bool qeth_out_queue_is_full(struct qeth_qdio_out_q *queue)
+{
+	return atomic_read(&queue->used_buffers) >= QDIO_MAX_BUFFERS_PER_Q;
+}
 
 struct qeth_qdio_info {
 	atomic_t state;
