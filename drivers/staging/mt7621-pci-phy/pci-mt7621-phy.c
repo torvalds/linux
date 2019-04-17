@@ -11,6 +11,7 @@
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/sys_soc.h>
 #include <mt7621.h>
 #include <ralink_regs.h>
@@ -95,6 +96,7 @@ struct mt7621_pci_phy_instance {
 /**
  * struct mt7621_pci_phy - Mt7621 Pcie PHY core
  * @dev: pointer to device
+ * @regmap: kernel regmap pointer
  * @phys: pointer to Mt7621 PHY device
  * @nphys: number of PHY devices for this core
  * @bypass_pipe_rst: mark if 'mt7621_bypass_pipe_rst'
@@ -102,20 +104,24 @@ struct mt7621_pci_phy_instance {
  */
 struct mt7621_pci_phy {
 	struct device *dev;
+	struct regmap *regmap;
 	struct mt7621_pci_phy_instance **phys;
 	int nphys;
 	bool bypass_pipe_rst;
 };
 
-static inline u32 phy_read(struct mt7621_pci_phy_instance *instance, u32 reg)
+static inline u32 phy_read(struct mt7621_pci_phy *phy, u32 reg)
 {
-	return readl(instance->port_base + reg);
+	u32 val;
+
+	regmap_read(phy->regmap, reg, &val);
+
+	return val;
 }
 
-static inline void phy_write(struct mt7621_pci_phy_instance *instance,
-			     u32 val, u32 reg)
+static inline void phy_write(struct mt7621_pci_phy *phy, u32 val, u32 reg)
 {
-	writel(val, instance->port_base + reg);
+	regmap_write(phy->regmap, reg, val);
 }
 
 static void mt7621_bypass_pipe_rst(struct mt7621_pci_phy *phy,
@@ -125,10 +131,10 @@ static void mt7621_bypass_pipe_rst(struct mt7621_pci_phy *phy,
 		RG_PE1_PIPE_REG : RG_PE1_PIPE_REG + RG_P0_TO_P1_WIDTH;
 	u32 reg;
 
-	reg = phy_read(instance, offset);
+	reg = phy_read(phy, offset);
 	reg &= ~(RG_PE1_PIPE_RST | RG_PE1_PIPE_CMD_FRC);
 	reg |= (RG_PE1_PIPE_RST | RG_PE1_PIPE_CMD_FRC);
-	phy_write(instance, reg, offset);
+	phy_write(phy, reg, offset);
 }
 
 static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy,
@@ -142,72 +148,72 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy,
 	reg = (reg >> 6) & 0x7;
 	/* Set PCIe Port PHY to disable SSC */
 	/* Debug Xtal Type */
-	val = phy_read(instance, RG_PE1_FRC_H_XTAL_REG);
+	val = phy_read(phy, RG_PE1_FRC_H_XTAL_REG);
 	val &= ~(RG_PE1_FRC_H_XTAL_TYPE | RG_PE1_H_XTAL_TYPE);
 	val |= RG_PE1_FRC_H_XTAL_TYPE;
 	val |= RG_PE1_H_XTAL_TYPE_VAL(0x00);
-	phy_write(instance, val, RG_PE1_FRC_H_XTAL_REG);
+	phy_write(phy, val, RG_PE1_FRC_H_XTAL_REG);
 
 	/* disable port */
 	offset = (instance->index != 1) ?
 		RG_PE1_FRC_PHY_REG : RG_PE1_FRC_PHY_REG + RG_P0_TO_P1_WIDTH;
-	val = phy_read(instance, offset);
+	val = phy_read(phy, offset);
 	val &= ~(RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
 	val |= RG_PE1_FRC_PHY_EN;
-	phy_write(instance, val, offset);
+	phy_write(phy, val, offset);
 
 	/* Set Pre-divider ratio (for host mode) */
-	val = phy_read(instance, RG_PE1_H_PLL_REG);
+	val = phy_read(phy, RG_PE1_H_PLL_REG);
 	val &= ~(RG_PE1_H_PLL_PREDIV);
 
 	if (reg <= 5 && reg >= 3) { /* 40MHz Xtal */
 		val |= RG_PE1_H_PLL_PREDIV_VAL(0x01);
-		phy_write(instance, val, RG_PE1_H_PLL_REG);
+		phy_write(phy, val, RG_PE1_H_PLL_REG);
 		dev_info(dev, "Xtal is 40MHz\n");
 	} else { /* 25MHz | 20MHz Xtal */
 		val |= RG_PE1_H_PLL_PREDIV_VAL(0x00);
-		phy_write(instance, val, RG_PE1_H_PLL_REG);
+		phy_write(phy, val, RG_PE1_H_PLL_REG);
 		if (reg >= 6) {
 			dev_info(dev, "Xtal is 25MHz\n");
 
 			/* Select feedback clock */
-			val = phy_read(instance, RG_PE1_H_PLL_FBKSEL_REG);
+			val = phy_read(phy, RG_PE1_H_PLL_FBKSEL_REG);
 			val &= ~(RG_PE1_H_PLL_FBKSEL);
 			val |= RG_PE1_H_PLL_FBKSEL_VAL(0x01);
-			phy_write(instance, val, RG_PE1_H_PLL_FBKSEL_REG);
+			phy_write(phy, val, RG_PE1_H_PLL_FBKSEL_REG);
 
 			/* DDS NCPO PCW (for host mode) */
-			val = phy_read(instance, RG_PE1_H_LCDDS_SSC_PRD_REG);
+			val = phy_read(phy, RG_PE1_H_LCDDS_SSC_PRD_REG);
 			val &= ~(RG_PE1_H_LCDDS_SSC_PRD);
 			val |= RG_PE1_H_LCDDS_SSC_PRD_VAL(0x18000000);
-			phy_write(instance, val, RG_PE1_H_LCDDS_SSC_PRD_REG);
+			phy_write(phy, val, RG_PE1_H_LCDDS_SSC_PRD_REG);
 
 			/* DDS SSC dither period control */
-			val = phy_read(instance, RG_PE1_H_LCDDS_SSC_PRD_REG);
+			val = phy_read(phy, RG_PE1_H_LCDDS_SSC_PRD_REG);
 			val &= ~(RG_PE1_H_LCDDS_SSC_PRD);
 			val |= RG_PE1_H_LCDDS_SSC_PRD_VAL(0x18d);
-			phy_write(instance, val, RG_PE1_H_LCDDS_SSC_PRD_REG);
+			phy_write(phy, val, RG_PE1_H_LCDDS_SSC_PRD_REG);
 
 			/* DDS SSC dither amplitude control */
-			val = phy_read(instance, RG_PE1_H_LCDDS_SSC_DELTA_REG);
+			val = phy_read(phy, RG_PE1_H_LCDDS_SSC_DELTA_REG);
 			val &= ~(RG_PE1_H_LCDDS_SSC_DELTA |
 				 RG_PE1_H_LCDDS_SSC_DELTA1);
 			val |= RG_PE1_H_LCDDS_SSC_DELTA_VAL(0x4a);
 			val |= RG_PE1_H_LCDDS_SSC_DELTA1_VAL(0x4a);
-			phy_write(instance, val, RG_PE1_H_LCDDS_SSC_DELTA_REG);
+			phy_write(phy, val, RG_PE1_H_LCDDS_SSC_DELTA_REG);
 		} else {
 			dev_info(dev, "Xtal is 20MHz\n");
 		}
 	}
 
 	/* DDS clock inversion */
-	val = phy_read(instance, RG_PE1_LCDDS_CLK_PH_INV_REG);
+	val = phy_read(phy, RG_PE1_LCDDS_CLK_PH_INV_REG);
 	val &= ~(RG_PE1_LCDDS_CLK_PH_INV);
 	val |= RG_PE1_LCDDS_CLK_PH_INV;
-	phy_write(instance, val, RG_PE1_LCDDS_CLK_PH_INV_REG);
+	phy_write(phy, val, RG_PE1_LCDDS_CLK_PH_INV_REG);
 
 	/* Set PLL bits */
-	val = phy_read(instance, RG_PE1_H_PLL_REG);
+	val = phy_read(phy, RG_PE1_H_PLL_REG);
 	val &= ~(RG_PE1_H_PLL_BC | RG_PE1_H_PLL_BP | RG_PE1_H_PLL_IR |
 		 RG_PE1_H_PLL_IC | RG_PE1_PLL_DIVEN);
 	val |= RG_PE1_H_PLL_BC_VAL(0x02);
@@ -215,19 +221,19 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy,
 	val |= RG_PE1_H_PLL_IR_VAL(0x02);
 	val |= RG_PE1_H_PLL_IC_VAL(0x01);
 	val |= RG_PE1_PLL_DIVEN_VAL(0x02);
-	phy_write(instance, val, RG_PE1_H_PLL_REG);
+	phy_write(phy, val, RG_PE1_H_PLL_REG);
 
-	val = phy_read(instance, RG_PE1_H_PLL_BR_REG);
+	val = phy_read(phy, RG_PE1_H_PLL_BR_REG);
 	val &= ~(RG_PE1_H_PLL_BR);
 	val |= RG_PE1_H_PLL_BR_VAL(0x00);
-	phy_write(instance, val, RG_PE1_H_PLL_BR_REG);
+	phy_write(phy, val, RG_PE1_H_PLL_BR_REG);
 
 	if (reg <= 5 && reg >= 3) { /* 40MHz Xtal */
 		/* set force mode enable of da_pe1_mstckdiv */
-		val = phy_read(instance, RG_PE1_MSTCKDIV_REG);
+		val = phy_read(phy, RG_PE1_MSTCKDIV_REG);
 		val &= ~(RG_PE1_MSTCKDIV | RG_PE1_FRC_MSTCKDIV);
 		val |= (RG_PE1_MSTCKDIV_VAL(0x01) | RG_PE1_FRC_MSTCKDIV);
-		phy_write(instance, val, RG_PE1_MSTCKDIV_REG);
+		phy_write(phy, val, RG_PE1_MSTCKDIV_REG);
 	}
 }
 
@@ -247,15 +253,16 @@ static int mt7621_pci_phy_init(struct phy *phy)
 static int mt7621_pci_phy_power_on(struct phy *phy)
 {
 	struct mt7621_pci_phy_instance *instance = phy_get_drvdata(phy);
+	struct mt7621_pci_phy *mphy = dev_get_drvdata(phy->dev.parent);
 	u32 offset = (instance->index != 1) ?
 		RG_PE1_FRC_PHY_REG : RG_PE1_FRC_PHY_REG + RG_P0_TO_P1_WIDTH;
 	u32 val;
 
 	/* Enable PHY and disable force mode */
-	val = phy_read(instance, offset);
+	val = phy_read(mphy, offset);
 	val &= ~(RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
 	val |= (RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
-	phy_write(instance, val, offset);
+	phy_write(mphy, val, offset);
 
 	return 0;
 }
@@ -263,15 +270,16 @@ static int mt7621_pci_phy_power_on(struct phy *phy)
 static int mt7621_pci_phy_power_off(struct phy *phy)
 {
 	struct mt7621_pci_phy_instance *instance = phy_get_drvdata(phy);
+	struct mt7621_pci_phy *mphy = dev_get_drvdata(phy->dev.parent);
 	u32 offset = (instance->index != 1) ?
 		RG_PE1_FRC_PHY_REG : RG_PE1_FRC_PHY_REG + RG_P0_TO_P1_WIDTH;
 	u32 val;
 
 	/* Disable PHY */
-	val = phy_read(instance, offset);
+	val = phy_read(mphy, offset);
 	val &= ~(RG_PE1_FRC_PHY_EN | RG_PE1_PHY_EN);
 	val |= RG_PE1_FRC_PHY_EN;
-	phy_write(instance, val, offset);
+	phy_write(mphy, val, offset);
 
 	return 0;
 }
@@ -309,6 +317,13 @@ static struct phy *mt7621_pcie_phy_of_xlate(struct device *dev,
 
 static const struct soc_device_attribute mt7621_pci_quirks_match[] = {
 	{ .soc_id = "mt7621", .revision = "E2" }
+};
+
+static const struct regmap_config mt7621_pci_phy_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = 0x700,
 };
 
 static int mt7621_pci_phy_probe(struct platform_device *pdev)
@@ -349,6 +364,11 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to remap phy regs\n");
 		return PTR_ERR(port_base);
 	}
+
+	phy->regmap = devm_regmap_init_mmio(phy->dev, port_base,
+					    &mt7621_pci_phy_regmap_config);
+	if (IS_ERR(phy->regmap))
+		return PTR_ERR(phy->regmap);
 
 	for (port = 0; port < MAX_PHYS; port++) {
 		struct mt7621_pci_phy_instance *instance;
