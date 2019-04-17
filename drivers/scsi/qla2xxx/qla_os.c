@@ -716,14 +716,8 @@ qla2x00_sp_compl(void *ptr, int res)
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct completion *comp = sp->comp;
 
-	if (atomic_read(&sp->ref_count) == 0) {
-		ql_dbg(ql_dbg_io, sp->vha, 0x3015,
-		    "SP reference-count to ZERO -- sp=%p cmd=%p.\n",
-		    sp, GET_CMD_SP(sp));
-		if (ql2xextended_error_logging & ql_dbg_io)
-			WARN_ON(atomic_read(&sp->ref_count) == 0);
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
 		return;
-	}
 
 	atomic_dec(&sp->ref_count);
 
@@ -827,14 +821,8 @@ qla2xxx_qpair_sp_compl(void *ptr, int res)
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct completion *comp = sp->comp;
 
-	if (atomic_read(&sp->ref_count) == 0) {
-		ql_dbg(ql_dbg_io, sp->fcport->vha, 0x3079,
-		    "SP reference-count to ZERO -- sp=%p cmd=%p.\n",
-		    sp, GET_CMD_SP(sp));
-		if (ql2xextended_error_logging & ql_dbg_io)
-			WARN_ON(atomic_read(&sp->ref_count) == 0);
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
 		return;
-	}
 
 	atomic_dec(&sp->ref_count);
 
