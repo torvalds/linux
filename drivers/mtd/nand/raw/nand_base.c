@@ -295,11 +295,11 @@ static int nand_block_bad(struct nand_chip *chip, loff_t ofs)
 	int page, page_end, res;
 	u8 bad;
 
-	if (chip->bbt_options & NAND_BBT_SCANLASTPAGE)
+	if (chip->options & NAND_BBM_LASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
 
 	page = (int)(ofs >> chip->page_shift) & chip->pagemask;
-	page_end = page + (chip->bbt_options & NAND_BBT_SCAN2NDPAGE ? 2 : 1);
+	page_end = page + ((chip->options & NAND_BBM_SECONDPAGE) ? 2 : 1);
 
 	for (; page < page_end; page++) {
 		res = chip->ecc.read_oob(chip, page);
@@ -507,7 +507,7 @@ static int nand_default_block_markbad(struct nand_chip *chip, loff_t ofs)
 	ops.mode = MTD_OPS_PLACE_OOB;
 
 	/* Write to first/last page(s) if necessary */
-	if (chip->bbt_options & NAND_BBT_SCANLASTPAGE)
+	if (chip->options & NAND_BBM_LASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
 	do {
 		res = nand_do_write_oob(chip, ofs, &ops);
@@ -516,7 +516,7 @@ static int nand_default_block_markbad(struct nand_chip *chip, loff_t ofs)
 
 		i++;
 		ofs += mtd->writesize;
-	} while ((chip->bbt_options & NAND_BBT_SCAN2NDPAGE) && i < 2);
+	} while ((chip->options & NAND_BBM_SECONDPAGE) && i < 2);
 
 	return ret;
 }
@@ -4513,9 +4513,9 @@ static void nand_decode_bbm_options(struct nand_chip *chip)
 
 	/* Set the bad block position */
 	if (mtd->writesize > 512 || (chip->options & NAND_BUSWIDTH_16))
-		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
+		chip->badblockpos = NAND_BBM_POS_LARGE;
 	else
-		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
+		chip->badblockpos = NAND_BBM_POS_SMALL;
 }
 
 static inline bool is_full_id_nand(struct nand_flash_dev *type)

@@ -468,7 +468,7 @@ static int create_bbt(struct nand_chip *this, uint8_t *buf,
 
 	pr_info("Scanning device for bad blocks\n");
 
-	if (bd->options & NAND_BBT_SCAN2NDPAGE)
+	if (this->options & NAND_BBM_SECONDPAGE)
 		numpages = 2;
 	else
 		numpages = 1;
@@ -489,7 +489,7 @@ static int create_bbt(struct nand_chip *this, uint8_t *buf,
 		from = (loff_t)startblock << this->bbt_erase_shift;
 	}
 
-	if (this->bbt_options & NAND_BBT_SCANLASTPAGE)
+	if (this->options & NAND_BBM_LASTPAGE)
 		from += mtd->erasesize - (mtd->writesize * numpages);
 
 	for (i = startblock; i < numblocks; i++) {

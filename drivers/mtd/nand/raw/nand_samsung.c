@@ -131,9 +131,9 @@ static int samsung_nand_init(struct nand_chip *chip)
 		chip->options |= NAND_SAMSUNG_LP_OPTIONS;
 
 	if (!nand_is_slc(chip))
-		chip->bbt_options |= NAND_BBT_SCANLASTPAGE;
+		chip->options |= NAND_BBM_LASTPAGE;
 	else
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+		chip->options |= NAND_BBM_SECONDPAGE;
 
 	return 0;
 }
