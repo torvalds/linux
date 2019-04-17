@@ -1496,7 +1496,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 			  (void *)rsp_v3->regulatory.channel_profile;
 
 	iwl_init_sbands(trans->dev, trans->cfg, nvm,
-			rsp->regulatory.channel_profile,
+			channel_profile,
 			nvm->valid_tx_ant & fw->valid_tx_ant,
 			nvm->valid_rx_ant & fw->valid_rx_ant,
 			sbands_flags, v4);
