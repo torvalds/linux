@@ -117,11 +117,11 @@ void mdio_device_reset(struct mdio_device *mdiodev, int value)
 {
 	unsigned int d;
 
-	if (!mdiodev->reset && !mdiodev->reset_ctrl)
+	if (!mdiodev->reset_gpio && !mdiodev->reset_ctrl)
 		return;
 
-	if (mdiodev->reset)
-		gpiod_set_value(mdiodev->reset, value);
+	if (mdiodev->reset_gpio)
+		gpiod_set_value(mdiodev->reset_gpio, value);
 
 	if (mdiodev->reset_ctrl) {
 		if (value)

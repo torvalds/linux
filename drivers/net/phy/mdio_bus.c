@@ -56,7 +56,7 @@ static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 			return PTR_ERR(gpiod);
 	}
 
-	mdiodev->reset = gpiod;
+	mdiodev->reset_gpio = gpiod;
 
 	return 0;
 }
@@ -469,8 +469,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 		if (!mdiodev)
 			continue;
 
-		if (mdiodev->reset)
-			gpiod_put(mdiodev->reset);
+		if (mdiodev->reset_gpio)
+			gpiod_put(mdiodev->reset_gpio);
 
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);
