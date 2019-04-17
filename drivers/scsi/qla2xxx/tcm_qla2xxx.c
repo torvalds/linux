@@ -1481,7 +1481,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	 */
 	tpg = lport->tpg_1;
 	if (!tpg) {
-		pr_err("Unable to lcoate struct tcm_qla2xxx_lport->tpg_1\n");
+		pr_err("Unable to locate struct tcm_qla2xxx_lport->tpg_1\n");
 		return -EINVAL;
 	}
 	/*

@@ -4246,7 +4246,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	if (ret != 0)
 		goto out_term;
 	/*
-	 * Drop extra session reference from qla_tgt_handle_cmd_for_atio*(
+	 * Drop extra session reference from qlt_handle_cmd_for_atio().
 	 */
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	ha->tgt.tgt_ops->put_sess(sess);
