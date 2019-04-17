@@ -219,6 +219,9 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 /* QDIO queue and buffer handling                                            */
 /*****************************************************************************/
 #define QETH_MAX_QUEUES 4
+#define QETH_IQD_MIN_TXQ	2	/* One for ucast, one for mcast. */
+#define QETH_IQD_MCAST_TXQ	0
+#define QETH_IQD_MIN_UCAST_TXQ	1
 #define QETH_IN_BUF_SIZE_DEFAULT 65536
 #define QETH_IN_BUF_COUNT_DEFAULT 64
 #define QETH_IN_BUF_COUNT_HSDEFAULT 128
@@ -464,7 +467,6 @@ struct qeth_card_stats {
 	u64 rx_errors;
 	u64 rx_dropped;
 	u64 rx_multicast;
-	u64 tx_errors;
 };
 
 struct qeth_out_q_stats {
@@ -479,6 +481,7 @@ struct qeth_out_q_stats {
 	u64 skbs_linearized_fail;
 	u64 tso_bytes;
 	u64 packing_mode_switch;
+	u64 stopped;
 
 	/* rtnl_link_stats64 */
 	u64 tx_packets;
@@ -508,6 +511,11 @@ struct qeth_qdio_out_q {
 	/* indicates whether PCI flag must be set (or if one is outstanding) */
 	atomic_t set_pci_flags_count;
 };
+
+static inline bool qeth_out_queue_is_full(struct qeth_qdio_out_q *queue)
+{
+	return atomic_read(&queue->used_buffers) >= QDIO_MAX_BUFFERS_PER_Q;
+}
 
 struct qeth_qdio_info {
 	atomic_t state;
@@ -836,6 +844,15 @@ static inline bool qeth_netdev_is_registered(struct net_device *dev)
 	return dev->netdev_ops != NULL;
 }
 
+static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
+{
+	if (txq == QETH_IQD_MCAST_TXQ)
+		return dev->num_tx_queues - 1;
+	if (txq == dev->num_tx_queues - 1)
+		return QETH_IQD_MCAST_TXQ;
+	return txq;
+}
+
 static inline void qeth_scrub_qdio_buffer(struct qdio_buffer *buf,
 					  unsigned int elements)
 {
@@ -931,18 +948,7 @@ static inline int qeth_send_simple_setassparms_v6(struct qeth_card *card,
 						 data, QETH_PROT_IPV6);
 }
 
-int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
-			    int ipv);
-static inline struct qeth_qdio_out_q *qeth_get_tx_queue(struct qeth_card *card,
-							struct sk_buff *skb,
-							int ipv, int cast_type)
-{
-	if (IS_IQD(card) && cast_type != RTN_UNICAST)
-		return card->qdio.out_qs[card->qdio.no_out_queues - 1];
-	if (!card->qdio.do_prio_queueing)
-		return card->qdio.out_qs[card->qdio.default_out_queue];
-	return card->qdio.out_qs[qeth_get_priority_queue(card, skb, ipv)];
-}
+int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb);
 
 extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
@@ -988,7 +994,7 @@ void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);
 void qeth_clear_working_pool_list(struct qeth_card *);
 void qeth_clear_cmd_buffers(struct qeth_channel *);
-void qeth_clear_qdio_buffers(struct qeth_card *);
+void qeth_drain_output_queues(struct qeth_card *card);
 void qeth_setadp_promisc_mode(struct qeth_card *);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
@@ -1023,6 +1029,8 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
 void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
+u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
+			  u8 cast_type, struct net_device *sb_dev);
 int qeth_open(struct net_device *dev);
 int qeth_stop(struct net_device *dev);
 

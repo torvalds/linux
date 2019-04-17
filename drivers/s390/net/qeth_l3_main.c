@@ -1433,7 +1433,7 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	}
 	if (card->state == CARD_STATE_HARDSETUP) {
 		qeth_qdio_clear_card(card, 0);
-		qeth_clear_qdio_buffers(card);
+		qeth_drain_output_queues(card);
 		qeth_clear_working_pool_list(card);
 		card->state = CARD_STATE_DOWN;
 	}
@@ -2036,7 +2036,6 @@ static void qeth_l3_fixup_headers(struct sk_buff *skb)
 static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 			struct qeth_qdio_out_q *queue, int ipv, int cast_type)
 {
-	unsigned char eth_hdr[ETH_HLEN];
 	unsigned int hw_hdr_len;
 	int rc;
 
@@ -2046,44 +2045,43 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 	rc = skb_cow_head(skb, hw_hdr_len - ETH_HLEN);
 	if (rc)
 		return rc;
-	skb_copy_from_linear_data(skb, eth_hdr, ETH_HLEN);
 	skb_pull(skb, ETH_HLEN);
 
 	qeth_l3_fixup_headers(skb);
-	rc = qeth_xmit(card, skb, queue, ipv, cast_type, qeth_l3_fill_header);
-	if (rc == -EBUSY) {
-		/* roll back to ETH header */
-		skb_push(skb, ETH_HLEN);
-		skb_copy_to_linear_data(skb, eth_hdr, ETH_HLEN);
-	}
-	return rc;
+	return qeth_xmit(card, skb, queue, ipv, cast_type, qeth_l3_fill_header);
 }
 
 static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					   struct net_device *dev)
 {
-	int cast_type = qeth_l3_get_cast_type(skb);
 	struct qeth_card *card = dev->ml_priv;
+	u16 txq = skb_get_queue_mapping(skb);
 	int ipv = qeth_get_ip_version(skb);
 	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
-	int rc;
-
-	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
+	int cast_type, rc;
 
 	if (IS_IQD(card)) {
+		queue = card->qdio.out_qs[qeth_iqd_translate_txq(dev, txq)];
+
 		if (card->options.sniffer)
 			goto tx_drop;
 		if ((card->options.cq != QETH_CQ_ENABLED && !ipv) ||
 		    (card->options.cq == QETH_CQ_ENABLED &&
 		     skb->protocol != htons(ETH_P_AF_IUCV)))
 			goto tx_drop;
+
+		if (txq == QETH_IQD_MCAST_TXQ)
+			cast_type = qeth_l3_get_cast_type(skb);
+		else
+			cast_type = RTN_UNICAST;
+	} else {
+		queue = card->qdio.out_qs[txq];
+		cast_type = qeth_l3_get_cast_type(skb);
 	}
 
 	if (cast_type == RTN_BROADCAST && !card->info.broadcast_capable)
 		goto tx_drop;
-
-	netif_stop_queue(dev);
 
 	if (ipv == 4 || IS_IQD(card))
 		rc = qeth_l3_xmit(card, skb, queue, ipv, cast_type);
@@ -2094,16 +2092,12 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (!rc) {
 		QETH_TXQ_STAT_INC(queue, tx_packets);
 		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
-		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
-	} else if (rc == -EBUSY) {
-		return NETDEV_TX_BUSY;
-	} /* else fall through */
+	}
 
 tx_drop:
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	kfree_skb(skb);
-	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
 }
 
@@ -2147,11 +2141,27 @@ static netdev_features_t qeth_l3_osa_features_check(struct sk_buff *skb,
 	return qeth_features_check(skb, dev, features);
 }
 
+static u16 qeth_l3_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
+				    struct net_device *sb_dev)
+{
+	return qeth_iqd_select_queue(dev, skb, qeth_l3_get_cast_type(skb),
+				     sb_dev);
+}
+
+static u16 qeth_l3_osa_select_queue(struct net_device *dev, struct sk_buff *skb,
+				    struct net_device *sb_dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	return qeth_get_priority_queue(card, skb);
+}
+
 static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
+	.ndo_select_queue	= qeth_l3_iqd_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
@@ -2168,6 +2178,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
 	.ndo_features_check	= qeth_l3_osa_features_check,
+	.ndo_select_queue	= qeth_l3_osa_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,

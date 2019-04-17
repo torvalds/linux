@@ -161,10 +161,8 @@ static void qeth_l2_drain_rx_mode_cache(struct qeth_card *card)
 	}
 }
 
-static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
+static int qeth_l2_get_cast_type(struct sk_buff *skb)
 {
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		return RTN_UNICAST;
 	if (is_broadcast_ether_addr(skb->data))
 		return RTN_BROADCAST;
 	if (is_multicast_ether_addr(skb->data))
@@ -299,7 +297,7 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	}
 	if (card->state == CARD_STATE_HARDSETUP) {
 		qeth_qdio_clear_card(card, 0);
-		qeth_clear_qdio_buffers(card);
+		qeth_drain_output_queues(card);
 		qeth_clear_working_pool_list(card);
 		card->state = CARD_STATE_DOWN;
 	}
@@ -603,35 +601,42 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 					   struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
-	int cast_type = qeth_l2_get_cast_type(card, skb);
-	int ipv = qeth_get_ip_version(skb);
+	u16 txq = skb_get_queue_mapping(skb);
 	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
 	int rc;
 
-	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
-
-	netif_stop_queue(dev);
+	if (IS_IQD(card))
+		txq = qeth_iqd_translate_txq(dev, txq);
+	queue = card->qdio.out_qs[txq];
 
 	if (IS_OSN(card))
 		rc = qeth_l2_xmit_osn(card, skb, queue);
 	else
-		rc = qeth_xmit(card, skb, queue, ipv, cast_type,
-			       qeth_l2_fill_header);
+		rc = qeth_xmit(card, skb, queue, qeth_get_ip_version(skb),
+			       qeth_l2_get_cast_type(skb), qeth_l2_fill_header);
 
 	if (!rc) {
 		QETH_TXQ_STAT_INC(queue, tx_packets);
 		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
-		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
-	} else if (rc == -EBUSY) {
-		return NETDEV_TX_BUSY;
-	} /* else fall through */
+	}
 
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	kfree_skb(skb);
-	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
+}
+
+static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
+				struct net_device *sb_dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (IS_IQD(card))
+		return qeth_iqd_select_queue(dev, skb,
+					     qeth_l2_get_cast_type(skb),
+					     sb_dev);
+	return qeth_get_priority_queue(card, skb);
 }
 
 static const struct device_type qeth_l2_devtype = {
@@ -687,6 +692,7 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
+	.ndo_select_queue	= qeth_l2_select_queue,
 	.ndo_validate_addr	= qeth_l2_validate_addr,
 	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
