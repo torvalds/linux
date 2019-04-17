@@ -3485,7 +3485,7 @@ static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 	QETH_CARD_TEXT_(card, 5, "qcqherr%d", qdio_err);
 
 	if (qdio_err) {
-		netif_stop_queue(card->dev);
+		netif_tx_stop_all_queues(card->dev);
 		qeth_schedule_recovery(card);
 		return;
 	}
@@ -3541,12 +3541,14 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	struct qeth_card *card        = (struct qeth_card *) card_ptr;
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs[__queue];
 	struct qeth_qdio_out_buffer *buffer;
+	struct net_device *dev = card->dev;
+	u16 txq;
 	int i;
 
 	QETH_CARD_TEXT(card, 6, "qdouhdl");
 	if (qdio_error & QDIO_ERROR_FATAL) {
 		QETH_CARD_TEXT(card, 2, "achkcond");
-		netif_stop_queue(card->dev);
+		netif_tx_stop_all_queues(dev);
 		qeth_schedule_recovery(card);
 		return;
 	}
@@ -3595,7 +3597,8 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	if (card->info.type != QETH_CARD_TYPE_IQD)
 		qeth_check_outbound_queue(queue);
 
-	netif_wake_queue(queue->card->dev);
+	txq = IS_IQD(card) ? qeth_iqd_translate_txq(dev, __queue) : 0;
+	netif_wake_subqueue(dev, txq);
 }
 
 /* We cannot use outbound queue 3 for unicast packets on HiperSockets */
@@ -5557,7 +5560,8 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
-		dev = alloc_netdev(0, "hsi%d", NET_NAME_UNKNOWN, ether_setup);
+		dev = alloc_netdev_mqs(0, "hsi%d", NET_NAME_UNKNOWN,
+				       ether_setup, QETH_MAX_QUEUES, 1);
 		break;
 	case QETH_CARD_TYPE_OSN:
 		dev = alloc_netdev(0, "osn%d", NET_NAME_UNKNOWN, ether_setup);
@@ -5585,8 +5589,10 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		dev->hw_features |= NETIF_F_SG;
 		dev->vlan_features |= NETIF_F_SG;
-		if (IS_IQD(card))
+		if (IS_IQD(card)) {
+			netif_set_real_num_tx_queues(dev, QETH_IQD_MIN_TXQ);
 			dev->features |= NETIF_F_SG;
+		}
 	}
 
 	return dev;
@@ -6203,6 +6209,15 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 }
 EXPORT_SYMBOL_GPL(qeth_get_stats64);
 
+u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
+			  u8 cast_type, struct net_device *sb_dev)
+{
+	if (cast_type != RTN_UNICAST)
+		return QETH_IQD_MCAST_TXQ;
+	return QETH_IQD_MIN_UCAST_TXQ;
+}
+EXPORT_SYMBOL_GPL(qeth_iqd_select_queue);
+
 int qeth_open(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
@@ -6213,7 +6228,7 @@ int qeth_open(struct net_device *dev)
 		return -EIO;
 
 	card->data.state = CH_STATE_UP;
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 
 	napi_enable(&card->napi);
 	local_bh_disable();

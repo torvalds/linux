@@ -198,6 +198,9 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
+	if (IS_IQD(card))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&card->conf_mutex);
 	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;

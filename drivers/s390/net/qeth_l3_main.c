@@ -2062,28 +2062,36 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					   struct net_device *dev)
 {
-	int cast_type = qeth_l3_get_cast_type(skb);
 	struct qeth_card *card = dev->ml_priv;
+	u16 txq = skb_get_queue_mapping(skb);
 	int ipv = qeth_get_ip_version(skb);
 	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
-	int rc;
-
-	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
+	int cast_type, rc;
 
 	if (IS_IQD(card)) {
+		queue = card->qdio.out_qs[qeth_iqd_translate_txq(dev, txq)];
+
 		if (card->options.sniffer)
 			goto tx_drop;
 		if ((card->options.cq != QETH_CQ_ENABLED && !ipv) ||
 		    (card->options.cq == QETH_CQ_ENABLED &&
 		     skb->protocol != htons(ETH_P_AF_IUCV)))
 			goto tx_drop;
+
+		if (txq == QETH_IQD_MCAST_TXQ)
+			cast_type = qeth_l3_get_cast_type(skb);
+		else
+			cast_type = RTN_UNICAST;
+	} else {
+		queue = qeth_get_tx_queue(card, skb, ipv);
+		cast_type = qeth_l3_get_cast_type(skb);
 	}
 
 	if (cast_type == RTN_BROADCAST && !card->info.broadcast_capable)
 		goto tx_drop;
 
-	netif_stop_queue(dev);
+	netif_stop_subqueue(dev, txq);
 
 	if (ipv == 4 || IS_IQD(card))
 		rc = qeth_l3_xmit(card, skb, queue, ipv, cast_type);
@@ -2094,7 +2102,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (!rc) {
 		QETH_TXQ_STAT_INC(queue, tx_packets);
 		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
-		netif_wake_queue(dev);
+		netif_wake_subqueue(dev, txq);
 		return NETDEV_TX_OK;
 	} else if (rc == -EBUSY) {
 		return NETDEV_TX_BUSY;
@@ -2103,7 +2111,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 tx_drop:
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	kfree_skb(skb);
-	netif_wake_queue(dev);
+	netif_wake_subqueue(dev, txq);
 	return NETDEV_TX_OK;
 }
 
@@ -2147,11 +2155,19 @@ static netdev_features_t qeth_l3_osa_features_check(struct sk_buff *skb,
 	return qeth_features_check(skb, dev, features);
 }
 
+static u16 qeth_l3_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
+				    struct net_device *sb_dev)
+{
+	return qeth_iqd_select_queue(dev, skb, qeth_l3_get_cast_type(skb),
+				     sb_dev);
+}
+
 static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
+	.ndo_select_queue	= qeth_l3_iqd_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
