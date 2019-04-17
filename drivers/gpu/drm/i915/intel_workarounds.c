@@ -1259,6 +1259,126 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 	wa_list_apply(engine->uncore, &engine->wa_list);
 }
 
+static struct i915_vma *
+create_scratch(struct i915_address_space *vm, int count)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	unsigned int size;
+	int err;
+
+	size = round_up(count * sizeof(u32), PAGE_SIZE);
+	obj = i915_gem_object_create_internal(vm->i915, size);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_obj;
+	}
+
+	err = i915_vma_pin(vma, 0, 0,
+			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
+	if (err)
+		goto err_obj;
+
+	return vma;
+
+err_obj:
+	i915_gem_object_put(obj);
+	return ERR_PTR(err);
+}
+
+static int
+wa_list_srm(struct i915_request *rq,
+	    const struct i915_wa_list *wal,
+	    struct i915_vma *vma)
+{
+	const struct i915_wa *wa;
+	unsigned int i;
+	u32 srm, *cs;
+
+	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
+	if (INTEL_GEN(rq->i915) >= 8)
+		srm++;
+
+	cs = intel_ring_begin(rq, 4 * wal->count);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		*cs++ = srm;
+		*cs++ = i915_mmio_reg_offset(wa->reg);
+		*cs++ = i915_ggtt_offset(vma) + sizeof(u32) * i;
+		*cs++ = 0;
+	}
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int engine_wa_list_verify(struct intel_engine_cs *engine,
+				 const struct i915_wa_list * const wal,
+				 const char *from)
+{
+	const struct i915_wa *wa;
+	struct i915_request *rq;
+	struct i915_vma *vma;
+	unsigned int i;
+	u32 *results;
+	int err;
+
+	if (!wal->count)
+		return 0;
+
+	vma = create_scratch(&engine->i915->ggtt.vm, wal->count);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	rq = i915_request_alloc(engine, engine->kernel_context->gem_context);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_vma;
+	}
+
+	err = wa_list_srm(rq, wal, vma);
+	if (err)
+		goto err_vma;
+
+	i915_request_add(rq);
+	if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+		err = -ETIME;
+		goto err_vma;
+	}
+
+	results = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(results)) {
+		err = PTR_ERR(results);
+		goto err_vma;
+	}
+
+	err = 0;
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+		if (!wa_verify(wa, results[i], wal->name, from))
+			err = -ENXIO;
+
+	i915_gem_object_unpin_map(vma->obj);
+
+err_vma:
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
+	return err;
+}
+
+int intel_engine_verify_workarounds(struct intel_engine_cs *engine,
+				    const char *from)
+{
+	return engine_wa_list_verify(engine, &engine->wa_list, from);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/intel_workarounds.c"
 #endif

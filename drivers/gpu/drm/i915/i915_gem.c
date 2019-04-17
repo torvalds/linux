@@ -4842,6 +4842,23 @@ static void i915_gem_fini_scratch(struct drm_i915_private *i915)
 	i915_vma_unpin_and_release(&i915->gt.scratch, 0);
 }
 
+static int intel_engines_verify_workarounds(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return 0;
+
+	for_each_engine(engine, i915, id) {
+		if (intel_engine_verify_workarounds(engine, "load"))
+			err = -EIO;
+	}
+
+	return err;
+}
+
 int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
@@ -4926,6 +4943,10 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * FIXME: break up the workarounds and apply them at the right time!
 	 */
 	intel_init_clock_gating(dev_priv);
+
+	ret = intel_engines_verify_workarounds(dev_priv);
+	if (ret)
+		goto err_init_hw;
 
 	ret = __intel_engines_record_defaults(dev_priv);
 	if (ret)

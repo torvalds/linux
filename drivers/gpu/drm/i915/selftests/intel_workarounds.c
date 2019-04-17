@@ -340,49 +340,6 @@ out:
 	return err;
 }
 
-static struct i915_vma *create_scratch(struct i915_gem_context *ctx)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	void *ptr;
-	int err;
-
-	obj = i915_gem_object_create_internal(ctx->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
-
-	ptr = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(ptr)) {
-		err = PTR_ERR(ptr);
-		goto err_obj;
-	}
-	memset(ptr, 0xc5, PAGE_SIZE);
-	i915_gem_object_flush_map(obj);
-	i915_gem_object_unpin_map(obj);
-
-	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto err_obj;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
-		goto err_obj;
-
-	err = i915_gem_object_set_to_cpu_domain(obj, false);
-	if (err)
-		goto err_obj;
-
-	return vma;
-
-err_obj:
-	i915_gem_object_put(obj);
-	return ERR_PTR(err);
-}
-
 static struct i915_vma *create_batch(struct i915_gem_context *ctx)
 {
 	struct drm_i915_gem_object *obj;
@@ -475,7 +432,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 	int err = 0, i, v;
 	u32 *cs, *results;
 
-	scratch = create_scratch(ctx);
+	scratch = create_scratch(&ctx->ppgtt->vm, 2 * ARRAY_SIZE(values) + 1);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
@@ -752,9 +709,11 @@ static bool verify_gt_engine_wa(struct drm_i915_private *i915,
 
 	ok &= wa_list_verify(&i915->uncore, &lists->gt_wa_list, str);
 
-	for_each_engine(engine, i915, id)
-		ok &= wa_list_verify(engine->uncore,
-				     &lists->engine[id].wa_list, str);
+	for_each_engine(engine, i915, id) {
+		ok &= engine_wa_list_verify(engine,
+					    &lists->engine[id].wa_list,
+					    str) == 0;
+	}
 
 	return ok;
 }
