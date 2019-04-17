@@ -273,9 +273,9 @@ premature_exit:
 
 	if (rval) {
 		ql_log(ql_log_warn, base_vha, 0x1163,
-		    "**** Failed mbx[0]=%x, mb[1]=%x, mb[2]=%x, "
-		    "mb[3]=%x, cmd=%x ****.\n",
-		    mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3], command);
+		       "**** Failed=%x mbx[0]=%x, mb[1]=%x, mb[2]=%x, mb[3]=%x, cmd=%x ****.\n",
+		       rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3],
+		       command);
 	} else {
 		ql_dbg(ql_dbg_mbx, base_vha, 0x1164, "Done %s.\n", __func__);
 	}

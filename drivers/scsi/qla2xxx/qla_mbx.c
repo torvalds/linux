@@ -567,9 +567,9 @@ mbx_done:
 		    mcp->mb[0]);
 	} else if (rval) {
 		if (ql2xextended_error_logging & (ql_dbg_disc|ql_dbg_mbx)) {
-			pr_warn("%s [%s]-%04x:%ld: **** Failed", QL_MSGHDR,
+			pr_warn("%s [%s]-%04x:%ld: **** Failed=%x", QL_MSGHDR,
 			    dev_name(&ha->pdev->dev), 0x1020+0x800,
-			    vha->host_no);
+			    vha->host_no, rval);
 			mboxes = mcp->in_mb;
 			cnt = 4;
 			for (i = 0; i < ha->mbx_count && cnt; i++, mboxes >>= 1)
