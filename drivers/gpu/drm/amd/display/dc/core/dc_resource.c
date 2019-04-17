@@ -2384,6 +2384,13 @@ static void set_avi_info_frame(
 	hdmi_info.bits.bar_right = (stream->timing.h_total
 			- stream->timing.h_border_right + 1);
 
+    /* Additional Colorimetry Extension
+     * Used in conduction with C0-C1 and EC0-EC2
+     * 0 = DCI-P3 RGB (D65)
+     * 1 = DCI-P3 RGB (theater)
+     */
+	hdmi_info.bits.ACE0_ACE3 = 0;
+
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
 	check_sum = &hdmi_info.packet_raw_data.sb[0];
 
