@@ -415,6 +415,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	case COLOR_SPACE_APPCTRL:
 	case COLOR_SPACE_CUSTOMPOINTS:
 	case COLOR_SPACE_UNKNOWN:
+	case COLOR_SPACE_YCBCR709_BLACK:
 		/* do nothing */
 		break;
 	}

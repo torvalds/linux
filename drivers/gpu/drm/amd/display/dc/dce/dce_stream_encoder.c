@@ -418,6 +418,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 			break;
 		case COLOR_SPACE_YCBCR709:
 		case COLOR_SPACE_YCBCR709_LIMITED:
+		case COLOR_SPACE_YCBCR709_BLACK:
 			misc0 = misc0 | 0x18; /* bit3=1, bit4=1 */
 			misc1 = misc1 & ~0x80; /* bit7 = 0*/
 			dynamic_range_ycbcr = 1; /*bt709*/
