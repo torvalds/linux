@@ -3371,7 +3371,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	}
 
 	QETH_TXQ_STAT_ADD(queue, bufs, count);
-	netif_trans_update(queue->card->dev);
 	qdio_flags = QDIO_FLAG_SYNC_OUTPUT;
 	if (atomic_read(&queue->set_pci_flags_count))
 		qdio_flags |= QDIO_FLAG_PCI_OUT;
