@@ -46,4 +46,17 @@ samples                 Number of samples using in the averaging mode.
                         Supports the list of number of samples:
 
                           1, 4, 16, 64, 128, 256, 512, 1024
+
+update_interval         Data conversion time in millisecond, following:
+
+                          update_interval = C x S x (BC + SC)
+
+                          * C:	number of enabled channels
+                          * S:	number of samples
+                          * BC:	bus-voltage conversion time in millisecond
+                          * SC:	shunt-voltage conversion time in millisecond
+
+                        Affects both Bus- and Shunt-voltage conversion time.
+                        Note that setting update_interval to 0ms sets both BC
+                        and SC to 140 us (minimum conversion time).
 ======================= =======================================================

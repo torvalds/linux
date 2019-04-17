@@ -144,19 +144,37 @@ static const int ina3221_avg_samples[] = {
 	1, 4, 16, 64, 128, 256, 512, 1024,
 };
 
-static inline int ina3221_wait_for_data(struct ina3221_data *ina)
+/* Converting update_interval in msec to conversion time in usec */
+static inline u32 ina3221_interval_ms_to_conv_time(u16 config, int interval)
 {
-	u32 channels = hweight16(ina->reg_config & INA3221_CONFIG_CHs_EN_MASK);
-	u32 vbus_ct_idx = INA3221_CONFIG_VBUS_CT(ina->reg_config);
-	u32 vsh_ct_idx = INA3221_CONFIG_VSH_CT(ina->reg_config);
-	u32 samples_idx = INA3221_CONFIG_AVG(ina->reg_config);
+	u32 channels = hweight16(config & INA3221_CONFIG_CHs_EN_MASK);
+	u32 samples_idx = INA3221_CONFIG_AVG(config);
+	u32 samples = ina3221_avg_samples[samples_idx];
+
+	/* Bisect the result to Bus and Shunt conversion times */
+	return DIV_ROUND_CLOSEST(interval * 1000 / 2, channels * samples);
+}
+
+/* Converting CONFIG register value to update_interval in usec */
+static inline u32 ina3221_reg_to_interval_us(u16 config)
+{
+	u32 channels = hweight16(config & INA3221_CONFIG_CHs_EN_MASK);
+	u32 vbus_ct_idx = INA3221_CONFIG_VBUS_CT(config);
+	u32 vsh_ct_idx = INA3221_CONFIG_VSH_CT(config);
+	u32 samples_idx = INA3221_CONFIG_AVG(config);
 	u32 samples = ina3221_avg_samples[samples_idx];
 	u32 vbus_ct = ina3221_conv_time[vbus_ct_idx];
 	u32 vsh_ct = ina3221_conv_time[vsh_ct_idx];
-	u32 wait, cvrf;
 
 	/* Calculate total conversion time */
-	wait = channels * (vbus_ct + vsh_ct) * samples;
+	return channels * (vbus_ct + vsh_ct) * samples;
+}
+
+static inline int ina3221_wait_for_data(struct ina3221_data *ina)
+{
+	u32 wait, cvrf;
+
+	wait = ina3221_reg_to_interval_us(ina->reg_config);
 
 	/* Polling the CVRF bit to make sure read data is ready */
 	return regmap_field_read_poll_timeout(ina->fields[F_CVRF],
@@ -196,6 +214,11 @@ static int ina3221_read_chip(struct device *dev, u32 attr, long *val)
 	case hwmon_chip_samples:
 		regval = INA3221_CONFIG_AVG(ina->reg_config);
 		*val = ina3221_avg_samples[regval];
+		return 0;
+	case hwmon_chip_update_interval:
+		/* Return in msec */
+		*val = ina3221_reg_to_interval_us(ina->reg_config);
+		*val = DIV_ROUND_CLOSEST(*val, 1000);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -318,6 +341,23 @@ static int ina3221_write_chip(struct device *dev, u32 attr, long val)
 
 		tmp = (ina->reg_config & ~INA3221_CONFIG_AVG_MASK) |
 		      (idx << INA3221_CONFIG_AVG_SHIFT);
+		ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
+		if (ret)
+			return ret;
+
+		/* Update reg_config accordingly */
+		ina->reg_config = tmp;
+		return 0;
+	case hwmon_chip_update_interval:
+		tmp = ina3221_interval_ms_to_conv_time(ina->reg_config, val);
+		idx = find_closest(tmp, ina3221_conv_time,
+				   ARRAY_SIZE(ina3221_conv_time));
+
+		/* Update Bus and Shunt voltage conversion times */
+		tmp = INA3221_CONFIG_VBUS_CT_MASK | INA3221_CONFIG_VSH_CT_MASK;
+		tmp = (ina->reg_config & ~tmp) |
+		      (idx << INA3221_CONFIG_VBUS_CT_SHIFT) |
+		      (idx << INA3221_CONFIG_VSH_CT_SHIFT);
 		ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
 		if (ret)
 			return ret;
@@ -483,6 +523,7 @@ static umode_t ina3221_is_visible(const void *drvdata,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_samples:
+		case hwmon_chip_update_interval:
 			return 0644;
 		default:
 			return 0;
@@ -528,7 +569,8 @@ static umode_t ina3221_is_visible(const void *drvdata,
 
 static const struct hwmon_channel_info *ina3221_info[] = {
 	HWMON_CHANNEL_INFO(chip,
-			   HWMON_C_SAMPLES),
+			   HWMON_C_SAMPLES,
+			   HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(in,
 			   /* 0: dummy, skipped in is_visible */
 			   HWMON_I_INPUT,
