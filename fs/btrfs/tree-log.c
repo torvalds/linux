@@ -5832,6 +5832,190 @@ out:
 	return ret;
 }
 
+static int log_new_ancestors(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root,
+			     struct btrfs_path *path,
+			     struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_key found_key;
+
+	btrfs_item_key_to_cpu(path->nodes[0], &found_key, path->slots[0]);
+
+	while (true) {
+		struct btrfs_fs_info *fs_info = root->fs_info;
+		const u64 last_committed = fs_info->last_trans_committed;
+		struct extent_buffer *leaf = path->nodes[0];
+		int slot = path->slots[0];
+		struct btrfs_key search_key;
+		struct inode *inode;
+		int ret = 0;
+
+		btrfs_release_path(path);
+
+		search_key.objectid = found_key.offset;
+		search_key.type = BTRFS_INODE_ITEM_KEY;
+		search_key.offset = 0;
+		inode = btrfs_iget(fs_info->sb, &search_key, root, NULL);
+		if (IS_ERR(inode))
+			return PTR_ERR(inode);
+
+		if (BTRFS_I(inode)->generation > last_committed)
+			ret = btrfs_log_inode(trans, root, BTRFS_I(inode),
+					      LOG_INODE_EXISTS,
+					      0, LLONG_MAX, ctx);
+		iput(inode);
+		if (ret)
+			return ret;
+
+		if (search_key.objectid == BTRFS_FIRST_FREE_OBJECTID)
+			break;
+
+		search_key.type = BTRFS_INODE_REF_KEY;
+		ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
+		if (ret < 0)
+			return ret;
+
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		if (slot >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				return ret;
+			else if (ret > 0)
+				return -ENOENT;
+			leaf = path->nodes[0];
+			slot = path->slots[0];
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+		if (found_key.objectid != search_key.objectid ||
+		    found_key.type != BTRFS_INODE_REF_KEY)
+			return -ENOENT;
+	}
+	return 0;
+}
+
+static int log_new_ancestors_fast(struct btrfs_trans_handle *trans,
+				  struct btrfs_inode *inode,
+				  struct dentry *parent,
+				  struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct dentry *old_parent = NULL;
+	struct super_block *sb = inode->vfs_inode.i_sb;
+	int ret = 0;
+
+	while (true) {
+		if (!parent || d_really_is_negative(parent) ||
+		    sb != parent->d_sb)
+			break;
+
+		inode = BTRFS_I(d_inode(parent));
+		if (root != inode->root)
+			break;
+
+		if (inode->generation > fs_info->last_trans_committed) {
+			ret = btrfs_log_inode(trans, root, inode,
+					LOG_INODE_EXISTS, 0, LLONG_MAX, ctx);
+			if (ret)
+				break;
+		}
+		if (IS_ROOT(parent))
+			break;
+
+		parent = dget_parent(parent);
+		dput(old_parent);
+		old_parent = parent;
+	}
+	dput(old_parent);
+
+	return ret;
+}
+
+static int log_all_new_ancestors(struct btrfs_trans_handle *trans,
+				 struct btrfs_inode *inode,
+				 struct dentry *parent,
+				 struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_root *root = inode->root;
+	const u64 ino = btrfs_ino(inode);
+	struct btrfs_path *path;
+	struct btrfs_key search_key;
+	int ret;
+
+	/*
+	 * For a single hard link case, go through a fast path that does not
+	 * need to iterate the fs/subvolume tree.
+	 */
+	if (inode->vfs_inode.i_nlink < 2)
+		return log_new_ancestors_fast(trans, inode, parent, ctx);
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	search_key.objectid = ino;
+	search_key.type = BTRFS_INODE_REF_KEY;
+	search_key.offset = 0;
+again:
+	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+	if (ret == 0)
+		path->slots[0]++;
+
+	while (true) {
+		struct extent_buffer *leaf = path->nodes[0];
+		int slot = path->slots[0];
+		struct btrfs_key found_key;
+
+		if (slot >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+		if (found_key.objectid != ino ||
+		    found_key.type > BTRFS_INODE_EXTREF_KEY)
+			break;
+
+		/*
+		 * Don't deal with extended references because they are rare
+		 * cases and too complex to deal with (we would need to keep
+		 * track of which subitem we are processing for each item in
+		 * this loop, etc). So just return some error to fallback to
+		 * a transaction commit.
+		 */
+		if (found_key.type == BTRFS_INODE_EXTREF_KEY) {
+			ret = -EMLINK;
+			goto out;
+		}
+
+		/*
+		 * Logging ancestors needs to do more searches on the fs/subvol
+		 * tree, so it releases the path as needed to avoid deadlocks.
+		 * Keep track of the last inode ref key and resume from that key
+		 * after logging all new ancestors for the current hard link.
+		 */
+		memcpy(&search_key, &found_key, sizeof(search_key));
+
+		ret = log_new_ancestors(trans, root, path, ctx);
+		if (ret)
+			goto out;
+		btrfs_release_path(path);
+		goto again;
+	}
+	ret = 0;
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 /*
  * helper function around btrfs_log_inode to make sure newly created
  * parent directories also end up in the log.  A minimal inode and backref
@@ -5849,11 +6033,9 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct super_block *sb;
-	struct dentry *old_parent = NULL;
 	int ret = 0;
 	u64 last_committed = fs_info->last_trans_committed;
 	bool log_dentries = false;
-	struct btrfs_inode *orig_inode = inode;
 
 	sb = inode->vfs_inode.i_sb;
 
@@ -5959,54 +6141,20 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	 * and has a link count of 2.
 	 */
 	if (inode->last_unlink_trans > last_committed) {
-		ret = btrfs_log_all_parents(trans, orig_inode, ctx);
+		ret = btrfs_log_all_parents(trans, inode, ctx);
 		if (ret)
 			goto end_trans;
 	}
 
-	/*
-	 * If a new hard link was added to the inode in the current transaction
-	 * and its link count is now greater than 1, we need to fallback to a
-	 * transaction commit, otherwise we can end up not logging all its new
-	 * parents for all the hard links. Here just from the dentry used to
-	 * fsync, we can not visit the ancestor inodes for all the other hard
-	 * links to figure out if any is new, so we fallback to a transaction
-	 * commit (instead of adding a lot of complexity of scanning a btree,
-	 * since this scenario is not a common use case).
-	 */
-	if (inode->vfs_inode.i_nlink > 1 &&
-	    inode->last_link_trans > last_committed) {
-		ret = -EMLINK;
+	ret = log_all_new_ancestors(trans, inode, parent, ctx);
+	if (ret)
 		goto end_trans;
-	}
 
-	while (1) {
-		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
-			break;
-
-		inode = BTRFS_I(d_inode(parent));
-		if (root != inode->root)
-			break;
-
-		if (inode->generation > last_committed) {
-			ret = btrfs_log_inode(trans, root, inode,
-					LOG_INODE_EXISTS, 0, LLONG_MAX, ctx);
-			if (ret)
-				goto end_trans;
-		}
-		if (IS_ROOT(parent))
-			break;
-
-		parent = dget_parent(parent);
-		dput(old_parent);
-		old_parent = parent;
-	}
 	if (log_dentries)
-		ret = log_new_dir_dentries(trans, root, orig_inode, ctx);
+		ret = log_new_dir_dentries(trans, root, inode, ctx);
 	else
 		ret = 0;
 end_trans:
-	dput(old_parent);
 	if (ret < 0) {
 		btrfs_set_log_full_commit(trans);
 		ret = 1;
