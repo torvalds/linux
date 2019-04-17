@@ -691,7 +691,7 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 	unsigned long flags;
 	int ssize;
 
-	if (id == KERNEL_REGION_ID) {
+	if (id == LINEAR_MAP_REGION_ID) {
 
 		/* We only support upto MAX_PHYSMEM_BITS */
 		if ((ea & EA_MASK) > (1UL << MAX_PHYSMEM_BITS))
@@ -790,7 +790,7 @@ long do_slb_fault(struct pt_regs *regs, unsigned long ea)
 	 * first class kernel code. But for performance it's probably nicer
 	 * if they go via fast_exception_return too.
 	 */
-	if (id >= KERNEL_REGION_ID) {
+	if (id >= LINEAR_MAP_REGION_ID) {
 		long err;
 #ifdef CONFIG_DEBUG_VM
 		/* Catch recursive kernel SLB faults. */

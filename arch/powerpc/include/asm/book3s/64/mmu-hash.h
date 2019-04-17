@@ -817,7 +817,7 @@ static inline unsigned long get_kernel_context(unsigned long ea)
 	 * Depending on Kernel config, kernel region can have one context
 	 * or more.
 	 */
-	if (region_id == KERNEL_REGION_ID) {
+	if (region_id == LINEAR_MAP_REGION_ID) {
 		/*
 		 * We already verified ea to be not beyond the addr limit.
 		 */
