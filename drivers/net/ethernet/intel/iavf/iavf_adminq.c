@@ -8,12 +8,12 @@
 #include "iavf_prototype.h"
 
 /**
- *  i40e_adminq_init_regs - Initialize AdminQ registers
+ *  iavf_adminq_init_regs - Initialize AdminQ registers
  *  @hw: pointer to the hardware structure
  *
  *  This assumes the alloc_asq and alloc_arq functions have already been called
  **/
-static void i40e_adminq_init_regs(struct iavf_hw *hw)
+static void iavf_adminq_init_regs(struct iavf_hw *hw)
 {
 	/* set head and tail registers in our local struct */
 	hw->aq.asq.tail = IAVF_VF_ATQT1;
@@ -519,7 +519,7 @@ enum iavf_status iavf_init_adminq(struct iavf_hw *hw)
 	}
 
 	/* Set up register offsets */
-	i40e_adminq_init_regs(hw);
+	iavf_adminq_init_regs(hw);
 
 	/* setup ASQ command write back timeout */
 	hw->aq.asq_cmd_timeout = I40E_ASQ_CMD_TIMEOUT;
