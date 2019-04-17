@@ -410,7 +410,6 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 			        struct ath_tx_status *ts, int txok,
 			        int *nframes, int *nbad)
 {
-	struct ath_frame_info *fi;
 	u16 seq_st = 0;
 	u32 ba[WME_BA_BMP_SIZE >> 5];
 	int ba_index;
@@ -426,7 +425,6 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 	}
 
 	while (bf) {
-		fi = get_frame_info(bf->bf_mpdu);
 		ba_index = ATH_BA_INDEX(seq_st, bf->bf_state.seqno);
 
 		(*nframes)++;
@@ -446,7 +444,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 {
 	struct ath_node *an = NULL;
 	struct sk_buff *skb;
-	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
 	struct ath_buf *bf_next, *bf_last = bf->bf_lastbf;
 	struct list_head bf_head;
@@ -463,8 +460,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int bar_index = -1;
 
 	skb = bf->bf_mpdu;
-	hdr = (struct ieee80211_hdr *)skb->data;
-
 	tx_info = IEEE80211_SKB_CB(skb);
 
 	memcpy(rates, bf->rates, sizeof(rates));
@@ -2270,12 +2265,10 @@ static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl)
 {
-	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txctl->sta;
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ath_frame_info *fi = get_frame_info(skb);
-	struct ath_vif *avp = NULL;
 	struct ath_softc *sc = hw->priv;
 	struct ath_txq *txq = txctl->txq;
 	struct ath_atx_tid *tid = NULL;
@@ -2284,16 +2277,12 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	bool ps_resp;
 	int q, ret;
 
-	if (vif)
-		avp = (void *)vif->drv_priv;
-
 	ps_resp = !!(info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE);
 
 	ret = ath_tx_prepare(hw, skb, txctl);
 	if (ret)
 	    return ret;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
 	/*
 	 * At this point, the vif, hw_key and sta pointers in the tx control
 	 * info are no longer valid (overwritten by the ath_frame_info data.
