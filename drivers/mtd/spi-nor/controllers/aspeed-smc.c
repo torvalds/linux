@@ -879,6 +879,17 @@ static const uint32_t aspeed_smc_hclk_divs[] = {
 };
 #define ASPEED_SMC_HCLK_DIV(i) (aspeed_smc_hclk_divs[(i) - 1] << 8)
 
+static u32 aspeed_smc_default_read(struct aspeed_smc_chip *chip)
+{
+	return (chip->ctl_val[smc_read] & 0x2000) |
+		(0x00 << 28) | /* Single bit */
+		(0x00 << 24) | /* CE# max */
+		(0x03 << 16) | /* use normal reads */
+		(0x00 <<  8) | /* HCLK/16 */
+		(0x00 <<  6) | /* no dummy cycle */
+		(0x00);        /* normal mode */
+}
+
 static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 				     u32 max_freq)
 {
@@ -895,13 +906,7 @@ static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 	/* We start with the dumbest setting (keep 4Byte bit) and read
 	 * some data
 	 */
-	chip->ctl_val[smc_read] = (chip->ctl_val[smc_read] & 0x2000) |
-		(0x00 << 28) | /* Single bit */
-		(0x00 << 24) | /* CE# max */
-		(0x03 << 16) | /* use normal reads */
-		(0x00 <<  8) | /* HCLK/16 */
-		(0x00 <<  6) | /* no dummy cycle */
-		(0x00);        /* normal read */
+	chip->ctl_val[smc_read] = aspeed_smc_default_read(chip);
 
 	writel(chip->ctl_val[smc_read], chip->ctl);
 
