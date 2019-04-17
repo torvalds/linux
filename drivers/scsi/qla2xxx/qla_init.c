@@ -95,6 +95,79 @@ qla2x00_get_async_timeout(struct scsi_qla_host *vha)
 	return tmo;
 }
 
+static void qla24xx_abort_iocb_timeout(void *data)
+{
+	srb_t *sp = data;
+	struct srb_iocb *abt = &sp->u.iocb_cmd;
+
+	abt->u.abt.comp_status = CS_TIMEOUT;
+	sp->done(sp, QLA_FUNCTION_TIMEOUT);
+}
+
+static void qla24xx_abort_sp_done(void *ptr, int res)
+{
+	srb_t *sp = ptr;
+	struct srb_iocb *abt = &sp->u.iocb_cmd;
+
+	if (del_timer(&sp->u.iocb_cmd.timer)) {
+		if (sp->flags & SRB_WAKEUP_ON_COMP)
+			complete(&abt->u.abt.comp);
+		else
+			sp->free(sp);
+	}
+}
+
+static int qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
+{
+	scsi_qla_host_t *vha = cmd_sp->vha;
+	struct srb_iocb *abt_iocb;
+	srb_t *sp;
+	int rval = QLA_FUNCTION_FAILED;
+
+	sp = qla2xxx_get_qpair_sp(cmd_sp->vha, cmd_sp->qpair, cmd_sp->fcport,
+				  GFP_ATOMIC);
+	if (!sp)
+		goto done;
+
+	abt_iocb = &sp->u.iocb_cmd;
+	sp->type = SRB_ABT_CMD;
+	sp->name = "abort";
+	sp->qpair = cmd_sp->qpair;
+	if (wait)
+		sp->flags = SRB_WAKEUP_ON_COMP;
+
+	abt_iocb->timeout = qla24xx_abort_iocb_timeout;
+	init_completion(&abt_iocb->u.abt.comp);
+	/* FW can send 2 x ABTS's timeout/20s */
+	qla2x00_init_timer(sp, 42);
+
+	abt_iocb->u.abt.cmd_hndl = cmd_sp->handle;
+	abt_iocb->u.abt.req_que_no = cpu_to_le16(cmd_sp->qpair->req->id);
+
+	sp->done = qla24xx_abort_sp_done;
+
+	ql_dbg(ql_dbg_async, vha, 0x507c,
+	       "Abort command issued - hdl=%x, type=%x\n", cmd_sp->handle,
+	       cmd_sp->type);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
+
+	if (wait) {
+		wait_for_completion(&abt_iocb->u.abt.comp);
+		rval = abt_iocb->u.abt.comp_status == CS_COMPLETE ?
+			QLA_SUCCESS : QLA_FUNCTION_FAILED;
+	} else {
+		goto done;
+	}
+
+done_free_sp:
+	sp->free(sp);
+done:
+	return rval;
+}
+
 void
 qla2x00_async_iocb_timeout(void *data)
 {
@@ -1781,82 +1854,6 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 done_free_sp:
 	sp->free(sp);
 	fcport->flags &= ~FCF_ASYNC_SENT;
-done:
-	return rval;
-}
-
-static void
-qla24xx_abort_iocb_timeout(void *data)
-{
-	srb_t *sp = data;
-	struct srb_iocb *abt = &sp->u.iocb_cmd;
-
-	abt->u.abt.comp_status = CS_TIMEOUT;
-	sp->done(sp, QLA_FUNCTION_TIMEOUT);
-}
-
-static void
-qla24xx_abort_sp_done(void *ptr, int res)
-{
-	srb_t *sp = ptr;
-	struct srb_iocb *abt = &sp->u.iocb_cmd;
-
-	if (del_timer(&sp->u.iocb_cmd.timer)) {
-		if (sp->flags & SRB_WAKEUP_ON_COMP)
-			complete(&abt->u.abt.comp);
-		else
-			sp->free(sp);
-	}
-}
-
-int
-qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
-{
-	scsi_qla_host_t *vha = cmd_sp->vha;
-	struct srb_iocb *abt_iocb;
-	srb_t *sp;
-	int rval = QLA_FUNCTION_FAILED;
-
-	sp = qla2xxx_get_qpair_sp(cmd_sp->vha, cmd_sp->qpair, cmd_sp->fcport,
-	    GFP_ATOMIC);
-	if (!sp)
-		goto done;
-
-	abt_iocb = &sp->u.iocb_cmd;
-	sp->type = SRB_ABT_CMD;
-	sp->name = "abort";
-	sp->qpair = cmd_sp->qpair;
-	if (wait)
-		sp->flags = SRB_WAKEUP_ON_COMP;
-
-	abt_iocb->timeout = qla24xx_abort_iocb_timeout;
-	init_completion(&abt_iocb->u.abt.comp);
-	/* FW can send 2 x ABTS's timeout/20s */
-	qla2x00_init_timer(sp, 42);
-
-	abt_iocb->u.abt.cmd_hndl = cmd_sp->handle;
-	abt_iocb->u.abt.req_que_no = cpu_to_le16(cmd_sp->qpair->req->id);
-
-	sp->done = qla24xx_abort_sp_done;
-
-	ql_dbg(ql_dbg_async, vha, 0x507c,
-	    "Abort command issued - hdl=%x, type=%x\n",
-	    cmd_sp->handle, cmd_sp->type);
-
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
-
-	if (wait) {
-		wait_for_completion(&abt_iocb->u.abt.comp);
-		rval = abt_iocb->u.abt.comp_status == CS_COMPLETE ?
-			QLA_SUCCESS : QLA_FUNCTION_FAILED;
-	} else {
-		goto done;
-	}
-
-done_free_sp:
-	sp->free(sp);
 done:
 	return rval;
 }
