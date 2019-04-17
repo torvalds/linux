@@ -889,7 +889,6 @@ struct qla_tgt_cmd {
 	unsigned int term_exchg:1;
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
-	unsigned int released:1;
 
 	/*
 	 * This variable may be set from outside the LIO and I/O completion

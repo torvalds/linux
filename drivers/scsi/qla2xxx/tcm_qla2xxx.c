@@ -261,7 +261,6 @@ static void tcm_qla2xxx_free_mcmd(struct qla_tgt_mgmt_cmd *mcmd)
 static void tcm_qla2xxx_complete_free(struct work_struct *work)
 {
 	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
-	bool released = false;
 	unsigned long flags;
 
 	cmd->cmd_in_wq = 0;
@@ -272,14 +271,9 @@ static void tcm_qla2xxx_complete_free(struct work_struct *work)
 	cmd->qpair->tgt_counters.qla_core_ret_sta_ctio++;
 	cmd->trc_flags |= TRC_CMD_FREE;
 	cmd->cmd_sent_to_fw = 0;
-	if (cmd->released)
-		released = true;
 	spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
-	if (released)
-		qlt_free_cmd(cmd);
-	else
-		transport_generic_free_cmd(&cmd->se_cmd, 0);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 /*
@@ -489,13 +483,6 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 
 	spin_lock_irqsave(&cmd->cmd_lock, flags);
 	cmd->cmd_sent_to_fw = 0;
-
-	if (cmd->released) {
-		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
-		qlt_free_cmd(cmd);
-		return;
-	}
-
 	if (cmd->aborted) {
 		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
