@@ -21,7 +21,7 @@
 
 /* forward declaration */
 struct iavf_hw;
-typedef void (*I40E_ADMINQ_CALLBACK)(struct iavf_hw *, struct iavf_aq_desc *);
+typedef void (*IAVF_ADMINQ_CALLBACK)(struct iavf_hw *, struct iavf_aq_desc *);
 
 /* Data type manipulation macros. */
 
