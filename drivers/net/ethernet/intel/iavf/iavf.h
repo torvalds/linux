@@ -244,7 +244,7 @@ struct iavf_adapter {
 	int num_iwarp_msix;
 	int iwarp_base_vector;
 	u32 client_pending;
-	struct i40e_client_instance *cinst;
+	struct iavf_client_instance *cinst;
 	struct msix_entry *msix_entries;
 
 	u32 flags;
