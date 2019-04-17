@@ -308,11 +308,10 @@ static struct phy *mt7621_pcie_phy_of_xlate(struct device *dev,
 static int mt7621_pci_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct device_node *child_np;
 	struct phy_provider *provider;
 	struct mt7621_pci_phy *phy;
-	struct resource res;
+	struct resource *res;
 	int port, ret;
 	void __iomem *port_base;
 
@@ -329,13 +328,13 @@ static int mt7621_pci_phy_probe(struct platform_device *pdev)
 	phy->dev = dev;
 	platform_set_drvdata(pdev, phy);
 
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		dev_err(dev, "failed to get address resource\n");
-		return ret;
+		return -ENXIO;
 	}
 
-	port_base = devm_ioremap_resource(dev, &res);
+	port_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(port_base)) {
 		dev_err(dev, "failed to remap phy regs\n");
 		return PTR_ERR(port_base);
