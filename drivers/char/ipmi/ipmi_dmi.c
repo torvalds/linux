@@ -66,7 +66,6 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 		return;
 	}
 
-	memset(&p, 0, sizeof(p));
 	p.addr = base_addr;
 	p.space = space;
 	p.regspacing = offset;

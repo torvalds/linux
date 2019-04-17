@@ -2245,6 +2245,10 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 		goto err;
 
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		ret = -EPERM;
+		if (!capable(CAP_SYS_ADMIN))
+			goto err;
+
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu;
 

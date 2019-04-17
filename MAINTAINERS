@@ -10139,7 +10139,7 @@ F:	drivers/spi/spi-at91-usart.c
 F:	Documentation/devicetree/bindings/mfd/atmel-usart.txt
 
 MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
-M:	Woojung Huh <Woojung.Huh@microchip.com>
+M:	Woojung Huh <woojung.huh@microchip.com>
 M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -16503,7 +16503,7 @@ F:	drivers/char/virtio_console.c
 F:	include/linux/virtio_console.h
 F:	include/uapi/linux/virtio_console.h
 
-VIRTIO CORE, NET AND BLOCK DRIVERS
+VIRTIO CORE AND NET DRIVERS
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowang@redhat.com>
 L:	virtualization@lists.linux-foundation.org
@@ -16517,6 +16517,19 @@ F:	include/linux/virtio*.h
 F:	include/uapi/linux/virtio_*.h
 F:	drivers/crypto/virtio/
 F:	mm/balloon_compaction.c
+
+VIRTIO BLOCK AND SCSI DRIVERS
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+M:	Jason Wang <jasowang@redhat.com>
+R:	Paolo Bonzini <pbonzini@redhat.com>
+R:	Stefan Hajnoczi <stefanha@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/block/virtio_blk.c
+F:	drivers/scsi/virtio_scsi.c
+F:	include/uapi/linux/virtio_blk.h
+F:	include/uapi/linux/virtio_scsi.h
+F:	drivers/vhost/scsi.c
 
 VIRTIO CRYPTO DRIVER
 M:	Gonglei <arei.gonglei@huawei.com>
