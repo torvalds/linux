@@ -800,5 +800,11 @@ void __init early_init_mmu(void)
 #ifdef CONFIG_PPC_47x
 	early_init_mmu_47x();
 #endif
+
+#ifdef CONFIG_PPC_MM_SLICES
+#if defined(CONFIG_PPC_8xx)
+	init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW;
+#endif
+#endif
 }
 #endif /* CONFIG_PPC64 */
