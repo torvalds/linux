@@ -173,7 +173,7 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 int __xfrm_state_delete(struct xfrm_state *x);
 
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
-bool km_is_alive(const struct km_event *c);
+static bool km_is_alive(const struct km_event *c);
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 
 static DEFINE_SPINLOCK(xfrm_type_lock);
@@ -2025,7 +2025,7 @@ int km_report(struct net *net, u8 proto, struct xfrm_selector *sel, xfrm_address
 }
 EXPORT_SYMBOL(km_report);
 
-bool km_is_alive(const struct km_event *c)
+static bool km_is_alive(const struct km_event *c)
 {
 	struct xfrm_mgr *km;
 	bool is_alive = false;
@@ -2041,7 +2041,6 @@ bool km_is_alive(const struct km_event *c)
 
 	return is_alive;
 }
-EXPORT_SYMBOL(km_is_alive);
 
 int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {

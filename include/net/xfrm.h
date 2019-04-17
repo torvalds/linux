@@ -1568,7 +1568,6 @@ static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb);
-int xfrm4_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
 int xfrm4_protocol_register(struct xfrm4_protocol *handler, unsigned char protocol);
 int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char protocol);
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
@@ -1584,7 +1583,6 @@ int xfrm6_rcv(struct sk_buff *skb);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto);
 void xfrm6_local_error(struct sk_buff *skb, u32 mtu);
-int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
 int xfrm6_protocol_register(struct xfrm6_protocol *handler, unsigned char protocol);
 int xfrm6_protocol_deregister(struct xfrm6_protocol *handler, unsigned char protocol);
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
