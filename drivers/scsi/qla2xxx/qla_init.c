@@ -557,6 +557,18 @@ static int qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 	return rval;
 }
 
+void qla2x00_clear_loop_id(fc_port_t *fcport)
+{
+	struct qla_hw_data *ha = fcport->vha->hw;
+
+	if (fcport->loop_id == FC_NO_LOOP_ID ||
+	    qla2x00_is_reserved_id(fcport->vha, fcport->loop_id))
+		return;
+
+	clear_bit(fcport->loop_id, ha->loop_id_map);
+	fcport->loop_id = FC_NO_LOOP_ID;
+}
+
 static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 	struct event_arg *ea)
 {

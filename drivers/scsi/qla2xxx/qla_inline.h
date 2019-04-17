@@ -102,18 +102,6 @@ qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
 }
 
 static inline void
-qla2x00_clear_loop_id(fc_port_t *fcport) {
-	struct qla_hw_data *ha = fcport->vha->hw;
-
-	if (fcport->loop_id == FC_NO_LOOP_ID ||
-	    qla2x00_is_reserved_id(fcport->vha, fcport->loop_id))
-		return;
-
-	clear_bit(fcport->loop_id, ha->loop_id_map);
-	fcport->loop_id = FC_NO_LOOP_ID;
-}
-
-static inline void
 qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 {
 	struct dsd_dma *dsd, *tdsd;
