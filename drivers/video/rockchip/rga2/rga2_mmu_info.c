@@ -399,11 +399,11 @@ static int rga2_UserMemory_cheeck(struct page **pages, u32 w, u32 h, u32 format,
 		tai_vaddr = (int *)vaddr + taidata_num / 4 - 1;
 	}
 	if (flag == 1) {
-		printk(KERN_DEBUG "src user memory check\n");
-		printk(KERN_DEBUG "tai data is %d\n", *tai_vaddr);
+		pr_info("src user memory check\n");
+		pr_info("tai data is %d\n", *tai_vaddr);
 	} else {
-		printk(KERN_DEBUG "dst user memory check\n");
-		printk(KERN_DEBUG "tai data is %d\n", *tai_vaddr);
+		pr_info("dst user memory check\n");
+		pr_info("tai data is %d\n", *tai_vaddr);
 	}
 	if (taidata_num == 0)
 		kunmap(pages[taipage_num - 1]);
