@@ -1260,9 +1260,15 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	hdmi->dvi = !tegra_output_is_hdmi(output);
 	if (!hdmi->dvi) {
-		err = tegra_hdmi_setup_audio(hdmi);
-		if (err < 0)
-			hdmi->dvi = true;
+		/*
+		 * Make sure that the audio format has been configured before
+		 * enabling audio, otherwise we may try to divide by zero.
+		*/
+		if (hdmi->format.sample_rate > 0) {
+			err = tegra_hdmi_setup_audio(hdmi);
+			if (err < 0)
+				hdmi->dvi = true;
+		}
 	}
 
 	if (hdmi->config->has_hda)
