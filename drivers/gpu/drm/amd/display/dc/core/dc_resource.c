@@ -2354,7 +2354,18 @@ static void set_avi_info_frame(
 			break;
 		}
 	}
+	/* If VIC >= 128, the Source shall use AVI InfoFrame Version 3*/
 	hdmi_info.bits.VIC0_VIC7 = vic;
+	if (vic >= 128)
+		hdmi_info.bits.header.version = 3;
+	/* If (C1, C0)=(1, 1) and (EC2, EC1, EC0)=(1, 1, 1),
+	 * the Source shall use 20 AVI InfoFrame Version 4
+	 */
+	if (hdmi_info.bits.C0_C1 == COLORIMETRY_EXTENDED &&
+			hdmi_info.bits.EC0_EC2 == COLORIMETRYEX_RESERVED) {
+		hdmi_info.bits.header.version = 4;
+		hdmi_info.bits.header.length = 14;
+	}
 
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
@@ -2376,9 +2387,9 @@ static void set_avi_info_frame(
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
 	check_sum = &hdmi_info.packet_raw_data.sb[0];
 
-	*check_sum = HDMI_INFOFRAME_TYPE_AVI + HDMI_AVI_INFOFRAME_SIZE + 2;
+	*check_sum = HDMI_INFOFRAME_TYPE_AVI + hdmi_info.bits.header.length + hdmi_info.bits.header.version;
 
-	for (byte_index = 1; byte_index <= HDMI_AVI_INFOFRAME_SIZE; byte_index++)
+	for (byte_index = 1; byte_index <= hdmi_info.bits.header.length; byte_index++)
 		*check_sum += hdmi_info.packet_raw_data.sb[byte_index];
 
 	/* one byte complement */
