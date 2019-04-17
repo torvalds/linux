@@ -13,7 +13,7 @@ struct bkey_alloc_unpacked {
 #undef  x
 };
 
-struct bkey_alloc_unpacked bch2_alloc_unpack(const struct bch_alloc *);
+struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
 void bch2_alloc_pack(struct bkey_i_alloc *,
 		     const struct bkey_alloc_unpacked);
 

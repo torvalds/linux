@@ -649,9 +649,13 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 	if (flags & BCH_BUCKET_MARK_GC)
 		return 0;
 
-	u = bch2_alloc_unpack(bkey_s_c_to_alloc(k).v);
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
+
+	if (k.k->p.offset >= ca->mi.nbuckets)
+		return 0;
+
 	g = __bucket(ca, k.k->p.offset, gc);
+	u = bch2_alloc_unpack(k);
 
 	old = bucket_data_cmpxchg(c, ca, fs_usage, g, m, ({
 		m.gen			= u.gen;
@@ -1381,7 +1385,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		goto out;
 	}
 
-	u = bch2_alloc_unpack(bkey_s_c_to_alloc(k).v);
+	u = bch2_alloc_unpack(k);
 
 	if (gen_after(u.gen, p.ptr.gen)) {
 		ret = 1;

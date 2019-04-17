@@ -198,17 +198,14 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	do {
 		wrote = false;
 
-		ret = bch2_stripes_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
-		if (ret) {
-			bch2_fs_inconsistent(c, "error writing out stripes");
-			break;
-		}
+		ret = bch2_stripes_write(c, BTREE_INSERT_NOCHECK_RW, &wrote) ?:
+			bch2_alloc_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
 
-		ret = bch2_alloc_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
-		if (ret) {
+		if (ret && !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
 			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
+
+		if (ret)
 			break;
-		}
 
 		for_each_member_device(ca, c, i)
 			bch2_dev_allocator_quiesce(c, ca);

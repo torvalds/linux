@@ -1234,11 +1234,6 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 	return ret;
 }
 
-static void bch2_stripe_read_key(struct bch_fs *c, struct bkey_s_c k)
-{
-	bch2_mark_key(c, k, true, 0, NULL, 0, 0);
-}
-
 int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
 	struct journal_key *i;
@@ -1254,7 +1249,7 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k, ret)
-		bch2_stripe_read_key(c, k);
+		bch2_mark_key(c, k, true, 0, NULL, 0, 0);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret) {
@@ -1264,7 +1259,8 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 
 	for_each_journal_key(*journal_keys, i)
 		if (i->btree_id == BTREE_ID_EC)
-			bch2_stripe_read_key(c, bkey_i_to_s_c(i->k));
+			bch2_mark_key(c, bkey_i_to_s_c(i->k),
+				      true, 0, NULL, 0, 0);
 
 	return 0;
 }
