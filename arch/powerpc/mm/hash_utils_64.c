@@ -963,6 +963,7 @@ void __init hash__early_init_devtree(void)
 	htab_scan_page_sizes();
 }
 
+struct hash_mm_context init_hash_mm_context;
 void __init hash__early_init_mmu(void)
 {
 #ifndef CONFIG_PPC_64K_PAGES
@@ -1036,7 +1037,8 @@ void __init hash__early_init_mmu(void)
 	 */
 	htab_initialize();
 
-	init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	init_mm.context.hash_context = &init_hash_mm_context;
+	init_mm.context.hash_context->slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
 
 	pr_info("Initializing hash mmu with SLB\n");
 	/* Initialize SLB management */
