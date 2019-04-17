@@ -238,7 +238,7 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 	/* Each psp need to set the latest topology */
 	ret = psp_xgmi_set_topology_info(&adev->psp,
 					 hive->number_devices,
-					 &hive->topology_info);
+					 &adev->psp.xgmi_context.top_info);
 	if (ret)
 		dev_err(adev->dev,
 			"XGMI: Set topology failure on device %llx, hive %llx, ret %d",
@@ -248,9 +248,22 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 	return ret;
 }
 
+
+int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
+		struct amdgpu_device *peer_adev)
+{
+	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
+	int i;
+
+	for (i = 0 ; i < top->num_nodes; ++i)
+		if (top->nodes[i].node_id == peer_adev->gmc.xgmi.node_id)
+			return top->nodes[i].num_hops;
+	return	-EINVAL;
+}
+
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 {
-	struct psp_xgmi_topology_info *hive_topology;
+	struct psp_xgmi_topology_info *top_info;
 	struct amdgpu_hive_info *hive;
 	struct amdgpu_xgmi	*entry;
 	struct amdgpu_device *tmp_adev = NULL;
@@ -283,16 +296,16 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		goto exit;
 	}
 
-	hive_topology = &hive->topology_info;
+	top_info = &adev->psp.xgmi_context.top_info;
 
 	list_add_tail(&adev->gmc.xgmi.head, &hive->device_list);
 	list_for_each_entry(entry, &hive->device_list, head)
-		hive_topology->nodes[count++].node_id = entry->node_id;
+		top_info->nodes[count++].node_id = entry->node_id;
 	hive->number_devices = count;
 
 	/* Each psp need to get the latest topology */
 	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count, hive_topology);
+		ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count, top_info);
 		if (ret) {
 			dev_err(tmp_adev->dev,
 				"XGMI: Get topology failure on device %llx, hive %llx, ret %d",

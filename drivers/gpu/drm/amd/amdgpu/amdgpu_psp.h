@@ -95,12 +95,26 @@ struct psp_funcs
 	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 };
 
+#define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
+struct psp_xgmi_node_info {
+	uint64_t				node_id;
+	uint8_t					num_hops;
+	uint8_t					is_sharing_enabled;
+	enum ta_xgmi_assigned_sdma_engine	sdma_engine;
+};
+
+struct psp_xgmi_topology_info {
+	uint32_t			num_nodes;
+	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
+};
+
 struct psp_xgmi_context {
 	uint8_t				initialized;
 	uint32_t			session_id;
 	struct amdgpu_bo                *xgmi_shared_bo;
 	uint64_t                        xgmi_shared_mc_addr;
 	void                            *xgmi_shared_buf;
+	struct psp_xgmi_topology_info	top_info;
 };
 
 struct psp_ras_context {
@@ -181,18 +195,6 @@ struct amdgpu_psp_funcs {
 					enum AMDGPU_UCODE_ID);
 };
 
-#define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
-struct psp_xgmi_node_info {
-	uint64_t				node_id;
-	uint8_t					num_hops;
-	uint8_t					is_sharing_enabled;
-	enum ta_xgmi_assigned_sdma_engine	sdma_engine;
-};
-
-struct psp_xgmi_topology_info {
-	uint32_t			num_nodes;
-	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
-};
 
 #define psp_ring_init(psp, type) (psp)->funcs->ring_init((psp), (type))
 #define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
