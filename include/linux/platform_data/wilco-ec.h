@@ -194,4 +194,16 @@ int wilco_ec_get_byte_property(struct wilco_ec_device *ec, u32 property_id,
 int wilco_ec_set_byte_property(struct wilco_ec_device *ec, u32 property_id,
 			       u8 val);
 
+/**
+ * wilco_ec_add_sysfs() - Create sysfs entries
+ * @ec: Wilco EC device
+ *
+ * wilco_ec_remove_sysfs() needs to be called afterwards
+ * to perform the necessary cleanup.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int wilco_ec_add_sysfs(struct wilco_ec_device *ec);
+void wilco_ec_remove_sysfs(struct wilco_ec_device *ec);
+
 #endif /* WILCO_EC_H */
