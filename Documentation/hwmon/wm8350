@@ -2,12 +2,16 @@ Kernel driver wm8350-hwmon
 ==========================
 
 Supported chips:
+
   * Wolfson Microelectronics WM835x PMICs
+
     Prefix: 'wm8350'
+
     Datasheet:
-	http://www.wolfsonmicro.com/products/WM8350
-	http://www.wolfsonmicro.com/products/WM8351
-	http://www.wolfsonmicro.com/products/WM8352
+
+	- http://www.wolfsonmicro.com/products/WM8350
+	- http://www.wolfsonmicro.com/products/WM8351
+	- http://www.wolfsonmicro.com/products/WM8352
 
 Authors: Mark Brown <broonie@opensource.wolfsonmicro.com>
 

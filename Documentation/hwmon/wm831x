@@ -3,11 +3,14 @@ Kernel driver wm831x-hwmon
 
 Supported chips:
   * Wolfson Microelectronics WM831x PMICs
+
     Prefix: 'wm831x'
+
     Datasheet:
-	http://www.wolfsonmicro.com/products/WM8310
-	http://www.wolfsonmicro.com/products/WM8311
-	http://www.wolfsonmicro.com/products/WM8312
+
+	- http://www.wolfsonmicro.com/products/WM8310
+	- http://www.wolfsonmicro.com/products/WM8311
+	- http://www.wolfsonmicro.com/products/WM8312
 
 Authors: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
