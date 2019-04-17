@@ -49,8 +49,7 @@ static const struct file_operations snd_shutdown_f_ops;
 
 /* locked for registering/using */
 static DECLARE_BITMAP(snd_cards_lock, SNDRV_CARDS);
-struct snd_card *snd_cards[SNDRV_CARDS];
-EXPORT_SYMBOL(snd_cards);
+static struct snd_card *snd_cards[SNDRV_CARDS];
 
 static DEFINE_MUTEX(snd_card_mutex);
 
@@ -267,6 +266,26 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
   	return err;
 }
 EXPORT_SYMBOL(snd_card_new);
+
+/**
+ * snd_card_ref - Get the card object from the index
+ * @idx: the card index
+ *
+ * Returns a card object corresponding to the given index or NULL if not found.
+ * Release the object via snd_card_unref().
+ */
+struct snd_card *snd_card_ref(int idx)
+{
+	struct snd_card *card;
+
+	mutex_lock(&snd_card_mutex);
+	card = snd_cards[idx];
+	if (card)
+		get_device(&card->card_dev);
+	mutex_unlock(&snd_card_mutex);
+	return card;
+}
+EXPORT_SYMBOL_GPL(snd_card_ref);
 
 /* return non-zero if a card is already locked */
 int snd_card_locked(int card)
