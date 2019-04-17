@@ -45,13 +45,11 @@ qla2x00_prep_ms_iocb(scsi_qla_host_t *vha, struct ct_arg *arg)
 	ms_pkt->rsp_bytecount = cpu_to_le32(arg->rsp_size);
 	ms_pkt->req_bytecount = cpu_to_le32(arg->req_size);
 
-	ms_pkt->dseg_req_address[0] = cpu_to_le32(LSD(arg->req_dma));
-	ms_pkt->dseg_req_address[1] = cpu_to_le32(MSD(arg->req_dma));
-	ms_pkt->dseg_req_length = ms_pkt->req_bytecount;
+	put_unaligned_le64(arg->req_dma, &ms_pkt->req_dsd.address);
+	ms_pkt->req_dsd.length = ms_pkt->req_bytecount;
 
-	ms_pkt->dseg_rsp_address[0] = cpu_to_le32(LSD(arg->rsp_dma));
-	ms_pkt->dseg_rsp_address[1] = cpu_to_le32(MSD(arg->rsp_dma));
-	ms_pkt->dseg_rsp_length = ms_pkt->rsp_bytecount;
+	put_unaligned_le64(arg->rsp_dma, &ms_pkt->rsp_dsd.address);
+	ms_pkt->rsp_dsd.length = ms_pkt->rsp_bytecount;
 
 	vha->qla_stats.control_requests++;
 
@@ -83,13 +81,11 @@ qla24xx_prep_ms_iocb(scsi_qla_host_t *vha, struct ct_arg *arg)
 	ct_pkt->rsp_byte_count = cpu_to_le32(arg->rsp_size);
 	ct_pkt->cmd_byte_count = cpu_to_le32(arg->req_size);
 
-	ct_pkt->dseg_0_address[0] = cpu_to_le32(LSD(arg->req_dma));
-	ct_pkt->dseg_0_address[1] = cpu_to_le32(MSD(arg->req_dma));
-	ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+	put_unaligned_le64(arg->req_dma, &ct_pkt->dsd[0].address);
+	ct_pkt->dsd[0].length = ct_pkt->cmd_byte_count;
 
-	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(arg->rsp_dma));
-	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(arg->rsp_dma));
-	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	put_unaligned_le64(arg->rsp_dma, &ct_pkt->dsd[1].address);
+	ct_pkt->dsd[1].length = ct_pkt->rsp_byte_count;
 	ct_pkt->vp_index = vha->vp_idx;
 
 	vha->qla_stats.control_requests++;
@@ -1438,13 +1434,11 @@ qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size,
 	ms_pkt->rsp_bytecount = cpu_to_le32(rsp_size);
 	ms_pkt->req_bytecount = cpu_to_le32(req_size);
 
-	ms_pkt->dseg_req_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ms_pkt->dseg_req_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ms_pkt->dseg_req_length = ms_pkt->req_bytecount;
+	put_unaligned_le64(ha->ct_sns_dma, &ms_pkt->req_dsd.address);
+	ms_pkt->req_dsd.length = ms_pkt->req_bytecount;
 
-	ms_pkt->dseg_rsp_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ms_pkt->dseg_rsp_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ms_pkt->dseg_rsp_length = ms_pkt->rsp_bytecount;
+	put_unaligned_le64(ha->ct_sns_dma, &ms_pkt->rsp_dsd.address);
+	ms_pkt->rsp_dsd.length = ms_pkt->rsp_bytecount;
 
 	return ms_pkt;
 }
@@ -1476,13 +1470,11 @@ qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size,
 	ct_pkt->rsp_byte_count = cpu_to_le32(rsp_size);
 	ct_pkt->cmd_byte_count = cpu_to_le32(req_size);
 
-	ct_pkt->dseg_0_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ct_pkt->dseg_0_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+	put_unaligned_le64(ha->ct_sns_dma, &ct_pkt->dsd[0].address);
+	ct_pkt->dsd[0].length = ct_pkt->cmd_byte_count;
 
-	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
-	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
-	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+	put_unaligned_le64(ha->ct_sns_dma, &ct_pkt->dsd[1].address);
+	ct_pkt->dsd[1].length = ct_pkt->rsp_byte_count;
 	ct_pkt->vp_index = vha->vp_idx;
 
 	return ct_pkt;
@@ -1497,10 +1489,10 @@ qla2x00_update_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size)
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		ct_pkt->cmd_byte_count = cpu_to_le32(req_size);
-		ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+		ct_pkt->dsd[0].length = ct_pkt->cmd_byte_count;
 	} else {
 		ms_pkt->req_bytecount = cpu_to_le32(req_size);
-		ms_pkt->dseg_req_length = ms_pkt->req_bytecount;
+		ms_pkt->req_dsd.length = ms_pkt->req_bytecount;
 	}
 
 	return ms_pkt;

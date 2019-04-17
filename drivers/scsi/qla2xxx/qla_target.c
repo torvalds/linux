@@ -2640,7 +2640,7 @@ static int qlt_24xx_build_ctio_pkt(struct qla_qpair *qpair,
 static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 {
 	int cnt;
-	uint32_t *dword_ptr;
+	struct dsd64 *cur_dsd;
 
 	/* Build continuation packets */
 	while (prm->seg_cnt > 0) {
@@ -2661,19 +2661,13 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 		cont_pkt64->sys_define = 0;
 
 		cont_pkt64->entry_type = CONTINUE_A64_TYPE;
-		dword_ptr = (uint32_t *)&cont_pkt64->dseg_0_address;
+		cur_dsd = cont_pkt64->dsd;
 
 		/* Load continuation entry data segments */
 		for (cnt = 0;
 		    cnt < QLA_TGT_DATASEGS_PER_CONT_24XX && prm->seg_cnt;
 		    cnt++, prm->seg_cnt--) {
-			*dword_ptr++ =
-			    cpu_to_le32(lower_32_bits
-				(sg_dma_address(prm->sg)));
-			*dword_ptr++ = cpu_to_le32(upper_32_bits
-			    (sg_dma_address(prm->sg)));
-			*dword_ptr++ = cpu_to_le32(sg_dma_len(prm->sg));
-
+			append_dsd64(&cur_dsd, prm->sg);
 			prm->sg = sg_next(prm->sg);
 		}
 	}
@@ -2686,13 +2680,13 @@ static void qlt_load_cont_data_segments(struct qla_tgt_prm *prm)
 static void qlt_load_data_segments(struct qla_tgt_prm *prm)
 {
 	int cnt;
-	uint32_t *dword_ptr;
+	struct dsd64 *cur_dsd;
 	struct ctio7_to_24xx *pkt24 = (struct ctio7_to_24xx *)prm->pkt;
 
 	pkt24->u.status0.transfer_length = cpu_to_le32(prm->cmd->bufflen);
 
 	/* Setup packet address segment pointer */
-	dword_ptr = pkt24->u.status0.dseg_0_address;
+	cur_dsd = &pkt24->u.status0.dsd;
 
 	/* Set total data segment count */
 	if (prm->seg_cnt)
@@ -2700,8 +2694,8 @@ static void qlt_load_data_segments(struct qla_tgt_prm *prm)
 
 	if (prm->seg_cnt == 0) {
 		/* No data transfer */
-		*dword_ptr++ = 0;
-		*dword_ptr = 0;
+		cur_dsd->address = 0;
+		cur_dsd->length = 0;
 		return;
 	}
 
@@ -2711,14 +2705,7 @@ static void qlt_load_data_segments(struct qla_tgt_prm *prm)
 	for (cnt = 0;
 	    (cnt < QLA_TGT_DATASEGS_PER_CMD_24XX) && prm->seg_cnt;
 	    cnt++, prm->seg_cnt--) {
-		*dword_ptr++ =
-		    cpu_to_le32(lower_32_bits(sg_dma_address(prm->sg)));
-
-		*dword_ptr++ = cpu_to_le32(upper_32_bits(
-			sg_dma_address(prm->sg)));
-
-		*dword_ptr++ = cpu_to_le32(sg_dma_len(prm->sg));
-
+		append_dsd64(&cur_dsd, prm->sg);
 		prm->sg = sg_next(prm->sg);
 	}
 
@@ -3042,7 +3029,7 @@ qla_tgt_set_dif_tags(struct qla_tgt_cmd *cmd, struct crc_context *ctx,
 static inline int
 qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 {
-	uint32_t		*cur_dsd;
+	struct dsd64		*cur_dsd;
 	uint32_t		transfer_length = 0;
 	uint32_t		data_bytes;
 	uint32_t		dif_bytes;
@@ -3193,7 +3180,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 	pkt->crc_context_len = CRC_CONTEXT_LEN_FW;
 
 	if (!bundling) {
-		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.nobundling.data_address;
+		cur_dsd = &crc_ctx_pkt->u.nobundling.data_dsd;
 	} else {
 		/*
 		 * Configure Bundling if we need to fetch interlaving
@@ -3203,7 +3190,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 		crc_ctx_pkt->u.bundling.dif_byte_count = cpu_to_le32(dif_bytes);
 		crc_ctx_pkt->u.bundling.dseg_count =
 			cpu_to_le16(prm->tot_dsds - prm->prot_seg_cnt);
-		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.data_address;
+		cur_dsd = &crc_ctx_pkt->u.bundling.data_dsd;
 	}
 
 	/* Finish the common fields of CRC pkt */
@@ -3236,7 +3223,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 		/* Walks dif segments */
 		pkt->add_flags |= CTIO_CRC2_AF_DIF_DSD_ENA;
 
-		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.dif_address;
+		cur_dsd = &crc_ctx_pkt->u.bundling.dif_dsd;
 		if (qla24xx_walk_and_build_prot_sglist(ha, NULL, cur_dsd,
 			prm->prot_seg_cnt, cmd))
 			goto crc_queuing_error;

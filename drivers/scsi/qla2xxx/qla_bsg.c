@@ -1056,9 +1056,8 @@ qla84xx_updatefw(struct bsg_job *bsg_job)
 	mn->fw_ver =  cpu_to_le32(fw_ver);
 	mn->fw_size =  cpu_to_le32(data_len);
 	mn->fw_seq_size =  cpu_to_le32(data_len);
-	mn->dseg_address[0] = cpu_to_le32(LSD(fw_dma));
-	mn->dseg_address[1] = cpu_to_le32(MSD(fw_dma));
-	mn->dseg_length = cpu_to_le32(data_len);
+	put_unaligned_le64(fw_dma, &mn->dsd.address);
+	mn->dsd.length = cpu_to_le32(data_len);
 	mn->data_seg_cnt = cpu_to_le16(1);
 
 	rval = qla2x00_issue_iocb_timeout(vha, mn, mn_dma, 0, 120);
@@ -1237,9 +1236,8 @@ qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 	if (ql84_mgmt->mgmt.cmd != QLA84_MGMT_CHNG_CONFIG) {
 		mn->total_byte_cnt = cpu_to_le32(ql84_mgmt->mgmt.len);
 		mn->dseg_count = cpu_to_le16(1);
-		mn->dseg_address[0] = cpu_to_le32(LSD(mgmt_dma));
-		mn->dseg_address[1] = cpu_to_le32(MSD(mgmt_dma));
-		mn->dseg_length = cpu_to_le32(ql84_mgmt->mgmt.len);
+		put_unaligned_le64(mgmt_dma, &mn->dsd.address);
+		mn->dsd.length = cpu_to_le32(ql84_mgmt->mgmt.len);
 	}
 
 	rval = qla2x00_issue_iocb(vha, mn, mn_dma, 0);

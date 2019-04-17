@@ -287,11 +287,11 @@ extern void *qla2x00_alloc_iocbs(struct scsi_qla_host *, srb_t *);
 extern void *__qla2x00_alloc_iocbs(struct qla_qpair *, srb_t *);
 extern int qla2x00_issue_marker(scsi_qla_host_t *, int);
 extern int qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *, srb_t *,
-	uint32_t *, uint16_t, struct qla_tc_param *);
+	struct dsd64 *, uint16_t, struct qla_tc_param *);
 extern int qla24xx_walk_and_build_sglist(struct qla_hw_data *, srb_t *,
-	uint32_t *, uint16_t, struct qla_tc_param *);
+	struct dsd64 *, uint16_t, struct qla_tc_param *);
 extern int qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *, srb_t *,
-	uint32_t *, uint16_t, struct qla_tgt_cmd *);
+	struct dsd64 *, uint16_t, struct qla_tgt_cmd *);
 extern int qla24xx_get_one_block_sg(uint32_t, struct qla2_sgx *, uint32_t *);
 extern int qla24xx_configure_prot_mode(srb_t *, uint16_t *);
 
