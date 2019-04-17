@@ -3895,7 +3895,7 @@ qla8044_intr_handler(int irq, void *dev_id)
 	unsigned long	flags;
 	unsigned long	iter;
 	uint32_t	stat;
-	uint16_t	mb[4];
+	uint16_t	mb[8];
 	uint32_t leg_int_ptr = 0, pf_bit;
 
 	rsp = (struct rsp_que *) dev_id;

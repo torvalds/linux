@@ -2039,7 +2039,7 @@ qla82xx_intr_handler(int irq, void *dev_id)
 	unsigned long	flags;
 	unsigned long	iter;
 	uint32_t	stat = 0;
-	uint16_t	mb[4];
+	uint16_t	mb[8];
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2123,7 +2123,7 @@ qla82xx_msix_default(int irq, void *dev_id)
 	unsigned long flags;
 	uint32_t stat = 0;
 	uint32_t host_int = 0;
-	uint16_t mb[4];
+	uint16_t mb[8];
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2219,7 +2219,7 @@ qla82xx_poll(int irq, void *dev_id)
 	int status = 0;
 	uint32_t stat;
 	uint32_t host_int = 0;
-	uint16_t mb[4];
+	uint16_t mb[8];
 	unsigned long flags;
 
 	rsp = (struct rsp_que *) dev_id;
