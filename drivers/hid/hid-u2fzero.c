@@ -286,6 +286,9 @@ static int u2fzero_probe(struct hid_device *hdev,
 	unsigned int minor;
 	int ret;
 
+	if (!hid_is_using_ll_driver(hdev, &usb_hid_driver))
+		return -EINVAL;
+
 	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
 		return -ENOMEM;
