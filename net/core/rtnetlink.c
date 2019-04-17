@@ -4948,7 +4948,7 @@ static int rtnl_valid_stats_req(const struct nlmsghdr *nlh, bool strict_check,
 {
 	struct if_stats_msg *ifsm;
 
-	if (nlh->nlmsg_len < sizeof(*ifsm)) {
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifsm))) {
 		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
 		return -EINVAL;
 	}

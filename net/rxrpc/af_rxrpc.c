@@ -135,7 +135,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)saddr;
 	struct rxrpc_local *local;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	u16 service_id = srx->srx_service;
+	u16 service_id;
 	int ret;
 
 	_enter("%p,%p,%d", rx, saddr, len);
@@ -143,6 +143,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	ret = rxrpc_validate_address(rx, srx, len);
 	if (ret < 0)
 		goto error;
+	service_id = srx->srx_service;
 
 	lock_sock(&rx->sk);
 
@@ -370,18 +371,22 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * rxrpc_kernel_check_life - Check to see whether a call is still alive
  * @sock: The socket the call is on
  * @call: The call to check
+ * @_life: Where to store the life value
  *
  * Allow a kernel service to find out whether a call is still alive - ie. we're
- * getting ACKs from the server.  Returns a number representing the life state
- * which can be compared to that returned by a previous call.
+ * getting ACKs from the server.  Passes back in *_life a number representing
+ * the life state which can be compared to that returned by a previous call and
+ * return true if the call is still alive.
  *
  * If the life state stalls, rxrpc_kernel_probe_life() should be called and
  * then 2RTT waited.
  */
-u32 rxrpc_kernel_check_life(const struct socket *sock,
-			    const struct rxrpc_call *call)
+bool rxrpc_kernel_check_life(const struct socket *sock,
+			     const struct rxrpc_call *call,
+			     u32 *_life)
 {
-	return call->acks_latest;
+	*_life = call->acks_latest;
+	return call->state != RXRPC_CALL_COMPLETE;
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
 

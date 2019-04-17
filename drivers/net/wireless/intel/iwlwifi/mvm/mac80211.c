@@ -2714,9 +2714,6 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
-	kfree(mvmvif->ap_wep_key);
-	mvmvif->ap_wep_key = NULL;
-
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -3183,24 +3180,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = iwl_mvm_update_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
-		/* if wep is used, need to set the key for the station now */
-		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
-			mvm_sta->wep_key =
-				kmemdup(mvmvif->ap_wep_key,
-					sizeof(*mvmvif->ap_wep_key) +
-					mvmvif->ap_wep_key->keylen,
-					GFP_KERNEL);
-			if (!mvm_sta->wep_key) {
-				ret = -ENOMEM;
-				goto out_unlock;
-			}
-
-			ret = iwl_mvm_set_sta_key(mvm, vif, sta,
-						  mvm_sta->wep_key,
-						  STA_KEY_IDX_INVALID);
-		} else {
-			ret = 0;
-		}
+		ret = 0;
 
 		/* we don't support TDLS during DCM */
 		if (iwl_mvm_phy_ctx_count(mvm) > 1)
@@ -3242,17 +3222,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 						   NL80211_TDLS_DISABLE_LINK);
 		}
 
-		/* Remove STA key if this is an AP using WEP */
-		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
-			int rm_ret = iwl_mvm_remove_sta_key(mvm, vif, sta,
-							    mvm_sta->wep_key);
-
-			if (!ret)
-				ret = rm_ret;
-			kfree(mvm_sta->wep_key);
-			mvm_sta->wep_key = NULL;
-		}
-
 		if (unlikely(ret &&
 			     test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
 				      &mvm->status)))
@@ -3289,6 +3258,13 @@ static void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw,
 				  struct ieee80211_sta *sta, u32 changed)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (changed & (IEEE80211_RC_BW_CHANGED |
+		       IEEE80211_RC_SUPP_RATES_CHANGED |
+		       IEEE80211_RC_NSS_CHANGED))
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
+				     true);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    changed & IEEE80211_RC_NSS_CHANGED)
@@ -3439,20 +3415,12 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		if (vif->type == NL80211_IFTYPE_AP) {
-			struct iwl_mvm_vif *mvmvif =
-				iwl_mvm_vif_from_mac80211(vif);
-
-			mvmvif->ap_wep_key = kmemdup(key,
-						     sizeof(*key) + key->keylen,
-						     GFP_KERNEL);
-			if (!mvmvif->ap_wep_key)
-				return -ENOMEM;
-		}
-
-		if (vif->type != NL80211_IFTYPE_STATION)
-			return 0;
-		break;
+		if (vif->type == NL80211_IFTYPE_STATION)
+			break;
+		if (iwl_mvm_has_new_tx_api(mvm))
+			return -EOPNOTSUPP;
+		/* support HW crypto on TX */
+		return 0;
 	default:
 		/* currently FW supports only one optional cipher scheme */
 		if (hw->n_cipher_schemes &&
@@ -3540,12 +3508,17 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, key_offset);
 		if (ret) {
 			IWL_WARN(mvm, "set key failed\n");
+			key->hw_key_idx = STA_KEY_IDX_INVALID;
 			/*
 			 * can't add key for RX, but we don't need it
-			 * in the device for TX so still return 0
+			 * in the device for TX so still return 0,
+			 * unless we have new TX API where we cannot
+			 * put key material into the TX_CMD
 			 */
-			key->hw_key_idx = STA_KEY_IDX_INVALID;
-			ret = 0;
+			if (iwl_mvm_has_new_tx_api(mvm))
+				ret = -EOPNOTSUPP;
+			else
+				ret = 0;
 		}
 
 		break;

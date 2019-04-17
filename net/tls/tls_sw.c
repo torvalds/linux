@@ -2052,20 +2052,7 @@ void tls_sw_free_resources_tx(struct sock *sk)
 	/* Free up un-sent records in tx_list. First, free
 	 * the partially sent record if any at head of tx_list.
 	 */
-	if (tls_ctx->partially_sent_record) {
-		struct scatterlist *sg = tls_ctx->partially_sent_record;
-
-		while (1) {
-			put_page(sg_page(sg));
-			sk_mem_uncharge(sk, sg->length);
-
-			if (sg_is_last(sg))
-				break;
-			sg++;
-		}
-
-		tls_ctx->partially_sent_record = NULL;
-
+	if (tls_free_partial_record(sk, tls_ctx)) {
 		rec = list_first_entry(&ctx->tx_list,
 				       struct tls_rec, list);
 		list_del(&rec->list);
