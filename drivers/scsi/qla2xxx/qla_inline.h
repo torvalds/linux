@@ -90,17 +90,6 @@ host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 		*odest++ = cpu_to_le32(*isrc);
 }
 
-static inline int
-qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
-{
-	struct qla_hw_data *ha = vha->hw;
-	if (IS_FWI2_CAPABLE(ha))
-		return (loop_id > NPH_LAST_HANDLE);
-
-	return ((loop_id > ha->max_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
-	    loop_id == MANAGEMENT_SERVER || loop_id == BROADCAST);
-}
-
 static inline void
 qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 {
