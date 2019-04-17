@@ -22,7 +22,7 @@ static int iavf_send_pf_msg(struct iavf_adapter *adapter,
 			    enum virtchnl_ops op, u8 *msg, u16 len)
 {
 	struct iavf_hw *hw = &adapter->hw;
-	iavf_status err;
+	enum iavf_status err;
 
 	if (adapter->flags & IAVF_FLAG_PF_COMMS_FAILED)
 		return 0; /* nothing to see here, move along */
@@ -69,7 +69,7 @@ int iavf_verify_api_ver(struct iavf_adapter *adapter)
 	struct iavf_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops op;
-	iavf_status err;
+	enum iavf_status err;
 
 	event.buf_len = IAVF_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
@@ -92,7 +92,7 @@ int iavf_verify_api_ver(struct iavf_adapter *adapter)
 	}
 
 
-	err = (iavf_status)le32_to_cpu(event.desc.cookie_low);
+	err = (enum iavf_status)le32_to_cpu(event.desc.cookie_low);
 	if (err)
 		goto out_alloc;
 
@@ -191,7 +191,7 @@ int iavf_get_vf_config(struct iavf_adapter *adapter)
 	struct iavf_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops op;
-	iavf_status err;
+	enum iavf_status err;
 	u16 len;
 
 	len =  sizeof(struct virtchnl_vf_resource) +
@@ -216,7 +216,7 @@ int iavf_get_vf_config(struct iavf_adapter *adapter)
 			break;
 	}
 
-	err = (iavf_status)le32_to_cpu(event.desc.cookie_low);
+	err = (enum iavf_status)le32_to_cpu(event.desc.cookie_low);
 	memcpy(adapter->vf_res, event.msg_buf, min(event.msg_len, len));
 
 	/* some PFs send more queues than we should have so validate that
@@ -1184,8 +1184,8 @@ void iavf_request_reset(struct iavf_adapter *adapter)
  * This function handles the reply messages.
  **/
 void iavf_virtchnl_completion(struct iavf_adapter *adapter,
-			      enum virtchnl_ops v_opcode, iavf_status v_retval,
-			      u8 *msg, u16 msglen)
+			      enum virtchnl_ops v_opcode,
+			      enum iavf_status v_retval, u8 *msg, u16 msglen)
 {
 	struct net_device *netdev = adapter->netdev;
 

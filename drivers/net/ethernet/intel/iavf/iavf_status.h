@@ -5,7 +5,7 @@
 #define _IAVF_STATUS_H_
 
 /* Error Codes */
-enum iavf_status_code {
+enum iavf_status {
 	I40E_SUCCESS				= 0,
 	I40E_ERR_NVM				= -1,
 	I40E_ERR_NVM_CHECKSUM			= -2,

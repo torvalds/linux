@@ -48,5 +48,4 @@ struct iavf_virt_mem {
 extern void iavf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
 	__printf(3, 4);
 
-typedef enum iavf_status_code iavf_status;
 #endif /* _IAVF_OSDEP_H_ */

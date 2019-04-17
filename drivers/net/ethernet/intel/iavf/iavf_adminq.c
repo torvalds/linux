@@ -32,9 +32,9 @@ static void i40e_adminq_init_regs(struct iavf_hw *hw)
  *  i40e_alloc_adminq_asq_ring - Allocate Admin Queue send rings
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_adminq_asq_ring(struct iavf_hw *hw)
+static enum iavf_status i40e_alloc_adminq_asq_ring(struct iavf_hw *hw)
 {
-	iavf_status ret_code;
+	enum iavf_status ret_code;
 
 	ret_code = iavf_allocate_dma_mem(hw, &hw->aq.asq.desc_buf,
 					 i40e_mem_atq_ring,
@@ -59,9 +59,9 @@ static iavf_status i40e_alloc_adminq_asq_ring(struct iavf_hw *hw)
  *  i40e_alloc_adminq_arq_ring - Allocate Admin Queue receive rings
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_adminq_arq_ring(struct iavf_hw *hw)
+static enum iavf_status i40e_alloc_adminq_arq_ring(struct iavf_hw *hw)
 {
-	iavf_status ret_code;
+	enum iavf_status ret_code;
 
 	ret_code = iavf_allocate_dma_mem(hw, &hw->aq.arq.desc_buf,
 					 i40e_mem_arq_ring,
@@ -100,11 +100,11 @@ static void i40e_free_adminq_arq(struct iavf_hw *hw)
  *  i40e_alloc_arq_bufs - Allocate pre-posted buffers for the receive queue
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_arq_bufs(struct iavf_hw *hw)
+static enum iavf_status i40e_alloc_arq_bufs(struct iavf_hw *hw)
 {
 	struct i40e_aq_desc *desc;
 	struct iavf_dma_mem *bi;
-	iavf_status ret_code;
+	enum iavf_status ret_code;
 	int i;
 
 	/* We'll be allocating the buffer info memory first, then we can
@@ -168,10 +168,10 @@ unwind_alloc_arq_bufs:
  *  i40e_alloc_asq_bufs - Allocate empty buffer structs for the send queue
  *  @hw: pointer to the hardware structure
  **/
-static iavf_status i40e_alloc_asq_bufs(struct iavf_hw *hw)
+static enum iavf_status i40e_alloc_asq_bufs(struct iavf_hw *hw)
 {
 	struct iavf_dma_mem *bi;
-	iavf_status ret_code;
+	enum iavf_status ret_code;
 	int i;
 
 	/* No mapped memory needed yet, just the buffer info structures */
@@ -253,9 +253,9 @@ static void i40e_free_asq_bufs(struct iavf_hw *hw)
  *
  *  Configure base address and length registers for the transmit queue
  **/
-static iavf_status i40e_config_asq_regs(struct iavf_hw *hw)
+static enum iavf_status i40e_config_asq_regs(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 	u32 reg = 0;
 
 	/* Clear Head and Tail */
@@ -282,9 +282,9 @@ static iavf_status i40e_config_asq_regs(struct iavf_hw *hw)
  *
  * Configure base address and length registers for the receive (event queue)
  **/
-static iavf_status i40e_config_arq_regs(struct iavf_hw *hw)
+static enum iavf_status i40e_config_arq_regs(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 	u32 reg = 0;
 
 	/* Clear Head and Tail */
@@ -321,9 +321,9 @@ static iavf_status i40e_config_arq_regs(struct iavf_hw *hw)
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
  *  called are not going to be atomic context safe
  **/
-static iavf_status i40e_init_asq(struct iavf_hw *hw)
+static enum iavf_status i40e_init_asq(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 
 	if (hw->aq.asq.count > 0) {
 		/* queue already initialized */
@@ -380,9 +380,9 @@ init_adminq_exit:
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
  *  called are not going to be atomic context safe
  **/
-static iavf_status i40e_init_arq(struct iavf_hw *hw)
+static enum iavf_status i40e_init_arq(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 
 	if (hw->aq.arq.count > 0) {
 		/* queue already initialized */
@@ -432,9 +432,9 @@ init_adminq_exit:
  *
  *  The main shutdown routine for the Admin Send Queue
  **/
-static iavf_status i40e_shutdown_asq(struct iavf_hw *hw)
+static enum iavf_status i40e_shutdown_asq(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 
 	mutex_lock(&hw->aq.asq_mutex);
 
@@ -466,9 +466,9 @@ shutdown_asq_out:
  *
  *  The main shutdown routine for the Admin Receive Queue
  **/
-static iavf_status i40e_shutdown_arq(struct iavf_hw *hw)
+static enum iavf_status i40e_shutdown_arq(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 
 	mutex_lock(&hw->aq.arq_mutex);
 
@@ -505,9 +505,9 @@ shutdown_arq_out:
  *     - hw->aq.arq_buf_size
  *     - hw->aq.asq_buf_size
  **/
-iavf_status iavf_init_adminq(struct iavf_hw *hw)
+enum iavf_status iavf_init_adminq(struct iavf_hw *hw)
 {
-	iavf_status ret_code;
+	enum iavf_status ret_code;
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
@@ -549,9 +549,9 @@ init_adminq_exit:
  *  iavf_shutdown_adminq - shutdown routine for the Admin Queue
  *  @hw: pointer to the hardware structure
  **/
-iavf_status iavf_shutdown_adminq(struct iavf_hw *hw)
+enum iavf_status iavf_shutdown_adminq(struct iavf_hw *hw)
 {
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 
 	if (iavf_check_asq_alive(hw))
 		iavf_aq_queue_shutdown(hw, true);
@@ -629,16 +629,17 @@ bool iavf_asq_done(struct iavf_hw *hw)
  *  This is the main send command driver routine for the Admin Queue send
  *  queue.  It runs the queue, cleans the queue, etc
  **/
-iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
-				  void *buff, /* can be NULL */
-				  u16  buff_size,
-				  struct i40e_asq_cmd_details *cmd_details)
+enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
+				       struct i40e_aq_desc *desc,
+				       void *buff, /* can be NULL */
+				       u16  buff_size,
+				       struct i40e_asq_cmd_details *cmd_details)
 {
 	struct iavf_dma_mem *dma_buff = NULL;
 	struct i40e_asq_cmd_details *details;
 	struct i40e_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
-	iavf_status status = 0;
+	enum iavf_status status = 0;
 	u16  retval = 0;
 	u32  val = 0;
 
@@ -841,13 +842,13 @@ void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode)
  *  the contents through e.  It can also return how many events are
  *  left to process through 'pending'
  **/
-iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
-				   struct i40e_arq_event_info *e,
-				   u16 *pending)
+enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
+					struct i40e_arq_event_info *e,
+					u16 *pending)
 {
 	u16 ntc = hw->aq.arq.next_to_clean;
 	struct i40e_aq_desc *desc;
-	iavf_status ret_code = 0;
+	enum iavf_status ret_code = 0;
 	struct iavf_dma_mem *bi;
 	u16 desc_idx;
 	u16 datalen;

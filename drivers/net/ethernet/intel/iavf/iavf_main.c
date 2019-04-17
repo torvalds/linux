@@ -66,9 +66,9 @@ static struct workqueue_struct *iavf_wq;
  * @size: size of memory requested
  * @alignment: what to align the allocation to
  **/
-iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
-				    struct iavf_dma_mem *mem,
-				    u64 size, u32 alignment)
+enum iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
+					 struct iavf_dma_mem *mem,
+					 u64 size, u32 alignment)
 {
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
@@ -89,7 +89,8 @@ iavf_status iavf_allocate_dma_mem_d(struct iavf_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw, struct iavf_dma_mem *mem)
+enum iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw,
+				     struct iavf_dma_mem *mem)
 {
 	struct iavf_adapter *adapter = (struct iavf_adapter *)hw->back;
 
@@ -106,8 +107,8 @@ iavf_status iavf_free_dma_mem_d(struct iavf_hw *hw, struct iavf_dma_mem *mem)
  * @mem:  ptr to mem struct to fill out
  * @size: size of memory requested
  **/
-iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
-				     struct iavf_virt_mem *mem, u32 size)
+enum iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
+					  struct iavf_virt_mem *mem, u32 size)
 {
 	if (!mem)
 		return I40E_ERR_PARAM;
@@ -126,7 +127,8 @@ iavf_status iavf_allocate_virt_mem_d(struct iavf_hw *hw,
  * @hw:   pointer to the HW structure
  * @mem:  ptr to mem struct to free
  **/
-iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw, struct iavf_virt_mem *mem)
+enum iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw,
+				      struct iavf_virt_mem *mem)
 {
 	if (!mem)
 		return I40E_ERR_PARAM;
@@ -2022,7 +2024,7 @@ static void iavf_adminq_task(struct work_struct *work)
 	struct iavf_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
 	enum virtchnl_ops v_op;
-	iavf_status ret, v_ret;
+	enum iavf_status ret, v_ret;
 	u32 val, oldval;
 	u16 pending;
 
@@ -2037,7 +2039,7 @@ static void iavf_adminq_task(struct work_struct *work)
 	do {
 		ret = iavf_clean_arq_element(hw, &event, &pending);
 		v_op = (enum virtchnl_ops)le32_to_cpu(event.desc.cookie_high);
-		v_ret = (iavf_status)le32_to_cpu(event.desc.cookie_low);
+		v_ret = (enum iavf_status)le32_to_cpu(event.desc.cookie_low);
 
 		if (ret || !v_op)
 			break; /* No event to process or error cleaning ARQ */
