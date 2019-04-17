@@ -4715,6 +4715,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	if (ha->flt)
 		dma_free_coherent(&ha->pdev->dev, SFP_DEV_SIZE,
 		    ha->flt, ha->flt_dma);
+	ha->flt = NULL;
+	ha->flt_dma = 0;
 
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
@@ -4790,6 +4792,7 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 
 	if (ha->dif_bundl_pool)
 		dma_pool_destroy(ha->dif_bundl_pool);
+	ha->dif_bundl_pool = NULL;
 
 	qlt_mem_free(ha);
 
