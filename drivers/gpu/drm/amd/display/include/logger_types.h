@@ -116,6 +116,7 @@ enum dc_log_type {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	LOG_DSC,
 #endif
+	LOG_DWB,
 	LOG_SECTION_TOTAL_COUNT
 };
 

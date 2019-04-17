@@ -143,6 +143,11 @@ struct dwbc {
 	bool dwb_output_black;
 	enum dc_transfer_func_predefined tf;
 	enum dc_color_space output_color_space;
+	bool dwb_is_efc_transition;
+	int wb_src_plane_inst;/*hubp, mpcc, inst*/
+	bool update_privacymask;
+	uint32_t mask_id;
+
 };
 
 struct dwbc_funcs {
@@ -179,6 +184,8 @@ struct dwbc_funcs {
 
 #endif
 
+	bool (*get_dwb_status)(
+		struct dwbc *dwbc);
 	void (*dwb_set_scaler)(
 		struct dwbc *dwbc,
 		struct dc_dwb_params *params);

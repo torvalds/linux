@@ -36,6 +36,8 @@
 #define CTX \
 	dwbc20->base.ctx
 
+#define DC_LOGGER \
+	dwbc20->base.ctx->logger
 #undef FN
 #define FN(reg_name, field_name) \
 	dwbc20->dwbc_shift->field_name, dwbc20->dwbc_mask->field_name
@@ -47,6 +49,7 @@ enum dwb_outside_pix_strategy {
 
 static bool dwb2_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 {
+	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
 	if (caps) {
 		caps->adapter_id = 0;	/* we only support 1 adapter currently */
 		caps->hw_version = DCN_VERSION_2_0;
@@ -58,8 +61,10 @@ static bool dwb2_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 		caps->caps.support_ogam = false;
 		caps->caps.support_wbscl = false;
 		caps->caps.support_ocsc = false;
+		DC_LOG_DWB("%s SUPPORTED! inst = %d", __func__, dwbc20->base.inst);
 		return true;
 	} else {
+		DC_LOG_DWB("%s NOT SUPPORTED! inst = %d", __func__, dwbc20->base.inst);
 		return false;
 	}
 }
@@ -67,6 +72,7 @@ static bool dwb2_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 void dwb2_config_dwb_cnv(struct dwbc *dwbc, struct dc_dwb_params *params)
 {
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
+	DC_LOG_DWB("%s inst = %d", __func__, dwbc20->base.inst);
 
 	/* Set DWB source size */
 	REG_UPDATE_2(CNV_SOURCE_SIZE, CNV_SOURCE_WIDTH, params->cnv_params.src_width,
@@ -95,10 +101,13 @@ static bool dwb2_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
 
 	/* Only chroma scaling (sub-sampling) is supported in DCN2 */
-	if ((params->cnv_params.src_width  != params->dest_width)
-	 || (params->cnv_params.src_height != params->dest_height)) {
+if ((params->cnv_params.src_width  != params->dest_width) ||
+		(params->cnv_params.src_height != params->dest_height)) {
+
+		DC_LOG_DWB("%s inst = %d, FAILED!LUMA SCALING NOT SUPPORTED", __func__, dwbc20->base.inst);
 		return false;
 	}
+	DC_LOG_DWB("%s inst = %d, ENABLED", __func__, dwbc20->base.inst);
 
 	/* disable power gating */
 	//REG_UPDATE_5(WB_EC_CONFIG, DISPCLK_R_WB_GATE_DIS, 1,
@@ -126,6 +135,7 @@ static bool dwb2_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 bool dwb2_disable(struct dwbc *dwbc)
 {
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
+	DC_LOG_DWB("%s inst = %d, Disabled", __func__, dwbc20->base.inst);
 
 	/* disable CNV */
 	REG_UPDATE(CNV_MODE, CNV_FRAME_CAPTURE_EN, DWB_FRAME_CAPTURE_DISABLE);
@@ -151,10 +161,12 @@ static bool dwb2_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 	unsigned int pre_locked;
 
 	/* Only chroma scaling (sub-sampling) is supported in DCN2 */
-	if ((params->cnv_params.src_width  != params->dest_width)
-			|| (params->cnv_params.src_height != params->dest_height)) {
+	if ((params->cnv_params.src_width != params->dest_width) ||
+			(params->cnv_params.src_height != params->dest_height)) {
+		DC_LOG_DWB("%s inst = %d, FAILED!LUMA SCALING NOT SUPPORTED", __func__, dwbc20->base.inst);
 		return false;
 	}
+	DC_LOG_DWB("%s inst = %d, scaling", __func__, dwbc20->base.inst);
 
 	/*
 	 * Check if the caller has already locked CNV registers.
@@ -199,6 +211,8 @@ void dwb2_set_stereo(struct dwbc *dwbc,
 		struct dwb_stereo_params *stereo_params)
 {
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
+	DC_LOG_DWB("%s inst = %d, enabled =%d", __func__,\
+		dwbc20->base.inst, stereo_params->stereo_enabled);
 
 	if (stereo_params->stereo_enabled) {
 		REG_UPDATE(CNV_MODE, CNV_STEREO_TYPE,     stereo_params->stereo_type);
@@ -213,6 +227,7 @@ void dwb2_set_new_content(struct dwbc *dwbc,
 						bool is_new_content)
 {
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
+	DC_LOG_DWB("%s inst = %d", __func__, dwbc20->base.inst);
 
 	REG_UPDATE(CNV_MODE, CNV_NEW_CONTENT, is_new_content);
 }
@@ -221,6 +236,7 @@ static void dwb2_set_warmup(struct dwbc *dwbc,
 		struct dwb_warmup_params *warmup_params)
 {
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
+	DC_LOG_DWB("%s inst = %d", __func__, dwbc20->base.inst);
 
 	REG_UPDATE(WB_WARM_UP_MODE_CTL1, GMC_WARM_UP_ENABLE, warmup_params->warmup_en);
 	REG_UPDATE(WB_WARM_UP_MODE_CTL1, WIDTH_WARMUP, warmup_params->warmup_width);
@@ -234,6 +250,7 @@ static void dwb2_set_warmup(struct dwbc *dwbc,
 void dwb2_set_scaler(struct dwbc *dwbc, struct dc_dwb_params *params)
 {
 	struct dcn20_dwbc *dwbc20 = TO_DCN20_DWBC(dwbc);
+	DC_LOG_DWB("%s inst = %d", __func__, dwbc20->base.inst);
 
 	/* Program scaling mode */
 	REG_UPDATE_2(WBSCL_MODE, WBSCL_MODE, params->out_format,
