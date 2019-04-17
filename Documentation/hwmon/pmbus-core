@@ -1,3 +1,4 @@
+==================================
 PMBus core driver and internal API
 ==================================
 
@@ -120,24 +121,24 @@ Specifically, it provides the following information.
   non-standard PMBus commands to standard commands, or to augment standard
   command return values with device specific information.
 
-  API functions
-  -------------
+API functions
+=============
 
-  Functions provided by chip driver
-  ---------------------------------
+Functions provided by chip driver
+---------------------------------
 
-  All functions return the command return value (read) or zero (write) if
-  successful. A return value of -ENODATA indicates that there is no manufacturer
-  specific command, but that a standard PMBus command may exist. Any other
-  negative return value indicates that the commands does not exist for this
-  chip, and that no attempt should be made to read or write the standard
-  command.
+All functions return the command return value (read) or zero (write) if
+successful. A return value of -ENODATA indicates that there is no manufacturer
+specific command, but that a standard PMBus command may exist. Any other
+negative return value indicates that the commands does not exist for this
+chip, and that no attempt should be made to read or write the standard
+command.
 
-  As mentioned above, an exception to this rule applies to virtual commands,
-  which  _must_ be handled in driver specific code. See "Virtual PMBus Commands"
-  above for more details.
+As mentioned above, an exception to this rule applies to virtual commands,
+which *must* be handled in driver specific code. See "Virtual PMBus Commands"
+above for more details.
 
-  Command execution in the core PMBus driver code is as follows.
+Command execution in the core PMBus driver code is as follows::
 
 	if (chip_access_function) {
 		status = chip_access_function();
@@ -148,128 +149,160 @@ Specifically, it provides the following information.
 		return -EINVAL;
 	return generic_access();
 
-  Chip drivers may provide pointers to the following functions in struct
-  pmbus_driver_info. All functions are optional.
+Chip drivers may provide pointers to the following functions in struct
+pmbus_driver_info. All functions are optional.
+
+::
 
   int (*read_byte_data)(struct i2c_client *client, int page, int reg);
 
-  Read byte from page <page>, register <reg>.
-  <page> may be -1, which means "current page".
+Read byte from page <page>, register <reg>.
+<page> may be -1, which means "current page".
+
+
+::
 
   int (*read_word_data)(struct i2c_client *client, int page, int reg);
 
-  Read word from page <page>, register <reg>.
+Read word from page <page>, register <reg>.
+
+::
 
   int (*write_word_data)(struct i2c_client *client, int page, int reg,
-		         u16 word);
+			 u16 word);
 
-  Write word to page <page>, register <reg>.
+Write word to page <page>, register <reg>.
+
+::
 
   int (*write_byte)(struct i2c_client *client, int page, u8 value);
 
-  Write byte to page <page>, register <reg>.
-  <page> may be -1, which means "current page".
+Write byte to page <page>, register <reg>.
+<page> may be -1, which means "current page".
+
+::
 
   int (*identify)(struct i2c_client *client, struct pmbus_driver_info *info);
 
-  Determine supported PMBus functionality. This function is only necessary
-  if a chip driver supports multiple chips, and the chip functionality is not
-  pre-determined. It is currently only used by the generic pmbus driver
-  (pmbus.c).
+Determine supported PMBus functionality. This function is only necessary
+if a chip driver supports multiple chips, and the chip functionality is not
+pre-determined. It is currently only used by the generic pmbus driver
+(pmbus.c).
 
-  Functions exported by core driver
-  ---------------------------------
+Functions exported by core driver
+---------------------------------
 
-  Chip drivers are expected to use the following functions to read or write
-  PMBus registers. Chip drivers may also use direct I2C commands. If direct I2C
-  commands are used, the chip driver code must not directly modify the current
-  page, since the selected page is cached in the core driver and the core driver
-  will assume that it is selected. Using pmbus_set_page() to select a new page
-  is mandatory.
+Chip drivers are expected to use the following functions to read or write
+PMBus registers. Chip drivers may also use direct I2C commands. If direct I2C
+commands are used, the chip driver code must not directly modify the current
+page, since the selected page is cached in the core driver and the core driver
+will assume that it is selected. Using pmbus_set_page() to select a new page
+is mandatory.
+
+::
 
   int pmbus_set_page(struct i2c_client *client, u8 page);
 
-  Set PMBus page register to <page> for subsequent commands.
+Set PMBus page register to <page> for subsequent commands.
+
+::
 
   int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
 
-  Read word data from <page>, <reg>. Similar to i2c_smbus_read_word_data(), but
-  selects page first.
+Read word data from <page>, <reg>. Similar to i2c_smbus_read_word_data(), but
+selects page first.
+
+::
 
   int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg,
 			    u16 word);
 
-  Write word data to <page>, <reg>. Similar to i2c_smbus_write_word_data(), but
-  selects page first.
+Write word data to <page>, <reg>. Similar to i2c_smbus_write_word_data(), but
+selects page first.
+
+::
 
   int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 
-  Read byte data from <page>, <reg>. Similar to i2c_smbus_read_byte_data(), but
-  selects page first. <page> may be -1, which means "current page".
+Read byte data from <page>, <reg>. Similar to i2c_smbus_read_byte_data(), but
+selects page first. <page> may be -1, which means "current page".
+
+::
 
   int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 
-  Write byte data to <page>, <reg>. Similar to i2c_smbus_write_byte(), but
-  selects page first. <page> may be -1, which means "current page".
+Write byte data to <page>, <reg>. Similar to i2c_smbus_write_byte(), but
+selects page first. <page> may be -1, which means "current page".
+
+::
 
   void pmbus_clear_faults(struct i2c_client *client);
 
-  Execute PMBus "Clear Fault" command on all chip pages.
-  This function calls the device specific write_byte function if defined.
-  Therefore, it must _not_ be called from that function.
+Execute PMBus "Clear Fault" command on all chip pages.
+This function calls the device specific write_byte function if defined.
+Therefore, it must _not_ be called from that function.
+
+::
 
   bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 
-  Check if byte register exists. Return true if the register exists, false
-  otherwise.
-  This function calls the device specific write_byte function if defined to
-  obtain the chip status. Therefore, it must _not_ be called from that function.
+Check if byte register exists. Return true if the register exists, false
+otherwise.
+This function calls the device specific write_byte function if defined to
+obtain the chip status. Therefore, it must _not_ be called from that function.
+
+::
 
   bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);
 
-  Check if word register exists. Return true if the register exists, false
-  otherwise.
-  This function calls the device specific write_byte function if defined to
-  obtain the chip status. Therefore, it must _not_ be called from that function.
+Check if word register exists. Return true if the register exists, false
+otherwise.
+This function calls the device specific write_byte function if defined to
+obtain the chip status. Therefore, it must _not_ be called from that function.
+
+::
 
   int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-                     struct pmbus_driver_info *info);
+		     struct pmbus_driver_info *info);
 
-  Execute probe function. Similar to standard probe function for other drivers,
-  with the pointer to struct pmbus_driver_info as additional argument. Calls
-  identify function if supported. Must only be called from device probe
-  function.
+Execute probe function. Similar to standard probe function for other drivers,
+with the pointer to struct pmbus_driver_info as additional argument. Calls
+identify function if supported. Must only be called from device probe
+function.
+
+::
 
   void pmbus_do_remove(struct i2c_client *client);
 
-  Execute driver remove function. Similar to standard driver remove function.
+Execute driver remove function. Similar to standard driver remove function.
+
+::
 
   const struct pmbus_driver_info
 	*pmbus_get_driver_info(struct i2c_client *client);
 
-  Return pointer to struct pmbus_driver_info as passed to pmbus_do_probe().
+Return pointer to struct pmbus_driver_info as passed to pmbus_do_probe().
 
 
 PMBus driver platform data
 ==========================
 
 PMBus platform data is defined in include/linux/pmbus.h. Platform data
-currently only provides a flag field with a single bit used.
+currently only provides a flag field with a single bit used::
 
-#define PMBUS_SKIP_STATUS_CHECK (1 << 0)
+	#define PMBUS_SKIP_STATUS_CHECK (1 << 0)
 
-struct pmbus_platform_data {
-        u32 flags;              /* Device specific flags */
-};
+	struct pmbus_platform_data {
+		u32 flags;              /* Device specific flags */
+	};
 
 
 Flags
 -----
 
 PMBUS_SKIP_STATUS_CHECK
-
-During register detection, skip checking the status register for
-communication or command errors.
+	During register detection, skip checking the status register for
+	communication or command errors.
 
 Some PMBus chips respond with valid data when trying to read an unsupported
 register. For such chips, checking the status register is mandatory when

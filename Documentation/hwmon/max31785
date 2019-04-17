@@ -2,9 +2,13 @@ Kernel driver max31785
 ======================
 
 Supported chips:
+
   * Maxim MAX31785, MAX31785A
+
     Prefix: 'max31785' or 'max31785a'
+
     Addresses scanned: -
+
     Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX31785.pdf
 
 Author: Andrew Jeffery <andrew@aj.id.au>
@@ -30,6 +34,7 @@ devices explicitly.
 Sysfs attributes
 ----------------
 
+======================= =======================================================
 fan[1-4]_alarm		Fan alarm.
 fan[1-4]_fault		Fan fault.
 fan[1-8]_input		Fan RPM. On the MAX31785A, inputs 5-8 correspond to the
@@ -58,3 +63,4 @@ temp[1-11]_crit_alarm	Chip temperature critical high alarm
 temp[1-11]_input	Measured temperature
 temp[1-11]_max		Maximum temperature
 temp[1-11]_max_alarm	Chip temperature high alarm
+======================= =======================================================

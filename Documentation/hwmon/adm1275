@@ -2,29 +2,53 @@ Kernel driver adm1275
 =====================
 
 Supported chips:
+
   * Analog Devices ADM1075
+
     Prefix: 'adm1075'
+
     Addresses scanned: -
+
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1075.pdf
+
   * Analog Devices ADM1272
+
     Prefix: 'adm1272'
+
     Addresses scanned: -
+
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1272.pdf
+
   * Analog Devices ADM1275
+
     Prefix: 'adm1275'
+
     Addresses scanned: -
+
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1275.pdf
+
   * Analog Devices ADM1276
+
     Prefix: 'adm1276'
+
     Addresses scanned: -
+
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1276.pdf
+
   * Analog Devices ADM1278
+
     Prefix: 'adm1278'
+
     Addresses scanned: -
+
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1278.pdf
+
   * Analog Devices ADM1293/ADM1294
+
     Prefix: 'adm1293', 'adm1294'
+
     Addresses scanned: -
+
     Datasheet: http://www.analog.com/media/en/technical-documentation/data-sheets/ADM1293_1294.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
@@ -75,6 +99,7 @@ Sysfs entries
 The following attributes are supported. Limits are read-write, history reset
 attributes are write-only, all other attributes are read-only.
 
+======================= =======================================================
 inX_label		"vin1" or "vout1" depending on chip variant and
 			configuration. On ADM1075, ADM1293, and ADM1294,
 			vout1 reports the voltage on the VAUX pin.
@@ -120,3 +145,4 @@ temp1_reset_history	Write any value to reset history.
 
 			Temperature attributes are supported on ADM1272 and
 			ADM1278.
+======================= =======================================================

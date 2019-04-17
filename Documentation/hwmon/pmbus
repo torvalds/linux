@@ -1,41 +1,76 @@
 Kernel driver pmbus
-====================
+===================
 
 Supported chips:
+
   * Ericsson BMR453, BMR454
+
     Prefixes: 'bmr453', 'bmr454'
+
     Addresses scanned: -
+
     Datasheet:
+
  http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146395
+
   * ON Semiconductor ADP4000, NCP4200, NCP4208
+
     Prefixes: 'adp4000', 'ncp4200', 'ncp4208'
+
     Addresses scanned: -
+
     Datasheets:
+
 	http://www.onsemi.com/pub_link/Collateral/ADP4000-D.PDF
+
 	http://www.onsemi.com/pub_link/Collateral/NCP4200-D.PDF
+
 	http://www.onsemi.com/pub_link/Collateral/JUNE%202009-%20REV.%200.PDF
+
   * Lineage Power
+
     Prefixes: 'mdt040', 'pdt003', 'pdt006', 'pdt012', 'udt020'
+
     Addresses scanned: -
+
     Datasheets:
+
 	http://www.lineagepower.com/oem/pdf/PDT003A0X.pdf
+
 	http://www.lineagepower.com/oem/pdf/PDT006A0X.pdf
+
 	http://www.lineagepower.com/oem/pdf/PDT012A0X.pdf
+
 	http://www.lineagepower.com/oem/pdf/UDT020A0X.pdf
+
 	http://www.lineagepower.com/oem/pdf/MDT040A0X.pdf
+
   * Texas Instruments TPS40400, TPS544B20, TPS544B25, TPS544C20, TPS544C25
+
     Prefixes: 'tps40400', 'tps544b20', 'tps544b25', 'tps544c20', 'tps544c25'
+
     Addresses scanned: -
+
     Datasheets:
+
 	http://www.ti.com/lit/gpn/tps40400
+
 	http://www.ti.com/lit/gpn/tps544b20
+
 	http://www.ti.com/lit/gpn/tps544b25
+
 	http://www.ti.com/lit/gpn/tps544c20
+
 	http://www.ti.com/lit/gpn/tps544c25
+
   * Generic PMBus devices
+
     Prefix: 'pmbus'
+
     Addresses scanned: -
+
     Datasheet: n.a.
+
 
 Author: Guenter Roeck <linux@roeck-us.net>
 
@@ -62,9 +97,10 @@ supported by all chips), and since there is no well defined address range for
 PMBus devices. You will have to instantiate the devices explicitly.
 
 Example: the following will load the driver for an LTC2978 at address 0x60
-on I2C bus #1:
-$ modprobe pmbus
-$ echo ltc2978 0x60 > /sys/bus/i2c/devices/i2c-1/new_device
+on I2C bus #1::
+
+	$ modprobe pmbus
+	$ echo ltc2978 0x60 > /sys/bus/i2c/devices/i2c-1/new_device
 
 
 Platform data support
@@ -72,9 +108,9 @@ Platform data support
 
 Support for additional PMBus chips can be added by defining chip parameters in
 a new chip specific driver file. For example, (untested) code to add support for
-Emerson DS1200 power modules might look as follows.
+Emerson DS1200 power modules might look as follows::
 
-static struct pmbus_driver_info ds1200_info = {
+  static struct pmbus_driver_info ds1200_info = {
 	.pages = 1,
 	/* Note: All other sensors are in linear mode */
 	.direct[PSC_VOLTAGE_OUT] = true,
@@ -95,45 +131,45 @@ static struct pmbus_driver_info ds1200_info = {
 		   | PMBUS_HAVE_PIN | PMBUS_HAVE_POUT
 		   | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP
 		   | PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12,
-};
+  };
 
-static int ds1200_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
-{
+  static int ds1200_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
+  {
 	return pmbus_do_probe(client, id, &ds1200_info);
-}
+  }
 
-static int ds1200_remove(struct i2c_client *client)
-{
+  static int ds1200_remove(struct i2c_client *client)
+  {
 	return pmbus_do_remove(client);
-}
+  }
 
-static const struct i2c_device_id ds1200_id[] = {
+  static const struct i2c_device_id ds1200_id[] = {
 	{"ds1200", 0},
 	{}
-};
+  };
 
-MODULE_DEVICE_TABLE(i2c, ds1200_id);
+  MODULE_DEVICE_TABLE(i2c, ds1200_id);
 
-/* This is the driver that will be inserted */
-static struct i2c_driver ds1200_driver = {
+  /* This is the driver that will be inserted */
+  static struct i2c_driver ds1200_driver = {
 	.driver = {
 		   .name = "ds1200",
 		   },
 	.probe = ds1200_probe,
 	.remove = ds1200_remove,
 	.id_table = ds1200_id,
-};
+  };
 
-static int __init ds1200_init(void)
-{
+  static int __init ds1200_init(void)
+  {
 	return i2c_add_driver(&ds1200_driver);
-}
+  }
 
-static void __exit ds1200_exit(void)
-{
+  static void __exit ds1200_exit(void)
+  {
 	i2c_del_driver(&ds1200_driver);
-}
+  }
 
 
 Sysfs entries
@@ -148,6 +184,7 @@ a given sysfs entry.
 The following attributes are supported. Limits are read-write; all other
 attributes are read-only.
 
+======================= ========================================================
 inX_input		Measured voltage. From READ_VIN or READ_VOUT register.
 inX_min			Minimum Voltage.
 			From VIN_UV_WARN_LIMIT or VOUT_UV_WARN_LIMIT register.
@@ -214,3 +251,4 @@ tempX_lcrit_alarm	Chip temperature critical low alarm. Set by comparing
 tempX_crit_alarm	Chip temperature critical high alarm. Set by comparing
 			READ_TEMPERATURE_X with OT_FAULT_LIMIT if
 			TEMP_OT_FAULT status is set.
+======================= ========================================================

@@ -3,8 +3,11 @@ Kernel driver ir35221
 
 Supported chips:
   * Infineon IR35221
+
     Prefix: 'ir35221'
+
     Addresses scanned: -
+
     Datasheet: Datasheet is not publicly available.
 
 Author: Samuel Mendoza-Jonas <sam@mendozajonas.com>
@@ -23,15 +26,16 @@ This driver does not probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an IR35221
-at address 0x70 on I2C bus #4:
+at address 0x70 on I2C bus #4::
 
-# modprobe ir35221
-# echo ir35221 0x70 > /sys/bus/i2c/devices/i2c-4/new_device
+	# modprobe ir35221
+	# echo ir35221 0x70 > /sys/bus/i2c/devices/i2c-4/new_device
 
 
 Sysfs attributes
 ----------------
 
+======================= =======================================================
 curr1_label		"iin"
 curr1_input		Measured input current
 curr1_max		Maximum current
@@ -85,3 +89,4 @@ temp[1-2]_highest	Highest temperature
 temp[1-2]_lowest	Lowest temperature
 temp[1-2]_max		Maximum temperature
 temp[1-2]_max_alarm	Chip temperature high alarm
+======================= =======================================================

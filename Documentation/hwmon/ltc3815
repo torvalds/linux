@@ -2,9 +2,13 @@ Kernel driver ltc3815
 =====================
 
 Supported chips:
+
   * Linear Technology LTC3815
+
     Prefix: 'ltc3815'
+
     Addresses scanned: -
+
     Datasheet: http://www.linear.com/product/ltc3815
 
 Author: Guenter Roeck <linux@roeck-us.net>
@@ -23,15 +27,16 @@ This driver does not probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an LTC3815
-at address 0x20 on I2C bus #1:
+at address 0x20 on I2C bus #1::
 
-# modprobe ltc3815
-# echo ltc3815 0x20 > /sys/bus/i2c/devices/i2c-1/new_device
+	# modprobe ltc3815
+	# echo ltc3815 0x20 > /sys/bus/i2c/devices/i2c-1/new_device
 
 
 Sysfs attributes
 ----------------
 
+======================= =======================================================
 in1_label		"vin"
 in1_input		Measured input voltage.
 in1_alarm		Input voltage alarm.
@@ -59,3 +64,4 @@ curr2_input		Measured output current.
 curr2_alarm		Output current alarm.
 curr2_highest		Highest output current.
 curr2_reset_history	Reset output current history.
+======================= =======================================================

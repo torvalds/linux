@@ -2,9 +2,13 @@ Kernel driver max16064
 ======================
 
 Supported chips:
+
   * Maxim MAX16064
+
     Prefix: 'max16064'
+
     Addresses scanned: -
+
     Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX16064.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
@@ -40,16 +44,20 @@ Sysfs entries
 The following attributes are supported. Limits are read-write; all other
 attributes are read-only.
 
+======================= ========================================================
 in[1-4]_label		"vout[1-4]"
 in[1-4]_input		Measured voltage. From READ_VOUT register.
 in[1-4]_min		Minimum Voltage. From VOUT_UV_WARN_LIMIT register.
 in[1-4]_max		Maximum voltage. From VOUT_OV_WARN_LIMIT register.
 in[1-4]_lcrit		Critical minimum Voltage. VOUT_UV_FAULT_LIMIT register.
-in[1-4]_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT register.
+in[1-4]_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT
+			register.
 in[1-4]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in[1-4]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
-in[1-4]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT status.
-in[1-4]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
+in[1-4]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT
+			status.
+in[1-4]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT
+			status.
 in[1-4]_highest		Historical maximum voltage.
 in[1-4]_reset_history	Write any value to reset history.
 
@@ -64,3 +72,4 @@ temp1_crit_alarm	Chip temperature critical high alarm. Set by comparing
 			status is set.
 temp1_highest		Historical maximum temperature.
 temp1_reset_history	Write any value to reset history.
+======================= ========================================================

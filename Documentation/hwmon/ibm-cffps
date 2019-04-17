@@ -2,6 +2,7 @@ Kernel driver ibm-cffps
 =======================
 
 Supported chips:
+
   * IBM Common Form Factor power supply
 
 Author: Eddie James <eajames@us.ibm.com>
@@ -24,6 +25,7 @@ Sysfs entries
 
 The following attributes are supported:
 
+======================= ======================================================
 curr1_alarm		Output current over-current alarm.
 curr1_input		Measured output current in mA.
 curr1_label		"iout1"
@@ -52,3 +54,4 @@ temp2_alarm		Secondary rectifier temp over-temperature alarm.
 temp2_input		Measured secondary rectifier temp in millidegrees C.
 temp3_alarm		ORing FET temperature over-temperature alarm.
 temp3_input		Measured ORing FET temperature in millidegrees C.
+======================= ======================================================

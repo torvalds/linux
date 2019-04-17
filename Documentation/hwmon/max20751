@@ -2,10 +2,15 @@ Kernel driver max20751
 ======================
 
 Supported chips:
+
   * maxim MAX20751
+
     Prefix: 'max20751'
+
     Addresses scanned: -
+
     Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX20751.pdf
+
     Application note: http://pdfserv.maximintegrated.com/en/an/AN5941.pdf
 
 Author: Guenter Roeck <linux@roeck-us.net>
@@ -40,6 +45,7 @@ Sysfs entries
 
 The following attributes are supported.
 
+======================= =======================================================
 in1_label		"vin1"
 in1_input		Measured voltage.
 in1_min			Minimum input voltage.
@@ -75,3 +81,4 @@ temp1_crit_alarm	Chip temperature critical high alarm.
 
 power1_input		Output power.
 power1_label		"pout1"
+======================= =======================================================

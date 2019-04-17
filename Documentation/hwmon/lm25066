@@ -2,33 +2,61 @@ Kernel driver lm25066
 =====================
 
 Supported chips:
+
   * TI LM25056
+
     Prefix: 'lm25056'
+
     Addresses scanned: -
+
     Datasheets:
+
 	http://www.ti.com/lit/gpn/lm25056
+
 	http://www.ti.com/lit/gpn/lm25056a
+
   * National Semiconductor LM25066
+
     Prefix: 'lm25066'
+
     Addresses scanned: -
+
     Datasheets:
+
 	http://www.national.com/pf/LM/LM25066.html
+
 	http://www.national.com/pf/LM/LM25066A.html
+
   * National Semiconductor LM5064
+
     Prefix: 'lm5064'
+
     Addresses scanned: -
+
     Datasheet:
+
 	http://www.national.com/pf/LM/LM5064.html
+
   * National Semiconductor LM5066
+
     Prefix: 'lm5066'
+
     Addresses scanned: -
+
     Datasheet:
+
 	http://www.national.com/pf/LM/LM5066.html
+
   * Texas Instruments LM5066I
+
     Prefix: 'lm5066i'
+
     Addresses scanned: -
+
 	Datasheet:
+
     http://www.ti.com/product/LM5066I
+
 
 Author: Guenter Roeck <linux@roeck-us.net>
 
@@ -64,6 +92,7 @@ Sysfs entries
 The following attributes are supported. Limits are read-write; all other
 attributes are read-only.
 
+======================= =======================================================
 in1_label		"vin"
 in1_input		Measured input voltage.
 in1_average		Average measured input voltage.
@@ -105,3 +134,4 @@ temp1_max		Maximum temperature.
 temp1_crit		Critical high temperature.
 temp1_max_alarm		Chip temperature high alarm.
 temp1_crit_alarm	Chip temperature critical high alarm.
+======================= =======================================================
