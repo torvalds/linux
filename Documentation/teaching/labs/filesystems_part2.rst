@@ -653,7 +653,7 @@ You will need to specify the following directory operations:
   * rename (``rename`` function)
 
 For this, define the ``myfs_dir_inode_operations`` structure in the code, where marked with ``TODO 5``.
-To begin, just define the structure ``myfs_dir_inode_operations``; you will define the structures ``myfs_file_inode_operations``, ``myfs_file_inode_operations`` , and ``myfs_aops`` in the next exercise .
+To begin, just define the structure ``myfs_dir_inode_operations``; you will define the structures ``myfs_file_operations``, ``myfs_file_inode_operations`` , and ``myfs_aops`` in the next exercise.
 
 .. tip::
 
@@ -661,7 +661,7 @@ To begin, just define the structure ``myfs_dir_inode_operations``; you will defi
 
   As a model, you are following the ``ramfs_dir_inode_operations`` structure.
 
-Implement the ``mkdir``, ``mknod`` and ``create`` operations inside ``myfs_mkdir``, ``myfs_mkdir`` and ``myfs_create``.
+Implement the ``mkdir``, ``mknod`` and ``create`` operations inside ``myfs_mkdir``, ``myfs_mknod`` and ``myfs_create``.
 These operations will allow you to create directories and files in the file system.
 
 .. tip::
@@ -920,8 +920,6 @@ To test the functionality provided by the module, we can use the dedicated scrip
 
   # ./test-minfs-0.sh
   # ./test-minfs-1.sh
-
-If the implementation is correct, no error messages will be displayed when running the scripts above.
 
 2. Lookup operation
 ^^^^^^^^^^^^^^^^^^^
