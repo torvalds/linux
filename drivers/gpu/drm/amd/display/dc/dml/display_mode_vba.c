@@ -510,6 +510,9 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			case dm_lb_16:
 				lb_depth = 48;
 				break;
+			case dm_lb_19:
+				lb_depth = 57;
+				break;
 			default:
 				lb_depth = 36;
 			}

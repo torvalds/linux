@@ -103,6 +103,11 @@ struct resource_funcs {
 					struct dc_state *context,
 					bool fast_validate);
 
+	int (*populate_dml_pipes)(
+		struct dc *dc,
+		struct resource_context *res_ctx,
+		display_e2e_pipe_params_st *pipes);
+
 	enum dc_status (*validate_global)(
 		struct dc *dc,
 		struct dc_state *context);

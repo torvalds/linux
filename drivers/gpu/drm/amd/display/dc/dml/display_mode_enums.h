@@ -86,7 +86,8 @@ enum dm_swizzle_mode {
 	dm_sw_gfx7_2d_thin_gl
 };
 enum lb_depth {
-	dm_lb_10 = 0, dm_lb_8 = 1, dm_lb_6 = 2, dm_lb_12 = 3, dm_lb_16
+	dm_lb_10 = 0, dm_lb_8 = 1, dm_lb_6 = 2, dm_lb_12 = 3, dm_lb_16 = 4,
+	dm_lb_19 = 5
 };
 enum voltage_state {
 	dm_vmin = 0, dm_vmid = 1, dm_vnom = 2, dm_vmax = 3

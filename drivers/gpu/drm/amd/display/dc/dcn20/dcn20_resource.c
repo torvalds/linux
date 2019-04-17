@@ -1720,10 +1720,10 @@ int dcn20_populate_dml_pipes_from_context(
 		 * bw calculations due to cursor on/off
 		 */
 		pipes[pipe_cnt].pipe.src.num_cursors = 2;
-		pipes[pipe_cnt].pipe.src.cur0_src_width = 128;
-		pipes[pipe_cnt].pipe.src.cur0_bpp = dm_cur_64bit;
-		pipes[pipe_cnt].pipe.src.cur1_src_width = 128;
-		pipes[pipe_cnt].pipe.src.cur1_bpp = dm_cur_64bit;
+		pipes[pipe_cnt].pipe.src.cur0_src_width = 256;
+		pipes[pipe_cnt].pipe.src.cur0_bpp = dm_cur_32bit;
+		pipes[pipe_cnt].pipe.src.cur1_src_width = 256;
+		pipes[pipe_cnt].pipe.src.cur1_bpp = dm_cur_32bit;
 
 		if (!res_ctx->pipe_ctx[i].plane_state) {
 			pipes[pipe_cnt].pipe.src.source_scan = dm_horz;
@@ -1800,7 +1800,7 @@ int dcn20_populate_dml_pipes_from_context(
 						res_ctx->pipe_ctx[i].top_pipe->plane_res.scl_data.recout.height;
 			}
 
-			pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_10;
+			pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_16;
 			pipes[pipe_cnt].pipe.scale_ratio_depth.hscl_ratio = (double) scl->ratios.horz.value / (1ULL<<32);
 			pipes[pipe_cnt].pipe.scale_ratio_depth.hscl_ratio_c = (double) scl->ratios.horz_c.value / (1ULL<<32);
 			pipes[pipe_cnt].pipe.scale_ratio_depth.vscl_ratio = (double) scl->ratios.vert.value / (1ULL<<32);
@@ -2022,7 +2022,12 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 			resource_build_scaling_params(pipe);
 	}
 
-	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, &context->res_ctx, pipes);
+	if (dc->res_pool->funcs->populate_dml_pipes)
+		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
+			&context->res_ctx, pipes);
+	else
+		pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
+			&context->res_ctx, pipes);
 
 	if (!pipe_cnt) {
 		BW_VAL_TRACE_SKIP(pass);
@@ -2223,8 +2228,14 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		pipe_cnt++;
 	}
 
-	if (pipe_cnt != pipe_idx)
-		pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, &context->res_ctx, pipes);
+	if (pipe_cnt != pipe_idx) {
+		if (dc->res_pool->funcs->populate_dml_pipes)
+			pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc,
+				&context->res_ctx, pipes);
+		else
+			pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
+				&context->res_ctx, pipes);
+	}
 
 	pipes[0].clks_cfg.voltage = vlevel;
 	pipes[0].clks_cfg.dcfclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].dcfclk_mhz;
