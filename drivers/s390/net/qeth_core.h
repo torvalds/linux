@@ -464,7 +464,6 @@ struct qeth_card_stats {
 	u64 rx_errors;
 	u64 rx_dropped;
 	u64 rx_multicast;
-	u64 tx_errors;
 };
 
 struct qeth_out_q_stats {
