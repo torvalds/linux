@@ -465,8 +465,8 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 {
 	struct hdac_bus *bus = context;
 	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
-	struct hdac_stream *s;
 	u32 status = snd_hdac_chip_readl(bus, INTSTS);
+	struct hdac_stream *s;
 	u32 sd_status;
 
 	/* check streams */
@@ -486,7 +486,7 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 
 			/* Inform ALSA only in case not do that with IPC */
 			if (sof_hda->no_ipc_position)
-				snd_pcm_period_elapsed(s->substream);
+				snd_sof_pcm_period_elapsed(s->substream);
 
 		}
 	}
