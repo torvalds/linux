@@ -793,8 +793,7 @@ static bool aspeed_smc_check_reads(struct aspeed_smc_chip *chip,
 	int i;
 
 	for (i = 0; i < 10; i++) {
-		aspeed_smc_read_from_ahb(test_buf, chip->ahb_base,
-					 CALIBRATE_BUF_SIZE);
+		memcpy_fromio(test_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 		if (memcmp(test_buf, golden_buf, CALIBRATE_BUF_SIZE) != 0)
 			return false;
 	}
@@ -918,8 +917,7 @@ static int aspeed_smc_optimize_read(struct aspeed_smc_chip *chip,
 
 	writel(chip->ctl_val[smc_read], chip->ctl);
 
-	aspeed_smc_read_from_ahb(golden_buf, chip->ahb_base,
-				 CALIBRATE_BUF_SIZE);
+	memcpy_fromio(golden_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 
 	/* Establish our read mode with freq field set to 0 (HCLK/16) */
 	chip->ctl_val[smc_read] = save_read_val & 0xfffff0ff;
