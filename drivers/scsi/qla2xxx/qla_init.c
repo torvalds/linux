@@ -514,6 +514,49 @@ done:
 	return rval;
 }
 
+/**
+ * qla2x00_find_new_loop_id - scan through our port list and find a new usable loop ID
+ * @vha: adapter state pointer.
+ * @dev: port structure pointer.
+ *
+ * Returns:
+ *	qla2x00 local function return status code.
+ *
+ * Context:
+ *	Kernel context.
+ */
+static int qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
+{
+	int	rval;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags = 0;
+
+	rval = QLA_SUCCESS;
+
+	spin_lock_irqsave(&ha->vport_slock, flags);
+
+	dev->loop_id = find_first_zero_bit(ha->loop_id_map, LOOPID_MAP_SIZE);
+	if (dev->loop_id >= LOOPID_MAP_SIZE ||
+	    qla2x00_is_reserved_id(vha, dev->loop_id)) {
+		dev->loop_id = FC_NO_LOOP_ID;
+		rval = QLA_FUNCTION_FAILED;
+	} else {
+		set_bit(dev->loop_id, ha->loop_id_map);
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+	if (rval == QLA_SUCCESS)
+		ql_dbg(ql_dbg_disc, dev->vha, 0x2086,
+		       "Assigning new loopid=%x, portid=%x.\n",
+		       dev->loop_id, dev->d_id.b24);
+	else
+		ql_log(ql_log_warn, dev->vha, 0x2087,
+		       "No loop_id's available, portid=%x.\n",
+		       dev->d_id.b24);
+
+	return rval;
+}
+
 static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 	struct event_arg *ea)
 {
@@ -5885,55 +5928,6 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 	}
 	return (rval);
 }
-
-/*
- * qla2x00_find_new_loop_id
- *	Scan through our port list and find a new usable loop ID.
- *
- * Input:
- *	ha:	adapter state pointer.
- *	dev:	port structure pointer.
- *
- * Returns:
- *	qla2x00 local function return status code.
- *
- * Context:
- *	Kernel context.
- */
-int
-qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
-{
-	int	rval;
-	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags = 0;
-
-	rval = QLA_SUCCESS;
-
-	spin_lock_irqsave(&ha->vport_slock, flags);
-
-	dev->loop_id = find_first_zero_bit(ha->loop_id_map,
-	    LOOPID_MAP_SIZE);
-	if (dev->loop_id >= LOOPID_MAP_SIZE ||
-	    qla2x00_is_reserved_id(vha, dev->loop_id)) {
-		dev->loop_id = FC_NO_LOOP_ID;
-		rval = QLA_FUNCTION_FAILED;
-	} else
-		set_bit(dev->loop_id, ha->loop_id_map);
-
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-	if (rval == QLA_SUCCESS)
-		ql_dbg(ql_dbg_disc, dev->vha, 0x2086,
-		    "Assigning new loopid=%x, portid=%x.\n",
-		    dev->loop_id, dev->d_id.b24);
-	else
-		ql_log(ql_log_warn, dev->vha, 0x2087,
-		    "No loop_id's available, portid=%x.\n",
-		    dev->d_id.b24);
-
-	return (rval);
-}
-
 
 /* FW does not set aside Loop id for MGMT Server/FFFFFAh */
 int
