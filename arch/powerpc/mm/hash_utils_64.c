@@ -1142,7 +1142,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
  */
 static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 {
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
 	u32 spp = 0;
 	u32 **sbpm, *sbpp;
 
@@ -1465,7 +1465,7 @@ static bool should_hash_preload(struct mm_struct *mm, unsigned long ea)
 	int psize = get_slice_psize(mm, ea);
 
 	/* We only prefault standard pages for now */
-	if (unlikely(psize != mm->context.user_psize))
+	if (unlikely(psize != mm_ctx_user_psize(&mm->context)))
 		return false;
 
 	/*
@@ -1544,7 +1544,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	/* Hash it in */
 #ifdef CONFIG_PPC_64K_PAGES
-	if (mm->context.user_psize == MMU_PAGE_64K)
+	if (mm_ctx_user_psize(&mm->context) == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
 				     update_flags, ssize);
 	else
@@ -1557,8 +1557,8 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	 */
 	if (rc == -1)
 		hash_failure_debug(ea, access, vsid, trap, ssize,
-				   mm->context.user_psize,
-				   mm->context.user_psize,
+				   mm_ctx_user_psize(&mm->context),
+				   mm_ctx_user_psize(&mm->context),
 				   pte_val(*ptep));
 out_exit:
 	local_irq_restore(flags);

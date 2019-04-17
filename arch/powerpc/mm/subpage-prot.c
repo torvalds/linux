@@ -25,7 +25,7 @@
  */
 void subpage_prot_free(struct mm_struct *mm)
 {
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
 	unsigned long i, j, addr;
 	u32 **p;
 
@@ -52,7 +52,7 @@ void subpage_prot_free(struct mm_struct *mm)
 
 void subpage_prot_init_new_context(struct mm_struct *mm)
 {
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
 
 	memset(spt, 0, sizeof(*spt));
 }
@@ -93,7 +93,7 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
 static void subpage_prot_clear(unsigned long addr, unsigned long len)
 {
 	struct mm_struct *mm = current->mm;
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
 	u32 **spm, *spp;
 	unsigned long i;
 	size_t nw;
@@ -189,7 +189,7 @@ SYSCALL_DEFINE3(subpage_prot, unsigned long, addr,
 		unsigned long, len, u32 __user *, map)
 {
 	struct mm_struct *mm = current->mm;
-	struct subpage_prot_table *spt = &mm->context.spt;
+	struct subpage_prot_table *spt = mm_ctx_subpage_prot(&mm->context);
 	u32 **spm, *spp;
 	unsigned long i;
 	size_t nw;

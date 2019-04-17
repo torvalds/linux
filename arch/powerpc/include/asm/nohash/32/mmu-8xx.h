@@ -181,6 +181,7 @@
 #ifdef CONFIG_PPC_MM_SLICES
 #include <asm/nohash/32/slice.h>
 #define SLICE_ARRAY_SIZE	(1 << (32 - SLICE_LOW_SHIFT - 1))
+#define LOW_SLICE_ARRAY_SZ	SLICE_ARRAY_SIZE
 #endif
 
 #ifndef __ASSEMBLY__
@@ -206,6 +207,55 @@ typedef struct {
 #endif
 	void *pte_frag;
 } mm_context_t;
+
+#ifdef CONFIG_PPC_MM_SLICES
+static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
+{
+	return ctx->user_psize;
+}
+
+static inline void mm_ctx_set_user_psize(mm_context_t *ctx, u16 user_psize)
+{
+	ctx->user_psize = user_psize;
+}
+
+static inline unsigned char *mm_ctx_low_slices(mm_context_t *ctx)
+{
+	return ctx->low_slices_psize;
+}
+
+static inline unsigned char *mm_ctx_high_slices(mm_context_t *ctx)
+{
+	return ctx->high_slices_psize;
+}
+
+static inline unsigned long mm_ctx_slb_addr_limit(mm_context_t *ctx)
+{
+	return ctx->slb_addr_limit;
+}
+
+static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long limit)
+{
+	ctx->slb_addr_limit = limit;
+}
+
+static inline struct slice_mask *mm_ctx_slice_mask_base(mm_context_t *ctx)
+{
+	return &ctx->mask_base_psize;
+}
+
+#ifdef CONFIG_HUGETLB_PAGE
+static inline struct slice_mask *mm_ctx_slice_mask_512k(mm_context_t *ctx)
+{
+	return &ctx->mask_512k;
+}
+
+static inline struct slice_mask *mm_ctx_slice_mask_8m(mm_context_t *ctx)
+{
+	return &ctx->mask_8m;
+}
+#endif
+#endif /* CONFIG_PPC_MM_SLICE */
 
 #define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
 #define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))

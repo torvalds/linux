@@ -101,7 +101,7 @@ static int slice_area_is_free(struct mm_struct *mm, unsigned long addr,
 {
 	struct vm_area_struct *vma;
 
-	if ((mm->context.slb_addr_limit - len) < addr)
+	if ((mm_ctx_slb_addr_limit(&mm->context) - len) < addr)
 		return 0;
 	vma = find_vma(mm, addr);
 	return (!vma || (addr + len) <= vm_start_gap(vma));
@@ -155,15 +155,15 @@ static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
 {
 #ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
-		return &mm->context.mask_64k;
+		return mm_ctx_slice_mask_64k(&mm->context);
 #endif
 	if (psize == MMU_PAGE_4K)
-		return &mm->context.mask_4k;
+		return mm_ctx_slice_mask_4k(&mm->context);
 #ifdef CONFIG_HUGETLB_PAGE
 	if (psize == MMU_PAGE_16M)
-		return &mm->context.mask_16m;
+		return mm_ctx_slice_mask_16m(&mm->context);
 	if (psize == MMU_PAGE_16G)
-		return &mm->context.mask_16g;
+		return mm_ctx_slice_mask_16g(&mm->context);
 #endif
 	BUG();
 }
@@ -253,7 +253,7 @@ static void slice_convert(struct mm_struct *mm,
 	 */
 	spin_lock_irqsave(&slice_convert_lock, flags);
 
-	lpsizes = mm->context.low_slices_psize;
+	lpsizes = mm_ctx_low_slices(&mm->context);
 	for (i = 0; i < SLICE_NUM_LOW; i++) {
 		if (!(mask->low_slices & (1u << i)))
 			continue;
@@ -272,8 +272,8 @@ static void slice_convert(struct mm_struct *mm,
 				(((unsigned long)psize) << (mask_index * 4));
 	}
 
-	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++) {
+	hpsizes = mm_ctx_high_slices(&mm->context);
+	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm_ctx_slb_addr_limit(&mm->context)); i++) {
 		if (!test_bit(i, mask->high_slices))
 			continue;
 
@@ -292,8 +292,8 @@ static void slice_convert(struct mm_struct *mm,
 	}
 
 	slice_dbg(" lsps=%lx, hsps=%lx\n",
-		  (unsigned long)mm->context.low_slices_psize,
-		  (unsigned long)mm->context.high_slices_psize);
+		  (unsigned long)mm_ctx_low_slices(&mm->context),
+		  (unsigned long)mm_ctx_high_slices(&mm->context));
 
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
@@ -393,7 +393,7 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	 * DEFAULT_MAP_WINDOW we should apply this.
 	 */
 	if (high_limit > DEFAULT_MAP_WINDOW)
-		addr += mm->context.slb_addr_limit - DEFAULT_MAP_WINDOW;
+		addr += mm_ctx_slb_addr_limit(&mm->context) - DEFAULT_MAP_WINDOW;
 
 	while (addr > min_addr) {
 		info.high_limit = addr;
@@ -505,20 +505,20 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 			return -ENOMEM;
 	}
 
-	if (high_limit > mm->context.slb_addr_limit) {
+	if (high_limit > mm_ctx_slb_addr_limit(&mm->context)) {
 		/*
 		 * Increasing the slb_addr_limit does not require
 		 * slice mask cache to be recalculated because it should
 		 * be already initialised beyond the old address limit.
 		 */
-		mm->context.slb_addr_limit = high_limit;
+		mm_ctx_set_slb_addr_limit(&mm->context, high_limit);
 
 		on_each_cpu(slice_flush_segments, mm, 1);
 	}
 
 	/* Sanity checks */
 	BUG_ON(mm->task_size == 0);
-	BUG_ON(mm->context.slb_addr_limit == 0);
+	BUG_ON(mm_ctx_slb_addr_limit(&mm->context) == 0);
 	VM_BUG_ON(radix_enabled());
 
 	slice_dbg("slice_get_unmapped_area(mm=%p, psize=%d...\n", mm, psize);
@@ -696,7 +696,7 @@ unsigned long arch_get_unmapped_area(struct file *filp,
 				     unsigned long flags)
 {
 	return slice_get_unmapped_area(addr, len, flags,
-				       current->mm->context.user_psize, 0);
+				       mm_ctx_user_psize(&current->mm->context), 0);
 }
 
 unsigned long arch_get_unmapped_area_topdown(struct file *filp,
@@ -706,7 +706,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 					     const unsigned long flags)
 {
 	return slice_get_unmapped_area(addr0, len, flags,
-				       current->mm->context.user_psize, 1);
+				       mm_ctx_user_psize(&current->mm->context), 1);
 }
 
 unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
@@ -717,10 +717,10 @@ unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 	VM_BUG_ON(radix_enabled());
 
 	if (slice_addr_is_low(addr)) {
-		psizes = mm->context.low_slices_psize;
+		psizes = mm_ctx_low_slices(&mm->context);
 		index = GET_LOW_SLICE_INDEX(addr);
 	} else {
-		psizes = mm->context.high_slices_psize;
+		psizes = mm_ctx_high_slices(&mm->context);
 		index = GET_HIGH_SLICE_INDEX(addr);
 	}
 	mask_index = index & 0x1;
@@ -742,20 +742,19 @@ void slice_init_new_context_exec(struct mm_struct *mm)
 	 * duplicated.
 	 */
 #ifdef CONFIG_PPC64
-	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	mm_ctx_set_slb_addr_limit(&mm->context, DEFAULT_MAP_WINDOW_USER64);
 #else
 	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW;
 #endif
-
-	mm->context.user_psize = psize;
+	mm_ctx_set_user_psize(&mm->context, psize);
 
 	/*
 	 * Set all slice psizes to the default.
 	 */
-	lpsizes = mm->context.low_slices_psize;
+	lpsizes = mm_ctx_low_slices(&mm->context);
 	memset(lpsizes, (psize << 4) | psize, SLICE_NUM_LOW >> 1);
 
-	hpsizes = mm->context.high_slices_psize;
+	hpsizes = mm_ctx_high_slices(&mm->context);
 	memset(hpsizes, (psize << 4) | psize, SLICE_NUM_HIGH >> 1);
 
 	/*
@@ -777,7 +776,7 @@ void slice_setup_new_exec(void)
 	if (!is_32bit_task())
 		return;
 
-	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW;
+	mm_ctx_set_slb_addr_limit(&mm->context, DEFAULT_MAP_WINDOW);
 }
 #endif
 
@@ -816,7 +815,7 @@ int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len)
 {
 	const struct slice_mask *maskp;
-	unsigned int psize = mm->context.user_psize;
+	unsigned int psize = mm_ctx_user_psize(&mm->context);
 
 	VM_BUG_ON(radix_enabled());
 

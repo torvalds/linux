@@ -139,7 +139,7 @@ typedef struct {
 	struct npu_context *npu_context;
 
 	 /* SLB page size encodings*/
-	unsigned char low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
+	unsigned char low_slices_psize[LOW_SLICE_ARRAY_SZ];
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
 	unsigned long slb_addr_limit;
 # ifdef CONFIG_PPC_64K_PAGES
@@ -173,6 +173,67 @@ typedef struct {
 	s16 execute_only_pkey; /* key holding execute-only protection */
 #endif
 } mm_context_t;
+
+static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
+{
+	return ctx->user_psize;
+}
+
+static inline void mm_ctx_set_user_psize(mm_context_t *ctx, u16 user_psize)
+{
+	ctx->user_psize = user_psize;
+}
+
+static inline unsigned char *mm_ctx_low_slices(mm_context_t *ctx)
+{
+	return ctx->low_slices_psize;
+}
+
+static inline unsigned char *mm_ctx_high_slices(mm_context_t *ctx)
+{
+	return ctx->high_slices_psize;
+}
+
+static inline unsigned long mm_ctx_slb_addr_limit(mm_context_t *ctx)
+{
+	return ctx->slb_addr_limit;
+}
+
+static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long limit)
+{
+	ctx->slb_addr_limit = limit;
+}
+
+#ifdef CONFIG_PPC_64K_PAGES
+static inline struct slice_mask *mm_ctx_slice_mask_64k(mm_context_t *ctx)
+{
+	return &ctx->mask_64k;
+}
+#endif
+
+static inline struct slice_mask *mm_ctx_slice_mask_4k(mm_context_t *ctx)
+{
+	return &ctx->mask_4k;
+}
+
+#ifdef CONFIG_HUGETLB_PAGE
+static inline struct slice_mask *mm_ctx_slice_mask_16m(mm_context_t *ctx)
+{
+	return &ctx->mask_16m;
+}
+
+static inline struct slice_mask *mm_ctx_slice_mask_16g(mm_context_t *ctx)
+{
+	return &ctx->mask_16g;
+}
+#endif
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
+{
+	return &ctx->spt;
+}
+#endif
 
 /*
  * The current system page and segment sizes

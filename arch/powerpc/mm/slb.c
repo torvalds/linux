@@ -739,7 +739,7 @@ static long slb_allocate_user(struct mm_struct *mm, unsigned long ea)
 	 * consider this as bad access if we take a SLB miss
 	 * on an address above addr limit.
 	 */
-	if (ea >= mm->context.slb_addr_limit)
+	if (ea >= mm_ctx_slb_addr_limit(&mm->context))
 		return -EFAULT;
 
 	context = get_user_context(&mm->context, ea);
