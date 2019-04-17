@@ -67,7 +67,7 @@ int iavf_verify_api_ver(struct iavf_adapter *adapter)
 {
 	struct virtchnl_version_info *pf_vvi;
 	struct iavf_hw *hw = &adapter->hw;
-	struct i40e_arq_event_info event;
+	struct iavf_arq_event_info event;
 	enum virtchnl_ops op;
 	enum iavf_status err;
 
@@ -189,7 +189,7 @@ static void iavf_validate_num_queues(struct iavf_adapter *adapter)
 int iavf_get_vf_config(struct iavf_adapter *adapter)
 {
 	struct iavf_hw *hw = &adapter->hw;
-	struct i40e_arq_event_info event;
+	struct iavf_arq_event_info event;
 	enum virtchnl_ops op;
 	enum iavf_status err;
 	u16 len;
@@ -938,22 +938,22 @@ static void iavf_print_link_message(struct iavf_adapter *adapter)
 	}
 
 	switch (adapter->link_speed) {
-	case I40E_LINK_SPEED_40GB:
+	case IAVF_LINK_SPEED_40GB:
 		speed = "40 G";
 		break;
-	case I40E_LINK_SPEED_25GB:
+	case IAVF_LINK_SPEED_25GB:
 		speed = "25 G";
 		break;
-	case I40E_LINK_SPEED_20GB:
+	case IAVF_LINK_SPEED_20GB:
 		speed = "20 G";
 		break;
-	case I40E_LINK_SPEED_10GB:
+	case IAVF_LINK_SPEED_10GB:
 		speed = "10 G";
 		break;
-	case I40E_LINK_SPEED_1GB:
+	case IAVF_LINK_SPEED_1GB:
 		speed = "1000 M";
 		break;
-	case I40E_LINK_SPEED_100MB:
+	case IAVF_LINK_SPEED_100MB:
 		speed = "100 M";
 		break;
 	default:

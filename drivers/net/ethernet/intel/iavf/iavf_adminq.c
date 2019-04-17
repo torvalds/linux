@@ -37,16 +37,16 @@ static enum iavf_status i40e_alloc_adminq_asq_ring(struct iavf_hw *hw)
 	enum iavf_status ret_code;
 
 	ret_code = iavf_allocate_dma_mem(hw, &hw->aq.asq.desc_buf,
-					 i40e_mem_atq_ring,
+					 iavf_mem_atq_ring,
 					 (hw->aq.num_asq_entries *
-					 sizeof(struct i40e_aq_desc)),
+					 sizeof(struct iavf_aq_desc)),
 					 IAVF_ADMINQ_DESC_ALIGNMENT);
 	if (ret_code)
 		return ret_code;
 
 	ret_code = iavf_allocate_virt_mem(hw, &hw->aq.asq.cmd_buf,
 					  (hw->aq.num_asq_entries *
-					  sizeof(struct i40e_asq_cmd_details)));
+					  sizeof(struct iavf_asq_cmd_details)));
 	if (ret_code) {
 		iavf_free_dma_mem(hw, &hw->aq.asq.desc_buf);
 		return ret_code;
@@ -64,9 +64,9 @@ static enum iavf_status i40e_alloc_adminq_arq_ring(struct iavf_hw *hw)
 	enum iavf_status ret_code;
 
 	ret_code = iavf_allocate_dma_mem(hw, &hw->aq.arq.desc_buf,
-					 i40e_mem_arq_ring,
+					 iavf_mem_arq_ring,
 					 (hw->aq.num_arq_entries *
-					 sizeof(struct i40e_aq_desc)),
+					 sizeof(struct iavf_aq_desc)),
 					 IAVF_ADMINQ_DESC_ALIGNMENT);
 
 	return ret_code;
@@ -102,7 +102,7 @@ static void i40e_free_adminq_arq(struct iavf_hw *hw)
  **/
 static enum iavf_status i40e_alloc_arq_bufs(struct iavf_hw *hw)
 {
-	struct i40e_aq_desc *desc;
+	struct iavf_aq_desc *desc;
 	struct iavf_dma_mem *bi;
 	enum iavf_status ret_code;
 	int i;
@@ -123,7 +123,7 @@ static enum iavf_status i40e_alloc_arq_bufs(struct iavf_hw *hw)
 	for (i = 0; i < hw->aq.num_arq_entries; i++) {
 		bi = &hw->aq.arq.r.arq_bi[i];
 		ret_code = iavf_allocate_dma_mem(hw, bi,
-						 i40e_mem_arq_buf,
+						 iavf_mem_arq_buf,
 						 hw->aq.arq_buf_size,
 						 IAVF_ADMINQ_DESC_ALIGNMENT);
 		if (ret_code)
@@ -132,9 +132,9 @@ static enum iavf_status i40e_alloc_arq_bufs(struct iavf_hw *hw)
 		/* now configure the descriptors for use */
 		desc = IAVF_ADMINQ_DESC(hw->aq.arq, i);
 
-		desc->flags = cpu_to_le16(I40E_AQ_FLAG_BUF);
-		if (hw->aq.arq_buf_size > I40E_AQ_LARGE_BUF)
-			desc->flags |= cpu_to_le16(I40E_AQ_FLAG_LB);
+		desc->flags = cpu_to_le16(IAVF_AQ_FLAG_BUF);
+		if (hw->aq.arq_buf_size > IAVF_AQ_LARGE_BUF)
+			desc->flags |= cpu_to_le16(IAVF_AQ_FLAG_LB);
 		desc->opcode = 0;
 		/* This is in accordance with Admin queue design, there is no
 		 * register for buffer size configuration
@@ -186,7 +186,7 @@ static enum iavf_status i40e_alloc_asq_bufs(struct iavf_hw *hw)
 	for (i = 0; i < hw->aq.num_asq_entries; i++) {
 		bi = &hw->aq.asq.r.asq_bi[i];
 		ret_code = iavf_allocate_dma_mem(hw, bi,
-						 i40e_mem_asq_buf,
+						 iavf_mem_asq_buf,
 						 hw->aq.asq_buf_size,
 						 IAVF_ADMINQ_DESC_ALIGNMENT);
 		if (ret_code)
@@ -522,7 +522,7 @@ enum iavf_status iavf_init_adminq(struct iavf_hw *hw)
 	iavf_adminq_init_regs(hw);
 
 	/* setup ASQ command write back timeout */
-	hw->aq.asq_cmd_timeout = I40E_ASQ_CMD_TIMEOUT;
+	hw->aq.asq_cmd_timeout = IAVF_ASQ_CMD_TIMEOUT;
 
 	/* allocate the ASQ */
 	ret_code = i40e_init_asq(hw);
@@ -571,13 +571,13 @@ enum iavf_status iavf_shutdown_adminq(struct iavf_hw *hw)
 static u16 i40e_clean_asq(struct iavf_hw *hw)
 {
 	struct iavf_adminq_ring *asq = &hw->aq.asq;
-	struct i40e_asq_cmd_details *details;
+	struct iavf_asq_cmd_details *details;
 	u16 ntc = asq->next_to_clean;
-	struct i40e_aq_desc desc_cb;
-	struct i40e_aq_desc *desc;
+	struct iavf_aq_desc desc_cb;
+	struct iavf_aq_desc *desc;
 
 	desc = IAVF_ADMINQ_DESC(*asq, ntc);
-	details = I40E_ADMINQ_DETAILS(*asq, ntc);
+	details = IAVF_ADMINQ_DETAILS(*asq, ntc);
 	while (rd32(hw, hw->aq.asq.head) != ntc) {
 		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
 			   "ntc %d head %d.\n", ntc, rd32(hw, hw->aq.asq.head));
@@ -588,14 +588,14 @@ static u16 i40e_clean_asq(struct iavf_hw *hw)
 			desc_cb = *desc;
 			cb_func(hw, &desc_cb);
 		}
-		memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+		memset((void *)desc, 0, sizeof(struct iavf_aq_desc));
 		memset((void *)details, 0,
-		       sizeof(struct i40e_asq_cmd_details));
+		       sizeof(struct iavf_asq_cmd_details));
 		ntc++;
 		if (ntc == asq->count)
 			ntc = 0;
 		desc = IAVF_ADMINQ_DESC(*asq, ntc);
-		details = I40E_ADMINQ_DETAILS(*asq, ntc);
+		details = IAVF_ADMINQ_DETAILS(*asq, ntc);
 	}
 
 	asq->next_to_clean = ntc;
@@ -630,14 +630,14 @@ bool iavf_asq_done(struct iavf_hw *hw)
  *  queue.  It runs the queue, cleans the queue, etc
  **/
 enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
-				       struct i40e_aq_desc *desc,
+				       struct iavf_aq_desc *desc,
 				       void *buff, /* can be NULL */
 				       u16  buff_size,
-				       struct i40e_asq_cmd_details *cmd_details)
+				       struct iavf_asq_cmd_details *cmd_details)
 {
 	struct iavf_dma_mem *dma_buff = NULL;
-	struct i40e_asq_cmd_details *details;
-	struct i40e_aq_desc *desc_on_ring;
+	struct iavf_asq_cmd_details *details;
+	struct iavf_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	enum iavf_status status = 0;
 	u16  retval = 0;
@@ -652,7 +652,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		goto asq_send_command_error;
 	}
 
-	hw->aq.asq_last_status = I40E_AQ_RC_OK;
+	hw->aq.asq_last_status = IAVF_AQ_RC_OK;
 
 	val = rd32(hw, hw->aq.asq.head);
 	if (val >= hw->aq.num_asq_entries) {
@@ -662,7 +662,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		goto asq_send_command_error;
 	}
 
-	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
+	details = IAVF_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
 	if (cmd_details) {
 		*details = *cmd_details;
 
@@ -677,7 +677,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 				cpu_to_le32(lower_32_bits(details->cookie));
 		}
 	} else {
-		memset(details, 0, sizeof(struct i40e_asq_cmd_details));
+		memset(details, 0, sizeof(struct iavf_asq_cmd_details));
 	}
 
 	/* clear requested flags and then set additional flags if defined */
@@ -781,13 +781,13 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 			retval &= 0xff;
 		}
 		cmd_completed = true;
-		if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_OK)
+		if ((enum iavf_admin_queue_err)retval == IAVF_AQ_RC_OK)
 			status = 0;
-		else if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_EBUSY)
+		else if ((enum iavf_admin_queue_err)retval == IAVF_AQ_RC_EBUSY)
 			status = I40E_ERR_NOT_READY;
 		else
 			status = I40E_ERR_ADMIN_QUEUE_ERROR;
-		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
+		hw->aq.asq_last_status = (enum iavf_admin_queue_err)retval;
 	}
 
 	iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
@@ -824,12 +824,12 @@ asq_send_command_error:
  *
  *  Fill the desc with default values
  **/
-void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode)
+void iavf_fill_default_direct_cmd_desc(struct iavf_aq_desc *desc, u16 opcode)
 {
 	/* zero out the desc */
-	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+	memset((void *)desc, 0, sizeof(struct iavf_aq_desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(I40E_AQ_FLAG_SI);
+	desc->flags = cpu_to_le16(IAVF_AQ_FLAG_SI);
 }
 
 /**
@@ -843,11 +843,11 @@ void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode)
  *  left to process through 'pending'
  **/
 enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
-					struct i40e_arq_event_info *e,
+					struct iavf_arq_event_info *e,
 					u16 *pending)
 {
 	u16 ntc = hw->aq.arq.next_to_clean;
-	struct i40e_aq_desc *desc;
+	struct iavf_aq_desc *desc;
 	enum iavf_status ret_code = 0;
 	struct iavf_dma_mem *bi;
 	u16 desc_idx;
@@ -881,9 +881,9 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	desc_idx = ntc;
 
 	hw->aq.arq_last_status =
-		(enum i40e_admin_queue_err)le16_to_cpu(desc->retval);
+		(enum iavf_admin_queue_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
-	if (flags & I40E_AQ_FLAG_ERR) {
+	if (flags & IAVF_AQ_FLAG_ERR) {
 		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
 		iavf_debug(hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
@@ -907,11 +907,11 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	 * size
 	 */
 	bi = &hw->aq.arq.r.arq_bi[ntc];
-	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+	memset((void *)desc, 0, sizeof(struct iavf_aq_desc));
 
-	desc->flags = cpu_to_le16(I40E_AQ_FLAG_BUF);
-	if (hw->aq.arq_buf_size > I40E_AQ_LARGE_BUF)
-		desc->flags |= cpu_to_le16(I40E_AQ_FLAG_LB);
+	desc->flags = cpu_to_le16(IAVF_AQ_FLAG_BUF);
+	if (hw->aq.arq_buf_size > IAVF_AQ_LARGE_BUF)
+		desc->flags |= cpu_to_le16(IAVF_AQ_FLAG_LB);
 	desc->datalen = cpu_to_le16((u16)bi->size);
 	desc->params.external.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
 	desc->params.external.addr_low = cpu_to_le32(lower_32_bits(bi->pa));

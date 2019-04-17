@@ -44,55 +44,55 @@ enum iavf_status iavf_set_mac_type(struct iavf_hw *hw)
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert
  **/
-const char *iavf_aq_str(struct iavf_hw *hw, enum i40e_admin_queue_err aq_err)
+const char *iavf_aq_str(struct iavf_hw *hw, enum iavf_admin_queue_err aq_err)
 {
 	switch (aq_err) {
-	case I40E_AQ_RC_OK:
+	case IAVF_AQ_RC_OK:
 		return "OK";
-	case I40E_AQ_RC_EPERM:
-		return "I40E_AQ_RC_EPERM";
-	case I40E_AQ_RC_ENOENT:
-		return "I40E_AQ_RC_ENOENT";
-	case I40E_AQ_RC_ESRCH:
-		return "I40E_AQ_RC_ESRCH";
-	case I40E_AQ_RC_EINTR:
-		return "I40E_AQ_RC_EINTR";
-	case I40E_AQ_RC_EIO:
-		return "I40E_AQ_RC_EIO";
-	case I40E_AQ_RC_ENXIO:
-		return "I40E_AQ_RC_ENXIO";
-	case I40E_AQ_RC_E2BIG:
-		return "I40E_AQ_RC_E2BIG";
-	case I40E_AQ_RC_EAGAIN:
-		return "I40E_AQ_RC_EAGAIN";
-	case I40E_AQ_RC_ENOMEM:
-		return "I40E_AQ_RC_ENOMEM";
-	case I40E_AQ_RC_EACCES:
-		return "I40E_AQ_RC_EACCES";
-	case I40E_AQ_RC_EFAULT:
-		return "I40E_AQ_RC_EFAULT";
-	case I40E_AQ_RC_EBUSY:
-		return "I40E_AQ_RC_EBUSY";
-	case I40E_AQ_RC_EEXIST:
-		return "I40E_AQ_RC_EEXIST";
-	case I40E_AQ_RC_EINVAL:
-		return "I40E_AQ_RC_EINVAL";
-	case I40E_AQ_RC_ENOTTY:
-		return "I40E_AQ_RC_ENOTTY";
-	case I40E_AQ_RC_ENOSPC:
-		return "I40E_AQ_RC_ENOSPC";
-	case I40E_AQ_RC_ENOSYS:
-		return "I40E_AQ_RC_ENOSYS";
-	case I40E_AQ_RC_ERANGE:
-		return "I40E_AQ_RC_ERANGE";
-	case I40E_AQ_RC_EFLUSHED:
-		return "I40E_AQ_RC_EFLUSHED";
-	case I40E_AQ_RC_BAD_ADDR:
-		return "I40E_AQ_RC_BAD_ADDR";
-	case I40E_AQ_RC_EMODE:
-		return "I40E_AQ_RC_EMODE";
-	case I40E_AQ_RC_EFBIG:
-		return "I40E_AQ_RC_EFBIG";
+	case IAVF_AQ_RC_EPERM:
+		return "IAVF_AQ_RC_EPERM";
+	case IAVF_AQ_RC_ENOENT:
+		return "IAVF_AQ_RC_ENOENT";
+	case IAVF_AQ_RC_ESRCH:
+		return "IAVF_AQ_RC_ESRCH";
+	case IAVF_AQ_RC_EINTR:
+		return "IAVF_AQ_RC_EINTR";
+	case IAVF_AQ_RC_EIO:
+		return "IAVF_AQ_RC_EIO";
+	case IAVF_AQ_RC_ENXIO:
+		return "IAVF_AQ_RC_ENXIO";
+	case IAVF_AQ_RC_E2BIG:
+		return "IAVF_AQ_RC_E2BIG";
+	case IAVF_AQ_RC_EAGAIN:
+		return "IAVF_AQ_RC_EAGAIN";
+	case IAVF_AQ_RC_ENOMEM:
+		return "IAVF_AQ_RC_ENOMEM";
+	case IAVF_AQ_RC_EACCES:
+		return "IAVF_AQ_RC_EACCES";
+	case IAVF_AQ_RC_EFAULT:
+		return "IAVF_AQ_RC_EFAULT";
+	case IAVF_AQ_RC_EBUSY:
+		return "IAVF_AQ_RC_EBUSY";
+	case IAVF_AQ_RC_EEXIST:
+		return "IAVF_AQ_RC_EEXIST";
+	case IAVF_AQ_RC_EINVAL:
+		return "IAVF_AQ_RC_EINVAL";
+	case IAVF_AQ_RC_ENOTTY:
+		return "IAVF_AQ_RC_ENOTTY";
+	case IAVF_AQ_RC_ENOSPC:
+		return "IAVF_AQ_RC_ENOSPC";
+	case IAVF_AQ_RC_ENOSYS:
+		return "IAVF_AQ_RC_ENOSYS";
+	case IAVF_AQ_RC_ERANGE:
+		return "IAVF_AQ_RC_ERANGE";
+	case IAVF_AQ_RC_EFLUSHED:
+		return "IAVF_AQ_RC_EFLUSHED";
+	case IAVF_AQ_RC_BAD_ADDR:
+		return "IAVF_AQ_RC_BAD_ADDR";
+	case IAVF_AQ_RC_EMODE:
+		return "IAVF_AQ_RC_EMODE";
+	case IAVF_AQ_RC_EFBIG:
+		return "IAVF_AQ_RC_EFBIG";
 	}
 
 	snprintf(hw->err_str, sizeof(hw->err_str), "%d", aq_err);
@@ -260,7 +260,7 @@ const char *iavf_stat_str(struct iavf_hw *hw, enum iavf_status stat_err)
 void iavf_debug_aq(struct iavf_hw *hw, enum iavf_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
-	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
+	struct iavf_aq_desc *aq_desc = (struct iavf_aq_desc *)desc;
 	u8 *buf = (u8 *)buffer;
 
 	if ((!(mask & hw->debug_mask)) || !desc)
@@ -329,15 +329,15 @@ bool iavf_check_asq_alive(struct iavf_hw *hw)
  **/
 enum iavf_status iavf_aq_queue_shutdown(struct iavf_hw *hw, bool unloading)
 {
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_queue_shutdown *cmd =
-		(struct i40e_aqc_queue_shutdown *)&desc.params.raw;
+	struct iavf_aq_desc desc;
+	struct iavf_aqc_queue_shutdown *cmd =
+		(struct iavf_aqc_queue_shutdown *)&desc.params.raw;
 	enum iavf_status status;
 
-	iavf_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_queue_shutdown);
+	iavf_fill_default_direct_cmd_desc(&desc, iavf_aqc_opc_queue_shutdown);
 
 	if (unloading)
-		cmd->driver_unloading = cpu_to_le32(I40E_AQ_DRIVER_UNLOADING);
+		cmd->driver_unloading = cpu_to_le32(IAVF_AQ_DRIVER_UNLOADING);
 	status = iavf_asq_send_command(hw, &desc, NULL, 0, NULL);
 
 	return status;
@@ -360,37 +360,37 @@ static enum iavf_status iavf_aq_get_set_rss_lut(struct iavf_hw *hw,
 						bool set)
 {
 	enum iavf_status status;
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_get_set_rss_lut *cmd_resp =
-		   (struct i40e_aqc_get_set_rss_lut *)&desc.params.raw;
+	struct iavf_aq_desc desc;
+	struct iavf_aqc_get_set_rss_lut *cmd_resp =
+		   (struct iavf_aqc_get_set_rss_lut *)&desc.params.raw;
 
 	if (set)
 		iavf_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_set_rss_lut);
+						  iavf_aqc_opc_set_rss_lut);
 	else
 		iavf_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_get_rss_lut);
+						  iavf_aqc_opc_get_rss_lut);
 
 	/* Indirect command */
-	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
-	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_RD);
 
 	cmd_resp->vsi_id =
 			cpu_to_le16((u16)((vsi_id <<
-					  I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT) &
-					  I40E_AQC_SET_RSS_LUT_VSI_ID_MASK));
-	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_LUT_VSI_VALID);
+					  IAVF_AQC_SET_RSS_LUT_VSI_ID_SHIFT) &
+					  IAVF_AQC_SET_RSS_LUT_VSI_ID_MASK));
+	cmd_resp->vsi_id |= cpu_to_le16((u16)IAVF_AQC_SET_RSS_LUT_VSI_VALID);
 
 	if (pf_lut)
 		cmd_resp->flags |= cpu_to_le16((u16)
-					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF <<
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+					((IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_PF <<
+					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
+					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
 	else
 		cmd_resp->flags |= cpu_to_le16((u16)
-					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI <<
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+					((IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_VSI <<
+					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
+					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
 
 	status = iavf_asq_send_command(hw, &desc, lut, lut_size, NULL);
 
@@ -441,31 +441,31 @@ enum iavf_status iavf_aq_set_rss_lut(struct iavf_hw *hw, u16 vsi_id,
  **/
 static enum
 iavf_status iavf_aq_get_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
-				    struct i40e_aqc_get_set_rss_key_data *key,
+				    struct iavf_aqc_get_set_rss_key_data *key,
 				    bool set)
 {
 	enum iavf_status status;
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_get_set_rss_key *cmd_resp =
-			(struct i40e_aqc_get_set_rss_key *)&desc.params.raw;
-	u16 key_size = sizeof(struct i40e_aqc_get_set_rss_key_data);
+	struct iavf_aq_desc desc;
+	struct iavf_aqc_get_set_rss_key *cmd_resp =
+			(struct iavf_aqc_get_set_rss_key *)&desc.params.raw;
+	u16 key_size = sizeof(struct iavf_aqc_get_set_rss_key_data);
 
 	if (set)
 		iavf_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_set_rss_key);
+						  iavf_aqc_opc_set_rss_key);
 	else
 		iavf_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_get_rss_key);
+						  iavf_aqc_opc_get_rss_key);
 
 	/* Indirect command */
-	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
-	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_RD);
 
 	cmd_resp->vsi_id =
 			cpu_to_le16((u16)((vsi_id <<
-					  I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
-					  I40E_AQC_SET_RSS_KEY_VSI_ID_MASK));
-	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_KEY_VSI_VALID);
+					  IAVF_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
+					  IAVF_AQC_SET_RSS_KEY_VSI_ID_MASK));
+	cmd_resp->vsi_id |= cpu_to_le16((u16)IAVF_AQC_SET_RSS_KEY_VSI_VALID);
 
 	status = iavf_asq_send_command(hw, &desc, key, key_size, NULL);
 
@@ -480,7 +480,7 @@ iavf_status iavf_aq_get_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
  *
  **/
 enum iavf_status iavf_aq_get_rss_key(struct iavf_hw *hw, u16 vsi_id,
-				     struct i40e_aqc_get_set_rss_key_data *key)
+				     struct iavf_aqc_get_set_rss_key_data *key)
 {
 	return iavf_aq_get_set_rss_key(hw, vsi_id, key, false);
 }
@@ -494,7 +494,7 @@ enum iavf_status iavf_aq_get_rss_key(struct iavf_hw *hw, u16 vsi_id,
  * set the RSS key per VSI
  **/
 enum iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
-				     struct i40e_aqc_get_set_rss_key_data *key)
+				     struct iavf_aqc_get_set_rss_key_data *key)
 {
 	return iavf_aq_get_set_rss_key(hw, vsi_id, key, true);
 }
@@ -881,21 +881,21 @@ enum iavf_status iavf_aq_send_msg_to_pf(struct iavf_hw *hw,
 					enum virtchnl_ops v_opcode,
 					enum iavf_status v_retval,
 					u8 *msg, u16 msglen,
-					struct i40e_asq_cmd_details *cmd_details)
+					struct iavf_asq_cmd_details *cmd_details)
 {
-	struct i40e_asq_cmd_details details;
-	struct i40e_aq_desc desc;
+	struct iavf_asq_cmd_details details;
+	struct iavf_aq_desc desc;
 	enum iavf_status status;
 
-	iavf_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_send_msg_to_pf);
-	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_SI);
+	iavf_fill_default_direct_cmd_desc(&desc, iavf_aqc_opc_send_msg_to_pf);
+	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_SI);
 	desc.cookie_high = cpu_to_le32(v_opcode);
 	desc.cookie_low = cpu_to_le32(v_retval);
 	if (msglen) {
-		desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF
-						| I40E_AQ_FLAG_RD));
-		if (msglen > I40E_AQ_LARGE_BUF)
-			desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+		desc.flags |= cpu_to_le16((u16)(IAVF_AQ_FLAG_BUF
+						| IAVF_AQ_FLAG_RD));
+		if (msglen > IAVF_AQ_LARGE_BUF)
+			desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_LB);
 		desc.datalen = cpu_to_le16(msglen);
 	}
 	if (!cmd_details) {

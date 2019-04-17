@@ -1229,8 +1229,8 @@ out:
  **/
 static int iavf_config_rss_aq(struct iavf_adapter *adapter)
 {
-	struct i40e_aqc_get_set_rss_key_data *rss_key =
-		(struct i40e_aqc_get_set_rss_key_data *)adapter->rss_key;
+	struct iavf_aqc_get_set_rss_key_data *rss_key =
+		(struct iavf_aqc_get_set_rss_key_data *)adapter->rss_key;
 	struct iavf_hw *hw = &adapter->hw;
 	int ret = 0;
 
@@ -2022,7 +2022,7 @@ static void iavf_adminq_task(struct work_struct *work)
 	struct iavf_adapter *adapter =
 		container_of(work, struct iavf_adapter, adminq_task);
 	struct iavf_hw *hw = &adapter->hw;
-	struct i40e_arq_event_info event;
+	struct iavf_arq_event_info event;
 	enum virtchnl_ops v_op;
 	enum iavf_status ret, v_ret;
 	u32 val, oldval;
@@ -2241,22 +2241,22 @@ static int iavf_validate_tx_bandwidth(struct iavf_adapter *adapter,
 	int speed = 0, ret = 0;
 
 	switch (adapter->link_speed) {
-	case I40E_LINK_SPEED_40GB:
+	case IAVF_LINK_SPEED_40GB:
 		speed = 40000;
 		break;
-	case I40E_LINK_SPEED_25GB:
+	case IAVF_LINK_SPEED_25GB:
 		speed = 25000;
 		break;
-	case I40E_LINK_SPEED_20GB:
+	case IAVF_LINK_SPEED_20GB:
 		speed = 20000;
 		break;
-	case I40E_LINK_SPEED_10GB:
+	case IAVF_LINK_SPEED_10GB:
 		speed = 10000;
 		break;
-	case I40E_LINK_SPEED_1GB:
+	case IAVF_LINK_SPEED_1GB:
 		speed = 1000;
 		break;
-	case I40E_LINK_SPEED_100MB:
+	case IAVF_LINK_SPEED_100MB:
 		speed = 100;
 		break;
 	default:
