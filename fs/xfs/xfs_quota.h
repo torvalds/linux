@@ -56,7 +56,7 @@ xfs_quota_chkd_flag(
  * The structure kept inside the xfs_trans_t keep track of dquot changes
  * within a transaction and apply them later.
  */
-typedef struct xfs_dqtrx {
+struct xfs_dqtrx {
 	struct xfs_dquot *qt_dquot;	  /* the dquot this refers to */
 
 	uint64_t	qt_blk_res;	  /* blks reserved on a dquot */
@@ -71,7 +71,7 @@ typedef struct xfs_dqtrx {
 	uint64_t	qt_ino_res;	  /* inode reserved on a dquot */
 	uint64_t	qt_ino_res_used;  /* inodes used from the reservation */
 	int64_t		qt_icount_delta;  /* dquot inode count changes */
-} xfs_dqtrx_t;
+};
 
 #ifdef CONFIG_XFS_QUOTA
 extern void xfs_trans_dup_dqinfo(struct xfs_trans *, struct xfs_trans *);

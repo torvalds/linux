@@ -74,13 +74,13 @@ xfs_trans_log_dquot(
  */
 void
 xfs_trans_dup_dqinfo(
-	xfs_trans_t	*otp,
-	xfs_trans_t	*ntp)
+	struct xfs_trans	*otp,
+	struct xfs_trans	*ntp)
 {
-	xfs_dqtrx_t	*oq, *nq;
-	int		i, j;
-	xfs_dqtrx_t	*oqa, *nqa;
-	uint64_t	blk_res_used;
+	struct xfs_dqtrx	*oq, *nq;
+	int			i, j;
+	struct xfs_dqtrx	*oqa, *nqa;
+	uint64_t		blk_res_used;
 
 	if (!otp->t_dqinfo)
 		return;
@@ -191,12 +191,12 @@ xfs_trans_get_dqtrx(
  */
 void
 xfs_trans_mod_dquot(
-	xfs_trans_t	*tp,
-	xfs_dquot_t	*dqp,
-	uint		field,
-	int64_t		delta)
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp,
+	uint			field,
+	int64_t			delta)
 {
-	xfs_dqtrx_t	*qtrx;
+	struct xfs_dqtrx	*qtrx;
 
 	ASSERT(tp);
 	ASSERT(XFS_IS_QUOTA_RUNNING(tp->t_mountp));
@@ -288,8 +288,8 @@ xfs_trans_mod_dquot(
  */
 STATIC void
 xfs_trans_dqlockedjoin(
-	xfs_trans_t	*tp,
-	xfs_dqtrx_t	*q)
+	struct xfs_trans	*tp,
+	struct xfs_dqtrx	*q)
 {
 	ASSERT(q[0].qt_dquot != NULL);
 	if (q[1].qt_dquot == NULL) {
@@ -501,7 +501,7 @@ xfs_trans_unreserve_and_mod_dquots(
 {
 	int			i, j;
 	xfs_dquot_t		*dqp;
-	xfs_dqtrx_t		*qtrx, *qa;
+	struct xfs_dqtrx	*qtrx, *qa;
 	bool                    locked;
 
 	if (!tp->t_dqinfo || !(tp->t_flags & XFS_TRANS_DQ_DIRTY))
