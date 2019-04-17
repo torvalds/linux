@@ -579,7 +579,7 @@ static int qedi_conn_start(struct iscsi_cls_conn *cls_conn)
 	rval = qedi_iscsi_update_conn(qedi, qedi_conn);
 	if (rval) {
 		iscsi_conn_printk(KERN_ALERT, conn,
-				  "conn_start: FW oflload conn failed.\n");
+				  "conn_start: FW offload conn failed.\n");
 		rval = -EINVAL;
 		goto start_err;
 	}
@@ -590,7 +590,7 @@ static int qedi_conn_start(struct iscsi_cls_conn *cls_conn)
 	rval = iscsi_conn_start(cls_conn);
 	if (rval) {
 		iscsi_conn_printk(KERN_ALERT, conn,
-				  "iscsi_conn_start: FW oflload conn failed!!\n");
+				  "iscsi_conn_start: FW offload conn failed!!\n");
 	}
 
 start_err:
