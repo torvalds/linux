@@ -145,10 +145,6 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 	u32 msg;
 	u32 msg_ext;
 
-	/* here we handle IPC interrupts only */
-	if (!(sdev->irq_status & HDA_DSP_ADSPIS_IPC))
-		return IRQ_NONE;
-
 	/* read IPC status */
 	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 				  HDA_DSP_REG_HIPCIE);
@@ -234,19 +230,20 @@ irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	int ret = IRQ_NONE;
+	u32 irq_status;
 
 	spin_lock(&sdev->hw_lock);
 
 	/* store status */
-	sdev->irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					    HDA_DSP_REG_ADSPIS);
+	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
+	dev_vdbg(sdev->dev, "irq handler: irq_status:0x%x\n", irq_status);
 
 	/* invalid message ? */
-	if (sdev->irq_status == 0xffffffff)
+	if (irq_status == 0xffffffff)
 		goto out;
 
 	/* IPC message ? */
-	if (sdev->irq_status & HDA_DSP_ADSPIS_IPC) {
+	if (irq_status & HDA_DSP_ADSPIS_IPC) {
 		/* disable IPC interrupt */
 		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 						 HDA_DSP_REG_ADSPIC,

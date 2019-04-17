@@ -39,10 +39,6 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 	u32 msg_ext;
 	irqreturn_t ret = IRQ_NONE;
 
-	/* here we handle IPC interrupts only */
-	if (!(sdev->irq_status & HDA_DSP_ADSPIS_IPC))
-		return ret;
-
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
 	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
 	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
