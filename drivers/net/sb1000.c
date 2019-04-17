@@ -316,7 +316,7 @@ static int
 card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[])
 {
-	int status, x;
+	int status;
 
 	if ((status = card_wait_for_busy_clear(ioaddr, name)))
 		return status;
@@ -345,9 +345,7 @@ card_send_command(const int ioaddr[], const char* name,
 				out[0], out[1], out[2], out[3], out[4], out[5]);
 	}
 
-	if (out[1] == 0x1b) {
-		x = (out[2] == 0x02);
-	} else {
+	if (out[1] != 0x1b) {
 		if (out[0] >= 0x80 && in[0] != (out[1] | 0x80))
 			return -EIO;
 	}
@@ -490,14 +488,13 @@ sb1000_check_CRC(const int ioaddr[], const char* name)
 	static const unsigned char Command0[6] = {0x80, 0x1f, 0x00, 0x00, 0x00, 0x00};
 
 	unsigned char st[7];
-	int crc, status;
+	int status;
 
 	/* check CRC */
 	if ((status = card_send_command(ioaddr, name, Command0, st)))
 		return status;
 	if (st[1] != st[3] || st[2] != st[4])
 		return -EIO;
-	crc = st[1] << 8 | st[2];
 	return 0;
 }
 
