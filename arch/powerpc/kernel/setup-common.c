@@ -831,6 +831,9 @@ static __init void print_system_info(void)
 		pr_info("htab_address      = 0x%p\n", htab_address);
 	if (htab_hash_mask)
 		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+	pr_info("kernel vmalloc start   = 0x%lx\n", KERN_VIRT_START);
+	pr_info("kernel IO start        = 0x%lx\n", KERN_IO_START);
+	pr_info("kernel vmemmap start   = 0x%lx\n", (unsigned long)vmemmap);
 #endif
 #ifdef CONFIG_PPC_BOOK3S_32
 	if (Hash)
