@@ -90,20 +90,6 @@ host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 		*odest++ = cpu_to_le32(*isrc);
 }
 
-static inline void
-qla2x00_set_reserved_loop_ids(struct qla_hw_data *ha)
-{
-	int i;
-
-	if (IS_FWI2_CAPABLE(ha))
-		return;
-
-	for (i = 0; i < SNS_FIRST_LOOP_ID; i++)
-		set_bit(i, ha->loop_id_map);
-	set_bit(MANAGEMENT_SERVER, ha->loop_id_map);
-	set_bit(BROADCAST, ha->loop_id_map);
-}
-
 static inline int
 qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
 {

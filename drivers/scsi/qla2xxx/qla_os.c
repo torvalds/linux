@@ -3984,6 +3984,19 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 	}
 }
 
+static void qla2x00_set_reserved_loop_ids(struct qla_hw_data *ha)
+{
+	int i;
+
+	if (IS_FWI2_CAPABLE(ha))
+		return;
+
+	for (i = 0; i < SNS_FIRST_LOOP_ID; i++)
+		set_bit(i, ha->loop_id_map);
+	set_bit(MANAGEMENT_SERVER, ha->loop_id_map);
+	set_bit(BROADCAST, ha->loop_id_map);
+}
+
 /*
 * qla2x00_mem_alloc
 *      Allocates adapter memory.
