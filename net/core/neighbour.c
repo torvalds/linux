@@ -1920,6 +1920,11 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 	}
 
+	if (tbl->allow_add && !tbl->allow_add(dev, extack)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	neigh = neigh_lookup(tbl, dst, dev);
 	if (neigh == NULL) {
 		bool exempt_from_gc;
