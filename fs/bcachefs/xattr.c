@@ -198,55 +198,54 @@ int bch2_xattr_set(struct btree_trans *trans, u64 inum,
 	return ret;
 }
 
-static void __bch2_xattr_emit(const char *prefix,
-			      const char *name, size_t name_len,
-			      char **buffer, size_t *buffer_size,
-			      ssize_t *ret)
+struct xattr_buf {
+	char		*buf;
+	size_t		len;
+	size_t		used;
+};
+
+static int __bch2_xattr_emit(const char *prefix,
+			     const char *name, size_t name_len,
+			     struct xattr_buf *buf)
 {
 	const size_t prefix_len = strlen(prefix);
 	const size_t total_len = prefix_len + name_len + 1;
 
-	if (*buffer) {
-		if (total_len > *buffer_size) {
-			*ret = -ERANGE;
-			return;
-		}
+	if (buf->buf) {
+		if (buf->used + total_len > buf->len)
+			return -ERANGE;
 
-		memcpy(*buffer, prefix, prefix_len);
-		memcpy(*buffer + prefix_len,
+		memcpy(buf->buf + buf->used, prefix, prefix_len);
+		memcpy(buf->buf + buf->used + prefix_len,
 		       name, name_len);
-		(*buffer)[prefix_len + name_len] = '\0';
-
-		*buffer		+= total_len;
-		*buffer_size	-= total_len;
+		buf->buf[buf->used + prefix_len + name_len] = '\0';
 	}
 
-	*ret += total_len;
+	buf->used += total_len;
+	return 0;
 }
 
-static void bch2_xattr_emit(struct dentry *dentry,
+static int bch2_xattr_emit(struct dentry *dentry,
 			    const struct bch_xattr *xattr,
-			    char **buffer, size_t *buffer_size,
-			    ssize_t *ret)
+			    struct xattr_buf *buf)
 {
 	const struct xattr_handler *handler =
 		bch2_xattr_type_to_handler(xattr->x_type);
 
-	if (handler && (!handler->list || handler->list(dentry)))
-		__bch2_xattr_emit(handler->prefix ?: handler->name,
-				  xattr->x_name, xattr->x_name_len,
-				  buffer, buffer_size, ret);
+	return handler && (!handler->list || handler->list(dentry))
+		? __bch2_xattr_emit(handler->prefix ?: handler->name,
+				    xattr->x_name, xattr->x_name_len, buf)
+		: 0;
 }
 
-static void bch2_xattr_list_bcachefs(struct bch_fs *c,
-				     struct bch_inode_info *inode,
-				     char **buffer,
-				     size_t *buffer_size,
-				     ssize_t *ret,
-				     bool all)
+static int bch2_xattr_list_bcachefs(struct bch_fs *c,
+				    struct bch_inode_info *inode,
+				    struct xattr_buf *buf,
+				    bool all)
 {
 	const char *prefix = all ? "bcachefs_effective." : "bcachefs.";
 	unsigned id;
+	int ret = 0;
 	u64 v;
 
 	for (id = 0; id < Inode_opt_nr; id++) {
@@ -258,13 +257,13 @@ static void bch2_xattr_list_bcachefs(struct bch_fs *c,
 		    !(inode->ei_inode.bi_fields_set & (1 << id)))
 			continue;
 
-		__bch2_xattr_emit(prefix,
-				  bch2_inode_opts[id],
-				  strlen(bch2_inode_opts[id]),
-				  buffer, buffer_size, ret);
-		if (*ret < 0)
+		ret = __bch2_xattr_emit(prefix, bch2_inode_opts[id],
+					strlen(bch2_inode_opts[id]), buf);
+		if (ret)
 			break;
 	}
+
+	return ret;
 }
 
 ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
@@ -274,13 +273,14 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	struct xattr_buf buf = { .buf = buffer, .len = buffer_size };
 	u64 inum = dentry->d_inode->i_ino;
-	ssize_t ret = 0;
+	int ret;
 
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_XATTRS,
-			   POS(inum, 0), 0, k) {
+			   POS(inum, 0), 0, k, ret) {
 		BUG_ON(k.k->p.inode < inum);
 
 		if (k.k->p.inode > inum)
@@ -289,27 +289,24 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (k.k->type != KEY_TYPE_xattr)
 			continue;
 
-		bch2_xattr_emit(dentry, bkey_s_c_to_xattr(k).v,
-				&buffer, &buffer_size, &ret);
-		if (ret < 0)
+		ret = bch2_xattr_emit(dentry, bkey_s_c_to_xattr(k).v, &buf);
+		if (ret)
 			break;
 	}
-	bch2_trans_exit(&trans);
+	ret = bch2_trans_exit(&trans) ?: ret;
 
-	if (ret < 0)
+	if (ret)
 		return ret;
 
-	bch2_xattr_list_bcachefs(c, inode, &buffer,
-				 &buffer_size, &ret, false);
-	if (ret < 0)
+	ret = bch2_xattr_list_bcachefs(c, inode, &buf, false);
+	if (ret)
 		return ret;
 
-	bch2_xattr_list_bcachefs(c, inode, &buffer,
-				 &buffer_size, &ret, true);
-	if (ret < 0)
+	ret = bch2_xattr_list_bcachefs(c, inode, &buf, true);
+	if (ret)
 		return ret;
 
-	return ret;
+	return buf.used;
 }
 
 static int bch2_xattr_get_handler(const struct xattr_handler *handler,

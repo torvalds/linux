@@ -289,13 +289,14 @@ static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
 	    nr_compressed_extents = 0,
 	    compressed_sectors_compressed = 0,
 	    compressed_sectors_uncompressed = 0;
+	int ret;
 
 	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EPERM;
 
 	bch2_trans_init(&trans, c);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS_MIN, 0, k)
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS_MIN, 0, k, ret)
 		if (k.k->type == KEY_TYPE_extent) {
 			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 			const union bch_extent_entry *entry;
@@ -317,7 +318,10 @@ static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
 				break;
 			}
 		}
-	bch2_trans_exit(&trans);
+
+	ret = bch2_trans_exit(&trans) ?: ret;
+	if (ret)
+		return ret;
 
 	return scnprintf(buf, PAGE_SIZE,
 			"uncompressed data:\n"

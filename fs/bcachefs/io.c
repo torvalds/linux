@@ -1326,7 +1326,7 @@ static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
 retry:
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(inode, bvec_iter.bi_sector),
-			   BTREE_ITER_SLOTS, k) {
+			   BTREE_ITER_SLOTS, k, ret) {
 		BKEY_PADDED(k) tmp;
 		unsigned bytes;
 
@@ -1357,8 +1357,8 @@ retry:
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
 	 */
-	BUG_ON(!btree_iter_err(iter));
-	__bcache_io_error(c, "btree IO error");
+	BUG_ON(!ret);
+	__bcache_io_error(c, "btree IO error: %i", ret);
 err:
 	rbio->bio.bi_status = BLK_STS_IOERR;
 out:
@@ -1871,6 +1871,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	unsigned flags = BCH_READ_RETRY_IF_STALE|
 		BCH_READ_MAY_PROMOTE|
 		BCH_READ_USER_MAPPED;
+	int ret;
 
 	bch2_trans_init(&trans, c);
 
@@ -1883,7 +1884,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(inode, rbio->bio.bi_iter.bi_sector),
-			   BTREE_ITER_SLOTS, k) {
+			   BTREE_ITER_SLOTS, k, ret) {
 		BKEY_PADDED(k) tmp;
 		unsigned bytes;
 
@@ -1915,8 +1916,8 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 	 * If we get here, it better have been because there was an error
 	 * reading a btree node
 	 */
-	BUG_ON(!btree_iter_err(iter));
-	bcache_io_error(c, &rbio->bio, "btree IO error");
+	BUG_ON(!ret);
+	bcache_io_error(c, &rbio->bio, "btree IO error: %i", ret);
 
 	bch2_trans_exit(&trans);
 	bch2_rbio_done(rbio);

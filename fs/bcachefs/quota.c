@@ -364,7 +364,7 @@ static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_QUOTAS, POS(type, 0),
-			   BTREE_ITER_PREFETCH, k) {
+			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->p.inode != type)
 			break;
 
@@ -436,7 +436,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_INODES, POS_MIN,
-			   BTREE_ITER_PREFETCH, k) {
+			   BTREE_ITER_PREFETCH, k, ret) {
 		switch (k.k->type) {
 		case KEY_TYPE_inode:
 			ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &u);

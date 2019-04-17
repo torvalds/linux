@@ -273,14 +273,14 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 
 	bch2_trans_init(&trans, c);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_ALLOC, POS_MIN, 0, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_ALLOC, POS_MIN, 0, k, ret)
 		bch2_alloc_read_key(c, k);
-		bch2_trans_cond_resched(&trans);
-	}
 
-	ret = bch2_trans_exit(&trans);
-	if (ret)
+	ret = bch2_trans_exit(&trans) ?: ret;
+	if (ret) {
+		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;
+	}
 
 	for_each_journal_key(*journal_keys, j)
 		if (j->btree_id == BTREE_ID_ALLOC)

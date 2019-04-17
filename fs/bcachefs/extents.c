@@ -1632,13 +1632,14 @@ bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,
 	struct bpos end = pos;
 	struct bkey_s_c k;
 	bool ret = true;
+	int err;
 
 	end.offset += size;
 
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, pos,
-			   BTREE_ITER_SLOTS, k) {
+			   BTREE_ITER_SLOTS, k, err) {
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
 

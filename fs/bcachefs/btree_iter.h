@@ -238,12 +238,16 @@ static inline struct bkey_s_c __bch2_btree_iter_next(struct btree_iter *iter,
 		: bch2_btree_iter_next(iter);
 }
 
-#define for_each_btree_key(_trans, _iter, _btree_id,  _start, _flags, _k)\
-	for (iter = bch2_trans_get_iter((_trans), (_btree_id),		\
-					(_start), (_flags)),		\
-	     (_k) = __bch2_btree_iter_peek(_iter, _flags);		\
-	     !IS_ERR_OR_NULL((_k).k);					\
-	     (_k) = __bch2_btree_iter_next(_iter, _flags))
+#define for_each_btree_key(_trans, _iter, _btree_id,			\
+			   _start, _flags, _k, _ret)			\
+	for ((_ret) = PTR_ERR_OR_ZERO((_iter) =				\
+			bch2_trans_get_iter((_trans), (_btree_id),	\
+					    (_start), (_flags))) ?:	\
+		      PTR_ERR_OR_ZERO(((_k) =				\
+			__bch2_btree_iter_peek(_iter, _flags)).k);	\
+	     !ret && (_k).k;						\
+	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
+			__bch2_btree_iter_next(_iter, _flags)).k))
 
 #define for_each_btree_key_continue(_iter, _flags, _k)			\
 	for ((_k) = __bch2_btree_iter_peek(_iter, _flags);		\

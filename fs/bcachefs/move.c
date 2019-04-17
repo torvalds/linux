@@ -630,7 +630,7 @@ static int bch2_gc_data_replicas(struct bch_fs *c)
 	bch2_replicas_gc_start(c, (1 << BCH_DATA_USER)|(1 << BCH_DATA_CACHED));
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS_MIN,
-			   BTREE_ITER_PREFETCH, k) {
+			   BTREE_ITER_PREFETCH, k, ret) {
 		ret = bch2_mark_bkey_replicas(c, k);
 		if (ret)
 			break;

@@ -134,14 +134,11 @@ bch2_hash_lookup(struct btree_trans *trans,
 {
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	int ret;
 
-	iter = bch2_trans_get_iter(trans, desc.btree_id,
-				   POS(inode, desc.hash_key(info, key)),
-				   BTREE_ITER_SLOTS|flags);
-	if (IS_ERR(iter))
-		return iter;
-
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k) {
+	for_each_btree_key(trans, iter, desc.btree_id,
+			   POS(inode, desc.hash_key(info, key)),
+			   BTREE_ITER_SLOTS|flags, k, ret) {
 		if (iter->pos.inode != inode)
 			break;
 
@@ -156,7 +153,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 		}
 	}
 
-	return IS_ERR(k.k) ? ERR_CAST(k.k) : ERR_PTR(-ENOENT);
+	return ERR_PTR(ret ?: -ENOENT);
 }
 
 static __always_inline struct btree_iter *
@@ -167,14 +164,11 @@ bch2_hash_hole(struct btree_trans *trans,
 {
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	int ret;
 
-	iter = bch2_trans_get_iter(trans, desc.btree_id,
-				   POS(inode, desc.hash_key(info, key)),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return iter;
-
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k) {
+	for_each_btree_key(trans, iter, desc.btree_id,
+			   POS(inode, desc.hash_key(info, key)),
+			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (iter->pos.inode != inode)
 			break;
 
@@ -182,7 +176,7 @@ bch2_hash_hole(struct btree_trans *trans,
 			return iter;
 	}
 
-	return IS_ERR(k.k) ? ERR_CAST(k.k) : ERR_PTR(-ENOSPC);
+	return ERR_PTR(ret ?: -ENOSPC);
 }
 
 static __always_inline
@@ -224,15 +218,11 @@ int bch2_hash_set(struct btree_trans *trans,
 	struct btree_iter *iter, *slot = NULL;
 	struct bkey_s_c k;
 	bool found = false;
-	int ret = 0;
+	int ret;
 
-	iter = bch2_trans_get_iter(trans, desc.btree_id,
-			POS(inode, desc.hash_bkey(info, bkey_i_to_s_c(insert))),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k) {
+	for_each_btree_key(trans, iter, desc.btree_id,
+			   POS(inode, desc.hash_bkey(info, bkey_i_to_s_c(insert))),
+			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (iter->pos.inode != inode)
 			break;
 
@@ -256,9 +246,10 @@ int bch2_hash_set(struct btree_trans *trans,
 	}
 
 	if (slot)
-		bch2_trans_iter_free(trans, iter);
+		bch2_trans_iter_free(trans, slot);
+	bch2_trans_iter_free(trans, iter);
 
-	return bch2_trans_iter_free(trans, iter) ?: -ENOSPC;
+	return ret ?: -ENOSPC;
 found:
 	found = true;
 not_found:

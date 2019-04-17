@@ -1210,7 +1210,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
-			   POS(ei->v.i_ino, start >> 9), 0, k)
+			   POS(ei->v.i_ino, start >> 9), 0, k, ret)
 		if (bkey_extent_is_data(k.k) ||
 		    k.k->type == KEY_TYPE_reservation) {
 			if (bkey_cmp(bkey_start_pos(k.k),
@@ -1220,17 +1220,17 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 			if (have_extent) {
 				ret = bch2_fill_extent(info, &tmp.k, 0);
 				if (ret)
-					goto out;
+					break;
 			}
 
 			bkey_reassemble(&tmp.k, k);
 			have_extent = true;
 		}
 
-	if (have_extent)
+	if (!ret && have_extent)
 		ret = bch2_fill_extent(info, &tmp.k, FIEMAP_EXTENT_LAST);
-out:
-	bch2_trans_exit(&trans);
+
+	ret = bch2_trans_exit(&trans) ?: ret;
 	return ret < 0 ? ret : 0;
 }
 

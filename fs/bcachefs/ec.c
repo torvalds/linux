@@ -679,10 +679,8 @@ retry:
 	bch2_trans_begin(&trans);
 
 	/* XXX: start pos hint */
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN,
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN,
+			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0)
 			break;
 
@@ -690,7 +688,8 @@ retry:
 			goto found_slot;
 	}
 
-	ret = -ENOSPC;
+	if (!ret)
+		ret = -ENOSPC;
 	goto out;
 found_slot:
 	ret = ec_stripe_mem_alloc(c, iter);
@@ -1249,14 +1248,14 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 
 	bch2_trans_init(&trans, c);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k, ret)
 		bch2_stripe_read_key(c, k);
-		bch2_trans_cond_resched(&trans);
-	}
 
-	ret = bch2_trans_exit(&trans);
-	if (ret)
+	ret = bch2_trans_exit(&trans) ?: ret;
+	if (ret) {
+		bch_err(c, "error reading stripes: %i", ret);
 		return ret;
+	}
 
 	for_each_journal_key(*journal_keys, i)
 		if (i->btree_id == BTREE_ID_EC)

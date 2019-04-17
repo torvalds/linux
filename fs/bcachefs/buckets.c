@@ -1035,12 +1035,12 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	return ret;
 }
 
-inline bool bch2_mark_overwrite(struct btree_trans *trans,
-				struct btree_iter *iter,
-				struct bkey_s_c old,
-				struct bkey_i *new,
-				struct bch_fs_usage *fs_usage,
-				unsigned flags)
+inline int bch2_mark_overwrite(struct btree_trans *trans,
+			       struct btree_iter *iter,
+			       struct bkey_s_c old,
+			       struct bkey_i *new,
+			       struct bch_fs_usage *fs_usage,
+			       unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
 	struct btree		*b = iter->l[0].b;
@@ -1049,7 +1049,7 @@ inline bool bch2_mark_overwrite(struct btree_trans *trans,
 	if (btree_node_is_extents(b)
 	    ? bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0
 	    : bkey_cmp(new->k.p, old.k->p))
-		return false;
+		return 0;
 
 	if (btree_node_is_extents(b)) {
 		switch (bch2_extent_overlap(&new->k, old.k)) {
@@ -1080,24 +1080,24 @@ inline bool bch2_mark_overwrite(struct btree_trans *trans,
 		BUG_ON(sectors >= 0);
 	}
 
-	bch2_mark_key_locked(c, old, false, sectors,
-		fs_usage, trans->journal_res.seq, flags);
-	return true;
+	return bch2_mark_key_locked(c, old, false, sectors, fs_usage,
+				    trans->journal_res.seq, flags) ?: 1;
 }
 
-void bch2_mark_update(struct btree_trans *trans,
-		      struct btree_insert_entry *insert,
-		      struct bch_fs_usage *fs_usage,
-		      unsigned flags)
+int bch2_mark_update(struct btree_trans *trans,
+		     struct btree_insert_entry *insert,
+		     struct bch_fs_usage *fs_usage,
+		     unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
 	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
 	struct bkey_packed	*_k;
+	int ret = 0;
 
 	if (!btree_node_type_needs_gc(iter->btree_id))
-		return;
+		return 0;
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
 		bpos_min(insert->k->k.p, b->key.k.p).offset -
@@ -1105,7 +1105,7 @@ void bch2_mark_update(struct btree_trans *trans,
 		fs_usage, trans->journal_res.seq, flags);
 
 	if (unlikely(trans->flags & BTREE_INSERT_NOMARK_OVERWRITES))
-		return;
+		return 0;
 
 	/*
 	 * For non extents, we only mark the new key, not the key being
@@ -1114,19 +1114,22 @@ void bch2_mark_update(struct btree_trans *trans,
 	if ((iter->btree_id == BTREE_ID_ALLOC ||
 	     iter->btree_id == BTREE_ID_EC) &&
 	    !bkey_deleted(&insert->k->k))
-		return;
+		return 0;
 
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
 						      KEY_TYPE_discard))) {
 		struct bkey		unpacked;
 		struct bkey_s_c		k = bkey_disassemble(b, _k, &unpacked);
 
-		if (!bch2_mark_overwrite(trans, iter, k, insert->k,
-					 fs_usage, flags))
+		ret = bch2_mark_overwrite(trans, iter, k, insert->k,
+					  fs_usage, flags);
+		if (ret <= 0)
 			break;
 
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}
+
+	return ret;
 }
 
 void bch2_trans_fs_usage_apply(struct btree_trans *trans,

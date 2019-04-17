@@ -2139,7 +2139,7 @@ static inline int range_has_data(struct bch_fs *c,
 
 	bch2_trans_init(&trans, c);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, start, 0, k) {
+	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, start, 0, k, ret) {
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
 
@@ -2732,7 +2732,7 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 	bch2_trans_init(&trans, c);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
-			   POS(inode->v.i_ino, offset >> 9), 0, k) {
+			   POS(inode->v.i_ino, offset >> 9), 0, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			break;
 		} else if (bkey_extent_is_data(k.k)) {
@@ -2742,7 +2742,7 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 			break;
 	}
 
-	ret = bch2_trans_exit(&trans);
+	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
 		return ret;
 
@@ -2806,7 +2806,7 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(inode->v.i_ino, offset >> 9),
-			   BTREE_ITER_SLOTS, k) {
+			   BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			next_hole = bch2_next_pagecache_hole(&inode->v,
 					offset, MAX_LFS_FILESIZE);
@@ -2823,7 +2823,7 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 		}
 	}
 
-	ret = bch2_trans_exit(&trans);
+	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret)
 		return ret;
 
