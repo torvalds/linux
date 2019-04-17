@@ -2701,8 +2701,6 @@ void btrfs_wait_nocow_writers(struct btrfs_block_group_cache *bg);
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   unsigned long count);
-int btrfs_async_run_delayed_refs(struct btrfs_fs_info *fs_info,
-				 unsigned long count, u64 transid, int wait);
 void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head);
