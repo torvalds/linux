@@ -289,7 +289,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
 	guest_page_size = (1ul << guest_page_shift);
 	/* 1G of guest page sized pages */
-	guest_num_pages = (1ul << (30 - guest_page_shift));
+	guest_num_pages = (1ul << (30 - guest_page_shift)) + 3;
 	host_page_size = getpagesize();
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
@@ -359,7 +359,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
 #ifdef USE_CLEAR_DIRTY_LOG
 		kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
-				       DIV_ROUND_UP(host_num_pages, 64) * 64);
+				       host_num_pages);
 #endif
 		vm_dirty_log_verify(bmap);
 		iteration++;
