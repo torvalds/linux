@@ -12,9 +12,10 @@
 #include "i915_reg.h"
 
 struct i915_wa {
-	i915_reg_t	  reg;
-	u32		  mask;
-	u32		  val;
+	i915_reg_t	reg;
+	u32		mask;
+	u32		val;
+	u32		read;
 };
 
 struct i915_wa_list {

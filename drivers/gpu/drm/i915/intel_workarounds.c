@@ -122,6 +122,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 			wal->wa_count++;
 			wa_->val |= wa->val;
 			wa_->mask |= wa->mask;
+			wa_->read |= wa->read;
 			return;
 		}
 	}
@@ -146,9 +147,10 @@ wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
 		   u32 val)
 {
 	struct i915_wa wa = {
-		.reg = reg,
+		.reg  = reg,
 		.mask = mask,
-		.val = val
+		.val  = val,
+		.read = mask,
 	};
 
 	_wa_add(wal, &wa);
@@ -170,6 +172,19 @@ static void
 wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
 	wa_write_masked_or(wal, reg, val, val);
+}
+
+static void
+ignore_wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask, u32 val)
+{
+	struct i915_wa wa = {
+		.reg  = reg,
+		.mask = mask,
+		.val  = val,
+		/* Bonkers HW, skip verifying */
+	};
+
+	_wa_add(wal, &wa);
 }
 
 #define WA_SET_BIT_MASKED(addr, mask) \
@@ -916,10 +931,11 @@ wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 static bool
 wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 {
-	if ((cur ^ wa->val) & wa->mask) {
+	if ((cur ^ wa->val) & wa->read) {
 		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x, mask=%x)\n",
-			  name, from, i915_mmio_reg_offset(wa->reg), cur,
-			  cur & wa->mask, wa->val, wa->mask);
+			  name, from, i915_mmio_reg_offset(wa->reg),
+			  cur, cur & wa->read,
+			  wa->val, wa->mask);
 
 		return false;
 	}
@@ -1122,9 +1138,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
 
 		/* WaPipelineFlushCoherentLines:icl */
-		wa_write_or(wal,
-			    GEN8_L3SQCREG4,
-			    GEN8_LQSC_FLUSH_COHERENT_LINES);
+		ignore_wa_write_or(wal,
+				   GEN8_L3SQCREG4,
+				   GEN8_LQSC_FLUSH_COHERENT_LINES,
+				   GEN8_LQSC_FLUSH_COHERENT_LINES);
 
 		/*
 		 * Wa_1405543622:icl
@@ -1151,9 +1168,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * Wa_1405733216:icl
 		 * Formerly known as WaDisableCleanEvicts
 		 */
-		wa_write_or(wal,
-			    GEN8_L3SQCREG4,
-			    GEN11_LQSC_CLEAN_EVICT_DISABLE);
+		ignore_wa_write_or(wal,
+				   GEN8_L3SQCREG4,
+				   GEN11_LQSC_CLEAN_EVICT_DISABLE,
+				   GEN11_LQSC_CLEAN_EVICT_DISABLE);
 
 		/* WaForwardProgressSoftReset:icl */
 		wa_write_or(wal,
