@@ -54,6 +54,7 @@ struct rkisp1_isp_readout_work {
 	unsigned int frame_id;
 	unsigned int isp_ris;
 	enum rkisp1_isp_readout_cmd readout;
+	unsigned long long timestamp;
 };
 
 struct rkisp1_stats_ops {

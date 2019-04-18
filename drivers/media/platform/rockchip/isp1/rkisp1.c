@@ -354,7 +354,7 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
-		    CIF_ISP_FRAME_IN;
+		    CIF_ISP_FRAME_IN | CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN;
 	writel(irq_mask, base + CIF_ISP_IMSC);
 
 	if (out_fmt->fmt_type == FMT_BAYER)
@@ -1699,7 +1699,6 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 
 	/* frame was completely put out */
 	if (isp_mis & CIF_ISP_FRAME) {
-		u32 isp_ris = 0;
 		/* Clear Frame In (ISP) */
 		writel(CIF_ISP_FRAME, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
@@ -1708,11 +1707,18 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 				 "isp icr frame end err: 0x%x\n", isp_mis_tmp);
 
 		rkisp1_isp_read_add_fifo_data(dev);
+	}
 
-		isp_ris = readl(base + CIF_ISP_RIS);
-		if (isp_ris & (CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN |
-				CIF_ISP_EXP_END | CIF_ISP_HIST_MEASURE_RDY))
-			rkisp1_stats_isr(&dev->stats_vdev, isp_ris);
+	if (isp_mis & (CIF_ISP_FRAME | CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN)) {
+		u32 irq = isp_mis;
+
+		/* FRAME to get EXP and HIST together */
+		if (isp_mis & CIF_ISP_FRAME)
+			irq |= ((CIF_ISP_EXP_END |
+				CIF_ISP_HIST_MEASURE_RDY) &
+				readl(base + CIF_ISP_RIS));
+
+		rkisp1_stats_isr(&dev->stats_vdev, irq);
 	}
 
 	/*
