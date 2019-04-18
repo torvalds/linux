@@ -103,7 +103,6 @@ enum cc_std_body {
 
 #define MAX_REQUEST_QUEUE_SIZE 4096
 #define MAX_MLLI_BUFF_SIZE 2080
-#define MAX_ICV_NENTS_SUPPORTED 2
 
 /* Definitions for HW descriptors DIN/DOUT fields */
 #define NS_BIT 1
