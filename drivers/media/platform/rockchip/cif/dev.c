@@ -16,7 +16,12 @@
 #include <linux/reset.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/regmap.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-fwnode.h>
+#include <linux/dma-iommu.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
+#include <soc/rockchip/rockchip-system-status.h>
 
 #include "dev.h"
 #include "regs.h"
@@ -32,7 +37,7 @@ struct cif_match_data {
 	int rsts_num;
 };
 
-int rkcif_debug;
+int rkcif_debug = 3;
 module_param_named(debug, rkcif_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
@@ -45,37 +50,202 @@ int using_pingpong;
 static DEFINE_MUTEX(rkcif_dev_mutex);
 static LIST_HEAD(rkcif_device_list);
 
+/**************************** pipeline operations *****************************/
+
+static int __cif_pipeline_prepare(struct rkcif_pipeline *p,
+				  struct media_entity *me)
+{
+	struct v4l2_subdev *sd;
+	int i;
+
+	p->num_subdevs = 0;
+	memset(p->subdevs, 0, sizeof(p->subdevs));
+
+	while (1) {
+		struct media_pad *pad = NULL;
+
+		/* Find remote source pad */
+		for (i = 0; i < me->num_pads; i++) {
+			struct media_pad *spad = &me->pads[i];
+
+			if (!(spad->flags & MEDIA_PAD_FL_SINK))
+				continue;
+			pad = media_entity_remote_pad(spad);
+			if (pad)
+				break;
+		}
+
+		if (!pad)
+			break;
+
+		sd = media_entity_to_v4l2_subdev(pad->entity);
+		p->subdevs[p->num_subdevs++] = sd;
+		me = &sd->entity;
+		if (me->num_pads == 1)
+			break;
+	}
+
+	return 0;
+}
+
+static int __subdev_set_power(struct v4l2_subdev *sd, int on)
+{
+	int ret;
+
+	if (!sd)
+		return -ENXIO;
+
+	ret = v4l2_subdev_call(sd, core, s_power, on);
+
+	return ret != -ENOIOCTLCMD ? ret : 0;
+}
+
+static int __cif_pipeline_s_power(struct rkcif_pipeline *p, bool on)
+{
+	int i, ret;
+
+	if (on) {
+		for (i = p->num_subdevs - 1; i >= 0; --i) {
+			ret = __subdev_set_power(p->subdevs[i], true);
+			if (ret < 0 && ret != -ENXIO)
+				goto err_power_off;
+		}
+	} else {
+		for (i = 0; i < p->num_subdevs; ++i)
+			__subdev_set_power(p->subdevs[i], false);
+	}
+
+	return 0;
+
+err_power_off:
+	for (++i; i < p->num_subdevs; ++i)
+		__subdev_set_power(p->subdevs[i], false);
+	return ret;
+}
+
+static int __cif_pipeline_s_cif_clk(struct rkcif_pipeline *p)
+{
+	return 0;
+}
+
+static int rkcif_pipeline_open(struct rkcif_pipeline *p,
+			       struct media_entity *me,
+				bool prepare)
+{
+	int ret;
+
+	if (WARN_ON(!p || !me))
+		return -EINVAL;
+	if (atomic_inc_return(&p->power_cnt) > 1)
+		return 0;
+
+	/* go through media graphic and get subdevs */
+	if (prepare)
+		__cif_pipeline_prepare(p, me);
+
+	if (!p->num_subdevs)
+		return -EINVAL;
+
+	ret = __cif_pipeline_s_cif_clk(p);
+	if (ret < 0)
+		return ret;
+
+	ret = __cif_pipeline_s_power(p, 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int rkcif_pipeline_close(struct rkcif_pipeline *p)
+{
+	int ret;
+
+	if (atomic_dec_return(&p->power_cnt) > 0)
+		return 0;
+	ret = __cif_pipeline_s_power(p, 0);
+
+	return ret == -ENXIO ? 0 : ret;
+}
+
+/*
+ * stream-on order: isp_subdev, mipi dphy, sensor
+ * stream-off order: mipi dphy, sensor, isp_subdev
+ */
+static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
+{
+	int i, ret;
+
+	if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
+	    (!on && atomic_dec_return(&p->stream_cnt) > 0))
+		return 0;
+
+	if (on)
+		rockchip_set_system_status(SYS_STATUS_CIF0);
+
+	/* phy -> sensor */
+	for (i = p->num_subdevs; i > -1; --i) {
+		ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+			goto err_stream_off;
+	}
+
+	if (!on)
+		rockchip_clear_system_status(SYS_STATUS_CIF0);
+
+	return 0;
+
+err_stream_off:
+	for (--i; i >= 0; --i)
+		v4l2_subdev_call(p->subdevs[i], video, s_stream, false);
+	rockchip_clear_system_status(SYS_STATUS_CIF0);
+	return ret;
+}
+
 /***************************** media controller *******************************/
 static int rkcif_create_links(struct rkcif_device *dev)
 {
-	unsigned int s, pad;
+	unsigned int s, pad, id;
 	int ret;
 
 	/* sensor links(or mipi-phy) */
 	for (s = 0; s < dev->num_sensors; ++s) {
 		struct rkcif_sensor_info *sensor = &dev->sensors[s];
 
-		for (pad = 0; pad < sensor->sd->entity.num_pads; pad++)
+		for (pad = 0; pad < sensor->sd->entity.num_pads; pad++) {
 			if (sensor->sd->entity.pads[pad].flags &
-				MEDIA_PAD_FL_SOURCE)
-				break;
+					MEDIA_PAD_FL_SOURCE) {
+				if (pad == sensor->sd->entity.num_pads) {
+					dev_err(dev->dev,
+						"failed to find src pad for %s\n",
+						sensor->sd->name);
 
-		if (pad == sensor->sd->entity.num_pads) {
-			dev_err(dev->dev, "failed to find src pad for %s\n",
-				sensor->sd->name);
-			return -ENXIO;
-		}
+					return -ENXIO;
+				}
 
-		ret = media_create_pad_link(&sensor->sd->entity,
-					 pad, &dev->stream.vdev.entity, 0,
-					 s ? 0 : MEDIA_LNK_FL_ENABLED);
-		if (ret) {
-			dev_err(dev->dev, "failed to create link for %s\n",
-				sensor->sd->name);
-			return ret;
+				for (id = 0; id < RKCIF_MAX_STREAM_MIPI; id++) {
+					ret = media_entity_create_link(
+							&sensor->sd->entity,
+							pad,
+							&dev->stream[id].vnode.vdev.entity,
+							0,
+							id == pad - 1 ? MEDIA_LNK_FL_ENABLED : 0);
+					if (ret) {
+						dev_err(dev->dev,
+							"failed to create link for %s\n",
+							sensor->sd->name);
+						return ret;
+					}
+				}
+			}
 		}
 	}
 
+	return 0;
+}
+
+static int _set_pipeline_default_fmt(struct rkcif_device *dev)
+{
 	return 0;
 }
 
@@ -86,7 +256,7 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 
 	dev = container_of(notifier, struct rkcif_device, notifier);
 
-	mutex_lock(&dev->media_dev.graph_mutex);
+	/* mutex_lock(&dev->media_dev.graph_mutex); */
 
 	ret = rkcif_create_links(dev);
 	if (ret < 0)
@@ -96,10 +266,13 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0)
 		goto unlock;
 
+	ret = _set_pipeline_default_fmt(dev);
+	if (ret < 0)
+		goto unlock;
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
 unlock:
-	mutex_unlock(&dev->media_dev.graph_mutex);
+	/* mutex_unlock(&dev->media_dev.graph_mutex); */
 	return ret;
 }
 
@@ -187,18 +360,26 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 {
 	int ret;
 
-	ret = rkcif_register_stream_vdev(cif_dev);
+	cif_dev->alloc_ctx = vb2_dma_contig_init_ctx(cif_dev->v4l2_dev.dev);
+
+	ret = rkcif_register_stream_vdevs(cif_dev);
 	if (ret < 0)
-		return ret;
+		goto err_cleanup_ctx;
 
 	ret = cif_subdev_notifier(cif_dev);
 	if (ret < 0) {
 		v4l2_err(&cif_dev->v4l2_dev,
 			 "Failed to register subdev notifier(%d)\n", ret);
-		rkcif_unregister_stream_vdev(cif_dev);
+		goto err_unreg_stream_vdev;
 	}
 
 	return 0;
+err_unreg_stream_vdev:
+	rkcif_unregister_stream_vdevs(cif_dev);
+err_cleanup_ctx:
+	vb2_dma_contig_cleanup_ctx(cif_dev->alloc_ctx);
+
+	return ret;
 }
 
 static const char * const px30_cif_clks[] = {
@@ -219,7 +400,7 @@ static const char * const rk1808_cif_clks[] = {
 	"dclk_cif",
 	"hclk_cif",
 	"sclk_cif_out",
-	"pclk_csi2host"
+	/* "pclk_csi2host" */
 };
 
 static const char * const rk1808_cif_rsts[] = {
@@ -316,50 +497,6 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	return IRQ_HANDLED;
 }
 
-#define CSIHOST_MAX_ERRINT_COUNT	10
-
-static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
-{
-	struct device *dev = ctx;
-	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
-	static int csi_err1_cnt;
-	u32 val;
-
-	val = read_csihost_reg(cif_dev->csi_base, CSIHOST_ERR1);
-	if (val) {
-		pr_err("ERROR: csi err1 intr: 0x%x\n", val);
-
-		if (++csi_err1_cnt > CSIHOST_MAX_ERRINT_COUNT) {
-			write_csihost_reg(cif_dev->csi_base,
-					  CSIHOST_MSK1, 0xffffffff);
-			csi_err1_cnt = 0;
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
-{
-	struct device *dev = ctx;
-	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
-	static int csi_err2_cnt;
-	u32 val;
-
-	val = read_csihost_reg(cif_dev->csi_base, CSIHOST_ERR2);
-	if (val) {
-		pr_err("ERROR: csi err2 intr: 0x%x\n", val);
-
-		if (++csi_err2_cnt > CSIHOST_MAX_ERRINT_COUNT) {
-			write_csihost_reg(cif_dev->csi_base,
-					  CSIHOST_MSK2, 0xffffffff);
-			csi_err2_cnt = 0;
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
 static void rkcif_disable_sys_clk(struct rkcif_device *cif_dev)
 {
 	int i;
@@ -379,6 +516,7 @@ static int rkcif_enable_sys_clk(struct rkcif_device *cif_dev)
 			goto err;
 	}
 
+	write_cif_reg_and(cif_dev->base_addr, CIF_CSI_INTEN, 0x0);
 	return 0;
 
 err:
@@ -470,33 +608,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		cif_dev->base_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(cif_dev->base_addr))
 			return PTR_ERR(cif_dev->base_addr);
-
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csihost_regs");
-		cif_dev->csi_base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(cif_dev->csi_base))
-			return PTR_ERR(cif_dev->csi_base);
-
-		irq = platform_get_irq_byname(pdev, "csi-intr1");
-		if (irq > 0) {
-			ret = devm_request_irq(dev, irq, rk_csirx_irq1_handler,
-					       0, dev_driver_string(dev), dev);
-			if (ret < 0)
-				dev_err(dev, "request csi-intr1 irq failed: %d\n",
-					ret);
-		} else {
-			dev_err(dev, "No found irq csi-intr1\n");
-		}
-
-		irq = platform_get_irq_byname(pdev, "csi-intr2");
-		if (irq > 0) {
-			ret = devm_request_irq(dev, irq, rk_csirx_irq2_handler,
-					       0, dev_driver_string(dev), dev);
-			if (ret < 0)
-				dev_err(dev, "request csi-intr2 failed: %d\n",
-					ret);
-		} else {
-			dev_err(dev, "No found irq csi-intr2\n");
-		}
 	} else {
 		using_pingpong = 0;
 
@@ -533,7 +644,18 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		cif_dev->cif_rst[i] = rst;
 	}
 
-	rkcif_stream_init(cif_dev);
+	atomic_set(&cif_dev->pipe.power_cnt, 0);
+	atomic_set(&cif_dev->pipe.stream_cnt, 0);
+	mutex_init(&cif_dev->dev_lock);
+	cif_dev->pipe.open = rkcif_pipeline_open;
+	cif_dev->pipe.close = rkcif_pipeline_close;
+	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
+
+	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID0);
+	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID1);
+	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID2);
+	rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID3);
+	rkcif_stream_init(cif_dev, RKCIF_STREAM_DVP);
 
 	strlcpy(cif_dev->media_dev.model, "rkcif",
 		sizeof(cif_dev->media_dev.model));
@@ -569,6 +691,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 				  "No reserved memory region assign to CIF\n");
 	}
 
+	rkcif_soft_reset(cif_dev);
 	pm_runtime_enable(&pdev->dev);
 
 	mutex_lock(&rkcif_dev_mutex);
@@ -592,7 +715,8 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);
-	rkcif_unregister_stream_vdev(cif_dev);
+	rkcif_unregister_stream_vdevs(cif_dev);
+	vb2_dma_contig_cleanup_ctx(cif_dev->alloc_ctx);
 
 	return 0;
 }
