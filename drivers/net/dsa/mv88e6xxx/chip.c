@@ -553,9 +553,26 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			     int speed, int duplex, int pause,
 			     phy_interface_t mode)
 {
+	struct phylink_link_state state;
 	int err;
 
 	if (!chip->info->ops->port_set_link)
+		return 0;
+
+	if (!chip->info->ops->port_link_state)
+		return 0;
+
+	err = chip->info->ops->port_link_state(chip, port, &state);
+	if (err)
+		return err;
+
+	/* Has anything actually changed? We don't expect the
+	 * interface mode to change without one of the other
+	 * parameters also changing
+	 */
+	if (state.link == link &&
+	    state.speed == speed &&
+	    state.duplex == duplex)
 		return 0;
 
 	/* Port's MAC control must not be changed unless the link is down */
