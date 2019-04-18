@@ -20,6 +20,8 @@
 #define AUDIO_MCLK_D_CTRL	0x010
 #define AUDIO_MCLK_E_CTRL	0x014
 #define AUDIO_MCLK_F_CTRL	0x018
+#define AUDIO_MST_PAD_CTRL0	0x01c
+#define AUDIO_MST_PAD_CTRL1	0x020
 #define AUDIO_MST_A_SCLK_CTRL0	0x040
 #define AUDIO_MST_A_SCLK_CTRL1	0x044
 #define AUDIO_MST_B_SCLK_CTRL0	0x048
@@ -45,41 +47,13 @@
 #define AUDIO_CLK_LOCKER_CTRL	0x0A8
 #define AUDIO_CLK_PDMIN_CTRL0	0x0AC
 #define AUDIO_CLK_PDMIN_CTRL1	0x0B0
+#define AUDIO_CLK_SPDIFOUT_B_CTRL 0x0B4
 
 /*
  * CLKID index values
  * These indices are entirely contrived and do not map onto the hardware.
  */
 
-#define AUD_CLKID_PCLK			0
-#define AUD_CLKID_MST0			1
-#define AUD_CLKID_MST1			2
-#define AUD_CLKID_MST2			3
-#define AUD_CLKID_MST3			4
-#define AUD_CLKID_MST4			5
-#define AUD_CLKID_MST5			6
-#define AUD_CLKID_MST6			7
-#define AUD_CLKID_MST7			8
-#define AUD_CLKID_SLV_SCLK0		9
-#define AUD_CLKID_SLV_SCLK1		10
-#define AUD_CLKID_SLV_SCLK2		11
-#define AUD_CLKID_SLV_SCLK3		12
-#define AUD_CLKID_SLV_SCLK4		13
-#define AUD_CLKID_SLV_SCLK5		14
-#define AUD_CLKID_SLV_SCLK6		15
-#define AUD_CLKID_SLV_SCLK7		16
-#define AUD_CLKID_SLV_SCLK8		17
-#define AUD_CLKID_SLV_SCLK9		18
-#define AUD_CLKID_SLV_LRCLK0		19
-#define AUD_CLKID_SLV_LRCLK1		20
-#define AUD_CLKID_SLV_LRCLK2		21
-#define AUD_CLKID_SLV_LRCLK3		22
-#define AUD_CLKID_SLV_LRCLK4		23
-#define AUD_CLKID_SLV_LRCLK5		24
-#define AUD_CLKID_SLV_LRCLK6		25
-#define AUD_CLKID_SLV_LRCLK7		26
-#define AUD_CLKID_SLV_LRCLK8		27
-#define AUD_CLKID_SLV_LRCLK9		28
 #define AUD_CLKID_MST_A_MCLK_SEL	59
 #define AUD_CLKID_MST_B_MCLK_SEL	60
 #define AUD_CLKID_MST_C_MCLK_SEL	61
@@ -138,10 +112,12 @@
 #define AUD_CLKID_TDMOUT_A_SCLK_POST_EN	148
 #define AUD_CLKID_TDMOUT_B_SCLK_POST_EN	149
 #define AUD_CLKID_TDMOUT_C_SCLK_POST_EN	150
+#define AUD_CLKID_SPDIFOUT_B_CLK_SEL	153
+#define AUD_CLKID_SPDIFOUT_B_CLK_DIV	154
 
 /* include the CLKIDs which are part of the DT bindings */
 #include <dt-bindings/clock/axg-audio-clkc.h>
 
-#define NR_CLKS	151
+#define NR_CLKS	163
 
 #endif /*__AXG_AUDIO_CLKC_H */
