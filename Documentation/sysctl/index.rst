@@ -1,5 +1,12 @@
-Documentation for /proc/sys/		kernel version 2.2.10
-	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+:orphan:
+
+===========================
+Documentation for /proc/sys
+===========================
+
+Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+------------------------------------------------------------------------------
 
 'Why', I hear you ask, 'would anyone even _want_ documentation
 for them sysctl files? If anybody really needs it, it's all in
@@ -12,11 +19,12 @@ have the time or knowledge to read the source code.
 Furthermore, the programmers who built sysctl have built it to
 be actually used, not just for the fun of programming it :-)
 
-==============================================================
+------------------------------------------------------------------------------
 
 Legal blurb:
 
 As usual, there are two main things to consider:
+
 1. you get what you pay for
 2. it's free
 
@@ -35,15 +43,17 @@ stories to: <riel@nl.linux.org>
 
 Rik van Riel.
 
-==============================================================
+--------------------------------------------------------------
 
-Introduction:
+Introduction
+============
 
 Sysctl is a means of configuring certain aspects of the kernel
 at run-time, and the /proc/sys/ directory is there so that you
 don't even need special tools to do it!
 In fact, there are only four things needed to use these config
 facilities:
+
 - a running Linux system
 - root access
 - common sense (this is especially hard to come by these days)
@@ -54,7 +64,9 @@ several (arch-dependent?) subdirs. Each subdir is mainly about
 one part of the kernel, so you can do configuration on a piece
 by piece basis, or just some 'thematic frobbing'.
 
-The subdirs are about:
+This documentation is about:
+
+=============== ===============================================================
 abi/		execution domains & personalities
 debug/		<empty>
 dev/		device specific information (eg dev/cdrom/info)
@@ -70,7 +82,19 @@ sunrpc/		SUN Remote Procedure Call (NFS)
 vm/		memory management tuning
 		buffer and cache management
 user/		Per user per user namespace limits
+=============== ===============================================================
 
 These are the subdirs I have on my system. There might be more
 or other subdirs in another setup. If you see another dir, I'd
 really like to hear about it :-)
+
+.. toctree::
+   :maxdepth: 1
+
+   abi
+   fs
+   kernel
+   net
+   sunrpc
+   user
+   vm

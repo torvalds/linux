@@ -1,9 +1,14 @@
-Documentation for /proc/sys/sunrpc/*	kernel version 2.2.10
-	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+===================================
+Documentation for /proc/sys/sunrpc/
+===================================
 
-For general info and legal blurb, please look in README.
+kernel version 2.2.10
 
-==============================================================
+Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+For general info and legal blurb, please look in index.rst.
+
+------------------------------------------------------------------------------
 
 This file contains the documentation for the sysctl files in
 /proc/sys/sunrpc and is valid for Linux kernel version 2.2.

@@ -1,12 +1,25 @@
-Documentation for /proc/sys/net/*
-	(c) 1999		Terrehon Bowden <terrehon@pacbell.net>
-				Bodo Bauer <bb@ricochet.net>
-	(c) 2000		Jorge Nerin <comandante@zaralinux.com>
-	(c) 2009		Shen Feng <shen@cn.fujitsu.com>
+================================
+Documentation for /proc/sys/net/
+================================
 
-For general info and legal blurb, please look in README.
+Copyright
 
-==============================================================
+Copyright (c) 1999
+
+	- Terrehon Bowden <terrehon@pacbell.net>
+	- Bodo Bauer <bb@ricochet.net>
+
+Copyright (c) 2000
+
+	- Jorge Nerin <comandante@zaralinux.com>
+
+Copyright (c) 2009
+
+	- Shen Feng <shen@cn.fujitsu.com>
+
+For general info and legal blurb, please look in index.rst.
+
+------------------------------------------------------------------------------
 
 This file contains the documentation for the sysctl files in
 /proc/sys/net
@@ -17,20 +30,22 @@ see only some of them, depending on your kernel's configuration.
 
 
 Table : Subdirectories in /proc/sys/net
-..............................................................................
- Directory Content             Directory  Content
- core      General parameter   appletalk  Appletalk protocol
- unix      Unix domain sockets netrom     NET/ROM
- 802       E802 protocol       ax25       AX25
- ethernet  Ethernet protocol   rose       X.25 PLP layer
- ipv4      IP version 4        x25        X.25 protocol
- ipx       IPX                 token-ring IBM token ring
- bridge    Bridging            decnet     DEC net
- ipv6      IP version 6        tipc       TIPC
-..............................................................................
+
+ ========= =================== = ========== ==================
+ Directory Content               Directory  Content
+ ========= =================== = ========== ==================
+ core      General parameter     appletalk  Appletalk protocol
+ unix      Unix domain sockets   netrom     NET/ROM
+ 802       E802 protocol         ax25       AX25
+ ethernet  Ethernet protocol     rose       X.25 PLP layer
+ ipv4      IP version 4          x25        X.25 protocol
+ ipx       IPX                   token-ring IBM token ring
+ bridge    Bridging              decnet     DEC net
+ ipv6      IP version 6          tipc       TIPC
+ ========= =================== = ========== ==================
 
 1. /proc/sys/net/core - Network core options
--------------------------------------------------------
+============================================
 
 bpf_jit_enable
 --------------
@@ -44,6 +59,7 @@ restricted C into a sequence of BPF instructions. After program load
 through bpf(2) and passing a verifier in the kernel, a JIT will then
 translate these BPF proglets into native CPU instructions. There are
 two flavors of JITs, the newer eBPF JIT currently supported on:
+
   - x86_64
   - x86_32
   - arm64
@@ -55,6 +71,7 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - riscv
 
 And the older cBPF JIT supported on the following archs:
+
   - mips
   - ppc
   - sparc
@@ -65,10 +82,11 @@ compile them transparently. Older cBPF JITs can only translate
 tcpdump filters, seccomp rules, etc, but not mentioned eBPF
 programs loaded through bpf(2).
 
-Values :
-	0 - disable the JIT (default value)
-	1 - enable the JIT
-	2 - enable the JIT and ask the compiler to emit traces on kernel log.
+Values:
+
+	- 0 - disable the JIT (default value)
+	- 1 - enable the JIT
+	- 2 - enable the JIT and ask the compiler to emit traces on kernel log.
 
 bpf_jit_harden
 --------------
@@ -76,10 +94,12 @@ bpf_jit_harden
 This enables hardening for the BPF JIT compiler. Supported are eBPF
 JIT backends. Enabling hardening trades off performance, but can
 mitigate JIT spraying.
-Values :
-	0 - disable JIT hardening (default value)
-	1 - enable JIT hardening for unprivileged users only
-	2 - enable JIT hardening for all users
+
+Values:
+
+	- 0 - disable JIT hardening (default value)
+	- 1 - enable JIT hardening for unprivileged users only
+	- 2 - enable JIT hardening for all users
 
 bpf_jit_kallsyms
 ----------------
@@ -89,9 +109,11 @@ addresses to the kernel, meaning they neither show up in traces nor
 in /proc/kallsyms. This enables export of these addresses, which can
 be used for debugging/tracing. If bpf_jit_harden is enabled, this
 feature is disabled.
+
 Values :
-	0 - disable JIT kallsyms export (default value)
-	1 - enable JIT kallsyms export for privileged users only
+
+	- 0 - disable JIT kallsyms export (default value)
+	- 1 - enable JIT kallsyms export for privileged users only
 
 bpf_jit_limit
 -------------
@@ -102,7 +124,7 @@ been surpassed. bpf_jit_limit contains the value of the global limit
 in bytes.
 
 dev_weight
---------------
+----------
 
 The maximum number of packets that kernel can handle on a NAPI interrupt,
 it's a Per-CPU variable. For drivers that support LRO or GRO_HW, a hardware
@@ -111,7 +133,7 @@ aggregated packet is counted as one packet in this context.
 Default: 64
 
 dev_weight_rx_bias
---------------
+------------------
 
 RPS (e.g. RFS, aRFS) processing is competing with the registered NAPI poll function
 of the driver for the per softirq cycle netdev_budget. This parameter influences
@@ -120,19 +142,22 @@ processing during RX softirq cycles. It is further meant for making current
 dev_weight adaptable for asymmetric CPU needs on RX/TX side of the network stack.
 (see dev_weight_tx_bias) It is effective on a per CPU basis. Determination is based
 on dev_weight and is calculated multiplicative (dev_weight * dev_weight_rx_bias).
+
 Default: 1
 
 dev_weight_tx_bias
---------------
+------------------
 
 Scales the maximum number of packets that can be processed during a TX softirq cycle.
 Effective on a per CPU basis. Allows scaling of current dev_weight for asymmetric
 net stack processing needs. Be careful to avoid making TX softirq processing a CPU hog.
+
 Calculation is based on dev_weight (dev_weight * dev_weight_tx_bias).
+
 Default: 1
 
 default_qdisc
---------------
+-------------
 
 The default queuing discipline to use for network devices. This allows
 overriding the default of pfifo_fast with an alternative. Since the default
@@ -144,17 +169,21 @@ which require setting up classes and bandwidths. Note that physical multiqueue
 interfaces still use mq as root qdisc, which in turn uses this default for its
 leaves. Virtual devices (like e.g. lo or veth) ignore this setting and instead
 default to noqueue.
+
 Default: pfifo_fast
 
 busy_read
-----------------
+---------
+
 Low latency busy poll timeout for socket reads. (needs CONFIG_NET_RX_BUSY_POLL)
 Approximate time in us to busy loop waiting for packets on the device queue.
 This sets the default value of the SO_BUSY_POLL socket option.
 Can be set or overridden per socket by setting socket option SO_BUSY_POLL,
 which is the preferred method of enabling. If you need to enable the feature
 globally via sysctl, a value of 50 is recommended.
+
 Will increase power usage.
+
 Default: 0 (off)
 
 busy_poll
@@ -167,7 +196,9 @@ For more than that you probably want to use epoll.
 Note that only sockets with SO_BUSY_POLL set will be busy polled,
 so you want to either selectively set SO_BUSY_POLL on those sockets or set
 sysctl.net.busy_read globally.
+
 Will increase power usage.
+
 Default: 0 (off)
 
 rmem_default
@@ -185,6 +216,7 @@ tstamp_allow_data
 Allow processes to receive tx timestamps looped together with the original
 packet contents. If disabled, transmit timestamp requests from unprivileged
 processes are dropped unless socket option SOF_TIMESTAMPING_OPT_TSONLY is set.
+
 Default: 1 (on)
 
 
@@ -250,19 +282,24 @@ randomly generated.
 Some user space might need to gather its content even if drivers do not
 provide ethtool -x support yet.
 
-myhost:~# cat /proc/sys/net/core/netdev_rss_key
-84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8: ... (52 bytes total)
+::
+
+  myhost:~# cat /proc/sys/net/core/netdev_rss_key
+  84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8: ... (52 bytes total)
 
 File contains nul bytes if no driver ever called netdev_rss_key_fill() function.
-Note:
-/proc/sys/net/core/netdev_rss_key contains 52 bytes of key,
-but most drivers only use 40 bytes of it.
 
-myhost:~# ethtool -x eth0
-RX flow hash indirection table for eth0 with 8 RX ring(s):
-    0:    0     1     2     3     4     5     6     7
-RSS hash key:
-84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8:43:e3:c9:0c:fd:17:55:c2:3a:4d:69:ed:f1:42:89
+Note:
+  /proc/sys/net/core/netdev_rss_key contains 52 bytes of key,
+  but most drivers only use 40 bytes of it.
+
+::
+
+  myhost:~# ethtool -x eth0
+  RX flow hash indirection table for eth0 with 8 RX ring(s):
+      0:    0     1     2     3     4     5     6     7
+  RSS hash key:
+  84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8:43:e3:c9:0c:fd:17:55:c2:3a:4d:69:ed:f1:42:89
 
 netdev_tstamp_prequeue
 ----------------------
@@ -293,7 +330,7 @@ user space is responsible for creating them if needed.
 Default : 0  (for compatibility reasons)
 
 devconf_inherit_init_net
-----------------------------
+------------------------
 
 Controls if a new network namespace should inherit all current
 settings under /proc/sys/net/{ipv4,ipv6}/conf/{all,default}/. By
@@ -307,7 +344,7 @@ forced to reset to their default values.
 Default : 0  (for compatibility reasons)
 
 2. /proc/sys/net/unix - Parameters for Unix domain sockets
--------------------------------------------------------
+----------------------------------------------------------
 
 There is only one file in this directory.
 unix_dgram_qlen limits the max number of datagrams queued in Unix domain
@@ -315,13 +352,13 @@ socket's buffer. It will not take effect unless PF_UNIX flag is specified.
 
 
 3. /proc/sys/net/ipv4 - IPV4 settings
--------------------------------------------------------
+-------------------------------------
 Please see: Documentation/networking/ip-sysctl.txt and ipvs-sysctl.txt for
 descriptions of these entries.
 
 
 4. Appletalk
--------------------------------------------------------
+------------
 
 The /proc/sys/net/appletalk  directory  holds the Appletalk configuration data
 when Appletalk is loaded. The configurable parameters are:
@@ -366,7 +403,7 @@ route flags, and the device the route is using.
 
 
 5. IPX
--------------------------------------------------------
+------
 
 The IPX protocol has no tunable values in proc/sys/net.
 
@@ -391,13 +428,15 @@ gives the  destination  network, the router node (or Directly) and the network
 address of the router (or Connected) for internal networks.
 
 6. TIPC
--------------------------------------------------------
+-------
 
 tipc_rmem
-----------
+---------
 
 The TIPC protocol now has a tunable for the receive memory, similar to the
 tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
+
+::
 
     # cat /proc/sys/net/tipc/tipc_rmem
     4252725 34021800        68043600
@@ -409,7 +448,7 @@ is not at this point in time used in any meaningful way, but the triplet is
 preserved in order to be consistent with things like tcp_rmem.
 
 named_timeout
---------------
+-------------
 
 TIPC name table updates are distributed asynchronously in a cluster, without
 any form of transaction handling. This means that different race scenarios are

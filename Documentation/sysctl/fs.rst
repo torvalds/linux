@@ -1,10 +1,16 @@
-Documentation for /proc/sys/fs/*	kernel version 2.2.10
-	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
-	(c) 2009,        Shen Feng<shen@cn.fujitsu.com>
+===============================
+Documentation for /proc/sys/fs/
+===============================
 
-For general info and legal blurb, please look in README.
+kernel version 2.2.10
 
-==============================================================
+Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+Copyright (c) 2009,        Shen Feng<shen@cn.fujitsu.com>
+
+For general info and legal blurb, please look in intro.rst.
+
+------------------------------------------------------------------------------
 
 This file contains documentation for the sysctl files in
 /proc/sys/fs/ and is valid for Linux kernel version 2.2.
@@ -16,9 +22,10 @@ system, it is advisable to read both documentation and source
 before actually making adjustments.
 
 1. /proc/sys/fs
-----------------------------------------------------------
+===============
 
 Currently, these files are in /proc/sys/fs:
+
 - aio-max-nr
 - aio-nr
 - dentry-state
@@ -42,9 +49,9 @@ Currently, these files are in /proc/sys/fs:
 - super-max
 - super-nr
 
-==============================================================
 
-aio-nr & aio-max-nr:
+aio-nr & aio-max-nr
+-------------------
 
 aio-nr is the running total of the number of events specified on the
 io_setup system call for all currently active aio contexts.  If aio-nr
@@ -52,21 +59,20 @@ reaches aio-max-nr then io_setup will fail with EAGAIN.  Note that
 raising aio-max-nr does not result in the pre-allocation or re-sizing
 of any kernel data structures.
 
-==============================================================
 
-dentry-state:
+dentry-state
+------------
 
-From linux/include/linux/dcache.h:
---------------------------------------------------------------
-struct dentry_stat_t dentry_stat {
+From linux/include/linux/dcache.h::
+
+  struct dentry_stat_t dentry_stat {
         int nr_dentry;
         int nr_unused;
         int age_limit;         /* age in seconds */
         int want_pages;        /* pages requested by system */
         int nr_negative;       /* # of unused negative dentries */
         int dummy;             /* Reserved for future use */
-};
---------------------------------------------------------------
+  };
 
 Dentries are dynamically allocated and deallocated.
 
@@ -84,9 +90,9 @@ negative dentries which do not map to any files. Instead,
 they help speeding up rejection of non-existing files provided
 by the users.
 
-==============================================================
 
-dquot-max & dquot-nr:
+dquot-max & dquot-nr
+--------------------
 
 The file dquot-max shows the maximum number of cached disk
 quota entries.
@@ -98,9 +104,9 @@ If the number of free cached disk quotas is very low and
 you have some awesome number of simultaneous system users,
 you might want to raise the limit.
 
-==============================================================
 
-file-max & file-nr:
+file-max & file-nr
+------------------
 
 The value in file-max denotes the maximum number of file-
 handles that the Linux kernel will allocate. When you get lots
@@ -119,18 +125,19 @@ used file handles.
 Attempts to allocate more file descriptors than file-max are
 reported with printk, look for "VFS: file-max limit <number>
 reached".
-==============================================================
 
-nr_open:
+
+nr_open
+-------
 
 This denotes the maximum number of file-handles a process can
 allocate. Default value is 1024*1024 (1048576) which should be
 enough for most machines. Actual limit depends on RLIMIT_NOFILE
 resource limit.
 
-==============================================================
 
-inode-max, inode-nr & inode-state:
+inode-max, inode-nr & inode-state
+---------------------------------
 
 As with file handles, the kernel allocates the inode structures
 dynamically, but can't free them yet.
@@ -157,9 +164,9 @@ preshrink is nonzero when the nr_inodes > inode-max and the
 system needs to prune the inode list instead of allocating
 more.
 
-==============================================================
 
-overflowgid & overflowuid:
+overflowgid & overflowuid
+-------------------------
 
 Some filesystems only support 16-bit UIDs and GIDs, although in Linux
 UIDs and GIDs are 32 bits. When one of these filesystems is mounted
@@ -169,18 +176,18 @@ to a fixed value before being written to disk.
 These sysctls allow you to change the value of the fixed UID and GID.
 The default is 65534.
 
-==============================================================
 
-pipe-user-pages-hard:
+pipe-user-pages-hard
+--------------------
 
 Maximum total number of pages a non-privileged user may allocate for pipes.
 Once this limit is reached, no new pipes may be allocated until usage goes
 below the limit again. When set to 0, no limit is applied, which is the default
 setting.
 
-==============================================================
 
-pipe-user-pages-soft:
+pipe-user-pages-soft
+--------------------
 
 Maximum total number of pages a non-privileged user may allocate for pipes
 before the pipe size gets limited to a single page. Once this limit is reached,
@@ -190,9 +197,9 @@ denied until usage goes below the limit again. The default value allows to
 allocate up to 1024 pipes at their default size. When set to 0, no limit is
 applied.
 
-==============================================================
 
-protected_fifos:
+protected_fifos
+---------------
 
 The intent of this protection is to avoid unintentional writes to
 an attacker-controlled FIFO, where a program expected to create a regular
@@ -208,9 +215,9 @@ When set to "2" it also applies to group writable sticky directories.
 
 This protection is based on the restrictions in Openwall.
 
-==============================================================
 
-protected_hardlinks:
+protected_hardlinks
+--------------------
 
 A long-standing class of security issues is the hardlink-based
 time-of-check-time-of-use race, most commonly seen in world-writable
@@ -228,9 +235,9 @@ already own the source file, or do not have read/write access to it.
 
 This protection is based on the restrictions in Openwall and grsecurity.
 
-==============================================================
 
-protected_regular:
+protected_regular
+-----------------
 
 This protection is similar to protected_fifos, but it
 avoids writes to an attacker-controlled regular file, where a program
@@ -244,9 +251,9 @@ owned by the owner of the directory.
 
 When set to "2" it also applies to group writable sticky directories.
 
-==============================================================
 
-protected_symlinks:
+protected_symlinks
+------------------
 
 A long-standing class of security issues is the symlink-based
 time-of-check-time-of-use race, most commonly seen in world-writable
@@ -264,34 +271,38 @@ follower match, or when the directory owner matches the symlink's owner.
 
 This protection is based on the restrictions in Openwall and grsecurity.
 
-==============================================================
 
 suid_dumpable:
+--------------
 
 This value can be used to query and set the core dump mode for setuid
 or otherwise protected/tainted binaries. The modes are
 
-0 - (default) - traditional behaviour. Any process which has changed
-	privilege levels or is execute only will not be dumped.
-1 - (debug) - all processes dump core when possible. The core dump is
-	owned by the current user and no security is applied. This is
-	intended for system debugging situations only. Ptrace is unchecked.
-	This is insecure as it allows regular users to examine the memory
-	contents of privileged processes.
-2 - (suidsafe) - any binary which normally would not be dumped is dumped
-	anyway, but only if the "core_pattern" kernel sysctl is set to
-	either a pipe handler or a fully qualified path. (For more details
-	on this limitation, see CVE-2006-2451.) This mode is appropriate
-	when administrators are attempting to debug problems in a normal
-	environment, and either have a core dump pipe handler that knows
-	to treat privileged core dumps with care, or specific directory
-	defined for catching core dumps. If a core dump happens without
-	a pipe handler or fully qualifid path, a message will be emitted
-	to syslog warning about the lack of a correct setting.
+=   ==========  ===============================================================
+0   (default)	traditional behaviour. Any process which has changed
+		privilege levels or is execute only will not be dumped.
+1   (debug)	all processes dump core when possible. The core dump is
+		owned by the current user and no security is applied. This is
+		intended for system debugging situations only.
+		Ptrace is unchecked.
+		This is insecure as it allows regular users to examine the
+		memory contents of privileged processes.
+2   (suidsafe)	any binary which normally would not be dumped is dumped
+		anyway, but only if the "core_pattern" kernel sysctl is set to
+		either a pipe handler or a fully qualified path. (For more
+		details on this limitation, see CVE-2006-2451.) This mode is
+		appropriate when administrators are attempting to debug
+		problems in a normal environment, and either have a core dump
+		pipe handler that knows to treat privileged core dumps with
+		care, or specific directory defined for catching core dumps.
+		If a core dump happens without a pipe handler or fully
+		qualified path, a message will be emitted to syslog warning
+		about the lack of a correct setting.
+=   ==========  ===============================================================
 
-==============================================================
 
-super-max & super-nr:
+super-max & super-nr
+--------------------
 
 These numbers control the maximum number of superblocks, and
 thus the maximum number of mounted filesystems the kernel
@@ -299,33 +310,33 @@ can have. You only need to increase super-max if you need to
 mount more filesystems than the current value in super-max
 allows you to.
 
-==============================================================
 
-aio-nr & aio-max-nr:
+aio-nr & aio-max-nr
+-------------------
 
 aio-nr shows the current system-wide number of asynchronous io
 requests.  aio-max-nr allows you to change the maximum value
 aio-nr can grow to.
 
-==============================================================
 
-mount-max:
+mount-max
+---------
 
 This denotes the maximum number of mounts that may exist
 in a mount namespace.
 
-==============================================================
 
 
 2. /proc/sys/fs/binfmt_misc
-----------------------------------------------------------
+===========================
 
 Documentation for the files in /proc/sys/fs/binfmt_misc is
 in Documentation/admin-guide/binfmt-misc.rst.
 
 
 3. /proc/sys/fs/mqueue - POSIX message queues filesystem
-----------------------------------------------------------
+========================================================
+
 
 The "mqueue"  filesystem provides  the necessary kernel features to enable the
 creation of a  user space  library that  implements  the  POSIX message queues
@@ -356,7 +367,7 @@ the default message size value if attr parameter of mq_open(2) is NULL. If it
 exceed msgsize_max, the default value is initialized msgsize_max.
 
 4. /proc/sys/fs/epoll - Configuration options for the epoll interface
---------------------------------------------------------
+=====================================================================
 
 This directory contains configuration options for the epoll(7) interface.
 
@@ -371,4 +382,3 @@ Each "watch" costs roughly 90 bytes on a 32bit kernel, and roughly 160 bytes
 on a 64bit one.
 The current default value for  max_user_watches  is the 1/32 of the available
 low memory, divided for the "watch" cost in bytes.
-

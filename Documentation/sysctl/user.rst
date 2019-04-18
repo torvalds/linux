@@ -1,7 +1,12 @@
-Documentation for /proc/sys/user/*	kernel version 4.9.0
-	(c) 2016		Eric Biederman <ebiederm@xmission.com>
+=================================
+Documentation for /proc/sys/user/
+=================================
 
-==============================================================
+kernel version 4.9.0
+
+Copyright (c) 2016		Eric Biederman <ebiederm@xmission.com>
+
+------------------------------------------------------------------------------
 
 This file contains the documentation for the sysctl files in
 /proc/sys/user.
@@ -30,37 +35,44 @@ user namespace does not allow a user to escape their current limits.
 
 Currently, these files are in /proc/sys/user:
 
-- max_cgroup_namespaces
+max_cgroup_namespaces
+=====================
 
   The maximum number of cgroup namespaces that any user in the current
   user namespace may create.
 
-- max_ipc_namespaces
+max_ipc_namespaces
+==================
 
   The maximum number of ipc namespaces that any user in the current
   user namespace may create.
 
-- max_mnt_namespaces
+max_mnt_namespaces
+==================
 
   The maximum number of mount namespaces that any user in the current
   user namespace may create.
 
-- max_net_namespaces
+max_net_namespaces
+==================
 
   The maximum number of network namespaces that any user in the
   current user namespace may create.
 
-- max_pid_namespaces
+max_pid_namespaces
+==================
 
   The maximum number of pid namespaces that any user in the current
   user namespace may create.
 
-- max_user_namespaces
+max_user_namespaces
+===================
 
   The maximum number of user namespaces that any user in the current
   user namespace may create.
 
-- max_uts_namespaces
+max_uts_namespaces
+==================
 
   The maximum number of user namespaces that any user in the current
   user namespace may create.
