@@ -165,6 +165,44 @@ bail:
 	return rc;
 }
 
+static vm_fault_t xive_native_tima_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+
+	switch (vmf->pgoff - vma->vm_pgoff) {
+	case 0: /* HW - forbid access */
+	case 1: /* HV - forbid access */
+		return VM_FAULT_SIGBUS;
+	case 2: /* OS */
+		vmf_insert_pfn(vma, vmf->address, xive_tima_os >> PAGE_SHIFT);
+		return VM_FAULT_NOPAGE;
+	case 3: /* USER - TODO */
+	default:
+		return VM_FAULT_SIGBUS;
+	}
+}
+
+static const struct vm_operations_struct xive_native_tima_vmops = {
+	.fault = xive_native_tima_fault,
+};
+
+static int kvmppc_xive_native_mmap(struct kvm_device *dev,
+				   struct vm_area_struct *vma)
+{
+	/* We only allow mappings at fixed offset for now */
+	if (vma->vm_pgoff == KVM_XIVE_TIMA_PAGE_OFFSET) {
+		if (vma_pages(vma) > 4)
+			return -EINVAL;
+		vma->vm_ops = &xive_native_tima_vmops;
+	} else {
+		return -EINVAL;
+	}
+
+	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
+	return 0;
+}
+
 static int kvmppc_xive_native_set_source(struct kvmppc_xive *xive, long irq,
 					 u64 addr)
 {
@@ -1050,6 +1088,7 @@ struct kvm_device_ops kvm_xive_native_ops = {
 	.set_attr = kvmppc_xive_native_set_attr,
 	.get_attr = kvmppc_xive_native_get_attr,
 	.has_attr = kvmppc_xive_native_has_attr,
+	.mmap = kvmppc_xive_native_mmap,
 };
 
 void kvmppc_xive_native_init_module(void)

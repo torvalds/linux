@@ -13,6 +13,29 @@ requires a POWER9 host and the guest OS should have support for the
 XIVE native exploitation interrupt mode. If not, it should run using
 the legacy interrupt mode, referred as XICS (POWER7/8).
 
+* Device Mappings
+
+  The KVM device exposes different MMIO ranges of the XIVE HW which
+  are required for interrupt management. These are exposed to the
+  guest in VMAs populated with a custom VM fault handler.
+
+  1. Thread Interrupt Management Area (TIMA)
+
+  Each thread has an associated Thread Interrupt Management context
+  composed of a set of registers. These registers let the thread
+  handle priority management and interrupt acknowledgment. The most
+  important are :
+
+      - Interrupt Pending Buffer     (IPB)
+      - Current Processor Priority   (CPPR)
+      - Notification Source Register (NSR)
+
+  They are exposed to software in four different pages each proposing
+  a view with a different privilege. The first page is for the
+  physical thread context and the second for the hypervisor. Only the
+  third (operating system) and the fourth (user level) are exposed the
+  guest.
+
 * Groups:
 
   1. KVM_DEV_XIVE_GRP_CTRL
