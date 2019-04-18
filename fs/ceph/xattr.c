@@ -363,7 +363,6 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
-static size_t ceph_dir_vxattrs_name_size;	/* total size of all names */
 
 /* files */
 
@@ -389,7 +388,6 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
-static size_t ceph_file_vxattrs_name_size;	/* total size of all names */
 
 static struct ceph_vxattr *ceph_inode_vxattrs(struct inode *inode)
 {
@@ -398,47 +396,6 @@ static struct ceph_vxattr *ceph_inode_vxattrs(struct inode *inode)
 	else if (S_ISREG(inode->i_mode))
 		return ceph_file_vxattrs;
 	return NULL;
-}
-
-static size_t ceph_vxattrs_name_size(struct ceph_vxattr *vxattrs)
-{
-	if (vxattrs == ceph_dir_vxattrs)
-		return ceph_dir_vxattrs_name_size;
-	if (vxattrs == ceph_file_vxattrs)
-		return ceph_file_vxattrs_name_size;
-	BUG_ON(vxattrs);
-	return 0;
-}
-
-/*
- * Compute the aggregate size (including terminating '\0') of all
- * virtual extended attribute names in the given vxattr table.
- */
-static size_t __init vxattrs_name_size(struct ceph_vxattr *vxattrs)
-{
-	struct ceph_vxattr *vxattr;
-	size_t size = 0;
-
-	for (vxattr = vxattrs; vxattr->name; vxattr++) {
-		if (!(vxattr->flags & VXATTR_FLAG_HIDDEN))
-			size += vxattr->name_size;
-	}
-
-	return size;
-}
-
-/* Routines called at initialization and exit time */
-
-void __init ceph_xattr_init(void)
-{
-	ceph_dir_vxattrs_name_size = vxattrs_name_size(ceph_dir_vxattrs);
-	ceph_file_vxattrs_name_size = vxattrs_name_size(ceph_file_vxattrs);
-}
-
-void ceph_xattr_exit(void)
-{
-	ceph_dir_vxattrs_name_size = 0;
-	ceph_file_vxattrs_name_size = 0;
 }
 
 static struct ceph_vxattr *ceph_match_vxattr(struct inode *inode,
