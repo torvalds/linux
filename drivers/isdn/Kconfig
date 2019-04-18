@@ -21,27 +21,6 @@ menuconfig ISDN
 
 if ISDN
 
-menuconfig ISDN_I4L
-	tristate "Old ISDN4Linux (deprecated)"
-	depends on TTY
-	---help---
-	  This driver allows you to use an ISDN adapter for networking
-	  connections and as dialin/out device.  The isdn-tty's have a built
-	  in AT-compatible modem emulator.  Network devices support autodial,
-	  channel-bundling, callback and caller-authentication without having
-	  a daemon running.  A reduced T.70 protocol is supported with tty's
-	  suitable for German BTX.  On D-Channel, the protocols EDSS1
-	  (Euro-ISDN) and 1TR6 (German style) are supported.  See
-	  <file:Documentation/isdn/README> for more information.
-
-	  ISDN support in the linux kernel is moving towards a new API,
-	  called CAPI (Common ISDN Application Programming Interface).
-	  Therefore the old ISDN4Linux layer will eventually become obsolete.
-	  It is still available, though, for use with adapters that are not
-	  supported by the new CAPI subsystem yet.
-
-source "drivers/isdn/i4l/Kconfig"
-
 menuconfig ISDN_CAPI
 	tristate "CAPI 2.0 subsystem"
 	help
@@ -70,10 +49,5 @@ source "drivers/isdn/gigaset/Kconfig"
 source "drivers/isdn/hysdn/Kconfig"
 
 source "drivers/isdn/mISDN/Kconfig"
-
-config ISDN_HDLC
-	tristate
-	select CRC_CCITT
-	select BITREVERSE
 
 endif # ISDN

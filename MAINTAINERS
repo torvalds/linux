@@ -8371,9 +8371,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
 F:	Documentation/isdn/
 F:	drivers/isdn/
-F:	include/linux/isdn.h
 F:	include/linux/isdn/
-F:	include/uapi/linux/isdn.h
 F:	include/uapi/linux/isdn/
 
 IT87 HARDWARE MONITORING DRIVER
