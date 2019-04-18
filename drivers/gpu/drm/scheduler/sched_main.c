@@ -375,8 +375,6 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 		if (s_job->s_fence->parent &&
 		    dma_fence_remove_callback(s_job->s_fence->parent,
 					      &s_job->cb)) {
-			dma_fence_put(s_job->s_fence->parent);
-			s_job->s_fence->parent = NULL;
 			atomic_dec(&sched->hw_rq_count);
 		} else {
 			/*
@@ -403,6 +401,14 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 				sched->ops->free_job(s_job);
 		}
 	}
+
+	/*
+	 * Stop pending timer in flight as we rearm it in  drm_sched_start. This
+	 * avoids the pending timeout work in progress to fire right away after
+	 * this TDR finished and before the newly restarted jobs had a
+	 * chance to complete.
+	 */
+	cancel_delayed_work(&sched->work_tdr);
 }
 
 EXPORT_SYMBOL(drm_sched_stop);
@@ -477,6 +483,7 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 		if (found_guilty && s_job->s_fence->scheduled.context == guilty_context)
 			dma_fence_set_error(&s_fence->finished, -ECANCELED);
 
+		dma_fence_put(s_job->s_fence->parent);
 		s_job->s_fence->parent = sched->ops->run_job(s_job);
 	}
 }
