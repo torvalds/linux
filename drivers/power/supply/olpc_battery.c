@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/jiffies.h>
@@ -622,11 +623,12 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	olpc_ac = power_supply_register(&pdev->dev, &olpc_ac_desc, NULL);
 	if (IS_ERR(olpc_ac))
 		return PTR_ERR(olpc_ac);
-
-	if (olpc_board_at_least(olpc_board_pre(0xd0))) { /* XO-1.5 */
+	if (of_device_is_compatible(pdev->dev.of_node, "olpc,xo1.5-battery")) {
+		/* XO-1.5 */
 		olpc_bat_desc.properties = olpc_xo15_bat_props;
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo15_bat_props);
-	} else { /* XO-1 */
+	} else {
+		/* XO-1 */
 		olpc_bat_desc.properties = olpc_xo1_bat_props;
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
@@ -672,6 +674,7 @@ static int olpc_battery_remove(struct platform_device *pdev)
 
 static const struct of_device_id olpc_battery_ids[] = {
 	{ .compatible = "olpc,xo1-battery" },
+	{ .compatible = "olpc,xo1.5-battery" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, olpc_battery_ids);
