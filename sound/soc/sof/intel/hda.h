@@ -339,6 +339,13 @@
 #define HDA_ADSP_FW_STATUS_SKL		HDA_ADSP_SRAM0_BASE_SKL
 #define HDA_ADSP_ERROR_CODE_SKL		(HDA_ADSP_FW_STATUS_SKL + 0x4)
 
+/* Host Device Memory Space */
+#define APL_SSP_BASE_OFFSET	0x2000
+#define CNL_SSP_BASE_OFFSET	0x10000
+
+/* Host Device Memory Size of a Single SSP */
+#define SSP_DEV_MEM_SIZE	0x1000
+
 #define HDA_IDISP_CODEC(x) ((x) & BIT(2))
 
 struct sof_intel_dsp_bdl {
