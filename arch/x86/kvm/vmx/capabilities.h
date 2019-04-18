@@ -2,6 +2,8 @@
 #ifndef __KVM_X86_VMX_CAPS_H
 #define __KVM_X86_VMX_CAPS_H
 
+#include <asm/vmx.h>
+
 #include "lapic.h"
 
 extern bool __read_mostly enable_vpid;
