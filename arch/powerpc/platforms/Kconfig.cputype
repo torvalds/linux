@@ -357,6 +357,18 @@ config PPC_KUEP
 
 	  If you're unsure, say Y.
 
+config PPC_HAVE_KUAP
+	bool
+
+config PPC_KUAP
+	bool "Kernel Userspace Access Protection"
+	depends on PPC_HAVE_KUAP
+	default y
+	help
+	  Enable support for Kernel Userspace Access Protection (KUAP)
+
+	  If you're unsure, say Y.
+
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	def_bool y
 	depends on PPC_BOOK3S_64 && HUGETLB_PAGE && MIGRATION
