@@ -27,6 +27,7 @@
 #include "amdgpu_vcn.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "amdgpu_pm.h"
 
 #include "vcn/vcn_2_0_0_offset.h"
 #include "vcn/vcn_2_0_0_sh_mask.h"
@@ -779,6 +780,9 @@ static int vcn_v2_0_start(struct amdgpu_device *adev)
 	uint32_t lmi_swap_cntl;
 	int i, j, r;
 
+	if (adev->pm.dpm_enabled)
+		amdgpu_dpm_enable_uvd(adev, true);
+
 	vcn_v2_0_disable_static_power_gating(adev);
 
 	/* set uvd status busy */
@@ -990,6 +994,9 @@ static int vcn_v2_0_stop(struct amdgpu_device *adev)
 
 	vcn_v2_0_enable_clock_gating(adev);
 	vcn_v2_0_enable_static_power_gating(adev);
+
+	if (adev->pm.dpm_enabled)
+		amdgpu_dpm_enable_uvd(adev, false);
 
 	return 0;
 }
