@@ -2439,10 +2439,10 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	if (!dev->of_node)
 		return NULL;
 
-	/* Deal only with devices using multiple PM domains. */
+	/* Verify that the index is within a valid range. */
 	num_domains = of_count_phandle_with_args(dev->of_node, "power-domains",
 						 "#power-domain-cells");
-	if (num_domains < 2 || index >= num_domains)
+	if (index >= num_domains)
 		return NULL;
 
 	/* Allocate and register device on the genpd bus. */
