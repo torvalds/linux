@@ -1,5 +1,7 @@
-Kernel driver for the NXP Semiconductors PN544 Near Field
-Communication chip
+============================================================================
+Kernel driver for the NXP Semiconductors PN544 Near Field Communication chip
+============================================================================
+
 
 General
 -------
