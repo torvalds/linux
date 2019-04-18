@@ -41,11 +41,6 @@ static int sun4i_ss_opti_poll(struct skcipher_request *areq)
 	if (!areq->cryptlen)
 		return 0;
 
-	if (!areq->iv) {
-		dev_err_ratelimited(ss->dev, "ERROR: Empty IV\n");
-		return -EINVAL;
-	}
-
 	if (!areq->src || !areq->dst) {
 		dev_err_ratelimited(ss->dev, "ERROR: Some SGs are NULL\n");
 		return -EINVAL;
@@ -156,11 +151,6 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 
 	if (!areq->cryptlen)
 		return 0;
-
-	if (!areq->iv) {
-		dev_err_ratelimited(ss->dev, "ERROR: Empty IV\n");
-		return -EINVAL;
-	}
 
 	if (!areq->src || !areq->dst) {
 		dev_err_ratelimited(ss->dev, "ERROR: Some SGs are NULL\n");
