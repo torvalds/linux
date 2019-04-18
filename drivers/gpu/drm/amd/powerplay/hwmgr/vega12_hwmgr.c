@@ -1310,23 +1310,14 @@ static int vega12_get_current_activity_percent(
 		struct pp_hwmgr *hwmgr,
 		uint32_t *activity_percent)
 {
+	SmuMetrics_t metrics_table;
 	int ret = 0;
-	uint32_t current_activity = 50;
 
-#if 0
-	ret = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
-	if (!ret) {
-		current_activity = smum_get_argument(hwmgr);
-		if (current_activity > 100) {
-			PP_ASSERT(false,
-				  "[GetCurrentActivityPercent] Activity Percentage Exceeds 100!");
-			current_activity = 100;
-		}
-	} else
-		PP_ASSERT(false,
-			"[GetCurrentActivityPercent] Attempt To Send Get Average Graphics Activity to SMU Failed!");
-#endif
-	*activity_percent = current_activity;
+	ret = vega12_get_metrics_table(hwmgr, &metrics_table);
+	if (ret)
+		return ret;
+
+	*activity_percent = metrics_table.AverageGfxActivity;
 
 	return ret;
 }
