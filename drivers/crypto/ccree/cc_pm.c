@@ -42,13 +42,14 @@ int cc_pm_resume(struct device *dev)
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "unset HOST_POWER_DOWN_EN\n");
-	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
-
+	/* Enables the device source clk */
 	rc = cc_clk_on(drvdata);
 	if (rc) {
 		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
 	}
+
+	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
 
 	rc = init_cc_regs(drvdata, false);
 	if (rc) {
