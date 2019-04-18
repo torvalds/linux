@@ -220,7 +220,7 @@ enum opt_type {
 	x(fsck,				u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\
-	  NO_SB_OPT,			true,				\
+	  NO_SB_OPT,			false,				\
 	  NULL,		"Run fsck on mount")				\
 	x(fix_errors,			u8,				\
 	  OPT_MOUNT,							\
