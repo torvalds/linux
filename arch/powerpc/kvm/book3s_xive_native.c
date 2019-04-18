@@ -572,6 +572,83 @@ static int kvmppc_xive_native_get_queue_config(struct kvmppc_xive *xive,
 	return 0;
 }
 
+static void kvmppc_xive_reset_sources(struct kvmppc_xive_src_block *sb)
+{
+	int i;
+
+	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
+		struct kvmppc_xive_irq_state *state = &sb->irq_state[i];
+
+		if (!state->valid)
+			continue;
+
+		if (state->act_priority == MASKED)
+			continue;
+
+		state->eisn = 0;
+		state->act_server = 0;
+		state->act_priority = MASKED;
+		xive_vm_esb_load(&state->ipi_data, XIVE_ESB_SET_PQ_01);
+		xive_native_configure_irq(state->ipi_number, 0, MASKED, 0);
+		if (state->pt_number) {
+			xive_vm_esb_load(state->pt_data, XIVE_ESB_SET_PQ_01);
+			xive_native_configure_irq(state->pt_number,
+						  0, MASKED, 0);
+		}
+	}
+}
+
+static int kvmppc_xive_reset(struct kvmppc_xive *xive)
+{
+	struct kvm *kvm = xive->kvm;
+	struct kvm_vcpu *vcpu;
+	unsigned int i;
+
+	pr_devel("%s\n", __func__);
+
+	mutex_lock(&kvm->lock);
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+		unsigned int prio;
+
+		if (!xc)
+			continue;
+
+		kvmppc_xive_disable_vcpu_interrupts(vcpu);
+
+		for (prio = 0; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
+
+			/* Single escalation, no queue 7 */
+			if (prio == 7 && xive->single_escalation)
+				break;
+
+			if (xc->esc_virq[prio]) {
+				free_irq(xc->esc_virq[prio], vcpu);
+				irq_dispose_mapping(xc->esc_virq[prio]);
+				kfree(xc->esc_virq_names[prio]);
+				xc->esc_virq[prio] = 0;
+			}
+
+			kvmppc_xive_native_cleanup_queue(vcpu, prio);
+		}
+	}
+
+	for (i = 0; i <= xive->max_sbid; i++) {
+		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
+
+		if (sb) {
+			arch_spin_lock(&sb->lock);
+			kvmppc_xive_reset_sources(sb);
+			arch_spin_unlock(&sb->lock);
+		}
+	}
+
+	mutex_unlock(&kvm->lock);
+
+	return 0;
+}
+
 static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 				       struct kvm_device_attr *attr)
 {
@@ -579,6 +656,10 @@ static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 
 	switch (attr->group) {
 	case KVM_DEV_XIVE_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_XIVE_RESET:
+			return kvmppc_xive_reset(xive);
+		}
 		break;
 	case KVM_DEV_XIVE_GRP_SOURCE:
 		return kvmppc_xive_native_set_source(xive, attr->attr,
@@ -611,6 +692,10 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 {
 	switch (attr->group) {
 	case KVM_DEV_XIVE_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_XIVE_RESET:
+			return 0;
+		}
 		break;
 	case KVM_DEV_XIVE_GRP_SOURCE:
 	case KVM_DEV_XIVE_GRP_SOURCE_CONFIG:

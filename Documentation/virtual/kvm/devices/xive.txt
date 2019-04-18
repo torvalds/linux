@@ -17,6 +17,11 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 
   1. KVM_DEV_XIVE_GRP_CTRL
   Provides global controls on the device
+  Attributes:
+    1.1 KVM_DEV_XIVE_RESET (write only)
+    Resets the interrupt controller configuration for sources and event
+    queues. To be used by kexec and kdump.
+    Errors: none
 
   2. KVM_DEV_XIVE_GRP_SOURCE (write only)
   Initializes a new source in the XIVE device and mask it.
