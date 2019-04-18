@@ -327,6 +327,7 @@ config PPC_RADIX_MMU
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	select PPC_HAVE_KUEP
+	select PPC_HAVE_KUAP
 	default y
 	help
 	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
@@ -369,6 +370,13 @@ config PPC_KUAP
 	  Enable support for Kernel Userspace Access Protection (KUAP)
 
 	  If you're unsure, say Y.
+
+config PPC_KUAP_DEBUG
+	bool "Extra debugging for Kernel Userspace Access Protection"
+	depends on PPC_HAVE_KUAP && PPC_RADIX_MMU
+	help
+	  Add extra debugging for Kernel Userspace Access Protection (KUAP)
+	  If you're unsure, say N.
 
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	def_bool y
