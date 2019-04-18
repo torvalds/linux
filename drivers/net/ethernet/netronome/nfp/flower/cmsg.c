@@ -217,7 +217,7 @@ nfp_flower_cmsg_merge_hint_rx(struct nfp_app *app, struct sk_buff *skb)
 	flow_cnt = msg->count + 1;
 
 	if (msg_len < struct_size(msg, flow, flow_cnt)) {
-		nfp_flower_cmsg_warn(app, "Merge hint ctrl msg too short - %d bytes but expect %ld\n",
+		nfp_flower_cmsg_warn(app, "Merge hint ctrl msg too short - %d bytes but expect %zd\n",
 				     msg_len, struct_size(msg, flow, flow_cnt));
 		return;
 	}
