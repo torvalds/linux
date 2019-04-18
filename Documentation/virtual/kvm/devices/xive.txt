@@ -1,0 +1,19 @@
+POWER9 eXternal Interrupt Virtualization Engine (XIVE Gen1)
+==========================================================
+
+Device types supported:
+  KVM_DEV_TYPE_XIVE     POWER9 XIVE Interrupt Controller generation 1
+
+This device acts as a VM interrupt controller. It provides the KVM
+interface to configure the interrupt sources of a VM in the underlying
+POWER9 XIVE interrupt controller.
+
+Only one XIVE instance may be instantiated. A guest XIVE device
+requires a POWER9 host and the guest OS should have support for the
+XIVE native exploitation interrupt mode. If not, it should run using
+the legacy interrupt mode, referred as XICS (POWER7/8).
+
+* Groups:
+
+  1. KVM_DEV_XIVE_GRP_CTRL
+  Provides global controls on the device

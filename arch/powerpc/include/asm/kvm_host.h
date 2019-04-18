@@ -225,6 +225,7 @@ extern struct kvm_device_ops kvm_xics_ops;
 struct kvmppc_xive;
 struct kvmppc_xive_vcpu;
 extern struct kvm_device_ops kvm_xive_ops;
+extern struct kvm_device_ops kvm_xive_native_ops;
 
 struct kvmppc_passthru_irqmap;
 
