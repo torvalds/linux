@@ -25,7 +25,7 @@
  */
 
 #ifndef NOFILEID
-static const char szFileId[] = "Id: kAVLPVInt.c,v 1.5 2003/02/13 02:02:35 bird Exp $";
+/*static const char szFileId[] = "Id: kAVLPVInt.c,v 1.5 2003/02/13 02:02:35 bird Exp $";*/
 #endif
 
 

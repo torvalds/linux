@@ -231,9 +231,9 @@ RTDECL(int)  RTErrConvertFromDarwin(int iNativeCode);
  * Converts errno to iprt status code.
  *
  * @returns iprt status code.
- * @param   uNativeCode    errno code.
+ * @param   iNativeCode    errno code.
  */
-RTDECL(int)  RTErrConvertFromErrno(unsigned uNativeCode);
+RTDECL(int)  RTErrConvertFromErrno(int iNativeCode);
 
 /**
  * Converts a L4 errno to a iprt status code.

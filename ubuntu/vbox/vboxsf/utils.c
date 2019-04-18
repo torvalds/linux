@@ -33,851 +33,1215 @@
 #include "vfsmod.h"
 #include <iprt/asm.h>
 #include <iprt/err.h>
-#include <linux/nfs_fs.h>
 #include <linux/vfs.h>
 
-/* #define USE_VMALLOC */
 
-/*
- * sf_reg_aops and sf_backing_dev_info are just quick implementations to make
- * sendfile work. For more information have a look at
- *
- *   http://us1.samba.org/samba/ftp/cifs-cvs/ols2006-fs-tutorial-smf.odp
- *
- * and the sample implementation
- *
- *   http://pserver.samba.org/samba/ftp/cifs-cvs/samplefs.tar.gz
+int vbsf_nlscpy(struct vbsf_super_info *pSuperInfo, char *name, size_t name_bound_len,
+                const unsigned char *utf8_name, size_t utf8_len)
+{
+    Assert(name_bound_len > 1);
+    Assert(RTStrNLen(utf8_name, utf8_len) == utf8_len);
+
+    if (pSuperInfo->nls) {
+        const char *in              = utf8_name;
+        size_t      in_bound_len    = utf8_len;
+        char       *out             = name;
+        size_t      out_bound_len   = name_bound_len - 1;
+        size_t      out_len         = 0;
+
+        while (in_bound_len) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)
+            unicode_t uni;
+            int cbInEnc = utf8_to_utf32(in, in_bound_len, &uni);
+#else
+            linux_wchar_t uni;
+            int cbInEnc = utf8_mbtowc(&uni, in, in_bound_len);
+#endif
+            if (cbInEnc >= 0) {
+                int cbOutEnc = pSuperInfo->nls->uni2char(uni, out, out_bound_len);
+                if (cbOutEnc >= 0) {
+                    /*SFLOG3(("vbsf_nlscpy: cbOutEnc=%d cbInEnc=%d uni=%#x in_bound_len=%u\n", cbOutEnc, cbInEnc, uni, in_bound_len));*/
+                    out           += cbOutEnc;
+                    out_bound_len -= cbOutEnc;
+                    out_len       += cbOutEnc;
+
+                    in            += cbInEnc;
+                    in_bound_len  -= cbInEnc;
+                } else {
+                    SFLOG(("vbsf_nlscpy: nls->uni2char failed with %d on %#x (pos %u in '%s'), out_bound_len=%u\n",
+                           cbOutEnc, uni, in - (const char *)utf8_name, (const char *)utf8_name, (unsigned)out_bound_len));
+                    return cbOutEnc;
+                }
+            } else {
+                SFLOG(("vbsf_nlscpy: utf8_to_utf32/utf8_mbtowc failed with %d on %x (pos %u in '%s'), in_bound_len=%u!\n",
+                       cbInEnc, *in, in - (const char *)utf8_name, (const char *)utf8_name, (unsigned)in_bound_len));
+                return -EINVAL;
+            }
+        }
+
+        *out = '\0';
+    } else {
+        if (utf8_len + 1 > name_bound_len)
+            return -ENAMETOOLONG;
+
+        memcpy(name, utf8_name, utf8_len + 1);
+    }
+    return 0;
+}
+
+
+/**
+ * Converts the given NLS string to a host one, kmalloc'ing
+ * the output buffer (use kfree on result).
  */
+int vbsf_nls_to_shflstring(struct vbsf_super_info *pSuperInfo, const char *pszNls, PSHFLSTRING *ppString)
+{
+    int          rc;
+    size_t const cchNls = strlen(pszNls);
+    PSHFLSTRING  pString = NULL;
+    if (pSuperInfo->nls) {
+        /*
+         * NLS -> UTF-8 w/ SHLF string header.
+         */
+        /* Calc length first: */
+        size_t cchUtf8 = 0;
+        size_t offNls  = 0;
+        while (offNls < cchNls) {
+            linux_wchar_t uc; /* Note! We renamed the type due to clashes. */
+            int const cbNlsCodepoint = pSuperInfo->nls->char2uni(&pszNls[offNls], cchNls - offNls, &uc);
+            if (cbNlsCodepoint >= 0) {
+                char achTmp[16];
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)
+                int cbUtf8Codepoint = utf32_to_utf8(uc, achTmp, sizeof(achTmp));
+#else
+                int cbUtf8Codepoint = utf8_wctomb(achTmp, uc, sizeof(achTmp));
+#endif
+                if (cbUtf8Codepoint > 0) {
+                    cchUtf8 += cbUtf8Codepoint;
+                    offNls  += cbNlsCodepoint;
+                } else {
+                    Log(("vbsf_nls_to_shflstring: nls->uni2char(%#x) failed: %d\n", uc, cbUtf8Codepoint));
+                    return -EINVAL;
+                }
+            } else {
+                Log(("vbsf_nls_to_shflstring: nls->char2uni(%.*Rhxs) failed: %d\n",
+                     RT_MIN(8, cchNls - offNls), &pszNls[offNls], cbNlsCodepoint));
+                return -EINVAL;
+            }
+        }
+        if (cchUtf8 + 1 < _64K) {
+            /* Allocate: */
+            pString = (PSHFLSTRING)kmalloc(SHFLSTRING_HEADER_SIZE + cchUtf8 + 1, GFP_KERNEL);
+            if (pString) {
+                char *pchDst = pString->String.ach;
+                pString->u16Length = (uint16_t)cchUtf8;
+                pString->u16Size   = (uint16_t)(cchUtf8 + 1);
 
+                /* Do the conversion (cchUtf8 is counted down): */
+                rc     = 0;
+                offNls = 0;
+                while (offNls < cchNls) {
+                    linux_wchar_t uc; /* Note! We renamed the type due to clashes. */
+                    int const cbNlsCodepoint = pSuperInfo->nls->char2uni(&pszNls[offNls], cchNls - offNls, &uc);
+                    if (cbNlsCodepoint >= 0) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)
+                        int cbUtf8Codepoint = utf32_to_utf8(uc, pchDst, cchUtf8);
+#else
+                        int cbUtf8Codepoint = utf8_wctomb(pchDst, uc, cchUtf8);
+#endif
+                        if (cbUtf8Codepoint > 0) {
+                            AssertBreakStmt(cbUtf8Codepoint <= cchUtf8, rc = -EINVAL);
+                            cchUtf8 -= cbUtf8Codepoint;
+                            pchDst  += cbUtf8Codepoint;
+                            offNls  += cbNlsCodepoint;
+                        } else {
+                            Log(("vbsf_nls_to_shflstring: nls->uni2char(%#x) failed! %d, cchUtf8=%zu\n",
+                                 uc, cbUtf8Codepoint, cchUtf8));
+                            rc = -EINVAL;
+                            break;
+                        }
+                    } else {
+                        Log(("vbsf_nls_to_shflstring: nls->char2uni(%.*Rhxs) failed! %d\n",
+                             RT_MIN(8, cchNls - offNls), &pszNls[offNls], cbNlsCodepoint));
+                        rc = -EINVAL;
+                        break;
+                    }
+                }
+                if (rc == 0) {
+                    /*
+                     * Succeeded.  Just terminate the string and we're good.
+                     */
+                    Assert(pchDst - pString->String.ach == pString->u16Length);
+                    *pchDst = '\0';
+                } else {
+                    kfree(pString);
+                    pString = NULL;
+                }
+            } else {
+                Log(("vbsf_nls_to_shflstring: failed to allocate %u bytes\n", SHFLSTRING_HEADER_SIZE + cchUtf8 + 1));
+                rc = -ENOMEM;
+            }
+        } else {
+            Log(("vbsf_nls_to_shflstring: too long: %zu bytes (%zu nls bytes)\n", cchUtf8, cchNls));
+            rc = -ENAMETOOLONG;
+        }
+    } else {
+        /*
+         * UTF-8 -> UTF-8 w/ SHLF string header.
+         */
+        if (cchNls + 1 < _64K) {
+            pString = (PSHFLSTRING)kmalloc(SHFLSTRING_HEADER_SIZE + cchNls + 1, GFP_KERNEL);
+            if (pString) {
+                pString->u16Length = (uint16_t)cchNls;
+                pString->u16Size   = (uint16_t)(cchNls + 1);
+                memcpy(pString->String.ach, pszNls, cchNls);
+                pString->String.ach[cchNls] = '\0';
+                rc = 0;
+            } else {
+                Log(("vbsf_nls_to_shflstring: failed to allocate %u bytes\n", SHFLSTRING_HEADER_SIZE + cchNls + 1));
+                rc = -ENOMEM;
+            }
+        } else {
+            Log(("vbsf_nls_to_shflstring: too long: %zu bytes\n", cchNls));
+            rc = -ENAMETOOLONG;
+        }
+    }
+    *ppString = pString;
+    return rc;
+}
+
+
+/**
+ * Convert from VBox to linux time.
+ */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)
-static void sf_ftime_from_timespec(time_t * time, RTTIMESPEC * ts)
+DECLINLINE(void) vbsf_time_to_linux(time_t *pLinuxDst, PCRTTIMESPEC pVBoxSrc)
 {
-	int64_t t = RTTimeSpecGetNano(ts);
+    int64_t t = RTTimeSpecGetNano(pVBoxSrc);
+    do_div(t, RT_NS_1SEC);
+    *pLinuxDst = t;
+}
+#else   /* >= 2.6.0 */
+# if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+DECLINLINE(void) vbsf_time_to_linux(struct timespec *pLinuxDst, PCRTTIMESPEC pVBoxSrc)
+# else
+DECLINLINE(void) vbsf_time_to_linux(struct timespec64 *pLinuxDst, PCRTTIMESPEC pVBoxSrc)
+# endif
+{
+    int64_t t = RTTimeSpecGetNano(pVBoxSrc);
+    pLinuxDst->tv_nsec = do_div(t, RT_NS_1SEC);
+    pLinuxDst->tv_sec  = t;
+}
+#endif  /* >= 2.6.0 */
 
-	do_div(t, 1000000000);
-	*time = t;
+
+/**
+ * Convert from linux to VBox time.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)
+DECLINLINE(void) vbsf_time_to_vbox(PRTTIMESPEC pVBoxDst, time_t *pLinuxSrc)
+{
+    RTTimeSpecSetNano(pVBoxDst, RT_NS_1SEC_64 * *pLinuxSrc);
+}
+#else   /* >= 2.6.0 */
+# if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+DECLINLINE(void) vbsf_time_to_vbox(PRTTIMESPEC pVBoxDst, struct timespec const *pLinuxSrc)
+# else
+DECLINLINE(void) vbsf_time_to_vbox(PRTTIMESPEC pVBoxDst, struct timespec64 const *pLinuxSrc)
+# endif
+{
+    RTTimeSpecSetNano(pVBoxDst, pLinuxSrc->tv_nsec + pLinuxSrc->tv_sec * (int64_t)RT_NS_1SEC);
+}
+#endif  /* >= 2.6.0 */
+
+
+/**
+ * Converts VBox access permissions  to Linux ones (mode & 0777).
+ *
+ * @note Currently identical.
+ * @sa   sf_access_permissions_to_vbox
+ */
+DECLINLINE(int) sf_access_permissions_to_linux(uint32_t fAttr)
+{
+    /* Access bits should be the same: */
+    AssertCompile(RTFS_UNIX_IRUSR == S_IRUSR);
+    AssertCompile(RTFS_UNIX_IWUSR == S_IWUSR);
+    AssertCompile(RTFS_UNIX_IXUSR == S_IXUSR);
+    AssertCompile(RTFS_UNIX_IRGRP == S_IRGRP);
+    AssertCompile(RTFS_UNIX_IWGRP == S_IWGRP);
+    AssertCompile(RTFS_UNIX_IXGRP == S_IXGRP);
+    AssertCompile(RTFS_UNIX_IROTH == S_IROTH);
+    AssertCompile(RTFS_UNIX_IWOTH == S_IWOTH);
+    AssertCompile(RTFS_UNIX_IXOTH == S_IXOTH);
+
+    return fAttr & RTFS_UNIX_ALL_ACCESS_PERMS;
 }
 
-static void sf_timespec_from_ftime(RTTIMESPEC * ts, time_t * time)
-{
-	int64_t t = 1000000000 * *time;
-	RTTimeSpecSetNano(ts, t);
-}
-#else				/* >= 2.6.0 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
-static void sf_ftime_from_timespec(struct timespec *tv, RTTIMESPEC *ts)
-#else
-static void sf_ftime_from_timespec(struct timespec64 *tv, RTTIMESPEC *ts)
-#endif
-{
-	int64_t t = RTTimeSpecGetNano(ts);
-	int64_t nsec;
 
-	nsec = do_div(t, 1000000000);
-	tv->tv_sec = t;
-	tv->tv_nsec = nsec;
+/**
+ * Produce the Linux mode mask, given VBox, mount options and file type.
+ */
+DECLINLINE(int) sf_file_mode_to_linux(uint32_t fVBoxMode, int fFixedMode, int fClearMask, int fType)
+{
+    int fLnxMode = sf_access_permissions_to_linux(fVBoxMode);
+    if (fFixedMode != ~0)
+        fLnxMode = fFixedMode & 0777;
+    fLnxMode &= ~fClearMask;
+    fLnxMode |= fType;
+    return fLnxMode;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
-static void sf_timespec_from_ftime(RTTIMESPEC *ts, struct timespec *tv)
-#else
-static void sf_timespec_from_ftime(RTTIMESPEC *ts, struct timespec64 *tv)
-#endif
+
+/**
+ * Initializes the @a inode attributes based on @a pObjInfo and @a pSuperInfo
+ * options.
+ */
+void vbsf_init_inode(struct inode *inode, struct vbsf_inode_info *sf_i, PSHFLFSOBJINFO pObjInfo,
+                     struct vbsf_super_info *pSuperInfo)
 {
-	int64_t t = (int64_t) tv->tv_nsec + (int64_t) tv->tv_sec * 1000000000;
-	RTTimeSpecSetNano(ts, t);
-}
-#endif				/* >= 2.6.0 */
+    PCSHFLFSOBJATTR pAttr = &pObjInfo->Attr;
 
-/* set [inode] attributes based on [info], uid/gid based on [sf_g] */
-void sf_init_inode(struct sf_glob_info *sf_g, struct inode *inode,
-		   PSHFLFSOBJINFO info)
-{
-	PSHFLFSOBJATTR attr;
-	int mode;
+    TRACE();
 
-	TRACE();
+    sf_i->ts_up_to_date = jiffies;
+    sf_i->force_restat  = 0;
 
-	attr = &info->Attr;
+    if (RTFS_IS_DIRECTORY(pAttr->fMode)) {
+        inode->i_mode = sf_file_mode_to_linux(pAttr->fMode, pSuperInfo->dmode, pSuperInfo->dmask, S_IFDIR);
+        inode->i_op = &vbsf_dir_iops;
+        inode->i_fop = &vbsf_dir_fops;
 
-#define mode_set(r) attr->fMode & (RTFS_UNIX_##r) ? (S_##r) : 0;
-	mode = mode_set(IRUSR);
-	mode |= mode_set(IWUSR);
-	mode |= mode_set(IXUSR);
-
-	mode |= mode_set(IRGRP);
-	mode |= mode_set(IWGRP);
-	mode |= mode_set(IXGRP);
-
-	mode |= mode_set(IROTH);
-	mode |= mode_set(IWOTH);
-	mode |= mode_set(IXOTH);
-
-#undef mode_set
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-	inode->i_mapping->a_ops = &sf_reg_aops;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 19, 0)
-	/* XXX Was this ever necessary? */
-	inode->i_mapping->backing_dev_info = &sf_g->bdi;
+        /* XXX: this probably should be set to the number of entries
+           in the directory plus two (. ..) */
+        set_nlink(inode, 1);
+    }
+    else if (RTFS_IS_SYMLINK(pAttr->fMode)) {
+        /** @todo r=bird: Aren't System V symlinks w/o any mode mask? IIRC there is
+         *        no lchmod on Linux. */
+        inode->i_mode = sf_file_mode_to_linux(pAttr->fMode, pSuperInfo->fmode, pSuperInfo->fmask, S_IFLNK);
+        inode->i_op = &vbsf_lnk_iops;
+        set_nlink(inode, 1);
+    } else {
+        inode->i_mode = sf_file_mode_to_linux(pAttr->fMode, pSuperInfo->fmode, pSuperInfo->fmask, S_IFREG);
+        inode->i_op = &vbsf_reg_iops;
+        inode->i_fop = &vbsf_reg_fops;
+        inode->i_mapping->a_ops = &vbsf_reg_aops;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 17) \
+ && LINUX_VERSION_CODE <  KERNEL_VERSION(4, 0, 0)
+        inode->i_mapping->backing_dev_info = &pSuperInfo->bdi; /* This is needed for mmap. */
 #endif
-#endif
-
-	if (RTFS_IS_DIRECTORY(attr->fMode)) {
-		inode->i_mode = sf_g->dmode != ~0 ? (sf_g->dmode & 0777) : mode;
-		inode->i_mode &= ~sf_g->dmask;
-		inode->i_mode |= S_IFDIR;
-		inode->i_op = &sf_dir_iops;
-		inode->i_fop = &sf_dir_fops;
-		/* XXX: this probably should be set to the number of entries
-		   in the directory plus two (. ..) */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-		set_nlink(inode, 1);
-#else
-		inode->i_nlink = 1;
-#endif
-	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-	else if (RTFS_IS_SYMLINK(attr->fMode)) {
-		inode->i_mode = sf_g->fmode != ~0 ? (sf_g->fmode & 0777) : mode;
-		inode->i_mode &= ~sf_g->fmask;
-		inode->i_mode |= S_IFLNK;
-		inode->i_op = &sf_lnk_iops;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-		set_nlink(inode, 1);
-#else
-		inode->i_nlink = 1;
-#endif
-	}
-#endif
-	else {
-		inode->i_mode = sf_g->fmode != ~0 ? (sf_g->fmode & 0777) : mode;
-		inode->i_mode &= ~sf_g->fmask;
-		inode->i_mode |= S_IFREG;
-		inode->i_op = &sf_reg_iops;
-		inode->i_fop = &sf_reg_fops;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-		set_nlink(inode, 1);
-#else
-		inode->i_nlink = 1;
-#endif
-	}
+        set_nlink(inode, 1);
+    }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
-	inode->i_uid = make_kuid(current_user_ns(), sf_g->uid);
-	inode->i_gid = make_kgid(current_user_ns(), sf_g->gid);
+    inode->i_uid = make_kuid(current_user_ns(), pSuperInfo->uid);
+    inode->i_gid = make_kgid(current_user_ns(), pSuperInfo->gid);
 #else
-	inode->i_uid = sf_g->uid;
-	inode->i_gid = sf_g->gid;
+    inode->i_uid = pSuperInfo->uid;
+    inode->i_gid = pSuperInfo->gid;
 #endif
 
-	inode->i_size = info->cbObject;
+    inode->i_size = pObjInfo->cbObject;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19) && !defined(KERNEL_FC6)
-	inode->i_blksize = 4096;
+    inode->i_blksize = 4096;
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 11)
-	inode->i_blkbits = 12;
+    inode->i_blkbits = 12;
 #endif
-	/* i_blocks always in units of 512 bytes! */
-	inode->i_blocks = (info->cbAllocated + 511) / 512;
+    /* i_blocks always in units of 512 bytes! */
+    inode->i_blocks = (pObjInfo->cbAllocated + 511) / 512;
 
-	sf_ftime_from_timespec(&inode->i_atime, &info->AccessTime);
-	sf_ftime_from_timespec(&inode->i_ctime, &info->ChangeTime);
-	sf_ftime_from_timespec(&inode->i_mtime, &info->ModificationTime);
+    vbsf_time_to_linux(&inode->i_atime, &pObjInfo->AccessTime);
+    vbsf_time_to_linux(&inode->i_ctime, &pObjInfo->ChangeTime);
+    vbsf_time_to_linux(&inode->i_mtime, &pObjInfo->ModificationTime);
+    sf_i->BirthTime = pObjInfo->BirthTime;
+    sf_i->ModificationTime = pObjInfo->ModificationTime;
+    RTTimeSpecSetSeconds(&sf_i->ModificationTimeAtOurLastWrite, 0);
 }
 
-int sf_stat(const char *caller, struct sf_glob_info *sf_g,
-	    SHFLSTRING * path, PSHFLFSOBJINFO result, int ok_to_fail)
+
+/**
+ * Update the inode with new object info from the host.
+ *
+ * Called by sf_inode_revalidate() and sf_inode_revalidate_with_handle().
+ */
+void vbsf_update_inode(struct inode *pInode, struct vbsf_inode_info *pInodeInfo, PSHFLFSOBJINFO pObjInfo,
+                       struct vbsf_super_info *pSuperInfo, bool fInodeLocked, unsigned fSetAttrs)
 {
-	int rc;
-	SHFLCREATEPARMS params;
-	NOREF(caller);
+    PCSHFLFSOBJATTR pAttr = &pObjInfo->Attr;
+    int             fMode;
 
-	TRACE();
+    TRACE();
 
-	RT_ZERO(params);
-	params.Handle = SHFL_HANDLE_NIL;
-	params.CreateFlags = SHFL_CF_LOOKUP | SHFL_CF_ACT_FAIL_IF_NEW;
-	LogFunc(("sf_stat: calling VbglR0SfCreate, file %s, flags %#x\n",
-		 path->String.utf8, params.CreateFlags));
-	rc = VbglR0SfCreate(&client_handle, &sf_g->map, path, &params);
-	if (rc == VERR_INVALID_NAME) {
-		/* this can happen for names like 'foo*' on a Windows host */
-		return -ENOENT;
-	}
-	if (RT_FAILURE(rc)) {
-		LogFunc(("VbglR0SfCreate(%s) failed.  caller=%s, rc=%Rrc\n",
-			 path->String.utf8, rc, caller));
-		return -EPROTO;
-	}
-	if (params.Result != SHFL_FILE_EXISTS) {
-		if (!ok_to_fail)
-			LogFunc(("VbglR0SfCreate(%s) file does not exist.  caller=%s, result=%d\n", path->String.utf8, params.Result, caller));
-		return -ENOENT;
-	}
-
-	*result = params.Info;
-	return 0;
-}
-
-/* this is called directly as iop on 2.4, indirectly as dop
-   [sf_dentry_revalidate] on 2.4/2.6, indirectly as iop through
-   [sf_getattr] on 2.6. the job is to find out whether dentry/inode is
-   still valid. the test is failed if [dentry] does not have an inode
-   or [sf_stat] is unsuccessful, otherwise we return success and
-   update inode attributes */
-int sf_inode_revalidate(struct dentry *dentry)
-{
-	int err;
-	struct sf_glob_info *sf_g;
-	struct sf_inode_info *sf_i;
-	SHFLFSOBJINFO info;
-
-	TRACE();
-	if (!dentry || !dentry->d_inode) {
-		LogFunc(("no dentry(%p) or inode(%p)\n", dentry,
-			 dentry->d_inode));
-		return -EINVAL;
-	}
-
-	sf_g = GET_GLOB_INFO(dentry->d_inode->i_sb);
-	sf_i = GET_INODE_INFO(dentry->d_inode);
-
-#if 0
-	printk("%s called by %p:%p\n",
-	       sf_i->path->String.utf8,
-	       __builtin_return_address(0), __builtin_return_address(1));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+    if (!fInodeLocked)
+        inode_lock(pInode);
 #endif
 
-	BUG_ON(!sf_g);
-	BUG_ON(!sf_i);
+    /*
+     * Calc new mode mask and update it if it changed.
+     */
+    if (RTFS_IS_DIRECTORY(pAttr->fMode))
+        fMode = sf_file_mode_to_linux(pAttr->fMode, pSuperInfo->dmode, pSuperInfo->dmask, S_IFDIR);
+    else if (RTFS_IS_SYMLINK(pAttr->fMode))
+        /** @todo r=bird: Aren't System V symlinks w/o any mode mask? IIRC there is
+         *        no lchmod on Linux. */
+        fMode = sf_file_mode_to_linux(pAttr->fMode, pSuperInfo->fmode, pSuperInfo->fmask, S_IFLNK);
+    else
+        fMode = sf_file_mode_to_linux(pAttr->fMode, pSuperInfo->fmode, pSuperInfo->fmask, S_IFREG);
 
-	if (!sf_i->force_restat) {
-		if (jiffies - dentry->d_time < sf_g->ttl)
-			return 0;
-	}
+    if (fMode == pInode->i_mode) {
+        /* likely */
+    } else {
+        if ((fMode & S_IFMT) == (pInode->i_mode & S_IFMT))
+            pInode->i_mode = fMode;
+        else {
+            SFLOGFLOW(("vbsf_update_inode: Changed from %o to %o (%s)\n",
+                       pInode->i_mode & S_IFMT, fMode & S_IFMT, pInodeInfo->path->String.ach));
+            /** @todo we probably need to be more drastic... */
+            vbsf_init_inode(pInode, pInodeInfo, pObjInfo, pSuperInfo);
 
-	err = sf_stat(__func__, sf_g, sf_i->path, &info, 1);
-	if (err)
-		return err;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+            if (!fInodeLocked)
+                inode_unlock(pInode);
+#endif
+            return;
+        }
+    }
 
-	dentry->d_time = jiffies;
-	sf_init_inode(sf_g, dentry->d_inode, &info);
-	return 0;
-}
+    /*
+     * Update the sizes.
+     * Note! i_blocks is always in units of 512 bytes!
+     */
+    pInode->i_blocks = (pObjInfo->cbAllocated + 511) / 512;
+    i_size_write(pInode, pObjInfo->cbObject);
 
-/* this is called during name resolution/lookup to check if the
-   [dentry] in the cache is still valid. the job is handled by
-   [sf_inode_revalidate] */
-static int
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
-sf_dentry_revalidate(struct dentry *dentry, unsigned flags)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-sf_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
+    /*
+     * Update the timestamps.
+     */
+    vbsf_time_to_linux(&pInode->i_atime, &pObjInfo->AccessTime);
+    vbsf_time_to_linux(&pInode->i_ctime, &pObjInfo->ChangeTime);
+    vbsf_time_to_linux(&pInode->i_mtime, &pObjInfo->ModificationTime);
+    pInodeInfo->BirthTime = pObjInfo->BirthTime;
+
+    /*
+     * Mark it as up to date.
+     * Best to do this before we start with any expensive map invalidation.
+     */
+    pInodeInfo->ts_up_to_date = jiffies;
+    pInodeInfo->force_restat  = 0;
+
+    /*
+     * If the modification time changed, we may have to invalidate the page
+     * cache pages associated with this inode if we suspect the change was
+     * made by the host.  How supicious we are depends on the cache mode.
+     *
+     * Note! The invalidate_inode_pages() call is pretty weak.  It will _not_
+     *       touch pages that are already mapped into an address space, but it
+     *       will help if the file isn't currently mmap'ed or if we're in read
+     *       or read/write caching mode.
+     */
+    if (!RTTimeSpecIsEqual(&pInodeInfo->ModificationTime, &pObjInfo->ModificationTime)) {
+        if (RTFS_IS_FILE(pAttr->fMode)) {
+            if (!(fSetAttrs & (ATTR_MTIME | ATTR_SIZE))) {
+                bool fInvalidate;
+                if (pSuperInfo->enmCacheMode == kVbsfCacheMode_None) {
+                    fInvalidate = true;      /* No-caching: always invalidate. */
+                } else {
+                    if (RTTimeSpecIsEqual(&pInodeInfo->ModificationTimeAtOurLastWrite, &pInodeInfo->ModificationTime)) {
+                        fInvalidate = false; /* Could be our write, so don't invalidate anything */
+                        RTTimeSpecSetSeconds(&pInodeInfo->ModificationTimeAtOurLastWrite, 0);
+                    } else {
+                        /*RTLogBackdoorPrintf("vbsf_update_inode: Invalidating the mapping %s - %RU64 vs %RU64 vs %RU64 - %#x\n",
+                                            pInodeInfo->path->String.ach,
+                                            RTTimeSpecGetNano(&pInodeInfo->ModificationTimeAtOurLastWrite),
+                                            RTTimeSpecGetNano(&pInodeInfo->ModificationTime),
+                                            RTTimeSpecGetNano(&pObjInfo->ModificationTime), fSetAttrs);*/
+                        fInvalidate = true;  /* We haven't modified the file recently, so probably a host update. */
+                    }
+                }
+                pInodeInfo->ModificationTime = pObjInfo->ModificationTime;
+
+                if (fInvalidate) {
+                    struct address_space *mapping = pInode->i_mapping;
+                    if (mapping && mapping->nrpages > 0) {
+                        SFLOGFLOW(("vbsf_update_inode: Invalidating the mapping %s (%#x)\n", pInodeInfo->path->String.ach, fSetAttrs));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
+                        invalidate_mapping_pages(mapping, 0, ~(pgoff_t)0);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 41)
+                        invalidate_inode_pages(mapping);
 #else
-sf_dentry_revalidate(struct dentry *dentry, int flags)
+                        invalidate_inode_pages(pInode);
 #endif
-{
-	TRACE();
+                    }
+                }
+            } else {
+                RTTimeSpecSetSeconds(&pInodeInfo->ModificationTimeAtOurLastWrite, 0);
+                pInodeInfo->ModificationTime = pObjInfo->ModificationTime;
+            }
+        } else
+            pInodeInfo->ModificationTime = pObjInfo->ModificationTime;
+    }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
-	if (flags & LOOKUP_RCU)
-		return -ECHILD;
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
-	/* see Documentation/filesystems/vfs.txt */
-	if (nd && nd->flags & LOOKUP_RCU)
-		return -ECHILD;
+    /*
+     * Done.
+     */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+    if (!fInodeLocked)
+        inode_unlock(pInode);
 #endif
-
-	if (sf_inode_revalidate(dentry))
-		return 0;
-
-	return 1;
 }
+
+
+/** @note Currently only used for the root directory during (re-)mount.  */
+int vbsf_stat(const char *caller, struct vbsf_super_info *pSuperInfo, SHFLSTRING *path, PSHFLFSOBJINFO result, int ok_to_fail)
+{
+    int rc;
+    VBOXSFCREATEREQ *pReq;
+    NOREF(caller);
+
+    TRACE();
+
+    pReq = (VBOXSFCREATEREQ *)VbglR0PhysHeapAlloc(sizeof(*pReq) + path->u16Size);
+    if (pReq) {
+        RT_ZERO(*pReq);
+        memcpy(&pReq->StrPath, path, SHFLSTRING_HEADER_SIZE + path->u16Size);
+        pReq->CreateParms.Handle = SHFL_HANDLE_NIL;
+        pReq->CreateParms.CreateFlags = SHFL_CF_LOOKUP | SHFL_CF_ACT_FAIL_IF_NEW;
+
+        LogFunc(("Calling VbglR0SfHostReqCreate on %s\n", path->String.utf8));
+        rc = VbglR0SfHostReqCreate(pSuperInfo->map.root, pReq);
+        if (RT_SUCCESS(rc)) {
+            if (pReq->CreateParms.Result == SHFL_FILE_EXISTS) {
+                *result = pReq->CreateParms.Info;
+                rc = 0;
+            } else {
+                if (!ok_to_fail)
+                    LogFunc(("VbglR0SfHostReqCreate on %s: file does not exist: %d (caller=%s)\n",
+                             path->String.utf8, pReq->CreateParms.Result, caller));
+                rc = -ENOENT;
+            }
+        } else if (rc == VERR_INVALID_NAME) {
+            rc = -ENOENT; /* this can happen for names like 'foo*' on a Windows host */
+        } else {
+            LogFunc(("VbglR0SfHostReqCreate failed on %s: %Rrc (caller=%s)\n", path->String.utf8, rc, caller));
+            rc = -EPROTO;
+        }
+        VbglR0PhysHeapFree(pReq);
+    }
+    else
+        rc = -ENOMEM;
+    return rc;
+}
+
+
+/**
+ * Revalidate an inode, inner worker.
+ *
+ * @sa sf_inode_revalidate()
+ */
+int vbsf_inode_revalidate_worker(struct dentry *dentry, bool fForced, bool fInodeLocked)
+{
+    int rc;
+    struct inode *pInode = dentry ? dentry->d_inode : NULL;
+    if (pInode) {
+        struct vbsf_inode_info *sf_i       = VBSF_GET_INODE_INFO(pInode);
+        struct vbsf_super_info *pSuperInfo = VBSF_GET_SUPER_INFO(pInode->i_sb);
+        AssertReturn(sf_i, -EINVAL);
+        AssertReturn(pSuperInfo, -EINVAL);
+
+        /*
+         * Can we get away without any action here?
+         */
+        if (   !fForced
+            && !sf_i->force_restat
+            && jiffies - sf_i->ts_up_to_date < pSuperInfo->cJiffiesInodeTTL)
+            rc = 0;
+        else {
+            /*
+             * No, we have to query the file info from the host.
+             * Try get a handle we can query, any kind of handle will do here.
+             */
+            struct vbsf_handle *pHandle = vbsf_handle_find(sf_i, 0, 0);
+            if (pHandle) {
+                /* Query thru pHandle. */
+                VBOXSFOBJINFOREQ *pReq = (VBOXSFOBJINFOREQ *)VbglR0PhysHeapAlloc(sizeof(*pReq));
+                if (pReq) {
+                    RT_ZERO(*pReq);
+                    rc = VbglR0SfHostReqQueryObjInfo(pSuperInfo->map.root, pReq, pHandle->hHost);
+                    if (RT_SUCCESS(rc)) {
+                        /*
+                         * Reset the TTL and copy the info over into the inode structure.
+                         */
+                        vbsf_update_inode(pInode, sf_i, &pReq->ObjInfo, pSuperInfo, fInodeLocked, 0 /*fSetAttrs*/);
+                    } else if (rc == VERR_INVALID_HANDLE) {
+                        rc = -ENOENT; /* Restore.*/
+                    } else {
+                        LogFunc(("VbglR0SfHostReqQueryObjInfo failed on %#RX64: %Rrc\n", pHandle->hHost, rc));
+                        rc = -RTErrConvertToErrno(rc);
+                    }
+                    VbglR0PhysHeapFree(pReq);
+                } else
+                    rc = -ENOMEM;
+                vbsf_handle_release(pHandle, pSuperInfo, "vbsf_inode_revalidate_worker");
+
+            } else {
+                /* Query via path. */
+                SHFLSTRING      *pPath = sf_i->path;
+                VBOXSFCREATEREQ *pReq  = (VBOXSFCREATEREQ *)VbglR0PhysHeapAlloc(sizeof(*pReq) + pPath->u16Size);
+                if (pReq) {
+                    RT_ZERO(*pReq);
+                    memcpy(&pReq->StrPath, pPath, SHFLSTRING_HEADER_SIZE + pPath->u16Size);
+                    pReq->CreateParms.Handle      = SHFL_HANDLE_NIL;
+                    pReq->CreateParms.CreateFlags = SHFL_CF_LOOKUP | SHFL_CF_ACT_FAIL_IF_NEW;
+
+                    rc = VbglR0SfHostReqCreate(pSuperInfo->map.root, pReq);
+                    if (RT_SUCCESS(rc)) {
+                        if (pReq->CreateParms.Result == SHFL_FILE_EXISTS) {
+                            /*
+                             * Reset the TTL and copy the info over into the inode structure.
+                             */
+                            vbsf_update_inode(pInode, sf_i, &pReq->CreateParms.Info, pSuperInfo, fInodeLocked, 0 /*fSetAttrs*/);
+                            rc = 0;
+                        } else {
+                            rc = -ENOENT;
+                        }
+                    } else if (rc == VERR_INVALID_NAME) {
+                        rc = -ENOENT; /* this can happen for names like 'foo*' on a Windows host */
+                    } else {
+                        LogFunc(("VbglR0SfHostReqCreate failed on %s: %Rrc\n", pPath->String.ach, rc));
+                        rc = -EPROTO;
+                    }
+                    VbglR0PhysHeapFree(pReq);
+                }
+                else
+                    rc = -ENOMEM;
+            }
+        }
+    } else {
+        LogFunc(("no dentry(%p) or inode(%p)\n", dentry, pInode));
+        rc = -EINVAL;
+    }
+    return rc;
+}
+
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 18)
+/**
+ * Revalidate an inode for 2.4.
+ *
+ * This is called in the stat(), lstat() and readlink() code paths.  In the stat
+ * cases the caller will use the result afterwards to produce the stat data.
+ *
+ * @note 2.4.x has a getattr() inode operation too, but it is not used.
+ */
+int vbsf_inode_revalidate(struct dentry *dentry)
+{
+    /*
+     * We pretend the inode is locked here, as 2.4.x does not have inode level locking.
+     */
+    return vbsf_inode_revalidate_worker(dentry, false /*fForced*/, true /*fInodeLocked*/);
+}
+#endif /* < 2.5.18 */
+
+
+/**
+ * Similar to sf_inode_revalidate, but uses associated host file handle as that
+ * is quite a bit faster.
+ */
+int vbsf_inode_revalidate_with_handle(struct dentry *dentry, SHFLHANDLE hHostFile, bool fForced, bool fInodeLocked)
+{
+    int err;
+    struct inode *pInode = dentry ? dentry->d_inode : NULL;
+    if (!pInode) {
+        LogFunc(("no dentry(%p) or inode(%p)\n", dentry, pInode));
+        err = -EINVAL;
+    } else {
+        struct vbsf_inode_info *sf_i       = VBSF_GET_INODE_INFO(pInode);
+        struct vbsf_super_info *pSuperInfo = VBSF_GET_SUPER_INFO(pInode->i_sb);
+        AssertReturn(sf_i, -EINVAL);
+        AssertReturn(pSuperInfo, -EINVAL);
+
+        /*
+         * Can we get away without any action here?
+         */
+        if (   !fForced
+            && !sf_i->force_restat
+            && jiffies - sf_i->ts_up_to_date < pSuperInfo->cJiffiesInodeTTL)
+            err = 0;
+        else {
+            /*
+             * No, we have to query the file info from the host.
+             */
+            VBOXSFOBJINFOREQ *pReq = (VBOXSFOBJINFOREQ *)VbglR0PhysHeapAlloc(sizeof(*pReq));
+            if (pReq) {
+                RT_ZERO(*pReq);
+                err = VbglR0SfHostReqQueryObjInfo(pSuperInfo->map.root, pReq, hHostFile);
+                if (RT_SUCCESS(err)) {
+                    /*
+                     * Reset the TTL and copy the info over into the inode structure.
+                     */
+                    vbsf_update_inode(pInode, sf_i, &pReq->ObjInfo, pSuperInfo, fInodeLocked, 0 /*fSetAttrs*/);
+                } else {
+                    LogFunc(("VbglR0SfHostReqQueryObjInfo failed on %#RX64: %Rrc\n", hHostFile, err));
+                    err = -RTErrConvertToErrno(err);
+                }
+                VbglR0PhysHeapFree(pReq);
+            } else
+                err = -ENOMEM;
+        }
+    }
+    return err;
+}
+
 
 /* on 2.6 this is a proxy for [sf_inode_revalidate] which (as a side
    effect) updates inode attributes for [dentry] (given that [dentry]
    has inode at all) from these new attributes we derive [kstat] via
    [generic_fillattr] */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
-int sf_getattr(const struct path *path, struct kstat *kstat, u32 request_mask,
-	       unsigned int flags)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 18)
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+int vbsf_inode_getattr(const struct path *path, struct kstat *kstat, u32 request_mask, unsigned int flags)
+# else
+int vbsf_inode_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *kstat)
+# endif
+{
+    int            rc;
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+    struct dentry *dentry = path->dentry;
+# endif
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+    SFLOGFLOW(("vbsf_inode_getattr: dentry=%p request_mask=%#x flags=%#x\n", dentry, request_mask, flags));
+# else
+    SFLOGFLOW(("vbsf_inode_getattr: dentry=%p\n", dentry));
+# endif
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+    /*
+     * With the introduction of statx() userland can control whether we
+     * update the inode information or not.
+     */
+    switch (flags & AT_STATX_SYNC_TYPE) {
+        default:
+            rc = vbsf_inode_revalidate_worker(dentry, false /*fForced*/, false /*fInodeLocked*/);
+            break;
+
+        case AT_STATX_FORCE_SYNC:
+            rc = vbsf_inode_revalidate_worker(dentry, true /*fForced*/, false /*fInodeLocked*/);
+            break;
+
+        case AT_STATX_DONT_SYNC:
+            rc = 0;
+            break;
+    }
+# else
+    rc = vbsf_inode_revalidate_worker(dentry, false /*fForced*/, false /*fInodeLocked*/);
+# endif
+    if (rc == 0) {
+        /* Do generic filling in of info. */
+        generic_fillattr(dentry->d_inode, kstat);
+
+        /* Add birth time. */
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+        if (dentry->d_inode) {
+            struct vbsf_inode_info *pInodeInfo = VBSF_GET_INODE_INFO(dentry->d_inode);
+            if (pInodeInfo) {
+                vbsf_time_to_linux(&kstat->btime, &pInodeInfo->BirthTime);
+                kstat->result_mask |= STATX_BTIME;
+            }
+        }
+# endif
+
+        /*
+         * FsPerf shows the following numbers for sequential file access against
+         * a tmpfs folder on an AMD 1950X host running debian buster/sid:
+         *
+         * block size = r128600    ----- r128755 -----
+         *               reads      reads     writes
+         *    4096 KB = 2254 MB/s  4953 MB/s 3668 MB/s
+         *    2048 KB = 2368 MB/s  4908 MB/s 3541 MB/s
+         *    1024 KB = 2208 MB/s  4011 MB/s 3291 MB/s
+         *     512 KB = 1908 MB/s  3399 MB/s 2721 MB/s
+         *     256 KB = 1625 MB/s  2679 MB/s 2251 MB/s
+         *     128 KB = 1413 MB/s  1967 MB/s 1684 MB/s
+         *      64 KB = 1152 MB/s  1409 MB/s 1265 MB/s
+         *      32 KB =  726 MB/s   815 MB/s  783 MB/s
+         *      16 KB =             683 MB/s  475 MB/s
+         *       8 KB =             294 MB/s  286 MB/s
+         *       4 KB =  145 MB/s   156 MB/s  149 MB/s
+         *
+         */
+        if (S_ISREG(kstat->mode))
+            kstat->blksize = _1M;
+        else if (S_ISDIR(kstat->mode))
+            /** @todo this may need more tuning after we rewrite the directory handling. */
+            kstat->blksize = _16K;
+    }
+    return rc;
+}
+#endif /* >= 2.5.18 */
+
+
+/**
+ * Modify inode attributes.
+ */
+int vbsf_inode_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+    struct inode           *pInode     = dentry->d_inode;
+    struct vbsf_super_info *pSuperInfo = VBSF_GET_SUPER_INFO(pInode->i_sb);
+    struct vbsf_inode_info *sf_i       = VBSF_GET_INODE_INFO(pInode);
+    int vrc;
+    int rc;
+
+    SFLOGFLOW(("vbsf_inode_setattr: dentry=%p inode=%p ia_valid=%#x %s\n",
+               dentry, pInode, iattr->ia_valid, sf_i ? sf_i->path->String.ach : NULL));
+    AssertReturn(sf_i, -EINVAL);
+
+    /*
+     * Need to check whether the caller is allowed to modify the attributes or not.
+     */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+    rc = setattr_prepare(dentry, iattr);
 #else
-int sf_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *kstat)
+    rc = inode_change_ok(pInode, iattr);
 #endif
-{
-	int err;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
-	struct dentry *dentry = path->dentry;
+    if (rc == 0) {
+        /*
+         * Don't modify MTIME and CTIME for open(O_TRUNC) and ftruncate, those
+         * operations will set those timestamps automatically.  Saves a host call.
+         */
+        unsigned fAttrs = iattr->ia_valid;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 15)
+        fAttrs &= ~ATTR_FILE;
 #endif
+        if (   fAttrs == (ATTR_SIZE | ATTR_MTIME | ATTR_CTIME)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+            || (fAttrs & (ATTR_OPEN | ATTR_SIZE)) == (ATTR_OPEN | ATTR_SIZE)
+#endif
+           )
+            fAttrs &= ~(ATTR_MTIME | ATTR_CTIME);
 
-	TRACE();
-	err = sf_inode_revalidate(dentry);
-	if (err)
-		return err;
+        /*
+         * We only implement a handful of attributes, so ignore any attempts
+         * at setting bits we don't support.
+         */
+        if (fAttrs & (ATTR_MODE | ATTR_ATIME | ATTR_MTIME | ATTR_CTIME | ATTR_SIZE)) {
+            /*
+             * Try find a handle which allows us to modify the attributes, otherwise
+             * open the file/dir/whatever.
+             */
+            union SetAttrReqs
+            {
+                VBOXSFCREATEREQ         Create;
+                VBOXSFOBJINFOREQ        Info;
+                VBOXSFSETFILESIZEREQ    SetSize;
+                VBOXSFCLOSEREQ          Close;
+            }                  *pReq;
+            size_t              cbReq;
+            SHFLHANDLE          hHostFile;
+            /** @todo ATTR_FILE (2.6.15+) could be helpful here if we like. */
+            struct vbsf_handle *pHandle = fAttrs & ATTR_SIZE
+                                        ? vbsf_handle_find(sf_i, VBSF_HANDLE_F_WRITE, 0)
+                                        : vbsf_handle_find(sf_i, 0, 0);
+            if (pHandle) {
+                hHostFile = pHandle->hHost;
+                cbReq = RT_MAX(sizeof(VBOXSFOBJINFOREQ), sizeof(VBOXSFSETFILESIZEREQ));
+                pReq  = (union SetAttrReqs *)VbglR0PhysHeapAlloc(cbReq);
+                if (pReq) {
+                    /* likely */
+                } else
+                    rc = -ENOMEM;
+            } else {
+                hHostFile = SHFL_HANDLE_NIL;
+                cbReq = RT_MAX(sizeof(pReq->Info), sizeof(pReq->Create) + SHFLSTRING_HEADER_SIZE + sf_i->path->u16Size);
+                pReq = (union SetAttrReqs *)VbglR0PhysHeapAlloc(cbReq);
+                if (pReq) {
+                    RT_ZERO(pReq->Create.CreateParms);
+                    pReq->Create.CreateParms.Handle      = SHFL_HANDLE_NIL;
+                    pReq->Create.CreateParms.CreateFlags = SHFL_CF_ACT_OPEN_IF_EXISTS
+                                                         | SHFL_CF_ACT_FAIL_IF_NEW
+                                                         | SHFL_CF_ACCESS_ATTR_WRITE;
+                    if (fAttrs & ATTR_SIZE)
+                        pReq->Create.CreateParms.CreateFlags |= SHFL_CF_ACCESS_WRITE;
+                    memcpy(&pReq->Create.StrPath, sf_i->path, SHFLSTRING_HEADER_SIZE + sf_i->path->u16Size);
+                    vrc = VbglR0SfHostReqCreate(pSuperInfo->map.root, &pReq->Create);
+                    if (RT_SUCCESS(vrc)) {
+                        if (pReq->Create.CreateParms.Result == SHFL_FILE_EXISTS) {
+                            hHostFile = pReq->Create.CreateParms.Handle;
+                            Assert(hHostFile != SHFL_HANDLE_NIL);
+                            vbsf_dentry_chain_increase_ttl(dentry);
+                        } else {
+                            LogFunc(("file %s does not exist\n", sf_i->path->String.utf8));
+                            vbsf_dentry_invalidate_ttl(dentry);
+                            sf_i->force_restat = true;
+                            rc = -ENOENT;
+                        }
+                    } else {
+                        rc = -RTErrConvertToErrno(vrc);
+                        LogFunc(("VbglR0SfCreate(%s) failed vrc=%Rrc rc=%d\n", sf_i->path->String.ach, vrc, rc));
+                    }
+                } else
+                    rc = -ENOMEM;
+            }
+            if (rc == 0) {
+                /*
+                 * Set mode and/or timestamps.
+                 */
+                if (fAttrs & (ATTR_MODE | ATTR_ATIME | ATTR_MTIME | ATTR_CTIME)) {
+                    /* Fill in the attributes.  Start by setting all to zero
+                       since the host will ignore zeroed fields. */
+                    RT_ZERO(pReq->Info.ObjInfo);
 
-	generic_fillattr(dentry->d_inode, kstat);
-	return 0;
+                    if (fAttrs & ATTR_MODE) {
+                        pReq->Info.ObjInfo.Attr.fMode = sf_access_permissions_to_vbox(iattr->ia_mode);
+                        if (iattr->ia_mode & S_IFDIR)
+                            pReq->Info.ObjInfo.Attr.fMode |= RTFS_TYPE_DIRECTORY;
+                        else if (iattr->ia_mode & S_IFLNK)
+                            pReq->Info.ObjInfo.Attr.fMode |= RTFS_TYPE_SYMLINK;
+                        else
+                            pReq->Info.ObjInfo.Attr.fMode |= RTFS_TYPE_FILE;
+                    }
+                    if (fAttrs & ATTR_ATIME)
+                        vbsf_time_to_vbox(&pReq->Info.ObjInfo.AccessTime, &iattr->ia_atime);
+                    if (fAttrs & ATTR_MTIME)
+                        vbsf_time_to_vbox(&pReq->Info.ObjInfo.ModificationTime, &iattr->ia_mtime);
+                    if (fAttrs & ATTR_CTIME)
+                        vbsf_time_to_vbox(&pReq->Info.ObjInfo.ChangeTime, &iattr->ia_ctime);
+
+                    /* Make the change. */
+                    vrc = VbglR0SfHostReqSetObjInfo(pSuperInfo->map.root, &pReq->Info, hHostFile);
+                    if (RT_SUCCESS(vrc)) {
+                        vbsf_update_inode(pInode, sf_i, &pReq->Info.ObjInfo, pSuperInfo, true /*fLocked*/, fAttrs);
+                    } else {
+                        rc = -RTErrConvertToErrno(vrc);
+                        LogFunc(("VbglR0SfHostReqSetObjInfo(%s) failed vrc=%Rrc rc=%d\n", sf_i->path->String.ach, vrc, rc));
+                    }
+                }
+
+                /*
+                 * Change the file size.
+                 * Note! Old API is more convenient here as it gives us up to date
+                 *       inode info back.
+                 */
+                if ((fAttrs & ATTR_SIZE) && rc == 0) {
+                    /*vrc = VbglR0SfHostReqSetFileSize(pSuperInfo->map.root, &pReq->SetSize, hHostFile, iattr->ia_size);
+                    if (RT_SUCCESS(vrc)) {
+                        i_size_write(pInode, iattr->ia_size);
+                    } else if (vrc == VERR_NOT_IMPLEMENTED)*/ {
+                        /* Fallback for pre 6.0 hosts: */
+                        RT_ZERO(pReq->Info.ObjInfo);
+                        pReq->Info.ObjInfo.cbObject = iattr->ia_size;
+                        vrc = VbglR0SfHostReqSetFileSizeOld(pSuperInfo->map.root, &pReq->Info, hHostFile);
+                        if (RT_SUCCESS(vrc))
+                            vbsf_update_inode(pInode, sf_i, &pReq->Info.ObjInfo, pSuperInfo, true /*fLocked*/, fAttrs);
+                    }
+                    if (RT_SUCCESS(vrc)) {
+                        /** @todo there is potentially more to be done here if there are mappings of
+                         *        the lovely file. */
+                    } else {
+                        rc = -RTErrConvertToErrno(vrc);
+                        LogFunc(("VbglR0SfHostReqSetFileSize(%s, %#llx) failed vrc=%Rrc rc=%d\n",
+                                 sf_i->path->String.ach, (unsigned long long)iattr->ia_size, vrc, rc));
+                    }
+                }
+
+                /*
+                 * Clean up.
+                 */
+                if (!pHandle) {
+                    vrc = VbglR0SfHostReqClose(pSuperInfo->map.root, &pReq->Close, hHostFile);
+                    if (RT_FAILURE(vrc))
+                        LogFunc(("VbglR0SfHostReqClose(%s [%#llx]) failed vrc=%Rrc\n", sf_i->path->String.utf8, hHostFile, vrc));
+                }
+            }
+            if (pReq)
+                VbglR0PhysHeapFree(pReq);
+            if (pHandle)
+                vbsf_handle_release(pHandle, pSuperInfo, "vbsf_inode_setattr");
+        } else
+            SFLOGFLOW(("vbsf_inode_setattr: Nothing to do here: %#x (was %#x).\n", fAttrs, iattr->ia_valid));
+    }
+    return rc;
 }
 
-int sf_setattr(struct dentry *dentry, struct iattr *iattr)
+
+static int vbsf_make_path(const char *caller, struct vbsf_inode_info *sf_i,
+                          const char *d_name, size_t d_len, SHFLSTRING **result)
 {
-	struct sf_glob_info *sf_g;
-	struct sf_inode_info *sf_i;
-	SHFLCREATEPARMS params;
-	SHFLFSOBJINFO info;
-	uint32_t cbBuffer;
-	int rc, err;
+    size_t path_len, shflstring_len;
+    SHFLSTRING *tmp;
+    uint16_t p_len;
+    uint8_t *p_name;
+    int fRoot = 0;
 
-	TRACE();
+    TRACE();
+    p_len = sf_i->path->u16Length;
+    p_name = sf_i->path->String.utf8;
 
-	sf_g = GET_GLOB_INFO(dentry->d_inode->i_sb);
-	sf_i = GET_INODE_INFO(dentry->d_inode);
-	err = 0;
+    if (p_len == 1 && *p_name == '/') {
+        path_len = d_len + 1;
+        fRoot = 1;
+    } else {
+        /* lengths of constituents plus terminating zero plus slash  */
+        path_len = p_len + d_len + 2;
+        if (path_len > 0xffff) {
+            LogFunc(("path too long.  caller=%s, path_len=%zu\n",
+                 caller, path_len));
+            return -ENAMETOOLONG;
+        }
+    }
 
-	RT_ZERO(params);
-	params.Handle = SHFL_HANDLE_NIL;
-	params.CreateFlags = SHFL_CF_ACT_OPEN_IF_EXISTS
-	    | SHFL_CF_ACT_FAIL_IF_NEW | SHFL_CF_ACCESS_ATTR_WRITE;
+    shflstring_len = offsetof(SHFLSTRING, String.utf8) + path_len;
+    tmp = kmalloc(shflstring_len, GFP_KERNEL);
+    if (!tmp) {
+        LogRelFunc(("kmalloc failed, caller=%s\n", caller));
+        return -ENOMEM;
+    }
+    tmp->u16Length = path_len - 1;
+    tmp->u16Size = path_len;
 
-	/* this is at least required for Posix hosts */
-	if (iattr->ia_valid & ATTR_SIZE)
-		params.CreateFlags |= SHFL_CF_ACCESS_WRITE;
+    if (fRoot)
+        memcpy(&tmp->String.utf8[0], d_name, d_len + 1);
+    else {
+        memcpy(&tmp->String.utf8[0], p_name, p_len);
+        tmp->String.utf8[p_len] = '/';
+        memcpy(&tmp->String.utf8[p_len + 1], d_name, d_len);
+        tmp->String.utf8[p_len + 1 + d_len] = '\0';
+    }
 
-	rc = VbglR0SfCreate(&client_handle, &sf_g->map, sf_i->path, &params);
-	if (RT_FAILURE(rc)) {
-		LogFunc(("VbglR0SfCreate(%s) failed rc=%Rrc\n",
-			 sf_i->path->String.utf8, rc));
-		err = -RTErrConvertToErrno(rc);
-		goto fail2;
-	}
-	if (params.Result != SHFL_FILE_EXISTS) {
-		LogFunc(("file %s does not exist\n", sf_i->path->String.utf8));
-		err = -ENOENT;
-		goto fail1;
-	}
-
-	/* Setting the file size and setting the other attributes has to be
-	 * handled separately, see implementation of vbsfSetFSInfo() in
-	 * vbsf.cpp */
-	if (iattr->ia_valid & (ATTR_MODE | ATTR_ATIME | ATTR_MTIME)) {
-#define mode_set(r) ((iattr->ia_mode & (S_##r)) ? RTFS_UNIX_##r : 0)
-
-		RT_ZERO(info);
-		if (iattr->ia_valid & ATTR_MODE) {
-			info.Attr.fMode = mode_set(IRUSR);
-			info.Attr.fMode |= mode_set(IWUSR);
-			info.Attr.fMode |= mode_set(IXUSR);
-			info.Attr.fMode |= mode_set(IRGRP);
-			info.Attr.fMode |= mode_set(IWGRP);
-			info.Attr.fMode |= mode_set(IXGRP);
-			info.Attr.fMode |= mode_set(IROTH);
-			info.Attr.fMode |= mode_set(IWOTH);
-			info.Attr.fMode |= mode_set(IXOTH);
-
-			if (iattr->ia_mode & S_IFDIR)
-				info.Attr.fMode |= RTFS_TYPE_DIRECTORY;
-			else
-				info.Attr.fMode |= RTFS_TYPE_FILE;
-		}
-
-		if (iattr->ia_valid & ATTR_ATIME)
-			sf_timespec_from_ftime(&info.AccessTime,
-					       &iattr->ia_atime);
-		if (iattr->ia_valid & ATTR_MTIME)
-			sf_timespec_from_ftime(&info.ModificationTime,
-					       &iattr->ia_mtime);
-		/* ignore ctime (inode change time) as it can't be set from userland anyway */
-
-		cbBuffer = sizeof(info);
-		rc = VbglR0SfFsInfo(&client_handle, &sf_g->map, params.Handle,
-				    SHFL_INFO_SET | SHFL_INFO_FILE, &cbBuffer,
-				    (PSHFLDIRINFO) & info);
-		if (RT_FAILURE(rc)) {
-			LogFunc(("VbglR0SfFsInfo(%s, FILE) failed rc=%Rrc\n",
-				 sf_i->path->String.utf8, rc));
-			err = -RTErrConvertToErrno(rc);
-			goto fail1;
-		}
-	}
-
-	if (iattr->ia_valid & ATTR_SIZE) {
-		RT_ZERO(info);
-		info.cbObject = iattr->ia_size;
-		cbBuffer = sizeof(info);
-		rc = VbglR0SfFsInfo(&client_handle, &sf_g->map, params.Handle,
-				    SHFL_INFO_SET | SHFL_INFO_SIZE, &cbBuffer,
-				    (PSHFLDIRINFO) & info);
-		if (RT_FAILURE(rc)) {
-			LogFunc(("VbglR0SfFsInfo(%s, SIZE) failed rc=%Rrc\n",
-				 sf_i->path->String.utf8, rc));
-			err = -RTErrConvertToErrno(rc);
-			goto fail1;
-		}
-	}
-
-	rc = VbglR0SfClose(&client_handle, &sf_g->map, params.Handle);
-	if (RT_FAILURE(rc))
-		LogFunc(("VbglR0SfClose(%s) failed rc=%Rrc\n",
-			 sf_i->path->String.utf8, rc));
-
-	return sf_inode_revalidate(dentry);
-
- fail1:
-	rc = VbglR0SfClose(&client_handle, &sf_g->map, params.Handle);
-	if (RT_FAILURE(rc))
-		LogFunc(("VbglR0SfClose(%s) failed rc=%Rrc\n",
-			 sf_i->path->String.utf8, rc));
-
- fail2:
-	return err;
+    *result = tmp;
+    return 0;
 }
-#endif				/* >= 2.6.0 */
 
-static int sf_make_path(const char *caller, struct sf_inode_info *sf_i,
-			const char *d_name, size_t d_len, SHFLSTRING ** result)
-{
-	size_t path_len, shflstring_len;
-	SHFLSTRING *tmp;
-	uint16_t p_len;
-	uint8_t *p_name;
-	int fRoot = 0;
-
-	TRACE();
-	p_len = sf_i->path->u16Length;
-	p_name = sf_i->path->String.utf8;
-
-	if (p_len == 1 && *p_name == '/') {
-		path_len = d_len + 1;
-		fRoot = 1;
-	} else {
-		/* lengths of constituents plus terminating zero plus slash  */
-		path_len = p_len + d_len + 2;
-		if (path_len > 0xffff) {
-			LogFunc(("path too long.  caller=%s, path_len=%zu\n",
-				 caller, path_len));
-			return -ENAMETOOLONG;
-		}
-	}
-
-	shflstring_len = offsetof(SHFLSTRING, String.utf8) + path_len;
-	tmp = kmalloc(shflstring_len, GFP_KERNEL);
-	if (!tmp) {
-		LogRelFunc(("kmalloc failed, caller=%s\n", caller));
-		return -ENOMEM;
-	}
-	tmp->u16Length = path_len - 1;
-	tmp->u16Size = path_len;
-
-	if (fRoot)
-		memcpy(&tmp->String.utf8[0], d_name, d_len + 1);
-	else {
-		memcpy(&tmp->String.utf8[0], p_name, p_len);
-		tmp->String.utf8[p_len] = '/';
-		memcpy(&tmp->String.utf8[p_len + 1], d_name, d_len);
-		tmp->String.utf8[p_len + 1 + d_len] = '\0';
-	}
-
-	*result = tmp;
-	return 0;
-}
 
 /**
  * [dentry] contains string encoded in coding system that corresponds
- * to [sf_g]->nls, we must convert it to UTF8 here and pass down to
- * [sf_make_path] which will allocate SHFLSTRING and fill it in
+ * to [pSuperInfo]->nls, we must convert it to UTF8 here and pass down to
+ * [vbsf_make_path] which will allocate SHFLSTRING and fill it in
  */
-int sf_path_from_dentry(const char *caller, struct sf_glob_info *sf_g,
-			struct sf_inode_info *sf_i, struct dentry *dentry,
-			SHFLSTRING ** result)
+int vbsf_path_from_dentry(struct vbsf_super_info *pSuperInfo, struct vbsf_inode_info *sf_i, struct dentry *dentry,
+                          SHFLSTRING **result, const char *caller)
 {
-	int err;
-	const char *d_name;
-	size_t d_len;
-	const char *name;
-	size_t len = 0;
+    int err;
+    const char *d_name;
+    size_t d_len;
+    const char *name;
+    size_t len = 0;
 
-	TRACE();
-	d_name = dentry->d_name.name;
-	d_len = dentry->d_name.len;
+    TRACE();
+    d_name = dentry->d_name.name;
+    d_len = dentry->d_name.len;
 
-	if (sf_g->nls) {
-		size_t in_len, i, out_bound_len;
-		const char *in;
-		char *out;
+    if (pSuperInfo->nls) {
+        size_t in_len, i, out_bound_len;
+        const char *in;
+        char *out;
 
-		in = d_name;
-		in_len = d_len;
+        in = d_name;
+        in_len = d_len;
 
-		out_bound_len = PATH_MAX;
-		out = kmalloc(out_bound_len, GFP_KERNEL);
-		name = out;
+        out_bound_len = PATH_MAX;
+        out = kmalloc(out_bound_len, GFP_KERNEL);
+        name = out;
 
-		for (i = 0; i < d_len; ++i) {
-			/* We renamed the linux kernel wchar_t type to linux_wchar_t in
-			   the-linux-kernel.h, as it conflicts with the C++ type of that name. */
-			linux_wchar_t uni;
-			int nb;
+        for (i = 0; i < d_len; ++i) {
+            /* We renamed the linux kernel wchar_t type to linux_wchar_t in
+               the-linux-kernel.h, as it conflicts with the C++ type of that name. */
+            linux_wchar_t uni;
+            int nb;
 
-			nb = sf_g->nls->char2uni(in, in_len, &uni);
-			if (nb < 0) {
-				LogFunc(("nls->char2uni failed %x %d\n",
-					 *in, in_len));
-				err = -EINVAL;
-				goto fail1;
-			}
-			in_len -= nb;
-			in += nb;
+            nb = pSuperInfo->nls->char2uni(in, in_len, &uni);
+            if (nb < 0) {
+                LogFunc(("nls->char2uni failed %x %d\n",
+                     *in, in_len));
+                err = -EINVAL;
+                goto fail1;
+            }
+            in_len -= nb;
+            in += nb;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)
-			nb = utf32_to_utf8(uni, out, out_bound_len);
+            nb = utf32_to_utf8(uni, out, out_bound_len);
 #else
-			nb = utf8_wctomb(out, uni, out_bound_len);
+            nb = utf8_wctomb(out, uni, out_bound_len);
 #endif
-			if (nb < 0) {
-				LogFunc(("nls->uni2char failed %x %d\n",
-					 uni, out_bound_len));
-				err = -EINVAL;
-				goto fail1;
-			}
-			out_bound_len -= nb;
-			out += nb;
-			len += nb;
-		}
-		if (len >= PATH_MAX - 1) {
-			err = -ENAMETOOLONG;
-			goto fail1;
-		}
+            if (nb < 0) {
+                LogFunc(("nls->uni2char failed %x %d\n",
+                     uni, out_bound_len));
+                err = -EINVAL;
+                goto fail1;
+            }
+            out_bound_len -= nb;
+            out += nb;
+            len += nb;
+        }
+        if (len >= PATH_MAX - 1) {
+            err = -ENAMETOOLONG;
+            goto fail1;
+        }
 
-		LogFunc(("result(%d) = %.*s\n", len, len, name));
-		*out = 0;
-	} else {
-		name = d_name;
-		len = d_len;
-	}
+        LogFunc(("result(%d) = %.*s\n", len, len, name));
+        *out = 0;
+    } else {
+        name = d_name;
+        len = d_len;
+    }
 
-	err = sf_make_path(caller, sf_i, name, len, result);
-	if (name != d_name)
-		kfree(name);
+    err = vbsf_make_path(caller, sf_i, name, len, result);
+    if (name != d_name)
+        kfree(name);
 
-	return err;
+    return err;
 
  fail1:
-	kfree(name);
-	return err;
+    kfree(name);
+    return err;
 }
 
-int sf_nlscpy(struct sf_glob_info *sf_g,
-	      char *name, size_t name_bound_len,
-	      const unsigned char *utf8_name, size_t utf8_len)
-{
-	if (sf_g->nls) {
-		const char *in;
-		char *out;
-		size_t out_len;
-		size_t out_bound_len;
-		size_t in_bound_len;
 
-		in = utf8_name;
-		in_bound_len = utf8_len;
-
-		out = name;
-		out_len = 0;
-		out_bound_len = name_bound_len;
-
-		while (in_bound_len) {
-			int nb;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)
-			unicode_t uni;
-
-			nb = utf8_to_utf32(in, in_bound_len, &uni);
+/**
+ * This is called during name resolution/lookup to check if the @a dentry in the
+ * cache is still valid.  The actual validation is job is handled by
+ * vbsf_inode_revalidate_worker().
+ *
+ * @note Caller holds no relevant locks, just a dentry reference.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
+static int vbsf_dentry_revalidate(struct dentry *dentry, unsigned flags)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+static int vbsf_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
 #else
-			linux_wchar_t uni;
-
-			nb = utf8_mbtowc(&uni, in, in_bound_len);
+static int vbsf_dentry_revalidate(struct dentry *dentry, int flags)
 #endif
-			if (nb < 0) {
-				LogFunc(("utf8_mbtowc failed(%s) %x:%d\n",
-					 (const char *)utf8_name, *in,
-					 in_bound_len));
-				return -EINVAL;
-			}
-			in += nb;
-			in_bound_len -= nb;
-
-			nb = sf_g->nls->uni2char(uni, out, out_bound_len);
-			if (nb < 0) {
-				LogFunc(("nls->uni2char failed(%s) %x:%d\n",
-					 utf8_name, uni, out_bound_len));
-				return nb;
-			}
-			out += nb;
-			out_bound_len -= nb;
-			out_len += nb;
-		}
-
-		*out = 0;
-	} else {
-		if (utf8_len + 1 > name_bound_len)
-			return -ENAMETOOLONG;
-
-		memcpy(name, utf8_name, utf8_len + 1);
-	}
-	return 0;
-}
-
-static struct sf_dir_buf *sf_dir_buf_alloc(void)
 {
-	struct sf_dir_buf *b;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
+    int const flags = nd ? nd->flags : 0;
+#endif
 
-	TRACE();
-	b = kmalloc(sizeof(*b), GFP_KERNEL);
-	if (!b) {
-		LogRelFunc(("could not alloc directory buffer\n"));
-		return NULL;
-	}
-#ifdef USE_VMALLOC
-	b->buf = vmalloc(DIR_BUFFER_SIZE);
+    int rc;
+
+    Assert(dentry);
+    SFLOGFLOW(("vbsf_dentry_revalidate: %p %#x %s\n", dentry, flags,
+               dentry->d_inode ? VBSF_GET_INODE_INFO(dentry->d_inode)->path->String.ach : "<negative>"));
+
+    /*
+     * See Documentation/filesystems/vfs.txt why we skip LOOKUP_RCU.
+     *
+     * Also recommended: https://lwn.net/Articles/649115/
+     *                   https://lwn.net/Articles/649729/
+     *                   https://lwn.net/Articles/650786/
+     *
+     */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+    if (flags & LOOKUP_RCU) {
+        rc = -ECHILD;
+        SFLOGFLOW(("vbsf_dentry_revalidate: RCU -> -ECHILD\n"));
+    } else
+#endif
+    {
+        /*
+         * Do we have an inode or not?  If not it's probably a negative cache
+         * entry, otherwise most likely a positive one.
+         */
+        struct inode *pInode = dentry->d_inode;
+        if (pInode) {
+            /*
+             * Positive entry.
+             *
+             * Note! We're more aggressive here than other remote file systems,
+             *       current (4.19) CIFS will for instance revalidate the inode
+             *       and ignore the dentry timestamp for positive entries.
+             */
+            unsigned long const     cJiffiesAge = jiffies - vbsf_dentry_get_update_jiffies(dentry);
+            struct vbsf_super_info *pSuperInfo  = VBSF_GET_SUPER_INFO(dentry->d_sb);
+            if (cJiffiesAge < pSuperInfo->cJiffiesDirCacheTTL) {
+                SFLOGFLOW(("vbsf_dentry_revalidate: age: %lu vs. TTL %lu -> 1\n", cJiffiesAge, pSuperInfo->cJiffiesDirCacheTTL));
+                rc = 1;
+            } else if (!vbsf_inode_revalidate_worker(dentry, true /*fForced*/, false /*fInodeLocked*/)) {
+                vbsf_dentry_set_update_jiffies(dentry, jiffies);
+                SFLOGFLOW(("vbsf_dentry_revalidate: age: %lu vs. TTL %lu -> reval -> 1\n", cJiffiesAge, pSuperInfo->cJiffiesDirCacheTTL));
+                rc = 1;
+            } else {
+                SFLOGFLOW(("vbsf_dentry_revalidate: age: %lu vs. TTL %lu -> reval -> 0\n", cJiffiesAge, pSuperInfo->cJiffiesDirCacheTTL));
+                rc = 0;
+            }
+        } else {
+            /*
+             * Negative entry.
+             *
+             * Invalidate dentries for open and renames here as we'll revalidate
+             * these when taking the actual action (also good for case preservation
+             * if we do case-insensitive mounts against windows + mac hosts at some
+             * later point).
+             */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+            if (flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 75)
+            if (flags & LOOKUP_CREATE)
 #else
-	b->buf = kmalloc(DIR_BUFFER_SIZE, GFP_KERNEL);
+            if (0)
 #endif
-	if (!b->buf) {
-		kfree(b);
-		LogRelFunc(("could not alloc directory buffer storage\n"));
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&b->head);
-	b->cEntries = 0;
-	b->cbUsed = 0;
-	b->cbFree = DIR_BUFFER_SIZE;
-	return b;
+            {
+                SFLOGFLOW(("vbsf_dentry_revalidate: negative: create or rename target -> 0\n"));
+                rc = 0;
+            } else {
+                /* Can we skip revalidation based on TTL? */
+                unsigned long const     cJiffiesAge = vbsf_dentry_get_update_jiffies(dentry) - jiffies;
+                struct vbsf_super_info *pSuperInfo  = VBSF_GET_SUPER_INFO(dentry->d_sb);
+                if (cJiffiesAge < pSuperInfo->cJiffiesDirCacheTTL) {
+                    SFLOGFLOW(("vbsf_dentry_revalidate: negative: age: %lu vs. TTL %lu -> 1\n", cJiffiesAge, pSuperInfo->cJiffiesDirCacheTTL));
+                    rc = 1;
+                } else {
+                    /* We could revalidate it here, but we could instead just
+                       have the caller kick it out. */
+                    /** @todo stat the direntry and see if it exists now. */
+                    SFLOGFLOW(("vbsf_dentry_revalidate: negative: age: %lu vs. TTL %lu -> 0\n", cJiffiesAge, pSuperInfo->cJiffiesDirCacheTTL));
+                    rc = 0;
+                }
+            }
+        }
+    }
+    return rc;
 }
 
-static void sf_dir_buf_free(struct sf_dir_buf *b)
-{
-	BUG_ON(!b || !b->buf);
+#ifdef SFLOG_ENABLED
 
-	TRACE();
-	list_del(&b->head);
-#ifdef USE_VMALLOC
-	vfree(b->buf);
-#else
-	kfree(b->buf);
+/** For logging purposes only. */
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
+static int vbsf_dentry_delete(const struct dentry *pDirEntry)
+# else
+static int vbsf_dentry_delete(struct dentry *pDirEntry)
+# endif
+{
+    SFLOGFLOW(("vbsf_dentry_delete: %p\n", pDirEntry));
+    return 0;
+}
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
+/** For logging purposes only. */
+static int vbsf_dentry_init(struct dentry *pDirEntry)
+{
+    SFLOGFLOW(("vbsf_dentry_init: %p\n", pDirEntry));
+    return 0;
+}
+# endif
+
+#endif /* SFLOG_ENABLED */
+
+/**
+ * Directory entry operations.
+ *
+ * Since 2.6.38 this is used via the super_block::s_d_op member.
+ */
+struct dentry_operations vbsf_dentry_ops = {
+    .d_revalidate = vbsf_dentry_revalidate,
+#ifdef SFLOG_ENABLED
+    .d_delete = vbsf_dentry_delete,
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
+    .d_init = vbsf_dentry_init,
+# endif
 #endif
-	kfree(b);
-}
-
-/**
- * Free the directory buffer.
- */
-void sf_dir_info_free(struct sf_dir_info *p)
-{
-	struct list_head *list, *pos, *tmp;
-
-	TRACE();
-	list = &p->info_list;
-	list_for_each_safe(pos, tmp, list) {
-		struct sf_dir_buf *b;
-
-		b = list_entry(pos, struct sf_dir_buf, head);
-		sf_dir_buf_free(b);
-	}
-	kfree(p);
-}
-
-/**
- * Empty (but not free) the directory buffer.
- */
-void sf_dir_info_empty(struct sf_dir_info *p)
-{
-	struct list_head *list, *pos, *tmp;
-	TRACE();
-	list = &p->info_list;
-	list_for_each_safe(pos, tmp, list) {
-		struct sf_dir_buf *b;
-		b = list_entry(pos, struct sf_dir_buf, head);
-		b->cEntries = 0;
-		b->cbUsed = 0;
-		b->cbFree = DIR_BUFFER_SIZE;
-	}
-}
-
-/**
- * Create a new directory buffer descriptor.
- */
-struct sf_dir_info *sf_dir_info_alloc(void)
-{
-	struct sf_dir_info *p;
-
-	TRACE();
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
-	if (!p) {
-		LogRelFunc(("could not alloc directory info\n"));
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&p->info_list);
-	return p;
-}
-
-/**
- * Search for an empty directory content buffer.
- */
-static struct sf_dir_buf *sf_get_empty_dir_buf(struct sf_dir_info *sf_d)
-{
-	struct list_head *list, *pos;
-
-	list = &sf_d->info_list;
-	list_for_each(pos, list) {
-		struct sf_dir_buf *b;
-
-		b = list_entry(pos, struct sf_dir_buf, head);
-		if (!b)
-			return NULL;
-		else {
-			if (b->cbUsed == 0)
-				return b;
-		}
-	}
-
-	return NULL;
-}
-
-int sf_dir_read_all(struct sf_glob_info *sf_g, struct sf_inode_info *sf_i,
-		    struct sf_dir_info *sf_d, SHFLHANDLE handle)
-{
-	int err;
-	SHFLSTRING *mask;
-	struct sf_dir_buf *b;
-
-	TRACE();
-	err = sf_make_path(__func__, sf_i, "*", 1, &mask);
-	if (err)
-		goto fail0;
-
-	for (;;) {
-		int rc;
-		void *buf;
-		uint32_t cbSize;
-		uint32_t cEntries;
-
-		b = sf_get_empty_dir_buf(sf_d);
-		if (!b) {
-			b = sf_dir_buf_alloc();
-			if (!b) {
-				err = -ENOMEM;
-				LogRelFunc(("could not alloc directory buffer\n"));
-				goto fail1;
-			}
-			list_add(&b->head, &sf_d->info_list);
-		}
-
-		buf = b->buf;
-		cbSize = b->cbFree;
-
-		rc = VbglR0SfDirInfo(&client_handle, &sf_g->map, handle, mask,
-				     0, 0, &cbSize, buf, &cEntries);
-		switch (rc) {
-		case VINF_SUCCESS:
-			RT_FALL_THRU();
-		case VERR_NO_MORE_FILES:
-			break;
-		case VERR_NO_TRANSLATION:
-			LogFunc(("host could not translate entry\n"));
-			/* XXX */
-			break;
-		default:
-			err = -RTErrConvertToErrno(rc);
-			LogFunc(("VbglR0SfDirInfo failed rc=%Rrc\n", rc));
-			goto fail1;
-		}
-
-		b->cEntries += cEntries;
-		b->cbFree -= cbSize;
-		b->cbUsed += cbSize;
-
-		if (RT_FAILURE(rc))
-			break;
-	}
-	err = 0;
-
- fail1:
-	kfree(mask);
-
- fail0:
-	return err;
-}
-
-int sf_get_volume_info(struct super_block *sb, STRUCT_STATFS * stat)
-{
-	struct sf_glob_info *sf_g;
-	SHFLVOLINFO SHFLVolumeInfo;
-	uint32_t cbBuffer;
-	int rc;
-
-	sf_g = GET_GLOB_INFO(sb);
-	cbBuffer = sizeof(SHFLVolumeInfo);
-	rc = VbglR0SfFsInfo(&client_handle, &sf_g->map, 0,
-			    SHFL_INFO_GET | SHFL_INFO_VOLUME, &cbBuffer,
-			    (PSHFLDIRINFO) & SHFLVolumeInfo);
-	if (RT_FAILURE(rc))
-		return -RTErrConvertToErrno(rc);
-
-	stat->f_type = NFS_SUPER_MAGIC;	/* XXX vboxsf type? */
-	stat->f_bsize = SHFLVolumeInfo.ulBytesPerAllocationUnit;
-	stat->f_blocks = SHFLVolumeInfo.ullTotalAllocationBytes
-	    / SHFLVolumeInfo.ulBytesPerAllocationUnit;
-	stat->f_bfree = SHFLVolumeInfo.ullAvailableAllocationBytes
-	    / SHFLVolumeInfo.ulBytesPerAllocationUnit;
-	stat->f_bavail = SHFLVolumeInfo.ullAvailableAllocationBytes
-	    / SHFLVolumeInfo.ulBytesPerAllocationUnit;
-	stat->f_files = 1000;
-	stat->f_ffree = 1000;	/* don't return 0 here since the guest may think
-				 * that it is not possible to create any more files */
-	stat->f_fsid.val[0] = 0;
-	stat->f_fsid.val[1] = 0;
-	stat->f_namelen = 255;
-	return 0;
-}
-
-struct dentry_operations sf_dentry_ops = {
-	.d_revalidate = sf_dentry_revalidate
 };
 
-int sf_init_backing_dev(struct sf_glob_info *sf_g)
-{
-	int rc = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && LINUX_VERSION_CODE <= KERNEL_VERSION(3, 19, 0)
-	/* Each new shared folder map gets a new uint64_t identifier,
-	 * allocated in sequence.  We ASSUME the sequence will not wrap. */
-	static uint64_t s_u64Sequence = 0;
-	uint64_t u64CurrentSequence = ASMAtomicIncU64(&s_u64Sequence);
-
-	sf_g->bdi.ra_pages = 0;	/* No readahead */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 12)
-	sf_g->bdi.capabilities = BDI_CAP_MAP_DIRECT	/* MAP_SHARED */
-	    | BDI_CAP_MAP_COPY	/* MAP_PRIVATE */
-	    | BDI_CAP_READ_MAP	/* can be mapped for reading */
-	    | BDI_CAP_WRITE_MAP	/* can be mapped for writing */
-	    | BDI_CAP_EXEC_MAP;	/* can be mapped for execution */
-#endif				/* >= 2.6.12 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
-	rc = bdi_init(&sf_g->bdi);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
-	if (!rc)
-		rc = bdi_register(&sf_g->bdi, NULL, "vboxsf-%llu",
-				  (unsigned long long)u64CurrentSequence);
-#endif				/* >= 2.6.26 */
-#endif				/* >= 2.6.24 */
-#endif				/* >= 2.6.0 && <= 3.19.0 */
-	return rc;
-}
-
-void sf_done_backing_dev(struct sf_glob_info *sf_g)
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24) && LINUX_VERSION_CODE <= KERNEL_VERSION(3, 19, 0)
-	bdi_destroy(&sf_g->bdi);	/* includes bdi_unregister() */
-#endif
-}

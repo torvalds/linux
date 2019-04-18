@@ -20,21 +20,25 @@ KBUILD_EXTMOD=${srctree}/ubuntu/vbox
 
 # Linux kbuild sets this to our source directory if we are called from there
 obj ?= $(CURDIR)
-include $(obj)/Makefile.include.header
+include $(obj)/Makefile-header.gmk
+VBOXSF_DIR = $(VBOX_MODULE_SRC_DIR)
 
-MOD_NAME = vboxsf
-MOD_OBJS   = \
+VBOXMOD_NAME = vboxsf
+VBOXMOD_OBJS = \
 	vfsmod.o \
 	dirops.o \
 	lnkops.o \
 	regops.o \
 	utils.o \
+	VBoxGuestR0LibGenericRequest.o \
 	VBoxGuestR0LibHGCM.o \
 	VBoxGuestR0LibIdc.o \
 	VBoxGuestR0LibIdc-unix.o \
+	VBoxGuestR0LibInit.o \
+	VBoxGuestR0LibPhysHeap.o \
 	VBoxGuestR0LibSharedFolders.o
 ifeq ($(BUILD_TARGET_ARCH),x86)
-MOD_OBJS  += \
+VBOXMOD_OBJS += \
 	divdi3.o \
 	moddi3.o \
 	udivdi3.o \
@@ -42,51 +46,59 @@ MOD_OBJS  += \
 	umoddi3.o \
 	qdivrem.o
 endif
-
-MOD_INCL = \
-    $(addprefix -I$(KBUILD_EXTMOD),/ /include /r0drv/linux) \
-    $(addprefix -I$(KBUILD_EXTMOD)/vboxsf,/ /include /r0drv/linux)
-
-ifneq ($(wildcard $(KBUILD_EXTMOD)/vboxsf),)
- MANGLING := $(KBUILD_EXTMOD)/vboxsf/include/VBox/VBoxGuestMangling.h
-else
- MANGLING := $(KBUILD_EXTMOD)/include/VBox/VBoxGuestMangling.h
-endif
-
-MOD_DEFS   = -DRT_OS_LINUX -DIN_RING0 -DIN_RT_R0 \
-	    -DIN_SUP_R0 -DVBOX -DVBOX_WITH_HGCM -DIN_MODULE -DIN_GUEST_R0
-# our module does not export any symbol
-MOD_DEFS  += -DRT_NO_EXPORT_SYMBOL
+VBOXMOD_INCL = \
+	$(VBOXSF_DIR) \
+	$(VBOXSF_DIR)include \
+	$(VBOXSF_DIR)r0drv/linux
+VBOXMOD_DEFS = \
+	RT_OS_LINUX \
+	IN_RING0 \
+	IN_RT_R0 \
+	IN_SUP_R0 \
+	VBOX \
+	VBOX_WITH_HGCM \
+	IN_MODULE \
+	IN_GUEST \
+	IN_GUEST_R0 \
+	RT_NO_EXPORT_SYMBOL
 ifeq ($(BUILD_TARGET_ARCH),amd64)
- MOD_DEFS += -DRT_ARCH_AMD64 -DVBOX_WITH_64_BITS_GUESTS
-else
- MOD_DEFS += -DRT_ARCH_X86
+VBOXMOD_DEFS += VBOX_WITH_64_BITS_GUESTS
+endif
+ifneq ($(filter %uek.x86_64,$(KERN_VER)),)
+VBOXMOD_DEFS += VBOX_UEK
+endif
+VBOXMOD_CFLAGS := $(call VBOX_GCC_CHECK_CC,-Wno-declaration-after-statement,-Wno-declaration-after-statement,,)
+VBOXMOD_CFLAGS += $(call VBOX_GCC_CHECK_CC,-fno-pie,-fno-pie,,)
+ifneq ($(KERN_VERSION),24)
+VBOXMOD_CFLAGS += -include $(VBOXSF_DIR)/include/VBox/VBoxGuestMangling.h
+## @todo r-bird: What's with -fshort-wchar here?? We either need that or we dont, right? It should be 2.6+ only.
+VBOXMOD_CFLAGS += -fshort-wchar
+endif
+ifdef VBOX_NO_OMIT_FRAME_POINTER
+VBOXMOD_CFLAGS += -fno-omit-frame-pointer
 endif
 
-ifeq ($(KERN_VERSION), 24)
- MOD_CFLAGS =
-else
- MOD_CFLAGS = -Wno-declaration-after-statement -fshort-wchar -include $(MANGLING) -fno-pie
-
+ifneq ($(KERN_VERSION),24)
 # special hack for Fedora Core 6 2.6.18 (fc6), rhel5 2.6.18 (el5),
 # ClarkConnect 4.3 (cc4) and ClarkConnect 5 (v5)
  ifeq ($(KERNELRELEASE),)
-  MOD_EXTRA += $(foreach inc,$(KERN_INCL),\
-              $(if $(wildcard $(inc)/linux/utsrelease.h),\
-                $(if $(shell grep '"2.6.18.*fc6.*"' $(inc)/linux/utsrelease.h; \
-			    grep '"2.6.18.*el5.*"' $(inc)/linux/utsrelease.h; \
-			    grep '"2.6.18.*v5.*"'  $(inc)/linux/utsrelease.h; \
-			    grep '"2.6.18.*cc4.*"' $(inc)/linux/utsrelease.h),\
-		-DKERNEL_FC6,),))
+VBOXMOD_CFLAGS += $(foreach inc,$(KERN_INCL),\
+               $(if $(wildcard $(inc)/linux/utsrelease.h),\
+                 $(if $(shell grep '"2.6.18.*fc6.*"' $(inc)/linux/utsrelease.h; \
+                              grep '"2.6.18.*el5.*"' $(inc)/linux/utsrelease.h; \
+                              grep '"2.6.18.*v5.*"'  $(inc)/linux/utsrelease.h; \
+                              grep '"2.6.18.*cc4.*"' $(inc)/linux/utsrelease.h),\
+                   -DKERNEL_FC6,),))
  else
-  MOD_EXTRA += $(if $(shell echo "$(KERNELRELEASE)"|grep '2.6.18.*fc6.*';\
-			echo "$(KERNELRELEASE)"|grep '2.6.18.*el5.*';\
-			echo "$(KERNELRELEASE)"|grep '2.6.18.*v5.*';\
-			echo "$(KERNELRELEASE)"|grep '2.6.18.*cc4.*'),\
+VBOXMOD_CFLAGS += $(if $(shell echo "$(KERNELRELEASE)"|grep '2.6.18.*fc6.*';\
+                          echo "$(KERNELRELEASE)"|grep '2.6.18.*el5.*';\
+                          echo "$(KERNELRELEASE)"|grep '2.6.18.*v5.*';\
+                          echo "$(KERNELRELEASE)"|grep '2.6.18.*cc4.*'),\
 		-DKERNEL_FC6,)
  endif
 endif
 
-MOD_CLEAN = . linux r0drv r0drv/linux
+VBOXMOD_CLEAN = . linux r0drv r0drv/linux
 
-include $(obj)/Makefile.include.footer
+include $(obj)/Makefile-footer.gmk
+

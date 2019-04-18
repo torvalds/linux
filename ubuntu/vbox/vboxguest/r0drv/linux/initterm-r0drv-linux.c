@@ -46,13 +46,6 @@ static DECLARE_TASK_QUEUE(g_rtR0LnxWorkQueue);
 #endif
 
 
-/*********************************************************************************************************************************
-*   Internal Functions                                                                                                           *
-*********************************************************************************************************************************/
-/* in alloc-r0drv0-linux.c */
-DECLHIDDEN(void) rtR0MemExecCleanup(void);
-
-
 /**
  * Pushes an item onto the IPRT work queue.
  *

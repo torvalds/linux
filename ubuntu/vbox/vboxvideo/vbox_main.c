@@ -595,24 +595,18 @@ int vbox_dumb_destroy(struct drm_file *file,
 }
 #endif
 
-static void vbox_bo_unref(struct vbox_bo **bo)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
+static void ttm_bo_put(struct ttm_buffer_object *bo)
 {
-	struct ttm_buffer_object *tbo;
-
-	if ((*bo) == NULL)
-		return;
-
-	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
-	if (!tbo)
-		*bo = NULL;
+	ttm_bo_unref(&bo);
 }
+#endif
 
 void vbox_gem_free_object(struct drm_gem_object *obj)
 {
 	struct vbox_bo *vbox_bo = gem_to_vbox_bo(obj);
 
-	vbox_bo_unref(&vbox_bo);
+	ttm_bo_put(&vbox_bo->bo);
 }
 
 static inline u64 vbox_bo_mmap_offset(struct vbox_bo *bo)

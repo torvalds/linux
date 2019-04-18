@@ -2081,7 +2081,7 @@ static int vgdrvIoCtl_GetVMMDevIoInfo(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCGETVMMDE
  * @param   pDevExt         The device extension.
  * @param   pNotify         The new callback information.
  */
-int vgdrvIoCtl_SetMouseNotifyCallback(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCSETMOUSENOTIFYCALLBACK pNotify)
+static int vgdrvIoCtl_SetMouseNotifyCallback(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCSETMOUSENOTIFYCALLBACK pNotify)
 {
     LogFlow(("VBOXGUEST_IOCTL_SET_MOUSE_NOTIFY_CALLBACK: pfnNotify=%p pvUser=%p\n", pNotify->u.In.pfnNotify, pNotify->u.In.pvUser));
 
@@ -2321,11 +2321,9 @@ static int vgdrvCheckIfVmmReqIsAllowed(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
         case VMMDevReq_HGCMConnect:
         case VMMDevReq_HGCMDisconnect:
 # ifdef VBOX_WITH_64_BITS_GUESTS
-        case VMMDevReq_HGCMCall32:
         case VMMDevReq_HGCMCall64:
-# else
-        case VMMDevReq_HGCMCall:
-# endif /* VBOX_WITH_64_BITS_GUESTS */
+# endif
+        case VMMDevReq_HGCMCall32:
         case VMMDevReq_HGCMCancel:
         case VMMDevReq_HGCMCancel2:
 #endif /* VBOX_WITH_HGCM */
@@ -2442,6 +2440,7 @@ static int vgdrvCheckIfVmmReqIsAllowed(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
         case kLevel_TrustedUsers:
             if (pSession->fUserSession)
                 break;
+            RT_FALL_THRU();
         case kLevel_AllUsers:
             return VINF_SUCCESS;
     }

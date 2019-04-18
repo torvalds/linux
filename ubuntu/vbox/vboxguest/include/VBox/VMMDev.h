@@ -162,12 +162,17 @@ typedef enum VMMDevRequestType
 #ifdef VBOX_WITH_HGCM
     VMMDevReq_HGCMConnect                = 60,
     VMMDevReq_HGCMDisconnect             = 61,
-#ifdef VBOX_WITH_64_BITS_GUESTS
     VMMDevReq_HGCMCall32                 = 62,
     VMMDevReq_HGCMCall64                 = 63,
-#else
-    VMMDevReq_HGCMCall                   = 62,
-#endif /* VBOX_WITH_64_BITS_GUESTS */
+# ifdef IN_GUEST
+#  if   ARCH_BITS == 64
+    VMMDevReq_HGCMCall                   = VMMDevReq_HGCMCall64,
+#  elif ARCH_BITS == 32 || ARCH_BITS == 16
+    VMMDevReq_HGCMCall                   = VMMDevReq_HGCMCall32,
+#  else
+#   error "Unsupported ARCH_BITS"
+#  endif
+# endif
     VMMDevReq_HGCMCancel                 = 64,
     VMMDevReq_HGCMCancel2                = 65,
 #endif
@@ -197,28 +202,6 @@ typedef enum VMMDevRequestType
     VMMDevReq_NtBugCheck                 = 221,
     VMMDevReq_SizeHack                   = 0x7fffffff
 } VMMDevRequestType;
-
-#ifdef VBOX_WITH_64_BITS_GUESTS
-/*
- * Constants and structures are redefined for the guest.
- *
- * Host code MUST always use either *32 or *64 variant explicitely.
- * Host source code will use VBOX_HGCM_HOST_CODE define to catch undefined
- * data types and constants.
- *
- * This redefinition means that the new additions builds will use
- * the *64 or *32 variants depending on the current architecture bit count (ARCH_BITS).
- */
-# ifndef VBOX_HGCM_HOST_CODE
-#  if ARCH_BITS == 64
-#   define VMMDevReq_HGCMCall VMMDevReq_HGCMCall64
-#  elif ARCH_BITS == 32 || ARCH_BITS == 16
-#   define VMMDevReq_HGCMCall VMMDevReq_HGCMCall32
-#  else
-#   error "Unsupported ARCH_BITS"
-#  endif
-# endif /* !VBOX_HGCM_HOST_CODE */
-#endif /* VBOX_WITH_64_BITS_GUESTS */
 
 /** Version of VMMDevRequestHeader structure. */
 #define VMMDEV_REQUEST_HEADER_VERSION (0x10001)
@@ -296,9 +279,8 @@ AssertCompileSize(VMMDevRequestHeader, 24);
 /** Requestor process belongs to user on the physical console, but cannot
  * ascertain that it is associated with that login. */
 #define VMMDEV_REQUESTOR_CON_USER                   UINT32_C(0x00000030)
-/** Requestor process belongs to user on the physical console, but cannot
- * ascertain that it is associated with that login. */
-#define VMMDEV_REQUESTOR_CON_MASK                   UINT32_C(0x00000040)
+/** Mask the physical console state of the request. */
+#define VMMDEV_REQUESTOR_CON_MASK                   UINT32_C(0x00000030)
 
 /** Requestor is member of special VirtualBox user group (not on windows). */
 #define VMMDEV_REQUESTOR_GRP_VBOX                   UINT32_C(0x00000080)
@@ -548,6 +530,8 @@ AssertCompileSize(VMMDevReqHostVersion, 24+16);
 #define VMMDEV_HVF_HGCM_EMBEDDED_BUFFERS        RT_BIT_32(1)
 /** HGCM supports the contiguous page list parameter type. */
 #define VMMDEV_HVF_HGCM_CONTIGUOUS_PAGE_LIST    RT_BIT_32(2)
+/** HGCM supports the no-bounce page list parameter type. */
+#define VMMDEV_HVF_HGCM_NO_BOUNCE_PAGE_LIST     RT_BIT_32(3)
 /** VMMDev supports fast IRQ acknowledgements. */
 #define VMMDEV_HVF_FAST_IRQ_ACK                 RT_BIT_32(31)
 /** @} */
@@ -1625,7 +1609,7 @@ AssertCompileSize(VMMDevHGCMDisconnect, 32+4);
 /**
  * HGCM call request structure.
  *
- * Used by VMMDevReq_HGCMCall, VMMDevReq_HGCMCall32 and VMMDevReq_HGCMCall64.
+ * Used by VMMDevReq_HGCMCall32 and VMMDevReq_HGCMCall64.
  */
 typedef struct
 {
@@ -1648,10 +1632,11 @@ AssertCompileSize(VMMDevHGCMCall, 32+12);
 #define VBOX_HGCM_F_PARM_DIRECTION_TO_HOST   UINT32_C(0x00000001)
 #define VBOX_HGCM_F_PARM_DIRECTION_FROM_HOST UINT32_C(0x00000002)
 #define VBOX_HGCM_F_PARM_DIRECTION_BOTH      UINT32_C(0x00000003)
+#define VBOX_HGCM_F_PARM_DIRECTION_MASK      UINT32_C(0x00000003)
 /** Macro for validating that the specified flags are valid. */
 #define VBOX_HGCM_F_PARM_ARE_VALID(fFlags) \
-    (   (fFlags) > VBOX_HGCM_F_PARM_DIRECTION_NONE \
-     && (fFlags) <= VBOX_HGCM_F_PARM_DIRECTION_BOTH )
+    (   ((fFlags) & VBOX_HGCM_F_PARM_DIRECTION_MASK) \
+     && !((fFlags) & ~VBOX_HGCM_F_PARM_DIRECTION_MASK) )
 /** @} */
 
 /**
@@ -1780,15 +1765,12 @@ DECLINLINE(size_t) vmmdevGetRequestSize(VMMDevRequestType requestType)
             return sizeof(VMMDevHGCMConnect);
         case VMMDevReq_HGCMDisconnect:
             return sizeof(VMMDevHGCMDisconnect);
-#ifdef VBOX_WITH_64_BITS_GUESTS
         case VMMDevReq_HGCMCall32:
             return sizeof(VMMDevHGCMCall);
+# ifdef VBOX_WITH_64_BITS_GUESTS
         case VMMDevReq_HGCMCall64:
             return sizeof(VMMDevHGCMCall);
-#else
-        case VMMDevReq_HGCMCall:
-            return sizeof(VMMDevHGCMCall);
-#endif /* VBOX_WITH_64_BITS_GUESTS */
+# endif
         case VMMDevReq_HGCMCancel:
             return sizeof(VMMDevHGCMCancel);
 #endif /* VBOX_WITH_HGCM */

@@ -118,7 +118,7 @@
 #define SHFL_FN_MAP_FOLDER          (17)
 /** Read symlink destination.
  * @since VBox 4.0  */
-#define SHFL_FN_READLINK            (18)
+#define SHFL_FN_READLINK            (18) /**< @todo rename to SHFL_FN_READ_LINK (see struct capitalization) */
 /** Create symlink.
  * @since VBox 4.0  */
 #define SHFL_FN_SYMLINK             (19)
@@ -138,6 +138,17 @@
 /** Sets the file size.
  * @since VBox 6.0  */
 #define SHFL_FN_SET_FILE_SIZE       (24)
+/** Queries supported features.
+ * @since VBox 6.0.6  */
+#define SHFL_FN_QUERY_FEATURES      (25)
+/** Copies a file to another.
+ * @since VBox 6.0.6  */
+#define SHFL_FN_COPY_FILE           (26)
+/** Copies part of a file to another.
+ * @since VBox 6.0.6  */
+#define SHFL_FN_COPY_FILE_PART      (27)
+/** The last function number. */
+#define SHFL_FN_LAST                SHFL_FN_COPY_FILE_PART
 /** @} */
 
 
@@ -1348,7 +1359,12 @@ typedef struct VBoxSFParmWrite
     HGCMFunctionParameter id32Root;
     /** value64, in: SHFLHANDLE of object to write to. */
     HGCMFunctionParameter u64Handle;
-    /** value64, in: Offset to start writing at. */
+    /** value64, in/out: Offset to start writing at / New offset.
+     * @note The new offset isn't necessarily off + cb for files opened with
+     *       SHFL_CF_ACCESS_APPEND since other parties (host programs, other VMs,
+     *       other computers) could have extended the file since the last time the
+     *       guest got a fresh size statistic.  So, this helps the guest avoiding
+     *       a stat call to check the actual size. */
     HGCMFunctionParameter off64Write;
     /** value32, in/out: How much to try write / Actually written. */
     HGCMFunctionParameter cb32Write;
@@ -1371,8 +1387,13 @@ typedef struct _VBoxSFWrite
      */
     HGCMFunctionParameter handle;
 
-    /** value64, in:
-     * Offset to write to.
+    /** value64, in/out:
+     * Offset to write to/New offset.
+     * @note The new offset isn't necessarily off + cb for files opened with
+     *       SHFL_CF_ACCESS_APPEND since other parties (host programs, other VMs,
+     *       other computers) could have extended the file since the last time the
+     *       guest got a fresh size statistic.  So, this helps the guest avoiding
+     *       a stat call to check the actual size.
      */
     HGCMFunctionParameter offset;
 
@@ -1489,6 +1510,13 @@ typedef struct _VBoxSFFlush
 /** @} */
 
 
+/** @name SHFL_FN_SET_UTF8
+ * @{ */
+/** NUmber of parameters for SHFL_FN_SET_UTF8.   */
+#define SHFL_CPARMS_SET_UTF8 (0)
+/** @} */
+
+
 /** @name SHFL_FN_LIST
  * @remarks Listing information includes variable length RTDIRENTRY[EX]
  *          structures.
@@ -1517,10 +1545,10 @@ typedef struct VBoxSFParmList
      * When SHFL_LIST_RETURN_ONE is not specfied, multiple record may be
      * returned, deriving the entry size using SHFLDIRINFO::name.u16Size.  */
     HGCMFunctionParameter pBuffer;
-    /** value32, out: Set to 1 if the listing is done, 0 if more entries.
+    /** value32, out: Set to 0 if the listing is done, 1 if there are more entries.
      * @note Must be set to zero on call as it was declared in/out parameter and
      *       may be used as such again. */
-    HGCMFunctionParameter f32Done;
+    HGCMFunctionParameter f32More;
     /** value32, out:  Number of entries returned. */
     HGCMFunctionParameter c32Entries;
 } VBoxSFParmList;
@@ -1584,6 +1612,22 @@ typedef struct _VBoxSFList
  * @{
  */
 
+/** SHFL_FN_READLINK parameters. */
+typedef struct VBoxSFParmReadLink
+{
+    /** value32, in: SHFLROOT of the mapping which the symlink is read. */
+    HGCMFunctionParameter id32Root;
+    /** pointer, in: SHFLSTRING full path to the symlink. */
+    HGCMFunctionParameter pStrPath;
+    /** pointer, out: Buffer to place the symlink target into.
+     * @note Buffer contains UTF-8 characters on success, regardless of the
+     *       UTF-8/UTF-16 setting of the connection.  Will be zero terminated.
+     *
+     * @todo r=bird: This should've been a string!
+     * @todo r=bird: There should've been a byte count returned! */
+    HGCMFunctionParameter pBuffer;
+} VBoxSFParmReadLink;
+
 /** Parameters structure. */
 typedef struct _VBoxSFReadLink
 {
@@ -1601,6 +1645,8 @@ typedef struct _VBoxSFReadLink
 
     /** pointer, out:
      * Buffer to place data to.
+     * @note Buffer contains UTF-8 characters on success, regardless of the
+     *       UTF-8/UTF-16 setting of the connection.  Will be zero terminated.
      */
     HGCMFunctionParameter buffer;
 
@@ -1790,6 +1836,19 @@ typedef struct _VBoxSFRename
  */
 
 /** Parameters structure. */
+typedef struct VBoxSFParmCreateSymlink
+{
+    /** value32, in: SHFLROOT of the mapping the symlink should be created on. */
+    HGCMFunctionParameter id32Root;
+    /** pointer, in: SHFLSTRING giving the path to the symlink. */
+    HGCMFunctionParameter pStrSymlink;
+    /** pointer, in: SHFLSTRING giving the target. */
+    HGCMFunctionParameter pStrTarget;
+    /** pointer, out: SHFLFSOBJINFO buffer to be filled with info about the created symlink. */
+    HGCMFunctionParameter pInfo;
+} VBoxSFParmCreateSymlink;
+
+/** Parameters structure. */
 typedef struct _VBoxSFSymlink
 {
     VBGLIOCHGCMCALL callInfo;
@@ -1817,6 +1876,13 @@ typedef struct _VBoxSFSymlink
 } VBoxSFSymlink;
 
 #define SHFL_CPARMS_SYMLINK  (4)
+/** @} */
+
+
+/** @name SHFL_FN_SET_SYMLINKS
+ * @{ */
+/** NUmber of parameters for SHFL_FN_SET_SYMLINKS.   */
+#define SHFL_CPARMS_SET_SYMLINKS (0)
 /** @} */
 
 
@@ -1909,6 +1975,75 @@ typedef struct VBoxSFParmSetFileSize
 /** @} */
 
 
+/** @name SHFL_FN_QUERY_FEATURES
+ * @{ */
+/** SHFL_FN_QUERY_FEATURES parameters. */
+typedef struct VBoxSFParmQueryFeatures
+{
+    /** value64, out: Feature flags, SHFL_FEATURE_XXX. */
+    HGCMFunctionParameter f64Features;
+    /** value32, out: The ordinal of the last valid function */
+    HGCMFunctionParameter u32LastFunction;
+} VBoxSFParmQueryFeatures;
+/** Number of parameters for SHFL_FN_QUERY_FEATURES. */
+#define SHFL_CPARMS_QUERY_FEATURES (2)
+
+/** The write functions updates the file offset upon return.
+ * This can be helpful for files open in append mode. */
+#define SHFL_FEATURE_WRITE_UPDATES_OFFSET       RT_BIT_64(0)
+/** @} */
+
+
+/** @name SHFL_FN_COPY_FILE
+ * @{ */
+/** SHFL_FN_COPY_FILE parameters. */
+typedef struct VBoxSFParmCopyFile
+{
+    /** value32, in: SHFLROOT of the mapping the source handle belongs to. */
+    HGCMFunctionParameter id32RootSrc;
+    /** pointer, in: SHFLSTRING giving the source file path. */
+    HGCMFunctionParameter pStrPathSrc;
+
+    /** value32, in: SHFLROOT of the mapping the destination handle belongs to. */
+    HGCMFunctionParameter id32RootDst;
+    /** pointer, in: SHFLSTRING giving the destination file path. */
+    HGCMFunctionParameter pStrPathDst;
+
+    /** value32, in: Reserved for the future, must be zero. */
+    HGCMFunctionParameter f32Flags;
+} VBoxSFParmCopyFile;
+/** Number of parameters for SHFL_FN_COPY_FILE. */
+#define SHFL_CPARMS_COPY_FILE (5)
+/** @} */
+
+
+/** @name SHFL_FN_COPY_FILE_PART
+ * @{ */
+/** SHFL_FN_COPY_FILE_PART parameters. */
+typedef struct VBoxSFParmCopyFilePar
+{
+    /** value32, in: SHFLROOT of the mapping the source handle belongs to. */
+    HGCMFunctionParameter id32RootSrc;
+    /** value64, in: SHFLHANDLE of the source file. */
+    HGCMFunctionParameter u64HandleSrc;
+    /** value64, in: The source file offset. */
+    HGCMFunctionParameter off64Src;
+
+    /** value32, in: SHFLROOT of the mapping the destination handle belongs to. */
+    HGCMFunctionParameter id32RootDst;
+    /** value64, in: SHFLHANDLE of the destination file. */
+    HGCMFunctionParameter u64HandleDst;
+    /** value64, in: The destination file offset. */
+    HGCMFunctionParameter off64Dst;
+
+    /** value64, in/out: The number of bytes to copy on input / bytes actually copied. */
+    HGCMFunctionParameter cb64ToCopy;
+    /** value32, in: Reserved for the future, must be zero. */
+    HGCMFunctionParameter f32Flags;
+} VBoxSFParmCopyFilePart;
+/** Number of parameters for SHFL_FN_COPY_FILE_PART. */
+#define SHFL_CPARMS_COPY_FILE_PART (8)
+/** @} */
 
 
 

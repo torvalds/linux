@@ -37,54 +37,131 @@
 /* Linux constraints the size of data mount argument to PAGE_SIZE - 1. */
 #define MAX_HOST_NAME  256
 #define MAX_NLS_NAME    32
+#define VBSF_DEFAULT_TTL_MS     200
 
 #define VBSF_MOUNT_SIGNATURE_BYTE_0 '\377'
 #define VBSF_MOUNT_SIGNATURE_BYTE_1 '\376'
 #define VBSF_MOUNT_SIGNATURE_BYTE_2 '\375'
 
-struct vbsf_mount_info_new {
-	/*
-	 * The old version of the mount_info struct started with a
-	 * char name[MAX_HOST_NAME] field, where name cannot be '\0'.
-	 * So the new version of the mount_info struct starts with a
-	 * nullchar field which is always 0 so that we can detect and
-	 * reject the old structure being passed.
-	 */
-	char nullchar;
-	char signature[3];	/* signature */
-	int length;		/* length of the whole structure */
-	char name[MAX_HOST_NAME];	/* share name */
-	char nls_name[MAX_NLS_NAME];	/* name of an I/O charset */
-	int uid;		/* user ID for all entries, default 0=root */
-	int gid;		/* group ID for all entries, default 0=root */
-	int ttl;		/* time to live */
-	int dmode;		/* mode for directories if != 0xffffffff */
-	int fmode;		/* mode for regular files if != 0xffffffff */
-	int dmask;		/* umask applied to directories */
-	int fmask;		/* umask applied to regular files */
-	char tag[32];		/**< Mount tag for VBoxService automounter.  @since 6.0 */
+/**
+ * VBox Linux Shared Folders VFS caching mode.
+ */
+enum vbsf_cache_mode {
+    /** Use the kernel modules default caching mode (kVbsfCacheMode_Strict). */
+    kVbsfCacheMode_Default = 0,
+    /** No caching, go to the host for everything.  This will have some minor
+     *  coherency issues for memory mapping with unsynced dirty pages.  */
+    kVbsfCacheMode_None,
+    /** No caching, except for files with writable memory mappings.
+     * (Note to future: if we do oplock like stuff, it goes in here.) */
+    kVbsfCacheMode_Strict,
+    /** Use page cache for reads.
+     * This improves guest performance for read intensive jobs, like compiling
+     * building.  The flip side is that the guest may not see host modification in a
+     * timely manner and possibly update files with out-of-date cache information,
+     * as there exists no protocol for the host to notify the guest about file
+     * modifications. */
+    kVbsfCacheMode_Read,
+    /** Use page cache for both reads and writes as far as that's possible.
+     * This is good for guest performance, but the price is that the guest possibly
+     * ignoring host changes and the host not seeing guest changes in a timely
+     * manner. */
+    kVbsfCacheMode_ReadWrite,
+    /** End of valid values (exclusive). */
+    kVbsfCacheMode_End,
+    /** Make sure the enum is sizeof(int32_t). */
+    kVbsfCacheMode_32BitHack = 0x7fffffff
 };
 
+/**
+ * VBox Linux Shared Folders VFS mount options.
+ */
+struct vbsf_mount_info_new {
+    /**
+     * The old version of the mount_info struct started with a
+     * char name[MAX_HOST_NAME] field, where name cannot be '\0'.
+     * So the new version of the mount_info struct starts with a
+     * nullchar field which is always 0 so that we can detect and
+     * reject the old structure being passed.
+     */
+    char                    nullchar;
+    /** Signature */
+    char                    signature[3];
+    /** Length of the whole structure */
+    int                     length;
+    /** Share name */
+    char                    name[MAX_HOST_NAME];
+    /** Name of an I/O charset */
+    char                    nls_name[MAX_NLS_NAME];
+    /** User ID for all entries, default 0=root */
+    int                     uid;
+    /** Group ID for all entries, default 0=root */
+    int                     gid;
+    /** Directory entry and inode time to live in milliseconds.
+     * -1 for kernel default, 0 to disable caching.
+     * @sa vbsf_mount_info_new::msDirCacheTTL, vbsf_mount_info_new::msInodeTTL */
+    int                     ttl;
+    /** Mode for directories if != -1. */
+    int                     dmode;
+    /** Mode for regular files if != -1. */
+    int                     fmode;
+    /** umask applied to directories */
+    int                     dmask;
+    /** umask applied to regular files */
+    int                     fmask;
+    /** Mount tag for VBoxService automounter.
+     * @since 6.0.0 */
+    char                    szTag[32];
+    /** Max pages to read & write at a time.
+     * @since 6.0.6 */
+    uint32_t                cMaxIoPages;
+    /** The directory content buffer size.  Set to 0 for kernel module default.
+     * Larger value reduces the number of host calls on large directories. */
+    uint32_t                cbDirBuf;
+    /** The time to live for directory entries (in milliseconds). @a ttl is used
+     * if negative.
+     * @since 6.0.6 */
+    int32_t                 msDirCacheTTL;
+    /** The time to live for inode information (in milliseconds). @a ttl is used
+     * if negative.
+     * @since 6.0.6 */
+    int32_t                 msInodeTTL;
+    /** The cache and coherency mode.
+     * @since 6.0.6 */
+    enum vbsf_cache_mode    enmCacheMode;
+};
+#ifdef AssertCompileSize
+AssertCompileSize(struct vbsf_mount_info_new, 2*4 + MAX_HOST_NAME + MAX_NLS_NAME + 7*4 + 32 + 5*4);
+#endif
+
+/**
+ * For use with the vbsfmount_complete() helper.
+ */
 struct vbsf_mount_opts {
-	int uid;
-	int gid;
-	int ttl;
-	int dmode;
-	int fmode;
-	int dmask;
-	int fmask;
-	int ronly;
-	int sloppy;
-	int noexec;
-	int nodev;
-	int nosuid;
-	int remount;
-	char nls_name[MAX_NLS_NAME];
-	char *convertcp;
+    int                     ttl;
+    int32_t                 msDirCacheTTL;
+    int32_t                 msInodeTTL;
+    uint32_t                cMaxIoPages;
+    uint32_t                cbDirBuf;
+    enum vbsf_cache_mode    enmCacheMode;
+    int uid;
+    int gid;
+    int dmode;
+    int fmode;
+    int dmask;
+    int fmask;
+    int ronly;
+    int sloppy;
+    int noexec;
+    int nodev;
+    int nosuid;
+    int remount;
+    char nls_name[MAX_NLS_NAME];
+    char *convertcp;
 };
 
 /** Completes the mount operation by adding the new mount point to mtab if required. */
 int vbsfmount_complete(const char *host_name, const char *mount_point,
-		       unsigned long flags, struct vbsf_mount_opts *opts);
+                       unsigned long flags, struct vbsf_mount_opts *opts);
 
 #endif /* !GA_INCLUDED_SRC_linux_sharedfolders_vbsfmount_h */

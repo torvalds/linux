@@ -28,7 +28,11 @@
  */
 #include "vbox_drv.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 #include <drm/drm_crtc_helper.h>
+#else
+#include <drm/drm_probe_helper.h>
+#endif
 #include "vboxvideo.h"
 
 static void vbox_clear_irq(void)

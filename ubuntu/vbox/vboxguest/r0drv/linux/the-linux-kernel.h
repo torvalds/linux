@@ -128,6 +128,9 @@
 # include <linux/cpu.h>
 # include <linux/notifier.h>
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+# include <uapi/linux/mman.h>
+#endif
 /* For the basic additions module */
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -159,7 +162,7 @@
 # include <linux/tqueue.h>
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 4)
 # include <linux/kthread.h>
 #endif
 
@@ -456,6 +459,11 @@ typedef struct tq_struct    RTR0LNXWORKQUEUEITEM;
 #endif
 DECLHIDDEN(void) rtR0LnxWorkqueuePush(RTR0LNXWORKQUEUEITEM *pWork, void (*pfnWorker)(RTR0LNXWORKQUEUEITEM *));
 DECLHIDDEN(void) rtR0LnxWorkqueueFlush(void);
+
+/*
+ * Memory hacks from memobj-r0drv-linux.c that shared folders need.
+ */
+RTDECL(struct page *) rtR0MemObjLinuxVirtToPage(void *pv);
 
 
 #endif /* !IPRT_INCLUDED_SRC_r0drv_linux_the_linux_kernel_h */

@@ -62,6 +62,8 @@
 # include <iprt/errcore.h>
 #endif
 
+#include "internal/initterm.h"
+
 
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *

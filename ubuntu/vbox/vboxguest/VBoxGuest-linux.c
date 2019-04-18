@@ -1,4 +1,4 @@
-/* $Rev: 127855 $ */
+/* $Rev: 129380 $ */
 /** @file
  * VBoxGuest - Linux specifics.
  *
@@ -100,8 +100,8 @@
 *********************************************************************************************************************************/
 static void vgdrvLinuxTermPci(struct pci_dev *pPciDev);
 static int  vgdrvLinuxProbePci(struct pci_dev *pPciDev, const struct pci_device_id *id);
-static int  vgdrvLinuxModInit(void);
-static void vgdrvLinuxModExit(void);
+static int  __init vgdrvLinuxModInit(void);
+static void __exit vgdrvLinuxModExit(void);
 static int  vgdrvLinuxOpen(struct inode *pInode, struct file *pFilp);
 static int  vgdrvLinuxRelease(struct inode *pInode, struct file *pFilp);
 #ifdef HAVE_UNLOCKED_IOCTL

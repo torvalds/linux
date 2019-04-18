@@ -278,6 +278,7 @@ typedef enum
     VMMDevHGCMParmType_PageList           = 10, /**< Physical addresses of locked pages for a buffer. */
     VMMDevHGCMParmType_Embedded           = 11, /**< Small buffer embedded in request. */
     VMMDevHGCMParmType_ContiguousPageList = 12, /**< Like PageList but with physically contiguous memory, so only one page entry. */
+    VMMDevHGCMParmType_NoBouncePageList   = 13, /**< Like PageList but host function requires no bounce buffering. */
     VMMDevHGCMParmType_SizeHack           = 0x7fffffff
 } HGCMFunctionParameterType;
 AssertCompileSize(HGCMFunctionParameterType, 4);

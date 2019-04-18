@@ -614,7 +614,7 @@ RTDECL(void) RTLogPrintfEx(void *pvInstance, unsigned fFlags, unsigned iGroup,
 #  define _LogIt(a_fFlags, a_iGroup, ...) \
    do \
    { \
-        register PRTLOGGER LogIt_pLogger = RTLogDefaultInstanceEx(RT_MAKE_U32(a_fFlags, a_iGroup)); \
+        PRTLOGGER LogIt_pLogger = RTLogDefaultInstanceEx(RT_MAKE_U32(a_fFlags, a_iGroup)); \
         if (RT_LIKELY(!LogIt_pLogger)) \
         {   /* likely */ } \
         else \
@@ -628,7 +628,7 @@ RTDECL(void) RTLogPrintfEx(void *pvInstance, unsigned fFlags, unsigned iGroup,
 #  define LogIt(a_fFlags, a_iGroup, fmtargs) \
     do \
     { \
-        register PRTLOGGER LogIt_pLogger = RTLogDefaultInstanceEx(RT_MAKE_U32(a_fFlags, a_iGroup)); \
+        PRTLOGGER LogIt_pLogger = RTLogDefaultInstanceEx(RT_MAKE_U32(a_fFlags, a_iGroup)); \
         if (RT_LIKELY(!LogIt_pLogger)) \
         {   /* likely */ } \
         else \
@@ -639,7 +639,7 @@ RTDECL(void) RTLogPrintfEx(void *pvInstance, unsigned fFlags, unsigned iGroup,
 #  define LogItAlways(a_fFlags, a_iGroup, fmtargs) \
     do \
     { \
-        register PRTLOGGER LogIt_pLogger = RTLogDefaultInstanceEx(RT_MAKE_U32(0, UINT16_MAX)); \
+        PRTLOGGER LogIt_pLogger = RTLogDefaultInstanceEx(RT_MAKE_U32(0, UINT16_MAX)); \
         if (LogIt_pLogger) \
             LogIt_pLogger->pfnLogger fmtargs; \
     } while (0)
@@ -2011,6 +2011,8 @@ RTDECL(int) RTLogCreate(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszGro
  * @param   cGroups             Number of groups in the array.
  * @param   papszGroups         Pointer to array of groups.  This must stick
  *                              around for the life of the logger instance.
+ * @param   cMaxEntriesPerGroup The max number of entries per group.  UINT32_MAX
+ *                              or zero for unlimited.
  * @param   fDestFlags          The destination flags.  RTLOGDEST_FILE is ORed
  *                              if pszFilenameFmt specified.
  * @param   pfnPhase            Callback function for starting logging and for
@@ -2028,11 +2030,11 @@ RTDECL(int) RTLogCreate(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszGro
  * @param   pszFilenameFmt      Log filename format string. Standard RTStrFormat().
  * @param   ...                 Format arguments.
  */
-RTDECL(int) RTLogCreateEx(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszGroupSettings,
-                          const char *pszEnvVarBase, unsigned cGroups, const char * const * papszGroups,
+RTDECL(int) RTLogCreateEx(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszGroupSettings, const char *pszEnvVarBase,
+                          unsigned cGroups, const char * const * papszGroups, uint32_t cMaxEntriesPerGroup,
                           uint32_t fDestFlags, PFNRTLOGPHASE pfnPhase, uint32_t cHistory,
                           uint64_t cbHistoryFileMax, uint32_t cSecsHistoryTimeSlot, PRTERRINFO pErrInfo,
-                          const char *pszFilenameFmt, ...) RT_IPRT_FORMAT_ATTR_MAYBE_NULL(13, 14);
+                          const char *pszFilenameFmt, ...) RT_IPRT_FORMAT_ATTR_MAYBE_NULL(14, 15);
 
 /**
  * Create a logger instance.
@@ -2048,6 +2050,8 @@ RTDECL(int) RTLogCreateEx(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszG
  * @param   cGroups             Number of groups in the array.
  * @param   papszGroups         Pointer to array of groups.  This must stick
  *                              around for the life of the logger instance.
+ * @param   cMaxEntriesPerGroup The max number of entries per group.  UINT32_MAX
+ *                              or zero for unlimited.
  * @param   fDestFlags          The destination flags.  RTLOGDEST_FILE is ORed
  *                              if pszFilenameFmt specified.
  * @param   pfnPhase            Callback function for starting logging and for
@@ -2066,11 +2070,11 @@ RTDECL(int) RTLogCreateEx(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszG
  *                              RTStrFormat().
  * @param   args                Format arguments.
  */
-RTDECL(int) RTLogCreateExV(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszGroupSettings,
-                           const char *pszEnvVarBase, unsigned cGroups, const char * const * papszGroups,
+RTDECL(int) RTLogCreateExV(PRTLOGGER *ppLogger, uint32_t fFlags, const char *pszGroupSettings, const char *pszEnvVarBase,
+                           unsigned cGroups, const char * const * papszGroups, uint32_t cMaxEntriesPerGroup,
                            uint32_t fDestFlags, PFNRTLOGPHASE pfnPhase, uint32_t cHistory,
                            uint64_t cbHistoryFileMax, uint32_t cSecsHistoryTimeSlot, PRTERRINFO pErrInfo,
-                           const char *pszFilenameFmt, va_list args) RT_IPRT_FORMAT_ATTR_MAYBE_NULL(13, 0);
+                           const char *pszFilenameFmt, va_list args) RT_IPRT_FORMAT_ATTR_MAYBE_NULL(14, 0);
 
 /**
  * Create a logger instance for singled threaded ring-0 usage.

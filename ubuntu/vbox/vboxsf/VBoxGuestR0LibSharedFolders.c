@@ -50,9 +50,6 @@
 /*********************************************************************************************************************************
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
-#define SHFL_CPARMS_SET_UTF8 0
-#define SHFL_CPARMS_SET_SYMLINKS 0
-
 #define VBOX_INIT_CALL(a, b, c) \
     LogFunc(("%s, idClient=%d\n", "SHFL_FN_" # b, (c)->idClient)); \
     VBGL_HGCM_HDR_INIT(a, (c)->idClient, SHFL_FN_##b, SHFL_CPARMS_##b); \
@@ -65,10 +62,6 @@
 
 
 
-/** @todo We only need HGCM, not physical memory, so other guests should also
- *        switch to calling vbglR0HGCMInit() and vbglR0HGCMTerminate() instead
- *        of VbglR0SfInit() and VbglR0SfTerm(). */
-#ifndef RT_OS_LINUX
 DECLVBGL(int) VbglR0SfInit(void)
 {
     return VbglR0InitClient();
@@ -78,7 +71,6 @@ DECLVBGL(void) VbglR0SfTerm(void)
 {
     VbglR0TerminateClient();
 }
-#endif
 
 DECLVBGL(int) VbglR0SfConnect(PVBGLSFCLIENT pClient)
 {
@@ -103,6 +95,19 @@ DECLVBGL(void) VbglR0SfDisconnect(PVBGLSFCLIENT pClient)
     pClient->idClient = 0;
     pClient->handle   = NULL;
     return;
+}
+
+#if !defined(RT_OS_LINUX)
+
+DECLVBGL(int) VbglR0SfSetUtf8(PVBGLSFCLIENT pClient)
+{
+    int rc;
+    VBGLIOCHGCMCALL callInfo;
+
+    VBOX_INIT_CALL(&callInfo, SET_UTF8, pClient);
+    rc = VbglR0HGCMCall(pClient->handle, &callInfo, sizeof(callInfo));
+/*    Log(("VBOXSF: VbglR0SfSetUtf8: VbglR0HGCMCall rc = %#x, result = %#x\n", rc, data.callInfo.Hdr.rc)); */
+    return rc;
 }
 
 /** @name       Deprecated VBGL shared folder helpers.
@@ -626,17 +631,6 @@ DECLVBGL(int) VbglR0SfLock(PVBGLSFCLIENT pClient, PVBGLSFMAP pMap, SHFLHANDLE hF
     return rc;
 }
 
-DECLVBGL(int) VbglR0SfSetUtf8(PVBGLSFCLIENT pClient)
-{
-    int rc;
-    VBGLIOCHGCMCALL callInfo;
-
-    VBOX_INIT_CALL(&callInfo, SET_UTF8, pClient);
-    rc = VbglR0HGCMCall(pClient->handle, &callInfo, sizeof(callInfo));
-/*    Log(("VBOXSF: VbglR0SfSetUtf8: VbglR0HGCMCall rc = %#x, result = %#x\n", rc, data.callInfo.Hdr.rc)); */
-    return rc;
-}
-
 DECLVBGL(int) VbglR0SfReadLink(PVBGLSFCLIENT pClient, PVBGLSFMAP pMap, PSHFLSTRING pParsedPath, uint32_t cbBuffer, uint8_t *pBuffer)
 {
     int rc;
@@ -699,6 +693,7 @@ DECLVBGL(int) VbglR0SfSetSymlinks(PVBGLSFCLIENT pClient)
     return rc;
 }
 
+#endif /* !RT_OS_LINUX */
 
 /** @} */
 

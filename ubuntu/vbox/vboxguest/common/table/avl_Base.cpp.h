@@ -266,7 +266,7 @@ DECLINLINE(void) KAVL_FN(Rebalance)(PKAVLSTACK pStack)
         }
         else
         {
-            register unsigned char uchHeight = (unsigned char)(KMAX(uchLeftHeight, uchRightHeight) + 1);
+            unsigned char uchHeight = (unsigned char)(KMAX(uchLeftHeight, uchRightHeight) + 1);
             if (uchHeight == pNode->uchHeight)
                 break;
             pNode->uchHeight = uchHeight;
@@ -298,12 +298,12 @@ DECLINLINE(void) KAVL_FN(Rebalance)(PKAVLSTACK pStack)
  */
 KAVL_DECL(bool) KAVL_FN(Insert)(PPKAVLNODECORE ppTree, PKAVLNODECORE pNode)
 {
-    KAVLSTACK               AVLStack;
-    PPKAVLNODECORE          ppCurNode = ppTree;
-    register PKAVLNODECORE  pCurNode;
-    register KAVLKEY        Key = pNode->Key; NOREF(Key);
+    KAVLSTACK                  AVLStack;
+    PPKAVLNODECORE             ppCurNode = ppTree;
+    PKAVLNODECORE              pCurNode;
+    KAVLKEY                    Key = pNode->Key; NOREF(Key);
 #ifdef KAVL_RANGE
-    register KAVLKEY        KeyLast = pNode->KeyLast; NOREF(KeyLast);
+    KAVLKEY                    KeyLast = pNode->KeyLast; NOREF(KeyLast);
 #endif
 
     AVLStack.cEntries = 0;
@@ -398,9 +398,9 @@ KAVL_DECL(bool) KAVL_FN(Insert)(PPKAVLNODECORE ppTree, PKAVLNODECORE pNode)
  */
 KAVL_DECL(PKAVLNODECORE) KAVL_FN(Remove)(PPKAVLNODECORE ppTree, KAVLKEY Key)
 {
-    KAVLSTACK                AVLStack;
-    PPKAVLNODECORE           ppDeleteNode = ppTree;
-    register PKAVLNODECORE   pDeleteNode;
+    KAVLSTACK        AVLStack;
+    PPKAVLNODECORE   ppDeleteNode = ppTree;
+    PKAVLNODECORE    pDeleteNode;
 
     AVLStack.cEntries = 0;
 
@@ -425,9 +425,9 @@ KAVL_DECL(PKAVLNODECORE) KAVL_FN(Remove)(PPKAVLNODECORE ppTree, KAVLKEY Key)
     if (pDeleteNode->pLeft != KAVL_NULL)
     {
         /* find the rightmost node in the left tree. */
-        const unsigned          iStackEntry = AVLStack.cEntries;
-        PPKAVLNODECORE          ppLeftLeast = &pDeleteNode->pLeft;
-        register PKAVLNODECORE  pLeftLeast = KAVL_GET_POINTER(ppLeftLeast);
+        const unsigned  iStackEntry = AVLStack.cEntries;
+        PPKAVLNODECORE  ppLeftLeast = &pDeleteNode->pLeft;
+        PKAVLNODECORE   pLeftLeast = KAVL_GET_POINTER(ppLeftLeast);
 
         while (pLeftLeast->pRight != KAVL_NULL)
         {

@@ -915,6 +915,8 @@
 #define VERR_LDRELF_INVALID_RELOCATION_OFFSET   (-639)
 /** The ELF loader didn't find the symbol/string table for the image. */
 #define VERR_LDRELF_NO_SYMBOL_OR_NO_STRING_TABS (-640)
+/** The ELF loader encountered an unterminated string table. */
+#define VERR_LDRELF_UNTERMINATED_STRING_TAB     (-641)
 /** Invalid link address. */
 #define VERR_LDR_INVALID_LINK_ADDRESS           (-647)
 /** Invalid image relative virtual address. */

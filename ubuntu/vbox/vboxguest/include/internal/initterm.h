@@ -48,6 +48,11 @@ DECLHIDDEN(int)  rtR0InitNative(void);
  */
 DECLHIDDEN(void) rtR0TermNative(void);
 
+# ifdef RT_OS_LINUX
+/* in alloc-r0drv0-linux.c */
+DECLHIDDEN(void) rtR0MemExecCleanup(void);
+# endif
+
 #endif /* IN_RING0 */
 
 RT_C_DECLS_END

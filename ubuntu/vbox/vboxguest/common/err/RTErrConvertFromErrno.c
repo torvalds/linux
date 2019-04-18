@@ -36,10 +36,10 @@
 #include <iprt/errno.h>
 
 
-RTDECL(int)  RTErrConvertFromErrno(unsigned uNativeCode)
+RTDECL(int)  RTErrConvertFromErrno(int iNativeCode)
 {
     /* very fast check for no error. */
-    if (uNativeCode == 0)
+    if (iNativeCode == 0)
         return VINF_SUCCESS;
 
     /*
@@ -51,7 +51,7 @@ RTDECL(int)  RTErrConvertFromErrno(unsigned uNativeCode)
      * This switch is arranged like the Linux i386 errno.h! This switch is mirrored
      * by RTErrConvertToErrno.
      */
-    switch (uNativeCode)
+    switch (iNativeCode)
     {                                                                           /* Linux number */
 #ifdef EPERM
         case EPERM:             return VERR_ACCESS_DENIED;                      /*   1 */
@@ -449,7 +449,7 @@ RTDECL(int)  RTErrConvertFromErrno(unsigned uNativeCode)
 # endif
 #endif
         default:
-            AssertLogRelMsgFailed(("Unhandled error code %d\n", uNativeCode));
+            AssertLogRelMsgFailed(("Unhandled error code %d\n", iNativeCode));
             return VERR_UNRESOLVED_ERROR;
     }
 }

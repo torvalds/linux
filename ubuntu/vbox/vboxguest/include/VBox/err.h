@@ -2117,6 +2117,10 @@
 /** The behavior of the instruction/operation is modified/needs modification
  *  in VMX non-root mode. */
 #define VINF_VMX_MODIFIES_BEHAVIOR                  4036
+/** VMLAUNCH/VMRESUME succeeded, can enter nested-guest execution. */
+#define VINF_VMX_VMLAUNCH_VMRESUME                  4037
+/** VT-x VMCS launch state invalid. */
+#define VERR_VMX_INVALID_VMCS_LAUNCH_STATE          (-4038)
 /** @} */
 
 
@@ -2718,10 +2722,14 @@
 #define VWRN_GSTCTL_OBJECTSTATE_CHANGED             6220
 /** Guest process is in a wrong state. */
 #define VERR_GSTCTL_PROCESS_WRONG_STATE             (-6221)
-/** Maximum objects has been reached. */
-#define VERR_GSTCTL_MAX_OBJECTS_REACHED             (-6222)
+/** Maximum (context ID) sessions have been reached. */
+#define VERR_GSTCTL_MAX_CID_SESSIONS_REACHED        (-6222)
+/** Maximum (context ID) objects have been reached. */
+#define VERR_GSTCTL_MAX_CID_OBJECTS_REACHED         (-6223)
+/** Maximum (context ID object) count has been reached. */
+#define VERR_GSTCTL_MAX_CID_COUNT_REACHED           (-6224)
 /** Started guest process terminated with an exit code <> 0. */
-#define VERR_GSTCTL_PROCESS_EXIT_CODE               (-6223)
+#define VERR_GSTCTL_PROCESS_EXIT_CODE               (-6225)
 /** @} */
 
 

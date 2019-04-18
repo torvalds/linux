@@ -238,6 +238,8 @@ typedef enum RTFSTYPE
     RTFSTYPE_FAT,
     /** Extended File Allocation Table, main target are flash drives. */
     RTFSTYPE_EXFAT,
+    /** Resilient File System. */
+    RTFSTYPE_REFS,
 
     /* Solaris: */
     /** Zettabyte File System.  */
@@ -251,6 +253,7 @@ typedef enum RTFSTYPE
     /** Hierarchical File System. */
     RTFSTYPE_HFS,
     /** @todo RTFSTYPE_HFS_PLUS? */
+    RTFSTYPE_APFS,
     RTFSTYPE_AUTOFS,
     RTFSTYPE_DEVFS,
 

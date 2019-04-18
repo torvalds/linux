@@ -422,7 +422,7 @@ AssertCompileSize(VBGLIOCIDCHGCMFASTCALL, /* 24 + 4 + 1 + 3 + 2*8 + 4 = 0x34 (52
         \
         (a_pCall)->header.header.size       = (a_cbReq) - sizeof(VBGLIOCIDCHGCMFASTCALL); \
         (a_pCall)->header.header.version    = VBGLREQHDR_VERSION; \
-        (a_pCall)->header.header.requestType= (ARCH_BITS == 32 ? VMMDevReq_HGCMCall32 : VMMDevReq_HGCMCall64); \
+        (a_pCall)->header.header.requestType= (ARCH_BITS == 64 ? VMMDevReq_HGCMCall64 : VMMDevReq_HGCMCall32); \
         (a_pCall)->header.header.rc         = VERR_INTERNAL_ERROR; \
         (a_pCall)->header.header.reserved1  = 0; \
         (a_pCall)->header.header.fRequestor = VMMDEV_REQUESTOR_KERNEL        | VMMDEV_REQUESTOR_USR_DRV_OTHER \

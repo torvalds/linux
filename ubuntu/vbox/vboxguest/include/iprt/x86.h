@@ -4348,7 +4348,7 @@ AssertCompile((X86_SIB_SCALE_MASK >> X86_SIB_SCALE_SHIFT) == X86_SIB_SCALE_SMASK
 #endif
 /** @} */
 
-/** @name General register indexes
+/** @name General register indexes.
  * @{ */
 #define X86_GREG_xAX            0
 #define X86_GREG_xCX            1
@@ -4367,6 +4367,8 @@ AssertCompile((X86_SIB_SCALE_MASK >> X86_SIB_SCALE_SHIFT) == X86_SIB_SCALE_SMASK
 #define X86_GREG_x14            14
 #define X86_GREG_x15            15
 /** @} */
+/** General register count. */
+#define X86_GREG_COUNT          16
 
 /** @name X86_SREG_XXX - Segment register indexes.
  * @{ */

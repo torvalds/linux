@@ -808,6 +808,7 @@
 # define RTVfsDirOpenDir                                RT_MANGLER(RTVfsDirOpenDir)
 # define RTVfsDirFromRTDir                              RT_MANGLER(RTVfsDirFromRTDir)
 # define RTVfsDirOpenNormal                             RT_MANGLER(RTVfsDirOpenNormal)
+# define RTVfsDirIsStdDir                               RT_MANGLER(RTVfsDirIsStdDir)
 # define RTDvmCreate                                    RT_MANGLER(RTDvmCreate)
 # define RTDvmCreateFromVfsFile                         RT_MANGLER(RTDvmCreateFromVfsFile)
 # define RTDvmRetain                                    RT_MANGLER(RTDvmRetain)
@@ -912,9 +913,14 @@
 # define RTFileCompareByHandlesEx                       RT_MANGLER(RTFileCompareByHandlesEx)
 # define RTFileCompareEx                                RT_MANGLER(RTFileCompareEx)
 # define RTFileCopy                                     RT_MANGLER(RTFileCopy)
+# define RTFileCopyAttributes                           RT_MANGLER(RTFileCopyAttributes)
 # define RTFileCopyByHandles                            RT_MANGLER(RTFileCopyByHandles)
 # define RTFileCopyByHandlesEx                          RT_MANGLER(RTFileCopyByHandlesEx)
 # define RTFileCopyEx                                   RT_MANGLER(RTFileCopyEx)
+# define RTFileCopyPart                                 RT_MANGLER(RTFileCopyPart)
+# define RTFileCopyPartCleanup                          RT_MANGLER(RTFileCopyPartCleanup)
+# define RTFileCopyPartEx                               RT_MANGLER(RTFileCopyPartEx)
+# define RTFileCopyPartPrep                             RT_MANGLER(RTFileCopyPartPrep)
 # define RTFileCreateTemp                               RT_MANGLER(RTFileCreateTemp)
 # define RTFileCreateTempSecure                         RT_MANGLER(RTFileCreateTempSecure)
 # define RTFileDelete                                   RT_MANGLER(RTFileDelete)
@@ -932,6 +938,7 @@
 # define RTFileMove                                     RT_MANGLER(RTFileMove)
 # define RTFileOpen                                     RT_MANGLER(RTFileOpen)
 # define RTFileOpenBitBucket                            RT_MANGLER(RTFileOpenBitBucket)
+# define RTFileOpenEx                                   RT_MANGLER(RTFileOpenEx)
 # define RTFileOpenF                                    RT_MANGLER(RTFileOpenF)
 # define RTFileOpenV                                    RT_MANGLER(RTFileOpenV)
 # define RTFileOpenTemp                                 RT_MANGLER(RTFileOpenTemp)
@@ -953,7 +960,9 @@
 # define RTFileSetOwner                                 RT_MANGLER(RTFileSetOwner)
 # define RTFileSetSize                                  RT_MANGLER(RTFileSetSize)
 # define RTFileSetTimes                                 RT_MANGLER(RTFileSetTimes)
+# define RTFileSgRead                                   RT_MANGLER(RTFileSgRead)
 # define RTFileSgReadAt                                 RT_MANGLER(RTFileSgReadAt)
+# define RTFileSgWrite                                  RT_MANGLER(RTFileSgWrite)
 # define RTFileSgWriteAt                                RT_MANGLER(RTFileSgWriteAt)
 # define RTFileTell                                     RT_MANGLER(RTFileTell)
 # define RTFileToNative                                 RT_MANGLER(RTFileToNative)
@@ -1710,6 +1719,7 @@
 # define RTR0MemUserCopyFrom                            RT_MANGLER(RTR0MemUserCopyFrom)        /* r0drv */
 # define RTR0MemUserCopyTo                              RT_MANGLER(RTR0MemUserCopyTo)          /* r0drv */
 # define RTR0MemUserIsValidAddr                         RT_MANGLER(RTR0MemUserIsValidAddr)     /* r0drv */
+# define rtR0MemObjLinuxVirtToPage                      RT_MANGLER(rtR0MemObjLinuxVirtToPage)  /* r0drv linux-only */
 # define RTR0ProcHandleSelf                             RT_MANGLER(RTR0ProcHandleSelf)         /* r0drv */
 # define RTR0Term                                       RT_MANGLER(RTR0Term)                   /* r0drv */
 # define RTR0TermForced                                 RT_MANGLER(RTR0TermForced)             /* r0drv */
@@ -2574,6 +2584,7 @@
 # define RTVfsDirReadEx                                 RT_MANGLER(RTVfsDirReadEx)
 # define RTVfsDirRemoveDir                              RT_MANGLER(RTVfsDirRemoveDir)
 # define RTVfsDirSetPathMode                            RT_MANGLER(RTVfsDirSetPathMode)
+# define RTVfsDirToPrivate                              RT_MANGLER(RTVfsDirToPrivate)
 # define RTVfsFileFlush                                 RT_MANGLER(RTVfsFileFlush)
 # define RTVfsFileFromBuffer                            RT_MANGLER(RTVfsFileFromBuffer)
 # define RTVfsFileFromRTFile                            RT_MANGLER(RTVfsFileFromRTFile)

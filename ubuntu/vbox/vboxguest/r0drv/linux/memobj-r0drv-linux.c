@@ -38,6 +38,7 @@
 #include <iprt/process.h>
 #include <iprt/string.h>
 #include "internal/memobj.h"
+#include "internal/iprt.h"
 
 
 /*********************************************************************************************************************************
@@ -64,6 +65,11 @@
         || (   LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) \
             && LINUX_VERSION_CODE <  KERNEL_VERSION(2, 6, 11)))
 # define VBOX_USE_PAE_HACK
+#endif
+
+/* gfp_t was introduced in 2.6.14, define it for earlier. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 14)
+# define gfp_t  unsigned
 #endif
 
 
@@ -138,7 +144,7 @@ static pgprot_t rtR0MemObjLinuxConvertProt(unsigned fProt, bool fKernel)
     switch (fProt)
     {
         default:
-            AssertMsgFailed(("%#x %d\n", fProt, fKernel));
+            AssertMsgFailed(("%#x %d\n", fProt, fKernel)); RT_FALL_THRU();
         case RTMEM_PROT_NONE:
             return PAGE_NONE;
 
@@ -286,7 +292,7 @@ static void rtR0MemObjLinuxDoMunmap(void *pv, size_t cb, struct task_struct *pTa
  * @param   rcNoMem     What to return when we're out of pages.
  */
 static int rtR0MemObjLinuxAllocPages(PRTR0MEMOBJLNX *ppMemLnx, RTR0MEMOBJTYPE enmType, size_t cb,
-                                     size_t uAlignment, unsigned fFlagsLnx, bool fContiguous, int rcNoMem)
+                                     size_t uAlignment, gfp_t fFlagsLnx, bool fContiguous, int rcNoMem)
 {
     size_t          iPage;
     size_t const    cPages = cb >> PAGE_SHIFT;
@@ -782,7 +788,7 @@ DECLHIDDEN(int) rtR0MemObjNativeAllocCont(PPRTR0MEMOBJINTERNAL ppMem, size_t cb,
  * @param   fGfp        The Linux GFP flags to use for the allocation.
  */
 static int rtR0MemObjLinuxAllocPhysSub2(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJTYPE enmType,
-                                        size_t cb, size_t uAlignment, RTHCPHYS PhysHighest, unsigned fGfp)
+                                        size_t cb, size_t uAlignment, RTHCPHYS PhysHighest, gfp_t fGfp)
 {
     PRTR0MEMOBJLNX pMemLnx;
     int rc;
@@ -894,7 +900,7 @@ static int rtR0MemObjLinuxAllocPhysSub(PPRTR0MEMOBJINTERNAL ppMem, RTR0MEMOBJTYP
  * @returns Pointer to the page structur or NULL if it could not be found.
  * @param   pv      The kernel virtual address.
  */
-static struct page *rtR0MemObjLinuxVirtToPage(void *pv)
+RTDECL(struct page *) rtR0MemObjLinuxVirtToPage(void *pv)
 {
     unsigned long   ulAddr = (unsigned long)pv;
     unsigned long   pfn;
@@ -984,6 +990,7 @@ static struct page *rtR0MemObjLinuxVirtToPage(void *pv)
         return NULL;
     return pte_page(u.Entry);
 }
+RT_EXPORT_SYMBOL(rtR0MemObjLinuxVirtToPage);
 
 
 DECLHIDDEN(int) rtR0MemObjNativeAllocPhys(PPRTR0MEMOBJINTERNAL ppMem, size_t cb, RTHCPHYS PhysHighest, size_t uAlignment)
@@ -1114,7 +1121,9 @@ DECLHIDDEN(int) rtR0MemObjNativeLockUser(PPRTR0MEMOBJINTERNAL ppMem, RTR3PTR R3P
                                 pTask->mm,              /* Whose pages. */
                                 R3Ptr,                  /* Where from. */
                                 cPages,                 /* How many pages. */
-# if GET_USER_PAGES_API >= KERNEL_VERSION(4, 9, 0)
+/* The get_user_pages API change was back-ported to 4.4.168. */
+# if    LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) \
+      && LINUX_VERSION_CODE <  KERNEL_VERSION(4, 5, 0)
                                 fWrite ? FOLL_WRITE |   /* Write to memory. */
                                          FOLL_FORCE     /* force write access. */
                                        : 0,             /* Write to memory. */

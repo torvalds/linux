@@ -1,5 +1,5 @@
 KBUILD_EXTMOD=${srctree}/ubuntu/vbox
-# $Revision: 127855 $
+# $Id: Makefile $
 ## @file
 # VirtualBox Guest Additions Module Makefile.
 #
@@ -27,11 +27,11 @@ KBUILD_EXTMOD=${srctree}/ubuntu/vbox
 
 # Linux kbuild sets this to our source directory if we are called from there
 obj ?= $(CURDIR)
-include $(obj)/Makefile.include.header
+include $(obj)/Makefile-header.gmk
+VBOXGUEST_DIR = $(VBOX_MODULE_SRC_DIR)
 
-MOD_NAME = vboxguest
-
-MOD_OBJS   = \
+VBOXMOD_NAME = vboxguest
+VBOXMOD_OBJS = \
 	VBoxGuest-linux.o \
 	VBoxGuest.o \
 	VBoxGuestR0LibGenericRequest.o \
@@ -115,7 +115,7 @@ MOD_OBJS   = \
 	VBox/log-vbox.o \
 	VBox/logbackdoor.o
 ifeq ($(BUILD_TARGET_ARCH),x86)
-MOD_OBJS += \
+VBOXMOD_OBJS += \
 	common/math/gcc/divdi3.o \
 	common/math/gcc/moddi3.o \
 	common/math/gcc/udivdi3.o \
@@ -124,42 +124,58 @@ MOD_OBJS += \
 	common/math/gcc/qdivrem.o
 endif
 ifeq ($(BUILD_TARGET_ARCH),amd64)
-MOD_OBJS +=	common/alloc/heapsimple.o
+VBOXMOD_OBJS += common/alloc/heapsimple.o
 endif
 
-MOD_DEFS = -DVBOX -DRT_OS_LINUX -DIN_RING0 -DIN_RT_R0 -DIN_GUEST \
-            -DIN_GUEST_R0 -DIN_MODULE -DRT_WITH_VBOX -DVBGL_VBOXGUEST \
-            -DVBOX_WITH_HGCM
+VBOXMOD_DEFS = \
+	VBOX \
+	RT_OS_LINUX \
+	IN_RING0 \
+	IN_RT_R0 \
+	IN_GUEST \
+	IN_GUEST_R0 \
+	IN_MODULE \
+	RT_WITH_VBOX \
+	VBGL_VBOXGUEST \
+	VBOX_WITH_HGCM
 ifeq ($(BUILD_TARGET_ARCH),amd64)
- MOD_DEFS  += -DRT_ARCH_AMD64
-else
- MOD_DEFS  += -DRT_ARCH_X86
-endif
-ifeq ($(BUILD_TARGET_ARCH),amd64)
- MOD_DEFS += -DVBOX_WITH_64_BITS_GUESTS
-endif
-MOD_INCL  = $(addprefix -I$(KBUILD_EXTMOD),/ /include /r0drv/linux)
-MOD_INCL += $(addprefix -I$(KBUILD_EXTMOD)/vboxguest,/ /include /r0drv/linux)
-
-ifneq ($(wildcard $(KBUILD_EXTMOD)/vboxguest),)
- MANGLING := $(KBUILD_EXTMOD)/vboxguest/include/VBox/VBoxGuestMangling.h
-else
- MANGLING := $(KBUILD_EXTMOD)/include/VBox/VBoxGuestMangling.h
+VBOXMOD_DEFS += VBOX_WITH_64_BITS_GUESTS
 endif
 ifeq ($(KERN_VERSION),24)
- ## @todo move to MOD_DEFS when we have finished refactoring
- MOD_CFLAGS = -DEXPORT_SYMTAB
-else
- MOD_CFLAGS = -Wno-declaration-after-statement -include $(MANGLING) -fno-pie
+VBOXMOD_DEFS += EXPORT_SYMTAB
 endif
 
-MOD_CLEAN = . linux r0drv generic r0drv/linux r0drv/generic VBox \
-		common/alloc common/err common/log common/math/gcc common/misc \
-		common/string common/table common/time
+VBOXMOD_INCL = \
+	$(VBOXGUEST_DIR) \
+	$(VBOXGUEST_DIR)include \
+	$(VBOXGUEST_DIR)r0drv/linux
 
-include $(obj)/Makefile.include.footer
+VBOXMOD_CFLAGS := $(call VBOX_GCC_CHECK_CC,-Wno-declaration-after-statement,-Wno-declaration-after-statement,,)
+VBOXMOD_CFLAGS += $(call VBOX_GCC_CHECK_CC,-fno-pie,-fno-pie,,)
+ifneq ($(KERN_VERSION),24)
+VBOXMOD_CFLAGS += -include $(VBOXGUEST_DIR)include/VBox/VBoxGuestMangling.h
+endif
 
-check: $(MOD_NAME)
+VBOXMOD_CLEAN = \
+	. \
+	linux \
+	r0drv \
+	generic \
+	r0drv/linux \
+	r0drv/generic \
+	VBox \
+	common/alloc \
+	common/err \
+	common/log \
+	common/math/gcc \
+	common/misc \
+	common/string \
+	common/table \
+	common/time
+
+include $(obj)/Makefile-footer.gmk
+
+check: $(VBOXMOD_NAME)
 	@if ! readelf -p __ksymtab_strings vboxguest.ko | grep -E "\[.*\]  *(RT|g_..*RT.*)"; then \
 	    echo "All exported IPRT symbols are properly renamed!"; \
 	 else \
