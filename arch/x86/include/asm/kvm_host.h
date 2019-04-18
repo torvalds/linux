@@ -781,6 +781,9 @@ struct kvm_vcpu_arch {
 
 	/* Flush the L1 Data cache for L1TF mitigation on VMENTER */
 	bool l1tf_flush_l1d;
+
+	/* AMD MSRC001_0015 Hardware Configuration */
+	u64 msr_hwcr;
 };
 
 struct kvm_lpage_info {
