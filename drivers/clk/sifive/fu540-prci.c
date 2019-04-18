@@ -30,6 +30,7 @@
 #include <linux/clk/analogbits-wrpll-cln28hpc.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_clk.h>
