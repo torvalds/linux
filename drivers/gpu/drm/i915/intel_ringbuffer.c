@@ -873,9 +873,6 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (IS_GEN_RANGE(dev_priv, 6, 7))
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	if (INTEL_GEN(dev_priv) >= 6)
-		ENGINE_WRITE(engine, RING_IMR, ~engine->irq_keep_mask);
-
 	return 0;
 }
 
