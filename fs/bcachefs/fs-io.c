@@ -1131,9 +1131,10 @@ static void bch2_writepage_io_done(struct closure *cl)
 	struct bio_vec *bvec;
 
 	if (io->op.op.error) {
-		bio_for_each_segment_all(bvec, bio, iter)
+		bio_for_each_segment_all(bvec, bio, iter) {
 			SetPageError(bvec->bv_page);
-		set_bit(AS_EIO, &io->op.inode->v.i_mapping->flags);
+			mapping_set_error(bvec->bv_page->mapping, -EIO);
+		}
 	}
 
 	/*
@@ -2068,10 +2069,9 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		return ret;
 out:
-	if (c->opts.journal_flush_disabled)
-		return 0;
-
-	ret = bch2_journal_flush_seq(&c->journal, inode->ei_journal_seq);
+	if (!c->opts.journal_flush_disabled)
+		ret = bch2_journal_flush_seq(&c->journal,
+					     inode->ei_journal_seq);
 	ret2 = file_check_and_advance_wb_err(file);
 
 	return ret ?: ret2;
