@@ -89,7 +89,7 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 
 	verset = devm_kzalloc(dev, sizeof(*verset), GFP_KERNEL);
 	/* Failing here is not important enough to fail the module load */
-	if (!regset)
+	if (!verset)
 		goto out;
 
 	if (drvdata->hw_rev <= CC_HW_REV_712) {
