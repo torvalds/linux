@@ -92,3 +92,11 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     -EINVAL: Invalid queue address
     -EFAULT: Invalid user pointer for attr->addr.
     -EIO:    Configuration of the underlying HW failed
+
+  5. KVM_DEV_XIVE_GRP_SOURCE_SYNC (write only)
+  Synchronize the source to flush event notifications
+  Attributes:
+    Interrupt source number  (64-bit)
+  Errors:
+    -ENOENT: Unknown source number
+    -EINVAL: Not initialized source number

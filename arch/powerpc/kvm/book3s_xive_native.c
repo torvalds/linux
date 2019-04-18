@@ -335,6 +335,38 @@ static int kvmppc_xive_native_set_source_config(struct kvmppc_xive *xive,
 						       priority, masked, eisn);
 }
 
+static int kvmppc_xive_native_sync_source(struct kvmppc_xive *xive,
+					  long irq, u64 addr)
+{
+	struct kvmppc_xive_src_block *sb;
+	struct kvmppc_xive_irq_state *state;
+	struct xive_irq_data *xd;
+	u32 hw_num;
+	u16 src;
+	int rc = 0;
+
+	pr_devel("%s irq=0x%lx", __func__, irq);
+
+	sb = kvmppc_xive_find_source(xive, irq, &src);
+	if (!sb)
+		return -ENOENT;
+
+	state = &sb->irq_state[src];
+
+	rc = -EINVAL;
+
+	arch_spin_lock(&sb->lock);
+
+	if (state->valid) {
+		kvmppc_xive_select_irq(state, &hw_num, &xd);
+		xive_native_sync_source(hw_num);
+		rc = 0;
+	}
+
+	arch_spin_unlock(&sb->lock);
+	return rc;
+}
+
 static int xive_native_validate_queue_size(u32 qshift)
 {
 	/*
@@ -670,6 +702,9 @@ static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 	case KVM_DEV_XIVE_GRP_EQ_CONFIG:
 		return kvmppc_xive_native_set_queue_config(xive, attr->attr,
 							   attr->addr);
+	case KVM_DEV_XIVE_GRP_SOURCE_SYNC:
+		return kvmppc_xive_native_sync_source(xive, attr->attr,
+						      attr->addr);
 	}
 	return -ENXIO;
 }
@@ -699,6 +734,7 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 		break;
 	case KVM_DEV_XIVE_GRP_SOURCE:
 	case KVM_DEV_XIVE_GRP_SOURCE_CONFIG:
+	case KVM_DEV_XIVE_GRP_SOURCE_SYNC:
 		if (attr->attr >= KVMPPC_XIVE_FIRST_IRQ &&
 		    attr->attr < KVMPPC_XIVE_NR_IRQS)
 			return 0;
