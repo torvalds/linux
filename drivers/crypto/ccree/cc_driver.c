@@ -35,6 +35,10 @@ bool cc_dump_bytes;
 module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
 MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
 
+bool cc_sec_disable;
+module_param_named(sec_disable, cc_sec_disable, bool, 0600);
+MODULE_PARM_DESC(cc_sec_disable, "Disable security functions");
+
 struct cc_hw_data {
 	char *name;
 	enum cc_hw_rev rev;
@@ -201,7 +205,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	struct cc_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
-	u32 signature_val;
+	u32 val;
 	u64 dma_mask;
 	const struct cc_hw_data *hw_rev;
 	const struct of_device_id *dev_id;
@@ -313,15 +317,23 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	if (hw_rev->rev <= CC_HW_REV_712) {
 		/* Verify correct mapping */
-		signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
-		if (signature_val != hw_rev->sig) {
+		val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
+		if (val != hw_rev->sig) {
 			dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-				signature_val, hw_rev->sig);
+				val, hw_rev->sig);
 			rc = -EINVAL;
 			goto post_clk_err;
 		}
-		dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
+		dev_dbg(dev, "CC SIGNATURE=0x%08X\n", val);
+	} else {
+		val = cc_ioread(new_drvdata, CC_REG(SECURITY_DISABLED));
+		val &= CC_SECURITY_DISABLED_MASK;
+		new_drvdata->sec_disabled = !!val;
 	}
+
+	new_drvdata->sec_disabled |= cc_sec_disable;
+	if (new_drvdata->sec_disabled)
+		dev_info(dev, "Security Disabled mode is in effect. Security functions disabled.\n");
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",

@@ -65,6 +65,8 @@ enum cc_std_body {
 
 #define CC_COMP_IRQ_MASK BIT(CC_HOST_IRR_AXIM_COMP_INT_BIT_SHIFT)
 
+#define CC_SECURITY_DISABLED_MASK BIT(CC_SECURITY_DISABLED_VALUE_BIT_SHIFT)
+
 #define AXIM_MON_COMP_VALUE GENMASK(CC_AXIM_MON_COMP_VALUE_BIT_SIZE + \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT)
@@ -136,6 +138,7 @@ struct cc_drvdata {
 	u32 sig_offset;
 	u32 ver_offset;
 	int std_bodies;
+	bool sec_disabled;
 };
 
 struct cc_crypto_alg {
@@ -162,6 +165,7 @@ struct cc_alg_template {
 	int auth_mode;
 	u32 min_hw_rev;
 	enum cc_std_body std_body;
+	bool sec_func;
 	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 };

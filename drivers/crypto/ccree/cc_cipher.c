@@ -889,6 +889,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_630,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "xts512(paes)",
@@ -907,6 +908,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.data_unit = 512,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "xts4096(paes)",
@@ -925,6 +927,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.data_unit = 4096,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "essiv(paes)",
@@ -942,6 +945,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "essiv512(paes)",
@@ -960,6 +964,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.data_unit = 512,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "essiv4096(paes)",
@@ -978,6 +983,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.data_unit = 4096,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "bitlocker(paes)",
@@ -995,6 +1001,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "bitlocker512(paes)",
@@ -1013,6 +1020,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.data_unit = 512,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "bitlocker4096(paes)",
@@ -1031,6 +1039,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.data_unit = 4096,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "ecb(paes)",
@@ -1048,6 +1057,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "cbc(paes)",
@@ -1065,6 +1075,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "ofb(paes)",
@@ -1082,6 +1093,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "cts(cbc(paes))",
@@ -1099,6 +1111,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "ctr(paes)",
@@ -1116,6 +1129,7 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.min_hw_rev = CC_HW_REV_712,
 		.std_body = CC_STD_NIST,
+		.sec_func = true,
 	},
 	{
 		.name = "xts(aes)",
@@ -1555,7 +1569,8 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata)
 		ARRAY_SIZE(skcipher_algs));
 	for (alg = 0; alg < ARRAY_SIZE(skcipher_algs); alg++) {
 		if ((skcipher_algs[alg].min_hw_rev > drvdata->hw_rev) ||
-		    !(drvdata->std_bodies & skcipher_algs[alg].std_body))
+		    !(drvdata->std_bodies & skcipher_algs[alg].std_body) ||
+		    (drvdata->sec_disabled && skcipher_algs[alg].sec_func))
 			continue;
 
 		dev_dbg(dev, "creating %s\n", skcipher_algs[alg].driver_name);
