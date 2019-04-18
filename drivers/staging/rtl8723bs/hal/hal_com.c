@@ -1618,14 +1618,14 @@ void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
 	if (isCCKrate)
-		psample_pkt_rssi->mimo_singal_strength[0] = psample_pkt_rssi->pwdball;
+		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
 		DBG_871X_SEL_NL(
 			sel,
-			"RF_PATH_%d =>singal_strength:%d(%%), singal_quality:%d(%%)\n",
-			rf_path, psample_pkt_rssi->mimo_singal_strength[rf_path],
-			psample_pkt_rssi->mimo_singal_quality[rf_path]
+			"RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
+			rf_path, psample_pkt_rssi->mimo_signal_strength[rf_path],
+			psample_pkt_rssi->mimo_signal_quality[rf_path]
 		);
 
 		if (!isCCKrate) {
@@ -1651,11 +1651,11 @@ void rtw_dump_raw_rssi_info(struct adapter *padapter)
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
 	if (isCCKrate)
-		psample_pkt_rssi->mimo_singal_strength[0] = psample_pkt_rssi->pwdball;
+		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		DBG_871X("RF_PATH_%d =>singal_strength:%d(%%), singal_quality:%d(%%)"
-			, rf_path, psample_pkt_rssi->mimo_singal_strength[rf_path], psample_pkt_rssi->mimo_singal_quality[rf_path]);
+		DBG_871X("RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)"
+			, rf_path, psample_pkt_rssi->mimo_signal_strength[rf_path], psample_pkt_rssi->mimo_signal_quality[rf_path]);
 
 		if (!isCCKrate) {
 			printk(", rx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
@@ -1682,8 +1682,8 @@ void rtw_store_phy_info(struct adapter *padapter, union recv_frame *prframe)
 	psample_pkt_rssi->pwr_all = pPhyInfo->recv_signal_power;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		psample_pkt_rssi->mimo_singal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
-		psample_pkt_rssi->mimo_singal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
+		psample_pkt_rssi->mimo_signal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
+		psample_pkt_rssi->mimo_signal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
 		if (!isCCKrate) {
 			psample_pkt_rssi->ofdm_pwr[rf_path] = pPhyInfo->RxPwr[rf_path];
 			psample_pkt_rssi->ofdm_snr[rf_path] = pPhyInfo->RxSNR[rf_path];
