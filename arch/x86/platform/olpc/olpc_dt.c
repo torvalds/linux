@@ -241,11 +241,6 @@ void __init olpc_dt_fixup(void)
 
 	pr_info("PROM DT: Old firmware detected, applying fixes\n");
 
-	/* Add olpc,xo1-battery compatible marker to battery node */
-	olpc_dt_interpret("\" /battery@0\" find-device");
-	olpc_dt_interpret("  \" olpc,xo1-battery\" +compatible");
-	olpc_dt_interpret("device-end");
-
 	board_rev = olpc_dt_get_board_revision();
 	if (!board_rev)
 		return;
@@ -271,6 +266,11 @@ void __init olpc_dt_fixup(void)
 		olpc_dt_interpret(" \" olpc,xo1-rtc\" +compatible");
 		olpc_dt_interpret("device-end");
 	}
+
+	/* Add olpc,xo1-battery compatible marker to battery node */
+	olpc_dt_interpret("\" /battery@0\" find-device");
+	olpc_dt_interpret("  \" olpc,xo1-battery\" +compatible");
+	olpc_dt_interpret("device-end");
 }
 
 void __init olpc_dt_build_devicetree(void)
