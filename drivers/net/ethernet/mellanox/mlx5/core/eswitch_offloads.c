@@ -192,7 +192,11 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		goto err_esw_get;
 	}
 
-	rule = mlx5_add_flow_rules(fdb, spec, &flow_act, dest, i);
+	if (mlx5_eswitch_termtbl_required(esw, &flow_act, spec))
+		rule = mlx5_eswitch_add_termtbl_rule(esw, fdb, spec, attr,
+						     &flow_act, dest, i);
+	else
+		rule = mlx5_add_flow_rules(fdb, spec, &flow_act, dest, i);
 	if (IS_ERR(rule))
 		goto err_add_rule;
 	else
@@ -294,8 +298,16 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 			bool fwd_rule)
 {
 	bool split = (attr->split_count > 0);
+	int i;
 
 	mlx5_del_flow_rules(rule);
+
+	/* unref the term table */
+	for (i = 0; i < MLX5_MAX_FLOW_FWD_VPORTS; i++) {
+		if (attr->dests[i].termtbl)
+			mlx5_eswitch_termtbl_put(esw, attr->dests[i].termtbl);
+	}
+
 	esw->offloads.num_flows--;
 
 	if (fwd_rule)  {
@@ -1870,6 +1882,7 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 		goto err_reps;
 
 	esw_offloads_devcom_init(esw);
+	mutex_init(&esw->offloads.termtbl_mutex);
 
 	esw_functions_changed_event_init(esw, vf_nvports);
 
