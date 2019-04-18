@@ -242,6 +242,99 @@ unlock:
 	return rc;
 }
 
+static int kvmppc_xive_native_update_source_config(struct kvmppc_xive *xive,
+					struct kvmppc_xive_src_block *sb,
+					struct kvmppc_xive_irq_state *state,
+					u32 server, u8 priority, bool masked,
+					u32 eisn)
+{
+	struct kvm *kvm = xive->kvm;
+	u32 hw_num;
+	int rc = 0;
+
+	arch_spin_lock(&sb->lock);
+
+	if (state->act_server == server && state->act_priority == priority &&
+	    state->eisn == eisn)
+		goto unlock;
+
+	pr_devel("new_act_prio=%d new_act_server=%d mask=%d act_server=%d act_prio=%d\n",
+		 priority, server, masked, state->act_server,
+		 state->act_priority);
+
+	kvmppc_xive_select_irq(state, &hw_num, NULL);
+
+	if (priority != MASKED && !masked) {
+		rc = kvmppc_xive_select_target(kvm, &server, priority);
+		if (rc)
+			goto unlock;
+
+		state->act_priority = priority;
+		state->act_server = server;
+		state->eisn = eisn;
+
+		rc = xive_native_configure_irq(hw_num,
+					       kvmppc_xive_vp(xive, server),
+					       priority, eisn);
+	} else {
+		state->act_priority = MASKED;
+		state->act_server = 0;
+		state->eisn = 0;
+
+		rc = xive_native_configure_irq(hw_num, 0, MASKED, 0);
+	}
+
+unlock:
+	arch_spin_unlock(&sb->lock);
+	return rc;
+}
+
+static int kvmppc_xive_native_set_source_config(struct kvmppc_xive *xive,
+						long irq, u64 addr)
+{
+	struct kvmppc_xive_src_block *sb;
+	struct kvmppc_xive_irq_state *state;
+	u64 __user *ubufp = (u64 __user *) addr;
+	u16 src;
+	u64 kvm_cfg;
+	u32 server;
+	u8 priority;
+	bool masked;
+	u32 eisn;
+
+	sb = kvmppc_xive_find_source(xive, irq, &src);
+	if (!sb)
+		return -ENOENT;
+
+	state = &sb->irq_state[src];
+
+	if (!state->valid)
+		return -EINVAL;
+
+	if (get_user(kvm_cfg, ubufp))
+		return -EFAULT;
+
+	pr_devel("%s irq=0x%lx cfg=%016llx\n", __func__, irq, kvm_cfg);
+
+	priority = (kvm_cfg & KVM_XIVE_SOURCE_PRIORITY_MASK) >>
+		KVM_XIVE_SOURCE_PRIORITY_SHIFT;
+	server = (kvm_cfg & KVM_XIVE_SOURCE_SERVER_MASK) >>
+		KVM_XIVE_SOURCE_SERVER_SHIFT;
+	masked = (kvm_cfg & KVM_XIVE_SOURCE_MASKED_MASK) >>
+		KVM_XIVE_SOURCE_MASKED_SHIFT;
+	eisn = (kvm_cfg & KVM_XIVE_SOURCE_EISN_MASK) >>
+		KVM_XIVE_SOURCE_EISN_SHIFT;
+
+	if (priority != xive_prio_from_guest(priority)) {
+		pr_err("invalid priority for queue %d for VCPU %d\n",
+		       priority, server);
+		return -EINVAL;
+	}
+
+	return kvmppc_xive_native_update_source_config(xive, sb, state, server,
+						       priority, masked, eisn);
+}
+
 static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 				       struct kvm_device_attr *attr)
 {
@@ -253,6 +346,9 @@ static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 	case KVM_DEV_XIVE_GRP_SOURCE:
 		return kvmppc_xive_native_set_source(xive, attr->attr,
 						     attr->addr);
+	case KVM_DEV_XIVE_GRP_SOURCE_CONFIG:
+		return kvmppc_xive_native_set_source_config(xive, attr->attr,
+							    attr->addr);
 	}
 	return -ENXIO;
 }
@@ -270,6 +366,7 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 	case KVM_DEV_XIVE_GRP_CTRL:
 		break;
 	case KVM_DEV_XIVE_GRP_SOURCE:
+	case KVM_DEV_XIVE_GRP_SOURCE_CONFIG:
 		if (attr->attr >= KVMPPC_XIVE_FIRST_IRQ &&
 		    attr->attr < KVMPPC_XIVE_NR_IRQS)
 			return 0;

@@ -342,7 +342,7 @@ static int xive_try_pick_queue(struct kvm_vcpu *vcpu, u8 prio)
 	return atomic_add_unless(&q->count, 1, max) ? 0 : -EBUSY;
 }
 
-static int xive_select_target(struct kvm *kvm, u32 *server, u8 prio)
+int kvmppc_xive_select_target(struct kvm *kvm, u32 *server, u8 prio)
 {
 	struct kvm_vcpu *vcpu;
 	int i, rc;
@@ -530,7 +530,7 @@ static int xive_target_interrupt(struct kvm *kvm,
 	 * priority. The count for that new target will have
 	 * already been incremented.
 	 */
-	rc = xive_select_target(kvm, &server, prio);
+	rc = kvmppc_xive_select_target(kvm, &server, prio);
 
 	/*
 	 * We failed to find a target ? Not much we can do
@@ -1504,6 +1504,7 @@ struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 
 	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
 		sb->irq_state[i].number = (bid << KVMPPC_XICS_ICS_SHIFT) | i;
+		sb->irq_state[i].eisn = 0;
 		sb->irq_state[i].guest_priority = MASKED;
 		sb->irq_state[i].saved_priority = MASKED;
 		sb->irq_state[i].act_priority = MASKED;

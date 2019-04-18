@@ -61,6 +61,9 @@ struct kvmppc_xive_irq_state {
 	bool saved_p;
 	bool saved_q;
 	u8 saved_scan_prio;
+
+	/* Xive native */
+	u32 eisn;			/* Guest Effective IRQ number */
 };
 
 /* Select the "right" interrupt (IPI vs. passthrough) */
@@ -268,6 +271,7 @@ int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu);
 struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 	struct kvmppc_xive *xive, int irq);
 void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb);
+int kvmppc_xive_select_target(struct kvm *kvm, u32 *server, u8 prio);
 
 #endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */

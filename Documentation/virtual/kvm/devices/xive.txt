@@ -32,3 +32,24 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     -ENOMEM: Could not create a new source block
     -EFAULT: Invalid user pointer for attr->addr.
     -ENXIO:  Could not allocate underlying HW interrupt
+
+  3. KVM_DEV_XIVE_GRP_SOURCE_CONFIG (write only)
+  Configures source targeting
+  Attributes:
+    Interrupt source number  (64-bit)
+  The kvm_device_attr.addr points to a __u64 value:
+  bits:     | 63   ....  33 |  32  | 31 .. 3 |  2 .. 0
+  values:   |    eisn       | mask |  server | priority
+  - priority: 0-7 interrupt priority level
+  - server: CPU number chosen to handle the interrupt
+  - mask: mask flag (unused)
+  - eisn: Effective Interrupt Source Number
+  Errors:
+    -ENOENT: Unknown source number
+    -EINVAL: Not initialized source number
+    -EINVAL: Invalid priority
+    -EINVAL: Invalid CPU number.
+    -EFAULT: Invalid user pointer for attr->addr.
+    -ENXIO:  CPU event queues not configured or configuration of the
+             underlying HW interrupt failed
+    -EBUSY:  No CPU available to serve interrupt
