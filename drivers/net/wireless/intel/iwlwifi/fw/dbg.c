@@ -2373,6 +2373,38 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);
 
+static void iwl_fw_dbg_info_apply(struct iwl_fw_runtime *fwrt,
+				  struct iwl_fw_ini_debug_info_tlv *dbg_info,
+				  bool ext, enum iwl_fw_ini_apply_point pnt)
+{
+	u32 img_name_len = le32_to_cpu(dbg_info->img_name_len);
+	u32 dbg_cfg_name_len = le32_to_cpu(dbg_info->dbg_cfg_name_len);
+	const char err_str[] =
+		"WRT: ext=%d. Invalid %s name length %d, expected %d\n";
+
+	if (img_name_len != IWL_FW_INI_MAX_IMG_NAME_LEN) {
+		IWL_WARN(fwrt, err_str, ext, "image", img_name_len,
+			 IWL_FW_INI_MAX_IMG_NAME_LEN);
+		return;
+	}
+
+	if (dbg_cfg_name_len != IWL_FW_INI_MAX_DBG_CFG_NAME_LEN) {
+		IWL_WARN(fwrt, err_str, ext, "debug cfg", dbg_cfg_name_len,
+			 IWL_FW_INI_MAX_DBG_CFG_NAME_LEN);
+		return;
+	}
+
+	if (ext) {
+		memcpy(fwrt->dump.external_dbg_cfg_name, dbg_info->dbg_cfg_name,
+		       sizeof(fwrt->dump.external_dbg_cfg_name));
+	} else {
+		memcpy(fwrt->dump.img_name, dbg_info->img_name,
+		       sizeof(fwrt->dump.img_name));
+		memcpy(fwrt->dump.internal_dbg_cfg_name, dbg_info->dbg_cfg_name,
+		       sizeof(fwrt->dump.internal_dbg_cfg_name));
+	}
+}
+
 static void
 iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 {
@@ -2679,6 +2711,9 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		u32 type = le32_to_cpu(tlv->type);
 
 		switch (type) {
+		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
+			iwl_fw_dbg_info_apply(fwrt, ini_tlv, ext, pnt);
+			break;
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION: {
 			struct iwl_fw_ini_allocation_data *buf_alloc = ini_tlv;
 
@@ -2714,22 +2749,34 @@ next:
 	}
 }
 
+static void iwl_fw_dbg_ini_reset_cfg(struct iwl_fw_runtime *fwrt)
+{
+	int i;
+
+	for (i = 0; i < IWL_FW_INI_MAX_REGION_ID; i++)
+		fwrt->dump.active_regs[i] = NULL;
+
+	/* disable the triggers, used in recovery flow */
+	for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++)
+		fwrt->dump.active_trigs[i].active = false;
+
+	memset(fwrt->dump.img_name, 0,
+	       sizeof(fwrt->dump.img_name));
+	memset(fwrt->dump.internal_dbg_cfg_name, 0,
+	       sizeof(fwrt->dump.internal_dbg_cfg_name));
+	memset(fwrt->dump.external_dbg_cfg_name, 0,
+	       sizeof(fwrt->dump.external_dbg_cfg_name));
+}
+
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point)
 {
 	void *data = &fwrt->trans->apply_points[apply_point];
-	int i;
 
 	IWL_DEBUG_FW(fwrt, "WRT: enabling apply point %d\n", apply_point);
 
-	if (apply_point == IWL_FW_INI_APPLY_EARLY) {
-		for (i = 0; i < IWL_FW_INI_MAX_REGION_ID; i++)
-			fwrt->dump.active_regs[i] = NULL;
-
-		/* disable the triggers, used in recovery flow */
-		for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++)
-			fwrt->dump.active_trigs[i].active = false;
-	}
+	if (apply_point == IWL_FW_INI_APPLY_EARLY)
+		iwl_fw_dbg_ini_reset_cfg(fwrt);
 
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
 
