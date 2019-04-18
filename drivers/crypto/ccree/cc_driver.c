@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited or its affiliates. */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -30,7 +30,6 @@
 bool cc_dump_desc;
 module_param_named(dump_desc, cc_dump_desc, bool, 0600);
 MODULE_PARM_DESC(cc_dump_desc, "Dump descriptors to kernel log as debugging aid");
-
 bool cc_dump_bytes;
 module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
 MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
@@ -43,18 +42,35 @@ struct cc_hw_data {
 	char *name;
 	enum cc_hw_rev rev;
 	u32 sig;
+	u32 cidr_0123;
+	u32 pidr_0124;
 	int std_bodies;
+};
+
+#define CC_NUM_IDRS 4
+
+/* Note: PIDR3 holds CMOD/Rev so ignored for HW identification purposes */
+static const u32 pidr_0124_offsets[CC_NUM_IDRS] = {
+	CC_REG(PERIPHERAL_ID_0), CC_REG(PERIPHERAL_ID_1),
+	CC_REG(PERIPHERAL_ID_2), CC_REG(PERIPHERAL_ID_4)
+};
+
+static const u32 cidr_0123_offsets[CC_NUM_IDRS] = {
+	CC_REG(COMPONENT_ID_0), CC_REG(COMPONENT_ID_1),
+	CC_REG(COMPONENT_ID_2), CC_REG(COMPONENT_ID_3)
 };
 
 /* Hardware revisions defs. */
 
 /* The 703 is a OSCCA only variant of the 713 */
 static const struct cc_hw_data cc703_hw = {
-	.name = "703", .rev = CC_HW_REV_713, .std_bodies = CC_STD_OSCCA
+	.name = "703", .rev = CC_HW_REV_713, .cidr_0123 = 0xB105F00DU,
+	.pidr_0124 = 0x040BB0D0U, .std_bodies = CC_STD_OSCCA
 };
 
 static const struct cc_hw_data cc713_hw = {
-	.name = "713", .rev = CC_HW_REV_713, .std_bodies = CC_STD_ALL
+	.name = "713", .rev = CC_HW_REV_713, .cidr_0123 = 0xB105F00DU,
+	.pidr_0124 = 0x040BB0D0U, .std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc712_hw = {
@@ -81,6 +97,20 @@ static const struct of_device_id arm_ccree_dev_of_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, arm_ccree_dev_of_match);
+
+static u32 cc_read_idr(struct cc_drvdata *drvdata, const u32 *idr_offsets)
+{
+	int i;
+	union {
+		u8 regs[CC_NUM_IDRS];
+		u32 val;
+	} idr;
+
+	for (i = 0; i < CC_NUM_IDRS; ++i)
+		idr.regs[i] = cc_ioread(drvdata, idr_offsets[i]);
+
+	return le32_to_cpu(idr.val);
+}
 
 void __dump_byte_array(const char *name, const u8 *buf, size_t len)
 {
@@ -205,7 +235,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	struct cc_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
-	u32 val;
+	u32 val, hw_rev_pidr, sig_cidr;
 	u64 dma_mask;
 	const struct cc_hw_data *hw_rev;
 	const struct of_device_id *dev_id;
@@ -328,8 +358,29 @@ static int init_cc_resources(struct platform_device *plat_dev)
 			rc = -EINVAL;
 			goto post_clk_err;
 		}
-		dev_dbg(dev, "CC SIGNATURE=0x%08X\n", val);
+		sig_cidr = val;
+		hw_rev_pidr = cc_ioread(new_drvdata, new_drvdata->ver_offset);
 	} else {
+		/* Verify correct mapping */
+		val = cc_read_idr(new_drvdata, pidr_0124_offsets);
+		if (val != hw_rev->pidr_0124) {
+			dev_err(dev, "Invalid CC PIDR: PIDR0124=0x%08X != expected=0x%08X\n",
+				val,  hw_rev->pidr_0124);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		hw_rev_pidr = val;
+
+		val = cc_read_idr(new_drvdata, cidr_0123_offsets);
+		if (val != hw_rev->cidr_0123) {
+			dev_err(dev, "Invalid CC CIDR: CIDR0123=0x%08X != expected=0x%08X\n",
+			val,  hw_rev->cidr_0123);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		sig_cidr = val;
+
+		/* Check security disable state */
 		val = cc_ioread(new_drvdata, CC_REG(SECURITY_DISABLED));
 		val &= CC_SECURITY_DISABLED_MASK;
 		new_drvdata->sec_disabled |= !!val;
@@ -345,9 +396,8 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		dev_info(dev, "Security Disabled mode is in effect. Security functions disabled.\n");
 
 	/* Display HW versions */
-	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
-		 hw_rev->name, cc_ioread(new_drvdata, new_drvdata->ver_offset),
-		 DRV_MODULE_VERSION);
+	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X/0x%8X, Driver version %s\n",
+		 hw_rev->name, hw_rev_pidr, sig_cidr, DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (rc) {
