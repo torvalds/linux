@@ -276,6 +276,8 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		     le32_to_cpu(umac->umac_major),
 		     le32_to_cpu(umac->umac_minor));
 
+	iwl_fwrt_update_fw_versions(&mvm->fwrt, lmac1, umac);
+
 	return true;
 }
 

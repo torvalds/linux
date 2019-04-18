@@ -150,6 +150,15 @@ struct iwl_fw_runtime {
 		u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
 		u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
 		u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+
+		struct {
+			u8 type;
+			u8 subtype;
+			u32 lmac_major;
+			u32 lmac_minor;
+			u32 umac_major;
+			u32 umac_minor;
+		} fw_ver;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

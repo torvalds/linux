@@ -284,6 +284,9 @@ struct iwl_fw_error_dump_mem {
  */
 #define IWL_INI_DUMP_VER 1
 
+/* Use bit 31 as dump info type to avoid colliding with region types */
+#define IWL_INI_DUMP_INFO_TYPE BIT(31)
+
 /**
  * struct iwl_fw_ini_fifo_hdr - fifo range header
  * @fifo_num: the fifo number. In case of umac rx fifo, set BIT(31) to
@@ -352,6 +355,65 @@ struct iwl_fw_ini_error_dump {
 struct iwl_fw_ini_error_dump_register {
 	__le32 addr;
 	__le32 data;
+} __packed;
+
+/* struct iwl_fw_ini_dump_info - ini dump information
+ * @version: dump version
+ * @trigger_id: trigger id that caused the dump collection
+ * @trigger_reason: not supported yet
+ * @is_external_cfg: 1 if an external debug configuration was loaded
+ *	and 0 otherwise
+ * @ver_type: FW version type
+ * @ver_subtype: FW version subype
+ * @hw_step: HW step
+ * @hw_type: HW type
+ * @rf_id_flavor: HW RF id flavor
+ * @rf_id_dash: HW RF id dash
+ * @rf_id_step: HW RF id step
+ * @rf_id_type: HW RF id type
+ * @lmac_major: lmac major version
+ * @lmac_minor: lmac minor version
+ * @umac_major: umac major version
+ * @umac_minor: umac minor version
+ * @build_tag_len: length of the build tag
+ * @build_tag: build tag string
+ * @img_name_len: length of the FW image name
+ * @img_name: FW image name
+ * @internal_dbg_cfg_name_len: length of the internal debug configuration name
+ * @internal_dbg_cfg_name: internal debug configuration name
+ * @external_dbg_cfg_name_len: length of the external debug configuration name
+ * @external_dbg_cfg_name: external debug configuration name
+ * @regions_num: number of region ids
+ * @region_ids: region ids the trigger configured to collect
+ */
+struct iwl_fw_ini_dump_info {
+	__le32 version;
+	__le32 trigger_id;
+	__le32 trigger_reason;
+	__le32 is_external_cfg;
+	__le32 ver_type;
+	__le32 ver_subtype;
+	__le32 hw_step;
+	__le32 hw_type;
+	__le32 rf_id_flavor;
+	__le32 rf_id_dash;
+	__le32 rf_id_step;
+	__le32 rf_id_type;
+	__le32 lmac_major;
+	__le32 lmac_minor;
+	__le32 umac_major;
+	__le32 umac_minor;
+	__le32 build_tag_len;
+	u8 build_tag[FW_VER_HUMAN_READABLE_SZ];
+	__le32 img_name_len;
+	u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
+	__le32 internal_dbg_cfg_name_len;
+	u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+	__le32 external_dbg_cfg_name_len;
+	u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
+	__le32 regions_num;
+	__le32 region_ids[];
+
 } __packed;
 
 /**

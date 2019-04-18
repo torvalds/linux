@@ -73,6 +73,7 @@
 #include "error-dump.h"
 #include "api/commands.h"
 #include "api/dbg-tlv.h"
+#include "api/alive.h"
 
 /**
  * struct iwl_fw_dump_desc - describes the dump
@@ -479,4 +480,21 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t);
 
 void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
+
+static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
+					       struct iwl_lmac_alive *lmac,
+					       struct iwl_umac_alive *umac)
+{
+	if (lmac) {
+		fwrt->dump.fw_ver.type = lmac->ver_type;
+		fwrt->dump.fw_ver.subtype = lmac->ver_subtype;
+		fwrt->dump.fw_ver.lmac_major = le32_to_cpu(lmac->ucode_major);
+		fwrt->dump.fw_ver.lmac_minor = le32_to_cpu(lmac->ucode_minor);
+	}
+
+	if (umac) {
+		fwrt->dump.fw_ver.umac_major = le32_to_cpu(umac->umac_major);
+		fwrt->dump.fw_ver.umac_minor = le32_to_cpu(umac->umac_minor);
+	}
+}
 #endif  /* __iwl_fw_dbg_h__ */
