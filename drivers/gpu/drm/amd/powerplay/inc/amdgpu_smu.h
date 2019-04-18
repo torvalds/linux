@@ -939,4 +939,6 @@ int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_typ
 			      uint16_t level, uint32_t *value);
 int smu_get_dpm_level_count(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t *value);
+int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			   uint32_t *min, uint32_t *max);
 #endif

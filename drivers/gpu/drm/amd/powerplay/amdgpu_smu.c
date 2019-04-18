@@ -60,6 +60,42 @@ int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t 
 	return ret;
 }
 
+int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
+			   uint32_t *min, uint32_t *max)
+{
+	int ret = 0, clk_id = 0;
+	uint32_t param = 0;
+
+	if (!min && !max)
+		return -EINVAL;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return clk_id;
+
+	param = (clk_id & 0xffff) << 16;
+
+	if (max) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
+		if (ret)
+			return ret;
+		ret = smu_read_smc_arg(smu, max);
+		if (ret)
+			return ret;
+	}
+
+	if (min) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
+		if (ret)
+			return ret;
+		ret = smu_read_smc_arg(smu, min);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_type,
 			      uint16_t level, uint32_t *value)
 {
