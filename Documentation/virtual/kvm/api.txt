@@ -4504,6 +4504,15 @@ struct kvm_sync_regs {
         struct kvm_vcpu_events events;
 };
 
+6.75 KVM_CAP_PPC_IRQ_XIVE
+
+Architectures: ppc
+Target: vcpu
+Parameters: args[0] is the XIVE device fd
+            args[1] is the XIVE CPU number (server ID) for this vcpu
+
+This capability connects the vcpu to an in-kernel XIVE device.
+
 7. Capabilities that can be enabled on VMs
 ------------------------------------------
 

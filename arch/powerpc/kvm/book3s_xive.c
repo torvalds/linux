@@ -380,11 +380,6 @@ static int xive_select_target(struct kvm *kvm, u32 *server, u8 prio)
 	return -EBUSY;
 }
 
-static u32 xive_vp(struct kvmppc_xive *xive, u32 server)
-{
-	return xive->vp_base + kvmppc_pack_vcpu_id(xive->kvm, server);
-}
-
 static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 			     struct kvmppc_xive_src_block *sb,
 			     struct kvmppc_xive_irq_state *state)
@@ -430,8 +425,8 @@ static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 	 */
 	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
 		xive_native_configure_irq(hw_num,
-					  xive_vp(xive, state->act_server),
-					  MASKED, state->number);
+				kvmppc_xive_vp(xive, state->act_server),
+				MASKED, state->number);
 		/* set old_p so we can track if an H_EOI was done */
 		state->old_p = true;
 		state->old_q = false;
@@ -486,8 +481,8 @@ static void xive_finish_unmask(struct kvmppc_xive *xive,
 	 */
 	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
 		xive_native_configure_irq(hw_num,
-					  xive_vp(xive, state->act_server),
-					  state->act_priority, state->number);
+				kvmppc_xive_vp(xive, state->act_server),
+				state->act_priority, state->number);
 		/* If an EOI is needed, do it here */
 		if (!state->old_p)
 			xive_vm_source_eoi(hw_num, xd);
@@ -563,7 +558,7 @@ static int xive_target_interrupt(struct kvm *kvm,
 	kvmppc_xive_select_irq(state, &hw_num, NULL);
 
 	return xive_native_configure_irq(hw_num,
-					 xive_vp(xive, server),
+					 kvmppc_xive_vp(xive, server),
 					 prio, state->number);
 }
 
@@ -951,7 +946,7 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	 * which is fine for a never started interrupt.
 	 */
 	xive_native_configure_irq(hw_irq,
-				  xive_vp(xive, state->act_server),
+				  kvmppc_xive_vp(xive, state->act_server),
 				  state->act_priority, state->number);
 
 	/*
@@ -1027,7 +1022,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 
 	/* Reconfigure the IPI */
 	xive_native_configure_irq(state->ipi_number,
-				  xive_vp(xive, state->act_server),
+				  kvmppc_xive_vp(xive, state->act_server),
 				  state->act_priority, state->number);
 
 	/*
@@ -1049,7 +1044,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 }
 EXPORT_SYMBOL_GPL(kvmppc_xive_clr_mapped);
 
-static void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
+void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
 	struct kvm *kvm = vcpu->kvm;
@@ -1166,7 +1161,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	xc->xive = xive;
 	xc->vcpu = vcpu;
 	xc->server_num = cpu;
-	xc->vp_id = xive_vp(xive, cpu);
+	xc->vp_id = kvmppc_xive_vp(xive, cpu);
 	xc->mfrr = 0xff;
 	xc->valid = true;
 
@@ -1883,6 +1878,43 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 	return 0;
 }
 
+int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+	unsigned int i;
+
+	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
+		struct xive_q *q = &xc->queues[i];
+		u32 i0, i1, idx;
+
+		if (!q->qpage && !xc->esc_virq[i])
+			continue;
+
+		seq_printf(m, " [q%d]: ", i);
+
+		if (q->qpage) {
+			idx = q->idx;
+			i0 = be32_to_cpup(q->qpage + idx);
+			idx = (idx + 1) & q->msk;
+			i1 = be32_to_cpup(q->qpage + idx);
+			seq_printf(m, "T=%d %08x %08x...\n", q->toggle,
+				   i0, i1);
+		}
+		if (xc->esc_virq[i]) {
+			struct irq_data *d = irq_get_irq_data(xc->esc_virq[i]);
+			struct xive_irq_data *xd =
+				irq_data_get_irq_handler_data(d);
+			u64 pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
+
+			seq_printf(m, "E:%c%c I(%d:%llx:%llx)",
+				   (pq & XIVE_ESB_VAL_P) ? 'P' : 'p',
+				   (pq & XIVE_ESB_VAL_Q) ? 'Q' : 'q',
+				   xc->esc_virq[i], pq, xd->eoi_page);
+			seq_puts(m, "\n");
+		}
+	}
+	return 0;
+}
 
 static int xive_debug_show(struct seq_file *m, void *private)
 {
@@ -1908,7 +1940,6 @@ static int xive_debug_show(struct seq_file *m, void *private)
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
-		unsigned int i;
 
 		if (!xc)
 			continue;
@@ -1918,33 +1949,8 @@ static int xive_debug_show(struct seq_file *m, void *private)
 			   xc->server_num, xc->cppr, xc->hw_cppr,
 			   xc->mfrr, xc->pending,
 			   xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
-		for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
-			struct xive_q *q = &xc->queues[i];
-			u32 i0, i1, idx;
 
-			if (!q->qpage && !xc->esc_virq[i])
-				continue;
-
-			seq_printf(m, " [q%d]: ", i);
-
-			if (q->qpage) {
-				idx = q->idx;
-				i0 = be32_to_cpup(q->qpage + idx);
-				idx = (idx + 1) & q->msk;
-				i1 = be32_to_cpup(q->qpage + idx);
-				seq_printf(m, "T=%d %08x %08x... \n", q->toggle, i0, i1);
-			}
-			if (xc->esc_virq[i]) {
-				struct irq_data *d = irq_get_irq_data(xc->esc_virq[i]);
-				struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
-				u64 pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
-				seq_printf(m, "E:%c%c I(%d:%llx:%llx)",
-					   (pq & XIVE_ESB_VAL_P) ? 'P' : 'p',
-					   (pq & XIVE_ESB_VAL_Q) ? 'Q' : 'q',
-					   xc->esc_virq[i], pq, xd->eoi_page);
-				seq_printf(m, "\n");
-			}
-		}
+		kvmppc_xive_debug_show_queues(m, vcpu);
 
 		t_rm_h_xirr += xc->stat_rm_h_xirr;
 		t_rm_h_ipoll += xc->stat_rm_h_ipoll;

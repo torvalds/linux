@@ -26,6 +26,134 @@
 
 #include "book3s_xive.h"
 
+static void kvmppc_xive_native_cleanup_queue(struct kvm_vcpu *vcpu, int prio)
+{
+	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+	struct xive_q *q = &xc->queues[prio];
+
+	xive_native_disable_queue(xc->vp_id, q, prio);
+	if (q->qpage) {
+		put_page(virt_to_page(q->qpage));
+		q->qpage = NULL;
+	}
+}
+
+void kvmppc_xive_native_cleanup_vcpu(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+	int i;
+
+	if (!kvmppc_xive_enabled(vcpu))
+		return;
+
+	if (!xc)
+		return;
+
+	pr_devel("native_cleanup_vcpu(cpu=%d)\n", xc->server_num);
+
+	/* Ensure no interrupt is still routed to that VP */
+	xc->valid = false;
+	kvmppc_xive_disable_vcpu_interrupts(vcpu);
+
+	/* Disable the VP */
+	xive_native_disable_vp(xc->vp_id);
+
+	/* Free the queues & associated interrupts */
+	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
+		/* Free the escalation irq */
+		if (xc->esc_virq[i]) {
+			free_irq(xc->esc_virq[i], vcpu);
+			irq_dispose_mapping(xc->esc_virq[i]);
+			kfree(xc->esc_virq_names[i]);
+			xc->esc_virq[i] = 0;
+		}
+
+		/* Free the queue */
+		kvmppc_xive_native_cleanup_queue(vcpu, i);
+	}
+
+	/* Free the VP */
+	kfree(xc);
+
+	/* Cleanup the vcpu */
+	vcpu->arch.irq_type = KVMPPC_IRQ_DEFAULT;
+	vcpu->arch.xive_vcpu = NULL;
+}
+
+int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
+				    struct kvm_vcpu *vcpu, u32 server_num)
+{
+	struct kvmppc_xive *xive = dev->private;
+	struct kvmppc_xive_vcpu *xc = NULL;
+	int rc;
+
+	pr_devel("native_connect_vcpu(server=%d)\n", server_num);
+
+	if (dev->ops != &kvm_xive_native_ops) {
+		pr_devel("Wrong ops !\n");
+		return -EPERM;
+	}
+	if (xive->kvm != vcpu->kvm)
+		return -EPERM;
+	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
+		return -EBUSY;
+	if (server_num >= KVM_MAX_VCPUS) {
+		pr_devel("Out of bounds !\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&vcpu->kvm->lock);
+
+	if (kvmppc_xive_find_server(vcpu->kvm, server_num)) {
+		pr_devel("Duplicate !\n");
+		rc = -EEXIST;
+		goto bail;
+	}
+
+	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
+	if (!xc) {
+		rc = -ENOMEM;
+		goto bail;
+	}
+
+	vcpu->arch.xive_vcpu = xc;
+	xc->xive = xive;
+	xc->vcpu = vcpu;
+	xc->server_num = server_num;
+
+	xc->vp_id = kvmppc_xive_vp(xive, server_num);
+	xc->valid = true;
+	vcpu->arch.irq_type = KVMPPC_IRQ_XIVE;
+
+	rc = xive_native_get_vp_info(xc->vp_id, &xc->vp_cam, &xc->vp_chip_id);
+	if (rc) {
+		pr_err("Failed to get VP info from OPAL: %d\n", rc);
+		goto bail;
+	}
+
+	/*
+	 * Enable the VP first as the single escalation mode will
+	 * affect escalation interrupts numbering
+	 */
+	rc = xive_native_enable_vp(xc->vp_id, xive->single_escalation);
+	if (rc) {
+		pr_err("Failed to enable VP in OPAL: %d\n", rc);
+		goto bail;
+	}
+
+	/* Configure VCPU fields for use by assembly push/pull */
+	vcpu->arch.xive_saved_state.w01 = cpu_to_be64(0xff000000);
+	vcpu->arch.xive_cam_word = cpu_to_be32(xc->vp_cam | TM_QW1W2_VO);
+
+	/* TODO: reset all queues to a clean state ? */
+bail:
+	mutex_unlock(&vcpu->kvm->lock);
+	if (rc)
+		kvmppc_xive_native_cleanup_vcpu(vcpu);
+
+	return rc;
+}
+
 static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 				       struct kvm_device_attr *attr)
 {
@@ -114,9 +242,31 @@ static int xive_native_debug_show(struct seq_file *m, void *private)
 {
 	struct kvmppc_xive *xive = m->private;
 	struct kvm *kvm = xive->kvm;
+	struct kvm_vcpu *vcpu;
+	unsigned int i;
 
 	if (!kvm)
 		return 0;
+
+	seq_puts(m, "=========\nVCPU state\n=========\n");
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+
+		if (!xc)
+			continue;
+
+		seq_printf(m, "cpu server %#x NSR=%02x CPPR=%02x IBP=%02x PIPR=%02x w01=%016llx w2=%08x\n",
+			   xc->server_num,
+			   vcpu->arch.xive_saved_state.nsr,
+			   vcpu->arch.xive_saved_state.cppr,
+			   vcpu->arch.xive_saved_state.ipb,
+			   vcpu->arch.xive_saved_state.pipr,
+			   vcpu->arch.xive_saved_state.w01,
+			   (u32) vcpu->arch.xive_cam_word);
+
+		kvmppc_xive_debug_show_queues(m, vcpu);
+	}
 
 	return 0;
 }

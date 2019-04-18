@@ -198,6 +198,11 @@ static inline struct kvmppc_xive_src_block *kvmppc_xive_find_source(struct kvmpp
 	return xive->src_blocks[bid];
 }
 
+static inline u32 kvmppc_xive_vp(struct kvmppc_xive *xive, u32 server)
+{
+	return xive->vp_base + kvmppc_pack_vcpu_id(xive->kvm, server);
+}
+
 /*
  * Mapping between guest priorities and host priorities
  * is as follow.
@@ -247,6 +252,12 @@ extern int (*__xive_vm_h_ipi)(struct kvm_vcpu *vcpu, unsigned long server,
 			      unsigned long mfrr);
 extern int (*__xive_vm_h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr);
 extern int (*__xive_vm_h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr);
+
+/*
+ * Common Xive routines for XICS-over-XIVE and XIVE native
+ */
+void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu);
+int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu);
 
 #endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */
