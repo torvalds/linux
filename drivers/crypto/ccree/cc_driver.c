@@ -193,11 +193,14 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 	unsigned int val, cache_params;
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	/* Unmask all AXI interrupt sources AXI_CFG1 register */
-	val = cc_ioread(drvdata, CC_REG(AXIM_CFG));
-	cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~CC_AXI_IRQ_MASK);
-	dev_dbg(dev, "AXIM_CFG=0x%08X\n",
-		cc_ioread(drvdata, CC_REG(AXIM_CFG)));
+	/* Unmask all AXI interrupt sources AXI_CFG1 register   */
+	/* AXI interrupt config are obsoleted startign at cc7x3 */
+	if (drvdata->hw_rev <= CC_HW_REV_712) {
+		val = cc_ioread(drvdata, CC_REG(AXIM_CFG));
+		cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~CC_AXI_IRQ_MASK);
+		dev_dbg(dev, "AXIM_CFG=0x%08X\n",
+			cc_ioread(drvdata, CC_REG(AXIM_CFG)));
+	}
 
 	/* Clear all pending interrupts */
 	val = cc_ioread(drvdata, CC_REG(HOST_IRR));
