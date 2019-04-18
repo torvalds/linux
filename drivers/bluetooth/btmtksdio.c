@@ -56,7 +56,8 @@ static const struct sdio_device_id btmtksdio_table[] = {
 #define MTK_REG_CHLPCR		0x4	/* W1S */
 #define C_INT_EN_SET		BIT(0)
 #define C_INT_EN_CLR		BIT(1)
-#define C_FW_OWN_REQ_SET	BIT(8)
+#define C_FW_OWN_REQ_SET	BIT(8)  /* For write */
+#define C_COM_DRV_OWN		BIT(8)  /* For read */
 #define C_FW_OWN_REQ_CLR	BIT(9)
 
 #define MTK_REG_CSDIOCSR	0x8
@@ -526,7 +527,7 @@ static int btmtksdio_open(struct hci_dev *hdev)
 		goto err_disable_func;
 
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 status & C_FW_OWN_REQ_SET, 2000, 1000000);
+				 status & C_COM_DRV_OWN, 2000, 1000000);
 	if (err < 0) {
 		bt_dev_err(bdev->hdev, "Cannot get ownership from device");
 		goto err_disable_func;
@@ -606,7 +607,7 @@ static int btmtksdio_close(struct hci_dev *hdev)
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, NULL);
 
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 !(status & C_FW_OWN_REQ_SET), 2000, 1000000);
+				 !(status & C_COM_DRV_OWN), 2000, 1000000);
 	if (err < 0)
 		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
 
