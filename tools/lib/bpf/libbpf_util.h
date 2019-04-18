@@ -46,7 +46,7 @@ do {				\
 # define libbpf_smp_mb() asm volatile("dmb ish" : : : "memory")
 # define libbpf_smp_rwmb() libbpf_smp_mb()
 #else
-# warning Architecture missing native barrier functions in libbpf_util.h.
+/* Architecture missing native barrier functions. */
 # define libbpf_smp_rmb() __sync_synchronize()
 # define libbpf_smp_wmb() __sync_synchronize()
 # define libbpf_smp_mb() __sync_synchronize()
