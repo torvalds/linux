@@ -500,7 +500,7 @@ static struct  uart_driver mlb_usio_uart_driver = {
 
 static int mlb_usio_probe(struct platform_device *pdev)
 {
-	struct clk *clk = devm_clk_get(&pdev->dev, 0);
+	struct clk *clk = devm_clk_get(&pdev->dev, NULL);
 	struct uart_port *port;
 	struct resource *res;
 	int index = 0;
