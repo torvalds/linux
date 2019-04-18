@@ -44,6 +44,7 @@
 #include <asm/mmu_context.h>
 #include <asm/siginfo.h>
 #include <asm/debug.h>
+#include <asm/kup.h>
 
 static inline bool notify_page_fault(struct pt_regs *regs)
 {
@@ -224,7 +225,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
 
 /* Is this a bad kernel fault ? */
 static bool bad_kernel_fault(struct pt_regs *regs, unsigned long error_code,
-			     unsigned long address)
+			     unsigned long address, bool is_write)
 {
 	int is_exec = TRAP(regs) == 0x400;
 
@@ -235,6 +236,9 @@ static bool bad_kernel_fault(struct pt_regs *regs, unsigned long error_code,
 				    address >= TASK_SIZE ? "exec-protected" : "user",
 				    address,
 				    from_kuid(&init_user_ns, current_uid()));
+
+		// Kernel exec fault is always bad
+		return true;
 	}
 
 	if (!is_exec && address < TASK_SIZE && (error_code & DSISR_PROTFAULT) &&
@@ -244,7 +248,22 @@ static bool bad_kernel_fault(struct pt_regs *regs, unsigned long error_code,
 				    from_kuid(&init_user_ns, current_uid()));
 	}
 
-	return is_exec || (address >= TASK_SIZE) || !search_exception_tables(regs->nip);
+	// Kernel fault on kernel address is bad
+	if (address >= TASK_SIZE)
+		return true;
+
+	// Fault on user outside of certain regions (eg. copy_tofrom_user()) is bad
+	if (!search_exception_tables(regs->nip))
+		return true;
+
+	// Read/write fault in a valid region (the exception table search passed
+	// above), but blocked by KUAP is bad, it can never succeed.
+	if (bad_kuap_fault(regs, is_write))
+		return true;
+
+	// What's left? Kernel fault on user in well defined regions (extable
+	// matched), and allowed by KUAP in the faulting context.
+	return false;
 }
 
 static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
@@ -467,7 +486,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * take a page fault to a kernel address or a page fault to a user
 	 * address outside of dedicated places
 	 */
-	if (unlikely(!is_user && bad_kernel_fault(regs, error_code, address)))
+	if (unlikely(!is_user && bad_kernel_fault(regs, error_code, address, is_write)))
 		return SIGSEGV;
 
 	/*
