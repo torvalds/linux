@@ -66,6 +66,9 @@
 
 #define IGC_CONNSW_AUTOSENSE_EN	0x1
 
+/* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
+#define MAX_JUMBO_FRAME_SIZE	0x2600
+
 /* PBA constants */
 #define IGC_PBA_34K		0x0022
 
