@@ -166,7 +166,8 @@ static irqreturn_t xive_esc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio)
+int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
+				  bool single_escalation)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
 	struct xive_q *q = &xc->queues[prio];
@@ -185,7 +186,7 @@ static int xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio)
 		return -EIO;
 	}
 
-	if (xc->xive->single_escalation)
+	if (single_escalation)
 		name = kasprintf(GFP_KERNEL, "kvm-%d-%d",
 				 vcpu->kvm->arch.lpid, xc->server_num);
 	else
@@ -217,7 +218,7 @@ static int xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio)
 	 * interrupt, thus leaving it effectively masked after
 	 * it fires once.
 	 */
-	if (xc->xive->single_escalation) {
+	if (single_escalation) {
 		struct irq_data *d = irq_get_irq_data(xc->esc_virq[prio]);
 		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
 
@@ -291,7 +292,8 @@ static int xive_check_provisioning(struct kvm *kvm, u8 prio)
 			continue;
 		rc = xive_provision_queue(vcpu, prio);
 		if (rc == 0 && !xive->single_escalation)
-			xive_attach_escalation(vcpu, prio);
+			kvmppc_xive_attach_escalation(vcpu, prio,
+						      xive->single_escalation);
 		if (rc)
 			return rc;
 	}
@@ -1214,7 +1216,8 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		if (xive->qmap & (1 << i)) {
 			r = xive_provision_queue(vcpu, i);
 			if (r == 0 && !xive->single_escalation)
-				xive_attach_escalation(vcpu, i);
+				kvmppc_xive_attach_escalation(
+					vcpu, i, xive->single_escalation);
 			if (r)
 				goto bail;
 		} else {
@@ -1229,7 +1232,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	}
 
 	/* If not done above, attach priority 0 escalation */
-	r = xive_attach_escalation(vcpu, 0);
+	r = kvmppc_xive_attach_escalation(vcpu, 0, xive->single_escalation);
 	if (r)
 		goto bail;
 

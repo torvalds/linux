@@ -73,6 +73,8 @@ struct xive_q {
 	u32			esc_irq;
 	atomic_t		count;
 	atomic_t		pending_count;
+	u64			guest_qaddr;
+	u32			guest_qshift;
 };
 
 /* Global enable flags for the XIVE support */

@@ -53,3 +53,37 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     -ENXIO:  CPU event queues not configured or configuration of the
              underlying HW interrupt failed
     -EBUSY:  No CPU available to serve interrupt
+
+  4. KVM_DEV_XIVE_GRP_EQ_CONFIG (read-write)
+  Configures an event queue of a CPU
+  Attributes:
+    EQ descriptor identifier (64-bit)
+  The EQ descriptor identifier is a tuple (server, priority) :
+  bits:     | 63   ....  32 | 31 .. 3 |  2 .. 0
+  values:   |    unused     |  server | priority
+  The kvm_device_attr.addr points to :
+    struct kvm_ppc_xive_eq {
+	__u32 flags;
+	__u32 qshift;
+	__u64 qaddr;
+	__u32 qtoggle;
+	__u32 qindex;
+	__u8  pad[40];
+    };
+  - flags: queue flags
+    KVM_XIVE_EQ_ALWAYS_NOTIFY (required)
+	forces notification without using the coalescing mechanism
+	provided by the XIVE END ESBs.
+  - qshift: queue size (power of 2)
+  - qaddr: real address of queue
+  - qtoggle: current queue toggle bit
+  - qindex: current queue index
+  - pad: reserved for future use
+  Errors:
+    -ENOENT: Invalid CPU number
+    -EINVAL: Invalid priority
+    -EINVAL: Invalid flags
+    -EINVAL: Invalid queue size
+    -EINVAL: Invalid queue address
+    -EFAULT: Invalid user pointer for attr->addr.
+    -EIO:    Configuration of the underlying HW failed
