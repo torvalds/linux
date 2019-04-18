@@ -327,7 +327,7 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_RSTAT_FIELD(dir, rctime),
 	{
 		.name = "ceph.dir.pin",
-		.name_size = sizeof("ceph.dir_pin"),
+		.name_size = sizeof("ceph.dir.pin"),
 		.getxattr_cb = ceph_vxattrcb_dir_pin,
 		.exists_cb = ceph_vxattrcb_dir_pin_exists,
 		.flags = VXATTR_FLAG_HIDDEN,
