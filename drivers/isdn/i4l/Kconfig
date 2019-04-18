@@ -122,8 +122,6 @@ endmenu
 
 comment "ISDN4Linux hardware drivers"
 
-source "drivers/isdn/hisax/Kconfig"
-
 # end ISDN_I4L
 endif
 
