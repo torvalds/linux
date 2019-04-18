@@ -1372,6 +1372,9 @@ config ARM64_SVE
 
 	  To enable use of this extension on CPUs that implement it, say Y.
 
+	  On CPUs that support the SVE2 extensions, this option will enable
+	  those too.
+
 	  Note that for architectural reasons, firmware _must_ implement SVE
 	  support when running on SVE capable hardware.  The required support
 	  is present in:

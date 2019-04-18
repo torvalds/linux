@@ -89,6 +89,12 @@
 
 #define __khwcap2_feature(x)		(const_ilog2(HWCAP2_ ## x) + 32)
 #define KERNEL_HWCAP_DCPODP		__khwcap2_feature(DCPODP)
+#define KERNEL_HWCAP_SVE2		__khwcap2_feature(SVE2)
+#define KERNEL_HWCAP_SVEAES		__khwcap2_feature(SVEAES)
+#define KERNEL_HWCAP_SVEPMULL		__khwcap2_feature(SVEPMULL)
+#define KERNEL_HWCAP_SVEBITPERM		__khwcap2_feature(SVEBITPERM)
+#define KERNEL_HWCAP_SVESHA3		__khwcap2_feature(SVESHA3)
+#define KERNEL_HWCAP_SVESM4		__khwcap2_feature(SVESM4)
 
 /*
  * This yields a mask that user programs can use to figure out what
