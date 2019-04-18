@@ -346,6 +346,10 @@
 /* Host Device Memory Size of a Single SSP */
 #define SSP_DEV_MEM_SIZE	0x1000
 
+/* SSP Count of the Platform */
+#define APL_SSP_COUNT		6
+#define CNL_SSP_COUNT		3
+
 #define HDA_IDISP_CODEC(x) ((x) & BIT(2))
 
 struct sof_intel_dsp_bdl {
