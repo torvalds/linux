@@ -681,6 +681,88 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 	return 0;
 }
 
+static void kvmppc_xive_native_sync_sources(struct kvmppc_xive_src_block *sb)
+{
+	int j;
+
+	for (j = 0; j < KVMPPC_XICS_IRQ_PER_ICS; j++) {
+		struct kvmppc_xive_irq_state *state = &sb->irq_state[j];
+		struct xive_irq_data *xd;
+		u32 hw_num;
+
+		if (!state->valid)
+			continue;
+
+		/*
+		 * The struct kvmppc_xive_irq_state reflects the state
+		 * of the EAS configuration and not the state of the
+		 * source. The source is masked setting the PQ bits to
+		 * '-Q', which is what is being done before calling
+		 * the KVM_DEV_XIVE_EQ_SYNC control.
+		 *
+		 * If a source EAS is configured, OPAL syncs the XIVE
+		 * IC of the source and the XIVE IC of the previous
+		 * target if any.
+		 *
+		 * So it should be fine ignoring MASKED sources as
+		 * they have been synced already.
+		 */
+		if (state->act_priority == MASKED)
+			continue;
+
+		kvmppc_xive_select_irq(state, &hw_num, &xd);
+		xive_native_sync_source(hw_num);
+		xive_native_sync_queue(hw_num);
+	}
+}
+
+static int kvmppc_xive_native_vcpu_eq_sync(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+	unsigned int prio;
+
+	if (!xc)
+		return -ENOENT;
+
+	for (prio = 0; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
+		struct xive_q *q = &xc->queues[prio];
+
+		if (!q->qpage)
+			continue;
+
+		/* Mark EQ page dirty for migration */
+		mark_page_dirty(vcpu->kvm, gpa_to_gfn(q->guest_qaddr));
+	}
+	return 0;
+}
+
+static int kvmppc_xive_native_eq_sync(struct kvmppc_xive *xive)
+{
+	struct kvm *kvm = xive->kvm;
+	struct kvm_vcpu *vcpu;
+	unsigned int i;
+
+	pr_devel("%s\n", __func__);
+
+	mutex_lock(&kvm->lock);
+	for (i = 0; i <= xive->max_sbid; i++) {
+		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
+
+		if (sb) {
+			arch_spin_lock(&sb->lock);
+			kvmppc_xive_native_sync_sources(sb);
+			arch_spin_unlock(&sb->lock);
+		}
+	}
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		kvmppc_xive_native_vcpu_eq_sync(vcpu);
+	}
+	mutex_unlock(&kvm->lock);
+
+	return 0;
+}
+
 static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 				       struct kvm_device_attr *attr)
 {
@@ -691,6 +773,8 @@ static int kvmppc_xive_native_set_attr(struct kvm_device *dev,
 		switch (attr->attr) {
 		case KVM_DEV_XIVE_RESET:
 			return kvmppc_xive_reset(xive);
+		case KVM_DEV_XIVE_EQ_SYNC:
+			return kvmppc_xive_native_eq_sync(xive);
 		}
 		break;
 	case KVM_DEV_XIVE_GRP_SOURCE:
@@ -729,6 +813,7 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 	case KVM_DEV_XIVE_GRP_CTRL:
 		switch (attr->attr) {
 		case KVM_DEV_XIVE_RESET:
+		case KVM_DEV_XIVE_EQ_SYNC:
 			return 0;
 		}
 		break;

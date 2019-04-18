@@ -23,6 +23,12 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     queues. To be used by kexec and kdump.
     Errors: none
 
+    1.2 KVM_DEV_XIVE_EQ_SYNC (write only)
+    Sync all the sources and queues and mark the EQ pages dirty. This
+    to make sure that a consistent memory state is captured when
+    migrating the VM.
+    Errors: none
+
   2. KVM_DEV_XIVE_GRP_SOURCE (write only)
   Initializes a new source in the XIVE device and mask it.
   Attributes:
@@ -100,3 +106,26 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   Errors:
     -ENOENT: Unknown source number
     -EINVAL: Not initialized source number
+
+* Migration:
+
+  Saving the state of a VM using the XIVE native exploitation mode
+  should follow a specific sequence. When the VM is stopped :
+
+  1. Mask all sources (PQ=01) to stop the flow of events.
+
+  2. Sync the XIVE device with the KVM control KVM_DEV_XIVE_EQ_SYNC to
+  flush any in-flight event notification and to stabilize the EQs. At
+  this stage, the EQ pages are marked dirty to make sure they are
+  transferred in the migration sequence.
+
+  3. Capture the state of the source targeting, the EQs configuration
+  and the state of thread interrupt context registers.
+
+  Restore is similar :
+
+  1. Restore the EQ configuration. As targeting depends on it.
+  2. Restore targeting
+  3. Restore the thread interrupt contexts
+  4. Restore the source states
+  5. Let the vCPU run
