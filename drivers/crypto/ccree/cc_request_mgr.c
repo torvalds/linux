@@ -364,10 +364,12 @@ static void cc_enqueue_backlog(struct cc_drvdata *drvdata,
 			       struct cc_bl_item *bli)
 {
 	struct cc_req_mgr_handle *mgr = drvdata->request_mgr_handle;
+	struct device *dev = drvdata_to_dev(drvdata);
 
 	spin_lock_bh(&mgr->bl_lock);
 	list_add_tail(&bli->list, &mgr->backlog);
 	++mgr->bl_len;
+	dev_dbg(dev, "+++bl len: %d\n", mgr->bl_len);
 	spin_unlock_bh(&mgr->bl_lock);
 	tasklet_schedule(&mgr->comptask);
 }
@@ -377,7 +379,7 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 	struct cc_req_mgr_handle *mgr = drvdata->request_mgr_handle;
 	struct cc_bl_item *bli;
 	struct cc_crypto_req *creq;
-	struct crypto_async_request *req;
+	void *req;
 	bool ivgen;
 	unsigned int total_len;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -387,17 +389,20 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 
 	while (mgr->bl_len) {
 		bli = list_first_entry(&mgr->backlog, struct cc_bl_item, list);
+		dev_dbg(dev, "---bl len: %d\n", mgr->bl_len);
+
 		spin_unlock(&mgr->bl_lock);
 
+
 		creq = &bli->creq;
-		req = (struct crypto_async_request *)creq->user_arg;
+		req = creq->user_arg;
 
 		/*
 		 * Notify the request we're moving out of the backlog
 		 * but only if we haven't done so already.
 		 */
 		if (!bli->notif) {
-			req->complete(req, -EINPROGRESS);
+			creq->user_cb(dev, req, -EINPROGRESS);
 			bli->notif = true;
 		}
 

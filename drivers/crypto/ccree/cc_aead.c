@@ -220,6 +220,10 @@ static void cc_aead_complete(struct device *dev, void *cc_req, int err)
 	struct crypto_aead *tfm = crypto_aead_reqtfm(cc_req);
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 
+	/* BACKLOG notification */
+	if (err == -EINPROGRESS)
+		goto done;
+
 	cc_unmap_aead_request(dev, areq);
 
 	/* Restore ordinary iv pointer */

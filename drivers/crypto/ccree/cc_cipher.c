@@ -818,9 +818,13 @@ static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 	struct crypto_skcipher *sk_tfm = crypto_skcipher_reqtfm(req);
 	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
 
-	cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
-	memcpy(req->iv, req_ctx->iv, ivsize);
-	kzfree(req_ctx->iv);
+	if (err != -EINPROGRESS) {
+		/* Not a BACKLOG notification */
+		cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
+		memcpy(req->iv, req_ctx->iv, ivsize);
+		kzfree(req_ctx->iv);
+	}
+
 	skcipher_request_complete(req, err);
 }
 
