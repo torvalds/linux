@@ -59,7 +59,7 @@
 	C(NO_CLOSING_PAREN,	"No closing paren found"),		\
 	C(SUBSYS_NOT_FOUND,	"Missing subsystem"),			\
 	C(INVALID_SUBSYS_EVENT,	"Invalid subsystem or event name"),	\
-	C(INVALID_REF_KEY,	"Using variable references as keys not supported"), \
+	C(INVALID_REF_KEY,	"Using variable references in keys not supported"), \
 	C(VAR_NOT_FOUND,	"Couldn't find variable"),		\
 	C(FIELD_NOT_FOUND,	"Couldn't find field"),
 
@@ -4506,7 +4506,7 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 			goto out;
 		}
 
-		if (hist_field->flags & HIST_FIELD_FL_VAR_REF) {
+		if (field_has_hist_vars(hist_field, 0))	{
 			hist_err(tr, HIST_ERR_INVALID_REF_KEY, errpos(field_str));
 			destroy_hist_field(hist_field, 0);
 			ret = -EINVAL;
