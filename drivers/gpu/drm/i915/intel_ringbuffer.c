@@ -831,9 +831,6 @@ static int intel_rcs_ctx_init(struct i915_request *rq)
 static int init_render_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	int ret = init_ring_common(engine);
-	if (ret)
-		return ret;
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 	if (IS_GEN_RANGE(dev_priv, 4, 6))
@@ -873,7 +870,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (IS_GEN_RANGE(dev_priv, 6, 7))
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	return 0;
+	return init_ring_common(engine);
 }
 
 static void cancel_requests(struct intel_engine_cs *engine)
