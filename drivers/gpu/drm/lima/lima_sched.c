@@ -258,7 +258,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 static void lima_sched_handle_error_task(struct lima_sched_pipe *pipe,
 					 struct lima_sched_task *task)
 {
-	drm_sched_stop(&pipe->base);
+	drm_sched_stop(&pipe->base, &task->base);
 
 	if (task)
 		drm_sched_increase_karma(&task->base);
