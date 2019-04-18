@@ -573,10 +573,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_KVM_XIVE
 	case KVM_CAP_PPC_IRQ_XIVE:
 		/*
-		 * Return false until all the XIVE infrastructure is
-		 * in place including support for migration.
+		 * We need XIVE to be enabled on the platform (implies
+		 * a POWER9 processor) and the PowerNV platform, as
+		 * nested is not yet supported.
 		 */
-		r = 0;
+		r = xive_enabled() && !!cpu_has_feature(CPU_FTR_HVMODE);
 		break;
 #endif
 
