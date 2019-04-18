@@ -293,8 +293,10 @@ static void drm_sched_job_timedout(struct work_struct *work)
 	 * Guilty job did complete and hence needs to be manually removed
 	 * See drm_sched_stop doc.
 	 */
-	if (list_empty(&job->node))
+	if (sched->free_guilty) {
 		job->sched->ops->free_job(job);
+		sched->free_guilty = false;
+	}
 
 	spin_lock_irqsave(&sched->job_list_lock, flags);
 	drm_sched_start_timeout(sched);
@@ -395,10 +397,13 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 
 			/*
 			 * We must keep bad job alive for later use during
-			 * recovery by some of the drivers
+			 * recovery by some of the drivers but leave a hint
+			 * that the guilty job must be released.
 			 */
 			if (bad != s_job)
 				sched->ops->free_job(s_job);
+			else
+				sched->free_guilty = true;
 		}
 	}
 
