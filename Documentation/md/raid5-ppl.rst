@@ -1,4 +1,6 @@
+==================
 Partial Parity Log
+==================
 
 Partial Parity Log (PPL) is a feature available for RAID5 arrays. The issue
 addressed by PPL is that after a dirty shutdown, parity of a particular stripe

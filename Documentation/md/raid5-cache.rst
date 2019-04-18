@@ -1,4 +1,6 @@
-RAID5 cache
+================
+RAID 4/5/6 cache
+================
 
 Raid 4/5/6 could include an extra disk for data cache besides normal RAID
 disks. The role of RAID disks isn't changed with the cache disk. The cache disk
@@ -6,19 +8,19 @@ caches data to the RAID disks. The cache can be in write-through (supported
 since 4.4) or write-back mode (supported since 4.10). mdadm (supported since
 3.4) has a new option '--write-journal' to create array with cache. Please
 refer to mdadm manual for details. By default (RAID array starts), the cache is
-in write-through mode. A user can switch it to write-back mode by:
+in write-through mode. A user can switch it to write-back mode by::
 
-echo "write-back" > /sys/block/md0/md/journal_mode
+	echo "write-back" > /sys/block/md0/md/journal_mode
 
-And switch it back to write-through mode by:
+And switch it back to write-through mode by::
 
-echo "write-through" > /sys/block/md0/md/journal_mode
+	echo "write-through" > /sys/block/md0/md/journal_mode
 
 In both modes, all writes to the array will hit cache disk first. This means
 the cache disk must be fast and sustainable.
 
--------------------------------------
-write-through mode:
+write-through mode
+==================
 
 This mode mainly fixes the 'write hole' issue. For RAID 4/5/6 array, an unclean
 shutdown can cause data in some stripes to not be in consistent state, eg, data
@@ -42,8 +44,8 @@ exposed to 'write hole' again.
 In write-through mode, the cache disk isn't required to be big. Several
 hundreds megabytes are enough.
 
---------------------------------------
-write-back mode:
+write-back mode
+===============
 
 write-back mode fixes the 'write hole' issue too, since all write data is
 cached on cache disk. But the main goal of 'write-back' cache is to speed up
@@ -64,16 +66,16 @@ data loss.
 In write-back mode, MD also caches data in memory. The memory cache includes
 the same data stored on cache disk, so a power loss doesn't cause data loss.
 The memory cache size has performance impact for the array. It's recommended
-the size is big. A user can configure the size by:
+the size is big. A user can configure the size by::
 
-echo "2048" > /sys/block/md0/md/stripe_cache_size
+	echo "2048" > /sys/block/md0/md/stripe_cache_size
 
 Too small cache disk will make the write aggregation less efficient in this
 mode depending on the workloads. It's recommended to use a cache disk with at
 least several gigabytes size in write-back mode.
 
---------------------------------------
-The implementation:
+The implementation
+==================
 
 The write-through and write-back cache use the same disk format. The cache disk
 is organized as a simple write log. The log consists of 'meta data' and 'data'
