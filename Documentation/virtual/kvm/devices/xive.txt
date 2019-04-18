@@ -107,6 +107,23 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
     -ENOENT: Unknown source number
     -EINVAL: Not initialized source number
 
+* VCPU state
+
+  The XIVE IC maintains VP interrupt state in an internal structure
+  called the NVT. When a VP is not dispatched on a HW processor
+  thread, this structure can be updated by HW if the VP is the target
+  of an event notification.
+
+  It is important for migration to capture the cached IPB from the NVT
+  as it synthesizes the priorities of the pending interrupts. We
+  capture a bit more to report debug information.
+
+  KVM_REG_PPC_VP_STATE (2 * 64bits)
+  bits:     |  63  ....  32  |  31  ....  0  |
+  values:   |   TIMA word0   |   TIMA word1  |
+  bits:     | 127       ..........       64  |
+  values:   |            unused              |
+
 * Migration:
 
   Saving the state of a VM using the XIVE native exploitation mode
