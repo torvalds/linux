@@ -551,7 +551,7 @@ static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const struct bin_attribute olpc_bat_eeprom = {
+static struct bin_attribute olpc_bat_eeprom = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
@@ -575,12 +575,33 @@ static ssize_t olpc_bat_error_read(struct device *dev,
 	return sprintf(buf, "%d\n", ec_byte);
 }
 
-static const struct device_attribute olpc_bat_error = {
+static struct device_attribute olpc_bat_error = {
 	.attr = {
 		.name = "error",
 		.mode = S_IRUGO,
 	},
 	.show = olpc_bat_error_read,
+};
+
+static struct attribute *olpc_bat_sysfs_attrs[] = {
+	&olpc_bat_error.attr,
+	NULL
+};
+
+static struct bin_attribute *olpc_bat_sysfs_bin_attrs[] = {
+	&olpc_bat_eeprom,
+	NULL
+};
+
+static const struct attribute_group olpc_bat_sysfs_group = {
+	.attrs = olpc_bat_sysfs_attrs,
+	.bin_attrs = olpc_bat_sysfs_bin_attrs,
+
+};
+
+static const struct attribute_group *olpc_bat_sysfs_groups[] = {
+	&olpc_bat_sysfs_group,
+	NULL
 };
 
 /*********************************************************************
@@ -615,7 +636,8 @@ static int olpc_battery_suspend(struct platform_device *pdev,
 
 static int olpc_battery_probe(struct platform_device *pdev)
 {
-	struct power_supply_config psy_cfg = {};
+	struct power_supply_config bat_psy_cfg = {};
+	struct power_supply_config ac_psy_cfg = {};
 	struct olpc_battery_data *data;
 	uint8_t status;
 	uint8_t ecver;
@@ -654,10 +676,11 @@ static int olpc_battery_probe(struct platform_device *pdev)
 
 	/* Ignore the status. It doesn't actually matter */
 
-	psy_cfg.of_node = pdev->dev.of_node;
-	psy_cfg.drv_data = data;
+	ac_psy_cfg.of_node = pdev->dev.of_node;
+	ac_psy_cfg.drv_data = data;
 
-	data->olpc_ac = devm_power_supply_register(&pdev->dev, &olpc_ac_desc, &psy_cfg);
+	data->olpc_ac = devm_power_supply_register(&pdev->dev, &olpc_ac_desc,
+								&ac_psy_cfg);
 	if (IS_ERR(data->olpc_ac))
 		return PTR_ERR(data->olpc_ac);
 
@@ -671,36 +694,20 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	data->olpc_bat = devm_power_supply_register(&pdev->dev, &olpc_bat_desc, &psy_cfg);
+	bat_psy_cfg.of_node = pdev->dev.of_node;
+	bat_psy_cfg.drv_data = data;
+	bat_psy_cfg.attr_grp = olpc_bat_sysfs_groups;
+
+	data->olpc_bat = devm_power_supply_register(&pdev->dev, &olpc_bat_desc,
+								&bat_psy_cfg);
 	if (IS_ERR(data->olpc_bat))
 		return PTR_ERR(data->olpc_bat);
-
-	ret = device_create_bin_file(&data->olpc_bat->dev, &olpc_bat_eeprom);
-	if (ret)
-		return ret;
-
-	ret = device_create_file(&data->olpc_bat->dev, &olpc_bat_error);
-	if (ret)
-		goto error_failed;
 
 	if (olpc_ec_wakeup_available()) {
 		device_set_wakeup_capable(&data->olpc_ac->dev, true);
 		device_set_wakeup_capable(&data->olpc_bat->dev, true);
 	}
 
-	return 0;
-
-error_failed:
-	device_remove_bin_file(&data->olpc_bat->dev, &olpc_bat_eeprom);
-	return ret;
-}
-
-static int olpc_battery_remove(struct platform_device *pdev)
-{
-	struct olpc_battery_data *data = platform_get_drvdata(pdev);
-
-	device_remove_file(&data->olpc_bat->dev, &olpc_bat_error);
-	device_remove_bin_file(&data->olpc_bat->dev, &olpc_bat_eeprom);
 	return 0;
 }
 
@@ -717,7 +724,6 @@ static struct platform_driver olpc_battery_driver = {
 		.of_match_table = olpc_battery_ids,
 	},
 	.probe = olpc_battery_probe,
-	.remove = olpc_battery_remove,
 	.suspend = olpc_battery_suspend,
 };
 
