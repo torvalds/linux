@@ -63,6 +63,8 @@ struct qtnf_vif {
 	struct qtnf_wmac *mac;
 
 	struct work_struct reset_work;
+	struct work_struct high_pri_tx_work;
+	struct sk_buff_head high_pri_tx_queue;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
 	int generation;
@@ -112,6 +114,7 @@ struct qtnf_wmac {
 	struct cfg80211_scan_request *scan_req;
 	struct mutex mac_lock;	/* lock during wmac speicific ops */
 	struct delayed_work scan_timeout;
+	struct ieee80211_regdomain *rd;
 };
 
 struct qtnf_hw_info {
@@ -120,7 +123,6 @@ struct qtnf_hw_info {
 	u8 mac_bitmap;
 	u32 fw_ver;
 	u32 hw_capab;
-	struct ieee80211_regdomain *rd;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
 	char fw_version[ETHTOOL_FWVERS_LEN];
@@ -149,6 +151,7 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up);
 void qtnf_scan_done(struct qtnf_wmac *mac, bool aborted);
+void qtnf_packet_send_hi_pri(struct sk_buff *skb);
 
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {

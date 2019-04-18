@@ -250,7 +250,8 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 							     local_rx_pd->nf);
 		}
 	} else {
-		if (rx_pkt_type != PKT_TYPE_BAR)
+		if (rx_pkt_type != PKT_TYPE_BAR &&
+		    local_rx_pd->priority < MAX_NUM_TID)
 			priv->rx_seq[local_rx_pd->priority] = seq_num;
 		memcpy(ta, priv->curr_bss_params.bss_descriptor.mac_address,
 		       ETH_ALEN);

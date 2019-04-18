@@ -79,5 +79,10 @@ bool qtnf_utils_is_bit_set(const u8 *arr, unsigned int bit,
 			   unsigned int arr_max_len);
 void qlink_acl_data_cfg2q(const struct cfg80211_acl_data *acl,
 			  struct qlink_acl_data *qacl);
+enum qlink_band qlink_utils_band_cfg2q(enum nl80211_band band);
+enum qlink_dfs_state qlink_utils_dfs_state_cfg2q(enum nl80211_dfs_state state);
+u32 qlink_utils_chflags_cfg2q(u32 cfgflags);
+void qlink_utils_regrule_q2nl(struct ieee80211_reg_rule *rule,
+			      const struct qlink_tlv_reg_rule *tlv_rule);
 
 #endif /* _QTN_FMAC_QLINK_UTIL_H_ */

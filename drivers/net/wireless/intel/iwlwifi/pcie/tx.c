@@ -999,7 +999,8 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 			slots_num = max_t(u32, TFD_CMD_SLOTS,
 					  trans->cfg->min_txq_size);
 		else
-			slots_num = TFD_TX_CMD_SLOTS;
+			slots_num = max_t(u32, TFD_TX_CMD_SLOTS,
+					  trans->cfg->min_256_ba_txq_size);
 		trans_pcie->txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_pcie_txq_alloc(trans, trans_pcie->txq[txq_id],
 					 slots_num, cmd_queue);
@@ -1052,7 +1053,8 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 			slots_num = max_t(u32, TFD_CMD_SLOTS,
 					  trans->cfg->min_txq_size);
 		else
-			slots_num = TFD_TX_CMD_SLOTS;
+			slots_num = max_t(u32, TFD_TX_CMD_SLOTS,
+					  trans->cfg->min_256_ba_txq_size);
 		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
 					slots_num, cmd_queue);
 		if (ret) {

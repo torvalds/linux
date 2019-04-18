@@ -498,6 +498,13 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	int len;
 	int i;
 
+	if (unlikely(skb->protocol == htons(ETH_P_PAE))) {
+		qtnf_packet_send_hi_pri(skb);
+		qtnf_update_tx_stats(skb->dev, skb);
+		priv->tx_eapol++;
+		return NETDEV_TX_OK;
+	}
+
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
 	if (!qtnf_tx_queue_ready(ts)) {
@@ -761,6 +768,7 @@ static int qtnf_dbg_pkt_stats(struct seq_file *s, void *data)
 	seq_printf(s, "tx_done_count(%u)\n", priv->tx_done_count);
 	seq_printf(s, "tx_reclaim_done(%u)\n", priv->tx_reclaim_done);
 	seq_printf(s, "tx_reclaim_req(%u)\n", priv->tx_reclaim_req);
+	seq_printf(s, "tx_eapol(%u)\n", priv->tx_eapol);
 
 	seq_printf(s, "tx_bd_r_index(%u)\n", priv->tx_bd_r_index);
 	seq_printf(s, "tx_done_index(%u)\n", tx_done_index);
@@ -1023,8 +1031,9 @@ static void qtnf_topaz_fw_work_handler(struct work_struct *work)
 {
 	struct qtnf_bus *bus = container_of(work, struct qtnf_bus, fw_work);
 	struct qtnf_pcie_topaz_state *ts = (void *)get_bus_priv(bus);
-	int ret;
 	int bootloader_needed = readl(&ts->bda->bda_flags) & QTN_BDA_XMIT_UBOOT;
+	struct pci_dev *pdev = ts->base.pdev;
+	int ret;
 
 	qtnf_set_state(&ts->bda->bda_bootstate, QTN_BDA_FW_TARGET_BOOT);
 
@@ -1073,19 +1082,23 @@ static void qtnf_topaz_fw_work_handler(struct work_struct *work)
 		}
 	}
 
+	ret = qtnf_post_init_ep(ts);
+	if (ret) {
+		pr_err("FW runtime failure\n");
+		goto fw_load_exit;
+	}
+
 	pr_info("firmware is up and running\n");
 
-	ret = qtnf_post_init_ep(ts);
+	ret = qtnf_pcie_fw_boot_done(bus);
 	if (ret)
-		pr_err("FW runtime failure\n");
+		goto fw_load_exit;
+
+	qtnf_debugfs_add_entry(bus, "pkt_stats", qtnf_dbg_pkt_stats);
+	qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
 
 fw_load_exit:
-	qtnf_pcie_fw_boot_done(bus, ret ? false : true);
-
-	if (ret == 0) {
-		qtnf_debugfs_add_entry(bus, "pkt_stats", qtnf_dbg_pkt_stats);
-		qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
-	}
+	put_device(&pdev->dev);
 }
 
 static void qtnf_reclaim_tasklet_fn(unsigned long data)

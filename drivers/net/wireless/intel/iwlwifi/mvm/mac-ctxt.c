@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -262,9 +262,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		.preferred_tsf = NUM_TSF_IDS,
 		.found_vif = false,
 	};
-	u32 ac;
-	int ret, i, queue_limit;
-	unsigned long used_hw_queues;
+	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -341,37 +339,9 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
 	mvmvif->time_event_data.id = TE_MAX;
 
-	/* No need to allocate data queues to P2P Device MAC.*/
-	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			vif->hw_queue[ac] = IEEE80211_INVAL_HW_QUEUE;
-
+	/* No need to allocate data queues to P2P Device MAC and NAN.*/
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return 0;
-	}
-
-	/*
-	 * queues in mac80211 almost entirely independent of
-	 * the ones here - no real limit
-	 */
-	queue_limit = IEEE80211_MAX_QUEUES;
-
-	/*
-	 * Find available queues, and allocate them to the ACs. When in
-	 * DQA-mode they aren't really used, and this is done only so the
-	 * mac80211 ieee80211_check_queues() function won't fail
-	 */
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		u8 queue = find_first_zero_bit(&used_hw_queues, queue_limit);
-
-		if (queue >= queue_limit) {
-			IWL_ERR(mvm, "Failed to allocate queue\n");
-			ret = -EIO;
-			goto exit_fail;
-		}
-
-		__set_bit(queue, &used_hw_queues);
-		vif->hw_queue[ac] = queue;
-	}
 
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP ||
@@ -1143,9 +1113,7 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 				ieee80211_tu_to_usec(data.beacon_int * rand /
 						     100);
 		} else {
-			mvmvif->ap_beacon_time =
-				iwl_read_prph(mvm->trans,
-					      DEVICE_SYSTEM_TIME_REG);
+			mvmvif->ap_beacon_time = iwl_mvm_get_systime(mvm);
 		}
 	}
 
@@ -1573,6 +1541,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 	vif = rcu_dereference(mvm->vif_id_to_mac[mac_id]);
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -1581,7 +1550,6 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 			    csa_vif != vif))
 			goto out_unlock;
 
-		mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
 		csa_id = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
 		if (WARN(csa_id != id_n_color,
 			 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
@@ -1602,6 +1570,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		return;
 	case NL80211_IFTYPE_STATION:
 		iwl_mvm_csa_client_absent(mvm, vif);
+		cancel_delayed_work_sync(&mvmvif->csa_work);
 		ieee80211_chswitch_done(vif, true);
 		break;
 	default:
