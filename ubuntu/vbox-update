@@ -38,7 +38,7 @@ do
 done
 
 # Fix up KERN_DIR to point at the kernel source tree
-for make in vbox/*/Makefile.include.header
+for make in vbox/*/Makefile-header.gmk
 do
 	sed -i -e 's/^\s*KERN_DIR := .*$/KERN_DIR := $(srctree)/' $make
 done
