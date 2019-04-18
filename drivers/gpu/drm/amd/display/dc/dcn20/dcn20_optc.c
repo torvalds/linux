@@ -262,7 +262,7 @@ void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id,
 	else if (pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		data_fmt = 2;
 
-	REG_SET(OPTC_DATA_FORMAT_CONTROL, 0, OPTC_DATA_FORMAT, data_fmt);
+	REG_UPDATE(OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, data_fmt);
 
 	REG_SET_3(OPTC_DATA_SOURCE_SELECT, 0,
 			OPTC_NUM_OF_INPUT_SEGMENT, 1,
