@@ -487,15 +487,15 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	sdio_writel(func, int_status, MTK_REG_CHISR, NULL);
 
 	if (unlikely(!int_status))
-		bt_dev_err(bdev->hdev, "CHISR is 0\n");
+		bt_dev_err(bdev->hdev, "CHISR is 0");
 
 	if (int_status & FW_OWN_BACK_INT)
-		bt_dev_dbg(bdev->hdev, "Get fw own back\n");
+		bt_dev_dbg(bdev->hdev, "Get fw own back");
 
 	if (int_status & TX_EMPTY)
 		schedule_work(&bdev->tx_work);
 	else if (unlikely(int_status & TX_FIFO_OVERFLOW))
-		bt_dev_warn(bdev->hdev, "Tx fifo overflow\n");
+		bt_dev_warn(bdev->hdev, "Tx fifo overflow");
 
 	if (int_status & RX_DONE_INT) {
 		rx_size = (int_status & RX_PKT_LEN) >> 16;
