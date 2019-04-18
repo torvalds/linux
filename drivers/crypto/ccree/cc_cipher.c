@@ -558,12 +558,38 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 	}
 }
 
-static void cc_setup_cipher_data(struct crypto_tfm *tfm,
-				 struct cipher_req_ctx *req_ctx,
-				 struct scatterlist *dst,
-				 struct scatterlist *src, unsigned int nbytes,
-				 void *areq, struct cc_hw_desc desc[],
-				 unsigned int *seq_size)
+static void cc_setup_mlli_desc(struct crypto_tfm *tfm,
+			       struct cipher_req_ctx *req_ctx,
+			       struct scatterlist *dst, struct scatterlist *src,
+			       unsigned int nbytes, void *areq,
+			       struct cc_hw_desc desc[], unsigned int *seq_size)
+{
+	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
+
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
+		/* bypass */
+		dev_dbg(dev, " bypass params addr %pad length 0x%X addr 0x%08X\n",
+			&req_ctx->mlli_params.mlli_dma_addr,
+			req_ctx->mlli_params.mlli_len,
+			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
+		hw_desc_init(&desc[*seq_size]);
+		set_din_type(&desc[*seq_size], DMA_DLLI,
+			     req_ctx->mlli_params.mlli_dma_addr,
+			     req_ctx->mlli_params.mlli_len, NS_BIT);
+		set_dout_sram(&desc[*seq_size],
+			      ctx_p->drvdata->mlli_sram_addr,
+			      req_ctx->mlli_params.mlli_len);
+		set_flow_mode(&desc[*seq_size], BYPASS);
+		(*seq_size)++;
+	}
+}
+
+static void cc_setup_flow_desc(struct crypto_tfm *tfm,
+			       struct cipher_req_ctx *req_ctx,
+			       struct scatterlist *dst, struct scatterlist *src,
+			       unsigned int nbytes, void *areq,
+			       struct cc_hw_desc desc[], unsigned int *seq_size)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
@@ -600,21 +626,6 @@ static void cc_setup_cipher_data(struct crypto_tfm *tfm,
 		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
 	} else {
-		/* bypass */
-		dev_dbg(dev, " bypass params addr %pad length 0x%X addr 0x%08X\n",
-			&req_ctx->mlli_params.mlli_dma_addr,
-			req_ctx->mlli_params.mlli_len,
-			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
-		hw_desc_init(&desc[*seq_size]);
-		set_din_type(&desc[*seq_size], DMA_DLLI,
-			     req_ctx->mlli_params.mlli_dma_addr,
-			     req_ctx->mlli_params.mlli_len, NS_BIT);
-		set_dout_sram(&desc[*seq_size],
-			      ctx_p->drvdata->mlli_sram_addr,
-			      req_ctx->mlli_params.mlli_len);
-		set_flow_mode(&desc[*seq_size], BYPASS);
-		(*seq_size)++;
-
 		hw_desc_init(&desc[*seq_size]);
 		set_din_type(&desc[*seq_size], DMA_MLLI,
 			     ctx_p->drvdata->mlli_sram_addr,
@@ -794,11 +805,12 @@ static int cc_cipher_process(struct skcipher_request *req,
 
 	/* Setup IV and XEX key used */
 	cc_setup_state_desc(tfm, req_ctx, ivsize, nbytes, desc, &seq_len);
+	/* Setup MLLI line, if needed */
+	cc_setup_mlli_desc(tfm, req_ctx, dst, src, nbytes, req, desc, &seq_len);
 	/* Setup key */
 	cc_setup_key_desc(tfm, req_ctx, nbytes, desc, &seq_len);
 	/* Data processing */
-	cc_setup_cipher_data(tfm, req_ctx, dst, src, nbytes, req, desc,
-			     &seq_len);
+	cc_setup_flow_desc(tfm, req_ctx, dst, src, nbytes, req, desc, &seq_len);
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
