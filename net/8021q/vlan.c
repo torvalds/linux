@@ -75,6 +75,14 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 	return 0;
 }
 
+static void vlan_stacked_transfer_operstate(const struct net_device *rootdev,
+					    struct net_device *dev,
+					    struct vlan_dev_priv *vlan)
+{
+	if (!(vlan->flags & VLAN_FLAG_BRIDGE_BINDING))
+		netif_stacked_transfer_operstate(rootdev, dev);
+}
+
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
@@ -180,7 +188,7 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 	/* Account for reference in struct vlan_dev_priv */
 	dev_hold(real_dev);
 
-	netif_stacked_transfer_operstate(real_dev, dev);
+	vlan_stacked_transfer_operstate(real_dev, dev, vlan);
 	linkwatch_fire_event(dev); /* _MUST_ call rfc2863_policy() */
 
 	/* So, got the sucker initialized, now lets place
@@ -399,7 +407,8 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_CHANGE:
 		/* Propagate real device state to vlan devices */
 		vlan_group_for_each_dev(grp, i, vlandev)
-			netif_stacked_transfer_operstate(dev, vlandev);
+			vlan_stacked_transfer_operstate(dev, vlandev,
+							vlan_dev_priv(vlandev));
 		break;
 
 	case NETDEV_CHANGEADDR:
@@ -446,7 +455,8 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		dev_close_many(&close_list, false);
 
 		list_for_each_entry_safe(vlandev, tmp, &close_list, close_list) {
-			netif_stacked_transfer_operstate(dev, vlandev);
+			vlan_stacked_transfer_operstate(dev, vlandev,
+							vlan_dev_priv(vlandev));
 			list_del_init(&vlandev->close_list);
 		}
 		list_del(&close_list);
@@ -463,7 +473,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
 				dev_change_flags(vlandev, flgs | IFF_UP,
 						 extack);
-			netif_stacked_transfer_operstate(dev, vlandev);
+			vlan_stacked_transfer_operstate(dev, vlandev, vlan);
 		}
 		break;
 
