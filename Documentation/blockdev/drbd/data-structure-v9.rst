@@ -1,3 +1,7 @@
+================================
+kernel data structure for DRBD-9
+================================
+
 This describes the in kernel data structure for DRBD-9. Starting with
 Linux v3.14 we are reorganizing DRBD to use this data structure.
 
@@ -10,7 +14,7 @@ device is represented by a block device locally.
 
 The DRBD objects are interconnected to form a matrix as depicted below; a
 drbd_peer_device object sits at each intersection between a drbd_device and a
-drbd_connection:
+drbd_connection::
 
   /--------------+---------------+.....+---------------\
   |   resource   |    device     |     |    device     |

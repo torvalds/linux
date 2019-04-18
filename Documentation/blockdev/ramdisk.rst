@@ -1,7 +1,8 @@
+==========================================
 Using the RAM disk block device with Linux
-------------------------------------------
+==========================================
 
-Contents:
+.. Contents:
 
 	1) Overview
 	2) Kernel Command Line Parameters
@@ -42,7 +43,7 @@ rescue floppy disk.
 2a) Kernel Command Line Parameters
 
 	ramdisk_size=N
-	==============
+		Size of the ramdisk.
 
 This parameter tells the RAM disk driver to set up RAM disks of N k size.  The
 default is 4096 (4 MB).
@@ -50,16 +51,13 @@ default is 4096 (4 MB).
 2b) Module parameters
 
 	rd_nr
-	=====
-	/dev/ramX devices created.
+		/dev/ramX devices created.
 
 	max_part
-	========
-	Maximum partition number.
+		Maximum partition number.
 
 	rd_size
-	=======
-	See ramdisk_size.
+		See ramdisk_size.
 
 3) Using "rdev -r"
 ------------------
@@ -71,11 +69,11 @@ to 2 MB (2^11) of where to find the RAM disk (this used to be the size). Bit
 prompt/wait sequence is to be given before trying to read the RAM disk. Since
 the RAM disk dynamically grows as data is being written into it, a size field
 is not required. Bits 11 to 13 are not currently used and may as well be zero.
-These numbers are no magical secrets, as seen below:
+These numbers are no magical secrets, as seen below::
 
-./arch/x86/kernel/setup.c:#define RAMDISK_IMAGE_START_MASK     0x07FF
-./arch/x86/kernel/setup.c:#define RAMDISK_PROMPT_FLAG          0x8000
-./arch/x86/kernel/setup.c:#define RAMDISK_LOAD_FLAG            0x4000
+  ./arch/x86/kernel/setup.c:#define RAMDISK_IMAGE_START_MASK     0x07FF
+  ./arch/x86/kernel/setup.c:#define RAMDISK_PROMPT_FLAG          0x8000
+  ./arch/x86/kernel/setup.c:#define RAMDISK_LOAD_FLAG            0x4000
 
 Consider a typical two floppy disk setup, where you will have the
 kernel on disk one, and have already put a RAM disk image onto disk #2.
@@ -92,20 +90,23 @@ sequence so that you have a chance to switch floppy disks.
 The command line equivalent is: "prompt_ramdisk=1"
 
 Putting that together gives 2^15 + 2^14 + 0 = 49152 for an rdev word.
-So to create disk one of the set, you would do:
+So to create disk one of the set, you would do::
 
 	/usr/src/linux# cat arch/x86/boot/zImage > /dev/fd0
 	/usr/src/linux# rdev /dev/fd0 /dev/fd0
 	/usr/src/linux# rdev -r /dev/fd0 49152
 
-If you make a boot disk that has LILO, then for the above, you would use:
+If you make a boot disk that has LILO, then for the above, you would use::
+
 	append = "ramdisk_start=0 load_ramdisk=1 prompt_ramdisk=1"
-Since the default start = 0 and the default prompt = 1, you could use:
+
+Since the default start = 0 and the default prompt = 1, you could use::
+
 	append = "load_ramdisk=1"
 
 
 4) An Example of Creating a Compressed RAM Disk
-----------------------------------------------
+-----------------------------------------------
 
 To create a RAM disk image, you will need a spare block device to
 construct it on. This can be the RAM disk device itself, or an
@@ -120,11 +121,11 @@ a) Decide on the RAM disk size that you want. Say 2 MB for this example.
    Create it by writing to the RAM disk device. (This step is not currently
    required, but may be in the future.) It is wise to zero out the
    area (esp. for disks) so that maximal compression is achieved for
-   the unused blocks of the image that you are about to create.
+   the unused blocks of the image that you are about to create::
 
 	dd if=/dev/zero of=/dev/ram0 bs=1k count=2048
 
-b) Make a filesystem on it. Say ext2fs for this example.
+b) Make a filesystem on it. Say ext2fs for this example::
 
 	mke2fs -vm0 /dev/ram0 2048
 
@@ -133,11 +134,11 @@ c) Mount it, copy the files you want to it (eg: /etc/* /dev/* ...)
 
 d) Compress the contents of the RAM disk. The level of compression
    will be approximately 50% of the space used by the files. Unused
-   space on the RAM disk will compress to almost nothing.
+   space on the RAM disk will compress to almost nothing::
 
 	dd if=/dev/ram0 bs=1k count=2048 | gzip -v9 > /tmp/ram_image.gz
 
-e) Put the kernel onto the floppy
+e) Put the kernel onto the floppy::
 
 	dd if=zImage of=/dev/fd0 bs=1k
 
@@ -146,13 +147,13 @@ f) Put the RAM disk image onto the floppy, after the kernel. Use an offset
    (possibly larger) kernel onto the same floppy later without overlapping
    the RAM disk image. An offset of 400 kB for kernels about 350 kB in
    size would be reasonable. Make sure offset+size of ram_image.gz is
-   not larger than the total space on your floppy (usually 1440 kB).
+   not larger than the total space on your floppy (usually 1440 kB)::
 
 	dd if=/tmp/ram_image.gz of=/dev/fd0 bs=1k seek=400
 
 g) Use "rdev" to set the boot device, RAM disk offset, prompt flag, etc.
    For prompt_ramdisk=1, load_ramdisk=1, ramdisk_start=400, one would
-   have 2^15 + 2^14 + 400 = 49552.
+   have 2^15 + 2^14 + 400 = 49552::
 
 	rdev /dev/fd0 /dev/fd0
 	rdev -r /dev/fd0 49552
@@ -160,15 +161,17 @@ g) Use "rdev" to set the boot device, RAM disk offset, prompt flag, etc.
 That is it. You now have your boot/root compressed RAM disk floppy. Some
 users may wish to combine steps (d) and (f) by using a pipe.
 
---------------------------------------------------------------------------
+
 						Paul Gortmaker 12/95
 
 Changelog:
 ----------
 
-10-22-04 :	Updated to reflect changes in command line options, remove
+10-22-04 :
+		Updated to reflect changes in command line options, remove
 		obsolete references, general cleanup.
 		James Nelson (james4765@gmail.com)
 
 
-12-95 :		Original Document
+12-95 :
+		Original Document

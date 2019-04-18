@@ -1,35 +1,37 @@
-This file describes the floppy driver.
+=============
+Floppy Driver
+=============
 
 FAQ list:
 =========
 
- A FAQ list may be found in the fdutils package (see below), and also
+A FAQ list may be found in the fdutils package (see below), and also
 at <http://fdutils.linux.lu/faq.html>.
 
 
 LILO configuration options (Thinkpad users, read this)
 ======================================================
 
- The floppy driver is configured using the 'floppy=' option in
+The floppy driver is configured using the 'floppy=' option in
 lilo. This option can be typed at the boot prompt, or entered in the
 lilo configuration file.
 
- Example: If your kernel is called linux-2.6.9, type the following line
-at the lilo boot prompt (if you have a thinkpad):
+Example: If your kernel is called linux-2.6.9, type the following line
+at the lilo boot prompt (if you have a thinkpad)::
 
  linux-2.6.9 floppy=thinkpad
 
 You may also enter the following line in /etc/lilo.conf, in the description
-of linux-2.6.9:
+of linux-2.6.9::
 
  append = "floppy=thinkpad"
 
- Several floppy related options may be given, example:
+Several floppy related options may be given, example::
 
  linux-2.6.9 floppy=daring floppy=two_fdc
  append = "floppy=daring floppy=two_fdc"
 
- If you give options both in the lilo config file and on the boot
+If you give options both in the lilo config file and on the boot
 prompt, the option strings of both places are concatenated, the boot
 prompt options coming last. That's why there are also options to
 restore the default behavior.
@@ -38,21 +40,23 @@ restore the default behavior.
 Module configuration options
 ============================
 
- If you use the floppy driver as a module, use the following syntax:
-modprobe floppy floppy="<options>"
+If you use the floppy driver as a module, use the following syntax::
 
-Example:
- modprobe floppy floppy="omnibook messages"
+	modprobe floppy floppy="<options>"
 
- If you need certain options enabled every time you load the floppy driver,
-you can put:
+Example::
 
- options floppy floppy="omnibook messages"
+	modprobe floppy floppy="omnibook messages"
+
+If you need certain options enabled every time you load the floppy driver,
+you can put::
+
+	options floppy floppy="omnibook messages"
 
 in a configuration file in /etc/modprobe.d/.
 
 
- The floppy driver related options are:
+The floppy driver related options are:
 
  floppy=asus_pci
 	Sets the bit mask to allow only units 0 and 1. (default)
@@ -70,8 +74,7 @@ in a configuration file in /etc/modprobe.d/.
 	Tells the floppy driver that you have only one floppy controller.
 	(default)
 
- floppy=two_fdc
- floppy=<address>,two_fdc
+ floppy=two_fdc / floppy=<address>,two_fdc
 	Tells the floppy driver that you have two floppy controllers.
 	The second floppy controller is assumed to be at <address>.
 	This option is not needed if the second controller is at address
@@ -84,8 +87,7 @@ in a configuration file in /etc/modprobe.d/.
  floppy=0,thinkpad
 	Tells the floppy driver that you don't have a Thinkpad.
 
- floppy=omnibook
- floppy=nodma
+ floppy=omnibook / floppy=nodma
 	Tells the floppy driver not to use Dma for data transfers.
 	This is needed on HP Omnibooks, which don't have a workable
 	DMA channel for the floppy driver. This option is also useful
@@ -144,14 +146,16 @@ in a configuration file in /etc/modprobe.d/.
 	described in the physical CMOS), or if your BIOS uses
 	non-standard CMOS types. The CMOS types are:
 
-		0 - Use the value of the physical CMOS
-		1 - 5 1/4 DD
-		2 - 5 1/4 HD
-		3 - 3 1/2 DD
-		4 - 3 1/2 HD
-		5 - 3 1/2 ED
-		6 - 3 1/2 ED
-	       16 - unknown or not installed
+	       ==  ==================================
+		0  Use the value of the physical CMOS
+		1  5 1/4 DD
+		2  5 1/4 HD
+		3  3 1/2 DD
+		4  3 1/2 HD
+		5  3 1/2 ED
+		6  3 1/2 ED
+	       16  unknown or not installed
+	       ==  ==================================
 
 	(Note: there are two valid types for ED drives. This is because 5 was
 	initially chosen to represent floppy *tapes*, and 6 for ED drives.
@@ -162,8 +166,7 @@ in a configuration file in /etc/modprobe.d/.
 	Print a warning message when an unexpected interrupt is received.
 	(default)
 
- floppy=no_unexpected_interrupts
- floppy=L40SX
+ floppy=no_unexpected_interrupts / floppy=L40SX
 	Don't print a message when an unexpected interrupt is received. This
 	is needed on IBM L40SX laptops in certain video modes. (There seems
 	to be an interaction between video and floppy. The unexpected
@@ -199,47 +202,54 @@ in a configuration file in /etc/modprobe.d/.
 	Sets the floppy DMA channel to <nr> instead of 2.
 
  floppy=slow
-	Use PS/2 stepping rate:
-	 " PS/2 floppies have much slower step rates than regular floppies.
+	Use PS/2 stepping rate::
+
+	   PS/2 floppies have much slower step rates than regular floppies.
 	   It's been recommended that take about 1/4 of the default speed
-	   in some more extreme cases."
+	   in some more extreme cases.
 
 
 Supporting utilities and additional documentation:
 ==================================================
 
- Additional parameters of the floppy driver can be configured at
+Additional parameters of the floppy driver can be configured at
 runtime. Utilities which do this can be found in the fdutils package.
 This package also contains a new version of mtools which allows to
 access high capacity disks (up to 1992K on a high density 3 1/2 disk!).
 It also contains additional documentation about the floppy driver.
 
 The latest version can be found at fdutils homepage:
+
  http://fdutils.linux.lu
 
 The fdutils releases can be found at:
+
  http://fdutils.linux.lu/download.html
+
  http://www.tux.org/pub/knaff/fdutils/
+
  ftp://metalab.unc.edu/pub/Linux/utils/disk-management/
 
 Reporting problems about the floppy driver
 ==========================================
 
- If you have a question or a bug report about the floppy driver, mail
+If you have a question or a bug report about the floppy driver, mail
 me at Alain.Knaff@poboxes.com . If you post to Usenet, preferably use
 comp.os.linux.hardware. As the volume in these groups is rather high,
 be sure to include the word "floppy" (or "FLOPPY") in the subject
 line.  If the reported problem happens when mounting floppy disks, be
 sure to mention also the type of the filesystem in the subject line.
 
- Be sure to read the FAQ before mailing/posting any bug reports!
+Be sure to read the FAQ before mailing/posting any bug reports!
 
- Alain
+Alain
 
 Changelog
 =========
 
-10-30-2004 :	Cleanup, updating, add reference to module configuration.
+10-30-2004 :
+		Cleanup, updating, add reference to module configuration.
 		James Nelson <james4765@gmail.com>
 
-6-3-2000 :	Original Document
+6-3-2000 :
+		Original Document
