@@ -1666,7 +1666,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 					printk("\tCRC Value Mismatch\n");
 				if ((sstat2 & CRCENDERR) != 0)
 					printk("\tNo terminal CRC packet "
-					       "recevied\n");
+					       "received\n");
 				if ((sstat2 & CRCREQERR) != 0)
 					printk("\tIllegal CRC packet "
 					       "request\n");
