@@ -166,6 +166,15 @@ static int parse_reply_info_in(void **p, void *end,
 			info->dir_pin = -ENODATA;
 		}
 
+		/* snapshot birth time, remains zero for v<=2 */
+		if (struct_v >= 3) {
+			ceph_decode_need(p, end, sizeof(info->snap_btime), bad);
+			ceph_decode_copy(p, &info->snap_btime,
+					 sizeof(info->snap_btime));
+		} else {
+			memset(&info->snap_btime, 0, sizeof(info->snap_btime));
+		}
+
 		*p = end;
 	} else {
 		if (features & CEPH_FEATURE_MDS_INLINE_DATA) {
@@ -198,6 +207,7 @@ static int parse_reply_info_in(void **p, void *end,
 		}
 
 		info->dir_pin = -ENODATA;
+		/* info->snap_btime remains zero */
 	}
 	return 0;
 bad:
