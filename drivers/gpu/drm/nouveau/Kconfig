@@ -16,9 +16,20 @@ config DRM_NOUVEAU
 	select INPUT if ACPI && X86
 	select THERMAL if ACPI && X86
 	select ACPI_VIDEO if ACPI && X86
-	select DRM_VM
 	help
 	  Choose this option for open-source NVIDIA support.
+
+config NOUVEAU_LEGACY_CTX_SUPPORT
+	bool "Nouveau legacy context support"
+	depends on DRM_NOUVEAU
+	select DRM_VM
+	default y
+	help
+	  There was a version of the nouveau DDX that relied on legacy
+	  ctx ioctls not erroring out. But that was back in time a long
+	  ways, so offer a way to disable it now. For uapi compat with
+	  old nouveau ddx this should be on by default, but modern distros
+	  should consider turning it off.
 
 config NOUVEAU_PLATFORM_DRIVER
 	bool "Nouveau (NVIDIA) SoC GPUs"
