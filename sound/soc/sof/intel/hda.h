@@ -350,6 +350,12 @@
 #define APL_SSP_COUNT		6
 #define CNL_SSP_COUNT		3
 
+/* SSP Registers */
+#define SSP_SSC1_OFFSET		0x4
+#define SSP_SET_SCLK_SLAVE	BIT(25)
+#define SSP_SET_SFRM_SLAVE	BIT(24)
+#define SSP_SET_SLAVE		(SSP_SET_SCLK_SLAVE | SSP_SET_SFRM_SLAVE)
+
 #define HDA_IDISP_CODEC(x) ((x) & BIT(2))
 
 struct sof_intel_dsp_bdl {
