@@ -2455,7 +2455,7 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 
 	ret = device_register(virt_dev);
 	if (ret) {
-		kfree(virt_dev);
+		put_device(virt_dev);
 		return ERR_PTR(ret);
 	}
 
