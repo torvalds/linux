@@ -43,6 +43,7 @@ Program types
    :maxdepth: 1
 
    prog_cgroup_sysctl
+   prog_flow_dissector
 
 
 .. Links:

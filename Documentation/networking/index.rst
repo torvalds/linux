@@ -9,7 +9,6 @@ Contents:
    netdev-FAQ
    af_xdp
    batman-adv
-   bpf_flow_dissector
    can
    can_ucan_protocol
    device_drivers/freescale/dpaa2/index
