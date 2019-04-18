@@ -53,6 +53,12 @@
 
 #define BAT_ADDR_MFR_TYPE	0x5F
 
+struct olpc_battery_data {
+	struct power_supply *olpc_ac;
+	struct power_supply *olpc_bat;
+	char bat_serial[17];
+};
+
 /*********************************************************************
  *		Power
  *********************************************************************/
@@ -91,11 +97,8 @@ static const struct power_supply_desc olpc_ac_desc = {
 	.get_property = olpc_ac_get_prop,
 };
 
-static struct power_supply *olpc_ac;
-
-static char bat_serial[17]; /* Ick */
-
-static int olpc_bat_get_status(union power_supply_propval *val, uint8_t ec_byte)
+static int olpc_bat_get_status(struct olpc_battery_data *data,
+		union power_supply_propval *val, uint8_t ec_byte)
 {
 	if (olpc_platform_info.ecver > 0x44) {
 		if (ec_byte & (BAT_STAT_CHARGING | BAT_STAT_TRICKLE))
@@ -326,6 +329,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 				 enum power_supply_property psp,
 				 union power_supply_propval *val)
 {
+	struct olpc_battery_data *data = power_supply_get_drvdata(psy);
 	int ret = 0;
 	__be16 ec_word;
 	uint8_t ec_byte;
@@ -347,7 +351,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		ret = olpc_bat_get_status(val, ec_byte);
+		ret = olpc_bat_get_status(data, val, ec_byte);
 		if (ret)
 			return ret;
 		break;
@@ -450,8 +454,8 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 
-		sprintf(bat_serial, "%016llx", (long long)be64_to_cpu(ser_buf));
-		val->strval = bat_serial;
+		sprintf(data->bat_serial, "%016llx", (long long)be64_to_cpu(ser_buf));
+		val->strval = data->bat_serial;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 		ret = olpc_bat_get_voltage_max_design(val);
@@ -579,17 +583,17 @@ static struct power_supply_desc olpc_bat_desc = {
 	.use_for_apm = 1,
 };
 
-static struct power_supply *olpc_bat;
-
 static int olpc_battery_suspend(struct platform_device *pdev,
 				pm_message_t state)
 {
-	if (device_may_wakeup(&olpc_ac->dev))
+	struct olpc_battery_data *data = platform_get_drvdata(pdev);
+
+	if (device_may_wakeup(&data->olpc_ac->dev))
 		olpc_ec_wakeup_set(EC_SCI_SRC_ACPWR);
 	else
 		olpc_ec_wakeup_clear(EC_SCI_SRC_ACPWR);
 
-	if (device_may_wakeup(&olpc_bat->dev))
+	if (device_may_wakeup(&data->olpc_bat->dev))
 		olpc_ec_wakeup_set(EC_SCI_SRC_BATTERY | EC_SCI_SRC_BATSOC
 				   | EC_SCI_SRC_BATERR);
 	else
@@ -601,8 +605,15 @@ static int olpc_battery_suspend(struct platform_device *pdev,
 
 static int olpc_battery_probe(struct platform_device *pdev)
 {
-	int ret;
+	struct power_supply_config psy_cfg = {};
+	struct olpc_battery_data *data;
 	uint8_t status;
+	int ret;
+
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	platform_set_drvdata(pdev, data);
 
 	/*
 	 * We've seen a number of EC protocol changes; this driver requires
@@ -620,9 +631,13 @@ static int olpc_battery_probe(struct platform_device *pdev)
 
 	/* Ignore the status. It doesn't actually matter */
 
-	olpc_ac = power_supply_register(&pdev->dev, &olpc_ac_desc, NULL);
-	if (IS_ERR(olpc_ac))
-		return PTR_ERR(olpc_ac);
+	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.drv_data = data;
+
+	data->olpc_ac = power_supply_register(&pdev->dev, &olpc_ac_desc, &psy_cfg);
+	if (IS_ERR(data->olpc_ac))
+		return PTR_ERR(data->olpc_ac);
+
 	if (of_device_is_compatible(pdev->dev.of_node, "olpc,xo1.5-battery")) {
 		/* XO-1.5 */
 		olpc_bat_desc.properties = olpc_xo15_bat_props;
@@ -633,42 +648,45 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	olpc_bat = power_supply_register(&pdev->dev, &olpc_bat_desc, NULL);
-	if (IS_ERR(olpc_bat)) {
-		ret = PTR_ERR(olpc_bat);
+	data->olpc_bat = power_supply_register(&pdev->dev, &olpc_bat_desc, &psy_cfg);
+	if (IS_ERR(data->olpc_bat)) {
+		ret = PTR_ERR(data->olpc_bat);
 		goto battery_failed;
 	}
 
-	ret = device_create_bin_file(&olpc_bat->dev, &olpc_bat_eeprom);
+	ret = device_create_bin_file(&data->olpc_bat->dev, &olpc_bat_eeprom);
 	if (ret)
 		goto eeprom_failed;
 
-	ret = device_create_file(&olpc_bat->dev, &olpc_bat_error);
+	ret = device_create_file(&data->olpc_bat->dev, &olpc_bat_error);
 	if (ret)
 		goto error_failed;
 
 	if (olpc_ec_wakeup_available()) {
-		device_set_wakeup_capable(&olpc_ac->dev, true);
-		device_set_wakeup_capable(&olpc_bat->dev, true);
+		device_set_wakeup_capable(&data->olpc_ac->dev, true);
+		device_set_wakeup_capable(&data->olpc_bat->dev, true);
 	}
 
 	return 0;
 
 error_failed:
-	device_remove_bin_file(&olpc_bat->dev, &olpc_bat_eeprom);
+	device_remove_bin_file(&data->olpc_bat->dev, &olpc_bat_eeprom);
 eeprom_failed:
-	power_supply_unregister(olpc_bat);
+	power_supply_unregister(data->olpc_bat);
 battery_failed:
-	power_supply_unregister(olpc_ac);
+	power_supply_unregister(data->olpc_ac);
 	return ret;
 }
 
 static int olpc_battery_remove(struct platform_device *pdev)
 {
-	device_remove_file(&olpc_bat->dev, &olpc_bat_error);
-	device_remove_bin_file(&olpc_bat->dev, &olpc_bat_eeprom);
-	power_supply_unregister(olpc_bat);
-	power_supply_unregister(olpc_ac);
+	struct olpc_battery_data *data = platform_get_drvdata(pdev);
+
+	device_remove_file(&data->olpc_bat->dev, &olpc_bat_error);
+	device_remove_bin_file(&data->olpc_bat->dev, &olpc_bat_eeprom);
+	power_supply_unregister(data->olpc_bat);
+	power_supply_unregister(data->olpc_ac);
+
 	return 0;
 }
 
