@@ -71,6 +71,26 @@ enum cc_std_body {
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT)
 
+#define CC_CPP_AES_ABORT_MASK ( \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_0_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_1_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_2_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_3_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_4_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_5_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_6_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_7_MASK_BIT_SHIFT))
+
+#define CC_CPP_SM4_ABORT_MASK ( \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_0_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_1_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_2_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_3_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_4_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_5_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_6_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_7_MASK_BIT_SHIFT))
+
 /* Register name mangling macro */
 #define CC_REG(reg_name) CC_ ## reg_name ## _REG_OFFSET
 
@@ -92,6 +112,12 @@ enum cc_std_body {
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 
+struct cc_cpp_req {
+	bool is_cpp;
+	enum cc_cpp_alg alg;
+	u8 slot;
+};
+
 #define CC_MAX_IVGEN_DMA_ADDRESSES	3
 struct cc_crypto_req {
 	void (*user_cb)(struct device *dev, void *req, int err);
@@ -106,6 +132,7 @@ struct cc_crypto_req {
 	/* The generated IV size required, 8/16 B allowed. */
 	unsigned int ivgen_size;
 	struct completion seq_compl; /* request completion */
+	struct cc_cpp_req cpp;
 };
 
 /**
@@ -139,6 +166,7 @@ struct cc_drvdata {
 	u32 ver_offset;
 	int std_bodies;
 	bool sec_disabled;
+	u32 comp_mask;
 };
 
 struct cc_crypto_alg {
