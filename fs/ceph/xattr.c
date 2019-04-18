@@ -273,6 +273,19 @@ static size_t ceph_vxattrcb_quota_max_files(struct ceph_inode_info *ci,
 	return snprintf(val, size, "%llu", ci->i_max_files);
 }
 
+/* snapshots */
+static bool ceph_vxattrcb_snap_btime_exists(struct ceph_inode_info *ci)
+{
+	return (ci->i_snap_btime.tv_sec != 0 || ci->i_snap_btime.tv_nsec != 0);
+}
+
+static size_t ceph_vxattrcb_snap_btime(struct ceph_inode_info *ci, char *val,
+				       size_t size)
+{
+	return snprintf(val, size, "%lld.%09ld", ci->i_snap_btime.tv_sec,
+			ci->i_snap_btime.tv_nsec);
+}
+
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
 #define CEPH_XATTR_NAME2(_type, _name, _name2)	\
 	XATTR_CEPH_PREFIX #_type "." #_name "." #_name2
@@ -341,6 +354,13 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	},
 	XATTR_QUOTA_FIELD(quota, max_bytes),
 	XATTR_QUOTA_FIELD(quota, max_files),
+	{
+		.name = "ceph.snap.btime",
+		.name_size = sizeof("ceph.snap.btime"),
+		.getxattr_cb = ceph_vxattrcb_snap_btime,
+		.exists_cb = ceph_vxattrcb_snap_btime_exists,
+		.flags = VXATTR_FLAG_READONLY,
+	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 static size_t ceph_dir_vxattrs_name_size;	/* total size of all names */
@@ -360,6 +380,13 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 	XATTR_LAYOUT_FIELD(file, layout, object_size),
 	XATTR_LAYOUT_FIELD(file, layout, pool),
 	XATTR_LAYOUT_FIELD(file, layout, pool_namespace),
+	{
+		.name = "ceph.snap.btime",
+		.name_size = sizeof("ceph.snap.btime"),
+		.getxattr_cb = ceph_vxattrcb_snap_btime,
+		.exists_cb = ceph_vxattrcb_snap_btime_exists,
+		.flags = VXATTR_FLAG_READONLY,
+	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 static size_t ceph_file_vxattrs_name_size;	/* total size of all names */
