@@ -1522,11 +1522,11 @@ static int __init sc16is7xx_init(void)
 
 #ifdef CONFIG_SERIAL_SC16IS7XX_SPI
 err_spi:
+#endif
 #ifdef CONFIG_SERIAL_SC16IS7XX_I2C
 	i2c_del_driver(&sc16is7xx_i2c_uart_driver);
-#endif
-#endif
 err_i2c:
+#endif
 	uart_unregister_driver(&sc16is7xx_uart);
 	return ret;
 }
