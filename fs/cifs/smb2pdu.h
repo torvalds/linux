@@ -251,6 +251,14 @@ struct smb2_negotiate_req {
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000
 
+
+/* Negotiate Contexts - ContextTypes. See MS-SMB2 section 2.2.3.1 for details */
+#define SMB2_PREAUTH_INTEGRITY_CAPABILITIES	cpu_to_le16(1)
+#define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
+#define SMB2_COMPRESSION_CAPABILITIES		cpu_to_le16(3)
+#define SMB2_NETNAME_NEGOTIATE_CONTEXT_ID	cpu_to_le16(5)
+#define SMB2_POSIX_EXTENSIONS_AVAILABLE		cpu_to_le16(0x100)
+
 struct smb2_neg_context {
 	__le16	ContextType;
 	__le16	DataLength;
@@ -287,6 +295,24 @@ struct smb2_encryption_neg_context {
 	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
 	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
 } __packed;
+
+/* See MS-SMB2 2.2.3.1.3 */
+#define SMB3_COMPRESS_NONE	0x0000
+#define SMB3_COMPRESS_LZNT1	0x0001
+#define SMB3_COMPRESS_LZ77	0x0002
+#define SMB3_COMPRESS_LZ77_HUFF	0x0003
+
+struct smb2_compression_capabilities_context {
+	__le16	CompressionAlgorithmCount;
+	__u16	Padding;
+	__u32	Reserved;
+	__u16	CompressionAlgorithms[1];
+} __packed;
+
+/*
+ * For smb2_netname_negotiate_context_id See MS-SMB2 2.2.3.1.4.
+ * Its struct simply contains NetName, an array of Unicode characters
+ */
 
 #define POSIX_CTXT_DATA_LEN	16
 struct smb2_posix_neg_context {
