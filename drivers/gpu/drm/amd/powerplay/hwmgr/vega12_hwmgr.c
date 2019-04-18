@@ -1338,6 +1338,7 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+	SmuMetrics_t metrics_table;
 	int ret = 0;
 
 	switch (idx) {
@@ -1358,6 +1359,24 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*((uint32_t *)value) = vega12_thermal_get_temperature(hwmgr);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		ret = vega12_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
+
+		*((uint32_t *)value) = metrics_table.TemperatureHotspot *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = vega12_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
+
+		*((uint32_t *)value) = metrics_table.TemperatureHBM *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_UVD_POWER:

@@ -1382,6 +1382,7 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	struct drm_device *ddev = adev->ddev;
+	int channel = to_sensor_dev_attr(attr)->index;
 	int r, temp, size = sizeof(temp);
 
 	/* Can't get temperature when the card is off */
@@ -1389,11 +1390,32 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	/* get the temperature */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP,
-				   (void *)&temp, &size);
-	if (r)
-		return r;
+	if (channel >= PP_TEMP_MAX)
+		return -EINVAL;
+
+	switch (channel) {
+	case PP_TEMP_JUNCTION:
+		/* get current junction temperature */
+		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_HOTSPOT_TEMP,
+					   (void *)&temp, &size);
+		if (r)
+			return r;
+		break;
+	case PP_TEMP_EDGE:
+		/* get current edge temperature */
+		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_EDGE_TEMP,
+					   (void *)&temp, &size);
+		if (r)
+			return r;
+		break;
+	case PP_TEMP_MEM:
+		/* get current memory temperature */
+		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MEM_TEMP,
+					   (void *)&temp, &size);
+		if (r)
+			return r;
+		break;
+	}
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
 }
@@ -2041,7 +2063,8 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * hwmon interfaces for GPU temperature:
  *
- * - temp1_input: the on die GPU temperature in millidegrees Celsius
+ * - temp[1-3]_input: the on die GPU temperature in millidegrees Celsius
+ *   - temp2_input and temp3_input are supported on SOC15 dGPUs only
  *
  * - temp[1-3]_crit: temperature critical max value in millidegrees Celsius
  *   - temp2_crit and temp3_crit are supported on SOC15 dGPUs only
@@ -2098,13 +2121,15 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  */
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, PP_TEMP_EDGE);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp1_emergency, S_IRUGO, amdgpu_hwmon_show_temp_emergency, NULL, PP_TEMP_EDGE);
+static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, PP_TEMP_JUNCTION);
 static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO, amdgpu_hwmon_show_hotspot_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, amdgpu_hwmon_show_hotspot_temp_thresh, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp2_emergency, S_IRUGO, amdgpu_hwmon_show_temp_emergency, NULL, PP_TEMP_JUNCTION);
+static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, PP_TEMP_MEM);
 static SENSOR_DEVICE_ATTR(temp3_crit, S_IRUGO, amdgpu_hwmon_show_mem_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO, amdgpu_hwmon_show_mem_temp_thresh, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp3_emergency, S_IRUGO, amdgpu_hwmon_show_temp_emergency, NULL, PP_TEMP_MEM);
@@ -2134,8 +2159,10 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
 	&sensor_dev_attr_temp2_crit.dev_attr.attr,
 	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
 	&sensor_dev_attr_temp3_crit.dev_attr.attr,
 	&sensor_dev_attr_temp3_crit_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp1_emergency.dev_attr.attr,
@@ -2272,7 +2299,9 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_temp3_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr))
 		return 0;
 
 	return effective_mode;

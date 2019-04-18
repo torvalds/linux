@@ -3785,6 +3785,18 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = vega10_thermal_get_temperature(hwmgr);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetTemperatureHotspot);
+		*((uint32_t *)value) = smum_get_argument(hwmgr) *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetTemperatureHBM);
+		*((uint32_t *)value) = smum_get_argument(hwmgr) *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
 		*((uint32_t *)value) = data->uvd_power_gated ? 0 : 1;
 		*size = 4;

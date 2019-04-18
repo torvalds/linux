@@ -2138,8 +2138,26 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		if (!ret)
 			*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_TEMP:
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
 		*((uint32_t *)value) = vega20_thermal_get_temperature(hwmgr);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
+
+		*((uint32_t *)value) = metrics_table.TemperatureEdge *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
+
+		*((uint32_t *)value) = metrics_table.TemperatureHBM *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
