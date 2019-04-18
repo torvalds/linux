@@ -2095,6 +2095,8 @@ static int cc_aead_encrypt(struct aead_request *req)
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc;
 
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
+
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
@@ -2124,6 +2126,8 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 		goto out;
 	}
 
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
+
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
@@ -2142,6 +2146,8 @@ static int cc_aead_decrypt(struct aead_request *req)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc;
+
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
@@ -2169,6 +2175,8 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
 		goto out;
 	}
+
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
@@ -2287,6 +2295,8 @@ static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 		goto out;
 	}
 
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
+
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
@@ -2309,6 +2319,8 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc;
+
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
 	//plaintext is not encryped with rfc4543
 	areq_ctx->plaintext_authenticate_only = true;
@@ -2342,6 +2354,8 @@ static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 		goto out;
 	}
 
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
+
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
@@ -2364,6 +2378,8 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc;
+
+	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
 	//plaintext is not decryped with rfc4543
 	areq_ctx->plaintext_authenticate_only = true;
