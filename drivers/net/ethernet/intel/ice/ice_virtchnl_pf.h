@@ -48,10 +48,10 @@ enum ice_virtchnl_cap {
 struct ice_vf {
 	struct ice_pf *pf;
 
-	s16 vf_id;			/* VF id in the PF space */
+	s16 vf_id;			/* VF ID in the PF space */
 	u32 driver_caps;		/* reported by VF driver */
 	int first_vector_idx;		/* first vector index of this VF */
-	struct ice_sw *vf_sw_id;	/* switch id the VF VSIs connect to */
+	struct ice_sw *vf_sw_id;	/* switch ID the VF VSIs connect to */
 	struct virtchnl_version_info vf_ver;
 	struct virtchnl_ether_addr dflt_lan_addr;
 	u16 port_vlan_id;
@@ -59,10 +59,10 @@ struct ice_vf {
 	u8 trusted;
 	u16 lan_vsi_idx;		/* index into PF struct */
 	u16 lan_vsi_num;		/* ID as used by firmware */
-	u64 num_mdd_events;		/* number of mdd events detected */
+	u64 num_mdd_events;		/* number of MDD events detected */
 	u64 num_inval_msgs;		/* number of continuous invalid msgs */
 	u64 num_valid_msgs;		/* number of valid msgs detected */
-	unsigned long vf_caps;		/* vf's adv. capabilities */
+	unsigned long vf_caps;		/* VF's adv. capabilities */
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 	unsigned int tx_rate;		/* Tx bandwidth limit in Mbps */
 	u8 link_forced;

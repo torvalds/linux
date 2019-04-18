@@ -41,6 +41,10 @@ void ice_vsi_delete(struct ice_vsi *vsi);
 
 int ice_vsi_clear(struct ice_vsi *vsi);
 
+#ifdef CONFIG_DCB
+int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
+#endif /* CONFIG_DCB */
+
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	      enum ice_vsi_type type, u16 vf_id);
@@ -61,6 +65,10 @@ bool ice_is_reset_in_progress(unsigned long *state);
 void ice_vsi_free_q_vectors(struct ice_vsi *vsi);
 
 void ice_vsi_put_qs(struct ice_vsi *vsi);
+
+#ifdef CONFIG_DCB
+void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi);
+#endif /* CONFIG_DCB */
 
 void ice_vsi_dis_irq(struct ice_vsi *vsi);
 

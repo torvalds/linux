@@ -20,7 +20,7 @@ union ice_32byte_rx_desc {
 			} lo_dword;
 			union {
 				__le32 rss; /* RSS Hash */
-				__le32 fd_id; /* Flow Director filter id */
+				__le32 fd_id; /* Flow Director filter ID */
 			} hi_dword;
 		} qword0;
 		struct {
@@ -99,7 +99,7 @@ enum ice_rx_ptype_payload_layer {
 	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY4	= 3,
 };
 
-/* RX Flex Descriptor
+/* Rx Flex Descriptor
  * This descriptor is used instead of the legacy version descriptor when
  * ice_rlan_ctx.adv_desc is set
  */
@@ -113,7 +113,7 @@ union ice_32b_rx_flex_desc {
 	} read;
 	struct {
 		/* Qword 0 */
-		u8 rxdid; /* descriptor builder profile id */
+		u8 rxdid; /* descriptor builder profile ID */
 		u8 mir_id_umb_cast; /* mirror=[5:0], umb=[7:6] */
 		__le16 ptype_flex_flags0; /* ptype=[9:0], ff0=[15:10] */
 		__le16 pkt_len; /* [15:14] are reserved */
@@ -149,7 +149,7 @@ union ice_32b_rx_flex_desc {
 
 /* Rx Flex Descriptor NIC Profile
  * This descriptor corresponds to RxDID 2 which contains
- * metadata fields for RSS, flow id and timestamp info
+ * metadata fields for RSS, flow ID and timestamp info
  */
 struct ice_32b_rx_flex_desc_nic {
 	/* Qword 0 */
@@ -208,7 +208,7 @@ enum ice_flex_rx_mdid {
 	ICE_RX_MDID_HASH_HIGH,
 };
 
-/* RX/TX Flag64 packet flag bits */
+/* Rx/Tx Flag64 packet flag bits */
 enum ice_flg64_bits {
 	ICE_FLG_PKT_DSI		= 0,
 	ICE_FLG_EVLAN_x8100	= 15,
@@ -322,7 +322,7 @@ enum ice_rlan_ctx_rx_hsplit_1 {
 	ICE_RLAN_RX_HSPLIT_1_SPLIT_ALWAYS	= 2,
 };
 
-/* TX Descriptor */
+/* Tx Descriptor */
 struct ice_tx_desc {
 	__le64 buf_addr; /* Address of descriptor's data buf */
 	__le64 cmd_type_offset_bsz;

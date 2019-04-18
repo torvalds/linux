@@ -49,6 +49,9 @@
 #define PF_MBX_ATQLEN_ATQLEN_M			ICE_M(0x3FF, 0)
 #define PF_MBX_ATQLEN_ATQENABLE_M		BIT(31)
 #define PF_MBX_ATQT				0x0022E300
+#define PRTDCB_GENS				0x00083020
+#define PRTDCB_GENS_DCBX_STATUS_S		0
+#define PRTDCB_GENS_DCBX_STATUS_M		ICE_M(0x7, 0)
 #define GLFLXP_RXDID_FLAGS(_i, _j)		(0x0045D000 + ((_i) * 4 + (_j) * 256))
 #define GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_S	0
 #define GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_M	ICE_M(0x3F, 0)
@@ -318,11 +321,16 @@
 #define GLPRT_PTC64L(_i)			(0x00380B80 + ((_i) * 8))
 #define GLPRT_PTC9522H(_i)			(0x00380D04 + ((_i) * 8))
 #define GLPRT_PTC9522L(_i)			(0x00380D00 + ((_i) * 8))
+#define GLPRT_PXOFFRXC(_i, _j)			(0x00380500 + ((_i) * 8 + (_j) * 64))
+#define GLPRT_PXOFFTXC(_i, _j)			(0x00380F40 + ((_i) * 8 + (_j) * 64))
+#define GLPRT_PXONRXC(_i, _j)			(0x00380300 + ((_i) * 8 + (_j) * 64))
+#define GLPRT_PXONTXC(_i, _j)			(0x00380D40 + ((_i) * 8 + (_j) * 64))
 #define GLPRT_RFC(_i)				(0x00380AC0 + ((_i) * 8))
 #define GLPRT_RJC(_i)				(0x00380B00 + ((_i) * 8))
 #define GLPRT_RLEC(_i)				(0x00380140 + ((_i) * 8))
 #define GLPRT_ROC(_i)				(0x00380240 + ((_i) * 8))
 #define GLPRT_RUC(_i)				(0x00380200 + ((_i) * 8))
+#define GLPRT_RXON2OFFCNT(_i, _j)		(0x00380700 + ((_i) * 8 + (_j) * 64))
 #define GLPRT_TDOLD(_i)				(0x00381280 + ((_i) * 8))
 #define GLPRT_UPRCH(_i)				(0x00381304 + ((_i) * 8))
 #define GLPRT_UPRCL(_i)				(0x00381300 + ((_i) * 8))

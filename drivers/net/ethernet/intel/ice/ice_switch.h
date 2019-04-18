@@ -44,7 +44,7 @@ enum ice_sw_lkup_type {
 	ICE_SW_LKUP_LAST
 };
 
-/* type of filter src id */
+/* type of filter src ID */
 enum ice_src_id {
 	ICE_SRC_ID_UNKNOWN = 0,
 	ICE_SRC_ID_VSI,
@@ -95,8 +95,8 @@ struct ice_fltr_info {
 
 	/* Depending on filter action */
 	union {
-		/* queue id in case of ICE_FWD_TO_Q and starting
-		 * queue id in case of ICE_FWD_TO_QGRP.
+		/* queue ID in case of ICE_FWD_TO_Q and starting
+		 * queue ID in case of ICE_FWD_TO_QGRP.
 		 */
 		u16 q_id:11;
 		u16 hw_vsi_id:10;
@@ -143,7 +143,7 @@ struct ice_sw_recipe {
 	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
 };
 
-/* Bookkeeping structure to hold bitmap of VSIs corresponding to VSI list id */
+/* Bookkeeping structure to hold bitmap of VSIs corresponding to VSI list ID */
 struct ice_vsi_list_map_info {
 	struct list_head list_entry;
 	DECLARE_BITMAP(vsi_map, ICE_MAX_VSI);
@@ -165,7 +165,7 @@ struct ice_fltr_list_entry {
  * used for VLAN membership.
  */
 struct ice_fltr_mgmt_list_entry {
-	/* back pointer to VSI list id to VSI list mapping */
+	/* back pointer to VSI list ID to VSI list mapping */
 	struct ice_vsi_list_map_info *vsi_list_info;
 	u16 vsi_count;
 #define ICE_INVAL_LG_ACT_INDEX 0xffff

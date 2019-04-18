@@ -6,6 +6,7 @@
 #include <linux/prefetch.h>
 #include <linux/mm.h>
 #include "ice.h"
+#include "ice_dcb_lib.h"
 
 #define ICE_RX_HDR_SIZE		256
 
@@ -456,7 +457,7 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 	if (!rx_ring->netdev || !cleaned_count)
 		return false;
 
-	/* get the RX descriptor and buffer based on next_to_use */
+	/* get the Rx descriptor and buffer based on next_to_use */
 	rx_desc = ICE_RX_DESC(rx_ring, ntu);
 	bi = &rx_ring->rx_buf[ntu];
 
@@ -959,10 +960,10 @@ ice_process_skb_fields(struct ice_ring *rx_ring,
  * ice_receive_skb - Send a completed packet up the stack
  * @rx_ring: Rx ring in play
  * @skb: packet to send up
- * @vlan_tag: vlan tag for packet
+ * @vlan_tag: VLAN tag for packet
  *
  * This function sends the completed packet (via. skb) up the stack using
- * gro receive functions (with/without vlan tag)
+ * gro receive functions (with/without VLAN tag)
  */
 static void
 ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
@@ -991,7 +992,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
 	bool failure = false;
 
-	/* start the loop to process RX packets bounded by 'budget' */
+	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
 		union ice_32b_rx_flex_desc *rx_desc;
 		struct ice_rx_buf *rx_buf;
@@ -1008,7 +1009,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 			cleaned_count = 0;
 		}
 
-		/* get the RX desc from RX ring based on 'next_to_clean' */
+		/* get the Rx desc from Rx ring based on 'next_to_clean' */
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
 		/* status_error_len will always be zero for unused descriptors
@@ -1096,19 +1097,69 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	return failure ? budget : (int)total_rx_pkts;
 }
 
-static unsigned int ice_itr_divisor(struct ice_port_info *pi)
+/**
+ * ice_adjust_itr_by_size_and_speed - Adjust ITR based on current traffic
+ * @port_info: port_info structure containing the current link speed
+ * @avg_pkt_size: average size of Tx or Rx packets based on clean routine
+ * @itr: itr value to update
+ *
+ * Calculate how big of an increment should be applied to the ITR value passed
+ * in based on wmem_default, SKB overhead, Ethernet overhead, and the current
+ * link speed.
+ *
+ * The following is a calculation derived from:
+ *  wmem_default / (size + overhead) = desired_pkts_per_int
+ *  rate / bits_per_byte / (size + Ethernet overhead) = pkt_rate
+ *  (desired_pkt_rate / pkt_rate) * usecs_per_sec = ITR value
+ *
+ * Assuming wmem_default is 212992 and overhead is 640 bytes per
+ * packet, (256 skb, 64 headroom, 320 shared info), we can reduce the
+ * formula down to:
+ *
+ *	 wmem_default * bits_per_byte * usecs_per_sec   pkt_size + 24
+ * ITR = -------------------------------------------- * --------------
+ *			     rate			pkt_size + 640
+ */
+static unsigned int
+ice_adjust_itr_by_size_and_speed(struct ice_port_info *port_info,
+				 unsigned int avg_pkt_size,
+				 unsigned int itr)
 {
-	switch (pi->phy.link_info.link_speed) {
+	switch (port_info->phy.link_info.link_speed) {
+	case ICE_AQ_LINK_SPEED_100GB:
+		itr += DIV_ROUND_UP(17 * (avg_pkt_size + 24),
+				    avg_pkt_size + 640);
+		break;
+	case ICE_AQ_LINK_SPEED_50GB:
+		itr += DIV_ROUND_UP(34 * (avg_pkt_size + 24),
+				    avg_pkt_size + 640);
+		break;
 	case ICE_AQ_LINK_SPEED_40GB:
-		return ICE_ITR_ADAPTIVE_MIN_INC * 1024;
+		itr += DIV_ROUND_UP(43 * (avg_pkt_size + 24),
+				    avg_pkt_size + 640);
+		break;
 	case ICE_AQ_LINK_SPEED_25GB:
+		itr += DIV_ROUND_UP(68 * (avg_pkt_size + 24),
+				    avg_pkt_size + 640);
+		break;
 	case ICE_AQ_LINK_SPEED_20GB:
-		return ICE_ITR_ADAPTIVE_MIN_INC * 512;
-	case ICE_AQ_LINK_SPEED_100MB:
-		return ICE_ITR_ADAPTIVE_MIN_INC * 32;
+		itr += DIV_ROUND_UP(85 * (avg_pkt_size + 24),
+				    avg_pkt_size + 640);
+		break;
+	case ICE_AQ_LINK_SPEED_10GB:
+		/* fall through */
 	default:
-		return ICE_ITR_ADAPTIVE_MIN_INC * 256;
+		itr += DIV_ROUND_UP(170 * (avg_pkt_size + 24),
+				    avg_pkt_size + 640);
+		break;
 	}
+
+	if ((itr & ICE_ITR_MASK) > ICE_ITR_ADAPTIVE_MAX_USECS) {
+		itr &= ICE_ITR_ADAPTIVE_LATENCY;
+		itr += ICE_ITR_ADAPTIVE_MAX_USECS;
+	}
+
+	return itr;
 }
 
 /**
@@ -1127,8 +1178,8 @@ static unsigned int ice_itr_divisor(struct ice_port_info *pi)
 static void
 ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
 {
-	unsigned int avg_wire_size, packets, bytes, itr;
 	unsigned long next_update = jiffies;
+	unsigned int packets, bytes, itr;
 	bool container_is_rx;
 
 	if (!rc->ring || !ITR_IS_DYNAMIC(rc->itr_setting))
@@ -1173,7 +1224,7 @@ ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
 		if (packets && packets < 4 && bytes < 9000 &&
 		    (q_vector->tx.target_itr & ICE_ITR_ADAPTIVE_LATENCY)) {
 			itr = ICE_ITR_ADAPTIVE_LATENCY;
-			goto adjust_by_size;
+			goto adjust_by_size_and_speed;
 		}
 	} else if (packets < 4) {
 		/* If we have Tx and Rx ITR maxed and Tx ITR is running in
@@ -1241,70 +1292,11 @@ ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
 	 */
 	itr = ICE_ITR_ADAPTIVE_BULK;
 
-adjust_by_size:
-	/* If packet counts are 256 or greater we can assume we have a gross
-	 * overestimation of what the rate should be. Instead of trying to fine
-	 * tune it just use the formula below to try and dial in an exact value
-	 * gives the current packet size of the frame.
-	 */
-	avg_wire_size = bytes / packets;
+adjust_by_size_and_speed:
 
-	/* The following is a crude approximation of:
-	 *  wmem_default / (size + overhead) = desired_pkts_per_int
-	 *  rate / bits_per_byte / (size + ethernet overhead) = pkt_rate
-	 *  (desired_pkt_rate / pkt_rate) * usecs_per_sec = ITR value
-	 *
-	 * Assuming wmem_default is 212992 and overhead is 640 bytes per
-	 * packet, (256 skb, 64 headroom, 320 shared info), we can reduce the
-	 * formula down to
-	 *
-	 *  (170 * (size + 24)) / (size + 640) = ITR
-	 *
-	 * We first do some math on the packet size and then finally bitshift
-	 * by 8 after rounding up. We also have to account for PCIe link speed
-	 * difference as ITR scales based on this.
-	 */
-	if (avg_wire_size <= 60) {
-		/* Start at 250k ints/sec */
-		avg_wire_size = 4096;
-	} else if (avg_wire_size <= 380) {
-		/* 250K ints/sec to 60K ints/sec */
-		avg_wire_size *= 40;
-		avg_wire_size += 1696;
-	} else if (avg_wire_size <= 1084) {
-		/* 60K ints/sec to 36K ints/sec */
-		avg_wire_size *= 15;
-		avg_wire_size += 11452;
-	} else if (avg_wire_size <= 1980) {
-		/* 36K ints/sec to 30K ints/sec */
-		avg_wire_size *= 5;
-		avg_wire_size += 22420;
-	} else {
-		/* plateau at a limit of 30K ints/sec */
-		avg_wire_size = 32256;
-	}
-
-	/* If we are in low latency mode halve our delay which doubles the
-	 * rate to somewhere between 100K to 16K ints/sec
-	 */
-	if (itr & ICE_ITR_ADAPTIVE_LATENCY)
-		avg_wire_size >>= 1;
-
-	/* Resultant value is 256 times larger than it needs to be. This
-	 * gives us room to adjust the value as needed to either increase
-	 * or decrease the value based on link speeds of 10G, 2.5G, 1G, etc.
-	 *
-	 * Use addition as we have already recorded the new latency flag
-	 * for the ITR value.
-	 */
-	itr += DIV_ROUND_UP(avg_wire_size,
-			    ice_itr_divisor(q_vector->vsi->port_info)) *
-	       ICE_ITR_ADAPTIVE_MIN_INC;
-
-	if ((itr & ICE_ITR_MASK) > ICE_ITR_ADAPTIVE_MAX_USECS) {
-		itr &= ICE_ITR_ADAPTIVE_LATENCY;
-		itr += ICE_ITR_ADAPTIVE_MAX_USECS;
-	}
+	/* based on checks above packets cannot be 0 so division is safe */
+	itr = ice_adjust_itr_by_size_and_speed(q_vector->vsi->port_info,
+					       bytes / packets, itr);
 
 clear_counts:
 	/* write back value */
@@ -1772,7 +1764,7 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 }
 
 /**
- * ice_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
+ * ice_tx_prepare_vlan_flags - prepare generic Tx VLAN tagging flags for HW
  * @tx_ring: ring to send buffer on
  * @first: pointer to struct ice_tx_buf
  *
@@ -1798,7 +1790,7 @@ ice_tx_prepare_vlan_flags(struct ice_ring *tx_ring, struct ice_tx_buf *first)
 		 * to the encapsulated ethertype.
 		 */
 		skb->protocol = vlan_get_protocol(skb);
-		goto out;
+		return 0;
 	}
 
 	/* if we have a HW VLAN tag being added, default to the HW one */
@@ -1820,8 +1812,7 @@ ice_tx_prepare_vlan_flags(struct ice_ring *tx_ring, struct ice_tx_buf *first)
 		first->tx_flags |= ICE_TX_FLAGS_SW_VLAN;
 	}
 
-out:
-	return 0;
+	return ice_tx_prepare_vlan_flags_dcb(tx_ring, first);
 }
 
 /**

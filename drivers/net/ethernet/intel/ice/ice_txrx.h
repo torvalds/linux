@@ -45,6 +45,8 @@
 #define ICE_TX_FLAGS_HW_VLAN	BIT(1)
 #define ICE_TX_FLAGS_SW_VLAN	BIT(2)
 #define ICE_TX_FLAGS_VLAN_M	0xffff0000
+#define ICE_TX_FLAGS_VLAN_PR_M	0xe0000000
+#define ICE_TX_FLAGS_VLAN_PR_S	29
 #define ICE_TX_FLAGS_VLAN_S	16
 
 #define ICE_RX_DMA_ATTR \
@@ -160,6 +162,9 @@ struct ice_ring {
 	};
 	u16 q_index;			/* Queue number of ring */
 	u32 txq_teid;			/* Added Tx queue TEID */
+#ifdef CONFIG_DCB
+	u8 dcb_tc;		/* Traffic class of ring */
+#endif /* CONFIG_DCB */
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */

@@ -7,8 +7,9 @@
 
 #include "ice.h"
 #include "ice_lib.h"
+#include "ice_dcb_lib.h"
 
-#define DRV_VERSION	"0.7.2-k"
+#define DRV_VERSION	"0.7.4-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -30,7 +31,6 @@ MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all)");
 static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_ops;
 
-static void ice_pf_dis_all_vsi(struct ice_pf *pf);
 static void ice_rebuild(struct ice_pf *pf);
 
 static void ice_vsi_release_all(struct ice_pf *pf);
@@ -113,14 +113,14 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 }
 
 /**
- * ice_add_mac_to_sync_list - creates list of mac addresses to be synced
+ * ice_add_mac_to_sync_list - creates list of MAC addresses to be synced
  * @netdev: the net device on which the sync is happening
- * @addr: mac address to sync
+ * @addr: MAC address to sync
  *
  * This is a callback function which is called by the in kernel device sync
  * functions (like __dev_uc_sync, __dev_mc_sync, etc). This function only
  * populates the tmp_sync_list, which is later used by ice_add_mac to add the
- * mac filters from the hardware.
+ * MAC filters from the hardware.
  */
 static int ice_add_mac_to_sync_list(struct net_device *netdev, const u8 *addr)
 {
@@ -134,14 +134,14 @@ static int ice_add_mac_to_sync_list(struct net_device *netdev, const u8 *addr)
 }
 
 /**
- * ice_add_mac_to_unsync_list - creates list of mac addresses to be unsynced
+ * ice_add_mac_to_unsync_list - creates list of MAC addresses to be unsynced
  * @netdev: the net device on which the unsync is happening
- * @addr: mac address to unsync
+ * @addr: MAC address to unsync
  *
  * This is a callback function which is called by the in kernel device unsync
  * functions (like __dev_uc_unsync, __dev_mc_unsync, etc). This function only
  * populates the tmp_unsync_list, which is later used by ice_remove_mac to
- * delete the mac filters from the hardware.
+ * delete the MAC filters from the hardware.
  */
 static int ice_add_mac_to_unsync_list(struct net_device *netdev, const u8 *addr)
 {
@@ -245,7 +245,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		netif_addr_unlock_bh(netdev);
 	}
 
-	/* Remove mac addresses in the unsync list */
+	/* Remove MAC addresses in the unsync list */
 	status = ice_remove_mac(hw, &vsi->tmp_unsync_list);
 	ice_free_fltr_list(dev, &vsi->tmp_unsync_list);
 	if (status) {
@@ -257,7 +257,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		}
 	}
 
-	/* Add mac addresses in the sync list */
+	/* Add MAC addresses in the sync list */
 	status = ice_add_mac(hw, &vsi->tmp_sync_list);
 	ice_free_fltr_list(dev, &vsi->tmp_sync_list);
 	/* If filter is added successfully or already exists, do not go into
@@ -266,7 +266,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	 */
 	if (status && status != ICE_ERR_ALREADY_EXISTS) {
 		netdev_err(netdev, "Failed to add MAC filters\n");
-		/* If there is no more space for new umac filters, vsi
+		/* If there is no more space for new umac filters, VSI
 		 * should go into promiscuous mode. There should be some
 		 * space reserved for promiscuous filters.
 		 */
@@ -317,7 +317,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	    test_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags)) {
 		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
 		if (vsi->current_netdev_flags & IFF_PROMISC) {
-			/* Apply TX filter rule to get traffic from VMs */
+			/* Apply Tx filter rule to get traffic from VMs */
 			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_TX);
 			if (status) {
@@ -327,7 +327,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				err = -EIO;
 				goto out_promisc;
 			}
-			/* Apply RX filter rule to get traffic from wire */
+			/* Apply Rx filter rule to get traffic from wire */
 			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_RX);
 			if (status) {
@@ -338,7 +338,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				goto out_promisc;
 			}
 		} else {
-			/* Clear TX filter rule to stop traffic from VMs */
+			/* Clear Tx filter rule to stop traffic from VMs */
 			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_TX);
 			if (status) {
@@ -348,7 +348,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				err = -EIO;
 				goto out_promisc;
 			}
-			/* Clear RX filter to remove traffic from wire */
+			/* Clear Rx filter to remove traffic from wire */
 			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_RX);
 			if (status) {
@@ -397,6 +397,51 @@ static void ice_sync_fltr_subtask(struct ice_pf *pf)
 }
 
 /**
+ * ice_dis_vsi - pause a VSI
+ * @vsi: the VSI being paused
+ * @locked: is the rtnl_lock already held
+ */
+static void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
+{
+	if (test_bit(__ICE_DOWN, vsi->state))
+		return;
+
+	set_bit(__ICE_NEEDS_RESTART, vsi->state);
+
+	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
+			if (!locked) {
+				rtnl_lock();
+				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+				rtnl_unlock();
+			} else {
+				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+			}
+		} else {
+			ice_vsi_close(vsi);
+		}
+	}
+}
+
+/**
+ * ice_pf_dis_all_vsi - Pause all VSIs on a PF
+ * @pf: the PF
+ * @locked: is the rtnl_lock already held
+ */
+#ifdef CONFIG_DCB
+void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
+#else
+static void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
+#endif /* CONFIG_DCB */
+{
+	int v;
+
+	ice_for_each_vsi(pf, v)
+		if (pf->vsi[v])
+			ice_dis_vsi(pf->vsi[v], locked);
+}
+
+/**
  * ice_prepare_for_reset - prep for the core to reset
  * @pf: board private structure
  *
@@ -416,7 +461,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 		ice_vc_notify_reset(pf);
 
 	/* disable the VSIs and their queues that are not already DOWN */
-	ice_pf_dis_all_vsi(pf);
+	ice_pf_dis_all_vsi(pf, false);
 
 	if (hw->port_info)
 		ice_sched_clear_port(hw->port_info);
@@ -504,7 +549,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			pf->hw.reset_ongoing = false;
 			ice_rebuild(pf);
 			/* clear bit to resume normal operations, but
-			 * ICE_NEEDS_RESTART bit is set incase rebuild failed
+			 * ICE_NEEDS_RESTART bit is set in case rebuild failed
 			 */
 			clear_bit(__ICE_RESET_OICR_RECV, pf->state);
 			clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
@@ -608,9 +653,9 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 }
 
 /**
- * ice_vsi_link_event - update the vsi's netdev
- * @vsi: the vsi on which the link event occurred
- * @link_up: whether or not the vsi needs to be set up or down
+ * ice_vsi_link_event - update the VSI's netdev
+ * @vsi: the VSI on which the link event occurred
+ * @link_up: whether or not the VSI needs to be set up or down
  */
 static void ice_vsi_link_event(struct ice_vsi *vsi, bool link_up)
 {
@@ -890,6 +935,9 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 			break;
 		case ice_aqc_opc_fw_logging:
 			ice_output_fw_log(hw, &event.desc, event.msg_buf);
+			break;
+		case ice_aqc_opc_lldp_set_mib_change:
+			ice_dcb_process_lldp_set_mib_change(pf, &event);
 			break;
 		default:
 			dev_dbg(&pf->pdev->dev,
@@ -1236,7 +1284,7 @@ static void ice_service_task(struct work_struct *work)
 
 /**
  * ice_set_ctrlq_len - helper function to set controlq length
- * @hw: pointer to the hw instance
+ * @hw: pointer to the HW instance
  */
 static void ice_set_ctrlq_len(struct ice_hw *hw)
 {
@@ -1796,12 +1844,12 @@ ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 }
 
 /**
- * ice_vlan_rx_add_vid - Add a vlan id filter to HW offload
+ * ice_vlan_rx_add_vid - Add a VLAN ID filter to HW offload
  * @netdev: network interface to be adjusted
  * @proto: unused protocol
- * @vid: vlan id to be added
+ * @vid: VLAN ID to be added
  *
- * net_device_ops implementation for adding vlan ids
+ * net_device_ops implementation for adding VLAN IDs
  */
 static int
 ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
@@ -1827,7 +1875,7 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 			return ret;
 	}
 
-	/* Add all VLAN ids including 0 to the switch filter. VLAN id 0 is
+	/* Add all VLAN IDs including 0 to the switch filter. VLAN ID 0 is
 	 * needed to continue allowing all untagged packets since VLAN prune
 	 * list is applied to all packets by the switch
 	 */
@@ -1841,12 +1889,12 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 }
 
 /**
- * ice_vlan_rx_kill_vid - Remove a vlan id filter from HW offload
+ * ice_vlan_rx_kill_vid - Remove a VLAN ID filter from HW offload
  * @netdev: network interface to be adjusted
  * @proto: unused protocol
- * @vid: vlan id to be removed
+ * @vid: VLAN ID to be removed
  *
- * net_device_ops implementation for removing vlan ids
+ * net_device_ops implementation for removing VLAN IDs
  */
 static int
 ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
@@ -2285,6 +2333,15 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	ice_init_pf(pf);
 
+	err = ice_init_pf_dcb(pf);
+	if (err) {
+		clear_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
+		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
+
+		/* do not fail overall init if DCB init fails */
+		err = 0;
+	}
+
 	ice_determine_q_usage(pf);
 
 	pf->num_alloc_vsi = hw->func_caps.guar_num_vsi;
@@ -2622,7 +2679,7 @@ static void __exit ice_module_exit(void)
 module_exit(ice_module_exit);
 
 /**
- * ice_set_mac_address - NDO callback to set mac address
+ * ice_set_mac_address - NDO callback to set MAC address
  * @netdev: network interface device structure
  * @pi: pointer to an address structure
  *
@@ -2659,14 +2716,14 @@ static int ice_set_mac_address(struct net_device *netdev, void *pi)
 		return -EBUSY;
 	}
 
-	/* When we change the mac address we also have to change the mac address
-	 * based filter rules that were created previously for the old mac
+	/* When we change the MAC address we also have to change the MAC address
+	 * based filter rules that were created previously for the old MAC
 	 * address. So first, we remove the old filter rule using ice_remove_mac
 	 * and then create a new filter rule using ice_add_mac. Note that for
-	 * both these operations, we first need to form a "list" of mac
-	 * addresses (even though in this case, we have only 1 mac address to be
+	 * both these operations, we first need to form a "list" of MAC
+	 * addresses (even though in this case, we have only 1 MAC address to be
 	 * added/removed) and this done using ice_add_mac_to_list. Depending on
-	 * the ensuing operation this "list" of mac addresses is either to be
+	 * the ensuing operation this "list" of MAC addresses is either to be
 	 * added or removed from the filter.
 	 */
 	err = ice_add_mac_to_list(vsi, &r_mac_list, netdev->dev_addr);
@@ -2704,12 +2761,12 @@ free_lists:
 		return err;
 	}
 
-	/* change the netdev's mac address */
+	/* change the netdev's MAC address */
 	memcpy(netdev->dev_addr, mac, netdev->addr_len);
 	netdev_dbg(vsi->netdev, "updated mac address to %pM\n",
 		   netdev->dev_addr);
 
-	/* write new mac address to the firmware */
+	/* write new MAC address to the firmware */
 	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
 	status = ice_aq_manage_mac_write(hw, mac, flags, NULL);
 	if (status) {
@@ -2751,7 +2808,7 @@ static void ice_set_rx_mode(struct net_device *netdev)
  * @tb: pointer to array of nladdr (unused)
  * @dev: the net device pointer
  * @addr: the MAC address entry being added
- * @vid: VLAN id
+ * @vid: VLAN ID
  * @flags: instructions from stack about fdb operation
  * @extack: netlink extended ack
  */
@@ -2791,7 +2848,7 @@ ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
  * @tb: pointer to array of nladdr (unused)
  * @dev: the net device pointer
  * @addr: the MAC address entry being added
- * @vid: VLAN id
+ * @vid: VLAN ID
  */
 static int
 ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
@@ -2850,8 +2907,8 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 }
 
 /**
- * ice_vsi_vlan_setup - Setup vlan offload properties on a VSI
- * @vsi: VSI to setup vlan properties for
+ * ice_vsi_vlan_setup - Setup VLAN offload properties on a VSI
+ * @vsi: VSI to setup VLAN properties for
  */
 static int ice_vsi_vlan_setup(struct ice_vsi *vsi)
 {
@@ -2883,6 +2940,7 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 		if (err)
 			return err;
 	}
+	ice_vsi_cfg_dcb_rings(vsi);
 
 	err = ice_vsi_cfg_lan_txqs(vsi);
 	if (!err)
@@ -3192,6 +3250,8 @@ static void ice_update_pf_stats(struct ice_pf *pf)
 
 	ice_stat_update32(hw, GLPRT_LXOFFTXC(pf_id), pf->stat_prev_loaded,
 			  &prev_ps->link_xoff_tx, &cur_ps->link_xoff_tx);
+
+	ice_update_dcb_stats(pf);
 
 	ice_stat_update32(hw, GLPRT_CRCERRS(pf_id), pf->stat_prev_loaded,
 			  &prev_ps->crc_errors, &cur_ps->crc_errors);
@@ -3571,46 +3631,30 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 }
 
 /**
- * ice_dis_vsi - pause a VSI
- * @vsi: the VSI being paused
- * @locked: is the rtnl_lock already held
- */
-static void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
-{
-	if (test_bit(__ICE_DOWN, vsi->state))
-		return;
-
-	set_bit(__ICE_NEEDS_RESTART, vsi->state);
-
-	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
-		if (netif_running(vsi->netdev)) {
-			if (!locked) {
-				rtnl_lock();
-				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-				rtnl_unlock();
-			} else {
-				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-			}
-		} else {
-			ice_vsi_close(vsi);
-		}
-	}
-}
-
-/**
  * ice_ena_vsi - resume a VSI
  * @vsi: the VSI being resume
+ * @locked: is the rtnl_lock already held
  */
-static int ice_ena_vsi(struct ice_vsi *vsi)
+static int ice_ena_vsi(struct ice_vsi *vsi, bool locked)
 {
 	int err = 0;
 
-	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state) &&
-	    vsi->netdev) {
+	if (!test_bit(__ICE_NEEDS_RESTART, vsi->state))
+		return err;
+
+	clear_bit(__ICE_NEEDS_RESTART, vsi->state);
+
+	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
+		struct net_device *netd = vsi->netdev;
+
 		if (netif_running(vsi->netdev)) {
-			rtnl_lock();
-			err = vsi->netdev->netdev_ops->ndo_open(vsi->netdev);
-			rtnl_unlock();
+			if (locked) {
+				err = netd->netdev_ops->ndo_open(netd);
+			} else {
+				rtnl_lock();
+				err = netd->netdev_ops->ndo_open(netd);
+				rtnl_unlock();
+			}
 		} else {
 			err = ice_vsi_open(vsi);
 		}
@@ -3620,29 +3664,21 @@ static int ice_ena_vsi(struct ice_vsi *vsi)
 }
 
 /**
- * ice_pf_dis_all_vsi - Pause all VSIs on a PF
- * @pf: the PF
- */
-static void ice_pf_dis_all_vsi(struct ice_pf *pf)
-{
-	int v;
-
-	ice_for_each_vsi(pf, v)
-		if (pf->vsi[v])
-			ice_dis_vsi(pf->vsi[v], false);
-}
-
-/**
  * ice_pf_ena_all_vsi - Resume all VSIs on a PF
  * @pf: the PF
+ * @locked: is the rtnl_lock already held
  */
-static int ice_pf_ena_all_vsi(struct ice_pf *pf)
+#ifdef CONFIG_DCB
+int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
+#else
+static int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
+#endif /* CONFIG_DCB */
 {
 	int v;
 
 	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v])
-			if (ice_ena_vsi(pf->vsi[v]))
+			if (ice_ena_vsi(pf->vsi[v], locked))
 				return -EIO;
 
 	return 0;
@@ -3757,6 +3793,8 @@ static void ice_rebuild(struct ice_pf *pf)
 	if (err)
 		goto err_sched_init_port;
 
+	ice_dcb_rebuild(pf);
+
 	/* reset search_hint of irq_trackers to 0 since interrupts are
 	 * reclaimed and could be allocated from beginning during VSI rebuild
 	 */
@@ -3790,7 +3828,7 @@ static void ice_rebuild(struct ice_pf *pf)
 	}
 
 	/* restart the VSIs that were rebuilt and running before the reset */
-	err = ice_pf_ena_all_vsi(pf);
+	err = ice_pf_ena_all_vsi(pf, false);
 	if (err) {
 		dev_err(&pf->pdev->dev, "error enabling VSIs\n");
 		/* no need to disable VSIs in tear down path in ice_rebuild()
@@ -3986,7 +4024,7 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 /**
  * ice_bridge_getlink - Get the hardware bridge mode
  * @skb: skb buff
- * @pid: process id
+ * @pid: process ID
  * @seq: RTNL message seq
  * @dev: the netdev being configured
  * @filter_mask: filter mask passed in

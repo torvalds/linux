@@ -34,6 +34,7 @@
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"
+#include "ice_dcb.h"
 #include "ice_switch.h"
 #include "ice_common.h"
 #include "ice_sched.h"
@@ -151,7 +152,7 @@ struct ice_tc_info {
 
 struct ice_tc_cfg {
 	u8 numtc; /* Total number of enabled TCs */
-	u8 ena_tc; /* TX map */
+	u8 ena_tc; /* Tx map */
 	struct ice_tc_info tc_info[ICE_MAX_TRAFFIC_CLASS];
 };
 
@@ -162,7 +163,7 @@ struct ice_res_tracker {
 };
 
 struct ice_qs_cfg {
-	struct mutex *qs_mutex;  /* will be assgined to &pf->avail_q_mutex */
+	struct mutex *qs_mutex;  /* will be assigned to &pf->avail_q_mutex */
 	unsigned long *pf_map;
 	unsigned long pf_map_size;
 	unsigned int q_count;
@@ -321,7 +322,11 @@ enum ice_pf_flags {
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
 	ICE_FLAG_SRIOV_CAPABLE,
+	ICE_FLAG_DCB_CAPABLE,
+	ICE_FLAG_DCB_ENA,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
+	ICE_FLAG_DISABLE_FW_LLDP,
+	ICE_FLAG_ETHTOOL_CTXT,		/* set when ethtool holds RTNL lock */
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
@@ -360,8 +365,8 @@ struct ice_pf {
 	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
 	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
-	u16 num_lan_tx;		/* num lan Tx queues setup */
-	u16 num_lan_rx;		/* num lan Rx queues setup */
+	u16 num_lan_tx;		/* num LAN Tx queues setup */
+	u16 num_lan_rx;		/* num LAN Rx queues setup */
 	u16 q_left_tx;		/* remaining num Tx queues left unclaimed */
 	u16 q_left_rx;		/* remaining num Rx queues left unclaimed */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
@@ -375,6 +380,9 @@ struct ice_pf {
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
 	u8 stat_prev_loaded;	/* has previous stats been loaded */
+#ifdef CONFIG_DCB
+	u16 dcbx_cap;
+#endif /* CONFIG_DCB */
 	u32 tx_timeout_count;
 	unsigned long tx_timeout_last_recovery;
 	u32 tx_timeout_recovery_level;
@@ -387,8 +395,8 @@ struct ice_netdev_priv {
 
 /**
  * ice_irq_dynamic_ena - Enable default interrupt generation settings
- * @hw: pointer to hw struct
- * @vsi: pointer to vsi struct, can be NULL
+ * @hw: pointer to HW struct
+ * @vsi: pointer to VSI struct, can be NULL
  * @q_vector: pointer to q_vector, can be NULL
  */
 static inline void
@@ -411,12 +419,6 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 	wr32(hw, GLINT_DYN_CTL(vector), val);
 }
 
-static inline void ice_vsi_set_tc_cfg(struct ice_vsi *vsi)
-{
-	vsi->tc_cfg.ena_tc =  ICE_DFLT_TRAFFIC_CLASS;
-	vsi->tc_cfg.numtc = 1;
-}
-
 void ice_set_ethtool_ops(struct net_device *netdev);
 int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
@@ -425,5 +427,9 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 void ice_napi_del(struct ice_vsi *vsi);
+#ifdef CONFIG_DCB
+int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked);
+void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked);
+#endif /* CONFIG_DCB */
 
 #endif /* _ICE_H_ */
