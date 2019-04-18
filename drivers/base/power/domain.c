@@ -2272,6 +2272,7 @@ EXPORT_SYMBOL_GPL(of_genpd_remove_last);
 
 static void genpd_release_dev(struct device *dev)
 {
+	of_node_put(dev->of_node);
 	kfree(dev);
 }
 
@@ -2333,14 +2334,14 @@ static void genpd_dev_pm_sync(struct device *dev)
 	genpd_queue_power_off_work(pd);
 }
 
-static int __genpd_dev_pm_attach(struct device *dev, struct device_node *np,
-				 unsigned int index, bool power_on)
+static int __genpd_dev_pm_attach(struct device *dev, unsigned int index,
+				 bool power_on)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
 	int ret;
 
-	ret = of_parse_phandle_with_args(np, "power-domains",
+	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 				"#power-domain-cells", index, &pd_args);
 	if (ret < 0)
 		return ret;
@@ -2408,7 +2409,7 @@ int genpd_dev_pm_attach(struct device *dev)
 				       "#power-domain-cells") != 1)
 		return 0;
 
-	return __genpd_dev_pm_attach(dev, dev->of_node, 0, true);
+	return __genpd_dev_pm_attach(dev, 0, true);
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
@@ -2452,6 +2453,7 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	dev_set_name(virt_dev, "genpd:%u:%s", index, dev_name(dev));
 	virt_dev->bus = &genpd_bus_type;
 	virt_dev->release = genpd_release_dev;
+	virt_dev->of_node = of_node_get(dev->of_node);
 
 	ret = device_register(virt_dev);
 	if (ret) {
@@ -2460,7 +2462,7 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	}
 
 	/* Try to attach the device to the PM domain at the specified index. */
-	ret = __genpd_dev_pm_attach(virt_dev, dev->of_node, index, false);
+	ret = __genpd_dev_pm_attach(virt_dev, index, false);
 	if (ret < 1) {
 		device_unregister(virt_dev);
 		return ret ? ERR_PTR(ret) : NULL;
