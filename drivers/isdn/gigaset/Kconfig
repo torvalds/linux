@@ -30,15 +30,6 @@ config GIGASET_CAPI
 	  Say N to build the old native ISDN4Linux variant.
 	  If unsure, say Y.
 
-config GIGASET_I4L
-	bool
-	depends on ISDN_I4L='y'||(ISDN_I4L='m'&&ISDN_DRV_GIGASET='m')
-	default !GIGASET_CAPI
-
-config GIGASET_DUMMYLL
-	bool
-	default !GIGASET_CAPI&&!GIGASET_I4L
-
 config GIGASET_BASE
 	tristate "Gigaset base station support"
 	depends on USB
