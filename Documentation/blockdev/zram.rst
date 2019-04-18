@@ -215,7 +215,7 @@ User space is advised to use the following files to read the device statistics.
 
 File /sys/block/zram<id>/stat
 
-Represents block layer statistics. Read Documentation/block/stat.txt for
+Represents block layer statistics. Read Documentation/block/stat.rst for
 details.
 
 File /sys/block/zram<id>/io_stat

@@ -1,6 +1,6 @@
-
+==========================================
 Explicit volatile write back cache control
-=====================================
+==========================================
 
 Introduction
 ------------
@@ -31,7 +31,7 @@ the blkdev_issue_flush() helper for a pure cache flush.
 
 
 Forced Unit Access
------------------
+------------------
 
 The REQ_FUA flag can be OR ed into the r/w flags of a bio submitted from the
 filesystem and will make sure that I/O completion for this request is only
@@ -62,14 +62,14 @@ flags themselves without any help from the block layer.
 
 
 Implementation details for request_fn based block drivers
---------------------------------------------------------------
+---------------------------------------------------------
 
 For devices that do not support volatile write caches there is no driver
 support required, the block layer completes empty REQ_PREFLUSH requests before
 entering the driver and strips off the REQ_PREFLUSH and REQ_FUA bits from
 requests that have a payload.  For devices with volatile write caches the
 driver needs to tell the block layer that it supports flushing caches by
-doing:
+doing::
 
 	blk_queue_write_cache(sdkp->disk->queue, true, false);
 
@@ -77,7 +77,7 @@ and handle empty REQ_OP_FLUSH requests in its prep_fn/request_fn.  Note that
 REQ_PREFLUSH requests with a payload are automatically turned into a sequence
 of an empty REQ_OP_FLUSH request followed by the actual write by the block
 layer.  For devices that also support the FUA bit the block layer needs
-to be told to pass through the REQ_FUA bit using:
+to be told to pass through the REQ_FUA bit using::
 
 	blk_queue_write_cache(sdkp->disk->queue, true, true);
 

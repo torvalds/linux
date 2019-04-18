@@ -110,7 +110,7 @@ config BLK_CMDLINE_PARSER
 	which don't otherwise have any standardized method for listing the
 	partitions on a block device.
 
-	See Documentation/block/cmdline-partition.txt for more information.
+	See Documentation/block/cmdline-partition.rst for more information.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"

@@ -1,3 +1,4 @@
+=================
 Queue sysfs files
 =================
 
@@ -10,7 +11,7 @@ Files denoted with a RO postfix are readonly and the RW postfix means
 read-write.
 
 add_random (RW)
-----------------
+---------------
 This file allows to turn off the disk entropy contribution. Default
 value of this file is '1'(on).
 
@@ -30,13 +31,13 @@ used by CPU-addressable storage to bypass the pagecache.  It shows '1'
 if true, '0' if not.
 
 discard_granularity (RO)
------------------------
+------------------------
 This shows the size of internal allocation of the device in bytes, if
 reported by the device. A value of '0' means device does not support
 the discard functionality.
 
 discard_max_hw_bytes (RO)
-----------------------
+-------------------------
 Devices that support discard functionality may have internal limits on
 the number of bytes that can be trimmed or unmapped in a single operation.
 The discard_max_bytes parameter is set by the device driver to the maximum

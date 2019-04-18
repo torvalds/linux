@@ -1,6 +1,6 @@
-
-Immutable biovecs and biovec iterators:
-=======================================
+======================================
+Immutable biovecs and biovec iterators
+======================================
 
 Kent Overstreet <kmo@daterainc.com>
 
@@ -121,10 +121,12 @@ Other implications:
 Usage of helpers:
 =================
 
-* The following helpers whose names have the suffix of "_all" can only be used
-on non-BIO_CLONED bio. They are usually used by filesystem code. Drivers
-shouldn't use them because the bio may have been split before it reached the
-driver.
+* The following helpers whose names have the suffix of `_all` can only be used
+  on non-BIO_CLONED bio. They are usually used by filesystem code. Drivers
+  shouldn't use them because the bio may have been split before it reached the
+  driver.
+
+::
 
 	bio_for_each_segment_all()
 	bio_first_bvec_all()
@@ -132,13 +134,13 @@ driver.
 	bio_last_bvec_all()
 
 * The following helpers iterate over single-page segment. The passed 'struct
-bio_vec' will contain a single-page IO vector during the iteration
+  bio_vec' will contain a single-page IO vector during the iteration::
 
 	bio_for_each_segment()
 	bio_for_each_segment_all()
 
 * The following helpers iterate over multi-page bvec. The passed 'struct
-bio_vec' will contain a multi-page IO vector during the iteration
+  bio_vec' will contain a multi-page IO vector during the iteration::
 
 	bio_for_each_bvec()
 	rq_for_each_bvec()

@@ -1,5 +1,6 @@
+==============================================
 Embedded device command line partition parsing
-=====================================================================
+==============================================
 
 The "blkdevparts" command line option adds support for reading the
 block device partition table from the kernel command line.
@@ -22,12 +23,15 @@ blkdevparts=<blkdev-def>[;<blkdev-def>]
 <size>
     partition size, in bytes, such as: 512, 1m, 1G.
     size may contain an optional suffix of (upper or lower case):
+
       K, M, G, T, P, E.
+
     "-" is used to denote all remaining space.
 
 <offset>
     partition start address, in bytes.
     offset may contain an optional suffix of (upper or lower case):
+
       K, M, G, T, P, E.
 
 (part-name)
@@ -36,11 +40,14 @@ blkdevparts=<blkdev-def>[;<blkdev-def>]
     User space application can access partition by partition name.
 
 Example:
+
     eMMC disk names are "mmcblk0" and "mmcblk0boot0".
 
-  bootargs:
+  bootargs::
+
     'blkdevparts=mmcblk0:1G(data0),1G(data1),-;mmcblk0boot0:1m(boot),-(kernel)'
 
-  dmesg:
+  dmesg::
+
     mmcblk0: p1(data0) p2(data1) p3()
     mmcblk0boot0: p1(boot) p2(kernel)

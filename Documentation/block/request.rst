@@ -1,26 +1,37 @@
-
+============================
 struct request documentation
+============================
 
 Jens Axboe <jens.axboe@oracle.com> 27/05/02
 
-1.0
-Index
 
-2.0 Struct request members classification
+.. FIXME:
+   No idea about what does mean - seems just some noise, so comment it
 
-	2.1 struct request members explanation
+   1.0
+   Index
 
-3.0
+   2.0 Struct request members classification
+
+       2.1 struct request members explanation
+
+   3.0
 
 
-2.0
+   2.0
+
+
+
 Short explanation of request members
+====================================
 
 Classification flags:
 
+	=	====================
 	D	driver member
 	B	block layer member
 	I	I/O scheduler member
+	=	====================
 
 Unless an entry contains a D classification, a device driver must not access
 this member. Some members may contain D classifications, but should only be
@@ -28,14 +39,13 @@ access through certain macros or functions (eg ->flags).
 
 <linux/blkdev.h>
 
-2.1
+=============================== ======= =======================================
 Member				Flag	Comment
-------				----	-------
-
+=============================== ======= =======================================
 struct list_head queuelist	BI	Organization on various internal
 					queues
 
-void *elevator_private		I	I/O scheduler private data
+``void *elevator_private``	I	I/O scheduler private data
 
 unsigned char cmd[16]		D	Driver can use this for setting up
 					a cdb before execution, see
@@ -71,18 +81,19 @@ unsigned int hard_cur_sectors	B	Used to keep current_nr_sectors sane
 
 int tag				DB	TCQ tag, if assigned
 
-void *special			D	Free to be used by driver
+``void *special``		D	Free to be used by driver
 
-char *buffer			D	Map of first segment, also see
+``char *buffer``		D	Map of first segment, also see
 					section on bouncing SECTION
 
-struct completion *waiting	D	Can be used by driver to get signalled
+``struct completion *waiting``	D	Can be used by driver to get signalled
 					on request completion
 
-struct bio *bio			DBI	First bio in request
+``struct bio *bio``		DBI	First bio in request
 
-struct bio *biotail		DBI	Last bio in request
+``struct bio *biotail``		DBI	Last bio in request
 
-struct request_queue *q		DB	Request queue this request belongs to
+``struct request_queue *q``	DB	Request queue this request belongs to
 
-struct request_list *rl		B	Request list this request came from
+``struct request_list *rl``	B	Request list this request came from
+=============================== ======= =======================================

@@ -1,3 +1,4 @@
+==============================
 Deadline IO scheduler tunables
 ==============================
 
@@ -7,15 +8,13 @@ of interest to power users.
 
 Selecting IO schedulers
 -----------------------
-Refer to Documentation/block/switching-sched.txt for information on
+Refer to Documentation/block/switching-sched.rst for information on
 selecting an io scheduler on a per-device basis.
 
-
-********************************************************************************
-
+------------------------------------------------------------------------------
 
 read_expire	(in ms)
------------
+-----------------------
 
 The goal of the deadline io scheduler is to attempt to guarantee a start
 service time for a request. As we focus mainly on read latencies, this is
@@ -25,15 +24,15 @@ milliseconds.
 
 
 write_expire	(in ms)
------------
+-----------------------
 
 Similar to read_expire mentioned above, but for writes.
 
 
 fifo_batch	(number of requests)
-----------
+------------------------------------
 
-Requests are grouped into ``batches'' of a particular data direction (read or
+Requests are grouped into ``batches`` of a particular data direction (read or
 write) which are serviced in increasing sector order.  To limit extra seeking,
 deadline expiries are only checked between batches.  fifo_batch controls the
 maximum number of requests per batch.
@@ -45,7 +44,7 @@ generally improves throughput, at the cost of latency variation.
 
 
 writes_starved	(number of dispatches)
---------------
+--------------------------------------
 
 When we have to move requests from the io scheduler queue to the block
 device dispatch queue, we always give a preference to reads. However, we
@@ -56,7 +55,7 @@ same criteria as reads.
 
 
 front_merges	(bool)
-------------
+----------------------
 
 Sometimes it happens that a request enters the io scheduler that is contiguous
 with a request that is already on the queue. Either it fits in the back of that
@@ -71,5 +70,3 @@ rbtree front sector lookup when the io scheduler merge function is called.
 
 
 Nov 11 2002, Jens Axboe <jens.axboe@oracle.com>
-
-

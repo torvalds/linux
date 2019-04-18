@@ -1,15 +1,24 @@
-	Notes on the Generic Block Layer Rewrite in Linux 2.5
-	=====================================================
+=====================================================
+Notes on the Generic Block Layer Rewrite in Linux 2.5
+=====================================================
+
+.. note::
+
+	It seems that there are lot of outdated stuff here. This seems
+	to be written somewhat as a task list. Yet, eventually, something
+	here might still be useful.
 
 Notes Written on Jan 15, 2002:
-	Jens Axboe <jens.axboe@oracle.com>
-	Suparna Bhattacharya <suparna@in.ibm.com>
+	- Jens Axboe <jens.axboe@oracle.com>
+	- Suparna Bhattacharya <suparna@in.ibm.com>
 
 Last Updated May 2, 2002
-September 2003: Updated I/O Scheduler portions
-	Nick Piggin <npiggin@kernel.dk>
 
-Introduction:
+September 2003: Updated I/O Scheduler portions
+	- Nick Piggin <npiggin@kernel.dk>
+
+Introduction
+============
 
 These are some notes describing some aspects of the 2.5 block layer in the
 context of the bio rewrite. The idea is to bring out some of the key
@@ -17,11 +26,11 @@ changes and a glimpse of the rationale behind those changes.
 
 Please mail corrections & suggestions to suparna@in.ibm.com.
 
-Credits:
----------
+Credits
+=======
 
 2.5 bio rewrite:
-	Jens Axboe <jens.axboe@oracle.com>
+	- Jens Axboe <jens.axboe@oracle.com>
 
 Many aspects of the generic block layer redesign were driven by and evolved
 over discussions, prior patches and the collective experience of several
@@ -29,62 +38,63 @@ people. See sections 8 and 9 for a list of some related references.
 
 The following people helped with review comments and inputs for this
 document:
-	Christoph Hellwig <hch@infradead.org>
-	Arjan van de Ven <arjanv@redhat.com>
-	Randy Dunlap <rdunlap@xenotime.net>
-	Andre Hedrick <andre@linux-ide.org>
+
+	- Christoph Hellwig <hch@infradead.org>
+	- Arjan van de Ven <arjanv@redhat.com>
+	- Randy Dunlap <rdunlap@xenotime.net>
+	- Andre Hedrick <andre@linux-ide.org>
 
 The following people helped with fixes/contributions to the bio patches
 while it was still work-in-progress:
-	David S. Miller <davem@redhat.com>
+
+	- David S. Miller <davem@redhat.com>
 
 
-Description of Contents:
-------------------------
+.. Description of Contents:
 
-1. Scope for tuning of logic to various needs
-  1.1 Tuning based on device or low level driver capabilities
+   1. Scope for tuning of logic to various needs
+     1.1 Tuning based on device or low level driver capabilities
 	- Per-queue parameters
 	- Highmem I/O support
 	- I/O scheduler modularization
-  1.2 Tuning based on high level requirements/capabilities
+     1.2 Tuning based on high level requirements/capabilities
 	1.2.1 Request Priority/Latency
-  1.3 Direct access/bypass to lower layers for diagnostics and special
-      device operations
+     1.3 Direct access/bypass to lower layers for diagnostics and special
+	 device operations
 	1.3.1 Pre-built commands
-2. New flexible and generic but minimalist i/o structure or descriptor
-   (instead of using buffer heads at the i/o layer)
-  2.1 Requirements/Goals addressed
-  2.2 The bio struct in detail (multi-page io unit)
-  2.3 Changes in the request structure
-3. Using bios
-  3.1 Setup/teardown (allocation, splitting)
-  3.2 Generic bio helper routines
-    3.2.1 Traversing segments and completion units in a request
-    3.2.2 Setting up DMA scatterlists
-    3.2.3 I/O completion
-    3.2.4 Implications for drivers that do not interpret bios (don't handle
- 	  multiple segments)
-  3.3 I/O submission
-4. The I/O scheduler
-5. Scalability related changes
-  5.1 Granular locking: Removal of io_request_lock
-  5.2 Prepare for transition to 64 bit sector_t
-6. Other Changes/Implications
-  6.1 Partition re-mapping handled by the generic block layer
-7. A few tips on migration of older drivers
-8. A list of prior/related/impacted patches/ideas
-9. Other References/Discussion Threads
+   2. New flexible and generic but minimalist i/o structure or descriptor
+      (instead of using buffer heads at the i/o layer)
+     2.1 Requirements/Goals addressed
+     2.2 The bio struct in detail (multi-page io unit)
+     2.3 Changes in the request structure
+   3. Using bios
+     3.1 Setup/teardown (allocation, splitting)
+     3.2 Generic bio helper routines
+       3.2.1 Traversing segments and completion units in a request
+       3.2.2 Setting up DMA scatterlists
+       3.2.3 I/O completion
+       3.2.4 Implications for drivers that do not interpret bios (don't handle
+	  multiple segments)
+     3.3 I/O submission
+   4. The I/O scheduler
+   5. Scalability related changes
+     5.1 Granular locking: Removal of io_request_lock
+     5.2 Prepare for transition to 64 bit sector_t
+   6. Other Changes/Implications
+     6.1 Partition re-mapping handled by the generic block layer
+   7. A few tips on migration of older drivers
+   8. A list of prior/related/impacted patches/ideas
+   9. Other References/Discussion Threads
 
----------------------------------------------------------------------------
 
 Bio Notes
---------
+=========
 
 Let us discuss the changes in the context of how some overall goals for the
 block layer are addressed.
 
 1. Scope for tuning the generic logic to satisfy various requirements
+=====================================================================
 
 The block layer design supports adaptable abstractions to handle common
 processing with the ability to tune the logic to an appropriate extent
@@ -97,6 +107,7 @@ and application/middleware software designed to take advantage of these
 capabilities.
 
 1.1 Tuning based on low level device / driver capabilities
+----------------------------------------------------------
 
 Sophisticated devices with large built-in caches, intelligent i/o scheduling
 optimizations, high memory DMA support, etc may find some of the
@@ -133,12 +144,12 @@ Some new queue property settings:
 		Sets two variables that limit the size of the request.
 
 		- The request queue's max_sectors, which is a soft size in
-		units of 512 byte sectors, and could be dynamically varied
-		by the core kernel.
+		  units of 512 byte sectors, and could be dynamically varied
+		  by the core kernel.
 
 		- The request queue's max_hw_sectors, which is a hard limit
-		and reflects the maximum size request a driver can handle
-		in units of 512 byte sectors.
+		  and reflects the maximum size request a driver can handle
+		  in units of 512 byte sectors.
 
 		The default for both max_sectors and max_hw_sectors is
 		255. The upper limit of max_sectors is 1024.
@@ -234,6 +245,7 @@ I/O scheduler wrappers are to be used instead of accessing the queue directly.
 See section 4. The I/O scheduler for details.
 
 1.2 Tuning Based on High level code capabilities
+------------------------------------------------
 
 i. Application capabilities for raw i/o
 
@@ -258,9 +270,11 @@ would need an additional mechanism either via open flags or ioctls, or some
 other upper level mechanism to communicate such settings to block.
 
 1.2.1 Request Priority/Latency
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Todo/Under discussion:
-Arjan's proposed request priority scheme allows higher levels some broad
+Todo/Under discussion::
+
+  Arjan's proposed request priority scheme allows higher levels some broad
   control (high/med/low) over the priority  of an i/o request vs other pending
   requests in the queue. For example it allows reads for bringing in an
   executable page on demand to be given a higher priority over pending write
@@ -272,7 +286,9 @@ Arjan's proposed request priority scheme allows higher levels some broad
 
 
 1.3 Direct Access to Low level Device/Driver Capabilities (Bypass mode)
-    (e.g Diagnostics, Systems Management)
+-----------------------------------------------------------------------
+
+(e.g Diagnostics, Systems Management)
 
 There are situations where high-level code needs to have direct access to
 the low level device capabilities or requires the ability to issue commands
@@ -308,28 +324,32 @@ involved. In the latter case, the driver would modify and manage the
 request->buffer, request->sector and request->nr_sectors or
 request->current_nr_sectors fields itself rather than using the block layer
 end_request or end_that_request_first completion interfaces.
-(See 2.3 or Documentation/block/request.txt for a brief explanation of
+(See 2.3 or Documentation/block/request.rst for a brief explanation of
 the request structure fields)
 
-[TBD: end_that_request_last should be usable even in this case;
-Perhaps an end_that_direct_request_first routine could be implemented to make
-handling direct requests easier for such drivers; Also for drivers that
-expect bios, a helper function could be provided for setting up a bio
-corresponding to a data buffer]
+::
 
-<JENS: I dont understand the above, why is end_that_request_first() not
-usable? Or _last for that matter. I must be missing something>
-<SUP: What I meant here was that if the request doesn't have a bio, then
- end_that_request_first doesn't modify nr_sectors or current_nr_sectors,
- and hence can't be used for advancing request state settings on the
- completion of partial transfers. The driver has to modify these fields 
- directly by hand.
- This is because end_that_request_first only iterates over the bio list,
- and always returns 0 if there are none associated with the request.
- _last works OK in this case, and is not a problem, as I mentioned earlier
->
+  [TBD: end_that_request_last should be usable even in this case;
+  Perhaps an end_that_direct_request_first routine could be implemented to make
+  handling direct requests easier for such drivers; Also for drivers that
+  expect bios, a helper function could be provided for setting up a bio
+  corresponding to a data buffer]
+
+  <JENS: I dont understand the above, why is end_that_request_first() not
+  usable? Or _last for that matter. I must be missing something>
+
+  <SUP: What I meant here was that if the request doesn't have a bio, then
+   end_that_request_first doesn't modify nr_sectors or current_nr_sectors,
+   and hence can't be used for advancing request state settings on the
+   completion of partial transfers. The driver has to modify these fields
+   directly by hand.
+   This is because end_that_request_first only iterates over the bio list,
+   and always returns 0 if there are none associated with the request.
+   _last works OK in this case, and is not a problem, as I mentioned earlier
+  >
 
 1.3.1 Pre-built Commands
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 A request can be created with a pre-built custom command  to be sent directly
 to the device. The cmd block in the request structure has room for filling
@@ -360,9 +380,11 @@ Aside:
   the pre-builder hook can be invoked there.
 
 
-2. Flexible and generic but minimalist i/o structure/descriptor.
+2. Flexible and generic but minimalist i/o structure/descriptor
+===============================================================
 
 2.1 Reason for a new structure and requirements addressed
+---------------------------------------------------------
 
 Prior to 2.5, buffer heads were used as the unit of i/o at the generic block
 layer, and the low level request structure was associated with a chain of
@@ -378,26 +400,26 @@ which were generated for each such chunk.
 The following were some of the goals and expectations considered in the
 redesign of the block i/o data structure in 2.5.
 
-i.  Should be appropriate as a descriptor for both raw and buffered i/o  -
+1.  Should be appropriate as a descriptor for both raw and buffered i/o  -
     avoid cache related fields which are irrelevant in the direct/page i/o path,
     or filesystem block size alignment restrictions which may not be relevant
     for raw i/o.
-ii. Ability to represent high-memory buffers (which do not have a virtual
+2.  Ability to represent high-memory buffers (which do not have a virtual
     address mapping in kernel address space).
-iii.Ability to represent large i/os w/o unnecessarily breaking them up (i.e
+3.  Ability to represent large i/os w/o unnecessarily breaking them up (i.e
     greater than PAGE_SIZE chunks in one shot)
-iv. At the same time, ability to retain independent identity of i/os from
+4.  At the same time, ability to retain independent identity of i/os from
     different sources or i/o units requiring individual completion (e.g. for
     latency reasons)
-v.  Ability to represent an i/o involving multiple physical memory segments
+5.  Ability to represent an i/o involving multiple physical memory segments
     (including non-page aligned page fragments, as specified via readv/writev)
     without unnecessarily breaking it up, if the underlying device is capable of
     handling it.
-vi. Preferably should be based on a memory descriptor structure that can be
+6.  Preferably should be based on a memory descriptor structure that can be
     passed around different types of subsystems or layers, maybe even
     networking, without duplication or extra copies of data/descriptor fields
     themselves in the process
-vii.Ability to handle the possibility of splits/merges as the structure passes
+7.  Ability to handle the possibility of splits/merges as the structure passes
     through layered drivers (lvm, md, evms), with minimal overhead.
 
 The solution was to define a new structure (bio)  for the block layer,
@@ -408,6 +430,7 @@ bh structure for buffered i/o, and in the case of raw/direct i/o kiobufs are
 mapped to bio structures.
 
 2.2 The bio struct
+------------------
 
 The bio structure uses a vector representation pointing to an array of tuples
 of <page, offset, len> to describe the i/o buffer, and has various other
@@ -417,16 +440,18 @@ performing the i/o.
 Notice that this representation means that a bio has no virtual address
 mapping at all (unlike buffer heads).
 
-struct bio_vec {
+::
+
+  struct bio_vec {
        struct page     *bv_page;
        unsigned short  bv_len;
        unsigned short  bv_offset;
-};
+  };
 
-/*
- * main unit of I/O for the block layer and lower layers (ie drivers)
- */
-struct bio {
+  /*
+   * main unit of I/O for the block layer and lower layers (ie drivers)
+   */
+  struct bio {
        struct bio          *bi_next;    /* request queue link */
        struct block_device *bi_bdev;	/* target device */
        unsigned long       bi_flags;    /* status, command, etc */
@@ -443,7 +468,7 @@ struct bio {
        bio_end_io_t	*bi_end_io;  /* bi_end_io (bio) */
        atomic_t		bi_cnt;	     /* pin count: free when it hits zero */
        void             *bi_private;
-};
+  };
 
 With this multipage bio design:
 
@@ -453,7 +478,7 @@ With this multipage bio design:
 - Splitting of an i/o request across multiple devices (as in the case of
   lvm or raid) is achieved by cloning the bio (where the clone points to
   the same bi_io_vec array, but with the index and size accordingly modified)
-- A linked list of bios is used as before for unrelated merges (*) - this
+- A linked list of bios is used as before for unrelated merges [*]_ - this
   avoids reallocs and makes independent completions easier to handle.
 - Code that traverses the req list can find all the segments of a bio
   by using rq_for_each_segment.  This handles the fact that a request
@@ -462,10 +487,12 @@ With this multipage bio design:
   field to keep track of the next bio_vec entry to process.
   (e.g a 1MB bio_vec needs to be handled in max 128kB chunks for IDE)
   [TBD: Should preferably also have a bi_voffset and bi_vlen to avoid modifying
-   bi_offset an len fields]
+  bi_offset an len fields]
 
-(*) unrelated merges -- a request ends up containing two or more bios that
-    didn't originate from the same place.
+.. [*]
+
+	unrelated merges -- a request ends up containing two or more bios that
+	didn't originate from the same place.
 
 bi_end_io() i/o callback gets called on i/o completion of the entire bio.
 
@@ -483,10 +510,11 @@ which in turn means that only raw I/O uses it (direct i/o may not work
 right now). The intent however is to enable clustering of pages etc to
 become possible. The pagebuf abstraction layer from SGI also uses multi-page
 bios, but that is currently not included in the stock development kernels.
-The same is true of Andrew Morton's work-in-progress multipage bio writeout 
+The same is true of Andrew Morton's work-in-progress multipage bio writeout
 and readahead patches.
 
 2.3 Changes in the Request Structure
+------------------------------------
 
 The request structure is the structure that gets passed down to low level
 drivers. The block layer make_request function builds up a request structure,
@@ -499,11 +527,11 @@ request structure.
 Only some relevant fields (mainly those which changed or may be referred
 to in some of the discussion here) are listed below, not necessarily in
 the order in which they occur in the structure (see include/linux/blkdev.h)
-Refer to Documentation/block/request.txt for details about all the request
+Refer to Documentation/block/request.rst for details about all the request
 structure fields and a quick reference about the layers which are
-supposed to use or modify those fields.
+supposed to use or modify those fields::
 
-struct request {
+  struct request {
 	struct list_head queuelist;  /* Not meant to be directly accessed by
 					the driver.
 					Used by q->elv_next_request_fn
@@ -548,11 +576,11 @@ struct request {
 	.
 	struct bio *bio, *biotail;  /* bio list instead of bh */
 	struct request_list *rl;
-}
-	
+  }
+
 See the req_ops and req_flag_bits definitions for an explanation of the various
 flags available. Some bits are used by the block layer or i/o scheduler.
-	
+
 The behaviour of the various sector counts are almost the same as before,
 except that since we have multi-segment bios, current_nr_sectors refers
 to the numbers of sectors in the current segment being processed which could
@@ -578,8 +606,10 @@ a driver needs to be careful about interoperation with the block layer helper
 functions which the driver uses. (Section 1.3)
 
 3. Using bios
+=============
 
 3.1 Setup/Teardown
+------------------
 
 There are routines for managing the allocation, and reference counting, and
 freeing of bios (bio_alloc, bio_get, bio_put).
@@ -606,10 +636,13 @@ case of bio, these routines make use of the standard slab allocator.
 The caller of bio_alloc is expected to taken certain steps to avoid
 deadlocks, e.g. avoid trying to allocate more memory from the pool while
 already holding memory obtained from the pool.
-[TBD: This is a potential issue, though a rare possibility
- in the bounce bio allocation that happens in the current code, since
- it ends up allocating a second bio from the same pool while
- holding the original bio ]
+
+::
+
+  [TBD: This is a potential issue, though a rare possibility
+   in the bounce bio allocation that happens in the current code, since
+   it ends up allocating a second bio from the same pool while
+   holding the original bio ]
 
 Memory allocated from the pool should be released back within a limited
 amount of time (in the case of bio, that would be after the i/o is completed).
@@ -635,13 +668,17 @@ same bio_vec_list). This would typically be used for splitting i/o requests
 in lvm or md.
 
 3.2 Generic bio helper Routines
+-------------------------------
 
 3.2.1 Traversing segments and completion units in a request
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The macro rq_for_each_segment() should be used for traversing the bios
 in the request list (drivers should avoid directly trying to do it
 themselves). Using these helpers should also make it easier to cope
 with block changes in the future.
+
+::
 
 	struct req_iterator iter;
 	rq_for_each_segment(bio_vec, rq, iter)
@@ -653,6 +690,7 @@ which don't make a distinction between segments and completion units would
 need to be reorganized to support multi-segment bios.
 
 3.2.2 Setting up DMA scatterlists
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The blk_rq_map_sg() helper routine would be used for setting up scatter
 gather lists from a request, so a driver need not do it on its own.
@@ -683,6 +721,7 @@ of physical data segments in a request (i.e. the largest sized scatter list
 a driver could handle)
 
 3.2.3 I/O completion
+^^^^^^^^^^^^^^^^^^^^
 
 The existing generic block layer helper routines end_request,
 end_that_request_first and end_that_request_last can be used for i/o
@@ -691,8 +730,10 @@ request can be kicked of) as before. With the introduction of multi-page
 bio support, end_that_request_first requires an additional argument indicating
 the number of sectors completed.
 
-3.2.4 Implications for drivers that do not interpret bios (don't handle
- multiple segments)
+3.2.4 Implications for drivers that do not interpret bios
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+(don't handle multiple segments)
 
 Drivers that do not interpret bios e.g those which do not handle multiple
 segments and do not support i/o into high memory addresses (require bounce
@@ -707,15 +748,18 @@ be used if only if the request has come down from block/bio path, not for
 direct access requests which only specify rq->buffer without a valid rq->bio)
 
 3.3 I/O Submission
+------------------
 
 The routine submit_bio() is used to submit a single io. Higher level i/o
 routines make use of this:
 
 (a) Buffered i/o:
+
 The routine submit_bh() invokes submit_bio() on a bio corresponding to the
 bh, allocating the bio if required. ll_rw_block() uses submit_bh() as before.
 
 (b) Kiobuf i/o (for raw/direct i/o):
+
 The ll_rw_kio() routine breaks up the kiobuf into page sized chunks and
 maps the array to one or more multi-page bios, issuing submit_bio() to
 perform the i/o on each of these.
@@ -738,6 +782,7 @@ Todo/Observation:
 
 
 (c) Page i/o:
+
 Todo/Under discussion:
 
  Andrew Morton's multi-page bio patches attempt to issue multi-page
@@ -753,6 +798,7 @@ Todo/Under discussion:
  abstraction, but intended to be as lightweight as possible).
 
 (d) Direct access i/o:
+
 Direct access requests that do not contain bios would be submitted differently
 as discussed earlier in section 1.3.
 
@@ -780,11 +826,13 @@ Aside:
 
 
 4. The I/O scheduler
+====================
+
 I/O scheduler, a.k.a. elevator, is implemented in two layers.  Generic dispatch
 queue and specific I/O schedulers.  Unless stated otherwise, elevator is used
 to refer to both parts and I/O scheduler to specific I/O schedulers.
 
-Block layer implements generic dispatch queue in block/*.c.
+Block layer implements generic dispatch queue in `block/*.c`.
 The generic dispatch queue is responsible for requeueing, handling non-fs
 requests and all other subtleties.
 
@@ -802,8 +850,11 @@ doesn't implement a function, the switch does nothing or some minimal house
 keeping work.
 
 4.1. I/O scheduler API
+----------------------
 
 The functions an elevator may implement are: (* are mandatory)
+
+=============================== ================================================
 elevator_merge_fn		called to query requests for merge with a bio
 
 elevator_merge_req_fn		called when two requests get merged. the one
@@ -862,8 +913,11 @@ elevator_deactivate_req_fn	Called when device driver decides to delay
 elevator_init_fn*
 elevator_exit_fn		Allocate and free any elevator specific storage
 				for a queue.
+=============================== ================================================
 
 4.2 Request flows seen by I/O schedulers
+----------------------------------------
+
 All requests seen by I/O schedulers strictly follow one of the following three
 flows.
 
@@ -877,9 +931,12 @@ flows.
  -> put_req_fn
 
 4.3 I/O scheduler implementation
+--------------------------------
+
 The generic i/o scheduler algorithm attempts to sort/merge/batch requests for
 optimal disk scan and request servicing performance (based on generic
 principles and device capabilities), optimized for:
+
 i.   improved throughput
 ii.  improved latency
 iii. better utilization of h/w & CPU time
@@ -933,15 +990,19 @@ Aside:
   a big request from the broken up pieces coming by.
 
 4.4 I/O contexts
+----------------
+
 I/O contexts provide a dynamically allocated per process data area. They may
 be used in I/O schedulers, and in the block layer (could be used for IO statis,
-priorities for example). See *io_context in block/ll_rw_blk.c, and as-iosched.c
+priorities for example). See `*io_context` in block/ll_rw_blk.c, and as-iosched.c
 for an example of usage in an i/o scheduler.
 
 
 5. Scalability related changes
+==============================
 
 5.1 Granular Locking: io_request_lock replaced by a per-queue lock
+------------------------------------------------------------------
 
 The global io_request_lock has been removed as of 2.5, to avoid
 the scalability bottleneck it was causing, and has been replaced by more
@@ -956,20 +1017,23 @@ request_fn execution which it means that lots of older drivers
 should still be SMP safe. Drivers are free to drop the queue
 lock themselves, if required. Drivers that explicitly used the
 io_request_lock for serialization need to be modified accordingly.
-Usually it's as easy as adding a global lock:
+Usually it's as easy as adding a global lock::
 
 	static DEFINE_SPINLOCK(my_driver_lock);
 
 and passing the address to that lock to blk_init_queue().
 
 5.2 64 bit sector numbers (sector_t prepares for 64 bit support)
+----------------------------------------------------------------
 
 The sector number used in the bio structure has been changed to sector_t,
 which could be defined as 64 bit in preparation for 64 bit sector support.
 
 6. Other Changes/Implications
+=============================
 
 6.1 Partition re-mapping handled by the generic block layer
+-----------------------------------------------------------
 
 In 2.5 some of the gendisk/partition related code has been reorganized.
 Now the generic block layer performs partition-remapping early and thus
@@ -984,6 +1048,7 @@ sent are offset from the beginning of the device.
 
 
 7. A Few Tips on Migration of older drivers
+===========================================
 
 Old-style drivers that just use CURRENT and ignores clustered requests,
 may not need much change.  The generic layer will automatically handle
@@ -1017,12 +1082,12 @@ blk_init_queue time.
 
 Drivers no longer have to map a {partition, sector offset} into the
 correct absolute location anymore, this is done by the block layer, so
-where a driver received a request ala this before:
+where a driver received a request ala this before::
 
 	rq->rq_dev = mk_kdev(3, 5);	/* /dev/hda5 */
 	rq->sector = 0;			/* first sector on hda5 */
 
-  it will now see
+it will now see::
 
 	rq->rq_dev = mk_kdev(3, 0);	/* /dev/hda */
 	rq->sector = 123128;		/* offset from start of disk */
@@ -1039,38 +1104,65 @@ a bio into the virtual address space.
 
 
 8. Prior/Related/Impacted patches
+=================================
 
 8.1. Earlier kiobuf patches (sct/axboe/chait/hch/mkp)
+-----------------------------------------------------
+
 - orig kiobuf & raw i/o patches (now in 2.4 tree)
 - direct kiobuf based i/o to devices (no intermediate bh's)
 - page i/o using kiobuf
 - kiobuf splitting for lvm (mkp)
 - elevator support for kiobuf request merging (axboe)
+
 8.2. Zero-copy networking (Dave Miller)
+---------------------------------------
+
 8.3. SGI XFS - pagebuf patches - use of kiobufs
+-----------------------------------------------
 8.4. Multi-page pioent patch for bio (Christoph Hellwig)
+--------------------------------------------------------
 8.5. Direct i/o implementation (Andrea Arcangeli) since 2.4.10-pre11
+--------------------------------------------------------------------
 8.6. Async i/o implementation patch (Ben LaHaise)
+-------------------------------------------------
 8.7. EVMS layering design (IBM EVMS team)
-8.8. Larger page cache size patch (Ben LaHaise) and
-     Large page size (Daniel Phillips)
+-----------------------------------------
+8.8. Larger page cache size patch (Ben LaHaise) and Large page size (Daniel Phillips)
+-------------------------------------------------------------------------------------
+
     => larger contiguous physical memory buffers
+
 8.9. VM reservations patch (Ben LaHaise)
+----------------------------------------
 8.10. Write clustering patches ? (Marcelo/Quintela/Riel ?)
+----------------------------------------------------------
 8.11. Block device in page cache patch (Andrea Archangeli) - now in 2.4.10+
-8.12. Multiple block-size transfers for faster raw i/o (Shailabh Nagar,
-      Badari)
+---------------------------------------------------------------------------
+8.12. Multiple block-size transfers for faster raw i/o (Shailabh Nagar, Badari)
+-------------------------------------------------------------------------------
 8.13  Priority based i/o scheduler - prepatches (Arjan van de Ven)
+------------------------------------------------------------------
 8.14  IDE Taskfile i/o patch (Andre Hedrick)
+--------------------------------------------
 8.15  Multi-page writeout and readahead patches (Andrew Morton)
+---------------------------------------------------------------
 8.16  Direct i/o patches for 2.5 using kvec and bio (Badari Pulavarthy)
+-----------------------------------------------------------------------
 
-9. Other References:
+9. Other References
+===================
 
-9.1 The Splice I/O Model - Larry McVoy (and subsequent discussions on lkml,
-and Linus' comments - Jan 2001)
-9.2 Discussions about kiobuf and bh design on lkml between sct, linus, alan
-et al - Feb-March 2001 (many of the initial thoughts that led to bio were
-brought up in this discussion thread)
+9.1 The Splice I/O Model
+------------------------
+
+Larry McVoy (and subsequent discussions on lkml, and Linus' comments - Jan 2001
+
+9.2 Discussions about kiobuf and bh design
+------------------------------------------
+
+On lkml between sct, linus, alan et al - Feb-March 2001 (many of the
+initial thoughts that led to bio were brought up in this discussion thread)
+
 9.3 Discussions on mempool on lkml - Dec 2001.
-
+----------------------------------------------

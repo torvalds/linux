@@ -1,5 +1,9 @@
-----------------------------------------------------------------------
-1. INTRODUCTION
+﻿==============
+Data Integrity
+==============
+
+1. Introduction
+===============
 
 Modern filesystems feature checksumming of data and metadata to
 protect against data corruption.  However, the detection of the
@@ -28,8 +32,8 @@ integrity of the I/O and reject it if corruption is detected.  This
 allows not only corruption prevention but also isolation of the point
 of failure.
 
-----------------------------------------------------------------------
-2. THE DATA INTEGRITY EXTENSIONS
+2. The Data Integrity Extensions
+================================
 
 As written, the protocol extensions only protect the path between
 controller and storage device.  However, many controllers actually
@@ -75,8 +79,8 @@ Extensions.  As these extensions are outside the scope of the protocol
 bodies (T10, T13), Oracle and its partners are trying to standardize
 them within the Storage Networking Industry Association.
 
-----------------------------------------------------------------------
-3. KERNEL CHANGES
+3. Kernel Changes
+=================
 
 The data integrity framework in Linux enables protection information
 to be pinned to I/Os and sent to/received from controllers that
@@ -123,10 +127,11 @@ access to manipulate the tags from user space.  A passthrough
 interface for this is being worked on.
 
 
-----------------------------------------------------------------------
-4. BLOCK LAYER IMPLEMENTATION DETAILS
+4. Block Layer Implementation Details
+=====================================
 
-4.1 BIO
+4.1 Bio
+-------
 
 The data integrity patches add a new field to struct bio when
 CONFIG_BLK_DEV_INTEGRITY is enabled.  bio_integrity(bio) returns a
@@ -145,7 +150,8 @@ attached using bio_integrity_add_page().
 bio_free() will automatically free the bip.
 
 
-4.2 BLOCK DEVICE
+4.2 Block Device
+----------------
 
 Because the format of the protection data is tied to the physical
 disk, each block device has been extended with a block integrity
@@ -163,10 +169,11 @@ and MD linear, RAID0 and RAID1 are currently supported.  RAID4/5/6
 will require extra work due to the application tag.
 
 
-----------------------------------------------------------------------
-5.0 BLOCK LAYER INTEGRITY API
+5.0 Block Layer Integrity API
+=============================
 
-5.1 NORMAL FILESYSTEM
+5.1 Normal Filesystem
+---------------------
 
     The normal filesystem is unaware that the underlying block device
     is capable of sending/receiving integrity metadata.  The IMD will
@@ -174,25 +181,26 @@ will require extra work due to the application tag.
     in case of a WRITE.  A READ request will cause the I/O integrity
     to be verified upon completion.
 
-    IMD generation and verification can be toggled using the
+    IMD generation and verification can be toggled using the::
 
       /sys/block/<bdev>/integrity/write_generate
 
-    and
+    and::
 
       /sys/block/<bdev>/integrity/read_verify
 
     flags.
 
 
-5.2 INTEGRITY-AWARE FILESYSTEM
+5.2 Integrity-Aware Filesystem
+------------------------------
 
     A filesystem that is integrity-aware can prepare I/Os with IMD
     attached.  It can also use the application tag space if this is
     supported by the block device.
 
 
-    bool bio_integrity_prep(bio);
+    `bool bio_integrity_prep(bio);`
 
       To generate IMD for WRITE and to set up buffers for READ, the
       filesystem must call bio_integrity_prep(bio).
@@ -204,14 +212,15 @@ will require extra work due to the application tag.
       Complete bio with error if prepare failed for some reson.
 
 
-5.3 PASSING EXISTING INTEGRITY METADATA
+5.3 Passing Existing Integrity Metadata
+---------------------------------------
 
     Filesystems that either generate their own integrity metadata or
     are capable of transferring IMD from user space can use the
     following calls:
 
 
-    struct bip * bio_integrity_alloc(bio, gfp_mask, nr_pages);
+    `struct bip * bio_integrity_alloc(bio, gfp_mask, nr_pages);`
 
       Allocates the bio integrity payload and hangs it off of the bio.
       nr_pages indicate how many pages of protection data need to be
@@ -220,7 +229,7 @@ will require extra work due to the application tag.
       The integrity payload will be freed at bio_free() time.
 
 
-    int bio_integrity_add_page(bio, page, len, offset);
+    `int bio_integrity_add_page(bio, page, len, offset);`
 
       Attaches a page containing integrity metadata to an existing
       bio.  The bio must have an existing bip,
@@ -241,21 +250,21 @@ will require extra work due to the application tag.
       integrity upon completion.
 
 
-5.4 REGISTERING A BLOCK DEVICE AS CAPABLE OF EXCHANGING INTEGRITY
-    METADATA
+5.4 Registering A Block Device As Capable Of Exchanging Integrity Metadata
+--------------------------------------------------------------------------
 
     To enable integrity exchange on a block device the gendisk must be
     registered as capable:
 
-    int blk_integrity_register(gendisk, blk_integrity);
+    `int blk_integrity_register(gendisk, blk_integrity);`
 
       The blk_integrity struct is a template and should contain the
-      following:
+      following::
 
         static struct blk_integrity my_profile = {
             .name                   = "STANDARDSBODY-TYPE-VARIANT-CSUM",
             .generate_fn            = my_generate_fn,
-       	    .verify_fn              = my_verify_fn,
+	    .verify_fn              = my_verify_fn,
 	    .tuple_size             = sizeof(struct my_tuple_size),
 	    .tag_size               = <tag bytes per hw sector>,
         };
@@ -278,4 +287,5 @@ will require extra work due to the application tag.
       0 depending on the value of the Control Mode Page ATO bit.
 
 ----------------------------------------------------------------------
+
 2007-12-24 Martin K. Petersen <martin.petersen@oracle.com>

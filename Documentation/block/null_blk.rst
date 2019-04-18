@@ -1,33 +1,43 @@
+========================
 Null block device driver
-================================================================================
+========================
 
-I. Overview
+1. Overview
+===========
 
 The null block device (/dev/nullb*) is used for benchmarking the various
 block-layer implementations. It emulates a block device of X gigabytes in size.
 The following instances are possible:
 
   Single-queue block-layer
+
     - Request-based.
     - Single submission queue per device.
     - Implements IO scheduling algorithms (CFQ, Deadline, noop).
+
   Multi-queue block-layer
+
     - Request-based.
     - Configurable submission queues per device.
+
   No block-layer (Known as bio-based)
+
     - Bio-based. IO requests are submitted directly to the device driver.
     - Directly accepts bio data structure and returns them.
 
 All of them have a completion queue for each core in the system.
 
-II. Module parameters applicable for all instances:
+2. Module parameters applicable for all instances
+=================================================
 
 queue_mode=[0-2]: Default: 2-Multi-queue
   Selects which block-layer the module should instantiate with.
 
-  0: Bio-based.
-  1: Single-queue.
-  2: Multi-queue.
+  =  ============
+  0  Bio-based
+  1  Single-queue
+  2  Multi-queue
+  =  ============
 
 home_node=[0--nr_nodes]: Default: NUMA_NO_NODE
   Selects what CPU node the data structures are allocated from.
@@ -45,12 +55,14 @@ nr_devices=[Number of devices]: Default: 1
 irqmode=[0-2]: Default: 1-Soft-irq
   The completion mode used for completing IOs to the block-layer.
 
-  0: None.
-  1: Soft-irq. Uses IPI to complete IOs across CPU nodes. Simulates the overhead
+  =  ===========================================================================
+  0  None.
+  1  Soft-irq. Uses IPI to complete IOs across CPU nodes. Simulates the overhead
      when IOs are issued from another CPU node than the home the device is
      connected to.
-  2: Timer: Waits a specific period (completion_nsec) for each IO before
+  2  Timer: Waits a specific period (completion_nsec) for each IO before
      completion.
+  =  ===========================================================================
 
 completion_nsec=[ns]: Default: 10,000ns
   Combined with irqmode=2 (timer). The time each completion event must wait.
@@ -66,30 +78,45 @@ hw_queue_depth=[0..qdepth]: Default: 64
 III: Multi-queue specific parameters
 
 use_per_node_hctx=[0/1]: Default: 0
-  0: The number of submit queues are set to the value of the submit_queues
+
+  =  =====================================================================
+  0  The number of submit queues are set to the value of the submit_queues
      parameter.
-  1: The multi-queue block layer is instantiated with a hardware dispatch
+  1  The multi-queue block layer is instantiated with a hardware dispatch
      queue for each CPU node in the system.
+  =  =====================================================================
 
 no_sched=[0/1]: Default: 0
-  0: nullb* use default blk-mq io scheduler.
-  1: nullb* doesn't use io scheduler.
+
+  =  ======================================
+  0  nullb* use default blk-mq io scheduler
+  1  nullb* doesn't use io scheduler
+  =  ======================================
 
 blocking=[0/1]: Default: 0
-  0: Register as a non-blocking blk-mq driver device.
-  1: Register as a blocking blk-mq driver device, null_blk will set
+
+  =  ===============================================================
+  0  Register as a non-blocking blk-mq driver device.
+  1  Register as a blocking blk-mq driver device, null_blk will set
      the BLK_MQ_F_BLOCKING flag, indicating that it sometimes/always
      needs to block in its ->queue_rq() function.
+  =  ===============================================================
 
 shared_tags=[0/1]: Default: 0
-  0: Tag set is not shared.
-  1: Tag set shared between devices for blk-mq. Only makes sense with
+
+  =  ================================================================
+  0  Tag set is not shared.
+  1  Tag set shared between devices for blk-mq. Only makes sense with
      nr_devices > 1, otherwise there's no tag set to share.
+  =  ================================================================
 
 zoned=[0/1]: Default: 0
-  0: Block device is exposed as a random-access block device.
-  1: Block device is exposed as a host-managed zoned block device. Requires
+
+  =  ======================================================================
+  0  Block device is exposed as a random-access block device.
+  1  Block device is exposed as a host-managed zoned block device. Requires
      CONFIG_BLK_DEV_ZONED.
+  =  ======================================================================
 
 zone_size=[MB]: Default: 256
   Per zone size when exposed as a zoned block device. Must be a power of two.

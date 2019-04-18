@@ -1,3 +1,4 @@
+===============================================
 Block layer statistics in /sys/block/<dev>/stat
 ===============================================
 
@@ -6,9 +7,12 @@ This file documents the contents of the /sys/block/<dev>/stat file.
 The stat file provides several statistics about the state of block
 device <dev>.
 
-Q. Why are there multiple statistics in a single file?  Doesn't sysfs
+Q.
+   Why are there multiple statistics in a single file?  Doesn't sysfs
    normally contain a single value per file?
-A. By having a single file, the kernel can guarantee that the statistics
+
+A.
+   By having a single file, the kernel can guarantee that the statistics
    represent a consistent snapshot of the state of the device.  If the
    statistics were exported as multiple files containing one statistic
    each, it would be impossible to guarantee that a set of readings
@@ -18,8 +22,10 @@ The stat file consists of a single line of text containing 11 decimal
 values separated by whitespace.  The fields are summarized in the
 following table, and described in more detail below.
 
+
+=============== ============= =================================================
 Name            units         description
-----            -----         -----------
+=============== ============= =================================================
 read I/Os       requests      number of read I/Os processed
 read merges     requests      number of read I/Os merged with in-queue I/O
 read sectors    sectors       number of sectors read
@@ -35,6 +41,7 @@ discard I/Os    requests      number of discard I/Os processed
 discard merges  requests      number of discard I/Os merged with in-queue I/O
 discard sectors sectors       number of sectors discarded
 discard ticks   milliseconds  total wait time for discard requests
+=============== ============= =================================================
 
 read I/Os, write I/Os, discard I/0s
 ===================================

@@ -1,3 +1,4 @@
+===================
 Block io priorities
 ===================
 
@@ -40,81 +41,81 @@ class data, since it doesn't really apply here.
 Tools
 -----
 
-See below for a sample ionice tool. Usage:
+See below for a sample ionice tool. Usage::
 
-# ionice -c<class> -n<level> -p<pid>
+	# ionice -c<class> -n<level> -p<pid>
 
 If pid isn't given, the current process is assumed. IO priority settings
 are inherited on fork, so you can use ionice to start the process at a given
-level:
+level::
 
-# ionice -c2 -n0 /bin/ls
+	# ionice -c2 -n0 /bin/ls
 
 will run ls at the best-effort scheduling class at the highest priority.
-For a running process, you can give the pid instead:
+For a running process, you can give the pid instead::
 
-# ionice -c1 -n2 -p100
+	# ionice -c1 -n2 -p100
 
 will change pid 100 to run at the realtime scheduling class, at priority 2.
 
----> snip ionice.c tool <---
+ionice.c tool::
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <getopt.h>
-#include <unistd.h>
-#include <sys/ptrace.h>
-#include <asm/unistd.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <errno.h>
+  #include <getopt.h>
+  #include <unistd.h>
+  #include <sys/ptrace.h>
+  #include <asm/unistd.h>
 
-extern int sys_ioprio_set(int, int, int);
-extern int sys_ioprio_get(int, int);
+  extern int sys_ioprio_set(int, int, int);
+  extern int sys_ioprio_get(int, int);
 
-#if defined(__i386__)
-#define __NR_ioprio_set		289
-#define __NR_ioprio_get		290
-#elif defined(__ppc__)
-#define __NR_ioprio_set		273
-#define __NR_ioprio_get		274
-#elif defined(__x86_64__)
-#define __NR_ioprio_set		251
-#define __NR_ioprio_get		252
-#elif defined(__ia64__)
-#define __NR_ioprio_set		1274
-#define __NR_ioprio_get		1275
-#else
-#error "Unsupported arch"
-#endif
+  #if defined(__i386__)
+  #define __NR_ioprio_set		289
+  #define __NR_ioprio_get		290
+  #elif defined(__ppc__)
+  #define __NR_ioprio_set		273
+  #define __NR_ioprio_get		274
+  #elif defined(__x86_64__)
+  #define __NR_ioprio_set		251
+  #define __NR_ioprio_get		252
+  #elif defined(__ia64__)
+  #define __NR_ioprio_set		1274
+  #define __NR_ioprio_get		1275
+  #else
+  #error "Unsupported arch"
+  #endif
 
-static inline int ioprio_set(int which, int who, int ioprio)
-{
+  static inline int ioprio_set(int which, int who, int ioprio)
+  {
 	return syscall(__NR_ioprio_set, which, who, ioprio);
-}
+  }
 
-static inline int ioprio_get(int which, int who)
-{
+  static inline int ioprio_get(int which, int who)
+  {
 	return syscall(__NR_ioprio_get, which, who);
-}
+  }
 
-enum {
+  enum {
 	IOPRIO_CLASS_NONE,
 	IOPRIO_CLASS_RT,
 	IOPRIO_CLASS_BE,
 	IOPRIO_CLASS_IDLE,
-};
+  };
 
-enum {
+  enum {
 	IOPRIO_WHO_PROCESS = 1,
 	IOPRIO_WHO_PGRP,
 	IOPRIO_WHO_USER,
-};
+  };
 
-#define IOPRIO_CLASS_SHIFT	13
+  #define IOPRIO_CLASS_SHIFT	13
 
-const char *to_prio[] = { "none", "realtime", "best-effort", "idle", };
+  const char *to_prio[] = { "none", "realtime", "best-effort", "idle", };
 
-int main(int argc, char *argv[])
-{
+  int main(int argc, char *argv[])
+  {
 	int ioprio = 4, set = 0, ioprio_class = IOPRIO_CLASS_BE;
 	int c, pid = 0;
 
@@ -175,9 +176,7 @@ int main(int argc, char *argv[])
 	}
 
 	return 0;
-}
-
----> snip ionice.c tool <---
+  }
 
 
 March 11 2005, Jens Axboe <jens.axboe@oracle.com>
