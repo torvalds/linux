@@ -19,8 +19,7 @@ struct cc_sram_ctx {
  */
 void cc_sram_mgr_fini(struct cc_drvdata *drvdata)
 {
-	/* Free "this" context */
-	kfree(drvdata->sram_mgr_handle);
+	/* Nothing needed */
 }
 
 /**
@@ -48,7 +47,7 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 	}
 
 	/* Allocate "this" context */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 
 	if (!ctx)
 		return -ENOMEM;
