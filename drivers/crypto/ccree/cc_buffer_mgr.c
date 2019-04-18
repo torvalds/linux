@@ -133,9 +133,9 @@ void cc_zero_sgl(struct scatterlist *sgl, u32 data_len)
 void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
 			u32 to_skip, u32 end, enum cc_sg_cpy_direct direct)
 {
-	u32 nents, lbytes;
+	u32 nents;
 
-	nents = cc_get_sgl_nents(dev, sg, end, &lbytes);
+	nents = sg_nents_for_len(sg, end);
 	sg_copy_buffer(sg, nents, (void *)dest, (end - to_skip + 1), to_skip,
 		       (direct == CC_SG_TO_BUF));
 }
@@ -519,7 +519,6 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	unsigned int hw_iv_size = areq_ctx->hw_iv_size;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
-	u32 dummy;
 	u32 size_to_unmap = 0;
 
 	if (areq_ctx->mac_buf_dma_addr) {
@@ -583,15 +582,13 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	if (areq_ctx->is_gcm4543)
 		size_to_unmap += crypto_aead_ivsize(tfm);
 
-	dma_unmap_sg(dev, req->src,
-		     cc_get_sgl_nents(dev, req->src, size_to_unmap, &dummy),
+	dma_unmap_sg(dev, req->src, sg_nents_for_len(req->src, size_to_unmap),
 		     DMA_BIDIRECTIONAL);
 	if (req->src != req->dst) {
 		dev_dbg(dev, "Unmapping dst sgl: req->dst=%pK\n",
 			sg_virt(req->dst));
 		dma_unmap_sg(dev, req->dst,
-			     cc_get_sgl_nents(dev, req->dst, size_to_unmap,
-					      &dummy),
+			     sg_nents_for_len(req->dst, size_to_unmap),
 			     DMA_BIDIRECTIONAL);
 	}
 	if (drvdata->coherent &&
@@ -1429,8 +1426,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 	if (total_in_len < block_size) {
 		dev_dbg(dev, " less than one block: curr_buff=%pK *curr_buff_cnt=0x%X copy_to=%pK\n",
 			curr_buff, *curr_buff_cnt, &curr_buff[*curr_buff_cnt]);
-		areq_ctx->in_nents =
-			cc_get_sgl_nents(dev, src, nbytes, &dummy);
+		areq_ctx->in_nents = sg_nents_for_len(src, nbytes);
 		sg_copy_to_buffer(src, areq_ctx->in_nents,
 				  &curr_buff[*curr_buff_cnt], nbytes);
 		*curr_buff_cnt += nbytes;
