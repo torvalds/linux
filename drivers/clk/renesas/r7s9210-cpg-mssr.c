@@ -119,7 +119,7 @@ static void __init r7s9210_update_clk_table(struct clk *extal_clk,
 	if (clk_get_rate(extal_clk) > 12000000)
 		cpg_mode = 1;
 
-	frqcr = clk_readl(base + CPG_FRQCR) & 0xFFF;
+	frqcr = readl(base + CPG_FRQCR) & 0xFFF;
 	if (frqcr == 0x012)
 		index = 0;
 	else if (frqcr == 0x112)

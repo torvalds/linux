@@ -1013,21 +1013,6 @@ static inline int of_clk_detect_critical(struct device_node *np, int index,
 }
 #endif /* CONFIG_OF */
 
-/*
- * wrap access to peripherals in accessor routines
- * for improved portability across platforms
- */
-
-static inline u32 clk_readl(u32 __iomem *reg)
-{
-	return readl(reg);
-}
-
-static inline void clk_writel(u32 val, u32 __iomem *reg)
-{
-	writel(val, reg);
-}
-
 void clk_gate_restore_context(struct clk_hw *hw);
 
 #endif /* CONFIG_COMMON_CLK */

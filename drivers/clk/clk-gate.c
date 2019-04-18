@@ -28,7 +28,7 @@ static inline u32 clk_gate_readl(struct clk_gate *gate)
 	if (gate->flags & CLK_GATE_BIG_ENDIAN)
 		return ioread32be(gate->reg);
 
-	return clk_readl(gate->reg);
+	return readl(gate->reg);
 }
 
 static inline void clk_gate_writel(struct clk_gate *gate, u32 val)
@@ -36,7 +36,7 @@ static inline void clk_gate_writel(struct clk_gate *gate, u32 val)
 	if (gate->flags & CLK_GATE_BIG_ENDIAN)
 		iowrite32be(val, gate->reg);
 	else
-		clk_writel(val, gate->reg);
+		writel(val, gate->reg);
 }
 
 /*

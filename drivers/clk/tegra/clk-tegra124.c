@@ -1466,9 +1466,9 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 	tegra_pmc_clk_init(pmc_base, tegra124_clks);
 
 	/* For Tegra124 & Tegra132, PLLD is the only source for DSIA & DSIB */
-	plld_base = clk_readl(clk_base + PLLD_BASE);
+	plld_base = readl(clk_base + PLLD_BASE);
 	plld_base &= ~BIT(25);
-	clk_writel(plld_base, clk_base + PLLD_BASE);
+	writel(plld_base, clk_base + PLLD_BASE);
 }
 
 /**
