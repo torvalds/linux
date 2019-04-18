@@ -275,6 +275,30 @@ static void seq_buf_print_bus_devfn(struct seq_buf *buf, struct pci_dev *pdev)
 }
 
 /*
+ * If we can't find a common upstream bridge take a look at the root
+ * complex and compare it to a whitelist of known good hardware.
+ */
+static bool root_complex_whitelist(struct pci_dev *dev)
+{
+	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
+	struct pci_dev *root = pci_get_slot(host->bus, PCI_DEVFN(0, 0));
+	unsigned short vendor, device;
+
+	if (!root)
+		return false;
+
+	vendor = root->vendor;
+	device = root->device;
+	pci_dev_put(root);
+
+	/* AMD ZEN host bridges can do peer to peer */
+	if (vendor == PCI_VENDOR_ID_AMD && device == 0x1450)
+		return true;
+
+	return false;
+}
+
+/*
  * Find the distance through the nearest common upstream bridge between
  * two PCI devices.
  *
@@ -317,13 +341,13 @@ static void seq_buf_print_bus_devfn(struct seq_buf *buf, struct pci_dev *pdev)
  * In this case, a list of all infringing bridge addresses will be
  * populated in acs_list (assuming it's non-null) for printk purposes.
  */
-static int upstream_bridge_distance(struct pci_dev *a,
-				    struct pci_dev *b,
+static int upstream_bridge_distance(struct pci_dev *provider,
+				    struct pci_dev *client,
 				    struct seq_buf *acs_list)
 {
+	struct pci_dev *a = provider, *b = client, *bb;
 	int dist_a = 0;
 	int dist_b = 0;
-	struct pci_dev *bb = NULL;
 	int acs_cnt = 0;
 
 	/*
@@ -353,6 +377,14 @@ static int upstream_bridge_distance(struct pci_dev *a,
 		a = pci_upstream_bridge(a);
 		dist_a++;
 	}
+
+	/*
+	 * Allow the connection if both devices are on a whitelisted root
+	 * complex, but add an arbitary large value to the distance.
+	 */
+	if (root_complex_whitelist(provider) &&
+	    root_complex_whitelist(client))
+		return 0x1000 + dist_a + dist_b;
 
 	return -1;
 
