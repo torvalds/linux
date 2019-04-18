@@ -68,6 +68,7 @@
 #include <asm/cputhreads.h>
 #include <asm/hw_irq.h>
 #include <asm/feature-fixups.h>
+#include <asm/kup.h>
 
 #include "setup.h"
 
@@ -330,6 +331,12 @@ void __init early_setup(unsigned long dt_ptr)
 	 * if needed, setting exception endian mode, etc...
 	 */
 	configure_exceptions();
+
+	/*
+	 * Configure Kernel Userspace Protection. This needs to happen before
+	 * feature fixups for platforms that implement this using features.
+	 */
+	setup_kup();
 
 	/* Apply all the dynamic patching */
 	apply_feature_fixups();
