@@ -165,6 +165,59 @@ bail:
 	return rc;
 }
 
+static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct kvm_device *dev = vma->vm_file->private_data;
+	struct kvmppc_xive *xive = dev->private;
+	struct kvmppc_xive_src_block *sb;
+	struct kvmppc_xive_irq_state *state;
+	struct xive_irq_data *xd;
+	u32 hw_num;
+	u16 src;
+	u64 page;
+	unsigned long irq;
+	u64 page_offset;
+
+	/*
+	 * Linux/KVM uses a two pages ESB setting, one for trigger and
+	 * one for EOI
+	 */
+	page_offset = vmf->pgoff - vma->vm_pgoff;
+	irq = page_offset / 2;
+
+	sb = kvmppc_xive_find_source(xive, irq, &src);
+	if (!sb) {
+		pr_devel("%s: source %lx not found !\n", __func__, irq);
+		return VM_FAULT_SIGBUS;
+	}
+
+	state = &sb->irq_state[src];
+	kvmppc_xive_select_irq(state, &hw_num, &xd);
+
+	arch_spin_lock(&sb->lock);
+
+	/*
+	 * first/even page is for trigger
+	 * second/odd page is for EOI and management.
+	 */
+	page = page_offset % 2 ? xd->eoi_page : xd->trig_page;
+	arch_spin_unlock(&sb->lock);
+
+	if (WARN_ON(!page)) {
+		pr_err("%s: acessing invalid ESB page for source %lx !\n",
+		       __func__, irq);
+		return VM_FAULT_SIGBUS;
+	}
+
+	vmf_insert_pfn(vma, vmf->address, page >> PAGE_SHIFT);
+	return VM_FAULT_NOPAGE;
+}
+
+static const struct vm_operations_struct xive_native_esb_vmops = {
+	.fault = xive_native_esb_fault,
+};
+
 static vm_fault_t xive_native_tima_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -194,6 +247,10 @@ static int kvmppc_xive_native_mmap(struct kvm_device *dev,
 		if (vma_pages(vma) > 4)
 			return -EINVAL;
 		vma->vm_ops = &xive_native_tima_vmops;
+	} else if (vma->vm_pgoff == KVM_XIVE_ESB_PAGE_OFFSET) {
+		if (vma_pages(vma) > KVMPPC_XIVE_NR_IRQS * 2)
+			return -EINVAL;
+		vma->vm_ops = &xive_native_esb_vmops;
 	} else {
 		return -EINVAL;
 	}

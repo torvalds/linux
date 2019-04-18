@@ -36,6 +36,13 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   third (operating system) and the fourth (user level) are exposed the
   guest.
 
+  2. Event State Buffer (ESB)
+
+  Each source is associated with an Event State Buffer (ESB) with
+  either a pair of even/odd pair of pages which provides commands to
+  manage the source: to trigger, to EOI, to turn off the source for
+  instance.
+
 * Groups:
 
   1. KVM_DEV_XIVE_GRP_CTRL

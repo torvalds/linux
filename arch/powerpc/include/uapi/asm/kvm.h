@@ -721,5 +721,6 @@ struct kvm_ppc_xive_eq {
 #define KVM_XIVE_EQ_ALWAYS_NOTIFY	0x00000001
 
 #define KVM_XIVE_TIMA_PAGE_OFFSET	0
+#define KVM_XIVE_ESB_PAGE_OFFSET	4
 
 #endif /* __LINUX_KVM_POWERPC_H */
