@@ -659,11 +659,9 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc = 0;
-	u32 mapped_nents = 0;
-	struct scatterlist *current_sg = req->src;
+	int mapped_nents = 0;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	unsigned int sg_index = 0;
-	u32 size_of_assoc = areq_ctx->assoclen;
+	unsigned int size_of_assoc = areq_ctx->assoclen;
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	if (areq_ctx->is_gcm4543)
@@ -684,26 +682,10 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 		goto chain_assoc_exit;
 	}
 
-	//iterate over the sgl to see how many entries are for associated data
-	//it is assumed that if we reach here , the sgl is already mapped
-	sg_index = current_sg->length;
-	//the first entry in the scatter list contains all the associated data
-	if (sg_index > size_of_assoc) {
-		mapped_nents++;
-	} else {
-		while (sg_index <= size_of_assoc) {
-			current_sg = sg_next(current_sg);
-			/* if have reached the end of the sgl, then this is
-			 * unexpected
-			 */
-			if (!current_sg) {
-				dev_err(dev, "reached end of sg list. unexpected\n");
-				return -EINVAL;
-			}
-			sg_index += current_sg->length;
-			mapped_nents++;
-		}
-	}
+	mapped_nents = sg_nents_for_len(req->src, size_of_assoc);
+	if (mapped_nents < 0)
+		return mapped_nents;
+
 	if (mapped_nents > LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES) {
 		dev_err(dev, "Too many fragments. current %d max %d\n",
 			mapped_nents, LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES);
@@ -898,6 +880,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	u32 sg_index = 0;
 	bool is_gcm4543 = areq_ctx->is_gcm4543;
 	u32 size_to_skip = areq_ctx->assoclen;
+	struct scatterlist *sgl;
 
 	if (is_gcm4543)
 		size_to_skip += crypto_aead_ivsize(tfm);
@@ -920,15 +903,13 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	sg_index = areq_ctx->src_sgl->length;
 	//check where the data starts
 	while (sg_index <= size_to_skip) {
-		offset -= areq_ctx->src_sgl->length;
-		areq_ctx->src_sgl = sg_next(areq_ctx->src_sgl);
-		//if have reached the end of the sgl, then this is unexpected
-		if (!areq_ctx->src_sgl) {
-			dev_err(dev, "reached end of sg list. unexpected\n");
-			return -EINVAL;
-		}
-		sg_index += areq_ctx->src_sgl->length;
 		src_mapped_nents--;
+		offset -= areq_ctx->src_sgl->length;
+		sgl = sg_next(areq_ctx->src_sgl);
+		if (!sgl)
+			break;
+		areq_ctx->src_sgl = sgl;
+		sg_index += areq_ctx->src_sgl->length;
 	}
 	if (src_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES) {
 		dev_err(dev, "Too many fragments. current %d max %d\n",
@@ -962,15 +943,13 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 
 	//check where the data starts
 	while (sg_index <= size_to_skip) {
-		offset -= areq_ctx->dst_sgl->length;
-		areq_ctx->dst_sgl = sg_next(areq_ctx->dst_sgl);
-		//if have reached the end of the sgl, then this is unexpected
-		if (!areq_ctx->dst_sgl) {
-			dev_err(dev, "reached end of sg list. unexpected\n");
-			return -EINVAL;
-		}
-		sg_index += areq_ctx->dst_sgl->length;
 		dst_mapped_nents--;
+		offset -= areq_ctx->dst_sgl->length;
+		sgl = sg_next(areq_ctx->dst_sgl);
+		if (!sgl)
+			break;
+		areq_ctx->dst_sgl = sgl;
+		sg_index += areq_ctx->dst_sgl->length;
 	}
 	if (dst_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES) {
 		dev_err(dev, "Too many fragments. current %d max %d\n",
