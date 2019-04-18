@@ -454,7 +454,7 @@ retry:
 	if (!tmpfile) {
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
-		journal_seq_copy(dir, inode->ei_journal_seq);
+		journal_seq_copy(dir, journal_seq);
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
