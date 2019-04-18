@@ -202,6 +202,13 @@ struct dm_pool_metadata {
 	bool fail_io:1;
 
 	/*
+	 * Set once a thin-pool has been accessed through one of the interfaces
+	 * that imply the pool is in-service (e.g. thin devices created/deleted,
+	 * thin-pool message, metadata snapshots, etc).
+	 */
+	bool in_service:1;
+
+	/*
 	 * Reading the space map roots can fail, so we read it into these
 	 * buffers before the superblock is locked and updated.
 	 */
@@ -367,6 +374,10 @@ static int subtree_equal(void *context, const void *value1_le, const void *value
 
 /*----------------------------------------------------------------*/
 
+/*
+ * Variant that is used for in-core only changes or code that
+ * shouldn't put the pool in service on its own (e.g. commit).
+ */
 static inline void __pmd_write_lock(struct dm_pool_metadata *pmd)
 	__acquires(pmd->root_lock)
 {
@@ -377,6 +388,8 @@ static inline void __pmd_write_lock(struct dm_pool_metadata *pmd)
 static inline void pmd_write_lock(struct dm_pool_metadata *pmd)
 {
 	__pmd_write_lock(pmd);
+	if (unlikely(!pmd->in_service))
+		pmd->in_service = true;
 }
 
 static inline void pmd_write_unlock(struct dm_pool_metadata *pmd)
@@ -810,6 +823,9 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	 */
 	BUILD_BUG_ON(sizeof(struct thin_disk_superblock) > 512);
 
+	if (unlikely(!pmd->in_service))
+		return 0;
+
 	r = __write_changed_details(pmd);
 	if (r < 0)
 		return r;
@@ -873,6 +889,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	pmd->time = 0;
 	INIT_LIST_HEAD(&pmd->thin_devices);
 	pmd->fail_io = false;
+	pmd->in_service = false;
 	pmd->bdev = bdev;
 	pmd->data_block_size = data_block_size;
 
@@ -923,7 +940,6 @@ int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 			DMWARN("%s: __commit_transaction() failed, error = %d",
 			       __func__, r);
 	}
-
 	if (!pmd->fail_io)
 		__destroy_persistent_data_objects(pmd);
 
@@ -1802,12 +1818,16 @@ int dm_pool_commit_metadata(struct dm_pool_metadata *pmd)
 {
 	int r = -EINVAL;
 
-	pmd_write_lock(pmd);
+	/*
+	 * Care is taken to not have commit be what
+	 * triggers putting the thin-pool in-service.
+	 */
+	__pmd_write_lock(pmd);
 	if (pmd->fail_io)
 		goto out;
 
 	r = __commit_transaction(pmd);
-	if (r <= 0)
+	if (r < 0)
 		goto out;
 
 	/*
