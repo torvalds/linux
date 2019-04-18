@@ -105,8 +105,11 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 
 static int navi10_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
+	CLK_MAP(SCLK,	PPCLK_GFXCLK),
 	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
+	CLK_MAP(FCLK, PPCLK_SOCCLK),
 	CLK_MAP(UCLK, PPCLK_UCLK),
+	CLK_MAP(MCLK, PPCLK_UCLK),
 	CLK_MAP(DCLK, PPCLK_DCLK),
 	CLK_MAP(VCLK, PPCLK_VCLK),
 	CLK_MAP(DCEFCLK, PPCLK_DCEFCLK),
@@ -523,6 +526,46 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_print_clk_levels(struct smu_context *smu,
+			enum smu_clk_type clk_type, char *buf)
+{
+	int i, size = 0, ret = 0;
+	uint32_t cur_value = 0, value = 0, count = 0;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+	case SMU_SOCCLK:
+	case SMU_MCLK:
+	case SMU_UCLK:
+	case SMU_FCLK:
+	case SMU_DCEFCLK:
+		ret = smu_get_current_clk_freq(smu, clk_type, &cur_value);
+		if (ret)
+			return size;
+
+		size += sprintf(buf, "current clk: %uMhz\n", cur_value);
+
+		ret = smu_get_dpm_level_count(smu, clk_type, &count);
+		if (ret)
+			return size;
+
+		for (i = 0; i < count; i++) {
+			ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+			if (ret)
+				return size;
+
+			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+					cur_value == value ? "*" : "");
+		}
+		break;
+	default:
+		break;
+	}
+
+	return size;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -538,6 +581,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 	.dpm_set_uvd_enable = navi10_dpm_set_uvd_enable,
 	.get_current_clk_freq_by_table = navi10_get_current_clk_freq_by_table,
+	.print_clk_levels = navi10_print_clk_levels,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

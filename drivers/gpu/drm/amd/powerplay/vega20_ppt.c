@@ -892,7 +892,7 @@ static int vega20_get_clk_table(struct smu_context *smu,
 }
 
 static int vega20_print_clk_levels(struct smu_context *smu,
-			enum pp_clock_type type, char *buf)
+			enum smu_clk_type type, char *buf)
 {
 	int i, now, size = 0;
 	int ret = 0;
@@ -912,7 +912,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	dpm_table = smu_dpm->dpm_context;
 
 	switch (type) {
-	case PP_SCLK:
+	case SMU_SCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current gfx clk Failed!");
@@ -933,7 +933,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 					? "*" : "");
 		break;
 
-	case PP_MCLK:
+	case SMU_MCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current mclk Failed!");
@@ -954,7 +954,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
-	case PP_SOCCLK:
+	case SMU_SOCCLK:
 		ret = smu_get_current_clk_freq(smu, PPCLK_SOCCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current socclk Failed!");
@@ -975,7 +975,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
-	case PP_FCLK:
+	case SMU_FCLK:
 		ret = smu_get_current_clk_freq(smu, PPCLK_FCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current fclk Failed!");
@@ -990,7 +990,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
-	case PP_DCEFCLK:
+	case SMU_DCEFCLK:
 		ret = smu_get_current_clk_freq(smu, PPCLK_DCEFCLK, &now);
 		if (ret) {
 			pr_err("Attempt to get current dcefclk Failed!");
@@ -1010,7 +1010,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
 		break;
 
-	case PP_PCIE:
+	case SMU_PCIE:
 		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
 			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
 			>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
@@ -1035,7 +1035,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 					"*" : "");
 		break;
 
-	case OD_SCLK:
+	case SMU_OD_SCLK:
 		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
 		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id) {
 			size = sprintf(buf, "%s:\n", "OD_SCLK");
@@ -1047,7 +1047,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case OD_MCLK:
+	case SMU_OD_MCLK:
 		if (od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id) {
 			size = sprintf(buf, "%s:\n", "OD_MCLK");
 			size += sprintf(buf + size, "1: %10uMhz\n",
@@ -1056,7 +1056,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case OD_VDDC_CURVE:
+	case SMU_OD_VDDC_CURVE:
 		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id &&
 		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id &&
 		    od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id &&
@@ -1077,7 +1077,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case OD_RANGE:
+	case SMU_OD_RANGE:
 		size = sprintf(buf, "%s:\n", "OD_RANGE");
 
 		if (od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id &&
