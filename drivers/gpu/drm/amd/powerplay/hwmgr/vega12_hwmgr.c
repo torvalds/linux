@@ -1237,6 +1237,27 @@ static uint32_t vega12_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 	return (mem_clk * 100);
 }
 
+static int vega12_get_metrics_table(struct pp_hwmgr *hwmgr, SmuMetrics_t *metrics_table)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (!data->metrics_time || time_after(jiffies, data->metrics_time + HZ / 2)) {
+		ret = smum_smc_table_manager(hwmgr, (uint8_t *)metrics_table,
+				TABLE_SMU_METRICS, true);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		memcpy(&data->metrics_table, metrics_table, sizeof(SmuMetrics_t));
+		data->metrics_time = jiffies;
+	} else
+		memcpy(metrics_table, &data->metrics_table, sizeof(SmuMetrics_t));
+
+	return ret;
+}
+
 static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr, uint32_t *query)
 {
 #if 0
