@@ -122,19 +122,14 @@ mt7603_mcu_init_download(struct mt7603_dev *dev, u32 addr, u32 len)
 static int
 mt7603_mcu_send_firmware(struct mt7603_dev *dev, const void *data, int len)
 {
-	struct sk_buff *skb;
-	int ret = 0;
+	int cur_len, ret = 0;
 
 	while (len > 0) {
-		int cur_len = min_t(int, 4096 - sizeof(struct mt7603_mcu_txd),
-				    len);
+		cur_len = min_t(int, 4096 - sizeof(struct mt7603_mcu_txd),
+				len);
 
-		skb = mt7603_mcu_msg_alloc(data, cur_len);
-		if (!skb)
-			return -ENOMEM;
-
-		ret = __mt7603_mcu_msg_send(dev, skb, -MCU_CMD_FW_SCATTER,
-					    NULL);
+		ret = __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER,
+					  data, cur_len, false);
 		if (ret)
 			break;
 
