@@ -35,7 +35,7 @@ struct mlx5_eswitch_rep_if {
 	void		       (*unload)(struct mlx5_eswitch_rep *rep);
 	void		       *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
 	void			*priv;
-	u8			state;
+	atomic_t		state;
 };
 
 struct mlx5_eswitch_rep {
