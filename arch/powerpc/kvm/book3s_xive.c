@@ -937,6 +937,13 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 	/* Turn the IPI hard off */
 	xive_vm_esb_load(&state->ipi_data, XIVE_ESB_SET_PQ_01);
 
+	/*
+	 * Reset ESB guest mapping. Needed when ESB pages are exposed
+	 * to the guest in XIVE native mode
+	 */
+	if (xive->ops && xive->ops->reset_mapped)
+		xive->ops->reset_mapped(kvm, guest_irq);
+
 	/* Grab info about irq */
 	state->pt_number = hw_irq;
 	state->pt_data = irq_data_get_irq_handler_data(host_data);
@@ -1021,6 +1028,14 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 	/* Forget about the IRQ */
 	state->pt_number = 0;
 	state->pt_data = NULL;
+
+	/*
+	 * Reset ESB guest mapping. Needed when ESB pages are exposed
+	 * to the guest in XIVE native mode
+	 */
+	if (xive->ops && xive->ops->reset_mapped) {
+		xive->ops->reset_mapped(kvm, guest_irq);
+	}
 
 	/* Reconfigure the IPI */
 	xive_native_configure_irq(state->ipi_number,

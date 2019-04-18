@@ -43,6 +43,25 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
   manage the source: to trigger, to EOI, to turn off the source for
   instance.
 
+  3. Device pass-through
+
+  When a device is passed-through into the guest, the source
+  interrupts are from a different HW controller (PHB4) and the ESB
+  pages exposed to the guest should accommadate this change.
+
+  The passthru_irq helpers, kvmppc_xive_set_mapped() and
+  kvmppc_xive_clr_mapped() are called when the device HW irqs are
+  mapped into or unmapped from the guest IRQ number space. The KVM
+  device extends these helpers to clear the ESB pages of the guest IRQ
+  number being mapped and then lets the VM fault handler repopulate.
+  The handler will insert the ESB page corresponding to the HW
+  interrupt of the device being passed-through or the initial IPI ESB
+  page if the device has being removed.
+
+  The ESB remapping is fully transparent to the guest and the OS
+  device driver. All handling is done within VFIO and the above
+  helpers in KVM-PPC.
+
 * Groups:
 
   1. KVM_DEV_XIVE_GRP_CTRL

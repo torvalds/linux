@@ -11,6 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+#include <linux/file.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_book3s.h>
 #include <asm/kvm_ppc.h>
@@ -165,6 +166,35 @@ bail:
 	return rc;
 }
 
+/*
+ * Device passthrough support
+ */
+static int kvmppc_xive_native_reset_mapped(struct kvm *kvm, unsigned long irq)
+{
+	struct kvmppc_xive *xive = kvm->arch.xive;
+
+	if (irq >= KVMPPC_XIVE_NR_IRQS)
+		return -EINVAL;
+
+	/*
+	 * Clear the ESB pages of the IRQ number being mapped (or
+	 * unmapped) into the guest and let the the VM fault handler
+	 * repopulate with the appropriate ESB pages (device or IC)
+	 */
+	pr_debug("clearing esb pages for girq 0x%lx\n", irq);
+	mutex_lock(&xive->mapping_lock);
+	if (xive->mapping)
+		unmap_mapping_range(xive->mapping,
+				    irq * (2ull << PAGE_SHIFT),
+				    2ull << PAGE_SHIFT, 1);
+	mutex_unlock(&xive->mapping_lock);
+	return 0;
+}
+
+static struct kvmppc_xive_ops kvmppc_xive_native_ops =  {
+	.reset_mapped = kvmppc_xive_native_reset_mapped,
+};
+
 static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -242,6 +272,8 @@ static const struct vm_operations_struct xive_native_tima_vmops = {
 static int kvmppc_xive_native_mmap(struct kvm_device *dev,
 				   struct vm_area_struct *vma)
 {
+	struct kvmppc_xive *xive = dev->private;
+
 	/* We only allow mappings at fixed offset for now */
 	if (vma->vm_pgoff == KVM_XIVE_TIMA_PAGE_OFFSET) {
 		if (vma_pages(vma) > 4)
@@ -257,6 +289,13 @@ static int kvmppc_xive_native_mmap(struct kvm_device *dev,
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
 	vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
+
+	/*
+	 * Grab the KVM device file address_space to be able to clear
+	 * the ESB pages mapping when a device is passed-through into
+	 * the guest.
+	 */
+	xive->mapping = vma->vm_file->f_mapping;
 	return 0;
 }
 
@@ -971,6 +1010,7 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	xive->dev = dev;
 	xive->kvm = kvm;
 	kvm->arch.xive = xive;
+	mutex_init(&xive->mapping_lock);
 
 	/*
 	 * Allocate a bunch of VPs. KVM_MAX_VCPUS is a large value for
@@ -984,6 +1024,7 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 		ret = -ENXIO;
 
 	xive->single_escalation = xive_native_has_single_escalation();
+	xive->ops = &kvmppc_xive_native_ops;
 
 	if (ret)
 		kfree(xive);
