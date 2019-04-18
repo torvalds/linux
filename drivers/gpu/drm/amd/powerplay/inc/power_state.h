@@ -124,6 +124,10 @@ struct PP_StateSoftwareAlgorithmBlock {
 struct PP_TemperatureRange {
 	int min;
 	int max;
+	int hotspot_min;
+	int hotspot_crit_max;
+	int mem_min;
+	int mem_crit_max;
 };
 
 struct PP_StateValidationBlock {
