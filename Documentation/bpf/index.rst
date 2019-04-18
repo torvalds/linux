@@ -36,6 +36,15 @@ Two sets of Questions and Answers (Q&A) are maintained.
    bpf_devel_QA
 
 
+Program types
+=============
+
+.. toctree::
+   :maxdepth: 1
+
+   prog_cgroup_sysctl
+
+
 .. Links:
 .. _Documentation/networking/filter.txt: ../networking/filter.txt
 .. _man-pages: https://www.kernel.org/doc/man-pages/
