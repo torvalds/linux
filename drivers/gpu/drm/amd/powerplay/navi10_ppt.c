@@ -97,6 +97,10 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(ExitBaco,			PPSMC_MSG_ExitBaco),
 	MSG_MAP(PrepareMp1ForReset,		PPSMC_MSG_PrepareMp1ForReset),
 	MSG_MAP(PrepareMp1ForShutdown,		PPSMC_MSG_PrepareMp1ForShutdown),
+	MSG_MAP(PowerUpVcn,		PPSMC_MSG_PowerUpVcn),
+	MSG_MAP(PowerDownVcn,		PPSMC_MSG_PowerDownVcn),
+	MSG_MAP(PowerUpJpeg,		PPSMC_MSG_PowerUpJpeg),
+	MSG_MAP(PowerDownJpeg,		PPSMC_MSG_PowerDownJpeg),
 };
 
 static int navi10_clk_map[SMU_CLK_COUNT] = {
@@ -470,6 +474,29 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 	return 0;
 }
 
+static int navi10_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+
+	if (enable && power_gate->uvd_gated) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
+		if (ret)
+			return ret;
+		power_gate->uvd_gated = false;
+	} else {
+		if (!enable && !power_gate->uvd_gated) {
+			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+			if (ret)
+				return ret;
+			power_gate->uvd_gated = true;
+		}
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -483,6 +510,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_smu_power_index = navi10_get_pwr_src_index,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
+	.dpm_set_uvd_enable = navi10_dpm_set_uvd_enable,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

@@ -224,6 +224,10 @@ enum smu_message_type
 	SMU_MSG_PrepareMp1ForShutdown,
 	SMU_MSG_SetMGpuFanBoostLimitRpm,
 	SMU_MSG_GetAVFSVoltageByDpm,
+	SMU_MSG_PowerUpVcn,
+	SMU_MSG_PowerDownVcn,
+	SMU_MSG_PowerUpJpeg,
+	SMU_MSG_PowerDownJpeg,
 	SMU_MSG_MAX_COUNT,
 };
 
