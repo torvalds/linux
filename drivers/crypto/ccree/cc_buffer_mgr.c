@@ -65,7 +65,7 @@ static void cc_copy_mac(struct device *dev, struct aead_request *req,
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	u32 skip = req->assoclen + req->cryptlen;
+	u32 skip = areq_ctx->assoclen + req->cryptlen;
 
 	if (areq_ctx->is_gcm4543)
 		skip += crypto_aead_ivsize(tfm);
@@ -574,8 +574,8 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 
 	dev_dbg(dev, "Unmapping src sgl: req->src=%pK areq_ctx->src.nents=%u areq_ctx->assoc.nents=%u assoclen:%u cryptlen=%u\n",
 		sg_virt(req->src), areq_ctx->src.nents, areq_ctx->assoc.nents,
-		req->assoclen, req->cryptlen);
-	size_to_unmap = req->assoclen + req->cryptlen;
+		areq_ctx->assoclen, req->cryptlen);
+	size_to_unmap = areq_ctx->assoclen + req->cryptlen;
 	if (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_ENCRYPT)
 		size_to_unmap += areq_ctx->req_authsize;
 	if (areq_ctx->is_gcm4543)
@@ -717,7 +717,7 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 	struct scatterlist *current_sg = req->src;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	unsigned int sg_index = 0;
-	u32 size_of_assoc = req->assoclen;
+	u32 size_of_assoc = areq_ctx->assoclen;
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	if (areq_ctx->is_gcm4543)
@@ -728,7 +728,7 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 		goto chain_assoc_exit;
 	}
 
-	if (req->assoclen == 0) {
+	if (areq_ctx->assoclen == 0) {
 		areq_ctx->assoc_buff_type = CC_DMA_BUF_NULL;
 		areq_ctx->assoc.nents = 0;
 		areq_ctx->assoc.mlli_nents = 0;
@@ -788,7 +788,7 @@ static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 			cc_dma_buf_type(areq_ctx->assoc_buff_type),
 			areq_ctx->assoc.nents);
 		cc_add_sg_entry(dev, sg_data, areq_ctx->assoc.nents, req->src,
-				req->assoclen, 0, is_last,
+				areq_ctx->assoclen, 0, is_last,
 				&areq_ctx->assoc.mlli_nents);
 		areq_ctx->assoc_buff_type = CC_DMA_BUF_MLLI;
 	}
@@ -972,11 +972,11 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	u32 src_mapped_nents = 0, dst_mapped_nents = 0;
 	u32 offset = 0;
 	/* non-inplace mode */
-	unsigned int size_for_map = req->assoclen + req->cryptlen;
+	unsigned int size_for_map = areq_ctx->assoclen + req->cryptlen;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	u32 sg_index = 0;
 	bool is_gcm4543 = areq_ctx->is_gcm4543;
-	u32 size_to_skip = req->assoclen;
+	u32 size_to_skip = areq_ctx->assoclen;
 
 	if (is_gcm4543)
 		size_to_skip += crypto_aead_ivsize(tfm);
@@ -1020,7 +1020,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	areq_ctx->src_offset = offset;
 
 	if (req->src != req->dst) {
-		size_for_map = req->assoclen + req->cryptlen;
+		size_for_map = areq_ctx->assoclen + req->cryptlen;
 		size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
 				authsize : 0;
 		if (is_gcm4543)
@@ -1186,7 +1186,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		areq_ctx->ccm_iv0_dma_addr = dma_addr;
 
 		rc = cc_set_aead_conf_buf(dev, areq_ctx, areq_ctx->ccm_config,
-					  &sg_data, req->assoclen);
+					  &sg_data, areq_ctx->assoclen);
 		if (rc)
 			goto aead_map_failure;
 	}
@@ -1237,7 +1237,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		areq_ctx->gcm_iv_inc2_dma_addr = dma_addr;
 	}
 
-	size_to_map = req->cryptlen + req->assoclen;
+	size_to_map = req->cryptlen + areq_ctx->assoclen;
 	if (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_ENCRYPT)
 		size_to_map += authsize;
 
