@@ -3070,6 +3070,9 @@ static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 	case TIPC_SOCK_RECVQ_DEPTH:
 		value = skb_queue_len(&sk->sk_receive_queue);
 		break;
+	case TIPC_SOCK_RECVQ_USED:
+		value = sk_rmem_alloc_get(sk);
+		break;
 	case TIPC_GROUP_JOIN:
 		seq.type = 0;
 		if (tsk->group)
