@@ -169,6 +169,17 @@ config BATTERY_COLLIE
 	  Say Y to enable support for the battery on the Sharp Zaurus
 	  SL-5500 (collie) models.
 
+config BATTERY_INGENIC
+	tristate "Ingenic JZ47xx SoCs battery driver"
+	depends on MIPS || COMPILE_TEST
+	depends on INGENIC_ADC
+	help
+	  Choose this option if you want to monitor battery status on
+	  Ingenic JZ47xx SoC based devices.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ingenic-battery.
+
 config BATTERY_IPAQ_MICRO
 	tristate "iPAQ Atmel Micro ASIC battery driver"
 	depends on MFD_IPAQ_MICRO
