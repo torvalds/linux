@@ -64,7 +64,8 @@ union lut3d_control_flags {
 		unsigned int use_gamut_map_lib					:1;
 		unsigned int chromatic_adaptation_src				:1;
 		unsigned int chromatic_adaptation_dst				:1;
-		unsigned int reseved					:5;
+		unsigned int do_blender_lut_degamma		:1;
+		unsigned int reseved					:4;
 	} bits;
 };
 
@@ -78,8 +79,8 @@ enum lut3d_control_gamut_map {
 	lut3d_control_gamut_map_none = 0,
 	lut3d_control_gamut_map_tonemap,
 	lut3d_control_gamut_map_chto,
-	lut3d_control_gamut_map_chto_chso,
-	lut3d_control_gamut_map_chto_chci
+	lut3d_control_gamut_map_chso,
+	lut3d_control_gamut_map_chci
 };
 
 enum lut3d_control_rotation_mode {

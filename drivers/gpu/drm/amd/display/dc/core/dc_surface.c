@@ -60,6 +60,11 @@ static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state
 		plane_state->lut3d_func->ctx = ctx;
 		plane_state->lut3d_func->initialized = false;
 	}
+	plane_state->blend_tf = dc_create_transfer_func();
+	if (plane_state->blend_tf != NULL) {
+		plane_state->blend_tf->type = TF_TYPE_BYPASS;
+		plane_state->blend_tf->ctx = ctx;
+	}
 
 #endif
 }
@@ -84,6 +89,11 @@ static void destruct(struct dc_plane_state *plane_state)
 		dc_3dlut_func_release(
 				plane_state->lut3d_func);
 		plane_state->lut3d_func = NULL;
+	}
+	if (plane_state->blend_tf != NULL) {
+		dc_transfer_func_release(
+				plane_state->blend_tf);
+		plane_state->blend_tf = NULL;
 	}
 
 #endif

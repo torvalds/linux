@@ -1669,6 +1669,13 @@ static void copy_surface_update_to_plane(
 			srf_update->lut3d_func))
 		memcpy(surface->lut3d_func, srf_update->lut3d_func,
 		sizeof(*surface->lut3d_func));
+
+	if (srf_update->blend_tf &&
+			(surface->blend_tf !=
+			srf_update->blend_tf))
+		memcpy(surface->blend_tf, srf_update->blend_tf,
+		sizeof(*surface->blend_tf));
+
 #endif
 	if (srf_update->input_csc_color_matrix)
 		surface->input_csc_color_matrix =

@@ -761,6 +761,7 @@ struct dc_surface_update {
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	const struct dc_transfer_func *func_shaper;
 	const struct dc_3dlut *lut3d_func;
+	const struct dc_transfer_func *blend_tf;
 #endif
 };
 
