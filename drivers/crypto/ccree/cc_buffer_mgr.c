@@ -749,27 +749,21 @@ static void cc_prepare_aead_data_dlli(struct aead_request *req,
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	enum drv_crypto_direction direct = areq_ctx->gen_ctx.op_type;
 	unsigned int authsize = areq_ctx->req_authsize;
+	struct scatterlist *sg;
+	ssize_t offset;
 
 	areq_ctx->is_icv_fragmented = false;
-	if (req->src == req->dst) {
-		/*INPLACE*/
-		areq_ctx->icv_dma_addr = sg_dma_address(areq_ctx->src_sgl) +
-			(*src_last_bytes - authsize);
-		areq_ctx->icv_virt_addr = sg_virt(areq_ctx->src_sgl) +
-			(*src_last_bytes - authsize);
-	} else if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
-		/*NON-INPLACE and DECRYPT*/
-		areq_ctx->icv_dma_addr = sg_dma_address(areq_ctx->src_sgl) +
-			(*src_last_bytes - authsize);
-		areq_ctx->icv_virt_addr = sg_virt(areq_ctx->src_sgl) +
-			(*src_last_bytes - authsize);
+
+	if ((req->src == req->dst) || direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
+		sg = areq_ctx->src_sgl;
+		offset = *src_last_bytes - authsize;
 	} else {
-		/*NON-INPLACE and ENCRYPT*/
-		areq_ctx->icv_dma_addr = sg_dma_address(areq_ctx->dst_sgl) +
-			(*dst_last_bytes - authsize);
-		areq_ctx->icv_virt_addr = sg_virt(areq_ctx->dst_sgl) +
-			(*dst_last_bytes - authsize);
+		sg = areq_ctx->dst_sgl;
+		offset = *dst_last_bytes - authsize;
 	}
+
+	areq_ctx->icv_dma_addr = sg_dma_address(sg) + offset;
+	areq_ctx->icv_virt_addr = sg_virt(sg) + offset;
 }
 
 static void cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
