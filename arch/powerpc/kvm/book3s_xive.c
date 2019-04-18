@@ -1100,8 +1100,14 @@ void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
 void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
-	struct kvmppc_xive *xive = xc->xive;
+	struct kvmppc_xive *xive = vcpu->kvm->arch.xive;
 	int i;
+
+	if (!kvmppc_xics_enabled(vcpu))
+		return;
+
+	if (!xc)
+		return;
 
 	pr_devel("cleanup_vcpu(cpu=%d)\n", xc->server_num);
 
@@ -1141,6 +1147,10 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	}
 	/* Free the VP */
 	kfree(xc);
+
+	/* Cleanup the vcpu */
+	vcpu->arch.irq_type = KVMPPC_IRQ_DEFAULT;
+	vcpu->arch.xive_vcpu = NULL;
 }
 
 int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
@@ -1158,7 +1168,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	}
 	if (xive->kvm != vcpu->kvm)
 		return -EPERM;
-	if (vcpu->arch.irq_type)
+	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
 		return -EBUSY;
 	if (kvmppc_xive_find_server(vcpu->kvm, cpu)) {
 		pr_devel("Duplicate !\n");
@@ -1824,11 +1834,25 @@ void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
 	}
 }
 
-static void kvmppc_xive_free(struct kvm_device *dev)
+/*
+ * Called when device fd is closed
+ */
+static void kvmppc_xive_release(struct kvm_device *dev)
 {
 	struct kvmppc_xive *xive = dev->private;
 	struct kvm *kvm = xive->kvm;
+	struct kvm_vcpu *vcpu;
 	int i;
+
+	pr_devel("Releasing xive device\n");
+
+	/*
+	 * When releasing the KVM device fd, the vCPUs can still be
+	 * running and we should clean up the vCPU interrupt
+	 * presenters first.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvmppc_xive_cleanup_vcpu(vcpu);
 
 	debugfs_remove(xive->dentry);
 
@@ -1846,9 +1870,40 @@ static void kvmppc_xive_free(struct kvm_device *dev)
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
 
+	/*
+	 * A reference of the kvmppc_xive pointer is now kept under
+	 * the xive_devices struct of the machine for reuse. It is
+	 * freed when the VM is destroyed for now until we fix all the
+	 * execution paths.
+	 */
 
-	kfree(xive);
 	kfree(dev);
+}
+
+/*
+ * When the guest chooses the interrupt mode (XICS legacy or XIVE
+ * native), the VM will switch of KVM device. The previous device will
+ * be "released" before the new one is created.
+ *
+ * Until we are sure all execution paths are well protected, provide a
+ * fail safe (transitional) method for device destruction, in which
+ * the XIVE device pointer is recycled and not directly freed.
+ */
+struct kvmppc_xive *kvmppc_xive_get_device(struct kvm *kvm, u32 type)
+{
+	struct kvmppc_xive **kvm_xive_device = type == KVM_DEV_TYPE_XIVE ?
+		&kvm->arch.xive_devices.native :
+		&kvm->arch.xive_devices.xics_on_xive;
+	struct kvmppc_xive *xive = *kvm_xive_device;
+
+	if (!xive) {
+		xive = kzalloc(sizeof(*xive), GFP_KERNEL);
+		*kvm_xive_device = xive;
+	} else {
+		memset(xive, 0, sizeof(*xive));
+	}
+
+	return xive;
 }
 
 static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
@@ -1859,7 +1914,7 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 
 	pr_devel("Creating xive for partition\n");
 
-	xive = kzalloc(sizeof(*xive), GFP_KERNEL);
+	xive = kvmppc_xive_get_device(kvm, type);
 	if (!xive)
 		return -ENOMEM;
 
@@ -2024,7 +2079,7 @@ struct kvm_device_ops kvm_xive_ops = {
 	.name = "kvm-xive",
 	.create = kvmppc_xive_create,
 	.init = kvmppc_xive_init,
-	.destroy = kvmppc_xive_free,
+	.release = kvmppc_xive_release,
 	.set_attr = xive_set_attr,
 	.get_attr = xive_get_attr,
 	.has_attr = xive_has_attr,

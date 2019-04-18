@@ -283,6 +283,7 @@ void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb);
 int kvmppc_xive_select_target(struct kvm *kvm, u32 *server, u8 prio);
 int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 				  bool single_escalation);
+struct kvmppc_xive *kvmppc_xive_get_device(struct kvm *kvm, u32 type);
 
 #endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */

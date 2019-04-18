@@ -964,15 +964,27 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 	return -ENXIO;
 }
 
-static void kvmppc_xive_native_free(struct kvm_device *dev)
+/*
+ * Called when device fd is closed
+ */
+static void kvmppc_xive_native_release(struct kvm_device *dev)
 {
 	struct kvmppc_xive *xive = dev->private;
 	struct kvm *kvm = xive->kvm;
+	struct kvm_vcpu *vcpu;
 	int i;
 
 	debugfs_remove(xive->dentry);
 
-	pr_devel("Destroying xive native device\n");
+	pr_devel("Releasing xive native device\n");
+
+	/*
+	 * When releasing the KVM device fd, the vCPUs can still be
+	 * running and we should clean up the vCPU interrupt
+	 * presenters first.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvmppc_xive_native_cleanup_vcpu(vcpu);
 
 	if (kvm)
 		kvm->arch.xive = NULL;
@@ -987,7 +999,13 @@ static void kvmppc_xive_native_free(struct kvm_device *dev)
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
 
-	kfree(xive);
+	/*
+	 * A reference of the kvmppc_xive pointer is now kept under
+	 * the xive_devices struct of the machine for reuse. It is
+	 * freed when the VM is destroyed for now until we fix all the
+	 * execution paths.
+	 */
+
 	kfree(dev);
 }
 
@@ -1002,7 +1020,7 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	if (kvm->arch.xive)
 		return -EEXIST;
 
-	xive = kzalloc(sizeof(*xive), GFP_KERNEL);
+	xive = kvmppc_xive_get_device(kvm, type);
 	if (!xive)
 		return -ENOMEM;
 
@@ -1182,7 +1200,7 @@ struct kvm_device_ops kvm_xive_native_ops = {
 	.name = "kvm-xive-native",
 	.create = kvmppc_xive_native_create,
 	.init = kvmppc_xive_native_init,
-	.destroy = kvmppc_xive_native_free,
+	.release = kvmppc_xive_native_release,
 	.set_attr = kvmppc_xive_native_set_attr,
 	.get_attr = kvmppc_xive_native_get_attr,
 	.has_attr = kvmppc_xive_native_has_attr,

@@ -915,6 +915,17 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 	kvmppc_rtas_tokens_free(kvm);
 	WARN_ON(!list_empty(&kvm->arch.spapr_tce_tables));
 #endif
+
+#ifdef CONFIG_KVM_XICS
+	/*
+	 * Free the XIVE devices which are not directly freed by the
+	 * device 'release' method
+	 */
+	kfree(kvm->arch.xive_devices.native);
+	kvm->arch.xive_devices.native = NULL;
+	kfree(kvm->arch.xive_devices.xics_on_xive);
+	kvm->arch.xive_devices.xics_on_xive = NULL;
+#endif /* CONFIG_KVM_XICS */
 }
 
 int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu)
