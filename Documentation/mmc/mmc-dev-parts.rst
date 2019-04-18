@@ -1,3 +1,4 @@
+============================
 SD and MMC Device Partitions
 ============================
 
@@ -18,18 +19,18 @@ platform, write access is disabled by default to reduce the chance of
 accidental bricking.
 
 To enable write access to /dev/mmcblkXbootY, disable the forced read-only
-access with:
+access with::
 
-echo 0 > /sys/block/mmcblkXbootY/force_ro
+	echo 0 > /sys/block/mmcblkXbootY/force_ro
 
-To re-enable read-only access:
+To re-enable read-only access::
 
-echo 1 > /sys/block/mmcblkXbootY/force_ro
+	echo 1 > /sys/block/mmcblkXbootY/force_ro
 
 The boot partitions can also be locked read only until the next power on,
-with:
+with::
 
-echo 1 > /sys/block/mmcblkXbootY/ro_lock_until_next_power_on
+	echo 1 > /sys/block/mmcblkXbootY/ro_lock_until_next_power_on
 
 This is a feature of the card and not of the kernel. If the card does
 not support boot partition locking, the file will not exist. If the

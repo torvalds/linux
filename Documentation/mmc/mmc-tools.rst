@@ -1,14 +1,17 @@
+======================
 MMC tools introduction
 ======================
 
 There is one MMC test tools called mmc-utils, which is maintained by Chris Ball,
 you can find it at the below public git repository:
-http://git.kernel.org/cgit/linux/kernel/git/cjb/mmc-utils.git/
+
+	http://git.kernel.org/cgit/linux/kernel/git/cjb/mmc-utils.git/
 
 Functions
 =========
 
 The mmc-utils tools can do the following:
+
  - Print and parse extcsd data.
  - Determine the eMMC writeprotect status.
  - Set the eMMC writeprotect status.
