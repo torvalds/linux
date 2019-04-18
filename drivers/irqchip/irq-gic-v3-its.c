@@ -2487,7 +2487,7 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 	int err = 0;
 
 	/*
-	 * We ignore "dev" entierely, and rely on the dev_id that has
+	 * We ignore "dev" entirely, and rely on the dev_id that has
 	 * been passed via the scratchpad. This limits this domain's
 	 * usefulness to upper layers that definitely know that they
 	 * are built on top of the ITS.
