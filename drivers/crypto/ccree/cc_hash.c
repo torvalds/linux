@@ -286,7 +286,7 @@ static void cc_update_complete(struct device *dev, void *cc_req, int err)
 		cc_unmap_req(dev, state, ctx);
 	}
 
-	req->base.complete(&req->base, err);
+	ahash_request_complete(req, err);
 }
 
 static void cc_digest_complete(struct device *dev, void *cc_req, int err)
@@ -306,7 +306,7 @@ static void cc_digest_complete(struct device *dev, void *cc_req, int err)
 		cc_unmap_req(dev, state, ctx);
 	}
 
-	req->base.complete(&req->base, err);
+	ahash_request_complete(req, err);
 }
 
 static void cc_hash_complete(struct device *dev, void *cc_req, int err)
@@ -326,7 +326,7 @@ static void cc_hash_complete(struct device *dev, void *cc_req, int err)
 		cc_unmap_req(dev, state, ctx);
 	}
 
-	req->base.complete(&req->base, err);
+	ahash_request_complete(req, err);
 }
 
 static int cc_fin_result(struct cc_hw_desc *desc, struct ahash_request *req,
