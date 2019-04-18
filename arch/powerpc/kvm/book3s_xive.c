@@ -1480,8 +1480,8 @@ static int xive_get_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	return 0;
 }
 
-static struct kvmppc_xive_src_block *xive_create_src_block(struct kvmppc_xive *xive,
-							   int irq)
+struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
+	struct kvmppc_xive *xive, int irq)
 {
 	struct kvm *kvm = xive->kvm;
 	struct kvmppc_xive_src_block *sb;
@@ -1560,7 +1560,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb) {
 		pr_devel("No source, creating source block...\n");
-		sb = xive_create_src_block(xive, irq);
+		sb = kvmppc_xive_create_src_block(xive, irq);
 		if (!sb) {
 			pr_devel("Failed to create block...\n");
 			return -ENOMEM;
@@ -1784,7 +1784,7 @@ static void kvmppc_xive_cleanup_irq(u32 hw_num, struct xive_irq_data *xd)
 	xive_cleanup_irq_data(xd);
 }
 
-static void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
+void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
 {
 	int i;
 

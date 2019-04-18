@@ -13,6 +13,13 @@
 #include "book3s_xics.h"
 
 /*
+ * The XIVE Interrupt source numbers are within the range 0 to
+ * KVMPPC_XICS_NR_IRQS.
+ */
+#define KVMPPC_XIVE_FIRST_IRQ	0
+#define KVMPPC_XIVE_NR_IRQS	KVMPPC_XICS_NR_IRQS
+
+/*
  * State for one guest irq source.
  *
  * For each guest source we allocate a HW interrupt in the XIVE
@@ -258,6 +265,9 @@ extern int (*__xive_vm_h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr);
  */
 void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu);
 int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu);
+struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
+	struct kvmppc_xive *xive, int irq);
+void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb);
 
 #endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */

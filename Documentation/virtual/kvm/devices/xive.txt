@@ -17,3 +17,18 @@ the legacy interrupt mode, referred as XICS (POWER7/8).
 
   1. KVM_DEV_XIVE_GRP_CTRL
   Provides global controls on the device
+
+  2. KVM_DEV_XIVE_GRP_SOURCE (write only)
+  Initializes a new source in the XIVE device and mask it.
+  Attributes:
+    Interrupt source number  (64-bit)
+  The kvm_device_attr.addr points to a __u64 value:
+  bits:     | 63   ....  2 |   1   |   0
+  values:   |    unused    | level | type
+  - type:  0:MSI 1:LSI
+  - level: assertion level in case of an LSI.
+  Errors:
+    -E2BIG:  Interrupt source number is out of range
+    -ENOMEM: Could not create a new source block
+    -EFAULT: Invalid user pointer for attr->addr.
+    -ENXIO:  Could not allocate underlying HW interrupt
