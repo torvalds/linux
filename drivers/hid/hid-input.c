@@ -1580,7 +1580,7 @@ static bool __hidinput_change_resolution_multipliers(struct hid_device *hid,
 			if (usage->hid != HID_GD_RESOLUTION_MULTIPLIER)
 				continue;
 
-			*report->field[i]->value = value;
+			report->field[i]->value[j] = value;
 			update_needed = true;
 		}
 	}
