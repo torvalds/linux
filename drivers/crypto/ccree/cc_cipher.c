@@ -399,7 +399,7 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 	return 0;
 }
 
-static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
+static void cc_setup_state_desc(struct crypto_tfm *tfm,
 				 struct cipher_req_ctx *req_ctx,
 				 unsigned int ivsize, unsigned int nbytes,
 				 struct cc_hw_desc desc[],
@@ -423,11 +423,13 @@ static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
 		du_size = cc_alg->data_unit;
 
 	switch (cipher_mode) {
+	case DRV_CIPHER_ECB:
+		break;
 	case DRV_CIPHER_CBC:
 	case DRV_CIPHER_CBC_CTS:
 	case DRV_CIPHER_CTR:
 	case DRV_CIPHER_OFB:
-		/* Load cipher state */
+		/* Load IV */
 		hw_desc_init(&desc[*seq_size]);
 		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr, ivsize,
 			     NS_BIT);
@@ -441,7 +443,71 @@ static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
 			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
 		}
 		(*seq_size)++;
-		/*FALLTHROUGH*/
+		break;
+	case DRV_CIPHER_XTS:
+	case DRV_CIPHER_ESSIV:
+	case DRV_CIPHER_BITLOCKER:
+		/* load XEX key */
+		hw_desc_init(&desc[*seq_size]);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
+		if (cc_is_hw_key(tfm)) {
+			set_hw_crypto_key(&desc[*seq_size],
+					  ctx_p->hw.key2_slot);
+		} else {
+			set_din_type(&desc[*seq_size], DMA_DLLI,
+				     (key_dma_addr + (key_len / 2)),
+				     (key_len / 2), NS_BIT);
+		}
+		set_xex_data_unit_size(&desc[*seq_size], du_size);
+		set_flow_mode(&desc[*seq_size], S_DIN_to_AES2);
+		set_key_size_aes(&desc[*seq_size], (key_len / 2));
+		set_setup_mode(&desc[*seq_size], SETUP_LOAD_XEX_KEY);
+		(*seq_size)++;
+
+		/* Load IV */
+		hw_desc_init(&desc[*seq_size]);
+		set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
+		set_key_size_aes(&desc[*seq_size], (key_len / 2));
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr,
+			     CC_AES_BLOCK_SIZE, NS_BIT);
+		(*seq_size)++;
+		break;
+	default:
+		dev_err(dev, "Unsupported cipher mode (%d)\n", cipher_mode);
+	}
+}
+
+
+static void cc_setup_key_desc(struct crypto_tfm *tfm,
+			      struct cipher_req_ctx *req_ctx,
+			      unsigned int nbytes, struct cc_hw_desc desc[],
+			      unsigned int *seq_size)
+{
+	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
+	int cipher_mode = ctx_p->cipher_mode;
+	int flow_mode = ctx_p->flow_mode;
+	int direction = req_ctx->gen_ctx.op_type;
+	dma_addr_t key_dma_addr = ctx_p->user.key_dma_addr;
+	unsigned int key_len = ctx_p->keylen;
+	unsigned int du_size = nbytes;
+
+	struct cc_crypto_alg *cc_alg =
+		container_of(tfm->__crt_alg, struct cc_crypto_alg,
+			     skcipher_alg.base);
+
+	if (cc_alg->data_unit)
+		du_size = cc_alg->data_unit;
+
+	switch (cipher_mode) {
+	case DRV_CIPHER_CBC:
+	case DRV_CIPHER_CBC_CTS:
+	case DRV_CIPHER_CTR:
+	case DRV_CIPHER_OFB:
 	case DRV_CIPHER_ECB:
 		/* Load key */
 		hw_desc_init(&desc[*seq_size]);
@@ -485,35 +551,6 @@ static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
 		set_key_size_aes(&desc[*seq_size], (key_len / 2));
 		set_flow_mode(&desc[*seq_size], flow_mode);
 		set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
-		(*seq_size)++;
-
-		/* load XEX key */
-		hw_desc_init(&desc[*seq_size]);
-		set_cipher_mode(&desc[*seq_size], cipher_mode);
-		set_cipher_config0(&desc[*seq_size], direction);
-		if (cc_is_hw_key(tfm)) {
-			set_hw_crypto_key(&desc[*seq_size],
-					  ctx_p->hw.key2_slot);
-		} else {
-			set_din_type(&desc[*seq_size], DMA_DLLI,
-				     (key_dma_addr + (key_len / 2)),
-				     (key_len / 2), NS_BIT);
-		}
-		set_xex_data_unit_size(&desc[*seq_size], du_size);
-		set_flow_mode(&desc[*seq_size], S_DIN_to_AES2);
-		set_key_size_aes(&desc[*seq_size], (key_len / 2));
-		set_setup_mode(&desc[*seq_size], SETUP_LOAD_XEX_KEY);
-		(*seq_size)++;
-
-		/* Set state */
-		hw_desc_init(&desc[*seq_size]);
-		set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
-		set_cipher_mode(&desc[*seq_size], cipher_mode);
-		set_cipher_config0(&desc[*seq_size], direction);
-		set_key_size_aes(&desc[*seq_size], (key_len / 2));
-		set_flow_mode(&desc[*seq_size], flow_mode);
-		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr,
-			     CC_AES_BLOCK_SIZE, NS_BIT);
 		(*seq_size)++;
 		break;
 	default:
@@ -755,8 +792,10 @@ static int cc_cipher_process(struct skcipher_request *req,
 
 	/* STAT_PHASE_2: Create sequence */
 
-	/* Setup processing */
-	cc_setup_cipher_desc(tfm, req_ctx, ivsize, nbytes, desc, &seq_len);
+	/* Setup IV and XEX key used */
+	cc_setup_state_desc(tfm, req_ctx, ivsize, nbytes, desc, &seq_len);
+	/* Setup key */
+	cc_setup_key_desc(tfm, req_ctx, nbytes, desc, &seq_len);
 	/* Data processing */
 	cc_setup_cipher_data(tfm, req_ctx, dst, src, nbytes, req, desc,
 			     &seq_len);
