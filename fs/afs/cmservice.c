@@ -34,7 +34,7 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *);
 static int afs_deliver_yfs_cb_callback(struct afs_call *);
 
 #define CM_NAME(name) \
-	const char afs_SRXCB##name##_name[] __tracepoint_string =	\
+	char afs_SRXCB##name##_name[] __tracepoint_string =	\
 		"CB." #name
 
 /*
