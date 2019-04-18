@@ -850,6 +850,7 @@ static void zpci_mem_exit(void)
 }
 
 static unsigned int s390_pci_probe __initdata = 1;
+static unsigned int s390_pci_no_mio __initdata;
 unsigned int s390_pci_force_floating __initdata;
 static unsigned int s390_pci_initialized;
 
@@ -857,6 +858,10 @@ char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		s390_pci_probe = 0;
+		return NULL;
+	}
+	if (!strcmp(str, "nomio")) {
+		s390_pci_no_mio = 1;
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {
@@ -881,7 +886,7 @@ static int __init pci_base_init(void)
 	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
-	if (test_facility(153))
+	if (test_facility(153) && !s390_pci_no_mio)
 		static_branch_enable(&have_mio);
 
 	rc = zpci_debug_init();
