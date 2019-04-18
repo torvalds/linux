@@ -2534,9 +2534,15 @@ static int vega12_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 
 	thermal_data->max = pp_table->TedgeLimit *
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->edge_emergency_max = (pp_table->TedgeLimit + CTF_OFFSET_EDGE) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	thermal_data->hotspot_crit_max = pp_table->ThotspotLimit *
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->hotspot_emergency_max = (pp_table->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	thermal_data->mem_crit_max = pp_table->ThbmLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	thermal_data->mem_emergency_max = (pp_table->ThbmLimit + CTF_OFFSET_HBM)*
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
