@@ -84,15 +84,11 @@ enum ltc3589_reg {
 	LTC3589_NUM_REGULATORS,
 };
 
-struct ltc3589_regulator {
-	struct regulator_desc desc;
-};
-
 struct ltc3589 {
 	struct regmap *regmap;
 	struct device *dev;
 	enum ltc3589_variant variant;
-	struct ltc3589_regulator regulator_descs[LTC3589_NUM_REGULATORS];
+	struct regulator_desc regulator_descs[LTC3589_NUM_REGULATORS];
 	struct regulator_dev *regulators[LTC3589_NUM_REGULATORS];
 };
 
@@ -209,7 +205,7 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 			       struct regulator_config *config)
 {
 	struct ltc3589 *ltc3589 = config->driver_data;
-	struct ltc3589_regulator *rdesc = &ltc3589->regulator_descs[desc->id];
+	struct regulator_desc *rdesc = &ltc3589->regulator_descs[desc->id];
 	u32 r[2];
 	int ret;
 
@@ -227,36 +223,34 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 	if (!r[0] || !r[1])
 		return 0;
 
-	rdesc->desc.min_uV = ltc3589_scale(desc->min_uV, r[0], r[1]);
-	rdesc->desc.uV_step = ltc3589_scale(desc->uV_step, r[0], r[1]);
-	rdesc->desc.fixed_uV = ltc3589_scale(desc->fixed_uV, r[0], r[1]);
+	rdesc->min_uV = ltc3589_scale(desc->min_uV, r[0], r[1]);
+	rdesc->uV_step = ltc3589_scale(desc->uV_step, r[0], r[1]);
+	rdesc->fixed_uV = ltc3589_scale(desc->fixed_uV, r[0], r[1]);
 
 	return 0;
 }
 
 #define LTC3589_REG(_name, _of_name, _ops, en_bit, dtv1_reg, dtv_mask, go_bit)\
 	[LTC3589_ ## _name] = {						\
-		.desc = {						\
-			.name = #_name,					\
-			.of_match = of_match_ptr(#_of_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
-			.of_parse_cb = ltc3589_of_parse_cb,		\
-			.n_voltages = (dtv_mask) + 1,			\
-			.min_uV = (go_bit) ? 362500 : 0,		\
-			.uV_step = (go_bit) ? 12500 : 0,		\
-			.ramp_delay = (go_bit) ? 1750 : 0,		\
-			.fixed_uV = (dtv_mask) ? 0 : 800000,		\
-			.ops = &ltc3589_ ## _ops ## _regulator_ops,	\
-			.type = REGULATOR_VOLTAGE,			\
-			.id = LTC3589_ ## _name,			\
-			.owner = THIS_MODULE,				\
-			.vsel_reg = (dtv1_reg),			\
-			.vsel_mask = (dtv_mask),			\
-			.apply_reg = (go_bit) ? LTC3589_VCCR : 0,	\
-			.apply_bit = (go_bit),				\
-			.enable_reg = (en_bit) ? LTC3589_OVEN : 0,	\
-			.enable_mask = (en_bit),			\
-		},							\
+		.name = #_name,						\
+		.of_match = of_match_ptr(#_of_name),			\
+		.regulators_node = of_match_ptr("regulators"),		\
+		.of_parse_cb = ltc3589_of_parse_cb,			\
+		.n_voltages = (dtv_mask) + 1,				\
+		.min_uV = (go_bit) ? 362500 : 0,			\
+		.uV_step = (go_bit) ? 12500 : 0,			\
+		.ramp_delay = (go_bit) ? 1750 : 0,			\
+		.fixed_uV = (dtv_mask) ? 0 : 800000,			\
+		.ops = &ltc3589_ ## _ops ## _regulator_ops,		\
+		.type = REGULATOR_VOLTAGE,				\
+		.id = LTC3589_ ## _name,				\
+		.owner = THIS_MODULE,					\
+		.vsel_reg = (dtv1_reg),					\
+		.vsel_mask = (dtv_mask),				\
+		.apply_reg = (go_bit) ? LTC3589_VCCR : 0,		\
+		.apply_bit = (go_bit),					\
+		.enable_reg = (en_bit) ? LTC3589_OVEN : 0,		\
+		.enable_mask = (en_bit),				\
 	}
 
 #define LTC3589_LINEAR_REG(_name, _of_name, _dtv1)			\
@@ -267,7 +261,7 @@ static int ltc3589_of_parse_cb(struct device_node *np,
 #define LTC3589_FIXED_REG(_name, _of_name)				\
 	LTC3589_REG(_name, _of_name, fixed, LTC3589_OVEN_ ## _name, 0, 0, 0)
 
-static struct ltc3589_regulator ltc3589_regulators[LTC3589_NUM_REGULATORS] = {
+static const struct regulator_desc ltc3589_regulators[] = {
 	LTC3589_LINEAR_REG(SW1, sw1, B1DTV1),
 	LTC3589_LINEAR_REG(SW2, sw2, B2DTV1),
 	LTC3589_LINEAR_REG(SW3, sw3, B3DTV1),
@@ -403,7 +397,7 @@ static int ltc3589_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct ltc3589_regulator *descs;
+	struct regulator_desc *descs;
 	struct ltc3589 *ltc3589;
 	int i, ret;
 
@@ -422,11 +416,11 @@ static int ltc3589_probe(struct i2c_client *client,
 	descs = ltc3589->regulator_descs;
 	memcpy(descs, ltc3589_regulators, sizeof(ltc3589_regulators));
 	if (ltc3589->variant == LTC3589) {
-		descs[LTC3589_LDO3].desc.fixed_uV = 1800000;
-		descs[LTC3589_LDO4].desc.volt_table = ltc3589_ldo4;
+		descs[LTC3589_LDO3].fixed_uV = 1800000;
+		descs[LTC3589_LDO4].volt_table = ltc3589_ldo4;
 	} else {
-		descs[LTC3589_LDO3].desc.fixed_uV = 2800000;
-		descs[LTC3589_LDO4].desc.volt_table = ltc3589_12_ldo4;
+		descs[LTC3589_LDO3].fixed_uV = 2800000;
+		descs[LTC3589_LDO4].volt_table = ltc3589_12_ldo4;
 	}
 
 	ltc3589->regmap = devm_regmap_init_i2c(client, &ltc3589_regmap_config);
@@ -437,8 +431,7 @@ static int ltc3589_probe(struct i2c_client *client,
 	}
 
 	for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
-		struct ltc3589_regulator *rdesc = &ltc3589->regulator_descs[i];
-		struct regulator_desc *desc = &rdesc->desc;
+		struct regulator_desc *desc = &ltc3589->regulator_descs[i];
 		struct regulator_config config = { };
 
 		config.dev = dev;
