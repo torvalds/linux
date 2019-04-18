@@ -55,13 +55,7 @@ prevent page from being split by anyone.
 In case you can't handle compound pages if they're returned by
 follow_page, the FOLL_SPLIT bit can be specified as parameter to
 follow_page, so that it will split the hugepages before returning
-them. Migration for example passes FOLL_SPLIT as parameter to
-follow_page because it's not hugepage aware and in fact it can't work
-at all on hugetlbfs (but it instead works fine on transparent
-hugepages thanks to FOLL_SPLIT). migration simply can't deal with
-hugepages being returned (as it's not only checking the pfn of the
-page and pinning it during the copy but it pretends to migrate the
-memory in regular page sizes and with regular pte/pmd mappings).
+them.
 
 Graceful fallback
 =================
