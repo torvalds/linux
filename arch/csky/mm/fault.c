@@ -17,6 +17,7 @@
 #include <linux/vt_kern.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
+#include <linux/perf_event.h>
 
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
@@ -106,6 +107,8 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 		return;
 	}
 #endif
+
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	/*
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
@@ -153,10 +156,15 @@ good_area:
 			goto bad_area;
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
+	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-	else
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs,
+			      address);
+	} else {
 		tsk->min_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs,
+			      address);
+	}
 
 	up_read(&mm->mmap_sem);
 	return;
