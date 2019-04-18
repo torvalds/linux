@@ -3585,13 +3585,19 @@ static bool cond_snapshot_update(struct trace_array *tr, void *cond_data)
 	struct track_data *track_data = tr->cond_snapshot->cond_data;
 	struct hist_elt_data *elt_data, *track_elt_data;
 	struct snapshot_context *context = cond_data;
+	struct action_data *action;
 	u64 track_val;
 
 	if (!track_data)
 		return false;
 
+	action = track_data->action_data;
+
 	track_val = get_track_val(track_data->hist_data, context->elt,
 				  track_data->action_data);
+
+	if (!action->track_data.check_val(track_data->track_val, track_val))
+		return false;
 
 	track_data->track_val = track_val;
 	memcpy(track_data->key, context->key, track_data->key_len);
