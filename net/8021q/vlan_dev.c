@@ -223,7 +223,8 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 	u32 old_flags = vlan->flags;
 
 	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
-		     VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP))
+		     VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP |
+		     VLAN_FLAG_BRIDGE_BINDING))
 		return -EINVAL;
 
 	vlan->flags = (old_flags & ~mask) | (flags & mask);
