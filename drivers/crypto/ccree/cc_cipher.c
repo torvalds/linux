@@ -464,6 +464,76 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 	return 0;
 }
 
+static int cc_out_setup_mode(struct cc_cipher_ctx *ctx_p)
+{
+	switch (ctx_p->flow_mode) {
+	case S_DIN_to_AES:
+		return S_AES_to_DOUT;
+	case S_DIN_to_DES:
+		return S_DES_to_DOUT;
+	case S_DIN_to_SM4:
+		return S_SM4_to_DOUT;
+	default:
+		return ctx_p->flow_mode;
+	}
+}
+
+static void cc_setup_readiv_desc(struct crypto_tfm *tfm,
+				 struct cipher_req_ctx *req_ctx,
+				 unsigned int ivsize, struct cc_hw_desc desc[],
+				 unsigned int *seq_size)
+{
+	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
+	int cipher_mode = ctx_p->cipher_mode;
+	int flow_mode = cc_out_setup_mode(ctx_p);
+	int direction = req_ctx->gen_ctx.op_type;
+	dma_addr_t iv_dma_addr = req_ctx->gen_ctx.iv_dma_addr;
+
+	if (ctx_p->key_type == CC_POLICY_PROTECTED_KEY)
+		return;
+
+	switch (cipher_mode) {
+	case DRV_CIPHER_ECB:
+		break;
+	case DRV_CIPHER_CBC:
+	case DRV_CIPHER_CBC_CTS:
+	case DRV_CIPHER_CTR:
+	case DRV_CIPHER_OFB:
+		/* Read next IV */
+		hw_desc_init(&desc[*seq_size]);
+		set_dout_dlli(&desc[*seq_size], iv_dma_addr, ivsize, NS_BIT, 1);
+		set_cipher_config0(&desc[*seq_size], direction);
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		if (cipher_mode == DRV_CIPHER_CTR ||
+		    cipher_mode == DRV_CIPHER_OFB) {
+			set_setup_mode(&desc[*seq_size], SETUP_WRITE_STATE1);
+		} else {
+			set_setup_mode(&desc[*seq_size], SETUP_WRITE_STATE0);
+		}
+		set_queue_last_ind(ctx_p->drvdata, &desc[*seq_size]);
+		(*seq_size)++;
+		break;
+	case DRV_CIPHER_XTS:
+	case DRV_CIPHER_ESSIV:
+	case DRV_CIPHER_BITLOCKER:
+		/*  IV */
+		hw_desc_init(&desc[*seq_size]);
+		set_setup_mode(&desc[*seq_size], SETUP_WRITE_STATE1);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_dout_dlli(&desc[*seq_size], iv_dma_addr, CC_AES_BLOCK_SIZE,
+			     NS_BIT, 1);
+		set_queue_last_ind(ctx_p->drvdata, &desc[*seq_size]);
+		(*seq_size)++;
+		break;
+	default:
+		dev_err(dev, "Unsupported cipher mode (%d)\n", cipher_mode);
+	}
+}
+
 static void cc_setup_state_desc(struct crypto_tfm *tfm,
 				 struct cipher_req_ctx *req_ctx,
 				 unsigned int ivsize, unsigned int nbytes,
@@ -681,12 +751,14 @@ static void cc_setup_mlli_desc(struct crypto_tfm *tfm,
 static void cc_setup_flow_desc(struct crypto_tfm *tfm,
 			       struct cipher_req_ctx *req_ctx,
 			       struct scatterlist *dst, struct scatterlist *src,
-			       unsigned int nbytes, void *areq,
-			       struct cc_hw_desc desc[], unsigned int *seq_size)
+			       unsigned int nbytes, struct cc_hw_desc desc[],
+			       unsigned int *seq_size)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	unsigned int flow_mode = cc_out_flow_mode(ctx_p);
+	bool last_desc = (ctx_p->key_type == CC_POLICY_PROTECTED_KEY ||
+			  ctx_p->cipher_mode == DRV_CIPHER_ECB);
 
 	/* Process */
 	if (req_ctx->dma_buf_type == CC_DMA_BUF_DLLI) {
@@ -698,8 +770,8 @@ static void cc_setup_flow_desc(struct crypto_tfm *tfm,
 		set_din_type(&desc[*seq_size], DMA_DLLI, sg_dma_address(src),
 			     nbytes, NS_BIT);
 		set_dout_dlli(&desc[*seq_size], sg_dma_address(dst),
-			      nbytes, NS_BIT, (!areq ? 0 : 1));
-		if (areq)
+			      nbytes, NS_BIT, (!last_desc ? 0 : 1));
+		if (last_desc)
 			set_queue_last_ind(ctx_p->drvdata, &desc[*seq_size]);
 
 		set_flow_mode(&desc[*seq_size], flow_mode);
@@ -716,7 +788,7 @@ static void cc_setup_flow_desc(struct crypto_tfm *tfm,
 			set_dout_mlli(&desc[*seq_size],
 				      ctx_p->drvdata->mlli_sram_addr,
 				      req_ctx->in_mlli_nents, NS_BIT,
-				      (!areq ? 0 : 1));
+				      (!last_desc ? 0 : 1));
 		} else {
 			dev_dbg(dev, " din/dout params addr 0x%08X addr 0x%08X\n",
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
@@ -727,45 +799,13 @@ static void cc_setup_flow_desc(struct crypto_tfm *tfm,
 				       (LLI_ENTRY_BYTE_SIZE *
 					req_ctx->in_mlli_nents)),
 				      req_ctx->out_mlli_nents, NS_BIT,
-				      (!areq ? 0 : 1));
+				      (!last_desc ? 0 : 1));
 		}
-		if (areq)
+		if (last_desc)
 			set_queue_last_ind(ctx_p->drvdata, &desc[*seq_size]);
 
 		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
-	}
-}
-
-/*
- * Update a CTR-AES 128 bit counter
- */
-static void cc_update_ctr(u8 *ctr, unsigned int increment)
-{
-	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
-	    IS_ALIGNED((unsigned long)ctr, 8)) {
-
-		__be64 *high_be = (__be64 *)ctr;
-		__be64 *low_be = high_be + 1;
-		u64 orig_low = __be64_to_cpu(*low_be);
-		u64 new_low = orig_low + (u64)increment;
-
-		*low_be = __cpu_to_be64(new_low);
-
-		if (new_low < orig_low)
-			*high_be = __cpu_to_be64(__be64_to_cpu(*high_be) + 1);
-	} else {
-		u8 *pos = (ctr + AES_BLOCK_SIZE);
-		u8 val;
-		unsigned int size;
-
-		for (; increment; increment--)
-			for (size = AES_BLOCK_SIZE; size; size--) {
-				val = *--pos + 1;
-				*pos = val;
-				if (val)
-					break;
-			}
 	}
 }
 
@@ -776,44 +816,11 @@ static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 	struct scatterlist *src = req->src;
 	struct cipher_req_ctx *req_ctx = skcipher_request_ctx(req);
 	struct crypto_skcipher *sk_tfm = crypto_skcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(sk_tfm);
-	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
-	unsigned int len;
 
 	cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
-
-	switch (ctx_p->cipher_mode) {
-	case DRV_CIPHER_CBC:
-		/*
-		 * The crypto API expects us to set the req->iv to the last
-		 * ciphertext block. For encrypt, simply copy from the result.
-		 * For decrypt, we must copy from a saved buffer since this
-		 * could be an in-place decryption operation and the src is
-		 * lost by this point.
-		 */
-		if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT)  {
-			memcpy(req->iv, req_ctx->backup_info, ivsize);
-			kzfree(req_ctx->backup_info);
-		} else if (!err) {
-			len = req->cryptlen - ivsize;
-			scatterwalk_map_and_copy(req->iv, req->dst, len,
-						 ivsize, 0);
-		}
-		break;
-
-	case DRV_CIPHER_CTR:
-		/* Compute the counter of the last block */
-		len = ALIGN(req->cryptlen, AES_BLOCK_SIZE) / AES_BLOCK_SIZE;
-		cc_update_ctr((u8 *)req->iv, len);
-		break;
-
-	default:
-		break;
-	}
-
+	memcpy(req->iv, req_ctx->iv, ivsize);
 	kzfree(req_ctx->iv);
-
 	skcipher_request_complete(req, err);
 }
 
@@ -896,7 +903,9 @@ static int cc_cipher_process(struct skcipher_request *req,
 	/* Setup key */
 	cc_setup_key_desc(tfm, req_ctx, nbytes, desc, &seq_len);
 	/* Data processing */
-	cc_setup_flow_desc(tfm, req_ctx, dst, src, nbytes, req, desc, &seq_len);
+	cc_setup_flow_desc(tfm, req_ctx, dst, src, nbytes, desc, &seq_len);
+	/* Read next IV */
+	cc_setup_readiv_desc(tfm, req_ctx, ivsize, desc, &seq_len);
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
@@ -911,7 +920,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 
 exit_process:
 	if (rc != -EINPROGRESS && rc != -EBUSY) {
-		kzfree(req_ctx->backup_info);
 		kzfree(req_ctx->iv);
 	}
 
@@ -929,30 +937,9 @@ static int cc_cipher_encrypt(struct skcipher_request *req)
 
 static int cc_cipher_decrypt(struct skcipher_request *req)
 {
-	struct crypto_skcipher *sk_tfm = crypto_skcipher_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(sk_tfm);
-	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct cipher_req_ctx *req_ctx = skcipher_request_ctx(req);
-	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
-	gfp_t flags = cc_gfp_flags(&req->base);
-	unsigned int len;
 
 	memset(req_ctx, 0, sizeof(*req_ctx));
-
-	if ((ctx_p->cipher_mode == DRV_CIPHER_CBC) &&
-	    (req->cryptlen >= ivsize)) {
-
-		/* Allocate and save the last IV sized bytes of the source,
-		 * which will be lost in case of in-place decryption.
-		 */
-		req_ctx->backup_info = kzalloc(ivsize, flags);
-		if (!req_ctx->backup_info)
-			return -ENOMEM;
-
-		len = req->cryptlen - ivsize;
-		scatterwalk_map_and_copy(req_ctx->backup_info, req->src, len,
-					 ivsize, 0);
-	}
 
 	return cc_cipher_process(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 }

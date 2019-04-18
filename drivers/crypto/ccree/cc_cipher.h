@@ -20,7 +20,6 @@ struct cipher_req_ctx {
 	u32 in_mlli_nents;
 	u32 out_nents;
 	u32 out_mlli_nents;
-	u8 *backup_info; /*store iv for generated IV flow*/
 	u8 *iv;
 	struct mlli_params mlli_params;
 };
