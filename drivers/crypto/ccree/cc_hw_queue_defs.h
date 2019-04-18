@@ -55,8 +55,6 @@
 #define WORD4_DATA_FLOW_MODE	CC_GENMASK(4, DATA_FLOW_MODE)
 #define WORD4_KEY_SIZE		CC_GENMASK(4, KEY_SIZE)
 #define WORD4_SETUP_OPERATION	CC_GENMASK(4, SETUP_OPERATION)
-#define WORD4_CPP_ALG		CC_GENMASK(4, CPP_ALG)
-#define WORD4_CPP_SLOT		CC_GENMASK(4, CPP_SLOT)
 #define WORD5_DIN_ADDR_HIGH	CC_GENMASK(5, DIN_ADDR_HIGH)
 #define WORD5_DOUT_ADDR_HIGH	CC_GENMASK(5, DOUT_ADDR_HIGH)
 
@@ -202,7 +200,8 @@ enum cc_hash_cipher_pad {
 	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
 };
 
-#define CC_CPP_DESC_INDICATOR	0xFF0000UL
+#define CC_CPP_DIN_ADDR	0xFF00FF00UL
+#define CC_CPP_DIN_SIZE 0xFF00FFUL
 
 /*****************************/
 /* Descriptor packing macros */
@@ -272,17 +271,14 @@ static inline void set_din_no_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
  * @slot: slot number
  * @ksize: key size
  */
-static inline void set_cpp_crypto_key(struct cc_hw_desc *pdesc,
-				      enum cc_cpp_alg alg,
-				      enum drv_cipher_mode mode, u8 slot)
+static inline void set_cpp_crypto_key(struct cc_hw_desc *pdesc, u8 slot)
 {
-	u8 mode_val = (mode == DRV_CIPHER_CBC ? 0 : 1);
+	pdesc->word[0] |= CC_CPP_DIN_ADDR;
 
-	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, CC_CPP_DESC_INDICATOR);
+	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, CC_CPP_DIN_SIZE);
 	pdesc->word[1] |= FIELD_PREP(WORD1_LOCK_QUEUE, 1);
-	pdesc->word[0] |= FIELD_PREP(WORD0_CPP_CIPHER_MODE, mode_val);
-	pdesc->word[4] |= FIELD_PREP(WORD4_CPP_ALG, alg);
-	pdesc->word[4] |= FIELD_PREP(WORD4_CPP_SLOT, slot);
+
+	pdesc->word[4] |= FIELD_PREP(WORD4_SETUP_OPERATION, slot);
 }
 
 /*

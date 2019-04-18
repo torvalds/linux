@@ -546,6 +546,19 @@ static void cc_setup_state_desc(struct crypto_tfm *tfm,
 	}
 }
 
+static int cc_out_flow_mode(struct cc_cipher_ctx *ctx_p)
+{
+	switch (ctx_p->flow_mode) {
+	case S_DIN_to_AES:
+		return DIN_AES_DOUT;
+	case S_DIN_to_DES:
+		return DIN_DES_DOUT;
+	case S_DIN_to_SM4:
+		return DIN_SM4_DOUT;
+	default:
+		return ctx_p->flow_mode;
+	}
+}
 
 static void cc_setup_key_desc(struct crypto_tfm *tfm,
 			      struct cipher_req_ctx *req_ctx,
@@ -577,12 +590,15 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 	case DRV_CIPHER_ECB:
 		/* Load key */
 		hw_desc_init(&desc[*seq_size]);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
+
 		if (cc_key_type(tfm) == CC_POLICY_PROTECTED_KEY) {
-			set_cpp_crypto_key(&desc[*seq_size], ctx_p->cpp.alg,
-					   cipher_mode, ctx_p->cpp.slot);
+			/* We use the AES key size coding for all CPP algs */
+			set_key_size_aes(&desc[*seq_size], key_len);
+			set_cpp_crypto_key(&desc[*seq_size], ctx_p->cpp.slot);
+			flow_mode = cc_out_flow_mode(ctx_p);
 		} else {
-			set_cipher_mode(&desc[*seq_size], cipher_mode);
-			set_cipher_config0(&desc[*seq_size], direction);
 			if (flow_mode == S_DIN_to_AES) {
 				if (cc_key_type(tfm) == CC_HW_PROTECTED_KEY) {
 					set_hw_crypto_key(&desc[*seq_size],
@@ -606,9 +622,9 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 					     key_dma_addr, key_len, NS_BIT);
 				set_key_size_des(&desc[*seq_size], key_len);
 			}
-			set_flow_mode(&desc[*seq_size], flow_mode);
 			set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
 		}
+		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
 		break;
 	case DRV_CIPHER_XTS:
@@ -670,22 +686,8 @@ static void cc_setup_flow_desc(struct crypto_tfm *tfm,
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
-	unsigned int flow_mode = ctx_p->flow_mode;
+	unsigned int flow_mode = cc_out_flow_mode(ctx_p);
 
-	switch (ctx_p->flow_mode) {
-	case S_DIN_to_AES:
-		flow_mode = DIN_AES_DOUT;
-		break;
-	case S_DIN_to_DES:
-		flow_mode = DIN_DES_DOUT;
-		break;
-	case S_DIN_to_SM4:
-		flow_mode = DIN_SM4_DOUT;
-		break;
-	default:
-		dev_err(dev, "invalid flow mode, flow_mode = %d\n", flow_mode);
-		return;
-	}
 	/* Process */
 	if (req_ctx->dma_buf_type == CC_DMA_BUF_DLLI) {
 		dev_dbg(dev, " data params addr %pad length 0x%X\n",
