@@ -3432,7 +3432,7 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 
 				vram_lost = amdgpu_device_check_vram_lost(tmp_adev);
 				if (vram_lost) {
-					DRM_ERROR("VRAM is lost!\n");
+					DRM_INFO("VRAM is lost due to GPU reset!\n");
 					atomic_inc(&tmp_adev->vram_lost_counter);
 				}
 
