@@ -1260,19 +1260,16 @@ static int vega12_get_metrics_table(struct pp_hwmgr *hwmgr, SmuMetrics_t *metric
 
 static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr, uint32_t *query)
 {
-#if 0
-	uint32_t value;
+	SmuMetrics_t metrics_table;
+	int ret = 0;
 
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetCurrPkgPwr),
-			"Failed to get current package power!",
-			return -EINVAL);
+	ret = vega12_get_metrics_table(hwmgr, &metrics_table);
+	if (ret)
+		return ret;
 
-	value = smum_get_argument(hwmgr);
-	/* power value is an integer */
-	*query = value << 8;
-#endif
-	return 0;
+	*query = metrics_table.CurrSocketPower << 8;
+
+	return ret;
 }
 
 static int vega12_get_current_gfx_clk_freq(struct pp_hwmgr *hwmgr, uint32_t *gfx_freq)
@@ -1389,6 +1386,8 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = vega12_get_gpu_power(hwmgr, (uint32_t *)value);
+		if (!ret)
+			*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
 		ret = vega12_get_enabled_smc_features(hwmgr, (uint64_t *)value);
