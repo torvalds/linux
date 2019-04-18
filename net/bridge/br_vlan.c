@@ -1343,6 +1343,11 @@ static void br_vlan_set_vlan_dev_state(const struct net_bridge *br,
 	struct net_bridge_port *p;
 	bool has_carrier = false;
 
+	if (!netif_carrier_ok(br->dev)) {
+		netif_carrier_off(vlan_dev);
+		return;
+	}
+
 	list_for_each_entry(p, &br->port_list, list) {
 		vg = nbp_vlan_group(p);
 		if (br_vlan_find(vg, vid) && br_vlan_is_dev_up(p->dev)) {
@@ -1367,10 +1372,12 @@ static void br_vlan_set_all_vlan_dev_state(struct net_bridge_port *p)
 		vlan_dev = br_vlan_get_upper_bind_vlan_dev(p->br->dev,
 							   vlan->vid);
 		if (vlan_dev) {
-			if (br_vlan_is_dev_up(p->dev))
-				netif_carrier_on(vlan_dev);
-			else
+			if (br_vlan_is_dev_up(p->dev)) {
+				if (netif_carrier_ok(p->br->dev))
+					netif_carrier_on(vlan_dev);
+			} else {
 				br_vlan_set_vlan_dev_state(p->br, vlan_dev);
+			}
 		}
 	}
 }
@@ -1393,6 +1400,34 @@ static void br_vlan_upper_change(struct net_device *dev,
 	}
 }
 
+struct br_vlan_link_state_walk_data {
+	struct net_bridge *br;
+};
+
+static int br_vlan_link_state_change_fn(struct net_device *vlan_dev,
+					void *data_in)
+{
+	struct br_vlan_link_state_walk_data *data = data_in;
+
+	if (br_vlan_is_bind_vlan_dev(vlan_dev))
+		br_vlan_set_vlan_dev_state(data->br, vlan_dev);
+
+	return 0;
+}
+
+static void br_vlan_link_state_change(struct net_device *dev,
+				      struct net_bridge *br)
+{
+	struct br_vlan_link_state_walk_data data = {
+		.br = br
+	};
+
+	rcu_read_lock();
+	netdev_walk_all_upper_dev_rcu(dev, br_vlan_link_state_change_fn,
+				      &data);
+	rcu_read_unlock();
+}
+
 /* Must be protected by RTNL. */
 static void nbp_vlan_set_vlan_dev_state(struct net_bridge_port *p, u16 vid)
 {
@@ -1411,11 +1446,20 @@ void br_vlan_bridge_event(struct net_device *dev, unsigned long event,
 			  void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info;
+	struct net_bridge *br;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
 		info = ptr;
 		br_vlan_upper_change(dev, info->upper_dev, info->linking);
+		break;
+
+	case NETDEV_CHANGE:
+	case NETDEV_UP:
+		br = netdev_priv(dev);
+		if (!br_opt_get(br, BROPT_VLAN_BRIDGE_BINDING))
+			return;
+		br_vlan_link_state_change(dev, br);
 		break;
 	}
 }
