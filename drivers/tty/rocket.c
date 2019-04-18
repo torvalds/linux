@@ -1283,10 +1283,6 @@ static int rp_ioctl(struct tty_struct *tty,
 		return -ENXIO;
 
 	switch (cmd) {
-	case RCKP_GET_STRUCT:
-		if (copy_to_user(argp, info, sizeof (struct r_port)))
-			ret = -EFAULT;
-		break;
 	case RCKP_GET_CONFIG:
 		ret = get_config(info, argp);
 		break;
