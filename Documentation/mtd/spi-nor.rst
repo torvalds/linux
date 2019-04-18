@@ -1,5 +1,6 @@
-                          SPI NOR framework
-               ============================================
+=================
+SPI NOR framework
+=================
 
 Part I - Why do we need this framework?
 ---------------------------------------
@@ -23,7 +24,7 @@ This framework just adds a new layer between the MTD and the SPI bus driver.
 With this new layer, the SPI NOR controller driver does not depend on the
 m25p80 code anymore.
 
-   Before this framework, the layer is like:
+Before this framework, the layer is like::
 
                    MTD
          ------------------------

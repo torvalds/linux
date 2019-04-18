@@ -1,5 +1,6 @@
+==============================
 Upgrading BIOS using intel-spi
-------------------------------
+==============================
 
 Many Intel CPUs like Baytrail and Braswell include SPI serial flash host
 controller which is used to hold BIOS and other platform specific data.
@@ -36,45 +37,45 @@ Linux.
     module parameter to modprobe).
 
  4) Once the board is up and running again, find the right MTD partition
-    (it is named as "BIOS"):
+    (it is named as "BIOS")::
 
-    # cat /proc/mtd
-    dev:    size   erasesize  name
-    mtd0: 00800000 00001000 "BIOS"
+	# cat /proc/mtd
+	dev:    size   erasesize  name
+	mtd0: 00800000 00001000 "BIOS"
 
     So here it will be /dev/mtd0 but it may vary.
 
- 5) Make backup of the existing image first:
+ 5) Make backup of the existing image first::
 
-    # dd if=/dev/mtd0ro of=bios.bak
-    16384+0 records in
-    16384+0 records out
-    8388608 bytes (8.4 MB) copied, 10.0269 s, 837 kB/s
+	# dd if=/dev/mtd0ro of=bios.bak
+	16384+0 records in
+	16384+0 records out
+	8388608 bytes (8.4 MB) copied, 10.0269 s, 837 kB/s
 
- 6) Verify the backup
+ 6) Verify the backup:
 
-    # sha1sum /dev/mtd0ro bios.bak
-    fdbb011920572ca6c991377c4b418a0502668b73  /dev/mtd0ro
-    fdbb011920572ca6c991377c4b418a0502668b73  bios.bak
+	# sha1sum /dev/mtd0ro bios.bak
+	fdbb011920572ca6c991377c4b418a0502668b73  /dev/mtd0ro
+	fdbb011920572ca6c991377c4b418a0502668b73  bios.bak
 
     The SHA1 sums must match. Otherwise do not continue any further!
 
  7) Erase the SPI serial flash. After this step, do not reboot the
-    board! Otherwise it will not start anymore.
+    board! Otherwise it will not start anymore::
 
-    # flash_erase /dev/mtd0 0 0
-    Erasing 4 Kibyte @ 7ff000 -- 100 % complete
+	# flash_erase /dev/mtd0 0 0
+	Erasing 4 Kibyte @ 7ff000 -- 100 % complete
 
  8) Once completed without errors you can write the new BIOS image:
 
     # dd if=MNW2MAX1.X64.0092.R01.1605221712.bin of=/dev/mtd0
 
  9) Verify that the new content of the SPI serial flash matches the new
-    BIOS image:
+    BIOS image::
 
-    # sha1sum /dev/mtd0ro MNW2MAX1.X64.0092.R01.1605221712.bin
-    9b4df9e4be2057fceec3a5529ec3d950836c87a2  /dev/mtd0ro
-    9b4df9e4be2057fceec3a5529ec3d950836c87a2 MNW2MAX1.X64.0092.R01.1605221712.bin
+	# sha1sum /dev/mtd0ro MNW2MAX1.X64.0092.R01.1605221712.bin
+	9b4df9e4be2057fceec3a5529ec3d950836c87a2  /dev/mtd0ro
+	9b4df9e4be2057fceec3a5529ec3d950836c87a2 MNW2MAX1.X64.0092.R01.1605221712.bin
 
     The SHA1 sums should match.
 
@@ -84,5 +85,6 @@ Linux.
 References
 ----------
 
-[1] https://firmware.intel.com/sites/default/files/MinnowBoard.MAX_.X64.92.R01.zip
+[1] https://firmware.intel.com/sites/default/files/MinnowBoard%2EMAX_%2EX64%2E92%2ER01%2Ezip
+
 [2] http://www.linux-mtd.infradead.org/
