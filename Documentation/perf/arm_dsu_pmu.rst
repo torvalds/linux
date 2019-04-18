@@ -1,3 +1,4 @@
+==================================
 ARM DynamIQ Shared Unit (DSU) PMU
 ==================================
 
@@ -13,7 +14,7 @@ PMU doesn't support process specific events and cannot be used in sampling mode.
 The DSU provides a bitmap for a subset of implemented events via hardware
 registers. There is no way for the driver to determine if the other events
 are available or not. Hence the driver exposes only those events advertised
-by the DSU, in "events" directory under :
+by the DSU, in "events" directory under::
 
   /sys/bus/event_sources/devices/arm_dsu_<N>/
 
@@ -23,6 +24,6 @@ and use the raw event code for the unlisted events.
 The driver also exposes the CPUs connected to the DSU instance in "associated_cpus".
 
 
-e.g usage :
+e.g usage::
 
 	perf stat -a -e arm_dsu_0/cycles/

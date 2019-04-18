@@ -1,3 +1,4 @@
+=====================================================================
 Qualcomm Technologies Level-2 Cache Performance Monitoring Unit (PMU)
 =====================================================================
 
@@ -28,7 +29,7 @@ The driver provides a "cpumask" sysfs attribute which contains a mask
 consisting of one CPU per cluster which will be used to handle all the PMU
 events on that cluster.
 
-Examples for use with perf:
+Examples for use with perf::
 
   perf stat -e l2cache_0/config=0x001/,l2cache_0/config=0x042/ -a sleep 1
 

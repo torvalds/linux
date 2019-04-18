@@ -1,3 +1,4 @@
+==========================
 ARM Cache Coherent Network
 ==========================
 
@@ -29,6 +30,7 @@ Crosspoint watchpoint-based events (special "event" value 0xfe)
 require "xp" and "vc" as as above plus "port" (device port index),
 "dir" (transmit/receive direction), comparator values ("cmp_l"
 and "cmp_h") and "mask", being index of the comparator mask.
+
 Masks are defined separately from the event description
 (due to limited number of the config values) in the "cmp_mask"
 directory, with first 8 configurable by user and additional
@@ -44,16 +46,16 @@ request the events on this processor (if not, the perf_event->cpu value
 will be overwritten anyway). In case of this processor being offlined,
 the events are migrated to another one and the attribute is updated.
 
-Example of perf tool use:
+Example of perf tool use::
 
-/ # perf list | grep ccn
-  ccn/cycles/                                        [Kernel PMU event]
-<...>
-  ccn/xp_valid_flit,xp=?,port=?,vc=?,dir=?/          [Kernel PMU event]
-<...>
+  / # perf list | grep ccn
+    ccn/cycles/                                        [Kernel PMU event]
+  <...>
+    ccn/xp_valid_flit,xp=?,port=?,vc=?,dir=?/          [Kernel PMU event]
+  <...>
 
-/ # perf stat -a -e ccn/cycles/,ccn/xp_valid_flit,xp=1,port=0,vc=1,dir=1/ \
-                                                                       sleep 1
+  / # perf stat -a -e ccn/cycles/,ccn/xp_valid_flit,xp=1,port=0,vc=1,dir=1/ \
+                                                                         sleep 1
 
 The driver does not support sampling, therefore "perf record" will
 not work. Per-task (without "-a") perf sessions are not supported.

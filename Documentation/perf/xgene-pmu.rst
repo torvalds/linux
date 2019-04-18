@@ -1,3 +1,4 @@
+================================================
 APM X-Gene SoC Performance Monitoring Unit (PMU)
 ================================================
 
@@ -33,7 +34,7 @@ each PMU, please refer to APM X-Gene User Manual.
 Each perf driver also provides a "cpumask" sysfs attribute, which contains a
 single CPU ID of the processor which will be used to handle all the PMU events.
 
-Example for perf tool use:
+Example for perf tool use::
 
  / # perf list | grep -e l3c -e iob -e mcb -e mc
    l3c0/ackq-full/                                    [Kernel PMU event]

@@ -1,3 +1,4 @@
+=============================================================
 Cavium ThunderX2 SoC Performance Monitoring Unit (PMU UNCORE)
 =============================================================
 
@@ -24,18 +25,18 @@ and configuration options under sysfs, see
 The driver does not support sampling, therefore "perf record" will not
 work. Per-task perf sessions are also not supported.
 
-Examples:
+Examples::
 
-# perf stat -a -e uncore_dmc_0/cnt_cycles/ sleep 1
+  # perf stat -a -e uncore_dmc_0/cnt_cycles/ sleep 1
 
-# perf stat -a -e \
-uncore_dmc_0/cnt_cycles/,\
-uncore_dmc_0/data_transfers/,\
-uncore_dmc_0/read_txns/,\
-uncore_dmc_0/write_txns/ sleep 1
+  # perf stat -a -e \
+  uncore_dmc_0/cnt_cycles/,\
+  uncore_dmc_0/data_transfers/,\
+  uncore_dmc_0/read_txns/,\
+  uncore_dmc_0/write_txns/ sleep 1
 
-# perf stat -a -e \
-uncore_l3c_0/read_request/,\
-uncore_l3c_0/read_hit/,\
-uncore_l3c_0/inv_request/,\
-uncore_l3c_0/inv_hit/ sleep 1
+  # perf stat -a -e \
+  uncore_l3c_0/read_request/,\
+  uncore_l3c_0/read_hit/,\
+  uncore_l3c_0/inv_request/,\
+  uncore_l3c_0/inv_hit/ sleep 1

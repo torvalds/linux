@@ -1,3 +1,4 @@
+===========================================================================
 Qualcomm Datacenter Technologies L3 Cache Performance Monitoring Unit (PMU)
 ===========================================================================
 
@@ -17,7 +18,7 @@ The hardware implements 32bit event counters and has a flat 8bit event space
 exposed via the "event" format attribute. In addition to the 32bit physical
 counters the driver supports virtual 64bit hardware counters by using hardware
 counter chaining. This feature is exposed via the "lc" (long counter) format
-flag. E.g.:
+flag. E.g.::
 
   perf stat -e l3cache_0_0/read-miss,lc/
 
