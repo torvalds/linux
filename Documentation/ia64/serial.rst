@@ -1,4 +1,9 @@
-SERIAL DEVICE NAMING
+==============
+Serial Devices
+==============
+
+Serial Device Naming
+====================
 
     As of 2.6.10, serial devices on ia64 are named based on the
     order of ACPI and PCI enumeration.  The first device in the
@@ -30,17 +35,21 @@ SERIAL DEVICE NAMING
     (described in the ACPI namespace) plus an MP[2] (a PCI device) has
     these ports:
 
-                                  pre-2.6.10      pre-2.6.10
-                    MMIO         (EFI console    (EFI console
-                   address        on builtin)     on MP port)    2.6.10
-                  ==========      ==========      ==========     ======
+      ==========  ==========     ============    ============   =======
+      Type        MMIO           pre-2.6.10      pre-2.6.10     2.6.10+
+		  address
+				 (EFI console    (EFI console
+                                 on builtin)     on MP port)
+      ==========  ==========     ============    ============   =======
       builtin     0xff5e0000        ttyS0           ttyS1         ttyS0
       MP UPS      0xf8031000        ttyS1           ttyS2         ttyS1
       MP Console  0xf8030000        ttyS2           ttyS0         ttyS2
       MP 2        0xf8030010        ttyS3           ttyS3         ttyS3
       MP 3        0xf8030038        ttyS4           ttyS4         ttyS4
+      ==========  ==========     ============    ============   =======
 
-CONSOLE SELECTION
+Console Selection
+=================
 
     EFI knows what your console devices are, but it doesn't tell the
     kernel quite enough to actually locate them.  The DIG64 HCDP
@@ -67,7 +76,8 @@ CONSOLE SELECTION
     entries in /etc/inittab (for getty) and /etc/securetty (to allow
     root login).
 
-EARLY SERIAL CONSOLE
+Early Serial Console
+====================
 
     The kernel can't start using a serial console until it knows where
     the device lives.  Normally this happens when the driver enumerates
@@ -80,7 +90,8 @@ EARLY SERIAL CONSOLE
     or if the EFI console path contains only a UART device and the
     firmware supplies an HCDP.
 
-TROUBLESHOOTING SERIAL CONSOLE PROBLEMS
+Troubleshooting Serial Console Problems
+=======================================
 
     No kernel output after elilo prints "Uncompressing Linux... done":
 
@@ -133,19 +144,22 @@ TROUBLESHOOTING SERIAL CONSOLE PROBLEMS
 
 
 
-[1] http://www.dig64.org/specifications/agreement 
+[1]
+    http://www.dig64.org/specifications/agreement
     The table was originally defined as the "HCDP" for "Headless
     Console/Debug Port."  The current version is the "PCDP" for
     "Primary Console and Debug Port Devices."
 
-[2] The HP MP (management processor) is a PCI device that provides
+[2]
+    The HP MP (management processor) is a PCI device that provides
     several UARTs.  One of the UARTs is often used as a console; the
     EFI Boot Manager identifies it as "Acpi(HWP0002,700)/Pci(...)/Uart".
     The external connection is usually a 25-pin connector, and a
     special dongle converts that to three 9-pin connectors, one of
     which is labelled "Console."
 
-[3] EFI console devices are configured using the EFI Boot Manager
+[3]
+    EFI console devices are configured using the EFI Boot Manager
     "Boot option maintenance" menu.  You may have to interrupt the
     boot sequence to use this menu, and you will have to reset the
     box after changing console configuration.

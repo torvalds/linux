@@ -14389,7 +14389,7 @@ SGI SN-IA64 (Altix) SERIAL CONSOLE DRIVER
 M:	Pat Gefre <pfg@sgi.com>
 L:	linux-ia64@vger.kernel.org
 S:	Supported
-F:	Documentation/ia64/serial.txt
+F:	Documentation/ia64/serial.rst
 F:	drivers/tty/serial/ioc?_serial.c
 F:	include/linux/ioc?.h
 

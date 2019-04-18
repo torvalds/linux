@@ -1,20 +1,25 @@
-	         MEMORY ATTRIBUTE ALIASING ON IA-64
+==================================
+Memory Attribute Aliasing on IA-64
+==================================
 
-			   Bjorn Helgaas
-		       <bjorn.helgaas@hp.com>
-			    May 4, 2006
+Bjorn Helgaas <bjorn.helgaas@hp.com>
+
+May 4, 2006
 
 
-MEMORY ATTRIBUTES
+Memory Attributes
+=================
 
     Itanium supports several attributes for virtual memory references.
     The attribute is part of the virtual translation, i.e., it is
     contained in the TLB entry.  The ones of most interest to the Linux
     kernel are:
 
-	WB		Write-back (cacheable)
+	==		======================
+        WB		Write-back (cacheable)
 	UC		Uncacheable
 	WC		Write-coalescing
+	==		======================
 
     System memory typically uses the WB attribute.  The UC attribute is
     used for memory-mapped I/O devices.  The WC attribute is uncacheable
@@ -29,7 +34,8 @@ MEMORY ATTRIBUTES
     support either WB or UC access to main memory, while others support
     only WB access.
 
-MEMORY MAP
+Memory Map
+==========
 
     Platform firmware describes the physical memory map and the
     supported attributes for each region.  At boot-time, the kernel uses
@@ -55,7 +61,8 @@ MEMORY MAP
     The efi_memmap table is preserved unmodified because the original
     boot-time information is required for kexec.
 
-KERNEL IDENTITY MAPPINGS
+Kernel Identify Mappings
+========================
 
     Linux/ia64 identity mappings are done with large pages, currently
     either 16MB or 64MB, referred to as "granules."  Cacheable mappings
@@ -74,17 +81,20 @@ KERNEL IDENTITY MAPPINGS
     are only partially populated, or populated with a combination of UC
     and WB regions.
 
-USER MAPPINGS
+User Mappings
+=============
 
     User mappings are typically done with 16K or 64K pages.  The smaller
     page size allows more flexibility because only 16K or 64K has to be
     homogeneous with respect to memory attributes.
 
-POTENTIAL ATTRIBUTE ALIASING CASES
+Potential Attribute Aliasing Cases
+==================================
 
     There are several ways the kernel creates new mappings:
 
-    mmap of /dev/mem
+mmap of /dev/mem
+----------------
 
 	This uses remap_pfn_range(), which creates user mappings.  These
 	mappings may be either WB or UC.  If the region being mapped
@@ -98,7 +108,8 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 	Since the EFI memory map does not describe MMIO on some
 	machines, this should use an uncacheable mapping as a fallback.
 
-    mmap of /sys/class/pci_bus/.../legacy_mem
+mmap of /sys/class/pci_bus/.../legacy_mem
+-----------------------------------------
 
 	This is very similar to mmap of /dev/mem, except that legacy_mem
 	only allows mmap of the one megabyte "legacy MMIO" area for a
@@ -112,9 +123,10 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 
 	The /dev/mem mmap constraints apply.
 
-    mmap of /proc/bus/pci/.../??.?
+mmap of /proc/bus/pci/.../??.?
+------------------------------
 
-    	This is an MMIO mmap of PCI functions, which additionally may or
+	This is an MMIO mmap of PCI functions, which additionally may or
 	may not be requested as using the WC attribute.
 
 	If WC is requested, and the region in kern_memmap is either WC
@@ -124,7 +136,8 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 	Otherwise, the user mapping must use the same attribute as the
 	kernel mapping.
 
-    read/write of /dev/mem
+read/write of /dev/mem
+----------------------
 
 	This uses copy_from_user(), which implicitly uses a kernel
 	identity mapping.  This is obviously safe for things in
@@ -138,7 +151,8 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 	eight-byte accesses, and the copy_from_user() path doesn't allow
 	any control over the access size, so this would be dangerous.
 
-    ioremap()
+ioremap()
+---------
 
 	This returns a mapping for use inside the kernel.
 
@@ -155,9 +169,11 @@ POTENTIAL ATTRIBUTE ALIASING CASES
 
 	Failing all of the above, we have to fall back to a UC mapping.
 
-PAST PROBLEM CASES
+Past Problem Cases
+==================
 
-    mmap of various MMIO regions from /dev/mem by "X" on Intel platforms
+mmap of various MMIO regions from /dev/mem by "X" on Intel platforms
+--------------------------------------------------------------------
 
       The EFI memory map may not report these MMIO regions.
 
@@ -166,12 +182,16 @@ PAST PROBLEM CASES
       succeed.  It may create either WB or UC user mappings, depending
       on whether the region is in kern_memmap or the EFI memory map.
 
-    mmap of 0x0-0x9FFFF /dev/mem by "hwinfo" on HP sx1000 with VGA enabled
+mmap of 0x0-0x9FFFF /dev/mem by "hwinfo" on HP sx1000 with VGA enabled
+----------------------------------------------------------------------
 
       The EFI memory map reports the following attributes:
+
+        =============== ======= ==================
         0x00000-0x9FFFF WB only
         0xA0000-0xBFFFF UC only (VGA frame buffer)
         0xC0000-0xFFFFF WB only
+        =============== ======= ==================
 
       This mmap is done with user pages, not kernel identity mappings,
       so it is safe to use WB mappings.
@@ -182,7 +202,8 @@ PAST PROBLEM CASES
       never generate an uncacheable reference to the WB-only areas unless
       the driver explicitly touches them.
 
-    mmap of 0x0-0xFFFFF legacy_mem by "X"
+mmap of 0x0-0xFFFFF legacy_mem by "X"
+-------------------------------------
 
       If the EFI memory map reports that the entire range supports the
       same attributes, we can allow the mmap (and we will prefer WB if
@@ -197,15 +218,18 @@ PAST PROBLEM CASES
       that doesn't report the VGA frame buffer at all), we should fail the
       mmap and force the user to map just the specific region of interest.
 
-    mmap of 0xA0000-0xBFFFF legacy_mem by "X" on HP sx1000 with VGA disabled
+mmap of 0xA0000-0xBFFFF legacy_mem by "X" on HP sx1000 with VGA disabled
+------------------------------------------------------------------------
 
-      The EFI memory map reports the following attributes:
+      The EFI memory map reports the following attributes::
+
         0x00000-0xFFFFF WB only (no VGA MMIO hole)
 
       This is a special case of the previous case, and the mmap should
       fail for the same reason as above.
 
-    read of /sys/devices/.../rom
+read of /sys/devices/.../rom
+----------------------------
 
       For VGA devices, this may cause an ioremap() of 0xC0000.  This
       used to be done with a UC mapping, because the VGA frame buffer
@@ -215,7 +239,8 @@ PAST PROBLEM CASES
       We should use WB page table mappings to avoid covering the VGA
       frame buffer.
 
-NOTES
+Notes
+=====
 
     [1] SDM rev 2.2, vol 2, sec 4.4.1.
     [2] SDM rev 2.2, vol 2, sec 4.4.6.

@@ -1,9 +1,9 @@
--*-Mode: outline-*-
-
-		Light-weight System Calls for IA-64
-		-----------------------------------
+===================================
+Light-weight System Calls for IA-64
+===================================
 
 		        Started: 13-Jan-2003
+
 		    Last update: 27-Sep-2003
 
 	              David Mosberger-Tang
@@ -52,12 +52,13 @@ privilege level is at level 0, this means that fsys-mode requires some
 care (see below).
 
 
-* How to tell fsys-mode
+How to tell fsys-mode
+=====================
 
 Linux operates in fsys-mode when (a) the privilege level is 0 (most
 privileged) and (b) the stacks have NOT been switched to kernel memory
 yet.  For convenience, the header file <asm-ia64/ptrace.h> provides
-three macros:
+three macros::
 
 	user_mode(regs)
 	user_stack(task,regs)
@@ -70,11 +71,12 @@ to by "regs" was executing in user mode (privilege level 3).
 user_stack() returns TRUE if the state pointed to by "regs" was
 executing on the user-level stack(s).  Finally, fsys_mode() returns
 TRUE if the CPU state pointed to by "regs" was executing in fsys-mode.
-The fsys_mode() macro is equivalent to the expression:
+The fsys_mode() macro is equivalent to the expression::
 
 	!user_mode(regs) && user_stack(task,regs)
 
-* How to write an fsyscall handler
+How to write an fsyscall handler
+================================
 
 The file arch/ia64/kernel/fsys.S contains a table of fsyscall-handlers
 (fsyscall_table).  This table contains one entry for each system call.
@@ -87,66 +89,72 @@ of the getpid() system call.
 
 The entry and exit-state of an fsyscall handler is as follows:
 
-** Machine state on entry to fsyscall handler:
+Machine state on entry to fsyscall handler
+------------------------------------------
 
- - r10	  = 0
- - r11	  = saved ar.pfs (a user-level value)
- - r15	  = system call number
- - r16	  = "current" task pointer (in normal kernel-mode, this is in r13)
- - r32-r39 = system call arguments
- - b6	  = return address (a user-level value)
- - ar.pfs = previous frame-state (a user-level value)
- - PSR.be = cleared to zero (i.e., little-endian byte order is in effect)
- - all other registers may contain values passed in from user-mode
+  ========= ===============================================================
+  r10	    0
+  r11	    saved ar.pfs (a user-level value)
+  r15	    system call number
+  r16	    "current" task pointer (in normal kernel-mode, this is in r13)
+  r32-r39   system call arguments
+  b6	    return address (a user-level value)
+  ar.pfs    previous frame-state (a user-level value)
+  PSR.be    cleared to zero (i.e., little-endian byte order is in effect)
+  -         all other registers may contain values passed in from user-mode
+  ========= ===============================================================
 
-** Required machine state on exit to fsyscall handler:
+Required machine state on exit to fsyscall handler
+--------------------------------------------------
 
- - r11	  = saved ar.pfs (as passed into the fsyscall handler)
- - r15	  = system call number (as passed into the fsyscall handler)
- - r32-r39 = system call arguments (as passed into the fsyscall handler)
- - b6	  = return address (as passed into the fsyscall handler)
- - ar.pfs = previous frame-state (as passed into the fsyscall handler)
+  ========= ===========================================================
+  r11	    saved ar.pfs (as passed into the fsyscall handler)
+  r15	    system call number (as passed into the fsyscall handler)
+  r32-r39   system call arguments (as passed into the fsyscall handler)
+  b6	    return address (as passed into the fsyscall handler)
+  ar.pfs    previous frame-state (as passed into the fsyscall handler)
+  ========= ===========================================================
 
 Fsyscall handlers can execute with very little overhead, but with that
 speed comes a set of restrictions:
 
- o Fsyscall-handlers MUST check for any pending work in the flags
+ * Fsyscall-handlers MUST check for any pending work in the flags
    member of the thread-info structure and if any of the
    TIF_ALLWORK_MASK flags are set, the handler needs to fall back on
    doing a full system call (by calling fsys_fallback_syscall).
 
- o Fsyscall-handlers MUST preserve incoming arguments (r32-r39, r11,
+ * Fsyscall-handlers MUST preserve incoming arguments (r32-r39, r11,
    r15, b6, and ar.pfs) because they will be needed in case of a
    system call restart.  Of course, all "preserved" registers also
    must be preserved, in accordance to the normal calling conventions.
 
- o Fsyscall-handlers MUST check argument registers for containing a
+ * Fsyscall-handlers MUST check argument registers for containing a
    NaT value before using them in any way that could trigger a
    NaT-consumption fault.  If a system call argument is found to
    contain a NaT value, an fsyscall-handler may return immediately
    with r8=EINVAL, r10=-1.
 
- o Fsyscall-handlers MUST NOT use the "alloc" instruction or perform
+ * Fsyscall-handlers MUST NOT use the "alloc" instruction or perform
    any other operation that would trigger mandatory RSE
    (register-stack engine) traffic.
 
- o Fsyscall-handlers MUST NOT write to any stacked registers because
+ * Fsyscall-handlers MUST NOT write to any stacked registers because
    it is not safe to assume that user-level called a handler with the
    proper number of arguments.
 
- o Fsyscall-handlers need to be careful when accessing per-CPU variables:
+ * Fsyscall-handlers need to be careful when accessing per-CPU variables:
    unless proper safe-guards are taken (e.g., interruptions are avoided),
    execution may be pre-empted and resumed on another CPU at any given
    time.
 
- o Fsyscall-handlers must be careful not to leak sensitive kernel'
+ * Fsyscall-handlers must be careful not to leak sensitive kernel'
    information back to user-level.  In particular, before returning to
    user-level, care needs to be taken to clear any scratch registers
    that could contain sensitive information (note that the current
    task pointer is not considered sensitive: it's already exposed
    through ar.k6).
 
- o Fsyscall-handlers MUST NOT access user-memory without first
+ * Fsyscall-handlers MUST NOT access user-memory without first
    validating access-permission (this can be done typically via
    probe.r.fault and/or probe.w.fault) and without guarding against
    memory access exceptions (this can be done with the EX() macros
@@ -162,7 +170,8 @@ fast system call execution (while fully preserving system call
 semantics), but there is also a lot of flexibility in handling more
 complicated cases.
 
-* Signal handling
+Signal handling
+===============
 
 The delivery of (asynchronous) signals must be delayed until fsys-mode
 is exited.  This is accomplished with the help of the lower-privilege
@@ -173,7 +182,8 @@ PSR.lp and returns immediately.  When fsys-mode is exited via the
 occur.  The trap handler clears PSR.lp again and returns immediately.
 The kernel exit path then checks for and delivers any pending signals.
 
-* PSR Handling
+PSR Handling
+============
 
 The "epc" instruction doesn't change the contents of PSR at all.  This
 is in contrast to a regular interruption, which clears almost all
@@ -181,6 +191,7 @@ bits.  Because of that, some care needs to be taken to ensure things
 work as expected.  The following discussion describes how each PSR bit
 is handled.
 
+======= =======================================================================
 PSR.be	Cleared when entering fsys-mode.  A srlz.d instruction is used
 	to ensure the CPU is in little-endian mode before the first
 	load/store instruction is executed.  PSR.be is normally NOT
@@ -202,7 +213,8 @@ PSR.pp	Unchanged.
 PSR.di	Unchanged.
 PSR.si	Unchanged.
 PSR.db	Unchanged.  The kernel prevents user-level from setting a hardware
-	breakpoint that triggers at any privilege level other than 3 (user-mode).
+	breakpoint that triggers at any privilege level other than
+	3 (user-mode).
 PSR.lp	Unchanged.
 PSR.tb	Lazy redirect.  If a taken-branch trap occurs while in
 	fsys-mode, the trap-handler modifies the saved machine state
@@ -235,47 +247,52 @@ PSR.ed	Unchanged.  Note: This bit could only have an effect if an fsys-mode
 PSR.bn	Unchanged.  Note: fsys-mode handlers may clear the bit, if needed.
 	Doing so requires clearing PSR.i and PSR.ic as well.
 PSR.ia	Unchanged.  Note: the ia64 linux kernel never sets this bit.
+======= =======================================================================
 
-* Using fast system calls
+Using fast system calls
+=======================
 
 To use fast system calls, userspace applications need simply call
 __kernel_syscall_via_epc().  For example
 
 -- example fgettimeofday() call --
+
 -- fgettimeofday.S --
 
-#include <asm/asmmacro.h>
+::
 
-GLOBAL_ENTRY(fgettimeofday)
-.prologue
-.save ar.pfs, r11
-mov r11 = ar.pfs
-.body 
+  #include <asm/asmmacro.h>
 
-mov r2 = 0xa000000000020660;;  // gate address 
-			       // found by inspection of System.map for the 
+  GLOBAL_ENTRY(fgettimeofday)
+  .prologue
+  .save ar.pfs, r11
+  mov r11 = ar.pfs
+  .body
+
+  mov r2 = 0xa000000000020660;;  // gate address
+			       // found by inspection of System.map for the
 			       // __kernel_syscall_via_epc() function.  See
 			       // below for how to do this for real.
 
-mov b7 = r2
-mov r15 = 1087		       // gettimeofday syscall
-;;
-br.call.sptk.many b6 = b7
-;;
+  mov b7 = r2
+  mov r15 = 1087		       // gettimeofday syscall
+  ;;
+  br.call.sptk.many b6 = b7
+  ;;
 
-.restore sp
+  .restore sp
 
-mov ar.pfs = r11
-br.ret.sptk.many rp;;	      // return to caller
-END(fgettimeofday)
+  mov ar.pfs = r11
+  br.ret.sptk.many rp;;	      // return to caller
+  END(fgettimeofday)
 
 -- end fgettimeofday.S --
 
 In reality, getting the gate address is accomplished by two extra
 values passed via the ELF auxiliary vector (include/asm-ia64/elf.h)
 
- o AT_SYSINFO : is the address of __kernel_syscall_via_epc()
- o AT_SYSINFO_EHDR : is the address of the kernel gate ELF DSO
+ * AT_SYSINFO : is the address of __kernel_syscall_via_epc()
+ * AT_SYSINFO_EHDR : is the address of the kernel gate ELF DSO
 
 The ELF DSO is a pre-linked library that is mapped in by the kernel at
 the gate page.  It is a proper ELF shared object so, with a dynamic

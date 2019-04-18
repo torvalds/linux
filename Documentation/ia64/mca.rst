@@ -1,5 +1,8 @@
-An ad-hoc collection of notes on IA64 MCA and INIT processing.  Feel
-free to update it with notes about any area that is not clear.
+=============================================================
+An ad-hoc collection of notes on IA64 MCA and INIT processing
+=============================================================
+
+Feel free to update it with notes about any area that is not clear.
 
 ---
 
@@ -82,7 +85,8 @@ if we have a choice here.
   own stack as running on that cpu.  Then a recursive error gets a
   trace of the failing handler's "task".
 
-[1] My (Keith Owens) original design called for ia64 to separate its
+[1]
+    My (Keith Owens) original design called for ia64 to separate its
     struct task and the kernel stacks.  Then the MCA/INIT data would be
     chained stacks like i386 interrupt stacks.  But that required
     radical surgery on the rest of ia64, plus extra hard wired TLB

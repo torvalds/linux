@@ -1,4 +1,4 @@
-
+========================================
 IPF Machine Check (MC) error inject tool
 ========================================
 
@@ -32,94 +32,94 @@ Errata: Itanium 2 Processors Specification Update lists some errata against
 the pal_mc_error_inject PAL procedure. The following err.conf has been tested
 on latest Montecito PAL.
 
-err.conf:
+err.conf::
 
-#This is configuration file for err_inject_tool.
-#The format of the each line is:
-#cpu, loop, interval, err_type_info, err_struct_info, err_data_buffer
-#where
-#	cpu: logical cpu number the error will be inject in.
-#	loop: times the error will be injected.
-#	interval: In second. every so often one error is injected.
-#	err_type_info, err_struct_info: PAL parameters.
-#
-#Note: All values are hex w/o or w/ 0x prefix.
+  #This is configuration file for err_inject_tool.
+  #The format of the each line is:
+  #cpu, loop, interval, err_type_info, err_struct_info, err_data_buffer
+  #where
+  #	cpu: logical cpu number the error will be inject in.
+  #	loop: times the error will be injected.
+  #	interval: In second. every so often one error is injected.
+  #	err_type_info, err_struct_info: PAL parameters.
+  #
+  #Note: All values are hex w/o or w/ 0x prefix.
 
 
-#On cpu2, inject only total 0x10 errors, interval 5 seconds
-#corrected, data cache, hier-2, physical addr(assigned by tool code).
-#working on Montecito latest PAL.
-2, 10, 5, 4101, 95
+  #On cpu2, inject only total 0x10 errors, interval 5 seconds
+  #corrected, data cache, hier-2, physical addr(assigned by tool code).
+  #working on Montecito latest PAL.
+  2, 10, 5, 4101, 95
 
-#On cpu4, inject and consume total 0x10 errors, interval 5 seconds
-#corrected, data cache, hier-2, physical addr(assigned by tool code).
-#working on Montecito latest PAL.
-4, 10, 5, 4109, 95
+  #On cpu4, inject and consume total 0x10 errors, interval 5 seconds
+  #corrected, data cache, hier-2, physical addr(assigned by tool code).
+  #working on Montecito latest PAL.
+  4, 10, 5, 4109, 95
 
-#On cpu15, inject and consume total 0x10 errors, interval 5 seconds
-#recoverable, DTR0, hier-2.
-#working on Montecito latest PAL.
-0xf, 0x10, 5, 4249, 15
+  #On cpu15, inject and consume total 0x10 errors, interval 5 seconds
+  #recoverable, DTR0, hier-2.
+  #working on Montecito latest PAL.
+  0xf, 0x10, 5, 4249, 15
 
 The sample application source code:
 
-err_injection_tool.c:
+err_injection_tool.c::
 
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * Copyright (C) 2006 Intel Co
- *	Fenghua Yu <fenghua.yu@intel.com>
- *
- */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <sched.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <errno.h>
-#include <time.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/wait.h>
-#include <sys/mman.h>
-#include <sys/shm.h>
+  /*
+   * This program is free software; you can redistribute it and/or modify
+   * it under the terms of the GNU General Public License as published by
+   * the Free Software Foundation; either version 2 of the License, or
+   * (at your option) any later version.
+   *
+   * This program is distributed in the hope that it will be useful, but
+   * WITHOUT ANY WARRANTY; without even the implied warranty of
+   * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
+   * NON INFRINGEMENT.  See the GNU General Public License for more
+   * details.
+   *
+   * You should have received a copy of the GNU General Public License
+   * along with this program; if not, write to the Free Software
+   * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   *
+   * Copyright (C) 2006 Intel Co
+   *	Fenghua Yu <fenghua.yu@intel.com>
+   *
+   */
+  #include <sys/types.h>
+  #include <sys/stat.h>
+  #include <fcntl.h>
+  #include <stdio.h>
+  #include <sched.h>
+  #include <unistd.h>
+  #include <stdlib.h>
+  #include <stdarg.h>
+  #include <string.h>
+  #include <errno.h>
+  #include <time.h>
+  #include <sys/ipc.h>
+  #include <sys/sem.h>
+  #include <sys/wait.h>
+  #include <sys/mman.h>
+  #include <sys/shm.h>
 
-#define MAX_FN_SIZE 		256
-#define MAX_BUF_SIZE 		256
-#define DATA_BUF_SIZE 		256
-#define NR_CPUS 		512
-#define MAX_TASK_NUM		2048
-#define MIN_INTERVAL		5	// seconds
-#define	ERR_DATA_BUFFER_SIZE 	3	// Three 8-byte.
-#define PARA_FIELD_NUM		5
-#define MASK_SIZE		(NR_CPUS/64)
-#define PATH_FORMAT "/sys/devices/system/cpu/cpu%d/err_inject/"
+  #define MAX_FN_SIZE 		256
+  #define MAX_BUF_SIZE 		256
+  #define DATA_BUF_SIZE 		256
+  #define NR_CPUS 		512
+  #define MAX_TASK_NUM		2048
+  #define MIN_INTERVAL		5	// seconds
+  #define	ERR_DATA_BUFFER_SIZE 	3	// Three 8-byte.
+  #define PARA_FIELD_NUM		5
+  #define MASK_SIZE		(NR_CPUS/64)
+  #define PATH_FORMAT "/sys/devices/system/cpu/cpu%d/err_inject/"
 
-int sched_setaffinity(pid_t pid, unsigned int len, unsigned long *mask);
+  int sched_setaffinity(pid_t pid, unsigned int len, unsigned long *mask);
 
-int verbose;
-#define vbprintf if (verbose) printf
+  int verbose;
+  #define vbprintf if (verbose) printf
 
-int log_info(int cpu, const char *fmt, ...)
-{
+  int log_info(int cpu, const char *fmt, ...)
+  {
 	FILE *log;
 	char fn[MAX_FN_SIZE];
 	char buf[MAX_BUF_SIZE];
@@ -142,12 +142,12 @@ int log_info(int cpu, const char *fmt, ...)
 	fclose(log);
 
 	return 0;
-}
+  }
 
-typedef unsigned long u64;
-typedef unsigned int  u32;
+  typedef unsigned long u64;
+  typedef unsigned int  u32;
 
-typedef union err_type_info_u {
+  typedef union err_type_info_u {
 	struct {
 		u64	mode		: 3,	/* 0-2 */
 			err_inj		: 3,	/* 3-5 */
@@ -157,9 +157,9 @@ typedef union err_type_info_u {
 			reserved	: 48;	/* 16-63 */
 	} err_type_info_u;
 	u64	err_type_info;
-} err_type_info_t;
+  } err_type_info_t;
 
-typedef union err_struct_info_u {
+  typedef union err_struct_info_u {
 	struct {
 		u64	siv		: 1,	/* 0	 */
 			c_t		: 2,	/* 1-2	 */
@@ -197,9 +197,9 @@ typedef union err_struct_info_u {
 		u64	reserved;
 	} err_struct_info_bus_processor_interconnect;
 	u64	err_struct_info;
-} err_struct_info_t;
+  } err_struct_info_t;
 
-typedef union err_data_buffer_u {
+  typedef union err_data_buffer_u {
 	struct {
 		u64	trigger_addr;		/* 0-63		*/
 		u64	inj_addr;		/* 64-127 	*/
@@ -221,9 +221,9 @@ typedef union err_data_buffer_u {
 		u64	reserved;		/* 0-63		*/
 	} err_data_buffer_bus_processor_interconnect;
 	u64 err_data_buffer[ERR_DATA_BUFFER_SIZE];
-} err_data_buffer_t;
+  } err_data_buffer_t;
 
-typedef union capabilities_u {
+  typedef union capabilities_u {
 	struct {
 		u64	i		: 1,
 			d		: 1,
@@ -276,9 +276,9 @@ typedef union capabilities_u {
 	struct {
 		u64	reserved;
 	} capabilities_bus_processor_interconnect;
-} capabilities_t;
+  } capabilities_t;
 
-typedef struct resources_s {
+  typedef struct resources_s {
 	u64	ibr0		: 1,
 		ibr2		: 1,
 		ibr4		: 1,
@@ -288,24 +288,24 @@ typedef struct resources_s {
 		dbr4		: 1,
 		dbr6		: 1,
 		reserved	: 48;
-} resources_t;
+  } resources_t;
 
 
-long get_page_size(void)
-{
+  long get_page_size(void)
+  {
 	long page_size=sysconf(_SC_PAGESIZE);
 	return page_size;
-}
+  }
 
-#define PAGE_SIZE (get_page_size()==-1?0x4000:get_page_size())
-#define SHM_SIZE (2*PAGE_SIZE*NR_CPUS)
-#define SHM_VA 0x2000000100000000
+  #define PAGE_SIZE (get_page_size()==-1?0x4000:get_page_size())
+  #define SHM_SIZE (2*PAGE_SIZE*NR_CPUS)
+  #define SHM_VA 0x2000000100000000
 
-int shmid;
-void *shmaddr;
+  int shmid;
+  void *shmaddr;
 
-int create_shm(void)
-{
+  int create_shm(void)
+  {
 	key_t key;
 	char fn[MAX_FN_SIZE];
 
@@ -343,34 +343,34 @@ int create_shm(void)
 	mlock(shmaddr, SHM_SIZE);
 
 	return 0;
-}
+  }
 
-int free_shm()
-{
+  int free_shm()
+  {
 	munlock(shmaddr, SHM_SIZE);
-        shmdt(shmaddr);
+          shmdt(shmaddr);
 	semctl(shmid, 0, IPC_RMID);
 
 	return 0;
-}
+  }
 
-#ifdef _SEM_SEMUN_UNDEFINED
-union semun
-{
+  #ifdef _SEM_SEMUN_UNDEFINED
+  union semun
+  {
 	int val;
 	struct semid_ds *buf;
 	unsigned short int *array;
 	struct seminfo *__buf;
-};
-#endif
+  };
+  #endif
 
-u32 mode=1; /* 1: physical mode; 2: virtual mode. */
-int one_lock=1;
-key_t key[NR_CPUS];
-int semid[NR_CPUS];
+  u32 mode=1; /* 1: physical mode; 2: virtual mode. */
+  int one_lock=1;
+  key_t key[NR_CPUS];
+  int semid[NR_CPUS];
 
-int create_sem(int cpu)
-{
+  int create_sem(int cpu)
+  {
 	union semun arg;
 	char fn[MAX_FN_SIZE];
 	int sid;
@@ -407,37 +407,37 @@ int create_sem(int cpu)
 	}
 
 	return 0;
-}
+  }
 
-static int lock(int cpu)
-{
+  static int lock(int cpu)
+  {
 	struct sembuf lock;
 
 	lock.sem_num = cpu;
 	lock.sem_op = 1;
 	semop(semid[cpu], &lock, 1);
 
-        return 0;
-}
+          return 0;
+  }
 
-static int unlock(int cpu)
-{
+  static int unlock(int cpu)
+  {
 	struct sembuf unlock;
 
 	unlock.sem_num = cpu;
 	unlock.sem_op = -1;
 	semop(semid[cpu], &unlock, 1);
 
-        return 0;
-}
+          return 0;
+  }
 
-void free_sem(int cpu)
-{
+  void free_sem(int cpu)
+  {
 	semctl(semid[cpu], 0, IPC_RMID);
-}
+  }
 
-int wr_multi(char *fn, unsigned long *data, int size)
-{
+  int wr_multi(char *fn, unsigned long *data, int size)
+  {
 	int fd;
 	char buf[MAX_BUF_SIZE];
 	int ret;
@@ -459,15 +459,15 @@ int wr_multi(char *fn, unsigned long *data, int size)
 	ret=write(fd, buf, sizeof(buf));
 	close(fd);
 	return ret;
-}
+  }
 
-int wr(char *fn, unsigned long data)
-{
+  int wr(char *fn, unsigned long data)
+  {
 	return wr_multi(fn, &data, 1);
-}
+  }
 
-int rd(char *fn, unsigned long *data)
-{
+  int rd(char *fn, unsigned long *data)
+  {
 	int fd;
 	char buf[MAX_BUF_SIZE];
 
@@ -480,10 +480,10 @@ int rd(char *fn, unsigned long *data)
 	*data=strtoul(buf, NULL, 16);
 	close(fd);
 	return 0;
-}
+  }
 
-int rd_status(char *path, int *status)
-{
+  int rd_status(char *path, int *status)
+  {
 	char fn[MAX_FN_SIZE];
 	sprintf(fn, "%s/status", path);
 	if (rd(fn, (u64*)status)<0) {
@@ -492,10 +492,10 @@ int rd_status(char *path, int *status)
 	}
 
 	return 0;
-}
+  }
 
-int rd_capabilities(char *path, u64 *capabilities)
-{
+  int rd_capabilities(char *path, u64 *capabilities)
+  {
 	char fn[MAX_FN_SIZE];
 	sprintf(fn, "%s/capabilities", path);
 	if (rd(fn, capabilities)<0) {
@@ -504,10 +504,10 @@ int rd_capabilities(char *path, u64 *capabilities)
 	}
 
 	return 0;
-}
+  }
 
-int rd_all(char *path)
-{
+  int rd_all(char *path)
+  {
 	unsigned long err_type_info, err_struct_info, err_data_buffer;
 	int status;
 	unsigned long capabilities, resources;
@@ -556,11 +556,11 @@ int rd_all(char *path)
 	printf("resources=%lx\n", resources);
 
 	return 0;
-}
+  }
 
-int query_capabilities(char *path, err_type_info_t err_type_info,
+  int query_capabilities(char *path, err_type_info_t err_type_info,
 			u64 *capabilities)
-{
+  {
 	char fn[MAX_FN_SIZE];
 	err_struct_info_t err_struct_info;
 	err_data_buffer_t err_data_buffer;
@@ -583,10 +583,10 @@ int query_capabilities(char *path, err_type_info_t err_type_info,
 		return -1;
 
 	return 0;
-}
+  }
 
-int query_all_capabilities()
-{
+  int query_all_capabilities()
+  {
 	int status;
 	err_type_info_t err_type_info;
 	int err_sev, err_struct, struct_hier;
@@ -629,12 +629,12 @@ int query_all_capabilities()
 	}
 
 	return 0;
-}
+  }
 
-int err_inject(int cpu, char *path, err_type_info_t err_type_info,
+  int err_inject(int cpu, char *path, err_type_info_t err_type_info,
 		err_struct_info_t err_struct_info,
 		err_data_buffer_t err_data_buffer)
-{
+  {
 	int status;
 	char fn[MAX_FN_SIZE];
 
@@ -667,13 +667,13 @@ int err_inject(int cpu, char *path, err_type_info_t err_type_info,
 	}
 
 	return status;
-}
+  }
 
-static int construct_data_buf(char *path, err_type_info_t err_type_info,
+  static int construct_data_buf(char *path, err_type_info_t err_type_info,
 		err_struct_info_t err_struct_info,
 		err_data_buffer_t *err_data_buffer,
 		void *va1)
-{
+  {
 	char fn[MAX_FN_SIZE];
 	u64 virt_addr=0, phys_addr=0;
 
@@ -710,22 +710,22 @@ static int construct_data_buf(char *path, err_type_info_t err_type_info,
 	}
 
 	return 0;
-}
+  }
 
-typedef struct {
+  typedef struct {
 	u64 cpu;
 	u64 loop;
 	u64 interval;
 	u64 err_type_info;
 	u64 err_struct_info;
 	u64 err_data_buffer[ERR_DATA_BUFFER_SIZE];
-} parameters_t;
+  } parameters_t;
 
-parameters_t line_para;
-int para;
+  parameters_t line_para;
+  int para;
 
-static int empty_data_buffer(u64 *err_data_buffer)
-{
+  static int empty_data_buffer(u64 *err_data_buffer)
+  {
 	int empty=1;
 	int i;
 
@@ -734,10 +734,10 @@ static int empty_data_buffer(u64 *err_data_buffer)
 		empty=0;
 
 	return empty;
-}
+  }
 
-int err_inj()
-{
+  int err_inj()
+  {
 	err_type_info_t err_type_info;
 	err_struct_info_t err_struct_info;
 	err_data_buffer_t err_data_buffer;
@@ -951,10 +951,10 @@ int err_inj()
 	printf("All done.\n");
 
 	return 0;
-}
+  }
 
-void help()
-{
+  void help()
+  {
 	printf("err_inject_tool:\n");
 	printf("\t-q: query all capabilities. default: off\n");
 	printf("\t-m: procedure mode. 1: physical 2: virtual. default: 1\n");
@@ -977,10 +977,10 @@ void help()
 	printf("The tool will take err.conf file as ");
 	printf("input to inject single or multiple errors ");
 	printf("on one or multiple cpus in parallel.\n");
-}
+  }
 
-int main(int argc, char **argv)
-{
+  int main(int argc, char **argv)
+  {
 	char c;
 	int do_err_inj=0;
 	int do_query_all=0;
@@ -1031,7 +1031,7 @@ int main(int argc, char **argv)
 				if (count!=PARA_FIELD_NUM+3) {
 				    line_para.err_data_buffer[0]=-1,
 				    line_para.err_data_buffer[1]=-1,
-			 	    line_para.err_data_buffer[2]=-1;
+				    line_para.err_data_buffer[2]=-1;
 				    count=sscanf(optarg, "%lx, %lx, %lx, %lx, %lx\n",
 						&line_para.cpu,
 						&line_para.loop,
@@ -1064,5 +1064,4 @@ int main(int argc, char **argv)
 		help();
 
 	return 0;
-}
-
+  }
