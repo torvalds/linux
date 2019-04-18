@@ -1999,6 +1999,11 @@ static int device_private_init(struct device *dev)
  * NOTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use put_device() to give up your
  * reference instead.
+ *
+ * Rule of thumb is: if device_add() succeeds, you should call
+ * device_del() when you want to get rid of it. If device_add() has
+ * *not* succeeded, use *only* put_device() to drop the reference
+ * count.
  */
 int device_add(struct device *dev)
 {
