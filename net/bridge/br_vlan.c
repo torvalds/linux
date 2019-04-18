@@ -7,6 +7,8 @@
 #include "br_private.h"
 #include "br_private_tunnel.h"
 
+static void nbp_vlan_set_vlan_dev_state(struct net_bridge_port *p, u16 vid);
+
 static inline int br_vlan_cmp(struct rhashtable_compare_arg *arg,
 			      const void *ptr)
 {
@@ -293,6 +295,9 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 
 	__vlan_add_list(v);
 	__vlan_add_flags(v, flags);
+
+	if (p)
+		nbp_vlan_set_vlan_dev_state(p, v->vid);
 out:
 	return err;
 
@@ -357,6 +362,7 @@ static int __vlan_del(struct net_bridge_vlan *v)
 		rhashtable_remove_fast(&vg->vlan_hash, &v->vnode,
 				       br_vlan_rht_params);
 		__vlan_del_list(v);
+		nbp_vlan_set_vlan_dev_state(p, v->vid);
 		call_rcu(&v->rcu, nbp_vlan_rcu_free);
 	}
 
@@ -1385,6 +1391,19 @@ static void br_vlan_upper_change(struct net_device *dev,
 		br_opt_toggle(br, BROPT_VLAN_BRIDGE_BINDING,
 			      br_vlan_has_upper_bind_vlan_dev(dev));
 	}
+}
+
+/* Must be protected by RTNL. */
+static void nbp_vlan_set_vlan_dev_state(struct net_bridge_port *p, u16 vid)
+{
+	struct net_device *vlan_dev;
+
+	if (!br_opt_get(p->br, BROPT_VLAN_BRIDGE_BINDING))
+		return;
+
+	vlan_dev = br_vlan_get_upper_bind_vlan_dev(p->br->dev, vid);
+	if (vlan_dev)
+		br_vlan_set_vlan_dev_state(p->br, vlan_dev);
 }
 
 /* Must be protected by RTNL. */
