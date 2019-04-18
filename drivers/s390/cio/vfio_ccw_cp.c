@@ -836,7 +836,6 @@ union orb *cp_get_orb(struct channel_program *cp, struct subchannel *sch)
 
 	orb->cmd.intparm = (u32)virt_to_phys(sch);
 	orb->cmd.fmt = 1;
-	orb->cmd.key = PAGE_DEFAULT_KEY >> 4;
 
 	if (orb->cmd.lpm == 0)
 		orb->cmd.lpm = sch->lpm;
