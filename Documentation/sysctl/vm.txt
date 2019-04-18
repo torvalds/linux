@@ -102,7 +102,7 @@ Changing this takes effect whenever an application requests memory.
 block_dump
 
 block_dump enables block I/O debugging when set to a nonzero value. More
-information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
+information on block I/O debugging is in Documentation/laptops/laptop-mode.rst.
 
 ==============================================================
 
@@ -286,7 +286,7 @@ shared memory segment using hugetlb page.
 laptop_mode
 
 laptop_mode is a knob that controls "laptop mode". All the things that are
-controlled by this knob are discussed in Documentation/laptops/laptop-mode.txt.
+controlled by this knob are discussed in Documentation/laptops/laptop-mode.rst.
 
 ==============================================================
 

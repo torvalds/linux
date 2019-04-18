@@ -1,17 +1,18 @@
+==========================
 Hard disk shock protection
 ==========================
 
 Author: Elias Oltmanns <eo@nebensachen.de>
+
 Last modified: 2008-10-03
 
 
-0. Contents
------------
+.. 0. Contents
 
-1. Intro
-2. The interface
-3. References
-4. CREDITS
+   1. Intro
+   2. The interface
+   3. References
+   4. CREDITS
 
 
 1. Intro
@@ -36,8 +37,8 @@ that).
 ----------------
 
 For each ATA device, the kernel exports the file
-block/*/device/unload_heads in sysfs (here assumed to be mounted under
-/sys). Access to /sys/block/*/device/unload_heads is denied with
+`block/*/device/unload_heads` in sysfs (here assumed to be mounted under
+/sys). Access to `/sys/block/*/device/unload_heads` is denied with
 -EOPNOTSUPP if the device does not support the unload feature.
 Otherwise, writing an integer value to this file will take the heads
 of the respective drive off the platter and block all I/O operations
@@ -54,18 +55,18 @@ cancel a previously set timeout and resume normal operation
 immediately by specifying a timeout of 0. Values below -2 are rejected
 with -EINVAL (see below for the special meaning of -1 and -2). If the
 timeout specified for a recent head park request has not yet expired,
-reading from /sys/block/*/device/unload_heads will report the number
+reading from `/sys/block/*/device/unload_heads` will report the number
 of milliseconds remaining until normal operation will be resumed;
 otherwise, reading the unload_heads attribute will return 0.
 
 For example, do the following in order to park the heads of drive
-/dev/sda and stop all I/O operations for five seconds:
+/dev/sda and stop all I/O operations for five seconds::
 
-# echo 5000 > /sys/block/sda/device/unload_heads
+	# echo 5000 > /sys/block/sda/device/unload_heads
 
-A simple
+A simple::
 
-# cat /sys/block/sda/device/unload_heads
+	# cat /sys/block/sda/device/unload_heads
 
 will show you how many milliseconds are left before normal operation
 will be resumed.
@@ -112,9 +113,9 @@ unload_heads attribute. If you know that your device really does
 support the unload feature (for instance, because the vendor of your
 laptop or the hard drive itself told you so), then you can tell the
 kernel to enable the usage of this feature for that drive by writing
-the special value -1 to the unload_heads attribute:
+the special value -1 to the unload_heads attribute::
 
-# echo -1 > /sys/block/sda/device/unload_heads
+	# echo -1 > /sys/block/sda/device/unload_heads
 
 will enable the feature for /dev/sda, and giving -2 instead of -1 will
 disable it again.
@@ -135,6 +136,7 @@ for use. Please feel free to add projects that have been the victims
 of my ignorance.
 
 - http://www.thinkwiki.org/wiki/HDAPS
+
   See this page for information about Linux support of the hard disk
   active protection system as implemented in IBM/Lenovo Thinkpads.
 

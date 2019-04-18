@@ -1,6 +1,9 @@
+==================
 Asus Laptop Extras
+==================
 
 Version 0.1
+
 August 6, 2009
 
 Corentin Chary <corentincj@iksaif.net>
@@ -10,11 +13,12 @@ http://acpi4asus.sf.net/
  It may also support some MEDION, JVC or VICTOR laptops (such as MEDION 9675 or
  VICTOR XP7210 for example). It makes all the extra buttons generate input
  events (like keyboards).
+
  On some models adds support for changing the display brightness and output,
  switching the LCD backlight on and off, and most importantly, allows you to
  blink those fancy LEDs intended for reporting mail and wireless status.
 
-This driver supercedes the old asus_acpi driver.
+This driver supersedes the old asus_acpi driver.
 
 Requirements
 ------------
@@ -49,7 +53,7 @@ Usage
   see some lines like this :
 
       Asus Laptop Extras version 0.42
-        L2D model detected.
+        - L2D model detected.
 
   If it is not the output you have on your laptop, send it (and the laptop's
   DSDT) to me.
@@ -68,9 +72,12 @@ Usage
 LEDs
 ----
 
-  You can modify LEDs be echoing values to /sys/class/leds/asus::*/brightness :
+  You can modify LEDs be echoing values to `/sys/class/leds/asus/*/brightness`::
+
     echo 1 >  /sys/class/leds/asus::mail/brightness
+
   will switch the mail LED on.
+
   You can also know if they are on/off by reading their content and use
   kernel triggers like disk-activity or heartbeat.
 
@@ -81,7 +88,7 @@ Backlight
   /sys/class/backlight/asus-laptop/. Brightness Values are between 0 and 15.
 
 Wireless devices
----------------
+----------------
 
   You can turn the internal Bluetooth adapter on/off with the bluetooth entry
   (only on models with Bluetooth). This usually controls the associated LED.
@@ -93,18 +100,20 @@ Display switching
   Note: the display switching code is currently considered EXPERIMENTAL.
 
   Switching works for the following models:
-    L3800C
-    A2500H
-    L5800C
-    M5200N
-    W1000N (albeit with some glitches)
-    M6700R
-    A6JC
-    F3J
+
+    - L3800C
+    - A2500H
+    - L5800C
+    - M5200N
+    - W1000N (albeit with some glitches)
+    - M6700R
+    - A6JC
+    - F3J
 
   Switching doesn't work for the following:
-    M3700N
-    L2X00D (locks the laptop under certain conditions)
+
+    - M3700N
+    - L2X00D (locks the laptop under certain conditions)
 
   To switch the displays, echo values from 0 to 15 to
   /sys/devices/platform/asus-laptop/display. The significance of those values
@@ -113,48 +122,51 @@ Display switching
   +-------+-----+-----+-----+-----+-----+
   | Bin   | Val | DVI | TV  | CRT | LCD |
   +-------+-----+-----+-----+-----+-----+
-  + 0000  +   0 +     +     +     +     +
+  | 0000  |   0 |     |     |     |     |
   +-------+-----+-----+-----+-----+-----+
-  + 0001  +   1 +     +     +     +  X  +
+  | 0001  |   1 |     |     |     |  X  |
   +-------+-----+-----+-----+-----+-----+
-  + 0010  +   2 +     +     +  X  +     +
+  | 0010  |   2 |     |     |  X  |     |
   +-------+-----+-----+-----+-----+-----+
-  + 0011  +   3 +     +     +  X  +  X  +
+  | 0011  |   3 |     |     |  X  |  X  |
   +-------+-----+-----+-----+-----+-----+
-  + 0100  +   4 +     +  X  +     +     +
+  | 0100  |   4 |     |  X  |     |     |
   +-------+-----+-----+-----+-----+-----+
-  + 0101  +   5 +     +  X  +     + X   +
+  | 0101  |   5 |     |  X  |     | X   |
   +-------+-----+-----+-----+-----+-----+
-  + 0110  +   6 +     +  X  +  X  +     +
+  | 0110  |   6 |     |  X  |  X  |     |
   +-------+-----+-----+-----+-----+-----+
-  + 0111  +   7 +     +  X  +  X  +  X  +
+  | 0111  |   7 |     |  X  |  X  |  X  |
   +-------+-----+-----+-----+-----+-----+
-  + 1000  +   8 +  X  +     +     +     +
+  | 1000  |   8 |  X  |     |     |     |
   +-------+-----+-----+-----+-----+-----+
-  + 1001  +   9 +  X  +     +     +  X  +
+  | 1001  |   9 |  X  |     |     |  X  |
   +-------+-----+-----+-----+-----+-----+
-  + 1010  +  10 +  X  +     +  X  +     +
+  | 1010  |  10 |  X  |     |  X  |     |
   +-------+-----+-----+-----+-----+-----+
-  + 1011  +  11 +  X  +     +  X  +  X  +
+  | 1011  |  11 |  X  |     |  X  |  X  |
   +-------+-----+-----+-----+-----+-----+
-  + 1100  +  12 +  X  +  X  +     +     +
+  | 1100  |  12 |  X  |  X  |     |     |
   +-------+-----+-----+-----+-----+-----+
-  + 1101  +  13 +  X  +  X  +     +  X  +
+  | 1101  |  13 |  X  |  X  |     |  X  |
   +-------+-----+-----+-----+-----+-----+
-  + 1110  +  14 +  X  +  X  +  X  +     +
+  | 1110  |  14 |  X  |  X  |  X  |     |
   +-------+-----+-----+-----+-----+-----+
-  + 1111  +  15 +  X  +  X  +  X  +  X  +
+  | 1111  |  15 |  X  |  X  |  X  |  X  |
   +-------+-----+-----+-----+-----+-----+
 
   In most cases, the appropriate displays must be plugged in for the above
   combinations to work. TV-Out may need to be initialized at boot time.
 
   Debugging:
+
   1) Check whether the Fn+F8 key:
+
      a) does not lock the laptop (try a boot with noapic / nolapic if it does)
      b) generates events (0x6n, where n is the value corresponding to the
         configuration above)
      c) actually works
+
      Record the disp value at every configuration.
   2) Echo values from 0 to 15 to /sys/devices/platform/asus-laptop/display.
      Record its value, note any change. If nothing changes, try a broader range,
@@ -164,7 +176,7 @@ Display switching
 
   Note: on some machines (e.g. L3C), after the module has been loaded, only 0x6n
   events are generated and no actual switching occurs. In such a case, a line
-  like:
+  like::
 
     echo $((10#$arg-60)) > /sys/devices/platform/asus-laptop/display
 
@@ -180,15 +192,16 @@ LED display
   several items of information.
 
   LED display works for the following models:
-    W1000N
-    W1J
 
-  To control the LED display, use the following :
+    - W1000N
+    - W1J
+
+  To control the LED display, use the following::
 
     echo 0x0T000DDD > /sys/devices/platform/asus-laptop/
 
   where T control the 3 letters display, and DDD the 3 digits display,
-  according to the tables below.
+  according to the tables below::
 
          DDD (digits)
          000 to 999 = display digits
@@ -208,8 +221,8 @@ LED display
   For example "echo 0x01000001 >/sys/devices/platform/asus-laptop/ledd"
   would display "DVD001".
 
-Driver options:
----------------
+Driver options
+--------------
 
  Options can be passed to the asus-laptop driver using the standard
  module argument syntax (<param>=<value> when passing the option to the
@@ -219,6 +232,7 @@ Driver options:
 	     wapf: WAPF defines the behavior of the Fn+Fx wlan key
 		   The significance of values is yet to be found, but
 		   most of the time:
+
 		   - 0x0 should do nothing
 		   - 0x1 should allow to control the device with Fn+Fx key.
 		   - 0x4 should send an ACPI event (0x88) while pressing the Fn+Fx key
@@ -237,7 +251,7 @@ Unsupported models
  - ASUS L7300G
  - ASUS L8400
 
-Patches, Errors, Questions:
+Patches, Errors, Questions
 --------------------------
 
  I appreciate any success or failure
@@ -253,5 +267,5 @@ Patches, Errors, Questions:
  Any other comments or patches are also more than welcome.
 
  acpi4asus-user@lists.sourceforge.net
- http://sourceforge.net/projects/acpi4asus
 
+ http://sourceforge.net/projects/acpi4asus

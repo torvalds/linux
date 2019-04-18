@@ -1,8 +1,11 @@
+===============================================
 How to conserve battery power using laptop-mode
------------------------------------------------
+===============================================
 
 Document Author: Bart Samwel (bart@samwel.tk)
+
 Date created: January 2, 2004
+
 Last modified: December 06, 2004
 
 Introduction
@@ -12,17 +15,16 @@ Laptop mode is used to minimize the time that the hard disk needs to be spun up,
 to conserve battery power on laptops. It has been reported to cause significant
 power savings.
 
-Contents
---------
+.. Contents
 
-* Introduction
-* Installation
-* Caveats
-* The Details
-* Tips & Tricks
-* Control script
-* ACPI integration
-* Monitoring tool
+   * Introduction
+   * Installation
+   * Caveats
+   * The Details
+   * Tips & Tricks
+   * Control script
+   * ACPI integration
+   * Monitoring tool
 
 
 Installation
@@ -33,7 +35,7 @@ or anything. Simply install all the files included in this document, and
 laptop mode will automatically be started when you're on battery. For
 your convenience, a tarball containing an installer can be downloaded at:
 
-http://www.samwel.tk/laptop_mode/laptop_mode/
+	http://www.samwel.tk/laptop_mode/laptop_mode/
 
 To configure laptop mode, you need to edit the configuration file, which is
 located in /etc/default/laptop-mode on Debian-based systems, or in
@@ -209,7 +211,7 @@ Tips & Tricks
   this on powerbooks too. I hope that this is a piece of information that
   might be useful to the Laptop Mode patch or its users."
 
-* In syslog.conf, you can prefix entries with a dash ``-'' to omit syncing the
+* In syslog.conf, you can prefix entries with a dash `-` to omit syncing the
   file after every logging. When you're using laptop-mode and your disk doesn't
   spin down, this is a likely culprit.
 
@@ -233,83 +235,82 @@ configuration file
 It should be installed as /etc/default/laptop-mode on Debian, and as
 /etc/sysconfig/laptop-mode on Red Hat, SUSE, Mandrake, and other work-alikes.
 
---------------------CONFIG FILE BEGIN-------------------------------------------
-# Maximum time, in seconds, of hard drive spindown time that you are
-# comfortable with. Worst case, it's possible that you could lose this
-# amount of work if your battery fails you while in laptop mode.
-#MAX_AGE=600
+Config file::
 
-# Automatically disable laptop mode when the number of minutes of battery
-# that you have left goes below this threshold.
-MINIMUM_BATTERY_MINUTES=10
+  # Maximum time, in seconds, of hard drive spindown time that you are
+  # comfortable with. Worst case, it's possible that you could lose this
+  # amount of work if your battery fails you while in laptop mode.
+  #MAX_AGE=600
 
-# Read-ahead, in 512-byte sectors. You can spin down the disk while playing MP3/OGG
-# by setting the disk readahead to 8MB (READAHEAD=16384). Effectively, the disk
-# will read a complete MP3 at once, and will then spin down while the MP3/OGG is
-# playing.
-#READAHEAD=4096
+  # Automatically disable laptop mode when the number of minutes of battery
+  # that you have left goes below this threshold.
+  MINIMUM_BATTERY_MINUTES=10
 
-# Shall we remount journaled fs. with appropriate commit interval? (1=yes)
-#DO_REMOUNTS=1
+  # Read-ahead, in 512-byte sectors. You can spin down the disk while playing MP3/OGG
+  # by setting the disk readahead to 8MB (READAHEAD=16384). Effectively, the disk
+  # will read a complete MP3 at once, and will then spin down while the MP3/OGG is
+  # playing.
+  #READAHEAD=4096
 
-# And shall we add the "noatime" option to that as well? (1=yes)
-#DO_REMOUNT_NOATIME=1
+  # Shall we remount journaled fs. with appropriate commit interval? (1=yes)
+  #DO_REMOUNTS=1
 
-# Dirty synchronous ratio.  At this percentage of dirty pages the process
-# which
-# calls write() does its own writeback
-#DIRTY_RATIO=40
+  # And shall we add the "noatime" option to that as well? (1=yes)
+  #DO_REMOUNT_NOATIME=1
 
-#
-# Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
-# exceeded, the kernel will wake flusher threads which will then reduce the
-# amount of dirty memory to dirty_background_ratio.  Set this nice and low,
-# so once some writeout has commenced, we do a lot of it.
-#
-#DIRTY_BACKGROUND_RATIO=5
+  # Dirty synchronous ratio.  At this percentage of dirty pages the process
+  # which
+  # calls write() does its own writeback
+  #DIRTY_RATIO=40
 
-# kernel default dirty buffer age
-#DEF_AGE=30
-#DEF_UPDATE=5
-#DEF_DIRTY_BACKGROUND_RATIO=10
-#DEF_DIRTY_RATIO=40
-#DEF_XFS_AGE_BUFFER=15
-#DEF_XFS_SYNC_INTERVAL=30
-#DEF_XFS_BUFD_INTERVAL=1
+  #
+  # Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
+  # exceeded, the kernel will wake flusher threads which will then reduce the
+  # amount of dirty memory to dirty_background_ratio.  Set this nice and low,
+  # so once some writeout has commenced, we do a lot of it.
+  #
+  #DIRTY_BACKGROUND_RATIO=5
 
-# This must be adjusted manually to the value of HZ in the running kernel
-# on 2.4, until the XFS people change their 2.4 external interfaces to work in
-# centisecs. This can be automated, but it's a work in progress that still
-# needs# some fixes. On 2.6 kernels, XFS uses USER_HZ instead of HZ for
-# external interfaces, and that is currently always set to 100. So you don't
-# need to change this on 2.6.
-#XFS_HZ=100
+  # kernel default dirty buffer age
+  #DEF_AGE=30
+  #DEF_UPDATE=5
+  #DEF_DIRTY_BACKGROUND_RATIO=10
+  #DEF_DIRTY_RATIO=40
+  #DEF_XFS_AGE_BUFFER=15
+  #DEF_XFS_SYNC_INTERVAL=30
+  #DEF_XFS_BUFD_INTERVAL=1
 
-# Should the maximum CPU frequency be adjusted down while on battery?
-# Requires CPUFreq to be setup.
-# See Documentation/admin-guide/pm/cpufreq.rst for more info
-#DO_CPU=0
+  # This must be adjusted manually to the value of HZ in the running kernel
+  # on 2.4, until the XFS people change their 2.4 external interfaces to work in
+  # centisecs. This can be automated, but it's a work in progress that still
+  # needs# some fixes. On 2.6 kernels, XFS uses USER_HZ instead of HZ for
+  # external interfaces, and that is currently always set to 100. So you don't
+  # need to change this on 2.6.
+  #XFS_HZ=100
 
-# When on battery what is the maximum CPU speed that the system should
-# use? Legal values are "slowest" for the slowest speed that your
-# CPU is able to operate at, or a value listed in:
-# /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies
-# Only applicable if DO_CPU=1.
-#CPU_MAXFREQ=slowest
+  # Should the maximum CPU frequency be adjusted down while on battery?
+  # Requires CPUFreq to be setup.
+  # See Documentation/admin-guide/pm/cpufreq.rst for more info
+  #DO_CPU=0
 
-# Idle timeout for your hard drive (man hdparm for valid values, -S option)
-# Default is 2 hours on AC (AC_HD=244) and 20 seconds for battery (BATT_HD=4).
-#AC_HD=244
-#BATT_HD=4
+  # When on battery what is the maximum CPU speed that the system should
+  # use? Legal values are "slowest" for the slowest speed that your
+  # CPU is able to operate at, or a value listed in:
+  # /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies
+  # Only applicable if DO_CPU=1.
+  #CPU_MAXFREQ=slowest
 
-# The drives for which to adjust the idle timeout. Separate them by a space,
-# e.g. HD="/dev/hda /dev/hdb".
-#HD="/dev/hda"
+  # Idle timeout for your hard drive (man hdparm for valid values, -S option)
+  # Default is 2 hours on AC (AC_HD=244) and 20 seconds for battery (BATT_HD=4).
+  #AC_HD=244
+  #BATT_HD=4
 
-# Set the spindown timeout on a hard drive?
-#DO_HD=1
+  # The drives for which to adjust the idle timeout. Separate them by a space,
+  # e.g. HD="/dev/hda /dev/hdb".
+  #HD="/dev/hda"
 
---------------------CONFIG FILE END---------------------------------------------
+  # Set the spindown timeout on a hard drive?
+  #DO_HD=1
 
 
 Control script
@@ -318,125 +319,126 @@ Control script
 Please note that this control script works for the Linux 2.4 and 2.6 series (thanks
 to Kiko Piris).
 
---------------------CONTROL SCRIPT BEGIN----------------------------------------
-#!/bin/bash
+Control script::
 
-# start or stop laptop_mode, best run by a power management daemon when
-# ac gets connected/disconnected from a laptop
-#
-# install as /sbin/laptop_mode
-#
-# Contributors to this script:   Kiko Piris
-#				 Bart Samwel
-#				 Micha Feigin
-#				 Andrew Morton
-#				 Herve Eychenne
-#				 Dax Kelson
-#
-# Original Linux 2.4 version by: Jens Axboe
+  #!/bin/bash
 
-#############################################################################
+  # start or stop laptop_mode, best run by a power management daemon when
+  # ac gets connected/disconnected from a laptop
+  #
+  # install as /sbin/laptop_mode
+  #
+  # Contributors to this script:   Kiko Piris
+  #				 Bart Samwel
+  #				 Micha Feigin
+  #				 Andrew Morton
+  #				 Herve Eychenne
+  #				 Dax Kelson
+  #
+  # Original Linux 2.4 version by: Jens Axboe
 
-# Source config
-if [ -f /etc/default/laptop-mode ] ; then
+  #############################################################################
+
+  # Source config
+  if [ -f /etc/default/laptop-mode ] ; then
 	# Debian
 	. /etc/default/laptop-mode
-elif [ -f /etc/sysconfig/laptop-mode ] ; then
+  elif [ -f /etc/sysconfig/laptop-mode ] ; then
 	# Others
-        . /etc/sysconfig/laptop-mode
-fi
+          . /etc/sysconfig/laptop-mode
+  fi
 
-# Don't raise an error if the config file is incomplete
-# set defaults instead:
+  # Don't raise an error if the config file is incomplete
+  # set defaults instead:
 
-# Maximum time, in seconds, of hard drive spindown time that you are
-# comfortable with. Worst case, it's possible that you could lose this
-# amount of work if your battery fails you while in laptop mode.
-MAX_AGE=${MAX_AGE:-'600'}
+  # Maximum time, in seconds, of hard drive spindown time that you are
+  # comfortable with. Worst case, it's possible that you could lose this
+  # amount of work if your battery fails you while in laptop mode.
+  MAX_AGE=${MAX_AGE:-'600'}
 
-# Read-ahead, in kilobytes
-READAHEAD=${READAHEAD:-'4096'}
+  # Read-ahead, in kilobytes
+  READAHEAD=${READAHEAD:-'4096'}
 
-# Shall we remount journaled fs. with appropriate commit interval? (1=yes)
-DO_REMOUNTS=${DO_REMOUNTS:-'1'}
+  # Shall we remount journaled fs. with appropriate commit interval? (1=yes)
+  DO_REMOUNTS=${DO_REMOUNTS:-'1'}
 
-# And shall we add the "noatime" option to that as well? (1=yes)
-DO_REMOUNT_NOATIME=${DO_REMOUNT_NOATIME:-'1'}
+  # And shall we add the "noatime" option to that as well? (1=yes)
+  DO_REMOUNT_NOATIME=${DO_REMOUNT_NOATIME:-'1'}
 
-# Shall we adjust the idle timeout on a hard drive?
-DO_HD=${DO_HD:-'1'}
+  # Shall we adjust the idle timeout on a hard drive?
+  DO_HD=${DO_HD:-'1'}
 
-# Adjust idle timeout on which hard drive?
-HD="${HD:-'/dev/hda'}"
+  # Adjust idle timeout on which hard drive?
+  HD="${HD:-'/dev/hda'}"
 
-# spindown time for HD (hdparm -S values)
-AC_HD=${AC_HD:-'244'}
-BATT_HD=${BATT_HD:-'4'}
+  # spindown time for HD (hdparm -S values)
+  AC_HD=${AC_HD:-'244'}
+  BATT_HD=${BATT_HD:-'4'}
 
-# Dirty synchronous ratio.  At this percentage of dirty pages the process which
-# calls write() does its own writeback
-DIRTY_RATIO=${DIRTY_RATIO:-'40'}
+  # Dirty synchronous ratio.  At this percentage of dirty pages the process which
+  # calls write() does its own writeback
+  DIRTY_RATIO=${DIRTY_RATIO:-'40'}
 
-# cpu frequency scaling
-# See Documentation/admin-guide/pm/cpufreq.rst for more info
-DO_CPU=${CPU_MANAGE:-'0'}
-CPU_MAXFREQ=${CPU_MAXFREQ:-'slowest'}
+  # cpu frequency scaling
+  # See Documentation/admin-guide/pm/cpufreq.rst for more info
+  DO_CPU=${CPU_MANAGE:-'0'}
+  CPU_MAXFREQ=${CPU_MAXFREQ:-'slowest'}
 
-#
-# Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
-# exceeded, the kernel will wake flusher threads which will then reduce the
-# amount of dirty memory to dirty_background_ratio.  Set this nice and low,
-# so once some writeout has commenced, we do a lot of it.
-#
-DIRTY_BACKGROUND_RATIO=${DIRTY_BACKGROUND_RATIO:-'5'}
+  #
+  # Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
+  # exceeded, the kernel will wake flusher threads which will then reduce the
+  # amount of dirty memory to dirty_background_ratio.  Set this nice and low,
+  # so once some writeout has commenced, we do a lot of it.
+  #
+  DIRTY_BACKGROUND_RATIO=${DIRTY_BACKGROUND_RATIO:-'5'}
 
-# kernel default dirty buffer age
-DEF_AGE=${DEF_AGE:-'30'}
-DEF_UPDATE=${DEF_UPDATE:-'5'}
-DEF_DIRTY_BACKGROUND_RATIO=${DEF_DIRTY_BACKGROUND_RATIO:-'10'}
-DEF_DIRTY_RATIO=${DEF_DIRTY_RATIO:-'40'}
-DEF_XFS_AGE_BUFFER=${DEF_XFS_AGE_BUFFER:-'15'}
-DEF_XFS_SYNC_INTERVAL=${DEF_XFS_SYNC_INTERVAL:-'30'}
-DEF_XFS_BUFD_INTERVAL=${DEF_XFS_BUFD_INTERVAL:-'1'}
+  # kernel default dirty buffer age
+  DEF_AGE=${DEF_AGE:-'30'}
+  DEF_UPDATE=${DEF_UPDATE:-'5'}
+  DEF_DIRTY_BACKGROUND_RATIO=${DEF_DIRTY_BACKGROUND_RATIO:-'10'}
+  DEF_DIRTY_RATIO=${DEF_DIRTY_RATIO:-'40'}
+  DEF_XFS_AGE_BUFFER=${DEF_XFS_AGE_BUFFER:-'15'}
+  DEF_XFS_SYNC_INTERVAL=${DEF_XFS_SYNC_INTERVAL:-'30'}
+  DEF_XFS_BUFD_INTERVAL=${DEF_XFS_BUFD_INTERVAL:-'1'}
 
-# This must be adjusted manually to the value of HZ in the running kernel
-# on 2.4, until the XFS people change their 2.4 external interfaces to work in
-# centisecs. This can be automated, but it's a work in progress that still needs
-# some fixes. On 2.6 kernels, XFS uses USER_HZ instead of HZ for external
-# interfaces, and that is currently always set to 100. So you don't need to
-# change this on 2.6.
-XFS_HZ=${XFS_HZ:-'100'}
+  # This must be adjusted manually to the value of HZ in the running kernel
+  # on 2.4, until the XFS people change their 2.4 external interfaces to work in
+  # centisecs. This can be automated, but it's a work in progress that still needs
+  # some fixes. On 2.6 kernels, XFS uses USER_HZ instead of HZ for external
+  # interfaces, and that is currently always set to 100. So you don't need to
+  # change this on 2.6.
+  XFS_HZ=${XFS_HZ:-'100'}
 
-#############################################################################
+  #############################################################################
 
-KLEVEL="$(uname -r |
-             {
+  KLEVEL="$(uname -r |
+               {
 	       IFS='.' read a b c
 	       echo $a.$b
 	     }
-)"
-case "$KLEVEL" in
+  )"
+  case "$KLEVEL" in
 	"2.4"|"2.6")
 		;;
 	*)
 		echo "Unhandled kernel version: $KLEVEL ('uname -r' = '$(uname -r)')" >&2
 		exit 1
 		;;
-esac
+  esac
 
-if [ ! -e /proc/sys/vm/laptop_mode ] ; then
+  if [ ! -e /proc/sys/vm/laptop_mode ] ; then
 	echo "Kernel is not patched with laptop_mode patch." >&2
 	exit 1
-fi
+  fi
 
-if [ ! -w /proc/sys/vm/laptop_mode ] ; then
+  if [ ! -w /proc/sys/vm/laptop_mode ] ; then
 	echo "You do not have enough privileges to enable laptop_mode." >&2
 	exit 1
-fi
+  fi
 
-# Remove an option (the first parameter) of the form option=<number> from
-# a mount options string (the rest of the parameters).
-parse_mount_opts () {
+  # Remove an option (the first parameter) of the form option=<number> from
+  # a mount options string (the rest of the parameters).
+  parse_mount_opts () {
 	OPT="$1"
 	shift
 	echo ",$*," | sed		\
@@ -444,11 +446,11 @@ parse_mount_opts () {
 	 -e 's/,,*/,/g'			\
 	 -e 's/^,//'			\
 	 -e 's/,$//'
-}
+  }
 
-# Remove an option (the first parameter) without any arguments from
-# a mount option string (the rest of the parameters).
-parse_nonumber_mount_opts () {
+  # Remove an option (the first parameter) without any arguments from
+  # a mount option string (the rest of the parameters).
+  parse_nonumber_mount_opts () {
 	OPT="$1"
 	shift
 	echo ",$*," | sed		\
@@ -456,20 +458,20 @@ parse_nonumber_mount_opts () {
 	 -e 's/,,*/,/g'			\
 	 -e 's/^,//'			\
 	 -e 's/,$//'
-}
+  }
 
-# Find out the state of a yes/no option (e.g. "atime"/"noatime") in
-# fstab for a given filesystem, and use this state to replace the
-# value of the option in another mount options string. The device
-# is the first argument, the option name the second, and the default
-# value the third. The remainder is the mount options string.
-#
-# Example:
-# parse_yesno_opts_wfstab /dev/hda1 atime atime defaults,noatime
-#
-# If fstab contains, say, "rw" for this filesystem, then the result
-# will be "defaults,atime".
-parse_yesno_opts_wfstab () {
+  # Find out the state of a yes/no option (e.g. "atime"/"noatime") in
+  # fstab for a given filesystem, and use this state to replace the
+  # value of the option in another mount options string. The device
+  # is the first argument, the option name the second, and the default
+  # value the third. The remainder is the mount options string.
+  #
+  # Example:
+  # parse_yesno_opts_wfstab /dev/hda1 atime atime defaults,noatime
+  #
+  # If fstab contains, say, "rw" for this filesystem, then the result
+  # will be "defaults,atime".
+  parse_yesno_opts_wfstab () {
 	L_DEV="$1"
 	OPT="$2"
 	DEF_OPT="$3"
@@ -491,21 +493,21 @@ parse_yesno_opts_wfstab () {
 		# option not specified in fstab -- choose the default.
 		echo "$PARSEDOPTS1,$DEF_OPT"
 	fi
-}
+  }
 
-# Find out the state of a numbered option (e.g. "commit=NNN") in
-# fstab for a given filesystem, and use this state to replace the
-# value of the option in another mount options string. The device
-# is the first argument, and the option name the second. The
-# remainder is the mount options string in which the replacement
-# must be done.
-#
-# Example:
-# parse_mount_opts_wfstab /dev/hda1 commit defaults,commit=7
-#
-# If fstab contains, say, "commit=3,rw" for this filesystem, then the
-# result will be "rw,commit=3".
-parse_mount_opts_wfstab () {
+  # Find out the state of a numbered option (e.g. "commit=NNN") in
+  # fstab for a given filesystem, and use this state to replace the
+  # value of the option in another mount options string. The device
+  # is the first argument, and the option name the second. The
+  # remainder is the mount options string in which the replacement
+  # must be done.
+  #
+  # Example:
+  # parse_mount_opts_wfstab /dev/hda1 commit defaults,commit=7
+  #
+  # If fstab contains, say, "commit=3,rw" for this filesystem, then the
+  # result will be "rw,commit=3".
+  parse_mount_opts_wfstab () {
 	L_DEV="$1"
 	OPT="$2"
 	shift 2
@@ -523,9 +525,9 @@ parse_mount_opts_wfstab () {
 		# option not specified in fstab: set it to 0
 		echo "$PARSEDOPTS1,$OPT=0"
 	fi
-}
+  }
 
-deduce_fstype () {
+  deduce_fstype () {
 	MP="$1"
 	# My root filesystem unfortunately has
 	# type "unknown" in /etc/mtab. If we encounter
@@ -538,13 +540,13 @@ deduce_fstype () {
 			exit 0
 		fi
 	done
-}
+  }
 
-if [ $DO_REMOUNT_NOATIME -eq 1 ] ; then
+  if [ $DO_REMOUNT_NOATIME -eq 1 ] ; then
 	NOATIME_OPT=",noatime"
-fi
+  fi
 
-case "$1" in
+  case "$1" in
 	start)
 		AGE=$((100*$MAX_AGE))
 		XFS_AGE=$(($XFS_HZ*$MAX_AGE))
@@ -687,10 +689,9 @@ case "$1" in
 		exit 1
 		;;
 
-esac
+  esac
 
-exit 0
---------------------CONTROL SCRIPT END------------------------------------------
+  exit 0
 
 
 ACPI integration
@@ -701,78 +702,76 @@ kick off the laptop_mode script and run hdparm. The part that
 automatically disables laptop mode when the battery is low was
 written by Jan Topinski.
 
------------------/etc/acpi/events/ac_adapter BEGIN------------------------------
-event=ac_adapter
-action=/etc/acpi/actions/ac.sh %e
-----------------/etc/acpi/events/ac_adapter END---------------------------------
+/etc/acpi/events/ac_adapter::
+
+	event=ac_adapter
+	action=/etc/acpi/actions/ac.sh %e
+
+/etc/acpi/events/battery::
+
+	event=battery.*
+	action=/etc/acpi/actions/battery.sh %e
+
+/etc/acpi/actions/ac.sh::
+
+  #!/bin/bash
+
+  # ac on/offline event handler
+
+  status=`awk '/^state: / { print $2 }' /proc/acpi/ac_adapter/$2/state`
+
+  case $status in
+          "on-line")
+                  /sbin/laptop_mode stop
+                  exit 0
+          ;;
+          "off-line")
+                  /sbin/laptop_mode start
+                  exit 0
+          ;;
+  esac
 
 
------------------/etc/acpi/events/battery BEGIN---------------------------------
-event=battery.*
-action=/etc/acpi/actions/battery.sh %e
-----------------/etc/acpi/events/battery END------------------------------------
+/etc/acpi/actions/battery.sh::
 
+  #! /bin/bash
 
-----------------/etc/acpi/actions/ac.sh BEGIN-----------------------------------
-#!/bin/bash
+  # Automatically disable laptop mode when the battery almost runs out.
 
-# ac on/offline event handler
+  BATT_INFO=/proc/acpi/battery/$2/state
 
-status=`awk '/^state: / { print $2 }' /proc/acpi/ac_adapter/$2/state`
-
-case $status in
-        "on-line")
-                /sbin/laptop_mode stop
-                exit 0
-        ;;
-        "off-line")
-                /sbin/laptop_mode start
-                exit 0
-        ;;
-esac
----------------------------/etc/acpi/actions/ac.sh END--------------------------
-
-
----------------------------/etc/acpi/actions/battery.sh BEGIN-------------------
-#! /bin/bash
-
-# Automatically disable laptop mode when the battery almost runs out.
-
-BATT_INFO=/proc/acpi/battery/$2/state
-
-if [[ -f /proc/sys/vm/laptop_mode ]]
-then
-   LM=`cat /proc/sys/vm/laptop_mode`
-   if [[ $LM -gt 0 ]]
-   then
-     if [[ -f $BATT_INFO ]]
+  if [[ -f /proc/sys/vm/laptop_mode ]]
+  then
+     LM=`cat /proc/sys/vm/laptop_mode`
+     if [[ $LM -gt 0 ]]
      then
-        # Source the config file only now that we know we need
-        if [ -f /etc/default/laptop-mode ] ; then
-                # Debian
-                . /etc/default/laptop-mode
-        elif [ -f /etc/sysconfig/laptop-mode ] ; then
-                # Others
-                . /etc/sysconfig/laptop-mode
-        fi
-        MINIMUM_BATTERY_MINUTES=${MINIMUM_BATTERY_MINUTES:-'10'}
+       if [[ -f $BATT_INFO ]]
+       then
+          # Source the config file only now that we know we need
+          if [ -f /etc/default/laptop-mode ] ; then
+                  # Debian
+                  . /etc/default/laptop-mode
+          elif [ -f /etc/sysconfig/laptop-mode ] ; then
+                  # Others
+                  . /etc/sysconfig/laptop-mode
+          fi
+          MINIMUM_BATTERY_MINUTES=${MINIMUM_BATTERY_MINUTES:-'10'}
 
-        ACTION="`cat $BATT_INFO | grep charging | cut -c 26-`"
-        if [[ ACTION -eq "discharging" ]]
-        then
-           PRESENT_RATE=`cat $BATT_INFO | grep "present rate:" | sed  "s/.* \([0-9][0-9]* \).*/\1/" `
-           REMAINING=`cat $BATT_INFO | grep "remaining capacity:" | sed  "s/.* \([0-9][0-9]* \).*/\1/" `
-        fi
-        if (($REMAINING * 60 / $PRESENT_RATE < $MINIMUM_BATTERY_MINUTES))
-        then
-           /sbin/laptop_mode stop
-        fi
-     else
-       logger -p daemon.warning "You are using laptop mode and your battery interface $BATT_INFO is missing. This may lead to loss of data when the battery runs out. Check kernel ACPI support and /proc/acpi/battery folder, and edit /etc/acpi/battery.sh to set BATT_INFO to the correct path."
+          ACTION="`cat $BATT_INFO | grep charging | cut -c 26-`"
+          if [[ ACTION -eq "discharging" ]]
+          then
+             PRESENT_RATE=`cat $BATT_INFO | grep "present rate:" | sed  "s/.* \([0-9][0-9]* \).*/\1/" `
+             REMAINING=`cat $BATT_INFO | grep "remaining capacity:" | sed  "s/.* \([0-9][0-9]* \).*/\1/" `
+          fi
+          if (($REMAINING * 60 / $PRESENT_RATE < $MINIMUM_BATTERY_MINUTES))
+          then
+             /sbin/laptop_mode stop
+          fi
+       else
+         logger -p daemon.warning "You are using laptop mode and your battery interface $BATT_INFO is missing. This may lead to loss of data when the battery runs out. Check kernel ACPI support and /proc/acpi/battery folder, and edit /etc/acpi/battery.sh to set BATT_INFO to the correct path."
+       fi
      fi
-   fi
-fi
----------------------------/etc/acpi/actions/battery.sh END--------------------
+  fi
 
 
 Monitoring tool

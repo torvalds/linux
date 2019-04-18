@@ -1,18 +1,19 @@
-Kernel driver toshiba_haps
+====================================
 Toshiba HDD Active Protection Sensor
 ====================================
+
+Kernel driver: toshiba_haps
 
 Author: Azael Avalos <coproscefalo@gmail.com>
 
 
-0. Contents
------------
+.. 0. Contents
 
-1. Description
-2. Interface
-3. Accelerometer axes
-4. Supported devices
-5. Usage
+   1. Description
+   2. Interface
+   3. Accelerometer axes
+   4. Supported devices
+   5. Usage
 
 
 1. Description
@@ -32,17 +33,20 @@ file to set the desired protection level or sensor sensibility.
 ------------
 
 This device comes with 3 methods:
-_STA -  Checks existence of the device, returning Zero if the device does not
+
+====	=====================================================================
+_STA    Checks existence of the device, returning Zero if the device does not
 	exists or is not supported.
-PTLV -  Sets the desired protection level.
-RSSS -  Shuts down the HDD protection interface for a few seconds,
+PTLV    Sets the desired protection level.
+RSSS    Shuts down the HDD protection interface for a few seconds,
 	then restores normal operation.
+====	=====================================================================
 
 Note:
-The presence of Solid State Drives (SSD) can make this driver to fail loading,
-given the fact that such drives have no movable parts, and thus, not requiring
-any "protection" as well as failing during the evaluation of the _STA method
-found under this device.
+  The presence of Solid State Drives (SSD) can make this driver to fail loading,
+  given the fact that such drives have no movable parts, and thus, not requiring
+  any "protection" as well as failing during the evaluation of the _STA method
+  found under this device.
 
 
 3. Accelerometer axes
@@ -66,11 +70,18 @@ conventional HDD and not only SSD, or a combination of both HDD and SSD.
 --------
 
 The sysfs files under /sys/devices/LNXSYSTM:00/LNXSYBUS:00/TOS620A:00/ are:
-protection_level - The protection_level is readable and writeable, and
+
+================   ============================================================
+protection_level   The protection_level is readable and writeable, and
 		   provides a way to let userspace query the current protection
 		   level, as well as set the desired protection level, the
 		   available protection levels are:
-		   0 - Disabled | 1 - Low | 2 - Medium | 3 - High
-reset_protection - The reset_protection entry is writeable only, being "1"
+
+		   ============   =======   ==========   ========
+		   0 - Disabled   1 - Low   2 - Medium   3 - High
+		   ============   =======   ==========   ========
+
+reset_protection   The reset_protection entry is writeable only, being "1"
 		   the only parameter it accepts, it is used to trigger
 		   a reset of the protection interface.
+================   ============================================================

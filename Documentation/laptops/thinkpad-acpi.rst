@@ -1,12 +1,15 @@
-		     ThinkPad ACPI Extras Driver
+===========================
+ThinkPad ACPI Extras Driver
+===========================
 
-                            Version 0.25
-                        October 16th,  2013
+Version 0.25
 
-               Borislav Deianov <borislav@users.sf.net>
-             Henrique de Moraes Holschuh <hmh@hmh.eng.br>
-                      http://ibm-acpi.sf.net/
+October 16th,  2013
 
+- Borislav Deianov <borislav@users.sf.net>
+- Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+
+http://ibm-acpi.sf.net/
 
 This is a Linux driver for the IBM and Lenovo ThinkPad laptops. It
 supports various features of these laptops which are accessible
@@ -91,7 +94,8 @@ yet ready or stabilized, it is expected that this interface will change,
 and any and all userspace programs must deal with it.
 
 
-Notes about the sysfs interface:
+Notes about the sysfs interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Unlike what was done with the procfs interface, correctness when talking
 to the sysfs interfaces will be enforced, as will correctness in the
@@ -129,6 +133,7 @@ Driver version
 --------------
 
 procfs: /proc/acpi/ibm/driver
+
 sysfs driver attribute: version
 
 The driver name and version. No commands can be written to this file.
@@ -141,9 +146,13 @@ sysfs driver attribute: interface_version
 
 Version of the thinkpad-acpi sysfs interface, as an unsigned long
 (output in hex format: 0xAAAABBCC), where:
-	AAAA - major revision
-	BB - minor revision
-	CC - bugfix revision
+
+	AAAA
+	  - major revision
+	BB
+	  - minor revision
+	CC
+	  - bugfix revision
 
 The sysfs interface version changelog for the driver can be found at the
 end of this document.  Changes to the sysfs interface done by the kernel
@@ -170,6 +179,7 @@ Hot keys
 --------
 
 procfs: /proc/acpi/ibm/hotkey
+
 sysfs device attribute: hotkey_*
 
 In a ThinkPad, the ACPI HKEY handler is responsible for communicating
@@ -181,7 +191,7 @@ firmware will behave in many situations.
 The driver enables the HKEY ("hot key") event reporting automatically
 when loaded, and disables it when it is removed.
 
-The driver will report HKEY events in the following format:
+The driver will report HKEY events in the following format::
 
 	ibm/hotkey HKEY 00000080 0000xxxx
 
@@ -217,9 +227,10 @@ ThinkPads, it is still possible to support some extra hotkeys by
 polling the "CMOS NVRAM" at least 10 times per second.  The driver
 attempts to enables this functionality automatically when required.
 
-procfs notes:
+procfs notes
+^^^^^^^^^^^^
 
-The following commands can be written to the /proc/acpi/ibm/hotkey file:
+The following commands can be written to the /proc/acpi/ibm/hotkey file::
 
 	echo 0xffffffff > /proc/acpi/ibm/hotkey -- enable all hot keys
 	echo 0 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
@@ -227,7 +238,7 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 	echo reset > /proc/acpi/ibm/hotkey -- restore the recommended mask
 
 The following commands have been deprecated and will cause the kernel
-to log a warning:
+to log a warning::
 
 	echo enable > /proc/acpi/ibm/hotkey -- does nothing
 	echo disable > /proc/acpi/ibm/hotkey -- returns an error
@@ -237,7 +248,8 @@ maintain maximum bug-to-bug compatibility, it does not report any masks,
 nor does it allow one to manipulate the hot key mask when the firmware
 does not support masks at all, even if NVRAM polling is in use.
 
-sysfs notes:
+sysfs notes
+^^^^^^^^^^^
 
 	hotkey_bios_enabled:
 		DEPRECATED, WILL BE REMOVED SOON.
@@ -349,7 +361,8 @@ sysfs notes:
 
 		This attribute has poll()/select() support.
 
-input layer notes:
+input layer notes
+^^^^^^^^^^^^^^^^^
 
 A Hot key is mapped to a single input layer EV_KEY event, possibly
 followed by an EV_MSC MSC_SCAN event that shall contain that key's scan
@@ -362,11 +375,13 @@ remapping KEY_UNKNOWN keys.
 
 The events are available in an input device, with the following id:
 
-	Bus:		BUS_HOST
-	vendor:		0x1014 (PCI_VENDOR_ID_IBM)  or
+	==============  ==============================
+	Bus		BUS_HOST
+	vendor		0x1014 (PCI_VENDOR_ID_IBM)  or
 			0x17aa (PCI_VENDOR_ID_LENOVO)
-	product:	0x5054 ("TP")
-	version:	0x4101
+	product		0x5054 ("TP")
+	version		0x4101
+	==============  ==============================
 
 The version will have its LSB incremented if the keymap changes in a
 backwards-compatible way.  The MSB shall always be 0x41 for this input
@@ -380,9 +395,10 @@ backwards-compatible change for this input device.
 
 Thinkpad-acpi Hot Key event map (version 0x4101):
 
+=======	=======	==============	==============================================
 ACPI	Scan
 event	code	Key		Notes
-
+=======	=======	==============	==============================================
 0x1001	0x00	FN+F1		-
 
 0x1002	0x01	FN+F2		IBM: battery (rare)
@@ -426,7 +442,9 @@ event	code	Key		Notes
 				or toggle screen expand
 
 0x1009	0x08	FN+F9		-
-	..	..		..
+
+...	...	...		...
+
 0x100B	0x0A	FN+F11		-
 
 0x100C	0x0B	FN+F12		Sleep to disk.  You are always
@@ -480,8 +498,11 @@ event	code	Key		Notes
 0x1018	0x17	THINKPAD	ThinkPad/Access IBM/Lenovo key
 
 0x1019	0x18	unknown
-..	..	..
+
+...	...	...
+
 0x1020	0x1F	unknown
+=======	=======	==============	==============================================
 
 The ThinkPad firmware does not allow one to differentiate when most hot
 keys are pressed or released (either that, or we don't know how to, yet).
@@ -499,14 +520,17 @@ generate input device EV_KEY events.
 In addition to the EV_KEY events, thinkpad-acpi may also issue EV_SW
 events for switches:
 
+==============	==============================================
 SW_RFKILL_ALL	T60 and later hardware rfkill rocker switch
 SW_TABLET_MODE	Tablet ThinkPads HKEY events 0x5009 and 0x500A
+==============	==============================================
 
-Non hotkey ACPI HKEY event map:
--------------------------------
+Non hotkey ACPI HKEY event map
+------------------------------
 
 Events that are never propagated by the driver:
 
+======		==================================================
 0x2304		System is waking up from suspend to undock
 0x2305		System is waking up from suspend to eject bay
 0x2404		System is waking up from hibernation to undock
@@ -519,10 +543,12 @@ Events that are never propagated by the driver:
 0x6000		KEYBOARD: Numlock key pressed
 0x6005		KEYBOARD: Fn key pressed (TO BE VERIFIED)
 0x7000		Radio Switch may have changed state
+======		==================================================
 
 
 Events that are propagated by the driver to userspace:
 
+======		=====================================================
 0x2313		ALARM: System is waking up from suspend because
 		the battery is nearly empty
 0x2413		ALARM: System is waking up from hibernation because
@@ -544,6 +570,7 @@ Events that are propagated by the driver to userspace:
 0x6040		Nvidia Optimus/AC adapter related (TO BE VERIFIED)
 0x60C0		X1 Yoga 2016, Tablet mode status changed
 0x60F0		Thermal Transformation changed (GMTS, Windows)
+======		=====================================================
 
 Battery nearly empty alarms are a last resort attempt to get the
 operating system to hibernate or shutdown cleanly (0x2313), or shutdown
@@ -562,7 +589,8 @@ cycle, or a system shutdown.  Obviously, something is very wrong if this
 happens.
 
 
-Brightness hotkey notes:
+Brightness hotkey notes
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Don't mess with the brightness hotkeys in a Thinkpad.  If you want
 notifications for OSD, use the sysfs backlight class event support.
@@ -579,7 +607,9 @@ Bluetooth
 ---------
 
 procfs: /proc/acpi/ibm/bluetooth
+
 sysfs device attribute: bluetooth_enable (deprecated)
+
 sysfs rfkill class: switch "tpacpi_bluetooth_sw"
 
 This feature shows the presence and current state of a ThinkPad
@@ -588,22 +618,25 @@ Bluetooth device in the internal ThinkPad CDC slot.
 If the ThinkPad supports it, the Bluetooth state is stored in NVRAM,
 so it is kept across reboots and power-off.
 
-Procfs notes:
+Procfs notes
+^^^^^^^^^^^^
 
-If Bluetooth is installed, the following commands can be used:
+If Bluetooth is installed, the following commands can be used::
 
 	echo enable > /proc/acpi/ibm/bluetooth
 	echo disable > /proc/acpi/ibm/bluetooth
 
-Sysfs notes:
+Sysfs notes
+^^^^^^^^^^^
 
 	If the Bluetooth CDC card is installed, it can be enabled /
 	disabled through the "bluetooth_enable" thinkpad-acpi device
 	attribute, and its current status can also be queried.
 
 	enable:
-		0: disables Bluetooth / Bluetooth is disabled
-		1: enables Bluetooth / Bluetooth is enabled.
+
+		- 0: disables Bluetooth / Bluetooth is disabled
+		- 1: enables Bluetooth / Bluetooth is enabled.
 
 	Note: this interface has been superseded by the	generic rfkill
 	class.  It has been deprecated, and it will be removed in year
@@ -617,7 +650,7 @@ Video output control -- /proc/acpi/ibm/video
 --------------------------------------------
 
 This feature allows control over the devices used for video output -
-LCD, CRT or DVI (if available). The following commands are available:
+LCD, CRT or DVI (if available). The following commands are available::
 
 	echo lcd_enable > /proc/acpi/ibm/video
 	echo lcd_disable > /proc/acpi/ibm/video
@@ -630,9 +663,10 @@ LCD, CRT or DVI (if available). The following commands are available:
 	echo expand_toggle > /proc/acpi/ibm/video
 	echo video_switch > /proc/acpi/ibm/video
 
-NOTE: Access to this feature is restricted to processes owning the
-CAP_SYS_ADMIN capability for safety reasons, as it can interact badly
-enough with some versions of X.org to crash it.
+NOTE:
+  Access to this feature is restricted to processes owning the
+  CAP_SYS_ADMIN capability for safety reasons, as it can interact badly
+  enough with some versions of X.org to crash it.
 
 Each video output device can be enabled or disabled individually.
 Reading /proc/acpi/ibm/video shows the status of each device.
@@ -665,18 +699,21 @@ ThinkLight control
 ------------------
 
 procfs: /proc/acpi/ibm/light
+
 sysfs attributes: as per LED class, for the "tpacpi::thinklight" LED
 
-procfs notes:
+procfs notes
+^^^^^^^^^^^^
 
 The ThinkLight status can be read and set through the procfs interface.  A
 few models which do not make the status available will show the ThinkLight
-status as "unknown". The available commands are:
+status as "unknown". The available commands are::
 
 	echo on  > /proc/acpi/ibm/light
 	echo off > /proc/acpi/ibm/light
 
-sysfs notes:
+sysfs notes
+^^^^^^^^^^^
 
 The ThinkLight sysfs interface is documented by the LED class
 documentation, in Documentation/leds/leds-class.rst.  The ThinkLight LED name
@@ -691,6 +728,7 @@ CMOS/UCMS control
 -----------------
 
 procfs: /proc/acpi/ibm/cmos
+
 sysfs device attribute: cmos_command
 
 This feature is mostly used internally by the ACPI firmware to keep the legacy
@@ -707,16 +745,16 @@ The range of valid cmos command numbers is 0 to 21, but not all have an
 effect and the behavior varies from model to model.  Here is the behavior
 on the X40 (tpb is the ThinkPad Buttons utility):
 
-	0 - Related to "Volume down" key press
-	1 - Related to "Volume up" key press
-	2 - Related to "Mute on" key press
-	3 - Related to "Access IBM" key press
-	4 - Related to "LCD brightness up" key press
-	5 - Related to "LCD brightness down" key press
-	11 - Related to "toggle screen expansion" key press/function
-	12 - Related to "ThinkLight on"
-	13 - Related to "ThinkLight off"
-	14 - Related to "ThinkLight" key press (toggle ThinkLight)
+	- 0 - Related to "Volume down" key press
+	- 1 - Related to "Volume up" key press
+	- 2 - Related to "Mute on" key press
+	- 3 - Related to "Access IBM" key press
+	- 4 - Related to "LCD brightness up" key press
+	- 5 - Related to "LCD brightness down" key press
+	- 11 - Related to "toggle screen expansion" key press/function
+	- 12 - Related to "ThinkLight on"
+	- 13 - Related to "ThinkLight off"
+	- 14 - Related to "ThinkLight" key press (toggle ThinkLight)
 
 The cmos command interface is prone to firmware split-brain problems, as
 in newer ThinkPads it is just a compatibility layer.  Do not use it, it is
@@ -748,9 +786,10 @@ are aware of the consequences are welcome to enabling it.
 Audio mute and microphone mute LEDs are supported, but currently not
 visible to userspace. They are used by the snd-hda-intel audio driver.
 
-procfs notes:
+procfs notes
+^^^^^^^^^^^^
 
-The available commands are:
+The available commands are::
 
 	echo '<LED number> on' >/proc/acpi/ibm/led
 	echo '<LED number> off' >/proc/acpi/ibm/led
@@ -760,23 +799,24 @@ The <LED number> range is 0 to 15. The set of LEDs that can be
 controlled varies from model to model. Here is the common ThinkPad
 mapping:
 
-	0 - power
-	1 - battery (orange)
-	2 - battery (green)
-	3 - UltraBase/dock
-	4 - UltraBay
-	5 - UltraBase battery slot
-	6 - (unknown)
-	7 - standby
-	8 - dock status 1
-	9 - dock status 2
-	10, 11 - (unknown)
-	12 - thinkvantage
-	13, 14, 15 - (unknown)
+	- 0 - power
+	- 1 - battery (orange)
+	- 2 - battery (green)
+	- 3 - UltraBase/dock
+	- 4 - UltraBay
+	- 5 - UltraBase battery slot
+	- 6 - (unknown)
+	- 7 - standby
+	- 8 - dock status 1
+	- 9 - dock status 2
+	- 10, 11 - (unknown)
+	- 12 - thinkvantage
+	- 13, 14, 15 - (unknown)
 
 All of the above can be turned on and off and can be made to blink.
 
-sysfs notes:
+sysfs notes
+^^^^^^^^^^^
 
 The ThinkPad LED sysfs interface is described in detail by the LED class
 documentation, in Documentation/leds/leds-class.rst.
@@ -815,7 +855,7 @@ The BEEP method is used internally by the ACPI firmware to provide
 audible alerts in various situations. This feature allows the same
 sounds to be triggered manually.
 
-The commands are non-negative integer numbers:
+The commands are non-negative integer numbers::
 
 	echo <number> >/proc/acpi/ibm/beep
 
@@ -823,25 +863,26 @@ The valid <number> range is 0 to 17. Not all numbers trigger sounds
 and the sounds vary from model to model. Here is the behavior on the
 X40:
 
-	0 - stop a sound in progress (but use 17 to stop 16)
-	2 - two beeps, pause, third beep ("low battery")
-	3 - single beep
-	4 - high, followed by low-pitched beep ("unable")
-	5 - single beep
-	6 - very high, followed by high-pitched beep ("AC/DC")
-	7 - high-pitched beep
-	9 - three short beeps
-	10 - very long beep
-	12 - low-pitched beep
-	15 - three high-pitched beeps repeating constantly, stop with 0
-	16 - one medium-pitched beep repeating constantly, stop with 17
-	17 - stop 16
+	- 0 - stop a sound in progress (but use 17 to stop 16)
+	- 2 - two beeps, pause, third beep ("low battery")
+	- 3 - single beep
+	- 4 - high, followed by low-pitched beep ("unable")
+	- 5 - single beep
+	- 6 - very high, followed by high-pitched beep ("AC/DC")
+	- 7 - high-pitched beep
+	- 9 - three short beeps
+	- 10 - very long beep
+	- 12 - low-pitched beep
+	- 15 - three high-pitched beeps repeating constantly, stop with 0
+	- 16 - one medium-pitched beep repeating constantly, stop with 17
+	- 17 - stop 16
 
 
 Temperature sensors
 -------------------
 
 procfs: /proc/acpi/ibm/thermal
+
 sysfs device attributes: (hwmon "thinkpad") temp*_input
 
 Most ThinkPads include six or more separate temperature sensors but only
@@ -850,10 +891,14 @@ feature shows readings from up to eight different sensors on older
 ThinkPads, and up to sixteen different sensors on newer ThinkPads.
 
 For example, on the X40, a typical output may be:
-temperatures:   42 42 45 41 36 -128 33 -128
+
+temperatures:
+	42 42 45 41 36 -128 33 -128
 
 On the T43/p, a typical output may be:
-temperatures:   48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
+
+temperatures:
+	48 48 36 52 38 -128 31 -128 48 52 48 -128 -128 -128 -128 -128
 
 The mapping of thermal sensors to physical locations varies depending on
 system-board model (and thus, on ThinkPad model).
@@ -863,46 +908,53 @@ tries to track down these locations for various models.
 
 Most (newer?) models seem to follow this pattern:
 
-1:  CPU
-2:  (depends on model)
-3:  (depends on model)
-4:  GPU
-5:  Main battery: main sensor
-6:  Bay battery: main sensor
-7:  Main battery: secondary sensor
-8:  Bay battery: secondary sensor
-9-15: (depends on model)
+- 1:  CPU
+- 2:  (depends on model)
+- 3:  (depends on model)
+- 4:  GPU
+- 5:  Main battery: main sensor
+- 6:  Bay battery: main sensor
+- 7:  Main battery: secondary sensor
+- 8:  Bay battery: secondary sensor
+- 9-15: (depends on model)
 
 For the R51 (source: Thomas Gruber):
-2:  Mini-PCI
-3:  Internal HDD
+
+- 2:  Mini-PCI
+- 3:  Internal HDD
 
 For the T43, T43/p (source: Shmidoax/Thinkwiki.org)
 http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_T43.2C_T43p
-2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
-3:  PCMCIA slot
-9:  MCH (northbridge) to DRAM Bus
-10: Clock-generator, mini-pci card and ICH (southbridge), under Mini-PCI
-    card, under touchpad
-11: Power regulator, underside of system board, below F2 key
+
+- 2:  System board, left side (near PCMCIA slot), reported as HDAPS temp
+- 3:  PCMCIA slot
+- 9:  MCH (northbridge) to DRAM Bus
+- 10: Clock-generator, mini-pci card and ICH (southbridge), under Mini-PCI
+      card, under touchpad
+- 11: Power regulator, underside of system board, below F2 key
 
 The A31 has a very atypical layout for the thermal sensors
 (source: Milos Popovic, http://thinkwiki.org/wiki/Thermal_Sensors#ThinkPad_A31)
-1:  CPU
-2:  Main Battery: main sensor
-3:  Power Converter
-4:  Bay Battery: main sensor
-5:  MCH (northbridge)
-6:  PCMCIA/ambient
-7:  Main Battery: secondary sensor
-8:  Bay Battery: secondary sensor
+
+- 1:  CPU
+- 2:  Main Battery: main sensor
+- 3:  Power Converter
+- 4:  Bay Battery: main sensor
+- 5:  MCH (northbridge)
+- 6:  PCMCIA/ambient
+- 7:  Main Battery: secondary sensor
+- 8:  Bay Battery: secondary sensor
 
 
-Procfs notes:
+Procfs notes
+^^^^^^^^^^^^
+
 	Readings from sensors that are not available return -128.
 	No commands can be written to this file.
 
-Sysfs notes:
+Sysfs notes
+^^^^^^^^^^^
+
 	Sensors that are not available return the ENXIO error.  This
 	status may change at runtime, as there are hotplug thermal
 	sensors, like those inside the batteries and docks.
@@ -921,6 +973,7 @@ ftp://ftp.suse.com/pub/people/trenn/sources/ec
 
 Use it to determine the register holding the fan
 speed on some models. To do that, do the following:
+
 	- make sure the battery is fully charged
 	- make sure the fan is running
 	- use above mentioned tool to read out the EC
@@ -941,6 +994,7 @@ LCD brightness control
 ----------------------
 
 procfs: /proc/acpi/ibm/brightness
+
 sysfs backlight device "thinkpad_screen"
 
 This feature allows software control of the LCD brightness on ThinkPad
@@ -985,15 +1039,17 @@ brightness_enable=0 forces it to be disabled.  brightness_enable=1
 forces it to be enabled when available, even if the standard ACPI
 interface is also available.
 
-Procfs notes:
+Procfs notes
+^^^^^^^^^^^^
 
-	The available commands are:
+The available commands are::
 
 	echo up   >/proc/acpi/ibm/brightness
 	echo down >/proc/acpi/ibm/brightness
 	echo 'level <level>' >/proc/acpi/ibm/brightness
 
-Sysfs notes:
+Sysfs notes
+^^^^^^^^^^^
 
 The interface is implemented through the backlight sysfs class, which is
 poorly documented at this time.
@@ -1038,6 +1094,7 @@ Volume control (Console Audio control)
 --------------------------------------
 
 procfs: /proc/acpi/ibm/volume
+
 ALSA: "ThinkPad Console Audio Control", default ID: "ThinkPadEC"
 
 NOTE: by default, the volume control interface operates in read-only
@@ -1053,7 +1110,8 @@ Software volume control should be done only in the main AC97/HDA
 mixer.
 
 
-About the ThinkPad Console Audio control:
+About the ThinkPad Console Audio control
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ThinkPads have a built-in amplifier and muting circuit that drives the
 console headphone and speakers.  This circuit is after the main AC97
@@ -1092,13 +1150,14 @@ normal key presses to the operating system (thinkpad-acpi is not
 involved).
 
 
-The ThinkPad-ACPI volume control:
+The ThinkPad-ACPI volume control
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The preferred way to interact with the Console Audio control is the
 ALSA interface.
 
 The legacy procfs interface allows one to read the current state,
-and if volume control is enabled, accepts the following commands:
+and if volume control is enabled, accepts the following commands::
 
 	echo up   >/proc/acpi/ibm/volume
 	echo down >/proc/acpi/ibm/volume
@@ -1137,13 +1196,15 @@ Fan control and monitoring: fan speed, fan enable/disable
 ---------------------------------------------------------
 
 procfs: /proc/acpi/ibm/fan
-sysfs device attributes: (hwmon "thinkpad") fan1_input, pwm1,
-			  pwm1_enable, fan2_input
+
+sysfs device attributes: (hwmon "thinkpad") fan1_input, pwm1, pwm1_enable, fan2_input
+
 sysfs hwmon driver attributes: fan_watchdog
 
-NOTE NOTE NOTE: fan control operations are disabled by default for
-safety reasons.  To enable them, the module parameter "fan_control=1"
-must be given to thinkpad-acpi.
+NOTE NOTE NOTE:
+   fan control operations are disabled by default for
+   safety reasons.  To enable them, the module parameter "fan_control=1"
+   must be given to thinkpad-acpi.
 
 This feature attempts to show the current fan speed, control mode and
 other fan data that might be available.  The speed is read directly
@@ -1154,7 +1215,8 @@ value on other models.
 Some Lenovo ThinkPads support a secondary fan.  This fan cannot be
 controlled separately, it shares the main fan control.
 
-Fan levels:
+Fan levels
+^^^^^^^^^^
 
 Most ThinkPad fans work in "levels" at the firmware interface.  Level 0
 stops the fan.  The higher the level, the higher the fan speed, although
@@ -1209,9 +1271,10 @@ therefore, not suitable to protect against fan mode changes made through
 means other than the "enable", "disable", and "level" procfs fan
 commands, or the hwmon fan control sysfs interface.
 
-Procfs notes:
+Procfs notes
+^^^^^^^^^^^^
 
-The fan may be enabled or disabled with the following commands:
+The fan may be enabled or disabled with the following commands::
 
 	echo enable  >/proc/acpi/ibm/fan
 	echo disable >/proc/acpi/ibm/fan
@@ -1219,7 +1282,7 @@ The fan may be enabled or disabled with the following commands:
 Placing a fan on level 0 is the same as disabling it.  Enabling a fan
 will try to place it in a safe level if it is too slow or disabled.
 
-The fan level can be controlled with the command:
+The fan level can be controlled with the command::
 
 	echo 'level <level>' > /proc/acpi/ibm/fan
 
@@ -1231,7 +1294,7 @@ compatibility.
 
 On the X31 and X40 (and ONLY on those models), the fan speed can be
 controlled to a certain degree.  Once the fan is running, it can be
-forced to run faster or slower with the following command:
+forced to run faster or slower with the following command::
 
 	echo 'speed <speed>' > /proc/acpi/ibm/fan
 
@@ -1241,13 +1304,14 @@ effect or the fan speed eventually settles somewhere in that range.  The
 fan cannot be stopped or started with this command.  This functionality
 is incomplete, and not available through the sysfs interface.
 
-To program the safety watchdog, use the "watchdog" command.
+To program the safety watchdog, use the "watchdog" command::
 
 	echo 'watchdog <interval in seconds>' > /proc/acpi/ibm/fan
 
 If you want to disable the watchdog, use 0 as the interval.
 
-Sysfs notes:
+Sysfs notes
+^^^^^^^^^^^
 
 The sysfs interface follows the hwmon subsystem guidelines for the most
 part, and the exception is the fan safety watchdog.
@@ -1261,10 +1325,10 @@ to the firmware).
 Features not yet implemented by the driver return ENOSYS.
 
 hwmon device attribute pwm1_enable:
-	0: PWM offline (fan is set to full-speed mode)
-	1: Manual PWM control (use pwm1 to set fan level)
-	2: Hardware PWM control (EC "auto" mode)
-	3: reserved (Software PWM control, not implemented yet)
+	- 0: PWM offline (fan is set to full-speed mode)
+	- 1: Manual PWM control (use pwm1 to set fan level)
+	- 2: Hardware PWM control (EC "auto" mode)
+	- 3: reserved (Software PWM control, not implemented yet)
 
 	Modes 0 and 2 are not supported by all ThinkPads, and the
 	driver is not always able to detect this.  If it does know a
@@ -1304,7 +1368,9 @@ WAN
 ---
 
 procfs: /proc/acpi/ibm/wan
+
 sysfs device attribute: wwan_enable (deprecated)
+
 sysfs rfkill class: switch "tpacpi_wwan_sw"
 
 This feature shows the presence and current state of the built-in
@@ -1316,22 +1382,24 @@ so it is kept across reboots and power-off.
 It was tested on a Lenovo ThinkPad X60. It should probably work on other
 ThinkPad models which come with this module installed.
 
-Procfs notes:
+Procfs notes
+^^^^^^^^^^^^
 
-If the W-WAN card is installed, the following commands can be used:
+If the W-WAN card is installed, the following commands can be used::
 
 	echo enable > /proc/acpi/ibm/wan
 	echo disable > /proc/acpi/ibm/wan
 
-Sysfs notes:
+Sysfs notes
+^^^^^^^^^^^
 
 	If the W-WAN card is installed, it can be enabled /
 	disabled through the "wwan_enable" thinkpad-acpi device
 	attribute, and its current status can also be queried.
 
 	enable:
-		0: disables WWAN card / WWAN card is disabled
-		1: enables WWAN card / WWAN card is enabled.
+		- 0: disables WWAN card / WWAN card is disabled
+		- 1: enables WWAN card / WWAN card is enabled.
 
 	Note: this interface has been superseded by the	generic rfkill
 	class.  It has been deprecated, and it will be removed in year
@@ -1354,7 +1422,8 @@ sysfs rfkill class: switch "tpacpi_uwb_sw"
 This feature exports an rfkill controller for the UWB device, if one is
 present and enabled in the BIOS.
 
-Sysfs notes:
+Sysfs notes
+^^^^^^^^^^^
 
 	rfkill controller switch "tpacpi_uwb_sw": refer to
 	Documentation/rfkill.txt for details.
@@ -1368,11 +1437,11 @@ This sysfs attribute controls the keyboard "face" that will be shown on the
 Lenovo X1 Carbon 2nd gen (2014)'s adaptive keyboard. The value can be read
 and set.
 
-1 = Home mode
-2 = Web-browser mode
-3 = Web-conference mode
-4 = Function mode
-5 = Layflat mode
+- 1 = Home mode
+- 2 = Web-browser mode
+- 3 = Web-conference mode
+- 4 = Function mode
+- 5 = Layflat mode
 
 For more details about which buttons will appear depending on the mode, please
 review the laptop's user guide:
@@ -1382,13 +1451,13 @@ Multiple Commands, Module Parameters
 ------------------------------------
 
 Multiple commands can be written to the proc files in one shot by
-separating them with commas, for example:
+separating them with commas, for example::
 
 	echo enable,0xffff > /proc/acpi/ibm/hotkey
 	echo lcd_disable,crt_enable > /proc/acpi/ibm/video
 
 Commands can also be specified when loading the thinkpad-acpi module,
-for example:
+for example::
 
 	modprobe thinkpad_acpi hotkey=enable,0xffff video=auto_disable
 
@@ -1397,14 +1466,16 @@ Enabling debugging output
 -------------------------
 
 The module takes a debug parameter which can be used to selectively
-enable various classes of debugging output, for example:
+enable various classes of debugging output, for example::
 
 	 modprobe thinkpad_acpi debug=0xffff
 
 will enable all debugging output classes.  It takes a bitmask, so
 to enable more than one output class, just add their values.
 
+	=============		======================================
 	Debug bitmask		Description
+	=============		======================================
 	0x8000			Disclose PID of userspace programs
 				accessing some functions of the driver
 	0x0001			Initialization and probing
@@ -1415,6 +1486,7 @@ to enable more than one output class, just add their values.
 	0x0010			Fan control
 	0x0020			Backlight brightness
 	0x0040			Audio mixer/volume control
+	=============		======================================
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
@@ -1432,8 +1504,10 @@ the module parameter force_load=1.  Regardless of whether this works or
 not, please contact ibm-acpi-devel@lists.sourceforge.net with a report.
 
 
-Sysfs interface changelog:
+Sysfs interface changelog
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
+=========	===============================================================
 0x000100:	Initial sysfs support, as a single platform driver and
 		device.
 0x000200:	Hot key support for 32 hot keys, and radio slider switch
@@ -1485,3 +1559,4 @@ Sysfs interface changelog:
 0x030000:	Thermal and fan sysfs attributes were moved to the hwmon
 		device instead of being attached to the backing platform
 		device.
+=========	===============================================================

@@ -1,11 +1,13 @@
+==================================================
 Sony Programmable I/O Control Device Driver Readme
---------------------------------------------------
-	Copyright (C) 2001-2004 Stelian Pop <stelian@popies.net>
-	Copyright (C) 2001-2002 Alcôve <www.alcove.com>
-	Copyright (C) 2001 Michael Ashley <m.ashley@unsw.edu.au>
-	Copyright (C) 2001 Junichi Morita <jun1m@mars.dti.ne.jp>
-	Copyright (C) 2000 Takaya Kinjo <t-kinjo@tc4.so-net.ne.jp>
-	Copyright (C) 2000 Andrew Tridgell <tridge@samba.org>
+==================================================
+
+	- Copyright (C) 2001-2004 Stelian Pop <stelian@popies.net>
+	- Copyright (C) 2001-2002 Alcôve <www.alcove.com>
+	- Copyright (C) 2001 Michael Ashley <m.ashley@unsw.edu.au>
+	- Copyright (C) 2001 Junichi Morita <jun1m@mars.dti.ne.jp>
+	- Copyright (C) 2000 Takaya Kinjo <t-kinjo@tc4.so-net.ne.jp>
+	- Copyright (C) 2000 Andrew Tridgell <tridge@samba.org>
 
 This driver enables access to the Sony Programmable I/O Control Device which
 can be found in many Sony Vaio laptops. Some newer Sony laptops (seems to be
@@ -14,6 +16,7 @@ sonypi device and are not supported at all by this driver.
 
 It will give access (through a user space utility) to some events those laptops
 generate, like:
+
 	- jogdial events (the small wheel on the side of Vaios)
 	- capture button events (only on Vaio Picturebook series)
 	- Fn keys
@@ -49,6 +52,7 @@ module argument syntax (<param>=<value> when passing the option to the
 module or sonypi.<param>=<value> on the kernel boot line when sonypi is
 statically linked into the kernel). Those options are:
 
+	=============== =======================================================
 	minor: 		minor number of the misc device /dev/sonypi,
 			default is -1 (automatic allocation, see /proc/misc
 			or kernel logs)
@@ -86,6 +90,8 @@ statically linked into the kernel). Those options are:
 			will be tried. You can use the following bits to
 			construct your own event mask (from
 			drivers/char/sonypi.h):
+
+				========================	======
 				SONYPI_JOGGER_MASK 		0x0001
 				SONYPI_CAPTURE_MASK 		0x0002
 				SONYPI_FNKEY_MASK 		0x0004
@@ -100,22 +106,24 @@ statically linked into the kernel). Those options are:
 				SONYPI_MEMORYSTICK_MASK		0x0800
 				SONYPI_BATTERY_MASK		0x1000
 				SONYPI_WIRELESS_MASK		0x2000
+				========================	======
 
 	useinput:	if set (which is the default) two input devices are
 			created, one which interprets the jogdial events as
 			mouse events, the other one which acts like a
 			keyboard reporting the pressing of the special keys.
+	=============== =======================================================
 
 Module use:
 -----------
 
 In order to automatically load the sonypi module on use, you can put those
-lines a configuration file in /etc/modprobe.d/:
+lines a configuration file in /etc/modprobe.d/::
 
 	alias char-major-10-250 sonypi
 	options sonypi minor=250
 
-This supposes the use of minor 250 for the sonypi device:
+This supposes the use of minor 250 for the sonypi device::
 
 	# mknod /dev/sonypi c 10 250
 
@@ -148,5 +156,5 @@ Bugs:
 	  http://www.acc.umu.se/~erikw/program/smartdimmer-0.1.tar.bz2
 
 	- since all development was done by reverse engineering, there is
-	  _absolutely no guarantee_ that this driver will not crash your
+	  *absolutely no guarantee* that this driver will not crash your
 	  laptop. Permanently.
