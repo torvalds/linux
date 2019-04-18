@@ -34,6 +34,18 @@ struct cc_hw_key_info {
 	enum cc_hw_crypto_key key2_slot;
 };
 
+struct cc_cpp_key_info {
+	u8 slot;
+	enum cc_cpp_alg alg;
+};
+
+enum cc_key_type {
+	CC_UNPROTECTED_KEY,		/* User key */
+	CC_HW_PROTECTED_KEY,		/* HW (FDE) key */
+	CC_POLICY_PROTECTED_KEY,	/* CPP key */
+	CC_INVALID_PROTECTED_KEY	/* Invalid key */
+};
+
 struct cc_cipher_ctx {
 	struct cc_drvdata *drvdata;
 	int keylen;
@@ -41,19 +53,22 @@ struct cc_cipher_ctx {
 	int cipher_mode;
 	int flow_mode;
 	unsigned int flags;
-	bool hw_key;
+	enum cc_key_type key_type;
 	struct cc_user_key_info user;
-	struct cc_hw_key_info hw;
+	union {
+		struct cc_hw_key_info hw;
+		struct cc_cpp_key_info cpp;
+	};
 	struct crypto_shash *shash_tfm;
 };
 
 static void cc_cipher_complete(struct device *dev, void *cc_req, int err);
 
-static inline bool cc_is_hw_key(struct crypto_tfm *tfm)
+static inline enum cc_key_type cc_key_type(struct crypto_tfm *tfm)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 
-	return ctx_p->hw_key;
+	return ctx_p->key_type;
 }
 
 static int validate_keys_sizes(struct cc_cipher_ctx *ctx_p, u32 size)
@@ -232,7 +247,7 @@ struct tdes_keys {
 	u8	key3[DES_KEY_SIZE];
 };
 
-static enum cc_hw_crypto_key cc_slot_to_hw_key(int slot_num)
+static enum cc_hw_crypto_key cc_slot_to_hw_key(u8 slot_num)
 {
 	switch (slot_num) {
 	case 0:
@@ -245,6 +260,22 @@ static enum cc_hw_crypto_key cc_slot_to_hw_key(int slot_num)
 		return KFDE3_KEY;
 	}
 	return END_OF_KEYS;
+}
+
+static u8 cc_slot_to_cpp_key(u8 slot_num)
+{
+	return (slot_num - CC_FIRST_CPP_KEY_SLOT);
+}
+
+static inline enum cc_key_type cc_slot_to_key_type(u8 slot_num)
+{
+	if (slot_num >= CC_FIRST_HW_KEY_SLOT && slot_num <= CC_LAST_HW_KEY_SLOT)
+		return CC_HW_PROTECTED_KEY;
+	else if (slot_num >=  CC_FIRST_CPP_KEY_SLOT &&
+		 slot_num <=  CC_LAST_CPP_KEY_SLOT)
+		return CC_POLICY_PROTECTED_KEY;
+	else
+		return CC_INVALID_PROTECTED_KEY;
 }
 
 static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
@@ -261,15 +292,10 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
-	/* This check the size of the hardware key token */
+	/* This check the size of the protected key token */
 	if (keylen != sizeof(hki)) {
-		dev_err(dev, "Unsupported HW key size %d.\n", keylen);
+		dev_err(dev, "Unsupported protected key size %d.\n", keylen);
 		crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
-
-	if (ctx_p->flow_mode != S_DIN_to_AES) {
-		dev_err(dev, "HW key not supported for non-AES flows\n");
 		return -EINVAL;
 	}
 
@@ -286,31 +312,70 @@ static int cc_cipher_sethkey(struct crypto_skcipher *sktfm, const u8 *key,
 		return -EINVAL;
 	}
 
-	ctx_p->hw.key1_slot = cc_slot_to_hw_key(hki.hw_key1);
-	if (ctx_p->hw.key1_slot == END_OF_KEYS) {
-		dev_err(dev, "Unsupported hw key1 number (%d)\n", hki.hw_key1);
+	ctx_p->keylen = keylen;
+
+	switch (cc_slot_to_key_type(hki.hw_key1)) {
+	case CC_HW_PROTECTED_KEY:
+		if (ctx_p->flow_mode == S_DIN_to_SM4) {
+			dev_err(dev, "Only AES HW protected keys are supported\n");
+			return -EINVAL;
+		}
+
+		ctx_p->hw.key1_slot = cc_slot_to_hw_key(hki.hw_key1);
+		if (ctx_p->hw.key1_slot == END_OF_KEYS) {
+			dev_err(dev, "Unsupported hw key1 number (%d)\n",
+				hki.hw_key1);
+			return -EINVAL;
+		}
+
+		if (ctx_p->cipher_mode == DRV_CIPHER_XTS ||
+		    ctx_p->cipher_mode == DRV_CIPHER_ESSIV ||
+		    ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER) {
+			if (hki.hw_key1 == hki.hw_key2) {
+				dev_err(dev, "Illegal hw key numbers (%d,%d)\n",
+					hki.hw_key1, hki.hw_key2);
+				return -EINVAL;
+			}
+
+			ctx_p->hw.key2_slot = cc_slot_to_hw_key(hki.hw_key2);
+			if (ctx_p->hw.key2_slot == END_OF_KEYS) {
+				dev_err(dev, "Unsupported hw key2 number (%d)\n",
+					hki.hw_key2);
+				return -EINVAL;
+			}
+		}
+
+		ctx_p->key_type = CC_HW_PROTECTED_KEY;
+		dev_dbg(dev, "HW protected key  %d/%d set\n.",
+			ctx_p->hw.key1_slot, ctx_p->hw.key2_slot);
+		break;
+
+	case CC_POLICY_PROTECTED_KEY:
+		if (ctx_p->drvdata->hw_rev < CC_HW_REV_713) {
+			dev_err(dev, "CPP keys not supported in this hardware revision.\n");
+			return -EINVAL;
+		}
+
+		if (ctx_p->cipher_mode != DRV_CIPHER_CBC &&
+		    ctx_p->cipher_mode != DRV_CIPHER_CTR) {
+			dev_err(dev, "CPP keys only supported in CBC or CTR modes.\n");
+			return -EINVAL;
+		}
+
+		ctx_p->cpp.slot = cc_slot_to_cpp_key(hki.hw_key1);
+		if (ctx_p->flow_mode == S_DIN_to_AES)
+			ctx_p->cpp.alg = CC_CPP_AES;
+		else /* Must be SM4 since due to sethkey registration */
+			ctx_p->cpp.alg = CC_CPP_SM4;
+		ctx_p->key_type = CC_POLICY_PROTECTED_KEY;
+		dev_dbg(dev, "policy protedcted key alg: %d slot: %d.\n",
+			ctx_p->cpp.alg, ctx_p->cpp.slot);
+		break;
+
+	default:
+		dev_err(dev, "Unsupported protected key (%d)\n", hki.hw_key1);
 		return -EINVAL;
 	}
-
-	if (ctx_p->cipher_mode == DRV_CIPHER_XTS ||
-	    ctx_p->cipher_mode == DRV_CIPHER_ESSIV ||
-	    ctx_p->cipher_mode == DRV_CIPHER_BITLOCKER) {
-		if (hki.hw_key1 == hki.hw_key2) {
-			dev_err(dev, "Illegal hw key numbers (%d,%d)\n",
-				hki.hw_key1, hki.hw_key2);
-			return -EINVAL;
-		}
-		ctx_p->hw.key2_slot = cc_slot_to_hw_key(hki.hw_key2);
-		if (ctx_p->hw.key2_slot == END_OF_KEYS) {
-			dev_err(dev, "Unsupported hw key2 number (%d)\n",
-				hki.hw_key2);
-			return -EINVAL;
-		}
-	}
-
-	ctx_p->keylen = keylen;
-	ctx_p->hw_key = true;
-	dev_dbg(dev, "cc_is_hw_key ret 0");
 
 	return 0;
 }
@@ -338,7 +403,7 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 		return -EINVAL;
 	}
 
-	ctx_p->hw_key = false;
+	ctx_p->key_type = CC_UNPROTECTED_KEY;
 
 	/*
 	 * Verify DES weak keys
@@ -451,7 +516,7 @@ static void cc_setup_state_desc(struct crypto_tfm *tfm,
 		hw_desc_init(&desc[*seq_size]);
 		set_cipher_mode(&desc[*seq_size], cipher_mode);
 		set_cipher_config0(&desc[*seq_size], direction);
-		if (cc_is_hw_key(tfm)) {
+		if (cc_key_type(tfm) == CC_HW_PROTECTED_KEY) {
 			set_hw_crypto_key(&desc[*seq_size],
 					  ctx_p->hw.key2_slot);
 		} else {
@@ -495,6 +560,7 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 	dma_addr_t key_dma_addr = ctx_p->user.key_dma_addr;
 	unsigned int key_len = ctx_p->keylen;
 	unsigned int du_size = nbytes;
+	unsigned int din_size;
 
 	struct cc_crypto_alg *cc_alg =
 		container_of(tfm->__crt_alg, struct cc_crypto_alg,
@@ -511,27 +577,38 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 	case DRV_CIPHER_ECB:
 		/* Load key */
 		hw_desc_init(&desc[*seq_size]);
-		set_cipher_mode(&desc[*seq_size], cipher_mode);
-		set_cipher_config0(&desc[*seq_size], direction);
-		if (flow_mode == S_DIN_to_AES) {
-			if (cc_is_hw_key(tfm)) {
-				set_hw_crypto_key(&desc[*seq_size],
-						  ctx_p->hw.key1_slot);
-			} else {
-				set_din_type(&desc[*seq_size], DMA_DLLI,
-					     key_dma_addr, ((key_len == 24) ?
-							    AES_MAX_KEY_SIZE :
-							    key_len), NS_BIT);
-			}
-			set_key_size_aes(&desc[*seq_size], key_len);
+		if (cc_key_type(tfm) == CC_POLICY_PROTECTED_KEY) {
+			set_cpp_crypto_key(&desc[*seq_size], ctx_p->cpp.alg,
+					   cipher_mode, ctx_p->cpp.slot);
 		} else {
-			/*des*/
-			set_din_type(&desc[*seq_size], DMA_DLLI, key_dma_addr,
-				     key_len, NS_BIT);
-			set_key_size_des(&desc[*seq_size], key_len);
+			set_cipher_mode(&desc[*seq_size], cipher_mode);
+			set_cipher_config0(&desc[*seq_size], direction);
+			if (flow_mode == S_DIN_to_AES) {
+				if (cc_key_type(tfm) == CC_HW_PROTECTED_KEY) {
+					set_hw_crypto_key(&desc[*seq_size],
+							  ctx_p->hw.key1_slot);
+				} else {
+					/* CC_POLICY_UNPROTECTED_KEY
+					 * Invalid keys are filtered out in
+					 * sethkey()
+					 */
+					din_size = (key_len == 24) ?
+						AES_MAX_KEY_SIZE : key_len;
+
+					set_din_type(&desc[*seq_size], DMA_DLLI,
+						     key_dma_addr, din_size,
+						     NS_BIT);
+				}
+				set_key_size_aes(&desc[*seq_size], key_len);
+			} else {
+				/*des*/
+				set_din_type(&desc[*seq_size], DMA_DLLI,
+					     key_dma_addr, key_len, NS_BIT);
+				set_key_size_des(&desc[*seq_size], key_len);
+			}
+			set_flow_mode(&desc[*seq_size], flow_mode);
+			set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
 		}
-		set_flow_mode(&desc[*seq_size], flow_mode);
-		set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
 		(*seq_size)++;
 		break;
 	case DRV_CIPHER_XTS:
@@ -541,7 +618,7 @@ static void cc_setup_key_desc(struct crypto_tfm *tfm,
 		hw_desc_init(&desc[*seq_size]);
 		set_cipher_mode(&desc[*seq_size], cipher_mode);
 		set_cipher_config0(&desc[*seq_size], direction);
-		if (cc_is_hw_key(tfm)) {
+		if (cc_key_type(tfm) == CC_HW_PROTECTED_KEY) {
 			set_hw_crypto_key(&desc[*seq_size],
 					  ctx_p->hw.key1_slot);
 		} else {
@@ -788,6 +865,13 @@ static int cc_cipher_process(struct skcipher_request *req,
 	/* Setup request structure */
 	cc_req.user_cb = (void *)cc_cipher_complete;
 	cc_req.user_arg = (void *)req;
+
+	/* Setup CPP operation details */
+	if (ctx_p->key_type == CC_POLICY_PROTECTED_KEY) {
+		cc_req.cpp.is_cpp = true;
+		cc_req.cpp.alg = ctx_p->cpp.alg;
+		cc_req.cpp.slot = ctx_p->cpp.slot;
+	}
 
 	/* Setup request context */
 	req_ctx->gen_ctx.op_type = direction;

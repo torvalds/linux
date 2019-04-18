@@ -28,11 +28,13 @@
 	GENMASK(CC_REG_HIGH(word, name), CC_REG_LOW(word, name))
 
 #define WORD0_VALUE		CC_GENMASK(0, VALUE)
+#define	WORD0_CPP_CIPHER_MODE	CC_GENMASK(0, CPP_CIPHER_MODE)
 #define WORD1_DIN_CONST_VALUE	CC_GENMASK(1, DIN_CONST_VALUE)
 #define WORD1_DIN_DMA_MODE	CC_GENMASK(1, DIN_DMA_MODE)
 #define WORD1_DIN_SIZE		CC_GENMASK(1, DIN_SIZE)
 #define WORD1_NOT_LAST		CC_GENMASK(1, NOT_LAST)
 #define WORD1_NS_BIT		CC_GENMASK(1, NS_BIT)
+#define WORD1_LOCK_QUEUE	CC_GENMASK(1, LOCK_QUEUE)
 #define WORD2_VALUE		CC_GENMASK(2, VALUE)
 #define WORD3_DOUT_DMA_MODE	CC_GENMASK(3, DOUT_DMA_MODE)
 #define WORD3_DOUT_LAST_IND	CC_GENMASK(3, DOUT_LAST_IND)
@@ -53,6 +55,8 @@
 #define WORD4_DATA_FLOW_MODE	CC_GENMASK(4, DATA_FLOW_MODE)
 #define WORD4_KEY_SIZE		CC_GENMASK(4, KEY_SIZE)
 #define WORD4_SETUP_OPERATION	CC_GENMASK(4, SETUP_OPERATION)
+#define WORD4_CPP_ALG		CC_GENMASK(4, CPP_ALG)
+#define WORD4_CPP_SLOT		CC_GENMASK(4, CPP_SLOT)
 #define WORD5_DIN_ADDR_HIGH	CC_GENMASK(5, DIN_ADDR_HIGH)
 #define WORD5_DOUT_ADDR_HIGH	CC_GENMASK(5, DOUT_ADDR_HIGH)
 
@@ -176,6 +180,15 @@ enum cc_hw_crypto_key {
 	END_OF_KEYS = S32_MAX,
 };
 
+#define CC_NUM_HW_KEY_SLOTS	4
+#define CC_FIRST_HW_KEY_SLOT	0
+#define CC_LAST_HW_KEY_SLOT	(CC_FIRST_HW_KEY_SLOT + CC_NUM_HW_KEY_SLOTS - 1)
+
+#define CC_NUM_CPP_KEY_SLOTS	8
+#define CC_FIRST_CPP_KEY_SLOT	16
+#define CC_LAST_CPP_KEY_SLOT	(CC_FIRST_CPP_KEY_SLOT + \
+					CC_NUM_CPP_KEY_SLOTS - 1)
+
 enum cc_hw_aes_key_size {
 	AES_128_KEY = 0,
 	AES_192_KEY = 1,
@@ -188,6 +201,8 @@ enum cc_hash_cipher_pad {
 	DO_PAD = 1,
 	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
 };
+
+#define CC_CPP_DESC_INDICATOR	0xFF0000UL
 
 /*****************************/
 /* Descriptor packing macros */
@@ -246,6 +261,28 @@ static inline void set_din_no_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
 {
 	pdesc->word[0] = addr;
 	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, size);
+}
+
+/*
+ * Setup the special CPP descriptor
+ *
+ * @pdesc: pointer HW descriptor struct
+ * @alg: cipher used (AES / SM4)
+ * @mode: mode used (CTR or CBC)
+ * @slot: slot number
+ * @ksize: key size
+ */
+static inline void set_cpp_crypto_key(struct cc_hw_desc *pdesc,
+				      enum cc_cpp_alg alg,
+				      enum drv_cipher_mode mode, u8 slot)
+{
+	u8 mode_val = (mode == DRV_CIPHER_CBC ? 0 : 1);
+
+	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, CC_CPP_DESC_INDICATOR);
+	pdesc->word[1] |= FIELD_PREP(WORD1_LOCK_QUEUE, 1);
+	pdesc->word[0] |= FIELD_PREP(WORD0_CPP_CIPHER_MODE, mode_val);
+	pdesc->word[4] |= FIELD_PREP(WORD4_CPP_ALG, alg);
+	pdesc->word[4] |= FIELD_PREP(WORD4_CPP_SLOT, slot);
 }
 
 /*
