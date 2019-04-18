@@ -1,21 +1,9 @@
-/*
- * Linear Technology LTC3589,LTC3589-1 regulator support
- *
- * Copyright (c) 2014 Philipp Zabel <p.zabel@pengutronix.de>, Pengutronix
- *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Linear Technology LTC3589,LTC3589-1 regulator support
+//
+// Copyright (c) 2014 Philipp Zabel <p.zabel@pengutronix.de>, Pengutronix
+
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
