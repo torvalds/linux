@@ -1,6 +1,6 @@
-                          The Linux RapidIO Subsystem
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+============
+Introduction
+============
 
 The RapidIO standard is a packet-based fabric interconnect standard designed for
 use in embedded systems. Development of the RapidIO standard is directed by the
@@ -11,7 +11,7 @@ This document describes the basics of the Linux RapidIO subsystem and provides
 information on its major components.
 
 1 Overview
-----------
+==========
 
 Because the RapidIO subsystem follows the Linux device model it is integrated
 into the kernel similarly to other buses by defining RapidIO-specific device and
@@ -22,7 +22,7 @@ architecture-specific interfaces that provide support for common RapidIO
 subsystem operations.
 
 2. Core Components
-------------------
+==================
 
 A typical RapidIO network is a combination of endpoints and switches.
 Each of these components is represented in the subsystem by an associated data
@@ -30,6 +30,7 @@ structure. The core logical components of the RapidIO subsystem are defined
 in include/linux/rio.h file.
 
 2.1 Master Port
+---------------
 
 A master port (or mport) is a RapidIO interface controller that is local to the
 processor executing the Linux code. A master port generates and receives RapidIO
@@ -46,6 +47,7 @@ includes rio_ops data structure which contains pointers to hardware specific
 implementations of RapidIO functions.
 
 2.2 Device
+----------
 
 A RapidIO device is any endpoint (other than mport) or switch in the network.
 All devices are presented in the RapidIO subsystem by corresponding rio_dev data
@@ -53,6 +55,7 @@ structure. Devices form one global device list and per-network device lists
 (depending on number of available mports and networks).
 
 2.3 Switch
+----------
 
 A RapidIO switch is a special class of device that routes packets between its
 ports towards their final destination. The packet destination port within a
@@ -66,6 +69,7 @@ specific switch drivers that are designed to provide hardware-specific
 implementation of common switch management routines.
 
 2.4 Network
+-----------
 
 A RapidIO network is a combination of interconnected endpoint and switch devices.
 Each RapidIO network known to the system is represented by corresponding rio_net
@@ -74,11 +78,13 @@ ports that form the same network. It also contains a pointer to the default
 master port that is used to communicate with devices within the network.
 
 2.5 Device Drivers
+------------------
 
 RapidIO device-specific drivers follow Linux Kernel Driver Model and are
 intended to support specific RapidIO devices attached to the RapidIO network.
 
 2.6 Subsystem Interfaces
+------------------------
 
 RapidIO interconnect specification defines features that may be used to provide
 one or more common service layers for all participating RapidIO devices. These
@@ -90,7 +96,7 @@ subsystem interfaces. This allows to have multiple common services attached to
 the same device without blocking attachment of a device-specific driver.
 
 3. Subsystem Initialization
----------------------------
+===========================
 
 In order to initialize the RapidIO subsystem, a platform must initialize and
 register at least one master port within the RapidIO network. To register mport
@@ -105,7 +111,7 @@ RapidIO subsystem can be configured to be built as a statically linked or
 modular component of the kernel (see details below).
 
 4. Enumeration and Discovery
-----------------------------
+============================
 
 4.1 Overview
 ------------
@@ -168,14 +174,16 @@ on RapidIO subsystem build configuration:
   (b) If the RapidIO subsystem core is built as a loadable module, in addition
   to the method shown above, the host destination ID(s) can be specified using
   traditional methods of passing module parameter "hdid=" during its loading:
+
   - from command line: "modprobe rapidio hdid=-1,7", or
   - from modprobe configuration file using configuration command "options",
     like in this example: "options rapidio hdid=-1,7". An example of modprobe
     configuration file is provided in the section below.
 
-  NOTES:
+NOTES:
   (i) if "hdid=" parameter is omitted all available mport will be assigned
   destination ID = -1;
+
   (ii) the "hdid=" parameter in systems with multiple mports can have
   destination ID assignments omitted from the end of list (default = -1).
 
@@ -317,8 +325,7 @@ must ensure that they are loaded before the enumeration/discovery starts.
 This process can be automated by specifying pre- or post- dependencies in the
 RapidIO-specific modprobe configuration file as shown in the example below.
 
-  File /etc/modprobe.d/rapidio.conf:
-  ----------------------------------
+File /etc/modprobe.d/rapidio.conf::
 
   # Configure RapidIO subsystem modules
 
@@ -335,17 +342,21 @@ RapidIO-specific modprobe configuration file as shown in the example below.
 
   --------------------------
 
-NOTE: In the example above, one of "softdep" commands must be removed or
-commented out to keep required module loading sequence.
+NOTE:
+  In the example above, one of "softdep" commands must be removed or
+  commented out to keep required module loading sequence.
 
-A. References
--------------
+5. References
+=============
 
 [1] RapidIO Trade Association. RapidIO Interconnect Specifications.
     http://www.rapidio.org.
+
 [2] Rapidio TA. Technology Comparisons.
     http://www.rapidio.org/education/technology_comparisons/
+
 [3] RapidIO support for Linux.
     http://lwn.net/Articles/139118/
+
 [4] Matt Porter. RapidIO for Linux. Ottawa Linux Symposium, 2005
     http://www.kernel.org/doc/ols/2005/ols2005v2-pages-43-56.pdf
