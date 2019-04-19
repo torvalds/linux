@@ -280,6 +280,7 @@ void intel_uc_fini_misc(struct drm_i915_private *i915)
 int intel_uc_init(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
+	struct intel_huc *huc = &i915->huc;
 	int ret;
 
 	if (!USES_GUC(i915))
@@ -292,19 +293,30 @@ int intel_uc_init(struct drm_i915_private *i915)
 	if (ret)
 		return ret;
 
+	if (USES_HUC(i915)) {
+		ret = intel_huc_init(huc);
+		if (ret)
+			goto err_guc;
+	}
+
 	if (USES_GUC_SUBMISSION(i915)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
 		 */
 		ret = intel_guc_submission_init(guc);
-		if (ret) {
-			intel_guc_fini(guc);
-			return ret;
-		}
+		if (ret)
+			goto err_huc;
 	}
 
 	return 0;
+
+err_huc:
+	if (USES_HUC(i915))
+		intel_huc_fini(huc);
+err_guc:
+	intel_guc_fini(guc);
+	return ret;
 }
 
 void intel_uc_fini(struct drm_i915_private *i915)
@@ -318,6 +330,9 @@ void intel_uc_fini(struct drm_i915_private *i915)
 
 	if (USES_GUC_SUBMISSION(i915))
 		intel_guc_submission_fini(guc);
+
+	if (USES_HUC(i915))
+		intel_huc_fini(&i915->huc);
 
 	intel_guc_fini(guc);
 }

@@ -33,10 +33,14 @@ struct intel_huc {
 	struct intel_uc_fw fw;
 
 	/* HuC-specific additions */
+	struct i915_vma *rsa_data;
+	void *rsa_data_vaddr;
 };
 
 void intel_huc_init_early(struct intel_huc *huc);
 int intel_huc_init_misc(struct intel_huc *huc);
+int intel_huc_init(struct intel_huc *huc);
+void intel_huc_fini(struct intel_huc *huc);
 int intel_huc_auth(struct intel_huc *huc);
 int intel_huc_check_status(struct intel_huc *huc);
 
