@@ -54,7 +54,7 @@
  *  - add POLL message and NOTIFY_POLL notification
  *
  * 7.12
- *  - add umask flag to input argument of open, mknod and mkdir
+ *  - add umask flag to input argument of create, mknod and mkdir
  *  - add notification messages for invalidation of inodes and
  *    directory entries
  *
