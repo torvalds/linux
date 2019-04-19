@@ -377,9 +377,7 @@ static u16 _calculate_wol_pattern_crc(u8 *pattern, u16 len)
 	for (i = 0; i < len; i++)
 		crc = crc16_ccitt(pattern[i], crc);
 
-	crc = ~crc;
-
-	return crc;
+	return ~crc;
 }
 
 static void _rtl_add_wowlan_patterns(struct ieee80211_hw *hw,
