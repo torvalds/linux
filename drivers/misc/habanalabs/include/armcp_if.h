@@ -32,8 +32,6 @@ struct hl_eq_entry {
 #define EQ_CTL_EVENT_TYPE_SHIFT		16
 #define EQ_CTL_EVENT_TYPE_MASK		0x03FF0000
 
-#define EVENT_QUEUE_MSIX_IDX		5
-
 enum pq_init_status {
 	PQ_INIT_STATUS_NA = 0,
 	PQ_INIT_STATUS_READY_FOR_CP,
@@ -301,6 +299,14 @@ enum armcp_pwm_attributes {
 	armcp_pwm_input,
 	armcp_pwm_enable
 };
+
+#define HL_CPU_PKT_SHIFT		5
+#define HL_CPU_PKT_SIZE			(1 << HL_CPU_PKT_SHIFT)
+#define HL_CPU_PKT_MASK			(~((1 << HL_CPU_PKT_SHIFT) - 1))
+#define HL_CPU_MAX_PKTS_IN_CB		32
+#define HL_CPU_CB_SIZE			(HL_CPU_PKT_SIZE * \
+					 HL_CPU_MAX_PKTS_IN_CB)
+#define HL_CPU_ACCESSIBLE_MEM_SIZE	(HL_QUEUE_LENGTH * HL_CPU_CB_SIZE)
 
 /* Event Queue Packets */
 

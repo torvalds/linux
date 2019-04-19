@@ -224,4 +224,3 @@
 #define mmPCI_NRTR_NON_LIN_SCRAMB                                    0x604
 
 #endif /* ASIC_REG_PCI_NRTR_REGS_H_ */
-

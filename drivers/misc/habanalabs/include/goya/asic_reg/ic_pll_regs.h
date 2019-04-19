@@ -102,4 +102,3 @@
 #define mmIC_PLL_FREQ_CALC_EN                                        0x4A3440
 
 #endif /* ASIC_REG_IC_PLL_REGS_H_ */
-

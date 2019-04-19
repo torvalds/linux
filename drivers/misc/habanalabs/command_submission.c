@@ -261,7 +261,8 @@ static void cs_timedout(struct work_struct *work)
 	ctx_asid = cs->ctx->asid;
 
 	/* TODO: add information about last signaled seq and last emitted seq */
-	dev_err(hdev->dev, "CS %d.%llu got stuck!\n", ctx_asid, cs->sequence);
+	dev_err(hdev->dev, "User %d command submission %llu got stuck!\n",
+		ctx_asid, cs->sequence);
 
 	cs_put(cs);
 
@@ -604,7 +605,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	bool need_soft_reset = false;
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_warn(hdev->dev,
+		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't submit new CS\n",
 			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		rc = -EBUSY;

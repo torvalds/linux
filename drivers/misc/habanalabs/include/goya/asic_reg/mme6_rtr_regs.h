@@ -328,4 +328,3 @@
 #define mmMME6_RTR_NON_LIN_SCRAMB                                    0x180604
 
 #endif /* ASIC_REG_MME6_RTR_REGS_H_ */
-

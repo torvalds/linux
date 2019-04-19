@@ -505,22 +505,97 @@ err:
 	return -EINVAL;
 }
 
+static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
+				u64 *phys_addr)
+{
+	struct hl_ctx *ctx = hdev->user_ctx;
+	u64 hop_addr, hop_pte_addr, hop_pte;
+	int rc = 0;
+
+	if (!ctx) {
+		dev_err(hdev->dev, "no ctx available\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&ctx->mmu_lock);
+
+	/* hop 0 */
+	hop_addr = get_hop0_addr(ctx);
+	hop_pte_addr = get_hop0_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
+
+	/* hop 1 */
+	hop_addr = get_next_hop_addr(hop_pte);
+	if (hop_addr == ULLONG_MAX)
+		goto not_mapped;
+	hop_pte_addr = get_hop1_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
+
+	/* hop 2 */
+	hop_addr = get_next_hop_addr(hop_pte);
+	if (hop_addr == ULLONG_MAX)
+		goto not_mapped;
+	hop_pte_addr = get_hop2_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
+
+	/* hop 3 */
+	hop_addr = get_next_hop_addr(hop_pte);
+	if (hop_addr == ULLONG_MAX)
+		goto not_mapped;
+	hop_pte_addr = get_hop3_pte_addr(ctx, hop_addr, virt_addr);
+	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
+
+	if (!(hop_pte & LAST_MASK)) {
+		/* hop 4 */
+		hop_addr = get_next_hop_addr(hop_pte);
+		if (hop_addr == ULLONG_MAX)
+			goto not_mapped;
+		hop_pte_addr = get_hop4_pte_addr(ctx, hop_addr, virt_addr);
+		hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
+	}
+
+	if (!(hop_pte & PAGE_PRESENT_MASK))
+		goto not_mapped;
+
+	*phys_addr = (hop_pte & PTE_PHYS_ADDR_MASK) | (virt_addr & OFFSET_MASK);
+
+	goto out;
+
+not_mapped:
+	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
+			virt_addr);
+	rc = -EINVAL;
+out:
+	mutex_unlock(&ctx->mmu_lock);
+	return rc;
+}
+
 static ssize_t hl_data_read32(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	char tmp_buf[32];
+	u64 addr = entry->addr;
 	u32 val;
 	ssize_t rc;
 
 	if (*ppos)
 		return 0;
 
-	rc = hdev->asic_funcs->debugfs_read32(hdev, entry->addr, &val);
+	if (addr >= prop->va_space_dram_start_address &&
+			addr < prop->va_space_dram_end_address &&
+			hdev->mmu_enable &&
+			hdev->dram_supports_virtual_memory) {
+		rc = device_va_to_pa(hdev, entry->addr, &addr);
+		if (rc)
+			return rc;
+	}
+
+	rc = hdev->asic_funcs->debugfs_read32(hdev, addr, &val);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to read from 0x%010llx\n",
-			entry->addr);
+		dev_err(hdev->dev, "Failed to read from 0x%010llx\n", addr);
 		return rc;
 	}
 
@@ -536,6 +611,8 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 addr = entry->addr;
 	u32 value;
 	ssize_t rc;
 
@@ -543,10 +620,19 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	rc = hdev->asic_funcs->debugfs_write32(hdev, entry->addr, value);
+	if (addr >= prop->va_space_dram_start_address &&
+			addr < prop->va_space_dram_end_address &&
+			hdev->mmu_enable &&
+			hdev->dram_supports_virtual_memory) {
+		rc = device_va_to_pa(hdev, entry->addr, &addr);
+		if (rc)
+			return rc;
+	}
+
+	rc = hdev->asic_funcs->debugfs_write32(hdev, addr, value);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to write 0x%08x to 0x%010llx\n",
-			value, entry->addr);
+			value, addr);
 		return rc;
 	}
 

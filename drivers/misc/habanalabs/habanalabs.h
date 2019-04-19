@@ -33,6 +33,9 @@
 
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
+#define HL_ARMCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
+#define HL_ARMCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
+
 #define HL_MAX_QUEUES			128
 
 #define HL_MAX_JOBS_PER_CS		64
@@ -48,8 +51,9 @@
 
 /**
  * struct pgt_info - MMU hop page info.
- * @node: hash linked-list node for the pgts hash of pgts.
- * @addr: physical address of the pgt.
+ * @node: hash linked-list node for the pgts shadow hash of pgts.
+ * @phys_addr: physical address of the pgt.
+ * @shadow_addr: shadow hop in the host.
  * @ctx: pointer to the owner ctx.
  * @num_of_ptes: indicates how many ptes are used in the pgt.
  *
@@ -59,10 +63,11 @@
  * page, it is freed with its pgt_info structure.
  */
 struct pgt_info {
-	struct hlist_node node;
-	u64 addr;
-	struct hl_ctx *ctx;
-	int num_of_ptes;
+	struct hlist_node	node;
+	u64			phys_addr;
+	u64			shadow_addr;
+	struct hl_ctx		*ctx;
+	int			num_of_ptes;
 };
 
 struct hl_device;
@@ -145,6 +150,8 @@ enum hl_device_hw_state {
  *                             mapping DRAM memory.
  * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
  *                                      fault.
+ * @pcie_dbi_base_address: Base address of the PCIE_DBI block.
+ * @pcie_aux_dbi_reg_addr: Address of the PCIE_AUX DBI register.
  * @mmu_pgt_addr: base physical address in DRAM of MMU page tables.
  * @mmu_dram_default_page_addr: DRAM default page physical address.
  * @mmu_pgt_size: MMU page tables total size.
@@ -186,6 +193,8 @@ struct asic_fixed_properties {
 	u64			va_space_dram_start_address;
 	u64			va_space_dram_end_address;
 	u64			dram_size_for_default_page_mapping;
+	u64			pcie_dbi_base_address;
+	u64			pcie_aux_dbi_reg_addr;
 	u64			mmu_pgt_addr;
 	u64			mmu_dram_default_page_addr;
 	u32			mmu_pgt_size;
@@ -381,14 +390,12 @@ struct hl_eq {
 
 /**
  * enum hl_asic_type - supported ASIC types.
- * @ASIC_AUTO_DETECT: ASIC type will be automatically set.
- * @ASIC_GOYA: Goya device.
  * @ASIC_INVALID: Invalid ASIC type.
+ * @ASIC_GOYA: Goya device.
  */
 enum hl_asic_type {
-	ASIC_AUTO_DETECT,
-	ASIC_GOYA,
-	ASIC_INVALID
+	ASIC_INVALID,
+	ASIC_GOYA
 };
 
 struct hl_cs_parser;
@@ -472,8 +479,7 @@ enum hl_pll_frequency {
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
- * @enable_clock_gating: enable clock gating for reducing power consumption.
- * @disable_clock_gating: disable clock for accessing registers on HBW.
+ * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
  * @soft_reset_late_init: perform certain actions needed after soft reset.
  * @hw_queues_lock: acquire H/W queues lock.
@@ -482,6 +488,9 @@ enum hl_pll_frequency {
  * @get_eeprom_data: retrieve EEPROM data from F/W.
  * @send_cpu_message: send buffer to ArmCP.
  * @get_hw_state: retrieve the H/W state
+ * @pci_bars_map: Map PCI BARs.
+ * @set_dram_bar_base: Set DRAM BAR to map specific device address.
+ * @init_iatu: Initialize the iATU unit inside the PCI controller.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -543,9 +552,8 @@ struct hl_asic_funcs {
 	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
-	void (*enable_clock_gating)(struct hl_device *hdev);
-	void (*disable_clock_gating)(struct hl_device *hdev);
-	bool (*is_device_idle)(struct hl_device *hdev);
+	int (*debug_coresight)(struct hl_device *hdev, void *data);
+	bool (*is_device_idle)(struct hl_device *hdev, char *buf, size_t size);
 	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
@@ -555,6 +563,9 @@ struct hl_asic_funcs {
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
 				u16 len, u32 timeout, long *result);
 	enum hl_device_hw_state (*get_hw_state)(struct hl_device *hdev);
+	int (*pci_bars_map)(struct hl_device *hdev);
+	int (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
+	int (*init_iatu)(struct hl_device *hdev);
 };
 
 
@@ -582,7 +593,8 @@ struct hl_va_range {
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
- * @mmu_hash: holds a mapping from virtual address to pgt_info structure.
+ * @mmu_phys_hash: holds a mapping from physical address to pgt_info structure.
+ * @mmu_shadow_hash: holds a mapping from shadow address to pgt_info structure.
  * @hpriv: pointer to the private (KMD) data of the process (fd).
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
@@ -611,7 +623,8 @@ struct hl_va_range {
  */
 struct hl_ctx {
 	DECLARE_HASHTABLE(mem_hash, MEM_HASH_TABLE_BITS);
-	DECLARE_HASHTABLE(mmu_hash, MMU_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(mmu_phys_hash, MMU_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(mmu_shadow_hash, MMU_HASH_TABLE_BITS);
 	struct hl_fpriv		*hpriv;
 	struct hl_device	*hdev;
 	struct kref		refcount;
@@ -850,6 +863,29 @@ struct hl_vm {
 	u8			init_done;
 };
 
+
+/*
+ * DEBUG, PROFILING STRUCTURE
+ */
+
+/**
+ * struct hl_debug_params - Coresight debug parameters.
+ * @input: pointer to component specific input parameters.
+ * @output: pointer to component specific output parameters.
+ * @output_size: size of output buffer.
+ * @reg_idx: relevant register ID.
+ * @op: component operation to execute.
+ * @enable: true if to enable component debugging, false otherwise.
+ */
+struct hl_debug_params {
+	void *input;
+	void *output;
+	u32 output_size;
+	u32 reg_idx;
+	u32 op;
+	bool enable;
+};
+
 /*
  * FILE PRIVATE STRUCTURE
  */
@@ -997,6 +1033,12 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
 			(val) << REG_FIELD_SHIFT(reg, field))
 
+#define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
+		if (buf) \
+			snprintf(buf, size, fmt, ##__VA_ARGS__); \
+		false; \
+	})
+
 struct hwmon_chip_info;
 
 /**
@@ -1047,7 +1089,8 @@ struct hl_device_reset_work {
  * @asic_specific: ASIC specific information to use only from ASIC files.
  * @mmu_pgt_pool: pool of available MMU hops.
  * @vm: virtual memory manager for MMU.
- * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context
+ * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context.
+ * @mmu_shadow_hop0: shadow mapping of the MMU hop 0 zone.
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
@@ -1082,6 +1125,7 @@ struct hl_device_reset_work {
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
+ * @dma_mask: the dma mask that was set for this device
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1117,6 +1161,7 @@ struct hl_device {
 	struct gen_pool			*mmu_pgt_pool;
 	struct hl_vm			vm;
 	struct mutex			mmu_cache_lock;
+	void				*mmu_shadow_hop0;
 	struct device			*hwmon_dev;
 	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;
@@ -1151,6 +1196,7 @@ struct hl_device {
 	u8				dram_default_page_mapping;
 	u8				init_done;
 	u8				device_cpu_disabled;
+	u8				dma_mask;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
@@ -1245,6 +1291,7 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 
 int hl_device_open(struct inode *inode, struct file *filp);
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
+enum hl_device_status hl_device_status(struct hl_device *hdev);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor);
 void destroy_hdev(struct hl_device *hdev);
@@ -1350,6 +1397,31 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size);
 int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
+
+int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
+				void __iomem *dst);
+int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
+int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
+				u16 len, u32 timeout, long *result);
+int hl_fw_test_cpu_queue(struct hl_device *hdev);
+void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
+						dma_addr_t *dma_handle);
+void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
+					void *vaddr);
+int hl_fw_send_heartbeat(struct hl_device *hdev);
+int hl_fw_armcp_info_get(struct hl_device *hdev);
+int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
+
+int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
+			bool is_wc[3]);
+int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
+int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
+				u64 addr);
+int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
+			u64 dram_base_address, u64 host_phys_size);
+int hl_pci_init(struct hl_device *hdev, u8 dma_mask);
+void hl_pci_fini(struct hl_device *hdev);
+int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);

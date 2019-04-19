@@ -206,4 +206,3 @@
 #define mmDMA_CH_2_MEM_INIT_BUSY                                     0x4111FC
 
 #endif /* ASIC_REG_DMA_CH_2_REGS_H_ */
-
