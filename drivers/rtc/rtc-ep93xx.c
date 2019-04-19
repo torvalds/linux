@@ -63,9 +63,10 @@ static int ep93xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int ep93xx_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int ep93xx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct ep93xx_rtc *ep93xx_rtc = dev_get_platdata(dev);
+	unsigned long secs = rtc_tm_to_time64(tm);
 
 	writel(secs + 1, ep93xx_rtc->mmio_base + EP93XX_RTC_LOAD);
 	return 0;
@@ -85,7 +86,7 @@ static int ep93xx_rtc_proc(struct device *dev, struct seq_file *seq)
 
 static const struct rtc_class_ops ep93xx_rtc_ops = {
 	.read_time	= ep93xx_rtc_read_time,
-	.set_mmss	= ep93xx_rtc_set_mmss,
+	.set_time	= ep93xx_rtc_set_time,
 	.proc		= ep93xx_rtc_proc,
 };
 
