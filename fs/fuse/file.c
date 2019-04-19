@@ -464,7 +464,7 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
-	inarg.fsync_flags = datasync ? 1 : 0;
+	inarg.fsync_flags = datasync ? FUSE_FSYNC_FDATASYNC : 0;
 	args.in.h.opcode = opcode;
 	args.in.h.nodeid = get_node_id(inode);
 	args.in.numargs = 1;
