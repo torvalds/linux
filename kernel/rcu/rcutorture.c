@@ -672,6 +672,47 @@ static struct rcu_torture_ops tasks_ops = {
 	.name		= "tasks"
 };
 
+/*
+ * Definitions for trivial CONFIG_PREEMPT=n-only torture testing.
+ * This implementation does not necessarily work well with CPU hotplug.
+ */
+
+static void synchronize_rcu_trivial(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		rcutorture_sched_setaffinity(current->pid, cpumask_of(cpu));
+		WARN_ON_ONCE(raw_smp_processor_id() != cpu);
+	}
+}
+
+static int rcu_torture_read_lock_trivial(void) __acquires(RCU)
+{
+	preempt_disable();
+	return 0;
+}
+
+static void rcu_torture_read_unlock_trivial(int idx) __releases(RCU)
+{
+	preempt_enable();
+}
+
+static struct rcu_torture_ops trivial_ops = {
+	.ttype		= RCU_TRIVIAL_FLAVOR,
+	.init		= rcu_sync_torture_init,
+	.readlock	= rcu_torture_read_lock_trivial,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_torture_read_unlock_trivial,
+	.get_gp_seq	= rcu_no_completed,
+	.sync		= synchronize_rcu_trivial,
+	.exp_sync	= synchronize_rcu_trivial,
+	.fqs		= NULL,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "trivial"
+};
+
 static unsigned long rcutorture_seq_diff(unsigned long new, unsigned long old)
 {
 	if (!cur_ops->gp_diff)
@@ -1789,6 +1830,8 @@ static void rcu_torture_fwd_prog_cr(void)
 
 	if (READ_ONCE(rcu_fwd_emergency_stop))
 		return; /* Get out of the way quickly, no GP wait! */
+	if (!cur_ops->call)
+		return; /* Can't do call_rcu() fwd prog without ->call. */
 
 	/* Loop continuously posting RCU callbacks. */
 	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
@@ -2265,7 +2308,7 @@ rcu_torture_init(void)
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops,
-		&busted_srcud_ops, &tasks_ops,
+		&busted_srcud_ops, &tasks_ops, &trivial_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose))
