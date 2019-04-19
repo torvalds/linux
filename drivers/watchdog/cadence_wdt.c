@@ -328,10 +328,7 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	/* Initialize the members of cdns_wdt structure */
 	cdns_wdt_device->parent = dev;
 
-	ret = watchdog_init_timeout(cdns_wdt_device, wdt_timeout, dev);
-	if (ret)
-		return ret;
-
+	watchdog_init_timeout(cdns_wdt_device, wdt_timeout, dev);
 	watchdog_set_nowayout(cdns_wdt_device, nowayout);
 	watchdog_stop_on_reboot(cdns_wdt_device);
 	watchdog_set_drvdata(cdns_wdt_device, wdt);
