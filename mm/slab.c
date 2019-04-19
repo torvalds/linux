@@ -2371,7 +2371,6 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
 		/* Slab management obj is off-slab. */
 		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
 					      local_flags, nodeid);
-		freelist = kasan_reset_tag(freelist);
 		if (!freelist)
 			return NULL;
 	} else {
