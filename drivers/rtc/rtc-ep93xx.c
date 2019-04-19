@@ -94,7 +94,7 @@ static ssize_t ep93xx_rtc_show_comp_preload(struct device *dev,
 {
 	unsigned short preload;
 
-	ep93xx_rtc_get_swcomp(dev, &preload, NULL);
+	ep93xx_rtc_get_swcomp(dev->parent, &preload, NULL);
 
 	return sprintf(buf, "%d\n", preload);
 }
@@ -105,7 +105,7 @@ static ssize_t ep93xx_rtc_show_comp_delete(struct device *dev,
 {
 	unsigned short delete;
 
-	ep93xx_rtc_get_swcomp(dev, NULL, &delete);
+	ep93xx_rtc_get_swcomp(dev->parent, NULL, &delete);
 
 	return sprintf(buf, "%d\n", delete);
 }
@@ -144,22 +144,11 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 
 	ep93xx_rtc->rtc->ops = &ep93xx_rtc_ops;
 
-	err = rtc_register_device(ep93xx_rtc->rtc);
+	err = rtc_add_group(ep93xx_rtc->rtc, &ep93xx_rtc_sysfs_files);
 	if (err)
 		return err;
 
-	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static int ep93xx_rtc_remove(struct platform_device *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
-
-	return 0;
+	return rtc_register_device(ep93xx_rtc->rtc);
 }
 
 static struct platform_driver ep93xx_rtc_driver = {
@@ -167,7 +156,6 @@ static struct platform_driver ep93xx_rtc_driver = {
 		.name	= "ep93xx-rtc",
 	},
 	.probe		= ep93xx_rtc_probe,
-	.remove		= ep93xx_rtc_remove,
 };
 
 module_platform_driver(ep93xx_rtc_driver);
