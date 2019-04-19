@@ -105,9 +105,12 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
  * timeout module parameter (if it is valid value) or the timeout-sec property
  * (only if it is a valid value and the timeout_parm is out of bounds).
  * If none of them are valid then we keep the old value (which should normally
- * be the default timeout value).
+ * be the default timeout value). Note that for the module parameter, '0' means
+ * 'use default' while it is an invalid value for the timeout-sec property.
+ * It should simply be dropped if you want to use the default value then.
  *
- * A zero is returned on success and -EINVAL for failure.
+ * A zero is returned on success or -EINVAL if all provided values are out of
+ * bounds.
  */
 int watchdog_init_timeout(struct watchdog_device *wdd,
 				unsigned int timeout_parm, struct device *dev)
@@ -117,22 +120,24 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 
 	watchdog_check_min_max_timeout(wdd);
 
-	/* try to get the timeout module parameter first */
-	if (!watchdog_timeout_invalid(wdd, timeout_parm) && timeout_parm) {
-		wdd->timeout = timeout_parm;
-		return ret;
-	}
-	if (timeout_parm)
+	/* check the driver supplied value (likely a module parameter) first */
+	if (timeout_parm) {
+		if (!watchdog_timeout_invalid(wdd, timeout_parm)) {
+			wdd->timeout = timeout_parm;
+			return 0;
+		}
 		ret = -EINVAL;
+	}
 
 	/* try to get the timeout_sec property */
-	if (dev == NULL || dev->of_node == NULL)
-		return ret;
-	of_property_read_u32(dev->of_node, "timeout-sec", &t);
-	if (!watchdog_timeout_invalid(wdd, t) && t)
-		wdd->timeout = t;
-	else
+	if (dev && dev->of_node &&
+	    of_property_read_u32(dev->of_node, "timeout-sec", &t) == 0) {
+		if (t && !watchdog_timeout_invalid(wdd, t)) {
+			wdd->timeout = t;
+			return 0;
+		}
 		ret = -EINVAL;
+	}
 
 	return ret;
 }
