@@ -451,7 +451,7 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 	}
 	if (ret < 0) {
 		dev_err(&data->client->dev,
-			"Failed: kxcjk1013_set_power_state for %d\n", on);
+			"Failed: %s for %d\n", __func__, on);
 		if (on)
 			pm_runtime_put_noidle(&data->client->dev);
 		return ret;
