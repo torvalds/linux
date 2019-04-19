@@ -384,6 +384,7 @@ struct i915_ggtt {
 	u32 pin_bias;
 
 	struct drm_mm_node error_capture;
+	struct drm_mm_node uc_fw;
 };
 
 struct i915_hw_ppgtt {

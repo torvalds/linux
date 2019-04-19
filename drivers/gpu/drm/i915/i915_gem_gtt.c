@@ -2752,6 +2752,12 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
+	if (USES_GUC(dev_priv)) {
+		ret = intel_guc_reserve_ggtt_top(&dev_priv->guc);
+		if (ret)
+			goto err_reserve;
+	}
+
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt->vm.mm, hole_start, hole_end) {
 		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
@@ -2766,12 +2772,14 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	if (INTEL_PPGTT(dev_priv) == INTEL_PPGTT_ALIASING) {
 		ret = i915_gem_init_aliasing_ppgtt(dev_priv);
 		if (ret)
-			goto err;
+			goto err_appgtt;
 	}
 
 	return 0;
 
-err:
+err_appgtt:
+	intel_guc_release_ggtt_top(&dev_priv->guc);
+err_reserve:
 	drm_mm_remove_node(&ggtt->error_capture);
 	return ret;
 }
@@ -2796,6 +2804,8 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 
 	if (drm_mm_node_allocated(&ggtt->error_capture))
 		drm_mm_remove_node(&ggtt->error_capture);
+
+	intel_guc_release_ggtt_top(&dev_priv->guc);
 
 	if (drm_mm_initialized(&ggtt->vm.mm)) {
 		intel_vgt_deballoon(dev_priv);
@@ -3370,17 +3380,6 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 		ret = gen8_gmch_probe(ggtt);
 	if (ret)
 		return ret;
-
-	/* Trim the GGTT to fit the GuC mappable upper range (when enabled).
-	 * This is easier than doing range restriction on the fly, as we
-	 * currently don't have any bits spare to pass in this upper
-	 * restriction!
-	 */
-	if (USES_GUC(dev_priv)) {
-		ggtt->vm.total = min_t(u64, ggtt->vm.total, GUC_GGTT_TOP);
-		ggtt->mappable_end =
-			min_t(u64, ggtt->mappable_end, ggtt->vm.total);
-	}
 
 	if ((ggtt->vm.total - 1) >> 32) {
 		DRM_ERROR("We never expected a Global GTT with more than 32bits"

@@ -173,6 +173,8 @@ int intel_guc_suspend(struct intel_guc *guc);
 int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 u32 intel_guc_reserved_gtt_size(struct intel_guc *guc);
+int intel_guc_reserve_ggtt_top(struct intel_guc *guc);
+void intel_guc_release_ggtt_top(struct intel_guc *guc);
 
 static inline int intel_guc_sanitize(struct intel_guc *guc)
 {
