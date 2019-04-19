@@ -23,14 +23,6 @@
 #define DS2404_COPY_SCRATCHPAD_CMD 0x55
 #define DS2404_READ_MEMORY_CMD 0xf0
 
-struct ds2404;
-
-struct ds2404_chip_ops {
-	int (*map_io)(struct ds2404 *chip, struct platform_device *pdev,
-		      struct ds2404_platform_data *pdata);
-	void (*unmap_io)(struct ds2404 *chip);
-};
-
 #define DS2404_RST	0
 #define DS2404_CLK	1
 #define DS2404_DQ	2
@@ -42,7 +34,6 @@ struct ds2404_gpio {
 
 struct ds2404 {
 	struct ds2404_gpio *gpio;
-	const struct ds2404_chip_ops *ops;
 	struct rtc_device *rtc;
 };
 
@@ -88,11 +79,6 @@ static void ds2404_gpio_unmap(struct ds2404 *chip)
 	for (i = 0; i < ARRAY_SIZE(ds2404_gpio); i++)
 		gpio_free(ds2404_gpio[i].gpio);
 }
-
-static const struct ds2404_chip_ops ds2404_gpio_ops = {
-	.map_io		= ds2404_gpio_map,
-	.unmap_io	= ds2404_gpio_unmap,
-};
 
 static void ds2404_reset(struct device *dev)
 {
@@ -226,13 +212,11 @@ static int rtc_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	chip->ops = &ds2404_gpio_ops;
-
 	chip->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(chip->rtc))
 		return PTR_ERR(chip->rtc);
 
-	retval = chip->ops->map_io(chip, pdev, pdata);
+	retval = ds2404_gpio_map(chip, pdev, pdata);
 	if (retval)
 		goto err_chip;
 
@@ -253,7 +237,7 @@ static int rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err_io:
-	chip->ops->unmap_io(chip);
+	ds2404_gpio_unmap(chip);
 err_chip:
 	return retval;
 }
@@ -262,7 +246,7 @@ static int rtc_remove(struct platform_device *dev)
 {
 	struct ds2404 *chip = platform_get_drvdata(dev);
 
-	chip->ops->unmap_io(chip);
+	ds2404_gpio_unmap(chip);
 
 	return 0;
 }
