@@ -1865,7 +1865,8 @@ static int io_sq_thread(void *data)
 
 			/* Tell userspace we may need a wakeup call */
 			ctx->sq_ring->flags |= IORING_SQ_NEED_WAKEUP;
-			smp_wmb();
+			/* make sure to read SQ tail after writing flags */
+			smp_mb();
 
 			if (!io_get_sqring(ctx, &sqes[0])) {
 				if (kthread_should_stop()) {
