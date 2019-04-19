@@ -138,10 +138,15 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ep93xx_rtc);
 
-	ep93xx_rtc->rtc = devm_rtc_device_register(&pdev->dev,
-				pdev->name, &ep93xx_rtc_ops, THIS_MODULE);
+	ep93xx_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(ep93xx_rtc->rtc))
 		return PTR_ERR(ep93xx_rtc->rtc);
+
+	ep93xx_rtc->rtc->ops = &ep93xx_rtc_ops;
+
+	err = rtc_register_device(ep93xx_rtc->rtc);
+	if (err)
+		return err;
 
 	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	if (err)
