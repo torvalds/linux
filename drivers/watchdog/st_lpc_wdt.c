@@ -224,10 +224,8 @@ static int st_wdog_probe(struct platform_device *pdev)
 
 	/* Init Watchdog timeout with value in DT */
 	ret = watchdog_init_timeout(&st_wdog_dev, 0, dev);
-	if (ret) {
-		dev_err(dev, "Unable to initialise watchdog timeout\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_watchdog_register_device(dev, &st_wdog_dev);
 	if (ret) {
