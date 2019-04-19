@@ -1212,11 +1212,12 @@ static u32 msr_based_features[] = {
 
 static unsigned int num_msr_based_features;
 
-u64 kvm_get_arch_capabilities(void)
+static u64 kvm_get_arch_capabilities(void)
 {
-	u64 data;
+	u64 data = 0;
 
-	rdmsrl_safe(MSR_IA32_ARCH_CAPABILITIES, &data);
+	if (boot_cpu_has(X86_FEATURE_ARCH_CAPABILITIES))
+		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, data);
 
 	/*
 	 * If we're doing cache flushes (either "always" or "cond")
@@ -1232,7 +1233,6 @@ u64 kvm_get_arch_capabilities(void)
 
 	return data;
 }
-EXPORT_SYMBOL_GPL(kvm_get_arch_capabilities);
 
 static int kvm_get_msr_feature(struct kvm_msr_entry *msr)
 {
