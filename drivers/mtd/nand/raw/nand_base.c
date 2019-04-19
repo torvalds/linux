@@ -2156,6 +2156,22 @@ static void nand_op_parser_trace(const struct nand_op_parser_ctx *ctx)
 }
 #endif
 
+static int nand_op_parser_cmp_ctx(const struct nand_op_parser_ctx *a,
+				  const struct nand_op_parser_ctx *b)
+{
+	if (a->subop.ninstrs < b->subop.ninstrs)
+		return -1;
+	else if (a->subop.ninstrs > b->subop.ninstrs)
+		return 1;
+
+	if (a->subop.last_instr_end_off < b->subop.last_instr_end_off)
+		return -1;
+	else if (a->subop.last_instr_end_off > b->subop.last_instr_end_off)
+		return 1;
+
+	return 0;
+}
+
 /**
  * nand_op_parser_exec_op - exec_op parser
  * @chip: the NAND chip
@@ -2190,30 +2206,38 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 	unsigned int i;
 
 	while (ctx.subop.instrs < op->instrs + op->ninstrs) {
-		int ret;
+		const struct nand_op_parser_pattern *pattern;
+		struct nand_op_parser_ctx best_ctx;
+		int ret, best_pattern = -1;
 
 		for (i = 0; i < parser->npatterns; i++) {
-			const struct nand_op_parser_pattern *pattern;
+			struct nand_op_parser_ctx test_ctx = ctx;
 
 			pattern = &parser->patterns[i];
-			if (!nand_op_parser_match_pat(pattern, &ctx))
+			if (!nand_op_parser_match_pat(pattern, &test_ctx))
 				continue;
 
-			nand_op_parser_trace(&ctx);
+			if (best_pattern >= 0 &&
+			    nand_op_parser_cmp_ctx(&test_ctx, &best_ctx) <= 0)
+				continue;
 
-			if (check_only)
-				break;
+			best_pattern = i;
+			best_ctx = test_ctx;
+		}
 
+		if (best_pattern < 0) {
+			pr_debug("->exec_op() parser: pattern not found!\n");
+			return -ENOTSUPP;
+		}
+
+		ctx = best_ctx;
+		nand_op_parser_trace(&ctx);
+
+		if (!check_only) {
+			pattern = &parser->patterns[best_pattern];
 			ret = pattern->exec(chip, &ctx.subop);
 			if (ret)
 				return ret;
-
-			break;
-		}
-
-		if (i == parser->npatterns) {
-			pr_debug("->exec_op() parser: pattern not found!\n");
-			return -ENOTSUPP;
 		}
 
 		/*
