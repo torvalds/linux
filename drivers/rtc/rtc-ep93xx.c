@@ -15,10 +15,10 @@
 #define EP93XX_RTC_DATA			0x000
 #define EP93XX_RTC_MATCH		0x004
 #define EP93XX_RTC_STATUS		0x008
-#define  EP93XX_RTC_STATUS_INTR		 (1<<0)
+#define  EP93XX_RTC_STATUS_INTR		 BIT(0)
 #define EP93XX_RTC_LOAD			0x00C
 #define EP93XX_RTC_CONTROL		0x010
-#define  EP93XX_RTC_CONTROL_MIE		 (1<<0)
+#define  EP93XX_RTC_CONTROL_MIE		 BIT(0)
 #define EP93XX_RTC_SWCOMP		0x108
 #define  EP93XX_RTC_SWCOMP_DEL_MASK	 0x001f0000
 #define  EP93XX_RTC_SWCOMP_DEL_SHIFT	 16
@@ -31,7 +31,7 @@ struct ep93xx_rtc {
 };
 
 static int ep93xx_rtc_get_swcomp(struct device *dev, unsigned short *preload,
-				unsigned short *delete)
+				 unsigned short *delete)
 {
 	struct ep93xx_rtc *ep93xx_rtc = dev_get_platdata(dev);
 	unsigned long comp;
@@ -87,8 +87,8 @@ static const struct rtc_class_ops ep93xx_rtc_ops = {
 	.proc		= ep93xx_rtc_proc,
 };
 
-static ssize_t ep93xx_rtc_show_comp_preload(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t comp_preload_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	unsigned short preload;
 
@@ -96,10 +96,10 @@ static ssize_t ep93xx_rtc_show_comp_preload(struct device *dev,
 
 	return sprintf(buf, "%d\n", preload);
 }
-static DEVICE_ATTR(comp_preload, S_IRUGO, ep93xx_rtc_show_comp_preload, NULL);
+static DEVICE_ATTR_RO(comp_preload);
 
-static ssize_t ep93xx_rtc_show_comp_delete(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t comp_delete_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	unsigned short delete;
 
@@ -107,7 +107,7 @@ static ssize_t ep93xx_rtc_show_comp_delete(struct device *dev,
 
 	return sprintf(buf, "%d\n", delete);
 }
-static DEVICE_ATTR(comp_delete, S_IRUGO, ep93xx_rtc_show_comp_delete, NULL);
+static DEVICE_ATTR_RO(comp_delete);
 
 static struct attribute *ep93xx_rtc_attrs[] = {
 	&dev_attr_comp_preload.attr,
