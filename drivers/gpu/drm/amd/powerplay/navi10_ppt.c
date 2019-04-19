@@ -616,6 +616,40 @@ static int navi10_populate_umd_state_clk(struct smu_context *smu)
 	return ret;
 }
 
+static int navi10_get_clock_by_type_with_latency(struct smu_context *smu,
+						 enum smu_clk_type clk_type,
+						 struct pp_clock_levels_with_latency *clocks)
+{
+	int ret = 0, i = 0;
+	uint32_t level_count = 0, freq = 0;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_DCEFCLK:
+	case SMU_SOCCLK:
+		ret = smu_get_dpm_level_count(smu, clk_type, &level_count);
+		if (ret)
+			return ret;
+
+		level_count = min(level_count, (uint32_t)MAX_NUM_CLOCKS);
+		clocks->num_levels = level_count;
+
+		for (i = 0; i < level_count; i++) {
+			ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &freq);
+			if (ret)
+				return ret;
+
+			clocks->data[i].clocks_in_khz = freq * 1000;
+			clocks->data[i].latency_in_us = 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -634,6 +668,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.print_clk_levels = navi10_print_clk_levels,
 	.force_clk_levels = navi10_force_clk_levels,
 	.populate_umd_state_clk = navi10_populate_umd_state_clk,
+	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

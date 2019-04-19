@@ -552,7 +552,7 @@ struct pptable_funcs {
 				 enum PP_OD_DPM_TABLE_COMMAND type,
 				 long *input, uint32_t size);
 	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
-					      enum amd_pp_clock_type type,
+					      enum smu_clk_type clk_type,
 					      struct
 					      pp_clock_levels_with_latency
 					      *clocks);
@@ -857,8 +857,8 @@ struct smu_funcs
 	((smu)->funcs->get_clock_by_type ? (smu)->funcs->get_clock_by_type((smu), (type), (clocks)) : 0)
 #define smu_get_max_high_clocks(smu, clocks) \
 	((smu)->funcs->get_max_high_clocks ? (smu)->funcs->get_max_high_clocks((smu), (clocks)) : 0)
-#define smu_get_clock_by_type_with_latency(smu, type, clocks) \
-	((smu)->ppt_funcs->get_clock_by_type_with_latency ? (smu)->ppt_funcs->get_clock_by_type_with_latency((smu), (type), (clocks)) : 0)
+#define smu_get_clock_by_type_with_latency(smu, clk_type, clocks) \
+	((smu)->ppt_funcs->get_clock_by_type_with_latency ? (smu)->ppt_funcs->get_clock_by_type_with_latency((smu), (clk_type), (clocks)) : 0)
 #define smu_get_clock_by_type_with_voltage(smu, type, clocks) \
 	((smu)->ppt_funcs->get_clock_by_type_with_voltage ? (smu)->ppt_funcs->get_clock_by_type_with_voltage((smu), (type), (clocks)) : 0)
 #define smu_display_clock_voltage_request(smu, clock_req) \

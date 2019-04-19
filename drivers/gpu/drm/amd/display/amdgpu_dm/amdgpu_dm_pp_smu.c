@@ -149,6 +149,23 @@ static void get_default_clock_levels(
 	}
 }
 
+static enum smu_clk_type dc_to_smu_clock_type(
+		enum dm_pp_clock_type dm_pp_clk_type)
+{
+#define DCCLK_MAP_SMUCLK(dcclk, smuclk) \
+	[dcclk] = smuclk
+
+	static int dc_clk_type_map[] = {
+		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_DISPLAY_CLK,	SMU_DISPCLK),
+		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_ENGINE_CLK,	SMU_GFXCLK),
+		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_MEMORY_CLK,	SMU_MCLK),
+		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_DCEFCLK,	SMU_DCEFCLK),
+		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_SOCCLK,	SMU_SOCCLK),
+	};
+
+	return dc_clk_type_map[dm_pp_clk_type];
+}
+
 static enum amd_pp_clock_type dc_to_pp_clock_type(
 		enum dm_pp_clock_type dm_pp_clk_type)
 {
@@ -317,7 +334,7 @@ bool dm_pp_get_clock_levels_by_type(
 		}
 	} else if (adev->smu.funcs && adev->smu.funcs->get_clock_by_type) {
 		if (smu_get_clock_by_type(&adev->smu,
-					  dc_to_pp_clock_type(clk_type),
+					  dc_to_smu_clock_type(clk_type),
 					  &pp_clks)) {
 			get_default_clock_levels(clk_type, dc_clks);
 			return true;

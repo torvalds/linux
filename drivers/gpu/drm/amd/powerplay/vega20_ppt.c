@@ -1395,7 +1395,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 }
 
 static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
-						 enum amd_pp_clock_type type,
+						 enum smu_clk_type clk_type,
 						 struct pp_clock_levels_with_latency *clocks)
 {
 	int ret;
@@ -1407,20 +1407,20 @@ static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
-	switch (type) {
-	case amd_pp_sys_clock:
+	switch (clk_type) {
+	case SMU_GFXCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
-	case amd_pp_mem_clock:
+	case SMU_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
-	case amd_pp_dcef_clock:
+	case SMU_DCEFCLK:
 		single_dpm_table = &(dpm_table->dcef_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
-	case amd_pp_soc_clock:
+	case SMU_SOCCLK:
 		single_dpm_table = &(dpm_table->soc_table);
 		ret = vega20_get_clk_table(smu, clocks, single_dpm_table);
 		break;
