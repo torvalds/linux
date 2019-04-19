@@ -321,6 +321,7 @@ enum net_bridge_opts {
 	BROPT_MTU_SET_BY_USER,
 	BROPT_VLAN_STATS_PER_PORT,
 	BROPT_NO_LL_LEARN,
+	BROPT_VLAN_BRIDGE_BINDING,
 };
 
 struct net_bridge {
@@ -895,6 +896,9 @@ int nbp_vlan_init(struct net_bridge_port *port, struct netlink_ext_ack *extack);
 int nbp_get_num_vlan_infos(struct net_bridge_port *p, u32 filter_mask);
 void br_vlan_get_stats(const struct net_bridge_vlan *v,
 		       struct br_vlan_stats *stats);
+void br_vlan_port_event(struct net_bridge_port *p, unsigned long event);
+void br_vlan_bridge_event(struct net_device *dev, unsigned long event,
+			  void *ptr);
 
 static inline struct net_bridge_vlan_group *br_vlan_group(
 					const struct net_bridge *br)
@@ -1076,6 +1080,16 @@ static inline struct net_bridge_vlan_group *nbp_vlan_group_rcu(
 
 static inline void br_vlan_get_stats(const struct net_bridge_vlan *v,
 				     struct br_vlan_stats *stats)
+{
+}
+
+static inline void br_vlan_port_event(struct net_bridge_port *p,
+				      unsigned long event)
+{
+}
+
+static inline void br_vlan_bridge_event(struct net_device *dev,
+					unsigned long event, void *ptr)
 {
 }
 #endif
