@@ -17,32 +17,12 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/dma-mapping.h>
-#include <linux/gpio.h>
-#include <linux/amba/bus.h>
-#include <linux/amba/clcd.h>
 #include <linux/amba/pl08x.h>
-#include <linux/amba/mmci.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
-#include <linux/clk.h>
-#include <linux/mtd/lpc32xx_slc.h>
 #include <linux/mtd/lpc32xx_mlc.h>
+#include <linux/mtd/lpc32xx_slc.h>
+#include <linux/of_platform.h>
 
-#include <asm/setup.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-
-#include <mach/hardware.h>
-#include <mach/platform.h>
-#include <mach/board.h>
 #include "common.h"
 
 static struct pl08x_channel_data pl08x_slave_channels[] = {
