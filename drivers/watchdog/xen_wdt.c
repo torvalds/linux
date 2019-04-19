@@ -136,9 +136,7 @@ static int xen_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (watchdog_init_timeout(&xen_wdt_dev, timeout, NULL))
-		dev_info(dev, "timeout value invalid, using %d\n",
-			 xen_wdt_dev.timeout);
+	watchdog_init_timeout(&xen_wdt_dev, timeout, NULL);
 	watchdog_set_nowayout(&xen_wdt_dev, nowayout);
 	watchdog_stop_on_reboot(&xen_wdt_dev);
 	watchdog_stop_on_unregister(&xen_wdt_dev);
