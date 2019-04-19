@@ -28,10 +28,6 @@
 #define  EP93XX_RTC_SWCOMP_INT_MASK	 0x0000ffff
 #define  EP93XX_RTC_SWCOMP_INT_SHIFT	 0
 
-/*
- * struct device dev.platform_data is used to store our private data
- * because struct rtc_device does not have a variable to hold it.
- */
 struct ep93xx_rtc {
 	void __iomem	*mmio_base;
 	struct rtc_device *rtc;
@@ -140,31 +136,23 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(ep93xx_rtc->mmio_base))
 		return PTR_ERR(ep93xx_rtc->mmio_base);
 
-	pdev->dev.platform_data = ep93xx_rtc;
 	platform_set_drvdata(pdev, ep93xx_rtc);
 
 	ep93xx_rtc->rtc = devm_rtc_device_register(&pdev->dev,
 				pdev->name, &ep93xx_rtc_ops, THIS_MODULE);
-	if (IS_ERR(ep93xx_rtc->rtc)) {
-		err = PTR_ERR(ep93xx_rtc->rtc);
-		goto exit;
-	}
+	if (IS_ERR(ep93xx_rtc->rtc))
+		return PTR_ERR(ep93xx_rtc->rtc);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	if (err)
-		goto exit;
+		return err;
 
 	return 0;
-
-exit:
-	pdev->dev.platform_data = NULL;
-	return err;
 }
 
 static int ep93xx_rtc_remove(struct platform_device *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
-	pdev->dev.platform_data = NULL;
 
 	return 0;
 }
