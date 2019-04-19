@@ -1390,10 +1390,12 @@ static int io_sync_file_range(struct io_kiocb *req,
 	return 0;
 }
 
-static int io_sendmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-		      bool force_nonblock)
-{
 #if defined(CONFIG_NET)
+static int io_send_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+			   bool force_nonblock,
+		   long (*fn)(struct socket *, struct user_msghdr __user *,
+				unsigned int))
+{
 	struct socket *sock;
 	int ret;
 
@@ -1414,7 +1416,7 @@ static int io_sendmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		msg = (struct user_msghdr __user *) (unsigned long)
 			READ_ONCE(sqe->addr);
 
-		ret = __sys_sendmsg_sock(sock, msg, flags);
+		ret = fn(sock, msg, flags);
 		if (force_nonblock && ret == -EAGAIN)
 			return ret;
 	}
@@ -1422,6 +1424,24 @@ static int io_sendmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	io_cqring_add_event(req->ctx, sqe->user_data, ret);
 	io_put_req(req);
 	return 0;
+}
+#endif
+
+static int io_sendmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		      bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	return io_send_recvmsg(req, sqe, force_nonblock, __sys_sendmsg_sock);
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int io_recvmsg(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+		      bool force_nonblock)
+{
+#if defined(CONFIG_NET)
+	return io_send_recvmsg(req, sqe, force_nonblock, __sys_recvmsg_sock);
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -1714,6 +1734,9 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		break;
 	case IORING_OP_SENDMSG:
 		ret = io_sendmsg(req, s->sqe, force_nonblock);
+		break;
+	case IORING_OP_RECVMSG:
+		ret = io_recvmsg(req, s->sqe, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;

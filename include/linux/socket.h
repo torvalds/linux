@@ -378,6 +378,9 @@ extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
 extern long __sys_sendmsg_sock(struct socket *sock,
 			       struct user_msghdr __user *msg,
 			       unsigned int flags);
+extern long __sys_recvmsg_sock(struct socket *sock,
+			       struct user_msghdr __user *msg,
+			       unsigned int flags);
 
 /* helpers which do the actual work for syscalls */
 extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
