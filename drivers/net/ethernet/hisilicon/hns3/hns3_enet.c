@@ -1655,6 +1655,8 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		return false;
 	}
 
+	priv->tx_timeout_count++;
+
 	tx_ring = priv->ring_data[timeout_queue].ring;
 
 	hw_head = readl_relaxed(tx_ring->tqp->io_base +
@@ -1681,8 +1683,6 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 
 	if (!hns3_get_tx_timeo_queue_info(ndev))
 		return;
-
-	priv->tx_timeout_count++;
 
 	/* request the reset, and let the hclge to determine
 	 * which reset level should be done
