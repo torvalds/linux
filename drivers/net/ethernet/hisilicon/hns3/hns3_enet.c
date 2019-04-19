@@ -1464,7 +1464,7 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 	int i;
 
 	/* Find the stopped queue the same way the stack does */
-	for (i = 0; i < ndev->real_num_tx_queues; i++) {
+	for (i = 0; i < ndev->num_tx_queues; i++) {
 		struct netdev_queue *q;
 		unsigned long trans_start;
 
