@@ -261,7 +261,7 @@ struct odm_packet_info {
 	bool is_beacon;
 };
 
-typedef struct _ODM_Phy_Dbg_Info_ {
+struct odm_phy_dbg_info {
 	/* ODM Write, debug info */
 	s8 RxSNRdB[4];
 	u32 NumQryPhyStatus;
@@ -271,11 +271,11 @@ typedef struct _ODM_Phy_Dbg_Info_ {
 	/* Others */
 	s32 RxEVM[4];
 
-} ODM_PHY_DBG_INFO_T;
+};
 
-typedef struct _ODM_Mac_Status_Info_ {
+struct odm_mac_status_info {
 	u8 test;
-} ODM_MAC_INFO;
+};
 
 typedef enum tag_Dynamic_ODM_Support_Ability_Type {
 	/*  BB Team */
@@ -1092,11 +1092,11 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	/*  Define ........... */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_PHY_DBG_INFO_T PhyDbgInfo;
+	struct odm_phy_dbg_info PhyDbgInfo;
 	/* PHY_INFO_88E		PhyInfo; */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_MAC_INFO *pMacInfo;
+	struct odm_mac_status_info *pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
 	/*  Different Team independt structure?? */
