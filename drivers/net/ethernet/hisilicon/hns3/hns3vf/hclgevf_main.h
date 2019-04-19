@@ -116,6 +116,8 @@
 #define HCLGEVF_S_IP_BIT		BIT(3)
 #define HCLGEVF_V_TAG_BIT		BIT(4)
 
+#define HCLGEVF_STATS_TIMER_INTERVAL	(36)
+
 enum hclgevf_evt_cause {
 	HCLGEVF_VECTOR0_EVENT_RST,
 	HCLGEVF_VECTOR0_EVENT_MBX,
@@ -281,6 +283,7 @@ struct hclgevf_dev {
 	struct hnae3_client *nic_client;
 	struct hnae3_client *roce_client;
 	u32 flag;
+	u32 stats_timer;
 };
 
 static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
