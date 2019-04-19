@@ -2585,6 +2585,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_RC6p(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6p)
 #define HAS_RC6pp(dev_priv)		 (false) /* HW was never validated */
 
+#define HAS_RPS(dev_priv)	(INTEL_INFO(dev_priv)->has_rps)
+
 #define HAS_CSR(dev_priv)	(INTEL_INFO(dev_priv)->display.has_csr)
 
 #define HAS_RUNTIME_PM(dev_priv) (INTEL_INFO(dev_priv)->has_runtime_pm)
