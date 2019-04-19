@@ -2116,12 +2116,11 @@ retry:
 	 * Under global memory pressure, swap entries can be reinserted back
 	 * into process space after the mmlist loop above passes over them.
 	 *
-	 * Limit the number of retries? No: when shmem_unuse()'s igrab() fails,
-	 * a shmem inode using swap is being evicted; and when mmget_not_zero()
-	 * above fails, that mm is likely to be freeing swap from exit_mmap().
-	 * Both proceed at their own independent pace: we could move them to
-	 * separate lists, and wait for those lists to be emptied; but it's
-	 * easier and more robust (though cpu-intensive) just to keep retrying.
+	 * Limit the number of retries? No: when mmget_not_zero() above fails,
+	 * that mm is likely to be freeing swap from exit_mmap(), which proceeds
+	 * at its own independent pace; and even shmem_writepage() could have
+	 * been preempted after get_swap_page(), temporarily hiding that swap.
+	 * It's easy and robust (though cpu-intensive) just to keep retrying.
 	 */
 	if (si->inuse_pages) {
 		if (!signal_pending(current))
