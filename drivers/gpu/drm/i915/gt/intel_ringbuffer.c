@@ -834,6 +834,20 @@ static int rcs_resume(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	/*
+	 * Disable CONSTANT_BUFFER before it is loaded from the context
+	 * image. For as it is loaded, it is executed and the stored
+	 * address may no longer be valid, leading to a GPU hang.
+	 *
+	 * This imposes the requirement that userspace reload their
+	 * CONSTANT_BUFFER on every batch, fortunately a requirement
+	 * they are already accustomed to from before contexts were
+	 * enabled.
+	 */
+	if (IS_GEN(dev_priv, 4))
+		I915_WRITE(ECOSKPD,
+			   _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE));
+
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 	if (IS_GEN_RANGE(dev_priv, 4, 6))
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));

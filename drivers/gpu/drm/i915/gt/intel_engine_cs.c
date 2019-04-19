@@ -213,6 +213,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 			return round_up(GEN6_CXT_TOTAL_SIZE(cxt_size) * 64,
 					PAGE_SIZE);
 		case 5:
+		case 4:
 			/*
 			 * There is a discrepancy here between the size reported
 			 * by the register and the size of the context layout
@@ -229,7 +230,6 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 					 cxt_size * 64,
 					 cxt_size - 1);
 			return round_up(cxt_size * 64, PAGE_SIZE);
-		case 4:
 		case 3:
 		case 2:
 		/* For the special day when i810 gets merged. */
