@@ -2100,8 +2100,6 @@ void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
 void skb_coalesce_rx_frag(struct sk_buff *skb, int i, int size,
 			  unsigned int truesize);
 
-#define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
-#define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frag_list(skb))
 #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET

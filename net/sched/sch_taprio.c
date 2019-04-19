@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <net/netlink.h>
@@ -121,7 +122,14 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 
 static inline int length_to_duration(struct taprio_sched *q, int len)
 {
-	return (len * atomic64_read(&q->picos_per_byte)) / 1000;
+	return div_u64(len * atomic64_read(&q->picos_per_byte), 1000);
+}
+
+static void taprio_set_budget(struct taprio_sched *q, struct sched_entry *entry)
+{
+	atomic_set(&entry->budget,
+		   div64_u64((u64)entry->interval * 1000,
+			     atomic64_read(&q->picos_per_byte)));
 }
 
 static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
@@ -241,8 +249,7 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 	close_time = ktime_add_ns(entry->close_time, next->interval);
 
 	next->close_time = close_time;
-	atomic_set(&next->budget,
-		   (next->interval * 1000) / atomic64_read(&q->picos_per_byte));
+	taprio_set_budget(q, next);
 
 first_run:
 	rcu_assign_pointer(q->current_entry, next);
@@ -575,9 +582,7 @@ static void taprio_start_sched(struct Qdisc *sch, ktime_t start)
 				 list);
 
 	first->close_time = ktime_add_ns(start, first->interval);
-	atomic_set(&first->budget,
-		   (first->interval * 1000) /
-		   atomic64_read(&q->picos_per_byte));
+	taprio_set_budget(q, first);
 	rcu_assign_pointer(q->current_entry, NULL);
 
 	spin_unlock_irqrestore(&q->current_entry_lock, flags);
