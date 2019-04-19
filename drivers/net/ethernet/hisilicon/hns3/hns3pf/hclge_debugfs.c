@@ -901,6 +901,26 @@ static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
 	}
 }
 
+static void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "PF reset count: %d\n",
+		 hdev->rst_stats.pf_rst_cnt);
+	dev_info(&hdev->pdev->dev, "FLR reset count: %d\n",
+		 hdev->rst_stats.flr_rst_cnt);
+	dev_info(&hdev->pdev->dev, "CORE reset count: %d\n",
+		 hdev->rst_stats.core_rst_cnt);
+	dev_info(&hdev->pdev->dev, "GLOBAL reset count: %d\n",
+		 hdev->rst_stats.global_rst_cnt);
+	dev_info(&hdev->pdev->dev, "IMP reset count: %d\n",
+		 hdev->rst_stats.imp_rst_cnt);
+	dev_info(&hdev->pdev->dev, "reset done count: %d\n",
+		 hdev->rst_stats.reset_done_cnt);
+	dev_info(&hdev->pdev->dev, "HW reset done count: %d\n",
+		 hdev->rst_stats.hw_reset_done_cnt);
+	dev_info(&hdev->pdev->dev, "reset count: %d\n",
+		 hdev->rst_stats.reset_cnt);
+}
+
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -924,6 +944,8 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		hclge_dbg_dump_mng_table(hdev);
 	} else if (strncmp(cmd_buf, "dump reg", 8) == 0) {
 		hclge_dbg_dump_reg_cmd(hdev, cmd_buf);
+	} else if (strncmp(cmd_buf, "dump reset info", 15) == 0) {
+		hclge_dbg_dump_rst_info(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;
