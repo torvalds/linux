@@ -539,7 +539,7 @@ struct pptable_funcs {
 	int (*set_power_state)(struct smu_context *smu);
 	int (*populate_umd_state_clk)(struct smu_context *smu);
 	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
-	int (*force_clk_levels)(struct smu_context *smu, enum pp_clock_type type, uint32_t mask);
+	int (*force_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t mask);
 	int (*set_default_od8_settings)(struct smu_context *smu);
 	int (*update_specified_od8_value)(struct smu_context *smu,
 					  uint32_t index,
@@ -776,8 +776,8 @@ struct smu_funcs
 	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
 #define smu_print_clk_levels(smu, clk_type, buf) \
 	((smu)->ppt_funcs->print_clk_levels ? (smu)->ppt_funcs->print_clk_levels((smu), (clk_type), (buf)) : 0)
-#define smu_force_clk_levels(smu, type, level) \
-	((smu)->ppt_funcs->force_clk_levels ? (smu)->ppt_funcs->force_clk_levels((smu), (type), (level)) : 0)
+#define smu_force_clk_levels(smu, clk_type, level) \
+	((smu)->ppt_funcs->force_clk_levels ? (smu)->ppt_funcs->force_clk_levels((smu), (clk_type), (level)) : 0)
 #define smu_get_od_percentage(smu, type) \
 	((smu)->ppt_funcs->get_od_percentage ? (smu)->ppt_funcs->get_od_percentage((smu), (type)) : 0)
 #define smu_set_od_percentage(smu, type, value) \

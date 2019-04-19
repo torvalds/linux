@@ -1223,7 +1223,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 }
 
 static int vega20_force_clk_levels(struct smu_context *smu,
-			enum pp_clock_type type, uint32_t mask)
+			enum  smu_clk_type clk_type, uint32_t mask)
 {
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
@@ -1243,8 +1243,8 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 	dpm_table = smu->smu_dpm.dpm_context;
 
-	switch (type) {
-	case PP_SCLK:
+	switch (clk_type) {
+	case SMU_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1271,7 +1271,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_MCLK:
+	case SMU_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1298,7 +1298,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_SOCCLK:
+	case SMU_SOCCLK:
 		single_dpm_table = &(dpm_table->soc_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1325,7 +1325,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_FCLK:
+	case SMU_FCLK:
 		single_dpm_table = &(dpm_table->fclk_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
@@ -1352,7 +1352,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_DCEFCLK:
+	case SMU_DCEFCLK:
 		hard_min_level = soft_min_level;
 		single_dpm_table = &(dpm_table->dcef_table);
 
@@ -1372,7 +1372,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 		break;
 
-	case PP_PCIE:
+	case SMU_PCIE:
 		if (soft_min_level >= NUM_LINK_LEVELS ||
 		    soft_max_level >= NUM_LINK_LEVELS) {
 			ret = -EINVAL;

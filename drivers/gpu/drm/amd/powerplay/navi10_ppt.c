@@ -566,6 +566,42 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	return size;
 }
 
+static int navi10_force_clk_levels(struct smu_context *smu,
+				   enum smu_clk_type clk_type, uint32_t mask)
+{
+
+	int ret = 0, size = 0;
+	uint32_t soft_min_level = 0, soft_max_level = 0, min_freq = 0, max_freq = 0;
+
+	soft_min_level = mask ? (ffs(mask) - 1) : 0;
+	soft_max_level = mask ? (fls(mask) - 1) : 0;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SOCCLK:
+	case SMU_MCLK:
+	case SMU_UCLK:
+	case SMU_DCEFCLK:
+	case SMU_FCLK:
+		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
+		if (ret)
+			return size;
+
+		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
+		if (ret)
+			return size;
+
+		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq);
+		if (ret)
+			return size;
+		break;
+	default:
+		break;
+	}
+
+	return size;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -582,6 +618,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.dpm_set_uvd_enable = navi10_dpm_set_uvd_enable,
 	.get_current_clk_freq_by_table = navi10_get_current_clk_freq_by_table,
 	.print_clk_levels = navi10_print_clk_levels,
+	.force_clk_levels = navi10_force_clk_levels,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
