@@ -2051,11 +2051,9 @@ retry:
 
 	spin_lock(&mmlist_lock);
 	p = &init_mm.mmlist;
-	while ((p = p->next) != &init_mm.mmlist) {
-		if (signal_pending(current)) {
-			retval = -EINTR;
-			break;
-		}
+	while (si->inuse_pages &&
+	       !signal_pending(current) &&
+	       (p = p->next) != &init_mm.mmlist) {
 
 		mm = list_entry(p, struct mm_struct, mmlist);
 		if (!mmget_not_zero(mm))
@@ -2082,7 +2080,9 @@ retry:
 	mmput(prev_mm);
 
 	i = 0;
-	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
+	while (si->inuse_pages &&
+	       !signal_pending(current) &&
+	       (i = find_next_to_unuse(si, i, frontswap)) != 0) {
 
 		entry = swp_entry(type, i);
 		page = find_get_page(swap_address_space(entry), i);
@@ -2123,8 +2123,11 @@ retry:
 	 * separate lists, and wait for those lists to be emptied; but it's
 	 * easier and more robust (though cpu-intensive) just to keep retrying.
 	 */
-	if (si->inuse_pages)
-		goto retry;
+	if (si->inuse_pages) {
+		if (!signal_pending(current))
+			goto retry;
+		retval = -EINTR;
+	}
 out:
 	return (retval == FRONTSWAP_PAGES_UNUSED) ? 0 : retval;
 }
