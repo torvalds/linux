@@ -649,6 +649,17 @@ struct hclge_vport_vlan_cfg {
 	u16 vlan_id;
 };
 
+struct hclge_rst_stats {
+	u32 reset_done_cnt;	/* the number of reset has completed */
+	u32 hw_reset_done_cnt;	/* the number of HW reset has completed */
+	u32 pf_rst_cnt;		/* the number of PF reset */
+	u32 flr_rst_cnt;	/* the number of FLR */
+	u32 core_rst_cnt;	/* the number of CORE reset */
+	u32 global_rst_cnt;	/* the number of GLOBAL */
+	u32 imp_rst_cnt;	/* the number of IMP reset */
+	u32 reset_cnt;		/* the number of reset */
+};
+
 /* For each bit of TCAM entry, it uses a pair of 'x' and
  * 'y' to indicate which value to match, like below:
  * ----------------------------------
@@ -691,7 +702,7 @@ struct hclge_dev {
 	unsigned long default_reset_request;
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
-	unsigned long reset_count;	/* the number of reset has been done */
+	struct hclge_rst_stats rst_stats;
 	u32 reset_fail_cnt;
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
