@@ -59,7 +59,7 @@ static int ep93xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	time = readl(ep93xx_rtc->mmio_base + EP93XX_RTC_DATA);
 
-	rtc_time_to_tm(time, tm);
+	rtc_time64_to_tm(time, tm);
 	return 0;
 }
 
