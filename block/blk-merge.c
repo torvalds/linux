@@ -474,9 +474,21 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 	while (nbytes > 0) {
 		unsigned offset = bvec->bv_offset + total;
 		unsigned len = min(get_max_segment_size(q, offset), nbytes);
+		struct page *page = bvec->bv_page;
+
+		/*
+		 * Unfortunately a fair number of drivers barf on scatterlists
+		 * that have an offset larger than PAGE_SIZE, despite other
+		 * subsystems dealing with that invariant just fine.  For now
+		 * stick to the legacy format where we never present those from
+		 * the block layer, but the code below should be removed once
+		 * these offenders (mostly MMC/SD drivers) are fixed.
+		 */
+		page += (offset >> PAGE_SHIFT);
+		offset &= ~PAGE_MASK;
 
 		*sg = blk_next_sg(sg, sglist);
-		sg_set_page(*sg, bvec->bv_page, len, offset);
+		sg_set_page(*sg, page, len, offset);
 
 		total += len;
 		nbytes -= len;
