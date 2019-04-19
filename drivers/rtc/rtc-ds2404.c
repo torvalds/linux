@@ -72,7 +72,7 @@ err_request:
 	return err;
 }
 
-static void ds2404_gpio_unmap(struct ds2404 *chip)
+static void ds2404_gpio_unmap(void *data)
 {
 	int i;
 
@@ -218,7 +218,11 @@ static int rtc_probe(struct platform_device *pdev)
 
 	retval = ds2404_gpio_map(chip, pdev, pdata);
 	if (retval)
-		goto err_chip;
+		return retval;
+
+	retval = devm_add_action_or_reset(&pdev->dev, ds2404_gpio_unmap, chip);
+	if (retval)
+		return retval;
 
 	dev_info(&pdev->dev, "using GPIOs RST:%d, CLK:%d, DQ:%d\n",
 		 chip->gpio[DS2404_RST].gpio, chip->gpio[DS2404_CLK].gpio,
@@ -231,29 +235,14 @@ static int rtc_probe(struct platform_device *pdev)
 
 	retval = rtc_register_device(chip->rtc);
 	if (retval)
-		goto err_io;
+		return retval;
 
 	ds2404_enable_osc(&pdev->dev);
-	return 0;
-
-err_io:
-	ds2404_gpio_unmap(chip);
-err_chip:
-	return retval;
-}
-
-static int rtc_remove(struct platform_device *dev)
-{
-	struct ds2404 *chip = platform_get_drvdata(dev);
-
-	ds2404_gpio_unmap(chip);
-
 	return 0;
 }
 
 static struct platform_driver rtc_device_driver = {
 	.probe	= rtc_probe,
-	.remove = rtc_remove,
 	.driver = {
 		.name	= "ds2404",
 	},
