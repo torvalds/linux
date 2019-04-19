@@ -49,8 +49,8 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (i >= HCLGEVF_MAX_TRY_TIMES) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not get mbx resp(=%d) from PF in %d tries\n",
-			hdev->mbx_resp.received_resp, i);
+			"VF could not get mbx(%d,%d) resp(=%d) from PF in %d tries\n",
+			code0, code1, hdev->mbx_resp.received_resp, i);
 		return -EIO;
 	}
 
@@ -68,8 +68,11 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (!(r_code0 == code0 && r_code1 == code1 && !mbx_resp->resp_status)) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp code(code0=%d,code1=%d), %d",
+			"VF could not match resp code(code0=%d,code1=%d), %d\n",
 			code0, code1, mbx_resp->resp_status);
+		dev_err(&hdev->pdev->dev,
+			"VF could not match resp r_code(r_code0=%d,r_code1=%d)\n",
+			r_code0, r_code1);
 		return -EIO;
 	}
 
