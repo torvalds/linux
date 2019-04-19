@@ -235,9 +235,7 @@ static int rwdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(&priv->wdev);
 
 	/* This overrides the default timeout only if DT configuration was found */
-	ret = watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);
-	if (ret)
-		dev_warn(&pdev->dev, "Specified timeout value invalid, using default\n");
+	watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);
 
 	ret = watchdog_register_device(&priv->wdev);
 	if (ret < 0)
