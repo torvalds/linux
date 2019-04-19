@@ -984,6 +984,26 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev, char *cmd_buf)
 	}
 }
 
+/* hclge_dbg_dump_mac_tnl_status: print message about mac tnl interrupt
+ * @hdev: pointer to struct hclge_dev
+ */
+static void hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev)
+{
+#define HCLGE_BILLION_NANO_SECONDS 1000000000
+
+	struct hclge_mac_tnl_stats stats;
+	unsigned long rem_nsec;
+
+	dev_info(&hdev->pdev->dev, "Recently generated mac tnl interruption:\n");
+
+	while (kfifo_get(&hdev->mac_tnl_log, &stats)) {
+		rem_nsec = do_div(stats.time, HCLGE_BILLION_NANO_SECONDS);
+		dev_info(&hdev->pdev->dev, "[%07lu.%03lu]status = 0x%x\n",
+			 (unsigned long)stats.time, rem_nsec / 1000,
+			 stats.status);
+	}
+}
+
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -1012,6 +1032,8 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 	} else if (strncmp(cmd_buf, "dump ncl_config", 15) == 0) {
 		hclge_dbg_dump_ncl_config(hdev,
 					  &cmd_buf[sizeof("dump ncl_config")]);
+	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
+		hclge_dbg_dump_mac_tnl_status(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

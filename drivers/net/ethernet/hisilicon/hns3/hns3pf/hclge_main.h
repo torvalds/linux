@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
+#include <linux/kfifo.h>
 
 #include "hclge_cmd.h"
 #include "hnae3.h"
@@ -660,6 +661,12 @@ struct hclge_rst_stats {
 	u32 reset_cnt;		/* the number of reset */
 };
 
+/* time and register status when mac tunnel interruption occur */
+struct hclge_mac_tnl_stats {
+	u64 time;
+	u32 status;
+};
+
 /* For each bit of TCAM entry, it uses a pair of 'x' and
  * 'y' to indicate which value to match, like below:
  * ----------------------------------
@@ -686,6 +693,7 @@ struct hclge_rst_stats {
 		(y) = (_k_ ^ ~_v_) & (_k_); \
 	} while (0)
 
+#define HCLGE_MAC_TNL_LOG_SIZE	8
 #define HCLGE_VPORT_NUM 256
 struct hclge_dev {
 	struct pci_dev *pdev;
@@ -802,6 +810,9 @@ struct hclge_dev {
 	struct mutex umv_mutex; /* protect share_umv_size */
 
 	struct mutex vport_cfg_mutex;   /* Protect stored vf table */
+
+	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
+		      HCLGE_MAC_TNL_LOG_SIZE);
 };
 
 /* VPort level vlan tag configuration for TX direction */

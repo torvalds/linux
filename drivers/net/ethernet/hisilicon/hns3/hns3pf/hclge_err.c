@@ -692,6 +692,16 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 	return ret;
 }
 
+static int hclge_clear_mac_tnl_int(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CLEAR_MAC_TNL_INT, false);
+	desc.data[0] = cpu_to_le32(HCLGE_MAC_TNL_INT_CLR);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 static int hclge_config_common_hw_err_int(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
@@ -909,6 +919,21 @@ static int hclge_config_mac_err_int(struct hclge_dev *hdev, bool en)
 			"fail(%d) to configure MAC COMMON error intr\n", ret);
 
 	return ret;
+}
+
+int hclge_config_mac_tnl_int(struct hclge_dev *hdev, bool en)
+{
+	struct hclge_desc desc;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_TNL_INT_EN, false);
+	if (en)
+		desc.data[0] = cpu_to_le32(HCLGE_MAC_TNL_INT_EN);
+	else
+		desc.data[0] = 0;
+
+	desc.data[1] = cpu_to_le32(HCLGE_MAC_TNL_INT_EN_MASK);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
@@ -1611,6 +1636,7 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests)
 {
+	struct hclge_mac_tnl_stats mac_tnl_stats;
 	struct device *dev = &hdev->pdev->dev;
 	u32 mpf_bd_num, pf_bd_num, bd_num;
 	enum hnae3_reset_type reset_level;
@@ -1743,6 +1769,31 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			ret);
 		/* reset everything for now */
 		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+	}
+
+	/* query and clear mac tnl interruptions */
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_MAC_TNL_INT,
+				   true);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 1);
+	if (ret) {
+		dev_err(dev, "query mac tnl int cmd failed (%d)\n", ret);
+		goto msi_error;
+	}
+
+	status = le32_to_cpu(desc->data[0]);
+	if (status) {
+		/* When mac tnl interrupt occurs, we record current time and
+		 * register status here in a fifo, then clear the status. So
+		 * that if link status changes suddenly at some time, we can
+		 * query them by debugfs.
+		 */
+		mac_tnl_stats.time = local_clock();
+		mac_tnl_stats.status = status;
+		kfifo_put(&hdev->mac_tnl_log, mac_tnl_stats);
+		ret = hclge_clear_mac_tnl_int(hdev);
+		if (ret)
+			dev_err(dev, "clear mac tnl int failed (%d)\n", ret);
+		set_bit(HNAE3_NONE_RESET, reset_requests);
 	}
 
 msi_error:

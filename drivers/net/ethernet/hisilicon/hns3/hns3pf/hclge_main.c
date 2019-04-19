@@ -2248,6 +2248,7 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 		for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 			handle = &hdev->vport[i].nic;
 			client->ops->link_status_change(handle, state);
+			hclge_config_mac_tnl_int(hdev, state);
 			rhandle = &hdev->vport[i].roce;
 			if (rclient && rclient->ops->link_status_change)
 				rclient->ops->link_status_change(rhandle,
@@ -7963,6 +7964,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_mdiobus_unreg;
 	}
 
+	INIT_KFIFO(hdev->mac_tnl_log);
+
 	hclge_dcb_ops_set(hdev);
 
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
@@ -8116,6 +8119,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_enable_vector(&hdev->misc_vector, false);
 	synchronize_irq(hdev->misc_vector.vector_irq);
 
+	hclge_config_mac_tnl_int(hdev, false);
 	hclge_hw_error_set_state(hdev, false);
 	hclge_cmd_uninit(hdev);
 	hclge_misc_irq_uninit(hdev);
