@@ -2905,21 +2905,20 @@ static void icl_enable_phy_clock_gating(struct intel_digital_port *dig_port)
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	i915_reg_t mg_regs[2] = { MG_DP_MODE(0, port), MG_DP_MODE(1, port) };
 	u32 val;
-	int i;
+	int ln;
 
 	if (tc_port == PORT_TC_NONE)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(mg_regs); i++) {
-		val = I915_READ(mg_regs[i]);
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_DP_MODE(ln, port));
 		val |= MG_DP_MODE_CFG_TR2PWR_GATING |
 		       MG_DP_MODE_CFG_TRPWR_GATING |
 		       MG_DP_MODE_CFG_CLNPWR_GATING |
 		       MG_DP_MODE_CFG_DIGPWR_GATING |
 		       MG_DP_MODE_CFG_GAONPWR_GATING;
-		I915_WRITE(mg_regs[i], val);
+		I915_WRITE(MG_DP_MODE(ln, port), val);
 	}
 
 	val = I915_READ(MG_MISC_SUS0(tc_port));
@@ -2938,21 +2937,20 @@ static void icl_disable_phy_clock_gating(struct intel_digital_port *dig_port)
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	i915_reg_t mg_regs[2] = { MG_DP_MODE(port, 0), MG_DP_MODE(port, 1) };
 	u32 val;
-	int i;
+	int ln;
 
 	if (tc_port == PORT_TC_NONE)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(mg_regs); i++) {
-		val = I915_READ(mg_regs[i]);
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_DP_MODE(ln, port));
 		val &= ~(MG_DP_MODE_CFG_TR2PWR_GATING |
 			 MG_DP_MODE_CFG_TRPWR_GATING |
 			 MG_DP_MODE_CFG_CLNPWR_GATING |
 			 MG_DP_MODE_CFG_DIGPWR_GATING |
 			 MG_DP_MODE_CFG_GAONPWR_GATING);
-		I915_WRITE(mg_regs[i], val);
+		I915_WRITE(MG_DP_MODE(ln, port), val);
 	}
 
 	val = I915_READ(MG_MISC_SUS0(tc_port));
