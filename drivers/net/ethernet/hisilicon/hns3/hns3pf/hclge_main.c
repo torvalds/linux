@@ -2383,8 +2383,11 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	}
 
 	/* check for vector0 msix event source */
-	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK)
+	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
+		dev_dbg(&hdev->pdev->dev, "received event 0x%x\n",
+			msix_src_reg);
 		return HCLGE_VECTOR0_EVENT_ERR;
+	}
 
 	/* check for vector0 mailbox(=CMDQ RX) event source */
 	if (BIT(HCLGE_VECTOR0_RX_CMDQ_INT_B) & cmdq_src_reg) {
@@ -2393,6 +2396,9 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		return HCLGE_VECTOR0_EVENT_MBX;
 	}
 
+	/* print other vector0 event source */
+	dev_dbg(&hdev->pdev->dev, "cmdq_src_reg:0x%x, msix_src_reg:0x%x\n",
+		cmdq_src_reg, msix_src_reg);
 	return HCLGE_VECTOR0_EVENT_OTHER;
 }
 
