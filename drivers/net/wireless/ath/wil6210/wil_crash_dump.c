@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015,2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,7 +57,7 @@ static int wil_fw_get_crash_dump_bounds(struct wil6210_priv *wil,
 
 int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 {
-	int i;
+	int i, rc;
 	const struct fw_map *map;
 	void *data;
 	u32 host_min, dump_size, offset, len;
@@ -73,14 +73,9 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 		return -EINVAL;
 	}
 
-	set_bit(wil_status_collecting_dumps, wil->status);
-	if (test_bit(wil_status_suspending, wil->status) ||
-	    test_bit(wil_status_suspended, wil->status) ||
-	    test_bit(wil_status_resetting, wil->status)) {
-		wil_err(wil, "cannot collect fw dump during suspend/reset\n");
-		clear_bit(wil_status_collecting_dumps, wil->status);
-		return -EINVAL;
-	}
+	rc = wil_mem_access_lock(wil);
+	if (rc)
+		return rc;
 
 	/* copy to crash dump area */
 	for (i = 0; i < ARRAY_SIZE(fw_mapping); i++) {
@@ -100,8 +95,7 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 		wil_memcpy_fromio_32((void * __force)(dest + offset),
 				     (const void __iomem * __force)data, len);
 	}
-
-	clear_bit(wil_status_collecting_dumps, wil->status);
+	wil_mem_access_unlock(wil);
 
 	return 0;
 }

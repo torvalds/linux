@@ -465,7 +465,7 @@ static int wil_cfg80211_validate_add_iface(struct wil6210_priv *wil,
 		.num_different_channels = 1,
 	};
 
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		if (wil->vifs[i]) {
 			wdev = vif_to_wdev(wil->vifs[i]);
 			params.iftype_num[wdev->iftype]++;
@@ -486,7 +486,7 @@ static int wil_cfg80211_validate_change_iface(struct wil6210_priv *wil,
 	};
 	bool check_combos = false;
 
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		struct wil6210_vif *vif_pos = wil->vifs[i];
 
 		if (vif_pos && vif != vif_pos) {
@@ -1274,7 +1274,12 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     params->wait);
 
 out:
+	/* when the sent packet was not acked by receiver(ACK=0), rc will
+	 * be -EAGAIN. In this case this function needs to return success,
+	 * the ACK=0 will be reflected in tx_status.
+	 */
 	tx_status = (rc == 0);
+	rc = (rc == -EAGAIN) ? 0 : rc;
 	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
 				tx_status, GFP_KERNEL);
 
@@ -1806,7 +1811,7 @@ void wil_cfg80211_ap_recovery(struct wil6210_priv *wil)
 	int rc, i;
 	struct wiphy *wiphy = wil_to_wiphy(wil);
 
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		struct wil6210_vif *vif = wil->vifs[i];
 		struct net_device *ndev;
 		struct cfg80211_beacon_data bcon = {};
