@@ -162,10 +162,33 @@ v3d_hub_irq(int irq, void *arg)
 		      V3D_HUB_INT_MMU_PTI |
 		      V3D_HUB_INT_MMU_CAP)) {
 		u32 axi_id = V3D_READ(V3D_MMU_VIO_ID);
-		u64 vio_addr = (u64)V3D_READ(V3D_MMU_VIO_ADDR) << 8;
+		u64 vio_addr = ((u64)V3D_READ(V3D_MMU_VIO_ADDR) <<
+				(v3d->va_width - 32));
+		static const char *const v3d41_axi_ids[] = {
+			"L2T",
+			"PTB",
+			"PSE",
+			"TLB",
+			"CLE",
+			"TFU",
+			"MMU",
+			"GMP",
+		};
+		const char *client = "?";
 
-		dev_err(v3d->dev, "MMU error from client %d at 0x%08llx%s%s%s\n",
-			axi_id, (long long)vio_addr,
+		V3D_WRITE(V3D_MMU_CTL,
+			  V3D_READ(V3D_MMU_CTL) & (V3D_MMU_CTL_CAP_EXCEEDED |
+						   V3D_MMU_CTL_PT_INVALID |
+						   V3D_MMU_CTL_WRITE_VIOLATION));
+
+		if (v3d->ver >= 41) {
+			axi_id = axi_id >> 5;
+			if (axi_id < ARRAY_SIZE(v3d41_axi_ids))
+				client = v3d41_axi_ids[axi_id];
+		}
+
+		dev_err(v3d->dev, "MMU error from client %s (%d) at 0x%llx%s%s%s\n",
+			client, axi_id, (long long)vio_addr,
 			((intsts & V3D_HUB_INT_MMU_WRV) ?
 			 ", write violation" : ""),
 			((intsts & V3D_HUB_INT_MMU_PTI) ?

@@ -57,6 +57,8 @@ struct v3d_dev {
 	 */
 	void *mmu_scratch;
 	dma_addr_t mmu_scratch_paddr;
+	/* virtual address bits from V3D to the MMU. */
+	int va_width;
 
 	/* Number of V3D cores. */
 	u32 cores;
