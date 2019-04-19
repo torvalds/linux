@@ -133,3 +133,9 @@ depends on DRM_I915
 depends on EXPERT
 source "drivers/gpu/drm/i915/Kconfig.debug"
 endmenu
+
+menu "drm/i915 Profile Guided Optimisation"
+	visible if EXPERT
+	depends on DRM_I915
+	source "drivers/gpu/drm/i915/Kconfig.profile"
+endmenu

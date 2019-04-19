@@ -1340,8 +1340,31 @@ long i915_request_wait(struct i915_request *rq,
 
 	trace_i915_request_wait_begin(rq, flags);
 
-	/* Optimistic short spin before touching IRQs */
-	if (__i915_spin_request(rq, state, 5))
+	/*
+	 * Optimistic spin before touching IRQs.
+	 *
+	 * We may use a rather large value here to offset the penalty of
+	 * switching away from the active task. Frequently, the client will
+	 * wait upon an old swapbuffer to throttle itself to remain within a
+	 * frame of the gpu. If the client is running in lockstep with the gpu,
+	 * then it should not be waiting long at all, and a sleep now will incur
+	 * extra scheduler latency in producing the next frame. To try to
+	 * avoid adding the cost of enabling/disabling the interrupt to the
+	 * short wait, we first spin to see if the request would have completed
+	 * in the time taken to setup the interrupt.
+	 *
+	 * We need upto 5us to enable the irq, and upto 20us to hide the
+	 * scheduler latency of a context switch, ignoring the secondary
+	 * impacts from a context switch such as cache eviction.
+	 *
+	 * The scheme used for low-latency IO is called "hybrid interrupt
+	 * polling". The suggestion there is to sleep until just before you
+	 * expect to be woken by the device interrupt and then poll for its
+	 * completion. That requires having a good predictor for the request
+	 * duration, which we currently lack.
+	 */
+	if (CONFIG_DRM_I915_SPIN_REQUEST &&
+	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST))
 		goto out;
 
 	/*
