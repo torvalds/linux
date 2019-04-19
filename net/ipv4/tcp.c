@@ -868,7 +868,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 	if (likely(!size)) {
 		skb = sk->sk_tx_skb_cache;
 		if (skb && !skb_cloned(skb)) {
-			skb->truesize -= skb->data_len;
+			skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 			sk->sk_tx_skb_cache = NULL;
 			pskb_trim(skb, 0);
 			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
