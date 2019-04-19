@@ -22,6 +22,8 @@ Required properties:
    - qcom,adreno-630.2
 - iommus: optional phandle to an adreno iommu instance
 - operating-points-v2: optional phandle to the OPP operating points
+- interconnects: optional phandle to an interconnect provider.  See
+  ../interconnect/interconnect.txt for details.
 - qcom,gmu: For GMU attached devices a phandle to the GMU device that will
   control the power for the GPU. Applicable targets:
     - qcom,adreno-630.2
@@ -69,6 +71,8 @@ Example a6xx (with GMU):
 		iommus = <&adreno_smmu 0>;
 
 		operating-points-v2 = <&gpu_opp_table>;
+
+		interconnects = <&rsc_hlos MASTER_GFX3D &rsc_hlos SLAVE_EBI1>;
 
 		qcom,gmu = <&gmu>;
 	};
