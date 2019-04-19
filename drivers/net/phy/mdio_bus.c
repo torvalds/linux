@@ -24,6 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/reset.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
@@ -55,10 +56,25 @@ static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 			return PTR_ERR(gpiod);
 	}
 
-	mdiodev->reset = gpiod;
+	mdiodev->reset_gpio = gpiod;
 
-	/* Assert the reset signal again */
-	mdio_device_reset(mdiodev, 1);
+	return 0;
+}
+
+static int mdiobus_register_reset(struct mdio_device *mdiodev)
+{
+	struct reset_control *reset = NULL;
+
+	if (mdiodev->dev.of_node)
+		reset = devm_reset_control_get_exclusive(&mdiodev->dev,
+							 "phy");
+	if (PTR_ERR(reset) == -ENOENT ||
+	    PTR_ERR(reset) == -ENOTSUPP)
+		reset = NULL;
+	else if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	mdiodev->reset_ctrl = reset;
 
 	return 0;
 }
@@ -74,6 +90,13 @@ int mdiobus_register_device(struct mdio_device *mdiodev)
 		err = mdiobus_register_gpiod(mdiodev);
 		if (err)
 			return err;
+
+		err = mdiobus_register_reset(mdiodev);
+		if (err)
+			return err;
+
+		/* Assert the reset signal */
+		mdio_device_reset(mdiodev, 1);
 	}
 
 	mdiodev->bus->mdio_map[mdiodev->addr] = mdiodev;
@@ -446,8 +469,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 		if (!mdiodev)
 			continue;
 
-		if (mdiodev->reset)
-			gpiod_put(mdiodev->reset);
+		if (mdiodev->reset_gpio)
+			gpiod_put(mdiodev->reset_gpio);
 
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);
