@@ -191,6 +191,14 @@
 /* Address that faulted */
 #define V3D_MMU_VIO_ADDR                               0x01234
 
+#define V3D_MMU_DEBUG_INFO                             0x01238
+# define V3D_MMU_PA_WIDTH_MASK                         V3D_MASK(11, 8)
+# define V3D_MMU_PA_WIDTH_SHIFT                        8
+# define V3D_MMU_VA_WIDTH_MASK                         V3D_MASK(7, 4)
+# define V3D_MMU_VA_WIDTH_SHIFT                        4
+# define V3D_MMU_VERSION_MASK                          V3D_MASK(3, 0)
+# define V3D_MMU_VERSION_SHIFT                         0
+
 /* Per-V3D-core registers */
 
 #define V3D_CTL_IDENT0                                 0x00000

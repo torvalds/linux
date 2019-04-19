@@ -30,6 +30,7 @@ static const struct v3d_reg_def v3d_hub_reg_defs[] = {
 	REGDEF(V3D_MMU_CTL),
 	REGDEF(V3D_MMU_VIO_ADDR),
 	REGDEF(V3D_MMU_VIO_ID),
+	REGDEF(V3D_MMU_DEBUG_INFO),
 };
 
 static const struct v3d_reg_def v3d_gca_reg_defs[] = {

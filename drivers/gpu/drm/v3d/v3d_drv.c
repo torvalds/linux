@@ -239,9 +239,9 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	struct drm_device *drm;
 	struct v3d_dev *v3d;
 	int ret;
+	u32 mmu_debug;
 	u32 ident1;
 
-	dev->coherent_dma_mask = DMA_BIT_MASK(36);
 
 	v3d = kzalloc(sizeof(*v3d), GFP_KERNEL);
 	if (!v3d)
@@ -257,6 +257,10 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	ret = map_regs(v3d, &v3d->core_regs[0], "core0");
 	if (ret)
 		goto dev_free;
+
+	mmu_debug = V3D_READ(V3D_MMU_DEBUG_INFO);
+	dev->coherent_dma_mask =
+		DMA_BIT_MASK(30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_PA_WIDTH));
 
 	ident1 = V3D_READ(V3D_HUB_IDENT1);
 	v3d->ver = (V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_TVER) * 10 +
