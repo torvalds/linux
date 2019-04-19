@@ -606,6 +606,11 @@ struct ath10k_hw_params {
 
 	/* target supporting fw download via diag ce */
 	bool fw_diag_ce_download;
+
+	/* need to set uart pin if disable uart print, workaround for a
+	 * firmware bug
+	 */
+	bool uart_pin_workaround;
 };
 
 struct htt_rx_desc;
