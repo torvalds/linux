@@ -584,6 +584,11 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 								act_len,
 								&bndl_cnt);
 
+			if (ret) {
+				ath10k_warn(ar, "alloc_bundle error %d\n", ret);
+				goto err;
+			}
+
 			n_lookaheads += bndl_cnt;
 			i += bndl_cnt;
 			/*Next buffer will be the last in the bundle */
