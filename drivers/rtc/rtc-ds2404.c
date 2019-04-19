@@ -234,6 +234,10 @@ static int rtc_probe(struct platform_device *pdev)
 
 	chip->ops = &ds2404_gpio_ops;
 
+	chip->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(chip->rtc))
+		return PTR_ERR(chip->rtc);
+
 	retval = chip->ops->map_io(chip, pdev, pdata);
 	if (retval)
 		goto err_chip;
@@ -244,12 +248,12 @@ static int rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	chip->rtc = devm_rtc_device_register(&pdev->dev, "ds2404",
-					&ds2404_rtc_ops, THIS_MODULE);
-	if (IS_ERR(chip->rtc)) {
-		retval = PTR_ERR(chip->rtc);
+	chip->rtc->ops = &ds2404_rtc_ops;
+	chip->rtc->range_max = U32_MAX;
+
+	retval = rtc_register_device(chip->rtc);
+	if (retval)
 		goto err_io;
-	}
 
 	ds2404_enable_osc(&pdev->dev);
 	return 0;
