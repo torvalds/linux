@@ -109,7 +109,9 @@ v3d_reset(struct v3d_dev *v3d)
 {
 	struct drm_device *dev = &v3d->drm;
 
-	DRM_ERROR("Resetting GPU.\n");
+	DRM_DEV_ERROR(dev->dev, "Resetting GPU for hang.\n");
+	DRM_DEV_ERROR(dev->dev, "V3D_ERR_STAT: 0x%08x\n",
+		      V3D_CORE_READ(0, V3D_ERR_STAT));
 	trace_v3d_reset_begin(dev);
 
 	/* XXX: only needed for safe powerdown, not reset. */

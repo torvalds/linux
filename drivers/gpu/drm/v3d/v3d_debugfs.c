@@ -58,6 +58,11 @@ static const struct v3d_reg_def v3d_core_reg_defs[] = {
 	REGDEF(V3D_GMP_STATUS),
 	REGDEF(V3D_GMP_CFG),
 	REGDEF(V3D_GMP_VIO_ADDR),
+
+	REGDEF(V3D_ERR_FDBGO),
+	REGDEF(V3D_ERR_FDBGB),
+	REGDEF(V3D_ERR_FDBGS),
+	REGDEF(V3D_ERR_STAT),
 };
 
 static const struct v3d_reg_def v3d_csd_reg_defs[] = {
