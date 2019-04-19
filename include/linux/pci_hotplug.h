@@ -124,26 +124,24 @@ struct hpp_type2 {
 	u32 sec_unc_err_mask_or;
 };
 
-struct hotplug_params {
-	struct hpp_type0 *t0;		/* Type0: NULL if not available */
-	struct hpp_type1 *t1;		/* Type1: NULL if not available */
-	struct hpp_type2 *t2;		/* Type2: NULL if not available */
-	struct hpp_type0 type0_data;
-	struct hpp_type1 type1_data;
-	struct hpp_type2 type2_data;
+struct hotplug_program_ops {
+	void (*program_type0)(struct pci_dev *dev, struct hpp_type0 *hpp);
+	void (*program_type1)(struct pci_dev *dev, struct hpp_type1 *hpp);
+	void (*program_type2)(struct pci_dev *dev, struct hpp_type2 *hpp);
 };
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
-int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
+int pci_acpi_program_hp_params(struct pci_dev *dev,
+			       const struct hotplug_program_ops *hp_ops);
 bool pciehp_is_native(struct pci_dev *bridge);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge);
 bool shpchp_is_native(struct pci_dev *bridge);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
 int acpi_pci_detect_ejectable(acpi_handle handle);
 #else
-static inline int pci_get_hp_params(struct pci_dev *dev,
-				    struct hotplug_params *hpp)
+static inline int pci_acpi_program_hp_params(struct pci_dev *dev,
+				    const struct hotplug_program_ops *hp_ops)
 {
 	return -ENODEV;
 }

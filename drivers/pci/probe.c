@@ -2206,8 +2206,11 @@ static void pci_configure_serr(struct pci_dev *dev)
 
 static void pci_configure_device(struct pci_dev *dev)
 {
-	struct hotplug_params hpp;
-	int ret;
+	static const struct hotplug_program_ops hp_ops = {
+		.program_type0 = program_hpp_type0,
+		.program_type1 = program_hpp_type1,
+		.program_type2 = program_hpp_type2,
+	};
 
 	pci_configure_mps(dev);
 	pci_configure_extended_tags(dev, NULL);
@@ -2216,14 +2219,7 @@ static void pci_configure_device(struct pci_dev *dev)
 	pci_configure_eetlp_prefix(dev);
 	pci_configure_serr(dev);
 
-	memset(&hpp, 0, sizeof(hpp));
-	ret = pci_get_hp_params(dev, &hpp);
-	if (ret)
-		return;
-
-	program_hpp_type2(dev, hpp.t2);
-	program_hpp_type1(dev, hpp.t1);
-	program_hpp_type0(dev, hpp.t0);
+	pci_acpi_program_hp_params(dev, &hp_ops);
 }
 
 static void pci_release_capabilities(struct pci_dev *dev)
