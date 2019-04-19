@@ -1415,9 +1415,11 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	case HNAE3_VF_FUNC_RESET:
 		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_RESET, 0, NULL,
 					   0, true, NULL, sizeof(u8));
+		hdev->rst_stats.vf_func_rst_cnt++;
 		break;
 	case HNAE3_FLR_RESET:
 		set_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
+		hdev->rst_stats.flr_rst_cnt++;
 		break;
 	default:
 		break;
@@ -1440,7 +1442,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	 * know if device is undergoing reset
 	 */
 	ae_dev->reset_type = hdev->reset_type;
-	hdev->reset_count++;
+	hdev->rst_stats.rst_cnt++;
 	rtnl_lock();
 
 	/* bring down the nic to stop any ongoing TX/RX */
@@ -1466,6 +1468,8 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 		goto err_reset;
 	}
 
+	hdev->rst_stats.hw_rst_done_cnt++;
+
 	rtnl_lock();
 
 	/* now, re-initialize the nic client and ae device*/
@@ -1484,6 +1488,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 
 	hdev->last_reset_time = jiffies;
 	ae_dev->reset_type = HNAE3_NONE_RESET;
+	hdev->rst_stats.rst_done_cnt++;
 
 	return ret;
 err_reset_lock:
@@ -1803,6 +1808,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
 		cmdq_src_reg &= ~BIT(HCLGEVF_VECTOR0_RST_INT_B);
 		*clearval = cmdq_src_reg;
+		hdev->rst_stats.vf_rst_cnt++;
 		return HCLGEVF_VECTOR0_EVENT_RST;
 	}
 
@@ -2737,7 +2743,7 @@ static unsigned long hclgevf_ae_dev_reset_cnt(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	return hdev->reset_count;
+	return hdev->rst_stats.hw_rst_done_cnt;
 }
 
 static void hclgevf_get_link_mode(struct hnae3_handle *handle,

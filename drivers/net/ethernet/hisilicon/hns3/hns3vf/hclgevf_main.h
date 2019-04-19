@@ -210,6 +210,15 @@ struct hclgevf_misc_vector {
 	int vector_irq;
 };
 
+struct hclgevf_rst_stats {
+	u32 rst_cnt;			/* the number of reset */
+	u32 vf_func_rst_cnt;		/* the number of VF function reset */
+	u32 flr_rst_cnt;		/* the number of FLR */
+	u32 vf_rst_cnt;			/* the number of VF reset */
+	u32 rst_done_cnt;		/* the number of reset completed */
+	u32 hw_rst_done_cnt;		/* the number of HW reset completed */
+};
+
 struct hclgevf_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
@@ -227,7 +236,7 @@ struct hclgevf_dev {
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1
 	unsigned long reset_state;	/* requested, pending */
-	unsigned long reset_count;	/* the number of reset has been done */
+	struct hclgevf_rst_stats rst_stats;
 	u32 reset_attempts;
 
 	u32 fw_version;
