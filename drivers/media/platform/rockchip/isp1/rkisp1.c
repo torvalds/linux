@@ -1632,12 +1632,23 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 	if (isp_mis & CIF_ISP_V_START) {
 		if (dev->stream[RKISP1_STREAM_SP].interlaced) {
 			/* 0 = ODD 1 = EVEN */
-			if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2)
-				dev->stream[RKISP1_STREAM_SP].u.sp.field =
-					(readl(base + CIF_MIPI_FRAME) >> 16) % 2;
-			else
+			if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+				void __iomem *addr = NULL;
+
+				if (dev->isp_ver == ISP_V10 ||
+				    dev->isp_ver == ISP_V10_1)
+					addr = base + CIF_MIPI_FRAME;
+				else if (dev->isp_ver == ISP_V12 ||
+					 dev->isp_ver == ISP_V13)
+					addr = base + CIF_ISP_CSI0_FRAME_NUM_RO;
+
+				if (addr)
+					dev->stream[RKISP1_STREAM_SP].u.sp.field =
+						(readl(addr) >> 16) % 2;
+			} else {
 				dev->stream[RKISP1_STREAM_SP].u.sp.field =
 					(readl(base + CIF_ISP_FLAGS_SHD) >> 2) & BIT(0);
+			}
 		}
 
 		if (dev->vs_irq < 0)
