@@ -329,10 +329,8 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	cdns_wdt_device->parent = dev;
 
 	ret = watchdog_init_timeout(cdns_wdt_device, wdt_timeout, dev);
-	if (ret) {
-		dev_err(dev, "unable to set timeout value\n");
+	if (ret)
 		return ret;
-	}
 
 	watchdog_set_nowayout(cdns_wdt_device, nowayout);
 	watchdog_stop_on_reboot(cdns_wdt_device);
