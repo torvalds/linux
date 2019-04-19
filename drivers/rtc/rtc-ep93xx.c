@@ -143,6 +143,7 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(ep93xx_rtc->rtc);
 
 	ep93xx_rtc->rtc->ops = &ep93xx_rtc_ops;
+	ep93xx_rtc->rtc->range_max = U32_MAX;
 
 	err = rtc_add_group(ep93xx_rtc->rtc, &ep93xx_rtc_sysfs_files);
 	if (err)
