@@ -602,6 +602,20 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 	return size;
 }
 
+static int navi10_populate_umd_state_clk(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t min_sclk_freq = 0;
+
+	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, &min_sclk_freq, NULL);
+	if (ret)
+		return ret;
+
+	smu->pstate_sclk = min_sclk_freq * 100;
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -619,6 +633,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_current_clk_freq_by_table = navi10_get_current_clk_freq_by_table,
 	.print_clk_levels = navi10_print_clk_levels,
 	.force_clk_levels = navi10_force_clk_levels,
+	.populate_umd_state_clk = navi10_populate_umd_state_clk,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
