@@ -219,6 +219,7 @@
 			i2s0: i2s@20094000 {
 				compatible = "nxp,lpc3220-i2s";
 				reg = <0x20094000 0x1000>;
+				status = "disabled";
 			};
 
 			sd: sd@20098000 {
@@ -234,6 +235,7 @@
 			i2s1: i2s@2009c000 {
 				compatible = "nxp,lpc3220-i2s";
 				reg = <0x2009c000 0x1000>;
+				status = "disabled";
 			};
 
 			/* UART5 first since it is the default console, ttyS0 */
