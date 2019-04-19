@@ -42,7 +42,7 @@ int intel_huc_check_status(struct intel_huc *huc);
 
 static inline void intel_huc_fini_misc(struct intel_huc *huc)
 {
-	intel_uc_fw_fini(&huc->fw);
+	intel_uc_fw_cleanup_fetch(&huc->fw);
 }
 
 static inline int intel_huc_sanitize(struct intel_huc *huc)

@@ -154,7 +154,7 @@ int intel_guc_init_misc(struct intel_guc *guc)
 
 void intel_guc_fini_misc(struct intel_guc *guc)
 {
-	intel_uc_fw_fini(&guc->fw);
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 	guc_fini_wq(guc);
 }
 
@@ -221,7 +221,7 @@ err_log:
 err_shared:
 	guc_shared_data_destroy(guc);
 err_fetch:
-	intel_uc_fw_fini(&guc->fw);
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 	return ret;
 }
 
@@ -237,7 +237,7 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
-	intel_uc_fw_fini(&guc->fw);
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 }
 
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)

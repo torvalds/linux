@@ -274,13 +274,13 @@ fail:
 }
 
 /**
- * intel_uc_fw_fini - cleanup uC firmware
+ * intel_uc_fw_cleanup_fetch - cleanup uC firmware
  *
  * @uc_fw: uC firmware
  *
  * Cleans up uC firmware by releasing the firmware GEM obj.
  */
-void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
+void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj;
 

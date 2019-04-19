@@ -90,7 +90,7 @@ void intel_guc_fw_init_early(struct intel_guc *guc)
 {
 	struct intel_uc_fw *guc_fw = &guc->fw;
 
-	intel_uc_fw_init(guc_fw, INTEL_UC_FW_TYPE_GUC);
+	intel_uc_fw_init_early(guc_fw, INTEL_UC_FW_TYPE_GUC);
 	guc_fw_select(guc_fw);
 }
 

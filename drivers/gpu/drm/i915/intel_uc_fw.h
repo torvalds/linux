@@ -102,7 +102,8 @@ static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
 }
 
 static inline
-void intel_uc_fw_init(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
+void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
+			    enum intel_uc_fw_type type)
 {
 	uc_fw->path = NULL;
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
@@ -144,10 +145,10 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
+void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw);
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		       int (*xfer)(struct intel_uc_fw *uc_fw,
 				   struct i915_vma *vma));
-void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
 void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p);
 
 #endif
