@@ -2073,8 +2073,6 @@ static void ath10k_sdio_remove(struct sdio_func *func)
 		   "sdio removed func %d vendor 0x%x device 0x%x\n",
 		   func->num, func->vendor, func->device);
 
-	(void)ath10k_sdio_hif_disable_intrs(ar);
-	cancel_work_sync(&ar_sdio->wr_async_work);
 	ath10k_core_unregister(ar);
 	ath10k_core_destroy(ar);
 }
