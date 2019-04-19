@@ -1764,7 +1764,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
 };
 
-static bool hns3_is_phys_func(struct pci_dev *pdev)
+bool hns3_is_phys_func(struct pci_dev *pdev)
 {
 	u32 dev_id = pdev->device;
 
