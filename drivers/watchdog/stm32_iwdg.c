@@ -250,10 +250,7 @@ static int stm32_iwdg_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, wdt);
 	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
-
-	ret = watchdog_init_timeout(wdd, 0, dev);
-	if (ret)
-		dev_warn(dev, "unable to set timeout value, using default\n");
+	watchdog_init_timeout(wdd, 0, dev);
 
 	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret) {
