@@ -153,6 +153,7 @@
 			reg = <0x31060000 0x1000>;
 			interrupts = <29 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk LPC32XX_CLK_MAC>;
+			status = "disabled";
 		};
 
 		emc: memory-controller@31080000 {
