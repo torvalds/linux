@@ -210,16 +210,16 @@ static int ds2404_read_time(struct device *dev, struct rtc_time *dt)
 	return 0;
 }
 
-static int ds2404_set_mmss(struct device *dev, unsigned long secs)
+static int ds2404_set_time(struct device *dev, struct rtc_time *dt)
 {
-	u32 time = cpu_to_le32(secs);
+	u32 time = cpu_to_le32(rtc_tm_to_time64(dt));
 	ds2404_write_memory(dev, 0x203, 4, (u8 *)&time);
 	return 0;
 }
 
 static const struct rtc_class_ops ds2404_rtc_ops = {
 	.read_time	= ds2404_read_time,
-	.set_mmss	= ds2404_set_mmss,
+	.set_time	= ds2404_set_time,
 };
 
 static int rtc_probe(struct platform_device *pdev)
