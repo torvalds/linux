@@ -1814,9 +1814,6 @@ static int igt_atomic_reset(void *arg)
 
 	/* Check that the resets are usable from atomic context */
 
-	if (USES_GUC_SUBMISSION(i915))
-		return 0; /* guc is dead; long live the guc */
-
 	igt_global_reset_lock(i915);
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(i915);
@@ -1845,6 +1842,9 @@ static int igt_atomic_reset(void *arg)
 
 		force_reset(i915);
 	}
+
+	if (USES_GUC_SUBMISSION(i915))
+		goto unlock;
 
 	if (intel_has_reset_engine(i915)) {
 		struct intel_engine_cs *engine;
