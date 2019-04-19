@@ -1645,11 +1645,14 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		/* These flags are for resource streamer on HSW+ */
 		flags |= HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN;
 	else
+		/* We need to save the extended state for powersaving modes */
 		flags |= MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN;
 
 	len = 4;
 	if (IS_GEN(i915, 7))
 		len += 2 + (num_engines ? 4 * num_engines + 6 : 0);
+	else if (IS_GEN(i915, 5))
+		len += 2;
 	if (flags & MI_FORCE_RESTORE) {
 		GEM_BUG_ON(flags & MI_RESTORE_INHIBIT);
 		flags &= ~MI_FORCE_RESTORE;
@@ -1678,6 +1681,14 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 						GEN6_PSMI_SLEEP_MSG_DISABLE);
 			}
 		}
+	} else if (IS_GEN(i915, 5)) {
+		/*
+		 * This w/a is only listed for pre-production ilk a/b steppings,
+		 * but is also mentioned for programming the powerctx. To be
+		 * safe, just apply the workaround; we do not use SyncFlush so
+		 * this should never take effect and so be a no-op!
+		 */
+		*cs++ = MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN;
 	}
 
 	if (force_restore) {
@@ -1731,6 +1742,8 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			*cs++ = MI_NOOP;
 		}
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	} else if (IS_GEN(i915, 5)) {
+		*cs++ = MI_SUSPEND_FLUSH;
 	}
 
 	intel_ring_advance(rq, cs);

@@ -213,6 +213,22 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 			return round_up(GEN6_CXT_TOTAL_SIZE(cxt_size) * 64,
 					PAGE_SIZE);
 		case 5:
+			/*
+			 * There is a discrepancy here between the size reported
+			 * by the register and the size of the context layout
+			 * in the docs. Both are described as authorative!
+			 *
+			 * The discrepancy is on the order of a few cachelines,
+			 * but the total is under one page (4k), which is our
+			 * minimum allocation anyway so it should all come
+			 * out in the wash.
+			 */
+			cxt_size = I915_READ(CXT_SIZE) + 1;
+			DRM_DEBUG_DRIVER("gen%d CXT_SIZE = %d bytes [0x%08x]\n",
+					 INTEL_GEN(dev_priv),
+					 cxt_size * 64,
+					 cxt_size - 1);
+			return round_up(cxt_size * 64, PAGE_SIZE);
 		case 4:
 		case 3:
 		case 2:
