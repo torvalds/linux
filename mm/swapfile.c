@@ -2023,7 +2023,6 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
  * If the boolean frontswap is true, only unuse pages_to_unuse pages;
  * pages_to_unuse==0 means all pages; ignored if frontswap is false
  */
-#define SWAP_UNUSE_MAX_TRIES 3
 int try_to_unuse(unsigned int type, bool frontswap,
 		 unsigned long pages_to_unuse)
 {
@@ -2035,7 +2034,6 @@ int try_to_unuse(unsigned int type, bool frontswap,
 	struct page *page;
 	swp_entry_t entry;
 	unsigned int i;
-	int retries = 0;
 
 	if (!si->inuse_pages)
 		return 0;
@@ -2117,14 +2115,16 @@ retry:
 	 * If yes, we would need to do retry the unuse logic again.
 	 * Under global memory pressure, swap entries can be reinserted back
 	 * into process space after the mmlist loop above passes over them.
-	 * Its not worth continuosuly retrying to unuse the swap in this case.
-	 * So we try SWAP_UNUSE_MAX_TRIES times.
+	 *
+	 * Limit the number of retries? No: when shmem_unuse()'s igrab() fails,
+	 * a shmem inode using swap is being evicted; and when mmget_not_zero()
+	 * above fails, that mm is likely to be freeing swap from exit_mmap().
+	 * Both proceed at their own independent pace: we could move them to
+	 * separate lists, and wait for those lists to be emptied; but it's
+	 * easier and more robust (though cpu-intensive) just to keep retrying.
 	 */
-	if (++retries >= SWAP_UNUSE_MAX_TRIES)
-		retval = -EBUSY;
-	else if (si->inuse_pages)
+	if (si->inuse_pages)
 		goto retry;
-
 out:
 	return (retval == FRONTSWAP_PAGES_UNUSED) ? 0 : retval;
 }
