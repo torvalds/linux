@@ -2094,6 +2094,7 @@ static int vega20_get_current_clk_freq(struct pp_hwmgr *hwmgr,
 }
 
 static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
+		int idx,
 		uint32_t *activity_percent)
 {
 	int ret = 0;
@@ -2103,7 +2104,17 @@ static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
 	if (ret)
 		return ret;
 
-	*activity_percent = metrics_table.AverageGfxActivity;
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*activity_percent = metrics_table.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*activity_percent = metrics_table.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid index for retrieving clock activity\n");
+		return -EINVAL;
+	}
 
 	return ret;
 }
@@ -2134,7 +2145,8 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = vega20_get_current_activity_percent(hwmgr, (uint32_t *)value);
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		ret = vega20_get_current_activity_percent(hwmgr, idx, (uint32_t *)value);
 		if (!ret)
 			*size = 4;
 		break;
