@@ -919,6 +919,7 @@ struct ath10k_bus_params {
 	u32 chip_id;
 	enum ath10k_dev_type dev_type;
 	bool link_can_suspend;
+	bool hl_msdu_ids;
 };
 
 struct ath10k {
