@@ -1954,7 +1954,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	struct ath10k *ar;
 	enum ath10k_hw_rev hw_rev;
 	u32 dev_id_base;
-	struct ath10k_bus_params bus_params;
+	struct ath10k_bus_params bus_params = {};
 	int ret, i;
 
 	/* Assumption: All SDIO based chipsets (so far) are QCA6174 based.
