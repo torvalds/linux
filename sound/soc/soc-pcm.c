@@ -2166,6 +2166,10 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 			}
 		}
 
+		/* copy the fixed-up hw params for BE dai */
+		memcpy(&be->dpcm[stream].hw_params, &dpcm->hw_params,
+		       sizeof(struct snd_pcm_hw_params));
+
 		/* only allow hw_params() if no connected FEs are running */
 		if (!snd_soc_dpcm_can_be_params(fe, be, stream))
 			continue;
