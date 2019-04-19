@@ -1099,10 +1099,11 @@ extern struct swap_info_struct *swap_info[];
 static int shmem_find_swap_entries(struct address_space *mapping,
 				   pgoff_t start, unsigned int nr_entries,
 				   struct page **entries, pgoff_t *indices,
-				   bool frontswap)
+				   unsigned int type, bool frontswap)
 {
 	XA_STATE(xas, &mapping->i_pages, start);
 	struct page *page;
+	swp_entry_t entry;
 	unsigned int ret = 0;
 
 	if (!nr_entries)
@@ -1116,13 +1117,12 @@ static int shmem_find_swap_entries(struct address_space *mapping,
 		if (!xa_is_value(page))
 			continue;
 
-		if (frontswap) {
-			swp_entry_t entry = radix_to_swp_entry(page);
-
-			if (!frontswap_test(swap_info[swp_type(entry)],
-					    swp_offset(entry)))
-				continue;
-		}
+		entry = radix_to_swp_entry(page);
+		if (swp_type(entry) != type)
+			continue;
+		if (frontswap &&
+		    !frontswap_test(swap_info[type], swp_offset(entry)))
+			continue;
 
 		indices[ret] = xas.xa_index;
 		entries[ret] = page;
@@ -1194,7 +1194,7 @@ static int shmem_unuse_inode(struct inode *inode, unsigned int type,
 
 		pvec.nr = shmem_find_swap_entries(mapping, start, nr_entries,
 						  pvec.pages, indices,
-						  frontswap);
+						  type, frontswap);
 		if (pvec.nr == 0) {
 			ret = 0;
 			break;
