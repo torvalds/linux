@@ -115,6 +115,8 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
 int watchdog_init_timeout(struct watchdog_device *wdd,
 				unsigned int timeout_parm, struct device *dev)
 {
+	const char *dev_str = wdd->parent ? dev_name(wdd->parent) :
+			      (const char *)wdd->info->identity;
 	unsigned int t = 0;
 	int ret = 0;
 
@@ -126,6 +128,8 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 			wdd->timeout = timeout_parm;
 			return 0;
 		}
+		pr_err("%s: driver supplied timeout (%u) out of range\n",
+			dev_str, timeout_parm);
 		ret = -EINVAL;
 	}
 
@@ -136,8 +140,13 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 			wdd->timeout = t;
 			return 0;
 		}
+		pr_err("%s: DT supplied timeout (%u) out of range\n", dev_str, t);
 		ret = -EINVAL;
 	}
+
+	if (ret < 0 && wdd->timeout)
+		pr_warn("%s: falling back to default timeout (%u)\n", dev_str,
+			wdd->timeout);
 
 	return ret;
 }
