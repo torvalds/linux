@@ -1,6 +1,7 @@
 /*
  * NXP LPC32xx SoC
  *
+ * Copyright (C) 2015-2019 Vladimir Zapolskiy <vz@mleia.com>
  * Copyright 2012 Roland Stigge <stigge@antcom.de>
  *
  * The code contained herein is licensed under the GNU General Public
@@ -232,7 +233,7 @@
 
 			i2s1: i2s@2009c000 {
 				compatible = "nxp,lpc3220-i2s";
-				reg = <0x2009C000 0x1000>;
+				reg = <0x2009c000 0x1000>;
 			};
 
 			/* UART5 first since it is the default console, ttyS0 */
@@ -275,7 +276,7 @@
 
 			i2c1: i2c@400a0000 {
 				compatible = "nxp,pnx-i2c";
-				reg = <0x400A0000 0x100>;
+				reg = <0x400a0000 0x100>;
 				interrupt-parent = <&sic1>;
 				interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 				#address-cells = <1>;
@@ -286,7 +287,7 @@
 
 			i2c2: i2c@400a8000 {
 				compatible = "nxp,pnx-i2c";
-				reg = <0x400A8000 0x100>;
+				reg = <0x400a8000 0x100>;
 				interrupt-parent = <&sic1>;
 				interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
 				#address-cells = <1>;
@@ -297,7 +298,7 @@
 
 			mpwm: mpwm@400e8000 {
 				compatible = "nxp,lpc3220-motor-pwm";
-				reg = <0x400E8000 0x78>;
+				reg = <0x400e8000 0x78>;
 				status = "disabled";
 				#pwm-cells = <2>;
 			};
@@ -396,7 +397,7 @@
 
 			timer4: timer@4002c000 {
 				compatible = "nxp,lpc3220-timer";
-				reg = <0x4002C000 0x1000>;
+				reg = <0x4002c000 0x1000>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 				clocks = <&clk LPC32XX_CLK_TIMER4>;
 				clock-names = "timerclk";
@@ -414,7 +415,7 @@
 
 			watchdog: watchdog@4003c000 {
 				compatible = "nxp,pnx4008-wdt";
-				reg = <0x4003C000 0x1000>;
+				reg = <0x4003c000 0x1000>;
 				clocks = <&clk LPC32XX_CLK_WDOG>;
 			};
 
@@ -453,7 +454,7 @@
 
 			timer1: timer@4004c000 {
 				compatible = "nxp,lpc3220-timer";
-				reg = <0x4004C000 0x1000>;
+				reg = <0x4004c000 0x1000>;
 				interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
 				clocks = <&clk LPC32XX_CLK_TIMER1>;
 				clock-names = "timerclk";
@@ -479,7 +480,7 @@
 
 			pwm1: pwm@4005c000 {
 				compatible = "nxp,lpc3220-pwm";
-				reg = <0x4005C000 0x4>;
+				reg = <0x4005c000 0x4>;
 				clocks = <&clk LPC32XX_CLK_PWM1>;
 				assigned-clocks = <&clk LPC32XX_CLK_PWM1>;
 				assigned-clock-parents = <&clk LPC32XX_CLK_PERIPH>;
@@ -488,7 +489,7 @@
 
 			pwm2: pwm@4005c004 {
 				compatible = "nxp,lpc3220-pwm";
-				reg = <0x4005C004 0x4>;
+				reg = <0x4005c004 0x4>;
 				clocks = <&clk LPC32XX_CLK_PWM2>;
 				assigned-clocks = <&clk LPC32XX_CLK_PWM2>;
 				assigned-clock-parents = <&clk LPC32XX_CLK_PERIPH>;
