@@ -1649,6 +1649,7 @@ static void hclgevf_service_timer(struct timer_list *t)
 
 	mod_timer(&hdev->service_timer, jiffies + 5 * HZ);
 
+	hdev->stats_timer++;
 	hclgevf_task_schedule(hdev);
 }
 
@@ -1769,9 +1770,16 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 
 static void hclgevf_service_task(struct work_struct *work)
 {
+	struct hnae3_handle *handle;
 	struct hclgevf_dev *hdev;
 
 	hdev = container_of(work, struct hclgevf_dev, service_task);
+	handle = &hdev->nic;
+
+	if (hdev->stats_timer >= HCLGEVF_STATS_TIMER_INTERVAL) {
+		hclgevf_tqps_update_stats(handle);
+		hdev->stats_timer = 0;
+	}
 
 	/* request the link status from the PF. PF would be able to tell VF
 	 * about such updates in future so we might remove this later
