@@ -206,7 +206,7 @@ static int ds2404_read_time(struct device *dev, struct rtc_time *dt)
 	ds2404_read_memory(dev, 0x203, 4, (u8 *)&time);
 	time = le32_to_cpu(time);
 
-	rtc_time_to_tm(time, dt);
+	rtc_time64_to_tm(time, dt);
 	return 0;
 }
 
