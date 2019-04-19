@@ -1302,6 +1302,13 @@ static int ath10k_htt_tx_hl(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txm
 		msdu_id = res;
 	}
 
+	/* As msdu is freed by mac80211 (in ieee80211_tx_status()) and by
+	 * ath10k (in ath10k_htt_htc_tx_complete()) we have to increase
+	 * reference by one to avoid a use-after-free case and a double
+	 * free.
+	 */
+	skb_get(msdu);
+
 	skb_push(msdu, sizeof(*cmd_hdr));
 	skb_push(msdu, sizeof(*tx_desc));
 	cmd_hdr = (struct htt_cmd_hdr *)msdu->data;
