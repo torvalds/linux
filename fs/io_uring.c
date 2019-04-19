@@ -1739,7 +1739,8 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct sqe_submit *s)
 	head = ctx->cached_sq_head;
 	/* See comment at the top of this file */
 	smp_rmb();
-	if (head == READ_ONCE(ring->r.tail))
+	/* make sure SQ entry isn't read before tail */
+	if (head == smp_load_acquire(&ring->r.tail))
 		return false;
 
 	head = READ_ONCE(ring->array[head & ctx->sq_mask]);
