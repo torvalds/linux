@@ -142,8 +142,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 }
 
-unsigned long phys_offset;
-EXPORT_SYMBOL(phys_offset);
+unsigned long va_pa_offset;
+EXPORT_SYMBOL(va_pa_offset);
 
 asmlinkage __visible void __init csky_start(unsigned int unused,
 					    void *dtb_start)
@@ -151,7 +151,7 @@ asmlinkage __visible void __init csky_start(unsigned int unused,
 	/* Clean up bss section */
 	memset(__bss_start, 0, __bss_stop - __bss_start);
 
-	phys_offset = read_mmu_msa0() & ~(SSEG_SIZE - 1);
+	va_pa_offset = read_mmu_msa0() & ~(SSEG_SIZE - 1);
 
 	pre_trap_init();
 	pre_mmu_init();

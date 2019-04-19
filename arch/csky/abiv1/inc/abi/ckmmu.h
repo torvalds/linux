@@ -85,11 +85,11 @@ static inline void tlb_invalid_indexed(void)
 
 static inline void setup_pgd(unsigned long pgd, bool kernel)
 {
-	cpwcr("cpcr29", pgd);
+	cpwcr("cpcr29", pgd | BIT(0));
 }
 
 static inline unsigned long get_pgd(void)
 {
-	return cprcr("cpcr29");
+	return cprcr("cpcr29") & ~BIT(0);
 }
 #endif /* __ASM_CSKY_CKMMUV1_H */

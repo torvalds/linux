@@ -72,13 +72,13 @@ typedef struct page *pgtable_t;
 #define __pgd(x)	((pgd_t) { (x) })
 #define __pgprot(x)	((pgprot_t) { (x) })
 
-extern unsigned long phys_offset;
+extern unsigned long va_pa_offset;
 
-#define ARCH_PFN_OFFSET	PFN_DOWN(phys_offset + PHYS_OFFSET_OFFSET)
+#define ARCH_PFN_OFFSET	PFN_DOWN(va_pa_offset + PHYS_OFFSET_OFFSET)
 
-#define __pa(x)		((unsigned long)(x) - PAGE_OFFSET + phys_offset)
-#define __va(x)		((void *)((unsigned long)(x) + PAGE_OFFSET - \
-				  phys_offset))
+#define __pa(x)		 ((unsigned long)(x) - PAGE_OFFSET + va_pa_offset)
+#define __va(x) ((void *)((unsigned long)(x) + PAGE_OFFSET - va_pa_offset))
+
 #define __pa_symbol(x)	__pa(RELOC_HIDE((unsigned long)(x), 0))
 
 #define MAP_NR(x)	PFN_DOWN((unsigned long)(x) - PAGE_OFFSET - \
