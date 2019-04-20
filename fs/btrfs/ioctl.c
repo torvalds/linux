@@ -190,7 +190,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	unsigned int fsflags, old_fsflags;
 	int ret;
 	u64 old_flags;
-	unsigned int old_i_flags;
 	umode_t mode;
 	const char *comp = NULL;
 
@@ -214,7 +213,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	inode_lock(inode);
 
 	old_flags = binode->flags;
-	old_i_flags = inode->i_flags;
 	mode = inode->i_mode;
 
 	fsflags = btrfs_mask_fsflags_for_type(inode, fsflags);
@@ -339,7 +337,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
  out_drop:
 	if (ret) {
 		binode->flags = old_flags;
-		inode->i_flags = old_i_flags;
 	}
 
  out_unlock:
