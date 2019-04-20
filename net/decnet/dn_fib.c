@@ -42,7 +42,7 @@
 #include <net/dn_fib.h>
 #include <net/dn_neigh.h>
 #include <net/dn_dev.h>
-#include <net/nexthop.h>
+#include <net/rtnh.h>
 
 #define RT_MIN_TABLE 1
 

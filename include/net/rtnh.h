@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __NET_NEXTHOP_H
-#define __NET_NEXTHOP_H
+#ifndef __NET_RTNH_H
+#define __NET_RTNH_H
 
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>

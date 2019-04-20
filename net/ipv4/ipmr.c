@@ -66,7 +66,7 @@
 #include <net/netlink.h>
 #include <net/fib_rules.h>
 #include <linux/netconf.h>
-#include <net/nexthop.h>
+#include <net/rtnh.h>
 
 #include <linux/nospec.h>
 

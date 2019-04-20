@@ -26,7 +26,7 @@
 #include <net/lwtunnel.h>
 #include <net/rtnetlink.h>
 #include <net/ip6_fib.h>
-#include <net/nexthop.h>
+#include <net/rtnh.h>
 
 #ifdef CONFIG_MODULES
 

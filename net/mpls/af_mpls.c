@@ -23,7 +23,7 @@
 #include <net/ipv6.h>
 #endif
 #include <net/ipv6_stubs.h>
-#include <net/nexthop.h>
+#include <net/rtnh.h>
 #include "internal.h"
 
 /* max memory we will use for mpls_route */
