@@ -1314,7 +1314,7 @@ static inline void tcp_update_wl(struct tcp_sock *tp, u32 seq)
 static inline __sum16 tcp_v4_check(int len, __be32 saddr,
 				   __be32 daddr, __wsum base)
 {
-	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
+	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_TCP, base);
 }
 
 static inline bool tcp_checksum_complete(struct sk_buff *skb)
