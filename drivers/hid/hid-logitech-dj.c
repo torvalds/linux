@@ -100,6 +100,8 @@
 #define POWER_KEYS				BIT(4)
 #define MEDIA_CENTER				BIT(8)
 #define KBD_LEDS				BIT(14)
+/* Fake (bitnr > NUMBER_OF_HID_REPORTS) bit to track HID++ capability */
+#define HIDPP					BIT_ULL(63)
 
 /* HID++ Device Connected Notification */
 #define REPORT_TYPE_NOTIF_DEVICE_CONNECTED	0x41
@@ -162,7 +164,7 @@ struct dj_receiver_dev {
 struct dj_device {
 	struct hid_device *hdev;
 	struct dj_receiver_dev *dj_receiver_dev;
-	u32 reports_supported;
+	u64 reports_supported;
 	u8 device_index;
 };
 
@@ -177,7 +179,7 @@ struct dj_workitem {
 	u8 device_type;
 	u8 quad_id_msb;
 	u8 quad_id_lsb;
-	u32 reports_supported;
+	u64 reports_supported;
 };
 
 /* Keyboard descriptor (1) */
@@ -805,6 +807,7 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 		workitem.reports_supported = get_unaligned_le32(
 						dj_report->report_params +
 						DEVICE_PAIRED_RF_REPORT_TYPE);
+		workitem.reports_supported |= HIDPP;
 		if (dj_report->report_type == REPORT_TYPE_NOTIF_DEVICE_UNPAIRED)
 			workitem.type = WORKITEM_TYPE_UNPAIRED;
 		break;
@@ -828,10 +831,11 @@ static void logi_hidpp_dev_conn_notif_equad(struct hidpp_event *hidpp_report,
 	switch (workitem->device_type) {
 	case REPORT_TYPE_KEYBOARD:
 		workitem->reports_supported |= STD_KEYBOARD | MULTIMEDIA |
-					       POWER_KEYS | MEDIA_CENTER;
+					       POWER_KEYS | MEDIA_CENTER |
+					       HIDPP;
 		break;
 	case REPORT_TYPE_MOUSE:
-		workitem->reports_supported |= STD_MOUSE;
+		workitem->reports_supported |= STD_MOUSE | HIDPP;
 		break;
 	}
 }
@@ -846,13 +850,13 @@ static void logi_hidpp_dev_conn_notif_27mhz(struct hid_device *hdev,
 	case 1: /* Index 1 is always a mouse */
 	case 2: /* Index 2 is always a mouse */
 		workitem->device_type = HIDPP_DEVICE_TYPE_MOUSE;
-		workitem->reports_supported |= STD_MOUSE;
+		workitem->reports_supported |= STD_MOUSE | HIDPP;
 		break;
 	case 3: /* Index 3 is always the keyboard */
 	case 4: /* Index 4 is used for an optional separate numpad */
 		workitem->device_type = HIDPP_DEVICE_TYPE_KEYBOARD;
 		workitem->reports_supported |= STD_KEYBOARD | MULTIMEDIA |
-					       POWER_KEYS;
+					       POWER_KEYS | HIDPP;
 		break;
 	default:
 		hid_warn(hdev, "%s: unexpected device-index %d", __func__,
@@ -1249,14 +1253,14 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 		return -ENOMEM;
 
 	if (djdev->reports_supported & STD_KEYBOARD) {
-		dbg_hid("%s: sending a kbd descriptor, reports_supported: %x\n",
+		dbg_hid("%s: sending a kbd descriptor, reports_supported: %llx\n",
 			__func__, djdev->reports_supported);
 		rdcat(rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
 	}
 
 	if (djdev->reports_supported & STD_MOUSE) {
-		dbg_hid("%s: sending a mouse descriptor, reports_supported: "
-			"%x\n", __func__, djdev->reports_supported);
+		dbg_hid("%s: sending a mouse descriptor, reports_supported: %llx\n",
+			__func__, djdev->reports_supported);
 		if (djdev->dj_receiver_dev->type == recvr_type_gaming_hidpp)
 			rdcat(rdesc, &rsize, mse_high_res_descriptor,
 			      sizeof(mse_high_res_descriptor));
@@ -1269,29 +1273,32 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	}
 
 	if (djdev->reports_supported & MULTIMEDIA) {
-		dbg_hid("%s: sending a multimedia report descriptor: %x\n",
+		dbg_hid("%s: sending a multimedia report descriptor: %llx\n",
 			__func__, djdev->reports_supported);
 		rdcat(rdesc, &rsize, consumer_descriptor, sizeof(consumer_descriptor));
 	}
 
 	if (djdev->reports_supported & POWER_KEYS) {
-		dbg_hid("%s: sending a power keys report descriptor: %x\n",
+		dbg_hid("%s: sending a power keys report descriptor: %llx\n",
 			__func__, djdev->reports_supported);
 		rdcat(rdesc, &rsize, syscontrol_descriptor, sizeof(syscontrol_descriptor));
 	}
 
 	if (djdev->reports_supported & MEDIA_CENTER) {
-		dbg_hid("%s: sending a media center report descriptor: %x\n",
+		dbg_hid("%s: sending a media center report descriptor: %llx\n",
 			__func__, djdev->reports_supported);
 		rdcat(rdesc, &rsize, media_descriptor, sizeof(media_descriptor));
 	}
 
 	if (djdev->reports_supported & KBD_LEDS) {
-		dbg_hid("%s: need to send kbd leds report descriptor: %x\n",
+		dbg_hid("%s: need to send kbd leds report descriptor: %llx\n",
 			__func__, djdev->reports_supported);
 	}
 
-	rdcat(rdesc, &rsize, hidpp_descriptor, sizeof(hidpp_descriptor));
+	if (djdev->reports_supported & HIDPP) {
+		rdcat(rdesc, &rsize, hidpp_descriptor,
+		      sizeof(hidpp_descriptor));
+	}
 
 	retval = hid_parse_report(hid, rdesc, rsize);
 	kfree(rdesc);
