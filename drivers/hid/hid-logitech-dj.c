@@ -108,6 +108,13 @@ struct dj_report {
 	u8 report_params[DJREPORT_SHORT_LENGTH - 3];
 };
 
+struct hidpp_event {
+	u8 report_id;
+	u8 device_index;
+	u8 sub_id;
+	u8 params[HIDPP_REPORT_LONG_LENGTH - 3U];
+} __packed;
+
 struct dj_receiver_dev {
 	struct hid_device *hdev;
 	struct dj_device *paired_dj_devices[DJ_MAX_PAIRED_DEVICES +
@@ -907,9 +914,9 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 			     int size)
 {
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
-	struct dj_report *dj_report = (struct dj_report *) data;
+	struct hidpp_event *hidpp_report = (struct hidpp_event *) data;
 	unsigned long flags;
-	u8 device_index = dj_report->device_index;
+	u8 device_index = hidpp_report->device_index;
 
 	if (device_index == HIDPP_RECEIVER_INDEX) {
 		/* special case were the device wants to know its unifying
@@ -938,7 +945,7 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 		 * so ignore those reports too.
 		 */
 		dev_err(&hdev->dev, "%s: invalid device index:%d\n",
-				__func__, dj_report->device_index);
+				__func__, hidpp_report->device_index);
 		return false;
 	}
 
