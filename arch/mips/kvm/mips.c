@@ -123,9 +123,9 @@ int kvm_arch_hardware_setup(void)
 	return 0;
 }
 
-void kvm_arch_check_processor_compat(void *rtn)
+int kvm_arch_check_processor_compat(void)
 {
-	*(int *)rtn = 0;
+	return 0;
 }
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)

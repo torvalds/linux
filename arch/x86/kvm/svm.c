@@ -5871,9 +5871,9 @@ svm_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[2] = 0xd9;
 }
 
-static void svm_check_processor_compat(void *rtn)
+static int __init svm_check_processor_compat(void)
 {
-	*(int *)rtn = 0;
+	return 0;
 }
 
 static bool svm_cpu_has_accelerated_tpr(void)

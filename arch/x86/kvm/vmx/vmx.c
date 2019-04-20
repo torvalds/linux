@@ -6733,22 +6733,22 @@ static int vmx_vm_init(struct kvm *kvm)
 	return 0;
 }
 
-static void __init vmx_check_processor_compat(void *rtn)
+static int __init vmx_check_processor_compat(void)
 {
 	struct vmcs_config vmcs_conf;
 	struct vmx_capability vmx_cap;
 
-	*(int *)rtn = 0;
 	if (setup_vmcs_config(&vmcs_conf, &vmx_cap) < 0)
-		*(int *)rtn = -EIO;
+		return -EIO;
 	if (nested)
 		nested_vmx_setup_ctls_msrs(&vmcs_conf.nested, vmx_cap.ept,
 					   enable_apicv);
 	if (memcmp(&vmcs_config, &vmcs_conf, sizeof(struct vmcs_config)) != 0) {
 		printk(KERN_ERR "kvm: CPU %d feature inconsistency!\n",
 				smp_processor_id());
-		*(int *)rtn = -EIO;
+		return -EIO;
 	}
+	return 0;
 }
 
 static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)

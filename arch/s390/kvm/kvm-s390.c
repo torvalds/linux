@@ -227,6 +227,11 @@ int kvm_arch_hardware_enable(void)
 	return 0;
 }
 
+int kvm_arch_check_processor_compat(void)
+{
+	return 0;
+}
+
 static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
 			      unsigned long end);
 

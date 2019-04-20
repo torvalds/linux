@@ -999,7 +999,7 @@ struct kvm_x86_ops {
 	int (*disabled_by_bios)(void);             /* __init */
 	int (*hardware_enable)(void);
 	void (*hardware_disable)(void);
-	void (*check_processor_compatibility)(void *rtn);
+	int (*check_processor_compatibility)(void);/* __init */
 	int (*hardware_setup)(void);               /* __init */
 	void (*hardware_unsetup)(void);            /* __exit */
 	bool (*cpu_has_accelerated_tpr)(void);
