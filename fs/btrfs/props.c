@@ -72,9 +72,9 @@ int btrfs_validate_prop(const char *name, const char *value, size_t value_len)
 	return handler->validate(value, value_len);
 }
 
-static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
-			  const char *name, const char *value, size_t value_len,
-			  int flags)
+int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
+		   const char *name, const char *value, size_t value_len,
+		   int flags)
 {
 	const struct prop_handler *handler;
 	int ret;
