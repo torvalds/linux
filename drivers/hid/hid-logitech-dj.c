@@ -112,6 +112,7 @@
 #define HIDPP_PARAM_27MHZ_DEVID			0x03
 #define HIDPP_DEVICE_TYPE_MASK			GENMASK(3, 0)
 #define HIDPP_LINK_STATUS_MASK			BIT(6)
+#define HIDPP_MANUFACTURER_MASK			BIT(7)
 
 #define HIDPP_DEVICE_TYPE_KEYBOARD		1
 #define HIDPP_DEVICE_TYPE_MOUSE			2
@@ -128,6 +129,7 @@ enum recvr_type {
 	recvr_type_hidpp,
 	recvr_type_gaming_hidpp,
 	recvr_type_27mhz,
+	recvr_type_bluetooth,
 };
 
 struct dj_report {
@@ -295,6 +297,55 @@ static const char mse_27mhz_descriptor[] = {
 	0xC0,			/*  END_COLLECTION                      */
 };
 
+/* Mouse descriptor (2) for Bluetooth receiver, low-res hwheel, 12 buttons */
+static const char mse_bluetooth_descriptor[] = {
+	0x05, 0x01,		/*  USAGE_PAGE (Generic Desktop)        */
+	0x09, 0x02,		/*  USAGE (Mouse)                       */
+	0xA1, 0x01,		/*  COLLECTION (Application)            */
+	0x85, 0x02,		/*    REPORT_ID = 2                     */
+	0x09, 0x01,		/*    USAGE (pointer)                   */
+	0xA1, 0x00,		/*    COLLECTION (physical)             */
+	0x05, 0x09,		/*      USAGE_PAGE (buttons)            */
+	0x19, 0x01,		/*      USAGE_MIN (1)                   */
+	0x29, 0x08,		/*      USAGE_MAX (8)                   */
+	0x15, 0x00,		/*      LOGICAL_MIN (0)                 */
+	0x25, 0x01,		/*      LOGICAL_MAX (1)                 */
+	0x95, 0x08,		/*      REPORT_COUNT (8)                */
+	0x75, 0x01,		/*      REPORT_SIZE (1)                 */
+	0x81, 0x02,		/*      INPUT (data var abs)            */
+	0x05, 0x01,		/*      USAGE_PAGE (generic desktop)    */
+	0x16, 0x01, 0xF8,	/*      LOGICAL_MIN (-2047)             */
+	0x26, 0xFF, 0x07,	/*      LOGICAL_MAX (2047)              */
+	0x75, 0x0C,		/*      REPORT_SIZE (12)                */
+	0x95, 0x02,		/*      REPORT_COUNT (2)                */
+	0x09, 0x30,		/*      USAGE (X)                       */
+	0x09, 0x31,		/*      USAGE (Y)                       */
+	0x81, 0x06,		/*      INPUT                           */
+	0x15, 0x81,		/*      LOGICAL_MIN (-127)              */
+	0x25, 0x7F,		/*      LOGICAL_MAX (127)               */
+	0x75, 0x08,		/*      REPORT_SIZE (8)                 */
+	0x95, 0x01,		/*      REPORT_COUNT (1)                */
+	0x09, 0x38,		/*      USAGE (wheel)                   */
+	0x81, 0x06,		/*      INPUT                           */
+	0x05, 0x0C,		/*      USAGE_PAGE(consumer)            */
+	0x0A, 0x38, 0x02,	/*      USAGE(AC Pan)                   */
+	0x15, 0xF9,		/*      LOGICAL_MIN (-7)                */
+	0x25, 0x07,		/*      LOGICAL_MAX (7)                 */
+	0x75, 0x04,		/*      REPORT_SIZE (4)                 */
+	0x95, 0x01,		/*      REPORT_COUNT (1)                */
+	0x81, 0x06,		/*      INPUT                           */
+	0x05, 0x09,		/*      USAGE_PAGE (buttons)            */
+	0x19, 0x09,		/*      USAGE_MIN (9)                   */
+	0x29, 0x0C,		/*      USAGE_MAX (12)                  */
+	0x15, 0x00,		/*      LOGICAL_MIN (0)                 */
+	0x25, 0x01,		/*      LOGICAL_MAX (1)                 */
+	0x75, 0x01,		/*      REPORT_SIZE (1)                 */
+	0x95, 0x04,		/*      REPORT_COUNT (4)                */
+	0x81, 0x06,		/*      INPUT                           */
+	0xC0,			/*    END_COLLECTION                    */
+	0xC0,			/*  END_COLLECTION                      */
+};
+
 /* Gaming Mouse descriptor (2) */
 static const char mse_high_res_descriptor[] = {
 	0x05, 0x01,		/*  USAGE_PAGE (Generic Desktop)        */
@@ -441,7 +492,7 @@ static const char hidpp_descriptor[] = {
 /* Make sure all descriptors are present here */
 #define MAX_RDESC_SIZE				\
 	(sizeof(kbd_descriptor) +		\
-	 sizeof(mse_descriptor) +		\
+	 sizeof(mse_bluetooth_descriptor) +	\
 	 sizeof(consumer_descriptor) +		\
 	 sizeof(syscontrol_descriptor) +	\
 	 sizeof(media_descriptor) +	\
@@ -486,24 +537,32 @@ static DEFINE_MUTEX(dj_hdev_list_lock);
  * to create a single struct dj_receiver_dev for all interfaces belonging to
  * a single USB-device / receiver.
  */
-static struct dj_receiver_dev *dj_find_receiver_dev(struct hid_device *hdev)
+static struct dj_receiver_dev *dj_find_receiver_dev(struct hid_device *hdev,
+						    enum recvr_type type)
 {
 	struct dj_receiver_dev *djrcv_dev;
+	char sep;
+
+	/*
+	 * The bluetooth receiver contains a built-in hub and has separate
+	 * USB-devices for the keyboard and mouse interfaces.
+	 */
+	sep = (type == recvr_type_bluetooth) ? '.' : '/';
 
 	/* Try to find an already-probed interface from the same device */
 	list_for_each_entry(djrcv_dev, &dj_hdev_list, list) {
 		if (djrcv_dev->mouse &&
-		    hid_compare_device_paths(hdev, djrcv_dev->mouse, '/')) {
+		    hid_compare_device_paths(hdev, djrcv_dev->mouse, sep)) {
 			kref_get(&djrcv_dev->kref);
 			return djrcv_dev;
 		}
 		if (djrcv_dev->keyboard &&
-		    hid_compare_device_paths(hdev, djrcv_dev->keyboard, '/')) {
+		    hid_compare_device_paths(hdev, djrcv_dev->keyboard, sep)) {
 			kref_get(&djrcv_dev->kref);
 			return djrcv_dev;
 		}
 		if (djrcv_dev->hidpp &&
-		    hid_compare_device_paths(hdev, djrcv_dev->hidpp, '/')) {
+		    hid_compare_device_paths(hdev, djrcv_dev->hidpp, sep)) {
 			kref_get(&djrcv_dev->kref);
 			return djrcv_dev;
 		}
@@ -548,7 +607,7 @@ static struct dj_receiver_dev *dj_get_receiver_dev(struct hid_device *hdev,
 
 	mutex_lock(&dj_hdev_list_lock);
 
-	djrcv_dev = dj_find_receiver_dev(hdev);
+	djrcv_dev = dj_find_receiver_dev(hdev, type);
 	if (!djrcv_dev) {
 		djrcv_dev = kzalloc(sizeof(*djrcv_dev), GFP_KERNEL);
 		if (!djrcv_dev)
@@ -878,6 +937,14 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 	switch (hidpp_report->params[HIDPP_PARAM_PROTO_TYPE]) {
 	case 0x01:
 		device_type = "Bluetooth";
+		/* Bluetooth connect packet contents is the same as (e)QUAD */
+		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		if (!(hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
+						HIDPP_MANUFACTURER_MASK)) {
+			hid_info(hdev, "Non Logitech device connected on slot %d\n",
+				 hidpp_report->device_index);
+			workitem.reports_supported &= ~HIDPP;
+		}
 		break;
 	case 0x02:
 		device_type = "27 Mhz";
@@ -1267,6 +1334,9 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 		else if (djdev->dj_receiver_dev->type == recvr_type_27mhz)
 			rdcat(rdesc, &rsize, mse_27mhz_descriptor,
 			      sizeof(mse_27mhz_descriptor));
+		else if (djdev->dj_receiver_dev->type == recvr_type_bluetooth)
+			rdcat(rdesc, &rsize, mse_bluetooth_descriptor,
+			      sizeof(mse_bluetooth_descriptor));
 		else
 			rdcat(rdesc, &rsize, mse_descriptor,
 			      sizeof(mse_descriptor));
@@ -1581,6 +1651,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	case recvr_type_hidpp:		no_dj_interfaces = 2; break;
 	case recvr_type_gaming_hidpp:	no_dj_interfaces = 3; break;
 	case recvr_type_27mhz:		no_dj_interfaces = 2; break;
+	case recvr_type_bluetooth:	no_dj_interfaces = 2; break;
 	}
 	if (hid_is_using_ll_driver(hdev, &usb_hid_driver)) {
 		intf = to_usb_interface(hdev->dev.parent);
@@ -1772,6 +1843,14 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_27MHZ_MOUSE_RECEIVER),
 	 .driver_data = recvr_type_27mhz},
+	{ /* Logitech MX5000 HID++ / bluetooth receiver keyboard intf. */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		0xc70e),
+	 .driver_data = recvr_type_bluetooth},
+	{ /* Logitech MX5000 HID++ / bluetooth receiver mouse intf. */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		0xc70a),
+	 .driver_data = recvr_type_bluetooth},
 	{}
 };
 
