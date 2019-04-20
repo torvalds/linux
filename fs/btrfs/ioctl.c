@@ -189,7 +189,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	struct btrfs_trans_handle *trans;
 	unsigned int fsflags;
 	int ret;
-	umode_t mode;
 	const char *comp = NULL;
 	u32 binode_flags = binode->flags;
 
@@ -211,8 +210,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		return ret;
 
 	inode_lock(inode);
-
-	mode = inode->i_mode;
 
 	fsflags = btrfs_mask_fsflags_for_type(inode, fsflags);
 	if ((fsflags ^ btrfs_inode_flags_to_fsflags(binode->flags)) &
@@ -248,7 +245,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	else
 		binode_flags &= ~BTRFS_INODE_DIRSYNC;
 	if (fsflags & FS_NOCOW_FL) {
-		if (S_ISREG(mode)) {
+		if (S_ISREG(inode->i_mode)) {
 			/*
 			 * It's safe to turn csums off here, no extents exist.
 			 * Otherwise we want the flag to reflect the real COW
@@ -264,7 +261,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		/*
 		 * Revert back under same assumptions as above
 		 */
-		if (S_ISREG(mode)) {
+		if (S_ISREG(inode->i_mode)) {
 			if (inode->i_size == 0)
 				binode_flags &= ~(BTRFS_INODE_NODATACOW |
 						  BTRFS_INODE_NODATASUM);
