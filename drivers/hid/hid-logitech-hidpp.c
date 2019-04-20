@@ -53,6 +53,9 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_REPORT_LONG_LENGTH		20
 #define HIDPP_REPORT_VERY_LONG_MAX_LENGTH	64
 
+#define HIDPP_SUB_ID_ROLLER			0x05
+#define HIDPP_SUB_ID_MOUSE_EXTRA_BTNS		0x06
+
 #define HIDPP_QUIRK_CLASS_WTP			BIT(0)
 #define HIDPP_QUIRK_CLASS_M560			BIT(1)
 #define HIDPP_QUIRK_CLASS_K400			BIT(2)
@@ -68,6 +71,11 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_QUIRK_HI_RES_SCROLL_1P0		BIT(26)
 #define HIDPP_QUIRK_HI_RES_SCROLL_X2120		BIT(27)
 #define HIDPP_QUIRK_HI_RES_SCROLL_X2121		BIT(28)
+#define HIDPP_QUIRK_HIDPP_WHEELS		BIT(29)
+
+/* These are just aliases for now */
+#define HIDPP_QUIRK_KBD_SCROLL_WHEEL HIDPP_QUIRK_HIDPP_WHEELS
+#define HIDPP_QUIRK_KBD_ZOOM_WHEEL   HIDPP_QUIRK_HIDPP_WHEELS
 
 /* Convenience constant to check for any high-res support. */
 #define HIDPP_QUIRK_HI_RES_SCROLL	(HIDPP_QUIRK_HI_RES_SCROLL_1P0 | \
@@ -2739,6 +2747,52 @@ static int g920_get_config(struct hidpp_device *hidpp)
 }
 
 /* -------------------------------------------------------------------------- */
+/* HID++1.0 devices which use HID++ reports for their wheels                  */
+/* -------------------------------------------------------------------------- */
+static int hidpp10_wheel_connect(struct hidpp_device *hidpp)
+{
+	return hidpp10_set_register(hidpp, HIDPP_REG_ENABLE_REPORTS, 0,
+			HIDPP_ENABLE_WHEEL_REPORT | HIDPP_ENABLE_HWHEEL_REPORT,
+			HIDPP_ENABLE_WHEEL_REPORT | HIDPP_ENABLE_HWHEEL_REPORT);
+}
+
+static int hidpp10_wheel_raw_event(struct hidpp_device *hidpp,
+				   u8 *data, int size)
+{
+	s8 value, hvalue;
+
+	if (!hidpp->input)
+		return -EINVAL;
+
+	if (size < 7)
+		return 0;
+
+	if (data[0] != REPORT_ID_HIDPP_SHORT || data[2] != HIDPP_SUB_ID_ROLLER)
+		return 0;
+
+	value = data[3];
+	hvalue = data[4];
+
+	input_report_rel(hidpp->input, REL_WHEEL, value);
+	input_report_rel(hidpp->input, REL_WHEEL_HI_RES, value * 120);
+	input_report_rel(hidpp->input, REL_HWHEEL, hvalue);
+	input_report_rel(hidpp->input, REL_HWHEEL_HI_RES, hvalue * 120);
+	input_sync(hidpp->input);
+
+	return 1;
+}
+
+static void hidpp10_wheel_populate_input(struct hidpp_device *hidpp,
+					 struct input_dev *input_dev)
+{
+	__set_bit(EV_REL, input_dev->evbit);
+	__set_bit(REL_WHEEL, input_dev->relbit);
+	__set_bit(REL_WHEEL_HI_RES, input_dev->relbit);
+	__set_bit(REL_HWHEEL, input_dev->relbit);
+	__set_bit(REL_HWHEEL_HI_RES, input_dev->relbit);
+}
+
+/* -------------------------------------------------------------------------- */
 /* High-resolution scroll wheels                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -2822,6 +2876,9 @@ static void hidpp_populate_input(struct hidpp_device *hidpp,
 		wtp_populate_input(hidpp, input);
 	else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560)
 		m560_populate_input(hidpp, input);
+
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_WHEELS)
+		hidpp10_wheel_populate_input(hidpp, input);
 }
 
 static int hidpp_input_configured(struct hid_device *hdev,
@@ -2889,6 +2946,12 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 
 	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP10_BATTERY) {
 		ret = hidpp10_battery_event(hidpp, data, size);
+		if (ret != 0)
+			return ret;
+	}
+
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_WHEELS) {
+		ret = hidpp10_wheel_raw_event(hidpp, data, size);
 		if (ret != 0)
 			return ret;
 	}
@@ -3140,6 +3203,12 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 			return;
 	}
 
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_WHEELS) {
+		ret = hidpp10_wheel_connect(hidpp);
+		if (ret)
+			return;
+	}
+
 	/* the device is already connected, we can ask for its name and
 	 * protocol */
 	if (!hidpp->protocol_major) {
@@ -3254,6 +3323,17 @@ static bool hidpp_validate_device(struct hid_device *hdev)
 				     HIDPP_REPORT_LONG_LENGTH, true);
 }
 
+static bool hidpp_application_equals(struct hid_device *hdev,
+				     unsigned int application)
+{
+	struct list_head *report_list;
+	struct hid_report *report;
+
+	report_list = &hdev->report_enum[HID_INPUT_REPORT].report_list;
+	report = list_first_entry_or_null(report_list, struct hid_report, list);
+	return report && report->application == application;
+}
+
 static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct hidpp_device *hidpp;
@@ -3291,6 +3371,10 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (id->group == HID_GROUP_LOGITECH_DJ_DEVICE)
 		hidpp->quirks |= HIDPP_QUIRK_UNIFYING;
+
+	if (id->group == HID_GROUP_LOGITECH_27MHZ_DEVICE &&
+	    hidpp_application_equals(hdev, HID_GD_MOUSE))
+		hidpp->quirks |= HIDPP_QUIRK_HIDPP_WHEELS;
 
 	if (disable_raw_mode) {
 		hidpp->quirks &= ~HIDPP_QUIRK_CLASS_WTP;
@@ -3471,6 +3555,16 @@ static const struct hid_device_id hidpp_devices[] = {
 	  .driver_data = HIDPP_QUIRK_CLASS_K750 },
 
 	{ LDJ_DEVICE(HID_ANY_ID) },
+
+	{ /* Keyboard LX501 (Y-RR53) */
+	  L27MHZ_DEVICE(0x0049),
+	  .driver_data = HIDPP_QUIRK_KBD_ZOOM_WHEEL },
+	{ /* Keyboard MX3000 (Y-RAM74) */
+	  L27MHZ_DEVICE(0x0057),
+	  .driver_data = HIDPP_QUIRK_KBD_SCROLL_WHEEL },
+	{ /* Keyboard MX3200 (Y-RAV80) */
+	  L27MHZ_DEVICE(0x005c),
+	  .driver_data = HIDPP_QUIRK_KBD_ZOOM_WHEEL },
 
 	{ L27MHZ_DEVICE(HID_ANY_ID) },
 
