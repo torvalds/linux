@@ -16,7 +16,8 @@ Documentation/devicetree/bindings/phy/phy-bindings.txt.
   Specification).
 - phy-mode: string, operation mode of the PHY interface. This is now a de-facto
   standard property; supported values are:
-  * "internal"
+  * "internal" (Internal means there is not a standard bus between the MAC and
+     the PHY, something proprietary is being used to embed the PHY in the MAC.)
   * "mii"
   * "gmii"
   * "sgmii"
