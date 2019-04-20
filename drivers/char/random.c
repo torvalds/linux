@@ -101,15 +101,13 @@
  * Exported interfaces ---- output
  * ===============================
  *
- * There are three exported interfaces; the first is one designed to
- * be used from within the kernel:
+ * There are four exported interfaces; two for use within the kernel,
+ * and two or use from userspace.
  *
- * 	void get_random_bytes(void *buf, int nbytes);
+ * Exported interfaces ---- userspace output
+ * -----------------------------------------
  *
- * This interface will return the requested number of random bytes,
- * and place it in the requested buffer.
- *
- * The two other interfaces are two character devices /dev/random and
+ * The userspace interfaces are two character devices /dev/random and
  * /dev/urandom.  /dev/random is suitable for use when very high
  * quality randomness is desired (for example, for key generation or
  * one-time pads), as it will only return a maximum of the number of
@@ -121,6 +119,77 @@
  * requested without giving time for the entropy pool to recharge,
  * this will result in random numbers that are merely cryptographically
  * strong.  For many applications, however, this is acceptable.
+ *
+ * Exported interfaces ---- kernel output
+ * --------------------------------------
+ *
+ * The primary kernel interface is
+ *
+ * 	void get_random_bytes(void *buf, int nbytes);
+ *
+ * This interface will return the requested number of random bytes,
+ * and place it in the requested buffer.  This is equivalent to a
+ * read from /dev/urandom.
+ *
+ * For less critical applications, there are the functions:
+ *
+ * 	u32 get_random_u32()
+ * 	u64 get_random_u64()
+ * 	unsigned int get_random_int()
+ * 	unsigned long get_random_long()
+ *
+ * These are produced by a cryptographic RNG seeded from get_random_bytes,
+ * and so do not deplete the entropy pool as much.  These are recommended
+ * for most in-kernel operations *if the result is going to be stored in
+ * the kernel*.
+ *
+ * Specifically, the get_random_int() family do not attempt to do
+ * "anti-backtracking".  If you capture the state of the kernel (e.g.
+ * by snapshotting the VM), you can figure out previous get_random_int()
+ * return values.  But if the value is stored in the kernel anyway,
+ * this is not a problem.
+ *
+ * It *is* safe to expose get_random_int() output to attackers (e.g. as
+ * network cookies); given outputs 1..n, it's not feasible to predict
+ * outputs 0 or n+1.  The only concern is an attacker who breaks into
+ * the kernel later; the get_random_int() engine is not reseeded as
+ * often as the get_random_bytes() one.
+ *
+ * get_random_bytes() is needed for keys that need to stay secret after
+ * they are erased from the kernel.  For example, any key that will
+ * be wrapped and stored encrypted.  And session encryption keys: we'd
+ * like to know that after the session is closed and the keys erased,
+ * the plaintext is unrecoverable to someone who recorded the ciphertext.
+ *
+ * But for network ports/cookies, stack canaries, PRNG seeds, address
+ * space layout randomization, session *authentication* keys, or other
+ * applications where the sensitive data is stored in the kernel in
+ * plaintext for as long as it's sensitive, the get_random_int() family
+ * is just fine.
+ *
+ * Consider ASLR.  We want to keep the address space secret from an
+ * outside attacker while the process is running, but once the address
+ * space is torn down, it's of no use to an attacker any more.  And it's
+ * stored in kernel data structures as long as it's alive, so worrying
+ * about an attacker's ability to extrapolate it from the get_random_int()
+ * CRNG is silly.
+ *
+ * Even some cryptographic keys are safe to generate with get_random_int().
+ * In particular, keys for SipHash are generally fine.  Here, knowledge
+ * of the key authorizes you to do something to a kernel object (inject
+ * packets to a network connection, or flood a hash table), and the
+ * key is stored with the object being protected.  Once it goes away,
+ * we no longer care if anyone knows the key.
+ *
+ * prandom_u32()
+ * -------------
+ *
+ * For even weaker applications, see the pseudorandom generator
+ * prandom_u32(), prandom_max(), and prandom_bytes().  If the random
+ * numbers aren't security-critical at all, these are *far* cheaper.
+ * Useful for self-tests, random error simulation, randomized backoffs,
+ * and any other application where you trust that nobody is trying to
+ * maliciously mess with you by guessing the "random" numbers.
  *
  * Exported interfaces ---- input
  * ==============================
