@@ -206,8 +206,6 @@ static int __hidpp_send_report(struct hid_device *hdev,
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	int fields_count, ret;
 
-	hidpp = hid_get_drvdata(hdev);
-
 	switch (hidpp_report->report_id) {
 	case REPORT_ID_HIDPP_SHORT:
 		fields_count = HIDPP_REPORT_SHORT_LENGTH;
