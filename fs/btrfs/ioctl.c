@@ -187,7 +187,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	struct btrfs_inode *binode = BTRFS_I(inode);
 	struct btrfs_root *root = binode->root;
 	struct btrfs_trans_handle *trans;
-	unsigned int fsflags, old_fsflags;
+	unsigned int fsflags;
 	int ret;
 	umode_t mode;
 	const char *comp = NULL;
@@ -215,8 +215,8 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	mode = inode->i_mode;
 
 	fsflags = btrfs_mask_fsflags_for_type(inode, fsflags);
-	old_fsflags = btrfs_inode_flags_to_fsflags(binode->flags);
-	if ((fsflags ^ old_fsflags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) {
+	if ((fsflags ^ btrfs_inode_flags_to_fsflags(binode->flags)) &
+	    (FS_APPEND_FL | FS_IMMUTABLE_FL)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
 			ret = -EPERM;
 			goto out_unlock;
