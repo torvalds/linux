@@ -74,7 +74,6 @@
 /* Device Un-Paired Notification */
 #define REPORT_TYPE_NOTIF_DEVICE_UNPAIRED	0x40
 
-
 /* Connection Status Notification */
 #define REPORT_TYPE_NOTIF_CONNECTION_STATUS	0x42
 #define CONNECTION_STATUS_PARAM_STATUS		0x00
@@ -100,6 +99,10 @@
 #define POWER_KEYS				BIT(4)
 #define MEDIA_CENTER				BIT(8)
 #define KBD_LEDS				BIT(14)
+
+#define HIDPP_GET_LONG_REGISTER			0x83
+#define HIDPP_REG_PAIRING_INFORMATION		0xB5
+#define HIDPP_PAIRING_INFORMATION		0x20
 
 struct dj_report {
 	u8 report_id;
@@ -703,8 +706,14 @@ static void logi_dj_ll_close(struct hid_device *hid)
  * Register 0xB5 is "pairing information". It is solely intended for the
  * receiver, so do not overwrite the device index.
  */
-static u8 unifying_pairing_query[]  = {0x10, 0xff, 0x83, 0xb5};
-static u8 unifying_pairing_answer[] = {0x11, 0xff, 0x83, 0xb5};
+static u8 unifying_pairing_query[]  = { REPORT_ID_HIDPP_SHORT,
+					HIDPP_RECEIVER_INDEX,
+					HIDPP_GET_LONG_REGISTER,
+					HIDPP_REG_PAIRING_INFORMATION };
+static u8 unifying_pairing_answer[] = { REPORT_ID_HIDPP_LONG,
+					HIDPP_RECEIVER_INDEX,
+					HIDPP_GET_LONG_REGISTER,
+					HIDPP_REG_PAIRING_INFORMATION };
 
 static int logi_dj_ll_raw_request(struct hid_device *hid,
 				  unsigned char reportnum, __u8 *buf,
