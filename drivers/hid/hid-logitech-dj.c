@@ -393,12 +393,14 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	struct hid_device *dj_hiddev;
 	struct dj_device *dj_dev;
 	u8 device_index = workitem->device_index;
+	unsigned long flags;
 
 	/* Device index goes from 1 to 6, we need 3 bytes to store the
 	 * semicolon, the index, and a null terminator
 	 */
 	unsigned char tmpstr[3];
 
+	/* We are the only one ever adding a device, no need to lock */
 	if (djrcv_dev->paired_dj_devices[device_index]) {
 		/* The device is already known. No need to reallocate it. */
 		dbg_hid("%s: device is already known\n", __func__);
@@ -443,7 +445,9 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	dj_dev->device_index = device_index;
 	dj_hiddev->driver_data = dj_dev;
 
+	spin_lock_irqsave(&djrcv_dev->lock, flags);
 	djrcv_dev->paired_dj_devices[device_index] = dj_dev;
+	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 
 	if (hid_add_device(dj_hiddev)) {
 		dev_err(&djrcv_hdev->dev, "%s: failed adding dj_device\n",
@@ -454,7 +458,9 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	return;
 
 hid_add_device_fail:
+	spin_lock_irqsave(&djrcv_dev->lock, flags);
 	djrcv_dev->paired_dj_devices[device_index] = NULL;
+	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 	kfree(dj_dev);
 dj_device_allocate_fail:
 	hid_destroy_device(dj_hiddev);
