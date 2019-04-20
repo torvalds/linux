@@ -111,6 +111,9 @@
 #define HIDPP_DEVICE_TYPE_MASK			GENMASK(3, 0)
 #define HIDPP_LINK_STATUS_MASK			BIT(6)
 
+#define HIDPP_DEVICE_TYPE_KEYBOARD		1
+#define HIDPP_DEVICE_TYPE_MOUSE			2
+
 #define HIDPP_SET_REGISTER			0x80
 #define HIDPP_GET_LONG_REGISTER			0x83
 #define HIDPP_REG_CONNECTION_STATE		0x02
@@ -171,6 +174,7 @@ struct dj_device {
 struct dj_workitem {
 	u8 type;		/* WORKITEM_TYPE_* */
 	u8 device_index;
+	u8 device_type;
 	u8 quad_id_msb;
 	u8 quad_id_lsb;
 	u32 reports_supported;
@@ -632,9 +636,26 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	dj_hiddev->vendor = djrcv_hdev->vendor;
 	dj_hiddev->product = (workitem->quad_id_msb << 8) |
 			      workitem->quad_id_lsb;
-	snprintf(dj_hiddev->name, sizeof(dj_hiddev->name),
-		"Logitech Unifying Device. Wireless PID:%04x",
-		dj_hiddev->product);
+	if (workitem->device_type) {
+		const char *type_str = "Device";
+
+		switch (workitem->device_type) {
+		case 0x01: type_str = "Keyboard";	break;
+		case 0x02: type_str = "Mouse";		break;
+		case 0x03: type_str = "Numpad";		break;
+		case 0x04: type_str = "Presenter";	break;
+		case 0x07: type_str = "Remote Control";	break;
+		case 0x08: type_str = "Trackball";	break;
+		case 0x09: type_str = "Touchpad";	break;
+		}
+		snprintf(dj_hiddev->name, sizeof(dj_hiddev->name),
+			"Logitech Wireless %s PID:%04x",
+			type_str, dj_hiddev->product);
+	} else {
+		snprintf(dj_hiddev->name, sizeof(dj_hiddev->name),
+			"Logitech Unifying Device. Wireless PID:%04x",
+			dj_hiddev->product);
+	}
 
 	if (djrcv_dev->type == recvr_type_27mhz)
 		dj_hiddev->group = HID_GROUP_LOGITECH_27MHZ_DEVICE;
@@ -809,10 +830,11 @@ static void logi_hidpp_dev_conn_notif_equad(struct hidpp_event *hidpp_report,
 					    struct dj_workitem *workitem)
 {
 	workitem->type = WORKITEM_TYPE_PAIRED;
+	workitem->device_type = hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
+				HIDPP_DEVICE_TYPE_MASK;
 	workitem->quad_id_msb = hidpp_report->params[HIDPP_PARAM_EQUAD_MSB];
 	workitem->quad_id_lsb = hidpp_report->params[HIDPP_PARAM_EQUAD_LSB];
-	switch (hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
-		HIDPP_DEVICE_TYPE_MASK) {
+	switch (workitem->device_type) {
 	case REPORT_TYPE_KEYBOARD:
 		workitem->reports_supported |= STD_KEYBOARD | MULTIMEDIA |
 					       POWER_KEYS | MEDIA_CENTER;
@@ -832,10 +854,12 @@ static void logi_hidpp_dev_conn_notif_27mhz(struct hid_device *hdev,
 	switch (hidpp_report->device_index) {
 	case 1: /* Index 1 is always a mouse */
 	case 2: /* Index 2 is always a mouse */
+		workitem->device_type = HIDPP_DEVICE_TYPE_MOUSE;
 		workitem->reports_supported |= STD_MOUSE;
 		break;
 	case 3: /* Index 3 is always the keyboard */
 	case 4: /* Index 4 is used for an optional separate numpad */
+		workitem->device_type = HIDPP_DEVICE_TYPE_KEYBOARD;
 		workitem->reports_supported |= STD_KEYBOARD | MULTIMEDIA |
 					       POWER_KEYS;
 		break;
