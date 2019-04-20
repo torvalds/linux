@@ -1483,6 +1483,16 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 			data[0] = data[1];
 			data[1] = 0;
 		}
+		/* The 27 MHz mouse-only receiver sends unnumbered mouse data */
+		if (djrcv_dev->unnumbered_application == HID_GD_MOUSE &&
+		    size == 6) {
+			u8 mouse_report[7];
+
+			/* Prepend report id */
+			mouse_report[0] = REPORT_TYPE_MOUSE;
+			memcpy(mouse_report + 1, data, 6);
+			logi_dj_recv_forward_input_report(hdev, mouse_report, 7);
+		}
 
 		return false;
 	}
@@ -1719,6 +1729,10 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc517) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_S510_RECEIVER_2),
+	 .driver_data = recvr_type_27mhz},
+	{ /* Logitech 27 MHz HID++ 1.0 mouse-only receiver (0xc51b) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_27MHZ_MOUSE_RECEIVER),
 	 .driver_data = recvr_type_27mhz},
 	{}
 };
