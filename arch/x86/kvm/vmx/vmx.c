@@ -392,6 +392,7 @@ static const struct kvm_vmx_segment_field {
 };
 
 u64 host_efer;
+static unsigned long host_idt_base;
 
 /*
  * Though SYSCALL is only supported in 64-bit mode on Intel CPUs, kvm
@@ -3728,7 +3729,6 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 {
 	u32 low32, high32;
 	unsigned long tmpl;
-	struct desc_ptr dt;
 	unsigned long cr0, cr3, cr4;
 
 	cr0 = read_cr0();
@@ -3764,9 +3764,7 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	vmcs_write16(HOST_SS_SELECTOR, __KERNEL_DS);  /* 22.2.4 */
 	vmcs_write16(HOST_TR_SELECTOR, GDT_ENTRY_TSS*8);  /* 22.2.4 */
 
-	store_idt(&dt);
-	vmcs_writel(HOST_IDTR_BASE, dt.address);   /* 22.2.4 */
-	vmx->host_idt_base = dt.address;
+	vmcs_writel(HOST_IDTR_BASE, host_idt_base);   /* 22.2.4 */
 
 	vmcs_writel(HOST_RIP, (unsigned long)vmx_vmexit); /* 22.2.5 */
 
@@ -6144,7 +6142,7 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 		return;
 
 	vector = intr_info & INTR_INFO_VECTOR_MASK;
-	desc = (gate_desc *)vmx->host_idt_base + vector;
+	desc = (gate_desc *)host_idt_base + vector;
 	entry = gate_offset(desc);
 
 	asm volatile(
@@ -7429,9 +7427,13 @@ static bool vmx_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 static __init int hardware_setup(void)
 {
 	unsigned long host_bndcfgs;
+	struct desc_ptr dt;
 	int r, i;
 
 	rdmsrl_safe(MSR_EFER, &host_efer);
+
+	store_idt(&dt);
+	host_idt_base = dt.address;
 
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
 		kvm_define_shared_msr(i, vmx_msr_index[i]);

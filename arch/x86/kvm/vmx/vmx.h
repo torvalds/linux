@@ -187,7 +187,6 @@ struct vcpu_vmx {
 	int                   nmsrs;
 	int                   save_nmsrs;
 	bool                  guest_msrs_dirty;
-	unsigned long	      host_idt_base;
 #ifdef CONFIG_X86_64
 	u64		      msr_host_kernel_gs_base;
 	u64		      msr_guest_kernel_gs_base;
