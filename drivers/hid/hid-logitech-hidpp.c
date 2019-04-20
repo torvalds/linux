@@ -53,6 +53,7 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_REPORT_LONG_LENGTH		20
 #define HIDPP_REPORT_VERY_LONG_MAX_LENGTH	64
 
+#define HIDPP_SUB_ID_CONSUMER_VENDOR_KEYS	0x03
 #define HIDPP_SUB_ID_ROLLER			0x05
 #define HIDPP_SUB_ID_MOUSE_EXTRA_BTNS		0x06
 
@@ -73,6 +74,7 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_QUIRK_HI_RES_SCROLL_X2121		BIT(28)
 #define HIDPP_QUIRK_HIDPP_WHEELS		BIT(29)
 #define HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS	BIT(30)
+#define HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS	BIT(31)
 
 /* These are just aliases for now */
 #define HIDPP_QUIRK_KBD_SCROLL_WHEEL HIDPP_QUIRK_HIDPP_WHEELS
@@ -2852,6 +2854,71 @@ static void hidpp10_extra_mouse_buttons_populate_input(
 }
 
 /* -------------------------------------------------------------------------- */
+/* HID++1.0 kbds which only report 0x10xx consumer usages through sub-id 0x03 */
+/* -------------------------------------------------------------------------- */
+
+/* Find the consumer-page input report desc and change Maximums to 0x107f */
+static u8 *hidpp10_consumer_keys_report_fixup(struct hidpp_device *hidpp,
+					      u8 *_rdesc, unsigned int *rsize)
+{
+	/* Note 0 terminated so we can use strnstr to search for this. */
+	const char consumer_rdesc_start[] = {
+		0x05, 0x0C,	/* USAGE_PAGE (Consumer Devices)       */
+		0x09, 0x01,	/* USAGE (Consumer Control)            */
+		0xA1, 0x01,	/* COLLECTION (Application)            */
+		0x85, 0x03,	/* REPORT_ID = 3                       */
+		0x75, 0x10,	/* REPORT_SIZE (16)                    */
+		0x95, 0x02,	/* REPORT_COUNT (2)                    */
+		0x15, 0x01,	/* LOGICAL_MIN (1)                     */
+		0x26, 0x00	/* LOGICAL_MAX (...                    */
+	};
+	char *consumer_rdesc, *rdesc = (char *)_rdesc;
+	unsigned int size;
+
+	consumer_rdesc = strnstr(rdesc, consumer_rdesc_start, *rsize);
+	size = *rsize - (consumer_rdesc - rdesc);
+	if (consumer_rdesc && size >= 25) {
+		consumer_rdesc[15] = 0x7f;
+		consumer_rdesc[16] = 0x10;
+		consumer_rdesc[20] = 0x7f;
+		consumer_rdesc[21] = 0x10;
+	}
+	return _rdesc;
+}
+
+static int hidpp10_consumer_keys_connect(struct hidpp_device *hidpp)
+{
+	return hidpp10_set_register(hidpp, HIDPP_REG_ENABLE_REPORTS, 0,
+				    HIDPP_ENABLE_CONSUMER_REPORT,
+				    HIDPP_ENABLE_CONSUMER_REPORT);
+}
+
+static int hidpp10_consumer_keys_raw_event(struct hidpp_device *hidpp,
+					   u8 *data, int size)
+{
+	u8 consumer_report[5];
+
+	if (size < 7)
+		return 0;
+
+	if (data[0] != REPORT_ID_HIDPP_SHORT ||
+	    data[2] != HIDPP_SUB_ID_CONSUMER_VENDOR_KEYS)
+		return 0;
+
+	/*
+	 * Build a normal consumer report (3) out of the data, this detour
+	 * is necessary to get some keyboards to report their 0x10xx usages.
+	 */
+	consumer_report[0] = 0x03;
+	memcpy(&consumer_report[1], &data[3], 4);
+	/* We are called from atomic context */
+	hid_report_raw_event(hidpp->hid_dev, HID_INPUT_REPORT,
+			     consumer_report, 5, 1);
+
+	return 1;
+}
+
+/* -------------------------------------------------------------------------- */
 /* High-resolution scroll wheels                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -2885,6 +2952,22 @@ static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 /* -------------------------------------------------------------------------- */
 /* Generic HID++ devices                                                      */
 /* -------------------------------------------------------------------------- */
+
+static u8 *hidpp_report_fixup(struct hid_device *hdev, u8 *rdesc,
+			      unsigned int *rsize)
+{
+	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
+
+	if (!hidpp)
+		return rdesc;
+
+	/* For 27 MHz keyboards the quirk gets set after hid_parse. */
+	if (hdev->group == HID_GROUP_LOGITECH_27MHZ_DEVICE ||
+	    (hidpp->quirks & HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS))
+		rdesc = hidpp10_consumer_keys_report_fixup(hidpp, rdesc, rsize);
+
+	return rdesc;
+}
 
 static int hidpp_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
@@ -3020,6 +3103,12 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 
 	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS) {
 		ret = hidpp10_extra_mouse_buttons_raw_event(hidpp, data, size);
+		if (ret != 0)
+			return ret;
+	}
+
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS) {
+		ret = hidpp10_consumer_keys_raw_event(hidpp, data, size);
 		if (ret != 0)
 			return ret;
 	}
@@ -3283,6 +3372,12 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 			return;
 	}
 
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS) {
+		ret = hidpp10_consumer_keys_connect(hidpp);
+		if (ret)
+			return;
+	}
+
 	/* the device is already connected, we can ask for its name and
 	 * protocol */
 	if (!hidpp->protocol_major) {
@@ -3415,6 +3510,16 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	bool connected;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 
+	/* report_fixup needs drvdata to be set before we call hid_parse */
+	hidpp = devm_kzalloc(&hdev->dev, sizeof(*hidpp), GFP_KERNEL);
+	if (!hidpp)
+		return -ENOMEM;
+
+	hidpp->hid_dev = hdev;
+	hidpp->name = hdev->name;
+	hidpp->quirks = id->driver_data;
+	hid_set_drvdata(hdev, hidpp);
+
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "%s:parse failed\n", __func__);
@@ -3424,19 +3529,11 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	/*
 	 * Make sure the device is HID++ capable, otherwise treat as generic HID
 	 */
-	if (!hidpp_validate_device(hdev))
+	if (!hidpp_validate_device(hdev)) {
+		hid_set_drvdata(hdev, NULL);
+		devm_kfree(&hdev->dev, hidpp);
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
-
-	hidpp = devm_kzalloc(&hdev->dev, sizeof(struct hidpp_device),
-			GFP_KERNEL);
-	if (!hidpp)
-		return -ENOMEM;
-
-	hidpp->hid_dev = hdev;
-	hidpp->name = hdev->name;
-	hid_set_drvdata(hdev, hidpp);
-
-	hidpp->quirks = id->driver_data;
+	}
 
 	hidpp->very_long_report_length =
 		hidpp_get_report_length(hdev, REPORT_ID_HIDPP_VERY_LONG);
@@ -3450,6 +3547,10 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	    hidpp_application_equals(hdev, HID_GD_MOUSE))
 		hidpp->quirks |= HIDPP_QUIRK_HIDPP_WHEELS |
 				 HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS;
+
+	if (id->group == HID_GROUP_LOGITECH_27MHZ_DEVICE &&
+	    hidpp_application_equals(hdev, HID_GD_KEYBOARD))
+		hidpp->quirks |= HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS;
 
 	if (disable_raw_mode) {
 		hidpp->quirks &= ~HIDPP_QUIRK_CLASS_WTP;
@@ -3628,6 +3729,9 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ /* Solar Keyboard Logitech K750 */
 	  LDJ_DEVICE(0x4002),
 	  .driver_data = HIDPP_QUIRK_CLASS_K750 },
+	{ /* Keyboard MX5000 (Bluetooth-receiver in HID proxy mode) */
+	  LDJ_DEVICE(0xb305),
+	  .driver_data = HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS },
 
 	{ LDJ_DEVICE(HID_ANY_ID) },
 
@@ -3652,6 +3756,10 @@ static const struct hid_device_id hidpp_devices[] = {
 	{ /* Logitech G920 Wheel over USB */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G920_WHEEL),
 		.driver_data = HIDPP_QUIRK_CLASS_G920 | HIDPP_QUIRK_FORCE_OUTPUT_REPORTS},
+
+	{ /* MX5000 keyboard over Bluetooth */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH, 0xb305),
+	  .driver_data = HIDPP_QUIRK_HIDPP_CONSUMER_VENDOR_KEYS },
 	{}
 };
 
@@ -3665,6 +3773,7 @@ static const struct hid_usage_id hidpp_usages[] = {
 static struct hid_driver hidpp_driver = {
 	.name = "logitech-hidpp-device",
 	.id_table = hidpp_devices,
+	.report_fixup = hidpp_report_fixup,
 	.probe = hidpp_probe,
 	.remove = hidpp_remove,
 	.raw_event = hidpp_raw_event,
