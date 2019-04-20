@@ -7999,9 +7999,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
 
-	kvm_before_interrupt(vcpu);
 	kvm_x86_ops->handle_external_intr(vcpu);
-	kvm_after_interrupt(vcpu);
 
 	++vcpu->stat.exits;
 

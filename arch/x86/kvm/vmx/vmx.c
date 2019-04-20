@@ -6145,6 +6145,8 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 	desc = (gate_desc *)host_idt_base + vector;
 	entry = gate_offset(desc);
 
+	kvm_before_interrupt(vcpu);
+
 	asm volatile(
 #ifdef CONFIG_X86_64
 		"mov %%" _ASM_SP ", %[sp]\n\t"
@@ -6165,6 +6167,8 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 		[ss]"i"(__KERNEL_DS),
 		[cs]"i"(__KERNEL_CS)
 	);
+
+	kvm_after_interrupt(vcpu);
 }
 STACK_FRAME_NON_STANDARD(vmx_handle_external_intr);
 
