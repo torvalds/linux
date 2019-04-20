@@ -35,6 +35,13 @@ static const char hns3_driver_string[] =
 static const char hns3_copyright[] = "Copyright (c) 2017 Huawei Corporation.";
 static struct hnae3_client client;
 
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, " Network interface message level setting");
+
+#define DEFAULT_MSG_LEVEL (NETIF_MSG_PROBE | NETIF_MSG_LINK | \
+			   NETIF_MSG_IFDOWN | NETIF_MSG_IFUP)
+
 /* hns3_pci_tbl - PCI Device ID Table
  *
  * Last entry must be all 0s
@@ -1628,13 +1635,19 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = hns3_get_handle(ndev);
 	struct hns3_enet_ring *tx_ring = NULL;
+	struct napi_struct *napi;
 	int timeout_queue = 0;
 	int hw_head, hw_tail;
+	int fbd_num, fbd_oft;
+	int ebd_num, ebd_oft;
+	int bd_num, bd_err;
+	int ring_en, tc;
 	int i;
 
 	/* Find the stopped queue the same way the stack does */
-	for (i = 0; i < ndev->real_num_tx_queues; i++) {
+	for (i = 0; i < ndev->num_tx_queues; i++) {
 		struct netdev_queue *q;
 		unsigned long trans_start;
 
@@ -1655,21 +1668,66 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 		return false;
 	}
 
+	priv->tx_timeout_count++;
+
 	tx_ring = priv->ring_data[timeout_queue].ring;
+	napi = &tx_ring->tqp_vector->napi;
+
+	netdev_info(ndev,
+		    "tx_timeout count: %llu, queue id: %d, SW_NTU: 0x%x, SW_NTC: 0x%x, napi state: %lu\n",
+		    priv->tx_timeout_count, timeout_queue, tx_ring->next_to_use,
+		    tx_ring->next_to_clean, napi->state);
+
+	netdev_info(ndev,
+		    "tx_pkts: %llu, tx_bytes: %llu, io_err_cnt: %llu, sw_err_cnt: %llu\n",
+		    tx_ring->stats.tx_pkts, tx_ring->stats.tx_bytes,
+		    tx_ring->stats.io_err_cnt, tx_ring->stats.sw_err_cnt);
+
+	netdev_info(ndev,
+		    "seg_pkt_cnt: %llu, tx_err_cnt: %llu, restart_queue: %llu, tx_busy: %llu\n",
+		    tx_ring->stats.seg_pkt_cnt, tx_ring->stats.tx_err_cnt,
+		    tx_ring->stats.restart_queue, tx_ring->stats.tx_busy);
+
+	/* When mac received many pause frames continuous, it's unable to send
+	 * packets, which may cause tx timeout
+	 */
+	if (h->ae_algo->ops->update_stats &&
+	    h->ae_algo->ops->get_mac_pause_stats) {
+		u64 tx_pause_cnt, rx_pause_cnt;
+
+		h->ae_algo->ops->update_stats(h, &ndev->stats);
+		h->ae_algo->ops->get_mac_pause_stats(h, &tx_pause_cnt,
+						     &rx_pause_cnt);
+		netdev_info(ndev, "tx_pause_cnt: %llu, rx_pause_cnt: %llu\n",
+			    tx_pause_cnt, rx_pause_cnt);
+	}
 
 	hw_head = readl_relaxed(tx_ring->tqp->io_base +
 				HNS3_RING_TX_RING_HEAD_REG);
 	hw_tail = readl_relaxed(tx_ring->tqp->io_base +
 				HNS3_RING_TX_RING_TAIL_REG);
+	fbd_num = readl_relaxed(tx_ring->tqp->io_base +
+				HNS3_RING_TX_RING_FBDNUM_REG);
+	fbd_oft = readl_relaxed(tx_ring->tqp->io_base +
+				HNS3_RING_TX_RING_OFFSET_REG);
+	ebd_num = readl_relaxed(tx_ring->tqp->io_base +
+				HNS3_RING_TX_RING_EBDNUM_REG);
+	ebd_oft = readl_relaxed(tx_ring->tqp->io_base +
+				HNS3_RING_TX_RING_EBD_OFFSET_REG);
+	bd_num = readl_relaxed(tx_ring->tqp->io_base +
+			       HNS3_RING_TX_RING_BD_NUM_REG);
+	bd_err = readl_relaxed(tx_ring->tqp->io_base +
+			       HNS3_RING_TX_RING_BD_ERR_REG);
+	ring_en = readl_relaxed(tx_ring->tqp->io_base + HNS3_RING_EN_REG);
+	tc = readl_relaxed(tx_ring->tqp->io_base + HNS3_RING_TX_RING_TC_REG);
+
 	netdev_info(ndev,
-		    "tx_timeout count: %llu, queue id: %d, SW_NTU: 0x%x, SW_NTC: 0x%x, HW_HEAD: 0x%x, HW_TAIL: 0x%x, INT: 0x%x\n",
-		    priv->tx_timeout_count,
-		    timeout_queue,
-		    tx_ring->next_to_use,
-		    tx_ring->next_to_clean,
-		    hw_head,
-		    hw_tail,
+		    "BD_NUM: 0x%x HW_HEAD: 0x%x, HW_TAIL: 0x%x, BD_ERR: 0x%x, INT: 0x%x\n",
+		    bd_num, hw_head, hw_tail, bd_err,
 		    readl(tx_ring->tqp_vector->mask_addr));
+	netdev_info(ndev,
+		    "RING_EN: 0x%x, TC: 0x%x, FBD_NUM: 0x%x FBD_OFT: 0x%x, EBD_NUM: 0x%x, EBD_OFT: 0x%x\n",
+		    ring_en, tc, fbd_num, fbd_oft, ebd_num, ebd_oft);
 
 	return true;
 }
@@ -1681,8 +1739,6 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 
 	if (!hns3_get_tx_timeo_queue_info(ndev))
 		return;
-
-	priv->tx_timeout_count++;
 
 	/* request the reset, and let the hclge to determine
 	 * which reset level should be done
@@ -1708,7 +1764,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
 };
 
-static bool hns3_is_phys_func(struct pci_dev *pdev)
+bool hns3_is_phys_func(struct pci_dev *pdev)
 {
 	u32 dev_id = pdev->device;
 
@@ -3688,6 +3744,21 @@ static void hns3_client_stop(struct hnae3_handle *handle)
 	handle->ae_algo->ops->client_stop(handle);
 }
 
+static void hns3_info_show(struct hns3_nic_priv *priv)
+{
+	struct hnae3_knic_private_info *kinfo = &priv->ae_handle->kinfo;
+
+	dev_info(priv->dev, "MAC address: %pM\n", priv->netdev->dev_addr);
+	dev_info(priv->dev, "Task queue pairs numbers: %d\n", kinfo->num_tqps);
+	dev_info(priv->dev, "RSS size: %d\n", kinfo->rss_size);
+	dev_info(priv->dev, "Allocated RSS size: %d\n", kinfo->req_rss_size);
+	dev_info(priv->dev, "RX buffer length: %d\n", kinfo->rx_buf_len);
+	dev_info(priv->dev, "Desc num per TX queue: %d\n", kinfo->num_tx_desc);
+	dev_info(priv->dev, "Desc num per RX queue: %d\n", kinfo->num_rx_desc);
+	dev_info(priv->dev, "Total number of enabled TCs: %d\n", kinfo->num_tc);
+	dev_info(priv->dev, "Max mtu size: %d\n", priv->netdev->max_mtu);
+}
+
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
@@ -3708,6 +3779,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->ae_handle = handle;
 	priv->tx_timeout_count = 0;
 	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
+
+	handle->msg_enable = netif_msg_init(debug, DEFAULT_MSG_LEVEL);
 
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
@@ -3774,6 +3847,9 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	netdev->max_mtu = HNS3_MAX_MTU;
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
+	if (netif_msg_drv(handle))
+		hns3_info_show(priv);
 
 	return ret;
 
@@ -3849,11 +3925,13 @@ static void hns3_link_status_change(struct hnae3_handle *handle, bool linkup)
 	if (linkup) {
 		netif_carrier_on(netdev);
 		netif_tx_wake_all_queues(netdev);
-		netdev_info(netdev, "link up\n");
+		if (netif_msg_link(handle))
+			netdev_info(netdev, "link up\n");
 	} else {
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
-		netdev_info(netdev, "link down\n");
+		if (netif_msg_link(handle))
+			netdev_info(netdev, "link down\n");
 	}
 }
 

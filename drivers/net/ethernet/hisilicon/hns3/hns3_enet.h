@@ -42,8 +42,10 @@ enum hns3_nic_state {
 #define HNS3_RING_TX_RING_HEAD_REG		0x0005C
 #define HNS3_RING_TX_RING_FBDNUM_REG		0x00060
 #define HNS3_RING_TX_RING_OFFSET_REG		0x00064
+#define HNS3_RING_TX_RING_EBDNUM_REG		0x00068
 #define HNS3_RING_TX_RING_PKTNUM_RECORD_REG	0x0006C
-
+#define HNS3_RING_TX_RING_EBD_OFFSET_REG	0x00070
+#define HNS3_RING_TX_RING_BD_ERR_REG		0x00074
 #define HNS3_RING_PREFETCH_EN_REG		0x0007C
 #define HNS3_RING_CFG_VF_NUM_REG		0x00080
 #define HNS3_RING_ASID_REG			0x0008C
@@ -661,6 +663,7 @@ int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
 int hns3_nic_reset_all_ring(struct hnae3_handle *h);
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
+bool hns3_is_phys_func(struct pci_dev *pdev);
 int hns3_clean_rx_ring(
 		struct hns3_enet_ring *ring, int budget,
 		void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *));

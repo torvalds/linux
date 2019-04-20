@@ -116,6 +116,8 @@
 #define HCLGEVF_S_IP_BIT		BIT(3)
 #define HCLGEVF_V_TAG_BIT		BIT(4)
 
+#define HCLGEVF_STATS_TIMER_INTERVAL	(36)
+
 enum hclgevf_evt_cause {
 	HCLGEVF_VECTOR0_EVENT_RST,
 	HCLGEVF_VECTOR0_EVENT_MBX,
@@ -210,6 +212,15 @@ struct hclgevf_misc_vector {
 	int vector_irq;
 };
 
+struct hclgevf_rst_stats {
+	u32 rst_cnt;			/* the number of reset */
+	u32 vf_func_rst_cnt;		/* the number of VF function reset */
+	u32 flr_rst_cnt;		/* the number of FLR */
+	u32 vf_rst_cnt;			/* the number of VF reset */
+	u32 rst_done_cnt;		/* the number of reset completed */
+	u32 hw_rst_done_cnt;		/* the number of HW reset completed */
+};
+
 struct hclgevf_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
@@ -227,7 +238,7 @@ struct hclgevf_dev {
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1
 	unsigned long reset_state;	/* requested, pending */
-	unsigned long reset_count;	/* the number of reset has been done */
+	struct hclgevf_rst_stats rst_stats;
 	u32 reset_attempts;
 
 	u32 fw_version;
@@ -272,6 +283,7 @@ struct hclgevf_dev {
 	struct hnae3_client *nic_client;
 	struct hnae3_client *roce_client;
 	u32 flag;
+	u32 stats_timer;
 };
 
 static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
