@@ -114,6 +114,67 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj)
 	return !i915_gem_object_has_pages(obj);
 }
 
+static void __start_writeback(struct drm_i915_gem_object *obj,
+			      unsigned int flags)
+{
+	struct address_space *mapping;
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_NONE,
+		.nr_to_write = SWAP_CLUSTER_MAX,
+		.range_start = 0,
+		.range_end = LLONG_MAX,
+		.for_reclaim = 1,
+	};
+	unsigned long i;
+
+	lockdep_assert_held(&obj->mm.lock);
+	GEM_BUG_ON(i915_gem_object_has_pages(obj));
+
+	switch (obj->mm.madv) {
+	case I915_MADV_DONTNEED:
+		__i915_gem_object_truncate(obj);
+	case __I915_MADV_PURGED:
+		return;
+	}
+
+	if (!obj->base.filp)
+		return;
+
+	if (!(flags & I915_SHRINK_WRITEBACK))
+		return;
+
+	/*
+	 * Leave mmapings intact (GTT will have been revoked on unbinding,
+	 * leaving only CPU mmapings around) and add those pages to the LRU
+	 * instead of invoking writeback so they are aged and paged out
+	 * as normal.
+	 */
+	mapping = obj->base.filp->f_mapping;
+
+	/* Begin writeback on each dirty page */
+	for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
+		struct page *page;
+
+		page = find_lock_entry(mapping, i);
+		if (!page || xa_is_value(page))
+			continue;
+
+		if (!page_mapped(page) && clear_page_dirty_for_io(page)) {
+			int ret;
+
+			SetPageReclaim(page);
+			ret = mapping->a_ops->writepage(page, &wbc);
+			if (!PageWriteback(page))
+				ClearPageReclaim(page);
+			if (!ret)
+				goto put;
+		}
+		unlock_page(page);
+put:
+		put_page(page);
+	}
+}
+
 /**
  * i915_gem_shrink - Shrink buffer object caches
  * @i915: i915 device
@@ -254,7 +315,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 				mutex_lock_nested(&obj->mm.lock,
 						  I915_MM_SHRINKER);
 				if (!i915_gem_object_has_pages(obj)) {
-					__i915_gem_object_invalidate(obj);
+					__start_writeback(obj, flags);
 					count += obj->base.size >> PAGE_SHIFT;
 				}
 				mutex_unlock(&obj->mm.lock);
@@ -366,13 +427,15 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 				&sc->nr_scanned,
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
-				I915_SHRINK_PURGEABLE);
+				I915_SHRINK_PURGEABLE |
+				I915_SHRINK_WRITEBACK);
 	if (sc->nr_scanned < sc->nr_to_scan)
 		freed += i915_gem_shrink(i915,
 					 sc->nr_to_scan - sc->nr_scanned,
 					 &sc->nr_scanned,
 					 I915_SHRINK_BOUND |
-					 I915_SHRINK_UNBOUND);
+					 I915_SHRINK_UNBOUND |
+					 I915_SHRINK_WRITEBACK);
 	if (sc->nr_scanned < sc->nr_to_scan && current_is_kswapd()) {
 		intel_wakeref_t wakeref;
 
@@ -382,7 +445,8 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 						 &sc->nr_scanned,
 						 I915_SHRINK_ACTIVE |
 						 I915_SHRINK_BOUND |
-						 I915_SHRINK_UNBOUND);
+						 I915_SHRINK_UNBOUND |
+						 I915_SHRINK_WRITEBACK);
 		}
 	}
 
@@ -404,7 +468,8 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	with_intel_runtime_pm(i915, wakeref)
 		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
 					       I915_SHRINK_BOUND |
-					       I915_SHRINK_UNBOUND);
+					       I915_SHRINK_UNBOUND |
+					       I915_SHRINK_WRITEBACK);
 
 	/* Because we may be allocating inside our own driver, we cannot
 	 * assert that there are no objects with pinned pages that are not
