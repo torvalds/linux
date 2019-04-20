@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/kfifo.h>
 #include <linux/delay.h>
+#include <linux/usb.h> /* For to_usb_interface for kvm extra intf check */
 #include <asm/unaligned.h>
 #include "hid-ids.h"
 
@@ -1463,6 +1464,9 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
 	dbg_hid("%s, size:%d\n", __func__, size);
 
+	if (!djrcv_dev)
+		return 0;
+
 	if (!hdev->report_enum[HID_INPUT_REPORT].numbered) {
 
 		if (djrcv_dev->unnumbered_application == HID_GD_KEYBOARD) {
@@ -1532,6 +1536,8 @@ static int logi_dj_probe(struct hid_device *hdev,
 	struct hid_report_enum *rep_enum;
 	struct hid_report *rep;
 	struct dj_receiver_dev *djrcv_dev;
+	struct usb_interface *intf;
+	unsigned int no_dj_interfaces = 0;
 	bool has_hidpp = false;
 	unsigned long flags;
 	int retval;
@@ -1545,6 +1551,27 @@ static int logi_dj_probe(struct hid_device *hdev,
 	if (retval) {
 		hid_err(hdev, "%s: parse failed\n", __func__);
 		return retval;
+	}
+
+	/*
+	 * Some KVMs add an extra interface for e.g. mouse emulation. If we
+	 * treat these as logitech-dj interfaces then this causes input events
+	 * reported through this extra interface to not be reported correctly.
+	 * To avoid this, we treat these as generic-hid devices.
+	 */
+	switch (id->driver_data) {
+	case recvr_type_dj:		no_dj_interfaces = 3; break;
+	case recvr_type_hidpp:		no_dj_interfaces = 2; break;
+	case recvr_type_gaming_hidpp:	no_dj_interfaces = 3; break;
+	case recvr_type_27mhz:		no_dj_interfaces = 2; break;
+	}
+	if (hid_is_using_ll_driver(hdev, &usb_hid_driver)) {
+		intf = to_usb_interface(hdev->dev.parent);
+		if (intf && intf->altsetting->desc.bInterfaceNumber >=
+							no_dj_interfaces) {
+			hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
+			return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+		}
 	}
 
 	rep_enum = &hdev->report_enum[HID_INPUT_REPORT];
@@ -1642,7 +1669,7 @@ static int logi_dj_reset_resume(struct hid_device *hdev)
 	int retval;
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
 
-	if (djrcv_dev->hidpp != hdev)
+	if (!djrcv_dev || djrcv_dev->hidpp != hdev)
 		return 0;
 
 	retval = logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
@@ -1663,6 +1690,9 @@ static void logi_dj_remove(struct hid_device *hdev)
 	int i;
 
 	dbg_hid("%s\n", __func__);
+
+	if (!djrcv_dev)
+		return hid_hw_stop(hdev);
 
 	/*
 	 * This ensures that if the work gets requeued from another
