@@ -125,7 +125,6 @@ struct dj_receiver_dev {
 	struct work_struct work;
 	struct kfifo notif_fifo;
 	spinlock_t lock;
-	bool querying_devices;
 };
 
 struct dj_device {
@@ -652,10 +651,6 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 {
 	struct dj_report *dj_report;
 	int retval;
-
-	/* no need to protect djrcv_dev->querying_devices */
-	if (djrcv_dev->querying_devices)
-		return 0;
 
 	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
 	if (!dj_report)
