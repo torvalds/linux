@@ -119,11 +119,16 @@ struct hidpp_event {
 } __packed;
 
 struct dj_receiver_dev {
+	struct hid_device *mouse;
+	struct hid_device *keyboard;
 	struct hid_device *hidpp;
 	struct dj_device *paired_dj_devices[DJ_MAX_PAIRED_DEVICES +
 					    DJ_DEVICE_INDEX_MIN];
+	struct list_head list;
+	struct kref kref;
 	struct work_struct work;
 	struct kfifo notif_fifo;
+	bool ready;
 	spinlock_t lock;
 };
 
@@ -363,6 +368,110 @@ static const u8 hid_reportid_size_map[NUMBER_OF_HID_REPORTS] = {
 static struct hid_ll_driver logi_dj_ll_driver;
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev);
+static void delayedwork_callback(struct work_struct *work);
+
+static LIST_HEAD(dj_hdev_list);
+static DEFINE_MUTEX(dj_hdev_list_lock);
+
+/*
+ * dj/HID++ receivers are really a single logical entity, but for BIOS/Windows
+ * compatibility they have multiple USB interfaces. On HID++ receivers we need
+ * to listen for input reports on both interfaces. The functions below are used
+ * to create a single struct dj_receiver_dev for all interfaces belonging to
+ * a single USB-device / receiver.
+ */
+static struct dj_receiver_dev *dj_find_receiver_dev(struct hid_device *hdev)
+{
+	struct dj_receiver_dev *djrcv_dev;
+
+	/* Try to find an already-probed interface from the same device */
+	list_for_each_entry(djrcv_dev, &dj_hdev_list, list) {
+		if (djrcv_dev->mouse &&
+		    hid_compare_device_paths(hdev, djrcv_dev->mouse, '/')) {
+			kref_get(&djrcv_dev->kref);
+			return djrcv_dev;
+		}
+		if (djrcv_dev->keyboard &&
+		    hid_compare_device_paths(hdev, djrcv_dev->keyboard, '/')) {
+			kref_get(&djrcv_dev->kref);
+			return djrcv_dev;
+		}
+		if (djrcv_dev->hidpp &&
+		    hid_compare_device_paths(hdev, djrcv_dev->hidpp, '/')) {
+			kref_get(&djrcv_dev->kref);
+			return djrcv_dev;
+		}
+	}
+
+	return NULL;
+}
+
+static void dj_release_receiver_dev(struct kref *kref)
+{
+	struct dj_receiver_dev *djrcv_dev = container_of(kref, struct dj_receiver_dev, kref);
+
+	list_del(&djrcv_dev->list);
+	kfifo_free(&djrcv_dev->notif_fifo);
+	kfree(djrcv_dev);
+}
+
+static void dj_put_receiver_dev(struct hid_device *hdev)
+{
+	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
+
+	mutex_lock(&dj_hdev_list_lock);
+
+	if (djrcv_dev->mouse == hdev)
+		djrcv_dev->mouse = NULL;
+	if (djrcv_dev->keyboard == hdev)
+		djrcv_dev->keyboard = NULL;
+	if (djrcv_dev->hidpp == hdev)
+		djrcv_dev->hidpp = NULL;
+
+	kref_put(&djrcv_dev->kref, dj_release_receiver_dev);
+
+	mutex_unlock(&dj_hdev_list_lock);
+}
+
+static struct dj_receiver_dev *dj_get_receiver_dev(struct hid_device *hdev,
+						   unsigned int application,
+						   bool is_hidpp)
+{
+	struct dj_receiver_dev *djrcv_dev;
+
+	mutex_lock(&dj_hdev_list_lock);
+
+	djrcv_dev = dj_find_receiver_dev(hdev);
+	if (!djrcv_dev) {
+		djrcv_dev = kzalloc(sizeof(*djrcv_dev), GFP_KERNEL);
+		if (!djrcv_dev)
+			goto out;
+
+		INIT_WORK(&djrcv_dev->work, delayedwork_callback);
+		spin_lock_init(&djrcv_dev->lock);
+		if (kfifo_alloc(&djrcv_dev->notif_fifo,
+			    DJ_MAX_NUMBER_NOTIFS * sizeof(struct dj_workitem),
+			    GFP_KERNEL)) {
+			kfree(djrcv_dev);
+			djrcv_dev = NULL;
+			goto out;
+		}
+		kref_init(&djrcv_dev->kref);
+		list_add_tail(&djrcv_dev->list, &dj_hdev_list);
+	}
+
+	if (application == HID_GD_KEYBOARD)
+		djrcv_dev->keyboard = hdev;
+	if (application == HID_GD_MOUSE)
+		djrcv_dev->mouse = hdev;
+	if (is_hidpp)
+		djrcv_dev->hidpp = hdev;
+
+	hid_set_drvdata(hdev, djrcv_dev);
+out:
+	mutex_unlock(&dj_hdev_list_lock);
+	return djrcv_dev;
+}
 
 static void logi_dj_recv_destroy_djhid_device(struct dj_receiver_dev *djrcv_dev,
 					      struct dj_workitem *workitem)
@@ -479,6 +588,17 @@ static void delayedwork_callback(struct work_struct *work)
 	dbg_hid("%s\n", __func__);
 
 	spin_lock_irqsave(&djrcv_dev->lock, flags);
+
+	/*
+	 * Since we attach to multiple interfaces, we may get scheduled before
+	 * we are bound to the HID++ interface, catch this.
+	 */
+	if (!djrcv_dev->ready) {
+		pr_warn("%s: delayedwork queued before hidpp interface was enumerated\n",
+			__func__);
+		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
+		return;
+	}
 
 	count = kfifo_out(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
 
@@ -1043,6 +1163,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	struct hid_report *rep;
 	struct dj_receiver_dev *djrcv_dev;
 	bool has_hidpp = false;
+	unsigned long flags;
 	int retval;
 
 	/*
@@ -1076,27 +1197,15 @@ static int logi_dj_probe(struct hid_device *hdev,
 	if (!has_hidpp)
 		return -ENODEV;
 
-	/* Treat DJ/HID++ interface */
-
-	djrcv_dev = kzalloc(sizeof(struct dj_receiver_dev), GFP_KERNEL);
+	/* get the current application attached to the node */
+	rep = list_first_entry(&rep_enum->report_list, struct hid_report, list);
+	djrcv_dev = dj_get_receiver_dev(hdev,
+					rep->application, has_hidpp);
 	if (!djrcv_dev) {
 		dev_err(&hdev->dev,
 			"%s:failed allocating dj_receiver_dev\n", __func__);
 		return -ENOMEM;
 	}
-	djrcv_dev->hidpp = hdev;
-	INIT_WORK(&djrcv_dev->work, delayedwork_callback);
-	spin_lock_init(&djrcv_dev->lock);
-	if (kfifo_alloc(&djrcv_dev->notif_fifo,
-			DJ_MAX_NUMBER_NOTIFS * sizeof(struct dj_workitem),
-			GFP_KERNEL)) {
-		dev_err(&hdev->dev,
-			"%s:failed allocating notif_fifo\n", __func__);
-		kfree(djrcv_dev);
-		return -ENOMEM;
-	}
-	hid_set_drvdata(hdev, djrcv_dev);
-
 
 	/* Starts the usb device and connects to upper interfaces hiddev and
 	 * hidraw */
@@ -1126,6 +1235,9 @@ static int logi_dj_probe(struct hid_device *hdev,
 	/* Allow incoming packets to arrive: */
 	hid_device_io_start(hdev);
 
+	spin_lock_irqsave(&djrcv_dev->lock, flags);
+	djrcv_dev->ready = true;
+	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 	retval = logi_dj_recv_query_paired_devices(djrcv_dev);
 	if (retval < 0) {
 		dev_err(&hdev->dev, "%s:logi_dj_recv_query_paired_devices "
@@ -1143,10 +1255,8 @@ switch_to_dj_mode_fail:
 	hid_hw_stop(hdev);
 
 hid_hw_start_fail:
-	kfifo_free(&djrcv_dev->notif_fifo);
-	kfree(djrcv_dev);
+	dj_put_receiver_dev(hdev);
 	return retval;
-
 }
 
 #ifdef CONFIG_PM
@@ -1170,31 +1280,43 @@ static void logi_dj_remove(struct hid_device *hdev)
 {
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
 	struct dj_device *dj_dev;
+	unsigned long flags;
 	int i;
 
 	dbg_hid("%s\n", __func__);
+
+	/*
+	 * This ensures that if the work gets requeued from another
+	 * interface of the same receiver it will be a no-op.
+	 */
+	spin_lock_irqsave(&djrcv_dev->lock, flags);
+	djrcv_dev->ready = false;
+	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 
 	cancel_work_sync(&djrcv_dev->work);
 
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 
-	/* I suppose that at this point the only context that can access
-	 * the djrecv_data is this thread as the work item is guaranteed to
-	 * have finished and no more raw_event callbacks should arrive after
-	 * the remove callback was triggered so no locks are put around the
-	 * code below */
+	/*
+	 * For proper operation we need access to all interfaces, so we destroy
+	 * the paired devices when we're unbound from any interface.
+	 *
+	 * Note we may still be bound to other interfaces, sharing the same
+	 * djrcv_dev, so we need locking here.
+	 */
 	for (i = 0; i < (DJ_MAX_PAIRED_DEVICES + DJ_DEVICE_INDEX_MIN); i++) {
+		spin_lock_irqsave(&djrcv_dev->lock, flags);
 		dj_dev = djrcv_dev->paired_dj_devices[i];
+		djrcv_dev->paired_dj_devices[i] = NULL;
+		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 		if (dj_dev != NULL) {
 			hid_destroy_device(dj_dev->hdev);
 			kfree(dj_dev);
-			djrcv_dev->paired_dj_devices[i] = NULL;
 		}
 	}
 
-	kfifo_free(&djrcv_dev->notif_fifo);
-	kfree(djrcv_dev);
+	dj_put_receiver_dev(hdev);
 }
 
 static const struct hid_device_id logi_dj_receivers[] = {
