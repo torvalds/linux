@@ -245,15 +245,17 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	},
 };
 
-static int vision_spi_chipselects[] __initdata = {
-	EP93XX_GPIO_LINE_EGPIO6,
-	EP93XX_GPIO_LINE_EGPIO7,
-	EP93XX_GPIO_LINE_G(2),
+static struct gpiod_lookup_table vision_spi_cs_gpio_table = {
+	.dev_id = "ep93xx-spi.0",
+	.table = {
+		GPIO_LOOKUP_IDX("A", 6, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("A", 7, "cs", 1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("G", 2, "cs", 2, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ep93xx_spi_info vision_spi_master __initdata = {
-	.chipselect	= vision_spi_chipselects,
-	.num_chipselect	= ARRAY_SIZE(vision_spi_chipselects),
 	.use_dma	= 1,
 };
 
@@ -295,6 +297,7 @@ static void __init vision_init_machine(void)
 	ep93xx_register_i2c(vision_i2c_info,
 				ARRAY_SIZE(vision_i2c_info));
 	gpiod_add_lookup_table(&vision_spi_mmc_gpio_table);
+	gpiod_add_lookup_table(&vision_spi_cs_gpio_table);
 	ep93xx_register_spi(&vision_spi_master, vision_spi_board_info,
 				ARRAY_SIZE(vision_spi_board_info));
 	vision_register_i2s();
