@@ -189,9 +189,9 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	struct btrfs_trans_handle *trans;
 	unsigned int fsflags, old_fsflags;
 	int ret;
-	u64 old_flags;
 	umode_t mode;
 	const char *comp = NULL;
+	u32 binode_flags = binode->flags;
 
 	if (!inode_owner_or_capable(inode))
 		return -EPERM;
@@ -212,7 +212,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 	inode_lock(inode);
 
-	old_flags = binode->flags;
 	mode = inode->i_mode;
 
 	fsflags = btrfs_mask_fsflags_for_type(inode, fsflags);
@@ -225,29 +224,29 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	}
 
 	if (fsflags & FS_SYNC_FL)
-		binode->flags |= BTRFS_INODE_SYNC;
+		binode_flags |= BTRFS_INODE_SYNC;
 	else
-		binode->flags &= ~BTRFS_INODE_SYNC;
+		binode_flags &= ~BTRFS_INODE_SYNC;
 	if (fsflags & FS_IMMUTABLE_FL)
-		binode->flags |= BTRFS_INODE_IMMUTABLE;
+		binode_flags |= BTRFS_INODE_IMMUTABLE;
 	else
-		binode->flags &= ~BTRFS_INODE_IMMUTABLE;
+		binode_flags &= ~BTRFS_INODE_IMMUTABLE;
 	if (fsflags & FS_APPEND_FL)
-		binode->flags |= BTRFS_INODE_APPEND;
+		binode_flags |= BTRFS_INODE_APPEND;
 	else
-		binode->flags &= ~BTRFS_INODE_APPEND;
+		binode_flags &= ~BTRFS_INODE_APPEND;
 	if (fsflags & FS_NODUMP_FL)
-		binode->flags |= BTRFS_INODE_NODUMP;
+		binode_flags |= BTRFS_INODE_NODUMP;
 	else
-		binode->flags &= ~BTRFS_INODE_NODUMP;
+		binode_flags &= ~BTRFS_INODE_NODUMP;
 	if (fsflags & FS_NOATIME_FL)
-		binode->flags |= BTRFS_INODE_NOATIME;
+		binode_flags |= BTRFS_INODE_NOATIME;
 	else
-		binode->flags &= ~BTRFS_INODE_NOATIME;
+		binode_flags &= ~BTRFS_INODE_NOATIME;
 	if (fsflags & FS_DIRSYNC_FL)
-		binode->flags |= BTRFS_INODE_DIRSYNC;
+		binode_flags |= BTRFS_INODE_DIRSYNC;
 	else
-		binode->flags &= ~BTRFS_INODE_DIRSYNC;
+		binode_flags &= ~BTRFS_INODE_DIRSYNC;
 	if (fsflags & FS_NOCOW_FL) {
 		if (S_ISREG(mode)) {
 			/*
@@ -256,10 +255,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 			 * status of the file and will not set it.
 			 */
 			if (inode->i_size == 0)
-				binode->flags |= BTRFS_INODE_NODATACOW
-					      | BTRFS_INODE_NODATASUM;
+				binode_flags |= BTRFS_INODE_NODATACOW |
+						BTRFS_INODE_NODATASUM;
 		} else {
-			binode->flags |= BTRFS_INODE_NODATACOW;
+			binode_flags |= BTRFS_INODE_NODATACOW;
 		}
 	} else {
 		/*
@@ -267,10 +266,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		 */
 		if (S_ISREG(mode)) {
 			if (inode->i_size == 0)
-				binode->flags &= ~(BTRFS_INODE_NODATACOW
-				             | BTRFS_INODE_NODATASUM);
+				binode_flags &= ~(BTRFS_INODE_NODATACOW |
+						  BTRFS_INODE_NODATASUM);
 		} else {
-			binode->flags &= ~BTRFS_INODE_NODATACOW;
+			binode_flags &= ~BTRFS_INODE_NODATACOW;
 		}
 	}
 
@@ -280,8 +279,8 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	 * things smaller.
 	 */
 	if (fsflags & FS_NOCOMP_FL) {
-		binode->flags &= ~BTRFS_INODE_COMPRESS;
-		binode->flags |= BTRFS_INODE_NOCOMPRESS;
+		binode_flags &= ~BTRFS_INODE_COMPRESS;
+		binode_flags |= BTRFS_INODE_NOCOMPRESS;
 	} else if (fsflags & FS_COMPR_FL) {
 
 		if (IS_SWAPFILE(inode)) {
@@ -289,14 +288,14 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 			goto out_unlock;
 		}
 
-		binode->flags |= BTRFS_INODE_COMPRESS;
-		binode->flags &= ~BTRFS_INODE_NOCOMPRESS;
+		binode_flags |= BTRFS_INODE_COMPRESS;
+		binode_flags &= ~BTRFS_INODE_NOCOMPRESS;
 
 		comp = btrfs_compress_type2str(fs_info->compress_type);
 		if (!comp || comp[0] == 0)
 			comp = btrfs_compress_type2str(BTRFS_COMPRESS_ZLIB);
 	} else {
-		binode->flags &= ~(BTRFS_INODE_COMPRESS | BTRFS_INODE_NOCOMPRESS);
+		binode_flags &= ~(BTRFS_INODE_COMPRESS | BTRFS_INODE_NOCOMPRESS);
 	}
 
 	/*
@@ -306,7 +305,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	trans = btrfs_start_transaction(root, 3);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
-		goto out_drop;
+		goto out_unlock;
 	}
 
 	if (comp) {
@@ -327,6 +326,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		}
 	}
 
+	binode->flags = binode_flags;
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	inode_inc_iversion(inode);
 	inode->i_ctime = current_time(inode);
@@ -334,11 +334,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
  out_end_trans:
 	btrfs_end_transaction(trans);
- out_drop:
-	if (ret) {
-		binode->flags = old_flags;
-	}
-
  out_unlock:
 	inode_unlock(inode);
 	mnt_drop_write_file(file);
