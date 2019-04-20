@@ -2226,7 +2226,7 @@ static int wtp_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 }
 
 static void wtp_populate_input(struct hidpp_device *hidpp,
-		struct input_dev *input_dev, bool origin_is_hid_core)
+			       struct input_dev *input_dev)
 {
 	struct wtp_data *wd = hidpp->private_data;
 
@@ -2622,7 +2622,7 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 }
 
 static void m560_populate_input(struct hidpp_device *hidpp,
-		struct input_dev *input_dev, bool origin_is_hid_core)
+				struct input_dev *input_dev)
 {
 	struct m560_private_data *mydata = hidpp->private_data;
 
@@ -2819,12 +2819,12 @@ static int hidpp_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 
 
 static void hidpp_populate_input(struct hidpp_device *hidpp,
-		struct input_dev *input, bool origin_is_hid_core)
+				 struct input_dev *input)
 {
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)
-		wtp_populate_input(hidpp, input, origin_is_hid_core);
+		wtp_populate_input(hidpp, input);
 	else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560)
-		m560_populate_input(hidpp, input, origin_is_hid_core);
+		m560_populate_input(hidpp, input);
 
 	if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL)
 		hidpp->vertical_wheel_counter.dev = input;
@@ -2839,7 +2839,7 @@ static int hidpp_input_configured(struct hid_device *hdev,
 	if (!hidpp)
 		return 0;
 
-	hidpp_populate_input(hidpp, input, true);
+	hidpp_populate_input(hidpp, input);
 
 	return 0;
 }
@@ -3197,7 +3197,7 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 		return;
 	}
 
-	hidpp_populate_input(hidpp, input, false);
+	hidpp_populate_input(hidpp, input);
 
 	ret = input_register_device(input);
 	if (ret)
