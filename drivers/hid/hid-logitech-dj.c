@@ -552,8 +552,8 @@ static void logi_dj_recv_forward_null_report(struct dj_receiver_dev *djrcv_dev,
 	}
 }
 
-static void logi_dj_recv_forward_report(struct dj_receiver_dev *djrcv_dev,
-					struct dj_report *dj_report)
+static void logi_dj_recv_forward_dj(struct dj_receiver_dev *djrcv_dev,
+				    struct dj_report *dj_report)
 {
 	/* We are called from atomic context (tasklet && djrcv->lock held) */
 	struct dj_device *dj_device;
@@ -573,8 +573,8 @@ static void logi_dj_recv_forward_report(struct dj_receiver_dev *djrcv_dev,
 	}
 }
 
-static void logi_dj_recv_forward_hidpp(struct dj_device *dj_dev, u8 *data,
-				       int size)
+static void logi_dj_recv_forward_report(struct dj_device *dj_dev, u8 *data,
+					int size)
 {
 	/* We are called from atomic context (tasklet && djrcv->lock held) */
 	if (hid_input_report(dj_dev->hdev, HID_INPUT_REPORT, data, size, 1))
@@ -893,7 +893,7 @@ static int logi_dj_dj_event(struct hid_device *hdev,
 		}
 		break;
 	default:
-		logi_dj_recv_forward_report(djrcv_dev, dj_report);
+		logi_dj_recv_forward_dj(djrcv_dev, dj_report);
 	}
 
 out:
@@ -948,8 +948,8 @@ static int logi_dj_hidpp_event(struct hid_device *hdev,
 		/* received an event for an unknown device, bail out */
 		goto out;
 
-	logi_dj_recv_forward_hidpp(djrcv_dev->paired_dj_devices[device_index],
-				   data, size);
+	logi_dj_recv_forward_report(djrcv_dev->paired_dj_devices[device_index],
+				    data, size);
 
 out:
 	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
