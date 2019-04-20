@@ -124,12 +124,6 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 	return 0;
 }
 
-int btrfs_set_prop_trans(struct inode *inode, const char *name,
-			 const char *value, size_t value_len, int flags)
-{
-	return btrfs_set_prop(NULL, inode, name, value, value_len, flags);
-}
-
 static int iterate_object_props(struct btrfs_root *root,
 				struct btrfs_path *path,
 				u64 objectid,
