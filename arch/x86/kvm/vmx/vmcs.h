@@ -115,6 +115,12 @@ static inline bool is_nmi(u32 intr_info)
 		== (INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK);
 }
 
+static inline bool is_external_intr(u32 intr_info)
+{
+	return (intr_info & (INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK))
+		== (INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR);
+}
+
 enum vmcs_field_width {
 	VMCS_FIELD_WIDTH_U16 = 0,
 	VMCS_FIELD_WIDTH_U64 = 1,

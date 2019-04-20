@@ -6127,42 +6127,46 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 
 static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 {
-	u32 exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	unsigned int vector;
+	unsigned long entry;
+#ifdef CONFIG_X86_64
+	unsigned long tmp;
+#endif
+	gate_desc *desc;
+	u32 intr_info;
 
-	if ((exit_intr_info & (INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK))
-			== (INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR)) {
-		unsigned int vector;
-		unsigned long entry;
-		gate_desc *desc;
-		struct vcpu_vmx *vmx = to_vmx(vcpu);
-#ifdef CONFIG_X86_64
-		unsigned long tmp;
-#endif
+	if (to_vmx(vcpu)->exit_reason != EXIT_REASON_EXTERNAL_INTERRUPT)
+		return;
 
-		vector =  exit_intr_info & INTR_INFO_VECTOR_MASK;
-		desc = (gate_desc *)vmx->host_idt_base + vector;
-		entry = gate_offset(desc);
-		asm volatile(
+	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	if (WARN_ONCE(!is_external_intr(intr_info),
+	    "KVM: unexpected VM-Exit interrupt info: 0x%x", intr_info))
+		return;
+
+	vector = intr_info & INTR_INFO_VECTOR_MASK;
+	desc = (gate_desc *)vmx->host_idt_base + vector;
+	entry = gate_offset(desc);
+
+	asm volatile(
 #ifdef CONFIG_X86_64
-			"mov %%" _ASM_SP ", %[sp]\n\t"
-			"and $0xfffffffffffffff0, %%" _ASM_SP "\n\t"
-			"push $%c[ss]\n\t"
-			"push %[sp]\n\t"
+		"mov %%" _ASM_SP ", %[sp]\n\t"
+		"and $0xfffffffffffffff0, %%" _ASM_SP "\n\t"
+		"push $%c[ss]\n\t"
+		"push %[sp]\n\t"
 #endif
-			"pushf\n\t"
-			__ASM_SIZE(push) " $%c[cs]\n\t"
-			CALL_NOSPEC
-			:
+		"pushf\n\t"
+		__ASM_SIZE(push) " $%c[cs]\n\t"
+		CALL_NOSPEC
+		:
 #ifdef CONFIG_X86_64
-			[sp]"=&r"(tmp),
+		[sp]"=&r"(tmp),
 #endif
-			ASM_CALL_CONSTRAINT
-			:
-			THUNK_TARGET(entry),
-			[ss]"i"(__KERNEL_DS),
-			[cs]"i"(__KERNEL_CS)
-			);
-	}
+		ASM_CALL_CONSTRAINT
+		:
+		THUNK_TARGET(entry),
+		[ss]"i"(__KERNEL_DS),
+		[cs]"i"(__KERNEL_CS)
+	);
 }
 STACK_FRAME_NON_STANDARD(vmx_handle_external_intr);
 
