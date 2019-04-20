@@ -3316,24 +3316,23 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hid_warn(hdev, "Cannot allocate sysfs group for %s\n",
 			 hdev->name);
 
-	if (hidpp->quirks & HIDPP_QUIRK_NO_HIDINPUT)
-		connect_mask &= ~HID_CONNECT_HIDINPUT;
-
-	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
-		ret = hid_hw_start(hdev, connect_mask);
-		if (ret) {
-			hid_err(hdev, "hw start failed\n");
-			goto hid_hw_start_fail;
-		}
-		ret = hid_hw_open(hdev);
-		if (ret < 0) {
-			dev_err(&hdev->dev, "%s:hid_hw_open returned error:%d\n",
-				__func__, ret);
-			hid_hw_stop(hdev);
-			goto hid_hw_start_fail;
-		}
+	/*
+	 * Plain USB connections need to actually call start and open
+	 * on the transport driver to allow incoming data.
+	 */
+	ret = hid_hw_start(hdev, 0);
+	if (ret) {
+		hid_err(hdev, "hw start failed\n");
+		goto hid_hw_start_fail;
 	}
 
+	ret = hid_hw_open(hdev);
+	if (ret < 0) {
+		dev_err(&hdev->dev, "%s:hid_hw_open returned error:%d\n",
+			__func__, ret);
+		hid_hw_stop(hdev);
+		goto hid_hw_open_fail;
+	}
 
 	/* Allow incoming packets */
 	hid_device_io_start(hdev);
@@ -3347,7 +3346,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		if (!connected) {
 			ret = -ENODEV;
 			hid_err(hdev, "Device not connected");
-			goto hid_hw_open_failed;
+			goto hid_hw_init_fail;
 		}
 
 		hidpp_overwrite_name(hdev);
@@ -3356,37 +3355,36 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)) {
 		ret = wtp_get_config(hidpp);
 		if (ret)
-			goto hid_hw_open_failed;
+			goto hid_hw_init_fail;
 	} else if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_G920)) {
 		ret = g920_get_config(hidpp);
 		if (ret)
-			goto hid_hw_open_failed;
+			goto hid_hw_init_fail;
 	}
-
-	/* Block incoming packets */
-	hid_device_io_stop(hdev);
-
-	if (!(hidpp->quirks & HIDPP_QUIRK_CLASS_G920)) {
-		ret = hid_hw_start(hdev, connect_mask);
-		if (ret) {
-			hid_err(hdev, "%s:hid_hw_start returned error\n", __func__);
-			goto hid_hw_start_fail;
-		}
-	}
-
-	/* Allow incoming packets */
-	hid_device_io_start(hdev);
 
 	hidpp_connect_event(hidpp);
 
+	/* Reset the HID node state */
+	hid_device_io_stop(hdev);
+	hid_hw_close(hdev);
+	hid_hw_stop(hdev);
+
+	if (hidpp->quirks & HIDPP_QUIRK_NO_HIDINPUT)
+		connect_mask &= ~HID_CONNECT_HIDINPUT;
+
+	/* Now export the actual inputs and hidraw nodes to the world */
+	ret = hid_hw_start(hdev, connect_mask);
+	if (ret) {
+		hid_err(hdev, "%s:hid_hw_start returned error\n", __func__);
+		goto hid_hw_start_fail;
+	}
+
 	return ret;
 
-hid_hw_open_failed:
-	hid_device_io_stop(hdev);
-	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
-		hid_hw_close(hdev);
-		hid_hw_stop(hdev);
-	}
+hid_hw_init_fail:
+	hid_hw_close(hdev);
+hid_hw_open_fail:
+	hid_hw_stop(hdev);
 hid_hw_start_fail:
 	sysfs_remove_group(&hdev->dev.kobj, &ps_attribute_group);
 	cancel_work_sync(&hidpp->work);
@@ -3403,10 +3401,9 @@ static void hidpp_remove(struct hid_device *hdev)
 
 	sysfs_remove_group(&hdev->dev.kobj, &ps_attribute_group);
 
-	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
+	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920)
 		hidpp_ff_deinit(hdev);
-		hid_hw_close(hdev);
-	}
+
 	hid_hw_stop(hdev);
 	cancel_work_sync(&hidpp->work);
 	mutex_destroy(&hidpp->send_mutex);
@@ -3470,7 +3467,14 @@ static const struct hid_device_id hidpp_devices[] = {
 
 	{ LDJ_DEVICE(HID_ANY_ID) },
 
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G920_WHEEL),
+	{ /* Logitech G403 Gaming Mouse over USB */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC082) },
+	{ /* Logitech G700 Gaming Mouse over USB */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC06B) },
+	{ /* Logitech G900 Gaming Mouse over USB */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC081) },
+	{ /* Logitech G920 Wheel over USB */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G920_WHEEL),
 		.driver_data = HIDPP_QUIRK_CLASS_G920 | HIDPP_QUIRK_FORCE_OUTPUT_REPORTS},
 	{}
 };
