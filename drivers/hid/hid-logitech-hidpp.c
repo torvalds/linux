@@ -149,7 +149,6 @@ struct hidpp_battery {
  * @last_time: last event time, used to reset remainder after inactivity
  */
 struct hidpp_scroll_counter {
-	struct input_dev *dev;
 	int wheel_multiplier;
 	int remainder;
 	int direction;
@@ -158,6 +157,7 @@ struct hidpp_scroll_counter {
 
 struct hidpp_device {
 	struct hid_device *hid_dev;
+	struct input_dev *input;
 	struct mutex send_mutex;
 	void *send_receive_buf;
 	char *name;		/* will never be NULL and should not be freed */
@@ -433,14 +433,15 @@ static void hidpp_prefix_name(char **name, int name_length)
  * emit low-resolution scroll events when appropriate for
  * backwards-compatibility with userspace input libraries.
  */
-static void hidpp_scroll_counter_handle_scroll(struct hidpp_scroll_counter *counter,
+static void hidpp_scroll_counter_handle_scroll(struct input_dev *input_dev,
+					       struct hidpp_scroll_counter *counter,
 					       int hi_res_value)
 {
 	int low_res_value, remainder, direction;
 	unsigned long long now, previous;
 
 	hi_res_value = hi_res_value * 120/counter->wheel_multiplier;
-	input_report_rel(counter->dev, REL_WHEEL_HI_RES, hi_res_value);
+	input_report_rel(input_dev, REL_WHEEL_HI_RES, hi_res_value);
 
 	remainder = counter->remainder;
 	direction = hi_res_value > 0 ? 1 : -1;
@@ -474,7 +475,7 @@ static void hidpp_scroll_counter_handle_scroll(struct hidpp_scroll_counter *coun
 		low_res_value = remainder / 120;
 		if (low_res_value == 0)
 			low_res_value = (hi_res_value > 0 ? 1 : -1);
-		input_report_rel(counter->dev, REL_WHEEL, low_res_value);
+		input_report_rel(input_dev, REL_WHEEL, low_res_value);
 		remainder -= low_res_value * 120;
 	}
 	counter->remainder = remainder;
@@ -2218,7 +2219,6 @@ static int hidpp_ff_deinit(struct hid_device *hid)
 #define WTP_MANUAL_RESOLUTION				39
 
 struct wtp_data {
-	struct input_dev *input;
 	u16 x_size, y_size;
 	u8 finger_count;
 	u8 mt_feature_index;
@@ -2262,31 +2262,30 @@ static void wtp_populate_input(struct hidpp_device *hidpp,
 
 	input_mt_init_slots(input_dev, wd->maxcontacts, INPUT_MT_POINTER |
 		INPUT_MT_DROP_UNUSED);
-
-	wd->input = input_dev;
 }
 
-static void wtp_touch_event(struct wtp_data *wd,
+static void wtp_touch_event(struct hidpp_device *hidpp,
 	struct hidpp_touchpad_raw_xy_finger *touch_report)
 {
+	struct wtp_data *wd = hidpp->private_data;
 	int slot;
 
 	if (!touch_report->finger_id || touch_report->contact_type)
 		/* no actual data */
 		return;
 
-	slot = input_mt_get_slot_by_key(wd->input, touch_report->finger_id);
+	slot = input_mt_get_slot_by_key(hidpp->input, touch_report->finger_id);
 
-	input_mt_slot(wd->input, slot);
-	input_mt_report_slot_state(wd->input, MT_TOOL_FINGER,
+	input_mt_slot(hidpp->input, slot);
+	input_mt_report_slot_state(hidpp->input, MT_TOOL_FINGER,
 					touch_report->contact_status);
 	if (touch_report->contact_status) {
-		input_event(wd->input, EV_ABS, ABS_MT_POSITION_X,
+		input_event(hidpp->input, EV_ABS, ABS_MT_POSITION_X,
 				touch_report->x);
-		input_event(wd->input, EV_ABS, ABS_MT_POSITION_Y,
+		input_event(hidpp->input, EV_ABS, ABS_MT_POSITION_Y,
 				wd->flip_y ? wd->y_size - touch_report->y :
 					     touch_report->y);
-		input_event(wd->input, EV_ABS, ABS_MT_PRESSURE,
+		input_event(hidpp->input, EV_ABS, ABS_MT_PRESSURE,
 				touch_report->area);
 	}
 }
@@ -2294,19 +2293,18 @@ static void wtp_touch_event(struct wtp_data *wd,
 static void wtp_send_raw_xy_event(struct hidpp_device *hidpp,
 		struct hidpp_touchpad_raw_xy *raw)
 {
-	struct wtp_data *wd = hidpp->private_data;
 	int i;
 
 	for (i = 0; i < 2; i++)
-		wtp_touch_event(wd, &(raw->fingers[i]));
+		wtp_touch_event(hidpp, &(raw->fingers[i]));
 
 	if (raw->end_of_frame &&
 	    !(hidpp->quirks & HIDPP_QUIRK_WTP_PHYSICAL_BUTTONS))
-		input_event(wd->input, EV_KEY, BTN_LEFT, raw->button);
+		input_event(hidpp->input, EV_KEY, BTN_LEFT, raw->button);
 
 	if (raw->end_of_frame || raw->finger_count <= 2) {
-		input_mt_sync_frame(wd->input);
-		input_sync(wd->input);
+		input_mt_sync_frame(hidpp->input);
+		input_sync(hidpp->input);
 	}
 }
 
@@ -2356,7 +2354,7 @@ static int wtp_raw_event(struct hid_device *hdev, u8 *data, int size)
 	struct hidpp_report *report = (struct hidpp_report *)data;
 	struct hidpp_touchpad_raw_xy raw;
 
-	if (!wd || !wd->input)
+	if (!wd || !hidpp->input)
 		return 1;
 
 	switch (data[0]) {
@@ -2367,11 +2365,11 @@ static int wtp_raw_event(struct hid_device *hdev, u8 *data, int size)
 			return 1;
 		}
 		if (hidpp->quirks & HIDPP_QUIRK_WTP_PHYSICAL_BUTTONS) {
-			input_event(wd->input, EV_KEY, BTN_LEFT,
+			input_event(hidpp->input, EV_KEY, BTN_LEFT,
 					!!(data[1] & 0x01));
-			input_event(wd->input, EV_KEY, BTN_RIGHT,
+			input_event(hidpp->input, EV_KEY, BTN_RIGHT,
 					!!(data[1] & 0x02));
-			input_sync(wd->input);
+			input_sync(hidpp->input);
 			return 0;
 		} else {
 			if (size < 21)
@@ -2489,10 +2487,6 @@ static int wtp_connect(struct hid_device *hdev, bool connected)
 
 static const u8 m560_config_parameter[] = {0x00, 0xaf, 0x03};
 
-struct m560_private_data {
-	struct input_dev *input;
-};
-
 /* how buttons are mapped in the report */
 #define M560_MOUSE_BTN_LEFT		0x01
 #define M560_MOUSE_BTN_RIGHT		0x02
@@ -2520,28 +2514,12 @@ static int m560_send_config_command(struct hid_device *hdev, bool connected)
 	);
 }
 
-static int m560_allocate(struct hid_device *hdev)
-{
-	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
-	struct m560_private_data *d;
-
-	d = devm_kzalloc(&hdev->dev, sizeof(struct m560_private_data),
-			GFP_KERNEL);
-	if (!d)
-		return -ENOMEM;
-
-	hidpp->private_data = d;
-
-	return 0;
-};
-
 static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
-	struct m560_private_data *mydata = hidpp->private_data;
 
 	/* sanity check */
-	if (!mydata || !mydata->input) {
+	if (!hidpp->input) {
 		hid_err(hdev, "error in parameter\n");
 		return -EINVAL;
 	}
@@ -2568,24 +2546,24 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 
 		switch (data[5]) {
 		case 0xaf:
-			input_report_key(mydata->input, BTN_MIDDLE, 1);
+			input_report_key(hidpp->input, BTN_MIDDLE, 1);
 			break;
 		case 0xb0:
-			input_report_key(mydata->input, BTN_FORWARD, 1);
+			input_report_key(hidpp->input, BTN_FORWARD, 1);
 			break;
 		case 0xae:
-			input_report_key(mydata->input, BTN_BACK, 1);
+			input_report_key(hidpp->input, BTN_BACK, 1);
 			break;
 		case 0x00:
-			input_report_key(mydata->input, BTN_BACK, 0);
-			input_report_key(mydata->input, BTN_FORWARD, 0);
-			input_report_key(mydata->input, BTN_MIDDLE, 0);
+			input_report_key(hidpp->input, BTN_BACK, 0);
+			input_report_key(hidpp->input, BTN_FORWARD, 0);
+			input_report_key(hidpp->input, BTN_MIDDLE, 0);
 			break;
 		default:
 			hid_err(hdev, "error in report\n");
 			return 0;
 		}
-		input_sync(mydata->input);
+		input_sync(hidpp->input);
 
 	} else if (data[0] == 0x02) {
 		/*
@@ -2599,33 +2577,33 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 
 		int v;
 
-		input_report_key(mydata->input, BTN_LEFT,
+		input_report_key(hidpp->input, BTN_LEFT,
 			!!(data[1] & M560_MOUSE_BTN_LEFT));
-		input_report_key(mydata->input, BTN_RIGHT,
+		input_report_key(hidpp->input, BTN_RIGHT,
 			!!(data[1] & M560_MOUSE_BTN_RIGHT));
 
 		if (data[1] & M560_MOUSE_BTN_WHEEL_LEFT) {
-			input_report_rel(mydata->input, REL_HWHEEL, -1);
-			input_report_rel(mydata->input, REL_HWHEEL_HI_RES,
+			input_report_rel(hidpp->input, REL_HWHEEL, -1);
+			input_report_rel(hidpp->input, REL_HWHEEL_HI_RES,
 					 -120);
 		} else if (data[1] & M560_MOUSE_BTN_WHEEL_RIGHT) {
-			input_report_rel(mydata->input, REL_HWHEEL, 1);
-			input_report_rel(mydata->input, REL_HWHEEL_HI_RES,
+			input_report_rel(hidpp->input, REL_HWHEEL, 1);
+			input_report_rel(hidpp->input, REL_HWHEEL_HI_RES,
 					 120);
 		}
 
 		v = hid_snto32(hid_field_extract(hdev, data+3, 0, 12), 12);
-		input_report_rel(mydata->input, REL_X, v);
+		input_report_rel(hidpp->input, REL_X, v);
 
 		v = hid_snto32(hid_field_extract(hdev, data+3, 12, 12), 12);
-		input_report_rel(mydata->input, REL_Y, v);
+		input_report_rel(hidpp->input, REL_Y, v);
 
 		v = hid_snto32(data[6], 8);
 		if (v != 0)
-			hidpp_scroll_counter_handle_scroll(
+			hidpp_scroll_counter_handle_scroll(hidpp->input,
 					&hidpp->vertical_wheel_counter, v);
 
-		input_sync(mydata->input);
+		input_sync(hidpp->input);
 	}
 
 	return 1;
@@ -2634,24 +2612,20 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 static void m560_populate_input(struct hidpp_device *hidpp,
 				struct input_dev *input_dev)
 {
-	struct m560_private_data *mydata = hidpp->private_data;
+	__set_bit(EV_KEY, input_dev->evbit);
+	__set_bit(BTN_MIDDLE, input_dev->keybit);
+	__set_bit(BTN_RIGHT, input_dev->keybit);
+	__set_bit(BTN_LEFT, input_dev->keybit);
+	__set_bit(BTN_BACK, input_dev->keybit);
+	__set_bit(BTN_FORWARD, input_dev->keybit);
 
-	mydata->input = input_dev;
-
-	__set_bit(EV_KEY, mydata->input->evbit);
-	__set_bit(BTN_MIDDLE, mydata->input->keybit);
-	__set_bit(BTN_RIGHT, mydata->input->keybit);
-	__set_bit(BTN_LEFT, mydata->input->keybit);
-	__set_bit(BTN_BACK, mydata->input->keybit);
-	__set_bit(BTN_FORWARD, mydata->input->keybit);
-
-	__set_bit(EV_REL, mydata->input->evbit);
-	__set_bit(REL_X, mydata->input->relbit);
-	__set_bit(REL_Y, mydata->input->relbit);
-	__set_bit(REL_WHEEL, mydata->input->relbit);
-	__set_bit(REL_HWHEEL, mydata->input->relbit);
-	__set_bit(REL_WHEEL_HI_RES, mydata->input->relbit);
-	__set_bit(REL_HWHEEL_HI_RES, mydata->input->relbit);
+	__set_bit(EV_REL, input_dev->evbit);
+	__set_bit(REL_X, input_dev->relbit);
+	__set_bit(REL_Y, input_dev->relbit);
+	__set_bit(REL_WHEEL, input_dev->relbit);
+	__set_bit(REL_HWHEEL, input_dev->relbit);
+	__set_bit(REL_WHEEL_HI_RES, input_dev->relbit);
+	__set_bit(REL_HWHEEL_HI_RES, input_dev->relbit);
 }
 
 static int m560_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -2831,13 +2805,12 @@ static int hidpp_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static void hidpp_populate_input(struct hidpp_device *hidpp,
 				 struct input_dev *input)
 {
+	hidpp->input = input;
+
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)
 		wtp_populate_input(hidpp, input);
 	else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560)
 		m560_populate_input(hidpp, input);
-
-	if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL)
-		hidpp->vertical_wheel_counter.dev = input;
 }
 
 static int hidpp_input_configured(struct hid_device *hdev,
@@ -2981,10 +2954,10 @@ static int hidpp_event(struct hid_device *hdev, struct hid_field *field,
 	 * avoid a crash in hidpp_scroll_counter_handle_scroll.
 	 */
 	if (!(hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL) || value == 0
-	    || counter->dev == NULL || counter->wheel_multiplier == 0)
+	    || hidpp->input == NULL || counter->wheel_multiplier == 0)
 		return 0;
 
-	hidpp_scroll_counter_handle_scroll(counter, value);
+	hidpp_scroll_counter_handle_scroll(hidpp->input, counter, value);
 	return 1;
 }
 
@@ -3315,10 +3288,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
 		ret = wtp_allocate(hdev, id);
-		if (ret)
-			return ret;
-	} else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560) {
-		ret = m560_allocate(hdev);
 		if (ret)
 			return ret;
 	} else if (hidpp->quirks & HIDPP_QUIRK_CLASS_K400) {
