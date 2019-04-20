@@ -6172,7 +6172,7 @@ out:
 	return ret;
 }
 
-static void svm_handle_external_intr(struct kvm_vcpu *vcpu)
+static void svm_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 {
 	kvm_before_interrupt(vcpu);
 	local_irq_enable();
@@ -7268,7 +7268,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.set_tdp_cr3 = set_tdp_cr3,
 
 	.check_intercept = svm_check_intercept,
-	.handle_external_intr = svm_handle_external_intr,
+	.handle_exit_irqoff = svm_handle_exit_irqoff,
 
 	.request_immediate_exit = __kvm_request_immediate_exit,
 
