@@ -727,17 +727,12 @@ static void delayedwork_callback(struct work_struct *work)
 	count = kfifo_out(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
 
 	if (count != sizeof(workitem)) {
-		hid_err(djrcv_dev->hidpp, "delayedwork queued without workitems available\n");
 		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 		return;
 	}
 
-	if (!kfifo_is_empty(&djrcv_dev->notif_fifo)) {
-		if (schedule_work(&djrcv_dev->work) == 0) {
-			dbg_hid("%s: did not schedule the work item, was "
-				"already queued\n", __func__);
-		}
-	}
+	if (!kfifo_is_empty(&djrcv_dev->notif_fifo))
+		schedule_work(&djrcv_dev->work);
 
 	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 
@@ -819,11 +814,7 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 	}
 
 	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
-
-	if (schedule_work(&djrcv_dev->work) == 0) {
-		dbg_hid("%s: did not schedule the work item, was already "
-			"queued\n", __func__);
-	}
+	schedule_work(&djrcv_dev->work);
 }
 
 static void logi_hidpp_dev_conn_notif_equad(struct hidpp_event *hidpp_report,
@@ -933,13 +924,8 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		 device_type, hidpp_report->params[HIDPP_PARAM_PROTO_TYPE],
 		 hidpp_report->device_index);
 
-
 	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
-
-	if (schedule_work(&djrcv_dev->work) == 0) {
-		dbg_hid("%s: did not schedule the work item, was already queued\n",
-			__func__);
-	}
+	schedule_work(&djrcv_dev->work);
 }
 
 static void logi_dj_recv_forward_null_report(struct dj_receiver_dev *djrcv_dev,
