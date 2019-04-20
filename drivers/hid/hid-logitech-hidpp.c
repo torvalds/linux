@@ -3160,18 +3160,15 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 
 	if (hidpp->name == hdev->name && hidpp->protocol_major >= 2) {
 		name = hidpp_get_device_name(hidpp);
-		if (!name) {
-			hid_err(hdev,
-				"unable to retrieve the name of the device");
-			return;
+		if (name) {
+			devm_name = devm_kasprintf(&hdev->dev, GFP_KERNEL,
+						   "%s", name);
+			kfree(name);
+			if (!devm_name)
+				return;
+
+			hidpp->name = devm_name;
 		}
-
-		devm_name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s", name);
-		kfree(name);
-		if (!devm_name)
-			return;
-
-		hidpp->name = devm_name;
 	}
 
 	hidpp_initialize_battery(hidpp);
