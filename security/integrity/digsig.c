@@ -154,7 +154,7 @@ int __init integrity_load_x509(const unsigned int id, const char *path)
 	rc = kernel_read_file_from_path(path, &data, &size, 0,
 					READING_X509_CERTIFICATE);
 	if (rc < 0) {
-		pr_err("Unable to open file: %s (%d)", path, rc);
+		pr_warn("Unable to open file: %s (%d)", path, rc);
 		return rc;
 	}
 
