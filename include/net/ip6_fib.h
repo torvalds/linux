@@ -450,12 +450,6 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		 struct netlink_ext_ack *extack);
 void fib6_nh_release(struct fib6_nh *fib6_nh);
 
-static inline
-struct lwtunnel_state *fib6_info_nh_lwt(const struct fib6_info *f6i)
-{
-	return f6i->fib6_nh.fib_nh_lws;
-}
-
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		     unsigned int flags);
 
