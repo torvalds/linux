@@ -294,6 +294,7 @@ int cec_add_elem(u64 pfn)
 
 	ca->ces_entered++;
 
+	/* Array full, free the LRU slot. */
 	if (ca->n == MAX_ELEMS)
 		WARN_ON(!del_lru_elem_unlocked(ca));
 
@@ -306,24 +307,17 @@ int cec_add_elem(u64 pfn)
 			(void *)&ca->array[to],
 			(ca->n - to) * sizeof(u64));
 
-		ca->array[to] = (pfn << PAGE_SHIFT) |
-				(DECAY_MASK << COUNT_BITS) | 1;
-
+		ca->array[to] = pfn << PAGE_SHIFT;
 		ca->n++;
-
-		ret = 0;
-
-		goto decay;
 	}
 
+	/* Add/refresh element generation and increment count */
+	ca->array[to] |= DECAY_MASK << COUNT_BITS;
+	ca->array[to]++;
+
+	/* Check action threshold and soft-offline, if reached. */
 	count = COUNT(ca->array[to]);
-
-	if (count < count_threshold) {
-		ca->array[to] |= (DECAY_MASK << COUNT_BITS);
-		ca->array[to]++;
-
-		ret = 0;
-	} else {
+	if (count >= count_threshold) {
 		u64 pfn = ca->array[to] >> PAGE_SHIFT;
 
 		if (!pfn_valid(pfn)) {
@@ -338,15 +332,14 @@ int cec_add_elem(u64 pfn)
 		del_elem(ca, to);
 
 		/*
-		 * Return a >0 value to denote that we've reached the offlining
-		 * threshold.
+		 * Return a >0 value to callers, to denote that we've reached
+		 * the offlining threshold.
 		 */
 		ret = 1;
 
 		goto unlock;
 	}
 
-decay:
 	ca->decay_count++;
 
 	if (ca->decay_count >= CLEAN_ELEMS)
