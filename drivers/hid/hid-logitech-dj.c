@@ -119,6 +119,7 @@
 enum recvr_type {
 	recvr_type_dj,
 	recvr_type_hidpp,
+	recvr_type_gaming_hidpp,
 };
 
 struct dj_report {
@@ -229,6 +230,44 @@ static const char mse_descriptor[] = {
 	0x16, 0x01, 0xF8,	/*      LOGICAL_MIN (-2047)             */
 	0x26, 0xFF, 0x07,	/*      LOGICAL_MAX (2047)              */
 	0x75, 0x0C,		/*      REPORT_SIZE (12)                */
+	0x95, 0x02,		/*      REPORT_COUNT (2)                */
+	0x09, 0x30,		/*      USAGE (X)                       */
+	0x09, 0x31,		/*      USAGE (Y)                       */
+	0x81, 0x06,		/*      INPUT                           */
+	0x15, 0x81,		/*      LOGICAL_MIN (-127)              */
+	0x25, 0x7F,		/*      LOGICAL_MAX (127)               */
+	0x75, 0x08,		/*      REPORT_SIZE (8)                 */
+	0x95, 0x01,		/*      REPORT_COUNT (1)                */
+	0x09, 0x38,		/*      USAGE (wheel)                   */
+	0x81, 0x06,		/*      INPUT                           */
+	0x05, 0x0C,		/*      USAGE_PAGE(consumer)            */
+	0x0A, 0x38, 0x02,	/*      USAGE(AC Pan)                   */
+	0x95, 0x01,		/*      REPORT_COUNT (1)                */
+	0x81, 0x06,		/*      INPUT                           */
+	0xC0,			/*    END_COLLECTION                    */
+	0xC0,			/*  END_COLLECTION                      */
+};
+
+/* Gaming Mouse descriptor (2) */
+static const char mse_high_res_descriptor[] = {
+	0x05, 0x01,		/*  USAGE_PAGE (Generic Desktop)        */
+	0x09, 0x02,		/*  USAGE (Mouse)                       */
+	0xA1, 0x01,		/*  COLLECTION (Application)            */
+	0x85, 0x02,		/*    REPORT_ID = 2                     */
+	0x09, 0x01,		/*    USAGE (pointer)                   */
+	0xA1, 0x00,		/*    COLLECTION (physical)             */
+	0x05, 0x09,		/*      USAGE_PAGE (buttons)            */
+	0x19, 0x01,		/*      USAGE_MIN (1)                   */
+	0x29, 0x10,		/*      USAGE_MAX (16)                  */
+	0x15, 0x00,		/*      LOGICAL_MIN (0)                 */
+	0x25, 0x01,		/*      LOGICAL_MAX (1)                 */
+	0x95, 0x10,		/*      REPORT_COUNT (16)               */
+	0x75, 0x01,		/*      REPORT_SIZE (1)                 */
+	0x81, 0x02,		/*      INPUT (data var abs)            */
+	0x05, 0x01,		/*      USAGE_PAGE (generic desktop)    */
+	0x16, 0x01, 0x80,	/*      LOGICAL_MIN (-32767)            */
+	0x26, 0xFF, 0x7F,	/*      LOGICAL_MAX (32767)             */
+	0x75, 0x10,		/*      REPORT_SIZE (16)                */
 	0x95, 0x02,		/*      REPORT_COUNT (2)                */
 	0x09, 0x30,		/*      USAGE (X)                       */
 	0x09, 0x31,		/*      USAGE (Y)                       */
@@ -788,6 +827,8 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		break;
 	case 0x0c:
 		device_type = "eQUAD Lightspeed";
+		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		workitem.reports_supported |= STD_KEYBOARD;
 		break;
 	}
 
@@ -1142,7 +1183,12 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	if (djdev->reports_supported & STD_MOUSE) {
 		dbg_hid("%s: sending a mouse descriptor, reports_supported: "
 			"%x\n", __func__, djdev->reports_supported);
-		rdcat(rdesc, &rsize, mse_descriptor, sizeof(mse_descriptor));
+		if (djdev->dj_receiver_dev->type == recvr_type_gaming_hidpp)
+			rdcat(rdesc, &rsize, mse_high_res_descriptor,
+			      sizeof(mse_high_res_descriptor));
+		else
+			rdcat(rdesc, &rsize, mse_descriptor,
+			      sizeof(mse_descriptor));
 	}
 
 	if (djdev->reports_supported & MULTIMEDIA) {
@@ -1360,6 +1406,12 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 			return false;
 		}
 		return logi_dj_dj_event(hdev, report, data, size);
+	case REPORT_ID_DJ_LONG:
+		if (size != DJREPORT_LONG_LENGTH) {
+			dev_err(&hdev->dev, "DJ report of bad size (%d)", size);
+			return false;
+		}
+		return logi_dj_dj_event(hdev, report, data, size);
 	case REPORT_ID_HIDPP_SHORT:
 		if (size != HIDPP_REPORT_SHORT_LENGTH) {
 			dev_err(&hdev->dev,
@@ -1572,6 +1624,10 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_2),
 	 .driver_data = recvr_type_hidpp},
+	{ /* Logitech gaming receiver (0xc539) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_GAMING),
+	 .driver_data = recvr_type_gaming_hidpp},
 	{}
 };
 
