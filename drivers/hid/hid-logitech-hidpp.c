@@ -51,7 +51,7 @@ MODULE_PARM_DESC(disable_tap_to_click,
 
 #define HIDPP_REPORT_SHORT_LENGTH		7
 #define HIDPP_REPORT_LONG_LENGTH		20
-#define HIDPP_REPORT_VERY_LONG_LENGTH		64
+#define HIDPP_REPORT_VERY_LONG_MAX_LENGTH	64
 
 #define HIDPP_QUIRK_CLASS_WTP			BIT(0)
 #define HIDPP_QUIRK_CLASS_M560			BIT(1)
@@ -106,13 +106,13 @@ MODULE_PARM_DESC(disable_tap_to_click,
 struct fap {
 	u8 feature_index;
 	u8 funcindex_clientid;
-	u8 params[HIDPP_REPORT_VERY_LONG_LENGTH - 4U];
+	u8 params[HIDPP_REPORT_VERY_LONG_MAX_LENGTH - 4U];
 };
 
 struct rap {
 	u8 sub_id;
 	u8 reg_address;
-	u8 params[HIDPP_REPORT_VERY_LONG_LENGTH - 4U];
+	u8 params[HIDPP_REPORT_VERY_LONG_MAX_LENGTH - 4U];
 };
 
 struct hidpp_report {
@@ -162,6 +162,7 @@ struct hidpp_device {
 	void *send_receive_buf;
 	char *name;		/* will never be NULL and should not be freed */
 	wait_queue_head_t wait;
+	int very_long_report_length;
 	bool answer_available;
 	u8 protocol_major;
 	u8 protocol_minor;
@@ -214,7 +215,7 @@ static int __hidpp_send_report(struct hid_device *hdev,
 		fields_count = HIDPP_REPORT_LONG_LENGTH;
 		break;
 	case REPORT_ID_HIDPP_VERY_LONG:
-		fields_count = HIDPP_REPORT_VERY_LONG_LENGTH;
+		fields_count = hidpp->very_long_report_length;
 		break;
 	default:
 		return -ENODEV;
@@ -340,7 +341,7 @@ static int hidpp_send_rap_command_sync(struct hidpp_device *hidpp_dev,
 		max_count = HIDPP_REPORT_LONG_LENGTH - 4;
 		break;
 	case REPORT_ID_HIDPP_VERY_LONG:
-		max_count = HIDPP_REPORT_VERY_LONG_LENGTH - 4;
+		max_count = hidpp_dev->very_long_report_length - 4;
 		break;
 	default:
 		return -EINVAL;
@@ -934,7 +935,7 @@ static int hidpp_devicenametype_get_device_name(struct hidpp_device *hidpp,
 
 	switch (response.report_id) {
 	case REPORT_ID_HIDPP_VERY_LONG:
-		count = HIDPP_REPORT_VERY_LONG_LENGTH - 4;
+		count = hidpp->very_long_report_length - 4;
 		break;
 	case REPORT_ID_HIDPP_LONG:
 		count = HIDPP_REPORT_LONG_LENGTH - 4;
@@ -2923,7 +2924,7 @@ static int hidpp_raw_event(struct hid_device *hdev, struct hid_report *report,
 	/* Generic HID++ processing. */
 	switch (data[0]) {
 	case REPORT_ID_HIDPP_VERY_LONG:
-		if (size != HIDPP_REPORT_VERY_LONG_LENGTH) {
+		if (size != hidpp->very_long_report_length) {
 			hid_err(hdev, "received hid++ report of bad size (%d)",
 				size);
 			return 1;
@@ -3226,24 +3227,34 @@ static const struct attribute_group ps_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
-static bool hidpp_validate_report(struct hid_device *hdev, int id, int size,
-		bool optional)
+static int hidpp_get_report_length(struct hid_device *hdev, int id)
 {
 	struct hid_report_enum *re;
 	struct hid_report *report;
+
+	re = &(hdev->report_enum[HID_OUTPUT_REPORT]);
+	report = re->report_id_hash[id];
+	if (!report)
+		return 0;
+
+	return report->field[0]->report_count + 1;
+}
+
+static bool hidpp_validate_report(struct hid_device *hdev, int id,
+				  int expected_length, bool optional)
+{
+	int report_length;
 
 	if (id >= HID_MAX_IDS || id < 0) {
 		hid_err(hdev, "invalid HID report id %u\n", id);
 		return false;
 	}
 
-	re = &(hdev->report_enum[HID_OUTPUT_REPORT]);
-	report = re->report_id_hash[id];
-
-	if (!report)
+	report_length = hidpp_get_report_length(hdev, id);
+	if (!report_length)
 		return optional;
 
-	if (report->field[0]->report_count < size) {
+	if (report_length < expected_length) {
 		hid_warn(hdev, "not enough values in hidpp report %d\n", id);
 		return false;
 	}
@@ -3254,11 +3265,9 @@ static bool hidpp_validate_report(struct hid_device *hdev, int id, int size,
 static bool hidpp_validate_device(struct hid_device *hdev)
 {
 	return hidpp_validate_report(hdev, REPORT_ID_HIDPP_SHORT,
-				     HIDPP_REPORT_SHORT_LENGTH - 1, false) &&
+				     HIDPP_REPORT_SHORT_LENGTH, false) &&
 	       hidpp_validate_report(hdev, REPORT_ID_HIDPP_LONG,
-				     HIDPP_REPORT_LONG_LENGTH - 1, true) &&
-	       hidpp_validate_report(hdev, REPORT_ID_HIDPP_VERY_LONG,
-				     HIDPP_REPORT_VERY_LONG_LENGTH - 1, true);
+				     HIDPP_REPORT_LONG_LENGTH, true);
 }
 
 static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -3290,6 +3299,11 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_set_drvdata(hdev, hidpp);
 
 	hidpp->quirks = id->driver_data;
+
+	hidpp->very_long_report_length =
+		hidpp_get_report_length(hdev, REPORT_ID_HIDPP_VERY_LONG);
+	if (hidpp->very_long_report_length > HIDPP_REPORT_VERY_LONG_MAX_LENGTH)
+		hidpp->very_long_report_length = HIDPP_REPORT_VERY_LONG_MAX_LENGTH;
 
 	if (id->group == HID_GROUP_LOGITECH_DJ_DEVICE)
 		hidpp->quirks |= HIDPP_QUIRK_UNIFYING;
