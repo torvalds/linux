@@ -741,6 +741,9 @@ static char *hidpp_unifying_get_name(struct hidpp_device *hidpp_dev)
 	if (2 + len > sizeof(response.rap.params))
 		return NULL;
 
+	if (len < 4) /* logitech devices are usually at least Xddd */
+		return NULL;
+
 	name = kzalloc(len + 1, GFP_KERNEL);
 	if (!name)
 		return NULL;
