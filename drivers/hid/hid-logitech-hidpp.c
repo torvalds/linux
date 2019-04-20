@@ -72,6 +72,7 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_QUIRK_HI_RES_SCROLL_X2120		BIT(27)
 #define HIDPP_QUIRK_HI_RES_SCROLL_X2121		BIT(28)
 #define HIDPP_QUIRK_HIDPP_WHEELS		BIT(29)
+#define HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS	BIT(30)
 
 /* These are just aliases for now */
 #define HIDPP_QUIRK_KBD_SCROLL_WHEEL HIDPP_QUIRK_HIDPP_WHEELS
@@ -2793,6 +2794,64 @@ static void hidpp10_wheel_populate_input(struct hidpp_device *hidpp,
 }
 
 /* -------------------------------------------------------------------------- */
+/* HID++1.0 mice which use HID++ reports for extra mouse buttons              */
+/* -------------------------------------------------------------------------- */
+static int hidpp10_extra_mouse_buttons_connect(struct hidpp_device *hidpp)
+{
+	return hidpp10_set_register(hidpp, HIDPP_REG_ENABLE_REPORTS, 0,
+				    HIDPP_ENABLE_MOUSE_EXTRA_BTN_REPORT,
+				    HIDPP_ENABLE_MOUSE_EXTRA_BTN_REPORT);
+}
+
+static int hidpp10_extra_mouse_buttons_raw_event(struct hidpp_device *hidpp,
+				    u8 *data, int size)
+{
+	int i;
+
+	if (!hidpp->input)
+		return -EINVAL;
+
+	if (size < 7)
+		return 0;
+
+	if (data[0] != REPORT_ID_HIDPP_SHORT ||
+	    data[2] != HIDPP_SUB_ID_MOUSE_EXTRA_BTNS)
+		return 0;
+
+	/*
+	 * Buttons are either delivered through the regular mouse report *or*
+	 * through the extra buttons report. At least for button 6 how it is
+	 * delivered differs per receiver firmware version. Even receivers with
+	 * the same usb-id show different behavior, so we handle both cases.
+	 */
+	for (i = 0; i < 8; i++)
+		input_report_key(hidpp->input, BTN_MOUSE + i,
+				 (data[3] & (1 << i)));
+
+	/* Some mice report events on button 9+, use BTN_MISC */
+	for (i = 0; i < 8; i++)
+		input_report_key(hidpp->input, BTN_MISC + i,
+				 (data[4] & (1 << i)));
+
+	input_sync(hidpp->input);
+	return 1;
+}
+
+static void hidpp10_extra_mouse_buttons_populate_input(
+			struct hidpp_device *hidpp, struct input_dev *input_dev)
+{
+	/* BTN_MOUSE - BTN_MOUSE+7 are set already by the descriptor */
+	__set_bit(BTN_0, input_dev->keybit);
+	__set_bit(BTN_1, input_dev->keybit);
+	__set_bit(BTN_2, input_dev->keybit);
+	__set_bit(BTN_3, input_dev->keybit);
+	__set_bit(BTN_4, input_dev->keybit);
+	__set_bit(BTN_5, input_dev->keybit);
+	__set_bit(BTN_6, input_dev->keybit);
+	__set_bit(BTN_7, input_dev->keybit);
+}
+
+/* -------------------------------------------------------------------------- */
 /* High-resolution scroll wheels                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -2879,6 +2938,9 @@ static void hidpp_populate_input(struct hidpp_device *hidpp,
 
 	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_WHEELS)
 		hidpp10_wheel_populate_input(hidpp, input);
+
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS)
+		hidpp10_extra_mouse_buttons_populate_input(hidpp, input);
 }
 
 static int hidpp_input_configured(struct hid_device *hdev,
@@ -2952,6 +3014,12 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 
 	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_WHEELS) {
 		ret = hidpp10_wheel_raw_event(hidpp, data, size);
+		if (ret != 0)
+			return ret;
+	}
+
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS) {
+		ret = hidpp10_extra_mouse_buttons_raw_event(hidpp, data, size);
 		if (ret != 0)
 			return ret;
 	}
@@ -3209,6 +3277,12 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 			return;
 	}
 
+	if (hidpp->quirks & HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS) {
+		ret = hidpp10_extra_mouse_buttons_connect(hidpp);
+		if (ret)
+			return;
+	}
+
 	/* the device is already connected, we can ask for its name and
 	 * protocol */
 	if (!hidpp->protocol_major) {
@@ -3374,7 +3448,8 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (id->group == HID_GROUP_LOGITECH_27MHZ_DEVICE &&
 	    hidpp_application_equals(hdev, HID_GD_MOUSE))
-		hidpp->quirks |= HIDPP_QUIRK_HIDPP_WHEELS;
+		hidpp->quirks |= HIDPP_QUIRK_HIDPP_WHEELS |
+				 HIDPP_QUIRK_HIDPP_EXTRA_MOUSE_BTNS;
 
 	if (disable_raw_mode) {
 		hidpp->quirks &= ~HIDPP_QUIRK_CLASS_WTP;
