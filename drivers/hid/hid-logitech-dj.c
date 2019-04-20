@@ -128,6 +128,7 @@ struct dj_receiver_dev {
 	struct kref kref;
 	struct work_struct work;
 	struct kfifo notif_fifo;
+	unsigned long last_query; /* in jiffies */
 	bool ready;
 	spinlock_t lock;
 };
@@ -458,6 +459,7 @@ static struct dj_receiver_dev *dj_get_receiver_dev(struct hid_device *hdev,
 		}
 		kref_init(&djrcv_dev->kref);
 		list_add_tail(&djrcv_dev->list, &dj_hdev_list);
+		djrcv_dev->last_query = jiffies;
 	}
 
 	if (application == HID_GD_KEYBOARD)
@@ -637,6 +639,30 @@ static void delayedwork_callback(struct work_struct *work)
 	}
 }
 
+/*
+ * Sometimes we receive reports for which we do not have a paired dj_device
+ * associated with the device_index or report-type to forward the report to.
+ * This means that the original "device paired" notification corresponding
+ * to the dj_device never arrived to this driver. Possible reasons for this are:
+ * 1) hid-core discards all packets coming from a device during probe().
+ * 2) if the receiver is plugged into a KVM switch then the pairing reports
+ * are only forwarded to it if the focus is on this PC.
+ * This function deals with this by re-asking the receiver for the list of
+ * connected devices in the delayed work callback.
+ * This function MUST be called with djrcv->lock held.
+ */
+static void logi_dj_recv_queue_unknown_work(struct dj_receiver_dev *djrcv_dev)
+{
+	struct dj_workitem workitem = { .type = WORKITEM_TYPE_UNKNOWN };
+
+	/* Rate limit queries done because of unhandeled reports to 2/sec */
+	if (time_before(jiffies, djrcv_dev->last_query + HZ / 2))
+		return;
+
+	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
+	schedule_work(&djrcv_dev->work);
+}
+
 static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 					   struct dj_report *dj_report)
 {
@@ -666,21 +692,8 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 			workitem.type = WORKITEM_TYPE_UNPAIRED;
 		break;
 	default:
-	/* A normal report (i. e. not belonging to a pair/unpair notification)
-	 * arriving here, means that the report arrived but we did not have a
-	 * paired dj_device associated to the report's device_index, this
-	 * means that the original "device paired" notification corresponding
-	 * to this dj_device never arrived to this driver. The reason is that
-	 * hid-core discards all packets coming from a device while probe() is
-	 * executing. */
-		if (!djrcv_dev->paired_dj_devices[dj_report->device_index]) {
-			/*
-			 * ok, we don't know the device, just re-ask the
-			 * receiver for the list of connected devices in
-			 * the delayed work callback.
-			 */
-			workitem.type = WORKITEM_TYPE_UNKNOWN;
-		}
+		logi_dj_recv_queue_unknown_work(djrcv_dev);
+		return;
 	}
 
 	kfifo_in(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
@@ -775,6 +788,8 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 {
 	struct dj_report *dj_report;
 	int retval;
+
+	djrcv_dev->last_query = jiffies;
 
 	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
 	if (!dj_report)
