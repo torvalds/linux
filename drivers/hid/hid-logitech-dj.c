@@ -119,7 +119,7 @@ struct hidpp_event {
 } __packed;
 
 struct dj_receiver_dev {
-	struct hid_device *hdev;
+	struct hid_device *hidpp;
 	struct dj_device *paired_dj_devices[DJ_MAX_PAIRED_DEVICES +
 					    DJ_DEVICE_INDEX_MIN];
 	struct work_struct work;
@@ -380,7 +380,7 @@ static void logi_dj_recv_destroy_djhid_device(struct dj_receiver_dev *djrcv_dev,
 		hid_destroy_device(dj_dev->hdev);
 		kfree(dj_dev);
 	} else {
-		dev_err(&djrcv_dev->hdev->dev, "%s: can't destroy a NULL device\n",
+		hid_err(djrcv_dev->hidpp, "%s: can't destroy a NULL device\n",
 			__func__);
 	}
 }
@@ -389,7 +389,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 					  struct dj_workitem *workitem)
 {
 	/* Called in delayed work context */
-	struct hid_device *djrcv_hdev = djrcv_dev->hdev;
+	struct hid_device *djrcv_hdev = djrcv_dev->hidpp;
 	struct hid_device *dj_hiddev;
 	struct dj_device *dj_dev;
 	u8 device_index = workitem->device_index;
@@ -483,8 +483,7 @@ static void delayedwork_callback(struct work_struct *work)
 	count = kfifo_out(&djrcv_dev->notif_fifo, &workitem, sizeof(workitem));
 
 	if (count != sizeof(workitem)) {
-		dev_err(&djrcv_dev->hdev->dev, "%s: workitem triggered without "
-			"notifications available\n", __func__);
+		hid_err(djrcv_dev->hidpp, "delayedwork queued without workitems available\n");
 		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 		return;
 	}
@@ -508,8 +507,7 @@ static void delayedwork_callback(struct work_struct *work)
 	case WORKITEM_TYPE_UNKNOWN:
 		retval = logi_dj_recv_query_paired_devices(djrcv_dev);
 		if (retval) {
-			dev_err(&djrcv_dev->hdev->dev,
-				"%s: logi_dj_recv_query_paired_devices error: %d\n",
+			hid_err(djrcv_dev->hidpp, "%s: logi_dj_recv_query_paired_devices error: %d\n",
 				__func__, retval);
 		}
 		break;
@@ -631,7 +629,7 @@ static void logi_dj_recv_forward_report(struct dj_device *dj_dev, u8 *data,
 static int logi_dj_recv_send_report(struct dj_receiver_dev *djrcv_dev,
 				    struct dj_report *dj_report)
 {
-	struct hid_device *hdev = djrcv_dev->hdev;
+	struct hid_device *hdev = djrcv_dev->hidpp;
 	struct hid_report *report;
 	struct hid_report_enum *output_report_enum;
 	u8 *data = (u8 *)(&dj_report->device_index);
@@ -673,7 +671,7 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 					  unsigned timeout)
 {
-	struct hid_device *hdev = djrcv_dev->hdev;
+	struct hid_device *hdev = djrcv_dev->hidpp;
 	struct dj_report *dj_report;
 	u8 *buf;
 	int retval;
@@ -770,7 +768,7 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 			buf[4] = (buf[4] & 0xf0) | (djdev->device_index - 1);
 		else
 			buf[1] = djdev->device_index;
-		return hid_hw_raw_request(djrcv_dev->hdev, reportnum, buf,
+		return hid_hw_raw_request(djrcv_dev->hidpp, reportnum, buf,
 				count, report_type, reqtype);
 	}
 
@@ -788,7 +786,7 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 	out_buf[1] = djdev->device_index;
 	memcpy(out_buf + 2, buf, count);
 
-	ret = hid_hw_raw_request(djrcv_dev->hdev, out_buf[0], out_buf,
+	ret = hid_hw_raw_request(djrcv_dev->hidpp, out_buf[0], out_buf,
 		DJREPORT_SHORT_LENGTH, report_type, reqtype);
 
 	kfree(out_buf);
@@ -1086,7 +1084,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 			"%s:failed allocating dj_receiver_dev\n", __func__);
 		return -ENOMEM;
 	}
-	djrcv_dev->hdev = hdev;
+	djrcv_dev->hidpp = hdev;
 	INIT_WORK(&djrcv_dev->work, delayedwork_callback);
 	spin_lock_init(&djrcv_dev->lock);
 	if (kfifo_alloc(&djrcv_dev->notif_fifo,
