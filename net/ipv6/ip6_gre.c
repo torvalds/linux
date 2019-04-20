@@ -1743,6 +1743,9 @@ static int ip6erspan_tap_validate(struct nlattr *tb[], struct nlattr *data[],
 static void ip6erspan_set_version(struct nlattr *data[],
 				  struct __ip6_tnl_parm *parms)
 {
+	if (!data)
+		return;
+
 	parms->erspan_ver = 1;
 	if (data[IFLA_GRE_ERSPAN_VER])
 		parms->erspan_ver = nla_get_u8(data[IFLA_GRE_ERSPAN_VER]);
