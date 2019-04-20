@@ -25,8 +25,8 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
-#include <linux/usb.h>
 #include <linux/kfifo.h>
+#include <linux/delay.h>
 #include <asm/unaligned.h>
 #include "hid-ids.h"
 
@@ -378,8 +378,6 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 {
 	/* Called in delayed work context */
 	struct hid_device *djrcv_hdev = djrcv_dev->hdev;
-	struct usb_interface *intf = to_usb_interface(djrcv_hdev->dev.parent);
-	struct usb_device *usbdev = interface_to_usbdev(intf);
 	struct hid_device *dj_hiddev;
 	struct dj_device *dj_dev;
 
@@ -412,7 +410,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 
 	dj_hiddev->dev.parent = &djrcv_hdev->dev;
 	dj_hiddev->bus = BUS_USB;
-	dj_hiddev->vendor = le16_to_cpu(usbdev->descriptor.idVendor);
+	dj_hiddev->vendor = djrcv_hdev->vendor;
 	dj_hiddev->product =
 		(dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_MSB]
 									<< 8) |
@@ -423,7 +421,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 
 	dj_hiddev->group = HID_GROUP_LOGITECH_DJ_DEVICE;
 
-	usb_make_path(usbdev, dj_hiddev->phys, sizeof(dj_hiddev->phys));
+	memcpy(dj_hiddev->phys, djrcv_hdev->phys, sizeof(djrcv_hdev->phys));
 	snprintf(tmpstr, sizeof(tmpstr), ":%d", dj_report->device_index);
 	strlcat(dj_hiddev->phys, tmpstr, sizeof(dj_hiddev->phys));
 
@@ -1008,23 +1006,44 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 static int logi_dj_probe(struct hid_device *hdev,
 			 const struct hid_device_id *id)
 {
-	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	struct hid_report_enum *rep_enum;
+	struct hid_report *rep;
 	struct dj_receiver_dev *djrcv_dev;
+	bool has_hidpp = false;
 	int retval;
 
-	dbg_hid("%s called for ifnum %d\n", __func__,
-		intf->cur_altsetting->desc.bInterfaceNumber);
-
-	/* Ignore interfaces 0 and 1, they will not carry any data, dont create
-	 * any hid_device for them */
-	if (intf->cur_altsetting->desc.bInterfaceNumber !=
-	    LOGITECH_DJ_INTERFACE_NUMBER) {
-		dbg_hid("%s: ignoring ifnum %d\n", __func__,
-			intf->cur_altsetting->desc.bInterfaceNumber);
-		return -ENODEV;
+	/*
+	 * Call to usbhid to fetch the HID descriptors of the current
+	 * interface subsequently call to the hid/hid-core to parse the
+	 * fetched descriptors.
+	 */
+	retval = hid_parse(hdev);
+	if (retval) {
+		dev_err(&hdev->dev,
+			"%s:parse failed\n", __func__);
+		return retval;
 	}
 
-	/* Treat interface 2 */
+	rep_enum = &hdev->report_enum[HID_INPUT_REPORT];
+
+	/*
+	 * Check for the HID++ application.
+	 * Note: we should theoretically check for HID++ and DJ
+	 * collections, but this will do.
+	 */
+	list_for_each_entry(rep, &rep_enum->report_list, list) {
+		if (rep->application == 0xff000001)
+			has_hidpp = true;
+	}
+
+	/*
+	 * Ignore interfaces without DJ/HID++ collection, they will not carry
+	 * any data, dont create any hid_device for them.
+	 */
+	if (!has_hidpp)
+		return -ENODEV;
+
+	/* Treat DJ/HID++ interface */
 
 	djrcv_dev = kzalloc(sizeof(struct dj_receiver_dev), GFP_KERNEL);
 	if (!djrcv_dev) {
@@ -1045,22 +1064,6 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 	hid_set_drvdata(hdev, djrcv_dev);
 
-	/* Call  to usbhid to fetch the HID descriptors of interface 2 and
-	 * subsequently call to the hid/hid-core to parse the fetched
-	 * descriptors, this will in turn create the hidraw and hiddev nodes
-	 * for interface 2 of the receiver */
-	retval = hid_parse(hdev);
-	if (retval) {
-		dev_err(&hdev->dev,
-			"%s:parse of interface 2 failed\n", __func__);
-		goto hid_parse_fail;
-	}
-
-	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, REPORT_ID_DJ_SHORT,
-				 0, DJREPORT_SHORT_LENGTH - 1)) {
-		retval = -ENODEV;
-		goto hid_parse_fail;
-	}
 
 	/* Starts the usb device and connects to upper interfaces hiddev and
 	 * hidraw */
@@ -1107,7 +1110,6 @@ switch_to_dj_mode_fail:
 	hid_hw_stop(hdev);
 
 hid_hw_start_fail:
-hid_parse_fail:
 	kfifo_free(&djrcv_dev->notif_fifo);
 	kfree(djrcv_dev);
 	return retval;
