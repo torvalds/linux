@@ -3590,6 +3590,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
+	.ndo_set_vf_trust	= nfp_app_set_vf_trust,
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state  = nfp_app_set_vf_link_state,
 	.ndo_setup_tc		= nfp_port_setup_tc,
