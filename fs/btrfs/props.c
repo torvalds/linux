@@ -55,15 +55,29 @@ find_prop_handler(const char *name,
 	return NULL;
 }
 
+int btrfs_validate_prop(const char *name, const char *value, size_t value_len)
+{
+	const struct prop_handler *handler;
+
+	if (strlen(name) <= XATTR_BTRFS_PREFIX_LEN)
+		return -EINVAL;
+
+	handler = find_prop_handler(name, NULL);
+	if (!handler)
+		return -EINVAL;
+
+	if (value_len == 0)
+		return 0;
+
+	return handler->validate(value, value_len);
+}
+
 static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 			  const char *name, const char *value, size_t value_len,
 			  int flags)
 {
 	const struct prop_handler *handler;
 	int ret;
-
-	if (strlen(name) <= XATTR_BTRFS_PREFIX_LEN)
-		return -EINVAL;
 
 	handler = find_prop_handler(name, NULL);
 	if (!handler)
@@ -85,9 +99,6 @@ static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		return ret;
 	}
 
-	ret = handler->validate(value, value_len);
-	if (ret)
-		return ret;
 	if (trans)
 		ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
 				     value_len, flags);

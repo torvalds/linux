@@ -371,7 +371,12 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 					const char *name, const void *value,
 					size_t size, int flags)
 {
+	int ret;
+
 	name = xattr_full_name(handler, name);
+	ret = btrfs_validate_prop(name, value, size);
+	if (ret)
+		return ret;
 	return btrfs_set_prop_trans(inode, name, value, size, flags);
 }
 

@@ -284,6 +284,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		binode->flags &= ~BTRFS_INODE_COMPRESS;
 		binode->flags |= BTRFS_INODE_NOCOMPRESS;
 
+		/* set no-compression no need to validate prop here */
 		ret = btrfs_set_prop_trans(inode, "btrfs.compression", NULL,
 					   0, 0);
 		if (ret && ret != -ENODATA)
@@ -299,6 +300,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		binode->flags |= BTRFS_INODE_COMPRESS;
 		binode->flags &= ~BTRFS_INODE_NOCOMPRESS;
 
+		/* compress_type is already validated during mount options */
 		comp = btrfs_compress_type2str(fs_info->compress_type);
 		if (!comp || comp[0] == 0)
 			comp = btrfs_compress_type2str(BTRFS_COMPRESS_ZLIB);
@@ -309,6 +311,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 			goto out_drop;
 
 	} else {
+		/* reset prop, no need of validate prop here */
 		ret = btrfs_set_prop_trans(inode, "btrfs.compression", NULL,
 					   0, 0);
 		if (ret && ret != -ENODATA)
