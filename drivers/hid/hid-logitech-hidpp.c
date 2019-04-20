@@ -3420,6 +3420,10 @@ static void hidpp_remove(struct hid_device *hdev)
 	HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_DJ_DEVICE, \
 		   USB_VENDOR_ID_LOGITECH, (product))
 
+#define L27MHZ_DEVICE(product) \
+	HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_27MHZ_DEVICE, \
+		   USB_VENDOR_ID_LOGITECH, (product))
+
 static const struct hid_device_id hidpp_devices[] = {
 	{ /* wireless touchpad */
 	  LDJ_DEVICE(0x4011),
@@ -3473,6 +3477,8 @@ static const struct hid_device_id hidpp_devices[] = {
 	  .driver_data = HIDPP_QUIRK_CLASS_K750 },
 
 	{ LDJ_DEVICE(HID_ANY_ID) },
+
+	{ L27MHZ_DEVICE(HID_ANY_ID) },
 
 	{ /* Logitech G403 Gaming Mouse over USB */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, 0xC082) },
