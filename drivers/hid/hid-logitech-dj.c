@@ -94,12 +94,12 @@
 #define REPORT_TYPE_LEDS			0x0E
 
 /* RF Report types bitfield */
-#define STD_KEYBOARD				0x00000002
-#define STD_MOUSE				0x00000004
-#define MULTIMEDIA				0x00000008
-#define POWER_KEYS				0x00000010
-#define MEDIA_CENTER				0x00000100
-#define KBD_LEDS				0x00004000
+#define STD_KEYBOARD				BIT(1)
+#define STD_MOUSE				BIT(2)
+#define MULTIMEDIA				BIT(3)
+#define POWER_KEYS				BIT(4)
+#define MEDIA_CENTER				BIT(8)
+#define KBD_LEDS				BIT(14)
 
 struct dj_report {
 	u8 report_id;
