@@ -1094,7 +1094,6 @@ hid_hw_start_fail:
 hid_parse_fail:
 	kfifo_free(&djrcv_dev->notif_fifo);
 	kfree(djrcv_dev);
-	hid_set_drvdata(hdev, NULL);
 	return retval;
 
 }
@@ -1145,7 +1144,6 @@ static void logi_dj_remove(struct hid_device *hdev)
 
 	kfifo_free(&djrcv_dev->notif_fifo);
 	kfree(djrcv_dev);
-	hid_set_drvdata(hdev, NULL);
 }
 
 static const struct hid_device_id logi_dj_receivers[] = {

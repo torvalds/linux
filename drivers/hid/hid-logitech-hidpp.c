@@ -3231,15 +3231,15 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
 		ret = wtp_allocate(hdev, id);
 		if (ret)
-			goto allocate_fail;
+			return ret;
 	} else if (hidpp->quirks & HIDPP_QUIRK_CLASS_M560) {
 		ret = m560_allocate(hdev);
 		if (ret)
-			goto allocate_fail;
+			return ret;
 	} else if (hidpp->quirks & HIDPP_QUIRK_CLASS_K400) {
 		ret = k400_allocate(hdev);
 		if (ret)
-			goto allocate_fail;
+			return ret;
 	}
 
 	INIT_WORK(&hidpp->work, delayed_work_cb);
@@ -3334,8 +3334,6 @@ hid_parse_fail:
 	sysfs_remove_group(&hdev->dev.kobj, &ps_attribute_group);
 	cancel_work_sync(&hidpp->work);
 	mutex_destroy(&hidpp->send_mutex);
-allocate_fail:
-	hid_set_drvdata(hdev, NULL);
 	return ret;
 }
 
