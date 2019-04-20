@@ -21,32 +21,7 @@ menuconfig ISDN
 
 if ISDN
 
-menuconfig ISDN_CAPI
-	tristate "CAPI 2.0 subsystem"
-	help
-	  This provides CAPI (the Common ISDN Application Programming
-	  Interface) Version 2.0, a standard making it easy for programs to
-	  access ISDN hardware in a device independent way. (For details see
-	  <http://www.capi.org/>.)  CAPI supports making and accepting voice
-	  and data connections, controlling call options and protocols,
-	  as well as ISDN supplementary services like call forwarding or
-	  three-party conferences (if supported by the specific hardware
-	  driver).
-
-	  Select this option and the appropriate hardware driver below if
-	  you have an ISDN adapter supported by the CAPI subsystem.
-
-if ISDN_CAPI
-
 source "drivers/isdn/capi/Kconfig"
-
-source "drivers/isdn/hardware/Kconfig"
-
-endif # ISDN_CAPI
-
-source "drivers/isdn/gigaset/Kconfig"
-
-source "drivers/isdn/hysdn/Kconfig"
 
 source "drivers/isdn/mISDN/Kconfig"
 

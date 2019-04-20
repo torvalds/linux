@@ -1,4 +1,22 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menuconfig ISDN_CAPI
+	tristate "CAPI 2.0 subsystem"
+	help
+	  This provides CAPI (the Common ISDN Application Programming
+	  Interface) Version 2.0, a standard making it easy for programs to
+	  access ISDN hardware in a device independent way. (For details see
+	  <http://www.capi.org/>.)  CAPI supports making and accepting voice
+	  and data connections, controlling call options and protocols,
+	  as well as ISDN supplementary services like call forwarding or
+	  three-party conferences (if supported by the specific hardware
+	  driver).
+
+	  This subsystem requires a hardware specific driver.
+	  See CONFIG_BT_CMTP for the last remaining regular driver
+	  in the kernel that uses the CAPI subsystem.
+
+if ISDN_CAPI
+
 config CAPI_TRACE
 	bool "CAPI trace support"
 	default y
@@ -34,3 +52,5 @@ config ISDN_CAPI_CAPIDRV_VERBOSE
 	  If you say Y here, the capidrv interface will give verbose reasons
 	  for disconnecting. This will increase the size of the kernel by 7 KB.
 	  If unsure, say N.
+
+endif
