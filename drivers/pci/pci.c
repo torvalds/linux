@@ -6265,8 +6265,7 @@ static int __init pci_setup(char *str)
 				disable_acs_redir_param =
 					kstrdup(str + 18, GFP_KERNEL);
 			} else {
-				printk(KERN_ERR "PCI: Unknown option `%s'\n",
-						str);
+				pr_err("PCI: Unknown option `%s'\n", str);
 			}
 		}
 		str = k;
