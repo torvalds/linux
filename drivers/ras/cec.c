@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2017-2019 Borislav Petkov, SUSE Labs.
+ */
 #include <linux/mm.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
