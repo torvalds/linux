@@ -107,7 +107,6 @@ struct cypress_private {
 	int get_cfg_unsafe;		   /* If true, the CYPRESS_GET_CONFIG is unsafe */
 	int baud_rate;			   /* stores current baud rate in
 					      integer form */
-	int isthrottled;		   /* if throttled, discard reads */
 	char prev_status;		   /* used for TIOCMIWAIT */
 	/* we pass a pointer to this as the argument sent to
 	   cypress_set_termios old_termios */
