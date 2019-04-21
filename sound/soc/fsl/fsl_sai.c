@@ -9,6 +9,7 @@
 #include <linux/dmaengine.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -901,6 +902,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sai);
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_component,
 			&fsl_sai_dai, 1);
 	if (ret)
@@ -912,6 +915,11 @@ static int fsl_sai_probe(struct platform_device *pdev)
 		return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 }
 
+static int fsl_sai_remove(struct platform_device *pdev)
+{
+	pm_runtime_disable(&pdev->dev);
+}
+
 static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,vf610-sai", },
 	{ .compatible = "fsl,imx6sx-sai", },
@@ -920,8 +928,8 @@ static const struct of_device_id fsl_sai_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_sai_ids);
 
-#ifdef CONFIG_PM_SLEEP
-static int fsl_sai_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int fsl_sai_runtime_suspend(struct device *dev)
 {
 	struct fsl_sai *sai = dev_get_drvdata(dev);
 
@@ -931,7 +939,7 @@ static int fsl_sai_suspend(struct device *dev)
 	return 0;
 }
 
-static int fsl_sai_resume(struct device *dev)
+static int fsl_sai_runtime_resume(struct device *dev)
 {
 	struct fsl_sai *sai = dev_get_drvdata(dev);
 
@@ -943,14 +951,18 @@ static int fsl_sai_resume(struct device *dev)
 	regmap_write(sai->regmap, FSL_SAI_RCSR, 0);
 	return regcache_sync(sai->regmap);
 }
-#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops fsl_sai_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(fsl_sai_suspend, fsl_sai_resume)
+	SET_RUNTIME_PM_OPS(fsl_sai_runtime_suspend,
+			   fsl_sai_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver fsl_sai_driver = {
 	.probe = fsl_sai_probe,
+	.remove = fsl_sai_remove,
 	.driver = {
 		.name = "fsl-sai",
 		.pm = &fsl_sai_pm_ops,
