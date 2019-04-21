@@ -344,7 +344,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			       lq_sta->last_rate_n_flags);
 	}
 
-	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU) {
+	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvmsta->orig_amsdu_len) {
 		u16 size = le32_to_cpu(notif->amsdu_size);
 		int i;
 
