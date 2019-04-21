@@ -1007,8 +1007,6 @@ Follow directions marked with ``TODO 7`` which will guide you through the steps 
 
   Inspect the code in the ``minfs_create`` and the skeleton of functions ``minfs_new_inode`` and ``minfs_add_link``.
 
-Complete the functions ``minfs_readdir`` and ``minfs_find_entry`` with the implementation from the previous exercise.
-
 Implement the function ``minfs_new_inode``. Inside this function you will create (using :c:func:`new_inode`) and initialize an inode. The initialization is done using the data from disk.
 
 .. tip::
