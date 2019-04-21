@@ -988,7 +988,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
 	int err = 0;
-	unsigned long groups = nladdr->nl_groups;
+	unsigned long groups;
 	bool bound;
 
 	if (addr_len < sizeof(struct sockaddr_nl))
@@ -996,6 +996,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 
 	if (nladdr->nl_family != AF_NETLINK)
 		return -EINVAL;
+	groups = nladdr->nl_groups;
 
 	/* Only superuser is allowed to listen multicasts */
 	if (groups) {

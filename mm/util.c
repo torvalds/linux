@@ -204,7 +204,7 @@ EXPORT_SYMBOL(vmemdup_user);
  * @s: The string to duplicate
  * @n: Maximum number of bytes to copy, including the trailing NUL.
  *
- * Return: newly allocated copy of @s or %NULL in case of error
+ * Return: newly allocated copy of @s or an ERR_PTR() in case of error
  */
 char *strndup_user(const char __user *s, long n)
 {

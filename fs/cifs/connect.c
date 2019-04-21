@@ -103,7 +103,7 @@ enum {
 	Opt_cruid, Opt_gid, Opt_file_mode,
 	Opt_dirmode, Opt_port,
 	Opt_blocksize, Opt_rsize, Opt_wsize, Opt_actimeo,
-	Opt_echo_interval, Opt_max_credits,
+	Opt_echo_interval, Opt_max_credits, Opt_handletimeout,
 	Opt_snapshot,
 
 	/* Mount options which take string value */
@@ -208,6 +208,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_rsize, "rsize=%s" },
 	{ Opt_wsize, "wsize=%s" },
 	{ Opt_actimeo, "actimeo=%s" },
+	{ Opt_handletimeout, "handletimeout=%s" },
 	{ Opt_echo_interval, "echo_interval=%s" },
 	{ Opt_max_credits, "max_credits=%s" },
 	{ Opt_snapshot, "snapshot=%s" },
@@ -1619,6 +1620,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 	vol->actimeo = CIFS_DEF_ACTIMEO;
 
+	/* Most clients set timeout to 0, allows server to use its default */
+	vol->handle_timeout = 0; /* See MS-SMB2 spec section 2.2.14.2.12 */
+
 	/* offer SMB2.1 and later (SMB3 etc). Secure and widely accepted */
 	vol->ops = &smb30_operations;
 	vol->vals = &smbdefault_values;
@@ -2014,6 +2018,18 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->actimeo = HZ * option;
 			if (vol->actimeo > CIFS_MAX_ACTIMEO) {
 				cifs_dbg(VFS, "attribute cache timeout too large\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_handletimeout:
+			if (get_option_ul(args, &option)) {
+				cifs_dbg(VFS, "%s: Invalid handletimeout value\n",
+					 __func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->handle_timeout = option;
+			if (vol->handle_timeout > SMB3_MAX_HANDLE_TIMEOUT) {
+				cifs_dbg(VFS, "Invalid handle cache timeout, longer than 16 minutes\n");
 				goto cifs_parse_mount_err;
 			}
 			break;
@@ -3183,6 +3199,8 @@ static int match_tcon(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 		return 0;
 	if (tcon->snapshot_time != volume_info->snapshot_time)
 		return 0;
+	if (tcon->handle_timeout != volume_info->handle_timeout)
+		return 0;
 	return 1;
 }
 
@@ -3295,6 +3313,16 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 			goto out_fail;
 		} else
 			tcon->snapshot_time = volume_info->snapshot_time;
+	}
+
+	if (volume_info->handle_timeout) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+			     "Use SMB2.1 or later for handle timeout option\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		} else
+			tcon->handle_timeout = volume_info->handle_timeout;
 	}
 
 	tcon->ses = ses;

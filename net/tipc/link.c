@@ -869,6 +869,8 @@ void tipc_link_reset(struct tipc_link *l)
 	__skb_queue_head_init(&list);
 
 	l->in_session = false;
+	/* Force re-synch of peer session number before establishing */
+	l->peer_session--;
 	l->session++;
 	l->mtu = l->advertised_mtu;
 

@@ -48,8 +48,7 @@ nfp_fl_push_vlan(struct nfp_fl_push_vlan *push_vlan,
 
 	tmp_push_vlan_tci =
 		FIELD_PREP(NFP_FL_PUSH_VLAN_PRIO, act->vlan.prio) |
-		FIELD_PREP(NFP_FL_PUSH_VLAN_VID, act->vlan.vid) |
-		NFP_FL_PUSH_VLAN_CFI;
+		FIELD_PREP(NFP_FL_PUSH_VLAN_VID, act->vlan.vid);
 	push_vlan->vlan_tci = cpu_to_be16(tmp_push_vlan_tci);
 }
 

@@ -594,6 +594,8 @@ enum mlx5_pagefault_type_flags {
 };
 
 struct mlx5_td {
+	/* protects tirs list changes while tirs refresh */
+	struct mutex     list_lock;
 	struct list_head tirs_list;
 	u32              tdn;
 };

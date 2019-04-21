@@ -23,33 +23,12 @@ static int bme680_i2c_probe(struct i2c_client *client,
 {
 	struct regmap *regmap;
 	const char *name = NULL;
-	unsigned int val;
-	int ret;
 
 	regmap = devm_regmap_init_i2c(client, &bme680_regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "Failed to register i2c regmap %d\n",
 				(int)PTR_ERR(regmap));
 		return PTR_ERR(regmap);
-	}
-
-	ret = regmap_write(regmap, BME680_REG_SOFT_RESET_I2C,
-			   BME680_CMD_SOFTRESET);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to reset chip\n");
-		return ret;
-	}
-
-	ret = regmap_read(regmap, BME680_REG_CHIP_I2C_ID, &val);
-	if (ret < 0) {
-		dev_err(&client->dev, "Error reading I2C chip ID\n");
-		return ret;
-	}
-
-	if (val != BME680_CHIP_ID_VAL) {
-		dev_err(&client->dev, "Wrong chip ID, got %x expected %x\n",
-				val, BME680_CHIP_ID_VAL);
-		return -ENODEV;
 	}
 
 	if (id)
