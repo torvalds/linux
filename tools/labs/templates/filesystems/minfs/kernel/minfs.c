@@ -157,7 +157,6 @@ static int minfs_readdir(struct file *filp, struct dir_context *ctx)
 {
 	struct buffer_head *bh;
 	struct minfs_dir_entry *de;
-	struct inode *ino;
 	struct minfs_inode_info *mii;
 	struct inode *inode;
 	struct super_block *sb;
