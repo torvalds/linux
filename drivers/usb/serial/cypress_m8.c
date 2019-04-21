@@ -98,7 +98,6 @@ struct cypress_private {
 	int write_urb_interval;            /* interval to use for write urb */
 	int read_urb_interval;             /* interval to use for read urb */
 	int comm_is_ok;                    /* true if communication is (still) ok */
-	int termios_initialized;
 	__u8 line_control;	   	   /* holds dtr / rts value */
 	__u8 current_status;	   	   /* received from last read - info on dsr,cts,cd,ri,etc */
 	__u8 current_config;	   	   /* stores the current configuration byte */
@@ -122,6 +121,7 @@ static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static void cypress_send(struct usb_serial_port *port);
 static int  cypress_write_room(struct tty_struct *tty);
+static void cypress_earthmate_init_termios(struct tty_struct *tty);
 static void cypress_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  cypress_tiocmget(struct tty_struct *tty);
@@ -149,6 +149,7 @@ static struct usb_serial_driver cypress_earthmate_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
+	.init_termios =			cypress_earthmate_init_termios,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
@@ -463,7 +464,6 @@ static int cypress_generic_port_probe(struct usb_serial_port *port)
 
 	priv->cmd_ctrl = 0;
 	priv->line_control = 0;
-	priv->termios_initialized = 0;
 	priv->rx_flags = 0;
 	/* Default packet format setting is determined by packet size.
 	   Anything with a size larger then 9 must have a separate
@@ -853,6 +853,11 @@ static int cypress_tiocmset(struct tty_struct *tty,
 	return cypress_write(tty, port, NULL, 0);
 }
 
+static void cypress_earthmate_init_termios(struct tty_struct *tty)
+{
+	tty_encode_baud_rate(tty, 4800, 4800);
+}
+
 static void cypress_set_termios(struct tty_struct *tty,
 	struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -863,33 +868,6 @@ static void cypress_set_termios(struct tty_struct *tty,
 	unsigned long flags;
 	__u8 oldlines;
 	int linechange = 0;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	/* We can't clean this one up as we don't know the device type
-	   early enough */
-	if (!priv->termios_initialized) {
-		if (priv->chiptype == CT_EARTHMATE) {
-			tty->termios = tty_std_termios;
-			tty->termios.c_cflag = B4800 | CS8 | CREAD | HUPCL |
-				CLOCAL;
-			tty->termios.c_ispeed = 4800;
-			tty->termios.c_ospeed = 4800;
-		} else if (priv->chiptype == CT_CYPHIDCOM) {
-			tty->termios = tty_std_termios;
-			tty->termios.c_cflag = B9600 | CS8 | CREAD | HUPCL |
-				CLOCAL;
-			tty->termios.c_ispeed = 9600;
-			tty->termios.c_ospeed = 9600;
-		} else if (priv->chiptype == CT_CA42V2) {
-			tty->termios = tty_std_termios;
-			tty->termios.c_cflag = B9600 | CS8 | CREAD | HUPCL |
-				CLOCAL;
-			tty->termios.c_ispeed = 9600;
-			tty->termios.c_ospeed = 9600;
-		}
-		priv->termios_initialized = 1;
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Unsupported features need clearing */
 	tty->termios.c_cflag &= ~(CMSPAR|CRTSCTS);
