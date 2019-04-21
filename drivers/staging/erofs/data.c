@@ -304,7 +304,7 @@ submit_bio_retry:
 	*last_block = current_block;
 
 	/* shift in advance in case of it followed by too many gaps */
-	if (unlikely(bio->bi_vcnt >= bio->bi_max_vecs)) {
+	if (bio->bi_iter.bi_size >= bio->bi_max_vecs * PAGE_SIZE) {
 		/* err should reassign to 0 after submitting */
 		err = 0;
 		goto submit_bio_out;

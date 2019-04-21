@@ -735,10 +735,6 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		goto cleanup;
 	}
 	rc = usb_string(udev, 201, ver_ptr, ver_len);
-	if (ver_ptr == NULL) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
 	if (rc == -EPIPE) {
 		*ver_ptr = '\0';
 	} else if (rc < 0) {

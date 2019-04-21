@@ -923,6 +923,41 @@ static inline void qdisc_qstats_overlimit(struct Qdisc *sch)
 	sch->qstats.overlimits++;
 }
 
+static inline int qdisc_qstats_copy(struct gnet_dump *d, struct Qdisc *sch)
+{
+	__u32 qlen = qdisc_qlen_sum(sch);
+
+	return gnet_stats_copy_queue(d, sch->cpu_qstats, &sch->qstats, qlen);
+}
+
+static inline void qdisc_qstats_qlen_backlog(struct Qdisc *sch,  __u32 *qlen,
+					     __u32 *backlog)
+{
+	struct gnet_stats_queue qstats = { 0 };
+	__u32 len = qdisc_qlen_sum(sch);
+
+	__gnet_stats_copy_queue(&qstats, sch->cpu_qstats, &sch->qstats, len);
+	*qlen = qstats.qlen;
+	*backlog = qstats.backlog;
+}
+
+static inline void qdisc_tree_flush_backlog(struct Qdisc *sch)
+{
+	__u32 qlen, backlog;
+
+	qdisc_qstats_qlen_backlog(sch, &qlen, &backlog);
+	qdisc_tree_reduce_backlog(sch, qlen, backlog);
+}
+
+static inline void qdisc_purge_queue(struct Qdisc *sch)
+{
+	__u32 qlen, backlog;
+
+	qdisc_qstats_qlen_backlog(sch, &qlen, &backlog);
+	qdisc_reset(sch);
+	qdisc_tree_reduce_backlog(sch, qlen, backlog);
+}
+
 static inline void qdisc_skb_head_init(struct qdisc_skb_head *qh)
 {
 	qh->head = NULL;
@@ -1106,13 +1141,8 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	sch_tree_lock(sch);
 	old = *pold;
 	*pold = new;
-	if (old != NULL) {
-		unsigned int qlen = old->q.qlen;
-		unsigned int backlog = old->qstats.backlog;
-
-		qdisc_reset(old);
-		qdisc_tree_reduce_backlog(old, qlen, backlog);
-	}
+	if (old != NULL)
+		qdisc_tree_flush_backlog(old);
 	sch_tree_unlock(sch);
 
 	return old;
