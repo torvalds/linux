@@ -21,12 +21,20 @@ _test/test.c
 In order to run the test suite you can either use the _checker
 script or run the run-test executable.
 
-The _checker script runs all tests and computes assignment grade:
+The kernel module must be named ssr.ko and must be in the current folder.
 
+The run-test executable has to be in the current folder. You can create
+a link using:
+
+	ln -sf _test/run-test run-test
+
+The _checker script runs all tests and computes assignment grade. You
+can use any of the two commands below.
+
+	make test
 	./_checker
 
-In order to run a specific test pass the test number (1 .. 78) to the
+In order to run a specific test, pass the test number (1 .. 78) to the
 run-test executable.
 
 	./run-test 5
-
