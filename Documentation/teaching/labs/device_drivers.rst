@@ -591,6 +591,8 @@ write more or less than the required size.
 .. image:: write2.png
    :width: 49 %
 
+.. _ioctl:
+
 ioctl
 =====
 
