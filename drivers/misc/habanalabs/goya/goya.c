@@ -3858,36 +3858,35 @@ free_userptr:
 	return rc;
 }
 
-static int goya_parse_cb_no_ext_quque(struct hl_device *hdev,
+static int goya_parse_cb_no_ext_queue(struct hl_device *hdev,
 					struct hl_cs_parser *parser)
 {
 	struct asic_fixed_properties *asic_prop = &hdev->asic_prop;
 	struct goya_device *goya = hdev->asic_specific;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU)) {
-		/* For internal queue jobs, just check if cb address is valid */
-		if (hl_mem_area_inside_range(
-				(u64) (uintptr_t) parser->user_cb,
-				parser->user_cb_size,
-				asic_prop->sram_user_base_address,
-				asic_prop->sram_end_address))
-			return 0;
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
+		return 0;
 
-		if (hl_mem_area_inside_range(
-				(u64) (uintptr_t) parser->user_cb,
-				parser->user_cb_size,
-				asic_prop->dram_user_base_address,
-				asic_prop->dram_end_address))
-			return 0;
+	/* For internal queue jobs, just check if CB address is valid */
+	if (hl_mem_area_inside_range(
+			(u64) (uintptr_t) parser->user_cb,
+			parser->user_cb_size,
+			asic_prop->sram_user_base_address,
+			asic_prop->sram_end_address))
+		return 0;
 
-		dev_err(hdev->dev,
-			"Internal CB address %px + 0x%x is not in SRAM nor in DRAM\n",
-			parser->user_cb, parser->user_cb_size);
+	if (hl_mem_area_inside_range(
+			(u64) (uintptr_t) parser->user_cb,
+			parser->user_cb_size,
+			asic_prop->dram_user_base_address,
+			asic_prop->dram_end_address))
+		return 0;
 
-		return -EFAULT;
-	}
+	dev_err(hdev->dev,
+		"Internal CB address %px + 0x%x is not in SRAM nor in DRAM\n",
+		parser->user_cb, parser->user_cb_size);
 
-	return 0;
+	return -EFAULT;
 }
 
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
@@ -3895,7 +3894,7 @@ int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 	struct goya_device *goya = hdev->asic_specific;
 
 	if (!parser->ext_queue)
-		return goya_parse_cb_no_ext_quque(hdev, parser);
+		return goya_parse_cb_no_ext_queue(hdev, parser);
 
 	if ((goya->hw_cap_initialized & HW_CAP_MMU) && parser->use_virt_addr)
 		return goya_parse_cb_mmu(hdev, parser);
