@@ -877,7 +877,7 @@ Iterate over all the entries in the data block and fill the user space buffer in
   For each index, get the corresponding entry of the ``struct minfs_dir_entry`` by using pointer arithmetics on the ``bh->b_data`` field.
   Ignore dentries that have an ``ino`` field equal to 0. Such a dentry is a free slot in the director's dentry list.
 
-  For each valid entry, call :c:func:`dir_emit` with the appropriate parameters.
+  For each valid entry, there is an existing call :c:func:`dir_emit` with the appropriate parameters. This is the call that sends the dentries to the caller (and then to user space).
 
   Check the call examples in :c:func:`qnx6_readdir` and :c:func:`minix_readdir`.
 
