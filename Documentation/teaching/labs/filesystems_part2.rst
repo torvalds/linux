@@ -954,7 +954,7 @@ Iterating means going through the entries in the directory's data block (of type
   Store in the ``final_de`` variable the dentry found.
   If you do not find any dentry, then the ``final_de`` variable will have the value ``NULL``, the value with which it was initialized.
 
-Update the ``lookup`` field of the ``minfs_dir_inode_operations`` structure, structure of type :c:type:`inode_operations`.
+Comment the ``simple_lookup`` call in the ``minfs_lookup`` function to invoke the implementation of ``minfs_readdir``.
 
 Testing
 """""""
