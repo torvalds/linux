@@ -13,9 +13,9 @@
 #include <linux/socket.h>
 #include <linux/route.h>
 #include <linux/gcd.h>
-#include <linux/random.h>
 #include <linux/if_macvlan.h>
 #include <linux/refcount.h>
+#include <linux/jhash.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -6050,6 +6050,10 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 	fr_info = container_of(info, struct fib_rule_notifier_info, info);
 	rule = fr_info->rule;
 
+	/* Rule only affects locally generated traffic */
+	if (rule->iifindex == info->net->loopback_dev->ifindex)
+		return 0;
+
 	switch (info->family) {
 	case AF_INET:
 		if (!fib4_rule_default(rule) && !rule->l3mdev)
@@ -7831,7 +7835,7 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 	char recr2_pl[MLXSW_REG_RECR2_LEN];
 	u32 seed;
 
-	get_random_bytes(&seed, sizeof(seed));
+	seed = jhash(mlxsw_sp->base_mac, sizeof(mlxsw_sp->base_mac), 0);
 	mlxsw_reg_recr2_pack(recr2_pl, seed);
 	mlxsw_sp_mp4_hash_init(recr2_pl);
 	mlxsw_sp_mp6_hash_init(recr2_pl);
