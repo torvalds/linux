@@ -189,16 +189,6 @@ static int ark3116_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-static void ark3116_init_termios(struct tty_struct *tty)
-{
-	struct ktermios *termios = &tty->termios;
-	*termios = tty_std_termios;
-	termios->c_cflag = B9600 | CS8
-				      | CREAD | HUPCL | CLOCAL;
-	termios->c_ispeed = 9600;
-	termios->c_ospeed = 9600;
-}
-
 static void ark3116_set_termios(struct tty_struct *tty,
 				struct usb_serial_port *port,
 				struct ktermios *old_termios)
@@ -645,7 +635,6 @@ static struct usb_serial_driver ark3116_device = {
 	.port_probe =		ark3116_port_probe,
 	.port_remove =		ark3116_port_remove,
 	.set_termios =		ark3116_set_termios,
-	.init_termios =		ark3116_init_termios,
 	.get_serial =		ark3116_get_serial_info,
 	.tiocmget =		ark3116_tiocmget,
 	.tiocmset =		ark3116_tiocmset,
