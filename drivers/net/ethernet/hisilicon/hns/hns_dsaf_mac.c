@@ -370,7 +370,7 @@ int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn)
 static void hns_mac_param_get(struct mac_params *param,
 			      struct hns_mac_cb *mac_cb)
 {
-	param->vaddr = (void *)mac_cb->vaddr;
+	param->vaddr = mac_cb->vaddr;
 	param->mac_mode = hns_get_enet_interface(mac_cb);
 	ether_addr_copy(param->addr, mac_cb->addr_entry_idx[0].addr);
 	param->mac_id = mac_cb->mac_id;

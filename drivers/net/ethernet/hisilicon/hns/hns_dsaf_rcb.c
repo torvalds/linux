@@ -458,7 +458,7 @@ static void hns_rcb_ring_get_cfg(struct hnae_queue *q, int ring_type)
 		mdnum_ppkt = HNS_RCB_RING_MAX_BD_PER_PKT;
 	} else {
 		ring = &q->tx_ring;
-		ring->io_base = (u8 __iomem *)ring_pair_cb->q.io_base +
+		ring->io_base = ring_pair_cb->q.io_base +
 			HNS_RCB_TX_REG_OFFSET;
 		irq_idx = HNS_RCB_IRQ_IDX_TX;
 		mdnum_ppkt = is_ver1 ? HNS_RCB_RING_MAX_TXBD_PER_PKT :
@@ -764,7 +764,7 @@ static int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
 	}
 }
 
-static void __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
+static u8 __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
 {
 	struct dsaf_device *dsaf_dev = rcb_common->dsaf_dev;
 

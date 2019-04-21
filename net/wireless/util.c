@@ -1220,9 +1220,11 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	else if (rate->bw == RATE_INFO_BW_HE_RU &&
 		 rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_26)
 		result = rates_26[rate->he_gi];
-	else if (WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
-		      rate->bw, rate->he_ru_alloc))
+	else {
+		WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
+		     rate->bw, rate->he_ru_alloc);
 		return 0;
+	}
 
 	/* now scale to the appropriate MCS */
 	tmp = result;

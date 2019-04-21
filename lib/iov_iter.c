@@ -1528,6 +1528,7 @@ EXPORT_SYMBOL(csum_and_copy_to_iter);
 size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
 		struct iov_iter *i)
 {
+#ifdef CONFIG_CRYPTO
 	struct ahash_request *hash = hashp;
 	struct scatterlist sg;
 	size_t copied;
@@ -1537,6 +1538,9 @@ size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
 	ahash_request_set_crypt(hash, &sg, NULL, copied);
 	crypto_ahash_update(hash);
 	return copied;
+#else
+	return 0;
+#endif
 }
 EXPORT_SYMBOL(hash_and_copy_to_iter);
 

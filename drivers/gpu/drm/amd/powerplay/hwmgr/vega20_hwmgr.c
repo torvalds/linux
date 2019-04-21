@@ -91,6 +91,12 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	 *   MP0CLK DS
 	 */
 	data->registry_data.disallowed_features = 0xE0041C00;
+	/* ECC feature should be disabled on old SMUs */
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
+	hwmgr->smu_version = smum_get_argument(hwmgr);
+	if (hwmgr->smu_version < 0x282100)
+		data->registry_data.disallowed_features |= FEATURE_ECC_MASK;
+
 	data->registry_data.od_state_in_dc_support = 0;
 	data->registry_data.thermal_support = 1;
 	data->registry_data.skip_baco_hardware = 0;
@@ -357,6 +363,7 @@ static void vega20_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->smu_features[GNLD_DS_MP1CLK].smu_feature_id = FEATURE_DS_MP1CLK_BIT;
 	data->smu_features[GNLD_DS_MP0CLK].smu_feature_id = FEATURE_DS_MP0CLK_BIT;
 	data->smu_features[GNLD_XGMI].smu_feature_id = FEATURE_XGMI_BIT;
+	data->smu_features[GNLD_ECC].smu_feature_id = FEATURE_ECC_BIT;
 
 	for (i = 0; i < GNLD_FEATURES_MAX; i++) {
 		data->smu_features[i].smu_feature_bitmap =
@@ -3020,7 +3027,8 @@ static int vega20_get_ppfeature_status(struct pp_hwmgr *hwmgr, char *buf)
 				"FCLK_DS",
 				"MP1CLK_DS",
 				"MP0CLK_DS",
-				"XGMI"};
+				"XGMI",
+				"ECC"};
 	static const char *output_title[] = {
 				"FEATURES",
 				"BITMASK",
@@ -3462,6 +3470,7 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	struct vega20_single_dpm_table *dpm_table;
 	bool vblank_too_short = false;
 	bool disable_mclk_switching;
+	bool disable_fclk_switching;
 	uint32_t i, latency;
 
 	disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
@@ -3537,13 +3546,20 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	if (hwmgr->display_config->nb_pstate_switch_disable)
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
+	if ((disable_mclk_switching &&
+	    (dpm_table->dpm_state.hard_min_level == dpm_table->dpm_levels[dpm_table->count - 1].value)) ||
+	     hwmgr->display_config->min_mem_set_clock / 100 >= dpm_table->dpm_levels[dpm_table->count - 1].value)
+		disable_fclk_switching = true;
+	else
+		disable_fclk_switching = false;
+
 	/* fclk */
 	dpm_table = &(data->dpm_table.fclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
 	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
 	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
-	if (hwmgr->display_config->nb_pstate_switch_disable)
+	if (hwmgr->display_config->nb_pstate_switch_disable || disable_fclk_switching)
 		dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
 	/* vclk */

@@ -1315,6 +1315,7 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, sessions = 0;
 	unsigned long flags;
+	int rc;
 
 	cctx = dev_get_drvdata(dev->parent);
 	if (!cctx)
@@ -1344,7 +1345,11 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	}
 	cctx->sesscount++;
 	spin_unlock_irqrestore(&cctx->lock, flags);
-	dma_set_mask(dev, DMA_BIT_MASK(32));
+	rc = dma_set_mask(dev, DMA_BIT_MASK(32));
+	if (rc) {
+		dev_err(dev, "32-bit DMA enable failed\n");
+		return rc;
+	}
 
 	return 0;
 }

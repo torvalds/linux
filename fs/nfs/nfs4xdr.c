@@ -2589,7 +2589,7 @@ static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
 			ARRAY_SIZE(nfs4_acl_bitmap), &hdr);
 
 	rpc_prepare_reply_pages(req, args->acl_pages, 0,
-				args->acl_len, replen);
+				args->acl_len, replen + 1);
 	encode_nops(&hdr);
 }
 
@@ -2811,7 +2811,7 @@ static void nfs4_xdr_enc_fs_locations(struct rpc_rqst *req,
 	}
 
 	rpc_prepare_reply_pages(req, (struct page **)&args->page, 0,
-				PAGE_SIZE, replen);
+				PAGE_SIZE, replen + 1);
 	encode_nops(&hdr);
 }
 

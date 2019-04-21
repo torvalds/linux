@@ -3581,7 +3581,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	if (flags)
 		return -EINVAL;
 
-	f = fdget_raw(pidfd);
+	f = fdget(pidfd);
 	if (!f.file)
 		return -EBADF;
 
@@ -3605,16 +3605,11 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 		if (unlikely(sig != kinfo.si_signo))
 			goto err;
 
+		/* Only allow sending arbitrary signals to yourself. */
+		ret = -EPERM;
 		if ((task_pid(current) != pid) &&
-		    (kinfo.si_code >= 0 || kinfo.si_code == SI_TKILL)) {
-			/* Only allow sending arbitrary signals to yourself. */
-			ret = -EPERM;
-			if (kinfo.si_code != SI_USER)
-				goto err;
-
-			/* Turn this into a regular kill signal. */
-			prepare_kill_siginfo(sig, &kinfo);
-		}
+		    (kinfo.si_code >= 0 || kinfo.si_code == SI_TKILL))
+			goto err;
 	} else {
 		prepare_kill_siginfo(sig, &kinfo);
 	}

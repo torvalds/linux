@@ -2596,6 +2596,9 @@ static int __init intel_pstate_init(void)
 	const struct x86_cpu_id *id;
 	int rc;
 
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return -ENODEV;
+
 	if (no_load)
 		return -ENODEV;
 
@@ -2611,7 +2614,7 @@ static int __init intel_pstate_init(void)
 	} else {
 		id = x86_match_cpu(intel_pstate_cpu_ids);
 		if (!id) {
-			pr_info("CPU ID not supported\n");
+			pr_info("CPU model not supported\n");
 			return -ENODEV;
 		}
 
