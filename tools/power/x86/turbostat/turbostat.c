@@ -4591,6 +4591,9 @@ unsigned int intel_model_duplicates(unsigned int model)
 
 	case INTEL_FAM6_ICELAKE_MOBILE:
 		return INTEL_FAM6_CANNONLAKE_MOBILE;
+
+	case INTEL_FAM6_ATOM_TREMONT_X:
+		return INTEL_FAM6_ATOM_GOLDMONT_X;
 	}
 	return model;
 }
