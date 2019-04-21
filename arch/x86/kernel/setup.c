@@ -71,6 +71,7 @@
 #include <linux/tboot.h>
 #include <linux/jiffies.h>
 #include <linux/mem_encrypt.h>
+#include <linux/sizes.h>
 
 #include <linux/usb/xhci-dbgp.h>
 #include <video/edid.h>
@@ -448,18 +449,17 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 #ifdef CONFIG_KEXEC_CORE
 
 /* 16M alignment for crash kernel regions */
-#define CRASH_ALIGN		(16 << 20)
+#define CRASH_ALIGN		SZ_16M
 
 /*
  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
  * would limit the kernel to the low 512 MiB due to mapping restrictions.
- * On 64bit, old kexec-tools need to under 896MiB.
  */
 #ifdef CONFIG_X86_32
-# define CRASH_ADDR_LOW_MAX	(512 << 20)
-# define CRASH_ADDR_HIGH_MAX	(512 << 20)
+# define CRASH_ADDR_LOW_MAX	SZ_512M
+# define CRASH_ADDR_HIGH_MAX	SZ_512M
 #else
-# define CRASH_ADDR_LOW_MAX	(896UL << 20)
+# define CRASH_ADDR_LOW_MAX	SZ_4G
 # define CRASH_ADDR_HIGH_MAX	MAXMEM
 #endif
 
