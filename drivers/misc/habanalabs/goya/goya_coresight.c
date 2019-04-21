@@ -459,10 +459,14 @@ static int goya_config_bmon(struct hl_device *hdev,
 		if (!input)
 			return -EINVAL;
 
-		WREG32(base_reg + 0x208, lower_32_bits(input->addr_range0));
-		WREG32(base_reg + 0x20C, upper_32_bits(input->addr_range0));
-		WREG32(base_reg + 0x248, lower_32_bits(input->addr_range1));
-		WREG32(base_reg + 0x24C, upper_32_bits(input->addr_range1));
+		WREG32(base_reg + 0x200, lower_32_bits(input->start_addr0));
+		WREG32(base_reg + 0x204, upper_32_bits(input->start_addr0));
+		WREG32(base_reg + 0x208, lower_32_bits(input->addr_mask0));
+		WREG32(base_reg + 0x20C, upper_32_bits(input->addr_mask0));
+		WREG32(base_reg + 0x240, lower_32_bits(input->start_addr1));
+		WREG32(base_reg + 0x244, upper_32_bits(input->start_addr1));
+		WREG32(base_reg + 0x248, lower_32_bits(input->addr_mask1));
+		WREG32(base_reg + 0x24C, upper_32_bits(input->addr_mask1));
 		WREG32(base_reg + 0x224, 0);
 		WREG32(base_reg + 0x234, 0);
 		WREG32(base_reg + 0x30C, input->bw_win);
@@ -482,8 +486,12 @@ static int goya_config_bmon(struct hl_device *hdev,
 		WREG32(base_reg + 0x100, 0x11);
 		WREG32(base_reg + 0x304, 0x1);
 	} else {
+		WREG32(base_reg + 0x200, 0);
+		WREG32(base_reg + 0x204, 0);
 		WREG32(base_reg + 0x208, 0xFFFFFFFF);
 		WREG32(base_reg + 0x20C, 0xFFFFFFFF);
+		WREG32(base_reg + 0x240, 0);
+		WREG32(base_reg + 0x244, 0);
 		WREG32(base_reg + 0x248, 0xFFFFFFFF);
 		WREG32(base_reg + 0x24C, 0xFFFFFFFF);
 		WREG32(base_reg + 0x224, 0xFFFFFFFF);
