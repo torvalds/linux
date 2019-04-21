@@ -7,7 +7,7 @@ Test suite for kprobe based tracer
 README
 	* this file
 
-Makefile.checker
+Makefile
 	* Makefile for automating the build process
 
 _checker
@@ -34,20 +34,38 @@ _test/debug.h
 _test/util.h
 	* useful macros for generic use (error processing)
 
-_helper/tracer_helper.c
+_helper/*
 	* helper kernel module for simulating kprobed ops
 
 == BUILDING ==
 
-Use the Makefile to properly build the tracer_test executable and
-the tracer_helper.ko module:
+Use the linux-kernel-labs build infrastructure, i.e run
 
-	make -f Makefile.checker
+	make  build
+
+in the tools/labs/ folder.
+
+If you want to do things by hand, you have to use the Makefile in the
+current folder to run build the executable:
+
+	make
+
+and the kernel module-specific Makefile command to build the kernel module:
+
+make -C $(KDIR) M=$(KDIR)/tools/labs/skels/assignments/1-tracer/checker/_helper/ ARCH=x86 modules
 
 == RUNNING ==
 
-Copy your tracer.ko module and _checker, tracer_test and tracer_helper.ko
-to fsimg/root directory on your QEMU/KVM virtual machine.
+Use the linux-kernel-labs run infrastructure, i.e. run
+
+	make copy
+
+This copies the skel/ subfolder in the future root filesystem image for the
+QEMU/KVM virtual machine.
+
+If you want to do things by hand, copy your tracer.ko module and _checker,
+tracer_test and tracer_helper.ko to fsimg/root directory on your QEMU/KVM
+virtual machine.
 
 In order to run the test suite you can either use the _checker
 script or run the tracer_test executable.
