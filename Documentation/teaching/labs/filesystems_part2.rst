@@ -1041,12 +1041,17 @@ For this, you will iterate over the directory data block and you will find the f
   This block contains the entries in the directory. Use :c:func:`sb_bread` to read the block and then ``bh->b_data`` to refer to the data.
   The block contains at most ``MINFS_NUM_ENTRIES`` entries of type ``struct minfs_dir_entry``.
 
-  If all entries are occupied, return -ENOSPC .
-
-  Get the entry name in the form of a string (``char *``) in the variable ``name``.
+  If all entries are occupied, return ``-ENOSPC``.
 
   Iterate over the entries in the data block using the variable ``de`` and extract the first free entry (for which the ``ino`` field is ``0``).
-  When you have found a free place, fill in the corresponding entry: the ``ino`` field and the ``name`` field in the ``de`` variable. You can use ``strcpy`` or ``memcpy`` to initialize the name to the contents of the ``name`` variable.
+
+  When you have found a free place, fill in the corresponding entry:
+
+    * the ``ino`` field in ``de->ino``
+    * the ``dentry->d_name.name`` field in ``de->name``
+
+  Then mark the buffer dirty.
+
 
 Testing
 """""""
