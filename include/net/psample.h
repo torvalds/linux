@@ -3,7 +3,6 @@
 #define __NET_PSAMPLE_H
 
 #include <uapi/linux/psample.h>
-#include <linux/module.h>
 #include <linux/list.h>
 
 struct psample_group {
