@@ -467,41 +467,6 @@ static int rtc_ioctl(struct file *file,
 	return -ENOIOCTLCMD;
 }
 
-/* on ia32 l_start is on a 32-bit boundary */
-#if defined(CONFIG_X86_64)
-struct space_resv_32 {
-	__s16		l_type;
-	__s16		l_whence;
-	__s64		l_start	__attribute__((packed));
-			/* len == 0 means until end of file */
-	__s64		l_len __attribute__((packed));
-	__s32		l_sysid;
-	__u32		l_pid;
-	__s32		l_pad[4];	/* reserve area */
-};
-
-#define FS_IOC_RESVSP_32		_IOW ('X', 40, struct space_resv_32)
-#define FS_IOC_RESVSP64_32	_IOW ('X', 42, struct space_resv_32)
-
-/* just account for different alignment */
-static int compat_ioctl_preallocate(struct file *file,
-			struct space_resv_32    __user *p32)
-{
-	struct space_resv	__user *p = compat_alloc_user_space(sizeof(*p));
-
-	if (copy_in_user(&p->l_type,	&p32->l_type,	sizeof(s16)) ||
-	    copy_in_user(&p->l_whence,	&p32->l_whence, sizeof(s16)) ||
-	    copy_in_user(&p->l_start,	&p32->l_start,	sizeof(s64)) ||
-	    copy_in_user(&p->l_len,	&p32->l_len,	sizeof(s64)) ||
-	    copy_in_user(&p->l_sysid,	&p32->l_sysid,	sizeof(s32)) ||
-	    copy_in_user(&p->l_pid,	&p32->l_pid,	sizeof(u32)) ||
-	    copy_in_user(&p->l_pad,	&p32->l_pad,	4*sizeof(u32)))
-		return -EFAULT;
-
-	return ioctl_preallocate(file, p);
-}
-#endif
-
 /*
  * simple reversible transform to make our table more evenly
  * distributed after sorting.
