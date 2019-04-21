@@ -6050,6 +6050,10 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 	fr_info = container_of(info, struct fib_rule_notifier_info, info);
 	rule = fr_info->rule;
 
+	/* Rule only affects locally generated traffic */
+	if (rule->iifindex == info->net->loopback_dev->ifindex)
+		return 0;
+
 	switch (info->family) {
 	case AF_INET:
 		if (!fib4_rule_default(rule) && !rule->l3mdev)
