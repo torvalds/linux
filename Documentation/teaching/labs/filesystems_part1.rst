@@ -206,7 +206,7 @@ When mounting  the file system, the kernel calls the mount function defined with
   * :c:func:`mount_nodev`, which mounts a file system that is not on a physical device
   * :c:func:`mount_pseudo`, a helper function for pseudo-file systems (``sockfs``, ``pipefs``, generally file systems that can not be mounted)
 
-These functions get as parameter a pointer to a function :c:func:`fill_super` that will be called after the superblock initialization to finish the its initialization it by the driver. An example of such a function can be found in the ``fill_super`` section.
+These functions get as parameter a pointer to a function :c:func:`fill_super` that will be called after the superblock initialization to finish its initialization by the driver. An example of such a function can be found in the ``fill_super`` section.
 
 When unmounting the file system, the kernel calls :c:func:`kill_sb`, which performs cleanup operations and invokes one of the functions:
 
@@ -534,7 +534,7 @@ To successfully complete mounting the file system, you will need to fill the ``m
   To initialize ``uid``, ``gid`` and ``mode`` , you can use the :c:func:`inode_init_owner` function as it is used in :c:func:`ramfs_get_inode`.
   When you call :c:func:`inode_init_owner`, use ``NULL`` as the second parameter because there is no parent directory for the created inode.
 
-  Initialize the ``i_atime``, ``i_atime``, and ``i_mtime`` of the VFS inode to the value returned by the :c:func:`current_time` function.
+  Initialize the ``i_atime``, ``i_ctime``, and ``i_mtime`` of the VFS inode to the value returned by the :c:func:`current_time` function.
 
   You will need to initialize the operations for the inode of type directory. To do this, follow the steps:
 
@@ -684,7 +684,7 @@ The operation fails because the root inode is not initialized.
 2. Completing minfs superblock
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To be able to mount the file system, you will need to fill the superloclock (i.e a structure with type :c:type:`struct super_block`) within the ``minfs_fill_super`` function; it is the ``s`` argument of the function.
+To be able to mount the file system, you will need to fill the superblock (i.e a structure with type :c:type:`struct super_block`) within the ``minfs_fill_super`` function; it is the ``s`` argument of the function.
 The structure of operations on the superblock is already defined: ``minfs_ops``.
 Follow the directions marked with ``TODO 2``. You can also follow the implementation of the ``minix_fill_super`` function.
 
