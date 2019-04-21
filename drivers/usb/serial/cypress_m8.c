@@ -108,9 +108,6 @@ struct cypress_private {
 	int baud_rate;			   /* stores current baud rate in
 					      integer form */
 	char prev_status;		   /* used for TIOCMIWAIT */
-	/* we pass a pointer to this as the argument sent to
-	   cypress_set_termios old_termios */
-	struct ktermios tmp_termios; 	   /* stores the old termios settings */
 };
 
 /* function prototypes for the Cypress USB to serial device */
@@ -603,7 +600,7 @@ static int cypress_open(struct tty_struct *tty, struct usb_serial_port *port)
 	cypress_send(port);
 
 	if (tty)
-		cypress_set_termios(tty, port, &priv->tmp_termios);
+		cypress_set_termios(tty, port, NULL);
 
 	/* setup the port and start reading from the device */
 	usb_fill_int_urb(port->interrupt_in_urb, serial->dev,
@@ -898,13 +895,6 @@ static void cypress_set_termios(struct tty_struct *tty,
 	tty->termios.c_cflag &= ~(CMSPAR|CRTSCTS);
 
 	cflag = tty->termios.c_cflag;
-
-	/* check if there are new settings */
-	if (old_termios) {
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->tmp_termios = tty->termios;
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
 
 	/* set number of data bits, parity, stop bits */
 	/* when parity is disabled the parity type bit is ignored */
