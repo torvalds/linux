@@ -41,7 +41,7 @@ Some of the important fields of :c:type:`struct inode` are:
   * ``i_mtime``, ``i_atime``, ``i_ctime``: change, access, and creation time
   * ``i_nlink``: the number of names entries (dentries) that use this inode; for file systems without links (either hard or symbolic) this is always set to 1
   * ``i_blocks``: the number of blocks used by the file (all blocks, not just data); this is only used by the quota subsystem
-  * ``i_op``, ``i_fop``: pointers to operations structures: c:type:`struct inode_operations` and :c:type:`struct file_operations`; ``i_mapping->a_ops`` contains a pointer to :c:type:`struct address_space_operations`.
+  * ``i_op``, ``i_fop``: pointers to operations structures: :c:type:`struct inode_operations` and :c:type:`struct file_operations`; ``i_mapping->a_ops`` contains a pointer to :c:type:`struct address_space_operations`.
   * ``i_count``: the inode counter indicating how many kernel components use it.
 
 Some functions that can be used to work with inodes:
@@ -743,7 +743,7 @@ If the implementation is correct, no error messages will be displayed.
 ^^^^^^^^^^^^^^^^^^
 
 We want to implement the operations for working with files, which are used for accessing a file's content: read, write, truncate, etc.
-For this you will specify the operations described in the structures :c:type:`struct inode_operations`, c:type:`struct file_operations` and c:type:`struct address_space_operations`.
+For this you will specify the operations described in the structures :c:type:`struct inode_operations`, :c:type:`struct file_operations` and :c:type:`struct address_space_operations`.
 
 Follow the locations marked with ``TODO`` 6 which will guide you through the steps you need to take.
 
@@ -992,7 +992,7 @@ If the implementation is correct, no error messages will be displayed when runni
   We notice that we get an error because we did not implement the directory operations that allow us to create a file.
   We will do this for the next exercise.
 
-2. Create operation
+3. Create operation
 ^^^^^^^^^^^^^^^^^^^
 
 In order to allow the creation of a file in a directory, we must implement the ``create`` operation.
@@ -1013,7 +1013,7 @@ Implement the function ``minfs_new_inode``. Inside this function you will create
 
 .. tip::
 
-  Use the :c:func:`minix_new_inode`` function as a model.
+  Use the :c:func:`minix_new_inode` function as a model.
   Find the first free inode in imap (``sbi->imap``).
   Use bitwise operations (``find_first_zero_bit`` and ``set_bit``).
   Read the :ref:`BitmapOperations` section.
