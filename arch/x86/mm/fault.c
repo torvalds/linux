@@ -630,13 +630,13 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 	}
 
 	if (address < PAGE_SIZE && !user_mode(regs))
-		pr_alert("BUG: kernel NULL pointer dereference, address = %px\n",
+		pr_alert("BUG: kernel NULL pointer dereference, address: %px\n",
 			(void *)address);
 	else
-		pr_alert("BUG: unable to handle page fault for address = %px\n",
+		pr_alert("BUG: unable to handle page fault for address: %px\n",
 			(void *)address);
 
-	pr_alert("#PF: %s-privileged %s from %s code\n",
+	pr_alert("#PF: %s %s in %s mode\n",
 		 (error_code & X86_PF_USER)  ? "user" : "supervisor",
 		 (error_code & X86_PF_INSTR) ? "instruction fetch" :
 		 (error_code & X86_PF_WRITE) ? "write access" :
