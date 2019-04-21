@@ -54,32 +54,6 @@
 
 #define UPLINK_REP_INDEX 0
 
-/* The rep getter/iterator are only valid after esw->total_vports
- * and vport->vport are initialized in mlx5_eswitch_init.
- */
-#define mlx5_esw_for_all_reps(esw, i, rep)			\
-	for ((i) = MLX5_VPORT_PF;				\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) < (esw)->total_vports; (i)++)
-
-#define mlx5_esw_for_each_vf_rep(esw, i, rep, nvfs)		\
-	for ((i) = MLX5_VPORT_FIRST_VF;				\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) <= (nvfs); (i)++)
-
-#define mlx5_esw_for_each_vf_rep_reverse(esw, i, rep, nvfs)	\
-	for ((i) = (nvfs);					\
-	     (rep) = &(esw)->offloads.vport_reps[i],		\
-	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
-
-#define mlx5_esw_for_each_vf_vport(esw, vport, nvfs)		\
-	for ((vport) = MLX5_VPORT_FIRST_VF;			\
-	     (vport) <= (nvfs); (vport)++)
-
-#define mlx5_esw_for_each_vf_vport_reverse(esw, vport, nvfs)	\
-	for ((vport) = (nvfs);					\
-	     (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
-
 static struct mlx5_eswitch_rep *mlx5_eswitch_get_rep(struct mlx5_eswitch *esw,
 						     u16 vport_num)
 {
@@ -659,7 +633,7 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 		flows[mlx5_eswitch_ecpf_idx(esw)] = flow;
 	}
 
-	mlx5_esw_for_each_vf_vport(esw, i, mlx5_core_max_vfs(esw->dev)) {
+	mlx5_esw_for_each_vf_vport_num(esw, i, mlx5_core_max_vfs(esw->dev)) {
 		MLX5_SET(fte_match_set_misc, misc, source_port, i);
 		flow = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb,
 					   spec, &flow_act, &dest, 1);
@@ -677,7 +651,7 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 
 add_vf_flow_err:
 	nvports = --i;
-	mlx5_esw_for_each_vf_vport_reverse(esw, i, nvports)
+	mlx5_esw_for_each_vf_vport_num_reverse(esw, i, nvports)
 		mlx5_del_flow_rules(flows[i]);
 
 	if (mlx5_ecpf_vport_exists(esw->dev))
@@ -700,7 +674,8 @@ static void esw_del_fdb_peer_miss_rules(struct mlx5_eswitch *esw)
 
 	flows = esw->fdb_table.offloads.peer_miss_rules;
 
-	mlx5_esw_for_each_vf_vport_reverse(esw, i, mlx5_core_max_vfs(esw->dev))
+	mlx5_esw_for_each_vf_vport_num_reverse(esw, i,
+					       mlx5_core_max_vfs(esw->dev))
 		mlx5_del_flow_rules(flows[i]);
 
 	if (mlx5_ecpf_vport_exists(esw->dev))
@@ -1727,14 +1702,15 @@ out_no_mem:
 
 static int esw_prio_tag_acls_config(struct mlx5_eswitch *esw, int nvports)
 {
+	struct mlx5_vport *vport = NULL;
 	int i, j;
 	int err;
 
-	mlx5_esw_for_each_vf_vport(esw, i, nvports) {
-		err = esw_vport_ingress_prio_tag_config(esw, &esw->vports[i]);
+	mlx5_esw_for_each_vf_vport(esw, i, vport, nvports) {
+		err = esw_vport_ingress_prio_tag_config(esw, vport);
 		if (err)
 			goto err_ingress;
-		err = esw_vport_egress_prio_tag_config(esw, &esw->vports[i]);
+		err = esw_vport_egress_prio_tag_config(esw, vport);
 		if (err)
 			goto err_egress;
 	}
@@ -1742,11 +1718,11 @@ static int esw_prio_tag_acls_config(struct mlx5_eswitch *esw, int nvports)
 	return 0;
 
 err_egress:
-	esw_vport_disable_ingress_acl(esw, &esw->vports[i]);
+	esw_vport_disable_ingress_acl(esw, vport);
 err_ingress:
-	mlx5_esw_for_each_vf_vport_reverse(esw, j, i - 1) {
-		esw_vport_disable_egress_acl(esw, &esw->vports[j]);
-		esw_vport_disable_ingress_acl(esw, &esw->vports[j]);
+	mlx5_esw_for_each_vf_vport_reverse(esw, j, vport, i - 1) {
+		esw_vport_disable_egress_acl(esw, vport);
+		esw_vport_disable_ingress_acl(esw, vport);
 	}
 
 	return err;
@@ -1754,11 +1730,12 @@ err_ingress:
 
 static void esw_prio_tag_acls_cleanup(struct mlx5_eswitch *esw)
 {
+	struct mlx5_vport *vport;
 	int i;
 
-	mlx5_esw_for_each_vf_vport(esw, i, esw->nvports) {
-		esw_vport_disable_egress_acl(esw, &esw->vports[i]);
-		esw_vport_disable_ingress_acl(esw, &esw->vports[i]);
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->nvports) {
+		esw_vport_disable_egress_acl(esw, vport);
+		esw_vport_disable_ingress_acl(esw, vport);
 	}
 }
 

@@ -72,19 +72,6 @@ static void esw_cleanup_vepa_rules(struct mlx5_eswitch *esw);
 			    MC_ADDR_CHANGE | \
 			    PROMISC_CHANGE)
 
-/* The vport getter/iterator are only valid after esw->total_vports
- * and vport->vport are initialized in mlx5_eswitch_init.
- */
-#define mlx5_esw_for_all_vports(esw, i, vport)			\
-	for ((i) = MLX5_VPORT_PF;				\
-	     (vport) = &(esw)->vports[i],			\
-	     (i) < (esw)->total_vports; (i)++)
-
-#define mlx5_esw_for_each_vf_vport(esw, i, vport, nvfs)	\
-	for ((i) = MLX5_VPORT_FIRST_VF;				\
-	     (vport) = &(esw)->vports[i],			\
-	     (i) <= (nvfs); (i)++)
-
 static struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
 						 u16 vport_num)
 {

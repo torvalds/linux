@@ -446,6 +446,48 @@ static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 /* TODO: This mlx5e_tc function shouldn't be called by eswitch */
 void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
 
+/* The vport getter/iterator are only valid after esw->total_vports
+ * and vport->vport are initialized in mlx5_eswitch_init.
+ */
+#define mlx5_esw_for_all_vports(esw, i, vport)		\
+	for ((i) = MLX5_VPORT_PF;			\
+	     (vport) = &(esw)->vports[i],		\
+	     (i) < (esw)->total_vports; (i)++)
+
+#define mlx5_esw_for_each_vf_vport(esw, i, vport, nvfs)	\
+	for ((i) = MLX5_VPORT_FIRST_VF;			\
+	     (vport) = &(esw)->vports[(i)],		\
+	     (i) <= (nvfs); (i)++)
+
+#define mlx5_esw_for_each_vf_vport_reverse(esw, i, vport, nvfs)	\
+	for ((i) = (nvfs);					\
+	     (vport) = &(esw)->vports[(i)],			\
+	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
+
+/* The rep getter/iterator are only valid after esw->total_vports
+ * and vport->vport are initialized in mlx5_eswitch_init.
+ */
+#define mlx5_esw_for_all_reps(esw, i, rep)			\
+	for ((i) = MLX5_VPORT_PF;				\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) < (esw)->total_vports; (i)++)
+
+#define mlx5_esw_for_each_vf_rep(esw, i, rep, nvfs)		\
+	for ((i) = MLX5_VPORT_FIRST_VF;				\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) <= (nvfs); (i)++)
+
+#define mlx5_esw_for_each_vf_rep_reverse(esw, i, rep, nvfs)	\
+	for ((i) = (nvfs);					\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
+
+#define mlx5_esw_for_each_vf_vport_num(esw, vport, nvfs)	\
+	for ((vport) = MLX5_VPORT_FIRST_VF; (vport) <= (nvfs); (vport)++)
+
+#define mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, nvfs)	\
+	for ((vport) = (nvfs); (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
