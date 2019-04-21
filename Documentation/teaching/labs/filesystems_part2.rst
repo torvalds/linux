@@ -771,7 +771,7 @@ Continue with defining the structure ``myfs_aops``.
 
   Use the generic functions provided by VFS.
 
-  An implementation example is the ``ramfs`` file system: the :``ramfs_aops`` structure.
+  An implementation example is the ``ramfs`` file system: the ``ramfs_aops`` structure.
 
   You do not need to define the function of type ``set_page_dirty``.
 
