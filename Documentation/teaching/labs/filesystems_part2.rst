@@ -1019,7 +1019,7 @@ Implement the function ``minfs_new_inode``. Inside this function you will create
   The buffer for the superblock (``sbi->sbh``) must be marked as dirty .
 
   You must initialize the usual fields as it is done for the ``myfs`` file system.
-  Initialize the ``i_mode`` field to ``0``. It will be initialized in the caller later.
+  Initialize the ``i_mode`` field to ``0`` in the call to ``inode_init_owner``. It will be initialized in the caller later.
 
 Implement the ``minfs_add_link`` function. The function adds a new dentry (``struct minfs_dir_entry``) to the parent directory data block (``dentry->d_parent->d_inode``).
 
