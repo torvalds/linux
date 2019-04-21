@@ -220,6 +220,7 @@ static int int3403_add(struct platform_device *pdev)
 {
 	struct int3403_priv *priv;
 	int result = 0;
+	unsigned long long tmp;
 	acpi_status status;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct int3403_priv),
@@ -234,19 +235,18 @@ static int int3403_add(struct platform_device *pdev)
 		goto err;
 	}
 
-	status = acpi_evaluate_integer(priv->adev->handle, "PTYP",
-				       NULL, &priv->type);
-	if (ACPI_FAILURE(status)) {
-		unsigned long long tmp;
 
-		status = acpi_evaluate_integer(priv->adev->handle, "_TMP",
-					       NULL, &tmp);
+	status = acpi_evaluate_integer(priv->adev->handle, "_TMP",
+				       NULL, &tmp);
+	if (ACPI_FAILURE(status)) {
+		status = acpi_evaluate_integer(priv->adev->handle, "PTYP",
+				       NULL, &priv->type);
 		if (ACPI_FAILURE(status)) {
 			result = -EINVAL;
 			goto err;
-		} else {
-			priv->type = INT3403_TYPE_SENSOR;
 		}
+	} else {
+		priv->type = INT3403_TYPE_SENSOR;
 	}
 
 	platform_set_drvdata(pdev, priv);
