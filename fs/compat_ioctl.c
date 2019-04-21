@@ -468,7 +468,7 @@ static int rtc_ioctl(struct file *file,
 }
 
 /* on ia32 l_start is on a 32-bit boundary */
-#if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64)
 struct space_resv_32 {
 	__s16		l_type;
 	__s16		l_whence;
@@ -1019,7 +1019,7 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 	case FIOQSIZE:
 		break;
 
-#if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64)
 	case FS_IOC_RESVSP_32:
 	case FS_IOC_RESVSP64_32:
 		error = compat_ioctl_preallocate(f.file, compat_ptr(arg));
