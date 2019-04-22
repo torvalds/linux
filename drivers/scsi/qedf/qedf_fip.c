@@ -23,6 +23,7 @@ void qedf_fcoe_send_vlan_req(struct qedf_ctx *qedf)
 #define MY_FIP_ALL_FCF_MACS        ((__u8[6]) { 1, 0x10, 0x18, 1, 0, 2 })
 	static u8 my_fcoe_all_fcfs[ETH_ALEN] = MY_FIP_ALL_FCF_MACS;
 	unsigned long flags = 0;
+	int rc = -1;
 
 	skb = dev_alloc_skb(sizeof(struct fip_vlan));
 	if (!skb)
@@ -66,7 +67,13 @@ void qedf_fcoe_send_vlan_req(struct qedf_ctx *qedf)
 	}
 
 	set_bit(QED_LL2_XMIT_FLAGS_FIP_DISCOVERY, &flags);
-	qed_ops->ll2->start_xmit(qedf->cdev, skb, flags);
+	rc = qed_ops->ll2->start_xmit(qedf->cdev, skb, flags);
+	if (rc) {
+		QEDF_ERR(&qedf->dbg_ctx, "start_xmit failed rc = %d.\n", rc);
+		kfree_skb(skb);
+		return;
+	}
+
 }
 
 static void qedf_fcoe_process_vlan_resp(struct qedf_ctx *qedf,
@@ -118,6 +125,7 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	struct fip_header *fiph;
 	u16 op, vlan_tci = 0;
 	u8 sub;
+	int rc = -1;
 
 	if (!test_bit(QEDF_LL2_STARTED, &qedf->flags)) {
 		QEDF_WARN(&(qedf->dbg_ctx), "LL2 not started\n");
@@ -146,7 +154,12 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		print_hex_dump(KERN_WARNING, "fip ", DUMP_PREFIX_OFFSET, 16, 1,
 		    skb->data, skb->len, false);
 
-	qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
+	rc = qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
+	if (rc) {
+		QEDF_ERR(&qedf->dbg_ctx, "start_xmit failed rc = %d.\n", rc);
+		kfree_skb(skb);
+		return;
+	}
 }
 
 static u8 fcoe_all_enode[ETH_ALEN] = FIP_ALL_ENODE_MACS;
