@@ -4161,6 +4161,14 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 				btrfs_bg_type_to_raid_name(data_target));
 	}
 
+	if (fs_info->send_in_progress) {
+		btrfs_warn_rl(fs_info,
+"cannot run balance while send operations are in progress (%d in progress)",
+			      fs_info->send_in_progress);
+		ret = -EAGAIN;
+		goto out;
+	}
+
 	ret = insert_balance_item(fs_info, bctl);
 	if (ret && ret != -EEXIST)
 		goto out;

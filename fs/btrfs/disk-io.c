@@ -2809,6 +2809,8 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->swapfile_pins_lock);
 	fs_info->swapfile_pins = RB_ROOT;
 
+	fs_info->send_in_progress = 0;
+
 	ret = btrfs_alloc_stripe_hash_table(fs_info);
 	if (ret) {
 		err = ret;

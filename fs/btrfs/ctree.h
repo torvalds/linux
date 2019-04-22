@@ -793,6 +793,7 @@ enum {
 	/*
 	 * Indicate that balance has been set up from the ioctl and is in the
 	 * main phase. The fs_info::balance_ctl is initialized.
+	 * Set and cleared while holding fs_info::balance_mutex.
 	 */
 	BTRFS_FS_BALANCE_RUNNING,
 
@@ -1174,6 +1175,12 @@ struct btrfs_fs_info {
 	struct rb_root swapfile_pins;
 
 	struct crypto_shash *csum_shash;
+
+	/*
+	 * Number of send operations in progress.
+	 * Updated while holding fs_info::balance_mutex.
+	 */
+	int send_in_progress;
 
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	spinlock_t ref_verify_lock;
