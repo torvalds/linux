@@ -1225,6 +1225,8 @@ static int determine_ethernet_addr(struct r8152 *tp, struct sockaddr *sa)
 	struct net_device *dev = tp->netdev;
 	int ret;
 
+	sa->sa_family = dev->type;
+
 	if (tp->version == RTL_VER_01) {
 		ret = pla_ocp_read(tp, PLA_IDR, 8, sa->sa_data);
 	} else {
