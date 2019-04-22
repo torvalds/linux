@@ -129,7 +129,8 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		break;
 	}
 
-	br_vlan_port_event(p, event);
+	if (event != NETDEV_UNREGISTER)
+		br_vlan_port_event(p, event);
 
 	/* Events that may cause spanning tree to refresh */
 	if (!notified && (event == NETDEV_CHANGEADDR || event == NETDEV_UP ||
