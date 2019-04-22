@@ -1,11 +1,15 @@
-                        ISO7816 SERIAL COMMUNICATIONS
+=============================
+ISO7816 Serial Communications
+=============================
 
-1. INTRODUCTION
+1. Introduction
+===============
 
   ISO/IEC7816 is a series of standards specifying integrated circuit cards (ICC)
   also known as smart cards.
 
-2. HARDWARE-RELATED CONSIDERATIONS
+2. Hardware-related considerations
+==================================
 
   Some CPUs/UARTs (e.g., Microchip AT91) contain a built-in mode capable of
   handling communication with a smart card.
@@ -15,7 +19,8 @@
   available at user-level to allow switching from one mode to the other, and
   vice versa.
 
-3. DATA STRUCTURES ALREADY AVAILABLE IN THE KERNEL
+3. Data Structures Already Available in the Kernel
+==================================================
 
   The Linux kernel provides the serial_iso7816 structure (see [1]) to handle
   ISO7816 communications. This data structure is used to set and configure
@@ -27,10 +32,11 @@
   to TIOCGISO7816 and TIOCSISO7816 ioctls (see below). The iso7816_config
   callback receives a pointer to struct serial_iso7816.
 
-4. USAGE FROM USER-LEVEL
+4. Usage from user-level
+========================
 
   From user-level, ISO7816 configuration can be get/set using the previous
-  ioctls. For instance, to set ISO7816 you can use the following code:
+  ioctls. For instance, to set ISO7816 you can use the following code::
 
 	#include <linux/serial.h>
 
@@ -78,6 +84,7 @@
 		/* Error handling. See errno. */
 	}
 
-5. REFERENCES
+5. References
+=============
 
  [1]    include/uapi/linux/serial.h

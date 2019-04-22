@@ -1,6 +1,6 @@
-
-			Low Level Serial API
-			--------------------
+====================
+Low Level Serial API
+====================
 
 
 This document is meant as a brief overview of some aspects of the new serial
@@ -44,7 +44,7 @@ are described in the uart_ops listing below.)
 There are two locks.  A per-port spinlock, and an overall semaphore.
 
 From the core driver perspective, the port->lock locks the following
-data:
+data::
 
 	port->mctrl
 	port->icount
@@ -75,41 +75,51 @@ hardware.
 	return TIOCSER_TEMT.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
+
 	This call must not sleep
 
   set_mctrl(port, mctrl)
 	This function sets the modem control lines for port described
 	by 'port' to the state described by mctrl.  The relevant bits
 	of mctrl are:
+
 		- TIOCM_RTS	RTS signal.
 		- TIOCM_DTR	DTR signal.
 		- TIOCM_OUT1	OUT1 signal.
 		- TIOCM_OUT2	OUT2 signal.
 		- TIOCM_LOOP	Set the port into loopback mode.
+
 	If the appropriate bit is set, the signal should be driven
 	active.  If the bit is clear, the signal should be driven
 	inactive.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   get_mctrl(port)
 	Returns the current state of modem control inputs.  The state
 	of the outputs should not be returned, since the core keeps
 	track of their state.  The state information should include:
+
 		- TIOCM_CAR	state of DCD signal
 		- TIOCM_CTS	state of CTS signal
 		- TIOCM_DSR	state of DSR signal
 		- TIOCM_RI	state of RI signal
+
 	The bit is set if the signal is currently driven active.  If
 	the port does not support CTS, DCD or DSR, the driver should
 	indicate that the signal is permanently active.  If RI is
 	not available, the signal should not be indicated as active.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   stop_tx(port)
@@ -121,14 +131,18 @@ hardware.
 	possible.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   start_tx(port)
 	Start transmitting characters.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   throttle(port)
@@ -138,16 +152,17 @@ hardware.
 	This will be called only if hardware assisted flow control is enabled.
 
 	Locking: serialized with .unthrottle() and termios modification by the
-		 tty layer.
+	tty layer.
 
   unthrottle(port)
 	Notify the serial driver that characters can now be sent to the serial
 	port without fear of overrunning the input buffers of the line
 	disciplines.
+
 	This will be called only if hardware assisted flow control is enabled.
 
 	Locking: serialized with .throttle() and termios modification by the
-		 tty layer.
+	tty layer.
 
   send_xchar(port,ch)
 	Transmit a high priority character, even if the port is stopped.
@@ -159,6 +174,7 @@ hardware.
 	Do not transmit if ch == '\0' (__DISABLED_CHAR).
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   stop_rx(port)
@@ -166,7 +182,9 @@ hardware.
 	being closed.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   enable_ms(port)
@@ -177,7 +195,9 @@ hardware.
 	called.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   break_ctl(port,ctl)
@@ -196,6 +216,7 @@ hardware.
 	This method will only be called when the port is initially opened.
 
 	Locking: port_sem taken.
+
 	Interrupts: globally disabled.
 
   shutdown(port)
@@ -210,6 +231,7 @@ hardware.
 	this port.
 
 	Locking: port_sem taken.
+
 	Interrupts: caller dependent.
 
   flush_buffer(port)
@@ -220,7 +242,9 @@ hardware.
 	buffer is cleared.
 
 	Locking: port->lock taken.
+
 	Interrupts: locally disabled.
+
 	This call must not sleep
 
   set_termios(port,termios,oldtermios)
@@ -228,29 +252,46 @@ hardware.
 	bits.  Update read_status_mask and ignore_status_mask to indicate
 	the types of events we are interested in receiving.  Relevant
 	termios->c_cflag bits are:
-		CSIZE	- word size
-		CSTOPB	- 2 stop bits
-		PARENB	- parity enable
-		PARODD	- odd parity (when PARENB is in force)
-		CREAD	- enable reception of characters (if not set,
+
+		CSIZE
+			- word size
+		CSTOPB
+			- 2 stop bits
+		PARENB
+			- parity enable
+		PARODD
+			- odd parity (when PARENB is in force)
+		CREAD
+			- enable reception of characters (if not set,
 			  still receive characters from the port, but
 			  throw them away.
-		CRTSCTS	- if set, enable CTS status change reporting
-		CLOCAL	- if not set, enable modem status change
+		CRTSCTS
+			- if set, enable CTS status change reporting
+		CLOCAL
+			- if not set, enable modem status change
 			  reporting.
+
 	Relevant termios->c_iflag bits are:
-		INPCK	- enable frame and parity error events to be
+
+		INPCK
+			- enable frame and parity error events to be
 			  passed to the TTY layer.
-		BRKINT
-		PARMRK	- both of these enable break events to be
+		BRKINT / PARMRK
+			- both of these enable break events to be
 			  passed to the TTY layer.
 
-		IGNPAR	- ignore parity and framing errors
-		IGNBRK	- ignore break errors,  If IGNPAR is also
+		IGNPAR
+			- ignore parity and framing errors
+		IGNBRK
+			- ignore break errors,  If IGNPAR is also
 			  set, ignore overrun errors as well.
+
 	The interaction of the iflag bits is as follows (parity error
 	given as an example):
+
+	=============== ======= ======  =============================
 	Parity error	INPCK	IGNPAR
+	=============== ======= ======  =============================
 	n/a		0	n/a	character received, marked as
 					TTY_NORMAL
 	None		1	n/a	character received, marked as
@@ -258,16 +299,19 @@ hardware.
 	Yes		1	0	character received, marked as
 					TTY_PARITY
 	Yes		1	1	character discarded
+	=============== ======= ======  =============================
 
 	Other flags may be used (eg, xon/xoff characters) if your
 	hardware supports hardware "soft" flow control.
 
 	Locking: caller holds tty_port->mutex
+
 	Interrupts: caller dependent.
+
 	This call must not sleep
 
   set_ldisc(port,termios)
-	Notifier for discipline change. See Documentation/serial/tty.txt.
+	Notifier for discipline change. See Documentation/serial/tty.rst.
 
 	Locking: caller holds tty_port->mutex
 
@@ -283,6 +327,7 @@ hardware.
 	will occur even if CONFIG_PM is not set.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   type(port)
@@ -291,6 +336,7 @@ hardware.
 	substituted.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   release_port(port)
@@ -298,6 +344,7 @@ hardware.
 	the port.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   request_port(port)
@@ -306,6 +353,7 @@ hardware.
 	returns, and it should return -EBUSY on failure.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   config_port(port,type)
@@ -321,6 +369,7 @@ hardware.
 	internally hard wired (eg, system on a chip implementations).
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   verify_port(port,serinfo)
@@ -328,6 +377,7 @@ hardware.
 	suitable for this port type.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   ioctl(port,cmd,arg)
@@ -335,6 +385,7 @@ hardware.
 	using the standard numbering system found in <asm/ioctl.h>
 
 	Locking: none.
+
 	Interrupts: caller dependent.
 
   poll_init(port)
@@ -343,6 +394,7 @@ hardware.
 	this should not request interrupts.
 
 	Locking: tty_mutex and tty_port->mutex taken.
+
 	Interrupts: n/a.
 
   poll_put_char(port,ch)
@@ -350,7 +402,9 @@ hardware.
 	port.  It can and should block until there is space in the TX FIFO.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
+
 	This call must not sleep
 
   poll_get_char(port)
@@ -359,7 +413,9 @@ hardware.
 	the function should return NO_POLL_CHAR immediately.
 
 	Locking: none.
+
 	Interrupts: caller dependent.
+
 	This call must not sleep
 
 Other functions
@@ -370,6 +426,7 @@ uart_update_timeout(port,cflag,baud)
 	number of bits, parity, stop bits and baud rate.
 
 	Locking: caller is expected to take port->lock
+
 	Interrupts: n/a
 
 uart_get_baud_rate(port,termios,old,min,max)
@@ -385,6 +442,7 @@ uart_get_baud_rate(port,termios,old,min,max)
 	Note: min..max must always allow 9600 baud to be selected.
 
 	Locking: caller dependent.
+
 	Interrupts: n/a
 
 uart_get_divisor(port,baud)
@@ -395,6 +453,7 @@ uart_get_divisor(port,baud)
 	custom divisor instead.
 
 	Locking: caller dependent.
+
 	Interrupts: n/a
 
 uart_match_port(port1,port2)
@@ -402,6 +461,7 @@ uart_match_port(port1,port2)
 	uart_port structures describe the same port.
 
 	Locking: n/a
+
 	Interrupts: n/a
 
 uart_write_wakeup(port)
@@ -409,6 +469,7 @@ uart_write_wakeup(port)
 	characters in the transmit buffer have dropped below a threshold.
 
 	Locking: port->lock should be held.
+
 	Interrupts: n/a
 
 uart_register_driver(drv)
@@ -419,6 +480,7 @@ uart_register_driver(drv)
 	registered using uart_add_one_port after this call has succeeded.
 
 	Locking: none
+
 	Interrupts: enabled
 
 uart_unregister_driver()
@@ -427,15 +489,16 @@ uart_unregister_driver()
 	uart_remove_one_port() if it registered them with uart_add_one_port().
 
 	Locking: none
+
 	Interrupts: enabled
 
-uart_suspend_port()
+**uart_suspend_port()**
 
-uart_resume_port()
+**uart_resume_port()**
 
-uart_add_one_port()
+**uart_add_one_port()**
 
-uart_remove_one_port()
+**uart_remove_one_port()**
 
 Other notes
 -----------
@@ -444,7 +507,7 @@ It is intended some day to drop the 'unused' entries from uart_port, and
 allow low level drivers to register their own individual uart_port's with
 the core.  This will allow drivers to use uart_port as a pointer to a
 structure containing both the uart_port entry with their own extensions,
-thus:
+thus::
 
 	struct my_port {
 		struct uart_port	port;
@@ -459,14 +522,14 @@ Some helpers are provided in order to set/get modem control lines via GPIO.
 mctrl_gpio_init(port, idx):
 	This will get the {cts,rts,...}-gpios from device tree if they are
 	present and request them, set direction etc, and return an
-	allocated structure. devm_* functions are used, so there's no need
+	allocated structure. `devm_*` functions are used, so there's no need
 	to call mctrl_gpio_free().
 	As this sets up the irq handling make sure to not handle changes to the
 	gpio input lines in your driver, too.
 
 mctrl_gpio_free(dev, gpios):
 	This will free the requested gpios in mctrl_gpio_init().
-	As devm_* functions are used, there's generally no need to call
+	As `devm_*` functions are used, there's generally no need to call
 	this function.
 
 mctrl_gpio_to_gpiod(gpios, gidx)
