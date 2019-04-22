@@ -44,6 +44,9 @@ let strong-fence = mb | gp
 
 let nonrw-fence = strong-fence | po-rel | acq-po
 let fence = nonrw-fence | wmb | rmb
+let barrier = fencerel(Barrier | Rmb | Wmb | Mb | Sync-rcu | Sync-srcu |
+		Before-atomic | After-atomic | Acquire | Release) |
+	(po ; [Release]) | ([Acquire] ; po)
 
 (**********************************)
 (* Fundamental coherence ordering *)
@@ -64,7 +67,7 @@ empty rmw & (fre ; coe) as atomic
 let dep = addr | data
 let rwdep = (dep | ctrl) ; [W]
 let overwrite = co | fr
-let to-w = rwdep | (overwrite & int)
+let to-w = rwdep | (overwrite & int) | (addr ; [Plain] ; wmb)
 let to-r = addr | (dep ; [Marked] ; rfi)
 let ppo = to-r | to-w | fence | (po-unlock-rf-lock-po & int)
 
@@ -147,3 +150,48 @@ irreflexive rb as rcu
  * let xb = hb | pb | rb
  * acyclic xb as executes-before
  *)
+
+(*********************************)
+(* Plain accesses and data races *)
+(*********************************)
+
+(* Warn about plain writes and marked accesses in the same region *)
+let mixed-accesses = ([Plain & W] ; (po-loc \ barrier) ; [Marked]) |
+	([Marked] ; (po-loc \ barrier) ; [Plain & W])
+flag ~empty mixed-accesses as mixed-accesses
+
+(* Executes-before and visibility *)
+let xbstar = (hb | pb | rb)*
+let full-fence = strong-fence | (po ; rcu-fence ; po?)
+let vis = cumul-fence* ; rfe? ; [Marked] ;
+	((full-fence ; [Marked] ; xbstar) | (xbstar & int))
+
+(* Boundaries for lifetimes of plain accesses *)
+let w-pre-bounded = [Marked] ; (addr | fence)?
+let r-pre-bounded = [Marked] ; (addr | nonrw-fence |
+	([R4rmb] ; fencerel(Rmb) ; [~Noreturn]))?
+let w-post-bounded = fence? ; [Marked]
+let r-post-bounded = (nonrw-fence | ([~Noreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
+	[Marked]
+
+(* Visibility and executes-before for plain accesses *)
+let ww-vis = w-post-bounded ; vis ; w-pre-bounded
+let wr-vis = w-post-bounded ; vis ; r-pre-bounded
+let rw-xbstar = r-post-bounded ; xbstar ; w-pre-bounded
+
+(* Potential races *)
+let pre-race = ext & ((Plain * M) | ((M \ IW) * Plain))
+
+(* Coherence requirements for plain accesses *)
+let wr-incoh = pre-race & rf & rw-xbstar^-1
+let rw-incoh = pre-race & fr & wr-vis^-1
+let ww-incoh = pre-race & co & ww-vis^-1
+empty (wr-incoh | rw-incoh | ww-incoh) as plain-coherence
+
+(* Actual races *)
+let ww-nonrace = ww-vis & ((Marked * W) | rw-xbstar) & ((W * Marked) | wr-vis)
+let ww-race = (pre-race & co) \ ww-nonrace
+let wr-race = (pre-race & (co? ; rf)) \ wr-vis
+let rw-race = (pre-race & fr) \ rw-xbstar
+
+flag ~empty (ww-race | wr-race | rw-race) as data-race
