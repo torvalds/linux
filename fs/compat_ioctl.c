@@ -487,19 +487,7 @@ static unsigned int ioctl_pointer[] = {
 /* compatible ioctls first */
 /* Little t */
 COMPATIBLE_IOCTL(TIOCOUTQ)
-/* Little f */
-COMPATIBLE_IOCTL(FIOCLEX)
-COMPATIBLE_IOCTL(FIONCLEX)
-COMPATIBLE_IOCTL(FIOASYNC)
-COMPATIBLE_IOCTL(FIONBIO)
-COMPATIBLE_IOCTL(FIONREAD)  /* This is also TIOCINQ */
-COMPATIBLE_IOCTL(FS_IOC_FIEMAP)
-/* 0x00 */
-COMPATIBLE_IOCTL(FIBMAP)
-COMPATIBLE_IOCTL(FIGETBSZ)
 /* 'X' - originally XFS but some now in the VFS */
-COMPATIBLE_IOCTL(FIFREEZE)
-COMPATIBLE_IOCTL(FITHAW)
 COMPATIBLE_IOCTL(FITRIM)
 #ifdef CONFIG_BLOCK
 /* Big S */
@@ -540,8 +528,6 @@ COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
 COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */
 /* Little m */
 COMPATIBLE_IOCTL(MTIOCTOP)
-/* Socket level stuff */
-COMPATIBLE_IOCTL(FIOQSIZE)
 #ifdef CONFIG_BLOCK
 /* md calls this on random blockdevs */
 IGNORE_IOCTL(RAID_VERSION)
@@ -971,19 +957,39 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 	if (error)
 		goto out_fput;
 
-	/*
-	 * To allow the compat_ioctl handlers to be self contained
-	 * we need to check the common ioctls here first.
-	 * Just handle them with the standard handlers below.
-	 */
 	switch (cmd) {
+	/* these are never seen by ->ioctl(), no argument or int argument */
 	case FIOCLEX:
 	case FIONCLEX:
+	case FIFREEZE:
+	case FITHAW:
+	case FICLONE:
+		goto do_ioctl;
+	/* these are never seen by ->ioctl(), pointer argument */
 	case FIONBIO:
 	case FIOASYNC:
 	case FIOQSIZE:
-		break;
-
+	case FS_IOC_FIEMAP:
+	case FIGETBSZ:
+	case FICLONERANGE:
+	case FIDEDUPERANGE:
+		goto found_handler;
+	/*
+	 * The next group is the stuff handled inside file_ioctl().
+	 * For regular files these never reach ->ioctl(); for
+	 * devices, sockets, etc. they do and one (FIONREAD) is
+	 * even accepted in some cases.  In all those cases
+	 * argument has the same type, so we can handle these
+	 * here, shunting them towards do_vfs_ioctl().
+	 * ->compat_ioctl() will never see any of those.
+	 */
+	/* pointer argument, never actually handled by ->ioctl() */
+	case FIBMAP:
+		goto found_handler;
+	/* handled by some ->ioctl(); always a pointer to int */
+	case FIONREAD:
+		goto found_handler;
+	/* these two get messy on amd64 due to alignment differences */
 #if defined(CONFIG_X86_64)
 	case FS_IOC_RESVSP_32:
 	case FS_IOC_RESVSP64_32:
@@ -992,23 +998,8 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 #else
 	case FS_IOC_RESVSP:
 	case FS_IOC_RESVSP64:
-		error = ioctl_preallocate(f.file, compat_ptr(arg));
-		goto out_fput;
-#endif
-
-	case FICLONE:
-		goto do_ioctl;
-	case FICLONERANGE:
-	case FIDEDUPERANGE:
-	case FS_IOC_FIEMAP:
-	case FIGETBSZ:
 		goto found_handler;
-
-	case FIBMAP:
-	case FIONREAD:
-		if (S_ISREG(file_inode(f.file)->i_mode))
-			break;
-		/*FALL THROUGH*/
+#endif
 
 	default:
 		if (f.file->f_op->compat_ioctl) {
