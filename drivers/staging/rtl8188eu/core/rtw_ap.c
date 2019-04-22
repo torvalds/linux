@@ -1174,15 +1174,15 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	}
 
 	wps_ielen = (uint)pwps_ie_src[1];/* to get ie data len */
-	if ((wps_offset + wps_ielen + 2 + remainder_ielen) <= MAX_IE_SZ) {
+	if (wps_offset + wps_ielen + 2 + remainder_ielen <= MAX_IE_SZ) {
 		memcpy(pwps_ie, pwps_ie_src, wps_ielen + 2);
-		pwps_ie += (wps_ielen + 2);
+		pwps_ie += wps_ielen + 2;
 
 		if (pbackup_remainder_ie)
 			memcpy(pwps_ie, pbackup_remainder_ie, remainder_ielen);
 
 		/* update ie_length */
-		pnetwork->ie_length = wps_offset + (wps_ielen + 2) + remainder_ielen;
+		pnetwork->ie_length = wps_offset + wps_ielen + 2 + remainder_ielen;
 	}
 
 	kfree(pbackup_remainder_ie);
