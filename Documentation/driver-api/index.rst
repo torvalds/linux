@@ -83,6 +83,8 @@ available subsections can be seen below.
    ntb
    nvmem
    parport-lowlevel
+   pps
+   ptp
    pti_intel_mid
    pwm
    rfkill
