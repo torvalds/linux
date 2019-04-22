@@ -1,5 +1,6 @@
+=======================================
 Oracle Data Analytics Accelerator (DAX)
----------------------------------------
+=======================================
 
 DAX is a coprocessor which resides on the SPARC M7 (DAX1) and M8
 (DAX2) processor chips, and has direct access to the CPU's L3 caches
@@ -17,6 +18,7 @@ code sufficient to write user or kernel applications that use DAX
 functionality.
 
 The user library is open source and available at:
+
     https://oss.oracle.com/git/gitweb.cgi?p=libdax.git
 
 The Hypervisor interface to the coprocessor is described in detail in
@@ -26,7 +28,7 @@ Specification" version 3.0.20+15, dated 2017-09-25.
 
 
 High Level Overview
--------------------
+===================
 
 A coprocessor request is described by a Command Control Block
 (CCB). The CCB contains an opcode and various parameters. The opcode
@@ -52,7 +54,7 @@ thread.
 
 
 Addressing Memory
------------------
+=================
 
 The kernel does not have access to physical memory in the Sun4v
 architecture, as there is an additional level of memory virtualization
@@ -77,7 +79,7 @@ the request.
 
 
 The Driver API
---------------
+==============
 
 An application makes requests to the driver via the write() system
 call, and gets results (if any) via read(). The completion areas are
@@ -108,6 +110,7 @@ equal to the number of bytes given in the call. Otherwise -1 is
 returned and errno is set.
 
 CCB_DEQUEUE
+-----------
 
 Tells the driver to clean up resources associated with past
 requests. Since no interrupt is generated upon the completion of a
@@ -116,12 +119,14 @@ further status information is returned, so the user should not
 subsequently call read().
 
 CCB_KILL
+--------
 
 Kills a CCB during execution. The CCB is guaranteed to not continue
 executing once this call returns successfully. On success, read() must
 be called to retrieve the result of the action.
 
 CCB_INFO
+--------
 
 Retrieves information about a currently executing CCB. Note that some
 Hypervisors might return 'notfound' when the CCB is in 'inprogress'
@@ -130,6 +135,7 @@ CCB_KILL must be invoked on that CCB. Upon success, read() must be
 called to retrieve the details of the action.
 
 Submission of an array of CCBs for execution
+---------------------------------------------
 
 A write() whose length is a multiple of the CCB size is treated as a
 submit operation. The file offset is treated as the index of the
@@ -146,6 +152,7 @@ status will reflect the error caused by the first CCB that was not
 accepted, and status_data will provide additional data in some cases.
 
 MMAP
+----
 
 The mmap() function provides access to the completion area allocated
 in the driver.  Note that the completion area is not writeable by the
@@ -153,7 +160,7 @@ user process, and the mmap call must not specify PROT_WRITE.
 
 
 Completion of a Request
------------------------
+=======================
 
 The first byte in each completion area is the command status which is
 updated by the coprocessor hardware. Software may take advantage of
@@ -172,7 +179,7 @@ and resumption of execution may be just a few nanoseconds.
 
 
 Application Life Cycle of a DAX Submission
-------------------------------------------
+==========================================
 
  - open dax device
  - call mmap() to get the completion area address
@@ -187,7 +194,7 @@ Application Life Cycle of a DAX Submission
 
 
 Memory Constraints
-------------------
+==================
 
 The DAX hardware operates only on physical addresses. Therefore, it is
 not aware of virtual memory mappings and the discontiguities that may
@@ -226,7 +233,7 @@ CCB Structure
 -------------
 A CCB is an array of 8 64-bit words. Several of these words provide
 command opcodes, parameters, flags, etc., and the rest are addresses
-for the completion area, output buffer, and various inputs:
+for the completion area, output buffer, and various inputs::
 
    struct ccb {
        u64   control;
@@ -252,7 +259,7 @@ The first word (control) is examined by the driver for the following:
 
 
 Example Code
-------------
+============
 
 The DAX is accessible to both user and kernel code.  The kernel code
 can make hypercalls directly while the user code must use wrappers
@@ -265,7 +272,7 @@ arch/sparc/include/uapi/asm/oradax.h must be included.
 
 First, the proper device must be opened. For M7 it will be
 /dev/oradax1 and for M8 it will be /dev/oradax2. The simplest
-procedure is to attempt to open both, as only one will succeed:
+procedure is to attempt to open both, as only one will succeed::
 
 	fd = open("/dev/oradax1", O_RDWR);
 	if (fd < 0)
@@ -273,7 +280,7 @@ procedure is to attempt to open both, as only one will succeed:
 	if (fd < 0)
 	       /* No DAX found */
 
-Next, the completion area must be mapped:
+Next, the completion area must be mapped::
 
       completion_area = mmap(NULL, DAX_MMAP_LEN, PROT_READ, MAP_SHARED, fd, 0);
 
@@ -295,7 +302,7 @@ is the input bitmap inverted.
 
 For details of all the parameters and bits used in this CCB, please
 refer to section 36.2.1.3 of the DAX Hypervisor API document, which
-describes the Scan command in detail.
+describes the Scan command in detail::
 
 	ccb->control =       /* Table 36.1, CCB Header Format */
 		  (2L << 48)     /* command = Scan Value */
@@ -326,7 +333,7 @@ describes the Scan command in detail.
 
 The CCB submission is a write() or pwrite() system call to the
 driver. If the call fails, then a read() must be used to retrieve the
-status:
+status::
 
 	if (pwrite(fd, ccb, 64, 0) != 64) {
 		struct ccb_exec_result status;
@@ -337,7 +344,7 @@ status:
 After a successful submission of the CCB, the completion area may be
 polled to determine when the DAX is finished. Detailed information on
 the contents of the completion area can be found in section 36.2.2 of
-the DAX HV API document.
+the DAX HV API document::
 
 	while (1) {
 		/* Monitored Load */
@@ -355,7 +362,7 @@ the DAX HV API document.
 A completion area status of 1 indicates successful completion of the
 CCB and validity of the output bitmap, which may be used immediately.
 All other non-zero values indicate error conditions which are
-described in section 36.2.2.
+described in section 36.2.2::
 
 	if (completion_area[0] != 1) {	/* section 36.2.2, 1 = command ran and succeeded */
 		/* completion_area[0] contains the completion status */
@@ -364,7 +371,7 @@ described in section 36.2.2.
 
 After the completion area has been processed, the driver must be
 notified that it can release any resources associated with the
-request. This is done via the dequeue operation:
+request. This is done via the dequeue operation::
 
 	struct dax_command cmd;
 	cmd.command = CCB_DEQUEUE;
@@ -375,13 +382,14 @@ request. This is done via the dequeue operation:
 Finally, normal program cleanup should be done, i.e., unmapping
 completion area, closing the dax device, freeing memory etc.
 
-[Kernel example]
+Kernel example
+--------------
 
 The only difference in using the DAX in kernel code is the treatment
 of the completion area. Unlike user applications which mmap the
 completion area allocated by the driver, kernel code must allocate its
 own memory to use for the completion area, and this address and its
-type must be given in the CCB:
+type must be given in the CCB::
 
 	ccb->control |=      /* Table 36.1, CCB Header Format */
 	        (3L << 32);     /* completion area address type = primary virtual */
@@ -389,9 +397,11 @@ type must be given in the CCB:
 	ccb->completion = (unsigned long) completion_area;   /* Completion area address */
 
 The dax submit hypercall is made directly. The flags used in the
-ccb_submit call are documented in the DAX HV API in section 36.3.1.
+ccb_submit call are documented in the DAX HV API in section 36.3.1/
 
-#include <asm/hypervisor.h>
+::
+
+  #include <asm/hypervisor.h>
 
 	hv_rv = sun4v_ccb_submit((unsigned long)ccb, 64,
 				 HV_CCB_QUERY_CMD |
@@ -405,7 +415,7 @@ ccb_submit call are documented in the DAX HV API in section 36.3.1.
 	}
 
 After the submission, the completion area polling code is identical to
-that in user land:
+that in user land::
 
 	while (1) {
 		/* Monitored Load */
@@ -427,3 +437,9 @@ that in user land:
 
 The output bitmap is ready for consumption immediately after the
 completion status indicates success.
+
+Excer[t from UltraSPARC Virtual Machine Specification
+=====================================================
+
+ .. include:: dax-hv-api.txt
+    :literal:

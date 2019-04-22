@@ -1,5 +1,5 @@
-Steps for sending 'break' on sunhv console:
-===========================================
+Steps for sending 'break' on sunhv console
+==========================================
 
 On Baremetal:
    1. press   Esc + 'B'
