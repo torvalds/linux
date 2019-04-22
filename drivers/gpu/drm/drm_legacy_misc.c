@@ -50,3 +50,27 @@ void drm_legacy_destroy_members(struct drm_device *dev)
 {
 	mutex_destroy(&dev->ctxlist_mutex);
 }
+
+void drm_legacy_dev_reinit(struct drm_device *dev)
+{
+	if (dev->irq_enabled)
+		drm_irq_uninstall(dev);
+
+	mutex_lock(&dev->struct_mutex);
+
+	drm_legacy_agp_clear(dev);
+
+	drm_legacy_sg_cleanup(dev);
+	drm_legacy_vma_flush(dev);
+	drm_legacy_dma_takedown(dev);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	dev->sigdata.lock = NULL;
+
+	dev->context_flag = 0;
+	dev->last_context = 0;
+	dev->if_version = 0;
+
+	DRM_DEBUG("lastclose completed\n");
+}
