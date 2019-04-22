@@ -274,21 +274,7 @@ void drm_master_release(struct drm_file *file_priv)
 	if (!drm_is_current_master(file_priv))
 		goto out;
 
-	if (drm_core_check_feature(dev, DRIVER_LEGACY)) {
-		/*
-		 * Since the master is disappearing, so is the
-		 * possibility to lock.
-		 */
-		mutex_lock(&dev->struct_mutex);
-		if (master->lock.hw_lock) {
-			if (dev->sigdata.lock == master->lock.hw_lock)
-				dev->sigdata.lock = NULL;
-			master->lock.hw_lock = NULL;
-			master->lock.file_priv = NULL;
-			wake_up_interruptible_all(&master->lock.lock_queue);
-		}
-		mutex_unlock(&dev->struct_mutex);
-	}
+	drm_legacy_lock_master_cleanup(dev, master);
 
 	if (dev->master == file_priv->master)
 		drm_drop_master(dev, file_priv);
