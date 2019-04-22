@@ -44,3 +44,14 @@ config KPC2000_I2C
 
 	  If unsure, say N.
 
+config KPC2000_DMA
+	tristate "Daktronics KPC DMA controller"
+	depends on KPC2000
+	help
+	  Say Y here if you wish to support the Daktronics DMA controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kpc2000_dma
+
+	  If unsure, say N.
+
