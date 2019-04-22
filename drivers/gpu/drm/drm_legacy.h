@@ -81,6 +81,9 @@ int __drm_legacy_mapbufs(struct drm_device *, void *, int *,
 			  int (*)(void *, int, unsigned long, struct drm_buf *),
 			  struct drm_file *);
 
+void drm_legacy_master_rmmaps(struct drm_device *dev,
+			      struct drm_master *master);
+
 #ifdef CONFIG_DRM_VM
 void drm_legacy_vma_flush(struct drm_device *d);
 #else
