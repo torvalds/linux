@@ -1618,7 +1618,11 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 	fc_set_wwnn(lport, qedf->wwnn);
 	fc_set_wwpn(lport, qedf->wwpn);
 
-	fcoe_libfc_config(lport, &qedf->ctlr, &qedf_lport_template, 0);
+	if (fcoe_libfc_config(lport, &qedf->ctlr, &qedf_lport_template, 0)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "fcoe_libfc_config failed.\n");
+		return -ENOMEM;
+	}
 
 	/* Allocate the exchange manager */
 	fc_exch_mgr_alloc(lport, FC_CLASS_3, FCOE_PARAMS_NUM_TASKS,
