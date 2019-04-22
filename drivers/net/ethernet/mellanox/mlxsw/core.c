@@ -781,7 +781,8 @@ mlxsw_devlink_sb_pool_get(struct devlink *devlink,
 static int
 mlxsw_devlink_sb_pool_set(struct devlink *devlink,
 			  unsigned int sb_index, u16 pool_index, u32 size,
-			  enum devlink_sb_threshold_type threshold_type)
+			  enum devlink_sb_threshold_type threshold_type,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
@@ -829,7 +830,8 @@ static int mlxsw_devlink_sb_port_pool_get(struct devlink_port *devlink_port,
 
 static int mlxsw_devlink_sb_port_pool_set(struct devlink_port *devlink_port,
 					  unsigned int sb_index, u16 pool_index,
-					  u32 threshold)
+					  u32 threshold,
+					  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink_port->devlink);
 	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
@@ -864,7 +866,8 @@ static int
 mlxsw_devlink_sb_tc_pool_bind_set(struct devlink_port *devlink_port,
 				  unsigned int sb_index, u16 tc_index,
 				  enum devlink_sb_pool_type pool_type,
-				  u16 pool_index, u32 threshold)
+				  u16 pool_index, u32 threshold,
+				  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink_port->devlink);
 	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
