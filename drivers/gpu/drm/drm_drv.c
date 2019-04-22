@@ -1038,8 +1038,6 @@ EXPORT_SYMBOL(drm_dev_register);
  */
 void drm_dev_unregister(struct drm_device *dev)
 {
-	struct drm_map_list *r_list, *list_temp;
-
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_lastclose(dev);
 
@@ -1056,8 +1054,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->agp)
 		drm_pci_agp_destroy(dev);
 
-	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_legacy_rmmap(dev, r_list->map);
+	drm_legacy_rmmaps(dev);
 
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
