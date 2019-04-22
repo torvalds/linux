@@ -45,6 +45,8 @@
 #include "dcn10_cm_common.h"
 #include "dc_link_dp.h"
 #include "dccg.h"
+#include "clk_mgr.h"
+
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1158,7 +1160,7 @@ static void dcn10_init_hw(struct dc *dc)
 
 	enable_power_gating_plane(dc->hwseq, true);
 
-	memset(&dc->res_pool->clk_mgr->clks, 0, sizeof(dc->res_pool->clk_mgr->clks));
+	memset(&dc->clk_mgr->clks, 0, sizeof(dc->clk_mgr->clks));
 }
 
 static void dcn10_reset_hw_ctx_wrap(
@@ -2070,7 +2072,7 @@ void update_dchubp_dpp(
 	 */
 	if (plane_state->update_flags.bits.full_update) {
 		bool should_divided_by_2 = context->bw_ctx.bw.dcn.clk.dppclk_khz <=
-				dc->res_pool->clk_mgr->clks.dispclk_khz / 2;
+				dc->clk_mgr->clks.dispclk_khz / 2;
 
 		dpp->funcs->dpp_dppclk_control(
 				dpp,
@@ -2083,9 +2085,9 @@ void update_dchubp_dpp(
 					dpp->inst,
 					pipe_ctx->plane_res.bw.dppclk_khz);
 		else
-			dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
-						dc->res_pool->clk_mgr->clks.dispclk_khz / 2 :
-							dc->res_pool->clk_mgr->clks.dispclk_khz;
+			dc->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
+						dc->clk_mgr->clks.dispclk_khz / 2 :
+							dc->clk_mgr->clks.dispclk_khz;
 	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
@@ -2448,8 +2450,8 @@ static void dcn10_prepare_bandwidth(
 		if (context->stream_count == 0)
 			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
-		dc->res_pool->clk_mgr->funcs->update_clocks(
-				dc->res_pool->clk_mgr,
+		dc->clk_mgr->funcs->update_clocks(
+				dc->clk_mgr,
 				context,
 				false);
 	}
@@ -2480,8 +2482,8 @@ static void dcn10_optimize_bandwidth(
 		if (context->stream_count == 0)
 			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
-		dc->res_pool->clk_mgr->funcs->update_clocks(
-				dc->res_pool->clk_mgr,
+		dc->clk_mgr->funcs->update_clocks(
+				dc->clk_mgr,
 				context,
 				true);
 	}

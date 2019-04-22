@@ -33,6 +33,7 @@
 
 #include "resource.h"
 
+#include "clk_mgr.h"
 #include "clock_source.h"
 #include "dc_bios_types.h"
 
@@ -618,6 +619,11 @@ static void destruct(struct dc *dc)
 
 	destroy_links(dc);
 
+	if (dc->clk_mgr) {
+		dc_destroy_clk_mgr(dc->clk_mgr);
+		dc->clk_mgr = NULL;
+	}
+
 	dc_destroy_resource_pool(dc);
 
 	if (dc->ctx->gpio_service)
@@ -759,6 +765,10 @@ static bool construct(struct dc *dc,
 
 	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_version);
 	if (!dc->res_pool)
+		goto fail;
+
+	dc->clk_mgr = dc_clk_mgr_create(dc->ctx, dc->res_pool->pp_smu, dc->res_pool->dccg);
+	if (!dc->clk_mgr)
 		goto fail;
 
 	/* Creation of current_state must occur after dc->dml

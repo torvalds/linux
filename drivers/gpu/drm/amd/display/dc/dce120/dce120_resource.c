@@ -46,8 +46,7 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce120/dce120_hw_sequencer.h"
 #include "dce/dce_transform.h"
-
-#include "dce/dce_clk_mgr.h"
+#include "clk_mgr.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
@@ -609,9 +608,6 @@ static void destruct(struct dce110_resource_pool *pool)
 
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
-
-	if (pool->base.clk_mgr != NULL)
-		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 }
 
 static void read_dce_straps(
@@ -1048,17 +1044,6 @@ static bool construct(
 		}
 	}
 
-	if (is_vg20)
-		pool->base.clk_mgr = dce121_clk_mgr_create(ctx);
-	else
-		pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
-
-	if (pool->base.clk_mgr == NULL) {
-		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
-		goto dccg_create_fail;
-	}
-
 	pool->base.dmcu = dce_dmcu_create(ctx,
 			&dmcu_regs,
 			&dmcu_shift,
@@ -1186,7 +1171,7 @@ static bool construct(
 	 * here.
 	 */
 	if (is_vg20 && dce121_xgmi_enabled(dc->hwseq))
-		dce121_clock_patch_xgmi_ss_info(pool->base.clk_mgr);
+		dce121_clock_patch_xgmi_ss_info(dc->clk_mgr);
 
 	/* Create hardware sequencer */
 	if (!dce120_hw_sequencer_create(dc))
@@ -1205,7 +1190,6 @@ static bool construct(
 
 irqs_create_fail:
 controller_create_fail:
-dccg_create_fail:
 clk_src_create_fail:
 res_create_fail:
 

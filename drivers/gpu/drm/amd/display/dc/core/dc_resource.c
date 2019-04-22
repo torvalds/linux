@@ -2018,7 +2018,7 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dst_ctx->clk_mgr = dc->res_pool->clk_mgr;
+	dst_ctx->clk_mgr = dc->clk_mgr;
 }
 
 /**

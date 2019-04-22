@@ -23,45 +23,22 @@
  *
  */
 
-#ifndef __DAL_CLK_MGR_H__
-#define __DAL_CLK_MGR_H__
+#ifndef DAL_DC_DCE_DCE110_CLK_MGR_H_
+#define DAL_DC_DCE_DCE110_CLK_MGR_H_
 
-#include "dc.h"
+void dce110_clk_mgr_construct(
+		struct dc_context *ctx,
+		struct clk_mgr_internal *clk_mgr);
 
-/* Public interfaces */
+void dce110_fill_display_configs(
+	const struct dc_state *context,
+	struct dm_pp_display_configuration *pp_display_cfg);
 
-struct clk_mgr_funcs {
-	/*
-	 * This function should set new clocks based on the input "safe_to_lower".
-	 * If safe_to_lower == false, then only clocks which are to be increased
-	 * should changed.
-	 * If safe_to_lower == true, then only clocks which are to be decreased
-	 * should be changed.
-	 */
-	void (*update_clocks)(struct clk_mgr *clk_mgr,
-			struct dc_state *context,
-			bool safe_to_lower);
+/* functions shared with other clk mgr*/
+void dce11_pplib_apply_display_requirements(
+	struct dc *dc,
+	struct dc_state *context);
 
-	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
+uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context);
 
-	void (*init_clocks)(struct clk_mgr *clk_mgr);
-
-};
-
-void dce121_clock_patch_xgmi_ss_info(struct clk_mgr *clk_mgr_base);
-
-struct clk_mgr {
-	struct dc_context *ctx;
-	struct clk_mgr_funcs *funcs;
-	struct dc_clocks clks;
-	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
-};
-
-/* forward declarations */
-struct dccg;
-
-struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *pp_smu, struct dccg *dccg);
-
-void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr);
-
-#endif /* __DAL_CLK_MGR_H__ */
+#endif /* DAL_DC_DCE_DCE110_CLK_MGR_H_ */

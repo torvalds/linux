@@ -39,7 +39,6 @@
 #include "dcn10_opp.h"
 #include "dcn10_link_encoder.h"
 #include "dcn10_stream_encoder.h"
-#include "dcn10_clk_mgr.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
@@ -199,6 +198,7 @@ enum dcn10_clk_src_array_id {
 #define MMHUB_SR(reg_name)\
 		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
 					mm ## reg_name
+
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
 
@@ -487,27 +487,6 @@ static const struct dce110_clk_src_shift cs_shift = {
 
 static const struct dce110_clk_src_mask cs_mask = {
 		CS_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
-};
-
-
-#define mmMP1_SMN_C2PMSG_91            0x1629B
-#define mmMP1_SMN_C2PMSG_83            0x16293
-#define mmMP1_SMN_C2PMSG_67            0x16283
-
-#define MP1_SMN_C2PMSG_91__CONTENT_MASK                    0xffffffffL
-#define MP1_SMN_C2PMSG_83__CONTENT_MASK                    0xffffffffL
-#define MP1_SMN_C2PMSG_67__CONTENT_MASK                    0xffffffffL
-#define	MP1_SMN_C2PMSG_91__CONTENT__SHIFT                  0x00000000
-#define	MP1_SMN_C2PMSG_83__CONTENT__SHIFT                  0x00000000
-#define	MP1_SMN_C2PMSG_67__CONTENT__SHIFT                  0x00000000
-
-
-static const struct clk_mgr_shift clk_mgr_shift = {
-		CLK_MASK_SH_LIST_RV1(__SHIFT)
-};
-
-static const struct clk_mgr_mask clk_mgr_mask = {
-		CLK_MASK_SH_LIST_RV1(_MASK)
 };
 
 static const struct resource_caps res_cap = {
@@ -980,9 +959,6 @@ static void destruct(struct dcn10_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.clk_mgr != NULL)
-		dce_clk_mgr_destroy(&pool->base.clk_mgr);
-
 	kfree(pool->base.pp_smu);
 }
 
@@ -1435,13 +1411,6 @@ static bool construct(
 	}
 
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
-
-	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
-	if (pool->base.clk_mgr == NULL) {
-		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
-		goto fail;
-	}
 
 	if (!dc->debug.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);

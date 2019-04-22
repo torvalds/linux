@@ -42,6 +42,7 @@
 #include "fixed31_32.h"
 #include "dpcd_defs.h"
 #include "dmcu.h"
+#include "hw/clk_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 

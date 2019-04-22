@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,16 +23,21 @@
  *
  */
 
-#ifndef _DCN_CALC_AUTO_H_
-#define _DCN_CALC_AUTO_H_
+#include "core_types.h"
+#include "clk_mgr_internal.h"
+#include "rv1_clk_mgr.h"
+#include "rv2_clk_mgr.h"
+#include "dce/dce112_clk_mgr.h"
 
-#include "dc.h"
-#include "dcn_calcs.h"
+static struct clk_mgr_internal_funcs rv2_clk_internal_funcs = {
+	.set_dispclk = dce112_set_dispclk,
+	.set_dprefclk = dce112_set_dprefclk
+};
 
-void scaler_settings_calculation(struct dcn_bw_internal_vars *v);
-void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v);
-void display_pipe_configuration(struct dcn_bw_internal_vars *v);
-void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(
-		struct dcn_bw_internal_vars *v);
+void rv2_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_mgr, struct pp_smu_funcs *pp_smu)
 
-#endif /* _DCN_CALC_AUTO_H_ */
+{
+	rv1_clk_mgr_construct(ctx, clk_mgr, pp_smu);
+
+	clk_mgr->funcs = &rv2_clk_internal_funcs;
+}

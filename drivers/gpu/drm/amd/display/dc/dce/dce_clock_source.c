@@ -33,6 +33,7 @@
 #include "include/logger_interface.h"
 
 #include "dce_clock_source.h"
+#include "clk_mgr.h"
 
 #include "reg_helper.h"
 

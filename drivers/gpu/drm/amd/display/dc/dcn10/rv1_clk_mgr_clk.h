@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,16 +23,7 @@
  *
  */
 
-#ifndef _DCN_CALC_AUTO_H_
-#define _DCN_CALC_AUTO_H_
+#ifndef DAL_DC_DCN10_RV1_CLK_MGR_CLK_H_
+#define DAL_DC_DCN10_RV1_CLK_MGR_CLK_H_
 
-#include "dc.h"
-#include "dcn_calcs.h"
-
-void scaler_settings_calculation(struct dcn_bw_internal_vars *v);
-void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v);
-void display_pipe_configuration(struct dcn_bw_internal_vars *v);
-void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(
-		struct dcn_bw_internal_vars *v);
-
-#endif /* _DCN_CALC_AUTO_H_ */
+#endif /* DAL_DC_DCN10_RV1_CLK_MGR_CLK_H_ */

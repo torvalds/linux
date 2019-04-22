@@ -24,11 +24,10 @@
  */
 
 #include "dm_services.h"
+#include "dc.h"
 #include "dcn_calcs.h"
 #include "dcn_calc_auto.h"
-#include "dc.h"
 #include "dal_asic_id.h"
-
 #include "resource.h"
 #include "dcn10/dcn10_resource.h"
 #include "dcn10/dcn10_hubbub.h"

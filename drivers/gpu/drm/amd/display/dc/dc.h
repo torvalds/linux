@@ -387,6 +387,8 @@ struct dc {
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
 
+	struct clk_mgr *clk_mgr;
+
 	/* Display Engine Clock levels */
 	struct dm_pp_clock_levels sclk_lvls;
 

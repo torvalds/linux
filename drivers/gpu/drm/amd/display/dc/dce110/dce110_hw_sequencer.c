@@ -46,6 +46,7 @@
 #include "link_encoder.h"
 #include "link_hwss.h"
 #include "clock_source.h"
+#include "clk_mgr.h"
 #include "abm.h"
 #include "audio.h"
 #include "reg_helper.h"
@@ -2378,7 +2379,7 @@ void dce110_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	struct clk_mgr *dccg = dc->res_pool->clk_mgr;
+	struct clk_mgr *dccg = dc->clk_mgr;
 
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
@@ -2392,7 +2393,7 @@ void dce110_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	struct clk_mgr *dccg = dc->res_pool->clk_mgr;
+	struct clk_mgr *dccg = dc->clk_mgr;
 
 	dce110_set_displaymarks(dc, context);
 
