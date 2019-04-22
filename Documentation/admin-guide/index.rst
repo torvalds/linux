@@ -16,6 +16,7 @@ etc.
    README
    kernel-parameters
    devices
+   sysctl/index
 
 This section describes CPU vulnerabilities and their mitigations.
 
