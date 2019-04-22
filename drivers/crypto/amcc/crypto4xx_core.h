@@ -131,7 +131,7 @@ struct crypto4xx_ctx {
 	__le32 iv_nonce;
 	u32 sa_len;
 	union {
-		struct crypto_skcipher *cipher;
+		struct crypto_sync_skcipher *cipher;
 		struct crypto_aead *aead;
 	} sw_cipher;
 };

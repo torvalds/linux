@@ -965,15 +965,10 @@ static int crypto4xx_sk_init(struct crypto_skcipher *sk)
 
 	if (alg->base.cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
 		ctx->sw_cipher.cipher =
-			crypto_alloc_skcipher(alg->base.cra_name, 0,
-					      CRYPTO_ALG_NEED_FALLBACK |
-					      CRYPTO_ALG_ASYNC);
+			crypto_alloc_sync_skcipher(alg->base.cra_name, 0,
+					      CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(ctx->sw_cipher.cipher))
 			return PTR_ERR(ctx->sw_cipher.cipher);
-
-		crypto_skcipher_set_reqsize(sk,
-			sizeof(struct skcipher_request) + 32 +
-			crypto_skcipher_reqsize(ctx->sw_cipher.cipher));
 	}
 
 	amcc_alg = container_of(alg, struct crypto4xx_alg, alg.u.cipher);
@@ -992,7 +987,7 @@ static void crypto4xx_sk_exit(struct crypto_skcipher *sk)
 
 	crypto4xx_common_exit(ctx);
 	if (ctx->sw_cipher.cipher)
-		crypto_free_skcipher(ctx->sw_cipher.cipher);
+		crypto_free_sync_skcipher(ctx->sw_cipher.cipher);
 }
 
 static int crypto4xx_aead_init(struct crypto_aead *tfm)

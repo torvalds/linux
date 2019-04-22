@@ -264,10 +264,10 @@ crypto4xx_ctr_crypt(struct skcipher_request *req, bool encrypt)
 	 * overlow.
 	 */
 	if (counter + nblks < counter) {
-		struct skcipher_request *subreq = skcipher_request_ctx(req);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->sw_cipher.cipher);
 		int ret;
 
-		skcipher_request_set_tfm(subreq, ctx->sw_cipher.cipher);
+		skcipher_request_set_sync_tfm(subreq, ctx->sw_cipher.cipher);
 		skcipher_request_set_callback(subreq, req->base.flags,
 			NULL, NULL);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
@@ -289,14 +289,14 @@ static int crypto4xx_sk_setup_fallback(struct crypto4xx_ctx *ctx,
 {
 	int rc;
 
-	crypto_skcipher_clear_flags(ctx->sw_cipher.cipher,
+	crypto_sync_skcipher_clear_flags(ctx->sw_cipher.cipher,
 				    CRYPTO_TFM_REQ_MASK);
-	crypto_skcipher_set_flags(ctx->sw_cipher.cipher,
+	crypto_sync_skcipher_set_flags(ctx->sw_cipher.cipher,
 		crypto_skcipher_get_flags(cipher) & CRYPTO_TFM_REQ_MASK);
-	rc = crypto_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
+	rc = crypto_sync_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
 	crypto_skcipher_clear_flags(cipher, CRYPTO_TFM_RES_MASK);
 	crypto_skcipher_set_flags(cipher,
-		crypto_skcipher_get_flags(ctx->sw_cipher.cipher) &
+		crypto_sync_skcipher_get_flags(ctx->sw_cipher.cipher) &
 			CRYPTO_TFM_RES_MASK);
 
 	return rc;
