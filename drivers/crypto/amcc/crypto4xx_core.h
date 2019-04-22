@@ -64,7 +64,6 @@ union shadow_sa_buf {
 struct pd_uinfo {
 	struct crypto4xx_device *dev;
 	u32   state;
-	u32 using_sd;
 	u32 first_gd;		/* first gather discriptor
 				used by this packet */
 	u32 num_gd;             /* number of gather discriptor

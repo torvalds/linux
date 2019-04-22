@@ -539,7 +539,7 @@ static void crypto4xx_cipher_done(struct crypto4xx_device *dev,
 
 	req = skcipher_request_cast(pd_uinfo->async_req);
 
-	if (pd_uinfo->using_sd) {
+	if (pd_uinfo->sa_va->sa_command_0.bf.scatter) {
 		crypto4xx_copy_pkt_to_dst(dev, pd, pd_uinfo,
 					  req->cryptlen, req->dst);
 	} else {
@@ -593,7 +593,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 	u32 icv[AES_BLOCK_SIZE];
 	int err = 0;
 
-	if (pd_uinfo->using_sd) {
+	if (pd_uinfo->sa_va->sa_command_0.bf.scatter) {
 		crypto4xx_copy_pkt_to_dst(dev, pd, pd_uinfo,
 					  pd->pd_ctl_len.bf.pkt_len,
 					  dst);
@@ -887,7 +887,6 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		 * we know application give us dst a whole piece of memory
 		 * no need to use scatter ring.
 		 */
-		pd_uinfo->using_sd = 0;
 		pd_uinfo->first_sd = 0xffffffff;
 		sa->sa_command_0.bf.scatter = 0;
 		pd->dest = (u32)dma_map_page(dev->core_dev->device,
@@ -901,7 +900,6 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		u32 sd_idx = fst_sd;
 		nbytes = datalen;
 		sa->sa_command_0.bf.scatter = 1;
-		pd_uinfo->using_sd = 1;
 		pd_uinfo->first_sd = fst_sd;
 		sd = crypto4xx_get_sdp(dev, &sd_dma, sd_idx);
 		pd->dest = sd_dma;
