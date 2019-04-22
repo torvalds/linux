@@ -17,6 +17,13 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 }
 
 static inline void
+syscall_set_nr(struct task_struct *task, struct pt_regs *regs,
+	       int sysno)
+{
+	regs_syscallid(regs) = sysno;
+}
+
+static inline void
 syscall_rollback(struct task_struct *task, struct pt_regs *regs)
 {
 	regs->a0 = regs->orig_a0;
