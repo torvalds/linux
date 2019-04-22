@@ -1763,7 +1763,8 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 
 	rc = scsi_add_host(vn_port->host, &vport->dev);
 	if (rc) {
-		QEDF_WARN(&(base_qedf->dbg_ctx), "Error adding Scsi_Host.\n");
+		QEDF_WARN(&base_qedf->dbg_ctx,
+			  "Error adding Scsi_Host rc=0x%x.\n", rc);
 		goto err2;
 	}
 
@@ -3339,7 +3340,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		rc = scsi_add_host(host, &pdev->dev);
 		if (rc) {
 			QEDF_WARN(&qedf->dbg_ctx,
-				  "Error adding Scsi_Host.\n");
+				  "Error adding Scsi_Host rc=0x%x.\n", rc);
 			goto err6;
 		}
 	}
