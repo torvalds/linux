@@ -30,6 +30,8 @@ struct mlxsw_sp_sb_cm {
 	u32 max_buff;
 	u16 pool_index;
 	struct mlxsw_cp_sb_occ occ;
+	u8 freeze_pool:1,
+	   freeze_thresh:1;
 };
 
 #define MLXSW_SP_SB_INFI -1U
@@ -1059,6 +1061,7 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 			mlxsw_core_port_driver_priv(mlxsw_core_port);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 local_port = mlxsw_sp_port->local_port;
+	const struct mlxsw_sp_sb_cm *cm;
 	u8 pg_buff = tc_index;
 	enum mlxsw_reg_sbxx_dir dir = (enum mlxsw_reg_sbxx_dir) pool_type;
 	u32 max_buff;
@@ -1066,6 +1069,21 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 
 	if (dir != mlxsw_sp->sb_vals->pool_dess[pool_index].dir) {
 		NL_SET_ERR_MSG_MOD(extack, "Binding egress TC to ingress pool and vice versa is forbidden");
+		return -EINVAL;
+	}
+
+	if (dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		cm = &mlxsw_sp->sb_vals->cms_ingress[tc_index];
+	else
+		cm = &mlxsw_sp->sb_vals->cms_egress[tc_index];
+
+	if (cm->freeze_pool && cm->pool_index != pool_index) {
+		NL_SET_ERR_MSG_MOD(extack, "Binding this TC to a different pool is forbidden");
+		return -EINVAL;
+	}
+
+	if (cm->freeze_thresh && cm->max_buff != threshold) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing this TC's threshold is forbidden");
 		return -EINVAL;
 	}
 
