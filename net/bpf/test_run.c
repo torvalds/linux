@@ -382,7 +382,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	u32 repeat = kattr->test.repeat;
 	struct bpf_flow_keys flow_keys;
 	u64 time_start, time_spent = 0;
-	struct bpf_skb_data_end *cb;
 	u32 retval, duration;
 	struct sk_buff *skb;
 	struct sock *sk;
@@ -422,9 +421,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	skb->protocol = eth_type_trans(skb,
 				       current->nsproxy->net_ns->loopback_dev);
 	skb_reset_network_header(skb);
-
-	cb = (struct bpf_skb_data_end *)skb->cb;
-	cb->qdisc_cb.flow_keys = &flow_keys;
 
 	if (!repeat)
 		repeat = 1;

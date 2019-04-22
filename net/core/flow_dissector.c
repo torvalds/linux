@@ -688,39 +688,34 @@ bool __skb_flow_bpf_dissect(struct bpf_prog *prog,
 			    struct flow_dissector *flow_dissector,
 			    struct bpf_flow_keys *flow_keys)
 {
-	struct bpf_skb_data_end cb_saved;
-	struct bpf_skb_data_end *cb;
+	struct bpf_flow_dissector ctx = {
+		.flow_keys = flow_keys,
+		.skb = skb,
+		.data = skb->data,
+		.data_end = skb->data + skb_headlen(skb),
+	};
+
+	return bpf_flow_dissect(prog, &ctx, skb->protocol,
+				skb_network_offset(skb), skb_headlen(skb));
+}
+
+bool bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
+		      __be16 proto, int nhoff, int hlen)
+{
+	struct bpf_flow_keys *flow_keys = ctx->flow_keys;
 	u32 result;
-
-	/* Note that even though the const qualifier is discarded
-	 * throughout the execution of the BPF program, all changes(the
-	 * control block) are reverted after the BPF program returns.
-	 * Therefore, __skb_flow_dissect does not alter the skb.
-	 */
-
-	cb = (struct bpf_skb_data_end *)skb->cb;
-
-	/* Save Control Block */
-	memcpy(&cb_saved, cb, sizeof(cb_saved));
-	memset(cb, 0, sizeof(*cb));
 
 	/* Pass parameters to the BPF program */
 	memset(flow_keys, 0, sizeof(*flow_keys));
-	cb->qdisc_cb.flow_keys = flow_keys;
-	flow_keys->n_proto = skb->protocol;
-	flow_keys->nhoff = skb_network_offset(skb);
+	flow_keys->n_proto = proto;
+	flow_keys->nhoff = nhoff;
 	flow_keys->thoff = flow_keys->nhoff;
 
-	bpf_compute_data_pointers((struct sk_buff *)skb);
-	result = BPF_PROG_RUN(prog, skb);
+	result = BPF_PROG_RUN(prog, ctx);
 
-	/* Restore state */
-	memcpy(cb, &cb_saved, sizeof(cb_saved));
-
-	flow_keys->nhoff = clamp_t(u16, flow_keys->nhoff,
-				   skb_network_offset(skb), skb->len);
+	flow_keys->nhoff = clamp_t(u16, flow_keys->nhoff, nhoff, hlen);
 	flow_keys->thoff = clamp_t(u16, flow_keys->thoff,
-				   flow_keys->nhoff, skb->len);
+				   flow_keys->nhoff, hlen);
 
 	return result == BPF_OK;
 }
