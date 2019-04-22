@@ -141,9 +141,10 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	/* Setup SA */
 	sa = ctx->sa_in;
 
-	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, (cm == CRYPTO_MODE_CBC ?
-				 SA_SAVE_IV : SA_NOT_SAVE_IV),
-				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
+	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, (cm == CRYPTO_MODE_ECB ?
+				 SA_NOT_SAVE_IV : SA_SAVE_IV),
+				 SA_NOT_LOAD_HASH, (cm == CRYPTO_MODE_ECB ?
+				 SA_LOAD_IV_FROM_SA : SA_LOAD_IV_FROM_STATE),
 				 SA_NO_HEADER_PROC, SA_HASH_ALG_NULL,
 				 SA_CIPHER_ALG_AES, SA_PAD_TYPE_ZERO,
 				 SA_OP_GROUP_BASIC, SA_OPCODE_DECRYPT,
@@ -162,6 +163,11 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	memcpy(ctx->sa_out, ctx->sa_in, ctx->sa_len * 4);
 	sa = ctx->sa_out;
 	sa->sa_command_0.bf.dir = DIR_OUTBOUND;
+	/*
+	 * SA_OPCODE_ENCRYPT is the same value as SA_OPCODE_DECRYPT.
+	 * it's the DIR_(IN|OUT)BOUND that matters
+	 */
+	sa->sa_command_0.bf.opcode = SA_OPCODE_ENCRYPT;
 
 	return 0;
 }
