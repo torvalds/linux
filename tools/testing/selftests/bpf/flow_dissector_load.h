@@ -9,10 +9,12 @@ static inline int bpf_flow_load(struct bpf_object **obj,
 				const char *path,
 				const char *section_name,
 				const char *map_name,
-				int *prog_fd)
+				const char *keys_map_name,
+				int *prog_fd,
+				int *keys_fd)
 {
 	struct bpf_program *prog, *main_prog;
-	struct bpf_map *prog_array;
+	struct bpf_map *prog_array, *keys;
 	int prog_array_fd;
 	int ret, fd, i;
 
@@ -36,6 +38,16 @@ static inline int bpf_flow_load(struct bpf_object **obj,
 	prog_array_fd = bpf_map__fd(prog_array);
 	if (prog_array_fd < 0)
 		return ret;
+
+	if (keys_map_name && keys_fd) {
+		keys = bpf_object__find_map_by_name(*obj, keys_map_name);
+		if (!keys)
+			return -1;
+
+		*keys_fd = bpf_map__fd(keys);
+		if (*keys_fd < 0)
+			return -1;
+	}
 
 	i = 0;
 	bpf_object__for_each_program(prog, *obj) {

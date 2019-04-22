@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
+#include <error.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
 
 #define CHECK_FLOW_KEYS(desc, got, expected)				\
 	CHECK_ATTR(memcmp(&got, &expected, sizeof(got)) != 0,		\
@@ -140,13 +143,73 @@ struct test tests[] = {
 	},
 };
 
+static int create_tap(const char *ifname)
+{
+	struct ifreq ifr = {
+		.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_NAPI | IFF_NAPI_FRAGS,
+	};
+	int fd, ret;
+
+	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+
+	fd = open("/dev/net/tun", O_RDWR);
+	if (fd < 0)
+		return -1;
+
+	ret = ioctl(fd, TUNSETIFF, &ifr);
+	if (ret)
+		return -1;
+
+	return fd;
+}
+
+static int tx_tap(int fd, void *pkt, size_t len)
+{
+	struct iovec iov[] = {
+		{
+			.iov_len = len,
+			.iov_base = pkt,
+		},
+	};
+	return writev(fd, iov, ARRAY_SIZE(iov));
+}
+
+static int ifup(const char *ifname)
+{
+	struct ifreq ifr = {};
+	int sk, ret;
+
+	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+
+	sk = socket(PF_INET, SOCK_DGRAM, 0);
+	if (sk < 0)
+		return -1;
+
+	ret = ioctl(sk, SIOCGIFFLAGS, &ifr);
+	if (ret) {
+		close(sk);
+		return -1;
+	}
+
+	ifr.ifr_flags |= IFF_UP;
+	ret = ioctl(sk, SIOCSIFFLAGS, &ifr);
+	if (ret) {
+		close(sk);
+		return -1;
+	}
+
+	close(sk);
+	return 0;
+}
+
 void test_flow_dissector(void)
 {
+	int i, err, prog_fd, keys_fd = -1, tap_fd;
 	struct bpf_object *obj;
-	int i, err, prog_fd;
+	__u32 duration = 0;
 
 	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
-			    "jmp_table", &prog_fd);
+			    "jmp_table", "last_dissection", &prog_fd, &keys_fd);
 	if (err) {
 		error_cnt++;
 		return;
@@ -168,6 +231,41 @@ void test_flow_dissector(void)
 			   "err %d errno %d retval %d duration %d size %u/%lu\n",
 			   err, errno, tattr.retval, tattr.duration,
 			   tattr.data_size_out, sizeof(flow_keys));
+		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+	}
+
+	/* Do the same tests but for skb-less flow dissector.
+	 * We use a known path in the net/tun driver that calls
+	 * eth_get_headlen and we manually export bpf_flow_keys
+	 * via BPF map in this case.
+	 *
+	 * Note, that since eth_get_headlen operates on a L2 level,
+	 * we adjust exported nhoff/thoff by ETH_HLEN.
+	 */
+
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	CHECK(err, "bpf_prog_attach", "err %d errno %d", err, errno);
+
+	tap_fd = create_tap("tap0");
+	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d", tap_fd, errno);
+	err = ifup("tap0");
+	CHECK(err, "ifup", "err %d errno %d", err, errno);
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		struct bpf_flow_keys flow_keys = {};
+		struct bpf_prog_test_run_attr tattr = {};
+		__u32 key = 0;
+
+		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
+		CHECK(err < 0, "tx_tap", "err %d errno %d", err, errno);
+
+		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
+		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
+
+		flow_keys.nhoff -= ETH_HLEN;
+		flow_keys.thoff -= ETH_HLEN;
+
+		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
 	}
 
