@@ -6626,6 +6626,13 @@ static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
 	spin_unlock(&root->root_item_lock);
 }
 
+static void dedupe_in_progress_warn(const struct btrfs_root *root)
+{
+	btrfs_warn_rl(root->fs_info,
+"cannot use root %llu for send while deduplications on it are in progress (%d in progress)",
+		      root->root_key.objectid, root->dedupe_in_progress);
+}
+
 long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 {
 	int ret = 0;
@@ -6649,6 +6656,11 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	 * making it RW. This also protects against deletion.
 	 */
 	spin_lock(&send_root->root_item_lock);
+	if (btrfs_root_readonly(send_root) && send_root->dedupe_in_progress) {
+		dedupe_in_progress_warn(send_root);
+		spin_unlock(&send_root->root_item_lock);
+		return -EAGAIN;
+	}
 	send_root->send_in_progress++;
 	spin_unlock(&send_root->root_item_lock);
 
@@ -6783,6 +6795,13 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 				ret = -EPERM;
 				goto out;
 			}
+			if (clone_root->dedupe_in_progress) {
+				dedupe_in_progress_warn(clone_root);
+				spin_unlock(&clone_root->root_item_lock);
+				srcu_read_unlock(&fs_info->subvol_srcu, index);
+				ret = -EAGAIN;
+				goto out;
+			}
 			clone_root->send_in_progress++;
 			spin_unlock(&clone_root->root_item_lock);
 			srcu_read_unlock(&fs_info->subvol_srcu, index);
@@ -6815,6 +6834,13 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 			spin_unlock(&sctx->parent_root->root_item_lock);
 			srcu_read_unlock(&fs_info->subvol_srcu, index);
 			ret = -EPERM;
+			goto out;
+		}
+		if (sctx->parent_root->dedupe_in_progress) {
+			dedupe_in_progress_warn(sctx->parent_root);
+			spin_unlock(&sctx->parent_root->root_item_lock);
+			srcu_read_unlock(&fs_info->subvol_srcu, index);
+			ret = -EAGAIN;
 			goto out;
 		}
 		spin_unlock(&sctx->parent_root->root_item_lock);

@@ -3275,6 +3275,19 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	int ret;
 	int num_pages = PAGE_ALIGN(BTRFS_MAX_DEDUPE_LEN) >> PAGE_SHIFT;
 	u64 i, tail_len, chunk_count;
+	struct btrfs_root *root_dst = BTRFS_I(dst)->root;
+
+	spin_lock(&root_dst->root_item_lock);
+	if (root_dst->send_in_progress) {
+		btrfs_warn_rl(root_dst->fs_info,
+"cannot deduplicate to root %llu while send operations are using it (%d in progress)",
+			      root_dst->root_key.objectid,
+			      root_dst->send_in_progress);
+		spin_unlock(&root_dst->root_item_lock);
+		return -EAGAIN;
+	}
+	root_dst->dedupe_in_progress++;
+	spin_unlock(&root_dst->root_item_lock);
 
 	/* don't make the dst file partly checksummed */
 	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
@@ -3293,7 +3306,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		ret = btrfs_extent_same_range(src, loff, BTRFS_MAX_DEDUPE_LEN,
 					      dst, dst_loff);
 		if (ret)
-			return ret;
+			goto out;
 
 		loff += BTRFS_MAX_DEDUPE_LEN;
 		dst_loff += BTRFS_MAX_DEDUPE_LEN;
@@ -3302,6 +3315,10 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	if (tail_len > 0)
 		ret = btrfs_extent_same_range(src, loff, tail_len, dst,
 					      dst_loff);
+out:
+	spin_lock(&root_dst->root_item_lock);
+	root_dst->dedupe_in_progress--;
+	spin_unlock(&root_dst->root_item_lock);
 
 	return ret;
 }

@@ -1316,6 +1316,12 @@ struct btrfs_root {
 	 * manipulation with the read-only status via SUBVOL_SETFLAGS
 	 */
 	int send_in_progress;
+	/*
+	 * Number of currently running deduplication operations that have a
+	 * destination inode belonging to this root. Protected by the lock
+	 * root_item_lock.
+	 */
+	int dedupe_in_progress;
 	struct btrfs_subvolume_writers *subv_writers;
 	atomic_t will_be_snapshotted;
 	atomic_t snapshot_force_cow;
