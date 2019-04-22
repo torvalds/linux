@@ -1345,7 +1345,7 @@ bool dcn20_update_bandwidth(
 	int i;
 
 	/* recalculate DML parameters */
-	if (!dc->res_pool->funcs->validate_bandwidth(dc, context)) {
+	if (!dc->res_pool->funcs->validate_bandwidth(dc, context, false)) {
 		return false;
 	}
 
