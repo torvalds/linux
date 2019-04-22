@@ -57,6 +57,8 @@ struct mlxsw_sp_sb_pool_des {
 #define MLXSW_SP_SB_POOL_ING_MNG	3
 #define MLXSW_SP_SB_POOL_EGR		4
 #define MLXSW_SP_SB_POOL_EGR_MC		8
+#define MLXSW_SP_SB_POOL_ING_CPU	9
+#define MLXSW_SP_SB_POOL_EGR_CPU	10
 
 static const struct mlxsw_sp_sb_pool_des mlxsw_sp1_sb_pool_dess[] = {
 	{MLXSW_REG_SBXX_DIR_INGRESS, 0},
@@ -68,6 +70,8 @@ static const struct mlxsw_sp_sb_pool_des mlxsw_sp1_sb_pool_dess[] = {
 	{MLXSW_REG_SBXX_DIR_EGRESS, 2},
 	{MLXSW_REG_SBXX_DIR_EGRESS, 3},
 	{MLXSW_REG_SBXX_DIR_EGRESS, 15},
+	{MLXSW_REG_SBXX_DIR_INGRESS, 4},
+	{MLXSW_REG_SBXX_DIR_EGRESS, 4},
 };
 
 static const struct mlxsw_sp_sb_pool_des mlxsw_sp2_sb_pool_dess[] = {
@@ -80,6 +84,8 @@ static const struct mlxsw_sp_sb_pool_des mlxsw_sp2_sb_pool_dess[] = {
 	{MLXSW_REG_SBXX_DIR_EGRESS, 2},
 	{MLXSW_REG_SBXX_DIR_EGRESS, 3},
 	{MLXSW_REG_SBXX_DIR_EGRESS, 15},
+	{MLXSW_REG_SBXX_DIR_INGRESS, 4},
+	{MLXSW_REG_SBXX_DIR_EGRESS, 4},
 };
 
 #define MLXSW_SP_SB_ING_TC_COUNT 8
@@ -410,6 +416,7 @@ static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 #define MLXSW_SP1_SB_PR_INGRESS_SIZE	12440000
 #define MLXSW_SP1_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP1_SB_PR_EGRESS_SIZE	13232000
+#define MLXSW_SP1_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp1_sb_pool_dess */
 static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
@@ -426,11 +433,16 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI,
 			   true, true),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
+			   MLXSW_SP1_SB_PR_CPU_SIZE, true, false),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
+			   MLXSW_SP1_SB_PR_CPU_SIZE, true, false),
 };
 
 #define MLXSW_SP2_SB_PR_INGRESS_SIZE	40960000
 #define MLXSW_SP2_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP2_SB_PR_EGRESS_SIZE	40960000
+#define MLXSW_SP2_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp2_sb_pool_dess */
 static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
@@ -447,6 +459,10 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI,
 			   true, true),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
+			   MLXSW_SP2_SB_PR_CPU_SIZE, true, false),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
+			   MLXSW_SP2_SB_PR_CPU_SIZE, true, false),
 };
 
 static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
@@ -699,6 +715,8 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp1_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(10000, 90000),
+	MLXSW_SP_SB_PM(0, 8),	/* 50% occupancy */
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 };
 
 /* Order according to mlxsw_sp2_sb_pool_dess */
@@ -712,6 +730,8 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(10000, 90000),
+	MLXSW_SP_SB_PM(0, 8),	/* 50% occupancy */
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 };
 
 static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
