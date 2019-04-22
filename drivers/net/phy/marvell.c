@@ -137,6 +137,7 @@
 #define MII_PHY_LED_CTRL	        16
 #define MII_88E1121_PHY_LED_DEF		0x0030
 #define MII_88E1510_PHY_LED_DEF		0x1177
+#define MII_88E1510_PHY_LED0_LINK_LED1_ACTIVE	0x1040
 
 #define MII_M1011_PHY_STATUS		0x11
 #define MII_M1011_PHY_STATUS_1000	0x8000
@@ -633,7 +634,10 @@ static void marvell_config_led(struct phy_device *phydev)
 	 * LED[2] .. Blink, Activity
 	 */
 	case MARVELL_PHY_FAMILY_ID(MARVELL_PHY_ID_88E1510):
-		def_config = MII_88E1510_PHY_LED_DEF;
+		if (phydev->dev_flags & MARVELL_PHY_LED0_LINK_LED1_ACTIVE)
+			def_config = MII_88E1510_PHY_LED0_LINK_LED1_ACTIVE;
+		else
+			def_config = MII_88E1510_PHY_LED_DEF;
 		break;
 	default:
 		return;
