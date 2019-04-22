@@ -400,6 +400,14 @@ static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 		.size = _size,		\
 	}
 
+#define MLXSW_SP_SB_PR_EXT(_mode, _size, _freeze_mode, _freeze_size)	\
+	{								\
+		.mode = _mode,						\
+		.size = _size,						\
+		.freeze_mode = _freeze_mode,				\
+		.freeze_size = _freeze_size,				\
+	}
+
 #define MLXSW_SP1_SB_PR_INGRESS_SIZE	12440000
 #define MLXSW_SP1_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP1_SB_PR_EGRESS_SIZE	13232000
@@ -418,7 +426,8 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI,
+			   true, true),
 };
 
 #define MLXSW_SP2_SB_PR_INGRESS_SIZE	40960000
@@ -439,7 +448,8 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI),
+	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_STATIC, MLXSW_SP_SB_INFI,
+			   true, true),
 };
 
 static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
