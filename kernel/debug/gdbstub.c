@@ -1095,10 +1095,10 @@ int gdbstub_state(struct kgdb_state *ks, char *cmd)
 		return error;
 	case 's':
 	case 'c':
-		strcpy(remcom_in_buffer, cmd);
+		strscpy(remcom_in_buffer, cmd, sizeof(remcom_in_buffer));
 		return 0;
 	case '$':
-		strcpy(remcom_in_buffer, cmd);
+		strscpy(remcom_in_buffer, cmd, sizeof(remcom_in_buffer));
 		gdbstub_use_prev_in_buf = strlen(remcom_in_buffer);
 		gdbstub_prev_in_buf_pos = 0;
 		return 0;
