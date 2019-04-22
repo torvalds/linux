@@ -108,6 +108,7 @@ struct mlxsw_sp_sb_vals {
 	unsigned int pool_count;
 	const struct mlxsw_sp_sb_pool_des *pool_dess;
 	const struct mlxsw_sp_sb_pm *pms;
+	const struct mlxsw_sp_sb_pm *pms_cpu;
 	const struct mlxsw_sp_sb_pr *prs;
 	const struct mlxsw_sp_sb_mm *mms;
 	const struct mlxsw_sp_sb_cm *cms_ingress;
@@ -581,17 +582,17 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_egress[] = {
 	MLXSW_SP_SB_CM_EGR(1, 0xff),
 };
 
-#define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(0, 0, MLXSW_SP_SB_POOL_EGR)
+#define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(0, 0, MLXSW_SP_SB_POOL_EGR_CPU)
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp_cpu_port_sb_cms[] = {
 	MLXSW_SP_CPU_PORT_SB_CM,
-	MLXSW_SP_SB_CM(MLXSW_PORT_MAX_MTU, 0, MLXSW_SP_SB_POOL_EGR),
-	MLXSW_SP_SB_CM(MLXSW_PORT_MAX_MTU, 0, MLXSW_SP_SB_POOL_EGR),
-	MLXSW_SP_SB_CM(MLXSW_PORT_MAX_MTU, 0, MLXSW_SP_SB_POOL_EGR),
-	MLXSW_SP_SB_CM(MLXSW_PORT_MAX_MTU, 0, MLXSW_SP_SB_POOL_EGR),
-	MLXSW_SP_SB_CM(MLXSW_PORT_MAX_MTU, 0, MLXSW_SP_SB_POOL_EGR),
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_CPU_PORT_SB_CM,
-	MLXSW_SP_SB_CM(MLXSW_PORT_MAX_MTU, 0, MLXSW_SP_SB_POOL_EGR),
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
@@ -729,6 +730,21 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 };
 
+/* Order according to mlxsw_sp*_sb_pool_dess */
+static const struct mlxsw_sp_sb_pm mlxsw_sp_cpu_port_sb_pms[] = {
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, 90000),
+	MLXSW_SP_SB_PM(0, 0),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
+};
+
 static int mlxsw_sp_sb_pms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				const struct mlxsw_sp_sb_pm *pms,
 				bool skip_ingress)
@@ -763,6 +779,12 @@ static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 
 	return mlxsw_sp_sb_pms_init(mlxsw_sp, mlxsw_sp_port->local_port,
 				    mlxsw_sp->sb_vals->pms, false);
+}
+
+static int mlxsw_sp_cpu_port_sb_pms_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_sp_sb_pms_init(mlxsw_sp, 0, mlxsw_sp->sb_vals->pms_cpu,
+				    true);
 }
 
 #define MLXSW_SP_SB_MM(_min_buff, _max_buff)		\
@@ -836,6 +858,7 @@ const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
 	.pool_count = ARRAY_SIZE(mlxsw_sp1_sb_pool_dess),
 	.pool_dess = mlxsw_sp1_sb_pool_dess,
 	.pms = mlxsw_sp1_sb_pms,
+	.pms_cpu = mlxsw_sp_cpu_port_sb_pms,
 	.prs = mlxsw_sp1_sb_prs,
 	.mms = mlxsw_sp_sb_mms,
 	.cms_ingress = mlxsw_sp1_sb_cms_ingress,
@@ -851,6 +874,7 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 	.pool_count = ARRAY_SIZE(mlxsw_sp2_sb_pool_dess),
 	.pool_dess = mlxsw_sp2_sb_pool_dess,
 	.pms = mlxsw_sp2_sb_pms,
+	.pms_cpu = mlxsw_sp_cpu_port_sb_pms,
 	.prs = mlxsw_sp2_sb_prs,
 	.mms = mlxsw_sp_sb_mms,
 	.cms_ingress = mlxsw_sp2_sb_cms_ingress,
@@ -900,6 +924,9 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	err = mlxsw_sp_cpu_port_sb_cms_init(mlxsw_sp);
 	if (err)
 		goto err_sb_cpu_port_sb_cms_init;
+	err = mlxsw_sp_cpu_port_sb_pms_init(mlxsw_sp);
+	if (err)
+		goto err_sb_cpu_port_pms_init;
 	err = mlxsw_sp_sb_mms_init(mlxsw_sp);
 	if (err)
 		goto err_sb_mms_init;
@@ -917,6 +944,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 
 err_devlink_sb_register:
 err_sb_mms_init:
+err_sb_cpu_port_pms_init:
 err_sb_cpu_port_sb_cms_init:
 err_sb_prs_init:
 	mlxsw_sp_sb_ports_fini(mlxsw_sp);
