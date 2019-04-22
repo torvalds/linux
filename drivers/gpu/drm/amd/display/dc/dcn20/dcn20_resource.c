@@ -1753,8 +1753,6 @@ int dcn20_populate_dml_pipes_from_context(
 			struct dc_plane_state *pln = res_ctx->pipe_ctx[i].plane_state;
 			struct scaler_data *scl = &res_ctx->pipe_ctx[i].plane_res.scl_data;
 
-			pipes[pipe_cnt].pipe.src.macro_tile_size =
-					swizzle_mode_to_macro_tile_size(pln->tiling_info.gfx9.swizzle);
 			pipes[pipe_cnt].pipe.src.immediate_flip = pln->flip_immediate;
 			pipes[pipe_cnt].pipe.src.is_hsplit = (res_ctx->pipe_ctx[i].bottom_pipe
 					&& res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln)
@@ -1818,6 +1816,8 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.scale_taps.vtaps = scl->taps.v_taps;
 			pipes[pipe_cnt].pipe.scale_taps.vtaps_c = scl->taps.v_taps_c;
 
+			pipes[pipe_cnt].pipe.src.macro_tile_size =
+					swizzle_mode_to_macro_tile_size(pln->tiling_info.gfx9.swizzle);
 			swizzle_to_dml_params(pln->tiling_info.gfx9.swizzle,
 					&pipes[pipe_cnt].pipe.src.sw_mode);
 
