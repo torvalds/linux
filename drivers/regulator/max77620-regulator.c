@@ -803,7 +803,7 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 			continue;
 
 		rdesc = &rinfo[id].desc;
-		pmic->rinfo[id] = &max77620_regs_info[id];
+		pmic->rinfo[id] = &rinfo[id];
 		pmic->enable_power_mode[id] = MAX77620_POWER_MODE_NORMAL;
 		pmic->reg_pdata[id].active_fps_src = -1;
 		pmic->reg_pdata[id].active_fps_pd_slot = -1;
