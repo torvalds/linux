@@ -58,7 +58,6 @@ struct mlxsw_sp_sb_pool_des {
 #define MLXSW_SP_SB_POOL_EGR		4
 #define MLXSW_SP_SB_POOL_EGR_MC		8
 
-/* Order ingress pools before egress pools. */
 static const struct mlxsw_sp_sb_pool_des mlxsw_sp1_sb_pool_dess[] = {
 	{MLXSW_REG_SBXX_DIR_INGRESS, 0},
 	{MLXSW_REG_SBXX_DIR_INGRESS, 1},
@@ -412,15 +411,14 @@ static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 #define MLXSW_SP1_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP1_SB_PR_EGRESS_SIZE	13232000
 
+/* Order according to mlxsw_sp1_sb_pool_dess */
 static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
-	/* Ingress pools. */
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
 		       MLXSW_SP1_SB_PR_INGRESS_SIZE),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
 		       MLXSW_SP1_SB_PR_INGRESS_MNG_SIZE),
-	/* Egress pools. */
 	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
 			   MLXSW_SP1_SB_PR_EGRESS_SIZE, true, false),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
@@ -434,15 +432,14 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 #define MLXSW_SP2_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP2_SB_PR_EGRESS_SIZE	40960000
 
+/* Order according to mlxsw_sp2_sb_pool_dess */
 static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
-	/* Ingress pools. */
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
 		       MLXSW_SP2_SB_PR_INGRESS_SIZE),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
 		       MLXSW_SP2_SB_PR_INGRESS_MNG_SIZE),
-	/* Egress pools. */
 	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
 			   MLXSW_SP2_SB_PR_EGRESS_SIZE, true, false),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
@@ -691,13 +688,12 @@ static int mlxsw_sp_cpu_port_sb_cms_init(struct mlxsw_sp *mlxsw_sp)
 		.max_buff = _max_buff,		\
 	}
 
+/* Order according to mlxsw_sp1_sb_pool_dess */
 static const struct mlxsw_sp_sb_pm mlxsw_sp1_sb_pms[] = {
-	/* Ingress pools. */
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
-	/* Egress pools. */
 	MLXSW_SP_SB_PM(0, 7),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
@@ -705,13 +701,12 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp1_sb_pms[] = {
 	MLXSW_SP_SB_PM(10000, 90000),
 };
 
+/* Order according to mlxsw_sp2_sb_pool_dess */
 static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
-	/* Ingress pools. */
 	MLXSW_SP_SB_PM(0, 7),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
-	/* Egress pools. */
 	MLXSW_SP_SB_PM(0, 7),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
@@ -798,15 +793,15 @@ static void mlxsw_sp_pool_count(struct mlxsw_sp *mlxsw_sp,
 {
 	int i;
 
-	for (i = 0; i < mlxsw_sp->sb_vals->pool_count; ++i)
+	for (i = 0; i < mlxsw_sp->sb_vals->pool_count; ++i) {
 		if (mlxsw_sp->sb_vals->pool_dess[i].dir ==
-		    MLXSW_REG_SBXX_DIR_EGRESS)
-			goto out;
-	WARN(1, "No egress pools\n");
+		    MLXSW_REG_SBXX_DIR_INGRESS)
+			(*p_ingress_len)++;
+		else
+			(*p_egress_len)++;
+	}
 
-out:
-	*p_ingress_len = i;
-	*p_egress_len = mlxsw_sp->sb_vals->pool_count - i;
+	WARN(*p_egress_len == 0, "No egress pools\n");
 }
 
 const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
@@ -842,8 +837,8 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
 	u32 max_headroom_size;
-	u16 ing_pool_count;
-	u16 eg_pool_count;
+	u16 ing_pool_count = 0;
+	u16 eg_pool_count = 0;
 	int err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, CELL_SIZE))
