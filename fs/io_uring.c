@@ -2934,6 +2934,14 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 {
 	int ret;
 
+	/*
+	 * We're inside the ring mutex, if the ref is already dying, then
+	 * someone else killed the ctx or is already going through
+	 * io_uring_register().
+	 */
+	if (percpu_ref_is_dying(&ctx->refs))
+		return -ENXIO;
+
 	percpu_ref_kill(&ctx->refs);
 
 	/*
