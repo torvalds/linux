@@ -54,7 +54,6 @@ struct mlxsw_sp_sb_pool_des {
 };
 
 #define MLXSW_SP_SB_POOL_ING		0
-#define MLXSW_SP_SB_POOL_ING_MNG	3
 #define MLXSW_SP_SB_POOL_EGR		4
 #define MLXSW_SP_SB_POOL_EGR_MC		8
 #define MLXSW_SP_SB_POOL_ING_CPU	9
@@ -290,7 +289,7 @@ static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	const u32 pbs[] = {
 		[0] = MLXSW_SP_PB_HEADROOM * mlxsw_sp_port->mapping.width,
-		[9] = 2 * MLXSW_PORT_MAX_MTU,
+		[9] = MLXSW_PORT_MAX_MTU,
 	};
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pbmc_pl[MLXSW_REG_PBMC_LEN];
@@ -414,7 +413,6 @@ static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 	}
 
 #define MLXSW_SP1_SB_PR_INGRESS_SIZE	12440000
-#define MLXSW_SP1_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP1_SB_PR_EGRESS_SIZE	13232000
 #define MLXSW_SP1_SB_PR_CPU_SIZE	(256 * 1000)
 
@@ -424,8 +422,7 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 		       MLXSW_SP1_SB_PR_INGRESS_SIZE),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
-		       MLXSW_SP1_SB_PR_INGRESS_MNG_SIZE),
+	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
 	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
 			   MLXSW_SP1_SB_PR_EGRESS_SIZE, true, false),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC, 0),
@@ -440,7 +437,6 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 };
 
 #define MLXSW_SP2_SB_PR_INGRESS_SIZE	40960000
-#define MLXSW_SP2_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
 #define MLXSW_SP2_SB_PR_EGRESS_SIZE	40960000
 #define MLXSW_SP2_SB_PR_CPU_SIZE	(256 * 1000)
 
@@ -450,8 +446,7 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp2_sb_prs[] = {
 		       MLXSW_SP2_SB_PR_INGRESS_SIZE),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
-	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_DYNAMIC,
-		       MLXSW_SP2_SB_PR_INGRESS_MNG_SIZE),
+	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
 	MLXSW_SP_SB_PR_EXT(MLXSW_REG_SBPR_MODE_DYNAMIC,
 			   MLXSW_SP2_SB_PR_EGRESS_SIZE, true, false),
 	MLXSW_SP_SB_PR(MLXSW_REG_SBPR_MODE_STATIC, 0),
@@ -530,7 +525,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp1_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does not exist */
-	MLXSW_SP_SB_CM(20000, 1, MLXSW_SP_SB_POOL_ING_MNG),
+	MLXSW_SP_SB_CM(10000, 8, MLXSW_SP_SB_POOL_ING_CPU),
 };
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_ingress[] = {
@@ -543,7 +538,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_CM_ING(0, 0), /* dummy, this PG does not exist */
-	MLXSW_SP_SB_CM(20000, 1, MLXSW_SP_SB_POOL_ING_MNG),
+	MLXSW_SP_SB_CM(10000, 8, MLXSW_SP_SB_POOL_ING_CPU),
 };
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp1_sb_cms_egress[] = {
@@ -709,7 +704,7 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp1_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
-	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
+	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, 7),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
@@ -724,7 +719,7 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, 7),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
-	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX),
+	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 7),
 	MLXSW_SP_SB_PM(0, 0),
 	MLXSW_SP_SB_PM(0, 0),
