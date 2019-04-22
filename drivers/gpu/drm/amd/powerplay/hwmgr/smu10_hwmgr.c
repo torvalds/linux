@@ -573,7 +573,6 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
 	struct smu10_hwmgr *data = hwmgr->backend;
-	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t min_sclk = hwmgr->display_config->min_core_set_clock;
 	uint32_t min_mclk = hwmgr->display_config->min_mem_set_clock/100;
 
@@ -581,11 +580,6 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		pr_info("smu firmware version too old, can not set dpm level\n");
 		return 0;
 	}
-
-	/* Disable UMDPSTATE support on rv2 temporarily */
-	if ((adev->asic_type == CHIP_RAVEN) &&
-	    (adev->rev_id >= 8))
-		return 0;
 
 	if (min_sclk < data->gfx_min_freq_limit)
 		min_sclk = data->gfx_min_freq_limit;
