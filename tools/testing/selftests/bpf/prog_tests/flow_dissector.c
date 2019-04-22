@@ -82,8 +82,8 @@ struct test tests[] = {
 			.tcp.doff = 5,
 		},
 		.keys = {
-			.nhoff = 0,
-			.thoff = sizeof(struct iphdr),
+			.nhoff = ETH_HLEN,
+			.thoff = ETH_HLEN + sizeof(struct iphdr),
 			.addr_proto = ETH_P_IP,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IP),
@@ -98,8 +98,8 @@ struct test tests[] = {
 			.tcp.doff = 5,
 		},
 		.keys = {
-			.nhoff = 0,
-			.thoff = sizeof(struct ipv6hdr),
+			.nhoff = ETH_HLEN,
+			.thoff = ETH_HLEN + sizeof(struct ipv6hdr),
 			.addr_proto = ETH_P_IPV6,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
@@ -116,8 +116,8 @@ struct test tests[] = {
 			.tcp.doff = 5,
 		},
 		.keys = {
-			.nhoff = VLAN_HLEN,
-			.thoff = VLAN_HLEN + sizeof(struct iphdr),
+			.nhoff = ETH_HLEN + VLAN_HLEN,
+			.thoff = ETH_HLEN + VLAN_HLEN + sizeof(struct iphdr),
 			.addr_proto = ETH_P_IP,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IP),
@@ -134,8 +134,9 @@ struct test tests[] = {
 			.tcp.doff = 5,
 		},
 		.keys = {
-			.nhoff = VLAN_HLEN * 2,
-			.thoff = VLAN_HLEN * 2 + sizeof(struct ipv6hdr),
+			.nhoff = ETH_HLEN + VLAN_HLEN * 2,
+			.thoff = ETH_HLEN + VLAN_HLEN * 2 +
+				sizeof(struct ipv6hdr),
 			.addr_proto = ETH_P_IPV6,
 			.ip_proto = IPPROTO_TCP,
 			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
@@ -238,9 +239,6 @@ void test_flow_dissector(void)
 	 * We use a known path in the net/tun driver that calls
 	 * eth_get_headlen and we manually export bpf_flow_keys
 	 * via BPF map in this case.
-	 *
-	 * Note, that since eth_get_headlen operates on a L2 level,
-	 * we adjust exported nhoff/thoff by ETH_HLEN.
 	 */
 
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
@@ -261,9 +259,6 @@ void test_flow_dissector(void)
 
 		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
 		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
-
-		flow_keys.nhoff -= ETH_HLEN;
-		flow_keys.thoff -= ETH_HLEN;
 
 		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);

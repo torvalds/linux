@@ -418,9 +418,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 		retval = bpf_flow_dissect(prog, &ctx, eth->h_proto, ETH_HLEN,
 					  size);
 
-		flow_keys.nhoff -= ETH_HLEN;
-		flow_keys.thoff -= ETH_HLEN;
-
 		if (signal_pending(current)) {
 			preempt_enable();
 			rcu_read_unlock();
