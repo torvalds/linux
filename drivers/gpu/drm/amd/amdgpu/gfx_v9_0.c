@@ -2405,8 +2405,6 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 	/* disable CG */
 	WREG32_SOC15(GC, 0, mmRLC_CGCG_CGLS_CTRL, 0);
 
-	adev->gfx.rlc.funcs->reset(adev);
-
 	gfx_v9_0_init_pg(adev);
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {

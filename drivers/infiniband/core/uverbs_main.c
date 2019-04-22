@@ -993,6 +993,8 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 		 * will only be one mm, so no big deal.
 		 */
 		down_write(&mm->mmap_sem);
+		if (!mmget_still_valid(mm))
+			goto skip_mm;
 		mutex_lock(&ufile->umap_lock);
 		list_for_each_entry_safe (priv, next_priv, &ufile->umaps,
 					  list) {
@@ -1007,6 +1009,7 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 			vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
 		}
 		mutex_unlock(&ufile->umap_lock);
+	skip_mm:
 		up_write(&mm->mmap_sem);
 		mmput(mm);
 	}

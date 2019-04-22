@@ -7183,6 +7183,11 @@ void cfg80211_pmsr_complete(struct wireless_dev *wdev,
 #define wiphy_info(wiphy, format, args...)			\
 	dev_info(&(wiphy)->dev, format, ##args)
 
+#define wiphy_err_ratelimited(wiphy, format, args...)		\
+	dev_err_ratelimited(&(wiphy)->dev, format, ##args)
+#define wiphy_warn_ratelimited(wiphy, format, args...)		\
+	dev_warn_ratelimited(&(wiphy)->dev, format, ##args)
+
 #define wiphy_debug(wiphy, format, args...)			\
 	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)
 

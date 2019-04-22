@@ -32,10 +32,6 @@
 #include "liburing.h"
 #include "barrier.h"
 
-#ifndef IOCQE_FLAG_CACHEHIT
-#define IOCQE_FLAG_CACHEHIT	(1U << 0)
-#endif
-
 #define min(a, b)		((a < b) ? (a) : (b))
 
 struct io_sq_ring {
@@ -85,7 +81,6 @@ struct submitter {
 	unsigned long reaps;
 	unsigned long done;
 	unsigned long calls;
-	unsigned long cachehit, cachemiss;
 	volatile int finish;
 
 	__s32 *fds;
@@ -270,10 +265,6 @@ static int reap_events(struct submitter *s)
 				return -1;
 			}
 		}
-		if (cqe->flags & IOCQE_FLAG_CACHEHIT)
-			s->cachehit++;
-		else
-			s->cachemiss++;
 		reaped++;
 		head++;
 	} while (1);
@@ -489,7 +480,7 @@ static void file_depths(char *buf)
 int main(int argc, char *argv[])
 {
 	struct submitter *s = &submitters[0];
-	unsigned long done, calls, reap, cache_hit, cache_miss;
+	unsigned long done, calls, reap;
 	int err, i, flags, fd;
 	char *fdepths;
 	void *ret;
@@ -569,44 +560,29 @@ int main(int argc, char *argv[])
 	pthread_create(&s->thread, NULL, submitter_fn, s);
 
 	fdepths = malloc(8 * s->nr_files);
-	cache_hit = cache_miss = reap = calls = done = 0;
+	reap = calls = done = 0;
 	do {
 		unsigned long this_done = 0;
 		unsigned long this_reap = 0;
 		unsigned long this_call = 0;
-		unsigned long this_cache_hit = 0;
-		unsigned long this_cache_miss = 0;
 		unsigned long rpc = 0, ipc = 0;
-		double hit = 0.0;
 
 		sleep(1);
 		this_done += s->done;
 		this_call += s->calls;
 		this_reap += s->reaps;
-		this_cache_hit += s->cachehit;
-		this_cache_miss += s->cachemiss;
-		if (this_cache_hit && this_cache_miss) {
-			unsigned long hits, total;
-
-			hits = this_cache_hit - cache_hit;
-			total = hits + this_cache_miss - cache_miss;
-			hit = (double) hits / (double) total;
-			hit *= 100.0;
-		}
 		if (this_call - calls) {
 			rpc = (this_done - done) / (this_call - calls);
 			ipc = (this_reap - reap) / (this_call - calls);
 		} else
 			rpc = ipc = -1;
 		file_depths(fdepths);
-		printf("IOPS=%lu, IOS/call=%ld/%ld, inflight=%u (%s), Cachehit=%0.2f%%\n",
+		printf("IOPS=%lu, IOS/call=%ld/%ld, inflight=%u (%s)\n",
 				this_done - done, rpc, ipc, s->inflight,
-				fdepths, hit);
+				fdepths);
 		done = this_done;
 		calls = this_call;
 		reap = this_reap;
-		cache_hit = s->cachehit;
-		cache_miss = s->cachemiss;
 	} while (!finish);
 
 	pthread_join(s->thread, &ret);

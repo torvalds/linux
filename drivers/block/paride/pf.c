@@ -763,6 +763,8 @@ static int pf_detect(void)
 
 	printk("%s: No ATAPI disk detected\n", name);
 	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
+		if (!pf->disk)
+			continue;
 		blk_cleanup_queue(pf->disk->queue);
 		pf->disk->queue = NULL;
 		blk_mq_free_tag_set(&pf->tag_set);
@@ -1030,8 +1032,13 @@ static int __init pf_init(void)
 	pf_busy = 0;
 
 	if (register_blkdev(major, name)) {
-		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++)
+		for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
+			if (!pf->disk)
+				continue;
+			blk_cleanup_queue(pf->disk->queue);
+			blk_mq_free_tag_set(&pf->tag_set);
 			put_disk(pf->disk);
+		}
 		return -EBUSY;
 	}
 
@@ -1052,6 +1059,9 @@ static void __exit pf_exit(void)
 	int unit;
 	unregister_blkdev(major, name);
 	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
+		if (!pf->disk)
+			continue;
+
 		if (pf->present)
 			del_gendisk(pf->disk);
 

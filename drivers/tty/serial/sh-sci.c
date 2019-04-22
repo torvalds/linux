@@ -2512,14 +2512,16 @@ done:
 			 * center of the last stop bit in sampling clocks.
 			 */
 			int last_stop = bits * 2 - 1;
-			int deviation = min_err * srr * last_stop / 2 / baud;
+			int deviation = DIV_ROUND_CLOSEST(min_err * last_stop *
+							  (int)(srr + 1),
+							  2 * (int)baud);
 
 			if (abs(deviation) >= 2) {
 				/* At least two sampling clocks off at the
 				 * last stop bit; we can increase the error
 				 * margin by shifting the sampling point.
 				 */
-				int shift = min(-8, max(7, deviation / 2));
+				int shift = clamp(deviation / 2, -8, 7);
 
 				hssrr |= (shift << HSCIF_SRHP_SHIFT) &
 					 HSCIF_SRHP_MASK;

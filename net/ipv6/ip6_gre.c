@@ -525,10 +525,10 @@ static int ip6gre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 }
 
 static int ip6erspan_rcv(struct sk_buff *skb,
-			 struct tnl_ptk_info *tpi)
+			 struct tnl_ptk_info *tpi,
+			 int gre_hdr_len)
 {
 	struct erspan_base_hdr *ershdr;
-	struct erspan_metadata *pkt_md;
 	const struct ipv6hdr *ipv6h;
 	struct erspan_md2 *md2;
 	struct ip6_tnl *tunnel;
@@ -547,18 +547,16 @@ static int ip6erspan_rcv(struct sk_buff *skb,
 		if (unlikely(!pskb_may_pull(skb, len)))
 			return PACKET_REJECT;
 
-		ershdr = (struct erspan_base_hdr *)skb->data;
-		pkt_md = (struct erspan_metadata *)(ershdr + 1);
-
 		if (__iptunnel_pull_header(skb, len,
 					   htons(ETH_P_TEB),
 					   false, false) < 0)
 			return PACKET_REJECT;
 
 		if (tunnel->parms.collect_md) {
+			struct erspan_metadata *pkt_md, *md;
 			struct metadata_dst *tun_dst;
 			struct ip_tunnel_info *info;
-			struct erspan_metadata *md;
+			unsigned char *gh;
 			__be64 tun_id;
 			__be16 flags;
 
@@ -571,6 +569,14 @@ static int ip6erspan_rcv(struct sk_buff *skb,
 			if (!tun_dst)
 				return PACKET_REJECT;
 
+			/* skb can be uncloned in __iptunnel_pull_header, so
+			 * old pkt_md is no longer valid and we need to reset
+			 * it
+			 */
+			gh = skb_network_header(skb) +
+			     skb_network_header_len(skb);
+			pkt_md = (struct erspan_metadata *)(gh + gre_hdr_len +
+							    sizeof(*ershdr));
 			info = &tun_dst->u.tun_info;
 			md = ip_tunnel_info_opts(info);
 			md->version = ver;
@@ -607,7 +613,7 @@ static int gre_rcv(struct sk_buff *skb)
 
 	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN) ||
 		     tpi.proto == htons(ETH_P_ERSPAN2))) {
-		if (ip6erspan_rcv(skb, &tpi) == PACKET_RCVD)
+		if (ip6erspan_rcv(skb, &tpi, hdr_len) == PACKET_RCVD)
 			return 0;
 		goto out;
 	}
