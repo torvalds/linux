@@ -786,11 +786,13 @@ static int qedf_eh_device_reset(struct scsi_cmnd *sc_cmd)
 bool qedf_wait_for_upload(struct qedf_ctx *qedf)
 {
 	struct qedf_rport *fcport = NULL;
+	int wait_cnt = 120;
 
-	while (1) {
+	while (wait_cnt--) {
 		if (atomic_read(&qedf->num_offloads))
-			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Waiting for all uploads to complete.\n");
+			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+				  "Waiting for all uploads to complete num_offloads = 0x%x.\n",
+				  atomic_read(&qedf->num_offloads));
 		else
 			return true;
 		msleep(500);
