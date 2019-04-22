@@ -503,6 +503,8 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
 		.min_buff = _min_buff,			\
 		.max_buff = _max_buff,			\
 		.pool_index = MLXSW_SP_SB_POOL_EGR_MC,	\
+		.freeze_pool = true,			\
+		.freeze_thresh = true,			\
 	}
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp1_sb_cms_ingress[] = {
