@@ -295,6 +295,11 @@ struct bpf_verifier_env {
 	const struct bpf_line_info *prev_linfo;
 	struct bpf_verifier_log log;
 	struct bpf_subprog_info subprog_info[BPF_MAX_SUBPROGS + 1];
+	struct {
+		int *insn_state;
+		int *insn_stack;
+		int cur_stack;
+	} cfg;
 	u32 subprog_cnt;
 	/* number of instructions analyzed by the verifier */
 	u32 insn_processed;
