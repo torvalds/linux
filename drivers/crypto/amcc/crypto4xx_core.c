@@ -714,7 +714,23 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	size_t offset_to_sr_ptr;
 	u32 gd_idx = 0;
 	int tmp;
-	bool is_busy;
+	bool is_busy, force_sd;
+
+	/*
+	 * There's a very subtile/disguised "bug" in the hardware that
+	 * gets indirectly mentioned in 18.1.3.5 Encryption/Decryption
+	 * of the hardware spec:
+	 * *drum roll* the AES/(T)DES OFB and CFB modes are listed as
+	 * operation modes for >>> "Block ciphers" <<<.
+	 *
+	 * To workaround this issue and stop the hardware from causing
+	 * "overran dst buffer" on crypttexts that are not a multiple
+	 * of 16 (AES_BLOCK_SIZE), we force the driver to use the
+	 * scatter buffers.
+	 */
+	force_sd = (req_sa->sa_command_1.bf.crypto_mode9_8 == CRYPTO_MODE_CFB
+		|| req_sa->sa_command_1.bf.crypto_mode9_8 == CRYPTO_MODE_OFB)
+		&& (datalen % AES_BLOCK_SIZE);
 
 	/* figure how many gd are needed */
 	tmp = sg_nents_for_len(src, assoclen + datalen);
@@ -732,7 +748,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	}
 
 	/* figure how many sd are needed */
-	if (sg_is_last(dst)) {
+	if (sg_is_last(dst) && force_sd == false) {
 		num_sd = 0;
 	} else {
 		if (datalen > PPC4XX_SD_BUFFER_SIZE) {
@@ -807,9 +823,10 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	pd->sa_len = sa_len;
 
 	pd_uinfo = &dev->pdr_uinfo[pd_entry];
-	pd_uinfo->async_req = req;
 	pd_uinfo->num_gd = num_gd;
 	pd_uinfo->num_sd = num_sd;
+	pd_uinfo->dest_va = dst;
+	pd_uinfo->async_req = req;
 
 	if (iv_len)
 		memcpy(pd_uinfo->sr_va->save_iv, iv, iv_len);
@@ -828,7 +845,6 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		/* get first gd we are going to use */
 		gd_idx = fst_gd;
 		pd_uinfo->first_gd = fst_gd;
-		pd_uinfo->num_gd = num_gd;
 		gd = crypto4xx_get_gdp(dev, &gd_dma, gd_idx);
 		pd->src = gd_dma;
 		/* enable gather */
@@ -865,17 +881,14 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		 * Indicate gather array is not used
 		 */
 		pd_uinfo->first_gd = 0xffffffff;
-		pd_uinfo->num_gd = 0;
 	}
-	if (sg_is_last(dst)) {
+	if (!num_sd) {
 		/*
 		 * we know application give us dst a whole piece of memory
 		 * no need to use scatter ring.
 		 */
 		pd_uinfo->using_sd = 0;
 		pd_uinfo->first_sd = 0xffffffff;
-		pd_uinfo->num_sd = 0;
-		pd_uinfo->dest_va = dst;
 		sa->sa_command_0.bf.scatter = 0;
 		pd->dest = (u32)dma_map_page(dev->core_dev->device,
 					     sg_page(dst), dst->offset,
@@ -889,9 +902,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		nbytes = datalen;
 		sa->sa_command_0.bf.scatter = 1;
 		pd_uinfo->using_sd = 1;
-		pd_uinfo->dest_va = dst;
 		pd_uinfo->first_sd = fst_sd;
-		pd_uinfo->num_sd = num_sd;
 		sd = crypto4xx_get_sdp(dev, &sd_dma, sd_idx);
 		pd->dest = sd_dma;
 		/* setup scatter descriptor */
