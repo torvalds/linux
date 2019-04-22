@@ -1705,7 +1705,9 @@ void dcn20_set_mcif_arb_params(
 	}
 }
 
-bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context)
+bool dcn20_validate_bandwidth(struct dc *dc,
+			      struct dc_state *context,
+			      bool fast_validate)
 {
 	int pipe_cnt, i, pipe_idx, vlevel, vlevel_unsplit;
 	int pipe_split_from[MAX_PIPES];
