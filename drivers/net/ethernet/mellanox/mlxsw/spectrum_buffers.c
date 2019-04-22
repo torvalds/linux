@@ -730,14 +730,20 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
 };
 
 static int mlxsw_sp_sb_pms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-				const struct mlxsw_sp_sb_pm *pms)
+				const struct mlxsw_sp_sb_pm *pms,
+				bool skip_ingress)
 {
 	int i, err;
 
 	for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 		const struct mlxsw_sp_sb_pm *pm = &pms[i];
+		const struct mlxsw_sp_sb_pool_des *des;
 		u32 max_buff;
 		u32 min_buff;
+
+		des = &mlxsw_sp->sb_vals->pool_dess[i];
+		if (skip_ingress && des->dir == MLXSW_REG_SBXX_DIR_INGRESS)
+			continue;
 
 		min_buff = mlxsw_sp_bytes_cells(mlxsw_sp, pm->min_buff);
 		max_buff = pm->max_buff;
@@ -756,7 +762,7 @@ static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
 	return mlxsw_sp_sb_pms_init(mlxsw_sp, mlxsw_sp_port->local_port,
-				    mlxsw_sp->sb_vals->pms);
+				    mlxsw_sp->sb_vals->pms, false);
 }
 
 #define MLXSW_SP_SB_MM(_min_buff, _max_buff)		\
