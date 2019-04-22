@@ -458,6 +458,12 @@ static inline void qedf_stop_all_io(struct qedf_ctx *qedf)
 /*
  * Externs
  */
+
+/*
+ * (QEDF_LOG_NPIV | QEDF_LOG_SESS | QEDF_LOG_LPORT | QEDF_LOG_ELS | QEDF_LOG_MQ
+ * | QEDF_LOG_IO | QEDF_LOG_UNSOL | QEDF_LOG_SCSI_TM | QEDF_LOG_MP_REQ |
+ * QEDF_LOG_EVT | QEDF_LOG_CONN | QEDF_LOG_DISC | QEDF_LOG_INFO)
+ */
 #define QEDF_DEFAULT_LOG_MASK		0x3CFB6
 extern const struct qed_fcoe_ops *qed_ops;
 extern uint qedf_dump_frames;
