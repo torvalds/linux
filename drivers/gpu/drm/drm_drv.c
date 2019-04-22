@@ -692,7 +692,7 @@ int drm_dev_init(struct drm_device *dev,
 	if (ret)
 		goto err_minors;
 
-	ret = drm_ht_create(&dev->map_hash, 12);
+	ret = drm_legacy_create_map_hash(dev);
 	if (ret)
 		goto err_minors;
 
@@ -717,7 +717,7 @@ err_setunique:
 		drm_gem_destroy(dev);
 err_ctxbitmap:
 	drm_legacy_ctxbitmap_cleanup(dev);
-	drm_ht_remove(&dev->map_hash);
+	drm_legacy_remove_map_hash(dev);
 err_minors:
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
@@ -792,7 +792,7 @@ void drm_dev_fini(struct drm_device *dev)
 		drm_gem_destroy(dev);
 
 	drm_legacy_ctxbitmap_cleanup(dev);
-	drm_ht_remove(&dev->map_hash);
+	drm_legacy_remove_map_hash(dev);
 	drm_fs_inode_free(dev->anon_inode);
 
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);

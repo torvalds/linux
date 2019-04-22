@@ -63,6 +63,16 @@ int drm_legacy_getsareactx(struct drm_device *d, void *v, struct drm_file *f);
 
 #define DRM_MAP_HASH_OFFSET 0x10000000
 
+static inline int drm_legacy_create_map_hash(struct drm_device *dev)
+{
+	return drm_ht_create(&dev->map_hash, 12);
+}
+
+static inline void drm_legacy_remove_map_hash(struct drm_device *dev)
+{
+	drm_ht_remove(&dev->map_hash);
+}
+
 int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 int drm_legacy_addmap_ioctl(struct drm_device *d, void *v, struct drm_file *f);
