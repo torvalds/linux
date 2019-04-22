@@ -1004,6 +1004,78 @@ static const struct amdgpu_ring_funcs vcn_v2_5_enc_ring_vm_funcs = {
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
+/**
+ * vcn_v2_5_jpeg_ring_get_rptr - get read pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware read pointer
+ */
+static uint64_t vcn_v2_5_jpeg_ring_get_rptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	return RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR);
+}
+
+/**
+ * vcn_v2_5_jpeg_ring_get_wptr - get write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware write pointer
+ */
+static uint64_t vcn_v2_5_jpeg_ring_get_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	return RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
+}
+
+/**
+ * vcn_v2_5_jpeg_ring_set_wptr - set write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Commits the write pointer to the hardware
+ */
+static void vcn_v2_5_jpeg_ring_set_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, lower_32_bits(ring->wptr));
+}
+
+static const struct amdgpu_ring_funcs vcn_v2_5_jpeg_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_VCN_JPEG,
+	.align_mask = 0xf,
+	.vmhub = AMDGPU_MMHUB_1,
+	.get_rptr = vcn_v2_5_jpeg_ring_get_rptr,
+	.get_wptr = vcn_v2_5_jpeg_ring_get_wptr,
+	.set_wptr = vcn_v2_5_jpeg_ring_set_wptr,
+	.emit_frame_size =
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
+		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
+		8 + /* vcn_v2_0_jpeg_ring_emit_vm_flush */
+		18 + 18 + /* vcn_v2_0_jpeg_ring_emit_fence x2 vm fence */
+		8 + 16,
+	.emit_ib_size = 22, /* vcn_v2_0_jpeg_ring_emit_ib */
+	.emit_ib = vcn_v2_0_jpeg_ring_emit_ib,
+	.emit_fence = vcn_v2_0_jpeg_ring_emit_fence,
+	.emit_vm_flush = vcn_v2_0_jpeg_ring_emit_vm_flush,
+	.test_ring = amdgpu_vcn_jpeg_ring_test_ring,
+	.test_ib = amdgpu_vcn_jpeg_ring_test_ib,
+	.insert_nop = vcn_v2_0_jpeg_ring_nop,
+	.insert_start = vcn_v2_0_jpeg_ring_insert_start,
+	.insert_end = vcn_v2_0_jpeg_ring_insert_end,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_vcn_ring_begin_use,
+	.end_use = amdgpu_vcn_ring_end_use,
+	.emit_wreg = vcn_v2_0_jpeg_ring_emit_wreg,
+	.emit_reg_wait = vcn_v2_0_jpeg_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
+};
+
 static void vcn_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->vcn.ring_dec.funcs = &vcn_v2_5_dec_ring_vm_funcs;
@@ -1018,6 +1090,12 @@ static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev)
 		adev->vcn.ring_enc[i].funcs = &vcn_v2_5_enc_ring_vm_funcs;
 
 	DRM_INFO("VCN encode is enabled in VM mode\n");
+}
+
+static void vcn_v2_5_set_jpeg_ring_funcs(struct amdgpu_device *adev)
+{
+	adev->vcn.ring_jpeg.funcs = &vcn_v2_5_jpeg_ring_vm_funcs;
+	DRM_INFO("VCN jpeg decode is enabled in VM mode\n");
 }
 
 static bool vcn_v2_5_is_idle(void *handle)
