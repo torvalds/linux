@@ -6,6 +6,7 @@
 #include <linux/dcbnl.h>
 #include <linux/if_ether.h>
 #include <linux/list.h>
+#include <linux/netlink.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -900,14 +901,17 @@ int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
 
 int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 			 unsigned int sb_index, u16 pool_index, u32 size,
-			 enum devlink_sb_threshold_type threshold_type)
+			 enum devlink_sb_threshold_type threshold_type,
+			 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u32 pool_size = mlxsw_sp_bytes_cells(mlxsw_sp, size);
 	enum mlxsw_reg_sbpr_mode mode;
 
-	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE))
+	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE)) {
+		NL_SET_ERR_MSG_MOD(extack, "Exceeded shared buffer size");
 		return -EINVAL;
+	}
 
 	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
 	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool_index, mode,
@@ -927,7 +931,8 @@ static u32 mlxsw_sp_sb_threshold_out(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
 }
 
 static int mlxsw_sp_sb_threshold_in(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
-				    u32 threshold, u32 *p_max_buff)
+				    u32 threshold, u32 *p_max_buff,
+				    struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_sb_pr *pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool_index);
 
@@ -936,8 +941,10 @@ static int mlxsw_sp_sb_threshold_in(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
 
 		val = threshold + MLXSW_SP_SB_THRESHOLD_TO_ALPHA_OFFSET;
 		if (val < MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN ||
-		    val > MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX)
+		    val > MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid dynamic threshold value");
 			return -EINVAL;
+		}
 		*p_max_buff = val;
 	} else {
 		*p_max_buff = mlxsw_sp_bytes_cells(mlxsw_sp, threshold);
@@ -963,7 +970,7 @@ int mlxsw_sp_sb_port_pool_get(struct mlxsw_core_port *mlxsw_core_port,
 
 int mlxsw_sp_sb_port_pool_set(struct mlxsw_core_port *mlxsw_core_port,
 			      unsigned int sb_index, u16 pool_index,
-			      u32 threshold)
+			      u32 threshold, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port =
 			mlxsw_core_port_driver_priv(mlxsw_core_port);
@@ -973,7 +980,7 @@ int mlxsw_sp_sb_port_pool_set(struct mlxsw_core_port *mlxsw_core_port,
 	int err;
 
 	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool_index,
-				       threshold, &max_buff);
+				       threshold, &max_buff, extack);
 	if (err)
 		return err;
 
@@ -1004,7 +1011,8 @@ int mlxsw_sp_sb_tc_pool_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 				 unsigned int sb_index, u16 tc_index,
 				 enum devlink_sb_pool_type pool_type,
-				 u16 pool_index, u32 threshold)
+				 u16 pool_index, u32 threshold,
+				 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port =
 			mlxsw_core_port_driver_priv(mlxsw_core_port);
@@ -1015,11 +1023,13 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	u32 max_buff;
 	int err;
 
-	if (dir != mlxsw_sp->sb_vals->pool_dess[pool_index].dir)
+	if (dir != mlxsw_sp->sb_vals->pool_dess[pool_index].dir) {
+		NL_SET_ERR_MSG_MOD(extack, "Binding egress TC to ingress pool and vice versa is forbidden");
 		return -EINVAL;
+	}
 
 	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool_index,
-				       threshold, &max_buff);
+				       threshold, &max_buff, extack);
 	if (err)
 		return err;
 
