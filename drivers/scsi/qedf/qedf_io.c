@@ -1859,9 +1859,9 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 	if (!test_bit(QEDF_CMD_OUTSTANDING, &io_req->flags) ||
 	    test_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags) ||
 	    test_bit(QEDF_CMD_IN_ABORT, &io_req->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "io_req xid=0x%x already in "
-			  "cleanup or abort processing or already "
-			  "completed.\n", io_req->xid);
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "io_req xid=0x%x sc_cmd=%p already in cleanup or abort processing or already completed.\n",
+			 io_req->xid, io_req->sc_cmd);
 		rc = 1;
 		goto drop_rdata_kref;
 	}
