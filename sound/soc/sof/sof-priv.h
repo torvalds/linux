@@ -547,7 +547,7 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 			    enum sof_debugfs_access_type access_type);
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 			     void *base, size_t size,
-			     const char *name);
+			     const char *name, mode_t mode);
 int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 			     struct sof_ipc_dma_trace_posn *posn);
 void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev);
