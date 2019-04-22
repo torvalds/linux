@@ -2154,9 +2154,9 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	refcount = kref_read(&io_req->refcount);
 
 	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
-		  "Entered xid=0x%x sc_cmd=%p cmd_type=%d flags=0x%lx refcount=%d\n",
+		  "Entered xid=0x%x sc_cmd=%p cmd_type=%d flags=0x%lx refcount=%d fcport=%p port_id=0x%06x\n",
 		  io_req->xid, io_req->sc_cmd, io_req->cmd_type, io_req->flags,
-		  refcount);
+		  refcount, fcport, fcport->rdata->ids.port_id);
 
 	/* Cleanup cmds re-use the same TID as the original I/O */
 	xid = io_req->xid;
