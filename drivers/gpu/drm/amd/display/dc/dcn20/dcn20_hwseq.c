@@ -467,6 +467,14 @@ static void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
+	/* In flip immediate with pipe splitting case GSL is used for
+	 * synchronization so we must disable it when the plane is disabled.
+	 */
+	if (pipe_ctx->stream_res.gsl_group != 0)
+		dcn20_setup_gsl_group_as_lock(dc, pipe_ctx, false);
+
+	dc->hwss.set_flip_control_gsl(pipe_ctx, false);
+
 	hubp->funcs->hubp_clk_cntl(hubp, false);
 
 	dpp->funcs->dpp_dppclk_control(dpp, false, false);
@@ -1900,14 +1908,14 @@ static int find_free_gsl_group(const struct dc *dc)
 void dcn20_setup_gsl_group_as_lock(
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		bool flip_immediate)
+		bool enable)
 {
 	struct gsl_params gsl;
 	int group_idx;
 
 	memset(&gsl, 0, sizeof(struct gsl_params));
 
-	if (flip_immediate) {
+	if (enable) {
 		/* return if group already assigned since GSL was set up
 		 * for vsync flip, we would unassign so it can't be "left over"
 		 */
@@ -1973,8 +1981,7 @@ void dcn20_setup_gsl_group_as_lock(
 			&gsl);
 
 		pipe_ctx->stream_res.tg->funcs->set_gsl_source_select(
-			pipe_ctx->stream_res.tg, group_idx,
-			flip_immediate ? 4 : 0);
+			pipe_ctx->stream_res.tg, group_idx,	enable ? 4 : 0);
 	} else
 		BREAK_TO_DEBUGGER();
 }
