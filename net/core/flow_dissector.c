@@ -683,22 +683,6 @@ static void __skb_flow_bpf_to_target(const struct bpf_flow_keys *flow_keys,
 	}
 }
 
-bool __skb_flow_bpf_dissect(struct bpf_prog *prog,
-			    const struct sk_buff *skb,
-			    struct flow_dissector *flow_dissector,
-			    struct bpf_flow_keys *flow_keys)
-{
-	struct bpf_flow_dissector ctx = {
-		.flow_keys = flow_keys,
-		.skb = skb,
-		.data = skb->data,
-		.data_end = skb->data + skb_headlen(skb),
-	};
-
-	return bpf_flow_dissect(prog, &ctx, skb->protocol,
-				skb_network_offset(skb), skb_headlen(skb));
-}
-
 bool bpf_flow_dissect(struct bpf_prog *prog, struct bpf_flow_dissector *ctx,
 		      __be16 proto, int nhoff, int hlen)
 {
@@ -753,6 +737,7 @@ bool __skb_flow_dissect(const struct net *net,
 	struct flow_dissector_key_icmp *key_icmp;
 	struct flow_dissector_key_tags *key_tags;
 	struct flow_dissector_key_vlan *key_vlan;
+	struct bpf_prog *attached = NULL;
 	enum flow_dissect_ret fdret;
 	enum flow_dissector_key_id dissector_vlan = FLOW_DISSECTOR_KEY_MAX;
 	int num_hdrs = 0;
@@ -795,26 +780,39 @@ bool __skb_flow_dissect(const struct net *net,
 					      target_container);
 
 	if (skb) {
-		struct bpf_flow_keys flow_keys;
-		struct bpf_prog *attached = NULL;
-
-		rcu_read_lock();
 		if (!net) {
 			if (skb->dev)
 				net = dev_net(skb->dev);
 			else if (skb->sk)
 				net = sock_net(skb->sk);
-			else
-				WARN_ON_ONCE(1);
 		}
+	}
 
-		if (net)
-			attached = rcu_dereference(net->flow_dissector_prog);
+	WARN_ON_ONCE(!net);
+	if (net) {
+		rcu_read_lock();
+		attached = rcu_dereference(net->flow_dissector_prog);
 
 		if (attached) {
-			ret = __skb_flow_bpf_dissect(attached, skb,
-						     flow_dissector,
-						     &flow_keys);
+			struct bpf_flow_keys flow_keys;
+			struct bpf_flow_dissector ctx = {
+				.flow_keys = &flow_keys,
+				.data = data,
+				.data_end = data + hlen,
+			};
+			__be16 n_proto = proto;
+
+			if (skb) {
+				ctx.skb = skb;
+				/* we can't use 'proto' in the skb case
+				 * because it might be set to skb->vlan_proto
+				 * which has been pulled from the data
+				 */
+				n_proto = skb->protocol;
+			}
+
+			ret = bpf_flow_dissect(attached, &ctx, n_proto, nhoff,
+					       hlen);
 			__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
 						 target_container);
 			rcu_read_unlock();
