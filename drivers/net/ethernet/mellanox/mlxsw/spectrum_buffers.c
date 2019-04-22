@@ -16,6 +16,8 @@
 struct mlxsw_sp_sb_pr {
 	enum mlxsw_reg_sbpr_mode mode;
 	u32 size;
+	u8 freeze_mode:1,
+	   freeze_size:1;
 };
 
 struct mlxsw_cp_sb_occ {
@@ -932,14 +934,27 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u32 pool_size = mlxsw_sp_bytes_cells(mlxsw_sp, size);
+	const struct mlxsw_sp_sb_pr *pr;
 	enum mlxsw_reg_sbpr_mode mode;
+
+	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
+	pr = &mlxsw_sp->sb_vals->prs[pool_index];
 
 	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Exceeded shared buffer size");
 		return -EINVAL;
 	}
 
-	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
+	if (pr->freeze_mode && pr->mode != mode) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing this pool's threshold type is forbidden");
+		return -EINVAL;
+	};
+
+	if (pr->freeze_size && pr->size != size) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing this pool's size is forbidden");
+		return -EINVAL;
+	};
+
 	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool_index, mode,
 				    pool_size, false);
 }
