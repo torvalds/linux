@@ -136,5 +136,8 @@ int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
 int drm_legacy_sg_free(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 
+void drm_legacy_init_members(struct drm_device *dev);
+void drm_legacy_destroy_members(struct drm_device *dev);
+
 void drm_legacy_lock_master_cleanup(struct drm_device *dev, struct drm_master *master);
 #endif /* __DRM_LEGACY_H__ */

@@ -659,20 +659,16 @@ int drm_dev_init(struct drm_device *dev,
 	/* no per-device feature limits by default */
 	dev->driver_features = ~0u;
 
+	drm_legacy_init_members(dev);
 	INIT_LIST_HEAD(&dev->filelist);
 	INIT_LIST_HEAD(&dev->filelist_internal);
 	INIT_LIST_HEAD(&dev->clientlist);
-	INIT_LIST_HEAD(&dev->ctxlist);
-	INIT_LIST_HEAD(&dev->vmalist);
-	INIT_LIST_HEAD(&dev->maplist);
 	INIT_LIST_HEAD(&dev->vblank_event_list);
 
-	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->filelist_mutex);
 	mutex_init(&dev->clientlist_mutex);
-	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
 	dev->anon_inode = drm_fs_inode_new();
@@ -725,10 +721,10 @@ err_minors:
 err_free:
 	put_device(dev->dev);
 	mutex_destroy(&dev->master_mutex);
-	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
+	drm_legacy_destroy_members(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_init);
@@ -801,10 +797,10 @@ void drm_dev_fini(struct drm_device *dev)
 	put_device(dev->dev);
 
 	mutex_destroy(&dev->master_mutex);
-	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
+	drm_legacy_destroy_members(dev);
 	kfree(dev->unique);
 }
 EXPORT_SYMBOL(drm_dev_fini);
