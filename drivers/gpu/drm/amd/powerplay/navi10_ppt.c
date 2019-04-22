@@ -650,6 +650,27 @@ static int navi10_get_clock_by_type_with_latency(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_pre_display_config_changed(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t max_freq = 0;
+
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
+	if (ret)
+		return ret;
+
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+		ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &max_freq);
+		if (ret)
+			return ret;
+		ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, max_freq);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -669,6 +690,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.force_clk_levels = navi10_force_clk_levels,
 	.populate_umd_state_clk = navi10_populate_umd_state_clk,
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
+	.pre_display_config_changed = navi10_pre_display_config_changed,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
