@@ -2,16 +2,22 @@ Kernel driver isl68137
 ======================
 
 Supported chips:
+
   * Intersil ISL68137
+
     Prefix: 'isl68137'
+
     Addresses scanned: -
-    Datasheet: Publicly available at the Intersil website
+
+    Datasheet:
+
+      Publicly available at the Intersil website
       https://www.intersil.com/content/dam/Intersil/documents/isl6/isl68137.pdf
 
 Authors:
-        Maxim Sloyko <maxims@google.com>
-        Robert Lippert <rlippert@google.com>
-        Patrick Venture <venture@google.com>
+      - Maxim Sloyko <maxims@google.com>
+      - Robert Lippert <rlippert@google.com>
+      - Patrick Venture <venture@google.com>
 
 Description
 -----------
@@ -32,6 +38,7 @@ Beyond the normal sysfs pmbus attributes, the driver exposes a control attribute
 Additional Sysfs attributes
 ---------------------------
 
+======================= ====================================
 avs(0|1)_enable		Controls the AVS state of each rail.
 
 curr1_label		"iin"
@@ -70,3 +77,4 @@ temp[1-3]_crit		Critical high temperature
 temp[1-3]_crit_alarm	Chip temperature critical high alarm
 temp[1-3]_max		Maximum temperature
 temp[1-3]_max_alarm	Chip temperature high alarm
+======================= ====================================

@@ -1,5 +1,5 @@
 Kernel Driver Lochnagar
-========================
+=======================
 
 Supported systems:
   * Cirrus Logic : Lochnagar 2
@@ -21,6 +21,7 @@ by software.
 Sysfs attributes
 ----------------
 
+======================= =======================================================
 temp1_input             The Lochnagar board temperature (milliCelsius)
 in0_input               Measured voltage for DBVDD1 (milliVolts)
 in0_label               "DBVDD1"
@@ -76,5 +77,7 @@ curr8_label             "MICVDD"
 power8_average          Measured average power for MICVDD (microWatts)
 power8_average_interval Power averaging time input valid from 1 to 1708mS
 power8_label            "MICVDD"
+======================= =======================================================
 
-Note: It is not possible to measure voltage on the SYSVDD rail.
+Note:
+    It is not possible to measure voltage on the SYSVDD rail.

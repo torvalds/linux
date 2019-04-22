@@ -65,6 +65,8 @@ Hardware Monitoring Kernel Drivers
    ina2xx.rst
    ina3221.rst
    ir35221.rst
+   ir38064.rst
+   isl68137.rst
    it87.rst
    jc42.rst
    k10temp.rst
@@ -86,6 +88,7 @@ Hardware Monitoring Kernel Drivers
    lm93.rst
    lm95234.rst
    lm95245.rst
+   lochnagar.rst
    ltc2945.rst
    ltc2978.rst
    ltc2990.rst
