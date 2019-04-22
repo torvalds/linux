@@ -82,7 +82,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 
 		unsigned long pgd_base;
 
-		pgd_base = __va(get_pgd());
+		pgd_base = (unsigned long)__va(get_pgd());
 		pgd = (pgd_t *)pgd_base + offset;
 		pgd_k = init_mm.pgd + offset;
 
