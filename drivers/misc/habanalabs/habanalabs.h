@@ -489,6 +489,8 @@ enum hl_pll_frequency {
  * @pci_bars_map: Map PCI BARs.
  * @set_dram_bar_base: Set DRAM BAR to map specific device address.
  * @init_iatu: Initialize the iATU unit inside the PCI controller.
+ * @rreg: Read a register. Needed for simulator support.
+ * @wreg: Write a register. Needed for simulator support.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -564,6 +566,8 @@ struct hl_asic_funcs {
 	int (*pci_bars_map)(struct hl_device *hdev);
 	int (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
 	int (*init_iatu)(struct hl_device *hdev);
+	u32 (*rreg)(struct hl_device *hdev, u32 reg);
+	void (*wreg)(struct hl_device *hdev, u32 reg, u32 val);
 };
 
 
@@ -1007,13 +1011,10 @@ struct hl_dbg_device_entry {
 u32 hl_rreg(struct hl_device *hdev, u32 reg);
 void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 
-#define hl_poll_timeout(hdev, addr, val, cond, sleep_us, timeout_us) \
-	readl_poll_timeout(hdev->rmmio + addr, val, cond, sleep_us, timeout_us)
-
-#define RREG32(reg) hl_rreg(hdev, (reg))
-#define WREG32(reg, v) hl_wreg(hdev, (reg), (v))
+#define RREG32(reg) hdev->asic_funcs->rreg(hdev, (reg))
+#define WREG32(reg, v) hdev->asic_funcs->wreg(hdev, (reg), (v))
 #define DREG32(reg) pr_info("REGISTER: " #reg " : 0x%08X\n",	\
-				hl_rreg(hdev, (reg)))
+			hdev->asic_funcs->rreg(hdev, (reg)))
 
 #define WREG32_P(reg, val, mask)				\
 	do {							\
@@ -1030,6 +1031,25 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 #define WREG32_FIELD(reg, field, val)	\
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
 			(val) << REG_FIELD_SHIFT(reg, field))
+
+#define hl_poll_timeout(hdev, addr, val, cond, sleep_us, timeout_us) \
+({ \
+	ktime_t __timeout = ktime_add_us(ktime_get(), timeout_us); \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		(val) = RREG32(addr); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) { \
+			(val) = RREG32(addr); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
+
 
 #define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
 		if (buf) \

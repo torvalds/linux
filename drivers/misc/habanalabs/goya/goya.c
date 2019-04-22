@@ -297,7 +297,7 @@ static u32 goya_all_events[] = {
 	GOYA_ASYNC_EVENT_ID_DMA_BM_CH4
 };
 
-static void goya_get_fixed_properties(struct hl_device *hdev)
+void goya_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i;
@@ -542,14 +542,7 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 	prop->psoc_pci_pll_div_factor = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
 }
 
-/*
- * goya_late_init - GOYA late initialization code
- *
- * @hdev: pointer to hl_device structure
- *
- * Get ArmCP info and send message to CPU to enable PCI access
- */
-static int goya_late_init(struct hl_device *hdev)
+int goya_late_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
@@ -647,9 +640,6 @@ static int goya_sw_init(struct hl_device *hdev)
 	goya->mme_clk = GOYA_PLL_FREQ_LOW;
 	goya->tpc_clk = GOYA_PLL_FREQ_LOW;
 	goya->ic_clk = GOYA_PLL_FREQ_LOW;
-
-	goya->mmu_prepare_reg = goya_mmu_prepare_reg;
-	goya->qman0_set_security = goya_qman0_set_security;
 
 	hdev->asic_specific = goya;
 
@@ -815,7 +805,7 @@ static void goya_init_dma_ch(struct hl_device *hdev, int dma_id)
  * Initialize the H/W registers of the QMAN DMA channels
  *
  */
-static void goya_init_dma_qmans(struct hl_device *hdev)
+void goya_init_dma_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_hw_queue *q;
@@ -968,7 +958,7 @@ static int goya_stop_external_queues(struct hl_device *hdev)
  * Returns 0 on success
  *
  */
-static int goya_init_cpu_queues(struct hl_device *hdev)
+int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_eq *eq;
@@ -1549,7 +1539,7 @@ static void goya_init_mme_cmdq(struct hl_device *hdev)
 	WREG32(mmMME_CMDQ_GLBL_CFG0, CMDQ_MME_ENABLE);
 }
 
-static void goya_init_mme_qmans(struct hl_device *hdev)
+void goya_init_mme_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 so_base_lo, so_base_hi;
@@ -1656,7 +1646,7 @@ static void goya_init_tpc_cmdq(struct hl_device *hdev, int tpc_id)
 	WREG32(mmTPC0_CMDQ_GLBL_CFG0 + reg_off, CMDQ_TPC_ENABLE);
 }
 
-static void goya_init_tpc_qmans(struct hl_device *hdev)
+void goya_init_tpc_qmans(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	u32 so_base_lo, so_base_hi;
@@ -2373,7 +2363,7 @@ static int goya_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
 	return 0;
 }
 
-static int goya_mmu_init(struct hl_device *hdev)
+int goya_mmu_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct goya_device *goya = hdev->asic_specific;
@@ -2649,7 +2639,7 @@ static int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 	return rc;
 }
 
-static void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
+void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 {
 	u32 db_reg_offset, db_value;
 	bool invalid_queue = false;
@@ -2816,7 +2806,6 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 
 static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 {
-	struct goya_device *goya = hdev->asic_specific;
 	struct packet_msg_prot *fence_pkt;
 	u32 *fence_ptr;
 	dma_addr_t fence_dma_addr;
@@ -2847,7 +2836,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 
 	*fence_ptr = 0;
 
-	goya->qman0_set_security(hdev, true);
+	goya_qman0_set_security(hdev, true);
 
 	/*
 	 * goya cs parser saves space for 2xpacket_msg_prot at end of CB. For
@@ -2889,7 +2878,7 @@ free_fence_ptr:
 	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_ptr,
 					fence_dma_addr);
 
-	goya->qman0_set_security(hdev, false);
+	goya_qman0_set_security(hdev, false);
 
 	return rc;
 }
@@ -3927,12 +3916,12 @@ void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
 	cq_pkt->addr = cpu_to_le64(CFG_BASE + mmPCIE_DBI_MSIX_DOORBELL_OFF);
 }
 
-static void goya_update_eq_ci(struct hl_device *hdev, u32 val)
+void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 {
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
 }
 
-static void goya_restore_phase_topology(struct hl_device *hdev)
+void goya_restore_phase_topology(struct hl_device *hdev)
 {
 	int i, num_of_sob_in_longs, num_of_mon_in_longs;
 
@@ -4494,7 +4483,7 @@ release_cb:
 	return rc;
 }
 
-static int goya_context_switch(struct hl_device *hdev, u32 asid)
+int goya_context_switch(struct hl_device *hdev, u32 asid)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 addr = prop->sram_base_address;
@@ -4556,7 +4545,7 @@ void goya_mmu_prepare(struct hl_device *hdev, u32 asid)
 
 	/* zero the MMBP and ASID bits and then set the ASID */
 	for (i = 0 ; i < GOYA_MMU_REGS_NUM ; i++)
-		goya->mmu_prepare_reg(hdev, goya_mmu_regs[i], asid);
+		goya_mmu_prepare_reg(hdev, goya_mmu_regs[i], asid);
 }
 
 static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard)
@@ -4829,7 +4818,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_hw_state = goya_get_hw_state,
 	.pci_bars_map = goya_pci_bars_map,
 	.set_dram_bar_base = goya_set_ddr_bar_base,
-	.init_iatu = goya_init_iatu
+	.init_iatu = goya_init_iatu,
+	.rreg = hl_rreg,
+	.wreg = hl_wreg
 };
 
 /*
