@@ -1,10 +1,12 @@
 GPIO Sysfs Interface for Userspace
 ==================================
 
-THIS ABI IS DEPRECATED, THE ABI DOCUMENTATION HAS BEEN MOVED TO
-Documentation/ABI/obsolete/sysfs-gpio AND NEW USERSPACE CONSUMERS
-ARE SUPPOSED TO USE THE CHARACTER DEVICE ABI. THIS OLD SYSFS ABI WILL
-NOT BE DEVELOPED (NO NEW FEATURES), IT WILL JUST BE MAINTAINED.
+.. warning::
+
+  THIS ABI IS DEPRECATED, THE ABI DOCUMENTATION HAS BEEN MOVED TO
+  Documentation/ABI/obsolete/sysfs-gpio AND NEW USERSPACE CONSUMERS
+  ARE SUPPOSED TO USE THE CHARACTER DEVICE ABI. THIS OLD SYSFS ABI WILL
+  NOT BE DEVELOPED (NO NEW FEATURES), IT WILL JUST BE MAINTAINED.
 
 Refer to the examples in tools/gpio/* for an introduction to the new
 character device ABI. Also see the userspace header in
@@ -51,13 +53,15 @@ The control interfaces are write-only:
 
     /sys/class/gpio/
 
-    	"export" ... Userspace may ask the kernel to export control of
+	"export" ...
+		Userspace may ask the kernel to export control of
 		a GPIO to userspace by writing its number to this file.
 
 		Example:  "echo 19 > export" will create a "gpio19" node
 		for GPIO #19, if that's not requested by kernel code.
 
-    	"unexport" ... Reverses the effect of exporting to userspace.
+	"unexport" ...
+		Reverses the effect of exporting to userspace.
 
 		Example:  "echo 19 > unexport" will remove a "gpio19"
 		node exported using the "export" file.
@@ -67,7 +71,8 @@ and have the following read/write attributes:
 
     /sys/class/gpio/gpioN/
 
-	"direction" ... reads as either "in" or "out". This value may
+	"direction" ...
+		reads as either "in" or "out". This value may
 		normally be written. Writing as "out" defaults to
 		initializing the value as low. To ensure glitch free
 		operation, values "low" and "high" may be written to
@@ -78,7 +83,8 @@ and have the following read/write attributes:
 		it was exported by kernel code that didn't explicitly
 		allow userspace to reconfigure this GPIO's direction.
 
-	"value" ... reads as either 0 (low) or 1 (high). If the GPIO
+	"value" ...
+		reads as either 0 (low) or 1 (high). If the GPIO
 		is configured as an output, this value may be written;
 		any nonzero value is treated as high.
 
@@ -92,14 +98,16 @@ and have the following read/write attributes:
 		file and read the new value or close the file and re-open it
 		to read the value.
 
-	"edge" ... reads as either "none", "rising", "falling", or
+	"edge" ...
+		reads as either "none", "rising", "falling", or
 		"both". Write these strings to select the signal edge(s)
 		that will make poll(2) on the "value" file return.
 
 		This file exists only if the pin can be configured as an
 		interrupt generating input pin.
 
-	"active_low" ... reads as either 0 (false) or 1 (true). Write
+	"active_low" ...
+		reads as either 0 (false) or 1 (true). Write
 		any nonzero value to invert the value attribute both
 		for reading and writing. Existing and subsequent
 		poll(2) support configuration via the edge attribute
@@ -112,11 +120,14 @@ read-only attributes:
 
     /sys/class/gpio/gpiochipN/
 
-    	"base" ... same as N, the first GPIO managed by this chip
+	"base" ...
+		same as N, the first GPIO managed by this chip
 
-    	"label" ... provided for diagnostics (not always unique)
+	"label" ...
+		provided for diagnostics (not always unique)
 
-        "ngpio" ... how many GPIOs this manages (N to N + ngpio - 1)
+	"ngpio" ...
+		how many GPIOs this manages (N to N + ngpio - 1)
 
 Board documentation should in most cases cover what GPIOs are used for
 what purposes. However, those numbers are not always stable; GPIOs on
@@ -129,7 +140,7 @@ the correct GPIO number to use for a given signal.
 Exporting from Kernel code
 --------------------------
 Kernel code can explicitly manage exports of GPIOs which have already been
-requested using gpio_request():
+requested using gpio_request()::
 
 	/* export the GPIO to userspace */
 	int gpiod_export(struct gpio_desc *desc, bool direction_may_change);
