@@ -729,14 +729,13 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp2_sb_pms[] = {
 	MLXSW_SP_SB_PM(0, MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN),
 };
 
-static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
+static int mlxsw_sp_sb_pms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				const struct mlxsw_sp_sb_pm *pms)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	int i;
-	int err;
+	int i, err;
 
 	for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
-		const struct mlxsw_sp_sb_pm *pm = &mlxsw_sp->sb_vals->pms[i];
+		const struct mlxsw_sp_sb_pm *pm = &pms[i];
 		u32 max_buff;
 		u32 min_buff;
 
@@ -744,12 +743,20 @@ static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		max_buff = pm->max_buff;
 		if (mlxsw_sp_sb_pool_is_static(mlxsw_sp, i))
 			max_buff = mlxsw_sp_bytes_cells(mlxsw_sp, max_buff);
-		err = mlxsw_sp_sb_pm_write(mlxsw_sp, mlxsw_sp_port->local_port,
-					   i, min_buff, max_buff);
+		err = mlxsw_sp_sb_pm_write(mlxsw_sp, local_port, i, min_buff,
+					   max_buff);
 		if (err)
 			return err;
 	}
 	return 0;
+}
+
+static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+
+	return mlxsw_sp_sb_pms_init(mlxsw_sp, mlxsw_sp_port->local_port,
+				    mlxsw_sp->sb_vals->pms);
 }
 
 #define MLXSW_SP_SB_MM(_min_buff, _max_buff)		\
