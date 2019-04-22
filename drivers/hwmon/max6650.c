@@ -801,8 +801,6 @@ static int max6650_probe(struct i2c_client *client,
 		dev_warn(&client->dev,
 			 "thermal cooling device register failed: %ld\n",
 			 PTR_ERR(data->cooling_dev));
-	else
-		thermal_cdev_update(data->cooling_dev);
 #endif
 	return 0;
 }
