@@ -652,6 +652,11 @@
 		reg = <0x36>;
 		clocks = <&cru SCLK_CIF_OUT>;
 		clock-names = "xvclk";
+
+		avdd-supply = <&vcc2v8_dvp>;
+		dovdd-supply = <&vcc1v8_dvp>;
+		dvdd-supply = <&vdd1v5_dvp>;
+
 		/*reset-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;*/
 		pwdn-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
