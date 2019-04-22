@@ -10,6 +10,7 @@
 #include <drm/drm_print.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
+#include "komeda_framebuffer.h"
 
 static int
 komeda_plane_init_data_flow(struct drm_plane_state *st,
@@ -17,6 +18,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 {
 	struct komeda_plane_state *kplane_st = to_kplane_st(st);
 	struct drm_framebuffer *fb = st->fb;
+	const struct komeda_format_caps *caps = to_kfb(fb)->format_caps;
 
 	memset(dflow, 0, sizeof(*dflow));
 
@@ -38,6 +40,15 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	dflow->in_h = st->src_h >> 16;
 
 	dflow->en_img_enhancement = kplane_st->img_enhancement;
+
+	dflow->rot = drm_rotation_simplify(st->rotation, caps->supported_rots);
+	if (!has_bits(dflow->rot, caps->supported_rots)) {
+		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %s.\n",
+				 dflow->rot,
+				 komeda_get_format_name(caps->fourcc,
+							fb->modifier));
+		return -EINVAL;
+	}
 
 	komeda_complete_data_flow_cfg(dflow);
 
@@ -300,6 +311,11 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 		goto cleanup;
 
 	drm_plane_helper_add(plane, &komeda_plane_helper_funcs);
+
+	err = drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
+						 layer->supported_rots);
+	if (err)
+		goto cleanup;
 
 	err = drm_plane_create_alpha_property(plane);
 	if (err)

@@ -339,6 +339,13 @@ komeda_layer_validate(struct komeda_layer *layer,
 	/* update the data flow for the next stage */
 	komeda_component_set_output(&dflow->input, &layer->base, 0);
 
+	/*
+	 * The rotation has been handled by layer, so adjusted the data flow for
+	 * the next stage.
+	 */
+	if (drm_rotation_90_or_270(st->rot))
+		swap(dflow->in_h, dflow->in_w);
+
 	return 0;
 }
 
