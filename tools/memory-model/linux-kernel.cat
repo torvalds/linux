@@ -65,19 +65,21 @@ let dep = addr | data
 let rwdep = (dep | ctrl) ; [W]
 let overwrite = co | fr
 let to-w = rwdep | (overwrite & int)
-let to-r = addr | (dep ; rfi)
+let to-r = addr | (dep ; [Marked] ; rfi)
 let ppo = to-r | to-w | fence | (po-unlock-rf-lock-po & int)
 
 (* Propagation: Ordering from release operations and strong fences. *)
-let A-cumul(r) = rfe? ; r
-let cumul-fence = A-cumul(strong-fence | po-rel) | wmb | po-unlock-rf-lock-po
-let prop = (overwrite & ext)? ; cumul-fence* ; rfe?
+let A-cumul(r) = (rfe ; [Marked])? ; r
+let cumul-fence = [Marked] ; (A-cumul(strong-fence | po-rel) | wmb |
+	po-unlock-rf-lock-po) ; [Marked]
+let prop = [Marked] ; (overwrite & ext)? ; cumul-fence* ;
+	[Marked] ; rfe? ; [Marked]
 
 (*
  * Happens Before: Ordering from the passage of time.
  * No fences needed here for prop because relation confined to one process.
  *)
-let hb = ppo | rfe | ((prop \ id) & int)
+let hb = [Marked] ; (ppo | rfe | ((prop \ id) & int)) ; [Marked]
 acyclic hb as happens-before
 
 (****************************************)
@@ -85,7 +87,7 @@ acyclic hb as happens-before
 (****************************************)
 
 (* Propagation: Each non-rf link needs a strong fence. *)
-let pb = prop ; strong-fence ; hb*
+let pb = prop ; strong-fence ; hb* ; [Marked]
 acyclic pb as propagation
 
 (*******)
@@ -133,7 +135,7 @@ let rec rcu-fence = rcu-gp | srcu-gp |
 	(rcu-fence ; rcu-link ; rcu-fence)
 
 (* rb orders instructions just as pb does *)
-let rb = prop ; po ; rcu-fence ; po? ; hb* ; pb*
+let rb = prop ; po ; rcu-fence ; po? ; hb* ; pb* ; [Marked]
 
 irreflexive rb as rcu
 
