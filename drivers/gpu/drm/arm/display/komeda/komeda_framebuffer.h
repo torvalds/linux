@@ -35,9 +35,10 @@ struct komeda_fb {
 
 struct drm_framebuffer *
 komeda_fb_create(struct drm_device *dev, struct drm_file *file,
-		 const struct drm_mode_fb_cmd2 *mode_cmd);
+		const struct drm_mode_fb_cmd2 *mode_cmd);
 dma_addr_t
 komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane);
-bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type);
+bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type,
+		u32 rot);
 
 #endif

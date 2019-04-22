@@ -71,10 +71,15 @@ struct komeda_format_caps {
  *
  * @n_formats: the size of format_caps list.
  * @format_caps: format_caps list.
+ * @format_mod_supported: Optional. Some HW may have special requirements or
+ * limitations which can not be described by format_caps, this func supply HW
+ * the ability to do the further HW specific check.
  */
 struct komeda_format_caps_table {
 	u32 n_formats;
 	const struct komeda_format_caps *format_caps;
+	bool (*format_mod_supported)(const struct komeda_format_caps *caps,
+				     u32 layer_type, u64 modifier, u32 rot);
 };
 
 extern u64 komeda_supported_modifiers[];
@@ -100,6 +105,7 @@ u32 *komeda_get_layer_fourcc_list(struct komeda_format_caps_table *table,
 void komeda_put_fourcc_list(u32 *fourcc_list);
 
 bool komeda_format_mod_supported(struct komeda_format_caps_table *table,
-				 u32 layer_type, u32 fourcc, u64 modifier);
+				 u32 layer_type, u32 fourcc, u64 modifier,
+				 u32 rot);
 
 #endif

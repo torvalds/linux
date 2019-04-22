@@ -240,20 +240,20 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 }
 
 /* if the fb can be supported by a specific layer */
-bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type)
+bool komeda_fb_is_layer_supported(struct komeda_fb *kfb, u32 layer_type,
+				  u32 rot)
 {
 	struct drm_framebuffer *fb = &kfb->base;
 	struct komeda_dev *mdev = fb->dev->dev_private;
-	const struct komeda_format_caps *caps;
 	u32 fourcc = fb->format->format;
 	u64 modifier = fb->modifier;
+	bool supported;
 
-	caps = komeda_get_format_caps(&mdev->fmt_tbl, fourcc, modifier);
-	if (!caps)
-		return false;
+	supported = komeda_format_mod_supported(&mdev->fmt_tbl, layer_type,
+						fourcc, modifier, rot);
+	if (!supported)
+		DRM_DEBUG_ATOMIC("Layer TYPE: %d doesn't support fb FMT: %s.\n",
+			layer_type, komeda_get_format_name(fourcc, modifier));
 
-	if (!(caps->supported_layer_types & layer_type))
-		return false;
-
-	return true;
+	return supported;
 }

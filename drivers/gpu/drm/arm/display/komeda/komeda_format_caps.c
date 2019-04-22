@@ -74,7 +74,8 @@ u64 komeda_supported_modifiers[] = {
 };
 
 bool komeda_format_mod_supported(struct komeda_format_caps_table *table,
-				 u32 layer_type, u32 fourcc, u64 modifier)
+				 u32 layer_type, u32 fourcc, u64 modifier,
+				 u32 rot)
 {
 	const struct komeda_format_caps *caps;
 
@@ -84,6 +85,10 @@ bool komeda_format_mod_supported(struct komeda_format_caps_table *table,
 
 	if (!(caps->supported_layer_types & layer_type))
 		return false;
+
+	if (table->format_mod_supported)
+		return table->format_mod_supported(caps, layer_type, modifier,
+						   rot);
 
 	return true;
 }

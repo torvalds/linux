@@ -494,11 +494,26 @@ static struct komeda_format_caps d71_format_caps_table[] = {
 	{__HW_ID(6, 7),	0/*DRM_FORMAT_YUV420_10BIT*/, 1,	RICH,	Rot_ALL_H_V,	LYT_NM, AFB_TH},
 };
 
+static bool d71_format_mod_supported(const struct komeda_format_caps *caps,
+				     u32 layer_type, u64 modifier, u32 rot)
+{
+	uint64_t layout = modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK;
+
+	if ((layout == AFBC_FORMAT_MOD_BLOCK_SIZE_32x8) &&
+	    drm_rotation_90_or_270(rot)) {
+		DRM_DEBUG_ATOMIC("D71 doesn't support ROT90 for WB-AFBC.\n");
+		return false;
+	}
+
+	return true;
+}
+
 static void d71_init_fmt_tbl(struct komeda_dev *mdev)
 {
 	struct komeda_format_caps_table *table = &mdev->fmt_tbl;
 
 	table->format_caps = d71_format_caps_table;
+	table->format_mod_supported = d71_format_mod_supported;
 	table->n_formats = ARRAY_SIZE(d71_format_caps_table);
 }
 

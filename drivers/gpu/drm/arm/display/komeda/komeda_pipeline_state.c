@@ -274,6 +274,11 @@ komeda_layer_check_cfg(struct komeda_layer *layer,
 		       struct komeda_plane_state *kplane_st,
 		       struct komeda_data_flow_cfg *dflow)
 {
+	struct komeda_fb *kfb = to_kfb(kplane_st->base.fb);
+
+	if (!komeda_fb_is_layer_supported(kfb, layer->layer_type, dflow->rot))
+		return -EINVAL;
+
 	if (!in_range(&layer->hsize_in, dflow->in_w)) {
 		DRM_DEBUG_ATOMIC("src_w: %d is out of range.\n", dflow->in_w);
 		return -EINVAL;
@@ -359,7 +364,8 @@ komeda_wb_layer_validate(struct komeda_layer *wb_layer,
 	struct komeda_layer_state *st;
 	int i;
 
-	if (!komeda_fb_is_layer_supported(kfb, wb_layer->layer_type))
+	if (!komeda_fb_is_layer_supported(kfb, wb_layer->layer_type,
+					  dflow->rot))
 		return -EINVAL;
 
 	c_st = komeda_component_get_state_and_set_user(&wb_layer->base,

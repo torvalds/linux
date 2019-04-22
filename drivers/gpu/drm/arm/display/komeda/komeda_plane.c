@@ -214,7 +214,7 @@ komeda_plane_format_mod_supported(struct drm_plane *plane,
 	u32 layer_type = kplane->layer->layer_type;
 
 	return komeda_format_mod_supported(&mdev->fmt_tbl, layer_type,
-					   format, modifier);
+					   format, modifier, 0);
 }
 
 static const struct drm_plane_funcs komeda_plane_funcs = {
