@@ -669,7 +669,7 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 void mei_host_client_init(struct mei_device *dev)
 {
-	dev->dev_state = MEI_DEV_ENABLED;
+	mei_set_devstate(dev, MEI_DEV_ENABLED);
 	dev->reset_count = 0;
 
 	schedule_work(&dev->bus_rescan_work);
