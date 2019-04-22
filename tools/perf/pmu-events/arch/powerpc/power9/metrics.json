@@ -1,0 +1,1982 @@
+[
+    {
+        "MetricExpr": "PM_BR_MPRED_CMPL / PM_BR_PRED * 100",
+        "MetricGroup": "branch_prediction",
+        "MetricName": "br_misprediction_percent"
+    },
+    {
+        "BriefDescription": "Count cache branch misprediction per instruction",
+        "MetricExpr": "PM_BR_MPRED_CCACHE / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "branch_prediction",
+        "MetricName": "ccache_mispredict_rate_percent"
+    },
+    {
+        "BriefDescription": "Count cache branch misprediction",
+        "MetricExpr": "PM_BR_MPRED_CCACHE / PM_BR_PRED_CCACHE * 100",
+        "MetricGroup": "branch_prediction",
+        "MetricName": "ccache_misprediction_percent"
+    },
+    {
+        "BriefDescription": "Link stack branch misprediction",
+        "MetricExpr": "PM_BR_MPRED_LSTACK / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "branch_prediction",
+        "MetricName": "lstack_mispredict_rate_percent"
+    },
+    {
+        "BriefDescription": "Link stack branch misprediction",
+        "MetricExpr": "PM_BR_MPRED_LSTACK/ PM_BR_PRED_LSTACK * 100",
+        "MetricGroup": "branch_prediction",
+        "MetricName": "lstack_misprediction_percent"
+    },
+    {
+        "BriefDescription": "% Branches Taken",
+        "MetricExpr": "PM_BR_TAKEN_CMPL * 100 / PM_BRU_FIN",
+        "MetricGroup": "branch_prediction",
+        "MetricName": "taken_branches_percent"
+    },
+    {
+        "BriefDescription": "Completion stall due to a Branch Unit",
+        "MetricExpr": "PM_CMPLU_STALL_BRU/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "bru_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was routed to the crypto execution pipe and was waiting to finish",
+        "MetricExpr": "PM_CMPLU_STALL_CRYPTO/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "crypto_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load that missed the L1 and was waiting for the data to return from the nest",
+        "MetricExpr": "PM_CMPLU_STALL_DCACHE_MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dcache_miss_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a multi-cycle instruction issued to the Decimal Floating Point execution pipe and waiting to finish.",
+        "MetricExpr": "PM_CMPLU_STALL_DFLONG/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dflong_stall_cpi"
+    },
+    {
+        "BriefDescription": "Stalls due to short latency decimal floating ops.",
+        "MetricExpr": "(PM_CMPLU_STALL_DFU - PM_CMPLU_STALL_DFLONG)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dfu_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was issued to the Decimal Floating Point execution pipe and waiting to finish.",
+        "MetricExpr": "PM_CMPLU_STALL_DFU/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dfu_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall by Dcache miss which resolved off node memory/cache",
+        "MetricExpr": "(PM_CMPLU_STALL_DMISS_L3MISS - PM_CMPLU_STALL_DMISS_L21_L31 - PM_CMPLU_STALL_DMISS_LMEM - PM_CMPLU_STALL_DMISS_REMOTE)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_distant_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall by Dcache miss which resolved on chip ( excluding local L2/L3)",
+        "MetricExpr": "PM_CMPLU_STALL_DMISS_L21_L31/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_l21_l31_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to cache miss that resolves in the L2 or L3 with a conflict",
+        "MetricExpr": "PM_CMPLU_STALL_DMISS_L2L3_CONFLICT/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_l2l3_conflict_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to cache miss that resolves in the L2 or L3 without conflict",
+        "MetricExpr": "(PM_CMPLU_STALL_DMISS_L2L3 - PM_CMPLU_STALL_DMISS_L2L3_CONFLICT)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_l2l3_noconflict_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall by Dcache miss which resolved in L2/L3",
+        "MetricExpr": "PM_CMPLU_STALL_DMISS_L2L3/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_l2l3_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to cache miss resolving missed the L3",
+        "MetricExpr": "PM_CMPLU_STALL_DMISS_L3MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_l3miss_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to cache miss that resolves in local memory",
+        "MetricExpr": "PM_CMPLU_STALL_DMISS_LMEM/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_lmem_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall by Dcache miss which resolved outside of local memory",
+        "MetricExpr": "(PM_CMPLU_STALL_DMISS_L3MISS - PM_CMPLU_STALL_DMISS_L21_L31 - PM_CMPLU_STALL_DMISS_LMEM)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_non_local_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall by Dcache miss which resolved from remote chip (cache or memory)",
+        "MetricExpr": "PM_CMPLU_STALL_DMISS_REMOTE/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dmiss_remote_stall_cpi"
+    },
+    {
+        "BriefDescription": "Stalls due to short latency double precision ops.",
+        "MetricExpr": "(PM_CMPLU_STALL_DP - PM_CMPLU_STALL_DPLONG)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dp_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a scalar instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format.",
+        "MetricExpr": "PM_CMPLU_STALL_DP/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dp_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a scalar multi-cycle instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format.",
+        "MetricExpr": "PM_CMPLU_STALL_DPLONG/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "dplong_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction is an EIEIO waiting for response from L2",
+        "MetricExpr": "PM_CMPLU_STALL_EIEIO/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "eieio_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the next to finish instruction suffered an ERAT miss and the EMQ was full",
+        "MetricExpr": "PM_CMPLU_STALL_EMQ_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "emq_full_stall_cpi"
+    },
+    {
+        "MetricExpr": "(PM_CMPLU_STALL_ERAT_MISS + PM_CMPLU_STALL_EMQ_FULL)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "emq_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load or store that suffered a translation miss",
+        "MetricExpr": "PM_CMPLU_STALL_ERAT_MISS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "erat_miss_stall_cpi"
+    },
+    {
+        "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because it was interrupted by ANY exception, which has to be serviced before the instruction can complete",
+        "MetricExpr": "PM_CMPLU_STALL_EXCEPTION/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "exception_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to execution units for other reasons.",
+        "MetricExpr": "(PM_CMPLU_STALL_EXEC_UNIT - PM_CMPLU_STALL_FXU - PM_CMPLU_STALL_DP - PM_CMPLU_STALL_DFU - PM_CMPLU_STALL_PM - PM_CMPLU_STALL_CRYPTO - PM_CMPLU_STALL_VFXU - PM_CMPLU_STALL_VDP)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "exec_unit_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to execution units (FXU/VSU/CRU)",
+        "MetricExpr": "PM_CMPLU_STALL_EXEC_UNIT/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "exec_unit_stall_cpi"
+    },
+    {
+        "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because any of the 4 threads in the same core suffered a flush, which blocks completion",
+        "MetricExpr": "PM_CMPLU_STALL_FLUSH_ANY_THREAD/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "flush_any_thread_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to a long latency scalar fixed point instruction (division, square root)",
+        "MetricExpr": "PM_CMPLU_STALL_FXLONG/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "fxlong_stall_cpi"
+    },
+    {
+        "BriefDescription": "Stalls due to short latency integer ops",
+        "MetricExpr": "(PM_CMPLU_STALL_FXU - PM_CMPLU_STALL_FXLONG)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "fxu_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall due to a scalar fixed point or CR instruction in the execution pipeline. These instructions get routed to the ALU, ALU2, and DIV pipes",
+        "MetricExpr": "PM_CMPLU_STALL_FXU/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "fxu_stall_cpi"
+    },
+    {
+        "MetricExpr": "(PM_NTC_ISSUE_HELD_DARQ_FULL + PM_NTC_ISSUE_HELD_ARB + PM_NTC_ISSUE_HELD_OTHER)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "issue_hold_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a larx waiting to be satisfied",
+        "MetricExpr": "PM_CMPLU_STALL_LARX/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "larx_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load that hit on an older store and it was waiting for store data",
+        "MetricExpr": "PM_CMPLU_STALL_LHS/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lhs_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load that missed in the L1 and the LMQ was unable to accept this load miss request because it was full",
+        "MetricExpr": "PM_CMPLU_STALL_LMQ_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lmq_full_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load instruction with all its dependencies satisfied just going through the LSU pipe to finish",
+        "MetricExpr": "PM_CMPLU_STALL_LOAD_FINISH/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "load_finish_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load that was held in LSAQ because the LRQ was full",
+        "MetricExpr": "PM_CMPLU_STALL_LRQ_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lrq_full_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall due to LRQ miscellaneous reasons, lost arbitration to LMQ slot, bank collisions, set prediction cleanup, set prediction multihit and others",
+        "MetricExpr": "PM_CMPLU_STALL_LRQ_OTHER/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lrq_other_stall_cpi"
+    },
+    {
+        "MetricExpr": "(PM_CMPLU_STALL_LMQ_FULL + PM_CMPLU_STALL_ST_FWD + PM_CMPLU_STALL_LHS + PM_CMPLU_STALL_LSU_MFSPR + PM_CMPLU_STALL_LARX + PM_CMPLU_STALL_LRQ_OTHER)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lrq_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a load or store that was held in LSAQ because an older instruction from SRQ or LRQ won arbitration to the LSU pipe when this instruction tried to launch",
+        "MetricExpr": "PM_CMPLU_STALL_LSAQ_ARB/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsaq_arb_stall_cpi"
+    },
+    {
+        "MetricExpr": "(PM_CMPLU_STALL_LRQ_FULL + PM_CMPLU_STALL_SRQ_FULL + PM_CMPLU_STALL_LSAQ_ARB)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsaq_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was an LSU op (other than a load or a store) with all its dependencies met and just going through the LSU pipe to finish",
+        "MetricExpr": "PM_CMPLU_STALL_LSU_FIN/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsu_fin_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall of one cycle because the LSU requested to flush the next iop in the sequence. It takes 1 cycle for the ISU to process this request before the LSU instruction is allowed to complete",
+        "MetricExpr": "PM_CMPLU_STALL_LSU_FLUSH_NEXT/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsu_flush_next_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a mfspr instruction targeting an LSU SPR and it was waiting for the register data to be returned",
+        "MetricExpr": "PM_CMPLU_STALL_LSU_MFSPR/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsu_mfspr_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion LSU stall for other reasons",
+        "MetricExpr": "(PM_CMPLU_STALL_LSU - PM_CMPLU_STALL_LSU_FIN - PM_CMPLU_STALL_STORE_FINISH - PM_CMPLU_STALL_STORE_DATA - PM_CMPLU_STALL_EIEIO - PM_CMPLU_STALL_STCX - PM_CMPLU_STALL_SLB - PM_CMPLU_STALL_TEND - PM_CMPLU_STALL_PASTE - PM_CMPLU_STALL_TLBIE - PM_CMPLU_STALL_STORE_PIPE_ARB - PM_CMPLU_STALL_STORE_FIN_ARB - PM_CMPLU_STALL_LOAD_FINISH + PM_CMPLU_STALL_DCACHE_MISS - PM_CMPLU_STALL_LMQ_FULL - PM_CMPLU_STALL_ST_FWD - PM_CMPLU_STALL_LHS - PM_CMPLU_STALL_LSU_MFSPR - PM_CMPLU_STALL_LARX - PM_CMPLU_STALL_LRQ_OTHER + PM_CMPLU_STALL_ERAT_MISS + PM_CMPLU_STALL_EMQ_FULL - PM_CMPLU_STALL_LRQ_FULL - PM_CMPLU_STALL_SRQ_FULL - PM_CMPLU_STALL_LSAQ_ARB) / PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsu_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall by LSU instruction",
+        "MetricExpr": "PM_CMPLU_STALL_LSU/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "lsu_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall because the ISU is updating the register and notifying the Effective Address Table (EAT)",
+        "MetricExpr": "PM_CMPLU_STALL_MTFPSCR/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "mtfpscr_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall because the ISU is updating the TEXASR to keep track of the nested tbegin. This is a short delay, and it includes ROT",
+        "MetricExpr": "PM_CMPLU_STALL_NESTED_TBEGIN/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "nested_tbegin_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall because the ISU is updating the TEXASR to keep track of the nested tend and decrement the TEXASR nested level. This is a short delay",
+        "MetricExpr": "PM_CMPLU_STALL_NESTED_TEND/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "nested_tend_stall_cpi"
+    },
+    {
+        "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread",
+        "MetricExpr": "PM_ICT_NOSLOT_CYC/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "nothing_dispatched_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was one that must finish at dispatch.",
+        "MetricExpr": "PM_CMPLU_STALL_NTC_DISP_FIN/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ntc_disp_fin_stall_cpi"
+    },
+    {
+        "BriefDescription": "Cycles in which the oldest instruction in the pipeline (NTC) finishes. This event is used to account for cycles in which work is being completed in the CPI stack",
+        "MetricExpr": "PM_NTC_FIN/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ntc_fin_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to ntc flush",
+        "MetricExpr": "PM_CMPLU_STALL_NTC_FLUSH/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ntc_flush_stall_cpi"
+    },
+    {
+        "BriefDescription": "The NTC instruction is being held at dispatch because it lost arbitration onto the issue pipe to another instruction (from the same thread or a different thread)",
+        "MetricExpr": "PM_NTC_ISSUE_HELD_ARB/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ntc_issue_held_arb_cpi"
+    },
+    {
+        "BriefDescription": "The NTC instruction is being held at dispatch because there are no slots in the DARQ for it",
+        "MetricExpr": "PM_NTC_ISSUE_HELD_DARQ_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ntc_issue_held_darq_full_cpi"
+    },
+    {
+        "BriefDescription": "The NTC instruction is being held at dispatch during regular pipeline cycles, or because the VSU is busy with multi-cycle instructions, or because of a write-back collision with VSU",
+        "MetricExpr": "PM_NTC_ISSUE_HELD_OTHER/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "ntc_issue_held_other_cpi"
+    },
+    {
+        "BriefDescription": "Cycles unaccounted for.",
+        "MetricExpr": "(PM_RUN_CYC - PM_1PLUS_PPC_CMPL - PM_CMPLU_STALL_THRD - PM_CMPLU_STALL - PM_ICT_NOSLOT_CYC)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "other_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall for other reasons",
+        "MetricExpr": "PM_CMPLU_STALL - PM_CMPLU_STALL_NTC_DISP_FIN - PM_CMPLU_STALL_NTC_FLUSH - PM_CMPLU_STALL_LSU - PM_CMPLU_STALL_EXEC_UNIT - PM_CMPLU_STALL_BRU)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a paste waiting for response from L2",
+        "MetricExpr": "PM_CMPLU_STALL_PASTE/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "paste_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was issued to the Permute execution pipe and waiting to finish.",
+        "MetricExpr": "PM_CMPLU_STALL_PM/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "pm_stall_cpi"
+    },
+    {
+        "BriefDescription": "Run cycles per run instruction",
+        "MetricExpr": "PM_RUN_CYC / PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "run_cpi"
+    },
+    {
+        "BriefDescription": "Run_cycles",
+        "MetricExpr": "PM_RUN_CYC/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "run_cyc_cpi"
+    },
+    {
+        "MetricExpr": "(PM_CMPLU_STALL_FXU + PM_CMPLU_STALL_DP + PM_CMPLU_STALL_DFU + PM_CMPLU_STALL_PM + PM_CMPLU_STALL_CRYPTO)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "scalar_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was awaiting L2 response for an SLB",
+        "MetricExpr": "PM_CMPLU_STALL_SLB/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "slb_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall while waiting for the non-speculative finish of either a stcx waiting for its result or a load waiting for non-critical sectors of data and ECC",
+        "MetricExpr": "PM_CMPLU_STALL_SPEC_FINISH/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "spec_finish_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a store that was held in LSAQ because the SRQ was full",
+        "MetricExpr": "PM_CMPLU_STALL_SRQ_FULL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "srq_full_stall_cpi"
+    },
+    {
+        "MetricExpr": "(PM_CMPLU_STALL_STORE_DATA + PM_CMPLU_STALL_EIEIO + PM_CMPLU_STALL_STCX + PM_CMPLU_STALL_SLB + PM_CMPLU_STALL_TEND + PM_CMPLU_STALL_PASTE + PM_CMPLU_STALL_TLBIE + PM_CMPLU_STALL_STORE_PIPE_ARB + PM_CMPLU_STALL_STORE_FIN_ARB)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "srq_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to store forward",
+        "MetricExpr": "PM_CMPLU_STALL_ST_FWD/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "st_fwd_stall_cpi"
+    },
+    {
+        "BriefDescription": "Nothing completed and ICT not empty",
+        "MetricExpr": "PM_CMPLU_STALL/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a stcx waiting for response from L2",
+        "MetricExpr": "PM_CMPLU_STALL_STCX/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "stcx_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the next to finish instruction was a store waiting on data",
+        "MetricExpr": "PM_CMPLU_STALL_STORE_DATA/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "store_data_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a store waiting for a slot in the store finish pipe. This means the instruction is ready to finish but there are instructions ahead of it, using the finish pipe",
+        "MetricExpr": "PM_CMPLU_STALL_STORE_FIN_ARB/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "store_fin_arb_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a store with all its dependencies met, just waiting to go through the LSU pipe to finish",
+        "MetricExpr": "PM_CMPLU_STALL_STORE_FINISH/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "store_finish_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a store waiting for the next relaunch opportunity after an internal reject. This means the instruction is ready to relaunch and tried once but lost arbitration",
+        "MetricExpr": "PM_CMPLU_STALL_STORE_PIPE_ARB/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "store_pipe_arb_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a tend instruction awaiting response from L2",
+        "MetricExpr": "PM_CMPLU_STALL_TEND/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "tend_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion Stalled because the thread was blocked",
+        "MetricExpr": "PM_CMPLU_STALL_THRD/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "thread_block_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a tlbie waiting for response from L2",
+        "MetricExpr": "PM_CMPLU_STALL_TLBIE/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "tlbie_stall_cpi"
+    },
+    {
+        "BriefDescription": "Vector stalls due to small latency double precision ops",
+        "MetricExpr": "(PM_CMPLU_STALL_VDP - PM_CMPLU_STALL_VDPLONG)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vdp_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a vector instruction issued to the Double Precision execution pipe and waiting to finish.",
+        "MetricExpr": "PM_CMPLU_STALL_VDP/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vdp_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall because the NTF instruction was a scalar multi-cycle instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format.",
+        "MetricExpr": "PM_CMPLU_STALL_VDPLONG/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vdplong_stall_cpi"
+    },
+    {
+        "MetricExpr": "(PM_CMPLU_STALL_VFXU + PM_CMPLU_STALL_VDP)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vector_stall_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall due to a long latency vector fixed point instruction (division, square root)",
+        "MetricExpr": "PM_CMPLU_STALL_VFXLONG/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vfxlong_stall_cpi"
+    },
+    {
+        "BriefDescription": "Vector stalls due to small latency integer ops",
+        "MetricExpr": "(PM_CMPLU_STALL_VFXU - PM_CMPLU_STALL_VFXLONG)/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vfxu_other_stall_cpi"
+    },
+    {
+        "BriefDescription": "Finish stall due to a vector fixed point instruction in the execution pipeline. These instructions get routed to the ALU, ALU2, and DIV pipes",
+        "MetricExpr": "PM_CMPLU_STALL_VFXU/PM_RUN_INST_CMPL",
+        "MetricGroup": "cpi_breakdown",
+        "MetricName": "vfxu_stall_cpi"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Distant L2 or L3 (Modified) per Inst",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_dl2l3_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Distant L2 or L3 (Shared) per Inst",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_dl2l3_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Distant Memory per Inst",
+        "MetricExpr": "PM_DATA_FROM_DMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_dmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L2, other core per Inst",
+        "MetricExpr": "PM_DATA_FROM_L21_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l21_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L2, other core per Inst",
+        "MetricExpr": "PM_DATA_FROM_L21_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l21_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from L2 per Inst",
+        "MetricExpr": "PM_DATA_FROM_L2MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l2_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from L2 per Inst",
+        "MetricExpr": "PM_DATA_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l2_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3 M state, other core per Inst",
+        "MetricExpr": "PM_DATA_FROM_L31_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l31_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3 S tate, other core per Inst",
+        "MetricExpr": "PM_DATA_FROM_L31_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l31_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads that came from the L3 and were brought into the L3 by a prefetch, per instruction completed",
+        "MetricExpr": "PM_DATA_FROM_L3_MEPF * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l3_mepf_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from L3 per Inst",
+        "MetricExpr": "PM_DATA_FROM_L3MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l3_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from L3 per Inst",
+        "MetricExpr": "PM_DATA_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_l3_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Local Memory per Inst",
+        "MetricExpr": "PM_DATA_FROM_LMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_lmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3, other core per Inst",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_rl2l3_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3, other core per Inst",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_rl2l3_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Remote Memory per Inst",
+        "MetricExpr": "PM_DATA_FROM_RMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "dl1_reload_from_rmem_rate_percent"
+    },
+    {
+        "BriefDescription": "Percentage of L1 demand load misses per run instruction",
+        "MetricExpr": "PM_LD_MISS_L1 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dl1_reloads_percent_per_inst",
+        "MetricName": "l1_ld_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 misses that result in a cache reload",
+        "MetricExpr": "PM_L1_DCACHE_RELOAD_VALID * 100 / PM_LD_MISS_L1",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_miss_reloads_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Distant L2 or L3 (Modified)",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_MOD * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_dl2l3_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Distant L2 or L3 (Shared)",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_SHR * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_dl2l3_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Distant Memory",
+        "MetricExpr": "PM_DATA_FROM_DMEM * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_dmem_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L2, other core",
+        "MetricExpr": "PM_DATA_FROM_L21_MOD * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l21_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L2, other core",
+        "MetricExpr": "PM_DATA_FROM_L21_SHR * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l21_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from sources beyond the local L2",
+        "MetricExpr": "PM_DATA_FROM_L2MISS * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l2_miss_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from L2",
+        "MetricExpr": "PM_DATA_FROM_L2 * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l2_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3, other core",
+        "MetricExpr": "PM_DATA_FROM_L31_MOD * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l31_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3, other core",
+        "MetricExpr": "PM_DATA_FROM_L31_SHR * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l31_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads that came from L3 and were brought into the L3 by a prefetch",
+        "MetricExpr": "PM_DATA_FROM_L3_MEPF * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l3_mepf_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from sources beyond the local L3",
+        "MetricExpr": "PM_DATA_FROM_L3MISS * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l3_miss_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from L3",
+        "MetricExpr": "PM_DATA_FROM_L3 * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_l3_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Local Memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_lmem_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Remote L2 or L3 (Modified)",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_MOD * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_rl2l3_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Remote L2 or L3 (Shared)",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_SHR * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_rl2l3_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Remote Memory",
+        "MetricExpr": "PM_DATA_FROM_RMEM * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricGroup": "dl1_reloads_percent_per_ref",
+        "MetricName": "dl1_reload_from_rmem_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl2l3 distant MOD miss rates with measured DL2L3 MOD latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_MOD * PM_MRK_DATA_FROM_DL2L3_MOD_CYC / PM_MRK_DATA_FROM_DL2L3_MOD / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "dl2l3_mod_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl2l3 distant SHR miss rates with measured DL2L3 SHR latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_SHR * PM_MRK_DATA_FROM_DL2L3_SHR_CYC / PM_MRK_DATA_FROM_DL2L3_SHR / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "dl2l3_shr_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of distant L4 miss rates with measured DL4 latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_DL4 * PM_MRK_DATA_FROM_DL4_CYC / PM_MRK_DATA_FROM_DL4 / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "dl4_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of distant memory miss rates with measured DMEM latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_DMEM * PM_MRK_DATA_FROM_DMEM_CYC / PM_MRK_DATA_FROM_DMEM / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "dmem_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl21 MOD miss rates with measured L21 MOD latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_L21_MOD * PM_MRK_DATA_FROM_L21_MOD_CYC / PM_MRK_DATA_FROM_L21_MOD / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "l21_mod_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl21 SHR miss rates with measured L21 SHR latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_L21_SHR * PM_MRK_DATA_FROM_L21_SHR_CYC / PM_MRK_DATA_FROM_L21_SHR / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "l21_shr_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl2 miss rates with measured L2 latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_L2 * PM_MRK_DATA_FROM_L2_CYC / PM_MRK_DATA_FROM_L2 / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "l2_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl31 MOD miss rates with measured L31 MOD latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_L31_MOD * PM_MRK_DATA_FROM_L31_MOD_CYC / PM_MRK_DATA_FROM_L31_MOD / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "l31_mod_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl31 SHR miss rates with measured L31 SHR latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_L31_SHR * PM_MRK_DATA_FROM_L31_SHR_CYC / PM_MRK_DATA_FROM_L31_SHR / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "l31_shr_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl3 miss rates with measured L3 latency as a % of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_L3 * PM_MRK_DATA_FROM_L3_CYC / PM_MRK_DATA_FROM_L3 / PM_CMPLU_STALL_DCACHE_MISS * 100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "l3_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of Local memory miss rates with measured LMEM latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_LMEM * PM_MRK_DATA_FROM_LMEM_CYC / PM_MRK_DATA_FROM_LMEM / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "lmem_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl2l3 remote MOD miss rates with measured RL2L3 MOD latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_MOD * PM_MRK_DATA_FROM_RL2L3_MOD_CYC / PM_MRK_DATA_FROM_RL2L3_MOD / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "rl2l3_mod_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of dl2l3 shared miss rates with measured RL2L3 SHR latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_SHR * PM_MRK_DATA_FROM_RL2L3_SHR_CYC / PM_MRK_DATA_FROM_RL2L3_SHR / PM_CMPLU_STALL_DCACHE_MISS * 100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "rl2l3_shr_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of remote L4 miss rates with measured RL4 latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_RL4 * PM_MRK_DATA_FROM_RL4_CYC / PM_MRK_DATA_FROM_RL4 / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "rl4_cpi_percent"
+    },
+    {
+        "BriefDescription": "estimate of remote memory miss rates with measured RMEM latency as a %of dcache miss cpi",
+        "MetricExpr": "PM_DATA_FROM_RMEM * PM_MRK_DATA_FROM_RMEM_CYC / PM_MRK_DATA_FROM_RMEM / PM_CMPLU_STALL_DCACHE_MISS *100",
+        "MetricGroup": "estimated_dcache_miss_cpi",
+        "MetricName": "rmem_cpi_percent"
+    },
+    {
+        "BriefDescription": "Branch Mispredict flushes per instruction",
+        "MetricExpr": "PM_FLUSH_MPRED / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "general",
+        "MetricName": "br_mpred_flush_rate_percent"
+    },
+    {
+        "BriefDescription": "Cycles per instruction",
+        "MetricExpr": "PM_CYC / PM_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "cpi"
+    },
+    {
+        "BriefDescription": "GCT empty cycles",
+        "MetricExpr": "(PM_FLUSH_DISP / PM_RUN_INST_CMPL) * 100",
+        "MetricGroup": "general",
+        "MetricName": "disp_flush_rate_percent"
+    },
+    {
+        "BriefDescription": "% DTLB miss rate per inst",
+        "MetricExpr": "PM_DTLB_MISS / PM_RUN_INST_CMPL *100",
+        "MetricGroup": "general",
+        "MetricName": "dtlb_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "Flush rate (%)",
+        "MetricExpr": "PM_FLUSH * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "flush_rate_percent"
+    },
+    {
+        "BriefDescription": "Instructions per cycles",
+        "MetricExpr": "PM_INST_CMPL / PM_CYC",
+        "MetricGroup": "general",
+        "MetricName": "ipc"
+    },
+    {
+        "BriefDescription": "% ITLB miss rate per inst",
+        "MetricExpr": "PM_ITLB_MISS / PM_RUN_INST_CMPL *100",
+        "MetricGroup": "general",
+        "MetricName": "itlb_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "Percentage of L1 load misses per L1 load ref",
+        "MetricExpr": "PM_LD_MISS_L1 / PM_LD_REF_L1 * 100",
+        "MetricGroup": "general",
+        "MetricName": "l1_ld_miss_ratio_percent"
+    },
+    {
+        "BriefDescription": "Percentage of L1 store misses per run instruction",
+        "MetricExpr": "PM_ST_MISS_L1 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l1_st_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "Percentage of L1 store misses per L1 store ref",
+        "MetricExpr": "PM_ST_MISS_L1 / PM_ST_FIN * 100",
+        "MetricGroup": "general",
+        "MetricName": "l1_st_miss_ratio_percent"
+    },
+    {
+        "BriefDescription": "L2 Instruction Miss Rate (per instruction)(%)",
+        "MetricExpr": "PM_INST_FROM_L2MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l2_inst_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "L2 dmand Load Miss Rate (per run instruction)(%)",
+        "MetricExpr": "PM_DATA_FROM_L2MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l2_ld_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "L2 PTEG Miss Rate (per run instruction)(%)",
+        "MetricExpr": "PM_DPTEG_FROM_L2MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l2_pteg_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "L3 Instruction Miss Rate (per instruction)(%)",
+        "MetricExpr": "PM_INST_FROM_L3MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l3_inst_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "L3 demand Load Miss Rate (per run instruction)(%)",
+        "MetricExpr": "PM_DATA_FROM_L3MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l3_ld_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "L3 PTEG Miss Rate (per run instruction)(%)",
+        "MetricExpr": "PM_DPTEG_FROM_L3MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "l3_pteg_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "Run cycles per cycle",
+        "MetricExpr": "PM_RUN_CYC / PM_CYC*100",
+        "MetricGroup": "general",
+        "MetricName": "run_cycles_percent"
+    },
+    {
+        "BriefDescription": "Instruction dispatch-to-completion ratio",
+        "MetricExpr": "PM_INST_DISP / PM_INST_CMPL",
+        "MetricGroup": "general",
+        "MetricName": "speculation"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant L2 or L3 (Modified) per Inst",
+        "MetricExpr": "PM_INST_FROM_DL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_dl2l3_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant L2 or L3 (Shared) per Inst",
+        "MetricExpr": "PM_INST_FROM_DL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_dl2l3_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant L4 per Inst",
+        "MetricExpr": "PM_INST_FROM_DL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_dl4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant Memory per Inst",
+        "MetricExpr": "PM_INST_FROM_DMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_dmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L2, other core per Inst",
+        "MetricExpr": "PM_INST_FROM_L21_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_l21_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L2, other core per Inst",
+        "MetricExpr": "PM_INST_FROM_L21_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_l21_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from L2 per Inst",
+        "MetricExpr": "PM_INST_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_l2_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L3, other core per Inst",
+        "MetricExpr": "PM_INST_FROM_L31_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_l31_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L3 other core per Inst",
+        "MetricExpr": "PM_INST_FROM_L31_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_l31_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from L3 per Inst",
+        "MetricExpr": "PM_INST_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_l3_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Local L4 per Inst",
+        "MetricExpr": "PM_INST_FROM_LL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_ll4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Local Memory per Inst",
+        "MetricExpr": "PM_INST_FROM_LMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_lmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote L2 or L3 (Modified) per Inst",
+        "MetricExpr": "PM_INST_FROM_RL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_rl2l3_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote L2 or L3 (Shared) per Inst",
+        "MetricExpr": "PM_INST_FROM_RL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_rl2l3_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote L4 per Inst",
+        "MetricExpr": "PM_INST_FROM_RL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_rl4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote Memory per Inst",
+        "MetricExpr": "PM_INST_FROM_RMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "inst_from_rmem_rate_percent"
+    },
+    {
+        "BriefDescription": "Instruction Cache Miss Rate (Per run Instruction)(%)",
+        "MetricExpr": "PM_L1_ICACHE_MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "instruction_misses_percent_per_inst",
+        "MetricName": "l1_inst_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "Icache Fetchs per Icache Miss",
+        "MetricExpr": "(PM_L1_ICACHE_MISS - PM_IC_PREF_WRITE) / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "icache_miss_reload"
+    },
+    {
+        "BriefDescription": "% of ICache reloads due to prefetch",
+        "MetricExpr": "PM_IC_PREF_WRITE * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "icache_pref_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant L2 or L3 (Modified)",
+        "MetricExpr": "PM_INST_FROM_DL2L3_MOD * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_dl2l3_mod_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant L2 or L3 (Shared)",
+        "MetricExpr": "PM_INST_FROM_DL2L3_SHR * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_dl2l3_shr_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant L4",
+        "MetricExpr": "PM_INST_FROM_DL4 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_dl4_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Distant Memory",
+        "MetricExpr": "PM_INST_FROM_DMEM * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_dmem_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L2, other core",
+        "MetricExpr": "PM_INST_FROM_L21_MOD * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_l21_mod_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L2, other core",
+        "MetricExpr": "PM_INST_FROM_L21_SHR * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_l21_shr_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from L2",
+        "MetricExpr": "PM_INST_FROM_L2 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_l2_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L3, other core",
+        "MetricExpr": "PM_INST_FROM_L31_MOD * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_l31_mod_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Private L3, other core",
+        "MetricExpr": "PM_INST_FROM_L31_SHR * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_l31_shr_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from L3",
+        "MetricExpr": "PM_INST_FROM_L3 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_l3_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Local L4",
+        "MetricExpr": "PM_INST_FROM_LL4 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_ll4_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Local Memory",
+        "MetricExpr": "PM_INST_FROM_LMEM * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_lmem_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote L2 or L3 (Modified)",
+        "MetricExpr": "PM_INST_FROM_RL2L3_MOD * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_rl2l3_mod_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote L2 or L3 (Shared)",
+        "MetricExpr": "PM_INST_FROM_RL2L3_SHR * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_rl2l3_shr_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote L4",
+        "MetricExpr": "PM_INST_FROM_RL4 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_rl4_percent"
+    },
+    {
+        "BriefDescription": "% of ICache reloads from Remote Memory",
+        "MetricExpr": "PM_INST_FROM_RMEM * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "instruction_stats_percent_per_ref",
+        "MetricName": "inst_from_rmem_percent"
+    },
+    {
+        "BriefDescription": "%L2 Modified CO Cache read Utilization (4 pclks per disp attempt)",
+        "MetricExpr": "((PM_L2_CASTOUT_MOD/2)*4)/ PM_RUN_CYC * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_co_m_rd_util"
+    },
+    {
+        "BriefDescription": "L2 dcache invalidates per run inst (per core)",
+        "MetricExpr": "(PM_L2_DC_INV / 2) / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_dc_inv_rate_percent"
+    },
+    {
+        "BriefDescription": "Demand load misses as a % of L2 LD dispatches (per thread)",
+        "MetricExpr": "PM_L1_DCACHE_RELOAD_VALID / (PM_L2_LD / 2) * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_dem_ld_disp_percent"
+    },
+    {
+        "BriefDescription": "L2 Icache invalidates per run inst (per core)",
+        "MetricExpr": "(PM_L2_IC_INV / 2) / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_ic_inv_rate_percent"
+    },
+    {
+        "BriefDescription": "L2 Inst misses as a % of total L2 Inst dispatches (per thread)",
+        "MetricExpr": "PM_L2_INST_MISS / PM_L2_INST * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_inst_miss_ratio_percent"
+    },
+    {
+        "BriefDescription": "Average number of cycles between L2 Load hits",
+        "MetricExpr": "(PM_L2_LD_HIT / PM_RUN_CYC) / 2",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_ld_hit_frequency"
+    },
+    {
+        "BriefDescription": "Average number of cycles between L2 Load misses",
+        "MetricExpr": "(PM_L2_LD_MISS / PM_RUN_CYC) / 2",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_ld_miss_frequency"
+    },
+    {
+        "BriefDescription": "L2 Load misses as a % of total L2 Load dispatches (per thread)",
+        "MetricExpr": "PM_L2_LD_MISS / PM_L2_LD * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_ld_miss_ratio_percent"
+    },
+    {
+        "BriefDescription": "% L2 load disp attempts Cache read Utilization (4 pclks per disp attempt)",
+        "MetricExpr": "((PM_L2_RCLD_DISP/2)*4)/ PM_RUN_CYC * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_ld_rd_util"
+    },
+    {
+        "BriefDescription": "L2 load misses that require a cache write (4 pclks per disp attempt) % of pclks",
+        "MetricExpr": "((( PM_L2_LD_DISP - PM_L2_LD_HIT)/2)*4)/ PM_RUN_CYC * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_ldmiss_wr_util"
+    },
+    {
+        "BriefDescription": "L2 local pump prediction success",
+        "MetricExpr": "PM_L2_LOC_GUESS_CORRECT / (PM_L2_LOC_GUESS_CORRECT + PM_L2_LOC_GUESS_WRONG) * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_local_pred_correct_percent"
+    },
+    {
+        "BriefDescription": "L2 COs that were in M,Me,Mu state as a % of all L2 COs",
+        "MetricExpr": "PM_L2_CASTOUT_MOD / (PM_L2_CASTOUT_MOD + PM_L2_CASTOUT_SHR) * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_mod_co_percent"
+    },
+    {
+        "BriefDescription": "% of L2 Load RC dispatch atampts that failed because of address collisions and cclass conflicts",
+        "MetricExpr": "(PM_L2_RCLD_DISP_FAIL_ADDR )/ PM_L2_RCLD_DISP * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_rc_ld_disp_addr_fail_percent"
+    },
+    {
+        "BriefDescription": "% of L2 Load RC dispatch attempts that failed",
+        "MetricExpr": "(PM_L2_RCLD_DISP_FAIL_ADDR + PM_L2_RCLD_DISP_FAIL_OTHER)/ PM_L2_RCLD_DISP * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_rc_ld_disp_fail_percent"
+    },
+    {
+        "BriefDescription": "% of L2 Store RC dispatch atampts that failed because of address collisions and cclass conflicts",
+        "MetricExpr": "PM_L2_RCST_DISP_FAIL_ADDR / PM_L2_RCST_DISP * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_rc_st_disp_addr_fail_percent"
+    },
+    {
+        "BriefDescription": "% of L2 Store RC dispatch attempts that failed",
+        "MetricExpr": "(PM_L2_RCST_DISP_FAIL_ADDR + PM_L2_RCST_DISP_FAIL_OTHER)/ PM_L2_RCST_DISP * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_rc_st_disp_fail_percent"
+    },
+    {
+        "BriefDescription": "L2 Cache Read Utilization (per core)",
+        "MetricExpr": "(((PM_L2_RCLD_DISP/2)*4)/ PM_RUN_CYC * 100) + (((PM_L2_RCST_DISP/2)*4)/PM_RUN_CYC * 100) + (((PM_L2_CASTOUT_MOD/2)*4)/PM_RUN_CYC * 100)",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_rd_util_percent"
+    },
+    {
+        "BriefDescription": "L2 COs that were in T,Te,Si,S state as a % of all L2 COs",
+        "MetricExpr": "PM_L2_CASTOUT_SHR / (PM_L2_CASTOUT_MOD + PM_L2_CASTOUT_SHR) * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_shr_co_percent"
+    },
+    {
+        "BriefDescription": "L2 Store misses as a % of total L2 Store dispatches (per thread)",
+        "MetricExpr": "PM_L2_ST_MISS / PM_L2_ST * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_st_miss_ratio_percent"
+    },
+    {
+        "BriefDescription": "% L2 store disp attempts Cache read Utilization (4 pclks per disp attempt)",
+        "MetricExpr": "((PM_L2_RCST_DISP/2)*4) / PM_RUN_CYC * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_st_rd_util"
+    },
+    {
+        "BriefDescription": "L2 stores that require a cache write (4 pclks per disp attempt) % of pclks",
+        "MetricExpr": "((PM_L2_ST_DISP/2)*4) / PM_RUN_CYC * 100",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_st_wr_util"
+    },
+    {
+        "BriefDescription": "L2 Cache Write Utilization (per core)",
+        "MetricExpr": "((((PM_L2_LD_DISP - PM_L2_LD_HIT)/2)*4) / PM_RUN_CYC * 100) + (((PM_L2_ST_DISP/2)*4) / PM_RUN_CYC * 100)",
+        "MetricGroup": "l2_stats",
+        "MetricName": "l2_wr_util_percent"
+    },
+    {
+        "BriefDescription": "Average number of cycles between L3 Load hits",
+        "MetricExpr": "(PM_L3_LD_HIT / PM_RUN_CYC) / 2",
+        "MetricGroup": "l3_stats",
+        "MetricName": "l3_ld_hit_frequency"
+    },
+    {
+        "BriefDescription": "Average number of cycles between L3 Load misses",
+        "MetricExpr": "(PM_L3_LD_MISS / PM_RUN_CYC) / 2",
+        "MetricGroup": "l3_stats",
+        "MetricName": "l3_ld_miss_frequency"
+    },
+    {
+        "BriefDescription": "Average number of Write-in machines used. 1 of 8 WI machines is sampled every L3 cycle",
+        "MetricExpr": "(PM_L3_WI_USAGE / PM_RUN_CYC) * 8",
+        "MetricGroup": "l3_stats",
+        "MetricName": "l3_wi_usage"
+    },
+    {
+        "BriefDescription": "Average icache miss latency",
+        "MetricExpr": "PM_IC_DEMAND_CYC / PM_IC_DEMAND_REQ",
+        "MetricGroup": "latency",
+        "MetricName": "average_il1_miss_latency"
+    },
+    {
+        "BriefDescription": "Marked L2L3 remote Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_DL2L3_MOD_CYC/ PM_MRK_DATA_FROM_DL2L3_MOD",
+        "MetricGroup": "latency",
+        "MetricName": "dl2l3_mod_latency"
+    },
+    {
+        "BriefDescription": "Marked L2L3 distant Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_DL2L3_SHR_CYC/ PM_MRK_DATA_FROM_DL2L3_SHR",
+        "MetricGroup": "latency",
+        "MetricName": "dl2l3_shr_latency"
+    },
+    {
+        "BriefDescription": "Distant L4 average load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_DL4_CYC/ PM_MRK_DATA_FROM_DL4",
+        "MetricGroup": "latency",
+        "MetricName": "dl4_latency"
+    },
+    {
+        "BriefDescription": "Marked Dmem Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_DMEM_CYC/ PM_MRK_DATA_FROM_DMEM",
+        "MetricGroup": "latency",
+        "MetricName": "dmem_latency"
+    },
+    {
+        "BriefDescription": "average L1 miss latency using marked events",
+        "MetricExpr": "PM_MRK_LD_MISS_L1_CYC / PM_MRK_LD_MISS_L1",
+        "MetricGroup": "latency",
+        "MetricName": "estimated_dl1miss_latency"
+    },
+    {
+        "BriefDescription": "Marked L21 Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_L21_MOD_CYC/ PM_MRK_DATA_FROM_L21_MOD",
+        "MetricGroup": "latency",
+        "MetricName": "l21_mod_latency"
+    },
+    {
+        "BriefDescription": "Marked L21 Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_L21_SHR_CYC/ PM_MRK_DATA_FROM_L21_SHR",
+        "MetricGroup": "latency",
+        "MetricName": "l21_shr_latency"
+    },
+    {
+        "BriefDescription": "Marked L2 Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_L2_CYC/ PM_MRK_DATA_FROM_L2",
+        "MetricGroup": "latency",
+        "MetricName": "l2_latency"
+    },
+    {
+        "BriefDescription": "Marked L31 Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_L31_MOD_CYC/ PM_MRK_DATA_FROM_L31_MOD",
+        "MetricGroup": "latency",
+        "MetricName": "l31_mod_latency"
+    },
+    {
+        "BriefDescription": "Marked L31 Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_L31_SHR_CYC/ PM_MRK_DATA_FROM_L31_SHR",
+        "MetricGroup": "latency",
+        "MetricName": "l31_shr_latency"
+    },
+    {
+        "BriefDescription": "Marked L3 Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_L3_CYC/ PM_MRK_DATA_FROM_L3",
+        "MetricGroup": "latency",
+        "MetricName": "l3_latency"
+    },
+    {
+        "BriefDescription": "Local L4 average load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_LL4_CYC/ PM_MRK_DATA_FROM_LL4",
+        "MetricGroup": "latency",
+        "MetricName": "ll4_latency"
+    },
+    {
+        "BriefDescription": "Marked Lmem Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_LMEM_CYC/ PM_MRK_DATA_FROM_LMEM",
+        "MetricGroup": "latency",
+        "MetricName": "lmem_latency"
+    },
+    {
+        "BriefDescription": "Marked L2L3 remote Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_RL2L3_MOD_CYC/ PM_MRK_DATA_FROM_RL2L3_MOD",
+        "MetricGroup": "latency",
+        "MetricName": "rl2l3_mod_latency"
+    },
+    {
+        "BriefDescription": "Marked L2L3 remote Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_RL2L3_SHR_CYC/ PM_MRK_DATA_FROM_RL2L3_SHR",
+        "MetricGroup": "latency",
+        "MetricName": "rl2l3_shr_latency"
+    },
+    {
+        "BriefDescription": "Remote L4 average load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_RL4_CYC/ PM_MRK_DATA_FROM_RL4",
+        "MetricGroup": "latency",
+        "MetricName": "rl4_latency"
+    },
+    {
+        "BriefDescription": "Marked Rmem Load latency",
+        "MetricExpr": "PM_MRK_DATA_FROM_RMEM_CYC/ PM_MRK_DATA_FROM_RMEM",
+        "MetricGroup": "latency",
+        "MetricName": "rmem_latency"
+    },
+    {
+        "BriefDescription": "ERAT miss reject ratio",
+        "MetricExpr": "PM_LSU_REJECT_ERAT_MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "lsu_rejects",
+        "MetricName": "erat_reject_rate_percent"
+    },
+    {
+        "BriefDescription": "LHS reject ratio",
+        "MetricExpr": "PM_LSU_REJECT_LHS *100/ PM_RUN_INST_CMPL",
+        "MetricGroup": "lsu_rejects",
+        "MetricName": "lhs_reject_rate_percent"
+    },
+    {
+        "BriefDescription": "ERAT miss reject ratio",
+        "MetricExpr": "PM_LSU_REJECT_LMQ_FULL * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "lsu_rejects",
+        "MetricName": "lmq_full_reject_rate_percent"
+    },
+    {
+        "BriefDescription": "ERAT miss reject ratio",
+        "MetricExpr": "PM_LSU_REJECT_LMQ_FULL * 100 / PM_LD_REF_L1",
+        "MetricGroup": "lsu_rejects",
+        "MetricName": "lmq_full_reject_ratio_percent"
+    },
+    {
+        "BriefDescription": "L4 locality(%)",
+        "MetricExpr": "PM_DATA_FROM_LL4 * 100 / (PM_DATA_FROM_LL4 + PM_DATA_FROM_RL4 + PM_DATA_FROM_DL4)",
+        "MetricGroup": "memory",
+        "MetricName": "l4_locality"
+    },
+    {
+        "BriefDescription": "Ratio of reloads from local L4 to distant L4",
+        "MetricExpr": "PM_DATA_FROM_LL4 / PM_DATA_FROM_DL4",
+        "MetricGroup": "memory",
+        "MetricName": "ld_ll4_per_ld_dmem"
+    },
+    {
+        "BriefDescription": "Ratio of reloads from local L4 to remote+distant L4",
+        "MetricExpr": "PM_DATA_FROM_LL4 / (PM_DATA_FROM_DL4 + PM_DATA_FROM_RL4)",
+        "MetricGroup": "memory",
+        "MetricName": "ld_ll4_per_ld_mem"
+    },
+    {
+        "BriefDescription": "Ratio of reloads from local L4 to remote L4",
+        "MetricExpr": "PM_DATA_FROM_LL4 / PM_DATA_FROM_RL4",
+        "MetricGroup": "memory",
+        "MetricName": "ld_ll4_per_ld_rl4"
+    },
+    {
+        "BriefDescription": "Number of loads from local memory per loads from distant memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM / PM_DATA_FROM_DMEM",
+        "MetricGroup": "memory",
+        "MetricName": "ld_lmem_per_ld_dmem"
+    },
+    {
+        "BriefDescription": "Number of loads from local memory per loads from remote and distant memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM / (PM_DATA_FROM_DMEM + PM_DATA_FROM_RMEM)",
+        "MetricGroup": "memory",
+        "MetricName": "ld_lmem_per_ld_mem"
+    },
+    {
+        "BriefDescription": "Number of loads from local memory per loads from remote memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM / PM_DATA_FROM_RMEM",
+        "MetricGroup": "memory",
+        "MetricName": "ld_lmem_per_ld_rmem"
+    },
+    {
+        "BriefDescription": "Number of loads from remote memory per loads from distant memory",
+        "MetricExpr": "PM_DATA_FROM_RMEM / PM_DATA_FROM_DMEM",
+        "MetricGroup": "memory",
+        "MetricName": "ld_rmem_per_ld_dmem"
+    },
+    {
+        "BriefDescription": "Memory locality",
+        "MetricExpr": "PM_DATA_FROM_LMEM * 100/ (PM_DATA_FROM_LMEM + PM_DATA_FROM_RMEM + PM_DATA_FROM_DMEM)",
+        "MetricGroup": "memory",
+        "MetricName": "mem_locality_percent"
+    },
+    {
+        "BriefDescription": "L1 Prefetches issued by the prefetch machine per instruction (per thread)",
+        "MetricExpr": "PM_L1_PREF / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "prefetch",
+        "MetricName": "l1_prefetch_rate_percent"
+    },
+    {
+        "BriefDescription": "DERAT Miss Rate (per run instruction)(%)",
+        "MetricExpr": "PM_LSU_DERAT_MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "derat_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant L2 or L3 (Modified) per inst",
+        "MetricExpr": "PM_DPTEG_FROM_DL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_dl2l3_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant L2 or L3 (Shared) per inst",
+        "MetricExpr": "PM_DPTEG_FROM_DL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_dl2l3_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant L4 per inst",
+        "MetricExpr": "PM_DPTEG_FROM_DL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_dl4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant Memory per inst",
+        "MetricExpr": "PM_DPTEG_FROM_DMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_dmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L2, other core per inst",
+        "MetricExpr": "PM_DPTEG_FROM_L21_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_l21_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L2, other core per inst",
+        "MetricExpr": "PM_DPTEG_FROM_L21_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_l21_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from L2 per inst",
+        "MetricExpr": "PM_DPTEG_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_l2_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L3, other core per inst",
+        "MetricExpr": "PM_DPTEG_FROM_L31_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_l31_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L3, other core per inst",
+        "MetricExpr": "PM_DPTEG_FROM_L31_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_l31_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from L3 per inst",
+        "MetricExpr": "PM_DPTEG_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_l3_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Local L4 per inst",
+        "MetricExpr": "PM_DPTEG_FROM_LL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_ll4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Local Memory per inst",
+        "MetricExpr": "PM_DPTEG_FROM_LMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_lmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote L2 or L3 (Modified) per inst",
+        "MetricExpr": "PM_DPTEG_FROM_RL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_rl2l3_mod_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote L2 or L3 (Shared) per inst",
+        "MetricExpr": "PM_DPTEG_FROM_RL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_rl2l3_shr_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote L4 per inst",
+        "MetricExpr": "PM_DPTEG_FROM_RL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_rl4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote Memory per inst",
+        "MetricExpr": "PM_DPTEG_FROM_RMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "pteg_reloads_percent_per_inst",
+        "MetricName": "pteg_from_rmem_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT misses that result in an ERAT reload",
+        "MetricExpr": "PM_DTLB_MISS * 100 / PM_LSU_DERAT_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "derat_miss_reload_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant L2 or L3 (Modified)",
+        "MetricExpr": "PM_DPTEG_FROM_DL2L3_MOD * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_dl2l3_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant L2 or L3 (Shared)",
+        "MetricExpr": "PM_DPTEG_FROM_DL2L3_SHR * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_dl2l3_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant L4",
+        "MetricExpr": "PM_DPTEG_FROM_DL4 * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_dl4_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Distant Memory",
+        "MetricExpr": "PM_DPTEG_FROM_DMEM * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_dmem_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L2, other core",
+        "MetricExpr": "PM_DPTEG_FROM_L21_MOD * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_l21_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L2, other core",
+        "MetricExpr": "PM_DPTEG_FROM_L21_SHR * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_l21_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from L2",
+        "MetricExpr": "PM_DPTEG_FROM_L2 * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_l2_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L3, other core",
+        "MetricExpr": "PM_DPTEG_FROM_L31_MOD * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_l31_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Private L3, other core",
+        "MetricExpr": "PM_DPTEG_FROM_L31_SHR * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_l31_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from L3",
+        "MetricExpr": "PM_DPTEG_FROM_L3 * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_l3_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Local L4",
+        "MetricExpr": "PM_DPTEG_FROM_LL4 * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_ll4_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Local Memory",
+        "MetricExpr": "PM_DPTEG_FROM_LMEM * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_lmem_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote L2 or L3 (Modified)",
+        "MetricExpr": "PM_DPTEG_FROM_RL2L3_MOD * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_rl2l3_mod_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote L2 or L3 (Shared)",
+        "MetricExpr": "PM_DPTEG_FROM_RL2L3_SHR * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_rl2l3_shr_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote L4",
+        "MetricExpr": "PM_DPTEG_FROM_RL4 * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_rl4_percent"
+    },
+    {
+        "BriefDescription": "% of DERAT reloads from Remote Memory",
+        "MetricExpr": "PM_DPTEG_FROM_RMEM * 100 / PM_DTLB_MISS",
+        "MetricGroup": "pteg_reloads_percent_per_ref",
+        "MetricName": "pteg_from_rmem_percent"
+    },
+    {
+        "BriefDescription": "% DERAT miss rate for 4K page per inst",
+        "MetricExpr": "PM_DERAT_MISS_4K * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "translation",
+        "MetricName": "derat_4k_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "DERAT miss ratio for 4K page",
+        "MetricExpr": "PM_DERAT_MISS_4K / PM_LSU_DERAT_MISS",
+        "MetricGroup": "translation",
+        "MetricName": "derat_4k_miss_ratio"
+    },
+    {
+        "BriefDescription": "% DERAT miss ratio for 64K page per inst",
+        "MetricExpr": "PM_DERAT_MISS_64K * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "translation",
+        "MetricName": "derat_64k_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "DERAT miss ratio for 64K page",
+        "MetricExpr": "PM_DERAT_MISS_64K / PM_LSU_DERAT_MISS",
+        "MetricGroup": "translation",
+        "MetricName": "derat_64k_miss_ratio"
+    },
+    {
+        "BriefDescription": "DERAT miss ratio",
+        "MetricExpr": "PM_LSU_DERAT_MISS / PM_LSU_DERAT_MISS",
+        "MetricGroup": "translation",
+        "MetricName": "derat_miss_ratio"
+    },
+    {
+        "BriefDescription": "% DSLB_Miss_Rate per inst",
+        "MetricExpr": "PM_DSLB_MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "translation",
+        "MetricName": "dslb_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "% ISLB miss rate per inst",
+        "MetricExpr": "PM_ISLB_MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "translation",
+        "MetricName": "islb_miss_rate_percent"
+    },
+    {
+        "BriefDescription": "ANY_SYNC_STALL_CPI",
+        "MetricExpr": "PM_CMPLU_STALL_ANY_SYNC / PM_RUN_INST_CMPL",
+        "MetricName": "any_sync_stall_cpi"
+    },
+    {
+        "BriefDescription": "Avg. more than 1 instructions completed",
+        "MetricExpr": "PM_INST_CMPL / PM_1PLUS_PPC_CMPL",
+        "MetricName": "average_completed_instruction_set_size"
+    },
+    {
+        "BriefDescription": "% Branches per instruction",
+        "MetricExpr": "PM_BRU_FIN / PM_RUN_INST_CMPL",
+        "MetricName": "branches_per_inst"
+    },
+    {
+        "BriefDescription": "Cycles in which at least one instruction completes in this thread",
+        "MetricExpr": "PM_1PLUS_PPC_CMPL/PM_RUN_INST_CMPL",
+        "MetricName": "completion_cpi"
+    },
+    {
+        "BriefDescription": "cycles",
+        "MetricExpr": "PM_RUN_CYC",
+        "MetricName": "custom_secs"
+    },
+    {
+        "BriefDescription": "Percentage Cycles atleast one instruction dispatched",
+        "MetricExpr": "PM_1PLUS_PPC_DISP / PM_CYC * 100",
+        "MetricName": "cycles_atleast_one_inst_dispatched_percent"
+    },
+    {
+        "BriefDescription": "Cycles per instruction group",
+        "MetricExpr": "PM_CYC / PM_1PLUS_PPC_CMPL",
+        "MetricName": "cycles_per_completed_instructions_set"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Distant L4",
+        "MetricExpr": "PM_DATA_FROM_DL4 * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricName": "dl1_reload_from_dl4_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Distant L4 per Inst",
+        "MetricExpr": "PM_DATA_FROM_DL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "dl1_reload_from_dl4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 reloads from Private L3, other core per Inst",
+        "MetricExpr": "(PM_DATA_FROM_L31_MOD + PM_DATA_FROM_L31_SHR) * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "dl1_reload_from_l31_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Local L4",
+        "MetricExpr": "PM_DATA_FROM_LL4 * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricName": "dl1_reload_from_ll4_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Local L4 per Inst",
+        "MetricExpr": "PM_DATA_FROM_LL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "dl1_reload_from_ll4_rate_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 dL1_Reloads from Remote L4",
+        "MetricExpr": "PM_DATA_FROM_RL4 * 100 / PM_L1_DCACHE_RELOAD_VALID",
+        "MetricName": "dl1_reload_from_rl4_percent"
+    },
+    {
+        "BriefDescription": "% of DL1 Reloads from Remote Memory per Inst",
+        "MetricExpr": "PM_DATA_FROM_RL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "dl1_reload_from_rl4_rate_percent"
+    },
+    {
+        "BriefDescription": "Rate of DERAT reloads from L2",
+        "MetricExpr": "PM_DPTEG_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "dpteg_from_l2_rate_percent"
+    },
+    {
+        "BriefDescription": "Rate of DERAT reloads from L3",
+        "MetricExpr": "PM_DPTEG_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "dpteg_from_l3_rate_percent"
+    },
+    {
+        "BriefDescription": "Cycles in which the oldest instruction is finished and ready to complete for waiting to get through the completion pipe",
+        "MetricExpr": "PM_NTC_ALL_FIN / PM_RUN_INST_CMPL",
+        "MetricName": "finish_to_cmpl_cpi"
+    },
+    {
+        "BriefDescription": "Total Fixed point operations",
+        "MetricExpr": "PM_FXU_FIN/PM_RUN_INST_CMPL",
+        "MetricName": "fixed_per_inst"
+    },
+    {
+        "BriefDescription": "All FXU Busy",
+        "MetricExpr": "PM_FXU_BUSY / PM_CYC",
+        "MetricName": "fxu_all_busy"
+    },
+    {
+        "BriefDescription": "All FXU Idle",
+        "MetricExpr": "PM_FXU_IDLE / PM_CYC",
+        "MetricName": "fxu_all_idle"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to branch mispred",
+        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_br_mpred_cpi"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to Icache Miss and branch mispred",
+        "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED_ICMISS/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_br_mpred_icmiss_cpi"
+    },
+    {
+        "BriefDescription": "ICT other stalls",
+        "MetricExpr": "(PM_ICT_NOSLOT_CYC - PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_BR_MPRED_ICMISS - PM_ICT_NOSLOT_BR_MPRED - PM_ICT_NOSLOT_DISP_HELD)/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_cyc_other_cpi"
+    },
+    {
+        "BriefDescription": "Cycles in which the NTC instruciton is held at dispatch for any reason",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_disp_held_cpi"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_disp_held_hb_full_cpi"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to dispatch hold on this thread due to Issue q full, BRQ full, XVCF Full, Count cache, Link, Tar full",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_ISSQ/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_disp_held_issq_cpi"
+    },
+    {
+        "BriefDescription": "ICT_NOSLOT_DISP_HELD_OTHER_CPI",
+        "MetricExpr": "(PM_ICT_NOSLOT_DISP_HELD - PM_ICT_NOSLOT_DISP_HELD_HB_FULL - PM_ICT_NOSLOT_DISP_HELD_SYNC - PM_ICT_NOSLOT_DISP_HELD_TBEGIN - PM_ICT_NOSLOT_DISP_HELD_ISSQ)/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_disp_held_other_cpi"
+    },
+    {
+        "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_SYNC/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_disp_held_sync_cpi"
+    },
+    {
+        "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch",
+        "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_disp_held_tbegin_cpi"
+    },
+    {
+        "BriefDescription": "ICT_NOSLOT_IC_L2_CPI",
+        "MetricExpr": "(PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_IC_L3 - PM_ICT_NOSLOT_IC_L3MISS)/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_ic_l2_cpi"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from the local L3",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_L3/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_ic_l3_cpi"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_L3MISS/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_ic_l3miss_cpi"
+    },
+    {
+        "BriefDescription": "Ict empty for this thread due to Icache Miss",
+        "MetricExpr": "PM_ICT_NOSLOT_IC_MISS/PM_RUN_INST_CMPL",
+        "MetricName": "ict_noslot_ic_miss_cpi"
+    },
+    {
+        "BriefDescription": "Rate of IERAT reloads from L2",
+        "MetricExpr": "PM_IPTEG_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "ipteg_from_l2_rate_percent"
+    },
+    {
+        "BriefDescription": "Rate of IERAT reloads from L3",
+        "MetricExpr": "PM_IPTEG_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "ipteg_from_l3_rate_percent"
+    },
+    {
+        "BriefDescription": "Rate of IERAT reloads from local memory",
+        "MetricExpr": "PM_IPTEG_FROM_LL4 * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "ipteg_from_ll4_rate_percent"
+    },
+    {
+        "BriefDescription": "Rate of IERAT reloads from local memory",
+        "MetricExpr": "PM_IPTEG_FROM_LMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricName": "ipteg_from_lmem_rate_percent"
+    },
+    {
+        "BriefDescription": "Average number of Castout machines used. 1 of 16 CO machines is sampled every L2 cycle",
+        "MetricExpr": "PM_CO_USAGE / PM_RUN_CYC * 16",
+        "MetricName": "l2_co_usage"
+    },
+    {
+        "BriefDescription": "Percent of instruction reads out of all L2 commands",
+        "MetricExpr": "PM_ISIDE_DISP * 100 / (PM_L2_ST + PM_L2_LD + PM_ISIDE_DISP)",
+        "MetricName": "l2_instr_commands_percent"
+    },
+    {
+        "BriefDescription": "Percent of loads out of all L2 commands",
+        "MetricExpr": "PM_L2_LD * 100 / (PM_L2_ST + PM_L2_LD + PM_ISIDE_DISP)",
+        "MetricName": "l2_ld_commands_percent"
+    },
+    {
+        "BriefDescription": "Rate of L2 store dispatches that failed per core",
+        "MetricExpr": "100 * (PM_L2_RCST_DISP_FAIL_ADDR + PM_L2_RCST_DISP_FAIL_OTHER)/2 / PM_RUN_INST_CMPL",
+        "MetricName": "l2_rc_st_disp_fail_rate_percent"
+    },
+    {
+        "BriefDescription": "Average number of Read/Claim machines used. 1 of 16 RC machines is sampled every L2 cycle",
+        "MetricExpr": "PM_RC_USAGE / PM_RUN_CYC * 16",
+        "MetricName": "l2_rc_usage"
+    },
+    {
+        "BriefDescription": "Average number of Snoop machines used. 1 of 8 SN machines is sampled every L2 cycle",
+        "MetricExpr": "PM_SN_USAGE / PM_RUN_CYC * 8",
+        "MetricName": "l2_sn_usage"
+    },
+    {
+        "BriefDescription": "Percent of stores out of all L2 commands",
+        "MetricExpr": "PM_L2_ST * 100 / (PM_L2_ST + PM_L2_LD + PM_ISIDE_DISP)",
+        "MetricName": "l2_st_commands_percent"
+    },
+    {
+        "BriefDescription": "Rate of L2 store dispatches that failed per core",
+        "MetricExpr": "100 * (PM_L2_RCST_DISP_FAIL_ADDR + PM_L2_RCST_DISP_FAIL_OTHER)/2 / PM_RUN_INST_CMPL",
+        "MetricName": "l2_st_disp_fail_rate_percent"
+    },
+    {
+        "BriefDescription": "Rate of L2 dispatches per core",
+        "MetricExpr": "100 * PM_L2_RCST_DISP/2 / PM_RUN_INST_CMPL",
+        "MetricName": "l2_st_disp_rate_percent"
+    },
+    {
+        "BriefDescription": "Marked L31 Load latency",
+        "MetricExpr": "(PM_MRK_DATA_FROM_L31_SHR_CYC + PM_MRK_DATA_FROM_L31_MOD_CYC) / (PM_MRK_DATA_FROM_L31_SHR + PM_MRK_DATA_FROM_L31_MOD)",
+        "MetricName": "l31_latency"
+    },
+    {
+        "BriefDescription": "PCT instruction loads",
+        "MetricExpr": "PM_LD_REF_L1 / PM_RUN_INST_CMPL",
+        "MetricName": "loads_per_inst"
+    },
+    {
+        "BriefDescription": "Cycles stalled by D-Cache Misses",
+        "MetricExpr": "PM_CMPLU_STALL_DCACHE_MISS / PM_RUN_INST_CMPL",
+        "MetricName": "lsu_stall_dcache_miss_cpi"
+    },
+    {
+        "BriefDescription": "Completion stall because a different thread was using the completion pipe",
+        "MetricExpr": "(PM_CMPLU_STALL_THRD - PM_CMPLU_STALL_EXCEPTION - PM_CMPLU_STALL_ANY_SYNC - PM_CMPLU_STALL_SYNC_PMU_INT - PM_CMPLU_STALL_SPEC_FINISH - PM_CMPLU_STALL_FLUSH_ANY_THREAD - PM_CMPLU_STALL_LSU_FLUSH_NEXT - PM_CMPLU_STALL_NESTED_TBEGIN - PM_CMPLU_STALL_NESTED_TEND - PM_CMPLU_STALL_MTFPSCR)/PM_RUN_INST_CMPL",
+        "MetricName": "other_thread_cmpl_stall"
+    },
+    {
+        "BriefDescription": "PCT instruction stores",
+        "MetricExpr": "PM_ST_FIN / PM_RUN_INST_CMPL",
+        "MetricName": "stores_per_inst"
+    },
+    {
+        "BriefDescription": "ANY_SYNC_STALL_CPI",
+        "MetricExpr": "PM_CMPLU_STALL_SYNC_PMU_INT / PM_RUN_INST_CMPL",
+        "MetricName": "sync_pmu_int_stall_cpi"
+    }
+]

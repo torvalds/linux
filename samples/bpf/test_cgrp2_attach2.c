@@ -77,7 +77,7 @@ static int test_foo_bar(void)
 
 	/* Create cgroup /foo, get fd, and join it */
 	foo = create_and_get_cgroup(FOO);
-	if (!foo)
+	if (foo < 0)
 		goto err;
 
 	if (join_cgroup(FOO))
@@ -94,7 +94,7 @@ static int test_foo_bar(void)
 
 	/* Create cgroup /foo/bar, get fd, and join it */
 	bar = create_and_get_cgroup(BAR);
-	if (!bar)
+	if (bar < 0)
 		goto err;
 
 	if (join_cgroup(BAR))
@@ -298,19 +298,19 @@ static int test_multiprog(void)
 		goto err;
 
 	cg1 = create_and_get_cgroup("/cg1");
-	if (!cg1)
+	if (cg1 < 0)
 		goto err;
 	cg2 = create_and_get_cgroup("/cg1/cg2");
-	if (!cg2)
+	if (cg2 < 0)
 		goto err;
 	cg3 = create_and_get_cgroup("/cg1/cg2/cg3");
-	if (!cg3)
+	if (cg3 < 0)
 		goto err;
 	cg4 = create_and_get_cgroup("/cg1/cg2/cg3/cg4");
-	if (!cg4)
+	if (cg4 < 0)
 		goto err;
 	cg5 = create_and_get_cgroup("/cg1/cg2/cg3/cg4/cg5");
-	if (!cg5)
+	if (cg5 < 0)
 		goto err;
 
 	if (join_cgroup("/cg1/cg2/cg3/cg4/cg5"))

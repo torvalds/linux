@@ -842,9 +842,6 @@ static int ov2640_set_params(struct i2c_client *client,
 	u8 val;
 	int ret;
 
-	if (!win)
-		return -EINVAL;
-
 	switch (code) {
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		dev_dbg(&client->dev, "%s: Selected cfmt RGB565 BE", __func__);
@@ -929,9 +926,14 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
-	if (!priv->win) {
-		priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
-		priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		format->format = *mf;
+		return 0;
+#else
+		return -ENOTTY;
+#endif
 	}
 
 	mf->width	= priv->win->width;
@@ -939,6 +941,9 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 	mf->code	= priv->cfmt_code;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 	mf->field	= V4L2_FIELD_NONE;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	return 0;
 }
@@ -965,6 +970,9 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 
 	mf->field	= V4L2_FIELD_NONE;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
@@ -997,6 +1005,27 @@ out:
 	mutex_unlock(&priv->lock);
 
 	return ret;
+}
+
+static int ov2640_init_cfg(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg)
+{
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *try_fmt =
+		v4l2_subdev_get_try_format(sd, cfg, 0);
+	const struct ov2640_win_size *win =
+		ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
+
+	try_fmt->width = win->width;
+	try_fmt->height = win->height;
+	try_fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	try_fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	try_fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
+	try_fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
+#endif
+	return 0;
 }
 
 static int ov2640_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1108,6 +1137,7 @@ static const struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov2640_subdev_pad_ops = {
+	.init_cfg	= ov2640_init_cfg,
 	.enum_mbus_code = ov2640_enum_mbus_code,
 	.get_selection	= ov2640_get_selection,
 	.get_fmt	= ov2640_get_fmt,
@@ -1192,6 +1222,9 @@ static int ov2640_probe(struct i2c_client *client,
 	ret = ov2640_probe_dt(client, priv);
 	if (ret)
 		goto err_clk;
+
+	priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
+	priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
 	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |

@@ -10,8 +10,7 @@
 #ifndef __RCAR_DU_VSP_H__
 #define __RCAR_DU_VSP_H__
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
+#include <drm/drm_plane.h>
 
 struct rcar_du_format_info;
 struct rcar_du_vsp;

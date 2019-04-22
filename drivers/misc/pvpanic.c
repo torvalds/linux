@@ -70,8 +70,12 @@ pvpanic_walk_resources(struct acpi_resource *res, void *context)
 	struct resource r;
 
 	if (acpi_dev_resource_io(res, &r)) {
+#ifdef CONFIG_HAS_IOPORT_MAP
 		base = ioport_map(r.start, resource_size(&r));
 		return AE_OK;
+#else
+		return AE_ERROR;
+#endif
 	} else if (acpi_dev_resource_memory(res, &r)) {
 		base = ioremap(r.start, resource_size(&r));
 		return AE_OK;

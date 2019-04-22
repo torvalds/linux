@@ -58,6 +58,35 @@ const struct clk_ops clk_gpio_gate_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_gpio_gate_ops);
 
+static int clk_sleeping_gpio_gate_prepare(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	gpiod_set_value_cansleep(clk->gpiod, 1);
+
+	return 0;
+}
+
+static void clk_sleeping_gpio_gate_unprepare(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	gpiod_set_value_cansleep(clk->gpiod, 0);
+}
+
+static int clk_sleeping_gpio_gate_is_prepared(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	return gpiod_get_value_cansleep(clk->gpiod);
+}
+
+static const struct clk_ops clk_sleeping_gpio_gate_ops = {
+	.prepare = clk_sleeping_gpio_gate_prepare,
+	.unprepare = clk_sleeping_gpio_gate_unprepare,
+	.is_prepared = clk_sleeping_gpio_gate_is_prepared,
+};
+
 /**
  * DOC: basic clock multiplexer which can be controlled with a gpio output
  * Traits of this clock:
@@ -144,10 +173,16 @@ struct clk_hw *clk_hw_register_gpio_gate(struct device *dev, const char *name,
 		const char *parent_name, struct gpio_desc *gpiod,
 		unsigned long flags)
 {
+	const struct clk_ops *ops;
+
+	if (gpiod_cansleep(gpiod))
+		ops = &clk_sleeping_gpio_gate_ops;
+	else
+		ops = &clk_gpio_gate_ops;
+
 	return clk_register_gpio(dev, name,
 			(parent_name ? &parent_name : NULL),
-			(parent_name ? 1 : 0), gpiod, flags,
-			&clk_gpio_gate_ops);
+			(parent_name ? 1 : 0), gpiod, flags, ops);
 }
 EXPORT_SYMBOL_GPL(clk_hw_register_gpio_gate);
 

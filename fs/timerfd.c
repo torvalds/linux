@@ -560,7 +560,7 @@ SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct __kernel_itimerspec __user *, 
 }
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
-COMPAT_SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
+SYSCALL_DEFINE4(timerfd_settime32, int, ufd, int, flags,
 		const struct old_itimerspec32 __user *, utmr,
 		struct old_itimerspec32 __user *, otmr)
 {
@@ -577,7 +577,7 @@ COMPAT_SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 	return ret;
 }
 
-COMPAT_SYSCALL_DEFINE2(timerfd_gettime, int, ufd,
+SYSCALL_DEFINE2(timerfd_gettime32, int, ufd,
 		struct old_itimerspec32 __user *, otmr)
 {
 	struct itimerspec64 kotmr;

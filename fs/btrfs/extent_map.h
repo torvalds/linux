@@ -9,6 +9,7 @@
 #define EXTENT_MAP_LAST_BYTE ((u64)-4)
 #define EXTENT_MAP_HOLE ((u64)-3)
 #define EXTENT_MAP_INLINE ((u64)-2)
+/* used only during fiemap calls */
 #define EXTENT_MAP_DELALLOC ((u64)-1)
 
 /* bits for the extent_map::flags field */

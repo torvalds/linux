@@ -174,10 +174,6 @@ machine_arch_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
 machine_arch_initcall(mpc8572_ds, mpc85xx_common_publish_devices);
 machine_arch_initcall(p2020_ds, mpc85xx_common_publish_devices);
 
-machine_arch_initcall(mpc8544_ds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(mpc8572_ds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(p2020_ds, swiotlb_setup_bus_notifier);
-
 /*
  * Called very early, device-tree isn't unflattened
  */

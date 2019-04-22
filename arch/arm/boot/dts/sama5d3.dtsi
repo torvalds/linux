@@ -8,7 +8,6 @@
  * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -16,6 +15,8 @@
 #include <dt-bindings/clock/at91.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel SAMA5D3 family SoC";
 	compatible = "atmel,sama5d3", "atmel,sama5";
 	interrupt-parent = <&aic>;
@@ -56,6 +57,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x8000000>;
 	};
 

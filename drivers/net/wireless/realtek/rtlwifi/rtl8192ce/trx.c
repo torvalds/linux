@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -58,6 +36,7 @@ static u8 _rtl92c_query_rxpwrpercentage(s8 antpower)
 static u8 _rtl92c_evm_db_to_percentage(s8 value)
 {
 	s8 ret_val;
+
 	ret_val = value;
 
 	if (ret_val >= 0)
@@ -131,6 +110,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 
 	if (is_cck_rate) {
 		u8 report, cck_highpwr;
+
 		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
 
 		if (ppsc->rfpwr_state == ERFON)
@@ -142,6 +122,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 
 		if (!cck_highpwr) {
 			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;
+
 			report = cck_buf->cck_agc_rpt & 0xc0;
 			report = report >> 6;
 			switch (report) {
@@ -160,6 +141,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 			}
 		} else {
 			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;
+
 			report = p_drvinfo->cfosho[0] & 0x60;
 			report = report >> 5;
 			switch (report) {
@@ -204,6 +186,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 		/* (3) Get Signal Quality (EVM) */
 		if (packet_match_bssid) {
 			u8 sq;
+
 			if (pstats->rx_pwdb_all > 40)
 				sq = 100;
 			else {
@@ -340,6 +323,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	struct rx_desc_92c *pdesc = (struct rx_desc_92c *)p_desc;
 	struct ieee80211_hdr *hdr;
 	u32 phystatus = GET_RX_DESC_PHYST(pdesc);
+
 	stats->length = (u16) GET_RX_DESC_PKT_LEN(pdesc);
 	stats->rx_drvinfo_size = (u8) GET_RX_DESC_DRV_INFO_SIZE(pdesc) *
 	    RX_DRV_INFO_SIZE_UNIT;
@@ -354,7 +338,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	stats->isfirst_ampdu = (bool) ((GET_RX_DESC_PAGGR(pdesc) == 1)
 				   && (GET_RX_DESC_FAGGR(pdesc) == 1));
 	stats->timestamp_low = GET_RX_DESC_TSFL(pdesc);
-	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
+	stats->rx_is40mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
 	stats->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
 
 	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc->rxmcs);
@@ -368,7 +352,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	if (stats->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (stats->rx_is40Mhzpacket)
+	if (stats->rx_is40mhzpacket)
 		rx_status->bw = RATE_INFO_BW_40;
 
 	if (stats->is_ht)
@@ -519,6 +503,7 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 
 		if (sta) {
 			u8 ampdu_density = sta->ht_cap.ampdu_density;
+
 			SET_TX_DESC_AMPDU_DENSITY(pdesc, ampdu_density);
 		}
 
@@ -755,6 +740,7 @@ bool rtl92ce_is_tx_desc_closed(struct ieee80211_hw *hw,
 void rtl92ce_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	if (hw_queue == BEACON_QUEUE) {
 		rtl_write_word(rtlpriv, REG_PCIE_CTRL_REG, BIT(4));
 	} else {

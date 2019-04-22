@@ -242,9 +242,11 @@ certainly invest a bit more effort into libata core layer).
 
 CLOCK
   devm_clk_get()
+  devm_clk_get_optional()
   devm_clk_put()
   devm_clk_hw_register()
   devm_of_clk_add_hw_provider()
+  devm_clk_hw_register_clkdev()
 
 DMA
   dmaenginem_async_device_register()

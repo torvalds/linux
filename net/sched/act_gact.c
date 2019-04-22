@@ -253,7 +253,7 @@ static size_t tcf_gact_get_fill_size(const struct tc_action *act)
 
 static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
-	.type		=	TCA_ACT_GACT,
+	.id		=	TCA_ID_GACT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_gact_act,
 	.stats_update	=	tcf_gact_stats_update,

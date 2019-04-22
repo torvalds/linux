@@ -282,8 +282,8 @@ static long pem_get_fan(u8 *data, int len, int index)
  * Show boolean, either a fault or an alarm.
  * .nr points to the register, .index is the bit mask to check
  */
-static ssize_t pem_show_bool(struct device *dev,
-			     struct device_attribute *da, char *buf)
+static ssize_t pem_bool_show(struct device *dev, struct device_attribute *da,
+			     char *buf)
 {
 	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(da);
 	struct pem_data *data = pem_update_device(dev);
@@ -296,7 +296,7 @@ static ssize_t pem_show_bool(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", !!status);
 }
 
-static ssize_t pem_show_data(struct device *dev, struct device_attribute *da,
+static ssize_t pem_data_show(struct device *dev, struct device_attribute *da,
 			     char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -312,7 +312,7 @@ static ssize_t pem_show_data(struct device *dev, struct device_attribute *da,
 	return snprintf(buf, PAGE_SIZE, "%ld\n", value);
 }
 
-static ssize_t pem_show_input(struct device *dev, struct device_attribute *da,
+static ssize_t pem_input_show(struct device *dev, struct device_attribute *da,
 			      char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -328,7 +328,7 @@ static ssize_t pem_show_input(struct device *dev, struct device_attribute *da,
 	return snprintf(buf, PAGE_SIZE, "%ld\n", value);
 }
 
-static ssize_t pem_show_fan(struct device *dev, struct device_attribute *da,
+static ssize_t pem_fan_show(struct device *dev, struct device_attribute *da,
 			    char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -345,53 +345,42 @@ static ssize_t pem_show_fan(struct device *dev, struct device_attribute *da,
 }
 
 /* Voltages */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, pem_show_data, NULL,
-			  PEM_DATA_VOUT_LSB);
-static SENSOR_DEVICE_ATTR_2(in1_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1, ALRM1_VOUT_OUT_LIMIT);
-static SENSOR_DEVICE_ATTR_2(in1_crit_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1, ALRM1_OV_VOLT_SHUTDOWN);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, pem_show_input, NULL,
-			  PEM_INPUT_VOLTAGE);
-static SENSOR_DEVICE_ATTR_2(in2_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1,
-			    ALRM1_VIN_OUT_LIMIT | ALRM1_PRIMARY_FAULT);
+static SENSOR_DEVICE_ATTR_RO(in1_input, pem_data, PEM_DATA_VOUT_LSB);
+static SENSOR_DEVICE_ATTR_2_RO(in1_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_VOUT_OUT_LIMIT);
+static SENSOR_DEVICE_ATTR_2_RO(in1_crit_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_OV_VOLT_SHUTDOWN);
+static SENSOR_DEVICE_ATTR_RO(in2_input, pem_input, PEM_INPUT_VOLTAGE);
+static SENSOR_DEVICE_ATTR_2_RO(in2_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_VIN_OUT_LIMIT | ALRM1_PRIMARY_FAULT);
 
 /* Currents */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, pem_show_data, NULL,
-			  PEM_DATA_CURRENT);
-static SENSOR_DEVICE_ATTR_2(curr1_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1, ALRM1_VIN_OVERCURRENT);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, pem_data, PEM_DATA_CURRENT);
+static SENSOR_DEVICE_ATTR_2_RO(curr1_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_VIN_OVERCURRENT);
 
 /* Power */
-static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, pem_show_input, NULL,
-			  PEM_INPUT_POWER_LSB);
-static SENSOR_DEVICE_ATTR_2(power1_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1, ALRM1_POWER_LIMIT);
+static SENSOR_DEVICE_ATTR_RO(power1_input, pem_input, PEM_INPUT_POWER_LSB);
+static SENSOR_DEVICE_ATTR_2_RO(power1_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_POWER_LIMIT);
 
 /* Fans */
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, pem_show_fan, NULL,
-			  PEM_FAN_FAN1);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, pem_show_fan, NULL,
-			  PEM_FAN_FAN2);
-static SENSOR_DEVICE_ATTR(fan3_input, S_IRUGO, pem_show_fan, NULL,
-			  PEM_FAN_FAN3);
-static SENSOR_DEVICE_ATTR_2(fan1_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_2, ALRM2_FAN_FAULT);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, pem_fan, PEM_FAN_FAN1);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, pem_fan, PEM_FAN_FAN2);
+static SENSOR_DEVICE_ATTR_RO(fan3_input, pem_fan, PEM_FAN_FAN3);
+static SENSOR_DEVICE_ATTR_2_RO(fan1_alarm, pem_bool, PEM_DATA_ALARM_2,
+			       ALRM2_FAN_FAULT);
 
 /* Temperatures */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, pem_show_data, NULL,
-			  PEM_DATA_TEMP);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, pem_show_data, NULL,
-			  PEM_DATA_TEMP_MAX);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, pem_show_data, NULL,
-			  PEM_DATA_TEMP_CRIT);
-static SENSOR_DEVICE_ATTR_2(temp1_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1, ALRM1_TEMP_WARNING);
-static SENSOR_DEVICE_ATTR_2(temp1_crit_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_1, ALRM1_TEMP_SHUTDOWN);
-static SENSOR_DEVICE_ATTR_2(temp1_fault, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_2, ALRM2_TEMP_FAULT);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, pem_data, PEM_DATA_TEMP);
+static SENSOR_DEVICE_ATTR_RO(temp1_max, pem_data, PEM_DATA_TEMP_MAX);
+static SENSOR_DEVICE_ATTR_RO(temp1_crit, pem_data, PEM_DATA_TEMP_CRIT);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_TEMP_WARNING);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_crit_alarm, pem_bool, PEM_DATA_ALARM_1,
+			       ALRM1_TEMP_SHUTDOWN);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_fault, pem_bool, PEM_DATA_ALARM_2,
+			       ALRM2_TEMP_FAULT);
 
 static struct attribute *pem_attributes[] = {
 	&sensor_dev_attr_in1_input.dev_attr.attr,

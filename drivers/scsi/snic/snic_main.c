@@ -397,12 +397,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 #ifdef CONFIG_SCSI_SNIC_DEBUG_FS
 	/* Per snic debugfs init */
-	ret = snic_stats_debugfs_init(snic);
-	if (ret) {
-		SNIC_HOST_ERR(snic->shost,
-			      "Failed to initialize debugfs stats\n");
-		snic_stats_debugfs_remove(snic);
-	}
+	snic_stats_debugfs_init(snic);
 #endif
 
 	/* Setup PCI Resources */
@@ -850,12 +845,7 @@ snic_global_data_init(void)
 #ifdef CONFIG_SCSI_SNIC_DEBUG_FS
 	/* Debugfs related Initialization */
 	/* Create debugfs entries for snic */
-	ret = snic_debugfs_init();
-	if (ret < 0) {
-		SNIC_ERR("Failed to create sysfs dir for tracing and stats.\n");
-		snic_debugfs_term();
-		/* continue even if it fails */
-	}
+	snic_debugfs_init();
 
 	/* Trace related Initialization */
 	/* Allocate memory for trace buffer */

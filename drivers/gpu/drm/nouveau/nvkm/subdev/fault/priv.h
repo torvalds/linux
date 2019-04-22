@@ -34,7 +34,14 @@ struct nvkm_fault_func {
 		void (*fini)(struct nvkm_fault_buffer *);
 		void (*intr)(struct nvkm_fault_buffer *, bool enable);
 	} buffer;
+	struct {
+		struct nvkm_sclass base;
+		int rp;
+	} user;
 };
 
 int gv100_fault_oneinit(struct nvkm_fault *);
+
+int nvkm_ufault_new(struct nvkm_device *, const struct nvkm_oclass *,
+		    void *, u32, struct nvkm_object **);
 #endif

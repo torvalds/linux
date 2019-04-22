@@ -117,6 +117,16 @@ config INPUT_E3X0_BUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called e3x0_button.
 
+config INPUT_MSM_VIBRATOR
+	tristate "Qualcomm MSM vibrator driver"
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the vibrator that is found on various Qualcomm MSM
+	  SOCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called msm_vibrator.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
@@ -850,5 +860,16 @@ config INPUT_SC27XX_VIBRA
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
+
+config INPUT_STPMIC1_ONKEY
+	tristate "STPMIC1 PMIC Onkey support"
+	depends on MFD_STPMIC1
+	help
+	  Say Y to enable support of onkey embedded into STPMIC1 PMIC. onkey
+	  can be used to wakeup from low power modes and force a shut-down on
+	  long press.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1_onkey.
 
 endif

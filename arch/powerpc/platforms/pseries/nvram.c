@@ -7,8 +7,6 @@
  *      2 of the License, or (at your option) any later version.
  *
  * /dev/nvram driver for PPC64
- *
- * This perhaps should live in drivers/char
  */
 
 

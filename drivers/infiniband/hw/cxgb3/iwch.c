@@ -146,7 +146,7 @@ static void open_rnic_dev(struct t3cdev *tdev)
 
 	pr_debug("%s t3cdev %p\n", __func__,  tdev);
 	pr_info_once("Chelsio T3 RDMA Driver - version %s\n", DRV_VERSION);
-	rnicp = (struct iwch_dev *)ib_alloc_device(sizeof(*rnicp));
+	rnicp = ib_alloc_device(iwch_dev, ibdev);
 	if (!rnicp) {
 		pr_err("Cannot allocate ib device\n");
 		return;

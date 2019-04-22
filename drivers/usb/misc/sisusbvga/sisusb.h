@@ -38,16 +38,7 @@
 #ifndef _SISUSB_H_
 #define _SISUSB_H_
 
-#ifdef CONFIG_COMPAT
-#define SISUSB_NEW_CONFIG_COMPAT
-#endif
-
 #include <linux/mutex.h>
-
-/* For older kernels, support for text consoles is by default
- * off. To enable text console support, change the following:
- */
-/* #define CONFIG_USB_SISUSBVGA_CON */
 
 /* Version Information */
 
@@ -56,10 +47,6 @@
 #define SISUSB_PATCHLEVEL	8
 
 /* Include console and mode switching code? */
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-#define INCL_SISUSB_CON		1
-#endif
 
 #include <linux/console.h>
 #include <linux/vt_kern.h>
@@ -139,7 +126,7 @@ struct sisusb_usb_data {
 	unsigned char gfxinit;	/* graphics core initialized? */
 	unsigned short chipid, chipvendor;
 	unsigned short chiprevision;
-#ifdef INCL_SISUSB_CON
+#ifdef CONFIG_USB_SISUSBVGA_CON
 	struct SiS_Private *SiS_Pr;
 	unsigned long scrbuf;
 	unsigned int scrbuf_size;

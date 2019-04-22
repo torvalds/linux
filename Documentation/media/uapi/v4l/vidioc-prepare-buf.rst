@@ -43,10 +43,7 @@ Applications can optionally call the :ref:`VIDIOC_PREPARE_BUF` ioctl to
 pass ownership of the buffer to the driver before actually enqueuing it,
 using the :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` ioctl, and to prepare it for future I/O. Such
 preparations may include cache invalidation or cleaning. Performing them
-in advance saves time during the actual I/O. In case such cache
-operations are not required, the application can use one of
-``V4L2_BUF_FLAG_NO_CACHE_INVALIDATE`` and
-``V4L2_BUF_FLAG_NO_CACHE_CLEAN`` flags to skip the respective step.
+in advance saves time during the actual I/O.
 
 The struct :c:type:`v4l2_buffer` structure is specified in
 :ref:`buffer`.

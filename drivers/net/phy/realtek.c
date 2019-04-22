@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/realtek.c
  *
@@ -6,12 +7,6 @@
  * Author: Johnson Leung <r58129@freescale.com>
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <linux/bitops.h>
 #include <linux/phy.h>
@@ -278,10 +273,26 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 	}, {
+		PHY_ID_MATCH_EXACT(0x001cc800),
+		.name		= "Generic Realtek PHY",
+		.features	= PHY_GBIT_FEATURES,
+		.config_init	= genphy_config_init,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",
 		.features	= PHY_GBIT_FEATURES,
 		.config_init	= &rtl8366rb_config_init,
+		/* These interrupts are handled by the irq controller
+		 * embedded inside the RTL8366RB, they get unmasked when the
+		 * irq is requested and ACKed by reading the status register,
+		 * which is done by the irqchip code.
+		 */
+		.ack_interrupt	= genphy_no_ack_interrupt,
+		.config_intr	= genphy_no_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	},

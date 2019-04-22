@@ -11,20 +11,21 @@
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
 	cbb {
+		ddc: i2c@31c0000 {
+			status = "okay";
+		};
+
 		/* SDMMC1 (SD/MMC) */
 		sdhci@3400000 {
 			status = "okay";
 		};
 
-		ddc: i2c@31c0000 {
+		hda@3510000 {
+			nvidia,model = "jetson-xavier-hda";
 			status = "okay";
 		};
 
 		pwm@c340000 {
-			status = "okay";
-		};
-
-		hda@3510000 {
 			status = "okay";
 		};
 

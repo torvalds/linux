@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
 #include <drm/drm_hdcp.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
@@ -698,12 +697,13 @@ out:
 static int
 gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus =
+		container_of(adapter, struct intel_gmbus, adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
+	intel_wakeref_t wakeref;
 	int ret;
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
 	if (bus->force_bit) {
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
@@ -715,17 +715,16 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
 	}
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	return ret;
 }
 
 int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus =
+		container_of(adapter, struct intel_gmbus, adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	int ret;
 	u8 cmd = DRM_HDCP_DDC_AKSV;
 	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
 	struct i2c_msg msgs[] = {
@@ -742,8 +741,10 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 			.buf = buf,
 		}
 	};
+	intel_wakeref_t wakeref;
+	int ret;
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	/*
@@ -754,7 +755,7 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 	ret = do_gmbus_xfer(adapter, msgs, ARRAY_SIZE(msgs), GMBUS_AKSV_SELECT);
 
 	mutex_unlock(&dev_priv->gmbus_mutex);
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	return ret;
 }
@@ -822,7 +823,7 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
-	else if (!HAS_GMCH_DISPLAY(dev_priv))
+	else if (!HAS_GMCH(dev_priv))
 		/*
 		 * Broxton uses the same PCH offsets for South Display Engine,
 		 * even though it doesn't have a PCH.

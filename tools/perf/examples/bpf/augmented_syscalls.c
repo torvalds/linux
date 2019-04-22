@@ -19,12 +19,8 @@
 #include <stdio.h>
 #include <linux/socket.h>
 
-struct bpf_map SEC("maps") __augmented_syscalls__ = {
-       .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-       .key_size = sizeof(int),
-       .value_size = sizeof(u32),
-       .max_entries = __NR_CPUS__,
-};
+/* bpf-output associated map */
+bpf_map(__augmented_syscalls__, PERF_EVENT_ARRAY, int, u32, __NR_CPUS__);
 
 struct syscall_exit_args {
 	unsigned long long common_tp_fields;
@@ -55,9 +51,9 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 		len -= sizeof(augmented_args.filename.value) - augmented_args.filename.size;	\
 		len &= sizeof(augmented_args.filename.value) - 1;				\
 	}											\
-	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 			\
-			  &augmented_args, len);						\
-	return 0;										\
+	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */	\
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 		\
+				 &augmented_args, len);						\
 }												\
 int syscall_exit(syscall)(struct syscall_exit_args *args)					\
 {												\
@@ -125,10 +121,10 @@ int syscall_enter(syscall)(struct syscall_enter_##syscall##_args *args)				\
 /*		addrlen = augmented_args.args.addrlen;				     */		\
 /*										     */		\
 	probe_read(&augmented_args.addr, addrlen, args->addr_ptr); 				\
-	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 			\
-			  &augmented_args, 							\
-			  sizeof(augmented_args) - sizeof(augmented_args.addr) + addrlen);	\
-	return 0;										\
+	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */	\
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, 		\
+				 &augmented_args, 						\
+				sizeof(augmented_args) - sizeof(augmented_args.addr) + addrlen);\
 }												\
 int syscall_exit(syscall)(struct syscall_exit_args *args)					\
 {												\

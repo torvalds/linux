@@ -42,6 +42,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_pack.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -554,10 +555,14 @@ static int mthca_path_set(struct mthca_dev *dev, const struct rdma_ah_attr *ah,
 
 static int __mthca_modify_qp(struct ib_qp *ibqp,
 			     const struct ib_qp_attr *attr, int attr_mask,
-			     enum ib_qp_state cur_state, enum ib_qp_state new_state)
+			     enum ib_qp_state cur_state,
+			     enum ib_qp_state new_state,
+			     struct ib_udata *udata)
 {
 	struct mthca_dev *dev = to_mdev(ibqp->device);
 	struct mthca_qp *qp = to_mqp(ibqp);
+	struct mthca_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mthca_ucontext, ibucontext);
 	struct mthca_mailbox *mailbox;
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *qp_context;
@@ -619,8 +624,7 @@ static int __mthca_modify_qp(struct ib_qp *ibqp,
 	/* leave arbel_sched_queue as 0 */
 
 	if (qp->ibqp.uobject)
-		qp_context->usr_page =
-			cpu_to_be32(to_mucontext(qp->ibqp.uobject->context)->uar.index);
+		qp_context->usr_page = cpu_to_be32(context->uar.index);
 	else
 		qp_context->usr_page = cpu_to_be32(dev->driver_uar.index);
 	qp_context->local_qpn  = cpu_to_be32(qp->qpn);
@@ -913,7 +917,8 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		goto out;
 	}
 
-	err = __mthca_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
+	err = __mthca_modify_qp(ibqp, attr, attr_mask, cur_state, new_state,
+				udata);
 
 out:
 	mutex_unlock(&qp->mutex);

@@ -568,9 +568,9 @@ xfs_agfl_verify(
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return NULL;
 
-	if (!uuid_equal(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid))
+	if (!xfs_verify_magic(bp, agfl->agfl_magicnum))
 		return __this_address;
-	if (be32_to_cpu(agfl->agfl_magicnum) != XFS_AGFL_MAGIC)
+	if (!uuid_equal(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid))
 		return __this_address;
 	/*
 	 * during growfs operations, the perag is not fully initialised,
@@ -643,6 +643,7 @@ xfs_agfl_write_verify(
 
 const struct xfs_buf_ops xfs_agfl_buf_ops = {
 	.name = "xfs_agfl",
+	.magic = { cpu_to_be32(XFS_AGFL_MAGIC), cpu_to_be32(XFS_AGFL_MAGIC) },
 	.verify_read = xfs_agfl_read_verify,
 	.verify_write = xfs_agfl_write_verify,
 	.verify_struct = xfs_agfl_verify,
@@ -2587,8 +2588,10 @@ xfs_agf_verify(
 			return __this_address;
 	}
 
-	if (!(agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
-	      XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
+	if (!xfs_verify_magic(bp, agf->agf_magicnum))
+		return __this_address;
+
+	if (!(XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
 	      be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
 	      be32_to_cpu(agf->agf_flfirst) < xfs_agfl_size(mp) &&
 	      be32_to_cpu(agf->agf_fllast) < xfs_agfl_size(mp) &&
@@ -2670,6 +2673,7 @@ xfs_agf_write_verify(
 
 const struct xfs_buf_ops xfs_agf_buf_ops = {
 	.name = "xfs_agf",
+	.magic = { cpu_to_be32(XFS_AGF_MAGIC), cpu_to_be32(XFS_AGF_MAGIC) },
 	.verify_read = xfs_agf_read_verify,
 	.verify_write = xfs_agf_write_verify,
 	.verify_struct = xfs_agf_verify,

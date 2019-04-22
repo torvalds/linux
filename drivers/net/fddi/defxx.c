@@ -3512,7 +3512,7 @@ static int dfx_xmt_done(DFX_board_t *bp)
 				 bp->descr_block_virt->xmt_data[comp].long_1,
 				 p_xmt_drv_descr->p_skb->len,
 				 DMA_TO_DEVICE);
-		dev_kfree_skb_irq(p_xmt_drv_descr->p_skb);
+		dev_consume_skb_irq(p_xmt_drv_descr->p_skb);
 
 		/*
 		 * Move to start of next packet by updating completion index

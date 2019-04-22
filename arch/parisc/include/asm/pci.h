@@ -56,7 +56,7 @@ struct pci_hba_data {
 	#define DINO_MAX_LMMIO_RESOURCES	3
 
 	unsigned long   lmmio_space_offset;  /* CPU view - PCI view */
-	void *          iommu;          /* IOMMU this device is under */
+	struct ioc	*iommu;		/* IOMMU this device is under */
 	/* REVISIT - spinlock to protect resources? */
 
 	#define HBA_NAME_SIZE 16
@@ -65,8 +65,6 @@ struct pci_hba_data {
 	char elmmio_name[HBA_NAME_SIZE];
 	char gmmio_name[HBA_NAME_SIZE];
 };
-
-#define HBA_DATA(d)		((struct pci_hba_data *) (d))
 
 /* 
 ** We support 2^16 I/O ports per HBA.  These are set up in the form

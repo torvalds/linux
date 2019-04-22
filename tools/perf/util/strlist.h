@@ -57,7 +57,7 @@ static inline unsigned int strlist__nr_entries(const struct strlist *slist)
 /* For strlist iteration */
 static inline struct str_node *strlist__first(struct strlist *slist)
 {
-	struct rb_node *rn = rb_first(&slist->rblist.entries);
+	struct rb_node *rn = rb_first_cached(&slist->rblist.entries);
 	return rn ? rb_entry(rn, struct str_node, rb_node) : NULL;
 }
 static inline struct str_node *strlist__next(struct str_node *sn)

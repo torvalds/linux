@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * adm1029.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
  *
@@ -19,10 +20,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -111,7 +108,7 @@ static const u8 ADM1029_REG_FAN_DIV[] = {
 
 struct adm1029_data {
 	struct i2c_client *client;
-	struct mutex update_lock;
+	struct mutex update_lock; /* protect register access */
 	char valid;		/* zero until following fields are valid */
 	unsigned long last_updated;	/* in jiffies */
 
@@ -134,8 +131,7 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
 	 * Use the "cache" Luke, don't recheck values
 	 * if there are already checked not a long time later
 	 */
-	if (time_after(jiffies, data->last_updated + HZ * 2)
-	 || !data->valid) {
+	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		int nr;
 
 		dev_dbg(&client->dev, "Updating adm1029 data\n");
@@ -174,6 +170,7 @@ show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
+
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
 }
 
@@ -183,9 +180,10 @@ show_fan(struct device *dev, struct device_attribute *devattr, char *buf)
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
 	u16 val;
-	if (data->fan[attr->index] == 0
-	    || (data->fan_div[attr->index] & 0xC0) == 0
-	    || data->fan[attr->index] == 255) {
+
+	if (data->fan[attr->index] == 0 ||
+	    (data->fan_div[attr->index] & 0xC0) == 0 ||
+	    data->fan[attr->index] == 255) {
 		return sprintf(buf, "0\n");
 	}
 
@@ -199,13 +197,14 @@ show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
+
 	if ((data->fan_div[attr->index] & 0xC0) == 0)
 		return sprintf(buf, "0\n");
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[attr->index]));
 }
 
-static ssize_t set_fan_div(struct device *dev,
-	    struct device_attribute *devattr, const char *buf, size_t count)
+static ssize_t set_fan_div(struct device *dev, struct device_attribute *devattr,
+			   const char *buf, size_t count)
 {
 	struct adm1029_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -213,6 +212,7 @@ static ssize_t set_fan_div(struct device *dev,
 	u8 reg;
 	long val;
 	int ret = kstrtol(buf, 10, &val);
+
 	if (ret < 0)
 		return ret;
 
@@ -253,32 +253,27 @@ static ssize_t set_fan_div(struct device *dev,
 	return count;
 }
 
-/*
- * Access rights on sysfs. S_IRUGO: Is Readable by User, Group and Others
- *			   S_IWUSR: Is Writable by User.
- */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
+/* Access rights on sysfs. */
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_input, 0444, show_temp, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp3_input, 0444, show_temp, NULL, 2);
 
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO, show_temp, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO, show_temp, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp1_max, 0444, show_temp, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp2_max, 0444, show_temp, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp3_max, 0444, show_temp, NULL, 5);
 
-static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp2_min, S_IRUGO, show_temp, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp3_min, S_IRUGO, show_temp, NULL, 8);
+static SENSOR_DEVICE_ATTR(temp1_min, 0444, show_temp, NULL, 6);
+static SENSOR_DEVICE_ATTR(temp2_min, 0444, show_temp, NULL, 7);
+static SENSOR_DEVICE_ATTR(temp3_min, 0444, show_temp, NULL, 8);
 
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1);
+static SENSOR_DEVICE_ATTR(fan1_input, 0444, show_fan, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan2_input, 0444, show_fan, NULL, 1);
 
-static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO, show_fan, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan2_min, S_IRUGO, show_fan, NULL, 3);
+static SENSOR_DEVICE_ATTR(fan1_min, 0444, show_fan, NULL, 2);
+static SENSOR_DEVICE_ATTR(fan2_min, 0444, show_fan, NULL, 3);
 
-static SENSOR_DEVICE_ATTR(fan1_div, S_IRUGO | S_IWUSR,
-			  show_fan_div, set_fan_div, 0);
-static SENSOR_DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
-			  show_fan_div, set_fan_div, 1);
+static SENSOR_DEVICE_ATTR(fan1_div, 0644, show_fan_div, set_fan_div, 0);
+static SENSOR_DEVICE_ATTR(fan2_div, 0644, show_fan_div, set_fan_div, 1);
 
 static struct attribute *adm1029_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -327,10 +322,10 @@ static int adm1029_detect(struct i2c_client *client,
 	temp_devices_installed = i2c_smbus_read_byte_data(client,
 					ADM1029_REG_TEMP_DEVICES_INSTALLED);
 	nb_fan_support = i2c_smbus_read_byte_data(client,
-						ADM1029_REG_NB_FAN_SUPPORT);
+						  ADM1029_REG_NB_FAN_SUPPORT);
 	/* 0x41 is Analog Devices */
-	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01
-	    || nb_fan_support != 0x03)
+	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01 ||
+	    nb_fan_support != 0x03)
 		return -ENODEV;
 
 	if ((chip_id & 0xF0) != 0x00) {

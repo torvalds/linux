@@ -593,23 +593,6 @@ static void fsmc_write_buf_dma(struct fsmc_nand_data *host, const u8 *buf,
 	dma_xfer(host, (void *)buf, len, DMA_TO_DEVICE);
 }
 
-/* fsmc_select_chip - assert or deassert nCE */
-static void fsmc_ce_ctrl(struct fsmc_nand_data *host, bool assert)
-{
-	u32 pc = readl(host->regs_va + FSMC_PC);
-
-	if (!assert)
-		writel_relaxed(pc & ~FSMC_ENABLE, host->regs_va + FSMC_PC);
-	else
-		writel_relaxed(pc | FSMC_ENABLE, host->regs_va + FSMC_PC);
-
-	/*
-	 * nCE line changes must be applied before returning from this
-	 * function.
-	 */
-	mb();
-}
-
 /*
  * fsmc_exec_op - hook called by the core to execute NAND operations
  *
@@ -626,8 +609,6 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	int i;
 
 	pr_debug("Executing operation [%d instructions]:\n", op->ninstrs);
-
-	fsmc_ce_ctrl(host, true);
 
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
 		instr = &op->instrs[op_id];
@@ -685,8 +666,6 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			break;
 		}
 	}
-
-	fsmc_ce_ctrl(host, false);
 
 	return ret;
 }
@@ -986,6 +965,19 @@ static const struct nand_controller_ops fsmc_nand_controller_ops = {
 	.setup_data_interface = fsmc_setup_data_interface,
 };
 
+/**
+ * fsmc_nand_disable() - Disables the NAND bank
+ * @host: The instance to disable
+ */
+static void fsmc_nand_disable(struct fsmc_nand_data *host)
+{
+	u32 val;
+
+	val = readl(host->regs_va + FSMC_PC);
+	val &= ~FSMC_ENABLE;
+	writel(val, host->regs_va + FSMC_PC);
+}
+
 /*
  * fsmc_nand_probe - Probe function
  * @pdev:       platform device structure
@@ -1141,6 +1133,7 @@ release_dma_read_chan:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->read_dma_chan);
 disable_clk:
+	fsmc_nand_disable(host);
 	clk_disable_unprepare(host->clk);
 
 	return ret;
@@ -1155,6 +1148,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 
 	if (host) {
 		nand_release(&host->nand);
+		fsmc_nand_disable(host);
 
 		if (host->mode == USE_DMA_ACCESS) {
 			dma_release_channel(host->write_dma_chan);
@@ -1185,6 +1179,7 @@ static int fsmc_nand_resume(struct device *dev)
 		clk_prepare_enable(host->clk);
 		if (host->dev_timings)
 			fsmc_nand_setup(host, host->dev_timings);
+		nand_reset(&host->nand, 0);
 	}
 
 	return 0;

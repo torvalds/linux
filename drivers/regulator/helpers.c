@@ -594,6 +594,45 @@ int regulator_list_voltage_pickable_linear_range(struct regulator_dev *rdev,
 EXPORT_SYMBOL_GPL(regulator_list_voltage_pickable_linear_range);
 
 /**
+ * regulator_desc_list_voltage_linear_range - List voltages for linear ranges
+ *
+ * @desc: Regulator desc for regulator which volatges are to be listed
+ * @selector: Selector to convert into a voltage
+ *
+ * Regulators with a series of simple linear mappings between voltages
+ * and selectors who have set linear_ranges in the regulator descriptor
+ * can use this function prior regulator registration to list voltages.
+ * This is useful when voltages need to be listed during device-tree
+ * parsing.
+ */
+int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
+					     unsigned int selector)
+{
+	const struct regulator_linear_range *range;
+	int i;
+
+	if (!desc->n_linear_ranges) {
+		BUG_ON(!desc->n_linear_ranges);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < desc->n_linear_ranges; i++) {
+		range = &desc->linear_ranges[i];
+
+		if (!(selector >= range->min_sel &&
+		      selector <= range->max_sel))
+			continue;
+
+		selector -= range->min_sel;
+
+		return range->min_uV + (range->uV_step * selector);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_desc_list_voltage_linear_range);
+
+/**
  * regulator_list_voltage_linear_range - List voltages for linear ranges
  *
  * @rdev: Regulator device
@@ -606,27 +645,7 @@ EXPORT_SYMBOL_GPL(regulator_list_voltage_pickable_linear_range);
 int regulator_list_voltage_linear_range(struct regulator_dev *rdev,
 					unsigned int selector)
 {
-	const struct regulator_linear_range *range;
-	int i;
-
-	if (!rdev->desc->n_linear_ranges) {
-		BUG_ON(!rdev->desc->n_linear_ranges);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
-		range = &rdev->desc->linear_ranges[i];
-
-		if (!(selector >= range->min_sel &&
-		      selector <= range->max_sel))
-			continue;
-
-		selector -= range->min_sel;
-
-		return range->min_uV + (range->uV_step * selector);
-	}
-
-	return -EINVAL;
+	return regulator_desc_list_voltage_linear_range(rdev->desc, selector);
 }
 EXPORT_SYMBOL_GPL(regulator_list_voltage_linear_range);
 
@@ -761,3 +780,89 @@ int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
 				  rdev->desc->active_discharge_mask, val);
 }
 EXPORT_SYMBOL_GPL(regulator_set_active_discharge_regmap);
+
+/**
+ * regulator_set_current_limit_regmap - set_current_limit for regmap users
+ *
+ * @rdev: regulator to operate on
+ * @min_uA: Lower bound for current limit
+ * @max_uA: Upper bound for current limit
+ *
+ * Regulators that use regmap for their register I/O can set curr_table,
+ * csel_reg and csel_mask fields in their descriptor and then use this
+ * as their set_current_limit operation, saving some code.
+ */
+int regulator_set_current_limit_regmap(struct regulator_dev *rdev,
+				       int min_uA, int max_uA)
+{
+	unsigned int n_currents = rdev->desc->n_current_limits;
+	int i, sel = -1;
+
+	if (n_currents == 0)
+		return -EINVAL;
+
+	if (rdev->desc->curr_table) {
+		const unsigned int *curr_table = rdev->desc->curr_table;
+		bool ascend = curr_table[n_currents - 1] > curr_table[0];
+
+		/* search for closest to maximum */
+		if (ascend) {
+			for (i = n_currents - 1; i >= 0; i--) {
+				if (min_uA <= curr_table[i] &&
+				    curr_table[i] <= max_uA) {
+					sel = i;
+					break;
+				}
+			}
+		} else {
+			for (i = 0; i < n_currents; i++) {
+				if (min_uA <= curr_table[i] &&
+				    curr_table[i] <= max_uA) {
+					sel = i;
+					break;
+				}
+			}
+		}
+	}
+
+	if (sel < 0)
+		return -EINVAL;
+
+	sel <<= ffs(rdev->desc->csel_mask) - 1;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->csel_reg,
+				  rdev->desc->csel_mask, sel);
+}
+EXPORT_SYMBOL_GPL(regulator_set_current_limit_regmap);
+
+/**
+ * regulator_get_current_limit_regmap - get_current_limit for regmap users
+ *
+ * @rdev: regulator to operate on
+ *
+ * Regulators that use regmap for their register I/O can set the
+ * csel_reg and csel_mask fields in their descriptor and then use this
+ * as their get_current_limit operation, saving some code.
+ */
+int regulator_get_current_limit_regmap(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->csel_reg, &val);
+	if (ret != 0)
+		return ret;
+
+	val &= rdev->desc->csel_mask;
+	val >>= ffs(rdev->desc->csel_mask) - 1;
+
+	if (rdev->desc->curr_table) {
+		if (val >= rdev->desc->n_current_limits)
+			return -EINVAL;
+
+		return rdev->desc->curr_table[val];
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_get_current_limit_regmap);

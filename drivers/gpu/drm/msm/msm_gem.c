@@ -391,6 +391,10 @@ static int msm_gem_pin_iova(struct drm_gem_object *obj,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma;
 	struct page **pages;
+	int prot = IOMMU_READ;
+
+	if (!(msm_obj->flags & MSM_BO_GPU_READONLY))
+		prot |= IOMMU_WRITE;
 
 	WARN_ON(!mutex_is_locked(&msm_obj->lock));
 
@@ -405,8 +409,8 @@ static int msm_gem_pin_iova(struct drm_gem_object *obj,
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	return msm_gem_map_vma(aspace, vma, msm_obj->sgt,
-			obj->size >> PAGE_SHIFT);
+	return msm_gem_map_vma(aspace, vma, prot,
+			msm_obj->sgt, obj->size >> PAGE_SHIFT);
 }
 
 /* get iova and pin it. Should have a matching put */
@@ -758,7 +762,7 @@ static void describe_fence(struct dma_fence *fence, const char *type,
 		struct seq_file *m)
 {
 	if (!dma_fence_is_signaled(fence))
-		seq_printf(m, "\t%9s: %s %s seq %u\n", type,
+		seq_printf(m, "\t%9s: %s %s seq %llu\n", type,
 				fence->ops->get_driver_name(fence),
 				fence->ops->get_timeline_name(fence),
 				fence->seqno);

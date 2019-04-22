@@ -83,7 +83,7 @@ struct cx18_gpio_i2c_slave_reset {
 	u32 active_hi_mask; /* GPIO outputs that reset i2c chips when high */
 	int msecs_asserted; /* time period reset must remain asserted */
 	int msecs_recovery; /* time after deassert for chips to be ready */
-	u32 ir_reset_mask;  /* GPIO to reset the Zilog Z8F0811 IR contoller */
+	u32 ir_reset_mask;  /* GPIO to reset the Zilog Z8F0811 IR controller */
 };
 
 struct cx18_gpio_audio_input {	/* select tuner/line in input */

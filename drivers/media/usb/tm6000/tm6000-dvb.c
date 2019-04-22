@@ -149,7 +149,7 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 							ret, __func__);
 		return ret;
 	} else
-		printk(KERN_ERR "tm6000: pipe resetted\n");
+		printk(KERN_ERR "tm6000: pipe reset\n");
 
 /*	mutex_lock(&tm6000_driver.open_close_mutex); */
 	ret = usb_submit_urb(dvb->bulk_urb, GFP_ATOMIC);

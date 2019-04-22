@@ -591,6 +591,19 @@
 #endif /* CONFIG_MIPS_MT_SMP */
 
 /*
+ * We only enable MMID support for configurations which natively support 64 bit
+ * atomics because getting good performance from the allocator relies upon
+ * efficient atomic64_*() functions.
+ */
+#ifndef cpu_has_mmid
+# ifdef CONFIG_GENERIC_ATOMIC64
+#  define cpu_has_mmid		0
+# else
+#  define cpu_has_mmid		__isa_ge_and_opt(6, MIPS_CPU_MMID)
+# endif
+#endif
+
+/*
  * Guest capabilities
  */
 #ifndef cpu_guest_has_conf1

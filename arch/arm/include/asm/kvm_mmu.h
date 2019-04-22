@@ -421,9 +421,14 @@ static inline int hyp_map_aux_data(void)
 
 static inline void kvm_set_ipa_limit(void) {}
 
-static inline bool kvm_cpu_has_cnp(void)
+static __always_inline u64 kvm_get_vttbr(struct kvm *kvm)
 {
-	return false;
+	struct kvm_vmid *vmid = &kvm->arch.vmid;
+	u64 vmid_field, baddr;
+
+	baddr = kvm->arch.pgd_phys;
+	vmid_field = (u64)vmid->vmid << VTTBR_VMID_SHIFT;
+	return kvm_phys_to_vttbr(baddr) | vmid_field;
 }
 
 #endif	/* !__ASSEMBLY__ */

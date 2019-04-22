@@ -26,6 +26,8 @@
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
+#define DRM_IF_VERSION(maj, min) (maj << 16 | min)
+
 struct drm_prime_file_private;
 struct dma_buf;
 

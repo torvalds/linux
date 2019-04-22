@@ -237,7 +237,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 
 		default:
 
-			/* Is not a recognizeable object */
+			/* Is not a recognizable object */
 
 			acpi_os_printf
 			    ("Not a known ACPI internal object, descriptor type %2.2X\n",
@@ -647,7 +647,7 @@ void acpi_db_display_object_type(char *object_arg)
  *
  * DESCRIPTION: Display the result of an AML opcode
  *
- * Note: Curently only displays the result object if we are single stepping.
+ * Note: Currently only displays the result object if we are single stepping.
  * However, this output may be useful in other contexts and could be enabled
  * to do so if needed.
  *

@@ -44,7 +44,7 @@ with supports all digital TV delivery systems.
       struct :c:type:`dvb_frontend_parameters`.
 
    2. Don't use DVB API version 3 calls on hardware with supports
-      newer standards. Such API provides no suport or a very limited
+      newer standards. Such API provides no support or a very limited
       support to new standards and/or new hardware.
 
    3. Nowadays, most frontends support multiple delivery systems.

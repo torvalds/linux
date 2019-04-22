@@ -81,6 +81,12 @@
  *
  */
 
+static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
+{
+	return (i915_ggtt_offset(engine->status_page.vma) +
+		I915_GEM_HWS_PREEMPT_ADDR);
+}
+
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
@@ -572,7 +578,8 @@ static void inject_preempt_context(struct work_struct *work)
 		if (engine->id == RCS) {
 			cs = gen8_emit_ggtt_write_rcs(cs,
 						      GUC_PREEMPT_FINISHED,
-						      addr);
+						      addr,
+						      PIPE_CONTROL_CS_STALL);
 		} else {
 			cs = gen8_emit_ggtt_write(cs,
 						  GUC_PREEMPT_FINISHED,
@@ -622,6 +629,8 @@ static void inject_preempt_context(struct work_struct *work)
 				       EXECLISTS_ACTIVE_PREEMPT);
 		tasklet_schedule(&engine->execlists.tasklet);
 	}
+
+	(void)I915_SELFTEST_ONLY(engine->execlists.preempt_hang.count++);
 }
 
 /*
@@ -665,7 +674,7 @@ static void complete_preempt_context(struct intel_engine_cs *engine)
 	execlists_unwind_incomplete_requests(execlists);
 
 	wait_for_guc_preempt_report(engine);
-	intel_write_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX, 0);
+	intel_write_status_page(engine, I915_GEM_HWS_PREEMPT, 0);
 }
 
 /**
@@ -730,7 +739,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 		if (intel_engine_has_preemption(engine)) {
 			struct guc_preempt_work *preempt_work =
 				&engine->i915->guc.preempt_work[engine->id];
-			int prio = execlists->queue_priority;
+			int prio = execlists->queue_priority_hint;
 
 			if (__execlists_need_preempt(prio, port_prio(port))) {
 				execlists_set_active(execlists,
@@ -776,7 +785,8 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
 done:
-	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
+	execlists->queue_priority_hint =
+		rb ? to_priolist(rb)->priority : INT_MIN;
 	if (submit)
 		port_assign(port, last);
 	if (last)
@@ -823,7 +833,7 @@ static void guc_submission_tasklet(unsigned long data)
 	}
 
 	if (execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT) &&
-	    intel_read_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX) ==
+	    intel_read_status_page(engine, I915_GEM_HWS_PREEMPT) ==
 	    GUC_PREEMPT_FINISHED)
 		complete_preempt_context(engine);
 
@@ -833,8 +843,7 @@ static void guc_submission_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
-static struct i915_request *
-guc_reset_prepare(struct intel_engine_cs *engine)
+static void guc_reset_prepare(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
@@ -860,8 +869,6 @@ guc_reset_prepare(struct intel_engine_cs *engine)
 	 */
 	if (engine->i915->guc.preempt_wq)
 		flush_workqueue(engine->i915->guc.preempt_wq);
-
-	return i915_gem_find_active_request(engine);
 }
 
 /*

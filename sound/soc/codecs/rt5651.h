@@ -2073,6 +2073,7 @@ struct rt5651_priv {
 	struct regmap *regmap;
 	/* Jack and button detect data */
 	struct snd_soc_jack *hp_jack;
+	struct gpio_desc *gpiod_hp_det;
 	struct work_struct jack_detect_work;
 	struct delayed_work bp_work;
 	bool ovcd_irq_enabled;

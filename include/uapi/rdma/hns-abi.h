@@ -52,6 +52,11 @@ struct hns_roce_ib_create_srq {
 	__aligned_u64 que_addr;
 };
 
+struct hns_roce_ib_create_srq_resp {
+	__u32	srqn;
+	__u32	reserved;
+};
+
 struct hns_roce_ib_create_qp {
 	__aligned_u64 buf_addr;
 	__aligned_u64 db_addr;

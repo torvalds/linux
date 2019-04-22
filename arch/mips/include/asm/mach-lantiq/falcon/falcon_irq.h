@@ -18,8 +18,6 @@
 #define INT_NUM_EXTRA_START		(INT_NUM_IM4_IRL0 + 32)
 #define INT_NUM_IM_OFFSET		(INT_NUM_IM1_IRL0 - INT_NUM_IM0_IRL0)
 
-#define MIPS_CPU_TIMER_IRQ			7
-
 #define MAX_IM			5
 
 #endif /* _FALCON_IRQ__ */

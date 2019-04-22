@@ -133,11 +133,62 @@ struct drm_nouveau_gem_cpu_fini {
 #define DRM_NOUVEAU_NOTIFIEROBJ_ALLOC  0x05 /* deprecated */
 #define DRM_NOUVEAU_GPUOBJ_FREE        0x06 /* deprecated */
 #define DRM_NOUVEAU_NVIF               0x07
+#define DRM_NOUVEAU_SVM_INIT           0x08
+#define DRM_NOUVEAU_SVM_BIND           0x09
 #define DRM_NOUVEAU_GEM_NEW            0x40
 #define DRM_NOUVEAU_GEM_PUSHBUF        0x41
 #define DRM_NOUVEAU_GEM_CPU_PREP       0x42
 #define DRM_NOUVEAU_GEM_CPU_FINI       0x43
 #define DRM_NOUVEAU_GEM_INFO           0x44
+
+struct drm_nouveau_svm_init {
+	__u64 unmanaged_addr;
+	__u64 unmanaged_size;
+};
+
+struct drm_nouveau_svm_bind {
+	__u64 header;
+	__u64 va_start;
+	__u64 va_end;
+	__u64 npages;
+	__u64 stride;
+	__u64 result;
+	__u64 reserved0;
+	__u64 reserved1;
+};
+
+#define NOUVEAU_SVM_BIND_COMMAND_SHIFT          0
+#define NOUVEAU_SVM_BIND_COMMAND_BITS           8
+#define NOUVEAU_SVM_BIND_COMMAND_MASK           ((1 << 8) - 1)
+#define NOUVEAU_SVM_BIND_PRIORITY_SHIFT         8
+#define NOUVEAU_SVM_BIND_PRIORITY_BITS          8
+#define NOUVEAU_SVM_BIND_PRIORITY_MASK          ((1 << 8) - 1)
+#define NOUVEAU_SVM_BIND_TARGET_SHIFT           16
+#define NOUVEAU_SVM_BIND_TARGET_BITS            32
+#define NOUVEAU_SVM_BIND_TARGET_MASK            0xffffffff
+
+/*
+ * Below is use to validate ioctl argument, userspace can also use it to make
+ * sure that no bit are set beyond known fields for a given kernel version.
+ */
+#define NOUVEAU_SVM_BIND_VALID_BITS     48
+#define NOUVEAU_SVM_BIND_VALID_MASK     ((1ULL << NOUVEAU_SVM_BIND_VALID_BITS) - 1)
+
+
+/*
+ * NOUVEAU_BIND_COMMAND__MIGRATE: synchronous migrate to target memory.
+ * result: number of page successfuly migrate to the target memory.
+ */
+#define NOUVEAU_SVM_BIND_COMMAND__MIGRATE               0
+
+/*
+ * NOUVEAU_SVM_BIND_HEADER_TARGET__GPU_VRAM: target the GPU VRAM memory.
+ */
+#define NOUVEAU_SVM_BIND_TARGET__GPU_VRAM               (1UL << 31)
+
+
+#define DRM_IOCTL_NOUVEAU_SVM_INIT           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SVM_INIT, struct drm_nouveau_svm_init)
+#define DRM_IOCTL_NOUVEAU_SVM_BIND           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SVM_BIND, struct drm_nouveau_svm_bind)
 
 #define DRM_IOCTL_NOUVEAU_GEM_NEW            DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_NEW, struct drm_nouveau_gem_new)
 #define DRM_IOCTL_NOUVEAU_GEM_PUSHBUF        DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_PUSHBUF, struct drm_nouveau_gem_pushbuf)

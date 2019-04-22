@@ -472,9 +472,10 @@ out_invalid:
 	return true;
 }
 
-static int dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
-		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       const struct nf_hook_state *state)
+int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
@@ -723,123 +724,28 @@ dccp_timeout_nla_policy[CTA_TIMEOUT_DCCP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-#ifdef CONFIG_SYSCTL
-/* template, data assigned later */
-static struct ctl_table dccp_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_dccp_timeout_request",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_respond",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_partopen",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_open",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_closereq",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_closing",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_timeout_timewait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_dccp_loose",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL */
-
-static int dccp_kmemdup_sysctl_table(struct net *net, struct nf_proto_net *pn,
-				     struct nf_dccp_net *dn)
-{
-#ifdef CONFIG_SYSCTL
-	if (pn->ctl_table)
-		return 0;
-
-	pn->ctl_table = kmemdup(dccp_sysctl_table,
-				sizeof(dccp_sysctl_table),
-				GFP_KERNEL);
-	if (!pn->ctl_table)
-		return -ENOMEM;
-
-	pn->ctl_table[0].data = &dn->dccp_timeout[CT_DCCP_REQUEST];
-	pn->ctl_table[1].data = &dn->dccp_timeout[CT_DCCP_RESPOND];
-	pn->ctl_table[2].data = &dn->dccp_timeout[CT_DCCP_PARTOPEN];
-	pn->ctl_table[3].data = &dn->dccp_timeout[CT_DCCP_OPEN];
-	pn->ctl_table[4].data = &dn->dccp_timeout[CT_DCCP_CLOSEREQ];
-	pn->ctl_table[5].data = &dn->dccp_timeout[CT_DCCP_CLOSING];
-	pn->ctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
-	pn->ctl_table[7].data = &dn->dccp_loose;
-
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		pn->ctl_table[0].procname = NULL;
-#endif
-	return 0;
-}
-
-static int dccp_init_net(struct net *net)
+void nf_conntrack_dccp_init_net(struct net *net)
 {
 	struct nf_dccp_net *dn = nf_dccp_pernet(net);
-	struct nf_proto_net *pn = &dn->pn;
 
-	if (!pn->users) {
-		/* default values */
-		dn->dccp_loose = 1;
-		dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_RESPOND]	= 4 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_PARTOPEN]	= 4 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_OPEN]		= 12 * 3600 * HZ;
-		dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
-		dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
-		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
+	/* default values */
+	dn->dccp_loose = 1;
+	dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_RESPOND]	= 4 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_PARTOPEN]	= 4 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_OPEN]		= 12 * 3600 * HZ;
+	dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
+	dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
+	dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
 
-		/* timeouts[0] is unused, make it same as SYN_SENT so
-		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
-		 */
-		dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
-	}
-
-	return dccp_kmemdup_sysctl_table(net, pn, dn);
-}
-
-static struct nf_proto_net *dccp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.dccp.pn;
+	/* timeouts[0] is unused, make it same as SYN_SENT so
+	 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+	 */
+	dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {
 	.l4proto		= IPPROTO_DCCP,
-	.packet			= dccp_packet,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
@@ -862,6 +768,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {
 		.nla_policy	= dccp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= dccp_init_net,
-	.get_net_proto		= dccp_get_net_proto,
 };

@@ -9,12 +9,15 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_print.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
+#include <linux/module.h>
 
 /**
  * DOC: overview
@@ -36,30 +39,16 @@
  * and registers the DRM device using devm_tinydrm_register().
  */
 
-static struct drm_framebuffer *
-tinydrm_fb_create(struct drm_device *drm, struct drm_file *file_priv,
-		  const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct tinydrm_device *tdev = drm->dev_private;
-
-	return drm_gem_fb_create_with_funcs(drm, file_priv, mode_cmd,
-					    tdev->fb_funcs);
-}
-
 static const struct drm_mode_config_funcs tinydrm_mode_config_funcs = {
-	.fb_create = tinydrm_fb_create,
+	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
-			const struct drm_framebuffer_funcs *fb_funcs,
 			struct drm_driver *driver)
 {
 	struct drm_device *drm;
-
-	mutex_init(&tdev->dirty_lock);
-	tdev->fb_funcs = fb_funcs;
 
 	/*
 	 * We don't embed drm_device, because that prevent us from using
@@ -83,7 +72,6 @@ static int tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 static void tinydrm_fini(struct tinydrm_device *tdev)
 {
 	drm_mode_config_cleanup(tdev->drm);
-	mutex_destroy(&tdev->dirty_lock);
 	tdev->drm->dev_private = NULL;
 	drm_dev_put(tdev->drm);
 }
@@ -97,7 +85,6 @@ static void devm_tinydrm_release(void *data)
  * devm_tinydrm_init - Initialize tinydrm device
  * @parent: Parent device object
  * @tdev: tinydrm device
- * @fb_funcs: Framebuffer functions
  * @driver: DRM driver
  *
  * This function initializes @tdev, the underlying DRM device and it's
@@ -108,12 +95,11 @@ static void devm_tinydrm_release(void *data)
  * Zero on success, negative error code on failure.
  */
 int devm_tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
-		      const struct drm_framebuffer_funcs *fb_funcs,
 		      struct drm_driver *driver)
 {
 	int ret;
 
-	ret = tinydrm_init(parent, tdev, fb_funcs, driver);
+	ret = tinydrm_init(parent, tdev, driver);
 	if (ret)
 		return ret;
 

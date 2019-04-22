@@ -42,6 +42,6 @@
 		moveq	\irqstat, \irqstat, lsr #2
 		addeq	\irqnr, \irqnr, #2
 		tst	\irqstat, #0x01
-		addeqs	\irqnr, \irqnr, #1
+		addseq	\irqnr, \irqnr, #1
 1001:
 	.endm

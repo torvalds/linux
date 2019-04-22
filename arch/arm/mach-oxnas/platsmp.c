@@ -19,7 +19,6 @@
 #include <asm/smp_scu.h>
 
 extern void ox820_secondary_startup(void);
-extern void ox820_cpu_die(unsigned int cpu);
 
 static void __iomem *cpu_ctrl;
 static void __iomem *gic_cpu_ctrl;
@@ -94,9 +93,6 @@ unmap_scu:
 static const struct smp_operations ox820_smp_ops __initconst = {
 	.smp_prepare_cpus	= ox820_smp_prepare_cpus,
 	.smp_boot_secondary	= ox820_boot_secondary,
-#ifdef CONFIG_HOTPLUG_CPU
-	.cpu_die		= ox820_cpu_die,
-#endif
 };
 
 CPU_METHOD_OF_DECLARE(ox820_smp, "oxsemi,ox820-smp", &ox820_smp_ops);

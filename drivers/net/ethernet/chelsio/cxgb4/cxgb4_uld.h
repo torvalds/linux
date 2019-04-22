@@ -336,6 +336,7 @@ struct cxgb4_lld_info {
 	unsigned int cclk_ps;                /* Core clock period in psec */
 	unsigned short udb_density;          /* # of user DB/page */
 	unsigned short ucq_density;          /* # of user CQs/page */
+	unsigned int sge_host_page_size;     /* SGE host page size */
 	unsigned short filt_mode;            /* filter optional components */
 	unsigned short tx_modq[NCHAN];       /* maps each tx channel to a */
 					     /* scheduler queue */

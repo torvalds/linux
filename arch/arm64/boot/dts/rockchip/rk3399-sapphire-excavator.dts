@@ -91,7 +91,7 @@
 		pinctrl-0 = <&lcd_panel_reset>;
 		power-supply = <&vcc3v3_s0>;
 
-		ports {
+		port {
 			panel_in_edp: endpoint {
 				remote-endpoint = <&edp_out_panel>;
 			};
@@ -219,7 +219,6 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	clock-frequency = <50000000>;
-	disable-wp;
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;

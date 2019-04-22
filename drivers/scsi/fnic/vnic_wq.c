@@ -24,14 +24,31 @@
 #include "vnic_dev.h"
 #include "vnic_wq.h"
 
+
+int vnic_wq_get_ctrl(struct vnic_dev *vdev, struct vnic_wq *wq,
+		unsigned int index, enum vnic_res_type res_type)
+{
+	wq->ctrl = vnic_dev_get_res(vdev, res_type, index);
+
+	if (!wq->ctrl)
+		return -EINVAL;
+
+	return 0;
+}
+
+
+int vnic_wq_alloc_ring(struct vnic_dev *vdev, struct vnic_wq *wq,
+		unsigned int desc_count, unsigned int desc_size)
+{
+	return vnic_dev_alloc_desc_ring(vdev, &wq->ring, desc_count, desc_size);
+}
+
+
 static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 {
 	struct vnic_wq_buf *buf;
-	struct vnic_dev *vdev;
 	unsigned int i, j, count = wq->ring.desc_count;
 	unsigned int blks = VNIC_WQ_BUF_BLKS_NEEDED(count);
-
-	vdev = wq->vdev;
 
 	for (i = 0; i < blks; i++) {
 		wq->bufs[i] = kzalloc(VNIC_WQ_BUF_BLK_SZ, GFP_ATOMIC);
@@ -110,6 +127,52 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 
 	return 0;
 }
+
+
+int vnic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+		unsigned int desc_count, unsigned int desc_size)
+{
+	int err;
+
+	wq->index = 0;
+	wq->vdev = vdev;
+
+	err = vnic_wq_get_ctrl(vdev, wq, 0, RES_TYPE_DEVCMD2);
+	if (err) {
+		pr_err("Failed to get devcmd2 resource\n");
+		return err;
+	}
+	vnic_wq_disable(wq);
+
+	err = vnic_wq_alloc_ring(vdev, wq, desc_count, desc_size);
+	if (err)
+		return err;
+	return 0;
+}
+
+void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+		unsigned int fetch_index, unsigned int posted_index,
+		unsigned int error_interrupt_enable,
+		unsigned int error_interrupt_offset)
+{
+	u64 paddr;
+	unsigned int count = wq->ring.desc_count;
+
+	paddr = (u64)wq->ring.base_addr | VNIC_PADDR_TARGET;
+	writeq(paddr, &wq->ctrl->ring_base);
+	iowrite32(count, &wq->ctrl->ring_size);
+	iowrite32(fetch_index, &wq->ctrl->fetch_index);
+	iowrite32(posted_index, &wq->ctrl->posted_index);
+	iowrite32(cq_index, &wq->ctrl->cq_index);
+	iowrite32(error_interrupt_enable, &wq->ctrl->error_interrupt_enable);
+	iowrite32(error_interrupt_offset, &wq->ctrl->error_interrupt_offset);
+	iowrite32(0, &wq->ctrl->error_status);
+
+	wq->to_use = wq->to_clean =
+		&wq->bufs[fetch_index / VNIC_WQ_BUF_BLK_ENTRIES]
+		[fetch_index % VNIC_WQ_BUF_BLK_ENTRIES];
+}
+
 
 void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
 	unsigned int error_interrupt_enable,

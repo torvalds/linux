@@ -3,7 +3,7 @@
  *
  * Module Name: exserial - field_unit support for serial address spaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("exserial")
  * FUNCTION:    acpi_ex_read_gpio
  *
  * PARAMETERS:  obj_desc            - The named field to read
- *              buffer              - Where the return data is returnd
+ *              buffer              - Where the return data is returned
  *
  * RETURN:      Status
  *

@@ -454,24 +454,6 @@ config MACH_TREO680
 	  Say Y here if you intend to run this kernel on Palm Treo 680
 	  smartphone.
 
-config MACH_RAUMFELD_RC
-	bool "Raumfeld Controller"
-	select CPU_PXA300
-	select POWER_SUPPLY
-	select PXA3xx
-
-config MACH_RAUMFELD_CONNECTOR
-	bool "Raumfeld Connector"
-	select CPU_PXA300
-	select POWER_SUPPLY
-	select PXA3xx
-
-config MACH_RAUMFELD_SPEAKER
-	bool "Raumfeld Speaker"
-	select CPU_PXA300
-	select POWER_SUPPLY
-	select PXA3xx
-
 config PXA_SHARPSL
 	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
 	select SHARP_PARAM

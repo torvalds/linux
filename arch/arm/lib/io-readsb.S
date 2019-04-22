@@ -16,10 +16,10 @@
 		cmp	ip, #2
 		ldrb	r3, [r0]
 		strb	r3, [r1], #1
-		ldrgeb	r3, [r0]
-		strgeb	r3, [r1], #1
-		ldrgtb	r3, [r0]
-		strgtb	r3, [r1], #1
+		ldrbge	r3, [r0]
+		strbge	r3, [r1], #1
+		ldrbgt	r3, [r0]
+		strbgt	r3, [r1], #1
 		subs	r2, r2, ip
 		bne	.Linsb_aligned
 
@@ -72,7 +72,7 @@ ENTRY(__raw_readsb)
 		bpl	.Linsb_16_lp
 
 		tst	r2, #15
-		ldmeqfd	sp!, {r4 - r6, pc}
+		ldmfdeq	sp!, {r4 - r6, pc}
 
 .Linsb_no_16:	tst	r2, #8
 		beq	.Linsb_no_8
@@ -109,15 +109,15 @@ ENTRY(__raw_readsb)
 		str	r3, [r1], #4
 
 .Linsb_no_4:	ands	r2, r2, #3
-		ldmeqfd	sp!, {r4 - r6, pc}
+		ldmfdeq	sp!, {r4 - r6, pc}
 
 		cmp	r2, #2
 		ldrb	r3, [r0]
 		strb	r3, [r1], #1
-		ldrgeb	r3, [r0]
-		strgeb	r3, [r1], #1
-		ldrgtb	r3, [r0]
-		strgtb	r3, [r1]
+		ldrbge	r3, [r0]
+		strbge	r3, [r1], #1
+		ldrbgt	r3, [r0]
+		strbgt	r3, [r1]
 
 		ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(__raw_readsb)

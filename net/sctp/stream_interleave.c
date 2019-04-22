@@ -101,7 +101,7 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 
 static bool sctp_validate_data(struct sctp_chunk *chunk)
 {
-	const struct sctp_stream *stream;
+	struct sctp_stream *stream;
 	__u16 sid, ssn;
 
 	if (chunk->chunk_hdr->type != SCTP_CID_DATA)

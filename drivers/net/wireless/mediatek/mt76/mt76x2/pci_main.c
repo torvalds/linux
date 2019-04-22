@@ -33,7 +33,9 @@ mt76x2_start(struct ieee80211_hw *hw)
 		goto out;
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
-				     MT_CALIBRATE_INTERVAL);
+				     MT_MAC_WORK_INTERVAL);
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->wdt_work,
+				     MT_WATCHDOG_TIME);
 
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
@@ -189,7 +191,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.flush = mt76x2_flush,
 	.ampdu_action = mt76x02_ampdu_action,
-	.get_txpower = mt76x02_get_txpower,
+	.get_txpower = mt76_get_txpower,
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.release_buffered_frames = mt76_release_buffered_frames,

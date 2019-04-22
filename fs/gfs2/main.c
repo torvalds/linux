@@ -178,16 +178,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_page_pool)
 		goto fail_mempool;
 
-	error = gfs2_register_debugfs();
-	if (error)
-		goto fail_debugfs;
+	gfs2_register_debugfs();
 
 	pr_info("GFS2 installed\n");
 
 	return 0;
 
-fail_debugfs:
-	mempool_destroy(gfs2_page_pool);
 fail_mempool:
 	destroy_workqueue(gfs2_freeze_wq);
 fail_wq3:

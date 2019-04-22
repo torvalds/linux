@@ -20,6 +20,9 @@ struct nfp_fl_pre_lag;
 struct net_device;
 struct nfp_app;
 
+#define NFP_FL_STAT_ID_MU_NUM		GENMASK(31, 22)
+#define NFP_FL_STAT_ID_STAT		GENMASK(21, 0)
+
 #define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
 						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
@@ -51,6 +54,26 @@ struct nfp_fl_stats_id {
 	struct circ_buf free_list;
 	u32 init_unalloc;
 	u8 repeated_em_count;
+};
+
+/**
+ * struct nfp_fl_tunnel_offloads - priv data for tunnel offloads
+ * @offloaded_macs:	Hashtable of the offloaded MAC addresses
+ * @ipv4_off_list:	List of IPv4 addresses to offload
+ * @neigh_off_list:	List of neighbour offloads
+ * @ipv4_off_lock:	Lock for the IPv4 address list
+ * @neigh_off_lock:	Lock for the neighbour address list
+ * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
+ * @neigh_nb:		Notifier to monitor neighbour state
+ */
+struct nfp_fl_tunnel_offloads {
+	struct rhashtable offloaded_macs;
+	struct list_head ipv4_off_list;
+	struct list_head neigh_off_list;
+	struct mutex ipv4_off_lock;
+	spinlock_t neigh_off_lock;
+	struct ida mac_off_ids;
+	struct notifier_block neigh_nb;
 };
 
 /**
@@ -113,23 +136,16 @@ struct nfp_fl_lag {
  *			processing
  * @cmsg_skbs_low:	List of lower priority skbs for control message
  *			processing
- * @nfp_mac_off_list:	List of MAC addresses to offload
- * @nfp_mac_index_list:	List of unique 8-bit indexes for non NFP netdevs
- * @nfp_ipv4_off_list:	List of IPv4 addresses to offload
- * @nfp_neigh_off_list:	List of neighbour offloads
- * @nfp_mac_off_lock:	Lock for the MAC address list
- * @nfp_mac_index_lock:	Lock for the MAC index list
- * @nfp_ipv4_off_lock:	Lock for the IPv4 address list
- * @nfp_neigh_off_lock:	Lock for the neighbour address list
- * @nfp_mac_off_ids:	IDA to manage id assignment for offloaded macs
- * @nfp_mac_off_count:	Number of MACs in address list
- * @nfp_tun_neigh_nb:	Notifier to monitor neighbour state
+ * @tun:		Tunnel offload data
  * @reify_replies:	atomically stores the number of replies received
  *			from firmware for repr reify
  * @reify_wait_queue:	wait queue for repr reify response counting
  * @mtu_conf:		Configuration of repr MTU value
  * @nfp_lag:		Link aggregation data block
  * @indr_block_cb_priv:	List of priv data passed to indirect block cbs
+ * @non_repr_priv:	List of offloaded non-repr ports and their priv data
+ * @active_mem_unit:	Current active memory unit for flower rules
+ * @total_mem_units:	Total number of available memory units for flower rules
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -147,30 +163,47 @@ struct nfp_flower_priv {
 	struct work_struct cmsg_work;
 	struct sk_buff_head cmsg_skbs_high;
 	struct sk_buff_head cmsg_skbs_low;
-	struct list_head nfp_mac_off_list;
-	struct list_head nfp_mac_index_list;
-	struct list_head nfp_ipv4_off_list;
-	struct list_head nfp_neigh_off_list;
-	struct mutex nfp_mac_off_lock;
-	struct mutex nfp_mac_index_lock;
-	struct mutex nfp_ipv4_off_lock;
-	spinlock_t nfp_neigh_off_lock;
-	struct ida nfp_mac_off_ids;
-	int nfp_mac_off_count;
-	struct notifier_block nfp_tun_neigh_nb;
+	struct nfp_fl_tunnel_offloads tun;
 	atomic_t reify_replies;
 	wait_queue_head_t reify_wait_queue;
 	struct nfp_mtu_conf mtu_conf;
 	struct nfp_fl_lag nfp_lag;
 	struct list_head indr_block_cb_priv;
+	struct list_head non_repr_priv;
+	unsigned int active_mem_unit;
+	unsigned int total_mem_units;
 };
 
 /**
  * struct nfp_flower_repr_priv - Flower APP per-repr priv data
+ * @nfp_repr:		Back pointer to nfp_repr
  * @lag_port_flags:	Extended port flags to record lag state of repr
+ * @mac_offloaded:	Flag indicating a MAC address is offloaded for repr
+ * @offloaded_mac_addr:	MAC address that has been offloaded for repr
+ * @mac_list:		List entry of reprs that share the same offloaded MAC
  */
 struct nfp_flower_repr_priv {
+	struct nfp_repr *nfp_repr;
 	unsigned long lag_port_flags;
+	bool mac_offloaded;
+	u8 offloaded_mac_addr[ETH_ALEN];
+	struct list_head mac_list;
+};
+
+/**
+ * struct nfp_flower_non_repr_priv - Priv data for non-repr offloaded ports
+ * @list:		List entry of offloaded reprs
+ * @netdev:		Pointer to non-repr net_device
+ * @ref_count:		Number of references held for this priv data
+ * @mac_offloaded:	Flag indicating a MAC address is offloaded for device
+ * @offloaded_mac_addr:	MAC address that has been offloaded for dev
+ */
+struct nfp_flower_non_repr_priv {
+	struct list_head list;
+	struct net_device *netdev;
+	int ref_count;
+	bool mac_offloaded;
+	u8 offloaded_mac_addr[ETH_ALEN];
 };
 
 struct nfp_fl_key_ls {
@@ -217,7 +250,8 @@ struct nfp_fl_stats_frame {
 	__be64 stats_cookie;
 };
 
-int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count);
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
+			     unsigned int host_ctx_split);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
@@ -252,7 +286,6 @@ void nfp_tunnel_config_stop(struct nfp_app *app);
 int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 				 struct net_device *netdev,
 				 unsigned long event, void *ptr);
-void nfp_tunnel_write_macs(struct nfp_app *app);
 void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
@@ -273,4 +306,12 @@ int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 				       struct net_device *netdev,
 				       unsigned long event);
 
+void
+__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv);
+struct nfp_flower_non_repr_priv *
+nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev);
+void
+__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv);
+void
+nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 #endif

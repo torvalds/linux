@@ -431,7 +431,7 @@ static void w9968cf_set_crop_window(struct sd *sd)
 		start_cropy = 35;
 	}
 
-	/* Work around to avoid FP arithmetics */
+	/* Work around to avoid FP arithmetic */
 	#define SC(x) ((x) << 10)
 
 	/* Scaling factors */

@@ -161,69 +161,17 @@ static int get_active_display_cnt(
 	return display_count;
 }
 
-static void notify_deep_sleep_dcfclk_to_smu(
-		struct pp_smu_funcs_rv *pp_smu, int min_dcef_deep_sleep_clk_khz)
-{
-	int min_dcef_deep_sleep_clk_mhz; //minimum required DCEF Deep Sleep clock in mhz
-	/*
-	 * if function pointer not set up, this message is
-	 * sent as part of pplib_apply_display_requirements.
-	 * So just return.
-	 */
-	if (!pp_smu || !pp_smu->set_min_deep_sleep_dcfclk)
-		return;
-
-	min_dcef_deep_sleep_clk_mhz = (min_dcef_deep_sleep_clk_khz + 999) / 1000; //Round up
-	pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, min_dcef_deep_sleep_clk_mhz);
-}
-
-static void notify_hard_min_dcfclk_to_smu(
-		struct pp_smu_funcs_rv *pp_smu, int min_dcf_clk_khz)
-{
-	int min_dcf_clk_mhz; //minimum required DCF clock in mhz
-
-	/*
-	 * if function pointer not set up, this message is
-	 * sent as part of pplib_apply_display_requirements.
-	 * So just return.
-	 */
-	if (!pp_smu || !pp_smu->set_hard_min_dcfclk_by_freq)
-		return;
-
-	min_dcf_clk_mhz = min_dcf_clk_khz / 1000;
-
-	pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, min_dcf_clk_mhz);
-}
-
-static void notify_hard_min_fclk_to_smu(
-		struct pp_smu_funcs_rv *pp_smu, int min_f_clk_khz)
-{
-	int min_f_clk_mhz; //minimum required F clock in mhz
-
-	/*
-	 * if function pointer not set up, this message is
-	 * sent as part of pplib_apply_display_requirements.
-	 * So just return.
-	 */
-	if (!pp_smu || !pp_smu->set_hard_min_fclk_by_freq)
-		return;
-
-	min_f_clk_mhz = min_f_clk_khz / 1000;
-
-	pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, min_f_clk_mhz);
-}
-
 static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			struct dc_state *context,
 			bool safe_to_lower)
 {
 	struct dc *dc = clk_mgr->ctx->dc;
+	struct dc_debug_options *debug = &dc->debug;
 	struct dc_clocks *new_clocks = &context->bw.dcn.clk;
 	struct pp_smu_display_requirement_rv *smu_req_cur =
 			&dc->res_pool->pp_smu_req;
 	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
 	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
-	uint32_t requested_dcf_clock_in_khz = 0;
 	bool send_request_to_increase = false;
 	bool send_request_to_lower = false;
 	int display_count;
@@ -243,9 +191,8 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 		 */
 		if (pp_smu->set_display_count)
 			pp_smu->set_display_count(&pp_smu->pp_smu, display_count);
-		else
-			smu_req.display_count = display_count;
 
+		smu_req.display_count = display_count;
 	}
 
 	if (new_clocks->dispclk_khz > clk_mgr->clks.dispclk_khz
@@ -261,11 +208,12 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	}
 
 	// F Clock
+	if (debug->force_fclk_khz != 0)
+		new_clocks->fclk_khz = debug->force_fclk_khz;
+
 	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, clk_mgr->clks.fclk_khz)) {
 		clk_mgr->clks.fclk_khz = new_clocks->fclk_khz;
 		smu_req.hard_min_fclk_mhz = new_clocks->fclk_khz / 1000;
-
-		notify_hard_min_fclk_to_smu(pp_smu, new_clocks->fclk_khz);
 
 		send_request_to_lower = true;
 	}
@@ -281,7 +229,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	if (should_set_clock(safe_to_lower,
 			new_clocks->dcfclk_deep_sleep_khz, clk_mgr->clks.dcfclk_deep_sleep_khz)) {
 		clk_mgr->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
-		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz / 1000;
+		smu_req.min_deep_sleep_dcefclk_mhz = (new_clocks->dcfclk_deep_sleep_khz + 999) / 1000;
 
 		send_request_to_lower = true;
 	}
@@ -291,15 +239,18 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	 */
 	if (send_request_to_increase) {
 		/*use dcfclk to request voltage*/
-		requested_dcf_clock_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
+		if (pp_smu->set_hard_min_fclk_by_freq &&
+				pp_smu->set_hard_min_dcfclk_by_freq &&
+				pp_smu->set_min_deep_sleep_dcfclk) {
 
-		notify_hard_min_dcfclk_to_smu(pp_smu, requested_dcf_clock_in_khz);
-
-		if (pp_smu->set_display_requirement)
-			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-
-		notify_deep_sleep_dcfclk_to_smu(pp_smu, clk_mgr->clks.dcfclk_deep_sleep_khz);
-		dcn1_pplib_apply_display_requirements(dc, context);
+			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_fclk_mhz);
+			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_dcefclk_mhz);
+			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, smu_req.min_deep_sleep_dcefclk_mhz);
+		} else {
+			if (pp_smu->set_display_requirement)
+				pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+			dcn1_pplib_apply_display_requirements(dc, context);
+		}
 	}
 
 	/* dcn1 dppclk is tied to dispclk */
@@ -314,17 +265,19 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 
 	if (!send_request_to_increase && send_request_to_lower) {
 		/*use dcfclk to request voltage*/
-		requested_dcf_clock_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
+		if (pp_smu->set_hard_min_fclk_by_freq &&
+				pp_smu->set_hard_min_dcfclk_by_freq &&
+				pp_smu->set_min_deep_sleep_dcfclk) {
 
-		notify_hard_min_dcfclk_to_smu(pp_smu, requested_dcf_clock_in_khz);
-
-		if (pp_smu->set_display_requirement)
-			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-
-		notify_deep_sleep_dcfclk_to_smu(pp_smu, clk_mgr->clks.dcfclk_deep_sleep_khz);
-		dcn1_pplib_apply_display_requirements(dc, context);
+			pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_fclk_mhz);
+			pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, smu_req.hard_min_dcefclk_mhz);
+			pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu, smu_req.min_deep_sleep_dcefclk_mhz);
+		} else {
+			if (pp_smu->set_display_requirement)
+				pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+			dcn1_pplib_apply_display_requirements(dc, context);
+		}
 	}
-
 
 	*smu_req_cur = smu_req;
 }

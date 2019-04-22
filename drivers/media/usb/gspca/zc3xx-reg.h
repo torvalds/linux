@@ -26,7 +26,7 @@
 /* Test mode */
 #define ZC3XX_R00B_TESTMODECONTROL     0x000b
 
-/* Frame retreiving */
+/* Frame retrieving */
 #define ZC3XX_R00C_LASTACQTIME         0x000c
 #define ZC3XX_R00D_MONITORRES          0x000d
 #define ZC3XX_R00E_TIMESTAMPHIGH       0x000e

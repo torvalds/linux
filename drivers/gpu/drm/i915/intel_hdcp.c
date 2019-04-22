@@ -6,7 +6,6 @@
  * Sean Paul <seanpaul@chromium.org>
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_hdcp.h>
 #include <linux/i2c.h>
 #include <linux/random.h>
@@ -15,6 +14,7 @@
 #include "i915_reg.h"
 
 #define KEY_LOAD_TRIES	5
+#define ENCRYPT_STATUS_CHANGE_TIMEOUT_MS	50
 
 static
 bool intel_hdcp_is_ksv_valid(u8 *ksv)
@@ -157,10 +157,11 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	/*
 	 * Initiate loading the HDCP key from fuses.
 	 *
-	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only SKL and KBL
-	 * differ in the key load trigger process from other platforms.
+	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only Gen 9
+	 * platforms except BXT and GLK, differ in the key load trigger process
+	 * from other platforms. So GEN9_BC uses the GT Driver Mailbox i/f.
 	 */
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
 		ret = sandybridge_pcode_write(dev_priv,
 					      SKL_PCODE_LOAD_HDCP_KEYS, 1);
@@ -636,7 +637,8 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 
 	/* Wait for encryption confirmation */
 	if (intel_wait_for_register(dev_priv, PORT_HDCP_STATUS(port),
-				    HDCP_STATUS_ENC, HDCP_STATUS_ENC, 20)) {
+				    HDCP_STATUS_ENC, HDCP_STATUS_ENC,
+				    ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		DRM_ERROR("Timed out waiting for encryption\n");
 		return -ETIMEDOUT;
 	}
@@ -666,7 +668,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 
 	I915_WRITE(PORT_HDCP_CONF(port), 0);
 	if (intel_wait_for_register(dev_priv, PORT_HDCP_STATUS(port), ~0, 0,
-				    20)) {
+				    ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
 		DRM_ERROR("Failed to disable HDCP, timeout clearing status\n");
 		return -ETIMEDOUT;
 	}
@@ -768,8 +770,7 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 {
 	/* PORT E doesn't have HDCP, and PORT F is disabled */
-	return ((INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv)) &&
-		!IS_CHERRYVIEW(dev_priv) && port < PORT_E);
+	return INTEL_GEN(dev_priv) >= 9 && port < PORT_E;
 }
 
 int intel_hdcp_init(struct intel_connector *connector,
@@ -837,8 +838,8 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 			     struct drm_connector_state *old_state,
 			     struct drm_connector_state *new_state)
 {
-	uint64_t old_cp = old_state->content_protection;
-	uint64_t new_cp = new_state->content_protection;
+	u64 old_cp = old_state->content_protection;
+	u64 new_cp = new_state->content_protection;
 	struct drm_crtc_state *crtc_state;
 
 	if (!new_state->crtc) {

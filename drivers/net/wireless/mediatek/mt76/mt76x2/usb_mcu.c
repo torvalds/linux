@@ -39,7 +39,7 @@ static void mt76x2u_mcu_load_ivb(struct mt76x02_dev *dev)
 static void mt76x2u_mcu_enable_patch(struct mt76x02_dev *dev)
 {
 	struct mt76_usb *usb = &dev->mt76.usb;
-	const u8 data[] = {
+	static const u8 data[] = {
 		0x6f, 0xfc, 0x08, 0x01,
 		0x20, 0x04, 0x00, 0x00,
 		0x00, 0x09, 0x00,

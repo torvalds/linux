@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "core_types.h"
 #include "dce_aux.h"
 #include "dce/dce_11_0_sh_mask.h"
 
@@ -41,17 +42,17 @@
 	container_of((ptr), struct aux_engine_dce110, base)
 
 #define FROM_ENGINE(ptr) \
-	FROM_AUX_ENGINE(container_of((ptr), struct aux_engine, base))
+	FROM_AUX_ENGINE(container_of((ptr), struct dce_aux, base))
 
 #define FROM_AUX_ENGINE_ENGINE(ptr) \
-	container_of((ptr), struct aux_engine, base)
+	container_of((ptr), struct dce_aux, base)
 enum {
 	AUX_INVALID_REPLY_RETRY_COUNTER = 1,
 	AUX_TIMED_OUT_RETRY_COUNTER = 2,
 	AUX_DEFER_RETRY_COUNTER = 6
 };
 static void release_engine(
-	struct aux_engine *engine)
+	struct dce_aux *engine)
 {
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
 
@@ -66,7 +67,7 @@ static void release_engine(
 #define DMCU_CAN_ACCESS_AUX 2
 
 static bool is_engine_available(
-	struct aux_engine *engine)
+	struct dce_aux *engine)
 {
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
 
@@ -79,7 +80,7 @@ static bool is_engine_available(
 	return (field != DMCU_CAN_ACCESS_AUX);
 }
 static bool acquire_engine(
-	struct aux_engine *engine)
+	struct dce_aux *engine)
 {
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
 
@@ -155,7 +156,7 @@ static bool acquire_engine(
 	(0xFF & (address))
 
 static void submit_channel_request(
-	struct aux_engine *engine,
+	struct dce_aux *engine,
 	struct aux_request_transaction_data *request)
 {
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
@@ -247,7 +248,7 @@ static void submit_channel_request(
 	REG_UPDATE(AUX_SW_CONTROL, AUX_SW_GO, 1);
 }
 
-static int read_channel_reply(struct aux_engine *engine, uint32_t size,
+static int read_channel_reply(struct dce_aux *engine, uint32_t size,
 			      uint8_t *buffer, uint8_t *reply_result,
 			      uint32_t *sw_status)
 {
@@ -273,7 +274,8 @@ static int read_channel_reply(struct aux_engine *engine, uint32_t size,
 
 	REG_GET(AUX_SW_DATA, AUX_SW_DATA, &reply_result_32);
 	reply_result_32 = reply_result_32 >> 4;
-	*reply_result = (uint8_t)reply_result_32;
+	if (reply_result != NULL)
+		*reply_result = (uint8_t)reply_result_32;
 
 	if (reply_result_32 == 0) { /* ACK */
 		uint32_t i = 0;
@@ -299,61 +301,8 @@ static int read_channel_reply(struct aux_engine *engine, uint32_t size,
 	return 0;
 }
 
-static void process_channel_reply(
-	struct aux_engine *engine,
-	struct aux_reply_transaction_data *reply)
-{
-	int bytes_replied;
-	uint8_t reply_result;
-	uint32_t sw_status;
-
-	bytes_replied = read_channel_reply(engine, reply->length, reply->data,
-					   &reply_result, &sw_status);
-
-	/* in case HPD is LOW, exit AUX transaction */
-	if ((sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
-		reply->status = AUX_TRANSACTION_REPLY_HPD_DISCON;
-		return;
-	}
-
-	if (bytes_replied < 0) {
-		/* Need to handle an error case...
-		 * Hopefully, upper layer function won't call this function if
-		 * the number of bytes in the reply was 0, because there was
-		 * surely an error that was asserted that should have been
-		 * handled for hot plug case, this could happens
-		 */
-		if (!(sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
-			reply->status = AUX_TRANSACTION_REPLY_INVALID;
-			ASSERT_CRITICAL(false);
-			return;
-		}
-	} else {
-
-		switch (reply_result) {
-		case 0: /* ACK */
-			reply->status = AUX_TRANSACTION_REPLY_AUX_ACK;
-		break;
-		case 1: /* NACK */
-			reply->status = AUX_TRANSACTION_REPLY_AUX_NACK;
-		break;
-		case 2: /* DEFER */
-			reply->status = AUX_TRANSACTION_REPLY_AUX_DEFER;
-		break;
-		case 4: /* AUX ACK / I2C NACK */
-			reply->status = AUX_TRANSACTION_REPLY_I2C_NACK;
-		break;
-		case 8: /* AUX ACK / I2C DEFER */
-			reply->status = AUX_TRANSACTION_REPLY_I2C_DEFER;
-		break;
-		default:
-			reply->status = AUX_TRANSACTION_REPLY_INVALID;
-		}
-	}
-}
-
 static enum aux_channel_operation_result get_channel_status(
-	struct aux_engine *engine,
+	struct dce_aux *engine,
 	uint8_t *returned_bytes)
 {
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
@@ -414,469 +363,22 @@ static enum aux_channel_operation_result get_channel_status(
 		return AUX_CHANNEL_OPERATION_FAILED_TIMEOUT;
 	}
 }
-static void process_read_reply(
-	struct aux_engine *engine,
-	struct read_command_context *ctx)
-{
-	engine->funcs->process_channel_reply(engine, &ctx->reply);
 
-	switch (ctx->reply.status) {
-	case AUX_TRANSACTION_REPLY_AUX_ACK:
-		ctx->defer_retry_aux = 0;
-		if (ctx->returned_byte > ctx->current_read_length) {
-			ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
-			ctx->operation_succeeded = false;
-		} else if (ctx->returned_byte < ctx->current_read_length) {
-			ctx->current_read_length -= ctx->returned_byte;
-
-			ctx->offset += ctx->returned_byte;
-
-			++ctx->invalid_reply_retry_aux_on_ack;
-
-			if (ctx->invalid_reply_retry_aux_on_ack >
-				AUX_INVALID_REPLY_RETRY_COUNTER) {
-				ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
-				ctx->operation_succeeded = false;
-			}
-		} else {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_SUCCEEDED;
-			ctx->transaction_complete = true;
-			ctx->operation_succeeded = true;
-		}
-	break;
-	case AUX_TRANSACTION_REPLY_AUX_NACK:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_NACK;
-		ctx->operation_succeeded = false;
-	break;
-	case AUX_TRANSACTION_REPLY_AUX_DEFER:
-		++ctx->defer_retry_aux;
-
-		if (ctx->defer_retry_aux > AUX_DEFER_RETRY_COUNTER) {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			ctx->operation_succeeded = false;
-		}
-	break;
-	case AUX_TRANSACTION_REPLY_I2C_DEFER:
-		ctx->defer_retry_aux = 0;
-
-		++ctx->defer_retry_i2c;
-
-		if (ctx->defer_retry_i2c > AUX_DEFER_RETRY_COUNTER) {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			ctx->operation_succeeded = false;
-		}
-	break;
-	case AUX_TRANSACTION_REPLY_HPD_DISCON:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_HPD_DISCON;
-		ctx->operation_succeeded = false;
-	break;
-	default:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_UNKNOWN;
-		ctx->operation_succeeded = false;
-	}
-}
-static void process_read_request(
-	struct aux_engine *engine,
-	struct read_command_context *ctx)
-{
-	enum aux_channel_operation_result operation_result;
-
-	engine->funcs->submit_channel_request(engine, &ctx->request);
-
-	operation_result = engine->funcs->get_channel_status(
-		engine, &ctx->returned_byte);
-
-	switch (operation_result) {
-	case AUX_CHANNEL_OPERATION_SUCCEEDED:
-		if (ctx->returned_byte > ctx->current_read_length) {
-			ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
-			ctx->operation_succeeded = false;
-		} else {
-			ctx->timed_out_retry_aux = 0;
-			ctx->invalid_reply_retry_aux = 0;
-
-			ctx->reply.length = ctx->returned_byte;
-			ctx->reply.data = ctx->buffer;
-
-			process_read_reply(engine, ctx);
-		}
-	break;
-	case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
-		++ctx->invalid_reply_retry_aux;
-
-		if (ctx->invalid_reply_retry_aux >
-			AUX_INVALID_REPLY_RETRY_COUNTER) {
-			ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
-			ctx->operation_succeeded = false;
-		} else
-			udelay(400);
-	break;
-	case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
-		++ctx->timed_out_retry_aux;
-
-		if (ctx->timed_out_retry_aux > AUX_TIMED_OUT_RETRY_COUNTER) {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			ctx->operation_succeeded = false;
-		} else {
-			/* DP 1.2a, table 2-58:
-			 * "S3: AUX Request CMD PENDING:
-			 * retry 3 times, with 400usec wait on each"
-			 * The HW timeout is set to 550usec,
-			 * so we should not wait here
-			 */
-		}
-	break;
-	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_HPD_DISCON;
-		ctx->operation_succeeded = false;
-	break;
-	default:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_UNKNOWN;
-		ctx->operation_succeeded = false;
-	}
-}
-static bool read_command(
-	struct aux_engine *engine,
-	struct i2caux_transaction_request *request,
-	bool middle_of_transaction)
-{
-	struct read_command_context ctx;
-
-	ctx.buffer = request->payload.data;
-	ctx.current_read_length = request->payload.length;
-	ctx.offset = 0;
-	ctx.timed_out_retry_aux = 0;
-	ctx.invalid_reply_retry_aux = 0;
-	ctx.defer_retry_aux = 0;
-	ctx.defer_retry_i2c = 0;
-	ctx.invalid_reply_retry_aux_on_ack = 0;
-	ctx.transaction_complete = false;
-	ctx.operation_succeeded = true;
-
-	if (request->payload.address_space ==
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		ctx.request.type = AUX_TRANSACTION_TYPE_DP;
-		ctx.request.action = I2CAUX_TRANSACTION_ACTION_DP_READ;
-		ctx.request.address = request->payload.address;
-	} else if (request->payload.address_space ==
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_I2C) {
-		ctx.request.type = AUX_TRANSACTION_TYPE_I2C;
-		ctx.request.action = middle_of_transaction ?
-			I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT :
-			I2CAUX_TRANSACTION_ACTION_I2C_READ;
-		ctx.request.address = request->payload.address >> 1;
-	} else {
-		/* in DAL2, there was no return in such case */
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	ctx.request.delay = 0;
-
-	do {
-		memset(ctx.buffer + ctx.offset, 0, ctx.current_read_length);
-
-		ctx.request.data = ctx.buffer + ctx.offset;
-		ctx.request.length = ctx.current_read_length;
-
-		process_read_request(engine, &ctx);
-
-		request->status = ctx.status;
-
-		if (ctx.operation_succeeded && !ctx.transaction_complete)
-			if (ctx.request.type == AUX_TRANSACTION_TYPE_I2C)
-				msleep(engine->delay);
-	} while (ctx.operation_succeeded && !ctx.transaction_complete);
-
-	if (request->payload.address_space ==
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		DC_LOG_I2C_AUX("READ: addr:0x%x  value:0x%x Result:%d",
-				request->payload.address,
-				request->payload.data[0],
-				ctx.operation_succeeded);
-	}
-
-	return ctx.operation_succeeded;
-}
-
-static void process_write_reply(
-	struct aux_engine *engine,
-	struct write_command_context *ctx)
-{
-	engine->funcs->process_channel_reply(engine, &ctx->reply);
-
-	switch (ctx->reply.status) {
-	case AUX_TRANSACTION_REPLY_AUX_ACK:
-		ctx->operation_succeeded = true;
-
-		if (ctx->returned_byte) {
-			ctx->request.action = ctx->mot ?
-			I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST_MOT :
-			I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST;
-
-			ctx->current_write_length = 0;
-
-			++ctx->ack_m_retry;
-
-			if (ctx->ack_m_retry > AUX_DEFER_RETRY_COUNTER) {
-				ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-				ctx->operation_succeeded = false;
-			} else
-				udelay(300);
-		} else {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_SUCCEEDED;
-			ctx->defer_retry_aux = 0;
-			ctx->ack_m_retry = 0;
-			ctx->transaction_complete = true;
-		}
-	break;
-	case AUX_TRANSACTION_REPLY_AUX_NACK:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_NACK;
-		ctx->operation_succeeded = false;
-	break;
-	case AUX_TRANSACTION_REPLY_AUX_DEFER:
-		++ctx->defer_retry_aux;
-
-		if (ctx->defer_retry_aux > ctx->max_defer_retry) {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			ctx->operation_succeeded = false;
-		}
-	break;
-	case AUX_TRANSACTION_REPLY_I2C_DEFER:
-		ctx->defer_retry_aux = 0;
-		ctx->current_write_length = 0;
-
-		ctx->request.action = ctx->mot ?
-			I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST_MOT :
-			I2CAUX_TRANSACTION_ACTION_I2C_STATUS_REQUEST;
-
-		++ctx->defer_retry_i2c;
-
-		if (ctx->defer_retry_i2c > ctx->max_defer_retry) {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			ctx->operation_succeeded = false;
-		}
-	break;
-	case AUX_TRANSACTION_REPLY_HPD_DISCON:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_HPD_DISCON;
-		ctx->operation_succeeded = false;
-	break;
-	default:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_UNKNOWN;
-		ctx->operation_succeeded = false;
-	}
-}
-static void process_write_request(
-	struct aux_engine *engine,
-	struct write_command_context *ctx)
-{
-	enum aux_channel_operation_result operation_result;
-
-	engine->funcs->submit_channel_request(engine, &ctx->request);
-
-	operation_result = engine->funcs->get_channel_status(
-		engine, &ctx->returned_byte);
-
-	switch (operation_result) {
-	case AUX_CHANNEL_OPERATION_SUCCEEDED:
-		ctx->timed_out_retry_aux = 0;
-		ctx->invalid_reply_retry_aux = 0;
-
-		ctx->reply.length = ctx->returned_byte;
-		ctx->reply.data = ctx->reply_data;
-
-		process_write_reply(engine, ctx);
-	break;
-	case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
-		++ctx->invalid_reply_retry_aux;
-
-		if (ctx->invalid_reply_retry_aux >
-			AUX_INVALID_REPLY_RETRY_COUNTER) {
-			ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
-			ctx->operation_succeeded = false;
-		} else
-			udelay(400);
-	break;
-	case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
-		++ctx->timed_out_retry_aux;
-
-		if (ctx->timed_out_retry_aux > AUX_TIMED_OUT_RETRY_COUNTER) {
-			ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_TIMEOUT;
-			ctx->operation_succeeded = false;
-		} else {
-			/* DP 1.2a, table 2-58:
-			 * "S3: AUX Request CMD PENDING:
-			 * retry 3 times, with 400usec wait on each"
-			 * The HW timeout is set to 550usec,
-			 * so we should not wait here
-			 */
-		}
-	break;
-	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_FAILED_HPD_DISCON;
-		ctx->operation_succeeded = false;
-	break;
-	default:
-		ctx->status = I2CAUX_TRANSACTION_STATUS_UNKNOWN;
-		ctx->operation_succeeded = false;
-	}
-}
-static bool write_command(
-	struct aux_engine *engine,
-	struct i2caux_transaction_request *request,
-	bool middle_of_transaction)
-{
-	struct write_command_context ctx;
-
-	ctx.mot = middle_of_transaction;
-	ctx.buffer = request->payload.data;
-	ctx.current_write_length = request->payload.length;
-	ctx.timed_out_retry_aux = 0;
-	ctx.invalid_reply_retry_aux = 0;
-	ctx.defer_retry_aux = 0;
-	ctx.defer_retry_i2c = 0;
-	ctx.ack_m_retry = 0;
-	ctx.transaction_complete = false;
-	ctx.operation_succeeded = true;
-
-	if (request->payload.address_space ==
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		ctx.request.type = AUX_TRANSACTION_TYPE_DP;
-		ctx.request.action = I2CAUX_TRANSACTION_ACTION_DP_WRITE;
-		ctx.request.address = request->payload.address;
-	} else if (request->payload.address_space ==
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_I2C) {
-		ctx.request.type = AUX_TRANSACTION_TYPE_I2C;
-		ctx.request.action = middle_of_transaction ?
-			I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT :
-			I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
-		ctx.request.address = request->payload.address >> 1;
-	} else {
-		/* in DAL2, there was no return in such case */
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	ctx.request.delay = 0;
-
-	ctx.max_defer_retry =
-		(engine->max_defer_write_retry > AUX_DEFER_RETRY_COUNTER) ?
-			engine->max_defer_write_retry : AUX_DEFER_RETRY_COUNTER;
-
-	do {
-		ctx.request.data = ctx.buffer;
-		ctx.request.length = ctx.current_write_length;
-
-		process_write_request(engine, &ctx);
-
-		request->status = ctx.status;
-
-		if (ctx.operation_succeeded && !ctx.transaction_complete)
-			if (ctx.request.type == AUX_TRANSACTION_TYPE_I2C)
-				msleep(engine->delay);
-	} while (ctx.operation_succeeded && !ctx.transaction_complete);
-
-	if (request->payload.address_space ==
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		DC_LOG_I2C_AUX("WRITE: addr:0x%x  value:0x%x Result:%d",
-				request->payload.address,
-				request->payload.data[0],
-				ctx.operation_succeeded);
-	}
-
-	return ctx.operation_succeeded;
-}
-static bool end_of_transaction_command(
-	struct aux_engine *engine,
-	struct i2caux_transaction_request *request)
-{
-	struct i2caux_transaction_request dummy_request;
-	uint8_t dummy_data;
-
-	/* [tcheng] We only need to send the stop (read with MOT = 0)
-	 * for I2C-over-Aux, not native AUX
-	 */
-
-	if (request->payload.address_space !=
-		I2CAUX_TRANSACTION_ADDRESS_SPACE_I2C)
-		return false;
-
-	dummy_request.operation = request->operation;
-	dummy_request.payload.address_space = request->payload.address_space;
-	dummy_request.payload.address = request->payload.address;
-
-	/*
-	 * Add a dummy byte due to some receiver quirk
-	 * where one byte is sent along with MOT = 0.
-	 * Ideally this should be 0.
-	 */
-
-	dummy_request.payload.length = 0;
-	dummy_request.payload.data = &dummy_data;
-
-	if (request->operation == I2CAUX_TRANSACTION_READ)
-		return read_command(engine, &dummy_request, false);
-	else
-		return write_command(engine, &dummy_request, false);
-
-	/* according Syed, it does not need now DoDummyMOT */
-}
-static bool submit_request(
-	struct aux_engine *engine,
-	struct i2caux_transaction_request *request,
-	bool middle_of_transaction)
-{
-
-	bool result;
-	bool mot_used = true;
-
-	switch (request->operation) {
-	case I2CAUX_TRANSACTION_READ:
-		result = read_command(engine, request, mot_used);
-	break;
-	case I2CAUX_TRANSACTION_WRITE:
-		result = write_command(engine, request, mot_used);
-	break;
-	default:
-		result = false;
-	}
-
-	/* [tcheng]
-	 * need to send stop for the last transaction to free up the AUX
-	 * if the above command fails, this would be the last transaction
-	 */
-
-	if (!middle_of_transaction || !result)
-		end_of_transaction_command(engine, request);
-
-	/* mask AUX interrupt */
-
-	return result;
-}
 enum i2caux_engine_type get_engine_type(
-		const struct aux_engine *engine)
+		const struct dce_aux *engine)
 {
 	return I2CAUX_ENGINE_TYPE_AUX;
 }
 
 static bool acquire(
-	struct aux_engine *engine,
+	struct dce_aux *engine,
 	struct ddc *ddc)
 {
 
 	enum gpio_result result;
 
-	if (engine->funcs->is_engine_available) {
-		/*check whether SW could use the engine*/
-		if (!engine->funcs->is_engine_available(engine))
-			return false;
-	}
+	if (!is_engine_available(engine))
+		return false;
 
 	result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
 		GPIO_DDC_CONFIG_TYPE_MODE_AUX);
@@ -884,7 +386,7 @@ static bool acquire(
 	if (result != GPIO_RESULT_OK)
 		return false;
 
-	if (!engine->funcs->acquire_engine(engine)) {
+	if (!acquire_engine(engine)) {
 		dal_ddc_close(ddc);
 		return false;
 	}
@@ -894,21 +396,7 @@ static bool acquire(
 	return true;
 }
 
-static const struct aux_engine_funcs aux_engine_funcs = {
-	.acquire_engine = acquire_engine,
-	.submit_channel_request = submit_channel_request,
-	.process_channel_reply = process_channel_reply,
-	.read_channel_reply = read_channel_reply,
-	.get_channel_status = get_channel_status,
-	.is_engine_available = is_engine_available,
-	.release_engine = release_engine,
-	.destroy_engine = dce110_engine_destroy,
-	.submit_request = submit_request,
-	.get_engine_type = get_engine_type,
-	.acquire = acquire,
-};
-
-void dce110_engine_destroy(struct aux_engine **engine)
+void dce110_engine_destroy(struct dce_aux **engine)
 {
 
 	struct aux_engine_dce110 *engine110 = FROM_AUX_ENGINE(*engine);
@@ -917,7 +405,7 @@ void dce110_engine_destroy(struct aux_engine **engine)
 	*engine = NULL;
 
 }
-struct aux_engine *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_engine110,
+struct dce_aux *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_engine110,
 		struct dc_context *ctx,
 		uint32_t inst,
 		uint32_t timeout_period,
@@ -927,7 +415,6 @@ struct aux_engine *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_eng
 	aux_engine110->base.ctx = ctx;
 	aux_engine110->base.delay = 0;
 	aux_engine110->base.max_defer_write_retry = 0;
-	aux_engine110->base.funcs = &aux_engine_funcs;
 	aux_engine110->base.inst = inst;
 	aux_engine110->timeout_period = timeout_period;
 	aux_engine110->regs = regs;
@@ -935,3 +422,101 @@ struct aux_engine *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_eng
 	return &aux_engine110->base;
 }
 
+static enum i2caux_transaction_action i2caux_action_from_payload(struct aux_payload *payload)
+{
+	if (payload->i2c_over_aux) {
+		if (payload->write) {
+			if (payload->mot)
+				return I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
+			return I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
+		}
+		if (payload->mot)
+			return I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
+		return I2CAUX_TRANSACTION_ACTION_I2C_READ;
+	}
+	if (payload->write)
+		return I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+	return I2CAUX_TRANSACTION_ACTION_DP_READ;
+}
+
+int dce_aux_transfer(struct ddc_service *ddc,
+		struct aux_payload *payload)
+{
+	struct ddc *ddc_pin = ddc->ddc_pin;
+	struct dce_aux *aux_engine;
+	enum aux_channel_operation_result operation_result;
+	struct aux_request_transaction_data aux_req;
+	struct aux_reply_transaction_data aux_rep;
+	uint8_t returned_bytes = 0;
+	int res = -1;
+	uint32_t status;
+
+	memset(&aux_req, 0, sizeof(aux_req));
+	memset(&aux_rep, 0, sizeof(aux_rep));
+
+	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+	acquire(aux_engine, ddc_pin);
+
+	if (payload->i2c_over_aux)
+		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
+	else
+		aux_req.type = AUX_TRANSACTION_TYPE_DP;
+
+	aux_req.action = i2caux_action_from_payload(payload);
+
+	aux_req.address = payload->address;
+	aux_req.delay = payload->defer_delay * 10;
+	aux_req.length = payload->length;
+	aux_req.data = payload->data;
+
+	submit_channel_request(aux_engine, &aux_req);
+	operation_result = get_channel_status(aux_engine, &returned_bytes);
+
+	switch (operation_result) {
+	case AUX_CHANNEL_OPERATION_SUCCEEDED:
+		res = read_channel_reply(aux_engine, payload->length,
+							payload->data, payload->reply,
+							&status);
+		break;
+	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		res = 0;
+		break;
+	case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+	case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
+	case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+		res = -1;
+		break;
+	}
+	release_engine(aux_engine);
+	return res;
+}
+
+#define AUX_RETRY_MAX 7
+
+bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
+		struct aux_payload *payload)
+{
+	int i, ret = 0;
+	uint8_t reply;
+	bool payload_reply = true;
+
+	if (!payload->reply) {
+		payload_reply = false;
+		payload->reply = &reply;
+	}
+
+	for (i = 0; i < AUX_RETRY_MAX; i++) {
+		ret = dce_aux_transfer(ddc, payload);
+
+		if (ret >= 0) {
+			if (*payload->reply == 0) {
+				if (!payload_reply)
+					payload->reply = NULL;
+				return true;
+			}
+		}
+
+		udelay(1000);
+	}
+	return false;
+}

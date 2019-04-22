@@ -362,8 +362,28 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static void hclgevf_cmd_uninit_regs(struct hclgevf_hw *hw)
+{
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_L_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_L_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_BASEADDR_H_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_DEPTH_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_HEAD_REG, 0);
+	hclgevf_write_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG, 0);
+}
+
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev)
 {
+	spin_lock_bh(&hdev->hw.cmq.csq.lock);
+	spin_lock(&hdev->hw.cmq.crq.lock);
+	clear_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+	hclgevf_cmd_uninit_regs(&hdev->hw);
+	spin_unlock(&hdev->hw.cmq.crq.lock);
+	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
 	hclgevf_free_cmd_desc(&hdev->hw.cmq.csq);
 	hclgevf_free_cmd_desc(&hdev->hw.cmq.crq);
 }

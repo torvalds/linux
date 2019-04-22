@@ -144,6 +144,21 @@ static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 			   0, uattr->len - len);
 }
 
+static int uverbs_set_output(const struct uverbs_attr_bundle *bundle,
+			     const struct uverbs_attr *attr)
+{
+	struct bundle_priv *pbundle =
+		container_of(bundle, struct bundle_priv, bundle);
+	u16 flags;
+
+	flags = pbundle->uattrs[attr->ptr_attr.uattr_idx].flags |
+		UVERBS_ATTR_F_VALID_OUTPUT;
+	if (put_user(flags,
+		     &pbundle->user_attrs[attr->ptr_attr.uattr_idx].flags))
+		return -EFAULT;
+	return 0;
+}
+
 static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 				     const struct uverbs_api_attr *attr_uapi,
 				     struct uverbs_objs_arr_attr *attr,
@@ -198,6 +213,7 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 			ret = PTR_ERR(attr->uobjects[i]);
 			break;
 		}
+		pbundle->bundle.context = attr->uobjects[i]->context;
 	}
 
 	attr->len = i;
@@ -315,6 +331,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 					uattr->data_s64);
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
+		pbundle->bundle.context = o_attr->uobject->context;
 		__set_bit(attr_bkey, pbundle->uobj_finalize);
 
 		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {
@@ -456,6 +473,19 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 	}
 
 	/*
+	 * Until the drivers are revised to use the bundle directly we have to
+	 * assume that the driver wrote to its UHW_OUT and flag userspace
+	 * appropriately.
+	 */
+	if (!ret && pbundle->method_elm->has_udata) {
+		const struct uverbs_attr *attr =
+			uverbs_attr_get(&pbundle->bundle, UVERBS_ATTR_UHW_OUT);
+
+		if (!IS_ERR(attr))
+			ret = uverbs_set_output(&pbundle->bundle, attr);
+	}
+
+	/*
 	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
 	 * not invoke the method because the request is not supported.  No
 	 * other cases should return this code.
@@ -564,6 +594,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	pbundle->method_elm = method_elm;
 	pbundle->method_key = attrs_iter.index;
 	pbundle->bundle.ufile = ufile;
+	pbundle->bundle.context = NULL; /* only valid if bundle has uobject */
 	pbundle->radix = &uapi->radix;
 	pbundle->radix_slots = slot;
 	pbundle->radix_slots_len = radix_tree_chunk_size(&attrs_iter);
@@ -706,10 +737,7 @@ void uverbs_fill_udata(struct uverbs_attr_bundle *bundle,
 int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
 		   const void *from, size_t size)
 {
-	struct bundle_priv *pbundle =
-		container_of(bundle, struct bundle_priv, bundle);
 	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
-	u16 flags;
 	size_t min_size;
 
 	if (IS_ERR(attr))
@@ -719,15 +747,24 @@ int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
 	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
 		return -EFAULT;
 
-	flags = pbundle->uattrs[attr->ptr_attr.uattr_idx].flags |
-		UVERBS_ATTR_F_VALID_OUTPUT;
-	if (put_user(flags,
-		     &pbundle->user_attrs[attr->ptr_attr.uattr_idx].flags))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_set_output(bundle, attr);
 }
 EXPORT_SYMBOL(uverbs_copy_to);
+
+
+/*
+ * This is only used if the caller has directly used copy_to_use to write the
+ * data.  It signals to user space that the buffer is filled in.
+ */
+int uverbs_output_written(const struct uverbs_attr_bundle *bundle, size_t idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	return uverbs_set_output(bundle, attr);
+}
 
 int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		      size_t idx, s64 lower_bound, u64 upper_bound,
@@ -757,8 +794,10 @@ int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 {
 	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
 
-	if (clear_user(u64_to_user_ptr(attr->ptr_attr.data),
-		       attr->ptr_attr.len))
-		return -EFAULT;
+	if (size < attr->ptr_attr.len) {
+		if (clear_user(u64_to_user_ptr(attr->ptr_attr.data) + size,
+			       attr->ptr_attr.len - size))
+			return -EFAULT;
+	}
 	return uverbs_copy_to(bundle, idx, from, size);
 }

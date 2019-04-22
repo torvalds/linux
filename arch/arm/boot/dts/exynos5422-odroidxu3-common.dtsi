@@ -362,11 +362,6 @@
 	};
 };
 
-&adc {
-	vdd-supply = <&ldo4_reg>;
-	status = "okay";
-};
-
 &hdmi {
 	status = "okay";
 	ddc = <&i2c_2>;

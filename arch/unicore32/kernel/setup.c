@@ -207,6 +207,10 @@ request_standard_resources(struct meminfo *mi)
 			continue;
 
 		res = memblock_alloc_low(sizeof(*res), SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes align=%x\n",
+			      __func__, sizeof(*res), SMP_CACHE_BYTES);
+
 		res->name  = "System RAM";
 		res->start = mi->bank[i].start;
 		res->end   = mi->bank[i].start + mi->bank[i].size - 1;

@@ -8,72 +8,6 @@
 
 #include "ff.h"
 
-#define SND_FF_REG_MIDI_RX_PORT_0	0x000080180000ull
-#define SND_FF_REG_MIDI_RX_PORT_1	0x000080190000ull
-
-int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,
-				 enum snd_ff_clock_src *src)
-{
-	__le32 reg;
-	u32 data;
-	int err;
-
-	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
-				 SND_FF_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
-	if (err < 0)
-		return err;
-	data = le32_to_cpu(reg);
-
-	/* Calculate sampling rate. */
-	switch ((data >> 1) & 0x03) {
-	case 0x01:
-		*rate = 32000;
-		break;
-	case 0x00:
-		*rate = 44100;
-		break;
-	case 0x03:
-		*rate = 48000;
-		break;
-	case 0x02:
-	default:
-		return -EIO;
-	}
-
-	if (data & 0x08)
-		*rate *= 2;
-	else if (data & 0x10)
-		*rate *= 4;
-
-	/* Calculate source of clock. */
-	if (data & 0x01) {
-		*src = SND_FF_CLOCK_SRC_INTERNAL;
-	} else {
-		/* TODO: 0x02, 0x06, 0x07? */
-		switch ((data >> 10) & 0x07) {
-		case 0x00:
-			*src = SND_FF_CLOCK_SRC_ADAT1;
-			break;
-		case 0x01:
-			*src = SND_FF_CLOCK_SRC_ADAT2;
-			break;
-		case 0x03:
-			*src = SND_FF_CLOCK_SRC_SPDIF;
-			break;
-		case 0x04:
-			*src = SND_FF_CLOCK_SRC_WORD;
-			break;
-		case 0x05:
-			*src = SND_FF_CLOCK_SRC_LTC;
-			break;
-		default:
-			return -EIO;
-		}
-	}
-
-	return 0;
-}
-
 static void finish_transmit_midi_msg(struct snd_ff *ff, unsigned int port,
 				     int rcode)
 {
@@ -117,23 +51,17 @@ static void finish_transmit_midi1_msg(struct fw_card *card, int rcode,
 	finish_transmit_midi_msg(ff, 1, rcode);
 }
 
-static inline void fill_midi_buf(struct snd_ff *ff, unsigned int port,
-				 unsigned int index, u8 byte)
-{
-	ff->msg_buf[port][index] = cpu_to_le32(byte);
-}
-
 static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 {
 	struct snd_rawmidi_substream *substream =
 			READ_ONCE(ff->rx_midi_substreams[port]);
-	u8 *buf = (u8 *)ff->msg_buf[port];
-	int i, len;
+	int quad_count;
 
 	struct fw_device *fw_dev = fw_parent_device(ff->unit);
 	unsigned long long addr;
 	int generation;
 	fw_transaction_callback_t callback;
+	int tcode;
 
 	if (substream == NULL || snd_rawmidi_transmit_empty(substream))
 		return;
@@ -147,26 +75,26 @@ static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 		return;
 	}
 
-	len = snd_rawmidi_transmit_peek(substream, buf,
-					SND_FF_MAXIMIM_MIDI_QUADS);
-	if (len <= 0)
+	quad_count = ff->spec->protocol->fill_midi_msg(ff, substream, port);
+	if (quad_count <= 0)
 		return;
 
-	for (i = len - 1; i >= 0; i--)
-		fill_midi_buf(ff, port, i, buf[i]);
-
 	if (port == 0) {
-		addr = SND_FF_REG_MIDI_RX_PORT_0;
+		addr = ff->spec->midi_rx_addrs[0];
 		callback = finish_transmit_midi0_msg;
 	} else {
-		addr = SND_FF_REG_MIDI_RX_PORT_1;
+		addr = ff->spec->midi_rx_addrs[1];
 		callback = finish_transmit_midi1_msg;
 	}
 
 	/* Set interval to next transaction. */
 	ff->next_ktime[port] = ktime_add_ns(ktime_get(),
-					    len * 8 * NSEC_PER_SEC / 31250);
-	ff->rx_bytes[port] = len;
+				ff->rx_bytes[port] * 8 * NSEC_PER_SEC / 31250);
+
+	if (quad_count == 1)
+		tcode = TCODE_WRITE_QUADLET_REQUEST;
+	else
+		tcode = TCODE_WRITE_BLOCK_REQUEST;
 
 	/*
 	 * In Linux FireWire core, when generation is updated with memory
@@ -178,10 +106,9 @@ static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 	 */
 	generation = fw_dev->generation;
 	smp_rmb();
-	fw_send_request(fw_dev->card, &ff->transactions[port],
-			TCODE_WRITE_BLOCK_REQUEST,
+	fw_send_request(fw_dev->card, &ff->transactions[port], tcode,
 			fw_dev->node_id, generation, fw_dev->max_speed,
-			addr, &ff->msg_buf[port], len * 4,
+			addr, &ff->msg_buf[port], quad_count * 4,
 			callback, &ff->transactions[port]);
 }
 
@@ -209,7 +136,9 @@ static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 
-	ff->spec->protocol->handle_midi_msg(ff, buf, length);
+	offset -= ff->async_handler.offset;
+	ff->spec->protocol->handle_midi_msg(ff, (unsigned int)offset, buf,
+					    length);
 }
 
 static int allocate_own_address(struct snd_ff *ff, int i)
@@ -217,7 +146,7 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 	struct fw_address_region midi_msg_region;
 	int err;
 
-	ff->async_handler.length = SND_FF_MAXIMIM_MIDI_QUADS * 4;
+	ff->async_handler.length = ff->spec->midi_addr_range;
 	ff->async_handler.address_callback = handle_midi_msg;
 	ff->async_handler.callback_data = ff;
 
@@ -236,35 +165,13 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 	return err;
 }
 
-/*
- * Controllers are allowed to register higher 4 bytes of address to receive
- * the transactions. Different models have different registers for this purpose;
- * e.g. 0x'0000'8010'03f4 for Fireface 400.
- * The controllers are not allowed to register lower 4 bytes of the address.
- * They are forced to select one of 4 options for the part of address by writing
- * corresponding bits to 0x'0000'8010'051f.
- *
- * The 3rd-6th bits of this register are flags to indicate lower 4 bytes of
- * address to which the device transferrs the transactions. In short:
- *  - 0x20: 0x'....'....'0000'0180
- *  - 0x10: 0x'....'....'0000'0100
- *  - 0x08: 0x'....'....'0000'0080
- *  - 0x04: 0x'....'....'0000'0000
- *
- * This driver configure 0x'....'....'0000'0000 to receive MIDI messages from
- * units. The 3rd bit of the register should be configured, however this driver
- * deligates this task to userspace applications due to a restriction that this
- * register is write-only and the other bits have own effects.
- *
- * Unlike Fireface 800, Fireface 400 cancels transferring asynchronous
- * transactions when the 1st and 2nd of the register stand. These two bits have
- * the same effect.
- *  - 0x02, 0x01: cancel transferring
- *
- * On the other hand, the bits have no effect on Fireface 800. This model
- * cancels asynchronous transactions when the higher 4 bytes of address is
- * overwritten with zero.
- */
+// Controllers are allowed to register higher 4 bytes of destination address to
+// receive asynchronous transactions for MIDI messages, while the way to
+// register lower 4 bytes of address is different depending on protocols. For
+// details, please refer to comments in protocol implementations.
+//
+// This driver expects userspace applications to configure registers for the
+// lower address because in most cases such registers has the other settings.
 int snd_ff_transaction_reregister(struct snd_ff *ff)
 {
 	struct fw_card *fw_card = fw_parent_device(ff->unit)->card;

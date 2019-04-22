@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig ARCH_MILBEAUT
+	bool "Socionext Milbeaut SoCs"
+	depends on ARCH_MULTI_V7
+	select ARM_GIC
+	help
+	  This enables support for Socionext Milbeaut SoCs
+
+if ARCH_MILBEAUT
+
+config ARCH_MILBEAUT_M10V
+	bool "Milbeaut SC2000/M10V platform"
+	select ARM_ARCH_TIMER
+	select MILBEAUT_TIMER
+	select PINCTRL
+	select PINCTRL_MILBEAUT
+	help
+	  Support for Socionext's MILBEAUT M10V based systems
+
+endif

@@ -21,13 +21,21 @@
  */
 #include "priv.h"
 
+#include <subdev/top.h>
 #include <engine/falcon.h>
 
 static int
 nvkm_nvdec_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_nvdec *nvdec = nvkm_nvdec(engine);
-	return nvkm_falcon_v1_new(&nvdec->engine.subdev, "NVDEC", 0x84000,
+	struct nvkm_subdev *subdev = &nvdec->engine.subdev;
+
+	nvdec->addr = nvkm_top_addr(subdev->device, subdev->index);
+	if (!nvdec->addr)
+		return -EINVAL;
+
+	/*XXX: fix naming of this when adding support for multiple-NVDEC */
+	return nvkm_falcon_v1_new(subdev, "NVDEC", nvdec->addr,
 				  &nvdec->falcon);
 }
 

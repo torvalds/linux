@@ -1615,13 +1615,14 @@ static int aic3x_probe(struct snd_soc_component *component)
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++) {
 		aic3x->disable_nb[i].nb.notifier_call = aic3x_regulator_event;
 		aic3x->disable_nb[i].aic3x = aic3x;
-		ret = regulator_register_notifier(aic3x->supplies[i].consumer,
-						  &aic3x->disable_nb[i].nb);
+		ret = devm_regulator_register_notifier(
+						aic3x->supplies[i].consumer,
+						&aic3x->disable_nb[i].nb);
 		if (ret) {
 			dev_err(component->dev,
 				"Failed to request regulator notifier: %d\n",
 				 ret);
-			goto err_notif;
+			return ret;
 		}
 	}
 
@@ -1679,29 +1680,11 @@ static int aic3x_probe(struct snd_soc_component *component)
 	aic3x_add_widgets(component);
 
 	return 0;
-
-err_notif:
-	while (i--)
-		regulator_unregister_notifier(aic3x->supplies[i].consumer,
-					      &aic3x->disable_nb[i].nb);
-	return ret;
-}
-
-static void aic3x_remove(struct snd_soc_component *component)
-{
-	struct aic3x_priv *aic3x = snd_soc_component_get_drvdata(component);
-	int i;
-
-	list_del(&aic3x->list);
-	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
-		regulator_unregister_notifier(aic3x->supplies[i].consumer,
-					      &aic3x->disable_nb[i].nb);
 }
 
 static const struct snd_soc_component_driver soc_component_dev_aic3x = {
 	.set_bias_level		= aic3x_set_bias_level,
 	.probe			= aic3x_probe,
-	.remove			= aic3x_remove,
 	.controls		= aic3x_snd_controls,
 	.num_controls		= ARRAY_SIZE(aic3x_snd_controls),
 	.dapm_widgets		= aic3x_dapm_widgets,

@@ -160,7 +160,7 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
  * For a detailed function description, see dev_pm_domain_attach_by_id().
  */
 struct device *dev_pm_domain_attach_by_name(struct device *dev,
-					    char *name)
+					    const char *name)
 {
 	if (dev->pm_domain)
 		return ERR_PTR(-EEXIST);

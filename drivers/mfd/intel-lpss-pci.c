@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 

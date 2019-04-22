@@ -28,6 +28,7 @@ Core utilities
    errseq
    printk-formats
    circular-buffers
+   generic-radix-tree
    memory-allocation
    mm-api
    gfp_mask-from-fs-io

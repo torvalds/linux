@@ -601,7 +601,6 @@ void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev)
 	if (!atomic_dec_and_test(&iwpd->usecount))
 		return;
 	i40iw_free_resource(iwdev, iwdev->allocated_pds, iwpd->sc_pd.pd_id);
-	kfree(iwpd);
 }
 
 /**

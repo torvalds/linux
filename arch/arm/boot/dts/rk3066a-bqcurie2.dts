@@ -171,7 +171,6 @@
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
 
 	bus-width = <4>;
-	disable-wp;
 };
 
 &pwm3 {

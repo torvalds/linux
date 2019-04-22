@@ -3326,9 +3326,9 @@ error:
 
 static void ib_mad_remove_device(struct ib_device *device, void *client_data)
 {
-	int i;
+	unsigned int i;
 
-	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
+	rdma_for_each_port (device, i) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 

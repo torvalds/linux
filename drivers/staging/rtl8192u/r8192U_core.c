@@ -4957,20 +4957,18 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf)
 	struct net_device *dev = usb_get_intfdata(intf);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (dev) {
-		unregister_netdev(dev);
+	unregister_netdev(dev);
 
-		RT_TRACE(COMP_DOWN,
-			 "=============>wlan driver to be removed\n");
-		rtl8192_proc_remove_one(dev);
+	RT_TRACE(COMP_DOWN, "=============>wlan driver to be removed\n");
+	rtl8192_proc_remove_one(dev);
 
-		rtl8192_down(dev);
-		kfree(priv->pFirmware);
-		priv->pFirmware = NULL;
-		rtl8192_usb_deleteendpoints(dev);
-		usleep_range(10000, 11000);
-	}
+	rtl8192_down(dev);
+	kfree(priv->pFirmware);
+	priv->pFirmware = NULL;
+	rtl8192_usb_deleteendpoints(dev);
+	usleep_range(10000, 11000);
 	free_ieee80211(dev);
+
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");
 }
 

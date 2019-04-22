@@ -990,7 +990,7 @@ static void hmm_devmem_ref_kill(struct percpu_ref *ref)
 	percpu_ref_kill(ref);
 }
 
-static int hmm_devmem_fault(struct vm_area_struct *vma,
+static vm_fault_t hmm_devmem_fault(struct vm_area_struct *vma,
 			    unsigned long addr,
 			    const struct page *page,
 			    unsigned int flags,

@@ -72,7 +72,7 @@ static void imgu_dummybufs_cleanup(struct imgu_device *imgu, unsigned int pipe)
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	for (i = 0; i < IPU3_CSS_QUEUES; i++)
-		ipu3_dmamap_free(imgu,
+		imgu_dmamap_free(imgu,
 				 &imgu_pipe->queues[i].dmap);
 }
 
@@ -93,7 +93,7 @@ static int imgu_dummybufs_preallocate(struct imgu_device *imgu,
 		if (i == IMGU_QUEUE_MASTER || size == 0)
 			continue;
 
-		if (!ipu3_dmamap_alloc(imgu,
+		if (!imgu_dmamap_alloc(imgu,
 				       &imgu_pipe->queues[i].dmap, size)) {
 			imgu_dummybufs_cleanup(imgu, pipe);
 			return -ENOMEM;
@@ -133,7 +133,7 @@ static int imgu_dummybufs_init(struct imgu_device *imgu, unsigned int pipe)
 		else
 			size = mpix->plane_fmt[0].sizeimage;
 
-		if (ipu3_css_dma_buffer_resize(imgu,
+		if (imgu_css_dma_buffer_resize(imgu,
 					       &imgu_pipe->queues[i].dmap,
 					       size)) {
 			imgu_dummybufs_cleanup(imgu, pipe);
@@ -141,7 +141,7 @@ static int imgu_dummybufs_init(struct imgu_device *imgu, unsigned int pipe)
 		}
 
 		for (k = 0; k < IMGU_MAX_QUEUE_DEPTH; k++)
-			ipu3_css_buf_init(&imgu_pipe->queues[i].dummybufs[k], i,
+			imgu_css_buf_init(&imgu_pipe->queues[i].dummybufs[k], i,
 					  imgu_pipe->queues[i].dmap.daddr);
 	}
 
@@ -149,7 +149,7 @@ static int imgu_dummybufs_init(struct imgu_device *imgu, unsigned int pipe)
 }
 
 /* May be called from atomic context */
-static struct ipu3_css_buffer *imgu_dummybufs_get(struct imgu_device *imgu,
+static struct imgu_css_buffer *imgu_dummybufs_get(struct imgu_device *imgu,
 						   int queue, unsigned int pipe)
 {
 	unsigned int i;
@@ -164,14 +164,14 @@ static struct ipu3_css_buffer *imgu_dummybufs_get(struct imgu_device *imgu,
 		return NULL;
 
 	for (i = 0; i < IMGU_MAX_QUEUE_DEPTH; i++)
-		if (ipu3_css_buf_state(&imgu_pipe->queues[queue].dummybufs[i]) !=
+		if (imgu_css_buf_state(&imgu_pipe->queues[queue].dummybufs[i]) !=
 			IPU3_CSS_BUFFER_QUEUED)
 			break;
 
 	if (i == IMGU_MAX_QUEUE_DEPTH)
 		return NULL;
 
-	ipu3_css_buf_init(&imgu_pipe->queues[queue].dummybufs[i], queue,
+	imgu_css_buf_init(&imgu_pipe->queues[queue].dummybufs[i], queue,
 			  imgu_pipe->queues[queue].dmap.daddr);
 
 	return &imgu_pipe->queues[queue].dummybufs[i];
@@ -179,7 +179,7 @@ static struct ipu3_css_buffer *imgu_dummybufs_get(struct imgu_device *imgu,
 
 /* Check if given buffer is a dummy buffer */
 static bool imgu_dummybufs_check(struct imgu_device *imgu,
-				 struct ipu3_css_buffer *buf,
+				 struct imgu_css_buffer *buf,
 				 unsigned int pipe)
 {
 	unsigned int i;
@@ -200,7 +200,7 @@ static void imgu_buffer_done(struct imgu_device *imgu, struct vb2_buffer *vb,
 	mutex_unlock(&imgu->lock);
 }
 
-static struct ipu3_css_buffer *imgu_queue_getbuf(struct imgu_device *imgu,
+static struct imgu_css_buffer *imgu_queue_getbuf(struct imgu_device *imgu,
 						 unsigned int node,
 						 unsigned int pipe)
 {
@@ -212,7 +212,7 @@ static struct ipu3_css_buffer *imgu_queue_getbuf(struct imgu_device *imgu,
 
 	/* Find first free buffer from the node */
 	list_for_each_entry(buf, &imgu_pipe->nodes[node].buffers, vid_buf.list) {
-		if (ipu3_css_buf_state(&buf->css_buf) == IPU3_CSS_BUFFER_NEW)
+		if (imgu_css_buf_state(&buf->css_buf) == IPU3_CSS_BUFFER_NEW)
 			return &buf->css_buf;
 	}
 
@@ -230,7 +230,7 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 	int r = 0;
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
-	if (!ipu3_css_is_streaming(&imgu->css))
+	if (!imgu_css_is_streaming(&imgu->css))
 		return 0;
 
 	dev_dbg(&imgu->pci_dev->dev, "Queue buffers to pipe %d", pipe);
@@ -247,7 +247,7 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 				 "Vf not enabled, ignore queue");
 			continue;
 		} else if (imgu_pipe->queue_enabled[node]) {
-			struct ipu3_css_buffer *buf =
+			struct imgu_css_buffer *buf =
 				imgu_queue_getbuf(imgu, node, pipe);
 			struct imgu_buffer *ibuf = NULL;
 			bool dummy;
@@ -255,7 +255,7 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 			if (!buf)
 				break;
 
-			r = ipu3_css_buf_queue(&imgu->css, pipe, buf);
+			r = imgu_css_buf_queue(&imgu->css, pipe, buf);
 			if (r)
 				break;
 			dummy = imgu_dummybufs_check(imgu, buf, pipe);
@@ -300,7 +300,7 @@ failed:
 		list_for_each_entry_safe(buf, buf0,
 					 &imgu_pipe->nodes[node].buffers,
 					 vid_buf.list) {
-			if (ipu3_css_buf_state(&buf->css_buf) ==
+			if (imgu_css_buf_state(&buf->css_buf) ==
 			    IPU3_CSS_BUFFER_QUEUED)
 				continue;	/* Was already queued, skip */
 
@@ -317,18 +317,18 @@ static int imgu_powerup(struct imgu_device *imgu)
 {
 	int r;
 
-	r = ipu3_css_set_powerup(&imgu->pci_dev->dev, imgu->base);
+	r = imgu_css_set_powerup(&imgu->pci_dev->dev, imgu->base);
 	if (r)
 		return r;
 
-	ipu3_mmu_resume(imgu->mmu);
+	imgu_mmu_resume(imgu->mmu);
 	return 0;
 }
 
 static void imgu_powerdown(struct imgu_device *imgu)
 {
-	ipu3_mmu_suspend(imgu->mmu);
-	ipu3_css_set_powerdown(&imgu->pci_dev->dev, imgu->base);
+	imgu_mmu_suspend(imgu->mmu);
+	imgu_css_set_powerdown(&imgu->pci_dev->dev, imgu->base);
 }
 
 int imgu_s_stream(struct imgu_device *imgu, int enable)
@@ -341,7 +341,7 @@ int imgu_s_stream(struct imgu_device *imgu, int enable)
 		dev_dbg(dev, "stream off\n");
 		/* Block new buffers to be queued to CSS. */
 		atomic_set(&imgu->qbuf_barrier, 1);
-		ipu3_css_stop_streaming(&imgu->css);
+		imgu_css_stop_streaming(&imgu->css);
 		synchronize_irq(imgu->pci_dev->irq);
 		atomic_set(&imgu->qbuf_barrier, 0);
 		imgu_powerdown(imgu);
@@ -366,7 +366,7 @@ int imgu_s_stream(struct imgu_device *imgu, int enable)
 	}
 
 	/* Start CSS streaming */
-	r = ipu3_css_start_streaming(&imgu->css);
+	r = imgu_css_start_streaming(&imgu->css);
 	if (r) {
 		dev_err(dev, "failed to start css streaming (%d)", r);
 		goto fail_start_streaming;
@@ -393,7 +393,7 @@ fail_queueing:
 	for_each_set_bit(pipe, imgu->css.enabled_pipes, IMGU_MAX_PIPE_NUM)
 		imgu_dummybufs_cleanup(imgu, pipe);
 fail_dummybufs:
-	ipu3_css_stop_streaming(&imgu->css);
+	imgu_css_stop_streaming(&imgu->css);
 fail_start_streaming:
 	pm_runtime_put(dev);
 
@@ -435,7 +435,7 @@ static int imgu_video_nodes_init(struct imgu_device *imgu)
 
 		rects[IPU3_CSS_RECT_EFFECTIVE] = &imgu_pipe->imgu_sd.rect.eff;
 		rects[IPU3_CSS_RECT_BDS] = &imgu_pipe->imgu_sd.rect.bds;
-		ipu3_css_fmt_set(&imgu->css, fmts, rects, j);
+		imgu_css_fmt_set(&imgu->css, fmts, rects, j);
 
 		/* Pre-allocate dummy buffers */
 		r = imgu_dummybufs_preallocate(imgu, j);
@@ -478,23 +478,22 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 	/* Dequeue / queue buffers */
 	do {
 		u64 ns = ktime_get_ns();
-		struct ipu3_css_buffer *b;
+		struct imgu_css_buffer *b;
 		struct imgu_buffer *buf = NULL;
 		unsigned int node, pipe;
 		bool dummy;
 
 		do {
 			mutex_lock(&imgu->lock);
-			b = ipu3_css_buf_dequeue(&imgu->css);
+			b = imgu_css_buf_dequeue(&imgu->css);
 			mutex_unlock(&imgu->lock);
 		} while (PTR_ERR(b) == -EAGAIN);
 
-		if (IS_ERR_OR_NULL(b)) {
-			if (!b || PTR_ERR(b) == -EBUSY)	/* All done */
-				break;
-			dev_err(&imgu->pci_dev->dev,
-				"failed to dequeue buffers (%ld)\n",
-				PTR_ERR(b));
+		if (IS_ERR(b)) {
+			if (PTR_ERR(b) != -EBUSY)	/* All done */
+				dev_err(&imgu->pci_dev->dev,
+					"failed to dequeue buffers (%ld)\n",
+					PTR_ERR(b));
 			break;
 		}
 
@@ -526,12 +525,12 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 				buf->vid_buf.vbb.sequence);
 		}
 		imgu_buffer_done(imgu, &buf->vid_buf.vbb.vb2_buf,
-				 ipu3_css_buf_state(&buf->css_buf) ==
+				 imgu_css_buf_state(&buf->css_buf) ==
 						    IPU3_CSS_BUFFER_DONE ?
 						    VB2_BUF_STATE_DONE :
 						    VB2_BUF_STATE_ERROR);
 		mutex_lock(&imgu->lock);
-		if (ipu3_css_queue_empty(&imgu->css))
+		if (imgu_css_queue_empty(&imgu->css))
 			wake_up_all(&imgu->buf_drain_wq);
 		mutex_unlock(&imgu->lock);
 	} while (1);
@@ -553,7 +552,7 @@ static irqreturn_t imgu_isr(int irq, void *imgu_ptr)
 	struct imgu_device *imgu = imgu_ptr;
 
 	/* acknowledge interruption */
-	if (ipu3_css_irq_ack(&imgu->css) < 0)
+	if (imgu_css_irq_ack(&imgu->css) < 0)
 		return IRQ_NONE;
 
 	return IRQ_WAKE_THREAD;
@@ -638,21 +637,21 @@ static int imgu_pci_probe(struct pci_dev *pci_dev,
 	atomic_set(&imgu->qbuf_barrier, 0);
 	init_waitqueue_head(&imgu->buf_drain_wq);
 
-	r = ipu3_css_set_powerup(&pci_dev->dev, imgu->base);
+	r = imgu_css_set_powerup(&pci_dev->dev, imgu->base);
 	if (r) {
 		dev_err(&pci_dev->dev,
 			"failed to power up CSS (%d)\n", r);
 		goto out_mutex_destroy;
 	}
 
-	imgu->mmu = ipu3_mmu_init(&pci_dev->dev, imgu->base);
+	imgu->mmu = imgu_mmu_init(&pci_dev->dev, imgu->base);
 	if (IS_ERR(imgu->mmu)) {
 		r = PTR_ERR(imgu->mmu);
 		dev_err(&pci_dev->dev, "failed to initialize MMU (%d)\n", r);
 		goto out_css_powerdown;
 	}
 
-	r = ipu3_dmamap_init(imgu);
+	r = imgu_dmamap_init(imgu);
 	if (r) {
 		dev_err(&pci_dev->dev,
 			"failed to initialize DMA mapping (%d)\n", r);
@@ -660,7 +659,7 @@ static int imgu_pci_probe(struct pci_dev *pci_dev,
 	}
 
 	/* ISP programming */
-	r = ipu3_css_init(&pci_dev->dev, &imgu->css, imgu->base, phys_len);
+	r = imgu_css_init(&pci_dev->dev, &imgu->css, imgu->base, phys_len);
 	if (r) {
 		dev_err(&pci_dev->dev, "failed to initialize CSS (%d)\n", r);
 		goto out_dmamap_exit;
@@ -690,13 +689,13 @@ static int imgu_pci_probe(struct pci_dev *pci_dev,
 out_video_exit:
 	imgu_video_nodes_exit(imgu);
 out_css_cleanup:
-	ipu3_css_cleanup(&imgu->css);
+	imgu_css_cleanup(&imgu->css);
 out_dmamap_exit:
-	ipu3_dmamap_exit(imgu);
+	imgu_dmamap_exit(imgu);
 out_mmu_exit:
-	ipu3_mmu_exit(imgu->mmu);
+	imgu_mmu_exit(imgu->mmu);
 out_css_powerdown:
-	ipu3_css_set_powerdown(&pci_dev->dev, imgu->base);
+	imgu_css_set_powerdown(&pci_dev->dev, imgu->base);
 out_mutex_destroy:
 	mutex_destroy(&imgu->lock);
 
@@ -711,10 +710,10 @@ static void imgu_pci_remove(struct pci_dev *pci_dev)
 	pm_runtime_get_noresume(&pci_dev->dev);
 
 	imgu_video_nodes_exit(imgu);
-	ipu3_css_cleanup(&imgu->css);
-	ipu3_css_set_powerdown(&pci_dev->dev, imgu->base);
-	ipu3_dmamap_exit(imgu);
-	ipu3_mmu_exit(imgu->mmu);
+	imgu_css_cleanup(&imgu->css);
+	imgu_css_set_powerdown(&pci_dev->dev, imgu->base);
+	imgu_dmamap_exit(imgu);
+	imgu_mmu_exit(imgu->mmu);
 	mutex_destroy(&imgu->lock);
 }
 
@@ -724,7 +723,7 @@ static int __maybe_unused imgu_suspend(struct device *dev)
 	struct imgu_device *imgu = pci_get_drvdata(pci_dev);
 
 	dev_dbg(dev, "enter %s\n", __func__);
-	imgu->suspend_in_stream = ipu3_css_is_streaming(&imgu->css);
+	imgu->suspend_in_stream = imgu_css_is_streaming(&imgu->css);
 	if (!imgu->suspend_in_stream)
 		goto out;
 	/* Block new buffers to be queued to CSS. */
@@ -736,10 +735,10 @@ static int __maybe_unused imgu_suspend(struct device *dev)
 	synchronize_irq(pci_dev->irq);
 	/* Wait until all buffers in CSS are done. */
 	if (!wait_event_timeout(imgu->buf_drain_wq,
-	    ipu3_css_queue_empty(&imgu->css), msecs_to_jiffies(1000)))
+	    imgu_css_queue_empty(&imgu->css), msecs_to_jiffies(1000)))
 		dev_err(dev, "wait buffer drain timeout.\n");
 
-	ipu3_css_stop_streaming(&imgu->css);
+	imgu_css_stop_streaming(&imgu->css);
 	atomic_set(&imgu->qbuf_barrier, 0);
 	imgu_powerdown(imgu);
 	pm_runtime_force_suspend(dev);
@@ -769,7 +768,7 @@ static int __maybe_unused imgu_resume(struct device *dev)
 	}
 
 	/* Start CSS streaming */
-	r = ipu3_css_start_streaming(&imgu->css);
+	r = imgu_css_start_streaming(&imgu->css);
 	if (r) {
 		dev_err(dev, "failed to resume css streaming (%d)", r);
 		goto out;

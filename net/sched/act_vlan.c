@@ -297,7 +297,7 @@ static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_vlan_ops = {
 	.kind		=	"vlan",
-	.type		=	TCA_ACT_VLAN,
+	.id		=	TCA_ID_VLAN,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_vlan_act,
 	.dump		=	tcf_vlan_dump,

@@ -1408,7 +1408,7 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 		if (skb) {
 			ss->stats.tx_bytes += skb->len;
 			ss->stats.tx_packets++;
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			if (len)
 				pci_unmap_single(pdev,
 						 dma_unmap_addr(&tx->info[idx],

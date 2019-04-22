@@ -1,2 +1,3 @@
 libbpf_version.h
 FEATURE-DUMP.libbpf
+test_libbpf

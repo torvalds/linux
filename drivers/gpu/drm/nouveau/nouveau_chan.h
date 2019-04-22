@@ -8,6 +8,7 @@ struct nvif_device;
 struct nouveau_channel {
 	struct nvif_device *device;
 	struct nouveau_drm *drm;
+	struct nouveau_vmm *vmm;
 
 	int chid;
 	u64 inst;

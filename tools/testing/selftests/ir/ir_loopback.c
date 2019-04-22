@@ -27,6 +27,8 @@
 
 #define TEST_SCANCODES	10
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define SYSFS_PATH_MAX 256
+#define DNAME_PATH_MAX 256
 
 static const struct {
 	enum rc_proto proto;
@@ -51,12 +53,16 @@ static const struct {
 	{ RC_PROTO_RC6_6A_32, "rc-6-6a-32", 0xffffffff, "rc-6" },
 	{ RC_PROTO_RC6_MCE, "rc-6-mce", 0x00007fff, "rc-6" },
 	{ RC_PROTO_SHARP, "sharp", 0x1fff, "sharp" },
+	{ RC_PROTO_IMON, "imon", 0x7fffffff, "imon" },
+	{ RC_PROTO_RCMM12, "rcmm-12", 0x00000fff, "rcmm" },
+	{ RC_PROTO_RCMM24, "rcmm-24", 0x00ffffff, "rcmm" },
+	{ RC_PROTO_RCMM32, "rcmm-32", 0xffffffff, "rcmm" },
 };
 
 int lirc_open(const char *rc)
 {
 	struct dirent *dent;
-	char buf[100];
+	char buf[SYSFS_PATH_MAX + DNAME_PATH_MAX];
 	DIR *d;
 	int fd;
 
@@ -74,7 +80,7 @@ int lirc_open(const char *rc)
 	}
 
 	if (!dent)
-		ksft_exit_fail_msg("cannot find lirc device for %s\n", rc);
+		ksft_exit_skip("cannot find lirc device for %s\n", rc);
 
 	closedir(d);
 
@@ -137,6 +143,11 @@ int main(int argc, char **argv)
 
 			if (rc_proto == RC_PROTO_NEC32 &&
 			    (((scancode >> 8) ^ ~scancode) & 0xff) == 0)
+				continue;
+
+			if (rc_proto == RC_PROTO_RCMM32 &&
+			    (scancode & 0x000c0000) != 0x000c0000 &&
+			    scancode & 0x00008000)
 				continue;
 
 			struct lirc_scancode lsc = {

@@ -1029,29 +1029,36 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	    dev->version.minor_version >= HBM_MINOR_VERSION_PGI)
 		dev->hbm_f_pg_supported = 1;
 
+	dev->hbm_f_dc_supported = 0;
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_DC)
 		dev->hbm_f_dc_supported = 1;
 
+	dev->hbm_f_ie_supported = 0;
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_IE)
 		dev->hbm_f_ie_supported = 1;
 
 	/* disconnect on connect timeout instead of link reset */
+	dev->hbm_f_dot_supported = 0;
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_DOT)
 		dev->hbm_f_dot_supported = 1;
 
 	/* Notification Event Support */
+	dev->hbm_f_ev_supported = 0;
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_EV)
 		dev->hbm_f_ev_supported = 1;
 
 	/* Fixed Address Client Support */
+	dev->hbm_f_fa_supported = 0;
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_FA)
 		dev->hbm_f_fa_supported = 1;
 
 	/* OS ver message Support */
+	dev->hbm_f_os_supported = 0;
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_OS)
 		dev->hbm_f_os_supported = 1;
 
 	/* DMA Ring Support */
+	dev->hbm_f_dr_supported = 0;
 	if (dev->version.major_version > HBM_MAJOR_VERSION_DR ||
 	    (dev->version.major_version == HBM_MAJOR_VERSION_DR &&
 	     dev->version.minor_version >= HBM_MINOR_VERSION_DR))
@@ -1187,9 +1194,15 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dma_setup_res = (struct hbm_dma_setup_response *)mei_msg;
 
 		if (dma_setup_res->status) {
-			dev_info(dev->dev, "hbm: dma setup response: failure = %d %s\n",
-				 dma_setup_res->status,
-				 mei_hbm_status_str(dma_setup_res->status));
+			u8 status = dma_setup_res->status;
+
+			if (status == MEI_HBMS_NOT_ALLOWED) {
+				dev_dbg(dev->dev, "hbm: dma setup not allowed\n");
+			} else {
+				dev_info(dev->dev, "hbm: dma setup response: failure = %d %s\n",
+					 status,
+					 mei_hbm_status_str(status));
+			}
 			dev->hbm_f_dr_supported = 0;
 			mei_dmam_ring_free(dev);
 		}

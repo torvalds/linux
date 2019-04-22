@@ -19,9 +19,9 @@ void tomoyo_warn_oom(const char *function)
 	/* Reduce error messages. */
 	static pid_t tomoyo_last_pid;
 	const pid_t pid = current->pid;
+
 	if (tomoyo_last_pid != pid) {
-		printk(KERN_WARNING "ERROR: Out of memory at %s.\n",
-		       function);
+		pr_warn("ERROR: Out of memory at %s.\n", function);
 		tomoyo_last_pid = pid;
 	}
 	if (!tomoyo_policy_loaded)
@@ -48,6 +48,7 @@ bool tomoyo_memory_ok(void *ptr)
 {
 	if (ptr) {
 		const size_t s = ksize(ptr);
+
 		tomoyo_memory_used[TOMOYO_MEMORY_POLICY] += s;
 		if (!tomoyo_memory_quota[TOMOYO_MEMORY_POLICY] ||
 		    tomoyo_memory_used[TOMOYO_MEMORY_POLICY] <=
@@ -73,6 +74,7 @@ bool tomoyo_memory_ok(void *ptr)
 void *tomoyo_commit_ok(void *data, const unsigned int size)
 {
 	void *ptr = kzalloc(size, GFP_NOFS);
+
 	if (tomoyo_memory_ok(ptr)) {
 		memmove(ptr, data, size);
 		memset(data, 0, size);
@@ -98,6 +100,7 @@ struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
 	struct list_head *list;
 	const char *group_name = tomoyo_read_token(param);
 	bool found = false;
+
 	if (!tomoyo_correct_word(group_name) || idx >= TOMOYO_MAX_GROUP)
 		return NULL;
 	e.group_name = tomoyo_get_name(group_name);
@@ -116,6 +119,7 @@ struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
 	}
 	if (!found) {
 		struct tomoyo_group *entry = tomoyo_commit_ok(&e, sizeof(e));
+
 		if (entry) {
 			INIT_LIST_HEAD(&entry->member_list);
 			atomic_set(&entry->head.users, 1);
@@ -191,6 +195,7 @@ struct tomoyo_policy_namespace tomoyo_kernel_namespace;
 void __init tomoyo_mm_init(void)
 {
 	int idx;
+
 	for (idx = 0; idx < TOMOYO_MAX_HASH; idx++)
 		INIT_LIST_HEAD(&tomoyo_name_list[idx]);
 	tomoyo_kernel_namespace.name = "<kernel>";

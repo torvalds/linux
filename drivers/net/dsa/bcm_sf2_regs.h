@@ -400,6 +400,10 @@ enum bcm_sf2_reg_offs {
 #define CORE_RATE_METER6		0x281e0
 #define  CIR_REF_CNT_MASK		0x7ffff
 
+#define CORE_STAT_GREEN_CNTR		0x28200
+#define CORE_STAT_YELLOW_CNTR		0x28210
+#define CORE_STAT_RED_CNTR		0x28220
+
 #define CORE_CFP_CTL_REG		0x28400
 #define  CFP_EN_MAP_MASK		0x1ff
 

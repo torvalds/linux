@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -432,6 +432,28 @@ struct iwl_he_backoff_conf {
 	__le16 aifsn;
 	__le16 mu_time;
 } __packed; /* AC_QOS_DOT11AX_API_S */
+
+/**
+ * enum iwl_he_pkt_ext_constellations - PPE constellation indices
+ * @IWL_HE_PKT_EXT_BPSK: BPSK
+ * @IWL_HE_PKT_EXT_QPSK:  QPSK
+ * @IWL_HE_PKT_EXT_16QAM: 16-QAM
+ * @IWL_HE_PKT_EXT_64QAM: 64-QAM
+ * @IWL_HE_PKT_EXT_256QAM: 256-QAM
+ * @IWL_HE_PKT_EXT_1024QAM: 1024-QAM
+ * @IWL_HE_PKT_EXT_RESERVED: reserved value
+ * @IWL_HE_PKT_EXT_NONE: not defined
+ */
+enum iwl_he_pkt_ext_constellations {
+	IWL_HE_PKT_EXT_BPSK = 0,
+	IWL_HE_PKT_EXT_QPSK,
+	IWL_HE_PKT_EXT_16QAM,
+	IWL_HE_PKT_EXT_64QAM,
+	IWL_HE_PKT_EXT_256QAM,
+	IWL_HE_PKT_EXT_1024QAM,
+	IWL_HE_PKT_EXT_RESERVED,
+	IWL_HE_PKT_EXT_NONE,
+};
 
 #define MAX_HE_SUPP_NSS	2
 #define MAX_HE_CHANNEL_BW_INDX	4

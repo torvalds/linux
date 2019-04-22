@@ -1204,7 +1204,7 @@ void emac_mac_tx_process(struct emac_adapter *adpt, struct emac_tx_queue *tx_q)
 		if (tpbuf->skb) {
 			pkts_compl++;
 			bytes_compl += tpbuf->skb->len;
-			dev_kfree_skb_irq(tpbuf->skb);
+			dev_consume_skb_irq(tpbuf->skb);
 			tpbuf->skb = NULL;
 		}
 

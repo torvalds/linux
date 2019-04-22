@@ -42,14 +42,6 @@ static void test_ubsan_divrem_overflow(void)
 	val /= val2;
 }
 
-static void test_ubsan_vla_bound_not_positive(void)
-{
-	volatile int size = -1;
-	char buf[size];
-
-	(void)buf;
-}
-
 static void test_ubsan_shift_out_of_bounds(void)
 {
 	volatile int val = -1;
@@ -61,7 +53,7 @@ static void test_ubsan_shift_out_of_bounds(void)
 static void test_ubsan_out_of_bounds(void)
 {
 	volatile int i = 4, j = 5;
-	volatile int arr[i];
+	volatile int arr[4];
 
 	arr[j] = i;
 }
@@ -113,7 +105,6 @@ static const test_ubsan_fp test_ubsan_array[] = {
 	test_ubsan_mul_overflow,
 	test_ubsan_negate_overflow,
 	test_ubsan_divrem_overflow,
-	test_ubsan_vla_bound_not_positive,
 	test_ubsan_shift_out_of_bounds,
 	test_ubsan_out_of_bounds,
 	test_ubsan_load_invalid_value,

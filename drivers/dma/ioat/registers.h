@@ -84,6 +84,9 @@
 #define IOAT_CAP_PQ				0x00000200
 #define IOAT_CAP_DWBES				0x00002000
 #define IOAT_CAP_RAID16SS			0x00020000
+#define IOAT_CAP_DPS				0x00800000
+
+#define IOAT_PREFETCH_LIMIT_OFFSET		0x4C	/* CHWPREFLMT */
 
 #define IOAT_CHANNEL_MMIO_SIZE			0x80	/* Each Channel MMIO space is this size */
 
@@ -242,5 +245,26 @@
 				   IOAT_CHANERR_WRITE_DATA_ERR)
 
 #define IOAT_CHANERR_MASK_OFFSET		0x2C	/* 32-bit Channel Error Register */
+
+#define IOAT_CHAN_DRSCTL_OFFSET			0xB6
+#define IOAT_CHAN_DRSZ_4KB			0x0000
+#define IOAT_CHAN_DRSZ_8KB			0x0001
+#define IOAT_CHAN_DRSZ_2MB			0x0009
+#define IOAT_CHAN_DRS_EN			0x0100
+#define IOAT_CHAN_DRS_AUTOWRAP			0x0200
+
+#define IOAT_CHAN_LTR_SWSEL_OFFSET		0xBC
+#define IOAT_CHAN_LTR_SWSEL_ACTIVE		0x0
+#define IOAT_CHAN_LTR_SWSEL_IDLE		0x1
+
+#define IOAT_CHAN_LTR_ACTIVE_OFFSET		0xC0
+#define IOAT_CHAN_LTR_ACTIVE_SNVAL		0x0000	/* 0 us */
+#define IOAT_CHAN_LTR_ACTIVE_SNLATSCALE		0x0800	/* 1us scale */
+#define IOAT_CHAN_LTR_ACTIVE_SNREQMNT		0x8000	/* snoop req enable */
+
+#define IOAT_CHAN_LTR_IDLE_OFFSET		0xC4
+#define IOAT_CHAN_LTR_IDLE_SNVAL		0x0258	/* 600 us */
+#define IOAT_CHAN_LTR_IDLE_SNLATSCALE		0x0800	/* 1us scale */
+#define IOAT_CHAN_LTR_IDLE_SNREQMNT		0x8000	/* snoop req enable */
 
 #endif /* _IOAT_REGISTERS_H_ */

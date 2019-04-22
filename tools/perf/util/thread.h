@@ -5,14 +5,18 @@
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "symbol.h"
-#include "map.h"
+#include "srccode.h"
+#include "symbol_conf.h"
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
 
+struct addr_location;
+struct map;
+struct namespaces_event;
 struct thread_stack;
 struct unwind_libunwind_ops;
 
@@ -108,6 +112,9 @@ struct symbol *thread__find_symbol_fb(struct thread *thread, u8 cpumode,
 
 void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 					struct addr_location *al);
+
+int thread__memcpy(struct thread *thread, struct machine *machine,
+		   void *buf, u64 ip, int len, bool *is64bit);
 
 static inline void *thread__priv(struct thread *thread)
 {

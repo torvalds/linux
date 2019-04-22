@@ -27,7 +27,6 @@
 #include <linux/i2c.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
-#include <drm/drmP.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
 
@@ -95,6 +94,10 @@ void intel_connector_destroy(struct drm_connector *connector)
 	intel_panel_fini(&intel_connector->panel);
 
 	drm_connector_cleanup(connector);
+
+	if (intel_connector->port)
+		drm_dp_mst_put_port_malloc(intel_connector->port);
+
 	kfree(connector);
 }
 

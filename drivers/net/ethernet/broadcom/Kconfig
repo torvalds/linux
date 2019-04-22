@@ -194,7 +194,6 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
-	depends on MAY_USE_DEVLINK
 	select FW_LOADER
 	select LIBCRC32C
 	---help---

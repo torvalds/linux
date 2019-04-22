@@ -585,7 +585,7 @@ static void de_tx (struct de_private *de)
 				netif_dbg(de, tx_done, de->dev,
 					  "tx done, slot %d\n", tx_tail);
 			}
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 		}
 
 next:

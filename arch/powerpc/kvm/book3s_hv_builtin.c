@@ -257,7 +257,7 @@ void kvmhv_rm_send_ipi(int cpu)
 	}
 
 	/* We should never reach this */
-	if (WARN_ON_ONCE(xive_enabled()))
+	if (WARN_ON_ONCE(xics_on_xive()))
 	    return;
 
 	/* Else poke the target with an IPI */
@@ -577,7 +577,7 @@ unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
 		if (unlikely(!__xive_vm_h_xirr))
@@ -592,7 +592,7 @@ unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
 	vcpu->arch.regs.gpr[5] = get_tb();
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
 		if (unlikely(!__xive_vm_h_xirr))
@@ -606,7 +606,7 @@ unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_ipoll(vcpu, server);
 		if (unlikely(!__xive_vm_h_ipoll))
@@ -621,7 +621,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_ipi(vcpu, server, mfrr);
 		if (unlikely(!__xive_vm_h_ipi))
@@ -635,7 +635,7 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_cppr(vcpu, cppr);
 		if (unlikely(!__xive_vm_h_cppr))
@@ -649,7 +649,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_eoi(vcpu, xirr);
 		if (unlikely(!__xive_vm_h_eoi))

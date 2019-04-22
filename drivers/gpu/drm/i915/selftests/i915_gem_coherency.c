@@ -279,6 +279,7 @@ static int igt_gem_coherency(void *arg)
 	struct drm_i915_private *i915 = arg;
 	const struct igt_coherency_mode *read, *write, *over;
 	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref;
 	unsigned long count, n;
 	u32 *offsets, *values;
 	int err = 0;
@@ -298,7 +299,7 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
 			continue;
@@ -376,7 +377,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	kfree(offsets);
 	return err;

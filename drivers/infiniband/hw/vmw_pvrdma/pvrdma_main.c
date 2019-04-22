@@ -195,6 +195,8 @@ static const struct ib_device_ops pvrdma_dev_ops = {
 	.query_qp = pvrdma_query_qp,
 	.reg_user_mr = pvrdma_reg_user_mr,
 	.req_notify_cq = pvrdma_req_notify_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, pvrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, pvrdma_ucontext, ibucontext),
 };
 
 static const struct ib_device_ops pvrdma_dev_srq_ops = {
@@ -278,7 +280,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	spin_lock_init(&dev->srq_tbl_lock);
 	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
-	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d", NULL);
+	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d");
 	if (ret)
 		goto err_srq_free;
 
@@ -795,7 +797,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev_dbg(&pdev->dev, "initializing driver %s\n", pci_name(pdev));
 
 	/* Allocate zero-out device */
-	dev = (struct pvrdma_dev *)ib_alloc_device(sizeof(*dev));
+	dev = ib_alloc_device(pvrdma_dev, ib_dev);
 	if (!dev) {
 		dev_err(&pdev->dev, "failed to allocate IB device\n");
 		return -ENOMEM;
@@ -905,7 +907,11 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		PVRDMA_GOS_BITS_64;
 	dev->dsr->gos_info.gos_type = PVRDMA_GOS_TYPE_LINUX;
 	dev->dsr->gos_info.gos_ver = 1;
-	dev->dsr->uar_pfn = dev->driver_uar.pfn;
+
+	if (dev->dsr_version < PVRDMA_PPN64_VERSION)
+		dev->dsr->uar_pfn = dev->driver_uar.pfn;
+	else
+		dev->dsr->uar_pfn64 = dev->driver_uar.pfn;
 
 	/* Command slot. */
 	dev->cmd_slot = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,

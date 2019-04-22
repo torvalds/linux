@@ -177,12 +177,14 @@ via_free_sg_info(struct pci_dev *pdev, drm_via_sg_info_t *vsg)
 	switch (vsg->state) {
 	case dr_via_device_mapped:
 		via_unmap_blit_from_device(pdev, vsg);
+		/* fall through */
 	case dr_via_desc_pages_alloc:
 		for (i = 0; i < vsg->num_desc_pages; ++i) {
 			if (vsg->desc_pages[i] != NULL)
 				free_page((unsigned long)vsg->desc_pages[i]);
 		}
 		kfree(vsg->desc_pages);
+		/* fall through */
 	case dr_via_pages_locked:
 		for (i = 0; i < vsg->num_pages; ++i) {
 			if (NULL != (page = vsg->pages[i])) {
@@ -191,8 +193,10 @@ via_free_sg_info(struct pci_dev *pdev, drm_via_sg_info_t *vsg)
 				put_page(page);
 			}
 		}
+		/* fall through */
 	case dr_via_pages_alloc:
 		vfree(vsg->pages);
+		/* fall through */
 	default:
 		vsg->state = dr_via_sg_init;
 	}

@@ -664,11 +664,6 @@ static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 
 	target_remove_from_state_list(cmd);
 
-	/*
-	 * Clear struct se_cmd->se_lun before the handoff to FE.
-	 */
-	cmd->se_lun = NULL;
-
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	/*
 	 * Determine if frontend context caller is requesting the stopping of
@@ -694,17 +689,6 @@ static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 	 * passed is released at this point, or zero if not being released.
 	 */
 	return cmd->se_tfo->check_stop_free(cmd);
-}
-
-static void transport_lun_remove_cmd(struct se_cmd *cmd)
-{
-	struct se_lun *lun = cmd->se_lun;
-
-	if (!lun)
-		return;
-
-	if (cmpxchg(&cmd->lun_ref_active, true, false))
-		percpu_ref_put(&lun->lun_ref);
 }
 
 static void target_complete_failure_work(struct work_struct *work)
@@ -796,8 +780,6 @@ static void target_handle_abort(struct se_cmd *cmd)
 	}
 
 	WARN_ON_ONCE(kref_read(&cmd->cmd_kref) == 0);
-
-	transport_lun_remove_cmd(cmd);
 
 	transport_cmd_check_stop_to_fabric(cmd);
 }
@@ -1711,7 +1693,6 @@ static void target_complete_tmr_failure(struct work_struct *work)
 	se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
 	se_cmd->se_tfo->queue_tm_rsp(se_cmd);
 
-	transport_lun_remove_cmd(se_cmd);
 	transport_cmd_check_stop_to_fabric(se_cmd);
 }
 
@@ -1902,7 +1883,6 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 		goto queue_full;
 
 check_stop:
-	transport_lun_remove_cmd(cmd);
 	transport_cmd_check_stop_to_fabric(cmd);
 	return;
 
@@ -2056,7 +2036,6 @@ void target_execute_cmd(struct se_cmd *cmd)
 
 	spin_lock_irq(&cmd->t_state_lock);
 	cmd->t_state = TRANSPORT_PROCESSING;
-	cmd->transport_state &= ~CMD_T_PRE_EXECUTE;
 	cmd->transport_state |= CMD_T_ACTIVE | CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
 
@@ -2201,7 +2180,6 @@ queue_status:
 		transport_handle_queue_full(cmd, cmd->se_dev, ret, false);
 		return;
 	}
-	transport_lun_remove_cmd(cmd);
 	transport_cmd_check_stop_to_fabric(cmd);
 }
 
@@ -2296,7 +2274,6 @@ static void target_complete_ok_work(struct work_struct *work)
 		if (ret)
 			goto queue_full;
 
-		transport_lun_remove_cmd(cmd);
 		transport_cmd_check_stop_to_fabric(cmd);
 		return;
 	}
@@ -2322,7 +2299,6 @@ static void target_complete_ok_work(struct work_struct *work)
 			if (ret)
 				goto queue_full;
 
-			transport_lun_remove_cmd(cmd);
 			transport_cmd_check_stop_to_fabric(cmd);
 			return;
 		}
@@ -2358,7 +2334,6 @@ queue_rsp:
 			if (ret)
 				goto queue_full;
 
-			transport_lun_remove_cmd(cmd);
 			transport_cmd_check_stop_to_fabric(cmd);
 			return;
 		}
@@ -2394,7 +2369,6 @@ queue_status:
 		break;
 	}
 
-	transport_lun_remove_cmd(cmd);
 	transport_cmd_check_stop_to_fabric(cmd);
 	return;
 
@@ -2721,9 +2695,6 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		 */
 		if (cmd->state_active)
 			target_remove_from_state_list(cmd);
-
-		if (cmd->se_lun)
-			transport_lun_remove_cmd(cmd);
 	}
 	if (aborted)
 		cmd->free_compl = &compl;
@@ -2765,7 +2736,6 @@ int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 		ret = -ESHUTDOWN;
 		goto out;
 	}
-	se_cmd->transport_state |= CMD_T_PRE_EXECUTE;
 	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
 	percpu_ref_get(&se_sess->cmd_count);
 out:
@@ -2795,6 +2765,9 @@ static void target_release_cmd_kref(struct kref *kref)
 	struct completion *free_compl = se_cmd->free_compl;
 	struct completion *abrt_compl = se_cmd->abrt_compl;
 	unsigned long flags;
+
+	if (se_cmd->lun_ref_active)
+		percpu_ref_put(&se_cmd->se_lun->lun_ref);
 
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
@@ -3272,6 +3245,22 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 	return cmd->se_tfo->queue_status(cmd);
 }
 EXPORT_SYMBOL(transport_send_check_condition_and_sense);
+
+/**
+ * target_send_busy - Send SCSI BUSY status back to the initiator
+ * @cmd: SCSI command for which to send a BUSY reply.
+ *
+ * Note: Only call this function if target_submit_cmd*() failed.
+ */
+int target_send_busy(struct se_cmd *cmd)
+{
+	WARN_ON_ONCE(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB);
+
+	cmd->scsi_status = SAM_STAT_BUSY;
+	trace_target_cmd_complete(cmd);
+	return cmd->se_tfo->queue_status(cmd);
+}
+EXPORT_SYMBOL(target_send_busy);
 
 static void target_tmr_work(struct work_struct *work)
 {

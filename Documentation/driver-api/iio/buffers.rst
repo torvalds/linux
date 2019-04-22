@@ -26,7 +26,7 @@ IIO buffer setup
 ================
 
 The meta information associated with a channel reading placed in a buffer is
-called a scan element . The important bits configuring scan elements are
+called a scan element. The important bits configuring scan elements are
 exposed to userspace applications via the
 :file:`/sys/bus/iio/iio:device{X}/scan_elements/*` directory. This file contains
 attributes of the following form:

@@ -25,7 +25,7 @@ unsigned long long clock_frequency;
 unsigned long long timebase_frequency;
 double timebase_multiplier;
 
-static inline unsigned long long mftb(void)
+static inline unsigned long mftb(void)
 {
 	unsigned long low;
 

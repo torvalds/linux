@@ -45,12 +45,7 @@ enum pv88080_types {
 
 struct pv88080_regulator {
 	struct regulator_desc desc;
-	/* Current limiting */
-	unsigned int n_current_limits;
-	const int *current_limits;
-	unsigned int limit_mask;
 	unsigned int mode_reg;
-	unsigned int limit_reg;
 	unsigned int conf2;
 	unsigned int conf5;
 };
@@ -102,11 +97,11 @@ static const struct regmap_config pv88080_regmap_config = {
  * Entry indexes corresponds to register values.
  */
 
-static const int pv88080_buck1_limits[] = {
+static const unsigned int pv88080_buck1_limits[] = {
 	3230000, 5130000, 6960000, 8790000
 };
 
-static const int pv88080_buck23_limits[] = {
+static const unsigned int pv88080_buck23_limits[] = {
 	1496000, 2393000, 3291000, 4189000
 };
 
@@ -272,40 +267,6 @@ static int pv88080_buck_set_mode(struct regulator_dev *rdev,
 					PV88080_BUCK1_MODE_MASK, val);
 }
 
-static int pv88080_set_current_limit(struct regulator_dev *rdev, int min,
-				    int max)
-{
-	struct pv88080_regulator *info = rdev_get_drvdata(rdev);
-	int i;
-
-	/* search for closest to maximum */
-	for (i = info->n_current_limits; i >= 0; i--) {
-		if (min <= info->current_limits[i]
-			&& max >= info->current_limits[i]) {
-				return regmap_update_bits(rdev->regmap,
-					info->limit_reg,
-					info->limit_mask,
-					i << PV88080_BUCK1_ILIM_SHIFT);
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int pv88080_get_current_limit(struct regulator_dev *rdev)
-{
-	struct pv88080_regulator *info = rdev_get_drvdata(rdev);
-	unsigned int data;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, info->limit_reg, &data);
-	if (ret < 0)
-		return ret;
-
-	data = (data & info->limit_mask) >> PV88080_BUCK1_ILIM_SHIFT;
-	return info->current_limits[data];
-}
-
 static const struct regulator_ops pv88080_buck_ops = {
 	.get_mode = pv88080_buck_get_mode,
 	.set_mode = pv88080_buck_set_mode,
@@ -315,8 +276,8 @@ static const struct regulator_ops pv88080_buck_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
-	.set_current_limit = pv88080_set_current_limit,
-	.get_current_limit = pv88080_get_current_limit,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 };
 
 static const struct regulator_ops pv88080_hvbuck_ops = {
@@ -341,9 +302,9 @@ static const struct regulator_ops pv88080_hvbuck_ops = {
 		.min_uV = min, \
 		.uV_step = step, \
 		.n_voltages = ((max) - (min))/(step) + 1, \
+		.curr_table = limits_array, \
+		.n_current_limits = ARRAY_SIZE(limits_array), \
 	},\
-	.current_limits = limits_array, \
-	.n_current_limits = ARRAY_SIZE(limits_array), \
 }
 
 #define PV88080_HVBUCK(chip, regl_name, min, step, max) \
@@ -521,9 +482,9 @@ static int pv88080_i2c_probe(struct i2c_client *i2c,
 		if (init_data)
 			config.init_data = &init_data[i];
 
-		pv88080_regulator_info[i].limit_reg
+		pv88080_regulator_info[i].desc.csel_reg
 			= regmap_config->buck_regmap[i].buck_limit_reg;
-		pv88080_regulator_info[i].limit_mask
+		pv88080_regulator_info[i].desc.csel_mask
 			= regmap_config->buck_regmap[i].buck_limit_mask;
 		pv88080_regulator_info[i].mode_reg
 			= regmap_config->buck_regmap[i].buck_mode_reg;

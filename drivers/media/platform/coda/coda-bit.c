@@ -1010,7 +1010,11 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			 CODA_264PARAM_DEBLKFILTEROFFSETALPHA_OFFSET) |
 			((ctx->params.h264_slice_beta_offset_div2 &
 			  CODA_264PARAM_DEBLKFILTEROFFSETBETA_MASK) <<
-			 CODA_264PARAM_DEBLKFILTEROFFSETBETA_OFFSET);
+			 CODA_264PARAM_DEBLKFILTEROFFSETBETA_OFFSET) |
+			(ctx->params.h264_constrained_intra_pred_flag <<
+			 CODA_264PARAM_CONSTRAINEDINTRAPREDFLAG_OFFSET) |
+			(ctx->params.h264_chroma_qp_index_offset &
+			 CODA_264PARAM_CHROMAQPOFFSET_MASK);
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_264_PARA);
 		break;
 	case V4L2_PIX_FMT_JPEG:
@@ -2020,7 +2024,6 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	struct coda_q_data *q_data_dst;
 	struct vb2_v4l2_buffer *dst_buf;
 	struct coda_buffer_meta *meta;
-	unsigned long payload;
 	int width, height;
 	int decoded_idx;
 	int display_idx;
@@ -2226,21 +2229,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 
 		trace_coda_dec_rot_done(ctx, dst_buf, meta);
 
-		switch (q_data_dst->fourcc) {
-		case V4L2_PIX_FMT_YUYV:
-			payload = width * height * 2;
-			break;
-		case V4L2_PIX_FMT_YUV420:
-		case V4L2_PIX_FMT_YVU420:
-		case V4L2_PIX_FMT_NV12:
-		default:
-			payload = width * height * 3 / 2;
-			break;
-		case V4L2_PIX_FMT_YUV422P:
-			payload = width * height * 2;
-			break;
-		}
-		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload);
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
+				      q_data_dst->sizeimage);
 
 		if (ctx->frame_errors[ctx->display_idx] || err_vdoa)
 			coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_ERROR);

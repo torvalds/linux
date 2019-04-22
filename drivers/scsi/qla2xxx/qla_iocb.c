@@ -336,7 +336,7 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS) {
 			return (QLA_FUNCTION_FAILED);
 		}
@@ -490,8 +490,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 /**
  * qla2x00_marker() - Send a marker IOCB to the firmware.
  * @vha: HA context
- * @req: request queue
- * @rsp: response queue
+ * @qpair: queue pair pointer
  * @loop_id: loop ID
  * @lun: LUN
  * @type: marker modifier
@@ -501,18 +500,16 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
  * Returns non-zero if a failure occurred, else zero.
  */
 static int
-__qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
-			struct rsp_que *rsp, uint16_t loop_id,
-			uint64_t lun, uint8_t type)
+__qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
+    uint16_t loop_id, uint64_t lun, uint8_t type)
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24 = NULL;
-
+	struct req_que *req = qpair->req;
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
-	req = ha->req_q_map[0];
-	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, NULL);
+	mrk = (mrk_entry_t *)__qla2x00_alloc_iocbs(qpair, NULL);
 	if (mrk == NULL) {
 		ql_log(ql_log_warn, base_vha, 0x3026,
 		    "Failed to allocate Marker IOCB.\n");
@@ -543,16 +540,15 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 }
 
 int
-qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
-		struct rsp_que *rsp, uint16_t loop_id, uint64_t lun,
-		uint8_t type)
+qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
+    uint16_t loop_id, uint64_t lun, uint8_t type)
 {
 	int ret;
 	unsigned long flags = 0;
 
-	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	ret = __qla2x00_marker(vha, req, rsp, loop_id, lun, type);
-	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+	ret = __qla2x00_marker(vha, qpair, loop_id, lun, type);
+	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
 	return (ret);
 }
@@ -567,11 +563,11 @@ qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 int qla2x00_issue_marker(scsi_qla_host_t *vha, int ha_locked)
 {
 	if (ha_locked) {
-		if (__qla2x00_marker(vha, vha->req, vha->req->rsp, 0, 0,
+		if (__qla2x00_marker(vha, vha->hw->base_qpair, 0, 0,
 					MK_SYNC_ALL) != QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 	} else {
-		if (qla2x00_marker(vha, vha->req, vha->req->rsp, 0, 0,
+		if (qla2x00_marker(vha, vha->hw->base_qpair, 0, 0,
 					MK_SYNC_ALL) != QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 	}
@@ -1098,88 +1094,300 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 
 int
 qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
-	uint32_t *dsd, uint16_t tot_dsds, struct qla_tc_param *tc)
+    uint32_t *cur_dsd, uint16_t tot_dsds, struct qla_tgt_cmd *tc)
 {
-	void *next_dsd;
-	uint8_t avail_dsds = 0;
-	uint32_t dsd_list_len;
-	struct dsd_dma *dsd_ptr;
+	struct dsd_dma *dsd_ptr = NULL, *dif_dsd, *nxt_dsd;
 	struct scatterlist *sg, *sgl;
-	int	i;
-	struct scsi_cmnd *cmd;
-	uint32_t *cur_dsd = dsd;
-	uint16_t used_dsds = tot_dsds;
+	struct crc_context *difctx = NULL;
 	struct scsi_qla_host *vha;
+	uint dsd_list_len;
+	uint avail_dsds = 0;
+	uint used_dsds = tot_dsds;
+	bool dif_local_dma_alloc = false;
+	bool direction_to_device = false;
+	int i;
 
 	if (sp) {
-		cmd = GET_CMD_SP(sp);
+		struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 		sgl = scsi_prot_sglist(cmd);
 		vha = sp->vha;
+		difctx = sp->u.scmd.ctx;
+		direction_to_device = cmd->sc_data_direction == DMA_TO_DEVICE;
+		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe021,
+		  "%s: scsi_cmnd: %p, crc_ctx: %p, sp: %p\n",
+			__func__, cmd, difctx, sp);
 	} else if (tc) {
 		vha = tc->vha;
 		sgl = tc->prot_sg;
+		difctx = tc->ctx;
+		direction_to_device = tc->dma_data_direction == DMA_TO_DEVICE;
 	} else {
 		BUG();
 		return 1;
 	}
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe021,
-		"%s: enter\n", __func__);
+	ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe021,
+	    "%s: enter (write=%u)\n", __func__, direction_to_device);
 
-	for_each_sg(sgl, sg, tot_dsds, i) {
-		dma_addr_t	sle_dma;
+	/* if initiator doing write or target doing read */
+	if (direction_to_device) {
+		for_each_sg(sgl, sg, tot_dsds, i) {
+			u64 sle_phys = sg_phys(sg);
 
-		/* Allocate additional continuation packets? */
-		if (avail_dsds == 0) {
-			avail_dsds = (used_dsds > QLA_DSDS_PER_IOCB) ?
-						QLA_DSDS_PER_IOCB : used_dsds;
-			dsd_list_len = (avail_dsds + 1) * 12;
-			used_dsds -= avail_dsds;
+			/* If SGE addr + len flips bits in upper 32-bits */
+			if (MSD(sle_phys + sg->length) ^ MSD(sle_phys)) {
+				ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe022,
+				    "%s: page boundary crossing (phys=%llx len=%x)\n",
+				    __func__, sle_phys, sg->length);
 
-			/* allocate tracking DS */
-			dsd_ptr = kzalloc(sizeof(struct dsd_dma), GFP_ATOMIC);
-			if (!dsd_ptr)
-				return 1;
-
-			/* allocate new list */
-			dsd_ptr->dsd_addr = next_dsd =
-			    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC,
-				&dsd_ptr->dsd_list_dma);
-
-			if (!next_dsd) {
-				/*
-				 * Need to cleanup only this dsd_ptr, rest
-				 * will be done by sp_free_dma()
-				 */
-				kfree(dsd_ptr);
-				return 1;
+				if (difctx) {
+					ha->dif_bundle_crossed_pages++;
+					dif_local_dma_alloc = true;
+				} else {
+					ql_dbg(ql_dbg_tgt + ql_dbg_verbose,
+					    vha, 0xe022,
+					    "%s: difctx pointer is NULL\n",
+					    __func__);
+				}
+				break;
 			}
-
-			if (sp) {
-				list_add_tail(&dsd_ptr->list,
-				    &((struct crc_context *)
-					    sp->u.scmd.ctx)->dsd_list);
-
-				sp->flags |= SRB_CRC_CTX_DSD_VALID;
-			} else {
-				list_add_tail(&dsd_ptr->list,
-				    &(tc->ctx->dsd_list));
-				*tc->ctx_dsd_alloced = 1;
-			}
-
-			/* add new list to cmd iocb or last list */
-			*cur_dsd++ = cpu_to_le32(LSD(dsd_ptr->dsd_list_dma));
-			*cur_dsd++ = cpu_to_le32(MSD(dsd_ptr->dsd_list_dma));
-			*cur_dsd++ = dsd_list_len;
-			cur_dsd = (uint32_t *)next_dsd;
 		}
-		sle_dma = sg_dma_address(sg);
+		ha->dif_bundle_writes++;
+	} else {
+		ha->dif_bundle_reads++;
+	}
 
-		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
-		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
-		*cur_dsd++ = cpu_to_le32(sg_dma_len(sg));
+	if (ql2xdifbundlinginternalbuffers)
+		dif_local_dma_alloc = direction_to_device;
 
-		avail_dsds--;
+	if (dif_local_dma_alloc) {
+		u32 track_difbundl_buf = 0;
+		u32 ldma_sg_len = 0;
+		u8 ldma_needed = 1;
+
+		difctx->no_dif_bundl = 0;
+		difctx->dif_bundl_len = 0;
+
+		/* Track DSD buffers */
+		INIT_LIST_HEAD(&difctx->ldif_dsd_list);
+		/* Track local DMA buffers */
+		INIT_LIST_HEAD(&difctx->ldif_dma_hndl_list);
+
+		for_each_sg(sgl, sg, tot_dsds, i) {
+			u32 sglen = sg_dma_len(sg);
+
+			ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe023,
+			    "%s: sg[%x] (phys=%llx sglen=%x) ldma_sg_len: %x dif_bundl_len: %x ldma_needed: %x\n",
+			    __func__, i, (u64)sg_phys(sg), sglen, ldma_sg_len,
+			    difctx->dif_bundl_len, ldma_needed);
+
+			while (sglen) {
+				u32 xfrlen = 0;
+
+				if (ldma_needed) {
+					/*
+					 * Allocate list item to store
+					 * the DMA buffers
+					 */
+					dsd_ptr = kzalloc(sizeof(*dsd_ptr),
+					    GFP_ATOMIC);
+					if (!dsd_ptr) {
+						ql_dbg(ql_dbg_tgt, vha, 0xe024,
+						    "%s: failed alloc dsd_ptr\n",
+						    __func__);
+						return 1;
+					}
+					ha->dif_bundle_kallocs++;
+
+					/* allocate dma buffer */
+					dsd_ptr->dsd_addr = dma_pool_alloc
+						(ha->dif_bundl_pool, GFP_ATOMIC,
+						 &dsd_ptr->dsd_list_dma);
+					if (!dsd_ptr->dsd_addr) {
+						ql_dbg(ql_dbg_tgt, vha, 0xe024,
+						    "%s: failed alloc ->dsd_ptr\n",
+						    __func__);
+						/*
+						 * need to cleanup only this
+						 * dsd_ptr rest will be done
+						 * by sp_free_dma()
+						 */
+						kfree(dsd_ptr);
+						ha->dif_bundle_kallocs--;
+						return 1;
+					}
+					ha->dif_bundle_dma_allocs++;
+					ldma_needed = 0;
+					difctx->no_dif_bundl++;
+					list_add_tail(&dsd_ptr->list,
+					    &difctx->ldif_dma_hndl_list);
+				}
+
+				/* xfrlen is min of dma pool size and sglen */
+				xfrlen = (sglen >
+				   (DIF_BUNDLING_DMA_POOL_SIZE - ldma_sg_len)) ?
+				    DIF_BUNDLING_DMA_POOL_SIZE - ldma_sg_len :
+				    sglen;
+
+				/* replace with local allocated dma buffer */
+				sg_pcopy_to_buffer(sgl, sg_nents(sgl),
+				    dsd_ptr->dsd_addr + ldma_sg_len, xfrlen,
+				    difctx->dif_bundl_len);
+				difctx->dif_bundl_len += xfrlen;
+				sglen -= xfrlen;
+				ldma_sg_len += xfrlen;
+				if (ldma_sg_len == DIF_BUNDLING_DMA_POOL_SIZE ||
+				    sg_is_last(sg)) {
+					ldma_needed = 1;
+					ldma_sg_len = 0;
+				}
+			}
+		}
+
+		track_difbundl_buf = used_dsds = difctx->no_dif_bundl;
+		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe025,
+		    "dif_bundl_len=%x, no_dif_bundl=%x track_difbundl_buf: %x\n",
+		    difctx->dif_bundl_len, difctx->no_dif_bundl,
+		    track_difbundl_buf);
+
+		if (sp)
+			sp->flags |= SRB_DIF_BUNDL_DMA_VALID;
+		else
+			tc->prot_flags = DIF_BUNDL_DMA_VALID;
+
+		list_for_each_entry_safe(dif_dsd, nxt_dsd,
+		    &difctx->ldif_dma_hndl_list, list) {
+			u32 sglen = (difctx->dif_bundl_len >
+			    DIF_BUNDLING_DMA_POOL_SIZE) ?
+			    DIF_BUNDLING_DMA_POOL_SIZE : difctx->dif_bundl_len;
+
+			BUG_ON(track_difbundl_buf == 0);
+
+			/* Allocate additional continuation packets? */
+			if (avail_dsds == 0) {
+				ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha,
+				    0xe024,
+				    "%s: adding continuation iocb's\n",
+				    __func__);
+				avail_dsds = (used_dsds > QLA_DSDS_PER_IOCB) ?
+				    QLA_DSDS_PER_IOCB : used_dsds;
+				dsd_list_len = (avail_dsds + 1) * 12;
+				used_dsds -= avail_dsds;
+
+				/* allocate tracking DS */
+				dsd_ptr = kzalloc(sizeof(*dsd_ptr), GFP_ATOMIC);
+				if (!dsd_ptr) {
+					ql_dbg(ql_dbg_tgt, vha, 0xe026,
+					    "%s: failed alloc dsd_ptr\n",
+					    __func__);
+					return 1;
+				}
+				ha->dif_bundle_kallocs++;
+
+				difctx->no_ldif_dsd++;
+				/* allocate new list */
+				dsd_ptr->dsd_addr =
+				    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC,
+					&dsd_ptr->dsd_list_dma);
+				if (!dsd_ptr->dsd_addr) {
+					ql_dbg(ql_dbg_tgt, vha, 0xe026,
+					    "%s: failed alloc ->dsd_addr\n",
+					    __func__);
+					/*
+					 * need to cleanup only this dsd_ptr
+					 *  rest will be done by sp_free_dma()
+					 */
+					kfree(dsd_ptr);
+					ha->dif_bundle_kallocs--;
+					return 1;
+				}
+				ha->dif_bundle_dma_allocs++;
+
+				if (sp) {
+					list_add_tail(&dsd_ptr->list,
+					    &difctx->ldif_dsd_list);
+					sp->flags |= SRB_CRC_CTX_DSD_VALID;
+				} else {
+					list_add_tail(&dsd_ptr->list,
+					    &difctx->ldif_dsd_list);
+					tc->ctx_dsd_alloced = 1;
+				}
+
+				/* add new list to cmd iocb or last list */
+				*cur_dsd++ =
+				    cpu_to_le32(LSD(dsd_ptr->dsd_list_dma));
+				*cur_dsd++ =
+				    cpu_to_le32(MSD(dsd_ptr->dsd_list_dma));
+				*cur_dsd++ = dsd_list_len;
+				cur_dsd = dsd_ptr->dsd_addr;
+			}
+			*cur_dsd++ = cpu_to_le32(LSD(dif_dsd->dsd_list_dma));
+			*cur_dsd++ = cpu_to_le32(MSD(dif_dsd->dsd_list_dma));
+			*cur_dsd++ = cpu_to_le32(sglen);
+			avail_dsds--;
+			difctx->dif_bundl_len -= sglen;
+			track_difbundl_buf--;
+		}
+
+		ql_dbg(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe026,
+		    "%s: no_ldif_dsd:%x, no_dif_bundl:%x\n", __func__,
+			difctx->no_ldif_dsd, difctx->no_dif_bundl);
+	} else {
+		for_each_sg(sgl, sg, tot_dsds, i) {
+			dma_addr_t sle_dma;
+
+			/* Allocate additional continuation packets? */
+			if (avail_dsds == 0) {
+				avail_dsds = (used_dsds > QLA_DSDS_PER_IOCB) ?
+				    QLA_DSDS_PER_IOCB : used_dsds;
+				dsd_list_len = (avail_dsds + 1) * 12;
+				used_dsds -= avail_dsds;
+
+				/* allocate tracking DS */
+				dsd_ptr = kzalloc(sizeof(*dsd_ptr), GFP_ATOMIC);
+				if (!dsd_ptr) {
+					ql_dbg(ql_dbg_tgt + ql_dbg_verbose,
+					    vha, 0xe027,
+					    "%s: failed alloc dsd_dma...\n",
+					    __func__);
+					return 1;
+				}
+
+				/* allocate new list */
+				dsd_ptr->dsd_addr =
+				    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC,
+					&dsd_ptr->dsd_list_dma);
+				if (!dsd_ptr->dsd_addr) {
+					/* need to cleanup only this dsd_ptr */
+					/* rest will be done by sp_free_dma() */
+					kfree(dsd_ptr);
+					return 1;
+				}
+
+				if (sp) {
+					list_add_tail(&dsd_ptr->list,
+					    &difctx->dsd_list);
+					sp->flags |= SRB_CRC_CTX_DSD_VALID;
+				} else {
+					list_add_tail(&dsd_ptr->list,
+					    &difctx->dsd_list);
+					tc->ctx_dsd_alloced = 1;
+				}
+
+				/* add new list to cmd iocb or last list */
+				*cur_dsd++ =
+				    cpu_to_le32(LSD(dsd_ptr->dsd_list_dma));
+				*cur_dsd++ =
+				    cpu_to_le32(MSD(dsd_ptr->dsd_list_dma));
+				*cur_dsd++ = dsd_list_len;
+				cur_dsd = dsd_ptr->dsd_addr;
+			}
+			sle_dma = sg_dma_address(sg);
+			*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
+			*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
+			*cur_dsd++ = cpu_to_le32(sg_dma_len(sg));
+			avail_dsds--;
+		}
 	}
 	/* Null termination */
 	*cur_dsd++ = 0;
@@ -1187,7 +1395,6 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 	*cur_dsd++ = 0;
 	return 0;
 }
-
 /**
  * qla24xx_build_scsi_crc_2_iocbs() - Build IOCB command utilizing Command
  *							Type 6 IOCB types.
@@ -1416,21 +1623,19 @@ qla24xx_start_scsi(srb_t *sp)
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
 	struct req_que *req = NULL;
-	struct rsp_que *rsp = NULL;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Setup device pointers. */
 	req = vha->req;
-	rsp = req->rsp;
 
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 		vha->marker_needed = 0;
@@ -1583,7 +1788,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 		vha->marker_needed = 0;
@@ -1754,7 +1959,6 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
 	struct req_que *req = NULL;
-	struct rsp_que *rsp = NULL;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
@@ -1764,7 +1968,6 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	spin_lock_irqsave(&qpair->qp_lock, flags);
 
 	/* Setup qpair pointers */
-	rsp = qpair->rsp;
 	req = qpair->req;
 
 	/* So we know we haven't pci_map'ed anything yet */
@@ -1772,7 +1975,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (__qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (__qla2x00_marker(vha, qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS) {
 			spin_unlock_irqrestore(&qpair->qp_lock, flags);
 			return QLA_FUNCTION_FAILED;
@@ -1940,7 +2143,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (__qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (__qla2x00_marker(vha, qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS) {
 			spin_unlock_irqrestore(&qpair->qp_lock, flags);
 			return QLA_FUNCTION_FAILED;
@@ -2208,8 +2411,11 @@ qla24xx_prli_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
-	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI)
+	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI) {
 		logio->control_flags |= LCF_NVME_PRLI;
+		if (sp->vha->flags.nvme_first_burst)
+			logio->io_parameter[0] = NVME_PRLI_SP_FIRST_BURST;
+	}
 
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
@@ -2991,8 +3197,8 @@ qla82xx_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req,
-			rsp, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS) {
+		if (qla2x00_marker(vha, ha->base_qpair,
+			0, 0, MK_SYNC_ALL) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x300c,
 			    "qla2x00_marker failed for cmd=%p.\n", cmd);
 			return QLA_FUNCTION_FAILED;
@@ -3434,23 +3640,22 @@ qla24xx_prlo_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 int
 qla2x00_start_sp(srb_t *sp)
 {
-	int rval;
+	int rval = QLA_SUCCESS;
 	scsi_qla_host_t *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qp = sp->qpair;
 	void *pkt;
 	unsigned long flags;
 
-	rval = QLA_FUNCTION_FAILED;
 	spin_lock_irqsave(qp->qp_lock_ptr, flags);
 	pkt = __qla2x00_alloc_iocbs(sp->qpair, sp);
 	if (!pkt) {
+		rval = EAGAIN;
 		ql_log(ql_log_warn, vha, 0x700c,
 		    "qla2x00_alloc_iocbs failed.\n");
 		goto done;
 	}
 
-	rval = QLA_SUCCESS;
 	switch (sp->type) {
 	case SRB_LOGIN_CMD:
 		IS_FWI2_CAPABLE(ha) ?
@@ -3646,8 +3851,8 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req,
-			rsp, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
+		if (qla2x00_marker(vha, ha->base_qpair,
+			0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
 			return EXT_STATUS_MAILBOX;
 		vha->marker_needed = 0;
 	}

@@ -265,6 +265,18 @@ void eth_header_cache_update(struct hh_cache *hh,
 EXPORT_SYMBOL(eth_header_cache_update);
 
 /**
+ * eth_header_parser_protocol - extract protocol from L2 header
+ * @skb: packet to extract protocol from
+ */
+__be16 eth_header_parse_protocol(const struct sk_buff *skb)
+{
+	const struct ethhdr *eth = eth_hdr(skb);
+
+	return eth->h_proto;
+}
+EXPORT_SYMBOL(eth_header_parse_protocol);
+
+/**
  * eth_prepare_mac_addr_change - prepare for mac change
  * @dev: network device
  * @p: socket address
@@ -346,6 +358,7 @@ const struct header_ops eth_header_ops ____cacheline_aligned = {
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
+	.parse_protocol	= eth_header_parse_protocol,
 };
 
 /**

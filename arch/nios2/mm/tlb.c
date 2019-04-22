@@ -23,10 +23,6 @@
 	((((1UL << (cpuinfo.tlb_ptr_sz - cpuinfo.tlb_num_ways_log2))) - 1) \
 		<< PAGE_SHIFT)
 
-/* Used as illegal PHYS_ADDR for TLB mappings
- */
-#define MAX_PHYS_ADDR 0
-
 static void get_misc_and_pid(unsigned long *misc, unsigned long *pid)
 {
 	*misc  = RDCTL(CTL_TLBMISC);
@@ -35,27 +31,22 @@ static void get_misc_and_pid(unsigned long *misc, unsigned long *pid)
 }
 
 /*
- * All entries common to a mm share an asid.  To effectively flush these
- * entries, we just bump the asid.
+ * This provides a PTEADDR value for addr that will cause a TLB miss
+ * (fast TLB miss). TLB invalidation replaces entries with this value.
  */
-void flush_tlb_mm(struct mm_struct *mm)
+static unsigned long pteaddr_invalid(unsigned long addr)
 {
-	if (current->mm == mm)
-		flush_tlb_all();
-	else
-		memset(&mm->context, 0, sizeof(mm_context_t));
+	return ((addr | 0xC0000000UL) >> PAGE_SHIFT) << 2;
 }
 
 /*
  * This one is only used for pages with the global bit set so we don't care
  * much about the ASID.
  */
-void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
+static void replace_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, unsigned long tlbacc)
 {
 	unsigned int way;
 	unsigned long org_misc, pid_misc;
-
-	pr_debug("Flush tlb-entry for vaddr=%#lx\n", addr);
 
 	/* remember pid/way until we return. */
 	get_misc_and_pid(&org_misc, &pid_misc);
@@ -67,28 +58,46 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 		unsigned long tlbmisc;
 		unsigned long pid;
 
-		tlbmisc = pid_misc | TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
+
 		pteaddr = RDCTL(CTL_PTEADDR);
+		if (((pteaddr >> 2) & 0xfffff) != (addr >> PAGE_SHIFT))
+			continue;
+
 		tlbmisc = RDCTL(CTL_TLBMISC);
 		pid = (tlbmisc >> TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK;
-		if (((((pteaddr >> 2) & 0xfffff)) == (addr >> PAGE_SHIFT)) &&
-				pid == mmu_pid) {
-			unsigned long vaddr = CONFIG_NIOS2_IO_REGION_BASE +
-				((PAGE_SIZE * cpuinfo.tlb_num_lines) * way) +
-				(addr & TLB_INDEX_MASK);
-			pr_debug("Flush entry by writing %#lx way=%dl pid=%ld\n",
-				vaddr, way, (pid_misc >> TLBMISC_PID_SHIFT));
+		if (pid != mmu_pid)
+			continue;
 
-			WRCTL(CTL_PTEADDR, (vaddr >> 12) << 2);
-			tlbmisc = pid_misc | TLBMISC_WE |
-				(way << TLBMISC_WAY_SHIFT);
-			WRCTL(CTL_TLBMISC, tlbmisc);
-			WRCTL(CTL_TLBACC, (MAX_PHYS_ADDR >> PAGE_SHIFT));
-		}
+		tlbmisc = (mmu_pid << TLBMISC_PID_SHIFT) | TLBMISC_WE |
+			  (way << TLBMISC_WAY_SHIFT);
+		WRCTL(CTL_TLBMISC, tlbmisc);
+		if (tlbacc == 0)
+			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
+		WRCTL(CTL_TLBACC, tlbacc);
+		/*
+		 * There should be only a single entry that maps a
+		 * particular {address,pid} so break after a match.
+		 */
+		break;
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
+}
+
+static void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
+{
+	pr_debug("Flush tlb-entry for vaddr=%#lx\n", addr);
+
+	replace_tlb_one_pid(addr, mmu_pid, 0);
+}
+
+static void reload_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, pte_t pte)
+{
+	pr_debug("Reload tlb-entry for vaddr=%#lx\n", addr);
+
+	replace_tlb_one_pid(addr, mmu_pid, pte_val(pte));
 }
 
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -102,19 +111,18 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	}
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+void reload_tlb_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 {
-	while (start < end) {
-		flush_tlb_one(start);
-		start += PAGE_SIZE;
-	}
+	unsigned long mmu_pid = get_pid_from_context(&vma->vm_mm->context);
+
+	reload_tlb_one_pid(addr, mmu_pid, pte);
 }
 
 /*
  * This one is only used for pages with the global bit set so we don't care
  * much about the ASID.
  */
-void flush_tlb_one(unsigned long addr)
+static void flush_tlb_one(unsigned long addr)
 {
 	unsigned int way;
 	unsigned long org_misc, pid_misc;
@@ -130,28 +138,31 @@ void flush_tlb_one(unsigned long addr)
 		unsigned long pteaddr;
 		unsigned long tlbmisc;
 
-		tlbmisc = pid_misc | TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
+
 		pteaddr = RDCTL(CTL_PTEADDR);
-		tlbmisc = RDCTL(CTL_TLBMISC);
+		if (((pteaddr >> 2) & 0xfffff) != (addr >> PAGE_SHIFT))
+			continue;
 
-		if ((((pteaddr >> 2) & 0xfffff)) == (addr >> PAGE_SHIFT)) {
-			unsigned long vaddr = CONFIG_NIOS2_IO_REGION_BASE +
-				((PAGE_SIZE * cpuinfo.tlb_num_lines) * way) +
-				(addr & TLB_INDEX_MASK);
+		pr_debug("Flush entry by writing way=%dl pid=%ld\n",
+			 way, (pid_misc >> TLBMISC_PID_SHIFT));
 
-			pr_debug("Flush entry by writing %#lx way=%dl pid=%ld\n",
-				vaddr, way, (pid_misc >> TLBMISC_PID_SHIFT));
-
-			tlbmisc = pid_misc | TLBMISC_WE |
-				(way << TLBMISC_WAY_SHIFT);
-			WRCTL(CTL_PTEADDR, (vaddr >> 12) << 2);
-			WRCTL(CTL_TLBMISC, tlbmisc);
-			WRCTL(CTL_TLBACC, (MAX_PHYS_ADDR >> PAGE_SHIFT));
-		}
+		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+		WRCTL(CTL_TLBMISC, tlbmisc);
+		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
+		WRCTL(CTL_TLBACC, 0);
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	while (start < end) {
+		flush_tlb_one(start);
+		start += PAGE_SIZE;
+	}
 }
 
 void dump_tlb_line(unsigned long line)
@@ -177,7 +188,7 @@ void dump_tlb_line(unsigned long line)
 		tlbmisc = RDCTL(CTL_TLBMISC);
 		tlbacc = RDCTL(CTL_TLBACC);
 
-		if ((tlbacc << PAGE_SHIFT) != (MAX_PHYS_ADDR & PAGE_MASK)) {
+		if ((tlbacc << PAGE_SHIFT) != 0) {
 			pr_debug("-- way:%02x vpn:0x%08lx phys:0x%08lx pid:0x%02lx flags:%c%c%c%c%c\n",
 				way,
 				(pteaddr << (PAGE_SHIFT-2)),
@@ -203,8 +214,9 @@ void dump_tlb(void)
 		dump_tlb_line(i);
 }
 
-void flush_tlb_pid(unsigned long pid)
+void flush_tlb_pid(unsigned long mmu_pid)
 {
+	unsigned long addr = 0;
 	unsigned int line;
 	unsigned int way;
 	unsigned long org_misc, pid_misc;
@@ -213,55 +225,65 @@ void flush_tlb_pid(unsigned long pid)
 	get_misc_and_pid(&org_misc, &pid_misc);
 
 	for (line = 0; line < cpuinfo.tlb_num_lines; line++) {
-		WRCTL(CTL_PTEADDR, line << 2);
+		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
 
 		for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
-			unsigned long pteaddr;
 			unsigned long tlbmisc;
-			unsigned long tlbacc;
+			unsigned long pid;
 
-			tlbmisc = pid_misc | TLBMISC_RD |
-				(way << TLBMISC_WAY_SHIFT);
+			tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
-			pteaddr = RDCTL(CTL_PTEADDR);
 			tlbmisc = RDCTL(CTL_TLBMISC);
-			tlbacc = RDCTL(CTL_TLBACC);
+			pid = (tlbmisc >> TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK;
+			if (pid != mmu_pid)
+				continue;
 
-			if (((tlbmisc>>TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK)
-				== pid) {
-				tlbmisc = pid_misc | TLBMISC_WE |
-					(way << TLBMISC_WAY_SHIFT);
-				WRCTL(CTL_TLBMISC, tlbmisc);
-				WRCTL(CTL_TLBACC,
-					(MAX_PHYS_ADDR >> PAGE_SHIFT));
-			}
+			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+			WRCTL(CTL_TLBMISC, tlbmisc);
+			WRCTL(CTL_TLBACC, 0);
 		}
 
-		WRCTL(CTL_TLBMISC, org_misc);
+		addr += PAGE_SIZE;
+	}
+
+	WRCTL(CTL_TLBMISC, org_misc);
+}
+
+/*
+ * All entries common to a mm share an asid.  To effectively flush these
+ * entries, we just bump the asid.
+ */
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	if (current->mm == mm) {
+		unsigned long mmu_pid = get_pid_from_context(&mm->context);
+		flush_tlb_pid(mmu_pid);
+	} else {
+		memset(&mm->context, 0, sizeof(mm_context_t));
 	}
 }
 
 void flush_tlb_all(void)
 {
-	int i;
-	unsigned long vaddr = CONFIG_NIOS2_IO_REGION_BASE;
+	unsigned long addr = 0;
+	unsigned int line;
 	unsigned int way;
-	unsigned long org_misc, pid_misc, tlbmisc;
+	unsigned long org_misc, pid_misc;
 
 	/* remember pid/way until we return */
 	get_misc_and_pid(&org_misc, &pid_misc);
-	pid_misc |= TLBMISC_WE;
+
+	/* Start at way 0, way is auto-incremented after each TLBACC write */
+	WRCTL(CTL_TLBMISC, TLBMISC_WE);
 
 	/* Map each TLB entry to physcal address 0 with no-access and a
 	   bad ptbase */
-	for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
-		tlbmisc = pid_misc | (way << TLBMISC_WAY_SHIFT);
-		for (i = 0; i < cpuinfo.tlb_num_lines; i++) {
-			WRCTL(CTL_PTEADDR, ((vaddr) >> PAGE_SHIFT) << 2);
-			WRCTL(CTL_TLBMISC, tlbmisc);
-			WRCTL(CTL_TLBACC, (MAX_PHYS_ADDR >> PAGE_SHIFT));
-			vaddr += 1UL << 12;
-		}
+	for (line = 0; line < cpuinfo.tlb_num_lines; line++) {
+		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
+		for (way = 0; way < cpuinfo.tlb_num_ways; way++)
+			WRCTL(CTL_TLBACC, 0);
+
+		addr += PAGE_SIZE;
 	}
 
 	/* restore pid/way */
@@ -270,6 +292,10 @@ void flush_tlb_all(void)
 
 void set_mmu_pid(unsigned long pid)
 {
-	WRCTL(CTL_TLBMISC, (RDCTL(CTL_TLBMISC) & TLBMISC_WAY) |
-		((pid & TLBMISC_PID_MASK) << TLBMISC_PID_SHIFT));
+	unsigned long tlbmisc;
+
+	tlbmisc = RDCTL(CTL_TLBMISC);
+	tlbmisc = (tlbmisc & TLBMISC_WAY);
+	tlbmisc |= (pid & TLBMISC_PID_MASK) << TLBMISC_PID_SHIFT;
+	WRCTL(CTL_TLBMISC, tlbmisc);
 }

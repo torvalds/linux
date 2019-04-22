@@ -109,6 +109,16 @@ TRACE_EVENT(spi_message_done,
                   (unsigned)__entry->actual, (unsigned)__entry->frame)
 );
 
+/*
+ * consider a buffer valid if non-NULL and if it doesn't match the dummy buffer
+ * that only exist to work with controllers that have SPI_CONTROLLER_MUST_TX or
+ * SPI_CONTROLLER_MUST_RX.
+ */
+#define spi_valid_txbuf(msg, xfer) \
+	(xfer->tx_buf && xfer->tx_buf != msg->spi->controller->dummy_tx)
+#define spi_valid_rxbuf(msg, xfer) \
+	(xfer->rx_buf && xfer->rx_buf != msg->spi->controller->dummy_rx)
+
 DECLARE_EVENT_CLASS(spi_transfer,
 
 	TP_PROTO(struct spi_message *msg, struct spi_transfer *xfer),
@@ -120,6 +130,10 @@ DECLARE_EVENT_CLASS(spi_transfer,
 		__field(        int,            chip_select     )
 		__field(        struct spi_transfer *,   xfer   )
 		__field(        int,            len             )
+		__dynamic_array(u8, rx_buf,
+				spi_valid_rxbuf(msg, xfer) ? xfer->len : 0)
+		__dynamic_array(u8, tx_buf,
+				spi_valid_txbuf(msg, xfer) ? xfer->len : 0)
 	),
 
 	TP_fast_assign(
@@ -127,12 +141,21 @@ DECLARE_EVENT_CLASS(spi_transfer,
 		__entry->chip_select = msg->spi->chip_select;
 		__entry->xfer = xfer;
 		__entry->len = xfer->len;
+
+		if (spi_valid_txbuf(msg, xfer))
+			memcpy(__get_dynamic_array(tx_buf),
+			       xfer->tx_buf, xfer->len);
+
+		if (spi_valid_rxbuf(msg, xfer))
+			memcpy(__get_dynamic_array(rx_buf),
+			       xfer->rx_buf, xfer->len);
 	),
 
-        TP_printk("spi%d.%d %p len=%d", (int)__entry->bus_num,
-		  (int)__entry->chip_select,
-		  (struct spi_message *)__entry->xfer,
-		  (int)__entry->len)
+	TP_printk("spi%d.%d %p len=%d tx=[%*phD] rx=[%*phD]",
+		  __entry->bus_num, __entry->chip_select,
+		  __entry->xfer, __entry->len,
+		  __get_dynamic_array_len(tx_buf), __get_dynamic_array(tx_buf),
+		  __get_dynamic_array_len(rx_buf), __get_dynamic_array(rx_buf))
 );
 
 DEFINE_EVENT(spi_transfer, spi_transfer_start,

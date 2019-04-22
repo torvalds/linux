@@ -844,7 +844,7 @@ static void set_h_prescale(struct v4l2_subdev *sd,
 	if (i == count)
 		return;
 
-	/* horizonal prescaling */
+	/* horizontal prescaling */
 	saa717x_write(sd, 0x60 + task_shift, vals[i].xpsc);
 	/* accumulation length */
 	saa717x_write(sd, 0x61 + task_shift, vals[i].xacl);

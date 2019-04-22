@@ -43,8 +43,9 @@ mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0);
 
 	if (!mac_stopped)
-		mt76x2u_mac_resume(dev);
+		mt76x2_mac_resume(dev);
 	mt76x2_apply_gain_adj(dev);
+	mt76x02_edcca_init(dev, true);
 
 	dev->cal.channel_cal_done = true;
 }

@@ -46,7 +46,7 @@
 
 #define BANK_OFFSET_STRIDE	      0x80000
 
-static struct llcc_drv_data *drv_data;
+static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
 
 static const struct regmap_config llcc_regmap_config = {
 	.reg_bits = 32,
@@ -67,6 +67,9 @@ struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 	const struct llcc_slice_config *cfg;
 	struct llcc_slice_desc *desc;
 	u32 sz, count;
+
+	if (IS_ERR(drv_data))
+		return ERR_CAST(drv_data);
 
 	cfg = drv_data->cfg;
 	sz = drv_data->cfg_size;
@@ -108,6 +111,9 @@ static int llcc_update_act_ctrl(u32 sid,
 	u32 slice_status;
 	int ret;
 
+	if (IS_ERR(drv_data))
+		return PTR_ERR(drv_data);
+
 	act_ctrl_reg = LLCC_TRP_ACT_CTRLn(sid);
 	status_reg = LLCC_TRP_STATUSn(sid);
 
@@ -142,6 +148,9 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 {
 	int ret;
 	u32 act_ctrl_val;
+
+	if (IS_ERR(drv_data))
+		return PTR_ERR(drv_data);
 
 	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
@@ -179,6 +188,9 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 {
 	u32 act_ctrl_val;
 	int ret;
+
+	if (IS_ERR(drv_data))
+		return PTR_ERR(drv_data);
 
 	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
@@ -289,46 +301,62 @@ static int qcom_llcc_cfg_program(struct platform_device *pdev)
 	return ret;
 }
 
+int qcom_llcc_remove(struct platform_device *pdev)
+{
+	/* Set the global pointer to a error code to avoid referencing it */
+	drv_data = ERR_PTR(-ENODEV);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_llcc_remove);
+
+static struct regmap *qcom_llcc_init_mmio(struct platform_device *pdev,
+		const char *name)
+{
+	struct resource *res;
+	void __iomem *base;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	if (!res)
+		return ERR_PTR(-ENODEV);
+
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	return devm_regmap_init_mmio(&pdev->dev, base, &llcc_regmap_config);
+}
+
 int qcom_llcc_probe(struct platform_device *pdev,
 		      const struct llcc_slice_config *llcc_cfg, u32 sz)
 {
 	u32 num_banks;
 	struct device *dev = &pdev->dev;
-	struct resource *llcc_banks_res, *llcc_bcast_res;
-	void __iomem *llcc_banks_base, *llcc_bcast_base;
 	int ret, i;
 	struct platform_device *llcc_edac;
 
 	drv_data = devm_kzalloc(dev, sizeof(*drv_data), GFP_KERNEL);
-	if (!drv_data)
-		return -ENOMEM;
+	if (!drv_data) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
-	llcc_banks_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"llcc_base");
-	llcc_banks_base = devm_ioremap_resource(&pdev->dev, llcc_banks_res);
-	if (IS_ERR(llcc_banks_base))
-		return PTR_ERR(llcc_banks_base);
+	drv_data->regmap = qcom_llcc_init_mmio(pdev, "llcc_base");
+	if (IS_ERR(drv_data->regmap)) {
+		ret = PTR_ERR(drv_data->regmap);
+		goto err;
+	}
 
-	drv_data->regmap = devm_regmap_init_mmio(dev, llcc_banks_base,
-						&llcc_regmap_config);
-	if (IS_ERR(drv_data->regmap))
-		return PTR_ERR(drv_data->regmap);
-
-	llcc_bcast_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"llcc_broadcast_base");
-	llcc_bcast_base = devm_ioremap_resource(&pdev->dev, llcc_bcast_res);
-	if (IS_ERR(llcc_bcast_base))
-		return PTR_ERR(llcc_bcast_base);
-
-	drv_data->bcast_regmap = devm_regmap_init_mmio(dev, llcc_bcast_base,
-							&llcc_regmap_config);
-	if (IS_ERR(drv_data->bcast_regmap))
-		return PTR_ERR(drv_data->bcast_regmap);
+	drv_data->bcast_regmap =
+		qcom_llcc_init_mmio(pdev, "llcc_broadcast_base");
+	if (IS_ERR(drv_data->bcast_regmap)) {
+		ret = PTR_ERR(drv_data->bcast_regmap);
+		goto err;
+	}
 
 	ret = regmap_read(drv_data->regmap, LLCC_COMMON_STATUS0,
 						&num_banks);
 	if (ret)
-		return ret;
+		goto err;
 
 	num_banks &= LLCC_LB_CNT_MASK;
 	num_banks >>= LLCC_LB_CNT_SHIFT;
@@ -340,8 +368,10 @@ int qcom_llcc_probe(struct platform_device *pdev,
 
 	drv_data->offsets = devm_kcalloc(dev, num_banks, sizeof(u32),
 							GFP_KERNEL);
-	if (!drv_data->offsets)
-		return -ENOMEM;
+	if (!drv_data->offsets) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	for (i = 0; i < num_banks; i++)
 		drv_data->offsets[i] = i * BANK_OFFSET_STRIDE;
@@ -349,8 +379,10 @@ int qcom_llcc_probe(struct platform_device *pdev,
 	drv_data->bitmap = devm_kcalloc(dev,
 	BITS_TO_LONGS(drv_data->max_slices), sizeof(unsigned long),
 						GFP_KERNEL);
-	if (!drv_data->bitmap)
-		return -ENOMEM;
+	if (!drv_data->bitmap) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	drv_data->cfg = llcc_cfg;
 	drv_data->cfg_size = sz;
@@ -359,7 +391,7 @@ int qcom_llcc_probe(struct platform_device *pdev,
 
 	ret = qcom_llcc_cfg_program(pdev);
 	if (ret)
-		return ret;
+		goto err;
 
 	drv_data->ecc_irq = platform_get_irq(pdev, 0);
 	if (drv_data->ecc_irq >= 0) {
@@ -370,6 +402,9 @@ int qcom_llcc_probe(struct platform_device *pdev,
 			dev_err(dev, "Failed to register llcc edac driver\n");
 	}
 
+	return 0;
+err:
+	drv_data = ERR_PTR(-ENODEV);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(qcom_llcc_probe);

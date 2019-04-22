@@ -185,7 +185,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 };
 
 /*
- * As theres no known frame sync, the only way to keep synced is to try hard
+ * As there's no known frame sync, the only way to keep synced is to try hard
  * to never miss any packets
  */
 #if MAX_NURBS < 4
@@ -259,7 +259,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 		return;
 	}
 	gspca_dbg(gspca_dev, D_STREAM, "exposure: 0x%04X ms\n\n", value);
-	/* Wonder if theres a good reason for sending it twice */
+	/* Wonder if there's a good reason for sending it twice */
 	/* probably not but leave it in because...why not */
 	reg_w(gspca_dev, value, REG_COARSE_INTEGRATION_TIME_);
 	reg_w(gspca_dev, value, REG_COARSE_INTEGRATION_TIME_);

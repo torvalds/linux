@@ -60,8 +60,11 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 	 * later determine that kpti is required, then
 	 * kpti_install_ng_mappings() will make them non-global.
 	 */
+	if (arm64_kernel_unmapped_at_el0())
+		return true;
+
 	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
-		return arm64_kernel_unmapped_at_el0();
+		return false;
 
 	/*
 	 * KASLR is enabled so we're going to be enabling kpti on non-broken
@@ -126,6 +129,7 @@ static inline struct bp_hardening_data *arm64_get_bp_hardening_data(void)
 static inline void arm64_apply_bp_hardening(void)	{ }
 #endif	/* CONFIG_HARDEN_BRANCH_PREDICTOR */
 
+extern void arm64_memblock_init(void);
 extern void paging_init(void);
 extern void bootmem_init(void);
 extern void __iomem *early_io_map(phys_addr_t phys, unsigned long virt);

@@ -1,0 +1,43 @@
+====================
+Livepatch Self Tests
+====================
+
+This is a small set of sanity tests for the kernel livepatching.
+
+The test suite loads and unloads several test kernel modules to verify
+livepatch behavior.  Debug information is logged to the kernel's message
+buffer and parsed for expected messages.  (Note: the tests will clear
+the message buffer between individual tests.)
+
+
+Config
+------
+
+Set these config options and their prerequisites:
+
+CONFIG_LIVEPATCH=y
+CONFIG_TEST_LIVEPATCH=m
+
+
+Running the tests
+-----------------
+
+Test kernel modules are built as part of lib/ (make modules) and need to
+be installed (make modules_install) as the test scripts will modprobe
+them.
+
+To run the livepatch selftests, from the top of the kernel source tree:
+
+  % make -C tools/testing/selftests TARGETS=livepatch run_tests
+
+
+Adding tests
+------------
+
+See the common functions.sh file for the existing collection of utility
+functions, most importantly set_dynamic_debug() and check_result().  The
+latter function greps the kernel's ring buffer for "livepatch:" and
+"test_klp" strings, so tests be sure to include one of those strings for
+result comparison.  Other utility functions include general module
+loading and livepatch loading helpers (waiting for patch transitions,
+sysfs entries, etc.)

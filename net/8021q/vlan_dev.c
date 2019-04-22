@@ -31,7 +31,6 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <net/arp.h>
-#include <net/switchdev.h>
 
 #include "vlan.h"
 #include "vlanproc.h"

@@ -245,8 +245,8 @@ static struct scif_hw_ops scif_hw_ops = {
 	.next_db = ___mic_next_db,
 	.send_intr = ___mic_send_intr,
 	.send_p2p_intr = ___mic_send_p2p_intr,
-	.ioremap = ___mic_ioremap,
-	.iounmap = ___mic_iounmap,
+	.remap = ___mic_ioremap,
+	.unmap = ___mic_iounmap,
 };
 
 static inline struct mic_driver *vpdev_to_mdrv(struct vop_device *vpdev)
@@ -316,8 +316,8 @@ static struct vop_hw_ops vop_hw_ops = {
 	.next_db = __mic_next_db,
 	.get_remote_dp = __mic_get_remote_dp,
 	.send_intr = __mic_send_intr,
-	.ioremap = __mic_ioremap,
-	.iounmap = __mic_iounmap,
+	.remap = __mic_ioremap,
+	.unmap = __mic_iounmap,
 };
 
 static int mic_request_dma_chans(struct mic_driver *mdrv)

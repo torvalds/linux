@@ -7,7 +7,7 @@
  */
 
 #ifdef CONFIG_MMU
-#error need to prove a real asm/page.h
+#error need to provide a real asm/page.h
 #endif
 
 

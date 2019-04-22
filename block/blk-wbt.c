@@ -597,7 +597,7 @@ static void wbt_track(struct rq_qos *rqos, struct request *rq, struct bio *bio)
 	rq->wbt_flags |= bio_to_wbt_flags(rwb, bio);
 }
 
-void wbt_issue(struct rq_qos *rqos, struct request *rq)
+static void wbt_issue(struct rq_qos *rqos, struct request *rq)
 {
 	struct rq_wb *rwb = RQWB(rqos);
 
@@ -617,7 +617,7 @@ void wbt_issue(struct rq_qos *rqos, struct request *rq)
 	}
 }
 
-void wbt_requeue(struct rq_qos *rqos, struct request *rq)
+static void wbt_requeue(struct rq_qos *rqos, struct request *rq)
 {
 	struct rq_wb *rwb = RQWB(rqos);
 	if (!rwb_enabled(rwb))

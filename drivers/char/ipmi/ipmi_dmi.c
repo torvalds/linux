@@ -14,6 +14,7 @@
 #include <linux/property.h>
 #include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
+#include "ipmi_plat_data.h"
 
 #define IPMI_DMI_TYPE_KCS	0x01
 #define IPMI_DMI_TYPE_SMIC	0x02
@@ -22,7 +23,7 @@
 
 struct ipmi_dmi_info {
 	enum si_type si_type;
-	u32 flags;
+	unsigned int space; /* addr space for si, intf# for ssif */
 	unsigned long addr;
 	u8 slave_addr;
 	struct ipmi_dmi_info *next;
@@ -33,133 +34,60 @@ static struct ipmi_dmi_info *ipmi_dmi_infos;
 static int ipmi_dmi_nr __initdata;
 
 static void __init dmi_add_platform_ipmi(unsigned long base_addr,
-					 u32 flags,
+					 unsigned int space,
 					 u8 slave_addr,
 					 int irq,
 					 int offset,
 					 int type)
 {
-	struct platform_device *pdev;
-	struct resource r[4];
-	unsigned int num_r = 1, size;
-	struct property_entry p[5];
-	unsigned int pidx = 0;
-	char *name;
-	int rv;
-	enum si_type si_type;
+	const char *name;
 	struct ipmi_dmi_info *info;
+	struct ipmi_plat_data p;
 
-	memset(p, 0, sizeof(p));
+	memset(&p, 0, sizeof(p));
 
 	name = "dmi-ipmi-si";
 	switch (type) {
 	case IPMI_DMI_TYPE_SSIF:
 		name = "dmi-ipmi-ssif";
-		offset = 1;
-		size = 1;
-		si_type = SI_TYPE_INVALID;
+		p.type = SI_TYPE_INVALID;
 		break;
 	case IPMI_DMI_TYPE_BT:
-		size = 3;
-		si_type = SI_BT;
+		p.type = SI_BT;
 		break;
 	case IPMI_DMI_TYPE_KCS:
-		size = 2;
-		si_type = SI_KCS;
+		p.type = SI_KCS;
 		break;
 	case IPMI_DMI_TYPE_SMIC:
-		size = 2;
-		si_type = SI_SMIC;
+		p.type = SI_SMIC;
 		break;
 	default:
 		pr_err("Invalid IPMI type: %d\n", type);
 		return;
 	}
 
-	if (si_type != SI_TYPE_INVALID)
-		p[pidx++] = PROPERTY_ENTRY_U8("ipmi-type", si_type);
-
-	p[pidx++] = PROPERTY_ENTRY_U8("slave-addr", slave_addr);
-	p[pidx++] = PROPERTY_ENTRY_U8("addr-source", SI_SMBIOS);
+	memset(&p, 0, sizeof(p));
+	p.addr = base_addr;
+	p.space = space;
+	p.regspacing = offset;
+	p.irq = irq;
+	p.slave_addr = slave_addr;
+	p.addr_source = SI_SMBIOS;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		pr_warn("Could not allocate dmi info\n");
 	} else {
-		info->si_type = si_type;
-		info->flags = flags;
+		info->si_type = p.type;
+		info->space = space;
 		info->addr = base_addr;
 		info->slave_addr = slave_addr;
 		info->next = ipmi_dmi_infos;
 		ipmi_dmi_infos = info;
 	}
 
-	pdev = platform_device_alloc(name, ipmi_dmi_nr);
-	if (!pdev) {
-		pr_err("Error allocation IPMI platform device\n");
-		return;
-	}
-
-	if (type == IPMI_DMI_TYPE_SSIF) {
-		p[pidx++] = PROPERTY_ENTRY_U16("i2c-addr", base_addr);
-		goto add_properties;
-	}
-
-	memset(r, 0, sizeof(r));
-
-	r[0].start = base_addr;
-	r[0].end = r[0].start + offset - 1;
-	r[0].name = "IPMI Address 1";
-	r[0].flags = flags;
-
-	if (size > 1) {
-		r[1].start = r[0].start + offset;
-		r[1].end = r[1].start + offset - 1;
-		r[1].name = "IPMI Address 2";
-		r[1].flags = flags;
-		num_r++;
-	}
-
-	if (size > 2) {
-		r[2].start = r[1].start + offset;
-		r[2].end = r[2].start + offset - 1;
-		r[2].name = "IPMI Address 3";
-		r[2].flags = flags;
-		num_r++;
-	}
-
-	if (irq) {
-		r[num_r].start = irq;
-		r[num_r].end = irq;
-		r[num_r].name = "IPMI IRQ";
-		r[num_r].flags = IORESOURCE_IRQ;
-		num_r++;
-	}
-
-	rv = platform_device_add_resources(pdev, r, num_r);
-	if (rv) {
-		dev_err(&pdev->dev, "Unable to add resources: %d\n", rv);
-		goto err;
-	}
-
-add_properties:
-	rv = platform_device_add_properties(pdev, p);
-	if (rv) {
-		dev_err(&pdev->dev, "Unable to add properties: %d\n", rv);
-		goto err;
-	}
-
-	rv = platform_device_add(pdev);
-	if (rv) {
-		dev_err(&pdev->dev, "Unable to add device: %d\n", rv);
-		goto err;
-	}
-
-	ipmi_dmi_nr++;
-	return;
-
-err:
-	platform_device_put(pdev);
+	if (ipmi_platform_add(name, ipmi_dmi_nr, &p))
+		ipmi_dmi_nr++;
 }
 
 /*
@@ -169,14 +97,14 @@ err:
  * This function allows an ACPI-specified IPMI device to look up the
  * slave address from the DMI table.
  */
-int ipmi_dmi_get_slave_addr(enum si_type si_type, u32 flags,
+int ipmi_dmi_get_slave_addr(enum si_type si_type, unsigned int space,
 			    unsigned long base_addr)
 {
 	struct ipmi_dmi_info *info = ipmi_dmi_infos;
 
 	while (info) {
 		if (info->si_type == si_type &&
-		    info->flags == flags &&
+		    info->space == space &&
 		    info->addr == base_addr)
 			return info->slave_addr;
 		info = info->next;
@@ -197,13 +125,13 @@ EXPORT_SYMBOL(ipmi_dmi_get_slave_addr);
 
 static void __init dmi_decode_ipmi(const struct dmi_header *dm)
 {
-	const u8	*data = (const u8 *) dm;
-	u32             flags = IORESOURCE_IO;
-	unsigned long	base_addr;
-	u8              len = dm->length;
-	u8              slave_addr;
-	int             irq = 0, offset;
-	int             type;
+	const u8 *data = (const u8 *) dm;
+	int space = IPMI_IO_ADDR_SPACE;
+	unsigned long base_addr;
+	u8 len = dm->length;
+	u8 slave_addr;
+	int irq = 0, offset = 0;
+	int type;
 
 	if (len < DMI_IPMI_MIN_LENGTH)
 		return;
@@ -218,8 +146,7 @@ static void __init dmi_decode_ipmi(const struct dmi_header *dm)
 	}
 	if (len >= DMI_IPMI_VER2_LENGTH) {
 		if (type == IPMI_DMI_TYPE_SSIF) {
-			offset = 0;
-			flags = 0;
+			space = 0; /* Match I2C interface 0. */
 			base_addr = data[DMI_IPMI_ADDR] >> 1;
 			if (base_addr == 0) {
 				/*
@@ -236,7 +163,7 @@ static void __init dmi_decode_ipmi(const struct dmi_header *dm)
 				base_addr &= DMI_IPMI_IO_MASK;
 			} else {
 				/* Memory */
-				flags = IORESOURCE_MEM;
+				space = IPMI_MEM_ADDR_SPACE;
 			}
 
 			/*
@@ -280,7 +207,7 @@ static void __init dmi_decode_ipmi(const struct dmi_header *dm)
 		offset = 1;
 	}
 
-	dmi_add_platform_ipmi(base_addr, flags, slave_addr, irq,
+	dmi_add_platform_ipmi(base_addr, space, slave_addr, irq,
 			      offset, type);
 }
 

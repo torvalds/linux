@@ -90,8 +90,8 @@ static void up_rel_func(struct kref *kref)
 	iounmap(up->map);
 	if (mlx5_cmd_free_uar(up->mdev, up->index))
 		mlx5_core_warn(up->mdev, "failed to free uar index %d\n", up->index);
-	kfree(up->reg_bitmap);
-	kfree(up->fp_bitmap);
+	bitmap_free(up->reg_bitmap);
+	bitmap_free(up->fp_bitmap);
 	kfree(up);
 }
 
@@ -110,11 +110,11 @@ static struct mlx5_uars_page *alloc_uars_page(struct mlx5_core_dev *mdev,
 		return ERR_PTR(err);
 
 	up->mdev = mdev;
-	up->reg_bitmap = kcalloc(BITS_TO_LONGS(bfregs), sizeof(unsigned long), GFP_KERNEL);
+	up->reg_bitmap = bitmap_zalloc(bfregs, GFP_KERNEL);
 	if (!up->reg_bitmap)
 		goto error1;
 
-	up->fp_bitmap = kcalloc(BITS_TO_LONGS(bfregs), sizeof(unsigned long), GFP_KERNEL);
+	up->fp_bitmap = bitmap_zalloc(bfregs, GFP_KERNEL);
 	if (!up->fp_bitmap)
 		goto error1;
 
@@ -157,8 +157,8 @@ error2:
 	if (mlx5_cmd_free_uar(mdev, up->index))
 		mlx5_core_warn(mdev, "failed to free uar index %d\n", up->index);
 error1:
-	kfree(up->fp_bitmap);
-	kfree(up->reg_bitmap);
+	bitmap_free(up->fp_bitmap);
+	bitmap_free(up->reg_bitmap);
 	kfree(up);
 	return ERR_PTR(err);
 }

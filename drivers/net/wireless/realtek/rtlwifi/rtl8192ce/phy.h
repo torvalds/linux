@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL92C_PHY_H__
 #define __RTL92C_PHY_H__
@@ -44,9 +22,9 @@
 
 #define LOOP_LIMIT			5
 #define MAX_STALL_TIME			50
-#define AntennaDiversityValue		0x80
+#define ANTENNADIVERSITYVALUE		0x80
 #define MAX_TXPWR_IDX_NMODE_92S		63
-#define Reset_Cnt_Limit			3
+#define RESET_CNT_LIMIT			3
 
 #define IQK_ADDA_REG_NUM		16
 #define IQK_MAC_REG_NUM			4
@@ -122,7 +100,7 @@ void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
 void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
 				    enum radio_path rfpath, u32 offset,
 				    u32 data);
-void _rtl92c_store_pwrIndex_diffrate_offset(struct ieee80211_hw *hw,
+void _rtl92c_store_pwrindex_diffrate_offset(struct ieee80211_hw *hw,
 					    u32 regaddr, u32 bitmask, u32 data);
 bool _rtl92ce_phy_config_mac_with_headerfile(struct ieee80211_hw *hw);
 void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw);

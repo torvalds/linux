@@ -179,7 +179,6 @@ static int rdma_rw_init_map_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		struct scatterlist *sg, u32 sg_cnt, u32 offset,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
 {
-	struct ib_device *dev = qp->pd->device;
 	u32 max_sge = dir == DMA_TO_DEVICE ? qp->max_write_sge :
 		      qp->max_read_sge;
 	struct ib_sge *sge;
@@ -209,8 +208,8 @@ static int rdma_rw_init_map_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		rdma_wr->wr.sg_list = sge;
 
 		for (j = 0; j < nr_sge; j++, sg = sg_next(sg)) {
-			sge->addr = ib_sg_dma_address(dev, sg) + offset;
-			sge->length = ib_sg_dma_len(dev, sg) - offset;
+			sge->addr = sg_dma_address(sg) + offset;
+			sge->length = sg_dma_len(sg) - offset;
 			sge->lkey = qp->pd->local_dma_lkey;
 
 			total_len += sge->length;
@@ -236,14 +235,13 @@ static int rdma_rw_init_single_wr(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		struct scatterlist *sg, u32 offset, u64 remote_addr, u32 rkey,
 		enum dma_data_direction dir)
 {
-	struct ib_device *dev = qp->pd->device;
 	struct ib_rdma_wr *rdma_wr = &ctx->single.wr;
 
 	ctx->nr_ops = 1;
 
 	ctx->single.sge.lkey = qp->pd->local_dma_lkey;
-	ctx->single.sge.addr = ib_sg_dma_address(dev, sg) + offset;
-	ctx->single.sge.length = ib_sg_dma_len(dev, sg) - offset;
+	ctx->single.sge.addr = sg_dma_address(sg) + offset;
+	ctx->single.sge.length = sg_dma_len(sg) - offset;
 
 	memset(rdma_wr, 0, sizeof(*rdma_wr));
 	if (dir == DMA_TO_DEVICE)
@@ -294,7 +292,7 @@ int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
 	 * Skip to the S/G entry that sg_offset falls into:
 	 */
 	for (;;) {
-		u32 len = ib_sg_dma_len(dev, sg);
+		u32 len = sg_dma_len(sg);
 
 		if (sg_offset < len)
 			break;

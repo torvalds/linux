@@ -24,7 +24,6 @@
 
 #include "vimc-common.h"
 
-#define VIMC_PDEV_NAME "vimc"
 #define VIMC_MDEV_MODEL_NAME "VIMC MDEV"
 
 #define VIMC_ENT_LINK(src, srcpad, sink, sinkpad, link_flags) {	\
@@ -221,6 +220,7 @@ static int vimc_comp_bind(struct device *master)
 
 err_mdev_unregister:
 	media_device_unregister(&vimc->mdev);
+	media_device_cleanup(&vimc->mdev);
 err_comp_unbind_all:
 	component_unbind_all(master, NULL);
 err_v4l2_unregister:
@@ -237,6 +237,7 @@ static void vimc_comp_unbind(struct device *master)
 	dev_dbg(master, "unbind");
 
 	media_device_unregister(&vimc->mdev);
+	media_device_cleanup(&vimc->mdev);
 	component_unbind_all(master, NULL);
 	v4l2_device_unregister(&vimc->v4l2_dev);
 }
@@ -319,6 +320,8 @@ static int vimc_probe(struct platform_device *pdev)
 	/* Initialize media device */
 	strscpy(vimc->mdev.model, VIMC_MDEV_MODEL_NAME,
 		sizeof(vimc->mdev.model));
+	snprintf(vimc->mdev.bus_info, sizeof(vimc->mdev.bus_info),
+		 "platform:%s", VIMC_PDEV_NAME);
 	vimc->mdev.dev = &pdev->dev;
 	media_device_init(&vimc->mdev);
 

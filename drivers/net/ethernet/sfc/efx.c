@@ -915,7 +915,7 @@ rollback:
 
 void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 {
-	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
+	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(10));
 }
 
 static bool efx_default_channel_want_txqs(struct efx_channel *channel)

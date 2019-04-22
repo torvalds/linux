@@ -79,13 +79,13 @@ static int tqmx86_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (IS_ERR(res))
-		return PTR_ERR(res);
+	if (!res)
+		return -ENODEV;
 
 	priv->io_base = devm_ioport_map(&pdev->dev, res->start,
 					resource_size(res));
-	if (IS_ERR(priv->io_base))
-		return PTR_ERR(priv->io_base);
+	if (!priv->io_base)
+		return -ENOMEM;
 
 	watchdog_set_drvdata(&priv->wdd, priv);
 

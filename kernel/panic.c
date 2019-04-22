@@ -642,16 +642,14 @@ static int clear_warn_once_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(clear_warn_once_fops,
-			NULL,
-			clear_warn_once_set,
-			"%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(clear_warn_once_fops, NULL, clear_warn_once_set,
+			 "%lld\n");
 
 static __init int register_warn_debugfs(void)
 {
 	/* Don't care about failure */
-	debugfs_create_file("clear_warn_once", 0200, NULL,
-			    NULL, &clear_warn_once_fops);
+	debugfs_create_file_unsafe("clear_warn_once", 0200, NULL, NULL,
+				   &clear_warn_once_fops);
 	return 0;
 }
 

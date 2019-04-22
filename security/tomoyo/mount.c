@@ -49,6 +49,7 @@ static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,
 {
 	const struct tomoyo_mount_acl *acl =
 		container_of(ptr, typeof(*acl), head);
+
 	return tomoyo_compare_number_union(r->param.mount.flags,
 					   &acl->flags) &&
 		tomoyo_compare_name_union(r->param.mount.type,
@@ -89,6 +90,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 	struct tomoyo_path_info rdir;
 	int need_dev = 0;
 	int error = -ENOMEM;
+
 	r->obj = &obj;
 
 	/* Get fstype. */

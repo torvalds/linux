@@ -2173,7 +2173,7 @@ static void netdev_tx_done(struct net_device *dev)
 					np->tx_skbuff[entry]->len,
 					PCI_DMA_TODEVICE);
 		/* Free the original skb. */
-		dev_kfree_skb_irq(np->tx_skbuff[entry]);
+		dev_consume_skb_irq(np->tx_skbuff[entry]);
 		np->tx_skbuff[entry] = NULL;
 	}
 	if (netif_queue_stopped(dev) &&

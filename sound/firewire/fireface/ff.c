@@ -153,6 +153,8 @@ static const struct snd_ff_spec spec_ff800 = {
 	.midi_out_ports = 1,
 	.protocol = &snd_ff_protocol_ff800,
 	.midi_high_addr = 0x000200000320ull,
+	.midi_addr_range = 12,
+	.midi_rx_addrs = {0x000080180000ull, 0},
 };
 
 static const struct snd_ff_spec spec_ff400 = {
@@ -163,6 +165,20 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_ff400,
 	.midi_high_addr = 0x0000801003f4ull,
+	.midi_addr_range = SND_FF_MAXIMIM_MIDI_QUADS * 4,
+	.midi_rx_addrs = {0x000080180000ull, 0x000080190000ull},
+};
+
+static const struct snd_ff_spec spec_ucx = {
+	.name = "FirefaceUCX",
+	.pcm_capture_channels = {18, 14, 12},
+	.pcm_playback_channels = {18, 14, 12},
+	.midi_in_ports = 2,
+	.midi_out_ports = 2,
+	.protocol = &snd_ff_protocol_latter,
+	.midi_high_addr = 0xffff00000034ull,
+	.midi_addr_range = 0x80,
+	.midi_rx_addrs = {0xffff00000030ull, 0xffff00000030ull},
 };
 
 static const struct ieee1394_device_id snd_ff_id_table[] = {
@@ -189,6 +205,18 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.version	= 0x000002,
 		.model_id	= 0x101800,
 		.driver_data	= (kernel_ulong_t)&spec_ff400,
+	},
+	// Fireface UCX.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= 0x000004,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ucx,
 	},
 	{}
 };

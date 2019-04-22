@@ -274,7 +274,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 
 	for (; start < end; start += page_size) {
 		unsigned long nr_pages, addr;
-		struct page *section_base;
 		struct page *page;
 
 		/*
@@ -290,7 +289,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 			continue;
 
 		page = pfn_to_page(addr >> PAGE_SHIFT);
-		section_base = pfn_to_page(vmemmap_section_start(start));
 		nr_pages = 1 << page_order;
 		base_pfn = PHYS_PFN(addr);
 

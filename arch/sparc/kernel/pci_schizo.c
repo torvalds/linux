@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
+#include <linux/numa.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
@@ -1347,7 +1348,7 @@ static int schizo_pbm_init(struct pci_pbm_info *pbm,
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
 
-	pbm->numa_node = -1;
+	pbm->numa_node = NUMA_NO_NODE;
 
 	pbm->pci_ops = &sun4u_pci_ops;
 	pbm->config_space_reg_bits = 8;

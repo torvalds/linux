@@ -1564,7 +1564,7 @@ err_engine:
 
 static int stm32_hash_remove(struct platform_device *pdev)
 {
-	static struct stm32_hash_dev *hdev;
+	struct stm32_hash_dev *hdev;
 	int ret;
 
 	hdev = platform_get_drvdata(pdev);

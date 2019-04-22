@@ -13,6 +13,7 @@
 #include <linux/usb/hcd.h>
 
 #include "xhci-mvebu.h"
+#include "xhci.h"
 
 #define USB3_MAX_WINDOWS	4
 #define USB3_WIN_CTRL(w)	(0x0 + ((w) * 8))
@@ -69,6 +70,16 @@ int xhci_mvebu_mbus_init_quirk(struct usb_hcd *hcd)
 	 * windows, and is therefore no longer useful.
 	 */
 	iounmap(base);
+
+	return 0;
+}
+
+int xhci_mvebu_a3700_init_quirk(struct usb_hcd *hcd)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	/* Without reset on resume, the HC won't work at all */
+	xhci->quirks |= XHCI_RESET_ON_RESUME;
 
 	return 0;
 }

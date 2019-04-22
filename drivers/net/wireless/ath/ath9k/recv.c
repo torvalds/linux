@@ -1006,9 +1006,6 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 				 struct ath_rx_status *rs,
 				 struct sk_buff *skb)
 {
-	struct ath_node *an;
-	struct ath_acq *acq;
-	struct ath_vif *avp;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1019,7 +1016,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	int phy;
 	u16 len = rs->rs_datalen;
 	u32 airtime = 0;
-	u8 tidno, acno;
+	u8 tidno;
 
 	if (!ieee80211_is_data(hdr->frame_control))
 		return;
@@ -1029,11 +1026,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	sta = ieee80211_find_sta_by_ifaddr(sc->hw, hdr->addr2, NULL);
 	if (!sta)
 		goto exit;
-	an = (struct ath_node *) sta->drv_priv;
-	avp = (struct ath_vif *) an->vif->drv_priv;
 	tidno = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-	acno = TID_TO_WME_AC(tidno);
-	acq = &avp->chanctx->acq[acno];
 
 	rxs = IEEE80211_SKB_RXCB(skb);
 
@@ -1054,14 +1047,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 						len, rxs->rate_idx, is_sp);
 	}
 
- 	if (!!(sc->airtime_flags & AIRTIME_USE_RX)) {
-		spin_lock_bh(&acq->lock);
-		an->airtime_deficit[acno] -= airtime;
-		if (an->airtime_deficit[acno] <= 0)
-			__ath_tx_queue_tid(sc, ATH_AN_2_TID(an, tidno));
-		spin_unlock_bh(&acq->lock);
-	}
-	ath_debug_airtime(sc, an, airtime, 0);
+	ieee80211_sta_register_airtime(sta, tidno, 0, airtime);
 exit:
 	rcu_read_unlock();
 }

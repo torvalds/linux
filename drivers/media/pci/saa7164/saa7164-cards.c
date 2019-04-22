@@ -685,7 +685,7 @@ struct saa7164_subid saa7164_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0xf111,
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2255,
-		/* Prototype card left here for documenation purposes.
+		/* Prototype card left here for documentation purposes.
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2255proto,
 		*/
 	}, {
@@ -866,7 +866,7 @@ void saa7164_card_setup(struct saa7164_dev *dev)
  * access to I2C. Instead we have to communicate through the device f/w for
  * register access to 'processing units'. Each unit has a unique
  * id, regardless of how the physical implementation occurs across
- * the three physical i2c busses. The being said if we want leverge of
+ * the three physical i2c buses. The being said if we want leverge of
  * the existing kernel drivers for tuners and demods we have to 'speak i2c',
  * to this bridge implements 3 virtual i2c buses. This is a helper function
  * for those.

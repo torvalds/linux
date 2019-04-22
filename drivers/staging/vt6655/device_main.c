@@ -805,12 +805,12 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 }
 
 static void device_free_rx_buf(struct vnt_private *priv,
-				struct vnt_rx_desc *rd)
+			       struct vnt_rx_desc *rd)
 {
 	struct vnt_rd_info *rd_info = rd->rd_info;
 
 	dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
-			priv->rx_buf_sz, DMA_FROM_DEVICE);
+			 priv->rx_buf_sz, DMA_FROM_DEVICE);
 	dev_kfree_skb(rd_info->skb);
 }
 

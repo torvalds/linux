@@ -121,7 +121,7 @@ void show_regs(struct pt_regs *regs)
 		regs->uregs[3], regs->uregs[2], regs->uregs[1], regs->uregs[0]);
 	pr_info("  IRQs o%s  Segment %s\n",
 		interrupts_enabled(regs) ? "n" : "ff",
-		segment_eq(get_fs(), get_ds())? "kernel" : "user");
+		segment_eq(get_fs(), KERNEL_DS)? "kernel" : "user");
 }
 
 EXPORT_SYMBOL(show_regs);

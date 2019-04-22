@@ -116,6 +116,19 @@ xfs_verify_agino(
 }
 
 /*
+ * Verify that an AG inode number pointer neither points outside the AG
+ * nor points at static metadata, or is NULLAGINO.
+ */
+bool
+xfs_verify_agino_or_null(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_agino_t		agino)
+{
+	return agino == NULLAGINO || xfs_verify_agino(mp, agno, agino);
+}
+
+/*
  * Verify that an FS inode number pointer neither points outside the
  * filesystem nor points at static AG metadata.
  */
@@ -203,4 +216,15 @@ xfs_verify_icount(
 
 	xfs_icount_range(mp, &min, &max);
 	return icount >= min && icount <= max;
+}
+
+/* Sanity-checking of dir/attr block offsets. */
+bool
+xfs_verify_dablk(
+	struct xfs_mount	*mp,
+	xfs_fileoff_t		dabno)
+{
+	xfs_dablk_t		max_dablk = -1U;
+
+	return dabno <= max_dablk;
 }

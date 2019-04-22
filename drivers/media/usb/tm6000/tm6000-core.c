@@ -668,7 +668,7 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 			areg_f0 = 0x04;
 			break;
 		default:
-			printk(KERN_INFO "%s: audio input dosn't support\n",
+			printk(KERN_INFO "%s: audio input doesn't support\n",
 				dev->name);
 			return 0;
 			break;
@@ -690,7 +690,7 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 			areg_eb = 0x04;
 			break;
 		default:
-			printk(KERN_INFO "%s: audio input dosn't support\n",
+			printk(KERN_INFO "%s: audio input doesn't support\n",
 				dev->name);
 			return 0;
 			break;

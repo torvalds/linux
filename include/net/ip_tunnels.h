@@ -241,7 +241,7 @@ static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 				       int proto,
 				       __be32 daddr, __be32 saddr,
 				       __be32 key, __u8 tos, int oif,
-				       __u32 mark)
+				       __u32 mark, __u32 tun_inner_hash)
 {
 	memset(fl4, 0, sizeof(*fl4));
 	fl4->flowi4_oif = oif;
@@ -251,6 +251,7 @@ static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 	fl4->flowi4_proto = proto;
 	fl4->fl4_gre_key = key;
 	fl4->flowi4_mark = mark;
+	fl4->flowi4_multipath_hash = tun_inner_hash;
 }
 
 int ip_tunnel_init(struct net_device *dev);
@@ -267,7 +268,7 @@ void ip_tunnel_delete_nets(struct list_head *list_net, unsigned int id,
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, const u8 protocol);
 void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
-		       const u8 proto);
+		       const u8 proto, int tunnel_hlen);
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
 int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);

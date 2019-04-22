@@ -165,6 +165,10 @@
 #define PPC_RLWINM(d, a, i, mb, me)	EMIT(PPC_INST_RLWINM | ___PPC_RA(d) | \
 					___PPC_RS(a) | __PPC_SH(i) |	      \
 					__PPC_MB(mb) | __PPC_ME(me))
+#define PPC_RLWINM_DOT(d, a, i, mb, me)	EMIT(PPC_INST_RLWINM_DOT |	      \
+					___PPC_RA(d) | ___PPC_RS(a) |	      \
+					__PPC_SH(i) | __PPC_MB(mb) |	      \
+					__PPC_ME(me))
 #define PPC_RLWIMI(d, a, i, mb, me)	EMIT(PPC_INST_RLWIMI | ___PPC_RA(d) | \
 					___PPC_RS(a) | __PPC_SH(i) |	      \
 					__PPC_MB(mb) | __PPC_ME(me))

@@ -322,6 +322,7 @@ static int imx_sc_pd_probe(struct platform_device *pdev)
 
 static const struct of_device_id imx_sc_pd_match[] = {
 	{ .compatible = "fsl,imx8qxp-scu-pd", &imx8qxp_scu_pd},
+	{ .compatible = "fsl,scu-pd", &imx8qxp_scu_pd},
 	{ /* sentinel */ }
 };
 

@@ -197,6 +197,16 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_TTL]      = { .type = NLA_U8 },
 };
 
+static void tunnel_key_release_params(struct tcf_tunnel_key_params *p)
+{
+	if (!p)
+		return;
+	if (p->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
+		dst_release(&p->tcft_enc_metadata->dst);
+
+	kfree_rcu(p, rcu);
+}
+
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
@@ -312,6 +322,12 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			goto err_out;
 		}
 
+#ifdef CONFIG_DST_CACHE
+		ret = dst_cache_init(&metadata->u.tun_info.dst_cache, GFP_KERNEL);
+		if (ret)
+			goto release_tun_meta;
+#endif
+
 		if (opts_len) {
 			ret = tunnel_key_opts_set(tb[TCA_TUNNEL_KEY_ENC_OPTS],
 						  &metadata->u.tun_info,
@@ -360,8 +376,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	rcu_swap_protected(t->params, params_new,
 			   lockdep_is_held(&t->tcf_lock));
 	spin_unlock_bh(&t->tcf_lock);
-	if (params_new)
-		kfree_rcu(params_new, rcu);
+	tunnel_key_release_params(params_new);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -369,7 +384,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	return ret;
 
 release_tun_meta:
-	dst_release(&metadata->dst);
+	if (metadata)
+		dst_release(&metadata->dst);
 
 err_out:
 	if (exists)
@@ -385,12 +401,7 @@ static void tunnel_key_release(struct tc_action *a)
 	struct tcf_tunnel_key_params *params;
 
 	params = rcu_dereference_protected(t->params, 1);
-	if (params) {
-		if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
-			dst_release(&params->tcft_enc_metadata->dst);
-
-		kfree_rcu(params, rcu);
-	}
+	tunnel_key_release_params(params);
 }
 
 static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
@@ -560,7 +571,7 @@ static int tunnel_key_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_tunnel_key_ops = {
 	.kind		=	"tunnel_key",
-	.type		=	TCA_ACT_TUNNEL_KEY,
+	.id		=	TCA_ID_TUNNEL_KEY,
 	.owner		=	THIS_MODULE,
 	.act		=	tunnel_key_act,
 	.dump		=	tunnel_key_dump,

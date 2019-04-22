@@ -18,7 +18,6 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_trace.h"
-#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate an "extent free done"

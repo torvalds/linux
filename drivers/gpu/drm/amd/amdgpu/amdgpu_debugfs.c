@@ -158,9 +158,6 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 	while (size) {
 		uint32_t value;
 
-		if (*pos > adev->rmmio_size)
-			goto end;
-
 		if (read) {
 			value = RREG32(*pos >> 2);
 			r = put_user(value, (uint32_t *)buf);

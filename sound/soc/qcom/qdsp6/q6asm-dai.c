@@ -570,10 +570,10 @@ static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
 	prtd->audio_client = q6asm_audio_client_alloc(dev,
 					(q6asm_cb)compress_event_handler,
 					prtd, stream_id, LEGACY_PCM_MODE);
-	if (!prtd->audio_client) {
+	if (IS_ERR(prtd->audio_client)) {
 		dev_err(dev, "Could not allocate memory\n");
-		kfree(prtd);
-		return -ENOMEM;
+		ret = PTR_ERR(prtd->audio_client);
+		goto free_prtd;
 	}
 
 	size = COMPR_PLAYBACK_MAX_FRAGMENT_SIZE *
@@ -582,7 +582,7 @@ static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
 				  &prtd->dma_buffer);
 	if (ret) {
 		dev_err(dev, "Cannot allocate buffer(s)\n");
-		return ret;
+		goto free_client;
 	}
 
 	if (pdata->sid < 0)
@@ -595,6 +595,13 @@ static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
 	runtime->private_data = prtd;
 
 	return 0;
+
+free_client:
+	q6asm_audio_client_free(prtd->audio_client);
+free_prtd:
+	kfree(prtd);
+
+	return ret;
 }
 
 static int q6asm_dai_compr_free(struct snd_compr_stream *stream)
@@ -874,7 +881,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 
 	for_each_child_of_node(dev->of_node, node) {
 		ret = of_property_read_u32(node, "reg", &id);
-		if (ret || id > MAX_SESSIONS || id < 0) {
+		if (ret || id >= MAX_SESSIONS || id < 0) {
 			dev_err(dev, "valid dai id not found:%d\n", ret);
 			continue;
 		}

@@ -140,7 +140,7 @@ MODULE_PARM_DESC(length_fuzz, "Length Fuzz (0-127)");
  * When receiving a continuous ir stream (for example when a user is
  * holding a button down on a remote), this specifies the minimum size
  * of a space when the redrat3 sends a irdata packet to the host. Specified
- * in miliseconds. Default value 18ms.
+ * in milliseconds. Default value 18ms.
  * The value can be between 2 and 30 inclusive.
  */
 static int minimum_pause = 18;

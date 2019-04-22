@@ -3055,7 +3055,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 
 		/* Updating the statistics block */
 		swstats->mem_freed += skb->truesize;
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 
 		get_info.offset++;
 		if (get_info.offset == get_info.fifo_len + 1)

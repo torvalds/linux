@@ -255,110 +255,112 @@ out:
 #define PGLUE_ATTENTION_ICPL_VALID		(1 << 23)
 #define PGLUE_ATTENTION_ZLR_VALID		(1 << 25)
 #define PGLUE_ATTENTION_ILT_VALID		(1 << 23)
-static int qed_pglub_rbc_attn_cb(struct qed_hwfn *p_hwfn)
+
+int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt)
 {
 	u32 tmp;
 
-	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-		     PGLUE_B_REG_TX_ERR_WR_DETAILS2);
+	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_WR_DETAILS2);
 	if (tmp & PGLUE_ATTENTION_VALID) {
 		u32 addr_lo, addr_hi, details;
 
-		addr_lo = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_lo = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_WR_ADD_31_0);
-		addr_hi = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_hi = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_WR_ADD_63_32);
-		details = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		details = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_WR_DETAILS);
 
-		DP_INFO(p_hwfn,
-			"Illegal write by chip to [%08x:%08x] blocked.\n"
-			"Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
-			"Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]\n",
-			addr_hi, addr_lo, details,
-			(u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_PFID),
-			(u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VFID),
-			GET_FIELD(details,
-				  PGLUE_ATTENTION_DETAILS_VF_VALID) ? 1 : 0,
-			tmp,
-			GET_FIELD(tmp,
-				  PGLUE_ATTENTION_DETAILS2_WAS_ERR) ? 1 : 0,
-			GET_FIELD(tmp,
-				  PGLUE_ATTENTION_DETAILS2_BME) ? 1 : 0,
-			GET_FIELD(tmp,
-				  PGLUE_ATTENTION_DETAILS2_FID_EN) ? 1 : 0);
+		DP_NOTICE(p_hwfn,
+			  "Illegal write by chip to [%08x:%08x] blocked.\n"
+			  "Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
+			  "Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]\n",
+			  addr_hi, addr_lo, details,
+			  (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_PFID),
+			  (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VFID),
+			  GET_FIELD(details,
+				    PGLUE_ATTENTION_DETAILS_VF_VALID) ? 1 : 0,
+			  tmp,
+			  GET_FIELD(tmp,
+				    PGLUE_ATTENTION_DETAILS2_WAS_ERR) ? 1 : 0,
+			  GET_FIELD(tmp,
+				    PGLUE_ATTENTION_DETAILS2_BME) ? 1 : 0,
+			  GET_FIELD(tmp,
+				    PGLUE_ATTENTION_DETAILS2_FID_EN) ? 1 : 0);
 	}
 
-	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-		     PGLUE_B_REG_TX_ERR_RD_DETAILS2);
+	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_RD_DETAILS2);
 	if (tmp & PGLUE_ATTENTION_RD_VALID) {
 		u32 addr_lo, addr_hi, details;
 
-		addr_lo = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_lo = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_RD_ADD_31_0);
-		addr_hi = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_hi = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_RD_ADD_63_32);
-		details = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		details = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_TX_ERR_RD_DETAILS);
 
-		DP_INFO(p_hwfn,
-			"Illegal read by chip from [%08x:%08x] blocked.\n"
-			" Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
-			" Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]\n",
-			addr_hi, addr_lo, details,
-			(u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_PFID),
-			(u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VFID),
-			GET_FIELD(details,
-				  PGLUE_ATTENTION_DETAILS_VF_VALID) ? 1 : 0,
-			tmp,
-			GET_FIELD(tmp, PGLUE_ATTENTION_DETAILS2_WAS_ERR) ? 1
-									 : 0,
-			GET_FIELD(tmp, PGLUE_ATTENTION_DETAILS2_BME) ? 1 : 0,
-			GET_FIELD(tmp, PGLUE_ATTENTION_DETAILS2_FID_EN) ? 1
-									: 0);
+		DP_NOTICE(p_hwfn,
+			  "Illegal read by chip from [%08x:%08x] blocked.\n"
+			  "Details: %08x [PFID %02x, VFID %02x, VF_VALID %02x]\n"
+			  "Details2 %08x [Was_error %02x BME deassert %02x FID_enable deassert %02x]\n",
+			  addr_hi, addr_lo, details,
+			  (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_PFID),
+			  (u8)GET_FIELD(details, PGLUE_ATTENTION_DETAILS_VFID),
+			  GET_FIELD(details,
+				    PGLUE_ATTENTION_DETAILS_VF_VALID) ? 1 : 0,
+			  tmp,
+			  GET_FIELD(tmp,
+				    PGLUE_ATTENTION_DETAILS2_WAS_ERR) ? 1 : 0,
+			  GET_FIELD(tmp,
+				    PGLUE_ATTENTION_DETAILS2_BME) ? 1 : 0,
+			  GET_FIELD(tmp,
+				    PGLUE_ATTENTION_DETAILS2_FID_EN) ? 1 : 0);
 	}
 
-	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-		     PGLUE_B_REG_TX_ERR_WR_DETAILS_ICPL);
+	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_TX_ERR_WR_DETAILS_ICPL);
 	if (tmp & PGLUE_ATTENTION_ICPL_VALID)
-		DP_INFO(p_hwfn, "ICPL error - %08x\n", tmp);
+		DP_NOTICE(p_hwfn, "ICPL error - %08x\n", tmp);
 
-	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-		     PGLUE_B_REG_MASTER_ZLR_ERR_DETAILS);
+	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_MASTER_ZLR_ERR_DETAILS);
 	if (tmp & PGLUE_ATTENTION_ZLR_VALID) {
 		u32 addr_hi, addr_lo;
 
-		addr_lo = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_lo = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_MASTER_ZLR_ERR_ADD_31_0);
-		addr_hi = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_hi = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_MASTER_ZLR_ERR_ADD_63_32);
 
-		DP_INFO(p_hwfn, "ZLR eror - %08x [Address %08x:%08x]\n",
-			tmp, addr_hi, addr_lo);
+		DP_NOTICE(p_hwfn, "ZLR error - %08x [Address %08x:%08x]\n",
+			  tmp, addr_hi, addr_lo);
 	}
 
-	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-		     PGLUE_B_REG_VF_ILT_ERR_DETAILS2);
+	tmp = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_VF_ILT_ERR_DETAILS2);
 	if (tmp & PGLUE_ATTENTION_ILT_VALID) {
 		u32 addr_hi, addr_lo, details;
 
-		addr_lo = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_lo = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_VF_ILT_ERR_ADD_31_0);
-		addr_hi = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		addr_hi = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_VF_ILT_ERR_ADD_63_32);
-		details = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
+		details = qed_rd(p_hwfn, p_ptt,
 				 PGLUE_B_REG_VF_ILT_ERR_DETAILS);
 
-		DP_INFO(p_hwfn,
-			"ILT error - Details %08x Details2 %08x [Address %08x:%08x]\n",
-			details, tmp, addr_hi, addr_lo);
+		DP_NOTICE(p_hwfn,
+			  "ILT error - Details %08x Details2 %08x [Address %08x:%08x]\n",
+			  details, tmp, addr_hi, addr_lo);
 	}
 
 	/* Clear the indications */
-	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt,
-	       PGLUE_B_REG_LATCHED_ERRORS_CLR, (1 << 2));
+	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_LATCHED_ERRORS_CLR, BIT(2));
 
 	return 0;
+}
+
+static int qed_pglueb_rbc_attn_cb(struct qed_hwfn *p_hwfn)
+{
+	return qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_dpc_ptt);
 }
 
 #define QED_DORQ_ATTENTION_REASON_MASK  (0xfffff)
@@ -540,7 +542,7 @@ static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 			{"PGLUE misc_flr", ATTENTION_SINGLE,
 			 NULL, MAX_BLOCK_ID},
 			{"PGLUE B RBC", ATTENTION_PAR_INT,
-			 qed_pglub_rbc_attn_cb, BLOCK_PGLUE_B},
+			 qed_pglueb_rbc_attn_cb, BLOCK_PGLUE_B},
 			{"PGLUE misc_mctp", ATTENTION_SINGLE,
 			 NULL, MAX_BLOCK_ID},
 			{"Flash event", ATTENTION_SINGLE, NULL, MAX_BLOCK_ID},

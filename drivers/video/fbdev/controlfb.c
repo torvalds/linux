@@ -411,35 +411,23 @@ static int __init init_control(struct fb_info_control *p)
 	full = p->total_vram == 0x400000;
 
 	/* Try to pick a video mode out of NVRAM if we have one. */
-#ifdef CONFIG_NVRAM
-	if (default_cmode == CMODE_NVRAM) {
+	cmode = default_cmode;
+	if (IS_REACHABLE(CONFIG_NVRAM) && cmode == CMODE_NVRAM)
 		cmode = nvram_read_byte(NV_CMODE);
-		if(cmode < CMODE_8 || cmode > CMODE_32)
-			cmode = CMODE_8;
-	} else
-#endif
-		cmode=default_cmode;
-#ifdef CONFIG_NVRAM
-	if (default_vmode == VMODE_NVRAM) {
+	if (cmode < CMODE_8 || cmode > CMODE_32)
+		cmode = CMODE_8;
+
+	vmode = default_vmode;
+	if (IS_REACHABLE(CONFIG_NVRAM) && vmode == VMODE_NVRAM)
 		vmode = nvram_read_byte(NV_VMODE);
-		if (vmode < 1 || vmode > VMODE_MAX ||
-		    control_mac_modes[vmode - 1].m[full] < cmode) {
-			sense = read_control_sense(p);
-			printk("Monitor sense value = 0x%x, ", sense);
-			vmode = mac_map_monitor_sense(sense);
-			if (control_mac_modes[vmode - 1].m[full] < cmode)
-				vmode = VMODE_640_480_60;
-		}
-	} else
-#endif
-	{
-		vmode=default_vmode;
-		if (control_mac_modes[vmode - 1].m[full] < cmode) {
-			if (cmode > CMODE_8)
-				cmode--;
-			else
-				vmode = VMODE_640_480_60;
-		}
+	if (vmode < 1 || vmode > VMODE_MAX ||
+	    control_mac_modes[vmode - 1].m[full] < cmode) {
+		sense = read_control_sense(p);
+		printk(KERN_CONT "Monitor sense value = 0x%x, ", sense);
+		vmode = mac_map_monitor_sense(sense);
+		if (control_mac_modes[vmode - 1].m[full] < 0)
+			vmode = VMODE_640_480_60;
+		cmode = min(cmode, control_mac_modes[vmode - 1].m[full]);
 	}
 
 	/* Initialize info structure */

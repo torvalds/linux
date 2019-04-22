@@ -9,7 +9,7 @@
  * would usually be done after doing appropriate checks that indicate
  * the hosts are far enough away (i.e. large RTT).
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>

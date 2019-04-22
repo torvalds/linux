@@ -175,26 +175,18 @@ asmlinkage void aesni_gcm_finalize(void *ctx,
 				   struct gcm_context_data *gdata,
 				   u8 *auth_tag, unsigned long auth_tag_len);
 
-static struct aesni_gcm_tfm_s {
-void (*init)(void *ctx,
-				struct gcm_context_data *gdata,
-				u8 *iv,
-				u8 *hash_subkey, const u8 *aad,
-				unsigned long aad_len);
-void (*enc_update)(void *ctx,
-					struct gcm_context_data *gdata, u8 *out,
-					const u8 *in,
-					unsigned long plaintext_len);
-void (*dec_update)(void *ctx,
-					struct gcm_context_data *gdata, u8 *out,
-					const u8 *in,
-					unsigned long ciphertext_len);
-void (*finalize)(void *ctx,
-				struct gcm_context_data *gdata,
-				u8 *auth_tag, unsigned long auth_tag_len);
+static const struct aesni_gcm_tfm_s {
+	void (*init)(void *ctx, struct gcm_context_data *gdata, u8 *iv,
+		     u8 *hash_subkey, const u8 *aad, unsigned long aad_len);
+	void (*enc_update)(void *ctx, struct gcm_context_data *gdata, u8 *out,
+			   const u8 *in, unsigned long plaintext_len);
+	void (*dec_update)(void *ctx, struct gcm_context_data *gdata, u8 *out,
+			   const u8 *in, unsigned long ciphertext_len);
+	void (*finalize)(void *ctx, struct gcm_context_data *gdata,
+			 u8 *auth_tag, unsigned long auth_tag_len);
 } *aesni_gcm_tfm;
 
-struct aesni_gcm_tfm_s aesni_gcm_tfm_sse = {
+static const struct aesni_gcm_tfm_s aesni_gcm_tfm_sse = {
 	.init = &aesni_gcm_init,
 	.enc_update = &aesni_gcm_enc_update,
 	.dec_update = &aesni_gcm_dec_update,
@@ -243,7 +235,7 @@ asmlinkage void aesni_gcm_dec_avx_gen2(void *ctx,
 			const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
 
-struct aesni_gcm_tfm_s aesni_gcm_tfm_avx_gen2 = {
+static const struct aesni_gcm_tfm_s aesni_gcm_tfm_avx_gen2 = {
 	.init = &aesni_gcm_init_avx_gen2,
 	.enc_update = &aesni_gcm_enc_update_avx_gen2,
 	.dec_update = &aesni_gcm_dec_update_avx_gen2,
@@ -288,7 +280,7 @@ asmlinkage void aesni_gcm_dec_avx_gen4(void *ctx,
 			const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
 
-struct aesni_gcm_tfm_s aesni_gcm_tfm_avx_gen4 = {
+static const struct aesni_gcm_tfm_s aesni_gcm_tfm_avx_gen4 = {
 	.init = &aesni_gcm_init_avx_gen4,
 	.enc_update = &aesni_gcm_enc_update_avx_gen4,
 	.dec_update = &aesni_gcm_dec_update_avx_gen4,
@@ -778,7 +770,7 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	unsigned long auth_tag_len = crypto_aead_authsize(tfm);
-	struct aesni_gcm_tfm_s *gcm_tfm = aesni_gcm_tfm;
+	const struct aesni_gcm_tfm_s *gcm_tfm = aesni_gcm_tfm;
 	struct gcm_context_data data AESNI_ALIGN_ATTR;
 	struct scatter_walk dst_sg_walk = {};
 	unsigned long left = req->cryptlen;
@@ -821,11 +813,14 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 		scatterwalk_map_and_copy(assoc, req->src, 0, assoclen, 0);
 	}
 
-	src_sg = scatterwalk_ffwd(src_start, req->src, req->assoclen);
-	scatterwalk_start(&src_sg_walk, src_sg);
-	if (req->src != req->dst) {
-		dst_sg = scatterwalk_ffwd(dst_start, req->dst, req->assoclen);
-		scatterwalk_start(&dst_sg_walk, dst_sg);
+	if (left) {
+		src_sg = scatterwalk_ffwd(src_start, req->src, req->assoclen);
+		scatterwalk_start(&src_sg_walk, src_sg);
+		if (req->src != req->dst) {
+			dst_sg = scatterwalk_ffwd(dst_start, req->dst,
+						  req->assoclen);
+			scatterwalk_start(&dst_sg_walk, dst_sg);
+		}
 	}
 
 	kernel_fpu_begin();

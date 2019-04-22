@@ -50,8 +50,10 @@
 #include <linux/ratelimit.h>
 #include <linux/vmalloc.h>
 
-
-/* number of characters left in xmit buffer before select has we have room */
+/*
+ * Until this number of characters is queued in the xmit buffer, select will
+ * return "we have room for writes".
+ */
 #define WAKEUP_CHARS 256
 
 /*

@@ -307,7 +307,7 @@ static DEVICE_ATTR_RO(pwm1_mode);
 static DEVICE_ATTR_RO(fan1_min);
 static DEVICE_ATTR_RO(fan1_max);
 static DEVICE_ATTR_RO(fan1_input);
-static DEVICE_ATTR(fan1_target, S_IRUGO | S_IWUSR, fan1_input_show, set_rpm);
+static DEVICE_ATTR(fan1_target, 0644, fan1_input_show, set_rpm);
 
 static umode_t gpio_fan_is_visible(struct kobject *kobj,
 				   struct attribute *attr, int index)

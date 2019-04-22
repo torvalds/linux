@@ -44,8 +44,8 @@
  * DOC: overview
  *
  * This file contains the marshalling and demarshalling glue for the atomic UAPI
- * in all it's form: The monster ATOMIC IOCTL itself, code for GET_PROPERTY and
- * SET_PROPERTY IOCTls. Plus interface functions for compatibility helpers and
+ * in all its forms: The monster ATOMIC IOCTL itself, code for GET_PROPERTY and
+ * SET_PROPERTY IOCTLs. Plus interface functions for compatibility helpers and
  * drivers which have special needs to construct their own atomic updates, e.g.
  * for load detect or similiar.
  */

@@ -40,6 +40,7 @@ struct flowi_common {
 	__u32	flowic_secid;
 	kuid_t  flowic_uid;
 	struct flowi_tunnel flowic_tun_key;
+	__u32		flowic_multipath_hash;
 };
 
 union flowi_uli {
@@ -78,6 +79,7 @@ struct flowi4 {
 #define flowi4_secid		__fl_common.flowic_secid
 #define flowi4_tun_key		__fl_common.flowic_tun_key
 #define flowi4_uid		__fl_common.flowic_uid
+#define flowi4_multipath_hash	__fl_common.flowic_multipath_hash
 
 	/* (saddr,daddr) must be grouped, same order as in IP header */
 	__be32			saddr;

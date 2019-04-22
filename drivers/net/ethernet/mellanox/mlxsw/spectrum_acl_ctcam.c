@@ -72,7 +72,15 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	act_set = mlxsw_afa_block_first_set(rulei->act_block);
 	mlxsw_reg_ptce2_flex_action_set_memcpy_to(ptce2_pl, act_set);
 
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
+	if (err)
+		goto err_ptce2_write;
+
+	return 0;
+
+err_ptce2_write:
+	cregion->ops->entry_remove(cregion, centry);
+	return err;
 }
 
 static void
@@ -215,7 +223,6 @@ void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_acl_ctcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 					    struct mlxsw_sp_acl_ctcam_region *cregion,
-					    struct mlxsw_sp_acl_ctcam_chunk *cchunk,
 					    struct mlxsw_sp_acl_ctcam_entry *centry,
 					    struct mlxsw_sp_acl_rule_info *rulei)
 {

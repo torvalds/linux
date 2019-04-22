@@ -2351,23 +2351,10 @@ DEFINE_SHOW_ATTRIBUTE(mipsr2_clear);
 
 static int __init mipsr2_init_debugfs(void)
 {
-	struct dentry		*mipsr2_emul;
-
-	if (!mips_debugfs_dir)
-		return -ENODEV;
-
-	mipsr2_emul = debugfs_create_file("r2_emul_stats", S_IRUGO,
-					  mips_debugfs_dir, NULL,
-					  &mipsr2_emul_fops);
-	if (!mipsr2_emul)
-		return -ENOMEM;
-
-	mipsr2_emul = debugfs_create_file("r2_emul_stats_clear", S_IRUGO,
-					  mips_debugfs_dir, NULL,
-					  &mipsr2_clear_fops);
-	if (!mipsr2_emul)
-		return -ENOMEM;
-
+	debugfs_create_file("r2_emul_stats", S_IRUGO, mips_debugfs_dir, NULL,
+			    &mipsr2_emul_fops);
+	debugfs_create_file("r2_emul_stats_clear", S_IRUGO, mips_debugfs_dir,
+			    NULL, &mipsr2_clear_fops);
 	return 0;
 }
 

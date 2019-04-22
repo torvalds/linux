@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -127,111 +127,6 @@ TRACE_EVENT(hfi1_receive_interrupt,
 		      __entry->dma_rtail
 		      )
 );
-
-DECLARE_EVENT_CLASS(
-	    hfi1_exp_tid_reg_unreg,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr,
-		     u32 npages, unsigned long va, unsigned long pa,
-		     dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(unsigned long, va)
-			     __field(unsigned long, pa)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->va = va;
-			   __entry->pa = pa;
-			   __entry->dma = dma;
-			   ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->pa,
-		      __entry->va,
-		      __entry->dma
-		      )
-	);
-
-DEFINE_EVENT(
-	hfi1_exp_tid_reg_unreg, hfi1_exp_tid_unreg,
-	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
-		 unsigned long va, unsigned long pa, dma_addr_t dma),
-	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
-
-DEFINE_EVENT(
-	hfi1_exp_tid_reg_unreg, hfi1_exp_tid_reg,
-	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
-		 unsigned long va, unsigned long pa, dma_addr_t dma),
-	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
-
-TRACE_EVENT(
-	hfi1_put_tid,
-	TP_PROTO(struct hfi1_devdata *dd,
-		 u32 index, u32 type, unsigned long pa, u16 order),
-	TP_ARGS(dd, index, type, pa, order),
-	TP_STRUCT__entry(
-		DD_DEV_ENTRY(dd)
-		__field(unsigned long, pa);
-		__field(u32, index);
-		__field(u32, type);
-		__field(u16, order);
-	),
-	TP_fast_assign(
-		DD_DEV_ASSIGN(dd);
-		__entry->pa = pa;
-		__entry->index = index;
-		__entry->type = type;
-		__entry->order = order;
-	),
-	TP_printk("[%s] type %s pa %lx index %u order %u",
-		  __get_str(dev),
-		  show_tidtype(__entry->type),
-		  __entry->pa,
-		  __entry->index,
-		  __entry->order
-	)
-);
-
-TRACE_EVENT(hfi1_exp_tid_inval,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, unsigned long va, u32 rarr,
-		     u32 npages, dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, va, rarr, npages, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(unsigned long, va)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->va = va;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->dma = dma;
-			  ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx dma: 0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->va,
-		      __entry->dma
-		      )
-	    );
 
 TRACE_EVENT(hfi1_mmu_invalidate,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, const char *type,

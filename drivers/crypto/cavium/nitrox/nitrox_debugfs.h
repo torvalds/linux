@@ -5,12 +5,11 @@
 #include "nitrox_dev.h"
 
 #ifdef CONFIG_DEBUG_FS
-int nitrox_debugfs_init(struct nitrox_device *ndev);
+void nitrox_debugfs_init(struct nitrox_device *ndev);
 void nitrox_debugfs_exit(struct nitrox_device *ndev);
 #else
-static inline int nitrox_debugfs_init(struct nitrox_device *ndev)
+static inline void nitrox_debugfs_init(struct nitrox_device *ndev)
 {
-	return 0;
 }
 
 static inline void nitrox_debugfs_exit(struct nitrox_device *ndev)

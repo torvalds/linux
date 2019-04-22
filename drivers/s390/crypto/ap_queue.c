@@ -420,6 +420,10 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 		[AP_EVENT_POLL] = ap_sm_suspend_read,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
 	},
+	[AP_STATE_UNBOUND] = {
+		[AP_EVENT_POLL] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+	},
 	[AP_STATE_BORKED] = {
 		[AP_EVENT_POLL] = ap_sm_nop,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
@@ -725,6 +729,7 @@ static void __ap_flush_queue(struct ap_queue *aq)
 		ap_msg->rc = -EAGAIN;
 		ap_msg->receive(aq, ap_msg, NULL);
 	}
+	aq->queue_count = 0;
 }
 
 void ap_flush_queue(struct ap_queue *aq)
@@ -743,7 +748,7 @@ void ap_queue_remove(struct ap_queue *aq)
 	/* reset with zero, also clears irq registration */
 	spin_lock_bh(&aq->lock);
 	ap_zapq(aq->qid);
-	aq->state = AP_STATE_BORKED;
+	aq->state = AP_STATE_UNBOUND;
 	spin_unlock_bh(&aq->lock);
 }
 EXPORT_SYMBOL(ap_queue_remove);

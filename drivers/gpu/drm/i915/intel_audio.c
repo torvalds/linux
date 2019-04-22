@@ -27,7 +27,6 @@
 #include <drm/intel_lpe_audio.h>
 #include "intel_drv.h"
 
-#include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include "i915_drv.h"
 
@@ -749,7 +748,8 @@ static void i915_audio_component_get_power(struct device *kdev)
 
 static void i915_audio_component_put_power(struct device *kdev)
 {
-	intel_display_power_put(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
+	intel_display_power_put_unchecked(kdev_to_i915(kdev),
+					  POWER_DOMAIN_AUDIO);
 }
 
 static void i915_audio_component_codec_wake_override(struct device *kdev,
@@ -758,7 +758,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	u32 tmp;
 
-	if (!IS_GEN9(dev_priv))
+	if (!IS_GEN(dev_priv, 9))
 		return;
 
 	i915_audio_component_get_power(kdev);
@@ -984,7 +984,9 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	ret = component_add(dev_priv->drm.dev, &i915_audio_component_bind_ops);
+	ret = component_add_typed(dev_priv->drm.dev,
+				  &i915_audio_component_bind_ops,
+				  I915_COMPONENT_AUDIO);
 	if (ret < 0) {
 		DRM_ERROR("failed to add audio component (%d)\n", ret);
 		/* continue with reduced functionality */

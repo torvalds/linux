@@ -26,7 +26,6 @@
  */
 
 #include <drm/drm_dp_helper.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -453,7 +452,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (!IS_GEN(dev_priv, 3, 7)) {
+	if (!IS_GEN_RANGE(dev_priv, 3, 7)) {
 		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
 		return;
 	}
@@ -1386,8 +1385,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	info->supports_dp = is_dp;
 	info->supports_edp = is_edp;
 
-	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
-		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
+	if (bdb_version >= 195)
+		info->supports_typec_usb = child->dp_usb_type_c;
+
+	if (bdb_version >= 209)
+		info->supports_tbt = child->tbt;
+
+	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d TCUSB:%d TBT:%d\n",
+		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt,
+		      info->supports_typec_usb, info->supports_tbt);
 
 	if (is_edp && is_dvi)
 		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",
@@ -1656,6 +1662,13 @@ init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
 	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
 		struct ddi_vbt_port_info *info =
 			&dev_priv->vbt.ddi_port_info[port];
+
+		/*
+		 * VBT has the TypeC mode (native,TBT/USB) and we don't want
+		 * to detect it.
+		 */
+		if (intel_port_is_tc(dev_priv, port))
+			continue;
 
 		info->supports_dvi = (port != PORT_A && port != PORT_E);
 		info->supports_hdmi = info->supports_dvi;
@@ -1939,6 +1952,15 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
 	};
 	int i;
+
+	if (HAS_DDI(dev_priv)) {
+		const struct ddi_vbt_port_info *port_info =
+			&dev_priv->vbt.ddi_port_info[port];
+
+		return port_info->supports_dp ||
+		       port_info->supports_dvi ||
+		       port_info->supports_hdmi;
+	}
 
 	/* FIXME maybe deal with port A as well? */
 	if (WARN_ON(port == PORT_A) || port >= ARRAY_SIZE(port_mapping))

@@ -1,6 +1,6 @@
 * ARM PrimeCell Color LCD Controller PL110/PL111
 
-See also Documentation/devicetree/bindings/arm/primecell.txt
+See also Documentation/devicetree/bindings/arm/primecell.yaml
 
 Required properties:
 

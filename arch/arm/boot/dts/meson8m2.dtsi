@@ -50,6 +50,10 @@
 	};
 };
 
+&saradc {
+	compatible = "amlogic,meson8m2-saradc", "amlogic,meson-saradc";
+};
+
 &wdt {
 	compatible = "amlogic,meson8m2-wdt", "amlogic,meson8b-wdt";
 };

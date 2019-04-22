@@ -41,19 +41,19 @@ void intel_uc_fini(struct drm_i915_private *dev_priv);
 int intel_uc_suspend(struct drm_i915_private *dev_priv);
 int intel_uc_resume(struct drm_i915_private *dev_priv);
 
-static inline bool intel_uc_is_using_guc(void)
+static inline bool intel_uc_is_using_guc(struct drm_i915_private *i915)
 {
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 	return i915_modparams.enable_guc > 0;
 }
 
-static inline bool intel_uc_is_using_guc_submission(void)
+static inline bool intel_uc_is_using_guc_submission(struct drm_i915_private *i915)
 {
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
 }
 
-static inline bool intel_uc_is_using_huc(void)
+static inline bool intel_uc_is_using_huc(struct drm_i915_private *i915)
 {
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 	return i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC;

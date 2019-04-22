@@ -630,7 +630,7 @@ static int w90p910_ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!(w90p910_send_frame(dev, skb->data, skb->len))) {
 		ether->skb = skb;
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		return 0;
 	}
 	return -EAGAIN;

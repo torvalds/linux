@@ -176,8 +176,7 @@ static struct clk_ops gateclk_ops = {
 	.set_parent = socfpga_clk_set_parent,
 };
 
-static void __init __socfpga_gate_init(struct device_node *node,
-	const struct clk_ops *ops)
+void __init socfpga_gate_init(struct device_node *node)
 {
 	u32 clk_gate[2];
 	u32 div_reg[3];
@@ -188,10 +187,15 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	const char *clk_name = node->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
+	struct clk_ops *ops;
 	int rc;
 
 	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
 	if (WARN_ON(!socfpga_clk))
+		return;
+
+	ops = kmemdup(&gateclk_ops, sizeof(gateclk_ops), GFP_KERNEL);
+	if (WARN_ON(!ops))
 		return;
 
 	rc = of_property_read_u32_array(node, "clk-gate", clk_gate, 2);
@@ -202,8 +206,8 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		socfpga_clk->hw.reg = clk_mgr_base_addr + clk_gate[0];
 		socfpga_clk->hw.bit_idx = clk_gate[1];
 
-		gateclk_ops.enable = clk_gate_ops.enable;
-		gateclk_ops.disable = clk_gate_ops.disable;
+		ops->enable = clk_gate_ops.enable;
+		ops->disable = clk_gate_ops.disable;
 	}
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
@@ -234,6 +238,11 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	init.flags = 0;
 
 	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	if (init.num_parents < 2) {
+		ops->get_parent = NULL;
+		ops->set_parent = NULL;
+	}
+
 	init.parent_names = parent_name;
 	socfpga_clk->hw.hw.init = &init;
 
@@ -245,9 +254,4 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
 	if (WARN_ON(rc))
 		return;
-}
-
-void __init socfpga_gate_init(struct device_node *node)
-{
-	__socfpga_gate_init(node, &gateclk_ops);
 }

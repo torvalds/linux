@@ -17,6 +17,11 @@ Clock Properties:
   - fsl,tmr-fiper1   Fixed interval period pulse generator.
   - fsl,tmr-fiper2   Fixed interval period pulse generator.
   - fsl,max-adj      Maximum frequency adjustment in parts per billion.
+  - fsl,extts-fifo   The presence of this property indicates hardware
+		     support for the external trigger stamp FIFO.
+  - little-endian    The presence of this property indicates the 1588 timer
+		     IP block is little-endian mode. The default endian mode
+		     is big-endian.
 
   These properties set the operational parameters for the PTP
   clock. You must choose these carefully for the clock to work right.

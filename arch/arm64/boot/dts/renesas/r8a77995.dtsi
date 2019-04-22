@@ -27,7 +27,7 @@
 		#size-cells = <0>;
 
 		a53_0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A77995_PD_CA53_CPU0>;

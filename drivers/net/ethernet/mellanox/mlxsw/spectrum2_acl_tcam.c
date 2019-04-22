@@ -139,7 +139,8 @@ static void mlxsw_sp2_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
 static int
 mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			       void *tcam_priv,
-			       struct mlxsw_sp_acl_tcam_region *_region)
+			       struct mlxsw_sp_acl_tcam_region *_region,
+			       void *hints_priv)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
 	struct mlxsw_sp2_acl_tcam *tcam = tcam_priv;
@@ -147,7 +148,8 @@ mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 	region->region = _region;
 
 	return mlxsw_sp_acl_atcam_region_init(mlxsw_sp, &tcam->atcam,
-					      &region->aregion, _region,
+					      &region->aregion,
+					      _region, hints_priv,
 					      &mlxsw_sp2_acl_ctcam_region_ops);
 }
 
@@ -164,6 +166,18 @@ mlxsw_sp2_acl_tcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_acl_tcam_region *region)
 {
 	return mlxsw_sp_acl_atcam_region_associate(mlxsw_sp, region->id);
+}
+
+static void *mlxsw_sp2_acl_tcam_region_rehash_hints_get(void *region_priv)
+{
+	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
+
+	return mlxsw_sp_acl_atcam_rehash_hints_get(&region->aregion);
+}
+
+static void mlxsw_sp2_acl_tcam_region_rehash_hints_put(void *hints_priv)
+{
+	mlxsw_sp_acl_atcam_rehash_hints_put(hints_priv);
 }
 
 static void mlxsw_sp2_acl_tcam_chunk_init(void *region_priv, void *chunk_priv,
@@ -212,18 +226,15 @@ static void mlxsw_sp2_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp2_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
-					void *region_priv, void *chunk_priv,
-					void *entry_priv,
+					void *region_priv, void *entry_priv,
 					struct mlxsw_sp_acl_rule_info *rulei)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
-	struct mlxsw_sp2_acl_tcam_chunk *chunk = chunk_priv;
 	struct mlxsw_sp2_acl_tcam_entry *entry = entry_priv;
 
 	entry->act_block = rulei->act_block;
 	return mlxsw_sp_acl_atcam_entry_action_replace(mlxsw_sp,
 						       &region->aregion,
-						       &chunk->achunk,
 						       &entry->aentry, rulei);
 }
 
@@ -246,6 +257,8 @@ const struct mlxsw_sp_acl_tcam_ops mlxsw_sp2_acl_tcam_ops = {
 	.region_init		= mlxsw_sp2_acl_tcam_region_init,
 	.region_fini		= mlxsw_sp2_acl_tcam_region_fini,
 	.region_associate	= mlxsw_sp2_acl_tcam_region_associate,
+	.region_rehash_hints_get = mlxsw_sp2_acl_tcam_region_rehash_hints_get,
+	.region_rehash_hints_put = mlxsw_sp2_acl_tcam_region_rehash_hints_put,
 	.chunk_priv_size	= sizeof(struct mlxsw_sp2_acl_tcam_chunk),
 	.chunk_init		= mlxsw_sp2_acl_tcam_chunk_init,
 	.chunk_fini		= mlxsw_sp2_acl_tcam_chunk_fini,

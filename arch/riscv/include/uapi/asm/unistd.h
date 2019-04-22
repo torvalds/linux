@@ -17,6 +17,7 @@
 
 #ifdef __LP64__
 #define __ARCH_WANT_NEW_STAT
+#define __ARCH_WANT_SET_GET_RLIMIT
 #endif /* __LP64__ */
 
 #include <asm-generic/unistd.h>

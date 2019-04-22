@@ -22,6 +22,7 @@
 #include "priv.h"
 
 #include <core/msgqueue.h>
+#include <subdev/top.h>
 #include <engine/falcon.h>
 
 static void *
@@ -39,18 +40,18 @@ nvkm_sec2_intr(struct nvkm_engine *engine)
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
 	struct nvkm_subdev *subdev = &engine->subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 disp = nvkm_rd32(device, 0x8701c);
-	u32 intr = nvkm_rd32(device, 0x87008) & disp & ~(disp >> 16);
+	u32 disp = nvkm_rd32(device, sec2->addr + 0x01c);
+	u32 intr = nvkm_rd32(device, sec2->addr + 0x008) & disp & ~(disp >> 16);
 
 	if (intr & 0x00000040) {
 		schedule_work(&sec2->work);
-		nvkm_wr32(device, 0x87004, 0x00000040);
+		nvkm_wr32(device, sec2->addr + 0x004, 0x00000040);
 		intr &= ~0x00000040;
 	}
 
 	if (intr) {
 		nvkm_error(subdev, "unhandled intr %08x\n", intr);
-		nvkm_wr32(device, 0x87004, intr);
+		nvkm_wr32(device, sec2->addr + 0x004, intr);
 
 	}
 }
@@ -74,8 +75,15 @@ static int
 nvkm_sec2_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	return nvkm_falcon_v1_new(&sec2->engine.subdev, "SEC2", 0x87000,
-				  &sec2->falcon);
+	struct nvkm_subdev *subdev = &sec2->engine.subdev;
+
+	if (!sec2->addr) {
+		sec2->addr = nvkm_top_addr(subdev->device, subdev->index);
+		if (WARN_ON(!sec2->addr))
+			return -EINVAL;
+	}
+
+	return nvkm_falcon_v1_new(subdev, "SEC2", sec2->addr, &sec2->falcon);
 }
 
 static int
@@ -95,13 +103,14 @@ nvkm_sec2 = {
 };
 
 int
-nvkm_sec2_new_(struct nvkm_device *device, int index,
+nvkm_sec2_new_(struct nvkm_device *device, int index, u32 addr,
 	       struct nvkm_sec2 **psec2)
 {
 	struct nvkm_sec2 *sec2;
 
 	if (!(sec2 = *psec2 = kzalloc(sizeof(*sec2), GFP_KERNEL)))
 		return -ENOMEM;
+	sec2->addr = addr;
 	INIT_WORK(&sec2->work, nvkm_sec2_recv);
 
 	return nvkm_engine_ctor(&nvkm_sec2, device, index, true, &sec2->engine);

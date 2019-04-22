@@ -153,7 +153,7 @@ static int nxt200x_writereg_multibyte (struct nxt200x_state* state, u8 reg, u8* 
 	u8 attr, len2, buf;
 	dprintk("%s\n", __func__);
 
-	/* set mutli register register */
+	/* set multi register register */
 	nxt200x_writebytes(state, 0x35, &reg, 1);
 
 	/* send the actual data */
@@ -214,7 +214,7 @@ static int nxt200x_readreg_multibyte (struct nxt200x_state* state, u8 reg, u8* d
 	u8 buf, len2, attr;
 	dprintk("%s\n", __func__);
 
-	/* set mutli register register */
+	/* set multi register register */
 	nxt200x_writebytes(state, 0x35, &reg, 1);
 
 	switch (state->demod_chip) {

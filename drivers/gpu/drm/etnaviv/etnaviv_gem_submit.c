@@ -506,7 +506,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	submit->cmdbuf.ctx = file->driver_priv;
+	submit->ctx = file->driver_priv;
 	submit->exec_state = args->exec_state;
 	submit->flags = args->flags;
 

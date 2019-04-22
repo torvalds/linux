@@ -150,8 +150,8 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 }
 
 static int adxl345_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long mask)
+			     struct iio_chan_spec const *chan,
+			     int val, int val2, long mask)
 {
 	struct adxl345_data *data = iio_priv(indio_dev);
 	s64 n;

@@ -49,8 +49,6 @@
 #include <linux/sched.h>
 #include <linux/audit.h>
 #include <linux/mutex.h>
-#include <linux/selinux.h>
-#include <linux/flex_array.h>
 #include <linux/vmalloc.h>
 #include <net/netlabel.h>
 
@@ -546,15 +544,13 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 	struct type_datum *target;
 	u32 masked = 0;
 
-	source = flex_array_get_ptr(policydb->type_val_to_struct_array,
-				    scontext->type - 1);
+	source = policydb->type_val_to_struct_array[scontext->type - 1];
 	BUG_ON(!source);
 
 	if (!source->bounds)
 		return;
 
-	target = flex_array_get_ptr(policydb->type_val_to_struct_array,
-				    tcontext->type - 1);
+	target = policydb->type_val_to_struct_array[tcontext->type - 1];
 	BUG_ON(!target);
 
 	memset(&lo_avd, 0, sizeof(lo_avd));
@@ -654,11 +650,9 @@ static void context_struct_compute_av(struct policydb *policydb,
 	 */
 	avkey.target_class = tclass;
 	avkey.specified = AVTAB_AV | AVTAB_XPERMS;
-	sattr = flex_array_get(policydb->type_attr_map_array,
-			       scontext->type - 1);
+	sattr = &policydb->type_attr_map_array[scontext->type - 1];
 	BUG_ON(!sattr);
-	tattr = flex_array_get(policydb->type_attr_map_array,
-			       tcontext->type - 1);
+	tattr = &policydb->type_attr_map_array[tcontext->type - 1];
 	BUG_ON(!tattr);
 	ebitmap_for_each_positive_bit(sattr, snode, i) {
 		ebitmap_for_each_positive_bit(tattr, tnode, j) {
@@ -901,8 +895,7 @@ int security_bounded_transition(struct selinux_state *state,
 
 	index = new_context->type;
 	while (true) {
-		type = flex_array_get_ptr(policydb->type_val_to_struct_array,
-					  index - 1);
+		type = policydb->type_val_to_struct_array[index - 1];
 		BUG_ON(!type);
 
 		/* not bounded anymore */
@@ -1065,11 +1058,9 @@ void security_compute_xperms_decision(struct selinux_state *state,
 
 	avkey.target_class = tclass;
 	avkey.specified = AVTAB_XPERMS;
-	sattr = flex_array_get(policydb->type_attr_map_array,
-				scontext->type - 1);
+	sattr = &policydb->type_attr_map_array[scontext->type - 1];
 	BUG_ON(!sattr);
-	tattr = flex_array_get(policydb->type_attr_map_array,
-				tcontext->type - 1);
+	tattr = &policydb->type_attr_map_array[tcontext->type - 1];
 	BUG_ON(!tattr);
 	ebitmap_for_each_positive_bit(sattr, snode, i) {
 		ebitmap_for_each_positive_bit(tattr, tnode, j) {
@@ -1281,7 +1272,8 @@ const char *security_get_initial_sid_context(u32 sid)
 
 static int security_sid_to_context_core(struct selinux_state *state,
 					u32 sid, char **scontext,
-					u32 *scontext_len, int force)
+					u32 *scontext_len, int force,
+					int only_invalid)
 {
 	struct policydb *policydb;
 	struct sidtab *sidtab;
@@ -1326,8 +1318,14 @@ static int security_sid_to_context_core(struct selinux_state *state,
 		rc = -EINVAL;
 		goto out_unlock;
 	}
-	rc = context_struct_to_string(policydb, context, scontext,
-				      scontext_len);
+	if (only_invalid && !context->len) {
+		scontext = NULL;
+		scontext_len = 0;
+		rc = 0;
+	} else {
+		rc = context_struct_to_string(policydb, context, scontext,
+					      scontext_len);
+	}
 out_unlock:
 	read_unlock(&state->ss->policy_rwlock);
 out:
@@ -1349,14 +1347,34 @@ int security_sid_to_context(struct selinux_state *state,
 			    u32 sid, char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(state, sid, scontext,
-					    scontext_len, 0);
+					    scontext_len, 0, 0);
 }
 
 int security_sid_to_context_force(struct selinux_state *state, u32 sid,
 				  char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(state, sid, scontext,
-					    scontext_len, 1);
+					    scontext_len, 1, 0);
+}
+
+/**
+ * security_sid_to_context_inval - Obtain a context for a given SID if it
+ *                                 is invalid.
+ * @sid: security identifier, SID
+ * @scontext: security context
+ * @scontext_len: length in bytes
+ *
+ * Write the string representation of the context associated with @sid
+ * into a dynamically allocated string of the correct size, but only if the
+ * context is invalid in the current policy.  Set @scontext to point to
+ * this string (or NULL if the context is valid) and set @scontext_len to
+ * the length of the string (or 0 if the context is valid).
+ */
+int security_sid_to_context_inval(struct selinux_state *state, u32 sid,
+				  char **scontext, u32 *scontext_len)
+{
+	return security_sid_to_context_core(state, sid, scontext,
+					    scontext_len, 1, 1);
 }
 
 /*
@@ -3376,8 +3394,7 @@ int selinux_audit_rule_known(struct audit_krule *rule)
 	return 0;
 }
 
-int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
-			     struct audit_context *actx)
+int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule)
 {
 	struct selinux_state *state = &selinux_state;
 	struct context *ctxt;

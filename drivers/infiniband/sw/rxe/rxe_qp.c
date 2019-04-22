@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -343,7 +344,8 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
-	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
+	struct rxe_ucontext *ucontext =
+		rdma_udata_to_drv_context(udata, struct rxe_ucontext, ibuc);
 
 	rxe_add_ref(pd);
 	rxe_add_ref(rcq);
@@ -358,11 +360,11 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 
 	rxe_qp_init_misc(rxe, qp, init);
 
-	err = rxe_qp_init_req(rxe, qp, init, context, uresp);
+	err = rxe_qp_init_req(rxe, qp, init, &ucontext->ibuc, uresp);
 	if (err)
 		goto err1;
 
-	err = rxe_qp_init_resp(rxe, qp, init, context, uresp);
+	err = rxe_qp_init_resp(rxe, qp, init, &ucontext->ibuc, uresp);
 	if (err)
 		goto err2;
 
@@ -631,14 +633,11 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.qkey = attr->qkey;
 
 	if (mask & IB_QP_AV) {
-		rxe_av_from_attr(attr->port_num, &qp->pri_av, &attr->ah_attr);
-		rxe_av_fill_ip_info(&qp->pri_av, &attr->ah_attr);
+		rxe_init_av(&attr->ah_attr, &qp->pri_av);
 	}
 
 	if (mask & IB_QP_ALT_PATH) {
-		rxe_av_from_attr(attr->alt_port_num, &qp->alt_av,
-				 &attr->alt_ah_attr);
-		rxe_av_fill_ip_info(&qp->alt_av, &attr->alt_ah_attr);
+		rxe_init_av(&attr->alt_ah_attr, &qp->alt_av);
 		qp->attr.alt_port_num = attr->alt_port_num;
 		qp->attr.alt_pkey_index = attr->alt_pkey_index;
 		qp->attr.alt_timeout = attr->alt_timeout;

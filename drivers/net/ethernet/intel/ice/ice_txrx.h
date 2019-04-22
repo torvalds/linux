@@ -116,16 +116,17 @@ enum ice_rx_dtype {
 /* indices into GLINT_ITR registers */
 #define ICE_RX_ITR	ICE_IDX_ITR0
 #define ICE_TX_ITR	ICE_IDX_ITR1
-#define ICE_ITR_DYNAMIC	0x8000  /* use top bit as a flag */
-#define ICE_ITR_8K	125
+#define ICE_ITR_8K	124
 #define ICE_ITR_20K	50
-#define ICE_DFLT_TX_ITR	ICE_ITR_20K
-#define ICE_DFLT_RX_ITR	ICE_ITR_20K
-/* apply ITR granularity translation to program the register. itr_gran is either
- * 2 or 4 usecs so we need to divide by 2 first then shift by that value
- */
-#define ITR_TO_REG(val, itr_gran) (((val) & ~ICE_ITR_DYNAMIC) >> \
-				   ((itr_gran) / 2))
+#define ICE_ITR_MAX	8160
+#define ICE_DFLT_TX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
+#define ICE_DFLT_RX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
+#define ICE_ITR_DYNAMIC	0x8000  /* used as flag for itr_setting */
+#define ITR_IS_DYNAMIC(setting) (!!((setting) & ICE_ITR_DYNAMIC))
+#define ITR_TO_REG(setting)	((setting) & ~ICE_ITR_DYNAMIC)
+#define ICE_ITR_GRAN_S		1	/* Assume ITR granularity is 2us */
+#define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
+#define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
 
 #define ICE_DFLT_INTRL	0
 
@@ -180,13 +181,20 @@ enum ice_latency_range {
 };
 
 struct ice_ring_container {
-	/* array of pointers to rings */
+	/* head of linked-list of rings */
 	struct ice_ring *ring;
+	unsigned long next_update;	/* jiffies value of next queue update */
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_pkts;	/* total packets processed this int */
 	enum ice_latency_range latency_range;
-	int itr_idx;	/* index in the interrupt vector */
-	u16 itr;
+	int itr_idx;		/* index in the interrupt vector */
+	u16 target_itr;		/* value in usecs divided by the hw->itr_gran */
+	u16 current_itr;	/* value in usecs divided by the hw->itr_gran */
+	/* high bit set means dynamic ITR, rest is used to store user
+	 * readable ITR value in usecs and must be converted before programming
+	 * to a register.
+	 */
+	u16 itr_setting;
 };
 
 /* iterator for handling rings in ring container */

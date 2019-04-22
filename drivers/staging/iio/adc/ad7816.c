@@ -65,7 +65,7 @@ enum ad7816_type {
 static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 {
 	struct spi_device *spi_dev = chip->spi_dev;
-	int ret = 0;
+	int ret;
 	__be16 buf;
 
 	gpiod_set_value(chip->rdwr_pin, 1);
@@ -106,7 +106,7 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 static int ad7816_spi_write(struct ad7816_chip_info *chip, u8 data)
 {
 	struct spi_device *spi_dev = chip->spi_dev;
-	int ret = 0;
+	int ret;
 
 	gpiod_set_value(chip->rdwr_pin, 1);
 	gpiod_set_value(chip->rdwr_pin, 0);
@@ -354,8 +354,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;
-	int ret = 0;
-	int i;
+	int i, ret;
 
 	indio_dev = devm_iio_device_alloc(&spi_dev->dev, sizeof(*chip));
 	if (!indio_dev)

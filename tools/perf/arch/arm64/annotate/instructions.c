@@ -58,7 +58,7 @@ out_free_source:
 }
 
 static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
-			  struct ins_operands *ops);
+			  struct ins_operands *ops, int max_ins_name);
 
 static struct ins_ops arm64_mov_ops = {
 	.parse	   = arm64_mov__parse,

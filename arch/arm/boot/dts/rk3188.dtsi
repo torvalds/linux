@@ -719,7 +719,6 @@
 			pm_qos = <&qos_lcdc0>,
 				 <&qos_lcdc1>,
 				 <&qos_cif0>,
-				 <&qos_cif1>,
 				 <&qos_ipp>,
 				 <&qos_rga>;
 		};

@@ -363,6 +363,7 @@
 #define ETHSYS_CHIPID4_7	0x4
 #define MT7623_ETH		7623
 #define MT7622_ETH		7622
+#define MT7621_ETH		7621
 
 /* ethernet subsystem config register */
 #define ETHSYS_SYSCFG0		0x14
@@ -488,6 +489,8 @@ enum mtk_clks_map {
 				 BIT(MTK_CLK_SGMII_CDR_FB) | \
 				 BIT(MTK_CLK_SGMII_CK) | \
 				 BIT(MTK_CLK_ETH2PLL))
+#define MT7621_CLKS_BITMAP	(0)
+
 enum mtk_dev_state {
 	MTK_HW_INIT,
 	MTK_RESETTING
@@ -567,6 +570,7 @@ struct mtk_rx_ring {
 #define MTK_DUAL_GMAC_SHARED_SGMII	(BIT(11) | MTK_GMAC1_SGMII | \
 					 MTK_GMAC2_SGMII)
 #define MTK_HWLRO			BIT(12)
+#define MTK_SHARED_INT			BIT(13)
 #define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
 
 /* struct mtk_eth_data -	This is the structure holding all differences

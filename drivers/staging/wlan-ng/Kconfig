@@ -4,7 +4,7 @@ config PRISM2_USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	default n
-	---help---
+	help
 	  This is the wlan-ng prism 2.5/3 USB driver for a wide range of
 	  old USB wireless devices.
 

@@ -712,7 +712,7 @@ static void csi2_isr_ctx(struct iss_csi2_device *csi2,
 
 	/* Skip interrupts until we reach the frame skip count. The CSI2 will be
 	 * automatically disabled, as the frame skip count has been programmed
-	 * in the CSI2_CTx_CTRL1::COUNT field, so reenable it.
+	 * in the CSI2_CTx_CTRL1::COUNT field, so re-enable it.
 	 *
 	 * It would have been nice to rely on the FRAME_NUMBER interrupt instead
 	 * but it turned out that the interrupt is only generated when the CSI2

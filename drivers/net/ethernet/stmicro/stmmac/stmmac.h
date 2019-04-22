@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include "common.h"
 #include <linux/ptp_clock_kernel.h>
+#include <linux/net_tstamp.h>
 #include <linux/reset.h>
 
 struct stmmac_resources {
@@ -78,11 +79,10 @@ struct stmmac_rx_queue {
 };
 
 struct stmmac_channel {
-	struct napi_struct napi ____cacheline_aligned_in_smp;
+	struct napi_struct rx_napi ____cacheline_aligned_in_smp;
+	struct napi_struct tx_napi ____cacheline_aligned_in_smp;
 	struct stmmac_priv *priv_data;
 	u32 index;
-	int has_rx;
-	int has_tx;
 };
 
 struct stmmac_tc_entry {
@@ -174,6 +174,7 @@ struct stmmac_priv {
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;
+	struct hwtstamp_config tstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;

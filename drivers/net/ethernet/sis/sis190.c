@@ -714,7 +714,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
 
 		sis190_unmap_tx_skb(tp->pci_dev, skb, txd);
 		tp->Tx_skbuff[entry] = NULL;
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 
 	if (tp->dirty_tx != dirty_tx) {

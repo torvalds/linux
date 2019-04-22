@@ -6,8 +6,9 @@
 #define SBUILD_ID_SIZE	(BUILD_ID_SIZE * 2 + 1)
 
 #include "tool.h"
-#include "namespaces.h"
 #include <linux/types.h>
+
+struct nsinfo;
 
 extern struct perf_tool build_id__mark_dso_hit_ops;
 struct dso;

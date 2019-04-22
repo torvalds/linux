@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -199,11 +199,6 @@ void lpfc_reset_hba(struct lpfc_hba *);
 int lpfc_emptyq_wait(struct lpfc_hba *phba, struct list_head *hd,
 			spinlock_t *slock);
 
-int lpfc_fof_queue_create(struct lpfc_hba *);
-int lpfc_fof_queue_setup(struct lpfc_hba *);
-int lpfc_fof_queue_destroy(struct lpfc_hba *);
-irqreturn_t lpfc_sli4_fof_intr_handler(int, void *);
-
 int lpfc_sli_setup(struct lpfc_hba *);
 int lpfc_sli4_setup(struct lpfc_hba *phba);
 void lpfc_sli_queue_init(struct lpfc_hba *phba);
@@ -320,8 +315,8 @@ void lpfc_sli_def_mbox_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 			struct lpfc_iocbq *, uint32_t);
-int lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t rnum,
-			struct lpfc_iocbq *iocbq);
+int lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
+			struct lpfc_iocbq *pwqe);
 struct lpfc_sglq *__lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xri);
 struct lpfc_sglq *__lpfc_sli_get_nvmet_sglq(struct lpfc_hba *phba,
 					    struct lpfc_iocbq *piocbq);
@@ -445,7 +440,6 @@ extern spinlock_t _dump_buf_lock;
 extern int _dump_buf_done;
 extern spinlock_t pgcnt_lock;
 extern unsigned int pgcnt;
-extern unsigned int lpfc_fcp_look_ahead;
 
 /* Interface exported by fabric iocb scheduler */
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *);
@@ -520,8 +514,13 @@ int lpfc_sli4_read_config(struct lpfc_hba *);
 void lpfc_sli4_node_prep(struct lpfc_hba *);
 int lpfc_sli4_els_sgl_update(struct lpfc_hba *phba);
 int lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba);
-int lpfc_sli4_scsi_sgl_update(struct lpfc_hba *phba);
-int lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba);
+int lpfc_io_buf_flush(struct lpfc_hba *phba, struct list_head *sglist);
+int lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf);
+int lpfc_sli4_io_sgl_update(struct lpfc_hba *phba);
+int lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
+		struct list_head *blist, int xricnt);
+int lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc);
+void lpfc_io_free(struct lpfc_hba *phba);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
 uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);
 int lpfc_sli4_request_firmware_update(struct lpfc_hba *, uint8_t);
@@ -574,6 +573,21 @@ void lpfc_nvme_mod_param_dep(struct lpfc_hba *phba);
 void lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdiocb,
 				struct lpfc_wcqe_complete *abts_cmpl);
+void lpfc_create_multixri_pools(struct lpfc_hba *phba);
+void lpfc_create_destroy_pools(struct lpfc_hba *phba);
+void lpfc_move_xri_pvt_to_pbl(struct lpfc_hba *phba, u32 hwqid);
+void lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, u32 hwqid, u32 cnt);
+void lpfc_adjust_high_watermark(struct lpfc_hba *phba, u32 hwqid);
+void lpfc_keep_pvt_pool_above_lowwm(struct lpfc_hba *phba, u32 hwqid);
+void lpfc_adjust_pvt_pool_count(struct lpfc_hba *phba, u32 hwqid);
+#ifdef LPFC_MXP_STAT
+void lpfc_snapshot_mxp(struct lpfc_hba *, u32);
+#endif
+struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
+				struct lpfc_nodelist *ndlp, u32 hwqid,
+				int);
+void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *ncmd,
+			 struct lpfc_sli4_hdw_queue *qp);
 void lpfc_nvme_cmd_template(void);
 void lpfc_nvmet_cmd_template(void);
 extern int lpfc_enable_nvmet_cnt;

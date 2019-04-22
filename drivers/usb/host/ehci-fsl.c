@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
 #include <linux/of_platform.h>
+#include <linux/io.h>
 
 #include "ehci.h"
 #include "ehci-fsl.h"
@@ -50,6 +51,7 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int retval;
+	u32 tmp;
 
 	pr_debug("initializing FSL-SOC USB Controller\n");
 
@@ -114,17 +116,22 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	}
 
 	/* Enable USB controller, 83xx or 8536 */
-	if (pdata->have_sysif_regs && pdata->controller_ver < FSL_USB_VER_1_6)
-		clrsetbits_be32(hcd->regs + FSL_SOC_USB_CTRL,
-				CONTROL_REGISTER_W1C_MASK, 0x4);
-
+	if (pdata->have_sysif_regs && pdata->controller_ver < FSL_USB_VER_1_6) {
+		tmp = ioread32be(hcd->regs + FSL_SOC_USB_CTRL);
+		tmp &= ~CONTROL_REGISTER_W1C_MASK;
+		tmp |= 0x4;
+		iowrite32be(tmp, hcd->regs + FSL_SOC_USB_CTRL);
+	}
 	/*
 	 * Enable UTMI phy and program PTS field in UTMI mode before asserting
 	 * controller reset for USB Controller version 2.5
 	 */
 	if (pdata->has_fsl_erratum_a007792) {
-		clrsetbits_be32(hcd->regs + FSL_SOC_USB_CTRL,
-				CONTROL_REGISTER_W1C_MASK, CTRL_UTMI_PHY_EN);
+		tmp = ioread32be(hcd->regs + FSL_SOC_USB_CTRL);
+		tmp &= ~CONTROL_REGISTER_W1C_MASK;
+		tmp |= CTRL_UTMI_PHY_EN;
+		iowrite32be(tmp, hcd->regs + FSL_SOC_USB_CTRL);
+
 		writel(PORT_PTS_UTMI, hcd->regs + FSL_SOC_USB_PORTSC1);
 	}
 
@@ -174,7 +181,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 			       enum fsl_usb2_phy_modes phy_mode,
 			       unsigned int port_offset)
 {
-	u32 portsc;
+	u32 portsc, tmp;
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	void __iomem *non_ehci = hcd->regs;
 	struct device *dev = hcd->self.controller;
@@ -192,11 +199,16 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_ULPI:
 		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
-			clrbits32(non_ehci + FSL_SOC_USB_CTRL,
-				  CONTROL_REGISTER_W1C_MASK | UTMI_PHY_EN);
-			clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
-					CONTROL_REGISTER_W1C_MASK,
-					ULPI_PHY_CLK_SEL | USB_CTRL_USB_EN);
+			/* turn off UTMI PHY first */
+			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp &= ~(CONTROL_REGISTER_W1C_MASK | UTMI_PHY_EN);
+			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+
+			/* then turn on ULPI and enable USB controller */
+			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp &= ~CONTROL_REGISTER_W1C_MASK;
+			tmp |= ULPI_PHY_CLK_SEL | USB_CTRL_USB_EN;
+			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
 		}
 		portsc |= PORT_PTS_ULPI;
 		break;
@@ -210,16 +222,21 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_UTMI_DUAL:
 		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
-			clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
-					CONTROL_REGISTER_W1C_MASK, UTMI_PHY_EN);
+			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp &= ~CONTROL_REGISTER_W1C_MASK;
+			tmp |= UTMI_PHY_EN;
+			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+
 			mdelay(FSL_UTMI_PHY_DLY);  /* Delay for UTMI PHY CLK to
 						become stable - 10ms*/
 		}
 		/* enable UTMI PHY */
-		if (pdata->have_sysif_regs)
-			clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
-					CONTROL_REGISTER_W1C_MASK,
-					CTRL_UTMI_PHY_EN);
+		if (pdata->have_sysif_regs) {
+			tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+			tmp &= ~CONTROL_REGISTER_W1C_MASK;
+			tmp |= CTRL_UTMI_PHY_EN;
+			iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+		}
 		portsc |= PORT_PTS_UTMI;
 		break;
 	case FSL_USB2_PHY_NONE:
@@ -241,9 +258,12 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
 
-	if (phy_mode != FSL_USB2_PHY_ULPI && pdata->have_sysif_regs)
-		clrsetbits_be32(non_ehci + FSL_SOC_USB_CTRL,
-				CONTROL_REGISTER_W1C_MASK, USB_CTRL_USB_EN);
+	if (phy_mode != FSL_USB2_PHY_ULPI && pdata->have_sysif_regs) {
+		tmp = ioread32be(non_ehci + FSL_SOC_USB_CTRL);
+		tmp &= ~CONTROL_REGISTER_W1C_MASK;
+		tmp |= USB_CTRL_USB_EN;
+		iowrite32be(tmp, non_ehci + FSL_SOC_USB_CTRL);
+	}
 
 	return 0;
 }
@@ -284,14 +304,9 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 			return -EINVAL;
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
-		unsigned int chip, rev, svr;
-
-		svr = mfspr(SPRN_SVR);
-		chip = svr >> 16;
-		rev = (svr >> 4) & 0xf;
 
 		/* Deal with USB Erratum #14 on MPC834x Rev 1.0 & 1.1 chips */
-		if ((rev == 1) && (chip >= 0x8050) && (chip <= 0x8055))
+		if (pdata->has_fsl_erratum_14 == 1)
 			ehci->has_fsl_port_bug = 1;
 
 		if (pdata->port_enables & FSL_USB2_PORT0_ENABLED)

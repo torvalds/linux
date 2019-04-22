@@ -39,6 +39,7 @@
 #include <linux/memory.h>
 #include <linux/export.h>
 #include <linux/mount.h>
+#include <linux/fs_context.h>
 #include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/proc_fs.h>
@@ -203,19 +204,6 @@ static inline struct cpuset *parent_cs(struct cpuset *cs)
 	return css_cs(cs->css.parent);
 }
 
-#ifdef CONFIG_NUMA
-static inline bool task_has_mempolicy(struct task_struct *task)
-{
-	return task->mempolicy;
-}
-#else
-static inline bool task_has_mempolicy(struct task_struct *task)
-{
-	return false;
-}
-#endif
-
-
 /* bits in struct cpuset flags field */
 typedef enum {
 	CS_ONLINE,
@@ -372,25 +360,52 @@ static inline bool is_in_v2_mode(void)
  * users. If someone tries to mount the "cpuset" filesystem, we
  * silently switch it to mount "cgroup" instead
  */
-static struct dentry *cpuset_mount(struct file_system_type *fs_type,
-			 int flags, const char *unused_dev_name, void *data)
+static int cpuset_get_tree(struct fs_context *fc)
 {
-	struct file_system_type *cgroup_fs = get_fs_type("cgroup");
-	struct dentry *ret = ERR_PTR(-ENODEV);
-	if (cgroup_fs) {
-		char mountopts[] =
-			"cpuset,noprefix,"
-			"release_agent=/sbin/cpuset_release_agent";
-		ret = cgroup_fs->mount(cgroup_fs, flags,
-					   unused_dev_name, mountopts);
-		put_filesystem(cgroup_fs);
+	struct file_system_type *cgroup_fs;
+	struct fs_context *new_fc;
+	int ret;
+
+	cgroup_fs = get_fs_type("cgroup");
+	if (!cgroup_fs)
+		return -ENODEV;
+
+	new_fc = fs_context_for_mount(cgroup_fs, fc->sb_flags);
+	if (IS_ERR(new_fc)) {
+		ret = PTR_ERR(new_fc);
+	} else {
+		static const char agent_path[] = "/sbin/cpuset_release_agent";
+		ret = vfs_parse_fs_string(new_fc, "cpuset", NULL, 0);
+		if (!ret)
+			ret = vfs_parse_fs_string(new_fc, "noprefix", NULL, 0);
+		if (!ret)
+			ret = vfs_parse_fs_string(new_fc, "release_agent",
+					agent_path, sizeof(agent_path) - 1);
+		if (!ret)
+			ret = vfs_get_tree(new_fc);
+		if (!ret) {	/* steal the result */
+			fc->root = new_fc->root;
+			new_fc->root = NULL;
+		}
+		put_fs_context(new_fc);
 	}
+	put_filesystem(cgroup_fs);
 	return ret;
 }
 
+static const struct fs_context_operations cpuset_fs_context_ops = {
+	.get_tree	= cpuset_get_tree,
+};
+
+static int cpuset_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &cpuset_fs_context_ops;
+	return 0;
+}
+
 static struct file_system_type cpuset_fs_type = {
-	.name = "cpuset",
-	.mount = cpuset_mount,
+	.name			= "cpuset",
+	.init_fs_context	= cpuset_init_fs_context,
 };
 
 /*

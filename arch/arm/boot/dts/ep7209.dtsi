@@ -6,11 +6,11 @@
 
 /dts-v1/;
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/clock/clps711x-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Cirrus Logic EP7209";
 	compatible = "cirrus,ep7209";
 

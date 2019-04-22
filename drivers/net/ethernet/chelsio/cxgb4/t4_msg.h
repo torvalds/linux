@@ -56,6 +56,7 @@ enum {
 	CPL_TX_DATA_ISO	      = 0x1F,
 
 	CPL_CLOSE_LISTSRV_RPL = 0x20,
+	CPL_GET_TCB_RPL       = 0x22,
 	CPL_L2T_WRITE_RPL     = 0x23,
 	CPL_PASS_OPEN_RPL     = 0x24,
 	CPL_ACT_OPEN_RPL      = 0x25,
@@ -687,6 +688,13 @@ struct cpl_get_tcb {
 #define NO_REPLY_S    15
 #define NO_REPLY_V(x) ((x) << NO_REPLY_S)
 #define NO_REPLY_F    NO_REPLY_V(1U)
+
+struct cpl_get_tcb_rpl {
+	union opcode_tid ot;
+	__u8 cookie;
+	__u8 status;
+	__be16 len;
+};
 
 struct cpl_set_tcb_field {
 	WR_HDR;

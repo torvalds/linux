@@ -1,4 +1,4 @@
-libperf-y += Context.o
+perf-y += Context.o
 
 CFLAGS_Context.o += $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes
 CFLAGS_Context.o += -Wno-unused-parameter -Wno-nested-externs -Wno-undef

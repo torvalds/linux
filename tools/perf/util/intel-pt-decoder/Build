@@ -1,4 +1,4 @@
-libperf-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
+perf-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
 
 inat_tables_script = util/intel-pt-decoder/gen-insn-attr-x86.awk
 inat_tables_maps = util/intel-pt-decoder/x86-opcode-map.txt

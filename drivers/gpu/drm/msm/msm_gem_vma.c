@@ -68,7 +68,8 @@ void msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 
 int
 msm_gem_map_vma(struct msm_gem_address_space *aspace,
-		struct msm_gem_vma *vma, struct sg_table *sgt, int npages)
+		struct msm_gem_vma *vma, int prot,
+		struct sg_table *sgt, int npages)
 {
 	unsigned size = npages << PAGE_SHIFT;
 	int ret = 0;
@@ -86,7 +87,7 @@ msm_gem_map_vma(struct msm_gem_address_space *aspace,
 
 	if (aspace->mmu)
 		ret = aspace->mmu->funcs->map(aspace->mmu, vma->iova, sgt,
-				size, IOMMU_READ | IOMMU_WRITE);
+				size, prot);
 
 	if (ret)
 		vma->mapped = false;

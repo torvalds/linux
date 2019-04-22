@@ -1287,6 +1287,20 @@ static const struct driver_info asix112_info = {
 
 #undef ASIX112_DESC
 
+static const struct driver_info trendnet_info = {
+	.description	= "USB-C 3.1 to 5GBASE-T Ethernet Adapter",
+	.bind		= aqc111_bind,
+	.unbind		= aqc111_unbind,
+	.status		= aqc111_status,
+	.link_reset	= aqc111_link_reset,
+	.reset		= aqc111_reset,
+	.stop		= aqc111_stop,
+	.flags		= FLAG_ETHER | FLAG_FRAMING_AX |
+			  FLAG_AVOID_UNLINK_URBS | FLAG_MULTI_PACKET,
+	.rx_fixup	= aqc111_rx_fixup,
+	.tx_fixup	= aqc111_tx_fixup,
+};
+
 static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
@@ -1440,6 +1454,7 @@ static const struct usb_device_id products[] = {
 	{AQC111_USB_ETH_DEV(0x2eca, 0xc101, aqc111_info)},
 	{AQC111_USB_ETH_DEV(0x0b95, 0x2790, asix111_info)},
 	{AQC111_USB_ETH_DEV(0x0b95, 0x2791, asix112_info)},
+	{AQC111_USB_ETH_DEV(0x20f4, 0xe05a, trendnet_info)},
 	{ },/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);

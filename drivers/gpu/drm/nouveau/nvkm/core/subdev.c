@@ -39,6 +39,7 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_SUBDEV_FB      ] = "fb",
 	[NVKM_SUBDEV_FUSE    ] = "fuse",
 	[NVKM_SUBDEV_GPIO    ] = "gpio",
+	[NVKM_SUBDEV_GSP     ] = "gsp",
 	[NVKM_SUBDEV_I2C     ] = "i2c",
 	[NVKM_SUBDEV_IBUS    ] = "priv",
 	[NVKM_SUBDEV_ICCSENSE] = "iccsense",

@@ -468,6 +468,9 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	else if (val >= 0)
 		val *= 1000ULL;
 
+	if (wbt_get_min_lat(q) == val)
+		return count;
+
 	/*
 	 * Ensure that the queue is idled, in case the latency update
 	 * ends up either enabling or disabling wbt completely. We can't
@@ -817,21 +820,16 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 }
 
 /**
- * __blk_release_queue - release a request queue when it is no longer needed
+ * __blk_release_queue - release a request queue
  * @work: pointer to the release_work member of the request queue to be released
  *
  * Description:
- *     blk_release_queue is the counterpart of blk_init_queue(). It should be
- *     called when a request queue is being released; typically when a block
- *     device is being de-registered. Its primary task it to free the queue
- *     itself.
- *
- * Notes:
- *     The low level driver must have finished any outstanding requests first
- *     via blk_cleanup_queue().
- *
- *     Although blk_release_queue() may be called with preemption disabled,
- *     __blk_release_queue() may sleep.
+ *     This function is called when a block device is being unregistered. The
+ *     process of releasing a request queue starts with blk_cleanup_queue, which
+ *     set the appropriate flags and then calls blk_put_queue, that decrements
+ *     the reference counter of the request queue. Once the reference counter
+ *     of the request queue reaches zero, blk_release_queue is called to release
+ *     all allocated resources of the request queue.
  */
 static void __blk_release_queue(struct work_struct *work)
 {

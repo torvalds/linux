@@ -75,6 +75,8 @@ Optional properties:
 
   - address-width: number of address bits (one of 8, 16).
 
+  - num-addresses: total number of i2c slave addresses this device takes
+
 Example:
 
 eeprom@52 {
@@ -82,4 +84,5 @@ eeprom@52 {
 	reg = <0x52>;
 	pagesize = <32>;
 	wp-gpios = <&gpio1 3 0>;
+	num-addresses = <8>;
 };

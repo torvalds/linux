@@ -36,28 +36,6 @@ union igc_adv_tx_desc {
 
 #define IGC_RAR_ENTRIES		16
 
-struct igc_adv_data_desc {
-	__le64 buffer_addr;    /* Address of the descriptor's data buffer */
-	union {
-		u32 data;
-		struct {
-			u32 datalen:16; /* Data buffer length */
-			u32 rsvd:4;
-			u32 dtyp:4;  /* Descriptor type */
-			u32 dcmd:8;  /* Descriptor command */
-		} config;
-	} lower;
-	union {
-		u32 data;
-		struct {
-			u32 status:4;  /* Descriptor status */
-			u32 idx:4;
-			u32 popts:6;  /* Packet Options */
-			u32 paylen:18; /* Payload length */
-		} options;
-	} upper;
-};
-
 /* Receive Descriptor - Advanced */
 union igc_adv_rx_desc {
 	struct {
@@ -89,9 +67,6 @@ union igc_adv_rx_desc {
 		} upper;
 	} wb;  /* writeback */
 };
-
-/* Adv Transmit Descriptor Config Masks */
-#define IGC_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
 
 /* Additional Transmit Descriptor Control definitions */
 #define IGC_TXDCTL_QUEUE_ENABLE	0x02000000 /* Ena specific Tx Queue */

@@ -16,6 +16,7 @@
 extern const struct dev_pm_ops ccree_pm;
 
 int cc_pm_init(struct cc_drvdata *drvdata);
+void cc_pm_go(struct cc_drvdata *drvdata);
 void cc_pm_fini(struct cc_drvdata *drvdata);
 int cc_pm_suspend(struct device *dev);
 int cc_pm_resume(struct device *dev);
@@ -28,6 +29,8 @@ static inline int cc_pm_init(struct cc_drvdata *drvdata)
 {
 	return 0;
 }
+
+static inline void cc_pm_go(struct cc_drvdata *drvdata) {}
 
 static inline void cc_pm_fini(struct cc_drvdata *drvdata) {}
 

@@ -231,9 +231,10 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 }
 
 /* patch sites */
-extern s32 patch__itlbmiss_linmem_top;
+extern s32 patch__itlbmiss_linmem_top, patch__itlbmiss_linmem_top8;
 extern s32 patch__dtlbmiss_linmem_top, patch__dtlbmiss_immr_jmp;
 extern s32 patch__fixupdar_linmem_top;
+extern s32 patch__dtlbmiss_romem_top, patch__dtlbmiss_romem_top8;
 
 extern s32 patch__itlbmiss_exit_1, patch__itlbmiss_exit_2;
 extern s32 patch__dtlbmiss_exit_1, patch__dtlbmiss_exit_2, patch__dtlbmiss_exit_3;

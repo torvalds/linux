@@ -12,9 +12,9 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_panel.h>
 
 struct panel_bridge {
@@ -134,8 +134,8 @@ static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
 };
 
 /**
- * drm_panel_bridge_add - Creates a drm_bridge and drm_connector that
- * just calls the appropriate functions from drm_panel.
+ * drm_panel_bridge_add - Creates a &drm_bridge and &drm_connector that
+ * just calls the appropriate functions from &drm_panel.
  *
  * @panel: The drm_panel being wrapped.  Must be non-NULL.
  * @connector_type: The DRM_MODE_CONNECTOR_* for the connector to be
@@ -149,9 +149,12 @@ static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
  * passed to drm_bridge_attach().  The drm_panel_prepare() and related
  * functions can be dropped from the encoder driver (they're now
  * called by the KMS helpers before calling into the encoder), along
- * with connector creation.  When done with the bridge,
- * drm_bridge_detach() should be called as normal, then
+ * with connector creation.  When done with the bridge (after
+ * drm_mode_config_cleanup() if the bridge has already been attached), then
  * drm_panel_bridge_remove() to free it.
+ *
+ * See devm_drm_panel_bridge_add() for an automatically manged version of this
+ * function.
  */
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 					u32 connector_type)
@@ -210,6 +213,17 @@ static void devm_drm_panel_bridge_release(struct device *dev, void *res)
 	drm_panel_bridge_remove(*bridge);
 }
 
+/**
+ * devm_drm_panel_bridge_add - Creates a managed &drm_bridge and &drm_connector
+ * that just calls the appropriate functions from &drm_panel.
+ * @dev: device to tie the bridge lifetime to
+ * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @connector_type: The DRM_MODE_CONNECTOR_* for the connector to be
+ * created.
+ *
+ * This is the managed version of drm_panel_bridge_add() which automatically
+ * calls drm_panel_bridge_remove() when @dev is unbound.
+ */
 struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
 					     struct drm_panel *panel,
 					     u32 connector_type)

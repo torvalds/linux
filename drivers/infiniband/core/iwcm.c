@@ -87,7 +87,8 @@ static struct rdma_nl_cbs iwcm_nl_cb_table[RDMA_NL_IWPM_NUM_OPS] = {
 	[RDMA_NL_IWPM_REMOTE_INFO] = {.dump = iwpm_remote_info_cb},
 	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
 	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
-	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
+	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb},
+	[RDMA_NL_IWPM_HELLO] = {.dump = iwpm_hello_cb}
 };
 
 static struct workqueue_struct *iwcm_wq;
@@ -504,7 +505,7 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 {
 	const char *devname = dev_name(&cm_id->device->dev);
 	const char *ifname = cm_id->device->iwcm->ifname;
-	struct iwpm_dev_data pm_reg_msg;
+	struct iwpm_dev_data pm_reg_msg = {};
 	struct iwpm_sa_data pm_msg;
 	int status;
 
@@ -515,8 +516,8 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 	cm_id->m_local_addr = cm_id->local_addr;
 	cm_id->m_remote_addr = cm_id->remote_addr;
 
-	strncpy(pm_reg_msg.dev_name, devname, sizeof(pm_reg_msg.dev_name));
-	strncpy(pm_reg_msg.if_name, ifname, sizeof(pm_reg_msg.if_name));
+	strcpy(pm_reg_msg.dev_name, devname);
+	strcpy(pm_reg_msg.if_name, ifname);
 
 	if (iwpm_register_pid(&pm_reg_msg, RDMA_NL_IWCM) ||
 	    !iwpm_valid_pid())
@@ -525,6 +526,8 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 	cm_id->mapped = true;
 	pm_msg.loc_addr = cm_id->local_addr;
 	pm_msg.rem_addr = cm_id->remote_addr;
+	pm_msg.flags = (cm_id->device->iwcm->driver_flags & IW_F_NO_PORT_MAP) ?
+		       IWPM_FLAGS_NO_PORT_MAP : 0;
 	if (active)
 		status = iwpm_add_and_query_mapping(&pm_msg,
 						    RDMA_NL_IWCM);
@@ -543,7 +546,7 @@ static int iw_cm_map(struct iw_cm_id *cm_id, bool active)
 
 	return iwpm_create_mapinfo(&cm_id->local_addr,
 				   &cm_id->m_local_addr,
-				   RDMA_NL_IWCM);
+				   RDMA_NL_IWCM, pm_msg.flags);
 }
 
 /*

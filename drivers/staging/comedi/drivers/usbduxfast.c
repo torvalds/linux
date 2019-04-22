@@ -61,7 +61,7 @@
 #define USBDUXFASTSUB_CPUCS	0xE600
 
 /*
- * max lenghth of the transfer-buffer for software upload
+ * max length of the transfer-buffer for software upload
  */
 #define TB_LEN	0x2000
 

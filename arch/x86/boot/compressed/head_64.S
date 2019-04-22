@@ -358,8 +358,11 @@ ENTRY(startup_64)
 	 * paging_prepare() sets up the trampoline and checks if we need to
 	 * enable 5-level paging.
 	 *
-	 * Address of the trampoline is returned in RAX.
-	 * Non zero RDX on return means we need to enable 5-level paging.
+	 * paging_prepare() returns a two-quadword structure which lands
+	 * into RDX:RAX:
+	 *   - Address of the trampoline is returned in RAX.
+	 *   - Non zero RDX means trampoline needs to enable 5-level
+	 *     paging.
 	 *
 	 * RSI holds real mode data and needs to be preserved across
 	 * this function call.
@@ -565,7 +568,7 @@ adjust_got:
  *
  * RDI contains the return address (might be above 4G).
  * ECX contains the base address of the trampoline memory.
- * Non zero RDX on return means we need to enable 5-level paging.
+ * Non zero RDX means trampoline needs to enable 5-level paging.
  */
 ENTRY(trampoline_32bit_src)
 	/* Set up data and stack segments */
@@ -600,6 +603,16 @@ ENTRY(trampoline_32bit_src)
 	leal	TRAMPOLINE_32BIT_PGTABLE_OFFSET(%ecx), %eax
 	movl	%eax, %cr3
 3:
+	/* Set EFER.LME=1 as a precaution in case hypervsior pulls the rug */
+	pushl	%ecx
+	pushl	%edx
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	btsl	$_EFER_LME, %eax
+	wrmsr
+	popl	%edx
+	popl	%ecx
+
 	/* Enable PAE and LA57 (if required) paging modes */
 	movl	$X86_CR4_PAE, %eax
 	cmpl	$0, %edx
@@ -645,8 +658,6 @@ no_longmode:
 	.data
 gdt64:
 	.word	gdt_end - gdt
-	.long	0
-	.word	0
 	.quad   0
 gdt:
 	.word	gdt_end - gdt

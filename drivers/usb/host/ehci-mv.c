@@ -302,3 +302,4 @@ MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
 MODULE_AUTHOR("Neil Zhang <zhangwm@marvell.com>");
 MODULE_ALIAS("mv-ehci");
 MODULE_LICENSE("GPL");
+MODULE_DEVICE_TABLE(of, ehci_mv_dt_ids);

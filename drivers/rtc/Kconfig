@@ -185,6 +185,16 @@ config RTC_DRV_ABB5ZES3
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ab-b5ze-s3.
 
+config RTC_DRV_ABEOZ9
+	select REGMAP_I2C
+	tristate "Abracon AB-RTCMC-32.768kHz-EOZ9"
+	help
+	  If you say yes here you get support for the Abracon
+	  AB-RTCMC-32.768kHz-EOA9 I2C RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ab-e0z9.
+
 config RTC_DRV_ABX80X
 	tristate "Abracon ABx80x"
 	select WATCHDOG_CORE if WATCHDOG
@@ -601,9 +611,10 @@ config RTC_DRV_RX8010
 	  will be called rtc-rx8010.
 
 config RTC_DRV_RX8581
-	tristate "Epson RX-8581"
+	tristate "Epson RX-8571/RX-8581"
 	help
-	  If you say yes here you will get support for the Epson RX-8581.
+	  If you say yes here you will get support for the Epson RX-8571/
+	  RX-8581.
 
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-rx8581.
@@ -626,6 +637,15 @@ config RTC_DRV_EM3027
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-em3027.
 
+config RTC_DRV_RV3028
+	tristate "Micro Crystal RV3028"
+	help
+	  If you say yes here you get support for the Micro Crystal
+	  RV3028.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rv3028.
+
 config RTC_DRV_RV8803
 	tristate "Micro Crystal RV8803, Epson RX8900"
 	help
@@ -645,6 +665,15 @@ config RTC_DRV_S5M
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-s5m.
+
+config RTC_DRV_SD3078
+    tristate "ZXW Crystal SD3078"
+    help
+      If you say yes here you get support for the ZXW Crystal
+      SD3078 RTC chips.
+
+      This driver can also be built as a module. If so, the module
+      will be called rtc-sd3078
 
 endif # I2C
 
@@ -1285,6 +1314,17 @@ config RTC_DRV_IMXDI
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-imxdi".
 
+config RTC_DRV_MESON
+	tristate "Amlogic Meson RTC"
+	depends on (ARM && ARCH_MESON) || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	   Support for the RTC block on the Amlogic Meson6, Meson8, Meson8b
+	   and Meson8m2 SoCs.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-meson".
+
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
 	depends on ARCH_OMAP || ARCH_DAVINCI || COMPILE_TEST
@@ -1508,6 +1548,16 @@ config RTC_DRV_ARMADA38X
 	  This driver can also be built as a module. If so, the module
 	  will be called armada38x-rtc.
 
+config RTC_DRV_CADENCE
+	tristate "Cadence RTC driver"
+	depends on OF && HAS_IOMEM
+	help
+	  If you say Y here you will get access to Cadence RTC IP
+	  found on certain SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-cadence.
+
 config RTC_DRV_FTRTC010
 	tristate "Faraday Technology FTRTC010 RTC"
 	depends on HAS_IOMEM
@@ -1679,6 +1729,7 @@ config RTC_DRV_SNVS
 
 config RTC_DRV_IMX_SC
 	depends on IMX_SCU
+	depends on HAVE_ARM_SMCCC
 	tristate "NXP i.MX System Controller RTC support"
 	help
 	   If you say yes here you get support for the NXP i.MX System
@@ -1795,8 +1846,7 @@ comment "HID Sensor RTC drivers"
 config RTC_DRV_HID_SENSOR_TIME
 	tristate "HID Sensor Time"
 	depends on USB_HID
-	select IIO
-	select HID_SENSOR_HUB
+	depends on HID_SENSOR_HUB && IIO
 	select HID_SENSOR_IIO_COMMON
 	help
 	  Say yes here to build support for the HID Sensors of type Time.
@@ -1813,5 +1863,16 @@ config RTC_DRV_GOLDFISH
 
 	  Goldfish is a code name for the virtual platform developed by Google
 	  for Android emulation.
+
+config RTC_DRV_WILCO_EC
+	tristate "Wilco EC RTC"
+	depends on WILCO_EC
+	default m
+	help
+	  If you say yes here, you get read/write support for the Real Time
+	  Clock on the Wilco Embedded Controller (Wilco is a kind of Chromebook)
+
+	  This can also be built as a module. If so, the module will
+	  be named "rtc_wilco_ec".
 
 endif # RTC_CLASS

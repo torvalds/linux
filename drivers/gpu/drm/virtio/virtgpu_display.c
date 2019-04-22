@@ -26,9 +26,9 @@
  */
 
 #include "virtgpu_drv.h"
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #define XRES_MIN    32
 #define YRES_MIN    32
@@ -243,12 +243,8 @@ static enum drm_connector_status virtio_gpu_conn_detect(
 
 static void virtio_gpu_conn_destroy(struct drm_connector *connector)
 {
-	struct virtio_gpu_output *virtio_gpu_output =
-		drm_connector_to_virtio_gpu_output(connector);
-
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(virtio_gpu_output);
 }
 
 static const struct drm_connector_funcs virtio_gpu_connector_funcs = {
@@ -362,7 +358,7 @@ static const struct drm_mode_config_funcs virtio_gpu_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
+void virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 {
 	int i;
 
@@ -381,7 +377,6 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 		vgdev_output_init(vgdev, i);
 
 	drm_mode_config_reset(vgdev->ddev);
-	return 0;
 }
 
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
@@ -390,6 +385,5 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
 
 	for (i = 0 ; i < vgdev->num_scanouts; ++i)
 		kfree(vgdev->outputs[i].edid);
-	virtio_gpu_fbdev_fini(vgdev);
 	drm_mode_config_cleanup(vgdev->ddev);
 }

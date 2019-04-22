@@ -41,21 +41,113 @@ struct drm_display_mode;
 struct drm_mode_create_dumb;
 struct drm_printer;
 
-/* driver capabilities and requirements mask */
-#define DRIVER_USE_AGP			0x1
-#define DRIVER_LEGACY			0x2
-#define DRIVER_PCI_DMA			0x8
-#define DRIVER_SG			0x10
-#define DRIVER_HAVE_DMA			0x20
-#define DRIVER_HAVE_IRQ			0x40
-#define DRIVER_IRQ_SHARED		0x80
-#define DRIVER_GEM			0x1000
-#define DRIVER_MODESET			0x2000
-#define DRIVER_PRIME			0x4000
-#define DRIVER_RENDER			0x8000
-#define DRIVER_ATOMIC			0x10000
-#define DRIVER_KMS_LEGACY_CONTEXT	0x20000
-#define DRIVER_SYNCOBJ                  0x40000
+/**
+ * enum drm_driver_feature - feature flags
+ *
+ * See &drm_driver.driver_features, drm_device.driver_features and
+ * drm_core_check_feature().
+ */
+enum drm_driver_feature {
+	/**
+	 * @DRIVER_GEM:
+	 *
+	 * Driver use the GEM memory manager. This should be set for all modern
+	 * drivers.
+	 */
+	DRIVER_GEM			= BIT(0),
+	/**
+	 * @DRIVER_MODESET:
+	 *
+	 * Driver supports mode setting interfaces (KMS).
+	 */
+	DRIVER_MODESET			= BIT(1),
+	/**
+	 * @DRIVER_PRIME:
+	 *
+	 * Driver implements DRM PRIME buffer sharing.
+	 */
+	DRIVER_PRIME			= BIT(2),
+	/**
+	 * @DRIVER_RENDER:
+	 *
+	 * Driver supports dedicated render nodes. See also the :ref:`section on
+	 * render nodes <drm_render_node>` for details.
+	 */
+	DRIVER_RENDER			= BIT(3),
+	/**
+	 * @DRIVER_ATOMIC:
+	 *
+	 * Driver supports the full atomic modesetting userspace API. Drivers
+	 * which only use atomic internally, but do not the support the full
+	 * userspace API (e.g. not all properties converted to atomic, or
+	 * multi-plane updates are not guaranteed to be tear-free) should not
+	 * set this flag.
+	 */
+	DRIVER_ATOMIC			= BIT(4),
+	/**
+	 * @DRIVER_SYNCOBJ:
+	 *
+	 * Driver supports &drm_syncobj for explicit synchronization of command
+	 * submission.
+	 */
+	DRIVER_SYNCOBJ                  = BIT(5),
+
+	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
+
+	/**
+	 * @DRIVER_USE_AGP:
+	 *
+	 * Set up DRM AGP support, see drm_agp_init(), the DRM core will manage
+	 * AGP resources. New drivers don't need this.
+	 */
+	DRIVER_USE_AGP			= BIT(25),
+	/**
+	 * @DRIVER_LEGACY:
+	 *
+	 * Denote a legacy driver using shadow attach. Do not use.
+	 */
+	DRIVER_LEGACY			= BIT(26),
+	/**
+	 * @DRIVER_PCI_DMA:
+	 *
+	 * Driver is capable of PCI DMA, mapping of PCI DMA buffers to userspace
+	 * will be enabled. Only for legacy drivers. Do not use.
+	 */
+	DRIVER_PCI_DMA			= BIT(27),
+	/**
+	 * @DRIVER_SG:
+	 *
+	 * Driver can perform scatter/gather DMA, allocation and mapping of
+	 * scatter/gather buffers will be enabled. Only for legacy drivers. Do
+	 * not use.
+	 */
+	DRIVER_SG			= BIT(28),
+
+	/**
+	 * @DRIVER_HAVE_DMA:
+	 *
+	 * Driver supports DMA, the userspace DMA API will be supported. Only
+	 * for legacy drivers. Do not use.
+	 */
+	DRIVER_HAVE_DMA			= BIT(29),
+	/**
+	 * @DRIVER_HAVE_IRQ:
+	 *
+	 * Legacy irq support. Only for legacy drivers. Do not use.
+	 *
+	 * New drivers can either use the drm_irq_install() and
+	 * drm_irq_uninstall() helper functions, or roll their own irq support
+	 * code by calling request_irq() directly.
+	 */
+	DRIVER_HAVE_IRQ			= BIT(30),
+	/**
+	 * @DRIVER_KMS_LEGACY_CONTEXT:
+	 *
+	 * Used only by nouveau for backwards compatibility with existing
+	 * userspace.  Do not use.
+	 */
+	DRIVER_KMS_LEGACY_CONTEXT	= BIT(31),
+};
 
 /**
  * struct drm_driver - DRM driver structure
@@ -579,7 +671,12 @@ struct drm_driver {
 	/** @date: driver date */
 	char *date;
 
-	/** @driver_features: driver features */
+	/**
+	 * @driver_features:
+	 * Driver features, see &enum drm_driver_feature. Drivers can disable
+	 * some features on a per-instance basis using
+	 * &drm_device.driver_features.
+	 */
 	u32 driver_features;
 
 	/**
@@ -643,6 +740,10 @@ void drm_dev_unplug(struct drm_device *dev);
  * Unplugging itself is singalled through drm_dev_unplug(). If a device is
  * unplugged, these two functions guarantee that any store before calling
  * drm_dev_unplug() is visible to callers of this function after it completes
+ *
+ * WARNING: This function fundamentally races against drm_dev_unplug(). It is
+ * recommended that drivers instead use the underlying drm_dev_enter() and
+ * drm_dev_exit() function pairs.
  */
 static inline bool drm_dev_is_unplugged(struct drm_device *dev)
 {
@@ -662,11 +763,11 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
  * @feature: feature flag
  *
  * This checks @dev for driver features, see &drm_driver.driver_features,
- * &drm_device.driver_features, and the various DRIVER_\* flags.
+ * &drm_device.driver_features, and the various &enum drm_driver_feature flags.
  *
  * Returns true if the @feature is supported, false otherwise.
  */
-static inline bool drm_core_check_feature(struct drm_device *dev, u32 feature)
+static inline bool drm_core_check_feature(const struct drm_device *dev, u32 feature)
 {
 	return dev->driver->driver_features & dev->driver_features & feature;
 }

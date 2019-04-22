@@ -20,7 +20,7 @@
 #define REG_BGAIN	0x01	/* blue gain */
 #define REG_RGAIN	0x02	/* red gain */
 #define REG_GGAIN	0x03	/* green gain */
-#define REG_REG04	0x04	/* analog setting, dont change*/
+#define REG_REG04	0x04	/* analog setting, don't change*/
 #define REG_BAVG	0x05	/* b channel average */
 #define REG_GAVG	0x06	/* g channel average */
 #define REG_RAVG	0x07	/* r channel average */
@@ -1101,6 +1101,9 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+
 	ret = ov7740_detect(ov7740);
 	if (ret)
 		goto error_detect;
@@ -1123,8 +1126,6 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		goto error_async_register;
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
 	return 0;
@@ -1134,6 +1135,8 @@ error_async_register:
 error_init_controls:
 	ov7740_free_controls(ov7740);
 error_detect:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	ov7740_set_power(ov7740, 0);
 	media_entity_cleanup(&ov7740->subdev.entity);
 

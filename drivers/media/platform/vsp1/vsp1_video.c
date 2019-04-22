@@ -223,7 +223,7 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 	 * If the modulus is less than half of the partition size,
 	 * the penultimate partition is reduced to half, which is added
 	 * to the final partition: |1234|1234|1234|12|341|
-	 * to prevents this:       |1234|1234|1234|1234|1|.
+	 * to prevent this:        |1234|1234|1234|1234|1|.
 	 */
 	if (modulus) {
 		/*

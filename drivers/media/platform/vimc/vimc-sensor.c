@@ -16,8 +16,6 @@
  */
 
 #include <linux/component.h>
-#include <linux/freezer.h>
-#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
@@ -201,38 +199,20 @@ static const struct v4l2_subdev_pad_ops vimc_sen_pad_ops = {
 	.set_fmt		= vimc_sen_set_fmt,
 };
 
-static int vimc_sen_tpg_thread(void *data)
+static void *vimc_sen_process_frame(struct vimc_ent_device *ved,
+				    const void *sink_frame)
 {
-	struct vimc_sen_device *vsen = data;
-	unsigned int i;
+	struct vimc_sen_device *vsen = container_of(ved, struct vimc_sen_device,
+						    ved);
 
-	set_freezable();
-	set_current_state(TASK_UNINTERRUPTIBLE);
-
-	for (;;) {
-		try_to_freeze();
-		if (kthread_should_stop())
-			break;
-
-		tpg_fill_plane_buffer(&vsen->tpg, 0, 0, vsen->frame);
-
-		/* Send the frame to all source pads */
-		for (i = 0; i < vsen->sd.entity.num_pads; i++)
-			vimc_propagate_frame(&vsen->sd.entity.pads[i],
-					     vsen->frame);
-
-		/* 60 frames per second */
-		schedule_timeout(HZ/60);
-	}
-
-	return 0;
+	tpg_fill_plane_buffer(&vsen->tpg, 0, 0, vsen->frame);
+	return vsen->frame;
 }
 
 static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct vimc_sen_device *vsen =
 				container_of(sd, struct vimc_sen_device, sd);
-	int ret;
 
 	if (enable) {
 		const struct vimc_pix_map *vpix;
@@ -258,26 +238,8 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 		/* configure the test pattern generator */
 		vimc_sen_tpg_s_format(vsen);
 
-		/* Initialize the image generator thread */
-		vsen->kthread_sen = kthread_run(vimc_sen_tpg_thread, vsen,
-					"%s-sen", vsen->sd.v4l2_dev->name);
-		if (IS_ERR(vsen->kthread_sen)) {
-			dev_err(vsen->dev, "%s: kernel_thread() failed\n",
-				vsen->sd.name);
-			vfree(vsen->frame);
-			vsen->frame = NULL;
-			return PTR_ERR(vsen->kthread_sen);
-		}
 	} else {
-		if (!vsen->kthread_sen)
-			return 0;
 
-		/* Stop image generator */
-		ret = kthread_stop(vsen->kthread_sen);
-		if (ret)
-			return ret;
-
-		vsen->kthread_sen = NULL;
 		vfree(vsen->frame);
 		vsen->frame = NULL;
 		return 0;
@@ -413,6 +375,7 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 	if (ret)
 		goto err_free_hdl;
 
+	vsen->ved.process_frame = vimc_sen_process_frame;
 	dev_set_drvdata(comp, &vsen->ved);
 	vsen->dev = comp;
 

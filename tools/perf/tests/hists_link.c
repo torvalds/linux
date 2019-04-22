@@ -142,7 +142,7 @@ static int find_sample(struct sample *samples, size_t nr_samples,
 static int __validate_match(struct hists *hists)
 {
 	size_t count = 0;
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *node;
 
 	/*
@@ -153,7 +153,7 @@ static int __validate_match(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	node = rb_first(root);
+	node = rb_first_cached(root);
 	while (node) {
 		struct hist_entry *he;
 
@@ -192,7 +192,7 @@ static int __validate_link(struct hists *hists, int idx)
 	size_t count = 0;
 	size_t count_pair = 0;
 	size_t count_dummy = 0;
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *node;
 
 	/*
@@ -205,7 +205,7 @@ static int __validate_link(struct hists *hists, int idx)
 	else
 		root = hists->entries_in;
 
-	node = rb_first(root);
+	node = rb_first_cached(root);
 	while (node) {
 		struct hist_entry *he;
 

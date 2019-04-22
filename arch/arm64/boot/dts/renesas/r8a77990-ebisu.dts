@@ -39,6 +39,16 @@
 		clock-frequency = <11289600>;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 50000>;
+
+		brightness-levels = <512 511 505 494 473 440 392 327 241 133 0>;
+		default-brightness-level = <10>;
+
+		power-supply = <&reg_12p0v>;
+	};
+
 	cvbs-in {
 		compatible = "composite-video-connector";
 		label = "CVBS IN";
@@ -159,16 +169,13 @@
 	};
 
 	rsnd_ak4613: sound {
-		compatible = "simple-scu-audio-card";
+		compatible = "simple-audio-card";
 
 		simple-audio-card,name = "rsnd-ak4613";
 		simple-audio-card,format = "left_j";
 		simple-audio-card,bitclock-master = <&sndcpu>;
 		simple-audio-card,frame-master = <&sndcpu>;
 
-		simple-audio-card,prefix = "ak4613";
-		simple-audio-card,routing = "ak4613 Playback", "DAI0 Playback",
-		"DAI0 Capture", "ak4613 Capture";
 		sndcpu: simple-audio-card,cpu {
 			sound-dai = <&rcar_sound>;
 		};
@@ -182,6 +189,15 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24576000>;
+	};
+
+	reg_12p0v: regulator2 {
+		compatible = "regulator-fixed";
+		regulator-name = "D12.0V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	x13_clk: x13 {
@@ -248,7 +264,6 @@
 	pinctrl-names = "default";
 	renesas,no-ether-link;
 	phy-handle = <&phy0>;
-	phy-mode = "rgmii-txid";
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -680,6 +695,7 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
 	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
 	bus-width = <8>;
 	non-removable;
 	status = "okay";

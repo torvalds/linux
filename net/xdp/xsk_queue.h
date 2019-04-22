@@ -174,8 +174,8 @@ static inline bool xskq_is_valid_desc(struct xsk_queue *q, struct xdp_desc *d)
 	if (!xskq_is_valid_addr(q, d->addr))
 		return false;
 
-	if (((d->addr + d->len) & q->chunk_mask) !=
-	    (d->addr & q->chunk_mask)) {
+	if (((d->addr + d->len) & q->chunk_mask) != (d->addr & q->chunk_mask) ||
+	    d->options) {
 		q->invalid_descs++;
 		return false;
 	}

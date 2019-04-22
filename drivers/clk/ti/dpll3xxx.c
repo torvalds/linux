@@ -731,7 +731,7 @@ static struct clk_hw_omap *omap3_find_clkoutx2_dpll(struct clk_hw *hw)
 	do {
 		do {
 			hw = clk_hw_get_parent(hw);
-		} while (hw && (clk_hw_get_flags(hw) & CLK_IS_BASIC));
+		} while (hw && (!omap2_clk_is_hw_omap(hw)));
 		if (!hw)
 			break;
 		pclk = to_clk_hw_omap(hw);

@@ -26,6 +26,7 @@ generic-y += parport.h
 generic-y += percpu.h
 generic-y += preempt.h
 generic-y += serial.h
+generic-y += shmparam.h
 generic-y += syscalls.h
 generic-y += topology.h
 generic-y += trace_clock.h

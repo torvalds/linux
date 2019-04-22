@@ -54,10 +54,7 @@ static int saa7146_i2c_msg_prepare(const struct i2c_msg *m, int num, __le32 *op)
 	/* loop through all messages */
 	for(i = 0; i < num; i++) {
 
-		/* insert the address of the i2c-slave.
-		   note: we get 7 bit i2c-addresses,
-		   so we have to perform a translation */
-		addr = (m[i].addr*2) + ( (0 != (m[i].flags & I2C_M_RD)) ? 1 : 0);
+		addr = i2c_8bit_addr_from_msg(&m[i]);
 		h1 = op_count/3; h2 = op_count%3;
 		op[h1] |= cpu_to_le32(	    (u8)addr << ((3-h2)*8));
 		op[h1] |= cpu_to_le32(SAA7146_I2C_START << ((3-h2)*2));

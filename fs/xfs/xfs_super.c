@@ -1594,6 +1594,13 @@ xfs_mount_alloc(
 	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);
 	INIT_DELAYED_WORK(&mp->m_cowblocks_work, xfs_cowblocks_worker);
 	mp->m_kobj.kobject.kset = xfs_kset;
+	/*
+	 * We don't create the finobt per-ag space reservation until after log
+	 * recovery, so we must set this to true so that an ifree transaction
+	 * started during log recovery will not depend on space reservations
+	 * for finobt expansion.
+	 */
+	mp->m_finobt_nores = true;
 	return mp;
 }
 
@@ -1729,11 +1736,18 @@ xfs_fs_fill_super(
 		}
 	}
 
-	if (xfs_sb_version_hasreflink(&mp->m_sb) && mp->m_sb.sb_rblocks) {
-		xfs_alert(mp,
+	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+		if (mp->m_sb.sb_rblocks) {
+			xfs_alert(mp,
 	"reflink not compatible with realtime device!");
-		error = -EINVAL;
-		goto out_filestream_unmount;
+			error = -EINVAL;
+			goto out_filestream_unmount;
+		}
+
+		if (xfs_globals.always_cow) {
+			xfs_info(mp, "using DEBUG-only always_cow mode.");
+			mp->m_always_cow = true;
+		}
 	}
 
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb) && mp->m_sb.sb_rblocks) {

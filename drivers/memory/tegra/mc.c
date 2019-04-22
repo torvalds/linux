@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
@@ -38,6 +39,7 @@
 
 #define MC_ERR_ADR 0x0c
 
+#define MC_GART_ERROR_REQ		0x30
 #define MC_DECERR_EMEM_OTHERS_STATUS	0x58
 #define MC_SECURITY_VIOLATION_STATUS	0x74
 
@@ -51,7 +53,7 @@
 
 static const struct of_device_id tegra_mc_of_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	{ .compatible = "nvidia,tegra20-mc", .data = &tegra20_mc_soc },
+	{ .compatible = "nvidia,tegra20-mc-gart", .data = &tegra20_mc_soc },
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	{ .compatible = "nvidia,tegra30-mc", .data = &tegra30_mc_soc },
@@ -161,7 +163,7 @@ static int tegra_mc_hotreset_assert(struct reset_controller_dev *rcdev,
 		/* block clients DMA requests */
 		err = rst_ops->block_dma(mc, rst);
 		if (err) {
-			dev_err(mc->dev, "Failed to block %s DMA: %d\n",
+			dev_err(mc->dev, "failed to block %s DMA: %d\n",
 				rst->name, err);
 			return err;
 		}
@@ -171,7 +173,7 @@ static int tegra_mc_hotreset_assert(struct reset_controller_dev *rcdev,
 		/* wait for completion of the outstanding DMA requests */
 		while (!rst_ops->dma_idling(mc, rst)) {
 			if (!retries--) {
-				dev_err(mc->dev, "Failed to flush %s DMA\n",
+				dev_err(mc->dev, "failed to flush %s DMA\n",
 					rst->name);
 				return -EBUSY;
 			}
@@ -184,7 +186,7 @@ static int tegra_mc_hotreset_assert(struct reset_controller_dev *rcdev,
 		/* clear clients DMA requests sitting before arbitration */
 		err = rst_ops->hotreset_assert(mc, rst);
 		if (err) {
-			dev_err(mc->dev, "Failed to hot reset %s: %d\n",
+			dev_err(mc->dev, "failed to hot reset %s: %d\n",
 				rst->name, err);
 			return err;
 		}
@@ -213,7 +215,7 @@ static int tegra_mc_hotreset_deassert(struct reset_controller_dev *rcdev,
 		/* take out client from hot reset */
 		err = rst_ops->hotreset_deassert(mc, rst);
 		if (err) {
-			dev_err(mc->dev, "Failed to deassert hot reset %s: %d\n",
+			dev_err(mc->dev, "failed to deassert hot reset %s: %d\n",
 				rst->name, err);
 			return err;
 		}
@@ -223,7 +225,7 @@ static int tegra_mc_hotreset_deassert(struct reset_controller_dev *rcdev,
 		/* allow new DMA requests to proceed to arbitration */
 		err = rst_ops->unblock_dma(mc, rst);
 		if (err) {
-			dev_err(mc->dev, "Failed to unblock %s DMA : %d\n",
+			dev_err(mc->dev, "failed to unblock %s DMA : %d\n",
 				rst->name, err);
 			return err;
 		}
@@ -575,8 +577,15 @@ static __maybe_unused irqreturn_t tegra20_mc_irq(int irq, void *data)
 			break;
 
 		case MC_INT_INVALID_GART_PAGE:
-			dev_err_ratelimited(mc->dev, "%s\n", error);
-			continue;
+			reg = MC_GART_ERROR_REQ;
+			value = mc_readl(mc, reg);
+
+			id = (value >> 1) & mc->soc->client_id_mask;
+			desc = error_names[2];
+
+			if (value & BIT(0))
+				direction = "write";
+			break;
 
 		case MC_INT_SECURITY_VIOLATION:
 			reg = MC_SECURITY_VIOLATION_STATUS;
@@ -611,15 +620,10 @@ static __maybe_unused irqreturn_t tegra20_mc_irq(int irq, void *data)
 
 static int tegra_mc_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct resource *res;
 	struct tegra_mc *mc;
 	void *isr;
 	int err;
-
-	match = of_match_node(tegra_mc_of_match, pdev->dev.of_node);
-	if (!match)
-		return -ENODEV;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
@@ -627,7 +631,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mc);
 	spin_lock_init(&mc->lock);
-	mc->soc = match->data;
+	mc->soc = of_device_get_match_data(&pdev->dev);
 	mc->dev = &pdev->dev;
 
 	/* length of MC tick in nanoseconds */
@@ -638,38 +642,35 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(mc->regs))
 		return PTR_ERR(mc->regs);
 
+	mc->clk = devm_clk_get(&pdev->dev, "mc");
+	if (IS_ERR(mc->clk)) {
+		dev_err(&pdev->dev, "failed to get MC clock: %ld\n",
+			PTR_ERR(mc->clk));
+		return PTR_ERR(mc->clk);
+	}
+
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	if (mc->soc == &tegra20_mc_soc) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		mc->regs2 = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(mc->regs2))
-			return PTR_ERR(mc->regs2);
-
 		isr = tegra20_mc_irq;
 	} else
 #endif
 	{
-		mc->clk = devm_clk_get(&pdev->dev, "mc");
-		if (IS_ERR(mc->clk)) {
-			dev_err(&pdev->dev, "failed to get MC clock: %ld\n",
-				PTR_ERR(mc->clk));
-			return PTR_ERR(mc->clk);
-		}
-
 		err = tegra_mc_setup_latency_allowance(mc);
 		if (err < 0) {
-			dev_err(&pdev->dev, "failed to setup latency allowance: %d\n",
+			dev_err(&pdev->dev,
+				"failed to setup latency allowance: %d\n",
 				err);
 			return err;
 		}
 
 		isr = tegra_mc_irq;
-	}
 
-	err = tegra_mc_setup_timings(mc);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to setup timings: %d\n", err);
-		return err;
+		err = tegra_mc_setup_timings(mc);
+		if (err < 0) {
+			dev_err(&pdev->dev, "failed to setup timings: %d\n",
+				err);
+			return err;
+		}
 	}
 
 	mc->irq = platform_get_irq(pdev, 0);
@@ -678,11 +679,11 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return mc->irq;
 	}
 
-	WARN(!mc->soc->client_id_mask, "Missing client ID mask for this SoC\n");
+	WARN(!mc->soc->client_id_mask, "missing client ID mask for this SoC\n");
 
 	mc_writel(mc, mc->soc->intmask, MC_INTMASK);
 
-	err = devm_request_irq(&pdev->dev, mc->irq, isr, IRQF_SHARED,
+	err = devm_request_irq(&pdev->dev, mc->irq, isr, 0,
 			       dev_name(&pdev->dev), mc);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,
@@ -695,20 +696,65 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register reset controller: %d\n",
 			err);
 
-	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU)) {
+	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU) && mc->soc->smmu) {
 		mc->smmu = tegra_smmu_probe(&pdev->dev, mc->soc->smmu, mc);
-		if (IS_ERR(mc->smmu))
+		if (IS_ERR(mc->smmu)) {
 			dev_err(&pdev->dev, "failed to probe SMMU: %ld\n",
 				PTR_ERR(mc->smmu));
+			mc->smmu = NULL;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_GART) && !mc->soc->smmu) {
+		mc->gart = tegra_gart_probe(&pdev->dev, mc);
+		if (IS_ERR(mc->gart)) {
+			dev_err(&pdev->dev, "failed to probe GART: %ld\n",
+				PTR_ERR(mc->gart));
+			mc->gart = NULL;
+		}
 	}
 
 	return 0;
 }
 
+static int tegra_mc_suspend(struct device *dev)
+{
+	struct tegra_mc *mc = dev_get_drvdata(dev);
+	int err;
+
+	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_GART) && mc->gart) {
+		err = tegra_gart_suspend(mc->gart);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int tegra_mc_resume(struct device *dev)
+{
+	struct tegra_mc *mc = dev_get_drvdata(dev);
+	int err;
+
+	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_GART) && mc->gart) {
+		err = tegra_gart_resume(mc->gart);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops tegra_mc_pm_ops = {
+	.suspend = tegra_mc_suspend,
+	.resume = tegra_mc_resume,
+};
+
 static struct platform_driver tegra_mc_driver = {
 	.driver = {
 		.name = "tegra-mc",
 		.of_match_table = tegra_mc_of_match,
+		.pm = &tegra_mc_pm_ops,
 		.suppress_bind_attrs = true,
 	},
 	.prevent_deferred_probe = true,

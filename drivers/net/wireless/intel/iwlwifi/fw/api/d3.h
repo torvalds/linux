@@ -224,8 +224,18 @@ struct iwl_wowlan_pattern {
 
 #define IWL_WOWLAN_MAX_PATTERNS	20
 
+/**
+ * struct iwl_wowlan_patterns_cmd - WoWLAN wakeup patterns
+ */
 struct iwl_wowlan_patterns_cmd {
+	/**
+	 * @n_patterns: number of patterns
+	 */
 	__le32 n_patterns;
+
+	/**
+	 * @patterns: the patterns, array length in @n_patterns
+	 */
 	struct iwl_wowlan_pattern patterns[];
 } __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_1 */
 

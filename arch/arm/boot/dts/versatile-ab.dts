@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
-/include/ "skeleton.dtsi"
 
 / {
 	model = "ARM Versatile AB";
@@ -21,6 +20,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x0 0x08000000>;
 	};
 

@@ -14,8 +14,10 @@
 #include <linux/reset-controller.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
-#include "clk-regmap.h"
+#include <linux/slab.h>
 #include "meson-aoclk.h"
+
+#include "clk-input.h"
 
 static int meson_aoclk_do_reset(struct reset_controller_dev *rcdev,
 			       unsigned long id)
@@ -30,6 +32,37 @@ static int meson_aoclk_do_reset(struct reset_controller_dev *rcdev,
 static const struct reset_control_ops meson_aoclk_reset_ops = {
 	.reset = meson_aoclk_do_reset,
 };
+
+static int meson_aoclkc_register_inputs(struct device *dev,
+					struct meson_aoclk_data *data)
+{
+	struct clk_hw *hw;
+	char *str;
+	int i;
+
+	for (i = 0; i < data->num_inputs; i++) {
+		const struct meson_aoclk_input *in = &data->inputs[i];
+
+		str = kasprintf(GFP_KERNEL, "%s%s", data->input_prefix,
+				in->name);
+		if (!str)
+			return -ENOMEM;
+
+		hw = meson_clk_hw_register_input(dev, in->name, str, 0);
+		kfree(str);
+
+		if (IS_ERR(hw)) {
+			if (!in->required && PTR_ERR(hw) == -ENOENT)
+				continue;
+			else if (PTR_ERR(hw) != -EPROBE_DEFER)
+				dev_err(dev, "failed to register input %s\n",
+					in->name);
+			return PTR_ERR(hw);
+		}
+	}
+
+	return 0;
+}
 
 int meson_aoclkc_probe(struct platform_device *pdev)
 {
@@ -53,6 +86,10 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	}
 
+	ret = meson_aoclkc_register_inputs(dev, data);
+	if (ret)
+		return ret;
+
 	/* Reset Controller */
 	rstc->data = data;
 	rstc->regmap = regmap;
@@ -65,15 +102,20 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/*
-	 * Populate regmap and register all clks
-	 */
-	for (clkid = 0; clkid < data->num_clks; clkid++) {
+	/* Populate regmap */
+	for (clkid = 0; clkid < data->num_clks; clkid++)
 		data->clks[clkid]->map = regmap;
 
+	/* Register all clks */
+	for (clkid = 0; clkid < data->hw_data->num; clkid++) {
+		if (!data->hw_data->hws[clkid])
+			continue;
+
 		ret = devm_clk_hw_register(dev, data->hw_data->hws[clkid]);
-		if (ret)
+		if (ret) {
+			dev_err(dev, "Clock registration failed\n");
 			return ret;
+		}
 	}
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,

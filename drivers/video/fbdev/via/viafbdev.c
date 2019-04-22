@@ -2110,7 +2110,7 @@ MODULE_PARM_DESC(viafb_lcd_panel_id,
 
 module_param(viafb_lcd_dsp_method, int, S_IRUSR);
 MODULE_PARM_DESC(viafb_lcd_dsp_method,
-	"Set Flat Panel display scaling method.(Default=Expandsion)");
+	"Set Flat Panel display scaling method.(Default=Expansion)");
 
 module_param(viafb_SAMM_ON, int, S_IRUSR);
 MODULE_PARM_DESC(viafb_SAMM_ON,

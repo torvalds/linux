@@ -80,7 +80,7 @@ static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
 struct tc_action_ops {
 	struct list_head head;
 	char    kind[IFNAMSIZ];
-	__u32   type; /* TBD to match kind */
+	enum tca_id  id; /* identifier should match kind */
 	size_t	size;
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *,

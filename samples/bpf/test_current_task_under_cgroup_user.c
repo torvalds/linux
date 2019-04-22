@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
 	cg2 = create_and_get_cgroup(CGROUP_PATH);
 
-	if (!cg2)
+	if (cg2 < 0)
 		goto err;
 
 	if (bpf_map_update_elem(map_fd[0], &idx, &cg2, BPF_ANY)) {

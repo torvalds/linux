@@ -27,7 +27,7 @@
 TRACE_EVENT(extlog_mem_event,
 	TP_PROTO(struct cper_sec_mem_err *mem,
 		 u32 err_seq,
-		 const uuid_le *fru_id,
+		 const guid_t *fru_id,
 		 const char *fru_text,
 		 u8 sev),
 
@@ -39,7 +39,7 @@ TRACE_EVENT(extlog_mem_event,
 		__field(u8, sev)
 		__field(u64, pa)
 		__field(u8, pa_mask_lsb)
-		__field_struct(uuid_le, fru_id)
+		__field_struct(guid_t, fru_id)
 		__string(fru_text, fru_text)
 		__field_struct(struct cper_mem_err_compact, data)
 	),
@@ -218,8 +218,8 @@ TRACE_EVENT(arm_event,
  */
 TRACE_EVENT(non_standard_event,
 
-	TP_PROTO(const uuid_le *sec_type,
-		 const uuid_le *fru_id,
+	TP_PROTO(const guid_t *sec_type,
+		 const guid_t *fru_id,
 		 const char *fru_text,
 		 const u8 sev,
 		 const u8 *err,

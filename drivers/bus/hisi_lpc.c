@@ -522,10 +522,9 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 
 		if (!found) {
 			dev_warn(hostdev,
-				 "could not find cell for child device (%s)\n",
+				 "could not find cell for child device (%s), discarding\n",
 				 hid);
-			ret = -ENODEV;
-			goto fail;
+			continue;
 		}
 
 		pdev = platform_device_alloc(cell->name, PLATFORM_DEVID_AUTO);

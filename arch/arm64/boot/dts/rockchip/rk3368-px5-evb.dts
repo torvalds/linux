@@ -48,7 +48,6 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
-	disable-wp;
 	mmc-hs200-1_8v;
 	no-sdio;
 	no-sd;

@@ -260,7 +260,7 @@ static int jz_nand_correct_ecc_rs(struct nand_chip *chip, uint8_t *dat,
 }
 
 static int jz_nand_ioremap_resource(struct platform_device *pdev,
-	const char *name, struct resource **res, void *__iomem *base)
+	const char *name, struct resource **res, void __iomem **base)
 {
 	int ret;
 

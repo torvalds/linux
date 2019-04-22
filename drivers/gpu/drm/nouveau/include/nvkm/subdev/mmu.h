@@ -17,6 +17,7 @@ struct nvkm_vma {
 	bool part:1; /* Region was split from an allocated region by map(). */
 	bool user:1; /* Region user-allocated. */
 	bool busy:1; /* Region busy (for temporarily preventing user access). */
+	bool mapped:1; /* Region contains valid pages. */
 	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */
 	struct nvkm_tags *tags; /* Compression tag reference. */
 };
@@ -44,6 +45,8 @@ struct nvkm_vmm {
 
 	dma_addr_t null;
 	void *nullp;
+
+	bool replay;
 };
 
 int nvkm_vmm_new(struct nvkm_device *, u64 addr, u64 size, void *argv, u32 argc,
@@ -63,6 +66,7 @@ struct nvkm_vmm_map {
 	struct nvkm_mm_node *mem;
 	struct scatterlist *sgl;
 	dma_addr_t *dma;
+	u64 *pfn;
 	u64 off;
 
 	const struct nvkm_vmm_page *page;
@@ -130,5 +134,5 @@ int gm20b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gp100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gp10b_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gv100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
-int tu104_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
+int tu102_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 #endif

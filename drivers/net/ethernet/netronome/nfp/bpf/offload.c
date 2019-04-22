@@ -163,8 +163,9 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 
 		list_add_tail(&meta->l, &nfp_prog->insns);
 	}
+	nfp_prog->n_insns = cnt;
 
-	nfp_bpf_jit_prepare(nfp_prog, cnt);
+	nfp_bpf_jit_prepare(nfp_prog);
 
 	return 0;
 }
@@ -184,8 +185,6 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 
 static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct nfp_net *nn = netdev_priv(prog->aux->offload->netdev);
-	struct nfp_app *app = nn->app;
 	struct nfp_prog *nfp_prog;
 	int ret;
 
@@ -196,7 +195,7 @@ static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
 	nfp_prog->type = prog->type;
-	nfp_prog->bpf = app->priv;
+	nfp_prog->bpf = bpf_offload_dev_priv(prog->aux->offload->offdev);
 
 	ret = nfp_prog_prepare(nfp_prog, prog->insnsi, prog->len);
 	if (ret)
@@ -218,6 +217,10 @@ static int nfp_bpf_translate(struct bpf_prog *prog)
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int max_instr;
 	int err;
+
+	/* We depend on dead code elimination succeeding */
+	if (prog->aux->offload->opt_failed)
+		return -EINVAL;
 
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
@@ -591,6 +594,8 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
 	.insn_hook	= nfp_verify_insn,
 	.finalize	= nfp_bpf_finalize,
+	.replace_insn	= nfp_bpf_opt_replace_insn,
+	.remove_insns	= nfp_bpf_opt_remove_insns,
 	.prepare	= nfp_bpf_verifier_prep,
 	.translate	= nfp_bpf_translate,
 	.destroy	= nfp_bpf_destroy,

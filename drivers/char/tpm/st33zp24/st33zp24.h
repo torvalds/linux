@@ -18,8 +18,8 @@
 #ifndef __LOCAL_ST33ZP24_H__
 #define __LOCAL_ST33ZP24_H__
 
-#define TPM_WRITE_DIRECTION             0x80
-#define TPM_BUFSIZE                     2048
+#define TPM_WRITE_DIRECTION	0x80
+#define ST33ZP24_BUFSIZE	2048
 
 struct st33zp24_dev {
 	struct tpm_chip *chip;

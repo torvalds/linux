@@ -129,6 +129,12 @@ xchk_dir_actor(
 		goto out;
 	}
 
+	/* Does this name make sense? */
+	if (!xfs_dir2_namecheck(name, namelen)) {
+		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
+		goto out;
+	}
+
 	if (!strncmp(".", name, namelen)) {
 		/* If this is "." then check that the inum matches the dir. */
 		if (xfs_sb_version_hasftype(&mp->m_sb) && type != DT_DIR)

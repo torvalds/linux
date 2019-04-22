@@ -65,10 +65,20 @@ void fnic_handle_link(struct work_struct *work)
 	fnic->link_status = vnic_dev_link_status(fnic->vdev);
 	fnic->link_down_cnt = vnic_dev_link_down_cnt(fnic->vdev);
 
+	atomic64_set(&fnic->fnic_stats.misc_stats.current_port_speed,
+			vnic_dev_port_speed(fnic->vdev));
+	shost_printk(KERN_INFO, fnic->lport->host, "Current vnic speed set to :  %llu\n",
+			(u64)atomic64_read(
+			&fnic->fnic_stats.misc_stats.current_port_speed));
+
 	switch (vnic_dev_port_speed(fnic->vdev)) {
 	case DCEM_PORTSPEED_10G:
 		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_10GBIT;
 		fnic->lport->link_supported_speeds = FC_PORTSPEED_10GBIT;
+		break;
+	case DCEM_PORTSPEED_20G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_20GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_20GBIT;
 		break;
 	case DCEM_PORTSPEED_25G:
 		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_25GBIT;

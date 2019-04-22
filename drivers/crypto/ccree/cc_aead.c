@@ -549,13 +549,12 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 			  unsigned int keylen)
 {
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct rtattr *rta = (struct rtattr *)key;
 	struct cc_crypto_req cc_req = {};
-	struct crypto_authenc_key_param *param;
 	struct cc_hw_desc desc[MAX_AEAD_SETKEY_SEQ];
-	int rc = -EINVAL;
 	unsigned int seq_len = 0;
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
+	const u8 *enckey, *authkey;
+	int rc;
 
 	dev_dbg(dev, "Setting key in context @%p for %s. key=%p keylen=%u\n",
 		ctx, crypto_tfm_alg_name(crypto_aead_tfm(tfm)), key, keylen);
@@ -563,35 +562,33 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	/* STAT_PHASE_0: Init and sanity checks */
 
 	if (ctx->auth_mode != DRV_HASH_NULL) { /* authenc() alg. */
-		if (!RTA_OK(rta, keylen))
+		struct crypto_authenc_keys keys;
+
+		rc = crypto_authenc_extractkeys(&keys, key, keylen);
+		if (rc)
 			goto badkey;
-		if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
-			goto badkey;
-		if (RTA_PAYLOAD(rta) < sizeof(*param))
-			goto badkey;
-		param = RTA_DATA(rta);
-		ctx->enc_keylen = be32_to_cpu(param->enckeylen);
-		key += RTA_ALIGN(rta->rta_len);
-		keylen -= RTA_ALIGN(rta->rta_len);
-		if (keylen < ctx->enc_keylen)
-			goto badkey;
-		ctx->auth_keylen = keylen - ctx->enc_keylen;
+		enckey = keys.enckey;
+		authkey = keys.authkey;
+		ctx->enc_keylen = keys.enckeylen;
+		ctx->auth_keylen = keys.authkeylen;
 
 		if (ctx->cipher_mode == DRV_CIPHER_CTR) {
 			/* the nonce is stored in bytes at end of key */
+			rc = -EINVAL;
 			if (ctx->enc_keylen <
 			    (AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE))
 				goto badkey;
 			/* Copy nonce from last 4 bytes in CTR key to
 			 *  first 4 bytes in CTR IV
 			 */
-			memcpy(ctx->ctr_nonce, key + ctx->auth_keylen +
-			       ctx->enc_keylen - CTR_RFC3686_NONCE_SIZE,
-			       CTR_RFC3686_NONCE_SIZE);
+			memcpy(ctx->ctr_nonce, enckey + ctx->enc_keylen -
+			       CTR_RFC3686_NONCE_SIZE, CTR_RFC3686_NONCE_SIZE);
 			/* Set CTR key size */
 			ctx->enc_keylen -= CTR_RFC3686_NONCE_SIZE;
 		}
 	} else { /* non-authenc - has just one key */
+		enckey = key;
+		authkey = NULL;
 		ctx->enc_keylen = keylen;
 		ctx->auth_keylen = 0;
 	}
@@ -603,13 +600,14 @@ static int cc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	/* STAT_PHASE_1: Copy key to ctx */
 
 	/* Get key material */
-	memcpy(ctx->enckey, key + ctx->auth_keylen, ctx->enc_keylen);
+	memcpy(ctx->enckey, enckey, ctx->enc_keylen);
 	if (ctx->enc_keylen == 24)
 		memset(ctx->enckey + 24, 0, CC_AES_KEY_SIZE_MAX - 24);
 	if (ctx->auth_mode == DRV_HASH_XCBC_MAC) {
-		memcpy(ctx->auth_state.xcbc.xcbc_keys, key, ctx->auth_keylen);
+		memcpy(ctx->auth_state.xcbc.xcbc_keys, authkey,
+		       ctx->auth_keylen);
 	} else if (ctx->auth_mode != DRV_HASH_NULL) { /* HMAC */
-		rc = cc_get_plain_hmac_key(tfm, key, ctx->auth_keylen);
+		rc = cc_get_plain_hmac_key(tfm, authkey, ctx->auth_keylen);
 		if (rc)
 			goto badkey;
 	}

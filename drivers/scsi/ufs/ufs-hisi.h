@@ -91,6 +91,9 @@ enum {
 #define UFS_HISI_LIMIT_HS_RATE	PA_HS_MODE_B
 #define UFS_HISI_LIMIT_DESIRED_MODE	FAST
 
+#define UFS_HISI_CAP_RESERVED		BIT(0)
+#define UFS_HISI_CAP_PHY10nm		BIT(1)
+
 struct ufs_hisi_host {
 	struct ufs_hba *hba;
 	void __iomem *ufs_sys_ctrl;
@@ -112,4 +115,5 @@ struct ufs_hisi_host {
 	ufs_sys_ctrl_writel((host),                                            \
 			    ((~(mask)) & (ufs_sys_ctrl_readl((host), (reg)))), \
 			    (reg))
+
 #endif /* UFS_HISI_H_ */

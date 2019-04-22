@@ -160,6 +160,7 @@ struct clk_hw_omap {
 	struct clockdomain	*clkdm;
 	const struct clk_hw_omap_ops	*ops;
 	u32			context;
+	int			autoidle_count;
 };
 
 /*

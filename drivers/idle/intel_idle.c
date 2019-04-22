@@ -1103,6 +1103,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(ATOM_GOLDMONT,		idle_cpu_bxt),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	idle_cpu_bxt),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(ATOM_TREMONT_X,		idle_cpu_dnv),
 	{}
 };
 

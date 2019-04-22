@@ -73,7 +73,8 @@ static int tls_enc_record(struct aead_request *aead_req,
 	len -= TLS_CIPHER_AES_GCM_128_IV_SIZE;
 
 	tls_make_aad(aad, len - TLS_CIPHER_AES_GCM_128_TAG_SIZE,
-		     (char *)&rcd_sn, sizeof(rcd_sn), buf[0]);
+		(char *)&rcd_sn, sizeof(rcd_sn), buf[0],
+		TLS_1_2_VERSION);
 
 	memcpy(iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, buf + TLS_HEADER_SIZE,
 	       TLS_CIPHER_AES_GCM_128_IV_SIZE);

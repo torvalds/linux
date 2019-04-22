@@ -11,6 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
+#include <linux/reset/socfpga.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -18,7 +19,6 @@
 #include "reset-simple.h"
 
 #define SOCFPGA_NR_BANKS	8
-void __init socfpga_reset_init(void);
 
 static int a10_reset_init(struct device_node *np)
 {

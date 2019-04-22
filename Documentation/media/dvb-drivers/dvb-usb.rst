@@ -125,7 +125,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2004-12-26
 
-  - refactored the dibusb-driver, splitted into separate files
+  - refactored the dibusb-driver, split into separate files
   - i2c-probing enabled
 
   2004-12-06

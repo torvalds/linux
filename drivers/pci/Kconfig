@@ -21,13 +21,14 @@ menuconfig PCI
 	  support for PCI-X and the foundations for PCI Express support.
 	  Say 'Y' here unless you know what you are doing.
 
+if PCI
+
 config PCI_DOMAINS
 	bool
 	depends on PCI
 
 config PCI_DOMAINS_GENERIC
 	bool
-	depends on PCI
 	select PCI_DOMAINS
 
 config PCI_SYSCALL
@@ -37,7 +38,6 @@ source "drivers/pci/pcie/Kconfig"
 
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"
-	depends on PCI
 	select GENERIC_MSI_IRQ
 	help
 	   This allows device drivers to enable MSI (Message Signaled
@@ -59,7 +59,6 @@ config PCI_MSI_IRQ_DOMAIN
 config PCI_QUIRKS
 	default y
 	bool "Enable PCI quirk workarounds" if EXPERT
-	depends on PCI
 	help
 	  This enables workarounds for various PCI chipset bugs/quirks.
 	  Disable this only if your target machine is unaffected by PCI
@@ -67,7 +66,7 @@ config PCI_QUIRKS
 
 config PCI_DEBUG
 	bool "PCI Debugging"
-	depends on PCI && DEBUG_KERNEL
+	depends on DEBUG_KERNEL
 	help
 	  Say Y here if you want the PCI core to produce a bunch of debug
 	  messages to the system log.  Select this if you are having a
@@ -77,7 +76,6 @@ config PCI_DEBUG
 
 config PCI_REALLOC_ENABLE_AUTO
 	bool "Enable PCI resource re-allocation detection"
-	depends on PCI
 	depends on PCI_IOV
 	help
 	  Say Y here if you want the PCI core to detect if PCI resource
@@ -90,7 +88,6 @@ config PCI_REALLOC_ENABLE_AUTO
 
 config PCI_STUB
 	tristate "PCI Stub driver"
-	depends on PCI
 	help
 	  Say Y or M here if you want be able to reserve a PCI device
 	  when it is going to be assigned to a guest operating system.
@@ -99,7 +96,6 @@ config PCI_STUB
 
 config PCI_PF_STUB
 	tristate "PCI PF Stub driver"
-	depends on PCI
 	depends on PCI_IOV
 	help
 	  Say Y or M here if you want to enable support for devices that
@@ -111,7 +107,7 @@ config PCI_PF_STUB
 
 config XEN_PCIDEV_FRONTEND
         tristate "Xen PCI Frontend"
-        depends on PCI && X86 && XEN
+        depends on X86 && XEN
         select PCI_XEN
 	select XEN_XENBUS_FRONTEND
         default y
@@ -133,7 +129,6 @@ config PCI_BRIDGE_EMUL
 
 config PCI_IOV
 	bool "PCI IOV support"
-	depends on PCI
 	select PCI_ATS
 	help
 	  I/O Virtualization is a PCI feature supported by some devices
@@ -144,7 +139,6 @@ config PCI_IOV
 
 config PCI_PRI
 	bool "PCI PRI support"
-	depends on PCI
 	select PCI_ATS
 	help
 	  PRI is the PCI Page Request Interface. It allows PCI devices that are
@@ -154,7 +148,6 @@ config PCI_PRI
 
 config PCI_PASID
 	bool "PCI PASID support"
-	depends on PCI
 	select PCI_ATS
 	help
 	  Process Address Space Identifiers (PASIDs) can be used by PCI devices
@@ -167,7 +160,7 @@ config PCI_PASID
 
 config PCI_P2PDMA
 	bool "PCI peer-to-peer transfer support"
-	depends on PCI && ZONE_DEVICE
+	depends on ZONE_DEVICE
 	select GENERIC_ALLOCATOR
 	help
 	  Enableѕ drivers to do PCI peer-to-peer transactions to and from
@@ -184,12 +177,11 @@ config PCI_P2PDMA
 
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)
-	depends on PCI
 	select NLS
 
 config PCI_HYPERV
         tristate "Hyper-V PCI Frontend"
-        depends on PCI && X86 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && X86_64
+        depends on X86 && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && X86_64
         help
           The PCI device frontend driver allows the kernel to import arbitrary
           PCI devices from a PCI backend to support PCI driver domains.
@@ -198,3 +190,5 @@ source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/controller/Kconfig"
 source "drivers/pci/endpoint/Kconfig"
 source "drivers/pci/switch/Kconfig"
+
+endif

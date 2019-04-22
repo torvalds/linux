@@ -361,10 +361,6 @@ config PPC_PTDUMP
 
 	  If you are unsure, say N.
 
-config PPC_HTDUMP
-	def_bool y
-	depends on PPC_PTDUMP && PPC_BOOK3S_64
-
 config PPC_FAST_ENDIAN_SWITCH
 	bool "Deprecated fast endian-switch syscall"
         depends on DEBUG_KERNEL && PPC_BOOK3S_64

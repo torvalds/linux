@@ -34,6 +34,7 @@
 #include "session.h"
 #include "perf_regs.h"
 #include "unwind.h"
+#include "map.h"
 #include "symbol.h"
 #include "util.h"
 #include "debug.h"

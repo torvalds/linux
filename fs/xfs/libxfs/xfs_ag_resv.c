@@ -281,7 +281,7 @@ xfs_ag_resv_init(
 			 */
 			ask = used = 0;
 
-			mp->m_inotbt_nores = true;
+			mp->m_finobt_nores = true;
 
 			error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask,
 					&used);

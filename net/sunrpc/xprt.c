@@ -49,6 +49,7 @@
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/mm.h>
 
 #include <trace/events/sunrpc.h>
 
@@ -643,11 +644,13 @@ static void xprt_autoclose(struct work_struct *work)
 {
 	struct rpc_xprt *xprt =
 		container_of(work, struct rpc_xprt, task_cleanup);
+	unsigned int pflags = memalloc_nofs_save();
 
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	xprt->ops->close(xprt);
 	xprt_release_write(xprt, NULL);
 	wake_up_bit(&xprt->state, XPRT_LOCKED);
+	memalloc_nofs_restore(pflags);
 }
 
 /**
@@ -661,7 +664,7 @@ void xprt_disconnect_done(struct rpc_xprt *xprt)
 	spin_lock_bh(&xprt->transport_lock);
 	xprt_clear_connected(xprt);
 	xprt_clear_write_space_locked(xprt);
-	xprt_wake_pending_tasks(xprt, -EAGAIN);
+	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
 EXPORT_SYMBOL_GPL(xprt_disconnect_done);
@@ -1151,6 +1154,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 	struct rpc_xprt *xprt = req->rq_xprt;
 
 	if (xprt_request_need_enqueue_transmit(task, req)) {
+		req->rq_bytes_sent = 0;
 		spin_lock(&xprt->queue_lock);
 		/*
 		 * Requests that carry congestion control credits are added
@@ -1164,6 +1168,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				/* Note: req is added _before_ pos */
 				list_add_tail(&req->rq_xmit, &pos->rq_xmit);
 				INIT_LIST_HEAD(&req->rq_xmit2);
+				trace_xprt_enq_xmit(task, 1);
 				goto out;
 			}
 		} else if (RPC_IS_SWAPPER(task)) {
@@ -1175,19 +1180,22 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				/* Note: req is added _before_ pos */
 				list_add_tail(&req->rq_xmit, &pos->rq_xmit);
 				INIT_LIST_HEAD(&req->rq_xmit2);
+				trace_xprt_enq_xmit(task, 2);
 				goto out;
 			}
-		} else {
+		} else if (!req->rq_seqno) {
 			list_for_each_entry(pos, &xprt->xmit_queue, rq_xmit) {
 				if (pos->rq_task->tk_owner != task->tk_owner)
 					continue;
 				list_add_tail(&req->rq_xmit2, &pos->rq_xmit2);
 				INIT_LIST_HEAD(&req->rq_xmit);
+				trace_xprt_enq_xmit(task, 3);
 				goto out;
 			}
 		}
 		list_add_tail(&req->rq_xmit, &xprt->xmit_queue);
 		INIT_LIST_HEAD(&req->rq_xmit2);
+		trace_xprt_enq_xmit(task, 4);
 out:
 		set_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
 		spin_unlock(&xprt->queue_lock);
@@ -1312,8 +1320,6 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 	int is_retrans = RPC_WAS_SENT(task);
 	int status;
 
-	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
-
 	if (!req->rq_bytes_sent) {
 		if (xprt_request_data_received(task)) {
 			status = 0;
@@ -1323,6 +1329,13 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 		if (rpcauth_xmit_need_reencode(task)) {
 			status = -EBADMSG;
 			goto out_dequeue;
+		}
+		if (task->tk_ops->rpc_call_prepare_transmit) {
+			task->tk_ops->rpc_call_prepare_transmit(task,
+					task->tk_calldata);
+			status = task->tk_status;
+			if (status < 0)
+				goto out_dequeue;
 		}
 	}
 
@@ -1335,9 +1348,9 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	connect_cookie = xprt->connect_cookie;
 	status = xprt->ops->send_request(req);
-	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
 		req->rq_ntrans--;
+		trace_xprt_transmit(req, status);
 		return status;
 	}
 
@@ -1346,7 +1359,6 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	xprt_inject_disconnect(xprt);
 
-	dprintk("RPC: %5u xmit complete\n", task->tk_pid);
 	task->tk_flags |= RPC_TASK_SENT;
 	spin_lock_bh(&xprt->transport_lock);
 
@@ -1359,6 +1371,7 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 
 	req->rq_connect_cookie = connect_cookie;
 out_dequeue:
+	trace_xprt_transmit(req, status);
 	xprt_request_dequeue_transmit(task);
 	rpc_wake_up_queued_task_set_status(&xprt->sending, task, status);
 	return status;
@@ -1598,7 +1611,6 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_buffer  = NULL;
 	req->rq_xid	= xprt_alloc_xid(xprt);
 	xprt_init_connect_cookie(req, xprt);
-	req->rq_bytes_sent = 0;
 	req->rq_snd_buf.len = 0;
 	req->rq_snd_buf.buflen = 0;
 	req->rq_rcv_buf.len = 0;
@@ -1720,6 +1732,7 @@ void xprt_release(struct rpc_task *task)
 		xprt->ops->buf_free(task);
 	xprt_inject_disconnect(xprt);
 	xdr_free_bvec(&req->rq_rcv_buf);
+	xdr_free_bvec(&req->rq_snd_buf);
 	if (req->rq_cred != NULL)
 		put_rpccred(req->rq_cred);
 	task->tk_rqstp = NULL;
@@ -1748,7 +1761,6 @@ xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task)
 	 */
 	xbufp->len = xbufp->head[0].iov_len + xbufp->page_len +
 		xbufp->tail[0].iov_len;
-	req->rq_bytes_sent = 0;
 }
 #endif
 

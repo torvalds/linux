@@ -455,7 +455,7 @@ static const struct venus_resources msm8996_res = {
 	.reg_tbl_size = ARRAY_SIZE(msm8996_reg_preset),
 	.clks = {"core", "iface", "bus", "mbus" },
 	.clks_num = 4,
-	.max_load = 2563200,
+	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_3XX,
 	.vmem_id = VIDC_RESOURCE_NONE,
 	.vmem_size = 0,
@@ -465,10 +465,12 @@ static const struct venus_resources msm8996_res = {
 };
 
 static const struct freq_tbl sdm845_freq_table[] = {
-	{ 1944000, 380000000 },	/* 4k UHD @ 60 */
-	{  972000, 320000000 },	/* 4k UHD @ 30 */
-	{  489600, 200000000 },	/* 1080p @ 60 */
-	{  244800, 100000000 },	/* 1080p @ 30 */
+	{ 3110400, 533000000 },	/* 4096x2160@90 */
+	{ 2073600, 444000000 },	/* 4096x2160@60 */
+	{ 1944000, 404000000 },	/* 3840x2160@60 */
+	{  972000, 330000000 },	/* 3840x2160@30 */
+	{  489600, 200000000 },	/* 1920x1080@60 */
+	{  244800, 100000000 },	/* 1920x1080@30 */
 };
 
 static const struct venus_resources sdm845_res = {

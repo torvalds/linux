@@ -144,7 +144,9 @@ struct ntb_transport_qp {
 	struct list_head tx_free_q;
 	spinlock_t ntb_tx_free_q_lock;
 	void __iomem *tx_mw;
-	dma_addr_t tx_mw_phys;
+	phys_addr_t tx_mw_phys;
+	size_t tx_mw_size;
+	dma_addr_t tx_mw_dma_addr;
 	unsigned int tx_index;
 	unsigned int tx_max_entry;
 	unsigned int tx_max_frame;
@@ -862,6 +864,9 @@ static void ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 	if (!nt->link_is_up)
 		cancel_delayed_work_sync(&nt->link_work);
 
+	for (i = 0; i < nt->mw_count; i++)
+		ntb_free_mw(nt, i);
+
 	/* The scratchpad registers keep the values if the remote side
 	 * goes down, blast them now to give them a sane value the next
 	 * time they are accessed
@@ -1049,6 +1054,7 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	tx_size = (unsigned int)mw_size / num_qps_mw;
 	qp_offset = tx_size * (qp_num / mw_count);
 
+	qp->tx_mw_size = tx_size;
 	qp->tx_mw = nt->mw_vec[mw_num].vbase + qp_offset;
 	if (!qp->tx_mw)
 		return -EINVAL;
@@ -1644,7 +1650,7 @@ static int ntb_async_tx_submit(struct ntb_transport_qp *qp,
 	dma_cookie_t cookie;
 
 	device = chan->device;
-	dest = qp->tx_mw_phys + qp->tx_max_frame * entry->tx_index;
+	dest = qp->tx_mw_dma_addr + qp->tx_max_frame * entry->tx_index;
 	buff_off = (size_t)buf & ~PAGE_MASK;
 	dest_off = (size_t)dest & ~PAGE_MASK;
 
@@ -1863,6 +1869,18 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 		qp->rx_dma_chan = NULL;
 	}
 
+	if (qp->tx_dma_chan) {
+		qp->tx_mw_dma_addr =
+			dma_map_resource(qp->tx_dma_chan->device->dev,
+					 qp->tx_mw_phys, qp->tx_mw_size,
+					 DMA_FROM_DEVICE, 0);
+		if (dma_mapping_error(qp->tx_dma_chan->device->dev,
+				      qp->tx_mw_dma_addr)) {
+			qp->tx_mw_dma_addr = 0;
+			goto err1;
+		}
+	}
+
 	dev_dbg(&pdev->dev, "Using %s memcpy for TX\n",
 		qp->tx_dma_chan ? "DMA" : "CPU");
 
@@ -1904,6 +1922,10 @@ err1:
 	qp->rx_alloc_entry = 0;
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_free_q)))
 		kfree(entry);
+	if (qp->tx_mw_dma_addr)
+		dma_unmap_resource(qp->tx_dma_chan->device->dev,
+				   qp->tx_mw_dma_addr, qp->tx_mw_size,
+				   DMA_FROM_DEVICE, 0);
 	if (qp->tx_dma_chan)
 		dma_release_channel(qp->tx_dma_chan);
 	if (qp->rx_dma_chan)
@@ -1945,6 +1967,11 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 		 */
 		dma_sync_wait(chan, qp->last_cookie);
 		dmaengine_terminate_all(chan);
+
+		dma_unmap_resource(chan->device->dev,
+				   qp->tx_mw_dma_addr, qp->tx_mw_size,
+				   DMA_FROM_DEVICE, 0);
+
 		dma_release_channel(chan);
 	}
 

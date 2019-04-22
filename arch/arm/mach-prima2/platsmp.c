@@ -24,13 +24,16 @@ static void __iomem *clk_base;
 
 static DEFINE_SPINLOCK(boot_lock);
 
+/* XXX prima2_pen_release is cargo culted code - DO NOT COPY XXX */
+volatile int prima2_pen_release = -1;
+
 static void sirfsoc_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	pen_release = -1;
+	prima2_pen_release = -1;
 	smp_wmb();
 
 	/*
@@ -80,13 +83,13 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/*
 	 * The secondary processor is waiting to be released from
 	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
+	 * that it has been released by resetting prima2_pen_release.
 	 *
-	 * Note that "pen_release" is the hardware CPU ID, whereas
+	 * Note that "prima2_pen_release" is the hardware CPU ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	pen_release = cpu_logical_map(cpu);
-	sync_cache_w(&pen_release);
+	prima2_pen_release = cpu_logical_map(cpu);
+	sync_cache_w(&prima2_pen_release);
 
 	/*
 	 * Send the secondary CPU SEV, thereby causing the boot monitor to read
@@ -97,7 +100,7 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
 		smp_rmb();
-		if (pen_release == -1)
+		if (prima2_pen_release == -1)
 			break;
 
 		udelay(10);
@@ -109,7 +112,7 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? -ENOSYS : 0;
+	return prima2_pen_release != -1 ? -ENOSYS : 0;
 }
 
 const struct smp_operations sirfsoc_smp_ops __initconst = {

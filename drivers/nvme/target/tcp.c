@@ -1089,7 +1089,7 @@ out:
 
 static int nvmet_tcp_try_recv_one(struct nvmet_tcp_queue *queue)
 {
-	int result;
+	int result = 0;
 
 	if (unlikely(queue->rcv_state == NVMET_TCP_RECV_ERR))
 		return 0;
