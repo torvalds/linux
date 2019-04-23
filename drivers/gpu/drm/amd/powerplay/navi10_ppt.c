@@ -767,6 +767,25 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	return 0;
 }
 
+static int navi10_get_current_activity_percent(struct smu_context *smu,
+					       uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
+			       (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	*value = metrics.AverageGfxActivity;
+
+	return 0;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -791,6 +810,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.get_gpu_power = navi10_get_gpu_power,
+	.get_current_activity_percent = navi10_get_current_activity_percent,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
