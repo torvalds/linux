@@ -178,6 +178,7 @@ static bool __init __maybe_unused memory_region_available(phys_addr_t start,
 				in_ram = true;
 			break;
 		case BOOT_MEM_RESERVED:
+		case BOOT_MEM_NOMAP:
 			if ((start >= start_ && start < end_) ||
 			    (start < start_ && start + size >= start_))
 				free = false;
@@ -212,6 +213,9 @@ static void __init print_memory_map(void)
 			break;
 		case BOOT_MEM_RESERVED:
 			printk(KERN_CONT "(reserved)\n");
+			break;
+		case BOOT_MEM_NOMAP:
+			printk(KERN_CONT "(nomap)\n");
 			break;
 		default:
 			printk(KERN_CONT "type %lu\n", boot_mem_map.map[i].type);
@@ -487,6 +491,9 @@ static void __init bootmem_init(void)
 		switch (boot_mem_map.map[i].type) {
 		case BOOT_MEM_RAM:
 			break;
+		case BOOT_MEM_NOMAP: /* Discard the range from the system. */
+			memblock_remove(PFN_PHYS(start), PFN_PHYS(end - start));
+			continue;
 		default: /* Reserve the rest of the memory types at boot time */
 			memblock_reserve(PFN_PHYS(start), PFN_PHYS(end - start));
 			break;
@@ -861,6 +868,7 @@ static void __init resource_init(void)
 			res->flags |= IORESOURCE_SYSRAM;
 			break;
 		case BOOT_MEM_RESERVED:
+		case BOOT_MEM_NOMAP:
 		default:
 			res->name = "reserved";
 		}

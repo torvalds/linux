@@ -47,7 +47,9 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 int __init early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
-	add_memory_region(base, size, BOOT_MEM_RESERVED);
+	add_memory_region(base, size,
+			  nomap ? BOOT_MEM_NOMAP : BOOT_MEM_RESERVED);
+
 	return 0;
 }
 
