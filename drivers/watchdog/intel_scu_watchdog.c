@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/compiler.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -545,21 +544,4 @@ register_reboot_error:
 	iounmap(watchdog_device.timer_load_count_addr);
 	return ret;
 }
-
-static void __exit intel_scu_watchdog_exit(void)
-{
-
-	misc_deregister(&watchdog_device.miscdev);
-	unregister_reboot_notifier(&watchdog_device.intel_scu_notifier);
-	/* disable the timer */
-	iowrite32(0x00000002, watchdog_device.timer_control_addr);
-	iounmap(watchdog_device.timer_load_count_addr);
-}
-
 late_initcall(intel_scu_watchdog_init);
-module_exit(intel_scu_watchdog_exit);
-
-MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("Intel SCU Watchdog Device Driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(WDT_VER);
