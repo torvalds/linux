@@ -3285,6 +3285,7 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 					    rc);
 		}
 		free_rsp_buf(resp_buftype, rsp_iov.iov_base);
+		cifs_small_buf_release(req);
 		return rc == -ENODATA ? 0 : rc;
 	} else
 		trace_smb3_read_done(xid, req->PersistentFileId,
