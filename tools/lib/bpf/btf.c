@@ -1354,8 +1354,16 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 	}
 	/* special BTF "void" type is made canonical immediately */
 	d->map[0] = 0;
-	for (i = 1; i <= btf->nr_types; i++)
-		d->map[i] = BTF_UNPROCESSED_ID;
+	for (i = 1; i <= btf->nr_types; i++) {
+		struct btf_type *t = d->btf->types[i];
+		__u16 kind = BTF_INFO_KIND(t->info);
+
+		/* VAR and DATASEC are never deduped and are self-canonical */
+		if (kind == BTF_KIND_VAR || kind == BTF_KIND_DATASEC)
+			d->map[i] = i;
+		else
+			d->map[i] = BTF_UNPROCESSED_ID;
+	}
 
 	d->hypot_map = malloc(sizeof(__u32) * (1 + btf->nr_types));
 	if (!d->hypot_map) {
@@ -1946,6 +1954,8 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 	case BTF_KIND_UNION:
 	case BTF_KIND_FUNC:
 	case BTF_KIND_FUNC_PROTO:
+	case BTF_KIND_VAR:
+	case BTF_KIND_DATASEC:
 		return 0;
 
 	case BTF_KIND_INT:
@@ -2699,6 +2709,7 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 	case BTF_KIND_PTR:
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
+	case BTF_KIND_VAR:
 		r = btf_dedup_remap_type_id(d, t->type);
 		if (r < 0)
 			return r;
@@ -2749,6 +2760,20 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 				return r;
 			param->type = r;
 			param++;
+		}
+		break;
+	}
+
+	case BTF_KIND_DATASEC: {
+		struct btf_var_secinfo *var = (struct btf_var_secinfo *)(t + 1);
+		__u16 vlen = BTF_INFO_VLEN(t->info);
+
+		for (i = 0; i < vlen; i++) {
+			r = btf_dedup_remap_type_id(d, var->type);
+			if (r < 0)
+				return r;
+			var->type = r;
+			var++;
 		}
 		break;
 	}

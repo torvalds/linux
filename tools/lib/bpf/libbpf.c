@@ -817,7 +817,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, struct bpf_map *map,
 		memcpy(*data_buff, data->d_buf, data->d_size);
 	}
 
-	pr_debug("map %ld is \"%s\"\n", map - obj->maps, map->name);
+	pr_debug("map %td is \"%s\"\n", map - obj->maps, map->name);
 	return 0;
 }
 
@@ -2064,6 +2064,7 @@ static bool bpf_prog_type__needs_kver(enum bpf_prog_type type)
 	case BPF_PROG_TYPE_TRACEPOINT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
 	case BPF_PROG_TYPE_PERF_EVENT:
+	case BPF_PROG_TYPE_CGROUP_SYSCTL:
 		return false;
 	case BPF_PROG_TYPE_KPROBE:
 	default:
@@ -3004,6 +3005,8 @@ static const struct {
 						BPF_CGROUP_UDP4_SENDMSG),
 	BPF_EAPROG_SEC("cgroup/sendmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
 						BPF_CGROUP_UDP6_SENDMSG),
+	BPF_EAPROG_SEC("cgroup/sysctl",		BPF_PROG_TYPE_CGROUP_SYSCTL,
+						BPF_CGROUP_SYSCTL),
 };
 
 #undef BPF_PROG_SEC_IMPL

@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-==================
-BPF Flow Dissector
-==================
+============================
+BPF_PROG_TYPE_FLOW_DISSECTOR
+============================
 
 Overview
 ========
