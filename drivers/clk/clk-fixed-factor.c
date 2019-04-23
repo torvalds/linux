@@ -70,7 +70,7 @@ __clk_hw_register_fixed_factor(struct device *dev, struct device_node *np,
 		unsigned long flags, unsigned int mult, unsigned int div)
 {
 	struct clk_fixed_factor *fix;
-	struct clk_init_data init;
+	struct clk_init_data init = { };
 	struct clk_parent_data pdata = { .index = index };
 	struct clk_hw *hw;
 	int ret;
