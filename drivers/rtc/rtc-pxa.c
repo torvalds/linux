@@ -145,8 +145,7 @@ static void rtsr_set_bits(struct pxa_rtc *pxa_rtc, u32 mask)
 
 static irqreturn_t pxa_rtc_irq(int irq, void *dev_id)
 {
-	struct platform_device *pdev = to_platform_device(dev_id);
-	struct pxa_rtc *pxa_rtc = platform_get_drvdata(pdev);
+	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev_id);
 	u32 rtsr;
 	unsigned long events = 0;
 

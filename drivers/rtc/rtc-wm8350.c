@@ -340,8 +340,7 @@ static const struct rtc_class_ops wm8350_rtc_ops = {
 #ifdef CONFIG_PM_SLEEP
 static int wm8350_rtc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm8350 *wm8350 = dev_get_drvdata(&pdev->dev);
+	struct wm8350 *wm8350 = dev_get_drvdata(dev);
 	int ret = 0;
 	u16 reg;
 
@@ -351,8 +350,7 @@ static int wm8350_rtc_suspend(struct device *dev)
 	    reg & WM8350_RTC_ALMSTS) {
 		ret = wm8350_rtc_stop_alarm(wm8350);
 		if (ret != 0)
-			dev_err(&pdev->dev, "Failed to stop RTC alarm: %d\n",
-				ret);
+			dev_err(dev, "Failed to stop RTC alarm: %d\n", ret);
 	}
 
 	return ret;
@@ -360,15 +358,13 @@ static int wm8350_rtc_suspend(struct device *dev)
 
 static int wm8350_rtc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm8350 *wm8350 = dev_get_drvdata(&pdev->dev);
+	struct wm8350 *wm8350 = dev_get_drvdata(dev);
 	int ret;
 
 	if (wm8350->rtc.alarm_enabled) {
 		ret = wm8350_rtc_start_alarm(wm8350);
 		if (ret != 0)
-			dev_err(&pdev->dev,
-				"Failed to restart RTC alarm: %d\n", ret);
+			dev_err(dev, "Failed to restart RTC alarm: %d\n", ret);
 	}
 
 	return 0;

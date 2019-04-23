@@ -346,11 +346,10 @@ static const struct rtc_class_ops wm831x_rtc_ops = {
 /* Turn off the alarm if it should not be a wake source. */
 static int wm831x_rtc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(&pdev->dev);
+	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	int ret, enable;
 
-	if (wm831x_rtc->alarm_enabled && device_may_wakeup(&pdev->dev))
+	if (wm831x_rtc->alarm_enabled && device_may_wakeup(dev))
 		enable = WM831X_RTC_ALM_ENA;
 	else
 		enable = 0;
@@ -358,7 +357,7 @@ static int wm831x_rtc_suspend(struct device *dev)
 	ret = wm831x_set_bits(wm831x_rtc->wm831x, WM831X_RTC_CONTROL,
 			      WM831X_RTC_ALM_ENA, enable);
 	if (ret != 0)
-		dev_err(&pdev->dev, "Failed to update RTC alarm: %d\n", ret);
+		dev_err(dev, "Failed to update RTC alarm: %d\n", ret);
 
 	return 0;
 }
@@ -368,15 +367,13 @@ static int wm831x_rtc_suspend(struct device *dev)
  */
 static int wm831x_rtc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(&pdev->dev);
+	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	int ret;
 
 	if (wm831x_rtc->alarm_enabled) {
 		ret = wm831x_rtc_start_alarm(wm831x_rtc);
 		if (ret != 0)
-			dev_err(&pdev->dev,
-				"Failed to restart RTC alarm: %d\n", ret);
+			dev_err(dev, "Failed to restart RTC alarm: %d\n", ret);
 	}
 
 	return 0;
@@ -385,14 +382,13 @@ static int wm831x_rtc_resume(struct device *dev)
 /* Unconditionally disable the alarm */
 static int wm831x_rtc_freeze(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(&pdev->dev);
+	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
 	int ret;
 
 	ret = wm831x_set_bits(wm831x_rtc->wm831x, WM831X_RTC_CONTROL,
 			      WM831X_RTC_ALM_ENA, 0);
 	if (ret != 0)
-		dev_err(&pdev->dev, "Failed to stop RTC alarm: %d\n", ret);
+		dev_err(dev, "Failed to stop RTC alarm: %d\n", ret);
 
 	return 0;
 }
