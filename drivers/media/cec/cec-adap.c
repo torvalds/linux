@@ -809,14 +809,23 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 				__func__);
 			return -EINVAL;
 		}
-		if (msg->len > 1 && adap->is_configured &&
+		if (adap->is_configured &&
 		    !cec_has_log_addr(adap, cec_msg_initiator(msg))) {
 			dprintk(1, "%s: initiator has unknown logical address %d\n",
 				__func__, cec_msg_initiator(msg));
 			return -EINVAL;
 		}
+		/*
+		 * Special case: allow Ping and IMAGE/TEXT_VIEW_ON to be
+		 * transmitted to a TV, even if the adapter is unconfigured.
+		 * This makes it possible to detect or wake up displays that
+		 * pull down the HPD when in standby.
+		 */
 		if (!adap->is_configured && !adap->is_configuring &&
-		    msg->msg[0] != 0xf0) {
+		    (msg->len > 2 ||
+		     cec_msg_destination(msg) != CEC_LOG_ADDR_TV ||
+		     (msg->len == 2 && msg->msg[1] != CEC_MSG_IMAGE_VIEW_ON &&
+		      msg->msg[1] != CEC_MSG_TEXT_VIEW_ON))) {
 			dprintk(1, "%s: adapter is unconfigured\n", __func__);
 			return -ENONET;
 		}
