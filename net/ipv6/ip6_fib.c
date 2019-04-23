@@ -162,7 +162,7 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	}
 
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
-	atomic_inc(&f6i->fib6_ref);
+	atomic_set(&f6i->fib6_ref, 1);
 
 	return f6i;
 }
@@ -846,8 +846,8 @@ insert_above:
 
 		RCU_INIT_POINTER(in->parent, pn);
 		in->leaf = fn->leaf;
-		atomic_inc(&rcu_dereference_protected(in->leaf,
-				lockdep_is_held(&table->tb6_lock))->fib6_ref);
+		fib6_info_hold(rcu_dereference_protected(in->leaf,
+				lockdep_is_held(&table->tb6_lock)));
 
 		/* update parent pointer */
 		if (dir)
@@ -942,7 +942,7 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 			struct fib6_info *new_leaf;
 			if (!(fn->fn_flags & RTN_RTINFO) && leaf == rt) {
 				new_leaf = fib6_find_prefix(net, table, fn);
-				atomic_inc(&new_leaf->fib6_ref);
+				fib6_info_hold(new_leaf);
 
 				rcu_assign_pointer(fn->leaf, new_leaf);
 				fib6_info_release(rt);
@@ -1108,7 +1108,7 @@ add:
 			return err;
 
 		rcu_assign_pointer(rt->fib6_next, iter);
-		atomic_inc(&rt->fib6_ref);
+		fib6_info_hold(rt);
 		rcu_assign_pointer(rt->fib6_node, fn);
 		rcu_assign_pointer(*ins, rt);
 		if (!info->skip_notify)
@@ -1136,7 +1136,7 @@ add:
 		if (err)
 			return err;
 
-		atomic_inc(&rt->fib6_ref);
+		fib6_info_hold(rt);
 		rcu_assign_pointer(rt->fib6_node, fn);
 		rt->fib6_next = iter->fib6_next;
 		rcu_assign_pointer(*ins, rt);
@@ -1278,7 +1278,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 			if (!sfn)
 				goto failure;
 
-			atomic_inc(&info->nl_net->ipv6.fib6_null_entry->fib6_ref);
+			fib6_info_hold(info->nl_net->ipv6.fib6_null_entry);
 			rcu_assign_pointer(sfn->leaf,
 					   info->nl_net->ipv6.fib6_null_entry);
 			sfn->fn_flags = RTN_ROOT;
@@ -1321,7 +1321,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 				rcu_assign_pointer(fn->leaf,
 					    info->nl_net->ipv6.fib6_null_entry);
 			} else {
-				atomic_inc(&rt->fib6_ref);
+				fib6_info_hold(rt);
 				rcu_assign_pointer(fn->leaf, rt);
 			}
 		}
