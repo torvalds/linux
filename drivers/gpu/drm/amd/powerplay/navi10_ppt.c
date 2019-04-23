@@ -723,6 +723,32 @@ static int navi10_force_dpm_limit_value(struct smu_context *smu, bool highest)
 	return ret;
 }
 
+static int navi10_unforce_dpm_levels(struct smu_context *smu) {
+
+	int ret = 0, i = 0;
+	uint32_t min_freq, max_freq;
+	enum smu_clk_type clk_type;
+
+	enum smu_clk_type clks[] = {
+		SMU_GFXCLK,
+		SMU_MCLK,
+		SMU_SOCCLK,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(clks); i++) {
+		clk_type = clks[i];
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		if (ret)
+			return ret;
+
+		ret = smu_set_soft_freq_range(smu, clk_type, min_freq, max_freq);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -745,6 +771,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.pre_display_config_changed = navi10_pre_display_config_changed,
 	.display_config_changed = navi10_display_config_changed,
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
+	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
