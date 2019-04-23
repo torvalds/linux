@@ -209,14 +209,6 @@ static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 	return NULL;
 }
 
-static bool should_restart_cycle(const struct taprio_sched *q,
-				 const struct sched_entry *entry)
-{
-	WARN_ON(!entry);
-
-	return list_is_last(&entry->list, &q->entries);
-}
-
 static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 {
 	struct taprio_sched *q = container_of(timer, struct taprio_sched,
@@ -240,7 +232,7 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 		goto first_run;
 	}
 
-	if (should_restart_cycle(q, entry))
+	if (list_is_last(&entry->list, &q->entries))
 		next = list_first_entry(&q->entries, struct sched_entry,
 					list);
 	else
