@@ -35,6 +35,17 @@
 #include "smu_v11_0_pptable.h"
 #include "smu_v11_0_ppsmc.h"
 
+#define FEATURE_MASK(feature) (1UL << feature)
+#define SMC_DPM_FEATURE ( \
+	FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT) | \
+	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_GFX_PACE_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_UCLK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_LINK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
+
 #define MSG_MAP(msg, index) \
 	[SMU_MSG_##msg] = index
 
@@ -248,7 +259,6 @@ static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 	return val;
 }
 
-#define FEATURE_MASK(feature) (1UL << feature)
 static int
 navi10_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
@@ -786,6 +796,17 @@ static int navi10_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
+static bool navi10_is_dpm_running(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t feature_mask[2];
+	unsigned long feature_enabled;
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
+			   ((uint64_t)feature_mask[1] << 32));
+	return !!(feature_enabled & SMC_DPM_FEATURE);
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -811,6 +832,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.get_gpu_power = navi10_get_gpu_power,
 	.get_current_activity_percent = navi10_get_current_activity_percent,
+	.is_dpm_running = navi10_is_dpm_running,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
