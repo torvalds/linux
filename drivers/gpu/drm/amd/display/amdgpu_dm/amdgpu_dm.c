@@ -4251,6 +4251,7 @@ static const uint32_t overlay_formats[] = {
 	DRM_FORMAT_RGBA8888,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGB565
 };
 
 static const u32 cursor_formats[] = {
