@@ -40,7 +40,8 @@
 	SRI(OPTC_BYTES_PER_PIXEL, ODM, inst),\
 	SRI(OPTC_WIDTH_CONTROL, ODM, inst),\
 	SRI(OPTC_MEMORY_CONFIG, ODM, inst),\
-	SR(DWB_SOURCE_SELECT)
+	SR(DWB_SOURCE_SELECT),\
+	SRI(OTG_MANUAL_FLOW_CONTROL, OTG, inst)
 
 #define TG_COMMON_MASK_SH_LIST_DCN2_0(mask_sh)\
 	TG_COMMON_MASK_SH_LIST_DCN(mask_sh),\
@@ -70,7 +71,8 @@
 	SF(ODM0_OPTC_WIDTH_CONTROL, OPTC_DSC_SLICE_WIDTH, mask_sh),\
 	SF(ODM0_OPTC_WIDTH_CONTROL, OPTC_SEGMENT_WIDTH, mask_sh),\
 	SF(DWB_SOURCE_SELECT, OPTC_DWB0_SOURCE_SELECT, mask_sh),\
-	SF(DWB_SOURCE_SELECT, OPTC_DWB1_SOURCE_SELECT, mask_sh)
+	SF(DWB_SOURCE_SELECT, OPTC_DWB1_SOURCE_SELECT, mask_sh),\
+	SF(OTG0_OTG_MANUAL_FLOW_CONTROL, MANUAL_FLOW_CONTROL, mask_sh)
 
 void dcn20_timing_generator_init(struct optc *optc);
 
@@ -105,5 +107,6 @@ void optc2_triplebuffer_unlock(struct timing_generator *optc);
 void optc2_lock(struct timing_generator *optc);
 void optc2_lock_global(struct timing_generator *optc);
 void optc2_setup_global_lock(struct timing_generator *optc);
+void optc2_program_manual_trigger(struct timing_generator *optc);
 
 #endif /* __DC_OPTC_DCN20_H__ */

@@ -381,6 +381,35 @@ void optc2_lock(struct timing_generator *optc)
 				1, 10);
 }
 
+void optc2_setup_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_MANUAL_FLOW_CONTROL, 0,
+			MANUAL_FLOW_CONTROL, 1);
+
+	REG_SET(OTG_GLOBAL_CONTROL2, 0,
+			MANUAL_FLOW_CONTROL_SEL, optc->inst);
+
+	REG_SET_8(OTG_TRIGA_CNTL, 0,
+			OTG_TRIGA_SOURCE_SELECT, 22,
+			OTG_TRIGA_SOURCE_PIPE_SELECT, optc->inst,
+			OTG_TRIGA_RISING_EDGE_DETECT_CNTL, 1,
+			OTG_TRIGA_FALLING_EDGE_DETECT_CNTL, 0,
+			OTG_TRIGA_POLARITY_SELECT, 0,
+			OTG_TRIGA_FREQUENCY_SELECT, 0,
+			OTG_TRIGA_DELAY, 0,
+			OTG_TRIGA_CLEAR, 1);
+}
+
+void optc2_program_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_TRIGA_MANUAL_TRIG, 0,
+			OTG_TRIGA_MANUAL_TRIG, 1);
+}
+
 static struct timing_generator_funcs dcn20_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -435,6 +464,8 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.set_gsl = optc2_set_gsl,
 		.set_gsl_source_select = optc2_set_gsl_source_select,
 		.set_vtg_params = optc1_set_vtg_params,
+		.program_manual_trigger = optc2_program_manual_trigger,
+		.setup_manual_trigger = optc2_setup_manual_trigger
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)
