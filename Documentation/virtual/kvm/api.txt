@@ -2761,6 +2761,16 @@ Possible features:
 	- KVM_ARM_VCPU_PMU_V3: Emulate PMUv3 for the CPU.
 	  Depends on KVM_CAP_ARM_PMU_V3.
 
+	- KVM_ARM_VCPU_PTRAUTH_ADDRESS: Enables Address Pointer authentication
+	  for arm64 only.
+	  Both KVM_ARM_VCPU_PTRAUTH_ADDRESS and KVM_ARM_VCPU_PTRAUTH_GENERIC
+	  must be requested or neither must be requested.
+
+	- KVM_ARM_VCPU_PTRAUTH_GENERIC: Enables Generic Pointer authentication
+	  for arm64 only.
+	  Both KVM_ARM_VCPU_PTRAUTH_ADDRESS and KVM_ARM_VCPU_PTRAUTH_GENERIC
+	  must be requested or neither must be requested.
+
 	- KVM_ARM_VCPU_SVE: Enables SVE for the CPU (arm64 only).
 	  Depends on KVM_CAP_ARM_SVE.
 	  Requires KVM_ARM_VCPU_FINALIZE(KVM_ARM_VCPU_SVE):

@@ -221,6 +221,27 @@ static void kvm_vcpu_reset_sve(struct kvm_vcpu *vcpu)
 		memset(vcpu->arch.sve_state, 0, vcpu_sve_state_size(vcpu));
 }
 
+static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
+{
+	/* Support ptrauth only if the system supports these capabilities. */
+	if (!has_vhe())
+		return -EINVAL;
+
+	if (!system_supports_address_auth() ||
+	    !system_supports_generic_auth())
+		return -EINVAL;
+	/*
+	 * For now make sure that both address/generic pointer authentication
+	 * features are requested by the userspace together.
+	 */
+	if (!test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
+	    !test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features))
+		return -EINVAL;
+
+	vcpu->arch.flags |= KVM_ARM64_GUEST_HAS_PTRAUTH;
+	return 0;
+}
+
 /**
  * kvm_reset_vcpu - sets core registers and sys_regs to reset value
  * @vcpu: The VCPU pointer
@@ -259,6 +280,12 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 		}
 	} else {
 		kvm_vcpu_reset_sve(vcpu);
+	}
+
+	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
+	    test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features)) {
+		if (kvm_vcpu_enable_ptrauth(vcpu))
+			goto out;
 	}
 
 	switch (vcpu->arch.target) {
