@@ -720,6 +720,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 			struct cec_fh *fh, bool block)
 {
 	struct cec_data *data;
+	bool is_raw = msg_is_raw(msg);
 
 	msg->rx_ts = 0;
 	msg->tx_ts = 0;
@@ -735,10 +736,10 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		/* Make sure the timeout isn't 0. */
 		msg->timeout = 1000;
 	}
-	if (msg->timeout)
-		msg->flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS;
-	else
-		msg->flags = 0;
+	msg->flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS | CEC_MSG_FL_RAW;
+
+	if (!msg->timeout)
+		msg->flags &= ~CEC_MSG_FL_REPLY_TO_FOLLOWERS;
 
 	/* Sanity checks */
 	if (msg->len == 0 || msg->len > CEC_MAX_MSG_SIZE) {
@@ -761,54 +762,70 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		return -EINVAL;
 	}
 
-	/* A CDC-Only device can only send CDC messages */
-	if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
-	    (msg->len == 1 || msg->msg[1] != CEC_MSG_CDC_MESSAGE))
-		return -EINVAL;
-
-	if (msg->len >= 4 && msg->msg[1] == CEC_MSG_CDC_MESSAGE) {
-		msg->msg[2] = adap->phys_addr >> 8;
-		msg->msg[3] = adap->phys_addr & 0xff;
-	}
-
-	if (msg->len == 1) {
-		if (cec_msg_destination(msg) == 0xf) {
-			dprintk(1, "%s: invalid poll message\n", __func__);
+	if (is_raw) {
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
+	} else {
+		/* A CDC-Only device can only send CDC messages */
+		if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
+		    (msg->len == 1 || msg->msg[1] != CEC_MSG_CDC_MESSAGE)) {
+			dprintk(1, "%s: not a CDC message\n", __func__);
 			return -EINVAL;
 		}
-		if (cec_has_log_addr(adap, cec_msg_destination(msg))) {
-			/*
-			 * If the destination is a logical address our adapter
-			 * has already claimed, then just NACK this.
-			 * It depends on the hardware what it will do with a
-			 * POLL to itself (some OK this), so it is just as
-			 * easy to handle it here so the behavior will be
-			 * consistent.
-			 */
-			msg->tx_ts = ktime_get_ns();
-			msg->tx_status = CEC_TX_STATUS_NACK |
-					 CEC_TX_STATUS_MAX_RETRIES;
-			msg->tx_nack_cnt = 1;
-			msg->sequence = ++adap->sequence;
-			if (!msg->sequence)
+
+		if (msg->len >= 4 && msg->msg[1] == CEC_MSG_CDC_MESSAGE) {
+			msg->msg[2] = adap->phys_addr >> 8;
+			msg->msg[3] = adap->phys_addr & 0xff;
+		}
+
+		if (msg->len == 1) {
+			if (cec_msg_destination(msg) == 0xf) {
+				dprintk(1, "%s: invalid poll message\n",
+					__func__);
+				return -EINVAL;
+			}
+			if (cec_has_log_addr(adap, cec_msg_destination(msg))) {
+				/*
+				 * If the destination is a logical address our
+				 * adapter has already claimed, then just NACK
+				 * this. It depends on the hardware what it will
+				 * do with a POLL to itself (some OK this), so
+				 * it is just as easy to handle it here so the
+				 * behavior will be consistent.
+				 */
+				msg->tx_ts = ktime_get_ns();
+				msg->tx_status = CEC_TX_STATUS_NACK |
+					CEC_TX_STATUS_MAX_RETRIES;
+				msg->tx_nack_cnt = 1;
 				msg->sequence = ++adap->sequence;
-			return 0;
+				if (!msg->sequence)
+					msg->sequence = ++adap->sequence;
+				return 0;
+			}
+		}
+		if (msg->len > 1 && !cec_msg_is_broadcast(msg) &&
+		    cec_has_log_addr(adap, cec_msg_destination(msg))) {
+			dprintk(1, "%s: destination is the adapter itself\n",
+				__func__);
+			return -EINVAL;
+		}
+		if (msg->len > 1 && adap->is_configured &&
+		    !cec_has_log_addr(adap, cec_msg_initiator(msg))) {
+			dprintk(1, "%s: initiator has unknown logical address %d\n",
+				__func__, cec_msg_initiator(msg));
+			return -EINVAL;
+		}
+		if (!adap->is_configured && !adap->is_configuring &&
+		    msg->msg[0] != 0xf0) {
+			dprintk(1, "%s: adapter is unconfigured\n", __func__);
+			return -ENONET;
 		}
 	}
-	if (msg->len > 1 && !cec_msg_is_broadcast(msg) &&
-	    cec_has_log_addr(adap, cec_msg_destination(msg))) {
-		dprintk(1, "%s: destination is the adapter itself\n", __func__);
-		return -EINVAL;
-	}
-	if (msg->len > 1 && adap->is_configured &&
-	    !cec_has_log_addr(adap, cec_msg_initiator(msg))) {
-		dprintk(1, "%s: initiator has unknown logical address %d\n",
-			__func__, cec_msg_initiator(msg));
-		return -EINVAL;
-	}
+
 	if (!adap->is_configured && !adap->is_configuring) {
-		if (adap->needs_hpd || msg->msg[0] != 0xf0) {
-			dprintk(1, "%s: adapter is unconfigured\n", __func__);
+		if (adap->needs_hpd) {
+			dprintk(1, "%s: adapter is unconfigured and needs HPD\n",
+				__func__);
 			return -ENONET;
 		}
 		if (msg->reply) {
