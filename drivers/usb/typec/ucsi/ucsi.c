@@ -283,6 +283,7 @@ static int ucsi_register_altmode(struct ucsi_connector *con,
 
 		switch (desc->svid) {
 		case USB_TYPEC_DP_SID:
+		case USB_TYPEC_NVIDIA_VLINK_SID:
 			alt = ucsi_register_displayport(con, override, i, desc);
 			break;
 		default:
@@ -404,7 +405,8 @@ static void ucsi_unregister_altmodes(struct ucsi_connector *con, u8 recipient)
 
 	while (adev[i]) {
 		if (recipient == UCSI_RECIPIENT_SOP &&
-		    adev[i]->svid == USB_TYPEC_DP_SID) {
+		    (adev[i]->svid == USB_TYPEC_DP_SID ||
+			adev[i]->svid == USB_TYPEC_NVIDIA_VLINK_SID)) {
 			pdev = typec_altmode_get_partner(adev[i]);
 			ucsi_displayport_remove_partner((void *)pdev);
 		}
