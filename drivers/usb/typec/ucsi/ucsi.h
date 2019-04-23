@@ -431,4 +431,25 @@ int ucsi_send_command(struct ucsi *ucsi, struct ucsi_control *ctrl,
 
 void ucsi_altmode_update_active(struct ucsi_connector *con);
 
+#if IS_ENABLED(CONFIG_TYPEC_DP_ALTMODE)
+struct typec_altmode *
+ucsi_register_displayport(struct ucsi_connector *con,
+			  bool override, int offset,
+			  struct typec_altmode_desc *desc);
+
+void ucsi_displayport_remove_partner(struct typec_altmode *adev);
+
+#else
+static inline struct typec_altmode *
+ucsi_register_displayport(struct ucsi_connector *con,
+			  bool override, int offset,
+			  struct typec_altmode_desc *desc)
+{
+	return NULL;
+}
+
+static inline void
+ucsi_displayport_remove_partner(struct typec_altmode *adev) { }
+#endif /* CONFIG_TYPEC_DP_ALTMODE */
+
 #endif /* __DRIVER_USB_TYPEC_UCSI_H */
