@@ -188,12 +188,12 @@ static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 		 */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
 		    ktime_after(guard, entry->close_time))
-			return NULL;
+			continue;
 
 		/* ... and no budget. */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
 		    atomic_sub_return(len, &entry->budget) < 0)
-			return NULL;
+			continue;
 
 		skb = child->ops->dequeue(child);
 		if (unlikely(!skb))
