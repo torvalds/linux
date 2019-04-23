@@ -60,3 +60,15 @@ const char *ucsi_cci_str(u32 cci)
 
 	return "";
 }
+
+static const char * const ucsi_recipient_strs[] = {
+	[UCSI_RECIPIENT_CON]		= "port",
+	[UCSI_RECIPIENT_SOP]		= "partner",
+	[UCSI_RECIPIENT_SOP_P]		= "plug (prime)",
+	[UCSI_RECIPIENT_SOP_PP]		= "plug (double prime)",
+};
+
+const char *ucsi_recipient_str(u8 recipient)
+{
+	return ucsi_recipient_strs[recipient];
+}
