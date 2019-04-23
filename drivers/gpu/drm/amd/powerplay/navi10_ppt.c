@@ -671,6 +671,30 @@ static int navi10_pre_display_config_changed(struct smu_context *smu)
 	return ret;
 }
 
+static int navi10_display_config_changed(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+	    !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+		ret = smu_write_watermarks_table(smu);
+		if (ret)
+			return ret;
+
+		smu->watermarks_bitmap |= WATERMARKS_LOADED;
+	}
+
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
+	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays,
+						  smu->display_config->num_display);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -691,6 +715,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.populate_umd_state_clk = navi10_populate_umd_state_clk,
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
 	.pre_display_config_changed = navi10_pre_display_config_changed,
+	.display_config_changed = navi10_display_config_changed,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

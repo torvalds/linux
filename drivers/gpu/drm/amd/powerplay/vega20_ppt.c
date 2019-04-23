@@ -1992,17 +1992,9 @@ static int vega20_display_config_changed(struct smu_context *smu)
 {
 	int ret = 0;
 
-	if (!smu->funcs)
-		return -EINVAL;
-
-	if (!smu->smu_dpm.dpm_context ||
-	    !smu->smu_table.tables ||
-	    !smu->smu_table.tables[TABLE_WATERMARKS].cpu_addr)
-		return -EINVAL;
-
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
 	    !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
-		ret = smu->funcs->write_watermarks_table(smu);
+		ret = smu_write_watermarks_table(smu);
 		if (ret) {
 			pr_err("Failed to update WMTABLE!");
 			return ret;

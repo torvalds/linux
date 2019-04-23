@@ -714,9 +714,21 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 
 static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
 {
-	return smu_update_table(smu, SMU_TABLE_WATERMARKS,
-				smu->smu_table.tables[SMU_TABLE_WATERMARKS].cpu_addr,
+	int ret = 0;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = NULL;
+
+	table = &smu_table->tables[SMU_TABLE_WATERMARKS];
+	if (!table)
+		return -EINVAL;
+
+	if (!table->cpu_addr)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, table->cpu_addr,
 				true);
+
+	return ret;
 }
 
 static int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
