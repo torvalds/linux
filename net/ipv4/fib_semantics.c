@@ -1444,7 +1444,7 @@ failure:
 }
 
 int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
-		     unsigned int *flags, bool skip_oif)
+		     unsigned char *flags, bool skip_oif)
 {
 	if (nhc->nhc_flags & RTNH_F_DEAD)
 		*flags |= RTNH_F_DEAD;
@@ -1520,7 +1520,7 @@ int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
 {
 	const struct net_device *dev = nhc->nhc_dev;
 	struct rtnexthop *rtnh;
-	unsigned int flags = 0;
+	unsigned char flags = 0;
 
 	rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
 	if (!rtnh)
@@ -1619,7 +1619,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		goto nla_put_failure;
 	if (fi->fib_nhs == 1) {
 		struct fib_nh *nh = &fi->fib_nh[0];
-		unsigned int flags = 0;
+		unsigned char flags = 0;
 
 		if (fib_nexthop_info(skb, &nh->nh_common, &flags, false) < 0)
 			goto nla_put_failure;
@@ -1902,7 +1902,7 @@ out:
  * Dead device goes up. We wake up dead nexthops.
  * It takes sense only on multipath routes.
  */
-int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
+int fib_sync_up(struct net_device *dev, unsigned char nh_flags)
 {
 	struct fib_info *prev_fi;
 	unsigned int hash;

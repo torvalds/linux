@@ -182,7 +182,7 @@ int rt6_dump_route(struct fib6_info *f6i, void *p_arg);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
-void rt6_sync_up(struct net_device *dev, unsigned int nh_flags);
+void rt6_sync_up(struct net_device *dev, unsigned char nh_flags);
 void rt6_disable_ip(struct net_device *dev, unsigned long event);
 void rt6_sync_down_dev(struct net_device *dev, unsigned long event);
 void rt6_multipath_rebalance(struct fib6_info *f6i);

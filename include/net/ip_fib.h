@@ -83,11 +83,11 @@ struct fnhe_hash_bucket {
 struct fib_nh_common {
 	struct net_device	*nhc_dev;
 	int			nhc_oif;
-	unsigned int		nhc_flags;
-	struct lwtunnel_state	*nhc_lwtstate;
 	unsigned char		nhc_scope;
 	u8			nhc_family;
 	u8			nhc_gw_family;
+	unsigned char		nhc_flags;
+	struct lwtunnel_state	*nhc_lwtstate;
 
 	union {
 		__be32          ipv4;
@@ -425,7 +425,7 @@ int fib_unmerge(struct net *net);
 int ip_fib_check_default(__be32 gw, struct net_device *dev);
 int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force);
 int fib_sync_down_addr(struct net_device *dev, __be32 local);
-int fib_sync_up(struct net_device *dev, unsigned int nh_flags);
+int fib_sync_up(struct net_device *dev, unsigned char nh_flags);
 void fib_sync_mtu(struct net_device *dev, u32 orig_mtu);
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -500,7 +500,7 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 			  struct netlink_callback *cb);
 
 int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nh,
-		     unsigned int *flags, bool skip_oif);
+		     unsigned char *flags, bool skip_oif);
 int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nh,
 		    int nh_weight);
 #endif  /* _NET_FIB_H */
