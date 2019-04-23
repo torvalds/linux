@@ -115,7 +115,7 @@ int __meminit hash__vmemmap_create_mapping(unsigned long start,
 	int rc;
 
 	if ((start + page_size) >= H_VMEMMAP_END) {
-		pr_warn("Outisde the supported range\n");
+		pr_warn("Outside the supported range\n");
 		return -1;
 	}
 

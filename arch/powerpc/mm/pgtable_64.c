@@ -122,7 +122,7 @@ void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_
 		return NULL;
 
 	if ((ea + size) >= (void *)IOREMAP_END) {
-		pr_warn("Outisde the supported range\n");
+		pr_warn("Outside the supported range\n");
 		return NULL;
 	}
 

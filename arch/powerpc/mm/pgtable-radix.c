@@ -341,7 +341,7 @@ void __init radix_init_pgtable(void)
 		 */
 
 		if ((reg->base + reg->size) >= RADIX_VMALLOC_START) {
-			pr_warn("Outisde the supported range\n");
+			pr_warn("Outside the supported range\n");
 			continue;
 		}
 
@@ -902,7 +902,7 @@ static void __meminit remove_pagetable(unsigned long start, unsigned long end)
 int __meminit radix__create_section_mapping(unsigned long start, unsigned long end, int nid)
 {
 	if (end >= RADIX_VMALLOC_START) {
-		pr_warn("Outisde the supported range\n");
+		pr_warn("Outside the supported range\n");
 		return -1;
 	}
 
@@ -934,7 +934,7 @@ int __meminit radix__vmemmap_create_mapping(unsigned long start,
 	int ret;
 
 	if ((start + page_size) >= RADIX_VMEMMAP_END) {
-		pr_warn("Outisde the supported range\n");
+		pr_warn("Outside the supported range\n");
 		return -1;
 	}
 

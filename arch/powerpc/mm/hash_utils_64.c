@@ -784,7 +784,7 @@ int hash__create_section_mapping(unsigned long start, unsigned long end, int nid
 	int rc;
 
 	if (end >= H_VMALLOC_START) {
-		pr_warn("Outisde the supported range\n");
+		pr_warn("Outside the supported range\n");
 		return -1;
 	}
 
@@ -932,7 +932,7 @@ static void __init htab_initialize(void)
 		    base, size, prot);
 
 		if ((base + size) >= H_VMALLOC_START) {
-			pr_warn("Outisde the supported range\n");
+			pr_warn("Outside the supported range\n");
 			continue;
 		}
 
