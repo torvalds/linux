@@ -2153,6 +2153,11 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		} else
 			need_split = context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 2;
 
+		/* We do not support mpo + odm at the moment */
+		if (hsplit_pipe && hsplit_pipe->plane_state != pipe->plane_state
+				&& context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx])
+			goto validate_fail;
+
 		if (need_split3d || need_split || force_split) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
 				/* pipe not split previously needs split */
@@ -2168,11 +2173,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 					goto validate_fail;
 				pipe_split_from[hsplit_pipe->pipe_idx] = pipe_idx;
 			}
-		} else if (hsplit_pipe && hsplit_pipe->plane_state != pipe->plane_state) {
-			/* We do not support mpo + odm at the moment */
-			if (context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx])
-				goto validate_fail;
-		} else if (hsplit_pipe) {
+		} else if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
 			/* merge should already have been done */
 			ASSERT(0);
 		}
