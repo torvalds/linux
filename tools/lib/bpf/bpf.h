@@ -26,6 +26,7 @@
 #include <linux/bpf.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 struct bpf_create_map_attr {
 	const char *name;
