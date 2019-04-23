@@ -217,6 +217,18 @@ config QCOM_SMSM
 	  Say yes here to support the Qualcomm Shared Memory State Machine.
 	  The state machine is represented by bits in shared memory.
 
+config QTI_PMIC_GLINK
+	tristate "Enable support for PMIC GLINK"
+	depends on RPMSG
+	select QCOM_RPROC_COMMON
+	select QCOM_PDR_HELPERS
+	help
+	  The PMIC Glink driver provides the interface for clients to
+	  communicate over GLink for sending and receiving data to charger
+	  firmware that runs on a remote subsystem like DSP which supports
+	  charging and gauging.
+	  This enables clients to read and write battery charging parameters.
+
 config QCOM_SECURE_BUFFER
 	tristate "Helper functions for secure buffers through TZ"
 	depends on QCOM_SCM
