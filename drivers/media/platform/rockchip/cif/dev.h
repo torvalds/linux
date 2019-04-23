@@ -187,6 +187,7 @@ static inline struct rkcif_stream *to_rkcif_stream(struct video_device *vdev)
  * @stream: capture video device
  */
 struct rkcif_device {
+	struct list_head		list;
 	struct device			*dev;
 	int				irq;
 	void __iomem			*base_addr;

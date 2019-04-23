@@ -42,6 +42,9 @@ MODULE_PARM_DESC(version, "version number");
 
 int using_pingpong;
 
+static DEFINE_MUTEX(rkcif_dev_mutex);
+static LIST_HEAD(rkcif_device_list);
+
 /***************************** media controller *******************************/
 static int rkcif_create_links(struct rkcif_device *dev)
 {
@@ -568,6 +571,10 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+	mutex_lock(&rkcif_dev_mutex);
+	list_add_tail(&cif_dev->list, &rkcif_device_list);
+	mutex_unlock(&rkcif_dev_mutex);
+
 	return 0;
 
 err_unreg_media_dev:
@@ -611,6 +618,19 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 
 	return 0;
 }
+
+static int __init rkcif_clr_unready_dev(void)
+{
+	struct rkcif_device *cif_dev;
+
+	mutex_lock(&rkcif_dev_mutex);
+	list_for_each_entry(cif_dev, &rkcif_device_list, list)
+		v4l2_async_notifier_clr_unready_dev(&cif_dev->notifier);
+	mutex_unlock(&rkcif_dev_mutex);
+
+	return 0;
+}
+late_initcall_sync(rkcif_clr_unready_dev);
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
