@@ -1576,7 +1576,7 @@ static int param_set_mode(const char *val, const struct kernel_param *kp)
  */
 static int __init set_init_ctx(void)
 {
-	struct cred *cred = (struct cred *)current->real_cred;
+	struct cred *cred = (__force struct cred *)current->real_cred;
 
 	set_cred_label(cred, aa_get_label(ns_unconfined(root_ns)));
 
