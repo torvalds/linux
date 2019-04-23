@@ -77,17 +77,52 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, __u8 encap_proto,
 	struct v4hdr h_outer;
 	struct tcphdr tcph;
 	int olen, l2_len;
+	int tcp_off;
 	__u64 flags;
 
-	if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
-			       sizeof(iph_inner)) < 0)
-		return TC_ACT_OK;
+	/* Most tests encapsulate a packet into a tunnel with the same
+	 * network protocol, and derive the outer header fields from
+	 * the inner header.
+	 *
+	 * The 6in4 case tests different inner and outer protocols. As
+	 * the inner is ipv6, but the outer expects an ipv4 header as
+	 * input, manually build a struct iphdr based on the ipv6hdr.
+	 */
+	if (encap_proto == IPPROTO_IPV6) {
+		const __u32 saddr = (192 << 24) | (168 << 16) | (1 << 8) | 1;
+		const __u32 daddr = (192 << 24) | (168 << 16) | (1 << 8) | 2;
+		struct ipv6hdr iph6_inner;
+
+		/* Read the IPv6 header */
+		if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph6_inner,
+				       sizeof(iph6_inner)) < 0)
+			return TC_ACT_OK;
+
+		/* Derive the IPv4 header fields from the IPv6 header */
+		memset(&iph_inner, 0, sizeof(iph_inner));
+		iph_inner.version = 4;
+		iph_inner.ihl = 5;
+		iph_inner.tot_len = bpf_htons(sizeof(iph6_inner) +
+				    bpf_ntohs(iph6_inner.payload_len));
+		iph_inner.ttl = iph6_inner.hop_limit - 1;
+		iph_inner.protocol = iph6_inner.nexthdr;
+		iph_inner.saddr = __bpf_constant_htonl(saddr);
+		iph_inner.daddr = __bpf_constant_htonl(daddr);
+
+		tcp_off = sizeof(iph6_inner);
+	} else {
+		if (bpf_skb_load_bytes(skb, ETH_HLEN, &iph_inner,
+				       sizeof(iph_inner)) < 0)
+			return TC_ACT_OK;
+
+		tcp_off = sizeof(iph_inner);
+	}
 
 	/* filter only packets we want */
 	if (iph_inner.ihl != 5 || iph_inner.protocol != IPPROTO_TCP)
 		return TC_ACT_OK;
 
-	if (bpf_skb_load_bytes(skb, ETH_HLEN + sizeof(iph_inner),
+	if (bpf_skb_load_bytes(skb, ETH_HLEN + tcp_off,
 			       &tcph, sizeof(tcph)) < 0)
 		return TC_ACT_OK;
 
@@ -129,6 +164,7 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, __u8 encap_proto,
 						  l2_len);
 		break;
 	case IPPROTO_IPIP:
+	case IPPROTO_IPV6:
 		break;
 	default:
 		return TC_ACT_OK;
@@ -163,6 +199,17 @@ static __always_inline int encap_ipv4(struct __sk_buff *skb, __u8 encap_proto,
 	if (bpf_skb_store_bytes(skb, ETH_HLEN, &h_outer, olen,
 				BPF_F_INVALIDATE_HASH) < 0)
 		return TC_ACT_SHOT;
+
+	/* if changing outer proto type, update eth->h_proto */
+	if (encap_proto == IPPROTO_IPV6) {
+		struct ethhdr eth;
+
+		if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0)
+			return TC_ACT_SHOT;
+		eth.h_proto = bpf_htons(ETH_P_IP);
+		if (bpf_skb_store_bytes(skb, 0, &eth, sizeof(eth), 0) < 0)
+			return TC_ACT_SHOT;
+	}
 
 	return TC_ACT_OK;
 }
@@ -321,6 +368,15 @@ int __encap_udp_eth(struct __sk_buff *skb)
 {
 	if (skb->protocol == __bpf_constant_htons(ETH_P_IP))
 		return encap_ipv4(skb, IPPROTO_UDP, ETH_P_TEB);
+	else
+		return TC_ACT_OK;
+}
+
+SEC("encap_sit_none")
+int __encap_sit_none(struct __sk_buff *skb)
+{
+	if (skb->protocol == __bpf_constant_htons(ETH_P_IPV6))
+		return encap_ipv4(skb, IPPROTO_IPV6, ETH_P_IP);
 	else
 		return TC_ACT_OK;
 }
