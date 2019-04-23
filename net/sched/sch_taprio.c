@@ -90,7 +90,7 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 
 	rcu_read_lock();
 	entry = rcu_dereference(q->current_entry);
-	gate_mask = entry ? entry->gate_mask : -1;
+	gate_mask = entry ? entry->gate_mask : TAPRIO_ALL_GATES_OPEN;
 	rcu_read_unlock();
 
 	if (!gate_mask)
@@ -112,7 +112,7 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 		tc = netdev_get_prio_tc_map(dev, prio);
 
 		if (!(gate_mask & BIT(tc)))
-			return NULL;
+			continue;
 
 		return skb;
 	}
