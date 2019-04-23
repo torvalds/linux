@@ -483,55 +483,21 @@ static void __init bootmem_init(void)
 			continue;
 
 		memblock_add_node(PFN_PHYS(start), PFN_PHYS(end - start), 0);
-	}
 
-	/*
-	 * Register fully available low RAM pages with the bootmem allocator.
-	 */
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long start, end, size;
-
-		start = PFN_UP(boot_mem_map.map[i].addr);
-		end   = PFN_DOWN(boot_mem_map.map[i].addr
-				    + boot_mem_map.map[i].size);
-
-		/*
-		 * Reserve usable memory.
-		 */
+		/* Reserve any memory except the ordinary RAM ranges. */
 		switch (boot_mem_map.map[i].type) {
 		case BOOT_MEM_RAM:
 			break;
-		case BOOT_MEM_INIT_RAM:
-			memory_present(0, start, end);
-			continue;
-		default:
-			/* Not usable memory */
-			if (start > min_low_pfn && end < max_low_pfn)
-				memblock_reserve(boot_mem_map.map[i].addr,
-						boot_mem_map.map[i].size);
-
-			continue;
+		default: /* Reserve the rest of the memory types at boot time */
+			memblock_reserve(PFN_PHYS(start), PFN_PHYS(end - start));
+			break;
 		}
 
 		/*
-		 * We are rounding up the start address of usable memory
-		 * and at the end of the usable range downwards.
+		 * In any case the added to the memblock memory regions
+		 * (highmem/lowmem, available/reserved, etc) are considered
+		 * as present, so inform sparsemem about them.
 		 */
-		if (start >= max_low_pfn)
-			continue;
-		if (start < reserved_end)
-			start = reserved_end;
-		if (end > max_low_pfn)
-			end = max_low_pfn;
-
-		/*
-		 * ... finally, is the area going away?
-		 */
-		if (end <= start)
-			continue;
-		size = end - start;
-
-		/* Register lowmem ranges */
 		memory_present(0, start, end);
 	}
 
