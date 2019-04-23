@@ -698,6 +698,18 @@ int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 }
 EXPORT_SYMBOL(rockchip_monitor_cpu_high_temp_adjust);
 
+static int rockchip_monitor_update_devfreq(struct devfreq *df)
+{
+	int ret = 0;
+
+#ifdef CONFIG_PM_DEVFREQ
+	mutex_lock(&df->lock);
+	ret = update_devfreq(df);
+	mutex_unlock(&df->lock);
+#endif
+	return ret;
+};
+
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low)
 {
@@ -712,9 +724,7 @@ int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 
 	if (info->devp && info->devp->data) {
 		df = (struct devfreq *)info->devp->data;
-		mutex_lock(&df->lock);
-		update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rockchip_monitor_update_devfreq(df);
 	}
 
 	return 0;
@@ -735,9 +745,7 @@ int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 
 	if (info->devp && info->devp->data) {
 		df = (struct devfreq *)info->devp->data;
-		mutex_lock(&df->lock);
-		update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rockchip_monitor_update_devfreq(df);
 	}
 
 	return 0;

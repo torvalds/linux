@@ -101,6 +101,7 @@ struct monitor_dev_profile {
 	struct cpumask allowed_cpus;
 };
 
+#ifdef CONFIG_ROCKCHIP_SYSTEM_MONITOR
 struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
 				 struct monitor_dev_profile *devp);
@@ -117,4 +118,58 @@ int rockchip_monitor_suspend_low_temp_adjust(struct monitor_dev_info *info);
 int
 rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
 					  int temp, unsigned long *state);
+#else
+static inline struct monitor_dev_info *
+rockchip_system_monitor_register(struct device *dev,
+				 struct monitor_dev_profile *devp)
+{
+	return ERR_PTR(-ENOTSUPP);
+};
+
+static inline void
+rockchip_system_monitor_unregister(struct monitor_dev_info *info)
+{
+}
+
+static inline int
+rockchip_monitor_cpu_low_temp_adjust(struct monitor_dev_info *info, bool is_low)
+{
+	return 0;
+};
+
+static inline int
+rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
+				      bool is_high)
+{
+	return 0;
+};
+
+static inline int
+rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info, bool is_low)
+{
+	return 0;
+};
+
+static inline int
+rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
+				      bool is_high)
+{
+	return 0;
+};
+
+static inline int
+rockchip_monitor_suspend_low_temp_adjust(struct monitor_dev_info *info)
+{
+	return 0;
+};
+
+static inline int
+rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
+					  int temp, unsigned long *state)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
+
 #endif
