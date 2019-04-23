@@ -2507,7 +2507,7 @@ static const struct tty_port_operations uart_port_ops = {
 int uart_register_driver(struct uart_driver *drv)
 {
 	struct tty_driver *normal;
-	int i, retval;
+	int i, retval = -ENOMEM;
 
 	BUG_ON(drv->state);
 
@@ -2559,7 +2559,7 @@ int uart_register_driver(struct uart_driver *drv)
 out_kfree:
 	kfree(drv->state);
 out:
-	return -ENOMEM;
+	return retval;
 }
 
 /**
