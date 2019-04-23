@@ -143,4 +143,14 @@ static inline int zpci_set_irq_ctrl(u16 ctl, u8 isc)
 	return __zpci_set_irq_ctrl(ctl, isc, &iib);
 }
 
+#ifdef CONFIG_PCI
+static inline void enable_mio_ctl(void)
+{
+	if (static_branch_likely(&have_mio))
+		__ctl_set_bit(2, 5);
+}
+#else /* CONFIG_PCI */
+static inline void enable_mio_ctl(void) {}
+#endif /* CONFIG_PCI */
+
 #endif
