@@ -24,6 +24,11 @@ raw_copy_from_user(void *to, const void __user * from, unsigned long n)
 		case 4:
 			*(u32 *)to = *(u32 __force *)from;
 			return 0;
+#ifdef CONFIG_64BIT
+		case 8:
+			*(u64 *)to = *(u64 __force *)from;
+			return 0;
+#endif
 		}
 	}
 
@@ -45,6 +50,11 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 		case 4:
 			*(u32 __force *)to = *(u32 *)from;
 			return 0;
+#ifdef CONFIG_64BIT
+		case 8:
+			*(u64 __force *)to = *(u64 *)from;
+			return 0;
+#endif
 		default:
 			break;
 		}
