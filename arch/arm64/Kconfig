@@ -1082,9 +1082,65 @@ config RODATA_FULL_DEFAULT_ENABLED
 	  This requires the linear region to be mapped down to pages,
 	  which may adversely affect performance in some cases.
 
+config ARM64_SW_TTBR0_PAN
+	bool "Emulate Privileged Access Never using TTBR0_EL1 switching"
+	help
+	  Enabling this option prevents the kernel from accessing
+	  user-space memory directly by pointing TTBR0_EL1 to a reserved
+	  zeroed area and reserved ASID. The user access routines
+	  restore the valid TTBR0_EL1 temporarily.
+
+menuconfig COMPAT
+	bool "Kernel support for 32-bit EL0"
+	depends on ARM64_4K_PAGES || EXPERT
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
+	select HAVE_UID16
+	select OLD_SIGSUSPEND3
+	select COMPAT_OLD_SIGACTION
+	help
+	  This option enables support for a 32-bit EL0 running under a 64-bit
+	  kernel at EL1. AArch32-specific components such as system calls,
+	  the user helper functions, VFP support and the ptrace interface are
+	  handled appropriately by the kernel.
+
+	  If you use a page size other than 4KB (i.e, 16KB or 64KB), please be aware
+	  that you will only be able to execute AArch32 binaries that were compiled
+	  with page size aligned segments.
+
+	  If you want to execute 32-bit userspace applications, say Y.
+
+if COMPAT
+
+config KUSER_HELPERS
+	bool "Enable kuser helpers page for 32 bit applications"
+	default y
+	help
+	  Warning: disabling this option may break 32-bit user programs.
+
+	  Provide kuser helpers to compat tasks. The kernel provides
+	  helper code to userspace in read only form at a fixed location
+	  to allow userspace to be independent of the CPU type fitted to
+	  the system. This permits binaries to be run on ARMv4 through
+	  to ARMv8 without modification.
+
+	  See Documentation/arm/kernel_user_helpers.txt for details.
+
+	  However, the fixed address nature of these helpers can be used
+	  by ROP (return orientated programming) authors when creating
+	  exploits.
+
+	  If all of the binaries and libraries which run on your platform
+	  are built specifically for your platform, and make no use of
+	  these helpers, then you can turn this option off to hinder
+	  such exploits. However, in that case, if a binary or library
+	  relying on those helpers is run, it will not function correctly.
+
+	  Say N here only if you are absolutely certain that you do not
+	  need these helpers; otherwise, the safe option is to say Y.
+
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
-	depends on COMPAT
 	depends on SYSCTL
 	help
 	  Legacy software support may require certain instructions
@@ -1150,13 +1206,7 @@ config SETEND_EMULATION
 	  If unsure, say Y
 endif
 
-config ARM64_SW_TTBR0_PAN
-	bool "Emulate Privileged Access Never using TTBR0_EL1 switching"
-	help
-	  Enabling this option prevents the kernel from accessing
-	  user-space memory directly by pointing TTBR0_EL1 to a reserved
-	  zeroed area and reserved ASID. The user access routines
-	  restore the valid TTBR0_EL1 temporarily.
+endif
 
 menu "ARMv8.1 architectural features"
 
@@ -1478,53 +1528,6 @@ config DMI
 	  continue to boot on existing non-UEFI platforms.
 
 endmenu
-
-config COMPAT
-	bool "Kernel support for 32-bit EL0"
-	depends on ARM64_4K_PAGES || EXPERT
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
-	select HAVE_UID16
-	select OLD_SIGSUSPEND3
-	select COMPAT_OLD_SIGACTION
-	help
-	  This option enables support for a 32-bit EL0 running under a 64-bit
-	  kernel at EL1. AArch32-specific components such as system calls,
-	  the user helper functions, VFP support and the ptrace interface are
-	  handled appropriately by the kernel.
-
-	  If you use a page size other than 4KB (i.e, 16KB or 64KB), please be aware
-	  that you will only be able to execute AArch32 binaries that were compiled
-	  with page size aligned segments.
-
-	  If you want to execute 32-bit userspace applications, say Y.
-
-config KUSER_HELPERS
-	bool "Enable kuser helpers page for 32 bit applications."
-	depends on COMPAT
-	default y
-	help
-	  Warning: disabling this option may break 32-bit user programs.
-
-	  Provide kuser helpers to compat tasks. The kernel provides
-	  helper code to userspace in read only form at a fixed location
-	  to allow userspace to be independent of the CPU type fitted to
-	  the system. This permits binaries to be run on ARMv4 through
-	  to ARMv8 without modification.
-
-	  See Documentation/arm/kernel_user_helpers.txt for details.
-
-	  However, the fixed address nature of these helpers can be used
-	  by ROP (return orientated programming) authors when creating
-	  exploits.
-
-	  If all of the binaries and libraries which run on your platform
-	  are built specifically for your platform, and make no use of
-	  these helpers, then you can turn this option off to hinder
-	  such exploits. However, in that case, if a binary or library
-	  relying on those helpers is run, it will not function correctly.
-
-	  Say N here only if you are absolutely certain that you do not
-	  need these helpers; otherwise, the safe option is to say Y.
 
 config SYSVIPC_COMPAT
 	def_bool y
