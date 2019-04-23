@@ -875,14 +875,14 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 		nr_maps++;
 	}
 
-	/* Alloc obj->maps and fill nr_maps. */
-	pr_debug("maps in %s: %d maps in %zd bytes\n", obj->path,
-		 nr_maps, data->d_size);
 	if (!nr_maps && !nr_maps_glob)
 		return 0;
 
 	/* Assume equally sized map definitions */
 	if (data) {
+		pr_debug("maps in %s: %d maps in %zd bytes\n", obj->path,
+			 nr_maps, data->d_size);
+
 		map_def_sz = data->d_size / nr_maps;
 		if (!data->d_size || (data->d_size % nr_maps) != 0) {
 			pr_warning("unable to determine map definition size "
