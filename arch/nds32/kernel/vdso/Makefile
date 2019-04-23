@@ -11,10 +11,8 @@ obj-vdso := note.o datapage.o sigreturn.o gettimeofday.o
 targets := $(obj-vdso) vdso.so vdso.so.dbg
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ccflags-y := -shared -fno-common -fno-builtin
-ccflags-y += -nostdlib -Wl,-soname=linux-vdso.so.1 \
-		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
-ccflags-y += -fPIC -Wl,-shared -g
+ccflags-y := -shared -fno-common -fno-builtin -nostdlib -fPIC -Wl,-shared -g \
+	-Wl,-soname=linux-vdso.so.1 -Wl,--hash-style=sysv
 
 # Disable gcov profiling for VDSO code
 GCOV_PROFILE := n
