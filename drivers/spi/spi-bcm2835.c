@@ -800,7 +800,10 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 	if (tfr->len < spi_used_hz / HZ_PER_BYTE)
 		return bcm2835_spi_transfer_one_poll(master, spi, tfr, cs);
 
-	/* run in dma mode if conditions are right */
+	/* run in dma mode if conditions are right
+	 * Note that unlike poll or interrupt mode DMA mode does not have
+	 * this 1 idle clock cycle pattern but runs the spi clock without gaps
+	 */
 	if (master->can_dma && bcm2835_spi_can_dma(master, spi, tfr))
 		return bcm2835_spi_transfer_one_dma(master, spi, tfr, cs);
 
