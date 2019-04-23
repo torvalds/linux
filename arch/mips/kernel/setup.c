@@ -394,10 +394,7 @@ static void __init bootmem_init(void)
 	min_low_pfn = ~0UL;
 	max_low_pfn = 0;
 
-	/*
-	 * Find the highest page frame number we have available
-	 * and the lowest used RAM address
-	 */
+	/* Find the highest and lowest page frame numbers we have available. */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -427,13 +424,6 @@ static void __init bootmem_init(void)
 			max_low_pfn = end;
 		if (start < min_low_pfn)
 			min_low_pfn = start;
-		if (end <= reserved_end)
-			continue;
-#ifdef CONFIG_BLK_DEV_INITRD
-		/* Skip zones before initrd and initrd itself */
-		if (initrd_end && end <= (unsigned long)PFN_UP(__pa(initrd_end)))
-			continue;
-#endif
 	}
 
 	if (min_low_pfn >= max_low_pfn)
@@ -474,6 +464,7 @@ static void __init bootmem_init(void)
 		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 	}
 
+	/* Install all valid RAM ranges to the memblock memory region */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -481,21 +472,15 @@ static void __init bootmem_init(void)
 		end = PFN_DOWN(boot_mem_map.map[i].addr
 				+ boot_mem_map.map[i].size);
 
-		if (start <= min_low_pfn)
+		if (start < min_low_pfn)
 			start = min_low_pfn;
-		if (start >= end)
-			continue;
-
 #ifndef CONFIG_HIGHMEM
+		/* Ignore highmem regions if highmem is unsupported */
 		if (end > max_low_pfn)
 			end = max_low_pfn;
-
-		/*
-		 * ... finally, is the area going away?
-		 */
+#endif
 		if (end <= start)
 			continue;
-#endif
 
 		memblock_add_node(PFN_PHYS(start), PFN_PHYS(end - start), 0);
 	}
