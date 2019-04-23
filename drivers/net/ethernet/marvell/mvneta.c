@@ -4476,15 +4476,14 @@ static int mvneta_probe(struct platform_device *pdev)
 	int err;
 	int cpu;
 
-	dev = alloc_etherdev_mqs(sizeof(struct mvneta_port), txq_number, rxq_number);
+	dev = devm_alloc_etherdev_mqs(&pdev->dev, sizeof(struct mvneta_port),
+				      txq_number, rxq_number);
 	if (!dev)
 		return -ENOMEM;
 
 	dev->irq = irq_of_parse_and_map(dn, 0);
-	if (dev->irq == 0) {
-		err = -EINVAL;
-		goto err_free_netdev;
-	}
+	if (dev->irq == 0)
+		return -EINVAL;
 
 	phy_mode = of_get_phy_mode(dn);
 	if (phy_mode < 0) {
@@ -4705,8 +4704,6 @@ err_free_phylink:
 		phylink_destroy(pp->phylink);
 err_free_irq:
 	irq_dispose_mapping(dev->irq);
-err_free_netdev:
-	free_netdev(dev);
 	return err;
 }
 
@@ -4723,7 +4720,6 @@ static int mvneta_remove(struct platform_device *pdev)
 	free_percpu(pp->stats);
 	irq_dispose_mapping(dev->irq);
 	phylink_destroy(pp->phylink);
-	free_netdev(dev);
 
 	if (pp->bm_priv) {
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
