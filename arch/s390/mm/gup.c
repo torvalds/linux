@@ -18,7 +18,7 @@
  * inlines everything into a single function which results in too much
  * register pressure.
  */
-static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
+static inline int gup_pte_range(pmd_t pmd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	struct page *head, *page;
@@ -27,7 +27,7 @@ static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 
 	mask = (write ? _PAGE_PROTECT : 0) | _PAGE_INVALID | _PAGE_SPECIAL;
 
-	ptep = ((pte_t *) pmd_deref(pmd)) + pte_index(addr);
+	ptep = pte_offset_map(&pmd, addr);
 	do {
 		pte = *ptep;
 		barrier();
@@ -93,16 +93,13 @@ static inline int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 }
 
 
-static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
+static inline int gup_pmd_range(pud_t pud, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	unsigned long next;
 	pmd_t *pmdp, pmd;
 
-	pmdp = (pmd_t *) pudp;
-	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
-		pmdp = (pmd_t *) pud_deref(pud);
-	pmdp += pmd_index(addr);
+	pmdp = pmd_offset(&pud, addr);
 	do {
 		pmd = *pmdp;
 		barrier();
@@ -120,7 +117,7 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
 					  write, pages, nr))
 				return 0;
-		} else if (!gup_pte_range(pmdp, pmd, addr, next,
+		} else if (!gup_pte_range(pmd, addr, next,
 					  write, pages, nr))
 			return 0;
 	} while (pmdp++, addr = next, addr != end);
@@ -166,16 +163,13 @@ static int gup_huge_pud(pud_t *pudp, pud_t pud, unsigned long addr,
 	return 1;
 }
 
-static inline int gup_pud_range(p4d_t *p4dp, p4d_t p4d, unsigned long addr,
+static inline int gup_pud_range(p4d_t p4d, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	unsigned long next;
 	pud_t *pudp, pud;
 
-	pudp = (pud_t *) p4dp;
-	if ((p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
-		pudp = (pud_t *) p4d_deref(p4d);
-	pudp += pud_index(addr);
+	pudp = pud_offset(&p4d, addr);
 	do {
 		pud = *pudp;
 		barrier();
@@ -186,7 +180,7 @@ static inline int gup_pud_range(p4d_t *p4dp, p4d_t p4d, unsigned long addr,
 			if (!gup_huge_pud(pudp, pud, addr, next, write, pages,
 					  nr))
 				return 0;
-		} else if (!gup_pmd_range(pudp, pud, addr, next, write, pages,
+		} else if (!gup_pmd_range(pud, addr, next, write, pages,
 					  nr))
 			return 0;
 	} while (pudp++, addr = next, addr != end);
@@ -194,23 +188,20 @@ static inline int gup_pud_range(p4d_t *p4dp, p4d_t p4d, unsigned long addr,
 	return 1;
 }
 
-static inline int gup_p4d_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
+static inline int gup_p4d_range(pgd_t pgd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	unsigned long next;
 	p4d_t *p4dp, p4d;
 
-	p4dp = (p4d_t *) pgdp;
-	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R1)
-		p4dp = (p4d_t *) pgd_deref(pgd);
-	p4dp += p4d_index(addr);
+	p4dp = p4d_offset(&pgd, addr);
 	do {
 		p4d = *p4dp;
 		barrier();
 		next = p4d_addr_end(addr, end);
 		if (p4d_none(p4d))
 			return 0;
-		if (!gup_pud_range(p4dp, p4d, addr, next, write, pages, nr))
+		if (!gup_pud_range(p4d, addr, next, write, pages, nr))
 			return 0;
 	} while (p4dp++, addr = next, addr != end);
 
@@ -253,7 +244,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(pgd))
 			break;
-		if (!gup_p4d_range(pgdp, pgd, addr, next, write, pages, &nr))
+		if (!gup_p4d_range(pgd, addr, next, write, pages, &nr))
 			break;
 	} while (pgdp++, addr = next, addr != end);
 	local_irq_restore(flags);
