@@ -144,7 +144,8 @@ nfp_devlink_sb_pool_get(struct devlink *devlink, unsigned int sb_index,
 static int
 nfp_devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
 			u16 pool_index,
-			u32 size, enum devlink_sb_threshold_type threshold_type)
+			u32 size, enum devlink_sb_threshold_type threshold_type,
+			struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 

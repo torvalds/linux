@@ -491,13 +491,14 @@ struct devlink_ops {
 			   struct devlink_sb_pool_info *pool_info);
 	int (*sb_pool_set)(struct devlink *devlink, unsigned int sb_index,
 			   u16 pool_index, u32 size,
-			   enum devlink_sb_threshold_type threshold_type);
+			   enum devlink_sb_threshold_type threshold_type,
+			   struct netlink_ext_ack *extack);
 	int (*sb_port_pool_get)(struct devlink_port *devlink_port,
 				unsigned int sb_index, u16 pool_index,
 				u32 *p_threshold);
 	int (*sb_port_pool_set)(struct devlink_port *devlink_port,
 				unsigned int sb_index, u16 pool_index,
-				u32 threshold);
+				u32 threshold, struct netlink_ext_ack *extack);
 	int (*sb_tc_pool_bind_get)(struct devlink_port *devlink_port,
 				   unsigned int sb_index,
 				   u16 tc_index,
@@ -507,7 +508,8 @@ struct devlink_ops {
 				   unsigned int sb_index,
 				   u16 tc_index,
 				   enum devlink_sb_pool_type pool_type,
-				   u16 pool_index, u32 threshold);
+				   u16 pool_index, u32 threshold,
+				   struct netlink_ext_ack *extack);
 	int (*sb_occ_snapshot)(struct devlink *devlink,
 			       unsigned int sb_index);
 	int (*sb_occ_max_clear)(struct devlink *devlink,
