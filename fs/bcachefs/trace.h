@@ -499,6 +499,78 @@ TRACE_EVENT(copygc,
 		__entry->buckets_moved, __entry->buckets_not_moved)
 );
 
+DECLARE_EVENT_CLASS(transaction_restart,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip),
+
+	TP_STRUCT__entry(
+		__array(char,			name,	16)
+		__field(unsigned long,		ip	)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->name, c->name, 16);
+		__entry->ip = ip;
+	),
+
+	TP_printk("%pS", (void *) __entry->ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_reused,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_would_deadlock,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_iters_realloced,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_mem_realloced,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_journal_res_get,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_journal_preres_get,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_mark_replicas,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_fault_inject,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_split,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_restart_atomic,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip)
+);
+
 #endif /* _TRACE_BCACHEFS_H */
 
 /* This part must be outside protection */

@@ -440,6 +440,7 @@ static int bch2_trans_journal_preres_get(struct btree_trans *trans)
 
 	if (!bch2_btree_trans_relock(trans)) {
 		trans_restart(" (iter relock after journal preres get blocked)");
+		trace_trans_restart_journal_preres_get(c, trans->ip);
 		return -EINTR;
 	}
 
@@ -564,6 +565,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	if (race_fault()) {
 		ret = -EINTR;
 		trans_restart(" (race)");
+		trace_trans_restart_fault_inject(c, trans->ip);
 		goto out;
 	}
 
@@ -680,6 +682,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		 */
 		if (!ret || (flags & BTREE_INSERT_NOUNLOCK)) {
 			trans_restart(" (split)");
+			trace_trans_restart_btree_node_split(c, trans->ip);
 			ret = -EINTR;
 		}
 		break;
@@ -699,6 +702,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trans_restart(" (iter relock after marking replicas)");
+		trace_trans_restart_mark_replicas(c, trans->ip);
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
@@ -712,6 +716,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trans_restart(" (iter relock after journal res get blocked)");
+		trace_trans_restart_journal_res_get(c, trans->ip);
 		ret = -EINTR;
 		break;
 	default:
@@ -724,6 +729,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		if (ret2) {
 			trans_restart(" (traverse)");
+			trace_trans_restart_traverse(c, trans->ip);
 			return ret2;
 		}
 
@@ -735,6 +741,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trans_restart(" (atomic)");
+		trace_trans_restart_atomic(c, trans->ip);
 	}
 
 	return ret;

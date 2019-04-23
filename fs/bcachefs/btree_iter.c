@@ -252,12 +252,15 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		}
 	}
 
-	if (ret)
-		__btree_node_lock_type(iter->trans->c, b, type);
-	else
+	if (unlikely(!ret)) {
 		trans_restart();
+		trace_trans_restart_would_deadlock(iter->trans->c,
+						   iter->trans->ip);
+		return false;
+	}
 
-	return ret;
+	__btree_node_lock_type(iter->trans->c, b, type);
+	return true;
 }
 
 /* Btree iterator locking: */
@@ -1695,6 +1698,7 @@ success:
 
 	if (trans->iters_live) {
 		trans_restart();
+		trace_trans_restart_iters_realloced(trans->c, trans->ip);
 		return -EINTR;
 	}
 
@@ -1863,6 +1867,7 @@ void *bch2_trans_kmalloc(struct btree_trans *trans,
 
 		if (old_bytes) {
 			trans_restart();
+			trace_trans_restart_mem_realloced(trans->c, trans->ip);
 			return ERR_PTR(-EINTR);
 		}
 	}
@@ -1939,6 +1944,7 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c)
 	memset(trans, 0, offsetof(struct btree_trans, iters_onstack));
 
 	trans->c		= c;
+	trans->ip		= _RET_IP_;
 	trans->size		= ARRAY_SIZE(trans->iters_onstack);
 	trans->iters		= trans->iters_onstack;
 	trans->updates		= trans->updates_onstack;

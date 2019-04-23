@@ -267,6 +267,7 @@ struct btree_insert_entry {
 
 struct btree_trans {
 	struct bch_fs		*c;
+	unsigned long		ip;
 	size_t			nr_restarts;
 	u64			commit_start;
 
