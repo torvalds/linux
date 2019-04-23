@@ -6700,6 +6700,33 @@ long tg_get_cfs_period(struct task_group *tg)
 	return cfs_period_us;
 }
 
+int tg_set_cfs_percent(struct task_group *tg, long cfs_percent)
+{
+	u64 quota, period;
+	if (cfs_percent < 0)
+		return -EINVAL;
+
+	period = 1 * NSEC_PER_SEC;
+	quota = cfs_percent * 10 * USEC_PER_SECUL;
+	return tg_set_cfs_bandwidth(tg, period, quota);
+}
+
+long tg_get_cfs_percent(struct task_group *tg)
+{
+	u64 quota, period;
+	if (tg->cfs_bandwidth.quota == RUNTIME_INF)
+		return -1;
+
+	quota = tg->cfs_bandwidth.quota;
+	period = tg->cfs_bandwidth.period;
+
+	do_div(quota, 10);
+	do_div(period, NSEC_PER_USEC);
+	do_div(quota, period);
+
+	return quota;
+}
+
 static s64 cpu_cfs_quota_read_s64(struct cgroup_subsys_state *css,
 				  struct cftype *cft)
 {
@@ -6722,6 +6749,18 @@ static int cpu_cfs_period_write_u64(struct cgroup_subsys_state *css,
 				    struct cftype *cftype, u64 cfs_period_us)
 {
 	return tg_set_cfs_period(css_tg(css), cfs_period_us);
+}
+
+static s64 cpu_cfs_bandwidth_read_u64(struct cgroup_subsys_state *css,
+				    struct cftype *cft)
+{
+	return tg_get_cfs_percent(css_tg(css));
+}
+
+static int cpu_cfs_bandwidth_write_u64(struct cgroup_subsys_state *css,
+				    struct cftype *cftype, u64 cfs_percent)
+{
+	return tg_set_cfs_percent(css_tg(css), cfs_percent);
 }
 
 struct cfs_schedulable_data {
@@ -6880,6 +6919,11 @@ static struct cftype cpu_legacy_files[] = {
 		.name = "stat",
 		.seq_show = cpu_cfs_stat_show,
 	},
+	{
+		.name = "cfs_percent",
+		.read_s64 = cpu_cfs_bandwidth_read_u64,
+		.write_u64 = cpu_cfs_bandwidth_write_u64,
+	}
 #endif
 #ifdef CONFIG_RT_GROUP_SCHED
 	{
