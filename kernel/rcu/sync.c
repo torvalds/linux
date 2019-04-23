@@ -10,65 +10,20 @@
 #include <linux/rcu_sync.h>
 #include <linux/sched.h>
 
-#ifdef CONFIG_PROVE_RCU
-#define __INIT_HELD(func)	.held = func,
-#else
-#define __INIT_HELD(func)
-#endif
-
-static const struct {
-	void (*sync)(void);
-	void (*call)(struct rcu_head *, void (*)(struct rcu_head *));
-	void (*wait)(void);
-#ifdef CONFIG_PROVE_RCU
-	int  (*held)(void);
-#endif
-} gp_ops[] = {
-	[RCU_SYNC] = {
-		.sync = synchronize_rcu,
-		.call = call_rcu,
-		.wait = rcu_barrier,
-		__INIT_HELD(rcu_read_lock_held)
-	},
-	[RCU_SCHED_SYNC] = {
-		.sync = synchronize_rcu,
-		.call = call_rcu,
-		.wait = rcu_barrier,
-		__INIT_HELD(rcu_read_lock_sched_held)
-	},
-	[RCU_BH_SYNC] = {
-		.sync = synchronize_rcu,
-		.call = call_rcu,
-		.wait = rcu_barrier,
-		__INIT_HELD(rcu_read_lock_bh_held)
-	},
-};
-
 enum { GP_IDLE = 0, GP_PENDING, GP_PASSED };
 enum { CB_IDLE = 0, CB_PENDING, CB_REPLAY };
 
 #define	rss_lock	gp_wait.lock
-
-#ifdef CONFIG_PROVE_RCU
-void rcu_sync_lockdep_assert(struct rcu_sync *rsp)
-{
-	RCU_LOCKDEP_WARN(!gp_ops[rsp->gp_type].held(),
-			 "suspicious rcu_sync_is_idle() usage");
-}
-
-EXPORT_SYMBOL_GPL(rcu_sync_lockdep_assert);
-#endif
 
 /**
  * rcu_sync_init() - Initialize an rcu_sync structure
  * @rsp: Pointer to rcu_sync structure to be initialized
  * @type: Flavor of RCU with which to synchronize rcu_sync structure
  */
-void rcu_sync_init(struct rcu_sync *rsp, enum rcu_sync_type type)
+void rcu_sync_init(struct rcu_sync *rsp)
 {
 	memset(rsp, 0, sizeof(*rsp));
 	init_waitqueue_head(&rsp->gp_wait);
-	rsp->gp_type = type;
 }
 
 /**
@@ -114,7 +69,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 
 	WARN_ON_ONCE(need_wait && need_sync);
 	if (need_sync) {
-		gp_ops[rsp->gp_type].sync();
+		synchronize_rcu();
 		rsp->gp_state = GP_PASSED;
 		wake_up_all(&rsp->gp_wait);
 	} else if (need_wait) {
@@ -167,7 +122,7 @@ static void rcu_sync_func(struct rcu_head *rhp)
 		 * to catch a later GP.
 		 */
 		rsp->cb_state = CB_PENDING;
-		gp_ops[rsp->gp_type].call(&rsp->cb_head, rcu_sync_func);
+		call_rcu(&rsp->cb_head, rcu_sync_func);
 	} else {
 		/*
 		 * We're at least a GP after rcu_sync_exit(); eveybody will now
@@ -195,7 +150,7 @@ void rcu_sync_exit(struct rcu_sync *rsp)
 	if (!--rsp->gp_count) {
 		if (rsp->cb_state == CB_IDLE) {
 			rsp->cb_state = CB_PENDING;
-			gp_ops[rsp->gp_type].call(&rsp->cb_head, rcu_sync_func);
+			call_rcu(&rsp->cb_head, rcu_sync_func);
 		} else if (rsp->cb_state == CB_PENDING) {
 			rsp->cb_state = CB_REPLAY;
 		}
@@ -220,7 +175,7 @@ void rcu_sync_dtor(struct rcu_sync *rsp)
 	spin_unlock_irq(&rsp->rss_lock);
 
 	if (cb_state != CB_IDLE) {
-		gp_ops[rsp->gp_type].wait();
+		rcu_barrier();
 		WARN_ON_ONCE(rsp->cb_state != CB_IDLE);
 	}
 }
