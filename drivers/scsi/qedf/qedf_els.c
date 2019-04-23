@@ -145,9 +145,6 @@ els_err:
 void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *els_req)
 {
-	struct fcoe_task_context *task_ctx;
-	struct scsi_cmnd *sc_cmd;
-	uint16_t xid;
 	struct fcoe_cqe_midpath_info *mp_info;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Entered with xid = 0x%x"
@@ -157,10 +154,6 @@ void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 
 	/* Kill the ELS timer */
 	cancel_delayed_work(&els_req->timeout_work);
-
-	xid = els_req->xid;
-	task_ctx = qedf_get_task_mem(&qedf->tasks, xid);
-	sc_cmd = els_req->sc_cmd;
 
 	/* Get ELS response length from CQE */
 	mp_info = &cqe->cqe_info.midpath_info;
@@ -609,7 +602,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 	struct qedf_rport *fcport;
 	struct fc_lport *lport;
 	struct qedf_els_cb_arg *cb_arg = NULL;
-	u32 sid, r_a_tov;
+	u32 r_a_tov;
 	int rc;
 
 	if (!orig_io_req) {
@@ -635,7 +628,6 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 
 	qedf = fcport->qedf;
 	lport = qedf->lport;
-	sid = fcport->sid;
 	r_a_tov = lport->r_a_tov;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Sending SRR orig_io=%p, "
