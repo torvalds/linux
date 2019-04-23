@@ -809,6 +809,9 @@ static void __init arch_mem_init(char **cmdline_p)
 	arch_mem_addpart(PFN_UP(__pa_symbol(&__init_begin)) << PAGE_SHIFT,
 			 PFN_DOWN(__pa_symbol(&__init_end)) << PAGE_SHIFT,
 			 BOOT_MEM_INIT_RAM);
+	arch_mem_addpart(PFN_DOWN(__pa_symbol(&__bss_start)) << PAGE_SHIFT,
+			 PFN_UP(__pa_symbol(&__bss_stop)) << PAGE_SHIFT,
+			 BOOT_MEM_RAM);
 
 	pr_info("Determined physical RAM map:\n");
 	print_memory_map();
