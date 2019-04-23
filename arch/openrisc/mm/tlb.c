@@ -26,7 +26,6 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 
-#include <asm/segment.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
