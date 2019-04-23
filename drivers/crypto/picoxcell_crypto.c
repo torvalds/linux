@@ -1215,7 +1215,7 @@ static const struct dev_pm_ops spacc_pm_ops = {
 
 static inline struct spacc_engine *spacc_dev_to_engine(struct device *dev)
 {
-	return dev ? platform_get_drvdata(to_platform_device(dev)) : NULL;
+	return dev ? dev_get_drvdata(dev) : NULL;
 }
 
 static ssize_t spacc_stat_irq_thresh_show(struct device *dev,
