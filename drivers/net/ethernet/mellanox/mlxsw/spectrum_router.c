@@ -6105,6 +6105,8 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 			return notifier_from_errno(err);
 		break;
 	case FIB_EVENT_ENTRY_ADD:
+	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
+	case FIB_EVENT_ENTRY_APPEND:  /* fall through */
 		if (router->aborted) {
 			NL_SET_ERR_MSG_MOD(info->extack, "FIB offload was aborted. Not configuring route");
 			return notifier_from_errno(-EINVAL);
