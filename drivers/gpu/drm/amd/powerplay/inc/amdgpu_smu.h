@@ -576,8 +576,6 @@ struct pptable_funcs {
 	int (*notify_smc_dispaly_config)(struct smu_context *smu);
 	int (*force_dpm_limit_value)(struct smu_context *smu, bool highest);
 	int (*unforce_dpm_levels)(struct smu_context *smu);
-	int (*upload_dpm_level)(struct smu_context *smu, bool max,
-				uint32_t feature_mask);
 	int (*get_profiling_clk_mask)(struct smu_context *smu,
 				      enum amd_dpm_forced_level level,
 				      uint32_t *sclk_mask,
@@ -814,8 +812,6 @@ struct smu_funcs
 	((smu)->ppt_funcs->force_dpm_limit_value ? (smu)->ppt_funcs->force_dpm_limit_value((smu), (highest)) : 0)
 #define smu_unforce_dpm_levels(smu) \
 	((smu)->ppt_funcs->unforce_dpm_levels ? (smu)->ppt_funcs->unforce_dpm_levels((smu)) : 0)
-#define smu_upload_dpm_level(smu, max, feature_mask) \
-	((smu)->ppt_funcs->upload_dpm_level ? (smu)->ppt_funcs->upload_dpm_level((smu), (max), (feature_mask)) : 0)
 #define smu_get_profiling_clk_mask(smu, level, sclk_mask, mclk_mask, soc_mask) \
 	((smu)->ppt_funcs->get_profiling_clk_mask ? (smu)->ppt_funcs->get_profiling_clk_mask((smu), (level), (sclk_mask), (mclk_mask), (soc_mask)) : 0)
 #define smu_set_cpu_power_state(smu) \

@@ -2329,13 +2329,13 @@ static int vega20_unforce_dpm_levels(struct smu_context *smu)
 	dpm_table->soc_table.dpm_state.soft_max_level =
 		dpm_table->soc_table.dpm_levels[soft_max_level].value;
 
-	ret = smu_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_level(smu, false, 0xFFFFFFFF);
 	if (ret) {
 		pr_err("Failed to upload DPM Bootup Levels!");
 		return ret;
 	}
 
-	ret = smu_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	ret = vega20_upload_dpm_level(smu, true, 0xFFFFFFFF);
 	if (ret) {
 		pr_err("Failed to upload DPM Max Levels!");
 		return ret;
@@ -3142,7 +3142,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
-	.upload_dpm_level = vega20_upload_dpm_level,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
 	.set_ppfeature_status = vega20_set_ppfeature_status,
 	.get_ppfeature_status = vega20_get_ppfeature_status,
