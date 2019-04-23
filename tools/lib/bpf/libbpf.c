@@ -126,6 +126,8 @@ static inline __u64 ptr_to_u64(const void *ptr)
 struct bpf_capabilities {
 	/* v4.14: kernel support for program & map names. */
 	__u32 name:1;
+	/* v5.2: kernel support for global data sections. */
+	__u32 global_data:1;
 };
 
 /*
@@ -854,12 +856,15 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 	 *
 	 * TODO: Detect array of map and report error.
 	 */
-	if (obj->efile.data_shndx >= 0)
-		nr_maps_glob++;
-	if (obj->efile.rodata_shndx >= 0)
-		nr_maps_glob++;
-	if (obj->efile.bss_shndx >= 0)
-		nr_maps_glob++;
+	if (obj->caps.global_data) {
+		if (obj->efile.data_shndx >= 0)
+			nr_maps_glob++;
+		if (obj->efile.rodata_shndx >= 0)
+			nr_maps_glob++;
+		if (obj->efile.bss_shndx >= 0)
+			nr_maps_glob++;
+	}
+
 	for (i = 0; data && i < nr_syms; i++) {
 		GElf_Sym sym;
 
@@ -971,6 +976,9 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 		map_idx++;
 	}
 
+	if (!obj->caps.global_data)
+		goto finalize;
+
 	/*
 	 * Populate rest of obj->maps with libbpf internal maps.
 	 */
@@ -988,6 +996,7 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 		ret = bpf_object__init_internal_map(obj, &obj->maps[map_idx++],
 						    LIBBPF_MAP_BSS,
 						    obj->efile.bss, NULL);
+finalize:
 	if (!ret)
 		qsort(obj->maps, obj->nr_maps, sizeof(obj->maps[0]),
 		      compare_bpf_map);
@@ -1333,11 +1342,17 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 		if (bpf_object__shndx_is_maps(obj, shdr_idx) ||
 		    bpf_object__shndx_is_data(obj, shdr_idx)) {
 			type = bpf_object__section_to_libbpf_map_type(obj, shdr_idx);
-			if (type != LIBBPF_MAP_UNSPEC &&
-			    GELF_ST_BIND(sym.st_info) == STB_GLOBAL) {
-				pr_warning("bpf: relocation: not yet supported relo for non-static global \'%s\' variable found in insns[%d].code 0x%x\n",
-					   name, insn_idx, insns[insn_idx].code);
-				return -LIBBPF_ERRNO__RELOC;
+			if (type != LIBBPF_MAP_UNSPEC) {
+				if (GELF_ST_BIND(sym.st_info) == STB_GLOBAL) {
+					pr_warning("bpf: relocation: not yet supported relo for non-static global \'%s\' variable found in insns[%d].code 0x%x\n",
+						   name, insn_idx, insns[insn_idx].code);
+					return -LIBBPF_ERRNO__RELOC;
+				}
+				if (!obj->caps.global_data) {
+					pr_warning("bpf: relocation: kernel does not support global \'%s\' variable access in insns[%d]\n",
+						   name, insn_idx);
+					return -LIBBPF_ERRNO__RELOC;
+				}
 			}
 
 			for (map_idx = 0; map_idx < nr_maps; map_idx++) {
@@ -1496,9 +1511,67 @@ bpf_object__probe_name(struct bpf_object *obj)
 }
 
 static int
+bpf_object__probe_global_data(struct bpf_object *obj)
+{
+	struct bpf_load_program_attr prg_attr;
+	struct bpf_create_map_attr map_attr;
+	char *cp, errmsg[STRERR_BUFSIZE];
+	struct bpf_insn insns[] = {
+		BPF_LD_MAP_VALUE(BPF_REG_1, 0, 16),
+		BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 42),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int ret, map;
+
+	memset(&map_attr, 0, sizeof(map_attr));
+	map_attr.map_type = BPF_MAP_TYPE_ARRAY;
+	map_attr.key_size = sizeof(int);
+	map_attr.value_size = 32;
+	map_attr.max_entries = 1;
+
+	map = bpf_create_map_xattr(&map_attr);
+	if (map < 0) {
+		cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
+		pr_warning("Error in %s():%s(%d). Couldn't create simple array map.\n",
+			   __func__, cp, errno);
+		return -errno;
+	}
+
+	insns[0].imm = map;
+
+	memset(&prg_attr, 0, sizeof(prg_attr));
+	prg_attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	prg_attr.insns = insns;
+	prg_attr.insns_cnt = ARRAY_SIZE(insns);
+	prg_attr.license = "GPL";
+
+	ret = bpf_load_program_xattr(&prg_attr, NULL, 0);
+	if (ret >= 0) {
+		obj->caps.global_data = 1;
+		close(ret);
+	}
+
+	close(map);
+	return 0;
+}
+
+static int
 bpf_object__probe_caps(struct bpf_object *obj)
 {
-	return bpf_object__probe_name(obj);
+	int (*probe_fn[])(struct bpf_object *obj) = {
+		bpf_object__probe_name,
+		bpf_object__probe_global_data,
+	};
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(probe_fn); i++) {
+		ret = probe_fn[i](obj);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int
@@ -2100,6 +2173,7 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz,
 
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
 	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
+	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
 	CHECK_ERR(bpf_object__elf_collect(obj, flags), err, out);
 	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
 	CHECK_ERR(bpf_object__validate(obj, needs_kver), err, out);
@@ -2193,7 +2267,6 @@ int bpf_object__load(struct bpf_object *obj)
 
 	obj->loaded = true;
 
-	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
 	CHECK_ERR(bpf_object__create_maps(obj), err, out);
 	CHECK_ERR(bpf_object__relocate(obj), err, out);
 	CHECK_ERR(bpf_object__load_progs(obj), err, out);
