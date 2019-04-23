@@ -162,7 +162,7 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	}
 
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
-	atomic_set(&f6i->fib6_ref, 1);
+	refcount_set(&f6i->fib6_ref, 1);
 
 	return f6i;
 }
@@ -929,7 +929,7 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 {
 	struct fib6_table *table = rt->fib6_table;
 
-	if (atomic_read(&rt->fib6_ref) != 1) {
+	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split
 		 * nodes. It is not leaked, but it still holds other resources,
 		 * which must be released in time. So, scan ascendant nodes
@@ -2311,7 +2311,7 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 
 	dev = rt->fib6_nh.fib_nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
-		   rt->fib6_metric, atomic_read(&rt->fib6_ref), 0,
+		   rt->fib6_metric, refcount_read(&rt->fib6_ref), 0,
 		   flags, dev ? dev->name : "");
 	iter->w.leaf = NULL;
 	return 0;
