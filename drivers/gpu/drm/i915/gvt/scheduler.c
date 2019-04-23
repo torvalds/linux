@@ -1343,7 +1343,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	struct execlist_ctx_descriptor_format *desc = &workload->ctx_desc;
 	struct intel_vgpu_mm *mm;
 	struct intel_vgpu *vgpu = workload->vgpu;
-	intel_gvt_gtt_type_t root_entry_type;
+	enum intel_gvt_gtt_type root_entry_type;
 	u64 pdps[GVT_RING_CTX_NR_PDPS];
 
 	switch (desc->addressing_mode) {

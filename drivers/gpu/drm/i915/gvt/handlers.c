@@ -1206,7 +1206,7 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 
 static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 {
-	intel_gvt_gtt_type_t root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
+	enum intel_gvt_gtt_type root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
 	struct intel_vgpu_mm *mm;
 	u64 *pdps;
 
