@@ -2243,6 +2243,9 @@ xfs_alloc_fix_freelist(
 	xfs_extlen_t		need;	/* total blocks needed in freelist */
 	int			error = 0;
 
+	/* deferred ops (AGFL block frees) require permanent transactions */
+	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
+
 	if (!pag->pagf_init) {
 		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
 		if (error)
