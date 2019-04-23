@@ -5127,6 +5127,11 @@ static void update_freesync_state_on_stream(
 		    amdgpu_dm_vrr_active(new_crtc_state)) {
 			mod_freesync_handle_v_update(dm->freesync_module,
 						     new_stream, &vrr_params);
+
+			/* Need to call this before the frame ends. */
+			dc_stream_adjust_vmin_vmax(dm->dc,
+						   new_crtc_state->stream,
+						   &vrr_params.adjust);
 		}
 	}
 
@@ -5465,11 +5470,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		}
 
 		if (acrtc_state->stream) {
-
-			if (acrtc_state->freesync_timing_changed)
-				bundle->stream_update.adjust =
-					&acrtc_state->stream->adjust;
-
 			if (acrtc_state->freesync_vrr_info_changed)
 				bundle->stream_update.vrr_infopacket =
 					&acrtc_state->stream->vrr_infopacket;
@@ -5489,6 +5489,20 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		acrtc_state->stream->abm_level = acrtc_state->abm_level;
 		if (acrtc_state->abm_level != dm_old_crtc_state->abm_level)
 			bundle->stream_update.abm_level = &acrtc_state->abm_level;
+
+		/*
+		 * If FreeSync state on the stream has changed then we need to
+		 * re-adjust the min/max bounds now that DC doesn't handle this
+		 * as part of commit.
+		 */
+		if (amdgpu_dm_vrr_active(dm_old_crtc_state) !=
+		    amdgpu_dm_vrr_active(acrtc_state)) {
+			spin_lock_irqsave(&pcrtc->dev->event_lock, flags);
+			dc_stream_adjust_vmin_vmax(
+				dm->dc, acrtc_state->stream,
+				&acrtc_state->vrr_params.adjust);
+			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
+		}
 
 		mutex_lock(&dm->dc_lock);
 		dc_commit_updates_for_stream(dm->dc,

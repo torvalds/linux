@@ -791,6 +791,32 @@ void optc1_set_static_screen_control(
 			OTG_STATIC_SCREEN_FRAME_COUNT, 2);
 }
 
+void optc1_setup_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_GLOBAL_CONTROL2, 0,
+			MANUAL_FLOW_CONTROL_SEL, optc->inst);
+
+	REG_SET_8(OTG_TRIGA_CNTL, 0,
+			OTG_TRIGA_SOURCE_SELECT, 22,
+			OTG_TRIGA_SOURCE_PIPE_SELECT, optc->inst,
+			OTG_TRIGA_RISING_EDGE_DETECT_CNTL, 1,
+			OTG_TRIGA_FALLING_EDGE_DETECT_CNTL, 0,
+			OTG_TRIGA_POLARITY_SELECT, 0,
+			OTG_TRIGA_FREQUENCY_SELECT, 0,
+			OTG_TRIGA_DELAY, 0,
+			OTG_TRIGA_CLEAR, 1);
+}
+
+void optc1_program_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_MANUAL_FLOW_CONTROL, 0,
+			MANUAL_FLOW_CONTROL, 1);
+}
+
 
 /**
  *****************************************************************************
@@ -823,6 +849,10 @@ void optc1_set_drr(
 				OTG_FORCE_LOCK_ON_EVENT, 0,
 				OTG_SET_V_TOTAL_MIN_MASK_EN, 0,
 				OTG_SET_V_TOTAL_MIN_MASK, 0);
+
+		// Setup manual flow control for EOF via TRIG_A
+		optc->funcs->setup_manual_trigger(optc);
+
 	} else {
 		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
 				OTG_SET_V_TOTAL_MIN_MASK, 0,
@@ -1458,6 +1488,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc1_configure_crc,
 		.set_vtg_params = optc1_set_vtg_params,
+		.program_manual_trigger = optc1_program_manual_trigger,
+		.setup_manual_trigger = optc1_setup_manual_trigger
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)

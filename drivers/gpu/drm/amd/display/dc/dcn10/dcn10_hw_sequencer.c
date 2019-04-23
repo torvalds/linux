@@ -2506,8 +2506,8 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 {
 	int i = 0;
 	struct drr_params params = {0};
-	// DRR should set trigger event to monitor surface update event
-	unsigned int event_triggers = 0x80;
+	// DRR set trigger event mapped to OTG_TRIG_A (bit 11) for manual control flow
+	unsigned int event_triggers = 0x800;
 
 	params.vertical_total_max = vmax;
 	params.vertical_total_min = vmin;

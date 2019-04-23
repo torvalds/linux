@@ -263,7 +263,7 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream == stream && pipe->stream_res.stream_enc) {
+		if (pipe->stream == stream && pipe->stream_res.tg) {
 			pipe->stream->adjust = *adjust;
 			dc->hwss.set_drr(&pipe,
 					1,
@@ -1745,13 +1745,6 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			pipe_ctx->stream &&
 			pipe_ctx->stream == stream) {
 
-			/* Fast update*/
-			// VRR program can be done as part of FAST UPDATE
-			if (stream_update->adjust)
-				dc->hwss.set_drr(&pipe_ctx, 1,
-					stream_update->adjust->v_total_min,
-					stream_update->adjust->v_total_max);
-
 			if (stream_update->periodic_interrupt0 &&
 					dc->hwss.setup_periodic_interrupt)
 				dc->hwss.setup_periodic_interrupt(pipe_ctx, VLINE0);
@@ -1908,6 +1901,20 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
+	}
+
+	// Fire manual trigger
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->top_pipe ||
+			!pipe_ctx->stream ||
+			pipe_ctx->stream != stream ||
+			!srf_updates[i].flip_addr)
+			continue;
+
+		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
+			pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
 	}
 }
 
