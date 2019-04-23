@@ -255,6 +255,14 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 		ret = smu_feature_get_enabled_mask(smu, (uint32_t *)data, 2);
 		*size = 8;
 		break;
+	case AMDGPU_PP_SENSOR_UVD_POWER:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VCE_POWER:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT) ? 1 : 0;
+		*size = 4;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
