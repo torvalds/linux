@@ -3004,10 +3004,10 @@ int sock_gettstamp(struct socket *sock, void __user *userstamp,
 	/* beware of padding in sparc64 timeval */
 	if (timeval && !in_compat_syscall()) {
 		struct __kernel_old_timeval __user tv = {
-			.tv_sec = ts.tv_sec;
-			.tv_usec = ts.tv_nsec;
+			.tv_sec = ts.tv_sec,
+			.tv_usec = ts.tv_nsec,
 		};
-		if (copy_to_user(userstamp, &tv, sizeof(tv))
+		if (copy_to_user(userstamp, &tv, sizeof(tv)))
 			return -EFAULT;
 		return 0;
 	}
