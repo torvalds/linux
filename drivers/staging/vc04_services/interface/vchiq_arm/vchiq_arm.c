@@ -1458,16 +1458,16 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if ((status == VCHIQ_SUCCESS) && (ret < 0) && (ret != -EINTR) &&
 		(ret != -EWOULDBLOCK))
 		vchiq_log_info(vchiq_arm_log_level,
-			"  ioctl instance %lx, cmd %s -> status %d, %ld",
-			(unsigned long)instance,
+			"  ioctl instance %pK, cmd %s -> status %d, %ld",
+			instance,
 			(_IOC_NR(cmd) <= VCHIQ_IOC_MAX) ?
 				ioctl_names[_IOC_NR(cmd)] :
 				"<invalid>",
 			status, ret);
 	else
 		vchiq_log_trace(vchiq_arm_log_level,
-			"  ioctl instance %lx, cmd %s -> status %d, %ld",
-			(unsigned long)instance,
+			"  ioctl instance %pK, cmd %s -> status %d, %ld",
+			instance,
 			(_IOC_NR(cmd) <= VCHIQ_IOC_MAX) ?
 				ioctl_names[_IOC_NR(cmd)] :
 				"<invalid>",
