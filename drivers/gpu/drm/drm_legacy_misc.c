@@ -74,3 +74,9 @@ void drm_legacy_dev_reinit(struct drm_device *dev)
 
 	DRM_DEBUG("lastclose completed\n");
 }
+
+void drm_master_legacy_init(struct drm_master *master)
+{
+	spin_lock_init(&master->lock.spinlock);
+	init_waitqueue_head(&master->lock.lock_queue);
+}

@@ -199,4 +199,10 @@ void drm_legacy_lock_master_cleanup(struct drm_device *dev, struct drm_master *m
 static inline void drm_legacy_lock_master_cleanup(struct drm_device *dev, struct drm_master *master) {}
 #endif
 
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
+void drm_master_legacy_init(struct drm_master *master);
+#else
+static inline void drm_master_legacy_init(struct drm_master *master) {}
+#endif
+
 #endif /* __DRM_LEGACY_H__ */
