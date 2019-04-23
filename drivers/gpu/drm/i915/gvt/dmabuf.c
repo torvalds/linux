@@ -212,6 +212,8 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 	struct intel_vgpu_cursor_plane_format c;
 	int ret, tile_height = 1;
 
+	memset(info, 0, sizeof(*info));
+
 	if (plane_id == DRM_PLANE_TYPE_PRIMARY) {
 		ret = intel_vgpu_decode_primary_plane(vgpu, &p);
 		if (ret)
