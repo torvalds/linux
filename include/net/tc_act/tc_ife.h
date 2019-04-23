@@ -5,7 +5,8 @@
 #include <net/act_api.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
-#include <linux/module.h>
+
+struct module;
 
 struct tcf_ife_params {
 	u8 eth_dst[ETH_ALEN];
