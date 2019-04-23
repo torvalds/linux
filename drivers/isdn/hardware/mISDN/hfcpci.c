@@ -2041,9 +2041,9 @@ setup_hw(struct hfc_pci *hc)
 	}
 
 	printk(KERN_INFO
-	       "HFC-PCI: defined at mem %#lx fifo %#lx(%#lx) IRQ %d HZ %d\n",
-	       (u_long) hc->hw.pci_io, (u_long) hc->hw.fifos,
-	       (u_long) hc->hw.dmahandle, hc->irq, HZ);
+	       "HFC-PCI: defined at mem %#lx fifo %p(%pad) IRQ %d HZ %d\n",
+	       (u_long) hc->hw.pci_io, hc->hw.fifos,
+	       &hc->hw.dmahandle, hc->irq, HZ);
 
 	/* enable memory mapped ports, disable busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, PCI_ENA_MEMIO);
