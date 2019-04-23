@@ -440,5 +440,7 @@ static void __exit hv_kbd_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Microsoft Hyper-V Synthetic Keyboard Driver");
+
 module_init(hv_kbd_init);
 module_exit(hv_kbd_exit);
