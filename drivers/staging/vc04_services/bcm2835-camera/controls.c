@@ -607,18 +607,15 @@ static int ctrl_set_bitrate(struct bm2835_mmal_dev *dev,
 			    struct v4l2_ctrl *ctrl,
 			    const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
-	int ret;
 	struct vchiq_mmal_port *encoder_out;
 
 	dev->capture.encode_bitrate = ctrl->val;
 
 	encoder_out = &dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0];
 
-	ret = vchiq_mmal_port_parameter_set(dev->instance, encoder_out,
-					    mmal_ctrl->mmal_id,
-					    &ctrl->val, sizeof(ctrl->val));
-	ret = 0;
-	return ret;
+	return vchiq_mmal_port_parameter_set(dev->instance, encoder_out,
+					     mmal_ctrl->mmal_id, &ctrl->val,
+					     sizeof(ctrl->val));
 }
 
 static int ctrl_set_bitrate_mode(struct bm2835_mmal_dev *dev,
