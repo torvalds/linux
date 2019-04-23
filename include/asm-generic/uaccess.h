@@ -9,8 +9,6 @@
  */
 #include <linux/string.h>
 
-#include <asm/segment.h>
-
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
 #ifndef KERNEL_DS
