@@ -3081,6 +3081,14 @@ static int bpf_skb_net_grow(struct sk_buff *skb, u32 off, u32 len_diff,
 
 			skb_set_transport_header(skb, mac_len + nh_len);
 		}
+
+		/* Match skb->protocol to new outer l3 protocol */
+		if (skb->protocol == htons(ETH_P_IP) &&
+		    flags & BPF_F_ADJ_ROOM_ENCAP_L3_IPV6)
+			skb->protocol = htons(ETH_P_IPV6);
+		else if (skb->protocol == htons(ETH_P_IPV6) &&
+			 flags & BPF_F_ADJ_ROOM_ENCAP_L3_IPV4)
+			skb->protocol = htons(ETH_P_IP);
 	}
 
 	if (skb_is_gso(skb)) {
