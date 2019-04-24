@@ -90,7 +90,7 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 
 	rcu_read_lock();
 	entry = rcu_dereference(q->current_entry);
-	gate_mask = entry ? entry->gate_mask : -1;
+	gate_mask = entry ? entry->gate_mask : TAPRIO_ALL_GATES_OPEN;
 	rcu_read_unlock();
 
 	if (!gate_mask)
@@ -112,7 +112,7 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 		tc = netdev_get_prio_tc_map(dev, prio);
 
 		if (!(gate_mask & BIT(tc)))
-			return NULL;
+			continue;
 
 		return skb;
 	}
@@ -188,12 +188,12 @@ static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 		 */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
 		    ktime_after(guard, entry->close_time))
-			return NULL;
+			continue;
 
 		/* ... and no budget. */
 		if (gate_mask != TAPRIO_ALL_GATES_OPEN &&
 		    atomic_sub_return(len, &entry->budget) < 0)
-			return NULL;
+			continue;
 
 		skb = child->ops->dequeue(child);
 		if (unlikely(!skb))
@@ -207,14 +207,6 @@ static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 	}
 
 	return NULL;
-}
-
-static bool should_restart_cycle(const struct taprio_sched *q,
-				 const struct sched_entry *entry)
-{
-	WARN_ON(!entry);
-
-	return list_is_last(&entry->list, &q->entries);
 }
 
 static enum hrtimer_restart advance_sched(struct hrtimer *timer)
@@ -240,7 +232,7 @@ static enum hrtimer_restart advance_sched(struct hrtimer *timer)
 		goto first_run;
 	}
 
-	if (should_restart_cycle(q, entry))
+	if (list_is_last(&entry->list, &q->entries))
 		next = list_first_entry(&q->entries, struct sched_entry,
 					list);
 	else
@@ -539,7 +531,7 @@ static int taprio_parse_mqprio_opt(struct net_device *dev,
 	return 0;
 }
 
-static ktime_t taprio_get_start_time(struct Qdisc *sch)
+static int taprio_get_start_time(struct Qdisc *sch, ktime_t *start)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct sched_entry *entry;
@@ -547,27 +539,33 @@ static ktime_t taprio_get_start_time(struct Qdisc *sch)
 	s64 n;
 
 	base = ns_to_ktime(q->base_time);
-	cycle = 0;
+	now = q->get_time();
+
+	if (ktime_after(base, now)) {
+		*start = base;
+		return 0;
+	}
 
 	/* Calculate the cycle_time, by summing all the intervals.
 	 */
+	cycle = 0;
 	list_for_each_entry(entry, &q->entries, list)
 		cycle = ktime_add_ns(cycle, entry->interval);
 
-	if (!cycle)
-		return base;
-
-	now = q->get_time();
-
-	if (ktime_after(base, now))
-		return base;
+	/* The qdisc is expected to have at least one sched_entry.  Moreover,
+	 * any entry must have 'interval' > 0. Thus if the cycle time is zero,
+	 * something went really wrong. In that case, we should warn about this
+	 * inconsistent state and return error.
+	 */
+	if (WARN_ON(!cycle))
+		return -EFAULT;
 
 	/* Schedule the start time for the beginning of the next
 	 * cycle.
 	 */
 	n = div64_s64(ktime_sub_ns(now, base), cycle);
-
-	return ktime_add_ns(base, (n + 1) * cycle);
+	*start = ktime_add_ns(base, (n + 1) * cycle);
+	return 0;
 }
 
 static void taprio_start_sched(struct Qdisc *sch, ktime_t start)
@@ -651,7 +649,6 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	if (err < 0)
 		return err;
 
-	err = -EINVAL;
 	if (tb[TCA_TAPRIO_ATTR_PRIOMAP])
 		mqprio = nla_data(tb[TCA_TAPRIO_ATTR_PRIOMAP]);
 
@@ -717,9 +714,12 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	taprio_set_picos_per_byte(dev, q);
-	start = taprio_get_start_time(sch);
-	if (!start)
-		return 0;
+
+	err = taprio_get_start_time(sch, &start);
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Internal error: failed get start time");
+		return err;
+	}
 
 	taprio_start_sched(sch, start);
 
