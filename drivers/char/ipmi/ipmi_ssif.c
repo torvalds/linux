@@ -2111,7 +2111,8 @@ static void cleanup_ipmi_ssif(void)
 
 	kfree(ssif_i2c_driver.address_list);
 
-	platform_driver_unregister(&ipmi_driver);
+	if (ssif_trydmi)
+		platform_driver_unregister(&ipmi_driver);
 
 	free_ssif_clients();
 }
