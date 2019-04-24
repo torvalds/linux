@@ -2397,10 +2397,19 @@ static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
 		list_for_each_entry_safe(dc, tdc, &uncached_devices, list)
 			bcache_device_stop(&dc->disk);
 
+		mutex_unlock(&bch_register_lock);
+
+		/*
+		 * Give an early chance for other kthreads and
+		 * kworkers to stop themselves
+		 */
+		schedule();
+
 		/* What's a condition variable? */
 		while (1) {
-			long timeout = start + 2 * HZ - jiffies;
+			long timeout = start + 10 * HZ - jiffies;
 
+			mutex_lock(&bch_register_lock);
 			stopped = list_empty(&bch_cache_sets) &&
 				list_empty(&uncached_devices);
 
@@ -2412,7 +2421,6 @@ static int bcache_reboot(struct notifier_block *n, unsigned long code, void *x)
 
 			mutex_unlock(&bch_register_lock);
 			schedule_timeout(timeout);
-			mutex_lock(&bch_register_lock);
 		}
 
 		finish_wait(&unregister_wait, &wait);
