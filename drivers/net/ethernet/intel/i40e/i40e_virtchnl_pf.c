@@ -2509,7 +2509,7 @@ error_param:
  * MAC filters: 16 for multicast, 1 for MAC, 1 for broadcast
  */
 #define I40E_VC_MAX_MAC_ADDR_PER_VF (16 + 1 + 1)
-#define I40E_VC_MAX_VLAN_PER_VF 8
+#define I40E_VC_MAX_VLAN_PER_VF 16
 
 /**
  * i40e_check_vf_permission
