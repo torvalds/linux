@@ -992,7 +992,7 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 
 	if (iov_iter_bvec_no_ref(iter))
 		bio_set_flag(bio, BIO_NO_PAGE_REF);
-	else
+	else if (is_bvec)
 		bio_get_pages(bio);
 
 	return bio->bi_vcnt ? 0 : ret;
