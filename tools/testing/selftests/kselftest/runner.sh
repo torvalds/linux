@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Runs a set of tests in a given subdirectory.
-export KSFT_TAP_LEVEL=1
 export skip_rc=4
 export logfile=/dev/stdout
 export per_test_logging=

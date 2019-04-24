@@ -86,12 +86,6 @@ else
 	endif
 endif
 
-# KSFT_TAP_LEVEL is used from KSFT framework to prevent nested TAP header
-# printing from tests. Applicable to run_tests case where run_tests adds
-# TAP header prior running tests and when a test program invokes another
-# with system() call. Export it here to cover override RUN_TESTS defines.
-export KSFT_TAP_LEVEL=`echo 1`
-
 # Prepare for headers install
 top_srcdir ?= ../../..
 include $(top_srcdir)/scripts/subarch.include
