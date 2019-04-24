@@ -496,7 +496,6 @@ kp_spi_remove(struct platform_device *pldev)
 static struct platform_driver kp_spi_driver = {
     .driver = {
         .name =     KP_DRIVER_NAME_SPI,
-        .owner =    THIS_MODULE,
     },
     .probe =    kp_spi_probe,
     .remove =   kp_spi_remove,
