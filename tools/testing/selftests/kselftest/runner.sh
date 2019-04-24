@@ -20,15 +20,15 @@ run_one()
 	echo "========================================"
 	if [ ! -x "$TEST" ]; then
 		echo "$TEST_HDR_MSG: Warning: file $TEST is not executable, correct this."
-		echo "not ok 1..$test_num $TEST_HDR_MSG [FAIL]"
+		echo "not ok $test_num $TEST_HDR_MSG"
 	else
 		cd `dirname $TEST` > /dev/null
 		(./$BASENAME_TEST >> "$logfile" 2>&1 &&
-		echo "ok 1..$test_num $TEST_HDR_MSG [PASS]") ||
+		echo "ok $test_num $TEST_HDR_MSG") ||
 		(if [ $? -eq $skip_rc ]; then	\
-			echo "not ok 1..$test_num $TEST_HDR_MSG [SKIP]"
+			echo "not ok $test_num $TEST_HDR_MSG # SKIP"
 		else
-			echo "not ok 1..$test_num $TEST_HDR_MSG [FAIL]"
+			echo "not ok $test_num $TEST_HDR_MSG"
 		fi)
 		cd - >/dev/null
 	fi
@@ -39,6 +39,8 @@ run_many()
 	echo "TAP version 13"
 	DIR=$(basename "$PWD")
 	test_num=0
+	total=$(echo "$@" | wc -w)
+	echo "1..$total"
 	for TEST in "$@"; do
 		BASENAME_TEST=$(basename $TEST)
 		test_num=$(( test_num + 1 ))
