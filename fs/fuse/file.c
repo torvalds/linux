@@ -2578,8 +2578,13 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 #if BITS_PER_LONG == 32
 	inarg.flags |= FUSE_IOCTL_32BIT;
 #else
-	if (flags & FUSE_IOCTL_COMPAT)
+	if (flags & FUSE_IOCTL_COMPAT) {
 		inarg.flags |= FUSE_IOCTL_32BIT;
+#ifdef CONFIG_X86_X32
+		if (in_x32_syscall())
+			inarg.flags |= FUSE_IOCTL_COMPAT_X32;
+#endif
+	}
 #endif
 
 	/* assume all the iovs returned by client always fits in a page */
