@@ -870,20 +870,20 @@ static unsigned long rpcrdma_sendctx_next(struct rpcrdma_buffer *buf,
 
 /**
  * rpcrdma_sendctx_get_locked - Acquire a send context
- * @buf: transport buffers from which to acquire an unused context
+ * @r_xprt: controlling transport instance
  *
  * Returns pointer to a free send completion context; or NULL if
  * the queue is empty.
  *
  * Usage: Called to acquire an SGE array before preparing a Send WR.
  *
- * The caller serializes calls to this function (per rpcrdma_buffer),
- * and provides an effective memory barrier that flushes the new value
+ * The caller serializes calls to this function (per transport), and
+ * provides an effective memory barrier that flushes the new value
  * of rb_sc_head.
  */
-struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_buffer *buf)
+struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt;
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_sendctx *sc;
 	unsigned long next_head;
 
@@ -908,7 +908,6 @@ out_emptyq:
 	 * backing up. Cause the caller to pause and try again.
 	 */
 	set_bit(RPCRDMA_BUF_F_EMPTY_SCQ, &buf->rb_flags);
-	r_xprt = container_of(buf, struct rpcrdma_xprt, rx_buf);
 	r_xprt->rx_stats.empty_sendctx_q++;
 	return NULL;
 }
@@ -920,7 +919,7 @@ out_emptyq:
  * Usage: Called from Send completion to return a sendctxt
  * to the queue.
  *
- * The caller serializes calls to this function (per rpcrdma_buffer).
+ * The caller serializes calls to this function (per transport).
  */
 static void
 rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
@@ -928,7 +927,7 @@ rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
 	struct rpcrdma_buffer *buf = &sc->sc_xprt->rx_buf;
 	unsigned long next_tail;
 
-	/* Unmap SGEs of previously completed by unsignaled
+	/* Unmap SGEs of previously completed but unsignaled
 	 * Sends by walking up the queue until @sc is found.
 	 */
 	next_tail = buf->rb_sc_tail;
@@ -936,7 +935,7 @@ rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
 		next_tail = rpcrdma_sendctx_next(buf, next_tail);
 
 		/* ORDER: item must be accessed _before_ tail is updated */
-		rpcrdma_unmap_sendctx(buf->rb_sc_ctxs[next_tail]);
+		rpcrdma_sendctx_unmap(buf->rb_sc_ctxs[next_tail]);
 
 	} while (buf->rb_sc_ctxs[next_tail] != sc);
 
