@@ -656,8 +656,6 @@ do {									\
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", #x, SPLIT_NS(rq->x))
 
 	P(nr_running);
-	SEQ_printf(m, "  .%-30s: %lu\n", "load",
-		   rq->load.weight);
 	P(nr_switches);
 	P(nr_load_updates);
 	P(nr_uninterruptible);
