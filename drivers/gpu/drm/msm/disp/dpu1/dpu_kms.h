@@ -73,9 +73,6 @@
 
 #define DPU_NAME_SIZE  12
 
-/* timeout in frames waiting for frame done */
-#define DPU_FRAME_DONE_TIMEOUT	60
-
 /*
  * struct dpu_irq_callback - IRQ callback handlers
  * @list: list to callback
