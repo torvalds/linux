@@ -412,7 +412,10 @@ gss_upcall_callback(struct rpc_task *task)
 
 static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 {
-	uid_t uid = from_kuid(&init_user_ns, gss_msg->uid);
+	struct user_namespace *userns = gss_msg->auth->client->cl_cred ?
+		gss_msg->auth->client->cl_cred->user_ns : &init_user_ns;
+
+	uid_t uid = from_kuid_munged(userns, gss_msg->uid);
 	memcpy(gss_msg->databuf, &uid, sizeof(uid));
 	gss_msg->msg.data = gss_msg->databuf;
 	gss_msg->msg.len = sizeof(uid);
@@ -424,13 +427,15 @@ static int gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 				const char *service_name,
 				const char *target_name)
 {
+	struct user_namespace *userns = gss_msg->auth->client->cl_cred ?
+		gss_msg->auth->client->cl_cred->user_ns : &init_user_ns;
 	struct gss_api_mech *mech = gss_msg->auth->mech;
 	char *p = gss_msg->databuf;
 	size_t buflen = sizeof(gss_msg->databuf);
 	int len;
 
 	len = scnprintf(p, buflen, "mech=%s uid=%d", mech->gm_name,
-			from_kuid(&init_user_ns, gss_msg->uid));
+			from_kuid_munged(userns, gss_msg->uid));
 	buflen -= len;
 	p += len;
 	gss_msg->msg.len = len;
@@ -706,7 +711,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		goto err;
 	}
 
-	uid = make_kuid(&init_user_ns, id);
+	uid = make_kuid(current_user_ns(), id);
 	if (!uid_valid(uid)) {
 		err = -EINVAL;
 		goto err;
