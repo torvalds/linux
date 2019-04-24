@@ -15,6 +15,9 @@
  * carefully reviewed otherwise so it does not prevent mount of valid images.
  */
 
+#include <linux/types.h>
+#include <linux/stddef.h>
+#include <linux/error-injection.h>
 #include "ctree.h"
 #include "tree-checker.h"
 #include "disk-io.h"
@@ -942,6 +945,7 @@ int btrfs_check_leaf_full(struct extent_buffer *leaf)
 {
 	return check_leaf(leaf, true);
 }
+ALLOW_ERROR_INJECTION(btrfs_check_leaf_full, ERRNO);
 
 int btrfs_check_leaf_relaxed(struct extent_buffer *leaf)
 {
@@ -1005,3 +1009,4 @@ int btrfs_check_node(struct extent_buffer *node)
 out:
 	return ret;
 }
+ALLOW_ERROR_INJECTION(btrfs_check_node, ERRNO);
