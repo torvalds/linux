@@ -232,16 +232,6 @@ struct rpcrdma_sendctx {
 	struct ib_sge		sc_sges[];
 };
 
-/* Limit the number of SGEs that can be unmapped during one
- * Send completion. This caps the amount of work a single
- * completion can do before returning to the provider.
- *
- * Setting this to zero disables Send completion batching.
- */
-enum {
-	RPCRDMA_MAX_SEND_BATCH = 7,
-};
-
 /*
  * struct rpcrdma_mr - external memory region metadata
  *
