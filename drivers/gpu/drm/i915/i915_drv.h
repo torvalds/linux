@@ -74,6 +74,7 @@
 #include "intel_opregion.h"
 #include "intel_uc.h"
 #include "intel_uncore.h"
+#include "intel_wakeref.h"
 #include "intel_wopcm.h"
 
 #include "i915_gem.h"
@@ -133,8 +134,6 @@ bool i915_error_injected(void);
 #define i915_load_error(i915, fmt, ...)					 \
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
-
-typedef depot_stack_handle_t intel_wakeref_t;
 
 enum hpd_pin {
 	HPD_NONE = 0,

@@ -31,7 +31,8 @@ header_test := \
 	intel_psr.h \
 	intel_sdvo.h \
 	intel_sprite.h \
-	intel_tv.h
+	intel_tv.h \
+	intel_wakeref.h
 
 quiet_cmd_header_test = HDRTEST $@
       cmd_header_test = echo "\#include \"$(<F)\"" > $@

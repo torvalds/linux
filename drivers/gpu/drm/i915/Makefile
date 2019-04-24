@@ -50,6 +50,7 @@ i915-y += i915_drv.o \
 	  intel_device_info.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
+	  intel_wakeref.o \
 	  intel_uncore.o
 
 # core library code
