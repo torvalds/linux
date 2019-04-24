@@ -800,11 +800,8 @@ static int atmel_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			   unsigned int keylen)
 {
 	struct atmel_tdes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-	const char *alg_name;
 	u32 flags;
 	int err;
-
-	alg_name = crypto_tfm_alg_name(crypto_ablkcipher_tfm(tfm));
 
 	flags = crypto_ablkcipher_get_flags(tfm);
 	err = __des3_verify_key(&flags, key);
