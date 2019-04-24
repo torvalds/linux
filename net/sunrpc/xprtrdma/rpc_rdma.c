@@ -238,7 +238,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 		 */
 		if (unlikely(xdrbuf->flags & XDRBUF_SPARSE_PAGES)) {
 			if (!*ppages)
-				*ppages = alloc_page(GFP_ATOMIC);
+				*ppages = alloc_page(GFP_NOWAIT | __GFP_NOWARN);
 			if (!*ppages)
 				return -ENOBUFS;
 		}
