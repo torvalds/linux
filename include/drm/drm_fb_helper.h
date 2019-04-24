@@ -102,29 +102,6 @@ struct drm_fb_helper_funcs {
 	 */
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
-
-	/**
-	 * @initial_config:
-	 *
-	 * Driver callback to setup an initial fbdev display configuration.
-	 * Drivers can use this callback to tell the fbdev emulation what the
-	 * preferred initial configuration is. This is useful to implement
-	 * smooth booting where the fbdev (and subsequently all userspace) never
-	 * changes the mode, but always inherits the existing configuration.
-	 *
-	 * This callback is optional.
-	 *
-	 * RETURNS:
-	 *
-	 * The driver should return true if a suitable initial configuration has
-	 * been filled out and false when the fbdev helper should fall back to
-	 * the default probing logic.
-	 */
-	bool (*initial_config)(struct drm_fb_helper *fb_helper,
-			       struct drm_fb_helper_crtc **crtcs,
-			       struct drm_display_mode **modes,
-			       struct drm_fb_offset *offsets,
-			       bool *enabled, int width, int height);
 };
 
 struct drm_fb_helper_connector {

@@ -29,8 +29,10 @@ struct tfp410 {
 	struct drm_connector	connector;
 	unsigned int		connector_type;
 
+	u32			bus_format;
 	struct i2c_adapter	*ddc;
 	struct gpio_desc	*hpd;
+	int			hpd_irq;
 	struct delayed_work	hpd_work;
 	struct gpio_desc	*powerdown;
 
@@ -124,8 +126,10 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		return -ENODEV;
 	}
 
-	if (dvi->hpd)
+	if (dvi->hpd_irq >= 0)
 		dvi->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	else
+		dvi->connector.polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	drm_connector_helper_add(&dvi->connector,
 				 &tfp410_con_helper_funcs);
@@ -135,6 +139,9 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		dev_err(dvi->dev, "drm_connector_init() failed: %d\n", ret);
 		return ret;
 	}
+
+	drm_display_info_set_bus_formats(&dvi->connector.display_info,
+					 &dvi->bus_format, 1);
 
 	drm_connector_attach_encoder(&dvi->connector,
 					  bridge->encoder);
@@ -194,6 +201,7 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 	struct drm_bridge_timings *timings = &dvi->timings;
 	struct device_node *ep;
 	u32 pclk_sample = 0;
+	u32 bus_width = 24;
 	s32 deskew = 0;
 
 	/* Start with defaults. */
@@ -218,6 +226,7 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 
 	/* Get the sampling edge from the endpoint. */
 	of_property_read_u32(ep, "pclk-sample", &pclk_sample);
+	of_property_read_u32(ep, "bus-width", &bus_width);
 	of_node_put(ep);
 
 	timings->input_bus_flags = DRM_BUS_FLAG_DE_HIGH;
@@ -230,6 +239,17 @@ static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
 	case 1:
 		timings->input_bus_flags |= DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
 					 |  DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (bus_width) {
+	case 12:
+		dvi->bus_format = MEDIA_BUS_FMT_RGB888_2X12_LE;
+		break;
+	case 24:
+		dvi->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		break;
 	default:
 		return -EINVAL;
@@ -324,10 +344,15 @@ static int tfp410_init(struct device *dev, bool i2c)
 		return PTR_ERR(dvi->powerdown);
 	}
 
-	if (dvi->hpd) {
+	if (dvi->hpd)
+		dvi->hpd_irq = gpiod_to_irq(dvi->hpd);
+	else
+		dvi->hpd_irq = -ENXIO;
+
+	if (dvi->hpd_irq >= 0) {
 		INIT_DELAYED_WORK(&dvi->hpd_work, tfp410_hpd_work_func);
 
-		ret = devm_request_threaded_irq(dev, gpiod_to_irq(dvi->hpd),
+		ret = devm_request_threaded_irq(dev, dvi->hpd_irq,
 			NULL, tfp410_hpd_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"hdmi-hpd", dvi);

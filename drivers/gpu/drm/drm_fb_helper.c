@@ -2559,6 +2559,194 @@ static void drm_setup_crtc_rotation(struct drm_fb_helper *fb_helper,
 	fb_helper->sw_rotations |= DRM_MODE_ROTATE_0;
 }
 
+static struct drm_fb_helper_crtc *
+drm_fb_helper_crtc(struct drm_fb_helper *fb_helper, struct drm_crtc *crtc)
+{
+	int i;
+
+	for (i = 0; i < fb_helper->crtc_count; i++)
+		if (fb_helper->crtc_info[i].mode_set.crtc == crtc)
+			return &fb_helper->crtc_info[i];
+
+	return NULL;
+}
+
+/* Try to read the BIOS display configuration and use it for the initial config */
+static bool drm_fb_helper_firmware_config(struct drm_fb_helper *fb_helper,
+					  struct drm_fb_helper_crtc **crtcs,
+					  struct drm_display_mode **modes,
+					  struct drm_fb_offset *offsets,
+					  bool *enabled, int width, int height)
+{
+	struct drm_device *dev = fb_helper->dev;
+	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
+	unsigned long conn_configured, conn_seq;
+	int i, j;
+	bool *save_enabled;
+	bool fallback = true, ret = true;
+	int num_connectors_enabled = 0;
+	int num_connectors_detected = 0;
+	struct drm_modeset_acquire_ctx ctx;
+
+	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
+	if (!save_enabled)
+		return false;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	while (drm_modeset_lock_all_ctx(dev, &ctx) != 0)
+		drm_modeset_backoff(&ctx);
+
+	memcpy(save_enabled, enabled, count);
+	conn_seq = GENMASK(count - 1, 0);
+	conn_configured = 0;
+retry:
+	for (i = 0; i < count; i++) {
+		struct drm_fb_helper_connector *fb_conn;
+		struct drm_connector *connector;
+		struct drm_encoder *encoder;
+		struct drm_fb_helper_crtc *new_crtc;
+
+		fb_conn = fb_helper->connector_info[i];
+		connector = fb_conn->connector;
+
+		if (conn_configured & BIT(i))
+			continue;
+
+		/* First pass, only consider tiled connectors */
+		if (conn_seq == GENMASK(count - 1, 0) && !connector->has_tile)
+			continue;
+
+		if (connector->status == connector_status_connected)
+			num_connectors_detected++;
+
+		if (!enabled[i]) {
+			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
+				      connector->name);
+			conn_configured |= BIT(i);
+			continue;
+		}
+
+		if (connector->force == DRM_FORCE_OFF) {
+			DRM_DEBUG_KMS("connector %s is disabled by user, skipping\n",
+				      connector->name);
+			enabled[i] = false;
+			continue;
+		}
+
+		encoder = connector->state->best_encoder;
+		if (!encoder || WARN_ON(!connector->state->crtc)) {
+			if (connector->force > DRM_FORCE_OFF)
+				goto bail;
+
+			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
+				      connector->name);
+			enabled[i] = false;
+			conn_configured |= BIT(i);
+			continue;
+		}
+
+		num_connectors_enabled++;
+
+		new_crtc = drm_fb_helper_crtc(fb_helper, connector->state->crtc);
+
+		/*
+		 * Make sure we're not trying to drive multiple connectors
+		 * with a single CRTC, since our cloning support may not
+		 * match the BIOS.
+		 */
+		for (j = 0; j < count; j++) {
+			if (crtcs[j] == new_crtc) {
+				DRM_DEBUG_KMS("fallback: cloned configuration\n");
+				goto bail;
+			}
+		}
+
+		DRM_DEBUG_KMS("looking for cmdline mode on connector %s\n",
+			      connector->name);
+
+		/* go for command line mode first */
+		modes[i] = drm_pick_cmdline_mode(fb_conn);
+
+		/* try for preferred next */
+		if (!modes[i]) {
+			DRM_DEBUG_KMS("looking for preferred mode on connector %s %d\n",
+				      connector->name, connector->has_tile);
+			modes[i] = drm_has_preferred_mode(fb_conn, width,
+							  height);
+		}
+
+		/* No preferred mode marked by the EDID? Are there any modes? */
+		if (!modes[i] && !list_empty(&connector->modes)) {
+			DRM_DEBUG_KMS("using first mode listed on connector %s\n",
+				      connector->name);
+			modes[i] = list_first_entry(&connector->modes,
+						    struct drm_display_mode,
+						    head);
+		}
+
+		/* last resort: use current mode */
+		if (!modes[i]) {
+			/*
+			 * IMPORTANT: We want to use the adjusted mode (i.e.
+			 * after the panel fitter upscaling) as the initial
+			 * config, not the input mode, which is what crtc->mode
+			 * usually contains. But since our current
+			 * code puts a mode derived from the post-pfit timings
+			 * into crtc->mode this works out correctly.
+			 *
+			 * This is crtc->mode and not crtc->state->mode for the
+			 * fastboot check to work correctly.
+			 */
+			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
+				      connector->name);
+			modes[i] = &connector->state->crtc->mode;
+		}
+		crtcs[i] = new_crtc;
+
+		DRM_DEBUG_KMS("connector %s on [CRTC:%d:%s]: %dx%d%s\n",
+			      connector->name,
+			      connector->state->crtc->base.id,
+			      connector->state->crtc->name,
+			      modes[i]->hdisplay, modes[i]->vdisplay,
+			      modes[i]->flags & DRM_MODE_FLAG_INTERLACE ? "i" : "");
+
+		fallback = false;
+		conn_configured |= BIT(i);
+	}
+
+	if (conn_configured != conn_seq) { /* repeat until no more are found */
+		conn_seq = conn_configured;
+		goto retry;
+	}
+
+	/*
+	 * If the BIOS didn't enable everything it could, fall back to have the
+	 * same user experiencing of lighting up as much as possible like the
+	 * fbdev helper library.
+	 */
+	if (num_connectors_enabled != num_connectors_detected &&
+	    num_connectors_enabled < dev->mode_config.num_crtc) {
+		DRM_DEBUG_KMS("fallback: Not all outputs enabled\n");
+		DRM_DEBUG_KMS("Enabled: %i, detected: %i\n", num_connectors_enabled,
+			      num_connectors_detected);
+		fallback = true;
+	}
+
+	if (fallback) {
+bail:
+		DRM_DEBUG_KMS("Not using firmware configuration\n");
+		memcpy(enabled, save_enabled, count);
+		ret = false;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	kfree(save_enabled);
+	return ret;
+}
+
 static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			    u32 width, u32 height)
 {
@@ -2591,10 +2779,8 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 		DRM_DEBUG_KMS("No connectors reported connected with modes\n");
 	drm_enable_connectors(fb_helper, enabled);
 
-	if (!(fb_helper->funcs->initial_config &&
-	      fb_helper->funcs->initial_config(fb_helper, crtcs, modes,
-					       offsets,
-					       enabled, width, height))) {
+	if (!drm_fb_helper_firmware_config(fb_helper, crtcs, modes, offsets,
+					   enabled, width, height)) {
 		memset(modes, 0, fb_helper->connector_count*sizeof(modes[0]));
 		memset(crtcs, 0, fb_helper->connector_count*sizeof(crtcs[0]));
 		memset(offsets, 0, fb_helper->connector_count*sizeof(offsets[0]));
@@ -3322,7 +3508,7 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 	if (ret)
 		DRM_DEV_DEBUG(dev->dev, "client hotplug ret=%d\n", ret);
 
-	drm_client_add(&fb_helper->client);
+	drm_client_register(&fb_helper->client);
 
 	return 0;
 }
