@@ -274,13 +274,15 @@ xfs_defer_trans_roll(
 
 	trace_xfs_defer_trans_roll(tp, _RET_IP_);
 
-	/* Roll the transaction. */
+	/*
+	 * Roll the transaction.  Rolling always given a new transaction (even
+	 * if committing the old one fails!) to hand back to the caller, so we
+	 * join the held resources to the new transaction so that we always
+	 * return with the held resources joined to @tpp, no matter what
+	 * happened.
+	 */
 	error = xfs_trans_roll(tpp);
 	tp = *tpp;
-	if (error) {
-		trace_xfs_defer_trans_roll_error(tp, error);
-		return error;
-	}
 
 	/* Rejoin the joined inodes. */
 	for (i = 0; i < ipcount; i++)
@@ -292,6 +294,8 @@ xfs_defer_trans_roll(
 		xfs_trans_bhold(tp, bplist[i]);
 	}
 
+	if (error)
+		trace_xfs_defer_trans_roll_error(tp, error);
 	return error;
 }
 
