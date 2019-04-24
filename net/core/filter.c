@@ -4680,8 +4680,8 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 {
 	struct in6_addr *src = (struct in6_addr *) params->ipv6_src;
 	struct in6_addr *dst = (struct in6_addr *) params->ipv6_dst;
+	struct fib6_result res = {};
 	struct neighbour *neigh;
-	struct fib6_result res;
 	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct flowi6 fl6;
