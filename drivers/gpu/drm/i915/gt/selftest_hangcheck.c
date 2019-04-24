@@ -24,6 +24,8 @@
 
 #include <linux/kthread.h>
 
+#include "intel_engine_pm.h"
+
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"
@@ -479,19 +481,6 @@ static int igt_reset_nop(void *arg)
 			break;
 		}
 
-		if (!i915_reset_flush(i915)) {
-			struct drm_printer p =
-				drm_info_printer(i915->drm.dev);
-
-			pr_err("%s failed to idle after reset\n",
-			       engine->name);
-			intel_engine_dump(engine, &p,
-					  "%s\n", engine->name);
-
-			err = -EIO;
-			break;
-		}
-
 		err = igt_flush_test(i915, 0);
 		if (err)
 			break;
@@ -594,19 +583,6 @@ static int igt_reset_nop_engine(void *arg)
 				err = -EINVAL;
 				break;
 			}
-
-			if (!i915_reset_flush(i915)) {
-				struct drm_printer p =
-					drm_info_printer(i915->drm.dev);
-
-				pr_err("%s failed to idle after reset\n",
-				       engine->name);
-				intel_engine_dump(engine, &p,
-						  "%s\n", engine->name);
-
-				err = -EIO;
-				break;
-			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
 		pr_info("%s(%s): %d resets\n", __func__, engine->name, count);
@@ -669,6 +645,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 		reset_engine_count = i915_reset_engine_count(&i915->gpu_error,
 							     engine);
 
+		intel_engine_pm_get(engine);
 		set_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
 		do {
 			if (active) {
@@ -721,21 +698,9 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				err = -EINVAL;
 				break;
 			}
-
-			if (!i915_reset_flush(i915)) {
-				struct drm_printer p =
-					drm_info_printer(i915->drm.dev);
-
-				pr_err("%s failed to idle after reset\n",
-				       engine->name);
-				intel_engine_dump(engine, &p,
-						  "%s\n", engine->name);
-
-				err = -EIO;
-				break;
-			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
+		intel_engine_pm_put(engine);
 
 		if (err)
 			break;
@@ -942,6 +907,7 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 			get_task_struct(tsk);
 		}
 
+		intel_engine_pm_get(engine);
 		set_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
 		do {
 			struct i915_request *rq = NULL;
@@ -1018,6 +984,7 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
+		intel_engine_pm_put(engine);
 		pr_info("i915_reset_engine(%s:%s): %lu resets\n",
 			engine->name, test_name, count);
 
@@ -1069,7 +1036,9 @@ unwind:
 		if (err)
 			break;
 
-		err = igt_flush_test(i915, 0);
+		mutex_lock(&i915->drm.struct_mutex);
+		err = igt_flush_test(i915, I915_WAIT_LOCKED);
+		mutex_unlock(&i915->drm.struct_mutex);
 		if (err)
 			break;
 	}

@@ -24,6 +24,7 @@
 
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_engine_pm.h"
 
 #include "mock_engine.h"
 #include "selftests/mock_request.h"
@@ -268,6 +269,8 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	i915_timeline_set_subclass(&engine->base.timeline, TIMELINE_ENGINE);
 
 	intel_engine_init_breadcrumbs(&engine->base);
+	intel_engine_init_execlists(&engine->base);
+	intel_engine_init__pm(&engine->base);
 
 	/* fake hw queue */
 	spin_lock_init(&engine->hw_lock);

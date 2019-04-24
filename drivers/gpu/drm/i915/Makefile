@@ -71,6 +71,8 @@ gt-y += \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
 	gt/intel_engine_cs.o \
+	gt/intel_engine_pm.o \
+	gt/intel_gt_pm.o \
 	gt/intel_hangcheck.o \
 	gt/intel_lrc.o \
 	gt/intel_reset.o \

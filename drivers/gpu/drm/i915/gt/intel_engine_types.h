@@ -20,6 +20,7 @@
 #include "i915_selftest.h"
 #include "i915_timeline_types.h"
 #include "intel_sseu.h"
+#include "intel_wakeref.h"
 #include "intel_workarounds_types.h"
 
 #define I915_MAX_SLICES	3
@@ -287,6 +288,10 @@ struct intel_engine_cs {
 	struct intel_context *kernel_context; /* pinned */
 	struct intel_context *preempt_context; /* pinned; optional */
 
+	unsigned long serial;
+
+	unsigned long wakeref_serial;
+	struct intel_wakeref wakeref;
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
 
@@ -359,7 +364,7 @@ struct intel_engine_cs {
 	void		(*irq_enable)(struct intel_engine_cs *engine);
 	void		(*irq_disable)(struct intel_engine_cs *engine);
 
-	int		(*init_hw)(struct intel_engine_cs *engine);
+	int		(*resume)(struct intel_engine_cs *engine);
 
 	struct {
 		void (*prepare)(struct intel_engine_cs *engine);

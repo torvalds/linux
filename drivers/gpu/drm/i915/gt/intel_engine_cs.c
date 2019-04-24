@@ -27,6 +27,7 @@
 #include "i915_drv.h"
 
 #include "intel_engine.h"
+#include "intel_engine_pm.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
 
@@ -451,7 +452,7 @@ static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
 	i915_gem_batch_pool_init(&engine->batch_pool, engine);
 }
 
-static void intel_engine_init_execlist(struct intel_engine_cs *engine)
+void intel_engine_init_execlists(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
@@ -584,10 +585,11 @@ int intel_engine_setup_common(struct intel_engine_cs *engine)
 	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
 
 	intel_engine_init_breadcrumbs(engine);
-	intel_engine_init_execlist(engine);
+	intel_engine_init_execlists(engine);
 	intel_engine_init_hangcheck(engine);
 	intel_engine_init_batch_pool(engine);
 	intel_engine_init_cmd_parser(engine);
+	intel_engine_init__pm(engine);
 
 	/* Use the whole device by default */
 	engine->sseu =
@@ -756,30 +758,6 @@ err_unpin:
 		intel_context_unpin(engine->preempt_context);
 	intel_context_unpin(engine->kernel_context);
 	return ret;
-}
-
-void intel_gt_resume(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	/*
-	 * After resume, we may need to poke into the pinned kernel
-	 * contexts to paper over any damage caused by the sudden suspend.
-	 * Only the kernel contexts should remain pinned over suspend,
-	 * allowing us to fixup the user contexts on their first pin.
-	 */
-	for_each_engine(engine, i915, id) {
-		struct intel_context *ce;
-
-		ce = engine->kernel_context;
-		if (ce)
-			ce->ops->reset(ce);
-
-		ce = engine->preempt_context;
-		if (ce)
-			ce->ops->reset(ce);
-	}
 }
 
 /**
@@ -1128,117 +1106,6 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 		engine->set_default_submission(engine);
 }
 
-static bool reset_engines(struct drm_i915_private *i915)
-{
-	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
-		return false;
-
-	return intel_gpu_reset(i915, ALL_ENGINES) == 0;
-}
-
-/**
- * intel_engines_sanitize: called after the GPU has lost power
- * @i915: the i915 device
- * @force: ignore a failed reset and sanitize engine state anyway
- *
- * Anytime we reset the GPU, either with an explicit GPU reset or through a
- * PCI power cycle, the GPU loses state and we must reset our state tracking
- * to match. Note that calling intel_engines_sanitize() if the GPU has not
- * been reset results in much confusion!
- */
-void intel_engines_sanitize(struct drm_i915_private *i915, bool force)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	GEM_TRACE("\n");
-
-	if (!reset_engines(i915) && !force)
-		return;
-
-	for_each_engine(engine, i915, id)
-		intel_engine_reset(engine, false);
-}
-
-/**
- * intel_engines_park: called when the GT is transitioning from busy->idle
- * @i915: the i915 device
- *
- * The GT is now idle and about to go to sleep (maybe never to wake again?).
- * Time for us to tidy and put away our toys (release resources back to the
- * system).
- */
-void intel_engines_park(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, i915, id) {
-		/* Flush the residual irq tasklets first. */
-		intel_engine_disarm_breadcrumbs(engine);
-		tasklet_kill(&engine->execlists.tasklet);
-
-		/*
-		 * We are committed now to parking the engines, make sure there
-		 * will be no more interrupts arriving later and the engines
-		 * are truly idle.
-		 */
-		if (wait_for(intel_engine_is_idle(engine), 10)) {
-			struct drm_printer p = drm_debug_printer(__func__);
-
-			dev_err(i915->drm.dev,
-				"%s is not idle before parking\n",
-				engine->name);
-			intel_engine_dump(engine, &p, NULL);
-		}
-
-		/* Must be reset upon idling, or we may miss the busy wakeup. */
-		GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
-
-		if (engine->park)
-			engine->park(engine);
-
-		if (engine->pinned_default_state) {
-			i915_gem_object_unpin_map(engine->default_state);
-			engine->pinned_default_state = NULL;
-		}
-
-		i915_gem_batch_pool_fini(&engine->batch_pool);
-		engine->execlists.no_priolist = false;
-	}
-
-	i915->gt.active_engines = 0;
-}
-
-/**
- * intel_engines_unpark: called when the GT is transitioning from idle->busy
- * @i915: the i915 device
- *
- * The GT was idle and now about to fire up with some new user requests.
- */
-void intel_engines_unpark(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, i915, id) {
-		void *map;
-
-		/* Pin the default state for fast resets from atomic context. */
-		map = NULL;
-		if (engine->default_state)
-			map = i915_gem_object_pin_map(engine->default_state,
-						      I915_MAP_WB);
-		if (!IS_ERR_OR_NULL(map))
-			engine->pinned_default_state = map;
-
-		if (engine->unpark)
-			engine->unpark(engine);
-
-		intel_engine_init_hangcheck(engine);
-	}
-}
-
 /**
  * intel_engine_lost_context: called when the GPU is reset into unknown state
  * @engine: the engine
@@ -1523,6 +1390,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	if (i915_reset_failed(engine->i915))
 		drm_printf(m, "*** WEDGED ***\n");
 
+	drm_printf(m, "\tAwake? %d\n", atomic_read(&engine->wakeref.count));
 	drm_printf(m, "\tHangcheck %x:%x [%d ms]\n",
 		   engine->hangcheck.last_seqno,
 		   engine->hangcheck.next_seqno,

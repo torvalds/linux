@@ -256,6 +256,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	unsigned int hung = 0, stuck = 0, wedged = 0;
+	intel_wakeref_t wakeref;
 
 	if (!i915_modparams.enable_hangcheck)
 		return;
@@ -264,6 +265,10 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		return;
 
 	if (i915_terminally_wedged(dev_priv))
+		return;
+
+	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	if (!wakeref)
 		return;
 
 	/* As enabling the GPU requires fairly extensive mmio access,
@@ -312,6 +317,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 	if (hung)
 		hangcheck_declare_hang(dev_priv, hung, stuck);
+
+	intel_runtime_pm_put(dev_priv, wakeref);
 
 	/* Reset timer in case GPU hangs without another request being added */
 	i915_queue_hangcheck(dev_priv);

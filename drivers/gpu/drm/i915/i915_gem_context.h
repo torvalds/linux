@@ -141,10 +141,6 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 			  struct drm_file *file);
 void i915_gem_context_close(struct drm_file *file);
 
-int i915_switch_context(struct i915_request *rq);
-int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915,
-				      intel_engine_mask_t engine_mask);
-
 void i915_gem_context_release(struct kref *ctx_ref);
 struct i915_gem_context *
 i915_gem_context_create_gvt(struct drm_device *dev);

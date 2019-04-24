@@ -2041,8 +2041,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	}
 
 	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
-	seq_printf(m, "GPU busy? %s [%d requests]\n",
-		   yesno(dev_priv->gt.awake), dev_priv->gt.active_requests);
+	seq_printf(m, "GPU busy? %s\n", yesno(dev_priv->gt.awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
@@ -2061,9 +2060,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
-	if (INTEL_GEN(dev_priv) >= 6 &&
-	    rps->enabled &&
-	    dev_priv->gt.active_requests) {
+	if (INTEL_GEN(dev_priv) >= 6 && rps->enabled && dev_priv->gt.awake) {
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
 
@@ -3093,9 +3090,9 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 	wakeref = intel_runtime_pm_get(dev_priv);
 
-	seq_printf(m, "GT awake? %s\n", yesno(dev_priv->gt.awake));
-	seq_printf(m, "Global active requests: %d\n",
-		   dev_priv->gt.active_requests);
+	seq_printf(m, "GT awake? %s [%d]\n",
+		   yesno(dev_priv->gt.awake),
+		   atomic_read(&dev_priv->gt.wakeref.count));
 	seq_printf(m, "CS timestamp frequency: %u kHz\n",
 		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
 
@@ -3941,8 +3938,7 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_IDLE) {
 		do {
-			if (READ_ONCE(i915->gt.active_requests))
-				flush_delayed_work(&i915->gem.retire_work);
+			flush_delayed_work(&i915->gem.retire_work);
 			drain_delayed_work(&i915->gem.idle_work);
 		} while (READ_ONCE(i915->gt.awake));
 	}

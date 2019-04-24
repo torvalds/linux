@@ -1608,113 +1608,6 @@ __engine_name(struct drm_i915_private *i915, intel_engine_mask_t engines)
 	return "none";
 }
 
-static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
-					  struct i915_gem_context *ctx,
-					  intel_engine_mask_t engines)
-{
-	struct intel_engine_cs *engine;
-	intel_engine_mask_t tmp;
-	int pass;
-
-	GEM_TRACE("Testing %s\n", __engine_name(i915, engines));
-	for (pass = 0; pass < 4; pass++) { /* Once busy; once idle; repeat */
-		bool from_idle = pass & 1;
-		int err;
-
-		if (!from_idle) {
-			for_each_engine_masked(engine, i915, engines, tmp) {
-				struct i915_request *rq;
-
-				rq = i915_request_alloc(engine, ctx);
-				if (IS_ERR(rq))
-					return PTR_ERR(rq);
-
-				i915_request_add(rq);
-			}
-		}
-
-		err = i915_gem_switch_to_kernel_context(i915,
-							i915->gt.active_engines);
-		if (err)
-			return err;
-
-		if (!from_idle) {
-			err = i915_gem_wait_for_idle(i915,
-						     I915_WAIT_LOCKED,
-						     MAX_SCHEDULE_TIMEOUT);
-			if (err)
-				return err;
-		}
-
-		if (i915->gt.active_requests) {
-			pr_err("%d active requests remain after switching to kernel context, pass %d (%s) on %s engine%s\n",
-			       i915->gt.active_requests,
-			       pass, from_idle ? "idle" : "busy",
-			       __engine_name(i915, engines),
-			       is_power_of_2(engines) ? "" : "s");
-			return -EINVAL;
-		}
-
-		/* XXX Bonus points for proving we are the kernel context! */
-
-		mutex_unlock(&i915->drm.struct_mutex);
-		drain_delayed_work(&i915->gem.idle_work);
-		mutex_lock(&i915->drm.struct_mutex);
-	}
-
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		return -EIO;
-
-	return 0;
-}
-
-static int igt_switch_to_kernel_context(void *arg)
-{
-	struct drm_i915_private *i915 = arg;
-	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
-	int err;
-
-	/*
-	 * A core premise of switching to the kernel context is that
-	 * if an engine is already idling in the kernel context, we
-	 * do not emit another request and wake it up. The other being
-	 * that we do indeed end up idling in the kernel context.
-	 */
-
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
-
-	ctx = kernel_context(i915);
-	if (IS_ERR(ctx)) {
-		mutex_unlock(&i915->drm.struct_mutex);
-		return PTR_ERR(ctx);
-	}
-
-	/* First check idling each individual engine */
-	for_each_engine(engine, i915, id) {
-		err = __igt_switch_to_kernel_context(i915, ctx, BIT(id));
-		if (err)
-			goto out_unlock;
-	}
-
-	/* Now en masse */
-	err = __igt_switch_to_kernel_context(i915, ctx, ALL_ENGINES);
-	if (err)
-		goto out_unlock;
-
-out_unlock:
-	GEM_TRACE_DUMP_ON(err);
-
-	intel_runtime_pm_put(i915, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	kernel_context_close(ctx);
-	return err;
-}
-
 static void mock_barrier_task(void *data)
 {
 	unsigned int *counter = data;
@@ -1729,7 +1622,6 @@ static int mock_context_barrier(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
-	intel_wakeref_t wakeref;
 	unsigned int counter;
 	int err;
 
@@ -1772,9 +1664,7 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 
-	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(i915, wakeref)
-		rq = i915_request_alloc(i915->engine[RCS0], ctx);
+	rq = i915_request_alloc(i915->engine[RCS0], ctx);
 	if (IS_ERR(rq)) {
 		pr_err("Request allocation failed!\n");
 		goto out;
@@ -1824,7 +1714,6 @@ unlock:
 int i915_gem_context_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(igt_switch_to_kernel_context),
 		SUBTEST(mock_context_barrier),
 	};
 	struct drm_i915_private *i915;
@@ -1843,7 +1732,6 @@ int i915_gem_context_mock_selftests(void)
 int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(igt_switch_to_kernel_context),
 		SUBTEST(live_nop_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),

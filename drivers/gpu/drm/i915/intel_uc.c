@@ -481,26 +481,22 @@ void intel_uc_reset_prepare(struct drm_i915_private *i915)
 	intel_uc_sanitize(i915);
 }
 
-int intel_uc_suspend(struct drm_i915_private *i915)
+void intel_uc_suspend(struct drm_i915_private *i915)
 {
 	struct intel_guc *guc = &i915->guc;
+	intel_wakeref_t wakeref;
 	int err;
 
-	if (!USES_GUC(i915))
-		return 0;
-
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
+		return;
 
-	err = intel_guc_suspend(guc);
-	if (err) {
-		DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
-		return err;
+	with_intel_runtime_pm(i915, wakeref) {
+		err = intel_guc_suspend(guc);
+		if (err)
+			DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
+
+		guc_disable_communication(guc);
 	}
-
-	guc_disable_communication(guc);
-
-	return 0;
 }
 
 int intel_uc_resume(struct drm_i915_private *i915)

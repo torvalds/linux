@@ -1789,7 +1789,7 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 	return unexpected;
 }
 
-static int gen8_init_common_ring(struct intel_engine_cs *engine)
+static int execlists_resume(struct intel_engine_cs *engine)
 {
 	intel_engine_apply_workarounds(engine);
 	intel_engine_apply_whitelist(engine);
@@ -1822,7 +1822,7 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	 * completed the reset in i915_gem_reset_finish(). If a request
 	 * is completed by one engine, it may then queue a request
 	 * to a second via its execlists->tasklet *just* as we are
-	 * calling engine->init_hw() and also writing the ELSP.
+	 * calling engine->resume() and also writing the ELSP.
 	 * Turning off the execlists->tasklet until the reset is over
 	 * prevents the race.
 	 */
@@ -2391,7 +2391,7 @@ static void
 logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
 	/* Default vfuncs which can be overriden by each engine. */
-	engine->init_hw = gen8_init_common_ring;
+	engine->resume = execlists_resume;
 
 	engine->reset.prepare = execlists_reset_prepare;
 	engine->reset.reset = execlists_reset;

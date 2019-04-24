@@ -39,6 +39,8 @@
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
 
+#include "gt/intel_engine_pm.h"
+#include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_workarounds.h"
@@ -2888,9 +2890,6 @@ wait_for_timelines(struct drm_i915_private *i915,
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 	struct i915_timeline *tl;
 
-	if (!READ_ONCE(i915->gt.active_requests))
-		return timeout;
-
 	mutex_lock(&gt->mutex);
 	list_for_each_entry(tl, &gt->active_list, link) {
 		struct i915_request *rq;
@@ -2930,9 +2929,10 @@ wait_for_timelines(struct drm_i915_private *i915,
 int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			   unsigned int flags, long timeout)
 {
-	GEM_TRACE("flags=%x (%s), timeout=%ld%s\n",
+	GEM_TRACE("flags=%x (%s), timeout=%ld%s, awake?=%s\n",
 		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
-		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "");
+		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "",
+		  yesno(i915->gt.awake));
 
 	/* If the device is asleep, we have no requests outstanding */
 	if (!READ_ONCE(i915->gt.awake))
@@ -4154,7 +4154,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * it may impact the display and we are uncertain about the stability
 	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	intel_engines_sanitize(i915, false);
+	intel_gt_sanitize(i915, false);
 
 	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(i915, wakeref);
@@ -4210,27 +4210,6 @@ static void init_unused_rings(struct drm_i915_private *dev_priv)
 		init_unused_ring(dev_priv, PRB1_BASE);
 		init_unused_ring(dev_priv, PRB2_BASE);
 	}
-}
-
-static int __i915_gem_restart_engines(void *data)
-{
-	struct drm_i915_private *i915 = data;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err;
-
-	for_each_engine(engine, i915, id) {
-		err = engine->init_hw(engine);
-		if (err) {
-			DRM_ERROR("Failed to restart %s (%d)\n",
-				  engine->name, err);
-			return err;
-		}
-	}
-
-	intel_engines_set_scheduler_caps(i915);
-
-	return 0;
 }
 
 int i915_gem_init_hw(struct drm_i915_private *dev_priv)
@@ -4291,12 +4270,13 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	intel_mocs_init_l3cc_table(dev_priv);
 
 	/* Only when the HW is re-initialised, can we replay the requests */
-	ret = __i915_gem_restart_engines(dev_priv);
+	ret = intel_engines_resume(dev_priv);
 	if (ret)
 		goto cleanup_uc;
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
+	intel_engines_set_scheduler_caps(dev_priv);
 	return 0;
 
 cleanup_uc:
@@ -4602,6 +4582,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 err_init_hw:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+	i915_gem_set_wedged(dev_priv);
 	i915_gem_suspend(dev_priv);
 	i915_gem_suspend_late(dev_priv);
 
@@ -4663,6 +4644,8 @@ err_uc_misc:
 
 void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
+	GEM_BUG_ON(dev_priv->gt.awake);
+
 	i915_gem_suspend_late(dev_priv);
 	intel_disable_gt_powersave(dev_priv);
 
@@ -4756,6 +4739,8 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 int i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	int err;
+
+	intel_gt_pm_init(dev_priv);
 
 	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
 	INIT_LIST_HEAD(&dev_priv->gt.closed_vma);

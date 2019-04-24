@@ -17,9 +17,6 @@ void i915_gem_init__pm(struct drm_i915_private *i915);
 bool i915_gem_load_power_context(struct drm_i915_private *i915);
 void i915_gem_resume(struct drm_i915_private *i915);
 
-void i915_gem_unpark(struct drm_i915_private *i915);
-void i915_gem_park(struct drm_i915_private *i915);
-
 void i915_gem_idle_work_handler(struct work_struct *work);
 
 void i915_gem_suspend(struct drm_i915_private *i915);

@@ -425,6 +425,6 @@ static inline void i915_request_mark_complete(struct i915_request *rq)
 	rq->hwsp_seqno = (u32 *)&rq->fence.seqno; /* decouple from HWSP */
 }
 
-void i915_retire_requests(struct drm_i915_private *i915);
+bool i915_retire_requests(struct drm_i915_private *i915);
 
 #endif /* I915_REQUEST_H */

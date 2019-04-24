@@ -47,8 +47,9 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/i915_drm.h>
 
-#include "gt/intel_workarounds.h"
+#include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"
+#include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
 #include "i915_pmu.h"
@@ -2323,7 +2324,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_power_domains_resume(dev_priv);
 
-	intel_engines_sanitize(dev_priv, true);
+	intel_gt_sanitize(dev_priv, true);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 

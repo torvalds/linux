@@ -2006,10 +2006,10 @@ struct drm_i915_private {
 			struct list_head hwsp_free_list;
 		} timelines;
 
-		intel_engine_mask_t active_engines;
 		struct list_head active_rings;
 		struct list_head closed_vma;
-		u32 active_requests;
+
+		struct intel_wakeref wakeref;
 
 		/**
 		 * Is the GPU currently considered idle, or busy executing
@@ -2020,12 +2020,16 @@ struct drm_i915_private {
 		 */
 		intel_wakeref_t awake;
 
+		struct blocking_notifier_head pm_notifications;
+
 		ktime_t last_init_time;
 
 		struct i915_vma *scratch;
 	} gt;
 
 	struct {
+		struct notifier_block pm_notifier;
+
 		/**
 		 * We leave the user IRQ off as much as possible,
 		 * but this means that requests will finish and never

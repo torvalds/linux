@@ -71,7 +71,6 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 {
 	const u32 base = engine->mmio_base;
 	struct drm_i915_gem_object *result;
-	intel_wakeref_t wakeref;
 	struct i915_request *rq;
 	struct i915_vma *vma;
 	u32 srm, *cs;
@@ -103,9 +102,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	if (err)
 		goto err_obj;
 
-	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(engine->i915, wakeref)
-		rq = i915_request_alloc(engine, ctx);
+	rq = i915_request_alloc(engine, ctx);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_pin;

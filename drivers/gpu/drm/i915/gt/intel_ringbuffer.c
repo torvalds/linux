@@ -637,11 +637,14 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	return (ENGINE_READ(engine, RING_HEAD) & HEAD_ADDR) == 0;
 }
 
-static int init_ring_common(struct intel_engine_cs *engine)
+static int xcs_resume(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_ring *ring = engine->buffer;
 	int ret = 0;
+
+	GEM_TRACE("%s: ring:{HEAD:%04x, TAIL:%04x}\n",
+		  engine->name, ring->head, ring->tail);
 
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 
@@ -827,7 +830,7 @@ static int intel_rcs_ctx_init(struct i915_request *rq)
 	return 0;
 }
 
-static int init_render_ring(struct intel_engine_cs *engine)
+static int rcs_resume(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
@@ -869,7 +872,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (IS_GEN_RANGE(dev_priv, 6, 7))
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	return init_ring_common(engine);
+	return xcs_resume(engine);
 }
 
 static void cancel_requests(struct intel_engine_cs *engine)
@@ -2201,7 +2204,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	intel_ring_init_irq(dev_priv, engine);
 
-	engine->init_hw = init_ring_common;
+	engine->resume = xcs_resume;
 	engine->reset.prepare = reset_prepare;
 	engine->reset.reset = reset_ring;
 	engine->reset.finish = reset_finish;
@@ -2263,7 +2266,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	if (IS_HASWELL(dev_priv))
 		engine->emit_bb_start = hsw_emit_bb_start;
 
-	engine->init_hw = init_render_ring;
+	engine->resume = rcs_resume;
 
 	ret = intel_init_ring_buffer(engine);
 	if (ret)
