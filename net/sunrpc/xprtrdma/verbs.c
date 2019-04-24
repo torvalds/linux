@@ -83,7 +83,9 @@ static void rpcrdma_regbuf_dma_unmap(struct rpcrdma_regbuf *rb);
 static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb);
 static void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
 
-/* Wait for outstanding transport work to finish.
+/* Wait for outstanding transport work to finish. ib_drain_qp
+ * handles the drains in the wrong order for us, so open code
+ * them here.
  */
 static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
 {
@@ -792,8 +794,8 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
  */
 
 /* rpcrdma_sendctxs_destroy() assumes caller has already quiesced
- * queue activity, and ib_drain_qp has flushed all remaining Send
- * requests.
+ * queue activity, and rpcrdma_xprt_drain has flushed all remaining
+ * Send requests.
  */
 static void rpcrdma_sendctxs_destroy(struct rpcrdma_buffer *buf)
 {
@@ -1194,7 +1196,7 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
  * rpcrdma_buffer_destroy - Release all hw resources
  * @buf: root control block for resources
  *
- * ORDERING: relies on a prior ib_drain_qp :
+ * ORDERING: relies on a prior rpcrdma_xprt_drain :
  * - No more Send or Receive completions can occur
  * - All MRs, reps, and reqs are returned to their free lists
  */
