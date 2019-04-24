@@ -18,6 +18,7 @@ ACPI Support
    debug
    aml-debugger
    apei/output_format
+   apei/einj
    gpio-properties
    i2c-muxes
    acpi-lid
