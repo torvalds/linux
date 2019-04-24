@@ -875,6 +875,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	return 0;
 
 out_err:
+	trace_xprtrdma_marshal_failed(rqst, ret);
 	switch (ret) {
 	case -EAGAIN:
 		xprt_wait_for_buffer_space(rqst->rq_xprt);
