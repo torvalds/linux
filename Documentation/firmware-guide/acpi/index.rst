@@ -8,6 +8,7 @@ ACPI Support
    :maxdepth: 1
 
    namespace
+   dsd/graph
    enumeration
    osi
    method-customizing
