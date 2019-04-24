@@ -393,6 +393,23 @@ static void stm32_cryp_hw_write_iv(struct stm32_cryp *cryp, u32 *iv)
 	}
 }
 
+static void stm32_cryp_get_iv(struct stm32_cryp *cryp)
+{
+	struct ablkcipher_request *req = cryp->req;
+	u32 *tmp = req->info;
+
+	if (!tmp)
+		return;
+
+	*tmp++ = cpu_to_be32(stm32_cryp_read(cryp, CRYP_IV0LR));
+	*tmp++ = cpu_to_be32(stm32_cryp_read(cryp, CRYP_IV0RR));
+
+	if (is_aes(cryp)) {
+		*tmp++ = cpu_to_be32(stm32_cryp_read(cryp, CRYP_IV1LR));
+		*tmp++ = cpu_to_be32(stm32_cryp_read(cryp, CRYP_IV1RR));
+	}
+}
+
 static void stm32_cryp_hw_write_key(struct stm32_cryp *c)
 {
 	unsigned int i;
@@ -621,6 +638,9 @@ static void stm32_cryp_finish_req(struct stm32_cryp *cryp, int err)
 	if (!err && (is_gcm(cryp) || is_ccm(cryp)))
 		/* Phase 4 : output tag */
 		err = stm32_cryp_read_auth_tag(cryp);
+
+	if (!err && (!(is_gcm(cryp) || is_ccm(cryp))))
+		stm32_cryp_get_iv(cryp);
 
 	if (cryp->sgs_copied) {
 		void *buf_in, *buf_out;
