@@ -250,7 +250,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 		pr_info("rpcrdma: removing device %s for %s:%s\n",
-			ia->ri_device->name,
+			ia->ri_id->device->name,
 			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
 #endif
 		set_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags);
@@ -259,7 +259,6 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		wait_for_completion(&ia->ri_remove_done);
 
 		ia->ri_id = NULL;
-		ia->ri_device = NULL;
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
 	case RDMA_CM_EVENT_ESTABLISHED:
@@ -294,7 +293,7 @@ disconnected:
 
 	dprintk("RPC:       %s: %s:%s on %s/frwr: %s\n", __func__,
 		rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
-		ia->ri_device->name, rdma_event_msg(event->event));
+		ia->ri_id->device->name, rdma_event_msg(event->event));
 	return 0;
 }
 
@@ -373,9 +372,8 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 		rc = PTR_ERR(ia->ri_id);
 		goto out_err;
 	}
-	ia->ri_device = ia->ri_id->device;
 
-	ia->ri_pd = ib_alloc_pd(ia->ri_device, 0);
+	ia->ri_pd = ib_alloc_pd(ia->ri_id->device, 0);
 	if (IS_ERR(ia->ri_pd)) {
 		rc = PTR_ERR(ia->ri_pd);
 		pr_err("rpcrdma: ib_alloc_pd() returned %d\n", rc);
@@ -384,12 +382,12 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 
 	switch (xprt_rdma_memreg_strategy) {
 	case RPCRDMA_FRWR:
-		if (frwr_is_supported(ia))
+		if (frwr_is_supported(ia->ri_id->device))
 			break;
 		/*FALLTHROUGH*/
 	default:
 		pr_err("rpcrdma: Device %s does not support memreg mode %d\n",
-		       ia->ri_device->name, xprt_rdma_memreg_strategy);
+		       ia->ri_id->device->name, xprt_rdma_memreg_strategy);
 		rc = -EINVAL;
 		goto out_err;
 	}
@@ -471,7 +469,6 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 		rdma_destroy_id(ia->ri_id);
 	}
 	ia->ri_id = NULL;
-	ia->ri_device = NULL;
 
 	/* If the pd is still busy, xprtrdma missed freeing a resource */
 	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
@@ -491,7 +488,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	unsigned int max_sge;
 	int rc;
 
-	max_sge = min_t(unsigned int, ia->ri_device->attrs.max_send_sge,
+	max_sge = min_t(unsigned int, ia->ri_id->device->attrs.max_send_sge,
 			RPCRDMA_MAX_SEND_SGES);
 	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
 		pr_warn("rpcrdma: HCA provides only %d send SGEs\n", max_sge);
@@ -526,16 +523,16 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	init_waitqueue_head(&ep->rep_connect_wait);
 	ep->rep_receive_count = 0;
 
-	sendcq = ib_alloc_cq(ia->ri_device, NULL,
+	sendcq = ib_alloc_cq(ia->ri_id->device, NULL,
 			     ep->rep_attr.cap.max_send_wr + 1,
-			     ia->ri_device->num_comp_vectors > 1 ? 1 : 0,
+			     ia->ri_id->device->num_comp_vectors > 1 ? 1 : 0,
 			     IB_POLL_WORKQUEUE);
 	if (IS_ERR(sendcq)) {
 		rc = PTR_ERR(sendcq);
 		goto out1;
 	}
 
-	recvcq = ib_alloc_cq(ia->ri_device, NULL,
+	recvcq = ib_alloc_cq(ia->ri_id->device, NULL,
 			     ep->rep_attr.cap.max_recv_wr + 1,
 			     0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(recvcq)) {
@@ -561,7 +558,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	/* Client offers RDMA Read but does not initiate */
 	ep->rep_remote_cma.initiator_depth = 0;
 	ep->rep_remote_cma.responder_resources =
-		min_t(int, U8_MAX, ia->ri_device->attrs.max_qp_rd_atom);
+		min_t(int, U8_MAX, ia->ri_id->device->attrs.max_qp_rd_atom);
 
 	/* Limit transport retries so client can detect server
 	 * GID changes quickly. RPC layer handles re-establishing
@@ -673,7 +670,7 @@ rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt, struct rpcrdma_ep *ep,
 	 */
 	old = id;
 	rc = -ENETUNREACH;
-	if (ia->ri_device != id->device) {
+	if (ia->ri_id->device != id->device) {
 		pr_err("rpcrdma: can't reconnect on different device!\n");
 		goto out_destroy;
 	}
@@ -1296,7 +1293,7 @@ rpcrdma_mr_unmap_and_put(struct rpcrdma_mr *mr)
 
 	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+		ib_dma_unmap_sg(r_xprt->rx_ia.ri_id->device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 		mr->mr_dir = DMA_NONE;
 	}
@@ -1429,7 +1426,7 @@ bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
 bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 			      struct rpcrdma_regbuf *rb)
 {
-	struct ib_device *device = r_xprt->rx_ia.ri_device;
+	struct ib_device *device = r_xprt->rx_ia.ri_id->device;
 
 	if (rb->rg_direction == DMA_NONE)
 		return false;

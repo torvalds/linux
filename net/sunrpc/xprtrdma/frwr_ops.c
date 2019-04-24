@@ -82,13 +82,13 @@
 
 /**
  * frwr_is_supported - Check if device supports FRWR
- * @ia: interface adapter to check
+ * @device: interface adapter to check
  *
  * Returns true if device supports FRWR, otherwise false
  */
-bool frwr_is_supported(struct rpcrdma_ia *ia)
+bool frwr_is_supported(struct ib_device *device)
 {
-	struct ib_device_attr *attrs = &ia->ri_device->attrs;
+	struct ib_device_attr *attrs = &device->attrs;
 
 	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
 		goto out_not_supported;
@@ -98,7 +98,7 @@ bool frwr_is_supported(struct rpcrdma_ia *ia)
 
 out_not_supported:
 	pr_info("rpcrdma: 'frwr' mode is not supported by device %s\n",
-		ia->ri_device->name);
+		device->name);
 	return false;
 }
 
@@ -131,7 +131,7 @@ frwr_mr_recycle_worker(struct work_struct *work)
 
 	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+		ib_dma_unmap_sg(r_xprt->rx_ia.ri_id->device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 		mr->mr_dir = DMA_NONE;
 	}
@@ -211,7 +211,7 @@ out_list_err:
 int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	      struct rpcrdma_create_data_internal *cdata)
 {
-	struct ib_device_attr *attrs = &ia->ri_device->attrs;
+	struct ib_device_attr *attrs = &ia->ri_id->device->attrs;
 	int max_qp_wr, depth, delta;
 
 	ia->ri_mrtype = IB_MR_TYPE_MEM_REG;
@@ -253,7 +253,7 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		} while (delta > 0);
 	}
 
-	max_qp_wr = ia->ri_device->attrs.max_qp_wr;
+	max_qp_wr = ia->ri_id->device->attrs.max_qp_wr;
 	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
 	max_qp_wr -= 1;
 	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
@@ -436,7 +436,8 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	}
 	mr->mr_dir = rpcrdma_data_dir(writing);
 
-	mr->mr_nents = ib_dma_map_sg(ia->ri_device, mr->mr_sg, i, mr->mr_dir);
+	mr->mr_nents =
+		ib_dma_map_sg(ia->ri_id->device, mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
 

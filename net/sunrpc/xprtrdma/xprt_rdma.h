@@ -66,11 +66,8 @@
  * Interface Adapter -- one per transport instance
  */
 struct rpcrdma_ia {
-	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
-	struct completion	ri_done;
-	struct completion	ri_remove_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_segs;
 	unsigned int		ri_max_frwr_depth;
@@ -80,6 +77,8 @@ struct rpcrdma_ia {
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
 	unsigned long		ri_flags;
+	struct completion	ri_done;
+	struct completion	ri_remove_done;
 };
 
 enum {
@@ -585,7 +584,7 @@ rpcrdma_data_dir(bool writing)
 
 /* Memory registration calls xprtrdma/frwr_ops.c
  */
-bool frwr_is_supported(struct rpcrdma_ia *);
+bool frwr_is_supported(struct ib_device *device);
 int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	      struct rpcrdma_create_data_internal *cdata);
 int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr);
