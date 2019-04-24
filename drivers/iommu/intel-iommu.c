@@ -1391,7 +1391,7 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 
 		/* pdev will be returned if device is not a vf */
 		pf_pdev = pci_physfn(pdev);
-		info->pfsid = PCI_DEVID(pf_pdev->bus->number, pf_pdev->devfn);
+		info->pfsid = pci_dev_id(pf_pdev);
 	}
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
