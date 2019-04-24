@@ -659,20 +659,16 @@ int drm_dev_init(struct drm_device *dev,
 	/* no per-device feature limits by default */
 	dev->driver_features = ~0u;
 
+	drm_legacy_init_members(dev);
 	INIT_LIST_HEAD(&dev->filelist);
 	INIT_LIST_HEAD(&dev->filelist_internal);
 	INIT_LIST_HEAD(&dev->clientlist);
-	INIT_LIST_HEAD(&dev->ctxlist);
-	INIT_LIST_HEAD(&dev->vmalist);
-	INIT_LIST_HEAD(&dev->maplist);
 	INIT_LIST_HEAD(&dev->vblank_event_list);
 
-	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->filelist_mutex);
 	mutex_init(&dev->clientlist_mutex);
-	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
 	dev->anon_inode = drm_fs_inode_new();
@@ -692,7 +688,7 @@ int drm_dev_init(struct drm_device *dev,
 	if (ret)
 		goto err_minors;
 
-	ret = drm_ht_create(&dev->map_hash, 12);
+	ret = drm_legacy_create_map_hash(dev);
 	if (ret)
 		goto err_minors;
 
@@ -717,7 +713,7 @@ err_setunique:
 		drm_gem_destroy(dev);
 err_ctxbitmap:
 	drm_legacy_ctxbitmap_cleanup(dev);
-	drm_ht_remove(&dev->map_hash);
+	drm_legacy_remove_map_hash(dev);
 err_minors:
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
@@ -725,10 +721,10 @@ err_minors:
 err_free:
 	put_device(dev->dev);
 	mutex_destroy(&dev->master_mutex);
-	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
+	drm_legacy_destroy_members(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_init);
@@ -792,7 +788,7 @@ void drm_dev_fini(struct drm_device *dev)
 		drm_gem_destroy(dev);
 
 	drm_legacy_ctxbitmap_cleanup(dev);
-	drm_ht_remove(&dev->map_hash);
+	drm_legacy_remove_map_hash(dev);
 	drm_fs_inode_free(dev->anon_inode);
 
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
@@ -801,10 +797,10 @@ void drm_dev_fini(struct drm_device *dev)
 	put_device(dev->dev);
 
 	mutex_destroy(&dev->master_mutex);
-	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
+	drm_legacy_destroy_members(dev);
 	kfree(dev->unique);
 }
 EXPORT_SYMBOL(drm_dev_fini);
@@ -1038,8 +1034,6 @@ EXPORT_SYMBOL(drm_dev_register);
  */
 void drm_dev_unregister(struct drm_device *dev)
 {
-	struct drm_map_list *r_list, *list_temp;
-
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_lastclose(dev);
 
@@ -1056,8 +1050,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->agp)
 		drm_pci_agp_destroy(dev);
 
-	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_legacy_rmmap(dev, r_list->map);
+	drm_legacy_rmmaps(dev);
 
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
