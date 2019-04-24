@@ -39,6 +39,14 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	return 0;
 }
 
+/**
+ * komeda_plane_atomic_check - build input data flow
+ * @plane: DRM plane
+ * @state: the plane state object
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
 int komeda_plane_atomic_check(struct drm_plane *plane,
 			      struct drm_plane_state *state)
 {

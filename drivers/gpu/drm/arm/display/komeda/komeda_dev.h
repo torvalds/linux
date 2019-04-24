@@ -120,7 +120,7 @@ struct komeda_dev_funcs {
 		      int master_pipe, u32 active_pipes);
 };
 
-/**
+/*
  * DISPLAY_MODE describes how many display been enabled, and which will be
  * passed to CHIP by &komeda_dev_funcs->change_opmode(), then CHIP can do the
  * pipeline resources assignment according to this usage hint.
@@ -145,24 +145,31 @@ enum {
  * control-abilites of device.
  */
 struct komeda_dev {
+	/** @dev: the base device structure */
 	struct device *dev;
+	/** @reg_base: the base address of komeda io space */
 	u32 __iomem   *reg_base;
 
+	/** @chip: the basic chip information */
 	struct komeda_chip_info chip;
 	/** @fmt_tbl: initialized by &komeda_dev_funcs->init_format_table */
 	struct komeda_format_caps_table fmt_tbl;
 	/** @pclk: APB clock for register access */
 	struct clk *pclk;
-	/** @mck: HW main engine clk */
+	/** @mclk: HW main engine clk */
 	struct clk *mclk;
 
 	/** @irq: irq number */
 	int irq;
 
-	struct mutex lock; /* used to protect dpmode */
-	u32 dpmode; /* current display mode */
+	/** @lock: used to protect dpmode */
+	struct mutex lock;
+	/** @dpmode: current display mode */
+	u32 dpmode;
 
+	/** @n_pipelines: the number of pipe in @pipelines */
 	int n_pipelines;
+	/** @pipelines: the komeda pipelines */
 	struct komeda_pipeline *pipelines[KOMEDA_MAX_PIPELINES];
 
 	/** @funcs: chip funcs to access to HW */
@@ -175,6 +182,7 @@ struct komeda_dev {
 	 */
 	void *chip_data;
 
+	/** @debugfs_root: root directory of komeda debugfs */
 	struct dentry *debugfs_root;
 };
 

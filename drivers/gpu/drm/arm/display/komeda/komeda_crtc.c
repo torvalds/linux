@@ -18,9 +18,17 @@
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 
-/* crtc_atomic_check is the final check stage, so beside build a display data
- * pipeline according the crtc_state, but still needs to release/disable the
- * unclaimed pipeline resources.
+/**
+ * komeda_crtc_atomic_check - build display output data flow
+ * @crtc: DRM crtc
+ * @state: the crtc state object
+ *
+ * crtc_atomic_check is the final check stage, so beside build a display data
+ * pipeline according to the crtc_state, but still needs to release or disable
+ * the unclaimed pipeline resources.
+ *
+ * RETURNS:
+ * Zero for success or -errno
  */
 static int
 komeda_crtc_atomic_check(struct drm_crtc *crtc,
