@@ -955,7 +955,7 @@ xprt_is_pinned_rqst(struct rpc_rqst *req)
  * @req: Request to pin
  *
  * Caller must ensure this is atomic with the call to xprt_lookup_rqst()
- * so should be holding the xprt receive lock.
+ * so should be holding xprt->queue_lock.
  */
 void xprt_pin_rqst(struct rpc_rqst *req)
 {
@@ -967,7 +967,7 @@ EXPORT_SYMBOL_GPL(xprt_pin_rqst);
  * xprt_unpin_rqst - Unpin a request on the transport receive list
  * @req: Request to pin
  *
- * Caller should be holding the xprt receive lock.
+ * Caller should be holding xprt->queue_lock.
  */
 void xprt_unpin_rqst(struct rpc_rqst *req)
 {
