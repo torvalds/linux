@@ -2135,8 +2135,13 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 			}
 		}
 
-		if (vf->adq_enabled)
+		if (vf->adq_enabled) {
+			if (idx >= ARRAY_SIZE(vf->ch)) {
+				aq_ret = I40E_ERR_NO_AVAILABLE_VSI;
+				goto error_param;
+			}
 			vsi_id = vf->ch[idx].vsi_id;
+		}
 
 		if (i40e_config_vsi_rx_queue(vf, vsi_id, vsi_queue_id,
 					     &qpi->rxq) ||
@@ -2152,6 +2157,10 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 		 * to its appropriate VSIs based on TC mapping
 		 **/
 		if (vf->adq_enabled) {
+			if (idx >= ARRAY_SIZE(vf->ch)) {
+				aq_ret = I40E_ERR_NO_AVAILABLE_VSI;
+				goto error_param;
+			}
 			if (j == (vf->ch[idx].num_qps - 1)) {
 				idx++;
 				j = 0; /* resetting the queue count */
