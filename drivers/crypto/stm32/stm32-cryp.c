@@ -753,10 +753,19 @@ static int stm32_cryp_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 static int stm32_cryp_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 				 unsigned int keylen)
 {
+	u32 tmp[DES_EXPKEY_WORDS];
+
 	if (keylen != DES_KEY_SIZE)
 		return -EINVAL;
-	else
-		return stm32_cryp_setkey(tfm, key, keylen);
+
+	if ((crypto_ablkcipher_get_flags(tfm) &
+	     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) &&
+	    unlikely(!des_ekey(tmp, key))) {
+		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
+		return -EINVAL;
+	}
+
+	return stm32_cryp_setkey(tfm, key, keylen);
 }
 
 static int stm32_cryp_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
