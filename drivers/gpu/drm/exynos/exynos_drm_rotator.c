@@ -243,9 +243,10 @@ static int rotator_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_ipp *ipp = &rot->ipp;
 
 	rot->drm_dev = drm_dev;
+	ipp->drm_dev = drm_dev;
 	exynos_drm_register_dma(drm_dev, dev);
 
-	exynos_drm_ipp_register(drm_dev, ipp, &ipp_funcs,
+	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
 			   DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE,
 			   rot->formats, rot->num_formats, "rotator");
 
@@ -258,10 +259,9 @@ static void rotator_unbind(struct device *dev, struct device *master,
 			void *data)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
 	struct exynos_drm_ipp *ipp = &rot->ipp;
 
-	exynos_drm_ipp_unregister(drm_dev, ipp);
+	exynos_drm_ipp_unregister(dev, ipp);
 	exynos_drm_unregister_dma(rot->drm_dev, rot->dev);
 }
 

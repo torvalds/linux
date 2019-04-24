@@ -315,7 +315,7 @@ static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
 				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "vblank wait timed out.\n");
 }
 
 static void fimd_enable_video_output(struct fimd_context *ctx, unsigned int win,
@@ -349,8 +349,6 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* Hardware is in unknown state, so ensure it gets enabled properly */
 	pm_runtime_get_sync(ctx->dev);
@@ -400,7 +398,7 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 	u32 clkdiv;
 
 	if (mode->clock == 0) {
-		DRM_INFO("Mode has zero clock value.\n");
+		DRM_DEV_ERROR(ctx->dev, "Mode has zero clock value.\n");
 		return -EINVAL;
 	}
 
@@ -416,15 +414,17 @@ static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
 
 	lcd_rate = clk_get_rate(ctx->lcd_clk);
 	if (2 * lcd_rate < ideal_clk) {
-		DRM_INFO("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
-			 lcd_rate, ideal_clk);
+		DRM_DEV_ERROR(ctx->dev,
+			      "sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
+			      lcd_rate, ideal_clk);
 		return -EINVAL;
 	}
 
 	/* Find the clock divider value that gets us closest to ideal_clk */
 	clkdiv = DIV_ROUND_CLOSEST(lcd_rate, ideal_clk);
 	if (clkdiv >= 0x200) {
-		DRM_INFO("requested pixel clock(%lu) too low\n", ideal_clk);
+		DRM_DEV_ERROR(ctx->dev, "requested pixel clock(%lu) too low\n",
+			      ideal_clk);
 		return -EINVAL;
 	}
 
@@ -481,7 +481,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 					driver_data->lcdblk_offset,
 					0x3 << driver_data->lcdblk_vt_shift,
 					0x1 << driver_data->lcdblk_vt_shift)) {
-			DRM_ERROR("Failed to update sysreg for I80 i/f.\n");
+			DRM_DEV_ERROR(ctx->dev,
+				      "Failed to update sysreg for I80 i/f.\n");
 			return;
 		}
 	} else {
@@ -525,7 +526,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				driver_data->lcdblk_offset,
 				0x1 << driver_data->lcdblk_bypass_shift,
 				0x1 << driver_data->lcdblk_bypass_shift)) {
-		DRM_ERROR("Failed to update sysreg for bypass setting.\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to update sysreg for bypass setting.\n");
 		return;
 	}
 
@@ -537,7 +539,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				driver_data->lcdblk_offset,
 				0x1 << driver_data->lcdblk_mic_bypass_shift,
 				0x1 << driver_data->lcdblk_mic_bypass_shift)) {
-		DRM_ERROR("Failed to update sysreg for bypass mic.\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "Failed to update sysreg for bypass mic.\n");
 		return;
 	}
 
@@ -814,10 +817,11 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
-	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
-			(unsigned long)dma_addr, val, size);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			state->crtc.w, state->crtc.h);
+	DRM_DEV_DEBUG_KMS(ctx->dev,
+			  "start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
+			  (unsigned long)dma_addr, val, size);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "ovl_width = %d, ovl_height = %d\n",
+			  state->crtc.w, state->crtc.h);
 
 	/* buffer size */
 	buf_offsize = pitch - (state->crtc.w * cpp);
@@ -847,8 +851,9 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(val, ctx->regs + VIDOSD_B(win));
 
-	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			state->crtc.x, state->crtc.y, last_x, last_y);
+	DRM_DEV_DEBUG_KMS(ctx->dev,
+			  "osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
+			  state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD size */
 	if (win != 3 && win != 4) {
@@ -858,7 +863,8 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		val = state->crtc.w * state->crtc.h;
 		writel(val, ctx->regs + offset);
 
-		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
+		DRM_DEV_DEBUG_KMS(ctx->dev, "osd size = 0x%x\n",
+				  (unsigned int)val);
 	}
 
 	fimd_win_set_pixfmt(ctx, win, fb, state->src.w);
@@ -1252,13 +1258,17 @@ static int exynos_fimd_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->bus_clk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the bus clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the bus clk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->lcd_clk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the lcd clk [%d]\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Failed to prepare_enable the lcd clk [%d]\n",
+			      ret);
 		return ret;
 	}
 
