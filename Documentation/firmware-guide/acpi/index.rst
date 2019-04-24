@@ -11,3 +11,4 @@ ACPI Support
    enumeration
    osi
    DSD-properties-rules
+   gpio-properties
