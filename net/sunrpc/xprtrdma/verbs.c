@@ -1400,6 +1400,31 @@ rpcrdma_alloc_regbuf(size_t size, enum dma_data_direction direction,
 }
 
 /**
+ * rpcrdma_regbuf_realloc - re-allocate a SEND/RECV buffer
+ * @rb: regbuf to reallocate
+ * @size: size of buffer to be allocated, in bytes
+ * @flags: GFP flags
+ *
+ * Returns true if reallocation was successful. If false is
+ * returned, @rb is left untouched.
+ */
+bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
+{
+	void *buf;
+
+	buf = kmalloc(size, flags);
+	if (!buf)
+		return false;
+
+	rpcrdma_dma_unmap_regbuf(rb);
+	kfree(rb->rg_data);
+
+	rb->rg_data = buf;
+	rb->rg_iov.length = size;
+	return true;
+}
+
+/**
  * __rpcrdma_map_regbuf - DMA-map a regbuf
  * @ia: controlling rpcrdma_ia
  * @rb: regbuf to be mapped
