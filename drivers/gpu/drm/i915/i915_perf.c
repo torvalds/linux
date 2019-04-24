@@ -1679,7 +1679,7 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
 
 	CTX_REG(reg_state,
 		CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-		gen8_make_rpcs(i915, &ce->sseu));
+		intel_sseu_make_rpcs(i915, &ce->sseu));
 }
 
 /*

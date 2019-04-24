@@ -962,8 +962,7 @@ __sseu_finish(struct drm_i915_private *i915,
 	      unsigned int expected,
 	      struct igt_spinner *spin)
 {
-	unsigned int slices =
-		hweight32(intel_device_default_sseu(i915).slice_mask);
+	unsigned int slices = hweight32(engine->sseu.slice_mask);
 	u32 rpcs = 0;
 	int ret = 0;
 
@@ -1047,8 +1046,8 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	       const char *name,
 	       unsigned int flags)
 {
-	struct intel_sseu default_sseu = intel_device_default_sseu(i915);
 	struct intel_engine_cs *engine = i915->engine[RCS0];
+	struct intel_sseu default_sseu = engine->sseu;
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_context *ctx;
 	struct intel_sseu pg_sseu;

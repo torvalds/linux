@@ -3390,20 +3390,6 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 	return (struct intel_device_info *)INTEL_INFO(dev_priv);
 }
 
-static inline struct intel_sseu
-intel_device_default_sseu(struct drm_i915_private *i915)
-{
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
-	struct intel_sseu value = {
-		.slice_mask = sseu->slice_mask,
-		.subslice_mask = sseu->subslice_mask[0],
-		.min_eus_per_subslice = sseu->max_eus_per_subslice,
-		.max_eus_per_subslice = sseu->max_eus_per_subslice,
-	};
-
-	return value;
-}
-
 /* modesetting */
 extern void intel_modeset_init_hw(struct drm_device *dev);
 extern int intel_modeset_init(struct drm_device *dev);

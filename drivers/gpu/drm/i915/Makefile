@@ -95,6 +95,7 @@ i915-y += \
 	  intel_lrc.o \
 	  intel_mocs.o \
 	  intel_ringbuffer.o \
+	  intel_sseu.o \
 	  intel_uncore.o \
 	  intel_wopcm.o
 

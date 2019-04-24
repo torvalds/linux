@@ -14,6 +14,7 @@
 #include <linux/types.h>
 
 #include "i915_active_types.h"
+#include "intel_sseu.h"
 
 struct i915_gem_context;
 struct i915_vma;
@@ -26,16 +27,6 @@ struct intel_context_ops {
 
 	void (*reset)(struct intel_context *ce);
 	void (*destroy)(struct kref *kref);
-};
-
-/*
- * Powergating configuration for a particular (context,engine).
- */
-struct intel_sseu {
-	u8 slice_mask;
-	u8 subslice_mask;
-	u8 min_eus_per_subslice;
-	u8 max_eus_per_subslice;
 };
 
 struct intel_context {

@@ -17,6 +17,7 @@
 #include "i915_priolist_types.h"
 #include "i915_selftest.h"
 #include "i915_timeline_types.h"
+#include "intel_sseu.h"
 #include "intel_workarounds_types.h"
 
 #include "i915_gem_batch_pool.h"
@@ -277,6 +278,8 @@ struct intel_engine_cs {
 	u8 instance;
 	u32 context_size;
 	u32 mmio_base;
+
+	struct intel_sseu sseu;
 
 	struct intel_ring *buffer;
 

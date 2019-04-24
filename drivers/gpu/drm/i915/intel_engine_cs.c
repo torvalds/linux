@@ -588,6 +588,10 @@ int intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_batch_pool(engine);
 	intel_engine_init_cmd_parser(engine);
 
+	/* Use the whole device by default */
+	engine->sseu =
+		intel_sseu_from_device_info(&RUNTIME_INFO(engine->i915)->sseu);
+
 	return 0;
 
 err_hwsp:

@@ -230,14 +230,12 @@ intel_context_init(struct intel_context *ce,
 	ce->gem_context = ctx;
 	ce->engine = engine;
 	ce->ops = engine->cops;
+	ce->sseu = engine->sseu;
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);
 
 	mutex_init(&ce->pin_mutex);
-
-	/* Use the whole device by default */
-	ce->sseu = intel_device_default_sseu(ctx->i915);
 
 	i915_active_request_init(&ce->active_tracker,
 				 NULL, intel_context_retire);

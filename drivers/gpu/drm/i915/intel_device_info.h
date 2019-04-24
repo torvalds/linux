@@ -29,6 +29,7 @@
 
 #include "intel_engine_types.h"
 #include "intel_display.h"
+#include "intel_sseu.h"
 
 struct drm_printer;
 struct drm_i915_private;
@@ -139,33 +140,6 @@ enum intel_ppgtt_type {
 	func(has_psr); \
 	func(overlay_needs_physical); \
 	func(supports_tv);
-
-#define GEN_MAX_SLICES		(6) /* CNL upper bound */
-#define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
-
-struct sseu_dev_info {
-	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SLICES];
-	u16 eu_total;
-	u8 eu_per_subslice;
-	u8 min_eu_in_pool;
-	/* For each slice, which subslice(s) has(have) 7 EUs (bitfield)? */
-	u8 subslice_7eu[3];
-	u8 has_slice_pg:1;
-	u8 has_subslice_pg:1;
-	u8 has_eu_pg:1;
-
-	/* Topology fields */
-	u8 max_slices;
-	u8 max_subslices;
-	u8 max_eus_per_subslice;
-
-	/* We don't have more than 8 eus per subslice at the moment and as we
-	 * store eus enabled using bits, no need to multiply by eus per
-	 * subslice.
-	 */
-	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES];
-};
 
 struct intel_device_info {
 	u16 gen_mask;
