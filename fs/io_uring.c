@@ -418,12 +418,6 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 		/* order cqe stores with ring update */
 		smp_store_release(&ring->r.tail, ctx->cached_cq_tail);
 
-		/*
-		 * Write sider barrier of tail update, app has read side. See
-		 * comment at the top of this file.
-		 */
-		smp_wmb();
-
 		if (wq_has_sleeper(&ctx->cq_wait)) {
 			wake_up_interruptible(&ctx->cq_wait);
 			kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
@@ -2677,7 +2671,10 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 
 	poll_wait(file, &ctx->cq_wait, wait);
-	/* See comment at the top of this file */
+	/*
+	 * synchronizes with barrier from wq_has_sleeper call in
+	 * io_commit_cqring
+	 */
 	smp_rmb();
 	if (READ_ONCE(ctx->sq_ring->r.tail) - ctx->cached_sq_head !=
 	    ctx->sq_ring->ring_entries)
