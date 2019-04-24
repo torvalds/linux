@@ -536,22 +536,21 @@ rpcrdma_unmap_sendctx(struct rpcrdma_sendctx *sc)
 
 /* Prepare an SGE for the RPC-over-RDMA transport header.
  */
-static bool
-rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
-			u32 len)
+static bool rpcrdma_prepare_hdr_sge(struct rpcrdma_xprt *r_xprt,
+				    struct rpcrdma_req *req, u32 len)
 {
 	struct rpcrdma_sendctx *sc = req->rl_sendctx;
 	struct rpcrdma_regbuf *rb = req->rl_rdmabuf;
 	struct ib_sge *sge = sc->sc_sges;
 
-	if (!rpcrdma_dma_map_regbuf(ia, rb))
+	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
 		goto out_regbuf;
 	sge->addr = rdmab_addr(rb);
 	sge->length = len;
 	sge->lkey = rdmab_lkey(rb);
 
-	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr,
-				      sge->length, DMA_TO_DEVICE);
+	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr, sge->length,
+				      DMA_TO_DEVICE);
 	sc->sc_wr.num_sge++;
 	return true;
 
@@ -563,22 +562,21 @@ out_regbuf:
 /* Prepare the Send SGEs. The head and tail iovec, and each entry
  * in the page list, gets its own SGE.
  */
-static bool
-rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
-			 struct xdr_buf *xdr, enum rpcrdma_chunktype rtype)
+static bool rpcrdma_prepare_msg_sges(struct rpcrdma_xprt *r_xprt,
+				     struct rpcrdma_req *req,
+				     struct xdr_buf *xdr,
+				     enum rpcrdma_chunktype rtype)
 {
 	struct rpcrdma_sendctx *sc = req->rl_sendctx;
 	unsigned int sge_no, page_base, len, remaining;
 	struct rpcrdma_regbuf *rb = req->rl_sendbuf;
-	struct ib_device *device = ia->ri_device;
 	struct ib_sge *sge = sc->sc_sges;
-	u32 lkey = ia->ri_pd->local_dma_lkey;
 	struct page *page, **ppages;
 
 	/* The head iovec is straightforward, as it is already
 	 * DMA-mapped. Sync the content that has changed.
 	 */
-	if (!rpcrdma_dma_map_regbuf(ia, rb))
+	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
 		goto out_regbuf;
 	sge_no = 1;
 	sge[sge_no].addr = rdmab_addr(rb);
@@ -626,13 +624,14 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 				goto out_mapping_overflow;
 
 			len = min_t(u32, PAGE_SIZE - page_base, remaining);
-			sge[sge_no].addr = ib_dma_map_page(device, *ppages,
-							   page_base, len,
-							   DMA_TO_DEVICE);
-			if (ib_dma_mapping_error(device, sge[sge_no].addr))
+			sge[sge_no].addr =
+				ib_dma_map_page(rdmab_device(rb), *ppages,
+						page_base, len, DMA_TO_DEVICE);
+			if (ib_dma_mapping_error(rdmab_device(rb),
+						 sge[sge_no].addr))
 				goto out_mapping_err;
 			sge[sge_no].length = len;
-			sge[sge_no].lkey = lkey;
+			sge[sge_no].lkey = rdmab_lkey(rb);
 
 			sc->sc_unmap_count++;
 			ppages++;
@@ -653,13 +652,13 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 
 map_tail:
 		sge_no++;
-		sge[sge_no].addr = ib_dma_map_page(device, page,
-						   page_base, len,
-						   DMA_TO_DEVICE);
-		if (ib_dma_mapping_error(device, sge[sge_no].addr))
+		sge[sge_no].addr =
+			ib_dma_map_page(rdmab_device(rb), page, page_base, len,
+					DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(rdmab_device(rb), sge[sge_no].addr))
 			goto out_mapping_err;
 		sge[sge_no].length = len;
-		sge[sge_no].lkey = lkey;
+		sge[sge_no].lkey = rdmab_lkey(rb);
 		sc->sc_unmap_count++;
 	}
 
@@ -707,11 +706,11 @@ rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 	req->rl_sendctx->sc_req = req;
 	__clear_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags);
 
-	if (!rpcrdma_prepare_hdr_sge(&r_xprt->rx_ia, req, hdrlen))
+	if (!rpcrdma_prepare_hdr_sge(r_xprt, req, hdrlen))
 		return -EIO;
 
 	if (rtype != rpcrdma_areadch)
-		if (!rpcrdma_prepare_msg_sges(&r_xprt->rx_ia, req, xdr, rtype))
+		if (!rpcrdma_prepare_msg_sges(r_xprt, req, xdr, rtype))
 			return -EIO;
 
 	return 0;

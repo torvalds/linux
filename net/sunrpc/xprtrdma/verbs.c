@@ -76,7 +76,11 @@
 static void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf);
-static void rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb);
+static struct rpcrdma_regbuf *
+rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction,
+		     gfp_t flags);
+static void rpcrdma_regbuf_dma_unmap(struct rpcrdma_regbuf *rb);
+static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb);
 static void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
 
 /* Wait for outstanding transport work to finish.
@@ -437,11 +441,11 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 	 * mappings and MRs are gone.
 	 */
 	list_for_each_entry(rep, &buf->rb_recv_bufs, rr_list)
-		rpcrdma_dma_unmap_regbuf(rep->rr_rdmabuf);
+		rpcrdma_regbuf_dma_unmap(rep->rr_rdmabuf);
 	list_for_each_entry(req, &buf->rb_allreqs, rl_all) {
-		rpcrdma_dma_unmap_regbuf(req->rl_rdmabuf);
-		rpcrdma_dma_unmap_regbuf(req->rl_sendbuf);
-		rpcrdma_dma_unmap_regbuf(req->rl_recvbuf);
+		rpcrdma_regbuf_dma_unmap(req->rl_rdmabuf);
+		rpcrdma_regbuf_dma_unmap(req->rl_sendbuf);
+		rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
 	}
 	rpcrdma_mrs_destroy(buf);
 	ib_dealloc_pd(ia->ri_pd);
@@ -1014,17 +1018,17 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt, size_t size,
 	if (req == NULL)
 		goto out1;
 
-	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE, DMA_TO_DEVICE, flags);
+	rb = rpcrdma_regbuf_alloc(RPCRDMA_HDRBUF_SIZE, DMA_TO_DEVICE, flags);
 	if (!rb)
 		goto out2;
 	req->rl_rdmabuf = rb;
 	xdr_buf_init(&req->rl_hdrbuf, rdmab_data(rb), rdmab_length(rb));
 
-	req->rl_sendbuf = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, flags);
+	req->rl_sendbuf = rpcrdma_regbuf_alloc(size, DMA_TO_DEVICE, flags);
 	if (!req->rl_sendbuf)
 		goto out3;
 
-	req->rl_recvbuf = rpcrdma_alloc_regbuf(size, DMA_NONE, flags);
+	req->rl_recvbuf = rpcrdma_regbuf_alloc(size, DMA_NONE, flags);
 	if (!req->rl_recvbuf)
 		goto out4;
 
@@ -1055,7 +1059,7 @@ static bool rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt, bool temp)
 	if (rep == NULL)
 		goto out;
 
-	rep->rr_rdmabuf = rpcrdma_alloc_regbuf(cdata->inline_rsize,
+	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(cdata->inline_rsize,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
 	if (!rep->rr_rdmabuf)
 		goto out_free;
@@ -1138,7 +1142,7 @@ out:
 
 static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
 {
-	rpcrdma_free_regbuf(rep->rr_rdmabuf);
+	rpcrdma_regbuf_free(rep->rr_rdmabuf);
 	kfree(rep);
 }
 
@@ -1154,9 +1158,9 @@ rpcrdma_req_destroy(struct rpcrdma_req *req)
 {
 	list_del(&req->rl_all);
 
-	rpcrdma_free_regbuf(req->rl_recvbuf);
-	rpcrdma_free_regbuf(req->rl_sendbuf);
-	rpcrdma_free_regbuf(req->rl_rdmabuf);
+	rpcrdma_regbuf_free(req->rl_recvbuf);
+	rpcrdma_regbuf_free(req->rl_sendbuf);
+	rpcrdma_regbuf_free(req->rl_rdmabuf);
 	kfree(req);
 }
 
@@ -1366,20 +1370,14 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 	}
 }
 
-/**
- * rpcrdma_alloc_regbuf - allocate and DMA-map memory for SEND/RECV buffers
- * @size: size of buffer to be allocated, in bytes
- * @direction: direction of data movement
- * @flags: GFP flags
- *
- * Returns a pointer to a rpcrdma_regbuf object, or NULL.
+/* Returns a pointer to a rpcrdma_regbuf object, or NULL.
  *
  * xprtrdma uses a regbuf for posting an outgoing RDMA SEND, or for
  * receiving the payload of RDMA RECV operations. During Long Calls
  * or Replies they may be registered externally via frwr_map.
  */
-struct rpcrdma_regbuf *
-rpcrdma_alloc_regbuf(size_t size, enum dma_data_direction direction,
+static struct rpcrdma_regbuf *
+rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction,
 		     gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
@@ -1416,7 +1414,7 @@ bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
 	if (!buf)
 		return false;
 
-	rpcrdma_dma_unmap_regbuf(rb);
+	rpcrdma_regbuf_dma_unmap(rb);
 	kfree(rb->rg_data);
 
 	rb->rg_data = buf;
@@ -1425,34 +1423,33 @@ bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
 }
 
 /**
- * __rpcrdma_map_regbuf - DMA-map a regbuf
- * @ia: controlling rpcrdma_ia
+ * __rpcrdma_regbuf_dma_map - DMA-map a regbuf
+ * @r_xprt: controlling transport instance
  * @rb: regbuf to be mapped
+ *
+ * Returns true if the buffer is now DMA mapped to @r_xprt's device
  */
-bool
-__rpcrdma_dma_map_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
+bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
+			      struct rpcrdma_regbuf *rb)
 {
-	struct ib_device *device = ia->ri_device;
+	struct ib_device *device = r_xprt->rx_ia.ri_device;
 
 	if (rb->rg_direction == DMA_NONE)
 		return false;
 
-	rb->rg_iov.addr = ib_dma_map_single(device,
-					    rdmab_data(rb),
-					    rdmab_length(rb),
-					    rb->rg_direction);
+	rb->rg_iov.addr = ib_dma_map_single(device, rdmab_data(rb),
+					    rdmab_length(rb), rb->rg_direction);
 	if (ib_dma_mapping_error(device, rdmab_addr(rb))) {
 		trace_xprtrdma_dma_maperr(rdmab_addr(rb));
 		return false;
 	}
 
 	rb->rg_device = device;
-	rb->rg_iov.lkey = ia->ri_pd->local_dma_lkey;
+	rb->rg_iov.lkey = r_xprt->rx_ia.ri_pd->local_dma_lkey;
 	return true;
 }
 
-static void
-rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb)
+static void rpcrdma_regbuf_dma_unmap(struct rpcrdma_regbuf *rb)
 {
 	if (!rb)
 		return;
@@ -1460,19 +1457,14 @@ rpcrdma_dma_unmap_regbuf(struct rpcrdma_regbuf *rb)
 	if (!rpcrdma_regbuf_is_mapped(rb))
 		return;
 
-	ib_dma_unmap_single(rb->rg_device, rdmab_addr(rb),
-			    rdmab_length(rb), rb->rg_direction);
+	ib_dma_unmap_single(rb->rg_device, rdmab_addr(rb), rdmab_length(rb),
+			    rb->rg_direction);
 	rb->rg_device = NULL;
 }
 
-/**
- * rpcrdma_free_regbuf - deregister and free registered buffer
- * @rb: regbuf to be deregistered and freed
- */
-void
-rpcrdma_free_regbuf(struct rpcrdma_regbuf *rb)
+static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb)
 {
-	rpcrdma_dma_unmap_regbuf(rb);
+	rpcrdma_regbuf_dma_unmap(rb);
 	if (rb)
 		kfree(rb->rg_data);
 	kfree(rb);
@@ -1547,11 +1539,9 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		}
 
 		rb = rep->rr_rdmabuf;
-		if (!rpcrdma_regbuf_is_mapped(rb)) {
-			if (!__rpcrdma_dma_map_regbuf(&r_xprt->rx_ia, rb)) {
-				rpcrdma_recv_buffer_put(rep);
-				break;
-			}
+		if (!rpcrdma_regbuf_dma_map(r_xprt, rb)) {
+			rpcrdma_recv_buffer_put(rep);
+			break;
 		}
 
 		trace_xprtrdma_post_recv(rep->rr_recv_wr.wr_cqe);
