@@ -82,8 +82,8 @@ static unsigned long meson_vid_pll_div_recalc_rate(struct clk_hw *hw,
 	div = _get_table_val(meson_parm_read(clk->map, &pll_div->val),
 			     meson_parm_read(clk->map, &pll_div->sel));
 	if (!div || !div->divider) {
-		pr_info("%s: Invalid config value for vid_pll_div\n", __func__);
-		return parent_rate;
+		pr_debug("%s: Invalid config value for vid_pll_div\n", __func__);
+		return 0;
 	}
 
 	return DIV_ROUND_UP_ULL(parent_rate * div->multiplier, div->divider);

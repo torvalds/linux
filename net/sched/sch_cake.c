@@ -211,6 +211,9 @@ struct cake_sched_data {
 	u8		ack_filter;
 	u8		atm_mode;
 
+	u32		fwmark_mask;
+	u16		fwmark_shft;
+
 	/* time_next = time_this + ((len * rate_ns) >> rate_shft) */
 	u16		rate_shft;
 	ktime_t		time_next_packet;
@@ -258,8 +261,7 @@ enum {
 	CAKE_FLAG_AUTORATE_INGRESS = BIT(1),
 	CAKE_FLAG_INGRESS	   = BIT(2),
 	CAKE_FLAG_WASH		   = BIT(3),
-	CAKE_FLAG_SPLIT_GSO	   = BIT(4),
-	CAKE_FLAG_FWMARK	   = BIT(5)
+	CAKE_FLAG_SPLIT_GSO	   = BIT(4)
 };
 
 /* COBALT operates the Codel and BLUE algorithms in parallel, in order to
@@ -1515,16 +1517,27 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 
 static u8 cake_handle_diffserv(struct sk_buff *skb, u16 wash)
 {
+	int wlen = skb_network_offset(skb);
 	u8 dscp;
 
-	switch (skb->protocol) {
+	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
+		wlen += sizeof(struct iphdr);
+		if (!pskb_may_pull(skb, wlen) ||
+		    skb_try_make_writable(skb, wlen))
+			return 0;
+
 		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> 2;
 		if (wash && dscp)
 			ipv4_change_dsfield(ip_hdr(skb), INET_ECN_MASK, 0);
 		return dscp;
 
 	case htons(ETH_P_IPV6):
+		wlen += sizeof(struct ipv6hdr);
+		if (!pskb_may_pull(skb, wlen) ||
+		    skb_try_make_writable(skb, wlen))
+			return 0;
+
 		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> 2;
 		if (wash && dscp)
 			ipv6_change_dsfield(ipv6_hdr(skb), INET_ECN_MASK, 0);
@@ -1543,7 +1556,7 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 					     struct sk_buff *skb)
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
-	u32 tin;
+	u32 tin, mark;
 	u8 dscp;
 
 	/* Tin selection: Default to diffserv-based selection, allow overriding
@@ -1551,14 +1564,13 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 	 */
 	dscp = cake_handle_diffserv(skb,
 				    q->rate_flags & CAKE_FLAG_WASH);
+	mark = (skb->mark & q->fwmark_mask) >> q->fwmark_shft;
 
 	if (q->tin_mode == CAKE_DIFFSERV_BESTEFFORT)
 		tin = 0;
 
-	else if (q->rate_flags & CAKE_FLAG_FWMARK && /* use fw mark */
-		 skb->mark &&
-		 skb->mark <= q->tin_cnt)
-		tin = q->tin_order[skb->mark - 1];
+	else if (mark && mark <= q->tin_cnt)
+		tin = q->tin_order[mark - 1];
 
 	else if (TC_H_MAJ(skb->priority) == sch->handle &&
 		 TC_H_MIN(skb->priority) > 0 &&
@@ -2172,6 +2184,7 @@ static const struct nla_policy cake_policy[TCA_CAKE_MAX + 1] = {
 	[TCA_CAKE_MPU]		 = { .type = NLA_U32 },
 	[TCA_CAKE_INGRESS]	 = { .type = NLA_U32 },
 	[TCA_CAKE_ACK_FILTER]	 = { .type = NLA_U32 },
+	[TCA_CAKE_FWMARK]	 = { .type = NLA_U32 },
 };
 
 static void cake_set_rate(struct cake_tin_data *b, u64 rate, u32 mtu,
@@ -2619,10 +2632,8 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	if (tb[TCA_CAKE_FWMARK]) {
-		if (!!nla_get_u32(tb[TCA_CAKE_FWMARK]))
-			q->rate_flags |= CAKE_FLAG_FWMARK;
-		else
-			q->rate_flags &= ~CAKE_FLAG_FWMARK;
+		q->fwmark_mask = nla_get_u32(tb[TCA_CAKE_FWMARK]);
+		q->fwmark_shft = q->fwmark_mask ? __ffs(q->fwmark_mask) : 0;
 	}
 
 	if (q->tins) {
@@ -2784,8 +2795,7 @@ static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)
 			!!(q->rate_flags & CAKE_FLAG_SPLIT_GSO)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_FWMARK,
-			!!(q->rate_flags & CAKE_FLAG_FWMARK)))
+	if (nla_put_u32(skb, TCA_CAKE_FWMARK, q->fwmark_mask))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);

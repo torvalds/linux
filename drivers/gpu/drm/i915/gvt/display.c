@@ -448,7 +448,7 @@ void intel_gvt_emulate_vblank(struct intel_gvt *gvt)
 /**
  * intel_vgpu_emulate_hotplug - trigger hotplug event for vGPU
  * @vgpu: a vGPU
- * @conncted: link state
+ * @connected: link state
  *
  * This function is used to trigger hotplug interrupt for vGPU
  *

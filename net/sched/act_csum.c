@@ -33,6 +33,7 @@
 #include <net/sctp/checksum.h>
 
 #include <net/act_api.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_csum.h>
 #include <net/tc_act/tc_csum.h>
@@ -46,12 +47,13 @@ static struct tc_action_ops act_csum_ops;
 
 static int tcf_csum_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a, int ovr,
-			 int bind, bool rtnl_held,
+			 int bind, bool rtnl_held, struct tcf_proto *tp,
 			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
 	struct tcf_csum_params *params_new;
 	struct nlattr *tb[TCA_CSUM_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_csum *parm;
 	struct tcf_csum *p;
 	int ret = 0, err;
@@ -87,21 +89,27 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 		return err;
 	}
 
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
+
 	p = to_tcf_csum(*a);
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		tcf_idr_release(*a, bind);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto put_chain;
 	}
 	params_new->update_flags = parm->update_flags;
 
 	spin_lock_bh(&p->tcf_lock);
-	p->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(p->params, params_new,
 			   lockdep_is_held(&p->tcf_lock));
 	spin_unlock_bh(&p->tcf_lock);
 
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (params_new)
 		kfree_rcu(params_new, rcu);
 
@@ -109,6 +117,12 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 		tcf_idr_insert(tn, *a);
 
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 /**

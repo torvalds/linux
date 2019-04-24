@@ -4533,6 +4533,7 @@ static void handle_cursor_update(struct drm_plane *plane,
 	amdgpu_crtc->cursor_width = plane->state->crtc_w;
 	amdgpu_crtc->cursor_height = plane->state->crtc_h;
 
+	memset(&attributes, 0, sizeof(attributes));
 	attributes.address.high_part = upper_32_bits(address);
 	attributes.address.low_part  = lower_32_bits(address);
 	attributes.width             = plane->state->crtc_w;
@@ -5429,9 +5430,11 @@ static void get_freesync_config_for_crtc(
 	struct amdgpu_dm_connector *aconnector =
 			to_amdgpu_dm_connector(new_con_state->base.connector);
 	struct drm_display_mode *mode = &new_crtc_state->base.mode;
+	int vrefresh = drm_mode_vrefresh(mode);
 
 	new_crtc_state->vrr_supported = new_con_state->freesync_capable &&
-		aconnector->min_vfreq <= drm_mode_vrefresh(mode);
+					vrefresh >= aconnector->min_vfreq &&
+					vrefresh <= aconnector->max_vfreq;
 
 	if (new_crtc_state->vrr_supported) {
 		new_crtc_state->stream->ignore_msa_timing_param = true;

@@ -3713,7 +3713,6 @@ static void track_data_destroy(struct hist_trigger_data *hist_data,
 	struct trace_event_file *file = hist_data->event_file;
 
 	destroy_hist_field(data->track_data.track_var, 0);
-	destroy_hist_field(data->track_data.var_ref, 0);
 
 	if (data->action == ACTION_SNAPSHOT) {
 		struct track_data *track_data;

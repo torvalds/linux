@@ -37,10 +37,8 @@ static inline long syscall_get_nr(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	memcpy(args, &(&regs->r00)[i], n * sizeof(args[0]));
+	memcpy(args, &(&regs->r00)[0], 6 * sizeof(args[0]));
 }
 #endif

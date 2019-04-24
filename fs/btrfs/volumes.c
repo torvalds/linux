@@ -6407,7 +6407,7 @@ static void btrfs_end_bio(struct bio *bio)
 				if (bio_op(bio) == REQ_OP_WRITE)
 					btrfs_dev_stat_inc_and_print(dev,
 						BTRFS_DEV_STAT_WRITE_ERRS);
-				else
+				else if (!(bio->bi_opf & REQ_RAHEAD))
 					btrfs_dev_stat_inc_and_print(dev,
 						BTRFS_DEV_STAT_READ_ERRS);
 				if (bio->bi_opf & REQ_PREFLUSH)

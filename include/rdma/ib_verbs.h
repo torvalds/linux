@@ -2724,20 +2724,11 @@ void ib_set_device_ops(struct ib_device *device,
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 		      unsigned long pfn, unsigned long size, pgprot_t prot);
-int rdma_user_mmap_page(struct ib_ucontext *ucontext,
-			struct vm_area_struct *vma, struct page *page,
-			unsigned long size);
 #else
 static inline int rdma_user_mmap_io(struct ib_ucontext *ucontext,
 				    struct vm_area_struct *vma,
 				    unsigned long pfn, unsigned long size,
 				    pgprot_t prot)
-{
-	return -EINVAL;
-}
-static inline int rdma_user_mmap_page(struct ib_ucontext *ucontext,
-				struct vm_area_struct *vma, struct page *page,
-				unsigned long size)
 {
 	return -EINVAL;
 }

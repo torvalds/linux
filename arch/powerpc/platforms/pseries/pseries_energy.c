@@ -77,18 +77,27 @@ static u32 cpu_to_drc_index(int cpu)
 
 		ret = drc.drc_index_start + (thread_index * drc.sequential_inc);
 	} else {
-		const __be32 *indexes;
-
-		indexes = of_get_property(dn, "ibm,drc-indexes", NULL);
-		if (indexes == NULL)
-			goto err_of_node_put;
+		u32 nr_drc_indexes, thread_drc_index;
 
 		/*
-		 * The first element indexes[0] is the number of drc_indexes
-		 * returned in the list.  Hence thread_index+1 will get the
-		 * drc_index corresponding to core number thread_index.
+		 * The first element of ibm,drc-indexes array is the
+		 * number of drc_indexes returned in the list.  Hence
+		 * thread_index+1 will get the drc_index corresponding
+		 * to core number thread_index.
 		 */
-		ret = indexes[thread_index + 1];
+		rc = of_property_read_u32_index(dn, "ibm,drc-indexes",
+						0, &nr_drc_indexes);
+		if (rc)
+			goto err_of_node_put;
+
+		WARN_ON_ONCE(thread_index > nr_drc_indexes);
+		rc = of_property_read_u32_index(dn, "ibm,drc-indexes",
+						thread_index + 1,
+						&thread_drc_index);
+		if (rc)
+			goto err_of_node_put;
+
+		ret = thread_drc_index;
 	}
 
 	rc = 0;

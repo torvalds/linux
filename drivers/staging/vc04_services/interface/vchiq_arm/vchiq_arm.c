@@ -3513,6 +3513,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	struct device_node *fw_node;
 	const struct of_device_id *of_id;
 	struct vchiq_drvdata *drvdata;
+	struct device *vchiq_dev;
 	int err;
 
 	of_id = of_match_node(vchiq_of_match, pdev->dev.of_node);
@@ -3547,9 +3548,12 @@ static int vchiq_probe(struct platform_device *pdev)
 		goto failed_platform_init;
 	}
 
-	if (IS_ERR(device_create(vchiq_class, &pdev->dev, vchiq_devid,
-				 NULL, "vchiq")))
+	vchiq_dev = device_create(vchiq_class, &pdev->dev, vchiq_devid, NULL,
+				  "vchiq");
+	if (IS_ERR(vchiq_dev)) {
+		err = PTR_ERR(vchiq_dev);
 		goto failed_device_create;
+	}
 
 	vchiq_debugfs_init();
 
