@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <asm/paravirt.h>
-#include <asm/asm-offsets.h>
 #include <linux/stringify.h>
 
-#ifdef CONFIG_PARAVIRT_XXL
+#include <asm/paravirt.h>
+#include <asm/asm-offsets.h>
+
+#ifdef CONFIG_X86_64
+# ifdef CONFIG_PARAVIRT_XXL
 DEF_NATIVE(irq, irq_disable, "cli");
 DEF_NATIVE(irq, irq_enable, "sti");
 DEF_NATIVE(irq, restore_fl, "pushq %rdi; popfq");
@@ -12,24 +14,49 @@ DEF_NATIVE(mmu, read_cr2, "movq %cr2, %rax");
 DEF_NATIVE(mmu, read_cr3, "movq %cr3, %rax");
 DEF_NATIVE(mmu, write_cr3, "movq %rdi, %cr3");
 DEF_NATIVE(cpu, wbinvd, "wbinvd");
-
 DEF_NATIVE(cpu, usergs_sysret64, "swapgs; sysretq");
 DEF_NATIVE(cpu, swapgs, "swapgs");
 DEF_NATIVE(, mov64, "mov %rdi, %rax");
 
-unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len)
+unsigned int paravirt_patch_ident_64(void *insnbuf, unsigned int len)
 {
-	return paravirt_patch_insns(insnbuf, len,
-				    start__mov64, end__mov64);
+	return paravirt_patch_insns(insnbuf, len, start__mov64, end__mov64);
 }
-#endif
+# endif /* CONFIG_PARAVIRT_XXL */
 
-#if defined(CONFIG_PARAVIRT_SPINLOCKS)
+# ifdef CONFIG_PARAVIRT_SPINLOCKS
 DEF_NATIVE(lock, queued_spin_unlock, "movb $0, (%rdi)");
 DEF_NATIVE(lock, vcpu_is_preempted, "xor %eax, %eax");
-#endif
+# endif
 
-unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
+#else /* CONFIG_X86_64 */
+
+# ifdef CONFIG_PARAVIRT_XXL
+DEF_NATIVE(irq, irq_disable, "cli");
+DEF_NATIVE(irq, irq_enable, "sti");
+DEF_NATIVE(irq, restore_fl, "push %eax; popf");
+DEF_NATIVE(irq, save_fl, "pushf; pop %eax");
+DEF_NATIVE(cpu, iret, "iret");
+DEF_NATIVE(mmu, read_cr2, "mov %cr2, %eax");
+DEF_NATIVE(mmu, write_cr3, "mov %eax, %cr3");
+DEF_NATIVE(mmu, read_cr3, "mov %cr3, %eax");
+
+unsigned int paravirt_patch_ident_64(void *insnbuf, unsigned int len)
+{
+	/* arg in %edx:%eax, return in %edx:%eax */
+	return 0;
+}
+# endif /* CONFIG_PARAVIRT_XXL */
+
+# ifdef CONFIG_PARAVIRT_SPINLOCKS
+DEF_NATIVE(lock, queued_spin_unlock, "movb $0, (%eax)");
+DEF_NATIVE(lock, vcpu_is_preempted, "xor %eax, %eax");
+# endif
+
+#endif /* !CONFIG_X86_64 */
+
+unsigned int native_patch(u8 type, void *ibuf, unsigned long addr,
+			  unsigned int len)
 {
 #define PATCH_SITE(ops, x)					\
 	case PARAVIRT_PATCH(ops.x):				\
@@ -41,14 +68,21 @@ unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
 		PATCH_SITE(irq, save_fl);
 		PATCH_SITE(irq, irq_enable);
 		PATCH_SITE(irq, irq_disable);
-		PATCH_SITE(cpu, usergs_sysret64);
-		PATCH_SITE(cpu, swapgs);
-		PATCH_SITE(cpu, wbinvd);
+
 		PATCH_SITE(mmu, read_cr2);
 		PATCH_SITE(mmu, read_cr3);
 		PATCH_SITE(mmu, write_cr3);
+
+# ifdef CONFIG_X86_64
+		PATCH_SITE(cpu, usergs_sysret64);
+		PATCH_SITE(cpu, swapgs);
+		PATCH_SITE(cpu, wbinvd);
+# else
+		PATCH_SITE(cpu, iret);
+# endif
 #endif
-#if defined(CONFIG_PARAVIRT_SPINLOCKS)
+
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
 	case PARAVIRT_PATCH(lock.queued_spin_unlock):
 		if (pv_is_native_spin_unlock())
 			return paravirt_patch_insns(ibuf, len,
