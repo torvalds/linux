@@ -320,9 +320,9 @@ struct wl1271 {
 	bool watchdog_recovery;
 
 	/* Reg domain last configuration */
-	u32 reg_ch_conf_last[2]  __aligned(8);
+	DECLARE_BITMAP(reg_ch_conf_last, 64);
 	/* Reg domain pending configuration */
-	u32 reg_ch_conf_pending[2];
+	DECLARE_BITMAP(reg_ch_conf_pending, 64);
 
 	/* Pointer that holds DMA-friendly block for the mailbox */
 	void *mbox;
