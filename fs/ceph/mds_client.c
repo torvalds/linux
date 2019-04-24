@@ -550,15 +550,9 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 struct ceph_mds_session *__ceph_lookup_mds_session(struct ceph_mds_client *mdsc,
 						   int mds)
 {
-	struct ceph_mds_session *session;
-
 	if (mds >= mdsc->max_sessions || !mdsc->sessions[mds])
 		return NULL;
-	session = mdsc->sessions[mds];
-	dout("lookup_mds_session %p %d\n", session,
-	     refcount_read(&session->s_ref));
-	get_session(session);
-	return session;
+	return get_session(mdsc->sessions[mds]);
 }
 
 static bool __have_session(struct ceph_mds_client *mdsc, int mds)
