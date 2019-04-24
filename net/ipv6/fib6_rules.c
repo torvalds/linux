@@ -157,7 +157,7 @@ static int fib6_rule_action_alt(struct fib_rule *rule, struct flowi *flp,
 	struct flowi6 *flp6 = &flp->u.ip6;
 	struct net *net = rule->fr_net;
 	struct fib6_table *table;
-	int err = -EAGAIN, *oif;
+	int err, *oif;
 	u32 tb_id;
 
 	switch (rule->action) {
@@ -182,6 +182,8 @@ static int fib6_rule_action_alt(struct fib_rule *rule, struct flowi *flp,
 	if (!err && res->f6i != net->ipv6.fib6_null_entry)
 		err = fib6_rule_saddr(net, rule, flags, flp6,
 				      res->nh->fib_nh_dev);
+	else
+		err = -EAGAIN;
 
 	return err;
 }
