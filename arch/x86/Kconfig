@@ -1606,8 +1606,9 @@ config ARCH_FLATMEM_ENABLE
 	depends on X86_32 && !NUMA
 
 config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
+	def_bool n
 	depends on NUMA && X86_32
+	depends on BROKEN
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
