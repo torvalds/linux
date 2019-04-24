@@ -9,3 +9,4 @@ ACPI Support
 
    namespace
    enumeration
+   osi
