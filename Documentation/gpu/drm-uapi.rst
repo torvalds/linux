@@ -92,9 +92,9 @@ leads to a few additional requirements:
   requirements by doing a quick fork.
 
 - The kernel patch can only be merged after all the above requirements are met,
-  but it **must** be merged **before** the userspace patches land. uAPI always flows
-  from the kernel, doing things the other way round risks divergence of the uAPI
-  definitions and header files.
+  but it **must** be merged to either drm-next or drm-misc-next **before** the
+  userspace patches land. uAPI always flows from the kernel, doing things the
+  other way round risks divergence of the uAPI definitions and header files.
 
 These are fairly steep requirements, but have grown out from years of shared
 pain and experience with uAPI added hastily, and almost always regretted about
