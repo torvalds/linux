@@ -4212,7 +4212,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				known_ev = true;
 				break;
 			}
-			/* fallthrough to default */
+			/* fallthrough - to default */
 		default:
 			known_ev = false;
 		}
@@ -6317,8 +6317,8 @@ static int thermal_get_sensor(int idx, s32 *value)
 			t = TP_EC_THERMAL_TMP8;
 			idx -= 8;
 		}
-		/* fallthrough */
 #endif
+		/* fallthrough */
 	case TPACPI_THERMAL_TPEC_8:
 		if (idx <= 7) {
 			if (!acpi_ec_read(t + idx, &tmp))
