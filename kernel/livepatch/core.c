@@ -1003,10 +1003,9 @@ int klp_enable_patch(struct klp_patch *patch)
 		return -ENODEV;
 
 	if (!klp_have_reliable_stack()) {
-		pr_err("This architecture doesn't have support for the livepatch consistency model.\n");
-		return -EOPNOTSUPP;
+		pr_warn("This architecture doesn't have support for the livepatch consistency model.\n");
+		pr_warn("The livepatch transition may never complete.\n");
 	}
-
 
 	mutex_lock(&klp_mutex);
 
