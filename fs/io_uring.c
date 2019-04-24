@@ -1969,13 +1969,11 @@ static int io_sq_thread(void *data)
 				finish_wait(&ctx->sqo_wait, &wait);
 
 				ctx->sq_ring->flags &= ~IORING_SQ_NEED_WAKEUP;
-				smp_wmb();
 				continue;
 			}
 			finish_wait(&ctx->sqo_wait, &wait);
 
 			ctx->sq_ring->flags &= ~IORING_SQ_NEED_WAKEUP;
-			smp_wmb();
 		}
 
 		i = 0;
