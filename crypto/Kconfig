@@ -264,6 +264,8 @@ config CRYPTO_ECRDSA
 	select CRYPTO_ECC
 	select CRYPTO_AKCIPHER
 	select CRYPTO_STREEBOG
+	select OID_REGISTRY
+	select ASN1
 	help
 	  Elliptic Curve Russian Digital Signature Algorithm (GOST R 34.10-2012,
 	  RFC 7091, ISO/IEC 14888-3:2018) is one of the Russian cryptographic
