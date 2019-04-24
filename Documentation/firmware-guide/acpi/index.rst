@@ -10,5 +10,6 @@ ACPI Support
    namespace
    enumeration
    osi
+   method-customizing
    DSD-properties-rules
    gpio-properties
