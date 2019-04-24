@@ -8,3 +8,4 @@ ACPI Support
    :maxdepth: 1
 
    namespace
+   enumeration
