@@ -293,7 +293,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 
 	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE,
-		V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES,
+		V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES,
 		0, V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE);
 
 	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,

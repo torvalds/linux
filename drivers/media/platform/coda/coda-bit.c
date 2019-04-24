@@ -1043,7 +1043,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE:
 			value = 0;
 			break;
-		case V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB:
+		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB:
 			value  = (ctx->params.slice_max_mb &
 				  CODA_SLICING_SIZE_MASK)
 				 << CODA_SLICING_SIZE_OFFSET;
@@ -1051,7 +1051,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 				 << CODA_SLICING_UNIT_OFFSET;
 			value |=  1 & CODA_SLICING_MODE_MASK;
 			break;
-		case V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES:
+		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES:
 			value  = (ctx->params.slice_max_bits &
 				  CODA_SLICING_SIZE_MASK)
 				 << CODA_SLICING_SIZE_OFFSET;
