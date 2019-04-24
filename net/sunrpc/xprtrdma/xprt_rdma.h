@@ -71,8 +71,6 @@ struct rpcrdma_ia {
 	int			ri_async_rc;
 	unsigned int		ri_max_segs;
 	unsigned int		ri_max_frwr_depth;
-	unsigned int		ri_max_inline_write;
-	unsigned int		ri_max_inline_read;
 	unsigned int		ri_max_send_sges;
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
@@ -92,11 +90,15 @@ enum {
 struct rpcrdma_ep {
 	unsigned int		rep_send_count;
 	unsigned int		rep_send_batch;
+	unsigned int		rep_max_inline_send;
+	unsigned int		rep_max_inline_recv;
 	int			rep_connected;
 	struct ib_qp_init_attr	rep_attr;
 	wait_queue_head_t 	rep_connect_wait;
 	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
+	unsigned int		rep_inline_send;	/* negotiated */
+	unsigned int		rep_inline_recv;	/* negotiated */
 	int			rep_receive_count;
 };
 
@@ -419,8 +421,6 @@ enum {
  */
 struct rpcrdma_create_data_internal {
 	unsigned int	max_requests;	/* max requests (slots) in flight */
-	unsigned int	inline_rsize;	/* max non-rdma read data payload */
-	unsigned int	inline_wsize;	/* max non-rdma write data payload */
 };
 
 /*
@@ -631,6 +631,7 @@ static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
 extern unsigned int xprt_rdma_max_inline_read;
+extern unsigned int xprt_rdma_max_inline_write;
 void xprt_rdma_format_addresses(struct rpc_xprt *xprt, struct sockaddr *sap);
 void xprt_rdma_free_addresses(struct rpc_xprt *xprt);
 void xprt_rdma_close(struct rpc_xprt *xprt);

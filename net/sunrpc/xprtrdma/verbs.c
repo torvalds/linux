@@ -188,7 +188,6 @@ static void
 rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 			       struct rdma_conn_param *param)
 {
-	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
 	const struct rpcrdma_connect_private *pmsg = param->private_data;
 	unsigned int rsize, wsize;
 
@@ -205,12 +204,13 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 		wsize = rpcrdma_decode_buffer_size(pmsg->cp_recv_size);
 	}
 
-	if (rsize < cdata->inline_rsize)
-		cdata->inline_rsize = rsize;
-	if (wsize < cdata->inline_wsize)
-		cdata->inline_wsize = wsize;
-	dprintk("RPC:       %s: max send %u, max recv %u\n",
-		__func__, cdata->inline_wsize, cdata->inline_rsize);
+	if (rsize < r_xprt->rx_ep.rep_inline_recv)
+		r_xprt->rx_ep.rep_inline_recv = rsize;
+	if (wsize < r_xprt->rx_ep.rep_inline_send)
+		r_xprt->rx_ep.rep_inline_send = wsize;
+	dprintk("RPC:       %s: max send %u, max recv %u\n", __func__,
+		r_xprt->rx_ep.rep_inline_send,
+		r_xprt->rx_ep.rep_inline_recv);
 	rpcrdma_set_max_header_sizes(r_xprt);
 }
 
@@ -488,6 +488,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	unsigned int max_sge;
 	int rc;
 
+	ep->rep_inline_send = xprt_rdma_max_inline_write;
+	ep->rep_inline_recv = xprt_rdma_max_inline_read;
+
 	max_sge = min_t(unsigned int, ia->ri_id->device->attrs.max_send_sge,
 			RPCRDMA_MAX_SEND_SGES);
 	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
@@ -550,8 +553,8 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	pmsg->cp_magic = rpcrdma_cmp_magic;
 	pmsg->cp_version = RPCRDMA_CMP_VERSION;
 	pmsg->cp_flags |= RPCRDMA_CMP_F_SND_W_INV_OK;
-	pmsg->cp_send_size = rpcrdma_encode_buffer_size(cdata->inline_wsize);
-	pmsg->cp_recv_size = rpcrdma_encode_buffer_size(cdata->inline_rsize);
+	pmsg->cp_send_size = rpcrdma_encode_buffer_size(ep->rep_inline_send);
+	pmsg->cp_recv_size = rpcrdma_encode_buffer_size(ep->rep_inline_recv);
 	ep->rep_remote_cma.private_data = pmsg;
 	ep->rep_remote_cma.private_data_len = sizeof(*pmsg);
 
@@ -1045,7 +1048,6 @@ out1:
 
 static bool rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt, bool temp)
 {
-	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_rep *rep;
 
@@ -1053,7 +1055,7 @@ static bool rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt, bool temp)
 	if (rep == NULL)
 		goto out;
 
-	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(cdata->inline_rsize,
+	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(r_xprt->rx_ep.rep_inline_recv,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
 	if (!rep->rr_rdmabuf)
 		goto out_free;
