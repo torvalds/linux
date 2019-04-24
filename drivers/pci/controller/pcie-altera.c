@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -705,6 +706,13 @@ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
 	return 0;
 }
 
+static void altera_pcie_irq_teardown(struct altera_pcie *pcie)
+{
+	irq_set_chained_handler_and_data(pcie->irq, NULL, NULL);
+	irq_domain_remove(pcie->irq_domain);
+	irq_dispose_mapping(pcie->irq);
+}
+
 static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
@@ -798,6 +806,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
 
 	pcie = pci_host_bridge_priv(bridge);
 	pcie->pdev = pdev;
+	platform_set_drvdata(pdev, pcie);
 
 	match = of_match_device(altera_pcie_of_match, &pdev->dev);
 	if (!match)
@@ -855,13 +864,28 @@ static int altera_pcie_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int altera_pcie_remove(struct platform_device *pdev)
+{
+	struct altera_pcie *pcie = platform_get_drvdata(pdev);
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
+
+	pci_stop_root_bus(bridge->bus);
+	pci_remove_root_bus(bridge->bus);
+	pci_free_resource_list(&pcie->resources);
+	altera_pcie_irq_teardown(pcie);
+
+	return 0;
+}
+
 static struct platform_driver altera_pcie_driver = {
 	.probe		= altera_pcie_probe,
+	.remove		= altera_pcie_remove,
 	.driver = {
 		.name	= "altera-pcie",
 		.of_match_table = altera_pcie_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 
-builtin_platform_driver(altera_pcie_driver);
+MODULE_DEVICE_TABLE(of, altera_pcie_of_match);
+module_platform_driver(altera_pcie_driver);
+MODULE_LICENSE("GPL v2");
