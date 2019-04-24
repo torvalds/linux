@@ -724,7 +724,8 @@ modifying/analyzing them (for filtering, NAT, etc.). `The netfilter
 In the Linux kernel, packet capture using netfilter is done by attaching hooks.
 Hooks can be specified in different locations in the path followed by a kernel
 network packet, as needed. An organization chart with the route followed by a
-package and the possible areas for a hook can be found here.
+package and the possible areas for a hook can be found `here
+<http://linux-ip.net/nf/nfk-traversal.png>`_.
 
 The header included when using netfilter is :file:`linux/netfilter.h`.
 
