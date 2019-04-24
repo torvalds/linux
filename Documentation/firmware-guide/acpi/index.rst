@@ -16,6 +16,7 @@ ACPI Support
    method-tracing
    DSD-properties-rules
    debug
+   aml-debugger
    gpio-properties
    i2c-muxes
    acpi-lid
