@@ -458,6 +458,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(dc_reset),
 	POWER_SUPPLY_ATTR(voltage_max_limit),
 	POWER_SUPPLY_ATTR(real_capacity),
+	POWER_SUPPLY_ATTR(force_main_icl),
+	POWER_SUPPLY_ATTR(force_main_fcc),
+	POWER_SUPPLY_ATTR(comp_clamp_level),
+	POWER_SUPPLY_ATTR(adapter_cc_mode),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),
