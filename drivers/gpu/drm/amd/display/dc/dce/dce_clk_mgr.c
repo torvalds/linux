@@ -241,6 +241,7 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	return low_req_clk;
 }
 
+/* TODO: remove use the two broken down functions */
 static int dce_set_clock(
 	struct clk_mgr *clk_mgr,
 	int requested_clk_khz)
@@ -334,6 +335,75 @@ int dce112_set_clock(struct clk_mgr *clk_mgr, int requested_clk_khz)
 
 	clk_mgr_dce->dfs_bypass_disp_clk = actual_clock;
 	return actual_clock;
+}
+
+int dce112_set_dispclk(struct clk_mgr *clk_mgr, int requested_clk_khz)
+{
+	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
+	struct bp_set_dce_clock_parameters dce_clk_params;
+	struct dc_bios *bp = clk_mgr->ctx->dc_bios;
+	struct dc *core_dc = clk_mgr->ctx->dc;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	int actual_clock = requested_clk_khz;
+	/* Prepare to program display clock*/
+	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
+
+	/* Make sure requested clock isn't lower than minimum threshold*/
+	if (requested_clk_khz > 0)
+		requested_clk_khz = max(requested_clk_khz,
+				clk_mgr_dce->dentist_vco_freq_khz / 62);
+
+	dce_clk_params.target_clock_frequency = requested_clk_khz;
+	dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
+	dce_clk_params.clock_type = DCECLOCK_TYPE_DISPLAY_CLOCK;
+
+	bp->funcs->set_dce_clock(bp, &dce_clk_params);
+	actual_clock = dce_clk_params.target_clock_frequency;
+
+	/*
+	 * from power down, we need mark the clock state as ClocksStateNominal
+	 * from HWReset, so when resume we will call pplib voltage regulator.
+	 */
+	if (requested_clk_khz == 0)
+		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+
+
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+			if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
+				dmcu->funcs->set_psr_wait_loop(dmcu,
+						actual_clock / 1000 / 7);
+		}
+	}
+
+	clk_mgr_dce->dfs_bypass_disp_clk = actual_clock;
+	return actual_clock;
+
+}
+
+int dce112_set_dprefclk(struct clk_mgr *clk_mgr)
+{
+	struct bp_set_dce_clock_parameters dce_clk_params;
+	struct dc_bios *bp = clk_mgr->ctx->dc_bios;
+
+	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
+
+	/*Program DP ref Clock*/
+	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
+	dce_clk_params.target_clock_frequency = 0;
+	dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
+	dce_clk_params.clock_type = DCECLOCK_TYPE_DPREFCLK;
+	if (!ASICREV_IS_VEGA20_P(clk_mgr->ctx->asic_id.hw_internal_rev))
+		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
+			(dce_clk_params.pll_id ==
+					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);
+	else
+		dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK = false;
+
+	bp->funcs->set_dce_clock(bp, &dce_clk_params);
+
+	/* Returns the dp_refclk that was set */
+	return dce_clk_params.target_clock_frequency;
 }
 
 static void dce_clock_read_integrated_info(struct dce_clk_mgr *clk_mgr_dce)

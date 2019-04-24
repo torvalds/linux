@@ -189,6 +189,8 @@ void dce110_fill_display_configs(
 	struct dm_pp_display_configuration *pp_display_cfg);
 
 int dce112_set_clock(struct clk_mgr *dccg, int requested_clk_khz);
+int dce112_set_dispclk(struct clk_mgr *clk_mgr, int requested_clk_khz);
+int dce112_set_dprefclk(struct clk_mgr *clk_mgr);
 
 struct clk_mgr *dce_clk_mgr_create(
 	struct dc_context *ctx,
