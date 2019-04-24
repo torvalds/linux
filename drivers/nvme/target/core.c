@@ -8,6 +8,7 @@
 #include <linux/random.h>
 #include <linux/rculist.h>
 #include <linux/pci-p2pdma.h>
+#include <linux/scatterlist.h>
 
 #include "nvmet.h"
 
