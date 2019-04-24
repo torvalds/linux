@@ -4,15 +4,28 @@
  * supporting fast/efficient IO.
  *
  * A note on the read/write ordering memory barriers that are matched between
- * the application and kernel side. When the application reads the CQ ring
- * tail, it must use an appropriate smp_rmb() to order with the smp_wmb()
- * the kernel uses after writing the tail. Failure to do so could cause a
- * delay in when the application notices that completion events available.
- * This isn't a fatal condition. Likewise, the application must use an
- * appropriate smp_wmb() both before writing the SQ tail, and after writing
- * the SQ tail. The first one orders the sqe writes with the tail write, and
- * the latter is paired with the smp_rmb() the kernel will issue before
- * reading the SQ tail on submission.
+ * the application and kernel side.
+ *
+ * After the application reads the CQ ring tail, it must use an
+ * appropriate smp_rmb() to pair with the smp_wmb() the kernel uses
+ * before writing the tail (using smp_load_acquire to read the tail will
+ * do). It also needs a smp_mb() before updating CQ head (ordering the
+ * entry load(s) with the head store), pairing with an implicit barrier
+ * through a control-dependency in io_get_cqring (smp_store_release to
+ * store head will do). Failure to do so could lead to reading invalid
+ * CQ entries.
+ *
+ * Likewise, the application must use an appropriate smp_wmb() before
+ * writing the SQ tail (ordering SQ entry stores with the tail store),
+ * which pairs with smp_load_acquire in io_get_sqring (smp_store_release
+ * to store the tail will do). And it needs a barrier ordering the SQ
+ * head load before writing new SQ entries (smp_load_acquire to read
+ * head will do).
+ *
+ * When using the SQ poll thread (IORING_SETUP_SQPOLL), the application
+ * needs to check the SQ flags for IORING_SQ_NEED_WAKEUP *after*
+ * updating the SQ tail; a full memory barrier smp_mb() is needed
+ * between.
  *
  * Also see the examples in the liburing library:
  *
@@ -70,20 +83,108 @@ struct io_uring {
 	u32 tail ____cacheline_aligned_in_smp;
 };
 
+/*
+ * This data is shared with the application through the mmap at offset
+ * IORING_OFF_SQ_RING.
+ *
+ * The offsets to the member fields are published through struct
+ * io_sqring_offsets when calling io_uring_setup.
+ */
 struct io_sq_ring {
+	/*
+	 * Head and tail offsets into the ring; the offsets need to be
+	 * masked to get valid indices.
+	 *
+	 * The kernel controls head and the application controls tail.
+	 */
 	struct io_uring		r;
+	/*
+	 * Bitmask to apply to head and tail offsets (constant, equals
+	 * ring_entries - 1)
+	 */
 	u32			ring_mask;
+	/* Ring size (constant, power of 2) */
 	u32			ring_entries;
+	/*
+	 * Number of invalid entries dropped by the kernel due to
+	 * invalid index stored in array
+	 *
+	 * Written by the kernel, shouldn't be modified by the
+	 * application (i.e. get number of "new events" by comparing to
+	 * cached value).
+	 *
+	 * After a new SQ head value was read by the application this
+	 * counter includes all submissions that were dropped reaching
+	 * the new SQ head (and possibly more).
+	 */
 	u32			dropped;
+	/*
+	 * Runtime flags
+	 *
+	 * Written by the kernel, shouldn't be modified by the
+	 * application.
+	 *
+	 * The application needs a full memory barrier before checking
+	 * for IORING_SQ_NEED_WAKEUP after updating the sq tail.
+	 */
 	u32			flags;
+	/*
+	 * Ring buffer of indices into array of io_uring_sqe, which is
+	 * mmapped by the application using the IORING_OFF_SQES offset.
+	 *
+	 * This indirection could e.g. be used to assign fixed
+	 * io_uring_sqe entries to operations and only submit them to
+	 * the queue when needed.
+	 *
+	 * The kernel modifies neither the indices array nor the entries
+	 * array.
+	 */
 	u32			array[];
 };
 
+/*
+ * This data is shared with the application through the mmap at offset
+ * IORING_OFF_CQ_RING.
+ *
+ * The offsets to the member fields are published through struct
+ * io_cqring_offsets when calling io_uring_setup.
+ */
 struct io_cq_ring {
+	/*
+	 * Head and tail offsets into the ring; the offsets need to be
+	 * masked to get valid indices.
+	 *
+	 * The application controls head and the kernel tail.
+	 */
 	struct io_uring		r;
+	/*
+	 * Bitmask to apply to head and tail offsets (constant, equals
+	 * ring_entries - 1)
+	 */
 	u32			ring_mask;
+	/* Ring size (constant, power of 2) */
 	u32			ring_entries;
+	/*
+	 * Number of completion events lost because the queue was full;
+	 * this should be avoided by the application by making sure
+	 * there are not more requests pending thatn there is space in
+	 * the completion queue.
+	 *
+	 * Written by the kernel, shouldn't be modified by the
+	 * application (i.e. get number of "new events" by comparing to
+	 * cached value).
+	 *
+	 * As completion events come in out of order this counter is not
+	 * ordered with any other data.
+	 */
 	u32			overflow;
+	/*
+	 * Ring buffer of completion events.
+	 *
+	 * The kernel writes completion events fresh every time they are
+	 * produced, so the application is allowed to modify pending
+	 * entries.
+	 */
 	struct io_uring_cqe	cqes[];
 };
 
