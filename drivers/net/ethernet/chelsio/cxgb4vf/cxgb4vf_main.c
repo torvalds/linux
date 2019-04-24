@@ -518,8 +518,8 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 			break;
 		}
 		cpl = (void *)p;
-		/*FALLTHROUGH*/
 	}
+		/* Fall through */
 
 	case CPL_SGE_EGR_UPDATE: {
 		/*
