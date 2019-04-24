@@ -553,7 +553,7 @@ static void atl2_intr_tx(struct atl2_adapter *adapter)
 			netdev->stats.tx_aborted_errors++;
 		if (txs->late_col)
 			netdev->stats.tx_window_errors++;
-		if (txs->underun)
+		if (txs->underrun)
 			netdev->stats.tx_fifo_errors++;
 	} while (1);
 

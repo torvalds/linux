@@ -875,6 +875,7 @@ static const struct net_device_ops vrf_netdev_ops = {
 	.ndo_init		= vrf_dev_init,
 	.ndo_uninit		= vrf_dev_uninit,
 	.ndo_start_xmit		= vrf_xmit,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_get_stats64	= vrf_get_stats64,
 	.ndo_add_slave		= vrf_add_slave,
 	.ndo_del_slave		= vrf_del_slave,
@@ -1274,6 +1275,7 @@ static void vrf_setup(struct net_device *dev)
 	/* default to no qdisc; user can add if desired */
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->priv_flags |= IFF_NO_RX_HANDLER;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	/* VRF devices do not care about MTU, but if the MTU is set
 	 * too low then the ipv4 and ipv6 protocols are disabled
