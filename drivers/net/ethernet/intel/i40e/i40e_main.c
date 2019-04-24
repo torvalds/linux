@@ -8570,7 +8570,7 @@ static void i40e_link_event(struct i40e_pf *pf)
 	/* Notify the base of the switch tree connected to
 	 * the link.  Floating VEBs are not notified.
 	 */
-	if (pf->lan_veb != I40E_NO_VEB && pf->veb[pf->lan_veb])
+	if (pf->lan_veb < I40E_MAX_VEB && pf->veb[pf->lan_veb])
 		i40e_veb_link_event(pf->veb[pf->lan_veb], new_link);
 	else
 		i40e_vsi_link_event(vsi, new_link);
@@ -12519,7 +12519,7 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi)
 	struct i40e_pf *pf = vsi->back;
 
 	/* Uplink is not a bridge so default to VEB */
-	if (vsi->veb_idx == I40E_NO_VEB)
+	if (vsi->veb_idx >= I40E_MAX_VEB)
 		return 1;
 
 	veb = pf->veb[vsi->veb_idx];
@@ -13577,7 +13577,7 @@ static void i40e_setup_pf_switch_element(struct i40e_pf *pf,
 		/* Main VEB? */
 		if (uplink_seid != pf->mac_seid)
 			break;
-		if (pf->lan_veb == I40E_NO_VEB) {
+		if (pf->lan_veb >= I40E_MAX_VEB) {
 			int v;
 
 			/* find existing or else empty VEB */
@@ -13587,13 +13587,15 @@ static void i40e_setup_pf_switch_element(struct i40e_pf *pf,
 					break;
 				}
 			}
-			if (pf->lan_veb == I40E_NO_VEB) {
+			if (pf->lan_veb >= I40E_MAX_VEB) {
 				v = i40e_veb_mem_alloc(pf);
 				if (v < 0)
 					break;
 				pf->lan_veb = v;
 			}
 		}
+		if (pf->lan_veb >= I40E_MAX_VEB)
+			break;
 
 		pf->veb[pf->lan_veb]->seid = seid;
 		pf->veb[pf->lan_veb]->uplink_seid = pf->mac_seid;
@@ -13747,7 +13749,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		/* Set up the PF VSI associated with the PF's main VSI
 		 * that is already in the HW switch
 		 */
-		if (pf->lan_veb != I40E_NO_VEB && pf->veb[pf->lan_veb])
+		if (pf->lan_veb < I40E_MAX_VEB && pf->veb[pf->lan_veb])
 			uplink_seid = pf->veb[pf->lan_veb]->seid;
 		else
 			uplink_seid = pf->mac_seid;
