@@ -1831,8 +1831,6 @@ static bool io_get_sqring(struct io_ring_ctx *ctx, struct sqe_submit *s)
 	 *    though the application is the one updating it.
 	 */
 	head = ctx->cached_sq_head;
-	/* See comment at the top of this file */
-	smp_rmb();
 	/* make sure SQ entry isn't read before tail */
 	if (head == smp_load_acquire(&ring->r.tail))
 		return false;
