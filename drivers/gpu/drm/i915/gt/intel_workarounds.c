@@ -1356,7 +1356,7 @@ static int engine_wa_list_verify(struct intel_engine_cs *engine,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	rq = i915_request_alloc(engine, engine->kernel_context->gem_context);
+	rq = i915_request_create(engine->kernel_context);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_vma;

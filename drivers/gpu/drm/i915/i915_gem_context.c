@@ -942,7 +942,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915,
 		struct intel_ring *ring;
 		struct i915_request *rq;
 
-		rq = i915_request_alloc(engine, i915->kernel_context);
+		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq))
 			return PTR_ERR(rq);
 
@@ -1188,7 +1188,7 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	/* Submitting requests etc needs the hw awake. */
 	wakeref = intel_runtime_pm_get(i915);
 
-	rq = i915_request_alloc(ce->engine, i915->kernel_context);
+	rq = i915_request_create(ce->engine->kernel_context);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 		goto out_put;

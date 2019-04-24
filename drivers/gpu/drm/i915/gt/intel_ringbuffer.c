@@ -1772,7 +1772,6 @@ static int switch_context(struct i915_request *rq)
 	u32 hw_flags = 0;
 	int ret, i;
 
-	lockdep_assert_held(&rq->i915->drm.struct_mutex);
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
 	if (ppgtt) {
@@ -1901,8 +1900,6 @@ static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 {
 	struct i915_request *target;
 	long timeout;
-
-	lockdep_assert_held(&ring->vma->vm->i915->drm.struct_mutex);
 
 	if (intel_ring_update_space(ring) >= bytes)
 		return 0;

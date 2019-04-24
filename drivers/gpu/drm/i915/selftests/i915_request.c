@@ -551,8 +551,7 @@ static int live_nop_request(void *arg)
 			times[1] = ktime_get_raw();
 
 			for (n = 0; n < prime; n++) {
-				request = i915_request_alloc(engine,
-							     i915->kernel_context);
+				request = i915_request_create(engine->kernel_context);
 				if (IS_ERR(request)) {
 					err = PTR_ERR(request);
 					goto out_unlock;
@@ -649,7 +648,7 @@ empty_request(struct intel_engine_cs *engine,
 	struct i915_request *request;
 	int err;
 
-	request = i915_request_alloc(engine, engine->i915->kernel_context);
+	request = i915_request_create(engine->kernel_context);
 	if (IS_ERR(request))
 		return request;
 
@@ -853,7 +852,7 @@ static int live_all_engines(void *arg)
 	}
 
 	for_each_engine(engine, i915, id) {
-		request[id] = i915_request_alloc(engine, i915->kernel_context);
+		request[id] = i915_request_create(engine->kernel_context);
 		if (IS_ERR(request[id])) {
 			err = PTR_ERR(request[id]);
 			pr_err("%s: Request allocation failed with err=%d\n",
@@ -962,7 +961,7 @@ static int live_sequential_engines(void *arg)
 			goto out_unlock;
 		}
 
-		request[id] = i915_request_alloc(engine, i915->kernel_context);
+		request[id] = i915_request_create(engine->kernel_context);
 		if (IS_ERR(request[id])) {
 			err = PTR_ERR(request[id]);
 			pr_err("%s: Request allocation failed for %s with err=%d\n",

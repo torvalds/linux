@@ -1762,7 +1762,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	 * Apply the configuration by doing one context restore of the edited
 	 * context image.
 	 */
-	rq = i915_request_alloc(engine, dev_priv->kernel_context);
+	rq = i915_request_create(engine->kernel_context);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
