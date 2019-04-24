@@ -774,12 +774,6 @@ static int nvmet_tcp_handle_icreq(struct nvmet_tcp_queue *queue)
 		return -EPROTO;
 	}
 
-	if (icreq->maxr2t != 0) {
-		pr_err("queue %d: unsupported maxr2t %d\n", queue->idx,
-			le32_to_cpu(icreq->maxr2t) + 1);
-		return -EPROTO;
-	}
-
 	queue->hdr_digest = !!(icreq->digest & NVME_TCP_HDR_DIGEST_ENABLE);
 	queue->data_digest = !!(icreq->digest & NVME_TCP_DATA_DIGEST_ENABLE);
 	if (queue->hdr_digest || queue->data_digest) {
