@@ -31,9 +31,9 @@ static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 		struct rpcrdma_regbuf *rb;
 		size_t size;
 
-		req = rpcrdma_create_req(r_xprt);
-		if (IS_ERR(req))
-			return PTR_ERR(req);
+		req = rpcrdma_req_create(r_xprt, GFP_KERNEL);
+		if (!req)
+			return -ENOMEM;
 		rqst = &req->rl_slot;
 
 		rqst->rq_xprt = xprt;
