@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.25"
+#define DC_VER "3.2.26"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -66,8 +66,27 @@ struct dc_plane_cap {
 	uint32_t blends_with_above : 1;
 	uint32_t blends_with_below : 1;
 	uint32_t per_pixel_alpha : 1;
-	uint32_t supports_argb8888 : 1;
-	uint32_t supports_nv12 : 1;
+	struct {
+		uint32_t argb8888 : 1;
+		uint32_t nv12 : 1;
+		uint32_t fp16 : 1;
+	} pixel_format_support;
+	// max upscaling factor x1000
+	// upscaling factors are always >= 1
+	// for example, 1080p -> 8K is 4.0, or 4000 raw value
+	struct {
+		uint32_t argb8888;
+		uint32_t nv12;
+		uint32_t fp16;
+	} max_upscale_factor;
+	// max downscale factor x1000
+	// downscale factors are always <= 1
+	// for example, 8K -> 1080p is 0.25, or 250 raw value
+	struct {
+		uint32_t argb8888;
+		uint32_t nv12;
+		uint32_t fp16;
+	} max_downscale_factor;
 };
 
 struct dc_caps {
@@ -183,6 +202,7 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 	bool fbc_support;
 	bool optimize_edp_link_rate;
+	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
 };
 
@@ -225,6 +245,57 @@ struct dc_clocks {
 	int dramclk_khz;
 	bool p_state_change_support;
 };
+
+struct dc_bw_validation_profile {
+	bool enable;
+
+	unsigned long long total_ticks;
+	unsigned long long voltage_level_ticks;
+	unsigned long long watermark_ticks;
+	unsigned long long rq_dlg_ticks;
+
+	unsigned long long total_count;
+	unsigned long long skip_fast_count;
+	unsigned long long skip_pass_count;
+	unsigned long long skip_fail_count;
+};
+
+#define BW_VAL_TRACE_SETUP() \
+		unsigned long long end_tick = 0; \
+		unsigned long long voltage_level_tick = 0; \
+		unsigned long long watermark_tick = 0; \
+		unsigned long long start_tick = dc->debug.bw_val_profile.enable ? \
+				dm_get_timestamp(dc->ctx) : 0
+
+#define BW_VAL_TRACE_COUNT() \
+		if (dc->debug.bw_val_profile.enable) \
+			dc->debug.bw_val_profile.total_count++
+
+#define BW_VAL_TRACE_SKIP(status) \
+		if (dc->debug.bw_val_profile.enable) { \
+			if (!voltage_level_tick) \
+				voltage_level_tick = dm_get_timestamp(dc->ctx); \
+			dc->debug.bw_val_profile.skip_ ## status ## _count++; \
+		}
+
+#define BW_VAL_TRACE_END_VOLTAGE_LEVEL() \
+		if (dc->debug.bw_val_profile.enable) \
+			voltage_level_tick = dm_get_timestamp(dc->ctx)
+
+#define BW_VAL_TRACE_END_WATERMARKS() \
+		if (dc->debug.bw_val_profile.enable) \
+			watermark_tick = dm_get_timestamp(dc->ctx)
+
+#define BW_VAL_TRACE_FINISH() \
+		if (dc->debug.bw_val_profile.enable) { \
+			end_tick = dm_get_timestamp(dc->ctx); \
+			dc->debug.bw_val_profile.total_ticks += end_tick - start_tick; \
+			dc->debug.bw_val_profile.voltage_level_ticks += voltage_level_tick - start_tick; \
+			if (watermark_tick) { \
+				dc->debug.bw_val_profile.watermark_ticks += watermark_tick - voltage_level_tick; \
+				dc->debug.bw_val_profile.rq_dlg_ticks += end_tick - watermark_tick; \
+			} \
+		}
 
 struct dc_debug_options {
 	enum visual_confirm visual_confirm;
@@ -279,6 +350,7 @@ struct dc_debug_options {
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
 	bool disable_tri_buf;
+	struct dc_bw_validation_profile bw_val_profile;
 };
 
 struct dc_debug_data {
@@ -638,9 +710,14 @@ enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *pla
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
 
+/*
+ * fast_validate: we return after determining if we can support the new state,
+ * but before we populate the programming info
+ */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
-		struct dc_state *new_ctx);
+		struct dc_state *new_ctx,
+		bool fast_validate);
 
 
 void dc_resource_state_construct(

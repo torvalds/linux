@@ -50,6 +50,7 @@
 #define MCP_ABM_LEVEL_SET 0x65
 #define MCP_ABM_PIPE_SET 0x66
 #define MCP_BL_SET 0x67
+#define MCP_BL_SET_PWM_FRAC     0x6A  /* Enable or disable Fractional PWM */
 
 #define MCP_DISABLE_ABM_IMMEDIATELY 255
 
@@ -389,6 +390,23 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	/* Unlock group 2 backlight registers */
 	REG_UPDATE(BL_PWM_GRP1_REG_LOCK,
 			BL_PWM_GRP1_REG_LOCK, 0);
+
+	/* Wait until microcontroller is ready to process interrupt */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
+
+	/* Set PWM fractional enable/disable */
+	value = (abm->ctx->dc->config.disable_fractional_pwm == false) ? 1 : 0;
+	REG_WRITE(MASTER_COMM_DATA_REG1, value);
+
+	/* Set command to enable or disable fractional PWM microcontroller */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0,
+			MCP_BL_SET_PWM_FRAC);
+
+	/* Notify microcontroller of new command */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	/* Ensure command has been executed before continuing */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 800);
 
 	return true;
 }

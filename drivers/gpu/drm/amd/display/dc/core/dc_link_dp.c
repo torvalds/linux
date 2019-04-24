@@ -1548,8 +1548,7 @@ bool dp_validate_mode_timing(
 		timing->v_addressable == (uint32_t) 480)
 		return true;
 
-	/* We always use verified link settings */
-	link_setting = dc_link_get_verified_link_cap(link);
+	link_setting = dc_link_get_link_cap(link);
 
 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 	/*if (flags.DYNAMIC_VALIDATION == 1 &&
@@ -2587,6 +2586,9 @@ void detect_edp_sink_caps(struct dc_link *link)
 	uint32_t entry;
 	uint32_t link_rate_in_khz;
 	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
+	union lane_count_set lane_count_set = { {0} };
+	uint8_t link_bw_set;
+	uint8_t link_rate_set;
 
 	retrieve_link_cap(link);
 	link->dpcd_caps.edp_supported_link_rates_count = 0;
@@ -2612,6 +2614,33 @@ void detect_edp_sink_caps(struct dc_link *link)
 		}
 	}
 	link->verified_link_cap = link->reported_link_cap;
+
+	// Read DPCD 00101h to find out the number of lanes currently set
+	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
+			&lane_count_set.raw, sizeof(lane_count_set));
+	link->cur_link_settings.lane_count = lane_count_set.bits.LANE_COUNT_SET;
+
+	// Read DPCD 00100h to find if standard link rates are set
+	core_link_read_dpcd(link, DP_LINK_BW_SET,
+			&link_bw_set, sizeof(link_bw_set));
+
+	if (link_bw_set == 0) {
+		/* If standard link rates are not being used,
+		 * Read DPCD 00115h to find the link rate set used
+		 */
+		core_link_read_dpcd(link, DP_LINK_RATE_SET,
+				&link_rate_set, sizeof(link_rate_set));
+
+		if (link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+			link->cur_link_settings.link_rate =
+				link->dpcd_caps.edp_supported_link_rates[link_rate_set];
+			link->cur_link_settings.link_rate_set = link_rate_set;
+			link->cur_link_settings.use_link_rate_set = true;
+		}
+	} else {
+		link->cur_link_settings.link_rate = link_bw_set;
+		link->cur_link_settings.use_link_rate_set = false;
+	}
 }
 
 void dc_link_dp_enable_hpd(const struct dc_link *link)

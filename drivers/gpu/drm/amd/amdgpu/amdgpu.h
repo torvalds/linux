@@ -436,6 +436,12 @@ struct amdgpu_cs_chunk {
 	void			*kdata;
 };
 
+struct amdgpu_cs_post_dep {
+	struct drm_syncobj *syncobj;
+	struct dma_fence_chain *chain;
+	u64 point;
+};
+
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
@@ -465,8 +471,8 @@ struct amdgpu_cs_parser {
 	/* user fence */
 	struct amdgpu_bo_list_entry	uf_entry;
 
-	unsigned num_post_dep_syncobjs;
-	struct drm_syncobj **post_dep_syncobjs;
+	unsigned			num_post_deps;
+	struct amdgpu_cs_post_dep	*post_deps;
 };
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,

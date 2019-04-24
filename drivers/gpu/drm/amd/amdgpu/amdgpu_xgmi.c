@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_smu.h"
 
 
 static DEFINE_MUTEX(xgmi_mutex);
@@ -216,7 +217,17 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 
 	if (hive->pstate == pstate)
 		return 0;
-	/* Todo : sent the message to SMU for pstate change */
+
+	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
+
+	if (is_support_sw_smu(adev))
+		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
+	if (ret)
+		dev_err(adev->dev,
+			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
+			adev->gmc.xgmi.node_id,
+			adev->gmc.xgmi.hive_id, ret);
+
 	return ret;
 }
 

@@ -2067,12 +2067,14 @@ void dc_resource_state_construct(
  * Checks HW resource availability and bandwidth requirement.
  * @dc: dc struct for this driver
  * @new_ctx: state to be validated
+ * @fast_validate: set to true if only yes/no to support matters
  *
  * Return: DC_OK if the result can be programmed.  Otherwise, an error code.
  */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
-		struct dc_state *new_ctx)
+		struct dc_state *new_ctx,
+		bool fast_validate)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
@@ -2127,7 +2129,7 @@ enum dc_status dc_validate_global_state(
 	result = resource_build_scaling_params_for_context(dc, new_ctx);
 
 	if (result == DC_OK)
-		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx))
+		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
 			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
 	return result;
