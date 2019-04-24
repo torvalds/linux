@@ -514,8 +514,8 @@ static void disable_retire_worker(struct drm_i915_private *i915)
 	}
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	cancel_delayed_work_sync(&i915->gt.retire_work);
-	cancel_delayed_work_sync(&i915->gt.idle_work);
+	cancel_delayed_work_sync(&i915->gem.retire_work);
+	cancel_delayed_work_sync(&i915->gem.idle_work);
 }
 
 static int igt_mmap_offset_exhaustion(void *arg)
@@ -617,9 +617,9 @@ out:
 out_park:
 	mutex_lock(&i915->drm.struct_mutex);
 	if (--i915->gt.active_requests)
-		queue_delayed_work(i915->wq, &i915->gt.retire_work, 0);
+		queue_delayed_work(i915->wq, &i915->gem.retire_work, 0);
 	else
-		queue_delayed_work(i915->wq, &i915->gt.idle_work, 0);
+		queue_delayed_work(i915->wq, &i915->gem.idle_work, 0);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_shrinker_register(i915);
 	return err;

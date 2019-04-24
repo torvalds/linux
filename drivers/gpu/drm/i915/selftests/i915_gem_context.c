@@ -1658,7 +1658,7 @@ static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 		/* XXX Bonus points for proving we are the kernel context! */
 
 		mutex_unlock(&i915->drm.struct_mutex);
-		drain_delayed_work(&i915->gt.idle_work);
+		drain_delayed_work(&i915->gem.idle_work);
 		mutex_lock(&i915->drm.struct_mutex);
 	}
 

@@ -59,8 +59,8 @@ static void mock_device_release(struct drm_device *dev)
 	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	drain_delayed_work(&i915->gt.retire_work);
-	drain_delayed_work(&i915->gt.idle_work);
+	drain_delayed_work(&i915->gem.retire_work);
+	drain_delayed_work(&i915->gem.idle_work);
 	i915_gem_drain_workqueue(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -111,7 +111,7 @@ static void mock_retire_work_handler(struct work_struct *work)
 static void mock_idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *i915 =
-		container_of(work, typeof(*i915), gt.idle_work.work);
+		container_of(work, typeof(*i915), gem.idle_work.work);
 
 	i915->gt.active_engines = 0;
 }
@@ -197,8 +197,8 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mock_init_contexts(i915);
 
-	INIT_DELAYED_WORK(&i915->gt.retire_work, mock_retire_work_handler);
-	INIT_DELAYED_WORK(&i915->gt.idle_work, mock_idle_work_handler);
+	INIT_DELAYED_WORK(&i915->gem.retire_work, mock_retire_work_handler);
+	INIT_DELAYED_WORK(&i915->gem.idle_work, mock_idle_work_handler);
 
 	i915->gt.awake = true;
 
