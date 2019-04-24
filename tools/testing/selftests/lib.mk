@@ -67,7 +67,8 @@ endif
 
 .ONESHELL:
 define RUN_TESTS
-	@. $(selfdir)/kselftest/runner.sh;	\
+	@BASE_DIR="$(selfdir)";			\
+	. $(selfdir)/kselftest/runner.sh;	\
 	if [ "X$(summary)" != "X" ]; then       \
 		per_test_logging=1;		\
 	fi;                                     \
