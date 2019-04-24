@@ -988,7 +988,7 @@ Exercises
   is enabled via ``CONFIG_NETFILTER``. To activate it, run :command:`make menuconfig` in
   the :file:`linux` directory and check the ``Network packet filtering framework
   (Netfilter)`` option in ``Networking support -> Networking options``. If it
-  was not enabled, enable it (as builtin, not external mode - it must be
+  was not enabled, enable it (as builtin, not external module - it must be
   marked with ``*``).
 
 
@@ -1004,9 +1004,9 @@ You will need to register a netfilter hook of type ``NF_INET_LOCAL_OUT`` as expl
 in the `netfilter`_ section.
 
 `The struct sk_buff structure`_ lets you access the packet headers. The IP
-header is obtained in from :c:type:`struct iphdr` structure using the
-:c:func:`ip_hdr` function, and the TCP header is obtained form a :c:type:`struct
-tcphdr` using the :c:func:`tcp_hdr` function.
+header is obtained in the form of a :c:type:`struct iphdr` structure using
+the :c:func:`ip_hdr` function, and the TCP header is obtained in the form of a
+:c:type:`struct tcphdr` using the :c:func:`tcp_hdr` function.
 
 The `diagram`_ explains how to make a TCP connection. The connection initiation
 packet has the ``SYN`` flag set in the TCP header and the ``ACK`` flag cleared.
