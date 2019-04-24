@@ -29,9 +29,6 @@ DEF_NATIVE(lock, queued_spin_unlock, "movb $0, (%rdi)");
 DEF_NATIVE(lock, vcpu_is_preempted, "xor %eax, %eax");
 #endif
 
-extern bool pv_is_native_spin_unlock(void);
-extern bool pv_is_native_vcpu_is_preempted(void);
-
 unsigned native_patch(u8 type, void *ibuf, unsigned long addr, unsigned len)
 {
 #define PATCH_SITE(ops, x)					\
