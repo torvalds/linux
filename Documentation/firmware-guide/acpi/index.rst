@@ -17,6 +17,7 @@ ACPI Support
    DSD-properties-rules
    debug
    aml-debugger
+   apei/output_format
    gpio-properties
    i2c-muxes
    acpi-lid
