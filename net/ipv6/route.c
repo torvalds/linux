@@ -296,7 +296,7 @@ static const struct fib6_info fib6_null_entry_template = {
 	.fib6_flags	= (RTF_REJECT | RTF_NONEXTHOP),
 	.fib6_protocol  = RTPROT_KERNEL,
 	.fib6_metric	= ~(u32)0,
-	.fib6_ref	= ATOMIC_INIT(1),
+	.fib6_ref	= REFCOUNT_INIT(1),
 	.fib6_type	= RTN_UNREACHABLE,
 	.fib6_metrics	= (struct dst_metrics *)&dst_default_metrics,
 };
