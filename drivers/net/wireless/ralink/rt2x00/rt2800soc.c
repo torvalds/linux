@@ -51,9 +51,16 @@ static bool rt2800soc_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800soc_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
+	u32 reg;
+
 	rt2800_disable_radio(rt2x00dev);
 	rt2x00mmio_register_write(rt2x00dev, PWR_PIN_CFG, 0);
-	rt2x00mmio_register_write(rt2x00dev, TX_PIN_CFG, 0);
+
+	reg = 0;
+	if (rt2x00_rt(rt2x00dev, RT3883))
+		rt2x00_set_field32(&reg, TX_PIN_CFG_RFTR_EN, 1);
+
+	rt2x00mmio_register_write(rt2x00dev, TX_PIN_CFG, reg);
 }
 
 static int rt2800soc_set_device_state(struct rt2x00_dev *rt2x00dev,
